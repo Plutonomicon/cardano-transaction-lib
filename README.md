@@ -5,7 +5,7 @@
 1. build a transaction in the browser that works with at least 1 light wallet (Nami).
 2. once we can construct a simple user-to-user transaction, we will try to use the library to submit the Tx with nami. 
 3. Once we have a simple working transaction, we will seek to build a Plutus Contract transaction With datum from scratch. 
-4. Once we can construct Plutus Contract transactions, we will seek to build a library/dsl/interface such that transactions can be built using constraints and lookups - as close as possible to a cut-and-paste solution from `Contract` Monad code in haskell (but with no guaruntee that code changes are not necessary)
+4. Once we can construct Plutus Contract transactions, we will seek to build a library/dsl/interface such that transactions can be built using constraints and lookups - as close as possible to a cut-and-paste solution from `Contract` Monad code in haskell (but with no guarantee that code changes are not necessary)
 
 ## resources/tools:
   - Cardano-serialization-lib (Sundae fork:https://github.com/SundaeSwap-finance/cardano-serialization-lib)
