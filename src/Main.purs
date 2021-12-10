@@ -3,45 +3,89 @@ module Main where
 import Prelude
 import Data.BigInt as BigInt
 import Data.Maybe (Maybe(..))
+import Data.Tuple.Nested ((/\), type (/\))
+import Data.Map (Map(..))
 
-newtype PreparedTx = PreparedTx
-  { type :: String, -- "Tx AlonzoEra",
-    description :: String, -- "",
-    cborHex :: String -- bytesToHex(newTx.to_bytes())
-  } 
--- newtype Transaction {
-    -- body: TransactionBody,
-    -- witness_set: TransactionWitnessSet,
-    -- is_valid: bool,
-    -- auxiliary_data: Option<AuxiliaryData>,
--- }
--- question: CBORHex also needs auxiliary data fields which do not seem to exist in this type yet.
+newtype Transaction = Transaction {
+  body :: TxBody,
+  witness_set :: TransactionWitnessSet,
+  is_valid :: Boolean,
+  auxiliary_data :: Maybe AuxiliaryData
+}
+
 newtype TxBody = TxBody
   { inputs :: Array TransactionInput,
     outputs :: Array TransactionOutput,
     fee :: Coin,
-    ttl:: Maybe Slot,
-    certs:: Maybe Unit, -- Certificates,
-    withdrawals:: Maybe Unit, -- Withdrawals,
-    update:: Maybe Unit, -- Update,
-    auxiliary_data_hash:: Maybe String, -- AuxiliaryDataHash, - script hashes
-    validity_start_interval:: Maybe Slot,
-    mint:: Maybe Mint,
-    script_data_hash:: Maybe String, -- ScriptDataHash,
-    collateral:: Maybe TransactionInputs,
-    required_signers:: Maybe RequiredSigners,
-    network_id:: Maybe NetworkId
+    ttl :: Maybe Slot,
+    certs :: Maybe Unit, -- Certificates,
+    withdrawals :: Maybe Unit, -- Withdrawals,
+    update :: Maybe Unit, -- Update,
+    auxiliary_data_hash :: Maybe String, -- AuxiliaryDataHash, - script hashes
+    validity_start_interval :: Maybe Slot,
+    mint :: Maybe Value, -- Mint
+    script_data_hash :: Maybe String, -- ScriptDataHash,
+    collateral :: Maybe (Array TransactionInput),
+    required_signers :: Maybe (Array RequiredSigner),
+    network_id :: Maybe NetworkId
 }
 
+newtype TransactionWitnessSet = TransactionWitnessSet
+  { vkeys :: Maybe (Array Vkeywitness),
+    native_scripts :: Maybe Unit, -- NativeScripts,
+    bootstraps :: Maybe Unit, -- BootstrapWitnesses,
+    plutus_scripts :: Maybe (Array PlutusScript),
+    plutus_data :: Maybe (Array PlutusData),
+    redeemers :: Maybe (Array Redeemer)
+  }
+
+newtype NetworkId = NetworkId Int
+
+newtype RequiredSigner = RequiredSigner String
+
+newtype CurrencySymbol = CurrencySymbol String
+
+newtype TokenName = TokenName String
+
+newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
+
+newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
+
+newtype Vkey = Vkey String -- (bech32)
+
+newtype Ed25519Signature = Ed25519Signature String -- (bech32)
+
+newtype PlutusScript = PlutusScript String
+
+newtype PlutusData = PlutusData String 
+-- TODO - we need a capability to encode/decode Datum from/to serialized format
+-- see `makeIsDataIndexed` 
+
+newtype Redeemer = Redeemer
+  { tag :: RedeemerTag, -- ScriptPurpose: 'spending' 'minting' etc
+    index :: BigInt.BigInt,
+    data :: PlutusData,
+    ex_units :: (MemExUnits /\ CpuExUnits)
+  }
+
+newtype MemExUnits = MemExUnits BigInt.BigInt
+
+newtype CpuExUnits = CpuExUnits BigInt.BigInt
+
+data RedeemerTag = Spend | Mint | Cert | Reward
+
+type AuxiliaryData = Unit -- this is big and weird in serialization-lib
+
+
 newtype TransactionInput = TransactionInput
-  { transaction_id:: String, -- TransactionHash
-    index:: BigInt.BigInt -- u32 TransactionIndex
+  { transaction_id :: String, -- TransactionHash
+    index :: BigInt.BigInt -- u32 TransactionIndex
   }
 
 newtype TransactionOutput = TransactionOutput-- array of,
-  { address:: Address,
-    amount:: Value,
-    data_hash:: Maybe String -- DataHash>,
+  { address :: Address,
+    amount :: Value,
+    data_hash :: Maybe String -- DataHash>,
   }
 
 newtype Coin = Coin BigInt.BigInt
