@@ -12,6 +12,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@cardano-ogmios/client": "^4.2.1"
+    "@cardano-ogmios/client": "^4.2.1",
+    "bufferutil": "^4.0.5",
+    "utf-8-validate": "^5.0.7",
+    "ws": "^8.4.0"
   }
 }
