@@ -1,4 +1,4 @@
-module Main where
+module Types where
 
 import Prelude
 import Data.BigInt as BigInt

@@ -31,9 +31,10 @@ So if we think of pab as a library instead of as a standalone process there are 
 
 1. How do we get the transaction in the right format - this is handled by cardano-serialization-lib,  a rust library available as wasm
 2. How do we query the chain - Ogmios or BlockFrost api integration,   if these services don't have a permissive CORS setting,  the user/developer needs to provide the url for a proxy server.
+3. Querying Datum may require chain-index or blockfrost, as ogmios does not support this feature.
 note: this may have limitations for private testnets where Ogmios or blockfrost services do not yet exist
-3. How do we submit the transaction - through the light wallet integration in the browser based on cip-30
-4. The lingering question is around storage solutions if needed - this can be in memory,  in various browser storage solutions,  or a decentralized db like flurry
+4. How do we submit the transaction - through the light wallet integration in the browser based on cip-30
+5. The lingering question is around storage solutions if needed - this can be in memory,  in various browser storage solutions,  or a decentralized db like flurry
 
 The main goal of the library is to provide a reasonable interface to build and balance a transaction manually
 
