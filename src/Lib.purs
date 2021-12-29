@@ -1,7 +1,7 @@
 module Lib where
 
 import Prelude
-import Types as Types
+import Types.Transaction as Types
 import Data.Maybe (Maybe(..))
 import Data.BigInt as BigInt
 

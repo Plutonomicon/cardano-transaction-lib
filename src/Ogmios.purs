@@ -3,9 +3,8 @@ module Ogmios where
 import Prelude
 import Effect (Effect)
 import Effect.Console (log)
-import Effect.Unsafe (unsafePerformEffect)
+import Types.JsonWsp (Address, UtxoQueryBody, mkJsonWspQuery)
 
--- foreign import getContext :: ConnectionConfig -> Effect (Promise InteractionContext)
 
 foreign import _mkWebSocket :: Url -> Effect WebSocket 
 
@@ -24,29 +23,7 @@ foreign import _stringify :: forall a. a -> Effect String
 
 data WebSocket
 
--- data ConnectionConfig = ConnectionConfig {
-  -- host :: String,
-  -- port :: Int,
-  -- tls :: Boolean,
-  -- maxPayload :: Int
--- }
-
--- data InteractionContext 
-
--- data Promise a = Promise a 
-
--- defaultContext :: Effect (Promise InteractionContext)
--- defaultContext = getContext defaultConnConfig 
-
 type Url = String
-
--- defaultConnConfig :: ConnectionConfig
--- defaultConnConfig = ConnectionConfig  {
-  -- host: "locahost",
-  -- port: 1337,
-  -- tls: false,
-  -- maxPayload: 10000
--- }
 
 setupConnectionAndQuery :: Address -> Effect WebSocket
 setupConnectionAndQuery addr = do
@@ -55,34 +32,8 @@ setupConnectionAndQuery addr = do
   _onWsConnect ws (connectionSuccess ws addr)
   pure ws
 
-
-type Address = String
-
-type JsonWspRequest a =
-  { type :: String
-  , version :: String
-  , servicename :: String
-  , methodname :: String
-  , args :: a
-  , mirror :: Mirror
-  }
-
-type Mirror = { step :: String }
-
-mkJsonWspQuery :: forall a. a -> JsonWspRequest a 
-mkJsonWspQuery a = 
-  { type : "jsonwsp/request",
-    version: "1.0",
-    servicename: "ogmios",
-    methodname: "Query",
-    args: a,
-    mirror: { step: "INIT" }
-  }
-
-type UtxoQueryParams = { utxo :: Array Address }
-type QueryArgs a = { query :: a }
-type UtxoQueryBody = JsonWspRequest (QueryArgs UtxoQueryParams)
-
+-- this is a collection of functions for 'prototyping'  we can carve library functions off of these as we work toward our mission of building and submitting transactions
+-- eventually, our API will be something fairly straightforward like `Websocket -> Config -> Aff Unit` where config will define which wallet we use, etc.
 connectionSuccess :: WebSocket -> Address -> Effect Unit
 connectionSuccess ws addr = do
   log "websocket connected successfully"

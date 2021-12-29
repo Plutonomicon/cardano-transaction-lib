@@ -1,4 +1,4 @@
-module Types where
+module Types.Transaction where
 
 import Prelude
 import Data.BigInt as BigInt
