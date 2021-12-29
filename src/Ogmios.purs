@@ -58,21 +58,35 @@ setupConnectionAndQuery addr = do
 
 type Address = String
 
+type JsonWspRequest a =
+  { type :: String
+  , version :: String
+  , servicename :: String
+  , methodname :: String
+  , args :: a
+  , mirror :: Mirror
+  }
+
+type Mirror = { step :: String }
+
+mkJsonWspQuery :: forall a. a -> JsonWspRequest a 
+mkJsonWspQuery a = 
+  { type : "jsonwsp/request",
+    version: "1.0",
+    servicename: "ogmios",
+    methodname: "Query",
+    args: a,
+    mirror: { step: "INIT" }
+  }
+
+type UtxoQueryParams = { utxo :: Array Address }
+type QueryArgs a = { query :: a }
+type UtxoQueryBody = JsonWspRequest (QueryArgs UtxoQueryParams)
+
 connectionSuccess :: WebSocket -> Address -> Effect Unit
 connectionSuccess ws addr = do
   log "websocket connected successfully"
-  let body =  { type : "jsonwsp/request",
-                version: "1.0",
-                servicename: "ogmios",
-                methodname: "Query",
-                args: {
-                  query: { utxo: [ addr ] }
-                },
-                -- args: { query: "utxo" },
-                -- filters are addresses
-                -- unsure if addr1 format is supported or pubkeyhash
-                mirror: { step: "INIT" }
-              }
+  let (body :: UtxoQueryBody) = mkJsonWspQuery { query: { utxo: [ addr ] } }
   sBody <- _stringify body
   _onWsMessage ws receiveMsg
   _onWsError ws errorMsg
