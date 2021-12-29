@@ -48,11 +48,11 @@ type Url = String
   -- maxPayload: 10000
 -- }
 
-setupConnectionAndQuery :: Effect WebSocket
-setupConnectionAndQuery = do
+setupConnectionAndQuery :: Address -> Effect WebSocket
+setupConnectionAndQuery addr = do
   ws <- _mkWebSocket "ws://127.0.0.1:1337"
   log "websocket object exists"
-  _onWsConnect ws (connectionSuccess ws)
+  _onWsConnect ws (connectionSuccess ws addr)
   pure ws
 
 
