@@ -1,9 +1,14 @@
 module Ogmios where
 
 import Prelude
+import Data.Argonaut as Json
+import Data.Array as Array
+import Data.Either(Either, either, isRight)
+-- import Data.Map as Map
 import Effect (Effect)
 import Effect.Console (log)
-import Types.JsonWsp (Address, UtxoQueryBody, mkJsonWspQuery)
+import Types.JsonWsp (Address, UtxoQueryBody, JsonWspResponse, UtxoQR(..), mkJsonWspQuery, parseJsonWspResponse)
+import Debug.Trace (spy)
 
 
 foreign import _mkWebSocket :: Url -> Effect WebSocket 
@@ -37,7 +42,7 @@ setupConnectionAndQuery addr = do
 connectionSuccess :: WebSocket -> Address -> Effect Unit
 connectionSuccess ws addr = do
   log "websocket connected successfully"
-  let (body :: UtxoQueryBody) = mkJsonWspQuery { query: { utxo: [ addr ] } }
+  let (body :: UtxoQueryBody) = mkJsonWspQuery { utxo: [ addr ] }
   sBody <- _stringify body
   _onWsMessage ws receiveMsg
   _onWsError ws errorMsg
@@ -52,7 +57,18 @@ receiveMsg :: String -> Effect Unit
 receiveMsg str = do
   log "got msg"
   log str
-  pure unit
+  let (parsedResult :: Either Json.JsonDecodeError (JsonWspResponse UtxoQR)) = parseJsonWspResponse =<< Json.parseJson str
+  either 
+    (\err -> do
+      log "error: "
+      log $ show err
+    )
+    (\resp -> do
+      let (UtxoQR utxoQueryResponse) = resp.result
+      log "parsing completed"
+      pure unit
+    )
+    parsedResult
 
 errorMsg :: String -> Effect Unit
 errorMsg str = do

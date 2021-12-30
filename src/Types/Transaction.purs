@@ -5,6 +5,8 @@ import Data.BigInt as BigInt
 import Data.Maybe (Maybe(..))
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.Map (Map(..))
+import Data.Generic.Rep (class Generic)
+import Data.Generic.Rep.Show (genericShow)
 
 newtype Transaction = Transaction {
   body :: TxBody,
@@ -45,9 +47,24 @@ newtype RequiredSigner = RequiredSigner String
 
 newtype CurrencySymbol = CurrencySymbol String
 
+derive instance genericCurrencySymbol :: Generic CurrencySymbol _
+
+instance showCurrencySymbol :: Show CurrencySymbol where
+  show = genericShow
+
 newtype TokenName = TokenName String
 
+derive instance genericTokenName :: Generic TokenName _
+
+instance showTokenName :: Show TokenName where
+  show = genericShow
+
 newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
+
+derive instance genericValue :: Generic Value _
+
+instance showValue :: Show Value where
+  show = genericShow
 
 newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
@@ -82,7 +99,7 @@ newtype TransactionInput = TransactionInput
     index :: BigInt.BigInt -- u32 TransactionIndex
   }
 
-newtype TransactionOutput = TransactionOutput-- array of,
+newtype TransactionOutput = TransactionOutput
   { address :: Address,
     amount :: Value,
     data_hash :: Maybe String -- DataHash>,
