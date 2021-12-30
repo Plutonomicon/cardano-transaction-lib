@@ -107,4 +107,64 @@ in  upstream
 let upstream =
       https://github.com/purescript/package-sets/releases/download/psc-0.14.5-20211116/packages.dhall sha256:7e973070e323137f27e12af93bc2c2f600d53ce4ae73bb51f34eb7d7ce0a43ea
 
-in  upstream
+let additions =
+      { tree =
+          { dependencies = [ "console", "lists", "prelude", "free" ]
+          , repo = "https://github.com/dmbfm/purescript-tree.git"
+          , version = "v1.3.2"
+          }
+      , mote =
+          { dependencies = [ "these", "transformers", "arrays" ]
+          , repo = "https://github.com/garyb/purescript-mote"
+          , version = "v1.1.0"
+          }
+      , quickcheck-combinators =
+          { dependencies = [ "prelude", "quickcheck", "typelevel" ]
+          , repo =
+              "https://github.com/athanclark/purescript-quickcheck-combinators.git"
+          , version = "v0.1.2"
+          }
+      , medea =
+          { dependencies =   
+            [ "aff"
+            , "argonaut"
+            , "console"
+            , "control"
+            , "debug"
+            , "effect"
+            , "exceptions"
+            , "foldable-traversable"
+            , "foreign-object"
+            , "free"
+            , "generics-rep"
+            , "lcg"
+            , "leibniz"
+            , "mote"
+            , "naturals"
+            , "node-buffer"
+            , "node-fs-aff"
+            , "node-path"
+            , "nonempty"
+            , "ordered-collections"
+            , "parallel"
+            , "parsing"
+            , "prelude"
+            , "psci-support"
+            , "quickcheck"
+            , "quickcheck-combinators"
+            , "safely"
+            , "spec"
+            , "these"
+            , "transformers"
+            , "tree"
+            , "typelevel"
+            , "unicode"
+            , "unordered-collections"
+            , "unsafe-coerce"
+            ]
+        , repo = "ssh://git@github.com/juspay/medea-ps.git"
+        , version = "master"
+        }
+      }
+
+in  upstream // additions

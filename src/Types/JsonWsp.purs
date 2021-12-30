@@ -186,8 +186,6 @@ parseTxOut = jsonObject $
 parseValue :: Object Json -> Either JsonDecodeError Value
 parseValue outer = do
   o <- getField outer "value"
-  traceM "trying to parse coins"
-  _ <- pure $ spy "object: " o
   coins <- parseFieldToBigInt o "coins" <|> (convertIntParsing $ parseFieldToInt o "coins") <|> Left (TypeMismatch "Expected 'coins' to be an Int or a BigInt")
   (assetsJson :: {}) <- getField o "assets"
   -- assets are currently assumed to be empty
