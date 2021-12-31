@@ -1,11 +1,15 @@
 module Ogmios where
 
 import Prelude
+import Data.Argonaut as Json
+import Data.Array as Array
+import Data.Either(Either, either, isRight)
+-- import Data.Map as Map
 import Effect (Effect)
 import Effect.Console (log)
-import Effect.Unsafe (unsafePerformEffect)
+import Types.JsonWsp (Address, UtxoQueryBody, JsonWspResponse, UtxoQR(..), mkJsonWspQuery, parseJsonWspResponse)
+import Debug.Trace (spy)
 
--- foreign import getContext :: ConnectionConfig -> Effect (Promise InteractionContext)
 
 foreign import _mkWebSocket :: Url -> Effect WebSocket 
 
@@ -24,55 +28,21 @@ foreign import _stringify :: forall a. a -> Effect String
 
 data WebSocket
 
--- data ConnectionConfig = ConnectionConfig {
-  -- host :: String,
-  -- port :: Int,
-  -- tls :: Boolean,
-  -- maxPayload :: Int
--- }
-
--- data InteractionContext 
-
--- data Promise a = Promise a 
-
--- defaultContext :: Effect (Promise InteractionContext)
--- defaultContext = getContext defaultConnConfig 
-
 type Url = String
 
--- defaultConnConfig :: ConnectionConfig
--- defaultConnConfig = ConnectionConfig  {
-  -- host: "locahost",
-  -- port: 1337,
-  -- tls: false,
-  -- maxPayload: 10000
--- }
-
-setupConnectionAndQuery :: Effect WebSocket
-setupConnectionAndQuery = do
+setupConnectionAndQuery :: Address -> Effect WebSocket
+setupConnectionAndQuery addr = do
   ws <- _mkWebSocket "ws://127.0.0.1:1337"
   log "websocket object exists"
-  _onWsConnect ws (connectionSuccess ws)
+  _onWsConnect ws (connectionSuccess ws addr)
   pure ws
 
-
-type Address = String
-
+-- this is a collection of functions for 'prototyping'  we can carve library functions off of these as we work toward our mission of building and submitting transactions
+-- eventually, our API will be something fairly straightforward like `Websocket -> Config -> Aff Unit` where config will define which wallet we use, etc.
 connectionSuccess :: WebSocket -> Address -> Effect Unit
 connectionSuccess ws addr = do
   log "websocket connected successfully"
-  let body =  { type : "jsonwsp/request",
-                version: "1.0",
-                servicename: "ogmios",
-                methodname: "Query",
-                args: {
-                  query: { utxo: [ addr ] }
-                },
-                -- args: { query: "utxo" },
-                -- filters are addresses
-                -- unsure if addr1 format is supported or pubkeyhash
-                mirror: { step: "INIT" }
-              }
+  let (body :: UtxoQueryBody) = mkJsonWspQuery { utxo: [ addr ] }
   sBody <- _stringify body
   _onWsMessage ws receiveMsg
   _onWsError ws errorMsg
@@ -87,7 +57,18 @@ receiveMsg :: String -> Effect Unit
 receiveMsg str = do
   log "got msg"
   log str
-  pure unit
+  let (parsedResult :: Either Json.JsonDecodeError (JsonWspResponse UtxoQR)) = parseJsonWspResponse =<< Json.parseJson str
+  either 
+    (\err -> do
+      log "error: "
+      log $ show err
+    )
+    (\resp -> do
+      let (UtxoQR utxoQueryResponse) = resp.result
+      log "parsing completed"
+      pure unit
+    )
+    parsedResult
 
 errorMsg :: String -> Effect Unit
 errorMsg str = do

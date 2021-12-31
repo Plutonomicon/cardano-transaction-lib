@@ -1,0 +1,27 @@
+[
+  {
+    "type": "jsonwsp/response",
+    "version": "1.0",
+    "servicename": "ogmios",
+    "methodname": "Query",
+    "result": [
+      [
+        {
+          "txId": "1ae7bbe9ed3d0205b3704446678c3a9e777ba41a65a3115d066dd4eabe295839",
+          "index": 0
+        },
+        {
+          "address": "addr_test1qr7g8nrv76fc7k4ueqwecljxx9jfwvsgawhl55hck3n8uwaz26mpcwu58zdkhpdnc6nuq3fa8vylc8ak9qvns7r2dsysp7ll4d",
+          "value": {
+            "coins": 1000000000,
+            "assets": {}
+          },
+          "datum": null
+        }
+      ]
+    ],
+    "reflection": {
+      "step": "INIT"
+    }
+  }
+]

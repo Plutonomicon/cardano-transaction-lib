@@ -3,7 +3,35 @@ Welcome to a Spago project!
 You can edit this file as you like.
 -}
 { name = "my-project"
-, dependencies = [ "bigints", "console", "either", "effect", "maybe", "ordered-collections", "prelude", "psci-support" ]
+, dependencies = 
+  [ "aff"
+  , "arrays"
+  , "argonaut"
+  , "bigints"
+  , "console"
+  , "control"
+  , "debug"
+  , "either"
+  , "effect"
+  , "exceptions"
+  , "foldable-traversable"
+  , "foreign-object"
+  , "generics-rep"
+  , "identity"
+  , "int-53"
+  , "maybe"
+  , "medea"
+  , "mote"
+  , "node-buffer"
+  , "node-fs-aff"
+  , "ordered-collections"
+  , "prelude"
+  , "psci-support"
+  , "spec"
+  , "strings"
+  , "transformers" 
+  , "undefined"
+  ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]
 }
