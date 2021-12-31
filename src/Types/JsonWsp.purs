@@ -114,6 +114,8 @@ parseJsonWspResponse = jsonObject
 
 newtype UtxoQR = UtxoQR UtxoQueryResult
 
+derive newtype instance showUtxoQR :: Show UtxoQR
+
 instance decodeJsonUtxoQR :: DecodeJson UtxoQR where
   decodeJson j = UtxoQR <$> parseUtxoQueryResult j
 
@@ -153,17 +155,6 @@ parseTxOutRef = jsonObject $
     pure { txId, index }
   )
 
--- [ 
-  -- [
-    -- { "txId":"1ae7bbe9ed3d0205b3704446678c3a9e777ba41a65a3115d066dd4eabe295839",
-      -- "index":0
-      -- },
-    -- {"address":"addr_test1qr7g8nrv76fc7k4ueqwecljxx9jfwvsgawhl55hck3n8uwaz26mpcwu58zdkhpdnc6nuq3fa8vylc8ak9qvns7r2dsysp7ll4d",
-    -- "value": {"coins":1000000000,"assets":{}},
-    -- "datum": null
-    -- }
-  -- ]
--- ]
 
 type OgmiosTxOut = 
   { address :: String, 
@@ -188,6 +179,11 @@ parseValue outer = do
   o <- getField outer "value"
   coins <- parseFieldToBigInt o "coins" <|> (convertIntParsing $ parseFieldToInt o "coins") <|> Left (TypeMismatch "Expected 'coins' to be an Int or a BigInt")
   (assetsJson :: {}) <- getField o "assets"
+  -- note 'coins' is being sent as a number, in some cases this may exceed the max safe 
+  -- representation of a Number, we may need to parse this up from a string instead of from 
+  -- the Argonaut 'Json' representation in order to prevent this.
+  -- there is probably a javascript library that has a custom parser we can use.
+
   -- assets are currently assumed to be empty
   -- newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
   pure $ Value $ Map.singleton (CurrencySymbol "") (Map.singleton (TokenName "") coins)

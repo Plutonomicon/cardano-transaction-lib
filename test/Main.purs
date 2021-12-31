@@ -13,6 +13,9 @@ import Test.Parser as ParseTest
 import TestM (TestPlanM)
 import Mote (Plan, foldPlan, planT)
 
+-- we use `mote` here so that we can use effects to build up a test tree, which
+-- is then interpreted here in a pure context, mainly due to some painful types
+-- in Test.Spec which prohibit effects.
 main :: Effect Unit
 main = do
   launchAff_ $ interpret testPlan
