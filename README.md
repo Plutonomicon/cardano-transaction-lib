@@ -69,6 +69,10 @@ The build output is a library which can be used in a browser frontend such as th
 
 To check runtime behaviors currently, you can run `spago repl`, or you can write some javascript in `scratch.js` and run `node scratch.js`
 
+## Testing
+
+`npm run test` will run the test suite.
+
 ## Architecture
 So if we think of pab as a library instead of as a standalone process there are really just a few problems to consider:
 

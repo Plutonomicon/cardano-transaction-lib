@@ -27,6 +27,7 @@ You can edit this file as you like.
   , "ordered-collections"
   , "prelude"
   , "psci-support"
+  , "refs"
   , "spec"
   , "strings"
   , "transformers" 
