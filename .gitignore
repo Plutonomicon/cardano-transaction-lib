@@ -8,3 +8,11 @@
 /.purs*
 /.psa*
 /.spago
+/.spago2nix*
+result
+result-*
+.envrc
+.direnv
+node_modules
+.node
+.node-cfg
