@@ -99,11 +99,34 @@ mkOgmiosWebSocket url = do
   utxoQueryDispatchIdMap <- createMutableDispatch 
   let md = (messageDispatch utxoQueryDispatchIdMap)
   ws <- _mkWebSocket url
-  _wsWatch ws (removeAllListeners utxoQueryDispatchIdMap)
   _onWsConnect ws $ do
+     _wsWatch ws (removeAllListeners utxoQueryDispatchIdMap)
      _onWsMessage ws (defaultMessageListener md)
      _onWsError ws defaultErrorListener
   pure $ OgmiosWebSocket ws { utxo: mkListenerSet utxoQueryDispatchIdMap }
+
+mkOgmiosWebSocket' 
+  :: Url 
+  -> (Either Error OgmiosWebSocket -> Effect Unit) 
+  -> Effect Canceler
+mkOgmiosWebSocket' url cb = do
+  utxoQueryDispatchIdMap <- createMutableDispatch 
+  let md = (messageDispatch utxoQueryDispatchIdMap)
+  ws <- _mkWebSocket url
+  _onWsConnect ws $ do
+    _wsWatch ws (removeAllListeners utxoQueryDispatchIdMap)
+    _onWsMessage ws (defaultMessageListener md)
+    _onWsError ws defaultErrorListener
+    cb $ Right $ OgmiosWebSocket ws { utxo: mkListenerSet utxoQueryDispatchIdMap }
+  pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
+
+-- makeAff 
+-- :: forall a
+ -- . ((Either Error a -> Effect Unit) -> Effect Canceler) 
+-- -> Aff a
+
+mkOgmiosWebSocketAff :: Url -> Aff OgmiosWebSocket
+mkOgmiosWebSocketAff url = makeAff (mkOgmiosWebSocket' url)
 
 -- getter
 underlyingWebSocket :: OgmiosWebSocket -> WebSocket
