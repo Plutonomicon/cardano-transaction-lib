@@ -6,17 +6,34 @@ import Data.Argonaut (class DecodeJson, Json, JsonDecodeError(..), caseJsonArray
 import Data.Array (index)
 import Data.BigInt as BigInt
 import Data.Either(Either(..), hush, note)
+import Data.Generic.Rep (class Generic)
+import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe)
 import Data.Int53 as Int
 import Data.Foldable (foldl)
 import Data.Map as Map
+import Effect (Effect)
 import Foreign.Object (Object)
 import Types.Transaction (Value(..), CurrencySymbol(..), TokenName(..))
 
-import Debug.Trace (traceM, spy)
+-- creates a unique id prefixed by its argument
+foreign import _uniqueId :: String -> Effect String
 
+-- denotes which query (Utxo, tx, datum, etc) we are making
+data QueryType = UTXO
+
+derive instance genericQueryType :: Generic QueryType _
+
+instance showQueryType :: Show QueryType where
+  show a = genericShow a 
+
+
+--  the Address type in `Types.Transaction` is quite a bit more complex than 
+--  this
 type Address = String
+
 -- these types are described in: https://ogmios.dev/getting-started/basics/ 
+
 type JsonWspRequest a =
   { type :: String
   , version :: String
@@ -26,29 +43,40 @@ type JsonWspRequest a =
   , mirror :: Mirror
   }
 
-type Mirror = { step :: String }
+-- this is fully determined by us - we can adjust this type as we have more complex
+-- needs, it always just gets echoed back, so it is useful for req/res pairing
+type Mirror = { step :: String, id :: String }
 
-parseMirror :: Json -> Either JsonDecodeError Mirror
-parseMirror = caseJsonObject (Left (TypeMismatch "expected object")) $
-  (\o -> do
-    step <- parseFieldToString o "step"
-    pure { step }
-  )
+-- | make a well-formed Utxo Query with a unique ID attached
+mkUtxosAtQuery :: UtxoQueryParams -> Effect (JsonWspRequest (QueryArgs UtxoQueryParams))
+mkUtxosAtQuery uqp = mkJsonWspQuery uqp UTXO
 
-mkJsonWspQuery :: forall a. a -> JsonWspRequest (QueryArgs a)
-mkJsonWspQuery a = 
-  { type : "jsonwsp/request",
-    version: "1.0",
-    servicename: "ogmios",
-    methodname: "Query",
-    args: { query: a },
-    mirror: { step: "INIT" }
-  }
+-- this is polymorphic over the queryArgs even though QueryType should make them
+-- concrete,  we could have some kind of lawless typeclass do this,
+-- but here we've chosen to just provide concrete impls where we want to support it
 
+-- once we add fixed export lists to this repo, this should NOT be exported
+mkJsonWspQuery :: forall a. a -> QueryType -> Effect (JsonWspRequest (QueryArgs a))
+mkJsonWspQuery a qt = do
+  id <- _uniqueId (show qt <> "-") 
+  pure  { type : "jsonwsp/request",
+          version: "1.0",
+          servicename: "ogmios",
+          methodname: "Query",
+          args: { query: a },
+          mirror: { step: "INIT", id }
+        }
+
+-- the actual query description
 type UtxoQueryParams = { utxo :: Array Address }
+
+-- used as a wrapper for all Queries
 type QueryArgs a = { query :: a }
+
+-- convenient type for a UTXO query
 type UtxoQueryBody = JsonWspRequest (QueryArgs UtxoQueryParams)
 
+-- the response wrapper type for all websocket responses
 type JsonWspResponse a = 
   { type :: String
   , version :: String
@@ -58,24 +86,7 @@ type JsonWspResponse a =
   , reflection :: Mirror
 }
 
-parseFieldToString :: Object Json -> String -> Either JsonDecodeError String
-parseFieldToString o str = 
-  caseJsonString (Left (TypeMismatch ("expected field: '" <> str <> "' as a String"))) Right =<< getField o str
-
-parseFieldToInt :: Object Json -> String -> Either JsonDecodeError Int.Int53
-parseFieldToInt o str = do
-  let err = TypeMismatch $ "expected field: '" <> str <> "' as an Int"
-  num <- caseJsonNumber (Left err) Right =<< getField o str
-  int <- note err $ Int.fromNumber num
-  pure int
-
-parseFieldToBigInt :: Object Json -> String -> Either JsonDecodeError BigInt.BigInt
-parseFieldToBigInt o str = do
-  let err = TypeMismatch $ "expected field: '" <> str <> "' as a BigInt"
-  num <- caseJsonString (Left err) Right =<< getField o str
-  bint <- note err $ BigInt.fromString num
-  pure bint
-
+-- polymorphic parser
 parseJsonWspResponse 
   :: forall a
    . DecodeJson a 
@@ -92,26 +103,43 @@ parseJsonWspResponse = jsonObject
     pure { "type": typeField, version, servicename, methodname, result, reflection }
   )
 
--- Utxo Query result:
--- it appears that the outer array is `Array Utxo` or similar (see `Types.Transaction`) to match up
--- the inner array appears to be an ADT serialized without keys. I suspect we'll want to make this fit one of the inherited types from cardano-serialization-lib if we can as these will be used for balancing.
--- it seems that the two types used here roughtly correspond to a `TransactionInput` and a `TransactionOutput`
--- or perhaps a txOut and a TxOutRef?
--- since we're trying to replicate utxosAt - it looks like we had better return 
--- a `(Map TxOutRef ChainIndexTxOut)` where a `ChainIndexTxOut` has different constructors for txOuts held by a wallet address vs. a validator hash
--- in all likelihood we will need to add additional parsing as we address additional usecases.
--- [ 
-  -- [
-    -- { "txId":"1ae7bbe9ed3d0205b3704446678c3a9e777ba41a65a3115d066dd4eabe295839",
-      -- "index":0
-      -- },
-    -- {"address":"addr_test1qr7g8nrv76fc7k4ueqwecljxx9jfwvsgawhl55hck3n8uwaz26mpcwu58zdkhpdnc6nuq3fa8vylc8ak9qvns7r2dsysp7ll4d",
-    -- "value": {"coins":1000000000,"assets":{}},
-    -- "datum": null
-    -- }
-  -- ]
--- ]
+-- parses json string at a given field to an ordinary string
+parseFieldToString :: Object Json -> String -> Either JsonDecodeError String
+parseFieldToString o str = 
+  caseJsonString (Left (TypeMismatch ("expected field: '" <> str <> "' as a String"))) Right =<< getField o str
 
+-- parses the number at the given field to a 53 bit signed integer
+-- danger: Because argonaut has already parsed this as a Json foreign, it may
+-- already be a javascript 'number' type. if that number is not safely representable
+-- then we may have already lost precision. we may need a bigint preprocessor on json if this is the case: Because argonaut has already parsed this as a Json foreign, it may
+-- already be a javascript 'number' type. if that number is not safely representable
+-- then we may have already lost precision. we may need a bigint preprocessor on json if this is the case.
+parseFieldToInt :: Object Json -> String -> Either JsonDecodeError Int.Int53
+parseFieldToInt o str = do
+  let err = TypeMismatch $ "expected field: '" <> str <> "' as an Int"
+  num <- caseJsonNumber (Left err) Right =<< getField o str
+  int <- note err $ Int.fromNumber num
+  pure int
+
+-- parses a string at the given field to a BigInt
+parseFieldToBigInt :: Object Json -> String -> Either JsonDecodeError BigInt.BigInt
+parseFieldToBigInt o str = do
+  let err = TypeMismatch $ "expected field: '" <> str <> "' as a BigInt"
+  num <- caseJsonString (Left err) Right =<< getField o str
+  bint <- note err $ BigInt.fromString num
+  pure bint
+
+-- parser for the `Mirror` type.
+parseMirror :: Json -> Either JsonDecodeError Mirror
+parseMirror = caseJsonObject (Left (TypeMismatch "expected object")) $
+  (\o -> do
+    step <- parseFieldToString o "step"
+    id <- parseFieldToString o "id"
+    pure { step, id }
+  )
+
+-- the outer result type for Utxo queries, newtyped so that it can have 
+-- appropriate instances to work with `parseJsonWspResponse`
 newtype UtxoQR = UtxoQR UtxoQueryResult
 
 derive newtype instance showUtxoQR :: Show UtxoQR
@@ -119,8 +147,10 @@ derive newtype instance showUtxoQR :: Show UtxoQR
 instance decodeJsonUtxoQR :: DecodeJson UtxoQR where
   decodeJson j = UtxoQR <$> parseUtxoQueryResult j
 
+-- the inner type for Utxo Queries
 type UtxoQueryResult = Map.Map TxOutRef OgmiosTxOut 
 
+-- TxOutRef
 type TxOutRef = 
   { txId :: String,
     index :: Int.Int53
@@ -129,24 +159,32 @@ type TxOutRef =
 parseUtxoQueryResult :: Json -> Either JsonDecodeError UtxoQueryResult
 parseUtxoQueryResult = caseJsonArray (Left (TypeMismatch "Expected Array")) $ 
   (\array -> foldl insertFunc (Right Map.empty) array )
-
-insertFunc 
-  :: Either JsonDecodeError UtxoQueryResult 
-  -> Json 
-  -> Either JsonDecodeError UtxoQueryResult 
-insertFunc acc = caseJsonArray (Left (TypeMismatch "Expected Array")) $ inner
   where
-    inner :: Array Json -> Either JsonDecodeError UtxoQueryResult 
-    inner innerArray = do
-      txOutRefJson <- note (TypeMismatch "missing 0th element") $ index innerArray 0
-      txOutJson <- note (TypeMismatch "missing 1st element") $ index innerArray 1
-      txOutRef <- parseTxOutRef txOutRefJson
-      txOut <- parseTxOut txOutJson 
-      Map.insert txOutRef txOut <$> acc
+    insertFunc 
+      :: Either JsonDecodeError UtxoQueryResult 
+      -> Json 
+      -> Either JsonDecodeError UtxoQueryResult 
+    insertFunc acc = caseJsonArray (Left (TypeMismatch "Expected Array")) $ inner
+      where
+        inner :: Array Json -> Either JsonDecodeError UtxoQueryResult 
+        inner innerArray = do
+          txOutRefJson <- note (TypeMismatch "missing 0th element, expected a TxOutRef") $ 
+            index innerArray 0
+          txOutJson <- note (TypeMismatch "missing 1st element, expected a TxOut") $ 
+            index innerArray 1
+          txOutRef <- parseTxOutRef txOutRefJson
+          txOut <- parseTxOut txOutJson 
+          Map.insert txOutRef txOut <$> acc
 
-jsonObject :: forall a. (Object Json -> Either JsonDecodeError a) -> Json -> Either JsonDecodeError a 
+-- helper for assuming we get an object
+jsonObject 
+  :: forall a
+   . (Object Json -> Either JsonDecodeError a) 
+  -> Json 
+  -> Either JsonDecodeError a 
 jsonObject = caseJsonObject (Left (TypeMismatch "expected object"))
 
+-- parser for txOutRef
 parseTxOutRef :: Json -> Either JsonDecodeError TxOutRef
 parseTxOutRef = jsonObject $ 
   (\o -> do
@@ -155,7 +193,9 @@ parseTxOutRef = jsonObject $
     pure { txId, index }
   )
 
-
+-- this OgmiosTxOut doesn't seem to be in line with the 
+-- `Types.Transaction.TransactionOutput` type,  we may need to reckon with this 
+-- later.
 type OgmiosTxOut = 
   { address :: String, 
     value :: Value, 
@@ -174,6 +214,7 @@ parseTxOut = jsonObject $
     pure $ { address, value, datum }
   )
 
+-- parses the `Value` type
 parseValue :: Object Json -> Either JsonDecodeError Value
 parseValue outer = do
   o <- getField outer "value"

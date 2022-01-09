@@ -35,9 +35,33 @@ exports._wsSend = ws => str => () => {
   ws.send(str);
 }
 
-// _wsClose :: Websocket -> Effect Unit
+// _wsClose :: WebSocket -> Effect Unit
 exports._wsClose = ws => () => ws.close()
 
 // _stringify :: a -> Effect String
 exports._stringify = a => () => JSON.stringify(a)
 
+// Every 30 seconds if we haven't heard from the server, sever the connection.
+// heartbeat :: WebSocket -> Int -> Effect Unit-> ImplicitUnsafeEffect Int
+const heartbeat = ws => id => onError => {
+  console.log("websocket heartbeat fired")
+  ws.ping()
+  if (id !== null) {
+    clearTimeout(id);
+  }
+  const cancelId = setTimeout(() => {
+    ws.terminate()
+    onError()
+  }, 30000);
+  return cancelId;
+}
+
+// _wsWatch :: WebSocket -> Effect Unit -> Effect Unit
+exports._wsWatch = ws => onError => () => {
+  let counter = null;
+  let heartbeatAndCount = () => { counter = heartbeat(ws, counter, onError) }
+  ws.on('open', heartbeatAndCount)
+  ws.on('ping', heartbeatAndCount)
+  ws.on('pong', heartbeatAndCount)
+  ws.on('close', () => clearTimeout(id))
+}

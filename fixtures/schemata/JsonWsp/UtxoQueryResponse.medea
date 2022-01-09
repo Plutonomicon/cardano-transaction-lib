@@ -45,6 +45,8 @@ $schema mirrorType
     $properties
         $property-name "step"
         $property-schema stepType
+        $property-name "id"
+        $property-schema $string
 
 $schema stepType
     $type

@@ -9,6 +9,7 @@ import Effect.Aff.Class (liftAff)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Runner (runSpec)
 import Test.Spec.Reporter (consoleReporter)
+import Test.AffInterface as AffInterface
 import Test.Parser as ParseTest
 import TestM (TestPlanM)
 import Mote (Plan, foldPlan, planT)
@@ -39,3 +40,4 @@ interpret spif = do
 testPlan :: TestPlanM Unit
 testPlan = do
   ParseTest.suite
+  AffInterface.suite
