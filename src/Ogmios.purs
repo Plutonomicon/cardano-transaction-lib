@@ -93,18 +93,8 @@ allowError func = func <<< Right
 -- failure handling
 data OgmiosWebSocket = OgmiosWebSocket WebSocket Listeners
 
--- smart-constructor for OgmiosWebSocket
-mkOgmiosWebSocket :: Url -> Effect OgmiosWebSocket
-mkOgmiosWebSocket url = do
-  utxoQueryDispatchIdMap <- createMutableDispatch 
-  let md = (messageDispatch utxoQueryDispatchIdMap)
-  ws <- _mkWebSocket url
-  _onWsConnect ws $ do
-     _wsWatch ws (removeAllListeners utxoQueryDispatchIdMap)
-     _onWsMessage ws (defaultMessageListener md)
-     _onWsError ws defaultErrorListener
-  pure $ OgmiosWebSocket ws { utxo: mkListenerSet utxoQueryDispatchIdMap }
-
+-- smart-constructor for OgmiosWebSocket in Aff Context
+-- (prevents sending messages before the websocket opens, etc)
 mkOgmiosWebSocket' 
   :: Url 
   -> (Either Error OgmiosWebSocket -> Effect Unit) 
