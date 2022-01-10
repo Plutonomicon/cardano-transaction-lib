@@ -163,7 +163,7 @@ let additions =
             , "unsafe-coerce"
             ]
         , repo = "ssh://git@github.com/juspay/medea-ps.git"
-        , version = "master"
+        , version = "96a93df8d4b7cc13b080ace299c195e61aad0cb8"
         }
       }
 
