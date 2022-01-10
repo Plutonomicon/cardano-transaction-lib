@@ -2,14 +2,7 @@ module Test.AffInterface where
 
 import Prelude
 import Control.Monad.Reader.Trans (runReaderT)
-import Data.Argonaut as Json
-import Data.Array as Array
-import Effect.Aff (Aff, launchAff_)
-import Effect.Class (liftEffect)
-import Effect.Exception (error)
-import Effect.Exception.Unsafe (unsafeThrowException)
-import Test.Spec.Assertions (shouldSatisfy, shouldNotSatisfy)
-import TestM (TestPlanM, ValidationM, runValidationM)
+import TestM (TestPlanM)
 import Mote (group, test)
 import Ogmios (mkOgmiosWebSocketAff, utxosAt)
 
