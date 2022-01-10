@@ -12,19 +12,19 @@ exports._mkWebSocket = url => () => {
 exports._onWsConnect = ws => fn => () => ws.on('open', fn);
 
 // _onWsError :: WebSocket -> (String -> Effect Unit) -> Effect Unit
-exports._onWsError = ws => fn => () => { 
+exports._onWsError = ws => fn => () => {
   ws.on('error', function func(msg) {
     const str = msg.toString();
-    console.log("error: ", msg.toString())
+    console.log("error: ", str)
     fn(str)();
   })
 }
 
 // _onWsMessage :: WebSocket -> (String -> Effect Unit) -> Effect Unit
-exports._onWsMessage = ws => fn => () => { 
+exports._onWsMessage = ws => fn => () => {
   ws.on('message', function func(msg) {
     const str = msg.toString();
-    console.log("message: ", msg.toString())
+    console.log("message: ", str)
     fn(str)();
   })
 }
