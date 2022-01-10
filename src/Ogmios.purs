@@ -19,14 +19,14 @@ import Types.JsonWsp (Address, JsonWspResponse, UtxoQR, mkUtxosAtQuery, parseJso
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
--- Or for verifying that the connection is live, those concerns are addressed 
+-- Or for verifying that the connection is live, those concerns are addressed
 -- here
 
 
 --------------------------------------------------------------------------------
 -- Websocket Basics
 --------------------------------------------------------------------------------
-foreign import _mkWebSocket :: Url -> Effect WebSocket 
+foreign import _mkWebSocket :: Url -> Effect WebSocket
 
 foreign import _onWsConnect :: WebSocket -> (Effect Unit) -> Effect Unit
 
@@ -50,9 +50,9 @@ type Url = String
 -- Queries
 --------------------------------------------------------------------------------
 
--- when we add multiple query backends or wallets, 
+-- when we add multiple query backends or wallets,
 -- we just need to extend this type
-type QueryConfig = { ws :: OgmiosWebSocket } 
+type QueryConfig = { ws :: OgmiosWebSocket }
 
 type QueryM a = ReaderT QueryConfig Aff a
 
@@ -64,13 +64,13 @@ utxosAt addr = do
   sBody <- liftEffect $ _stringify body
   config <- ask
   -- not sure there's an easy way to factor this out unfortunately
-  let 
+  let
     affFunc :: (Either Error UtxoQR -> Effect Unit) -> Effect Canceler
-    affFunc cont = do 
-      let 
+    affFunc cont = do
+      let
         ls = listeners config.ws
         ws = underlyingWebSocket config.ws
-      ls.utxo.addMessageListener id 
+      ls.utxo.addMessageListener id
         (\result -> do
           ls.utxo.removeMessageListener id
           (allowError cont) $ result
@@ -95,12 +95,12 @@ data OgmiosWebSocket = OgmiosWebSocket WebSocket Listeners
 
 -- smart-constructor for OgmiosWebSocket in Aff Context
 -- (prevents sending messages before the websocket opens, etc)
-mkOgmiosWebSocket' 
-  :: Url 
-  -> (Either Error OgmiosWebSocket -> Effect Unit) 
+mkOgmiosWebSocket'
+  :: Url
+  -> (Either Error OgmiosWebSocket -> Effect Unit)
   -> Effect Canceler
 mkOgmiosWebSocket' url cb = do
-  utxoQueryDispatchIdMap <- createMutableDispatch 
+  utxoQueryDispatchIdMap <- createMutableDispatch
   let md = (messageDispatch utxoQueryDispatchIdMap)
   ws <- _mkWebSocket url
   _onWsConnect ws $ do
@@ -110,9 +110,9 @@ mkOgmiosWebSocket' url cb = do
     cb $ Right $ OgmiosWebSocket ws { utxo: mkListenerSet utxoQueryDispatchIdMap }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
 
--- makeAff 
+-- makeAff
 -- :: forall a
- -- . ((Either Error a -> Effect Unit) -> Effect Canceler) 
+ -- . ((Either Error a -> Effect Unit) -> Effect Canceler)
 -- -> Aff a
 
 mkOgmiosWebSocketAff :: Url -> Aff OgmiosWebSocket
@@ -127,7 +127,7 @@ listeners :: OgmiosWebSocket -> Listeners
 listeners (OgmiosWebSocket _ ls) = ls
 
 -- interface required for adding/removing listeners
-type Listeners = 
+type Listeners =
   { utxo :: ListenerSet UtxoQR
   }
 
@@ -142,7 +142,7 @@ type ListenerSet a =
 -- methods, this can be picked up by a query or cancellation function
 mkListenerSet :: forall a. DispatchIdMap a -> ListenerSet a
 mkListenerSet dim =
-  { addMessageListener: 
+  { addMessageListener:
     \id -> \func -> do
       idMap <- Ref.read dim
       Ref.write (Map.insert id func idMap) dim
@@ -162,17 +162,17 @@ removeAllListeners dim = do
 -- Dispatch Setup
 --------------------------------------------------------------------------------
 
--- A function which accepts some unparsed Json, and checks it against one or 
--- more possible types to perform an appropriate effect (such as supplying the 
+-- A function which accepts some unparsed Json, and checks it against one or
+-- more possible types to perform an appropriate effect (such as supplying the
 -- parsed result to an async fiber/Aff listener)
 type WebsocketDispatch = String -> Effect (Either Json.JsonDecodeError (Effect Unit))
 
 -- A mutable queue of requests
 type DispatchIdMap a = Ref.Ref (Map.Map String (a -> Effect Unit))
-  
+
 -- an immutable queue of response type handlers
 messageDispatch :: DispatchIdMap UtxoQR -> Array WebsocketDispatch
-messageDispatch dim = 
+messageDispatch dim =
   [ utxoQueryDispatch dim
   ]
 
@@ -185,23 +185,23 @@ createMutableDispatch = Ref.new Map.empty
 -- we parse out the utxo query result, then check if we're expecting a result
 -- with the provided id, if we are then we dispatch to the effect that is
 -- waiting on this result
-utxoQueryDispatch 
+utxoQueryDispatch
   :: Ref.Ref (Map.Map String (UtxoQR -> Effect Unit))
   -> String
   -> Effect (Either Json.JsonDecodeError (Effect Unit))
 utxoQueryDispatch ref str = do
-  let parsed' = parseJsonWspResponse =<< Json.parseJson str 
+  let parsed' = parseJsonWspResponse =<< Json.parseJson str
   case parsed' of
       (Left err) -> pure $ Left err
-      (Right res) -> afterParse res 
+      (Right res) -> afterParse res
   where
-    afterParse 
-      :: JsonWspResponse UtxoQR 
+    afterParse
+      :: JsonWspResponse UtxoQR
       -> Effect (Either Json.JsonDecodeError (Effect Unit))
     afterParse parsed = do
       let (id :: String) = parsed.reflection.id
       idMap <- Ref.read ref
-      let (mAction :: Maybe (UtxoQR -> Effect Unit)) 
+      let (mAction :: Maybe (UtxoQR -> Effect Unit))
               = (Map.lookup id idMap)
       case mAction of
         Nothing -> pure $ (Left (Json.TypeMismatch ("Parse succeeded but Request Id: " <> id <> " has been cancelled")) :: Either Json.JsonDecodeError (Effect Unit))
@@ -215,23 +215,23 @@ defaultErr = Json.TypeMismatch "default error"
 -- to request Id's, then we should run a similar dispatch and throw within the
 -- appropriate Aff handler
 defaultErrorListener :: String -> Effect Unit
-defaultErrorListener str = 
+defaultErrorListener str =
   throwError $ error $ "a WebSocket Error has occured: " <> str
 
 defaultMessageListener :: Array WebsocketDispatch -> String -> Effect Unit
 defaultMessageListener dispatchArray msg = do
-  -- here, we need to fold the input over the array of functions until we get 
+  -- here, we need to fold the input over the array of functions until we get
   -- a success, then execute the effect.
   -- using a fold instead of a traverse allows us to skip a bunch of execution
   eAction :: Either Json.JsonDecodeError (Effect Unit) <- foldl (messageFoldF msg) (pure $ Left defaultErr) dispatchArray
-  either 
+  either
     -- we expect a lot of parse errors, some messages could? fall through completely
     (\err -> if err == defaultErr then pure unit else log ("unexpected parse error on input:" <> msg))
     (\act -> act)
     (eAction :: Either Json.JsonDecodeError (Effect Unit))
 
-messageFoldF 
-  :: String 
+messageFoldF
+  :: String
   -> Effect (Either Json.JsonDecodeError (Effect Unit))
   -> (String -> (Effect (Either Json.JsonDecodeError (Effect Unit))))
   -> Effect (Either Json.JsonDecodeError (Effect Unit))

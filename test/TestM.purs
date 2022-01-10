@@ -2,14 +2,14 @@ module TestM where
 
 import Prelude
 import Control.Alt (class Alt)
-import Control.Alternative (class Alternative) 
+import Control.Alternative (class Alternative)
 import Control.MonadPlus (class MonadPlus)
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Control.Monad.Error.Class (class MonadError, class MonadThrow, throwError)
 import Control.MonadZero (class MonadZero)
 import Control.Plus (class Plus)
 import Data.Const (Const)
-import Data.Either (Either(..)) 
+import Data.Either (Either(..))
 import Data.Identity (Identity(..))
 import Data.Medea (ValidationError(EmptyError))
 import Effect.Aff (Aff)
@@ -36,7 +36,7 @@ derive newtype instance monadErrorValidationM :: MonadError ValidationError Vali
 derive newtype instance monadZeroValidationM :: MonadZero ValidationM
 derive newtype instance monadPlusValidationM :: MonadPlus ValidationM
 instance altValidationM :: Alt ValidationM where
-  alt (ValidationM first) (ValidationM second) 
+  alt (ValidationM first) (ValidationM second)
     = case runExceptT first of
       (Identity (Right a)) -> pure a
       (Identity (Left _)) -> case runExceptT second of

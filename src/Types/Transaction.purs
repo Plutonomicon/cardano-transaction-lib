@@ -74,9 +74,9 @@ newtype Ed25519Signature = Ed25519Signature String -- (bech32)
 
 newtype PlutusScript = PlutusScript String
 
-newtype PlutusData = PlutusData String 
+newtype PlutusData = PlutusData String
 -- TODO - we need a capability to encode/decode Datum from/to serialized format
--- see `makeIsDataIndexed` 
+-- see `makeIsDataIndexed`
 
 newtype Redeemer = Redeemer
   { tag :: RedeemerTag, -- ScriptPurpose: 'spending' 'minting' etc
@@ -93,7 +93,6 @@ data RedeemerTag = Spend | Mint | Cert | Reward
 
 type AuxiliaryData = Unit -- this is big and weird in serialization-lib
 
-
 newtype TransactionInput = TransactionInput
   { transaction_id :: String, -- TransactionHash
     index :: BigInt.BigInt -- u32 TransactionIndex
@@ -109,7 +108,7 @@ newtype Coin = Coin BigInt.BigInt
 
 newtype Slot = Slot BigInt.BigInt
 
-newtype Address = Address 
+newtype Address = Address
   { "AddrType" :: BaseAddress
   }
 
