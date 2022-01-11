@@ -5,12 +5,11 @@ import Data.Array as Array
 import Data.Either (Either(..), hush, note)
 import Data.List (List)
 import Data.List as List
--- import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.Newtype (over, unwrap)
 import Data.Tuple.Nested ((/\), type (/\))
-import Undefined (undefined)
+-- import Undefined (undefined)
 
 import Types.JsonWsp as JsonWsp
 import Types.Transaction as Transaction
@@ -18,6 +17,9 @@ import Value (isAdaOnly)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
+
+-- | Pick a collateral from the utxo map and add it to the unbalanced transaction
+-- (suboptimally we just pick a random utxo from the tx inputs)
 addTxCollaterals
   :: JsonWsp.UtxoQR
   -> Transaction.TxBody
@@ -35,49 +37,40 @@ addTxCollaterals utxos txBody = do
     filterAdaOnly = Map.filter (isAdaOnly <<< _.value)
 
     -- FIX ME: Plutus has Maybe TxInType e.g. Just ConsumePublicKeyAddress)
-    -- for now, we take the head.
+    -- for now, we take the head. The Haskell logic is pasted below:
+    -- findPubKeyTxIn = \case
+    --   x@(TxIn _ (Just ConsumePublicKeyAddress)) : _ -> Right x
+    --   x@(TxIn _ Nothing) : _ -> Right x
+    --   _ : xs -> findPubKeyTxIn xs
+    --   _ -> Left "There are no utxos to be used as collateral"
     findPubKeyTxIn
       :: List Transaction.TransactionInput
       -> Either String Transaction.TransactionInput
     findPubKeyTxIn =
-      note "There are no utxos to be used as collateral" <<< List.head
-{- | Pick a collateral from the utxo map and add it to the unbalanced transaction
- (suboptimally we just pick a random utxo from the tx inputs)
--}
--- addTxCollaterals :: Map TxOutRef TxOut -> Tx -> Either Text Tx
--- addTxCollaterals utxos tx = do
---   let txIns = mapMaybe (rightToMaybe . txOutToTxIn) $ Map.toList $ filterAdaOnly utxos
---   txIn <- findPubKeyTxIn txIns
---   pure $ tx {txCollateral = Set.singleton txIn}
---   where
---     findPubKeyTxIn = \case
---       x@(TxIn _ (Just ConsumePublicKeyAddress)) : _ -> Right x
---       x@(TxIn _ Nothing) : _ -> Right x
---       _ : xs -> findPubKeyTxIn xs
---       _ -> Left "There are no utxos to be used as collateral"
---     filterAdaOnly = Map.filter (isAdaOnly . txOutValue)
+      note "addTxCollaterals: There are no utxos to be used as collateral"
+        <<< List.head
 
 -- Converting an Ogmios transaction output to a transaction input type
+-- FIX ME: may need to revisit for credential granularity.
 ogTxToTransactionInput
   :: (JsonWsp.TxOutRef /\ JsonWsp.OgmiosTxOut)
   -> Either String Transaction.TransactionInput
 ogTxToTransactionInput (txOutRef /\ ogmiosTxOut) =
   case ogTxOutAddressCredentials ogmiosTxOut of
-    Transaction.PubKeyCredential _ ->
+    Transaction.Credential _ ->
       Right $ txOutRefToTransactionInput txOutRef
-    Transaction.ScriptCredential _ ->
+    _ -> -- Currently unreachable:
       Left "ogTxToTransactionInput: Cannot convert an Ogmios output to \
         \TransactionInput"
-  where
-    -- FIX ME:
-    txOutRefToTransactionInput
-      :: JsonWsp.TxOutRef
-      -> Transaction.TransactionInput
-    txOutRefToTransactionInput = undefined
 
 -- FIX ME: address of OgmiosTxOut doesn't line up well with Transaction TxOut.
--- So method of extracting credentials is unknown at the momemnt
+-- So method of extracting credentials is unknown at the moment.
 ogTxOutAddressCredentials :: JsonWsp.OgmiosTxOut -> Transaction.Credential
 ogTxOutAddressCredentials ogmiosTxOut =
-  Transaction.PubKeyCredential ogmiosTxOut.address
+  Transaction.Credential ogmiosTxOut.address
 
+-- FIX ME: This behaves differently to pubKeyTxIn because of TxInType, see
+-- https://play.marlowe-finance.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Tx.html#pubKeyTxIn
+txOutRefToTransactionInput :: JsonWsp.TxOutRef -> Transaction.TransactionInput
+txOutRefToTransactionInput { txId, index } =
+  Transaction.TransactionInput { transaction_id: txId, index }

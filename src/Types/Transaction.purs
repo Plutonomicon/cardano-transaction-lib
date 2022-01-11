@@ -2,9 +2,9 @@ module Types.Transaction where
 
 import Prelude
 import Data.BigInt as BigInt
-import Data.Maybe (Maybe(..))
-import Data.Tuple.Nested ((/\), type (/\))
-import Data.Map (Map(..))
+import Data.Maybe (Maybe)
+import Data.Tuple.Nested (type (/\))
+import Data.Map (Map)
 import Data.Newtype (class Newtype)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
@@ -120,9 +120,9 @@ newtype BaseAddress = BaseAddress
     payment :: Credential
   }
 
--- newtype Credential = Credential String (old)
+newtype Credential = Credential String
 -- Below comes from Plutus API:
-data Credential = PubKeyCredential String | ScriptCredential String
+-- data Credential = PubKeyCredential String | ScriptCredential String
 
 -- Addresspub struct Address(AddrType);
 -- AddrType 
