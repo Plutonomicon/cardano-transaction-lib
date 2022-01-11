@@ -38,6 +38,7 @@ import Data.Generic.Rep (class Generic)
 -- import Data.Int53 as Int
 import Data.Show.Generic (genericShow)
 import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype)
 import Data.Foldable (foldl)
 import Data.Map as Map
 import Effect (Effect)
@@ -167,7 +168,7 @@ parseMirror = caseJsonObject (Left (TypeMismatch "expected object")) $
 -- the outer result type for Utxo queries, newtyped so that it can have
 -- appropriate instances to work with `parseJsonWspResponse`
 newtype UtxoQR = UtxoQR UtxoQueryResult
-
+derive instance newtypeUtxoQR :: Newtype UtxoQR _
 derive newtype instance showUtxoQR :: Show UtxoQR
 
 instance decodeJsonUtxoQR :: DecodeJson UtxoQR where
