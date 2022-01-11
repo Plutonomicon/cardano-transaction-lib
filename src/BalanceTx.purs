@@ -1,13 +1,15 @@
 module BalanceTx where
 
 import Prelude
--- import Data.BigInt as BigInt
-import Data.Either (Either(..), hush)
--- import Data.List as List
+import Data.Array as Array
+import Data.Either (Either(..), hush, note)
+import Data.List (List)
+import Data.List as List
 -- import Data.Map (Map)
 import Data.Map as Map
-import Data.Newtype (over)
-import Data.Tuple.Nested (type (/\), (/\))
+import Data.Maybe (Maybe(..))
+import Data.Newtype (over, unwrap)
+import Data.Tuple.Nested ((/\), type (/\))
 import Undefined (undefined)
 
 import Types.JsonWsp as JsonWsp
@@ -18,16 +20,27 @@ import Value (isAdaOnly)
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 addTxCollaterals
   :: JsonWsp.UtxoQR
-  -> Transaction.Transaction
-  -> Either String Transaction.Transaction
-addTxCollaterals utxos tx = do
-  pure tx
-  -- let txIns =  List.mapMaybe (hush <<< ) $ Map.toUnfoldable $ filterAdaOnly utxos
+  -> Transaction.TxBody
+  -> Either String Transaction.TxBody
+addTxCollaterals utxos txBody = do
+  let txIns :: List Transaction.TransactionInput
+      txIns =
+        List.mapMaybe (hush <<< ogTxToTransactionInput) <<<
+          Map.toUnfoldable <<< filterAdaOnly <<< unwrap $ utxos
+  txIn :: Transaction.TransactionInput <- findPubKeyTxIn txIns
+  pure $
+    over Transaction.TxBody _{ collateral = Just (Array.singleton txIn) } txBody
   where
-    filterAdaOnly :: JsonWsp.UtxoQR -> JsonWsp.UtxoQR
-    filterAdaOnly =
-      over JsonWsp.UtxoQR $ Map.filter (isAdaOnly <<< _.value)
+    filterAdaOnly :: JsonWsp.UtxoQueryResult -> JsonWsp.UtxoQueryResult
+    filterAdaOnly = Map.filter (isAdaOnly <<< _.value)
 
+    -- FIX ME: Plutus has Maybe TxInType e.g. Just ConsumePublicKeyAddress)
+    -- for now, we take the head.
+    findPubKeyTxIn
+      :: List Transaction.TransactionInput
+      -> Either String Transaction.TransactionInput
+    findPubKeyTxIn =
+      note "There are no utxos to be used as collateral" <<< List.head
 {- | Pick a collateral from the utxo map and add it to the unbalanced transaction
  (suboptimally we just pick a random utxo from the tx inputs)
 -}
@@ -44,8 +57,6 @@ addTxCollaterals utxos tx = do
 --       _ -> Left "There are no utxos to be used as collateral"
 --     filterAdaOnly = Map.filter (isAdaOnly . txOutValue)
 
--- | Convert a value to a simple list, keeping only the non-zero amounts.
-
 -- Converting an Ogmios transaction output to a transaction input type
 ogTxToTransactionInput
   :: (JsonWsp.TxOutRef /\ JsonWsp.OgmiosTxOut)
@@ -55,8 +66,10 @@ ogTxToTransactionInput (txOutRef /\ ogmiosTxOut) =
     Transaction.PubKeyCredential _ ->
       Right $ txOutRefToTransactionInput txOutRef
     Transaction.ScriptCredential _ ->
-      Left "Cannot convert an Ogmios output to TransactionInput"
+      Left "ogTxToTransactionInput: Cannot convert an Ogmios output to \
+        \TransactionInput"
   where
+    -- FIX ME:
     txOutRefToTransactionInput
       :: JsonWsp.TxOutRef
       -> Transaction.TransactionInput

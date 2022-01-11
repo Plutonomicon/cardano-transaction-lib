@@ -5,6 +5,7 @@ import Data.BigInt as BigInt
 import Data.Maybe (Maybe(..))
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.Map (Map(..))
+import Data.Newtype (class Newtype)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 
@@ -30,7 +31,8 @@ newtype TxBody = TxBody
     collateral :: Maybe (Array TransactionInput),
     required_signers :: Maybe (Array RequiredSigner),
     network_id :: Maybe NetworkId
-}
+  }
+derive instance newtypeTxBody :: Newtype TxBody _
 
 newtype TransactionWitnessSet = TransactionWitnessSet
   { vkeys :: Maybe (Array Vkeywitness),
