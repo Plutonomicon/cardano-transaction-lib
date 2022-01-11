@@ -12,7 +12,7 @@ module Types.JsonWsp
   , UtxoQueryParams
   , UtxoQueryResult
   , _uniqueId
-  , convertIntParsing
+  -- , convertIntParsing
   , jsonObject
   , mkJsonWspQuery
   , mkUtxosAtQuery
@@ -35,6 +35,7 @@ import Data.Array (index)
 import Data.BigInt as BigInt
 import Data.Either(Either(..), hush, note)
 import Data.Generic.Rep (class Generic)
+-- import Data.Int53 as Int
 import Data.Show.Generic (genericShow)
 import Data.Maybe (Maybe)
 import Data.Foldable (foldl)
@@ -244,7 +245,7 @@ parseValue :: Object Json -> Either JsonDecodeError Value
 parseValue outer = do
   o <- getField outer "value"
   coins <- parseFieldToBigInt o "coins" <|> (parseFieldToInt o "coins") <|> Left (TypeMismatch "Expected 'coins' to be an Int or a BigInt")
-  (assetsJson :: {}) <- getField o "assets"
+  (_assetsJson :: {}) <- getField o "assets"
   -- note 'coins' is being sent as a number, in some cases this may exceed the max safe
   -- representation of a Number, we may need to parse this up from a string instead of from
   -- the Argonaut 'Json' representation in order to prevent this.
@@ -253,9 +254,9 @@ parseValue outer = do
   -- assets are currently assumed to be empty
   -- newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
   pure $ Value $ Map.singleton (CurrencySymbol "") (Map.singleton (TokenName "") coins)
-convertIntParsing
-  :: Either JsonDecodeError Int.Int53
-  -> Either JsonDecodeError BigInt.BigInt
-convertIntParsing (Left e) = Left e
-convertIntParsing (Right i) = do
-   note (TypeMismatch "unexpected conversion failure from Int to BigInt") $ BigInt.fromString $ Int.toString i
+-- convertIntParsing
+--   :: Either JsonDecodeError Int.Int53
+--   -> Either JsonDecodeError BigInt.BigInt
+-- convertIntParsing (Left e) = Left e
+-- convertIntParsing (Right i) = do
+--    note (TypeMismatch "unexpected conversion failure from Int to BigInt") $ BigInt.fromString $ Int.toString i
