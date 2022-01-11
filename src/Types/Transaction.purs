@@ -46,21 +46,21 @@ newtype NetworkId = NetworkId Int
 newtype RequiredSigner = RequiredSigner String
 
 newtype CurrencySymbol = CurrencySymbol String
-
+derive instance eqCurrencySymbol :: Eq CurrencySymbol
 derive instance genericCurrencySymbol :: Generic CurrencySymbol _
 
 instance showCurrencySymbol :: Show CurrencySymbol where
   show = genericShow
 
 newtype TokenName = TokenName String
-
+derive instance eqTokenName :: Eq TokenName
 derive instance genericTokenName :: Generic TokenName _
 
 instance showTokenName :: Show TokenName where
   show = genericShow
 
 newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
-
+derive instance eqValue :: Eq Value
 derive instance genericValue :: Generic Value _
 
 instance showValue :: Show Value where
