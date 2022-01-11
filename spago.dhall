@@ -22,6 +22,7 @@ You can edit this file as you like.
   , "maybe"
   , "medea"
   , "mote"
+  , "newtype"
   , "node-buffer"
   , "node-fs-aff"
   , "ordered-collections"

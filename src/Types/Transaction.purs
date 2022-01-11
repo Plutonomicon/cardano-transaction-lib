@@ -118,7 +118,9 @@ newtype BaseAddress = BaseAddress
     payment :: Credential
   }
 
-newtype Credential = Credential String
+-- newtype Credential = Credential String (old)
+-- Below comes from Plutus API:
+data Credential = PubKeyCredential String | ScriptCredential String
 
 -- Addresspub struct Address(AddrType);
 -- AddrType 

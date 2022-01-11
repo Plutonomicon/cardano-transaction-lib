@@ -1,5 +1,6 @@
 module Value
   ( flattenValue
+  , isAdaOnly
   ) where
 
 import Prelude
@@ -11,6 +12,10 @@ import Data.Map (Map, toUnfoldable)
 import Data.Tuple.Nested ((/\), type (/\))
 
 import Types.Transaction (CurrencySymbol(..), TokenName(..), Value(..))
+
+-- This module rewrites functionality from:
+-- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
+-- https://staging.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value
 
 -- Could use Data.Newtype (unwrap) too.
 getValue
@@ -28,6 +33,7 @@ flattenValue v = do
     guard $ a /= zero
     pure $ cs /\ tn /\ a
 
+-- | Predicate on whether some Value contains Ada only.
 isAdaOnly :: Value -> Boolean
 isAdaOnly v =
   case flattenValue v of
