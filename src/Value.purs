@@ -18,15 +18,11 @@ import Types.Transaction (CurrencySymbol(..), TokenName(..), Value(..))
 -- https://staging.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value
 
 -- Could use Data.Newtype (unwrap) too.
-getValue
-  :: Value
-  -> Map CurrencySymbol (Map TokenName BigInt)
+getValue :: Value -> Map CurrencySymbol (Map TokenName BigInt)
 getValue (Value v) = v
 
 -- Taken from https://staging.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#flattenValue
-flattenValue
-  :: Value
-  -> List (CurrencySymbol /\ TokenName /\ BigInt)
+flattenValue :: Value -> List (CurrencySymbol /\ TokenName /\ BigInt)
 flattenValue v = do
     cs /\ m <- toUnfoldable <<< getValue $ v
     tn /\ a <- toUnfoldable m
