@@ -1,4 +1,4 @@
-module BalanceTx where
+module PreBalanceTx where
 
 import Prelude
 import Data.Array as Array
@@ -74,3 +74,27 @@ ogTxOutAddressCredentials ogmiosTxOut =
 txOutRefToTransactionInput :: JsonWsp.TxOutRef -> Transaction.TransactionInput
 txOutRefToTransactionInput { txId, index } =
   Transaction.TransactionInput { transaction_id: txId, index }
+
+-- -- | We need to balance non ada values, as the cardano-cli is unable to balance them (as of 2021/09/24)
+-- balanceNonAdaOuts :: PubKeyHash -> Map TxOutRef TxOut -> Tx -> Either Text Tx
+-- balanceNonAdaOuts ownPkh utxos tx =
+--   let changeAddr = Ledger.pubKeyHashAddress ownPkh
+--       txInRefs = map Tx.txInRef $ Set.toList $ txInputs tx
+--       inputValue = mconcat $ map Tx.txOutValue $ mapMaybe (`Map.lookup` utxos) txInRefs
+--       outputValue = mconcat $ map Tx.txOutValue $ txOutputs tx
+--       nonMintedOutputValue = outputValue `minus` txMint tx
+--       nonAdaChange = filterNonAda inputValue `minus` filterNonAda nonMintedOutputValue
+--       outputs =
+--         case partition ((==) changeAddr . Tx.txOutAddress) $ txOutputs tx of
+--           ([], txOuts) ->
+--             TxOut
+--               { txOutAddress = changeAddr
+--               , txOutValue = nonAdaChange
+--               , txOutDatumHash = Nothing
+--               } :
+--             txOuts
+--           (txOut@TxOut {txOutValue = v} : txOuts, txOuts') ->
+--             txOut {txOutValue = v <> nonAdaChange} : (txOuts <> txOuts')
+--    in if isValueNat nonAdaChange
+--         then Right $ if Value.isZero nonAdaChange then tx else tx {txOutputs = outputs}
+--         else Left "Not enough inputs to balance tokens."
