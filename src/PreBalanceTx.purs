@@ -27,8 +27,10 @@ addTxCollaterals
 addTxCollaterals utxos txBody = do
   let txIns :: List Transaction.TransactionInput
       txIns =
-        List.mapMaybe (hush <<< ogTxToTransactionInput) <<<
-          Map.toUnfoldable <<< filterAdaOnly <<< unwrap $ utxos
+        List.mapMaybe (hush <<< ogTxToTransactionInput)
+          <<< Map.toUnfoldable
+          <<< filterAdaOnly
+          <<< unwrap $ utxos
   txIn :: Transaction.TransactionInput <- findPubKeyTxIn txIns
   pure $
     over Transaction.TxBody _{ collateral = Just (Array.singleton txIn) } txBody
