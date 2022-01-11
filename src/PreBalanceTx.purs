@@ -11,7 +11,6 @@ import Data.Newtype (over, unwrap)
 import Data.Tuple.Nested ((/\), type (/\))
 -- import Undefined (undefined)
 
-import Types.JsonWsp as JsonWsp
 import Types.Transaction as Transaction
 import Value (isAdaOnly)
 
@@ -19,24 +18,23 @@ import Value (isAdaOnly)
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 
 -- | Pick a collateral from the utxo map and add it to the unbalanced transaction
--- (suboptimally we just pick a random utxo from the tx inputs)
+-- | (suboptimally we just pick a random utxo from the tx inputs)
 addTxCollaterals
-  :: JsonWsp.UtxoQR
+  :: Transaction.Utxo
   -> Transaction.TxBody
   -> Either String Transaction.TxBody
 addTxCollaterals utxos txBody = do
   let txIns :: List Transaction.TransactionInput
       txIns =
-        List.mapMaybe (hush <<< ogTxToTransactionInput)
+        List.mapMaybe (hush <<< txToTransactionInput)
           <<< Map.toUnfoldable
-          <<< filterAdaOnly
-          <<< unwrap $ utxos
+          <<< filterAdaOnly $ utxos
   txIn :: Transaction.TransactionInput <- findPubKeyTxIn txIns
   pure $
     over Transaction.TxBody _{ collateral = Just (Array.singleton txIn) } txBody
   where
-    filterAdaOnly :: JsonWsp.UtxoQueryResult -> JsonWsp.UtxoQueryResult
-    filterAdaOnly = Map.filter (isAdaOnly <<< _.value)
+    filterAdaOnly :: Transaction.Utxo -> Transaction.Utxo
+    filterAdaOnly = Map.filter (isAdaOnly <<< _.amount <<< unwrap)
 
     -- FIX ME: Plutus has Maybe TxInType e.g. Just ConsumePublicKeyAddress)
     -- for now, we take the head. The Haskell logic is pasted below:
@@ -54,32 +52,44 @@ addTxCollaterals utxos txBody = do
 
 -- Converting an Ogmios transaction output to a transaction input type
 -- FIX ME: may need to revisit for credential granularity.
-ogTxToTransactionInput
-  :: (JsonWsp.TxOutRef /\ JsonWsp.OgmiosTxOut)
+txToTransactionInput
+  :: (Transaction.TransactionInput /\ Transaction.TransactionOutput)
   -> Either String Transaction.TransactionInput
-ogTxToTransactionInput (txOutRef /\ ogmiosTxOut) =
-  case ogTxOutAddressCredentials ogmiosTxOut of
+txToTransactionInput (txOutRef /\ txOut) =
+  case txOutAddressCredentials txOut of
     Transaction.Credential _ ->
-      Right $ txOutRefToTransactionInput txOutRef
+      Right txOutRef
     _ -> -- Currently unreachable:
       Left "ogTxToTransactionInput: Cannot convert an Ogmios output to \
         \TransactionInput"
 
--- FIX ME: address of OgmiosTxOut doesn't line up well with Transaction TxOut.
--- So method of extracting credentials is unknown at the moment.
-ogTxOutAddressCredentials :: JsonWsp.OgmiosTxOut -> Transaction.Credential
-ogTxOutAddressCredentials ogmiosTxOut =
-  Transaction.Credential ogmiosTxOut.address
+-- FIX ME: do we need granularity for staking credential?
+txOutAddressCredentials
+  :: Transaction.TransactionOutput
+  -> Transaction.Credential
+txOutAddressCredentials = _.payment <<< unwrap
+  <<< _.addrType <<< unwrap
+  <<< _.address  <<< unwrap
 
--- FIX ME: This behaves differently to pubKeyTxIn because of TxInType, see
--- https://play.marlowe-finance.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Tx.html#pubKeyTxIn
-txOutRefToTransactionInput :: JsonWsp.TxOutRef -> Transaction.TransactionInput
-txOutRefToTransactionInput { txId, index } =
-  Transaction.TransactionInput { transaction_id: txId, index }
+-- -- FIX ME: This behaves differently to pubKeyTxIn because of TxInType, see
+-- -- https://play.marlowe-finance.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Tx.html#pubKeyTxIn
+-- txOutRefToTransactionInput :: JsonWsp.TxOutRef -> Transaction.TransactionInput
+-- txOutRefToTransactionInput { txId, index } =
+--   Transaction.TransactionInput { transaction_id: txId, index }
 
--- -- | We need to balance non ada values, as the cardano-cli is unable to balance them (as of 2021/09/24)
+-- -- | We need to balance non ada values, as the cardano-cli is unable to balance
+-- -- | them (as of 2021/09/24)
+-- balanceNonAdaOuts
+--   :: String -- address for change
+--   -> Transaction.Utxo
+--   -> Transaction.TxBody
+--   -> Either String Transaction.TxBody
+-- balanceNonAdaOuts changeAddr utxos txBody =
+--   let inputValue =        Array.mapMaybe (`Map.lookup` (unwrap utxos)) txBody.inputs
+--    in pure txBody
+
 -- balanceNonAdaOuts :: PubKeyHash -> Map TxOutRef TxOut -> Tx -> Either Text Tx
--- balanceNonAdaOuts ownPkh utxos tx =
+-- balanceNonAdaOuts addr utxos tx =
 --   let changeAddr = Ledger.pubKeyHashAddress ownPkh
 --       txInRefs = map Tx.txInRef $ Set.toList $ txInputs tx
 --       inputValue = mconcat $ map Tx.txOutValue $ mapMaybe (`Map.lookup` utxos) txInRefs

@@ -4,7 +4,6 @@ module Value
   ) where
 
 import Prelude
-
 import Control.Alternative (guard)
 import Data.BigInt (BigInt)
 import Data.List ((:), List(..))

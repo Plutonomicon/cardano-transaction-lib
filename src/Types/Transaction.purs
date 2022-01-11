@@ -99,33 +99,40 @@ newtype TransactionInput = TransactionInput
   { transaction_id :: String, -- TransactionHash
     index :: BigInt.BigInt -- u32 TransactionIndex
   }
+derive instance eqTransactionInput :: Eq TransactionInput
+derive instance ordTransactionInput :: Ord TransactionInput
 
 newtype TransactionOutput = TransactionOutput
   { address :: Address,
     amount :: Value,
     data_hash :: Maybe String -- DataHash>,
   }
+derive instance newtypeTransactionOutput :: Newtype TransactionOutput _
+
+type Utxo = Map TransactionInput TransactionOutput
 
 newtype Coin = Coin BigInt.BigInt
 
 newtype Slot = Slot BigInt.BigInt
 
 newtype Address = Address
-  { "AddrType" :: BaseAddress
+  { addrType :: BaseAddress -- "AddrType" :: BaseAddress
   }
+derive instance newtypeAddress :: Newtype Address _
 
 newtype BaseAddress = BaseAddress
   { network :: Int, -- u8,
     stake :: Credential,
     payment :: Credential
   }
+derive instance newtypeBaseAddress :: Newtype BaseAddress _
 
 newtype Credential = Credential String
 -- Below comes from Plutus API:
 -- data Credential = PubKeyCredential String | ScriptCredential String
 
 -- Addresspub struct Address(AddrType);
--- AddrType 
+-- AddrType
 -- enum AddrType {
     -- Base(BaseAddress),
     -- Ptr(PointerAddress),
@@ -138,7 +145,7 @@ newtype Credential = Credential String
     -- payment: StakeCredential,
     -- stake: StakeCredential,
 -- }
--- pub struct StakeCredential(StakeCredType); 
+-- pub struct StakeCredential(StakeCredType);
 -- Both of these are strings:
 -- enum StakeCredType {
     -- Key(Ed25519KeyHash),
