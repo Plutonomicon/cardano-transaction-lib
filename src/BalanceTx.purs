@@ -1,12 +1,14 @@
 module BalanceTx where
 
-import Prelude
-import Data.Either (Either(..))
-import Data.Map (Map)
-import Data.Map as Map
+-- import Prelude
+-- import Data.BigInt as BigInt
+-- import Data.Either (Either(..))
+-- import Data.Map as Map
+-- import Data.Tuple.Nested ((/\))
 
-import Types.JsonWsp (UtxoQueryResult)
-import Types.Transaction as Transaction
+-- import Types.JsonWsp (UtxoQueryResult)
+-- import Types.Transaction as Transaction
+-- import Value (flattenValue)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
@@ -36,8 +38,5 @@ import Types.Transaction as Transaction
 --       _ -> Left "There are no utxos to be used as collateral"
 --     filterAdaOnly = Map.filter (isAdaOnly . txOutValue)
 
--- isAdaOnly :: Transaction.Value -> Boolean
--- isAdaOnly v =
---   case Value.flattenValue v of
---     [("", "", _)] -> True
---     _ -> False
+-- | Convert a value to a simple list, keeping only the non-zero amounts.
+
