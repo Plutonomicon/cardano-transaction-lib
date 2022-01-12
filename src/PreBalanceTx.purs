@@ -2,6 +2,7 @@ module PreBalanceTx where
 
 import Prelude
 import Data.Array as Array
+import Data.BigInt (BigInt)
 import Data.Either (Either(..), hush, note)
 import Data.List ((:), List(..))
 import Data.List as List
@@ -12,7 +13,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 -- import Undefined (undefined)
 
 import Types.Transaction as Transaction
-import Value (emptyValue, filterNonAda, isAdaOnly, isPos, isZero, minus)
+import Value (emptyValue, filterNonAda, isAdaOnly, isNonNeg, isZero, minus)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
@@ -82,14 +83,14 @@ txOutPaymentCredentials = addressPaymentCredentials <<< _.address  <<< unwrap
 -- | We need to balance non ada values, as the cardano-cli is unable to balance
 -- | them (as of 2021/09/24)
 balanceNonAdaOuts
-  :: Transaction.Address -- (payment credential) address for change substitute for pkh?
+  :: Transaction.Address -- FIX ME: (payment credential) address for change substitute for pkh.
   -> Transaction.Utxo
   -> Transaction.TxBody
   -> Either String Transaction.TxBody
 balanceNonAdaOuts changeAddr utxos txBody =
   let unwrapTxBody = unwrap txBody
 
-      -- Like pkh?
+      -- FIX ME: Similar to Transaction.Address issue, need pkh.
       payCredentials :: Transaction.Credential
       payCredentials = addressPaymentCredentials changeAddr
 
@@ -130,7 +131,7 @@ balanceNonAdaOuts changeAddr utxos txBody =
               } ->
                 Transaction.TransactionOutput
                   txOut { amount = v <> nonAdaChange } : txOuts <> txOuts'
-   in if isPos nonAdaChange
+   in if isNonNeg nonAdaChange
        then pure $
         if isZero nonAdaChange
          then txBody
@@ -163,3 +164,65 @@ getAmount = _.amount <<< unwrap
 --    in if isValueNat nonAdaChange
 --         then Right $ if Value.isZero nonAdaChange then tx else tx {txOutputs = outputs}
 --         else Left "Not enough inputs to balance tokens."
+
+-- balanceTxIns :: Transaction.Utxo -> Integer -> Tx -> Either Text Tx
+-- balanceTxIns utxos fees tx = do
+--   let txOuts = Tx.txOutputs tx
+--       nonMintedValue = mconcat (map Tx.txOutValue txOuts) `minus` txMint tx
+--       minSpending =
+--         mconcat
+--           [ Ada.lovelaceValueOf fees
+--           , nonMintedValue
+--           ]
+--   txIns <- collectTxIns (txInputs tx) utxos minSpending
+--   pure $ tx {txInputs = txIns <> txInputs tx}
+
+-- collectTxIns
+--   :: Array Transaction.TransactionInput
+--   -> Transaction.Utxo
+--   -> Transaction.Value
+--   -> Either String (Array Transaction.TransactionInput)
+-- collectTxIns originalTxIns utxos value =
+--   if isSufficient updatedInputs
+--    then pure updatedInputs
+--    else
+--     Left $
+--       "collectTxIns: Insufficient tx inputs, needed: "
+--       <> show (flattenValue value)
+--       <> ", got: "
+--       <> show (flattenValue $ txInsValue updatedInputs)
+--   where
+    
+
+
+--   -- | Getting the necessary utxos to cover the fees for the transaction
+-- collectTxIns :: Set TxIn -> Map TxOutRef TxOut -> Value -> Either Text (Set TxIn)
+-- collectTxIns originalTxIns utxos value =
+--   if isSufficient updatedInputs
+--     then Right updatedInputs
+--     else
+--       Left $
+--         Text.unlines
+--           [ "Insufficient tx inputs, needed: "
+--           , showText (Value.flattenValue value)
+--           , "got:"
+--           , showText (Value.flattenValue (txInsValue updatedInputs))
+--           ]
+--   where
+--     updatedInputs =
+--       foldl
+--         ( \acc txIn ->
+--             if isSufficient acc
+--               then acc
+--               else Set.insert txIn acc
+--         )
+--         originalTxIns
+--         $ mapMaybe (rightToMaybe . txOutToTxIn) $ Map.toList utxos
+
+--     isSufficient :: Set TxIn -> Bool
+--     isSufficient txIns' =
+--       not (Set.null txIns') && txInsValue txIns' `Value.geq` value
+
+--     txInsValue :: Set TxIn -> Value
+--     txInsValue txIns' =
+--       mconcat $ map Tx.txOutValue $ mapMaybe ((`Map.lookup` utxos) . Tx.txInRef) $ Set.toList txIns'

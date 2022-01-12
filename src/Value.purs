@@ -3,7 +3,7 @@ module Value
   , filterNonAda
   , flattenValue
   , isAdaOnly
-  , isPos
+  , isNonNeg
   , isZero
   , minus
   ) where
@@ -11,6 +11,7 @@ module Value
 import Prelude
 import Control.Alternative (guard)
 import Data.BigInt (BigInt)
+import Data.Foldable as Foldable
 import Data.List ((:), List(..), all, foldMap)
 import Data.Map (Map, filterKeys, toUnfoldable)
 import Data.Map as Map
@@ -34,13 +35,6 @@ flattenValue v = do
     cs /\ m <- toUnfoldable <<< getValue $ v
     tn /\ a <- toUnfoldable m
     guard $ a /= zero
-    pure $ cs /\ tn /\ a
-
--- Like FlattenValue but doesn't guard against zeros
-flattenValue' :: Value -> List (CurrencySymbol /\ TokenName /\ BigInt)
-flattenValue' v = do
-    cs /\ m <- toUnfoldable <<< getValue $ v
-    tn /\ a <- toUnfoldable m
     pure $ cs /\ tn /\ a
 
 -- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
@@ -74,10 +68,10 @@ filterNonAda = Value <<< filterKeys (_ /= adaSymbol) <<< getValue
 -- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 -- "isValueNat" uses flattenValue which guards against zeros, so non-strict
 -- inequality is redundant. We'll follow the original code exactly for now.
-isPos :: Value -> Boolean
-isPos = all (\(_ /\ _ /\ a) -> a >= zero) <<< flattenValue
+isNonNeg :: Value -> Boolean
+isNonNeg = all (\(_ /\ _ /\ a) -> a >= zero) <<< flattenValue
 
 -- From https://staging.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#isZero
 -- | Check whether a 'Value' is zero.
 isZero :: Value -> Boolean
-isZero = all (\(_ /\ _ /\ a) -> a == zero) <<< flattenValue'
+isZero = Foldable.all (Foldable.all ((==) zero)) <<< getValue
