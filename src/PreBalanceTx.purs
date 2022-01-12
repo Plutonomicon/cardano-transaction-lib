@@ -26,9 +26,9 @@ addTxCollaterals
   -> Transaction.TxBody
   -> Either String Transaction.TxBody
 addTxCollaterals utxos txBody = do
-  let txIns :: List Transaction.TransactionInput
+  let txIns :: Array Transaction.TransactionInput
       txIns =
-        List.mapMaybe (hush <<< toEitherTransactionInput)
+        Array.mapMaybe (hush <<< toEitherTransactionInput)
           <<< Map.toUnfoldable
           <<< filterAdaOnly $ utxos
   txIn :: Transaction.TransactionInput <- findPubKeyTxIn txIns
@@ -46,11 +46,11 @@ addTxCollaterals utxos txBody = do
     --   _ : xs -> findPubKeyTxIn xs
     --   _ -> Left "There are no utxos to be used as collateral"
     findPubKeyTxIn
-      :: List Transaction.TransactionInput
+      :: Array Transaction.TransactionInput
       -> Either String Transaction.TransactionInput
     findPubKeyTxIn =
       note "addTxCollaterals: There are no utxos to be used as collateral"
-        <<< List.head
+        <<< Array.head
 
 -- Converting an Ogmios transaction output to a transaction input type
 -- FIX ME: may need to revisit for credential granularity.
@@ -117,7 +117,7 @@ balanceNonAdaOuts changeAddr utxos txBody =
 
       outputs :: Array Transaction.TransactionOutput
       outputs =
-        Array.fromFoldable $
+        Array.fromFoldable $ -- FIX ME: Only use arrays?
           case List.partition
             ((==) payCredentials <<< txOutPaymentCredentials)
             <<< Array.toUnfoldable $ txOutputs of
@@ -184,7 +184,8 @@ balanceTxIns utxos fees txBody = do
       minSpending :: Transaction.Value
       minSpending = lovelaceValueOf fees <> nonMintedValue
 
-  txIns <- collectTxIns unwrapTxBody.inputs utxos minSpending
+  txIns :: Array Transaction.TransactionInput
+    <- collectTxIns unwrapTxBody.inputs utxos minSpending
   pure $ Transaction.TxBody $
     unwrapTxBody { inputs = txIns <> unwrapTxBody.inputs }
 
@@ -267,3 +268,37 @@ collectTxIns originalTxIns utxos value =
 --     txInsValue :: Set TxIn -> Value
 --     txInsValue txIns' =
 --       mconcat $ map Tx.txOutValue $ mapMaybe ((`Map.lookup` utxos) . Tx.txInRef) $ Set.toList txIns'
+
+-- -- | Add min lovelaces to each tx output
+-- addLovelaces :: [(TxOut, Integer)] -> Tx -> Tx
+-- addLovelaces minLovelaces tx =
+--   let lovelacesAdded =
+--         map
+--           ( \txOut ->
+--               let outValue = txOutValue txOut
+--                   lovelaces = Ada.getLovelace $ Ada.fromValue outValue
+--                   minUtxo = fromMaybe 0 $ lookup txOut minLovelaces
+--                in txOut
+--                     { txOutValue =
+--                         outValue <> Ada.lovelaceValueOf (max 0 (minUtxo - lovelaces))
+--                     }
+--           )
+--           $ txOutputs tx
+--    in tx {txOutputs = lovelacesAdded}
+
+-- -- | Add min lovelaces to each tx output
+-- addLovelaces :: [(TxOut, Integer)] -> Tx -> Tx
+-- addLovelaces minLovelaces tx =
+--   let lovelacesAdded =
+--         map
+--           ( \txOut ->
+--               let outValue = txOutValue txOut
+--                   lovelaces = Ada.getLovelace $ Ada.fromValue outValue
+--                   minUtxo = fromMaybe 0 $ lookup txOut minLovelaces
+--                in txOut
+--                     { txOutValue =
+--                         outValue <> Ada.lovelaceValueOf (max 0 (minUtxo - lovelaces))
+--                     }
+--           )
+--           $ txOutputs tx
+--    in tx {txOutputs = lovelacesAdded}

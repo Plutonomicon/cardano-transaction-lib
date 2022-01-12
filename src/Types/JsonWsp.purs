@@ -12,7 +12,6 @@ module Types.JsonWsp
   , UtxoQueryParams
   , UtxoQueryResult
   , _uniqueId
-  -- , convertIntParsing
   , jsonObject
   , mkJsonWspQuery
   , mkUtxosAtQuery
@@ -255,9 +254,3 @@ parseValue outer = do
   -- assets are currently assumed to be empty
   -- newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
   pure $ Value $ Map.singleton (CurrencySymbol "") (Map.singleton (TokenName "") coins)
--- convertIntParsing
---   :: Either JsonDecodeError Int.Int53
---   -> Either JsonDecodeError BigInt.BigInt
--- convertIntParsing (Left e) = Left e
--- convertIntParsing (Right i) = do
---    note (TypeMismatch "unexpected conversion failure from Int to BigInt") $ BigInt.fromString $ Int.toString i
