@@ -6,13 +6,13 @@ import Data.Either (Either(..), hush, note)
 import Data.List (List)
 import Data.List as List
 import Data.Map as Map
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (over, unwrap)
 import Data.Tuple.Nested ((/\), type (/\))
 -- import Undefined (undefined)
 
 import Types.Transaction as Transaction
-import Value (isAdaOnly)
+import Value (emptyValue, filterNonAda, isAdaOnly, minus)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
@@ -89,9 +89,18 @@ balanceNonAdaOuts changeAddr utxos txBody =
       inputValue =
         Array.foldMap
           unwrapAmount
-          (Array.mapMaybe (flip Map.lookup utxos) <<< _.inputs $ unwrapTxBody) :: Transaction.Value
-      outputValue = Array.foldMap unwrapAmount (_.outputs unwrapTxBody) :: Transaction.Value
-  in pure txBody
+          (Array.mapMaybe (flip Map.lookup utxos) <<< _.inputs $ unwrapTxBody)
+            :: Transaction.Value
+      outputValue =
+        Array.foldMap unwrapAmount (_.outputs unwrapTxBody)
+          :: Transaction.Value
+      nonMintedOutputValue =
+        outputValue `minus` (fromMaybe emptyValue unwrapTxBody.mint)
+          :: Transaction.Value
+      nonAdaChange =
+        filterNonAda inputValue `minus` filterNonAda nonMintedOutputValue
+          :: Transaction.Value
+   in pure txBody
 
 unwrapAmount :: Transaction.TransactionOutput -> Transaction.Value
 unwrapAmount = _.amount <<< unwrap
