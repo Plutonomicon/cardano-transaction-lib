@@ -26,7 +26,7 @@ addTxCollaterals
 addTxCollaterals utxos txBody = do
   let txIns :: List Transaction.TransactionInput
       txIns =
-        List.mapMaybe (hush <<< txToTransactionInput)
+        List.mapMaybe (hush <<< toEitherTransactionInput)
           <<< Map.toUnfoldable
           <<< filterAdaOnly $ utxos
   txIn :: Transaction.TransactionInput <- findPubKeyTxIn txIns
@@ -34,7 +34,7 @@ addTxCollaterals utxos txBody = do
     over Transaction.TxBody _{ collateral = Just (Array.singleton txIn) } txBody
   where
     filterAdaOnly :: Transaction.Utxo -> Transaction.Utxo
-    filterAdaOnly = Map.filter (isAdaOnly <<< _.amount <<< unwrap)
+    filterAdaOnly = Map.filter (isAdaOnly <<< unwrapAmount)
 
     -- FIX ME: Plutus has Maybe TxInType e.g. Just ConsumePublicKeyAddress)
     -- for now, we take the head. The Haskell logic is pasted below:
@@ -52,15 +52,15 @@ addTxCollaterals utxos txBody = do
 
 -- Converting an Ogmios transaction output to a transaction input type
 -- FIX ME: may need to revisit for credential granularity.
-txToTransactionInput
+toEitherTransactionInput
   :: (Transaction.TransactionInput /\ Transaction.TransactionOutput)
   -> Either String Transaction.TransactionInput
-txToTransactionInput (txOutRef /\ txOut) =
+toEitherTransactionInput (txOutRef /\ txOut) =
   case txOutAddressCredentials txOut of
     Transaction.Credential _ ->
       Right txOutRef
     _ -> -- Currently unreachable:
-      Left "ogTxToTransactionInput: Cannot convert an Ogmios output to \
+      Left "toEitherTransactionInput: Cannot convert an output to \
         \TransactionInput"
 
 -- FIX ME: do we need granularity for staking credential?
@@ -68,7 +68,7 @@ txOutAddressCredentials
   :: Transaction.TransactionOutput
   -> Transaction.Credential
 txOutAddressCredentials = _.payment <<< unwrap
-  <<< _.addrType <<< unwrap
+  <<< _."AddrType" <<< unwrap
   <<< _.address  <<< unwrap
 
 -- -- FIX ME: This behaves differently to pubKeyTxIn because of TxInType, see
@@ -77,16 +77,24 @@ txOutAddressCredentials = _.payment <<< unwrap
 -- txOutRefToTransactionInput { txId, index } =
 --   Transaction.TransactionInput { transaction_id: txId, index }
 
--- -- | We need to balance non ada values, as the cardano-cli is unable to balance
--- -- | them (as of 2021/09/24)
--- balanceNonAdaOuts
---   :: String -- address for change
---   -> Transaction.Utxo
---   -> Transaction.TxBody
---   -> Either String Transaction.TxBody
--- balanceNonAdaOuts changeAddr utxos txBody =
---   let inputValue =        Array.mapMaybe (`Map.lookup` (unwrap utxos)) txBody.inputs
---    in pure txBody
+-- | We need to balance non ada values, as the cardano-cli is unable to balance
+-- | them (as of 2021/09/24)
+balanceNonAdaOuts
+  :: String -- address for change
+  -> Transaction.Utxo
+  -> Transaction.TxBody
+  -> Either String Transaction.TxBody
+balanceNonAdaOuts changeAddr utxos txBody =
+  let unwrapTxBody = unwrap txBody
+      inputValue =
+        Array.foldMap
+          unwrapAmount
+          (Array.mapMaybe (flip Map.lookup utxos) <<< _.inputs $ unwrapTxBody) :: Transaction.Value
+      outputValue = Array.foldMap unwrapAmount (_.outputs unwrapTxBody) :: Transaction.Value
+  in pure txBody
+
+unwrapAmount :: Transaction.TransactionOutput -> Transaction.Value
+unwrapAmount = _.amount <<< unwrap
 
 -- balanceNonAdaOuts :: PubKeyHash -> Map TxOutRef TxOut -> Tx -> Either Text Tx
 -- balanceNonAdaOuts addr utxos tx =

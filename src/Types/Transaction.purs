@@ -5,7 +5,8 @@ import Data.BigInt as BigInt
 import Data.Maybe (Maybe)
 import Data.Tuple.Nested (type (/\))
 import Data.Map (Map)
-import Data.Newtype (class Newtype)
+import Data.Map as Map
+import Data.Newtype (class Newtype, unwrap)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 
@@ -49,6 +50,7 @@ newtype RequiredSigner = RequiredSigner String
 
 newtype CurrencySymbol = CurrencySymbol String
 derive instance eqCurrencySymbol :: Eq CurrencySymbol
+derive instance ordCurrencySymbol :: Ord CurrencySymbol
 derive instance genericCurrencySymbol :: Generic CurrencySymbol _
 
 instance showCurrencySymbol :: Show CurrencySymbol where
@@ -56,6 +58,7 @@ instance showCurrencySymbol :: Show CurrencySymbol where
 
 newtype TokenName = TokenName String
 derive instance eqTokenName :: Eq TokenName
+derive instance ordTokenName :: Ord TokenName
 derive instance genericTokenName :: Generic TokenName _
 
 instance showTokenName :: Show TokenName where
@@ -64,9 +67,17 @@ instance showTokenName :: Show TokenName where
 newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
 derive instance eqValue :: Eq Value
 derive instance genericValue :: Generic Value _
+derive instance newtypeValue :: Newtype Value _
 
 instance showValue :: Show Value where
   show = genericShow
+
+instance semigroupValue :: Semigroup Value where
+  append v1 v2 =
+    Value $ Map.unionWith (Map.unionWith (+)) (unwrap v1) (unwrap v2)
+
+instance monoidValue :: Monoid Value where
+  mempty = Value Map.empty
 
 newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
@@ -116,7 +127,7 @@ newtype Coin = Coin BigInt.BigInt
 newtype Slot = Slot BigInt.BigInt
 
 newtype Address = Address
-  { addrType :: BaseAddress -- "AddrType" :: BaseAddress
+  { "AddrType" :: BaseAddress
   }
 derive instance newtypeAddress :: Newtype Address _
 
