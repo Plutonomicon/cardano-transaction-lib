@@ -1,12 +1,17 @@
 module Types.Transaction where
 
 import Prelude
-import Data.BigInt as BigInt
+import Data.Array as Array
+import Data.BigInt (BigInt)
+import Data.Foldable (any)
 import Data.Maybe (Maybe)
-import Data.Tuple.Nested (type (/\))
+import Data.These (These(..))
+import Data.Tuple.Nested ((/\), type (/\))
+import Data.List (List(..))
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Newtype (class Newtype, unwrap)
+import Data.Maybe (Maybe(..))
+import Data.Newtype (class Newtype)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 
@@ -64,7 +69,7 @@ derive instance genericTokenName :: Generic TokenName _
 instance showTokenName :: Show TokenName where
   show = genericShow
 
-newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
+newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt))
 derive instance eqValue :: Eq Value
 derive instance genericValue :: Generic Value _
 derive instance newtypeValue :: Newtype Value _
@@ -73,11 +78,65 @@ instance showValue :: Show Value where
   show = genericShow
 
 instance semigroupValue :: Semigroup Value where
-  append v1 v2 =
-    Value $ Map.unionWith (Map.unionWith (+)) (unwrap v1) (unwrap v2)
+  append = unionWith (+)
+  -- append v1 v2 =
+  --   Value $ Map.unionWith (Map.unionWith (+)) (unwrap v1) (unwrap v2)
 
 instance monoidValue :: Monoid Value where
   mempty = Value Map.empty
+
+-- https://playground.plutus.iohkdev.io/doc/haddock/plutus-tx/html/src/PlutusTx.AssocMap.html#union
+-- | Combine two 'Map's.
+union :: ∀ k v r. Ord k => Map k v -> Map k r -> Map k (These v r)
+union l r =
+  let ls :: Array (k /\ v)
+      ls = Map.toUnfoldable l
+
+      rs :: Array (k /\ r)
+      rs = Map.toUnfoldable r
+
+      f :: v -> Maybe r -> These v r
+      f a b' = case b' of
+          Nothing -> This a
+          Just b  -> Both a b
+
+      ls' :: Array (k /\ These v r)
+      ls' = map (\(c /\ i) -> (c /\ f i (Map.lookup c (Map.fromFoldable rs)))) ls
+
+      rs' :: Array (k /\ r)
+      rs' = Array.filter (\(c /\ _) -> not (any (\(c' /\ _) -> c' == c) ls)) rs
+
+      rs'' :: Array (k /\ These v r)
+      rs'' = map (map That) rs'
+   in Map.fromFoldable (ls' <> rs'')
+
+-- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#unionVal
+-- | Combine two 'Value' maps
+unionVal
+  :: Value
+  -> Value
+  -> Map CurrencySymbol (Map TokenName (These BigInt BigInt))
+unionVal (Value l) (Value r) =
+  let combined = union l r
+      unBoth k = case k of
+        This a -> This <$> a
+        That b -> That <$> b
+        Both a b -> union a b
+   in unBoth <$> combined
+
+-- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#unionWith
+unionWith
+  :: (BigInt -> BigInt -> BigInt)
+  -> Value
+  -> Value
+  -> Value
+unionWith f ls rs =
+  let combined = unionVal ls rs
+      unBoth k' = case k' of
+        This a -> f a zero
+        That b -> f zero b
+        Both a b -> f a b
+   in Value (map (map unBoth) combined)
 
 newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
@@ -93,14 +152,14 @@ newtype PlutusData = PlutusData String
 
 newtype Redeemer = Redeemer
   { tag :: RedeemerTag, -- ScriptPurpose: 'spending' 'minting' etc
-    index :: BigInt.BigInt,
+    index :: BigInt,
     data :: PlutusData,
     ex_units :: (MemExUnits /\ CpuExUnits)
   }
 
-newtype MemExUnits = MemExUnits BigInt.BigInt
+newtype MemExUnits = MemExUnits BigInt
 
-newtype CpuExUnits = CpuExUnits BigInt.BigInt
+newtype CpuExUnits = CpuExUnits BigInt
 
 data RedeemerTag = Spend | Mint | Cert | Reward
 
@@ -108,7 +167,7 @@ type AuxiliaryData = Unit -- this is big and weird in serialization-lib
 
 newtype TransactionInput = TransactionInput
   { transaction_id :: String, -- TransactionHash
-    index :: BigInt.BigInt -- u32 TransactionIndex
+    index :: BigInt -- u32 TransactionIndex
   }
 derive instance eqTransactionInput :: Eq TransactionInput
 derive instance ordTransactionInput :: Ord TransactionInput
@@ -122,9 +181,9 @@ derive instance newtypeTransactionOutput :: Newtype TransactionOutput _
 
 type Utxo = Map TransactionInput TransactionOutput
 
-newtype Coin = Coin BigInt.BigInt
+newtype Coin = Coin BigInt
 
-newtype Slot = Slot BigInt.BigInt
+newtype Slot = Slot BigInt
 
 newtype Address = Address
   { "AddrType" :: BaseAddress

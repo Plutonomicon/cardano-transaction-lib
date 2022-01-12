@@ -2,7 +2,7 @@ module PreBalanceTx where
 
 import Prelude
 import Data.Array as Array
-import Data.BigInt (BigInt)
+-- import Data.BigInt (BigInt)
 import Data.Either (Either(..), hush, note)
 import Data.List ((:), List(..))
 import Data.List as List
@@ -13,7 +13,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 -- import Undefined (undefined)
 
 import Types.Transaction as Transaction
-import Value (emptyValue, filterNonAda, isAdaOnly, isNonNeg, isZero, minus)
+import Value (emptyValue, filterNonAda, flattenValue, geq, isAdaOnly, isNonNeg, isZero, minus)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
@@ -138,7 +138,6 @@ balanceNonAdaOuts changeAddr utxos txBody =
          else Transaction.TxBody $ unwrapTxBody {outputs = outputs}
        else Left "balanceNonAdaOuts: Not enough inputs to balance tokens."
 
-
 getAmount :: Transaction.TransactionOutput -> Transaction.Value
 getAmount = _.amount <<< unwrap
 
@@ -177,44 +176,41 @@ getAmount = _.amount <<< unwrap
 --   txIns <- collectTxIns (txInputs tx) utxos minSpending
 --   pure $ tx {txInputs = txIns <> txInputs tx}
 
--- collectTxIns
---   :: Array Transaction.TransactionInput
---   -> Transaction.Utxo
---   -> Transaction.Value
---   -> Either String (Array Transaction.TransactionInput)
--- collectTxIns originalTxIns utxos value =
---   if isSufficient updatedInputs
---    then pure updatedInputs
---    else
---     Left $
---       "collectTxIns: Insufficient tx inputs, needed: "
---       <> show (flattenValue value)
---       <> ", got: "
---       <> show (flattenValue $ txInsValue updatedInputs)
---   where
---     updatedInputs :: Array Transaction.TransactionInput
---     updatedInputs =
---       foldl
---         ( \acc txIn ->
---             if isSufficient acc
---              then acc
---              else Array.insert txIn acc
---         )
---         originalTxIns
---         -- FIX ME THIS TO ARRAY ONLY and previous usage, also refactor out mapMaybe fun.
---         List.mapMaybe (hush <<< toEitherTransactionInput) <<< Map.toUnfoldable $ utxos
+collectTxIns
+  :: Array Transaction.TransactionInput
+  -> Transaction.Utxo
+  -> Transaction.Value
+  -> Either String (Array Transaction.TransactionInput)
+collectTxIns originalTxIns utxos value =
+  if isSufficient updatedInputs
+   then pure updatedInputs
+   else
+    Left $
+      "collectTxIns: Insufficient tx inputs, needed: "
+      <> show (flattenValue value)
+      <> ", got: "
+      <> show (flattenValue $ txInsValue updatedInputs)
+  where
+    updatedInputs :: Array Transaction.TransactionInput
+    updatedInputs =
+      Array.foldl
+        ( \acc txIn ->
+            if isSufficient acc
+             then acc
+             else Array.insert txIn acc
+        )
+        originalTxIns
+        -- FIX ME THIS TO ARRAY ONLY and previous usage, also refactor out mapMaybe fun.
+        $ Array.mapMaybe (hush <<< toEitherTransactionInput) <<< Map.toUnfoldable $ utxos
 
---     isSufficient :: Array Transaction.TransactionInput -> Boolean
---     isSufficient txIns' =
---       not (Array.null txIns') && txInsValue txIns' `geq` value
+    isSufficient :: Array Transaction.TransactionInput -> Boolean
+    isSufficient txIns' =
+      not (Array.null txIns') && txInsValue txIns' `geq` value
 
---     -- FIX ME: refactor into a function.
---     txInsValue :: Array Transaction.TransactionInput -> Value
---     txInsValue =
---       Array.foldMap
---         getAmount
---         (Array.mapMaybe (flip Map.lookup utxos) <<< _.inputs) <<< unwrap
-
+    -- FIX ME: refactor into a function.
+    txInsValue :: Array Transaction.TransactionInput -> Transaction.Value
+    txInsValue =
+      Array.foldMap getAmount <<< Array.mapMaybe (flip Map.lookup utxos)
 
 --   -- | Getting the necessary utxos to cover the fees for the transaction
 -- collectTxIns :: Set TxIn -> Map TxOutRef TxOut -> Value -> Either Text (Set TxIn)
@@ -247,6 +243,3 @@ getAmount = _.amount <<< unwrap
 --     txInsValue :: Set TxIn -> Value
 --     txInsValue txIns' =
 --       mconcat $ map Tx.txOutValue $ mapMaybe ((`Map.lookup` utxos) . Tx.txInRef) $ Set.toList txIns'
-
-
--- mconcat $ map Tx.txOutValue $ mapMaybe (`Map.lookup` utxos) txInRefs

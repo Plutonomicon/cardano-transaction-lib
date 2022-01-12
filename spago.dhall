@@ -31,6 +31,7 @@ You can edit this file as you like.
   , "refs"
   , "spec"
   , "strings"
+  , "these"
   , "transformers"
   , "tuples"
   , "undefined"
