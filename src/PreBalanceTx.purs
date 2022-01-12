@@ -192,7 +192,28 @@ getAmount = _.amount <<< unwrap
 --       <> ", got: "
 --       <> show (flattenValue $ txInsValue updatedInputs)
 --   where
-    
+--     updatedInputs :: Array Transaction.TransactionInput
+--     updatedInputs =
+--       foldl
+--         ( \acc txIn ->
+--             if isSufficient acc
+--              then acc
+--              else Array.insert txIn acc
+--         )
+--         originalTxIns
+--         -- FIX ME THIS TO ARRAY ONLY and previous usage, also refactor out mapMaybe fun.
+--         List.mapMaybe (hush <<< toEitherTransactionInput) <<< Map.toUnfoldable $ utxos
+
+--     isSufficient :: Array Transaction.TransactionInput -> Boolean
+--     isSufficient txIns' =
+--       not (Array.null txIns') && txInsValue txIns' `geq` value
+
+--     -- FIX ME: refactor into a function.
+--     txInsValue :: Array Transaction.TransactionInput -> Value
+--     txInsValue =
+--       Array.foldMap
+--         getAmount
+--         (Array.mapMaybe (flip Map.lookup utxos) <<< _.inputs) <<< unwrap
 
 
 --   -- | Getting the necessary utxos to cover the fees for the transaction
@@ -226,3 +247,6 @@ getAmount = _.amount <<< unwrap
 --     txInsValue :: Set TxIn -> Value
 --     txInsValue txIns' =
 --       mconcat $ map Tx.txOutValue $ mapMaybe ((`Map.lookup` utxos) . Tx.txInRef) $ Set.toList txIns'
+
+
+-- mconcat $ map Tx.txOutValue $ mapMaybe (`Map.lookup` utxos) txInRefs
