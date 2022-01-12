@@ -2,7 +2,7 @@ module PreBalanceTx where
 
 import Prelude
 import Data.Array as Array
--- import Data.BigInt (BigInt)
+import Data.BigInt (BigInt)
 import Data.Either (Either(..), hush, note)
 import Data.List ((:), List(..))
 import Data.List as List
@@ -12,6 +12,7 @@ import Data.Newtype (over, unwrap)
 import Data.Tuple.Nested ((/\), type (/\))
 -- import Undefined (undefined)
 
+import Ada (lovelaceValueOf)
 import Types.Transaction as Transaction
 import Value (emptyValue, filterNonAda, flattenValue, geq, isAdaOnly, isNonNeg, isZero, minus)
 
@@ -95,7 +96,7 @@ balanceNonAdaOuts changeAddr utxos txBody =
       payCredentials = addressPaymentCredentials changeAddr
 
       txOutputs :: Array Transaction.TransactionOutput
-      txOutputs = _.outputs unwrapTxBody
+      txOutputs = unwrapTxBody.outputs
 
       inputValue :: Transaction.Value
       inputValue =
@@ -163,6 +164,29 @@ getAmount = _.amount <<< unwrap
 --    in if isValueNat nonAdaChange
 --         then Right $ if Value.isZero nonAdaChange then tx else tx {txOutputs = outputs}
 --         else Left "Not enough inputs to balance tokens."
+
+balanceTxIns
+  :: Transaction.Utxo
+  -> BigInt
+  -> Transaction.TxBody
+  -> Either String Transaction.TxBody
+balanceTxIns utxos fees txBody = do
+  let unwrapTxBody = unwrap txBody
+
+      txOuts :: Array Transaction.TransactionOutput
+      txOuts = unwrapTxBody.outputs -- FIX ME: txOuts txOutputs rename elsewhere?
+
+      nonMintedValue :: Transaction.Value
+      nonMintedValue =
+        Array.foldMap getAmount txOuts
+        `minus` fromMaybe emptyValue unwrapTxBody.mint
+
+      minSpending :: Transaction.Value
+      minSpending = lovelaceValueOf fees <> nonMintedValue
+
+  txIns <- collectTxIns unwrapTxBody.inputs utxos minSpending
+  pure $ Transaction.TxBody $
+    unwrapTxBody { inputs = txIns <> unwrapTxBody.inputs }
 
 -- balanceTxIns :: Transaction.Utxo -> Integer -> Tx -> Either Text Tx
 -- balanceTxIns utxos fees tx = do
