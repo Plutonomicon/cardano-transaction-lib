@@ -3,13 +3,15 @@ module Value
   , filterNonAda
   , flattenValue
   , isAdaOnly
+  , isPos
+  , isZero
   , minus
   ) where
 
 import Prelude
 import Control.Alternative (guard)
 import Data.BigInt (BigInt)
-import Data.List ((:), List(..), foldMap)
+import Data.List ((:), List(..), all, foldMap)
 import Data.Map (Map, filterKeys, toUnfoldable)
 import Data.Map as Map
 import Data.Newtype (unwrap)
@@ -34,6 +36,13 @@ flattenValue v = do
     guard $ a /= zero
     pure $ cs /\ tn /\ a
 
+-- Like FlattenValue but doesn't guard against zeros
+flattenValue' :: Value -> List (CurrencySymbol /\ TokenName /\ BigInt)
+flattenValue' v = do
+    cs /\ m <- toUnfoldable <<< getValue $ v
+    tn /\ a <- toUnfoldable m
+    pure $ cs /\ tn /\ a
+
 -- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 unflattenValue :: (CurrencySymbol /\ TokenName /\ BigInt) -> Value
 unflattenValue (curSymbol /\ tokenName /\ amount) =
@@ -52,7 +61,7 @@ emptyValue = Value $ Map.empty
 -- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 minus :: Value -> Value -> Value
 minus x y =
-  let negativeValues = flattenValue y  <#>
+  let negativeValues = flattenValue y <#>
         (\(c /\ t /\ a) -> (c /\ t /\ negate a))
         :: List (CurrencySymbol /\ TokenName /\ BigInt)
    in x <> foldMap unflattenValue negativeValues
@@ -61,3 +70,14 @@ minus x y =
 -- | Filter a value to contain only non Ada assets
 filterNonAda :: Value -> Value
 filterNonAda = Value <<< filterKeys (_ /= adaSymbol) <<< getValue
+
+-- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
+-- "isValueNat" uses flattenValue which guards against zeros, so non-strict
+-- inequality is redundant. We'll follow the original code exactly for now.
+isPos :: Value -> Boolean
+isPos = all (\(_ /\ _ /\ a) -> a >= zero) <<< flattenValue
+
+-- From https://staging.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#isZero
+-- | Check whether a 'Value' is zero.
+isZero :: Value -> Boolean
+isZero = all (\(_ /\ _ /\ a) -> a == zero) <<< flattenValue'

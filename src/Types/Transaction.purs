@@ -139,6 +139,7 @@ newtype BaseAddress = BaseAddress
 derive instance newtypeBaseAddress :: Newtype BaseAddress _
 
 newtype Credential = Credential String
+derive instance eqCredential :: Eq Credential
 -- Below comes from Plutus API:
 -- data Credential = PubKeyCredential String | ScriptCredential String
 

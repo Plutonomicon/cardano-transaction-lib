@@ -3,7 +3,7 @@ module PreBalanceTx where
 import Prelude
 import Data.Array as Array
 import Data.Either (Either(..), hush, note)
-import Data.List (List)
+import Data.List ((:), List(..))
 import Data.List as List
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
@@ -12,7 +12,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 -- import Undefined (undefined)
 
 import Types.Transaction as Transaction
-import Value (emptyValue, filterNonAda, isAdaOnly, minus)
+import Value (emptyValue, filterNonAda, isAdaOnly, isPos, isZero, minus)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
@@ -34,7 +34,7 @@ addTxCollaterals utxos txBody = do
     over Transaction.TxBody _{ collateral = Just (Array.singleton txIn) } txBody
   where
     filterAdaOnly :: Transaction.Utxo -> Transaction.Utxo
-    filterAdaOnly = Map.filter (isAdaOnly <<< unwrapAmount)
+    filterAdaOnly = Map.filter (isAdaOnly <<< getAmount)
 
     -- FIX ME: Plutus has Maybe TxInType e.g. Just ConsumePublicKeyAddress)
     -- for now, we take the head. The Haskell logic is pasted below:
@@ -56,20 +56,22 @@ toEitherTransactionInput
   :: (Transaction.TransactionInput /\ Transaction.TransactionOutput)
   -> Either String Transaction.TransactionInput
 toEitherTransactionInput (txOutRef /\ txOut) =
-  case txOutAddressCredentials txOut of
+  case txOutPaymentCredentials txOut of
     Transaction.Credential _ ->
-      Right txOutRef
+      pure txOutRef
     _ -> -- Currently unreachable:
       Left "toEitherTransactionInput: Cannot convert an output to \
         \TransactionInput"
 
--- FIX ME: do we need granularity for staking credential?
-txOutAddressCredentials
+addressPaymentCredentials :: Transaction.Address -> Transaction.Credential
+addressPaymentCredentials = _.payment <<< unwrap <<< _."AddrType" <<< unwrap
+
+-- FIX ME: do we need granularity for staking credential? Is this equivalent
+-- to getting pubkeyhash?
+txOutPaymentCredentials
   :: Transaction.TransactionOutput
   -> Transaction.Credential
-txOutAddressCredentials = _.payment <<< unwrap
-  <<< _."AddrType" <<< unwrap
-  <<< _.address  <<< unwrap
+txOutPaymentCredentials = addressPaymentCredentials <<< _.address  <<< unwrap
 
 -- -- FIX ME: This behaves differently to pubKeyTxIn because of TxInType, see
 -- -- https://play.marlowe-finance.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Tx.html#pubKeyTxIn
@@ -80,30 +82,64 @@ txOutAddressCredentials = _.payment <<< unwrap
 -- | We need to balance non ada values, as the cardano-cli is unable to balance
 -- | them (as of 2021/09/24)
 balanceNonAdaOuts
-  :: String -- address for change
+  :: Transaction.Address -- (payment credential) address for change substitute for pkh?
   -> Transaction.Utxo
   -> Transaction.TxBody
   -> Either String Transaction.TxBody
 balanceNonAdaOuts changeAddr utxos txBody =
   let unwrapTxBody = unwrap txBody
+
+      -- Like pkh?
+      payCredentials :: Transaction.Credential
+      payCredentials = addressPaymentCredentials changeAddr
+
+      txOutputs :: Array Transaction.TransactionOutput
+      txOutputs = _.outputs unwrapTxBody
+
+      inputValue :: Transaction.Value
       inputValue =
         Array.foldMap
-          unwrapAmount
+          getAmount
           (Array.mapMaybe (flip Map.lookup utxos) <<< _.inputs $ unwrapTxBody)
-            :: Transaction.Value
-      outputValue =
-        Array.foldMap unwrapAmount (_.outputs unwrapTxBody)
-          :: Transaction.Value
+
+      outputValue :: Transaction.Value
+      outputValue = Array.foldMap getAmount txOutputs
+
+      nonMintedOutputValue:: Transaction.Value
       nonMintedOutputValue =
-        outputValue `minus` (fromMaybe emptyValue unwrapTxBody.mint)
-          :: Transaction.Value
+        outputValue `minus` fromMaybe emptyValue unwrapTxBody.mint
+
+      nonAdaChange :: Transaction.Value
       nonAdaChange =
         filterNonAda inputValue `minus` filterNonAda nonMintedOutputValue
-          :: Transaction.Value
-   in pure txBody
 
-unwrapAmount :: Transaction.TransactionOutput -> Transaction.Value
-unwrapAmount = _.amount <<< unwrap
+      outputs :: Array Transaction.TransactionOutput
+      outputs =
+        Array.fromFoldable $
+          case List.partition
+            ((==) payCredentials <<< txOutPaymentCredentials)
+            <<< Array.toUnfoldable $ txOutputs of
+              { no: txOuts, yes: Nil } ->
+                Transaction.TransactionOutput
+                  { address: changeAddr,
+                    amount: nonAdaChange,
+                    data_hash: Nothing
+                  } : txOuts
+              { no: txOuts'
+              , yes: Transaction.TransactionOutput txOut@{ amount: v } : txOuts
+              } ->
+                Transaction.TransactionOutput
+                  txOut { amount = v <> nonAdaChange } : txOuts <> txOuts'
+   in if isPos nonAdaChange
+       then pure $
+        if isZero nonAdaChange
+         then txBody
+         else Transaction.TxBody $ unwrapTxBody {outputs = outputs}
+       else Left "balanceNonAdaOuts: Not enough inputs to balance tokens."
+
+
+getAmount :: Transaction.TransactionOutput -> Transaction.Value
+getAmount = _.amount <<< unwrap
 
 -- balanceNonAdaOuts :: PubKeyHash -> Map TxOutRef TxOut -> Tx -> Either Text Tx
 -- balanceNonAdaOuts addr utxos tx =
