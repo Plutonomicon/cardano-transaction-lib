@@ -20,6 +20,24 @@ import Value (emptyValue, flattenValue, geq, getValue, isAdaOnly, isNonNeg, isZe
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 
+preBalanceTx ::
+  Array (Transaction.TransactionOutput /\ BigInt) ->
+  BigInt ->
+  Transaction.Utxo ->
+  Transaction.Address ->
+  Map.Map Transaction.Address Transaction.RequiredSigner ->
+  Array Transaction.Address ->
+  Transaction.TxBody ->
+  Either String Transaction.TxBody
+preBalanceTx minUtxos fees utxos ownAddr reqSigners addrs tx =
+  addTxCollaterals utxos tx
+    >>= balanceTxIns utxos fees
+    >>= balanceNonAdaOuts ownAddr utxos
+    >>= Right <<< addLovelaces minUtxos
+    >>= balanceTxIns utxos fees -- Adding more inputs if required
+    >>= balanceNonAdaOuts ownAddr utxos
+    >>= addSignatories ownAddr reqSigners addrs
+
 -- | Pick a collateral from the utxo map and add it to the unbalanced transaction
 -- | (suboptimally we just pick a random utxo from the tx inputs)
 addTxCollaterals
@@ -275,7 +293,7 @@ collectTxIns originalTxIns utxos value =
 
 -- | Add min lovelaces to each tx output
 addLovelaces
-  :: List (Transaction.TransactionOutput /\ BigInt)
+  :: Array (Transaction.TransactionOutput /\ BigInt)
   -> Transaction.TxBody
   -> Transaction.TxBody
 addLovelaces minLovelaces txBody =
@@ -331,20 +349,20 @@ filterNonAda =
  and will be ignored. Only the pub key hashes are used, mapped to signing key files on disk.
 -}
 addSignatories
-  :: Transaction.Credential
-  -> Map.Map Transaction.Credential Transaction.RequiredSigner
-  -> Array Transaction.Credential
+  :: Transaction.Address
+  -> Map.Map Transaction.Address Transaction.RequiredSigner
+  -> Array Transaction.Address
   -> Transaction.TxBody
   -> Either String Transaction.TxBody
-addSignatories ownCred reqSigners creds txBody =
+addSignatories ownAddr reqSigners addrs txBody =
   Foldable.foldM
-    ( \txBody' cred ->
-        case Map.lookup cred reqSigners of
+    ( \txBody' addr ->
+        case Map.lookup addr reqSigners of
           Just reqSigner -> Right $ addSignature reqSigner txBody'
           Nothing -> Left "addSignatories: Signing key not found."
     )
     txBody
-    $ Array.cons ownCred creds
+    $ Array.cons ownAddr addrs
 
 addSignature
   :: Transaction.RequiredSigner

@@ -208,6 +208,7 @@ newtype Address = Address
   { "AddrType" :: BaseAddress
   }
 derive instance eqAddress :: Eq Address
+derive instance ordAddress :: Ord Address
 derive instance newtypeAddress :: Newtype Address _
 
 newtype BaseAddress = BaseAddress
@@ -215,7 +216,8 @@ newtype BaseAddress = BaseAddress
     stake :: Credential,
     payment :: Credential
   }
-derive instance baseAddress :: Eq BaseAddress
+derive instance eqBaseAddress :: Eq BaseAddress
+derive instance ordBaseAddress :: Ord BaseAddress
 derive instance newtypeBaseAddress :: Newtype BaseAddress _
 
 newtype Credential = Credential String
