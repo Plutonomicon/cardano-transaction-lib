@@ -4,17 +4,18 @@ import Prelude
 import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.Either (Either(..), hush, note)
+import Data.Foldable as Foldable
 import Data.List ((:), List(..))
 import Data.List as List
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Newtype (over, unwrap)
+import Data.Newtype (over, unwrap, wrap)
 import Data.Tuple.Nested ((/\), type (/\))
 -- import Undefined (undefined)
 
-import Ada (lovelaceValueOf)
+import Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
 import Types.Transaction as Transaction
-import Value (emptyValue, filterNonAda, flattenValue, geq, isAdaOnly, isNonNeg, isZero, minus)
+import Value (emptyValue, flattenValue, geq, getValue, isAdaOnly, isNonNeg, isZero, minus)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
@@ -52,8 +53,7 @@ addTxCollaterals utxos txBody = do
       note "addTxCollaterals: There are no utxos to be used as collateral"
         <<< Array.head
 
--- Converting an Ogmios transaction output to a transaction input type
--- FIX ME: may need to revisit for credential granularity.
+-- FIX ME: may need to revisit for credential granularity. Use Ogmios input?
 toEitherTransactionInput
   :: (Transaction.TransactionInput /\ Transaction.TransactionOutput)
   -> Either String Transaction.TransactionInput
@@ -68,8 +68,7 @@ toEitherTransactionInput (txOutRef /\ txOut) =
 addressPaymentCredentials :: Transaction.Address -> Transaction.Credential
 addressPaymentCredentials = _.payment <<< unwrap <<< _."AddrType" <<< unwrap
 
--- FIX ME: do we need granularity for staking credential? Is this equivalent
--- to getting pubkeyhash?
+-- FIX ME: do we need granularity for staking credential? We need pkh?
 txOutPaymentCredentials
   :: Transaction.TransactionOutput
   -> Transaction.Credential
@@ -136,7 +135,7 @@ balanceNonAdaOuts changeAddr utxos txBody =
        then pure $
         if isZero nonAdaChange
          then txBody
-         else Transaction.TxBody $ unwrapTxBody {outputs = outputs}
+         else wrap $ unwrapTxBody {outputs = outputs}
        else Left "balanceNonAdaOuts: Not enough inputs to balance tokens."
 
 getAmount :: Transaction.TransactionOutput -> Transaction.Value
@@ -171,6 +170,9 @@ balanceTxIns
   -> Transaction.TxBody
   -> Either String Transaction.TxBody
 balanceTxIns utxos fees txBody = do
+  -- FIX ME - we not using this:
+  -- Lovelace utxoCost <-
+  --   maybeToRight "UTxOCostPerWord parameter not found" $ protocolParamUTxOCostPerWord pparams
   let unwrapTxBody = unwrap txBody
 
       txOuts :: Array Transaction.TransactionOutput
@@ -186,11 +188,12 @@ balanceTxIns utxos fees txBody = do
 
   txIns :: Array Transaction.TransactionInput
     <- collectTxIns unwrapTxBody.inputs utxos minSpending
-  pure $ Transaction.TxBody $
-    unwrapTxBody { inputs = txIns <> unwrapTxBody.inputs }
+  pure <<< wrap $ unwrapTxBody { inputs = txIns <> unwrapTxBody.inputs }
 
--- balanceTxIns :: Transaction.Utxo -> Integer -> Tx -> Either Text Tx
--- balanceTxIns utxos fees tx = do
+-- balanceTxIns :: ProtocolParameters -> Map TxOutRef TxOut -> Integer -> Tx -> Either Text Tx
+-- balanceTxIns pparams utxos fees tx = do
+  -- Lovelace utxoCost <-
+  --   maybeToRight "UTxOCostPerWord parameter not found" $ protocolParamUTxOCostPerWord pparams
 --   let txOuts = Tx.txOutputs tx
 --       nonMintedValue = mconcat (map Tx.txOutValue txOuts) `minus` txMint tx
 --       minSpending =
@@ -226,7 +229,8 @@ collectTxIns originalTxIns utxos value =
         )
         originalTxIns
         -- FIX ME THIS TO ARRAY ONLY and previous usage, also refactor out mapMaybe fun.
-        $ Array.mapMaybe (hush <<< toEitherTransactionInput) <<< Map.toUnfoldable $ utxos
+        $ Array.mapMaybe
+            (hush <<< toEitherTransactionInput) <<< Map.toUnfoldable $ utxos
 
     isSufficient :: Array Transaction.TransactionInput -> Boolean
     isSufficient txIns' =
@@ -237,7 +241,7 @@ collectTxIns originalTxIns utxos value =
     txInsValue =
       Array.foldMap getAmount <<< Array.mapMaybe (flip Map.lookup utxos)
 
---   -- | Getting the necessary utxos to cover the fees for the transaction
+-- -- | Getting the necessary utxos to cover the fees for the transaction
 -- collectTxIns :: Set TxIn -> Map TxOutRef TxOut -> Value -> Either Text (Set TxIn)
 -- collectTxIns originalTxIns utxos value =
 --   if isSufficient updatedInputs
@@ -269,22 +273,26 @@ collectTxIns originalTxIns utxos value =
 --     txInsValue txIns' =
 --       mconcat $ map Tx.txOutValue $ mapMaybe ((`Map.lookup` utxos) . Tx.txInRef) $ Set.toList txIns'
 
--- -- | Add min lovelaces to each tx output
--- addLovelaces :: [(TxOut, Integer)] -> Tx -> Tx
--- addLovelaces minLovelaces tx =
---   let lovelacesAdded =
---         map
---           ( \txOut ->
---               let outValue = txOutValue txOut
---                   lovelaces = Ada.getLovelace $ Ada.fromValue outValue
---                   minUtxo = fromMaybe 0 $ lookup txOut minLovelaces
---                in txOut
---                     { txOutValue =
---                         outValue <> Ada.lovelaceValueOf (max 0 (minUtxo - lovelaces))
---                     }
---           )
---           $ txOutputs tx
---    in tx {txOutputs = lovelacesAdded}
+-- | Add min lovelaces to each tx output
+addLovelaces :: List (Transaction.TransactionOutput /\ BigInt) -> Transaction.TxBody -> Transaction.TxBody
+addLovelaces minLovelaces txBody =
+  let unwrapTxBody = unwrap txBody
+
+      lovelacesAdded :: Array Transaction.TransactionOutput
+      lovelacesAdded =
+        map
+          ( \txOut ->
+              let unwrapTxOut = unwrap txOut
+                  outValue = unwrapTxOut.amount
+                  lovelaces = getLovelace $ fromValue outValue
+                  minUtxo = fromMaybe zero $ Foldable.lookup txOut minLovelaces
+               in wrap $ unwrapTxOut
+                    { amount =
+                        outValue <> lovelaceValueOf (max zero (minUtxo - lovelaces))
+                    }
+          )
+          $ unwrapTxBody.outputs
+   in wrap $ unwrapTxBody {outputs = lovelacesAdded}
 
 -- -- | Add min lovelaces to each tx output
 -- addLovelaces :: [(TxOut, Integer)] -> Tx -> Tx
@@ -302,3 +310,9 @@ collectTxIns originalTxIns utxos value =
 --           )
 --           $ txOutputs tx
 --    in tx {txOutputs = lovelacesAdded}
+
+-- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
+-- | Filter a value to contain only non Ada assets
+filterNonAda :: Transaction.Value -> Transaction.Value
+filterNonAda =
+  Transaction.Value <<< Map.filterKeys (_ /= adaSymbol) <<< getValue

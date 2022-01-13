@@ -1,9 +1,9 @@
 module Value
   ( emptyValue
   , eq
-  , filterNonAda
   , flattenValue
   , geq
+  , getValue
   , gt
   , isAdaOnly
   , isNonNeg
@@ -11,6 +11,8 @@ module Value
   , leq
   , lt
   , minus
+  , singleton
+  , valueOf
   ) where
 
 import Prelude
@@ -18,24 +20,24 @@ import Control.Alternative (guard)
 import Data.BigInt (BigInt)
 import Data.Foldable as Foldable
 import Data.List ((:), List(..), all, foldMap)
-import Data.Map (Map, filterKeys, toUnfoldable)
+import Data.Map (Map, lookup, toUnfoldable)
 import Data.Map as Map
+import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
 import Data.These (These(..))
 import Data.Tuple.Nested ((/\), type (/\))
 
-import Ada (adaSymbol)
 import Types.Transaction (CurrencySymbol(..), TokenName(..), Value(..), unionVal)
 
 -- This module rewrites functionality from:
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
--- https://staging.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value
+-- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value
 
 -- Could use Data.Newtype (unwrap) too.
 getValue :: Value -> Map CurrencySymbol (Map TokenName BigInt)
 getValue = unwrap
 
--- Taken from https://staging.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#flattenValue
+-- Taken from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#flattenValue
 flattenValue :: Value -> List (CurrencySymbol /\ TokenName /\ BigInt)
 flattenValue v = do
     cs /\ m <- toUnfoldable <<< getValue $ v
@@ -67,17 +69,12 @@ minus x y =
    in x <> foldMap unflattenValue negativeValues
 
 -- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
--- | Filter a value to contain only non Ada assets
-filterNonAda :: Value -> Value
-filterNonAda = Value <<< filterKeys (_ /= adaSymbol) <<< getValue
-
--- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 -- "isValueNat" uses flattenValue which guards against zeros, so non-strict
 -- inequality is redundant. We'll follow the original code exactly for now.
 isNonNeg :: Value -> Boolean
 isNonNeg = all (\(_ /\ _ /\ a) -> a >= zero) <<< flattenValue
 
--- From https://staging.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#isZero
+-- From https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#isZero
 -- | Check whether a 'Value' is zero.
 isZero :: Value -> Boolean
 isZero = Foldable.all (Foldable.all ((==) zero)) <<< getValue
@@ -137,3 +134,18 @@ lt l r = not (isZero l && isZero r) && checkBinRel (<) l r
 eq :: Value -> Value -> Boolean
 -- If both are zero then checkBinRel will be vacuously true, but this is fine.
 eq = checkBinRel (==)
+
+-- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#valueOf
+-- | Get the quantity of the given currency in the 'Value'.
+valueOf :: Value -> CurrencySymbol -> TokenName -> BigInt
+valueOf (Value mp) cur tn =
+  case lookup cur mp of
+    Nothing -> zero
+    Just i -> case lookup tn i of
+      Nothing -> zero
+      Just v -> v
+
+-- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#singleton
+-- | Make a 'Value' containing only the given quantity of the given currency.
+singleton :: CurrencySymbol -> TokenName -> BigInt -> Value
+singleton c tn i = Value (Map.singleton c (Map.singleton tn i))

@@ -4,16 +4,15 @@ import Prelude
 import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.Foldable (any)
-import Data.Maybe (Maybe)
-import Data.These (These(..))
-import Data.Tuple.Nested ((/\), type (/\))
-import Data.List (List(..))
+import Data.Generic.Rep (class Generic)
+-- import Data.List (List(..))
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
-import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
+import Data.These (These(..))
+import Data.Tuple.Nested ((/\), type (/\))
 
 newtype Transaction = Transaction {
   body :: TxBody,
@@ -138,6 +137,25 @@ unionWith f ls rs =
         Both a b -> f a b
    in Value (map (map unBoth) combined)
 
+-- Replicating Ada from Plutus, not sure how useful necessary this will be in practice:
+-- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Ada.html#fromValue
+-- | ADA, the special currency on the Cardano blockchain. The unit of Ada is Lovelace, and
+--   1M Lovelace is one Ada.
+--   See note [Currencies] in 'Ledger.Validation.Value.TH'.
+newtype Ada = Lovelace BigInt
+derive instance eqAda :: Eq Ada
+derive instance genericAda :: Generic Ada _
+derive instance newtypeAda :: Newtype Ada _
+
+instance showAda:: Show Ada where
+  show = genericShow
+
+instance semigroupAda :: Semigroup Ada where
+  append (Lovelace a1) (Lovelace a2) = Lovelace (a1 + a2)
+
+instance monoidAda :: Monoid Ada where
+    mempty = Lovelace zero
+
 newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
 newtype Vkey = Vkey String -- (bech32)
@@ -177,6 +195,7 @@ newtype TransactionOutput = TransactionOutput
     amount :: Value,
     data_hash :: Maybe String -- DataHash>,
   }
+derive instance eqTransactionOutput :: Eq TransactionOutput
 derive instance newtypeTransactionOutput :: Newtype TransactionOutput _
 
 type Utxo = Map TransactionInput TransactionOutput
@@ -188,6 +207,7 @@ newtype Slot = Slot BigInt
 newtype Address = Address
   { "AddrType" :: BaseAddress
   }
+derive instance eqAddress :: Eq Address
 derive instance newtypeAddress :: Newtype Address _
 
 newtype BaseAddress = BaseAddress
@@ -195,6 +215,7 @@ newtype BaseAddress = BaseAddress
     stake :: Credential,
     payment :: Credential
   }
+derive instance baseAddress :: Eq BaseAddress
 derive instance newtypeBaseAddress :: Newtype BaseAddress _
 
 newtype Credential = Credential String
