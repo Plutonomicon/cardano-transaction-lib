@@ -135,7 +135,7 @@ balanceNonAdaOuts changeAddr utxos txBody =
        then pure $
         if isZero nonAdaChange
          then txBody
-         else wrap $ unwrapTxBody {outputs = outputs}
+         else Transaction.TxBody $ unwrapTxBody {outputs = outputs}
        else Left "balanceNonAdaOuts: Not enough inputs to balance tokens."
 
 getAmount :: Transaction.TransactionOutput -> Transaction.Value
@@ -225,7 +225,7 @@ collectTxIns originalTxIns utxos value =
         ( \acc txIn ->
             if isSufficient acc
              then acc
-             else Array.insert txIn acc
+             else Array.insert txIn acc -- Do we require a set instead of array?
         )
         originalTxIns
         -- FIX ME THIS TO ARRAY ONLY and previous usage, also refactor out mapMaybe fun.
@@ -274,7 +274,10 @@ collectTxIns originalTxIns utxos value =
 --       mconcat $ map Tx.txOutValue $ mapMaybe ((`Map.lookup` utxos) . Tx.txInRef) $ Set.toList txIns'
 
 -- | Add min lovelaces to each tx output
-addLovelaces :: List (Transaction.TransactionOutput /\ BigInt) -> Transaction.TxBody -> Transaction.TxBody
+addLovelaces
+  :: List (Transaction.TransactionOutput /\ BigInt)
+  -> Transaction.TxBody
+  -> Transaction.TxBody
 addLovelaces minLovelaces txBody =
   let unwrapTxBody = unwrap txBody
 
@@ -283,16 +286,22 @@ addLovelaces minLovelaces txBody =
         map
           ( \txOut ->
               let unwrapTxOut = unwrap txOut
+
+                  outValue :: Transaction.Value
                   outValue = unwrapTxOut.amount
+
+                  lovelaces :: BigInt
                   lovelaces = getLovelace $ fromValue outValue
+
+                  minUtxo :: BigInt
                   minUtxo = fromMaybe zero $ Foldable.lookup txOut minLovelaces
-               in wrap $ unwrapTxOut
+              in Transaction.TransactionOutput $ unwrapTxOut
                     { amount =
-                        outValue <> lovelaceValueOf (max zero (minUtxo - lovelaces))
+                        outValue
+                          <> lovelaceValueOf (max zero $ minUtxo - lovelaces)
                     }
-          )
-          $ unwrapTxBody.outputs
-   in wrap $ unwrapTxBody {outputs = lovelacesAdded}
+           ) $ unwrapTxBody.outputs
+   in Transaction.TxBody $ unwrapTxBody { outputs = lovelacesAdded }
 
 -- -- | Add min lovelaces to each tx output
 -- addLovelaces :: [(TxOut, Integer)] -> Tx -> Tx
@@ -316,3 +325,46 @@ addLovelaces minLovelaces txBody =
 filterNonAda :: Transaction.Value -> Transaction.Value
 filterNonAda =
   Transaction.Value <<< Map.filterKeys (_ /= adaSymbol) <<< getValue
+
+-- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
+{- | Add the required signatorioes to the transaction. Be aware the the signature itself is invalid,
+ and will be ignored. Only the pub key hashes are used, mapped to signing key files on disk.
+-}
+addSignatories
+  :: Transaction.Credential
+  -> Map.Map Transaction.Credential Transaction.RequiredSigner
+  -> Array Transaction.Credential
+  -> Transaction.TxBody
+  -> Either String Transaction.TxBody
+addSignatories ownCred reqSigners creds txBody =
+  Foldable.foldM
+    ( \txBody' cred ->
+        case Map.lookup cred reqSigners of
+          Just reqSigner -> Right $ addSignature reqSigner txBody'
+          Nothing -> Left "addSignatories: Signing key not found."
+    )
+    txBody
+    $ Array.cons ownCred creds
+
+addSignature
+  :: Transaction.RequiredSigner
+  -> Transaction.TxBody
+  -> Transaction.TxBody
+addSignature reqSigner txBody =
+  let unwrapTxBody = unwrap txBody
+   in wrap $ case unwrapTxBody.required_signers of
+        Just xs ->
+          unwrapTxBody { required_signers = Just $ reqSigner `Array.cons` xs }
+        Nothing ->
+          unwrapTxBody { required_signers = Just $ [reqSigner] }
+
+-- addSignatories :: PubKeyHash -> Map PubKeyHash PrivateKey -> [PubKeyHash] -> Tx -> Either Text Tx
+-- addSignatories ownPkh privKeys pkhs tx =
+--   foldM
+--     ( \tx' pkh ->
+--         case Map.lookup pkh privKeys of
+--           Just privKey -> Right $ Tx.addSignature privKey tx'
+--           Nothing -> Left "Signing key not found."
+--     )
+--     tx
+--     (ownPkh : pkhs)

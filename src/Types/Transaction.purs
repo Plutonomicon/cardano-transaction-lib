@@ -220,6 +220,7 @@ derive instance newtypeBaseAddress :: Newtype BaseAddress _
 
 newtype Credential = Credential String
 derive instance eqCredential :: Eq Credential
+derive instance ordCredential :: Ord Credential
 -- Below comes from Plutus API:
 -- data Credential = PubKeyCredential String | ScriptCredential String
 
