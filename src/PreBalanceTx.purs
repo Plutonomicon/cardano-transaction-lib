@@ -265,7 +265,8 @@ balanceTxIns utxos fees txBody = do
   txIns :: Array Transaction.TransactionInput
     <- collectTxIns unwrapTxBody.inputs utxos minSpending
   -- FIX ME? Original code uses Set append which is union so we use this then
-  -- convert back to arrays.
+  -- convert back to arrays. We could maybe use Array.union depending on _.inputs.
+  -- This would mean using just Arrays for collectTxIns.
   pure <<< wrap
     $ unwrapTxBody
       { inputs =
@@ -307,8 +308,8 @@ collectTxIns originalTxIns utxos value =
         && (txInsValue <<< Set.toUnfoldable $ txIns') `geq` value
 
     -- FIX ME? Could refactor into a function as used in balanceNonAdaOuts
-    -- Use Array so we don't need Ord instance on TransactionOutput from mapMaybe.
-    -- We don't want an Ord instance on Value.
+    -- Use Array so we don't need Ord instance on TransactionOutput from
+    -- Set.mapMaybe - we don't want an Ord instance on Value.
     txInsValue :: Array Transaction.TransactionInput -> Transaction.Value
     txInsValue =
       Array.foldMap getAmount <<< Array.mapMaybe (flip Map.lookup utxos)
