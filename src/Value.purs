@@ -6,7 +6,7 @@ module Value
   , getValue
   , gt
   , isAdaOnly
-  , isNonNeg
+  , isPos
   , isZero
   , leq
   , lt
@@ -70,9 +70,9 @@ minus x y =
 
 -- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 -- "isValueNat" uses flattenValue which guards against zeros, so non-strict
--- inequality is redundant. We'll follow the original code exactly for now.
-isNonNeg :: Value -> Boolean
-isNonNeg = all (\(_ /\ _ /\ a) -> a >= zero) <<< flattenValue
+-- inequality is redundant. So we use strict equality instead.
+isPos :: Value -> Boolean
+isPos = all (\(_ /\ _ /\ a) -> a > zero) <<< flattenValue
 
 -- From https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#isZero
 -- | Check whether a 'Value' is zero.
