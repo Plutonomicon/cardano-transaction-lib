@@ -6,7 +6,7 @@ module ProtocolParametersAlonzo
 import Prelude
 import Data.BigInt (fromInt)
 
-import Types.Transaction (Ada(..))
+import Types.Ada (Ada(..))
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-pab/html/src/Cardano.Api.ProtocolParameters.html
 -- Shelley params, is this unchanged?

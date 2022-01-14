@@ -9,16 +9,16 @@ import Data.Either (Either(..), hush, note)
 import Data.Foldable as Foldable
 import Data.List ((:), List(..), partition)
 import Data.Map as Map
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (fromMaybe, Maybe(..))
 import Data.Newtype (over, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Tuple.Nested ((/\), type (/\))
 
-import Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
 import ProtocolParametersAlonzo (protocolParamUTxOCostPerWord)
+import Types.Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
 import Types.Transaction as Transaction
-import Value (emptyValue, flattenValue, geq, getValue, isAdaOnly, isPos, isZero, minus)
+import Types.Value (emptyValue, flattenValue, geq, getValue, isAdaOnly, isPos, isZero, minus, Value(..))
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
@@ -126,12 +126,12 @@ balanceTxIns utxos fees txBody = do
       txOutputs :: Array Transaction.TransactionOutput
       txOutputs = unwrapTxBody.outputs
 
-      nonMintedValue :: Transaction.Value
+      nonMintedValue :: Value
       nonMintedValue =
         Array.foldMap getAmount txOutputs
           `minus` fromMaybe emptyValue unwrapTxBody.mint
 
-      minSpending :: Transaction.Value
+      minSpending :: Value
       minSpending = lovelaceValueOf (fees + changeMinUtxo) <> nonMintedValue
 
   txIns :: Array Transaction.TransactionInput
@@ -151,7 +151,7 @@ balanceTxIns utxos fees txBody = do
 collectTxIns
   :: Array Transaction.TransactionInput
   -> Transaction.Utxo
-  -> Transaction.Value
+  -> Value
   -> Either String (Array Transaction.TransactionInput)
 collectTxIns originalTxIns utxos value =
   if isSufficient $ Set.fromFoldable updatedInputs
@@ -183,7 +183,7 @@ collectTxIns originalTxIns utxos value =
     -- FIX ME? Could refactor into a function as used in balanceNonAdaOuts
     -- Use Array so we don't need Ord instance on TransactionOutput from
     -- Set.mapMaybe - we don't want an Ord instance on Value.
-    txInsValue :: Array Transaction.TransactionInput -> Transaction.Value
+    txInsValue :: Array Transaction.TransactionInput -> Value
     txInsValue =
       Array.foldMap getAmount <<< Array.mapMaybe (flip Map.lookup utxos)
 
@@ -213,20 +213,20 @@ balanceNonAdaOuts changeAddr utxos txBody =
       txOutputs :: Array Transaction.TransactionOutput
       txOutputs = unwrapTxBody.outputs
 
-      inputValue :: Transaction.Value
+      inputValue :: Value
       inputValue =
         Array.foldMap
           getAmount
           (Array.mapMaybe (flip Map.lookup utxos) <<< _.inputs $ unwrapTxBody)
 
-      outputValue :: Transaction.Value
+      outputValue :: Value
       outputValue = Array.foldMap getAmount txOutputs
 
-      nonMintedOutputValue:: Transaction.Value
+      nonMintedOutputValue:: Value
       nonMintedOutputValue =
         outputValue `minus` fromMaybe emptyValue unwrapTxBody.mint
 
-      nonAdaChange :: Transaction.Value
+      nonAdaChange :: Value
       nonAdaChange =
         filterNonAda inputValue `minus` filterNonAda nonMintedOutputValue
 
@@ -257,7 +257,7 @@ balanceNonAdaOuts changeAddr utxos txBody =
          then pure txBody
          else Left "balanceNonAdaOuts: Not enough inputs to balance tokens."
 
-getAmount :: Transaction.TransactionOutput -> Transaction.Value
+getAmount :: Transaction.TransactionOutput -> Value
 getAmount = _.amount <<< unwrap
 
 -- | Add min lovelaces to each tx output
@@ -274,7 +274,7 @@ addLovelaces minLovelaces txBody =
           ( \txOut ->
               let unwrapTxOut = unwrap txOut
 
-                  outValue :: Transaction.Value
+                  outValue :: Value
                   outValue = unwrapTxOut.amount
 
                   lovelaces :: BigInt
@@ -293,9 +293,9 @@ addLovelaces minLovelaces txBody =
 
 -- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 -- | Filter a value to contain only non Ada assets
-filterNonAda :: Transaction.Value -> Transaction.Value
+filterNonAda :: Value -> Value
 filterNonAda =
-  Transaction.Value <<< Map.filterKeys (_ /= adaSymbol) <<< getValue
+  Value <<< Map.filterKeys (_ /= adaSymbol) <<< getValue
 
 -- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 {- | Add the required signatories to the transaction. Be aware if the signature

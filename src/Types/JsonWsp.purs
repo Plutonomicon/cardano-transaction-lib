@@ -42,7 +42,8 @@ import Data.Foldable (foldl)
 import Data.Map as Map
 import Effect (Effect)
 import Foreign.Object (Object)
-import Types.Transaction (Value(..), CurrencySymbol(..), TokenName(..))
+
+import Types.Value (Value(..), CurrencySymbol(..), TokenName(..))
 
 -- creates a unique id prefixed by its argument
 foreign import _uniqueId :: String -> Effect String

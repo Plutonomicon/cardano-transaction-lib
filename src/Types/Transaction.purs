@@ -1,18 +1,16 @@
 module Types.Transaction where
 
 import Prelude
-import Data.Array as Array
 import Data.BigInt (BigInt)
-import Data.Foldable (any)
 import Data.Generic.Rep (class Generic)
 -- import Data.List (List(..))
 import Data.Map (Map)
-import Data.Map as Map
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
-import Data.These (These(..))
-import Data.Tuple.Nested ((/\), type (/\))
+import Data.Tuple.Nested (type (/\))
+
+import Types.Value (Value)
 
 newtype Transaction = Transaction {
   body :: TxBody,
@@ -51,110 +49,6 @@ newtype TransactionWitnessSet = TransactionWitnessSet
 newtype NetworkId = NetworkId Int
 
 newtype RequiredSigner = RequiredSigner String
-
-newtype CurrencySymbol = CurrencySymbol String
-derive instance eqCurrencySymbol :: Eq CurrencySymbol
-derive instance ordCurrencySymbol :: Ord CurrencySymbol
-derive instance genericCurrencySymbol :: Generic CurrencySymbol _
-
-instance showCurrencySymbol :: Show CurrencySymbol where
-  show = genericShow
-
-newtype TokenName = TokenName String
-derive instance eqTokenName :: Eq TokenName
-derive instance ordTokenName :: Ord TokenName
-derive instance genericTokenName :: Generic TokenName _
-
-instance showTokenName :: Show TokenName where
-  show = genericShow
-
-newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt))
-derive instance eqValue :: Eq Value
-derive instance genericValue :: Generic Value _
-derive instance newtypeValue :: Newtype Value _
-
-instance showValue :: Show Value where
-  show = genericShow
-
-instance semigroupValue :: Semigroup Value where
-  append = unionWith (+)
-  -- append v1 v2 =
-  --   Value $ Map.unionWith (Map.unionWith (+)) (unwrap v1) (unwrap v2)
-
-instance monoidValue :: Monoid Value where
-  mempty = Value Map.empty
-
--- https://playground.plutus.iohkdev.io/doc/haddock/plutus-tx/html/src/PlutusTx.AssocMap.html#union
--- | Combine two 'Map's.
-union :: ∀ k v r. Ord k => Map k v -> Map k r -> Map k (These v r)
-union l r =
-  let ls :: Array (k /\ v)
-      ls = Map.toUnfoldable l
-
-      rs :: Array (k /\ r)
-      rs = Map.toUnfoldable r
-
-      f :: v -> Maybe r -> These v r
-      f a b' = case b' of
-          Nothing -> This a
-          Just b  -> Both a b
-
-      ls' :: Array (k /\ These v r)
-      ls' = map (\(c /\ i) -> (c /\ f i (Map.lookup c (Map.fromFoldable rs)))) ls
-
-      rs' :: Array (k /\ r)
-      rs' = Array.filter (\(c /\ _) -> not (any (\(c' /\ _) -> c' == c) ls)) rs
-
-      rs'' :: Array (k /\ These v r)
-      rs'' = map (map That) rs'
-   in Map.fromFoldable (ls' <> rs'')
-
--- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#unionVal
--- | Combine two 'Value' maps
-unionVal
-  :: Value
-  -> Value
-  -> Map CurrencySymbol (Map TokenName (These BigInt BigInt))
-unionVal (Value l) (Value r) =
-  let combined = union l r
-      unBoth k = case k of
-        This a -> This <$> a
-        That b -> That <$> b
-        Both a b -> union a b
-   in unBoth <$> combined
-
--- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#unionWith
-unionWith
-  :: (BigInt -> BigInt -> BigInt)
-  -> Value
-  -> Value
-  -> Value
-unionWith f ls rs =
-  let combined = unionVal ls rs
-      unBoth k' = case k' of
-        This a -> f a zero
-        That b -> f zero b
-        Both a b -> f a b
-   in Value (map (map unBoth) combined)
-
--- Replicating Ada from Plutus, not sure how useful necessary this will be in practice:
--- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Ada.html#fromValue
--- | ADA, the special currency on the Cardano blockchain. The unit of Ada is Lovelace, and
---   1M Lovelace is one Ada.
---   See note [Currencies] in 'Ledger.Validation.Value.TH'.
-newtype Ada = Lovelace BigInt
-derive instance eqAda :: Eq Ada
-derive instance genericAda :: Generic Ada _
-derive instance newtypeAda :: Newtype Ada _
-
-instance showAda:: Show Ada where
-  show = genericShow
-
-instance semigroupAda :: Semigroup Ada where
-  append (Lovelace a1) (Lovelace a2) = Lovelace (a1 + a2)
-
-instance monoidAda :: Monoid Ada where
-    mempty = Lovelace zero
 
 newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
