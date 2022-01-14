@@ -70,7 +70,7 @@ addTxCollaterals
   -> Either String Transaction.TxBody
 addTxCollaterals utxos txBody = do
   let txIns :: Array Transaction.TransactionInput
-      txIns = utxosToTransactionInput <<< filterAdaOnly $ utxos
+      txIns = utxosToTransactionInput $ filterAdaOnly utxos
   txIn :: Transaction.TransactionInput <- findPubKeyTxIn txIns
   pure $
     over Transaction.TxBody _{ collateral = Just (Array.singleton txIn) } txBody
@@ -267,8 +267,8 @@ balanceTxIns utxos fees txBody = do
   -- FIX ME? Original code uses Set append which is union so we use this then
   -- convert back to arrays. We could maybe use Array.union depending on _.inputs.
   -- This would mean using just Arrays for collectTxIns.
-  pure <<< wrap
-    $ unwrapTxBody
+  pure $ wrap
+    unwrapTxBody
       { inputs =
           Set.toUnfoldable
             (Set.fromFoldable txIns <> Set.fromFoldable unwrapTxBody.inputs)
@@ -298,14 +298,15 @@ collectTxIns originalTxIns utxos value =
             if isSufficient newTxIns
              then newTxIns
              else Set.insert txIn newTxIns -- set insertion in original code.
+             -- Could use another if then else with `Array.elem`.
         )
         (Set.fromFoldable originalTxIns)
-        (Set.fromFoldable <<< utxosToTransactionInput $ utxos)
+        (Set.fromFoldable $ utxosToTransactionInput utxos)
 
     isSufficient :: Set Transaction.TransactionInput -> Boolean
     isSufficient txIns' =
       not (Set.isEmpty txIns')
-        && (txInsValue <<< Set.toUnfoldable $ txIns') `geq` value
+        && (txInsValue $ Set.toUnfoldable txIns') `geq` value
 
     -- FIX ME? Could refactor into a function as used in balanceNonAdaOuts
     -- Use Array so we don't need Ord instance on TransactionOutput from

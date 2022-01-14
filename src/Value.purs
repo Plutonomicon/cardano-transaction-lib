@@ -40,7 +40,7 @@ getValue = unwrap
 -- Taken from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#flattenValue
 flattenValue :: Value -> List (CurrencySymbol /\ TokenName /\ BigInt)
 flattenValue v = do
-    cs /\ m <- toUnfoldable <<< getValue $ v
+    cs /\ m <- toUnfoldable $ getValue v
     tn /\ a <- toUnfoldable m
     guard $ a /= zero
     pure $ cs /\ tn /\ a
