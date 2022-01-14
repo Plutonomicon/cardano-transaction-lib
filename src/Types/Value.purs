@@ -1,5 +1,7 @@
 module Types.Value
   ( CurrencySymbol(..)
+  , TokenName(..)
+  , Value(..)
   , emptyValue
   , eq
   , flattenValue
@@ -13,16 +15,16 @@ module Types.Value
   , lt
   , minus
   , singleton
-  , TokenName(..)
-  , Value(..)
+  , unflattenValue
   , valueOf
-  ) where
+  )
+  where
 
 import Prelude
 import Control.Alternative (guard)
 import Data.Array (filter)
 import Data.BigInt (BigInt)
-import Data.Foldable (all, any)
+import Data.Foldable (any)
 import Data.Generic.Rep (class Generic)
 import Data.List ((:), all, foldMap, List(..))
 import Data.Map (lookup, Map, toUnfoldable)
@@ -135,7 +137,7 @@ flattenValue v = do
     pure $ cs /\ tn /\ a
 
 -- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
-unflattenValue :: (CurrencySymbol /\ TokenName /\ BigInt) -> Value
+unflattenValue :: CurrencySymbol /\ TokenName /\ BigInt -> Value
 unflattenValue (curSymbol /\ tokenName /\ amount) =
   Value <<< Map.singleton curSymbol <<< Map.singleton tokenName $ amount
 
@@ -153,7 +155,7 @@ emptyValue = Value $ Map.empty
 minus :: Value -> Value -> Value
 minus x y =
   let negativeValues = flattenValue y <#>
-        (\(c /\ t /\ a) -> (c /\ t /\ negate a))
+        (\(c /\ t /\ a) -> c /\ t /\ negate a)
         :: List (CurrencySymbol /\ TokenName /\ BigInt)
    in x <> foldMap unflattenValue negativeValues
 
@@ -169,11 +171,7 @@ isZero :: Value -> Boolean
 isZero = all (all ((==) zero)) <<< getValue
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#checkPred
-checkPred
-  :: (These BigInt BigInt -> Boolean)
-  -> Value
-  -> Value
-  -> Boolean
+checkPred :: (These BigInt BigInt -> Boolean) -> Value -> Value -> Boolean
 checkPred f l r =
   let inner :: Map TokenName (These BigInt BigInt) -> Boolean
       inner = all f -- this "all" may need to be checked?
@@ -182,11 +180,7 @@ checkPred f l r =
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#checkBinRel
 -- | Check whether a binary relation holds for value pairs of two 'Value' maps,
 -- |  supplying 0 where a key is only present in one of them.
-checkBinRel
- :: (BigInt -> BigInt -> Boolean)
- -> Value
- -> Value
- -> Boolean
+checkBinRel :: (BigInt -> BigInt -> Boolean) -> Value -> Value -> Boolean
 checkBinRel f l r =
   let unThese k' = case k' of
         This a -> f a zero

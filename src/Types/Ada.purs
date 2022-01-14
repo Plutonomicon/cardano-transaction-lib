@@ -1,4 +1,4 @@
-module Types.Ada 
+module Types.Ada
   ( Ada(..)
   , adaSymbol
   , adaToken
@@ -17,12 +17,13 @@ import Data.Show.Generic (genericShow)
 import Types.Value (CurrencySymbol(..), singleton, TokenName(..), Value, valueOf)
 
 -- Replicating Ada from Plutus, not sure how useful necessary this will be in practice:
--- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Ada.html#fromValue
+-- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Ada.html
 -- | ADA, the special currency on the Cardano blockchain. The unit of Ada is Lovelace, and
 --   1M Lovelace is one Ada.
 --   See note [Currencies] in 'Ledger.Validation.Value.TH'.
 newtype Ada = Lovelace BigInt
 derive instance eqAda :: Eq Ada
+derive instance ordAda :: Ord Ada
 derive instance genericAda :: Generic Ada _
 derive instance newtypeAda :: Newtype Ada _
 
@@ -34,7 +35,6 @@ instance semigroupAda :: Semigroup Ada where
 
 instance monoidAda :: Monoid Ada where
   mempty = Lovelace zero
-
 
 getLovelace :: Ada -> BigInt
 getLovelace = unwrap

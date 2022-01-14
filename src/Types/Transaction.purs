@@ -2,12 +2,9 @@ module Types.Transaction where
 
 import Prelude
 import Data.BigInt (BigInt)
-import Data.Generic.Rep (class Generic)
--- import Data.List (List(..))
 import Data.Map (Map)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
-import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\))
 
 import Types.Value (Value)

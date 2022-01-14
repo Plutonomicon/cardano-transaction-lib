@@ -17,21 +17,21 @@ import Data.Tuple.Nested ((/\), type (/\))
 
 import ProtocolParametersAlonzo (protocolParamUTxOCostPerWord)
 import Types.Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
-import Types.Transaction as Transaction
+import Types.Transaction (Address, Credential(..), RequiredSigner, TransactionInput, TransactionOutput(..), TxBody(..), Utxo)
 import Types.Value (emptyValue, flattenValue, geq, getValue, isAdaOnly, isPos, isZero, minus, Value(..))
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 
 preBalanceTx ::
-  Array (Transaction.TransactionOutput /\ BigInt) ->
+  Array (TransactionOutput /\ BigInt) ->
   BigInt ->
-  Transaction.Utxo ->
-  Transaction.Address ->
-  Map.Map Transaction.Address Transaction.RequiredSigner ->
-  Array Transaction.Address ->
-  Transaction.TxBody ->
-  Either String Transaction.TxBody
+  Utxo ->
+  Address ->
+  Map.Map Address RequiredSigner ->
+  Array Address ->
+  TxBody ->
+  Either String TxBody
 preBalanceTx minUtxos fees utxos ownAddr addReqSigners requiredAddrs tx =
   addTxCollaterals utxos tx -- Take a single Ada only utxo collateral
     >>= balanceTxIns utxos fees -- Add input fees for the Ada only collateral
@@ -46,18 +46,15 @@ preBalanceTx minUtxos fees utxos ownAddr addReqSigners requiredAddrs tx =
 {- | Pick a collateral from the utxo map and add it to the unbalanced transaction
  (suboptimally we just pick a random utxo from the tx inputs)
 -}
-addTxCollaterals
-  :: Transaction.Utxo
-  -> Transaction.TxBody
-  -> Either String Transaction.TxBody
+addTxCollaterals :: Utxo -> TxBody -> Either String TxBody
 addTxCollaterals utxos txBody = do
-  let txIns :: Array Transaction.TransactionInput
+  let txIns :: Array TransactionInput
       txIns = utxosToTransactionInput $ filterAdaOnly utxos
-  txIn :: Transaction.TransactionInput <- findPubKeyTxIn txIns
+  txIn :: TransactionInput <- findPubKeyTxIn txIns
   pure $
-    over Transaction.TxBody _{ collateral = Just (Array.singleton txIn) } txBody
+    over TxBody _{ collateral = Just (Array.singleton txIn) } txBody
   where
-    filterAdaOnly :: Transaction.Utxo -> Transaction.Utxo
+    filterAdaOnly :: Utxo -> Utxo
     filterAdaOnly = Map.filter (isAdaOnly <<< getAmount)
 
     -- FIX ME: Plutus has Maybe TxInType e.g. Just ConsumePublicKeyAddress)
@@ -67,9 +64,7 @@ addTxCollaterals utxos txBody = do
     --   x@(TxIn _ Nothing) : _ -> Right x
     --   _ : xs -> findPubKeyTxIn xs
     --   _ -> Left "There are no utxos to be used as collateral"
-    findPubKeyTxIn
-      :: Array Transaction.TransactionInput
-      -> Either String Transaction.TransactionInput
+    findPubKeyTxIn :: Array TransactionInput -> Either String TransactionInput
     findPubKeyTxIn =
       note "addTxCollaterals: There are no utxos to be used as collateral"
         <<< Array.head
@@ -83,34 +78,28 @@ addTxCollaterals utxos txBody = do
 --     ScriptCredential _ -> Left "Cannot covert a script output to TxIn"
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 toEitherTransactionInput
-  :: (Transaction.TransactionInput /\ Transaction.TransactionOutput)
-  -> Either String Transaction.TransactionInput
+  :: TransactionInput /\ TransactionOutput
+  -> Either String TransactionInput
 toEitherTransactionInput (txOutRef /\ txOut) =
   case txOutPaymentCredentials txOut of
     -- FIX ME: need to determine it's a pubkey credential as opposed to script
     -- credential.
-    Transaction.Credential _ ->
+    Credential _ ->
       pure txOutRef
     _ -> -- Currently unreachable:
       Left "toEitherTransactionInput: Cannot convert an output to \
         \TransactionInput"
 
-addressPaymentCredentials :: Transaction.Address -> Transaction.Credential
+addressPaymentCredentials :: Address -> Credential
 addressPaymentCredentials = _.payment <<< unwrap <<< _."AddrType" <<< unwrap
 
 -- FIX ME: do we need granularity for staking credential? We need pkh?
-txOutPaymentCredentials
-  :: Transaction.TransactionOutput
-  -> Transaction.Credential
+txOutPaymentCredentials :: TransactionOutput -> Credential
 txOutPaymentCredentials = addressPaymentCredentials <<< _.address  <<< unwrap
 
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 -- Notice we aren't using protocol parameters for utxo cost per word.
-balanceTxIns
-  :: Transaction.Utxo
-  -> BigInt
-  -> Transaction.TxBody
-  -> Either String Transaction.TxBody
+balanceTxIns :: Utxo -> BigInt -> TxBody -> Either String TxBody
 balanceTxIns utxos fees txBody = do
   let unwrapTxBody = unwrap txBody
 
@@ -123,7 +112,7 @@ balanceTxIns utxos fees txBody = do
       changeMinUtxo :: BigInt
       changeMinUtxo = (fromInt 29) * utxoCost
 
-      txOutputs :: Array Transaction.TransactionOutput
+      txOutputs :: Array TransactionOutput
       txOutputs = unwrapTxBody.outputs
 
       nonMintedValue :: Value
@@ -134,7 +123,7 @@ balanceTxIns utxos fees txBody = do
       minSpending :: Value
       minSpending = lovelaceValueOf (fees + changeMinUtxo) <> nonMintedValue
 
-  txIns :: Array Transaction.TransactionInput
+  txIns :: Array TransactionInput
     <- collectTxIns unwrapTxBody.inputs utxos minSpending
   -- FIX ME? Original code uses Set append which is union so we use this then
   -- convert back to arrays. We could maybe use Array.union depending on _.inputs.
@@ -149,10 +138,10 @@ balanceTxIns utxos fees txBody = do
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 -- | Getting the necessary input utxos to cover the fees for the transaction
 collectTxIns
-  :: Array Transaction.TransactionInput
-  -> Transaction.Utxo
+  :: Array TransactionInput
+  -> Utxo
   -> Value
-  -> Either String (Array Transaction.TransactionInput)
+  -> Either String (Array TransactionInput)
 collectTxIns originalTxIns utxos value =
   if isSufficient $ Set.fromFoldable updatedInputs
    then pure updatedInputs
@@ -163,7 +152,7 @@ collectTxIns originalTxIns utxos value =
       <> ", got: "
       <> show (flattenValue $ txInsValue updatedInputs)
   where
-    updatedInputs :: Array Transaction.TransactionInput
+    updatedInputs :: Array TransactionInput
     updatedInputs =
       Set.toUnfoldable $ Foldable.foldl
         ( \newTxIns txIn ->
@@ -175,7 +164,7 @@ collectTxIns originalTxIns utxos value =
         (Set.fromFoldable originalTxIns)
         (Set.fromFoldable $ utxosToTransactionInput utxos)
 
-    isSufficient :: Set Transaction.TransactionInput -> Boolean
+    isSufficient :: Set TransactionInput -> Boolean
     isSufficient txIns' =
       not (Set.isEmpty txIns')
         && (txInsValue $ Set.toUnfoldable txIns') `geq` value
@@ -183,34 +172,29 @@ collectTxIns originalTxIns utxos value =
     -- FIX ME? Could refactor into a function as used in balanceNonAdaOuts
     -- Use Array so we don't need Ord instance on TransactionOutput from
     -- Set.mapMaybe - we don't want an Ord instance on Value.
-    txInsValue :: Array Transaction.TransactionInput -> Value
+    txInsValue :: Array TransactionInput -> Value
     txInsValue =
       Array.foldMap getAmount <<< Array.mapMaybe (flip Map.lookup utxos)
 
 -- FIX ME: toEitherTransactionInput may need fixing depending on our data types.
-utxosToTransactionInput
-  :: Transaction.Utxo
-  -> Array Transaction.TransactionInput
+utxosToTransactionInput :: Utxo -> Array TransactionInput
 utxosToTransactionInput =
   Array.mapMaybe (hush <<< toEitherTransactionInput) <<< Map.toUnfoldable
 
+-- FIX ME: (payment credential) address for change substitute for pkh (Address)
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 -- | We need to balance non ada values, as the cardano-cli is unable to balance
 -- | them (as of 2021/09/24). FIX ME: We aren't using CLI so need to balance ada
 -- | values too.
-balanceNonAdaOuts
-  :: Transaction.Address -- FIX ME: (payment credential) address for change substitute for pkh.
-  -> Transaction.Utxo
-  -> Transaction.TxBody
-  -> Either String Transaction.TxBody
+balanceNonAdaOuts :: Address -> Utxo -> TxBody -> Either String TxBody
 balanceNonAdaOuts changeAddr utxos txBody =
   let unwrapTxBody = unwrap txBody
 
-      -- FIX ME: Similar to Transaction.Address issue, need pkh.
-      payCredentials :: Transaction.Credential
+      -- FIX ME: Similar to Address issue, need pkh.
+      payCredentials :: Credential
       payCredentials = addressPaymentCredentials changeAddr
 
-      txOutputs :: Array Transaction.TransactionOutput
+      txOutputs :: Array TransactionOutput
       txOutputs = unwrapTxBody.outputs
 
       inputValue :: Value
@@ -222,7 +206,7 @@ balanceNonAdaOuts changeAddr utxos txBody =
       outputValue :: Value
       outputValue = Array.foldMap getAmount txOutputs
 
-      nonMintedOutputValue:: Value
+      nonMintedOutputValue :: Value
       nonMintedOutputValue =
         outputValue `minus` fromMaybe emptyValue unwrapTxBody.mint
 
@@ -230,22 +214,22 @@ balanceNonAdaOuts changeAddr utxos txBody =
       nonAdaChange =
         filterNonAda inputValue `minus` filterNonAda nonMintedOutputValue
 
-      outputs :: Array Transaction.TransactionOutput
+      outputs :: Array TransactionOutput
       outputs =
         Array.fromFoldable $
           case partition
             ((==) payCredentials <<< txOutPaymentCredentials)
             $ Array.toUnfoldable txOutputs of
               { no: txOuts, yes: Nil } ->
-                Transaction.TransactionOutput
+                TransactionOutput
                   { address: changeAddr,
                     amount: nonAdaChange,
                     data_hash: Nothing
                   } : txOuts
               { no: txOuts'
-              , yes: Transaction.TransactionOutput txOut@{ amount: v } : txOuts
+              , yes: TransactionOutput txOut@{ amount: v } : txOuts
               } ->
-                Transaction.TransactionOutput
+                TransactionOutput
                   txOut { amount = v <> nonAdaChange } : txOuts <> txOuts'
 
    -- Original code uses "isNat" because there is a guard against zero, see
@@ -257,18 +241,15 @@ balanceNonAdaOuts changeAddr utxos txBody =
          then pure txBody
          else Left "balanceNonAdaOuts: Not enough inputs to balance tokens."
 
-getAmount :: Transaction.TransactionOutput -> Value
+getAmount :: TransactionOutput -> Value
 getAmount = _.amount <<< unwrap
 
 -- | Add min lovelaces to each tx output
-addLovelaces
-  :: Array (Transaction.TransactionOutput /\ BigInt)
-  -> Transaction.TxBody
-  -> Transaction.TxBody
+addLovelaces :: Array (TransactionOutput /\ BigInt) -> TxBody -> TxBody
 addLovelaces minLovelaces txBody =
   let unwrapTxBody = unwrap txBody
 
-      lovelacesAdded :: Array Transaction.TransactionOutput
+      lovelacesAdded :: Array TransactionOutput
       lovelacesAdded =
         map
           ( \txOut ->
@@ -298,16 +279,16 @@ filterNonAda =
   Value <<< Map.filterKeys (_ /= adaSymbol) <<< getValue
 
 -- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
-{- | Add the required signatories to the transaction. Be aware if the signature
+{- | Add the required signatories to the  Be aware if the signature
 itself is invalid, and will be ignored. Only the pub key hashes are used,
 mapped to signing key files on disk.
 -}
 addSignatories
-  :: Transaction.Address
-  -> Map.Map Transaction.Address Transaction.RequiredSigner
-  -> Array Transaction.Address
-  -> Transaction.TxBody
-  -> Either String Transaction.TxBody
+  :: Address
+  -> Map.Map Address RequiredSigner
+  -> Array Address
+  -> TxBody
+  -> Either String TxBody
 addSignatories ownAddr addReqSigners requiredAddrs txBody =
   Array.foldM
     ( \txBody' addr ->
@@ -318,7 +299,7 @@ addSignatories ownAddr addReqSigners requiredAddrs txBody =
     txBody
     $ Array.cons ownAddr requiredAddrs
 
-signBy :: Transaction.TxBody -> Transaction.RequiredSigner -> Transaction.TxBody
+signBy :: TxBody -> RequiredSigner -> TxBody
 signBy txBody reqSigner =
   let unwrapTxBody = unwrap txBody
    in wrap $ unwrapTxBody # case unwrapTxBody.required_signers of

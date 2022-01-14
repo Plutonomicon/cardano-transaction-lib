@@ -30,7 +30,6 @@ You can edit this file as you like.
   , "psci-support"
   , "refs"
   , "spec"
-  , "strings"
   , "these"
   , "transformers"
   , "tuples"
