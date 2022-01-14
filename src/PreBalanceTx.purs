@@ -11,6 +11,8 @@ import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (over, unwrap, wrap)
 import Data.Tuple.Nested ((/\), type (/\))
+import Data.Set (Set)
+import Data.Set as Set
 -- import Undefined (undefined)
 
 import Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
@@ -157,7 +159,7 @@ balanceNonAdaOuts changeAddr utxos txBody =
 
       outputs :: Array Transaction.TransactionOutput
       outputs =
-        Array.fromFoldable $ -- FIX ME: Only use arrays?
+        Array.fromFoldable $
           case List.partition
             ((==) payCredentials <<< txOutPaymentCredentials)
             <<< Array.toUnfoldable $ txOutputs of
@@ -260,11 +262,16 @@ balanceTxIns utxos fees txBody = do
       minSpending :: Transaction.Value
       minSpending = lovelaceValueOf (fees + changeMinUtxo) <> nonMintedValue
 
-  newTxIns :: Array Transaction.TransactionInput
+  txIns :: Array Transaction.TransactionInput
     <- collectTxIns unwrapTxBody.inputs utxos minSpending
-  -- FIX ME: Use union because original code is set append. Note behaviour may differ/
+  -- FIX ME? Original code uses Set append which is union so we use this then
+  -- convert back to arrays.
   pure <<< wrap
-    $ unwrapTxBody { inputs = Array.union newTxIns unwrapTxBody.inputs }
+    $ unwrapTxBody
+      { inputs =
+          Set.toUnfoldable
+            (Set.fromFoldable txIns <> Set.fromFoldable unwrapTxBody.inputs)
+      }
 
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 -- | Getting the necessary input utxos to cover the fees for the transaction
@@ -274,7 +281,7 @@ collectTxIns
   -> Transaction.Value
   -> Either String (Array Transaction.TransactionInput)
 collectTxIns originalTxIns utxos value =
-  if isSufficient updatedInputs
+  if isSufficient $ Set.fromFoldable updatedInputs
    then pure updatedInputs
    else
     Left $
@@ -285,24 +292,23 @@ collectTxIns originalTxIns utxos value =
   where
     updatedInputs :: Array Transaction.TransactionInput
     updatedInputs =
-      Foldable.foldl
+      Set.toUnfoldable $ Foldable.foldl
         ( \newTxIns txIn ->
             if isSufficient newTxIns
              then newTxIns
-             else
-               -- set insertion in original code.
-              if txIn `Array.elem` newTxIns
-               then newTxIns
-               else txIn `Array.cons` newTxIns -- Could use insert?
+             else Set.insert txIn newTxIns -- set insertion in original code.
         )
-        originalTxIns
-        $ utxosToTransactionInput utxos
+        (Set.fromFoldable originalTxIns)
+        (Set.fromFoldable <<< utxosToTransactionInput $ utxos)
 
-    isSufficient :: Array Transaction.TransactionInput -> Boolean
+    isSufficient :: Set Transaction.TransactionInput -> Boolean
     isSufficient txIns' =
-      not (Array.null txIns') && txInsValue txIns' `geq` value
+      not (Set.isEmpty txIns')
+        && (txInsValue <<< Set.toUnfoldable $ txIns') `geq` value
 
-    -- FIX ME: Could refactor into a function as used in balanceNonAdaOuts
+    -- FIX ME? Could refactor into a function as used in balanceNonAdaOuts
+    -- Use Array so we don't need Ord instance on TransactionOutput from mapMaybe.
+    -- We don't want an Ord instance on Value.
     txInsValue :: Array Transaction.TransactionInput -> Transaction.Value
     txInsValue =
       Array.foldMap getAmount <<< Array.mapMaybe (flip Map.lookup utxos)
