@@ -5,6 +5,7 @@ You can edit this file as you like.
 { name = "my-project"
 , dependencies = 
   [ "aff"
+  , "arraybuffer-types"
   , "arrays"
   , "argonaut"
   , "bigints"
@@ -27,10 +28,13 @@ You can edit this file as you like.
   , "ordered-collections"
   , "prelude"
   , "psci-support"
+  , "rationals"
   , "refs"
   , "spec"
   , "strings"
   , "transformers" 
+  , "uint"
+  , "unordered-collections"
   , "undefined"
   ]
 , packages = ./packages.dhall
