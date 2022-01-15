@@ -105,65 +105,58 @@ in  upstream
 -------------------------------
 -}
 let upstream =
-      https://github.com/purescript/package-sets/releases/download/psc-0.14.5-20211116/packages.dhall sha256:7e973070e323137f27e12af93bc2c2f600d53ce4ae73bb51f34eb7d7ce0a43ea
+      https://github.com/purescript/package-sets/releases/download/psc-0.14.5-20211116/packages.dhall sha256:7ba810597a275e43c83411d2ab0d4b3c54d0b551436f4b1632e9ff3eb62e327a
 
 let additions =
-      { tree =
-          { dependencies = [ "console", "lists", "prelude", "free" ]
-          , repo = "https://github.com/dmbfm/purescript-tree.git"
-          , version = "v1.3.2"
-          }
-      , mote =
+      { mote =
           { dependencies = [ "these", "transformers", "arrays" ]
           , repo = "https://github.com/garyb/purescript-mote"
           , version = "v1.1.0"
-          }
-      , quickcheck-combinators =
-          { dependencies = [ "prelude", "quickcheck", "typelevel" ]
-          , repo =
-              "https://github.com/athanclark/purescript-quickcheck-combinators.git"
-          , version = "v0.1.2"
           }
       , medea =
           { dependencies =   
             [ "aff"
             , "argonaut"
-            , "console"
+            , "arrays"
+            , "bifunctors"
             , "control"
-            , "debug"
             , "effect"
+            , "either"
+            , "enums"
             , "exceptions"
             , "foldable-traversable"
             , "foreign-object"
             , "free"
-            , "generics-rep"
-            , "lcg"
-            , "leibniz"
+            , "integers"
+            , "lists"
+            , "maybe"
             , "mote"
             , "naturals"
+            , "newtype"
             , "node-buffer"
             , "node-fs-aff"
             , "node-path"
             , "nonempty"
             , "ordered-collections"
-            , "parallel"
             , "parsing"
+            , "partial"
             , "prelude"
             , "psci-support"
             , "quickcheck"
             , "quickcheck-combinators"
             , "safely"
             , "spec"
+            , "strings"
             , "these"
             , "transformers"
-            , "tree"
             , "typelevel"
+            , "tuples"
             , "unicode"
             , "unordered-collections"
             , "unsafe-coerce"
             ]
-        , repo = "ssh://git@github.com/juspay/medea-ps.git"
-        , version = "96a93df8d4b7cc13b080ace299c195e61aad0cb8"
+        , repo = "https://github.com/juspay/medea-ps.git"
+        , version = "8b215851959aa8bbf33e6708df6bd683c89d1a5a"
         }
       }
 
