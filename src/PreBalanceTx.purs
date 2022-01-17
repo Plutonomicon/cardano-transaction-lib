@@ -23,10 +23,10 @@ import Effect.Aff (Aff)
 import Undefined (undefined)
 
 import Ogmios (QueryConfig, QueryM(..))
-import ProtocolParametersAlonzo (lovelacePerUTxOWord, pidSize, protocolParamUTxOCostPerWord, Word(..))
-import Types.Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
+import ProtocolParametersAlonzo (coinSize, lovelacePerUTxOWord, pidSize, protocolParamUTxOCostPerWord, utxoEntrySizeWithoutVal, Word(..))
+import Types.Ada (Ada(..), adaSymbol, fromValue, getLovelace, lovelaceValueOf)
 import Types.Transaction (Address, Credential(..), RequiredSigner, Transaction(..), TransactionInput, TransactionOutput(..), TxBody(..), Utxo, UtxoM)
-import Types.Value (allTokenNames, emptyValue, flattenValue, geq, getValue, isAdaOnly, isPos, isZero, minus, numCurrencySymbols, numTokenNames, Value(..))
+import Types.Value (allTokenNames, emptyValue, flattenValue, geq, getValue, isAdaOnly, isPos, isZero, minus, numCurrencySymbols, numTokenNames, TokenName, Value(..))
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
@@ -93,33 +93,38 @@ preBalanceTxM qConfig ownAddr addReqSigners requiredAddrs unbalancedTx =
 --         then pure balancedTx
 --         else loop utxoIndex privKeys requiredSigs minUtxos balancedTx
 
--- calculateMinUtxos ::
---   forall (w :: Type) (effs :: [Type -> Type]).
---   Member (PABEffect w) effs =>
---   PABConfig ->
---   Map DatumHash Datum ->
---   [TxOut] ->
---   Eff effs (Either Text [(TxOut, Integer)])
--- calculateMinUtxos pabConf datums txOuts =
---   zipWithM (fmap . (,)) txOuts <$> mapM (CardanoCLI.calculateMinUtxo @w pabConf datums) txOuts
+calculateMinUtxos
+  :: Array TransactionOutput
+  -> Array (TransactionOutput /\ BigInt)
+calculateMinUtxos txOuts = txOuts <#> \a -> a /\ calculateMinUtxo a
 
 -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
 -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
 -- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0028#rationale-for-parameter-choices
 -- | Given an array of transaction outputs, return the paired amount of lovelaces
 -- | required by each utxo.
--- calculateMinUtxo
---   :: Array TransactionOutput
---   -> Array (Either String (TransactionOutput /\ BigInt))
--- calculateMinUtxo txOuts = 
+calculateMinUtxo :: TransactionOutput -> BigInt
+calculateMinUtxo txOut = unwrap lovelacePerUTxOWord * utxoEntrySize txOut
+
+utxoEntrySize :: TransactionOutput -> BigInt
+utxoEntrySize txOut =
+  let unwrapTxOut = unwrap txOut
+
+      outputValue :: Value
+      outputValue = unwrapTxOut.amount
+   in case isAdaOnly outputValue of
+        true -> utxoEntrySizeWithoutVal + coinSize -- 29 in Alonzo
+        false -> utxoEntrySizeWithoutVal
+                  + size outputValue
+                  + dataHashSize unwrapTxOut.data_hash
 
 -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
 -- | Calculates how many words are needed depending on whether the datum is
 -- | hashed or not. 10 words for a hashed datum and 0 for no hash. The argument
 -- | to the function is the datum hash found in TransactionOutput.
-dataHashSize :: Maybe String -> Word -- Should we add type safety?
-dataHashSize Nothing = Word zero
-dataHashSize (Just _) = Word $ fromInt 10
+dataHashSize :: Maybe String -> BigInt -- Should we add type safety?
+dataHashSize Nothing = zero
+dataHashSize (Just _) = fromInt 10
 
 -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
 -- FIX ME: Is this correct? The formula is actually based on the length of the

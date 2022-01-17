@@ -1,7 +1,9 @@
 module ProtocolParametersAlonzo
-  ( lovelacePerUTxOWord
+  ( coinSize
+  , lovelacePerUTxOWord
   , pidSize
   , protocolParamUTxOCostPerWord
+  , utxoEntrySizeWithoutVal
   , Word(..)
   ) where
 
@@ -27,10 +29,14 @@ protocolParamUTxOCostPerWord = Lovelace $ fromInt 1
 lovelacePerUTxOWord :: Ada
 lovelacePerUTxOWord = Lovelace $ fromInt 34482
 
+-- words
 -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
-utxoEntrySizeWithoutVal :: Word
-utxoEntrySizeWithoutVal = Word $ fromInt 27
+utxoEntrySizeWithoutVal :: BigInt
+utxoEntrySizeWithoutVal = fromInt 27
 
 -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
 pidSize :: BigInt
 pidSize = fromInt 28
+
+coinSize :: BigInt
+coinSize = fromInt 2
