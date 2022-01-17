@@ -2,9 +2,11 @@ module Types.Transaction where
 
 import Prelude
 import Data.BigInt (BigInt)
+import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
+import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\))
 
 import Types.Value (Value)
@@ -15,6 +17,7 @@ newtype Transaction = Transaction {
   is_valid :: Boolean,
   auxiliary_data :: Maybe AuxiliaryData
 }
+derive instance newtypeTransaction :: Newtype Transaction _
 
 newtype TxBody = TxBody
   { inputs :: Array TransactionInput,
@@ -79,7 +82,11 @@ newtype TransactionInput = TransactionInput
     index :: BigInt -- u32 TransactionIndex
   }
 derive instance eqTransactionInput :: Eq TransactionInput
+derive instance genericTransactionInput :: Generic TransactionInput _
 derive instance ordTransactionInput :: Ord TransactionInput
+
+instance showTransactionInput :: Show TransactionInput where
+  show = genericShow
 
 newtype TransactionOutput = TransactionOutput
   { address :: Address,
@@ -87,7 +94,15 @@ newtype TransactionOutput = TransactionOutput
     data_hash :: Maybe String -- DataHash>,
   }
 derive instance eqTransactionOutput :: Eq TransactionOutput
+derive instance genericTransactionOutput :: Generic TransactionOutput _
 derive instance newtypeTransactionOutput :: Newtype TransactionOutput _
+
+instance showTransactionOutput :: Show TransactionOutput where
+  show = genericShow
+
+newtype UtxoM = UtxoM Utxo
+derive instance newtypeUtxoM :: Newtype UtxoM _
+derive newtype instance showUtxoM :: Show UtxoM
 
 type Utxo = Map TransactionInput TransactionOutput
 
@@ -99,8 +114,12 @@ newtype Address = Address
   { "AddrType" :: BaseAddress
   }
 derive instance eqAddress :: Eq Address
+derive instance genericAddress :: Generic Address _
 derive instance ordAddress :: Ord Address
 derive instance newtypeAddress :: Newtype Address _
+
+instance showAddress :: Show Address where
+  show = genericShow
 
 newtype BaseAddress = BaseAddress
   { network :: Int, -- u8,
@@ -108,12 +127,20 @@ newtype BaseAddress = BaseAddress
     payment :: Credential
   }
 derive instance eqBaseAddress :: Eq BaseAddress
+derive instance genericBaseAddress :: Generic BaseAddress _
 derive instance ordBaseAddress :: Ord BaseAddress
 derive instance newtypeBaseAddress :: Newtype BaseAddress _
 
+instance showBaseAddress :: Show BaseAddress where
+  show = genericShow
+
 newtype Credential = Credential String
 derive instance eqCredential :: Eq Credential
+derive instance genericCredential :: Generic Credential _
 derive instance ordCredential :: Ord Credential
+
+instance showCredential :: Show Credential where
+  show = genericShow
 -- Below comes from Plutus API:
 -- data Credential = PubKeyCredential String | ScriptCredential String
 

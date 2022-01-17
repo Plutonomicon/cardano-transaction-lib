@@ -1,11 +1,14 @@
 module PreBalanceTx
   ( preBalanceTx
+  , preBalanceTxM
   ) where
 
 import Prelude
+import Control.Monad.Reader.Trans (runReaderT)
+import Control.Monad.Trans.Class (lift)
 import Data.Array as Array
 import Data.BigInt (BigInt, fromInt)
-import Data.Either (Either(..), hush, note)
+import Data.Either (Either(..), fromRight, hush, isRight, note)
 import Data.Foldable as Foldable
 import Data.List ((:), List(..), partition)
 import Data.Map as Map
@@ -14,24 +17,57 @@ import Data.Newtype (over, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Tuple.Nested ((/\), type (/\))
+import Effect.Aff (Aff)
+import Undefined (undefined)
 
+import Ogmios (QueryConfig, QueryM(..))
 import ProtocolParametersAlonzo (protocolParamUTxOCostPerWord)
 import Types.Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
-import Types.Transaction (Address, Credential(..), RequiredSigner, TransactionInput, TransactionOutput(..), TxBody(..), Utxo)
+import Types.Transaction (Address, Credential(..), RequiredSigner, Transaction(..), TransactionInput, TransactionOutput(..), TxBody(..), Utxo, UtxoM)
 import Types.Value (emptyValue, flattenValue, geq, getValue, isAdaOnly, isPos, isZero, minus, Value(..))
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 
-preBalanceTx ::
-  Array (TransactionOutput /\ BigInt) ->
-  BigInt ->
-  Utxo ->
-  Address ->
-  Map.Map Address RequiredSigner ->
-  Array Address ->
-  TxBody ->
-  Either String TxBody
+-- TO DO: convert utxosAt from Ogmios to Transaction space.
+utxosAt :: Address -> QueryM UtxoM
+utxosAt = undefined
+
+preBalanceTxM
+  :: QueryConfig
+  -> Address
+  -> Map.Map Address RequiredSigner -- FIX ME: take from unbalanced tx?
+  -> Array Address -- FIX ME: take from unbalanced tx?
+  -> Transaction -- unbalanced transaction, FIX ME: do we need a newtype wrapper?
+  -> Aff (Either String Transaction)
+preBalanceTxM qConfig ownAddr addReqSigners requiredAddrs unbalancedTx =
+  runReaderT
+    do
+      utxos <- unwrap <$> utxosAt ownAddr -- Do we want :: Either String UtxoM here?
+      let utxoIndex = utxos  -- FIX ME: include newtype wrapper? UNWRAP
+          unwrapUnbalancedTx = unwrap unbalancedTx
+
+      pure
+        $ (wrap <<< unwrapUnbalancedTx { body = _ })
+        <$> preBalanceTx
+              []
+              zero
+              utxoIndex
+              ownAddr
+              addReqSigners
+              requiredAddrs
+              unwrapUnbalancedTx.body
+  qConfig
+
+preBalanceTx
+  :: Array (TransactionOutput /\ BigInt)
+  -> BigInt
+  -> Utxo
+  -> Address
+  -> Map.Map Address RequiredSigner
+  -> Array Address
+  -> TxBody
+  -> Either String TxBody
 preBalanceTx minUtxos fees utxos ownAddr addReqSigners requiredAddrs tx =
   addTxCollaterals utxos tx -- Take a single Ada only utxo collateral
     >>= balanceTxIns utxos fees -- Add input fees for the Ada only collateral
