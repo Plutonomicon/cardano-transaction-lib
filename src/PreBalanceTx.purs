@@ -7,24 +7,26 @@ import Prelude
 import Control.Monad.Reader.Trans (runReaderT)
 import Control.Monad.Trans.Class (lift)
 import Data.Array as Array
-import Data.BigInt (BigInt, fromInt)
+import Data.BigInt (BigInt, fromInt, quot)
 import Data.Either (Either(..), fromRight, hush, isRight, note)
 import Data.Foldable as Foldable
 import Data.List ((:), List(..), partition)
 import Data.Map as Map
-import Data.Maybe (fromMaybe, Maybe(..))
+import Data.Map (values, unions)
+import Data.Maybe (fromMaybe, maybe, Maybe(..))
 import Data.Newtype (over, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
+import Data.String.CodeUnits (length)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Aff (Aff)
 import Undefined (undefined)
 
 import Ogmios (QueryConfig, QueryM(..))
-import ProtocolParametersAlonzo (protocolParamUTxOCostPerWord)
+import ProtocolParametersAlonzo (lovelacePerUTxOWord, pidSize, protocolParamUTxOCostPerWord, Word(..))
 import Types.Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
 import Types.Transaction (Address, Credential(..), RequiredSigner, Transaction(..), TransactionInput, TransactionOutput(..), TxBody(..), Utxo, UtxoM)
-import Types.Value (emptyValue, flattenValue, geq, getValue, isAdaOnly, isPos, isZero, minus, Value(..))
+import Types.Value (allTokenNames, emptyValue, flattenValue, geq, getValue, isAdaOnly, isPos, isZero, minus, numCurrencySymbols, numTokenNames, Value(..))
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
@@ -58,6 +60,91 @@ preBalanceTxM qConfig ownAddr addReqSigners requiredAddrs unbalancedTx =
               requiredAddrs
               unwrapUnbalancedTx.body
   qConfig
+--   where
+--     loop ::
+--       Utxo ->
+--       Map.Map Address RequiredSigner ->
+--       Array Address ->
+--       Array (TransactionOutput /\ BigInt) ->
+--       Transaction ->
+--       QueryM (Either String Transaction)
+--     loop utxoIndex addReqSigners requiredAddrs prevMinUtxos tx = do
+--       void $ lift $ Files.writeAll @w pabConf tx
+--       nextMinUtxos <-
+--         newEitherT $
+--           calculateMinUtxos @w pabConf (Tx.txData tx) $ Tx.txOutputs tx \\ map fst prevMinUtxos
+
+--       let minUtxos = prevMinUtxos ++ nextMinUtxos
+
+--       lift $ printLog @w Debug $ "Min utxos: " ++ show minUtxos
+
+--       txWithoutFees <-
+--         hoistEither $ preBalanceTx pabConf.pcProtocolParams minUtxos 0 utxoIndex ownPkh privKeys requiredSigs tx
+
+--       lift $ createDirectoryIfMissing @w False (Text.unpack pabConf.pcTxFileDir)
+--       lift $ CardanoCLI.buildTx @w pabConf ownPkh (CardanoCLI.BuildRaw 0) txWithoutFees
+--       fees <- newEitherT $ CardanoCLI.calculateMinFee @w pabConf txWithoutFees
+
+--       lift $ printLog @w Debug $ "Fees: " ++ show fees
+
+--       balancedTx <- hoistEither $ preBalanceTx pabConf.pcProtocolParams minUtxos fees utxoIndex ownPkh privKeys requiredSigs tx
+
+--       if balancedTx == tx
+--         then pure balancedTx
+--         else loop utxoIndex privKeys requiredSigs minUtxos balancedTx
+
+-- calculateMinUtxos ::
+--   forall (w :: Type) (effs :: [Type -> Type]).
+--   Member (PABEffect w) effs =>
+--   PABConfig ->
+--   Map DatumHash Datum ->
+--   [TxOut] ->
+--   Eff effs (Either Text [(TxOut, Integer)])
+-- calculateMinUtxos pabConf datums txOuts =
+--   zipWithM (fmap . (,)) txOuts <$> mapM (CardanoCLI.calculateMinUtxo @w pabConf datums) txOuts
+
+-- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
+-- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
+-- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0028#rationale-for-parameter-choices
+-- | Given an array of transaction outputs, return the paired amount of lovelaces
+-- | required by each utxo.
+-- calculateMinUtxo
+--   :: Array TransactionOutput
+--   -> Array (Either String (TransactionOutput /\ BigInt))
+-- calculateMinUtxo txOuts = 
+
+-- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
+-- | Calculates how many words are needed depending on whether the datum is
+-- | hashed or not. 10 words for a hashed datum and 0 for no hash. The argument
+-- | to the function is the datum hash found in TransactionOutput.
+dataHashSize :: Maybe String -> Word -- Should we add type safety?
+dataHashSize Nothing = Word zero
+dataHashSize (Just _) = Word $ fromInt 10
+
+-- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
+-- FIX ME: Is this correct? The formula is actually based on the length of the
+-- bytestring representation, but we are using strings.
+-- | Sum of the length of the strings of distinct token names.
+sumTokenNameLengths :: Value -> BigInt
+sumTokenNameLengths = Foldable.foldl lenAdd zero <<< allTokenNames
+  where
+    lenAdd :: BigInt -> TokenName -> BigInt
+    lenAdd = \b a -> b + fromInt (length $ unwrap a)
+
+-- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
+-- See "size"
+size :: Value -> BigInt
+size v = fromInt 6 + roundupBytesToWords b
+  where
+    b :: BigInt
+    b = numTokenNames v * fromInt 12
+      + sumTokenNameLengths v
+      + numCurrencySymbols v * pidSize
+
+-- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
+-- | converts bytes to 8-byte long words, rounding up
+roundupBytesToWords :: BigInt -> BigInt
+roundupBytesToWords b = quot (b + (fromInt 7)) $ fromInt 8
 
 preBalanceTx
   :: Array (TransactionOutput /\ BigInt)

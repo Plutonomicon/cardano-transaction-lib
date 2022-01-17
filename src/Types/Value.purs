@@ -2,6 +2,7 @@ module Types.Value
   ( CurrencySymbol(..)
   , TokenName(..)
   , Value(..)
+  , allTokenNames
   , emptyValue
   , eq
   , flattenValue
@@ -14,6 +15,10 @@ module Types.Value
   , leq
   , lt
   , minus
+  , numCurrencySymbols
+  , numCurrencySymbols'
+  , numTokenNames
+  , numTokenNames'
   , singleton
   , unflattenValue
   , valueOf
@@ -23,14 +28,15 @@ module Types.Value
 import Prelude
 import Control.Alternative (guard)
 import Data.Array (filter)
-import Data.BigInt (BigInt)
-import Data.Foldable (any)
+import Data.BigInt (BigInt, fromInt)
+import Data.Foldable (any, length)
 import Data.Generic.Rep (class Generic)
 import Data.List ((:), all, foldMap, List(..))
-import Data.Map (lookup, Map, toUnfoldable)
+import Data.Map (keys, lookup, Map, toUnfoldable, unions, values)
 import Data.Map as Map
-import Data.Maybe (Maybe(..))
+import Data.Maybe (maybe, Maybe(..))
 import Data.Newtype (class Newtype, unwrap)
+import Data.Set (Set)
 import Data.Show.Generic (genericShow)
 import Data.These (These(..))
 import Data.Tuple.Nested ((/\), type (/\))
@@ -47,6 +53,7 @@ newtype TokenName = TokenName String
 derive instance eqTokenName :: Eq TokenName
 derive instance ordTokenName :: Ord TokenName
 derive instance genericTokenName :: Generic TokenName _
+derive instance newtypeTokenName :: Newtype TokenName _
 
 instance showTokenName :: Show TokenName where
   show = genericShow
@@ -232,3 +239,24 @@ valueOf (Value mp) cur tn =
 -- | Make a 'Value' containing only the given quantity of the given currency.
 singleton :: CurrencySymbol -> TokenName -> BigInt -> Value
 singleton c tn i = Value (Map.singleton c (Map.singleton tn i))
+
+-- | The number of distinct currency symbols, i.e. the number of policy IDs.
+numCurrencySymbols :: Value -> BigInt
+numCurrencySymbols = fromInt <<< length <<< getValue
+
+numCurrencySymbols' :: Maybe Value -> BigInt
+numCurrencySymbols' = maybe zero numCurrencySymbols
+
+-- Don't export this, we don't really care about the v in k,v.
+allTokenNames' :: Value -> Map TokenName BigInt
+allTokenNames' = unions <<< values <<< getValue
+
+allTokenNames :: Value -> Set TokenName
+allTokenNames = keys <<< allTokenNames'
+
+-- | The number of distinct token names.
+numTokenNames :: Value -> BigInt
+numTokenNames = length <<< allTokenNames'
+
+numTokenNames' :: Maybe Value -> BigInt
+numTokenNames' = maybe zero numTokenNames
