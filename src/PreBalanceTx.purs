@@ -1,7 +1,8 @@
 module PreBalanceTx
   ( preBalanceTx
   , preBalanceTxM
-  ) where
+  )
+  where
 
 import Prelude
 import Control.Monad.Reader.Trans (runReaderT)
@@ -93,6 +94,9 @@ preBalanceTxM qConfig ownAddr addReqSigners requiredAddrs unbalancedTx =
 --         then pure balancedTx
 --         else loop utxoIndex privKeys requiredSigs minUtxos balancedTx
 
+-- calculateMinFee :: Transaction -> Either String BigInt
+-- calculateMinFee tx = 
+
 calculateMinUtxos
   :: Array TransactionOutput
   -> Array (TransactionOutput /\ BigInt)
@@ -106,6 +110,8 @@ calculateMinUtxos txOuts = txOuts <#> \a -> a /\ calculateMinUtxo a
 calculateMinUtxo :: TransactionOutput -> BigInt
 calculateMinUtxo txOut = unwrap lovelacePerUTxOWord * utxoEntrySize txOut
 
+-- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
+-- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
 utxoEntrySize :: TransactionOutput -> BigInt
 utxoEntrySize txOut =
   let unwrapTxOut = unwrap txOut
@@ -146,10 +152,10 @@ size v = fromInt 6 + roundupBytesToWords b
       + sumTokenNameLengths v
       + numCurrencySymbols v * pidSize
 
--- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
--- | converts bytes to 8-byte long words, rounding up
-roundupBytesToWords :: BigInt -> BigInt
-roundupBytesToWords b = quot (b + (fromInt 7)) $ fromInt 8
+    -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
+    -- Converts bytes to 8-byte long words, rounding up
+    roundupBytesToWords :: BigInt -> BigInt
+    roundupBytesToWords b = quot (b + (fromInt 7)) $ fromInt 8
 
 preBalanceTx
   :: Array (TransactionOutput /\ BigInt)
