@@ -148,24 +148,6 @@ preBalanceTxM ownAddr addReqSigners requiredAddrs unbalancedTx = do
 --         then pure balancedTx
 --         else loop utxoIndex privKeys requiredSigs minUtxos balancedTx
 
--- -- https://github.com/input-output-hk/cardano-ledger/blob/master/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/Tools.hs
--- -- | Checks all inputs are contained in utxos.
--- basicValidation
---   :: Transaction
---   -- | The current UTxO set (or the relevant portion for the transaction).
---   -> Utxo
---   -> Maybe String
--- basicValidation tx utxo =
---   if Array.null badInputs
---    then Nothing
---    else Just $ "The following inputs are not part of utxo map" <> show badInputs
---   where
---     txInputs :: Array TransactionInput
---     txInputs = _.inputs <<< unwrap <<< _.body <<< unwrap $ tx
-
---     badInputs :: Array TransactionInput
---     badInputs = Array.filter (not <<< flip Map.member utxo) txInputs
-
 buildTx :: TxBody -> Either String Transaction
 buildTx = undefined
 
