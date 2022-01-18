@@ -5,7 +5,6 @@ module PreBalanceTx
   where
 
 import Prelude
-import Control.Monad.Reader.Trans (runReaderT)
 import Data.Array ((\\))
 import Data.Array as Array
 import Data.BigInt (BigInt, fromInt, quot)
@@ -20,10 +19,9 @@ import Data.Set as Set
 import Data.String.CodeUnits (length)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
-import Effect.Aff (Aff)
 import Undefined (undefined)
 
-import Ogmios (QueryConfig, QueryM)
+import Ogmios (QueryM)
 import ProtocolParametersAlonzo (coinSize, lovelacePerUTxOWord, pidSize, protocolParamUTxOCostPerWord, utxoEntrySizeWithoutVal)
 import Types.Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
 import Types.Transaction (Address, Credential(..), RequiredSigner, Transaction(..), TransactionInput, TransactionOutput(..), TxBody(..), Utxo, UtxoM)
@@ -37,20 +35,17 @@ utxosAt :: Address -> QueryM UtxoM
 utxosAt = undefined
 
 preBalanceTxM
-  :: QueryConfig
-  -> Address
+  :: Address
   -> Map.Map Address RequiredSigner -- FIX ME: take from unbalanced tx?
   -> Array Address -- FIX ME: take from unbalanced tx?
   -> Transaction -- unbalanced transaction, FIX ME: do we need a newtype wrapper?
-  -> Aff (Either String Transaction)
-preBalanceTxM qConfig ownAddr addReqSigners requiredAddrs unbalancedTx =
-  runReaderT
-    do
-      utxos <- unwrap <$> utxosAt ownAddr -- Do we want :: Either String UtxoM here?
-      let utxoIndex = utxos  -- FIX ME: include newtype wrapper? UNWRAP
-          _unwrapUnbalancedTx = unwrap unbalancedTx
-      loop utxoIndex ownAddr addReqSigners requiredAddrs [] unbalancedTx
-  qConfig
+  -> QueryM (Either String Transaction)
+preBalanceTxM ownAddr addReqSigners requiredAddrs unbalancedTx = do
+  utxos :: Utxo <- unwrap <$> utxosAt ownAddr -- Do we want :: Either String UtxoM here?
+  let utxoIndex :: Utxo
+      utxoIndex = utxos  -- FIX ME: include newtype wrapper? UNWRAP
+      _unwrapUnbalancedTx = unwrap unbalancedTx
+  loop utxoIndex ownAddr addReqSigners requiredAddrs [] unbalancedTx
   where
     loop ::
       Utxo ->
@@ -66,9 +61,9 @@ preBalanceTxM qConfig ownAddr addReqSigners requiredAddrs unbalancedTx =
       addReqSigners'
       requiredAddrs'
       prevMinUtxos'
-      (Transaction unwrapTx') = do
+      (Transaction tx') = do
       let txBody' :: TxBody
-          txBody' = unwrapTx'.body
+          txBody' = tx'.body
 
           unwrapTxBody' = unwrap txBody'
 
@@ -93,7 +88,7 @@ preBalanceTxM qConfig ownAddr addReqSigners requiredAddrs unbalancedTx =
         Left err -> pure $ Left err
         Right balancedTxBody'' ->
           if txBody' == balancedTxBody''
-           then pure $ Right $ wrap unwrapTx' { body = balancedTxBody'' }
+           then pure $ Right $ wrap tx' { body = balancedTxBody'' }
            else
             loop
               utxoIndex'
@@ -101,7 +96,7 @@ preBalanceTxM qConfig ownAddr addReqSigners requiredAddrs unbalancedTx =
               addReqSigners'
               requiredAddrs'
               prevMinUtxos'
-              $ wrap unwrapTx' { body = balancedTxBody'' }
+              $ wrap tx' { body = balancedTxBody'' }
 
     chainedBalancer
       :: Array (TransactionOutput /\ BigInt)
@@ -133,8 +128,6 @@ preBalanceTxM qConfig ownAddr addReqSigners requiredAddrs unbalancedTx =
             addReqSigners'
             requiredAddrs'
             txBody'
-
-      -- pure $ Right tx
 
 --       let minUtxos = prevMinUtxos ++ nextMinUtxos
 
@@ -236,7 +229,6 @@ size v = fromInt 6 + roundupBytesToWords b
       where
         lenAdd :: BigInt -> TokenName -> BigInt
         lenAdd = \c a -> c + fromInt (length $ unwrap a)
-
 
 preBalanceTxBody
   :: Array (TransactionOutput /\ BigInt)
