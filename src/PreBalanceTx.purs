@@ -182,7 +182,7 @@ calculateMinFee = undefined
 calculateMinUtxos
   :: Array TransactionOutput
   -> Array (TransactionOutput /\ BigInt)
-calculateMinUtxos txOuts = txOuts <#> \a -> a /\ calculateMinUtxo a
+calculateMinUtxos = map (\a -> a /\ calculateMinUtxo a)
 
 -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
 -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
@@ -191,20 +191,18 @@ calculateMinUtxos txOuts = txOuts <#> \a -> a /\ calculateMinUtxo a
 -- | required by each utxo.
 calculateMinUtxo :: TransactionOutput -> BigInt
 calculateMinUtxo txOut = unwrap lovelacePerUTxOWord * utxoEntrySize txOut
-
--- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
--- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
-utxoEntrySize :: TransactionOutput -> BigInt
-utxoEntrySize txOut =
-  let unwrapTxOut = unwrap txOut
-
-      outputValue :: Value
-      outputValue = unwrapTxOut.amount
-   in case isAdaOnly outputValue of
-        true -> utxoEntrySizeWithoutVal + coinSize -- 29 in Alonzo
-        false -> utxoEntrySizeWithoutVal
-                  + size outputValue
-                  + dataHashSize unwrapTxOut.data_hash
+  where
+    -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
+    -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
+    utxoEntrySize :: TransactionOutput -> BigInt
+    utxoEntrySize (TransactionOutput txOut') =
+      let outputValue :: Value
+          outputValue = txOut'.amount
+      in case isAdaOnly outputValue of
+            true -> utxoEntrySizeWithoutVal + coinSize -- 29 in Alonzo
+            false -> utxoEntrySizeWithoutVal
+                      + size outputValue
+                      + dataHashSize txOut'.data_hash
 
 -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
 -- | Calculates how many words are needed depending on whether the datum is
@@ -213,16 +211,6 @@ utxoEntrySize txOut =
 dataHashSize :: Maybe String -> BigInt -- Should we add type safety?
 dataHashSize Nothing = zero
 dataHashSize (Just _) = fromInt 10
-
--- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
--- FIX ME: Is this correct? The formula is actually based on the length of the
--- bytestring representation, but we are using strings.
--- | Sum of the length of the strings of distinct token names.
-sumTokenNameLengths :: Value -> BigInt
-sumTokenNameLengths = Foldable.foldl lenAdd zero <<< allTokenNames
-  where
-    lenAdd :: BigInt -> TokenName -> BigInt
-    lenAdd = \b a -> b + fromInt (length $ unwrap a)
 
 -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
 -- See "size"
@@ -238,6 +226,17 @@ size v = fromInt 6 + roundupBytesToWords b
     -- Converts bytes to 8-byte long words, rounding up
     roundupBytesToWords :: BigInt -> BigInt
     roundupBytesToWords b' = quot (b' + (fromInt 7)) $ fromInt 8
+
+    -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
+    -- FIX ME: Is this correct? The formula is actually based on the length of the
+    -- bytestring representation, but we are using strings.
+    -- | Sum of the length of the strings of distinct token names.
+    sumTokenNameLengths :: Value -> BigInt
+    sumTokenNameLengths = Foldable.foldl lenAdd zero <<< allTokenNames
+      where
+        lenAdd :: BigInt -> TokenName -> BigInt
+        lenAdd = \c a -> c + fromInt (length $ unwrap a)
+
 
 preBalanceTxBody
   :: Array (TransactionOutput /\ BigInt)
