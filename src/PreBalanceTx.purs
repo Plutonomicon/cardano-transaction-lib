@@ -1,31 +1,31 @@
 module PreBalanceTx
-  ( preBalanceTx
+  ( preBalanceTxBody
   , preBalanceTxM
   )
   where
 
 import Prelude
 import Control.Monad.Reader.Trans (runReaderT)
-import Control.Monad.Trans.Class (lift)
+import Data.Array ((\\))
 import Data.Array as Array
 import Data.BigInt (BigInt, fromInt, quot)
-import Data.Either (Either(..), fromRight, hush, isRight, note)
+import Data.Either (Either(..), hush, note)
 import Data.Foldable as Foldable
 import Data.List ((:), List(..), partition)
 import Data.Map as Map
-import Data.Map (values, unions)
-import Data.Maybe (fromMaybe, maybe, Maybe(..))
+import Data.Maybe (fromMaybe, Maybe(..))
 import Data.Newtype (over, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.String.CodeUnits (length)
+import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Aff (Aff)
 import Undefined (undefined)
 
-import Ogmios (QueryConfig, QueryM(..))
-import ProtocolParametersAlonzo (coinSize, lovelacePerUTxOWord, pidSize, protocolParamUTxOCostPerWord, utxoEntrySizeWithoutVal, Word(..))
-import Types.Ada (Ada(..), adaSymbol, fromValue, getLovelace, lovelaceValueOf)
+import Ogmios (QueryConfig, QueryM)
+import ProtocolParametersAlonzo (coinSize, lovelacePerUTxOWord, pidSize, protocolParamUTxOCostPerWord, utxoEntrySizeWithoutVal)
+import Types.Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
 import Types.Transaction (Address, Credential(..), RequiredSigner, Transaction(..), TransactionInput, TransactionOutput(..), TxBody(..), Utxo, UtxoM)
 import Types.Value (allTokenNames, emptyValue, flattenValue, geq, getValue, isAdaOnly, isPos, isZero, minus, numCurrencySymbols, numTokenNames, TokenName, Value(..))
 
@@ -48,32 +48,93 @@ preBalanceTxM qConfig ownAddr addReqSigners requiredAddrs unbalancedTx =
     do
       utxos <- unwrap <$> utxosAt ownAddr -- Do we want :: Either String UtxoM here?
       let utxoIndex = utxos  -- FIX ME: include newtype wrapper? UNWRAP
-          unwrapUnbalancedTx = unwrap unbalancedTx
-
-      pure
-        $ (wrap <<< unwrapUnbalancedTx { body = _ })
-        <$> preBalanceTx
-              []
-              zero
-              utxoIndex
-              ownAddr
-              addReqSigners
-              requiredAddrs
-              unwrapUnbalancedTx.body
+          _unwrapUnbalancedTx = unwrap unbalancedTx
+      loop utxoIndex ownAddr addReqSigners requiredAddrs [] unbalancedTx
   qConfig
---   where
---     loop ::
---       Utxo ->
---       Map.Map Address RequiredSigner ->
---       Array Address ->
---       Array (TransactionOutput /\ BigInt) ->
---       Transaction ->
---       QueryM (Either String Transaction)
---     loop utxoIndex addReqSigners requiredAddrs prevMinUtxos tx = do
---       void $ lift $ Files.writeAll @w pabConf tx
---       nextMinUtxos <-
---         newEitherT $
---           calculateMinUtxos @w pabConf (Tx.txData tx) $ Tx.txOutputs tx \\ map fst prevMinUtxos
+  where
+    loop ::
+      Utxo ->
+      Address ->
+      Map.Map Address RequiredSigner ->
+      Array Address ->
+      Array (TransactionOutput /\ BigInt) ->
+      Transaction ->
+      QueryM (Either String Transaction)
+    loop
+      utxoIndex'
+      ownAddr'
+      addReqSigners'
+      requiredAddrs'
+      prevMinUtxos'
+      (Transaction unwrapTx') = do
+      let txBody' :: TxBody
+          txBody' = unwrapTx'.body
+
+          unwrapTxBody' = unwrap txBody'
+
+          nextMinUtxos' :: Array (TransactionOutput /\ BigInt)
+          nextMinUtxos' =
+            calculateMinUtxos $ unwrapTxBody'.outputs \\ map fst prevMinUtxos'
+
+          minUtxos' :: Array (TransactionOutput /\ BigInt)
+          minUtxos' = prevMinUtxos' <> nextMinUtxos'
+
+          balancedTxBody' :: Either String TxBody
+          balancedTxBody' =
+            chainedBalancer
+              minUtxos'
+              utxoIndex'
+              ownAddr'
+              addReqSigners'
+              requiredAddrs'
+              txBody'
+
+      case balancedTxBody' of
+        Left err -> pure $ Left err
+        Right balancedTxBody'' ->
+          if txBody' == balancedTxBody''
+           then pure $ Right $ wrap unwrapTx' { body = balancedTxBody'' }
+           else
+            loop
+              utxoIndex'
+              ownAddr'
+              addReqSigners'
+              requiredAddrs'
+              prevMinUtxos'
+              $ wrap unwrapTx' { body = balancedTxBody'' }
+
+    chainedBalancer
+      :: Array (TransactionOutput /\ BigInt)
+      -> Utxo
+      -> Address
+      -> Map.Map Address RequiredSigner
+      -> Array Address
+      -> TxBody
+      -> Either String TxBody
+    chainedBalancer
+      -- FIX ME: Original code writes to disk
+      minUtxos' utxoIndex' ownAddr' addReqSigners' requiredAddrs' txBody' = do
+        txBodyWithoutFees' :: TxBody <-
+          preBalanceTxBody
+            minUtxos'
+            zero
+            utxoIndex'
+            ownAddr'
+            addReqSigners'
+            requiredAddrs'
+            txBody'
+        tx' :: Transaction <- buildTx txBodyWithoutFees'
+        fees' :: BigInt <- calculateMinFee tx' -- FIX ME: use txBodyWithoutFees replaced in original tx.
+        preBalanceTxBody
+          minUtxos'
+            fees'
+            utxoIndex'
+            ownAddr'
+            addReqSigners'
+            requiredAddrs'
+            txBody'
+
+      -- pure $ Right tx
 
 --       let minUtxos = prevMinUtxos ++ nextMinUtxos
 
@@ -94,8 +155,29 @@ preBalanceTxM qConfig ownAddr addReqSigners requiredAddrs unbalancedTx =
 --         then pure balancedTx
 --         else loop utxoIndex privKeys requiredSigs minUtxos balancedTx
 
--- calculateMinFee :: Transaction -> Either String BigInt
--- calculateMinFee tx = 
+-- -- https://github.com/input-output-hk/cardano-ledger/blob/master/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/Tools.hs
+-- -- | Checks all inputs are contained in utxos.
+-- basicValidation
+--   :: Transaction
+--   -- | The current UTxO set (or the relevant portion for the transaction).
+--   -> Utxo
+--   -> Maybe String
+-- basicValidation tx utxo =
+--   if Array.null badInputs
+--    then Nothing
+--    else Just $ "The following inputs are not part of utxo map" <> show badInputs
+--   where
+--     txInputs :: Array TransactionInput
+--     txInputs = _.inputs <<< unwrap <<< _.body <<< unwrap $ tx
+
+--     badInputs :: Array TransactionInput
+--     badInputs = Array.filter (not <<< flip Map.member utxo) txInputs
+
+buildTx :: TxBody -> Either String Transaction
+buildTx = undefined
+
+calculateMinFee :: Transaction -> Either String BigInt
+calculateMinFee = undefined
 
 calculateMinUtxos
   :: Array TransactionOutput
@@ -155,9 +237,9 @@ size v = fromInt 6 + roundupBytesToWords b
     -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
     -- Converts bytes to 8-byte long words, rounding up
     roundupBytesToWords :: BigInt -> BigInt
-    roundupBytesToWords b = quot (b + (fromInt 7)) $ fromInt 8
+    roundupBytesToWords b' = quot (b' + (fromInt 7)) $ fromInt 8
 
-preBalanceTx
+preBalanceTxBody
   :: Array (TransactionOutput /\ BigInt)
   -> BigInt
   -> Utxo
@@ -166,8 +248,8 @@ preBalanceTx
   -> Array Address
   -> TxBody
   -> Either String TxBody
-preBalanceTx minUtxos fees utxos ownAddr addReqSigners requiredAddrs tx =
-  addTxCollaterals utxos tx -- Take a single Ada only utxo collateral
+preBalanceTxBody minUtxos fees utxos ownAddr addReqSigners requiredAddrs txBody =
+  addTxCollaterals utxos txBody -- Take a single Ada only utxo collateral
     >>= balanceTxIns utxos fees -- Add input fees for the Ada only collateral
     >>= balanceNonAdaOuts ownAddr utxos
     >>= pure <<< addLovelaces minUtxos
@@ -257,8 +339,8 @@ balanceTxIns utxos fees txBody = do
       minSpending :: Value
       minSpending = lovelaceValueOf (fees + changeMinUtxo) <> nonMintedValue
 
-  txIns :: Array TransactionInput
-    <- collectTxIns unwrapTxBody.inputs utxos minSpending
+  txIns :: Array TransactionInput <-
+    collectTxIns unwrapTxBody.inputs utxos minSpending
   -- FIX ME? Original code uses Set append which is union so we use this then
   -- convert back to arrays. We could maybe use Array.union depending on _.inputs.
   -- This would mean using just Arrays for collectTxIns.

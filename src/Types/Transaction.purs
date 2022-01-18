@@ -36,6 +36,7 @@ newtype TxBody = TxBody
     network_id :: Maybe NetworkId
   }
 derive instance newtypeTxBody :: Newtype TxBody _
+derive instance eqTxBody :: Eq TxBody
 
 newtype TransactionWitnessSet = TransactionWitnessSet
   { vkeys :: Maybe (Array Vkeywitness),
@@ -47,8 +48,10 @@ newtype TransactionWitnessSet = TransactionWitnessSet
   }
 
 newtype NetworkId = NetworkId Int
+derive instance eqNetworkId :: Eq NetworkId
 
 newtype RequiredSigner = RequiredSigner String
+derive instance eqRequiredSigner :: Eq RequiredSigner
 
 newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
@@ -107,8 +110,10 @@ derive newtype instance showUtxoM :: Show UtxoM
 type Utxo = Map TransactionInput TransactionOutput
 
 newtype Coin = Coin BigInt
+derive instance eqCoin :: Eq Coin
 
 newtype Slot = Slot BigInt
+derive instance eqSlot :: Eq Slot
 
 newtype Address = Address
   { "AddrType" :: BaseAddress
