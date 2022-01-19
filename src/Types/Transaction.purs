@@ -46,12 +46,12 @@ newtype NetworkId = NetworkId Int
 
 newtype RequiredSigner = RequiredSigner String
 
-newtype CurrencySymbol = CurrencySymbol String
+newtype CurrencySymbol = CurrencySymbol Uint8Array
 
 derive instance genericCurrencySymbol :: Generic CurrencySymbol _
 
 instance showCurrencySymbol :: Show CurrencySymbol where
-  show = genericShow
+  show (CurrencySymbol symbol) = showUint8Array symbol
 
 newtype TokenName = TokenName Uint8Array
 
