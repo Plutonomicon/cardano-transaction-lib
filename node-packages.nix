@@ -31,6 +31,15 @@ let
         sha512 = "46ts2s0W63nzqHMhaXKACeY0GDWdnPet9wqOWtb8X3Y5LzokcaDKupLO2eHUwlvQyFzD9gxJlWPi/LqZPkn4oQ==";
       };
     };
+    "@emurgo/cardano-serialization-lib-nodejs-9.1.4" = {
+      name = "_at_emurgo_slash_cardano-serialization-lib-nodejs";
+      packageName = "@emurgo/cardano-serialization-lib-nodejs";
+      version = "9.1.4";
+      src = fetchurl {
+        url = "https://registry.npmjs.org/@emurgo/cardano-serialization-lib-nodejs/-/cardano-serialization-lib-nodejs-9.1.4.tgz";
+        sha512 = "zDYQ4E5CAz89OuXCPV7k3v5kLWkwUS5Jg7QZ5m/4vPkeuZolOXyqo84p6AYf0qZ14xkgxnvHIRY+heJKNs7Ddw==";
+      };
+    };
     "@types/json-bigint-1.0.1" = {
       name = "_at_types_slash_json-bigint";
       packageName = "@types/json-bigint";
@@ -175,23 +184,27 @@ let
     dependencies = [
       (sources."@cardano-ogmios/client-4.2.1" // {
         dependencies = [
+          sources."@cardano-ogmios/schema-4.2.1"
+          sources."@cardanosolutions/json-bigint-1.0.0"
+          sources."@types/json-bigint-1.0.1"
+          sources."bignumber.js-9.0.2"
+          sources."cross-fetch-3.1.4"
+          sources."fastq-1.13.0"
+          sources."isomorphic-ws-4.0.1"
+          sources."nanoid-3.1.30"
+          sources."node-fetch-2.6.1"
+          sources."reusify-1.0.4"
+          sources."ts-custom-error-3.2.0"
           sources."ws-7.5.6"
         ];
       })
-      sources."@cardano-ogmios/schema-4.2.1"
-      sources."@cardanosolutions/json-bigint-1.0.0"
-      sources."@types/json-bigint-1.0.1"
+      sources."@emurgo/cardano-serialization-lib-nodejs-9.1.4"
       sources."big-integer-1.6.51"
-      sources."bignumber.js-9.0.2"
-      sources."bufferutil-4.0.5"
-      sources."cross-fetch-3.1.4"
-      sources."fastq-1.13.0"
-      sources."isomorphic-ws-4.0.1"
-      sources."nanoid-3.1.30"
-      sources."node-fetch-2.6.1"
-      sources."node-gyp-build-4.3.0"
-      sources."reusify-1.0.4"
-      sources."ts-custom-error-3.2.0"
+      (sources."bufferutil-4.0.5" // {
+        dependencies = [
+          sources."node-gyp-build-4.3.0"
+        ];
+      })
       sources."uniqid-5.4.0"
       sources."ws-8.4.0"
     ];
