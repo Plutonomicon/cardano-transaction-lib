@@ -1,6 +1,7 @@
 module Types.Transaction where
 
 import Prelude
+import Data.ArrayBuffer.Types
 import Data.BigInt as BigInt
 import Data.Maybe (Maybe(..))
 import Data.Tuple.Nested ((/\), type (/\))
@@ -52,12 +53,14 @@ derive instance genericCurrencySymbol :: Generic CurrencySymbol _
 instance showCurrencySymbol :: Show CurrencySymbol where
   show = genericShow
 
-newtype TokenName = TokenName String
+newtype TokenName = TokenName Uint8Array
 
 derive instance genericTokenName :: Generic TokenName _
 
+foreign import showUint8Array :: Uint8Array -> String
+
 instance showTokenName :: Show TokenName where
-  show = genericShow
+  show (TokenName name) = showUint8Array name
 
 newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
 
