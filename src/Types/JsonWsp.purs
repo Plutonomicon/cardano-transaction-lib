@@ -227,6 +227,6 @@ parseValue outer = do
 
   -- assets are currently assumed to be empty
   -- newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
-  pure $ Value $ Map.singleton (CurrencySymbol "") (Map.singleton (TokenName emptyUint8Array) coins)
+  pure $ Value $ Map.singleton (CurrencySymbol emptyUint8Array) (Map.singleton (TokenName emptyUint8Array) coins)
 
 foreign import emptyUint8Array :: Uint8Array
