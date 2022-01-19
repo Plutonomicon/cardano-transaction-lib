@@ -6,6 +6,7 @@ You can edit this file as you like.
 , dependencies =
   [ "aff"
   , "argonaut"
+  , "arraybuffer-types"
   , "arrays"
   , "bigints"
   , "console"
