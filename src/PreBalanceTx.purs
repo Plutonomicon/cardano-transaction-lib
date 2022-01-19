@@ -21,6 +21,7 @@ import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Undefined (undefined)
 
+import Address (addressPubKeyHash, PubKeyHash)
 import Ogmios (QueryM)
 import ProtocolParametersAlonzo (coinSize, lovelacePerUTxOWord, pidSize, protocolParamUTxOCostPerWord, utxoEntrySizeWithoutVal)
 import Types.Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
@@ -314,14 +315,12 @@ balanceTxIns utxos fees txBody = do
 
   txIns :: Array TransactionInput <-
     collectTxIns unwrapTxBody.inputs utxos minSpending
-  -- FIX ME? Original code uses Set append which is union so we use this then
-  -- convert back to arrays. We could maybe use Array.union depending on _.inputs.
-  -- This would mean using just Arrays for collectTxIns.
+  -- FIX ME? Original code uses Set append which is union. Array unions behave
+  -- a little differently as it removes duplicates in the second argument.
+  -- but all inputs should be unique anyway so I think this is fine.
   pure $ wrap
     unwrapTxBody
-      { inputs =
-          Set.toUnfoldable
-            (Set.fromFoldable txIns <> Set.fromFoldable unwrapTxBody.inputs)
+      { inputs = Array.union txIns unwrapTxBody.inputs
       }
 
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
@@ -332,7 +331,7 @@ collectTxIns
   -> Value
   -> Either String (Array TransactionInput)
 collectTxIns originalTxIns utxos value =
-  if isSufficient $ Set.fromFoldable updatedInputs
+  if isSufficient updatedInputs
    then pure updatedInputs
    else
     Left $
@@ -343,24 +342,25 @@ collectTxIns originalTxIns utxos value =
   where
     updatedInputs :: Array TransactionInput
     updatedInputs =
-      Set.toUnfoldable $ Foldable.foldl
+      Foldable.foldl
         ( \newTxIns txIn ->
             if isSufficient newTxIns
              then newTxIns
-             else Set.insert txIn newTxIns -- set insertion in original code.
-             -- Could use another if then else with `Array.elem`.
+             else
+              -- set insertion in original code.
+              if txIn `Array.elem` newTxIns
+                then newTxIns
+                else txIn `Array.cons` newTxIns
         )
-        (Set.fromFoldable originalTxIns)
-        (Set.fromFoldable $ utxosToTransactionInput utxos)
+        originalTxIns
+        $ utxosToTransactionInput utxos
 
-    isSufficient :: Set TransactionInput -> Boolean
+    isSufficient :: Array TransactionInput -> Boolean
     isSufficient txIns' =
-      not (Set.isEmpty txIns')
-        && (txInsValue $ Set.toUnfoldable txIns') `geq` value
+      not (Array.null txIns')
+        && (txInsValue txIns') `geq` value
 
     -- FIX ME? Could refactor into a function as used in balanceNonAdaOuts
-    -- Use Array so we don't need Ord instance on TransactionOutput from
-    -- Set.mapMaybe - we don't want an Ord instance on Value.
     txInsValue :: Array TransactionInput -> Value
     txInsValue =
       Array.foldMap getAmount <<< Array.mapMaybe (flip Map.lookup utxos)
@@ -378,6 +378,10 @@ utxosToTransactionInput =
 balanceNonAdaOuts :: Address -> Utxo -> TxBody -> Either String TxBody
 balanceNonAdaOuts changeAddr utxos txBody =
   let unwrapTxBody = unwrap txBody
+
+      -- FIX ME: once both BaseAddresses are merged into one.
+      -- pkh :: PubKeyHash
+      -- pkh = addressPubKeyHash (unwrap changeAddr)."AddrType"
 
       -- FIX ME: Similar to Address issue, need pkh.
       payCredentials :: Credential
