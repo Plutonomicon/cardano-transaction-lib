@@ -78,9 +78,9 @@ newtype Ed25519Signature = Ed25519Signature String -- (bech32)
 
 newtype PlutusScript = PlutusScript String
 
-newtype PlutusData = PlutusData String 
+newtype PlutusData = PlutusData String
 -- TODO - we need a capability to encode/decode Datum from/to serialized format
--- see `makeIsDataIndexed` 
+-- see `makeIsDataIndexed`
 
 newtype Redeemer = Redeemer
   { tag :: RedeemerTag, -- ScriptPurpose: 'spending' 'minting' etc
@@ -99,15 +99,25 @@ type AuxiliaryData = Unit -- this is big and weird in serialization-lib
 
 
 newtype TransactionInput = TransactionInput
-  { transaction_id :: String, -- TransactionHash
-    index :: BigInt.BigInt -- u32 TransactionIndex
+  { transaction_id :: TransactionHash
+  , index :: BigInt.BigInt -- u32 TransactionIndex
   }
 
 newtype TransactionOutput = TransactionOutput
   { address :: Address,
     amount :: Value,
-    data_hash :: Maybe String -- DataHash>,
+    data_hash :: Maybe DataHash
   }
+
+newtype TransactionHash = TransactionHash Uint8Array
+
+instance showTransactionHash :: Show TransactionHash where
+  show (TransactionHash hash) = showUint8Array hash
+
+newtype DataHash = DataHash Uint8Array
+
+instance showDataHash :: Show DataHash where
+  show (DataHash hash) = showUint8Array hash
 
 newtype Coin = Coin BigInt.BigInt
 
@@ -127,10 +137,10 @@ newtype BaseAddress = BaseAddress
 
 derive instance newtypeBaseAddress :: Newtype BaseAddress _
 
-newtype Credential = Credential String
+newtype Credential = Credential Uint8Array
 
 -- Addresspub struct Address(AddrType);
--- AddrType 
+-- AddrType
 -- enum AddrType {
     -- Base(BaseAddress),
     -- Ptr(PointerAddress),
@@ -143,7 +153,7 @@ newtype Credential = Credential String
     -- payment: StakeCredential,
     -- stake: StakeCredential,
 -- }
--- pub struct StakeCredential(StakeCredType); 
+-- pub struct StakeCredential(StakeCredType);
 -- Both of these are strings:
 -- enum StakeCredType {
     -- Key(Ed25519KeyHash),
