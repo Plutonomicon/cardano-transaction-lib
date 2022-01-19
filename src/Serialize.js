@@ -68,3 +68,16 @@ exports.newAssets = () =>
 
 exports.insertAssets = assets => key => value => () =>
     assets.insert(key, value);
+
+exports.newAssetName = name => () =>
+    lib.AssetName.new(name);
+
+exports.newScriptHash = array => () =>
+    lib.ScriptHash.from_bytes(array);
+
+exports.newDataHash = bech32 => () =>
+    // TODO: is correct representation?
+    lib.DataHash.from_bech32(bech32);
+
+exports.transactionOutputSetDataHash = output => hash => () =>
+    output.set_data_hash(hash);

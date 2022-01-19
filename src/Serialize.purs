@@ -1,11 +1,9 @@
 module Serialize where
 
+import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt as BigInt
-import Data.Map (Map)
-import Data.Map as Map
 import Data.Traversable (traverse_, for_)
 import Data.TraversableWithIndex (forWithIndex)
-import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Data.Newtype (unwrap)
 import Prelude
@@ -18,7 +16,6 @@ foreign import data BigNum :: Type
 foreign import data Value :: Type
 foreign import data Address :: Type
 foreign import data BaseAddress :: Type
-foreign import data Amount :: Type
 foreign import data AuxiliaryData :: Type -- We don't use it for now
 foreign import data Transaction :: Type
 foreign import data TransactionBody :: Type
@@ -35,17 +32,17 @@ foreign import data ScriptHash :: Type
 foreign import data MultiAsset :: Type
 foreign import data Assets :: Type
 foreign import data AssetName :: Type
+foreign import data DataHash :: Type
 
 
 foreign import newBigNum :: String -> Effect BigNum
 foreign import newValue :: BigNum -> Effect Value
 foreign import newValueFromAssets :: MultiAsset -> Effect Value
-foreign import newAddress :: String -> Effect Address
 foreign import newTransactionHash :: String -> Effect TransactionHash
 foreign import newTransactionInput :: TransactionHash -> Number -> Effect TransactionInput
 foreign import newTransactionInputs :: Effect TransactionInputs
 foreign import addTransactionInput :: TransactionInputs -> TransactionInput -> Effect Unit
-foreign import newTransactionOutput :: Address -> Amount -> Effect TransactionOutput
+foreign import newTransactionOutput :: Address -> Value -> Effect TransactionOutput
 foreign import newTransactionOutputs :: Effect TransactionOutputs
 foreign import addTransactionOutput :: TransactionOutputs -> TransactionOutput -> Effect Unit
 foreign import newTransactionBody :: TransactionInputs -> TransactionOutputs -> TransactionFee -> Effect TransactionBody
@@ -54,13 +51,17 @@ foreign import newTransaction_ :: TransactionBody -> TransactionWitnessSet -> Au
 foreign import newTransactionWitnessSet :: Effect TransactionWitnessSet
 foreign import newBaseAddress :: Int -> StakeCredential -> StakeCredential -> Effect BaseAddress
 foreign import baseAddressToAddress :: BaseAddress -> Effect Address
-foreign import newStakeCredentialFromScriptHash :: ScriptHash -> Effect StakeCredential
+foreign import newStakeCredentialFromScriptHash :: ScriptHash -> Effect StakeCredential -- TODO: is not needed?
 foreign import newStakeCredentialFromKeyHash :: Ed25519KeyHash -> Effect StakeCredential
 foreign import newEd25519KeyHash :: String -> Effect Ed25519KeyHash
 foreign import newMultiAsset :: Effect MultiAsset
 foreign import insertMultiAsset :: MultiAsset -> ScriptHash -> Assets -> Effect Unit
 foreign import newAssets :: Effect Assets
 foreign import insertAssets :: Assets -> AssetName -> BigNum -> Effect Unit
+foreign import newAssetName :: Uint8Array -> Effect AssetName
+foreign import newScriptHash :: Uint8Array -> Effect ScriptHash
+foreign import newDataHash :: String -> Effect DataHash
+foreign import transactionOutputSetDataHash :: TransactionOutput -> DataHash -> Effect Unit
 
 -- convertTransaction :: T.Transaction -> Effect Transaction
 -- convertTransaction (T.Transaction { body, witness_set }) = do
@@ -80,31 +81,37 @@ convertTxInput (T.TransactionInput { transaction_id, index }) = do
   newTransactionInput tx_hash
     (BigInt.toNumber index) -- u32, so no precision loss here
 
--- convertTxOutputs :: Array T.TransactionOutput -> Effect TransactionInputs
--- convertTxOutputs arrOutputs = do
---   outputs <- newTransactionOutputs
---   traverse_ (convertTxOutput >=> addTransactionOutput outputs) arrOutputs
---   pure outputs
+convertTxOutputs :: Array T.TransactionOutput -> Effect TransactionOutputs
+convertTxOutputs arrOutputs = do
+  outputs <- newTransactionOutputs
+  traverse_ (convertTxOutput >=> addTransactionOutput outputs) arrOutputs
+  pure outputs
 
--- convertTxOutput :: T.TransactionOutput -> Effect TransactionOutput
--- convertTxOutput (T.TransactionOutput { address, amount, data_hash }) = do
---   let
---     baseAddress = (unwrap address)."AddrType"
---   payment <- convertCredential baseAddress.payment
---   stake <- convertCredential baseAddress.stake
---   baseAddress <- newBaseAddress baseAddress.network payment stake
---   address <- baseAddressToAddress baseAddress
---   newTransactionOutput address amount
+convertTxOutput :: T.TransactionOutput -> Effect TransactionOutput
+convertTxOutput (T.TransactionOutput { address, amount, data_hash }) = do
+  let
+    baseAddress = unwrap (unwrap address)."AddrType"
+  payment <- convertCredential baseAddress.payment
+  stake <- convertCredential baseAddress.stake
+  base_address <- newBaseAddress baseAddress.network payment stake
+  address' <- baseAddressToAddress base_address
+  value <- convertValue amount
+  txo <- newTransactionOutput address' value
+  for_ data_hash (newDataHash >=> transactionOutputSetDataHash txo)
+  pure txo
 
--- convertValue :: T.Value -> Effect Value
--- convertValue (T.Value m) = do
---   multiasset <- newMultiAsset
---   void $ forWithIndex m \currencySymbol values -> do
---     assets <- newAssets
---     void $ forWithIndex values \tokenName bigInt -> do
---       pure unit
---     insertMultiAsset multiasset scripthash assets
---   newValueFromAssets multiasset
+convertValue :: T.Value -> Effect Value
+convertValue (T.Value m) = do
+  multiasset <- newMultiAsset
+  void $ forWithIndex m \(T.CurrencySymbol symbol) values -> do
+    assets <- newAssets
+    void $ forWithIndex values \(T.TokenName tokenName) bigIntValue -> do
+      assetName <- newAssetName tokenName
+      value <- newBigNum (BigInt.toString bigIntValue)
+      insertAssets assets assetName value
+    scripthash <- newScriptHash symbol
+    insertMultiAsset multiasset scripthash assets
+  newValueFromAssets multiasset
 
 convertCredential :: T.Credential -> Effect StakeCredential
 convertCredential (T.Credential str) = do

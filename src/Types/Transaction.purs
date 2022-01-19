@@ -6,6 +6,7 @@ import Data.BigInt as BigInt
 import Data.Maybe (Maybe(..))
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.Map (Map(..))
+import Data.Newtype (class Newtype)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 
@@ -112,15 +113,19 @@ newtype Coin = Coin BigInt.BigInt
 
 newtype Slot = Slot BigInt.BigInt
 
-newtype Address = Address 
+newtype Address = Address
   { "AddrType" :: BaseAddress
   }
+
+derive instance newtypeAddress :: Newtype Address _
 
 newtype BaseAddress = BaseAddress
   { network :: Int, -- u8,
     stake :: Credential,
     payment :: Credential
   }
+
+derive instance newtypeBaseAddress :: Newtype BaseAddress _
 
 newtype Credential = Credential String
 
