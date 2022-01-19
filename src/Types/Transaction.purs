@@ -4,10 +4,10 @@ import Prelude
 import Data.ArrayBuffer.Types(Uint8Array)
 import Data.BigInt as BigInt
 import Data.Generic.Rep (class Generic)
-import Data.Generic.Rep.Show (genericShow)
 import Data.HashMap (HashMap)
 import Data.Maybe (Maybe)
 import Data.Map (Map)
+import Data.Show.Generic (genericShow)
 import Data.Rational (Rational)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)

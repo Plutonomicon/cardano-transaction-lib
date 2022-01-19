@@ -10,6 +10,7 @@ You can edit this file as you like.
   , "argonaut"
   , "bigints"
   , "console"
+  , "const"
   , "control"
   , "debug"
   , "either"
@@ -17,9 +18,7 @@ You can edit this file as you like.
   , "exceptions"
   , "foldable-traversable"
   , "foreign-object"
-  , "generics-rep"
   , "identity"
-  , "int-53"
   , "maybe"
   , "medea"
   , "mote"
@@ -33,10 +32,14 @@ You can edit this file as you like.
   , "spec"
   , "strings"
   , "transformers" 
+  , "tuples"
   , "uint"
-  , "unordered-collections"
   , "undefined"
+  , "unordered-collections"
   ]
 , packages = ./packages.dhall
-, sources = [ "src/**/*.purs", "test/**/*.purs" ]
+, sources =
+  [ "src/**/*.purs"
+  , "test/**/*.purs"
+  ]
 }
