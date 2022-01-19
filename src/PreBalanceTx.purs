@@ -5,7 +5,7 @@ module PreBalanceTx
   where
 
 import Prelude
-import Data.Array ((\\))
+import Data.Array ((\\), findIndex, modifyAt)
 import Data.Array as Array
 import Data.BigInt (BigInt, fromInt, quot)
 import Data.Either (Either(..), hush, note)
@@ -24,7 +24,7 @@ import Undefined (undefined)
 import Address (addressPubKeyHash, PubKeyHash)
 import Ogmios (QueryM)
 import ProtocolParametersAlonzo (coinSize, lovelacePerUTxOWord, pidSize, protocolParamUTxOCostPerWord, utxoEntrySizeWithoutVal)
-import Types.Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
+import Types.Ada (adaSymbol, adaToken, fromValue, getLovelace, lovelaceValueOf)
 import Types.Transaction (Address, Credential(..), RequiredSigner, Transaction(..), TransactionInput, TransactionOutput(..), TxBody(..), Utxo, UtxoM)
 import Types.Value (allTokenNames, emptyValue, flattenValue, geq, getValue, isAdaOnly, isPos, isZero, minus, numCurrencySymbols, numTokenNames, TokenName, Value(..))
 
@@ -108,7 +108,7 @@ preBalanceTxM ownAddr addReqSigners requiredAddrs unbalancedTx = do
       -> TxBody
       -> Either String TxBody
     chainedBalancer
-      -- FIX ME: Original code writes to disk
+      -- NOTE: Original code writes to disk
       minUtxos' utxoIndex' ownAddr' addReqSigners' requiredAddrs' txBody' = do
         txBodyWithoutFees' :: TxBody <-
           preBalanceTxBody
@@ -119,11 +119,13 @@ preBalanceTxM ownAddr addReqSigners requiredAddrs unbalancedTx = do
             addReqSigners'
             requiredAddrs'
             txBody'
-        tx' :: Transaction <- buildTx txBodyWithoutFees'
+        -- buildTxRaw shouldn't include a hardcoded collateral, Nami may do this
+        -- so be sure to change code as needed.
+        tx' :: Transaction <- buildTxRaw txBodyWithoutFees'
         fees' :: BigInt <- calculateMinFee tx' -- FIX ME: use txBodyWithoutFees replaced in original tx.
         preBalanceTxBody
           minUtxos'
-            fees'
+            (fees' + fromInt 500000) -- FIX ME: Add 0.5 Ada to ensure enough input for later on in final balancing.
             utxoIndex'
             ownAddr'
             addReqSigners'
@@ -149,8 +151,61 @@ preBalanceTxM ownAddr addReqSigners requiredAddrs unbalancedTx = do
 --         then pure balancedTx
 --         else loop utxoIndex privKeys requiredSigs minUtxos balancedTx
 
-buildTx :: TxBody -> Either String Transaction
-buildTx = undefined
+-- Transaction should be prebalanced at this point with all excess with Ada
+-- where the Ada value of inputs is greater or equal to value of outputs.
+returnAdaChange :: Address -> Utxo -> Transaction -> Either String Transaction
+returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) = do
+  fees :: BigInt <- calculateMinFee $ Transaction tx
+  let txOutputs :: Array TransactionOutput
+      txOutputs = txBody.outputs
+
+      inputValue :: Value
+      inputValue =
+        Array.foldMap
+          getAmount
+          (Array.mapMaybe (flip Map.lookup utxos) <<< _.inputs $ txBody)
+
+      inputAda :: BigInt
+      inputAda = getLovelace $ fromValue inputValue
+
+      -- FIX ME? mint value.
+      outputValue :: Value
+      outputValue = Array.foldMap getAmount txOutputs
+
+      outputAda :: BigInt
+      outputAda = getLovelace $ fromValue outputValue
+
+      returnAda :: BigInt
+      returnAda = inputAda - outputAda - fees
+  case compare inputAda outputAda of
+    LT -> Left "returnAdaChange: Output has more Ada than input after \
+            \prebalance."
+    EQ -> pure $ Transaction tx
+    GT -> do
+      -- Short circuits and adds Ada to any output utxo of the owner. This saves
+      -- on fees but does not create a separate utxo. Do we want this behaviour?
+      -- I expect if there are any output utxos to the user, they are either Ada
+      -- only or non-Ada with minimum Ada value. Either way, we can just add the
+      -- the value.
+      let changeIndex :: Maybe Int
+          changeIndex = findIndex ((==) changeAddr <<< _.address <<< unwrap) txOutputs
+
+      case changeIndex of
+        Nothing -> do
+          let txBody' :: TxBody
+              txBody' = TxBody txBody { outputs = TransactionOutput { address: changeAddr, amount: lovelaceValueOf returnAda, data_hash: Nothing } `Array.cons` txBody.outputs }
+          tx' <- buildTxRaw txBody'
+          fees' <- calculateMinFee tx'
+
+          let returnAda' :: BigInt
+              returnAda' = returnAda - fees' -- FIX
+          pure $ Transaction tx
+        Just idx -> do
+          newOutputs :: Array TransactionOutput <- note "returnAdaChange: Couldn't modify utxo to return change" $ modifyAt idx (\(TransactionOutput o@{ amount }) -> TransactionOutput o { amount = amount <> lovelaceValueOf returnAda }) txOutputs
+          pure $ Transaction tx
+
+buildTxRaw :: TxBody -> Either String Transaction
+buildTxRaw = undefined
 
 calculateMinFee :: Transaction -> Either String BigInt
 calculateMinFee = undefined
