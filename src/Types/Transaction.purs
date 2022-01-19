@@ -98,15 +98,25 @@ type AuxiliaryData = Unit -- this is big and weird in serialization-lib
 
 
 newtype TransactionInput = TransactionInput
-  { transaction_id :: String, -- TransactionHash
-    index :: BigInt.BigInt -- u32 TransactionIndex
+  { transaction_id :: TransactionHash
+  , index :: BigInt.BigInt -- u32 TransactionIndex
   }
 
 newtype TransactionOutput = TransactionOutput
   { address :: Address,
     amount :: Value,
-    data_hash :: Maybe String -- DataHash>,
+    data_hash :: Maybe DataHash
   }
+
+newtype TransactionHash = TransactionHash Uint8Array
+
+instance showTransactionHash :: Show TransactionHash where
+  show (TransactionHash hash) = showUint8Array hash
+
+newtype DataHash = DataHash Uint8Array
+
+instance showDataHash :: Show DataHash where
+  show (DataHash hash) = showUint8Array hash
 
 newtype Coin = Coin BigInt.BigInt
 
@@ -122,7 +132,7 @@ newtype BaseAddress = BaseAddress
     payment :: Credential
   }
 
-newtype Credential = Credential String
+newtype Credential = Credential Uint8Array
 
 -- Addresspub struct Address(AddrType);
 -- AddrType 
