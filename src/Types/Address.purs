@@ -1,4 +1,4 @@
-module Address (
+module Types.Address (
   BaseAddress,
   Bech32String(..),
   PubKeyHash,
@@ -13,8 +13,7 @@ module Address (
   newBaseAddress
   ) where
 
-import Data.Maybe (Maybe(Just, Nothing))
-
+import Data.Maybe (Maybe(Nothing, Just))
 import Prelude
 
 
@@ -22,6 +21,10 @@ foreign import data BaseAddress :: Type
 
 instance showBaseAddr :: Show BaseAddress where
   show addr = "(BaseAddress " <> show (addressBech32 addr) <> ")"
+
+instance eqBaseAddr :: Eq BaseAddress where
+  eq a1 a2 = addressBech32 a1 == addressBech32 a2
+
 
 foreign import addressBech32 :: BaseAddress -> Bech32String
 
@@ -39,6 +42,7 @@ foreign import newBaseAddress :: NetworkId -> PubKeyHash -> StakeKeyHash -> Base
 newtype Bech32String = Bech32String String
 
 derive newtype instance showBech32String :: Show Bech32String
+derive instance eqBech32String :: Eq Bech32String
 
 newtype PubKeyHash = PubKeyHash Bech32String
 
