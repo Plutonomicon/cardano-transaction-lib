@@ -60,13 +60,13 @@ newtype GenesisHash = GenesisHash String
 type ProtocolParamUpdate = 
   { minfee_a :: Maybe Coin,
     minfee_b :: Maybe Coin,
-    max_block_body_size :: Maybe Int,
-    max_tx_size :: Maybe Int,
-    max_block_header_size :: Maybe Int,
+    max_block_body_size :: Maybe UInt,
+    max_tx_size :: Maybe UInt,
+    max_block_header_size :: Maybe UInt,
     key_deposit :: Maybe Coin,
     pool_deposit :: Maybe Coin,
     max_epoch :: Maybe Epoch,
-    n_opt :: Maybe Int,
+    n_opt :: Maybe UInt,
     pool_pledge_influence :: Maybe Rational,
     expansion_rate :: Maybe UnitInterval,
     treasury_growth_rate :: Maybe UnitInterval,
@@ -79,7 +79,7 @@ type ProtocolParamUpdate =
     execution_costs :: Maybe ExUnitPrices,
     max_tx_ex_units :: Maybe ExUnits,
     max_block_ex_units :: Maybe ExUnits,
-    max_value_size :: Maybe Int
+    max_value_size :: Maybe UInt
   }
 
 type ExUnitPrices =
@@ -111,11 +111,11 @@ newtype Costmdls = Costmdls (Map Language CostModel)
 
 data Language = PlutusV1
 
-newtype CostModel = CostModel (Array Int)
+newtype CostModel = CostModel (Array UInt)
 
 type ProtocolVersion =
-  { major :: Int
-  , minor :: Int
+  { major :: UInt
+  , minor :: UInt
   }
 
 newtype Nonce = Nonce String
@@ -125,7 +125,7 @@ type UnitInterval =
   , denominator :: BigInt.BigInt
   }
 
-newtype Epoch = Epoch Int
+newtype Epoch = Epoch UInt
 
 data Certificate
   = StakeRegistration
@@ -152,7 +152,9 @@ type BootstrapWitness =
   , attributes :: Uint8Array
   }
 
-newtype NetworkId = NetworkId Int
+data NetworkId 
+  = Mainnet
+  | Testnet
 
 newtype RequiredSigner = RequiredSigner String
 
@@ -227,7 +229,7 @@ data NativeScript
 
 newtype TransactionInput = TransactionInput
   { transaction_id :: TransactionHash
-  , index :: Int
+  , index :: UInt
   }
 
 newtype TransactionHash = TransactionHash String
