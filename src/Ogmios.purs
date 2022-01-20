@@ -16,6 +16,7 @@ import Effect.Console (log)
 import Effect.Exception (Error, error)
 import Effect.Ref as Ref
 import Types.JsonWsp (Address, JsonWspResponse, UtxoQR, mkUtxosAtQuery, parseJsonWspResponse)
+import Helpers as Helpers
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -190,7 +191,7 @@ utxoQueryDispatch
   -> String
   -> Effect (Either Json.JsonDecodeError (Effect Unit))
 utxoQueryDispatch ref str = do
-  let parsed' = parseJsonWspResponse =<< Json.parseJson str 
+  let parsed' = parseJsonWspResponse =<< Helpers.parseJsonStringifyNumbers str
   case parsed' of
       (Left err) -> pure $ Left err
       (Right res) -> afterParse res 
