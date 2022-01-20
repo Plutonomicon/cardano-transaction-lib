@@ -2,9 +2,10 @@ module Types.Transaction where
 
 import Prelude
 import Data.BigInt as BigInt
-import Data.Maybe (Maybe(..))
-import Data.Tuple.Nested ((/\), type (/\))
-import Data.Map (Map(..))
+import Data.Newtype (class Newtype)
+import Data.Maybe (Maybe)
+import Data.Tuple.Nested (type (/\))
+import Data.Map (Map)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 
@@ -66,11 +67,30 @@ derive instance genericValue :: Generic Value _
 instance showValue :: Show Value where
   show = genericShow
 
+newtype Bech32 = Bech32 String
+
+derive instance genericBech32 :: Generic Bech32 _
+derive instance newtypeBech32 :: Newtype Bech32 _
+instance showBech32 :: Show Bech32 where
+  show = genericShow
+
 newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
-newtype Vkey = Vkey String -- (bech32)
+newtype Vkey = Vkey PublicKey
 
-newtype Ed25519Signature = Ed25519Signature String -- (bech32)
+derive instance genericVkey :: Generic Vkey _
+derive instance newtypeVkey :: Newtype Vkey _
+instance showVkey :: Show Vkey where
+  show = genericShow
+
+newtype PublicKey = PublicKey Bech32
+
+derive instance genericPublicKey :: Generic PublicKey _
+derive instance newtypePublicKey :: Newtype PublicKey _
+instance showPublicKey :: Show PublicKey where
+  show = genericShow
+
+newtype Ed25519Signature = Ed25519Signature Bech32
 
 newtype PlutusScript = PlutusScript String
 
