@@ -1,4 +1,4 @@
-module Helpers(parseJsonStringifyNumbers) where
+module Helpers(parseJsonStringifyNumbers, jsonTurnNumbersToStrings) where
 
 import Data.Either (Either)
 import Data.Argonaut (JsonDecodeError, Json, parseJson)

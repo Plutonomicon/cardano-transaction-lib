@@ -11,7 +11,7 @@ exports.jsonTurnNumbersToStrings = (str) => {
     for (var i = 0, n = s.length; i < n; ++i) {
         const c = s[i];
         if (c == '"') {
-            if( i ==0 ||  (i>0 && c[i-1] != "\\" )){
+            if( i ==0 ||  (i>0 && s[i-1] != "\\" )){
                 in_string = !in_string;
             }
         }
@@ -36,6 +36,9 @@ exports.jsonTurnNumbersToStrings = (str) => {
         if(in_string || !/\s/.test(c)){
             arr.push(c);
         }
+    }
+    if (!in_string && in_number){
+        arr.push("\"");
     }
     return arr.join('');
 };
