@@ -1,6 +1,5 @@
 module PreBalanceTx
-  ( preBalanceTxBody
-  , preBalanceTxM
+  ( balanceTxM
   )
   where
 
@@ -13,47 +12,52 @@ import Data.Foldable as Foldable
 import Data.List ((:), List(..), partition)
 import Data.Map as Map
 import Data.Maybe (fromMaybe, Maybe(..))
-import Data.Newtype (over, unwrap, wrap)
-import Data.Set (Set)
-import Data.Set as Set
+import Data.Newtype (unwrap, wrap)
 import Data.String.CodeUnits (length)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Undefined (undefined)
 
-import Address (addressPubKeyHash, PubKeyHash)
+-- import Address (addressPubKeyHash, PubKeyHash)
 import Ogmios (QueryM)
 import ProtocolParametersAlonzo (coinSize, lovelacePerUTxOWord, pidSize, protocolParamUTxOCostPerWord, utxoEntrySizeWithoutVal)
-import Types.Ada (adaSymbol, adaToken, fromValue, getLovelace, lovelaceValueOf)
+import Types.Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
 import Types.Transaction (Address, Credential(..), RequiredSigner, Transaction(..), TransactionInput, TransactionOutput(..), TxBody(..), Utxo, UtxoM)
 import Types.Value (allTokenNames, emptyValue, flattenValue, geq, getValue, isAdaOnly, isPos, isZero, minus, numCurrencySymbols, numTokenNames, TokenName, Value(..))
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 
+-- Output utxos with the amount of lovelaces required.
+type MinUtxos = Array (TransactionOutput /\ BigInt)
+
 -- TO DO: convert utxosAt from Ogmios to Transaction space.
 utxosAt :: Address -> QueryM UtxoM
 utxosAt = undefined
 
-preBalanceTxM
+balanceTxM
   :: Address
   -> Map.Map Address RequiredSigner -- FIX ME: take from unbalanced tx?
   -> Array Address -- FIX ME: take from unbalanced tx?
   -> Transaction -- unbalanced transaction, FIX ME: do we need a newtype wrapper?
   -> QueryM (Either String Transaction)
-preBalanceTxM ownAddr addReqSigners requiredAddrs unbalancedTx = do
+balanceTxM ownAddr addReqSigners requiredAddrs unbalancedTx = do
   utxos :: Utxo <- unwrap <$> utxosAt ownAddr -- Do we want :: Either String UtxoM here?
   let utxoIndex :: Utxo
       utxoIndex = utxos  -- FIX ME: include newtype wrapper? UNWRAP
       _unwrapUnbalancedTx = unwrap unbalancedTx
-  loop utxoIndex ownAddr addReqSigners requiredAddrs [] unbalancedTx
+  prebalancedTx :: Either String Transaction <-
+    loop utxoIndex ownAddr addReqSigners requiredAddrs [] unbalancedTx
+  pure do
+    prebalancedTx' :: Transaction <- prebalancedTx
+    returnAdaChange ownAddr utxos prebalancedTx'
   where
     loop ::
       Utxo ->
       Address ->
       Map.Map Address RequiredSigner ->
       Array Address ->
-      Array (TransactionOutput /\ BigInt) ->
+      MinUtxos ->
       Transaction ->
       QueryM (Either String Transaction)
     loop
@@ -62,17 +66,12 @@ preBalanceTxM ownAddr addReqSigners requiredAddrs unbalancedTx = do
       addReqSigners'
       requiredAddrs'
       prevMinUtxos'
-      (Transaction tx') = do
-      let txBody' :: TxBody
-          txBody' = tx'.body
-
-          unwrapTxBody' = unwrap txBody'
-
-          nextMinUtxos' :: Array (TransactionOutput /\ BigInt)
+      (Transaction tx'@{ body: txBody'@(TxBody txB) }) = do
+      let nextMinUtxos' :: MinUtxos
           nextMinUtxos' =
-            calculateMinUtxos $ unwrapTxBody'.outputs \\ map fst prevMinUtxos'
+            calculateMinUtxos $ txB.outputs \\ map fst prevMinUtxos'
 
-          minUtxos' :: Array (TransactionOutput /\ BigInt)
+          minUtxos' :: MinUtxos
           minUtxos' = prevMinUtxos' <> nextMinUtxos'
 
           balancedTxBody' :: Either String TxBody
@@ -96,11 +95,11 @@ preBalanceTxM ownAddr addReqSigners requiredAddrs unbalancedTx = do
               ownAddr'
               addReqSigners'
               requiredAddrs'
-              prevMinUtxos'
+              minUtxos'
               $ wrap tx' { body = balancedTxBody'' }
 
     chainedBalancer
-      :: Array (TransactionOutput /\ BigInt)
+      :: MinUtxos
       -> Utxo
       -> Address
       -> Map.Map Address RequiredSigner
@@ -108,7 +107,6 @@ preBalanceTxM ownAddr addReqSigners requiredAddrs unbalancedTx = do
       -> TxBody
       -> Either String TxBody
     chainedBalancer
-      -- NOTE: Original code writes to disk
       minUtxos' utxoIndex' ownAddr' addReqSigners' requiredAddrs' txBody' = do
         txBodyWithoutFees' :: TxBody <-
           preBalanceTxBody
@@ -153,9 +151,11 @@ preBalanceTxM ownAddr addReqSigners requiredAddrs unbalancedTx = do
 
 -- Transaction should be prebalanced at this point with all excess with Ada
 -- where the Ada value of inputs is greater or equal to value of outputs.
+-- Also add fees to txBody. This should be called with a Tx with min
+-- Ada in each output utxo, namely, after "loop".
 returnAdaChange :: Address -> Utxo -> Transaction -> Either String Transaction
 returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) = do
-  fees :: BigInt <- calculateMinFee $ Transaction tx
+  fees :: BigInt <- calculateMinFee $ wrap tx
   let txOutputs :: Array TransactionOutput
       txOutputs = txBody.outputs
 
@@ -168,7 +168,7 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) = do
       inputAda :: BigInt
       inputAda = getLovelace $ fromValue inputValue
 
-      -- FIX ME? mint value.
+      -- FIX ME, ignore mint value?
       outputValue :: Value
       outputValue = Array.foldMap getAmount txOutputs
 
@@ -177,32 +177,87 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) = do
 
       returnAda :: BigInt
       returnAda = inputAda - outputAda - fees
-  case compare inputAda outputAda of
-    LT -> Left "returnAdaChange: Output has more Ada than input after \
-            \prebalance."
-    EQ -> pure $ Transaction tx
+  case compare returnAda zero of
+    LT -> Left "returnAdaChange: Not enough Input Ada to cover output and fees \
+           \after prebalance - this should be impossible if called after loop."
+    EQ -> pure $ wrap tx { body = wrap txBody { fee = wrap fees } }
     GT -> do
       -- Short circuits and adds Ada to any output utxo of the owner. This saves
       -- on fees but does not create a separate utxo. Do we want this behaviour?
       -- I expect if there are any output utxos to the user, they are either Ada
       -- only or non-Ada with minimum Ada value. Either way, we can just add the
-      -- the value.
+      -- the value and it shouldn't incur extra fees.
+      -- If we do require a new utxo, then we must add fees, under the assumption
+      -- we have enough Ada in the input at this stage, otherwise we fail because
+      -- we don't want to loop again over the addition of one output utxo.
       let changeIndex :: Maybe Int
-          changeIndex = findIndex ((==) changeAddr <<< _.address <<< unwrap) txOutputs
+          changeIndex =
+            findIndex ((==) changeAddr <<< _.address <<< unwrap) txOutputs
 
       case changeIndex of
-        Nothing -> do
-          let txBody' :: TxBody
-              txBody' = TxBody txBody { outputs = TransactionOutput { address: changeAddr, amount: lovelaceValueOf returnAda, data_hash: Nothing } `Array.cons` txBody.outputs }
-          tx' <- buildTxRaw txBody'
-          fees' <- calculateMinFee tx'
-
-          let returnAda' :: BigInt
-              returnAda' = returnAda - fees' -- FIX
-          pure $ Transaction tx
         Just idx -> do
-          newOutputs :: Array TransactionOutput <- note "returnAdaChange: Couldn't modify utxo to return change" $ modifyAt idx (\(TransactionOutput o@{ amount }) -> TransactionOutput o { amount = amount <> lovelaceValueOf returnAda }) txOutputs
-          pure $ Transaction tx
+          -- Add the Ada value to the first output utxo of the owner to not
+          -- concur fees. This should be Ada only or non-Ada which has min Ada.
+          newOutputs :: Array TransactionOutput <-
+            note "returnAdaChange: Couldn't modify utxo to return change." $
+              modifyAt
+                idx
+                ( \(TransactionOutput o@{ amount })
+                    -> TransactionOutput
+                          o { amount = amount <> lovelaceValueOf returnAda }
+                )
+                txOutputs
+          -- Fees unchanged because we aren't adding a new utxo.
+          pure $
+            wrap
+              tx { body = wrap txBody { outputs = newOutputs, fee = wrap fees } }
+        Nothing -> do
+          -- Create a txBody with the extra output utxo then recalculate fees,
+          -- then adjust as necessary if we have sufficient Ada in the input.
+          let utxoCost :: BigInt
+              utxoCost = getLovelace protocolParamUTxOCostPerWord
+
+              -- An ada-only UTxO entry is 29 words. More details about min utxo
+              -- calculation can be found here:
+              -- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0028#rationale-for-parameter-choices
+              changeMinUtxo :: BigInt
+              changeMinUtxo = (fromInt 29) * utxoCost
+
+              txBody' :: TxBody
+              txBody' =
+                wrap
+                  txBody
+                    { outputs =
+                        wrap
+                          { address: changeAddr
+                          , amount: lovelaceValueOf returnAda
+                          , data_hash: Nothing
+                          }
+                        `Array.cons` txBody.outputs
+                    }
+          tx' <- buildTxRaw txBody'
+          fees' <- calculateMinFee tx' -- fees should increase.
+          -- New return Ada amount should decrease:
+          let returnAda' :: BigInt
+              returnAda' = returnAda + fees - fees'
+
+          if returnAda' >= changeMinUtxo
+           then do
+            newOutputs :: Array TransactionOutput <-
+              note "returnAdaChange: Couldn't modify head utxo to add Ada - \
+                \this should be impossible." $
+                modifyAt
+                  0
+                  (\(TransactionOutput o)
+                      -> TransactionOutput
+                            o { amount = lovelaceValueOf returnAda }) $
+                  _.outputs <<< unwrap $ txBody'
+            pure $
+              wrap
+                tx { body = wrap txBody { outputs = newOutputs, fee = wrap fees } }
+           else
+            Left "returnAdaChange: ReturnAda' does not cover min. utxo \
+              \requirement for single Ada-only output."
 
 buildTxRaw :: TxBody -> Either String Transaction
 buildTxRaw = undefined
@@ -212,7 +267,7 @@ calculateMinFee = undefined
 
 calculateMinUtxos
   :: Array TransactionOutput
-  -> Array (TransactionOutput /\ BigInt)
+  -> MinUtxos
 calculateMinUtxos = map (\a -> a /\ calculateMinUtxo a)
 
 -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
@@ -229,11 +284,11 @@ calculateMinUtxo txOut = unwrap lovelacePerUTxOWord * utxoEntrySize txOut
     utxoEntrySize (TransactionOutput txOut') =
       let outputValue :: Value
           outputValue = txOut'.amount
-      in case isAdaOnly outputValue of
-            true -> utxoEntrySizeWithoutVal + coinSize -- 29 in Alonzo
-            false -> utxoEntrySizeWithoutVal
-                      + size outputValue
-                      + dataHashSize txOut'.data_hash
+      in if isAdaOnly outputValue
+          then utxoEntrySizeWithoutVal + coinSize -- 29 in Alonzo
+          else utxoEntrySizeWithoutVal
+                + size outputValue
+                + dataHashSize txOut'.data_hash
 
 -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
 -- | Calculates how many words are needed depending on whether the datum is
@@ -269,7 +324,7 @@ size v = fromInt 6 + roundupBytesToWords b
         lenAdd = \c a -> c + fromInt (length $ unwrap a)
 
 preBalanceTxBody
-  :: Array (TransactionOutput /\ BigInt)
+  :: MinUtxos
   -> BigInt
   -> Utxo
   -> Address
@@ -292,12 +347,11 @@ preBalanceTxBody minUtxos fees utxos ownAddr addReqSigners requiredAddrs txBody 
  (suboptimally we just pick a random utxo from the tx inputs)
 -}
 addTxCollaterals :: Utxo -> TxBody -> Either String TxBody
-addTxCollaterals utxos txBody = do
+addTxCollaterals utxos (TxBody txBody) = do
   let txIns :: Array TransactionInput
       txIns = utxosToTransactionInput $ filterAdaOnly utxos
   txIn :: TransactionInput <- findPubKeyTxIn txIns
-  pure $
-    over TxBody _{ collateral = Just (Array.singleton txIn) } txBody
+  pure $ wrap txBody { collateral = Just (Array.singleton txIn) }
   where
     filterAdaOnly :: Utxo -> Utxo
     filterAdaOnly = Map.filter (isAdaOnly <<< getAmount)
@@ -345,10 +399,8 @@ txOutPaymentCredentials = addressPaymentCredentials <<< _.address  <<< unwrap
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 -- Notice we aren't using protocol parameters for utxo cost per word.
 balanceTxIns :: Utxo -> BigInt -> TxBody -> Either String TxBody
-balanceTxIns utxos fees txBody = do
-  let unwrapTxBody = unwrap txBody
-
-      utxoCost :: BigInt
+balanceTxIns utxos fees (TxBody txBody) = do
+  let utxoCost :: BigInt
       utxoCost = getLovelace protocolParamUTxOCostPerWord
 
       -- An ada-only UTxO entry is 29 words. More details about min utxo
@@ -358,24 +410,24 @@ balanceTxIns utxos fees txBody = do
       changeMinUtxo = (fromInt 29) * utxoCost
 
       txOutputs :: Array TransactionOutput
-      txOutputs = unwrapTxBody.outputs
+      txOutputs = txBody.outputs
 
       nonMintedValue :: Value
       nonMintedValue =
         Array.foldMap getAmount txOutputs
-          `minus` fromMaybe emptyValue unwrapTxBody.mint
+          `minus` fromMaybe emptyValue txBody.mint
 
       minSpending :: Value
       minSpending = lovelaceValueOf (fees + changeMinUtxo) <> nonMintedValue
 
   txIns :: Array TransactionInput <-
-    collectTxIns unwrapTxBody.inputs utxos minSpending
+    collectTxIns txBody.inputs utxos minSpending
   -- FIX ME? Original code uses Set append which is union. Array unions behave
   -- a little differently as it removes duplicates in the second argument.
   -- but all inputs should be unique anyway so I think this is fine.
   pure $ wrap
-    unwrapTxBody
-      { inputs = Array.union txIns unwrapTxBody.inputs
+    txBody
+      { inputs = Array.union txIns txBody.inputs
       }
 
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
@@ -431,32 +483,30 @@ utxosToTransactionInput =
 -- | them (as of 2021/09/24). FIX ME: We aren't using CLI so need to balance ada
 -- | values too.
 balanceNonAdaOuts :: Address -> Utxo -> TxBody -> Either String TxBody
-balanceNonAdaOuts changeAddr utxos txBody =
-  let unwrapTxBody = unwrap txBody
+balanceNonAdaOuts changeAddr utxos (TxBody txBody) =
+  let  -- FIX ME: Similar to Address issue, need pkh.
+      payCredentials :: Credential
+      payCredentials = addressPaymentCredentials changeAddr
 
       -- FIX ME: once both BaseAddresses are merged into one.
       -- pkh :: PubKeyHash
       -- pkh = addressPubKeyHash (unwrap changeAddr)."AddrType"
 
-      -- FIX ME: Similar to Address issue, need pkh.
-      payCredentials :: Credential
-      payCredentials = addressPaymentCredentials changeAddr
-
       txOutputs :: Array TransactionOutput
-      txOutputs = unwrapTxBody.outputs
+      txOutputs = txBody.outputs
 
       inputValue :: Value
       inputValue =
         Array.foldMap
           getAmount
-          (Array.mapMaybe (flip Map.lookup utxos) <<< _.inputs $ unwrapTxBody)
+          (Array.mapMaybe (flip Map.lookup utxos) <<< _.inputs $ txBody)
 
       outputValue :: Value
       outputValue = Array.foldMap getAmount txOutputs
 
       nonMintedOutputValue :: Value
       nonMintedOutputValue =
-        outputValue `minus` fromMaybe emptyValue unwrapTxBody.mint
+        outputValue `minus` fromMaybe emptyValue txBody.mint
 
       nonAdaChange :: Value
       nonAdaChange =
@@ -483,42 +533,40 @@ balanceNonAdaOuts changeAddr utxos txBody =
    -- Original code uses "isNat" because there is a guard against zero, see
    -- isPos for more detail.
    in if isPos nonAdaChange
-       then pure $ wrap unwrapTxBody { outputs = outputs }
+       then pure $ wrap txBody { outputs = outputs }
        else
         if isZero nonAdaChange
-         then pure txBody
+         then pure $ wrap txBody
          else Left "balanceNonAdaOuts: Not enough inputs to balance tokens."
 
 getAmount :: TransactionOutput -> Value
 getAmount = _.amount <<< unwrap
 
 -- | Add min lovelaces to each tx output
-addLovelaces :: Array (TransactionOutput /\ BigInt) -> TxBody -> TxBody
-addLovelaces minLovelaces txBody =
-  let unwrapTxBody = unwrap txBody
-
-      lovelacesAdded :: Array TransactionOutput
+addLovelaces :: MinUtxos -> TxBody -> TxBody
+addLovelaces minLovelaces (TxBody txBody) =
+  let lovelacesAdded :: Array TransactionOutput
       lovelacesAdded =
         map
-          ( \txOut ->
-              let unwrapTxOut = unwrap txOut
+          ( \txOut' ->
+              let txOut = unwrap txOut'
 
                   outValue :: Value
-                  outValue = unwrapTxOut.amount
+                  outValue = txOut.amount
 
                   lovelaces :: BigInt
                   lovelaces = getLovelace $ fromValue outValue
 
                   minUtxo :: BigInt
-                  minUtxo = fromMaybe zero $ Foldable.lookup txOut minLovelaces
+                  minUtxo = fromMaybe zero $ Foldable.lookup txOut' minLovelaces
               in wrap
-                  unwrapTxOut
+                  txOut
                     { amount =
                         outValue
                           <> lovelaceValueOf (max zero $ minUtxo - lovelaces)
                     }
-           ) unwrapTxBody.outputs
-   in wrap unwrapTxBody { outputs = lovelacesAdded }
+           ) txBody.outputs
+   in wrap txBody { outputs = lovelacesAdded }
 
 -- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 -- | Filter a value to contain only non Ada assets
@@ -548,10 +596,9 @@ addSignatories ownAddr addReqSigners requiredAddrs txBody =
     $ Array.cons ownAddr requiredAddrs
 
 signBy :: TxBody -> RequiredSigner -> TxBody
-signBy txBody reqSigner =
-  let unwrapTxBody = unwrap txBody
-   in wrap $ unwrapTxBody # case unwrapTxBody.required_signers of
-        Just xs ->
-          _{ required_signers = Just $ reqSigner `Array.cons` xs }
-        Nothing ->
-          _{ required_signers = Just $ [reqSigner] }
+signBy (TxBody txBody) reqSigner =
+  wrap $ txBody # case txBody.required_signers of
+    Just xs ->
+      _{ required_signers = Just $ reqSigner `Array.cons` xs }
+    Nothing ->
+      _{ required_signers = Just $ [reqSigner] }

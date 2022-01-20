@@ -111,6 +111,7 @@ type Utxo = Map TransactionInput TransactionOutput
 
 newtype Coin = Coin BigInt
 derive instance eqCoin :: Eq Coin
+derive instance newtypeCoin :: Newtype Coin _
 
 newtype Slot = Slot BigInt
 derive instance eqSlot :: Eq Slot
