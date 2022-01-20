@@ -5,15 +5,15 @@ You can edit this file as you like.
 { name = "my-project"
 , dependencies =
   [ "aff"
-  , "arrays"
   , "argonaut"
+  , "arrays"
   , "bigints"
   , "console"
   , "const"
   , "control"
   , "debug"
-  , "either"
   , "effect"
+  , "either"
   , "exceptions"
   , "foldable-traversable"
   , "foreign-object"
@@ -26,6 +26,7 @@ You can edit this file as you like.
   , "node-buffer"
   , "node-fs-aff"
   , "ordered-collections"
+  , "partial"
   , "prelude"
   , "psci-support"
   , "refs"
@@ -37,8 +38,5 @@ You can edit this file as you like.
   , "undefined"
   ]
 , packages = ./packages.dhall
-, sources =
-  [ "src/**/*.purs"
-  , "test/**/*.purs"
-  ]
+, sources = [ "src/**/*.purs", "test/**/*.purs" ]
 }

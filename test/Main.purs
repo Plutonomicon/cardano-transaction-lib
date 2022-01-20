@@ -11,6 +11,7 @@ import Test.Spec.Runner (runSpec)
 import Test.Spec.Reporter (consoleReporter)
 import Test.AffInterface as AffInterface
 import Test.Parser as ParseTest
+import Test.Types.Address as Types.Address
 import TestM (TestPlanM)
 import Mote (Plan, foldPlan, planT)
 
@@ -33,7 +34,7 @@ interpret spif = do
   go =
     foldPlan
       (\{ label, value } -> it label $ liftAff value)
-      (\label -> pure unit)
+      (\_ -> pure unit)
       (\{ label, value } -> describe label (go $ value))
       sequence_
 
@@ -41,3 +42,4 @@ testPlan :: TestPlanM Unit
 testPlan = do
   ParseTest.suite
   AffInterface.suite
+  Types.Address.suite
