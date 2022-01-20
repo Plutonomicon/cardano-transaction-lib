@@ -1,4 +1,4 @@
-module PreBalanceTx
+module BalanceTx
   ( balanceTxM
   )
   where
@@ -130,25 +130,6 @@ balanceTxM ownAddr addReqSigners requiredAddrs unbalancedTx = do
             requiredAddrs'
             txBody'
 
---       let minUtxos = prevMinUtxos ++ nextMinUtxos
-
---       lift $ printLog @w Debug $ "Min utxos: " ++ show minUtxos
-
---       txWithoutFees <-
---         hoistEither $ preBalanceTx pabConf.pcProtocolParams minUtxos 0 utxoIndex ownPkh privKeys requiredSigs tx
-
---       lift $ createDirectoryIfMissing @w False (Text.unpack pabConf.pcTxFileDir)
---       lift $ CardanoCLI.buildTx @w pabConf ownPkh (CardanoCLI.BuildRaw 0) txWithoutFees
---       fees <- newEitherT $ CardanoCLI.calculateMinFee @w pabConf txWithoutFees
-
---       lift $ printLog @w Debug $ "Fees: " ++ show fees
-
---       balancedTx <- hoistEither $ preBalanceTx pabConf.pcProtocolParams minUtxos fees utxoIndex ownPkh privKeys requiredSigs tx
-
---       if balancedTx == tx
---         then pure balancedTx
---         else loop utxoIndex privKeys requiredSigs minUtxos balancedTx
-
 -- Transaction should be prebalanced at this point with all excess with Ada
 -- where the Ada value of inputs is greater or equal to value of outputs.
 -- Also add fees to txBody. This should be called with a Tx with min
@@ -160,10 +141,7 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) = do
       txOutputs = txBody.outputs
 
       inputValue :: Value
-      inputValue =
-        Array.foldMap
-          getAmount
-          (Array.mapMaybe (flip Map.lookup utxos) <<< _.inputs $ txBody)
+      inputValue = getInputValue utxos (wrap txBody)
 
       inputAda :: BigInt
       inputAda = getLovelace $ fromValue inputValue
@@ -483,7 +461,7 @@ utxosToTransactionInput =
 -- | them (as of 2021/09/24). FIX ME: We aren't using CLI so need to balance ada
 -- | values too.
 balanceNonAdaOuts :: Address -> Utxo -> TxBody -> Either String TxBody
-balanceNonAdaOuts changeAddr utxos (TxBody txBody) =
+balanceNonAdaOuts changeAddr utxos txBody'@(TxBody txBody) =
   let  -- FIX ME: Similar to Address issue, need pkh.
       payCredentials :: Credential
       payCredentials = addressPaymentCredentials changeAddr
@@ -496,10 +474,7 @@ balanceNonAdaOuts changeAddr utxos (TxBody txBody) =
       txOutputs = txBody.outputs
 
       inputValue :: Value
-      inputValue =
-        Array.foldMap
-          getAmount
-          (Array.mapMaybe (flip Map.lookup utxos) <<< _.inputs $ txBody)
+      inputValue = getInputValue utxos txBody'
 
       outputValue :: Value
       outputValue = Array.foldMap getAmount txOutputs
@@ -602,3 +577,9 @@ signBy (TxBody txBody) reqSigner =
       _{ required_signers = Just $ reqSigner `Array.cons` xs }
     Nothing ->
       _{ required_signers = Just $ [reqSigner] }
+
+getInputValue :: Utxo -> TxBody -> Value
+getInputValue utxos (TxBody txBody) =
+  Array.foldMap
+    getAmount
+    (Array.mapMaybe (flip Map.lookup utxos) <<< _.inputs $ txBody)
