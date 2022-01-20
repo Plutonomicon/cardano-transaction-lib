@@ -18,7 +18,7 @@ import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Undefined (undefined)
 
--- import Address (addressPubKeyHash, PubKeyHash)
+-- import Types.Address (addressPubKeyHash, PubKeyHash)
 import Ogmios (QueryM)
 import ProtocolParametersAlonzo (coinSize, lovelacePerUTxOWord, pidSize, protocolParamUTxOCostPerWord, utxoEntrySizeWithoutVal)
 import Types.Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
@@ -46,11 +46,11 @@ balanceTxM ownAddr addReqSigners requiredAddrs unbalancedTx = do
   let utxoIndex :: Utxo
       utxoIndex = utxos  -- FIX ME: include newtype wrapper? UNWRAP
       _unwrapUnbalancedTx = unwrap unbalancedTx
-  prebalancedTx :: Either String Transaction <-
+  prebalancedTx' :: Either String Transaction <-
     loop utxoIndex ownAddr addReqSigners requiredAddrs [] unbalancedTx
   pure do
-    prebalancedTx' :: Transaction <- prebalancedTx
-    returnAdaChange ownAddr utxos prebalancedTx'
+    prebalancedTx :: Transaction <- prebalancedTx'
+    returnAdaChange ownAddr utxos prebalancedTx
   where
     loop ::
       Utxo ->
