@@ -1,11 +1,11 @@
 module Types.Transaction where
 
 import Prelude
-import Data.ArrayBuffer.Types
+import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt as BigInt
-import Data.Maybe (Maybe(..))
-import Data.Tuple.Nested ((/\), type (/\))
-import Data.Map (Map(..))
+import Data.Maybe (Maybe)
+import Data.Tuple.Nested (type (/\))
+import Data.Map (Map)
 import Data.Newtype (class Newtype)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
@@ -70,13 +70,32 @@ derive instance genericValue :: Generic Value _
 instance showValue :: Show Value where
   show = genericShow
 
+newtype Bech32 = Bech32 String
+
+derive instance genericBech32 :: Generic Bech32 _
+derive instance newtypeBech32 :: Newtype Bech32 _
+instance showBech32 :: Show Bech32 where
+  show = genericShow
+
 newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
-newtype Vkey = Vkey String -- (bech32)
+newtype Vkey = Vkey PublicKey
 
-newtype Ed25519Signature = Ed25519Signature String -- (bech32)
+derive instance genericVkey :: Generic Vkey _
+derive instance newtypeVkey :: Newtype Vkey _
+instance showVkey :: Show Vkey where
+  show = genericShow
 
-newtype PlutusScript = PlutusScript String
+newtype PublicKey = PublicKey Bech32
+
+derive instance genericPublicKey :: Generic PublicKey _
+derive instance newtypePublicKey :: Newtype PublicKey _
+instance showPublicKey :: Show PublicKey where
+  show = genericShow
+
+newtype Ed25519Signature = Ed25519Signature Bech32
+
+newtype PlutusScript = PlutusScript Uint8Array
 
 newtype PlutusData = PlutusData String
 -- TODO - we need a capability to encode/decode Datum from/to serialized format
@@ -111,10 +130,14 @@ newtype TransactionOutput = TransactionOutput
 
 newtype TransactionHash = TransactionHash Uint8Array
 
+derive instance newtypeTransactionHash :: Newtype TransactionHash _
+
 instance showTransactionHash :: Show TransactionHash where
   show (TransactionHash hash) = showUint8Array hash
 
 newtype DataHash = DataHash Uint8Array
+
+derive instance newtypeDataHash :: Newtype DataHash _
 
 instance showDataHash :: Show DataHash where
   show (DataHash hash) = showUint8Array hash
