@@ -11,7 +11,7 @@ import Test.Spec.Runner (runSpec)
 import Test.Spec.Reporter (consoleReporter)
 import Test.AffInterface as AffInterface
 import Test.Parser as ParseTest
-import Test.Types.Address as Types.Address
+import Test.Serialization.Address as Serialization.Address
 import TestM (TestPlanM)
 import Mote (Plan, foldPlan, planT)
 
@@ -42,4 +42,4 @@ testPlan :: TestPlanM Unit
 testPlan = do
   ParseTest.suite
   AffInterface.suite
-  Types.Address.suite
+  Serialization.Address.suite

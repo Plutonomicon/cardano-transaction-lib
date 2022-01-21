@@ -1,4 +1,4 @@
-module Types.Address (
+module Serialization.Address (
   BaseAddress,
   Bech32String(..),
   PubKeyHash,
@@ -30,9 +30,17 @@ foreign import addressBech32 :: BaseAddress -> Bech32String
 
 foreign import addressNetworkId :: BaseAddress -> NetworkId
 
-foreign import addressPubKeyHash :: BaseAddress -> PubKeyHash
+foreign import addressPubKeyHashImpl ::
+  (forall x. x -> Maybe x) ->
+  (forall x. Maybe x) ->
+  BaseAddress ->
+  Maybe PubKeyHash
 
-foreign import addressStakeKeyHash :: BaseAddress -> StakeKeyHash
+foreign import addressStakeKeyHashImpl ::
+  (forall x. x -> Maybe x) ->
+  (forall x. Maybe x) ->
+  BaseAddress ->
+  Maybe StakeKeyHash
 
 foreign import fromBech32Impl :: (forall x. x -> Maybe x) -> (forall x. Maybe x) -> Bech32String -> Maybe BaseAddress
 
@@ -60,6 +68,11 @@ derive newtype instance showNetworkId :: Show NetworkId
 bech32String :: Bech32String -> String
 bech32String (Bech32String str) = str
 
-
 fromBech32 :: Bech32String -> Maybe BaseAddress
 fromBech32 = fromBech32Impl Just Nothing
+
+addressPubKeyHash :: BaseAddress -> Maybe PubKeyHash
+addressPubKeyHash = addressPubKeyHashImpl Just Nothing
+
+addressStakeKeyHash :: BaseAddress -> Maybe StakeKeyHash
+addressStakeKeyHash = addressStakeKeyHashImpl Just Nothing
