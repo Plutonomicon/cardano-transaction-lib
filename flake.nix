@@ -139,7 +139,12 @@
       # flake from haskell.nix project
       hsFlake = perSystem (system: (hsProjectFor system).flake { });
 
-      devShell = perSystem (system:
+      devShell = perSystem (system: (psProjectFor system).devShell);
+
+      # It might be a good idea to keep this as a separate shell; if you're
+      # working on the PS frontend, it doesn't make a lot of sense to pull
+      # in all of the Haskell dependencies
+      hsDevShell = perSystem (system:
         let
           psDevShell = (psProjectFor system).devShell;
         in
