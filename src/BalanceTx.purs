@@ -1,5 +1,6 @@
 module BalanceTx
   ( balanceTxM
+  , UnbalancedTransaction(..)
   )
   where
 
@@ -34,6 +35,7 @@ type MinUtxos = Array (TransactionOutput /\ BigInt)
 utxosAt :: Address -> QueryM UtxoM
 utxosAt = undefined
 
+newtype PubKey = PubKey String
 newtype PubKeyHash = PubKeyHash String
 newtype PrivateKey = PrivateKey String
 
@@ -43,23 +45,43 @@ getPkhFromAddress = undefined
 getPrivKeys :: QueryM (Map.Map Address PrivateKey)
 getPrivKeys = undefined
 
+-- Taken from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-constraints/html/Ledger-Constraints-OffChain.html#t:UnbalancedTx
+-- to demonstrate what is required. This is temporary to make the compiler happy.
+-- I haven't copied it exactly, instead just a minimal version given our
+-- incomplete Transaction.purs types. Also requiredSignatures is already in
+-- TxBody. I've ignored validity interval too.
+newtype UnbalancedTransaction = UnbalancedTransaction
+  { unbalancedTx :: Transaction
+  , utxoIndex :: UtxoM
+    -- utxoIndex will include utxos for scripts as well presumably.
+  }
+
 balanceTxM
   :: Address
-  -> Transaction -- unbalanced transaction, FIX ME: do we need a newtype wrapper?
+  -> UnbalancedTransaction
   -> QueryM (Either String Transaction)
-balanceTxM ownAddr unbalancedTx@(Transaction { body }) = do
+balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
   utxos :: Utxo <- unwrap <$> utxosAt ownAddr
   privKeys :: Map.Map Address PrivateKey <- getPrivKeys
-  let requiredSigners' :: Maybe (Array RequiredSigner)
-      requiredSigners' = (unwrap body).required_signers
+  let txBody :: TxBody
+      txBody = (unwrap unbalancedTx).body
+
+      requiredSigners' :: Maybe (Array RequiredSigner)
+      requiredSigners' = (unwrap txBody).required_signers
+
+      -- Combines utxos at the user address and those from any scripts involved
+      -- with the contract.
+      utxoIndex' :: Utxo
+      utxoIndex' = utxos `Map.union` unwrap utxoIndex
+
   case requiredSigners' of
     Nothing -> pure $ Left "balanceTxM: Unknown required signers."
     Just requiredSigners -> do
       prebalancedTx' :: Either String Transaction <-
-        loop utxos ownAddr privKeys requiredSigners [] unbalancedTx
+        loop utxoIndex' ownAddr privKeys requiredSigners [] unbalancedTx
       pure do
         prebalancedTx :: Transaction <- prebalancedTx'
-        returnAdaChange ownAddr utxos prebalancedTx
+        returnAdaChange ownAddr utxoIndex' prebalancedTx
   where
     loop ::
       Utxo ->
