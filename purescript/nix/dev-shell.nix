@@ -18,6 +18,7 @@ pkgs.mkShell {
     spago
     purescript-language-server
     purty
+    pscid
     spago2nix
     pkgs.nodePackages.node2nix
     nodejs
@@ -25,14 +26,15 @@ pkgs.mkShell {
 
   shellHook = ''
     __ln-node-modules () {
-      if test -L node_modules; then
-        rm node_modules;
-      elif test -e node_modules; then
+      local modules=./purescript/node_modules
+      if test -L "$modules"; then
+        rm "$modules";
+      elif test -e "$modules"; then
         echo 'refusing to overwrite existing (non-symlinked) `node_modules`'
         exit 1
       fi
 
-      ln -s ${nodeModules}/lib/node_modules node_modules
+      ln -s ${nodeModules}/lib/node_modules "$modules"
     }
 
     __ln-testnet-config () {

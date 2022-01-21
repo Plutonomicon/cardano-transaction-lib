@@ -40,9 +40,9 @@
       psProjectFor = system:
         let
           pkgs = nixpkgsFor system;
-          src = ./.;
+          src = ./purescript;
         in
-        import ./nix/purescript {
+        import ./purescript/nix {
           inherit src pkgs inputs system self;
         };
     in

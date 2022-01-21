@@ -13,13 +13,13 @@ let
   # project components
   nodejs = pkgs.nodejs-12_x;
   easy-ps = import inputs.easy-purescript-nix { inherit pkgs; };
-  spagoPkgs = import ../../spago-packages.nix { inherit pkgs; };
+  spagoPkgs = import ../spago-packages.nix { inherit pkgs; };
   nodeModules =
     let
       modules = pkgs.callPackage
         (_:
           let
-            nodePkgs = import ../../node2nix.nix {
+            nodePkgs = import ../node2nix.nix {
               inherit pkgs system nodejs;
             };
           in
