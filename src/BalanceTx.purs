@@ -18,7 +18,6 @@ import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Undefined (undefined)
 
--- import Types.Address (addressPubKeyHash, PubKeyHash)
 import Ogmios (QueryM)
 import ProtocolParametersAlonzo (coinSize, lovelacePerUTxOWord, pidSize, protocolParamUTxOCostPerWord, utxoEntrySizeWithoutVal)
 import Types.Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
@@ -235,6 +234,7 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) = do
             Left "returnAdaChange: ReturnAda' does not cover min. utxo \
               \requirement for single Ada-only output."
 
+-- Some functionality that builds a Transaction from a TxBody without balancing
 buildTxRaw :: TxBody -> Either String Transaction
 buildTxRaw = undefined
 
@@ -398,7 +398,7 @@ balanceTxIns utxos fees (TxBody txBody) = do
 
   txIns :: Array TransactionInput <-
     collectTxIns txBody.inputs utxos minSpending
-  -- FIX ME? Original code uses Set append which is union. Array unions behave
+  -- Original code uses Set append which is union. Array unions behave
   -- a little differently as it removes duplicates in the second argument.
   -- but all inputs should be unique anyway so I think this is fine.
   pure $ wrap
@@ -443,7 +443,6 @@ collectTxIns originalTxIns utxos value =
       not (Array.null txIns')
         && (txInsValue txIns') `geq` value
 
-    -- FIX ME? Could refactor into a function as used in balanceNonAdaOuts
     txInsValue :: Array TransactionInput -> Value
     txInsValue =
       Array.foldMap getAmount <<< Array.mapMaybe (flip Map.lookup utxos)
@@ -455,9 +454,8 @@ utxosToTransactionInput =
 
 -- FIX ME: (payment credential) address for change substitute for pkh (Address)
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
--- | We need to balance non ada values, as the cardano-cli is unable to balance
--- | them (as of 2021/09/24). FIX ME: We aren't using CLI so need to balance ada
--- | values too.
+-- | We need to balance non ada values as part of the prebalancer before returning
+-- | excess Ada to the owner.
 balanceNonAdaOuts :: Address -> Utxo -> TxBody -> Either String TxBody
 balanceNonAdaOuts changeAddr utxos txBody'@(TxBody txBody) =
   let  -- FIX ME: Similar to Address issue, need pkh.
