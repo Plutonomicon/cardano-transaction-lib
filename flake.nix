@@ -9,7 +9,7 @@
     ogmios.url = "github:mlabs-haskell/ogmios";
     # so named because we also need the non-flake of the repo below
     # in the server inputs
-    cardano-node-flake = {
+    cardano-node = {
       url = "github:input-output-hk/cardano-node/ea8b632820db5546b22430bbb5ed8db4a2fef7dd";
     };
     cardano-configurations = {
@@ -43,11 +43,6 @@
     cardano-ledger-specs = {
       url =
         "github:input-output-hk/cardano-ledger-specs/bf008ce028751cae9fb0b53c3bef20f07c06e333";
-      flake = false;
-    };
-    cardano-node = {
-      url =
-        "github:input-output-hk/cardano-node/b6ca519f97a0e795611a63174687e6bb70c9f752";
       flake = false;
     };
     cardano-prelude = {
@@ -131,12 +126,39 @@
         import ./purescript/nix {
           inherit src pkgs inputs system self;
         };
+      hsProjectFor = system:
+        let
+          pkgs = nixpkgsFor system;
+          src = ./server;
+        in
+        import ./server/nix {
+          inherit src inputs pkgs system;
+        };
     in
     {
-      devShell = perSystem (system: (psProjectFor system).devShell);
-      packages = perSystem (system: (psProjectFor system).packages);
+      # flake from haskell.nix project
+      hsFlake = perSystem (system: (hsProjectFor system).flake { });
+
+      devShell = perSystem (system:
+        let
+          psDevShell = (psProjectFor system).devShell;
+        in
+        self.hsFlake.${system}.devShell.overrideAttrs (os:
+          {
+            buildInputs = os.buildInputs ++ psDevShell.buildInputs;
+            shellHook = os.shellHook + psDevShell.shellHook;
+          }
+        )
+      );
+
+      packages = perSystem (system:
+        self.hsFlake.${system}.packages // (psProjectFor system).packages
+      );
+
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);
+
       checks = perSystem (system: (psProjectFor system).checks);
-      # TODO add check back
+
+      check = perSystem (system: (psProjectFor system).check);
     };
 }

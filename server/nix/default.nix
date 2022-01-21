@@ -20,47 +20,11 @@ pkgs.haskell-nix.cabalProject {
     additional = ps: with ps; [
       filemanip
       ieee
-      plutus-extra
-      tasty-plutus
-      plutus-pretty
-      plutus-numeric
-      base-deriving-via
-      cardano-addresses
-      cardano-addresses-cli
-      cardano-binary
-      cardano-crypto
-      cardano-crypto-class
-      cardano-crypto-praos
-      cardano-crypto-wrapper
-      cardano-ledger-alonzo
-      cardano-ledger-byron
-      cardano-ledger-core
-      cardano-ledger-pretty
+      cardano-api
       cardano-ledger-shelley
       cardano-ledger-shelley-ma
       cardano-prelude
-      cardano-slotting
-      flat
-      freer-extras
-      goblins
-      measures
-      orphans-deriving-via
-      playground-common
-      plutus-chain-index
-      plutus-contract
-      plutus-core
-      plutus-ledger
-      plutus-ledger-api
-      plutus-pab
-      plutus-playground-server
       plutus-tx
-      plutus-tx-plugin
-      plutus-tx-spooky
-      plutus-use-cases
-      prettyprinter-configurable
-      quickcheck-dynamic
-      Win32-network
-      word-array
     ];
 
     withHoogle = true;
