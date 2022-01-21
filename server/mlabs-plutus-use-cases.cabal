@@ -1,0 +1,61 @@
+cabal-version: 2.4
+name:          cardano-browser-tx-server
+version:       0.1.0.0
+author:        mlabs
+build-type:    Simple
+
+common common-language
+  default-extensions:
+    BangPatterns
+    DataKinds
+    DeriveAnyClass
+    DeriveFoldable
+    DeriveFunctor
+    DeriveGeneric
+    DeriveLift
+    DeriveTraversable
+    DerivingStrategies
+    ExplicitForAll
+    FlexibleContexts
+    FlexibleInstances
+    GeneralizedNewtypeDeriving
+    ImportQualifiedPost
+    LambdaCase
+    MonoLocalBinds
+    MultiParamTypeClasses
+    NumericUnderscores
+    OverloadedStrings
+    OverloadedStrings
+    QuasiQuotes
+    QuasiQuotes
+    RankNTypes
+    RecordWildCards
+    RecordWildCards
+    ScopedTypeVariables
+    StandaloneDeriving
+    TemplateHaskell
+    TupleSections
+    TupleSections
+    TypeApplications
+    TypeFamilies
+    TypeOperators
+    TypeSynonymInstances
+
+executable cardano-browser-tx-server
+  import:           common-language
+  default-language: Haskell2010
+  ghc-options:
+    -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
+    -Wmissing-export-lists -Wmissing-deriving-strategies
+
+  hs-source-dirs:   src/
+  build-depends:
+    , aeson
+    , base
+    , bytestring
+    , cardano-api
+    , containers
+    , extra
+    , mtl
+    , plutus-tx
+    , text

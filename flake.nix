@@ -5,8 +5,10 @@
       flake = false;
     };
 
-    # for purescript project
+    # for the purescript project
     ogmios.url = "github:mlabs-haskell/ogmios";
+    # so named because we also need the non-flake of the repo below
+    # in the server inputs
     cardano-node-flake = {
       url = "github:input-output-hk/cardano-node/ea8b632820db5546b22430bbb5ed8db4a2fef7dd";
     };
@@ -19,7 +21,7 @@
       flake = false;
     };
 
-    # haskell server
+    # for the haskell server
     haskell-nix.url = "github:L-as/haskell.nix?ref=master";
     nixpkgs.follows = "haskell-nix/nixpkgs-2105";
     cardano-node = {
@@ -91,6 +93,10 @@
         "github:input-output-hk/plutus/3f089ccf0ca746b399c99afe51e063b0640af547";
       flake = false;
     };
+    # NOTE
+    # I don't we need anything from `plutus-apps`, so the following two are
+    # not necessary. If we go with Servant for the server, though, they might
+    # be useful for communicating with the frontend
     purescript-bridge = {
       url =
         "github:input-output-hk/purescript-bridge/366fc70b341e2633f3ad0158a577d52e1cd2b138";

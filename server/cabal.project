@@ -1,0 +1,43 @@
+index-state:                 2021-10-20T00:00:00Z
+packages:                    ./.
+write-ghc-environment-files: never
+
+-- Always build tests and benchmarks.
+tests:                       true
+benchmarks:                  true
+
+-- The only sensible test display option
+test-show-details:           direct
+allow-newer:
+  size-based:template-haskell
+  , ouroboros-consensus-byron:formatting
+  , beam-core:aeson
+  , beam-sqlite:aeson
+  , beam-sqlite:dlist
+  , beam-migrate:aeson
+
+constraints:
+  singletons < 3.0
+  , dependent-sum > 0.6.2.0
+  , hashable < 1.3.4.0
+
+extra-packages:              ieee, filemanip
+
+package cardano-ledger-alonzo
+  optimization: False
+package ouroboros-consensus-shelley
+  optimization: False
+package ouroboros-consensus-cardano
+  optimization: False
+package cardano-api
+  optimization: False
+package cardano-wallet
+  optimization: False
+package cardano-wallet-core
+  optimization: False
+package cardano-wallet-cli
+  optimization: False
+package cardano-wallet-launcher
+  optimization: False
+package cardano-wallet-core-integration
+  optimization: False
