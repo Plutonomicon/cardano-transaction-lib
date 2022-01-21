@@ -41,6 +41,10 @@ import Data.Show.Generic (genericShow)
 import Data.These (These(..))
 import Data.Tuple.Nested ((/\), type (/\))
 
+-- This module rewrites functionality from:
+-- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
+-- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value
+
 newtype CurrencySymbol = CurrencySymbol String
 derive instance eqCurrencySymbol :: Eq CurrencySymbol
 derive instance ordCurrencySymbol :: Ord CurrencySymbol
@@ -126,10 +130,6 @@ unionWith f ls rs =
         That b -> f zero b
         Both a b -> f a b
    in Value (map (map unBoth) combined)
-
--- This module rewrites functionality from:
--- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
--- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value
 
 -- Could use Data.Newtype (unwrap) too.
 getValue :: Value -> Map CurrencySymbol (Map TokenName BigInt)

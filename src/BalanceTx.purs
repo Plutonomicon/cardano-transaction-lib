@@ -35,12 +35,11 @@ type MinUtxos = Array (TransactionOutput /\ BigInt)
 utxosAt :: Address -> QueryM UtxoM
 utxosAt = undefined
 
-newtype PubKey = PubKey String
 newtype PubKeyHash = PubKeyHash String
 newtype PrivateKey = PrivateKey String
 
-getPkhFromAddress :: Address -> PubKeyHash
-getPkhFromAddress = undefined
+-- getPkhFromAddress :: Address -> PubKeyHash
+-- getPkhFromAddress = undefined
 
 getPrivKeys :: QueryM (Map.Map Address PrivateKey)
 getPrivKeys = undefined
@@ -56,6 +55,7 @@ newtype UnbalancedTransaction = UnbalancedTransaction
     -- utxoIndex will include utxos for scripts as well presumably.
   }
 
+-- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#54
 balanceTxM
   :: Address
   -> UnbalancedTransaction
@@ -63,18 +63,12 @@ balanceTxM
 balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
   utxos :: Utxo <- unwrap <$> utxosAt ownAddr
   privKeys :: Map.Map Address PrivateKey <- getPrivKeys
-  let txBody :: TxBody
-      txBody = (unwrap unbalancedTx).body
-
-      requiredSigners' :: Maybe (Array RequiredSigner)
-      requiredSigners' = (unwrap txBody).required_signers
-
-      -- Combines utxos at the user address and those from any scripts involved
+  let -- Combines utxos at the user address and those from any scripts involved
       -- with the contract.
       utxoIndex' :: Utxo
       utxoIndex' = utxos `Map.union` unwrap utxoIndex
 
-  case requiredSigners' of
+  case (unwrap (unwrap unbalancedTx).body).required_signers of
     Nothing -> pure $ Left "balanceTxM: Unknown required signers."
     Just requiredSigners -> do
       prebalancedTx' :: Either String Transaction <-
@@ -242,8 +236,8 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) = do
                           }
                         `Array.cons` txBody.outputs
                     }
-          tx' <- buildTxRaw txBody'
-          fees' <- calculateMinFee tx' -- fees should increase.
+          tx' :: Transaction <- buildTxRaw txBody'
+          fees' :: BigInt <- calculateMinFee tx' -- fees should increase.
           -- New return Ada amount should decrease:
           let returnAda' :: BigInt
               returnAda' = returnAda + fees - fees'
@@ -267,9 +261,15 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) = do
               \requirement for single Ada-only output."
 
 -- Some functionality that builds a Transaction from a TxBody without balancing
+-- https://github.com/input-output-hk/cardano-node/blob/b6ca519f97a0e795611a63174687e6bb70c9f752/cardano-cli/src/Cardano/CLI/Shelley/Run/Transaction.hs#L312
+-- Is this relevant?
 buildTxRaw :: TxBody -> Either String Transaction
 buildTxRaw = undefined
 
+-- There is an estimate function here:
+-- https://input-output-hk.github.io/cardano-node/cardano-api/src/Cardano.Api.Fees.html#estimateTransactionFee
+-- Otherwise, we'd need a Haskell server to run the "exact" version, since we
+-- can't run the Plutus interpreter via Purescript.
 calculateMinFee :: Transaction -> Either String BigInt
 calculateMinFee = undefined
 
@@ -331,6 +331,7 @@ size v = fromInt 6 + roundupBytesToWords b
         lenAdd :: BigInt -> TokenName -> BigInt
         lenAdd = \c a -> c + fromInt (length $ unwrap a)
 
+-- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#L116
 preBalanceTxBody
   :: MinUtxos
   -> BigInt
@@ -349,7 +350,7 @@ preBalanceTxBody minUtxos fees utxos ownAddr privKeys requiredSigners txBody =
     >>= balanceNonAdaOuts ownAddr utxos
     >>= addSignatories ownAddr privKeys requiredSigners
 
--- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
+-- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#L211
 {- | Pick a collateral from the utxo map and add it to the unbalanced transaction
  (suboptimally we just pick a random utxo from the tx inputs)
 -}
@@ -472,8 +473,7 @@ collectTxIns originalTxIns utxos value =
 
     isSufficient :: Array TransactionInput -> Boolean
     isSufficient txIns' =
-      not (Array.null txIns')
-        && (txInsValue txIns') `geq` value
+      not (Array.null txIns') && (txInsValue txIns') `geq` value
 
     txInsValue :: Array TransactionInput -> Value
     txInsValue =
@@ -485,14 +485,14 @@ utxosToTransactionInput =
   Array.mapMaybe (hush <<< toEitherTransactionInput) <<< Map.toUnfoldable
 
 -- FIX ME: (payment credential) address for change substitute for pkh (Address)
--- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
+-- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#L225
 -- | We need to balance non ada values as part of the prebalancer before returning
 -- | excess Ada to the owner.
 balanceNonAdaOuts :: Address -> Utxo -> TxBody -> Either String TxBody
 balanceNonAdaOuts changeAddr utxos txBody'@(TxBody txBody) =
   let  -- FIX ME: Similar to Address issue, need pkh.
-      payCredentials :: Credential
-      payCredentials = addressPaymentCredentials changeAddr
+      -- payCredentials :: Credential
+      -- payCredentials = addressPaymentCredentials changeAddr
 
       -- FIX ME: once both BaseAddresses are merged into one.
       -- pkh :: PubKeyHash
@@ -519,7 +519,7 @@ balanceNonAdaOuts changeAddr utxos txBody'@(TxBody txBody) =
       outputs =
         Array.fromFoldable $
           case partition
-            ((==) payCredentials <<< txOutPaymentCredentials)
+            ((==) changeAddr <<< _.address <<< unwrap) --  <<< txOutPaymentCredentials)
             $ Array.toUnfoldable txOutputs of
               { no: txOuts, yes: Nil } ->
                 TransactionOutput
@@ -580,7 +580,7 @@ filterNonAda =
 requiredSignersToAddress :: RequiredSigner -> Address
 requiredSignersToAddress = undefined
 
--- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
+-- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#L251
 -- | Add the required signatories to the txBody.
 addSignatories
   :: Address
@@ -598,7 +598,8 @@ addSignatories ownAddr privKeys requiredSigners txBody =
     txBody
     $ ownAddr `Array.cons` (requiredSignersToAddress <$> requiredSigners)
 
--- FIX ME: We need proper signing functionality.
+-- FIX ME: We need proper signing functionality. Do we need it to sign a TxBody
+-- or Transaction?
 signBy :: TxBody -> PrivateKey -> TxBody
 signBy = undefined
 
