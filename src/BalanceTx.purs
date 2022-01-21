@@ -117,8 +117,6 @@ balanceTxM ownAddr addReqSigners requiredAddrs unbalancedTx = do
             addReqSigners'
             requiredAddrs'
             txBody'
-        -- buildTxRaw shouldn't include a hardcoded collateral, Nami may do this
-        -- so be sure to change code as needed.
         tx' :: Transaction <- buildTxRaw txBodyWithoutFees'
         fees' :: BigInt <- calculateMinFee tx' -- FIX ME: use txBodyWithoutFees replaced in original tx.
         preBalanceTxBody
