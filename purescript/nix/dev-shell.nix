@@ -13,7 +13,7 @@ with inputs;
 pkgs.mkShell {
   buildInputs = with easy-ps; [
     ogmios.packages.${system}."ogmios:exe:ogmios"
-    cardano-node.packages.${system}.cardano-cli
+    cardano-node-flake.packages.${system}.cardano-cli
     compiler
     spago
     purescript-language-server
