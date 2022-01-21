@@ -56,6 +56,7 @@ newtype UnbalancedTransaction = UnbalancedTransaction
   }
 
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#54
+-- | Balances an unbalanced transaction
 balanceTxM
   :: Address
   -> UnbalancedTransaction
@@ -351,9 +352,9 @@ preBalanceTxBody minUtxos fees utxos ownAddr privKeys requiredSigners txBody =
     >>= addSignatories ownAddr privKeys requiredSigners
 
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#L211
-{- | Pick a collateral from the utxo map and add it to the unbalanced transaction
- (suboptimally we just pick a random utxo from the tx inputs)
--}
+-- | Pick a collateral from the utxo map and add it to the unbalanced transaction
+-- (suboptimally we just pick a random utxo from the tx inputs). TO DO: upgrade
+-- to a better coin selection algorithm.
 addTxCollaterals :: Utxo -> TxBody -> Either String TxBody
 addTxCollaterals utxos (TxBody txBody) = do
   let txIns :: Array TransactionInput
