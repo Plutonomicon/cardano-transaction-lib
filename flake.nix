@@ -22,12 +22,9 @@
     };
 
     # for the haskell server
+    iohk-nix.url = "github:input-output-hk/iohk-nix";
     haskell-nix.url = "github:L-as/haskell.nix?ref=master";
     nixpkgs.follows = "haskell-nix/nixpkgs-2105";
-    cardano-node = {
-      url = "github:input-output-hk/cardano-node/ea8b632820db5546b22430bbb5ed8db4a2fef7dd";
-      flake = false;
-    };
     cardano-addresses = {
       url =
         "github:input-output-hk/cardano-addresses/d2f86caa085402a953920c6714a0de6a50b655ec";
@@ -114,11 +111,16 @@
     };
   };
 
-  outputs = { self, nixpkgs, ... }@inputs:
+  outputs = { self, nixpkgs, haskell-nix, iohk-nix, ... }@inputs:
     let
       defaultSystems = [ "x86_64-linux" "x86_64-darwin" ];
       perSystem = nixpkgs.lib.genAttrs defaultSystems;
       nixpkgsFor = system: import nixpkgs {
+        overlays = [
+          haskell-nix.overlay
+          iohk-nix.overlays.crypto
+        ];
+        inherit (haskell-nix) config;
         inherit system;
       };
       psProjectFor = system:
