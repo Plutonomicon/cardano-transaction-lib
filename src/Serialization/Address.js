@@ -25,7 +25,7 @@ exports.addressNetworkId = baseAddr => {
 };
 
 
-// fromBech32 :: (forall x.x -> Maybe x) -> (forall x.Maybe x) -> Bech32String -> Maybe BaseAddress
+// fromBech32Impl :: (forall x.x -> Maybe x) -> (forall x.Maybe x) -> Bech32String -> Maybe BaseAddress
 exports.fromBech32Impl = just => nothing => bech32str => {
     try {
         addr = CardanoWasm.Address.from_bech32(bech32str);
@@ -42,14 +42,22 @@ exports.addressBech32 = baseAddr => {
     return baseAddr.to_address().to_bech32();
 };
 
-// addressPubKeyHash :: BaseAddress -> PubKeyHash
-exports.addressPubKeyHash = baseAddr => {
+// addressPubKeyHash :: (forall x.x -> Maybe x) -> (forall x.Maybe x) -> BaseAddress -> PubKeyHash
+exports.addressPubKeyHashImpl = just => nothing => baseAddr => {
     // i've chosen a prefix that Nami uses for payment_creds
-    return baseAddr.payment_cred().to_keyhash().to_bech32('hbas_');
+    const kh = baseAddr.payment_cred().to_keyhash();
+    if(kh==null){
+        return nothing;
+    }
+    return just(kh.to_bech32('hbas_'));
 };
 
-//addressStakeKeyHash :: BaseAddress -> StakeKeyHash
-exports.addressStakeKeyHash = baseAddr => {
-    // i've chosen an arbitrary prefix here
-    return baseAddr.stake_cred().to_keyhash().to_bech32('hstk_');
+// addressStakeKeyHash :: (forall x.x -> Maybe x) -> (forall x.Maybe x) -> BaseAddress -> StakeKeyHash
+exports.addressStakeKeyHashImpl = just => nothing => baseAddr => {
+    // i've chosen a prefix that Nami uses for payment_creds
+    const sh = baseAddr.stake_cred().to_keyhash();
+    if (sh == null) {
+        return nothing;
+    }
+    return just(sh.to_bech32('hstk_'));
 };
