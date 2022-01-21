@@ -21,8 +21,6 @@
       flake = false;
     };
 
-    flake-utils.url = "github:numtide/flake-utils";
-
     flake-compat = {
       url = "github:edolstra/flake-compat";
       flake = false;
@@ -36,79 +34,97 @@
     , cardano-node
     , cardano-configurations
     , easy-purescript-nix
-    , flake-utils
     , ...
     }@inputs:
-    flake-utils.lib.eachSystem
-      [ "x86_64-linux" "x86_64-darwin" ]
-      (
-        system:
+    let
+      defaultSystems = [ "x86_64-linux" "x86_64-darwin" ];
+      perSystem = nixpkgs.lib.genAttrs defaultSystems;
+      nixpkgsFor = system: import nixpkgs {
+        inherit system;
+      };
+      psLibFor = system:
         let
-          pkgs = nixpkgs.legacyPackages.${system};
-
-          # We should try to use a consistent version of node across all
-          # project components
-          nodejs = pkgs.nodejs-12_x;
-
-          ps-lib = import ./nix/lib.nix {
-            inherit pkgs easy-ps spagoPkgs nodejs nodeModules;
-          };
-
-          easy-ps = import easy-purescript-nix { inherit pkgs; };
-
-          spagoPkgs = import ./spago-packages.nix { inherit pkgs; };
-
-          nodeModules =
-            let
-              modules = pkgs.callPackage
-                (_:
-                  let
-                    nodePkgs = import ./node2nix.nix {
-                      inherit pkgs system nodejs;
-                    };
-                  in
-                  nodePkgs // {
-                    shell = nodePkgs.shell.override {
-                      # see https://github.com/svanderburg/node2nix/issues/198
-                      buildInputs = [ pkgs.nodePackages.node-gyp-build ];
-                    };
-                  });
-            in
-            (modules { }).shell.nodeDependencies;
+          pkgs = nixpkgsFor system;
+          nodejs = nodejsFor system;
+          nodeModules = nodeModulesFor system;
+          easy-ps = easyPsFor system;
+          spagoPkgs = spagoPkgsFor system;
         in
-        {
-          defaultPackage = self.packages.${system}.cardano-browser-tx;
-
-          packages = {
-            cardano-browser-tx = ps-lib.buildPursProject {
-              name = "cardano-browser-tx";
-              src = ./.;
-            };
-          };
-
-          # NOTE
-          # Since we depend on two haskell.nix projects, `nix flake check`
-          # is currently broken because of IFD issues
-          checks = {
-            cardano-browser-tx = ps-lib.runPursTest {
-              name = "cardano-browser-tx";
-              src = ./.;
-              subdir = ".";
-            };
-          };
-
-          # TODO
-          # Once we have a public ogmios instance to test against,
-          # add `self.checks.${system}` to the `buildInputs`
-          check = pkgs.runCommand "combined-check"
-            {
-              nativeBuildInputs = builtins.attrValues self.packages.${system};
-
-            } "touch $out";
-
-          devShell = import ./nix/dev-shell.nix {
-            inherit pkgs system inputs nodeModules easy-ps nodejs;
-          };
+        import ./nix/lib.nix {
+          inherit pkgs easy-ps spagoPkgs nodejs nodeModules;
+        };
+      # We should try to use a consistent version of node across all
+      # project components
+      nodejsFor = system: (nixpkgsFor system).nodejs-12_x;
+      spagoPkgsFor = system: import ./spago-packages.nix {
+        pkgs = nixpkgsFor system;
+      };
+      easyPsFor = system: import easy-purescript-nix {
+        pkgs = nixpkgsFor system;
+      };
+      nodeModulesFor = system:
+        let
+          pkgs = nixpkgsFor system;
+          nodejs = nodejsFor system;
+          modules = pkgs.callPackage
+            (_:
+              let
+                nodePkgs = import ./node2nix.nix {
+                  inherit pkgs system nodejs;
+                };
+              in
+              nodePkgs // {
+                shell = nodePkgs.shell.override {
+                  # see https://github.com/svanderburg/node2nix/issues/198
+                  buildInputs = [ pkgs.nodePackages.node-gyp-build ];
+                };
+              });
+        in
+        (modules { }).shell.nodeDependencies;
+    in
+    {
+      devShell = perSystem (system:
+        let
+          pkgs = nixpkgsFor system;
+          nodejs = nodejsFor system;
+          nodeModules = nodeModulesFor system;
+          easy-ps = easyPsFor system;
+        in
+        import ./nix/dev-shell.nix {
+          inherit system pkgs inputs nodeModules easy-ps nodejs;
         }
       );
+
+      packages = perSystem (system: {
+        cardano-browser-tx = (psLibFor system).buildPursProject {
+          name = "cardano-browser-tx";
+          src = ./.;
+        };
+      });
+
+      defaultPackage = perSystem (system:
+        self.packages.${system}.cardano-browser-tx
+      );
+
+      # NOTE
+      # Since we depend on two haskell.nix projects, `nix flake check`
+      # is currently broken because of IFD issues
+      checks = perSystem (system: {
+        cardano-browser-tx = (psLibFor system).runPursTest {
+          name = "cardano-browser-tx";
+          src = ./.;
+          subdir = ".";
+        };
+      });
+
+      # TODO
+      # Once we have a public ogmios instance to test against,
+      # add `self.checks.${system}` to the `buildInputs`
+      check = perSystem (system:
+        (nixpkgsFor system).runCommand "combined-check"
+          {
+            nativeBuildInputs = builtins.attrValues self.packages.${system};
+          } "touch $out"
+      );
+    };
 }
