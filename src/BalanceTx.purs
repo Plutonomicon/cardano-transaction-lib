@@ -34,36 +34,46 @@ type MinUtxos = Array (TransactionOutput /\ BigInt)
 utxosAt :: Address -> QueryM UtxoM
 utxosAt = undefined
 
+newtype PubKeyHash = PubKeyHash String
+newtype PrivateKey = PrivateKey String
+
+getPkhFromAddress :: Address -> PubKeyHash
+getPkhFromAddress = undefined
+
+getPrivKeys :: QueryM (Map.Map Address PrivateKey)
+getPrivKeys = undefined
+
 balanceTxM
   :: Address
-  -> Map.Map Address RequiredSigner -- FIX ME: take from unbalanced tx?
-  -> Array Address -- FIX ME: take from unbalanced tx?
   -> Transaction -- unbalanced transaction, FIX ME: do we need a newtype wrapper?
   -> QueryM (Either String Transaction)
-balanceTxM ownAddr addReqSigners requiredAddrs unbalancedTx = do
-  utxos :: Utxo <- unwrap <$> utxosAt ownAddr -- Do we want :: Either String UtxoM here?
-  let utxoIndex :: Utxo
-      utxoIndex = utxos  -- FIX ME: include newtype wrapper? UNWRAP
-      _unwrapUnbalancedTx = unwrap unbalancedTx
-  prebalancedTx' :: Either String Transaction <-
-    loop utxoIndex ownAddr addReqSigners requiredAddrs [] unbalancedTx
-  pure do
-    prebalancedTx :: Transaction <- prebalancedTx'
-    returnAdaChange ownAddr utxos prebalancedTx
+balanceTxM ownAddr unbalancedTx@(Transaction { body }) = do
+  utxos :: Utxo <- unwrap <$> utxosAt ownAddr
+  privKeys :: Map.Map Address PrivateKey <- getPrivKeys
+  let requiredSigners' :: Maybe (Array RequiredSigner)
+      requiredSigners' = (unwrap body).required_signers
+  case requiredSigners' of
+    Nothing -> pure $ Left "balanceTxM: Unknown required signers."
+    Just requiredSigners -> do
+      prebalancedTx' :: Either String Transaction <-
+        loop utxos ownAddr privKeys requiredSigners [] unbalancedTx
+      pure do
+        prebalancedTx :: Transaction <- prebalancedTx'
+        returnAdaChange ownAddr utxos prebalancedTx
   where
     loop ::
       Utxo ->
       Address ->
-      Map.Map Address RequiredSigner ->
-      Array Address ->
+      Map.Map Address PrivateKey ->
+      Array RequiredSigner ->
       MinUtxos ->
       Transaction ->
       QueryM (Either String Transaction)
     loop
       utxoIndex'
       ownAddr'
-      addReqSigners'
-      requiredAddrs'
+      privKeys'
+      requiredSigners'
       prevMinUtxos'
       (Transaction tx'@{ body: txBody'@(TxBody txB) }) = do
       let nextMinUtxos' :: MinUtxos
@@ -79,8 +89,8 @@ balanceTxM ownAddr addReqSigners requiredAddrs unbalancedTx = do
               minUtxos'
               utxoIndex'
               ownAddr'
-              addReqSigners'
-              requiredAddrs'
+              privKeys'
+              requiredSigners'
               txBody'
 
       case balancedTxBody' of
@@ -92,8 +102,8 @@ balanceTxM ownAddr addReqSigners requiredAddrs unbalancedTx = do
             loop
               utxoIndex'
               ownAddr'
-              addReqSigners'
-              requiredAddrs'
+              privKeys'
+              requiredSigners'
               minUtxos'
               $ wrap tx' { body = balancedTxBody'' }
 
@@ -101,20 +111,20 @@ balanceTxM ownAddr addReqSigners requiredAddrs unbalancedTx = do
       :: MinUtxos
       -> Utxo
       -> Address
-      -> Map.Map Address RequiredSigner
-      -> Array Address
+      -> Map.Map Address PrivateKey
+      -> Array RequiredSigner
       -> TxBody
       -> Either String TxBody
     chainedBalancer
-      minUtxos' utxoIndex' ownAddr' addReqSigners' requiredAddrs' txBody' = do
+      minUtxos' utxoIndex' ownAddr' privKeys' requiredSigners' txBody' = do
         txBodyWithoutFees' :: TxBody <-
           preBalanceTxBody
             minUtxos'
             zero
             utxoIndex'
             ownAddr'
-            addReqSigners'
-            requiredAddrs'
+            privKeys'
+            requiredSigners'
             txBody'
         tx' :: Transaction <- buildTxRaw txBodyWithoutFees'
         fees' :: BigInt <- calculateMinFee tx' -- FIX ME: use txBodyWithoutFees replaced in original tx.
@@ -123,8 +133,8 @@ balanceTxM ownAddr addReqSigners requiredAddrs unbalancedTx = do
             (fees' + fromInt 500000) -- FIX ME: Add 0.5 Ada to ensure enough input for later on in final balancing.
             utxoIndex'
             ownAddr'
-            addReqSigners'
-            requiredAddrs'
+            privKeys'
+            requiredSigners'
             txBody'
 
 -- Transaction should be prebalanced at this point with all excess with Ada
@@ -304,19 +314,18 @@ preBalanceTxBody
   -> BigInt
   -> Utxo
   -> Address
-  -> Map.Map Address RequiredSigner
-  -> Array Address
+  -> Map.Map Address PrivateKey
+  -> Array RequiredSigner
   -> TxBody
   -> Either String TxBody
-preBalanceTxBody minUtxos fees utxos ownAddr addReqSigners requiredAddrs txBody =
+preBalanceTxBody minUtxos fees utxos ownAddr privKeys requiredSigners txBody =
   addTxCollaterals utxos txBody -- Take a single Ada only utxo collateral
     >>= balanceTxIns utxos fees -- Add input fees for the Ada only collateral
     >>= balanceNonAdaOuts ownAddr utxos
     >>= pure <<< addLovelaces minUtxos
     >>= balanceTxIns utxos fees -- Adding more inputs if required
     >>= balanceNonAdaOuts ownAddr utxos
-    >>= addSignatories ownAddr addReqSigners requiredAddrs
-    -- requiredAddrs are required signatures
+    >>= addSignatories ownAddr privKeys requiredSigners
 
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 {- | Pick a collateral from the utxo map and add it to the unbalanced transaction
@@ -333,6 +342,7 @@ addTxCollaterals utxos (TxBody txBody) = do
     filterAdaOnly = Map.filter (isAdaOnly <<< getAmount)
 
     -- FIX ME: Plutus has Maybe TxInType e.g. Just ConsumePublicKeyAddress)
+    -- We can't distinguish where a utxo is from a wallet (pubkey) or script it seems.
     -- for now, we take the head. The Haskell logic is pasted below:
     -- findPubKeyTxIn = \case
     --   x@(TxIn _ (Just ConsumePublicKeyAddress)) : _ -> Right x
@@ -545,34 +555,30 @@ filterNonAda :: Value -> Value
 filterNonAda =
   Value <<< Map.filterKeys (_ /= adaSymbol) <<< getValue
 
+requiredSignersToAddress :: RequiredSigner -> Address
+requiredSignersToAddress = undefined
+
 -- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
-{- | Add the required signatories to the  Be aware if the signature
-itself is invalid, and will be ignored. Only the pub key hashes are used,
-mapped to signing key files on disk.
--}
+-- | Add the required signatories to the txBody.
 addSignatories
   :: Address
-  -> Map.Map Address RequiredSigner
-  -> Array Address
+  -> Map.Map Address PrivateKey
+  -> Array RequiredSigner
   -> TxBody
   -> Either String TxBody
-addSignatories ownAddr addReqSigners requiredAddrs txBody =
+addSignatories ownAddr privKeys requiredSigners txBody =
   Array.foldM
     ( \txBody' addr ->
-        case Map.lookup addr addReqSigners of
-          Just reqSigner -> pure $ txBody' `signBy` reqSigner
-          Nothing -> Left "addSignatories: Signing key not found."
+        case Map.lookup addr privKeys of
+          Just privKey -> pure $ txBody' `signBy` privKey
+          Nothing -> Left "addSignatories: Signing address not found."
     )
     txBody
-    $ Array.cons ownAddr requiredAddrs
+    $ ownAddr `Array.cons` (requiredSignersToAddress <$> requiredSigners)
 
-signBy :: TxBody -> RequiredSigner -> TxBody
-signBy (TxBody txBody) reqSigner =
-  wrap $ txBody # case txBody.required_signers of
-    Just xs ->
-      _{ required_signers = Just $ reqSigner `Array.cons` xs }
-    Nothing ->
-      _{ required_signers = Just $ [reqSigner] }
+-- FIX ME: We need proper signing functionality.
+signBy :: TxBody -> PrivateKey -> TxBody
+signBy = undefined
 
 getInputValue :: Utxo -> TxBody -> Value
 getInputValue utxos (TxBody txBody) =
