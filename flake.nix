@@ -7,9 +7,10 @@
 
     # for the purescript project
     ogmios.url = "github:mlabs-haskell/ogmios";
-    # so named because we also need the non-flake of the repo below
-    # in the server inputs
-    cardano-node = {
+    # so named because we also need a different version of the repo below
+    # in the server inputs and we use this one just for the `cardano-cli`
+    # executables
+    cardano-node-exe = {
       url = "github:input-output-hk/cardano-node/ea8b632820db5546b22430bbb5ed8db4a2fef7dd";
     };
     cardano-configurations = {
@@ -43,6 +44,11 @@
     cardano-ledger-specs = {
       url =
         "github:input-output-hk/cardano-ledger-specs/bf008ce028751cae9fb0b53c3bef20f07c06e333";
+      flake = false;
+    };
+    cardano-node = {
+      url =
+        "github:input-output-hk/cardano-node/2cbe363874d0261bc62f52185cf23ed492cf4859";
       flake = false;
     };
     cardano-prelude = {
@@ -144,6 +150,8 @@
       # It might be a good idea to keep this as a separate shell; if you're
       # working on the PS frontend, it doesn't make a lot of sense to pull
       # in all of the Haskell dependencies
+      #
+      # This can be used with `nix develop .#hsDevShell.<SYSTEM>`
       hsDevShell = perSystem (system:
         let
           psDevShell = (psProjectFor system).devShell;

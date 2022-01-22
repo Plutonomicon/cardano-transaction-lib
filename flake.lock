@@ -269,12 +269,29 @@
       }
     },
     "cardano-node": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1635782292,
+        "narHash": "sha256-jbz8ws7HtnEGdV67S85y459DutKKHZ6kjzMxaj0DsnQ=",
+        "owner": "input-output-hk",
+        "repo": "cardano-node",
+        "rev": "2cbe363874d0261bc62f52185cf23ed492cf4859",
+        "type": "github"
+      },
+      "original": {
+        "owner": "input-output-hk",
+        "repo": "cardano-node",
+        "rev": "2cbe363874d0261bc62f52185cf23ed492cf4859",
+        "type": "github"
+      }
+    },
+    "cardano-node-exe": {
       "inputs": {
         "customConfig": "customConfig",
         "haskellNix": "haskellNix",
         "iohkNix": "iohkNix",
         "nixpkgs": [
-          "cardano-node",
+          "cardano-node-exe",
           "haskellNix",
           "nixpkgs-2105"
         ],
@@ -722,7 +739,7 @@
         "hpc-coveralls": "hpc-coveralls",
         "nix-tools": "nix-tools",
         "nixpkgs": [
-          "cardano-node",
+          "cardano-node-exe",
           "nixpkgs"
         ],
         "nixpkgs-2003": "nixpkgs-2003",
@@ -832,7 +849,7 @@
     "iohkNix": {
       "inputs": {
         "nixpkgs": [
-          "cardano-node",
+          "cardano-node-exe",
           "nixpkgs"
         ]
       },
@@ -1274,6 +1291,7 @@
         "cardano-crypto": "cardano-crypto",
         "cardano-ledger-specs": "cardano-ledger-specs",
         "cardano-node": "cardano-node",
+        "cardano-node-exe": "cardano-node-exe",
         "cardano-prelude": "cardano-prelude",
         "cardano-wallet": "cardano-wallet",
         "easy-purescript-nix": "easy-purescript-nix",
