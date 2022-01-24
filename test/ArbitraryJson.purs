@@ -68,11 +68,9 @@ instance Arbitrary ArbJson where
         str    =  JStr    <$> arbStr
         list   =  JList   <$> arrayOf (arbitraryRec (n-1))
         object =  JObject <$> (arrayOf $ lift2 Tuple arbStr (arbitraryRec (n-1)))
-        in do
-            val <- if n == 0
-                    then oneOf (pure JNull :| [bool, int, num, str])
-                    else oneOf (pure JNull :| [bool, int, num, str, list, object])
-            pure val
+        in oneOf (pure JNull :| if n == 0
+                    then [bool, int, num, str]
+                    else [bool, int, num, str, list, object])
 
 
 -- | Turn ArbJson into a JSON string.
