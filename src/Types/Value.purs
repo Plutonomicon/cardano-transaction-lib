@@ -42,14 +42,13 @@ import Data.Show.Generic (genericShow)
 import Data.These (These(..))
 import Data.Tuple.Nested ((/\), type (/\))
 
-import Types.UInt8Array (_byteLengthUint8Array, _emptyUint8Array, _eqUint8Array, _showUint8Array)
+import Types.UInt8Array (_emptyUint8Array, _eqUint8Array, _showUint8Array)
 
 -- This module rewrites functionality from:
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value
 
 newtype CurrencySymbol = CurrencySymbol Uint8Array
-derive instance genericCurrencySymbol :: Generic CurrencySymbol _
 derive instance newtypeCurrencySymbol :: Newtype CurrencySymbol _
 
 instance eqCurrencySymbol :: Eq CurrencySymbol where
@@ -64,15 +63,14 @@ instance showCurrencySymbol :: Show CurrencySymbol where
   show (CurrencySymbol symbol) = _showUint8Array symbol
 
 newtype TokenName = TokenName Uint8Array
-derive instance genericTokenName :: Generic TokenName _
 derive instance newtypeTokenName :: Newtype TokenName _
 
 instance eqTokenName :: Eq TokenName where
-  eq (TokenName t1) (TokenName t2) = _eqUint8Array t1 t2
+  eq (TokenName n1) (TokenName n2) = _eqUint8Array n1 n2
 
 instance ordTokenName :: Ord TokenName where
-  compare (TokenName t1) (TokenName t2) =
-    compare (_showUint8Array t1) (_showUint8Array t2)
+  compare (TokenName n1) (TokenName n2) =
+    compare (_showUint8Array n1) (_showUint8Array n2)
 
 instance showTokenName :: Show TokenName where
   show (TokenName name) = _showUint8Array name
