@@ -1,6 +1,6 @@
 // _byteLengthUint8Array :: Uint8Array -> BigInt
 exports._byteLengthUint8Array = bytes =>
-    Uint8Array.prototype.byteLength(bytes)
+    Uint8Array.prototype.byteLength(bytes);
 
 // _emptyUint8Array :: Uint8Array
 exports._emptyUint8Array = new Uint8Array();
