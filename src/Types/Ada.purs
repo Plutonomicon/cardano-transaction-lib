@@ -14,7 +14,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 
-import Types.Value (CurrencySymbol(..), singleton, TokenName(..), Value, valueOf)
+import Types.Value (CurrencySymbol(..), _emptyUint8Array, singleton, TokenName(..), Value, valueOf)
 
 -- Replicating Ada from Plutus, not sure how useful necessary this will be in practice:
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Ada.html
@@ -40,10 +40,10 @@ getLovelace :: Ada -> BigInt
 getLovelace = unwrap
 
 adaSymbol :: CurrencySymbol
-adaSymbol = CurrencySymbol ""
+adaSymbol = CurrencySymbol _emptyUint8Array
 
 adaToken :: TokenName
-adaToken = TokenName ""
+adaToken = TokenName _emptyUint8Array
 
 lovelaceValueOf :: BigInt -> Value
 lovelaceValueOf = singleton adaSymbol adaToken

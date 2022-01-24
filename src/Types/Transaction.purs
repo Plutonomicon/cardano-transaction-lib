@@ -1,6 +1,7 @@
 module Types.Transaction where
 
 import Prelude
+import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
@@ -9,7 +10,7 @@ import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\))
 
-import Types.Value (Value)
+import Types.Value (Value, _emptyUint8Array, _eqUint8Array, _showUint8Array)
 
 newtype Transaction = Transaction {
   body :: TxBody,
@@ -83,8 +84,8 @@ data RedeemerTag = Spend | Mint | Cert | Reward
 type AuxiliaryData = Unit -- this is big and weird in serialization-lib
 
 newtype TransactionInput = TransactionInput
-  { transaction_id :: String, -- TransactionHash
-    index :: BigInt -- u32 TransactionIndex
+  { transaction_id :: TransactionHash
+  , index :: BigInt -- u32 TransactionIndex
   }
 derive instance newtypeTransactionInput :: Newtype TransactionInput _
 derive instance genericTransactionInput :: Generic TransactionInput _
@@ -97,7 +98,7 @@ instance showTransactionInput :: Show TransactionInput where
 newtype TransactionOutput = TransactionOutput
   { address :: Address,
     amount :: Value,
-    data_hash :: Maybe String -- DataHash>,
+    data_hash :: Maybe DataHash
   }
 derive instance genericTransactionOutput :: Generic TransactionOutput _
 derive instance newtypeTransactionOutput :: Newtype TransactionOutput _
@@ -111,6 +112,29 @@ derive instance newtypeUtxoM :: Newtype UtxoM _
 derive newtype instance showUtxoM :: Show UtxoM
 
 type Utxo = Map TransactionInput TransactionOutput
+
+newtype TransactionHash = TransactionHash Uint8Array
+derive instance newtypeTransactionHash :: Newtype TransactionHash _
+-- derive newtype instance eqTransactionHash :: Eq TransactionHash REMOVE
+
+instance eqTransactionHash :: Eq TransactionHash where
+  eq (TransactionHash h1) (TransactionHash h2) = _eqUint8Array h1 h2
+
+instance showTransactionHash :: Show TransactionHash where
+  show (TransactionHash hash) = _showUint8Array hash
+
+instance ordTransactionHash :: Ord TransactionHash where
+  compare (TransactionHash h1) (TransactionHash h2) =
+    compare (_showUint8Array h1) (_showUint8Array h2)
+
+newtype DataHash = DataHash Uint8Array
+derive instance newtypeDataHash :: Newtype DataHash _
+
+instance eqDataHash :: Eq DataHash where
+  eq (DataHash h1) (DataHash h2) = _eqUint8Array h1 h2
+
+instance showDataHash :: Show DataHash where
+  show (DataHash hash) = _showUint8Array hash
 
 newtype Coin = Coin BigInt
 derive instance newtypeCoin :: Newtype Coin _
@@ -145,14 +169,20 @@ derive newtype instance ordBaseAddress :: Ord BaseAddress
 instance showBaseAddress :: Show BaseAddress where
   show = genericShow
 
-newtype Credential = Credential String
-derive instance genericCredential :: Generic Credential _
+newtype Credential = Credential Uint8Array
+-- derive instance genericCredential :: Generic Credential _ REMOVE
 derive instance newtypeCredential :: Newtype Credential _
-derive newtype instance eqCredential :: Eq Credential
-derive newtype instance ordCredential :: Ord Credential
+
+instance eqCredential :: Eq Credential where
+  eq (Credential c1) (Credential c2) = _eqUint8Array c1 c2
+
+instance ordCredential :: Ord Credential where
+  compare (Credential c1) (Credential c2) =
+    compare (_showUint8Array c1) (_showUint8Array c2)
 
 instance showCredential :: Show Credential where
-  show = genericShow
+  show (Credential cred) = _showUint8Array cred
+
 -- Below comes from Plutus API:
 -- data Credential = PubKeyCredential String | ScriptCredential String
 

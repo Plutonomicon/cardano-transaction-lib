@@ -3,8 +3,11 @@ module Types.Value
   , TokenName(..)
   , Value(..)
   , allTokenNames
+  , _byteLengthUint8Array
+  , _emptyUint8Array
   , emptyValue
   , eq
+  , _eqUint8Array
   , flattenValue
   , geq
   , getValue
@@ -19,6 +22,7 @@ module Types.Value
   , numCurrencySymbols'
   , numTokenNames
   , numTokenNames'
+  , _showUint8Array
   , singleton
   , unflattenValue
   , valueOf
@@ -28,6 +32,7 @@ module Types.Value
 import Prelude
 import Control.Alternative (guard)
 import Data.Array (filter)
+import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt (BigInt, fromInt)
 import Data.Foldable (any, length)
 import Data.Generic.Rep (class Generic)
@@ -41,27 +46,46 @@ import Data.Show.Generic (genericShow)
 import Data.These (These(..))
 import Data.Tuple.Nested ((/\), type (/\))
 
+foreign import _byteLengthUint8Array :: Uint8Array -> BigInt
+
+foreign import _emptyUint8Array :: Uint8Array
+
+foreign import _eqUint8Array :: Uint8Array -> Uint8Array -> Boolean
+
+foreign import _showUint8Array :: Uint8Array -> String
+
 -- This module rewrites functionality from:
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value
 
-newtype CurrencySymbol = CurrencySymbol String
+newtype CurrencySymbol = CurrencySymbol Uint8Array
 derive instance genericCurrencySymbol :: Generic CurrencySymbol _
 derive instance newtypeCurrencySymbol :: Newtype CurrencySymbol _
-derive newtype instance eqCurrencySymbol :: Eq CurrencySymbol
-derive newtype instance ordCurrencySymbol :: Ord CurrencySymbol
+
+instance eqCurrencySymbol :: Eq CurrencySymbol where
+  eq (CurrencySymbol c1) (CurrencySymbol c2) = _eqUint8Array c1 c2
+
+-- Problematic - I don't think it matters they are used for map ordering.
+instance ordCurrencySymbol :: Ord CurrencySymbol where
+  compare (CurrencySymbol c1) (CurrencySymbol c2) =
+    compare (_showUint8Array c1) (_showUint8Array c2)
 
 instance showCurrencySymbol :: Show CurrencySymbol where
-  show = genericShow
+  show (CurrencySymbol symbol) = _showUint8Array symbol
 
-newtype TokenName = TokenName String
+newtype TokenName = TokenName Uint8Array
 derive instance genericTokenName :: Generic TokenName _
 derive instance newtypeTokenName :: Newtype TokenName _
-derive newtype instance eqTokenName :: Eq TokenName
-derive newtype instance ordTokenName :: Ord TokenName
+
+instance eqTokenName :: Eq TokenName where
+  eq (TokenName t1) (TokenName t2) = _eqUint8Array t1 t2
+
+instance ordTokenName :: Ord TokenName where
+  compare (TokenName t1) (TokenName t2) =
+    compare (_showUint8Array t1) (_showUint8Array t2)
 
 instance showTokenName :: Show TokenName where
-  show = genericShow
+  show (TokenName name) = _showUint8Array name
 
 newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt))
 derive instance genericValue :: Generic Value _
@@ -153,7 +177,9 @@ unflattenValue (curSymbol /\ tokenName /\ amount) =
 isAdaOnly :: Value -> Boolean
 isAdaOnly v =
   case flattenValue v of
-    (CurrencySymbol "" /\ TokenName "" /\ _) : Nil -> true
+    (cs@(CurrencySymbol _) /\ tn@(TokenName _) /\ _) : Nil ->
+      cs == CurrencySymbol _emptyUint8Array &&
+      tn == TokenName _emptyUint8Array
     _ -> false
 
 emptyValue :: Value

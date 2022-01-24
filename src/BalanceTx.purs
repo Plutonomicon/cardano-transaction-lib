@@ -14,7 +14,6 @@ import Data.List ((:), List(..), partition)
 import Data.Map as Map
 import Data.Maybe (fromMaybe, Maybe(..))
 import Data.Newtype (unwrap, wrap)
-import Data.String.CodeUnits (length)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Undefined (undefined)
@@ -22,8 +21,8 @@ import Undefined (undefined)
 import Ogmios (QueryM)
 import ProtocolParametersAlonzo (coinSize, lovelacePerUTxOWord, pidSize, protocolParamUTxOCostPerWord, utxoEntrySizeWithoutVal)
 import Types.Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
-import Types.Transaction (Address, Credential(..), RequiredSigner, Transaction(..), TransactionInput, TransactionOutput(..), TxBody(..), Utxo, UtxoM)
-import Types.Value (allTokenNames, emptyValue, flattenValue, geq, getValue, isAdaOnly, isPos, isZero, minus, numCurrencySymbols, numTokenNames, TokenName, Value(..))
+import Types.Transaction (Address, Credential(..), DataHash, RequiredSigner, Transaction(..), TransactionInput, TransactionOutput(..), TxBody(..), Utxo, UtxoM)
+import Types.Value (allTokenNames, _byteLengthUint8Array, emptyValue, flattenValue, geq, getValue, isAdaOnly, isPos, isZero, minus, numCurrencySymbols, numTokenNames, TokenName, Value(..))
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
@@ -303,7 +302,7 @@ calculateMinUtxo txOut = unwrap lovelacePerUTxOWord * utxoEntrySize txOut
 -- | Calculates how many words are needed depending on whether the datum is
 -- | hashed or not. 10 words for a hashed datum and 0 for no hash. The argument
 -- | to the function is the datum hash found in TransactionOutput.
-dataHashSize :: Maybe String -> BigInt -- Should we add type safety?
+dataHashSize :: Maybe DataHash -> BigInt -- Should we add type safety?
 dataHashSize Nothing = zero
 dataHashSize (Just _) = fromInt 10
 
@@ -323,14 +322,14 @@ size v = fromInt 6 + roundupBytesToWords b
     roundupBytesToWords b' = quot (b' + (fromInt 7)) $ fromInt 8
 
     -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
-    -- FIX ME: Is this correct? The formula is actually based on the length of the
-    -- bytestring representation, but we are using strings.
+    -- The formula is actually based on the length of the  bytestring
+    --  representation - test this.
     -- | Sum of the length of the strings of distinct token names.
     sumTokenNameLengths :: Value -> BigInt
     sumTokenNameLengths = Foldable.foldl lenAdd zero <<< allTokenNames
       where
         lenAdd :: BigInt -> TokenName -> BigInt
-        lenAdd = \c a -> c + fromInt (length $ unwrap a)
+        lenAdd = \c a -> c + (_byteLengthUint8Array $ unwrap a)
 
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#L116
 preBalanceTxBody
