@@ -5,7 +5,9 @@ import Prelude
 import Control.Apply (lift2)
 import Control.Monad.Cont (lift)
 import Data.Argonaut (Json, caseJsonBoolean, caseJsonNull, caseJsonString, parseJson, stringify)
+import Data.Argonaut as Json
 import Data.Array (zip)
+import Data.BigInt as BigInt
 import Data.Either (Either(..))
 import Data.Foldable (for_)
 import Data.Traversable (traverse)
@@ -17,6 +19,8 @@ import Mote (group)
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (FilePath)
+import Test.ArbitraryJson (ArbBigInt(..),ArbJson(..), stringifyArbJson)
+import Test.QuickCheck (quickCheck')
 import TestM (TestPlanM)
 
 errBool :: String -> Boolean -> TestPlanM Unit
@@ -32,6 +36,26 @@ suite = group "Fixture tests for parseJsonStringifyNumbers" $ do
   parseStringTests
   parseBoolAndNullTests
   fixtureTests
+  quickCheckTests 1000
+
+quickCheckTests :: Int -> TestPlanM Unit
+quickCheckTests ntests = lift $ liftEffect $ quickCheck' ntests testJsonStringifyNumbers
+ where
+  testJsonStringifyNumbers :: ArbJson -> Boolean
+  testJsonStringifyNumbers ajs =
+    let origJsStr = stringifyArbJson ajs
+        stringifiedJsStr = stringifyArbJson (numbersToStrings ajs)
+    in
+    parseJson stringifiedJsStr == parseJsonStringifyNumbers origJsStr
+
+  numbersToStrings :: ArbJson -> ArbJson
+  numbersToStrings = case _ of
+    (JBigInt (ArbBigInt x)) -> JStr $ BigInt.toString x
+    (JNum x) -> JStr $ Json.stringify ( Json.fromNumber x)
+    (JList l) -> JList $ numbersToStrings <$> l
+    (JObject l) -> JObject $ map numbersToStrings <$> l
+    x -> x
+
 
 
 fixtureTests :: TestPlanM Unit
