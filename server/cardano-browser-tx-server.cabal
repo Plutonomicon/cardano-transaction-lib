@@ -58,4 +58,10 @@ executable cardano-browser-tx-server
     , extra
     , mtl
     , plutus-tx
+    , servant
+    , servant-server
     , text
+
+  other-modules:
+    Types
+    Api
