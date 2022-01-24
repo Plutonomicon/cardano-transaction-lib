@@ -46,26 +46,27 @@ import Data.Tuple.Nested ((/\), type (/\))
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value
 
 newtype CurrencySymbol = CurrencySymbol String
-derive instance eqCurrencySymbol :: Eq CurrencySymbol
-derive instance ordCurrencySymbol :: Ord CurrencySymbol
 derive instance genericCurrencySymbol :: Generic CurrencySymbol _
+derive instance newtypeCurrencySymbol :: Newtype CurrencySymbol _
+derive newtype instance eqCurrencySymbol :: Eq CurrencySymbol
+derive newtype instance ordCurrencySymbol :: Ord CurrencySymbol
 
 instance showCurrencySymbol :: Show CurrencySymbol where
   show = genericShow
 
 newtype TokenName = TokenName String
-derive instance eqTokenName :: Eq TokenName
-derive instance ordTokenName :: Ord TokenName
 derive instance genericTokenName :: Generic TokenName _
 derive instance newtypeTokenName :: Newtype TokenName _
+derive newtype instance eqTokenName :: Eq TokenName
+derive newtype instance ordTokenName :: Ord TokenName
 
 instance showTokenName :: Show TokenName where
   show = genericShow
 
 newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt))
-derive instance eqValue :: Eq Value
 derive instance genericValue :: Generic Value _
 derive instance newtypeValue :: Newtype Value _
+derive newtype instance eqValue :: Eq Value
 
 instance showValue :: Show Value where
   show = genericShow

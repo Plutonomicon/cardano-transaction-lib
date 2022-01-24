@@ -22,10 +22,10 @@ import Types.Value (CurrencySymbol(..), singleton, TokenName(..), Value, valueOf
 --   1M Lovelace is one Ada.
 --   See note [Currencies] in 'Ledger.Validation.Value.TH'.
 newtype Ada = Lovelace BigInt
-derive instance eqAda :: Eq Ada
-derive instance ordAda :: Ord Ada
 derive instance genericAda :: Generic Ada _
 derive instance newtypeAda :: Newtype Ada _
+derive newtype instance eqAda :: Eq Ada
+derive newtype instance ordAda :: Ord Ada
 
 instance showAda:: Show Ada where
   show = genericShow
@@ -52,7 +52,6 @@ lovelaceValueOf = singleton adaSymbol adaToken
 toValue :: Ada -> Value
 toValue (Lovelace i) = singleton adaSymbol adaToken i
 
-{-# INLINABLE fromValue #-}
 -- | Get the 'Ada' in the given 'Value'.
 fromValue :: Value -> Ada
 fromValue v = Lovelace (valueOf v adaSymbol adaToken)

@@ -14,9 +14,9 @@ import Data.BigInt (BigInt, fromInt)
 import Types.Ada (Ada(..))
 
 -- newtype Word = Word BigInt
--- derive instance eqWord :: Eq Word
 -- derive instance newtypeWord :: Newtype Word _
--- derive instance ordWord :: Ord Word
+-- derive newtype instance eqWord :: Eq Word
+-- derive newtype instance ordWord :: Ord Word
 -- derive newtype instance showWord :: Show Word
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-pab/html/src/Cardano.Api.ProtocolParameters.html

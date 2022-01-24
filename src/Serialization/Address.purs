@@ -49,8 +49,8 @@ foreign import newBaseAddress :: NetworkId -> PubKeyHash -> StakeKeyHash -> Base
 
 newtype Bech32String = Bech32String String
 
+derive newtype instance eqBech32String :: Eq Bech32String
 derive newtype instance showBech32String :: Show Bech32String
-derive instance eqBech32String :: Eq Bech32String
 
 newtype PubKeyHash = PubKeyHash Bech32String
 

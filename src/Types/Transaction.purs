@@ -36,7 +36,7 @@ newtype TxBody = TxBody
     network_id :: Maybe NetworkId
   }
 derive instance newtypeTxBody :: Newtype TxBody _
-derive instance eqTxBody :: Eq TxBody
+derive newtype instance eqTxBody :: Eq TxBody
 
 newtype TransactionWitnessSet = TransactionWitnessSet
   { vkeys :: Maybe (Array Vkeywitness),
@@ -48,10 +48,12 @@ newtype TransactionWitnessSet = TransactionWitnessSet
   }
 
 newtype NetworkId = NetworkId Int
-derive instance eqNetworkId :: Eq NetworkId
+derive instance newtypeNetworkId :: Newtype NetworkId _
+derive newtype instance eqNetworkId :: Eq NetworkId
 
 newtype RequiredSigner = RequiredSigner String
-derive instance eqRequiredSigner :: Eq RequiredSigner
+derive instance newtypeRequiredSigner :: Newtype RequiredSigner _
+derive newtype instance eqRequiredSigner :: Eq RequiredSigner
 
 newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
@@ -84,9 +86,10 @@ newtype TransactionInput = TransactionInput
   { transaction_id :: String, -- TransactionHash
     index :: BigInt -- u32 TransactionIndex
   }
-derive instance eqTransactionInput :: Eq TransactionInput
+derive instance newtypeTransactionInput :: Newtype TransactionInput _
 derive instance genericTransactionInput :: Generic TransactionInput _
-derive instance ordTransactionInput :: Ord TransactionInput
+derive newtype instance eqTransactionInput :: Eq TransactionInput
+derive newtype instance ordTransactionInput :: Ord TransactionInput
 
 instance showTransactionInput :: Show TransactionInput where
   show = genericShow
@@ -96,9 +99,9 @@ newtype TransactionOutput = TransactionOutput
     amount :: Value,
     data_hash :: Maybe String -- DataHash>,
   }
-derive instance eqTransactionOutput :: Eq TransactionOutput
 derive instance genericTransactionOutput :: Generic TransactionOutput _
 derive instance newtypeTransactionOutput :: Newtype TransactionOutput _
+derive newtype instance eqTransactionOutput :: Eq TransactionOutput
 
 instance showTransactionOutput :: Show TransactionOutput where
   show = genericShow
@@ -110,19 +113,20 @@ derive newtype instance showUtxoM :: Show UtxoM
 type Utxo = Map TransactionInput TransactionOutput
 
 newtype Coin = Coin BigInt
-derive instance eqCoin :: Eq Coin
 derive instance newtypeCoin :: Newtype Coin _
+derive newtype instance eqCoin :: Eq Coin
 
 newtype Slot = Slot BigInt
-derive instance eqSlot :: Eq Slot
+derive instance newtypeSlot :: Newtype Slot _
+derive newtype instance eqSlot :: Eq Slot
 
 newtype Address = Address
   { "AddrType" :: BaseAddress
   }
-derive instance eqAddress :: Eq Address
 derive instance genericAddress :: Generic Address _
-derive instance ordAddress :: Ord Address
 derive instance newtypeAddress :: Newtype Address _
+derive newtype instance eqAddress :: Eq Address
+derive newtype instance ordAddress :: Ord Address
 
 instance showAddress :: Show Address where
   show = genericShow
@@ -132,18 +136,20 @@ newtype BaseAddress = BaseAddress
     stake :: Credential,
     payment :: Credential
   }
-derive instance eqBaseAddress :: Eq BaseAddress
+
 derive instance genericBaseAddress :: Generic BaseAddress _
-derive instance ordBaseAddress :: Ord BaseAddress
 derive instance newtypeBaseAddress :: Newtype BaseAddress _
+derive newtype instance eqBaseAddress :: Eq BaseAddress
+derive newtype instance ordBaseAddress :: Ord BaseAddress
 
 instance showBaseAddress :: Show BaseAddress where
   show = genericShow
 
 newtype Credential = Credential String
-derive instance eqCredential :: Eq Credential
 derive instance genericCredential :: Generic Credential _
-derive instance ordCredential :: Ord Credential
+derive instance newtypeCredential :: Newtype Credential _
+derive newtype instance eqCredential :: Eq Credential
+derive newtype instance ordCredential :: Ord Credential
 
 instance showCredential :: Show Credential where
   show = genericShow
