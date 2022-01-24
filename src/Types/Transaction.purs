@@ -10,7 +10,8 @@ import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\))
 
-import Types.Value (Value, _emptyUint8Array, _eqUint8Array, _showUint8Array)
+import Types.UInt8Array (_eqUint8Array, _showUint8Array)
+import Types.Value (Value)
 
 newtype Transaction = Transaction {
   body :: TxBody,
@@ -115,7 +116,6 @@ type Utxo = Map TransactionInput TransactionOutput
 
 newtype TransactionHash = TransactionHash Uint8Array
 derive instance newtypeTransactionHash :: Newtype TransactionHash _
--- derive newtype instance eqTransactionHash :: Eq TransactionHash REMOVE
 
 instance eqTransactionHash :: Eq TransactionHash where
   eq (TransactionHash h1) (TransactionHash h2) = _eqUint8Array h1 h2
@@ -170,7 +170,6 @@ instance showBaseAddress :: Show BaseAddress where
   show = genericShow
 
 newtype Credential = Credential Uint8Array
--- derive instance genericCredential :: Generic Credential _ REMOVE
 derive instance newtypeCredential :: Newtype Credential _
 
 instance eqCredential :: Eq Credential where

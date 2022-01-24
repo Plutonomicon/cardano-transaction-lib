@@ -3,11 +3,8 @@ module Types.Value
   , TokenName(..)
   , Value(..)
   , allTokenNames
-  , _byteLengthUint8Array
-  , _emptyUint8Array
   , emptyValue
   , eq
-  , _eqUint8Array
   , flattenValue
   , geq
   , getValue
@@ -22,7 +19,6 @@ module Types.Value
   , numCurrencySymbols'
   , numTokenNames
   , numTokenNames'
-  , _showUint8Array
   , singleton
   , unflattenValue
   , valueOf
@@ -46,13 +42,7 @@ import Data.Show.Generic (genericShow)
 import Data.These (These(..))
 import Data.Tuple.Nested ((/\), type (/\))
 
-foreign import _byteLengthUint8Array :: Uint8Array -> BigInt
-
-foreign import _emptyUint8Array :: Uint8Array
-
-foreign import _eqUint8Array :: Uint8Array -> Uint8Array -> Boolean
-
-foreign import _showUint8Array :: Uint8Array -> String
+import Types.UInt8Array (_byteLengthUint8Array, _emptyUint8Array, _eqUint8Array, _showUint8Array)
 
 -- This module rewrites functionality from:
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
@@ -63,12 +53,12 @@ derive instance genericCurrencySymbol :: Generic CurrencySymbol _
 derive instance newtypeCurrencySymbol :: Newtype CurrencySymbol _
 
 instance eqCurrencySymbol :: Eq CurrencySymbol where
-  eq (CurrencySymbol c1) (CurrencySymbol c2) = _eqUint8Array c1 c2
+  eq (CurrencySymbol s1) (CurrencySymbol s2) = _eqUint8Array s1 s2
 
--- Problematic - I don't think it matters they are used for map ordering.
+-- Problematic? I don't think it matters they are used for map ordering.
 instance ordCurrencySymbol :: Ord CurrencySymbol where
-  compare (CurrencySymbol c1) (CurrencySymbol c2) =
-    compare (_showUint8Array c1) (_showUint8Array c2)
+  compare (CurrencySymbol s1) (CurrencySymbol s2) =
+    compare (_showUint8Array s1) (_showUint8Array s2)
 
 instance showCurrencySymbol :: Show CurrencySymbol where
   show (CurrencySymbol symbol) = _showUint8Array symbol

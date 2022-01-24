@@ -14,7 +14,8 @@ import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 
-import Types.Value (CurrencySymbol(..), _emptyUint8Array, singleton, TokenName(..), Value, valueOf)
+import Types.UInt8Array (_emptyUint8Array)
+import Types.Value (CurrencySymbol(..), singleton, TokenName(..), Value, valueOf)
 
 -- Replicating Ada from Plutus, not sure how useful necessary this will be in practice:
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Ada.html
