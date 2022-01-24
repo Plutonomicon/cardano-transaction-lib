@@ -28,6 +28,7 @@ import Test.QuickCheck (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (Gen, arrayOf, chooseInt, elements)
 
 
+-- | Newtype wrapper to avoid an orphan instance
 newtype ArbBigInt = ArbBigInt BigInt
 
 instance Arbitrary ArbBigInt where
@@ -38,6 +39,7 @@ instance Arbitrary ArbBigInt where
       pure $ ArbBigInt $ c * (a * a * a * a + b)
 
 
+-- | JSON representation that supports BigInts
 data ArbJson
   = JNull
   | JBool    Boolean
