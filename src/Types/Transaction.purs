@@ -10,8 +10,8 @@ import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\))
 
-import Types.UInt8Array (_eqUint8Array, _showUint8Array)
 import Types.Value (Value)
+import UInt8Array (_eqUint8Array, _showUint8Array)
 
 newtype Transaction = Transaction {
   body :: TxBody,

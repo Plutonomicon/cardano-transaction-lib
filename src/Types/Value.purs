@@ -42,7 +42,7 @@ import Data.Show.Generic (genericShow)
 import Data.These (These(..))
 import Data.Tuple.Nested ((/\), type (/\))
 
-import Types.UInt8Array (_emptyUint8Array, _eqUint8Array, _showUint8Array)
+import UInt8Array (_emptyUint8Array, _eqUint8Array, _showUint8Array)
 
 -- This module rewrites functionality from:
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs

@@ -22,8 +22,8 @@ import Ogmios (QueryM)
 import ProtocolParametersAlonzo (coinSize, lovelacePerUTxOWord, pidSize, protocolParamUTxOCostPerWord, utxoEntrySizeWithoutVal)
 import Types.Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
 import Types.Transaction (Address, Credential(..), DataHash, RequiredSigner, Transaction(..), TransactionInput, TransactionOutput(..), TxBody(..), Utxo, UtxoM)
-import Types.UInt8Array (_byteLengthUint8Array)
 import Types.Value (allTokenNames, emptyValue, flattenValue, geq, getValue, isAdaOnly, isPos, isZero, minus, numCurrencySymbols, numTokenNames, TokenName, Value(..))
+import UInt8Array (_byteLengthUint8Array)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs

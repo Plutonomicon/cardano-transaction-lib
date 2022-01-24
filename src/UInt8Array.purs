@@ -1,4 +1,4 @@
-module Types.UInt8Array
+module UInt8Array
   ( _byteLengthUint8Array
   , _emptyUint8Array
   , _eqUint8Array
