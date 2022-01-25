@@ -3,17 +3,18 @@ Welcome to a Spago project!
 You can edit this file as you like.
 -}
 { name = "my-project"
-, dependencies = 
+, dependencies =
   [ "aff"
-  , "arrays"
   , "argonaut"
+  , "arraybuffer-types"
+  , "arrays"
   , "bigints"
   , "console"
   , "const"
   , "control"
   , "debug"
-  , "either"
   , "effect"
+  , "either"
   , "exceptions"
   , "foldable-traversable"
   , "foreign-object"
