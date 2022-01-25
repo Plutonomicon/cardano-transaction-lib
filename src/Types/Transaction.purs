@@ -1,6 +1,7 @@
 module Types.Transaction where
 
 import Prelude
+import Data.ArrayBuffer.Types
 import Data.BigInt as BigInt
 import Data.Maybe (Maybe(..))
 import Data.Tuple.Nested ((/\), type (/\))
@@ -45,19 +46,21 @@ newtype NetworkId = NetworkId Int
 
 newtype RequiredSigner = RequiredSigner String
 
-newtype CurrencySymbol = CurrencySymbol String
+newtype CurrencySymbol = CurrencySymbol Uint8Array
 
 derive instance genericCurrencySymbol :: Generic CurrencySymbol _
 
 instance showCurrencySymbol :: Show CurrencySymbol where
-  show = genericShow
+  show (CurrencySymbol symbol) = showUint8Array symbol
 
-newtype TokenName = TokenName String
+newtype TokenName = TokenName Uint8Array
 
 derive instance genericTokenName :: Generic TokenName _
 
+foreign import showUint8Array :: Uint8Array -> String
+
 instance showTokenName :: Show TokenName where
-  show = genericShow
+  show (TokenName name) = showUint8Array name
 
 newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
 
@@ -95,15 +98,25 @@ type AuxiliaryData = Unit -- this is big and weird in serialization-lib
 
 
 newtype TransactionInput = TransactionInput
-  { transaction_id :: String, -- TransactionHash
-    index :: BigInt.BigInt -- u32 TransactionIndex
+  { transaction_id :: TransactionHash
+  , index :: BigInt.BigInt -- u32 TransactionIndex
   }
 
 newtype TransactionOutput = TransactionOutput
   { address :: Address,
     amount :: Value,
-    data_hash :: Maybe String -- DataHash>,
+    data_hash :: Maybe DataHash
   }
+
+newtype TransactionHash = TransactionHash Uint8Array
+
+instance showTransactionHash :: Show TransactionHash where
+  show (TransactionHash hash) = showUint8Array hash
+
+newtype DataHash = DataHash Uint8Array
+
+instance showDataHash :: Show DataHash where
+  show (DataHash hash) = showUint8Array hash
 
 newtype Coin = Coin BigInt.BigInt
 
@@ -119,7 +132,7 @@ newtype BaseAddress = BaseAddress
     payment :: Credential
   }
 
-newtype Credential = Credential String
+newtype Credential = Credential Uint8Array
 
 -- Addresspub struct Address(AddrType);
 -- AddrType 
