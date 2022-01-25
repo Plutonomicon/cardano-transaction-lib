@@ -8,6 +8,7 @@ You can edit this file as you like.
   , "argonaut"
   , "arraybuffer-types"
   , "arrays"
+  , "bifunctors"
   , "bigints"
   , "console"
   , "const"

@@ -1,33 +1,290 @@
 module BalanceTx
-  ( balanceTxM
-  , UnbalancedTransaction(..)
+  ( Actual(Actual)
+  , AddSignatoriesFailure(AddSignatoriesFailure)
+  , AddSignatoriesFailureReason(SigningAddressNotFound)
+  , AddTxCollateralsFailure(AddTxCollateralsFailure)
+  , AddTxCollateralsFailureReason(CollateralUtxosUnavailable)
+  , BalanceNonAdaOutsFailure(BalanceNonAdaOutsFailure)
+  , BalanceNonAdaOutsFailureReason(InputsCannotBalanceNonAdaTokens)
+  , BalanceTxFailure
+      ( AddSignatoriesFailure'
+      , AddTxCollateralsFailure'
+      , BalanceNonAdaOutsFailure'
+      , BalanceTxInsFailure'
+      , BalanceTxMFailure'
+      , BuildTxRawFailure'
+      , CalculateMinFeeFailure'
+      , ReturnAdaChangeFailure'
+      , ToEitherTransactionInputFailure'
+      )
+  , BalanceTxInsFailure(BalanceTxInsFailure)
+  , BalanceTxInsFailureReason(InsufficientTxInputs)
+  , BalanceTxMFailure(BalanceTxMFailure)
+  , BalanceTxMFailureReason(UnknownRequiredSigners)
+  , BuildTxRawFailure(BuildTxRawFailure)
+  , BuildTxRawFailureReason(CannotBuildTxRaw)
+  , CalculateMinFeeFailure(CalculateMinFeeFailure)
+  , CalculateMinFeeFailureReason(CannotCalculateMinFee)
+  , Expected(Expected)
+  , Impossible(Impossible)
+  , ReturnAdaChangeFailure(ReturnAdaChangeFailure)
+  , ReturnAdaChangeFailureReason
+      ( CouldNotModifyUtxo
+      , CouldNotModifyUtxoHead
+      , InputAdaDoesNotCoverSingleAdaOutput
+      , NotEnoughAdaInputAfterPrebalance
+      , ReturnAdaChangeBuildTxRaw
+      , ReturnAdaChangeCalculateMinFee
+      )
+  , ToEitherTransactionInputFailure(ToEitherTransactionInputFailure)
+  , ToEitherTransactionInputFailureReason(CannotConvertOutputToTxInput)
+  , UnbalancedTransaction(UnbalancedTransaction)
+  , balanceTxM -- Transaction balancer function
   )
   where
 
 import Prelude
 import Data.Array ((\\), findIndex, modifyAt)
 import Data.Array as Array
+import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt, quot)
-import Data.Either (Either(..), hush, note)
+import Data.Either (Either(Left, Right), hush, note)
 import Data.Foldable as Foldable
-import Data.List ((:), List(..), partition)
+import Data.Generic.Rep (class Generic)
+import Data.List ((:), List(Nil), partition)
 import Data.Map as Map
-import Data.Maybe (fromMaybe, Maybe(..))
-import Data.Newtype (unwrap, wrap)
+import Data.Maybe (fromMaybe, Maybe(Just, Nothing))
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Show.Generic (genericShow)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Undefined (undefined)
 
 import Ogmios (QueryM)
-import ProtocolParametersAlonzo (coinSize, lovelacePerUTxOWord, pidSize, protocolParamUTxOCostPerWord, utxoEntrySizeWithoutVal)
+import ProtocolParametersAlonzo
+  ( coinSize
+  , lovelacePerUTxOWord
+  , pidSize
+  , protocolParamUTxOCostPerWord
+  , utxoEntrySizeWithoutVal
+  )
 import Types.Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
-import Types.Transaction (Address, Credential(..), DataHash, RequiredSigner, Transaction(..), TransactionInput, TransactionOutput(..), TxBody(..), Utxo, UtxoM)
-import Types.Value (allTokenNames, emptyValue, flattenValue, geq, getValue, isAdaOnly, isPos, isZero, minus, numCurrencySymbols, numTokenNames, TokenName, Value(..))
+import Types.Transaction
+  ( Address
+  , Credential(Credential)
+  , DataHash
+  , RequiredSigner
+  , Transaction(Transaction)
+  , TransactionInput
+  , TransactionOutput(TransactionOutput)
+  , TxBody(TxBody)
+  , Utxo
+  , UtxoM
+  )
+import Types.Value
+  ( allTokenNames
+  , emptyValue
+  , flattenValue
+  , geq
+  , getValue
+  , isAdaOnly
+  , isPos
+  , isZero
+  , minus
+  , numCurrencySymbols
+  , numTokenNames
+  , TokenName
+  , Value(Value)
+  )
 import UInt8Array (_byteLengthUint8Array)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 
+--------------------------------------------------------------------------------
+-- Errors for Balancing functions
+--------------------------------------------------------------------------------
+-- These derivations may need tweaking when testing to make sure they are easy
+-- to read, especially with generic show vs newtype show derivations.
+data BalanceTxFailure
+  = BalanceTxMFailure' BalanceTxMFailure
+  | ReturnAdaChangeFailure' ReturnAdaChangeFailure
+  | AddTxCollateralsFailure' AddTxCollateralsFailure
+  | ToEitherTransactionInputFailure' ToEitherTransactionInputFailure
+  | BalanceTxInsFailure' BalanceTxInsFailure
+  | BalanceNonAdaOutsFailure' BalanceNonAdaOutsFailure
+  | AddSignatoriesFailure' AddSignatoriesFailure
+  | CalculateMinFeeFailure' CalculateMinFeeFailure
+  | BuildTxRawFailure' BuildTxRawFailure
+derive instance genericBalanceTxFailure :: Generic BalanceTxFailure _
+
+instance showBalanceTxFailure :: Show BalanceTxFailure where
+  show = genericShow
+
+newtype BalanceTxMFailure = BalanceTxMFailure BalanceTxMFailureReason
+derive instance newtypeBalanceTxMFailure :: Newtype BalanceTxMFailure _
+derive newtype instance showBalanceTxMFailure :: Show BalanceTxMFailure
+
+data BalanceTxMFailureReason
+  = UnknownRequiredSigners
+
+instance showBalanceTxMFailureReason :: Show BalanceTxMFailureReason where
+  show UnknownRequiredSigners = "Unknown required signers."
+
+newtype ReturnAdaChangeFailure
+  = ReturnAdaChangeFailure ReturnAdaChangeFailureReason
+derive instance newtypeReturnAdaChangeFailure
+  :: Newtype ReturnAdaChangeFailure _
+derive newtype instance showReturnAdaChangeFailure
+  :: Show ReturnAdaChangeFailure
+
+data ReturnAdaChangeFailureReason
+  = NotEnoughAdaInputAfterPrebalance Impossible
+  | CouldNotModifyUtxo
+  | CouldNotModifyUtxoHead Impossible
+  | InputAdaDoesNotCoverSingleAdaOutput
+  | ReturnAdaChangeCalculateMinFee CalculateMinFeeFailureReason
+  | ReturnAdaChangeBuildTxRaw BuildTxRawFailureReason
+
+instance showReturnAdaChangeFailureReason
+  :: Show ReturnAdaChangeFailureReason where
+    show (NotEnoughAdaInputAfterPrebalance Impossible) =
+      "Not enough Input Ada to cover output and fees after prebalance - this \
+      \should be **IMPOSSIBLE** if called after loop."
+    show CouldNotModifyUtxo =
+      "Couldn't modify utxo to return change."
+    show (CouldNotModifyUtxoHead Impossible) =
+      "Couldn't modify head utxo to add Ada - this should be **IMPOSSIBLE**."
+    show InputAdaDoesNotCoverSingleAdaOutput =
+      "ReturnAda' does not cover min. utxo requirement for single Ada-only \
+      \output."
+    show (ReturnAdaChangeCalculateMinFee reason) = show reason
+    show (ReturnAdaChangeBuildTxRaw reason) = show reason
+
+newtype AddTxCollateralsFailure
+  = AddTxCollateralsFailure AddTxCollateralsFailureReason
+derive instance newtypeAddTxCollateralsFailure
+  :: Newtype AddTxCollateralsFailure _
+derive newtype instance showAddTxCollateralsFailure
+  :: Show AddTxCollateralsFailure
+
+data AddTxCollateralsFailureReason
+  = CollateralUtxosUnavailable
+
+instance showAddTxCollateralsFailureReason
+  :: Show AddTxCollateralsFailureReason where
+    show CollateralUtxosUnavailable =
+      "There are no utxos to be used as collateral."
+
+newtype ToEitherTransactionInputFailure
+  = ToEitherTransactionInputFailure ToEitherTransactionInputFailureReason
+derive instance newtypeToEitherTransactionInputFailure
+  :: Newtype ToEitherTransactionInputFailure _
+derive newtype instance showToEitherTransactionInputFailure
+  :: Show ToEitherTransactionInputFailure
+
+data ToEitherTransactionInputFailureReason
+  = CannotConvertOutputToTxInput
+
+instance showToEitherTransactionInputFailureReason
+  :: Show ToEitherTransactionInputFailureReason where
+    show CannotConvertOutputToTxInput =
+      "Cannot convert an output to TransactionInput"
+
+newtype BalanceTxInsFailure = BalanceTxInsFailure BalanceTxInsFailureReason
+derive instance newtypeBalanceTxInsFailure :: Newtype BalanceTxInsFailure _
+derive newtype instance showBalanceTxInsFailure :: Show BalanceTxInsFailure
+
+data BalanceTxInsFailureReason
+  = InsufficientTxInputs Expected Actual
+
+instance showBalanceTxInsFailureReason :: Show BalanceTxInsFailureReason where
+  show (InsufficientTxInputs expected actual) =
+    "Insufficient tx inputs, needed: "
+      <> show expected
+      <> ", got: "
+      <> show actual
+
+newtype CollectTxInsFailure = CollectTxInsFailure CollectTxInsFailureReason
+derive instance newtypeCollectTxInsFailure :: Newtype CollectTxInsFailure _
+derive newtype instance showCollectTxInsFailure :: Show CollectTxInsFailure
+
+data CollectTxInsFailureReason
+  = CollectTxInsInsufficientTxInputs BalanceTxInsFailureReason
+
+instance showCollectTxInsFailureReason :: Show CollectTxInsFailureReason where
+  show (CollectTxInsInsufficientTxInputs reason) = show reason
+
+newtype Expected = Expected Value
+derive instance newtypeExpected :: Newtype Expected _
+
+instance showExpected :: Show Expected where
+  show = show <<< flattenValue <<< unwrap
+
+newtype Actual = Actual Value
+derive instance newtypeActual :: Newtype Actual _
+
+instance showActual :: Show Actual where
+  show = show <<< flattenValue <<< unwrap
+
+newtype BalanceNonAdaOutsFailure
+  = BalanceNonAdaOutsFailure BalanceNonAdaOutsFailureReason
+derive instance newtypeBalanceNonAdaOutsFailure
+  :: Newtype BalanceNonAdaOutsFailure _
+derive newtype instance showBalanceNonAdaOutsFailure
+  :: Show BalanceNonAdaOutsFailure
+
+data BalanceNonAdaOutsFailureReason
+  = InputsCannotBalanceNonAdaTokens
+
+instance showBalanceNonAdaOutsFailureReason
+  :: Show BalanceNonAdaOutsFailureReason where
+    show InputsCannotBalanceNonAdaTokens = "Not enough inputs to balance tokens."
+
+newtype AddSignatoriesFailure
+  = AddSignatoriesFailure AddSignatoriesFailureReason
+derive instance newtypeAddSignatoriesFailure :: Newtype AddSignatoriesFailure _
+derive newtype instance showAddSignatoriesFailure :: Show AddSignatoriesFailure
+
+data AddSignatoriesFailureReason
+  = SigningAddressNotFound Address
+
+instance showAddSignatoriesFailureReason
+  :: Show AddSignatoriesFailureReason where
+    show (SigningAddressNotFound address) =
+      "Signing address not found for: " <> show address
+
+-- | Represents that an error reason should be impossible
+data Impossible = Impossible
+
+newtype BuildTxRawFailure
+  = BuildTxRawFailure BuildTxRawFailureReason
+derive instance newtypeBuildTxRawFailure :: Newtype BuildTxRawFailure _
+derive newtype instance showBuildTxRawFailure :: Show BuildTxRawFailure
+
+data BuildTxRawFailureReason
+  = CannotBuildTxRaw
+
+instance showBuildTxRawFailureReason :: Show BuildTxRawFailureReason where
+  show CannotBuildTxRaw = "Cannot build raw transaction."
+
+newtype CalculateMinFeeFailure
+  = CalculateMinFeeFailure CalculateMinFeeFailureReason
+derive instance newtypeCalculateMinFeeFailure
+  :: Newtype CalculateMinFeeFailure _
+derive newtype instance showCalculateMinFeeFailure
+  :: Show CalculateMinFeeFailure
+
+data CalculateMinFeeFailureReason
+  = CannotCalculateMinFee
+
+instance showCalculateMinFeeFailureReason
+  :: Show CalculateMinFeeFailureReason where
+    show CannotCalculateMinFee = "Cannot calculate minimum fee."
+
+--------------------------------------------------------------------------------
+-- Type aliases, temporary placeholder types and functions
+--------------------------------------------------------------------------------
 -- Output utxos with the amount of lovelaces required.
 type MinUtxos = Array (TransactionOutput /\ BigInt)
 
@@ -41,6 +298,8 @@ newtype PrivateKey = PrivateKey String
 -- getPkhFromAddress :: Address -> PubKeyHash
 -- getPkhFromAddress = undefined
 
+-- TO DO: find a way to get private keys associated to each address/pkh for
+-- signing purposes.
 getPrivKeys :: QueryM (Map.Map Address PrivateKey)
 getPrivKeys = undefined
 
@@ -55,12 +314,33 @@ newtype UnbalancedTransaction = UnbalancedTransaction
     -- utxoIndex will include utxos for scripts as well presumably.
   }
 
+-- Some functionality that builds a Transaction from a TxBody without balancing
+-- https://github.com/input-output-hk/cardano-node/blob/b6ca519f97a0e795611a63174687e6bb70c9f752/cardano-cli/src/Cardano/CLI/Shelley/Run/Transaction.hs#L312
+-- Is this relevant?
+buildTxRaw :: TxBody -> Either BuildTxRawFailure Transaction
+buildTxRaw = undefined
+
+-- There is an estimate function here:
+-- https://input-output-hk.github.io/cardano-node/cardano-api/src/Cardano.Api.Fees.html#estimateTransactionFee
+-- Otherwise, we'd need a Haskell server to run the "exact" version, since we
+-- can't run the Plutus interpreter via Purescript.
+calculateMinFee :: Transaction -> Either CalculateMinFeeFailure BigInt
+calculateMinFee = undefined
+
+-- TO DO: We need proper signing functionality. Do we need it to sign a TxBody
+-- or Transaction?
+signBy :: TxBody -> PrivateKey -> TxBody
+signBy = undefined
+
+--------------------------------------------------------------------------------
+-- Balancing functions and helpers
+--------------------------------------------------------------------------------
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#54
 -- | Balances an unbalanced transaction
 balanceTxM
   :: Address
   -> UnbalancedTransaction
-  -> QueryM (Either String Transaction)
+  -> QueryM (Either BalanceTxFailure Transaction)
 balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
   utxos :: Utxo <- unwrap <$> utxosAt ownAddr
   privKeys :: Map.Map Address PrivateKey <- getPrivKeys
@@ -70,13 +350,14 @@ balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
       utxoIndex' = utxos `Map.union` unwrap utxoIndex
 
   case (unwrap (unwrap unbalancedTx).body).required_signers of
-    Nothing -> pure $ Left "balanceTxM: Unknown required signers."
+    Nothing -> pure $ Left $ BalanceTxMFailure' $ wrap UnknownRequiredSigners
     Just requiredSigners -> do
-      prebalancedTx' :: Either String Transaction <-
+      prebalancedTx' :: Either BalanceTxFailure Transaction <-
         loop utxoIndex' ownAddr privKeys requiredSigners [] unbalancedTx
       pure do
         prebalancedTx :: Transaction <- prebalancedTx'
-        returnAdaChange ownAddr utxoIndex' prebalancedTx
+        lmap ReturnAdaChangeFailure' $
+          returnAdaChange ownAddr utxoIndex' prebalancedTx
   where
     loop ::
       Utxo ->
@@ -85,7 +366,7 @@ balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
       Array RequiredSigner ->
       MinUtxos ->
       Transaction ->
-      QueryM (Either String Transaction)
+      QueryM (Either BalanceTxFailure Transaction)
     loop
       utxoIndex'
       ownAddr'
@@ -100,7 +381,7 @@ balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
           minUtxos' :: MinUtxos
           minUtxos' = prevMinUtxos' <> nextMinUtxos'
 
-          balancedTxBody' :: Either String TxBody
+          balancedTxBody' :: Either BalanceTxFailure TxBody
           balancedTxBody' =
             chainedBalancer
               minUtxos'
@@ -131,7 +412,7 @@ balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
       -> Map.Map Address PrivateKey
       -> Array RequiredSigner
       -> TxBody
-      -> Either String TxBody
+      -> Either BalanceTxFailure TxBody
     chainedBalancer
       minUtxos' utxoIndex' ownAddr' privKeys' requiredSigners' txBody' = do
         txBodyWithoutFees' :: TxBody <-
@@ -143,8 +424,9 @@ balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
             privKeys'
             requiredSigners'
             txBody'
-        tx' :: Transaction <- buildTxRaw txBodyWithoutFees'
-        fees' :: BigInt <- calculateMinFee tx' -- FIX ME: use txBodyWithoutFees replaced in original tx.
+        tx' :: Transaction <-
+          lmap BuildTxRawFailure' $ buildTxRaw txBodyWithoutFees'
+        fees' :: BigInt <- lmap CalculateMinFeeFailure' $ calculateMinFee tx' -- FIX ME: use txBodyWithoutFees replaced in original tx.
         preBalanceTxBody
           minUtxos'
             (fees' + fromInt 500000) -- FIX ME: Add 0.5 Ada to ensure enough input for later on in final balancing.
@@ -158,9 +440,17 @@ balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
 -- where the Ada value of inputs is greater or equal to value of outputs.
 -- Also add fees to txBody. This should be called with a Tx with min
 -- Ada in each output utxo, namely, after "loop".
-returnAdaChange :: Address -> Utxo -> Transaction -> Either String Transaction
+returnAdaChange
+  :: Address
+  -> Utxo
+  -> Transaction
+  -> Either ReturnAdaChangeFailure Transaction
 returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) = do
-  fees :: BigInt <- calculateMinFee $ wrap tx
+  fees :: BigInt <-
+    lmap
+      (\(CalculateMinFeeFailure err)
+        -> wrap $ ReturnAdaChangeCalculateMinFee err)
+      $ calculateMinFee $ wrap tx
   let txOutputs :: Array TransactionOutput
       txOutputs = txBody.outputs
 
@@ -180,8 +470,7 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) = do
       returnAda :: BigInt
       returnAda = inputAda - outputAda - fees
   case compare returnAda zero of
-    LT -> Left "returnAdaChange: Not enough Input Ada to cover output and fees \
-           \after prebalance - this should be impossible if called after loop."
+    LT -> Left $ wrap $ NotEnoughAdaInputAfterPrebalance Impossible
     EQ -> pure $ wrap tx { body = wrap txBody { fee = wrap fees } }
     GT -> do
       -- Short circuits and adds Ada to any output utxo of the owner. This saves
@@ -201,7 +490,7 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) = do
           -- Add the Ada value to the first output utxo of the owner to not
           -- concur fees. This should be Ada only or non-Ada which has min Ada.
           newOutputs :: Array TransactionOutput <-
-            note "returnAdaChange: Couldn't modify utxo to return change." $
+            note (wrap CouldNotModifyUtxo) $
               modifyAt
                 idx
                 ( \(TransactionOutput o@{ amount })
@@ -237,8 +526,16 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) = do
                           }
                         `Array.cons` txBody.outputs
                     }
-          tx' :: Transaction <- buildTxRaw txBody'
-          fees' :: BigInt <- calculateMinFee tx' -- fees should increase.
+          tx' :: Transaction <-
+            lmap
+              (\(BuildTxRawFailure err)
+                -> wrap $ ReturnAdaChangeBuildTxRaw err)
+              $ buildTxRaw txBody'
+          fees' :: BigInt <-
+            lmap
+              (\(CalculateMinFeeFailure err)
+                -> wrap $ ReturnAdaChangeCalculateMinFee err)
+              $ calculateMinFee tx' -- fees should increase.
           -- New return Ada amount should decrease:
           let returnAda' :: BigInt
               returnAda' = returnAda + fees - fees'
@@ -246,8 +543,7 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) = do
           if returnAda' >= changeMinUtxo
            then do
             newOutputs :: Array TransactionOutput <-
-              note "returnAdaChange: Couldn't modify head utxo to add Ada - \
-                \this should be impossible." $
+              note (wrap $ CouldNotModifyUtxoHead Impossible) $
                 modifyAt
                   0
                   (\(TransactionOutput o)
@@ -258,25 +554,9 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) = do
               wrap
                 tx { body = wrap txBody { outputs = newOutputs, fee = wrap fees } }
            else
-            Left "returnAdaChange: ReturnAda' does not cover min. utxo \
-              \requirement for single Ada-only output."
+            Left $ wrap InputAdaDoesNotCoverSingleAdaOutput
 
--- Some functionality that builds a Transaction from a TxBody without balancing
--- https://github.com/input-output-hk/cardano-node/blob/b6ca519f97a0e795611a63174687e6bb70c9f752/cardano-cli/src/Cardano/CLI/Shelley/Run/Transaction.hs#L312
--- Is this relevant?
-buildTxRaw :: TxBody -> Either String Transaction
-buildTxRaw = undefined
-
--- There is an estimate function here:
--- https://input-output-hk.github.io/cardano-node/cardano-api/src/Cardano.Api.Fees.html#estimateTransactionFee
--- Otherwise, we'd need a Haskell server to run the "exact" version, since we
--- can't run the Plutus interpreter via Purescript.
-calculateMinFee :: Transaction -> Either String BigInt
-calculateMinFee = undefined
-
-calculateMinUtxos
-  :: Array TransactionOutput
-  -> MinUtxos
+calculateMinUtxos :: Array TransactionOutput -> MinUtxos
 calculateMinUtxos = map (\a -> a /\ calculateMinUtxo a)
 
 -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
@@ -341,7 +621,7 @@ preBalanceTxBody
   -> Map.Map Address PrivateKey
   -> Array RequiredSigner
   -> TxBody
-  -> Either String TxBody
+  -> Either BalanceTxFailure TxBody
 preBalanceTxBody minUtxos fees utxos ownAddr privKeys requiredSigners txBody =
   addTxCollaterals utxos txBody -- Take a single Ada only utxo collateral
     >>= balanceTxIns utxos fees -- Add input fees for the Ada only collateral
@@ -351,12 +631,16 @@ preBalanceTxBody minUtxos fees utxos ownAddr privKeys requiredSigners txBody =
     >>= balanceNonAdaOuts ownAddr utxos
     >>= addSignatories ownAddr privKeys requiredSigners
 
+addTxCollaterals :: Utxo -> TxBody -> Either BalanceTxFailure TxBody
+addTxCollaterals utxo txBody =
+  addTxCollaterals' utxo txBody # lmap AddTxCollateralsFailure'
+
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#L211
 -- | Pick a collateral from the utxo map and add it to the unbalanced transaction
 -- (suboptimally we just pick a random utxo from the tx inputs). TO DO: upgrade
 -- to a better coin selection algorithm.
-addTxCollaterals :: Utxo -> TxBody -> Either String TxBody
-addTxCollaterals utxos (TxBody txBody) = do
+addTxCollaterals' :: Utxo -> TxBody -> Either AddTxCollateralsFailure TxBody
+addTxCollaterals' utxos (TxBody txBody) = do
   let txIns :: Array TransactionInput
       txIns = utxosToTransactionInput $ filterAdaOnly utxos
   txIn :: TransactionInput <- findPubKeyTxIn txIns
@@ -373,10 +657,11 @@ addTxCollaterals utxos (TxBody txBody) = do
     --   x@(TxIn _ Nothing) : _ -> Right x
     --   _ : xs -> findPubKeyTxIn xs
     --   _ -> Left "There are no utxos to be used as collateral"
-    findPubKeyTxIn :: Array TransactionInput -> Either String TransactionInput
+    findPubKeyTxIn
+      :: Array TransactionInput
+      -> Either AddTxCollateralsFailure TransactionInput
     findPubKeyTxIn =
-      note "addTxCollaterals: There are no utxos to be used as collateral"
-        <<< Array.head
+      note (wrap CollateralUtxosUnavailable) <<< Array.head
 
 -- FIX ME: may need to revisit for credential granularity. See "txOutToTxIn" in
 -- -- Converting a chain index transaction output to a transaction input type
@@ -388,7 +673,7 @@ addTxCollaterals utxos (TxBody txBody) = do
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 toEitherTransactionInput
   :: TransactionInput /\ TransactionOutput
-  -> Either String TransactionInput
+  -> Either ToEitherTransactionInputFailure TransactionInput
 toEitherTransactionInput (txOutRef /\ txOut) =
   case txOutPaymentCredentials txOut of
     -- FIX ME: need to determine it's a pubkey credential as opposed to script
@@ -396,8 +681,7 @@ toEitherTransactionInput (txOutRef /\ txOut) =
     Credential _ ->
       pure txOutRef
     _ -> -- Currently unreachable:
-      Left "toEitherTransactionInput: Cannot convert an output to \
-        \TransactionInput"
+      Left $ wrap CannotConvertOutputToTxInput
 
 addressPaymentCredentials :: Address -> Credential
 addressPaymentCredentials = _.payment <<< unwrap <<< _."AddrType" <<< unwrap
@@ -406,10 +690,14 @@ addressPaymentCredentials = _.payment <<< unwrap <<< _."AddrType" <<< unwrap
 txOutPaymentCredentials :: TransactionOutput -> Credential
 txOutPaymentCredentials = addressPaymentCredentials <<< _.address  <<< unwrap
 
+balanceTxIns :: Utxo -> BigInt -> TxBody -> Either BalanceTxFailure TxBody
+balanceTxIns utxos fees txbody =
+  balanceTxIns' utxos fees txbody # lmap BalanceTxInsFailure'
+
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 -- Notice we aren't using protocol parameters for utxo cost per word.
-balanceTxIns :: Utxo -> BigInt -> TxBody -> Either String TxBody
-balanceTxIns utxos fees (TxBody txBody) = do
+balanceTxIns' :: Utxo -> BigInt -> TxBody -> Either BalanceTxInsFailure TxBody
+balanceTxIns' utxos fees (TxBody txBody) = do
   let utxoCost :: BigInt
       utxoCost = getLovelace protocolParamUTxOCostPerWord
 
@@ -431,7 +719,11 @@ balanceTxIns utxos fees (TxBody txBody) = do
       minSpending = lovelaceValueOf (fees + changeMinUtxo) <> nonMintedValue
 
   txIns :: Array TransactionInput <-
-    collectTxIns txBody.inputs utxos minSpending
+    lmap
+      (\(CollectTxInsFailure
+          (CollectTxInsInsufficientTxInputs insufficientTxInputs)) ->
+        wrap insufficientTxInputs)
+      $ collectTxIns txBody.inputs utxos minSpending
   -- Original code uses Set append which is union. Array unions behave
   -- a little differently as it removes duplicates in the second argument.
   -- but all inputs should be unique anyway so I think this is fine.
@@ -446,16 +738,13 @@ collectTxIns
   :: Array TransactionInput
   -> Utxo
   -> Value
-  -> Either String (Array TransactionInput)
+  -> Either CollectTxInsFailure (Array TransactionInput)
 collectTxIns originalTxIns utxos value =
   if isSufficient updatedInputs
    then pure updatedInputs
    else
-    Left $
-      "collectTxIns: Insufficient tx inputs, needed: "
-      <> show (flattenValue value)
-      <> ", got: "
-      <> show (flattenValue $ txInsValue updatedInputs)
+    Left $ wrap $ CollectTxInsInsufficientTxInputs $
+      InsufficientTxInputs (Expected value) (Actual $ txInsValue updatedInputs)
   where
     updatedInputs :: Array TransactionInput
     updatedInputs =
@@ -485,12 +774,24 @@ utxosToTransactionInput :: Utxo -> Array TransactionInput
 utxosToTransactionInput =
   Array.mapMaybe (hush <<< toEitherTransactionInput) <<< Map.toUnfoldable
 
+balanceNonAdaOuts
+  :: Address
+  -> Utxo
+  -> TxBody
+  -> Either BalanceTxFailure TxBody
+balanceNonAdaOuts changeAddr utxos txBody =
+  balanceNonAdaOuts' changeAddr utxos txBody # lmap BalanceNonAdaOutsFailure'
+
 -- FIX ME: (payment credential) address for change substitute for pkh (Address)
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#L225
 -- | We need to balance non ada values as part of the prebalancer before returning
 -- | excess Ada to the owner.
-balanceNonAdaOuts :: Address -> Utxo -> TxBody -> Either String TxBody
-balanceNonAdaOuts changeAddr utxos txBody'@(TxBody txBody) =
+balanceNonAdaOuts'
+  :: Address
+  -> Utxo
+  -> TxBody
+  -> Either BalanceNonAdaOutsFailure TxBody
+balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) =
   let  -- FIX ME: Similar to Address issue, need pkh.
       -- payCredentials :: Credential
       -- payCredentials = addressPaymentCredentials changeAddr
@@ -541,7 +842,7 @@ balanceNonAdaOuts changeAddr utxos txBody'@(TxBody txBody) =
        else
         if isZero nonAdaChange
          then pure $ wrap txBody
-         else Left "balanceNonAdaOuts: Not enough inputs to balance tokens."
+         else Left $ wrap InputsCannotBalanceNonAdaTokens
 
 getAmount :: TransactionOutput -> Value
 getAmount = _.amount <<< unwrap
@@ -581,28 +882,33 @@ filterNonAda =
 requiredSignersToAddress :: RequiredSigner -> Address
 requiredSignersToAddress = undefined
 
--- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#L251
--- | Add the required signatories to the txBody.
 addSignatories
   :: Address
   -> Map.Map Address PrivateKey
   -> Array RequiredSigner
   -> TxBody
-  -> Either String TxBody
+  -> Either BalanceTxFailure TxBody
 addSignatories ownAddr privKeys requiredSigners txBody =
+  addSignatories' ownAddr privKeys requiredSigners txBody
+    # lmap AddSignatoriesFailure'
+
+-- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#L251
+-- | Add the required signatories to the txBody.
+addSignatories'
+  :: Address
+  -> Map.Map Address PrivateKey
+  -> Array RequiredSigner
+  -> TxBody
+  -> Either AddSignatoriesFailure TxBody
+addSignatories' ownAddr privKeys requiredSigners txBody =
   Array.foldM
     ( \txBody' addr ->
         case Map.lookup addr privKeys of
           Just privKey -> pure $ txBody' `signBy` privKey
-          Nothing -> Left "addSignatories: Signing address not found."
+          Nothing -> Left $ wrap $ SigningAddressNotFound addr
     )
     txBody
     $ ownAddr `Array.cons` (requiredSignersToAddress <$> requiredSigners)
-
--- FIX ME: We need proper signing functionality. Do we need it to sign a TxBody
--- or Transaction?
-signBy :: TxBody -> PrivateKey -> TxBody
-signBy = undefined
 
 getInputValue :: Utxo -> TxBody -> Value
 getInputValue utxos (TxBody txBody) =

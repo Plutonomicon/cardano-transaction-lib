@@ -1,5 +1,5 @@
 module Types.Ada
-  ( Ada(..)
+  ( Ada(Lovelace)
   , adaSymbol
   , adaToken
   , fromValue
@@ -14,7 +14,13 @@ import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 
-import Types.Value (CurrencySymbol(..), singleton, TokenName(..), Value, valueOf)
+import Types.Value
+  ( CurrencySymbol(CurrencySymbol)
+  , singleton
+  , TokenName(TokenName)
+  , Value
+  , valueOf
+  )
 import UInt8Array (_emptyUint8Array)
 
 -- Replicating Ada from Plutus, not sure how useful necessary this will be in practice:

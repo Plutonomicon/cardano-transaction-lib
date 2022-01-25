@@ -45,6 +45,7 @@ import Effect (Effect)
 import Foreign.Object (Object)
 
 import Types.Value (Value(..), CurrencySymbol(..), TokenName(..))
+import UInt8Array (_emptyUint8Array)
 
 -- creates a unique id prefixed by its argument
 foreign import _uniqueId :: String -> Effect String
@@ -255,6 +256,5 @@ parseValue outer = do
 
   -- assets are currently assumed to be empty
   -- newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
-  pure $ Value $ Map.singleton (CurrencySymbol emptyUint8Array) (Map.singleton (TokenName emptyUint8Array) coins)
+  pure $ Value $ Map.singleton (CurrencySymbol _emptyUint8Array) (Map.singleton (TokenName _emptyUint8Array) coins)
 
-foreign import emptyUint8Array :: Uint8Array

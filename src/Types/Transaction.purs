@@ -11,7 +11,7 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\))
 
 import Types.Value (Value)
-import UInt8Array (_eqUint8Array, _showUint8Array)
+import UInt8Array (compareUint8Array, _eqUint8Array, _showUint8Array)
 
 newtype Transaction = Transaction {
   body :: TxBody,
@@ -124,8 +124,7 @@ instance showTransactionHash :: Show TransactionHash where
   show (TransactionHash hash) = _showUint8Array hash
 
 instance ordTransactionHash :: Ord TransactionHash where
-  compare (TransactionHash h1) (TransactionHash h2) =
-    compare (_showUint8Array h1) (_showUint8Array h2)
+  compare (TransactionHash h1) (TransactionHash h2) = compareUint8Array h1 h2
 
 newtype DataHash = DataHash Uint8Array
 derive instance newtypeDataHash :: Newtype DataHash _
@@ -176,8 +175,7 @@ instance eqCredential :: Eq Credential where
   eq (Credential c1) (Credential c2) = _eqUint8Array c1 c2
 
 instance ordCredential :: Ord Credential where
-  compare (Credential c1) (Credential c2) =
-    compare (_showUint8Array c1) (_showUint8Array c2)
+  compare (Credential c1) (Credential c2) = compareUint8Array c1 c2
 
 instance showCredential :: Show Credential where
   show (Credential cred) = _showUint8Array cred

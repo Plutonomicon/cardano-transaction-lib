@@ -1,7 +1,7 @@
 module Types.Value
-  ( CurrencySymbol(..)
-  , TokenName(..)
-  , Value(..)
+  ( CurrencySymbol(CurrencySymbol)
+  , TokenName(TokenName)
+  , Value(Value)
   , allTokenNames
   , emptyValue
   , eq
@@ -32,17 +32,22 @@ import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt (BigInt, fromInt)
 import Data.Foldable (any, length)
 import Data.Generic.Rep (class Generic)
-import Data.List ((:), all, foldMap, List(..))
+import Data.List ((:), all, foldMap, List(Nil))
 import Data.Map (keys, lookup, Map, toUnfoldable, unions, values)
 import Data.Map as Map
-import Data.Maybe (maybe, Maybe(..))
+import Data.Maybe (maybe, Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap)
 import Data.Set (Set)
 import Data.Show.Generic (genericShow)
-import Data.These (These(..))
+import Data.These (These(Both, That, This))
 import Data.Tuple.Nested ((/\), type (/\))
 
-import UInt8Array (_emptyUint8Array, _eqUint8Array, _showUint8Array)
+import UInt8Array
+  ( compareUint8Array
+  , _emptyUint8Array
+  , _eqUint8Array
+  , _showUint8Array
+  )
 
 -- This module rewrites functionality from:
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
@@ -54,10 +59,10 @@ derive instance newtypeCurrencySymbol :: Newtype CurrencySymbol _
 instance eqCurrencySymbol :: Eq CurrencySymbol where
   eq (CurrencySymbol s1) (CurrencySymbol s2) = _eqUint8Array s1 s2
 
--- Problematic? I don't think it matters they are used for map ordering.
+-- I don't think it matters since they are used for map ordering. We could also
+-- convert to string and compare.
 instance ordCurrencySymbol :: Ord CurrencySymbol where
-  compare (CurrencySymbol s1) (CurrencySymbol s2) =
-    compare (_showUint8Array s1) (_showUint8Array s2)
+  compare (CurrencySymbol s1) (CurrencySymbol s2) = compareUint8Array s1 s2
 
 instance showCurrencySymbol :: Show CurrencySymbol where
   show (CurrencySymbol symbol) = _showUint8Array symbol
@@ -69,8 +74,7 @@ instance eqTokenName :: Eq TokenName where
   eq (TokenName n1) (TokenName n2) = _eqUint8Array n1 n2
 
 instance ordTokenName :: Ord TokenName where
-  compare (TokenName n1) (TokenName n2) =
-    compare (_showUint8Array n1) (_showUint8Array n2)
+  compare (TokenName n1) (TokenName n2) = compareUint8Array n1 n2
 
 instance showTokenName :: Show TokenName where
   show (TokenName name) = _showUint8Array name
@@ -123,7 +127,12 @@ unionVal
   -> Value
   -> Map CurrencySymbol (Map TokenName (These BigInt BigInt))
 unionVal (Value l) (Value r) =
-  let combined = union l r
+  let combined
+        :: Map CurrencySymbol (These (Map TokenName BigInt) (Map TokenName BigInt))
+      combined = union l r
+      unBoth
+        :: These (Map TokenName BigInt) (Map TokenName BigInt)
+        -> Map TokenName (These BigInt BigInt)
       unBoth k = case k of
         This a -> This <$> a
         That b -> That <$> b
@@ -137,7 +146,9 @@ unionWith
   -> Value
   -> Value
 unionWith f ls rs =
-  let combined = unionVal ls rs
+  let combined :: Map CurrencySymbol (Map TokenName (These BigInt BigInt))
+      combined = unionVal ls rs
+      unBoth :: These BigInt BigInt -> BigInt
       unBoth k' = case k' of
         This a -> f a zero
         That b -> f zero b
@@ -151,8 +162,9 @@ getValue = unwrap
 -- Taken from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#flattenValue
 flattenValue :: Value -> List (CurrencySymbol /\ TokenName /\ BigInt)
 flattenValue v = do
-    cs /\ m <- toUnfoldable $ getValue v
-    tn /\ a <- toUnfoldable m
+    cs /\ m :: CurrencySymbol /\ (Map TokenName BigInt) <-
+      toUnfoldable $ getValue v
+    tn /\ a :: TokenName /\ BigInt <- toUnfoldable m
     guard $ a /= zero
     pure $ cs /\ tn /\ a
 
@@ -176,9 +188,9 @@ emptyValue = Value $ Map.empty
 -- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 minus :: Value -> Value -> Value
 minus x y =
-  let negativeValues = flattenValue y <#>
+  let negativeValues :: List (CurrencySymbol /\ TokenName /\ BigInt)
+      negativeValues = flattenValue y <#>
         (\(c /\ t /\ a) -> c /\ t /\ negate a)
-        :: List (CurrencySymbol /\ TokenName /\ BigInt)
    in x <> foldMap unflattenValue negativeValues
 
 -- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
@@ -204,7 +216,8 @@ checkPred f l r =
 -- |  supplying 0 where a key is only present in one of them.
 checkBinRel :: (BigInt -> BigInt -> Boolean) -> Value -> Value -> Boolean
 checkBinRel f l r =
-  let unThese k' = case k' of
+  let unThese :: These BigInt BigInt -> Boolean
+      unThese k' = case k' of
         This a -> f a zero
         That b -> f zero b
         Both a b -> f a b
