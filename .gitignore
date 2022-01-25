@@ -9,6 +9,7 @@
 **/.psa*
 **/.spago
 **/.spago2nix*
+.projectile
 result
 result-*
 .envrc
@@ -17,3 +18,4 @@ result-*
 **/node_modules/
 .node
 .node-cfg
+server/dist-newstyle

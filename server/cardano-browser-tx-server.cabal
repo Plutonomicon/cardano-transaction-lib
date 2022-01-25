@@ -47,8 +47,8 @@ executable cardano-browser-tx-server
   ghc-options:
     -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
     -Wmissing-export-lists -Wmissing-deriving-strategies
-
-  hs-source-dirs:   src/
+  hs-source-dirs: src
+  main-is: Main.hs
   build-depends:
     , aeson
     , base
