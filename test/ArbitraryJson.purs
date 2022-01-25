@@ -1,24 +1,25 @@
+-- | Random JSON generating (with BigInt) support for testing purposes
 module Test.ArbitraryJson where
 
-import Data.Semiring ((+),(*))
-import Data.Ring (negate, (-))
 import Control.Alt ((<$>))
 import Control.Alternative (pure)
 import Control.Apply (lift2)
-import Control.Bind (bind, (>>=))
-import Control.Category ((>>>))
+import Control.Bind (bind)
+import Control.Category ((<<<))
 import Control.Lazy (fix)
 import Control.Monad.Gen (oneOf)
 import Data.Argonaut (Json)
 import Data.Argonaut as Json
+import Data.Array.NonEmpty (cons')
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Eq ((==))
 import Data.Function (($))
 import Data.Maybe (Maybe(..))
 import Data.Monoid ((<>))
-import Data.Array.NonEmpty (cons')
 import Data.NonEmpty ((:|))
+import Data.Ring (negate, (-))
+import Data.Semiring ((+), (*))
 import Data.String (joinWith)
 import Data.String.CodeUnits (fromCharArray)
 import Data.Traversable (traverse)
@@ -97,8 +98,8 @@ arbJsonToJson = case _ of
   JBigInt _ -> Nothing
   JNum n -> Just $ Json.fromNumber n
   JStr s -> Just $ Json.fromString s
-  JList a -> traverse arbJsonToJson a >>= Json.fromArray >>> pure
-  JObject a -> traverse parseKV a >>= Object.fromFoldable >>> Json.fromObject >>> pure
+  JList a -> Json.fromArray <$> traverse arbJsonToJson a
+  JObject o -> Json.fromObject <<< Object.fromFoldable <$> traverse parseKV o
     where
       parseKV :: Tuple String ArbJson -> Maybe (Tuple String Json)
       parseKV (Tuple k v) = Tuple k <$> arbJsonToJson v
