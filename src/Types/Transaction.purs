@@ -8,6 +8,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Data.Map (Map(..))
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
+import Types.ByteArray
 
 newtype Transaction = Transaction {
   body :: TxBody,
@@ -46,21 +47,19 @@ newtype NetworkId = NetworkId Int
 
 newtype RequiredSigner = RequiredSigner String
 
-newtype CurrencySymbol = CurrencySymbol Uint8Array
+newtype CurrencySymbol = CurrencySymbol ByteArray
 
 derive instance genericCurrencySymbol :: Generic CurrencySymbol _
 
 instance showCurrencySymbol :: Show CurrencySymbol where
-  show (CurrencySymbol symbol) = showUint8Array symbol
+  show = genericShow
 
-newtype TokenName = TokenName Uint8Array
+newtype TokenName = TokenName ByteArray
 
 derive instance genericTokenName :: Generic TokenName _
 
-foreign import showUint8Array :: Uint8Array -> String
-
 instance showTokenName :: Show TokenName where
-  show (TokenName name) = showUint8Array name
+  show = genericShow
 
 newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
 
@@ -108,15 +107,19 @@ newtype TransactionOutput = TransactionOutput
     data_hash :: Maybe DataHash
   }
 
-newtype TransactionHash = TransactionHash Uint8Array
+newtype TransactionHash = TransactionHash ByteArray
+
+derive instance genericTransactionHash :: Generic TransactionHash _
 
 instance showTransactionHash :: Show TransactionHash where
-  show (TransactionHash hash) = showUint8Array hash
+  show = genericShow
 
-newtype DataHash = DataHash Uint8Array
+newtype DataHash = DataHash ByteArray
+
+derive instance genericDataHash :: Generic DataHash _
 
 instance showDataHash :: Show DataHash where
-  show (DataHash hash) = showUint8Array hash
+  show = genericShow
 
 newtype Coin = Coin BigInt.BigInt
 
@@ -132,7 +135,7 @@ newtype BaseAddress = BaseAddress
     payment :: Credential
   }
 
-newtype Credential = Credential Uint8Array
+newtype Credential = Credential ByteArray
 
 -- Addresspub struct Address(AddrType);
 -- AddrType 
