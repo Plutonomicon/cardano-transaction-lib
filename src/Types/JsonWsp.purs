@@ -31,7 +31,6 @@ import Prelude
 import Control.Alt ((<|>))
 import Data.Argonaut (class DecodeJson, Json, JsonDecodeError(..), caseJsonArray, caseJsonNumber, caseJsonObject, caseJsonString, getField, decodeJson)
 import Data.Array (index)
-import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt as BigInt
 import Data.Either(Either(..), hush, note)
 import Data.Generic.Rep (class Generic)
@@ -45,7 +44,6 @@ import Effect (Effect)
 import Foreign.Object (Object)
 
 import Types.Value (Value(..), CurrencySymbol(..), TokenName(..))
-import UInt8Array (_emptyUint8Array)
 
 -- creates a unique id prefixed by its argument
 foreign import _uniqueId :: String -> Effect String
@@ -256,5 +254,4 @@ parseValue outer = do
 
   -- assets are currently assumed to be empty
   -- newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
-  pure $ Value $ Map.singleton (CurrencySymbol _emptyUint8Array) (Map.singleton (TokenName _emptyUint8Array) coins)
-
+  pure $ Value $ Map.singleton (CurrencySymbol mempty) (Map.singleton (TokenName mempty) coins)

@@ -610,7 +610,7 @@ size v = fromInt 6 + roundupBytesToWords b
     sumTokenNameLengths = Foldable.foldl lenAdd zero <<< allTokenNames
       where
         lenAdd :: BigInt -> TokenName -> BigInt
-        lenAdd = \c a -> c + (_byteLengthUint8Array $ unwrap a)
+        lenAdd = \c a -> c + (_byteLengthUint8Array <<< unwrap <<< unwrap $ a)
 
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#L116
 preBalanceTxBody

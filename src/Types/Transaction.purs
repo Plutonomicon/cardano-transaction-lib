@@ -1,7 +1,6 @@
 module Types.Transaction where
 
 import Prelude
-import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
@@ -11,7 +10,7 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\))
 
 import Types.Value (Value)
-import UInt8Array (compareUint8Array, _eqUint8Array, _showUint8Array)
+import Types.ByteArray (ByteArray)
 
 newtype Transaction = Transaction {
   body :: TxBody,
@@ -114,26 +113,24 @@ derive newtype instance showUtxoM :: Show UtxoM
 
 type Utxo = Map TransactionInput TransactionOutput
 
-newtype TransactionHash = TransactionHash Uint8Array
-derive instance newtypeTransactionHash :: Newtype TransactionHash _
-
-instance eqTransactionHash :: Eq TransactionHash where
-  eq (TransactionHash h1) (TransactionHash h2) = _eqUint8Array h1 h2
+newtype TransactionHash = TransactionHash ByteArray
+derive instance genericTransactionHash :: Generic TransactionHash _
+derive instance newTransactionHash :: Newtype TransactionHash _
+derive newtype instance eqTransactionHash :: Eq TransactionHash
+derive newtype instance ordTransactionHash:: Ord TransactionHash
 
 instance showTransactionHash :: Show TransactionHash where
-  show (TransactionHash hash) = _showUint8Array hash
+  show = genericShow
 
-instance ordTransactionHash :: Ord TransactionHash where
-  compare (TransactionHash h1) (TransactionHash h2) = compareUint8Array h1 h2
-
-newtype DataHash = DataHash Uint8Array
+newtype DataHash = DataHash ByteArray
 derive instance newtypeDataHash :: Newtype DataHash _
+derive newtype instance eqDataHash :: Eq DataHash
+derive newtype instance ordDataHash :: Ord DataHash
 
-instance eqDataHash :: Eq DataHash where
-  eq (DataHash h1) (DataHash h2) = _eqUint8Array h1 h2
+derive instance genericDataHash :: Generic DataHash _
 
 instance showDataHash :: Show DataHash where
-  show (DataHash hash) = _showUint8Array hash
+  show = genericShow
 
 newtype Coin = Coin BigInt
 derive instance newtypeCoin :: Newtype Coin _
@@ -168,17 +165,14 @@ derive newtype instance ordBaseAddress :: Ord BaseAddress
 instance showBaseAddress :: Show BaseAddress where
   show = genericShow
 
-newtype Credential = Credential Uint8Array
+newtype Credential = Credential ByteArray
+derive instance genericCredential :: Generic Credential _
 derive instance newtypeCredential :: Newtype Credential _
-
-instance eqCredential :: Eq Credential where
-  eq (Credential c1) (Credential c2) = _eqUint8Array c1 c2
-
-instance ordCredential :: Ord Credential where
-  compare (Credential c1) (Credential c2) = compareUint8Array c1 c2
+derive newtype instance eqCredential :: Eq Credential
+derive newtype instance ordCredential :: Ord Credential
 
 instance showCredential :: Show Credential where
-  show (Credential cred) = _showUint8Array cred
+  show = genericShow
 
 -- Below comes from Plutus API:
 -- data Credential = PubKeyCredential String | ScriptCredential String

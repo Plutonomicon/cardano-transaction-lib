@@ -28,7 +28,6 @@ module Types.Value
 import Prelude
 import Control.Alternative (guard)
 import Data.Array (filter)
-import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt (BigInt, fromInt)
 import Data.Foldable (any, length)
 import Data.Generic.Rep (class Generic)
@@ -42,42 +41,29 @@ import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This))
 import Data.Tuple.Nested ((/\), type (/\))
 
-import UInt8Array
-  ( compareUint8Array
-  , _emptyUint8Array
-  , _eqUint8Array
-  , _showUint8Array
-  )
+import Types.ByteArray (ByteArray)
 
 -- This module rewrites functionality from:
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value
 
-newtype CurrencySymbol = CurrencySymbol Uint8Array
+newtype CurrencySymbol = CurrencySymbol ByteArray
 derive instance newtypeCurrencySymbol :: Newtype CurrencySymbol _
-
-instance eqCurrencySymbol :: Eq CurrencySymbol where
-  eq (CurrencySymbol s1) (CurrencySymbol s2) = _eqUint8Array s1 s2
-
--- I don't think it matters since they are used for map ordering. We could also
--- convert to string and compare.
-instance ordCurrencySymbol :: Ord CurrencySymbol where
-  compare (CurrencySymbol s1) (CurrencySymbol s2) = compareUint8Array s1 s2
+derive instance genericCurrencySymbol :: Generic CurrencySymbol _
+derive newtype instance eqCurrencySymbol :: Eq CurrencySymbol
+derive newtype instance ordCurrencySymbol :: Ord CurrencySymbol
 
 instance showCurrencySymbol :: Show CurrencySymbol where
-  show (CurrencySymbol symbol) = _showUint8Array symbol
+  show = genericShow
 
-newtype TokenName = TokenName Uint8Array
+newtype TokenName = TokenName ByteArray
 derive instance newtypeTokenName :: Newtype TokenName _
-
-instance eqTokenName :: Eq TokenName where
-  eq (TokenName n1) (TokenName n2) = _eqUint8Array n1 n2
-
-instance ordTokenName :: Ord TokenName where
-  compare (TokenName n1) (TokenName n2) = compareUint8Array n1 n2
+derive instance genericTokenName :: Generic TokenName _
+derive newtype instance eqTokenName :: Eq TokenName
+derive newtype instance ordTokenName :: Ord TokenName
 
 instance showTokenName :: Show TokenName where
-  show (TokenName name) = _showUint8Array name
+  show = genericShow
 
 newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt))
 derive instance genericValue :: Generic Value _
@@ -178,8 +164,8 @@ isAdaOnly :: Value -> Boolean
 isAdaOnly v =
   case flattenValue v of
     (cs@(CurrencySymbol _) /\ tn@(TokenName _) /\ _) : Nil ->
-      cs == CurrencySymbol _emptyUint8Array &&
-      tn == TokenName _emptyUint8Array
+      cs == CurrencySymbol mempty &&
+      tn == TokenName mempty
     _ -> false
 
 emptyValue :: Value

@@ -21,7 +21,6 @@ import Types.Value
   , Value
   , valueOf
   )
-import UInt8Array (_emptyUint8Array)
 
 -- Replicating Ada from Plutus, not sure how useful necessary this will be in practice:
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Ada.html
@@ -47,10 +46,10 @@ getLovelace :: Ada -> BigInt
 getLovelace = unwrap
 
 adaSymbol :: CurrencySymbol
-adaSymbol = CurrencySymbol _emptyUint8Array
+adaSymbol = CurrencySymbol mempty
 
 adaToken :: TokenName
-adaToken = TokenName _emptyUint8Array
+adaToken = TokenName mempty
 
 lovelaceValueOf :: BigInt -> Value
 lovelaceValueOf = singleton adaSymbol adaToken
