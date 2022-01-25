@@ -9,6 +9,13 @@ autogen-deps:
 		&& mv default.nix node2nix.nix \
 		&& git restore default.nix
 
+check-format:
+	purs-tidy check "src/**/*.purs"
+
+format:
+	purs-tidy format-in-place "src/**/*.purs"
+
+
 run-testnet-node:
 	docker run --rm \
 	  -e NETWORK=testnet \

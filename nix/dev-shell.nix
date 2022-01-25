@@ -16,6 +16,7 @@ pkgs.mkShell {
     cardano-node.packages.${system}.cardano-cli
     compiler
     spago
+    purs-tidy
     purescript-language-server
     purty
     spago2nix
