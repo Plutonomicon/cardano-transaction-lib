@@ -209,18 +209,6 @@ let
         installPhase = "ln -s $src $out";
       };
 
-    "debug" = pkgs.stdenv.mkDerivation {
-        name = "debug";
-        version = "v5.0.0";
-        src = pkgs.fetchgit {
-          url = "https://github.com/garyb/purescript-debug.git";
-          rev = "144305842dba81169a93b3a3cc75429d5c8389e9";
-          sha256 = "09j69bgrq8nzw1l3aj1hka3y5ycmcsn9dlgf22k5ifrd74iic60y";
-        };
-        phases = "installPhase";
-        installPhase = "ln -s $src $out";
-      };
-
     "distributive" = pkgs.stdenv.mkDerivation {
         name = "distributive";
         version = "v5.0.0";
@@ -1008,18 +996,6 @@ let
           url = "https://github.com/purescript/purescript-typelevel-prelude.git";
           rev = "83ddcdb23d06c8d5ea6196596a70438f42cd4afd";
           sha256 = "1vwf3yhn8mir5y41wvlyszkgd5fxvrcyfd0l8cn20c8vfq36yzgk";
-        };
-        phases = "installPhase";
-        installPhase = "ln -s $src $out";
-      };
-
-    "undefined" = pkgs.stdenv.mkDerivation {
-        name = "undefined";
-        version = "v1.0.2";
-        src = pkgs.fetchgit {
-          url = "https://github.com/bklaric/purescript-undefined.git";
-          rev = "4012dc06b58feae301140bc081135d0f24c432b0";
-          sha256 = "0kj504j3r9wr7m3yhm53bcfdzai0c2g99d2pdxlfinxk4pmixyrd";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

@@ -18,25 +18,25 @@ You can edit this file as you like.
   , "exceptions"
   , "foldable-traversable"
   , "foreign-object"
+  , "gen"
   , "identity"
   , "maybe"
   , "medea"
   , "mote"
   , "node-buffer"
   , "node-fs-aff"
+  , "node-path"
+  , "nonempty"
   , "ordered-collections"
   , "prelude"
   , "psci-support"
+  , "quickcheck"
   , "refs"
   , "spec"
   , "strings"
   , "transformers"
   , "tuples"
-  , "undefined"
   ]
 , packages = ./packages.dhall
-, sources =
-  [ "src/**/*.purs"
-  , "test/**/*.purs"
-  ]
+, sources = [ "src/**/*.purs", "test/**/*.purs" ]
 }
