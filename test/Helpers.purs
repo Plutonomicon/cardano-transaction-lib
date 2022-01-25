@@ -6,10 +6,11 @@ import Control.Apply (lift2)
 import Control.Monad.Cont (lift)
 import Data.Argonaut (Json, caseJsonBoolean, caseJsonNull, caseJsonString, parseJson, stringify)
 import Data.Argonaut as Json
-import Data.Array (zip)
+import Data.Array (length, takeWhile, zip, zipWith)
 import Data.BigInt as BigInt
 import Data.Either (Either(..))
 import Data.Foldable (for_)
+import Data.String (toCodePointArray)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..), uncurry)
 import Effect.Class (liftEffect)
@@ -19,16 +20,9 @@ import Mote (group)
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (FilePath)
-import Test.ArbitraryJson (ArbBigInt(..),ArbJson(..), stringifyArbJson)
-import Test.QuickCheck (quickCheck')
+import Test.ArbitraryJson (ArbBigInt(..), ArbJson(..), stringifyArbJson)
+import Test.QuickCheck (class Arbitrary, quickCheck')
 import TestM (TestPlanM)
-
-errBool :: String -> Boolean -> TestPlanM Unit
-errBool msg b =
-  if b
-  then pure unit
-  else (liftEffect $ throwException $ error msg)
-
 
 suite :: TestPlanM Unit
 suite = group "Fixture tests for parseJsonStringifyNumbers" $ do
@@ -38,16 +32,14 @@ suite = group "Fixture tests for parseJsonStringifyNumbers" $ do
   fixtureTests
   quickCheckTests 1000
 
+-- | Test if `parseJsonStringifyNumbers` behaves as if it first replace numbers
+-- | by strings in JSON and then parse it using JSON.parse
 quickCheckTests :: Int -> TestPlanM Unit
-quickCheckTests ntests = lift $ liftEffect $ quickCheck' ntests testJsonStringifyNumbers
+quickCheckTests =
+  testFunctionEquivalence
+    (                     stringifyArbJson >>> parseJsonStringifyNumbers)
+    (numbersToStrings >>> stringifyArbJson >>> parseJson)
  where
-  testJsonStringifyNumbers :: ArbJson -> Boolean
-  testJsonStringifyNumbers ajs =
-    let origJsStr = stringifyArbJson ajs
-        stringifiedJsStr = stringifyArbJson (numbersToStrings ajs)
-    in
-    parseJson stringifiedJsStr == parseJsonStringifyNumbers origJsStr
-
   numbersToStrings :: ArbJson -> ArbJson
   numbersToStrings = case _ of
     (JBigInt (ArbBigInt x)) -> JStr $ BigInt.toString x
@@ -56,22 +48,31 @@ quickCheckTests ntests = lift $ liftEffect $ quickCheck' ntests testJsonStringif
     (JObject l) -> JObject $ map numbersToStrings <$> l
     x -> x
 
-
-
+-- | Construct tests by comparing inputs and expected values read from
+-- | file fixtures.
 fixtureTests :: TestPlanM Unit
 fixtureTests = do
   fixtures <- lift2 zip (readFixtures "input/") (readFixtures "expected/")
-  for_ fixtures (uncurry testFixture)
+  for_ fixtures $ mkTest (uncurry testFixture)
   where
-    testFixture :: String -> String -> TestPlanM Unit
-    testFixture input expected =
-      errBool "Parse result does not match expected value" $
-        parseJsonStringifyNumbers input == parseJson expected
+    testFixture :: Tuple FilePath String -> Tuple FilePath String -> Tuple String Boolean
+    testFixture (Tuple inputPath input) (Tuple expectedPath expected) =
+      let output = parseJsonStringifyNumbers input
+          result = output == parseJson expected
+          err =
+            let mismatchIx = do
+                  matches <- liftA1 (zipWith (==) (toCodePointArray expected) <<< toCodePointArray <<< Json.stringify) output
+                  pure $ length $ takeWhile identity matches
+            in case mismatchIx of
+                 Left _ -> "Fixture test failed - parse error in " <> expectedPath <> " or " <> inputPath
+                 Right ix -> "Fixture test failed - unexpected character at index " <> show ix <> " in file " <> expectedPath
+      in Tuple err result
 
-    readFixtures :: FilePath -> TestPlanM (Array String)
+    readFixtures :: FilePath -> TestPlanM (Array (Tuple FilePath String))
     readFixtures dirn = lift $
       let d = (fixtureDir <> dirn)
-      in readdir d >>= traverse (readTextFile UTF8 <<< (<>) d)
+          readTestFile fp = Tuple fp <$> readTextFile UTF8 fp
+      in readdir d >>= traverse (readTestFile <<< (<>) d)
 
     fixtureDir = "./fixtures/test/parsing/json_stringify_numbers/"
 
@@ -123,3 +124,25 @@ testSimpleValue s jsonCb = uncurry errBool  $
     Right _ -> case parseJsonStringifyNumbers s of
       Left _ -> Tuple ("Argonaut could not parse jsonTurnNumbersToStrings result: " <> jsonTurnNumbersToStrings s) false
       Right json -> jsonCb json
+
+-- Generic helpers - suitable for exporting
+
+-- | Test if functions produce the same results given same inputs
+testFunctionEquivalence :: forall a b. Arbitrary a => Eq b => (a -> b) -> (a -> b) -> Int -> TestPlanM Unit
+testFunctionEquivalence f1 f2 n =
+  lift $ liftEffect $ quickCheck' n (\x -> f1 x == f2 x)
+
+-- | Make boolean a test
+errBool :: String -> Boolean -> TestPlanM Unit
+errBool msg b =
+  if b
+  then pure unit
+  else (liftEffect $ throwException $ error msg)
+
+-- | Make simple test
+mkTest :: forall a. (a -> Tuple String Boolean) -> a -> TestPlanM Unit
+mkTest doTest inp =
+  let (Tuple errMsg testRes) = doTest inp
+  in if testRes
+      then pure unit
+      else liftEffect $ throwException $ error errMsg
