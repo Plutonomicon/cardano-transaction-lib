@@ -1,6 +1,7 @@
 -- | Our domain type for byte arrays, a wrapper over Uint8Array.
 module Types.ByteArray
        ( ByteArray (..)
+       , byteLength
        , hexToByteArray
        , byteArrayToHex
        , hexToByteArrayUnsafe
@@ -10,7 +11,7 @@ module Types.ByteArray
 where
 
 import Data.Maybe (Maybe(..))
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap)
 import Prelude
 import Data.ArrayBuffer.Types (Uint8Array)
 
@@ -58,3 +59,8 @@ foreign import hexToByteArrayUnsafe :: String -> ByteArray
 foreign import byteArrayFromIntArray :: Array Int -> ByteArray
 
 foreign import byteArrayToIntArray :: ByteArray -> Array Int
+
+foreign import _byteLength :: Uint8Array -> Int
+
+byteLength :: ByteArray -> Int
+byteLength = _byteLength <<< unwrap

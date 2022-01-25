@@ -69,6 +69,7 @@ import ProtocolParametersAlonzo
   , utxoEntrySizeWithoutVal
   )
 import Types.Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
+import Types.ByteArray (byteLength)
 import Types.Transaction
   ( Address
   , Credential(Credential)
@@ -96,8 +97,6 @@ import Types.Value
   , TokenName
   , Value(Value)
   )
-import UInt8Array (_byteLengthUint8Array)
-
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
 
@@ -610,7 +609,7 @@ size v = fromInt 6 + roundupBytesToWords b
     sumTokenNameLengths = Foldable.foldl lenAdd zero <<< allTokenNames
       where
         lenAdd :: BigInt -> TokenName -> BigInt
-        lenAdd = \c a -> c + (_byteLengthUint8Array <<< unwrap <<< unwrap $ a)
+        lenAdd = \c a -> c + (fromInt <<< byteLength <<< unwrap $ a)
 
 -- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#L116
 preBalanceTxBody

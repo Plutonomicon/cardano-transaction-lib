@@ -62,3 +62,7 @@ exports.hexToByteArrayUnsafe = hex => {
 exports.byteArrayFromIntArray = ints => new Uint8Array(ints);
 
 exports.byteArrayToIntArray = bytes => Array.from(bytes);
+
+// _byteLength :: Uint8Array -> BigInt
+exports._byteLength = bytes =>
+  Uint8Array.prototype.byteLength(bytes);
