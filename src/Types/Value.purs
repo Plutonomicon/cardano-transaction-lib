@@ -163,7 +163,7 @@ unflattenValue (curSymbol /\ tokenName /\ amount) =
 isAdaOnly :: Value -> Boolean
 isAdaOnly v =
   case flattenValue v of
-    (cs@(CurrencySymbol _) /\ tn@(TokenName _) /\ _) : Nil ->
+    (cs /\ tn /\ _) : Nil ->
       cs == CurrencySymbol mempty &&
       tn == TokenName mempty
     _ -> false
