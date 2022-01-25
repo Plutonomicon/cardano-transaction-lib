@@ -50,6 +50,8 @@ newtype RequiredSigner = RequiredSigner String
 newtype CurrencySymbol = CurrencySymbol ByteArray
 
 derive instance genericCurrencySymbol :: Generic CurrencySymbol _
+derive newtype instance eqCurrencySymbol :: Eq CurrencySymbol
+derive newtype instance ordCurrencySymbol :: Ord CurrencySymbol
 
 instance showCurrencySymbol :: Show CurrencySymbol where
   show = genericShow
@@ -57,6 +59,8 @@ instance showCurrencySymbol :: Show CurrencySymbol where
 newtype TokenName = TokenName ByteArray
 
 derive instance genericTokenName :: Generic TokenName _
+derive newtype instance eqTokenName :: Eq TokenName
+derive newtype instance ordTokenName :: Ord TokenName
 
 instance showTokenName :: Show TokenName where
   show = genericShow
