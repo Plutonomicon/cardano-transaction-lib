@@ -54,14 +54,20 @@ executable cardano-browser-tx-server
     , base
     , bytestring
     , cardano-api
+    , cardano-binary
     , containers
     , extra
+    , exceptions
     , mtl
     , plutus-tx
     , servant
     , servant-server
     , text
+    , wai-logger
+    , warp
 
   other-modules:
-    Types
     Api
+    Api.Fees
+    Types
+    Utils
