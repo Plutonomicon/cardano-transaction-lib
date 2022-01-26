@@ -4,17 +4,14 @@ import Prelude
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (ReaderT, ask)
 import Data.Argonaut as Json
-import Data.Bifunctor (bimap)
 import Data.Bitraversable (bitraverse)
-import Data.BigInt (BigInt, fromInt)
 import Data.Either(Either(..), either, isRight)
 import Data.Foldable (foldl)
 import Data.Map as Map
-import Data.Maybe (Maybe(..))
+import Data.Maybe (maybe, Maybe(..))
 import Data.Newtype (wrap)
 import Data.Traversable (sequence)
-import Data.Tuple.Nested ((/\), type (/\))
-import Data.UInt (toInt)
+import Data.Tuple.Nested (type (/\))
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(..), makeAff)
 import Effect.Aff.Class (liftAff)
@@ -26,7 +23,7 @@ import Effect.Ref as Ref
 import Helpers as Helpers
 import Types.ByteArray (hexToByteArray)
 import Types.JsonWsp (OgmiosAddress,  OgmiosTxOut, JsonWspResponse, mkUtxosAtQuery, parseJsonWspResponse, TxOutRef, UtxoQR(UtxoQR))
-import Types.Transaction (Address(Address), DataHash(DataHash), TransactionHash(TransactionHash), TransactionInput(TransactionInput), TransactionOutput(TransactionOutput), UtxoM(UtxoM))
+import Types.Transaction (Address, DataHash, TransactionInput, TransactionOutput, UtxoM(UtxoM))
 import Undefined (undefined)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
@@ -263,30 +260,25 @@ ogmiosAddressToAddress = undefined
 addressToOgmiosAddress :: Address -> Maybe OgmiosAddress
 addressToOgmiosAddress = undefined
 
--- TODO:
 datumToDataHash :: String -> Maybe DataHash
 datumToDataHash = undefined
 
 -- Maybe we prefer Either and more granular error handling.
 utxosAt' :: Address -> QueryM (Maybe UtxoM)
-utxosAt' addr' = do
-  mAddr <- pure $ addressToOgmiosAddress addr'
-  case mAddr of
-    Nothing -> pure Nothing
-    Just addr -> do
-      utxosAt addr <#>
-        \(UtxoQR utxoQueryResult) ->
-          let xs :: Array (TxOutRef /\ OgmiosTxOut)
-              xs = Map.toUnfoldable utxoQueryResult
-          in do
-                out :: Array (TransactionInput /\ TransactionOutput) <-
-                  sequence (bitraverse
-                    txOutRefToTransactionInput
-                    ogmiosTxOutToTransactionOutput <$> xs)
-                pure $ UtxoM $ Map.fromFoldable $ out
-
-txOutRefToTransactionInput' :: TxOutRef -> TransactionInput
-txOutRefToTransactionInput' = undefined
+utxosAt' addr = do
+  mAddr :: Maybe OgmiosAddress <- pure $ addressToOgmiosAddress addr
+  maybe (pure Nothing) convertUtxos mAddr
+  where
+    convertUtxos :: OgmiosAddress -> QueryM (Maybe UtxoM)
+    convertUtxos address = do
+      utxosAt address <#>
+        \(UtxoQR utxoQueryResult) -> do
+          out :: Array (TransactionInput /\ TransactionOutput) <-
+            Map.toUnfoldable utxoQueryResult <#>
+              bitraverse
+                txOutRefToTransactionInput
+                ogmiosTxOutToTransactionOutput # sequence
+          pure <<< UtxoM <<< Map.fromFoldable $ out
 
 -- I think txId is a hexadecimal encoding - is this safe?
 txOutRefToTransactionInput :: TxOutRef -> Maybe TransactionInput
