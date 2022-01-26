@@ -52,7 +52,9 @@ newtype CardanoBrowserServerError = FeeEstimate FeeError
 
 instance Exception CardanoBrowserServerError
 
-newtype FeeError = DecoderError Cbor.DecoderError
+data FeeError
+  = InvalidCbor Cbor.DecoderError
+  | InvalidHex String
   deriving stock (Show)
 
 instance Exception FeeError

@@ -53,6 +53,7 @@ executable cardano-browser-tx-server
   build-depends:
     , aeson
     , base
+    , base16-bytestring
     , bytestring
     , cardano-api
     , cardano-binary
