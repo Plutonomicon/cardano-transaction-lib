@@ -4,6 +4,7 @@ import Prelude
 import Control.Alt ((<|>))
 import Data.Argonaut (class DecodeJson, Json, JsonDecodeError(..), caseJsonArray, caseJsonNumber, caseJsonObject, caseJsonString, getField, decodeJson)
 import Data.Array (index)
+import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt as BigInt
 import Data.Either(Either(..), hush, note)
 import Data.Generic.Rep (class Generic)
@@ -107,19 +108,6 @@ parseFieldToString :: Object Json -> String -> Either JsonDecodeError String
 parseFieldToString o str = 
   caseJsonString (Left (TypeMismatch ("expected field: '" <> str <> "' as a String"))) Right =<< getField o str
 
--- parses the number at the given field to a bigint
--- danger: Because argonaut has already parsed this as a Json foreign, it may
--- already be a javascript 'number' type. if that number is not safely representable
--- then we may have already lost precision. we may need a bigint preprocessor on json if this is the case: Because argonaut has already parsed this as a Json foreign, it may
--- already be a javascript 'number' type. if that number is not safely representable
--- then we may have already lost precision. we may need a bigint preprocessor on json if this is the case.
-parseFieldToInt :: Object Json -> String -> Either JsonDecodeError BigInt.BigInt
-parseFieldToInt o str = do
-  let err = TypeMismatch $ "expected field: '" <> str <> "' as an Int"
-  num <- caseJsonNumber (Left err) Right =<< getField o str
-  int <- note err $ BigInt.fromNumber num
-  pure int
-
 -- parses a string at the given field to a BigInt
 parseFieldToBigInt :: Object Json -> String -> Either JsonDecodeError BigInt.BigInt
 parseFieldToBigInt o str = do
@@ -188,7 +176,7 @@ parseTxOutRef :: Json -> Either JsonDecodeError TxOutRef
 parseTxOutRef = jsonObject $ 
   (\o -> do
     txId <- parseFieldToString o "txId"
-    index <- parseFieldToInt o "index"
+    index <- parseFieldToBigInt o "index"
     pure { txId, index }
   )
 
@@ -217,13 +205,10 @@ parseTxOut = jsonObject $
 parseValue :: Object Json -> Either JsonDecodeError Value
 parseValue outer = do
   o <- getField outer "value"
-  coins <- parseFieldToBigInt o "coins" <|> (parseFieldToInt o "coins") <|> Left (TypeMismatch "Expected 'coins' to be an Int or a BigInt")
+  coins <- parseFieldToBigInt o "coins" <|> Left (TypeMismatch "Expected 'coins' to be an Int or a BigInt")
   (assetsJson :: {}) <- getField o "assets"
-  -- note 'coins' is being sent as a number, in some cases this may exceed the max safe 
-  -- representation of a Number, we may need to parse this up from a string instead of from 
-  -- the Argonaut 'Json' representation in order to prevent this.
-  -- there is probably a javascript library that has a custom parser we can use.
-
   -- assets are currently assumed to be empty
   -- newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
-  pure $ Value $ Map.singleton (CurrencySymbol "") (Map.singleton (TokenName "") coins)
+  pure $ Value $ Map.singleton (CurrencySymbol emptyUint8Array) (Map.singleton (TokenName emptyUint8Array) coins)
+
+foreign import emptyUint8Array :: Uint8Array
