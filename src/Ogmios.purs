@@ -267,18 +267,19 @@ datumToDataHash = undefined
 utxosAt' :: Address -> QueryM (Maybe UtxoM)
 utxosAt' addr = do
   mAddr :: Maybe OgmiosAddress <- pure $ addressToOgmiosAddress addr
-  maybe (pure Nothing) convertUtxos mAddr
+  maybe (pure Nothing) getUtxos mAddr
   where
-    convertUtxos :: OgmiosAddress -> QueryM (Maybe UtxoM)
-    convertUtxos address = do
-      utxosAt address <#>
-        \(UtxoQR utxoQueryResult) -> do
-          out :: Array (TransactionInput /\ TransactionOutput) <-
-            Map.toUnfoldable utxoQueryResult <#>
-              bitraverse
-                txOutRefToTransactionInput
-                ogmiosTxOutToTransactionOutput # sequence
-          pure <<< UtxoM <<< Map.fromFoldable $ out
+    getUtxos :: OgmiosAddress -> QueryM (Maybe UtxoM)
+    getUtxos address = utxosAt address <#> convertUtxos
+
+    convertUtxos :: UtxoQR -> Maybe UtxoM
+    convertUtxos (UtxoQR utxoQueryResult) = do
+      out :: Array (TransactionInput /\ TransactionOutput) <-
+        Map.toUnfoldable utxoQueryResult <#>
+          bitraverse
+            txOutRefToTransactionInput
+            ogmiosTxOutToTransactionOutput # sequence
+      pure <<< UtxoM <<< Map.fromFoldable $ out
 
 -- I think txId is a hexadecimal encoding - is this safe?
 txOutRefToTransactionInput :: TxOutRef -> Maybe TransactionInput

@@ -352,7 +352,8 @@ balanceTxM
   -> QueryM (Either BalanceTxFailure Transaction)
 balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
   utxos' :: Either BalanceTxFailure Utxo <-
-    (note (UtxosAtFailure' $ wrap CouldNotGetUtxos) <<< map unwrap) <$> utxosAt' ownAddr
+    utxosAt' ownAddr <#>
+      note (UtxosAtFailure' $ wrap CouldNotGetUtxos) >>> map unwrap
   case utxos' of
     Left err -> pure $ Left err
     Right utxos -> do
