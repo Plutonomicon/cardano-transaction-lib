@@ -1,4 +1,4 @@
-module Api (Api, appServer) where
+module Api (app) where
 
 import Api.Fees
 import Control.Monad.Catch (try)
@@ -16,15 +16,18 @@ import Servant (
   ServerError (errBody),
   err400,
   hoistServer,
-  type (:>),
+  type (:>), Application, serve
  )
 import Types
 import Utils
 
 type Api = "fees" :> Capture "tx" Cbor :> Post '[JSON] Fee
 
+app :: Env -> Application
+app = serve api . appServer
+
 appServer :: Env -> Server Api
-appServer env = hoistServer (Proxy @Api) appHandler server
+appServer env = hoistServer api appHandler server
   where
     appHandler :: AppM a -> Handler a
     appHandler (AppM x) = tryServer >>= either handleError pure
@@ -37,6 +40,9 @@ appServer env = hoistServer (Proxy @Api) appHandler server
     handleError :: CardanoBrowserServerError -> Handler a
     handleError (FeeEstimate fe) = case fe of
       DecoderError de -> throwError err400 {errBody = lbshow de}
+
+api :: Proxy Api
+api = Proxy @Api
 
 server :: ServerT Api AppM
 server = estimateTxFees
