@@ -12,11 +12,14 @@ import Cardano.Binary qualified as Cbor
 import Control.Exception (Exception)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.Reader (MonadReader, ReaderT (..))
+import Control.Monad.Reader (MonadReader, ReaderT)
 import Data.Aeson (ToJSON (..))
+import Data.Aeson qualified as Aeson
+import Data.Aeson.Encoding qualified as Aeson
 import Data.Text (Text)
 import GHC.Generics (Generic)
 import Servant (FromHttpApiData)
+import Utils (tshow)
 
 newtype AppM a = AppM (ReaderT Env IO a)
   deriving newtype
@@ -42,11 +45,13 @@ newtype Fee = Fee C.Lovelace
   deriving newtype (Eq)
 
 instance ToJSON Fee where
-  toJSON = undefined -- TODO
-  -- to avoid issues with integer parsing in PS,
-  -- this should probably return a JSON string,
-  -- and not a number
+  -- to avoid issues with integer parsing in PS, we should probably return
+  -- a JSON string, and not a number
+  toJSON (Fee (C.Lovelace int)) = Aeson.String $ tshow int
 
+  toEncoding (Fee (C.Lovelace int)) = Aeson.integerText int
+
+-- We'll probably extend this with more error types over time
 newtype CardanoBrowserServerError = FeeEstimate FeeError
   deriving stock (Show)
 
