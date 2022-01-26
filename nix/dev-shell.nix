@@ -26,7 +26,7 @@ pkgs.mkShell {
 
   shellHook = ''
     __ln-node-modules () {
-      local modules=./purescript/node_modules
+      local modules=./node_modules
       if test -L "$modules"; then
         rm "$modules";
       elif test -e "$modules"; then

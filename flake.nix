@@ -127,9 +127,9 @@
       psProjectFor = system:
         let
           pkgs = nixpkgsFor system;
-          src = ./purescript;
+          src = ./.;
         in
-        import ./purescript/nix {
+        import ./nix {
           inherit src pkgs inputs system self;
         };
       hsProjectFor = system:
