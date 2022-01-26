@@ -22,7 +22,6 @@ import Effect.Exception (Error, error)
 import Effect.Ref as Ref
 
 import Helpers as Helpers
-import Types.ByteArray (hexToByteArray)
 import Types.JsonWsp (OgmiosAddress,  OgmiosTxOut, JsonWspResponse, mkUtxosAtQuery, parseJsonWspResponse, TxOutRef, UtxoQR(UtxoQR))
 import Types.Transaction (Address(Address), DataHash(DataHash), TransactionHash(TransactionHash), TransactionInput(TransactionInput), TransactionOutput(TransactionOutput), UtxoM(UtxoM))
 import Undefined (undefined)
@@ -261,8 +260,12 @@ ogmiosAddressToAddress = undefined
 addressToOgmiosAddress :: Address -> OgmiosAddress
 addressToOgmiosAddress = undefined
 
--- TO DO: convert utxosAt from Ogmios to Transaction space.
--- Using hexToByteArray, is txId a hexadecimal string?
+txIdToTransactionId :: String -> TransactionHash
+txIdToTransactionId = undefined
+
+datumToDataHash :: String -> Maybe DataHash
+datumToDataHash = undefined
+
 utxosAt' :: Address -> QueryM UtxoM
 utxosAt' addr = utxosAt (addressToOgmiosAddress addr) <#>
   \(UtxoQR utxoQueryResult) ->
@@ -276,7 +279,7 @@ utxosAt' addr = utxosAt (addressToOgmiosAddress addr) <#>
 txOutRefToTransactionInput :: TxOutRef -> TransactionInput
 txOutRefToTransactionInput { txId, index } =
   wrap
-    { transaction_id: Just txId >>= hexToByteArray <#> wrap
+    { transaction_id: txIdToTransactionId txId
     , index
     }
 
@@ -285,5 +288,5 @@ ogmiosTxOutToTransactionOutput { address, value, datum } =
   wrap
     { address: ogmiosAddressToAddress address
     , amount: value
-    , data_hash: datum >>= hexToByteArray <#> wrap
+    , data_hash: datum >>= datumToDataHash
     }

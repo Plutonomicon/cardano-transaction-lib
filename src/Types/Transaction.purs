@@ -256,7 +256,7 @@ data NativeScript
 derive instance eqNativeScript :: Eq NativeScript
 
 newtype TransactionInput = TransactionInput
-  { transaction_id :: Maybe TransactionHash
+  { transaction_id :: TransactionHash
   , index :: UInt
   }
 derive instance newtypeTransactionInput :: Newtype TransactionInput _

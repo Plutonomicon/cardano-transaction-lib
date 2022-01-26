@@ -46,7 +46,7 @@ module BalanceTx
 import Prelude
 import Data.Array ((\\), findIndex, modifyAt)
 import Data.Array as Array
-import Data.Bifunctor (bimap, lmap)
+import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt, quot)
 import Data.Either (Either(Left, Right), hush, note)
 import Data.Foldable as Foldable
@@ -69,20 +69,18 @@ import ProtocolParametersAlonzo
   , utxoEntrySizeWithoutVal
   )
 import Types.Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
-import Types.ByteArray (byteLength, hexToByteArray)
-import Types.JsonWsp (OgmiosAddress, OgmiosTxOut(..), TxOutRef(..), UtxoQR(UtxoQR))
+import Types.ByteArray (byteLength)
 import Types.Transaction
   ( Address
   , Credential(Credential)
-  , DataHash(DataHash)
+  , DataHash
   , RequiredSigner
   , Transaction(Transaction)
-  , TransactionHash(TransactionHash)
-  , TransactionInput(TransactionInput)
+  , TransactionInput
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
   , Utxo
-  , UtxoM(UtxoM)
+  , UtxoM
   )
 import Types.Value
   ( allTokenNames
