@@ -158,19 +158,21 @@ data NetworkId
 
 newtype RequiredSigner = RequiredSigner String
 
-newtype CurrencySymbol = CurrencySymbol String
+newtype CurrencySymbol = CurrencySymbol Uint8Array
 
 derive instance genericCurrencySymbol :: Generic CurrencySymbol _
 
 instance showCurrencySymbol :: Show CurrencySymbol where
-  show = genericShow
+  show (CurrencySymbol symbol) = showUint8Array symbol
 
-newtype TokenName = TokenName String
+newtype TokenName = TokenName Uint8Array
 
 derive instance genericTokenName :: Generic TokenName _
 
+foreign import showUint8Array :: Uint8Array -> String
+
 instance showTokenName :: Show TokenName where
-  show = genericShow
+  show (TokenName name) = showUint8Array name
 
 newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
 
@@ -232,15 +234,21 @@ newtype TransactionInput = TransactionInput
   , index :: UInt
   }
 
-newtype TransactionHash = TransactionHash String
-
 newtype TransactionOutput = TransactionOutput
   { address :: Address,
     amount :: Value,
     data_hash :: Maybe DataHash
   }
 
-newtype DataHash = DataHash String
+newtype TransactionHash = TransactionHash Uint8Array
+
+instance showTransactionHash :: Show TransactionHash where
+  show (TransactionHash hash) = showUint8Array hash
+
+newtype DataHash = DataHash Uint8Array
+
+instance showDataHash :: Show DataHash where
+  show (DataHash hash) = showUint8Array hash
 
 newtype Coin = Coin BigInt.BigInt
 
@@ -256,4 +264,56 @@ newtype BaseAddress = BaseAddress
     payment :: Credential
   }
 
-newtype Credential = Credential String
+newtype Credential = Credential Uint8Array
+
+-- Addresspub struct Address(AddrType);
+-- AddrType 
+-- enum AddrType {
+    -- Base(BaseAddress),
+    -- Ptr(PointerAddress),
+    -- Enterprise(EnterpriseAddress),
+    -- Reward(RewardAddress),
+    -- Byron(ByronAddress),
+-- }
+-- pub struct BaseAddress {
+    -- network: u8,
+    -- payment: StakeCredential,
+    -- stake: StakeCredential,
+-- }
+-- pub struct StakeCredential(StakeCredType); 
+-- Both of these are strings:
+-- enum StakeCredType {
+    -- Key(Ed25519KeyHash),
+    -- Script(ScriptHash),
+-- }
+
+-- Option<Certificates>,
+  -- these are the constructors, but this will generally be an Empty Option in our initial efforts
+    -- StakeRegistration(StakeRegistration),
+    -- StakeDeregistration(StakeDeregistration),
+    -- StakeDelegation(StakeDelegation),
+    -- PoolRegistration(PoolRegistration),
+    -- PoolRetirement(PoolRetirement),
+    -- GenesisKeyDelegation(GenesisKeyDelegation),
+    -- MoveInstantaneousRewardsCert(MoveInstantaneousRewardsCert),
+
+-- Option<Withdrawals>,
+  -- also mainly empty to start
+  -- pub struct RewardAddress {
+    -- network: u8,
+    -- payment: StakeCredential,
+-- Option<Update>,
+  -- again this will be empty
+-- pub struct Update {
+    -- proposed_protocol_parameter_updates: ProposedProtocolParameterUpdates,
+    -- epoch: Epoch,
+-- }
+-- Option<AuxiliaryDataHash> -- String
+-- Option<Slot> -- Intege
+-- Option<Mint> -- BTreeMap PolicyId MintAssets
+  -- MintAssets :: BTreeMap AssetName Int32
+-- Option<ScriptDataHash> -- String
+-- Option<TransactionInputs> -- for collateral
+-- Option<RequiredSigners> -- Array String (Ed25519 signatures)
+-- Option<NetworkId>
+--  { networkIdKind :: Testnet | Mainnet }

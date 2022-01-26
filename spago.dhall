@@ -3,30 +3,34 @@ Welcome to a Spago project!
 You can edit this file as you like.
 -}
 { name = "my-project"
-, dependencies = 
+, dependencies =
   [ "aff"
+  , "argonaut"
   , "arraybuffer-types"
   , "arrays"
-  , "argonaut"
   , "bigints"
   , "console"
   , "const"
   , "control"
   , "debug"
-  , "either"
   , "effect"
+  , "either"
   , "exceptions"
   , "foldable-traversable"
   , "foreign-object"
+  , "gen"
   , "identity"
   , "maybe"
   , "medea"
   , "mote"
   , "node-buffer"
   , "node-fs-aff"
+  , "node-path"
+  , "nonempty"
   , "ordered-collections"
   , "prelude"
   , "psci-support"
+  , "quickcheck"
   , "rationals"
   , "refs"
   , "spec"
@@ -38,8 +42,5 @@ You can edit this file as you like.
   , "unordered-collections"
   ]
 , packages = ./packages.dhall
-, sources =
-  [ "src/**/*.purs"
-  , "test/**/*.purs"
-  ]
+, sources = [ "src/**/*.purs", "test/**/*.purs" ]
 }
