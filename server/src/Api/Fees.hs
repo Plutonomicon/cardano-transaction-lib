@@ -16,16 +16,14 @@ estimateTxFees cbor = do
   pure . Fee $ estimateFee protocolParams decoded
 
 estimateFee :: C.ProtocolParameters -> C.Tx C.AlonzoEra -> C.Lovelace
-estimateFee pparams tx =
-  C.estimateTransactionFee
-    undefined -- TODO network ID
-    (C.protocolParamTxFeeFixed pparams)
-    (C.protocolParamTxFeePerByte pparams)
-    tx
-    undefined -- TODO num. inputs
-    undefined -- TODO num. outputs
-    undefined -- TODO num. byron key wits
-    undefined -- TODO num. shelley key wits
+estimateFee pparams (C.Tx txBody keyWits) =
+  C.evaluateTransactionFee
+    pparams
+    txBody
+    0 -- No. of Byron key witnesses; there shouldn't be any of these and
+    -- 'evaluateTransactionFee' won't work with these anyway
+    . fromIntegral
+    $ length keyWits -- No. of Shelley key witnesses
 
 decodeCborTx :: Cbor -> Either Cbor.DecoderError (C.Tx C.AlonzoEra)
 decodeCborTx (Cbor txt) =
