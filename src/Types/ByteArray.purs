@@ -38,7 +38,7 @@ instance semigroupByteArray :: Semigroup ByteArray where
 instance monoidByteArray :: Monoid ByteArray where
   mempty = byteArrayFromIntArrayUnsafe []
 
-foreign import ord_ :: forall a. (Int -> Int -> Int) -> ByteArray -> ByteArray -> Int
+foreign import ord_ :: (Int -> Int -> Int) -> ByteArray -> ByteArray -> Int
 
 foreign import concat_ :: ByteArray -> ByteArray -> ByteArray
 

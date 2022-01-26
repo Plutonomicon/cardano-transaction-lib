@@ -2,18 +2,15 @@ module Types.Transaction where
 
 import Prelude
 import Data.BigInt as BigInt
-import Data.Maybe (Maybe)
-import Data.Tuple.Nested (type (/\))
-import Data.Map (Map)
 import Data.Generic.Rep (class Generic)
 import Data.HashMap (HashMap)
-import Data.Maybe (Maybe)
 import Data.Map (Map)
-import Data.Show.Generic (genericShow)
-import Types.ByteArray (ByteArray)
+import Data.Maybe (Maybe)
 import Data.Rational (Rational)
+import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
+import Types.ByteArray (ByteArray)
 import Types.RedeemerTag (RedeemerTag)
 
 -- note: these types are derived from the cardano-serialization-lib Sundae fork
