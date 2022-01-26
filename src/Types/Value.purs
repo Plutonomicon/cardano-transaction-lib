@@ -44,7 +44,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Types.ByteArray (ByteArray)
 
 -- This module rewrites functionality from:
--- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
+-- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value
 
 newtype CurrencySymbol = CurrencySymbol ByteArray
@@ -154,7 +154,7 @@ flattenValue v = do
     guard $ a /= zero
     pure $ cs /\ tn /\ a
 
--- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
+-- From https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 unflattenValue :: CurrencySymbol /\ TokenName /\ BigInt -> Value
 unflattenValue (curSymbol /\ tokenName /\ amount) =
   Value <<< Map.singleton curSymbol <<< Map.singleton tokenName $ amount
@@ -171,7 +171,7 @@ isAdaOnly v =
 emptyValue :: Value
 emptyValue = Value $ Map.empty
 
--- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
+-- From https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 minus :: Value -> Value -> Value
 minus x y =
   let negativeValues :: List (CurrencySymbol /\ TokenName /\ BigInt)
@@ -179,7 +179,7 @@ minus x y =
         (\(c /\ t /\ a) -> c /\ t /\ negate a)
    in x <> foldMap unflattenValue negativeValues
 
--- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
+-- From https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- "isValueNat" uses flattenValue which guards against zeros, so non-strict
 -- inequality is redundant. So we use strict equality instead.
 isPos :: Value -> Boolean

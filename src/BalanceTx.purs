@@ -101,7 +101,7 @@ import Types.Value
   , Value(Value)
   )
 -- This module replicates functionality from
--- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
+-- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 
 --------------------------------------------------------------------------------
 -- Errors for Balancing functions
@@ -344,7 +344,7 @@ signBy = undefined
 --------------------------------------------------------------------------------
 -- Balancing functions and helpers
 --------------------------------------------------------------------------------
--- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#54
+-- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L54
 -- | Balances an unbalanced transaction
 balanceTxM
   :: Address
@@ -626,7 +626,7 @@ size v = fromInt 6 + roundupBytesToWords b
         lenAdd :: BigInt -> TokenName -> BigInt
         lenAdd = \c a -> c + (fromInt <<< byteLength <<< unwrap $ a)
 
--- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#L116
+-- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L116
 preBalanceTxBody
   :: MinUtxos
   -> BigInt
@@ -649,7 +649,7 @@ addTxCollaterals :: Utxo -> TxBody -> Either BalanceTxFailure TxBody
 addTxCollaterals utxo txBody =
   addTxCollaterals' utxo txBody # lmap AddTxCollateralsFailure'
 
--- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#L211
+-- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L211
 -- | Pick a collateral from the utxo map and add it to the unbalanced transaction
 -- (suboptimally we just pick a random utxo from the tx inputs). TO DO: upgrade
 -- to a better coin selection algorithm.
@@ -684,7 +684,7 @@ addTxCollaterals' utxos (TxBody txBody) = do
 --   case addressCredential (txOutAddress txOut) of
 --     PubKeyCredential _ -> Right $ Tx.pubKeyTxIn txOutRef
 --     ScriptCredential _ -> Left "Cannot covert a script output to TxIn"
--- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
+-- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 toEitherTransactionInput
   :: TransactionInput /\ TransactionOutput
   -> Either ToEitherTransactionInputFailure TransactionInput
@@ -708,7 +708,7 @@ balanceTxIns :: Utxo -> BigInt -> TxBody -> Either BalanceTxFailure TxBody
 balanceTxIns utxos fees txbody =
   balanceTxIns' utxos fees txbody # lmap BalanceTxInsFailure'
 
--- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
+-- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- Notice we aren't using protocol parameters for utxo cost per word.
 balanceTxIns' :: Utxo -> BigInt -> TxBody -> Either BalanceTxInsFailure TxBody
 balanceTxIns' utxos fees (TxBody txBody) = do
@@ -746,7 +746,7 @@ balanceTxIns' utxos fees (TxBody txBody) = do
       { inputs = Array.union txIns txBody.inputs
       }
 
--- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
+--https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- | Getting the necessary input utxos to cover the fees for the transaction
 collectTxIns
   :: Array TransactionInput
@@ -797,7 +797,7 @@ balanceNonAdaOuts changeAddr utxos txBody =
   balanceNonAdaOuts' changeAddr utxos txBody # lmap BalanceNonAdaOutsFailure'
 
 -- FIX ME: (payment credential) address for change substitute for pkh (Address)
--- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#L225
+-- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L225
 -- | We need to balance non ada values as part of the prebalancer before returning
 -- | excess Ada to the owner.
 balanceNonAdaOuts'
@@ -887,7 +887,7 @@ addLovelaces minLovelaces (TxBody txBody) =
            ) txBody.outputs
    in wrap txBody { outputs = lovelacesAdded }
 
--- From https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs
+-- From https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- | Filter a value to contain only non Ada assets
 filterNonAda :: Value -> Value
 filterNonAda =
@@ -906,7 +906,7 @@ addSignatories ownAddr privKeys requiredSigners txBody =
   addSignatories' ownAddr privKeys requiredSigners txBody
     # lmap AddSignatoriesFailure'
 
--- https://github.com/mlabs-haskell/mlabs-pab/blob/master/src/MLabsPAB/PreBalance.hs#L251
+-- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L251
 -- | Add the required signatories to the txBody.
 addSignatories'
   :: Address
