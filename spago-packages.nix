@@ -209,6 +209,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "debug" = pkgs.stdenv.mkDerivation {
+        name = "debug";
+        version = "v5.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/garyb/purescript-debug.git";
+          rev = "144305842dba81169a93b3a3cc75429d5c8389e9";
+          sha256 = "09j69bgrq8nzw1l3aj1hka3y5ycmcsn9dlgf22k5ifrd74iic60y";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "distributive" = pkgs.stdenv.mkDerivation {
         name = "distributive";
         version = "v5.0.0";
@@ -833,6 +845,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "rationals" = pkgs.stdenv.mkDerivation {
+        name = "rationals";
+        version = "v5.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/anttih/purescript-rationals.git";
+          rev = "8c52d8cc891d1223150a31416220aa9b99404442";
+          sha256 = "1idvjvvx5kwmi8kj2ps95bcvlsgij1xgin4jfw3rmcqd930wqq6q";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "record" = pkgs.stdenv.mkDerivation {
         name = "record";
         version = "v3.0.0";
@@ -996,6 +1020,30 @@ let
           url = "https://github.com/purescript/purescript-typelevel-prelude.git";
           rev = "83ddcdb23d06c8d5ea6196596a70438f42cd4afd";
           sha256 = "1vwf3yhn8mir5y41wvlyszkgd5fxvrcyfd0l8cn20c8vfq36yzgk";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "uint" = pkgs.stdenv.mkDerivation {
+        name = "uint";
+        version = "v6.0.3";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-uint.git";
+          rev = "17fda2aff989ad7fa9f29171bf4c1196ca9ed504";
+          sha256 = "1lwbkwc3yj0d5qmw7gni924wj47npgy1aqbc0ika4phc4q0shw8d";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "undefined" = pkgs.stdenv.mkDerivation {
+        name = "undefined";
+        version = "v1.0.2";
+        src = pkgs.fetchgit {
+          url = "https://github.com/bklaric/purescript-undefined.git";
+          rev = "4012dc06b58feae301140bc081135d0f24c432b0";
+          sha256 = "0kj504j3r9wr7m3yhm53bcfdzai0c2g99d2pdxlfinxk4pmixyrd";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

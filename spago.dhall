@@ -31,11 +31,15 @@ You can edit this file as you like.
   , "prelude"
   , "psci-support"
   , "quickcheck"
+  , "rationals"
   , "refs"
   , "spec"
   , "strings"
-  , "transformers"
+  , "transformers" 
   , "tuples"
+  , "uint"
+  , "undefined"
+  , "unordered-collections"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]
