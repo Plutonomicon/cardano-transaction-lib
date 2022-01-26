@@ -6,7 +6,9 @@ import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (runReaderT)
 import Servant (
+  Application,
   Capture,
+  Get,
   Handler,
   HasServer (ServerT),
   JSON,
@@ -16,12 +18,13 @@ import Servant (
   ServerError (errBody),
   err400,
   hoistServer,
-  type (:>), Application, serve
+  serve,
+  type (:>),
  )
 import Types
 import Utils
 
-type Api = "fees" :> Capture "tx" Cbor :> Post '[JSON] Fee
+type Api = "fees" :> Capture "tx" Cbor :> Get '[JSON] Fee
 
 app :: Env -> Application
 app = serve api . appServer
