@@ -5,12 +5,14 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (ReaderT, ask)
 import Data.Argonaut as Json
 import Data.Bifunctor (bimap)
+import Data.Bitraversable (bitraverse)
 import Data.BigInt (BigInt, fromInt)
 import Data.Either(Either(..), either, isRight)
 import Data.Foldable (foldl)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.Newtype (wrap)
+import Data.Traversable (sequence)
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (toInt)
 import Effect (Effect)
@@ -22,6 +24,7 @@ import Effect.Exception (Error, error)
 import Effect.Ref as Ref
 
 import Helpers as Helpers
+import Types.ByteArray (hexToByteArray)
 import Types.JsonWsp (OgmiosAddress,  OgmiosTxOut, JsonWspResponse, mkUtxosAtQuery, parseJsonWspResponse, TxOutRef, UtxoQR(UtxoQR))
 import Types.Transaction (Address(Address), DataHash(DataHash), TransactionHash(TransactionHash), TransactionInput(TransactionInput), TransactionOutput(TransactionOutput), UtxoM(UtxoM))
 import Undefined (undefined)
@@ -253,40 +256,52 @@ messageFoldF msg acc' func = do
 --------------------------------------------------------------------------------
 -- Is this even possible? OgmiosAddress is a bech32|base58 string whilst the
 -- latter is far more complex.
-ogmiosAddressToAddress :: OgmiosAddress -> Address
+ogmiosAddressToAddress :: OgmiosAddress -> Maybe Address
 ogmiosAddressToAddress = undefined
 
 -- This direction might be possible.
-addressToOgmiosAddress :: Address -> OgmiosAddress
+addressToOgmiosAddress :: Address -> Maybe OgmiosAddress
 addressToOgmiosAddress = undefined
 
-txIdToTransactionId :: String -> TransactionHash
-txIdToTransactionId = undefined
-
+-- TODO:
 datumToDataHash :: String -> Maybe DataHash
 datumToDataHash = undefined
 
-utxosAt' :: Address -> QueryM UtxoM
-utxosAt' addr = utxosAt (addressToOgmiosAddress addr) <#>
-  \(UtxoQR utxoQueryResult) ->
-    let xs :: Array (TxOutRef /\ OgmiosTxOut)
-        xs = Map.toUnfoldable utxoQueryResult
-     in UtxoM $ Map.fromFoldable $
-          bimap
-            txOutRefToTransactionInput
-            ogmiosTxOutToTransactionOutput <$> xs
+-- Maybe we prefer Either and more granular error handling.
+utxosAt' :: Address -> QueryM (Maybe UtxoM)
+utxosAt' addr' = do
+  mAddr <- pure $ addressToOgmiosAddress addr'
+  case mAddr of
+    Nothing -> pure Nothing
+    Just addr -> do
+      utxosAt addr <#>
+        \(UtxoQR utxoQueryResult) ->
+          let xs :: Array (TxOutRef /\ OgmiosTxOut)
+              xs = Map.toUnfoldable utxoQueryResult
+          in do
+                out :: Array (TransactionInput /\ TransactionOutput) <-
+                  sequence (bitraverse
+                    txOutRefToTransactionInput
+                    ogmiosTxOutToTransactionOutput <$> xs)
+                pure $ UtxoM $ Map.fromFoldable $ out
 
-txOutRefToTransactionInput :: TxOutRef -> TransactionInput
-txOutRefToTransactionInput { txId, index } =
-  wrap
-    { transaction_id: txIdToTransactionId txId
+txOutRefToTransactionInput' :: TxOutRef -> TransactionInput
+txOutRefToTransactionInput' = undefined
+
+-- I think txId is a hexadecimal encoding - is this safe?
+txOutRefToTransactionInput :: TxOutRef -> Maybe TransactionInput
+txOutRefToTransactionInput { txId, index } = do
+  transaction_id <- hexToByteArray txId <#> wrap
+  pure $ wrap
+    { transaction_id
     , index
     }
 
-ogmiosTxOutToTransactionOutput :: OgmiosTxOut -> TransactionOutput
-ogmiosTxOutToTransactionOutput { address, value, datum } =
-  wrap
-    { address: ogmiosAddressToAddress address
+ogmiosTxOutToTransactionOutput :: OgmiosTxOut -> Maybe TransactionOutput
+ogmiosTxOutToTransactionOutput { address: address', value, datum } = do
+  address <- ogmiosAddressToAddress address'
+  pure $ wrap
+    { address
     , amount: value
     , data_hash: datum >>= datumToDataHash
     }

@@ -16,6 +16,7 @@ module BalanceTx
       , CalculateMinFeeFailure'
       , ReturnAdaChangeFailure'
       , ToEitherTransactionInputFailure'
+      , UtxosAtFailure'
       )
   , BalanceTxInsFailure(BalanceTxInsFailure)
   , BalanceTxInsFailureReason(InsufficientTxInputs)
@@ -39,6 +40,8 @@ module BalanceTx
   , ToEitherTransactionInputFailure(ToEitherTransactionInputFailure)
   , ToEitherTransactionInputFailureReason(CannotConvertOutputToTxInput)
   , UnbalancedTransaction(UnbalancedTransaction)
+  , UtxosAtFailure(UtxosAtFailure)
+  , UtxosAtFailureReason(CouldNotGetUtxos)
   , balanceTxM -- Transaction balancer function
   )
   where
@@ -106,7 +109,8 @@ import Types.Value
 -- These derivations may need tweaking when testing to make sure they are easy
 -- to read, especially with generic show vs newtype show derivations.
 data BalanceTxFailure
-  = BalanceTxMFailure' BalanceTxMFailure
+  = UtxosAtFailure' UtxosAtFailure
+  | BalanceTxMFailure' BalanceTxMFailure
   | ReturnAdaChangeFailure' ReturnAdaChangeFailure
   | AddTxCollateralsFailure' AddTxCollateralsFailure
   | ToEitherTransactionInputFailure' ToEitherTransactionInputFailure
@@ -119,6 +123,16 @@ derive instance genericBalanceTxFailure :: Generic BalanceTxFailure _
 
 instance showBalanceTxFailure :: Show BalanceTxFailure where
   show = genericShow
+
+newtype UtxosAtFailure = UtxosAtFailure UtxosAtFailureReason
+derive instance newtypeUtxosAtFailure :: Newtype UtxosAtFailure _
+derive newtype instance showUtxosAtFailure :: Show UtxosAtFailure
+
+data UtxosAtFailureReason
+  = CouldNotGetUtxos
+
+instance showUtxosAtFailureReason :: Show UtxosAtFailureReason where
+  show CouldNotGetUtxos = "Couldn't get utxos at address."
 
 newtype BalanceTxMFailure = BalanceTxMFailure BalanceTxMFailureReason
 derive instance newtypeBalanceTxMFailure :: Newtype BalanceTxMFailure _
@@ -337,23 +351,27 @@ balanceTxM
   -> UnbalancedTransaction
   -> QueryM (Either BalanceTxFailure Transaction)
 balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
-  utxos :: Utxo <- unwrap <$> utxosAt' ownAddr
-  privKeys :: Map.Map Address PrivateKey <- getPrivKeys
-  let -- Combines utxos at the user address and those from any scripts involved
-      -- with the contract.
-      utxoIndex' :: Utxo
-      utxoIndex' = utxos `Map.union` unwrap utxoIndex
+  utxos' :: Either BalanceTxFailure Utxo <-
+    (note (UtxosAtFailure' $ wrap CouldNotGetUtxos) <<< map unwrap) <$> utxosAt' ownAddr
+  case utxos' of
+    Left err -> pure $ Left err
+    Right utxos -> do
+      privKeys :: Map.Map Address PrivateKey <- getPrivKeys
+      let -- Combines utxos at the user address and those from any scripts involved
+          -- with the contract.
+          utxoIndex' :: Utxo
+          utxoIndex' = utxos `Map.union` unwrap utxoIndex
 
-  case (unwrap (unwrap unbalancedTx).body).required_signers of
-    Nothing -> pure $ Left $ BalanceTxMFailure' $ wrap UnknownRequiredSigners
-    Just requiredSigners -> do
-      prebalancedTx' :: Either BalanceTxFailure Transaction <-
-        loop utxoIndex' ownAddr privKeys requiredSigners [] unbalancedTx
-      pure do
-        prebalancedTx :: Transaction <- prebalancedTx'
-        lmap ReturnAdaChangeFailure' $
-          returnAdaChange ownAddr utxoIndex' prebalancedTx
-  where
+      case (unwrap (unwrap unbalancedTx).body).required_signers of
+        Nothing -> pure $ Left $ BalanceTxMFailure' $ wrap UnknownRequiredSigners
+        Just requiredSigners -> do
+          prebalancedTx' :: Either BalanceTxFailure Transaction <-
+            loop utxoIndex' ownAddr privKeys requiredSigners [] unbalancedTx
+          pure do
+            prebalancedTx :: Transaction <- prebalancedTx'
+            lmap ReturnAdaChangeFailure' $
+              returnAdaChange ownAddr utxoIndex' prebalancedTx
+    where
     loop ::
       Utxo ->
       Address ->
