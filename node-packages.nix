@@ -49,6 +49,15 @@ let
         sha512 = "zpchZLNsNuzJHi6v64UBoFWAvQlPhch7XAi36FkH6tL1bbbmimIF+cS7vwkzY4u5RaSWMoflQfu+TshMPPw8uw==";
       };
     };
+    "bech32-2.0.0" = {
+      name = "bech32";
+      packageName = "bech32";
+      version = "2.0.0";
+      src = fetchurl {
+        url = "https://registry.npmjs.org/bech32/-/bech32-2.0.0.tgz";
+        sha512 = "LcknSilhIGatDAsY1ak2I8VtGaHNhgMSYVxFrGLXv+xLHytaKZKcaUJJUE7qmBr7h33o5YQwP55pMI0xmkpJwg==";
+      };
+    };
     "big-integer-1.6.51" = {
       name = "big-integer";
       packageName = "big-integer";
@@ -199,6 +208,7 @@ let
         ];
       })
       sources."@emurgo/cardano-serialization-lib-nodejs-9.1.4"
+      sources."bech32-2.0.0"
       sources."big-integer-1.6.51"
       (sources."bufferutil-4.0.5" // {
         dependencies = [
