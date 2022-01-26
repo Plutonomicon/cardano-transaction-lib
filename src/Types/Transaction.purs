@@ -6,9 +6,19 @@ import Data.Maybe (Maybe)
 import Data.Tuple.Nested (type (/\))
 import Data.Map (Map)
 import Data.Generic.Rep (class Generic)
+import Data.HashMap (HashMap)
+import Data.Maybe (Maybe)
+import Data.Map (Map)
 import Data.Show.Generic (genericShow)
 import Types.ByteArray (ByteArray)
+import Data.Rational (Rational)
+import Data.Tuple.Nested (type (/\))
+import Data.UInt (UInt)
+import Types.RedeemerTag (RedeemerTag)
 
+-- note: these types are derived from the cardano-serialization-lib Sundae fork
+-- the source of truth for these types should be that library and the
+-- corresponding Rust types
 newtype Transaction = Transaction {
   body :: TxBody,
   witness_set :: TransactionWitnessSet,
@@ -21,28 +31,132 @@ newtype TxBody = TxBody
     outputs :: Array TransactionOutput,
     fee :: Coin,
     ttl :: Maybe Slot,
-    certs :: Maybe Unit, -- Certificates,
-    withdrawals :: Maybe Unit, -- Withdrawals,
-    update :: Maybe Unit, -- Update,
-    auxiliary_data_hash :: Maybe String, -- AuxiliaryDataHash, - script hashes
+    certs :: Maybe (Array Certificate),
+    withdrawals :: Maybe (Map RewardAddress Coin),
+    update :: Maybe Update,
+    auxiliary_data_hash :: Maybe AuxiliaryDataHash,
     validity_start_interval :: Maybe Slot,
-    mint :: Maybe Value, -- Mint
-    script_data_hash :: Maybe String, -- ScriptDataHash,
+    mint :: Maybe Mint,
+    script_data_hash :: Maybe ScriptDataHash,
     collateral :: Maybe (Array TransactionInput),
     required_signers :: Maybe (Array RequiredSigner),
     network_id :: Maybe NetworkId
 }
 
+newtype ScriptDataHash = ScriptDataHash String
+
+newtype Mint = Mint Value
+
+newtype AuxiliaryDataHash = AuxiliaryDataHash String
+
+type Update =
+  { proposed_protocol_parameter_updates :: ProposedProtocolParameterUpdates
+  , epoch :: Epoch
+  }
+
+newtype ProposedProtocolParameterUpdates
+  = ProposedProtocolParameterUpdates (Map GenesisHash ProtocolParamUpdate)
+
+newtype GenesisHash = GenesisHash String
+
+type ProtocolParamUpdate =
+  { minfee_a :: Maybe Coin,
+    minfee_b :: Maybe Coin,
+    max_block_body_size :: Maybe UInt,
+    max_tx_size :: Maybe UInt,
+    max_block_header_size :: Maybe UInt,
+    key_deposit :: Maybe Coin,
+    pool_deposit :: Maybe Coin,
+    max_epoch :: Maybe Epoch,
+    n_opt :: Maybe UInt,
+    pool_pledge_influence :: Maybe Rational,
+    expansion_rate :: Maybe UnitInterval,
+    treasury_growth_rate :: Maybe UnitInterval,
+    d :: Maybe UnitInterval,
+    extra_entropy :: Maybe Nonce,
+    protocol_version :: Maybe (Array ProtocolVersion),
+    min_pool_cost :: Maybe Coin,
+    ada_per_utxo_byte :: Maybe Coin,
+    cost_models :: Maybe Costmdls,
+    execution_costs :: Maybe ExUnitPrices,
+    max_tx_ex_units :: Maybe ExUnits,
+    max_block_ex_units :: Maybe ExUnits,
+    max_value_size :: Maybe UInt
+  }
+
+type ExUnitPrices =
+  { mem_price :: SubCoin
+  , step_price :: SubCoin
+  }
+
+type ExUnits =
+  { mem :: BigInt.BigInt
+  , steps :: BigInt.BigInt
+  }
+
+type SubCoin = UnitInterval
+
+type RewardAddress =
+  { network :: UInt
+  , payment :: StakeCredential
+  }
+
+data StakeCredential
+  = Key Ed25519KeyHash
+  | Script ScriptHash
+
+newtype Ed25519KeyHash = Ed25519KeyHash String
+
+newtype ScriptHash = ScriptHash String
+
+newtype Costmdls = Costmdls (Map Language CostModel)
+
+data Language = PlutusV1
+
+newtype CostModel = CostModel (Array UInt)
+
+type ProtocolVersion =
+  { major :: UInt
+  , minor :: UInt
+  }
+
+newtype Nonce = Nonce String
+
+type UnitInterval =
+  { numerator :: BigInt.BigInt
+  , denominator :: BigInt.BigInt
+  }
+
+newtype Epoch = Epoch UInt
+
+data Certificate
+  = StakeRegistration
+  | StakeDeregistration
+  | StakeDelegation
+  | PoolRegistration
+  | PoolRetirement
+  | GenesisKeyDelegation
+  | MoveInstantaneousRewardsCert
+
 newtype TransactionWitnessSet = TransactionWitnessSet
   { vkeys :: Maybe (Array Vkeywitness),
-    native_scripts :: Maybe Unit, -- NativeScripts,
-    bootstraps :: Maybe Unit, -- BootstrapWitnesses,
+    native_scripts :: Maybe (Array NativeScript),
+    bootstraps :: Maybe (Array BootstrapWitness),
     plutus_scripts :: Maybe (Array PlutusScript),
     plutus_data :: Maybe (Array PlutusData),
     redeemers :: Maybe (Array Redeemer)
   }
 
-newtype NetworkId = NetworkId Int
+type BootstrapWitness =
+  { vkey :: Vkey
+  , signature :: Ed25519Signature
+  , chain_code :: ByteArray
+  , attributes :: ByteArray
+  }
+
+data NetworkId
+  = Mainnet
+  | Testnet
 
 newtype RequiredSigner = RequiredSigner String
 
@@ -79,12 +193,10 @@ newtype Ed25519Signature = Ed25519Signature String -- (bech32)
 
 newtype PlutusScript = PlutusScript String
 
-newtype PlutusData = PlutusData String 
--- TODO - we need a capability to encode/decode Datum from/to serialized format
--- see `makeIsDataIndexed` 
+newtype PlutusData = PlutusData String
 
 newtype Redeemer = Redeemer
-  { tag :: RedeemerTag, -- ScriptPurpose: 'spending' 'minting' etc
+  { tag :: RedeemerTag,
     index :: BigInt.BigInt,
     data :: PlutusData,
     ex_units :: (MemExUnits /\ CpuExUnits)
@@ -94,14 +206,36 @@ newtype MemExUnits = MemExUnits BigInt.BigInt
 
 newtype CpuExUnits = CpuExUnits BigInt.BigInt
 
-data RedeemerTag = Spend | Mint | Cert | Reward
 
-type AuxiliaryData = Unit -- this is big and weird in serialization-lib
+type AuxiliaryData =
+  { metadata :: Maybe GeneralTransactionMetadata
+  , native_scripts :: Maybe (Array NativeScript)
+  , plutus_scripts :: Maybe (Array PlutusScript)
+  }
 
+newtype GeneralTransactionMetadata =
+  GeneralTransactionMetadata (HashMap TransactionMetadatumLabel TransactionMetadatum)
+
+newtype TransactionMetadatumLabel = TransactionMetadatumLabel BigInt.BigInt
+
+data TransactionMetadatum
+  = MetadataMap (HashMap TransactionMetadatum TransactionMetadatum)
+  | MetadataList (Array TransactionMetadatum)
+  | Int Int
+  | Bytes ByteArray
+  | Text String
+
+data NativeScript
+  = ScriptPubkey
+  | ScriptAll
+  | ScriptAny
+  | ScriptNOfK
+  | TimelockStart
+  | TimelockExpiry
 
 newtype TransactionInput = TransactionInput
   { transaction_id :: TransactionHash
-  , index :: BigInt.BigInt -- u32 TransactionIndex
+  , index :: UInt
   }
 
 newtype TransactionOutput = TransactionOutput
@@ -128,12 +262,12 @@ newtype Coin = Coin BigInt.BigInt
 
 newtype Slot = Slot BigInt.BigInt
 
-newtype Address = Address 
+newtype Address = Address
   { "AddrType" :: BaseAddress
   }
 
 newtype BaseAddress = BaseAddress
-  { network :: Int, -- u8,
+  { network :: UInt, -- UInt8
     stake :: Credential,
     payment :: Credential
   }
@@ -141,7 +275,7 @@ newtype BaseAddress = BaseAddress
 newtype Credential = Credential ByteArray
 
 -- Addresspub struct Address(AddrType);
--- AddrType 
+-- AddrType
 -- enum AddrType {
     -- Base(BaseAddress),
     -- Ptr(PointerAddress),
@@ -154,7 +288,7 @@ newtype Credential = Credential ByteArray
     -- payment: StakeCredential,
     -- stake: StakeCredential,
 -- }
--- pub struct StakeCredential(StakeCredType); 
+-- pub struct StakeCredential(StakeCredType);
 -- Both of these are strings:
 -- enum StakeCredType {
     -- Key(Ed25519KeyHash),

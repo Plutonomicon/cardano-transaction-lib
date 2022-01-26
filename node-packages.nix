@@ -175,23 +175,26 @@ let
     dependencies = [
       (sources."@cardano-ogmios/client-4.2.1" // {
         dependencies = [
+          sources."@cardano-ogmios/schema-4.2.1"
+          sources."@cardanosolutions/json-bigint-1.0.0"
+          sources."@types/json-bigint-1.0.1"
+          sources."bignumber.js-9.0.2"
+          sources."cross-fetch-3.1.4"
+          sources."fastq-1.13.0"
+          sources."isomorphic-ws-4.0.1"
+          sources."nanoid-3.1.30"
+          sources."node-fetch-2.6.1"
+          sources."reusify-1.0.4"
+          sources."ts-custom-error-3.2.0"
           sources."ws-7.5.6"
         ];
       })
-      sources."@cardano-ogmios/schema-4.2.1"
-      sources."@cardanosolutions/json-bigint-1.0.0"
-      sources."@types/json-bigint-1.0.1"
       sources."big-integer-1.6.51"
-      sources."bignumber.js-9.0.2"
-      sources."bufferutil-4.0.5"
-      sources."cross-fetch-3.1.4"
-      sources."fastq-1.13.0"
-      sources."isomorphic-ws-4.0.1"
-      sources."nanoid-3.1.30"
-      sources."node-fetch-2.6.1"
-      sources."node-gyp-build-4.3.0"
-      sources."reusify-1.0.4"
-      sources."ts-custom-error-3.2.0"
+      (sources."bufferutil-4.0.5" // {
+        dependencies = [
+          sources."node-gyp-build-4.3.0"
+        ];
+      })
       sources."uniqid-5.4.0"
       sources."ws-8.4.0"
     ];
