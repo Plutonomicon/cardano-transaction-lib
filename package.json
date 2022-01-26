@@ -18,9 +18,5 @@
     "bufferutil": "^4.0.5",
     "uniqid": "^5.4.0",
     "ws": "^8.4.0"
-  },
-  "devDependencies": {
-    "pscid": "^2.9.3",
-    "purescript-language-server": "^0.16.2"
   }
 }
