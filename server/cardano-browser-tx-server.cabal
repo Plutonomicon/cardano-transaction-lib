@@ -3,6 +3,7 @@ name:          cardano-browser-tx-server
 version:       0.1.0.0
 author:        mlabs
 build-type:    Simple
+data-files:    config/pparams.json
 
 common common-language
   default-extensions:
@@ -71,3 +72,4 @@ executable cardano-browser-tx-server
     Api.Fees
     Types
     Utils
+    Paths_cardano_browser_tx_server
