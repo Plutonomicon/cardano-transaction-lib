@@ -18,6 +18,7 @@ pkgs.mkShell {
     spago
     purescript-language-server
     purty
+    pscid
     spago2nix
     pkgs.nodePackages.node2nix
     nodejs

@@ -5,12 +5,14 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (ReaderT, ask)
 import Data.Argonaut as Json
 import Data.Bifunctor (bimap)
+import Data.BigInt (BigInt, fromInt)
 import Data.Either(Either(..), either, isRight)
 import Data.Foldable (foldl)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.Newtype (wrap)
 import Data.Tuple.Nested ((/\), type (/\))
+import Data.UInt (toInt)
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(..), makeAff)
 import Effect.Aff.Class (liftAff)
@@ -19,6 +21,7 @@ import Effect.Console (log)
 import Effect.Exception (Error, error)
 import Effect.Ref as Ref
 
+import Helpers as Helpers
 import Types.ByteArray (hexToByteArray)
 import Types.JsonWsp (OgmiosAddress,  OgmiosTxOut, JsonWspResponse, mkUtxosAtQuery, parseJsonWspResponse, TxOutRef, UtxoQR(UtxoQR))
 import Types.Transaction (Address(Address), DataHash(DataHash), TransactionHash(TransactionHash), TransactionInput(TransactionInput), TransactionOutput(TransactionOutput), UtxoM(UtxoM))
@@ -197,7 +200,7 @@ utxoQueryDispatch
   -> String
   -> Effect (Either Json.JsonDecodeError (Effect Unit))
 utxoQueryDispatch ref str = do
-  let parsed' = parseJsonWspResponse =<< Json.parseJson str
+  let parsed' = parseJsonWspResponse =<< Helpers.parseJsonStringifyNumbers str
   case parsed' of
       (Left err) -> pure $ Left err
       (Right res) -> afterParse res
@@ -249,9 +252,12 @@ messageFoldF msg acc' func = do
 --------------------------------------------------------------------------------
 -- Ogmios functions and types to internal types
 --------------------------------------------------------------------------------
+-- Is this even possible? OgmiosAddress is a bech32|base58 string whilst the
+-- latter is far more complex.
 ogmiosAddressToAddress :: OgmiosAddress -> Address
 ogmiosAddressToAddress = undefined
 
+-- This direction might be possible.
 addressToOgmiosAddress :: Address -> OgmiosAddress
 addressToOgmiosAddress = undefined
 

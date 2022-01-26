@@ -53,7 +53,7 @@ import Data.Foldable as Foldable
 import Data.Generic.Rep (class Generic)
 import Data.List ((:), List(Nil), partition)
 import Data.Map as Map
-import Data.Maybe (fromMaybe, Maybe(Just, Nothing))
+import Data.Maybe (fromMaybe, maybe, Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (fst)
@@ -710,7 +710,7 @@ balanceTxIns' utxos fees (TxBody txBody) = do
       nonMintedValue :: Value
       nonMintedValue =
         Array.foldMap getAmount txOutputs
-          `minus` fromMaybe emptyValue txBody.mint
+          `minus` maybe emptyValue unwrap txBody.mint
 
       minSpending :: Value
       minSpending = lovelaceValueOf (fees + changeMinUtxo) <> nonMintedValue
@@ -808,7 +808,7 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) =
 
       nonMintedOutputValue :: Value
       nonMintedOutputValue =
-        outputValue `minus` fromMaybe emptyValue txBody.mint
+        outputValue `minus` maybe emptyValue unwrap txBody.mint
 
       nonAdaChange :: Value
       nonAdaChange =
