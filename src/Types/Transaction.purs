@@ -1,16 +1,25 @@
 module Types.Transaction where
 
 import Prelude
+
 import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
-import Data.Map (Map)
+import Data.HashMap (HashMap)
 import Data.Maybe (Maybe)
+import Data.Map (Map)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
+import Data.Rational (Rational)
 import Data.Tuple.Nested (type (/\))
+import Data.UInt (UInt)
 
-import Types.Value (Value)
 import Types.ByteArray (ByteArray)
+import Types.RedeemerTag (RedeemerTag)
+import Types.Value (Value)
+
+-- note: these types are derived from the cardano-serialization-lib Sundae fork
+-- the source of truth for these types should be that library and the 
+-- corresponding Rust types
 
 newtype Transaction = Transaction {
   body :: TxBody,
@@ -25,13 +34,13 @@ newtype TxBody = TxBody
     outputs :: Array TransactionOutput,
     fee :: Coin,
     ttl :: Maybe Slot,
-    certs :: Maybe Unit, -- Certificates,
-    withdrawals :: Maybe Unit, -- Withdrawals,
-    update :: Maybe Unit, -- Update,
-    auxiliary_data_hash :: Maybe String, -- AuxiliaryDataHash, - script hashes
+    certs :: Maybe (Array Certificate),
+    withdrawals :: Maybe (Map RewardAddress Coin),
+    update :: Maybe Update,
+    auxiliary_data_hash :: Maybe AuxiliaryDataHash, 
     validity_start_interval :: Maybe Slot,
-    mint :: Maybe Value, -- Mint
-    script_data_hash :: Maybe String, -- ScriptDataHash,
+    mint :: Maybe Mint,
+    script_data_hash :: Maybe ScriptDataHash,
     collateral :: Maybe (Array TransactionInput),
     required_signers :: Maybe (Array RequiredSigner),
     network_id :: Maybe NetworkId
@@ -39,18 +48,148 @@ newtype TxBody = TxBody
 derive instance newtypeTxBody :: Newtype TxBody _
 derive newtype instance eqTxBody :: Eq TxBody
 
+newtype ScriptDataHash = ScriptDataHash String
+derive instance newtypeScriptDataHash :: Newtype ScriptDataHash _
+derive newtype instance eqScriptDataHash :: Eq ScriptDataHash
+
+newtype Mint = Mint Value
+derive instance newtypeMint :: Newtype Mint _
+derive newtype instance eqMint :: Eq Mint
+
+newtype AuxiliaryDataHash = AuxiliaryDataHash String
+derive instance newtypeAuxiliaryDataHash :: Newtype AuxiliaryDataHash _
+derive newtype instance eqAuxiliaryDataHash :: Eq AuxiliaryDataHash
+
+type Update = 
+  { proposed_protocol_parameter_updates :: ProposedProtocolParameterUpdates
+  , epoch :: Epoch
+  }
+
+newtype ProposedProtocolParameterUpdates 
+  = ProposedProtocolParameterUpdates (Map GenesisHash ProtocolParamUpdate)
+derive instance newtypeProposedProtocolParameterUpdates
+  :: Newtype ProposedProtocolParameterUpdates _
+derive newtype instance eqProposedProtocolParameterUpdates
+  :: Eq ProposedProtocolParameterUpdates
+
+newtype GenesisHash = GenesisHash String
+derive instance newtypeGenesisHash :: Newtype GenesisHash _
+derive newtype instance eqGenesisHash :: Eq GenesisHash
+
+type ProtocolParamUpdate = 
+  { minfee_a :: Maybe Coin,
+    minfee_b :: Maybe Coin,
+    max_block_body_size :: Maybe UInt,
+    max_tx_size :: Maybe UInt,
+    max_block_header_size :: Maybe UInt,
+    key_deposit :: Maybe Coin,
+    pool_deposit :: Maybe Coin,
+    max_epoch :: Maybe Epoch,
+    n_opt :: Maybe UInt,
+    pool_pledge_influence :: Maybe Rational,
+    expansion_rate :: Maybe UnitInterval,
+    treasury_growth_rate :: Maybe UnitInterval,
+    d :: Maybe UnitInterval,
+    extra_entropy :: Maybe Nonce,
+    protocol_version :: Maybe (Array ProtocolVersion),
+    min_pool_cost :: Maybe Coin,
+    ada_per_utxo_byte :: Maybe Coin,
+    cost_models :: Maybe Costmdls,
+    execution_costs :: Maybe ExUnitPrices,
+    max_tx_ex_units :: Maybe ExUnits,
+    max_block_ex_units :: Maybe ExUnits,
+    max_value_size :: Maybe UInt
+  }
+
+type ExUnitPrices =
+  { mem_price :: SubCoin
+  , step_price :: SubCoin
+  }
+
+type ExUnits =
+  { mem :: BigInt
+  , steps :: BigInt
+  }
+
+type SubCoin = UnitInterval
+
+type RewardAddress = 
+  { network :: UInt
+  , payment :: StakeCredential
+  }
+
+data StakeCredential
+  = Key Ed25519KeyHash
+  | Script ScriptHash
+derive instance eqStakeCredential :: Eq StakeCredential
+
+newtype Ed25519KeyHash = Ed25519KeyHash String 
+derive instance newtypeEd25519KeyHash :: Newtype Ed25519KeyHash _
+derive newtype instance eqEd25519KeyHash :: Eq Ed25519KeyHash
+
+newtype ScriptHash = ScriptHash String
+derive instance newtypeScriptHash:: Newtype ScriptHash _
+derive newtype instance eqScriptHash :: Eq ScriptHash
+
+newtype Costmdls = Costmdls (Map Language CostModel)
+derive instance newtypeCostmdls :: Newtype Costmdls _
+derive newtype instance eqCostmdls :: Eq Costmdls
+
+data Language = PlutusV1
+derive instance eqLanguage :: Eq Language
+
+newtype CostModel = CostModel (Array UInt)
+derive instance newtypeCostModel :: Newtype CostModel _
+derive newtype instance eqCostModel :: Eq CostModel
+
+type ProtocolVersion =
+  { major :: UInt
+  , minor :: UInt
+  }
+
+newtype Nonce = Nonce String
+derive instance newtypeNonce :: Newtype Nonce _
+derive newtype instance eqNonce :: Eq Nonce
+
+type UnitInterval =
+  { numerator :: BigInt
+  , denominator :: BigInt
+  }
+
+newtype Epoch = Epoch UInt
+derive instance newtypeEpoch :: Newtype Epoch _
+derive newtype instance eqEpoch :: Eq Epoch
+
+data Certificate
+  = StakeRegistration
+  | StakeDeregistration
+  | StakeDelegation
+  | PoolRegistration
+  | PoolRetirement
+  | GenesisKeyDelegation
+  | MoveInstantaneousRewardsCert
+derive instance eqCertificate :: Eq Certificate
+
 newtype TransactionWitnessSet = TransactionWitnessSet
   { vkeys :: Maybe (Array Vkeywitness),
-    native_scripts :: Maybe Unit, -- NativeScripts,
-    bootstraps :: Maybe Unit, -- BootstrapWitnesses,
+    native_scripts :: Maybe (Array NativeScript), 
+    bootstraps :: Maybe (Array BootstrapWitness),
     plutus_scripts :: Maybe (Array PlutusScript),
     plutus_data :: Maybe (Array PlutusData),
     redeemers :: Maybe (Array Redeemer)
   }
 
-newtype NetworkId = NetworkId Int
-derive instance newtypeNetworkId :: Newtype NetworkId _
-derive newtype instance eqNetworkId :: Eq NetworkId
+type BootstrapWitness =
+  { vkey :: Vkey
+  , signature :: Ed25519Signature
+  , chain_code :: ByteArray
+  , attributes :: ByteArray
+  }
+
+data NetworkId 
+  = Mainnet
+  | Testnet
+derive instance eqNetworkId :: Eq NetworkId
 
 newtype RequiredSigner = RequiredSigner String
 derive instance newtypeRequiredSigner :: Newtype RequiredSigner _
@@ -63,13 +202,13 @@ newtype Vkey = Vkey String -- (bech32)
 newtype Ed25519Signature = Ed25519Signature String -- (bech32)
 
 newtype PlutusScript = PlutusScript String
+derive instance newtypePlutusScript :: Newtype PlutusScript _
+derive newtype instance eqPlutusScript :: Eq PlutusScript
 
-newtype PlutusData = PlutusData String
--- TODO - we need a capability to encode/decode Datum from/to serialized format
--- see `makeIsDataIndexed`
+newtype PlutusData = PlutusData String 
 
 newtype Redeemer = Redeemer
-  { tag :: RedeemerTag, -- ScriptPurpose: 'spending' 'minting' etc
+  { tag :: RedeemerTag, 
     index :: BigInt,
     data :: PlutusData,
     ex_units :: (MemExUnits /\ CpuExUnits)
@@ -79,13 +218,46 @@ newtype MemExUnits = MemExUnits BigInt
 
 newtype CpuExUnits = CpuExUnits BigInt
 
-data RedeemerTag = Spend | Mint | Cert | Reward
 
-type AuxiliaryData = Unit -- this is big and weird in serialization-lib
+type AuxiliaryData = 
+  { metadata :: Maybe GeneralTransactionMetadata
+  , native_scripts :: Maybe (Array NativeScript)
+  , plutus_scripts :: Maybe (Array PlutusScript)
+  }
+
+newtype GeneralTransactionMetadata =
+  GeneralTransactionMetadata (HashMap TransactionMetadatumLabel TransactionMetadatum)
+derive instance newtypeGeneralTransactionMetadata
+  :: Newtype GeneralTransactionMetadata _
+derive newtype instance eqGeneralTransactionMetadata
+  :: Eq GeneralTransactionMetadata
+
+newtype TransactionMetadatumLabel = TransactionMetadatumLabel BigInt
+derive instance newtypeTransactionMetadatumLabel
+  :: Newtype TransactionMetadatumLabel _
+derive newtype instance eqTransactionMetadatumLabel
+  :: Eq TransactionMetadatumLabel
+
+data TransactionMetadatum
+  = MetadataMap (HashMap TransactionMetadatum TransactionMetadatum)
+  | MetadataList (Array TransactionMetadatum)
+  | Int Int
+  | Bytes ByteArray
+  | Text String
+derive instance eqTransactionMetadatum :: Eq TransactionMetadatum
+
+data NativeScript
+  = ScriptPubkey
+  | ScriptAll
+  | ScriptAny
+  | ScriptNOfK
+  | TimelockStart
+  | TimelockExpiry
+derive instance eqNativeScript :: Eq NativeScript
 
 newtype TransactionInput = TransactionInput
   { transaction_id :: TransactionHash
-  , index :: BigInt -- u32 TransactionIndex
+  , index :: UInt
   }
 derive instance newtypeTransactionInput :: Newtype TransactionInput _
 derive instance genericTransactionInput :: Generic TransactionInput _
@@ -152,7 +324,7 @@ instance showAddress :: Show Address where
   show = genericShow
 
 newtype BaseAddress = BaseAddress
-  { network :: Int, -- u8,
+  { network :: UInt, -- UInt8
     stake :: Credential,
     payment :: Credential
   }
