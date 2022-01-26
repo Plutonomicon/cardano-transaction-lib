@@ -46,7 +46,7 @@ module BalanceTx
 import Prelude
 import Data.Array ((\\), findIndex, modifyAt)
 import Data.Array as Array
-import Data.Bifunctor (lmap)
+import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt, fromInt, quot)
 import Data.Either (Either(Left, Right), hush, note)
 import Data.Foldable as Foldable
@@ -60,7 +60,7 @@ import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Undefined (undefined)
 
-import Ogmios (QueryM)
+import Ogmios (QueryM, utxosAt')
 import ProtocolParametersAlonzo
   ( coinSize
   , lovelacePerUTxOWord
@@ -69,18 +69,20 @@ import ProtocolParametersAlonzo
   , utxoEntrySizeWithoutVal
   )
 import Types.Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
-import Types.ByteArray (byteLength)
+import Types.ByteArray (byteLength, hexToByteArray)
+import Types.JsonWsp (OgmiosAddress, OgmiosTxOut(..), TxOutRef(..), UtxoQR(UtxoQR))
 import Types.Transaction
   ( Address
   , Credential(Credential)
-  , DataHash
+  , DataHash(DataHash)
   , RequiredSigner
   , Transaction(Transaction)
-  , TransactionInput
+  , TransactionHash(TransactionHash)
+  , TransactionInput(TransactionInput)
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
   , Utxo
-  , UtxoM
+  , UtxoM(UtxoM)
   )
 import Types.Value
   ( allTokenNames
@@ -287,10 +289,6 @@ instance showCalculateMinFeeFailureReason
 -- Output utxos with the amount of lovelaces required.
 type MinUtxos = Array (TransactionOutput /\ BigInt)
 
--- TO DO: convert utxosAt from Ogmios to Transaction space.
-utxosAt :: Address -> QueryM UtxoM
-utxosAt = undefined
-
 newtype PubKeyHash = PubKeyHash String
 newtype PrivateKey = PrivateKey String
 
@@ -341,7 +339,7 @@ balanceTxM
   -> UnbalancedTransaction
   -> QueryM (Either BalanceTxFailure Transaction)
 balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
-  utxos :: Utxo <- unwrap <$> utxosAt ownAddr
+  utxos :: Utxo <- unwrap <$> utxosAt' ownAddr
   privKeys :: Map.Map Address PrivateKey <- getPrivKeys
   let -- Combines utxos at the user address and those from any scripts involved
       -- with the contract.

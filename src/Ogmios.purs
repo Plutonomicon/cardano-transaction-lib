@@ -4,10 +4,13 @@ import Prelude
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (ReaderT, ask)
 import Data.Argonaut as Json
+import Data.Bifunctor (bimap)
 import Data.Either(Either(..), either, isRight)
 import Data.Foldable (foldl)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
+import Data.Newtype (wrap)
+import Data.Tuple.Nested ((/\), type (/\))
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(..), makeAff)
 import Effect.Aff.Class (liftAff)
@@ -15,7 +18,11 @@ import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (Error, error)
 import Effect.Ref as Ref
-import Types.JsonWsp (Address, JsonWspResponse, UtxoQR, mkUtxosAtQuery, parseJsonWspResponse)
+
+import Types.ByteArray (hexToByteArray)
+import Types.JsonWsp (OgmiosAddress,  OgmiosTxOut, JsonWspResponse, mkUtxosAtQuery, parseJsonWspResponse, TxOutRef, UtxoQR(UtxoQR))
+import Types.Transaction (Address(Address), DataHash(DataHash), TransactionHash(TransactionHash), TransactionInput(TransactionInput), TransactionOutput(TransactionOutput), UtxoM(UtxoM))
+import Undefined (undefined)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -57,7 +64,7 @@ type QueryConfig = { ws :: OgmiosWebSocket }
 type QueryM a = ReaderT QueryConfig Aff a
 
 -- the first query type in the QueryM/Aff interface
-utxosAt :: Address -> QueryM UtxoQR
+utxosAt :: OgmiosAddress -> QueryM UtxoQR
 utxosAt addr = do
   body <- liftEffect $ mkUtxosAtQuery { utxo: [ addr ] }
   let id = body.mirror.id
@@ -238,3 +245,39 @@ messageFoldF
 messageFoldF msg acc' func = do
   acc <- acc'
   if isRight acc then acc' else func msg
+
+--------------------------------------------------------------------------------
+-- Ogmios functions and types to internal types
+--------------------------------------------------------------------------------
+ogmiosAddressToAddress :: OgmiosAddress -> Address
+ogmiosAddressToAddress = undefined
+
+addressToOgmiosAddress :: Address -> OgmiosAddress
+addressToOgmiosAddress = undefined
+
+-- TO DO: convert utxosAt from Ogmios to Transaction space.
+-- Using hexToByteArray, is txId a hexadecimal string?
+utxosAt' :: Address -> QueryM UtxoM
+utxosAt' addr = utxosAt (addressToOgmiosAddress addr) <#>
+  \(UtxoQR utxoQueryResult) ->
+    let xs :: Array (TxOutRef /\ OgmiosTxOut)
+        xs = Map.toUnfoldable utxoQueryResult
+     in UtxoM $ Map.fromFoldable $
+          bimap
+            txOutRefToTransactionInput
+            ogmiosTxOutToTransactionOutput <$> xs
+
+txOutRefToTransactionInput :: TxOutRef -> TransactionInput
+txOutRefToTransactionInput { txId, index } =
+  wrap
+    { transaction_id: Just txId >>= hexToByteArray <#> wrap
+    , index
+    }
+
+ogmiosTxOutToTransactionOutput :: OgmiosTxOut -> TransactionOutput
+ogmiosTxOutToTransactionOutput { address, value, datum } =
+  wrap
+    { address: ogmiosAddressToAddress address
+    , amount: value
+    , data_hash: datum >>= hexToByteArray <#> wrap
+    }

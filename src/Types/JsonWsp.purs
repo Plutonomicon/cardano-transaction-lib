@@ -1,8 +1,8 @@
 module Types.JsonWsp
-  ( Address
-  , JsonWspRequest
+  ( JsonWspRequest
   , JsonWspResponse
   , Mirror
+  , OgmiosAddress
   , OgmiosTxOut
   , QueryArgs
   , QueryType(..)
@@ -58,7 +58,7 @@ instance showQueryType :: Show QueryType where
 
 --  the Address type in `Types.Transaction` is quite a bit more complex than
 --  this
-type Address = String
+type OgmiosAddress = String
 
 -- these types are described in: https://ogmios.dev/getting-started/basics/
 type JsonWspRequest a =
@@ -95,7 +95,7 @@ mkJsonWspQuery a qt = do
         }
 
 -- the actual query description
-type UtxoQueryParams = { utxo :: Array Address }
+type UtxoQueryParams = { utxo :: Array OgmiosAddress }
 
 -- used as a wrapper for all Queries
 type QueryArgs a = { query :: a }
@@ -224,7 +224,7 @@ parseTxOutRef = jsonObject $
 -- `Types.Transaction.TransactionOutput` type,  we may need to reckon with this
 -- later.
 type OgmiosTxOut =
-  { address :: String,
+  { address :: OgmiosAddress,
     value :: Value,
     datum :: Maybe String
   }

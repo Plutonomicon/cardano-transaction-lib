@@ -84,7 +84,7 @@ data RedeemerTag = Spend | Mint | Cert | Reward
 type AuxiliaryData = Unit -- this is big and weird in serialization-lib
 
 newtype TransactionInput = TransactionInput
-  { transaction_id :: TransactionHash
+  { transaction_id :: Maybe TransactionHash
   , index :: BigInt -- u32 TransactionIndex
   }
 derive instance newtypeTransactionInput :: Newtype TransactionInput _
