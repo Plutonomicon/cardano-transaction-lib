@@ -1,14 +1,13 @@
 module Types.Transaction where
 
 import Prelude
-import Data.ArrayBuffer.Types
 import Data.BigInt as BigInt
-import Data.Maybe (Maybe(..))
-import Data.Tuple.Nested ((/\), type (/\))
-import Data.Map (Map(..))
+import Data.Maybe (Maybe)
+import Data.Tuple.Nested (type (/\))
+import Data.Map (Map)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
-import Types.ByteArray
+import Types.ByteArray (ByteArray)
 
 newtype Transaction = Transaction {
   body :: TxBody,

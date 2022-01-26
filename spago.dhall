@@ -27,6 +27,8 @@ You can edit this file as you like.
   , "ordered-collections"
   , "prelude"
   , "psci-support"
+  , "quickcheck"
+  , "quickcheck-laws"
   , "refs"
   , "spec"
   , "strings"

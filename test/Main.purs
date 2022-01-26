@@ -10,6 +10,7 @@ import Test.Spec (Spec, describe, it)
 import Test.Spec.Runner (runSpec)
 import Test.Spec.Reporter (consoleReporter)
 import Test.AffInterface as AffInterface
+import Test.ByteArray as ByteArrayTest
 import Test.Parser as ParseTest
 import TestM (TestPlanM)
 import Mote (Plan, foldPlan, planT)
@@ -41,3 +42,4 @@ testPlan :: TestPlanM Unit
 testPlan = do
   ParseTest.suite
   AffInterface.suite
+  ByteArrayTest.suite
