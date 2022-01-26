@@ -3,7 +3,7 @@ module Types (
   Env (..),
   Cbor (..),
   Fee (..),
-  FeeError (..),
+  FeeEstimateError (..),
   CardanoBrowserServerError (..),
 ) where
 
@@ -52,14 +52,14 @@ instance ToJSON Fee where
   toEncoding (Fee (C.Lovelace int)) = Aeson.integerText int
 
 -- We'll probably extend this with more error types over time
-newtype CardanoBrowserServerError = FeeEstimate FeeError
+newtype CardanoBrowserServerError = FeeEstimate FeeEstimateError
   deriving stock (Show)
 
 instance Exception CardanoBrowserServerError
 
-data FeeError
+data FeeEstimateError
   = InvalidCbor Cbor.DecoderError
   | InvalidHex String
   deriving stock (Show)
 
-instance Exception FeeError
+instance Exception FeeEstimateError

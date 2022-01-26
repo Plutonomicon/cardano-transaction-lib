@@ -28,7 +28,7 @@ import Types (
   Cbor,
   Env,
   Fee,
-  FeeError (InvalidCbor, InvalidHex),
+  FeeEstimateError (InvalidCbor, InvalidHex),
  )
 import Utils (lbshow)
 

@@ -13,7 +13,7 @@ import Types (
   Cbor (..),
   Env (..),
   Fee (..),
-  FeeError (..),
+  FeeEstimateError (..),
  )
 
 estimateTxFees :: Cbor -> AppM Fee
@@ -32,7 +32,7 @@ estimateFee pparams (C.Tx txBody keyWits) =
     . fromIntegral
     $ length keyWits -- No. of Shelley key witnesses
 
-decodeCborTx :: Cbor -> Either FeeError (C.Tx C.AlonzoEra)
+decodeCborTx :: Cbor -> Either FeeEstimateError (C.Tx C.AlonzoEra)
 decodeCborTx (Cbor txt) =
   first InvalidCbor
     . C.deserialiseFromCBOR (C.proxyToAsType Proxy)
