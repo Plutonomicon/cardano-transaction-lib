@@ -296,5 +296,5 @@ ogmiosTxOutToTransactionOutput { address: address', value, datum } = do
   pure $ wrap
     { address
     , amount: value
-    , data_hash: (datum >>= hexToByteArray) <#> wrap
+    , data_hash: datum >>= hexToByteArray <#> wrap
     }
