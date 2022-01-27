@@ -4,7 +4,7 @@ import Api.Fees (estimateTxFees)
 import Control.Monad.Catch (try)
 import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Reader (runReaderT)
+import Control.Monad.Reader (ReaderT, runReaderT)
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Servant (
   Application,
@@ -42,12 +42,14 @@ appServer :: Env -> Server Api
 appServer env = hoistServer api appHandler server
   where
     appHandler :: AppM a -> Handler a
-    appHandler (AppM x) = tryServer >>= either handleError pure
-      where
-        tryServer =
-          liftIO
-            . try @_ @CardanoBrowserServerError
-            $ runReaderT x env
+    appHandler (AppM x) = tryServer x >>= either handleError pure
+
+    tryServer ::
+      ReaderT Env IO a -> Handler (Either CardanoBrowserServerError a)
+    tryServer =
+      liftIO
+        . try @_ @CardanoBrowserServerError
+        . flip runReaderT env
 
     handleError :: CardanoBrowserServerError -> Handler a
     handleError (FeeEstimate fe) = case fe of

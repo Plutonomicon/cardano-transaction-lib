@@ -87,6 +87,8 @@ executable cardano-browser-tx-server
   build-depends:
     , base
     , cardano-browser-tx-server
+    , http-types
+    , wai
     , wai-logger
     , warp
 

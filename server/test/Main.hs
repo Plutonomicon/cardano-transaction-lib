@@ -31,7 +31,7 @@ import Test.Hspec (
   shouldBe,
   shouldSatisfy,
  )
-import Types (Cbor (Cbor), Fee (Fee), newEnvIO)
+import Types (Cbor (Cbor), Env, Fee (Fee), newEnvIO)
 
 main :: IO ()
 main = hspec serverSpec
@@ -81,6 +81,7 @@ feeEstimateSpec = around withFeeEstimate $ do
 withFeeEstimate :: ActionWith (Port -> IO ())
 withFeeEstimate = Warp.testWithApplication $ app <$> newEnvIO'
   where
+    newEnvIO' :: IO Env
     newEnvIO' = either die pure =<< newEnvIO
 
 runClientM' :: ClientEnv -> ClientM a -> IO (Either ClientError a)

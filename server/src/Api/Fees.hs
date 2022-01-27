@@ -16,6 +16,8 @@ import Types (
   Fee (..),
   FeeEstimateError (..),
  )
+import Data.Text (Text)
+import Data.ByteString (ByteString)
 
 estimateTxFees :: Cbor -> AppM Fee
 estimateTxFees cbor = do
@@ -26,6 +28,7 @@ estimateTxFees cbor = do
 estimateFee :: C.ProtocolParameters -> C.Tx C.AlonzoEra -> Integer
 estimateFee pparams (C.Tx txBody keyWits) = estimate
   where
+    estimate :: Integer
     C.Lovelace estimate =
       C.evaluateTransactionFee
         pparams
@@ -41,4 +44,5 @@ decodeCborTx (Cbor txt) =
     . C.deserialiseFromCBOR (C.proxyToAsType Proxy)
     =<< decode txt
   where
+    decode :: Text -> Either FeeEstimateError ByteString
     decode = first InvalidHex . Base16.decode . Text.encodeUtf8
