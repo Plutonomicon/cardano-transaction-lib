@@ -10,10 +10,10 @@ autogen-deps:
 		&& git restore default.nix
 
 check-format:
-	purs-tidy check "src/**/*.purs"
+	purs-tidy check "src/**/*.purs" "test/**/*.purs"
 
 format:
-	purs-tidy format-in-place "src/**/*.purs"
+	purs-tidy format-in-place "src/**/*.purs" "test/**/*.purs"
 
 
 run-testnet-node:
