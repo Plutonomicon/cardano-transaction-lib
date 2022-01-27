@@ -1,14 +1,13 @@
 -- | Our domain type for byte arrays, a wrapper over Uint8Array.
 module Types.ByteArray
-       ( ByteArray (..)
-       , byteArrayFromIntArray
-       , byteArrayFromIntArrayUnsafe
-       , byteArrayToIntArray
-       , byteArrayToHex
-       , hexToByteArray
-       , hexToByteArrayUnsafe
-       )
-where
+  ( ByteArray(..)
+  , byteArrayFromIntArray
+  , byteArrayFromIntArrayUnsafe
+  , byteArrayToIntArray
+  , byteArrayToHex
+  , hexToByteArray
+  , hexToByteArrayUnsafe
+  ) where
 
 import Data.ArrayBuffer.Types (Uint8Array)
 import Data.Maybe (Maybe(..))
@@ -18,7 +17,7 @@ import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 newtype ByteArray = ByteArray Uint8Array
 
 instance showByteArray :: Show ByteArray where
-  show arr = "(byteArrayFromIntArrayUnsafe " <> show (byteArrayToIntArray arr)  <> ")"
+  show arr = "(byteArrayFromIntArrayUnsafe " <> show (byteArrayToIntArray arr) <> ")"
 
 instance eqByteArray :: Eq ByteArray where
   eq a b = compare a b == EQ

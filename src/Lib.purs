@@ -9,12 +9,12 @@ import Data.BigInt as BigInt
 -- 1. inputs
 
 -- 
-tx 
-  :: Array Types.TransactionInput 
-  -> Array Types.TransactionOutput 
+tx
+  :: Array Types.TransactionInput
+  -> Array Types.TransactionOutput
   -> Array Types.TransactionInput
   -> Types.NetworkId
-  -> Types.Transaction 
+  -> Types.Transaction
 tx i o c id = Types.Transaction
   { body: txBody i o c id
   , witness_set: txWitness
@@ -22,9 +22,9 @@ tx i o c id = Types.Transaction
   , auxiliary_data: Nothing
   }
 
-txBody 
-  :: Array Types.TransactionInput 
-  -> Array Types.TransactionOutput 
+txBody
+  :: Array Types.TransactionInput
+  -> Array Types.TransactionOutput
   -> Array Types.TransactionInput
   -> Types.NetworkId
   -> Types.TxBody
@@ -54,5 +54,4 @@ txWitness = Types.TransactionWitnessSet
   , plutus_data: Nothing
   , redeemers: Nothing
   }
-
 
