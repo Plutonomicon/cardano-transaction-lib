@@ -260,9 +260,6 @@ ogmiosAddressToAddress = undefined
 addressToOgmiosAddress :: Address -> Maybe OgmiosAddress
 addressToOgmiosAddress = undefined
 
-datumToDataHash :: String -> Maybe DataHash
-datumToDataHash = undefined
-
 -- Maybe we prefer Either and more granular error handling.
 utxosAt' :: Address -> QueryM (Maybe UtxoM)
 utxosAt' addr = do
@@ -290,11 +287,14 @@ txOutRefToTransactionInput { txId, index } = do
     , index
     }
 
+-- https://ogmios.dev/ogmios.wsp.json see "datum", potential FIX ME: it says
+-- base64 but the  example provided looks like a hexadecimal so use
+-- hexToByteArray for now.
 ogmiosTxOutToTransactionOutput :: OgmiosTxOut -> Maybe TransactionOutput
 ogmiosTxOutToTransactionOutput { address: address', value, datum } = do
   address <- ogmiosAddressToAddress address'
   pure $ wrap
     { address
     , amount: value
-    , data_hash: datum >>= datumToDataHash
+    , data_hash: (datum >>= hexToByteArray) <#> wrap
     }

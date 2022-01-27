@@ -43,9 +43,11 @@ You can edit this file as you like.
   , "these"
   , "transformers"
   , "tuples"
+  , "typelevel"
   , "uint"
   , "undefined"
   , "unordered-collections"
+  , "unsafe-coerce"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]
