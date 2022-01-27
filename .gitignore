@@ -16,5 +16,6 @@ result-*
 /node_modules/
 .node
 .node-cfg
-server/dist-newstyle
+/server/dist-newstyle
+/server/dist-newstyle/
 .projectile

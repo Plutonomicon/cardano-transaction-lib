@@ -26,16 +26,12 @@ common common-language
     MultiParamTypeClasses
     NumericUnderscores
     OverloadedStrings
-    OverloadedStrings
-    QuasiQuotes
     QuasiQuotes
     RankNTypes
-    RecordWildCards
     RecordWildCards
     ScopedTypeVariables
     StandaloneDeriving
     TemplateHaskell
-    TupleSections
     TupleSections
     TypeApplications
     TypeFamilies
