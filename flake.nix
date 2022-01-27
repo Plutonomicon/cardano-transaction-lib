@@ -152,17 +152,7 @@
       # in all of the Haskell dependencies
       #
       # This can be used with `nix develop .#hsDevShell.<SYSTEM>`
-      hsDevShell = perSystem (system:
-        let
-          psDevShell = (psProjectFor system).devShell;
-        in
-        self.hsFlake.${system}.devShell.overrideAttrs (os:
-          {
-            buildInputs = os.buildInputs ++ psDevShell.buildInputs;
-            shellHook = os.shellHook + psDevShell.shellHook;
-          }
-        )
-      );
+      hsDevShell = perSystem (system: self.hsFlake.${system}.devShell);
 
       packages = perSystem (system:
         self.hsFlake.${system}.packages // (psProjectFor system).packages
