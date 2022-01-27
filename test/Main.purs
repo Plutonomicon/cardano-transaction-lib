@@ -7,6 +7,13 @@ import Data.Foldable (sequence_)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Aff.Class (liftAff)
+import Test.Spec (Spec, describe, it)
+import Test.Spec.Runner (runSpec)
+import Test.Spec.Reporter (consoleReporter)
+import Test.AffInterface as AffInterface
+import Test.Parser as ParseTest
+import Test.Serialization.Address as Serialization.Address
+import TestM (TestPlanM)
 import Mote (Plan, foldPlan, planT)
 import Test.AffInterface as AffInterface
 import Test.Helpers as Helpers

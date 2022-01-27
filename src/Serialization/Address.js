@@ -1,63 +1,79 @@
 const CardanoWasm = require("@emurgo/cardano-serialization-lib-nodejs");
 
 
-// newBaseAddress :: NetworkId -> PubKeyHash -> StakeKeyHash -> BaseAddress
-exports.newBaseAddress = netId => pkhBech32 => skhBech32 => {
-    pkh = CardanoWasm.Ed25519KeyHash.from_bech32(pkhBech32);
-    if (pkh == null){
-        console.error(`error: Ed25519KeyHash.from_bech32(${pkhBech32}) returned null.`);
-    }
-    skh = CardanoWasm.Ed25519KeyHash.from_bech32(skhBech32);
-    if (skh == null) {
-        console.error(`error: Ed25519KeyHash.from_bech32(${skhBech32}) returned null.`);
-    }
-    const addr = CardanoWasm.BaseAddress.new(
-        netId,
-        CardanoWasm.StakeCredential.from_keyhash(pkh),
-        CardanoWasm.StakeCredential.from_keyhash(skh));
-    return addr;
+exports.stakeCredFromKeyHash = validEd25519KeyHash => {
+    return CardanoWasm.StakeCredential.from_keyhash(validEd25519KeyHash);
 };
 
-
-// addressNetworkId :: BaseAddress -> NetworkIdk
-exports.addressNetworkId = baseAddr => {
-    return baseAddr.to_address().network_id();
+exports.stakeCredFromScriptHash = validScriptHash => {
+    return CardanoWasm.StakeCredential.from_keyhash(validScriptHash);
 };
 
+// it is safe to use only with checked arguments
+exports.newBaseAddressCsl = checkedArgs => {
+    return CardanoWasm.BaseAddress.new(
+        checkedArgs.networkStakeCred,
+        checkedArgs.paymentStakeCred,
+        checkedArgs.delegation);
+};
 
-// fromBech32Impl :: (forall x.x -> Maybe x) -> (forall x.Maybe x) -> Bech32String -> Maybe BaseAddress
-exports.fromBech32Impl = just => nothing => bech32str => {
+// it is safe to use only with valid CardanoWasm.BaseAddress instance
+exports.addressBytesImpl = baseAddr => {
+    return baseAddr.to_bytes();
+};
+
+exports.addressFromBytesImpl = maybe => bytes => {
+    const ret = null;
+    try{
+        const addr = CardanoWasm.Address.from_bytes(bytes);
+        ret = CardanoWasm.BaseAddress.from_address(addr);
+    }
+    catch(e){
+        console.log(e);
+    }
+    if (ret==null){
+        return maybe.nothing;
+    }
+    return maybe.just(ret);
+};
+
+exports.addressFromBech32Impl = maybe => str => {
+    const ret = null;
     try {
-        addr = CardanoWasm.Address.from_bech32(bech32str);
-        baseAddr = CardanoWasm.BaseAddress.from_address(addr);
-        return just(baseAddr);
-    } catch (error) {
-        console.log('BaseAddress.fromBech32 failed with error:', error);
-        return nothing;
+        const addr = CardanoWasm.Address.from_bech32(str);
+        ret = CardanoWasm.BaseAddress.from_address(addr);
     }
+    catch (e) {
+        console.log(e);
+    }
+    if (ret == null) {
+        return maybe.nothing;
+    }
+    return maybe.just(ret);
 };
 
-// addressBech32 :: BaseAddress -> Bech32String
-exports.addressBech32 = baseAddr => {
-    return baseAddr.to_address().to_bech32();
-};
-
-// addressPubKeyHash :: (forall x.x -> Maybe x) -> (forall x.Maybe x) -> BaseAddress -> PubKeyHash
-exports.addressPubKeyHashImpl = just => nothing => baseAddr => {
-    // i've chosen a prefix that Nami uses for payment_creds
-    const kh = baseAddr.payment_cred().to_keyhash();
-    if(kh==null){
-        return nothing;
+exports.headerCheck = maybe => checks => bytes => baseAddr => {
+    // shelley payment addresses:
+    // bit 7: 0
+    // bit 6: base/other
+    // bit 5: pointer/enterprise [for base: stake cred is keyhash/scripthash]
+    // bit 4: payment cred is keyhash/scripthash
+    // bits 3-0: network id
+    //
+    // reward addresses:
+    // bits 7-5: 111
+    // bit 4: credential is keyhash/scripthash
+    // bits 3-0: network id
+    //
+    // byron addresses:
+    // bits 7-4: 1000
+    const paymcheck = maybe.from(null, checks.payment);
+    if (paymcheck != null && !checkBitSet(bytes, 4, paymcheck)){
+        return maybe.nothing;
     }
-    return just(kh.to_bech32('hbas_'));
-};
-
-// addressStakeKeyHash :: (forall x.x -> Maybe x) -> (forall x.Maybe x) -> BaseAddress -> StakeKeyHash
-exports.addressStakeKeyHashImpl = just => nothing => baseAddr => {
-    // i've chosen a prefix that Nami uses for payment_creds
-    const sh = baseAddr.stake_cred().to_keyhash();
-    if (sh == null) {
-        return nothing;
+    const delegcheck = maybe.from(null, checks.delegation);
+    if (delegcheck != null && !checkBitSet(bytes, 3, delegcheck)) {
+        return maybe.nothing;
     }
-    return just(sh.to_bech32('hstk_'));
+    return maybe.just(baseAddr);
 };
