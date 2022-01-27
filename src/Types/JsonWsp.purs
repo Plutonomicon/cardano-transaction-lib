@@ -207,7 +207,7 @@ parseTxOut = jsonObject $
   (\o -> do
     address <- parseFieldToString o "address"
     value <- parseValue o
-    let datum = hush $ parseFieldToString o "address" 
+    let datum = hush $ parseFieldToString o "datum" 
     pure $ { address, value, datum }
   )
 
