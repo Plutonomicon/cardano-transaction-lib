@@ -63,6 +63,7 @@ executable cardano-browser-tx-server
     , mtl
     , plutus-tx
     , servant
+    , servant-client
     , servant-server
     , text
     , wai-logger

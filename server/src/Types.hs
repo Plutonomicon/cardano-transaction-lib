@@ -13,12 +13,12 @@ import Control.Exception (Exception)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (MonadReader, ReaderT)
-import Data.Aeson (ToJSON (..))
+import Data.Aeson (FromJSON, ToJSON (..))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Encoding qualified as Aeson
 import Data.Text (Text)
 import GHC.Generics (Generic)
-import Servant (FromHttpApiData)
+import Servant (FromHttpApiData, ToHttpApiData)
 import Utils (tshow)
 
 newtype AppM a = AppM (ReaderT Env IO a)
@@ -38,11 +38,11 @@ newtype Env = Env
 
 newtype Cbor = Cbor Text
   deriving stock (Show)
-  deriving newtype (Eq, FromHttpApiData)
+  deriving newtype (Eq, FromHttpApiData, ToHttpApiData)
 
 newtype Fee = Fee C.Lovelace
   deriving stock (Show, Generic)
-  deriving newtype (Eq)
+  deriving newtype (Eq, FromJSON)
 
 instance ToJSON Fee where
   -- to avoid issues with integer parsing in PS, we should probably return
