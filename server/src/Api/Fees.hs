@@ -10,6 +10,7 @@ import Data.Proxy (Proxy (Proxy))
 import Data.Text.Encoding qualified as Text
 import Types (
   AppM,
+  CardanoBrowserServerError (..),
   Cbor (..),
   Env (..),
   Fee (..),
@@ -18,7 +19,7 @@ import Types (
 
 estimateTxFees :: Cbor -> AppM Fee
 estimateTxFees cbor = do
-  decoded <- either throwM pure $ decodeCborTx cbor
+  decoded <- either (throwM . FeeEstimate) pure $ decodeCborTx cbor
   Env {..} <- ask
   pure . Fee $ estimateFee protocolParams decoded
 
