@@ -19,6 +19,7 @@ pkgs.mkShell {
     purs-tidy
     purescript-language-server
     purty
+    pscid
     spago2nix
     pkgs.nodePackages.node2nix
     nodejs
