@@ -8,7 +8,7 @@ module Types (
   newEnvIO,
 ) where
 
-import Cardano.Api.Shelley qualified as C
+import Cardano.Api.Shelley qualified as Shelley
 import Cardano.Binary qualified as Cbor
 import Control.Exception (Exception)
 import Control.Monad.Catch (MonadThrow)
@@ -20,6 +20,7 @@ import Data.Aeson.Encoding qualified as Aeson
 import Data.Aeson.Types (withText)
 import Data.Bifunctor (second)
 import Data.Functor ((<&>))
+import Data.Kind (Type)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import GHC.Generics (Generic)
@@ -28,7 +29,7 @@ import Servant (FromHttpApiData, ToHttpApiData)
 import Text.Read (readMaybe)
 import Utils (tshow)
 
-newtype AppM a = AppM (ReaderT Env IO a)
+newtype AppM (a :: Type) = AppM (ReaderT Env IO a)
   deriving newtype
     ( Functor
     , Applicative
@@ -39,14 +40,14 @@ newtype AppM a = AppM (ReaderT Env IO a)
     )
 
 newtype Env = Env
-  { protocolParams :: C.ProtocolParameters
+  { protocolParams :: Shelley.ProtocolParameters
   }
   deriving stock (Generic)
 
 newEnvIO :: IO (Either String Env)
 newEnvIO =
   getDataFileName "config/pparams.json"
-    >>= Aeson.eitherDecodeFileStrict @C.ProtocolParameters
+    >>= Aeson.eitherDecodeFileStrict @Shelley.ProtocolParameters
     <&> second Env
 
 newtype Cbor = Cbor Text

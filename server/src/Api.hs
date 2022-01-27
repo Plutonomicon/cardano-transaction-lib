@@ -6,6 +6,7 @@ import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Data.ByteString.Lazy.Char8 qualified as LC8
+import Data.Kind (Type)
 import Servant (
   Application,
   Get,
@@ -41,23 +42,26 @@ app = serve api . appServer
 appServer :: Env -> Server Api
 appServer env = hoistServer api appHandler server
   where
-    appHandler :: AppM a -> Handler a
+    appHandler :: forall (a :: Type). AppM a -> Handler a
     appHandler (AppM x) = tryServer x >>= either handleError pure
+      where
+        tryServer ::
+          ReaderT Env IO a ->
+          Handler (Either CardanoBrowserServerError a)
+        tryServer =
+          liftIO
+            . try @_ @CardanoBrowserServerError
+            . flip runReaderT env
 
-    tryServer ::
-      ReaderT Env IO a -> Handler (Either CardanoBrowserServerError a)
-    tryServer =
-      liftIO
-        . try @_ @CardanoBrowserServerError
-        . flip runReaderT env
-
-    handleError :: CardanoBrowserServerError -> Handler a
-    handleError (FeeEstimate fe) = case fe of
-      InvalidCbor ic -> throwError err400 {errBody = lbshow ic}
-      InvalidHex ih -> throwError err400 {errBody = LC8.pack ih}
+        handleError ::
+          CardanoBrowserServerError ->
+          Handler a
+        handleError (FeeEstimate fe) = case fe of
+          InvalidCbor ic -> throwError err400 {errBody = lbshow ic}
+          InvalidHex ih -> throwError err400 {errBody = LC8.pack ih}
 
 api :: Proxy Api
-api = Proxy @Api
+api = Proxy
 
 server :: ServerT Api AppM
 server = estimateTxFees
