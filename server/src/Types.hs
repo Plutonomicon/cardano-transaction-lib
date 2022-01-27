@@ -5,6 +5,7 @@ module Types (
   Fee (..),
   FeeEstimateError (..),
   CardanoBrowserServerError (..),
+  newEnvIO,
 ) where
 
 import Cardano.Api.Shelley qualified as C
@@ -16,9 +17,15 @@ import Control.Monad.Reader (MonadReader, ReaderT)
 import Data.Aeson (FromJSON, ToJSON (..))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Encoding qualified as Aeson
+import Data.Aeson.Types (withText)
+import Data.Bifunctor (second)
+import Data.Functor ((<&>))
 import Data.Text (Text)
+import Data.Text qualified as Text
 import GHC.Generics (Generic)
+import Paths_cardano_browser_tx_server (getDataFileName)
 import Servant (FromHttpApiData, ToHttpApiData)
+import Text.Read (readMaybe)
 import Utils (tshow)
 
 newtype AppM a = AppM (ReaderT Env IO a)
@@ -36,20 +43,33 @@ newtype Env = Env
   }
   deriving stock (Generic)
 
+newEnvIO :: IO (Either String Env)
+newEnvIO =
+  getDataFileName "config/pparams.json"
+    >>= Aeson.eitherDecodeFileStrict @C.ProtocolParameters
+    <&> second Env
+
 newtype Cbor = Cbor Text
   deriving stock (Show)
   deriving newtype (Eq, FromHttpApiData, ToHttpApiData)
 
-newtype Fee = Fee C.Lovelace
+newtype Fee = Fee Integer
   deriving stock (Show, Generic)
-  deriving newtype (Eq, FromJSON)
+  deriving newtype (Eq)
 
 instance ToJSON Fee where
   -- to avoid issues with integer parsing in PS, we should probably return
   -- a JSON string, and not a number
-  toJSON (Fee (C.Lovelace int)) = Aeson.String $ tshow int
+  toJSON (Fee int) = Aeson.String $ tshow int
 
-  toEncoding (Fee (C.Lovelace int)) = Aeson.integerText int
+  toEncoding (Fee int) = Aeson.integerText int
+
+instance FromJSON Fee where
+  parseJSON =
+    withText "Fee" $
+      maybe (fail "Expected quoted integer") (pure . Fee)
+        . readMaybe @Integer
+        . Text.unpack
 
 -- We'll probably extend this with more error types over time
 newtype CardanoBrowserServerError = FeeEstimate FeeEstimateError

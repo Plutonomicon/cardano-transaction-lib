@@ -42,14 +42,15 @@ common common-language
     TypeOperators
     TypeSynonymInstances
 
-executable cardano-browser-tx-server
-  import:           common-language
-  default-language: Haskell2010
+common common-options
   ghc-options:
     -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
     -Wmissing-export-lists -Wmissing-deriving-strategies
-  hs-source-dirs: src
-  main-is: Main.hs
+
+library
+  import:          common-language
+  import:          common-options
+  hs-source-dirs:  src
   build-depends:
     , aeson
     , base
@@ -58,8 +59,8 @@ executable cardano-browser-tx-server
     , cardano-api
     , cardano-binary
     , containers
-    , extra
     , exceptions
+    , extra
     , mtl
     , plutus-tx
     , servant
@@ -69,9 +70,41 @@ executable cardano-browser-tx-server
     , wai-logger
     , warp
 
-  other-modules:
+  exposed-modules:
     Api
     Api.Fees
+    Paths_cardano_browser_tx_server
     Types
     Utils
-    Paths_cardano_browser_tx_server
+
+executable cardano-browser-tx-server
+  import:           common-language
+  import:           common-options
+  ghc-options:      -threaded -rtsopts
+  default-language: Haskell2010
+  hs-source-dirs:   exe
+  main-is:          Main.hs
+  build-depends:
+    , base
+    , cardano-browser-tx-server
+    , wai-logger
+    , warp
+
+test-suite test
+  import:         common-language
+  import:         common-options
+  ghc-options:    -threaded -rtsopts
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is:        Main.hs
+  build-depends:
+    , base
+    , bytestring
+    , cardano-browser-tx-server
+    , hspec
+    , http-client
+    , http-types
+    , servant
+    , servant-client
+    , servant-server
+    , warp

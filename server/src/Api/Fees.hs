@@ -23,15 +23,17 @@ estimateTxFees cbor = do
   Env {..} <- ask
   pure . Fee $ estimateFee protocolParams decoded
 
-estimateFee :: C.ProtocolParameters -> C.Tx C.AlonzoEra -> C.Lovelace
-estimateFee pparams (C.Tx txBody keyWits) =
-  C.evaluateTransactionFee
-    pparams
-    txBody
-    0 -- No. of Byron key witnesses; there shouldn't be any of these and
-    -- 'evaluateTransactionFee' won't work with them anyway
-    . fromIntegral
-    $ length keyWits -- No. of Shelley key witnesses
+estimateFee :: C.ProtocolParameters -> C.Tx C.AlonzoEra -> Integer
+estimateFee pparams (C.Tx txBody keyWits) = estimate
+  where
+    C.Lovelace estimate =
+      C.evaluateTransactionFee
+        pparams
+        txBody
+        0 -- No. of Byron key witnesses; there shouldn't be any of these and
+        -- 'evaluateTransactionFee' won't work with them anyway
+        . fromIntegral
+        $ length keyWits -- No. of Shelley key witnesses
 
 decodeCborTx :: Cbor -> Either FeeEstimateError (C.Tx C.AlonzoEra)
 decodeCborTx (Cbor txt) =
