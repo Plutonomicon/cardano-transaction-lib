@@ -1,10 +1,12 @@
 module Serialization.Address (
   BaseAddressCsl,
   BaseAddress,
-  NetworkTag,
+  NetworkTag(TestnetTag, MainnetTag),
   StakeCred,
   CredType,
   StakeCredentialCsl,
+  PubKeyAddress,
+  ScriptAddress,
   addressBech32,
   addressBytes,
   addressFromBech32,
@@ -22,7 +24,6 @@ import Prelude
 
 import Data.ArrayBuffer.Types (Uint8Array)
 import Data.Maybe (Maybe(Nothing, Just))
-import Data.Typelevel.Undefined (undefined)
 import FFiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization.Bech32 (Bech32String)
 import Serialization.Csl (class ToCsl, toCslRep)
@@ -113,6 +114,10 @@ mkBaseAddress {network, payment, delegation} = BaseAddress
   }
 
 foreign import addressBytesImpl :: BaseAddressCsl -> Uint8Array
+foreign import addressBech32Impl :: BaseAddressCsl -> Bech32String
+
+-- | Ensures that stake credentials are of requested type
+-- therefore allowing to set BaseAddress' type arguments
 foreign import headerCheck
   :: forall p d
    . MaybeFfiHelper
@@ -121,6 +126,7 @@ foreign import headerCheck
   -> Uint8Array
   -> BaseAddressCsl
   -> Maybe (BaseAddress p d)
+
 foreign import addressFromBytesImpl :: MaybeFfiHelper -> Uint8Array -> Maybe BaseAddressCsl
 foreign import addressFromBech32Impl :: MaybeFfiHelper -> Bech32String -> Maybe BaseAddressCsl
 
@@ -146,10 +152,16 @@ addressFromBytes checks bts = do
   headerCheck maybeFfiHelper checks bts addrCsl
 
 -- | Return Cardano Bech32 representation of BaseAddress
--- NOTE. Use csl implementation which apparently can fail.
--- is it possible to guarantee safety?
-addressBech32 :: forall p d. BaseAddress p d -> Maybe Bech32String
-addressBech32 = undefined
+-- NOTE on safety - even if CSL functions signals that it can error out,
+-- following their implementation indicates that any valid address should
+-- be encoded to bech32 without erros.
+addressBech32
+  :: forall p d
+   . (ToCsl (StakeCred d) StakeCredentialCsl)
+  => (ToCsl (StakeCred p) StakeCredentialCsl)
+  => BaseAddress p d
+  -> Bech32String
+addressBech32 = toCslRep >>> addressBech32Impl
 
 -- | Build address out of its bech32 representation.
 addressFromBech32 :: forall p d. {payment :: CredType p, delegation :: CredType d} -> Bech32String -> Maybe (BaseAddress p d)
@@ -168,14 +180,14 @@ scriptAddress nt sh = BaseAddress {network: nt, payment: sh, delegation: sh}
 
 ---- cred types
 
--- | Helper to set BaseAddress type arguments during decoding.
+-- | Sets BaseAddress type arguments during decoding.
 anyCredType :: CredType (forall a. a)
 anyCredType = CredType Nothing
 
--- | Helper to set BaseAddress type arguments during decoding.
+-- | Sets BaseAddress type arguments during decoding.
 ed25519KeyHashCredType :: CredType Ed25519KeyHash
 ed25519KeyHashCredType = CredType (Just false)
 
--- | Helper to set BaseAddress type arguments during decoding.
+-- | Sets BaseAddress type arguments during decoding.
 scriptHashCredType :: CredType ScriptHash
 scriptHashCredType = CredType (Just true)

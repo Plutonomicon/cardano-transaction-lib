@@ -9,7 +9,7 @@ exports.stakeCredFromScriptHash = validScriptHash => {
     return CardanoWasm.StakeCredential.from_keyhash(validScriptHash);
 };
 
-// it is safe to use only with checked arguments
+// it is safe to use only with valid arguments
 exports.newBaseAddressCsl = checkedArgs => {
     return CardanoWasm.BaseAddress.new(
         checkedArgs.networkStakeCred,
@@ -17,9 +17,12 @@ exports.newBaseAddressCsl = checkedArgs => {
         checkedArgs.delegation);
 };
 
-// it is safe to use only with valid CardanoWasm.BaseAddress instance
 exports.addressBytesImpl = baseAddr => {
     return baseAddr.to_bytes();
+};
+
+exports.addressBech32Impl = baseAddr => {
+    return baseAddr.to_bech32();
 };
 
 exports.addressFromBytesImpl = maybe => bytes => {
@@ -53,6 +56,7 @@ exports.addressFromBech32Impl = maybe => str => {
 };
 
 exports.headerCheck = maybe => checks => bytes => baseAddr => {
+    // NOTE from CIP-19 and CSL codebase:
     // shelley payment addresses:
     // bit 7: 0
     // bit 6: base/other
