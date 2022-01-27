@@ -5,11 +5,11 @@ import Prelude
 import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
 import Data.HashMap (HashMap)
-import Data.Maybe (Maybe)
 import Data.Map (Map)
+import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
-import Data.Show.Generic (genericShow)
 import Data.Rational (Rational)
+import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 
@@ -18,9 +18,8 @@ import Types.RedeemerTag (RedeemerTag)
 import Types.Value (Value)
 
 -- note: these types are derived from the cardano-serialization-lib Sundae fork
--- the source of truth for these types should be that library and the 
+-- the source of truth for these types should be that library and the
 -- corresponding Rust types
-
 newtype Transaction = Transaction {
   body :: TxBody,
   witness_set :: TransactionWitnessSet,
@@ -37,7 +36,7 @@ newtype TxBody = TxBody
     certs :: Maybe (Array Certificate),
     withdrawals :: Maybe (Map RewardAddress Coin),
     update :: Maybe Update,
-    auxiliary_data_hash :: Maybe AuxiliaryDataHash, 
+    auxiliary_data_hash :: Maybe AuxiliaryDataHash,
     validity_start_interval :: Maybe Slot,
     mint :: Maybe Mint,
     script_data_hash :: Maybe ScriptDataHash,
@@ -60,12 +59,12 @@ newtype AuxiliaryDataHash = AuxiliaryDataHash String
 derive instance newtypeAuxiliaryDataHash :: Newtype AuxiliaryDataHash _
 derive newtype instance eqAuxiliaryDataHash :: Eq AuxiliaryDataHash
 
-type Update = 
+type Update =
   { proposed_protocol_parameter_updates :: ProposedProtocolParameterUpdates
   , epoch :: Epoch
   }
 
-newtype ProposedProtocolParameterUpdates 
+newtype ProposedProtocolParameterUpdates
   = ProposedProtocolParameterUpdates (Map GenesisHash ProtocolParamUpdate)
 derive instance newtypeProposedProtocolParameterUpdates
   :: Newtype ProposedProtocolParameterUpdates _
@@ -76,7 +75,7 @@ newtype GenesisHash = GenesisHash String
 derive instance newtypeGenesisHash :: Newtype GenesisHash _
 derive newtype instance eqGenesisHash :: Eq GenesisHash
 
-type ProtocolParamUpdate = 
+type ProtocolParamUpdate =
   { minfee_a :: Maybe Coin,
     minfee_b :: Maybe Coin,
     max_block_body_size :: Maybe UInt,
@@ -113,7 +112,7 @@ type ExUnits =
 
 type SubCoin = UnitInterval
 
-type RewardAddress = 
+type RewardAddress =
   { network :: UInt
   , payment :: StakeCredential
   }
@@ -123,7 +122,7 @@ data StakeCredential
   | Script ScriptHash
 derive instance eqStakeCredential :: Eq StakeCredential
 
-newtype Ed25519KeyHash = Ed25519KeyHash String 
+newtype Ed25519KeyHash = Ed25519KeyHash String
 derive instance newtypeEd25519KeyHash :: Newtype Ed25519KeyHash _
 derive newtype instance eqEd25519KeyHash :: Eq Ed25519KeyHash
 
@@ -172,7 +171,7 @@ derive instance eqCertificate :: Eq Certificate
 
 newtype TransactionWitnessSet = TransactionWitnessSet
   { vkeys :: Maybe (Array Vkeywitness),
-    native_scripts :: Maybe (Array NativeScript), 
+    native_scripts :: Maybe (Array NativeScript),
     bootstraps :: Maybe (Array BootstrapWitness),
     plutus_scripts :: Maybe (Array PlutusScript),
     plutus_data :: Maybe (Array PlutusData),
@@ -186,7 +185,7 @@ type BootstrapWitness =
   , attributes :: ByteArray
   }
 
-data NetworkId 
+data NetworkId
   = Mainnet
   | Testnet
 derive instance eqNetworkId :: Eq NetworkId
@@ -205,10 +204,10 @@ newtype PlutusScript = PlutusScript String
 derive instance newtypePlutusScript :: Newtype PlutusScript _
 derive newtype instance eqPlutusScript :: Eq PlutusScript
 
-newtype PlutusData = PlutusData String 
+newtype PlutusData = PlutusData String
 
 newtype Redeemer = Redeemer
-  { tag :: RedeemerTag, 
+  { tag :: RedeemerTag,
     index :: BigInt,
     data :: PlutusData,
     ex_units :: (MemExUnits /\ CpuExUnits)
@@ -219,7 +218,7 @@ newtype MemExUnits = MemExUnits BigInt
 newtype CpuExUnits = CpuExUnits BigInt
 
 
-type AuxiliaryData = 
+type AuxiliaryData =
   { metadata :: Maybe GeneralTransactionMetadata
   , native_scripts :: Maybe (Array NativeScript)
   , plutus_scripts :: Maybe (Array PlutusScript)
