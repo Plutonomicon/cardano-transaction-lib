@@ -9,6 +9,7 @@ import Effect.Aff (Aff, launchAff_)
 import Effect.Aff.Class (liftAff)
 import Mote (Plan, foldPlan, planT)
 import Test.AffInterface as AffInterface
+import Test.ByteArray as ByteArrayTest
 import Test.Helpers as Helpers
 import Test.Parser as ParseTest
 import Test.Spec (Spec, describe, it)
@@ -43,4 +44,5 @@ testPlan :: TestPlanM Unit
 testPlan = do
   ParseTest.suite
   AffInterface.suite
+  ByteArrayTest.suite
   Helpers.suite
