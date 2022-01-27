@@ -16,6 +16,7 @@ import Test.Serialization.Address as Serialization.Address
 import TestM (TestPlanM)
 import Mote (Plan, foldPlan, planT)
 import Test.AffInterface as AffInterface
+import Test.ByteArray as ByteArrayTest
 import Test.Helpers as Helpers
 import Test.Parser as ParseTest
 import Test.Spec (Spec, describe, it)
@@ -51,4 +52,5 @@ testPlan = do
   ParseTest.suite
   AffInterface.suite
   Serialization.Address.suite
+  ByteArrayTest.suite
   Helpers.suite
