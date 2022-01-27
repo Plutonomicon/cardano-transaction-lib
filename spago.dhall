@@ -35,6 +35,7 @@ You can edit this file as you like.
   , "prelude"
   , "psci-support"
   , "quickcheck"
+  , "quickcheck-laws"
   , "rationals"
   , "refs"
   , "spec"
