@@ -61,6 +61,7 @@ library
     , plutus-tx
     , servant
     , servant-client
+    , servant-docs
     , servant-server
     , text
     , wai-logger

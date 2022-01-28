@@ -25,7 +25,8 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import GHC.Generics (Generic)
 import Paths_cardano_browser_tx_server (getDataFileName)
-import Servant (FromHttpApiData, ToHttpApiData)
+import Servant (FromHttpApiData, QueryParam', Required, ToHttpApiData)
+import Servant.Docs qualified as Docs
 import Text.Read (readMaybe)
 import Utils (tshow)
 
@@ -84,3 +85,29 @@ data FeeEstimateError
   deriving stock (Show)
 
 instance Exception FeeEstimateError
+
+-- API doc stuff
+instance Docs.ToParam (QueryParam' '[Required] "tx" Cbor) where
+  toParam _ =
+    Docs.DocQueryParam
+      "tx"
+      [sampleTx]
+      "A CBOR-encoded `Tx AlonzoEra`; should be sent as a hexadecimal string"
+      Docs.Normal
+    where
+      sampleTx =
+        mconcat
+          [ "84a300818258205d677265fa5bb21ce6d8c7502aca70b93"
+          , "16d10e958611f3c6b758f65ad9599960001818258390030"
+          , "fb3b8539951e26f034910a5a37f22cb99d94d1d409f69dd"
+          , "baea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba"
+          , "3e96550504d5336100021a0002b569a0f5f6"
+          ]
+
+instance Docs.ToSample Fee where
+  toSamples _ =
+    [
+      ( "The `Fee` will be returned encoded as a JSON string"
+      , Fee 160265
+      )
+    ]

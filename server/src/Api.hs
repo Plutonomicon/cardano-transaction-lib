@@ -1,4 +1,4 @@
-module Api (app, getTransactionFeeEstimate) where
+module Api (app, getTransactionFeeEstimate, apiDocs) where
 
 import Api.Fees (estimateTxFees)
 import Control.Monad.Catch (try)
@@ -24,6 +24,7 @@ import Servant (
   type (:>),
  )
 import Servant.Client (ClientM, client)
+import Servant.Docs qualified as Docs
 import Types (
   AppM (..),
   CardanoBrowserServerError (..),
@@ -65,6 +66,9 @@ api = Proxy
 
 server :: ServerT Api AppM
 server = estimateTxFees
+
+apiDocs :: Docs.API
+apiDocs = Docs.docs api
 
 getTransactionFeeEstimate :: Cbor -> ClientM Fee
 getTransactionFeeEstimate = client api
