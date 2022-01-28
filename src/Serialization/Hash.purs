@@ -16,7 +16,7 @@ module Serialization.Hash (
 import Control.Category (identity)
 import Data.Maybe (Maybe)
 import FFiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import Serialization.Bech32 (Bech32String)
+import Type.Aliases (Bech32String)
 import Serialization.Csl (class ToCsl)
 import Types.ByteArray (ByteArray)
 

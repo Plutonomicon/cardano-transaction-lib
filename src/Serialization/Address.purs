@@ -35,9 +35,9 @@ module Serialization.Address (
 
 import Prelude
 
+import Types.Aliases (Bech32String)
 import Data.Maybe (Maybe(Just))
 import FFiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import Serialization.Bech32 (Bech32String)
 import Serialization.Csl (class ToCsl, CslType, toCslRep, toCslType)
 import Serialization.Hash (Ed25519KeyHash, ScriptHash)
 import Types.ByteArray (ByteArray)

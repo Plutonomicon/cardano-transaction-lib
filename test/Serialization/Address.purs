@@ -7,7 +7,8 @@ import Effect.Class (liftEffect)
 import Effect.Exception (error, throwException)
 import Partial.Unsafe (unsafePartial)
 import TestM (TestPlanM)
-import Serialization.Address (Bech32String(..), addressBech32, addressNetworkId, addressPubKeyHash, addressStakeKeyHash, fromBech32, newBaseAddress)
+import Types.Aliases (Bech32String)
+import Serialization.Address (addressBech32, addressNetworkId, addressPubKeyHash, addressStakeKeyHash, fromBech32, newBaseAddress)
 
 
 errBool :: String -> Boolean -> TestPlanM Unit
@@ -27,7 +28,7 @@ doesNotThrow = pure
 
 -- This address should have both stake keyhash and payment keyhash
 testAddrString :: Bech32String
-testAddrString = Bech32String "addr1qyc0kwu98x23ufhsxjgs5k3h7gktn8v5682qna5amwh2juguztcrc8hjay66es67ctn0jmr9plfmlw37je2s2px4xdssgvxerq"
+testAddrString = "addr1qyc0kwu98x23ufhsxjgs5k3h7gktn8v5682qna5amwh2juguztcrc8hjay66es67ctn0jmr9plfmlw37je2s2px4xdssgvxerq"
 
 suite :: TestPlanM Unit
 suite = do
