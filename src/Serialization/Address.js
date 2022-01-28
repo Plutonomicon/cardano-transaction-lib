@@ -12,20 +12,19 @@ exports.stakeCredFromScriptHash = validScriptHash => {
 // it is safe to use only with valid arguments
 exports.newBaseAddressCsl = checkedArgs => {
     return CardanoWasm.BaseAddress.new(
-        checkedArgs.networkStakeCred,
+        checkedArgs.network,
         checkedArgs.paymentStakeCred,
-        checkedArgs.delegation);
+        checkedArgs.delegationStakeCred);
 };
 
-exports.addressBytesImpl = baseAddr => {
-    return baseAddr.to_bytes();
+// it is safe to use only with valid arguments
+exports.newRewardAddressCsl = checkedArgs => {
+    return CardanoWasm.RewardAddress.new(
+        checkedArgs.network,
+        checkedArgs.paymentStakeCred);
 };
 
-exports.addressBech32Impl = baseAddr => {
-    return baseAddr.to_bech32();
-};
-
-exports.addressFromBytesImpl = maybe => bytes => {
+exports.baseAddressFromBytesImpl = maybe => bytes => {
     const ret = null;
     try{
         const addr = CardanoWasm.Address.from_bytes(bytes);
@@ -40,7 +39,22 @@ exports.addressFromBytesImpl = maybe => bytes => {
     return maybe.just(ret);
 };
 
-exports.addressFromBech32Impl = maybe => str => {
+exports.rewardAddressFromBytesImpl = maybe => bytes => {
+    const ret = null;
+    try {
+        const addr = CardanoWasm.Address.from_bytes(bytes);
+        ret = CardanoWasm.RewardAddress.from_address(addr);
+    }
+    catch (e) {
+        console.log(e);
+    }
+    if (ret == null) {
+        return maybe.nothing;
+    }
+    return maybe.just(ret);
+};
+
+exports.baseAddressFromBech32Impl = maybe => str => {
     const ret = null;
     try {
         const addr = CardanoWasm.Address.from_bech32(str);
@@ -55,7 +69,22 @@ exports.addressFromBech32Impl = maybe => str => {
     return maybe.just(ret);
 };
 
-exports.headerCheck = maybe => checks => bytes => baseAddr => {
+exports.rewardAddressFromBech32Impl = maybe => str => {
+    const ret = null;
+    try {
+        const addr = CardanoWasm.Address.from_bech32(str);
+        ret = CardanoWasm.RewardAddress.from_address(addr);
+    }
+    catch (e) {
+        console.log(e);
+    }
+    if (ret == null) {
+        return maybe.nothing;
+    }
+    return maybe.just(ret);
+};
+
+exports.headerCheckBaseAddr = maybe => checks => bytes => baseAddr => {
     // NOTE from CIP-19 and CSL codebase:
     // shelley payment addresses:
     // bit 7: 0
@@ -80,4 +109,40 @@ exports.headerCheck = maybe => checks => bytes => baseAddr => {
         return maybe.nothing;
     }
     return maybe.just(baseAddr);
+};
+
+exports.headerCheckRewardAddr = maybe => checks => bytes => baseAddr => {
+    // NOTE from CIP-19 and CSL codebase:
+    // shelley payment addresses:
+    // bit 7: 0
+    // bit 6: base/other
+    // bit 5: pointer/enterprise [for base: stake cred is keyhash/scripthash]
+    // bit 4: payment cred is keyhash/scripthash
+    // bits 3-0: network id
+    //
+    // reward addresses:
+    // bits 7-5: 111
+    // bit 4: credential is keyhash/scripthash
+    // bits 3-0: network id
+    //
+    // byron addresses:
+    // bits 7-4: 1000
+    const paymcheck = maybe.from(null, checks.payment);
+    if (paymcheck != null && !checkBitSet(bytes, 4, paymcheck)) {
+        return maybe.nothing;
+    }
+    return maybe.just(baseAddr);
+};
+
+
+exports.toAddressCslUnsafe = addresType => {
+    return addresType.to_address();
+};
+
+exports.addressBytesImpl = baseAddr => {
+    return baseAddr.to_bytes();
+};
+
+exports.addressBech32Impl = baseAddr => {
+    return baseAddr.to_bech32();
 };

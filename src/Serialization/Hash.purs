@@ -1,5 +1,7 @@
 module Serialization.Hash (
   Ed25519KeyHash,
+  PubKeyHash,
+  StakeKeyHash,
   ScriptHash,
   ed25519KeyHashFromBytes,
   ed25519KeyHashFromBech32,
@@ -19,7 +21,11 @@ import Serialization.Bech32 (Bech32String)
 import Serialization.Csl (class ToCsl)
 
 
+-- | PubKeyHash and StakeKeyHash refers to blake2b-224 hash digests of Ed25519
+-- | verification keys
 foreign import data Ed25519KeyHash :: Type
+type PubKeyHash = Ed25519KeyHash
+type StakeKeyHash = Ed25519KeyHash
 
 instance ToCsl Ed25519KeyHash Ed25519KeyHash where
   toCslRep = identity
@@ -41,6 +47,7 @@ ed25519KeyHashFromBech32 = ed25519KeyHashFromBech32Impl maybeFfiHelper
 ed25519KeyHashToBech32 :: String -> Ed25519KeyHash -> Maybe Bech32String
 ed25519KeyHashToBech32 = ed25519KeyHashToBech32Impl maybeFfiHelper
 
+-- | blake2b-224 hash digests of serialized monetary scripts
 foreign import data ScriptHash :: Type
 
 instance ToCsl ScriptHash ScriptHash where
