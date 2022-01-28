@@ -20,7 +20,8 @@ module Serialization.Address (
   rewardAddressFromBytes,
   rewardAddressFromBech32,
   ed25519KeyHashCredType,
-  mkBaseAddress,
+  baseAddress,
+  rewardAddress,
   netTagToInt,
   pubKeyAddress,
   scriptAddress,
@@ -201,16 +202,28 @@ foreign import rewardAddressFromBytesImpl :: MaybeFfiHelper -> Uint8Array -> May
 foreign import rewardAddressFromBech32Impl :: MaybeFfiHelper -> Bech32String -> Maybe RewardAddressCsl
 
 -- | The exported constructor for `BaseAddress`.
-mkBaseAddress
+baseAddress
   :: forall p d
    . (ToCsl (StakeCred d) StakeCredentialCsl)
   => (ToCsl (StakeCred p) StakeCredentialCsl)
   => {network :: NetworkTag, payment :: p, delegation :: d}
   -> BaseAddress p d
-mkBaseAddress {network, payment, delegation} = BaseAddress
+baseAddress {network, payment, delegation} = BaseAddress
   { network: network
   , payment: payment
   , delegation: delegation
+  }
+
+-- | The exported constructor for `RewardAddress`.
+rewardAddress
+  :: forall p
+   . (ToCsl (StakeCred p) StakeCredentialCsl)
+  => {network :: NetworkTag, payment :: p}
+  -> RewardAddress p
+rewardAddress {network, payment} = RewardAddress
+  { network: network
+  , payment: payment
+  , delegation: unit
   }
 
 
