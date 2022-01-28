@@ -10,8 +10,8 @@ import Data.Maybe (Maybe)
 import Data.Show (class Show)
 import FFiHelpers (MaybeFfiHelper, maybeFfiHelper)
 
-foreign import verifyBech32Impl :: MaybeFfiHelper -> Int -> String -> Maybe Bech32String
-foreign import getPrefixImpl :: Int -> Bech32String -> String
+foreign import verifyBech32Impl_ :: MaybeFfiHelper -> Int -> String -> Maybe Bech32String
+foreign import getPrefixImpl_ :: Int -> Bech32String -> String
 
 -- | Cardano itself doesn't impose limitations on the length of bech32 strings,
 -- but a fixed number must be used in order to use 'bech32.js' and not exceeding

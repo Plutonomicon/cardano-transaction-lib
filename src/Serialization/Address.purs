@@ -154,29 +154,29 @@ newtype CredType (p :: Type) = CredType (Maybe Boolean)
 
 ----
 
-foreign import stakeCredFromKeyHash :: Ed25519KeyHash -> StakeCredentialCsl
-foreign import stakeCredFromScriptHash :: ScriptHash -> StakeCredentialCsl
+foreign import stakeCredFromKeyHash_ :: Ed25519KeyHash -> StakeCredentialCsl
+foreign import stakeCredFromScriptHash_ :: ScriptHash -> StakeCredentialCsl
 
 -- | Only use on csl types that supports CSL's to_address()
-foreign import toAddressCslUnsafe :: CslType -> AddressCsl
+foreign import toAddressCslUnsafe_ :: CslType -> AddressCsl
 
-foreign import newRewardAddressCsl
+foreign import newRewardAddressCsl_
   :: { network :: Int
      , paymentStakeCred :: StakeCredentialCsl
      } -> RewardAddressCsl
 
-foreign import newBaseAddressCsl
+foreign import newBaseAddressCsl_
   :: { network :: Int
      , paymentStakeCred :: StakeCredentialCsl
      , delegationStakeCred :: StakeCredentialCsl
      } -> BaseAddressCsl
 
-foreign import addressBytesImpl :: AddressCsl -> ByteArray
-foreign import addressBech32Impl :: AddressCsl -> Bech32String
+foreign import addressBytesImpl_ :: AddressCsl -> ByteArray
+foreign import addressBech32Impl_ :: AddressCsl -> Bech32String
 
 -- | Ensures that stake credentials are of requested type
 -- therefore allowing to set BaseAddress' type arguments
-foreign import headerCheckBaseAddr
+foreign import headerCheckBaseAddr_
   :: forall p d
    . MaybeFfiHelper
   -> { payment :: CredType p
@@ -187,7 +187,7 @@ foreign import headerCheckBaseAddr
 
 -- | Ensures that stake credentials are of requested type
 -- therefore allowing to set RewardAddress' type arguments
-foreign import headerCheckRewardAddr
+foreign import headerCheckRewardAddr_
   :: forall p
    . MaybeFfiHelper
   -> { payment :: CredType p}
@@ -195,11 +195,11 @@ foreign import headerCheckRewardAddr
   -> RewardAddressCsl
   -> Maybe (RewardAddress p)
 
-foreign import baseAddressFromBytesImpl :: MaybeFfiHelper -> ByteArray -> Maybe BaseAddressCsl
-foreign import baseAddressFromBech32Impl :: MaybeFfiHelper -> Bech32String -> Maybe BaseAddressCsl
+foreign import baseAddressFromBytesImpl_ :: MaybeFfiHelper -> ByteArray -> Maybe BaseAddressCsl
+foreign import baseAddressFromBech32Impl_ :: MaybeFfiHelper -> Bech32String -> Maybe BaseAddressCsl
 
-foreign import rewardAddressFromBytesImpl :: MaybeFfiHelper -> ByteArray -> Maybe RewardAddressCsl
-foreign import rewardAddressFromBech32Impl :: MaybeFfiHelper -> Bech32String -> Maybe RewardAddressCsl
+foreign import rewardAddressFromBytesImpl_ :: MaybeFfiHelper -> ByteArray -> Maybe RewardAddressCsl
+foreign import rewardAddressFromBech32Impl_ :: MaybeFfiHelper -> Bech32String -> Maybe RewardAddressCsl
 
 -- | The exported constructor for `BaseAddress`.
 baseAddress
