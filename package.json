@@ -13,6 +13,8 @@
   "license": "ISC",
   "dependencies": {
     "@cardano-ogmios/client": "^4.2.1",
+    "@ngua/cardano-serialization-lib-nodejs": "^9.1.2",
+    "@ngua/cardano-serialization-lib-browser": "^9.1.2",
     "big-integer": "^1.6.51",
     "bufferutil": "^4.0.5",
     "uniqid": "^5.4.0",
