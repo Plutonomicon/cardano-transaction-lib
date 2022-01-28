@@ -14,11 +14,11 @@ module Serialization.Hash (
   ) where
 
 import Control.Category (identity)
-import Data.ArrayBuffer.Types (Uint8Array)
 import Data.Maybe (Maybe)
 import FFiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization.Bech32 (Bech32String)
 import Serialization.Csl (class ToCsl)
+import Types.ByteArray (ByteArray)
 
 
 -- | PubKeyHash and StakeKeyHash refers to blake2b-224 hash digests of Ed25519
@@ -31,14 +31,14 @@ instance ToCsl Ed25519KeyHash Ed25519KeyHash where
   toCslRep = identity
 
 
-foreign import ed25519KeyHashFromBytesImpl :: MaybeFfiHelper -> Uint8Array -> Maybe Ed25519KeyHash
+foreign import ed25519KeyHashFromBytesImpl :: MaybeFfiHelper -> ByteArray -> Maybe Ed25519KeyHash
 foreign import ed25519KeyHashFromBech32Impl :: MaybeFfiHelper -> Bech32String -> Maybe Ed25519KeyHash
 
-foreign import ed25519KeyHashToBytes :: Ed25519KeyHash -> Uint8Array
+foreign import ed25519KeyHashToBytes :: Ed25519KeyHash -> ByteArray
 foreign import ed25519KeyHashToBech32Unsafe :: String -> Ed25519KeyHash -> Bech32String
 foreign import ed25519KeyHashToBech32Impl :: MaybeFfiHelper -> String -> Ed25519KeyHash -> Maybe Bech32String
 
-ed25519KeyHashFromBytes :: Uint8Array -> Maybe Ed25519KeyHash
+ed25519KeyHashFromBytes :: ByteArray -> Maybe Ed25519KeyHash
 ed25519KeyHashFromBytes = ed25519KeyHashFromBytesImpl maybeFfiHelper
 
 ed25519KeyHashFromBech32 :: Bech32String -> Maybe Ed25519KeyHash
@@ -53,14 +53,14 @@ foreign import data ScriptHash :: Type
 instance ToCsl ScriptHash ScriptHash where
   toCslRep = identity
 
-foreign import scriptHashFromBytesImpl :: MaybeFfiHelper -> Uint8Array -> Maybe ScriptHash
+foreign import scriptHashFromBytesImpl :: MaybeFfiHelper -> ByteArray -> Maybe ScriptHash
 foreign import scriptHashFromBech32Impl :: MaybeFfiHelper -> Bech32String -> Maybe ScriptHash
 
-foreign import scriptHashToBytes :: ScriptHash -> Uint8Array
+foreign import scriptHashToBytes :: ScriptHash -> ByteArray
 foreign import scriptHashToBech32Unsafe :: String -> ScriptHash -> Bech32String
 foreign import scriptHashToBech32Impl :: MaybeFfiHelper -> String -> ScriptHash -> Maybe Bech32String
 
-scriptHashFromBytes :: Uint8Array -> Maybe ScriptHash
+scriptHashFromBytes :: ByteArray -> Maybe ScriptHash
 scriptHashFromBytes = scriptHashFromBytesImpl maybeFfiHelper
 
 scriptHashFromBech32 :: Bech32String -> Maybe ScriptHash

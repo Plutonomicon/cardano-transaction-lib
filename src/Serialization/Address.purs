@@ -35,12 +35,12 @@ module Serialization.Address (
 
 import Prelude
 
-import Data.ArrayBuffer.Types (Uint8Array)
 import Data.Maybe (Maybe(Just))
 import FFiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization.Bech32 (Bech32String)
 import Serialization.Csl (class ToCsl, CslType, toCslRep, toCslType)
 import Serialization.Hash (Ed25519KeyHash, ScriptHash)
+import Types.ByteArray (ByteArray)
 import Unsafe.Coerce (unsafeCoerce)
 
 
@@ -171,7 +171,7 @@ foreign import newBaseAddressCsl
      , delegationStakeCred :: StakeCredentialCsl
      } -> BaseAddressCsl
 
-foreign import addressBytesImpl :: AddressCsl -> Uint8Array
+foreign import addressBytesImpl :: AddressCsl -> ByteArray
 foreign import addressBech32Impl :: AddressCsl -> Bech32String
 
 -- | Ensures that stake credentials are of requested type
@@ -181,7 +181,7 @@ foreign import headerCheckBaseAddr
    . MaybeFfiHelper
   -> { payment :: CredType p
      , delegation :: CredType d}
-  -> Uint8Array
+  -> ByteArray
   -> BaseAddressCsl
   -> Maybe (BaseAddress p d)
 
@@ -191,14 +191,14 @@ foreign import headerCheckRewardAddr
   :: forall p
    . MaybeFfiHelper
   -> { payment :: CredType p}
-  -> Uint8Array
+  -> ByteArray
   -> RewardAddressCsl
   -> Maybe (RewardAddress p)
 
-foreign import baseAddressFromBytesImpl :: MaybeFfiHelper -> Uint8Array -> Maybe BaseAddressCsl
+foreign import baseAddressFromBytesImpl :: MaybeFfiHelper -> ByteArray -> Maybe BaseAddressCsl
 foreign import baseAddressFromBech32Impl :: MaybeFfiHelper -> Bech32String -> Maybe BaseAddressCsl
 
-foreign import rewardAddressFromBytesImpl :: MaybeFfiHelper -> Uint8Array -> Maybe RewardAddressCsl
+foreign import rewardAddressFromBytesImpl :: MaybeFfiHelper -> ByteArray -> Maybe RewardAddressCsl
 foreign import rewardAddressFromBech32Impl :: MaybeFfiHelper -> Bech32String -> Maybe RewardAddressCsl
 
 -- | The exported constructor for `BaseAddress`.
@@ -232,7 +232,7 @@ addressBytes
   :: forall a p d
    . Address a p d
   => a
-  -> Uint8Array
+  -> ByteArray
 addressBytes = ToAddressCsl >>> toCslRep >>> addressBytesImpl
 
 -- | Parse `RewardAddress` from its byte representation
@@ -240,7 +240,7 @@ rewardAddressFromBytes
   :: forall p
    . { payment :: CredType p
      }
-   -> Uint8Array
+   -> ByteArray
    -> Maybe (RewardAddress p)
 rewardAddressFromBytes checks bts = do
   addrCsl <- rewardAddressFromBytesImpl maybeFfiHelper bts
@@ -252,7 +252,7 @@ baseAddressFromBytes
    . { payment :: CredType p
      , delegation :: CredType d
      }
-   -> Uint8Array
+   -> ByteArray
    -> Maybe (BaseAddress p d)
 baseAddressFromBytes checks bts = do
   addrCsl <- baseAddressFromBytesImpl maybeFfiHelper bts
