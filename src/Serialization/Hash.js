@@ -36,26 +36,26 @@ const hashToBech32Impl = maybe => prefix => hash => {
     return maybe.just(ret);
 };
 
-exports.ed25519KeyHashFromBech32Impl_ = maybe => bech32str => {
+exports.ed25519KeyHashFromBech32Impl = maybe => bech32str => {
     return hashFromImpl(CardanoWasm.Ed25519KeyHash.from_bech32)(maybe)(bech32str);
 };
 
-exports.ed25519KeyHashFromBytesImpl_ = maybe => bytes => {
+exports.ed25519KeyHashFromBytesImpl = maybe => bytes => {
     return hashFromImpl(CardanoWasm.Ed25519KeyHash.from_bytes)(maybe)(bytes);
 };
 
-exports.scriptHashFromBytesImpl_ = maybe => bytes => {
+exports.scriptHashFromBytesImpl = maybe => bytes => {
     return hashFromImpl(CardanoWasm.ScriptHash.from_bytes)(maybe)(bytes);
 };
 
-exports.scriptHashFromBech32Impl_ = maybe => bech32str => {
+exports.scriptHashFromBech32Impl = maybe => bech32str => {
     return hashFromImpl(CardanoWasm.ScriptHash.from_bech32)(maybe)(bech32str);
 };
 
-exports.ed25519KeyHashToBytes_ = hashToBytes;
-exports.ed25519KeyHashToBech32Unsafe_ = hashToBech32Unsafe;
-exports.ed25519KeyHashToBech32Impl_ = hashToBech32Impl;
+exports.ed25519KeyHashToBytes = hashToBytes;
+exports.ed25519KeyHashToBech32Unsafe = hashToBech32Unsafe;
+exports.ed25519KeyHashToBech32Impl = hashToBech32Impl;
 
-exports.scriptHashToBytes_ = hashToBytes;
-exports.scriptHashToBech32Unsafe_ = hashToBech32Unsafe;
-exports.scriptHashToBech32Impl_ = hashToBech32Impl;
+exports.scriptHashToBytes = hashToBytes;
+exports.scriptHashToBech32Unsafe = hashToBech32Unsafe;
+exports.scriptHashToBech32Impl = hashToBech32Impl;

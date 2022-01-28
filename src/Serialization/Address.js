@@ -1,16 +1,16 @@
 const CardanoWasm = require("@emurgo/cardano-serialization-lib-nodejs");
 
 
-exports.stakeCredFromKeyHash_ = validEd25519KeyHash => {
+exports.stakeCredFromKeyHash = validEd25519KeyHash => {
     return CardanoWasm.StakeCredential.from_keyhash(validEd25519KeyHash);
 };
 
-exports.stakeCredFromScriptHash_ = validScriptHash => {
+exports.stakeCredFromScriptHash = validScriptHash => {
     return CardanoWasm.StakeCredential.from_keyhash(validScriptHash);
 };
 
 // it is safe to use only with valid arguments
-exports.newBaseAddressCsl_ = checkedArgs => {
+exports.newBaseAddressCsl = checkedArgs => {
     return CardanoWasm.BaseAddress.new(
         checkedArgs.network,
         checkedArgs.paymentStakeCred,
@@ -18,13 +18,13 @@ exports.newBaseAddressCsl_ = checkedArgs => {
 };
 
 // it is safe to use only with valid arguments
-exports.newRewardAddressCsl_ = checkedArgs => {
+exports.newRewardAddressCsl = checkedArgs => {
     return CardanoWasm.RewardAddress.new(
         checkedArgs.network,
         checkedArgs.paymentStakeCred);
 };
 
-exports.baseAddressFromBytesImpl_ = maybe => bytes => {
+exports.baseAddressFromBytesImpl = maybe => bytes => {
     const ret = null;
     try{
         const addr = CardanoWasm.Address.from_bytes(bytes);
@@ -39,7 +39,7 @@ exports.baseAddressFromBytesImpl_ = maybe => bytes => {
     return maybe.just(ret);
 };
 
-exports.rewardAddressFromBytesImpl_ = maybe => bytes => {
+exports.rewardAddressFromBytesImpl = maybe => bytes => {
     const ret = null;
     try {
         const addr = CardanoWasm.Address.from_bytes(bytes);
@@ -54,7 +54,7 @@ exports.rewardAddressFromBytesImpl_ = maybe => bytes => {
     return maybe.just(ret);
 };
 
-exports.baseAddressFromBech32Impl_ = maybe => str => {
+exports.baseAddressFromBech32Impl = maybe => str => {
     const ret = null;
     try {
         const addr = CardanoWasm.Address.from_bech32(str);
@@ -69,7 +69,7 @@ exports.baseAddressFromBech32Impl_ = maybe => str => {
     return maybe.just(ret);
 };
 
-exports.rewardAddressFromBech32Impl_ = maybe => str => {
+exports.rewardAddressFromBech32Impl = maybe => str => {
     const ret = null;
     try {
         const addr = CardanoWasm.Address.from_bech32(str);
@@ -84,7 +84,7 @@ exports.rewardAddressFromBech32Impl_ = maybe => str => {
     return maybe.just(ret);
 };
 
-exports.headerCheckBaseAddr_ = maybe => checks => bytes => baseAddr => {
+exports.headerCheckBaseAddr = maybe => checks => bytes => baseAddr => {
     // NOTE from CIP-19 and CSL codebase:
     // shelley payment addresses:
     // bit 7: 0
@@ -111,7 +111,7 @@ exports.headerCheckBaseAddr_ = maybe => checks => bytes => baseAddr => {
     return maybe.just(baseAddr);
 };
 
-exports.headerCheckRewardAddr_ = maybe => checks => bytes => baseAddr => {
+exports.headerCheckRewardAddr = maybe => checks => bytes => baseAddr => {
     // NOTE from CIP-19 and CSL codebase:
     // shelley payment addresses:
     // bit 7: 0
@@ -135,14 +135,14 @@ exports.headerCheckRewardAddr_ = maybe => checks => bytes => baseAddr => {
 };
 
 
-exports.toAddressCslUnsafe_ = addresType => {
+exports.toAddressCslUnsafe = addresType => {
     return addresType.to_address();
 };
 
-exports.addressBytesImpl_ = baseAddr => {
+exports.addressBytesImpl = baseAddr => {
     return baseAddr.to_bytes();
 };
 
-exports.addressBech32Impl_ = baseAddr => {
+exports.addressBech32Impl = baseAddr => {
     return baseAddr.to_bech32();
 };
