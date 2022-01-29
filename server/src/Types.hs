@@ -16,7 +16,7 @@ import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (MonadReader, ReaderT)
 import Data.Aeson (FromJSON, ToJSON (..))
 import Data.Aeson qualified as Aeson
-import Data.Aeson.Encoding qualified as Aeson
+import Data.Aeson.Encoding qualified as Aeson.Encoding
 import Data.Aeson.Types (withText)
 import Data.Bifunctor (second)
 import Data.Functor ((<&>))
@@ -64,7 +64,7 @@ instance ToJSON Fee where
   -- a JSON string, and not a number
   toJSON (Fee int) = Aeson.String $ tshow int
 
-  toEncoding (Fee int) = Aeson.integerText int
+  toEncoding (Fee int) = Aeson.Encoding.integerText int
 
 instance FromJSON Fee where
   parseJSON =

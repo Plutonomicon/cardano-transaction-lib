@@ -1,6 +1,6 @@
 module Api (app, getTransactionFeeEstimate, apiDocs) where
 
-import Api.Fees (estimateTxFees)
+import Api.Fees qualified as Fees
 import Control.Monad.Catch (try)
 import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (liftIO)
@@ -65,7 +65,7 @@ api :: Proxy Api
 api = Proxy
 
 server :: ServerT Api AppM
-server = estimateTxFees
+server = Fees.estimateTxFees
 
 apiDocs :: Docs.API
 apiDocs = Docs.docs api

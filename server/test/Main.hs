@@ -4,6 +4,7 @@ module Main (main) where
 
 import Api (app, getTransactionFeeEstimate)
 import Data.ByteString.Lazy.Char8 qualified as LC8
+import Data.Kind (Type)
 import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Network.HTTP.Types (Status (Status))
 import Network.Wai.Handler.Warp (Port)
@@ -61,7 +62,7 @@ feeEstimateSpec = around withFeeEstimate $ do
           $ Cbor "deadbeefq"
       result `shouldSatisfy` expectError 400 "invalid bytestring size"
 
-    it "catches invalid txs" $ \port -> do
+    it "catches invalid CBOR-encoded transactions" $ \port -> do
       result <-
         runClientM' (clientEnv port)
           . getTransactionFeeEstimate
@@ -84,7 +85,11 @@ withFeeEstimate = Warp.testWithApplication $ app <$> newEnvIO'
     newEnvIO' :: IO Env
     newEnvIO' = either die pure =<< newEnvIO
 
-runClientM' :: ClientEnv -> ClientM a -> IO (Either ClientError a)
+runClientM' ::
+  forall (a :: Type).
+  ClientEnv ->
+  ClientM a ->
+  IO (Either ClientError a)
 runClientM' = flip runClientM
 
 -- This is a known-good 'Tx AlonzoEra'

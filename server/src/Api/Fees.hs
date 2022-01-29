@@ -9,7 +9,7 @@ import Data.ByteString (ByteString)
 import Data.ByteString.Base16 qualified as Base16
 import Data.Proxy (Proxy (Proxy))
 import Data.Text (Text)
-import Data.Text.Encoding qualified as Text
+import Data.Text.Encoding qualified as Text.Encoding
 import Types (
   AppM,
   CardanoBrowserServerError (..),
@@ -47,4 +47,4 @@ decodeCborTx (Cbor txt) =
     =<< decode txt
   where
     decode :: Text -> Either FeeEstimateError ByteString
-    decode = first InvalidHex . Base16.decode . Text.encodeUtf8
+    decode = first InvalidHex . Base16.decode . Text.Encoding.encodeUtf8
