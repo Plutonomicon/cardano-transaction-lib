@@ -1,22 +1,21 @@
 module Types.Transaction where
 
 import Prelude
-import Data.ArrayBuffer.Types(Uint8Array)
 import Data.BigInt as BigInt
 import Data.Generic.Rep (class Generic)
 import Data.HashMap (HashMap)
-import Data.Maybe (Maybe)
 import Data.Map (Map)
-import Data.Show.Generic (genericShow)
+import Data.Maybe (Maybe)
 import Data.Rational (Rational)
+import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
+import Types.ByteArray (ByteArray)
 import Types.RedeemerTag (RedeemerTag)
 
 -- note: these types are derived from the cardano-serialization-lib Sundae fork
--- the source of truth for these types should be that library and the 
+-- the source of truth for these types should be that library and the
 -- corresponding Rust types
-
 newtype Transaction = Transaction {
   body :: TxBody,
   witness_set :: TransactionWitnessSet,
@@ -32,7 +31,7 @@ newtype TxBody = TxBody
     certs :: Maybe (Array Certificate),
     withdrawals :: Maybe (Map RewardAddress Coin),
     update :: Maybe Update,
-    auxiliary_data_hash :: Maybe AuxiliaryDataHash, 
+    auxiliary_data_hash :: Maybe AuxiliaryDataHash,
     validity_start_interval :: Maybe Slot,
     mint :: Maybe Mint,
     script_data_hash :: Maybe ScriptDataHash,
@@ -47,17 +46,17 @@ newtype Mint = Mint Value
 
 newtype AuxiliaryDataHash = AuxiliaryDataHash String
 
-type Update = 
+type Update =
   { proposed_protocol_parameter_updates :: ProposedProtocolParameterUpdates
   , epoch :: Epoch
   }
 
-newtype ProposedProtocolParameterUpdates 
+newtype ProposedProtocolParameterUpdates
   = ProposedProtocolParameterUpdates (Map GenesisHash ProtocolParamUpdate)
 
 newtype GenesisHash = GenesisHash String
 
-type ProtocolParamUpdate = 
+type ProtocolParamUpdate =
   { minfee_a :: Maybe Coin,
     minfee_b :: Maybe Coin,
     max_block_body_size :: Maybe UInt,
@@ -94,7 +93,7 @@ type ExUnits =
 
 type SubCoin = UnitInterval
 
-type RewardAddress = 
+type RewardAddress =
   { network :: UInt
   , payment :: StakeCredential
   }
@@ -103,7 +102,7 @@ data StakeCredential
   = Key Ed25519KeyHash
   | Script ScriptHash
 
-newtype Ed25519KeyHash = Ed25519KeyHash String 
+newtype Ed25519KeyHash = Ed25519KeyHash String
 
 newtype ScriptHash = ScriptHash String
 
@@ -138,7 +137,7 @@ data Certificate
 
 newtype TransactionWitnessSet = TransactionWitnessSet
   { vkeys :: Maybe (Array Vkeywitness),
-    native_scripts :: Maybe (Array NativeScript), 
+    native_scripts :: Maybe (Array NativeScript),
     bootstraps :: Maybe (Array BootstrapWitness),
     plutus_scripts :: Maybe (Array PlutusScript),
     plutus_data :: Maybe (Array PlutusData),
@@ -148,31 +147,33 @@ newtype TransactionWitnessSet = TransactionWitnessSet
 type BootstrapWitness =
   { vkey :: Vkey
   , signature :: Ed25519Signature
-  , chain_code :: Uint8Array
-  , attributes :: Uint8Array
+  , chain_code :: ByteArray
+  , attributes :: ByteArray
   }
 
-data NetworkId 
+data NetworkId
   = Mainnet
   | Testnet
 
 newtype RequiredSigner = RequiredSigner String
 
-newtype CurrencySymbol = CurrencySymbol Uint8Array
+newtype CurrencySymbol = CurrencySymbol ByteArray
 
 derive instance genericCurrencySymbol :: Generic CurrencySymbol _
+derive newtype instance eqCurrencySymbol :: Eq CurrencySymbol
+derive newtype instance ordCurrencySymbol :: Ord CurrencySymbol
 
 instance showCurrencySymbol :: Show CurrencySymbol where
-  show (CurrencySymbol symbol) = showUint8Array symbol
+  show = genericShow
 
-newtype TokenName = TokenName Uint8Array
+newtype TokenName = TokenName ByteArray
 
 derive instance genericTokenName :: Generic TokenName _
-
-foreign import showUint8Array :: Uint8Array -> String
+derive newtype instance eqTokenName :: Eq TokenName
+derive newtype instance ordTokenName :: Ord TokenName
 
 instance showTokenName :: Show TokenName where
-  show (TokenName name) = showUint8Array name
+  show = genericShow
 
 newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
 
@@ -189,10 +190,10 @@ newtype Ed25519Signature = Ed25519Signature String -- (bech32)
 
 newtype PlutusScript = PlutusScript String
 
-newtype PlutusData = PlutusData String 
+newtype PlutusData = PlutusData String
 
 newtype Redeemer = Redeemer
-  { tag :: RedeemerTag, 
+  { tag :: RedeemerTag,
     index :: BigInt.BigInt,
     data :: PlutusData,
     ex_units :: (MemExUnits /\ CpuExUnits)
@@ -203,7 +204,7 @@ newtype MemExUnits = MemExUnits BigInt.BigInt
 newtype CpuExUnits = CpuExUnits BigInt.BigInt
 
 
-type AuxiliaryData = 
+type AuxiliaryData =
   { metadata :: Maybe GeneralTransactionMetadata
   , native_scripts :: Maybe (Array NativeScript)
   , plutus_scripts :: Maybe (Array PlutusScript)
@@ -218,7 +219,7 @@ data TransactionMetadatum
   = MetadataMap (HashMap TransactionMetadatum TransactionMetadatum)
   | MetadataList (Array TransactionMetadatum)
   | Int Int
-  | Bytes Uint8Array
+  | Bytes ByteArray
   | Text String
 
 data NativeScript
@@ -240,21 +241,25 @@ newtype TransactionOutput = TransactionOutput
     data_hash :: Maybe DataHash
   }
 
-newtype TransactionHash = TransactionHash Uint8Array
+newtype TransactionHash = TransactionHash ByteArray
+
+derive instance genericTransactionHash :: Generic TransactionHash _
 
 instance showTransactionHash :: Show TransactionHash where
-  show (TransactionHash hash) = showUint8Array hash
+  show = genericShow
 
-newtype DataHash = DataHash Uint8Array
+newtype DataHash = DataHash ByteArray
+
+derive instance genericDataHash :: Generic DataHash _
 
 instance showDataHash :: Show DataHash where
-  show (DataHash hash) = showUint8Array hash
+  show = genericShow
 
 newtype Coin = Coin BigInt.BigInt
 
 newtype Slot = Slot BigInt.BigInt
 
-newtype Address = Address 
+newtype Address = Address
   { "AddrType" :: BaseAddress
   }
 
@@ -264,10 +269,10 @@ newtype BaseAddress = BaseAddress
     payment :: Credential
   }
 
-newtype Credential = Credential Uint8Array
+newtype Credential = Credential ByteArray
 
 -- Addresspub struct Address(AddrType);
--- AddrType 
+-- AddrType
 -- enum AddrType {
     -- Base(BaseAddress),
     -- Ptr(PointerAddress),
@@ -280,7 +285,7 @@ newtype Credential = Credential Uint8Array
     -- payment: StakeCredential,
     -- stake: StakeCredential,
 -- }
--- pub struct StakeCredential(StakeCredType); 
+-- pub struct StakeCredential(StakeCredType);
 -- Both of these are strings:
 -- enum StakeCredType {
     -- Key(Ed25519KeyHash),

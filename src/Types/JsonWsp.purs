@@ -4,7 +4,6 @@ import Prelude
 import Control.Alt ((<|>))
 import Data.Argonaut (class DecodeJson, Json, JsonDecodeError(..), caseJsonArray, caseJsonNumber, caseJsonObject, caseJsonString, getField, decodeJson)
 import Data.Array (index)
-import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt as BigInt
 import Data.Either(Either(..), hush, note)
 import Data.Generic.Rep (class Generic)
@@ -25,7 +24,7 @@ data QueryType = UTXO
 derive instance genericQueryType :: Generic QueryType _
 
 instance showQueryType :: Show QueryType where
-  show a = genericShow a 
+  show a = genericShow a
 
 
 --  the Address type in `Types.Transaction` is quite a bit more complex than 
@@ -209,6 +208,4 @@ parseValue outer = do
   (assetsJson :: {}) <- getField o "assets"
   -- assets are currently assumed to be empty
   -- newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
-  pure $ Value $ Map.singleton (CurrencySymbol emptyUint8Array) (Map.singleton (TokenName emptyUint8Array) coins)
-
-foreign import emptyUint8Array :: Uint8Array
+  pure $ Value $ Map.singleton (CurrencySymbol mempty) (Map.singleton (TokenName mempty) coins)
