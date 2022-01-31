@@ -53,7 +53,7 @@ feeEstimateSpec = around withFeeEstimate $ do
         runClientM' (clientEnv port) $
           getTransactionFeeEstimate cborTxFixture
       -- TODO verify with another tool that this is the correct fee estimate
-      result `shouldBe` Right (Fee 160265)
+      result `shouldBe` Right (Fee 168449)
 
     it "catches invalid hex strings" $ \port -> do
       result <-
