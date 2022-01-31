@@ -21,5 +21,8 @@ run-testnet-ogmios:
 		--node-socket "$$CARDANO_NODE_SOCKET_PATH" \
 		--node-config "$$CARDANO_NODE_CONFIG"
 
+run-haskell-server:
+	nix run -L .#cardano-browser-tx-server:exe:cardano-browser-tx-server
+
 query-testnet-sync:
 	cardano-cli query tip --testnet-magic 1097911063
