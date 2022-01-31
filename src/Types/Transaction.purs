@@ -101,7 +101,9 @@ data StakeCredential
   = Key Ed25519KeyHash
   | Script ScriptHash
 
-newtype Ed25519KeyHash = Ed25519KeyHash String
+newtype Ed25519KeyHash = Ed25519KeyHash ByteArray
+
+derive newtype instance Eq Ed25519KeyHash
 
 newtype ScriptHash = ScriptHash String
 
@@ -242,6 +244,7 @@ newtype TransactionOutput = TransactionOutput
 newtype TransactionHash = TransactionHash ByteArray
 
 derive instance genericTransactionHash :: Generic TransactionHash _
+derive newtype instance Eq TransactionHash
 
 instance showTransactionHash :: Show TransactionHash where
   show = genericShow
