@@ -266,7 +266,6 @@ newtype TransactionOutput = TransactionOutput
 newtype TransactionHash = TransactionHash ByteArray
 
 derive instance Generic TransactionHash _
-
 derive instance Newtype TransactionHash _
 
 instance Show TransactionHash where
@@ -275,7 +274,6 @@ instance Show TransactionHash where
 newtype DataHash = DataHash ByteArray
 
 derive instance Generic DataHash _
-
 derive instance Newtype DataHash _
 
 instance Show DataHash where

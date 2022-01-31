@@ -13,6 +13,7 @@ import Test.ByteArray as ByteArrayTest
 import Test.Helpers as Helpers
 import Test.Parser as ParseTest
 import Test.Serialization as Serialization
+
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Reporter (consoleReporter)
 import Test.Spec.Runner (runSpec)
