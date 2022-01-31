@@ -9,24 +9,26 @@ import Data.BigInt as BigInt
 -- 1. inputs
 
 -- 
-tx 
-  :: Array Types.TransactionInput 
-  -> Array Types.TransactionOutput 
+tx
+  :: Array Types.TransactionInput
+  -> Array Types.TransactionOutput
   -> Array Types.TransactionInput
-  -> Types.Transaction 
-tx i o c = Types.Transaction
-  { body: txBody i o c
+  -> Types.NetworkId
+  -> Types.Transaction
+tx i o c id = Types.Transaction
+  { body: txBody i o c id
   , witness_set: txWitness
   , is_valid: true -- why is this?
   , auxiliary_data: Nothing
   }
 
-txBody 
-  :: Array Types.TransactionInput 
-  -> Array Types.TransactionOutput 
+txBody
+  :: Array Types.TransactionInput
+  -> Array Types.TransactionOutput
   -> Array Types.TransactionInput
+  -> Types.NetworkId
   -> Types.TxBody
-txBody inputs outputs collateral = Types.TxBody
+txBody inputs outputs collateral id = Types.TxBody
   { inputs: inputs
   , outputs: outputs
   , fee: Types.Coin $ BigInt.fromInt 1000000
@@ -40,7 +42,7 @@ txBody inputs outputs collateral = Types.TxBody
   , script_data_hash: Nothing
   , collateral: Just $ collateral
   , required_signers: Nothing
-  , network_id: Just $ Types.NetworkId 1
+  , network_id: Just $ id
   }
 
 txWitness :: Types.TransactionWitnessSet
@@ -52,5 +54,4 @@ txWitness = Types.TransactionWitnessSet
   , plutus_data: Nothing
   , redeemers: Nothing
   }
-
 

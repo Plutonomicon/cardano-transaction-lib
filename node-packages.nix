@@ -31,6 +31,24 @@ let
         sha512 = "46ts2s0W63nzqHMhaXKACeY0GDWdnPet9wqOWtb8X3Y5LzokcaDKupLO2eHUwlvQyFzD9gxJlWPi/LqZPkn4oQ==";
       };
     };
+    "@ngua/cardano-serialization-lib-browser-9.1.2" = {
+      name = "_at_ngua_slash_cardano-serialization-lib-browser";
+      packageName = "@ngua/cardano-serialization-lib-browser";
+      version = "9.1.2";
+      src = fetchurl {
+        url = "https://registry.npmjs.org/@ngua/cardano-serialization-lib-browser/-/cardano-serialization-lib-browser-9.1.2.tgz";
+        sha512 = "0KkS3vCwrK8Yxs+yuoFJ05Ou5r0AZJNTWks9otP5h9ODsTUpkgJDb3lVmflJmSB0KnA9JvF3AmcN/swXj/yw+A==";
+      };
+    };
+    "@ngua/cardano-serialization-lib-nodejs-9.1.2" = {
+      name = "_at_ngua_slash_cardano-serialization-lib-nodejs";
+      packageName = "@ngua/cardano-serialization-lib-nodejs";
+      version = "9.1.2";
+      src = fetchurl {
+        url = "https://registry.npmjs.org/@ngua/cardano-serialization-lib-nodejs/-/cardano-serialization-lib-nodejs-9.1.2.tgz";
+        sha512 = "6xpp5Xjcqm9eHIrKBUmmIeZV6n0OeK6t8vCyQzF8KcHEQiknAcIcoIq/wf7sEcLV3ohwn945QCKkM3rKsKF5FA==";
+      };
+    };
     "@types/json-bigint-1.0.1" = {
       name = "_at_types_slash_json-bigint";
       packageName = "@types/json-bigint";
@@ -175,23 +193,28 @@ let
     dependencies = [
       (sources."@cardano-ogmios/client-4.2.1" // {
         dependencies = [
+          sources."@cardano-ogmios/schema-4.2.1"
+          sources."@cardanosolutions/json-bigint-1.0.0"
+          sources."@types/json-bigint-1.0.1"
+          sources."bignumber.js-9.0.2"
+          sources."cross-fetch-3.1.4"
+          sources."fastq-1.13.0"
+          sources."isomorphic-ws-4.0.1"
+          sources."nanoid-3.1.30"
+          sources."node-fetch-2.6.1"
+          sources."reusify-1.0.4"
+          sources."ts-custom-error-3.2.0"
           sources."ws-7.5.6"
         ];
       })
-      sources."@cardano-ogmios/schema-4.2.1"
-      sources."@cardanosolutions/json-bigint-1.0.0"
-      sources."@types/json-bigint-1.0.1"
+      sources."@ngua/cardano-serialization-lib-browser-9.1.2"
+      sources."@ngua/cardano-serialization-lib-nodejs-9.1.2"
       sources."big-integer-1.6.51"
-      sources."bignumber.js-9.0.2"
-      sources."bufferutil-4.0.5"
-      sources."cross-fetch-3.1.4"
-      sources."fastq-1.13.0"
-      sources."isomorphic-ws-4.0.1"
-      sources."nanoid-3.1.30"
-      sources."node-fetch-2.6.1"
-      sources."node-gyp-build-4.3.0"
-      sources."reusify-1.0.4"
-      sources."ts-custom-error-3.2.0"
+      (sources."bufferutil-4.0.5" // {
+        dependencies = [
+          sources."node-gyp-build-4.3.0"
+        ];
+      })
       sources."uniqid-5.4.0"
       sources."ws-8.4.0"
     ];

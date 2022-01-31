@@ -101,6 +101,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "assert" = pkgs.stdenv.mkDerivation {
+        name = "assert";
+        version = "v5.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript/purescript-assert.git";
+          rev = "71a3b1f3b9917c23691fdbb1858de171be871a10";
+          sha256 = "0r1l7j67an8dy1w4xdpr8nc30lsxv31xwqph9mkfh3nd49jlyyd3";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "avar" = pkgs.stdenv.mkDerivation {
         name = "avar";
         version = "v4.0.0";
@@ -485,6 +497,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "literals" = pkgs.stdenv.mkDerivation {
+        name = "literals";
+        version = "v0.2.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/jvliwanag/purescript-literals.git";
+          rev = "11457380e1b28c9526c41381eeb0ee840982db5c";
+          sha256 = "1jjnpfmh9qfmffyrmcfnn9p25irmsmaji6lwrsrd2r9xdhpzmqg7";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "math" = pkgs.stdenv.mkDerivation {
         name = "math";
         version = "v3.0.0";
@@ -845,6 +869,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "rationals" = pkgs.stdenv.mkDerivation {
+        name = "rationals";
+        version = "v5.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/anttih/purescript-rationals.git";
+          rev = "8c52d8cc891d1223150a31416220aa9b99404442";
+          sha256 = "1idvjvvx5kwmi8kj2ps95bcvlsgij1xgin4jfw3rmcqd930wqq6q";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "record" = pkgs.stdenv.mkDerivation {
         name = "record";
         version = "v3.0.0";
@@ -1013,6 +1049,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "uint" = pkgs.stdenv.mkDerivation {
+        name = "uint";
+        version = "v6.0.3";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-uint.git";
+          rev = "17fda2aff989ad7fa9f29171bf4c1196ca9ed504";
+          sha256 = "1lwbkwc3yj0d5qmw7gni924wj47npgy1aqbc0ika4phc4q0shw8d";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "undefined" = pkgs.stdenv.mkDerivation {
         name = "undefined";
         version = "v1.0.2";
@@ -1068,6 +1116,18 @@ let
           url = "https://github.com/purescript/purescript-unsafe-coerce.git";
           rev = "ee24f0d3b94bf925d9c50fcc2b449579580178c0";
           sha256 = "0l2agnm1k910v4yp1hz19wrsrywsr5scb397762y7pigm3frzs8r";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "untagged-union" = pkgs.stdenv.mkDerivation {
+        name = "untagged-union";
+        version = "v0.3.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/jvliwanag/purescript-untagged-union.git";
+          rev = "364e172e759ebe722bd7ec12a599d532b527c0ef";
+          sha256 = "06013431acz8xry9dish8p2qyj18bi505fgfikpjiblxgjazl9zx";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
