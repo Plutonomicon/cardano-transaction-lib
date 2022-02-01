@@ -1,4 +1,4 @@
-const CardanoWasm = require("@emurgo/cardano-serialization-lib-nodejs");
+const CardanoWasm = require("@ngua/cardano-serialization-lib-nodejs");
 
 
 exports.stakeCredFromKeyHash = validEd25519KeyHash => {
@@ -82,6 +82,14 @@ exports.rewardAddressFromBech32Impl = maybe => str => {
         return maybe.nothing;
     }
     return maybe.just(ret);
+};
+
+// check if selected by index bit is set in given byte array
+exports.checkBitSet = bytes => bitIndex => isBitSet => {
+    const byteIndex = Math.floor(bitIndex / 8);
+    const byteBitIndex = bitIndex % 8;
+    const expected = isBitSet ? (1 << byteBitIndex) : 0;
+    return (bytes[byteIndex] & (1 << byteBitIndex)) == expected;
 };
 
 exports.headerCheckBaseAddr = maybe => checks => bytes => baseAddr => {

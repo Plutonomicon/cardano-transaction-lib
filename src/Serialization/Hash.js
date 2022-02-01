@@ -1,4 +1,4 @@
-const CardanoWasm = require("@emurgo/cardano-serialization-lib-nodejs");
+const CardanoWasm = require("@ngua/cardano-serialization-lib-nodejs");
 
 const hashFromImpl = hashClassFrom => maybe => input => {
     const ret = null;

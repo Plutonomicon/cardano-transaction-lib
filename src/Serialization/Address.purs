@@ -37,7 +37,7 @@ import Prelude
 
 import Types.Aliases (Bech32String)
 import Data.Maybe (Maybe(Just))
-import FFiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization.Csl (class ToCsl, CslType, toCslRep, toCslType)
 import Serialization.Hash (Ed25519KeyHash, ScriptHash)
 import Types.ByteArray (ByteArray)
@@ -270,6 +270,19 @@ addressBech32
 addressBech32 = ToAddressCsl >>> toCslRep >>> addressBech32Impl
 
 -- | Build address out of its bech32 representation.
+-- | For example to build `Maybe (BaseAddress Ed25519KeyHash ScriptHash)`:
+-- |
+-- | ```purescript
+-- | >>> let addr =
+-- | >>>      baseAddressFromBech32
+-- | >>>       { payment: ed25519KeyHashCredType
+-- | >>>       , delegation: scriptHashCredType
+-- | >>>      "addr1..."
+-- | '''
+-- |
+-- | If the string doesn't encode the address matching given credential types
+-- | the function will return `Nothing`
+-- |
 baseAddressFromBech32 :: forall p d. {payment :: CredType p, delegation :: CredType d} -> Bech32String -> Maybe (BaseAddress p d)
 baseAddressFromBech32 checks bchString = do
   addrCsl <- baseAddressFromBech32Impl maybeFfiHelper bchString
@@ -280,6 +293,16 @@ baseAddressFromBech32 checks bchString = do
     coerceCsl = unsafeCoerce
 
 -- | Build address out of its bech32 representation.
+-- | Works analogically to `baseAddressFromBech32`.
+-- | For example:
+-- |
+-- | ```purescript
+-- | >>> let addr =
+-- | >>>      rewardAddressFromBech32
+-- | >>>       { payment: ed25519KeyHashCredType }
+-- | >>>      "addr1..."
+-- | '''
+-- |
 rewardAddressFromBech32 :: forall p. {payment :: CredType p} -> Bech32String -> Maybe (RewardAddress p)
 rewardAddressFromBech32 checks bchString = do
   addrCsl <- rewardAddressFromBech32Impl maybeFfiHelper bchString
