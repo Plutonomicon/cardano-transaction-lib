@@ -1,14 +1,13 @@
 -- | Our domain type for byte arrays, a wrapper over Uint8Array.
 module Types.ByteArray
-       ( ByteArray (..)
-       , byteArrayFromIntArray
-       , byteArrayFromIntArrayUnsafe
-       , byteArrayToIntArray
-       , byteArrayToHex
-       , hexToByteArray
-       , hexToByteArrayUnsafe
-       )
-where
+  ( ByteArray(..)
+  , byteArrayFromIntArray
+  , byteArrayFromIntArrayUnsafe
+  , byteArrayToIntArray
+  , byteArrayToHex
+  , hexToByteArray
+  , hexToByteArrayUnsafe
+  ) where
 
 import Data.ArrayBuffer.Types (Uint8Array)
 import Data.Maybe (Maybe(..))
@@ -18,12 +17,12 @@ import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 newtype ByteArray = ByteArray Uint8Array
 
 instance showByteArray :: Show ByteArray where
-  show arr = "(byteArrayFromIntArrayUnsafe " <> show (byteArrayToIntArray arr)  <> ")"
+  show arr = "(byteArrayFromIntArrayUnsafe " <> show (byteArrayToIntArray arr) <> ")"
 
-instance eqByteArray :: Eq ByteArray where
+instance Eq ByteArray where
   eq a b = compare a b == EQ
 
-instance ordByteArray :: Ord ByteArray where
+instance Ord ByteArray where
   compare = \xs ys -> compare 0 (ord_ toDelta xs ys)
     where
     toDelta x y =
@@ -32,10 +31,10 @@ instance ordByteArray :: Ord ByteArray where
         LT -> 1
         GT -> -1
 
-instance semigroupByteArray :: Semigroup ByteArray where
+instance Semigroup ByteArray where
   append = concat_
 
-instance monoidByteArray :: Monoid ByteArray where
+instance Monoid ByteArray where
   mempty = byteArrayFromIntArrayUnsafe []
 
 foreign import ord_ :: (Int -> Int -> Int) -> ByteArray -> ByteArray -> Int

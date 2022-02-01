@@ -1,0 +1,29 @@
+module Serialization.Types where
+
+foreign import data BigNum :: Type
+foreign import data Value :: Type
+foreign import data Address :: Type
+foreign import data BaseAddress :: Type
+foreign import data AuxiliaryData :: Type
+foreign import data Transaction :: Type
+foreign import data TransactionBody :: Type
+foreign import data TransactionWitnessSet :: Type
+foreign import data TransactionHash :: Type
+foreign import data TransactionInput :: Type
+foreign import data TransactionInputs :: Type
+foreign import data TransactionOutput :: Type
+foreign import data TransactionOutputs :: Type
+foreign import data StakeCredential :: Type
+foreign import data Ed25519KeyHash :: Type
+foreign import data ScriptHash :: Type
+foreign import data MultiAsset :: Type
+foreign import data Assets :: Type
+foreign import data AssetName :: Type
+foreign import data DataHash :: Type
+foreign import data Vkeywitnesses :: Type
+foreign import data Vkeywitness :: Type
+foreign import data Vkey :: Type
+foreign import data Ed25519Signature :: Type
+foreign import data PublicKey :: Type
+foreign import data PlutusScript :: Type
+foreign import data PlutusScripts :: Type

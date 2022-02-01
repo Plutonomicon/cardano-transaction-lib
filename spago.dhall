@@ -23,6 +23,7 @@ You can edit this file as you like.
   , "maybe"
   , "medea"
   , "mote"
+  , "newtype"
   , "node-buffer"
   , "node-fs-aff"
   , "node-path"
@@ -41,6 +42,7 @@ You can edit this file as you like.
   , "tuples"
   , "uint"
   , "undefined"
+  , "untagged-union"
   , "unordered-collections"
   ]
 , packages = ./packages.dhall

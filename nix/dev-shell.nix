@@ -13,9 +13,10 @@ with inputs;
 pkgs.mkShell {
   buildInputs = with easy-ps; [
     ogmios.packages.${system}."ogmios:exe:ogmios"
-    cardano-node.packages.${system}.cardano-cli
+    cardano-node-exe.packages.${system}.cardano-cli
     compiler
     spago
+    purs-tidy
     purescript-language-server
     purty
     pscid
@@ -26,14 +27,15 @@ pkgs.mkShell {
 
   shellHook = ''
     __ln-node-modules () {
-      if test -L node_modules; then
-        rm node_modules;
-      elif test -e node_modules; then
+      local modules=./node_modules
+      if test -L "$modules"; then
+        rm "$modules";
+      elif test -e "$modules"; then
         echo 'refusing to overwrite existing (non-symlinked) `node_modules`'
         exit 1
       fi
 
-      ln -s ${nodeModules}/lib/node_modules node_modules
+      ln -s ${nodeModules}/lib/node_modules "$modules"
     }
 
     __ln-testnet-config () {
