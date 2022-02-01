@@ -12,6 +12,8 @@ import Test.AffInterface as AffInterface
 import Test.ByteArray as ByteArrayTest
 import Test.Helpers as Helpers
 import Test.Parser as ParseTest
+import Test.Serialization as Serialization
+
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Reporter (consoleReporter)
 import Test.Spec.Runner (runSpec)
@@ -42,6 +44,7 @@ interpret spif = do
 
 testPlan :: TestPlanM Unit
 testPlan = do
+  Serialization.suite
   ParseTest.suite
   AffInterface.suite
   ByteArrayTest.suite

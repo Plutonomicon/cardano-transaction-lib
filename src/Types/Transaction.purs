@@ -6,6 +6,7 @@ import Data.Generic.Rep (class Generic)
 import Data.HashMap (HashMap)
 import Data.Map (Map)
 import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype)
 import Data.Rational (Rational)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\))
@@ -98,12 +99,12 @@ type RewardAddress =
   }
 
 data StakeCredential
-  = Key Ed25519KeyHash
-  | Script ScriptHash
+  = StakeCredentialKey Ed25519KeyHash
+  | StakeCredentialScript ScriptHash
 
-newtype Ed25519KeyHash = Ed25519KeyHash String
+newtype Ed25519KeyHash = Ed25519KeyHash ByteArray
 
-newtype ScriptHash = ScriptHash String
+newtype ScriptHash = ScriptHash Bech32
 
 newtype Costmdls = Costmdls (Map Language CostModel)
 
@@ -158,36 +159,59 @@ newtype RequiredSigner = RequiredSigner String
 
 newtype CurrencySymbol = CurrencySymbol ByteArray
 
-derive instance genericCurrencySymbol :: Generic CurrencySymbol _
-derive newtype instance eqCurrencySymbol :: Eq CurrencySymbol
-derive newtype instance ordCurrencySymbol :: Ord CurrencySymbol
+derive instance Generic CurrencySymbol _
+derive newtype instance Eq CurrencySymbol
+derive newtype instance Ord CurrencySymbol
 
-instance showCurrencySymbol :: Show CurrencySymbol where
+instance Show CurrencySymbol where
   show = genericShow
 
 newtype TokenName = TokenName ByteArray
 
-derive instance genericTokenName :: Generic TokenName _
+derive instance Generic TokenName _
 derive newtype instance eqTokenName :: Eq TokenName
 derive newtype instance ordTokenName :: Ord TokenName
 
-instance showTokenName :: Show TokenName where
+instance Show TokenName where
   show = genericShow
 
-newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
+-- | In Plutus, Ada is is stored inside the map (with currency symbol and token
+-- | name being empty bytestrings). cardano-serialization-lib makes semantic
+-- | distinction between native tokens and Ada, and we follow this convention.
+data Value = Value Coin (Map CurrencySymbol (Map TokenName BigInt.BigInt))
 
-derive instance genericValue :: Generic Value _
+derive instance Generic Value _
 
-instance showValue :: Show Value where
+instance Show Value where
+  show = genericShow
+
+newtype Bech32 = Bech32 String
+
+derive newtype instance eqBech32 :: Eq Bech32
+derive instance Generic Bech32 _
+derive instance Newtype Bech32 _
+instance Show Bech32 where
   show = genericShow
 
 newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
-newtype Vkey = Vkey String -- (bech32)
+newtype Vkey = Vkey PublicKey
 
-newtype Ed25519Signature = Ed25519Signature String -- (bech32)
+derive instance Generic Vkey _
+derive instance Newtype Vkey _
+instance Show Vkey where
+  show = genericShow
 
-newtype PlutusScript = PlutusScript String
+newtype PublicKey = PublicKey Bech32
+
+derive instance Generic PublicKey _
+derive instance Newtype PublicKey _
+instance Show PublicKey where
+  show = genericShow
+
+newtype Ed25519Signature = Ed25519Signature Bech32
+
+newtype PlutusScript = PlutusScript ByteArray
 
 newtype PlutusData = PlutusData String
 
@@ -241,19 +265,27 @@ newtype TransactionOutput = TransactionOutput
 
 newtype TransactionHash = TransactionHash ByteArray
 
-derive instance genericTransactionHash :: Generic TransactionHash _
+derive instance Generic TransactionHash _
+derive instance Newtype TransactionHash _
 
-instance showTransactionHash :: Show TransactionHash where
+instance Show TransactionHash where
   show = genericShow
 
 newtype DataHash = DataHash ByteArray
 
-derive instance genericDataHash :: Generic DataHash _
+derive instance Generic DataHash _
+derive instance Newtype DataHash _
 
-instance showDataHash :: Show DataHash where
+instance Show DataHash where
   show = genericShow
 
 newtype Coin = Coin BigInt.BigInt
+
+derive instance Newtype Coin _
+derive instance Generic Coin _
+
+instance Show Coin where
+  show = genericShow
 
 newtype Slot = Slot BigInt.BigInt
 
@@ -261,14 +293,19 @@ newtype Address = Address
   { "AddrType" :: BaseAddress
   }
 
+derive instance Newtype Address _
+
 newtype BaseAddress = BaseAddress
-  { network :: UInt
-  , -- UInt8
-    stake :: Credential
-  , payment :: Credential
+  { network :: UInt -- UInt8
+  , stake :: StakeCredential
+  , payment :: PaymentCredential
   }
 
-newtype Credential = Credential ByteArray
+derive instance Newtype BaseAddress _
+
+data PaymentCredential
+  = PaymentCredentialKey Ed25519KeyHash
+  | PaymentCredentialScript ScriptHash
 
 -- Addresspub struct Address(AddrType);
 -- AddrType

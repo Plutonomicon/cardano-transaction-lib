@@ -23,11 +23,13 @@ You can edit this file as you like.
   , "maybe"
   , "medea"
   , "mote"
+  , "newtype"
   , "node-buffer"
   , "node-fs-aff"
   , "node-path"
   , "nonempty"
   , "ordered-collections"
+  , "partial"
   , "prelude"
   , "psci-support"
   , "quickcheck"
@@ -40,6 +42,7 @@ You can edit this file as you like.
   , "tuples"
   , "uint"
   , "undefined"
+  , "untagged-union"
   , "unordered-collections"
   ]
 , packages = ./packages.dhall
