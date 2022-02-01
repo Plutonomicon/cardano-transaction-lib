@@ -143,5 +143,4 @@ exports._addressPubKeyHash = just => nothing => baseAddr => {
     return just(kh.to_bech32('hbas_'));
 };
 
-exports.toBytes = sth => () =>
-    sth.to_bytes();
+exports.toBytes = sth => sth.to_bytes();

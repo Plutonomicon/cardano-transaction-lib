@@ -10,6 +10,7 @@ import Effect.Aff.Class (liftAff)
 import Mote (Plan, foldPlan, planT)
 import Test.AffInterface as AffInterface
 import Test.ByteArray as ByteArrayTest
+import Test.Deserialization as Deserialization
 import Test.Helpers as Helpers
 import Test.Parser as ParseTest
 import Test.Serialization as Serialization
@@ -45,6 +46,7 @@ interpret spif = do
 testPlan :: TestPlanM Unit
 testPlan = do
   Serialization.suite
+  Deserialization.suite
   ParseTest.suite
   AffInterface.suite
   ByteArrayTest.suite

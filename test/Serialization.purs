@@ -37,19 +37,19 @@ suite = do
         mbKeyHash `shouldEqual` Just (T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp")
       test "TransactionOutput serialization" $ liftEffect do
         txo <- convertTxOutput txOutputFixture1
-        bytes <- toBytes (asOneOf txo)
+        let bytes = toBytes (asOneOf txo)
         byteArrayToHex bytes `shouldEqual` txOutputBinaryFixture1
       test "Transaction serialization #1" $ liftEffect do
         tx <- convertTransaction txFixture1
-        bytes <- toBytes (asOneOf tx)
+        let bytes = toBytes (asOneOf tx)
         byteArrayToHex bytes `shouldEqual` txBinaryFixture1
       test "Transaction serialization #2 - tokens" $ liftEffect do
         tx <- convertTransaction txFixture2
-        bytes <- toBytes (asOneOf tx)
+        let bytes = toBytes (asOneOf tx)
         byteArrayToHex bytes `shouldEqual` txBinaryFixture2
       test "Transaction serialization #3 - ada" $ liftEffect do
         tx <- convertTransaction txFixture3
-        bytes <- toBytes (asOneOf tx)
+        let bytes = toBytes (asOneOf tx)
         byteArrayToHex bytes `shouldEqual` txBinaryFixture3
 
 txInputFixture1 :: T.TransactionInput
