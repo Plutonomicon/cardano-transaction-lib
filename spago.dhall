@@ -5,6 +5,7 @@ You can edit this file as you like.
 { name = "my-project"
 , dependencies =
   [ "aff"
+  , "aff-promise"
   , "argonaut"
   , "arraybuffer-types"
   , "arrays"

@@ -1,12 +1,17 @@
 module Wallet
-  ( NamiWallet
+  ( NamiConnection
+  , NamiWallet
   , Wallet(..)
+  , mkNamiWalletAff
   , mockNamiWallet
   ) where
 
 import Prelude
-import Data.Maybe (Maybe(..))
+import Control.Promise as Promise
+import Control.Promise (Promise)
+import Data.Maybe (Maybe(..), maybe)
 import Data.Typelevel.Undefined (undefined)
+import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
@@ -20,12 +25,10 @@ data Wallet (w :: Type) = Nami (NamiWallet w)
 -- Nami backend
 -------------------------------------------------------------------------------
 -- Record-of-functions for real or mocked Nami wallet, includes `Ref` to
--- connection (e.g. with `window.cardano` as a `NamiConnection`)
+-- connection (e.g. with `window.cardano.nami` as a `NamiConnection`)
 type NamiWallet (w :: Type) =
   { connection :: Ref.Ref w
   -- ^ A reference to a connection with Nami, i.e. `window.cardano.nami`
-  , enable :: w -> Aff w
-  -- ^ Request that the user grant access to their nami wallet
   , getWalletAddress :: w -> Aff Address
   -- ^ Get the address associated with the wallet (Nami does not support
   -- multiple addresses)
@@ -33,16 +36,34 @@ type NamiWallet (w :: Type) =
   -- ^ Get the collateral UTxO associated with the Nami wallet
   }
 
+mkNamiWalletAff :: Aff (Wallet NamiConnection)
+mkNamiWalletAff = do
+  nami <- enable
+  connection <- liftEffect $ Ref.new nami
+  pure $ Nami
+    { connection
+    , getWalletAddress: undefined -- TODO
+    , getCollateral: undefined -- TODO
+    }
+
+  where
+  enable :: Aff NamiConnection
+  enable = Promise.toAffE $ _enableNami
+
 -- A Nami wallet with all functions mocked
 mockNamiWallet :: Aff (Wallet Unit)
-mockNamiWallet =
-  liftEffect
-    $ do
-        connection <- Ref.new unit
-        pure
-          $ Nami
-              { connection
-              , enable: const $ pure unit
-              , getWalletAddress: undefined -- TODO
-              , getCollateral: const $ pure Nothing
-              }
+mockNamiWallet = liftEffect $ do
+  connection <- Ref.new unit
+  pure
+    $ Nami
+        { connection
+        , getWalletAddress: undefined -- TODO
+        , getCollateral: const $ pure Nothing
+        }
+
+-------------------------------------------------------------------------------
+-- FFI stuff
+-------------------------------------------------------------------------------
+foreign import data NamiConnection :: Type
+
+foreign import _enableNami :: Effect (Promise NamiConnection)
