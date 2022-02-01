@@ -20,8 +20,8 @@ derive instance Newtype PaymentPubKey _
 derive newtype instance Eq PaymentPubKey
 
 newtype TxOutRef = TxOutRef
-  { txOutRefId :: TransactionHash
-  , txOutRefIdx :: BigInt
+  { id :: TransactionHash
+  , index :: BigInt
   -- ^ Index into the referenced transaction's outputs
   }
 
@@ -60,10 +60,10 @@ derive newtype instance Eq PaymentPubKeyHash
 -- | can be submitted to the ledeger.
 -- | Resembles `UnbalancedTx` from `plutus-apps`.
 newtype UnbalancedTx = UnbalancedTx
-  { unBalancedTxTx :: Transaction
-  , unBalancedTxRequiredSignatories :: Map PaymentPubKeyHash (Maybe PaymentPubKey)
-  , unBalancedTxUtxoIndex :: Map TxOutRef ScriptOutput
-  , unBalancedTxValidityTimeRange :: POSIXTimeRange
+  { transaction :: Transaction
+  , requiredSignatories :: Map PaymentPubKeyHash (Maybe PaymentPubKey)
+  , utxoIndex :: Map TxOutRef ScriptOutput
+  , validityTimeRange :: POSIXTimeRange
   }
 
 derive instance Newtype UnbalancedTx _
