@@ -2,7 +2,7 @@ module Types.JsonWsp where
 
 import Prelude
 import Control.Alt ((<|>))
-import Data.Argonaut (class DecodeJson, Json, JsonDecodeError(..), caseJsonArray, caseJsonNumber, caseJsonObject, caseJsonString, getField, decodeJson)
+import Data.Argonaut (class DecodeJson, Json, JsonDecodeError(..), caseJsonArray, caseJsonObject, caseJsonString, getField, decodeJson)
 import Data.Array (index)
 import Data.BigInt as BigInt
 import Data.Either (Either(..), hush, note)
@@ -13,7 +13,7 @@ import Data.Foldable (foldl)
 import Data.Map as Map
 import Effect (Effect)
 import Foreign.Object (Object)
-import Types.Transaction (Value(..), CurrencySymbol(..), TokenName(..))
+import Types.Transaction (Value(..), Coin(..))
 
 -- creates a unique id prefixed by its argument
 foreign import _uniqueId :: String -> Effect String
@@ -26,11 +26,11 @@ derive instance genericQueryType :: Generic QueryType _
 instance showQueryType :: Show QueryType where
   show a = genericShow a
 
---  the Address type in `Types.Transaction` is quite a bit more complex than 
+--  the Address type in `Types.Transaction` is quite a bit more complex than
 --  this
 type Address = String
 
--- these types are described in: https://ogmios.dev/getting-started/basics/ 
+-- these types are described in: https://ogmios.dev/getting-started/basics/
 
 type JsonWspRequest a =
   { type :: String
@@ -124,7 +124,7 @@ parseMirror = caseJsonObject (Left (TypeMismatch "expected object")) $
       pure { step, id }
   )
 
--- the outer result type for Utxo queries, newtyped so that it can have 
+-- the outer result type for Utxo queries, newtyped so that it can have
 -- appropriate instances to work with `parseJsonWspResponse`
 newtype UtxoQR = UtxoQR UtxoQueryResult
 
@@ -179,8 +179,8 @@ parseTxOutRef = jsonObject $
       pure { txId, index }
   )
 
--- this OgmiosTxOut doesn't seem to be in line with the 
--- `Types.Transaction.TransactionOutput` type,  we may need to reckon with this 
+-- this OgmiosTxOut doesn't seem to be in line with the
+-- `Types.Transaction.TransactionOutput` type,  we may need to reckon with this
 -- later.
 type OgmiosTxOut =
   { address :: String
@@ -188,8 +188,8 @@ type OgmiosTxOut =
   , datum :: Maybe String
   }
 
--- Ogmios currently supplies the Raw Address in addr1 format, rather than the 
--- cardano-serialization-lib 'Address' type,  perhaps this information can be 
+-- Ogmios currently supplies the Raw Address in addr1 format, rather than the
+-- cardano-serialization-lib 'Address' type,  perhaps this information can be
 -- extracted.
 parseTxOut :: Json -> Either JsonDecodeError OgmiosTxOut
 parseTxOut = jsonObject $
@@ -205,7 +205,7 @@ parseValue :: Object Json -> Either JsonDecodeError Value
 parseValue outer = do
   o <- getField outer "value"
   coins <- parseFieldToBigInt o "coins" <|> Left (TypeMismatch "Expected 'coins' to be an Int or a BigInt")
-  (assetsJson :: {}) <- getField o "assets"
+  (_assetsJson :: {}) <- getField o "assets"
   -- assets are currently assumed to be empty
   -- newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
-  pure $ Value $ Map.singleton (CurrencySymbol mempty) (Map.singleton (TokenName mempty) coins)
+  pure $ Value (Coin coins) $ Map.empty
