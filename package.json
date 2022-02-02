@@ -2,13 +2,13 @@
   "name": "realpab",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "directories": {
     "test": "test"
   },
   "scripts": {
     "test": "spago run --main Test.Main",
-    "dev": "$(spago build -w) & parcel"
+    "dev": "$(spago build -w) & parcel",
+    "build": "spago build && parcel build"
   },
   "author": "",
   "license": "ISC",
