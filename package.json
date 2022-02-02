@@ -19,5 +19,8 @@
     "bufferutil": "^4.0.5",
     "uniqid": "^5.4.0",
     "ws": "^8.4.0"
+  },
+  "devDependencies": {
+    "parcel": "^2.2.1"
   }
 }

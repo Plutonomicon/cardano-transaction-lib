@@ -26,7 +26,12 @@ let
           nodePkgs // {
             shell = nodePkgs.shell.override {
               # see https://github.com/svanderburg/node2nix/issues/198
+              # and https://github.com/svanderburg/node2nix/issues/275
               buildInputs = [ pkgs.nodePackages.node-gyp-build ];
+              preRebuild = ''
+                sed -i -e "s|#!/usr/bin/env node|#! ${pkgs.nodejs}/bin/node|" \
+                  node_modules/node-gyp-build/bin.js
+              '';
             };
           });
     in
