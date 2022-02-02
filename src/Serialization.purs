@@ -5,6 +5,7 @@ module Serialization
   , convertBigInt
   , convertTxOutput
   , newAddressFromBech32
+  , newAddressFromBytes
   , newAssetName
   , newTransactionHash
   , toBytes
@@ -40,6 +41,7 @@ foreign import newTransaction :: TransactionBody -> TransactionWitnessSet -> Eff
 foreign import newTransaction_ :: TransactionBody -> TransactionWitnessSet -> AuxiliaryData -> Effect Transaction
 foreign import newTransactionWitnessSet :: Effect TransactionWitnessSet
 foreign import newAddressFromBech32 :: T.Bech32 -> Effect Address
+foreign import newAddressFromBytes :: ByteArray -> Effect Address
 foreign import newBaseAddress :: UInt -> StakeCredential -> StakeCredential -> Effect BaseAddress
 foreign import _newBaseAddressFromAddress :: (forall a. Maybe a) -> (forall a. a -> Maybe a) -> Address -> Maybe BaseAddress
 foreign import baseAddressPaymentCredential :: BaseAddress -> StakeCredential
