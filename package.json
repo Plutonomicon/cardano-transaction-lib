@@ -7,7 +7,8 @@
     "test": "test"
   },
   "scripts": {
-    "test": "spago run --main Test.Main"
+    "test": "spago run --main Test.Main",
+    "dev": "$(spago build -w) & parcel"
   },
   "author": "",
   "license": "ISC",

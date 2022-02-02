@@ -19,3 +19,6 @@ result-*
 /server/dist-newstyle
 /server/dist-newstyle/
 .projectile
+/**/index.js
+dist/
+.parcel-cache/
