@@ -11,10 +11,13 @@ import Control.Promise as Promise
 import Control.Promise (Promise)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Typelevel.Undefined (undefined)
+import Deserialization as Deserialization
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
+import Serialization as Serialization
+import Types.ByteArray
 import Types.Transaction (Address, TransactionOutput)
 
 -- At the moment, we only support Nami's wallet. In the future we will expand
@@ -29,7 +32,7 @@ data Wallet (w :: Type) = Nami (NamiWallet w)
 type NamiWallet (w :: Type) =
   { connection :: Ref.Ref w
   -- ^ A reference to a connection with Nami, i.e. `window.cardano.nami`
-  , getWalletAddress :: w -> Aff Address
+  , getWalletAddress :: w -> Aff (Maybe Address)
   -- ^ Get the address associated with the wallet (Nami does not support
   -- multiple addresses)
   , getCollateral :: w -> Aff (Maybe TransactionOutput)
@@ -42,13 +45,20 @@ mkNamiWalletAff = do
   connection <- liftEffect $ Ref.new nami
   pure $ Nami
     { connection
-    , getWalletAddress: undefined -- TODO
+    , getWalletAddress
     , getCollateral: undefined -- TODO
     }
 
   where
   enable :: Aff NamiConnection
   enable = Promise.toAffE $ _enableNami
+
+  getWalletAddress :: NamiConnection -> Aff (Maybe Address)
+  getWalletAddress nami = do
+    bytes <- hexToByteArrayUnsafe <$> Promise.toAffE (_getNamiAddress nami)
+    liftEffect $
+      Deserialization.convertAddress
+        <$> Serialization.newAddressFromBytes bytes
 
 -- A Nami wallet with all functions mocked
 mockNamiWallet :: Aff (Wallet Unit)
@@ -57,7 +67,7 @@ mockNamiWallet = liftEffect $ do
   pure
     $ Nami
         { connection
-        , getWalletAddress: undefined -- TODO
+        , getWalletAddress: const $ pure Nothing
         , getCollateral: const $ pure Nothing
         }
 
@@ -67,3 +77,5 @@ mockNamiWallet = liftEffect $ do
 foreign import data NamiConnection :: Type
 
 foreign import _enableNami :: Effect (Promise NamiConnection)
+
+foreign import _getNamiAddress :: NamiConnection -> Effect (Promise String)
