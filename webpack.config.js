@@ -19,6 +19,8 @@ const plugins =
         },
       ];
 module.exports = {
+  mode: "development",
+
   experiments: {
     asyncWebAssembly: false,
     layers: false,
