@@ -2,7 +2,7 @@ module Test.Deserialization where
 
 import Prelude
 
-import Data.Maybe (Maybe(..), isJust)
+import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Effect.Class (liftEffect)
 import Mote (group, test)
 import Serialization as Serialization

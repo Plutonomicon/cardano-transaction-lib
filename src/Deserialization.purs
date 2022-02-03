@@ -3,7 +3,7 @@ module Deserialization
   ) where
 
 import Control.Alt ((<|>))
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe (Just, Nothing))
 import Prelude
 import Serialization.Types (Address, BaseAddress, Ed25519KeyHash, ScriptHash, StakeCredential)
 import Types.Transaction as T
