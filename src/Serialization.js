@@ -62,9 +62,6 @@ exports.baseAddressPaymentCredential =
 exports.baseAddressToAddress = baseAddress => () =>
     baseAddress.to_address();
 
-exports.baseAddressFromAddress = address => () =>
-    lib.BaseAddress.from_address(address);
-
 exports.newStakeCredentialFromScriptHash = hash => () =>
     lib.StakeCredential.from_scripthash(hash);
 

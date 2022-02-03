@@ -6,7 +6,6 @@ import Control.Alt ((<|>))
 import Data.Maybe (Maybe(..))
 import Prelude
 import Serialization.Types (Address, BaseAddress, Ed25519KeyHash, ScriptHash, StakeCredential)
-import Types.ByteArray (ByteArray)
 import Types.Transaction as T
 import Untagged.Union (type (|+|), asOneOf)
 import Data.UInt as UInt
