@@ -26,6 +26,7 @@ import Types.Value
 --   1M Lovelace is one Ada.
 --   See note [Currencies] in 'Ledger.Validation.Value.TH'.
 newtype Ada = Lovelace BigInt
+
 derive instance genericAda :: Generic Ada _
 derive instance newtypeAda :: Newtype Ada _
 derive newtype instance eqAda :: Eq Ada

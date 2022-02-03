@@ -8,7 +8,6 @@ import Data.Maybe (Maybe)
 import Data.Show (class Show)
 import Data.Typelevel.Undefined (undefined)
 
-
 newtype Bech32String = Bech32String String
 
 derive instance Eq Bech32String

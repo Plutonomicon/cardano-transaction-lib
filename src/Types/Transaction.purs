@@ -26,6 +26,7 @@ newtype Transaction = Transaction
   , is_valid :: Boolean
   , auxiliary_data :: Maybe AuxiliaryData
   }
+
 derive instance newtypeTransaction :: Newtype Transaction _
 
 newtype TxBody = TxBody
@@ -44,18 +45,22 @@ newtype TxBody = TxBody
   , required_signers :: Maybe (Array RequiredSigner)
   , network_id :: Maybe NetworkId
   }
+
 derive instance newtypeTxBody :: Newtype TxBody _
 derive newtype instance eqTxBody :: Eq TxBody
 
 newtype ScriptDataHash = ScriptDataHash String
+
 derive instance newtypeScriptDataHash :: Newtype ScriptDataHash _
 derive newtype instance eqScriptDataHash :: Eq ScriptDataHash
 
 newtype Mint = Mint Value
+
 derive instance newtypeMint :: Newtype Mint _
 derive newtype instance eqMint :: Eq Mint
 
 newtype AuxiliaryDataHash = AuxiliaryDataHash String
+
 derive instance newtypeAuxiliaryDataHash :: Newtype AuxiliaryDataHash _
 derive newtype instance eqAuxiliaryDataHash :: Eq AuxiliaryDataHash
 
@@ -64,14 +69,14 @@ type Update =
   , epoch :: Epoch
   }
 
-newtype ProposedProtocolParameterUpdates
-  = ProposedProtocolParameterUpdates (Map GenesisHash ProtocolParamUpdate)
-derive instance newtypeProposedProtocolParameterUpdates
-  :: Newtype ProposedProtocolParameterUpdates _
-derive newtype instance eqProposedProtocolParameterUpdates
-  :: Eq ProposedProtocolParameterUpdates
+newtype ProposedProtocolParameterUpdates = ProposedProtocolParameterUpdates (Map GenesisHash ProtocolParamUpdate)
+
+derive instance newtypeProposedProtocolParameterUpdates :: Newtype ProposedProtocolParameterUpdates _
+
+derive newtype instance eqProposedProtocolParameterUpdates :: Eq ProposedProtocolParameterUpdates
 
 newtype GenesisHash = GenesisHash String
+
 derive instance newtypeGenesisHash :: Newtype GenesisHash _
 derive newtype instance eqGenesisHash :: Eq GenesisHash
 
@@ -120,6 +125,7 @@ type RewardAddress =
 data StakeCredential
   = StakeCredentialKey Ed25519KeyHash
   | StakeCredentialScript ScriptHash
+
 derive instance eqStakeCredential :: Eq StakeCredential
 derive instance ordStakeCredential :: Ord StakeCredential
 derive instance genericStakeCredential :: Generic StakeCredential _
@@ -128,6 +134,7 @@ instance showStakeCredential :: Show StakeCredential where
   show = genericShow
 
 newtype Ed25519KeyHash = Ed25519KeyHash ByteArray
+
 derive instance genericEd25519KeyHash :: Generic Ed25519KeyHash _
 derive instance newtypeEd25519KeyHash :: Newtype Ed25519KeyHash _
 derive newtype instance eqEd25519KeyHash :: Eq Ed25519KeyHash
@@ -137,8 +144,9 @@ instance showEd25519KeyHash :: Show Ed25519KeyHash where
   show = genericShow
 
 newtype ScriptHash = ScriptHash Bech32
+
 derive instance genericScriptHash :: Generic ScriptHash _
-derive instance newtypeScriptHash:: Newtype ScriptHash _
+derive instance newtypeScriptHash :: Newtype ScriptHash _
 derive newtype instance eqScriptHash :: Eq ScriptHash
 derive newtype instance ordScriptHash :: Ord ScriptHash
 
@@ -146,13 +154,16 @@ instance showScriptHash :: Show ScriptHash where
   show = genericShow
 
 newtype Costmdls = Costmdls (Map Language CostModel)
+
 derive instance newtypeCostmdls :: Newtype Costmdls _
 derive newtype instance eqCostmdls :: Eq Costmdls
 
 data Language = PlutusV1
+
 derive instance eqLanguage :: Eq Language
 
 newtype CostModel = CostModel (Array UInt)
+
 derive instance newtypeCostModel :: Newtype CostModel _
 derive newtype instance eqCostModel :: Eq CostModel
 
@@ -162,6 +173,7 @@ type ProtocolVersion =
   }
 
 newtype Nonce = Nonce String
+
 derive instance newtypeNonce :: Newtype Nonce _
 derive newtype instance eqNonce :: Eq Nonce
 
@@ -171,6 +183,7 @@ type UnitInterval =
   }
 
 newtype Epoch = Epoch UInt
+
 derive instance newtypeEpoch :: Newtype Epoch _
 derive newtype instance eqEpoch :: Eq Epoch
 
@@ -182,6 +195,7 @@ data Certificate
   | PoolRetirement
   | GenesisKeyDelegation
   | MoveInstantaneousRewardsCert
+
 derive instance eqCertificate :: Eq Certificate
 
 newtype TransactionWitnessSet = TransactionWitnessSet
@@ -203,9 +217,11 @@ type BootstrapWitness =
 data NetworkId
   = Mainnet
   | Testnet
+
 derive instance eqNetworkId :: Eq NetworkId
 
 newtype RequiredSigner = RequiredSigner String
+
 derive instance newtypeRequiredSigner :: Newtype RequiredSigner _
 derive newtype instance eqRequiredSigner :: Eq RequiredSigner
 
@@ -237,6 +253,7 @@ instance Show PublicKey where
 newtype Ed25519Signature = Ed25519Signature Bech32
 
 newtype PlutusScript = PlutusScript ByteArray
+
 derive instance newtypePlutusScript :: Newtype PlutusScript _
 derive newtype instance eqPlutusScript :: Eq PlutusScript
 
@@ -261,16 +278,16 @@ type AuxiliaryData =
 
 newtype GeneralTransactionMetadata =
   GeneralTransactionMetadata (HashMap TransactionMetadatumLabel TransactionMetadatum)
-derive instance newtypeGeneralTransactionMetadata
-  :: Newtype GeneralTransactionMetadata _
-derive newtype instance eqGeneralTransactionMetadata
-  :: Eq GeneralTransactionMetadata
+
+derive instance newtypeGeneralTransactionMetadata :: Newtype GeneralTransactionMetadata _
+
+derive newtype instance eqGeneralTransactionMetadata :: Eq GeneralTransactionMetadata
 
 newtype TransactionMetadatumLabel = TransactionMetadatumLabel BigInt
-derive instance newtypeTransactionMetadatumLabel
-  :: Newtype TransactionMetadatumLabel _
-derive newtype instance eqTransactionMetadatumLabel
-  :: Eq TransactionMetadatumLabel
+
+derive instance newtypeTransactionMetadatumLabel :: Newtype TransactionMetadatumLabel _
+
+derive newtype instance eqTransactionMetadatumLabel :: Eq TransactionMetadatumLabel
 
 data TransactionMetadatum
   = MetadataMap (HashMap TransactionMetadatum TransactionMetadatum)
@@ -278,6 +295,7 @@ data TransactionMetadatum
   | Int Int
   | Bytes ByteArray
   | Text String
+
 derive instance eqTransactionMetadatum :: Eq TransactionMetadatum
 
 data NativeScript
@@ -287,12 +305,14 @@ data NativeScript
   | ScriptNOfK
   | TimelockStart
   | TimelockExpiry
+
 derive instance eqNativeScript :: Eq NativeScript
 
 newtype TransactionInput = TransactionInput
   { transaction_id :: TransactionHash
   , index :: UInt
   }
+
 derive instance newtypeTransactionInput :: Newtype TransactionInput _
 derive instance genericTransactionInput :: Generic TransactionInput _
 derive newtype instance eqTransactionInput :: Eq TransactionInput
@@ -306,6 +326,7 @@ newtype TransactionOutput = TransactionOutput
   , amount :: Value
   , data_hash :: Maybe DataHash
   }
+
 derive instance genericTransactionOutput :: Generic TransactionOutput _
 derive instance newtypeTransactionOutput :: Newtype TransactionOutput _
 derive newtype instance eqTransactionOutput :: Eq TransactionOutput
@@ -314,21 +335,24 @@ instance showTransactionOutput :: Show TransactionOutput where
   show = genericShow
 
 newtype UtxoM = UtxoM Utxo
+
 derive instance newtypeUtxoM :: Newtype UtxoM _
 derive newtype instance showUtxoM :: Show UtxoM
 
 type Utxo = Map TransactionInput TransactionOutput
 
 newtype TransactionHash = TransactionHash ByteArray
+
 derive instance genericTransactionHash :: Generic TransactionHash _
 derive instance newTransactionHash :: Newtype TransactionHash _
 derive newtype instance eqTransactionHash :: Eq TransactionHash
-derive newtype instance ordTransactionHash:: Ord TransactionHash
+derive newtype instance ordTransactionHash :: Ord TransactionHash
 
 instance Show TransactionHash where
   show = genericShow
 
 newtype DataHash = DataHash ByteArray
+
 derive instance Generic DataHash _
 derive instance newtypeDataHash :: Newtype DataHash _
 derive newtype instance eqDataHash :: Eq DataHash
@@ -338,12 +362,14 @@ instance Show DataHash where
   show = genericShow
 
 newtype Slot = Slot BigInt
+
 derive instance newtypeSlot :: Newtype Slot _
 derive newtype instance eqSlot :: Eq Slot
 
 newtype Address = Address
   { "AddrType" :: BaseAddress
   }
+
 derive instance genericAddress :: Generic Address _
 derive instance newtypeAddress :: Newtype Address _
 derive newtype instance eqAddress :: Eq Address
@@ -369,6 +395,7 @@ instance showBaseAddress :: Show BaseAddress where
 data PaymentCredential
   = PaymentCredentialKey Ed25519KeyHash
   | PaymentCredentialScript ScriptHash
+
 derive instance genericPaymentCredential :: Generic PaymentCredential _
 derive instance eqPaymentCredential :: Eq PaymentCredential
 derive instance ordPaymentCredential :: Ord PaymentCredential

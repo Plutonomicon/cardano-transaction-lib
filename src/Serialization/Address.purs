@@ -1,21 +1,21 @@
-module Serialization.Address (
-  BaseAddressCsl,
-  BaseAddress,
-  NetworkTag,
-  StakeCred,
-  CredType,
-  StakeCredentialCsl,
-  addressBech32,
-  addressBytes,
-  addressFromBech32,
-  addressFromBytes,
-  anyCredType,
-  ed25519KeyHashCredType,
-  mkBaseAddress,
-  netTagToInt,
-  pubKeyAddress,
-  scriptAddress,
-  scriptHashCredType
+module Serialization.Address
+  ( BaseAddressCsl
+  , BaseAddress
+  , NetworkTag
+  , StakeCred
+  , CredType
+  , StakeCredentialCsl
+  , addressBech32
+  , addressBytes
+  , addressFromBech32
+  , addressFromBytes
+  , anyCredType
+  , ed25519KeyHashCredType
+  , mkBaseAddress
+  , netTagToInt
+  , pubKeyAddress
+  , scriptAddress
+  , scriptHashCredType
   ) where
 
 import Prelude
@@ -27,7 +27,6 @@ import FFiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization.Bech32 (Bech32String)
 import Serialization.Csl (class ToCsl, toCslRep)
 import Serialization.Hash (Ed25519KeyHash, ScriptHash)
-
 
 ---- assumed this data types and that they are correct by construction ----
 
@@ -46,7 +45,6 @@ instance Show NetworkTag where
     TestnetTag -> "TestnetTag"
     MainnetTag -> "MainnetTag"
 
-
 -- | Simple safety wrapper to ensure that only valid types are provided
 -- | as address' stake credentials.
 newtype StakeCred a = StakeCred a
@@ -60,7 +58,6 @@ instance ToCsl (StakeCred Ed25519KeyHash) StakeCredentialCsl where
 
 instance ToCsl (StakeCred ScriptHash) StakeCredentialCsl where
   toCslRep (StakeCred x) = stakeCredFromScriptHash x
-
 
 -- | Shelley-era address where payment and delegation parts
 -- | are each either a `Ed25519Keyhash` or a `ScriptHash`
@@ -76,12 +73,13 @@ foreign import newBaseAddressCsl
   :: { network :: Int
      , paymentStakeCred :: StakeCredentialCsl
      , delegationStakeCred :: StakeCredentialCsl
-     } -> BaseAddressCsl
+     }
+  -> BaseAddressCsl
 
 -- | With this instance ou can safely convert BaseAddress to csl rep
 -- | to use csl functions
 instance (ToCsl (StakeCred d) StakeCredentialCsl, ToCsl (StakeCred p) StakeCredentialCsl) => ToCsl (BaseAddress p d) BaseAddressCsl where
-  toCslRep (BaseAddress {network, payment, delegation}) = newBaseAddressCsl
+  toCslRep (BaseAddress { network, payment, delegation }) = newBaseAddressCsl
     { network: netTagToInt network
     , paymentStakeCred: toCslRep (StakeCred payment)
     , delegationStakeCred: toCslRep (StakeCred delegation)
@@ -93,7 +91,6 @@ type PubKeyAddress = BaseAddress Ed25519KeyHash Ed25519KeyHash
 -- | Address where payment and stake delegation rights are bound to the same ScriptHash
 type ScriptAddress = BaseAddress ScriptHash ScriptHash
 
-
 -- | Helper for reclaiming `BaseAddress` type arguments during decoding.
 newtype CredType (p :: Type) = CredType (Maybe Boolean)
 
@@ -104,9 +101,9 @@ mkBaseAddress
   :: forall p d
    . (ToCsl (StakeCred d) StakeCredentialCsl)
   => (ToCsl (StakeCred p) StakeCredentialCsl)
-  => {network :: NetworkTag, payment :: p, delegation :: d}
+  => { network :: NetworkTag, payment :: p, delegation :: d }
   -> BaseAddress p d
-mkBaseAddress {network, payment, delegation} = BaseAddress
+mkBaseAddress { network, payment, delegation } = BaseAddress
   { network: network
   , payment: payment
   , delegation: delegation
@@ -117,10 +114,12 @@ foreign import headerCheck
   :: forall p d
    . MaybeFfiHelper
   -> { payment :: CredType p
-     , delegation :: CredType d}
+     , delegation :: CredType d
+     }
   -> Uint8Array
   -> BaseAddressCsl
   -> Maybe (BaseAddress p d)
+
 foreign import addressFromBytesImpl :: MaybeFfiHelper -> Uint8Array -> Maybe BaseAddressCsl
 foreign import addressFromBech32Impl :: MaybeFfiHelper -> Bech32String -> Maybe BaseAddressCsl
 
@@ -139,8 +138,8 @@ addressFromBytes
    . { payment :: CredType p
      , delegation :: CredType d
      }
-   -> Uint8Array
-   -> Maybe (BaseAddress p d)
+  -> Uint8Array
+  -> Maybe (BaseAddress p d)
 addressFromBytes checks bts = do
   addrCsl <- addressFromBytesImpl maybeFfiHelper bts
   headerCheck maybeFfiHelper checks bts addrCsl
@@ -152,7 +151,7 @@ addressBech32 :: forall p d. BaseAddress p d -> Maybe Bech32String
 addressBech32 = undefined
 
 -- | Build address out of its bech32 representation.
-addressFromBech32 :: forall p d. {payment :: CredType p, delegation :: CredType d} -> Bech32String -> Maybe (BaseAddress p d)
+addressFromBech32 :: forall p d. { payment :: CredType p, delegation :: CredType d } -> Bech32String -> Maybe (BaseAddress p d)
 addressFromBech32 checks bchString = do
   addrCsl <- addressFromBech32Impl maybeFfiHelper bchString
   let bts = addressBytesImpl addrCsl
@@ -160,11 +159,11 @@ addressFromBech32 checks bchString = do
 
 -- | Build `PubKeyAddress` from a single credential.
 pubKeyAddress :: NetworkTag -> Ed25519KeyHash -> PubKeyAddress
-pubKeyAddress nt pkh = BaseAddress {network: nt, payment: pkh, delegation: pkh}
+pubKeyAddress nt pkh = BaseAddress { network: nt, payment: pkh, delegation: pkh }
 
 -- | Build `ScriptAddress` from a single credential.
 scriptAddress :: NetworkTag -> ScriptHash -> ScriptAddress
-scriptAddress nt sh = BaseAddress {network: nt, payment: sh, delegation: sh}
+scriptAddress nt sh = BaseAddress { network: nt, payment: sh, delegation: sh }
 
 ---- cred types
 

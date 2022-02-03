@@ -17,6 +17,7 @@ import Prelude
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 
 newtype ByteArray = ByteArray Uint8Array
+
 derive instance newtypeByteArray :: Newtype ByteArray _
 
 instance showByteArray :: Show ByteArray where
