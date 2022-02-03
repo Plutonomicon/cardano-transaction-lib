@@ -102,12 +102,28 @@ data StakeCredential
   = StakeCredentialKey Ed25519KeyHash
   | StakeCredentialScript ScriptHash
 
+derive instance Generic StakeCredential _
+derive instance Eq StakeCredential
+
+instance Show StakeCredential where
+  show = genericShow
+
 newtype Ed25519KeyHash = Ed25519KeyHash ByteArray
 
 derive newtype instance Eq Ed25519KeyHash
 derive newtype instance Ord Ed25519KeyHash
+derive instance Generic Ed25519KeyHash _
+
+instance Show Ed25519KeyHash where
+  show = genericShow
 
 newtype ScriptHash = ScriptHash ByteArray
+
+derive instance Generic ScriptHash _
+derive newtype instance Eq ScriptHash
+
+instance Show ScriptHash where
+  show = genericShow
 
 newtype Costmdls = Costmdls (Map Language CostModel)
 
@@ -304,6 +320,11 @@ newtype Address = Address
   }
 
 derive instance Newtype Address _
+derive instance Generic Address _
+derive newtype instance Eq Address
+
+instance Show Address where
+  show = genericShow
 
 newtype BaseAddress = BaseAddress
   { network :: UInt -- UInt8
@@ -312,10 +333,21 @@ newtype BaseAddress = BaseAddress
   }
 
 derive instance Newtype BaseAddress _
+derive instance Generic BaseAddress _
+derive newtype instance Eq BaseAddress
+
+instance Show BaseAddress where
+  show = genericShow
 
 data PaymentCredential
   = PaymentCredentialKey Ed25519KeyHash
   | PaymentCredentialScript ScriptHash
+
+derive instance Generic PaymentCredential _
+derive instance Eq PaymentCredential
+
+instance Show PaymentCredential where
+  show = genericShow
 
 -- Addresspub struct Address(AddrType);
 -- AddrType

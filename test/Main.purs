@@ -17,6 +17,7 @@ import Test.Serialization.Hash as Serialization.Hash
 import TestM (TestPlanM)
 import Mote (Plan, foldPlan, planT)
 import Test.ByteArray as ByteArrayTest
+import Test.Deserialization as Deserialization
 import Test.Helpers as Helpers
 import Test.Serialization as Serialization
 
@@ -52,3 +53,4 @@ testPlan = do
   Serialization.suite
   Serialization.Address.suite
   Serialization.Hash.suite
+  Deserialization.suite

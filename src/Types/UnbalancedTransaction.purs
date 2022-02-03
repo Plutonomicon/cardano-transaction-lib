@@ -1,14 +1,13 @@
 module Types.UnbalancedTransaction
-       ( PubKey(..)
-       , PaymentPubKey(..)
-       , ValidatorHash(..)
-       , ScriptOutput(..)
-       , PubKeyHash(..)
-       , PaymentPubKeyHash(..)
-       , TxOutputRef(..)
-       , UnbalancedTx(..)
-       )
-where
+  ( PubKey(..)
+  , PaymentPubKey(..)
+  , ValidatorHash(..)
+  , ScriptOutput(..)
+  , PubKeyHash(..)
+  , PaymentPubKeyHash(..)
+  , TxOutputRef(..)
+  , UnbalancedTx(..)
+  ) where
 
 import Data.Map (Map)
 import Data.Maybe (Maybe)

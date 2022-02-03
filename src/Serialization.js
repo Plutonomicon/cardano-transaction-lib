@@ -63,9 +63,6 @@ exports.baseAddressPaymentCredential =
 exports.baseAddressToAddress = baseAddress => () =>
     baseAddress.to_address();
 
-exports.baseAddressFromAddress = address => () =>
-    lib.BaseAddress.from_address(address);
-
 exports.newStakeCredentialFromScriptHash = hash => () =>
     lib.StakeCredential.from_scripthash(hash);
 
@@ -141,5 +138,4 @@ exports._addressPubKeyHash = just => nothing => baseAddr => {
     return just(kh.to_bech32('hbas_'));
 };
 
-exports.toBytes = sth => () =>
-    sth.to_bytes();
+exports.toBytes = sth => sth.to_bytes();

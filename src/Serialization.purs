@@ -1,6 +1,7 @@
 module Serialization
   ( convertTransaction
   , addressPubKeyHash
+  , convertAddress
   , convertBigInt
   , convertTxOutput
   , newAddressFromBech32
@@ -23,8 +24,6 @@ import Types.ByteArray (ByteArray)
 import Types.Transaction as T
 import Untagged.Union (type (|+|))
 
--- * cardano-serialization-lib types
-
 foreign import newBigNum :: String -> Effect BigNum
 foreign import newValue :: BigNum -> Effect Value
 foreign import valueSetCoin :: Value -> BigNum -> Effect Unit
@@ -45,7 +44,6 @@ foreign import newBaseAddress :: UInt -> StakeCredential -> StakeCredential -> E
 foreign import _newBaseAddressFromAddress :: (forall a. Maybe a) -> (forall a. a -> Maybe a) -> Address -> Maybe BaseAddress
 foreign import baseAddressPaymentCredential :: BaseAddress -> StakeCredential
 foreign import baseAddressToAddress :: BaseAddress -> Effect Address
-foreign import baseAddressFromAddress :: Address -> Effect BaseAddress
 foreign import newStakeCredentialFromScriptHash :: ScriptHash -> Effect StakeCredential
 foreign import newStakeCredentialFromKeyHash :: Ed25519KeyHash -> Effect StakeCredential
 foreign import newEd25519KeyHash :: ByteArray -> Effect Ed25519KeyHash
@@ -72,9 +70,11 @@ foreign import _addressPubKeyHash :: (forall a. a -> Maybe a) -> (forall a. Mayb
 foreign import toBytes
   :: ( Transaction
          |+| TransactionOutput
+         |+| Ed25519KeyHash
+         |+| ScriptHash
      -- Add more as needed.
      )
-  -> Effect ByteArray
+  -> ByteArray
 
 addressPubKeyHash :: BaseAddress -> Maybe T.Bech32
 addressPubKeyHash = _addressPubKeyHash Just Nothing
@@ -150,6 +150,14 @@ convertTxOutputs arrOutputs = do
 
 convertTxOutput :: T.TransactionOutput -> Effect TransactionOutput
 convertTxOutput (T.TransactionOutput { address, amount, data_hash }) = do
+  address' <- convertAddress address
+  value <- convertValue amount
+  txo <- newTransactionOutput address' value
+  for_ data_hash (unwrap >>> newDataHash >=> transactionOutputSetDataHash txo)
+  pure txo
+
+convertAddress :: T.Address -> Effect Address
+convertAddress address = do
   let baseAddress = unwrap (unwrap address)."AddrType"
   payment <- case baseAddress.payment of
     T.PaymentCredentialKey (T.Ed25519KeyHash keyHash) -> do
@@ -162,11 +170,7 @@ convertTxOutput (T.TransactionOutput { address, amount, data_hash }) = do
     T.StakeCredentialScript (T.ScriptHash scriptHash) -> do
       newStakeCredentialFromScriptHash =<< newScriptHash scriptHash
   base_address <- newBaseAddress baseAddress.network payment stake
-  address' <- baseAddressToAddress base_address
-  value <- convertValue amount
-  txo <- newTransactionOutput address' value
-  for_ data_hash (unwrap >>> newDataHash >=> transactionOutputSetDataHash txo)
-  pure txo
+  baseAddressToAddress base_address
 
 convertValue :: T.Value -> Effect Value
 convertValue (T.Value (T.Coin lovelace) m) = do
