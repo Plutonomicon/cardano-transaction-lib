@@ -21,6 +21,7 @@ pkgs.haskell-nix.cabalProject {
       filemanip
       ieee
       cardano-api
+      cardano-binary
       cardano-ledger-shelley
       cardano-ledger-shelley-ma
       cardano-prelude
