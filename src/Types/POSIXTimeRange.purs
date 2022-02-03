@@ -1,5 +1,13 @@
 -- | Adapted from `Plutus.V1.Ledger.Time`.
-module Types.POSIXTimeRange where
+module Types.POSIXTimeRange
+  ( Closure
+  , Extended(..)
+  , LowerBound(..)
+  , UpperBound(..)
+  , Interval(..)
+  , POSIXTime(..)
+  , POSIXTimeRange
+  ) where
 
 import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
