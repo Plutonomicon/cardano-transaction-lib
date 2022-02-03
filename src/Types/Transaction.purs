@@ -107,7 +107,7 @@ newtype Ed25519KeyHash = Ed25519KeyHash ByteArray
 derive newtype instance Eq Ed25519KeyHash
 derive newtype instance Ord Ed25519KeyHash
 
-newtype ScriptHash = ScriptHash Bech32
+newtype ScriptHash = ScriptHash ByteArray
 
 newtype Costmdls = Costmdls (Map Language CostModel)
 

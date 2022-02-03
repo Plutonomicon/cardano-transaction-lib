@@ -16,7 +16,7 @@ import Data.Newtype (class Newtype)
 import Prelude
 import Types.ByteArray (ByteArray(..))
 import Types.POSIXTimeRange (POSIXTimeRange)
-import Types.Transaction (DataHash, Ed25519KeyHash(..), Transaction, TransactionInput, Value)
+import Types.Transaction (DataHash, Ed25519KeyHash, ScriptHash, Transaction, TransactionInput, Value)
 
 newtype PubKey = PubKey ByteArray
 
@@ -28,10 +28,7 @@ newtype PaymentPubKey = PaymentPubKey PubKey
 derive instance Newtype PaymentPubKey _
 derive newtype instance Eq PaymentPubKey
 
-newtype ValidatorHash = ValidatorHash ByteArray
-
-derive instance Newtype ValidatorHash _
-derive newtype instance Eq ValidatorHash
+type ValidatorHash = ScriptHash
 
 newtype ScriptOutput = ScriptOutput
   { validatorHash :: ValidatorHash
