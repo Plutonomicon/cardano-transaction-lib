@@ -22,6 +22,7 @@ import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (FilePath)
 import Test.ArbitraryJson (ArbBigInt(..), ArbJson(..), stringifyArbJson)
 import Test.QuickCheck (class Arbitrary, quickCheck')
+import Test.Utils (assertTrue)
 import TestM (TestPlanM)
 
 suite :: TestPlanM Unit
@@ -123,7 +124,7 @@ parseStringTests = do
       json
 
 testSimpleValue :: String -> (Json -> Tuple String Boolean) -> TestPlanM Unit
-testSimpleValue s jsonCb = uncurry errBool $
+testSimpleValue s jsonCb = uncurry assertTrue $
   case (parseJson s) of
     Left _ -> Tuple "Invalid json passed to test." false
     Right _ -> case parseJsonStringifyNumbers s of
@@ -136,12 +137,6 @@ testSimpleValue s jsonCb = uncurry errBool $
 testFunctionEquivalence :: forall a b. Arbitrary a => Eq b => (a -> b) -> (a -> b) -> Int -> TestPlanM Unit
 testFunctionEquivalence f1 f2 n =
   lift $ liftEffect $ quickCheck' n (\x -> f1 x == f2 x)
-
--- | Make boolean a test
-errBool :: String -> Boolean -> TestPlanM Unit
-errBool msg b =
-  if b then pure unit
-  else (liftEffect $ throwException $ error msg)
 
 -- | Make simple test
 mkTest :: forall a. (a -> Tuple String Boolean) -> a -> TestPlanM Unit

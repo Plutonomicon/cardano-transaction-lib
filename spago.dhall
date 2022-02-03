@@ -9,6 +9,7 @@ You can edit this file as you like.
   , "arraybuffer-types"
   , "arrays"
   , "bifunctors"
+  , "assert"
   , "bigints"
   , "console"
   , "const"
@@ -18,6 +19,7 @@ You can edit this file as you like.
   , "either"
   , "exceptions"
   , "foldable-traversable"
+  , "foreign"
   , "foreign-object"
   , "gen"
   , "identity"
@@ -44,11 +46,12 @@ You can edit this file as you like.
   , "transformers"
   , "tuples"
   , "typelevel"
+  , "typelevel-prelude"
   , "uint"
   , "undefined"
+  , "unordered-collections"
   , "unsafe-coerce"
   , "untagged-union"
-  , "unordered-collections"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]
