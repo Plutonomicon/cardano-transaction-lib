@@ -670,6 +670,15 @@ let
         sha512 = "3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==";
       };
     };
+    "base64-js-1.5.1" = {
+      name = "base64-js";
+      packageName = "base64-js";
+      version = "1.5.1";
+      src = fetchurl {
+        url = "https://registry.npmjs.org/base64-js/-/base64-js-1.5.1.tgz";
+        sha512 = "AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==";
+      };
+    };
     "batch-0.6.1" = {
       name = "batch";
       packageName = "batch";
@@ -776,6 +785,15 @@ let
       src = fetchurl {
         url = "https://registry.npmjs.org/browserslist/-/browserslist-4.19.1.tgz";
         sha512 = "u2tbbG5PdKRTUoctO3NBD8FQ5HdPh1ZXPHzp1rwaa5jTc+RV9/+RlWiAIKmjRPQF+xbGM9Kklj5bZQFa2s/38A==";
+      };
+    };
+    "buffer-6.0.3" = {
+      name = "buffer";
+      packageName = "buffer";
+      version = "6.0.3";
+      src = fetchurl {
+        url = "https://registry.npmjs.org/buffer/-/buffer-6.0.3.tgz";
+        sha512 = "FTiCpNxtwiZZHEZbcbTIcZjERVICn9yq/pDFkTl95/AxzD1naBctN7YO68riM/gLSDY7sdrMby8hofADYuuqOA==";
       };
     };
     "buffer-from-1.1.2" = {
@@ -1856,6 +1874,15 @@ let
       src = fetchurl {
         url = "https://registry.npmjs.org/iconv-lite/-/iconv-lite-0.4.24.tgz";
         sha512 = "v3MXnZAcvnywkTUEZomIActle7RXXeedOR31wwl7VlyoXO4Qi9arvSenNQWne1TcRwhCL1HwLI21bEqdpj8/rA==";
+      };
+    };
+    "ieee754-1.2.1" = {
+      name = "ieee754";
+      packageName = "ieee754";
+      version = "1.2.1";
+      src = fetchurl {
+        url = "https://registry.npmjs.org/ieee754/-/ieee754-1.2.1.tgz";
+        sha512 = "dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==";
       };
     };
     "ignore-5.2.0" = {
@@ -3759,6 +3786,7 @@ let
       sources."arrify-1.0.1"
       sources."async-2.6.3"
       sources."balanced-match-1.0.2"
+      sources."base64-js-1.5.1"
       sources."batch-0.6.1"
       sources."big-integer-1.6.51"
       sources."big.js-5.2.2"
@@ -3774,6 +3802,7 @@ let
       sources."brace-expansion-1.1.11"
       sources."braces-3.0.2"
       sources."browserslist-4.19.1"
+      sources."buffer-6.0.3"
       sources."buffer-from-1.1.2"
       sources."buffer-indexof-1.1.1"
       (sources."bufferutil-4.0.5" // {
@@ -3923,6 +3952,7 @@ let
       sources."http-proxy-middleware-2.0.2"
       sources."human-signals-2.1.0"
       sources."iconv-lite-0.4.24"
+      sources."ieee754-1.2.1"
       sources."ignore-5.2.0"
       sources."import-local-3.1.0"
       sources."indent-string-4.0.0"

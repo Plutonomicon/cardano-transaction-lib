@@ -77,6 +77,9 @@ module.exports = {
   resolve: {
     modules: ["node_modules"],
     extensions: [".purs", ".js"],
+    fallback: {
+      buffer: require.resolve("buffer/"),
+    },
   },
 
   plugins: [
@@ -87,6 +90,9 @@ module.exports = {
       title: "purescript-webpack-example",
       template: "index.html",
       inject: false, // See stackoverflow.com/a/38292765/3067181
+    }),
+    new webpack.ProvidePlugin({
+      Buffer: ["buffer", "Buffer"],
     }),
   ].concat(plugins),
 };
