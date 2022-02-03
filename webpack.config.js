@@ -39,7 +39,7 @@ module.exports = {
   },
 
   // we can add more entrypoints as needed
-  entry: "./src/index.js",
+  entry: "./examples/index.js",
 
   output: {
     path: path.resolve(__dirname, "dist"),
@@ -89,8 +89,8 @@ module.exports = {
       debug: true,
     }),
     new HtmlWebpackPlugin({
-      title: "cardano-browser-tx",
-      template: "index.html",
+      title: "cardano-browser-tx-examples",
+      template: "./examples/index.html",
       inject: false, // See stackoverflow.com/a/38292765/3067181
     }),
     new webpack.ProvidePlugin({
