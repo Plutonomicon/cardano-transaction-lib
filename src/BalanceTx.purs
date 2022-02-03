@@ -483,7 +483,7 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) = do
                   }
 
             tx' :: Transaction
-            tx' = wrap tx { body = txBody'}
+            tx' = wrap tx { body = txBody' }
 
           fees' :: BigInt <-
             lmap
