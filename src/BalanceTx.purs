@@ -334,7 +334,6 @@ balanceTxM
   :: Address
   -> UnbalancedTransaction
   -> QueryM (Either BalanceTxFailure Transaction)
-
 balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
   utxos' :: Either BalanceTxFailure Utxo <-
     utxosAt' ownAddr <#>
@@ -344,9 +343,9 @@ balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
     Right utxos -> do
       privKeys :: Map.Map Address PrivateKey <- getPrivKeys
       let -- Combines utxos at the user address and those from any scripts involved
-          -- with the contract.
-          utxoIndex' :: Utxo
-          utxoIndex' = utxos `Map.union` unwrap utxoIndex
+        -- with the contract.
+        utxoIndex' :: Utxo
+        utxoIndex' = utxos `Map.union` unwrap utxoIndex
 
       case (unwrap (unwrap unbalancedTx).body).required_signers of
         Nothing -> pure $ Left $ BalanceTxMFailure' $ wrap UnknownRequiredSigners
@@ -357,76 +356,33 @@ balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
             prebalancedTx :: Transaction <- prebalancedTx'
             lmap ReturnAdaChangeFailure' $
               returnAdaChange ownAddr utxoIndex' prebalancedTx
-    where
-    loop ::
-      Utxo ->
-      Address ->
-      Map.Map Address PrivateKey ->
-      Array RequiredSigner ->
-      MinUtxos ->
-      Transaction ->
-      QueryM (Either BalanceTxFailure Transaction)
-    loop
-      utxoIndex'
-      ownAddr'
-      privKeys'
-      requiredSigners'
-      prevMinUtxos'
-      (Transaction tx'@{ body: txBody'@(TxBody txB) }) = do
-      let nextMinUtxos' :: MinUtxos
-          nextMinUtxos' =
-            calculateMinUtxos $ txB.outputs \\ map fst prevMinUtxos'
+  where
+  loop
+    :: Utxo
+    -> Address
+    -> Map.Map Address PrivateKey
+    -> Array RequiredSigner
+    -> MinUtxos
+    -> Transaction
+    -> QueryM (Either BalanceTxFailure Transaction)
+  loop
+    utxoIndex'
+    ownAddr'
+    privKeys'
+    requiredSigners'
+    prevMinUtxos'
+    (Transaction tx'@{ body: txBody'@(TxBody txB) }) = do
+    let
+      nextMinUtxos' :: MinUtxos
+      nextMinUtxos' =
+        calculateMinUtxos $ txB.outputs \\ map fst prevMinUtxos'
 
-          minUtxos' :: MinUtxos
-          minUtxos' = prevMinUtxos' <> nextMinUtxos'
+      minUtxos' :: MinUtxos
+      minUtxos' = prevMinUtxos' <> nextMinUtxos'
 
-          balancedTxBody' :: Either BalanceTxFailure TxBody
-          balancedTxBody' =
-            chainedBalancer
-              minUtxos'
-              utxoIndex'
-              ownAddr'
-              privKeys'
-              requiredSigners'
-              txBody'
-
-      case balancedTxBody' of
-        Left err -> pure $ Left err
-        Right balancedTxBody'' ->
-          if txBody' == balancedTxBody''
-           then pure $ Right $ wrap tx' { body = balancedTxBody'' }
-           else
-            loop
-              utxoIndex'
-              ownAddr'
-              privKeys'
-              requiredSigners'
-              minUtxos'
-              $ wrap tx' { body = balancedTxBody'' }
-
-    chainedBalancer
-      :: MinUtxos
-      -> Utxo
-      -> Address
-      -> Map.Map Address PrivateKey
-      -> Array RequiredSigner
-      -> TxBody
-      -> Either BalanceTxFailure TxBody
-    chainedBalancer
-      minUtxos' utxoIndex' ownAddr' privKeys' requiredSigners' txBody' = do
-        txBodyWithoutFees' :: TxBody <-
-          preBalanceTxBody
-            minUtxos'
-            zero
-            utxoIndex'
-            ownAddr'
-            privKeys'
-            requiredSigners'
-            txBody'
-        tx' :: Transaction <-
-          lmap BuildTxRawFailure' $ buildTxRaw txBodyWithoutFees'
-        fees' :: BigInt <- lmap CalculateMinFeeFailure' $ calculateMinFee tx' -- FIX ME: use txBodyWithoutFees replaced in original tx.
-        preBalanceTxBody
+      balancedTxBody' :: Either BalanceTxFailure TxBody
+      balancedTxBody' =
+        chainedBalancer
           minUtxos'
           utxoIndex'
           ownAddr'

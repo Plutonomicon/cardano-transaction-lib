@@ -186,7 +186,7 @@ parseTxOutRef :: Json -> Either JsonDecodeError TxOutRef
 parseTxOutRef = jsonObject $
   ( \o -> do
       txId <- parseFieldToString o "txId"
-      index <- parseFieldToBigInt o "index"
+      index <- parseFieldToUInt o "index"
       pure { txId, index }
   )
 
