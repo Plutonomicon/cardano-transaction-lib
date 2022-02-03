@@ -1,4 +1,4 @@
-module Examples.Nami.Simple where
+module Examples.Nami.Simple (main) where
 
 import Prelude
 
