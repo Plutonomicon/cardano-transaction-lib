@@ -1,7 +1,5 @@
 module Types.Ada
   ( Ada(Lovelace)
-  , adaSymbol
-  , adaToken
   , fromValue
   , getLovelace
   , lovelaceValueOf
@@ -11,14 +9,14 @@ module Types.Ada
 import Prelude
 import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Map as Map
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 
 import Types.Value
-  ( CurrencySymbol(CurrencySymbol)
-  , singleton
-  , TokenName(TokenName)
-  , Value
+  ( adaSymbol
+  , adaToken
+  , Value(Value)
   , valueOf
   )
 
@@ -33,7 +31,7 @@ derive instance newtypeAda :: Newtype Ada _
 derive newtype instance eqAda :: Eq Ada
 derive newtype instance ordAda :: Ord Ada
 
-instance showAda:: Show Ada where
+instance showAda :: Show Ada where
   show = genericShow
 
 instance semigroupAda :: Semigroup Ada where
@@ -45,18 +43,12 @@ instance monoidAda :: Monoid Ada where
 getLovelace :: Ada -> BigInt
 getLovelace = unwrap
 
-adaSymbol :: CurrencySymbol
-adaSymbol = CurrencySymbol mempty
-
-adaToken :: TokenName
-adaToken = TokenName mempty
-
 lovelaceValueOf :: BigInt -> Value
-lovelaceValueOf = singleton adaSymbol adaToken
+lovelaceValueOf = flip (Value <<< wrap) mempty
 
 -- | Create a 'Value' containing only the given 'Ada'.
 toValue :: Ada -> Value
-toValue (Lovelace i) = singleton adaSymbol adaToken i
+toValue (Lovelace i) = lovelaceValueOf i
 
 -- | Get the 'Ada' in the given 'Value'.
 fromValue :: Value -> Ada

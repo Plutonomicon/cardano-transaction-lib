@@ -28,53 +28,56 @@ import Foreign.Object as Object
 import Test.QuickCheck (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (Gen, arrayOf, chooseInt, elements)
 
-
 -- | Newtype wrapper to avoid an orphan instance
 newtype ArbBigInt = ArbBigInt BigInt
 
 instance Arbitrary ArbBigInt where
-    arbitrary = do
-      a <- BigInt.fromInt <$> chooseInt 1000000000 2000000000
-      b <- BigInt.fromInt <$> arbitrary
-      c <- BigInt.fromInt <$> elements (cons' (-1) [1])
-      pure $ ArbBigInt $ c * (a * a * a * a + b)
-
+  arbitrary = do
+    a <- BigInt.fromInt <$> chooseInt 1000000000 2000000000
+    b <- BigInt.fromInt <$> arbitrary
+    c <- BigInt.fromInt <$> elements (cons' (-1) [ 1 ])
+    pure $ ArbBigInt $ c * (a * a * a * a + b)
 
 -- | JSON representation that supports BigInts
 data ArbJson
   = JNull
-  | JBool    Boolean
-  | JBigInt  ArbBigInt
-  | JNum     Number
-  | JStr     String
-  | JList   (Array ArbJson)
+  | JBool Boolean
+  | JBigInt ArbBigInt
+  | JNum Number
+  | JStr String
+  | JList (Array ArbJson)
   | JObject (Array (Tuple String ArbJson))
 
 instance Arbitrary ArbJson where
   arbitrary = arbitraryRec 4
     where
-      arbStr :: Gen String
-      arbStr =
-        let stringWithEscapes = fromCharArray <$> (arrayOf (oneOf (pure '\\' :| [arbitrary])))
-        in oneOf ( stringWithEscapes :| [arbitrary])
+    arbStr :: Gen String
+    arbStr =
+      let
+        stringWithEscapes = fromCharArray <$> (arrayOf (oneOf (pure '\\' :| [ arbitrary ])))
+      in
+        oneOf (stringWithEscapes :| [ arbitrary ])
 
-      arbNum :: Gen Number
-      arbNum = oneOf (arbitrary :| [elements selected])
-        where
-          selected = cons' 1.123123e200 [-2.12312342e200,1e-200,-2.2e-100]
+    arbNum :: Gen Number
+    arbNum = oneOf (arbitrary :| [ elements selected ])
+      where
+      selected = cons' 1.123123e200 [ -2.12312342e200, 1e-200, -2.2e-100 ]
 
-      arbitraryRec :: Int -> Gen ArbJson
-      arbitraryRec n = fix \_ -> let
-        bool   =  JBool   <$> arbitrary
-        int    =  JBigInt <$> arbitrary
-        num    =  JNum    <$> arbNum
-        str    =  JStr    <$> arbStr
-        list   =  JList   <$> arrayOf (arbitraryRec (n-1))
-        object =  JObject <$> (arrayOf $ lift2 Tuple arbStr (arbitraryRec (n-1)))
-        in oneOf (pure JNull :| if n == 0
-                    then [bool, int, num, str]
-                    else [bool, int, num, str, list, object])
-
+    arbitraryRec :: Int -> Gen ArbJson
+    arbitraryRec n = fix \_ ->
+      let
+        bool = JBool <$> arbitrary
+        int = JBigInt <$> arbitrary
+        num = JNum <$> arbNum
+        str = JStr <$> arbStr
+        list = JList <$> arrayOf (arbitraryRec (n - 1))
+        object = JObject <$> (arrayOf $ lift2 Tuple arbStr (arbitraryRec (n - 1)))
+      in
+        oneOf
+          ( pure JNull :|
+              if n == 0 then [ bool, int, num, str ]
+              else [ bool, int, num, str, list, object ]
+          )
 
 -- | Turn ArbJson into a JSON string.
 stringifyArbJson :: ArbJson -> String
@@ -87,8 +90,7 @@ stringifyArbJson = case _ of
   JList l -> "[" <> joinWith "," (stringifyArbJson <$> l) <> "]"
   JObject o -> "{" <> joinWith "," (stringifyKV <$> o) <> "}"
     where
-      stringifyKV (Tuple k v) = Json.stringify (Json.fromString k) <> ": " <> stringifyArbJson v
-
+    stringifyKV (Tuple k v) = Json.stringify (Json.fromString k) <> ": " <> stringifyArbJson v
 
 -- | Turn ArbJson to Json if it does not contain BigInts
 arbJsonToJson :: ArbJson -> Maybe Json
@@ -101,5 +103,5 @@ arbJsonToJson = case _ of
   JList a -> Json.fromArray <$> traverse arbJsonToJson a
   JObject o -> Json.fromObject <<< Object.fromFoldable <$> traverse parseKV o
     where
-      parseKV :: Tuple String ArbJson -> Maybe (Tuple String Json)
-      parseKV (Tuple k v) = Tuple k <$> arbJsonToJson v
+    parseKV :: Tuple String ArbJson -> Maybe (Tuple String Json)
+    parseKV (Tuple k v) = Tuple k <$> arbJsonToJson v

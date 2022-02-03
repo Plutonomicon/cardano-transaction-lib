@@ -15,9 +15,7 @@ import Data.Medea (ValidationError(EmptyError))
 import Effect.Aff (Aff)
 import Mote (MoteT)
 
-
-type TestPlanM a
-  = MoteT (Const Void) (Aff Unit) Aff a
+type TestPlanM a = MoteT (Const Void) (Aff Unit) Aff a
 
 -- this silly thing is needed because Medea's `validate` needs both
 -- MonadPlus and MonadError, there must be a better way
@@ -35,14 +33,15 @@ derive newtype instance monadErrorValidationM :: MonadError ValidationError Vali
 derive newtype instance monadZeroValidationM :: MonadZero ValidationM
 derive newtype instance monadPlusValidationM :: MonadPlus ValidationM
 instance altValidationM :: Alt ValidationM where
-  alt (ValidationM first) (ValidationM second)
-    = case runExceptT first of
+  alt (ValidationM first) (ValidationM second) = case runExceptT first of
+    (Identity (Right a)) -> pure a
+    (Identity (Left _)) -> case runExceptT second of
       (Identity (Right a)) -> pure a
-      (Identity (Left _)) -> case runExceptT second of
-        (Identity (Right a)) -> pure a
-        (Identity (Left e)) -> throwError e
+      (Identity (Left e)) -> throwError e
+
 instance plusValidationM :: Plus ValidationM where
   empty = throwError EmptyError
+
 instance alternativeValidationM :: Alternative ValidationM
 
 runValidationM :: forall a. ValidationM a -> Either ValidationError a

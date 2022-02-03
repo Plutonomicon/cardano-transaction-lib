@@ -68,12 +68,12 @@ import ProtocolParametersAlonzo
   , protocolParamUTxOCostPerWord
   , utxoEntrySizeWithoutVal
   )
-import Types.Ada (adaSymbol, fromValue, getLovelace, lovelaceValueOf)
+import Types.Ada (fromValue, getLovelace, lovelaceValueOf)
 import Types.ByteArray (byteLength)
 import Types.Transaction
   ( Address
-  , Credential(Credential)
   , DataHash
+  , PaymentCredential(PaymentCredentialKey)
   , RequiredSigner
   , Transaction(Transaction)
   , TransactionInput
@@ -84,10 +84,8 @@ import Types.Transaction
   )
 import Types.Value
   ( allTokenNames
-  , emptyValue
   , flattenValue
   , geq
-  , getValue
   , isAdaOnly
   , isPos
   , isZero
@@ -677,16 +675,16 @@ toEitherTransactionInput (txOutRef /\ txOut) =
   case txOutPaymentCredentials txOut of
     -- FIX ME: need to determine it's a pubkey credential as opposed to script
     -- credential.
-    Credential _ ->
+    PaymentCredentialKey _ ->
       pure txOutRef
     _ -> -- Currently unreachable:
       Left $ wrap CannotConvertOutputToTxInput
 
-addressPaymentCredentials :: Address -> Credential
+addressPaymentCredentials :: Address -> PaymentCredential
 addressPaymentCredentials = _.payment <<< unwrap <<< _."AddrType" <<< unwrap
 
 -- FIX ME: do we need granularity for staking credential? We need pkh?
-txOutPaymentCredentials :: TransactionOutput -> Credential
+txOutPaymentCredentials :: TransactionOutput -> PaymentCredential
 txOutPaymentCredentials = addressPaymentCredentials <<< _.address  <<< unwrap
 
 balanceTxIns :: Utxo -> BigInt -> TxBody -> Either BalanceTxFailure TxBody
@@ -712,7 +710,7 @@ balanceTxIns' utxos fees (TxBody txBody) = do
       nonMintedValue :: Value
       nonMintedValue =
         Array.foldMap getAmount txOutputs
-          `minus` maybe emptyValue unwrap txBody.mint
+          `minus` maybe mempty unwrap txBody.mint
 
       minSpending :: Value
       minSpending = lovelaceValueOf (fees + changeMinUtxo) <> nonMintedValue
@@ -792,7 +790,7 @@ balanceNonAdaOuts'
   -> Either BalanceNonAdaOutsFailure TxBody
 balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) =
   let  -- FIX ME: Similar to Address issue, need pkh.
-      -- payCredentials :: Credential
+      -- payCredentials :: PaymentCredential
       -- payCredentials = addressPaymentCredentials changeAddr
 
       -- FIX ME: once both BaseAddresses are merged into one.
@@ -810,7 +808,7 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) =
 
       nonMintedOutputValue :: Value
       nonMintedOutputValue =
-        outputValue `minus` maybe emptyValue unwrap txBody.mint
+        outputValue `minus` maybe mempty unwrap txBody.mint
 
       nonAdaChange :: Value
       nonAdaChange =
@@ -875,8 +873,7 @@ addLovelaces minLovelaces (TxBody txBody) =
 -- From https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- | Filter a value to contain only non Ada assets
 filterNonAda :: Value -> Value
-filterNonAda =
-  Value <<< Map.filterKeys (_ /= adaSymbol) <<< getValue
+filterNonAda (Value coins _) = Value coins mempty
 
 requiredSignersToAddress :: RequiredSigner -> Address
 requiredSignersToAddress = undefined

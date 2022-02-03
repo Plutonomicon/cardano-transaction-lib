@@ -17,13 +17,14 @@ testnet_addr =
 -- state, and ogmios itself.
 suite :: TestPlanM Unit
 suite = do
-  group "Aff Int" $
-    test "UtxosAt" $ do
-      ws <- mkOgmiosWebSocketAff "ws:127.0.0.1:1337"
-      (runReaderT
-        (do
-          utxoqr <- utxosAt testnet_addr
-          pure unit
-        ))
-        { ws }
-
+  group "Aff Int"
+    $ test "UtxosAt"
+    $ do
+        ws <- mkOgmiosWebSocketAff "ws:127.0.0.1:1337"
+        ( runReaderT
+            ( do
+                _utxoqr <- utxosAt testnet_addr
+                pure unit
+            )
+        )
+          { ws }

@@ -43,8 +43,11 @@ You can edit this file as you like.
   , "these"
   , "transformers"
   , "tuples"
+  , "typelevel"
   , "uint"
   , "undefined"
+  , "unsafe-coerce"
+  , "untagged-union"
   , "unordered-collections"
   ]
 , packages = ./packages.dhall

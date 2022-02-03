@@ -15,12 +15,11 @@ import Effect.Aff (Aff)
 import Effect.Exception (error)
 import Effect.Exception.Unsafe (unsafeThrowException)
 import Node.FS.Aff (readTextFile)
-import Node.Encoding (Encoding (UTF8))
+import Node.Encoding (Encoding(UTF8))
 import Test.Spec.Assertions (shouldSatisfy, shouldNotSatisfy)
 import TestM (TestPlanM, ValidationM, runValidationM)
 import Mote (group, test)
 import Types.JsonWsp (JsonWspResponse, UtxoQR, parseJsonWspResponse)
-
 
 suite :: TestPlanM Unit
 suite = do
@@ -55,7 +54,6 @@ getSchema file = do
   (eSchema :: Either LoaderError Schema) <- runExceptT $
     (loadSchemaFromFile file :: ExceptT LoaderError Aff Schema)
   either (throwError <<< error <<< show) pure eSchema
-
 
 validateJsonArray :: Schema -> Array String -> ValidationM Unit
 validateJsonArray scm arr = traverse_ (validate scm) arr

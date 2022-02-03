@@ -4,7 +4,7 @@ import Prelude
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (ReaderT, ask)
 import Data.Argonaut as Json
-import Data.Either(Either(..), either, isRight)
+import Data.Either (Either(..), either, isRight)
 import Data.Foldable (foldl)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
@@ -22,7 +22,6 @@ import Helpers as Helpers
 -- Since WebSockets do not define a mechanism for linking request/response
 -- Or for verifying that the connection is live, those concerns are addressed
 -- here
-
 
 --------------------------------------------------------------------------------
 -- Websocket Basics
@@ -72,9 +71,9 @@ utxosAt addr = do
         ls = listeners config.ws
         ws = underlyingWebSocket config.ws
       ls.utxo.addMessageListener id
-        (\result -> do
-          ls.utxo.removeMessageListener id
-          (allowError cont) $ result
+        ( \result -> do
+            ls.utxo.removeMessageListener id
+            (allowError cont) $ result
         )
       _wsSend ws sBody
       pure $ Canceler $ \err -> do
@@ -113,7 +112,7 @@ mkOgmiosWebSocket' url cb = do
 
 -- makeAff
 -- :: forall a
- -- . ((Either Error a -> Effect Unit) -> Effect Canceler)
+-- . ((Either Error a -> Effect Unit) -> Effect Canceler)
 -- -> Aff a
 
 mkOgmiosWebSocketAff :: Url -> Aff OgmiosWebSocket
@@ -144,13 +143,13 @@ type ListenerSet a =
 mkListenerSet :: forall a. DispatchIdMap a -> ListenerSet a
 mkListenerSet dim =
   { addMessageListener:
-    \id -> \func -> do
-      idMap <- Ref.read dim
-      Ref.write (Map.insert id func idMap) dim
+      \id -> \func -> do
+        idMap <- Ref.read dim
+        Ref.write (Map.insert id func idMap) dim
   , removeMessageListener:
-    \id -> do
-      idMap <- Ref.read dim
-      Ref.write (Map.delete id idMap) dim
+      \id -> do
+        idMap <- Ref.read dim
+        Ref.write (Map.delete id idMap) dim
   , dispatchIdMap: dim
   }
 
@@ -193,20 +192,20 @@ utxoQueryDispatch
 utxoQueryDispatch ref str = do
   let parsed' = parseJsonWspResponse =<< Helpers.parseJsonStringifyNumbers str
   case parsed' of
-      (Left err) -> pure $ Left err
-      (Right res) -> afterParse res
+    (Left err) -> pure $ Left err
+    (Right res) -> afterParse res
   where
-    afterParse
-      :: JsonWspResponse UtxoQR
-      -> Effect (Either Json.JsonDecodeError (Effect Unit))
-    afterParse parsed = do
-      let (id :: String) = parsed.reflection.id
-      idMap <- Ref.read ref
-      let (mAction :: Maybe (UtxoQR -> Effect Unit))
-              = (Map.lookup id idMap)
-      case mAction of
-        Nothing -> pure $ (Left (Json.TypeMismatch ("Parse succeeded but Request Id: " <> id <> " has been cancelled")) :: Either Json.JsonDecodeError (Effect Unit))
-        Just action -> pure $ Right $ action parsed.result
+  afterParse
+    :: JsonWspResponse UtxoQR
+    -> Effect (Either Json.JsonDecodeError (Effect Unit))
+  afterParse parsed = do
+    let (id :: String) = parsed.reflection.id
+    idMap <- Ref.read ref
+    let
+      (mAction :: Maybe (UtxoQR -> Effect Unit)) = (Map.lookup id idMap)
+    case mAction of
+      Nothing -> pure $ (Left (Json.TypeMismatch ("Parse succeeded but Request Id: " <> id <> " has been cancelled")) :: Either Json.JsonDecodeError (Effect Unit))
+      Just action -> pure $ Right $ action parsed.result
 
 -- an empty error we can compare to, useful for ensuring we've not received any other kind of error
 defaultErr :: Json.JsonDecodeError
