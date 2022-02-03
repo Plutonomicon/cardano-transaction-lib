@@ -72,7 +72,7 @@ import Types.ByteArray (byteLength)
 import Types.Transaction
   ( Address
   , DataHash
-  , PaymentCredential(PaymentCredentialKey)
+  , PaymentCredential(PaymentCredentialKey, PaymentCredentialScript)
   , RequiredSigner
   , Transaction(Transaction)
   , TransactionInput
