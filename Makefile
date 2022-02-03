@@ -5,9 +5,7 @@ SHELL := bash
 
 autogen-deps:
 	spago2nix generate \
-		&& node2nix -l package-lock.json \
-		&& mv default.nix node2nix.nix \
-		&& git restore default.nix
+		&& node2nix -l package-lock.json -d -c node2nix.nix
 
 check-format:
 	purs-tidy check "src/**/*.purs" "test/**/*.purs"
