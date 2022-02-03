@@ -37,7 +37,7 @@ module BalanceTx
       , ReturnAdaChangeCalculateMinFee
       )
   , ToEitherTransactionInputFailure(ToEitherTransactionInputFailure)
-  , ToEitherTransactionInputFailureReason(CannotConvertOutputToTxInput)
+  , ToEitherTransactionInputFailureReason(CannotConvertScriptOutputToTxInput)
   , UnbalancedTransaction(UnbalancedTransaction)
   , balanceTxM -- Transaction balancer function
   ) where
@@ -175,11 +175,11 @@ derive instance newtypeToEitherTransactionInputFailure :: Newtype ToEitherTransa
 
 derive newtype instance showToEitherTransactionInputFailure :: Show ToEitherTransactionInputFailure
 
-data ToEitherTransactionInputFailureReason = CannotConvertOutputToTxInput
+data ToEitherTransactionInputFailureReason = CannotConvertScriptOutputToTxInput
 
 instance showToEitherTransactionInputFailureReason :: Show ToEitherTransactionInputFailureReason where
-  show CannotConvertOutputToTxInput =
-    "Cannot convert an output to TransactionInput"
+  show CannotConvertScriptOutputToTxInput =
+    "Cannot convert a script output to TransactionInput"
 
 newtype BalanceTxInsFailure = BalanceTxInsFailure BalanceTxInsFailureReason
 
@@ -282,7 +282,7 @@ newtype PrivateKey = PrivateKey String
 -- getPkhFromAddress = undefined
 
 -- TO DO: find a way to get private keys associated to each address/pkh for
--- signing purposes.
+-- signing purposes. This can be replaced by Nami signing functionality.
 getPrivKeys :: QueryM (Map.Map Address PrivateKey)
 getPrivKeys = undefined
 
@@ -299,7 +299,7 @@ newtype UnbalancedTransaction = UnbalancedTransaction
 
 -- Some functionality that builds a Transaction from a TxBody without balancing
 -- https://github.com/input-output-hk/cardano-node/blob/b6ca519f97a0e795611a63174687e6bb70c9f752/cardano-cli/src/Cardano/CLI/Shelley/Run/Transaction.hs#L312
--- Is this relevant?
+-- Is this relevant? Can probably ignore this.
 buildTxRaw :: TxBody -> Either BuildTxRawFailure Transaction
 buildTxRaw = undefined
 
@@ -631,8 +631,8 @@ addTxCollaterals utxo txBody =
 
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L211
 -- | Pick a collateral from the utxo map and add it to the unbalanced transaction
--- (suboptimally we just pick a random utxo from the tx inputs). TO DO: upgrade
--- to a better coin selection algorithm.
+-- | (suboptimally we just pick a random utxo from the tx inputs). TO DO: upgrade
+-- | to a better coin selection algorithm.
 addTxCollaterals' :: Utxo -> TxBody -> Either AddTxCollateralsFailure TxBody
 addTxCollaterals' utxos (TxBody txBody) = do
   let
@@ -644,45 +644,30 @@ addTxCollaterals' utxos (TxBody txBody) = do
   filterAdaOnly :: Utxo -> Utxo
   filterAdaOnly = Map.filter (isAdaOnly <<< getAmount)
 
-  -- FIX ME: Plutus has Maybe TxInType e.g. Just ConsumePublicKeyAddress)
-  -- We can't distinguish where a utxo is from a wallet (pubkey) or script it seems.
-  -- for now, we take the head. The Haskell logic is pasted below:
-  -- findPubKeyTxIn = \case
-  --   x@(TxIn _ (Just ConsumePublicKeyAddress)) : _ -> Right x
-  --   x@(TxIn _ Nothing) : _ -> Right x
-  --   _ : xs -> findPubKeyTxIn xs
-  --   _ -> Left "There are no utxos to be used as collateral"
+  -- Take head for collateral - can use better coin selection here.
   findPubKeyTxIn
     :: Array TransactionInput
     -> Either AddTxCollateralsFailure TransactionInput
   findPubKeyTxIn =
     note (wrap CollateralUtxosUnavailable) <<< Array.head
 
--- FIX ME: may need to revisit for credential granularity. See "txOutToTxIn" in
--- -- Converting a chain index transaction output to a transaction input type
--- txOutToTxIn :: (TxOutRef, TxOut) -> Either Text TxIn
--- txOutToTxIn (txOutRef, txOut) =
---   case addressCredential (txOutAddress txOut) of
---     PubKeyCredential _ -> Right $ Tx.pubKeyTxIn txOutRef
---     ScriptCredential _ -> Left "Cannot covert a script output to TxIn"
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
-toEitherTransactionInput
+-- | Get TransactionInput such that it is associated to PaymentCredentialKey
+-- | and not PaymentCredentialScript, i.e. we want wallets only
+getPublicKeyTransactionInput
   :: TransactionInput /\ TransactionOutput
   -> Either ToEitherTransactionInputFailure TransactionInput
-toEitherTransactionInput (txOutRef /\ txOut) =
+getPublicKeyTransactionInput (txOutRef /\ txOut) =
   case txOutPaymentCredentials txOut of
-    -- FIX ME: need to determine it's a pubkey credential as opposed to script
-    -- credential.
+    -- TEST ME: using PaymentCredentialKey to determine whether wallet or script
     PaymentCredentialKey _ ->
       pure txOutRef
-    -- Currently unreachable:
-    _ ->
-      Left $ wrap CannotConvertOutputToTxInput
+    PaymentCredentialScript _ ->
+      Left $ wrap CannotConvertScriptOutputToTxInput
 
 addressPaymentCredentials :: Address -> PaymentCredential
 addressPaymentCredentials = _.payment <<< unwrap <<< _."AddrType" <<< unwrap
 
--- FIX ME: do we need granularity for staking credential? We need pkh?
 txOutPaymentCredentials :: TransactionOutput -> PaymentCredential
 txOutPaymentCredentials = addressPaymentCredentials <<< _.address <<< unwrap
 
@@ -765,10 +750,9 @@ collectTxIns originalTxIns utxos value =
   txInsValue =
     Array.foldMap getAmount <<< Array.mapMaybe (flip Map.lookup utxos)
 
--- FIX ME: toEitherTransactionInput may need fixing depending on our data types.
 utxosToTransactionInput :: Utxo -> Array TransactionInput
 utxosToTransactionInput =
-  Array.mapMaybe (hush <<< toEitherTransactionInput) <<< Map.toUnfoldable
+  Array.mapMaybe (hush <<< getPublicKeyTransactionInput) <<< Map.toUnfoldable
 
 balanceNonAdaOuts
   :: Address
