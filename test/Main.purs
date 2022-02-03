@@ -7,17 +7,18 @@ import Data.Foldable (sequence_)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Aff.Class (liftAff)
-import Mote (Plan, foldPlan, planT)
+import Test.Spec (Spec, describe, it)
+import Test.Spec.Runner (runSpec)
+import Test.Spec.Reporter (consoleReporter)
 import Test.AffInterface as AffInterface
+import Test.Parser as ParseTest
+import Test.Serialization.Address as Serialization.Address
+import Test.Serialization.Hash as Serialization.Hash
+import TestM (TestPlanM)
+import Mote (Plan, foldPlan, planT)
 import Test.ByteArray as ByteArrayTest
 import Test.Helpers as Helpers
-import Test.Parser as ParseTest
 import Test.Serialization as Serialization
-
-import Test.Spec (Spec, describe, it)
-import Test.Spec.Reporter (consoleReporter)
-import Test.Spec.Runner (runSpec)
-import TestM (TestPlanM)
 
 -- we use `mote` here so that we can use effects to build up a test tree, which
 -- is then interpreted here in a pure context, mainly due to some painful types
@@ -44,8 +45,10 @@ interpret spif = do
 
 testPlan :: TestPlanM Unit
 testPlan = do
-  Serialization.suite
-  ParseTest.suite
-  AffInterface.suite
   ByteArrayTest.suite
   Helpers.suite
+  ParseTest.suite
+  AffInterface.suite
+  Serialization.suite
+  Serialization.Address.suite
+  Serialization.Hash.suite
