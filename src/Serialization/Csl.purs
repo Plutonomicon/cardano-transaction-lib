@@ -2,6 +2,7 @@
 module Serialization.Csl where
 
 import Control.Category ((>>>))
+import Foreign (Foreign)
 import Unsafe.Coerce (unsafeCoerce)
 
 foreign import data CslType :: Type
@@ -14,3 +15,6 @@ class FromCsl t frgn | frgn -> t where
 
 toCslType :: forall t f. ToCsl t f => t -> CslType
 toCslType = toCslRep >>> unsafeCoerce
+
+cslTypeToForeign :: CslType -> Foreign
+cslTypeToForeign = unsafeCoerce

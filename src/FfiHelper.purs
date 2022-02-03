@@ -1,4 +1,4 @@
-module FFiHelpers (MaybeFfiHelper, maybeFfiHelper) where
+module FfiHelpers (MaybeFfiHelper, maybeFfiHelper) where
 
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 
