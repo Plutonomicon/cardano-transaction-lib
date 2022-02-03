@@ -16,8 +16,6 @@ const callMaybe = property => Nothing => Just => object => {
     return res ? Just(res) : Nothing;
 };
 
-exports.toBech32 = call('to_bech32');
-
 exports._baseAddressFromAddress = Nothing => Just => address => {
     const res = lib.BaseAddress.from_address(address);
     return res ? Just(res) : Nothing;

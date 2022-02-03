@@ -110,13 +110,14 @@ instance Show StakeCredential where
 
 newtype Ed25519KeyHash = Ed25519KeyHash ByteArray
 
-derive instance Generic Ed25519KeyHash _
 derive newtype instance Eq Ed25519KeyHash
+derive newtype instance Ord Ed25519KeyHash
+derive instance Generic Ed25519KeyHash _
 
 instance Show Ed25519KeyHash where
   show = genericShow
 
-newtype ScriptHash = ScriptHash Bech32
+newtype ScriptHash = ScriptHash ByteArray
 
 derive instance Generic ScriptHash _
 derive newtype instance Eq ScriptHash
@@ -275,6 +276,11 @@ newtype TransactionInput = TransactionInput
   , index :: UInt
   }
 
+derive newtype instance Eq TransactionInput
+derive newtype instance Ord TransactionInput
+derive instance Generic TransactionInput _
+derive instance Newtype TransactionInput _
+
 newtype TransactionOutput = TransactionOutput
   { address :: Address
   , amount :: Value
@@ -283,6 +289,8 @@ newtype TransactionOutput = TransactionOutput
 
 newtype TransactionHash = TransactionHash ByteArray
 
+derive newtype instance Eq TransactionHash
+derive newtype instance Ord TransactionHash
 derive instance Generic TransactionHash _
 derive instance Newtype TransactionHash _
 

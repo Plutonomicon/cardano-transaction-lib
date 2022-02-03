@@ -3,11 +3,11 @@ module Deserialization
   ) where
 
 import Control.Alt ((<|>))
-import Data.Maybe (Maybe (Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing))
 import Prelude
 import Serialization.Types (Address, BaseAddress, Ed25519KeyHash, ScriptHash, StakeCredential)
 import Types.Transaction as T
-import Untagged.Union (type (|+|), asOneOf)
+import Untagged.Union (asOneOf)
 import Data.UInt as UInt
 import Serialization (toBytes)
 
@@ -26,13 +26,6 @@ stakeCredentialToScriptHash = _stakeCredentialToScriptHash Nothing Just
 
 baseAddressFromAddress :: Address -> Maybe BaseAddress
 baseAddressFromAddress = _baseAddressFromAddress Nothing Just
-
-foreign import toBech32
-  :: ( Ed25519KeyHash
-         |+| ScriptHash
-     -- Add more as needed.
-     )
-  -> T.Bech32
 
 convertAddress :: Address -> Maybe T.Address
 convertAddress address = do
@@ -56,7 +49,7 @@ convertEd25519KeyHash :: Ed25519KeyHash -> T.Ed25519KeyHash
 convertEd25519KeyHash = T.Ed25519KeyHash <<< toBytes <<< asOneOf
 
 convertScriptHash :: ScriptHash -> T.ScriptHash
-convertScriptHash = T.ScriptHash <<< toBech32 <<< asOneOf
+convertScriptHash = T.ScriptHash <<< toBytes <<< asOneOf
 
 convertPaymentCredential :: StakeCredential -> Maybe T.PaymentCredential
 convertPaymentCredential cred =
