@@ -1,4 +1,4 @@
-module Helpers(parseJsonStringifyNumbers, jsonTurnNumbersToStrings) where
+module Helpers (parseJsonStringifyNumbers, jsonTurnNumbersToStrings) where
 
 import Data.Either (Either)
 import Data.Argonaut (JsonDecodeError, Json, parseJson)
@@ -9,7 +9,6 @@ import Prelude
 -- | value that would otherwise be parsed by JSON.parse() as a number.
 -- | NOTE it discards whitespaces outside of the would be json strings
 foreign import jsonTurnNumbersToStrings :: String -> String
-
 
 -- | Parse JSON from string. It parses numbers as strings.
 parseJsonStringifyNumbers :: String -> Either JsonDecodeError Json

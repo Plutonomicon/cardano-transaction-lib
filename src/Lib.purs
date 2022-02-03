@@ -5,6 +5,8 @@ import Types.Transaction as Types
 import Data.Maybe (Maybe(..))
 import Data.BigInt as BigInt
 
+import Types.Value (Coin(Coin))
+
 -- Ogmios fetching
 -- 1. inputs
 
@@ -14,7 +16,7 @@ tx
   -> Array Types.TransactionOutput
   -> Array Types.TransactionInput
   -> Types.NetworkId
-  -> Types.Transaction 
+  -> Types.Transaction
 tx i o c id = Types.Transaction
   { body: txBody i o c id
   , witness_set: txWitness
@@ -31,7 +33,7 @@ txBody
 txBody inputs outputs collateral id = Types.TxBody
   { inputs: inputs
   , outputs: outputs
-  , fee: Types.Coin $ BigInt.fromInt 1000000
+  , fee: Coin $ BigInt.fromInt 1000000
   , ttl: Just $ Types.Slot $ BigInt.fromInt 10010000 -- validity_end
   , certs: Nothing
   , withdrawals: Nothing
@@ -54,5 +56,4 @@ txWitness = Types.TransactionWitnessSet
   , plutus_data: Nothing
   , redeemers: Nothing
   }
-
 

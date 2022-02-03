@@ -9,6 +9,13 @@ autogen-deps:
 		&& mv default.nix node2nix.nix \
 		&& git restore default.nix
 
+check-format:
+	purs-tidy check "src/**/*.purs" "test/**/*.purs"
+
+format:
+	purs-tidy format-in-place "src/**/*.purs" "test/**/*.purs"
+
+
 run-testnet-node:
 	docker run --rm \
 	  -e NETWORK=testnet \
@@ -20,6 +27,9 @@ run-testnet-ogmios:
 	ogmios \
 		--node-socket "$$CARDANO_NODE_SOCKET_PATH" \
 		--node-config "$$CARDANO_NODE_CONFIG"
+
+run-haskell-server:
+	nix run -L .#cardano-browser-tx-server:exe:cardano-browser-tx-server
 
 query-testnet-sync:
 	cardano-cli query tip --testnet-magic 1097911063

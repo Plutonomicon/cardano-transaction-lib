@@ -1,0 +1,109 @@
+cabal-version: 2.4
+name:          cardano-browser-tx-server
+version:       0.1.0.0
+author:        mlabs
+build-type:    Simple
+data-files:    config/pparams.json
+
+common common-language
+  default-extensions:
+    BangPatterns
+    DataKinds
+    DeriveAnyClass
+    DeriveFoldable
+    DeriveFunctor
+    DeriveGeneric
+    DeriveLift
+    DeriveTraversable
+    DerivingStrategies
+    ExplicitForAll
+    FlexibleContexts
+    FlexibleInstances
+    GeneralizedNewtypeDeriving
+    ImportQualifiedPost
+    LambdaCase
+    MonoLocalBinds
+    MultiParamTypeClasses
+    NumericUnderscores
+    OverloadedStrings
+    QuasiQuotes
+    RankNTypes
+    RecordWildCards
+    ScopedTypeVariables
+    StandaloneDeriving
+    TemplateHaskell
+    TupleSections
+    TypeApplications
+    TypeFamilies
+    TypeOperators
+    TypeSynonymInstances
+
+common common-options
+  ghc-options:
+    -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
+    -Wmissing-export-lists -Wmissing-deriving-strategies
+
+library
+  import:          common-language
+  import:          common-options
+  hs-source-dirs:  src
+  build-depends:
+    , aeson
+    , base
+    , base16-bytestring
+    , bytestring
+    , cardano-api
+    , cardano-binary
+    , containers
+    , exceptions
+    , extra
+    , mtl
+    , plutus-tx
+    , servant
+    , servant-client
+    , servant-docs
+    , servant-server
+    , text
+    , wai-logger
+    , warp
+
+  exposed-modules:
+    Api
+    Api.Fees
+    Paths_cardano_browser_tx_server
+    Types
+    Utils
+
+executable cardano-browser-tx-server
+  import:           common-language
+  import:           common-options
+  ghc-options:      -threaded -rtsopts
+  default-language: Haskell2010
+  hs-source-dirs:   exe
+  main-is:          Main.hs
+  build-depends:
+    , base
+    , cardano-browser-tx-server
+    , http-types
+    , wai
+    , wai-logger
+    , warp
+
+test-suite test
+  import:         common-language
+  import:         common-options
+  ghc-options:    -threaded -rtsopts
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is:        Main.hs
+  build-depends:
+    , base
+    , bytestring
+    , cardano-browser-tx-server
+    , hspec
+    , http-client
+    , http-types
+    , servant
+    , servant-client
+    , servant-server
+    , warp

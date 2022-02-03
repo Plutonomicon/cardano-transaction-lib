@@ -46,6 +46,8 @@ You can edit this file as you like.
   , "typelevel"
   , "uint"
   , "undefined"
+  , "unsafe-coerce"
+  , "untagged-union"
   , "unordered-collections"
   , "unsafe-coerce"
   ]

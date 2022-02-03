@@ -1,4 +1,4 @@
-module Test.Serialization.Address(suite) where
+module Test.Serialization.Address where --(suite) where
 
 import Prelude
 
@@ -10,18 +10,18 @@ import TestM (TestPlanM)
 import Serialization.Address (addressBech32)
 import Serialization.Bech32 (Bech32String(Bech32String))
 
+-- import Serialization.Address (Bech32String(..), addressBech32, addressNetworkId, addressPubKeyHash, addressStakeKeyHash, fromBech32, newBaseAddress)
 
 errBool :: String -> Boolean -> TestPlanM Unit
 errBool msg b =
-  if b
-  then pure unit
+  if b then pure unit
   else (liftEffect $ throwException $ error msg)
 
 errMaybe :: forall a. String -> Maybe a -> TestPlanM a
 errMaybe msg =
   maybe
-  (liftEffect $ throwException $ error msg)
-  pure
+    (liftEffect $ throwException $ error msg)
+    pure
 
 doesNotThrow :: forall a. a -> TestPlanM a
 doesNotThrow = pure

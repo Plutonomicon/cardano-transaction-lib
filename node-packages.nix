@@ -31,13 +31,22 @@ let
         sha512 = "46ts2s0W63nzqHMhaXKACeY0GDWdnPet9wqOWtb8X3Y5LzokcaDKupLO2eHUwlvQyFzD9gxJlWPi/LqZPkn4oQ==";
       };
     };
-    "@emurgo/cardano-serialization-lib-nodejs-9.1.4" = {
-      name = "_at_emurgo_slash_cardano-serialization-lib-nodejs";
-      packageName = "@emurgo/cardano-serialization-lib-nodejs";
-      version = "9.1.4";
+    "@ngua/cardano-serialization-lib-browser-9.1.2" = {
+      name = "_at_ngua_slash_cardano-serialization-lib-browser";
+      packageName = "@ngua/cardano-serialization-lib-browser";
+      version = "9.1.2";
       src = fetchurl {
-        url = "https://registry.npmjs.org/@emurgo/cardano-serialization-lib-nodejs/-/cardano-serialization-lib-nodejs-9.1.4.tgz";
-        sha512 = "zDYQ4E5CAz89OuXCPV7k3v5kLWkwUS5Jg7QZ5m/4vPkeuZolOXyqo84p6AYf0qZ14xkgxnvHIRY+heJKNs7Ddw==";
+        url = "https://registry.npmjs.org/@ngua/cardano-serialization-lib-browser/-/cardano-serialization-lib-browser-9.1.2.tgz";
+        sha512 = "0KkS3vCwrK8Yxs+yuoFJ05Ou5r0AZJNTWks9otP5h9ODsTUpkgJDb3lVmflJmSB0KnA9JvF3AmcN/swXj/yw+A==";
+      };
+    };
+    "@ngua/cardano-serialization-lib-nodejs-9.1.2" = {
+      name = "_at_ngua_slash_cardano-serialization-lib-nodejs";
+      packageName = "@ngua/cardano-serialization-lib-nodejs";
+      version = "9.1.2";
+      src = fetchurl {
+        url = "https://registry.npmjs.org/@ngua/cardano-serialization-lib-nodejs/-/cardano-serialization-lib-nodejs-9.1.2.tgz";
+        sha512 = "6xpp5Xjcqm9eHIrKBUmmIeZV6n0OeK6t8vCyQzF8KcHEQiknAcIcoIq/wf7sEcLV3ohwn945QCKkM3rKsKF5FA==";
       };
     };
     "@types/json-bigint-1.0.1" = {
@@ -207,8 +216,8 @@ let
           sources."ws-7.5.6"
         ];
       })
-      sources."@emurgo/cardano-serialization-lib-nodejs-9.1.4"
-      sources."bech32-2.0.0"
+      sources."@ngua/cardano-serialization-lib-browser-9.1.2"
+      sources."@ngua/cardano-serialization-lib-nodejs-9.1.2"
       sources."big-integer-1.6.51"
       (sources."bufferutil-4.0.5" // {
         dependencies = [
