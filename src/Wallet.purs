@@ -18,7 +18,7 @@ import Effect.Class (liftEffect)
 import Effect.Ref as Ref
 import Serialization as Serialization
 import Types.ByteArray
-import Types.Transaction (Address, TransactionOutput)
+import Types.Transaction (Address, TransactionOutput, Transaction)
 
 -- At the moment, we only support Nami's wallet. In the future we will expand
 -- this with more constructors to represent out-of-browser wallets (e.g. WBE)
@@ -30,13 +30,15 @@ data Wallet (w :: Type) = Nami (NamiWallet w)
 -- Record-of-functions for real or mocked Nami wallet, includes `Ref` to
 -- connection (e.g. with `window.cardano.nami` as a `NamiConnection`)
 type NamiWallet (w :: Type) =
-  { connection :: Ref.Ref w
-  -- ^ A reference to a connection with Nami, i.e. `window.cardano.nami`
-  , getWalletAddress :: w -> Aff (Maybe Address)
-  -- ^ Get the address associated with the wallet (Nami does not support
+  { -- A reference to a connection with Nami, i.e. `window.cardano.nami`
+    connection :: Ref.Ref w
+  -- Get the address associated with the wallet (Nami does not support
   -- multiple addresses)
+  , getWalletAddress :: w -> Aff (Maybe Address)
+  -- Get the collateral UTxO associated with the Nami wallet
   , getCollateral :: w -> Aff (Maybe TransactionOutput)
-  -- ^ Get the collateral UTxO associated with the Nami wallet
+  -- Sign a transaction with the current wallet
+  , signTx :: w -> Transaction -> Aff Transaction
   }
 
 mkNamiWalletAff :: Aff (Wallet NamiConnection)
@@ -47,6 +49,7 @@ mkNamiWalletAff = do
     { connection
     , getWalletAddress
     , getCollateral: undefined -- TODO
+    , signTx: undefined -- TODO
     }
 
   where
@@ -69,6 +72,7 @@ mockNamiWallet = liftEffect $ do
         { connection
         , getWalletAddress: const $ pure Nothing
         , getCollateral: const $ pure Nothing
+        , signTx: undefined -- TODO
         }
 
 -------------------------------------------------------------------------------
