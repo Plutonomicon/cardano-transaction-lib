@@ -104,7 +104,10 @@ data StakeCredential
 
 newtype Ed25519KeyHash = Ed25519KeyHash ByteArray
 
-newtype ScriptHash = ScriptHash Bech32
+derive newtype instance Eq Ed25519KeyHash
+derive newtype instance Ord Ed25519KeyHash
+
+newtype ScriptHash = ScriptHash ByteArray
 
 newtype Costmdls = Costmdls (Map Language CostModel)
 
@@ -257,6 +260,11 @@ newtype TransactionInput = TransactionInput
   , index :: UInt
   }
 
+derive newtype instance Eq TransactionInput
+derive newtype instance Ord TransactionInput
+derive instance Generic TransactionInput _
+derive instance Newtype TransactionInput _
+
 newtype TransactionOutput = TransactionOutput
   { address :: Address
   , amount :: Value
@@ -265,6 +273,8 @@ newtype TransactionOutput = TransactionOutput
 
 newtype TransactionHash = TransactionHash ByteArray
 
+derive newtype instance Eq TransactionHash
+derive newtype instance Ord TransactionHash
 derive instance Generic TransactionHash _
 derive instance Newtype TransactionHash _
 
