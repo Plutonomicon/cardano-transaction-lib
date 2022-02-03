@@ -7,17 +7,17 @@ const isWebpackDevServer = process.argv.some(
   (a) => path.basename(a) === "webpack-dev-server"
 );
 const isWatch = process.argv.some((a) => a === "--watch");
-
 const plugins =
   isWebpackDevServer || !isWatch
     ? []
     : [
-        function () {
-          this.plugin("done", function (stats) {
+        () => {
+          this.plugin("done", (stats) => {
             process.stderr.write(stats.toString("errors-only"));
           });
         },
       ];
+
 module.exports = {
   mode: "development",
 
@@ -89,7 +89,7 @@ module.exports = {
       debug: true,
     }),
     new HtmlWebpackPlugin({
-      title: "purescript-webpack-example",
+      title: "cardano-browser-tx",
       template: "index.html",
       inject: false, // See stackoverflow.com/a/38292765/3067181
     }),
