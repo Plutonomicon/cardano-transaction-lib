@@ -1,8 +1,8 @@
 -- | Module re-exporting every CSL foreign data type
-module Serialization.CslTypes(
-  BaseAddressCsl,
-  Ed25519KeyHash,
-  ScriptHash
+module Serialization.CslTypes
+  ( BaseAddressCsl
+  , Ed25519KeyHash
+  , ScriptHash
   ) where
 
 import Serialization.Address as Address
