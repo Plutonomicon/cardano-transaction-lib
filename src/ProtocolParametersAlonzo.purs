@@ -4,29 +4,21 @@ module ProtocolParametersAlonzo
   , pidSize
   , protocolParamUTxOCostPerWord
   , utxoEntrySizeWithoutVal
-  -- , Word(..)
   ) where
 
 import Prelude
 import Data.BigInt (BigInt, fromInt)
--- import Data.Newtype (class Newtype)
 
-import Types.Ada (Ada(..))
-
--- newtype Word = Word BigInt
--- derive instance newtypeWord :: Newtype Word _
--- derive newtype instance eqWord :: Eq Word
--- derive newtype instance ordWord :: Ord Word
--- derive newtype instance showWord :: Show Word
+import Types.Value (Coin(Coin))
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-pab/html/src/Cardano.Api.ProtocolParameters.html
 -- Shelley params, is this unchanged?
-protocolParamUTxOCostPerWord :: Ada
-protocolParamUTxOCostPerWord = Lovelace $ fromInt 1
+protocolParamUTxOCostPerWord :: Coin
+protocolParamUTxOCostPerWord = Coin $ fromInt 1
 
 -- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0028
-lovelacePerUTxOWord :: Ada
-lovelacePerUTxOWord = Lovelace $ fromInt 34482
+lovelacePerUTxOWord :: Coin
+lovelacePerUTxOWord = Coin $ fromInt 34482
 
 -- words
 -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
