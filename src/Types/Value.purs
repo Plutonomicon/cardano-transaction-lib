@@ -9,18 +9,22 @@ module Types.Value
   , allTokenNames
   , eq
   , flattenValue
+  , fromValue
   , geq
+  , getLovelace
   , gt
   , isAdaOnly
   , isPos
   , isZero
   , leq
+  , lovelaceValueOf
   , lt
   , minus
   , numCurrencySymbols
   , numCurrencySymbols'
   , numTokenNames
   , numTokenNames'
+  , toValue
   , valueOf
   ) where
 
@@ -62,6 +66,20 @@ instance monoidCoin :: Monoid Coin where
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value
 
+getLovelace :: Coin -> BigInt
+getLovelace = unwrap
+
+lovelaceValueOf :: BigInt -> Value
+lovelaceValueOf = flip (Value <<< wrap) mempty
+
+-- | Create a 'Value' containing only the given 'Coin/Ada'.
+toValue :: Coin -> Value
+toValue (Coin i) = lovelaceValueOf i
+
+-- | Get the 'Coin/Ada' in the given 'Value'.
+fromValue :: Value -> Coin
+fromValue v = Coin (valueOf v adaSymbol adaToken)
+
 newtype CurrencySymbol = CurrencySymbol ByteArray
 
 derive instance newtypeCurrencySymbol :: Newtype CurrencySymbol _
@@ -93,9 +111,6 @@ instance showNonAdaAsset :: Show NonAdaAsset where
 
 instance semigroupNonAdaAsset :: Semigroup NonAdaAsset where
   append = unionWith (+)
-
--- append v1 v2 =
---   Value $ Map.unionWith (Map.unionWith (+)) v1 v2
 
 instance monoidNonAdaAsset :: Monoid NonAdaAsset where
   mempty = NonAdaAsset Map.empty

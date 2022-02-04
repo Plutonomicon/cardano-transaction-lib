@@ -69,7 +69,6 @@ import ProtocolParametersAlonzo
   , protocolParamUTxOCostPerWord
   , utxoEntrySizeWithoutVal
   )
-import Types.Ada (fromValue, getLovelace, lovelaceValueOf)
 import Types.ByteArray (byteLength)
 import Types.Transaction
   ( Address
@@ -85,7 +84,10 @@ import Types.Transaction
 import Types.Value
   ( allTokenNames
   , flattenValue
+  , fromValue
   , geq
+  , getLovelace
+  , lovelaceValueOf
   , isAdaOnly
   , isPos
   , isZero
