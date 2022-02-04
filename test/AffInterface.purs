@@ -4,7 +4,7 @@ import Prelude
 import Control.Monad.Reader.Trans (runReaderT)
 import TestM (TestPlanM)
 import Mote (group, test)
-import Ogmios (mkOgmiosWebSocketAff, utxosAt)
+import QueryM (mkOgmiosWebSocketAff, utxosAt)
 import Wallet (mockNamiWallet)
 
 testnet_addr :: String

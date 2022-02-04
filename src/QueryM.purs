@@ -1,4 +1,10 @@
-module Ogmios where
+module QueryM
+  ( QueryM
+  , QueryConfig
+  , OgmiosWebSocket
+  , mkOgmiosWebSocketAff
+  , utxosAt
+  ) where
 
 import Prelude
 import Control.Monad.Error.Class (throwError)
@@ -60,7 +66,7 @@ type QueryM :: Type -> Type -> Type
 type QueryM w a = ReaderT (QueryConfig w) Aff a
 
 -- the first query type in the QueryM/Aff interface
-utxosAt :: forall w. Address -> QueryM w UtxoQR
+utxosAt :: forall (w :: Type). Address -> QueryM w UtxoQR
 utxosAt addr = do
   body <- liftEffect $ mkUtxosAtQuery { utxo: [ addr ] }
   let id = body.mirror.id
