@@ -1,6 +1,7 @@
 module Serialization
   ( convertTransaction
   , addressPubKeyHash
+  , convertAddress
   , convertBigInt
   , convertTxOutput
   , newAddressFromBech32
@@ -24,8 +25,6 @@ import Types.Transaction as T
 import Types.Value as Value
 import Untagged.Union (type (|+|))
 
--- * cardano-serialization-lib types
-
 foreign import newBigNum :: String -> Effect BigNum
 foreign import newValue :: BigNum -> Effect Value
 foreign import valueSetCoin :: Value -> BigNum -> Effect Unit
@@ -46,16 +45,14 @@ foreign import newBaseAddress :: UInt -> StakeCredential -> StakeCredential -> E
 foreign import _newBaseAddressFromAddress :: (forall a. Maybe a) -> (forall a. a -> Maybe a) -> Address -> Maybe BaseAddress
 foreign import baseAddressPaymentCredential :: BaseAddress -> StakeCredential
 foreign import baseAddressToAddress :: BaseAddress -> Effect Address
-foreign import baseAddressFromAddress :: Address -> Effect BaseAddress
 foreign import newStakeCredentialFromScriptHash :: ScriptHash -> Effect StakeCredential
 foreign import newStakeCredentialFromKeyHash :: Ed25519KeyHash -> Effect StakeCredential
-foreign import newEd25519KeyHashFromBytes :: ByteArray -> Effect Ed25519KeyHash
+foreign import newEd25519KeyHash :: ByteArray -> Effect Ed25519KeyHash
 foreign import newMultiAsset :: Effect MultiAsset
 foreign import insertMultiAsset :: MultiAsset -> ScriptHash -> Assets -> Effect Unit
 foreign import newAssets :: Effect Assets
 foreign import insertAssets :: Assets -> AssetName -> BigNum -> Effect Unit
 foreign import newAssetName :: ByteArray -> Effect AssetName
-foreign import newScriptHashFromBech32 :: T.Bech32 -> Effect ScriptHash
 foreign import newScriptHash :: ByteArray -> Effect ScriptHash
 foreign import newDataHash :: ByteArray -> Effect DataHash
 foreign import transactionOutputSetDataHash :: TransactionOutput -> DataHash -> Effect Unit
@@ -74,9 +71,11 @@ foreign import _addressPubKeyHash :: (forall a. a -> Maybe a) -> (forall a. Mayb
 foreign import toBytes
   :: ( Transaction
          |+| TransactionOutput
+         |+| Ed25519KeyHash
+         |+| ScriptHash
      -- Add more as needed.
      )
-  -> Effect ByteArray
+  -> ByteArray
 
 addressPubKeyHash :: BaseAddress -> Maybe T.Bech32
 addressPubKeyHash = _addressPubKeyHash Just Nothing
@@ -152,23 +151,27 @@ convertTxOutputs arrOutputs = do
 
 convertTxOutput :: T.TransactionOutput -> Effect TransactionOutput
 convertTxOutput (T.TransactionOutput { address, amount, data_hash }) = do
-  let baseAddress = unwrap (unwrap address)."AddrType"
-  payment <- case baseAddress.payment of
-    T.PaymentCredentialKey (T.Ed25519KeyHash keyHash) -> do
-      newStakeCredentialFromKeyHash =<< newEd25519KeyHashFromBytes keyHash
-    T.PaymentCredentialScript (T.ScriptHash scriptHash) -> do
-      newStakeCredentialFromScriptHash =<< newScriptHashFromBech32 scriptHash
-  stake <- case baseAddress.stake of
-    T.StakeCredentialKey (T.Ed25519KeyHash keyHash) -> do
-      newStakeCredentialFromKeyHash =<< newEd25519KeyHashFromBytes keyHash
-    T.StakeCredentialScript (T.ScriptHash scriptHash) -> do
-      newStakeCredentialFromScriptHash =<< newScriptHashFromBech32 scriptHash
-  base_address <- newBaseAddress baseAddress.network payment stake
-  address' <- baseAddressToAddress base_address
+  address' <- convertAddress address
   value <- convertValue amount
   txo <- newTransactionOutput address' value
   for_ data_hash (unwrap >>> newDataHash >=> transactionOutputSetDataHash txo)
   pure txo
+
+convertAddress :: T.Address -> Effect Address
+convertAddress address = do
+  let baseAddress = unwrap (unwrap address)."AddrType"
+  payment <- case baseAddress.payment of
+    T.PaymentCredentialKey (T.Ed25519KeyHash keyHash) -> do
+      newStakeCredentialFromKeyHash =<< newEd25519KeyHash keyHash
+    T.PaymentCredentialScript (T.ScriptHash scriptHash) -> do
+      newStakeCredentialFromScriptHash =<< newScriptHash scriptHash
+  stake <- case baseAddress.stake of
+    T.StakeCredentialKey (T.Ed25519KeyHash keyHash) -> do
+      newStakeCredentialFromKeyHash =<< newEd25519KeyHash keyHash
+    T.StakeCredentialScript (T.ScriptHash scriptHash) -> do
+      newStakeCredentialFromScriptHash =<< newScriptHash scriptHash
+  base_address <- newBaseAddress baseAddress.network payment stake
+  baseAddressToAddress base_address
 
 convertValue :: Value.Value -> Effect Value
 convertValue (Value.Value (Value.Coin lovelace) (Value.NonAdaAsset m)) = do

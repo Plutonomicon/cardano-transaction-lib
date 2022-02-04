@@ -58,6 +58,7 @@ pkgs.mkShell {
     __ln-testnet-config
 
     export NODE_PATH="$PWD/node_modules:$NODE_PATH"
+    export PATH="${nodeModules}/bin:$PATH"
     export CARDANO_NODE_SOCKET_PATH="$PWD"/.node/socket/node.socket
     export CARDANO_NODE_CONFIG="$PWD"/.node-cfg/testnet/config/config.json
 

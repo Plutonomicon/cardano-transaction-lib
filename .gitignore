@@ -19,3 +19,4 @@ result-*
 /server/dist-newstyle
 /server/dist-newstyle/
 .projectile
+/dist/

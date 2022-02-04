@@ -143,7 +143,7 @@ derive newtype instance ordEd25519KeyHash :: Ord Ed25519KeyHash
 instance showEd25519KeyHash :: Show Ed25519KeyHash where
   show = genericShow
 
-newtype ScriptHash = ScriptHash Bech32
+newtype ScriptHash = ScriptHash ByteArray
 
 derive instance genericScriptHash :: Generic ScriptHash _
 derive instance newtypeScriptHash :: Newtype ScriptHash _
@@ -343,10 +343,10 @@ type Utxo = Map TransactionInput TransactionOutput
 
 newtype TransactionHash = TransactionHash ByteArray
 
-derive instance genericTransactionHash :: Generic TransactionHash _
-derive instance newTransactionHash :: Newtype TransactionHash _
-derive newtype instance eqTransactionHash :: Eq TransactionHash
-derive newtype instance ordTransactionHash :: Ord TransactionHash
+derive newtype instance Eq TransactionHash
+derive newtype instance Ord TransactionHash
+derive instance Generic TransactionHash _
+derive instance Newtype TransactionHash _
 
 instance Show TransactionHash where
   show = genericShow
