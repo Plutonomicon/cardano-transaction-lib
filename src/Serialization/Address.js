@@ -40,7 +40,7 @@ exports._baseAddressFromBytesImpl = maybe => bytes => {
 };
 
 exports._rewardAddressFromBytesImpl = maybe => bytes => {
-    const ret = null;
+    var ret = null;
     try {
         const addr = CardanoWasm.Address.from_bytes(bytes);
         ret = CardanoWasm.RewardAddress.from_address(addr);
