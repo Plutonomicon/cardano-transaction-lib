@@ -21,9 +21,9 @@ import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (Error, error)
 import Effect.Ref as Ref
-import Types.JsonWsp (Address, JsonWspResponse, UtxoQR, mkUtxosAtQuery, parseJsonWspResponse)
 import Helpers as Helpers
-import Wallet (Wallet)
+import Types.JsonWsp (Address, JsonWspResponse, UtxoQR, mkUtxosAtQuery, parseJsonWspResponse)
+import Wallet (Wallet(..))
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -59,14 +59,13 @@ type Url = String
 
 -- when we add multiple query backends or wallets,
 -- we just need to extend this type
-type QueryConfig :: Type -> Type
-type QueryConfig w = { ws :: OgmiosWebSocket, wallet :: Wallet w }
+type QueryConfig = { ws :: OgmiosWebSocket, wallet :: Maybe Wallet }
 
-type QueryM :: Type -> Type -> Type
-type QueryM w a = ReaderT (QueryConfig w) Aff a
+type QueryM :: Type -> Type
+type QueryM a = ReaderT QueryConfig Aff a
 
 -- the first query type in the QueryM/Aff interface
-utxosAt :: forall (w :: Type). Address -> QueryM w UtxoQR
+utxosAt :: Address -> QueryM UtxoQR
 utxosAt addr = do
   body <- liftEffect $ mkUtxosAtQuery { utxo: [ addr ] }
   let id = body.mirror.id

@@ -3,9 +3,9 @@ module Test.AffInterface where
 import Prelude
 import Control.Monad.Reader.Trans (runReaderT)
 import TestM (TestPlanM)
+import Data.Maybe (Maybe( Nothing ))
 import Mote (group, test)
 import QueryM (mkOgmiosWebSocketAff, utxosAt)
-import Wallet (mockNamiWallet)
 
 testnet_addr :: String
 testnet_addr =
@@ -22,11 +22,10 @@ suite = do
     $ test "UtxosAt"
     $ do
         ws <- mkOgmiosWebSocketAff "ws:127.0.0.1:1337"
-        wallet <- mockNamiWallet
         ( runReaderT
             ( do
                 _utxoqr <- utxosAt testnet_addr
                 pure unit
             )
         )
-          { ws, wallet }
+          { ws, wallet: Nothing }

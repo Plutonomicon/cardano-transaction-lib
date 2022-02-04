@@ -3,7 +3,6 @@ module Wallet
   , NamiWallet
   , Wallet(..)
   , mkNamiWalletAff
-  , mockNamiWallet
   ) where
 
 import Prelude
@@ -22,26 +21,26 @@ import Types.Transaction (Address, TransactionOutput, Transaction)
 
 -- At the moment, we only support Nami's wallet. In the future we will expand
 -- this with more constructors to represent out-of-browser wallets (e.g. WBE)
-data Wallet (w :: Type) = Nami (NamiWallet w)
+data Wallet = Nami NamiWallet
 
 -------------------------------------------------------------------------------
 -- Nami backend
 -------------------------------------------------------------------------------
 -- Record-of-functions for real or mocked Nami wallet, includes `Ref` to
 -- connection (e.g. with `window.cardano.nami` as a `NamiConnection`)
-type NamiWallet (w :: Type) =
+type NamiWallet  =
   { -- A reference to a connection with Nami, i.e. `window.cardano.nami`
-    connection :: Ref.Ref w
+    connection :: Ref.Ref NamiConnection
   -- Get the address associated with the wallet (Nami does not support
   -- multiple addresses)
-  , getWalletAddress :: w -> Aff (Maybe Address)
+  , getWalletAddress :: NamiConnection -> Aff (Maybe Address)
   -- Get the collateral UTxO associated with the Nami wallet
-  , getCollateral :: w -> Aff (Maybe TransactionOutput)
+  , getCollateral :: NamiConnection -> Aff (Maybe TransactionOutput)
   -- Sign a transaction with the current wallet
-  , signTx :: w -> Transaction -> Aff Transaction
+  , signTx :: NamiConnection -> Transaction -> Aff Transaction
   }
 
-mkNamiWalletAff :: Aff (Wallet NamiConnection)
+mkNamiWalletAff :: Aff Wallet
 mkNamiWalletAff = do
   nami <- enable
   connection <- liftEffect $ Ref.new nami
@@ -62,18 +61,6 @@ mkNamiWalletAff = do
     liftEffect $
       Deserialization.convertAddress
         <$> Serialization.newAddressFromBytes bytes
-
--- A Nami wallet with all functions mocked
-mockNamiWallet :: Aff (Wallet Unit)
-mockNamiWallet = liftEffect $ do
-  connection <- Ref.new unit
-  pure
-    $ Nami
-        { connection
-        , getWalletAddress: const $ pure Nothing
-        , getCollateral: const $ pure Nothing
-        , signTx: undefined -- TODO
-        }
 
 -------------------------------------------------------------------------------
 -- FFI stuff
