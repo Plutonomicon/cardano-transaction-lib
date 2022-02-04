@@ -1,5 +1,5 @@
 module Serialization.Bech32
-  ( Bech32String(Bech32String)
+  ( Bech32String
   , verifyBech32
   ) where
 
