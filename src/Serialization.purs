@@ -22,6 +22,7 @@ import Prelude
 import Serialization.Types (Address, AssetName, Assets, AuxiliaryData, BaseAddress, BigNum, DataHash, Ed25519KeyHash, Ed25519Signature, MultiAsset, PlutusScript, PlutusScripts, PublicKey, ScriptHash, StakeCredential, Transaction, TransactionBody, TransactionHash, TransactionInput, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, Value, Vkey, Vkeywitness, Vkeywitnesses)
 import Types.ByteArray (ByteArray)
 import Types.Transaction as T
+import Types.Value as Value
 import Untagged.Union (type (|+|))
 
 foreign import newBigNum :: String -> Effect BigNum
@@ -172,12 +173,12 @@ convertAddress address = do
   base_address <- newBaseAddress baseAddress.network payment stake
   baseAddressToAddress base_address
 
-convertValue :: T.Value -> Effect Value
-convertValue (T.Value (T.Coin lovelace) m) = do
+convertValue :: Value.Value -> Effect Value
+convertValue (Value.Value (Value.Coin lovelace) (Value.NonAdaAsset m)) = do
   multiasset <- newMultiAsset
-  forWithIndex_ m \(T.CurrencySymbol symbol) values -> do
+  forWithIndex_ m \(Value.CurrencySymbol symbol) values -> do
     assets <- newAssets
-    forWithIndex_ values \(T.TokenName tokenName) bigIntValue -> do
+    forWithIndex_ values \(Value.TokenName tokenName) bigIntValue -> do
       assetName <- newAssetName tokenName
       value <- newBigNum (BigInt.toString bigIntValue)
       insertAssets assets assetName value

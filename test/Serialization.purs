@@ -5,6 +5,7 @@ import Prelude
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
+import Data.Newtype (wrap)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect.Class (liftEffect)
@@ -14,6 +15,7 @@ import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Types.Transaction as T
+import Types.Value as Value
 import Untagged.Union (asOneOf)
 
 suite :: TestPlanM Unit
@@ -74,7 +76,7 @@ txOutputFixture1 =
                 $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
             }
         }
-    , amount: T.Value (T.Coin $ BigInt.fromInt 0) Map.empty
+    , amount: Value.Value (Value.Coin $ BigInt.fromInt 0) (wrap Map.empty)
     , data_hash: Nothing
     }
 
@@ -92,9 +94,9 @@ txOutputFixture2 =
                 $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
             }
         }
-    , amount: T.Value (T.Coin $ BigInt.fromInt 0) $ Map.fromFoldable
-        [ T.CurrencySymbol currencySymbol1 /\ Map.fromFoldable
-            [ T.TokenName tokenName1 /\ BigInt.fromInt 1000000 ]
+    , amount: Value.Value (Value.Coin $ BigInt.fromInt 0) $ wrap $ Map.fromFoldable
+        [ Value.CurrencySymbol currencySymbol1 /\ Map.fromFoldable
+            [ Value.TokenName tokenName1 /\ BigInt.fromInt 1000000 ]
         ]
     , data_hash: Nothing
     }
@@ -112,7 +114,7 @@ txFixture1 =
     { body: T.TxBody
         { inputs: [ txInputFixture1 ]
         , outputs: [ txOutputFixture1 ]
-        , fee: T.Coin $ BigInt.fromInt 177513
+        , fee: Value.Coin $ BigInt.fromInt 177513
         , ttl: Nothing
         , certs: Nothing
         , withdrawals: Nothing
@@ -143,7 +145,7 @@ txFixture2 =
     { body: T.TxBody
         { inputs: [ txInputFixture1 ]
         , outputs: [ txOutputFixture2 ]
-        , fee: T.Coin $ BigInt.fromInt 177513
+        , fee: Value.Coin $ BigInt.fromInt 177513
         , ttl: Nothing
         , certs: Nothing
         , withdrawals: Nothing
@@ -185,7 +187,7 @@ txFixture3 =
                             $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                         }
                     }
-                , amount: T.Value (T.Coin $ BigInt.fromInt 2353402) $ Map.empty
+                , amount: Value.Value (Value.Coin $ BigInt.fromInt 2353402) $ wrap Map.empty
                 , data_hash: Nothing
                 }
             , T.TransactionOutput
@@ -199,11 +201,11 @@ txFixture3 =
                             $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                         }
                     }
-                , amount: T.Value (T.Coin $ BigInt.fromInt 1000000) $ Map.empty
+                , amount: Value.Value (Value.Coin $ BigInt.fromInt 1000000) $ wrap Map.empty
                 , data_hash: Nothing
                 }
             ]
-        , fee: T.Coin $ BigInt.fromInt 177513
+        , fee: Value.Coin $ BigInt.fromInt 177513
         , ttl: Nothing
         , certs: Nothing
         , withdrawals: Nothing

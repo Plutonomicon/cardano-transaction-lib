@@ -20,7 +20,7 @@ import Helpers as Helpers
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
--- Or for verifying that the connection is live, those concerns are addressed 
+-- Or for verifying that the connection is live, those concerns are addressed
 -- here
 
 --------------------------------------------------------------------------------
@@ -50,7 +50,7 @@ type Url = String
 -- Queries
 --------------------------------------------------------------------------------
 
--- when we add multiple query backends or wallets, 
+-- when we add multiple query backends or wallets,
 -- we just need to extend this type
 type QueryConfig = { ws :: OgmiosWebSocket }
 
@@ -110,9 +110,9 @@ mkOgmiosWebSocket' url cb = do
     cb $ Right $ OgmiosWebSocket ws { utxo: mkListenerSet utxoQueryDispatchIdMap }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
 
--- makeAff 
+-- makeAff
 -- :: forall a
--- . ((Either Error a -> Effect Unit) -> Effect Canceler) 
+-- . ((Either Error a -> Effect Unit) -> Effect Canceler)
 -- -> Aff a
 
 mkOgmiosWebSocketAff :: Url -> Aff OgmiosWebSocket
@@ -162,8 +162,8 @@ removeAllListeners dim = do
 -- Dispatch Setup
 --------------------------------------------------------------------------------
 
--- A function which accepts some unparsed Json, and checks it against one or 
--- more possible types to perform an appropriate effect (such as supplying the 
+-- A function which accepts some unparsed Json, and checks it against one or
+-- more possible types to perform an appropriate effect (such as supplying the
 -- parsed result to an async fiber/Aff listener)
 type WebsocketDispatch = String -> Effect (Either Json.JsonDecodeError (Effect Unit))
 
@@ -220,7 +220,7 @@ defaultErrorListener str =
 
 defaultMessageListener :: Array WebsocketDispatch -> String -> Effect Unit
 defaultMessageListener dispatchArray msg = do
-  -- here, we need to fold the input over the array of functions until we get 
+  -- here, we need to fold the input over the array of functions until we get
   -- a success, then execute the effect.
   -- using a fold instead of a traverse allows us to skip a bunch of execution
   eAction :: Either Json.JsonDecodeError (Effect Unit) <- foldl (messageFoldF msg) (pure $ Left defaultErr) dispatchArray

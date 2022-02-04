@@ -73,4 +73,3 @@ In the second iteration we will want to support multiple wallets and automatic b
 In the third iteration,  we want to support an interface that matches the original pab so people can easily port their code over. This will likely Not be a compiled eDSL in PureScript.   Library code in a Promise Monad is much more likely.
 
 We will support both a PureScript and a JavaScript api.
-

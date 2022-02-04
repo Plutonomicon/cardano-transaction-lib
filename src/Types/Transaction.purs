@@ -1,7 +1,8 @@
 module Types.Transaction where
 
 import Prelude
-import Data.BigInt as BigInt
+
+import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
 import Data.HashMap (HashMap)
 import Data.Map (Map)
@@ -11,8 +12,10 @@ import Data.Rational (Rational)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
+
 import Types.ByteArray (ByteArray)
 import Types.RedeemerTag (RedeemerTag)
+import Types.Value (Coin, Value)
 
 -- note: these types are derived from the cardano-serialization-lib Sundae fork
 -- the source of truth for these types should be that library and the
@@ -23,6 +26,8 @@ newtype Transaction = Transaction
   , is_valid :: Boolean
   , auxiliary_data :: Maybe AuxiliaryData
   }
+
+derive instance newtypeTransaction :: Newtype Transaction _
 
 newtype TxBody = TxBody
   { inputs :: Array TransactionInput
@@ -41,11 +46,23 @@ newtype TxBody = TxBody
   , network_id :: Maybe NetworkId
   }
 
+derive instance newtypeTxBody :: Newtype TxBody _
+derive newtype instance eqTxBody :: Eq TxBody
+
 newtype ScriptDataHash = ScriptDataHash String
+
+derive instance newtypeScriptDataHash :: Newtype ScriptDataHash _
+derive newtype instance eqScriptDataHash :: Eq ScriptDataHash
 
 newtype Mint = Mint Value
 
+derive instance newtypeMint :: Newtype Mint _
+derive newtype instance eqMint :: Eq Mint
+
 newtype AuxiliaryDataHash = AuxiliaryDataHash String
+
+derive instance newtypeAuxiliaryDataHash :: Newtype AuxiliaryDataHash _
+derive newtype instance eqAuxiliaryDataHash :: Eq AuxiliaryDataHash
 
 type Update =
   { proposed_protocol_parameter_updates :: ProposedProtocolParameterUpdates
@@ -54,7 +71,14 @@ type Update =
 
 newtype ProposedProtocolParameterUpdates = ProposedProtocolParameterUpdates (Map GenesisHash ProtocolParamUpdate)
 
+derive instance newtypeProposedProtocolParameterUpdates :: Newtype ProposedProtocolParameterUpdates _
+
+derive newtype instance eqProposedProtocolParameterUpdates :: Eq ProposedProtocolParameterUpdates
+
 newtype GenesisHash = GenesisHash String
+
+derive instance newtypeGenesisHash :: Newtype GenesisHash _
+derive newtype instance eqGenesisHash :: Eq GenesisHash
 
 type ProtocolParamUpdate =
   { minfee_a :: Maybe Coin
@@ -87,8 +111,8 @@ type ExUnitPrices =
   }
 
 type ExUnits =
-  { mem :: BigInt.BigInt
-  , steps :: BigInt.BigInt
+  { mem :: BigInt
+  , steps :: BigInt
   }
 
 type SubCoin = UnitInterval
@@ -102,34 +126,46 @@ data StakeCredential
   = StakeCredentialKey Ed25519KeyHash
   | StakeCredentialScript ScriptHash
 
-derive instance Generic StakeCredential _
-derive instance Eq StakeCredential
+derive instance eqStakeCredential :: Eq StakeCredential
+derive instance ordStakeCredential :: Ord StakeCredential
+derive instance genericStakeCredential :: Generic StakeCredential _
 
-instance Show StakeCredential where
+instance showStakeCredential :: Show StakeCredential where
   show = genericShow
 
 newtype Ed25519KeyHash = Ed25519KeyHash ByteArray
 
-derive newtype instance Eq Ed25519KeyHash
-derive newtype instance Ord Ed25519KeyHash
-derive instance Generic Ed25519KeyHash _
+derive instance genericEd25519KeyHash :: Generic Ed25519KeyHash _
+derive instance newtypeEd25519KeyHash :: Newtype Ed25519KeyHash _
+derive newtype instance eqEd25519KeyHash :: Eq Ed25519KeyHash
+derive newtype instance ordEd25519KeyHash :: Ord Ed25519KeyHash
 
-instance Show Ed25519KeyHash where
+instance showEd25519KeyHash :: Show Ed25519KeyHash where
   show = genericShow
 
 newtype ScriptHash = ScriptHash ByteArray
 
-derive instance Generic ScriptHash _
-derive newtype instance Eq ScriptHash
+derive instance genericScriptHash :: Generic ScriptHash _
+derive instance newtypeScriptHash :: Newtype ScriptHash _
+derive newtype instance eqScriptHash :: Eq ScriptHash
+derive newtype instance ordScriptHash :: Ord ScriptHash
 
-instance Show ScriptHash where
+instance showScriptHash :: Show ScriptHash where
   show = genericShow
 
 newtype Costmdls = Costmdls (Map Language CostModel)
 
+derive instance newtypeCostmdls :: Newtype Costmdls _
+derive newtype instance eqCostmdls :: Eq Costmdls
+
 data Language = PlutusV1
 
+derive instance eqLanguage :: Eq Language
+
 newtype CostModel = CostModel (Array UInt)
+
+derive instance newtypeCostModel :: Newtype CostModel _
+derive newtype instance eqCostModel :: Eq CostModel
 
 type ProtocolVersion =
   { major :: UInt
@@ -138,12 +174,18 @@ type ProtocolVersion =
 
 newtype Nonce = Nonce String
 
+derive instance newtypeNonce :: Newtype Nonce _
+derive newtype instance eqNonce :: Eq Nonce
+
 type UnitInterval =
-  { numerator :: BigInt.BigInt
-  , denominator :: BigInt.BigInt
+  { numerator :: BigInt
+  , denominator :: BigInt
   }
 
 newtype Epoch = Epoch UInt
+
+derive instance newtypeEpoch :: Newtype Epoch _
+derive newtype instance eqEpoch :: Eq Epoch
 
 data Certificate
   = StakeRegistration
@@ -153,6 +195,8 @@ data Certificate
   | PoolRetirement
   | GenesisKeyDelegation
   | MoveInstantaneousRewardsCert
+
+derive instance eqCertificate :: Eq Certificate
 
 newtype TransactionWitnessSet = TransactionWitnessSet
   { vkeys :: Maybe (Array Vkeywitness)
@@ -174,41 +218,19 @@ data NetworkId
   = Mainnet
   | Testnet
 
+derive instance eqNetworkId :: Eq NetworkId
+
 newtype RequiredSigner = RequiredSigner String
 
-newtype CurrencySymbol = CurrencySymbol ByteArray
-
-derive instance Generic CurrencySymbol _
-derive newtype instance Eq CurrencySymbol
-derive newtype instance Ord CurrencySymbol
-
-instance Show CurrencySymbol where
-  show = genericShow
-
-newtype TokenName = TokenName ByteArray
-
-derive instance Generic TokenName _
-derive newtype instance eqTokenName :: Eq TokenName
-derive newtype instance ordTokenName :: Ord TokenName
-
-instance Show TokenName where
-  show = genericShow
-
--- | In Plutus, Ada is is stored inside the map (with currency symbol and token
--- | name being empty bytestrings). cardano-serialization-lib makes semantic
--- | distinction between native tokens and Ada, and we follow this convention.
-data Value = Value Coin (Map CurrencySymbol (Map TokenName BigInt.BigInt))
-
-derive instance Generic Value _
-
-instance Show Value where
-  show = genericShow
+derive instance newtypeRequiredSigner :: Newtype RequiredSigner _
+derive newtype instance eqRequiredSigner :: Eq RequiredSigner
 
 newtype Bech32 = Bech32 String
 
-derive newtype instance eqBech32 :: Eq Bech32
 derive instance Generic Bech32 _
 derive instance Newtype Bech32 _
+derive newtype instance eqBech32 :: Eq Bech32
+derive newtype instance Ord Bech32
 instance Show Bech32 where
   show = genericShow
 
@@ -232,18 +254,21 @@ newtype Ed25519Signature = Ed25519Signature Bech32
 
 newtype PlutusScript = PlutusScript ByteArray
 
+derive instance newtypePlutusScript :: Newtype PlutusScript _
+derive newtype instance eqPlutusScript :: Eq PlutusScript
+
 newtype PlutusData = PlutusData String
 
 newtype Redeemer = Redeemer
   { tag :: RedeemerTag
-  , index :: BigInt.BigInt
+  , index :: BigInt
   , data :: PlutusData
   , ex_units :: (MemExUnits /\ CpuExUnits)
   }
 
-newtype MemExUnits = MemExUnits BigInt.BigInt
+newtype MemExUnits = MemExUnits BigInt
 
-newtype CpuExUnits = CpuExUnits BigInt.BigInt
+newtype CpuExUnits = CpuExUnits BigInt
 
 type AuxiliaryData =
   { metadata :: Maybe GeneralTransactionMetadata
@@ -254,7 +279,15 @@ type AuxiliaryData =
 newtype GeneralTransactionMetadata =
   GeneralTransactionMetadata (HashMap TransactionMetadatumLabel TransactionMetadatum)
 
-newtype TransactionMetadatumLabel = TransactionMetadatumLabel BigInt.BigInt
+derive instance newtypeGeneralTransactionMetadata :: Newtype GeneralTransactionMetadata _
+
+derive newtype instance eqGeneralTransactionMetadata :: Eq GeneralTransactionMetadata
+
+newtype TransactionMetadatumLabel = TransactionMetadatumLabel BigInt
+
+derive instance newtypeTransactionMetadatumLabel :: Newtype TransactionMetadatumLabel _
+
+derive newtype instance eqTransactionMetadatumLabel :: Eq TransactionMetadatumLabel
 
 data TransactionMetadatum
   = MetadataMap (HashMap TransactionMetadatum TransactionMetadatum)
@@ -262,6 +295,8 @@ data TransactionMetadatum
   | Int Int
   | Bytes ByteArray
   | Text String
+
+derive instance eqTransactionMetadatum :: Eq TransactionMetadatum
 
 data NativeScript
   = ScriptPubkey
@@ -271,21 +306,40 @@ data NativeScript
   | TimelockStart
   | TimelockExpiry
 
+derive instance eqNativeScript :: Eq NativeScript
+
 newtype TransactionInput = TransactionInput
   { transaction_id :: TransactionHash
   , index :: UInt
   }
 
-derive newtype instance Eq TransactionInput
-derive newtype instance Ord TransactionInput
-derive instance Generic TransactionInput _
-derive instance Newtype TransactionInput _
+derive instance newtypeTransactionInput :: Newtype TransactionInput _
+derive instance genericTransactionInput :: Generic TransactionInput _
+derive newtype instance eqTransactionInput :: Eq TransactionInput
+derive newtype instance ordTransactionInput :: Ord TransactionInput
+
+instance showTransactionInput :: Show TransactionInput where
+  show = genericShow
 
 newtype TransactionOutput = TransactionOutput
   { address :: Address
   , amount :: Value
   , data_hash :: Maybe DataHash
   }
+
+derive instance genericTransactionOutput :: Generic TransactionOutput _
+derive instance newtypeTransactionOutput :: Newtype TransactionOutput _
+derive newtype instance eqTransactionOutput :: Eq TransactionOutput
+
+instance showTransactionOutput :: Show TransactionOutput where
+  show = genericShow
+
+newtype UtxoM = UtxoM Utxo
+
+derive instance newtypeUtxoM :: Newtype UtxoM _
+derive newtype instance showUtxoM :: Show UtxoM
+
+type Utxo = Map TransactionInput TransactionOutput
 
 newtype TransactionHash = TransactionHash ByteArray
 
@@ -300,30 +354,28 @@ instance Show TransactionHash where
 newtype DataHash = DataHash ByteArray
 
 derive instance Generic DataHash _
-derive instance Newtype DataHash _
+derive instance newtypeDataHash :: Newtype DataHash _
+derive newtype instance eqDataHash :: Eq DataHash
+derive newtype instance ordDataHash :: Ord DataHash
 
 instance Show DataHash where
   show = genericShow
 
-newtype Coin = Coin BigInt.BigInt
+newtype Slot = Slot BigInt
 
-derive instance Newtype Coin _
-derive instance Generic Coin _
-
-instance Show Coin where
-  show = genericShow
-
-newtype Slot = Slot BigInt.BigInt
+derive instance newtypeSlot :: Newtype Slot _
+derive newtype instance eqSlot :: Eq Slot
 
 newtype Address = Address
   { "AddrType" :: BaseAddress
   }
 
-derive instance Newtype Address _
-derive instance Generic Address _
-derive newtype instance Eq Address
+derive instance genericAddress :: Generic Address _
+derive instance newtypeAddress :: Newtype Address _
+derive newtype instance eqAddress :: Eq Address
+derive newtype instance ordAddress :: Ord Address
 
-instance Show Address where
+instance showAddress :: Show Address where
   show = genericShow
 
 newtype BaseAddress = BaseAddress
@@ -332,21 +384,23 @@ newtype BaseAddress = BaseAddress
   , payment :: PaymentCredential
   }
 
-derive instance Newtype BaseAddress _
-derive instance Generic BaseAddress _
-derive newtype instance Eq BaseAddress
+derive instance genericBaseAddress :: Generic BaseAddress _
+derive instance newtypeBaseAddress :: Newtype BaseAddress _
+derive newtype instance eqBaseAddress :: Eq BaseAddress
+derive newtype instance ordBaseAddress :: Ord BaseAddress
 
-instance Show BaseAddress where
+instance showBaseAddress :: Show BaseAddress where
   show = genericShow
 
 data PaymentCredential
   = PaymentCredentialKey Ed25519KeyHash
   | PaymentCredentialScript ScriptHash
 
-derive instance Generic PaymentCredential _
-derive instance Eq PaymentCredential
+derive instance genericPaymentCredential :: Generic PaymentCredential _
+derive instance eqPaymentCredential :: Eq PaymentCredential
+derive instance ordPaymentCredential :: Ord PaymentCredential
 
-instance Show PaymentCredential where
+instance showPaymentCredential :: Show PaymentCredential where
   show = genericShow
 
 -- Addresspub struct Address(AddrType);
