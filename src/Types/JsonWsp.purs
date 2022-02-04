@@ -124,8 +124,7 @@ parseFieldToUInt :: Object Json -> String -> Either JsonDecodeError UInt.UInt
 parseFieldToUInt o str = do
   let err = TypeMismatch $ "expected field: '" <> str <> "' as a UInt"
   num <- caseJsonString (Left err) Right =<< getField o str
-  uint <- note err $ UInt.fromString num
-  pure uint
+  note err $ UInt.fromString num
 
 -- parses a string at the given field to a BigInt
 parseFieldToBigInt :: Object Json -> String -> Either JsonDecodeError BigInt.BigInt
