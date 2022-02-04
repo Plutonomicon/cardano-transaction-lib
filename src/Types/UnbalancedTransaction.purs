@@ -15,7 +15,8 @@ import Data.Newtype (class Newtype)
 import Prelude
 import Types.ByteArray (ByteArray(..))
 import Types.POSIXTimeRange (POSIXTimeRange)
-import Types.Transaction (DataHash, Ed25519KeyHash, ScriptHash, Transaction, TransactionInput, Value)
+import Types.Transaction (DataHash, Ed25519KeyHash, ScriptHash, Transaction, TransactionInput)
+import Types.Value (Value)
 
 newtype PubKey = PubKey ByteArray
 
