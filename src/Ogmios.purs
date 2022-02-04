@@ -267,22 +267,22 @@ messageFoldF msg acc' func = do
 --------------------------------------------------------------------------------
 -- JsonWsp.Address is a bech32 string, so wrap to Transaction.Types.Bech32
 -- | Converts an JsonWsp.Address to (internal) Address
-ogmiosAddressToAddress :: JsonWsp.Address -> Aff (Maybe Address)
+ogmiosAddressToAddress :: JsonWsp.Address -> Effect (Maybe Address)
 ogmiosAddressToAddress ogAddr =
   newAddressFromBech32 (wrap ogAddr) <#> Deserialization.convertAddress
-    # liftEffect
 
 -- | Converts an (internal) Address to JsonWsp.Address
-addressToOgmiosAddress :: Address -> Aff (Maybe JsonWsp.Address)
+addressToOgmiosAddress :: Address -> Effect (Maybe JsonWsp.Address)
 addressToOgmiosAddress addr = do
-  addr' <- liftEffect $ Serialization.convertAddress addr
+  addr' <- Serialization.convertAddress addr
   pure $ newBaseAddressFromAddress addr' >>= addressPubKeyHash <#> unwrap
 
 -- If required, we can change to Either with more granular error handling.
 -- | Gets utxos at an (internal) Address in terms of (internal) Transaction.Types
 utxosAt' :: Address -> QueryM (Maybe UtxoM)
 utxosAt' addr = do
-  addr' :: Maybe JsonWsp.Address <- lift $ addressToOgmiosAddress addr
+  addr' :: Maybe JsonWsp.Address <-
+    lift $ liftEffect $ addressToOgmiosAddress addr
   maybe (pure Nothing) getUtxos addr'
   where
   getUtxos :: JsonWsp.Address -> QueryM (Maybe UtxoM)
@@ -293,8 +293,8 @@ utxosAt' addr = do
     out' :: Array (Maybe TransactionInput /\ Maybe TransactionOutput) <-
       Map.toUnfoldable utxoQueryResult
         <#> bitraverse
-          txOutRefToTransactionInput
-          ogmiosTxOutToTransactionOutput
+          (pure <<< txOutRefToTransactionInput)
+          (liftEffect <<< ogmiosTxOutToTransactionOutput)
         # sequence
     let
       out :: Maybe (Array (TransactionInput /\ TransactionOutput))
@@ -303,23 +303,19 @@ utxosAt' addr = do
 
 -- I think txId is a hexadecimal encoding.
 -- | Converts an Ogmios TxOutRef to (internal) TransactionInput
-txOutRefToTransactionInput :: TxOutRef -> Aff (Maybe TransactionInput)
+txOutRefToTransactionInput :: TxOutRef -> Maybe TransactionInput
 txOutRefToTransactionInput { txId, index } = do
-  transaction_id' :: Maybe TransactionHash <-
-    hexToByteArray txId <#> wrap # pure
-  pure $ case transaction_id' of
-    Nothing -> Nothing
-    Just transaction_id ->
-      pure $ wrap
-        { transaction_id
-        , index
-        }
+  transaction_id :: TransactionHash <- hexToByteArray txId <#> wrap
+  pure $ wrap
+    { transaction_id
+    , index
+    }
 
 -- https://ogmios.dev/ogmios.wsp.json see "datum", potential FIX ME: it says
 -- base64 but the  example provided looks like a hexadecimal so use
 -- hexToByteArray for now.
 -- | Converts an Ogmios TxOut to (internal) TransactionOutput
-ogmiosTxOutToTransactionOutput :: OgmiosTxOut -> Aff (Maybe TransactionOutput)
+ogmiosTxOutToTransactionOutput :: OgmiosTxOut -> Effect (Maybe TransactionOutput)
 ogmiosTxOutToTransactionOutput { address: address'', value, datum } = do
   address' :: Maybe Address <- ogmiosAddressToAddress address''
   pure $ case address' of
