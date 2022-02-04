@@ -288,10 +288,6 @@ instance showCalculateMinFeeFailureReason :: Show CalculateMinFeeFailureReason w
 -- Output utxos with the amount of lovelaces required.
 type MinUtxos = Array (TransactionOutput /\ BigInt)
 
--- -- TO DO: convert utxosAt from Ogmios to Transaction space.
--- utxosAt :: Address -> QueryM UtxoM
--- utxosAt = undefined
-
 -- Taken from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-constraints/html/Ledger-Constraints-OffChain.html#t:UnbalancedTx
 -- to demonstrate what is required. This is temporary to make the compiler happy.
 -- I haven't copied it exactly, instead just a minimal version given our
@@ -323,27 +319,6 @@ balanceTxM
   -> UnbalancedTransaction
   -> QueryM (Either BalanceTxFailure Transaction)
 balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
-  -- utxos' :: Either BalanceTxFailure Utxo <-
-  --   utxosAt' ownAddr <#>
-  --     note (UtxosAtFailure' $ wrap CouldNotGetUtxos) >>> map unwrap
-  -- case utxos' of
-  --   Left err -> pure $ Left err
-  --   Right utxos -> do
-  --     privKeys :: Map.Map Address PrivateKey <- getPrivKeys
-  --     let -- Combines utxos at the user address and those from any scripts involved
-  --       -- with the contract.
-  --       utxoIndex' :: Utxo
-  --       utxoIndex' = utxos `Map.union` unwrap utxoIndex
-
-  --     case (unwrap (unwrap unbalancedTx).body).required_signers of
-  --       Nothing -> pure $ Left $ BalanceTxMFailure' $ wrap UnknownRequiredSigners
-  --       Just requiredSigners -> do
-  --         prebalancedTx' :: Either BalanceTxFailure Transaction <-
-  --           loop utxoIndex' ownAddr privKeys requiredSigners [] unbalancedTx
-  --         pure do
-  --           prebalancedTx :: Transaction <- prebalancedTx'
-  --           lmap ReturnAdaChangeFailure' $
-  --             returnAdaChange ownAddr utxoIndex' prebalancedTx
   utxos' :: Either BalanceTxFailure Utxo <-
     utxosAt' ownAddr <#>
       note (UtxosAtFailure' $ wrap CouldNotGetUtxos) >>> map unwrap

@@ -31,7 +31,7 @@ instance showQueryType :: Show QueryType where
 
 --  the Address type in `Types.Transaction` is quite a bit more complex than
 --  this
-type OgmiosAddress = String
+type Address = String
 
 -- these types are described in: https://ogmios.dev/getting-started/basics/
 
@@ -70,7 +70,7 @@ mkJsonWspQuery a qt = do
     }
 
 -- the actual query description
-type UtxoQueryParams = { utxo :: Array OgmiosAddress }
+type UtxoQueryParams = { utxo :: Array Address }
 
 -- used as a wrapper for all Queries
 type QueryArgs a = { query :: a }
@@ -194,7 +194,7 @@ parseTxOutRef = jsonObject $
 -- `Types.Transaction.TransactionOutput` type,  we may need to reckon with this
 -- later.
 type OgmiosTxOut =
-  { address :: OgmiosAddress
+  { address :: Address
   , value :: Value
   , datum :: Maybe String
   }
