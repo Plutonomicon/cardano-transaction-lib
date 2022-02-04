@@ -315,7 +315,9 @@ txOutRefToTransactionInput { txId, index } = do
 -- base64 but the  example provided looks like a hexadecimal so use
 -- hexToByteArray for now.
 -- | Converts an Ogmios TxOut to (internal) TransactionOutput
-ogmiosTxOutToTransactionOutput :: OgmiosTxOut -> Effect (Maybe TransactionOutput)
+ogmiosTxOutToTransactionOutput
+  :: OgmiosTxOut
+  -> Effect (Maybe TransactionOutput)
 ogmiosTxOutToTransactionOutput { address: address'', value, datum } = do
   address' :: Maybe Address <- ogmiosAddressToAddress address''
   pure $ case address' of
