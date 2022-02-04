@@ -286,15 +286,15 @@ utxosAt' addr = do
   maybe (pure Nothing) getUtxos addr'
   where
   getUtxos :: JsonWsp.Address -> QueryM (Maybe UtxoM)
-  getUtxos address = convertUtxos >>> lift =<< utxosAt address
+  getUtxos address = convertUtxos >>> liftEffect >>> lift =<< utxosAt address
 
-  convertUtxos :: UtxoQR -> Aff (Maybe UtxoM)
+  convertUtxos :: UtxoQR -> Effect (Maybe UtxoM)
   convertUtxos (UtxoQR utxoQueryResult) = do
     out' :: Array (Maybe TransactionInput /\ Maybe TransactionOutput) <-
       Map.toUnfoldable utxoQueryResult
         <#> bitraverse
           (pure <<< txOutRefToTransactionInput)
-          (liftEffect <<< ogmiosTxOutToTransactionOutput)
+          ogmiosTxOutToTransactionOutput
         # sequence
     let
       out :: Maybe (Array (TransactionInput /\ TransactionOutput))
