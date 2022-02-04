@@ -49,5 +49,5 @@ You can edit this file as you like.
   , "untagged-union"
   ]
 , packages = ./packages.dhall
-, sources = [ "src/**/*.purs", "test/**/*.purs" ]
+, sources = [ "src/**/*.purs", "test/**/*.purs", "examples/**/*.purs" ]
 }
