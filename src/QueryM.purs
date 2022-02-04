@@ -4,6 +4,7 @@ module QueryM
   , OgmiosWebSocket
   , mkOgmiosWebSocketAff
   , utxosAt
+  , getWalletAddress
   ) where
 
 import Prelude

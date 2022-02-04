@@ -2,20 +2,22 @@ module Examples.Nami.Simple (main) where
 
 import Prelude
 
+import Control.Monad.Reader (runReaderT)
+import Data.Maybe (Maybe(Just))
+import Data.Typelevel.Undefined (undefined)
 import Effect (Effect)
-import Effect.Aff (Aff, launchAff_)
+import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
-import Effect.Ref as Ref
-import Wallet (Wallet(..), mkNamiWalletAff)
-
+import QueryM (getWalletAddress, QueryM)
+import Wallet (mkNamiWalletAff)
 
 main :: Effect Unit
-main = launchAff_ $ logWalletAddress
+main = launchAff_ $ do
+  wallet <- Just <$> mkNamiWalletAff
+  runReaderT logWalletAddress { ws: undefined, wallet }
 
-logWalletAddress :: Aff Unit
+logWalletAddress :: QueryM Unit
 logWalletAddress = do
-  Nami nami <- mkNamiWalletAff
-  conn <- liftEffect $ Ref.read nami.connection
-  address <- nami.getWalletAddress conn
+  address <- getWalletAddress
   liftEffect $ Console.log $ show address
