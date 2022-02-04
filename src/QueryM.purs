@@ -7,13 +7,15 @@ module QueryM
   ) where
 
 import Prelude
+
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Reader.Trans (ReaderT, ask)
+import Control.Monad.Reader.Trans (ReaderT, ask, asks)
 import Data.Argonaut as Json
 import Data.Either (Either(..), either, isRight)
 import Data.Foldable (foldl)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
+import Data.Typelevel.Undefined (undefined)
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(..), makeAff)
 import Effect.Aff.Class (liftAff)
@@ -23,7 +25,8 @@ import Effect.Exception (Error, error)
 import Effect.Ref as Ref
 import Helpers as Helpers
 import Types.JsonWsp (Address, JsonWspResponse, UtxoQR, mkUtxosAtQuery, parseJsonWspResponse)
-import Wallet (Wallet(..))
+import Types.Transaction as Transaction
+import Wallet (NamiConnection, Wallet(Nami))
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -61,8 +64,7 @@ type Url = String
 -- we just need to extend this type
 type QueryConfig = { ws :: OgmiosWebSocket, wallet :: Maybe Wallet }
 
-type QueryM :: Type -> Type
-type QueryM a = ReaderT QueryConfig Aff a
+type QueryM (a :: Type) = ReaderT QueryConfig Aff a
 
 -- the first query type in the QueryM/Aff interface
 utxosAt :: Address -> QueryM UtxoQR
@@ -91,6 +93,16 @@ utxosAt addr = do
 
 allowError :: (Either Error UtxoQR -> Effect Unit) -> UtxoQR -> Effect Unit
 allowError func = func <<< Right
+
+--------------------------------------------------------------------------------
+-- Wallet
+--------------------------------------------------------------------------------
+
+getWalletAddress :: QueryM (Maybe Transaction.Address)
+getWalletAddress = asks _.wallet >>= case _ of
+  Just (Nami nami) -> liftAff $
+    nami.getWalletAddress =<< liftEffect (Ref.read nami.connection)
+  Nothing -> pure Nothing
 
 --------------------------------------------------------------------------------
 -- OgmiosWebSocket Setup and PrimOps

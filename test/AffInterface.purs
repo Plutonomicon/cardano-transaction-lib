@@ -3,7 +3,7 @@ module Test.AffInterface where
 import Prelude
 import Control.Monad.Reader.Trans (runReaderT)
 import TestM (TestPlanM)
-import Data.Maybe (Maybe( Nothing ))
+import Data.Maybe (Maybe(Nothing))
 import Mote (group, test)
 import QueryM (mkOgmiosWebSocketAff, utxosAt)
 

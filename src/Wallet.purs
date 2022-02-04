@@ -28,7 +28,7 @@ data Wallet = Nami NamiWallet
 -------------------------------------------------------------------------------
 -- Record-of-functions for real or mocked Nami wallet, includes `Ref` to
 -- connection (e.g. with `window.cardano.nami` as a `NamiConnection`)
-type NamiWallet  =
+type NamiWallet =
   { -- A reference to a connection with Nami, i.e. `window.cardano.nami`
     connection :: Ref.Ref NamiConnection
   -- Get the address associated with the wallet (Nami does not support
