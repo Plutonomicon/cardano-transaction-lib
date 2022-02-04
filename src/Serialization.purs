@@ -48,13 +48,12 @@ foreign import baseAddressPaymentCredential :: BaseAddress -> StakeCredential
 foreign import baseAddressToAddress :: BaseAddress -> Effect Address
 foreign import newStakeCredentialFromScriptHash :: ScriptHash -> Effect StakeCredential
 foreign import newStakeCredentialFromKeyHash :: Ed25519KeyHash -> Effect StakeCredential
-foreign import newEd25519KeyHashFromBytes :: ByteArray -> Effect Ed25519KeyHash
+foreign import newEd25519KeyHash :: ByteArray -> Effect Ed25519KeyHash
 foreign import newMultiAsset :: Effect MultiAsset
 foreign import insertMultiAsset :: MultiAsset -> ScriptHash -> Assets -> Effect Unit
 foreign import newAssets :: Effect Assets
 foreign import insertAssets :: Assets -> AssetName -> BigNum -> Effect Unit
 foreign import newAssetName :: ByteArray -> Effect AssetName
-foreign import newScriptHashFromBech32 :: T.Bech32 -> Effect ScriptHash
 foreign import newScriptHash :: ByteArray -> Effect ScriptHash
 foreign import newDataHash :: ByteArray -> Effect DataHash
 foreign import transactionOutputSetDataHash :: TransactionOutput -> DataHash -> Effect Unit
@@ -164,14 +163,14 @@ convertAddress address = do
   let baseAddress = unwrap (unwrap address)."AddrType"
   payment <- case baseAddress.payment of
     T.PaymentCredentialKey (T.Ed25519KeyHash keyHash) -> do
-      newStakeCredentialFromKeyHash =<< newEd25519KeyHashFromBytes keyHash
+      newStakeCredentialFromKeyHash =<< newEd25519KeyHash keyHash
     T.PaymentCredentialScript (T.ScriptHash scriptHash) -> do
-      newStakeCredentialFromScriptHash =<< newScriptHashFromBech32 scriptHash
+      newStakeCredentialFromScriptHash =<< newScriptHash scriptHash
   stake <- case baseAddress.stake of
     T.StakeCredentialKey (T.Ed25519KeyHash keyHash) -> do
-      newStakeCredentialFromKeyHash =<< newEd25519KeyHashFromBytes keyHash
+      newStakeCredentialFromKeyHash =<< newEd25519KeyHash keyHash
     T.StakeCredentialScript (T.ScriptHash scriptHash) -> do
-      newStakeCredentialFromScriptHash =<< newScriptHashFromBech32 scriptHash
+      newStakeCredentialFromScriptHash =<< newScriptHash scriptHash
   base_address <- newBaseAddress baseAddress.network payment stake
   baseAddressToAddress base_address
 

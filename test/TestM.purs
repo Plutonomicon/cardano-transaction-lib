@@ -14,7 +14,6 @@ import Data.Identity (Identity(..))
 import Data.Medea (ValidationError(EmptyError))
 import Effect.Aff (Aff)
 import Mote (MoteT)
-import Data.Medea.Loader (LoaderError(..))
 
 type TestPlanM a = MoteT (Const Void) (Aff Unit) Aff a
 

@@ -2,25 +2,23 @@
 
 const lib = require('@ngua/cardano-serialization-lib-nodejs');
 
-const fromBytes = cls => Nothing => Just => bytes => {
+const fromBytes = cls => maybe => bytes => {
     try {
-        return Just(cls.from_bytes(bytes));
+        return maybe.just(cls.from_bytes(bytes));
     } catch (_) {
-        return Nothing;
+        return maybe.nothing;
     }
 };
 
 const call = property => object => object[property]();
-const callMaybe = property => Nothing => Just => object => {
+const callMaybe = property => maybe => object => {
     const res = object[property]();
-    return res ? Just(res) : Nothing;
+    return res ? maybe.just(res) : maybe.nothing;
 };
 
-exports.toBech32 = call('to_bech32');
-
-exports._baseAddressFromAddress = Nothing => Just => address => {
+exports._baseAddressFromAddress = maybe => address => {
     const res = lib.BaseAddress.from_address(address);
-    return res ? Just(res) : Nothing;
+    return res ? maybe.just(res) : maybe.nothing;
 };
 
 exports.addressNetworkId = call('network_id');

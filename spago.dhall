@@ -9,6 +9,7 @@ You can edit this file as you like.
   , "argonaut"
   , "arraybuffer-types"
   , "arrays"
+  , "assert"
   , "bigints"
   , "console"
   , "const"
@@ -18,6 +19,7 @@ You can edit this file as you like.
   , "either"
   , "exceptions"
   , "foldable-traversable"
+  , "foreign"
   , "foreign-object"
   , "gen"
   , "identity"
@@ -41,10 +43,11 @@ You can edit this file as you like.
   , "strings"
   , "transformers"
   , "tuples"
+  , "typelevel-prelude"
   , "uint"
-  , "undefined"
-  , "untagged-union"
   , "unordered-collections"
+  , "unsafe-coerce"
+  , "untagged-union"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs", "examples/**/*.purs" ]

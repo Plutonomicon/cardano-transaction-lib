@@ -1,3 +1,4 @@
+/* global require exports */
 var lib = require('@ngua/cardano-serialization-lib-nodejs');
 
 exports.newBigNum = string => () =>
@@ -65,16 +66,13 @@ exports.baseAddressPaymentCredential =
 exports.baseAddressToAddress = baseAddress => () =>
     baseAddress.to_address();
 
-exports.baseAddressFromAddress = address => () =>
-    lib.BaseAddress.from_address(address);
-
 exports.newStakeCredentialFromScriptHash = hash => () =>
     lib.StakeCredential.from_scripthash(hash);
 
 exports.newStakeCredentialFromKeyHash = hash => () =>
     lib.StakeCredential.from_keyhash(hash);
 
-exports.newEd25519KeyHashFromBytes = bytes => () =>
+exports.newEd25519KeyHash = bytes => () =>
     lib.Ed25519KeyHash.from_bytes(bytes);
 
 exports.newMultiAsset = () =>
@@ -91,9 +89,6 @@ exports.insertAssets = assets => key => value => () =>
 
 exports.newAssetName = name => () =>
     lib.AssetName.new(name);
-
-exports.newScriptHashFromBech32 = bech32 => () =>
-    lib.ScriptHash.from_bech32(bech32);
 
 exports.newScriptHash = bytes => () =>
     lib.ScriptHash.from_bytes(bytes);
