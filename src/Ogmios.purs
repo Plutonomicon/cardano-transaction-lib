@@ -3,8 +3,9 @@ module Ogmios where
 import Prelude
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (ReaderT, ask)
+import Control.Monad.Trans.Class (lift)
 import Data.Argonaut as Json
-import Data.Bitraversable (bitraverse)
+import Data.Bitraversable (bisequence, bitraverse)
 import Data.Either (Either(..), either, isRight)
 import Data.Foldable (foldl)
 import Data.Map as Map
@@ -20,10 +21,12 @@ import Effect.Console (log)
 import Effect.Exception (Error, error)
 import Effect.Ref as Ref
 
+import Deserialization (convertAddress)
 import Helpers as Helpers
+import Serialization (newAddressFromBech32)
 import Types.ByteArray (hexToByteArray)
 import Types.JsonWsp (OgmiosAddress, OgmiosTxOut, JsonWspResponse, mkUtxosAtQuery, parseJsonWspResponse, TxOutRef, UtxoQR(UtxoQR))
-import Types.Transaction (Address, DataHash, TransactionInput, TransactionOutput, UtxoM(UtxoM))
+import Types.Transaction (Address, DataHash, TransactionHash, TransactionInput, TransactionOutput, UtxoM)
 import Undefined (undefined)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
@@ -252,49 +255,60 @@ messageFoldF msg acc' func = do
 --------------------------------------------------------------------------------
 -- Is this even possible? OgmiosAddress is a bech32|base58 string whilst the
 -- latter is far more complex.
-ogmiosAddressToAddress :: OgmiosAddress -> Maybe Address
-ogmiosAddressToAddress = undefined
+ogmiosAddressToAddress :: OgmiosAddress -> Aff (Maybe Address)
+ogmiosAddressToAddress ogAddr =
+  newAddressFromBech32 (wrap ogAddr) <#> convertAddress # liftEffect
 
 -- This direction might be possible.
-addressToOgmiosAddress :: Address -> Maybe OgmiosAddress
+addressToOgmiosAddress :: Address -> Aff (Maybe OgmiosAddress)
 addressToOgmiosAddress = undefined
 
 -- Maybe we prefer Either and more granular error handling.
 utxosAt' :: Address -> QueryM (Maybe UtxoM)
 utxosAt' addr = do
-  mAddr :: Maybe OgmiosAddress <- pure $ addressToOgmiosAddress addr
+  mAddr :: Maybe OgmiosAddress <- lift $ addressToOgmiosAddress addr
   maybe (pure Nothing) getUtxos mAddr
   where
   getUtxos :: OgmiosAddress -> QueryM (Maybe UtxoM)
-  getUtxos address = utxosAt address <#> convertUtxos
+  getUtxos address = convertUtxos >>> lift =<< utxosAt address
 
-  convertUtxos :: UtxoQR -> Maybe UtxoM
+  convertUtxos :: UtxoQR -> Aff (Maybe UtxoM)
   convertUtxos (UtxoQR utxoQueryResult) = do
-    out :: Array (TransactionInput /\ TransactionOutput) <-
+    out' :: Array (Maybe TransactionInput /\ Maybe TransactionOutput) <-
       Map.toUnfoldable utxoQueryResult
         <#> bitraverse
           txOutRefToTransactionInput
           ogmiosTxOutToTransactionOutput
         # sequence
-    pure <<< UtxoM <<< Map.fromFoldable $ out
+    let
+      out :: Maybe (Array (TransactionInput /\ TransactionOutput))
+      out = out' <#> bisequence # sequence
+    maybe (pure Nothing) (pure <<< pure <<< wrap <<< Map.fromFoldable) out
 
 -- I think txId is a hexadecimal encoding - is this safe?
-txOutRefToTransactionInput :: TxOutRef -> Maybe TransactionInput
+txOutRefToTransactionInput :: TxOutRef -> Aff (Maybe TransactionInput)
 txOutRefToTransactionInput { txId, index } = do
-  transaction_id <- hexToByteArray txId <#> wrap
-  pure $ wrap
-    { transaction_id
-    , index
-    }
+  transaction_id' :: Maybe TransactionHash <-
+    hexToByteArray txId <#> wrap # pure
+  case transaction_id' of
+    Nothing -> pure Nothing
+    Just transaction_id ->
+      pure $ pure $ wrap
+        { transaction_id
+        , index
+        }
 
 -- https://ogmios.dev/ogmios.wsp.json see "datum", potential FIX ME: it says
 -- base64 but the  example provided looks like a hexadecimal so use
 -- hexToByteArray for now.
-ogmiosTxOutToTransactionOutput :: OgmiosTxOut -> Maybe TransactionOutput
-ogmiosTxOutToTransactionOutput { address: address', value, datum } = do
-  address <- ogmiosAddressToAddress address'
-  pure $ wrap
-    { address
-    , amount: value
-    , data_hash: datum >>= hexToByteArray <#> wrap
-    }
+ogmiosTxOutToTransactionOutput :: OgmiosTxOut -> Aff (Maybe TransactionOutput)
+ogmiosTxOutToTransactionOutput { address, value, datum } = do
+  address' <- ogmiosAddressToAddress address
+  case address' of
+    Nothing -> pure Nothing
+    Just address'' ->
+      pure $ pure $ wrap
+        { address: address''
+        , amount: value
+        , data_hash: datum >>= hexToByteArray <#> wrap
+        }
