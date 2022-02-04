@@ -1,12 +1,21 @@
-module Types.JsonWsp where
+module Types.JsonWsp
+  ( Address
+  , JsonWspResponse
+  , Mirror
+  , OgmiosTxOut
+  , TxOutRef
+  , UtxoQR(UtxoQR)
+  , UtxoQueryResult
+  , mkUtxosAtQuery
+  , parseJsonWspResponse
+  ) where
 
 import Prelude
 import Control.Alt ((<|>))
 import Data.Argonaut (class DecodeJson, Json, JsonDecodeError(..), caseJsonArray, caseJsonObject, caseJsonString, getField, decodeJson)
 import Data.Array (index)
-import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt as BigInt
-import Data.Either (Either(..), hush, note)
+import Data.Either (Either(Left, Right), hush, note)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Data.Maybe (Maybe)
