@@ -1,3 +1,11 @@
+-- Examples of how to use the Nami wallet interface through `QueryM`
+--
+-- To run: `npm run dev` and visit `localhost:4008` in your browser. Make sure
+-- that you have the Nami browser extension installed. Allow the page to access
+-- your wallet when prompted by Nami
+--
+-- NOTE: due to Nami's limitations, only chromium-based browsers are supported
+
 module Examples.Nami.Simple (main) where
 
 import Prelude
@@ -15,9 +23,7 @@ import Wallet (mkNamiWalletAff)
 main :: Effect Unit
 main = launchAff_ $ do
   wallet <- Just <$> mkNamiWalletAff
-  runReaderT logWalletAddress { ws: undefined, wallet }
+  runReaderT logWalletAddress { ws: {-TODO-} undefined, wallet }
 
 logWalletAddress :: QueryM Unit
-logWalletAddress = do
-  address <- getWalletAddress
-  liftEffect $ Console.log $ show address
+logWalletAddress = liftEffect <<< Console.log <<< show =<< getWalletAddress
