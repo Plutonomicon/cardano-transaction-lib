@@ -13,6 +13,7 @@ import Control.Promise as Promise
 import Data.Maybe (Maybe(..), maybe)
 import Data.Typelevel.Undefined (undefined)
 import Deserialization.Address as Deserialization.Address
+import Deserialization.UnspentOutput as Deserialization.UnspentOuput
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -37,7 +38,7 @@ type NamiWallet =
   -- multiple addresses)
   , getWalletAddress :: NamiConnection -> Aff (Maybe Address)
   -- Get the collateral UTxO associated with the Nami wallet
-  , getCollateral :: NamiConnection -> Aff (Maybe TransactionOutput)
+  , getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
   -- Sign a transaction with the current wallet
   , signTx :: NamiConnection -> Transaction -> Aff Transaction
   }
@@ -49,7 +50,7 @@ mkNamiWalletAff = do
   pure $ Nami
     { connection
     , getWalletAddress
-    , getCollateral: undefined -- TODO
+    , getCollateral
     , signTx: undefined -- TODO
     }
 
@@ -64,6 +65,21 @@ mkNamiWalletAff = do
       Deserialization.Address.convertAddress
         <$> Serialization.newAddressFromBytes bytes
 
+  getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
+  getCollateral nami = fromNamiHexString _getNamiCollateral nami >>= case _ of
+    Nothing -> pure Nothing
+    Just bytes -> do
+      liftEffect $
+        Deserialization.UnspentOuput.convertUnspentOutput
+          <$> Serialization.newTransactionUnspentOutputFromBytes bytes
+
+  fromNamiHexString
+    :: forall a
+     . (NamiConnection -> Effect (Promise String))
+    -> NamiConnection
+    -> Aff (Maybe ByteArray)
+  fromNamiHexString act = map hexToByteArray <<< Promise.toAffE <<< act
+
 -------------------------------------------------------------------------------
 -- FFI stuff
 -------------------------------------------------------------------------------
@@ -72,3 +88,5 @@ foreign import data NamiConnection :: Type
 foreign import _enableNami :: Effect (Promise NamiConnection)
 
 foreign import _getNamiAddress :: NamiConnection -> Effect (Promise String)
+
+foreign import _getNamiCollateral :: NamiConnection -> Effect (Promise String)
