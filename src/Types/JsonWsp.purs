@@ -124,25 +124,21 @@ parseFieldToString o str =
 parseFieldToUInt :: Object Json -> String -> Either JsonDecodeError UInt.UInt
 parseFieldToUInt o str = do
   let err = TypeMismatch $ "expected field: '" <> str <> "' as a UInt"
-  -- Probably avoid string parsing here as doesn't seem necessary. It also
-  -- requires a Medea schema change:
-  -- num <- caseJsonString (Left err) Right =<< getField o str
-  -- note err $ UInt.fromInt' num
-
-  -- This should be fine as fromNumber' fails on non-integers in UInt's range:
-  num <- decodeNumber =<< getField o str
-  note err $ UInt.fromNumber' num
+  -- We use string parsing for Ogmios (AffInterface tests) but also change Medea
+  -- schema and UtxoQueryResponse.json to be a string to pass (local) parsing
+  -- tests. Notice "index" is a string in our local example.
+  num <- caseJsonString (Left err) Right =<< getField o str
+  note err $ UInt.fromString num
 
 -- parses a string at the given field to a BigInt
 parseFieldToBigInt :: Object Json -> String -> Either JsonDecodeError BigInt.BigInt
 parseFieldToBigInt o str = do
+  -- We use string parsing for Ogmios (AffInterface tests) but also change Medea
+  -- schema and UtxoQueryResponse.json to be a string to pass (local) parsing
+  -- tests. Notice "coins" is a string in our local example.
   let err = TypeMismatch $ "expected field: '" <> str <> "' as a BigInt"
   num <- caseJsonString (Left err) Right =<< getField o str
   note err $ BigInt.fromString num
-  -- The below will probably break?
-  -- num <- decodeNumber =<< getField o str
-  -- note err $ BigInt.fromNumber num
-
 -- parser for the `Mirror` type.
 parseMirror :: Json -> Either JsonDecodeError Mirror
 parseMirror = caseJsonObject (Left (TypeMismatch "expected object")) $

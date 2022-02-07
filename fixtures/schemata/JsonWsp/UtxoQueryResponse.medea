@@ -74,7 +74,7 @@ $schema txOutRef
         $property-name "txId"
         $property-schema $string
         $property-name "index"
-        $property-schema $number
+        $property-schema $string
 
 $schema ogmiosTxOut
     $type
