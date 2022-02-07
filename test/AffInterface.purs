@@ -1,4 +1,4 @@
-module Test.AffInterface where
+module Test.AffInterface (suite) where
 
 import Prelude
 import Control.Monad.Reader.Trans (runReaderT)
