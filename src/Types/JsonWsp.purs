@@ -130,6 +130,11 @@ parseFieldToUInt o str = do
   num <- caseJsonString (Left err) Right =<< getField o str
   note err $ UInt.fromString num
 
+  -- -- The below doesn't seem to work with Ogmios query test (AffInterface)
+  -- -- eventhough it seems more reasonable.
+  -- num <- decodeNumber =<< getField o str
+  -- note err $ UInt.fromNumber' num
+
 -- parses a string at the given field to a BigInt
 parseFieldToBigInt :: Object Json -> String -> Either JsonDecodeError BigInt.BigInt
 parseFieldToBigInt o str = do
@@ -139,6 +144,7 @@ parseFieldToBigInt o str = do
   let err = TypeMismatch $ "expected field: '" <> str <> "' as a BigInt"
   num <- caseJsonString (Left err) Right =<< getField o str
   note err $ BigInt.fromString num
+
 -- parser for the `Mirror` type.
 parseMirror :: Json -> Either JsonDecodeError Mirror
 parseMirror = caseJsonObject (Left (TypeMismatch "expected object")) $
