@@ -59,11 +59,12 @@ mkNamiWalletAff = do
   enable = Promise.toAffE $ _enableNami
 
   getWalletAddress :: NamiConnection -> Aff (Maybe Address)
-  getWalletAddress nami = do
-    bytes <- hexToByteArrayUnsafe <$> Promise.toAffE (_getNamiAddress nami)
-    liftEffect $
-      Deserialization.Address.convertAddress
-        <$> Serialization.newAddressFromBytes bytes
+  getWalletAddress nami = fromNamiHexString _getNamiAddress nami >>= case _ of
+    Nothing -> pure Nothing
+    Just bytes -> do
+      liftEffect $
+        Deserialization.Address.convertAddress
+          <$> Serialization.newAddressFromBytes bytes
 
   getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
   getCollateral nami = fromNamiHexString _getNamiCollateral nami >>= case _ of
