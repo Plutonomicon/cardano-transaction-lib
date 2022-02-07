@@ -5,6 +5,7 @@ module QueryM
   , mkOgmiosWebSocketAff
   , utxosAt
   , getWalletAddress
+  , getWalletCollateral
   ) where
 
 import Prelude
@@ -27,7 +28,8 @@ import Effect.Ref as Ref
 import Helpers as Helpers
 import Types.JsonWsp (Address, JsonWspResponse, UtxoQR, mkUtxosAtQuery, parseJsonWspResponse)
 import Types.Transaction as Transaction
-import Wallet (NamiConnection, Wallet(Nami))
+import Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Wallet (Wallet(Nami))
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -103,6 +105,12 @@ getWalletAddress :: QueryM (Maybe Transaction.Address)
 getWalletAddress = asks _.wallet >>= case _ of
   Just (Nami nami) -> liftAff $
     nami.getWalletAddress =<< liftEffect (Ref.read nami.connection)
+  Nothing -> pure Nothing
+
+getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
+getWalletCollateral = asks _.wallet >>= case _ of
+  Just (Nami nami) -> liftAff $
+    nami.getCollateral =<< liftEffect (Ref.read nami.connection)
   Nothing -> pure Nothing
 
 --------------------------------------------------------------------------------
