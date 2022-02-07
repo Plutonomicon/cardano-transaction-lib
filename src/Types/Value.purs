@@ -4,8 +4,6 @@ module Types.Value
   , NonAdaAsset(NonAdaAsset)
   , TokenName(TokenName)
   , Value(Value)
-  , adaSymbol
-  , adaToken
   , allTokenNames
   , eq
   , flattenValue
@@ -20,6 +18,8 @@ module Types.Value
   , lovelaceValueOf
   , lt
   , minus
+  , mkCurrencySymbol
+  , mkTokenName
   , numCurrencySymbols
   , numCurrencySymbols'
   , numTokenNames
@@ -29,6 +29,7 @@ module Types.Value
   ) where
 
 import Prelude
+import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Data.Array (filter)
 import Data.BigInt (BigInt, fromInt)
@@ -44,7 +45,8 @@ import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This))
 import Data.Tuple.Nested ((/\), type (/\))
 
-import Types.ByteArray (ByteArray)
+import Serialization.Hash (scriptHashFromBytes)
+import Types.ByteArray (ByteArray, byteLength)
 
 -- Should we newtype wrap this over Ada or remove Ada completely.
 newtype Coin = Coin BigInt
@@ -78,7 +80,7 @@ toValue (Coin i) = lovelaceValueOf i
 
 -- | Get the 'Coin/Ada' in the given 'Value'.
 fromValue :: Value -> Coin
-fromValue v = Coin (valueOf v adaSymbol adaToken)
+fromValue v = Coin (valueOf v unsafeAdaSymbol unsafeAdaToken)
 
 newtype CurrencySymbol = CurrencySymbol ByteArray
 
@@ -90,6 +92,22 @@ derive newtype instance ordCurrencySymbol :: Ord CurrencySymbol
 instance showCurrencySymbol :: Show CurrencySymbol where
   show = genericShow
 
+-- Currency symbol for Ada, do not use inside NonAdaAsset map - do not export.
+-- For internal use only
+unsafeAdaSymbol :: CurrencySymbol
+unsafeAdaSymbol = CurrencySymbol mempty
+
+-- | Create a CurrencySymbol from a ByteArray since CurrencySymbol data
+-- | constructor is not exported
+mkCurrencySymbol :: ByteArray -> Maybe CurrencySymbol
+mkCurrencySymbol byteArr =
+  scriptHashFromBytes byteArr *> pure (CurrencySymbol byteArr)
+
+-- Create an Ada CurrencySymbol from a ByteArray - do not export
+unsafeMkAdaSymbol :: ByteArray -> Maybe CurrencySymbol
+unsafeMkAdaSymbol byteArr =
+  if byteLength byteArr == 0 then pure unsafeAdaSymbol else Nothing
+
 newtype TokenName = TokenName ByteArray
 
 derive instance newtypeTokenName :: Newtype TokenName _
@@ -99,6 +117,21 @@ derive newtype instance ordTokenName :: Ord TokenName
 
 instance showTokenName :: Show TokenName where
   show = genericShow
+
+-- Token name for Ada - do not export. For intternal use only
+unsafeAdaToken :: TokenName
+unsafeAdaToken = TokenName mempty
+
+-- | Create a TokenName from a ByteArray since TokenName data
+-- | constructor is not exported
+mkTokenName :: ByteArray -> Maybe TokenName
+mkTokenName byteArr =
+  if byteLength byteArr >= 0 then pure $ TokenName byteArr else Nothing
+
+-- -- Create an Ada TokenName from a ByteArray - do not export
+-- unsafeMkAdaToken :: ByteArray -> Maybe TokenName
+-- unsafeMkAdaToken byteArr =
+--   if byteLength byteArr == 0 then pure unsafeAdaToken else Nothing
 
 newtype NonAdaAsset = NonAdaAsset (Map CurrencySymbol (Map TokenName BigInt))
 
@@ -132,13 +165,16 @@ instance semigroupValue :: Semigroup Value where
 instance monoidValue :: Monoid Value where
   mempty = Value mempty mempty
 
--- | Currency symbol for Ada, do not use inside NonAdaAsset map
-adaSymbol :: CurrencySymbol
-adaSymbol = CurrencySymbol mempty
+mkSingletonValue :: ByteArray -> ByteArray -> BigInt -> Maybe Value
+mkSingletonValue curSymbol' tokenName' amount = do
+  curSymbol <- mkCurrencySymbol curSymbol' <|> unsafeMkAdaSymbol curSymbol'
+  tokenName <- mkTokenName tokenName'
 
--- | Token name for Ada, do not use inside NonAdaAsset map
-adaToken :: TokenName
-adaToken = TokenName mempty
+  -- Use when/unless or guard?
+  if curSymbol == unsafeAdaSymbol then
+    if tokenName == unsafeAdaToken then pure $ Value (Coin amount) mempty
+    else Nothing -- can't a non-empty TokenName with Ada CurrencySymbol
+  else pure $ Value mempty (NonAdaAsset $ Map.singleton curSymbol (Map.singleton tokenName amount))
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-tx/html/src/PlutusTx.AssocMap.html#union
 -- | Combine two 'Map's.
@@ -269,12 +305,12 @@ flattenValue (Value coin@(Coin lovelaces) nonAdaAsset) =
   in
     case coin == mempty of
       true -> flattenedNonAda
-      false -> (adaSymbol /\ adaToken /\ lovelaces) : flattenedNonAda
+      false -> (unsafeAdaSymbol /\ unsafeAdaToken /\ lovelaces) : flattenedNonAda
 
 isAda :: CurrencySymbol -> TokenName -> Boolean
 isAda curSymbol tokenName =
-  curSymbol == adaSymbol &&
-    tokenName == adaToken
+  curSymbol == unsafeAdaSymbol &&
+    tokenName == unsafeAdaToken
 
 -- From https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- | Converts a single tuple to Value
@@ -294,8 +330,8 @@ isAdaOnly :: Value -> Boolean
 isAdaOnly v =
   case flattenValue v of
     (cs /\ tn /\ _) : Nil ->
-      cs == adaSymbol &&
-        tn == adaToken
+      cs == unsafeAdaSymbol &&
+        tn == unsafeAdaToken
     _ -> false
 
 -- From https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
@@ -415,7 +451,7 @@ allTokenNames' (Value coin@(Coin lovelaces) (NonAdaAsset nonAdaAsset)) =
   in
     case coin == mempty of
       false -> nonAdaUnion
-      true -> Map.singleton adaToken lovelaces `Map.union` nonAdaUnion
+      true -> Map.singleton unsafeAdaToken lovelaces `Map.union` nonAdaUnion
 
 allTokenNames :: Value -> Set TokenName
 allTokenNames = keys <<< allTokenNames'
