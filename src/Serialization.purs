@@ -20,7 +20,36 @@ import Data.FoldableWithIndex (forWithIndex_)
 import Data.UInt (UInt)
 import Effect (Effect)
 import Prelude
-import Serialization.Types (Address, AssetName, Assets, AuxiliaryData, BaseAddress, BigNum, DataHash, Ed25519KeyHash, Ed25519Signature, MultiAsset, PlutusScript, PlutusScripts, PublicKey, ScriptHash, StakeCredential, Transaction, TransactionBody, TransactionHash, TransactionInput, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, Value, Vkey, Vkeywitness, Vkeywitnesses)
+import Serialization.Types
+  ( Address
+  , AssetName
+  , Assets
+  , AuxiliaryData
+  , BaseAddress
+  , BigNum
+  , DataHash
+  , Ed25519KeyHash
+  , Ed25519Signature
+  , MultiAsset
+  , PlutusScript
+  , PlutusScripts
+  , PublicKey
+  , ScriptHash
+  , StakeCredential
+  , Transaction
+  , TransactionBody
+  , TransactionHash
+  , TransactionInput
+  , TransactionInputs
+  , TransactionOutput
+  , TransactionOutputs
+  , TransactionUnspentOutput
+  , TransactionWitnessSet
+  , Value
+  , Vkey
+  , Vkeywitness
+  , Vkeywitnesses
+  )
 import Types.ByteArray (ByteArray)
 import Types.Transaction as T
 import Types.Value as Value
@@ -41,6 +70,7 @@ foreign import newTransactionBody :: TransactionInputs -> TransactionOutputs -> 
 foreign import newTransaction :: TransactionBody -> TransactionWitnessSet -> Effect Transaction
 foreign import newTransaction_ :: TransactionBody -> TransactionWitnessSet -> AuxiliaryData -> Effect Transaction
 foreign import newTransactionWitnessSet :: Effect TransactionWitnessSet
+foreign import newTransactionUnspentOutputFromBytes :: ByteArray -> Effect TransactionUnspentOutput
 foreign import newAddressFromBech32 :: T.Bech32 -> Effect Address
 foreign import newAddressFromBytes :: ByteArray -> Effect Address
 foreign import newBaseAddress :: UInt -> StakeCredential -> StakeCredential -> Effect BaseAddress
