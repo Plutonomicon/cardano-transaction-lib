@@ -61,7 +61,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Aff (Aff)
 import Undefined (undefined)
 
-import Ogmios (QueryM)
+import QueryM (QueryM)
 import ProtocolParametersAlonzo
   ( coinSize
   , lovelacePerUTxOWord

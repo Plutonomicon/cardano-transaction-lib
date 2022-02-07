@@ -6,18 +6,20 @@ module Wallet
   ) where
 
 import Prelude
-import Control.Promise as Promise
+import Types.ByteArray
+
 import Control.Promise (Promise)
+import Control.Promise as Promise
 import Data.Maybe (Maybe(..), maybe)
 import Data.Typelevel.Undefined (undefined)
-import Deserialization as Deserialization
+import Deserialization.Address as Deserialization.Address
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
 import Serialization as Serialization
-import Types.ByteArray
 import Types.Transaction (Address, TransactionOutput, Transaction)
+import Types.TransactionUnspentOutput (TransactionUnspentOutput(..))
 
 -- At the moment, we only support Nami's wallet. In the future we will expand
 -- this with more constructors to represent out-of-browser wallets (e.g. WBE)
@@ -59,7 +61,7 @@ mkNamiWalletAff = do
   getWalletAddress nami = do
     bytes <- hexToByteArrayUnsafe <$> Promise.toAffE (_getNamiAddress nami)
     liftEffect $
-      Deserialization.convertAddress
+      Deserialization.Address.convertAddress
         <$> Serialization.newAddressFromBytes bytes
 
 -------------------------------------------------------------------------------
