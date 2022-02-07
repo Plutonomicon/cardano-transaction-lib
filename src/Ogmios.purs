@@ -6,9 +6,10 @@ module Ogmios
   , QueryConfig
   , QueryM
   , WebSocket
+  , addressToOgmiosAddress
   , mkOgmiosWebSocketAff
+  , ogmiosAddressToAddress
   , utxosAt
-  , utxosAt'
   ) where
 
 import Prelude
@@ -35,7 +36,7 @@ import Effect.Ref as Ref
 import Deserialization as Deserialization
 import Helpers as Helpers
 import Serialization as Serialization
-import Serialization (addressPubKeyHash, newAddressFromBech32, newBaseAddressFromAddress)
+import Serialization (addressBech32, newAddressFromBech32)
 import Types.ByteArray (hexToByteArray)
 import Types.JsonWsp (Address, OgmiosTxOut, JsonWspResponse, mkUtxosAtQuery, parseJsonWspResponse, TxOutRef, UtxoQR(UtxoQR))
 import Types.Transaction as Transaction
@@ -271,17 +272,14 @@ ogmiosAddressToAddress ogAddr =
   newAddressFromBech32 (wrap ogAddr) <#> Deserialization.convertAddress
 
 -- | Converts an (internal) Address to JsonWsp.Address
-addressToOgmiosAddress :: Transaction.Address -> Effect (Maybe Address)
+addressToOgmiosAddress :: Transaction.Address -> Effect Address
 addressToOgmiosAddress addr = do
-  addr' <- Serialization.convertAddress addr
-  pure $ newBaseAddressFromAddress addr' >>= addressPubKeyHash <#> unwrap
+  Serialization.convertAddress addr <#> addressBech32 >>> unwrap
 
 -- If required, we can change to Either with more granular error handling.
 -- | Gets utxos at an (internal) Address in terms of (internal) Transaction.Types
 utxosAt :: Transaction.Address -> QueryM (Maybe Transaction.UtxoM)
-utxosAt addr = do
-  addr' <- lift $ liftEffect $ addressToOgmiosAddress addr
-  maybe (pure Nothing) getUtxos addr'
+utxosAt addr = addressToOgmiosAddress addr # liftEffect # lift >>= getUtxos
   where
   getUtxos :: Address -> QueryM (Maybe Transaction.UtxoM)
   getUtxos address = convertUtxos >>> liftEffect >>> lift =<< utxosAt' address

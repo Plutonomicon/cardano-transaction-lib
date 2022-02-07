@@ -138,4 +138,8 @@ exports._addressPubKeyHash = just => nothing => baseAddr => {
     return just(kh.to_bech32('hbas_'));
 };
 
+exports._addressBech32 = addr => {
+  return addr.to_bech32();
+};
+
 exports.toBytes = sth => sth.to_bytes();
