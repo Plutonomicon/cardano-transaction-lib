@@ -5,16 +5,20 @@ module Types.ByteArray
   , byteArrayFromIntArrayUnsafe
   , byteArrayToIntArray
   , byteArrayToHex
+  , byteLength
   , hexToByteArray
   , hexToByteArrayUnsafe
   ) where
 
 import Data.ArrayBuffer.Types (Uint8Array)
 import Data.Maybe (Maybe(..))
+import Data.Newtype (class Newtype, unwrap)
 import Prelude
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 
 newtype ByteArray = ByteArray Uint8Array
+
+derive instance newtypeByteArray :: Newtype ByteArray _
 
 instance showByteArray :: Show ByteArray where
   show arr = "(byteArrayFromIntArrayUnsafe " <> show (byteArrayToIntArray arr) <> ")"
@@ -63,6 +67,11 @@ byteArrayFromIntArray :: Array Int -> Maybe ByteArray
 byteArrayFromIntArray = byteArrayFromIntArray_ Nothing Just
 
 foreign import byteArrayToIntArray :: ByteArray -> Array Int
+
+foreign import _byteLength :: Uint8Array -> Int
+
+byteLength :: ByteArray -> Int
+byteLength = _byteLength <<< unwrap
 
 instance arbitraryByteArray :: Arbitrary ByteArray where
   arbitrary = byteArrayFromIntArrayUnsafe <$> arbitrary

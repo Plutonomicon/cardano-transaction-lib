@@ -5,15 +5,19 @@ import Prelude
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
+import Data.Newtype (wrap)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect.Class (liftEffect)
 import Mote (group, test)
-import Serialization (addressPubKeyHash, convertBigInt, convertTransaction, convertTxOutput, newAddressFromBech32, newBaseAddressFromAddress, newTransactionHash, toBytes)
+import Serialization (addressPubKeyHash, convertBigInt, convertTransaction, convertTxOutput, newAddressFromBech32, newBaseAddressFromAddress, toBytes)
+import Serialization.Types (TransactionHash)
+import Deserialization.FromBytes (fromBytesEffect)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Types.Transaction as T
+import Types.Value as Value
 import Untagged.Union (asOneOf)
 
 suite :: TestPlanM Unit
@@ -26,7 +30,7 @@ suite = do
         let
           txString = "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad959996"
           txBytes = hexToByteArrayUnsafe txString
-        _txHash <- liftEffect $ newTransactionHash txBytes
+        _txHash :: TransactionHash <- liftEffect $ fromBytesEffect txBytes
         pure unit
       test "BaseAddress <-> Address" do
         let
@@ -74,7 +78,7 @@ txOutputFixture1 =
                 $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
             }
         }
-    , amount: T.Value (T.Coin $ BigInt.fromInt 0) Map.empty
+    , amount: Value.Value (Value.Coin $ BigInt.fromInt 0) (wrap Map.empty)
     , data_hash: Nothing
     }
 
@@ -92,9 +96,9 @@ txOutputFixture2 =
                 $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
             }
         }
-    , amount: T.Value (T.Coin $ BigInt.fromInt 0) $ Map.fromFoldable
-        [ T.CurrencySymbol currencySymbol1 /\ Map.fromFoldable
-            [ T.TokenName tokenName1 /\ BigInt.fromInt 1000000 ]
+    , amount: Value.Value (Value.Coin $ BigInt.fromInt 0) $ wrap $ Map.fromFoldable
+        [ Value.CurrencySymbol currencySymbol1 /\ Map.fromFoldable
+            [ Value.TokenName tokenName1 /\ BigInt.fromInt 1000000 ]
         ]
     , data_hash: Nothing
     }
@@ -112,7 +116,7 @@ txFixture1 =
     { body: T.TxBody
         { inputs: [ txInputFixture1 ]
         , outputs: [ txOutputFixture1 ]
-        , fee: T.Coin $ BigInt.fromInt 177513
+        , fee: Value.Coin $ BigInt.fromInt 177513
         , ttl: Nothing
         , certs: Nothing
         , withdrawals: Nothing
@@ -143,7 +147,7 @@ txFixture2 =
     { body: T.TxBody
         { inputs: [ txInputFixture1 ]
         , outputs: [ txOutputFixture2 ]
-        , fee: T.Coin $ BigInt.fromInt 177513
+        , fee: Value.Coin $ BigInt.fromInt 177513
         , ttl: Nothing
         , certs: Nothing
         , withdrawals: Nothing
@@ -185,7 +189,7 @@ txFixture3 =
                             $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                         }
                     }
-                , amount: T.Value (T.Coin $ BigInt.fromInt 2353402) $ Map.empty
+                , amount: Value.Value (Value.Coin $ BigInt.fromInt 2353402) $ wrap Map.empty
                 , data_hash: Nothing
                 }
             , T.TransactionOutput
@@ -199,11 +203,11 @@ txFixture3 =
                             $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                         }
                     }
-                , amount: T.Value (T.Coin $ BigInt.fromInt 1000000) $ Map.empty
+                , amount: Value.Value (Value.Coin $ BigInt.fromInt 1000000) $ wrap Map.empty
                 , data_hash: Nothing
                 }
             ]
-        , fee: T.Coin $ BigInt.fromInt 177513
+        , fee: Value.Coin $ BigInt.fromInt 177513
         , ttl: Nothing
         , certs: Nothing
         , withdrawals: Nothing

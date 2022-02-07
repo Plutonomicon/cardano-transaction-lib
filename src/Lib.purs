@@ -5,10 +5,12 @@ import Types.Transaction as Types
 import Data.Maybe (Maybe(..))
 import Data.BigInt as BigInt
 
+import Types.Value (Coin(Coin))
+
 -- Ogmios fetching
 -- 1. inputs
 
--- 
+--
 tx
   :: Array Types.TransactionInput
   -> Array Types.TransactionOutput
@@ -31,7 +33,7 @@ txBody
 txBody inputs outputs collateral id = Types.TxBody
   { inputs: inputs
   , outputs: outputs
-  , fee: Types.Coin $ BigInt.fromInt 1000000
+  , fee: Coin $ BigInt.fromInt 1000000
   , ttl: Just $ Types.Slot $ BigInt.fromInt 10010000 -- validity_end
   , certs: Nothing
   , withdrawals: Nothing

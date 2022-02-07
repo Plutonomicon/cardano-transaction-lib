@@ -4,16 +4,18 @@ import Prelude
 import Control.Alt ((<|>))
 import Data.Argonaut (class DecodeJson, Json, JsonDecodeError(..), caseJsonArray, caseJsonObject, caseJsonString, getField, decodeJson)
 import Data.Array (index)
+import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt as BigInt
 import Data.Either (Either(..), hush, note)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Data.Maybe (Maybe)
+import Data.Newtype (wrap)
 import Data.Foldable (foldl)
 import Data.Map as Map
 import Effect (Effect)
 import Foreign.Object (Object)
-import Types.Transaction (Value(..), Coin(..))
+import Types.Value (Coin(Coin), Value(Value))
 
 -- creates a unique id prefixed by its argument
 foreign import _uniqueId :: String -> Effect String
@@ -208,4 +210,4 @@ parseValue outer = do
   (_assetsJson :: {}) <- getField o "assets"
   -- assets are currently assumed to be empty
   -- newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
-  pure $ Value (Coin coins) $ Map.empty
+  pure $ Value (Coin coins) $ wrap Map.empty

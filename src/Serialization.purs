@@ -3,11 +3,11 @@ module Serialization
   , addressPubKeyHash
   , convertAddress
   , convertBigInt
+  , convertTxInput
   , convertTxOutput
   , newAddressFromBech32
   , newAddressFromBytes
   , newAssetName
-  , newTransactionHash
   , toBytes
   , newBaseAddressFromAddress
   ) where
@@ -23,13 +23,14 @@ import Prelude
 import Serialization.Types (Address, AssetName, Assets, AuxiliaryData, BaseAddress, BigNum, DataHash, Ed25519KeyHash, Ed25519Signature, MultiAsset, PlutusScript, PlutusScripts, PublicKey, ScriptHash, StakeCredential, Transaction, TransactionBody, TransactionHash, TransactionInput, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, Value, Vkey, Vkeywitness, Vkeywitnesses)
 import Types.ByteArray (ByteArray)
 import Types.Transaction as T
+import Types.Value as Value
 import Untagged.Union (type (|+|))
+import Deserialization.FromBytes (fromBytes, fromBytesEffect)
 
 foreign import newBigNum :: String -> Effect BigNum
 foreign import newValue :: BigNum -> Effect Value
 foreign import valueSetCoin :: Value -> BigNum -> Effect Unit
 foreign import newValueFromAssets :: MultiAsset -> Effect Value
-foreign import newTransactionHash :: ByteArray -> Effect TransactionHash
 foreign import newTransactionInput :: TransactionHash -> UInt -> Effect TransactionInput
 foreign import newTransactionInputs :: Effect TransactionInputs
 foreign import addTransactionInput :: TransactionInputs -> TransactionInput -> Effect Unit
@@ -48,14 +49,11 @@ foreign import baseAddressPaymentCredential :: BaseAddress -> StakeCredential
 foreign import baseAddressToAddress :: BaseAddress -> Effect Address
 foreign import newStakeCredentialFromScriptHash :: ScriptHash -> Effect StakeCredential
 foreign import newStakeCredentialFromKeyHash :: Ed25519KeyHash -> Effect StakeCredential
-foreign import newEd25519KeyHash :: ByteArray -> Effect Ed25519KeyHash
 foreign import newMultiAsset :: Effect MultiAsset
 foreign import insertMultiAsset :: MultiAsset -> ScriptHash -> Assets -> Effect Unit
 foreign import newAssets :: Effect Assets
 foreign import insertAssets :: Assets -> AssetName -> BigNum -> Effect Unit
 foreign import newAssetName :: ByteArray -> Effect AssetName
-foreign import newScriptHash :: ByteArray -> Effect ScriptHash
-foreign import newDataHash :: ByteArray -> Effect DataHash
 foreign import transactionOutputSetDataHash :: TransactionOutput -> DataHash -> Effect Unit
 foreign import newVkeywitnesses :: Effect Vkeywitnesses
 foreign import newVkeywitness :: Vkey -> Ed25519Signature -> Effect Vkeywitness
@@ -74,6 +72,8 @@ foreign import toBytes
          |+| TransactionOutput
          |+| Ed25519KeyHash
          |+| ScriptHash
+         |+| TransactionHash
+         |+| DataHash
      -- Add more as needed.
      )
   -> ByteArray
@@ -141,7 +141,7 @@ convertTxInputs arrInputs = do
 
 convertTxInput :: T.TransactionInput -> Effect TransactionInput
 convertTxInput (T.TransactionInput { transaction_id, index }) = do
-  tx_hash <- newTransactionHash (unwrap transaction_id)
+  tx_hash <- fromBytesEffect (unwrap transaction_id)
   newTransactionInput tx_hash index
 
 convertTxOutputs :: Array T.TransactionOutput -> Effect TransactionOutputs
@@ -155,35 +155,37 @@ convertTxOutput (T.TransactionOutput { address, amount, data_hash }) = do
   address' <- convertAddress address
   value <- convertValue amount
   txo <- newTransactionOutput address' value
-  for_ data_hash (unwrap >>> newDataHash >=> transactionOutputSetDataHash txo)
+  for_ (unwrap <$> data_hash) \bytes -> do
+    for_ (fromBytes bytes) $
+      transactionOutputSetDataHash txo
   pure txo
 
 convertAddress :: T.Address -> Effect Address
 convertAddress address = do
   let baseAddress = unwrap (unwrap address)."AddrType"
   payment <- case baseAddress.payment of
-    T.PaymentCredentialKey (T.Ed25519KeyHash keyHash) -> do
-      newStakeCredentialFromKeyHash =<< newEd25519KeyHash keyHash
-    T.PaymentCredentialScript (T.ScriptHash scriptHash) -> do
-      newStakeCredentialFromScriptHash =<< newScriptHash scriptHash
+    T.PaymentCredentialKey (T.Ed25519KeyHash keyHashBytes) -> do
+      newStakeCredentialFromKeyHash =<< fromBytesEffect keyHashBytes
+    T.PaymentCredentialScript (T.ScriptHash scriptHashBytes) -> do
+      newStakeCredentialFromScriptHash =<< fromBytesEffect scriptHashBytes
   stake <- case baseAddress.stake of
-    T.StakeCredentialKey (T.Ed25519KeyHash keyHash) -> do
-      newStakeCredentialFromKeyHash =<< newEd25519KeyHash keyHash
-    T.StakeCredentialScript (T.ScriptHash scriptHash) -> do
-      newStakeCredentialFromScriptHash =<< newScriptHash scriptHash
+    T.StakeCredentialKey (T.Ed25519KeyHash keyHashBytes) -> do
+      newStakeCredentialFromKeyHash =<< fromBytesEffect keyHashBytes
+    T.StakeCredentialScript (T.ScriptHash scriptHashBytes) -> do
+      newStakeCredentialFromScriptHash =<< fromBytesEffect scriptHashBytes
   base_address <- newBaseAddress baseAddress.network payment stake
   baseAddressToAddress base_address
 
-convertValue :: T.Value -> Effect Value
-convertValue (T.Value (T.Coin lovelace) m) = do
+convertValue :: Value.Value -> Effect Value
+convertValue (Value.Value (Value.Coin lovelace) (Value.NonAdaAsset m)) = do
   multiasset <- newMultiAsset
-  forWithIndex_ m \(T.CurrencySymbol symbol) values -> do
+  forWithIndex_ m \(Value.CurrencySymbol scriptHashBytes) values -> do
     assets <- newAssets
-    forWithIndex_ values \(T.TokenName tokenName) bigIntValue -> do
+    forWithIndex_ values \(Value.TokenName tokenName) bigIntValue -> do
       assetName <- newAssetName tokenName
       value <- newBigNum (BigInt.toString bigIntValue)
       insertAssets assets assetName value
-    scripthash <- newScriptHash symbol
+    scripthash <- fromBytesEffect scriptHashBytes
     insertMultiAsset multiasset scripthash assets
   value <- newValueFromAssets multiasset
   valueSetCoin value =<< newBigNum (BigInt.toString lovelace)
