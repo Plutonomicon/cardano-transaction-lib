@@ -4,7 +4,7 @@ import Prelude
 import Control.Monad.Reader.Trans (runReaderT)
 import TestM (TestPlanM)
 import Mote (group, test)
-import Ogmios (mkOgmiosWebSocketAff, utxosAt)
+import Ogmios (mkOgmiosWebSocketAff, utxosAt')
 
 testnet_addr :: String
 testnet_addr =
@@ -23,7 +23,7 @@ suite = do
         ws <- mkOgmiosWebSocketAff "ws:127.0.0.1:1337"
         ( runReaderT
             ( do
-                _utxoqr <- utxosAt testnet_addr
+                _utxoqr <- utxosAt' testnet_addr
                 pure unit
             )
         )

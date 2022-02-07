@@ -92,7 +92,7 @@ $schema valueType
         $object
     $properties
         $property-name "coins"
-        $property-schema $number
+        $property-schema $string
         $property-name "assets"
         $property-schema $object
 

@@ -12,7 +12,8 @@ module Types.JsonWsp
 
 import Prelude
 import Control.Alt ((<|>))
-import Data.Argonaut (class DecodeJson, Json, JsonDecodeError(..), caseJsonArray, caseJsonObject, caseJsonString, getField, decodeJson)
+import Data.Argonaut (class DecodeJson, Json, JsonDecodeError(TypeMismatch), caseJsonArray, caseJsonObject, caseJsonString, getField, decodeJson)
+import Data.Argonaut.Decode.Decoders (decodeNumber)
 import Data.Array (index)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), hush, note)
@@ -123,16 +124,24 @@ parseFieldToString o str =
 parseFieldToUInt :: Object Json -> String -> Either JsonDecodeError UInt.UInt
 parseFieldToUInt o str = do
   let err = TypeMismatch $ "expected field: '" <> str <> "' as a UInt"
-  num <- caseJsonString (Left err) Right =<< getField o str
-  note err $ UInt.fromString num
+  -- Probably avoid string parsing here as doesn't seem necessary. It also
+  -- requires a Medea schema change:
+  -- num <- caseJsonString (Left err) Right =<< getField o str
+  -- note err $ UInt.fromInt' num
+
+  -- This should be fine as fromNumber' fails on non-integers in UInt's range:
+  num <- decodeNumber =<< getField o str
+  note err $ UInt.fromNumber' num
 
 -- parses a string at the given field to a BigInt
 parseFieldToBigInt :: Object Json -> String -> Either JsonDecodeError BigInt.BigInt
 parseFieldToBigInt o str = do
   let err = TypeMismatch $ "expected field: '" <> str <> "' as a BigInt"
   num <- caseJsonString (Left err) Right =<< getField o str
-  bint <- note err $ BigInt.fromString num
-  pure bint
+  note err $ BigInt.fromString num
+  -- The below will probably break?
+  -- num <- decodeNumber =<< getField o str
+  -- note err $ BigInt.fromNumber num
 
 -- parser for the `Mirror` type.
 parseMirror :: Json -> Either JsonDecodeError Mirror
@@ -198,9 +207,6 @@ parseTxOutRef = jsonObject $
       pure { txId, index }
   )
 
--- this OgmiosTxOut doesn't seem to be in line with the
--- `Types.Transaction.TransactionOutput` type,  we may need to reckon with this
--- later.
 type OgmiosTxOut =
   { address :: Address
   , value :: Value

@@ -13,7 +13,7 @@
         {
           "address": "addr_test1qr7g8nrv76fc7k4ueqwecljxx9jfwvsgawhl55hck3n8uwaz26mpcwu58zdkhpdnc6nuq3fa8vylc8ak9qvns7r2dsysp7ll4d",
           "value": {
-            "coins": 1000000000,
+            "coins": "1000000000",
             "assets": {}
           },
           "datum": null
