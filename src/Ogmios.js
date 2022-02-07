@@ -1,9 +1,16 @@
-const WebSocket = require("ws");
+if (typeof BROWSER_RUNTIME != 'undefined' && !BROWSER_RUNTIME) {
+    var WebSocket = require("ws");
+}
 
 // _mkWebsocket :: String -> Effect WebSocket
 exports._mkWebSocket = url => () => {
   console.log("Starting websocket attempt");
-  const ws = new WebSocket(url, { perMessageDeflate: false });
+  var ws;
+  if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
+    ws = new WebSocket(url);
+  } else {
+    ws = new WebSocket(url, { perMessageDeflate: false });
+  }
   console.log("new websocket");
   return ws;
 }
