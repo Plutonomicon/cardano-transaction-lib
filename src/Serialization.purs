@@ -10,6 +10,7 @@ module Serialization
   , newAssetName
   , toBytes
   , newBaseAddressFromAddress
+  , newTransactionUnspentOutputFromBytes
   ) where
 
 import Data.BigInt as BigInt
