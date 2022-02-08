@@ -1,4 +1,4 @@
-module Deserialization
+module Deserialization.Address
   ( convertAddress
   ) where
 
@@ -33,9 +33,10 @@ convertAddress address = do
   baseAddress <- baseAddressFromAddress address
   stake <- convertStakeCredential $ baseAddressStakeCredential baseAddress
   payment <- convertPaymentCredential $ baseAddressPaymentCredential baseAddress
+  network <- UInt.fromInt' $ addressNetworkId address
   pure $ T.Address
     { "AddrType": T.BaseAddress
-        { network: UInt.fromInt $ addressNetworkId address
+        { network
         , stake
         , payment
         }
