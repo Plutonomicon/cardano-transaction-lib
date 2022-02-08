@@ -1,18 +1,28 @@
-module Types.JsonWsp where
+module Types.JsonWsp
+  ( Address
+  , JsonWspResponse
+  , Mirror
+  , OgmiosTxOut
+  , TxOutRef
+  , UtxoQR(UtxoQR)
+  , UtxoQueryResult
+  , mkUtxosAtQuery
+  , parseJsonWspResponse
+  ) where
 
 import Prelude
 import Control.Alt ((<|>))
-import Data.Argonaut (class DecodeJson, Json, JsonDecodeError(..), caseJsonArray, caseJsonObject, caseJsonString, getField, decodeJson)
+import Data.Argonaut (class DecodeJson, Json, JsonDecodeError(TypeMismatch), caseJsonArray, caseJsonObject, caseJsonString, getField, decodeJson)
 import Data.Array (index)
-import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt as BigInt
-import Data.Either (Either(..), hush, note)
+import Data.Either (Either(Left, Right), hush, note)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
 import Data.Foldable (foldl)
 import Data.Map as Map
+import Data.UInt as UInt
 import Effect (Effect)
 import Foreign.Object (Object)
 import Types.Value (Coin(Coin), Value(Value))
@@ -109,13 +119,30 @@ parseFieldToString :: Object Json -> String -> Either JsonDecodeError String
 parseFieldToString o str =
   caseJsonString (Left (TypeMismatch ("expected field: '" <> str <> "' as a String"))) Right =<< getField o str
 
+-- parses a string at the given field to a UInt
+parseFieldToUInt :: Object Json -> String -> Either JsonDecodeError UInt.UInt
+parseFieldToUInt o str = do
+  let err = TypeMismatch $ "expected field: '" <> str <> "' as a UInt"
+  -- We use string parsing for Ogmios (AffInterface tests) but also change Medea
+  -- schema and UtxoQueryResponse.json to be a string to pass (local) parsing
+  -- tests. Notice "index" is a string in our local example.
+  num <- caseJsonString (Left err) Right =<< getField o str
+  note err $ UInt.fromString num
+
+-- -- The below doesn't seem to work with Ogmios query test (AffInterface)
+-- -- eventhough it seems more reasonable.
+-- num <- decodeNumber =<< getField o str
+-- note err $ UInt.fromNumber' num
+
 -- parses a string at the given field to a BigInt
 parseFieldToBigInt :: Object Json -> String -> Either JsonDecodeError BigInt.BigInt
 parseFieldToBigInt o str = do
+  -- We use string parsing for Ogmios (AffInterface tests) but also change Medea
+  -- schema and UtxoQueryResponse.json to be a string to pass (local) parsing
+  -- tests. Notice "coins" is a string in our local example.
   let err = TypeMismatch $ "expected field: '" <> str <> "' as a BigInt"
   num <- caseJsonString (Left err) Right =<< getField o str
-  bint <- note err $ BigInt.fromString num
-  pure bint
+  note err $ BigInt.fromString num
 
 -- parser for the `Mirror` type.
 parseMirror :: Json -> Either JsonDecodeError Mirror
@@ -141,7 +168,7 @@ type UtxoQueryResult = Map.Map TxOutRef OgmiosTxOut
 -- TxOutRef
 type TxOutRef =
   { txId :: String
-  , index :: BigInt.BigInt
+  , index :: UInt.UInt
   }
 
 parseUtxoQueryResult :: Json -> Either JsonDecodeError UtxoQueryResult
@@ -177,15 +204,12 @@ parseTxOutRef :: Json -> Either JsonDecodeError TxOutRef
 parseTxOutRef = jsonObject $
   ( \o -> do
       txId <- parseFieldToString o "txId"
-      index <- parseFieldToBigInt o "index"
+      index <- parseFieldToUInt o "index"
       pure { txId, index }
   )
 
--- this OgmiosTxOut doesn't seem to be in line with the
--- `Types.Transaction.TransactionOutput` type,  we may need to reckon with this
--- later.
 type OgmiosTxOut =
-  { address :: String
+  { address :: Address
   , value :: Value
   , datum :: Maybe String
   }
@@ -198,7 +222,7 @@ parseTxOut = jsonObject $
   ( \o -> do
       address <- parseFieldToString o "address"
       value <- parseValue o
-      let datum = hush $ parseFieldToString o "address"
+      let datum = hush $ parseFieldToString o "datum"
       pure $ { address, value, datum }
   )
 

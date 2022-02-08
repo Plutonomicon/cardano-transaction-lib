@@ -1,5 +1,6 @@
 module Serialization
   ( convertTransaction
+  , addressBech32
   , addressPubKeyHash
   , convertAddress
   , convertBigInt
@@ -65,6 +66,8 @@ foreign import newPlutusScripts :: Effect PlutusScripts
 foreign import txWitnessSetSetPlutusScripts :: TransactionWitnessSet -> PlutusScripts -> Effect Unit
 foreign import addPlutusScript :: PlutusScripts -> PlutusScript -> Effect Unit
 foreign import _addressPubKeyHash :: (forall a. a -> Maybe a) -> (forall a. Maybe a) -> BaseAddress -> Maybe T.Bech32
+foreign import _addressBech32 :: Address -> T.Bech32
+
 foreign import toBytes
   :: ( Transaction
          |+| TransactionOutput
@@ -78,6 +81,9 @@ foreign import toBytes
 
 addressPubKeyHash :: BaseAddress -> Maybe T.Bech32
 addressPubKeyHash = _addressPubKeyHash Just Nothing
+
+addressBech32 :: Address -> T.Bech32
+addressBech32 = _addressBech32
 
 newBaseAddressFromAddress :: Address -> Maybe BaseAddress
 newBaseAddressFromAddress = _newBaseAddressFromAddress Nothing Just
