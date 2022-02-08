@@ -64,7 +64,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Aff (Aff)
 import Undefined (undefined)
 
-import Ogmios (QueryM, utxosAt')
+import Ogmios (QueryM, utxosAt)
 import ProtocolParametersAlonzo
   ( coinSize
   , lovelacePerUTxOWord
@@ -320,7 +320,7 @@ balanceTxM
   -> QueryM (Either BalanceTxFailure Transaction)
 balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
   utxos' :: Either BalanceTxFailure Utxo <-
-    utxosAt' ownAddr <#>
+    utxosAt ownAddr <#>
       note (UtxosAtFailure' $ wrap CouldNotGetUtxos) >>> map unwrap
   case utxos' of
     Left err -> pure $ Left err
