@@ -33,7 +33,7 @@ import Effect.Console (log)
 import Effect.Exception (Error, error)
 import Effect.Ref as Ref
 
-import Deserialization as Deserialization
+import Deserialization.Address as DAddress
 import Helpers as Helpers
 import Serialization as Serialization
 import Serialization (addressBech32, newAddressFromBech32)
@@ -269,7 +269,7 @@ messageFoldF msg acc' func = do
 -- | Converts an JsonWsp.Address to (internal) Address
 ogmiosAddressToAddress :: Address -> Effect (Maybe Transaction.Address)
 ogmiosAddressToAddress ogAddr =
-  newAddressFromBech32 (wrap ogAddr) <#> Deserialization.convertAddress
+  newAddressFromBech32 (wrap ogAddr) <#> DAddress.convertAddress
 
 -- | Converts an (internal) Address to JsonWsp.Address
 addressToOgmiosAddress :: Transaction.Address -> Effect Address
