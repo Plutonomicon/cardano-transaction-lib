@@ -69,7 +69,7 @@ instance monoidCoin :: Monoid Coin where
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value
 
 getLovelace :: Coin -> BigInt
-getLovelace = unwrap
+getLovelace (Coin l) = l
 
 lovelaceValueOf :: BigInt -> Value
 lovelaceValueOf = flip (Value <<< wrap) mempty
@@ -122,8 +122,8 @@ instance showTokenName :: Show TokenName where
 unsafeAdaToken :: TokenName
 unsafeAdaToken = TokenName mempty
 
--- | Create a TokenName from a ByteArray since TokenName data
--- | constructor is not exported
+-- | Create a TokenName from a ByteArray since TokenName data constructor is not
+-- | exported
 mkTokenName :: ByteArray -> Maybe TokenName
 mkTokenName byteArr =
   if byteLength byteArr >= 0 then pure $ TokenName byteArr else Nothing
@@ -176,6 +176,18 @@ mkSingletonValue curSymbol' tokenName' amount = do
     else Nothing -- can't a non-empty TokenName with Ada CurrencySymbol
   else pure $ Value mempty (NonAdaAsset $ Map.singleton curSymbol (Map.singleton tokenName amount))
 
+mkSingletonValue' :: CurrencySymbol -> Tokenname -> BigInt -> Maybe Value
+mkSingletonValue' curSymbol tokenName
+  | curSymbol == unsafeAdaSymbol
+    | tokenName == unsafeAdaToken = pure $ Value (Coin amount) mempty
+    | otherwise = Nothing
+  | otherwise =
+      pure $ Value mempty (NonAdaAsset $ Map.singleton curSymbol (Map.singleton tokenName amount))
+  -- if curSymbol == unsafeAdaSymbol then
+  --   if tokenName == unsafeAdaToken then pure $ Value (Coin amount) mempty
+  --   else Nothing -- can't a non-empty TokenName with Ada CurrencySymbol
+  -- else pure $ Value mempty (NonAdaAsset $ Map.singleton curSymbol (Map.singleton tokenName amount))
+
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-tx/html/src/PlutusTx.AssocMap.html#union
 -- | Combine two 'Map's.
 union :: ∀ k v r. Ord k => Map k v -> Map k r -> Map k (These v r)
@@ -225,25 +237,6 @@ unionNonAda (NonAdaAsset l) (NonAdaAsset r) =
   in
     unBoth <$> combined
 
--- -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#unionVal
--- -- | Combine two 'Value' maps (variation to include Coin)
--- unionVal
---   :: Value
---   -> Value
---   -> These BigInt BigInt /\ Map CurrencySymbol (Map TokenName (These BigInt BigInt))
--- unionVal (Value cl l) (Value cr r) =
---   let combined
---         :: Map CurrencySymbol (These (Map TokenName BigInt) (Map TokenName BigInt))
---       combined = union l r
---       unBoth
---         :: These (Map TokenName BigInt) (Map TokenName BigInt)
---         -> Map TokenName (These BigInt BigInt)
---       unBoth k = case k of
---         This a -> This <$> a
---         That b -> That <$> b
---         Both a b -> union a b
---    in (Both <$> cl <*> cr) /\ (unBoth <$> combined)
-
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#unionWith
 unionWith
   :: (BigInt -> BigInt -> BigInt)
@@ -262,21 +255,6 @@ unionWith f ls rs =
       Both a b -> f a b
   in
     NonAdaAsset $ map unBoth <$> combined
-
--- -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#unionWith
--- unionWith
---   :: (BigInt -> BigInt -> BigInt)
---   -> Value
---   -> Value
---   -> Value
--- unionWith f ls rs =
---   let coin /\ nonAdaAsset = unionVal ls rs
---       unBoth :: These BigInt BigInt -> BigInt
---       unBoth k' = case k' of
---         This a -> f a zero
---         That b -> f zero b
---         Both a b -> f a b
---    in Value (unBoth <$> coin) (map (map unBoth) nonAdaAsset)
 
 -- -- Could use Data.Newtype (unwrap) too.
 -- getValue :: Value -> Map CurrencySymbol (Map TokenName BigInt)
