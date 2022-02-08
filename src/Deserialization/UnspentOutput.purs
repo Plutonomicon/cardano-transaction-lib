@@ -1,6 +1,7 @@
 module Deserialization.UnspentOutput
   ( convertUnspentOutput
   , mkTransactionUnspentOutput
+  , newTransactionUnspentOutputFromBytes
   ) where
 
 import Prelude
@@ -8,9 +9,9 @@ import Prelude
 import Data.BigInt as BigInt
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe, fromMaybe)
 import Data.Profunctor.Strong (first, (***))
-import Data.Traversable (traverse)
+import Data.Traversable (traverse, for)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt as UInt
@@ -52,22 +53,25 @@ convertOutput output = do
 convertValue :: Value -> Maybe T.Value
 convertValue value = do
   coin <- BigInt.fromString $ bigNumToString $ getCoin value
-  -- `serialization-lib` types
-  multiasset :: Array (ScriptHash /\ Array (AssetName /\ BigNum)) <-
-    getMultiAsset maybeFfiHelper value <#>
-      extractMultiAsset Tuple >>> map (map (extractAssets Tuple))
-  -- convert to domain types, except of BigNum
-  let
-    multiasset' =
-      Map.fromFoldable $ multiasset <#>
-        asOneOf >>> toBytes >>> T.CurrencySymbol ***
-          Map.fromFoldable <<< map (first $ assetNameName >>> T.TokenName)
-        :: Map T.CurrencySymbol (Map T.TokenName BigNum)
-  -- convert BigNum values
-  multiasset'' <- traverse
-    (traverse (BigInt.fromString <<< bigNumToString))
-    multiasset'
-  pure $ T.Value (T.Coin coin) (T.NonAdaAsset multiasset'')
+  -- multiasset is optional
+  multiasset <- for (getMultiAsset maybeFfiHelper value) \multiasset -> do
+    let
+      -- get multiasset stored in `serialization-lib` types
+      multiasset' =
+        multiasset
+          # extractMultiAsset Tuple >>> map (map (extractAssets Tuple))
+          :: Array (ScriptHash /\ Array (AssetName /\ BigNum))
+      -- convert to domain types, except of BigNum
+      multiasset'' =
+        Map.fromFoldable $ multiasset' <#>
+          asOneOf >>> toBytes >>> T.CurrencySymbol ***
+            Map.fromFoldable <<< map (first $ assetNameName >>> T.TokenName)
+          :: Map T.CurrencySymbol (Map T.TokenName BigNum)
+    -- convert BigNum values, possibly failing
+    traverse
+      (traverse (BigInt.fromString <<< bigNumToString))
+      multiasset''
+  pure $ T.Value (T.Coin coin) (T.NonAdaAsset $ fromMaybe Map.empty multiasset)
 
 foreign import getInput :: TransactionUnspentOutput -> TransactionInput
 foreign import getOutput :: TransactionUnspentOutput -> TransactionOutput
@@ -83,3 +87,7 @@ foreign import extractAssets :: (forall a b. a -> b -> a /\ b) -> Assets -> Arra
 foreign import assetNameName :: AssetName -> ByteArray
 foreign import getDataHash :: MaybeFfiHelper -> TransactionOutput -> Maybe DataHash
 foreign import mkTransactionUnspentOutput :: TransactionInput -> TransactionOutput -> TransactionUnspentOutput
+foreign import _newTransactionUnspentOutputFromBytes :: MaybeFfiHelper -> ByteArray -> Maybe TransactionUnspentOutput
+
+newTransactionUnspentOutputFromBytes :: ByteArray -> Maybe TransactionUnspentOutput
+newTransactionUnspentOutputFromBytes = _newTransactionUnspentOutputFromBytes maybeFfiHelper
