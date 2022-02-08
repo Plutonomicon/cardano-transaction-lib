@@ -13,7 +13,6 @@ module Types.JsonWsp
 import Prelude
 import Control.Alt ((<|>))
 import Data.Argonaut (class DecodeJson, Json, JsonDecodeError(TypeMismatch), caseJsonArray, caseJsonObject, caseJsonString, getField, decodeJson)
-import Data.Argonaut.Decode.Decoders (decodeNumber)
 import Data.Array (index)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), hush, note)

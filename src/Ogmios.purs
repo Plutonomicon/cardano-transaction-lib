@@ -273,7 +273,7 @@ ogmiosAddressToAddress ogAddr =
 
 -- | Converts an (internal) Address to JsonWsp.Address
 addressToOgmiosAddress :: Transaction.Address -> Effect Address
-addressToOgmiosAddress addr = do
+addressToOgmiosAddress addr =
   Serialization.convertAddress addr <#> addressBech32 >>> unwrap
 
 -- If required, we can change to Either with more granular error handling.
