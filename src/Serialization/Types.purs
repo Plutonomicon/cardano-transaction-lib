@@ -13,6 +13,7 @@ foreign import data TransactionInput :: Type
 foreign import data TransactionInputs :: Type
 foreign import data TransactionOutput :: Type
 foreign import data TransactionOutputs :: Type
+foreign import data TransactionUnspentOutput :: Type
 foreign import data StakeCredential :: Type
 foreign import data Ed25519KeyHash :: Type
 foreign import data ScriptHash :: Type
