@@ -10,7 +10,9 @@ import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect.Class (liftEffect)
 import Mote (group, test)
-import Serialization (addressPubKeyHash, convertBigInt, convertTransaction, convertTxOutput, newAddressFromBech32, newBaseAddressFromAddress, newTransactionHash, toBytes)
+import Serialization (addressPubKeyHash, convertBigInt, convertTransaction, convertTxOutput, newAddressFromBech32, newBaseAddressFromAddress, toBytes)
+import Serialization.Types (TransactionHash)
+import Deserialization.FromBytes (fromBytesEffect)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
@@ -28,7 +30,7 @@ suite = do
         let
           txString = "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad959996"
           txBytes = hexToByteArrayUnsafe txString
-        _txHash <- liftEffect $ newTransactionHash txBytes
+        _txHash :: TransactionHash <- liftEffect $ fromBytesEffect txBytes
         pure unit
       test "BaseAddress <-> Address" do
         let
