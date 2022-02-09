@@ -1246,15 +1246,6 @@ let
         sha512 = "5c54Bk5Dw4qAxNOI1pFEizPSjVsx5+bpJKmL2kPn8JhBUq2q09tTCa3mjijun2NfK78NMouDYNMBkOrPZiS+ig==";
       };
     };
-    "dom-walk-0.1.2" = {
-      name = "dom-walk";
-      packageName = "dom-walk";
-      version = "0.1.2";
-      src = fetchurl {
-        url = "https://registry.npmjs.org/dom-walk/-/dom-walk-0.1.2.tgz";
-        sha512 = "6QvTW9mrGeIegrFXdtQi9pk7O/nSK6lSdXW2eqUspN5LWD7UTji2Fqw5V2YLjBpHEoU9Xl/eUWNpDeZvoyOv2w==";
-      };
-    };
     "domelementtype-2.2.0" = {
       name = "domelementtype";
       packageName = "domelementtype";
@@ -1678,15 +1669,6 @@ let
         sha512 = "lkX1HJXwyMcprw/5YUZc2s7DrpAiHB21/V+E1rHUrVNokkvB6bqMzT0VfV6/86ZNabt1k14YOIaT7nDvOX3Iiw==";
       };
     };
-    "global-4.4.0" = {
-      name = "global";
-      packageName = "global";
-      version = "4.4.0";
-      src = fetchurl {
-        url = "https://registry.npmjs.org/global/-/global-4.4.0.tgz";
-        sha512 = "wv/LAoHdRE3BeTGz53FAamhGlPLhlssK45usmGFThIi4XqnBmjKQ16u+RNbP7WvigRZDxUsM0J3gcQ5yicaL0w==";
-      };
-    };
     "globby-11.1.0" = {
       name = "globby";
       packageName = "globby";
@@ -2047,15 +2029,6 @@ let
         sha1 = "a88c02535791f02ed37c76a1b9ea9773c833f8c2";
       };
     };
-    "is-function-1.0.2" = {
-      name = "is-function";
-      packageName = "is-function";
-      version = "1.0.2";
-      src = fetchurl {
-        url = "https://registry.npmjs.org/is-function/-/is-function-1.0.2.tgz";
-        sha512 = "lw7DUp0aWXYg+CBCN+JKkcE0Q2RayZnSvnZBlwgxHBQhqt5pZNVy4Ri7H9GmmXkdu7LUthszM+Tor1u/2iBcpQ==";
-      };
-    };
     "is-glob-4.0.3" = {
       name = "is-glob";
       packageName = "is-glob";
@@ -2398,15 +2371,6 @@ let
         sha512 = "OqbOk5oEQeAZ8WXWydlu9HJjz9WVdEIvamMCcXmuqUYjTknH/sqsWvhQ3vgwKFRR1HpjvNBKQ37nbJgYzGqGcg==";
       };
     };
-    "min-document-2.19.0" = {
-      name = "min-document";
-      packageName = "min-document";
-      version = "2.19.0";
-      src = fetchurl {
-        url = "https://registry.npmjs.org/min-document/-/min-document-2.19.0.tgz";
-        sha1 = "7bd282e3f5842ed295bb748cdd9f1ffa2c824685";
-      };
-    };
     "minimalistic-assert-1.0.1" = {
       name = "minimalistic-assert";
       packageName = "minimalistic-assert";
@@ -2722,15 +2686,6 @@ let
         sha512 = "RXlj7zCYokReqWpOPH9oYivUzLYZ5vAPIfEmCTNViosC78F8F0H9y7T7gG2M39ymgutxF5gcFEsyZQSph9Bp3A==";
       };
     };
-    "parse-headers-2.0.4" = {
-      name = "parse-headers";
-      packageName = "parse-headers";
-      version = "2.0.4";
-      src = fetchurl {
-        url = "https://registry.npmjs.org/parse-headers/-/parse-headers-2.0.4.tgz";
-        sha512 = "psZ9iZoCNFLrgRjZ1d8mn0h9WRqJwFxM9q3x7iUjN/YT2OksthDJ5TiPCu2F38kS4zutqfW+YdVVkBZZx3/1aw==";
-      };
-    };
     "parseurl-1.3.3" = {
       name = "parseurl";
       packageName = "parseurl";
@@ -2873,15 +2828,6 @@ let
       src = fetchurl {
         url = "https://registry.npmjs.org/pretty-error/-/pretty-error-4.0.0.tgz";
         sha512 = "AoJ5YMAcXKYxKhuJGdcvse+Voc6v1RgnsR3nWcYU7q4t6z0Q6T86sv5Zq8VIRbOWWFpvdGE83LtdSMNd+6Y0xw==";
-      };
-    };
-    "process-0.11.10" = {
-      name = "process";
-      packageName = "process";
-      version = "0.11.10";
-      src = fetchurl {
-        url = "https://registry.npmjs.org/process/-/process-0.11.10.tgz";
-        sha1 = "7332300e840161bda3e69a1d1d91a7d4bc16f182";
       };
     };
     "process-nextick-args-2.0.1" = {
@@ -3739,22 +3685,13 @@ let
         sha512 = "Kbk4Nxyq7/ZWqr/tarI9yIt/+iNNFOjBXEWgTb4ydaNHBNGgvf2QHbS9fdfsndfjFlFwEd4Al+mw83YkaD10ZA==";
       };
     };
-    "xhr-2.6.0" = {
-      name = "xhr";
-      packageName = "xhr";
-      version = "2.6.0";
+    "xhr2-0.2.1" = {
+      name = "xhr2";
+      packageName = "xhr2";
+      version = "0.2.1";
       src = fetchurl {
-        url = "https://registry.npmjs.org/xhr/-/xhr-2.6.0.tgz";
-        sha512 = "/eCGLb5rxjx5e3mF1A7s+pLlR6CGyqWN91fv1JgER5mVWg1MZmlhBvy9kjcsOdRk8RrIujotWyJamfyrp+WIcA==";
-      };
-    };
-    "xtend-4.0.2" = {
-      name = "xtend";
-      packageName = "xtend";
-      version = "4.0.2";
-      src = fetchurl {
-        url = "https://registry.npmjs.org/xtend/-/xtend-4.0.2.tgz";
-        sha512 = "LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==";
+        url = "https://registry.npmjs.org/xhr2/-/xhr2-0.2.1.tgz";
+        sha512 = "sID0rrVCqkVNUn8t6xuv9+6FViXjUVXq8H5rWOH2rz9fDNQEd4g0EA2XlcEdJXRz5BMEn4O1pJFdT+z4YHhoWw==";
       };
     };
     "yallist-2.1.2" = {
@@ -3936,7 +3873,6 @@ let
       sources."dns-txt-2.0.2"
       sources."dom-converter-0.2.0"
       sources."dom-serializer-1.3.2"
-      sources."dom-walk-0.1.2"
       sources."domelementtype-2.2.0"
       sources."domhandler-4.3.0"
       sources."domutils-2.8.0"
@@ -3995,7 +3931,6 @@ let
       sources."glob-6.0.4"
       sources."glob-parent-5.1.2"
       sources."glob-to-regexp-0.4.1"
-      sources."global-4.4.0"
       sources."globby-4.1.0"
       sources."graceful-fs-4.2.9"
       sources."handle-thing-2.0.1"
@@ -4041,7 +3976,6 @@ let
       sources."is-date-object-1.0.5"
       sources."is-docker-2.2.1"
       sources."is-extglob-2.1.1"
-      sources."is-function-1.0.2"
       sources."is-glob-4.0.3"
       sources."is-number-7.0.0"
       sources."is-path-cwd-2.2.0"
@@ -4082,7 +4016,6 @@ let
       sources."mime-db-1.51.0"
       sources."mime-types-2.1.34"
       sources."mimic-fn-2.1.0"
-      sources."min-document-2.19.0"
       sources."minimalistic-assert-1.0.1"
       sources."minimatch-3.0.4"
       sources."minimist-1.2.5"
@@ -4117,7 +4050,6 @@ let
       })
       sources."p-try-2.2.0"
       sources."param-case-3.0.4"
-      sources."parse-headers-2.0.4"
       sources."parseurl-1.3.3"
       sources."pascal-case-3.1.2"
       sources."path-exists-4.0.0"
@@ -4139,7 +4071,6 @@ let
         ];
       })
       sources."pretty-error-4.0.0"
-      sources."process-0.11.10"
       sources."process-nextick-args-2.0.1"
       sources."promise-retry-1.1.1"
       (sources."proxy-addr-2.0.7" // {
@@ -4284,8 +4215,7 @@ let
       sources."wildcard-2.0.0"
       sources."wrappy-1.0.2"
       sources."ws-8.4.0"
-      sources."xhr-2.6.0"
-      sources."xtend-4.0.2"
+      sources."xhr2-0.2.1"
       sources."yallist-2.1.2"
     ];
     buildInputs = globalBuildInputs;

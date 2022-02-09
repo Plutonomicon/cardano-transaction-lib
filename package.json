@@ -21,7 +21,7 @@
     "bufferutil": "^4.0.5",
     "uniqid": "^5.4.0",
     "ws": "^8.4.0",
-    "xhr": "^2.6.0"
+    "xhr2": "^0.2.1"
   },
   "devDependencies": {
     "buffer": "^6.0.3",
