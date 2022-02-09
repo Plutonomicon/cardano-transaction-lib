@@ -2,24 +2,27 @@ module Examples.Nami.Simple (main) where
 
 import Prelude
 
-import Serialization (convertTxInput)
-import Effect (Effect)
-import Effect.Console as Console
-import Test.Main as Test
-import Types.Transaction as T
-import Types.ByteArray (hexToByteArrayUnsafe)
 import Data.UInt as UInt
 import Deserialization.UnspentOutput (convertInput)
+import Effect (Effect)
 import Effect.Aff (launchAff_)
+import Effect.Console as Console
+import Serialization (convertTxInput)
+import Test.Main as Test
 import Test.Serialization as Serialization
+import Test.AffInterface as AffInterface
+import Types.ByteArray (hexToByteArrayUnsafe)
+import Types.Transaction as T
 
 main :: Effect Unit
 main = do
   Console.log "Hello browser! Serialization-lib is working:"
   input <- convertTxInput txInputFixture1
   Console.log $ show $ convertInput input
-  launchAff_ $ Test.interpret do
-    Serialization.suite
+  launchAff_ $ do
+    Test.interpret do
+      AffInterface.suite
+      Serialization.suite
 
 txInputFixture1 :: T.TransactionInput
 txInputFixture1 =
