@@ -6,11 +6,10 @@ module Wallet
   ) where
 
 import Prelude
-import Types.ByteArray
 
 import Control.Promise (Promise)
 import Control.Promise as Promise
-import Data.Maybe (Maybe(..), maybe)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Typelevel.Undefined (undefined)
 import Deserialization.Address as Deserialization.Address
 import Deserialization.UnspentOutput as Deserialization.UnspentOuput
@@ -19,8 +18,9 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
 import Serialization as Serialization
-import Types.Transaction (Address, TransactionOutput, Transaction)
-import Types.TransactionUnspentOutput (TransactionUnspentOutput(..))
+import Types.ByteArray (ByteArray, hexToByteArray)
+import Types.Transaction (Address, Transaction)
+import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 
 -- At the moment, we only support Nami's wallet. In the future we will expand
 -- this with more constructors to represent out-of-browser wallets (e.g. WBE)
@@ -75,8 +75,7 @@ mkNamiWalletAff = do
           <$> Serialization.newTransactionUnspentOutputFromBytes bytes
 
   fromNamiHexString
-    :: forall a
-     . (NamiConnection -> Effect (Promise String))
+    :: (NamiConnection -> Effect (Promise String))
     -> NamiConnection
     -> Aff (Maybe ByteArray)
   fromNamiHexString act = map hexToByteArray <<< Promise.toAffE <<< act
