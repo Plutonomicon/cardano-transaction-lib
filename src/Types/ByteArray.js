@@ -65,4 +65,4 @@ exports.byteArrayToIntArray = bytes => Array.from(bytes);
 
 // _byteLength :: Uint8Array -> BigInt
 exports._byteLength = bytes =>
-  Uint8Array.prototype.byteLength(bytes);
+  bytes.byteLength;

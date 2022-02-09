@@ -1,37 +1,26 @@
 module BalanceTx
-  ( Actual(Actual)
-  -- , AddSignatoriesFailure(AddSignatoriesFailure)
-  -- , AddSignatoriesFailureReason(SigningAddressNotFound)
-  , AddTxCollateralsFailure(AddTxCollateralsFailure)
-  , AddTxCollateralsFailureReason(CollateralUtxosUnavailable)
-  , BalanceNonAdaOutsFailure(BalanceNonAdaOutsFailure)
+  ( Actual(..)
+  , AddTxCollateralsFailure(..)
+  , AddTxCollateralsFailureReason(..)
+  , BalanceNonAdaOutsFailure(..)
   , BalanceNonAdaOutsFailureReason(..)
   , BalanceTxFailure(..)
-  , BalanceTxInsFailure(BalanceTxInsFailure)
+  , BalanceTxInsFailure(..)
   , BalanceTxInsFailureReason(..)
-  -- , BalanceTxMFailure(BalanceTxMFailure)
-  -- , BalanceTxMFailureReason(UnknownRequiredSigners)
-  , BuildTxRawFailure(BuildTxRawFailure)
-  , BuildTxRawFailureReason(CannotBuildTxRaw)
-  , CalculateMinFeeFailure(CalculateMinFeeFailure)
-  , CalculateMinFeeFailureReason(CannotCalculateMinFee)
+  , BuildTxRawFailure(..)
+  , BuildTxRawFailureReason(..)
+  , CalculateMinFeeFailure(..)
+  , CalculateMinFeeFailureReason(..)
   , CannotMinusFailureReason(..)
-  , Expected(Expected)
-  , Impossible(Impossible)
-  , ReturnAdaChangeFailure(ReturnAdaChangeFailure)
-  , ReturnAdaChangeFailureReason
-      ( CouldNotModifyUtxo
-      , CouldNotModifyUtxoHead
-      , InputAdaDoesNotCoverSingleAdaOutput
-      , NotEnoughAdaInputAfterPrebalance
-      , ReturnAdaChangeBuildTxRaw
-      , ReturnAdaChangeCalculateMinFee
-      )
-  , ToEitherTransactionInputFailure(ToEitherTransactionInputFailure)
-  , ToEitherTransactionInputFailureReason(CannotConvertScriptOutputToTxInput)
-  , UnbalancedTransaction(UnbalancedTransaction)
-  , UtxosAtFailure(UtxosAtFailure)
-  , UtxosAtFailureReason(CouldNotGetUtxos)
+  , Expected(..)
+  , Impossible(..)
+  , ReturnAdaChangeFailure(..)
+  , ReturnAdaChangeFailureReason(..)
+  , ToEitherTransactionInputFailure(..)
+  , ToEitherTransactionInputFailureReason(..)
+  , UnbalancedTransaction(..)
+  , UtxosAtFailure(..)
+  , UtxosAtFailureReason(..)
   , balanceTxM -- Transaction balancer function
   ) where
 
@@ -74,8 +63,7 @@ import Types.Transaction
   , UtxoM
   )
 import Types.Value
-  ( fromValue
-  , filterNonAda
+  ( filterNonAda
   , geq
   , getLovelace
   , lovelaceValueOf
@@ -86,6 +74,7 @@ import Types.Value
   , numCurrencySymbols
   , numTokenNames
   , sumTokenNameLengths
+  , valueToCoin
   , Value
   )
 
@@ -236,7 +225,7 @@ newtype Actual = Actual Value
 derive instance newtypeActual :: Newtype Actual _
 
 instance showActual :: Show Actual where
-  show = show  <<< unwrap
+  show = show <<< unwrap
 
 newtype BalanceNonAdaOutsFailure = BalanceNonAdaOutsFailure BalanceNonAdaOutsFailureReason
 
@@ -434,14 +423,14 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) = do
     inputValue = getInputValue utxos (wrap txBody)
 
     inputAda :: BigInt
-    inputAda = getLovelace $ fromValue inputValue
+    inputAda = getLovelace $ valueToCoin inputValue
 
     -- FIX ME, ignore mint value?
     outputValue :: Value
     outputValue = Array.foldMap getAmount txOutputs
 
     outputAda :: BigInt
-    outputAda = getLovelace $ fromValue outputValue
+    outputAda = getLovelace $ valueToCoin outputValue
 
     returnAda :: BigInt
     returnAda = inputAda - outputAda - fees
@@ -820,7 +809,7 @@ addLovelaces minLovelaces (TxBody txBody) =
               outValue = txOut.amount
 
               lovelaces :: BigInt
-              lovelaces = getLovelace $ fromValue outValue
+              lovelaces = getLovelace $ valueToCoin outValue
 
               minUtxo :: BigInt
               minUtxo = fromMaybe zero $ Foldable.lookup txOut' minLovelaces

@@ -13,7 +13,7 @@ module Serialization
   ) where
 
 import Data.BigInt as BigInt
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse_, for_)
 import Data.FoldableWithIndex (forWithIndex_)
@@ -181,11 +181,16 @@ convertAddress address = do
   baseAddressToAddress base_address
 
 convertValue :: Value.Value -> Effect Value
-convertValue (Value.Value (Value.Coin lovelace) (Value.NonAdaAsset m)) = do
+convertValue val = do
+  let
+    lovelace = Value.valueToCoin' val
+    m = Value.getNonAdaAsset' val
   multiasset <- newMultiAsset
-  forWithIndex_ m \(Value.CurrencySymbol scriptHashBytes) values -> do
+  forWithIndex_ m \scriptHashBytes' values -> do
+    let scriptHashBytes = Value.getCurrencySymbol scriptHashBytes'
     assets <- newAssets
-    forWithIndex_ values \(Value.TokenName tokenName) bigIntValue -> do
+    forWithIndex_ values \tokenName' bigIntValue -> do
+      let tokenName = Value.getTokenName tokenName'
       assetName <- newAssetName tokenName
       value <- newBigNum (BigInt.toString bigIntValue)
       insertAssets assets assetName value

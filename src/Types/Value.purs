@@ -6,9 +6,13 @@ module Types.Value
   , Value
   , eq
   , filterNonAda
-  , fromValue
+  , valueToCoin
+  , valueToCoin'
   , geq
+  , getCurrencySymbol
   , getLovelace
+  , getNonAdaAsset
+  , getNonAdaAsset'
   , getTokenName
   , gt
   , isAdaOnly
@@ -21,14 +25,17 @@ module Types.Value
   , mkCoin
   , mkCurrencySymbol
   , mkNonAdaAsset
+  , mkNonAdaAssets
+  , mkNonAdaAssetsFromTokenMap
+  , mkSingletonNonAdaAsset
   , mkSingletonValue
-  , mkSingletonValue'
   , mkTokenName
+  , mkTokenNames
   , mkValue
   , numCurrencySymbols
   , numTokenNames
   , sumTokenNameLengths
-  , toValue
+  , coinToValue
   , valueOf
   )
   where
@@ -38,17 +45,18 @@ import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Data.Array (filter)
 import Data.BigInt (BigInt, fromInt)
+import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Foldable (any, fold, foldl, length)
 import Data.Generic.Rep (class Generic)
 import Data.List ((:), all, List(Nil))
-import Data.Map (keys, lookup, Map, toUnfoldable, unions, values)
+import Data.Map (keys, lookup, Map, member, toUnfoldable, unions, values)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype)
 import Data.Set (Set)
 import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This))
-import Data.Traversable (traverse)
+import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested ((/\), type (/\))
 
 import Serialization.Hash (scriptHashFromBytes)
@@ -74,8 +82,8 @@ instance monoidCoin :: Monoid Coin where
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value
 
-mkCoin :: BigInt -> Coin
-mkCoin = Coin
+mkCoin :: Int -> Coin
+mkCoin = Coin <<< fromInt
 
 getLovelace :: Coin -> BigInt
 getLovelace (Coin l) = l
@@ -84,12 +92,15 @@ lovelaceValueOf :: BigInt -> Value
 lovelaceValueOf = flip (Value <<< Coin) mempty
 
 -- | Create a 'Value' containing only the given 'Coin/Ada'.
-toValue :: Coin -> Value
-toValue (Coin i) = lovelaceValueOf i
+coinToValue :: Coin -> Value
+coinToValue (Coin i) = lovelaceValueOf i
 
 -- | Get the 'Coin/Ada' in the given 'Value'.
-fromValue :: Value -> Coin
-fromValue v = Coin (valueOf v adaSymbol adaToken)
+valueToCoin :: Value -> Coin
+valueToCoin = Coin <<< valueToCoin'
+
+valueToCoin' :: Value -> BigInt
+valueToCoin' v = valueOf v adaSymbol adaToken
 
 newtype CurrencySymbol = CurrencySymbol ByteArray
 
@@ -98,6 +109,9 @@ derive newtype instance ordCurrencySymbol :: Ord CurrencySymbol
 
 instance showCurrencySymbol :: Show CurrencySymbol where
   show (CurrencySymbol cs) = show cs
+
+getCurrencySymbol :: CurrencySymbol -> ByteArray
+getCurrencySymbol (CurrencySymbol curSymbol) = curSymbol
 
 -- Currency symbol for Ada, do not use inside NonAdaAsset map - do not export.
 -- For internal use only
@@ -130,11 +144,22 @@ getTokenName (TokenName tokenName) = tokenName
 adaToken :: TokenName
 adaToken = TokenName mempty
 
+-- Do we really need a smart constructor for TokenName if all we are doing
+-- is checking its length? Is it safe to export its constructor?
 -- | Create a TokenName from a ByteArray since TokenName data constructor is not
 -- | exported
 mkTokenName :: ByteArray -> Maybe TokenName
 mkTokenName byteArr =
   if byteLength byteArr >= 0 then pure $ TokenName byteArr else Nothing
+
+-- | Creates a Map of TokenName and Big Integers from a Traversable of 2-tuple
+-- | ByteArray and Big Integers with the possibility of failure
+mkTokenNames
+  ::  forall t
+   . Traversable t
+  => t (ByteArray /\ BigInt)
+  -> Maybe (Map TokenName BigInt)
+mkTokenNames = traverse (ltraverse mkTokenName) >>> map Map.fromFoldable
 
 -- -- Create an Ada TokenName from a ByteArray - do not export
 -- unsafeMkAdaToken :: ByteArray -> Maybe TokenName
@@ -154,11 +179,67 @@ instance semigroupNonAdaAsset :: Semigroup NonAdaAsset where
 instance monoidNonAdaAsset :: Monoid NonAdaAsset where
   mempty = NonAdaAsset Map.empty
 
-mkNonAdaAsset :: CurrencySymbol -> TokenName -> BigInt -> Maybe NonAdaAsset
-mkNonAdaAsset curSymbol tokenName amount =
+mkSingletonNonAdaAsset
+  :: CurrencySymbol
+  -> TokenName
+  -> BigInt
+  -> Maybe NonAdaAsset
+mkSingletonNonAdaAsset curSymbol tokenName amount =
   if curSymbol == adaSymbol then Nothing
   else
     pure $ NonAdaAsset $ Map.singleton curSymbol $ Map.singleton tokenName amount
+
+-- Assume all CurrencySymbol are well-formed at this point, since they come from
+-- mkCurrencySymbol. If someone somehow puts an adaSymbol in, it fails.
+-- Fix me: can we assume CS are safely constructed at this point?
+mkNonAdaAsset :: Map CurrencySymbol (Map TokenName BigInt) -> Maybe NonAdaAsset
+mkNonAdaAsset m =
+  if adaSymbol `member` m then Nothing
+  else pure $ NonAdaAsset m
+
+mkNonAdaAssetsFromTokenMap'
+  :: forall t
+  . Traversable t
+  => t (ByteArray /\ Map TokenName BigInt)
+  -> Maybe (Map CurrencySymbol (Map TokenName BigInt))
+mkNonAdaAssetsFromTokenMap' =
+  traverse (ltraverse mkCurrencySymbol) >>> map Map.fromFoldable
+
+-- Don't need mkNonAdaAsset here, we could just use Data Constructor since
+-- mkCurrencySymbol is called inside mkNonAdaAssets'
+mkNonAdaAssetsFromTokenMap
+  :: forall t
+  . Traversable t
+  => t (ByteArray /\ Map TokenName BigInt)
+  -> Maybe NonAdaAsset
+mkNonAdaAssetsFromTokenMap xs = mkNonAdaAssetsFromTokenMap' xs >>= mkNonAdaAsset
+
+mkNonAdaAssets'
+  :: forall s t
+  .  Traversable s
+  => Traversable t
+  => s (ByteArray /\ t (ByteArray /\ BigInt))
+  -> Maybe (Map CurrencySymbol (Map TokenName BigInt))
+mkNonAdaAssets' =
+  traverse (bitraverse mkCurrencySymbol mkTokenNames) >>> map Map.fromFoldable
+
+-- Don't need mkNonAdaAsset here, we could just use Data Constructor since
+-- mkCurrencySymbol is called inside mkNonAdaAssets'
+-- | Given a Traversable of ByteArrays and amounts to safely convert into a
+-- | NonAdaAsset
+mkNonAdaAssets
+  :: forall s t
+  .  Traversable s
+  => Traversable t
+  => s (ByteArray /\ t (ByteArray /\ BigInt))
+  -> Maybe NonAdaAsset
+mkNonAdaAssets xs = mkNonAdaAssets' xs >>= mkNonAdaAsset
+
+getNonAdaAsset :: Value -> NonAdaAsset
+getNonAdaAsset (Value _ nonAdaAsset) = nonAdaAsset
+
+getNonAdaAsset' :: Value -> Map CurrencySymbol (Map TokenName BigInt)
+getNonAdaAsset' (Value _ (NonAdaAsset nonAdaAsset)) = nonAdaAsset
 
 -- | In Plutus, Ada is is stored inside the map (with currency symbol and token
 -- | name being empty bytestrings). cardano-serialization-lib makes semantic
@@ -170,8 +251,8 @@ derive instance eqValue :: Eq Value
 instance showValue :: Show Value where
   show (Value coin nonAdaAsset) =
     show coin
-    <> " and NonAdaAssets: "
-    <> show nonAdaAsset
+      <> " and NonAdaAssets: "
+      <> show nonAdaAsset
 
 instance semigroupValue :: Semigroup Value where
   append (Value c1 m1) (Value c2 m2) = Value (c1 <> c2) (m1 <> m2)
@@ -179,6 +260,9 @@ instance semigroupValue :: Semigroup Value where
 instance monoidValue :: Monoid Value where
   mempty = Value mempty mempty
 
+-- Do we want to do checks on NonAdaAsset just in case?
+-- | Create a Value from Coin and NonAdaAsset, the latter should have been
+-- | constructed safely at this point.
 mkValue :: Coin -> NonAdaAsset -> Value
 mkValue coin nonAdaAsset = Value coin nonAdaAsset
 
