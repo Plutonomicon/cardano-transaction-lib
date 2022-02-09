@@ -1,4 +1,6 @@
-if (typeof BROWSER_RUNTIME != 'undefined' && !BROWSER_RUNTIME) {
+/* global require exports */
+
+if (typeof BROWSER_RUNTIME == 'undefined' || !BROWSER_RUNTIME) {
     var WebSocket = require("ws");
 }
 
