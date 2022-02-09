@@ -136,7 +136,7 @@ type ServerConfig =
 
 defaultServerConfig :: ServerConfig
 defaultServerConfig =
-  { port: UInt.fromInt 8001
+  { port: UInt.fromInt 8081
   , host: "localhost"
   , secure: false
   }
