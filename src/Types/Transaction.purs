@@ -207,6 +207,13 @@ newtype TransactionWitnessSet = TransactionWitnessSet
   , redeemers :: Maybe (Array Redeemer)
   }
 
+derive instance Generic TransactionWitnessSet _
+derive instance Newtype TransactionWitnessSet _
+derive newtype instance Eq TransactionWitnessSet
+
+instance Show TransactionWitnessSet where
+  show = genericShow
+
 type BootstrapWitness =
   { vkey :: Vkey
   , signature :: Ed25519Signature
@@ -236,10 +243,18 @@ instance Show Bech32 where
 
 newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
+derive instance Generic Vkeywitness _
+derive newtype instance Eq Vkeywitness
+
+instance Show Vkeywitness where
+  show = genericShow
+
 newtype Vkey = Vkey PublicKey
 
 derive instance Generic Vkey _
 derive instance Newtype Vkey _
+derive newtype instance Eq Vkey
+
 instance Show Vkey where
   show = genericShow
 
@@ -247,17 +262,35 @@ newtype PublicKey = PublicKey Bech32
 
 derive instance Generic PublicKey _
 derive instance Newtype PublicKey _
+derive newtype instance Eq PublicKey
+
 instance Show PublicKey where
   show = genericShow
 
 newtype Ed25519Signature = Ed25519Signature Bech32
 
+derive instance Generic Ed25519Signature _
+derive newtype instance Eq Ed25519Signature
+
+instance Show Ed25519Signature where
+  show = genericShow
+
 newtype PlutusScript = PlutusScript ByteArray
 
 derive instance newtypePlutusScript :: Newtype PlutusScript _
 derive newtype instance eqPlutusScript :: Eq PlutusScript
+derive instance Generic PlutusScript _
+
+instance Show PlutusScript where
+  show = genericShow
 
 newtype PlutusData = PlutusData ByteArray
+
+derive instance Generic PlutusData _
+derive newtype instance Eq PlutusData
+
+instance Show PlutusData where
+  show = genericShow
 
 newtype Redeemer = Redeemer
   { tag :: RedeemerTag
@@ -265,6 +298,12 @@ newtype Redeemer = Redeemer
   , data :: PlutusData
   , ex_units :: ExUnits
   }
+
+derive instance Generic Redeemer _
+derive newtype instance Eq Redeemer
+
+instance Show Redeemer where
+  show = genericShow
 
 type AuxiliaryData =
   { metadata :: Maybe GeneralTransactionMetadata
@@ -303,6 +342,10 @@ data NativeScript
   | TimelockExpiry
 
 derive instance eqNativeScript :: Eq NativeScript
+derive instance Generic NativeScript _
+
+instance Show NativeScript where
+  show = genericShow
 
 newtype TransactionInput = TransactionInput
   { transaction_id :: TransactionHash
