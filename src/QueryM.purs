@@ -11,6 +11,7 @@ module QueryM
   , getWalletCollateral
   , mkOgmiosWebSocketAff
   , ogmiosAddressToAddress
+  , signTransaction
   , utxosAt
   ) where
 
@@ -126,6 +127,10 @@ getWalletCollateral = asks _.wallet >>= case _ of
   Just (Nami nami) -> liftAff $
     nami.getCollateral =<< liftEffect (Ref.read nami.connection)
   Nothing -> pure Nothing
+
+-- TODO A placeholder for now so work on other components can continue
+signTransaction :: Transaction.Transaction -> QueryM Transaction.Transaction
+signTransaction = pure
 
 --------------------------------------------------------------------------------
 -- OgmiosWebSocket Setup and PrimOps

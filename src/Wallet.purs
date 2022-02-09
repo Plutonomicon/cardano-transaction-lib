@@ -51,7 +51,7 @@ mkNamiWalletAff = do
     { connection
     , getWalletAddress
     , getCollateral
-    , signTx: undefined -- TODO
+    , signTx
     }
 
   where
@@ -73,6 +73,9 @@ mkNamiWalletAff = do
       liftEffect $
         Deserialization.UnspentOuput.convertUnspentOutput
           <$> Serialization.newTransactionUnspentOutputFromBytes bytes
+
+  signTx :: NamiConnection -> Transaction -> Aff Transaction
+  signTx nami = undefined -- TODO
 
   fromNamiHexString
     :: (NamiConnection -> Effect (Promise String))
