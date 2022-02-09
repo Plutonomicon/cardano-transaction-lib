@@ -4441,6 +4441,15 @@ let
         sha512 = "Kbk4Nxyq7/ZWqr/tarI9yIt/+iNNFOjBXEWgTb4ydaNHBNGgvf2QHbS9fdfsndfjFlFwEd4Al+mw83YkaD10ZA==";
       };
     };
+    "xhr2-0.2.1" = {
+      name = "xhr2";
+      packageName = "xhr2";
+      version = "0.2.1";
+      src = fetchurl {
+        url = "https://registry.npmjs.org/xhr2/-/xhr2-0.2.1.tgz";
+        sha512 = "sID0rrVCqkVNUn8t6xuv9+6FViXjUVXq8H5rWOH2rz9fDNQEd4g0EA2XlcEdJXRz5BMEn4O1pJFdT+z4YHhoWw==";
+      };
+    };
     "xtend-4.0.2" = {
       name = "xtend";
       packageName = "xtend";
@@ -5084,6 +5093,7 @@ let
       sources."wildcard-2.0.0"
       sources."wrappy-1.0.2"
       sources."ws-8.4.0"
+      sources."xhr2-0.2.1"
       sources."xtend-4.0.2"
       sources."yallist-2.1.2"
     ];
