@@ -1,13 +1,17 @@
 module Ogmios
   ( DispatchIdMap
+  , Host
   , ListenerSet
   , Listeners
   , OgmiosWebSocket(OgmiosWebSocket)
   , QueryConfig
   , QueryM
+  , ServerConfig
   , WebSocket
   , addressToOgmiosAddress
+  , defaultServerConfig
   , mkOgmiosWebSocketAff
+  , mkServerUrl
   , ogmiosAddressToAddress
   , utxosAt
   ) where
@@ -22,9 +26,11 @@ import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
 import Data.Map as Map
 import Data.Maybe (maybe, Maybe(Just, Nothing))
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (sequence)
 import Data.Tuple.Nested (type (/\))
+import Data.UInt (UInt)
+import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Aff.Class (liftAff)
@@ -75,7 +81,7 @@ type Url = String
 
 -- when we add multiple query backends or wallets,
 -- we just need to extend this type
-type QueryConfig = { ws :: OgmiosWebSocket }
+type QueryConfig = { ws :: OgmiosWebSocket, serverConfig :: ServerConfig }
 
 type QueryM a = ReaderT QueryConfig Aff a
 
@@ -106,6 +112,34 @@ utxosAt' addr = do
 
 allowError :: (Either Error UtxoQR -> Effect Unit) -> UtxoQR -> Effect Unit
 allowError func = func <<< Right
+
+--------------------------------------------------------------------------------
+-- Config for connecting to HTTP Haskell server
+--------------------------------------------------------------------------------
+
+type ServerConfig =
+  { port :: UInt
+  , host :: Host
+  , secure :: Boolean
+  }
+
+defaultServerConfig :: ServerConfig
+defaultServerConfig =
+  { port: UInt.fromInt 8001
+  , host: "localhost"
+  , secure: false
+  }
+
+type Host = String
+
+mkServerUrl :: ServerConfig -> Url
+mkServerUrl cfg =
+  if cfg.secure then "https"
+  else "http"
+    <> "://"
+    <> cfg.host
+    <> ":"
+    <> show cfg.port
 
 --------------------------------------------------------------------------------
 -- OgmiosWebSocket Setup and PrimOps

@@ -8,7 +8,7 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import TestM (TestPlanM)
 import Mote (group, test)
-import Ogmios (addressToOgmiosAddress, mkOgmiosWebSocketAff, ogmiosAddressToAddress, utxosAt)
+import Ogmios (addressToOgmiosAddress, defaultServerConfig, mkOgmiosWebSocketAff, ogmiosAddressToAddress, utxosAt)
 import Test.Spec.Assertions (shouldEqual)
 import Types.JsonWsp (Address)
 
@@ -42,7 +42,9 @@ testUtxosAt testAddr = do
   addr' <- liftEffect $ ogmiosAddressToAddress testAddr
   case addr' of
     Nothing -> liftEffect $ throw "Failed UtxosAt"
-    Just addr -> runReaderT (utxosAt addr *> pure unit) { ws }
+    Just addr -> runReaderT
+      (utxosAt addr *> pure unit)
+      { ws, serverConfig: defaultServerConfig }
 
 testFromOgmiosAddress :: Address -> Aff Unit
 testFromOgmiosAddress testAddr = do
