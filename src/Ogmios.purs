@@ -143,8 +143,7 @@ type Host = String
 
 mkServerUrl :: ServerConfig -> Url
 mkServerUrl cfg =
-  if cfg.secure then "https"
-  else "http"
+  (if cfg.secure then "https" else "http")
     <> "://"
     <> cfg.host
     <> ":"
