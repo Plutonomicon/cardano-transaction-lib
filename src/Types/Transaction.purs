@@ -257,18 +257,14 @@ newtype PlutusScript = PlutusScript ByteArray
 derive instance newtypePlutusScript :: Newtype PlutusScript _
 derive newtype instance eqPlutusScript :: Eq PlutusScript
 
-newtype PlutusData = PlutusData String
+newtype PlutusData = PlutusData ByteArray
 
 newtype Redeemer = Redeemer
   { tag :: RedeemerTag
   , index :: BigInt
   , data :: PlutusData
-  , ex_units :: (MemExUnits /\ CpuExUnits)
+  , ex_units :: ExUnits
   }
-
-newtype MemExUnits = MemExUnits BigInt
-
-newtype CpuExUnits = CpuExUnits BigInt
 
 type AuxiliaryData =
   { metadata :: Maybe GeneralTransactionMetadata
