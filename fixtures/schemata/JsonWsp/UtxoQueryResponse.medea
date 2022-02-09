@@ -74,7 +74,7 @@ $schema txOutRef
         $property-name "txId"
         $property-schema $string
         $property-name "index"
-        $property-schema $string
+        $property-schema $number
 
 $schema ogmiosTxOut
     $type
@@ -92,7 +92,7 @@ $schema valueType
         $object
     $properties
         $property-name "coins"
-        $property-schema $string
+        $property-schema $number
         $property-name "assets"
         $property-schema $object
 
