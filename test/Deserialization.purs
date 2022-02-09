@@ -1,4 +1,4 @@
-module Test.Deserialization where
+module Test.Deserialization (suite) where
 
 import Prelude
 

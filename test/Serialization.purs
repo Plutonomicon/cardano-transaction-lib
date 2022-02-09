@@ -1,4 +1,4 @@
-module Test.Serialization where
+module Test.Serialization (suite) where
 
 import Prelude
 
