@@ -10,6 +10,7 @@ module Ogmios
   , ServerConfig
   , WebSocket
   , addressToOgmiosAddress
+  , calculateMinFee
   , defaultServerConfig
   , mkOgmiosWebSocketAff
   , mkServerUrl
@@ -18,13 +19,17 @@ module Ogmios
   ) where
 
 import Prelude
+import Undefined
 
+import Affjax as Affjax
+import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Reader.Trans (ReaderT, ask)
+import Control.Monad.Reader.Trans (ReaderT, ask, asks)
 import Control.Monad.Trans.Class (lift)
 import Data.Argonaut as Json
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
+import Data.Bifunctor (bimap, lmap)
 import Data.Bitraversable (bisequence, bitraverse)
 import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
@@ -49,6 +54,7 @@ import Serialization as Serialization
 import Types.ByteArray (hexToByteArray)
 import Types.JsonWsp (Address, OgmiosTxOut, JsonWspResponse, mkUtxosAtQuery, parseJsonWspResponse, TxOutRef, UtxoQR(UtxoQR))
 import Types.Transaction as Transaction
+import Types.Value (Coin(Coin))
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -158,6 +164,23 @@ instance Json.DecodeJson FeeEstimate where
     where
     err :: Json.JsonDecodeError
     err = Json.TypeMismatch "Expected `BigInt` wrapped in quotes"
+
+data FeeEstimateError
+  = FeeEstimateHttpError Affjax.Error
+  | FeeEstimateDecodeJsonError Json.JsonDecodeError
+
+-- Query the Haskell server for the minimum transaction fee
+calculateMinFee
+  :: Transaction.Transaction -> QueryM (Either FeeEstimateError Coin)
+calculateMinFee tx = do
+  url <- asks $ mkServerUrl <<< _.serverConfig
+  liftAff (Affjax.get Affjax.ResponseFormat.json url) <#> case _ of
+    Left e -> Left $ FeeEstimateHttpError e
+    Right resp ->
+      bimap
+        FeeEstimateDecodeJsonError
+        (Coin <<< (unwrap :: FeeEstimate -> BigInt))
+        $ Json.decodeJson resp.body
 
 --------------------------------------------------------------------------------
 -- OgmiosWebSocket Setup and PrimOps
