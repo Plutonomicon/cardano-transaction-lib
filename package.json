@@ -20,7 +20,8 @@
     "big-integer": "^1.6.51",
     "bufferutil": "^4.0.5",
     "uniqid": "^5.4.0",
-    "ws": "^8.4.0"
+    "ws": "^8.4.0",
+    "xhr": "^2.6.0"
   },
   "devDependencies": {
     "buffer": "^6.0.3",
