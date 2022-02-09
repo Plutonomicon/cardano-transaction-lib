@@ -1,6 +1,7 @@
 module Ogmios
   ( DispatchIdMap
   , FeeEstimate(FeeEstimate)
+  , FeeEstimateError(FeeEstimateHttpError, FeeEstimateDecodeJsonError)
   , Host
   , ListenerSet
   , Listeners
@@ -51,10 +52,11 @@ import Effect.Ref as Ref
 import Helpers as Helpers
 import Serialization (addressBech32, newAddressFromBech32)
 import Serialization as Serialization
-import Types.ByteArray (hexToByteArray)
+import Types.ByteArray (hexToByteArray, byteArrayToHex)
 import Types.JsonWsp (Address, OgmiosTxOut, JsonWspResponse, mkUtxosAtQuery, parseJsonWspResponse, TxOutRef, UtxoQR(UtxoQR))
 import Types.Transaction as Transaction
 import Types.Value (Coin(Coin))
+import Untagged.Union (asOneOf)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -174,13 +176,19 @@ calculateMinFee
   :: Transaction.Transaction -> QueryM (Either FeeEstimateError Coin)
 calculateMinFee tx = do
   url <- asks $ mkServerUrl <<< _.serverConfig
-  liftAff (Affjax.get Affjax.ResponseFormat.json url) <#> case _ of
-    Left e -> Left $ FeeEstimateHttpError e
-    Right resp ->
-      bimap
-        FeeEstimateDecodeJsonError
-        (Coin <<< (unwrap :: FeeEstimate -> BigInt))
-        $ Json.decodeJson resp.body
+  txHex <- liftEffect $
+    byteArrayToHex
+      <<< Serialization.toBytes
+      <<< asOneOf
+      <$> Serialization.convertTransaction tx
+  liftAff (Affjax.get Affjax.ResponseFormat.json $ url <> "?tx=" <> txHex)
+    <#> case _ of
+      Left e -> Left $ FeeEstimateHttpError e
+      Right resp ->
+        bimap
+          FeeEstimateDecodeJsonError
+          (Coin <<< (unwrap :: FeeEstimate -> BigInt))
+          $ Json.decodeJson resp.body
 
 --------------------------------------------------------------------------------
 -- OgmiosWebSocket Setup and PrimOps
