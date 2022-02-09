@@ -16,6 +16,7 @@ module BalanceTx
       , CalculateMinFeeFailure'
       , ReturnAdaChangeFailure'
       , ToEitherTransactionInputFailure'
+      , UtxosAtFailure'
       )
   , BalanceTxInsFailure(BalanceTxInsFailure)
   , BalanceTxInsFailureReason(InsufficientTxInputs)
@@ -39,6 +40,8 @@ module BalanceTx
   , ToEitherTransactionInputFailure(ToEitherTransactionInputFailure)
   , ToEitherTransactionInputFailureReason(CannotConvertScriptOutputToTxInput)
   , UnbalancedTransaction(UnbalancedTransaction)
+  , UtxosAtFailure(UtxosAtFailure)
+  , UtxosAtFailureReason(CouldNotGetUtxos)
   , balanceTxM -- Transaction balancer function
   ) where
 
@@ -59,9 +62,6 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Aff (Aff)
-import Undefined (undefined)
-
-import QueryM (QueryM)
 import ProtocolParametersAlonzo
   ( coinSize
   , lovelacePerUTxOWord
@@ -69,6 +69,7 @@ import ProtocolParametersAlonzo
   , protocolParamUTxOCostPerWord
   , utxoEntrySizeWithoutVal
   )
+import QueryM (QueryM, utxosAt)
 import Types.ByteArray (byteLength)
 import Types.Transaction
   ( Address
@@ -97,6 +98,7 @@ import Types.Value
   , TokenName
   , Value(Value)
   )
+import Undefined (undefined)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
@@ -107,8 +109,9 @@ import Types.Value
 -- These derivations may need tweaking when testing to make sure they are easy
 -- to read, especially with generic show vs newtype show derivations.
 data BalanceTxFailure
-  -- = BalanceTxMFailure' BalanceTxMFailure -- REMOVE OR CHANGE THIS
-  = ReturnAdaChangeFailure' ReturnAdaChangeFailure
+  = UtxosAtFailure' UtxosAtFailure
+  -- | BalanceTxMFailure' BalanceTxMFailure -- REMOVE OR CHANGE THIS
+  | ReturnAdaChangeFailure' ReturnAdaChangeFailure
   | AddTxCollateralsFailure' AddTxCollateralsFailure
   | ToEitherTransactionInputFailure' ToEitherTransactionInputFailure
   | BalanceTxInsFailure' BalanceTxInsFailure
@@ -121,6 +124,16 @@ derive instance genericBalanceTxFailure :: Generic BalanceTxFailure _
 
 instance showBalanceTxFailure :: Show BalanceTxFailure where
   show = genericShow
+
+newtype UtxosAtFailure = UtxosAtFailure UtxosAtFailureReason
+
+derive instance newtypeUtxosAtFailure :: Newtype UtxosAtFailure _
+derive newtype instance showUtxosAtFailure :: Show UtxosAtFailure
+
+data UtxosAtFailureReason = CouldNotGetUtxos
+
+instance showUtxosAtFailureReason :: Show UtxosAtFailureReason where
+  show CouldNotGetUtxos = "Couldn't get utxos at address."
 
 -- newtype BalanceTxMFailure = BalanceTxMFailure BalanceTxMFailureReason
 
@@ -274,10 +287,6 @@ instance showCalculateMinFeeFailureReason :: Show CalculateMinFeeFailureReason w
 -- Output utxos with the amount of lovelaces required.
 type MinUtxos = Array (TransactionOutput /\ BigInt)
 
--- TO DO: convert utxosAt from Ogmios to Transaction space.
-utxosAt :: Address -> QueryM UtxoM
-utxosAt = undefined
-
 -- Taken from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-constraints/html/Ledger-Constraints-OffChain.html#t:UnbalancedTx
 -- to demonstrate what is required. This is temporary to make the compiler happy.
 -- I haven't copied it exactly, instead just a minimal version given our
@@ -309,19 +318,24 @@ balanceTxM
   -> UnbalancedTransaction
   -> QueryM (Either BalanceTxFailure Transaction)
 balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
-  utxos :: Utxo <- unwrap <$> utxosAt ownAddr
-  let -- Combines utxos at the user address and those from any scripts involved
-    -- with the contract.
-    utxoIndex' :: Utxo
-    utxoIndex' = utxos `Map.union` unwrap utxoIndex
-  -- Sign before instead of recursively signing in loop.
-  signedUnbalancedTx :: Transaction <- lift $ signTx unbalancedTx
-  prebalancedTx' :: Either BalanceTxFailure Transaction <-
-    loop utxoIndex' ownAddr [] signedUnbalancedTx
-  pure do
-    prebalancedTx :: Transaction <- prebalancedTx'
-    lmap ReturnAdaChangeFailure' $
-      returnAdaChange ownAddr utxoIndex' prebalancedTx
+  utxos' :: Either BalanceTxFailure Utxo <-
+    utxosAt ownAddr <#>
+      note (UtxosAtFailure' $ wrap CouldNotGetUtxos) >>> map unwrap
+  case utxos' of
+    Left err -> pure $ Left err
+    Right utxos -> do
+      let -- Combines utxos at the user address and those from any scripts involved
+        -- with the contract.
+        utxoIndex' :: Utxo
+        utxoIndex' = utxos `Map.union` unwrap utxoIndex
+      -- Sign before instead of recursively signing in loop.
+      signedUnbalancedTx :: Transaction <- lift $ signTx unbalancedTx
+      prebalancedTx' :: Either BalanceTxFailure Transaction <-
+        loop utxoIndex' ownAddr [] signedUnbalancedTx
+      pure do
+        prebalancedTx :: Transaction <- prebalancedTx'
+        lmap ReturnAdaChangeFailure' $
+          returnAdaChange ownAddr utxoIndex' prebalancedTx
   where
   loop
     :: Utxo

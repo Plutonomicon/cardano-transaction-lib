@@ -14,6 +14,7 @@ import Data.Traversable (traverse, traverse_)
 import Effect.Aff (Aff)
 import Effect.Exception (error)
 import Effect.Exception.Unsafe (unsafeThrowException)
+import Helpers (parseJsonStringifyNumbers)
 import Node.FS.Aff (readTextFile)
 import Node.Encoding (Encoding(UTF8))
 import Test.Spec.Assertions (shouldSatisfy, shouldNotSatisfy)
@@ -23,14 +24,22 @@ import Types.JsonWsp (JsonWspResponse, UtxoQR, parseJsonWspResponse)
 
 suite :: TestPlanM Unit
 suite = do
-  eJson <- lift $ Json.parseJson <$> readTextFile UTF8 "./fixtures/test/parsing/JsonWsp/UtxoQueryResponse.json"
+  str <- lift $ readTextFile UTF8 "./fixtures/test/parsing/JsonWsp/UtxoQueryResponse.json"
+  let
+    eJson = Json.parseJson str
+    eJsonStr = parseJsonStringifyNumbers str -- we need stringified numbers for Type parsing
   -- we use unsafeThrowException because we're technically in Aff here and that's part of the contract.
   json <- either
     (\e -> unsafeThrowException $ error ("json parsed incorrectly " <> show e))
     pure
     eJson
-  let (stringArray :: Array String) = Json.caseJsonArray [] convertJsonArray json
-  let (jsonArray :: Array Json.Json) = Json.caseJsonArray [] identity json
+  jsonStr <- either
+    (\e -> unsafeThrowException $ error ("json with stringified numbers parsed incorrectly " <> show e))
+    pure
+    eJsonStr
+  let
+    (stringArray :: Array String) = Json.caseJsonArray [] convertJsonArray json
+    (jsonArrayStr :: Array Json.Json) = Json.caseJsonArray [] identity jsonStr
   schema <- lift $ getSchema "./fixtures/schemata/JsonWsp/UtxoQueryResponse.medea"
   group "Parser tests" $ do
     group "Schemata parse tests" $ do
@@ -41,7 +50,7 @@ suite = do
         (runValidationM $ validateJsonArray schema stringArray) `shouldSatisfy` isRight
     group "Type parsing" $ do
       test "fixtures parse correctly - UtxoQueryResponse" $
-        (traverseJsonWsps jsonArray) `shouldSatisfy` isRight
+        (traverseJsonWsps jsonArrayStr) `shouldSatisfy` isRight
 
 traverseJsonWsps :: Array Json.Json -> Either Json.JsonDecodeError (Array (JsonWspResponse UtxoQR))
 traverseJsonWsps arr = traverse parseJsonWspResponse arr
