@@ -70,5 +70,5 @@ exports._wsWatch = ws => onError => () => {
   ws.on('open', heartbeatAndCount)
   ws.on('ping', heartbeatAndCount)
   ws.on('pong', heartbeatAndCount)
-  ws.on('close', () => clearTimeout(id))
+  ws.on('close', () => clearTimeout(counter))
 }

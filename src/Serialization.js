@@ -19,9 +19,6 @@ exports.newValueFromAssets = multiasset => () =>
 exports.valueSetCoin = value => coin => () =>
     value.set_coin(coin);
 
-exports.newTransactionHash = hash => () =>
-    lib.TransactionHash.from_bytes(hash);
-
 exports.newTransactionInput = transaction_id => index => () =>
     lib.TransactionInput.new(transaction_id, index);
 
@@ -75,9 +72,6 @@ exports.newStakeCredentialFromScriptHash = hash => () =>
 exports.newStakeCredentialFromKeyHash = hash => () =>
     lib.StakeCredential.from_keyhash(hash);
 
-exports.newEd25519KeyHash = bytes => () =>
-    lib.Ed25519KeyHash.from_bytes(bytes);
-
 exports.newMultiAsset = () =>
     lib.MultiAsset.new();
 
@@ -93,12 +87,6 @@ exports.insertAssets = assets => key => value => () =>
 exports.newAssetName = name => () =>
     lib.AssetName.new(name);
 
-exports.newScriptHash = bytes => () =>
-    lib.ScriptHash.from_bytes(bytes);
-
-exports.newDataHash = bytes => () =>
-    lib.DataHash.from_bytes(bytes);
-
 exports.transactionOutputSetDataHash = output => hash => () =>
     output.set_data_hash(hash);
 
@@ -109,7 +97,7 @@ exports.newVkeywitness = vkey => signature => () =>
     lib.Vkeywitness.new(vkey, signature);
 
 exports.addVkeywitness = witnesses => witness => () =>
-    wintesses.add(witness);
+    witnesses.add(witness);
 
 exports.newVkeyFromPublicKey = public_key => () =>
     lib.Vkey.new(public_key);
@@ -142,6 +130,10 @@ exports._addressPubKeyHash = just => nothing => baseAddr => {
         return nothing;
     }
     return just(kh.to_bech32('hbas_'));
+};
+
+exports._addressBech32 = addr => {
+  return addr.to_bech32();
 };
 
 exports.toBytes = sth => sth.to_bytes();

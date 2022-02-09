@@ -1,22 +1,45 @@
-module Ogmios where
+module Ogmios
+  ( DispatchIdMap
+  , ListenerSet
+  , Listeners
+  , OgmiosWebSocket(OgmiosWebSocket)
+  , QueryConfig
+  , QueryM
+  , WebSocket
+  , addressToOgmiosAddress
+  , mkOgmiosWebSocketAff
+  , ogmiosAddressToAddress
+  , utxosAt
+  ) where
 
 import Prelude
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (ReaderT, ask)
+import Control.Monad.Trans.Class (lift)
 import Data.Argonaut as Json
-import Data.Either (Either(..), either, isRight)
+import Data.Bitraversable (bisequence, bitraverse)
+import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
 import Data.Map as Map
-import Data.Maybe (Maybe(..))
+import Data.Maybe (maybe, Maybe(Just, Nothing))
+import Data.Newtype (unwrap, wrap)
+import Data.Traversable (sequence)
+import Data.Tuple.Nested (type (/\))
 import Effect (Effect)
-import Effect.Aff (Aff, Canceler(..), makeAff)
+import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (Error, error)
 import Effect.Ref as Ref
-import Types.JsonWsp (Address, JsonWspResponse, UtxoQR, mkUtxosAtQuery, parseJsonWspResponse)
+
+import Deserialization.Address as DAddress
 import Helpers as Helpers
+import Serialization as Serialization
+import Serialization (addressBech32, newAddressFromBech32)
+import Types.ByteArray (hexToByteArray)
+import Types.JsonWsp (Address, OgmiosTxOut, JsonWspResponse, mkUtxosAtQuery, parseJsonWspResponse, TxOutRef, UtxoQR(UtxoQR))
+import Types.Transaction as Transaction
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -57,8 +80,8 @@ type QueryConfig = { ws :: OgmiosWebSocket }
 type QueryM a = ReaderT QueryConfig Aff a
 
 -- the first query type in the QueryM/Aff interface
-utxosAt :: Address -> QueryM UtxoQR
-utxosAt addr = do
+utxosAt' :: Address -> QueryM UtxoQR
+utxosAt' addr = do
   body <- liftEffect $ mkUtxosAtQuery { utxo: [ addr ] }
   let id = body.mirror.id
   sBody <- liftEffect $ _stringify body
@@ -238,3 +261,66 @@ messageFoldF
 messageFoldF msg acc' func = do
   acc <- acc'
   if isRight acc then acc' else func msg
+
+--------------------------------------------------------------------------------
+-- Ogmios functions and types to internal types
+--------------------------------------------------------------------------------
+-- JsonWsp.Address is a bech32 string, so wrap to Transaction.Types.Bech32
+-- | Converts an JsonWsp.Address to (internal) Address
+ogmiosAddressToAddress :: Address -> Effect (Maybe Transaction.Address)
+ogmiosAddressToAddress ogAddr =
+  newAddressFromBech32 (wrap ogAddr) <#> DAddress.convertAddress
+
+-- | Converts an (internal) Address to JsonWsp.Address
+addressToOgmiosAddress :: Transaction.Address -> Effect Address
+addressToOgmiosAddress addr =
+  Serialization.convertAddress addr <#> addressBech32 >>> unwrap
+
+-- If required, we can change to Either with more granular error handling.
+-- | Gets utxos at an (internal) Address in terms of (internal) Transaction.Types
+utxosAt :: Transaction.Address -> QueryM (Maybe Transaction.UtxoM)
+utxosAt addr = addressToOgmiosAddress addr # liftEffect # lift >>= getUtxos
+  where
+  getUtxos :: Address -> QueryM (Maybe Transaction.UtxoM)
+  getUtxos address = convertUtxos >>> liftEffect >>> lift =<< utxosAt' address
+
+  convertUtxos :: UtxoQR -> Effect (Maybe Transaction.UtxoM)
+  convertUtxos (UtxoQR utxoQueryResult) = do
+    out' :: Array (Maybe Transaction.TransactionInput /\ Maybe Transaction.TransactionOutput) <-
+      Map.toUnfoldable utxoQueryResult
+        <#> bitraverse
+          (pure <<< txOutRefToTransactionInput)
+          ogmiosTxOutToTransactionOutput
+        # sequence
+    let
+      out :: Maybe (Array (Transaction.TransactionInput /\ Transaction.TransactionOutput))
+      out = out' <#> bisequence # sequence
+    pure $ maybe Nothing (pure <<< wrap <<< Map.fromFoldable) out
+
+-- I think txId is a hexadecimal encoding.
+-- | Converts an Ogmios TxOutRef to (internal) TransactionInput
+txOutRefToTransactionInput :: TxOutRef -> Maybe Transaction.TransactionInput
+txOutRefToTransactionInput { txId, index } = do
+  transaction_id <- hexToByteArray txId <#> wrap
+  pure $ wrap
+    { transaction_id
+    , index
+    }
+
+-- https://ogmios.dev/ogmios.wsp.json see "datum", potential FIX ME: it says
+-- base64 but the  example provided looks like a hexadecimal so use
+-- hexToByteArray for now.
+-- | Converts an Ogmios TxOut to (internal) TransactionOutput
+ogmiosTxOutToTransactionOutput
+  :: OgmiosTxOut
+  -> Effect (Maybe Transaction.TransactionOutput)
+ogmiosTxOutToTransactionOutput { address: address'', value, datum } = do
+  address' <- ogmiosAddressToAddress address''
+  pure $ case address' of
+    Nothing -> Nothing
+    Just address ->
+      pure $ wrap
+        { address
+        , amount: value
+        , data_hash: datum >>= hexToByteArray <#> wrap
+        }
