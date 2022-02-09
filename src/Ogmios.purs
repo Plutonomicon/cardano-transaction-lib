@@ -142,7 +142,7 @@ mkServerUrl cfg =
     <> "://"
     <> cfg.host
     <> ":"
-    <> show cfg.port
+    <> UInt.toString cfg.port
 
 -- The server will respond with a stringified integer value for the fee estimate
 newtype FeeEstimate = FeeEstimate BigInt
