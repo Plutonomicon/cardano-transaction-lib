@@ -1,48 +1,28 @@
 module BalanceTx
-  ( Actual(Actual)
-  -- , AddSignatoriesFailure(AddSignatoriesFailure)
-  -- , AddSignatoriesFailureReason(SigningAddressNotFound)
-  , AddTxCollateralsFailure(AddTxCollateralsFailure)
-  , AddTxCollateralsFailureReason(CollateralUtxosUnavailable)
-  , BalanceNonAdaOutsFailure(BalanceNonAdaOutsFailure)
-  , BalanceNonAdaOutsFailureReason(InputsCannotBalanceNonAdaTokens)
-  , BalanceTxFailure
-      ( -- AddSignatoriesFailure'
-        AddTxCollateralsFailure'
-      , BalanceNonAdaOutsFailure'
-      , BalanceTxInsFailure'
-      -- , BalanceTxMFailure'
-      , BuildTxRawFailure'
-      , CalculateMinFeeFailure'
-      , ReturnAdaChangeFailure'
-      , ToEitherTransactionInputFailure'
-      , UtxosAtFailure'
-      )
-  , BalanceTxInsFailure(BalanceTxInsFailure)
-  , BalanceTxInsFailureReason(InsufficientTxInputs)
-  -- , BalanceTxMFailure(BalanceTxMFailure)
-  -- , BalanceTxMFailureReason(UnknownRequiredSigners)
-  , BuildTxRawFailure(BuildTxRawFailure)
-  , BuildTxRawFailureReason(CannotBuildTxRaw)
-  , CalculateMinFeeFailure(CalculateMinFeeFailure)
-  , CalculateMinFeeFailureReason(CannotCalculateMinFee)
-  , Expected(Expected)
-  , Impossible(Impossible)
-  , ReturnAdaChangeFailure(ReturnAdaChangeFailure)
-  , ReturnAdaChangeFailureReason
-      ( CouldNotModifyUtxo
-      , CouldNotModifyUtxoHead
-      , InputAdaDoesNotCoverSingleAdaOutput
-      , NotEnoughAdaInputAfterPrebalance
-      , ReturnAdaChangeBuildTxRaw
-      , ReturnAdaChangeCalculateMinFee
-      )
-  , ToEitherTransactionInputFailure(ToEitherTransactionInputFailure)
-  , ToEitherTransactionInputFailureReason(CannotConvertScriptOutputToTxInput)
-  , UnbalancedTransaction(UnbalancedTransaction)
-  , UtxosAtFailure(UtxosAtFailure)
-  , UtxosAtFailureReason(CouldNotGetUtxos)
-  , balanceTxM -- Transaction balancer function
+  ( Actual(..)
+  , AddTxCollateralsFailure(..)
+  , AddTxCollateralsFailureReason(..)
+  , BalanceNonAdaOutsFailure(..)
+  , BalanceNonAdaOutsFailureReason(..)
+  , BalanceTxFailure(..)
+  , BalanceTxInsFailure(..)
+  , BalanceTxInsFailureReason(..)
+  , BuildTxRawFailure(..)
+  , BuildTxRawFailureReason(..)
+  , CalculateMinFeeFailure(..)
+  , CalculateMinFeeFailureReason(..)
+  , Expected(..)
+  , Impossible(..)
+  , ReturnAdaChangeFailure(..)
+  , ReturnAdaChangeFailureReason(..)
+  , ToEitherTransactionInputFailure(..)
+  , ToEitherTransactionInputFailureReason(..)
+  , UnbalancedTransaction(..)
+  , UtxoIndexToUtxoFailure(..)
+  , UtxoIndexToUtxoFailureReason(..)
+  , UtxosAtFailure(..)
+  , UtxosAtFailureReason(..)
+  , balanceTxM
   ) where
 
 import Prelude
@@ -59,9 +39,11 @@ import Data.Map as Map
 import Data.Maybe (fromMaybe, maybe, Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
+import Data.Traversable (sequence)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
 import ProtocolParametersAlonzo
   ( coinSize
   , lovelacePerUTxOWord
@@ -81,6 +63,10 @@ import Types.Transaction
   , TxBody(TxBody)
   , Utxo
   , UtxoM
+  )
+import Types.UnbalancedTransaction
+  ( UnbalancedTx(UnbalancedTx)
+  , utxoIndexToUtxo
   )
 import Types.Value
   ( allTokenNames
@@ -110,6 +96,7 @@ import Undefined (undefined)
 -- to read, especially with generic show vs newtype show derivations.
 data BalanceTxFailure
   = UtxosAtFailure' UtxosAtFailure
+  | UtxoIndexToUtxoFailure' UtxoIndexToUtxoFailure
   -- | BalanceTxMFailure' BalanceTxMFailure -- REMOVE OR CHANGE THIS
   | ReturnAdaChangeFailure' ReturnAdaChangeFailure
   | AddTxCollateralsFailure' AddTxCollateralsFailure
@@ -119,6 +106,7 @@ data BalanceTxFailure
   -- | AddSignatoriesFailure' AddSignatoriesFailure -- REMOVE OR CHANGE THIS
   | CalculateMinFeeFailure' CalculateMinFeeFailure
   | BuildTxRawFailure' BuildTxRawFailure
+  | ImpossibleFailure' Impossible
 
 derive instance genericBalanceTxFailure :: Generic BalanceTxFailure _
 
@@ -134,6 +122,16 @@ data UtxosAtFailureReason = CouldNotGetUtxos
 
 instance showUtxosAtFailureReason :: Show UtxosAtFailureReason where
   show CouldNotGetUtxos = "Couldn't get utxos at address."
+
+newtype UtxoIndexToUtxoFailure = UtxoIndexToUtxoFailure UtxoIndexToUtxoFailureReason
+
+derive instance newtypeUtxoIndexToUtxoFailure :: Newtype UtxoIndexToUtxoFailure _
+derive newtype instance showUtxoIndexToUtxoFailure :: Show UtxoIndexToUtxoFailure
+
+data UtxoIndexToUtxoFailureReason = CouldNotConvertUtxoIndex
+
+instance showUtxoIndexToUtxoFailureReason :: Show UtxoIndexToUtxoFailureReason where
+  show CouldNotConvertUtxoIndex = "Couldn't convert UnbalancedTx UtxoIndex"
 
 -- newtype BalanceTxMFailure = BalanceTxMFailure BalanceTxMFailureReason
 
@@ -260,6 +258,9 @@ instance showBalanceNonAdaOutsFailureReason :: Show BalanceNonAdaOutsFailureReas
 -- | Represents that an error reason should be impossible
 data Impossible = Impossible
 
+instance showImpossible :: Show Impossible where
+  show Impossible = "**THIS SHOULD BE IMPOSSIBLE**"
+
 newtype BuildTxRawFailure = BuildTxRawFailure BuildTxRawFailureReason
 
 derive instance newtypeBuildTxRawFailure :: Newtype BuildTxRawFailure _
@@ -312,22 +313,28 @@ signTx = undefined
 -- Balancing functions and helpers
 --------------------------------------------------------------------------------
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L54
+-- FIX ME: UnbalancedTx contains requiredSignatories which woudl be part of
+-- multisig but we don't have such functionality ATM.
 -- | Balances an unbalanced transaction
 balanceTxM
   :: Address
-  -> UnbalancedTransaction
+  -> UnbalancedTx
   -> QueryM (Either BalanceTxFailure Transaction)
-balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
+balanceTxM ownAddr (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
   utxos' :: Either BalanceTxFailure Utxo <-
     utxosAt ownAddr <#>
       note (UtxosAtFailure' $ wrap CouldNotGetUtxos) >>> map unwrap
-  case utxos' of
+  utxoIndex''' :: Either BalanceTxFailure Utxo <-
+    liftEffect $ utxoIndexToUtxo utxoIndex <#>
+      note (UtxoIndexToUtxoFailure' $ wrap CouldNotConvertUtxoIndex)
+  case sequence [ utxos', utxoIndex''' ] of
     Left err -> pure $ Left err
-    Right utxos -> do
-      let -- Combines utxos at the user address and those from any scripts involved
-        -- with the contract.
+    Right [ utxos, utxoIndex'' ] -> do
+      let
+        -- Combines utxos at the user address and those from any scripts involved
+        -- with the contract in the unbalanced transaction.
         utxoIndex' :: Utxo
-        utxoIndex' = utxos `Map.union` unwrap utxoIndex
+        utxoIndex' = utxos `Map.union` utxoIndex''
       -- Sign before instead of recursively signing in loop.
       signedUnbalancedTx :: Transaction <- lift $ signTx unbalancedTx
       prebalancedTx' :: Either BalanceTxFailure Transaction <-
@@ -336,6 +343,10 @@ balanceTxM ownAddr (UnbalancedTransaction { unbalancedTx, utxoIndex }) = do
         prebalancedTx :: Transaction <- prebalancedTx'
         lmap ReturnAdaChangeFailure' $
           returnAdaChange ownAddr utxoIndex' prebalancedTx
+    -- Should be impossible - this is to keep the compiler happy. Maybe think
+    -- of a nicer way to do this, we could also nest utxos' and utxoIndex'''
+    -- into two case statements.
+    Right _ -> pure $ Left $ ImpossibleFailure' Impossible
   where
   loop
     :: Utxo
