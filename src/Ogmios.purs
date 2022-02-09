@@ -157,12 +157,12 @@ derive instance Newtype FeeEstimate _
 instance Json.DecodeJson FeeEstimate where
   decodeJson str =
     map FeeEstimate
-      <<< note err
+      <<< note (Json.TypeMismatch "Expected a `BigInt`")
       <<< BigInt.fromString
-      =<< Json.caseJsonString (Left err) Right str
-    where
-    err :: Json.JsonDecodeError
-    err = Json.TypeMismatch "Expected `BigInt` wrapped in quotes"
+      =<< Json.caseJsonString
+        (Left $ Json.TypeMismatch "Expected a stringified `BigInt`")
+        Right
+        str
 
 data FeeEstimateError
   = FeeEstimateHttpError Affjax.Error
