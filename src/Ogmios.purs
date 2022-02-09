@@ -20,8 +20,6 @@ module Ogmios
   ) where
 
 import Prelude
-import Undefined
-
 import Affjax as Affjax
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Monad.Error.Class (throwError)
@@ -30,7 +28,7 @@ import Control.Monad.Trans.Class (lift)
 import Data.Argonaut as Json
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Bifunctor (bimap, lmap)
+import Data.Bifunctor (bimap)
 import Data.Bitraversable (bisequence, bitraverse)
 import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
