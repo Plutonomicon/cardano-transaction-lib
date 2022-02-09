@@ -57,8 +57,7 @@ convertNativeScripts nativeScripts =
       <|> nativeScriptAs maybeFfiHelper "as_script_any" T.ScriptAny script
       <|> nativeScriptAs maybeFfiHelper "as_script_n_of_k" T.ScriptNOfK script
       <|> nativeScriptAs maybeFfiHelper "as_timelock_start" T.TimelockStart script
-      <|>
-        nativeScriptAs maybeFfiHelper "as_timelock_expiry" T.TimelockExpiry script
+      <|> nativeScriptAs maybeFfiHelper "as_timelock_expiry" T.TimelockExpiry script
 
 convertBootstraps :: BootstrapWitnesses -> Array T.BootstrapWitness
 convertBootstraps = extractBootstraps >>> map \bootstrap ->

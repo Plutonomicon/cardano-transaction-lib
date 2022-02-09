@@ -46,18 +46,13 @@ suite = do
     group "UnspentTransactionOutput" do
       test "deserialization is inverse to serialization" do
         unspentOutput <- liftEffect $ createUnspentOutput txInputFixture1 txOutputFixture1
-        let mbOutput = convertUnspentOutput unspentOutput
-        case mbOutput of
+        case convertUnspentOutput unspentOutput of
           Nothing -> liftEffect $ throw "Failed deserialization 3"
           Just (T.TransactionUnspentOutput { input, output }) -> do
             input `shouldEqual` txInputFixture1
             output `shouldEqual` txOutputFixture1
       test "fixture #1" do
-        let
-          mbOutput = do
-            out <- newTransactionUnspentOutputFromBytes utxoFixture1
-            convertUnspentOutput out
-        case mbOutput of
+        case newTransactionUnspentOutputFromBytes utxoFixture1 >>= convertUnspentOutput of
           Nothing -> liftEffect $ throw "Failed deserialization 4"
           Just res -> res `shouldEqual` utxoFixture1'
     group "WitnessSet" do
