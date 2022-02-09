@@ -1,5 +1,6 @@
 module Ogmios
   ( DispatchIdMap
+  , FeeEstimate(FeeEstimate)
   , Host
   , ListenerSet
   , Listeners
@@ -17,12 +18,15 @@ module Ogmios
   ) where
 
 import Prelude
+
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (ReaderT, ask)
 import Control.Monad.Trans.Class (lift)
 import Data.Argonaut as Json
+import Data.BigInt (BigInt)
+import Data.BigInt as BigInt
 import Data.Bitraversable (bisequence, bitraverse)
-import Data.Either (Either(Left, Right), either, isRight)
+import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
 import Data.Map as Map
 import Data.Maybe (maybe, Maybe(Just, Nothing))
@@ -31,6 +35,7 @@ import Data.Traversable (sequence)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
+import Deserialization.Address as DAddress
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Aff.Class (liftAff)
@@ -38,11 +43,9 @@ import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (Error, error)
 import Effect.Ref as Ref
-
-import Deserialization.Address as DAddress
 import Helpers as Helpers
-import Serialization as Serialization
 import Serialization (addressBech32, newAddressFromBech32)
+import Serialization as Serialization
 import Types.ByteArray (hexToByteArray)
 import Types.JsonWsp (Address, OgmiosTxOut, JsonWspResponse, mkUtxosAtQuery, parseJsonWspResponse, TxOutRef, UtxoQR(UtxoQR))
 import Types.Transaction as Transaction
@@ -114,7 +117,7 @@ allowError :: (Either Error UtxoQR -> Effect Unit) -> UtxoQR -> Effect Unit
 allowError func = func <<< Right
 
 --------------------------------------------------------------------------------
--- Config for connecting to HTTP Haskell server
+-- HTTP Haskell server and related
 --------------------------------------------------------------------------------
 
 type ServerConfig =
@@ -140,6 +143,21 @@ mkServerUrl cfg =
     <> cfg.host
     <> ":"
     <> show cfg.port
+
+-- The server will respond with a stringified integer value for the fee estimate
+newtype FeeEstimate = FeeEstimate BigInt
+
+derive instance Newtype FeeEstimate _
+
+instance Json.DecodeJson FeeEstimate where
+  decodeJson str =
+    map FeeEstimate
+      <<< note err
+      <<< BigInt.fromString
+      =<< Json.caseJsonString (Left err) Right str
+    where
+    err :: Json.JsonDecodeError
+    err = Json.TypeMismatch "Expected `BigInt` wrapped in quotes"
 
 --------------------------------------------------------------------------------
 -- OgmiosWebSocket Setup and PrimOps
