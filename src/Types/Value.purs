@@ -37,8 +37,7 @@ module Types.Value
   , sumTokenNameLengths
   , coinToValue
   , valueOf
-  )
-  where
+  ) where
 
 import Prelude
 import Control.Alt ((<|>))
@@ -165,7 +164,7 @@ mkTokenName byteArr =
 -- | Creates a Map of TokenName and Big Integers from a Traversable of 2-tuple
 -- | ByteArray and Big Integers with the possibility of failure
 mkTokenNames
-  ::  forall t
+  :: forall t
    . Traversable t
   => t (ByteArray /\ BigInt)
   -> Maybe (Map TokenName BigInt)
@@ -227,7 +226,7 @@ mkNonAdaAsset m =
 
 mkNonAdaAssets'
   :: forall s t
-  .  Traversable s
+   . Traversable s
   => Traversable t
   => s (ByteArray /\ t (ByteArray /\ BigInt))
   -> Maybe (Map CurrencySymbol (Map TokenName BigInt))
@@ -240,7 +239,7 @@ mkNonAdaAssets' =
 -- | NonAdaAsset
 mkNonAdaAssets
   :: forall s t
-  .  Traversable s
+   . Traversable s
   => Traversable t
   => s (ByteArray /\ t (ByteArray /\ BigInt))
   -> Maybe NonAdaAsset
