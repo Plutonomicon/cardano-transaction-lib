@@ -29,6 +29,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "affjax" = pkgs.stdenv.mkDerivation {
+        name = "affjax";
+        version = "v12.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-affjax.git";
+          rev = "5be197edc213fbededb8da908f77b69908eaa6f8";
+          sha256 = "1f2snaimnl9ry8f3kankfcyy50wkba54vvin4wsrglahqgs1nrgb";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "ansi" = pkgs.stdenv.mkDerivation {
         name = "ansi";
         version = "v6.1.0";
@@ -365,6 +377,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "form-urlencoded" = pkgs.stdenv.mkDerivation {
+        name = "form-urlencoded";
+        version = "v6.0.2";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-form-urlencoded.git";
+          rev = "860b2c4bf0a848322d2077faaefbeb98762cb8d6";
+          sha256 = "1pi3vxix10crisisnd94li1vmmgiawlh5lgl51z7ssd9azygg0b0";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "free" = pkgs.stdenv.mkDerivation {
         name = "free";
         version = "v6.1.0";
@@ -425,6 +449,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "http-methods" = pkgs.stdenv.mkDerivation {
+        name = "http-methods";
+        version = "v5.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-http-methods.git";
+          rev = "d373066a45017e886d1580cd359372368231de47";
+          sha256 = "1g0ywd5zpckmhq28mr14yr4k28hiii1px8r8xbdx8nv45ryw69l3";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "identity" = pkgs.stdenv.mkDerivation {
         name = "identity";
         version = "v5.0.0";
@@ -468,6 +504,18 @@ let
           url = "https://github.com/purescript-contrib/purescript-js-date.git";
           rev = "a6834eef986e3af0490cb672dc4a8b4b089dcb15";
           sha256 = "1dpiwn65qww862ilpfbd06gwfazpxvz3jwvsjsdrcxqqfcbjp8n8";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "js-uri" = pkgs.stdenv.mkDerivation {
+        name = "js-uri";
+        version = "v2.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-js-uri.git";
+          rev = "6145d5e631be3d57d8a4a9cf976ae140713dee35";
+          sha256 = "1q34ir93cqbcl9g49vv1qfj8jxbbdj7f85a14y4mzd7yjq0a042g";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -552,6 +600,18 @@ let
           url = "https://github.com/juspay/medea-ps.git";
           rev = "8b215851959aa8bbf33e6708df6bd683c89d1a5a";
           sha256 = "05gnar9l1li0v1vv12kga0sssskfm4f1x9y6smpmqbqg9396pmsq";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "media-types" = pkgs.stdenv.mkDerivation {
+        name = "media-types";
+        version = "v5.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-media-types.git";
+          rev = "b6efa4c1e6808b31f399d8030b5938acec87cb48";
+          sha256 = "0l51nd1w52756pyy3zliwmhfbin0px4pxr7d2h5vchl1wq895fja";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -1140,6 +1200,78 @@ let
           url = "https://github.com/jvliwanag/purescript-untagged-union.git";
           rev = "364e172e759ebe722bd7ec12a599d532b527c0ef";
           sha256 = "06013431acz8xry9dish8p2qyj18bi505fgfikpjiblxgjazl9zx";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "web-dom" = pkgs.stdenv.mkDerivation {
+        name = "web-dom";
+        version = "v5.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-web/purescript-web-dom.git";
+          rev = "03dfc2f512e124615ab183ade357e3d54007c79d";
+          sha256 = "06g9cp9fkzyfwbz5cs0wxjxgdydm9hy7756p2w4vx94myki20hgx";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "web-events" = pkgs.stdenv.mkDerivation {
+        name = "web-events";
+        version = "v3.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-web/purescript-web-events.git";
+          rev = "c8a50893f04f54e2a59be7f885d25caef3589c57";
+          sha256 = "1dxwrl2r39vazb3g1ka4dkpy6idyi17aq4hf9vvdsmcwf2jjwbn9";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "web-file" = pkgs.stdenv.mkDerivation {
+        name = "web-file";
+        version = "v3.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-web/purescript-web-file.git";
+          rev = "3e42263b4392d82c0e379b7a481bbee9b38b1308";
+          sha256 = "11x1inhr5pvs2iyg818cywwdskb33q777592sd3b4g4jyczcb1li";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "web-html" = pkgs.stdenv.mkDerivation {
+        name = "web-html";
+        version = "v3.2.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-web/purescript-web-html.git";
+          rev = "3a249b966ee72c19874b4a2ec6db4059087500e4";
+          sha256 = "1ds26vwyba0chhpa09m938brw9q8pxjk6z1n3d4nc30hvdkrjnbh";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "web-storage" = pkgs.stdenv.mkDerivation {
+        name = "web-storage";
+        version = "v4.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-web/purescript-web-storage.git";
+          rev = "22fa56bac204c708e521e746ad4ca2b5810f62c5";
+          sha256 = "1viy027k9qyr7mckqkvizwbwkfskc6frppsa1v9a0hq6gc08mpjx";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "web-xhr" = pkgs.stdenv.mkDerivation {
+        name = "web-xhr";
+        version = "v4.1.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-web/purescript-web-xhr.git";
+          rev = "997b87caa6dcdf66b6db22f29f522d722559956b";
+          sha256 = "0hzmqga8l24l20kyd98bcpd8bmz7by14vl311m9yfdg5mjkjg42g";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

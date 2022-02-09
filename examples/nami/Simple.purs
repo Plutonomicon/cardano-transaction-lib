@@ -18,7 +18,12 @@ import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
-import QueryM (QueryM, getWalletAddress, getWalletCollateral)
+import QueryM
+  ( QueryM
+  , getWalletAddress
+  , getWalletCollateral
+  , defaultServerConfig
+  )
 import Wallet (mkNamiWalletAff)
 
 main :: Effect Unit
@@ -26,9 +31,10 @@ main = launchAff_ $ do
   wallet <- Just <$> mkNamiWalletAff
   runReaderT
     walletActions
-    { ws: {-TODO-} undefined, wallet }
+    { ws: {-TODO-}  undefined, wallet, serverConfig: defaultServerConfig }
   where
-    walletActions = sequence_ [logWalletAddress, logWalletCollateral]
+  walletActions :: QueryM Unit
+  walletActions = sequence_ [ logWalletAddress, logWalletCollateral ]
 
 logWalletAddress :: QueryM Unit
 logWalletAddress = logWallet getWalletAddress
