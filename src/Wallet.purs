@@ -13,14 +13,20 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Typelevel.Undefined (undefined)
 import Deserialization.Address as Deserialization.Address
 import Deserialization.UnspentOutput as Deserialization.UnspentOuput
+import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
 import Serialization as Serialization
-import Types.ByteArray (ByteArray, hexToByteArray)
-import Types.Transaction (Address, Transaction)
+import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex)
+import Types.Transaction
+  ( Address
+  , Transaction(Transaction)
+  , TransactionWitnessSet
+  )
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Untagged.Union (asOneOf)
 
 -- At the moment, we only support Nami's wallet. In the future we will expand
 -- this with more constructors to represent out-of-browser wallets (e.g. WBE)
@@ -75,7 +81,21 @@ mkNamiWalletAff = do
           <$> Serialization.newTransactionUnspentOutputFromBytes bytes
 
   signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
-  signTx nami = undefined -- TODO
+  signTx nami tx = do
+    txHex <- liftEffect $
+      byteArrayToHex
+        <<< Serialization.toBytes
+        <<< asOneOf
+        <$> Serialization.convertTransaction tx
+    fromNamiHexString (_signTxNami txHex) nami >>= case _ of
+      Nothing -> pure Nothing
+      Just bytes -> map (addWitnessSet tx) <$> liftEffect
+        ( Deserialization.WitnessSet.convertWitnessSet
+            <$> Serialization.newTransactionWitnessSetFromBytes bytes
+        )
+    where
+    addWitnessSet :: Transaction -> TransactionWitnessSet -> Transaction
+    addWitnessSet (Transaction tx') ws = Transaction $ tx' { witness_set = ws }
 
   fromNamiHexString
     :: (NamiConnection -> Effect (Promise String))
@@ -93,3 +113,8 @@ foreign import _enableNami :: Effect (Promise NamiConnection)
 foreign import _getNamiAddress :: NamiConnection -> Effect (Promise String)
 
 foreign import _getNamiCollateral :: NamiConnection -> Effect (Promise String)
+
+foreign import _signTxNami
+  :: String -- Hex-encoded cbor of tx
+  -> NamiConnection
+  -> Effect (Promise String)
