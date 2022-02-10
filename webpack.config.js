@@ -1,5 +1,6 @@
 "use strict";
 
+const NodePolyfillPlugin = require("node-polyfill-webpack-plugin");
 const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const webpack = require("webpack");
@@ -81,10 +82,25 @@ module.exports = {
     extensions: [".purs", ".js"],
     fallback: {
       buffer: require.resolve("buffer/"),
+      http: false,
+      url: false,
+      stream: false,
+      crypto: false,
+      https: false,
+      net: false,
+      tls: false,
+      zlib: false,
+      os: false,
+      path: false,
+      fs: false,
     },
   },
 
   plugins: [
+    new webpack.DefinePlugin({
+      BROWSER_RUNTIME: !!process.env.BROWSER_RUNTIME
+    }),
+    new NodePolyfillPlugin(),
     new webpack.LoaderOptionsPlugin({
       debug: true,
     }),

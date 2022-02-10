@@ -10,3 +10,6 @@ exports._getNamiAddress = (nami) => () =>
 //   -> Effect (Promise String)
 exports._getNamiCollateral = (nami) => () =>
   nami.experimental.getCollateral().then((utxos) => utxos[0]);
+
+// _signTxNami :: String -> NamiConnection -> Effect (Promise String)
+exports._signTxNami = (txHex) => (nami) => () => nami.signTx(txHex);

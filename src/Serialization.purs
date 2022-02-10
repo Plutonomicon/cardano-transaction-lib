@@ -12,6 +12,7 @@ module Serialization
   , toBytes
   , newBaseAddressFromAddress
   , newTransactionUnspentOutputFromBytes
+  , newTransactionWitnessSetFromBytes
   ) where
 
 import Data.BigInt as BigInt
@@ -33,6 +34,7 @@ import Serialization.Types
   , Ed25519KeyHash
   , Ed25519Signature
   , MultiAsset
+  , PlutusData
   , PlutusScript
   , PlutusScripts
   , PublicKey
@@ -72,6 +74,7 @@ foreign import newTransactionBody :: TransactionInputs -> TransactionOutputs -> 
 foreign import newTransaction :: TransactionBody -> TransactionWitnessSet -> Effect Transaction
 foreign import newTransaction_ :: TransactionBody -> TransactionWitnessSet -> AuxiliaryData -> Effect Transaction
 foreign import newTransactionWitnessSet :: Effect TransactionWitnessSet
+foreign import newTransactionWitnessSetFromBytes :: ByteArray -> Effect TransactionWitnessSet
 foreign import newTransactionUnspentOutputFromBytes :: ByteArray -> Effect TransactionUnspentOutput
 foreign import newAddressFromBech32 :: T.Bech32 -> Effect Address
 foreign import newAddressFromBytes :: ByteArray -> Effect Address
@@ -108,6 +111,7 @@ foreign import toBytes
          |+| ScriptHash
          |+| TransactionHash
          |+| DataHash
+         |+| PlutusData
      -- Add more as needed.
      )
   -> ByteArray

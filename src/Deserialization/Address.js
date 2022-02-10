@@ -1,8 +1,14 @@
 /* global require exports */
 
-const lib = require('@ngua/cardano-serialization-lib-nodejs');
+var lib;
+if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
+    lib = require('@ngua/cardano-serialization-lib-browser');
+} else {
+    lib = require('@ngua/cardano-serialization-lib-nodejs');
+}
 
 const call = property => object => object[property]();
+
 const callMaybe = property => maybe => object => {
     const res = object[property]();
     return res != null ? maybe.just(res) : maybe.nothing;

@@ -42,7 +42,7 @@ import Data.Traversable (sequence)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Deserialization.Address as DAddress
+import Deserialization.Address as Deserialization.Address
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Aff.Class (liftAff)
@@ -50,7 +50,6 @@ import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (Error, error)
 import Effect.Ref as Ref
-import Deserialization.Address as Deserialization.Address
 import Helpers as Helpers
 import Serialization (addressBech32, newAddressFromBech32)
 import Serialization as Serialization
@@ -134,20 +133,23 @@ allowError func = func <<< Right
 --------------------------------------------------------------------------------
 
 getWalletAddress :: QueryM (Maybe Transaction.Address)
-getWalletAddress = asks _.wallet >>= case _ of
-  Just (Nami nami) -> liftAff $
-    nami.getWalletAddress =<< liftEffect (Ref.read nami.connection)
-  Nothing -> pure Nothing
+getWalletAddress = withMWalletAff $
+  \(Nami nami) -> nami.getWalletAddress =<< liftEffect (Ref.read nami.connection)
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
-getWalletCollateral = asks _.wallet >>= case _ of
-  Just (Nami nami) -> liftAff $
-    nami.getCollateral =<< liftEffect (Ref.read nami.connection)
-  Nothing -> pure Nothing
+getWalletCollateral = withMWalletAff $
+  \(Nami nami) -> nami.getCollateral =<< liftEffect (Ref.read nami.connection)
 
--- TODO A placeholder for now so work on other components can continue
-signTransaction :: Transaction.Transaction -> QueryM Transaction.Transaction
-signTransaction = pure
+signTransaction
+  :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
+signTransaction tx = withMWalletAff $
+  \(Nami nami) -> flip nami.signTx tx =<< liftEffect (Ref.read nami.connection)
+
+withMWalletAff
+  :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
+withMWalletAff act = asks _.wallet >>= case _ of
+  Just wallet -> liftAff $ act wallet
+  Nothing -> pure Nothing
 
 -- HTTP Haskell server and related
 --------------------------------------------------------------------------------
@@ -169,8 +171,7 @@ type Host = String
 
 mkServerUrl :: ServerConfig -> Url
 mkServerUrl cfg =
-  if cfg.secure then "https"
-  else "http"
+  (if cfg.secure then "https" else "http")
     <> "://"
     <> cfg.host
     <> ":"
@@ -184,12 +185,12 @@ derive instance Newtype FeeEstimate _
 instance Json.DecodeJson FeeEstimate where
   decodeJson str =
     map FeeEstimate
-      <<< note err
+      <<< note (Json.TypeMismatch "Expected a `BigInt`")
       <<< BigInt.fromString
-      =<< Json.caseJsonString (Left err) Right str
-    where
-    err :: Json.JsonDecodeError
-    err = Json.TypeMismatch "Expected `BigInt` wrapped in quotes"
+      =<< Json.caseJsonString
+        (Left $ Json.TypeMismatch "Expected a stringified `BigInt`")
+        Right
+        str
 
 data FeeEstimateError
   = FeeEstimateHttpError Affjax.Error
