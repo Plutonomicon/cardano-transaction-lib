@@ -52,6 +52,9 @@ exports.newTransactionWitnessSet = () =>
 exports.newTransactionUnspentOutputFromBytes = bytes => () =>
     lib.TransactionUnspentOutput.from_bytes(bytes);
 
+exports.newTransactionWitnessSetFromBytes = bytes => () =>
+    lib.TransactionWitnessSet.from_bytes(bytes);
+
 exports.newAddressFromBech32 = bech32 => () =>
     lib.Address.from_bech32(bech32);
 

@@ -12,6 +12,7 @@ module Serialization
   , toBytes
   , newBaseAddressFromAddress
   , newTransactionUnspentOutputFromBytes
+  , newTransactionWitnessSetFromBytes
   ) where
 
 import Data.BigInt as BigInt
@@ -73,6 +74,7 @@ foreign import newTransactionBody :: TransactionInputs -> TransactionOutputs -> 
 foreign import newTransaction :: TransactionBody -> TransactionWitnessSet -> Effect Transaction
 foreign import newTransaction_ :: TransactionBody -> TransactionWitnessSet -> AuxiliaryData -> Effect Transaction
 foreign import newTransactionWitnessSet :: Effect TransactionWitnessSet
+foreign import newTransactionWitnessSetFromBytes :: ByteArray -> Effect TransactionWitnessSet
 foreign import newTransactionUnspentOutputFromBytes :: ByteArray -> Effect TransactionUnspentOutput
 foreign import newAddressFromBech32 :: T.Bech32 -> Effect Address
 foreign import newAddressFromBytes :: ByteArray -> Effect Address
