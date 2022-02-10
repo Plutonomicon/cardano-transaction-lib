@@ -1,5 +1,11 @@
 /* global require exports */
-var lib = require('@ngua/cardano-serialization-lib-nodejs');
+
+var lib;
+if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
+    lib = require('@ngua/cardano-serialization-lib-browser');
+} else {
+    lib = require('@ngua/cardano-serialization-lib-nodejs');
+}
 
 exports.newBigNum = string => () =>
     lib.BigNum.from_str(string);
