@@ -30,7 +30,6 @@ module BalanceTx
   ) where
 
 import Prelude
-import Control.Monad.Trans.Class (lift)
 import Data.Array ((\\), findIndex, modifyAt)
 import Data.Array as Array
 import Data.Bifunctor (bimap, lmap)
@@ -45,7 +44,6 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
-import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import ProtocolParametersAlonzo
   ( coinSize
@@ -60,6 +58,7 @@ import QueryM
   , calculateMinFee
   , getWalletAddress
   , getWalletCollateral
+  , signTransaction
   , utxosAt
   )
 import Types.ByteArray (byteLength)
@@ -94,7 +93,6 @@ import Types.Value
   , TokenName
   , Value(Value)
   )
-import Undefined (undefined)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
@@ -320,9 +318,6 @@ calculateMinFee'
   -> QueryM (Either CalculateMinFeeFailure BigInt)
 calculateMinFee' = calculateMinFee >>> map (bimap wrap unwrap)
 
-signTx :: Transaction -> Aff (Maybe Transaction)
-signTx = undefined
-
 --------------------------------------------------------------------------------
 -- Balancing functions and helpers
 --------------------------------------------------------------------------------
@@ -359,7 +354,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
           -- Add hardcoded Nami 5 Ada and sign before instead of recursively
           -- signing in loop.
           signedUnbalancedTx' <-
-            lift $ signTx (addTxCollateral unbalancedTx collateral)
+            signTransaction (addTxCollateral unbalancedTx collateral)
               <#> note (SignTxFailure' $ wrap $ CouldNotSignTx ownAddr)
           case signedUnbalancedTx' of
             Left err -> pure $ Left err
