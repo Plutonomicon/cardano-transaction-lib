@@ -40,7 +40,7 @@ type NamiWallet =
   -- Get the collateral UTxO associated with the Nami wallet
   , getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
   -- Sign a transaction with the current wallet
-  , signTx :: NamiConnection -> Transaction -> Aff Transaction
+  , signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
   }
 
 mkNamiWalletAff :: Aff Wallet
@@ -74,7 +74,7 @@ mkNamiWalletAff = do
         Deserialization.UnspentOuput.convertUnspentOutput
           <$> Serialization.newTransactionUnspentOutputFromBytes bytes
 
-  signTx :: NamiConnection -> Transaction -> Aff Transaction
+  signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
   signTx nami = undefined -- TODO
 
   fromNamiHexString

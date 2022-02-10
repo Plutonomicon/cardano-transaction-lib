@@ -146,8 +146,9 @@ getWalletCollateral = asks _.wallet >>= case _ of
   Nothing -> pure Nothing
 
 -- TODO A placeholder for now so work on other components can continue
-signTransaction :: Transaction.Transaction -> QueryM Transaction.Transaction
-signTransaction = pure
+signTransaction
+  :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
+signTransaction = pure <<< Just
 
 -- HTTP Haskell server and related
 --------------------------------------------------------------------------------
