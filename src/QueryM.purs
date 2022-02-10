@@ -134,21 +134,23 @@ allowError func = func <<< Right
 --------------------------------------------------------------------------------
 
 getWalletAddress :: QueryM (Maybe Transaction.Address)
-getWalletAddress = asks _.wallet >>= case _ of
-  Just (Nami nami) -> liftAff $
-    nami.getWalletAddress =<< liftEffect (Ref.read nami.connection)
-  Nothing -> pure Nothing
+getWalletAddress = withMWalletAff $
+  \(Nami nami) -> nami.getWalletAddress =<< liftEffect (Ref.read nami.connection)
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
-getWalletCollateral = asks _.wallet >>= case _ of
-  Just (Nami nami) -> liftAff $
-    nami.getCollateral =<< liftEffect (Ref.read nami.connection)
-  Nothing -> pure Nothing
+getWalletCollateral = withMWalletAff $
+  \(Nami nami) -> nami.getCollateral =<< liftEffect (Ref.read nami.connection)
 
--- TODO A placeholder for now so work on other components can continue
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
-signTransaction = pure <<< Just
+signTransaction tx = withMWalletAff $
+  \(Nami nami) -> flip nami.signTx tx =<< liftEffect (Ref.read nami.connection)
+
+withMWalletAff
+  :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
+withMWalletAff act = asks _.wallet >>= case _ of
+  Just wallet -> liftAff $ act wallet
+  Nothing -> pure Nothing
 
 -- HTTP Haskell server and related
 --------------------------------------------------------------------------------
