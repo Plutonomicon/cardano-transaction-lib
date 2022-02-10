@@ -20,7 +20,7 @@ import Data.FoldableWithIndex (forWithIndex_)
 import Data.UInt (UInt)
 import Effect (Effect)
 import Prelude
-import Serialization.Types (Address, AssetName, Assets, AuxiliaryData, BaseAddress, BigNum, DataHash, Ed25519KeyHash, Ed25519Signature, MultiAsset, PlutusScript, PlutusScripts, PublicKey, ScriptHash, StakeCredential, Transaction, TransactionBody, TransactionHash, TransactionInput, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, Value, Vkey, Vkeywitness, Vkeywitnesses)
+import Serialization.Types (Address, AssetName, Assets, AuxiliaryData, BaseAddress, BigNum, DataHash, Ed25519KeyHash, Ed25519Signature, MultiAsset, PlutusData, PlutusScript, PlutusScripts, PublicKey, ScriptHash, StakeCredential, Transaction, TransactionBody, TransactionHash, TransactionInput, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, Value, Vkey, Vkeywitness, Vkeywitnesses)
 import Types.ByteArray (ByteArray)
 import Types.Transaction as T
 import Types.Value as Value
@@ -75,6 +75,7 @@ foreign import toBytes
          |+| ScriptHash
          |+| TransactionHash
          |+| DataHash
+         |+| PlutusData
      -- Add more as needed.
      )
   -> ByteArray
