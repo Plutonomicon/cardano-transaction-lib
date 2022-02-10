@@ -10,7 +10,6 @@ import Prelude
 import Control.Promise (Promise)
 import Control.Promise as Promise
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Typelevel.Undefined (undefined)
 import Deserialization.Address as Deserialization.Address
 import Deserialization.UnspentOutput as Deserialization.UnspentOuput
 import Deserialization.WitnessSet as Deserialization.WitnessSet

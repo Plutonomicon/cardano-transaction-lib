@@ -42,7 +42,7 @@ import Data.Traversable (sequence)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Deserialization.Address as DAddress
+import Deserialization.Address as Deserialization.Address
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Aff.Class (liftAff)
@@ -50,7 +50,6 @@ import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (Error, error)
 import Effect.Ref as Ref
-import Deserialization.Address as Deserialization.Address
 import Helpers as Helpers
 import Serialization (addressBech32, newAddressFromBech32)
 import Serialization as Serialization
