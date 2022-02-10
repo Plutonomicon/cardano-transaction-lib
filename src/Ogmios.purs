@@ -178,7 +178,7 @@ calculateMinFee tx = do
       <<< Serialization.toBytes
       <<< asOneOf
       <$> Serialization.convertTransaction tx
-  liftAff (Affjax.get Affjax.ResponseFormat.json $ url <> "?tx=" <> txHex)
+  liftAff (Affjax.get Affjax.ResponseFormat.json $ url <> "/fees?tx=" <> txHex)
     <#> case _ of
       Left e -> Left $ FeeEstimateHttpError e
       Right resp ->
