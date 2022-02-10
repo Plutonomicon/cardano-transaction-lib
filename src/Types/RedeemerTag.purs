@@ -1,4 +1,6 @@
-module Types.RedeemerTag where
+module Types.RedeemerTag
+  ( RedeemerTag(Spend, Mint, Cert, Reward)
+  ) where
 
 import Prelude
 

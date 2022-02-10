@@ -4,7 +4,7 @@ import Prelude
 
 import Data.BigInt as BigInt
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), isJust)
+import Data.Maybe (Maybe(Just, Nothing), isJust, isNothing)
 import Data.Newtype (wrap, unwrap)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
@@ -61,17 +61,17 @@ suite = do
           Nothing -> liftEffect $ throw "Failed deserialization 5"
           Just res -> do
             test "has vkeys" do
-              isJust (unwrap res).vkeys `shouldEqual` true
+              (unwrap res).vkeys `shouldSatisfy` isJust
             test "has plutus_data" do
-              isJust (unwrap res).plutus_data `shouldEqual` true
+              (unwrap res).plutus_data `shouldSatisfy` isJust
             test "has plutus_scripts" do
-              isJust (unwrap res).plutus_scripts `shouldEqual` true
+              (unwrap res).plutus_scripts `shouldSatisfy` isJust
             test "has redeemers" do
-              isJust (unwrap res).redeemers `shouldEqual` true
+              (unwrap res).redeemers `shouldSatisfy` isJust
             test "has redeemers" do
-              isJust (unwrap res).redeemers `shouldEqual` true
+              (unwrap res).redeemers `shouldSatisfy` isJust
             test "does not have native_scripts" do
-              isJust (unwrap res).native_scripts `shouldEqual` false
+              (unwrap res).native_scripts `shouldSatisfy` isNothing
       test "fixture #2" do
         case deserializeWitnessSet witnessSetFixture2 >>= convertWitnessSet of
           Nothing -> liftEffect $ throw "Failed deserialization 6"
