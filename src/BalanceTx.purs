@@ -322,7 +322,7 @@ calculateMinFee' = calculateMinFee >>> map (bimap wrap unwrap)
 -- Balancing functions and helpers
 --------------------------------------------------------------------------------
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L54
--- FIX ME: UnbalancedTx contains requiredSignatories which woudl be part of
+-- FIX ME: UnbalancedTx contains requiredSignatories which would be a part of
 -- multisig but we don't have such functionality ATM.
 -- | Balances an unbalanced transaction
 balanceTxM :: UnbalancedTx -> QueryM (Either BalanceTxFailure Transaction)
@@ -414,30 +414,30 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
     minUtxos'
     utxoIndex'
     ownAddr'
-    (Transaction tx'@{ body: txBody' }) = do
-    txBodyWithoutFees'' :: Either BalanceTxFailure TxBody <-
+    (Transaction tx'@{ body: txBody' }) =
+    do
       pure $ preBalanceTxBody
         minUtxos'
         zero
         utxoIndex'
         ownAddr'
         txBody'
-    case txBodyWithoutFees'' of
-      Left err -> pure $ Left err
-      Right txBodyWithoutFees' -> do
-        let
-          tx'' :: Transaction
-          tx'' = wrap tx' { body = txBodyWithoutFees' }
-        fees'' <- lmap CalculateMinFeeFailure' <$> calculateMinFee' tx''
-        case fees'' of
-          Left err -> pure $ Left err
-          Right fees' ->
-            pure $ preBalanceTxBody
-              minUtxos'
-              (fees' + fromInt 500000) -- FIX ME: Add 0.5 Ada to ensure enough input for later on in final balancing.
-              utxoIndex'
-              ownAddr'
-              txBody'
+      >>= case _ of
+        Left err -> pure $ Left err
+        Right txBodyWithoutFees' -> do
+          let
+            tx'' :: Transaction
+            tx'' = wrap tx' { body = txBodyWithoutFees' }
+          fees'' <- lmap CalculateMinFeeFailure' <$> calculateMinFee' tx''
+          case fees'' of
+            Left err -> pure $ Left err
+            Right fees' ->
+              pure $ preBalanceTxBody
+                minUtxos'
+                (fees' + fromInt 500000) -- FIX ME: Add 0.5 Ada to ensure enough input for later on in final balancing.
+                utxoIndex'
+                ownAddr'
+                txBody'
 
 -- Nami provides a 5 Ada collateral that we should add the tx before balancing
 addTxCollateral :: Transaction -> TransactionUnspentOutput -> Transaction

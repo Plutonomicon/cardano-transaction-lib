@@ -76,12 +76,12 @@ derive instance Newtype UnbalancedTx _
 -- Combining these two into one function skipping Chain Index
 -- | Converts a ScriptOutput to a TransactionOutput with potential failure
 scriptOutputToTxOutput :: ScriptOutput -> Effect (Maybe TransactionOutput)
-scriptOutputToTxOutput (ScriptOutput { validatorHash, value, datumHash }) = do
-  address' <- unwrap validatorHash # newAddressFromBytes <#> convertAddress
-  pure $ case address' of
-    Nothing -> Nothing
-    Just address ->
-      pure $ wrap { address, amount: value, data_hash: pure datumHash }
+scriptOutputToTxOutput (ScriptOutput { validatorHash, value, datumHash }) =
+  unwrap validatorHash # newAddressFromBytes <#> convertAddress >>=
+    pure <<< case _ of
+      Nothing -> Nothing
+      Just address ->
+        pure $ wrap { address, amount: value, data_hash: pure datumHash }
 
 -- | Converts a utxoIndex from UnbalancedTx to Utxo with potential failure
 utxoIndexToUtxo :: Map TxOutputRef ScriptOutput -> Effect (Maybe Utxo)
