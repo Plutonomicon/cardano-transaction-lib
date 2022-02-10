@@ -1,6 +1,11 @@
 /* global require exports */
 
-const lib = require('@ngua/cardano-serialization-lib-nodejs');
+var lib;
+if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
+    lib = require('@ngua/cardano-serialization-lib-browser');
+} else {
+    lib = require('@ngua/cardano-serialization-lib-nodejs');
+}
 
 const fromBytes = name => helper => bytes => {
     try {
