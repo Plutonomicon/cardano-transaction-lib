@@ -46,7 +46,6 @@ exports.getTransactionIndex = call('index');
 exports.getAddress = call('address');
 exports.getAmount = call('amount');
 exports.getCoin = call('coin');
-exports.bigNumToString = call('to_str');
 exports.getMultiAsset = callMaybe('multiasset');
 exports.extractMultiAsset = extractDict;
 exports.extractAssets = extractDict;

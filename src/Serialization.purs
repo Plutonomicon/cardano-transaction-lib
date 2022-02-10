@@ -33,6 +33,7 @@ import Serialization.Types
   , Ed25519KeyHash
   , Ed25519Signature
   , MultiAsset
+  , PlutusData
   , PlutusScript
   , PlutusScripts
   , PublicKey
@@ -108,6 +109,7 @@ foreign import toBytes
          |+| ScriptHash
          |+| TransactionHash
          |+| DataHash
+         |+| PlutusData
      -- Add more as needed.
      )
   -> ByteArray
