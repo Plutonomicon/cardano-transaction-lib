@@ -1,13 +1,12 @@
 module Types.Value
   ( Coin(..)
-  , CurrencySymbol -- Do not export data constructor
+  , CurrencySymbol
   , NonAdaAsset(..)
-  , TokenName -- Do not export data constructor
+  , TokenName
   , Value(..)
+  , coinToValue
   , eq
   , filterNonAda
-  , valueToCoin
-  , valueToCoin'
   , geq
   , getCurrencySymbol
   , getLovelace
@@ -26,6 +25,7 @@ module Types.Value
   , mkCurrencySymbol
   , mkNonAdaAsset
   , mkNonAdaAssets
+  , mkNonAdaAssetsFromTokenMap
   , mkSingletonNonAdaAsset
   , mkSingletonValue
   , mkTokenName
@@ -34,8 +34,9 @@ module Types.Value
   , numCurrencySymbols
   , numTokenNames
   , sumTokenNameLengths
-  , coinToValue
   , valueOf
+  , valueToCoin
+  , valueToCoin'
   ) where
 
 import Prelude
@@ -151,15 +152,12 @@ getTokenName (TokenName tokenName) = tokenName
 unsafeAdaToken :: TokenName
 unsafeAdaToken = TokenName mempty
 
--- Do we really need a smart constructor for TokenName if all we are doing
--- is checking its length? Is it safe to export its constructor?
 -- | Create a TokenName from a ByteArray since TokenName data constructor is not
 -- | exported
 mkTokenName :: ByteArray -> Maybe TokenName
 mkTokenName byteArr =
   if byteLength byteArr > 0 then pure $ TokenName byteArr else Nothing
 
--- Perhaps we don't need Maybe here, see mkTokenName comments.
 -- | Creates a Map of TokenName and Big Integers from a Traversable of 2-tuple
 -- | ByteArray and Big Integers with the possibility of failure
 mkTokenNames
@@ -209,27 +207,22 @@ mkSingletonNonAdaAsset curSymbol tokenName amount =
 mkNonAdaAsset :: Map CurrencySymbol (Map TokenName BigInt) -> NonAdaAsset
 mkNonAdaAsset = NonAdaAsset
 
--- if
---   unsafeAdaSymbol `member` m
---     || any (member unsafeAdaToken) (Map.values m) then Nothing
--- else pure $ NonAdaAsset m
+mkNonAdaAssetsFromTokenMap'
+  :: forall (t :: Type -> Type)
+   . Traversable t
+  => t (ByteArray /\ Map TokenName BigInt)
+  -> Maybe (Map CurrencySymbol (Map TokenName BigInt))
+mkNonAdaAssetsFromTokenMap' =
+  traverse (ltraverse mkCurrencySymbol) >>> map Map.fromFoldable
 
--- mkNonAdaAssetsFromTokenMap'
---   :: forall (t :: Type -> Type)
---   . Traversable t
---   => t (ByteArray /\ Map TokenName BigInt)
---   -> Maybe (Map CurrencySymbol (Map TokenName BigInt))
--- mkNonAdaAssetsFromTokenMap' =
---   traverse (ltraverse mkCurrencySymbol) >>> map Map.fromFoldable
-
--- -- Don't need mkNonAdaAsset here, we could just use Data Constructor since
--- -- mkCurrencySymbol is called inside mkNonAdaAssets'
--- mkNonAdaAssetsFromTokenMap
---   :: forall (t :: Type -> Type)
---   . Traversable t
---   => t (ByteArray /\ Map TokenName BigInt)
---   -> Maybe NonAdaAsset
--- mkNonAdaAssetsFromTokenMap xs = mkNonAdaAssetsFromTokenMap' xs >>= mkNonAdaAsset
+-- | Creates a NonAdaAsset from bytearrays and already safely created TokenName
+-- | map
+mkNonAdaAssetsFromTokenMap
+  :: forall (t :: Type -> Type)
+   . Traversable t
+  => t (ByteArray /\ Map TokenName BigInt)
+  -> Maybe NonAdaAsset
+mkNonAdaAssetsFromTokenMap xs = mkNonAdaAssetsFromTokenMap' xs <#> mkNonAdaAsset
 
 mkNonAdaAssets'
   :: forall (s :: Type -> Type) (t :: Type -> Type)
@@ -548,4 +541,4 @@ sumTokenNameLengths = foldl lenAdd zero <<< unsafeAllTokenNames
 -- From https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- | Filter a value to contain only non Ada assets
 filterNonAda :: Value -> Value
-filterNonAda (Value coins _) = Value coins mempty   
+filterNonAda (Value coins _) = Value coins mempty
