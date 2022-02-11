@@ -3,7 +3,6 @@ module Serialization
   , addressBech32
   , addressPubKeyHash
   , convertAddress
-  , convertBigInt
   , convertTxInput
   , convertTxOutput
   , newAddressFromBech32
@@ -13,20 +12,22 @@ module Serialization
   ) where
 
 import Data.BigInt as BigInt
-import Data.Maybe (Maybe(..))
+import Data.FoldableWithIndex (forWithIndex_)
+import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse_, for_)
-import Data.FoldableWithIndex (forWithIndex_)
 import Data.UInt (UInt)
+import Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Effect (Effect)
+import Effect.Exception (throw)
 import Prelude
+import Serialization.BigNum (convertBigNum)
 import Serialization.Types (Address, AssetName, Assets, AuxiliaryData, BaseAddress, BigNum, DataHash, Ed25519KeyHash, MultiAsset, PlutusData, ScriptHash, StakeCredential, Transaction, TransactionBody, TransactionHash, TransactionInput, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, Value)
 import Serialization.WitnessSet (convertWitnessSet)
 import Types.ByteArray (ByteArray)
 import Types.Transaction as T
 import Types.Value as Value
 import Untagged.Union (type (|+|))
-import Deserialization.FromBytes (fromBytes, fromBytesEffect)
 
 foreign import newBigNum :: String -> Effect BigNum
 foreign import newValue :: BigNum -> Effect Value
@@ -65,6 +66,7 @@ foreign import toBytes
          |+| TransactionHash
          |+| DataHash
          |+| PlutusData
+         |+| TransactionWitnessSet
      -- Add more as needed.
      )
   -> ByteArray
@@ -82,13 +84,10 @@ convertTransaction :: T.Transaction -> Effect Transaction
 convertTransaction (T.Transaction { body: T.TxBody body, witness_set }) = do
   inputs <- convertTxInputs body.inputs
   outputs <- convertTxOutputs body.outputs
-  fee <- convertBigInt (unwrap body.fee)
+  fee <- maybe (throw "Failed to convert fee") pure $ convertBigNum (unwrap body.fee)
   txBody <- newTransactionBody inputs outputs fee
   ws <- convertWitnessSet witness_set
   newTransaction txBody ws
-
-convertBigInt :: BigInt.BigInt -> Effect BigNum
-convertBigInt = newBigNum <<< BigInt.toString
 
 convertTxInputs :: Array T.TransactionInput -> Effect TransactionInputs
 convertTxInputs arrInputs = do

@@ -2,11 +2,11 @@ module Test.Utils (unsafeCall, assertTrue, assertTrue_, errMaybe) where
 
 import Control.Alternative (pure)
 import Data.Function (($))
-import Data.Maybe (Maybe, maybe)
+import Data.Maybe (Maybe(..))
 import Data.Unit (Unit, unit)
 import Effect.Aff (error)
-import Effect.Class (liftEffect)
-import Effect.Exception (throwException)
+import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Exception (throwException, throw)
 import TestM (TestPlanM)
 import Type.Prelude (Proxy)
 
@@ -21,8 +21,7 @@ assertTrue msg b =
 assertTrue_ :: Boolean -> TestPlanM Unit
 assertTrue_ = assertTrue "Boolean test failed"
 
-errMaybe :: forall a. String -> Maybe a -> TestPlanM a
-errMaybe msg =
-  maybe
-    (liftEffect $ throwException $ error msg)
-    pure
+errMaybe :: forall m a. MonadEffect m => String -> Maybe a -> m a
+errMaybe msg = case _ of
+  Nothing -> liftEffect $ throw msg
+  Just res -> pure res

@@ -31,8 +31,8 @@ exports.addVkeywitness = witnesses => witness => () =>
 exports.newPlutusScript = bytes => () =>
     lib.PlutusScript.new(bytes);
 
-exports.newPlutusScripts = bytes => () =>
-    lib.PlutusScripts.new(bytes);
+exports.newPlutusScripts = () =>
+    lib.PlutusScripts.new();
 
 exports.addPlutusScript = scripts => script => () =>
     scripts.add(script);
@@ -44,14 +44,14 @@ exports.txWitnessSetSetPlutusScripts = ws => scripts => () =>
     ws.set_plutus_scripts(scripts);
 
 exports._wsSetBootstraps = helper => ws => bootstraps => () =>
-    ws.set_bootstraps(helper.packInto(lib.BootstrapWitnesses, bootstraps));
+    ws.set_bootstraps(helper.pack(lib.BootstrapWitnesses, bootstraps));
 
 exports.newBootstrapWitness = vkey => signature => chain_code => attributes => () => {
     lib.BootstrapWitness.new(vkey, signature, chain_code, attributes);
 };
 
 exports._wsSetPlutusData = helper => ws => plutus_data => () =>
-    ws.set_plutus_data(helper.packInto(lib.PlutusList, plutus_data));
+    ws.set_plutus_data(helper.pack(lib.PlutusList, plutus_data));
 
 exports.newRedeemer = tag => index => data => ex_units => () =>
     lib.Redeemer.new(tag, index, data, ex_units);
@@ -63,4 +63,4 @@ exports.newExUnits = mem => steps =>
     lib.ExUnits.new(mem, steps);
 
 exports._wsSetRedeemers = helper => ws => redeemers => () =>
-    ws.set_redeemersb(helper.packInto(lib.Redeemers, redeemers));
+    ws.set_redeemers(helper.pack(lib.Redeemers, redeemers));
