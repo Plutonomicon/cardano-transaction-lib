@@ -3,15 +3,15 @@ module Test.Fixtures where
 import Prelude
 
 import Data.BigInt as BigInt
-import Data.Map as Map
-import Data.Maybe (Maybe(..))
-import Data.Newtype (wrap)
+import Data.Maybe (Maybe(..), fromJust)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
+import Partial.Unsafe (unsafePartial)
 import Types.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe, hexToByteArrayUnsafe)
 import Types.Transaction (Address(..), BaseAddress(..), Bech32(..), Ed25519KeyHash(..), Ed25519Signature(..), NetworkId(..), PaymentCredential(..), PlutusData(..), PublicKey(..), StakeCredential(..), Transaction(..), TransactionHash(..), TransactionInput(..), TransactionOutput(..), TransactionWitnessSet(..), TxBody(..), Vkey(..), Vkeywitness(..)) as T
 import Types.TransactionUnspentOutput (TransactionUnspentOutput(..)) as T
-import Types.Value (Coin(..), CurrencySymbol(..), NonAdaAsset(..), TokenName(..), Value(..)) as T
+import Types.Value (Coin(..), CurrencySymbol, TokenName, Value(..)) as T
+import Types.Value (mkCurrencySymbol, mkTokenName, mkSingletonNonAdaAsset)
 
 txOutputFixture1 :: T.TransactionOutput
 txOutputFixture1 =
@@ -27,7 +27,7 @@ txOutputFixture1 =
                 $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
             }
         }
-    , amount: T.Value (T.Coin $ BigInt.fromInt 0) (wrap Map.empty)
+    , amount: T.Value (T.Coin $ BigInt.fromInt 0) mempty
     , data_hash: Nothing
     }
 
@@ -45,15 +45,18 @@ txOutputFixture2 =
                 $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
             }
         }
-    , amount: T.Value (T.Coin $ BigInt.fromInt 0) $ wrap $ Map.fromFoldable
-        [ T.CurrencySymbol currencySymbol1 /\ Map.fromFoldable
-            [ T.TokenName tokenName1 /\ BigInt.fromInt 1000000 ]
-        ]
+    , amount: T.Value (T.Coin $ BigInt.fromInt 0) $ unsafePartial $ fromJust $
+        mkSingletonNonAdaAsset currencySymbol1 tokenName1 (BigInt.fromInt 1000000)
     , data_hash: Nothing
     }
-  where
-  currencySymbol1 = hexToByteArrayUnsafe "1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2e"
-  tokenName1 = hexToByteArrayUnsafe "4974657374546f6b656e"
+
+currencySymbol1 :: T.CurrencySymbol
+currencySymbol1 = unsafePartial $ fromJust $ mkCurrencySymbol $
+  hexToByteArrayUnsafe "1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2e"
+
+tokenName1 :: T.TokenName
+tokenName1 = unsafePartial $ fromJust $ mkTokenName $
+  hexToByteArrayUnsafe "4974657374546f6b656e"
 
 txOutputBinaryFixture1 :: String
 txOutputBinaryFixture1 =
@@ -138,7 +141,7 @@ txFixture3 =
                             $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                         }
                     }
-                , amount: T.Value (T.Coin $ BigInt.fromInt 2353402) $ wrap Map.empty
+                , amount: T.Value (T.Coin $ BigInt.fromInt 2353402) mempty
                 , data_hash: Nothing
                 }
             , T.TransactionOutput
@@ -152,7 +155,7 @@ txFixture3 =
                             $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                         }
                     }
-                , amount: T.Value (T.Coin $ BigInt.fromInt 1000000) $ wrap Map.empty
+                , amount: T.Value (T.Coin $ BigInt.fromInt 1000000) mempty
                 , data_hash: Nothing
                 }
             ]
@@ -232,7 +235,7 @@ utxoFixture1' =
                         )
                     }
                 )
-            , amount: T.Value (T.Coin (BigInt.fromInt 5000000)) (T.NonAdaAsset (Map.fromFoldable []))
+            , amount: T.Value (T.Coin (BigInt.fromInt 5000000)) mempty
             , data_hash: Nothing
             }
         )

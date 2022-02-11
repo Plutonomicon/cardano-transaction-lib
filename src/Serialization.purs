@@ -6,6 +6,7 @@ module Serialization
   , convertTxInput
   , convertTxOutput
   , newAddressFromBech32
+  , newAddressFromBytes
   , newAssetName
   , toBytes
   , newBaseAddressFromAddress
@@ -22,8 +23,30 @@ import Effect (Effect)
 import Effect.Exception (throw)
 import Prelude
 import Serialization.BigNum (convertBigNum)
-import Serialization.Types (Address, AssetName, Assets, AuxiliaryData, BaseAddress, BigNum, DataHash, Ed25519KeyHash, MultiAsset, PlutusData, ScriptHash, StakeCredential, Transaction, TransactionBody, TransactionHash, TransactionInput, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, Value)
 import Serialization.WitnessSet (convertWitnessSet)
+import Serialization.Types
+  ( Address
+  , AssetName
+  , Assets
+  , AuxiliaryData
+  , BaseAddress
+  , BigNum
+  , DataHash
+  , Ed25519KeyHash
+  , MultiAsset
+  , PlutusData
+  , ScriptHash
+  , StakeCredential
+  , Transaction
+  , TransactionBody
+  , TransactionHash
+  , TransactionInput
+  , TransactionInputs
+  , TransactionOutput
+  , TransactionOutputs
+  , TransactionWitnessSet
+  , Value
+  )
 import Types.ByteArray (ByteArray)
 import Types.Transaction as T
 import Types.Value as Value
@@ -43,6 +66,7 @@ foreign import newTransactionBody :: TransactionInputs -> TransactionOutputs -> 
 foreign import newTransaction :: TransactionBody -> TransactionWitnessSet -> Effect Transaction
 foreign import newTransaction_ :: TransactionBody -> TransactionWitnessSet -> AuxiliaryData -> Effect Transaction
 foreign import newAddressFromBech32 :: T.Bech32 -> Effect Address
+foreign import newAddressFromBytes :: ByteArray -> Effect Address
 foreign import newBaseAddress :: UInt -> StakeCredential -> StakeCredential -> Effect BaseAddress
 foreign import _newBaseAddressFromAddress :: (forall a. Maybe a) -> (forall a. a -> Maybe a) -> Address -> Maybe BaseAddress
 foreign import baseAddressPaymentCredential :: BaseAddress -> StakeCredential
@@ -133,11 +157,16 @@ convertAddress address = do
   baseAddressToAddress base_address
 
 convertValue :: Value.Value -> Effect Value
-convertValue (Value.Value (Value.Coin lovelace) (Value.NonAdaAsset m)) = do
+convertValue val = do
+  let
+    lovelace = Value.valueToCoin' val
+    m = Value.getNonAdaAsset' val
   multiasset <- newMultiAsset
-  forWithIndex_ m \(Value.CurrencySymbol scriptHashBytes) values -> do
+  forWithIndex_ m \scriptHashBytes' values -> do
+    let scriptHashBytes = Value.getCurrencySymbol scriptHashBytes'
     assets <- newAssets
-    forWithIndex_ values \(Value.TokenName tokenName) bigIntValue -> do
+    forWithIndex_ values \tokenName' bigIntValue -> do
+      let tokenName = Value.getTokenName tokenName'
       assetName <- newAssetName tokenName
       value <- newBigNum (BigInt.toString bigIntValue)
       insertAssets assets assetName value

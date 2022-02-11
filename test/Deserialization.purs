@@ -1,4 +1,4 @@
-module Test.Deserialization where
+module Test.Deserialization (suite) where
 
 import Prelude
 
@@ -23,7 +23,7 @@ import Serialization.Types (TransactionUnspentOutput)
 import Serialization.WitnessSet as SW
 import Test.Fixtures (addressString, txInputFixture1, txOutputFixture1, utxoFixture1, utxoFixture1', witnessSetFixture1, witnessSetFixture2, witnessSetFixture2Value, witnessSetFixture3, witnessSetFixture3Value, witnessSetFixture4)
 import Test.Utils (errMaybe)
-import Types.Transaction (Bech32(..), TransactionInput, TransactionOutput) as T
+import Types.Transaction (Bech32(Bech32), TransactionInput, TransactionOutput) as T
 import Types.TransactionUnspentOutput (TransactionUnspentOutput(..)) as T
 
 suite :: TestPlanM Unit
