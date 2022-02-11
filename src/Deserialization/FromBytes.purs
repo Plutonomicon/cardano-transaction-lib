@@ -31,6 +31,9 @@ instance FromBytes Ed25519KeyHash where
 instance FromBytes TransactionHash where
   fromBytes = _fromBytesTransactionHash maybeFfiHelper
 
+instance FromBytes PlutusData where
+  fromBytes = _fromBytesPlutusData maybeFfiHelper
+
 fromBytesEffect :: forall a. FromBytes a => ByteArray -> Effect a
 fromBytesEffect bytes =
   case fromBytes bytes of
@@ -42,3 +45,4 @@ foreign import _fromBytesScriptHash :: MaybeFfiHelper -> ByteArray -> Maybe Scri
 foreign import _fromBytesDataHash :: MaybeFfiHelper -> ByteArray -> Maybe DataHash
 foreign import _fromBytesEd25519KeyHash :: MaybeFfiHelper -> ByteArray -> Maybe Ed25519KeyHash
 foreign import _fromBytesTransactionHash :: MaybeFfiHelper -> ByteArray -> Maybe TransactionHash
+foreign import _fromBytesPlutusData :: MaybeFfiHelper -> ByteArray -> Maybe PlutusData

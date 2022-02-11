@@ -20,7 +20,8 @@ import Data.FoldableWithIndex (forWithIndex_)
 import Data.UInt (UInt)
 import Effect (Effect)
 import Prelude
-import Serialization.Types (Address, AssetName, Assets, AuxiliaryData, BaseAddress, BigNum, DataHash, Ed25519KeyHash, Ed25519Signature, MultiAsset, PlutusData, PlutusScript, PlutusScripts, PublicKey, ScriptHash, StakeCredential, Transaction, TransactionBody, TransactionHash, TransactionInput, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, Value, Vkey, Vkeywitness, Vkeywitnesses)
+import Serialization.Types (Address, AssetName, Assets, AuxiliaryData, BaseAddress, BigNum, DataHash, Ed25519KeyHash, MultiAsset, PlutusData, ScriptHash, StakeCredential, Transaction, TransactionBody, TransactionHash, TransactionInput, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, Value)
+import Serialization.WitnessSet (convertWitnessSet)
 import Types.ByteArray (ByteArray)
 import Types.Transaction as T
 import Types.Value as Value
@@ -40,7 +41,6 @@ foreign import addTransactionOutput :: TransactionOutputs -> TransactionOutput -
 foreign import newTransactionBody :: TransactionInputs -> TransactionOutputs -> BigNum -> Effect TransactionBody
 foreign import newTransaction :: TransactionBody -> TransactionWitnessSet -> Effect Transaction
 foreign import newTransaction_ :: TransactionBody -> TransactionWitnessSet -> AuxiliaryData -> Effect Transaction
-foreign import newTransactionWitnessSet :: Effect TransactionWitnessSet
 foreign import newAddressFromBech32 :: T.Bech32 -> Effect Address
 foreign import newBaseAddress :: UInt -> StakeCredential -> StakeCredential -> Effect BaseAddress
 foreign import _newBaseAddressFromAddress :: (forall a. Maybe a) -> (forall a. a -> Maybe a) -> Address -> Maybe BaseAddress
@@ -54,17 +54,6 @@ foreign import newAssets :: Effect Assets
 foreign import insertAssets :: Assets -> AssetName -> BigNum -> Effect Unit
 foreign import newAssetName :: ByteArray -> Effect AssetName
 foreign import transactionOutputSetDataHash :: TransactionOutput -> DataHash -> Effect Unit
-foreign import newVkeywitnesses :: Effect Vkeywitnesses
-foreign import newVkeywitness :: Vkey -> Ed25519Signature -> Effect Vkeywitness
-foreign import addVkeywitness :: Vkeywitnesses -> Vkeywitness -> Effect Unit
-foreign import newVkeyFromPublicKey :: PublicKey -> Effect Vkey
-foreign import newPublicKey :: T.Bech32 -> Effect PublicKey
-foreign import newEd25519Signature :: T.Bech32 -> Effect Ed25519Signature
-foreign import transactionWitnessSetSetVkeys :: TransactionWitnessSet -> Vkeywitnesses -> Effect Unit
-foreign import newPlutusScript :: ByteArray -> Effect PlutusScript
-foreign import newPlutusScripts :: Effect PlutusScripts
-foreign import txWitnessSetSetPlutusScripts :: TransactionWitnessSet -> PlutusScripts -> Effect Unit
-foreign import addPlutusScript :: PlutusScripts -> PlutusScript -> Effect Unit
 foreign import _addressPubKeyHash :: (forall a. a -> Maybe a) -> (forall a. Maybe a) -> BaseAddress -> Maybe T.Bech32
 foreign import _addressBech32 :: Address -> T.Bech32
 
@@ -100,43 +89,6 @@ convertTransaction (T.Transaction { body: T.TxBody body, witness_set }) = do
 
 convertBigInt :: BigInt.BigInt -> Effect BigNum
 convertBigInt = newBigNum <<< BigInt.toString
-
--- Parts that are commented-out are unused & untested, but should compile
-
-convertWitnessSet :: T.TransactionWitnessSet -> Effect TransactionWitnessSet
-convertWitnessSet (T.TransactionWitnessSet _ {- tws -} ) = do
-  ws <- newTransactionWitnessSet
-  -- for_ tws.vkeys
-  --   (convertVkeywitnesses >=> transactionWitnessSetSetVkeys ws)
-  -- for_ tws.plutus_scripts \ps -> do
-  --   scripts <- newPlutusScripts
-  --   for_ ps (convertPlutusScript >=> addPlutusScript scripts)
-  --   txWitnessSetSetPlutusScripts ws scripts
-  pure ws
-
--- convertPlutusScript :: T.PlutusScript -> Effect PlutusScript
--- convertPlutusScript (T.PlutusScript bytes) = do
---   newPlutusScript bytes
-
--- convertVkeywitnesses :: Array T.Vkeywitness -> Effect Vkeywitnesses
--- convertVkeywitnesses arr = do
---   witnesses <- newVkeywitnesses
---   traverse_ (convertVkeywitness >=> addVkeywitness witnesses) arr
---   pure witnesses
-
--- convertVkeywitness :: T.Vkeywitness -> Effect Vkeywitness
--- convertVkeywitness (T.Vkeywitness (vkey /\ signature)) = do
---   vkey' <- convertVkey vkey
---   signature' <- convertEd25519Signature signature
---   newVkeywitness vkey' signature'
-
--- convertEd25519Signature :: T.Ed25519Signature -> Effect Ed25519Signature
--- convertEd25519Signature (T.Ed25519Signature bech32) =
---   newEd25519Signature bech32
-
--- convertVkey :: T.Vkey -> Effect Vkey
--- convertVkey (T.Vkey (T.PublicKey pk)) =
---   newPublicKey pk >>= newVkeyFromPublicKey
 
 convertTxInputs :: Array T.TransactionInput -> Effect TransactionInputs
 convertTxInputs arrInputs = do

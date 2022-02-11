@@ -46,9 +46,6 @@ exports.newTransaction = body => witness_set => () =>
 exports.newTransaction_ = body => witness_set => auxiliary_data => () =>
     lib.Transaction.new(body, witness_set, auxiliary_data);
 
-exports.newTransactionWitnessSet = () =>
-    lib.TransactionWitnessSet.new();
-
 exports.newAddressFromBech32 = bech32 => () =>
     lib.Address.from_bech32(bech32);
 
@@ -89,39 +86,6 @@ exports.newAssetName = name => () =>
 
 exports.transactionOutputSetDataHash = output => hash => () =>
     output.set_data_hash(hash);
-
-exports.newVkeywitnesses = () =>
-    lib.Vkeywitnesses.new();
-
-exports.newVkeywitness = vkey => signature => () =>
-    lib.Vkeywitness.new(vkey, signature);
-
-exports.addVkeywitness = witnesses => witness => () =>
-    witnesses.add(witness);
-
-exports.newVkeyFromPublicKey = public_key => () =>
-    lib.Vkey.new(public_key);
-
-exports.newPublicKey = bech32 => () =>
-    lib.PublicKey.from_bech32(bech32);
-
-exports.newEd25519Signature = bech32 => () =>
-    lib.Ed25519Signature.from_bech32(bech32);
-
-exports.transactionWitnessSetSetVkeys = ws => vkeys => () =>
-    ws.set_vkeys(vkeys);
-
-exports.newPlutusScript = bytes => () =>
-    lib.PlutusScript.new(bytes);
-
-exports.newPlutusScripts = bytes => () =>
-    lib.PlutusScripts.new(bytes);
-
-exports.txWitnessSetSetPlutusScripts = ws => scripts => () =>
-    ws.set_plutus_scripts(scripts);
-
-exports.addPlutusScript = scripts => script => () =>
-    scripts.add(script);
 
 exports._addressPubKeyHash = just => nothing => baseAddr => {
     // i've chosen a prefix that Nami uses for payment_creds

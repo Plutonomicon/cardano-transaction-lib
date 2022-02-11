@@ -288,6 +288,7 @@ newtype PlutusData = PlutusData ByteArray
 
 derive instance Generic PlutusData _
 derive newtype instance Eq PlutusData
+derive instance Newtype PlutusData _
 
 instance Show PlutusData where
   show = genericShow
