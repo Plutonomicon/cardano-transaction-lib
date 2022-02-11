@@ -131,7 +131,7 @@ mkCurrencySymbol byteArr =
 -- Do not export. Create an Ada CurrencySymbol from a ByteArray
 mkUnsafeAdaSymbol :: ByteArray -> Maybe CurrencySymbol
 mkUnsafeAdaSymbol byteArr =
-  if byteLength byteArr == 0 then pure unsafeAdaSymbol else Nothing
+  if byteArr == mempty then pure unsafeAdaSymbol else Nothing
 
 --------------------------------------------------------------------------------
 -- TokenName
@@ -172,7 +172,7 @@ mkTokenNames = traverse (ltraverse mkTokenName) >>> map Map.fromFoldable
 -- Do not export. Create an Ada TokenName from a ByteArray
 mkUnsafeTokenSymbol :: ByteArray -> Maybe TokenName
 mkUnsafeTokenSymbol byteArr =
-  if byteLength byteArr == 0 then pure unsafeAdaToken else Nothing
+  if byteArr == mempty then pure unsafeAdaToken else Nothing
 
 --------------------------------------------------------------------------------
 -- NonAdaAsset
@@ -548,4 +548,4 @@ sumTokenNameLengths = foldl lenAdd zero <<< unsafeAllTokenNames
 -- From https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- | Filter a value to contain only non Ada assets
 filterNonAda :: Value -> Value
-filterNonAda (Value coins _) = Value coins mempty
+filterNonAda (Value coins _) = Value coins mempty   
