@@ -6,7 +6,7 @@ module Deserialization.WitnessSet
 import Prelude
 
 import Control.Alt ((<|>))
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (for, traverse)
 import Data.Tuple.Nested ((/\))
 import Deserialization.BigNum (convertBigNum)

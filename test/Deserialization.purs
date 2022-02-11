@@ -4,7 +4,7 @@ import Prelude
 
 import Data.BigInt as BigInt
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), isJust)
+import Data.Maybe (Maybe(Just, Nothing), isJust, isNothing)
 import Data.Newtype (wrap, unwrap)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
@@ -61,17 +61,17 @@ suite = do
           Nothing -> liftEffect $ throw "Failed deserialization 5"
           Just res -> do
             test "has vkeys" do
-              isJust (unwrap res).vkeys `shouldEqual` true
+              (unwrap res).vkeys `shouldSatisfy` isJust
             test "has plutus_data" do
-              isJust (unwrap res).plutus_data `shouldEqual` true
+              (unwrap res).plutus_data `shouldSatisfy` isJust
             test "has plutus_scripts" do
-              isJust (unwrap res).plutus_scripts `shouldEqual` true
+              (unwrap res).plutus_scripts `shouldSatisfy` isJust
             test "has redeemers" do
-              isJust (unwrap res).redeemers `shouldEqual` true
+              (unwrap res).redeemers `shouldSatisfy` isJust
             test "has redeemers" do
-              isJust (unwrap res).redeemers `shouldEqual` true
+              (unwrap res).redeemers `shouldSatisfy` isJust
             test "does not have native_scripts" do
-              isJust (unwrap res).native_scripts `shouldEqual` false
+              (unwrap res).native_scripts `shouldSatisfy` isNothing
       test "fixture #2" do
         case deserializeWitnessSet witnessSetFixture2 >>= convertWitnessSet of
           Nothing -> liftEffect $ throw "Failed deserialization 6"
@@ -80,6 +80,12 @@ suite = do
         case deserializeWitnessSet witnessSetFixture3 >>= convertWitnessSet of
           Nothing -> liftEffect $ throw "Failed deserialization 7"
           Just res -> res `shouldEqual` witnessSetFixture3Value
+      group "fixture #4" do
+        case deserializeWitnessSet witnessSetFixture4 >>= convertWitnessSet of
+          Nothing -> liftEffect $ throw "Failed deserialization 8"
+          Just res -> do
+            test "has native_scripts" do
+              (unwrap res).native_scripts `shouldSatisfy` isJust
 
 createUnspentOutput :: T.TransactionInput -> T.TransactionOutput -> Effect TransactionUnspentOutput
 createUnspentOutput input output = do
@@ -198,3 +204,6 @@ witnessSetFixture3Value =
             )
         ]
     }
+
+witnessSetFixture4 :: ByteArray
+witnessSetFixture4 = hexToByteArrayUnsafe "a30081825820096092b8515d75c2a2f75d6aa7c5191996755840e81deaa403dba5b690f091b658400d91f7ab723ed0adb9f7ec06bba5cb99b4dcbbe8fb6ce45fb3fcab31ddf57ca085437d7ec4e6fea8d10d0c455fdfb2fdbcf1d89643f635841da0e2593f6dd50a01818204187b048102"
