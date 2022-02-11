@@ -28,3 +28,13 @@ foreign import data Ed25519Signature :: Type
 foreign import data PublicKey :: Type
 foreign import data PlutusScript :: Type
 foreign import data PlutusScripts :: Type
+foreign import data NativeScript :: Type
+foreign import data NativeScripts :: Type
+foreign import data BootstrapWitnesses :: Type
+foreign import data BootstrapWitness :: Type
+foreign import data PlutusList :: Type
+foreign import data PlutusData :: Type
+foreign import data Redeemers :: Type
+foreign import data Redeemer :: Type
+foreign import data RedeemerTag :: Type
+foreign import data ExUnits :: Type

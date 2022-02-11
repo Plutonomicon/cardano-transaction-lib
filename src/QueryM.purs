@@ -1,30 +1,48 @@
-module Ogmios
+module QueryM
   ( DispatchIdMap
+  , FeeEstimate(FeeEstimate)
+  , FeeEstimateError(FeeEstimateHttpError, FeeEstimateDecodeJsonError)
+  , Host
   , ListenerSet
   , Listeners
-  , OgmiosWebSocket(OgmiosWebSocket)
+  , OgmiosWebSocket
   , QueryConfig
   , QueryM
+  , ServerConfig
   , WebSocket
   , addressToOgmiosAddress
+  , calculateMinFee
+  , defaultServerConfig
+  , getWalletAddress
+  , getWalletCollateral
   , mkOgmiosWebSocketAff
+  , mkServerUrl
   , ogmiosAddressToAddress
+  , signTransaction
   , utxosAt
   ) where
 
 import Prelude
+import Affjax as Affjax
+import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Reader.Trans (ReaderT, ask)
+import Control.Monad.Reader.Trans (ReaderT, ask, asks)
 import Control.Monad.Trans.Class (lift)
 import Data.Argonaut as Json
+import Data.BigInt (BigInt)
+import Data.BigInt as BigInt
+import Data.Bifunctor (bimap)
 import Data.Bitraversable (bisequence, bitraverse)
-import Data.Either (Either(Left, Right), either, isRight)
+import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
 import Data.Map as Map
 import Data.Maybe (maybe, Maybe(Just, Nothing))
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (sequence)
 import Data.Tuple.Nested (type (/\))
+import Data.UInt (UInt)
+import Data.UInt as UInt
+import Deserialization.Address as Deserialization.Address
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Aff.Class (liftAff)
@@ -32,14 +50,16 @@ import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (Error, error)
 import Effect.Ref as Ref
-
-import Deserialization.Address as DAddress
 import Helpers as Helpers
-import Serialization as Serialization
 import Serialization (addressBech32, newAddressFromBech32)
-import Types.ByteArray (hexToByteArray)
+import Serialization as Serialization
+import Types.ByteArray (hexToByteArray, byteArrayToHex)
 import Types.JsonWsp (Address, OgmiosTxOut, JsonWspResponse, mkUtxosAtQuery, parseJsonWspResponse, TxOutRef, UtxoQR(UtxoQR))
 import Types.Transaction as Transaction
+import Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Types.Value (Coin(Coin))
+import Untagged.Union (asOneOf)
+import Wallet (Wallet(Nami))
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -75,9 +95,10 @@ type Url = String
 
 -- when we add multiple query backends or wallets,
 -- we just need to extend this type
-type QueryConfig = { ws :: OgmiosWebSocket }
+type QueryConfig =
+  { ws :: OgmiosWebSocket, serverConfig :: ServerConfig, wallet :: Maybe Wallet }
 
-type QueryM a = ReaderT QueryConfig Aff a
+type QueryM (a :: Type) = ReaderT QueryConfig Aff a
 
 -- the first query type in the QueryM/Aff interface
 utxosAt' :: Address -> QueryM UtxoQR
@@ -106,6 +127,93 @@ utxosAt' addr = do
 
 allowError :: (Either Error UtxoQR -> Effect Unit) -> UtxoQR -> Effect Unit
 allowError func = func <<< Right
+
+--------------------------------------------------------------------------------
+-- Wallet
+--------------------------------------------------------------------------------
+
+getWalletAddress :: QueryM (Maybe Transaction.Address)
+getWalletAddress = withMWalletAff $
+  \(Nami nami) -> nami.getWalletAddress =<< liftEffect (Ref.read nami.connection)
+
+getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
+getWalletCollateral = withMWalletAff $
+  \(Nami nami) -> nami.getCollateral =<< liftEffect (Ref.read nami.connection)
+
+signTransaction
+  :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
+signTransaction tx = withMWalletAff $
+  \(Nami nami) -> flip nami.signTx tx =<< liftEffect (Ref.read nami.connection)
+
+withMWalletAff
+  :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
+withMWalletAff act = asks _.wallet >>= case _ of
+  Just wallet -> liftAff $ act wallet
+  Nothing -> pure Nothing
+
+-- HTTP Haskell server and related
+--------------------------------------------------------------------------------
+
+type ServerConfig =
+  { port :: UInt
+  , host :: Host
+  , secure :: Boolean
+  }
+
+defaultServerConfig :: ServerConfig
+defaultServerConfig =
+  { port: UInt.fromInt 8081
+  , host: "localhost"
+  , secure: false
+  }
+
+type Host = String
+
+mkServerUrl :: ServerConfig -> Url
+mkServerUrl cfg =
+  (if cfg.secure then "https" else "http")
+    <> "://"
+    <> cfg.host
+    <> ":"
+    <> UInt.toString cfg.port
+
+-- The server will respond with a stringified integer value for the fee estimate
+newtype FeeEstimate = FeeEstimate BigInt
+
+derive instance Newtype FeeEstimate _
+
+instance Json.DecodeJson FeeEstimate where
+  decodeJson str =
+    map FeeEstimate
+      <<< note (Json.TypeMismatch "Expected a `BigInt`")
+      <<< BigInt.fromString
+      =<< Json.caseJsonString
+        (Left $ Json.TypeMismatch "Expected a stringified `BigInt`")
+        Right
+        str
+
+data FeeEstimateError
+  = FeeEstimateHttpError Affjax.Error
+  | FeeEstimateDecodeJsonError Json.JsonDecodeError
+
+-- Query the Haskell server for the minimum transaction fee
+calculateMinFee
+  :: Transaction.Transaction -> QueryM (Either FeeEstimateError Coin)
+calculateMinFee tx = do
+  url <- asks $ mkServerUrl <<< _.serverConfig
+  txHex <- liftEffect $
+    byteArrayToHex
+      <<< Serialization.toBytes
+      <<< asOneOf
+      <$> Serialization.convertTransaction tx
+  liftAff (Affjax.get Affjax.ResponseFormat.json $ url <> "?tx=" <> txHex)
+    <#> case _ of
+      Left e -> Left $ FeeEstimateHttpError e
+      Right resp ->
+        bimap
+          FeeEstimateDecodeJsonError
+          (Coin <<< (unwrap :: FeeEstimate -> BigInt))
+          $ Json.decodeJson resp.body
 
 --------------------------------------------------------------------------------
 -- OgmiosWebSocket Setup and PrimOps
@@ -269,7 +377,7 @@ messageFoldF msg acc' func = do
 -- | Converts an JsonWsp.Address to (internal) Address
 ogmiosAddressToAddress :: Address -> Effect (Maybe Transaction.Address)
 ogmiosAddressToAddress ogAddr =
-  newAddressFromBech32 (wrap ogAddr) <#> DAddress.convertAddress
+  newAddressFromBech32 (wrap ogAddr) <#> Deserialization.Address.convertAddress
 
 -- | Converts an (internal) Address to JsonWsp.Address
 addressToOgmiosAddress :: Transaction.Address -> Effect Address

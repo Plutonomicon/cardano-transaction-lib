@@ -1,5 +1,11 @@
 /* global require exports */
-var lib = require('@ngua/cardano-serialization-lib-nodejs');
+
+var lib;
+if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
+    lib = require('@ngua/cardano-serialization-lib-browser');
+} else {
+    lib = require('@ngua/cardano-serialization-lib-nodejs');
+}
 
 exports.newBigNum = string => () =>
     lib.BigNum.from_str(string);
@@ -43,8 +49,17 @@ exports.newTransaction_ = body => witness_set => auxiliary_data => () =>
 exports.newTransactionWitnessSet = () =>
     lib.TransactionWitnessSet.new();
 
+exports.newTransactionUnspentOutputFromBytes = bytes => () =>
+    lib.TransactionUnspentOutput.from_bytes(bytes);
+
+exports.newTransactionWitnessSetFromBytes = bytes => () =>
+    lib.TransactionWitnessSet.from_bytes(bytes);
+
 exports.newAddressFromBech32 = bech32 => () =>
     lib.Address.from_bech32(bech32);
+
+exports.newAddressFromBytes = bytes => () =>
+    lib.Address.from_bytes(bytes);
 
 exports.newBaseAddress = network => payment => stake => () =>
     lib.BaseAddress.new(network, payment, stake);

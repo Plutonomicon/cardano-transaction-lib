@@ -2,11 +2,12 @@ module Deserialization.UnspentOutput
   ( convertUnspentOutput
   , mkTransactionUnspentOutput
   , newTransactionUnspentOutputFromBytes
+  , convertInput
+  , convertOutput
   ) where
 
 import Prelude
 
-import Data.BigInt as BigInt
 import Data.Bitraversable (bisequence, ltraverse)
 import Data.Map (Map)
 import Data.Map as Map
@@ -17,7 +18,7 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt as UInt
 import Untagged.Union (asOneOf)
-
+import Deserialization.BigNum (convertBigNum)
 import Deserialization.Address (convertAddress)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization (toBytes)
@@ -53,7 +54,7 @@ convertOutput output = do
 
 convertValue :: Value -> Maybe T.Value
 convertValue value = do
-  coin <- BigInt.fromString $ bigNumToString $ getCoin value
+  coin <- convertBigNum $ getCoin value
   -- multiasset is optional
   multiasset <- for (getMultiAsset maybeFfiHelper value) \multiasset -> do
     let
@@ -71,9 +72,7 @@ convertValue value = do
                 <<< traverse (ltraverse $ assetNameName >>> T.mkTokenName)
         )
     -- convert BigNum values, possibly failing
-    traverse
-      (traverse (BigInt.fromString <<< bigNumToString))
-      multiasset''
+    traverse (traverse convertBigNum) multiasset''
   T.mkValue (T.Coin coin) <$> T.mkNonAdaAsset (fromMaybe Map.empty multiasset)
 
 foreign import getInput :: TransactionUnspentOutput -> TransactionInput
@@ -83,7 +82,6 @@ foreign import getTransactionIndex :: TransactionInput -> Int
 foreign import getAddress :: TransactionOutput -> Address
 foreign import getAmount :: TransactionOutput -> Value
 foreign import getCoin :: Value -> BigNum
-foreign import bigNumToString :: BigNum -> String
 foreign import getMultiAsset :: MaybeFfiHelper -> Value -> Maybe MultiAsset
 foreign import extractMultiAsset :: (forall a b. a -> b -> a /\ b) -> MultiAsset -> Array (ScriptHash /\ Assets)
 foreign import extractAssets :: (forall a b. a -> b -> a /\ b) -> Assets -> Array (AssetName /\ BigNum)
