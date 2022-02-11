@@ -215,17 +215,19 @@ instance showCollectTxInsFailureReason :: Show CollectTxInsFailureReason where
 
 newtype Expected = Expected Value
 
+derive instance genericExpected :: Generic Expected _
 derive instance newtypeExpected :: Newtype Expected _
 
 instance showExpected :: Show Expected where
-  show = show <<< unwrap
+  show = genericShow
 
 newtype Actual = Actual Value
 
+derive instance genericActual :: Generic Actual _
 derive instance newtypeActual :: Newtype Actual _
 
 instance showActual :: Show Actual where
-  show = show <<< unwrap
+  show = genericShow
 
 newtype BalanceNonAdaOutsFailure = BalanceNonAdaOutsFailure BalanceNonAdaOutsFailureReason
 

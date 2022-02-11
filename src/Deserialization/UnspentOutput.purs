@@ -55,7 +55,7 @@ convertValue :: Value -> Maybe T.Value
 convertValue value = do
   coin <- BigInt.fromString $ bigNumToString $ getCoin value
   -- multiasset is optional
-  multiasset''' <- for (getMultiAsset maybeFfiHelper value) \multiasset -> do
+  multiasset <- for (getMultiAsset maybeFfiHelper value) \multiasset -> do
     let
       -- get multiasset stored in `serialization-lib` types
       multiasset' =
@@ -74,8 +74,7 @@ convertValue value = do
     traverse
       (traverse (BigInt.fromString <<< bigNumToString))
       multiasset''
-  multiasset <- T.mkNonAdaAsset $ fromMaybe Map.empty multiasset'''
-  pure $ T.mkValue (T.Coin coin) multiasset
+  T.mkValue (T.Coin coin) <$> T.mkNonAdaAsset (fromMaybe Map.empty multiasset)
 
 foreign import getInput :: TransactionUnspentOutput -> TransactionInput
 foreign import getOutput :: TransactionUnspentOutput -> TransactionOutput

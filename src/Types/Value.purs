@@ -158,13 +158,13 @@ unsafeAdaToken = TokenName mempty
 -- | exported
 mkTokenName :: ByteArray -> Maybe TokenName
 mkTokenName byteArr =
-  if byteLength byteArr >= 0 then pure $ TokenName byteArr else Nothing
+  if byteLength byteArr > 0 then pure $ TokenName byteArr else Nothing
 
 -- Perhaps we don't need Maybe here, see mkTokenName comments.
 -- | Creates a Map of TokenName and Big Integers from a Traversable of 2-tuple
 -- | ByteArray and Big Integers with the possibility of failure
 mkTokenNames
-  :: forall t
+  :: forall (t :: Type -> Type)
    . Traversable t
   => t (ByteArray /\ BigInt)
   -> Maybe (Map TokenName BigInt)
@@ -208,7 +208,7 @@ mkNonAdaAsset m =
   else pure $ NonAdaAsset m
 
 -- mkNonAdaAssetsFromTokenMap'
---   :: forall t
+--   :: forall (t :: Type -> Type)
 --   . Traversable t
 --   => t (ByteArray /\ Map TokenName BigInt)
 --   -> Maybe (Map CurrencySymbol (Map TokenName BigInt))
@@ -218,14 +218,14 @@ mkNonAdaAsset m =
 -- -- Don't need mkNonAdaAsset here, we could just use Data Constructor since
 -- -- mkCurrencySymbol is called inside mkNonAdaAssets'
 -- mkNonAdaAssetsFromTokenMap
---   :: forall t
+--   :: forall (t :: Type -> Type)
 --   . Traversable t
 --   => t (ByteArray /\ Map TokenName BigInt)
 --   -> Maybe NonAdaAsset
 -- mkNonAdaAssetsFromTokenMap xs = mkNonAdaAssetsFromTokenMap' xs >>= mkNonAdaAsset
 
 mkNonAdaAssets'
-  :: forall s t
+  :: forall (s :: Type -> Type) (t :: Type -> Type)
    . Traversable s
   => Traversable t
   => s (ByteArray /\ t (ByteArray /\ BigInt))
@@ -238,7 +238,7 @@ mkNonAdaAssets' =
 -- | Given a Traversable of ByteArrays and amounts to safely convert into a
 -- | NonAdaAsset
 mkNonAdaAssets
-  :: forall s t
+  :: forall (s :: Type -> Type) (t :: Type -> Type)
    . Traversable s
   => Traversable t
   => s (ByteArray /\ t (ByteArray /\ BigInt))
@@ -378,8 +378,8 @@ flattenNonAdaValue (NonAdaAsset nonAdaAsset) = do
   pure $ cs /\ tn /\ a
 
 -- Flattens Value guarding against zeros
-flattenValue :: Value -> List (CurrencySymbol /\ TokenName /\ BigInt)
-flattenValue (Value coin@(Coin lovelaces) nonAdaAsset) =
+unsafeFlattenValue :: Value -> List (CurrencySymbol /\ TokenName /\ BigInt)
+unsafeFlattenValue (Value coin@(Coin lovelaces) nonAdaAsset) =
   let
     flattenedNonAda :: List (CurrencySymbol /\ TokenName /\ BigInt)
     flattenedNonAda = flattenNonAdaValue nonAdaAsset
@@ -397,7 +397,7 @@ unflattenValue (curSymbol /\ tokenName /\ amount) =
 -- | Predicate on whether some Value contains Ada only.
 isAdaOnly :: Value -> Boolean
 isAdaOnly v =
-  case flattenValue v of
+  case unsafeFlattenValue v of
     (cs /\ tn /\ _) : Nil ->
       cs == unsafeAdaSymbol &&
         tn == unsafeAdaToken
@@ -408,16 +408,16 @@ minus :: Value -> Value -> Maybe Value
 minus x y = do
   let
     negativeValues :: List (CurrencySymbol /\ TokenName /\ BigInt)
-    negativeValues = flattenValue y <#>
+    negativeValues = unsafeFlattenValue y <#>
       (\(c /\ t /\ a) -> c /\ t /\ negate a)
   y' <- traverse unflattenValue negativeValues
   pure $ x <> fold y'
 
 -- From https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
--- "isValueNat" uses flattenValue which guards against zeros, so non-strict
+-- "isValueNat" uses unsafeFlattenValue which guards against zeros, so non-strict
 -- inequality is redundant. So we use strict equality instead.
 isPos :: Value -> Boolean
-isPos = all (\(_ /\ _ /\ a) -> a > zero) <<< flattenValue
+isPos = all (\(_ /\ _ /\ a) -> a > zero) <<< unsafeFlattenValue
 
 -- From https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#isZero
 -- | Check whether a 'Value' is zero.
@@ -478,8 +478,8 @@ eq :: Value -> Value -> Boolean
 -- If both are zero then checkBinRel will be vacuously true, but this is fine.
 eq = checkBinRel (==)
 
-isAda :: CurrencySymbol -> TokenName -> Boolean
-isAda curSymbol tokenName =
+unsafeIsAda :: CurrencySymbol -> TokenName -> Boolean
+unsafeIsAda curSymbol tokenName =
   curSymbol == unsafeAdaSymbol &&
     tokenName == unsafeAdaToken
 
@@ -487,7 +487,7 @@ isAda curSymbol tokenName =
 -- | Get the quantity of the given currency in the 'Value'.
 valueOf :: Value -> CurrencySymbol -> TokenName -> BigInt
 valueOf (Value (Coin lovelaces) (NonAdaAsset nonAdaAsset)) curSymbol tokenName =
-  case isAda curSymbol tokenName of
+  case unsafeIsAda curSymbol tokenName of
     false ->
       case lookup curSymbol nonAdaAsset of
         Nothing -> zero
