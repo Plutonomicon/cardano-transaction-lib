@@ -1,9 +1,8 @@
 module Types.Value
   ( Coin(..)
-  -- Only data constructors of Coin and Value can be safely export.
-  , CurrencySymbol
-  , NonAdaAsset
-  , TokenName
+  , CurrencySymbol -- Do not export data constructor
+  , NonAdaAsset(..)
+  , TokenName -- Do not export data constructor
   , Value(..)
   , eq
   , filterNonAda
@@ -48,7 +47,7 @@ import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Foldable (any, fold, foldl, length)
 import Data.Generic.Rep (class Generic)
 import Data.List ((:), all, List(Nil))
-import Data.Map (keys, lookup, Map, member, toUnfoldable, unions, values)
+import Data.Map (keys, lookup, Map, toUnfoldable, unions, values)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype)
@@ -170,11 +169,17 @@ mkTokenNames
   -> Maybe (Map TokenName BigInt)
 mkTokenNames = traverse (ltraverse mkTokenName) >>> map Map.fromFoldable
 
+-- Do not export. Create an Ada TokenName from a ByteArray
+mkUnsafeTokenSymbol :: ByteArray -> Maybe TokenName
+mkUnsafeTokenSymbol byteArr =
+  if byteLength byteArr == 0 then pure unsafeAdaToken else Nothing
+
 --------------------------------------------------------------------------------
 -- NonAdaAsset
 --------------------------------------------------------------------------------
 newtype NonAdaAsset = NonAdaAsset (Map CurrencySymbol (Map TokenName BigInt))
 
+derive instance newtypeNonAdaAsset :: Newtype NonAdaAsset _
 derive newtype instance eqNonAdaAsset :: Eq NonAdaAsset
 
 instance showNonAdaAsset :: Show NonAdaAsset where
@@ -187,27 +192,27 @@ instance monoidNonAdaAsset :: Monoid NonAdaAsset where
   mempty = NonAdaAsset Map.empty
 
 -- We shouldn't need this check if we don't export unsafeAdaSymbol etc.
--- | Create a singleton NonAdaAsset safely
+-- | Create a singleton NonAdaAsset which by definition should be safe since
+-- | CurrencySymbol and TokenName are safe
 mkSingletonNonAdaAsset
   :: CurrencySymbol
   -> TokenName
   -> BigInt
-  -> Maybe NonAdaAsset
+  -> NonAdaAsset
 mkSingletonNonAdaAsset curSymbol tokenName amount =
-  if curSymbol == unsafeAdaSymbol then Nothing
-  else
-    pure $ NonAdaAsset $ Map.singleton curSymbol $ Map.singleton tokenName amount
+  NonAdaAsset $ Map.singleton curSymbol $ Map.singleton tokenName amount
 
--- Perhaps Maybe isn't required if we don't export unsafeAdaSymbol.
 -- Assume all CurrencySymbol are well-formed at this point, since they come from
--- mkCurrencySymbol. If someone somehow puts an unsafeAdaSymbol in, it fails.
--- | Given the relevant map, create a NonAdaAsset
-mkNonAdaAsset :: Map CurrencySymbol (Map TokenName BigInt) -> Maybe NonAdaAsset
-mkNonAdaAsset m =
-  if
-    unsafeAdaSymbol `member` m
-      || any (member unsafeAdaToken) (Map.values m) then Nothing
-  else pure $ NonAdaAsset m
+-- mkCurrencySymbol and mkTokenName.
+-- | Given the relevant map, create a NonAdaAsset. The map should be constructed
+-- | safely by definition
+mkNonAdaAsset :: Map CurrencySymbol (Map TokenName BigInt) -> NonAdaAsset
+mkNonAdaAsset = NonAdaAsset
+
+-- if
+--   unsafeAdaSymbol `member` m
+--     || any (member unsafeAdaToken) (Map.values m) then Nothing
+-- else pure $ NonAdaAsset m
 
 -- mkNonAdaAssetsFromTokenMap'
 --   :: forall (t :: Type -> Type)
@@ -245,7 +250,7 @@ mkNonAdaAssets
   => Traversable t
   => s (ByteArray /\ t (ByteArray /\ BigInt))
   -> Maybe NonAdaAsset
-mkNonAdaAssets xs = mkNonAdaAssets' xs >>= mkNonAdaAsset
+mkNonAdaAssets xs = mkNonAdaAssets' xs <#> mkNonAdaAsset
 
 getNonAdaAsset :: Value -> NonAdaAsset
 getNonAdaAsset (Value _ nonAdaAsset) = nonAdaAsset
@@ -263,13 +268,11 @@ getNonAdaAsset' (Value _ (NonAdaAsset nonAdaAsset)) = nonAdaAsset
 -- | distinction between native tokens and Ada, and we follow this convention.
 data Value = Value Coin NonAdaAsset
 
+derive instance genericValue :: Generic Value _
 derive instance eqValue :: Eq Value
 
 instance showValue :: Show Value where
-  show (Value coin nonAdaAsset) =
-    show coin
-      <> " and NonAdaAssets: "
-      <> show nonAdaAsset
+  show = genericShow
 
 instance semigroupValue :: Semigroup Value where
   append (Value c1 m1) (Value c2 m2) = Value (c1 <> c2) (m1 <> m2)
@@ -280,24 +283,30 @@ instance monoidValue :: Monoid Value where
 -- | Create a Value from Coin and NonAdaAsset, the latter should have been
 -- | constructed safely at this point.
 mkValue :: Coin -> NonAdaAsset -> Value
-mkValue coin nonAdaAsset = Value coin nonAdaAsset
+mkValue = Value
 
 -- | Creates a singleton value given two byte arrays for currency symbol and
 -- | token name respectively
 mkSingletonValue :: ByteArray -> ByteArray -> BigInt -> Maybe Value
 mkSingletonValue curSymbol' tokenName' amount = do
   curSymbol <- mkCurrencySymbol curSymbol' <|> mkUnsafeAdaSymbol curSymbol'
-  tokenName <- mkTokenName tokenName'
+  tokenName <- mkTokenName tokenName' <|> mkUnsafeTokenSymbol tokenName'
   mkSingletonValue' curSymbol tokenName amount
 
--- | Similar to mkSingletonValue but the user has a CurrencySymbol and TokenName at hand
+-- Similar to mkSingletonValue but the user has a CurrencySymbol and TokenName
+-- at hand. This could be exported (and used only for NonAdaAsset) or internally
+-- for both Coin and NonAdaAsset.
 mkSingletonValue' :: CurrencySymbol -> TokenName -> BigInt -> Maybe Value
 mkSingletonValue' curSymbol tokenName amount =
   if curSymbol == unsafeAdaSymbol then
     if tokenName == unsafeAdaToken then pure $ Value (Coin amount) mempty
     else Nothing -- can't a non-empty TokenName with Ada CurrencySymbol
+  -- Prevents an empty TokenName with a non-empty CurrencySymbol in line with CSL.
+  else if tokenName == unsafeAdaToken then Nothing
   else
-    pure $ Value mempty $ NonAdaAsset $ Map.singleton curSymbol $ Map.singleton tokenName amount
+    pure
+      $ Value mempty
+      $ mkSingletonNonAdaAsset curSymbol tokenName amount
 
 --------------------------------------------------------------------------------
 -- Helpers
