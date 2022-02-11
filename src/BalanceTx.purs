@@ -62,9 +62,6 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Aff (Aff)
-import Undefined (undefined)
-
-import Ogmios (QueryM, utxosAt)
 import ProtocolParametersAlonzo
   ( coinSize
   , lovelacePerUTxOWord
@@ -72,6 +69,7 @@ import ProtocolParametersAlonzo
   , protocolParamUTxOCostPerWord
   , utxoEntrySizeWithoutVal
   )
+import QueryM (QueryM, utxosAt)
 import Types.ByteArray (byteLength)
 import Types.Transaction
   ( Address
@@ -100,6 +98,7 @@ import Types.Value
   , TokenName
   , Value(Value)
   )
+import Undefined (undefined)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
