@@ -204,7 +204,9 @@ mkSingletonNonAdaAsset curSymbol tokenName amount =
 -- | Given the relevant map, create a NonAdaAsset
 mkNonAdaAsset :: Map CurrencySymbol (Map TokenName BigInt) -> Maybe NonAdaAsset
 mkNonAdaAsset m =
-  if unsafeAdaSymbol `member` m then Nothing
+  if
+    unsafeAdaSymbol `member` m
+      || any (member unsafeAdaToken) (Map.values m) then Nothing
   else pure $ NonAdaAsset m
 
 -- mkNonAdaAssetsFromTokenMap'
