@@ -1,4 +1,6 @@
-module Deserialization.BigNum where
+module Deserialization.BigNum
+  ( convertBigNum
+  ) where
 
 import Prelude
 
