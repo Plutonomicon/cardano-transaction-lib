@@ -233,8 +233,6 @@ mkNonAdaAssets'
 mkNonAdaAssets' =
   traverse (bitraverse mkCurrencySymbol mkTokenNames) >>> map Map.fromFoldable
 
--- Don't need mkNonAdaAsset here, we could just use Data Constructor since
--- mkCurrencySymbol is called inside mkNonAdaAssets' which should be safe.
 -- | Given a Traversable of ByteArrays and amounts to safely convert into a
 -- | NonAdaAsset
 mkNonAdaAssets
