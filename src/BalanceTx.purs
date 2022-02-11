@@ -46,7 +46,8 @@ import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (liftEffect)
 import ProtocolParametersAlonzo
-  ( coinSize
+  ( adaOnlyWords
+  , coinSize
   , lovelacePerUTxOWord
   , pidSize
   , protocolParamUTxOCostPerWord
@@ -130,8 +131,10 @@ derive newtype instance showGetWalletAddressFailure :: Show GetWalletAddressFail
 
 data GetWalletAddressFailureReason = CouldNotGetNamiWalletAddress
 
+derive instance genericGetWalletAddressFailureReason :: Generic GetWalletAddressFailureReason _
+
 instance showGetWalletAddressFailureReason :: Show GetWalletAddressFailureReason where
-  show CouldNotGetNamiWalletAddress = "Couldn't get Nami wallet address."
+  show = genericShow
 
 newtype GetWalletCollateralFailure = GetWalletCollateralFailure GetWalletCollateralFailureReason
 
@@ -337,9 +340,9 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
       pure $ Left $ GetWalletCollateralFailure' $ wrap CouldNotGetNamiCollateral
     Just ownAddr, Just collateral -> do
       utxos' <- map unwrap <$> utxosAt ownAddr
-      utxoIndex''' <- liftEffect $ utxoIndexToUtxo utxoIndex
+      utxoIndex' <- liftEffect $ utxoIndexToUtxo utxoIndex
       -- Don't need to sequence, can just do as above
-      case utxos', utxoIndex''' of
+      case utxos', utxoIndex' of
         Nothing, _ ->
           pure $ Left $ UtxosAtFailure' $ wrap CouldNotGetUtxos
         _, Nothing ->
@@ -349,8 +352,8 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
             -- Combines utxos at the user address and those from any scripts
             -- involved with the contract in the unbalanced transaction. Don't
             -- add collateral to this for now.
-            utxoIndex' :: Utxo
-            utxoIndex' = utxos `Map.union` utxoIndex''
+            utxoIndex''' :: Utxo
+            utxoIndex''' = utxos `Map.union` utxoIndex''
           -- Add hardcoded Nami 5 Ada and sign before instead of recursively
           -- signing in loop.
           signedUnbalancedTx' <-
@@ -359,10 +362,10 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
           case signedUnbalancedTx' of
             Left err -> pure $ Left err
             Right signedUnbalancedTx ->
-              loop utxoIndex' ownAddr [] signedUnbalancedTx >>=
+              loop utxoIndex''' ownAddr [] signedUnbalancedTx >>=
                 either
                   (Left >>> pure)
-                  ( returnAdaChange ownAddr utxoIndex'
+                  ( returnAdaChange ownAddr utxoIndex'''
                       >>> map (lmap ReturnAdaChangeFailure')
                   )
   where
@@ -396,7 +399,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
       Left err -> pure $ Left err
       Right balancedTxBody'' ->
         if txBody' == balancedTxBody'' then
-          pure $ pure $ wrap tx' { body = balancedTxBody'' }
+          pure $ Right $ wrap tx' { body = balancedTxBody'' }
         else
           loop
             utxoIndex'
@@ -484,7 +487,7 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
           returnAda = inputAda - outputAda - fees
         case compare returnAda zero of
           LT -> pure $ Left $ wrap $ NotEnoughAdaInputAfterPrebalance Impossible
-          EQ -> pure $ pure $ wrap tx { body = wrap txBody { fee = wrap fees } }
+          EQ -> pure $ Right $ wrap tx { body = wrap txBody { fee = wrap fees } }
           GT -> do
             -- Short circuits and adds Ada to any output utxo of the owner. This saves
             -- on fees but does not create a separate utxo. Do we want this behaviour?
@@ -522,11 +525,8 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
                   utxoCost :: BigInt
                   utxoCost = getLovelace protocolParamUTxOCostPerWord
 
-                  -- An ada-only UTxO entry is 29 words. More details about min utxo
-                  -- calculation can be found here:
-                  -- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0028#rationale-for-parameter-choices
                   changeMinUtxo :: BigInt
-                  changeMinUtxo = (fromInt 29) * utxoCost
+                  changeMinUtxo = adaOnlyWords * utxoCost
 
                   txBody' :: TxBody
                   txBody' =
@@ -707,11 +707,8 @@ balanceTxIns' utxos fees (TxBody txBody) = do
     utxoCost :: BigInt
     utxoCost = getLovelace protocolParamUTxOCostPerWord
 
-    -- An ada-only UTxO entry is 29 words. More details about min utxo
-    -- calculation can be found here:
-    -- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0028#rationale-for-parameter-choices
     changeMinUtxo :: BigInt
-    changeMinUtxo = (fromInt 29) * utxoCost
+    changeMinUtxo = adaOnlyWords * utxoCost
 
     txOutputs :: Array TransactionOutput
     txOutputs = txBody.outputs
