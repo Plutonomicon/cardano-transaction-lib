@@ -1,10 +1,10 @@
 module Types.Value
   ( Coin(..)
-  -- Do not export data constructor for the following types:
+  -- Only data constructors of Coin and Value can be safely export.
   , CurrencySymbol
   , NonAdaAsset
   , TokenName
-  , Value
+  , Value(..)
   , eq
   , filterNonAda
   , valueToCoin
