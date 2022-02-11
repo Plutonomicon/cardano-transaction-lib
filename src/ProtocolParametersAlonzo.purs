@@ -5,8 +5,7 @@ module ProtocolParametersAlonzo
   , pidSize
   , protocolParamUTxOCostPerWord
   , utxoEntrySizeWithoutVal
-  )
-  where
+  ) where
 
 import Prelude
 import Data.BigInt (BigInt, fromInt)

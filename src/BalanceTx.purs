@@ -1,41 +1,26 @@
 module BalanceTx
   ( Actual(..)
-  , AddTxCollateralsFailure(..)
-  , AddTxCollateralsFailureReason(..)
-  , BalanceNonAdaOutsFailure(..)
-  , BalanceNonAdaOutsFailureReason(..)
-  , BalanceTxFailure(..)
-  , BalanceTxInsFailure(..)
-  , BalanceTxInsFailureReason(..)
-  , BuildTxRawFailure(..)
-  , BuildTxRawFailureReason(..)
-  , CalculateMinFeeFailure(..)
-  , CannotMinusFailure(..)
-  , CannotMinusFailureReason(..)
+  , AddTxCollateralsErrorReason(..)
+  , BalanceNonAdaOutsErrorReason(..)
+  , BalanceTxError(..)
+  , BalanceTxInsErrorReason(..)
+  , CannotMinusErrorReason(..)
   , Expected(..)
-  , GetWalletAddressFailure(..)
-  , GetWalletAddressFailureReason(..)
-  , GetWalletCollateralFailure(..)
-  , GetWalletCollateralFailureReason(..)
+  , GetWalletAddressErrorReason(..)
+  , GetWalletCollateralErrorReason(..)
   , Impossible(..)
-  , ReturnAdaChangeFailure(..)
-  , ReturnAdaChangeFailureReason(..)
-  , SignTxFailure(..)
-  , SignTxFailureReason(..)
-  , ToEitherTransactionInputFailure(..)
-  , ToEitherTransactionInputFailureReason(..)
-  , UtxoIndexToUtxoFailure(..)
-  , UtxoIndexToUtxoFailureReason(..)
-  , UtxosAtFailure(..)
-  , UtxosAtFailureReason(..)
+  , ReturnAdaChangeErrorReason(..)
+  , SignTxErrorReason(..)
+  , ToEitherTransactionInputErrorReason(..)
+  , UtxoIndexToUtxoErrorReason(..)
+  , UtxosAtErrorReason(..)
   , balanceTxM
-  )
-  where
+  ) where
 
 import Prelude
 import Data.Array ((\\), findIndex, modifyAt)
 import Data.Array as Array
-import Data.Bifunctor (bimap, lmap)
+import Data.Bifunctor (lmap, rmap)
 import Data.BigInt (BigInt, fromInt, quot)
 import Data.Either (Either(Left, Right), either, hush, note)
 import Data.Foldable as Foldable
@@ -104,94 +89,65 @@ import Types.Value
 --------------------------------------------------------------------------------
 -- These derivations may need tweaking when testing to make sure they are easy
 -- to read, especially with generic show vs newtype show derivations.
-data BalanceTxFailure
-  = GetWalletAddressFailure' GetWalletAddressFailure
-  | GetWalletCollateralFailure' GetWalletCollateralFailure
-  | UtxosAtFailure' UtxosAtFailure
-  | UtxoIndexToUtxoFailure' UtxoIndexToUtxoFailure
-  -- | BalanceTxMFailure' BalanceTxMFailure -- REMOVE OR CHANGE THIS
-  | ReturnAdaChangeFailure' ReturnAdaChangeFailure
-  | AddTxCollateralsFailure' AddTxCollateralsFailure
-  | ToEitherTransactionInputFailure' ToEitherTransactionInputFailure
-  | BalanceTxInsFailure' BalanceTxInsFailure
-  | BalanceNonAdaOutsFailure' BalanceNonAdaOutsFailure
-  | SignTxFailure' SignTxFailure
-  | CalculateMinFeeFailure' CalculateMinFeeFailure
-  | BuildTxRawFailure' BuildTxRawFailure
-  | ImpossibleFailure' Impossible
+data BalanceTxError
+  = GetWalletAddressError GetWalletAddressErrorReason
+  | GetWalletCollateralError GetWalletCollateralErrorReason
+  | UtxosAtError UtxosAtErrorReason
+  | UtxoIndexToUtxoError UtxoIndexToUtxoErrorReason
+  | ReturnAdaChangeError ReturnAdaChangeErrorReason
+  | AddTxCollateralsError AddTxCollateralsErrorReason
+  | ToEitherTransactionInputError' ToEitherTransactionInputErrorReason -- FIX ME (better name)
+  | BalanceTxInsError BalanceTxInsErrorReason
+  | BalanceNonAdaOutsError BalanceNonAdaOutsErrorReason
+  | SignTxError SignTxErrorReason
+  | CalculateMinFeeError FeeEstimateError
+  | ImpossibleError Impossible
 
-derive instance genericBalanceTxFailure :: Generic BalanceTxFailure _
+derive instance genericBalanceTxError :: Generic BalanceTxError _
 
-instance showBalanceTxFailure :: Show BalanceTxFailure where
+instance showBalanceTxError :: Show BalanceTxError where
   show = genericShow
 
-newtype GetWalletAddressFailure = GetWalletAddressFailure GetWalletAddressFailureReason
+data GetWalletAddressErrorReason = CouldNotGetNamiWalletAddress
 
-derive instance newtypeGetWalletAddressFailure :: Newtype GetWalletAddressFailure _
-derive newtype instance showGetWalletAddressFailure :: Show GetWalletAddressFailure
+derive instance genericGetWalletAddressErrorReason :: Generic GetWalletAddressErrorReason _
+derive instance eqGetWalletAddressErrorReason :: Eq GetWalletAddressErrorReason
 
-data GetWalletAddressFailureReason = CouldNotGetNamiWalletAddress
-
-derive instance genericGetWalletAddressFailureReason :: Generic GetWalletAddressFailureReason _
-
-instance showGetWalletAddressFailureReason :: Show GetWalletAddressFailureReason where
+instance showGetWalletAddressErrorReason :: Show GetWalletAddressErrorReason where
   show = genericShow
 
-newtype GetWalletCollateralFailure = GetWalletCollateralFailure GetWalletCollateralFailureReason
+data GetWalletCollateralErrorReason = CouldNotGetNamiCollateral
 
-derive instance newtypeGetWalletCollateralFailure :: Newtype GetWalletCollateralFailure _
-derive newtype instance showGetWalletCollateralFailure :: Show GetWalletCollateralFailure
+derive instance genericGetWalletCollateralErrorReason :: Generic GetWalletCollateralErrorReason _
+derive instance eqGetWalletCollateralErrorReason :: Eq GetWalletCollateralErrorReason
 
-data GetWalletCollateralFailureReason = CouldNotGetNamiCollateral
+instance showGetWalletCollateralErrorReason :: Show GetWalletCollateralErrorReason where
+  show = genericShow
 
-instance showGetWalletCollateralFailureReason :: Show GetWalletCollateralFailureReason where
-  show CouldNotGetNamiCollateral = "Couldn't get Nami 5 Ada collateral."
+data UtxosAtErrorReason = CouldNotGetUtxos
 
-newtype UtxosAtFailure = UtxosAtFailure UtxosAtFailureReason
+derive instance genericUtxosAtErrorReason :: Generic UtxosAtErrorReason _
+derive instance eqUtxosAtErrorReason :: Eq UtxosAtErrorReason
 
-derive instance newtypeUtxosAtFailure :: Newtype UtxosAtFailure _
-derive newtype instance showUtxosAtFailure :: Show UtxosAtFailure
+instance showUtxosAtErrorReason :: Show UtxosAtErrorReason where
+  show = genericShow
 
-data UtxosAtFailureReason = CouldNotGetUtxos
+data UtxoIndexToUtxoErrorReason = CouldNotConvertUtxoIndex
 
-instance showUtxosAtFailureReason :: Show UtxosAtFailureReason where
-  show CouldNotGetUtxos = "Couldn't get utxos at address."
+derive instance genericUtxoIndexToUtxoErrorReason :: Generic UtxoIndexToUtxoErrorReason _
+derive instance eqUtxoIndexToUtxoErrorReason :: Eq UtxoIndexToUtxoErrorReason
 
-newtype UtxoIndexToUtxoFailure = UtxoIndexToUtxoFailure UtxoIndexToUtxoFailureReason
+instance showUtxoIndexToUtxoErrorReason :: Show UtxoIndexToUtxoErrorReason where
+  show = genericShow
 
-derive instance newtypeUtxoIndexToUtxoFailure :: Newtype UtxoIndexToUtxoFailure _
-derive newtype instance showUtxoIndexToUtxoFailure :: Show UtxoIndexToUtxoFailure
-
-data UtxoIndexToUtxoFailureReason = CouldNotConvertUtxoIndex
-
-instance showUtxoIndexToUtxoFailureReason :: Show UtxoIndexToUtxoFailureReason where
-  show CouldNotConvertUtxoIndex = "Couldn't convert UnbalancedTx UtxoIndex"
-
--- newtype BalanceTxMFailure = BalanceTxMFailure BalanceTxMFailureReason
-
--- derive instance newtypeBalanceTxMFailure :: Newtype BalanceTxMFailure _
--- derive newtype instance showBalanceTxMFailure :: Show BalanceTxMFailure
-
--- data BalanceTxMFailureReason = UnknownRequiredSigners
-
--- instance showBalanceTxMFailureReason :: Show BalanceTxMFailureReason where
---   show UnknownRequiredSigners = "Unknown required signers."
-
-newtype ReturnAdaChangeFailure = ReturnAdaChangeFailure ReturnAdaChangeFailureReason
-
-derive instance newtypeReturnAdaChangeFailure :: Newtype ReturnAdaChangeFailure _
-
-derive newtype instance showReturnAdaChangeFailure :: Show ReturnAdaChangeFailure
-
-data ReturnAdaChangeFailureReason
+data ReturnAdaChangeErrorReason
   = NotEnoughAdaInputAfterPrebalance Impossible
   | CouldNotModifyUtxo
   | CouldNotModifyUtxoHead Impossible
   | InputAdaDoesNotCoverSingleAdaOutput
   | ReturnAdaChangeCalculateMinFee FeeEstimateError
-  | ReturnAdaChangeBuildTxRaw BuildTxRawFailureReason
 
-instance showReturnAdaChangeFailureReason :: Show ReturnAdaChangeFailureReason where
+instance showReturnAdaChangeErrorReason :: Show ReturnAdaChangeErrorReason where
   show (NotEnoughAdaInputAfterPrebalance Impossible) =
     "Not enough Input Ada to cover output and fees after prebalance - this \
     \should be **IMPOSSIBLE** if called after loop."
@@ -203,42 +159,30 @@ instance showReturnAdaChangeFailureReason :: Show ReturnAdaChangeFailureReason w
     "ReturnAda' does not cover min. utxo requirement for single Ada-only \
     \output."
   show (ReturnAdaChangeCalculateMinFee reason) = show reason
-  show (ReturnAdaChangeBuildTxRaw reason) = show reason
 
-newtype AddTxCollateralsFailure = AddTxCollateralsFailure AddTxCollateralsFailureReason
+data AddTxCollateralsErrorReason = CollateralUtxosUnavailable
 
-derive instance newtypeAddTxCollateralsFailure :: Newtype AddTxCollateralsFailure _
+derive instance eqAddTxCollateralsErrorReason :: Eq AddTxCollateralsErrorReason
 
-derive newtype instance showAddTxCollateralsFailure :: Show AddTxCollateralsFailure
-
-data AddTxCollateralsFailureReason = CollateralUtxosUnavailable
-
-instance showAddTxCollateralsFailureReason :: Show AddTxCollateralsFailureReason where
+instance showAddTxCollateralsErrorReason :: Show AddTxCollateralsErrorReason where
   show CollateralUtxosUnavailable =
     "There are no utxos to be used as collateral."
 
-newtype ToEitherTransactionInputFailure = ToEitherTransactionInputFailure ToEitherTransactionInputFailureReason
+data ToEitherTransactionInputErrorReason = CannotConvertScriptOutputToTxInput
 
-derive instance newtypeToEitherTransactionInputFailure :: Newtype ToEitherTransactionInputFailure _
+derive instance eqToEitherTransactionInputErrorReason :: Eq ToEitherTransactionInputErrorReason
 
-derive newtype instance showToEitherTransactionInputFailure :: Show ToEitherTransactionInputFailure
-
-data ToEitherTransactionInputFailureReason = CannotConvertScriptOutputToTxInput
-
-instance showToEitherTransactionInputFailureReason :: Show ToEitherTransactionInputFailureReason where
+instance showToEitherTransactionInputErrorReason :: Show ToEitherTransactionInputErrorReason where
   show CannotConvertScriptOutputToTxInput =
     "Cannot convert a script output to TransactionInput"
 
-newtype BalanceTxInsFailure = BalanceTxInsFailure BalanceTxInsFailureReason
-
-derive instance newtypeBalanceTxInsFailure :: Newtype BalanceTxInsFailure _
-derive newtype instance showBalanceTxInsFailure :: Show BalanceTxInsFailure
-
-data BalanceTxInsFailureReason
+data BalanceTxInsErrorReason
   = InsufficientTxInputs Expected Actual
-  | BalanceTxInsCannotMinus CannotMinusFailureReason
+  | BalanceTxInsCannotMinus CannotMinusErrorReason
 
-instance showBalanceTxInsFailureReason :: Show BalanceTxInsFailureReason where
+derive instance eqBalanceTxInsErrorReason :: Eq BalanceTxInsErrorReason
+
+instance showBalanceTxInsErrorReason :: Show BalanceTxInsErrorReason where
   show (InsufficientTxInputs expected actual) =
     "Insufficient tx inputs, needed: "
       <> show expected
@@ -246,31 +190,24 @@ instance showBalanceTxInsFailureReason :: Show BalanceTxInsFailureReason where
       <> show actual
   show (BalanceTxInsCannotMinus reason) = "BalanceTxIns: " <> show reason
 
-newtype CannotMinusFailure = CannotMinusFailure CannotMinusFailureReason
+data CannotMinusErrorReason = CannotMinus Actual
 
-derive instance newtypeCannotMinusFailure :: Newtype CannotMinusFailure _
+derive instance genericCannotMinusErrorReason :: Generic CannotMinusErrorReason _
+derive instance eqCannotMinusErrorReason :: Eq CannotMinusErrorReason
 
-derive newtype instance showCannotMinusFailure :: Show CannotMinusFailure
-
-data CannotMinusFailureReason = CannotMinus Actual
-
-instance showCannotMinusFailureReason :: Show CannotMinusFailureReason where
+instance showCannotMinusErrorReason :: Show CannotMinusErrorReason where
   show (CannotMinus actual) = "Cannot subtract Value: " <> show actual
 
-newtype CollectTxInsFailure = CollectTxInsFailure CollectTxInsFailureReason
+data CollectTxInsErrorReason = CollectTxInsInsufficientTxInputs BalanceTxInsErrorReason
 
-derive instance newtypeCollectTxInsFailure :: Newtype CollectTxInsFailure _
-derive newtype instance showCollectTxInsFailure :: Show CollectTxInsFailure
-
-data CollectTxInsFailureReason = CollectTxInsInsufficientTxInputs BalanceTxInsFailureReason
-
-instance showCollectTxInsFailureReason :: Show CollectTxInsFailureReason where
+instance showCollectTxInsErrorReason :: Show CollectTxInsErrorReason where
   show (CollectTxInsInsufficientTxInputs reason) = show reason
 
 newtype Expected = Expected Value
 
 derive instance genericExpected :: Generic Expected _
 derive instance newtypeExpected :: Newtype Expected _
+derive newtype instance eqExpected :: Eq Expected
 
 instance showExpected :: Show Expected where
   show = genericShow
@@ -279,56 +216,36 @@ newtype Actual = Actual Value
 
 derive instance genericActual :: Generic Actual _
 derive instance newtypeActual :: Newtype Actual _
+derive newtype instance eqActual :: Eq Actual
 
 instance showActual :: Show Actual where
   show = genericShow
 
-newtype BalanceNonAdaOutsFailure = BalanceNonAdaOutsFailure BalanceNonAdaOutsFailureReason
-
-derive instance newtypeBalanceNonAdaOutsFailure :: Newtype BalanceNonAdaOutsFailure _
-
-derive newtype instance showBalanceNonAdaOutsFailure :: Show BalanceNonAdaOutsFailure
-
-data BalanceNonAdaOutsFailureReason
+data BalanceNonAdaOutsErrorReason
   = InputsCannotBalanceNonAdaTokens
-  | BalanceNonAdaOutsCannotMinus CannotMinusFailureReason
+  | BalanceNonAdaOutsCannotMinus CannotMinusErrorReason
 
-instance showBalanceNonAdaOutsFailureReason :: Show BalanceNonAdaOutsFailureReason where
+derive instance eqBalanceNonAdaOutsErrorReason :: Eq BalanceNonAdaOutsErrorReason
+
+instance showBalanceNonAdaOutsErrorReason :: Show BalanceNonAdaOutsErrorReason where
   show InputsCannotBalanceNonAdaTokens = "Not enough inputs to balance tokens."
   show (BalanceNonAdaOutsCannotMinus reason) = "BalanceNonAdaOuts: " <> show reason
 
-newtype SignTxFailure = SignTxFailure SignTxFailureReason
+data SignTxErrorReason = CouldNotSignTx Address
 
-derive instance newtypeSignTxFailure :: Newtype SignTxFailure _
-derive newtype instance showSignTxFailure :: Show SignTxFailure
+derive instance eqSignTxErrorReason :: Eq SignTxErrorReason
 
-data SignTxFailureReason = CouldNotSignTx Address
-
-instance showSignTxFailureReason :: Show SignTxFailureReason where
+instance showSignTxErrorReason :: Show SignTxErrorReason where
   show (CouldNotSignTx address) =
     "Could not sign for the following address: " <> show address
 
 -- | Represents that an error reason should be impossible
 data Impossible = Impossible
 
+derive instance eqImpossible :: Eq Impossible
+
 instance showImpossible :: Show Impossible where
   show Impossible = "**THIS SHOULD BE IMPOSSIBLE**"
-
-newtype BuildTxRawFailure = BuildTxRawFailure BuildTxRawFailureReason
-
-derive instance newtypeBuildTxRawFailure :: Newtype BuildTxRawFailure _
-derive newtype instance showBuildTxRawFailure :: Show BuildTxRawFailure
-
-data BuildTxRawFailureReason = CannotBuildTxRaw
-
-instance showBuildTxRawFailureReason :: Show BuildTxRawFailureReason where
-  show CannotBuildTxRaw = "Cannot build raw transaction."
-
-newtype CalculateMinFeeFailure = CalculateMinFeeFailure FeeEstimateError
-
-derive instance newtypeCalculateMinFeeFailure :: Newtype CalculateMinFeeFailure _
-
-derive newtype instance showCalculateMinFeeFailure :: Show CalculateMinFeeFailure
 
 --------------------------------------------------------------------------------
 -- Type aliases, temporary placeholder types and functions
@@ -338,8 +255,8 @@ type MinUtxos = Array (TransactionOutput /\ BigInt)
 
 calculateMinFee'
   :: Transaction
-  -> QueryM (Either CalculateMinFeeFailure BigInt)
-calculateMinFee' = calculateMinFee >>> map (bimap wrap unwrap)
+  -> QueryM (Either FeeEstimateError BigInt)
+calculateMinFee' = calculateMinFee >>> map (rmap unwrap)
 
 --------------------------------------------------------------------------------
 -- Balancing functions and helpers
@@ -348,25 +265,25 @@ calculateMinFee' = calculateMinFee >>> map (bimap wrap unwrap)
 -- FIX ME: UnbalancedTx contains requiredSignatories which would be a part of
 -- multisig but we don't have such functionality ATM.
 -- | Balances an unbalanced transaction
-balanceTxM :: UnbalancedTx -> QueryM (Either BalanceTxFailure Transaction)
+balanceTxM :: UnbalancedTx -> QueryM (Either BalanceTxError Transaction)
 balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
   ownAddr' <- getWalletAddress
   collateral' <- getWalletCollateral
   -- Saves on an extra nested case:
   case ownAddr', collateral' of
     Nothing, _ ->
-      pure $ Left $ GetWalletAddressFailure' $ wrap CouldNotGetNamiWalletAddress
+      pure $ Left $ GetWalletAddressError CouldNotGetNamiWalletAddress
     _, Nothing ->
-      pure $ Left $ GetWalletCollateralFailure' $ wrap CouldNotGetNamiCollateral
+      pure $ Left $ GetWalletCollateralError CouldNotGetNamiCollateral
     Just ownAddr, Just collateral -> do
       utxos' <- map unwrap <$> utxosAt ownAddr
       utxoIndex' <- liftEffect $ utxoIndexToUtxo utxoIndex
       -- Don't need to sequence, can just do as above
       case utxos', utxoIndex' of
         Nothing, _ ->
-          pure $ Left $ UtxosAtFailure' $ wrap CouldNotGetUtxos
+          pure $ Left $ UtxosAtError CouldNotGetUtxos
         _, Nothing ->
-          pure $ Left $ UtxoIndexToUtxoFailure' $ wrap CouldNotConvertUtxoIndex
+          pure $ Left $ UtxoIndexToUtxoError CouldNotConvertUtxoIndex
         Just utxos, Just utxoIndex'' -> do
           let
             -- Combines utxos at the user address and those from any scripts
@@ -378,7 +295,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
           -- signing in loop.
           signedUnbalancedTx' <-
             signTransaction (addTxCollateral unbalancedTx collateral)
-              <#> note (SignTxFailure' $ wrap $ CouldNotSignTx ownAddr)
+              <#> note (SignTxError $ CouldNotSignTx ownAddr)
           case signedUnbalancedTx' of
             Left err -> pure $ Left err
             Right signedUnbalancedTx ->
@@ -386,7 +303,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
                 either
                   (Left >>> pure)
                   ( returnAdaChange ownAddr utxoIndex'''
-                      >>> map (lmap ReturnAdaChangeFailure')
+                      >>> map (lmap ReturnAdaChangeError)
                   )
   where
   loop
@@ -394,7 +311,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
     -> Address
     -> MinUtxos
     -> Transaction
-    -> QueryM (Either BalanceTxFailure Transaction)
+    -> QueryM (Either BalanceTxError Transaction)
   loop
     utxoIndex'
     ownAddr'
@@ -408,7 +325,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
       minUtxos' :: MinUtxos
       minUtxos' = prevMinUtxos' <> nextMinUtxos'
 
-    balancedTxBody' :: Either BalanceTxFailure TxBody <-
+    balancedTxBody' :: Either BalanceTxError TxBody <-
       chainedBalancer
         minUtxos'
         utxoIndex'
@@ -432,7 +349,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
     -> Utxo
     -> Address
     -> Transaction
-    -> QueryM (Either BalanceTxFailure TxBody)
+    -> QueryM (Either BalanceTxError TxBody)
   chainedBalancer
     minUtxos'
     utxoIndex'
@@ -451,7 +368,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
           let
             tx'' :: Transaction
             tx'' = wrap tx' { body = txBodyWithoutFees' }
-          fees'' <- lmap CalculateMinFeeFailure' <$> calculateMinFee' tx''
+          fees'' <- lmap CalculateMinFeeError <$> calculateMinFee' tx''
           case fees'' of
             Left err -> pure $ Left err
             Right fees' ->
@@ -477,11 +394,9 @@ returnAdaChange
   :: Address
   -> Utxo
   -> Transaction
-  -> QueryM (Either ReturnAdaChangeFailure Transaction)
+  -> QueryM (Either ReturnAdaChangeErrorReason Transaction)
 returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
-  lmap
-    ( \(CalculateMinFeeFailure err) -> wrap $ ReturnAdaChangeCalculateMinFee err
-    )
+  lmap ReturnAdaChangeCalculateMinFee
     <$> (calculateMinFee' $ wrap tx)
     >>= case _ of
       Left err -> pure $ Left err
@@ -506,7 +421,7 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
           returnAda :: BigInt
           returnAda = inputAda - outputAda - fees
         case compare returnAda zero of
-          LT -> pure $ Left $ wrap $ NotEnoughAdaInputAfterPrebalance Impossible
+          LT -> pure $ Left $ NotEnoughAdaInputAfterPrebalance Impossible
           EQ -> pure $ Right $ wrap tx { body = wrap txBody { fee = wrap fees } }
           GT -> do
             -- Short circuits and adds Ada to any output utxo of the owner. This saves
@@ -527,7 +442,7 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
                 -- Add the Ada value to the first output utxo of the owner to not
                 -- concur fees. This should be Ada only or non-Ada which has min Ada.
                 newOutputs :: Array TransactionOutput <-
-                  note (wrap CouldNotModifyUtxo) $
+                  note CouldNotModifyUtxo $
                     modifyAt
                       idx
                       ( \(TransactionOutput o@{ amount }) -> TransactionOutput
@@ -564,11 +479,8 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
                   tx' :: Transaction
                   tx' = wrap tx { body = txBody' }
 
-                fees'' :: Either ReturnAdaChangeFailure BigInt <-
-                  lmap
-                    ( \(CalculateMinFeeFailure err) -> wrap $ ReturnAdaChangeCalculateMinFee err
-                    )
-                    <$> calculateMinFee' tx'
+                fees'' :: Either ReturnAdaChangeErrorReason BigInt <-
+                  lmap ReturnAdaChangeCalculateMinFee <$> calculateMinFee' tx'
 
                 -- fees should increase.
                 pure case fees'' of
@@ -581,7 +493,7 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
 
                     if returnAda' >= changeMinUtxo then do
                       newOutputs :: Array TransactionOutput <-
-                        note (wrap $ CouldNotModifyUtxoHead Impossible)
+                        note (CouldNotModifyUtxoHead Impossible)
                           $ modifyAt
                               0
                               ( \(TransactionOutput o) -> TransactionOutput
@@ -593,7 +505,7 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
                         wrap
                           tx { body = wrap txBody { outputs = newOutputs, fee = wrap fees } }
                     else
-                      Left $ wrap InputAdaDoesNotCoverSingleAdaOutput
+                      Left InputAdaDoesNotCoverSingleAdaOutput
 
 calculateMinUtxos :: Array TransactionOutput -> MinUtxos
 calculateMinUtxos = map (\a -> a /\ calculateMinUtxo a)
@@ -649,7 +561,7 @@ preBalanceTxBody
   -> Utxo
   -> Address
   -> TxBody
-  -> Either BalanceTxFailure TxBody
+  -> Either BalanceTxError TxBody
 preBalanceTxBody minUtxos fees utxos ownAddr txBody =
   -- -- Take a single Ada only utxo collateral
   -- addTxCollaterals utxos txBody
@@ -659,15 +571,15 @@ preBalanceTxBody minUtxos fees utxos ownAddr txBody =
     >>= balanceTxIns utxos fees -- Adding more inputs if required
     >>= balanceNonAdaOuts ownAddr utxos
 
--- addTxCollaterals :: Utxo -> TxBody -> Either BalanceTxFailure TxBody
+-- addTxCollaterals :: Utxo -> TxBody -> Either BalanceTxError TxBody
 -- addTxCollaterals utxo txBody =
---   addTxCollaterals' utxo txBody # lmap AddTxCollateralsFailure'
+--   addTxCollaterals' utxo txBody # lmap AddTxCollateralsError
 
 -- -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L211
 -- -- | Pick a collateral from the utxo map and add it to the unbalanced transaction
 -- -- | (suboptimally we just pick a random utxo from the tx inputs). TO DO: upgrade
 -- -- | to a better coin selection algorithm.
--- addTxCollaterals' :: Utxo -> TxBody -> Either AddTxCollateralsFailure TxBody
+-- addTxCollaterals' :: Utxo -> TxBody -> Either AddTxCollateralsError TxBody
 -- addTxCollaterals' utxos (TxBody txBody) = do
 --   let
 --     txIns :: Array TransactionInput
@@ -681,23 +593,23 @@ preBalanceTxBody minUtxos fees utxos ownAddr txBody =
 --   -- Take head for collateral - can use better coin selection here.
 --   findPubKeyTxIn
 --     :: Array TransactionInput
---     -> Either AddTxCollateralsFailure TransactionInput
+--     -> Either AddTxCollateralsError TransactionInput
 --   findPubKeyTxIn =
---     note (wrap CollateralUtxosUnavailable) <<< Array.head
+--     note CollateralUtxosUnavailable <<< Array.head
 
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- | Get TransactionInput such that it is associated to PaymentCredentialKey
 -- | and not PaymentCredentialScript, i.e. we want wallets only
 getPublicKeyTransactionInput
   :: TransactionInput /\ TransactionOutput
-  -> Either ToEitherTransactionInputFailure TransactionInput
+  -> Either ToEitherTransactionInputErrorReason TransactionInput
 getPublicKeyTransactionInput (txOutRef /\ txOut) =
   case txOutPaymentCredentials txOut of
     -- TEST ME: using PaymentCredentialKey to determine whether wallet or script
     PaymentCredentialKey _ ->
       pure txOutRef
     PaymentCredentialScript _ ->
-      Left $ wrap CannotConvertScriptOutputToTxInput
+      Left CannotConvertScriptOutputToTxInput
 
 addressPaymentCredentials :: Address -> PaymentCredential
 addressPaymentCredentials = _.payment <<< unwrap <<< _."AddrType" <<< unwrap
@@ -705,13 +617,17 @@ addressPaymentCredentials = _.payment <<< unwrap <<< _."AddrType" <<< unwrap
 txOutPaymentCredentials :: TransactionOutput -> PaymentCredential
 txOutPaymentCredentials = addressPaymentCredentials <<< _.address <<< unwrap
 
-balanceTxIns :: Utxo -> BigInt -> TxBody -> Either BalanceTxFailure TxBody
+balanceTxIns :: Utxo -> BigInt -> TxBody -> Either BalanceTxError TxBody
 balanceTxIns utxos fees txbody =
-  balanceTxIns' utxos fees txbody # lmap BalanceTxInsFailure'
+  balanceTxIns' utxos fees txbody # lmap BalanceTxInsError
 
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- Notice we aren't using protocol parameters for utxo cost per word.
-balanceTxIns' :: Utxo -> BigInt -> TxBody -> Either BalanceTxInsFailure TxBody
+balanceTxIns'
+  :: Utxo
+  -> BigInt
+  -> TxBody
+  -> Either BalanceTxInsErrorReason TxBody
 balanceTxIns' utxos fees (TxBody txBody) = do
   let
     utxoCost :: BigInt
@@ -726,7 +642,7 @@ balanceTxIns' utxos fees (TxBody txBody) = do
     mintVal :: Value
     mintVal = maybe mempty unwrap txBody.mint
 
-  nonMintedValue <- note (wrap $ BalanceTxInsCannotMinus $ CannotMinus $ wrap mintVal)
+  nonMintedValue <- note (BalanceTxInsCannotMinus $ CannotMinus $ wrap mintVal)
     $ Array.foldMap getAmount txOutputs `minus` mintVal
 
   let
@@ -735,10 +651,7 @@ balanceTxIns' utxos fees (TxBody txBody) = do
 
   txIns :: Array TransactionInput <-
     lmap
-      ( \( CollectTxInsFailure
-             (CollectTxInsInsufficientTxInputs insufficientTxInputs)
-         ) ->
-          wrap insufficientTxInputs
+      ( \(CollectTxInsInsufficientTxInputs insufficientTxInputs) -> insufficientTxInputs
       )
       $ collectTxIns txBody.inputs utxos minSpending
   -- Original code uses Set append which is union. Array unions behave
@@ -755,11 +668,11 @@ collectTxIns
   :: Array TransactionInput
   -> Utxo
   -> Value
-  -> Either CollectTxInsFailure (Array TransactionInput)
+  -> Either CollectTxInsErrorReason (Array TransactionInput)
 collectTxIns originalTxIns utxos value =
   if isSufficient updatedInputs then pure updatedInputs
   else
-    Left $ wrap $ CollectTxInsInsufficientTxInputs $
+    Left $ CollectTxInsInsufficientTxInputs $
       InsufficientTxInputs (Expected value) (Actual $ txInsValue updatedInputs)
   where
   updatedInputs :: Array TransactionInput
@@ -791,9 +704,9 @@ balanceNonAdaOuts
   :: Address
   -> Utxo
   -> TxBody
-  -> Either BalanceTxFailure TxBody
+  -> Either BalanceTxError TxBody
 balanceNonAdaOuts changeAddr utxos txBody =
-  balanceNonAdaOuts' changeAddr utxos txBody # lmap BalanceNonAdaOutsFailure'
+  balanceNonAdaOuts' changeAddr utxos txBody # lmap BalanceNonAdaOutsError
 
 -- FIX ME: (payment credential) address for change substitute for pkh (Address)
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L225
@@ -803,7 +716,7 @@ balanceNonAdaOuts'
   :: Address
   -> Utxo
   -> TxBody
-  -> Either BalanceNonAdaOutsFailure TxBody
+  -> Either BalanceNonAdaOutsErrorReason TxBody
 balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
   let -- FIX ME: Similar to Address issue, need pkh.
     -- payCredentials :: PaymentCredential
@@ -825,12 +738,12 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
     mintVal :: Value
     mintVal = maybe mempty unwrap txBody.mint
 
-  nonMintedOutputValue <- note (wrap $ BalanceNonAdaOutsCannotMinus $ CannotMinus $ wrap mintVal)
+  nonMintedOutputValue <- note (BalanceNonAdaOutsCannotMinus $ CannotMinus $ wrap mintVal)
     $ outputValue `minus` mintVal
 
   let (nonMintedAdaOutputValue :: Value) = filterNonAda nonMintedOutputValue
 
-  nonAdaChange <- note (wrap $ BalanceNonAdaOutsCannotMinus $ CannotMinus $ wrap nonMintedAdaOutputValue)
+  nonAdaChange <- note (BalanceNonAdaOutsCannotMinus $ CannotMinus $ wrap nonMintedAdaOutputValue)
     $ filterNonAda inputValue `minus` nonMintedAdaOutputValue
 
   let
@@ -859,7 +772,7 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
   -- isPos for more detail.
   if isPos nonAdaChange then pure $ wrap txBody { outputs = outputs }
   else if isZero nonAdaChange then pure $ wrap txBody
-  else Left $ wrap InputsCannotBalanceNonAdaTokens
+  else Left InputsCannotBalanceNonAdaTokens
 
 getAmount :: TransactionOutput -> Value
 getAmount = _.amount <<< unwrap
