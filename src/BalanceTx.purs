@@ -10,6 +10,8 @@ module BalanceTx
   , BuildTxRawFailure(..)
   , BuildTxRawFailureReason(..)
   , CalculateMinFeeFailure(..)
+  , CannotMinusFailure(..)
+  , CannotMinusFailureReason(..)
   , Expected(..)
   , GetWalletAddressFailure(..)
   , GetWalletAddressFailureReason(..)
@@ -27,7 +29,8 @@ module BalanceTx
   , UtxosAtFailure(..)
   , UtxosAtFailureReason(..)
   , balanceTxM
-  ) where
+  )
+  where
 
 import Prelude
 import Data.Array ((\\), findIndex, modifyAt)
@@ -62,7 +65,6 @@ import QueryM
   , signTransaction
   , utxosAt
   )
-import Types.ByteArray (byteLength)
 import Types.Transaction
   ( Address
   , DataHash
@@ -79,9 +81,7 @@ import Types.UnbalancedTransaction
   , utxoIndexToUtxo
   )
 import Types.Value
-  ( allTokenNames
-  , flattenValue
-  , fromValue
+  ( filterNonAda
   , geq
   , getLovelace
   , lovelaceValueOf
@@ -91,8 +91,9 @@ import Types.Value
   , minus
   , numCurrencySymbols
   , numTokenNames
-  , TokenName
-  , Value(Value)
+  , sumTokenNameLengths
+  , valueToCoin
+  , Value
   )
 
 -- This module replicates functionality from
@@ -233,7 +234,9 @@ newtype BalanceTxInsFailure = BalanceTxInsFailure BalanceTxInsFailureReason
 derive instance newtypeBalanceTxInsFailure :: Newtype BalanceTxInsFailure _
 derive newtype instance showBalanceTxInsFailure :: Show BalanceTxInsFailure
 
-data BalanceTxInsFailureReason = InsufficientTxInputs Expected Actual
+data BalanceTxInsFailureReason
+  = InsufficientTxInputs Expected Actual
+  | BalanceTxInsCannotMinus CannotMinusFailureReason
 
 instance showBalanceTxInsFailureReason :: Show BalanceTxInsFailureReason where
   show (InsufficientTxInputs expected actual) =
@@ -241,6 +244,18 @@ instance showBalanceTxInsFailureReason :: Show BalanceTxInsFailureReason where
       <> show expected
       <> ", got: "
       <> show actual
+  show (BalanceTxInsCannotMinus reason) = "BalanceTxIns: " <> show reason
+
+newtype CannotMinusFailure = CannotMinusFailure CannotMinusFailureReason
+
+derive instance newtypeCannotMinusFailure :: Newtype CannotMinusFailure _
+
+derive newtype instance showCannotMinusFailure :: Show CannotMinusFailure
+
+data CannotMinusFailureReason = CannotMinus Actual
+
+instance showCannotMinusFailureReason :: Show CannotMinusFailureReason where
+  show (CannotMinus actual) = "Cannot subtract Value: " <> show actual
 
 newtype CollectTxInsFailure = CollectTxInsFailure CollectTxInsFailureReason
 
@@ -254,17 +269,19 @@ instance showCollectTxInsFailureReason :: Show CollectTxInsFailureReason where
 
 newtype Expected = Expected Value
 
+derive instance genericExpected :: Generic Expected _
 derive instance newtypeExpected :: Newtype Expected _
 
 instance showExpected :: Show Expected where
-  show = show <<< flattenValue <<< unwrap
+  show = genericShow
 
 newtype Actual = Actual Value
 
+derive instance genericActual :: Generic Actual _
 derive instance newtypeActual :: Newtype Actual _
 
 instance showActual :: Show Actual where
-  show = show <<< flattenValue <<< unwrap
+  show = genericShow
 
 newtype BalanceNonAdaOutsFailure = BalanceNonAdaOutsFailure BalanceNonAdaOutsFailureReason
 
@@ -272,10 +289,13 @@ derive instance newtypeBalanceNonAdaOutsFailure :: Newtype BalanceNonAdaOutsFail
 
 derive newtype instance showBalanceNonAdaOutsFailure :: Show BalanceNonAdaOutsFailure
 
-data BalanceNonAdaOutsFailureReason = InputsCannotBalanceNonAdaTokens
+data BalanceNonAdaOutsFailureReason
+  = InputsCannotBalanceNonAdaTokens
+  | BalanceNonAdaOutsCannotMinus CannotMinusFailureReason
 
 instance showBalanceNonAdaOutsFailureReason :: Show BalanceNonAdaOutsFailureReason where
   show InputsCannotBalanceNonAdaTokens = "Not enough inputs to balance tokens."
+  show (BalanceNonAdaOutsCannotMinus reason) = "BalanceNonAdaOuts: " <> show reason
 
 newtype SignTxFailure = SignTxFailure SignTxFailureReason
 
@@ -474,14 +494,14 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
           inputValue = getInputValue utxos (wrap txBody)
 
           inputAda :: BigInt
-          inputAda = getLovelace $ fromValue inputValue
+          inputAda = getLovelace $ valueToCoin inputValue
 
           -- FIX ME, ignore mint value?
           outputValue :: Value
           outputValue = Array.foldMap getAmount txOutputs
 
           outputAda :: BigInt
-          outputAda = getLovelace $ fromValue outputValue
+          outputAda = getLovelace $ valueToCoin outputValue
 
           returnAda :: BigInt
           returnAda = inputAda - outputAda - fees
@@ -622,16 +642,6 @@ size v = fromInt 6 + roundupBytesToWords b
   roundupBytesToWords :: BigInt -> BigInt
   roundupBytesToWords b' = quot (b' + (fromInt 7)) $ fromInt 8
 
-  -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
-  -- The formula is actually based on the length of the  bytestring
-  --  representation - test this.
-  -- | Sum of the length of the strings of distinct token names.
-  sumTokenNameLengths :: Value -> BigInt
-  sumTokenNameLengths = Foldable.foldl lenAdd zero <<< allTokenNames
-    where
-    lenAdd :: BigInt -> TokenName -> BigInt
-    lenAdd = \c a -> c + (fromInt <<< byteLength <<< unwrap $ a)
-
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L116
 preBalanceTxBody
   :: MinUtxos
@@ -713,11 +723,13 @@ balanceTxIns' utxos fees (TxBody txBody) = do
     txOutputs :: Array TransactionOutput
     txOutputs = txBody.outputs
 
-    nonMintedValue :: Value
-    nonMintedValue =
-      Array.foldMap getAmount txOutputs
-        `minus` maybe mempty unwrap txBody.mint
+    mintVal :: Value
+    mintVal = maybe mempty unwrap txBody.mint
 
+  nonMintedValue <- note (wrap $ BalanceTxInsCannotMinus $ CannotMinus $ wrap mintVal)
+    $ Array.foldMap getAmount txOutputs `minus` mintVal
+
+  let
     minSpending :: Value
     minSpending = lovelaceValueOf (fees + changeMinUtxo) <> nonMintedValue
 
@@ -792,7 +804,7 @@ balanceNonAdaOuts'
   -> Utxo
   -> TxBody
   -> Either BalanceNonAdaOutsFailure TxBody
-balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) =
+balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
   let -- FIX ME: Similar to Address issue, need pkh.
     -- payCredentials :: PaymentCredential
     -- payCredentials = addressPaymentCredentials changeAddr
@@ -810,14 +822,18 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) =
     outputValue :: Value
     outputValue = Array.foldMap getAmount txOutputs
 
-    nonMintedOutputValue :: Value
-    nonMintedOutputValue =
-      outputValue `minus` maybe mempty unwrap txBody.mint
+    mintVal :: Value
+    mintVal = maybe mempty unwrap txBody.mint
 
-    nonAdaChange :: Value
-    nonAdaChange =
-      filterNonAda inputValue `minus` filterNonAda nonMintedOutputValue
+  nonMintedOutputValue <- note (wrap $ BalanceNonAdaOutsCannotMinus $ CannotMinus $ wrap mintVal)
+    $ outputValue `minus` mintVal
 
+  let (nonMintedAdaOutputValue :: Value) = filterNonAda nonMintedOutputValue
+
+  nonAdaChange <- note (wrap $ BalanceNonAdaOutsCannotMinus $ CannotMinus $ wrap nonMintedAdaOutputValue)
+    $ filterNonAda inputValue `minus` nonMintedAdaOutputValue
+
+  let
     outputs :: Array TransactionOutput
     outputs =
       Array.fromFoldable $
@@ -841,10 +857,9 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) =
 
   -- Original code uses "isNat" because there is a guard against zero, see
   -- isPos for more detail.
-  in
-    if isPos nonAdaChange then pure $ wrap txBody { outputs = outputs }
-    else if isZero nonAdaChange then pure $ wrap txBody
-    else Left $ wrap InputsCannotBalanceNonAdaTokens
+  if isPos nonAdaChange then pure $ wrap txBody { outputs = outputs }
+  else if isZero nonAdaChange then pure $ wrap txBody
+  else Left $ wrap InputsCannotBalanceNonAdaTokens
 
 getAmount :: TransactionOutput -> Value
 getAmount = _.amount <<< unwrap
@@ -864,7 +879,7 @@ addLovelaces minLovelaces (TxBody txBody) =
               outValue = txOut.amount
 
               lovelaces :: BigInt
-              lovelaces = getLovelace $ fromValue outValue
+              lovelaces = getLovelace $ valueToCoin outValue
 
               minUtxo :: BigInt
               minUtxo = fromMaybe zero $ Foldable.lookup txOut' minLovelaces
@@ -879,11 +894,6 @@ addLovelaces minLovelaces (TxBody txBody) =
         txBody.outputs
   in
     wrap txBody { outputs = lovelacesAdded }
-
--- From https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
--- | Filter a value to contain only non Ada assets
-filterNonAda :: Value -> Value
-filterNonAda (Value coins _) = Value coins mempty
 
 getInputValue :: Utxo -> TxBody -> Value
 getInputValue utxos (TxBody txBody) =

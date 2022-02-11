@@ -25,7 +25,7 @@ import Data.Map as Map
 import Data.UInt as UInt
 import Effect (Effect)
 import Foreign.Object (Object)
-import Types.Value (Coin(Coin), Value(Value))
+import Types.Value (Value, mkValue)
 
 -- creates a unique id prefixed by its argument
 foreign import _uniqueId :: String -> Effect String
@@ -234,4 +234,4 @@ parseValue outer = do
   (_assetsJson :: {}) <- getField o "assets"
   -- assets are currently assumed to be empty
   -- newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
-  pure $ Value (Coin coins) $ wrap Map.empty
+  pure $ mkValue (wrap coins) $ mempty

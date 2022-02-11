@@ -39,4 +39,4 @@ coinSize = fromInt 2
 -- calculation can be found here:
 -- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0028#rationale-for-parameter-choices
 adaOnlyWords :: BigInt
-adaOnlyWords = fromInt29
+adaOnlyWords = fromInt 29
