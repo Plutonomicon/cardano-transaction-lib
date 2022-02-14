@@ -268,18 +268,43 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
             utxoIndex''' = utxos `Map.union` utxoIndex''
           -- Add hardcoded Nami 5 Ada and sign before instead of recursively
           -- signing in loop.
-          signedUnbalancedTx' <-
+          signedUnbalancedTx <-
             signTransaction (addTxCollateral unbalancedTx collateral)
               <#> note (SignTxError' $ CouldNotSignTx ownAddr)
-          case signedUnbalancedTx' of
+          case signedUnbalancedTx of
             Left err -> pure $ Left err
-            Right signedUnbalancedTx ->
-              loop utxoIndex''' ownAddr [] signedUnbalancedTx >>=
-                either
-                  (Left >>> pure)
-                  ( returnAdaChange ownAddr utxoIndex'''
-                      >>> map (lmap ReturnAdaChangeError')
-                  )
+            Right (Transaction ubTx@{ body }) -> do
+              -- After adding collateral, we need to balance the inputs and
+              -- non-Ada outputs before looping, i.e. we need to add input fees
+              -- for the Ada only collateral. No MinUtxos required:
+              -- Alternatively add this functionality back to preBalanceTxBody
+              -- and only call collateral adder initially.
+              signedUnbalancedTx' <- pure do
+                -- Balance tx without fees:
+                body' <- balanceTxIns utxoIndex''' zero body
+                body'' <- balanceNonAdaOuts ownAddr utxoIndex''' body'
+                pure $ wrap ubTx { body = body'' }
+              case signedUnbalancedTx' of
+                Left err -> pure $ Left err
+                Right signedUnbalancedTx''@(Transaction ubTx'@{ body: body' }) -> do
+                  fees' <-
+                    lmap CalculateMinFeeError' <$>
+                      calculateMinFee' signedUnbalancedTx''
+                  signedCollUnbalancedTx' <- pure do
+                    -- Balance tx with fees:
+                    fees <- fees'
+                    body'' <- balanceTxIns utxoIndex''' (fees + feeBuffer) body'
+                    body''' <- balanceNonAdaOuts ownAddr utxoIndex''' body''
+                    pure $ wrap ubTx' { body = body''' }
+                  case signedCollUnbalancedTx' of
+                    Left err -> pure $ Left err
+                    Right signedCollUnbalancedTx ->
+                      loop utxoIndex''' ownAddr [] signedCollUnbalancedTx >>=
+                        either
+                          (Left >>> pure)
+                          ( returnAdaChange ownAddr utxoIndex'''
+                              >>> map (lmap ReturnAdaChangeError')
+                          )
   where
   loop
     :: Utxo
@@ -349,16 +374,20 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
             Right fees' ->
               pure $ preBalanceTxBody
                 minUtxos'
-                (fees' + fromInt 500000) -- FIX ME: Add 0.5 Ada to ensure enough input for later on in final balancing.
+                (fees' + feeBuffer) -- FIX ME: Add 0.5 Ada to ensure enough input for later on in final balancing.
                 utxoIndex'
                 ownAddr'
                 txBody'
+
+  feeBuffer :: BigInt
+  feeBuffer = fromInt 500000
 
 -- Nami provides a 5 Ada collateral that we should add the tx before balancing
 addTxCollateral :: Transaction -> TransactionUnspentOutput -> Transaction
 addTxCollateral (Transaction tx@{ body: TxBody txBody }) txUnspentOutput =
   wrap tx
-    { body = wrap txBody { collateral = pure [ (unwrap txUnspentOutput).input ] }
+    { body = wrap txBody
+        { collateral = pure $ Array.singleton $ (unwrap txUnspentOutput).input }
     }
 
 -- Transaction should be prebalanced at this point with all excess with Ada
