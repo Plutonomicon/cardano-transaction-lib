@@ -1,19 +1,19 @@
 module BalanceTx
   ( Actual(..)
-  , AddTxCollateralsErrorReason(..)
-  , BalanceNonAdaOutsErrorReason(..)
+  , AddTxCollateralsError(..)
+  , BalanceNonAdaOutsError(..)
   , BalanceTxError(..)
-  , BalanceTxInsErrorReason(..)
-  , CannotMinusErrorReason(..)
+  , BalanceTxInsError(..)
+  , CannotMinusError(..)
   , Expected(..)
-  , GetWalletAddressErrorReason(..)
-  , GetWalletCollateralErrorReason(..)
-  , Impossible(..)
-  , ReturnAdaChangeErrorReason(..)
-  , SignTxErrorReason(..)
-  , ToEitherTransactionInputErrorReason(..)
-  , UtxoIndexToUtxoErrorReason(..)
-  , UtxosAtErrorReason(..)
+  , GetWalletAddressError(..)
+  , GetWalletCollateralError(..)
+  , ImpossibleError(..)
+  , ReturnAdaChangeError(..)
+  , SignTxError(..)
+  , GetPublicKeyTransactionInputError(..)
+  , UtxoIndexToUtxoError(..)
+  , UtxosAtError(..)
   , balanceTxM
   ) where
 
@@ -90,124 +90,102 @@ import Types.Value
 -- These derivations may need tweaking when testing to make sure they are easy
 -- to read, especially with generic show vs newtype show derivations.
 data BalanceTxError
-  = GetWalletAddressError GetWalletAddressErrorReason
-  | GetWalletCollateralError GetWalletCollateralErrorReason
-  | UtxosAtError UtxosAtErrorReason
-  | UtxoIndexToUtxoError UtxoIndexToUtxoErrorReason
-  | ReturnAdaChangeError ReturnAdaChangeErrorReason
-  | AddTxCollateralsError AddTxCollateralsErrorReason
-  | ToEitherTransactionInputError' ToEitherTransactionInputErrorReason -- FIX ME (better name)
-  | BalanceTxInsError BalanceTxInsErrorReason
-  | BalanceNonAdaOutsError BalanceNonAdaOutsErrorReason
-  | SignTxError SignTxErrorReason
-  | CalculateMinFeeError FeeEstimateError
-  | ImpossibleError Impossible
+  = GetWalletAddressError' GetWalletAddressError
+  | GetWalletCollateralError' GetWalletCollateralError
+  | UtxosAtError' UtxosAtError
+  | UtxoIndexToUtxoError' UtxoIndexToUtxoError
+  | ReturnAdaChangeError' ReturnAdaChangeError
+  | AddTxCollateralsError' AddTxCollateralsError
+  | GetPublicKeyTransactionInputError' GetPublicKeyTransactionInputError
+  | BalanceTxInsError' BalanceTxInsError
+  | BalanceNonAdaOutsError' BalanceNonAdaOutsError
+  | SignTxError' SignTxError
+  | CalculateMinFeeError' FeeEstimateError
 
 derive instance genericBalanceTxError :: Generic BalanceTxError _
 
 instance showBalanceTxError :: Show BalanceTxError where
   show = genericShow
 
-data GetWalletAddressErrorReason = CouldNotGetNamiWalletAddress
+data GetWalletAddressError = CouldNotGetNamiWalletAddress
 
-derive instance genericGetWalletAddressErrorReason :: Generic GetWalletAddressErrorReason _
-derive instance eqGetWalletAddressErrorReason :: Eq GetWalletAddressErrorReason
+derive instance genericGetWalletAddressError :: Generic GetWalletAddressError _
 
-instance showGetWalletAddressErrorReason :: Show GetWalletAddressErrorReason where
+instance showGetWalletAddressError :: Show GetWalletAddressError where
   show = genericShow
 
-data GetWalletCollateralErrorReason = CouldNotGetNamiCollateral
+data GetWalletCollateralError = CouldNotGetNamiCollateral
 
-derive instance genericGetWalletCollateralErrorReason :: Generic GetWalletCollateralErrorReason _
-derive instance eqGetWalletCollateralErrorReason :: Eq GetWalletCollateralErrorReason
+derive instance genericGetWalletCollateralError :: Generic GetWalletCollateralError _
 
-instance showGetWalletCollateralErrorReason :: Show GetWalletCollateralErrorReason where
+instance showGetWalletCollateralError :: Show GetWalletCollateralError where
   show = genericShow
 
-data UtxosAtErrorReason = CouldNotGetUtxos
+data UtxosAtError = CouldNotGetUtxos
 
-derive instance genericUtxosAtErrorReason :: Generic UtxosAtErrorReason _
-derive instance eqUtxosAtErrorReason :: Eq UtxosAtErrorReason
+derive instance genericUtxosAtError :: Generic UtxosAtError _
 
-instance showUtxosAtErrorReason :: Show UtxosAtErrorReason where
+instance showUtxosAtError :: Show UtxosAtError where
   show = genericShow
 
-data UtxoIndexToUtxoErrorReason = CouldNotConvertUtxoIndex
+data UtxoIndexToUtxoError = CouldNotConvertUtxoIndex
 
-derive instance genericUtxoIndexToUtxoErrorReason :: Generic UtxoIndexToUtxoErrorReason _
-derive instance eqUtxoIndexToUtxoErrorReason :: Eq UtxoIndexToUtxoErrorReason
+derive instance genericUtxoIndexToUtxoError :: Generic UtxoIndexToUtxoError _
 
-instance showUtxoIndexToUtxoErrorReason :: Show UtxoIndexToUtxoErrorReason where
+instance showUtxoIndexToUtxoError :: Show UtxoIndexToUtxoError where
   show = genericShow
 
-data ReturnAdaChangeErrorReason
-  = NotEnoughAdaInputAfterPrebalance Impossible
-  | CouldNotModifyUtxo
-  | CouldNotModifyUtxoHead Impossible
-  | InputAdaDoesNotCoverSingleAdaOutput
+data ReturnAdaChangeError
+  = ReturnAdaChangeError String
+  | ReturnAdaChangeImpossibleError String ImpossibleError
   | ReturnAdaChangeCalculateMinFee FeeEstimateError
 
-instance showReturnAdaChangeErrorReason :: Show ReturnAdaChangeErrorReason where
-  show (NotEnoughAdaInputAfterPrebalance Impossible) =
-    "Not enough Input Ada to cover output and fees after prebalance - this \
-    \should be **IMPOSSIBLE** if called after loop."
-  show CouldNotModifyUtxo =
-    "Couldn't modify utxo to return change."
-  show (CouldNotModifyUtxoHead Impossible) =
-    "Couldn't modify head utxo to add Ada - this should be **IMPOSSIBLE**."
-  show InputAdaDoesNotCoverSingleAdaOutput =
-    "ReturnAda' does not cover min. utxo requirement for single Ada-only \
-    \output."
-  show (ReturnAdaChangeCalculateMinFee reason) = show reason
+derive instance genericReturnAdaChangeError :: Generic ReturnAdaChangeError _
 
-data AddTxCollateralsErrorReason = CollateralUtxosUnavailable
+instance showReturnAdaChangeError :: Show ReturnAdaChangeError where
+  show = genericShow
 
-derive instance eqAddTxCollateralsErrorReason :: Eq AddTxCollateralsErrorReason
+data AddTxCollateralsError = CollateralUtxosUnavailable
 
-instance showAddTxCollateralsErrorReason :: Show AddTxCollateralsErrorReason where
-  show CollateralUtxosUnavailable =
-    "There are no utxos to be used as collateral."
+derive instance genericAddTxCollateralsError :: Generic AddTxCollateralsError _
 
-data ToEitherTransactionInputErrorReason = CannotConvertScriptOutputToTxInput
+instance showAddTxCollateralsError :: Show AddTxCollateralsError where
+  show = genericShow
 
-derive instance eqToEitherTransactionInputErrorReason :: Eq ToEitherTransactionInputErrorReason
+data GetPublicKeyTransactionInputError = CannotConvertScriptOutputToTxInput
 
-instance showToEitherTransactionInputErrorReason :: Show ToEitherTransactionInputErrorReason where
-  show CannotConvertScriptOutputToTxInput =
-    "Cannot convert a script output to TransactionInput"
+derive instance genericGetPublicKeyTransactionInputError :: Generic GetPublicKeyTransactionInputError _
 
-data BalanceTxInsErrorReason
+instance showGetPublicKeyTransactionInputError :: Show GetPublicKeyTransactionInputError where
+  show = genericShow
+
+data BalanceTxInsError
   = InsufficientTxInputs Expected Actual
-  | BalanceTxInsCannotMinus CannotMinusErrorReason
+  | BalanceTxInsCannotMinus CannotMinusError
 
-derive instance eqBalanceTxInsErrorReason :: Eq BalanceTxInsErrorReason
+derive instance genericBalanceTxInsError :: Generic BalanceTxInsError _
 
-instance showBalanceTxInsErrorReason :: Show BalanceTxInsErrorReason where
-  show (InsufficientTxInputs expected actual) =
-    "Insufficient tx inputs, needed: "
-      <> show expected
-      <> ", got: "
-      <> show actual
-  show (BalanceTxInsCannotMinus reason) = "BalanceTxIns: " <> show reason
+instance showBalanceTxInsError :: Show BalanceTxInsError where
+  show = genericShow
 
-data CannotMinusErrorReason = CannotMinus Actual
+data CannotMinusError = CannotMinus Actual
 
-derive instance genericCannotMinusErrorReason :: Generic CannotMinusErrorReason _
-derive instance eqCannotMinusErrorReason :: Eq CannotMinusErrorReason
+derive instance genericCannotMinusError :: Generic CannotMinusError _
 
-instance showCannotMinusErrorReason :: Show CannotMinusErrorReason where
-  show (CannotMinus actual) = "Cannot subtract Value: " <> show actual
+instance showCannotMinusError :: Show CannotMinusError where
+  show = genericShow
 
-data CollectTxInsErrorReason = CollectTxInsInsufficientTxInputs BalanceTxInsErrorReason
+data CollectTxInsError = CollectTxInsInsufficientTxInputs BalanceTxInsError
 
-instance showCollectTxInsErrorReason :: Show CollectTxInsErrorReason where
-  show (CollectTxInsInsufficientTxInputs reason) = show reason
+derive instance genericCollectTxInsError :: Generic CollectTxInsError _
+
+instance showCollectTxInsError :: Show CollectTxInsError where
+  show = genericShow
 
 newtype Expected = Expected Value
 
 derive instance genericExpected :: Generic Expected _
 derive instance newtypeExpected :: Newtype Expected _
-derive newtype instance eqExpected :: Eq Expected
 
 instance showExpected :: Show Expected where
   show = genericShow
@@ -216,36 +194,33 @@ newtype Actual = Actual Value
 
 derive instance genericActual :: Generic Actual _
 derive instance newtypeActual :: Newtype Actual _
-derive newtype instance eqActual :: Eq Actual
 
 instance showActual :: Show Actual where
   show = genericShow
 
-data BalanceNonAdaOutsErrorReason
+data BalanceNonAdaOutsError
   = InputsCannotBalanceNonAdaTokens
-  | BalanceNonAdaOutsCannotMinus CannotMinusErrorReason
+  | BalanceNonAdaOutsCannotMinus CannotMinusError
 
-derive instance eqBalanceNonAdaOutsErrorReason :: Eq BalanceNonAdaOutsErrorReason
+derive instance genericBalanceNonAdaOutsError :: Generic BalanceNonAdaOutsError _
 
-instance showBalanceNonAdaOutsErrorReason :: Show BalanceNonAdaOutsErrorReason where
-  show InputsCannotBalanceNonAdaTokens = "Not enough inputs to balance tokens."
-  show (BalanceNonAdaOutsCannotMinus reason) = "BalanceNonAdaOuts: " <> show reason
+instance showBalanceNonAdaOutsError :: Show BalanceNonAdaOutsError where
+  show = genericShow
 
-data SignTxErrorReason = CouldNotSignTx Address
+data SignTxError = CouldNotSignTx Address
 
-derive instance eqSignTxErrorReason :: Eq SignTxErrorReason
+derive instance genericSignTxError :: Generic SignTxError _
 
-instance showSignTxErrorReason :: Show SignTxErrorReason where
-  show (CouldNotSignTx address) =
-    "Could not sign for the following address: " <> show address
+instance showSignTxError :: Show SignTxError where
+  show = genericShow
 
 -- | Represents that an error reason should be impossible
-data Impossible = Impossible
+data ImpossibleError = Impossible
 
-derive instance eqImpossible :: Eq Impossible
+derive instance genericImpossibleError :: Generic ImpossibleError _
 
-instance showImpossible :: Show Impossible where
-  show Impossible = "**THIS SHOULD BE IMPOSSIBLE**"
+instance showImpossibleError :: Show ImpossibleError where
+  show = genericShow
 
 --------------------------------------------------------------------------------
 -- Type aliases, temporary placeholder types and functions
@@ -272,18 +247,18 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
   -- Saves on an extra nested case:
   case ownAddr', collateral' of
     Nothing, _ ->
-      pure $ Left $ GetWalletAddressError CouldNotGetNamiWalletAddress
+      pure $ Left $ GetWalletAddressError' CouldNotGetNamiWalletAddress
     _, Nothing ->
-      pure $ Left $ GetWalletCollateralError CouldNotGetNamiCollateral
+      pure $ Left $ GetWalletCollateralError' CouldNotGetNamiCollateral
     Just ownAddr, Just collateral -> do
       utxos' <- map unwrap <$> utxosAt ownAddr
       utxoIndex' <- liftEffect $ utxoIndexToUtxo utxoIndex
       -- Don't need to sequence, can just do as above
       case utxos', utxoIndex' of
         Nothing, _ ->
-          pure $ Left $ UtxosAtError CouldNotGetUtxos
+          pure $ Left $ UtxosAtError' CouldNotGetUtxos
         _, Nothing ->
-          pure $ Left $ UtxoIndexToUtxoError CouldNotConvertUtxoIndex
+          pure $ Left $ UtxoIndexToUtxoError' CouldNotConvertUtxoIndex
         Just utxos, Just utxoIndex'' -> do
           let
             -- Combines utxos at the user address and those from any scripts
@@ -295,7 +270,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
           -- signing in loop.
           signedUnbalancedTx' <-
             signTransaction (addTxCollateral unbalancedTx collateral)
-              <#> note (SignTxError $ CouldNotSignTx ownAddr)
+              <#> note (SignTxError' $ CouldNotSignTx ownAddr)
           case signedUnbalancedTx' of
             Left err -> pure $ Left err
             Right signedUnbalancedTx ->
@@ -303,7 +278,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
                 either
                   (Left >>> pure)
                   ( returnAdaChange ownAddr utxoIndex'''
-                      >>> map (lmap ReturnAdaChangeError)
+                      >>> map (lmap ReturnAdaChangeError')
                   )
   where
   loop
@@ -368,7 +343,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
           let
             tx'' :: Transaction
             tx'' = wrap tx' { body = txBodyWithoutFees' }
-          fees'' <- lmap CalculateMinFeeError <$> calculateMinFee' tx''
+          fees'' <- lmap CalculateMinFeeError' <$> calculateMinFee' tx''
           case fees'' of
             Left err -> pure $ Left err
             Right fees' ->
@@ -394,7 +369,7 @@ returnAdaChange
   :: Address
   -> Utxo
   -> Transaction
-  -> QueryM (Either ReturnAdaChangeErrorReason Transaction)
+  -> QueryM (Either ReturnAdaChangeError Transaction)
 returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
   lmap ReturnAdaChangeCalculateMinFee
     <$> (calculateMinFee' $ wrap tx)
@@ -421,7 +396,11 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
           returnAda :: BigInt
           returnAda = inputAda - outputAda - fees
         case compare returnAda zero of
-          LT -> pure $ Left $ NotEnoughAdaInputAfterPrebalance Impossible
+          LT ->
+            pure $ Left $
+              ReturnAdaChangeImpossibleError
+                "Not enough Input Ada to cover output and fees after prebalance."
+                Impossible
           EQ -> pure $ Right $ wrap tx { body = wrap txBody { fee = wrap fees } }
           GT -> do
             -- Short circuits and adds Ada to any output utxo of the owner. This saves
@@ -442,7 +421,10 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
                 -- Add the Ada value to the first output utxo of the owner to not
                 -- concur fees. This should be Ada only or non-Ada which has min Ada.
                 newOutputs :: Array TransactionOutput <-
-                  note CouldNotModifyUtxo $
+                  note
+                    ( ReturnAdaChangeError
+                        "Couldn't modify utxo to return change."
+                    ) $
                     modifyAt
                       idx
                       ( \(TransactionOutput o@{ amount }) -> TransactionOutput
@@ -479,7 +461,7 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
                   tx' :: Transaction
                   tx' = wrap tx { body = txBody' }
 
-                fees'' :: Either ReturnAdaChangeErrorReason BigInt <-
+                fees'' :: Either ReturnAdaChangeError BigInt <-
                   lmap ReturnAdaChangeCalculateMinFee <$> calculateMinFee' tx'
 
                 -- fees should increase.
@@ -493,7 +475,11 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
 
                     if returnAda' >= changeMinUtxo then do
                       newOutputs :: Array TransactionOutput <-
-                        note (CouldNotModifyUtxoHead Impossible)
+                        note
+                          ( ReturnAdaChangeImpossibleError
+                              "Couldn't modify head utxo to add Ada"
+                              Impossible
+                          )
                           $ modifyAt
                               0
                               ( \(TransactionOutput o) -> TransactionOutput
@@ -505,7 +491,10 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
                         wrap
                           tx { body = wrap txBody { outputs = newOutputs, fee = wrap fees } }
                     else
-                      Left InputAdaDoesNotCoverSingleAdaOutput
+                      Left $
+                        ReturnAdaChangeError
+                          "ReturnAda' does not cover min. utxo requirement for \
+                          \single Ada-only output."
 
 calculateMinUtxos :: Array TransactionOutput -> MinUtxos
 calculateMinUtxos = map (\a -> a /\ calculateMinUtxo a)
@@ -602,7 +591,7 @@ preBalanceTxBody minUtxos fees utxos ownAddr txBody =
 -- | and not PaymentCredentialScript, i.e. we want wallets only
 getPublicKeyTransactionInput
   :: TransactionInput /\ TransactionOutput
-  -> Either ToEitherTransactionInputErrorReason TransactionInput
+  -> Either GetPublicKeyTransactionInputError TransactionInput
 getPublicKeyTransactionInput (txOutRef /\ txOut) =
   case txOutPaymentCredentials txOut of
     -- TEST ME: using PaymentCredentialKey to determine whether wallet or script
@@ -619,7 +608,7 @@ txOutPaymentCredentials = addressPaymentCredentials <<< _.address <<< unwrap
 
 balanceTxIns :: Utxo -> BigInt -> TxBody -> Either BalanceTxError TxBody
 balanceTxIns utxos fees txbody =
-  balanceTxIns' utxos fees txbody # lmap BalanceTxInsError
+  balanceTxIns' utxos fees txbody # lmap BalanceTxInsError'
 
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- Notice we aren't using protocol parameters for utxo cost per word.
@@ -627,7 +616,7 @@ balanceTxIns'
   :: Utxo
   -> BigInt
   -> TxBody
-  -> Either BalanceTxInsErrorReason TxBody
+  -> Either BalanceTxInsError TxBody
 balanceTxIns' utxos fees (TxBody txBody) = do
   let
     utxoCost :: BigInt
@@ -668,7 +657,7 @@ collectTxIns
   :: Array TransactionInput
   -> Utxo
   -> Value
-  -> Either CollectTxInsErrorReason (Array TransactionInput)
+  -> Either CollectTxInsError (Array TransactionInput)
 collectTxIns originalTxIns utxos value =
   if isSufficient updatedInputs then pure updatedInputs
   else
@@ -706,7 +695,7 @@ balanceNonAdaOuts
   -> TxBody
   -> Either BalanceTxError TxBody
 balanceNonAdaOuts changeAddr utxos txBody =
-  balanceNonAdaOuts' changeAddr utxos txBody # lmap BalanceNonAdaOutsError
+  balanceNonAdaOuts' changeAddr utxos txBody # lmap BalanceNonAdaOutsError'
 
 -- FIX ME: (payment credential) address for change substitute for pkh (Address)
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L225
@@ -716,7 +705,7 @@ balanceNonAdaOuts'
   :: Address
   -> Utxo
   -> TxBody
-  -> Either BalanceNonAdaOutsErrorReason TxBody
+  -> Either BalanceNonAdaOutsError TxBody
 balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
   let -- FIX ME: Similar to Address issue, need pkh.
     -- payCredentials :: PaymentCredential
