@@ -41,7 +41,6 @@ import Types.Transaction
   )
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx))
 import Types.Value as Value
-import Undefined (undefined)
 import Untagged.Union (asOneOf)
 import Wallet (mkNamiWalletAff)
 
@@ -84,7 +83,7 @@ buildUnbalancedTransaction = do
                 , amount: Value.lovelaceValueOf $ BigInt.fromInt 2000000
                 , data_hash: Nothing
                 }
-            -- FIXME
+            -- ??
             , fee: Value.mkCoin 0
             , network_id: Just Testnet
             , certs: Nothing
@@ -115,4 +114,3 @@ throw = liftAff <<< throwError <<< error
 
 mthrow :: forall (a :: Type). String -> QueryM (Maybe a) -> QueryM a
 mthrow msg act = maybe (throw msg) pure =<< act
-
