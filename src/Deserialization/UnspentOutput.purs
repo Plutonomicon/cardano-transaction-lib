@@ -8,10 +8,11 @@ module Deserialization.UnspentOutput
 
 import Prelude
 
+import Data.Bitraversable (bisequence, ltraverse)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe, fromMaybe)
-import Data.Profunctor.Strong (first, (***))
+import Data.Profunctor.Strong ((***))
 import Data.Traversable (traverse, for)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
@@ -23,9 +24,9 @@ import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization (toBytes)
 import Serialization.Types (Address, AssetName, Assets, BigNum, DataHash, MultiAsset, ScriptHash, TransactionHash, TransactionInput, TransactionOutput, TransactionUnspentOutput, Value)
 import Types.ByteArray (ByteArray)
-import Types.Transaction (DataHash(..), TransactionHash(..), TransactionInput(..), TransactionOutput(..)) as T
-import Types.TransactionUnspentOutput (TransactionUnspentOutput(..)) as T
-import Types.Value (Coin(..), CurrencySymbol(..), NonAdaAsset(..), TokenName(..), Value(..)) as T
+import Types.Transaction (DataHash(DataHash), TransactionHash(TransactionHash), TransactionInput(TransactionInput), TransactionOutput(TransactionOutput)) as T
+import Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput)) as T
+import Types.Value (mkCurrencySymbol, mkNonAdaAsset, mkTokenName, mkValue, Coin(Coin), CurrencySymbol, TokenName, Value) as T
 
 convertUnspentOutput :: TransactionUnspentOutput -> Maybe T.TransactionUnspentOutput
 convertUnspentOutput tuo = do
@@ -62,15 +63,17 @@ convertValue value = do
         multiasset
           # extractMultiAsset Tuple >>> map (map (extractAssets Tuple))
           :: Array (ScriptHash /\ Array (AssetName /\ BigNum))
-      -- convert to domain types, except of BigNum
-      multiasset'' =
-        Map.fromFoldable $ multiasset' <#>
-          asOneOf >>> toBytes >>> T.CurrencySymbol ***
-            Map.fromFoldable <<< map (first $ assetNameName >>> T.TokenName)
-          :: Map T.CurrencySymbol (Map T.TokenName BigNum)
+    -- convert to domain types, except of BigNum
+    multiasset'' :: Map T.CurrencySymbol (Map T.TokenName BigNum) <-
+      Map.fromFoldable <$>
+        ( traverse bisequence $ multiasset' <#>
+            asOneOf >>> toBytes >>> T.mkCurrencySymbol ***
+              map Map.fromFoldable
+                <<< traverse (ltraverse $ assetNameName >>> T.mkTokenName)
+        )
     -- convert BigNum values, possibly failing
     traverse (traverse convertBigNum) multiasset''
-  pure $ T.Value (T.Coin coin) (T.NonAdaAsset $ fromMaybe Map.empty multiasset)
+  T.mkValue (T.Coin coin) <$> T.mkNonAdaAsset (fromMaybe Map.empty multiasset)
 
 foreign import getInput :: TransactionUnspentOutput -> TransactionInput
 foreign import getOutput :: TransactionUnspentOutput -> TransactionOutput

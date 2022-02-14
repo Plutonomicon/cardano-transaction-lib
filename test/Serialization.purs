@@ -1,14 +1,13 @@
-module Test.Serialization where
+module Test.Serialization (suite) where
 
 import Prelude
 
 import Data.BigInt as BigInt
-import Data.Map as Map
-import Data.Maybe (Maybe(..))
-import Data.Newtype (wrap)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect.Class (liftEffect)
+import Effect.Exception (throw)
 import Mote (group, test)
 import Serialization (addressPubKeyHash, convertBigInt, convertTransaction, convertTxOutput, newAddressFromBech32, newBaseAddressFromAddress, toBytes)
 import Serialization.Types (TransactionHash)
@@ -48,9 +47,12 @@ suite = do
         let bytes = toBytes (asOneOf tx)
         byteArrayToHex bytes `shouldEqual` txBinaryFixture1
       test "Transaction serialization #2 - tokens" $ liftEffect do
-        tx <- convertTransaction txFixture2
-        let bytes = toBytes (asOneOf tx)
-        byteArrayToHex bytes `shouldEqual` txBinaryFixture2
+        case txFixture2' of
+          Nothing -> throw "Couldn't create Fixture 2 amount"
+          Just txFixture2 -> do
+            tx <- convertTransaction txFixture2
+            let bytes = toBytes (asOneOf tx)
+            byteArrayToHex bytes `shouldEqual` txBinaryFixture2
       test "Transaction serialization #3 - ada" $ liftEffect do
         tx <- convertTransaction txFixture3
         let bytes = toBytes (asOneOf tx)
@@ -78,13 +80,19 @@ txOutputFixture1 =
                 $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
             }
         }
-    , amount: Value.Value (Value.Coin $ BigInt.fromInt 0) (wrap Map.empty)
+    , amount: mempty
     , data_hash: Nothing
     }
 
-txOutputFixture2 :: T.TransactionOutput
-txOutputFixture2 =
-  T.TransactionOutput
+txOutputFixture2' :: Maybe T.TransactionOutput
+txOutputFixture2' = do
+  let
+    currencySymbol1 = hexToByteArrayUnsafe "1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2e"
+    tokenName1 = hexToByteArrayUnsafe "4974657374546f6b656e"
+  amount <- Value.mkValue mempty <$> Value.mkNonAdaAssets
+    [ currencySymbol1 /\ [ tokenName1 /\ BigInt.fromInt 1000000 ]
+    ]
+  pure $ T.TransactionOutput
     { address: T.Address
         { "AddrType": T.BaseAddress
             { network: UInt.fromInt 0
@@ -96,15 +104,9 @@ txOutputFixture2 =
                 $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
             }
         }
-    , amount: Value.Value (Value.Coin $ BigInt.fromInt 0) $ wrap $ Map.fromFoldable
-        [ Value.CurrencySymbol currencySymbol1 /\ Map.fromFoldable
-            [ Value.TokenName tokenName1 /\ BigInt.fromInt 1000000 ]
-        ]
+    , amount: amount
     , data_hash: Nothing
     }
-  where
-  currencySymbol1 = hexToByteArrayUnsafe "1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2e"
-  tokenName1 = hexToByteArrayUnsafe "4974657374546f6b656e"
 
 txOutputBinaryFixture1 :: String
 txOutputBinaryFixture1 =
@@ -116,7 +118,7 @@ txFixture1 =
     { body: T.TxBody
         { inputs: [ txInputFixture1 ]
         , outputs: [ txOutputFixture1 ]
-        , fee: Value.Coin $ BigInt.fromInt 177513
+        , fee: Value.mkCoin 177513
         , ttl: Nothing
         , certs: Nothing
         , withdrawals: Nothing
@@ -141,13 +143,14 @@ txFixture1 =
     , auxiliary_data: Nothing
     }
 
-txFixture2 :: T.Transaction
-txFixture2 =
-  T.Transaction
+txFixture2' :: Maybe T.Transaction
+txFixture2' = do
+  txOutputFixture2 <- txOutputFixture2'
+  pure $ T.Transaction
     { body: T.TxBody
         { inputs: [ txInputFixture1 ]
         , outputs: [ txOutputFixture2 ]
-        , fee: Value.Coin $ BigInt.fromInt 177513
+        , fee: Value.mkCoin 177513
         , ttl: Nothing
         , certs: Nothing
         , withdrawals: Nothing
@@ -189,7 +192,7 @@ txFixture3 =
                             $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                         }
                     }
-                , amount: Value.Value (Value.Coin $ BigInt.fromInt 2353402) $ wrap Map.empty
+                , amount: Value.mkValue (Value.mkCoin 2353402) mempty
                 , data_hash: Nothing
                 }
             , T.TransactionOutput
@@ -203,11 +206,11 @@ txFixture3 =
                             $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                         }
                     }
-                , amount: Value.Value (Value.Coin $ BigInt.fromInt 1000000) $ wrap Map.empty
+                , amount: Value.mkValue (Value.mkCoin 1000000) mempty
                 , data_hash: Nothing
                 }
             ]
-        , fee: Value.Coin $ BigInt.fromInt 177513
+        , fee: Value.mkCoin 177513
         , ttl: Nothing
         , certs: Nothing
         , withdrawals: Nothing

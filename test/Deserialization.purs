@@ -1,11 +1,10 @@
-module Test.Deserialization where
+module Test.Deserialization (suite) where
 
 import Prelude
 
 import Data.BigInt as BigInt
-import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), isJust, isNothing)
-import Data.Newtype (wrap, unwrap)
+import Data.Newtype (unwrap)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect (Effect)
@@ -14,17 +13,42 @@ import Effect.Exception (throw)
 import Mote (group, test)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import TestM (TestPlanM)
-import Types.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe, hexToByteArrayUnsafe)
-import Types.Value as Value
+import Types.ByteArray
+  ( ByteArray
+  , byteArrayFromIntArrayUnsafe
+  , hexToByteArrayUnsafe
+  )
 
 import Deserialization.Address (convertAddress)
-import Deserialization.UnspentOutput (convertUnspentOutput, mkTransactionUnspentOutput, newTransactionUnspentOutputFromBytes)
+import Deserialization.UnspentOutput
+  ( convertUnspentOutput
+  , mkTransactionUnspentOutput
+  , newTransactionUnspentOutputFromBytes
+  )
 import Deserialization.WitnessSet (deserializeWitnessSet, convertWitnessSet)
 import Serialization as Serialization
 import Serialization.Types (TransactionUnspentOutput)
-import Types.Transaction (Address(..), BaseAddress(..), Bech32(..), Ed25519KeyHash(..), Ed25519Signature(..), PaymentCredential(..), PlutusData(..), PublicKey(..), StakeCredential(..), TransactionHash(..), TransactionInput(..), TransactionOutput(..), TransactionWitnessSet(..), Vkey(..), Vkeywitness(..)) as T
-import Types.Value (Coin(..), NonAdaAsset(..), Value(..)) as T
-import Types.TransactionUnspentOutput (TransactionUnspentOutput(..)) as T
+import Types.Transaction
+  ( Address(Address)
+  , BaseAddress(BaseAddress)
+  , Bech32(Bech32)
+  , Ed25519KeyHash(Ed25519KeyHash)
+  , Ed25519Signature(Ed25519Signature)
+  , PaymentCredential(PaymentCredentialKey)
+  , PlutusData(PlutusData)
+  , PublicKey(PublicKey)
+  , StakeCredential(StakeCredentialKey)
+  , TransactionHash(TransactionHash)
+  , TransactionInput(TransactionInput)
+  , TransactionOutput(TransactionOutput)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
+  ) as T
+import Types.Value (mkCoin, mkValue, mkNonAdaAssets) as V
+import Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as T
 
 suite :: TestPlanM Unit
 suite = do
@@ -45,12 +69,15 @@ suite = do
                 address''' `shouldEqual` address'
     group "UnspentTransactionOutput" do
       test "deserialization is inverse to serialization" do
-        unspentOutput <- liftEffect $ createUnspentOutput txInputFixture1 txOutputFixture1
-        case convertUnspentOutput unspentOutput of
-          Nothing -> liftEffect $ throw "Failed deserialization 3"
-          Just (T.TransactionUnspentOutput { input, output }) -> do
-            input `shouldEqual` txInputFixture1
-            output `shouldEqual` txOutputFixture1
+        case txOutputFixture1' of
+          Nothing -> liftEffect $ throw "Couldn't create Fixture 1 amount"
+          Just txOutputFixture1 -> do
+            unspentOutput <- liftEffect $ createUnspentOutput txInputFixture1 txOutputFixture1
+            case convertUnspentOutput unspentOutput of
+              Nothing -> liftEffect $ throw "Failed deserialization 3"
+              Just (T.TransactionUnspentOutput { input, output }) -> do
+                input `shouldEqual` txInputFixture1
+                output `shouldEqual` txOutputFixture1
       test "fixture #1" do
         case newTransactionUnspentOutputFromBytes utxoFixture1 >>= convertUnspentOutput of
           Nothing -> liftEffect $ throw "Failed deserialization 4"
@@ -104,9 +131,15 @@ txInputFixture1 =
     , index: UInt.fromInt 0
     }
 
-txOutputFixture1 :: T.TransactionOutput
-txOutputFixture1 =
-  T.TransactionOutput
+txOutputFixture1' :: Maybe T.TransactionOutput
+txOutputFixture1' = do
+  let
+    currencySymbol1 = hexToByteArrayUnsafe "1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2e"
+    tokenName1 = hexToByteArrayUnsafe "4974657374546f6b656e"
+  amount <- V.mkValue mempty <$> V.mkNonAdaAssets
+    [ currencySymbol1 /\ [ tokenName1 /\ BigInt.fromInt 1000000 ]
+    ]
+  pure $ T.TransactionOutput
     { address: T.Address
         { "AddrType": T.BaseAddress
             { network: UInt.fromInt 0
@@ -118,15 +151,9 @@ txOutputFixture1 =
                 $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
             }
         }
-    , amount: Value.Value (Value.Coin $ BigInt.fromInt 0) $ wrap $ Map.fromFoldable
-        [ Value.CurrencySymbol currencySymbol1 /\ Map.fromFoldable
-            [ Value.TokenName tokenName1 /\ BigInt.fromInt 1000000 ]
-        ]
+    , amount
     , data_hash: Nothing
     }
-  where
-  currencySymbol1 = hexToByteArrayUnsafe "1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2e"
-  tokenName1 = hexToByteArrayUnsafe "4974657374546f6b656e"
 
 utxoFixture1 :: ByteArray
 utxoFixture1 = hexToByteArrayUnsafe "82825820c6b54aa301887af390bd3449833e4cd66ff61b5e68b1f77c84a8c0873b776ff90082583900f33ffa84fdf20a003443a5e2768e12e92db31535dca62088b153df243903103ae70681439b5476fef59f439b8bc86d84bfb2d376fc3f56171a004c4b40"
@@ -157,7 +184,7 @@ utxoFixture1' =
                         )
                     }
                 )
-            , amount: T.Value (T.Coin (BigInt.fromInt 5000000)) (T.NonAdaAsset (Map.fromFoldable []))
+            , amount: V.mkValue (V.mkCoin 5000000) mempty
             , data_hash: Nothing
             }
         )
