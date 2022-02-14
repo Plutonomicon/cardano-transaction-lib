@@ -85,7 +85,7 @@ buildUnbalancedTransaction = do
                 , data_hash: Nothing
                 }
             -- FIXME
-            , fee: undefined
+            , fee: Value.mkCoin 0
             , network_id: Just Testnet
             , certs: Nothing
             , collateral: Nothing
