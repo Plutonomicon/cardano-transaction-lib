@@ -73,7 +73,9 @@ convertValue value = do
         )
     -- convert BigNum values, possibly failing
     traverse (traverse convertBigNum) multiasset''
-  T.mkValue (T.Coin coin) <$> T.mkNonAdaAsset (fromMaybe Map.empty multiasset)
+  pure
+    $ T.mkValue (T.Coin coin)
+    $ T.mkNonAdaAsset (fromMaybe Map.empty multiasset)
 
 foreign import getInput :: TransactionUnspentOutput -> TransactionInput
 foreign import getOutput :: TransactionUnspentOutput -> TransactionOutput
