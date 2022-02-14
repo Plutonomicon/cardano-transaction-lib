@@ -13,6 +13,7 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)
 import Data.Tuple (fst)
 import Effect (Effect)
+import Effect.Class (liftEffect)
 import Effect.Aff (error, launchAff_)
 import Effect.Aff.Class (liftAff)
 import Effect.Console as Console
@@ -23,6 +24,8 @@ import QueryM
   , mkOgmiosWebSocketAff
   , utxosAt
   )
+import Serialization as Serialization
+import Types.ByteArray (byteArrayToHex)
 import Types.POSIXTimeRange
   ( Extended(NegInf, PosInf)
   , Interval(Interval)
@@ -39,6 +42,7 @@ import Types.Transaction
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx))
 import Types.Value as Value
 import Undefined (undefined)
+import Untagged.Union (asOneOf)
 import Wallet (mkNamiWalletAff)
 
 main :: Effect Unit
@@ -51,7 +55,12 @@ main = launchAff_ $ do
     , wallet
     , serverConfig: defaultServerConfig
     }
-  undefined
+  liftEffect $
+    Console.log
+      <<< byteArrayToHex
+      <<< Serialization.toBytes
+      <<< asOneOf
+      =<< Serialization.convertTransaction tx
 
 buildTransaction :: QueryM Transaction
 buildTransaction = either (throw <<< show) pure
