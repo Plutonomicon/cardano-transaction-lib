@@ -264,48 +264,59 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
             -- Combines utxos at the user address and those from any scripts
             -- involved with the contract in the unbalanced transaction. Don't
             -- add collateral to this for now.
-            utxoIndex''' :: Utxo
-            utxoIndex''' = utxos `Map.union` utxoIndex''
+            allUtxos :: Utxo
+            allUtxos = utxos `Map.union` utxoIndex''
           -- Add hardcoded Nami 5 Ada and sign before instead of recursively
-          -- signing in loop.
+          -- signing in loop. Could refactor this part into a separate function.
           signedUnbalancedTx <-
             signTransaction (addTxCollateral unbalancedTx collateral)
               <#> note (SignTxError' $ CouldNotSignTx ownAddr)
           case signedUnbalancedTx of
             Left err -> pure $ Left err
-            Right (Transaction ubTx@{ body }) -> do
+            Right sUbTx ->
               -- After adding collateral, we need to balance the inputs and
               -- non-Ada outputs before looping, i.e. we need to add input fees
               -- for the Ada only collateral. No MinUtxos required:
               -- Alternatively add this functionality back to preBalanceTxBody
               -- and only call collateral adder initially.
-              signedUnbalancedTx' <- pure do
-                -- Balance tx without fees:
-                body' <- balanceTxIns utxoIndex''' zero body
-                body'' <- balanceNonAdaOuts ownAddr utxoIndex''' body'
-                pure $ wrap ubTx { body = body'' }
-              case signedUnbalancedTx' of
+              -- Balance tx without fees:
+              case prebalanceCollateral zero allUtxos ownAddr sUbTx of
                 Left err -> pure $ Left err
-                Right signedUnbalancedTx''@(Transaction ubTx'@{ body: body' }) -> do
-                  fees' <-
-                    lmap CalculateMinFeeError' <$>
-                      calculateMinFee' signedUnbalancedTx''
-                  signedCollUnbalancedTx' <- pure do
-                    -- Balance tx with fees:
-                    fees <- fees'
-                    body'' <- balanceTxIns utxoIndex''' (fees + feeBuffer) body'
-                    body''' <- balanceNonAdaOuts ownAddr utxoIndex''' body''
-                    pure $ wrap ubTx' { body = body''' }
+                Right sUbTx' -> do
+                  fees' <- lmap CalculateMinFeeError' <$> calculateMinFee' sUbTx'
+                  -- Balance tx with fees:
+                  let
+                    signedCollUnbalancedTx' = fees' >>= \fees ->
+                      prebalanceCollateral
+                        (fees + feeBuffer)
+                        allUtxos
+                        ownAddr
+                        sUbTx'
                   case signedCollUnbalancedTx' of
                     Left err -> pure $ Left err
                     Right signedCollUnbalancedTx ->
-                      loop utxoIndex''' ownAddr [] signedCollUnbalancedTx >>=
+                      loop allUtxos ownAddr [] signedCollUnbalancedTx >>=
                         either
                           (Left >>> pure)
-                          ( returnAdaChange ownAddr utxoIndex'''
+                          ( returnAdaChange ownAddr allUtxos
                               >>> map (lmap ReturnAdaChangeError')
                           )
   where
+  prebalanceCollateral
+    :: BigInt
+    -> Utxo
+    -> Address
+    -> Transaction
+    -> Either BalanceTxError Transaction
+  prebalanceCollateral
+    fees'
+    utxoIndex'
+    ownAddr'
+    oldTx'@(Transaction { body: txBody }) =
+    balanceTxIns utxoIndex' fees' txBody
+      >>= balanceNonAdaOuts ownAddr' utxoIndex'
+      >>= \txBody' -> pure $ wrap (unwrap oldTx') { body = txBody' }
+
   loop
     :: Utxo
     -> Address
