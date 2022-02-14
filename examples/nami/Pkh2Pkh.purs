@@ -24,7 +24,7 @@ main = launchAff_ $ do
     }
   undefined
 
-buildTransaction :: QueryM UnbalancedTransaction
+buildTransaction :: QueryM UnbalancedTx
 buildTransaction = do
   ownAddress <-
     maybe
