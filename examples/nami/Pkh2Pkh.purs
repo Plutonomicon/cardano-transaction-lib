@@ -2,10 +2,12 @@ module Examples.Nami.Pkh2Pkh (main) where
 
 import Prelude
 
+import BalanceTx (balanceTxM)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader (runReaderT)
 import Data.Array as Array
 import Data.BigInt as BigInt
+import Data.Either (either)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)
@@ -13,6 +15,7 @@ import Data.Tuple (fst)
 import Effect (Effect)
 import Effect.Aff (error, launchAff_)
 import Effect.Aff.Class (liftAff)
+import Effect.Console as Console
 import QueryM
   ( QueryM
   , defaultServerConfig
@@ -51,7 +54,9 @@ main = launchAff_ $ do
   undefined
 
 buildTransaction :: QueryM Transaction
-buildTransaction = undefined
+buildTransaction = either (throw <<< show) pure
+  =<< balanceTxM
+  =<< buildUnbalancedTransaction
 
 buildUnbalancedTransaction :: QueryM UnbalancedTx
 buildUnbalancedTransaction = do
@@ -60,7 +65,7 @@ buildUnbalancedTransaction = do
     map fst
       <<< Map.toUnfoldable
       <<< unwrap
-      <$> mthrow "Failed to get own utxos" (utxosAt ownAddress)
+      <$> mthrow "Failed to get utxos" (utxosAt ownAddress)
   pure $ UnbalancedTx
     { transaction: Transaction
         { body: TxBody
