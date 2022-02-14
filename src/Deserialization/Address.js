@@ -8,6 +8,7 @@ if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
 }
 
 const call = property => object => object[property]();
+
 const callMaybe = property => maybe => object => {
     const res = object[property]();
     return res != null ? maybe.just(res) : maybe.nothing;

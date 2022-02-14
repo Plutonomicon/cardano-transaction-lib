@@ -7,20 +7,53 @@ module Serialization
   , convertTxInput
   , convertTxOutput
   , newAddressFromBech32
+  , newAddressFromBytes
   , newAssetName
   , toBytes
   , newBaseAddressFromAddress
+  , newTransactionUnspentOutputFromBytes
+  , newTransactionWitnessSetFromBytes
   ) where
 
 import Data.BigInt as BigInt
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse_, for_)
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.UInt (UInt)
 import Effect (Effect)
 import Prelude
-import Serialization.Types (Address, AssetName, Assets, AuxiliaryData, BaseAddress, BigNum, DataHash, Ed25519KeyHash, Ed25519Signature, MultiAsset, PlutusScript, PlutusScripts, PublicKey, ScriptHash, StakeCredential, Transaction, TransactionBody, TransactionHash, TransactionInput, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, Value, Vkey, Vkeywitness, Vkeywitnesses)
+import Serialization.Types
+  ( Address
+  , AssetName
+  , Assets
+  , AuxiliaryData
+  , BaseAddress
+  , BigNum
+  , DataHash
+  , Ed25519KeyHash
+  , Ed25519Signature
+  , MultiAsset
+  , PlutusData
+  , PlutusScript
+  , PlutusScripts
+  , PublicKey
+  , ScriptHash
+  , StakeCredential
+  , Transaction
+  , TransactionBody
+  , TransactionHash
+  , TransactionInput
+  , TransactionInputs
+  , TransactionOutput
+  , TransactionOutputs
+  , TransactionUnspentOutput
+  , TransactionWitnessSet
+  , Value
+  , Vkey
+  , Vkeywitness
+  , Vkeywitnesses
+  )
 import Types.ByteArray (ByteArray)
 import Types.Transaction as T
 import Types.Value as Value
@@ -41,7 +74,10 @@ foreign import newTransactionBody :: TransactionInputs -> TransactionOutputs -> 
 foreign import newTransaction :: TransactionBody -> TransactionWitnessSet -> Effect Transaction
 foreign import newTransaction_ :: TransactionBody -> TransactionWitnessSet -> AuxiliaryData -> Effect Transaction
 foreign import newTransactionWitnessSet :: Effect TransactionWitnessSet
+foreign import newTransactionWitnessSetFromBytes :: ByteArray -> Effect TransactionWitnessSet
+foreign import newTransactionUnspentOutputFromBytes :: ByteArray -> Effect TransactionUnspentOutput
 foreign import newAddressFromBech32 :: T.Bech32 -> Effect Address
+foreign import newAddressFromBytes :: ByteArray -> Effect Address
 foreign import newBaseAddress :: UInt -> StakeCredential -> StakeCredential -> Effect BaseAddress
 foreign import _newBaseAddressFromAddress :: (forall a. Maybe a) -> (forall a. a -> Maybe a) -> Address -> Maybe BaseAddress
 foreign import baseAddressPaymentCredential :: BaseAddress -> StakeCredential
@@ -75,6 +111,7 @@ foreign import toBytes
          |+| ScriptHash
          |+| TransactionHash
          |+| DataHash
+         |+| PlutusData
      -- Add more as needed.
      )
   -> ByteArray
@@ -181,11 +218,16 @@ convertAddress address = do
   baseAddressToAddress base_address
 
 convertValue :: Value.Value -> Effect Value
-convertValue (Value.Value (Value.Coin lovelace) (Value.NonAdaAsset m)) = do
+convertValue val = do
+  let
+    lovelace = Value.valueToCoin' val
+    m = Value.getNonAdaAsset' val
   multiasset <- newMultiAsset
-  forWithIndex_ m \(Value.CurrencySymbol scriptHashBytes) values -> do
+  forWithIndex_ m \scriptHashBytes' values -> do
+    let scriptHashBytes = Value.getCurrencySymbol scriptHashBytes'
     assets <- newAssets
-    forWithIndex_ values \(Value.TokenName tokenName) bigIntValue -> do
+    forWithIndex_ values \tokenName' bigIntValue -> do
+      let tokenName = Value.getTokenName tokenName'
       assetName <- newAssetName tokenName
       value <- newBigNum (BigInt.toString bigIntValue)
       insertAssets assets assetName value

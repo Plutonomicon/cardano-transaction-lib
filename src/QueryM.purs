@@ -1,11 +1,11 @@
-module Ogmios
+module QueryM
   ( DispatchIdMap
   , FeeEstimate(FeeEstimate)
   , FeeEstimateError(FeeEstimateHttpError, FeeEstimateDecodeJsonError)
   , Host
   , ListenerSet
   , Listeners
-  , OgmiosWebSocket(OgmiosWebSocket)
+  , OgmiosWebSocket
   , QueryConfig
   , QueryM
   , ServerConfig
@@ -13,9 +13,12 @@ module Ogmios
   , addressToOgmiosAddress
   , calculateMinFee
   , defaultServerConfig
+  , getWalletAddress
+  , getWalletCollateral
   , mkOgmiosWebSocketAff
   , mkServerUrl
   , ogmiosAddressToAddress
+  , signTransaction
   , utxosAt
   ) where
 
@@ -39,7 +42,7 @@ import Data.Traversable (sequence)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Deserialization.Address as DAddress
+import Deserialization.Address as Deserialization.Address
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Aff.Class (liftAff)
@@ -53,8 +56,10 @@ import Serialization as Serialization
 import Types.ByteArray (hexToByteArray, byteArrayToHex)
 import Types.JsonWsp (Address, OgmiosTxOut, JsonWspResponse, mkUtxosAtQuery, parseJsonWspResponse, TxOutRef, UtxoQR(UtxoQR))
 import Types.Transaction as Transaction
+import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.Value (Coin(Coin))
 import Untagged.Union (asOneOf)
+import Wallet (Wallet(Nami))
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -90,9 +95,10 @@ type Url = String
 
 -- when we add multiple query backends or wallets,
 -- we just need to extend this type
-type QueryConfig = { ws :: OgmiosWebSocket, serverConfig :: ServerConfig }
+type QueryConfig =
+  { ws :: OgmiosWebSocket, serverConfig :: ServerConfig, wallet :: Maybe Wallet }
 
-type QueryM a = ReaderT QueryConfig Aff a
+type QueryM (a :: Type) = ReaderT QueryConfig Aff a
 
 -- the first query type in the QueryM/Aff interface
 utxosAt' :: Address -> QueryM UtxoQR
@@ -123,6 +129,28 @@ allowError :: (Either Error UtxoQR -> Effect Unit) -> UtxoQR -> Effect Unit
 allowError func = func <<< Right
 
 --------------------------------------------------------------------------------
+-- Wallet
+--------------------------------------------------------------------------------
+
+getWalletAddress :: QueryM (Maybe Transaction.Address)
+getWalletAddress = withMWalletAff $
+  \(Nami nami) -> nami.getWalletAddress =<< liftEffect (Ref.read nami.connection)
+
+getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
+getWalletCollateral = withMWalletAff $
+  \(Nami nami) -> nami.getCollateral =<< liftEffect (Ref.read nami.connection)
+
+signTransaction
+  :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
+signTransaction tx = withMWalletAff $
+  \(Nami nami) -> flip nami.signTx tx =<< liftEffect (Ref.read nami.connection)
+
+withMWalletAff
+  :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
+withMWalletAff act = asks _.wallet >>= case _ of
+  Just wallet -> liftAff $ act wallet
+  Nothing -> pure Nothing
+
 -- HTTP Haskell server and related
 --------------------------------------------------------------------------------
 
@@ -349,7 +377,7 @@ messageFoldF msg acc' func = do
 -- | Converts an JsonWsp.Address to (internal) Address
 ogmiosAddressToAddress :: Address -> Effect (Maybe Transaction.Address)
 ogmiosAddressToAddress ogAddr =
-  newAddressFromBech32 (wrap ogAddr) <#> DAddress.convertAddress
+  newAddressFromBech32 (wrap ogAddr) <#> Deserialization.Address.convertAddress
 
 -- | Converts an (internal) Address to JsonWsp.Address
 addressToOgmiosAddress :: Transaction.Address -> Effect Address
