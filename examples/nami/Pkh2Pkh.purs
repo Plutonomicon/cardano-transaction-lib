@@ -7,27 +7,33 @@ import Control.Monad.Reader (runReaderT)
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Map as Map
-import Data.Maybe (Maybe(..), maybe)
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)
 import Data.Tuple (fst)
 import Effect (Effect)
 import Effect.Aff (error, launchAff_)
 import Effect.Aff.Class (liftAff)
-import QueryM (QueryM, defaultServerConfig, getWalletAddress, utxosAt)
+import QueryM
+  ( QueryM
+  , defaultServerConfig
+  , getWalletAddress
+  , mkOgmiosWebSocketAff
+  , utxosAt
+  )
 import Types.POSIXTimeRange
-  ( Extended(..)
-  , Interval(..)
-  , LowerBound(..)
-  , UpperBound(..)
+  ( Extended(NegInf, PosInf)
+  , Interval(Interval)
+  , LowerBound(LowerBound)
+  , UpperBound(UpperBound)
   )
 import Types.Transaction
-  ( NetworkId(..)
-  , Transaction(..)
-  , TransactionOutput(..)
-  , TxBody(..)
+  ( NetworkId(Testnet)
+  , Transaction(Transaction)
+  , TransactionOutput(TransactionOutput)
+  , TxBody(TxBody)
   , emptyTransactionWitnessSet
   )
-import Types.UnbalancedTransaction (UnbalancedTx(..))
+import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx))
 import Types.Value as Value
 import Undefined (undefined)
 import Wallet (mkNamiWalletAff)
