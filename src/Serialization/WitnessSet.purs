@@ -12,7 +12,7 @@ import Types.ByteArray (ByteArray)
 import Serialization.Types (BigNum, BootstrapWitness, Ed25519Signature, ExUnits, PlutusData, PlutusScript, PlutusScripts, PublicKey, Redeemer, RedeemerTag, TransactionWitnessSet, Vkey, Vkeywitness, Vkeywitnesses)
 import Deserialization.FromBytes (fromBytesEffect)
 import FfiHelpers (ContainerHelper, containerHelper)
-import Serialization.BigNum (convertBigNum)
+import Serialization.BigNum (bigNumFromBigInt)
 import Types.Transaction as T
 import Types.RedeemerTag as Tag
 
@@ -37,7 +37,7 @@ convertWitnessSet (T.TransactionWitnessSet tws) = do
 convertRedeemer :: T.Redeemer -> Effect Redeemer
 convertRedeemer (T.Redeemer { tag, index, "data": data_, ex_units }) = do
   tag' <- convertRedeemerTag tag
-  index' <- maybe (throw "Failed to convert redeemer index") pure $ convertBigNum index
+  index' <- maybe (throw "Failed to convert redeemer index") pure $ bigNumFromBigInt index
   data' <- convertPlutusData data_
   ex_units' <- convertExUnits ex_units
   newRedeemer tag' index' data' ex_units'
@@ -52,8 +52,8 @@ convertRedeemerTag = _newRedeemerTag <<< case _ of
 convertExUnits :: T.ExUnits -> Effect ExUnits
 convertExUnits { mem, steps } =
   maybe (throw "Failed to construct ExUnits") pure do
-    mem' <- convertBigNum mem
-    steps' <- convertBigNum steps
+    mem' <- bigNumFromBigInt mem
+    steps' <- bigNumFromBigInt steps
     pure $ newExUnits mem' steps'
 
 convertPlutusData :: T.PlutusData -> Effect PlutusData

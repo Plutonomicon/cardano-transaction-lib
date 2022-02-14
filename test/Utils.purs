@@ -2,7 +2,7 @@ module Test.Utils (unsafeCall, assertTrue, assertTrue_, errMaybe) where
 
 import Control.Alternative (pure)
 import Data.Function (($))
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Unit (Unit, unit)
 import Effect.Aff (error)
 import Effect.Class (class MonadEffect, liftEffect)

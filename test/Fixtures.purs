@@ -1,4 +1,26 @@
-module Test.Fixtures where
+module Test.Fixtures
+  ( txOutputFixture1
+  , txOutputFixture2
+  , currencySymbol1
+  , tokenName1
+  , txOutputBinaryFixture1
+  , txFixture1
+  , txFixture2
+  , txFixture3
+  , txBinaryFixture1
+  , txBinaryFixture2
+  , txBinaryFixture3
+  , utxoFixture1
+  , utxoFixture1'
+  , witnessSetFixture1
+  , witnessSetFixture2
+  , witnessSetFixture3
+  , witnessSetFixture4
+  , witnessSetFixture2Value
+  , witnessSetFixture3Value
+  , addressString1
+  , txInputFixture1
+  ) where
 
 import Prelude
 
@@ -8,9 +30,28 @@ import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Partial.Unsafe (unsafePartial)
 import Types.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe, hexToByteArrayUnsafe)
-import Types.Transaction (Address(..), BaseAddress(..), Bech32(..), Ed25519KeyHash(..), Ed25519Signature(..), NetworkId(..), PaymentCredential(..), PlutusData(..), PublicKey(..), StakeCredential(..), Transaction(..), TransactionHash(..), TransactionInput(..), TransactionOutput(..), TransactionWitnessSet(..), TxBody(..), Vkey(..), Vkeywitness(..)) as T
-import Types.TransactionUnspentOutput (TransactionUnspentOutput(..)) as T
-import Types.Value (Coin(..), CurrencySymbol, TokenName, Value(..)) as T
+import Types.Transaction
+  ( Address(Address)
+  , BaseAddress(BaseAddress)
+  , Bech32(Bech32)
+  , Ed25519KeyHash(Ed25519KeyHash)
+  , Ed25519Signature(Ed25519Signature)
+  , NetworkId(Mainnet)
+  , PaymentCredential(PaymentCredentialKey)
+  , PlutusData(PlutusData)
+  , PublicKey(PublicKey)
+  , StakeCredential(StakeCredentialKey)
+  , Transaction(Transaction)
+  , TransactionHash(TransactionHash)
+  , TransactionInput(TransactionInput)
+  , TransactionOutput(TransactionOutput)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , TxBody(TxBody)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
+  ) as T
+import Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput)) as T
+import Types.Value (Coin(Coin), CurrencySymbol, TokenName, Value(Value)) as T
 import Types.Value (mkCurrencySymbol, mkTokenName, mkSingletonNonAdaAsset)
 
 txOutputFixture1 :: T.TransactionOutput
@@ -286,8 +327,8 @@ witnessSetFixture3Value =
 witnessSetFixture4 :: ByteArray
 witnessSetFixture4 = hexToByteArrayUnsafe "a30081825820096092b8515d75c2a2f75d6aa7c5191996755840e81deaa403dba5b690f091b658400d91f7ab723ed0adb9f7ec06bba5cb99b4dcbbe8fb6ce45fb3fcab31ddf57ca085437d7ec4e6fea8d10d0c455fdfb2fdbcf1d89643f635841da0e2593f6dd50a01818204187b048102"
 
-addressString :: String
-addressString = "addr1qyc0kwu98x23ufhsxjgs5k3h7gktn8v5682qna5amwh2juguztcrc8hjay66es67ctn0jmr9plfmlw37je2s2px4xdssgvxerq"
+addressString1 :: String
+addressString1 = "addr1qyc0kwu98x23ufhsxjgs5k3h7gktn8v5682qna5amwh2juguztcrc8hjay66es67ctn0jmr9plfmlw37je2s2px4xdssgvxerq"
 
 txInputFixture1 :: T.TransactionInput
 txInputFixture1 =

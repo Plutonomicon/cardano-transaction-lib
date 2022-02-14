@@ -1,15 +1,15 @@
 module Serialization.BigNum
-  ( convertBigNum
+  ( bigNumFromBigInt
   ) where
 
 import Prelude
 import Serialization.Types (BigNum)
-import FfiHelpers
+import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Data.BigInt as BigInt
 import Data.BigInt (BigInt)
-import Data.Maybe
+import Data.Maybe (Maybe)
 
-convertBigNum :: BigInt -> Maybe BigNum
-convertBigNum = bigNumFromString maybeFfiHelper <<< BigInt.toString
+bigNumFromBigInt :: BigInt -> Maybe BigNum
+bigNumFromBigInt = bigNumFromString maybeFfiHelper <<< BigInt.toString
 
 foreign import bigNumFromString :: MaybeFfiHelper -> String -> Maybe BigNum

@@ -3,28 +3,27 @@ module Test.Deserialization (suite) where
 import Prelude
 
 import Data.BigInt as BigInt
-import Data.Maybe (Maybe(Just, Nothing), isJust, isNothing)
+import Data.Maybe (isJust, isNothing)
 import Data.Newtype (unwrap)
 import Effect (Effect)
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
 import Mote (group, test, skip)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import TestM (TestPlanM)
 import Untagged.Union (asOneOf)
 
 import Deserialization.Address (convertAddress)
-import Deserialization.BigNum as DB
+import Deserialization.BigNum (bigNumToBigInt)
 import Deserialization.UnspentOutput (convertUnspentOutput, mkTransactionUnspentOutput, newTransactionUnspentOutputFromBytes)
 import Deserialization.WitnessSet (deserializeWitnessSet, convertWitnessSet)
 import Serialization as Serialization
-import Serialization.BigNum as SB
+import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.Types (TransactionUnspentOutput)
 import Serialization.WitnessSet as SW
-import Test.Fixtures (addressString, txInputFixture1, txOutputFixture1, utxoFixture1, utxoFixture1', witnessSetFixture1, witnessSetFixture2, witnessSetFixture2Value, witnessSetFixture3, witnessSetFixture3Value, witnessSetFixture4)
+import Test.Fixtures (addressString1, txInputFixture1, txOutputFixture1, utxoFixture1, utxoFixture1', witnessSetFixture1, witnessSetFixture2, witnessSetFixture2Value, witnessSetFixture3, witnessSetFixture3Value, witnessSetFixture4)
 import Test.Utils (errMaybe)
 import Types.Transaction (Bech32(Bech32), TransactionInput, TransactionOutput) as T
-import Types.TransactionUnspentOutput (TransactionUnspentOutput(..)) as T
+import Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput)) as T
 
 suite :: TestPlanM Unit
 suite = do
@@ -32,59 +31,56 @@ suite = do
     group "BigNum" do
       test "Deserialization is inverse to serialization" do
         let bigInt = BigInt.fromInt 123
-        res <- errMaybe "Failed to serialize BigInt" $ SB.convertBigNum bigInt >>= DB.convertBigNum
+        res <- errMaybe "Failed to serialize BigInt" $ bigNumFromBigInt bigInt >>= bigNumToBigInt
         res `shouldEqual` bigInt
     group "Address" do
       test "deserialization works" do
-        address <- liftEffect $ Serialization.newAddressFromBech32 (T.Bech32 addressString)
+        address <- liftEffect $ Serialization.newAddressFromBech32 (T.Bech32 addressString1)
         convertAddress address `shouldSatisfy` isJust
       test "deserialization is inverse to serialization" do
-        address <- liftEffect $ Serialization.newAddressFromBech32 (T.Bech32 addressString)
-        liftEffect case convertAddress address of
-          Nothing -> throw "Failed deserialization 1"
-          Just address' -> do
-            address'' <- Serialization.convertAddress address'
-            case convertAddress address'' of
-              Nothing -> throw "Failed deserialization 2"
-              Just address''' -> do
-                address''' `shouldEqual` address'
+        address <- liftEffect $ Serialization.newAddressFromBech32 (T.Bech32 addressString1)
+        address' <- errMaybe "Failed deserialization 1" do
+          convertAddress address
+        address'' <- liftEffect $ Serialization.convertAddress address'
+        address''' <- errMaybe "Failed deserialization 2" do
+          convertAddress address''
+        address''' `shouldEqual` address'
     group "UnspentTransactionOutput" do
       test "deserialization is inverse to serialization" do
         unspentOutput <- liftEffect $ createUnspentOutput txInputFixture1 txOutputFixture1
-        case convertUnspentOutput unspentOutput of
-          Nothing -> liftEffect $ throw "Failed deserialization 3"
-          Just (T.TransactionUnspentOutput { input, output }) -> do
-            input `shouldEqual` txInputFixture1
-            output `shouldEqual` txOutputFixture1
+        T.TransactionUnspentOutput { input, output } <-
+          errMaybe "Failed deserialization 3" do
+            convertUnspentOutput unspentOutput
+        input `shouldEqual` txInputFixture1
+        output `shouldEqual` txOutputFixture1
       test "fixture #1" do
-        case newTransactionUnspentOutputFromBytes utxoFixture1 >>= convertUnspentOutput of
-          Nothing -> liftEffect $ throw "Failed deserialization 4"
-          Just res -> res `shouldEqual` utxoFixture1'
+        res <- errMaybe "Failed deserialization 4" do
+          newTransactionUnspentOutputFromBytes utxoFixture1 >>= convertUnspentOutput
+        res `shouldEqual` utxoFixture1'
     group "WitnessSet - deserialization" do
       group "fixture #1" do
-        case deserializeWitnessSet witnessSetFixture1 >>= convertWitnessSet of
-          Nothing -> liftEffect $ throw "Failed deserialization 5"
-          Just res -> do
-            test "has vkeys" do
-              (unwrap res).vkeys `shouldSatisfy` isJust
-            test "has plutus_data" do
-              (unwrap res).plutus_data `shouldSatisfy` isJust
-            test "has plutus_scripts" do
-              (unwrap res).plutus_scripts `shouldSatisfy` isJust
-            test "has redeemers" do
-              (unwrap res).redeemers `shouldSatisfy` isJust
-            test "has redeemers" do
-              (unwrap res).redeemers `shouldSatisfy` isJust
-            test "does not have native_scripts" do
-              (unwrap res).native_scripts `shouldSatisfy` isNothing
+        res <- errMaybe "Failed deserialization 5" do
+          deserializeWitnessSet witnessSetFixture1 >>= convertWitnessSet
+        test "has vkeys" do
+          (unwrap res).vkeys `shouldSatisfy` isJust
+        test "has plutus_data" do
+          (unwrap res).plutus_data `shouldSatisfy` isJust
+        test "has plutus_scripts" do
+          (unwrap res).plutus_scripts `shouldSatisfy` isJust
+        test "has redeemers" do
+          (unwrap res).redeemers `shouldSatisfy` isJust
+        test "has redeemers" do
+          (unwrap res).redeemers `shouldSatisfy` isJust
+        test "does not have native_scripts" do
+          (unwrap res).native_scripts `shouldSatisfy` isNothing
       test "fixture #2" do
-        case deserializeWitnessSet witnessSetFixture2 >>= convertWitnessSet of
-          Nothing -> liftEffect $ throw "Failed deserialization 6"
-          Just res -> res `shouldEqual` witnessSetFixture2Value
+        res <- errMaybe "Failed deserialization 6" do
+          deserializeWitnessSet witnessSetFixture2 >>= convertWitnessSet
+        res `shouldEqual` witnessSetFixture2Value
       test "fixture #3" do
-        case deserializeWitnessSet witnessSetFixture3 >>= convertWitnessSet of
-          Nothing -> liftEffect $ throw "Failed deserialization 7"
-          Just res -> res `shouldEqual` witnessSetFixture3Value
+        res <- errMaybe "Failed deserialization 7" do
+          deserializeWitnessSet witnessSetFixture3 >>= convertWitnessSet
+        res `shouldEqual` witnessSetFixture3Value
       group "fixture #4" do
         res <- errMaybe "Failed deserialization 8" $
           deserializeWitnessSet witnessSetFixture4 >>= convertWitnessSet

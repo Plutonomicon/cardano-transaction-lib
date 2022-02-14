@@ -14,7 +14,7 @@ module Serialization
 
 import Data.BigInt as BigInt
 import Data.FoldableWithIndex (forWithIndex_)
-import Data.Maybe (Maybe(..), maybe)
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse_, for_)
 import Data.UInt (UInt)
@@ -22,7 +22,7 @@ import Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Effect (Effect)
 import Effect.Exception (throw)
 import Prelude
-import Serialization.BigNum (convertBigNum)
+import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.WitnessSet (convertWitnessSet)
 import Serialization.Types
   ( Address
@@ -108,7 +108,7 @@ convertTransaction :: T.Transaction -> Effect Transaction
 convertTransaction (T.Transaction { body: T.TxBody body, witness_set }) = do
   inputs <- convertTxInputs body.inputs
   outputs <- convertTxOutputs body.outputs
-  fee <- maybe (throw "Failed to convert fee") pure $ convertBigNum (unwrap body.fee)
+  fee <- maybe (throw "Failed to convert fee") pure $ bigNumFromBigInt (unwrap body.fee)
   txBody <- newTransactionBody inputs outputs fee
   ws <- convertWitnessSet witness_set
   newTransaction txBody ws

@@ -4,13 +4,14 @@ module Deserialization.FromBytes
   , fromBytesEffect
   ) where
 
-import Serialization.Types
-import Types.ByteArray
-import Data.Maybe
-import FfiHelpers
-import Effect
-import Effect.Exception
 import Prelude
+
+import Data.Maybe (Maybe(Just, Nothing))
+import Effect (Effect)
+import Effect.Exception (throw)
+import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import Serialization.Types (Address, DataHash, Ed25519KeyHash, PlutusData, ScriptHash, TransactionHash, TransactionUnspentOutput, TransactionWitnessSet)
+import Types.ByteArray (ByteArray)
 
 -- | Calls `from_bytes` method for the appropriate type
 class FromBytes a where
