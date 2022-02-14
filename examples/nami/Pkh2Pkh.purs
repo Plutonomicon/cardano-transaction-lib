@@ -41,9 +41,10 @@ import Wallet (mkNamiWalletAff)
 main :: Effect Unit
 main = launchAff_ $ do
   wallet <- Just <$> mkNamiWalletAff
+  ws <- mkOgmiosWebSocketAff "ws:127.0.0.1:1337"
   tx <- runReaderT
     buildTransaction
-    { ws: {-TODO-}  undefined
+    { ws
     , wallet
     , serverConfig: defaultServerConfig
     }
