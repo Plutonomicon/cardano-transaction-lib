@@ -1,4 +1,4 @@
-module Examples.Nami.BuildTransaction (main) where
+module Examples.Nami.Pkh2Pkh (main) where
 
 import Prelude
 
