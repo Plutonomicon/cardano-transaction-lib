@@ -216,12 +216,12 @@ instance Show TransactionWitnessSet where
 
 emptyTransactionWitnessSet :: TransactionWitnessSet
 emptyTransactionWitnessSet = TransactionWitnessSet
-  { vkeys : Nothing
-  , native_scripts : Nothing
-  , bootstraps : Nothing
-  , plutus_scripts : Nothing
-  , plutus_data : Nothing
-  , redeemers : Nothing
+  { vkeys: Nothing
+  , native_scripts: Nothing
+  , bootstraps: Nothing
+  , plutus_scripts: Nothing
+  , plutus_data: Nothing
+  , redeemers: Nothing
   }
 
 type BootstrapWitness =

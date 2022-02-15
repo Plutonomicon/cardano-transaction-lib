@@ -15,10 +15,10 @@
 --   The `QueryM` interface requires several external services to be running. From
 --   the repository root, run the following commands:
 --
---   - `make run-tesnet-node`
+--   - `make run-testnet-node`
 --      Starts a testnet Cardano node. May take some time to sync fully
 --
---   - `make run-tesnet-ogmios`
+--   - `make run-testnet-ogmios`
 --      Starts the Ogmios service. Also needs to sync with the running node
 --
 --   - `make run-haskell-server`
