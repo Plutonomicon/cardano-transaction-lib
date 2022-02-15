@@ -5,7 +5,6 @@ module Deserialization.WitnessSet
 
 import Prelude
 
-import Control.Alt ((<|>))
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (for, traverse)
 import Data.Tuple.Nested ((/\))
@@ -17,6 +16,7 @@ import Types.ByteArray (ByteArray)
 import Types.RedeemerTag as Tag
 import Types.Transaction as T
 import Untagged.Union (asOneOf)
+import Deserialization.NativeScript (convertNativeScript)
 
 deserializeWitnessSet :: ByteArray -> Maybe TransactionWitnessSet
 deserializeWitnessSet = _deserializeWitnessSet maybeFfiHelper
@@ -51,13 +51,7 @@ convertSignature = T.Ed25519Signature <<< T.Bech32 <<< signatureToBech32
 
 convertNativeScripts :: NativeScripts -> Maybe (Array T.NativeScript)
 convertNativeScripts nativeScripts =
-  for (extractNativeScripts nativeScripts) \script ->
-    nativeScriptAs maybeFfiHelper "as_script_pubkey" T.ScriptPubkey script
-      <|> nativeScriptAs maybeFfiHelper "as_script_all" T.ScriptAll script
-      <|> nativeScriptAs maybeFfiHelper "as_script_any" T.ScriptAny script
-      <|> nativeScriptAs maybeFfiHelper "as_script_n_of_k" T.ScriptNOfK script
-      <|> nativeScriptAs maybeFfiHelper "as_timelock_start" T.TimelockStart script
-      <|> nativeScriptAs maybeFfiHelper "as_timelock_expiry" T.TimelockExpiry script
+  for (extractNativeScripts nativeScripts) convertNativeScript
 
 convertBootstraps :: BootstrapWitnesses -> Array T.BootstrapWitness
 convertBootstraps = extractBootstraps >>> map \bootstrap ->
