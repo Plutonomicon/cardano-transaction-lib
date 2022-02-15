@@ -10,15 +10,15 @@ import Effect.Aff.Class (liftAff)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Runner (runSpec)
 import Test.Spec.Reporter (consoleReporter)
-import Test.AffInterface as AffInterface
+import Test.ByteArray as ByteArrayTest
 import Test.Parser as ParseTest
+import Test.Helpers as Helpers
+import Test.AffInterface as AffInterface
 import Test.Serialization.Address as Serialization.Address
 import Test.Serialization.Hash as Serialization.Hash
 import TestM (TestPlanM)
 import Mote (Plan, foldPlan, planT)
-import Test.ByteArray as ByteArrayTest
 import Test.Deserialization as Deserialization
-import Test.Helpers as Helpers
 import Test.Serialization as Serialization
 
 -- we use `mote` here so that we can use effects to build up a test tree, which
@@ -46,10 +46,10 @@ interpret spif = do
 
 testPlan :: TestPlanM Unit
 testPlan = do
-  -- ByteArrayTest.suite
-  -- Helpers.suite
-  -- ParseTest.suite
-  -- AffInterface.suite
+  ByteArrayTest.suite
+  Helpers.suite
+  ParseTest.suite
+  AffInterface.suite
   Serialization.suite
   Serialization.Address.suite
   Serialization.Hash.suite

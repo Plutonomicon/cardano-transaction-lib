@@ -28,20 +28,18 @@ import Affjax as Affjax
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (ReaderT, ask, asks)
-import Control.Monad.Trans.Class (lift)
 import Data.Argonaut as Json
 import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Bitraversable (bisequence, bitraverse)
+import Data.Bitraversable (bisequence)
 import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
 import Data.Map as Map
-import Data.Maybe (maybe, Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (sequence)
 import Data.Tuple.Nested (type (/\))
-import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)

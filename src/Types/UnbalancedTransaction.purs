@@ -15,14 +15,13 @@ import Prelude
 
 import Data.Map (Map)
 import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Traversable (sequence, traverse)
-import Effect (Effect)
+import Data.Newtype (class Newtype, wrap)
+import Data.Traversable (sequence)
 import Serialization.Address (addressFromBytes)
 import Serialization.Hash (Ed25519KeyHash, ScriptHash, scriptHashToBytes)
 import Types.ByteArray (ByteArray(..))
 import Types.POSIXTimeRange (POSIXTimeRange)
-import Types.Transaction (DataHash, Transaction, TransactionInput, TransactionOutput(..), Utxo)
+import Types.Transaction (DataHash, Transaction, TransactionInput, TransactionOutput, Utxo)
 import Types.Value (Value)
 
 newtype PubKey = PubKey ByteArray
