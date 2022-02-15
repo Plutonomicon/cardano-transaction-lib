@@ -7,6 +7,7 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.Kind (Type)
+import Network.Wai.Middleware.Cors (simpleCors)
 import Servant (
   Application,
   Get,
@@ -38,7 +39,7 @@ import Utils (lbshow)
 type Api = "fees" :> QueryParam' '[Required] "tx" Cbor :> Get '[JSON] Fee
 
 app :: Env -> Application
-app = serve api . appServer
+app = simpleCors . serve api . appServer
 
 appServer :: Env -> Server Api
 appServer env = hoistServer api appHandler server

@@ -64,7 +64,7 @@ library
     , servant-docs
     , servant-server
     , text
-    , wai-logger
+    , wai-cors
     , warp
 
   exposed-modules:
