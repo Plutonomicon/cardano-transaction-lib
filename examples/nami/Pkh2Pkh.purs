@@ -46,32 +46,16 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)
 import Data.Tuple (fst)
 import Effect (Effect)
-import Effect.Class (liftEffect)
 import Effect.Aff (error, launchAff_)
 import Effect.Aff.Class (liftAff)
+import Effect.Class (liftEffect)
 import Effect.Console as Console
-import QueryM
-  ( QueryM
-  , defaultServerConfig
-  , getWalletAddress
-  , mkOgmiosWebSocketAff
-  , utxosAt
-  )
+import QueryM (QueryM, defaultServerConfig, getWalletAddress, mkOgmiosWebSocketAff, utxosAt)
 import Serialization as Serialization
+import Serialization.Address (testnetId)
 import Types.ByteArray (byteArrayToHex)
-import Types.POSIXTimeRange
-  ( Extended(NegInf, PosInf)
-  , Interval(Interval)
-  , LowerBound(LowerBound)
-  , UpperBound(UpperBound)
-  )
-import Types.Transaction
-  ( NetworkId(Testnet)
-  , Transaction(Transaction)
-  , TransactionOutput(TransactionOutput)
-  , TxBody(TxBody)
-  , emptyTransactionWitnessSet
-  )
+import Types.POSIXTimeRange (Extended(NegInf, PosInf), Interval(Interval), LowerBound(LowerBound), UpperBound(UpperBound))
+import Types.Transaction (Transaction(Transaction), TransactionOutput(TransactionOutput), TxBody(TxBody), emptyTransactionWitnessSet)
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx))
 import Types.Value as Value
 import Untagged.Union (asOneOf)
@@ -118,7 +102,7 @@ buildUnbalancedTransaction = do
                 }
             -- ??
             , fee: Value.mkCoin 0
-            , network_id: Just Testnet
+            , network_id: Just testnetId
             , certs: Nothing
             , collateral: Nothing
             , auxiliary_data_hash: Nothing

@@ -12,7 +12,8 @@ import Data.Rational (Rational)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
-
+import Serialization.Address (Address, NetworkId, RewardAddress, Slot)
+import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
 import Types.RedeemerTag (RedeemerTag)
 import Types.Value (Coin, Value)
@@ -117,41 +118,6 @@ type ExUnits =
 
 type SubCoin = UnitInterval
 
-type RewardAddress =
-  { network :: UInt
-  , payment :: StakeCredential
-  }
-
-data StakeCredential
-  = StakeCredentialKey Ed25519KeyHash
-  | StakeCredentialScript ScriptHash
-
-derive instance eqStakeCredential :: Eq StakeCredential
-derive instance ordStakeCredential :: Ord StakeCredential
-derive instance genericStakeCredential :: Generic StakeCredential _
-
-instance showStakeCredential :: Show StakeCredential where
-  show = genericShow
-
-newtype Ed25519KeyHash = Ed25519KeyHash ByteArray
-
-derive instance genericEd25519KeyHash :: Generic Ed25519KeyHash _
-derive instance newtypeEd25519KeyHash :: Newtype Ed25519KeyHash _
-derive newtype instance eqEd25519KeyHash :: Eq Ed25519KeyHash
-derive newtype instance ordEd25519KeyHash :: Ord Ed25519KeyHash
-
-instance showEd25519KeyHash :: Show Ed25519KeyHash where
-  show = genericShow
-
-newtype ScriptHash = ScriptHash ByteArray
-
-derive instance genericScriptHash :: Generic ScriptHash _
-derive instance newtypeScriptHash :: Newtype ScriptHash _
-derive newtype instance eqScriptHash :: Eq ScriptHash
-derive newtype instance ordScriptHash :: Ord ScriptHash
-
-instance showScriptHash :: Show ScriptHash where
-  show = genericShow
 
 newtype Costmdls = Costmdls (Map Language CostModel)
 
@@ -231,25 +197,11 @@ type BootstrapWitness =
   , attributes :: ByteArray
   }
 
-data NetworkId
-  = Mainnet
-  | Testnet
-
-derive instance eqNetworkId :: Eq NetworkId
-
 newtype RequiredSigner = RequiredSigner String
 
 derive instance newtypeRequiredSigner :: Newtype RequiredSigner _
 derive newtype instance eqRequiredSigner :: Eq RequiredSigner
 
-newtype Bech32 = Bech32 String
-
-derive instance Generic Bech32 _
-derive instance Newtype Bech32 _
-derive newtype instance eqBech32 :: Eq Bech32
-derive newtype instance Ord Bech32
-instance Show Bech32 where
-  show = genericShow
 
 newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
@@ -268,7 +220,7 @@ derive newtype instance Eq Vkey
 instance Show Vkey where
   show = genericShow
 
-newtype PublicKey = PublicKey Bech32
+newtype PublicKey = PublicKey Bech32String
 
 derive instance Generic PublicKey _
 derive instance Newtype PublicKey _
@@ -277,7 +229,7 @@ derive newtype instance Eq PublicKey
 instance Show PublicKey where
   show = genericShow
 
-newtype Ed25519Signature = Ed25519Signature Bech32
+newtype Ed25519Signature = Ed25519Signature Bech32String
 
 derive instance Generic Ed25519Signature _
 derive newtype instance Eq Ed25519Signature
@@ -410,68 +362,6 @@ derive newtype instance ordDataHash :: Ord DataHash
 instance Show DataHash where
   show = genericShow
 
-newtype Slot = Slot BigInt
-
-derive instance newtypeSlot :: Newtype Slot _
-derive newtype instance eqSlot :: Eq Slot
-
-newtype Address = Address
-  { "AddrType" :: BaseAddress
-  }
-
-derive instance genericAddress :: Generic Address _
-derive instance newtypeAddress :: Newtype Address _
-derive newtype instance eqAddress :: Eq Address
-derive newtype instance ordAddress :: Ord Address
-
-instance showAddress :: Show Address where
-  show = genericShow
-
-newtype BaseAddress = BaseAddress
-  { network :: UInt -- UInt8
-  , stake :: StakeCredential
-  , payment :: PaymentCredential
-  }
-
-derive instance genericBaseAddress :: Generic BaseAddress _
-derive instance newtypeBaseAddress :: Newtype BaseAddress _
-derive newtype instance eqBaseAddress :: Eq BaseAddress
-derive newtype instance ordBaseAddress :: Ord BaseAddress
-
-instance showBaseAddress :: Show BaseAddress where
-  show = genericShow
-
-data PaymentCredential
-  = PaymentCredentialKey Ed25519KeyHash
-  | PaymentCredentialScript ScriptHash
-
-derive instance genericPaymentCredential :: Generic PaymentCredential _
-derive instance eqPaymentCredential :: Eq PaymentCredential
-derive instance ordPaymentCredential :: Ord PaymentCredential
-
-instance showPaymentCredential :: Show PaymentCredential where
-  show = genericShow
-
--- Addresspub struct Address(AddrType);
--- AddrType
--- enum AddrType {
--- Base(BaseAddress),
--- Ptr(PointerAddress),
--- Enterprise(EnterpriseAddress),
--- Reward(RewardAddress),
--- Byron(ByronAddress),
--- }
--- pub struct BaseAddress {
--- network: u8,
--- payment: StakeCredential,
--- stake: StakeCredential,
--- }
--- pub struct StakeCredential(StakeCredType);
--- Both of these are strings:
--- enum StakeCredType {
--- Key(Ed25519KeyHash),
--- Script(ScriptHash),
--- }
 
 -- Option<Certificates>,
 -- these are the constructors, but this will generally be an Empty Option in our initial efforts

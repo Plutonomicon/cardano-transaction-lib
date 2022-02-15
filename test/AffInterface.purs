@@ -1,15 +1,16 @@
 module Test.AffInterface (suite) where
 
 import Prelude
+
 import Control.Monad.Reader.Trans (runReaderT)
 import Data.Maybe (Maybe(Just, Nothing))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import TestM (TestPlanM)
 import Mote (group, test)
 import QueryM (addressToOgmiosAddress, defaultServerConfig, mkOgmiosWebSocketAff, ogmiosAddressToAddress, utxosAt)
 import Test.Spec.Assertions (shouldEqual)
+import TestM (TestPlanM)
 import Types.JsonWsp (Address)
 
 testnet_addr1 :: Address
@@ -39,8 +40,7 @@ suite = do
 testUtxosAt :: Address -> Aff Unit
 testUtxosAt testAddr = do
   ws <- mkOgmiosWebSocketAff "ws:127.0.0.1:1337"
-  addr' <- liftEffect $ ogmiosAddressToAddress testAddr
-  case addr' of
+  case ogmiosAddressToAddress testAddr of
     Nothing -> liftEffect $ throw "Failed UtxosAt"
     Just addr -> runReaderT
       (utxosAt addr *> pure unit)
@@ -48,9 +48,6 @@ testUtxosAt testAddr = do
 
 testFromOgmiosAddress :: Address -> Aff Unit
 testFromOgmiosAddress testAddr = do
-  addr'' <- liftEffect $ ogmiosAddressToAddress testAddr
-  liftEffect $ case addr'' of
+  liftEffect $ case ogmiosAddressToAddress testAddr of
     Nothing -> throw "Failed Address loop"
-    Just addr' -> do
-      addr <- addressToOgmiosAddress addr'
-      addr `shouldEqual` testAddr
+    Just addr -> addressToOgmiosAddress addr `shouldEqual` testAddr

@@ -3,23 +3,40 @@ module Test.Serialization.Address (suite) where
 import Prelude
 
 import Data.Maybe (Maybe, isNothing)
+import Data.Newtype (wrap)
+import Data.UInt (fromInt)
 import Serialization.Address
-  ( NetworkTag(..)
-  , addressBech32
+  ( addressBech32
   , addressBytes
-  , baseAddress
-  , baseAddressFromBech32
-  , baseAddressFromBytes
-  , delegationCred
-  , ed25519KeyHashCredType
-  , paymentCred
+  , addressFromBech32
+  , addressFromBytes
+  , addressNetworkId
+  , baseAddressDelegationCred
+  , baseAddressFromAddress
+  , baseAddressPaymentCred
+  , baseAddressToAddress
+  , enterpriseAddress
+  , enterpriseAddressFromAddress
+  , enterpriseAddressPaymentCred
+  , enterpriseAddressToAddress
+  , keyHashCredential
+  , mainnetId
+  , pointerAddress
+  , pointerAddressFromAddress
+  , pointerAddressPaymentCred
+  , pointerAddressStakePointer
+  , pointerAddressToAddress
   , pubKeyAddress
   , rewardAddress
-  , rewardAddressFromBech32
-  , rewardAddressFromBytes
-  , scriptAddress
-  , scriptHashCredType
-  , toAddressCsl
+  , rewardAddressFromAddress
+  , rewardAddressPaymentCred
+  , rewardAddressToAddress
+  , scriptHashCredential
+  , stakeCredentialFromBytes
+  , stakeCredentialToBytes
+  , stakeCredentialToKeyHash
+  , stakeCredentialToScriptHash
+  , testnetId
   )
 import Serialization.Hash
   ( Ed25519KeyHash
@@ -27,11 +44,10 @@ import Serialization.Hash
   , ed25519KeyHashFromBech32
   , scriptHashFromBytes
   )
-import Test.Utils (assertTrue, assertTrue_, errMaybe, unsafeCall)
+import Test.Utils (assertTrue_, errMaybe)
 import TestM (TestPlanM)
-import Type.Prelude (Proxy(..))
 import Types.Aliases (Bech32String)
-import Types.ByteArray (ByteArray, hexToByteArrayUnsafe)
+import Types.ByteArray (hexToByteArrayUnsafe)
 
 doesNotThrow :: forall a. a -> TestPlanM a
 doesNotThrow = pure
@@ -48,117 +64,95 @@ mPkh = ed25519KeyHashFromBech32 pkhBech32
 mScriptHash :: Maybe ScriptHash
 mScriptHash = scriptHashFromBytes $ hexToByteArrayUnsafe scriptHashHex
 
-suite :: TestPlanM Unit
-suite = do
+addressFunctionsTest :: TestPlanM Unit
+addressFunctionsTest = do
+  let bechstr = "addr1qyc0kwu98x23ufhsxjgs5k3h7gktn8v5682qna5amwh2juguztcrc8hjay66es67ctn0jmr9plfmlw37je2s2px4xdssgvxerq"
+  addr1 <- errMaybe "addressFromBech32 failed on valid bech32" $ addressFromBech32 bechstr
+  assertTrue_ $ bechstr == addressBech32 addr1
+  assertTrue_ $ isNothing $ addressFromBech32 "randomstuff"
+  let addrBts = addressBytes addr1
+  addr2 <- errMaybe "addressFromBech32 failed on valid bech32" $ addressFromBytes addrBts
+  assertTrue_ $ addr2 == addr1
+  assertTrue_ $ addressNetworkId addr2 == mainnetId
+
+stakeCredentialTests :: TestPlanM Unit
+stakeCredentialTests = do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
   scrh <- errMaybe "Error scriptHashFromBech32:" mScriptHash
 
-  -- address constructors
-  addr1 <- doesNotThrow $ pubKeyAddress MainnetTag pkh
-  addr2 <- doesNotThrow $ baseAddress { network: MainnetTag, payment: pkh, delegation: pkh }
-  raddr1 <- doesNotThrow $ rewardAddress { network: MainnetTag, payment: pkh }
-  assertTrue_ (addr1 == addr2)
-
-  assertTrue_ $ paymentCred raddr1 == paymentCred addr1
-
-  saddr1 <- doesNotThrow $ scriptAddress TestnetTag scrh
-  saddr2 <- doesNotThrow $ baseAddress { network: TestnetTag, payment: scrh, delegation: scrh }
-  assertTrue_ (saddr1 == saddr2)
-
-  -- preserves pkh and scripthash
   let
-    pkh1 = paymentCred addr1
-    pkh2 = delegationCred addr1
-  assertTrue_ (pkh1 == pkh)
-  assertTrue_ (pkh2 == pkh)
+    pkhCred = keyHashCredential $ pkh
+    schCred = scriptHashCredential $ scrh
+    pkhCredBytes = stakeCredentialToBytes pkhCred
+    schCredBytes = stakeCredentialToBytes schCred
 
-  let
-    scrh1 = paymentCred saddr1
-    scrh2 = delegationCred saddr1
-  assertTrue_ (scrh1 == scrh)
-  assertTrue_ (scrh2 == scrh)
+  pkhCred2 <- errMaybe "stakeCredentialFromBytes failed on valid bytes" $ stakeCredentialFromBytes pkhCredBytes
+  pkh2 <- errMaybe "stakeCredentialToKeyHash failed" $ stakeCredentialToKeyHash pkhCred2
+  assertTrue_ $ pkh2 == pkh
+  assertTrue_ $ isNothing $ stakeCredentialToScriptHash pkhCred2
 
-  -- address bech32
-  let ab32 = addressBech32 addr1
-  addr3 <- errMaybe "baseAddressFromBech32 fails to decode valid bech32" $
-    baseAddressFromBech32 { payment: ed25519KeyHashCredType, delegation: ed25519KeyHashCredType }
-      ab32
-  assertTrue_ (addr1 == addr3)
+  schCred2 <- errMaybe "stakeCredentialFromBytes failed on valid bytes" $ stakeCredentialFromBytes schCredBytes
+  sch2 <- errMaybe "stakeCredentialToScriptHash failed" $ stakeCredentialToScriptHash schCred2
+  assertTrue_ $ sch2 == scrh
+  assertTrue_ $ isNothing $ stakeCredentialToKeyHash schCred2
 
-  let sab32 = addressBech32 saddr1
-  saddr3 <- errMaybe "baseAddressFromBech32 fails to decode valid bech32" $
-    baseAddressFromBech32 { payment: scriptHashCredType, delegation: scriptHashCredType }
-      sab32
+baseAddressFunctionsTest :: TestPlanM Unit
+baseAddressFunctionsTest = do
+  pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
+  baddr <- doesNotThrow $ pubKeyAddress mainnetId pkh
+  addr <- doesNotThrow $ baseAddressToAddress baddr
+  baddr2 <- errMaybe "baseAddressFromAddress failed on valid base address" $ baseAddressFromAddress addr
+  assertTrue_ $ baddr2 == baddr
+  assertTrue_ $ baseAddressDelegationCred baddr == keyHashCredential pkh
+  assertTrue_ $ baseAddressPaymentCred baddr == keyHashCredential pkh
 
-  assertTrue_ (saddr1 == saddr3)
+rewardAddressFunctionsTest :: TestPlanM Unit
+rewardAddressFunctionsTest = do
+  pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
+  raddr <- doesNotThrow $ rewardAddress { network: testnetId, paymentCred: keyHashCredential pkh }
+  addr <- doesNotThrow $ rewardAddressToAddress raddr
+  raddr2 <- errMaybe "rewardAddressFromAddress failed on valid reward address" $ rewardAddressFromAddress addr
+  assertTrue_ $ raddr2 == raddr
+  assertTrue_ $ rewardAddressPaymentCred raddr == keyHashCredential pkh
 
-  let rb32 = addressBech32 raddr1
-  raddr3 <- errMaybe "baseAddressFromBech32 fails to decode valid bech32" $
-    rewardAddressFromBech32 { payment: ed25519KeyHashCredType }
-      rb32
+enterpriseAddressFunctionsTest :: TestPlanM Unit
+enterpriseAddressFunctionsTest = do
+  pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
+  eaddr <- doesNotThrow $ enterpriseAddress { network: mainnetId, paymentCred: keyHashCredential pkh }
+  addr <- doesNotThrow $ enterpriseAddressToAddress eaddr
+  eaddr2 <- errMaybe "enterpriseAddressFromAddress failed on valid enterprise address" $ enterpriseAddressFromAddress addr
+  assertTrue_ $ eaddr2 == eaddr
+  assertTrue_ $ enterpriseAddressPaymentCred eaddr == keyHashCredential pkh
 
-  assertTrue_ (raddr1 == raddr3)
+pointerAddressFunctionsTest :: TestPlanM Unit
+pointerAddressFunctionsTest = do
+  pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
+  let pointer = { slot: wrap (fromInt (-2147483648)), certIx: wrap (fromInt 20), txIx: wrap (fromInt 120) }
+  paddr <- doesNotThrow $ pointerAddress { network: mainnetId, paymentCred: keyHashCredential pkh, stakePointer: pointer }
+  addr <- doesNotThrow $ pointerAddressToAddress paddr
+  paddr2 <- errMaybe "pointerAddressFromAddress failed on valid pointer address" $ pointerAddressFromAddress addr
+  assertTrue_ $ paddr2 == paddr
+  assertTrue_ $ pointerAddressPaymentCred paddr == keyHashCredential pkh
 
-  assertTrue "rewardAddressFromBech32 mistakes redential type" $ isNothing $
-    rewardAddressFromBech32 { payment: scriptHashCredType }
-      rb32
-  assertTrue "baseAddressFromBech32 mistakes address payment credential type" $ isNothing $
-    baseAddressFromBech32 { payment: scriptHashCredType, delegation: ed25519KeyHashCredType }
-      ab32
-  assertTrue "baseAddressFromBech32 mistakes address payment credential type" $ isNothing $
-    baseAddressFromBech32 { payment: ed25519KeyHashCredType, delegation: scriptHashCredType }
-      sab32
-  assertTrue "baseAddressFromBech32 mistakes address delegation credential type" $ isNothing $
-    baseAddressFromBech32 { payment: ed25519KeyHashCredType, delegation: scriptHashCredType }
-      ab32
-  assertTrue "baseAddressFromBech32 mistakes address delegation credential type" $ isNothing $
-    baseAddressFromBech32 { payment: scriptHashCredType, delegation: ed25519KeyHashCredType }
-      sab32
+  assertTrue_ $ pointerAddressStakePointer paddr == pointer
 
-  -- address bytes
-  let
-    abts = addressBytes addr1
-    sabts = addressBytes saddr1
-    rabts = addressBytes raddr1
-  addr5 <- errMaybe "baseAddressFromBytes fails to decode valid bech32" $
-    baseAddressFromBytes { payment: ed25519KeyHashCredType, delegation: ed25519KeyHashCredType }
-      abts
+byronAddressFunctionsTest :: TestPlanM Unit
+byronAddressFunctionsTest = do
+  pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
+  let pointer = { slot: wrap (fromInt (-2147483648)), certIx: wrap (fromInt 20), txIx: wrap (fromInt 120) }
+  paddr <- doesNotThrow $ pointerAddress { network: mainnetId, paymentCred: keyHashCredential pkh, stakePointer: pointer }
+  addr <- doesNotThrow $ pointerAddressToAddress paddr
+  paddr2 <- errMaybe "pointerAddressFromAddress failed on valid pointer address" $ pointerAddressFromAddress addr
+  assertTrue_ $ paddr2 == paddr
+  assertTrue_ $ pointerAddressPaymentCred paddr == keyHashCredential pkh
 
-  assertTrue_ (addr1 == addr5)
+  assertTrue_ $ pointerAddressStakePointer paddr == pointer
 
-  saddr5 <- errMaybe "baseAddressFromBytes fails to decode valid bech32" $
-    baseAddressFromBytes { payment: scriptHashCredType, delegation: scriptHashCredType }
-      sabts
-
-  assertTrue_ (saddr1 == saddr5)
-
-  assertTrue "rewardAddressFromBytes mistakes redential type" $ isNothing $
-    rewardAddressFromBytes { payment: scriptHashCredType }
-      rabts
-
-  assertTrue "baseAddressFromBech32 mistakes address payment credential type" $ isNothing $
-    baseAddressFromBytes { payment: scriptHashCredType, delegation: ed25519KeyHashCredType }
-      abts
-
-  assertTrue "baseAddressFromBech32 mistakes address payment credential type" $ isNothing $
-    baseAddressFromBytes { payment: ed25519KeyHashCredType, delegation: scriptHashCredType }
-      sabts
-
-  assertTrue "baseAddressFromBytes mistakes address delegation credential type" $ isNothing $
-    baseAddressFromBytes { payment: ed25519KeyHashCredType, delegation: scriptHashCredType }
-      abts
-
-  assertTrue "baseAddressFromBytes mistakes address delegation credential type" $ isNothing $
-    baseAddressFromBytes { payment: scriptHashCredType, delegation: ed25519KeyHashCredType }
-      sabts
-
-  -- addresscsl
-  let
-    frn = toAddressCsl addr1
-    frn2 = toAddressCsl raddr1
-    frnBts = unsafeCall (Proxy :: _ ByteArray) "to_bytes" frn
-    frnBts2 = unsafeCall (Proxy :: _ ByteArray) "to_bytes" frn2
-
-  assertTrue_ (frnBts == abts)
-  assertTrue_ (frnBts2 == rabts)
-  assertTrue_ (addr1 == addr2)
+suite :: TestPlanM Unit
+suite = do
+  addressFunctionsTest
+  stakeCredentialTests
+  baseAddressFunctionsTest
+  rewardAddressFunctionsTest
+  enterpriseAddressFunctionsTest
+  pointerAddressFunctionsTest

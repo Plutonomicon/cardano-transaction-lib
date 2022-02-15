@@ -16,17 +16,9 @@ import Prelude
 class FromBytes a where
   fromBytes :: ByteArray -> Maybe a
 
-instance FromBytes Address where
-  fromBytes = _fromBytesAddress maybeFfiHelper
-
-instance FromBytes ScriptHash where
-  fromBytes = _fromBytesScriptHash maybeFfiHelper
 
 instance FromBytes DataHash where
   fromBytes = _fromBytesDataHash maybeFfiHelper
-
-instance FromBytes Ed25519KeyHash where
-  fromBytes = _fromBytesEd25519KeyHash maybeFfiHelper
 
 instance FromBytes TransactionHash where
   fromBytes = _fromBytesTransactionHash maybeFfiHelper
@@ -37,8 +29,5 @@ fromBytesEffect bytes =
     Nothing -> throw "from_bytes() call failed"
     Just a -> pure a
 
-foreign import _fromBytesAddress :: MaybeFfiHelper -> ByteArray -> Maybe Address
-foreign import _fromBytesScriptHash :: MaybeFfiHelper -> ByteArray -> Maybe ScriptHash
 foreign import _fromBytesDataHash :: MaybeFfiHelper -> ByteArray -> Maybe DataHash
-foreign import _fromBytesEd25519KeyHash :: MaybeFfiHelper -> ByteArray -> Maybe Ed25519KeyHash
 foreign import _fromBytesTransactionHash :: MaybeFfiHelper -> ByteArray -> Maybe TransactionHash

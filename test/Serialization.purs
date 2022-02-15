@@ -3,15 +3,18 @@ module Test.Serialization (suite) where
 import Prelude
 
 import Data.BigInt as BigInt
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
+import Deserialization.FromBytes (fromBytesEffect)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
-import Serialization (addressPubKeyHash, convertBigInt, convertTransaction, convertTxOutput, newAddressFromBech32, newBaseAddressFromAddress, toBytes)
+import Partial.Unsafe (unsafePartial)
+import Serialization (convertBigInt, convertTransaction, convertTxOutput, toBytes)
+import Serialization.Address (addressBech32, addressFromBech32, addressFromBytes, baseAddress, baseAddressFromAddress, baseAddressPaymentCred, baseAddressToAddress, keyHashCredential, mainnetId, stakeCredentialToKeyHash, testnetId)
+import Serialization.Hash (Ed25519KeyHash, ed25519KeyHashFromBytes)
 import Serialization.Types (TransactionHash)
-import Deserialization.FromBytes (fromBytesEffect)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
@@ -31,13 +34,6 @@ suite = do
           txBytes = hexToByteArrayUnsafe txString
         _txHash :: TransactionHash <- liftEffect $ fromBytesEffect txBytes
         pure unit
-      test "BaseAddress <-> Address" do
-        let
-          addressString = "addr1qyc0kwu98x23ufhsxjgs5k3h7gktn8v5682qna5amwh2juguztcrc8hjay66es67ctn0jmr9plfmlw37je2s2px4xdssgvxerq"
-        address <- liftEffect $ newAddressFromBech32 (T.Bech32 addressString)
-        let
-          mbKeyHash = newBaseAddressFromAddress address >>= addressPubKeyHash
-        mbKeyHash `shouldEqual` Just (T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp")
       test "TransactionOutput serialization" $ liftEffect do
         txo <- convertTxOutput txOutputFixture1
         let bytes = toBytes (asOneOf txo)
@@ -69,16 +65,14 @@ txInputFixture1 =
 txOutputFixture1 :: T.TransactionOutput
 txOutputFixture1 =
   T.TransactionOutput
-    { address: T.Address
-        { "AddrType": T.BaseAddress
-            { network: UInt.fromInt 0
-            , stake: T.StakeCredentialKey $ T.Ed25519KeyHash
-                -- $ T.Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
-                $ hexToByteArrayUnsafe "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
-            , payment: T.PaymentCredentialKey $ T.Ed25519KeyHash
-                -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-                $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-            }
+    { address: baseAddressToAddress $ baseAddress
+        { network: testnetId
+        , delegationCred: keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
+            -- $ T.Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
+            $ hexToByteArrayUnsafe "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
+        , paymentCred: keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
+            -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
+            $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
         }
     , amount: mempty
     , data_hash: Nothing
@@ -93,16 +87,14 @@ txOutputFixture2' = do
     [ currencySymbol1 /\ [ tokenName1 /\ BigInt.fromInt 1000000 ]
     ]
   pure $ T.TransactionOutput
-    { address: T.Address
-        { "AddrType": T.BaseAddress
-            { network: UInt.fromInt 0
-            , stake: T.StakeCredentialKey $ T.Ed25519KeyHash
-                -- "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
-                $ hexToByteArrayUnsafe "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
-            , payment: T.PaymentCredentialKey $ T.Ed25519KeyHash
-                -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-                $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-            }
+    { address: baseAddressToAddress $ baseAddress
+        { network: testnetId
+        , delegationCred: keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
+            -- $ T.Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
+            $ hexToByteArrayUnsafe "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
+        , paymentCred: keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
+            -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
+            $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
         }
     , amount: amount
     , data_hash: Nothing
@@ -129,7 +121,7 @@ txFixture1 =
         , script_data_hash: Nothing
         , collateral: Nothing
         , required_signers: Nothing
-        , network_id: Just T.Mainnet
+        , network_id: Just $ mainnetId
         }
     , witness_set: T.TransactionWitnessSet
         { vkeys: Nothing
@@ -161,7 +153,7 @@ txFixture2' = do
         , script_data_hash: Nothing
         , collateral: Nothing
         , required_signers: Nothing
-        , network_id: Just T.Mainnet
+        , network_id: Just mainnetId
         }
     , witness_set: T.TransactionWitnessSet
         { vkeys: Nothing
@@ -177,35 +169,25 @@ txFixture2' = do
 
 txFixture3 :: T.Transaction
 txFixture3 =
-  T.Transaction
+  let addr = baseAddressToAddress $ baseAddress
+        { network: testnetId
+        , delegationCred: keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
+            $ hexToByteArrayUnsafe "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
+        , paymentCred: keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
+            -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
+            $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
+        }
+  in T.Transaction
     { body: T.TxBody
         { inputs: [ txInputFixture1 ]
         , outputs:
             [ T.TransactionOutput
-                { address: T.Address
-                    { "AddrType": T.BaseAddress
-                        { network: UInt.fromInt 0
-                        , stake: T.StakeCredentialKey $ T.Ed25519KeyHash
-                            $ hexToByteArrayUnsafe "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
-                        , payment: T.PaymentCredentialKey $ T.Ed25519KeyHash
-                            -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-                            $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-                        }
-                    }
+                { address: addr
                 , amount: Value.mkValue (Value.mkCoin 2353402) mempty
                 , data_hash: Nothing
                 }
             , T.TransactionOutput
-                { address: T.Address
-                    { "AddrType": T.BaseAddress
-                        { network: UInt.fromInt 0
-                        , stake: T.StakeCredentialKey $ T.Ed25519KeyHash
-                            $ hexToByteArrayUnsafe "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
-                        , payment: T.PaymentCredentialKey $ T.Ed25519KeyHash
-                            -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-                            $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-                        }
-                    }
+                { address: addr
                 , amount: Value.mkValue (Value.mkCoin 1000000) mempty
                 , data_hash: Nothing
                 }
@@ -221,7 +203,7 @@ txFixture3 =
         , script_data_hash: Nothing
         , collateral: Nothing
         , required_signers: Nothing
-        , network_id: Just T.Mainnet
+        , network_id: Just mainnetId
         }
     , witness_set: T.TransactionWitnessSet
         { vkeys: Nothing

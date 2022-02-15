@@ -17,16 +17,17 @@ import Data.Traversable (traverse, for)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt as UInt
-import Untagged.Union (asOneOf)
 import Deserialization.BigNum (convertBigNum)
-import Deserialization.Address (convertAddress)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization (toBytes)
-import Serialization.Types (Address, AssetName, Assets, BigNum, DataHash, MultiAsset, ScriptHash, TransactionHash, TransactionInput, TransactionOutput, TransactionUnspentOutput, Value)
+import Serialization.Address (Address)
+import Serialization.Hash (ScriptHash)
+import Serialization.Types (AssetName, Assets, BigNum, DataHash, MultiAsset, TransactionHash, TransactionInput, TransactionOutput, TransactionUnspentOutput, Value)
 import Types.ByteArray (ByteArray)
 import Types.Transaction (DataHash(DataHash), TransactionHash(TransactionHash), TransactionInput(TransactionInput), TransactionOutput(TransactionOutput)) as T
 import Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput)) as T
 import Types.Value (mkCurrencySymbol, mkNonAdaAsset, mkTokenName, mkValue, Coin(Coin), CurrencySymbol, TokenName, Value) as T
+import Untagged.Union (asOneOf)
 
 convertUnspentOutput :: TransactionUnspentOutput -> Maybe T.TransactionUnspentOutput
 convertUnspentOutput tuo = do
@@ -44,9 +45,9 @@ convertInput input = do
 
 convertOutput :: TransactionOutput -> Maybe T.TransactionOutput
 convertOutput output = do
-  address <- convertAddress $ getAddress output
   amount <- convertValue $ getAmount output
   let
+    address = getAddress output
     data_hash =
       getDataHash maybeFfiHelper output <#>
         asOneOf >>> toBytes >>> T.DataHash

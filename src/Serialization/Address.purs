@@ -1,376 +1,255 @@
-module Serialization.Address
-  ( class Address
-  , AddressCsl
-  , BaseAddressCsl
-  , BaseAddress
-  , RewardAddress
-  , RewardAddressCsl
-  , PointerAddressCsl
-  , NetworkTag(TestnetTag, MainnetTag)
-  , StakeCred
-  , CredType
-  , StakeCredentialCsl
-  , PubKeyAddress
-  , ScriptAddress
-  , addressBech32
-  , addressBytes
-  , addrR
-  , baseAddressFromBech32
-  , baseAddressFromBytes
-  , rewardAddressFromBytes
-  , rewardAddressFromBech32
-  , ed25519KeyHashCredType
-  , baseAddress
-  , rewardAddress
-  , netTagToInt
-  , pubKeyAddress
-  , scriptAddress
-  , scriptHashCredType
-  , networkTag
-  , networkTagInt
-  , paymentCred
-  , delegationCred
-  , toAddressCsl
-  , intToNetTag
-  ) where
+module Serialization.Address where
 
 import Prelude
 
+import Control.Alt ((<|>))
+import Data.Function (on)
 import Data.Maybe (Maybe(..))
+import Data.Newtype (class Newtype)
+import Data.UInt (UInt)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import Serialization.Csl (class ToCsl, CslType, toCslRep, toCslType)
 import Serialization.Hash (Ed25519KeyHash, ScriptHash)
-import Types.Aliases (Bech32String)
+import Types.Aliases (Bech32String, Base58String)
 import Types.ByteArray (ByteArray)
 
--- | Denotes one of two possible values of Shelley address' network tag.
-data NetworkTag = TestnetTag | MainnetTag
+newtype Slot = Slot UInt
 
-derive instance Eq NetworkTag
+derive instance Eq Slot
+derive instance Newtype Slot _
 
-instance Show NetworkTag where
-  show = case _ of
-    TestnetTag -> "TestnetTag"
-    MainnetTag -> "MainnetTag"
+newtype TransactionIndex = TransactionIndex UInt
 
--- | Simple safety wrapper to ensure that only valid types are provided
--- | as address' stake credentials.
-newtype StakeCred a = StakeCred a
+derive instance Eq TransactionIndex
+derive instance Newtype TransactionIndex _
 
-foreign import data StakeCredentialCsl :: Type
+newtype CertificateIndex = CertificateIndex UInt
 
-instance ToCsl (StakeCred Ed25519KeyHash) StakeCredentialCsl where
-  toCslRep (StakeCred x) = _stakeCredFromKeyHash x
+derive instance Eq CertificateIndex
+derive instance Newtype CertificateIndex _
 
-instance ToCsl (StakeCred ScriptHash) StakeCredentialCsl where
-  toCslRep (StakeCred x) = _stakeCredFromScriptHash x
+-- asssuming
+foreign import data Bip32PublicKey :: Type
 
--- | `Address` CSL representation - a generic address type
-foreign import data AddressCsl :: Type
-
--- | Record containing address components
-type AddrR (p :: Type) (d :: Type) =
-  { network :: NetworkTag
-  , payment :: p
-  , delegation :: d
+type Pointer =
+  { slot :: Slot
+  , txIx :: TransactionIndex
+  , certIx :: CertificateIndex
   }
 
--- | Instance helper
-newtype ToAddressCsl a = ToAddressCsl a
+foreign import data Address :: Type
 
--- | All addresses should implement this class
-class (ToCsl (ToAddressCsl a) AddressCsl) <= Address a (p :: Type) (d :: Type) | a -> p, a -> d where
-  addrR :: a -> AddrR p d
+instance Show Address where
+  show a = "(Address " <> addressBech32 a <> ")"
 
-----
+instance Eq Address where
+  eq = eq `on` addressBytes
 
--- TODO pointer address
-foreign import data PointerAddressCsl :: Type
+foreign import data BaseAddress :: Type
 
-----
+instance Eq BaseAddress where
+  eq = eq `on` baseAddressToAddress
 
--- | Also known as StakeAddress
-newtype RewardAddress (p :: Type) = RewardAddress (AddrR p Unit)
+foreign import data ByronAddress :: Type
 
-derive instance (Eq p) => Eq (RewardAddress p)
+instance Eq ByronAddress where
+  eq = eq `on` byronAddressToAddress
 
--- | `Address` CSL representation - a generic address type
-foreign import data RewardAddressCsl :: Type
+foreign import data EnterpriseAddress :: Type
 
--- | instance Address RewardAddress
-instance (ToCsl (StakeCred p) StakeCredentialCsl) => Address (RewardAddress p) p Unit where
-  addrR (RewardAddress a) = a
+instance Eq EnterpriseAddress where
+  eq = eq `on` enterpriseAddressToAddress
 
--- | RewardAddress -> RewardAddressCsl
-instance (ToCsl (StakeCred p) StakeCredentialCsl) => ToCsl (RewardAddress p) RewardAddressCsl where
-  toCslRep x = _newRewardAddressCsl
-    { network: networkTagInt x
-    , paymentStakeCred: toCslRep $ StakeCred $ paymentCred x
-    }
+foreign import data PointerAddress :: Type
 
--- | RewardAddress -> AddressCsl
-instance (ToCsl (StakeCred p) StakeCredentialCsl) => ToCsl (ToAddressCsl (RewardAddress p)) AddressCsl where
-  toCslRep (ToAddressCsl x) = _toAddressCslUnsafe (toCslType x)
+instance Eq PointerAddress where
+  eq = eq `on` pointerAddressToAddress
 
-----
+foreign import data RewardAddress :: Type
 
--- | Shelley-era address where payment and delegation parts
--- | are each either a `Ed25519Keyhash` or a `ScriptHash`
-newtype BaseAddress (p :: Type) (d :: Type) = BaseAddress (AddrR p d)
+instance Eq RewardAddress where
+  eq = eq `on` rewardAddressToAddress
 
-derive instance (Eq p, Eq d) => Eq (BaseAddress p d)
+foreign import data StakeCredential :: Type
 
--- | BaseAddress CSL representation
-foreign import data BaseAddressCsl :: Type
+instance Eq StakeCredential where
+  eq = eq `on` stakeCredentialToBytes
 
--- | instance Address BaseAddress
-instance (ToCsl (StakeCred p) StakeCredentialCsl, ToCsl (StakeCred d) StakeCredentialCsl) => Address (BaseAddress p d) p d where
-  addrR (BaseAddress a) = a
+foreign import _addressFromBech32 :: MaybeFfiHelper -> Bech32String -> Maybe Address
+foreign import _addressFromBytes :: MaybeFfiHelper -> ByteArray -> Maybe Address
+foreign import addressBytes :: Address -> ByteArray
+foreign import addressBech32 :: Address -> Bech32String
+foreign import addressNetworkId :: Address -> NetworkId
 
--- | BaseAddress -> BaseAddressCsl
--- | With this instance ou can safely convert BaseAddress to csl rep
--- | to use csl functions
-instance (ToCsl (StakeCred d) StakeCredentialCsl, ToCsl (StakeCred p) StakeCredentialCsl) => ToCsl (BaseAddress p d) BaseAddressCsl where
-  toCslRep a = _newBaseAddressCsl
-    { network: networkTagInt a
-    , paymentStakeCred: toCslRep $ StakeCred $ paymentCred a
-    , delegationStakeCred: toCslRep $ StakeCred $ delegationCred a
-    }
+foreign import keyHashCredential :: Ed25519KeyHash -> StakeCredential
+foreign import scriptHashCredential :: ScriptHash -> StakeCredential
+foreign import withStakeCredential :: forall a. { onKeyHash :: Ed25519KeyHash -> a, onScriptHash :: ScriptHash -> a } -> StakeCredential -> a
+foreign import stakeCredentialToBytes :: StakeCredential -> ByteArray
+foreign import _stakeCredentialFromBytes :: MaybeFfiHelper -> ByteArray -> Maybe StakeCredential
 
--- | BaseAddress -> AddressCsl
-instance (ToCsl (StakeCred p) StakeCredentialCsl, ToCsl (StakeCred d) StakeCredentialCsl) => ToCsl (ToAddressCsl (BaseAddress p d)) AddressCsl where
-  toCslRep (ToAddressCsl x) = _toAddressCslUnsafe (toCslType x)
-
-----
-
--- | Address where payment and stake delegation rights are bound to the same PubKeyHash
-type PubKeyAddress = BaseAddress Ed25519KeyHash Ed25519KeyHash
-
--- | Address where payment and stake delegation rights are bound to the same ScriptHash
-type ScriptAddress = BaseAddress ScriptHash ScriptHash
-
--- | Helper for reclaiming `BaseAddress` type arguments during decoding.
-newtype CredType (p :: Type) = CredType String
-
-----
-
-foreign import _stakeCredFromKeyHash :: Ed25519KeyHash -> StakeCredentialCsl
-foreign import _stakeCredFromScriptHash :: ScriptHash -> StakeCredentialCsl
-
--- | Only use on csl types that supports CSL's to_address()
-foreign import _toAddressCslUnsafe :: CslType -> AddressCsl
-
-foreign import _newRewardAddressCsl
-  :: { network :: Int
-     , paymentStakeCred :: StakeCredentialCsl
+foreign import baseAddress
+  :: { network :: NetworkId
+     , paymentCred :: StakeCredential
+     , delegationCred :: StakeCredential
      }
-  -> RewardAddressCsl
+  -> BaseAddress
 
-foreign import _newBaseAddressCsl
-  :: { network :: Int
-     , paymentStakeCred :: StakeCredentialCsl
-     , delegationStakeCred :: StakeCredentialCsl
-     }
-  -> BaseAddressCsl
+foreign import baseAddressPaymentCred :: BaseAddress -> StakeCredential
+foreign import baseAddressDelegationCred :: BaseAddress -> StakeCredential
+foreign import _baseAddressFromAddress :: MaybeFfiHelper -> Address -> Maybe BaseAddress
+foreign import baseAddressToAddress :: BaseAddress -> Address
 
-foreign import _addressBytesImpl :: AddressCsl -> ByteArray
-foreign import _addressBech32Impl :: AddressCsl -> Bech32String
+newtype ByronProtocolMagic = ByronProtocolMagic UInt
 
--- | Ensures that stake credentials are of requested type
--- therefore allowing to set BaseAddress' type arguments
-foreign import _headerCheckBaseAddr
-  :: forall p d
-   . MaybeFfiHelper
-  -> { payment :: CredType p
-     , delegation :: CredType d
-     }
-  -> (Int -> Maybe NetworkTag)
-  -> BaseAddressCsl
-  -> Maybe (BaseAddress p d)
+newtype NetworkId = NetworkId Int
 
--- | Ensures that stake credentials are of requested type
--- therefore allowing to set RewardAddress' type arguments
-foreign import _headerCheckRewardAddr
-  :: forall p
-   . MaybeFfiHelper
-  -> { payment :: CredType p }
-  -> (Int -> Maybe NetworkTag)
-  -> RewardAddressCsl
-  -> Maybe (RewardAddress p)
+derive instance Eq NetworkId
 
-foreign import _baseAddressFromBytesImpl :: MaybeFfiHelper -> ByteArray -> Maybe BaseAddressCsl
-foreign import _baseAddressFromBech32Impl :: MaybeFfiHelper -> Bech32String -> Maybe BaseAddressCsl
+testnetId :: NetworkId
+testnetId = NetworkId 0
 
-foreign import _rewardAddressFromBytesImpl :: MaybeFfiHelper -> ByteArray -> Maybe RewardAddressCsl
-foreign import _rewardAddressFromBech32Impl :: MaybeFfiHelper -> Bech32String -> Maybe RewardAddressCsl
+mainnetId :: NetworkId
+mainnetId = NetworkId 1
 
--- | The exported constructor for `BaseAddress`.
-baseAddress
-  :: forall p d
-   . (ToCsl (StakeCred d) StakeCredentialCsl)
-  => (ToCsl (StakeCred p) StakeCredentialCsl)
-  => { network :: NetworkTag, payment :: p, delegation :: d }
-  -> BaseAddress p d
-baseAddress { network, payment, delegation } = BaseAddress
-  { network: network
-  , payment: payment
-  , delegation: delegation
-  }
+pubKeyAddress :: NetworkId -> Ed25519KeyHash -> BaseAddress
+pubKeyAddress netId pkh = baseAddress { network: netId, paymentCred: keyHashCredential pkh, delegationCred: keyHashCredential pkh }
 
--- | The exported constructor for `RewardAddress`.
-rewardAddress
-  :: forall p
-   . (ToCsl (StakeCred p) StakeCredentialCsl)
-  => { network :: NetworkTag, payment :: p }
-  -> RewardAddress p
-rewardAddress { network, payment } = RewardAddress
-  { network: network
-  , payment: payment
-  , delegation: unit
-  }
+scriptAddress :: NetworkId -> ScriptHash -> BaseAddress
+scriptAddress netId skh = baseAddress { network: netId, paymentCred: scriptHashCredential skh, delegationCred: scriptHashCredential skh }
 
--- | Convert address to its byte representation
-addressBytes
-  :: forall a p d
-   . Address a p d
-  => a
-  -> ByteArray
-addressBytes = ToAddressCsl >>> toCslRep >>> _addressBytesImpl
+stakeCredentialToKeyHash :: StakeCredential -> Maybe Ed25519KeyHash
+stakeCredentialToKeyHash = withStakeCredential { onKeyHash: Just, onScriptHash: const Nothing }
 
--- | Parse `RewardAddress` from its byte representation
-rewardAddressFromBytes
-  :: forall p
-   . { payment :: CredType p
-     }
-  -> ByteArray
-  -> Maybe (RewardAddress p)
-rewardAddressFromBytes checks bts = do
-  addrCsl <- _rewardAddressFromBytesImpl maybeFfiHelper bts
-  _headerCheckRewardAddr maybeFfiHelper checks intToNetTag addrCsl
+stakeCredentialToScriptHash :: StakeCredential -> Maybe ScriptHash
+stakeCredentialToScriptHash = withStakeCredential { onKeyHash: const Nothing, onScriptHash: Just }
 
--- | Parse `BaseAddress` from its byte representation
-baseAddressFromBytes
-  :: forall p d
-   . { payment :: CredType p
-     , delegation :: CredType d
-     }
-  -> ByteArray
-  -> Maybe (BaseAddress p d)
-baseAddressFromBytes checks bts = do
-  addrCsl <- _baseAddressFromBytesImpl maybeFfiHelper bts
-  _headerCheckBaseAddr maybeFfiHelper checks intToNetTag addrCsl
+stakeCredentialFromBytes :: ByteArray -> Maybe StakeCredential
+stakeCredentialFromBytes = _stakeCredentialFromBytes maybeFfiHelper
 
--- | Return Cardano Bech32 representation of BaseAddress
--- NOTE on safety - even if CSL functions signals that it can error out,
--- following their implementation indicates that any valid address should
--- be encoded to bech32 without erros.
-addressBech32
-  :: forall a p d
-   . Address a p d
-  => a
-  -> Bech32String
-addressBech32 = ToAddressCsl >>> toCslRep >>> _addressBech32Impl
+addressFromBytes :: ByteArray -> Maybe Address
+addressFromBytes = _addressFromBytes maybeFfiHelper
 
--- | Build address out of its bech32 representation.
--- | For example to build `Maybe (BaseAddress Ed25519KeyHash ScriptHash)`:
--- |
--- | ```purescript
--- | >>> let addr =
--- | >>>      baseAddressFromBech32
--- | >>>       { payment: ed25519KeyHashCredType
--- | >>>       , delegation: scriptHashCredType
--- | >>>      "addr1..."
--- | '''
--- |
--- | If the string doesn't encode the address matching given credential types
--- | the function will return `Nothing`
--- |
-baseAddressFromBech32 :: forall p d. { payment :: CredType p, delegation :: CredType d } -> Bech32String -> Maybe (BaseAddress p d)
-baseAddressFromBech32 checks bchString = do
-  addrCsl <- _baseAddressFromBech32Impl maybeFfiHelper bchString
-  _headerCheckBaseAddr maybeFfiHelper checks intToNetTag addrCsl
+addressFromBech32 :: Bech32String -> Maybe Address
+addressFromBech32 = _addressFromBech32 maybeFfiHelper
 
--- | Build address out of its bech32 representation.
--- | Works analogically to `baseAddressFromBech32`.
--- | For example:
--- |
--- | ```purescript
--- | >>> let addr =
--- | >>>      rewardAddressFromBech32
--- | >>>       { payment: ed25519KeyHashCredType }
--- | >>>      "addr1..."
--- | '''
--- |
-rewardAddressFromBech32 :: forall p. { payment :: CredType p } -> Bech32String -> Maybe (RewardAddress p)
-rewardAddressFromBech32 checks bchString = do
-  addrCsl <- _rewardAddressFromBech32Impl maybeFfiHelper bchString
-  _headerCheckRewardAddr maybeFfiHelper checks intToNetTag addrCsl
+addressPaymentCred :: Address -> Maybe StakeCredential
+addressPaymentCred addr =
+  (baseAddressPaymentCred <$> baseAddressFromAddress addr) <|>
+  (rewardAddressPaymentCred <$> rewardAddressFromAddress addr) <|>
+  (pointerAddressPaymentCred <$> pointerAddressFromAddress addr) <|>
+  (enterpriseAddressPaymentCred <$> enterpriseAddressFromAddress addr)
 
--- | Build `PubKeyAddress` from a single credential.
-pubKeyAddress :: NetworkTag -> Ed25519KeyHash -> PubKeyAddress
-pubKeyAddress nt pkh = BaseAddress { network: nt, payment: pkh, delegation: pkh }
+baseAddressFromAddress :: Address -> Maybe BaseAddress
+baseAddressFromAddress = _baseAddressFromAddress maybeFfiHelper
 
--- | Build `ScriptAddress` from a single credential.
-scriptAddress :: NetworkTag -> ScriptHash -> ScriptAddress
-scriptAddress nt sh = BaseAddress { network: nt, payment: sh, delegation: sh }
+baseAddressBytes :: BaseAddress -> ByteArray
+baseAddressBytes = baseAddressToAddress >>> addressBytes
 
----- cred types
+baseAddressBech32 :: BaseAddress -> Bech32String
+baseAddressBech32 = baseAddressToAddress >>> addressBech32
 
--- | Sets BaseAddress type arguments during decoding.
-ed25519KeyHashCredType :: CredType Ed25519KeyHash
-ed25519KeyHashCredType = CredType "from_keyhash"
+baseAddressFromBytes :: ByteArray -> Maybe BaseAddress
+baseAddressFromBytes = addressFromBytes >=> baseAddressFromAddress
 
--- | Sets BaseAddress type arguments during decoding.
-scriptHashCredType :: CredType ScriptHash
-scriptHashCredType = CredType "from_scripthash"
+baseAddressFromBech32 :: Bech32String -> Maybe BaseAddress
+baseAddressFromBech32 = addressFromBech32 >=> baseAddressFromAddress
 
--- | NetworkTag accessor on an Address
-networkTag
-  :: forall a p d
-   . Address a p d
-  => a
-  -> NetworkTag
-networkTag = addrR >>> _.network
+baseAddressNetworkId :: BaseAddress -> NetworkId
+baseAddressNetworkId = baseAddressToAddress >>> addressNetworkId
 
--- | NetworkTag accessor on an Address
-networkTagInt
-  :: forall a p d
-   . Address a p d
-  => a
-  -> Int
-networkTagInt = addrR >>> _.network >>> netTagToInt
+foreign import byronAddressToBase58 :: ByronAddress -> Base58String
+foreign import _byronAddressFromBase58 :: MaybeFfiHelper -> Base58String -> Maybe ByronAddress
 
--- | Payment credential accessor on an Address
-paymentCred
-  :: forall a p x
-   . Address a p x
-  => a
-  -> p
-paymentCred = addrR >>> _.payment
+byronAddressFromBase58 :: Base58String -> Maybe ByronAddress
+byronAddressFromBase58 = _byronAddressFromBase58 maybeFfiHelper
 
--- | Delegation credential accessor on an Address
-delegationCred
-  :: forall a x d
-   . Address a x d
-  => a
-  -> d
-delegationCred = addrR >>> _.delegation
+foreign import _byronAddressFromBytes :: MaybeFfiHelper -> ByteArray -> Maybe ByronAddress
 
--- | Converts to cardano-serialization-lib `Address` class object.
-toAddressCsl
-  :: forall a p d
-   . Address a p d
-  => a
-  -> AddressCsl
-toAddressCsl = ToAddressCsl >>> toCslRep
+byronAddressFromBytes :: ByteArray -> Maybe ByronAddress
+byronAddressFromBytes = _byronAddressFromBytes maybeFfiHelper
 
-netTagToInt :: NetworkTag -> Int
-netTagToInt = case _ of
-  TestnetTag -> 0
-  MainnetTag -> 1
+foreign import byronAddressBytes :: ByronAddress -> ByteArray
 
-intToNetTag :: Int -> Maybe NetworkTag
-intToNetTag = case _ of
-  0 -> Just TestnetTag
-  1 -> Just MainnetTag
-  _ -> Nothing
+foreign import byronProtocolMagic :: ByronAddress -> ByronProtocolMagic
+foreign import byronAddressAttributes :: ByronAddress -> ByteArray
+foreign import byronAddressNetworkId :: ByronAddress -> NetworkId
+
+byronAddressFromAddress :: Address -> Maybe ByronAddress
+byronAddressFromAddress = _byronAddressFromAddress maybeFfiHelper
+
+foreign import _byronAddressFromAddress :: MaybeFfiHelper -> Address -> Maybe ByronAddress
+foreign import byronAddressToAddress :: ByronAddress -> Address
+
+foreign import byronAddressIsValid :: String -> Boolean
+
+foreign import icarusFromKey :: Bip32PublicKey -> ByronProtocolMagic -> ByronAddress
+
+foreign import enterpriseAddress :: { network :: NetworkId, paymentCred :: StakeCredential } -> EnterpriseAddress
+foreign import enterpriseAddressPaymentCred :: EnterpriseAddress -> StakeCredential
+foreign import _enterpriseAddressFromAddress :: MaybeFfiHelper -> Address -> Maybe EnterpriseAddress
+foreign import enterpriseAddressToAddress :: EnterpriseAddress -> Address
+
+enterpriseAddressFromAddress :: Address -> Maybe EnterpriseAddress
+enterpriseAddressFromAddress = _enterpriseAddressFromAddress maybeFfiHelper
+
+enterpriseAddressBytes :: EnterpriseAddress -> ByteArray
+enterpriseAddressBytes = enterpriseAddressToAddress >>> addressBytes
+
+enterpriseAddressBech32 :: EnterpriseAddress -> Bech32String
+enterpriseAddressBech32 = enterpriseAddressToAddress >>> addressBech32
+
+enterpriseAddressFromBytes :: ByteArray -> Maybe EnterpriseAddress
+enterpriseAddressFromBytes = addressFromBytes >=> enterpriseAddressFromAddress
+
+enterpriseAddressFromBech32 :: Bech32String -> Maybe EnterpriseAddress
+enterpriseAddressFromBech32 = addressFromBech32 >=> enterpriseAddressFromAddress
+
+enterpriseAddressNetworkId :: EnterpriseAddress -> NetworkId
+enterpriseAddressNetworkId = enterpriseAddressToAddress >>> addressNetworkId
+
+foreign import pointerAddress :: { network :: NetworkId, paymentCred :: StakeCredential, stakePointer :: Pointer } -> PointerAddress
+foreign import pointerAddressPaymentCred :: PointerAddress -> StakeCredential
+foreign import _pointerAddressFromAddress :: MaybeFfiHelper -> Address -> Maybe PointerAddress
+foreign import pointerAddressToAddress :: PointerAddress -> Address
+
+pointerAddressFromAddress :: Address -> Maybe PointerAddress
+pointerAddressFromAddress = _pointerAddressFromAddress maybeFfiHelper
+
+foreign import pointerAddressStakePointer :: PointerAddress -> Pointer
+
+pointerAddressBytes :: PointerAddress -> ByteArray
+pointerAddressBytes = pointerAddressToAddress >>> addressBytes
+
+pointerAddressBech32 :: PointerAddress -> Bech32String
+pointerAddressBech32 = pointerAddressToAddress >>> addressBech32
+
+pointerAddressFromBytes :: ByteArray -> Maybe PointerAddress
+pointerAddressFromBytes = addressFromBytes >=> pointerAddressFromAddress
+
+pointerAddressFromBech32 :: Bech32String -> Maybe PointerAddress
+pointerAddressFromBech32 = addressFromBech32 >=> pointerAddressFromAddress
+
+pointerAddressNetworkId :: PointerAddress -> NetworkId
+pointerAddressNetworkId = pointerAddressToAddress >>> addressNetworkId
+
+foreign import rewardAddress :: { network :: NetworkId, paymentCred :: StakeCredential } -> RewardAddress
+foreign import rewardAddressPaymentCred :: RewardAddress -> StakeCredential
+foreign import _rewardAddressFromAddress :: MaybeFfiHelper -> Address -> Maybe RewardAddress
+foreign import rewardAddressToAddress :: RewardAddress -> Address
+
+rewardAddressFromAddress :: Address -> Maybe RewardAddress
+rewardAddressFromAddress = _rewardAddressFromAddress maybeFfiHelper
+
+rewardAddressBytes :: RewardAddress -> ByteArray
+rewardAddressBytes = rewardAddressToAddress >>> addressBytes
+
+rewardAddressBech32 :: RewardAddress -> Bech32String
+rewardAddressBech32 = rewardAddressToAddress >>> addressBech32
+
+rewardAddressFromBytes :: ByteArray -> Maybe RewardAddress
+rewardAddressFromBytes = addressFromBytes >=> rewardAddressFromAddress
+
+rewardAddressFromBech32 :: Bech32String -> Maybe RewardAddress
+rewardAddressFromBech32 = addressFromBech32 >=> rewardAddressFromAddress
+
+rewardAddressNetworkId :: RewardAddress -> NetworkId
+rewardAddressNetworkId = rewardAddressToAddress >>> addressNetworkId

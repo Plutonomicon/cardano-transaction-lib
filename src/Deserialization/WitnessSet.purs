@@ -44,10 +44,10 @@ convertVkeyWitnesses = extractWitnesses >>> map \witness ->
     T.Vkeywitness $ publicKey /\ signature
 
 convertVkey :: Vkey -> T.Vkey
-convertVkey = T.Vkey <<< T.PublicKey <<< T.Bech32 <<< publicKeyToBech32 <<< vkeyPublicKey
+convertVkey = T.Vkey <<< T.PublicKey <<< publicKeyToBech32 <<< vkeyPublicKey
 
 convertSignature :: Ed25519Signature -> T.Ed25519Signature
-convertSignature = T.Ed25519Signature <<< T.Bech32 <<< signatureToBech32
+convertSignature = T.Ed25519Signature <<< signatureToBech32
 
 convertNativeScripts :: NativeScripts -> Maybe (Array T.NativeScript)
 convertNativeScripts nativeScripts =
