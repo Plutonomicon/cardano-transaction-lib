@@ -1,5 +1,6 @@
 module Deserialization.Address
   ( convertAddress
+  , convertEd25519KeyHash
   ) where
 
 import Control.Alt ((<|>))

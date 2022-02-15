@@ -334,18 +334,18 @@ data TransactionMetadatum
 derive instance eqTransactionMetadatum :: Eq TransactionMetadatum
 
 data NativeScript
-  = ScriptPubkey
-  | ScriptAll
-  | ScriptAny
-  | ScriptNOfK
-  | TimelockStart
-  | TimelockExpiry
+  = ScriptPubkey Ed25519KeyHash
+  | ScriptAll (Array NativeScript)
+  | ScriptAny (Array NativeScript)
+  | ScriptNOfK Int (Array NativeScript)
+  | TimelockStart Slot
+  | TimelockExpiry Slot
 
 derive instance eqNativeScript :: Eq NativeScript
 derive instance Generic NativeScript _
 
 instance Show NativeScript where
-  show = genericShow
+  show x = genericShow x
 
 newtype TransactionInput = TransactionInput
   { transaction_id :: TransactionHash
@@ -404,6 +404,10 @@ newtype Slot = Slot BigInt
 
 derive instance newtypeSlot :: Newtype Slot _
 derive newtype instance eqSlot :: Eq Slot
+derive instance Generic Slot _
+
+instance Show Slot where
+  show = genericShow
 
 newtype Address = Address
   { "AddrType" :: BaseAddress
