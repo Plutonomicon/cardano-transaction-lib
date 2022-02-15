@@ -9,7 +9,7 @@ import Control.Alt ((<|>))
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (for, traverse)
 import Data.Tuple.Nested ((/\))
-import Deserialization.BigNum (convertBigNum)
+import Deserialization.BigNum (bigNumToBigInt)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization (toBytes)
 import Serialization.Types (BigNum, BootstrapWitness, BootstrapWitnesses, Ed25519Signature, ExUnits, NativeScript, NativeScripts, PlutusData, PlutusList, PlutusScript, PlutusScripts, PublicKey, Redeemer, RedeemerTag, Redeemers, TransactionWitnessSet, Vkey, Vkeywitness, Vkeywitnesses)
@@ -82,7 +82,7 @@ convertRedeemers = extractRedeemers >>> traverse convertRedeemer
 convertRedeemer :: Redeemer -> Maybe T.Redeemer
 convertRedeemer redeemer = do
   tag <- convertRedeemerTag $ getRedeemerTag redeemer
-  index <- convertBigNum $ getRedeemerIndex redeemer
+  index <- bigNumToBigInt $ getRedeemerIndex redeemer
   ex_units <- convertExUnits $ getExUnits redeemer
   pure $ T.Redeemer
     { tag
@@ -101,8 +101,8 @@ convertRedeemerTag tag = case getRedeemerTagKind tag of
 
 convertExUnits :: ExUnits -> Maybe T.ExUnits
 convertExUnits eu = do
-  mem <- convertBigNum $ getExUnitsMem eu
-  steps <- convertBigNum $ getExUnitsSteps eu
+  mem <- bigNumToBigInt $ getExUnitsMem eu
+  steps <- bigNumToBigInt $ getExUnitsSteps eu
   pure { mem, steps }
 
 foreign import getVkeywitnesses :: MaybeFfiHelper -> TransactionWitnessSet -> Maybe Vkeywitnesses

@@ -18,7 +18,7 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt as UInt
 import Untagged.Union (asOneOf)
-import Deserialization.BigNum (convertBigNum)
+import Deserialization.BigNum (bigNumToBigInt)
 import Deserialization.Address (convertAddress)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization (toBytes)
@@ -54,7 +54,7 @@ convertOutput output = do
 
 convertValue :: Value -> Maybe T.Value
 convertValue value = do
-  coin <- convertBigNum $ getCoin value
+  coin <- bigNumToBigInt $ getCoin value
   -- multiasset is optional
   multiasset <- for (getMultiAsset maybeFfiHelper value) \multiasset -> do
     let
@@ -72,7 +72,7 @@ convertValue value = do
                 <<< traverse (ltraverse $ assetNameName >>> T.mkTokenName)
         )
     -- convert BigNum values, possibly failing
-    traverse (traverse convertBigNum) multiasset''
+    traverse (traverse bigNumToBigInt) multiasset''
   pure
     $ T.mkValue (T.Coin coin)
     $ T.mkNonAdaAsset (fromMaybe Map.empty multiasset)

@@ -20,3 +20,6 @@ exports._fromBytesScriptHash = fromBytes('ScriptHash');
 exports._fromBytesDataHash = fromBytes('DataHash');
 exports._fromBytesEd25519KeyHash = fromBytes('Ed25519KeyHash');
 exports._fromBytesTransactionHash = fromBytes('TransactionHash');
+exports._fromBytesPlutusData = fromBytes('PlutusData');
+exports._fromBytesTransactionUnspentOutput = fromBytes('TransactionUnspentOutput');
+exports._fromBytesTransactionWitnessSet = fromBytes('TransactionWitnessSet');
