@@ -199,11 +199,13 @@ data FeeEstimateError
 -- No Show instance of Affjax.Error
 instance Show FeeEstimateError where
   show (FeeEstimateHttpError err) =
-    "Fee Estimate HTTP Error: "
+    "(FeeEstimateHttpError "
       <> Affjax.printError err
+      <> ")"
   show (FeeEstimateDecodeJsonError err) =
-    "Fee Estimate Decode JSON Error: "
+    "(FeeEstimateDecodeJsonError "
       <> show err
+      <> ")"
 
 -- Query the Haskell server for the minimum transaction fee
 calculateMinFee
