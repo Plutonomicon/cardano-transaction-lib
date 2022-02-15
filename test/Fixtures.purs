@@ -86,7 +86,7 @@ txOutputFixture2 =
                 $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
             }
         }
-    , amount: T.Value (T.Coin $ BigInt.fromInt 0) $ unsafePartial $ fromJust $
+    , amount: T.Value (T.Coin $ BigInt.fromInt 0) $
         mkSingletonNonAdaAsset currencySymbol1 tokenName1 (BigInt.fromInt 1000000)
     , data_hash: Nothing
     }

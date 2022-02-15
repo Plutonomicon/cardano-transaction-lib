@@ -1,5 +1,6 @@
 module ProtocolParametersAlonzo
-  ( coinSize
+  ( adaOnlyWords
+  , coinSize
   , lovelacePerUTxOWord
   , pidSize
   , protocolParamUTxOCostPerWord
@@ -32,3 +33,9 @@ pidSize = fromInt 28
 -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
 coinSize :: BigInt
 coinSize = fromInt 2
+
+-- An ada-only UTxO entry is 29 words. More details about min utxo
+-- calculation can be found here:
+-- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0028#rationale-for-parameter-choices
+adaOnlyWords :: BigInt
+adaOnlyWords = fromInt 29

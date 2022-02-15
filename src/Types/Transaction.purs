@@ -6,7 +6,7 @@ import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
 import Data.HashMap (HashMap)
 import Data.Map (Map)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype)
 import Data.Rational (Rational)
 import Data.Show.Generic (genericShow)
@@ -213,6 +213,16 @@ derive newtype instance Eq TransactionWitnessSet
 
 instance Show TransactionWitnessSet where
   show = genericShow
+
+emptyTransactionWitnessSet :: TransactionWitnessSet
+emptyTransactionWitnessSet = TransactionWitnessSet
+  { vkeys: Nothing
+  , native_scripts: Nothing
+  , bootstraps: Nothing
+  , plutus_scripts: Nothing
+  , plutus_data: Nothing
+  , redeemers: Nothing
+  }
 
 type BootstrapWitness =
   { vkey :: Vkey

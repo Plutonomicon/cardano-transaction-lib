@@ -196,6 +196,17 @@ data FeeEstimateError
   = FeeEstimateHttpError Affjax.Error
   | FeeEstimateDecodeJsonError Json.JsonDecodeError
 
+-- No Show instance of Affjax.Error
+instance Show FeeEstimateError where
+  show (FeeEstimateHttpError err) =
+    "(FeeEstimateHttpError "
+      <> Affjax.printError err
+      <> ")"
+  show (FeeEstimateDecodeJsonError err) =
+    "(FeeEstimateDecodeJsonError "
+      <> show err
+      <> ")"
+
 -- Query the Haskell server for the minimum transaction fee
 calculateMinFee
   :: Transaction.Transaction -> QueryM (Either FeeEstimateError Coin)
@@ -206,7 +217,7 @@ calculateMinFee tx = do
       <<< Serialization.toBytes
       <<< asOneOf
       <$> Serialization.convertTransaction tx
-  liftAff (Affjax.get Affjax.ResponseFormat.json $ url <> "?tx=" <> txHex)
+  liftAff (Affjax.get Affjax.ResponseFormat.json $ url <> "/fees?tx=" <> txHex)
     <#> case _ of
       Left e -> Left $ FeeEstimateHttpError e
       Right resp ->
