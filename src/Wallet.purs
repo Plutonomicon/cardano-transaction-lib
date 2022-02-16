@@ -62,7 +62,7 @@ mkNamiWalletAff = do
 
   getWalletAddress :: NamiConnection -> Aff (Maybe Address)
   getWalletAddress nami = fromNamiHexString _getNamiAddress nami >>=
-                          (_ >>= addressFromBytes) >>> pure
+    (_ >>= addressFromBytes) >>> pure
 
   getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
   getCollateral nami = fromNamiHexString _getNamiCollateral nami >>= case _ of

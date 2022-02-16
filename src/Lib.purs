@@ -3,9 +3,9 @@ module Lib where
 import Prelude
 
 import Data.BigInt as BigInt
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.UInt as UInt
-import Serialization.Address (NetworkId, Slot(..))
+import Serialization.Address (NetworkId, Slot(Slot))
 import Types.Transaction as Types
 import Types.Value (Coin(Coin))
 

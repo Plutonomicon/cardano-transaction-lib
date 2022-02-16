@@ -22,11 +22,36 @@ import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization (toBytes)
 import Serialization.Address (Address)
 import Serialization.Hash (ScriptHash, scriptHashToBytes)
-import Serialization.Types (AssetName, Assets, BigNum, DataHash, MultiAsset, TransactionHash, TransactionInput, TransactionOutput, TransactionUnspentOutput, Value)
+import Serialization.Types
+  ( AssetName
+  , Assets
+  , BigNum
+  , DataHash
+  , MultiAsset
+  , TransactionHash
+  , TransactionInput
+  , TransactionOutput
+  , TransactionUnspentOutput
+  , Value
+  )
 import Types.ByteArray (ByteArray)
-import Types.Transaction (DataHash(DataHash), TransactionHash(TransactionHash), TransactionInput(TransactionInput), TransactionOutput(TransactionOutput)) as T
+import Types.Transaction
+  ( DataHash(DataHash)
+  , TransactionHash(TransactionHash)
+  , TransactionInput(TransactionInput)
+  , TransactionOutput(TransactionOutput)
+  ) as T
 import Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput)) as T
-import Types.Value (mkCurrencySymbol, mkNonAdaAsset, mkTokenName, mkValue, Coin(Coin), CurrencySymbol, TokenName, Value) as T
+import Types.Value
+  ( mkCurrencySymbol
+  , mkNonAdaAsset
+  , mkTokenName
+  , mkValue
+  , Coin(Coin)
+  , CurrencySymbol
+  , TokenName
+  , Value
+  ) as T
 import Untagged.Union (asOneOf)
 
 convertUnspentOutput :: TransactionUnspentOutput -> Maybe T.TransactionUnspentOutput

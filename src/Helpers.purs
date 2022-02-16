@@ -1,10 +1,18 @@
-module Helpers (explain, explainM, parseJsonStringifyNumbers, jsonTurnNumbersToStrings) where
+module Helpers
+  ( fromJustEff
+  , parseJsonStringifyNumbers
+  , jsonTurnNumbersToStrings
+  ) where
 
 import Prelude
 
-import Data.Argonaut (JsonDecodeError, Json, parseJson)
-import Data.Either (Either(..))
-import Data.Maybe (Maybe(..))
+import Data.Argonaut
+  ( JsonDecodeError
+  , Json
+  , parseJson
+  )
+import Data.Either (Either)
+import Data.Maybe (Maybe(Just, Nothing))
 import Effect (Effect)
 import Effect.Exception (throw)
 
@@ -20,12 +28,8 @@ parseJsonStringifyNumbers s = do
   -- valid json ensured at this point
   parseJson $ jsonTurnNumbersToStrings s
 
-explain :: forall a e. e -> Maybe a -> Either e a
-explain e = case _ of
-  Nothing -> Left e
-  Just x -> pure x
-
-explainM :: forall a. String -> Maybe a -> Effect a
-explainM e = case _ of
+-- | Throws provided error on `Nothing`
+fromJustEff :: forall (a :: Type). String -> Maybe a -> Effect a
+fromJustEff e = case _ of
   Nothing -> throw e
   Just x -> pure x

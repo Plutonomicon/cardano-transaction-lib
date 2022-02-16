@@ -10,13 +10,18 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Effect (Effect)
 import Effect.Exception (throw)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import Serialization.Types (DataHash, PlutusData, TransactionHash, TransactionUnspentOutput, TransactionWitnessSet)
+import Serialization.Types
+  ( DataHash
+  , PlutusData
+  , TransactionHash
+  , TransactionUnspentOutput
+  , TransactionWitnessSet
+  )
 import Types.ByteArray (ByteArray)
 
 -- | Calls `from_bytes` method for the appropriate type
 class FromBytes a where
   fromBytes :: ByteArray -> Maybe a
-
 
 instance FromBytes DataHash where
   fromBytes = _fromBytesDataHash maybeFfiHelper

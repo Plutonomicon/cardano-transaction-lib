@@ -118,7 +118,6 @@ type ExUnits =
 
 type SubCoin = UnitInterval
 
-
 newtype Costmdls = Costmdls (Map Language CostModel)
 
 derive instance newtypeCostmdls :: Newtype Costmdls _
@@ -201,7 +200,6 @@ newtype RequiredSigner = RequiredSigner String
 
 derive instance newtypeRequiredSigner :: Newtype RequiredSigner _
 derive newtype instance eqRequiredSigner :: Eq RequiredSigner
-
 
 newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
@@ -362,7 +360,6 @@ derive newtype instance ordDataHash :: Ord DataHash
 
 instance Show DataHash where
   show = genericShow
-
 
 -- Option<Certificates>,
 -- these are the constructors, but this will generally be an Empty Option in our initial efforts

@@ -18,15 +18,44 @@ import Data.UInt (UInt)
 import Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Effect (Effect)
 import Effect.Exception (throw)
-import Helpers (explainM)
+import Helpers (fromJustEff)
 import Serialization.Address (Address)
 import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes)
-import Serialization.Types (AssetName, Assets, AuxiliaryData, BigNum, DataHash, Ed25519Signature, MultiAsset, PlutusData, PlutusScripts, PublicKey, Transaction, TransactionBody, TransactionHash, TransactionInput, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, Value, Vkey, Vkeywitnesses, PlutusScript, Vkeywitness)
+import Serialization.Types
+  ( AssetName
+  , Assets
+  , AuxiliaryData
+  , BigNum
+  , DataHash
+  , Ed25519Signature
+  , MultiAsset
+  , PlutusData
+  , PlutusScripts
+  , PublicKey
+  , Transaction
+  , TransactionBody
+  , TransactionHash
+  , TransactionInput
+  , TransactionInputs
+  , TransactionOutput
+  , TransactionOutputs
+  , TransactionWitnessSet
+  , Value
+  , Vkey
+  , Vkeywitnesses
+  , PlutusScript
+  , Vkeywitness
+  )
 import Serialization.WitnessSet (convertWitnessSet)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
-import Types.Transaction (Transaction(Transaction), TransactionInput(TransactionInput), TransactionOutput(TransactionOutput), TxBody(TxBody)) as T
+import Types.Transaction
+  ( Transaction(Transaction)
+  , TransactionInput(TransactionInput)
+  , TransactionOutput(TransactionOutput)
+  , TxBody(TxBody)
+  ) as T
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.Value as Value
 import Untagged.Union (type (|+|))
@@ -119,7 +148,7 @@ convertValue val = do
   multiasset <- newMultiAsset
   forWithIndex_ m \scriptHashBytes' values -> do
     let mScripthash = scriptHashFromBytes $ Value.getCurrencySymbol scriptHashBytes'
-    scripthash <- explainM "scriptHashFromBytes failed while converting value" mScripthash
+    scripthash <- fromJustEff "scriptHashFromBytes failed while converting value" mScripthash
     assets <- newAssets
     forWithIndex_ values \tokenName' bigIntValue -> do
       let tokenName = Value.getTokenName tokenName'

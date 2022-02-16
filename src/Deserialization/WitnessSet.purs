@@ -12,7 +12,27 @@ import Data.Tuple.Nested ((/\))
 import Deserialization.BigNum (bigNumToBigInt)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization (toBytes)
-import Serialization.Types (BigNum, BootstrapWitness, BootstrapWitnesses, Ed25519Signature, ExUnits, NativeScript, NativeScripts, PlutusData, PlutusList, PlutusScript, PlutusScripts, PublicKey, Redeemer, RedeemerTag, Redeemers, TransactionWitnessSet, Vkey, Vkeywitness, Vkeywitnesses)
+import Serialization.Types
+  ( BigNum
+  , BootstrapWitness
+  , BootstrapWitnesses
+  , Ed25519Signature
+  , ExUnits
+  , NativeScript
+  , NativeScripts
+  , PlutusData
+  , PlutusList
+  , PlutusScript
+  , PlutusScripts
+  , PublicKey
+  , Redeemer
+  , RedeemerTag
+  , Redeemers
+  , TransactionWitnessSet
+  , Vkey
+  , Vkeywitness
+  , Vkeywitnesses
+  )
 import Types.ByteArray (ByteArray)
 import Types.RedeemerTag as Tag
 import Types.Transaction as T

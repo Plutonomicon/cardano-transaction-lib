@@ -6,6 +6,7 @@ import Control.Alt ((<|>))
 import Data.Function (on)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
+import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization.Hash (Ed25519KeyHash, ScriptHash)
@@ -16,16 +17,19 @@ newtype Slot = Slot UInt
 
 derive instance Eq Slot
 derive instance Newtype Slot _
+derive newtype instance Show Slot
 
 newtype TransactionIndex = TransactionIndex UInt
 
 derive instance Eq TransactionIndex
 derive instance Newtype TransactionIndex _
+derive newtype instance Show TransactionIndex
 
 newtype CertificateIndex = CertificateIndex UInt
 
 derive instance Eq CertificateIndex
 derive instance Newtype CertificateIndex _
+derive newtype instance Show CertificateIndex
 
 -- asssuming
 foreign import data Bip32PublicKey :: Type
@@ -41,10 +45,16 @@ foreign import data Address :: Type
 instance Show Address where
   show a = "(Address " <> addressBech32 a <> ")"
 
+showVia :: forall (a :: Type) (b :: Type). Show b => String -> (a -> b) -> a -> String
+showVia nm toShowable addr = "(" <> nm <> " " <> show (toShowable addr) <> ")"
+
 instance Eq Address where
   eq = eq `on` addressBytes
 
 foreign import data BaseAddress :: Type
+
+instance Show BaseAddress where
+  show = showVia "BaseAddress" baseAddressToAddress
 
 instance Eq BaseAddress where
   eq = eq `on` baseAddressToAddress
@@ -54,25 +64,41 @@ foreign import data ByronAddress :: Type
 instance Eq ByronAddress where
   eq = eq `on` byronAddressToAddress
 
+instance Show ByronAddress where
+  show = showVia "ByronAddress" byronAddressToAddress
+
 foreign import data EnterpriseAddress :: Type
 
 instance Eq EnterpriseAddress where
   eq = eq `on` enterpriseAddressToAddress
+
+instance Show EnterpriseAddress where
+  show = showVia "EnterpriseAddress" enterpriseAddressToAddress
 
 foreign import data PointerAddress :: Type
 
 instance Eq PointerAddress where
   eq = eq `on` pointerAddressToAddress
 
+instance Show PointerAddress where
+  show = showVia "PointerAddress" pointerAddressToAddress
+
 foreign import data RewardAddress :: Type
 
 instance Eq RewardAddress where
   eq = eq `on` rewardAddressToAddress
 
+instance Show RewardAddress where
+  show = showVia "RewardAddress" rewardAddressToAddress
+
 foreign import data StakeCredential :: Type
 
 instance Eq StakeCredential where
   eq = eq `on` stakeCredentialToBytes
+
+instance Show StakeCredential where
+  show = showVia "StakeCredenetial" $ withStakeCredential
+    { onKeyHash: show, onScriptHash: show }
 
 foreign import _addressFromBech32 :: MaybeFfiHelper -> Bech32String -> Maybe Address
 foreign import _addressFromBytes :: MaybeFfiHelper -> ByteArray -> Maybe Address
@@ -82,7 +108,7 @@ foreign import addressNetworkId :: Address -> NetworkId
 
 foreign import keyHashCredential :: Ed25519KeyHash -> StakeCredential
 foreign import scriptHashCredential :: ScriptHash -> StakeCredential
-foreign import withStakeCredential :: forall a. { onKeyHash :: Ed25519KeyHash -> a, onScriptHash :: ScriptHash -> a } -> StakeCredential -> a
+foreign import withStakeCredential :: forall (a :: Type). { onKeyHash :: Ed25519KeyHash -> a, onScriptHash :: ScriptHash -> a } -> StakeCredential -> a
 foreign import stakeCredentialToBytes :: StakeCredential -> ByteArray
 foreign import _stakeCredentialFromBytes :: MaybeFfiHelper -> ByteArray -> Maybe StakeCredential
 
@@ -103,6 +129,7 @@ newtype ByronProtocolMagic = ByronProtocolMagic UInt
 newtype NetworkId = NetworkId Int
 
 derive instance Eq NetworkId
+derive newtype instance Show NetworkId
 
 testnetId :: NetworkId
 testnetId = NetworkId 0
@@ -133,10 +160,11 @@ addressFromBech32 = _addressFromBech32 maybeFfiHelper
 
 addressPaymentCred :: Address -> Maybe StakeCredential
 addressPaymentCred addr =
-  (baseAddressPaymentCred <$> baseAddressFromAddress addr) <|>
-  (rewardAddressPaymentCred <$> rewardAddressFromAddress addr) <|>
-  (pointerAddressPaymentCred <$> pointerAddressFromAddress addr) <|>
-  (enterpriseAddressPaymentCred <$> enterpriseAddressFromAddress addr)
+  (baseAddressPaymentCred <$> baseAddressFromAddress addr)
+    <|> (rewardAddressPaymentCred <$> rewardAddressFromAddress addr)
+    <|> (pointerAddressPaymentCred <$> pointerAddressFromAddress addr)
+    <|>
+      (enterpriseAddressPaymentCred <$> enterpriseAddressFromAddress addr)
 
 baseAddressFromAddress :: Address -> Maybe BaseAddress
 baseAddressFromAddress = _baseAddressFromAddress maybeFfiHelper

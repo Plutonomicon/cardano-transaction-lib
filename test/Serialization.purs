@@ -7,7 +7,16 @@ import Effect.Class (liftEffect)
 import Mote (group, test)
 import Serialization (convertTransaction, convertTxOutput, toBytes)
 import Serialization.Types (TransactionHash)
-import Test.Fixtures (txBinaryFixture1, txBinaryFixture2, txBinaryFixture3, txFixture1, txFixture2, txFixture3, txOutputBinaryFixture1, txOutputFixture1)
+import Test.Fixtures
+  ( txBinaryFixture1
+  , txBinaryFixture2
+  , txBinaryFixture3
+  , txFixture1
+  , txFixture2
+  , txFixture3
+  , txOutputBinaryFixture1
+  , txOutputFixture1
+  )
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)

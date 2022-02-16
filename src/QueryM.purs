@@ -384,11 +384,11 @@ messageFoldF msg acc' func = do
 -- Ogmios functions and types to internal types
 --------------------------------------------------------------------------------
 -- JsonWsp.Address is a bech32 string, so wrap to Transaction.Types.Bech32
--- | Converts an JsonWsp.Address to (internal) Address
-ogmiosAddressToAddress :: JsonWsp.Address -> (Maybe Address)
+-- | Converts an JsonWsp.Address (bech32string) to Address
+ogmiosAddressToAddress :: JsonWsp.Address -> Maybe Address
 ogmiosAddressToAddress = addressFromBech32
 
--- | Converts an (internal) Address to JsonWsp.Address
+-- | Converts an (internal) Address to JsonWsp.Address (bech32string)
 addressToOgmiosAddress :: Address -> JsonWsp.Address
 addressToOgmiosAddress = addressBech32
 
@@ -405,13 +405,14 @@ utxosAt = addressToOgmiosAddress >>> getUtxos
     let
       out' :: Array (Maybe Transaction.TransactionInput /\ Maybe Transaction.TransactionOutput)
       out' = Map.toUnfoldable utxoQueryResult
-          <#> bimap
-            txOutRefToTransactionInput
-            ogmiosTxOutToTransactionOutput
+        <#> bimap
+          txOutRefToTransactionInput
+          ogmiosTxOutToTransactionOutput
+
       out :: Maybe (Array (Transaction.TransactionInput /\ Transaction.TransactionOutput))
       out = out' <#> bisequence # sequence
-    in (wrap <<< Map.fromFoldable) <$> out
-
+    in
+      (wrap <<< Map.fromFoldable) <$> out
 
 -- I think txId is a hexadecimal encoding.
 -- | Converts an Ogmios TxOutRef to (internal) TransactionInput
@@ -430,8 +431,8 @@ txOutRefToTransactionInput { txId, index } = do
 ogmiosTxOutToTransactionOutput
   :: JsonWsp.OgmiosTxOut
   -> Maybe Transaction.TransactionOutput
-ogmiosTxOutToTransactionOutput { address: address'', value, datum } = do
-  address' <- ogmiosAddressToAddress address''
+ogmiosTxOutToTransactionOutput { address, value, datum } = do
+  address' <- ogmiosAddressToAddress address
   pure $ wrap
     { address: address'
     , amount: value

@@ -18,6 +18,7 @@ module BalanceTx
   ) where
 
 import Prelude
+
 import Data.Array ((\\), findIndex, modifyAt)
 import Data.Array as Array
 import Data.Bifunctor (lmap, rmap)
@@ -49,6 +50,11 @@ import QueryM
   , signTransaction
   , utxosAt
   )
+import Serialization.Address
+  ( Address
+  , addressPaymentCred
+  , withStakeCredential
+  )
 import Types.Transaction
   ( DataHash
   , Transaction(Transaction)
@@ -58,12 +64,7 @@ import Types.Transaction
   , Utxo
   )
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Types.UnbalancedTransaction
-  ( UnbalancedTx(UnbalancedTx)
-  , utxoIndexToUtxo
-  )
-import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
-import Helpers (explain)
+import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), utxoIndexToUtxo)
 import Types.Value
   ( filterNonAda
   , geq
@@ -632,14 +633,13 @@ getPublicKeyTransactionInput
   :: TransactionInput /\ TransactionOutput
   -> Either GetPublicKeyTransactionInputError TransactionInput
 getPublicKeyTransactionInput (txOutRef /\ txOut) =
-  explain CannotConvertScriptOutputToTxInput $ do
+  note CannotConvertScriptOutputToTxInput $ do
     paymentCred <- unwrap txOut # (_.address >>> addressPaymentCred)
     -- TEST ME: using StakeCredential to determine whether wallet or script
     paymentCred # withStakeCredential
       { onKeyHash: const $ pure txOutRef
       , onScriptHash: const Nothing
       }
-
 
 balanceTxIns :: Utxo -> BigInt -> TxBody -> Either BalanceTxError TxBody
 balanceTxIns utxos fees txbody =

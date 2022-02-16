@@ -13,13 +13,28 @@ import TestM (TestPlanM)
 import Untagged.Union (asOneOf)
 
 import Deserialization.BigNum (bigNumToBigInt)
-import Deserialization.UnspentOutput (convertUnspentOutput, mkTransactionUnspentOutput, newTransactionUnspentOutputFromBytes)
+import Deserialization.UnspentOutput
+  ( convertUnspentOutput
+  , mkTransactionUnspentOutput
+  , newTransactionUnspentOutputFromBytes
+  )
 import Deserialization.WitnessSet (deserializeWitnessSet, convertWitnessSet)
 import Serialization as Serialization
 import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.Types (TransactionUnspentOutput)
 import Serialization.WitnessSet as SW
-import Test.Fixtures (txInputFixture1, txOutputFixture1, utxoFixture1, utxoFixture1', witnessSetFixture1, witnessSetFixture2, witnessSetFixture2Value, witnessSetFixture3, witnessSetFixture3Value, witnessSetFixture4)
+import Test.Fixtures
+  ( txInputFixture1
+  , txOutputFixture1
+  , utxoFixture1
+  , utxoFixture1'
+  , witnessSetFixture1
+  , witnessSetFixture2
+  , witnessSetFixture2Value
+  , witnessSetFixture3
+  , witnessSetFixture3Value
+  , witnessSetFixture4
+  )
 import Test.Utils (errMaybe)
 import Types.Transaction (TransactionInput, TransactionOutput) as T
 import Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput)) as T
