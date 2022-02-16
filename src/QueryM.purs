@@ -59,7 +59,7 @@ import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.Value (Coin(Coin))
 import Untagged.Union (asOneOf)
-import Wallet (Wallet(Nami))
+import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -134,22 +134,25 @@ allowError func = func <<< Right
 
 getWalletAddress :: QueryM (Maybe Transaction.Address)
 getWalletAddress = withMWalletAff $
-  \(Nami nami) -> nami.getWalletAddress =<< liftEffect (Ref.read nami.connection)
+  \(Nami nami) -> nami.getWalletAddress =<< readNamiConnection nami
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
 getWalletCollateral = withMWalletAff $
-  \(Nami nami) -> nami.getCollateral =<< liftEffect (Ref.read nami.connection)
+  \(Nami nami) -> nami.getCollateral =<< readNamiConnection nami
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
 signTransaction tx = withMWalletAff $
-  \(Nami nami) -> flip nami.signTx tx =<< liftEffect (Ref.read nami.connection)
+  \(Nami nami) -> flip nami.signTx tx =<< readNamiConnection nami
 
 withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
 withMWalletAff act = asks _.wallet >>= case _ of
   Just wallet -> liftAff $ act wallet
   Nothing -> pure Nothing
+
+readNamiConnection :: NamiWallet -> Aff NamiConnection
+readNamiConnection = liftEffect <<< Ref.read <<< _.connection
 
 -- HTTP Haskell server and related
 --------------------------------------------------------------------------------
