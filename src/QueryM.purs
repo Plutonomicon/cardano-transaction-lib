@@ -19,6 +19,7 @@ module QueryM
   , mkServerUrl
   , ogmiosAddressToAddress
   , signTransaction
+  , submitTransaction
   , utxosAt
   ) where
 
@@ -144,6 +145,11 @@ signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
 signTransaction tx = withMWalletAff $
   \(Nami nami) -> flip nami.signTx tx =<< readNamiConnection nami
+
+submitTransaction
+  :: Transaction.Transaction -> QueryM (Maybe Transaction.TransactionHash)
+submitTransaction tx = withMWalletAff $
+  \(Nami nami) -> flip nami.submitTx tx =<< readNamiConnection nami
 
 withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
