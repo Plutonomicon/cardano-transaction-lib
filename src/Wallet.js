@@ -13,3 +13,6 @@ exports._getNamiCollateral = (nami) => () =>
 
 // _signTxNami :: String -> NamiConnection -> Effect (Promise String)
 exports._signTxNami = (txHex) => (nami) => () => nami.signTx(txHex);
+
+// _submitTxNami :: String -> NamiConnection -> Effect (Promise String)
+exports._submitTxNami = (txHex) => (nami) => () => nami.submitTx(txHex);
