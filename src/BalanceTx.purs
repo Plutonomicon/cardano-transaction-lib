@@ -18,7 +18,6 @@ module BalanceTx
   ) where
 
 import Prelude
-
 import Data.Array ((\\), findIndex, modifyAt)
 import Data.Array as Array
 import Data.Bifunctor (lmap, rmap)
@@ -33,14 +32,53 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
-import Helpers (explain)
-import ProtocolParametersAlonzo (adaOnlyWords, coinSize, lovelacePerUTxOWord, pidSize, protocolParamUTxOCostPerWord, utxoEntrySizeWithoutVal)
-import QueryM (FeeEstimateError, QueryM, calculateMinFee, getWalletAddress, getWalletCollateral, signTransaction, utxosAt)
-import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
-import Types.Transaction (DataHash, Transaction(Transaction), TransactionInput, TransactionOutput(TransactionOutput), TxBody(TxBody), Utxo)
+import ProtocolParametersAlonzo
+  ( adaOnlyWords
+  , coinSize
+  , lovelacePerUTxOWord
+  , pidSize
+  , protocolParamUTxOCostPerWord
+  , utxoEntrySizeWithoutVal
+  )
+import QueryM
+  ( FeeEstimateError
+  , QueryM
+  , calculateMinFee
+  , getWalletAddress
+  , getWalletCollateral
+  , signTransaction
+  , utxosAt
+  )
+import Types.Transaction
+  ( DataHash
+  , Transaction(Transaction)
+  , TransactionInput
+  , TransactionOutput(TransactionOutput)
+  , TxBody(TxBody)
+  , Utxo
+  )
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Types.UnbalancedTransaction (UnbalancedTx(..), utxoIndexToUtxo)
-import Types.Value (filterNonAda, geq, getLovelace, lovelaceValueOf, isAdaOnly, isPos, isZero, minus, numCurrencySymbols, numTokenNames, sumTokenNameLengths, valueToCoin, Value)
+import Types.UnbalancedTransaction
+  ( UnbalancedTx(UnbalancedTx)
+  , utxoIndexToUtxo
+  )
+import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
+import Helpers (explain)
+import Types.Value
+  ( filterNonAda
+  , geq
+  , getLovelace
+  , lovelaceValueOf
+  , isAdaOnly
+  , isPos
+  , isZero
+  , minus
+  , numCurrencySymbols
+  , numTokenNames
+  , sumTokenNameLengths
+  , valueToCoin
+  , Value
+  )
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs

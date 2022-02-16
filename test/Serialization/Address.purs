@@ -4,46 +4,11 @@ import Prelude
 
 import Data.Maybe (Maybe, isNothing)
 import Data.Newtype (wrap)
+import Data.Typelevel.Undefined (undefined)
 import Data.UInt (fromInt)
-import Serialization.Address
-  ( addressBech32
-  , addressBytes
-  , addressFromBech32
-  , addressFromBytes
-  , addressNetworkId
-  , baseAddressDelegationCred
-  , baseAddressFromAddress
-  , baseAddressPaymentCred
-  , baseAddressToAddress
-  , enterpriseAddress
-  , enterpriseAddressFromAddress
-  , enterpriseAddressPaymentCred
-  , enterpriseAddressToAddress
-  , keyHashCredential
-  , mainnetId
-  , pointerAddress
-  , pointerAddressFromAddress
-  , pointerAddressPaymentCred
-  , pointerAddressStakePointer
-  , pointerAddressToAddress
-  , pubKeyAddress
-  , rewardAddress
-  , rewardAddressFromAddress
-  , rewardAddressPaymentCred
-  , rewardAddressToAddress
-  , scriptHashCredential
-  , stakeCredentialFromBytes
-  , stakeCredentialToBytes
-  , stakeCredentialToKeyHash
-  , stakeCredentialToScriptHash
-  , testnetId
-  )
-import Serialization.Hash
-  ( Ed25519KeyHash
-  , ScriptHash
-  , ed25519KeyHashFromBech32
-  , scriptHashFromBytes
-  )
+import Mote (group)
+import Serialization.Address (addressBech32, addressBytes, addressFromBech32, addressFromBytes, addressNetworkId, baseAddressDelegationCred, baseAddressFromAddress, baseAddressPaymentCred, baseAddressToAddress, enterpriseAddress, enterpriseAddressFromAddress, enterpriseAddressPaymentCred, enterpriseAddressToAddress, keyHashCredential, mainnetId, pointerAddress, pointerAddressFromAddress, pointerAddressPaymentCred, pointerAddressStakePointer, pointerAddressToAddress, pubKeyAddress, rewardAddress, rewardAddressFromAddress, rewardAddressPaymentCred, rewardAddressToAddress, scriptHashCredential, stakeCredentialFromBytes, stakeCredentialToBytes, stakeCredentialToKeyHash, stakeCredentialToScriptHash, testnetId)
+import Serialization.Hash (Ed25519KeyHash, ScriptHash, ed25519KeyHashFromBech32, scriptHashFromBytes)
 import Test.Utils (assertTrue_, errMaybe)
 import TestM (TestPlanM)
 import Types.Aliases (Bech32String)
@@ -65,7 +30,7 @@ mScriptHash :: Maybe ScriptHash
 mScriptHash = scriptHashFromBytes $ hexToByteArrayUnsafe scriptHashHex
 
 addressFunctionsTest :: TestPlanM Unit
-addressFunctionsTest = do
+addressFunctionsTest = group "Address tests" $ do
   let bechstr = "addr1qyc0kwu98x23ufhsxjgs5k3h7gktn8v5682qna5amwh2juguztcrc8hjay66es67ctn0jmr9plfmlw37je2s2px4xdssgvxerq"
   addr1 <- errMaybe "addressFromBech32 failed on valid bech32" $ addressFromBech32 bechstr
   assertTrue_ $ bechstr == addressBech32 addr1
@@ -76,7 +41,7 @@ addressFunctionsTest = do
   assertTrue_ $ addressNetworkId addr2 == mainnetId
 
 stakeCredentialTests :: TestPlanM Unit
-stakeCredentialTests = do
+stakeCredentialTests = group "StakeCredential tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
   scrh <- errMaybe "Error scriptHashFromBech32:" mScriptHash
 
@@ -97,7 +62,7 @@ stakeCredentialTests = do
   assertTrue_ $ isNothing $ stakeCredentialToKeyHash schCred2
 
 baseAddressFunctionsTest :: TestPlanM Unit
-baseAddressFunctionsTest = do
+baseAddressFunctionsTest = group "BaseAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
   baddr <- doesNotThrow $ pubKeyAddress mainnetId pkh
   addr <- doesNotThrow $ baseAddressToAddress baddr
@@ -107,7 +72,8 @@ baseAddressFunctionsTest = do
   assertTrue_ $ baseAddressPaymentCred baddr == keyHashCredential pkh
 
 rewardAddressFunctionsTest :: TestPlanM Unit
-rewardAddressFunctionsTest = do
+rewardAddressFunctionsTest =
+  group "RewardAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
   raddr <- doesNotThrow $ rewardAddress { network: testnetId, paymentCred: keyHashCredential pkh }
   addr <- doesNotThrow $ rewardAddressToAddress raddr
@@ -116,7 +82,7 @@ rewardAddressFunctionsTest = do
   assertTrue_ $ rewardAddressPaymentCred raddr == keyHashCredential pkh
 
 enterpriseAddressFunctionsTest :: TestPlanM Unit
-enterpriseAddressFunctionsTest = do
+enterpriseAddressFunctionsTest = group "EnterpriseAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
   eaddr <- doesNotThrow $ enterpriseAddress { network: mainnetId, paymentCred: keyHashCredential pkh }
   addr <- doesNotThrow $ enterpriseAddressToAddress eaddr
@@ -125,7 +91,7 @@ enterpriseAddressFunctionsTest = do
   assertTrue_ $ enterpriseAddressPaymentCred eaddr == keyHashCredential pkh
 
 pointerAddressFunctionsTest :: TestPlanM Unit
-pointerAddressFunctionsTest = do
+pointerAddressFunctionsTest = group "PointerAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
   let pointer = { slot: wrap (fromInt (-2147483648)), certIx: wrap (fromInt 20), txIx: wrap (fromInt 120) }
   paddr <- doesNotThrow $ pointerAddress { network: mainnetId, paymentCred: keyHashCredential pkh, stakePointer: pointer }
@@ -137,16 +103,7 @@ pointerAddressFunctionsTest = do
   assertTrue_ $ pointerAddressStakePointer paddr == pointer
 
 byronAddressFunctionsTest :: TestPlanM Unit
-byronAddressFunctionsTest = do
-  pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
-  let pointer = { slot: wrap (fromInt (-2147483648)), certIx: wrap (fromInt 20), txIx: wrap (fromInt 120) }
-  paddr <- doesNotThrow $ pointerAddress { network: mainnetId, paymentCred: keyHashCredential pkh, stakePointer: pointer }
-  addr <- doesNotThrow $ pointerAddressToAddress paddr
-  paddr2 <- errMaybe "pointerAddressFromAddress failed on valid pointer address" $ pointerAddressFromAddress addr
-  assertTrue_ $ paddr2 == paddr
-  assertTrue_ $ pointerAddressPaymentCred paddr == keyHashCredential pkh
-
-  assertTrue_ $ pointerAddressStakePointer paddr == pointer
+byronAddressFunctionsTest = group "ByronAddress tests" $ undefined
 
 suite :: TestPlanM Unit
 suite = do

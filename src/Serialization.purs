@@ -3,7 +3,6 @@ module Serialization
   , convertBigInt
   , convertTxInput
   , convertTxOutput
-  , newAssetName
   , toBytes
   , newTransactionUnspentOutputFromBytes
   , newTransactionWitnessSetFromBytes
@@ -18,7 +17,7 @@ import Data.Traversable (traverse_, for_)
 import Data.UInt (UInt)
 import Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Effect (Effect)
-import Helpers (errorOnNothing)
+import Helpers (explainM)
 import Serialization.Address (Address)
 import Serialization.Hash (Ed25519KeyHash, ScriptHash, scriptHashFromBytes)
 import Serialization.Types (AssetName, Assets, AuxiliaryData, BigNum, DataHash, Ed25519Signature, MultiAsset, PlutusData, PlutusScript, PlutusScripts, PublicKey, Transaction, TransactionBody, TransactionHash, TransactionInput, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionUnspentOutput, TransactionWitnessSet, Value, Vkey, Vkeywitness, Vkeywitnesses)
@@ -157,10 +156,8 @@ convertValue val = do
   multiasset <- newMultiAsset
   forWithIndex_ m \scriptHashBytes' values -> do
     let mScripthash = scriptHashFromBytes $ Value.getCurrencySymbol scriptHashBytes'
+    scripthash <- explainM "scriptHashFromBytes failed while converting value" mScripthash
     assets <- newAssets
-
-    scripthash <- errorOnNothing mScripthash
-
     forWithIndex_ values \tokenName' bigIntValue -> do
       let tokenName = Value.getTokenName tokenName'
       assetName <- newAssetName tokenName

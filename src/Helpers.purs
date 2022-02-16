@@ -1,4 +1,4 @@
-module Helpers (explain, parseJsonStringifyNumbers, jsonTurnNumbersToStrings, errorOnNothing) where
+module Helpers (explain, explainM, parseJsonStringifyNumbers, jsonTurnNumbersToStrings) where
 
 import Prelude
 
@@ -20,13 +20,12 @@ parseJsonStringifyNumbers s = do
   -- valid json ensured at this point
   parseJson $ jsonTurnNumbersToStrings s
 
-errorOnNothing :: forall a. Maybe a -> Effect a
-errorOnNothing = case _ of
-  Nothing -> throw "errorOnNothing"
-  Just x -> pure x
-
-
 explain :: forall a e. e -> Maybe a -> Either e a
 explain e = case _ of
   Nothing -> Left e
+  Just x -> pure x
+
+explainM :: forall a. String -> Maybe a -> Effect a
+explainM e = case _ of
+  Nothing -> throw e
   Just x -> pure x
