@@ -104,7 +104,7 @@ instance semigroupTxBody :: Semigroup TxBody where
     , collateral: lift2 union txB.collateral txB'.collateral
     , required_signers: lift2 union txB.required_signers txB'.required_signers
     -- Would we prefer that mainnet takes precedence over testnet so that one occurence of mainnet fixes it forever?
-    -- That could be a bit too restrictive.
+    -- mainnet taking precedence could be a bit too restrictive.
     , network_id: txB.network_id <<>> txB'.network_id
     }
 
@@ -485,7 +485,7 @@ derive instance newtypeTransactionMetadatumLabel :: Newtype TransactionMetadatum
 
 derive newtype instance eqTransactionMetadatumLabel :: Eq TransactionMetadatumLabel
 
--- Hashable requires a = b implies hash a = hash b so I think losing
+-- Hashable requires a = b implies hash a = hash b so I think losing precision might be okay?
 instance hashableTransactionMetadatumLabel :: Hashable TransactionMetadatumLabel where
   hash (TransactionMetadatumLabel bi) = hash $ toNumber bi
 
