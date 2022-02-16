@@ -36,7 +36,8 @@ newtype Transaction = Transaction
 derive instance newtypeTransaction :: Newtype Transaction _
 
 -- Semigroup for Transaction only appends transactions that are both valid,
--- if both are false, take the rightmost.
+-- if both are false, take the rightmost. I'm not sure if this is the behaviour
+-- we actually want. What determines if something "is_valid" or not?
 instance semigroupTransaction :: Semigroup Transaction where
   append (Transaction tx) (Transaction tx') =
     Transaction
