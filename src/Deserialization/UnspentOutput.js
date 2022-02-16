@@ -1,4 +1,4 @@
-/* global require exports */
+/* global require exports BROWSER_RUNTIME */
 
 var lib;
 if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
