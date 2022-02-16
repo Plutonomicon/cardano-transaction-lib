@@ -2,11 +2,17 @@ module Types.Transaction where
 
 import Prelude
 
-import Data.BigInt (BigInt)
+import Control.Apply (lift2)
+import Data.Array (union)
+import Data.BigInt (BigInt, toNumber)
 import Data.Generic.Rep (class Generic)
-import Data.HashMap (HashMap)
+import Data.Hashable (class Hashable, hash)
+import Data.HashMap (HashMap, empty)
+import Data.HashMap (unionWith) as HashMap
 import Data.Map (Map)
+import Data.Map (unionWith) as Map
 import Data.Maybe (Maybe(Nothing))
+import Data.Maybe.Last (Last(Last))
 import Data.Newtype (class Newtype)
 import Data.Rational (Rational)
 import Data.Show.Generic (genericShow)
@@ -29,6 +35,30 @@ newtype Transaction = Transaction
 
 derive instance newtypeTransaction :: Newtype Transaction _
 
+-- Semigroup for Transaction only appends transactions that are both valid,
+-- if both are false, take the rightmost.
+instance semigroupTransaction :: Semigroup Transaction where
+  append (Transaction tx) (Transaction tx') =
+    Transaction
+      if tx.is_valid then
+        if tx'.is_valid then
+          { body: tx.body <> tx'.body
+          , witness_set: tx.witness_set <> tx'.witness_set
+          , is_valid: true
+          , auxiliary_data: tx.auxiliary_data <> tx'.auxiliary_data
+          }
+        else tx
+      else if tx'.is_valid then tx'
+      else tx' -- default to rightmost if both false.
+
+instance monoidTransaction :: Monoid Transaction where
+  mempty = Transaction
+    { body: mempty
+    , witness_set: mempty
+    , is_valid: false
+    , auxiliary_data: Nothing
+    }
+
 newtype TxBody = TxBody
   { inputs :: Array TransactionInput
   , outputs :: Array TransactionOutput
@@ -49,20 +79,91 @@ newtype TxBody = TxBody
 derive instance newtypeTxBody :: Newtype TxBody _
 derive newtype instance eqTxBody :: Eq TxBody
 
+instance semigroupTxBody :: Semigroup TxBody where
+  append (TxBody txB) (TxBody txB') = TxBody
+    { inputs: txB.inputs `union` txB'.inputs
+    , outputs: txB.outputs `union` txB'.outputs
+    , fee: txB.fee <> txB'.fee
+    -- Slots add (in Maybe context), is this correct? Do we want First or Last? Maybe Min or Max?
+    , ttl: txB.ttl <> txB'.ttl
+    , certs: lift2 union txB.certs txB'.certs
+    , withdrawals: lift2 appendMap txB.withdrawals txB'.withdrawals
+    -- Use the Last for update, do we want something more sophisicated like latest/max Epoch?
+    -- I don't think we want Semigroup on Epoch and ProtocolParamUpdate do we?
+    -- Should we be using these protocol parameters in our logic?
+    , update: txB.update <<>> txB'.update
+    -- Don't use String newtype to just append strings, presumably we don't want to just append hashes.
+    , auxiliary_data_hash: txB.auxiliary_data_hash <<>> txB'.auxiliary_data_hash
+    -- Slots add, same as ttl. Do we want First or Last? Maybe Min or Max.
+    , validity_start_interval:
+        txB.validity_start_interval <> txB'.validity_start_interval
+    , mint: txB.mint <> txB'.mint
+    -- Don't use String newtype to just append strings, presumably we don't want to just append hashes.
+    , script_data_hash: txB.script_data_hash <<>> txB'.script_data_hash
+    , collateral: lift2 union txB.collateral txB'.collateral
+    , required_signers: lift2 union txB.required_signers txB'.required_signers
+    -- Would we prefer that mainnet takes precedence over testnet so that one occurence of mainnet fixes it forever?
+    -- That could be a bit too restrictive.
+    , network_id: txB.network_id <<>> txB'.network_id
+    }
+
+instance monoidTxBody :: Monoid TxBody where
+  mempty = TxBody
+    { inputs: mempty
+    , outputs: mempty
+    , fee: mempty
+    , ttl: Nothing
+    , certs: Nothing
+    , withdrawals: Nothing
+    , update: Nothing
+    , auxiliary_data_hash: Nothing
+    , validity_start_interval: Nothing
+    , mint: Nothing
+    , script_data_hash: Nothing
+    , collateral: Nothing
+    , required_signers: Nothing
+    , network_id: Nothing
+    }
+
+-- We could pick First but Last allows for convenient transforming later in the code.
+appendLastMaybe :: forall (a :: Type). Maybe a -> Maybe a -> Maybe a
+appendLastMaybe m m' = Last m <> Last m' # \(Last m'') -> m''
+
+infixr 5 appendLastMaybe as <<>>
+
+-- Provide an append for Maps where the value has as Semigroup instance
+appendMap
+  :: forall (k :: Type) (v :: Type)
+   . Ord k
+  => Semigroup v
+  => Map k v
+  -> Map k v
+  -> Map k v
+appendMap = Map.unionWith (<>)
+
 newtype ScriptDataHash = ScriptDataHash String
 
 derive instance newtypeScriptDataHash :: Newtype ScriptDataHash _
 derive newtype instance eqScriptDataHash :: Eq ScriptDataHash
+-- I think these are a bad idea as we don't want to just append Strings for a hash
+-- do we? Maybe Rightmost (Last) would make sense?
+-- derive newtype instance semigroupScriptDataHash :: Semigroup ScriptDataHash
+-- derive newtype instance monoidScriptDataHash :: Monoid ScriptDataHash
 
 newtype Mint = Mint Value
 
 derive instance newtypeMint :: Newtype Mint _
 derive newtype instance eqMint :: Eq Mint
+derive newtype instance semigroupMint :: Semigroup Mint
+derive newtype instance monoidMint :: Monoid Mint
 
 newtype AuxiliaryDataHash = AuxiliaryDataHash String
 
 derive instance newtypeAuxiliaryDataHash :: Newtype AuxiliaryDataHash _
 derive newtype instance eqAuxiliaryDataHash :: Eq AuxiliaryDataHash
+-- -- Similar here, do we want First or Last instead?
+-- derive newtype instance semigroupAuxiliaryDataHash :: Semigroup AuxiliaryDataHash
+-- derive newtype instance monoidAuxiliaryDataHash :: Monoid AuxiliaryDataHash
 
 type Update =
   { proposed_protocol_parameter_updates :: ProposedProtocolParameterUpdates
@@ -214,15 +315,26 @@ derive newtype instance Eq TransactionWitnessSet
 instance Show TransactionWitnessSet where
   show = genericShow
 
-emptyTransactionWitnessSet :: TransactionWitnessSet
-emptyTransactionWitnessSet = TransactionWitnessSet
-  { vkeys: Nothing
-  , native_scripts: Nothing
-  , bootstraps: Nothing
-  , plutus_scripts: Nothing
-  , plutus_data: Nothing
-  , redeemers: Nothing
-  }
+instance semigroupTransactionWitnessSet :: Semigroup TransactionWitnessSet where
+  append (TransactionWitnessSet tws) (TransactionWitnessSet tws') =
+    TransactionWitnessSet
+      { vkeys: lift2 union tws.vkeys tws'.vkeys
+      , native_scripts: lift2 union tws.native_scripts tws'.native_scripts
+      , bootstraps: lift2 union tws.bootstraps tws'.bootstraps
+      , plutus_scripts: lift2 union tws.plutus_scripts tws'.plutus_scripts
+      , plutus_data: lift2 union tws.plutus_data tws'.plutus_data
+      , redeemers: lift2 union tws.redeemers tws'.redeemers
+      }
+
+instance monoidTransactionWitnessSet :: Monoid TransactionWitnessSet where
+  mempty = TransactionWitnessSet
+    { vkeys: Nothing
+    , native_scripts: Nothing
+    , bootstraps: Nothing
+    , plutus_scripts: Nothing
+    , plutus_data: Nothing
+    , redeemers: Nothing
+    }
 
 type BootstrapWitness =
   { vkey :: Vkey
@@ -315,11 +427,28 @@ derive newtype instance Eq Redeemer
 instance Show Redeemer where
   show = genericShow
 
-type AuxiliaryData =
+newtype AuxiliaryData = AuxiliaryData
   { metadata :: Maybe GeneralTransactionMetadata
   , native_scripts :: Maybe (Array NativeScript)
   , plutus_scripts :: Maybe (Array PlutusScript)
   }
+
+derive newtype instance eqAuxiliaryData :: Eq AuxiliaryData
+
+instance semigroupAuxiliaryData :: Semigroup AuxiliaryData where
+  append (AuxiliaryData ad) (AuxiliaryData ad') =
+    AuxiliaryData
+      { metadata: ad.metadata <> ad'.metadata
+      , native_scripts: lift2 union ad.native_scripts ad'.native_scripts
+      , plutus_scripts: lift2 union ad.plutus_scripts ad'.plutus_scripts
+      }
+
+instance monoidAuxiliaryData :: Monoid AuxiliaryData where
+  mempty = AuxiliaryData
+    { metadata: Nothing
+    , native_scripts: Nothing
+    , plutus_scripts: Nothing
+    }
 
 newtype GeneralTransactionMetadata =
   GeneralTransactionMetadata (HashMap TransactionMetadatumLabel TransactionMetadatum)
@@ -328,11 +457,36 @@ derive instance newtypeGeneralTransactionMetadata :: Newtype GeneralTransactionM
 
 derive newtype instance eqGeneralTransactionMetadata :: Eq GeneralTransactionMetadata
 
+-- This Semigroup instance simply takes the Last value for duplicate keys
+-- to avoid a Semigroup instance for TransactionMetadatum.
+-- Do we want to avoid a Semigroup instance for TransactionMetadatum? Recursion
+-- is fine but how to combine Text with Bytes for example? One would have to take
+-- precedence and replace the other.
+instance semigroupGeneralTransactionMetadata :: Semigroup GeneralTransactionMetadata where
+  append (GeneralTransactionMetadata hm) (GeneralTransactionMetadata hm') =
+    GeneralTransactionMetadata $ hm `appendRightHashMap` hm'
+
+instance monoidGeneralTransactionMetadata :: Monoid GeneralTransactionMetadata where
+  mempty = GeneralTransactionMetadata empty
+
+-- Provide an append for HashMaps where we take the rightmost value
+appendRightHashMap
+  :: forall (k :: Type) (v :: Type)
+   . Hashable k
+  => HashMap k v
+  -> HashMap k v
+  -> HashMap k v
+appendRightHashMap = HashMap.unionWith (flip const)
+
 newtype TransactionMetadatumLabel = TransactionMetadatumLabel BigInt
 
 derive instance newtypeTransactionMetadatumLabel :: Newtype TransactionMetadatumLabel _
 
 derive newtype instance eqTransactionMetadatumLabel :: Eq TransactionMetadatumLabel
+
+-- Hashable requires a = b implies hash a = hash b so I think losing
+instance hashableTransactionMetadatumLabel :: Hashable TransactionMetadatumLabel where
+  hash (TransactionMetadatumLabel bi) = hash $ toNumber bi
 
 data TransactionMetadatum
   = MetadataMap (HashMap TransactionMetadatum TransactionMetadatum)
@@ -414,6 +568,13 @@ newtype Slot = Slot BigInt
 
 derive instance newtypeSlot :: Newtype Slot _
 derive newtype instance eqSlot :: Eq Slot
+
+-- Is this really what we want?
+instance semigroupSlot :: Semigroup Slot where
+  append (Slot s1) (Slot s2) = Slot $ s1 + s2
+
+instance monoidSlot :: Monoid Slot where
+  mempty = Slot zero
 
 newtype Address = Address
   { "AddrType" :: BaseAddress
