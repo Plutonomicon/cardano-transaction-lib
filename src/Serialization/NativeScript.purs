@@ -1,10 +1,13 @@
-module Serialization.NativeScript where
+module Serialization.NativeScript
+  ( convertNativeScript
+  , convertNativeScripts
+  ) where
 
 import Prelude
 
 import Data.BigInt as BigInt
 import Data.Maybe (Maybe)
-import Data.Traversable (for)
+import Data.Traversable (for, traverse)
 
 import Deserialization.FromBytes (fromBytes)
 import FfiHelpers (ContainerHelper, containerHelper)
@@ -15,6 +18,10 @@ import Types.Transaction
   , Slot(Slot)
   ) as T
 
+convertNativeScripts :: Array T.NativeScript -> Maybe NativeScripts
+convertNativeScripts = map packNativeScripts <<< traverse convertNativeScript
+
+-- | Note: unbounded recursion here.
 convertNativeScript :: T.NativeScript -> Maybe NativeScript
 convertNativeScript = case _ of
   T.ScriptPubkey keyHash -> convertScriptPubkey keyHash
@@ -31,17 +38,17 @@ convertScriptPubkey (T.Ed25519KeyHash bytes) = do
 convertScriptAll :: Array T.NativeScript -> Maybe NativeScript
 convertScriptAll nss =
   nativeScript_new_script_all <<< mkScriptAll <<<
-    packNativeScripts containerHelper <$> for nss convertNativeScript
+    packNativeScripts <$> for nss convertNativeScript
 
 convertScriptAny :: Array T.NativeScript -> Maybe NativeScript
 convertScriptAny nss =
   nativeScript_new_script_any <<< mkScriptAny <<<
-    packNativeScripts containerHelper <$> for nss convertNativeScript
+    packNativeScripts <$> for nss convertNativeScript
 
 convertScriptNOfK :: Int -> Array T.NativeScript -> Maybe NativeScript
 convertScriptNOfK n nss =
   nativeScript_new_script_n_of_k <<< mkScriptNOfK n <<<
-    packNativeScripts containerHelper <$> for nss convertNativeScript
+    packNativeScripts <$> for nss convertNativeScript
 
 convertTimelockStart :: T.Slot -> Maybe NativeScript
 convertTimelockStart (T.Slot slot) =
@@ -51,8 +58,11 @@ convertTimelockExpiry :: T.Slot -> Maybe NativeScript
 convertTimelockExpiry (T.Slot slot) =
   nativeScript_new_timelock_expiry <<< mkTimelockExpiry <$> BigInt.toInt slot
 
+packNativeScripts :: Array NativeScript -> NativeScripts
+packNativeScripts = _packNativeScripts containerHelper
+
 foreign import mkScriptPubkey :: Ed25519KeyHash -> ScriptPubkey
-foreign import packNativeScripts :: ContainerHelper -> Array NativeScript -> NativeScripts
+foreign import _packNativeScripts :: ContainerHelper -> Array NativeScript -> NativeScripts
 foreign import mkScriptAll :: NativeScripts -> ScriptAll
 foreign import mkScriptAny :: NativeScripts -> ScriptAny
 foreign import mkScriptNOfK :: Int -> NativeScripts -> ScriptNOfK

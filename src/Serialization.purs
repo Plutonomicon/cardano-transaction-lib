@@ -34,6 +34,7 @@ import Serialization.Types
   , DataHash
   , Ed25519KeyHash
   , MultiAsset
+  , NativeScript
   , PlutusData
   , ScriptHash
   , StakeCredential
@@ -91,6 +92,7 @@ foreign import toBytes
          |+| DataHash
          |+| PlutusData
          |+| TransactionWitnessSet
+         |+| NativeScript
      -- Add more as needed.
      )
   -> ByteArray
