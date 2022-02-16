@@ -1,5 +1,6 @@
 module Serialization.Types where
 
+foreign import data BigInt :: Type
 foreign import data BigNum :: Type
 foreign import data Value :: Type
 foreign import data Address :: Type
@@ -32,7 +33,9 @@ foreign import data NativeScript :: Type
 foreign import data NativeScripts :: Type
 foreign import data BootstrapWitnesses :: Type
 foreign import data BootstrapWitness :: Type
+foreign import data ConstrPlutusData :: Type
 foreign import data PlutusList :: Type
+foreign import data PlutusMap :: Type
 foreign import data PlutusData :: Type
 foreign import data Redeemers :: Type
 foreign import data Redeemer :: Type
