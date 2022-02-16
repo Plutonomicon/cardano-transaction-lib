@@ -134,31 +134,36 @@ allowError func = func <<< Right
 --------------------------------------------------------------------------------
 
 getWalletAddress :: QueryM (Maybe Transaction.Address)
-getWalletAddress = withMWalletAff $
-  \(Nami nami) -> nami.getWalletAddress =<< readNamiConnection nami
+getWalletAddress = withMWalletAff $ case _ of
+  Nami nami -> callNami nami _.getWalletAddress
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
-getWalletCollateral = withMWalletAff $
-  \(Nami nami) -> nami.getCollateral =<< readNamiConnection nami
+getWalletCollateral = withMWalletAff $ case _ of
+  Nami nami -> callNami nami _.getCollateral
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
-signTransaction tx = withMWalletAff $
-  \(Nami nami) -> flip nami.signTx tx =<< readNamiConnection nami
+signTransaction tx = withMWalletAff $ case _ of
+  Nami nami -> callNami nami $ \nw -> flip nw.signTx tx
 
 submitTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.TransactionHash)
-submitTransaction tx = withMWalletAff $
-  \(Nami nami) -> flip nami.submitTx tx =<< readNamiConnection nami
+submitTransaction tx = withMWalletAff $ case _ of
+  Nami nami -> callNami nami $ \nw -> flip nw.submitTx tx
 
 withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
-withMWalletAff act = asks _.wallet >>= case _ of
-  Just wallet -> liftAff $ act wallet
-  Nothing -> pure Nothing
+withMWalletAff act = asks _.wallet >>= maybe (pure Nothing) (liftAff <<< act)
 
-readNamiConnection :: NamiWallet -> Aff NamiConnection
-readNamiConnection = liftEffect <<< Ref.read <<< _.connection
+callNami
+  :: forall (a :: Type)
+   . NamiWallet
+  -> (NamiWallet -> (NamiConnection -> Aff a))
+  -> Aff a
+callNami nami act = act nami =<< readNamiConnection nami
+  where
+  readNamiConnection :: NamiWallet -> Aff NamiConnection
+  readNamiConnection = liftEffect <<< Ref.read <<< _.connection
 
 -- HTTP Haskell server and related
 --------------------------------------------------------------------------------
