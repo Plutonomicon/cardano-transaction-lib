@@ -10,6 +10,7 @@ import Prelude
 import Control.Promise (Promise)
 import Control.Promise as Promise
 import Data.Maybe (Maybe(Just, Nothing))
+import Deserialization.FromBytes (fromBytesEffect)
 import Deserialization.UnspentOutput as Deserialization.UnspentOuput
 import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
@@ -69,7 +70,7 @@ mkNamiWalletAff = do
     Just bytes -> do
       liftEffect $
         Deserialization.UnspentOuput.convertUnspentOutput
-          <$> Serialization.newTransactionUnspentOutputFromBytes bytes
+          <$> fromBytesEffect bytes
 
   signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
   signTx nami tx = do
@@ -82,7 +83,7 @@ mkNamiWalletAff = do
       Nothing -> pure Nothing
       Just bytes -> map (addWitnessSet tx) <$> liftEffect
         ( Deserialization.WitnessSet.convertWitnessSet
-            <$> Serialization.newTransactionWitnessSetFromBytes bytes
+            <$> fromBytesEffect bytes
         )
     where
     addWitnessSet :: Transaction -> TransactionWitnessSet -> Transaction

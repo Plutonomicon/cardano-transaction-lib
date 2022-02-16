@@ -1,6 +1,5 @@
 module Serialization
   ( convertTransaction
-  , convertBigInt
   , convertTxInput
   , convertTxOutput
   , toBytes
@@ -12,18 +11,23 @@ import Prelude
 
 import Data.BigInt as BigInt
 import Data.FoldableWithIndex (forWithIndex_)
+import Data.Maybe (maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse_, for_)
 import Data.UInt (UInt)
 import Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Effect (Effect)
+import Effect.Exception (throw)
 import Helpers (explainM)
 import Serialization.Address (Address)
-import Serialization.Hash (Ed25519KeyHash, ScriptHash, scriptHashFromBytes)
-import Serialization.Types (AssetName, Assets, AuxiliaryData, BigNum, DataHash, Ed25519Signature, MultiAsset, PlutusData, PlutusScript, PlutusScripts, PublicKey, Transaction, TransactionBody, TransactionHash, TransactionInput, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionUnspentOutput, TransactionWitnessSet, Value, Vkey, Vkeywitness, Vkeywitnesses)
+import Serialization.BigNum (bigNumFromBigInt)
+import Serialization.Hash (ScriptHash, scriptHashFromBytes)
+import Serialization.Types (AssetName, Assets, AuxiliaryData, BigNum, DataHash, Ed25519Signature, MultiAsset, PlutusData, PlutusScripts, PublicKey, Transaction, TransactionBody, TransactionHash, TransactionInput, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, Value, Vkey, Vkeywitnesses, PlutusScript, Vkeywitness)
+import Serialization.WitnessSet (convertWitnessSet)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
-import Types.Transaction as T
+import Types.Transaction (Transaction(Transaction), TransactionInput(TransactionInput), TransactionOutput(TransactionOutput), TxBody(TxBody)) as T
+import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.Value as Value
 import Untagged.Union (type (|+|))
 
@@ -64,11 +68,10 @@ foreign import addPlutusScript :: PlutusScripts -> PlutusScript -> Effect Unit
 foreign import toBytes
   :: ( Transaction
          |+| TransactionOutput
-         |+| Ed25519KeyHash
-         |+| ScriptHash
          |+| TransactionHash
          |+| DataHash
          |+| PlutusData
+         |+| TransactionWitnessSet
      -- Add more as needed.
      )
   -> ByteArray
@@ -77,50 +80,10 @@ convertTransaction :: T.Transaction -> Effect Transaction
 convertTransaction (T.Transaction { body: T.TxBody body, witness_set }) = do
   inputs <- convertTxInputs body.inputs
   outputs <- convertTxOutputs body.outputs
-  fee <- convertBigInt (unwrap body.fee)
+  fee <- maybe (throw "Failed to convert fee") pure $ bigNumFromBigInt (unwrap body.fee)
   txBody <- newTransactionBody inputs outputs fee
   ws <- convertWitnessSet witness_set
   newTransaction txBody ws
-
-convertBigInt :: BigInt.BigInt -> Effect BigNum
-convertBigInt = newBigNum <<< BigInt.toString
-
--- Parts that are commented-out are unused & untested, but should compile
-
-convertWitnessSet :: T.TransactionWitnessSet -> Effect TransactionWitnessSet
-convertWitnessSet (T.TransactionWitnessSet _ {- tws -} ) = do
-  ws <- newTransactionWitnessSet
-  -- for_ tws.vkeys
-  --   (convertVkeywitnesses >=> transactionWitnessSetSetVkeys ws)
-  -- for_ tws.plutus_scripts \ps -> do
-  --   scripts <- newPlutusScripts
-  --   for_ ps (convertPlutusScript >=> addPlutusScript scripts)
-  --   txWitnessSetSetPlutusScripts ws scripts
-  pure ws
-
--- convertPlutusScript :: T.PlutusScript -> Effect PlutusScript
--- convertPlutusScript (T.PlutusScript bytes) = do
---   newPlutusScript bytes
-
--- convertVkeywitnesses :: Array T.Vkeywitness -> Effect Vkeywitnesses
--- convertVkeywitnesses arr = do
---   witnesses <- newVkeywitnesses
---   traverse_ (convertVkeywitness >=> addVkeywitness witnesses) arr
---   pure witnesses
-
--- convertVkeywitness :: T.Vkeywitness -> Effect Vkeywitness
--- convertVkeywitness (T.Vkeywitness (vkey /\ signature)) = do
---   vkey' <- convertVkey vkey
---   signature' <- convertEd25519Signature signature
---   newVkeywitness vkey' signature'
-
--- convertEd25519Signature :: T.Ed25519Signature -> Effect Ed25519Signature
--- convertEd25519Signature (T.Ed25519Signature bech32) =
---   newEd25519Signature bech32
-
--- convertVkey :: T.Vkey -> Effect Vkey
--- convertVkey (T.Vkey (T.PublicKey pk)) =
---   newPublicKey pk >>= newVkeyFromPublicKey
 
 convertTxInputs :: Array T.TransactionInput -> Effect TransactionInputs
 convertTxInputs arrInputs = do

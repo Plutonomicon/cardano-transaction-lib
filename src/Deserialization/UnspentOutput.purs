@@ -17,11 +17,11 @@ import Data.Traversable (traverse, for)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt as UInt
-import Deserialization.BigNum (convertBigNum)
+import Deserialization.BigNum (bigNumToBigInt)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization (toBytes)
 import Serialization.Address (Address)
-import Serialization.Hash (ScriptHash)
+import Serialization.Hash (ScriptHash, scriptHashToBytes)
 import Serialization.Types (AssetName, Assets, BigNum, DataHash, MultiAsset, TransactionHash, TransactionInput, TransactionOutput, TransactionUnspentOutput, Value)
 import Types.ByteArray (ByteArray)
 import Types.Transaction (DataHash(DataHash), TransactionHash(TransactionHash), TransactionInput(TransactionInput), TransactionOutput(TransactionOutput)) as T
@@ -55,7 +55,7 @@ convertOutput output = do
 
 convertValue :: Value -> Maybe T.Value
 convertValue value = do
-  coin <- convertBigNum $ getCoin value
+  coin <- bigNumToBigInt $ getCoin value
   -- multiasset is optional
   multiasset <- for (getMultiAsset maybeFfiHelper value) \multiasset -> do
     let
@@ -68,12 +68,12 @@ convertValue value = do
     multiasset'' :: Map T.CurrencySymbol (Map T.TokenName BigNum) <-
       Map.fromFoldable <$>
         ( traverse bisequence $ multiasset' <#>
-            asOneOf >>> toBytes >>> T.mkCurrencySymbol ***
+            scriptHashToBytes >>> T.mkCurrencySymbol ***
               map Map.fromFoldable
                 <<< traverse (ltraverse $ assetNameName >>> T.mkTokenName)
         )
     -- convert BigNum values, possibly failing
-    traverse (traverse convertBigNum) multiasset''
+    traverse (traverse bigNumToBigInt) multiasset''
   pure
     $ T.mkValue (T.Coin coin)
     $ T.mkNonAdaAsset (fromMaybe Map.empty multiasset)
