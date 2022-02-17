@@ -31,8 +31,12 @@ import Data.Map as Map
 import Data.Maybe (fromMaybe, maybe, Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
+import Data.Traversable (traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
+-- import Debug (spy)
+import Effect.Class (class MonadEffect)
+import Effect.Class.Console (log)
 import ProtocolParametersAlonzo
   ( adaOnlyWords
   , coinSize
@@ -262,8 +266,9 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
         Just utxos, Just utxoIndex'' -> do
           let
             -- Combines utxos at the user address and those from any scripts
-            -- involved with the contract in the unbalanced transaction. Don't
-            -- add collateral to this for now.
+            -- involved with the contract in the unbalanced transaction.
+            -- For submitting a tx via Nami, this shouldn't include the collateral.
+            -- This is vital for balancing with Nami tx submission.
             allUtxos :: Utxo
             allUtxos = utxos `Map.union` utxoIndex''
 
@@ -272,6 +277,8 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
             -- for the Ada only collateral. No MinUtxos required. In fact perhaps
             -- this step can be skipped and we can go straight to prebalancer.
             unbalancedCollTx = addTxCollateral unbalancedTx collateral
+          -- Logging Unbalanced Tx with collateral added
+          logTx' "Unbalanced Collaterised Tx " allUtxos unbalancedCollTx
           -- Prebalance tx without fees:
           case prebalanceCollateral zero allUtxos ownAddr unbalancedCollTx of
             Left err -> pure $ Left err
@@ -295,21 +302,15 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
                         returnAdaChange ownAddr allUtxos nonAdaBalancedCollTx
                         >>= case _ of
                           Left err -> pure $ Left err
-                          Right unsignedTx ->
-                            signTransaction unsignedTx
+                          Right unsignedTx -> do
+                            signedTx' <- signTransaction unsignedTx
                               <#> note (SignTxError' $ CouldNotSignTx ownAddr)
-
-  -- Some useful spies for debugging.
-  -- case signedTx' of
-  --   Left err -> pure $ Left err
-  --   Right signedTx -> do
-  --     let signedTxBody = (unwrap signedTx).body
-  --         signedTxOuputs = (unwrap signedTxBody).outputs
-  --         x = spy "signedTxInputVal" (getInputValue allUtxos signedTxBody)
-  --         y = spy "signedTxOutputs" signedTxOuputs
-  --         z = spy "signedTxOutputsVal" (Array.foldMap getAmount signedTxOuputs)
-  --         a = spy "signedTxFees" $ (unwrap signedTxBody).fee
-  --     pure $ pure $ signedTx
+                            -- Some post balancer logging:
+                            case signedTx' of
+                              Left err -> pure $ Left err
+                              Right signedTx -> do
+                                logTx "Post-balancing Tx " allUtxos
+                                  signedTx <#> pure
 
   where
   prebalanceCollateral
@@ -402,6 +403,20 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
 
   feeBuffer :: BigInt
   feeBuffer = fromInt 500000
+
+logTx'
+  :: forall m. MonadEffect m => String -> Utxo -> Transaction -> m Unit
+logTx' msg utxos (Transaction { body: body'@(TxBody body) }) =
+  traverse_ (log <<< (<>) msg)
+    -- Add to this if you to log more
+    [ "Input Value: " <> show (getInputValue utxos body')
+    , "Output Value: " <> show (Array.foldMap getAmount body.outputs)
+    , "Fees: " <> show body.fee
+    ]
+
+logTx
+  :: forall m. MonadEffect m => String -> Utxo -> Transaction -> m Transaction
+logTx msg utxo tx = logTx' msg utxo tx *> pure tx
 
 -- Nami provides a 5 Ada collateral that we should add the tx before balancing
 addTxCollateral :: Transaction -> TransactionUnspentOutput -> Transaction
@@ -715,7 +730,7 @@ collectTxIns originalTxIns utxos value =
   if isSufficient updatedInputs then pure updatedInputs
   else
     Left $ CollectTxInsInsufficientTxInputs $
-      InsufficientTxInputs (Expected value) (Actual $ txInsValue updatedInputs)
+      InsufficientTxInputs (Expected value) (Actual $ txInsValue utxos updatedInputs)
   where
   updatedInputs :: Array TransactionInput
   updatedInputs =
@@ -737,11 +752,11 @@ collectTxIns originalTxIns utxos value =
 
   isSufficient :: Array TransactionInput -> Boolean
   isSufficient txIns' =
-    not (Array.null txIns') && (txInsValue txIns') `geq` value
+    not (Array.null txIns') && (txInsValue utxos txIns') `geq` value
 
-  txInsValue :: Array TransactionInput -> Value
-  txInsValue =
-    Array.foldMap getAmount <<< Array.mapMaybe (flip Map.lookup utxos)
+txInsValue :: Utxo -> Array TransactionInput -> Value
+txInsValue utxos =
+  Array.foldMap getAmount <<< Array.mapMaybe (flip Map.lookup utxos)
 
 utxosToTransactionInput :: Utxo -> Array TransactionInput
 utxosToTransactionInput =
