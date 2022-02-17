@@ -1,5 +1,6 @@
 module Serialization.Types where
 
+foreign import data Bip32PublicKey :: Type
 foreign import data BigNum :: Type
 foreign import data Value :: Type
 foreign import data AuxiliaryData :: Type

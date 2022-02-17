@@ -1,4 +1,9 @@
-const CardanoWasm = require("@ngua/cardano-serialization-lib-nodejs");
+var CardanoWasm;
+if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
+    CardanoWasm = require('@ngua/cardano-serialization-lib-browser');
+} else {
+    CardanoWasm = require('@ngua/cardano-serialization-lib-nodejs');
+}
 
 
 const callClassStaticMaybe = (classname, functionname) => maybe => input => {

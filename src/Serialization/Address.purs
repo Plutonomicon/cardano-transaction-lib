@@ -1,15 +1,96 @@
-module Serialization.Address where
+module Serialization.Address
+  ( Slot(Slot)
+  , TransactionIndex(TransactionIndex)
+  , CertificateIndex(CertificateIndex)
+  , Pointer
+  , Address
+  , BaseAddress
+  , ByronAddress
+  , EnterpriseAddress
+  , PointerAddress
+  , RewardAddress
+  , StakeCredential
+  , addressBytes
+  , addressBech32
+  , addressNetworkId
+  , keyHashCredential
+  , scriptHashCredential
+  , withStakeCredential
+  , stakeCredentialToBytes
+  , baseAddress
+  , baseAddressPaymentCred
+  , baseAddressDelegationCred
+  , baseAddressToAddress
+  , ByronProtocolMagic(ByronProtocolMagic)
+  , NetworkId(NetworkId)
+  , testnetId
+  , mainnetId
+  , pubKeyAddress
+  , scriptAddress
+  , stakeCredentialToKeyHash
+  , stakeCredentialToScriptHash
+  , stakeCredentialFromBytes
+  , addressFromBytes
+  , addressFromBech32
+  , addressPaymentCred
+  , baseAddressFromAddress
+  , baseAddressBytes
+  , baseAddressBech32
+  , baseAddressFromBytes
+  , baseAddressFromBech32
+  , baseAddressNetworkId
+  , byronAddressToBase58
+  , byronAddressFromBase58
+  , byronAddressFromBytes
+  , byronAddressBytes
+  , byronProtocolMagic
+  , byronAddressAttributes
+  , byronAddressNetworkId
+  , byronAddressFromAddress
+  , byronAddressToAddress
+  , byronAddressIsValid
+  , icarusFromKey
+  , enterpriseAddress
+  , enterpriseAddressPaymentCred
+  , enterpriseAddressToAddress
+  , enterpriseAddressFromAddress
+  , enterpriseAddressBytes
+  , enterpriseAddressBech32
+  , enterpriseAddressFromBytes
+  , enterpriseAddressFromBech32
+  , enterpriseAddressNetworkId
+  , pointerAddress
+  , pointerAddressPaymentCred
+  , pointerAddressToAddress
+  , pointerAddressFromAddress
+  , pointerAddressStakePointer
+  , pointerAddressBytes
+  , pointerAddressBech32
+  , pointerAddressFromBytes
+  , pointerAddressFromBech32
+  , pointerAddressNetworkId
+  , rewardAddress
+  , rewardAddressPaymentCred
+  , rewardAddressToAddress
+  , rewardAddressBytes
+  , rewardAddressBech32
+  , rewardAddressFromBytes
+  , rewardAddressFromBech32
+  , rewardAddressNetworkId
+  ) where
 
 import Prelude
 
 import Control.Alt ((<|>))
 import Data.Function (on)
+import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
-import Data.Typelevel.Undefined (undefined)
+import Data.Show.Generic (genericShow)
 import Data.UInt (UInt)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization.Hash (Ed25519KeyHash, ScriptHash)
+import Serialization.Types (Bip32PublicKey)
 import Types.Aliases (Bech32String, Base58String)
 import Types.ByteArray (ByteArray)
 
@@ -17,22 +98,28 @@ newtype Slot = Slot UInt
 
 derive instance Eq Slot
 derive instance Newtype Slot _
-derive newtype instance Show Slot
+derive instance Generic Slot _
+
+instance Show Slot where
+  show = genericShow
 
 newtype TransactionIndex = TransactionIndex UInt
 
 derive instance Eq TransactionIndex
 derive instance Newtype TransactionIndex _
-derive newtype instance Show TransactionIndex
+derive instance Generic TransactionIndex _
+
+instance Show TransactionIndex where
+  show = genericShow
 
 newtype CertificateIndex = CertificateIndex UInt
 
 derive instance Eq CertificateIndex
 derive instance Newtype CertificateIndex _
-derive newtype instance Show CertificateIndex
+derive instance Generic CertificateIndex _
 
--- asssuming
-foreign import data Bip32PublicKey :: Type
+instance Show CertificateIndex where
+  show = genericShow
 
 type Pointer =
   { slot :: Slot
@@ -129,7 +216,10 @@ newtype ByronProtocolMagic = ByronProtocolMagic UInt
 newtype NetworkId = NetworkId Int
 
 derive instance Eq NetworkId
-derive newtype instance Show NetworkId
+derive instance Generic NetworkId _
+
+instance Show NetworkId where
+  show = genericShow
 
 testnetId :: NetworkId
 testnetId = NetworkId 0
