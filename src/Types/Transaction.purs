@@ -45,11 +45,11 @@ instance semigroupTransaction :: Semigroup Transaction where
       , auxiliary_data: txCheck tx.auxiliary_data <> txCheck' tx'.auxiliary_data
       }
     where
-      txCheck :: forall (m :: Type). Monoid m => m -> m
-      txCheck = guard tx.is_valid
+    txCheck :: forall (m :: Type). Monoid m => m -> m
+    txCheck = guard tx.is_valid
 
-      txCheck' :: forall (m :: Type). Monoid m => m -> m
-      txCheck' = guard tx'.is_valid
+    txCheck' :: forall (m :: Type). Monoid m => m -> m
+    txCheck' = guard tx'.is_valid
 
 instance monoidTransaction :: Monoid Transaction where
   mempty = Transaction
