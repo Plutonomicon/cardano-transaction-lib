@@ -100,6 +100,9 @@ instance semigroupTxBody :: Semigroup TxBody where
     , required_signers: lift2 union txB.required_signers txB'.required_signers
     , network_id: txB.network_id <<>> txB'.network_id
     }
+    where
+    lowerbound :: Slot -> Slot -> Slot
+    lowerbound (Slot x) (Slot y) = Slot $ min x y
 
 instance monoidTxBody :: Monoid TxBody where
   mempty = TxBody
@@ -118,9 +121,6 @@ instance monoidTxBody :: Monoid TxBody where
     , required_signers: Nothing
     , network_id: Nothing
     }
-
-lowerbound :: Slot -> Slot -> Slot
-lowerbound (Slot x) (Slot y) = Slot $ min x y
 
 -- We could pick First but Last allows for convenient transforming later in the code.
 appendLastMaybe :: forall (a :: Type). Maybe a -> Maybe a -> Maybe a
