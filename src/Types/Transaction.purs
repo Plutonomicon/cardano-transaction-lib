@@ -13,6 +13,7 @@ import Data.Map (Map)
 import Data.Map (unionWith) as Map
 import Data.Maybe (Maybe(Nothing))
 import Data.Maybe.Last (Last(Last))
+import Data.Monoid (guard)
 import Data.Newtype (class Newtype)
 import Data.Rational (Rational)
 import Data.Show.Generic (genericShow)
@@ -35,28 +36,26 @@ newtype Transaction = Transaction
 
 derive instance newtypeTransaction :: Newtype Transaction _
 
--- Semigroup for Transaction only appends transactions that are both valid,
--- if both are false, take the rightmost. I'm not sure if this is the behaviour
--- we actually want. What determines if something "is_valid" or not?
 instance semigroupTransaction :: Semigroup Transaction where
   append (Transaction tx) (Transaction tx') =
     Transaction
-      if tx.is_valid then
-        if tx'.is_valid then
-          { body: tx.body <> tx'.body
-          , witness_set: tx.witness_set <> tx'.witness_set
-          , is_valid: true
-          , auxiliary_data: tx.auxiliary_data <> tx'.auxiliary_data
-          }
-        else tx
-      else if tx'.is_valid then tx'
-      else tx' -- default to rightmost if both false.
+      { body: txCheck tx.body <> txCheck' tx'.body
+      , witness_set: txCheck tx.witness_set <> txCheck' tx'.witness_set
+      , is_valid: tx.is_valid && tx'.is_valid
+      , auxiliary_data: txCheck tx.auxiliary_data <> txCheck' tx'.auxiliary_data
+      }
+    where
+      txCheck :: forall (m :: Type). Monoid m => m -> m
+      txCheck = guard tx.is_valid
+
+      txCheck' :: forall (m :: Type). Monoid m => m -> m
+      txCheck' = guard tx'.is_valid
 
 instance monoidTransaction :: Monoid Transaction where
   mempty = Transaction
     { body: mempty
     , witness_set: mempty
-    , is_valid: false
+    , is_valid: true
     , auxiliary_data: Nothing
     }
 
@@ -85,26 +84,19 @@ instance semigroupTxBody :: Semigroup TxBody where
     { inputs: txB.inputs `union` txB'.inputs
     , outputs: txB.outputs `union` txB'.outputs
     , fee: txB.fee <> txB'.fee
-    -- Slots add (in Maybe context), is this correct? Do we want First or Last? Maybe Min or Max?
-    , ttl: txB.ttl <> txB'.ttl
+    , ttl: lift2 (\(Slot x) (Slot y) -> Slot $ max x y) txB.ttl txB'.ttl
     , certs: lift2 union txB.certs txB'.certs
     , withdrawals: lift2 appendMap txB.withdrawals txB'.withdrawals
-    -- Use the Last for update, do we want something more sophisicated like latest/max Epoch?
-    -- I don't think we want Semigroup on Epoch and ProtocolParamUpdate do we?
-    -- Should we be using these protocol parameters in our logic?
     , update: txB.update <<>> txB'.update
-    -- Don't use String newtype to just append strings, presumably we don't want to just append hashes.
     , auxiliary_data_hash: txB.auxiliary_data_hash <<>> txB'.auxiliary_data_hash
-    -- Slots add, same as ttl. Do we want First or Last? Maybe Min or Max.
     , validity_start_interval:
-        txB.validity_start_interval <> txB'.validity_start_interval
+        lift2 (\(Slot x) (Slot y) -> Slot $ min x y)
+          txB.validity_start_interval
+          txB'.validity_start_interval
     , mint: txB.mint <> txB'.mint
-    -- Don't use String newtype to just append strings, presumably we don't want to just append hashes.
     , script_data_hash: txB.script_data_hash <<>> txB'.script_data_hash
     , collateral: lift2 union txB.collateral txB'.collateral
     , required_signers: lift2 union txB.required_signers txB'.required_signers
-    -- Would we prefer that mainnet takes precedence over testnet so that one occurence of mainnet fixes it forever?
-    -- mainnet taking precedence could be a bit too restrictive.
     , network_id: txB.network_id <<>> txB'.network_id
     }
 
@@ -146,10 +138,6 @@ newtype ScriptDataHash = ScriptDataHash String
 
 derive instance newtypeScriptDataHash :: Newtype ScriptDataHash _
 derive newtype instance eqScriptDataHash :: Eq ScriptDataHash
--- I think these are a bad idea as we don't want to just append Strings for a hash
--- do we? Maybe Rightmost (Last) would make sense?
--- derive newtype instance semigroupScriptDataHash :: Semigroup ScriptDataHash
--- derive newtype instance monoidScriptDataHash :: Monoid ScriptDataHash
 
 newtype Mint = Mint Value
 
@@ -162,9 +150,6 @@ newtype AuxiliaryDataHash = AuxiliaryDataHash String
 
 derive instance newtypeAuxiliaryDataHash :: Newtype AuxiliaryDataHash _
 derive newtype instance eqAuxiliaryDataHash :: Eq AuxiliaryDataHash
--- -- Similar here, do we want First or Last instead?
--- derive newtype instance semigroupAuxiliaryDataHash :: Semigroup AuxiliaryDataHash
--- derive newtype instance monoidAuxiliaryDataHash :: Monoid AuxiliaryDataHash
 
 type Update =
   { proposed_protocol_parameter_updates :: ProposedProtocolParameterUpdates
@@ -570,7 +555,6 @@ newtype Slot = Slot BigInt
 derive instance newtypeSlot :: Newtype Slot _
 derive newtype instance eqSlot :: Eq Slot
 
--- Is this really what we want?
 instance semigroupSlot :: Semigroup Slot where
   append (Slot s1) (Slot s2) = Slot $ s1 + s2
 
