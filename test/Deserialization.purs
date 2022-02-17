@@ -24,7 +24,26 @@ import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.NativeScript (convertNativeScript) as NSS
 import Serialization.Types (TransactionUnspentOutput)
 import Serialization.WitnessSet as SW
-import Test.Fixtures (addressString1, nativeScriptFixture1, nativeScriptFixture2, nativeScriptFixture3, nativeScriptFixture4, nativeScriptFixture5, nativeScriptFixture6, nativeScriptFixture7, txInputFixture1, txOutputFixture1, utxoFixture1, utxoFixture1', witnessSetFixture1, witnessSetFixture2, witnessSetFixture2Value, witnessSetFixture3, witnessSetFixture3Value, witnessSetFixture4)
+import Test.Fixtures
+  ( addressString1
+  , nativeScriptFixture1
+  , nativeScriptFixture2
+  , nativeScriptFixture3
+  , nativeScriptFixture4
+  , nativeScriptFixture5
+  , nativeScriptFixture6
+  , nativeScriptFixture7
+  , txInputFixture1
+  , txOutputFixture1
+  , utxoFixture1
+  , utxoFixture1'
+  , witnessSetFixture1
+  , witnessSetFixture2
+  , witnessSetFixture2Value
+  , witnessSetFixture3
+  , witnessSetFixture3Value
+  , witnessSetFixture4
+  )
 import Test.Utils (errMaybe)
 import Types.Transaction (Bech32(Bech32), NativeScript(ScriptAny), TransactionInput, TransactionOutput) as T
 import Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput)) as T

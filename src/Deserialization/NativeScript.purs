@@ -11,7 +11,16 @@ import Data.Traversable (traverse)
 
 import Deserialization.Address (convertEd25519KeyHash)
 import FfiHelpers (ContainerHelper, MaybeFfiHelper, containerHelper, maybeFfiHelper)
-import Serialization.Types (Ed25519KeyHash, NativeScript, ScriptAll, ScriptAny, ScriptNOfK, ScriptPubkey, TimelockExpiry, TimelockStart)
+import Serialization.Types
+  ( Ed25519KeyHash
+  , NativeScript
+  , ScriptAll
+  , ScriptAny
+  , ScriptNOfK
+  , ScriptPubkey
+  , TimelockExpiry
+  , TimelockStart
+  )
 import Types.Transaction as T
 
 convertNativeScript :: NativeScript -> Maybe T.NativeScript

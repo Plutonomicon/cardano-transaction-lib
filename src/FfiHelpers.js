@@ -1,5 +1,6 @@
 /* global exports */
 
+// Abstracts away unpacking elements from a monomorphic container.
 const unpack = obj => {
     const res = [];
 
