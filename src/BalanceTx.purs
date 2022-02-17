@@ -404,11 +404,12 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
   feeBuffer :: BigInt
   feeBuffer = fromInt 500000
 
+-- Logging for Transaction type
 logTx'
   :: forall m. MonadEffect m => String -> Utxo -> Transaction -> m Unit
 logTx' msg utxos (Transaction { body: body'@(TxBody body) }) =
   traverse_ (log <<< (<>) msg)
-    -- Add to this if you to log more
+    -- Add to log more:
     [ "Input Value: " <> show (getInputValue utxos body')
     , "Output Value: " <> show (Array.foldMap getAmount body.outputs)
     , "Fees: " <> show body.fee

@@ -410,6 +410,8 @@ utxosAtNami addr = do
   utxos' <- getUtxos $ addressToOgmiosAddress addr
   collateral' <- getWalletCollateral
   -- Nami appear to remove collateral from the utxo set, so we shall do the same.
+  -- This is crucial if we are submitting via Nami. If we decide to submit with
+  -- Ogmios, we can remove this.
   pure do
     utxos <- unwrap <$> utxos'
     collateral <- unwrap <$> collateral'
