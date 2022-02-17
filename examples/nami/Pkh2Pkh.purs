@@ -91,8 +91,9 @@ main = launchAff_ $ do
     }
   liftEffect $ Console.log $ show txId
 
-buildAndSubmit :: QueryM (Maybe TransactionHash)
-buildAndSubmit = submitTransaction =<< buildTransaction
+buildAndSubmit :: QueryM TransactionHash
+buildAndSubmit = mthrow "Failed to submit transaction" $
+  submitTransaction =<< buildTransaction
 
 buildTransaction :: QueryM Transaction
 buildTransaction = either (throw <<< show) pure
