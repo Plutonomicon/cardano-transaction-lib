@@ -29,6 +29,7 @@ module Types.Value
   , mkSingletonNonAdaAsset
   , mkSingletonValue
   , mkTokenName
+  , mkTokenNameTemp
   , mkTokenNames
   , mkValue
   , numCurrencySymbols
@@ -157,6 +158,11 @@ unsafeAdaToken = TokenName mempty
 mkTokenName :: ByteArray -> Maybe TokenName
 mkTokenName byteArr =
   if byteLength byteArr > 0 then pure $ TokenName byteArr else Nothing
+
+-- | Create a TokenName from a ByteArray since TokenName data constructor is not
+-- | exported
+mkTokenNameTemp :: ByteArray -> TokenName
+mkTokenNameTemp byteArr = TokenName byteArr
 
 -- | Creates a Map of TokenName and Big Integers from a Traversable of 2-tuple
 -- | ByteArray and Big Integers with the possibility of failure

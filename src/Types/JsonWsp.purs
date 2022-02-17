@@ -11,21 +11,64 @@ module Types.JsonWsp
   ) where
 
 import Prelude
+
 import Control.Alt ((<|>))
-import Data.Argonaut (class DecodeJson, Json, JsonDecodeError(TypeMismatch), caseJsonArray, caseJsonObject, caseJsonString, getField, decodeJson)
+import Data.Argonaut
+  ( class DecodeJson
+  , Json
+  , JsonDecodeError(..)
+  , caseJsonArray
+  , caseJsonObject
+  , caseJsonString
+  , decodeJson
+  , getField
+  , getFieldOptional'
+  )
 import Data.Array (index)
+import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), hush, note)
-import Data.Generic.Rep (class Generic)
-import Data.Show.Generic (genericShow)
-import Data.Maybe (Maybe)
-import Data.Newtype (wrap)
+import Data.Either
+  ( Either(Left, Right)
+  , hush
+  , note
+  )
 import Data.Foldable (foldl)
+import Data.Generic.Rep (class Generic)
+import Data.Map
+  ( Map
+  , empty
+  , fromFoldableWith
+  , singleton
+  , toUnfoldable
+  , union
+  )
 import Data.Map as Map
+import Data.Maybe
+  ( Maybe(..)
+  , fromMaybe
+  )
+import Data.Newtype (wrap)
+import Data.Show.Generic (genericShow)
+import Data.String
+  ( Pattern(..)
+  , indexOf
+  , splitAt
+  )
+import Data.Traversable (sequence)
+import Data.Tuple (uncurry)
+import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt as UInt
 import Effect (Effect)
 import Foreign.Object (Object)
-import Types.Value (Value, mkValue)
+import Types.ByteArray (hexToByteArray)
+import Types.Value
+  ( CurrencySymbol
+  , TokenName
+  , Value
+  , mkCurrencySymbol
+  , mkTokenNameTemp
+  , mkValue
+  )
 
 -- creates a unique id prefixed by its argument
 foreign import _uniqueId :: String -> Effect String
@@ -153,6 +196,33 @@ parseMirror = caseJsonObject (Left (TypeMismatch "expected object")) $
       pure { step, id }
   )
 
+newtype Assets = Assets (Map CurrencySymbol (Map TokenName BigInt))
+
+instance DecodeJson Assets where
+  decodeJson j = do
+    assets :: Array (String /\ String) <- toUnfoldable <$> decodeJson j
+    let mAssets = Assets <<< fromFoldableWith union <$> (sequence $ uncurry convertAssetQuantity <$> assets)
+    note (UnexpectedValue j) mAssets
+
+    where
+    convertAssetQuantity :: String -> String -> Maybe (CurrencySymbol /\ Map TokenName BigInt)
+    convertAssetQuantity currAndTn quantityStr = do
+
+      let
+        currSymStr /\ tnStr = case indexOf (Pattern ".") currAndTn of
+          Nothing -> currAndTn /\ ""
+          Just ix ->
+            let
+              { before, after } = splitAt ix currAndTn
+            in
+              before /\ after
+
+      currSymb <- mkCurrencySymbol =<< hexToByteArray currSymStr
+      tokenName <- mkTokenNameTemp <$> hexToByteArray tnStr
+      quant <- BigInt.fromString quantityStr
+
+      pure $ currSymb /\ singleton tokenName quant
+
 -- the outer result type for Utxo queries, newtyped so that it can have
 -- appropriate instances to work with `parseJsonWspResponse`
 newtype UtxoQR = UtxoQR UtxoQueryResult
@@ -231,7 +301,5 @@ parseValue :: Object Json -> Either JsonDecodeError Value
 parseValue outer = do
   o <- getField outer "value"
   coins <- parseFieldToBigInt o "coins" <|> Left (TypeMismatch "Expected 'coins' to be an Int or a BigInt")
-  (_assetsJson :: {}) <- getField o "assets"
-  -- assets are currently assumed to be empty
-  -- newtype Value = Value (Map CurrencySymbol (Map TokenName BigInt.BigInt))
-  pure $ mkValue (wrap coins) $ mempty
+  Assets assetsMap <- fromMaybe (Assets empty) <$> getFieldOptional' o "assets"
+  pure $ mkValue (wrap coins) (wrap assetsMap)
