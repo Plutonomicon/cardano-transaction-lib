@@ -185,6 +185,9 @@ instance Eq RewardAddress where
 instance Show RewardAddress where
   show = showVia "RewardAddress" rewardAddressToAddress
 
+instance Ord RewardAddress where
+  compare a a' = compare (rewardAddressBytes a) (rewardAddressBytes a')
+
 foreign import data StakeCredential :: Type
 
 instance Eq StakeCredential where
