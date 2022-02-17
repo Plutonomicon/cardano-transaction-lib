@@ -18,11 +18,12 @@ module BalanceTx
   ) where
 
 import Prelude
+
 import Data.Array ((\\), findIndex, modifyAt)
 import Data.Array as Array
 import Data.Bifunctor (lmap, rmap)
 import Data.BigInt (BigInt, fromInt, quot)
-import Data.Either (Either(Left, Right), either, hush, note)
+import Data.Either (Either(Left, Right), hush, note)
 import Data.Foldable as Foldable
 import Data.Generic.Rep (class Generic)
 import Data.List ((:), List(Nil), partition)
@@ -32,7 +33,6 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
-import Effect.Class (liftEffect)
 import ProtocolParametersAlonzo
   ( adaOnlyWords
   , coinSize
@@ -50,10 +50,13 @@ import QueryM
   , signTransaction
   , utxosAt
   )
-import Types.Transaction
+import Serialization.Address
   ( Address
-  , DataHash
-  , PaymentCredential(PaymentCredentialKey, PaymentCredentialScript)
+  , addressPaymentCred
+  , withStakeCredential
+  )
+import Types.Transaction
+  ( DataHash
   , Transaction(Transaction)
   , TransactionInput
   , TransactionOutput(TransactionOutput)
@@ -61,10 +64,7 @@ import Types.Transaction
   , Utxo
   )
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Types.UnbalancedTransaction
-  ( UnbalancedTx(UnbalancedTx)
-  , utxoIndexToUtxo
-  )
+import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), utxoIndexToUtxo)
 import Types.Value
   ( filterNonAda
   , geq
@@ -252,7 +252,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
       pure $ Left $ GetWalletCollateralError' CouldNotGetNamiCollateral
     Just ownAddr, Just collateral -> do
       utxos' <- map unwrap <$> utxosAt ownAddr
-      utxoIndex' <- liftEffect $ utxoIndexToUtxo utxoIndex
+      let utxoIndex' = utxoIndexToUtxo utxoIndex
       -- Don't need to sequence, can just do as above
       case utxos', utxoIndex' of
         Nothing, _ ->
@@ -266,41 +266,51 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
             -- add collateral to this for now.
             allUtxos :: Utxo
             allUtxos = utxos `Map.union` utxoIndex''
-          -- Add hardcoded Nami 5 Ada and sign before instead of recursively
-          -- signing in loop. Could refactor this part into a separate function.
-          signedUnbalancedTx <-
-            signTransaction (addTxCollateral unbalancedTx collateral)
-              <#> note (SignTxError' $ CouldNotSignTx ownAddr)
-          case signedUnbalancedTx of
+
+            -- After adding collateral, we need to balance the inputs and
+            -- non-Ada outputs before looping, i.e. we need to add input fees
+            -- for the Ada only collateral. No MinUtxos required. In fact perhaps
+            -- this step can be skipped and we can go straight to prebalancer.
+            unbalancedCollTx = addTxCollateral unbalancedTx collateral
+          -- Prebalance tx without fees:
+          case prebalanceCollateral zero allUtxos ownAddr unbalancedCollTx of
             Left err -> pure $ Left err
-            Right sUbTx ->
-              -- After adding collateral, we need to balance the inputs and
-              -- non-Ada outputs before looping, i.e. we need to add input fees
-              -- for the Ada only collateral. No MinUtxos required:
-              -- Alternatively add this functionality back to preBalanceTxBody
-              -- and only call collateral adder initially.
-              -- Balance tx without fees:
-              case prebalanceCollateral zero allUtxos ownAddr sUbTx of
+            Right ubcTx' -> do
+              fees' <- lmap CalculateMinFeeError' <$> calculateMinFee' ubcTx'
+              -- Prebalance tx with fees:
+              let
+                unbalancedCollTx' = fees' >>= \fees ->
+                  prebalanceCollateral
+                    (fees + feeBuffer)
+                    allUtxos
+                    ownAddr
+                    ubcTx'
+              case unbalancedCollTx' of
                 Left err -> pure $ Left err
-                Right sUbTx' -> do
-                  fees' <- lmap CalculateMinFeeError' <$> calculateMinFee' sUbTx'
-                  -- Balance tx with fees:
-                  let
-                    signedCollUnbalancedTx' = fees' >>= \fees ->
-                      prebalanceCollateral
-                        (fees + feeBuffer)
-                        allUtxos
-                        ownAddr
-                        sUbTx'
-                  case signedCollUnbalancedTx' of
+                Right unbalancedCollTx'' ->
+                  loop allUtxos ownAddr [] unbalancedCollTx'' >>= case _ of
                     Left err -> pure $ Left err
-                    Right signedCollUnbalancedTx ->
-                      loop allUtxos ownAddr [] signedCollUnbalancedTx >>=
-                        either
-                          (Left >>> pure)
-                          ( returnAdaChange ownAddr allUtxos
-                              >>> map (lmap ReturnAdaChangeError')
-                          )
+                    Right nonAdaBalancedCollTx ->
+                      lmap ReturnAdaChangeError' <$>
+                        returnAdaChange ownAddr allUtxos nonAdaBalancedCollTx
+                        >>= case _ of
+                          Left err -> pure $ Left err
+                          Right unsignedTx ->
+                            signTransaction unsignedTx
+                              <#> note (SignTxError' $ CouldNotSignTx ownAddr)
+
+  -- Some useful spies for debugging.
+  -- case signedTx' of
+  --   Left err -> pure $ Left err
+  --   Right signedTx -> do
+  --     let signedTxBody = (unwrap signedTx).body
+  --         signedTxOuputs = (unwrap signedTxBody).outputs
+  --         x = spy "signedTxInputVal" (getInputValue allUtxos signedTxBody)
+  --         y = spy "signedTxOutputs" signedTxOuputs
+  --         z = spy "signedTxOutputsVal" (Array.foldMap getAmount signedTxOuputs)
+  --         a = spy "signedTxFees" $ (unwrap signedTxBody).fee
+  --     pure $ pure $ signedTx
+
   where
   prebalanceCollateral
     :: BigInt
@@ -523,13 +533,13 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
                           $ modifyAt
                               0
                               ( \(TransactionOutput o) -> TransactionOutput
-                                  o { amount = lovelaceValueOf returnAda }
+                                  o { amount = lovelaceValueOf returnAda' }
                               )
                           $ _.outputs <<< unwrap
                           $ txBody'
                       pure $
                         wrap
-                          tx { body = wrap txBody { outputs = newOutputs, fee = wrap fees } }
+                          tx { body = wrap txBody { outputs = newOutputs, fee = wrap fees' } }
                     else
                       Left $
                         ReturnAdaChangeError
@@ -633,18 +643,13 @@ getPublicKeyTransactionInput
   :: TransactionInput /\ TransactionOutput
   -> Either GetPublicKeyTransactionInputError TransactionInput
 getPublicKeyTransactionInput (txOutRef /\ txOut) =
-  case txOutPaymentCredentials txOut of
-    -- TEST ME: using PaymentCredentialKey to determine whether wallet or script
-    PaymentCredentialKey _ ->
-      pure txOutRef
-    PaymentCredentialScript _ ->
-      Left CannotConvertScriptOutputToTxInput
-
-addressPaymentCredentials :: Address -> PaymentCredential
-addressPaymentCredentials = _.payment <<< unwrap <<< _."AddrType" <<< unwrap
-
-txOutPaymentCredentials :: TransactionOutput -> PaymentCredential
-txOutPaymentCredentials = addressPaymentCredentials <<< _.address <<< unwrap
+  note CannotConvertScriptOutputToTxInput $ do
+    paymentCred <- unwrap txOut # (_.address >>> addressPaymentCred)
+    -- TEST ME: using StakeCredential to determine whether wallet or script
+    paymentCred # withStakeCredential
+      { onKeyHash: const $ pure txOutRef
+      , onScriptHash: const Nothing
+      }
 
 balanceTxIns :: Utxo -> BigInt -> TxBody -> Either BalanceTxError TxBody
 balanceTxIns utxos fees txbody =
@@ -674,9 +679,17 @@ balanceTxIns' utxos fees (TxBody txBody) = do
   nonMintedValue <- note (BalanceTxInsCannotMinus $ CannotMinus $ wrap mintVal)
     $ Array.foldMap getAmount txOutputs `minus` mintVal
 
+  -- Useful spies for debugging:
+  -- let x = spy "nonMintedVal" nonMintedValue
+  --     y = spy "feees" fees
+  --     z = spy "changeMinUtxo" changeMinUtxo
+  --     a = spy "txBody" txBody
+
   let
     minSpending :: Value
     minSpending = lovelaceValueOf (fees + changeMinUtxo) <> nonMintedValue
+
+  -- a = spy "minSpending" minSpending
 
   txIns :: Array TransactionInput <-
     lmap
@@ -716,6 +729,11 @@ collectTxIns originalTxIns utxos value =
       )
       originalTxIns
       $ utxosToTransactionInput utxos
+
+  -- Useful spies for debugging:
+  -- x = spy "collectTxInsValue" value
+  -- y = spy "txInsValueOG" (txInsValue originalTxIns)
+  -- z = spy "txInsValueNEW" (txInsValue updatedInputs)
 
   isSufficient :: Array TransactionInput -> Boolean
   isSufficient txIns' =
@@ -776,6 +794,11 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
     $ filterNonAda inputValue `minus` nonMintedAdaOutputValue
 
   let
+    -- Useful spies for debugging:
+    -- a = spy "balanceNonAdaOuts'nonMintedOutputValue" nonMintedOutputValue
+    -- b = spy "balanceNonAdaOuts'nonMintedAdaOutputValue" nonMintedAdaOutputValue
+    -- c = spy "balanceNonAdaOuts'nonAdaChange" nonAdaChange
+
     outputs :: Array TransactionOutput
     outputs =
       Array.fromFoldable $

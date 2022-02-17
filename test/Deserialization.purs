@@ -13,7 +13,6 @@ import Test.Spec.Assertions (shouldEqual, shouldSatisfy, expectError)
 import TestM (TestPlanM)
 import Untagged.Union (asOneOf)
 
-import Deserialization.Address (convertAddress)
 import Deserialization.BigNum (bigNumToBigInt)
 import Deserialization.FromBytes (fromBytes)
 import Deserialization.NativeScript as NSD
@@ -25,8 +24,7 @@ import Serialization.NativeScript (convertNativeScript) as NSS
 import Serialization.Types (TransactionUnspentOutput)
 import Serialization.WitnessSet as SW
 import Test.Fixtures
-  ( addressString1
-  , nativeScriptFixture1
+  ( nativeScriptFixture1
   , nativeScriptFixture2
   , nativeScriptFixture3
   , nativeScriptFixture4
@@ -45,7 +43,7 @@ import Test.Fixtures
   , witnessSetFixture4
   )
 import Test.Utils (errMaybe)
-import Types.Transaction (Bech32(Bech32), NativeScript(ScriptAny), TransactionInput, TransactionOutput) as T
+import Types.Transaction (NativeScript(ScriptAny), TransactionInput, TransactionOutput) as T
 import Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput)) as T
 
 suite :: TestPlanM Unit
@@ -56,18 +54,6 @@ suite = do
         let bigInt = BigInt.fromInt 123
         res <- errMaybe "Failed to serialize BigInt" $ bigNumFromBigInt bigInt >>= bigNumToBigInt
         res `shouldEqual` bigInt
-    group "Address" do
-      test "deserialization works" do
-        address <- liftEffect $ Serialization.newAddressFromBech32 (T.Bech32 addressString1)
-        convertAddress address `shouldSatisfy` isJust
-      test "deserialization is inverse to serialization" do
-        address <- liftEffect $ Serialization.newAddressFromBech32 (T.Bech32 addressString1)
-        address' <- errMaybe "Failed deserialization 1" do
-          convertAddress address
-        address'' <- liftEffect $ Serialization.convertAddress address'
-        address''' <- errMaybe "Failed deserialization 2" do
-          convertAddress address''
-        address''' `shouldEqual` address'
     group "UnspentTransactionOutput" do
       test "deserialization is inverse to serialization" do
         unspentOutput <- liftEffect $ createUnspentOutput txInputFixture1 txOutputFixture1

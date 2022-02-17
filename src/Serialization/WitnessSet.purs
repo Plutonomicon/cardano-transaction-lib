@@ -16,6 +16,8 @@ import FfiHelpers (ContainerHelper, containerHelper)
 import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.NativeScript (convertNativeScripts)
 import Types.Transaction as T
+import Types.Aliases (Bech32String)
+
 import Types.RedeemerTag as Tag
 
 convertWitnessSet :: T.TransactionWitnessSet -> Effect TransactionWitnessSet
@@ -94,8 +96,8 @@ convertVkey (T.Vkey (T.PublicKey pk)) =
   newPublicKey pk >>= newVkeyFromPublicKey
 
 foreign import newTransactionWitnessSet :: Effect TransactionWitnessSet
-foreign import newEd25519Signature :: T.Bech32 -> Effect Ed25519Signature
-foreign import newPublicKey :: T.Bech32 -> Effect PublicKey
+foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
+foreign import newPublicKey :: Bech32String -> Effect PublicKey
 foreign import newVkeyFromPublicKey :: PublicKey -> Effect Vkey
 foreign import newVkeywitnesses :: Effect Vkeywitnesses
 foreign import newVkeywitness :: Vkey -> Ed25519Signature -> Effect Vkeywitness

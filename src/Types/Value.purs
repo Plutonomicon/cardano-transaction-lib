@@ -113,7 +113,7 @@ derive newtype instance eqCurrencySymbol :: Eq CurrencySymbol
 derive newtype instance ordCurrencySymbol :: Ord CurrencySymbol
 
 instance showCurrencySymbol :: Show CurrencySymbol where
-  show (CurrencySymbol cs) = show cs
+  show (CurrencySymbol cs) = "(CurrencySymbol" <> show cs <> ")"
 
 getCurrencySymbol :: CurrencySymbol -> ByteArray
 getCurrencySymbol (CurrencySymbol curSymbol) = curSymbol
@@ -143,7 +143,7 @@ derive newtype instance eqTokenName :: Eq TokenName
 derive newtype instance ordTokenName :: Ord TokenName
 
 instance showTokenName :: Show TokenName where
-  show (TokenName tn) = show tn
+  show (TokenName tn) = "(TokenName" <> show tn <> ")"
 
 getTokenName :: TokenName -> ByteArray
 getTokenName (TokenName tokenName) = tokenName
@@ -181,7 +181,7 @@ derive instance newtypeNonAdaAsset :: Newtype NonAdaAsset _
 derive newtype instance eqNonAdaAsset :: Eq NonAdaAsset
 
 instance showNonAdaAsset :: Show NonAdaAsset where
-  show (NonAdaAsset nonAdaAsset) = show nonAdaAsset
+  show (NonAdaAsset nonAdaAsset) = "(NonAdaAsset" <> show nonAdaAsset <> ")"
 
 instance semigroupNonAdaAsset :: Semigroup NonAdaAsset where
   append = unionWith (+)
@@ -539,4 +539,4 @@ sumTokenNameLengths = foldl lenAdd zero <<< unsafeAllTokenNames
 -- From https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- | Filter a value to contain only non Ada assets
 filterNonAda :: Value -> Value
-filterNonAda (Value coins _) = Value coins mempty
+filterNonAda (Value _ nonAda) = Value mempty nonAda

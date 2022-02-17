@@ -10,7 +10,6 @@ import Prelude
 import Control.Promise (Promise)
 import Control.Promise as Promise
 import Data.Maybe (Maybe(Just, Nothing))
-import Deserialization.Address as Deserialization.Address
 import Deserialization.FromBytes (fromBytesEffect)
 import Deserialization.UnspentOutput as Deserialization.UnspentOuput
 import Deserialization.WitnessSet as Deserialization.WitnessSet
@@ -19,12 +18,9 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
 import Serialization as Serialization
+import Serialization.Address (Address, addressFromBytes)
 import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex)
-import Types.Transaction
-  ( Address
-  , Transaction(Transaction)
-  , TransactionWitnessSet
-  )
+import Types.Transaction (Transaction(Transaction), TransactionWitnessSet)
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Untagged.Union (asOneOf)
 
@@ -65,12 +61,8 @@ mkNamiWalletAff = do
   enable = Promise.toAffE $ _enableNami
 
   getWalletAddress :: NamiConnection -> Aff (Maybe Address)
-  getWalletAddress nami = fromNamiHexString _getNamiAddress nami >>= case _ of
-    Nothing -> pure Nothing
-    Just bytes -> do
-      liftEffect $
-        Deserialization.Address.convertAddress
-          <$> Serialization.newAddressFromBytes bytes
+  getWalletAddress nami = fromNamiHexString _getNamiAddress nami >>=
+    (_ >>= addressFromBytes) >>> pure
 
   getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
   getCollateral nami = fromNamiHexString _getNamiCollateral nami >>= case _ of

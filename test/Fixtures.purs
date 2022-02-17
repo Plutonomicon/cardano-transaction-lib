@@ -36,20 +36,14 @@ import Data.Maybe (Maybe(..), fromJust)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Partial.Unsafe (unsafePartial)
+import Serialization.Address (Address, Slot(Slot), baseAddress, baseAddressToAddress, keyHashCredential, mainnetId, testnetId)
+import Serialization.Hash (Ed25519KeyHash, ed25519KeyHashFromBytes)
 import Types.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe, hexToByteArrayUnsafe)
 import Types.Transaction
-  ( Address(Address)
-  , BaseAddress(BaseAddress)
-  , Bech32(Bech32)
-  , Ed25519KeyHash(Ed25519KeyHash)
-  , Ed25519Signature(Ed25519Signature)
+  ( Ed25519Signature(Ed25519Signature)
   , NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry)
-  , NetworkId(Mainnet)
-  , PaymentCredential(PaymentCredentialKey)
   , PlutusData(PlutusData)
   , PublicKey(PublicKey)
-  , Slot(Slot)
-  , StakeCredential(StakeCredentialKey)
   , Transaction(Transaction)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
@@ -65,16 +59,16 @@ import Types.Value (Coin(Coin), CurrencySymbol, TokenName, Value(Value), mkCurre
 txOutputFixture1 :: TransactionOutput
 txOutputFixture1 =
   TransactionOutput
-    { address: Address
-        { "AddrType": BaseAddress
-            { network: UInt.fromInt 0
-            , stake: StakeCredentialKey $ Ed25519KeyHash
-                -- $ Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
-                $ hexToByteArrayUnsafe "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
-            , payment: PaymentCredentialKey $ Ed25519KeyHash
-                -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-                $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-            }
+    { address: baseAddressToAddress $ baseAddress
+        { network: testnetId
+        , delegationCred:
+            keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
+              -- $ T.Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
+              $ hexToByteArrayUnsafe "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
+        , paymentCred:
+            keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
+              -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
+              $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
         }
     , amount: Value (Coin $ BigInt.fromInt 0) mempty
     , data_hash: Nothing
@@ -83,16 +77,9 @@ txOutputFixture1 =
 txOutputFixture2 :: TransactionOutput
 txOutputFixture2 =
   TransactionOutput
-    { address: Address
-        { "AddrType": BaseAddress
-            { network: UInt.fromInt 0
-            , stake: StakeCredentialKey $ Ed25519KeyHash
-                -- "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
-                $ hexToByteArrayUnsafe "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
-            , payment: PaymentCredentialKey $ Ed25519KeyHash
-                -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-                $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-            }
+    { address: keyHashBaseAddress
+        { stake: "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
+        , payment: "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
         }
     , amount: Value (Coin $ BigInt.fromInt 0) $
         mkSingletonNonAdaAsset currencySymbol1 tokenName1 (BigInt.fromInt 1000000)
@@ -128,7 +115,7 @@ txFixture1 =
         , script_data_hash: Nothing
         , collateral: Nothing
         , required_signers: Nothing
-        , network_id: Just Mainnet
+        , network_id: Just mainnetId
         }
     , witness_set: TransactionWitnessSet
         { vkeys: Nothing
@@ -159,7 +146,7 @@ txFixture2 =
         , script_data_hash: Nothing
         , collateral: Nothing
         , required_signers: Nothing
-        , network_id: Just Mainnet
+        , network_id: Just mainnetId
         }
     , witness_set: TransactionWitnessSet
         { vkeys: Nothing
@@ -180,29 +167,19 @@ txFixture3 =
         { inputs: [ txInputFixture1 ]
         , outputs:
             [ TransactionOutput
-                { address: Address
-                    { "AddrType": BaseAddress
-                        { network: UInt.fromInt 0
-                        , stake: StakeCredentialKey $ Ed25519KeyHash
-                            $ hexToByteArrayUnsafe "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
-                        , payment: PaymentCredentialKey $ Ed25519KeyHash
-                            -- $ Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-                            $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-                        }
+                { address: keyHashBaseAddress
+                    { stake: "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
+                    -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
+                    , payment: "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                     }
                 , amount: Value (Coin $ BigInt.fromInt 2353402) mempty
                 , data_hash: Nothing
                 }
             , TransactionOutput
-                { address: Address
-                    { "AddrType": BaseAddress
-                        { network: UInt.fromInt 0
-                        , stake: StakeCredentialKey $ Ed25519KeyHash
-                            $ hexToByteArrayUnsafe "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
-                        , payment: PaymentCredentialKey $ Ed25519KeyHash
-                            -- $ Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-                            $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-                        }
+                { address: keyHashBaseAddress
+                    { stake: "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
+                    -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
+                    , payment: "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                     }
                 , amount: Value (Coin $ BigInt.fromInt 1000000) mempty
                 , data_hash: Nothing
@@ -219,7 +196,7 @@ txFixture3 =
         , script_data_hash: Nothing
         , collateral: Nothing
         , required_signers: Nothing
-        , network_id: Just Mainnet
+        , network_id: Just mainnetId
         }
     , witness_set: TransactionWitnessSet
         { vkeys: Nothing
@@ -269,21 +246,13 @@ utxoFixture1' =
         )
     , output:
         ( TransactionOutput
-            { address:
-                ( Address
-                    { "AddrType":
-                        ( BaseAddress
-                            { network: UInt.fromInt 0
-                            , payment:
-                                (PaymentCredentialKey (Ed25519KeyHash (byteArrayFromIntArrayUnsafe [ 243, 63, 250, 132, 253, 242, 10, 0, 52, 67, 165, 226, 118, 142, 18, 233, 45, 179, 21, 53, 220, 166, 32, 136, 177, 83, 223, 36 ])))
-                            , stake:
-                                ( StakeCredentialKey
-                                    (Ed25519KeyHash (byteArrayFromIntArrayUnsafe [ 57, 3, 16, 58, 231, 6, 129, 67, 155, 84, 118, 254, 245, 159, 67, 155, 139, 200, 109, 132, 191, 178, 211, 118, 252, 63, 86, 23 ]))
-                                )
-                            }
-                        )
-                    }
-                )
+            { address: baseAddressToAddress $ baseAddress
+                { network: testnetId
+                , paymentCred: keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes $
+                    byteArrayFromIntArrayUnsafe [ 243, 63, 250, 132, 253, 242, 10, 0, 52, 67, 165, 226, 118, 142, 18, 233, 45, 179, 21, 53, 220, 166, 32, 136, 177, 83, 223, 36 ]
+                , delegationCred: keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes $
+                    (byteArrayFromIntArrayUnsafe [ 57, 3, 16, 58, 231, 6, 129, 67, 155, 84, 118, 254, 245, 159, 67, 155, 139, 200, 109, 132, 191, 178, 211, 118, 252, 63, 86, 23 ])
+                }
             , amount: Value (Coin (BigInt.fromInt 5000000)) mempty
             , data_hash: Nothing
             }
@@ -306,8 +275,8 @@ witnessSetFixture2Value =
     , redeemers: Nothing
     , vkeys: Just
         [ Vkeywitness
-            ( (Vkey (PublicKey (Bech32 "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j")))
-                /\ (Ed25519Signature (Bech32 "ed25519_sig1mr6pm5kanam2wkmae70jx7fjkzepghefj0lmnczu6fra6auf2urgrte5axxhunw4x34l3l8tj9c0t4le39tj8lpjdgxmqnujw07tkzs9m6t6x"))
+            ( (Vkey (PublicKey "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"))
+                /\ (Ed25519Signature "ed25519_sig1mr6pm5kanam2wkmae70jx7fjkzepghefj0lmnczu6fra6auf2urgrte5axxhunw4x34l3l8tj9c0t4le39tj8lpjdgxmqnujw07tkzs9m6t6x")
             )
         ]
     }
@@ -326,8 +295,8 @@ witnessSetFixture3Value =
     , redeemers: Nothing
     , vkeys: Just
         [ Vkeywitness
-            ( (Vkey (PublicKey (Bech32 "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"))) /\
-                (Ed25519Signature (Bech32 "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08qrz0mgdxv5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq6faxl6"))
+            ( (Vkey (PublicKey "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j")) /\
+                (Ed25519Signature "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08qrz0mgdxv5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq6faxl6")
             )
         ]
     }
@@ -349,12 +318,16 @@ txInputFixture1 =
 ed25519KeyHashFixture1 :: Ed25519KeyHash
 ed25519KeyHashFixture1 =
   -- $ Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
-  Ed25519KeyHash $ hexToByteArrayUnsafe "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
+  unsafePartial $ fromJust
+    $ ed25519KeyHashFromBytes
+    $ hexToByteArrayUnsafe "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
 
 ed25519KeyHashFixture2 :: Ed25519KeyHash
 ed25519KeyHashFixture2 =
   -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-  Ed25519KeyHash $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
+  unsafePartial $ fromJust
+    $ ed25519KeyHashFromBytes
+    $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
 
 nativeScriptFixture1 :: NativeScript
 nativeScriptFixture1 = ScriptPubkey ed25519KeyHashFixture1
@@ -372,7 +345,20 @@ nativeScriptFixture5 :: NativeScript
 nativeScriptFixture5 = ScriptNOfK 1 [ nativeScriptFixture1, nativeScriptFixture2 ]
 
 nativeScriptFixture6 :: NativeScript
-nativeScriptFixture6 = TimelockStart $ Slot $ BigInt.fromInt 1000
+nativeScriptFixture6 = TimelockStart $ Slot $ UInt.fromInt 1000
 
 nativeScriptFixture7 :: NativeScript
-nativeScriptFixture7 = TimelockExpiry $ Slot $ BigInt.fromInt 2000
+nativeScriptFixture7 = TimelockExpiry $ Slot $ UInt.fromInt 2000
+
+keyHashBaseAddress :: { payment :: String, stake :: String } -> Address
+keyHashBaseAddress { payment, stake } = baseAddressToAddress $ baseAddress
+  { network: testnetId
+  , delegationCred:
+      keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
+        -- $ T.Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
+        $ hexToByteArrayUnsafe stake
+  , paymentCred:
+      keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
+        -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
+        $ hexToByteArrayUnsafe payment
+  }

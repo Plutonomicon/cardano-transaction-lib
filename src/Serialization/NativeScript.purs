@@ -5,15 +5,15 @@ module Serialization.NativeScript
 
 import Prelude
 
-import Data.BigInt as BigInt
+import Data.UInt as UInt
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
 
-import Deserialization.FromBytes (fromBytes)
 import FfiHelpers (ContainerHelper, containerHelper)
+import Serialization.Address (Slot(Slot)) as T
+import Serialization.Hash (Ed25519KeyHash) as T
 import Serialization.Types
-  ( Ed25519KeyHash
-  , NativeScript
+  ( NativeScript
   , NativeScripts
   , ScriptAll
   , ScriptAny
@@ -24,8 +24,6 @@ import Serialization.Types
   )
 import Types.Transaction
   ( NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry)
-  , Ed25519KeyHash(Ed25519KeyHash)
-  , Slot(Slot)
   ) as T
 
 convertNativeScripts :: Array T.NativeScript -> Maybe NativeScripts
@@ -34,16 +32,16 @@ convertNativeScripts = map packNativeScripts <<< traverse convertNativeScript
 -- | Note: unbounded recursion here.
 convertNativeScript :: T.NativeScript -> Maybe NativeScript
 convertNativeScript = case _ of
-  T.ScriptPubkey keyHash -> convertScriptPubkey keyHash
+  T.ScriptPubkey keyHash -> pure $ convertScriptPubkey keyHash
   T.ScriptAll nss -> convertScriptAll nss
   T.ScriptAny nss -> convertScriptAny nss
   T.ScriptNOfK n nss -> convertScriptNOfK n nss
-  T.TimelockStart slot -> convertTimelockStart slot
-  T.TimelockExpiry slot -> convertTimelockExpiry slot
+  T.TimelockStart slot -> pure $ convertTimelockStart slot
+  T.TimelockExpiry slot -> pure $ convertTimelockExpiry slot
 
-convertScriptPubkey :: T.Ed25519KeyHash -> Maybe NativeScript
-convertScriptPubkey (T.Ed25519KeyHash bytes) = do
-  nativeScript_new_script_pubkey <<< mkScriptPubkey <$> fromBytes bytes
+convertScriptPubkey :: T.Ed25519KeyHash -> NativeScript
+convertScriptPubkey hash = do
+  nativeScript_new_script_pubkey $ mkScriptPubkey hash
 
 convertScriptAll :: Array T.NativeScript -> Maybe NativeScript
 convertScriptAll nss =
@@ -60,18 +58,18 @@ convertScriptNOfK n nss =
   nativeScript_new_script_n_of_k <<< mkScriptNOfK n <<<
     packNativeScripts <$> for nss convertNativeScript
 
-convertTimelockStart :: T.Slot -> Maybe NativeScript
+convertTimelockStart :: T.Slot -> NativeScript
 convertTimelockStart (T.Slot slot) =
-  nativeScript_new_timelock_start <<< mkTimelockStart <$> BigInt.toInt slot
+  nativeScript_new_timelock_start $ mkTimelockStart $ UInt.toInt slot
 
-convertTimelockExpiry :: T.Slot -> Maybe NativeScript
+convertTimelockExpiry :: T.Slot -> NativeScript
 convertTimelockExpiry (T.Slot slot) =
-  nativeScript_new_timelock_expiry <<< mkTimelockExpiry <$> BigInt.toInt slot
+  nativeScript_new_timelock_expiry $ mkTimelockExpiry $ UInt.toInt slot
 
 packNativeScripts :: Array NativeScript -> NativeScripts
 packNativeScripts = _packNativeScripts containerHelper
 
-foreign import mkScriptPubkey :: Ed25519KeyHash -> ScriptPubkey
+foreign import mkScriptPubkey :: T.Ed25519KeyHash -> ScriptPubkey
 foreign import _packNativeScripts :: ContainerHelper -> Array NativeScript -> NativeScripts
 foreign import mkScriptAll :: NativeScripts -> ScriptAll
 foreign import mkScriptAny :: NativeScripts -> ScriptAny
