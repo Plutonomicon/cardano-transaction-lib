@@ -104,10 +104,10 @@ derive instance Generic Slot _
 instance Show Slot where
   show = genericShow
 
-instance semigroupSlot :: Semigroup Slot where
+instance Semigroup Slot where
   append (Slot s1) (Slot s2) = Slot $ s1 + s2
 
-instance monoidSlot :: Monoid Slot where
+instance Monoid Slot where
   mempty = Slot zero
 
 newtype TransactionIndex = TransactionIndex UInt
