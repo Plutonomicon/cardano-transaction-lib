@@ -85,7 +85,7 @@ instance semigroupTxBody :: Semigroup TxBody where
     { inputs: txB.inputs `union` txB'.inputs
     , outputs: txB.outputs `union` txB'.outputs
     , fee: txB.fee <> txB'.fee
-    , ttl: lift2 (\(Slot x) (Slot y) -> Slot $ max x y) txB.ttl txB'.ttl
+    , ttl: lift2 (\(Slot x) (Slot y) -> Slot $ min x y) txB.ttl txB'.ttl
     , certs: lift2 union txB.certs txB'.certs
     , withdrawals: lift2 appendMap txB.withdrawals txB'.withdrawals
     , update: txB.update <<>> txB'.update
