@@ -77,6 +77,7 @@ module Serialization.Address
   , rewardAddressFromBytes
   , rewardAddressFromBech32
   , rewardAddressNetworkId
+  , rewardAddressFromAddress
   ) where
 
 import Prelude
