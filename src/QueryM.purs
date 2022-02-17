@@ -406,6 +406,7 @@ utxosAtByWallet addr (Nami _) = utxosAtNami addr
 -- require any specific behaviour.
 utxosAtByWallet addr _ = utxosAt'' addr
 
+-- Gets utxos at an (internal) Address in terms of (internal) Transaction.Types.
 utxosAt'' :: Address -> QueryM (Maybe Transaction.UtxoM)
 utxosAt'' = addressToOgmiosAddress >>> getUtxos
   where
