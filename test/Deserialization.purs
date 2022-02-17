@@ -12,17 +12,31 @@ import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import TestM (TestPlanM)
 import Untagged.Union (asOneOf)
 
-import Deserialization.Address (convertAddress)
 import Deserialization.BigNum (bigNumToBigInt)
-import Deserialization.UnspentOutput (convertUnspentOutput, mkTransactionUnspentOutput, newTransactionUnspentOutputFromBytes)
+import Deserialization.UnspentOutput
+  ( convertUnspentOutput
+  , mkTransactionUnspentOutput
+  , newTransactionUnspentOutputFromBytes
+  )
 import Deserialization.WitnessSet (deserializeWitnessSet, convertWitnessSet)
 import Serialization as Serialization
 import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.Types (TransactionUnspentOutput)
 import Serialization.WitnessSet as SW
-import Test.Fixtures (addressString1, txInputFixture1, txOutputFixture1, utxoFixture1, utxoFixture1', witnessSetFixture1, witnessSetFixture2, witnessSetFixture2Value, witnessSetFixture3, witnessSetFixture3Value, witnessSetFixture4)
+import Test.Fixtures
+  ( txInputFixture1
+  , txOutputFixture1
+  , utxoFixture1
+  , utxoFixture1'
+  , witnessSetFixture1
+  , witnessSetFixture2
+  , witnessSetFixture2Value
+  , witnessSetFixture3
+  , witnessSetFixture3Value
+  , witnessSetFixture4
+  )
 import Test.Utils (errMaybe)
-import Types.Transaction (Bech32(Bech32), TransactionInput, TransactionOutput) as T
+import Types.Transaction (TransactionInput, TransactionOutput) as T
 import Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput)) as T
 
 suite :: TestPlanM Unit
@@ -33,18 +47,6 @@ suite = do
         let bigInt = BigInt.fromInt 123
         res <- errMaybe "Failed to serialize BigInt" $ bigNumFromBigInt bigInt >>= bigNumToBigInt
         res `shouldEqual` bigInt
-    group "Address" do
-      test "deserialization works" do
-        address <- liftEffect $ Serialization.newAddressFromBech32 (T.Bech32 addressString1)
-        convertAddress address `shouldSatisfy` isJust
-      test "deserialization is inverse to serialization" do
-        address <- liftEffect $ Serialization.newAddressFromBech32 (T.Bech32 addressString1)
-        address' <- errMaybe "Failed deserialization 1" do
-          convertAddress address
-        address'' <- liftEffect $ Serialization.convertAddress address'
-        address''' <- errMaybe "Failed deserialization 2" do
-          convertAddress address''
-        address''' `shouldEqual` address'
     group "UnspentTransactionOutput" do
       test "deserialization is inverse to serialization" do
         unspentOutput <- liftEffect $ createUnspentOutput txInputFixture1 txOutputFixture1
