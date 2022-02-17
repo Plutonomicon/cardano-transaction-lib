@@ -15,18 +15,24 @@ module Serialization.Hash
 
 import Control.Category (identity)
 import Data.Eq (class Eq, eq)
+import Data.Function (on)
 import Data.Maybe (Maybe)
+import Data.Monoid ((<>))
+import Data.Show (class Show)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization.Csl (class ToCsl)
 import Types.Aliases (Bech32String)
-import Types.ByteArray (ByteArray)
+import Types.ByteArray (ByteArray, byteArrayToHex)
 
 -- | PubKeyHash and StakeKeyHash refers to blake2b-224 hash digests of Ed25519
 -- | verification keys
 foreign import data Ed25519KeyHash :: Type
 
 instance Eq Ed25519KeyHash where
-  eq e1 e2 = eq (ed25519KeyHashToBytes e1) (ed25519KeyHashToBytes e2)
+  eq = eq `on` ed25519KeyHashToBytes
+
+instance Show Ed25519KeyHash where
+  show edkh = "(Ed25519KeyHash " <> byteArrayToHex (ed25519KeyHashToBytes edkh) <> ")"
 
 instance ToCsl Ed25519KeyHash Ed25519KeyHash where
   toCslRep = identity
@@ -73,7 +79,10 @@ ed25519KeyHashToBech32 = _ed25519KeyHashToBech32Impl maybeFfiHelper
 foreign import data ScriptHash :: Type
 
 instance Eq ScriptHash where
-  eq e1 e2 = eq (scriptHashToBytes e1) (scriptHashToBytes e2)
+  eq = eq `on` scriptHashToBytes
+
+instance Show ScriptHash where
+  show edkh = "(ScriptHash " <> byteArrayToHex (scriptHashToBytes edkh) <> ")"
 
 instance ToCsl ScriptHash ScriptHash where
   toCslRep = identity

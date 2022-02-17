@@ -11,17 +11,17 @@ module Types.UnbalancedTransaction
   , utxoIndexToUtxo
   ) where
 
-import Data.Map (Map)
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Traversable (sequence, traverse)
-import Deserialization.Address (convertAddress)
-import Effect (Effect)
 import Prelude
-import Serialization (newAddressFromBytes)
-import Types.ByteArray (ByteArray(ByteArray))
+
+import Data.Map (Map)
+import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype, wrap)
+import Data.Traversable (sequence)
+import Serialization.Address (addressFromBytes)
+import Serialization.Hash (Ed25519KeyHash, ScriptHash, scriptHashToBytes)
+import Types.ByteArray (ByteArray(..))
 import Types.POSIXTimeRange (POSIXTimeRange)
-import Types.Transaction (DataHash, Ed25519KeyHash, ScriptHash, Transaction, TransactionInput, TransactionOutput, Utxo)
+import Types.Transaction (DataHash, Transaction, TransactionInput, TransactionOutput, Utxo)
 import Types.Value (Value)
 
 newtype PubKey = PubKey ByteArray
@@ -48,13 +48,11 @@ newtype PubKeyHash = PubKeyHash Ed25519KeyHash
 
 derive instance Newtype PubKeyHash _
 derive newtype instance Eq PubKeyHash
-derive newtype instance Ord PubKeyHash
 
 newtype PaymentPubKeyHash = PaymentPubKeyHash PubKeyHash
 
 derive instance Newtype PaymentPubKeyHash _
 derive newtype instance Eq PaymentPubKeyHash
-derive newtype instance Ord PaymentPubKeyHash
 
 -- | Transaction inputs reference some other transaction's outputs.
 type TxOutputRef = TransactionInput
@@ -75,14 +73,11 @@ derive instance Newtype UnbalancedTx _
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger/html/src/Ledger.Tx.html#toTxOut
 -- Combining these two into one function skipping Chain Index
 -- | Converts a ScriptOutput to a TransactionOutput with potential failure
-scriptOutputToTxOutput :: ScriptOutput -> Effect (Maybe TransactionOutput)
-scriptOutputToTxOutput (ScriptOutput { validatorHash, value, datumHash }) =
-  unwrap validatorHash # newAddressFromBytes <#> convertAddress >>=
-    pure <<< case _ of
-      Nothing -> Nothing
-      Just address ->
-        pure $ wrap { address, amount: value, data_hash: pure datumHash }
+scriptOutputToTxOutput :: ScriptOutput -> Maybe TransactionOutput
+scriptOutputToTxOutput (ScriptOutput { validatorHash, value, datumHash }) = do
+  address <- validatorHash # scriptHashToBytes >>> addressFromBytes
+  pure $ wrap { address, amount: value, data_hash: pure datumHash }
 
 -- | Converts a utxoIndex from UnbalancedTx to Utxo with potential failure
-utxoIndexToUtxo :: Map TxOutputRef ScriptOutput -> Effect (Maybe Utxo)
-utxoIndexToUtxo = traverse scriptOutputToTxOutput >>> map sequence
+utxoIndexToUtxo :: Map TxOutputRef ScriptOutput -> Maybe Utxo
+utxoIndexToUtxo = map scriptOutputToTxOutput >>> sequence
