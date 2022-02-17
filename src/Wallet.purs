@@ -100,7 +100,7 @@ mkNamiWalletAff = do
   submitTx :: NamiConnection -> Transaction -> Aff (Maybe TransactionHash)
   submitTx nami tx = do
     txHex <- txToHex tx
-    map TransactionHash <$> fromNamiHexString (_signTxNami txHex) nami
+    map TransactionHash <$> fromNamiHexString (_submitTxNami txHex) nami
 
   txToHex :: Transaction -> Aff String
   txToHex =
