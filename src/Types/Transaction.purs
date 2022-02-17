@@ -85,13 +85,13 @@ instance semigroupTxBody :: Semigroup TxBody where
     { inputs: txB.inputs `union` txB'.inputs
     , outputs: txB.outputs `union` txB'.outputs
     , fee: txB.fee <> txB'.fee
-    , ttl: lift2 (\(Slot x) (Slot y) -> Slot $ min x y) txB.ttl txB'.ttl
+    , ttl: lift2 lowerbound txB.ttl txB'.ttl
     , certs: lift2 union txB.certs txB'.certs
     , withdrawals: lift2 appendMap txB.withdrawals txB'.withdrawals
     , update: txB.update <<>> txB'.update
     , auxiliary_data_hash: txB.auxiliary_data_hash <<>> txB'.auxiliary_data_hash
     , validity_start_interval:
-        lift2 (\(Slot x) (Slot y) -> Slot $ min x y)
+        lift2 lowerbound
           txB.validity_start_interval
           txB'.validity_start_interval
     , mint: txB.mint <> txB'.mint
@@ -100,6 +100,9 @@ instance semigroupTxBody :: Semigroup TxBody where
     , required_signers: lift2 union txB.required_signers txB'.required_signers
     , network_id: txB.network_id <<>> txB'.network_id
     }
+
+lowerbound :: Slot -> Slot -> Slot
+lowerbound (Slot x) (Slot y) = Slot $ min x y
 
 instance monoidTxBody :: Monoid TxBody where
   mempty = TxBody
