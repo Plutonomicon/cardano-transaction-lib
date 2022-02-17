@@ -402,20 +402,12 @@ utxosAt addr = asks _.wallet >>= maybe (pure Nothing) (utxosAtByWallet addr)
 utxosAtByWallet
   :: Address -> Wallet -> QueryM (Maybe Transaction.UtxoM)
 utxosAtByWallet addr (Nami _) = utxosAtNami addr
--- Unreachable but helps build when we add wallets, can remove when finished.
-utxosAtByWallet _ _ = pure Nothing
+-- Unreachable but helps build when we add wallets, most of them shouldn't
+-- require any specific behaviour.
+utxosAtByWallet addr _ = utxosAt'' addr
 
-utxosAtNami :: Address -> QueryM (Maybe Transaction.UtxoM)
-utxosAtNami addr = do
-  utxos' <- getUtxos $ addressToOgmiosAddress addr
-  collateral' <- getWalletCollateral
-  -- Nami appear to remove collateral from the utxo set, so we shall do the same.
-  -- This is crucial if we are submitting via Nami. If we decide to submit with
-  -- Ogmios, we can remove this.
-  pure do
-    utxos <- unwrap <$> utxos'
-    collateral <- unwrap <$> collateral'
-    pure $ wrap $ Map.delete collateral.input utxos
+utxosAt'' :: Address -> QueryM (Maybe Transaction.UtxoM)
+utxosAt'' = addressToOgmiosAddress >>> getUtxos
   where
   getUtxos :: JsonWsp.Address -> QueryM (Maybe Transaction.UtxoM)
   getUtxos address = convertUtxos <$> utxosAt' address
@@ -433,6 +425,18 @@ utxosAtNami addr = do
       out = out' <#> bisequence # sequence
     in
       (wrap <<< Map.fromFoldable) <$> out
+
+-- Nami appear to remove collateral from the utxo set, so we shall do the same.
+-- This is crucial if we are submitting via Nami. If we decide to submit with
+-- Ogmios, we can remove this.
+utxosAtNami :: Address -> QueryM (Maybe Transaction.UtxoM)
+utxosAtNami addr = do
+  utxos' <- utxosAt'' addr
+  collateral' <- getWalletCollateral
+  pure do
+    utxos <- unwrap <$> utxos'
+    collateral <- unwrap <$> collateral'
+    pure $ wrap $ Map.delete collateral.input utxos
 
 -- I think txId is a hexadecimal encoding.
 -- | Converts an Ogmios TxOutRef to (internal) TransactionInput
