@@ -1,5 +1,5 @@
 module Deserialization.BigNum
-  ( convertBigNum
+  ( bigNumToBigInt
   ) where
 
 import Prelude
@@ -10,5 +10,5 @@ import Serialization.Types (BigNum)
 
 foreign import bigNumToString :: BigNum -> String
 
-convertBigNum :: BigNum -> Maybe BigInt
-convertBigNum = bigNumToString >>> fromString
+bigNumToBigInt :: BigNum -> Maybe BigInt
+bigNumToBigInt = bigNumToString >>> fromString

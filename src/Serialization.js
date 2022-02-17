@@ -55,32 +55,6 @@ exports.newTransactionUnspentOutputFromBytes = bytes => () =>
 exports.newTransactionWitnessSetFromBytes = bytes => () =>
     lib.TransactionWitnessSet.from_bytes(bytes);
 
-exports.newAddressFromBech32 = bech32 => () =>
-    lib.Address.from_bech32(bech32);
-
-exports.newAddressFromBytes = bytes => () =>
-    lib.Address.from_bytes(bytes);
-
-exports.newBaseAddress = network => payment => stake => () =>
-    lib.BaseAddress.new(network, payment, stake);
-
-exports._newBaseAddressFromAddress = nothing => just => address => {
-    const res = lib.BaseAddress.from_address(address);
-    return res ? just(res) : nothing;
-};
-
-exports.baseAddressPaymentCredential =
-    baseAddress => baseAddress.payment_cred();
-
-exports.baseAddressToAddress = baseAddress => () =>
-    baseAddress.to_address();
-
-exports.newStakeCredentialFromScriptHash = hash => () =>
-    lib.StakeCredential.from_scripthash(hash);
-
-exports.newStakeCredentialFromKeyHash = hash => () =>
-    lib.StakeCredential.from_keyhash(hash);
-
 exports.newMultiAsset = () =>
     lib.MultiAsset.new();
 
@@ -131,18 +105,5 @@ exports.txWitnessSetSetPlutusScripts = ws => scripts => () =>
 
 exports.addPlutusScript = scripts => script => () =>
     scripts.add(script);
-
-exports._addressPubKeyHash = just => nothing => baseAddr => {
-    // i've chosen a prefix that Nami uses for payment_creds
-    const kh = baseAddr.payment_cred().to_keyhash();
-    if(kh==null){
-        return nothing;
-    }
-    return just(kh.to_bech32('hbas_'));
-};
-
-exports._addressBech32 = addr => {
-  return addr.to_bech32();
-};
 
 exports.toBytes = sth => sth.to_bytes();
