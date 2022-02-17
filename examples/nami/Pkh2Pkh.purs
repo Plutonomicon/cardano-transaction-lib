@@ -55,6 +55,7 @@ import QueryM
   , defaultServerConfig
   , getWalletAddress
   , mkOgmiosWebSocketAff
+  , submitTransaction
   , utxosAt
   )
 import Serialization as Serialization
@@ -69,6 +70,7 @@ import Types.Transaction
   ( NetworkId(Testnet)
   , Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
+  , TransactionHash
   , TxBody(TxBody)
   , emptyTransactionWitnessSet
   )
@@ -81,18 +83,16 @@ main :: Effect Unit
 main = launchAff_ $ do
   wallet <- Just <$> mkNamiWalletAff
   ws <- mkOgmiosWebSocketAff "ws:127.0.0.1:1337"
-  tx <- runReaderT
-    buildTransaction
+  txId <- runReaderT
+    buildAndSubmit
     { ws
     , wallet
     , serverConfig: defaultServerConfig
     }
-  liftEffect $
-    Console.log
-      <<< byteArrayToHex
-      <<< Serialization.toBytes
-      <<< asOneOf
-      =<< Serialization.convertTransaction tx
+  liftEffect $ Console.log $ show txId
+
+buildAndSubmit :: QueryM (Maybe TransactionHash)
+buildAndSubmit = submitTransaction =<< buildTransaction
 
 buildTransaction :: QueryM Transaction
 buildTransaction = either (throw <<< show) pure
