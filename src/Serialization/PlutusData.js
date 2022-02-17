@@ -24,13 +24,10 @@ exports._bigIntFromString = helper => str => {
     }
 };
 
-exports._packMap = helper => first => second => kvs => {
+exports._packMap = first => second => kvs => {
     const res = lib.PlutusMap.new();
     for (let kv of kvs) {
-        const success = res.insert(first(kv), second(kv));
-        if (success == null) {
-            return helper.nothing;
-        }
+        res.insert(first(kv), second(kv));
     }
-    return helper.just(res);
-}
+    return res;
+};

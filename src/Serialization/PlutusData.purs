@@ -42,7 +42,7 @@ convertPlutusMap mp = do
     k' <- convertPlutusData k
     v' <- convertPlutusData v
     pure $ k' /\ v'
-  _mkPlutusData_map <$> _packMap maybeFfiHelper fst snd entries
+  pure $ _mkPlutusData_map $ _packMap fst snd entries
 
 convertPlutusInteger :: BigInt.BigInt -> Maybe PlutusData
 convertPlutusInteger n =
@@ -61,8 +61,7 @@ foreign import _packPlutusList :: ContainerHelper -> Array PlutusData -> PlutusL
 foreign import _mkConstrPlutusData :: BigNum -> PlutusList -> ConstrPlutusData
 foreign import _bigIntFromString :: MaybeFfiHelper -> String -> Maybe BigInt
 foreign import _packMap
-  :: MaybeFfiHelper
-  -> (forall a b. Tuple a b -> a)
+  :: (forall a b. Tuple a b -> a)
   -> (forall a b. Tuple a b -> b)
   -> Array (PlutusData /\ PlutusData)
-  -> Maybe PlutusMap
+  -> PlutusMap
