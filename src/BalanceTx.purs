@@ -278,8 +278,8 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) =
     -- Prebalance collaterised tx without fees:
     ubcTx <- except $
       prebalanceCollateral zero allUtxos ownAddr unbalancedCollTx
-    fees <- ExceptT $ calculateMinFee' ubcTx <#> lmap CalculateMinFeeError'
     -- Prebalance collaterised tx with fees:
+    fees <- ExceptT $ calculateMinFee' ubcTx <#> lmap CalculateMinFeeError'
     ubcTx' <- except $
       prebalanceCollateral (fees + feeBuffer) allUtxos ownAddr ubcTx
 
