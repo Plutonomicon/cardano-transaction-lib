@@ -358,29 +358,21 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) =
     utxoIndex'
     ownAddr'
     (Transaction tx'@{ body: txBody' }) =
-    do
-      pure $ preBalanceTxBody
+    runExceptT do
+      txBodyWithoutFees' <- except $ preBalanceTxBody
         minUtxos'
         zero
         utxoIndex'
         ownAddr'
         txBody'
-      >>= case _ of
-        Left err -> pure $ Left err
-        Right txBodyWithoutFees' -> do
-          let
-            tx'' :: Transaction
-            tx'' = wrap tx' { body = txBodyWithoutFees' }
-          fees'' <- lmap CalculateMinFeeError' <$> calculateMinFee' tx''
-          case fees'' of
-            Left err -> pure $ Left err
-            Right fees' ->
-              pure $ preBalanceTxBody
-                minUtxos'
-                (fees' + feeBuffer) -- FIX ME: Add 0.5 Ada to ensure enough input for later on in final balancing.
-                utxoIndex'
-                ownAddr'
-                txBody'
+      let tx'' = wrap tx' { body = txBodyWithoutFees' }
+      fees' <- ExceptT $ calculateMinFee' tx'' <#> lmap CalculateMinFeeError'
+      except $ preBalanceTxBody
+        minUtxos'
+        (fees' + feeBuffer) -- FIX ME: Add 0.5 Ada to ensure enough input for later on in final balancing.
+        utxoIndex'
+        ownAddr'
+        txBody'
 
   -- We expect the user has a minimum amount of Ada (this buffer) on top of
   -- their transaction, so by the time the prebalancer finishes, should it
