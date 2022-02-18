@@ -380,7 +380,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) =
   -- 1) A new utxo doesn't need to be created (no extra fees).
   -- 2) A new utxo needs to be created but the buffer provides enough Ada to
   -- create the utxo, cover any extra fees without a further need for looping.
-  -- This buffer could potentially be exactly calculated using (the Haskell server)
+  -- This buffer could potentially be calculated exactly using (the Haskell server)
   -- https://github.com/input-output-hk/plutus/blob/8abffd78abd48094cfc72f1ad7b81b61e760c4a0/plutus-core/untyped-plutus-core/src/UntypedPlutusCore/Evaluation/Machine/Cek/Internal.hs#L723
   -- The trade off for this set up is any transaction requires this buffer on
   -- top of their transaction as input.
