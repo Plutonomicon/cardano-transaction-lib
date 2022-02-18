@@ -97,12 +97,18 @@ import Types.ByteArray (ByteArray)
 
 newtype Slot = Slot UInt
 
-derive instance Eq Slot
+derive newtype instance Eq Slot
 derive instance Newtype Slot _
 derive instance Generic Slot _
 
 instance Show Slot where
   show = genericShow
+
+instance Semigroup Slot where
+  append (Slot s1) (Slot s2) = Slot $ s1 + s2
+
+instance Monoid Slot where
+  mempty = Slot zero
 
 newtype TransactionIndex = TransactionIndex UInt
 
@@ -178,6 +184,9 @@ instance Eq RewardAddress where
 
 instance Show RewardAddress where
   show = showVia "RewardAddress" rewardAddressToAddress
+
+instance Ord RewardAddress where
+  compare a a' = compare (rewardAddressBytes a) (rewardAddressBytes a')
 
 foreign import data StakeCredential :: Type
 
