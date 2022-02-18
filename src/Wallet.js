@@ -17,4 +17,10 @@ exports._getNamiCollateral = (nami) => () =>
 exports._signTxNami = (txHex) => (nami) => () => nami.signTx(txHex);
 
 // _submitTxNami :: String -> NamiConnection -> Effect (Promise String)
-exports._submitTxNami = (txHex) => (nami) => () => nami.submitTx(txHex);
+exports._submitTxNami = (txHex) => (nami) => () => {
+  try {
+    nami.submitTx(txHex);
+  } catch (e) {
+    console.log(e);
+  }
+};
