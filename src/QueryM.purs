@@ -406,6 +406,28 @@ utxosAt addr = asks _.wallet >>= maybe (pure Nothing) (utxosAtByWallet addr)
   -- require any specific behaviour.
   utxosAtByWallet address _ = allUtxosAt address
 
+  -- Gets all utxos at an (internal) Address in terms of (internal)
+  -- Transaction.Types.
+  allUtxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
+  allUtxosAt = addressToOgmiosAddress >>> getUtxos
+    where
+    getUtxos :: JsonWsp.Address -> QueryM (Maybe Transaction.UtxoM)
+    getUtxos address = convertUtxos <$> utxosAt' address
+
+    convertUtxos :: JsonWsp.UtxoQR -> Maybe Transaction.UtxoM
+    convertUtxos (JsonWsp.UtxoQR utxoQueryResult) =
+      let
+        out' :: Array (Maybe Transaction.TransactionInput /\ Maybe Transaction.TransactionOutput)
+        out' = Map.toUnfoldable utxoQueryResult
+          <#> bimap
+            txOutRefToTransactionInput
+            ogmiosTxOutToTransactionOutput
+
+        out :: Maybe (Array (Transaction.TransactionInput /\ Transaction.TransactionOutput))
+        out = out' <#> bisequence # sequence
+      in
+        (wrap <<< Map.fromFoldable) <$> out
+
   -- Nami appear to remove collateral from the utxo set, so we shall do the same.
   -- This is crucial if we are submitting via Nami. If we decide to submit with
   -- Ogmios, we can remove this.
@@ -420,27 +442,6 @@ utxosAt addr = asks _.wallet >>= maybe (pure Nothing) (utxosAtByWallet addr)
       utxos <- unwrap <$> utxos'
       collateral <- unwrap <$> collateral'
       pure $ wrap $ Map.delete collateral.input utxos
-
--- Gets utxos at an (internal) Address in terms of (internal) Transaction.Types.
-allUtxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
-allUtxosAt = addressToOgmiosAddress >>> getUtxos
-  where
-  getUtxos :: JsonWsp.Address -> QueryM (Maybe Transaction.UtxoM)
-  getUtxos address = convertUtxos <$> utxosAt' address
-
-  convertUtxos :: JsonWsp.UtxoQR -> Maybe Transaction.UtxoM
-  convertUtxos (JsonWsp.UtxoQR utxoQueryResult) =
-    let
-      out' :: Array (Maybe Transaction.TransactionInput /\ Maybe Transaction.TransactionOutput)
-      out' = Map.toUnfoldable utxoQueryResult
-        <#> bimap
-          txOutRefToTransactionInput
-          ogmiosTxOutToTransactionOutput
-
-      out :: Maybe (Array (Transaction.TransactionInput /\ Transaction.TransactionOutput))
-      out = out' <#> bisequence # sequence
-    in
-      (wrap <<< Map.fromFoldable) <$> out
 
 -- I think txId is a hexadecimal encoding.
 -- | Converts an Ogmios TxOutRef to (internal) TransactionInput
