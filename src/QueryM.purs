@@ -37,7 +37,7 @@ import Data.Bitraversable (bisequence)
 import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (sequence)
 import Data.Tuple.Nested (type (/\))
@@ -407,9 +407,22 @@ addressToOgmiosAddress :: Address -> JsonWsp.Address
 addressToOgmiosAddress = addressBech32
 
 -- If required, we can change to Either with more granular error handling.
--- | Gets utxos at an (internal) Address in terms of (internal) Transaction.Types
+-- | Gets utxos at an (internal) Address in terms of (internal) Transaction.Types.
+-- Results may vary depending on Wallet type.
 utxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
-utxosAt = addressToOgmiosAddress >>> getUtxos
+utxosAt addr = asks _.wallet >>= maybe (pure Nothing) (utxosAtByWallet addr)
+
+-- Add more wallet types here:
+utxosAtByWallet
+  :: Address -> Wallet -> QueryM (Maybe Transaction.UtxoM)
+utxosAtByWallet addr (Nami _) = utxosAtNami addr
+-- Unreachable but helps build when we add wallets, most of them shouldn't
+-- require any specific behaviour.
+utxosAtByWallet addr _ = utxosAt'' addr
+
+-- Gets utxos at an (internal) Address in terms of (internal) Transaction.Types.
+utxosAt'' :: Address -> QueryM (Maybe Transaction.UtxoM)
+utxosAt'' = addressToOgmiosAddress >>> getUtxos
   where
   getUtxos :: JsonWsp.Address -> QueryM (Maybe Transaction.UtxoM)
   getUtxos address = convertUtxos <$> utxosAt' address
@@ -427,6 +440,18 @@ utxosAt = addressToOgmiosAddress >>> getUtxos
       out = out' <#> bisequence # sequence
     in
       (wrap <<< Map.fromFoldable) <$> out
+
+-- Nami appear to remove collateral from the utxo set, so we shall do the same.
+-- This is crucial if we are submitting via Nami. If we decide to submit with
+-- Ogmios, we can remove this.
+utxosAtNami :: Address -> QueryM (Maybe Transaction.UtxoM)
+utxosAtNami addr = do
+  utxos' <- utxosAt'' addr
+  collateral' <- getWalletCollateral
+  pure do
+    utxos <- unwrap <$> utxos'
+    collateral <- unwrap <$> collateral'
+    pure $ wrap $ Map.delete collateral.input utxos
 
 -- I think txId is a hexadecimal encoding.
 -- | Converts an Ogmios TxOutRef to (internal) TransactionInput
