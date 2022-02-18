@@ -19,6 +19,7 @@ module BalanceTx
 
 import Prelude
 
+import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Data.Array ((\\), findIndex, modifyAt)
 import Data.Array as Array
 import Data.Bifunctor (lmap, rmap)
@@ -248,71 +249,50 @@ calculateMinFee' = calculateMinFee >>> map (rmap unwrap)
 -- utxo set shouldn't include the collateral which is vital for balancing.
 -- In particular, the transaction inputs must not include the collateral.
 balanceTxM :: UnbalancedTx -> QueryM (Either BalanceTxError Transaction)
-balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
-  ownAddr' <- getWalletAddress
-  collateral' <- getWalletCollateral
-  -- Saves on an extra nested case:
-  case ownAddr', collateral' of
-    Nothing, _ ->
-      pure $ Left $ GetWalletAddressError' CouldNotGetNamiWalletAddress
-    _, Nothing ->
-      pure $ Left $ GetWalletCollateralError' CouldNotGetNamiCollateral
-    Just ownAddr, Just collateral -> do
-      utxos' <- map unwrap <$> utxosAt ownAddr
-      let utxoIndex' = utxoIndexToUtxo utxoIndex
-      -- Don't need to sequence, can just do as above
-      case utxos', utxoIndex' of
-        Nothing, _ ->
-          pure $ Left $ UtxosAtError' CouldNotGetUtxos
-        _, Nothing ->
-          pure $ Left $ UtxoIndexToUtxoError' CouldNotConvertUtxoIndex
-        Just utxos, Just utxoIndex'' -> do
-          let
-            -- Combines utxos at the user address and those from any scripts
-            -- involved with the contract in the unbalanced transaction.
-            allUtxos :: Utxo
-            allUtxos = utxos `Map.union` utxoIndex''
+balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) =
+  runExceptT do
+    -- Get own wallet address, collateral and utxo set:
+    ownAddr <- ExceptT $ getWalletAddress <#>
+      note (GetWalletAddressError' CouldNotGetNamiWalletAddress)
+    collateral <- ExceptT $ getWalletCollateral <#>
+      note (GetWalletCollateralError' CouldNotGetNamiCollateral)
+    utxos <- ExceptT $ utxosAt ownAddr <#>
+      (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
+    utxoIndex' <- ExceptT $ pure $ utxoIndexToUtxo utxoIndex #
+      note (UtxoIndexToUtxoError' CouldNotConvertUtxoIndex)
+    let
+      -- Combines utxos at the user address and those from any scripts
+      -- involved with the contract in the unbalanced transaction.
+      allUtxos :: Utxo
+      allUtxos = utxos `Map.union` utxoIndex'
 
-            -- After adding collateral, we need to balance the inputs and
-            -- non-Ada outputs before looping, i.e. we need to add input fees
-            -- for the Ada only collateral. No MinUtxos required. In fact perhaps
-            -- this step can be skipped and we can go straight to prebalancer.
-            unbalancedCollTx = addTxCollateral unbalancedTx collateral
-          -- Logging Unbalanced Tx with collateral added
-          logTx' "Unbalanced Collaterised Tx " allUtxos unbalancedCollTx
-          -- Prebalance tx without fees:
-          case prebalanceCollateral zero allUtxos ownAddr unbalancedCollTx of
-            Left err -> pure $ Left err
-            Right ubcTx' -> do
-              fees' <- lmap CalculateMinFeeError' <$> calculateMinFee' ubcTx'
-              -- Prebalance tx with fees:
-              let
-                unbalancedCollTx' = fees' >>= \fees ->
-                  prebalanceCollateral
-                    (fees + feeBuffer)
-                    allUtxos
-                    ownAddr
-                    ubcTx'
-              case unbalancedCollTx' of
-                Left err -> pure $ Left err
-                Right unbalancedCollTx'' ->
-                  loop allUtxos ownAddr [] unbalancedCollTx'' >>= case _ of
-                    Left err -> pure $ Left err
-                    Right nonAdaBalancedCollTx ->
-                      lmap ReturnAdaChangeError' <$>
-                        returnAdaChange ownAddr allUtxos nonAdaBalancedCollTx
-                        >>= case _ of
-                          Left err -> pure $ Left err
-                          Right unsignedTx -> do
-                            signedTx' <- signTransaction unsignedTx
-                              <#> note (SignTxError' $ CouldNotSignTx ownAddr)
-                            -- Some post balancer logging:
-                            case signedTx' of
-                              Left err -> pure $ Left err
-                              Right signedTx -> do
-                                logTx "Post-balancing Tx " allUtxos
-                                  signedTx <#> pure
+      -- After adding collateral, we need to balance the inputs and
+      -- non-Ada outputs before looping, i.e. we need to add input fees
+      -- for the Ada only collateral. No MinUtxos required. In fact perhaps
+      -- this step can be skipped and we can go straight to prebalancer.
+      unbalancedCollTx = addTxCollateral unbalancedTx collateral
+    -- Logging Unbalanced Tx with collateral added:
+    logTx' "Unbalanced Collaterised Tx " allUtxos unbalancedCollTx
 
+    -- Prebalance collaterised tx without fees:
+    ubcTx <- except $
+      prebalanceCollateral zero allUtxos ownAddr unbalancedCollTx
+    fees <- ExceptT $ calculateMinFee' ubcTx <#> lmap CalculateMinFeeError'
+    -- Prebalance collaterised tx with fees:
+    ubcTx' <- except $
+      prebalanceCollateral (fees + feeBuffer) allUtxos ownAddr ubcTx
+
+    -- Loop to balance non-Ada assets
+    nonAdaBalancedCollTx <- ExceptT $ loop allUtxos ownAddr [] ubcTx'
+    -- Return excess Ada change to wallet:
+    unsignedTx <- ExceptT $
+      returnAdaChange ownAddr allUtxos nonAdaBalancedCollTx <#>
+        lmap ReturnAdaChangeError'
+    -- Sign transaction:
+    signedTx <- ExceptT $
+      signTransaction unsignedTx <#> note (SignTxError' $ CouldNotSignTx ownAddr)
+    -- Logs final balanced tx and returns it
+    ExceptT $ logTx "Post-balancing Tx " allUtxos signedTx <#> Right
   where
   prebalanceCollateral
     :: BigInt
