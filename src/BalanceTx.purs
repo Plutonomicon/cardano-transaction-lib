@@ -290,11 +290,11 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) =
       returnAdaChange ownAddr allUtxos nonAdaBalancedCollTx <#>
         lmap ReturnAdaChangeError'
     -- Sign transaction:
-    signedTx <- ExceptT $
+    balancedTx <- ExceptT $
       signTransaction unsignedTx <#> note (SignTxError' $ CouldNotSignTx ownAddr)
 
     -- Logs final balanced tx and returns it
-    ExceptT $ logTx "Post-balancing Tx " allUtxos signedTx <#> Right
+    ExceptT $ logTx "Post-balancing Tx " allUtxos balancedTx <#> Right
   where
   prebalanceCollateral
     :: BigInt
