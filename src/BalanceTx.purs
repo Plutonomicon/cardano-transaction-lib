@@ -328,12 +328,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) =
       minUtxos' :: MinUtxos
       minUtxos' = prevMinUtxos' <> nextMinUtxos'
 
-    balancedTxBody' :: Either BalanceTxError TxBody <-
-      chainedBalancer
-        minUtxos'
-        utxoIndex'
-        ownAddr'
-        tx''
+    balancedTxBody' <- chainedBalancer minUtxos' utxoIndex' ownAddr' tx''
 
     case balancedTxBody' of
       Left err -> pure $ Left err
@@ -425,130 +420,124 @@ returnAdaChange
   -> Transaction
   -> QueryM (Either ReturnAdaChangeError Transaction)
 returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
-  lmap ReturnAdaChangeCalculateMinFee
-    <$> (calculateMinFee' $ wrap tx)
-    >>= case _ of
-      Left err -> pure $ Left err
-      Right fees -> do
+  runExceptT do
+    fees <- ExceptT $ calculateMinFee' (wrap tx) <#>
+      lmap ReturnAdaChangeCalculateMinFee
+    let
+      txOutputs :: Array TransactionOutput
+      txOutputs = txBody.outputs
+
+      inputValue :: Value
+      inputValue = getInputValue utxos (wrap txBody)
+
+      inputAda :: BigInt
+      inputAda = getLovelace $ valueToCoin inputValue
+
+      -- FIX ME, ignore mint value?
+      outputValue :: Value
+      outputValue = Array.foldMap getAmount txOutputs
+
+      outputAda :: BigInt
+      outputAda = getLovelace $ valueToCoin outputValue
+
+      returnAda :: BigInt
+      returnAda = inputAda - outputAda - fees
+    case compare returnAda zero of
+      LT ->
+        except $ Left $
+          ReturnAdaChangeImpossibleError
+            "Not enough Input Ada to cover output and fees after prebalance."
+            Impossible
+      EQ -> except $ Right $ wrap tx { body = wrap txBody { fee = wrap fees } }
+      GT -> ExceptT do
+        -- Short circuits and adds Ada to any output utxo of the owner. This saves
+        -- on fees but does not create a separate utxo. Do we want this behaviour?
+        -- I expect if there are any output utxos to the user, they are either Ada
+        -- only or non-Ada with minimum Ada value. Either way, we can just add the
+        -- the value and it shouldn't incur extra fees.
+        -- If we do require a new utxo, then we must add fees, under the assumption
+        -- we have enough Ada in the input at this stage, otherwise we fail because
+        -- we don't want to loop again over the addition of one output utxo.
         let
-          txOutputs :: Array TransactionOutput
-          txOutputs = txBody.outputs
+          changeIndex :: Maybe Int
+          changeIndex =
+            findIndex ((==) changeAddr <<< _.address <<< unwrap) txOutputs
 
-          inputValue :: Value
-          inputValue = getInputValue utxos (wrap txBody)
-
-          inputAda :: BigInt
-          inputAda = getLovelace $ valueToCoin inputValue
-
-          -- FIX ME, ignore mint value?
-          outputValue :: Value
-          outputValue = Array.foldMap getAmount txOutputs
-
-          outputAda :: BigInt
-          outputAda = getLovelace $ valueToCoin outputValue
-
-          returnAda :: BigInt
-          returnAda = inputAda - outputAda - fees
-        case compare returnAda zero of
-          LT ->
-            pure $ Left $
-              ReturnAdaChangeImpossibleError
-                "Not enough Input Ada to cover output and fees after prebalance."
-                Impossible
-          EQ -> pure $ Right $ wrap tx { body = wrap txBody { fee = wrap fees } }
-          GT -> do
-            -- Short circuits and adds Ada to any output utxo of the owner. This saves
-            -- on fees but does not create a separate utxo. Do we want this behaviour?
-            -- I expect if there are any output utxos to the user, they are either Ada
-            -- only or non-Ada with minimum Ada value. Either way, we can just add the
-            -- the value and it shouldn't incur extra fees.
-            -- If we do require a new utxo, then we must add fees, under the assumption
-            -- we have enough Ada in the input at this stage, otherwise we fail because
-            -- we don't want to loop again over the addition of one output utxo.
+        case changeIndex of
+          Just idx -> pure do
+            -- Add the Ada value to the first output utxo of the owner to not
+            -- concur fees. This should be Ada only or non-Ada which has min Ada.
+            newOutputs <-
+              note
+                ( ReturnAdaChangeError
+                    "Couldn't modify utxo to return change."
+                ) $
+                modifyAt
+                  idx
+                  ( \(TransactionOutput o@{ amount }) -> TransactionOutput
+                      o { amount = amount <> lovelaceValueOf returnAda }
+                  )
+                  txOutputs
+            -- Fees unchanged because we aren't adding a new utxo.
+            pure $
+              wrap
+                tx { body = wrap txBody { outputs = newOutputs, fee = wrap fees } }
+          Nothing -> do
+            -- Create a txBody with the extra output utxo then recalculate fees,
+            -- then adjust as necessary if we have sufficient Ada in the input.
             let
-              changeIndex :: Maybe Int
-              changeIndex =
-                findIndex ((==) changeAddr <<< _.address <<< unwrap) txOutputs
+              utxoCost :: BigInt
+              utxoCost = getLovelace protocolParamUTxOCostPerWord
 
-            case changeIndex of
-              Just idx -> pure do
-                -- Add the Ada value to the first output utxo of the owner to not
-                -- concur fees. This should be Ada only or non-Ada which has min Ada.
-                newOutputs :: Array TransactionOutput <-
-                  note
-                    ( ReturnAdaChangeError
-                        "Couldn't modify utxo to return change."
-                    ) $
-                    modifyAt
-                      idx
-                      ( \(TransactionOutput o@{ amount }) -> TransactionOutput
-                          o { amount = amount <> lovelaceValueOf returnAda }
-                      )
-                      txOutputs
-                -- Fees unchanged because we aren't adding a new utxo.
-                pure $
-                  wrap
-                    tx { body = wrap txBody { outputs = newOutputs, fee = wrap fees } }
-              Nothing -> do
-                -- Create a txBody with the extra output utxo then recalculate fees,
-                -- then adjust as necessary if we have sufficient Ada in the input.
-                let
-                  utxoCost :: BigInt
-                  utxoCost = getLovelace protocolParamUTxOCostPerWord
+              changeMinUtxo :: BigInt
+              changeMinUtxo = adaOnlyWords * utxoCost
 
-                  changeMinUtxo :: BigInt
-                  changeMinUtxo = adaOnlyWords * utxoCost
-
-                  txBody' :: TxBody
-                  txBody' =
-                    wrap
-                      txBody
-                        { outputs =
-                            wrap
-                              { address: changeAddr
-                              , amount: lovelaceValueOf returnAda
-                              , data_hash: Nothing
-                              }
-                              `Array.cons` txBody.outputs
-                        }
-
-                  tx' :: Transaction
-                  tx' = wrap tx { body = txBody' }
-
-                fees'' :: Either ReturnAdaChangeError BigInt <-
-                  lmap ReturnAdaChangeCalculateMinFee <$> calculateMinFee' tx'
-
-                -- fees should increase.
-                pure case fees'' of
-                  Left err -> Left err
-                  Right fees' -> do
-                    -- New return Ada amount should decrease:
-                    let
-                      returnAda' :: BigInt
-                      returnAda' = returnAda + fees - fees'
-
-                    if returnAda' >= changeMinUtxo then do
-                      newOutputs :: Array TransactionOutput <-
-                        note
-                          ( ReturnAdaChangeImpossibleError
-                              "Couldn't modify head utxo to add Ada"
-                              Impossible
-                          )
-                          $ modifyAt
-                              0
-                              ( \(TransactionOutput o) -> TransactionOutput
-                                  o { amount = lovelaceValueOf returnAda' }
-                              )
-                          $ _.outputs <<< unwrap
-                          $ txBody'
-                      pure $
+              txBody' :: TxBody
+              txBody' =
+                wrap
+                  txBody
+                    { outputs =
                         wrap
-                          tx { body = wrap txBody { outputs = newOutputs, fee = wrap fees' } }
-                    else
-                      Left $
-                        ReturnAdaChangeError
-                          "ReturnAda' does not cover min. utxo requirement for \
-                          \single Ada-only output."
+                          { address: changeAddr
+                          , amount: lovelaceValueOf returnAda
+                          , data_hash: Nothing
+                          }
+                          `Array.cons` txBody.outputs
+                    }
+
+              tx' :: Transaction
+              tx' = wrap tx { body = txBody' }
+
+            fees'' <- lmap ReturnAdaChangeCalculateMinFee <$> calculateMinFee' tx'
+            -- fees should increase.
+            pure case fees'' of
+              Left err -> Left err
+              Right fees' -> do
+                -- New return Ada amount should decrease:
+                let returnAda' = returnAda + fees - fees'
+
+                if returnAda' >= changeMinUtxo then do
+                  newOutputs <-
+                    note
+                      ( ReturnAdaChangeImpossibleError
+                          "Couldn't modify head utxo to add Ada"
+                          Impossible
+                      )
+                      $ modifyAt
+                          0
+                          ( \(TransactionOutput o) -> TransactionOutput
+                              o { amount = lovelaceValueOf returnAda' }
+                          )
+                      $ _.outputs <<< unwrap
+                      $ txBody'
+                  pure $
+                    wrap
+                      tx { body = wrap txBody { outputs = newOutputs, fee = wrap fees' } }
+                else
+                  Left $
+                    ReturnAdaChangeError
+                      "ReturnAda' does not cover min. utxo requirement for \
+                      \single Ada-only output."
 
 calculateMinUtxos :: Array TransactionOutput -> MinUtxos
 calculateMinUtxos = map (\a -> a /\ calculateMinUtxo a)
