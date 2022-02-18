@@ -389,7 +389,12 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) =
 
 -- Logging for Transaction type
 logTx'
-  :: forall m. MonadEffect m => String -> Utxo -> Transaction -> m Unit
+  :: forall (m :: Type -> Type)
+   . MonadEffect m
+  => String
+  -> Utxo
+  -> Transaction
+  -> m Unit
 logTx' msg utxos (Transaction { body: body'@(TxBody body) }) =
   traverse_ (log <<< (<>) msg)
     -- Add to log more:
@@ -399,7 +404,12 @@ logTx' msg utxos (Transaction { body: body'@(TxBody body) }) =
     ]
 
 logTx
-  :: forall m. MonadEffect m => String -> Utxo -> Transaction -> m Transaction
+  :: forall (m :: Type -> Type)
+   . MonadEffect m
+  => String
+  -> Utxo
+  -> Transaction
+  -> m Transaction
 logTx msg utxo tx = logTx' msg utxo tx *> pure tx
 
 -- Nami provides a 5 Ada collateral that we should add the tx before balancing
