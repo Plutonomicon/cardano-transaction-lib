@@ -24,6 +24,7 @@ import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
 import Types.RedeemerTag (RedeemerTag)
 import Types.Value (Coin, Value)
+import Serialization.Hash (Ed25519KeyHash)
 
 -- note: these types are derived from the cardano-serialization-lib Sundae fork
 -- the source of truth for these types should be that library and the
@@ -438,18 +439,18 @@ data TransactionMetadatum
 derive instance eqTransactionMetadatum :: Eq TransactionMetadatum
 
 data NativeScript
-  = ScriptPubkey
-  | ScriptAll
-  | ScriptAny
-  | ScriptNOfK
-  | TimelockStart
-  | TimelockExpiry
+  = ScriptPubkey Ed25519KeyHash
+  | ScriptAll (Array NativeScript)
+  | ScriptAny (Array NativeScript)
+  | ScriptNOfK Int (Array NativeScript)
+  | TimelockStart Slot
+  | TimelockExpiry Slot
 
 derive instance eqNativeScript :: Eq NativeScript
 derive instance Generic NativeScript _
 
 instance Show NativeScript where
-  show = genericShow
+  show x = genericShow x
 
 newtype TransactionInput = TransactionInput
   { transaction_id :: TransactionHash
