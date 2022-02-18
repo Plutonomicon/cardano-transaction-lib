@@ -3,17 +3,21 @@ module Serialization.WitnessSet where
 import Prelude
 
 import Data.Maybe (maybe)
-import Effect.Exception (throw)
 import Data.Newtype (unwrap)
 import Data.Traversable (for_, traverse, traverse_)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
+import Effect.Exception (throw)
 import Types.ByteArray (ByteArray)
-import Serialization.Types (BigNum, BootstrapWitness, Ed25519Signature, ExUnits, PlutusData, PlutusScript, PlutusScripts, PublicKey, Redeemer, RedeemerTag, TransactionWitnessSet, Vkey, Vkeywitness, Vkeywitnesses)
+
+import Serialization.Types (BigNum, BootstrapWitness, Ed25519Signature, ExUnits, NativeScripts, PlutusData, PlutusScript, PlutusScripts, PublicKey, Redeemer, RedeemerTag, TransactionWitnessSet, Vkey, Vkeywitness, Vkeywitnesses)
 import Deserialization.FromBytes (fromBytesEffect)
 import FfiHelpers (ContainerHelper, containerHelper)
 import Serialization.BigNum (bigNumFromBigInt)
+import Serialization.NativeScript (convertNativeScripts)
 import Types.Transaction as T
+import Types.Aliases (Bech32String)
+
 import Types.RedeemerTag as Tag
 
 convertWitnessSet :: T.TransactionWitnessSet -> Effect TransactionWitnessSet
@@ -21,7 +25,9 @@ convertWitnessSet (T.TransactionWitnessSet tws) = do
   ws <- newTransactionWitnessSet
   for_ tws.vkeys
     (convertVkeywitnesses >=> transactionWitnessSetSetVkeys ws)
-  -- TODO: native_scripts
+  for_ tws.native_scripts $
+    maybe (throw "Failed to convert NativeScripts")
+      (transactionWitnessSetSetNativeScripts ws) <<< convertNativeScripts
   for_ tws.bootstraps
     (traverse convertBootstrap >=> _wsSetBootstraps containerHelper ws)
   for_ tws.plutus_scripts \ps -> do
@@ -90,8 +96,8 @@ convertVkey (T.Vkey (T.PublicKey pk)) =
   newPublicKey pk >>= newVkeyFromPublicKey
 
 foreign import newTransactionWitnessSet :: Effect TransactionWitnessSet
-foreign import newEd25519Signature :: T.Bech32 -> Effect Ed25519Signature
-foreign import newPublicKey :: T.Bech32 -> Effect PublicKey
+foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
+foreign import newPublicKey :: Bech32String -> Effect PublicKey
 foreign import newVkeyFromPublicKey :: PublicKey -> Effect Vkey
 foreign import newVkeywitnesses :: Effect Vkeywitnesses
 foreign import newVkeywitness :: Vkey -> Ed25519Signature -> Effect Vkeywitness
@@ -101,6 +107,7 @@ foreign import newPlutusScripts :: Effect PlutusScripts
 foreign import addPlutusScript :: PlutusScripts -> PlutusScript -> Effect Unit
 foreign import transactionWitnessSetSetVkeys :: TransactionWitnessSet -> Vkeywitnesses -> Effect Unit
 foreign import txWitnessSetSetPlutusScripts :: TransactionWitnessSet -> PlutusScripts -> Effect Unit
+foreign import transactionWitnessSetSetNativeScripts :: TransactionWitnessSet -> NativeScripts -> Effect Unit
 foreign import _wsSetBootstraps :: ContainerHelper -> TransactionWitnessSet -> Array BootstrapWitness -> Effect Unit
 foreign import newBootstrapWitness :: Vkey -> Ed25519Signature -> ByteArray -> ByteArray -> Effect BootstrapWitness
 foreign import _wsSetPlutusData :: ContainerHelper -> TransactionWitnessSet -> Array PlutusData -> Effect Unit

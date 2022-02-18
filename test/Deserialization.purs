@@ -2,27 +2,48 @@ module Test.Deserialization (suite) where
 
 import Prelude
 
+import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Maybe (isJust, isNothing)
 import Data.Newtype (unwrap)
 import Effect (Effect)
 import Effect.Class (liftEffect)
-import Mote (group, test, skip)
-import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
+import Mote (group, test)
+import Test.Spec.Assertions (shouldEqual, shouldSatisfy, expectError)
 import TestM (TestPlanM)
 import Untagged.Union (asOneOf)
 
-import Deserialization.Address (convertAddress)
 import Deserialization.BigNum (bigNumToBigInt)
+import Deserialization.FromBytes (fromBytes)
+import Deserialization.NativeScript as NSD
 import Deserialization.UnspentOutput (convertUnspentOutput, mkTransactionUnspentOutput, newTransactionUnspentOutputFromBytes)
 import Deserialization.WitnessSet (deserializeWitnessSet, convertWitnessSet)
 import Serialization as Serialization
 import Serialization.BigNum (bigNumFromBigInt)
+import Serialization.NativeScript (convertNativeScript) as NSS
 import Serialization.Types (TransactionUnspentOutput)
 import Serialization.WitnessSet as SW
-import Test.Fixtures (addressString1, txInputFixture1, txOutputFixture1, utxoFixture1, utxoFixture1', witnessSetFixture1, witnessSetFixture2, witnessSetFixture2Value, witnessSetFixture3, witnessSetFixture3Value, witnessSetFixture4)
+import Test.Fixtures
+  ( nativeScriptFixture1
+  , nativeScriptFixture2
+  , nativeScriptFixture3
+  , nativeScriptFixture4
+  , nativeScriptFixture5
+  , nativeScriptFixture6
+  , nativeScriptFixture7
+  , txInputFixture1
+  , txOutputFixture1
+  , utxoFixture1
+  , utxoFixture1'
+  , witnessSetFixture1
+  , witnessSetFixture2
+  , witnessSetFixture2Value
+  , witnessSetFixture3
+  , witnessSetFixture3Value
+  , witnessSetFixture4
+  )
 import Test.Utils (errMaybe)
-import Types.Transaction (Bech32(Bech32), TransactionInput, TransactionOutput) as T
+import Types.Transaction (NativeScript(ScriptAny), TransactionInput, TransactionOutput) as T
 import Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput)) as T
 
 suite :: TestPlanM Unit
@@ -33,18 +54,6 @@ suite = do
         let bigInt = BigInt.fromInt 123
         res <- errMaybe "Failed to serialize BigInt" $ bigNumFromBigInt bigInt >>= bigNumToBigInt
         res `shouldEqual` bigInt
-    group "Address" do
-      test "deserialization works" do
-        address <- liftEffect $ Serialization.newAddressFromBech32 (T.Bech32 addressString1)
-        convertAddress address `shouldSatisfy` isJust
-      test "deserialization is inverse to serialization" do
-        address <- liftEffect $ Serialization.newAddressFromBech32 (T.Bech32 addressString1)
-        address' <- errMaybe "Failed deserialization 1" do
-          convertAddress address
-        address'' <- liftEffect $ Serialization.convertAddress address'
-        address''' <- errMaybe "Failed deserialization 2" do
-          convertAddress address''
-        address''' `shouldEqual` address'
     group "UnspentTransactionOutput" do
       test "deserialization is inverse to serialization" do
         unspentOutput <- liftEffect $ createUnspentOutput txInputFixture1 txOutputFixture1
@@ -86,6 +95,31 @@ suite = do
           deserializeWitnessSet witnessSetFixture4 >>= convertWitnessSet
         test "has native_scripts" do
           (unwrap res).native_scripts `shouldSatisfy` isJust
+    group "NativeScript - deserializaton is inverse to serialization" do
+      test "fixture #1" do
+        liftEffect $ testNativeScript nativeScriptFixture1
+      test "fixture #2" do
+        liftEffect $ testNativeScript nativeScriptFixture2
+      test "fixture #3" do
+        liftEffect $ testNativeScript nativeScriptFixture3
+      test "fixture #4" do
+        liftEffect $ testNativeScript nativeScriptFixture4
+      test "fixture #5" do
+        liftEffect $ testNativeScript nativeScriptFixture5
+      test "fixture #6" do
+        liftEffect $ testNativeScript nativeScriptFixture6
+      test "fixture #7" do
+        liftEffect $ testNativeScript nativeScriptFixture7
+      test "fixture #7" do
+        liftEffect $ testNativeScript nativeScriptFixture7
+      -- This is here just to acknowledge the problem
+      test "too much nesting leads to recursion error" do
+        expectError $ do
+          let
+            longNativeScript =
+              Array.foldr (\_ acc -> T.ScriptAny [ acc ]) nativeScriptFixture1 $
+                Array.range 0 5000
+          liftEffect $ testNativeScript longNativeScript
     group "WitnessSet - deserialization is inverse to serialization" do
       test "fixture #1" do
         ws0 <- errMaybe "Failed deserialization" $
@@ -112,7 +146,7 @@ suite = do
         let wsBytes = Serialization.toBytes (asOneOf ws1)
         wsBytes `shouldEqual` witnessSetFixture3 -- byte representation
       -- TODO: enable when native_scripts are implemented
-      skip $ test "fixture #4" do
+      test "fixture #4" do
         ws0 <- errMaybe "Failed deserialization" $
           deserializeWitnessSet witnessSetFixture4 >>= convertWitnessSet
         ws1 <- liftEffect $ SW.convertWitnessSet ws0
@@ -126,3 +160,11 @@ createUnspentOutput input output = do
   input' <- Serialization.convertTxInput input
   output' <- Serialization.convertTxOutput output
   pure $ mkTransactionUnspentOutput input' output'
+
+testNativeScript :: T.NativeScript -> Effect Unit
+testNativeScript input = do
+  serialized <- errMaybe "Failed serialization" $ NSS.convertNativeScript input
+  let bytes = Serialization.toBytes (asOneOf serialized)
+  res <- errMaybe "Failed deserialization" $ fromBytes bytes
+  res' <- errMaybe "Failed deserialization" $ NSD.convertNativeScript res
+  res' `shouldEqual` input

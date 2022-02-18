@@ -24,26 +24,25 @@ module QueryM
   ) where
 
 import Prelude
+
 import Affjax as Affjax
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (ReaderT, ask, asks)
-import Control.Monad.Trans.Class (lift)
 import Data.Argonaut as Json
+import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Bifunctor (bimap)
-import Data.Bitraversable (bisequence, bitraverse)
+import Data.Bitraversable (bisequence)
 import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
 import Data.Map as Map
-import Data.Maybe (maybe, Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (sequence)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Deserialization.Address as Deserialization.Address
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Aff.Class (liftAff)
@@ -52,10 +51,10 @@ import Effect.Console (log)
 import Effect.Exception (Error, error)
 import Effect.Ref as Ref
 import Helpers as Helpers
-import Serialization (addressBech32, newAddressFromBech32)
 import Serialization as Serialization
+import Serialization.Address (Address, addressBech32, addressFromBech32)
 import Types.ByteArray (hexToByteArray, byteArrayToHex)
-import Types.JsonWsp (Address, OgmiosTxOut, JsonWspResponse, mkUtxosAtQuery, parseJsonWspResponse, TxOutRef, UtxoQR(UtxoQR))
+import Types.JsonWsp as JsonWsp
 import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.Value (Coin(Coin))
@@ -102,15 +101,15 @@ type QueryConfig =
 type QueryM (a :: Type) = ReaderT QueryConfig Aff a
 
 -- the first query type in the QueryM/Aff interface
-utxosAt' :: Address -> QueryM UtxoQR
+utxosAt' :: JsonWsp.Address -> QueryM JsonWsp.UtxoQR
 utxosAt' addr = do
-  body <- liftEffect $ mkUtxosAtQuery { utxo: [ addr ] }
+  body <- liftEffect $ JsonWsp.mkUtxosAtQuery { utxo: [ addr ] }
   let id = body.mirror.id
   sBody <- liftEffect $ _stringify body
   config <- ask
   -- not sure there's an easy way to factor this out unfortunately
   let
-    affFunc :: (Either Error UtxoQR -> Effect Unit) -> Effect Canceler
+    affFunc :: (Either Error JsonWsp.UtxoQR -> Effect Unit) -> Effect Canceler
     affFunc cont = do
       let
         ls = listeners config.ws
@@ -126,14 +125,14 @@ utxosAt' addr = do
         liftEffect $ throwError $ err
   liftAff $ makeAff $ affFunc
 
-allowError :: (Either Error UtxoQR -> Effect Unit) -> UtxoQR -> Effect Unit
+allowError :: (Either Error JsonWsp.UtxoQR -> Effect Unit) -> JsonWsp.UtxoQR -> Effect Unit
 allowError func = func <<< Right
 
 --------------------------------------------------------------------------------
 -- Wallet
 --------------------------------------------------------------------------------
 
-getWalletAddress :: QueryM (Maybe Transaction.Address)
+getWalletAddress :: QueryM (Maybe Address)
 getWalletAddress = withMWalletAff $ case _ of
   Nami nami -> callNami nami _.getWalletAddress
 
@@ -284,7 +283,7 @@ listeners (OgmiosWebSocket _ ls) = ls
 
 -- interface required for adding/removing listeners
 type Listeners =
-  { utxo :: ListenerSet UtxoQR
+  { utxo :: ListenerSet JsonWsp.UtxoQR
   }
 
 -- convenience type for adding additional query types later
@@ -309,7 +308,7 @@ mkListenerSet dim =
   , dispatchIdMap: dim
   }
 
-removeAllListeners :: DispatchIdMap UtxoQR -> Effect Unit
+removeAllListeners :: DispatchIdMap JsonWsp.UtxoQR -> Effect Unit
 removeAllListeners dim = do
   log "error hit, removing all listeners"
   Ref.write Map.empty dim
@@ -327,7 +326,7 @@ type WebsocketDispatch = String -> Effect (Either Json.JsonDecodeError (Effect U
 type DispatchIdMap a = Ref.Ref (Map.Map String (a -> Effect Unit))
 
 -- an immutable queue of response type handlers
-messageDispatch :: DispatchIdMap UtxoQR -> Array WebsocketDispatch
+messageDispatch :: DispatchIdMap JsonWsp.UtxoQR -> Array WebsocketDispatch
 messageDispatch dim =
   [ utxoQueryDispatch dim
   ]
@@ -342,23 +341,23 @@ createMutableDispatch = Ref.new Map.empty
 -- with the provided id, if we are then we dispatch to the effect that is
 -- waiting on this result
 utxoQueryDispatch
-  :: Ref.Ref (Map.Map String (UtxoQR -> Effect Unit))
+  :: Ref.Ref (Map.Map String (JsonWsp.UtxoQR -> Effect Unit))
   -> String
   -> Effect (Either Json.JsonDecodeError (Effect Unit))
 utxoQueryDispatch ref str = do
-  let parsed' = parseJsonWspResponse =<< Helpers.parseJsonStringifyNumbers str
+  let parsed' = JsonWsp.parseJsonWspResponse =<< Helpers.parseJsonStringifyNumbers str
   case parsed' of
     (Left err) -> pure $ Left err
     (Right res) -> afterParse res
   where
   afterParse
-    :: JsonWspResponse UtxoQR
+    :: JsonWsp.JsonWspResponse JsonWsp.UtxoQR
     -> Effect (Either Json.JsonDecodeError (Effect Unit))
   afterParse parsed = do
     let (id :: String) = parsed.reflection.id
     idMap <- Ref.read ref
     let
-      (mAction :: Maybe (UtxoQR -> Effect Unit)) = (Map.lookup id idMap)
+      (mAction :: Maybe (JsonWsp.UtxoQR -> Effect Unit)) = (Map.lookup id idMap)
     case mAction of
       Nothing -> pure $ (Left (Json.TypeMismatch ("Parse succeeded but Request Id: " <> id <> " has been cancelled")) :: Either Json.JsonDecodeError (Effect Unit))
       Just action -> pure $ Right $ action parsed.result
@@ -399,40 +398,39 @@ messageFoldF msg acc' func = do
 -- Ogmios functions and types to internal types
 --------------------------------------------------------------------------------
 -- JsonWsp.Address is a bech32 string, so wrap to Transaction.Types.Bech32
--- | Converts an JsonWsp.Address to (internal) Address
-ogmiosAddressToAddress :: Address -> Effect (Maybe Transaction.Address)
-ogmiosAddressToAddress ogAddr =
-  newAddressFromBech32 (wrap ogAddr) <#> Deserialization.Address.convertAddress
+-- | Converts an JsonWsp.Address (bech32string) to Address
+ogmiosAddressToAddress :: JsonWsp.Address -> Maybe Address
+ogmiosAddressToAddress = addressFromBech32
 
--- | Converts an (internal) Address to JsonWsp.Address
-addressToOgmiosAddress :: Transaction.Address -> Effect Address
-addressToOgmiosAddress addr =
-  Serialization.convertAddress addr <#> addressBech32 >>> unwrap
+-- | Converts an (internal) Address to JsonWsp.Address (bech32string)
+addressToOgmiosAddress :: Address -> JsonWsp.Address
+addressToOgmiosAddress = addressBech32
 
 -- If required, we can change to Either with more granular error handling.
 -- | Gets utxos at an (internal) Address in terms of (internal) Transaction.Types
-utxosAt :: Transaction.Address -> QueryM (Maybe Transaction.UtxoM)
-utxosAt addr = addressToOgmiosAddress addr # liftEffect # lift >>= getUtxos
+utxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
+utxosAt = addressToOgmiosAddress >>> getUtxos
   where
-  getUtxos :: Address -> QueryM (Maybe Transaction.UtxoM)
-  getUtxos address = convertUtxos >>> liftEffect >>> lift =<< utxosAt' address
+  getUtxos :: JsonWsp.Address -> QueryM (Maybe Transaction.UtxoM)
+  getUtxos address = convertUtxos <$> utxosAt' address
 
-  convertUtxos :: UtxoQR -> Effect (Maybe Transaction.UtxoM)
-  convertUtxos (UtxoQR utxoQueryResult) = do
-    out' :: Array (Maybe Transaction.TransactionInput /\ Maybe Transaction.TransactionOutput) <-
-      Map.toUnfoldable utxoQueryResult
-        <#> bitraverse
-          (pure <<< txOutRefToTransactionInput)
-          ogmiosTxOutToTransactionOutput
-        # sequence
+  convertUtxos :: JsonWsp.UtxoQR -> Maybe Transaction.UtxoM
+  convertUtxos (JsonWsp.UtxoQR utxoQueryResult) =
     let
+      out' :: Array (Maybe Transaction.TransactionInput /\ Maybe Transaction.TransactionOutput)
+      out' = Map.toUnfoldable utxoQueryResult
+        <#> bimap
+          txOutRefToTransactionInput
+          ogmiosTxOutToTransactionOutput
+
       out :: Maybe (Array (Transaction.TransactionInput /\ Transaction.TransactionOutput))
       out = out' <#> bisequence # sequence
-    pure $ maybe Nothing (pure <<< wrap <<< Map.fromFoldable) out
+    in
+      (wrap <<< Map.fromFoldable) <$> out
 
 -- I think txId is a hexadecimal encoding.
 -- | Converts an Ogmios TxOutRef to (internal) TransactionInput
-txOutRefToTransactionInput :: TxOutRef -> Maybe Transaction.TransactionInput
+txOutRefToTransactionInput :: JsonWsp.TxOutRef -> Maybe Transaction.TransactionInput
 txOutRefToTransactionInput { txId, index } = do
   transaction_id <- hexToByteArray txId <#> wrap
   pure $ wrap
@@ -445,15 +443,12 @@ txOutRefToTransactionInput { txId, index } = do
 -- hexToByteArray for now.
 -- | Converts an Ogmios TxOut to (internal) TransactionOutput
 ogmiosTxOutToTransactionOutput
-  :: OgmiosTxOut
-  -> Effect (Maybe Transaction.TransactionOutput)
-ogmiosTxOutToTransactionOutput { address: address'', value, datum } = do
-  address' <- ogmiosAddressToAddress address''
-  pure $ case address' of
-    Nothing -> Nothing
-    Just address ->
-      pure $ wrap
-        { address
-        , amount: value
-        , data_hash: datum >>= hexToByteArray <#> wrap
-        }
+  :: JsonWsp.OgmiosTxOut
+  -> Maybe Transaction.TransactionOutput
+ogmiosTxOutToTransactionOutput { address, value, datum } = do
+  address' <- ogmiosAddressToAddress address
+  pure $ wrap
+    { address: address'
+    , amount: value
+    , data_hash: datum >>= hexToByteArray <#> wrap
+    }

@@ -2,20 +2,29 @@ module Types.Transaction where
 
 import Prelude
 
-import Data.BigInt (BigInt)
+import Control.Apply (lift2)
+import Data.Array (union)
+import Data.BigInt (BigInt, toNumber)
 import Data.Generic.Rep (class Generic)
-import Data.HashMap (HashMap)
+import Data.Hashable (class Hashable, hash)
+import Data.HashMap (HashMap, empty)
+import Data.HashMap (unionWith) as HashMap
 import Data.Map (Map)
+import Data.Map (unionWith) as Map
 import Data.Maybe (Maybe(Nothing))
+import Data.Maybe.Last (Last(Last))
+import Data.Monoid (guard)
 import Data.Newtype (class Newtype)
 import Data.Rational (Rational)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
-
+import Serialization.Address (Address, NetworkId, RewardAddress, Slot(Slot))
+import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
 import Types.RedeemerTag (RedeemerTag)
 import Types.Value (Coin, Value)
+import Serialization.Hash (Ed25519KeyHash)
 
 -- note: these types are derived from the cardano-serialization-lib Sundae fork
 -- the source of truth for these types should be that library and the
@@ -28,6 +37,29 @@ newtype Transaction = Transaction
   }
 
 derive instance newtypeTransaction :: Newtype Transaction _
+
+instance semigroupTransaction :: Semigroup Transaction where
+  append (Transaction tx) (Transaction tx') =
+    Transaction
+      { body: txCheck tx.body <> txCheck' tx'.body
+      , witness_set: txCheck tx.witness_set <> txCheck' tx'.witness_set
+      , is_valid: tx.is_valid && tx'.is_valid
+      , auxiliary_data: txCheck tx.auxiliary_data <> txCheck' tx'.auxiliary_data
+      }
+    where
+    txCheck :: forall (m :: Type). Monoid m => m -> m
+    txCheck = guard tx.is_valid
+
+    txCheck' :: forall (m :: Type). Monoid m => m -> m
+    txCheck' = guard tx'.is_valid
+
+instance monoidTransaction :: Monoid Transaction where
+  mempty = Transaction
+    { body: mempty
+    , witness_set: mempty
+    , is_valid: true
+    , auxiliary_data: Nothing
+    }
 
 newtype TxBody = TxBody
   { inputs :: Array TransactionInput
@@ -49,6 +81,64 @@ newtype TxBody = TxBody
 derive instance newtypeTxBody :: Newtype TxBody _
 derive newtype instance eqTxBody :: Eq TxBody
 
+instance semigroupTxBody :: Semigroup TxBody where
+  append (TxBody txB) (TxBody txB') = TxBody
+    { inputs: txB.inputs `union` txB'.inputs
+    , outputs: txB.outputs `union` txB'.outputs
+    , fee: txB.fee <> txB'.fee
+    , ttl: lift2 lowerbound txB.ttl txB'.ttl
+    , certs: lift2 union txB.certs txB'.certs
+    , withdrawals: lift2 appendMap txB.withdrawals txB'.withdrawals
+    , update: txB.update <<>> txB'.update
+    , auxiliary_data_hash: txB.auxiliary_data_hash <<>> txB'.auxiliary_data_hash
+    , validity_start_interval:
+        lift2 lowerbound
+          txB.validity_start_interval
+          txB'.validity_start_interval
+    , mint: txB.mint <> txB'.mint
+    , script_data_hash: txB.script_data_hash <<>> txB'.script_data_hash
+    , collateral: lift2 union txB.collateral txB'.collateral
+    , required_signers: lift2 union txB.required_signers txB'.required_signers
+    , network_id: txB.network_id <<>> txB'.network_id
+    }
+    where
+    lowerbound :: Slot -> Slot -> Slot
+    lowerbound (Slot x) (Slot y) = Slot $ min x y
+
+instance monoidTxBody :: Monoid TxBody where
+  mempty = TxBody
+    { inputs: mempty
+    , outputs: mempty
+    , fee: mempty
+    , ttl: Nothing
+    , certs: Nothing
+    , withdrawals: Nothing
+    , update: Nothing
+    , auxiliary_data_hash: Nothing
+    , validity_start_interval: Nothing
+    , mint: Nothing
+    , script_data_hash: Nothing
+    , collateral: Nothing
+    , required_signers: Nothing
+    , network_id: Nothing
+    }
+
+-- We could pick First but Last allows for convenient transforming later in the code.
+appendLastMaybe :: forall (a :: Type). Maybe a -> Maybe a -> Maybe a
+appendLastMaybe m m' = Last m <> Last m' # \(Last m'') -> m''
+
+infixr 5 appendLastMaybe as <<>>
+
+-- Provide an append for Maps where the value has as Semigroup instance
+appendMap
+  :: forall (k :: Type) (v :: Type)
+   . Ord k
+  => Semigroup v
+  => Map k v
+  -> Map k v
+  -> Map k v
+appendMap = Map.unionWith (<>)
+
 newtype ScriptDataHash = ScriptDataHash String
 
 derive instance newtypeScriptDataHash :: Newtype ScriptDataHash _
@@ -58,6 +148,8 @@ newtype Mint = Mint Value
 
 derive instance newtypeMint :: Newtype Mint _
 derive newtype instance eqMint :: Eq Mint
+derive newtype instance semigroupMint :: Semigroup Mint
+derive newtype instance monoidMint :: Monoid Mint
 
 newtype AuxiliaryDataHash = AuxiliaryDataHash String
 
@@ -116,42 +208,6 @@ type ExUnits =
   }
 
 type SubCoin = UnitInterval
-
-type RewardAddress =
-  { network :: UInt
-  , payment :: StakeCredential
-  }
-
-data StakeCredential
-  = StakeCredentialKey Ed25519KeyHash
-  | StakeCredentialScript ScriptHash
-
-derive instance eqStakeCredential :: Eq StakeCredential
-derive instance ordStakeCredential :: Ord StakeCredential
-derive instance genericStakeCredential :: Generic StakeCredential _
-
-instance showStakeCredential :: Show StakeCredential where
-  show = genericShow
-
-newtype Ed25519KeyHash = Ed25519KeyHash ByteArray
-
-derive instance genericEd25519KeyHash :: Generic Ed25519KeyHash _
-derive instance newtypeEd25519KeyHash :: Newtype Ed25519KeyHash _
-derive newtype instance eqEd25519KeyHash :: Eq Ed25519KeyHash
-derive newtype instance ordEd25519KeyHash :: Ord Ed25519KeyHash
-
-instance showEd25519KeyHash :: Show Ed25519KeyHash where
-  show = genericShow
-
-newtype ScriptHash = ScriptHash ByteArray
-
-derive instance genericScriptHash :: Generic ScriptHash _
-derive instance newtypeScriptHash :: Newtype ScriptHash _
-derive newtype instance eqScriptHash :: Eq ScriptHash
-derive newtype instance ordScriptHash :: Ord ScriptHash
-
-instance showScriptHash :: Show ScriptHash where
-  show = genericShow
 
 newtype Costmdls = Costmdls (Map Language CostModel)
 
@@ -214,15 +270,26 @@ derive newtype instance Eq TransactionWitnessSet
 instance Show TransactionWitnessSet where
   show = genericShow
 
-emptyTransactionWitnessSet :: TransactionWitnessSet
-emptyTransactionWitnessSet = TransactionWitnessSet
-  { vkeys: Nothing
-  , native_scripts: Nothing
-  , bootstraps: Nothing
-  , plutus_scripts: Nothing
-  , plutus_data: Nothing
-  , redeemers: Nothing
-  }
+instance semigroupTransactionWitnessSet :: Semigroup TransactionWitnessSet where
+  append (TransactionWitnessSet tws) (TransactionWitnessSet tws') =
+    TransactionWitnessSet
+      { vkeys: lift2 union tws.vkeys tws'.vkeys
+      , native_scripts: lift2 union tws.native_scripts tws'.native_scripts
+      , bootstraps: lift2 union tws.bootstraps tws'.bootstraps
+      , plutus_scripts: lift2 union tws.plutus_scripts tws'.plutus_scripts
+      , plutus_data: lift2 union tws.plutus_data tws'.plutus_data
+      , redeemers: lift2 union tws.redeemers tws'.redeemers
+      }
+
+instance monoidTransactionWitnessSet :: Monoid TransactionWitnessSet where
+  mempty = TransactionWitnessSet
+    { vkeys: Nothing
+    , native_scripts: Nothing
+    , bootstraps: Nothing
+    , plutus_scripts: Nothing
+    , plutus_data: Nothing
+    , redeemers: Nothing
+    }
 
 type BootstrapWitness =
   { vkey :: Vkey
@@ -231,25 +298,10 @@ type BootstrapWitness =
   , attributes :: ByteArray
   }
 
-data NetworkId
-  = Mainnet
-  | Testnet
-
-derive instance eqNetworkId :: Eq NetworkId
-
 newtype RequiredSigner = RequiredSigner String
 
 derive instance newtypeRequiredSigner :: Newtype RequiredSigner _
 derive newtype instance eqRequiredSigner :: Eq RequiredSigner
-
-newtype Bech32 = Bech32 String
-
-derive instance Generic Bech32 _
-derive instance Newtype Bech32 _
-derive newtype instance eqBech32 :: Eq Bech32
-derive newtype instance Ord Bech32
-instance Show Bech32 where
-  show = genericShow
 
 newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
@@ -268,7 +320,7 @@ derive newtype instance Eq Vkey
 instance Show Vkey where
   show = genericShow
 
-newtype PublicKey = PublicKey Bech32
+newtype PublicKey = PublicKey Bech32String
 
 derive instance Generic PublicKey _
 derive instance Newtype PublicKey _
@@ -277,7 +329,7 @@ derive newtype instance Eq PublicKey
 instance Show PublicKey where
   show = genericShow
 
-newtype Ed25519Signature = Ed25519Signature Bech32
+newtype Ed25519Signature = Ed25519Signature Bech32String
 
 derive instance Generic Ed25519Signature _
 derive newtype instance Eq Ed25519Signature
@@ -316,11 +368,28 @@ derive newtype instance Eq Redeemer
 instance Show Redeemer where
   show = genericShow
 
-type AuxiliaryData =
+newtype AuxiliaryData = AuxiliaryData
   { metadata :: Maybe GeneralTransactionMetadata
   , native_scripts :: Maybe (Array NativeScript)
   , plutus_scripts :: Maybe (Array PlutusScript)
   }
+
+derive newtype instance eqAuxiliaryData :: Eq AuxiliaryData
+
+instance semigroupAuxiliaryData :: Semigroup AuxiliaryData where
+  append (AuxiliaryData ad) (AuxiliaryData ad') =
+    AuxiliaryData
+      { metadata: ad.metadata <> ad'.metadata
+      , native_scripts: lift2 union ad.native_scripts ad'.native_scripts
+      , plutus_scripts: lift2 union ad.plutus_scripts ad'.plutus_scripts
+      }
+
+instance monoidAuxiliaryData :: Monoid AuxiliaryData where
+  mempty = AuxiliaryData
+    { metadata: Nothing
+    , native_scripts: Nothing
+    , plutus_scripts: Nothing
+    }
 
 newtype GeneralTransactionMetadata =
   GeneralTransactionMetadata (HashMap TransactionMetadatumLabel TransactionMetadatum)
@@ -329,11 +398,36 @@ derive instance newtypeGeneralTransactionMetadata :: Newtype GeneralTransactionM
 
 derive newtype instance eqGeneralTransactionMetadata :: Eq GeneralTransactionMetadata
 
+-- This Semigroup instance simply takes the Last value for duplicate keys
+-- to avoid a Semigroup instance for TransactionMetadatum.
+-- Do we want to avoid a Semigroup instance for TransactionMetadatum? Recursion
+-- is fine but how to combine Text with Bytes for example? One would have to take
+-- precedence and replace the other.
+instance semigroupGeneralTransactionMetadata :: Semigroup GeneralTransactionMetadata where
+  append (GeneralTransactionMetadata hm) (GeneralTransactionMetadata hm') =
+    GeneralTransactionMetadata $ hm `appendRightHashMap` hm'
+
+instance monoidGeneralTransactionMetadata :: Monoid GeneralTransactionMetadata where
+  mempty = GeneralTransactionMetadata empty
+
+-- Provide an append for HashMaps where we take the rightmost value
+appendRightHashMap
+  :: forall (k :: Type) (v :: Type)
+   . Hashable k
+  => HashMap k v
+  -> HashMap k v
+  -> HashMap k v
+appendRightHashMap = HashMap.unionWith (flip const)
+
 newtype TransactionMetadatumLabel = TransactionMetadatumLabel BigInt
 
 derive instance newtypeTransactionMetadatumLabel :: Newtype TransactionMetadatumLabel _
 
 derive newtype instance eqTransactionMetadatumLabel :: Eq TransactionMetadatumLabel
+
+-- Hashable requires a = b implies hash a = hash b so I think losing precision might be okay?
+instance hashableTransactionMetadatumLabel :: Hashable TransactionMetadatumLabel where
+  hash (TransactionMetadatumLabel bi) = hash $ toNumber bi
 
 data TransactionMetadatum
   = MetadataMap (HashMap TransactionMetadatum TransactionMetadatum)
@@ -345,18 +439,18 @@ data TransactionMetadatum
 derive instance eqTransactionMetadatum :: Eq TransactionMetadatum
 
 data NativeScript
-  = ScriptPubkey
-  | ScriptAll
-  | ScriptAny
-  | ScriptNOfK
-  | TimelockStart
-  | TimelockExpiry
+  = ScriptPubkey Ed25519KeyHash
+  | ScriptAll (Array NativeScript)
+  | ScriptAny (Array NativeScript)
+  | ScriptNOfK Int (Array NativeScript)
+  | TimelockStart Slot
+  | TimelockExpiry Slot
 
 derive instance eqNativeScript :: Eq NativeScript
 derive instance Generic NativeScript _
 
 instance Show NativeScript where
-  show = genericShow
+  show x = genericShow x
 
 newtype TransactionInput = TransactionInput
   { transaction_id :: TransactionHash
@@ -410,69 +504,6 @@ derive newtype instance ordDataHash :: Ord DataHash
 
 instance Show DataHash where
   show = genericShow
-
-newtype Slot = Slot BigInt
-
-derive instance newtypeSlot :: Newtype Slot _
-derive newtype instance eqSlot :: Eq Slot
-
-newtype Address = Address
-  { "AddrType" :: BaseAddress
-  }
-
-derive instance genericAddress :: Generic Address _
-derive instance newtypeAddress :: Newtype Address _
-derive newtype instance eqAddress :: Eq Address
-derive newtype instance ordAddress :: Ord Address
-
-instance showAddress :: Show Address where
-  show = genericShow
-
-newtype BaseAddress = BaseAddress
-  { network :: UInt -- UInt8
-  , stake :: StakeCredential
-  , payment :: PaymentCredential
-  }
-
-derive instance genericBaseAddress :: Generic BaseAddress _
-derive instance newtypeBaseAddress :: Newtype BaseAddress _
-derive newtype instance eqBaseAddress :: Eq BaseAddress
-derive newtype instance ordBaseAddress :: Ord BaseAddress
-
-instance showBaseAddress :: Show BaseAddress where
-  show = genericShow
-
-data PaymentCredential
-  = PaymentCredentialKey Ed25519KeyHash
-  | PaymentCredentialScript ScriptHash
-
-derive instance genericPaymentCredential :: Generic PaymentCredential _
-derive instance eqPaymentCredential :: Eq PaymentCredential
-derive instance ordPaymentCredential :: Ord PaymentCredential
-
-instance showPaymentCredential :: Show PaymentCredential where
-  show = genericShow
-
--- Addresspub struct Address(AddrType);
--- AddrType
--- enum AddrType {
--- Base(BaseAddress),
--- Ptr(PointerAddress),
--- Enterprise(EnterpriseAddress),
--- Reward(RewardAddress),
--- Byron(ByronAddress),
--- }
--- pub struct BaseAddress {
--- network: u8,
--- payment: StakeCredential,
--- stake: StakeCredential,
--- }
--- pub struct StakeCredential(StakeCredType);
--- Both of these are strings:
--- enum StakeCredType {
--- Key(Ed25519KeyHash),
--- Script(ScriptHash),
--- }
 
 -- Option<Certificates>,
 -- these are the constructors, but this will generally be an Empty Option in our initial efforts

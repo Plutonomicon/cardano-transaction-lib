@@ -59,6 +59,7 @@ import QueryM
   , utxosAt
   )
 import Serialization as Serialization
+import Serialization.Address (testnetId)
 import Types.ByteArray (byteArrayToHex)
 import Types.POSIXTimeRange
   ( Extended(NegInf, PosInf)
@@ -67,12 +68,10 @@ import Types.POSIXTimeRange
   , UpperBound(UpperBound)
   )
 import Types.Transaction
-  ( NetworkId(Testnet)
-  , Transaction(Transaction)
+  ( Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
   , TransactionHash
   , TxBody(TxBody)
-  , emptyTransactionWitnessSet
   )
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx))
 import Types.Value as Value
@@ -119,7 +118,7 @@ buildUnbalancedTransaction = do
                 }
             -- ??
             , fee: Value.mkCoin 0
-            , network_id: Just Testnet
+            , network_id: Just testnetId
             , certs: Nothing
             , collateral: Nothing
             , auxiliary_data_hash: Nothing
@@ -132,7 +131,7 @@ buildUnbalancedTransaction = do
             , withdrawals: Nothing
             }
         , is_valid: true
-        , witness_set: emptyTransactionWitnessSet
+        , witness_set: mempty
         , auxiliary_data: Nothing
         }
     , requiredSignatories: Map.empty

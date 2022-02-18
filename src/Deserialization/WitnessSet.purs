@@ -5,18 +5,38 @@ module Deserialization.WitnessSet
 
 import Prelude
 
-import Control.Alt ((<|>))
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (for, traverse)
 import Data.Tuple.Nested ((/\))
 import Deserialization.BigNum (bigNumToBigInt)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization (toBytes)
-import Serialization.Types (BigNum, BootstrapWitness, BootstrapWitnesses, Ed25519Signature, ExUnits, NativeScript, NativeScripts, PlutusData, PlutusList, PlutusScript, PlutusScripts, PublicKey, Redeemer, RedeemerTag, Redeemers, TransactionWitnessSet, Vkey, Vkeywitness, Vkeywitnesses)
+import Serialization.Types
+  ( BigNum
+  , BootstrapWitness
+  , BootstrapWitnesses
+  , Ed25519Signature
+  , ExUnits
+  , NativeScript
+  , NativeScripts
+  , PlutusData
+  , PlutusList
+  , PlutusScript
+  , PlutusScripts
+  , PublicKey
+  , Redeemer
+  , RedeemerTag
+  , Redeemers
+  , TransactionWitnessSet
+  , Vkey
+  , Vkeywitness
+  , Vkeywitnesses
+  )
 import Types.ByteArray (ByteArray)
 import Types.RedeemerTag as Tag
 import Types.Transaction as T
 import Untagged.Union (asOneOf)
+import Deserialization.NativeScript (convertNativeScript)
 
 deserializeWitnessSet :: ByteArray -> Maybe TransactionWitnessSet
 deserializeWitnessSet = _deserializeWitnessSet maybeFfiHelper
@@ -44,20 +64,14 @@ convertVkeyWitnesses = extractWitnesses >>> map \witness ->
     T.Vkeywitness $ publicKey /\ signature
 
 convertVkey :: Vkey -> T.Vkey
-convertVkey = T.Vkey <<< T.PublicKey <<< T.Bech32 <<< publicKeyToBech32 <<< vkeyPublicKey
+convertVkey = T.Vkey <<< T.PublicKey <<< publicKeyToBech32 <<< vkeyPublicKey
 
 convertSignature :: Ed25519Signature -> T.Ed25519Signature
-convertSignature = T.Ed25519Signature <<< T.Bech32 <<< signatureToBech32
+convertSignature = T.Ed25519Signature <<< signatureToBech32
 
 convertNativeScripts :: NativeScripts -> Maybe (Array T.NativeScript)
 convertNativeScripts nativeScripts =
-  for (extractNativeScripts nativeScripts) \script ->
-    nativeScriptAs maybeFfiHelper "as_script_pubkey" T.ScriptPubkey script
-      <|> nativeScriptAs maybeFfiHelper "as_script_all" T.ScriptAll script
-      <|> nativeScriptAs maybeFfiHelper "as_script_any" T.ScriptAny script
-      <|> nativeScriptAs maybeFfiHelper "as_script_n_of_k" T.ScriptNOfK script
-      <|> nativeScriptAs maybeFfiHelper "as_timelock_start" T.TimelockStart script
-      <|> nativeScriptAs maybeFfiHelper "as_timelock_expiry" T.TimelockExpiry script
+  for (extractNativeScripts nativeScripts) convertNativeScript
 
 convertBootstraps :: BootstrapWitnesses -> Array T.BootstrapWitness
 convertBootstraps = extractBootstraps >>> map \bootstrap ->

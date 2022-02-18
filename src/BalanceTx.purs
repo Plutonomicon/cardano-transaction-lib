@@ -18,6 +18,7 @@ module BalanceTx
   ) where
 
 import Prelude
+
 import Data.Array ((\\), findIndex, modifyAt)
 import Data.Array as Array
 import Data.Bifunctor (lmap, rmap)
@@ -32,8 +33,6 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
--- import Debug (spy)
-import Effect.Class (liftEffect)
 import ProtocolParametersAlonzo
   ( adaOnlyWords
   , coinSize
@@ -51,10 +50,13 @@ import QueryM
   , signTransaction
   , utxosAt
   )
-import Types.Transaction
+import Serialization.Address
   ( Address
-  , DataHash
-  , PaymentCredential(PaymentCredentialKey, PaymentCredentialScript)
+  , addressPaymentCred
+  , withStakeCredential
+  )
+import Types.Transaction
+  ( DataHash
   , Transaction(Transaction)
   , TransactionInput
   , TransactionOutput(TransactionOutput)
@@ -62,10 +64,7 @@ import Types.Transaction
   , Utxo
   )
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Types.UnbalancedTransaction
-  ( UnbalancedTx(UnbalancedTx)
-  , utxoIndexToUtxo
-  )
+import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), utxoIndexToUtxo)
 import Types.Value
   ( filterNonAda
   , geq
@@ -253,7 +252,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
       pure $ Left $ GetWalletCollateralError' CouldNotGetNamiCollateral
     Just ownAddr, Just collateral -> do
       utxos' <- map unwrap <$> utxosAt ownAddr
-      utxoIndex' <- liftEffect $ utxoIndexToUtxo utxoIndex
+      let utxoIndex' = utxoIndexToUtxo utxoIndex
       -- Don't need to sequence, can just do as above
       case utxos', utxoIndex' of
         Nothing, _ ->
@@ -644,18 +643,13 @@ getPublicKeyTransactionInput
   :: TransactionInput /\ TransactionOutput
   -> Either GetPublicKeyTransactionInputError TransactionInput
 getPublicKeyTransactionInput (txOutRef /\ txOut) =
-  case txOutPaymentCredentials txOut of
-    -- TEST ME: using PaymentCredentialKey to determine whether wallet or script
-    PaymentCredentialKey _ ->
-      pure txOutRef
-    PaymentCredentialScript _ ->
-      Left CannotConvertScriptOutputToTxInput
-
-addressPaymentCredentials :: Address -> PaymentCredential
-addressPaymentCredentials = _.payment <<< unwrap <<< _."AddrType" <<< unwrap
-
-txOutPaymentCredentials :: TransactionOutput -> PaymentCredential
-txOutPaymentCredentials = addressPaymentCredentials <<< _.address <<< unwrap
+  note CannotConvertScriptOutputToTxInput $ do
+    paymentCred <- unwrap txOut # (_.address >>> addressPaymentCred)
+    -- TEST ME: using StakeCredential to determine whether wallet or script
+    paymentCred # withStakeCredential
+      { onKeyHash: const $ pure txOutRef
+      , onScriptHash: const Nothing
+      }
 
 balanceTxIns :: Utxo -> BigInt -> TxBody -> Either BalanceTxError TxBody
 balanceTxIns utxos fees txbody =

@@ -1,4 +1,4 @@
-/* global require exports */
+/* global require exports BROWSER_RUNTIME */
 
 var lib;
 if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
@@ -46,31 +46,14 @@ exports.newTransaction = body => witness_set => () =>
 exports.newTransaction_ = body => witness_set => auxiliary_data => () =>
     lib.Transaction.new(body, witness_set, auxiliary_data);
 
-exports.newAddressFromBech32 = bech32 => () =>
-    lib.Address.from_bech32(bech32);
+exports.newTransactionWitnessSet = () =>
+    lib.TransactionWitnessSet.new();
 
-exports.newAddressFromBytes = bytes => () =>
-    lib.Address.from_bytes(bytes);
+exports.newTransactionUnspentOutputFromBytes = bytes => () =>
+    lib.TransactionUnspentOutput.from_bytes(bytes);
 
-exports.newBaseAddress = network => payment => stake => () =>
-    lib.BaseAddress.new(network, payment, stake);
-
-exports._newBaseAddressFromAddress = nothing => just => address => {
-    const res = lib.BaseAddress.from_address(address);
-    return res ? just(res) : nothing;
-};
-
-exports.baseAddressPaymentCredential =
-    baseAddress => baseAddress.payment_cred();
-
-exports.baseAddressToAddress = baseAddress => () =>
-    baseAddress.to_address();
-
-exports.newStakeCredentialFromScriptHash = hash => () =>
-    lib.StakeCredential.from_scripthash(hash);
-
-exports.newStakeCredentialFromKeyHash = hash => () =>
-    lib.StakeCredential.from_keyhash(hash);
+exports.newTransactionWitnessSetFromBytes = bytes => () =>
+    lib.TransactionWitnessSet.from_bytes(bytes);
 
 exports.newMultiAsset = () =>
     lib.MultiAsset.new();
@@ -90,17 +73,37 @@ exports.newAssetName = name => () =>
 exports.transactionOutputSetDataHash = output => hash => () =>
     output.set_data_hash(hash);
 
-exports._addressPubKeyHash = just => nothing => baseAddr => {
-    // i've chosen a prefix that Nami uses for payment_creds
-    const kh = baseAddr.payment_cred().to_keyhash();
-    if(kh==null){
-        return nothing;
-    }
-    return just(kh.to_bech32('hbas_'));
-};
+exports.newVkeywitnesses = () =>
+    lib.Vkeywitnesses.new();
 
-exports._addressBech32 = addr => {
-  return addr.to_bech32();
-};
+exports.newVkeywitness = vkey => signature => () =>
+    lib.Vkeywitness.new(vkey, signature);
+
+exports.addVkeywitness = witnesses => witness => () =>
+    witnesses.add(witness);
+
+exports.newVkeyFromPublicKey = public_key => () =>
+    lib.Vkey.new(public_key);
+
+exports.newPublicKey = bech32 => () =>
+    lib.PublicKey.from_bech32(bech32);
+
+exports.newEd25519Signature = bech32 => () =>
+    lib.Ed25519Signature.from_bech32(bech32);
+
+exports.transactionWitnessSetSetVkeys = ws => vkeys => () =>
+    ws.set_vkeys(vkeys);
+
+exports.newPlutusScript = bytes => () =>
+    lib.PlutusScript.new(bytes);
+
+exports.newPlutusScripts = bytes => () =>
+    lib.PlutusScripts.new(bytes);
+
+exports.txWitnessSetSetPlutusScripts = ws => scripts => () =>
+    ws.set_plutus_scripts(scripts);
+
+exports.addPlutusScript = scripts => script => () =>
+    scripts.add(script);
 
 exports.toBytes = sth => sth.to_bytes();
