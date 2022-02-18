@@ -270,6 +270,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) =
       -- non-Ada outputs before looping, i.e. we need to add input fees
       -- for the Ada only collateral. No MinUtxos required. In fact perhaps
       -- this step can be skipped and we can go straight to prebalancer.
+      unbalancedCollTx :: Transaction
       unbalancedCollTx = addTxCollateral unbalancedTx collateral
 
     -- Logging Unbalanced Tx with collateral added:
