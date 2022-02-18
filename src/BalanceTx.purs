@@ -271,6 +271,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) =
       -- for the Ada only collateral. No MinUtxos required. In fact perhaps
       -- this step can be skipped and we can go straight to prebalancer.
       unbalancedCollTx = addTxCollateral unbalancedTx collateral
+
     -- Logging Unbalanced Tx with collateral added:
     logTx' "Unbalanced Collaterised Tx " allUtxos unbalancedCollTx
 
@@ -291,6 +292,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) =
     -- Sign transaction:
     signedTx <- ExceptT $
       signTransaction unsignedTx <#> note (SignTxError' $ CouldNotSignTx ownAddr)
+
     -- Logs final balanced tx and returns it
     ExceptT $ logTx "Post-balancing Tx " allUtxos signedTx <#> Right
   where
