@@ -1,3 +1,4 @@
+/* global exports */
 
 // jsonTurnNumbersToStrings :: String -> String
 exports.jsonTurnNumbersToStrings = (str) => {
