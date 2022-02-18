@@ -236,7 +236,11 @@ calculateMinFee tx = do
       Right resp ->
         bimap
           FeeEstimateDecodeJsonError
-          (Coin <<< (unwrap :: FeeEstimate -> BigInt))
+          -- FIXME
+          -- Add some "padding" to the fees so the transaction will submit
+          -- The server is calculating fees that are too low
+          -- See https://github.com/Plutonomicon/cardano-browser-tx/issues/123
+          (Coin <<< ((+) (BigInt.fromInt 50000)) <<< (unwrap :: FeeEstimate -> BigInt))
           $ Json.decodeJson resp.body
 
 --------------------------------------------------------------------------------
