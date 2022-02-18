@@ -34,25 +34,16 @@ import Data.Either
   )
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
-import Data.Map
-  ( Map
-  , empty
-  , fromFoldableWith
-  , singleton
-  , toUnfoldable
-  , union
-  )
+import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe
-  ( Maybe(..)
-  , fromMaybe
-  )
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (wrap)
 import Data.Show.Generic (genericShow)
 import Data.String
   ( Pattern(..)
   , indexOf
   , splitAt
+  , uncons
   )
 import Data.Traversable (sequence)
 import Data.Tuple (uncurry)
@@ -60,6 +51,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt as UInt
 import Effect (Effect)
 import Foreign.Object (Object)
+import Foreign.Object as FO
 import Types.ByteArray (hexToByteArray)
 import Types.Value
   ( CurrencySymbol
@@ -176,7 +168,6 @@ parseFieldToUInt o str = do
 -- -- eventhough it seems more reasonable.
 -- num <- decodeNumber =<< getField o str
 -- note err $ UInt.fromNumber' num
-
 -- parses a string at the given field to a BigInt
 parseFieldToBigInt :: Object Json -> String -> Either JsonDecodeError BigInt.BigInt
 parseFieldToBigInt o str = do
@@ -184,6 +175,7 @@ parseFieldToBigInt o str = do
   -- schema and UtxoQueryResponse.json to be a string to pass (local) parsing
   -- tests. Notice "coins" is a string in our local example.
   let err = TypeMismatch $ "expected field: '" <> str <> "' as a BigInt"
+
   num <- caseJsonString (Left err) Right =<< getField o str
   note err $ BigInt.fromString num
 
@@ -200,28 +192,32 @@ newtype Assets = Assets (Map CurrencySymbol (Map TokenName BigInt))
 
 instance DecodeJson Assets where
   decodeJson j = do
-    assets :: Array (String /\ String) <- toUnfoldable <$> decodeJson j
-    let mAssets = Assets <<< fromFoldableWith union <$> (sequence $ uncurry convertAssetQuantity <$> assets)
-    note (UnexpectedValue j) mAssets
-
+    wspAssets :: Array (String /\ String) <- FO.toUnfoldable <$> decodeJson j
+    Assets <<< Map.fromFoldableWith Map.union <$> sequence (uncurry decodeAsset <$> wspAssets)
     where
-    convertAssetQuantity :: String -> String -> Maybe (CurrencySymbol /\ Map TokenName BigInt)
-    convertAssetQuantity currAndTn quantityStr = do
-
+    decodeAsset :: String -> String -> Either JsonDecodeError (CurrencySymbol /\ Map TokenName BigInt)
+    decodeAsset assetStr quantityStr = do
       let
-        currSymStr /\ tnStr = case indexOf (Pattern ".") currAndTn of
-          Nothing -> currAndTn /\ ""
+        -- Ogmios encodes CurrencySymbol and TokenName to hex strings separated with '.'
+        -- TokenName part is optional
+        currSymStr /\ tnStr = case indexOf (Pattern ".") assetStr of
+          Nothing -> assetStr /\ ""
           Just ix ->
             let
-              { before, after } = splitAt ix currAndTn
+              { before, after } = splitAt ix assetStr
+              tn = fromMaybe "" $ after # uncons <#> _.tail
             in
-              before /\ after
+              before /\ tn
 
-      currSymb <- mkCurrencySymbol =<< hexToByteArray currSymStr
-      tokenName <- mkTokenNameTemp <$> hexToByteArray tnStr
-      quant <- BigInt.fromString quantityStr
+      currSymb <- note (assetStrError assetStr "CurrencySymbol" currSymStr)
+        $ mkCurrencySymbol =<< hexToByteArray currSymStr
+      tokenName <- note (assetStrError assetStr "TokenName" tnStr)
+        $ mkTokenNameTemp <$> hexToByteArray tnStr
+      quant <- note (TypeMismatch $ "Expected string encoded BigInt, got: " <> quantityStr)
+        $ BigInt.fromString quantityStr
+      pure $ currSymb /\ Map.singleton tokenName quant
 
-      pure $ currSymb /\ singleton tokenName quant
+    assetStrError str t v = (TypeMismatch ("In " <> str <> ": Expected hex-encoded " <> t <> ", got: " <> v))
 
 -- the outer result type for Utxo queries, newtyped so that it can have
 -- appropriate instances to work with `parseJsonWspResponse`
@@ -301,5 +297,5 @@ parseValue :: Object Json -> Either JsonDecodeError Value
 parseValue outer = do
   o <- getField outer "value"
   coins <- parseFieldToBigInt o "coins" <|> Left (TypeMismatch "Expected 'coins' to be an Int or a BigInt")
-  Assets assetsMap <- fromMaybe (Assets empty) <$> getFieldOptional' o "assets"
+  Assets assetsMap <- fromMaybe (Assets Map.empty) <$> getFieldOptional' o "assets"
   pure $ mkValue (wrap coins) (wrap assetsMap)
