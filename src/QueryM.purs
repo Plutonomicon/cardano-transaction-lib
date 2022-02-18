@@ -432,7 +432,7 @@ utxosAt addr = asks _.wallet >>= maybe (pure Nothing) (utxosAtByWallet addr)
   -- This is crucial if we are submitting via Nami. If we decide to submit with
   -- Ogmios, we can remove this.
   -- More detail can be found here https://github.com/Berry-Pool/nami-wallet/blob/ecb32e39173b28d4a7a85b279a748184d4759f6f/src/api/extension/index.js
-  -- by looking searching "// exclude collateral input from overall utxo set"
+  -- by searching "// exclude collateral input from overall utxo set"
   -- or functions getUtxos and checkCollateral.
   namiUtxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
   namiUtxosAt address = do
