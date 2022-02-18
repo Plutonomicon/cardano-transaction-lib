@@ -243,7 +243,10 @@ calculateMinFee' = calculateMinFee >>> map (rmap unwrap)
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L54
 -- FIX ME: UnbalancedTx contains requiredSignatories which would be a part of
 -- multisig but we don't have such functionality ATM.
--- | Balances an unbalanced transaction
+
+-- | Balances an unbalanced transaction. For submitting a tx via Nami, the
+-- utxo set shouldn't include the collateral which is vital for balancing.
+-- In particular, the transaction inputs must not include the collateral.
 balanceTxM :: UnbalancedTx -> QueryM (Either BalanceTxError Transaction)
 balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
   ownAddr' <- getWalletAddress
@@ -267,8 +270,6 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
           let
             -- Combines utxos at the user address and those from any scripts
             -- involved with the contract in the unbalanced transaction.
-            -- For submitting a tx via Nami, this shouldn't include the collateral.
-            -- This is vital for balancing with Nami tx submission.
             allUtxos :: Utxo
             allUtxos = utxos `Map.union` utxoIndex''
 
@@ -401,6 +402,21 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
                 ownAddr'
                 txBody'
 
+  -- We expect the user has a minimum amount of Ada (this buffer) on top of
+  -- their transaction, so by the time the prebalancer finishes, should it
+  -- succeed, there will be some excess Ada (since all non Ada is balanced).
+  -- In particular, this excess Ada will be at least this buffer. This is
+  -- important for when returnAdaChange is called to return Ada change back
+  -- to the user. The idea is this buffer provides enough so that returning
+  -- excess Ada is covered by two main scenarios (see returnAdaChange for more
+  -- details):
+  -- 1) A new utxo doesn't need to be created (no extra fees).
+  -- 2) A new utxo needs to be created but the buffer provides enough Ada to
+  -- create the utxo, cover any extra fees without a further need for looping.
+  -- This buffer could potentially be exactly calculated using (the Haskell server)
+  -- https://github.com/input-output-hk/plutus/blob/8abffd78abd48094cfc72f1ad7b81b61e760c4a0/plutus-core/untyped-plutus-core/src/UntypedPlutusCore/Evaluation/Machine/Cek/Internal.hs#L723
+  -- The trade off for this set up is any transaction requires this buffer on
+  -- top of their transaction as input.
   feeBuffer :: BigInt
   feeBuffer = fromInt 500000
 
