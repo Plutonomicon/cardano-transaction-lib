@@ -70,7 +70,6 @@ import Types.Transaction
   ( Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
-  , emptyTransactionWitnessSet
   )
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx))
 import Types.Value as Value
@@ -131,7 +130,7 @@ buildUnbalancedTransaction = do
             , withdrawals: Nothing
             }
         , is_valid: true
-        , witness_set: emptyTransactionWitnessSet
+        , witness_set: mempty
         , auxiliary_data: Nothing
         }
     , requiredSignatories: Map.empty

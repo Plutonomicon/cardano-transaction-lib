@@ -1,4 +1,4 @@
-/* global require exports */
+/* global require exports BROWSER_RUNTIME */
 
 var lib;
 if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
@@ -42,6 +42,9 @@ exports.transactionWitnessSetSetVkeys = ws => vkeys => () =>
 
 exports.txWitnessSetSetPlutusScripts = ws => scripts => () =>
     ws.set_plutus_scripts(scripts);
+
+exports.transactionWitnessSetSetNativeScripts = ws => scripts => () =>
+    ws.set_native_scripts(scripts);
 
 exports._wsSetBootstraps = helper => ws => bootstraps => () =>
     ws.set_bootstraps(helper.pack(lib.BootstrapWitnesses, bootstraps));

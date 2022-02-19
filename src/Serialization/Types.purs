@@ -27,6 +27,12 @@ foreign import data PlutusScript :: Type
 foreign import data PlutusScripts :: Type
 foreign import data NativeScript :: Type
 foreign import data NativeScripts :: Type
+foreign import data ScriptPubkey :: Type
+foreign import data ScriptAll :: Type
+foreign import data ScriptAny :: Type
+foreign import data ScriptNOfK :: Type
+foreign import data TimelockStart :: Type
+foreign import data TimelockExpiry :: Type
 foreign import data BootstrapWitnesses :: Type
 foreign import data BootstrapWitness :: Type
 foreign import data ConstrPlutusData :: Type
