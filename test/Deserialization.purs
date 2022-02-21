@@ -14,13 +14,17 @@ import TestM (TestPlanM)
 import Untagged.Union (asOneOf)
 
 import Deserialization.BigNum (bigNumToBigInt)
+import Deserialization.BigInt as DB
 import Deserialization.FromBytes (fromBytes)
 import Deserialization.NativeScript as NSD
+import Deserialization.PlutusData as DPD
 import Deserialization.UnspentOutput (convertUnspentOutput, mkTransactionUnspentOutput, newTransactionUnspentOutputFromBytes)
 import Deserialization.WitnessSet (deserializeWitnessSet, convertWitnessSet)
 import Serialization as Serialization
 import Serialization.BigNum (bigNumFromBigInt)
+import Serialization.BigInt as SB
 import Serialization.NativeScript (convertNativeScript) as NSS
+import Serialization.PlutusData as SPD
 import Serialization.Types (TransactionUnspentOutput)
 import Serialization.WitnessSet as SW
 import Test.Fixtures
@@ -31,6 +35,13 @@ import Test.Fixtures
   , nativeScriptFixture5
   , nativeScriptFixture6
   , nativeScriptFixture7
+  , plutusDataFixture1
+  , plutusDataFixture2
+  , plutusDataFixture3
+  , plutusDataFixture4
+  , plutusDataFixture5
+  , plutusDataFixture6
+  , plutusDataFixture7
   , txInputFixture1
   , txOutputFixture1
   , utxoFixture1
@@ -49,11 +60,58 @@ import Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspe
 suite :: TestPlanM Unit
 suite = do
   group "deserialization" $ do
+    group "BigInt" do
+      test "Deserialization is inverse to serialization" do
+        let bigInt = BigInt.fromInt 123
+        res <- errMaybe "Failed to serialize BigInt" do
+          DB.convertBigInt =<< SB.convertBigInt bigInt
+        res `shouldEqual` bigInt
     group "BigNum" do
       test "Deserialization is inverse to serialization" do
         let bigInt = BigInt.fromInt 123
         res <- errMaybe "Failed to serialize BigInt" $ bigNumFromBigInt bigInt >>= bigNumToBigInt
         res `shouldEqual` bigInt
+    group "PlutusData: deserialization is inverse to serialization" do
+      test "fixture #1" do
+        let input = plutusDataFixture1
+        res <- errMaybe "Failed to convert PlutusData" $
+          SPD.convertPlutusData input >>= DPD.convertPlutusData
+        res `shouldEqual` input
+      test "fixture #2" do
+        let input = plutusDataFixture2
+        res <- errMaybe "Failed to convert PlutusData" $
+          SPD.convertPlutusData input >>= DPD.convertPlutusData
+        res `shouldEqual` input
+      test "fixture #3" do
+        let input = plutusDataFixture3
+        res <- errMaybe "Failed to convert PlutusData" $
+          SPD.convertPlutusData input >>= DPD.convertPlutusData
+        res `shouldEqual` input
+      test "fixture #4" do
+        let input = plutusDataFixture4
+        res <- errMaybe "Failed to convert PlutusData" $
+          SPD.convertPlutusData input >>= DPD.convertPlutusData
+        res `shouldEqual` input
+      test "fixture #5" do
+        let input = plutusDataFixture5
+        res <- errMaybe "Failed to convert PlutusData" $
+          SPD.convertPlutusData input >>= DPD.convertPlutusData
+        res `shouldEqual` input
+      test "fixture #6" do
+        let input = plutusDataFixture6
+        res <- errMaybe "Failed to convert PlutusData" $
+          SPD.convertPlutusData input >>= DPD.convertPlutusData
+        res `shouldEqual` input
+      test "fixture #7" do
+        let input = plutusDataFixture7
+        res <- errMaybe "Failed to convert PlutusData" $
+          SPD.convertPlutusData input >>= DPD.convertPlutusData
+        res `shouldEqual` input
+      test "fixture #1" do
+        let input = plutusDataFixture1
+        res <- errMaybe "Failed to convert PlutusData" $
+          SPD.convertPlutusData input >>= DPD.convertPlutusData
+        res `shouldEqual` input
     group "UnspentTransactionOutput" do
       test "deserialization is inverse to serialization" do
         unspentOutput <- liftEffect $ createUnspentOutput txInputFixture1 txOutputFixture1
