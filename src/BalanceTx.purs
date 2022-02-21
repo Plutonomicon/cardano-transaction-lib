@@ -390,7 +390,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) =
   feeBuffer :: BigInt
   feeBuffer = fromInt 500000
 
--- Logging for Transaction type
+-- Logging for Transaction type without returning Transaction
 logTx'
   :: forall (m :: Type -> Type)
    . MonadEffect m
@@ -406,6 +406,7 @@ logTx' msg utxos (Transaction { body: body'@(TxBody body) }) =
     , "Fees: " <> show body.fee
     ]
 
+-- Logging for Transaction type returning Transaction
 logTx
   :: forall (m :: Type -> Type)
    . MonadEffect m
