@@ -19,6 +19,7 @@ module QueryM
   , mkServerUrl
   , ogmiosAddressToAddress
   , signTransaction
+  , submitTransaction
   , utxosAt
   ) where
 
@@ -58,7 +59,7 @@ import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.Value (Coin(Coin))
 import Untagged.Union (asOneOf)
-import Wallet (Wallet(Nami))
+import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -132,23 +133,36 @@ allowError func = func <<< Right
 --------------------------------------------------------------------------------
 
 getWalletAddress :: QueryM (Maybe Address)
-getWalletAddress = withMWalletAff $
-  \(Nami nami) -> nami.getWalletAddress =<< liftEffect (Ref.read nami.connection)
+getWalletAddress = withMWalletAff $ case _ of
+  Nami nami -> callNami nami _.getWalletAddress
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
-getWalletCollateral = withMWalletAff $
-  \(Nami nami) -> nami.getCollateral =<< liftEffect (Ref.read nami.connection)
+getWalletCollateral = withMWalletAff $ case _ of
+  Nami nami -> callNami nami _.getCollateral
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
-signTransaction tx = withMWalletAff $
-  \(Nami nami) -> flip nami.signTx tx =<< liftEffect (Ref.read nami.connection)
+signTransaction tx = withMWalletAff $ case _ of
+  Nami nami -> callNami nami $ \nw -> flip nw.signTx tx
+
+submitTransaction
+  :: Transaction.Transaction -> QueryM (Maybe Transaction.TransactionHash)
+submitTransaction tx = withMWalletAff $ case _ of
+  Nami nami -> callNami nami $ \nw -> flip nw.submitTx tx
 
 withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
-withMWalletAff act = asks _.wallet >>= case _ of
-  Just wallet -> liftAff $ act wallet
-  Nothing -> pure Nothing
+withMWalletAff act = asks _.wallet >>= maybe (pure Nothing) (liftAff <<< act)
+
+callNami
+  :: forall (a :: Type)
+   . NamiWallet
+  -> (NamiWallet -> (NamiConnection -> Aff a))
+  -> Aff a
+callNami nami act = act nami =<< readNamiConnection nami
+  where
+  readNamiConnection :: NamiWallet -> Aff NamiConnection
+  readNamiConnection = liftEffect <<< Ref.read <<< _.connection
 
 -- HTTP Haskell server and related
 --------------------------------------------------------------------------------
@@ -222,7 +236,11 @@ calculateMinFee tx = do
       Right resp ->
         bimap
           FeeEstimateDecodeJsonError
-          (Coin <<< (unwrap :: FeeEstimate -> BigInt))
+          -- FIXME
+          -- Add some "padding" to the fees so the transaction will submit
+          -- The server is calculating fees that are too low
+          -- See https://github.com/Plutonomicon/cardano-browser-tx/issues/123
+          (Coin <<< ((+) (BigInt.fromInt 50000)) <<< (unwrap :: FeeEstimate -> BigInt))
           $ Json.decodeJson resp.body
 
 --------------------------------------------------------------------------------
