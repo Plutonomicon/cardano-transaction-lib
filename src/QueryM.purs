@@ -13,10 +13,12 @@ module QueryM
   , addressToOgmiosAddress
   , calculateMinFee
   , defaultServerConfig
+  , defaultOgmiosWsConfig
   , getWalletAddress
   , getWalletCollateral
   , mkOgmiosWebSocketAff
-  , mkServerUrl
+  , mkHttpUrl
+  , mkWsUrl
   , ogmiosAddressToAddress
   , signTransaction
   , submitTransaction
@@ -164,7 +166,7 @@ callNami nami act = act nami =<< readNamiConnection nami
   readNamiConnection :: NamiWallet -> Aff NamiConnection
   readNamiConnection = liftEffect <<< Ref.read <<< _.connection
 
--- HTTP Haskell server and related
+-- WS/HTTP server config
 --------------------------------------------------------------------------------
 
 type ServerConfig =
@@ -180,11 +182,24 @@ defaultServerConfig =
   , secure: false
   }
 
+defaultOgmiosWsConfig :: ServerConfig
+defaultOgmiosWsConfig =
+  { port: UInt.fromInt 1337
+  , host: "localhost"
+  , secure: false
+  }
+
 type Host = String
 
-mkServerUrl :: ServerConfig -> Url
-mkServerUrl cfg =
-  (if cfg.secure then "https" else "http")
+mkHttpUrl :: ServerConfig -> Url
+mkHttpUrl = mkServerUrl "http"
+
+mkWsUrl :: ServerConfig -> Url
+mkWsUrl = mkServerUrl "ws"
+
+mkServerUrl :: String -> ServerConfig -> Url
+mkServerUrl protocol cfg =
+  (if cfg.secure then (protocol <> "s") else protocol)
     <> "://"
     <> cfg.host
     <> ":"
@@ -224,7 +239,7 @@ instance Show FeeEstimateError where
 calculateMinFee
   :: Transaction.Transaction -> QueryM (Either FeeEstimateError Coin)
 calculateMinFee tx = do
-  url <- asks $ mkServerUrl <<< _.serverConfig
+  url <- asks $ mkHttpUrl <<< _.serverConfig
   txHex <- liftEffect $
     byteArrayToHex
       <<< Serialization.toBytes
@@ -255,13 +270,13 @@ data OgmiosWebSocket = OgmiosWebSocket WebSocket Listeners
 -- smart-constructor for OgmiosWebSocket in Aff Context
 -- (prevents sending messages before the websocket opens, etc)
 mkOgmiosWebSocket'
-  :: Url
+  :: ServerConfig
   -> (Either Error OgmiosWebSocket -> Effect Unit)
   -> Effect Canceler
-mkOgmiosWebSocket' url cb = do
+mkOgmiosWebSocket' serverCfg cb = do
   utxoQueryDispatchIdMap <- createMutableDispatch
   let md = (messageDispatch utxoQueryDispatchIdMap)
-  ws <- _mkWebSocket url
+  ws <- _mkWebSocket $ mkWsUrl serverCfg
   _onWsConnect ws $ do
     _wsWatch ws (removeAllListeners utxoQueryDispatchIdMap)
     _onWsMessage ws (defaultMessageListener md)
@@ -274,8 +289,8 @@ mkOgmiosWebSocket' url cb = do
 -- . ((Either Error a -> Effect Unit) -> Effect Canceler)
 -- -> Aff a
 
-mkOgmiosWebSocketAff :: Url -> Aff OgmiosWebSocket
-mkOgmiosWebSocketAff url = makeAff (mkOgmiosWebSocket' url)
+mkOgmiosWebSocketAff :: ServerConfig -> Aff OgmiosWebSocket
+mkOgmiosWebSocketAff serverCfg = makeAff $ mkOgmiosWebSocket' serverCfg
 
 -- getter
 underlyingWebSocket :: OgmiosWebSocket -> WebSocket
