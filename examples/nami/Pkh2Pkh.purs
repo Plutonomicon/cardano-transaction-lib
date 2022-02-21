@@ -58,9 +58,7 @@ import QueryM
   , submitTransaction
   , utxosAt
   )
-import Serialization as Serialization
 import Serialization.Address (testnetId)
-import Types.ByteArray (byteArrayToHex)
 import Types.POSIXTimeRange
   ( Extended(NegInf, PosInf)
   , Interval(Interval)
@@ -75,7 +73,6 @@ import Types.Transaction
   )
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx))
 import Types.Value as Value
-import Untagged.Union (asOneOf)
 import Wallet (mkNamiWalletAff)
 
 main :: Effect Unit
