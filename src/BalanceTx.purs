@@ -523,34 +523,32 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
 
             fees'' <- lmap ReturnAdaChangeCalculateMinFee <$> calculateMinFee' tx'
             -- fees should increase.
-            pure case fees'' of
-              Left err -> Left err
-              Right fees' -> do
-                -- New return Ada amount should decrease:
-                let returnAda' = returnAda + fees - fees'
+            pure $ fees'' >>= \fees' -> do
+              -- New return Ada amount should decrease:
+              let returnAda' = returnAda + fees - fees'
 
-                if returnAda' >= changeMinUtxo then do
-                  newOutputs <-
-                    note
-                      ( ReturnAdaChangeImpossibleError
-                          "Couldn't modify head utxo to add Ada"
-                          Impossible
-                      )
-                      $ modifyAt
-                          0
-                          ( \(TransactionOutput o) -> TransactionOutput
-                              o { amount = lovelaceValueOf returnAda' }
-                          )
-                      $ _.outputs <<< unwrap
-                      $ txBody'
-                  pure $
-                    wrap
-                      tx { body = wrap txBody { outputs = newOutputs, fee = wrap fees' } }
-                else
-                  Left $
-                    ReturnAdaChangeError
-                      "ReturnAda' does not cover min. utxo requirement for \
-                      \single Ada-only output."
+              if returnAda' >= changeMinUtxo then do
+                newOutputs <-
+                  note
+                    ( ReturnAdaChangeImpossibleError
+                        "Couldn't modify head utxo to add Ada"
+                        Impossible
+                    )
+                    $ modifyAt
+                        0
+                        ( \(TransactionOutput o) -> TransactionOutput
+                            o { amount = lovelaceValueOf returnAda' }
+                        )
+                    $ _.outputs <<< unwrap
+                    $ txBody'
+                pure $
+                  wrap
+                    tx { body = wrap txBody { outputs = newOutputs, fee = wrap fees' } }
+              else
+                Left $
+                  ReturnAdaChangeError
+                    "ReturnAda' does not cover min. utxo requirement for \
+                    \single Ada-only output."
 
 calculateMinUtxos :: Array TransactionOutput -> MinUtxos
 calculateMinUtxos = map (\a -> a /\ calculateMinUtxo a)
