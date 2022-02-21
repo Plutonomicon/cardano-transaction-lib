@@ -58,7 +58,7 @@ import Types.Value
   , TokenName
   , Value
   , mkCurrencySymbol
-  , mkTokenNameTemp
+  , mkTokenName
   , mkValue
   )
 
@@ -212,7 +212,7 @@ instance DecodeJson Assets where
       currSymb <- note (assetStrError assetStr "CurrencySymbol" currSymStr)
         $ mkCurrencySymbol =<< hexToByteArray currSymStr
       tokenName <- note (assetStrError assetStr "TokenName" tnStr)
-        $ mkTokenNameTemp <$> hexToByteArray tnStr
+        $ mkTokenName =<< hexToByteArray tnStr
       quant <- note (TypeMismatch $ "Expected string encoded BigInt, got: " <> quantityStr)
         $ BigInt.fromString quantityStr
       pure $ currSymb /\ Map.singleton tokenName quant
