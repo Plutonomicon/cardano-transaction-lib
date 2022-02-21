@@ -56,11 +56,10 @@ import QueryM
   , defaultServerConfig
   , getWalletAddress
   , mkOgmiosWebSocketAff
+  , submitTransaction
   , utxosAt
   )
-import Serialization as Serialization
 import Serialization.Address (testnetId)
-import Types.ByteArray (byteArrayToHex)
 import Types.POSIXTimeRange
   ( Extended(NegInf, PosInf)
   , Interval(Interval)
@@ -70,29 +69,28 @@ import Types.POSIXTimeRange
 import Types.Transaction
   ( Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
+  , TransactionHash
   , TxBody(TxBody)
   )
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx))
 import Types.Value as Value
-import Untagged.Union (asOneOf)
 import Wallet (mkNamiWalletAff)
 
 main :: Effect Unit
 main = launchAff_ $ do
   wallet <- Just <$> mkNamiWalletAff
   ws <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
-  tx <- runReaderT
-    buildTransaction
+  txId <- runReaderT
+    buildAndSubmit
     { ws
     , wallet
     , serverConfig: defaultServerConfig
     }
-  liftEffect $
-    Console.log
-      <<< byteArrayToHex
-      <<< Serialization.toBytes
-      <<< asOneOf
-      =<< Serialization.convertTransaction tx
+  liftEffect $ Console.log $ show txId
+
+buildAndSubmit :: QueryM TransactionHash
+buildAndSubmit = mthrow "Failed to submit transaction" $
+  submitTransaction =<< buildTransaction
 
 buildTransaction :: QueryM Transaction
 buildTransaction = either (throw <<< show) pure

@@ -20,7 +20,11 @@ import Effect.Ref as Ref
 import Serialization as Serialization
 import Serialization.Address (Address, addressFromBytes)
 import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex)
-import Types.Transaction (Transaction(Transaction), TransactionWitnessSet)
+import Types.Transaction
+  ( Transaction(Transaction)
+  , TransactionHash(TransactionHash)
+  , TransactionWitnessSet
+  )
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Untagged.Union (asOneOf)
 
@@ -43,6 +47,8 @@ type NamiWallet =
   , getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
   -- Sign a transaction with the current wallet
   , signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
+  -- Submit a (balanced) transaction
+  , submitTx :: NamiConnection -> Transaction -> Aff (Maybe TransactionHash)
   }
 
 mkNamiWalletAff :: Aff Wallet
@@ -54,6 +60,7 @@ mkNamiWalletAff = do
     , getWalletAddress
     , getCollateral
     , signTx
+    , submitTx
     }
 
   where
@@ -74,11 +81,7 @@ mkNamiWalletAff = do
 
   signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
   signTx nami tx = do
-    txHex <- liftEffect $
-      byteArrayToHex
-        <<< Serialization.toBytes
-        <<< asOneOf
-        <$> Serialization.convertTransaction tx
+    txHex <- txToHex tx
     fromNamiHexString (_signTxNami txHex) nami >>= case _ of
       Nothing -> pure Nothing
       Just bytes -> map (addWitnessSet tx) <$> liftEffect
@@ -88,6 +91,17 @@ mkNamiWalletAff = do
     where
     addWitnessSet :: Transaction -> TransactionWitnessSet -> Transaction
     addWitnessSet (Transaction tx') ws = Transaction $ tx' { witness_set = ws }
+
+  submitTx :: NamiConnection -> Transaction -> Aff (Maybe TransactionHash)
+  submitTx nami tx = do
+    txHex <- txToHex tx
+    map TransactionHash <$> fromNamiHexString (_submitTxNami txHex) nami
+
+  txToHex :: Transaction -> Aff String
+  txToHex =
+    liftEffect
+      <<< map (byteArrayToHex <<< Serialization.toBytes <<< asOneOf)
+      <<< Serialization.convertTransaction
 
   fromNamiHexString
     :: (NamiConnection -> Effect (Promise String))
@@ -110,3 +124,8 @@ foreign import _signTxNami
   :: String -- Hex-encoded cbor of tx
   -> NamiConnection
   -> Effect (Promise String)
+
+foreign import _submitTxNami
+  :: String -- Hex-encoded cbor of tx
+  -> NamiConnection
+  -> Effect (Promise String) -- Submitted tx hash

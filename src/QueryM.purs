@@ -21,6 +21,7 @@ module QueryM
   , mkWsUrl
   , ogmiosAddressToAddress
   , signTransaction
+  , submitTransaction
   , utxosAt
   ) where
 
@@ -38,7 +39,7 @@ import Data.Bitraversable (bisequence)
 import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (sequence)
 import Data.Tuple.Nested (type (/\))
@@ -60,7 +61,7 @@ import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.Value (Coin(Coin))
 import Untagged.Union (asOneOf)
-import Wallet (Wallet(Nami))
+import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -134,23 +135,36 @@ allowError func = func <<< Right
 --------------------------------------------------------------------------------
 
 getWalletAddress :: QueryM (Maybe Address)
-getWalletAddress = withMWalletAff $
-  \(Nami nami) -> nami.getWalletAddress =<< liftEffect (Ref.read nami.connection)
+getWalletAddress = withMWalletAff $ case _ of
+  Nami nami -> callNami nami _.getWalletAddress
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
-getWalletCollateral = withMWalletAff $
-  \(Nami nami) -> nami.getCollateral =<< liftEffect (Ref.read nami.connection)
+getWalletCollateral = withMWalletAff $ case _ of
+  Nami nami -> callNami nami _.getCollateral
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
-signTransaction tx = withMWalletAff $
-  \(Nami nami) -> flip nami.signTx tx =<< liftEffect (Ref.read nami.connection)
+signTransaction tx = withMWalletAff $ case _ of
+  Nami nami -> callNami nami $ \nw -> flip nw.signTx tx
+
+submitTransaction
+  :: Transaction.Transaction -> QueryM (Maybe Transaction.TransactionHash)
+submitTransaction tx = withMWalletAff $ case _ of
+  Nami nami -> callNami nami $ \nw -> flip nw.submitTx tx
 
 withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
-withMWalletAff act = asks _.wallet >>= case _ of
-  Just wallet -> liftAff $ act wallet
-  Nothing -> pure Nothing
+withMWalletAff act = asks _.wallet >>= maybe (pure Nothing) (liftAff <<< act)
+
+callNami
+  :: forall (a :: Type)
+   . NamiWallet
+  -> (NamiWallet -> (NamiConnection -> Aff a))
+  -> Aff a
+callNami nami act = act nami =<< readNamiConnection nami
+  where
+  readNamiConnection :: NamiWallet -> Aff NamiConnection
+  readNamiConnection = liftEffect <<< Ref.read <<< _.connection
 
 -- WS/HTTP server config
 --------------------------------------------------------------------------------
@@ -237,7 +251,11 @@ calculateMinFee tx = do
       Right resp ->
         bimap
           FeeEstimateDecodeJsonError
-          (Coin <<< (unwrap :: FeeEstimate -> BigInt))
+          -- FIXME
+          -- Add some "padding" to the fees so the transaction will submit
+          -- The server is calculating fees that are too low
+          -- See https://github.com/Plutonomicon/cardano-browser-tx/issues/123
+          (Coin <<< ((+) (BigInt.fromInt 50000)) <<< (unwrap :: FeeEstimate -> BigInt))
           $ Json.decodeJson resp.body
 
 --------------------------------------------------------------------------------
@@ -408,26 +426,55 @@ addressToOgmiosAddress :: Address -> JsonWsp.Address
 addressToOgmiosAddress = addressBech32
 
 -- If required, we can change to Either with more granular error handling.
--- | Gets utxos at an (internal) Address in terms of (internal) Transaction.Types
+-- | Gets utxos at an (internal) Address in terms of (internal) Transaction.Types.
+-- Results may vary depending on Wallet type.
 utxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
-utxosAt = addressToOgmiosAddress >>> getUtxos
+utxosAt addr = asks _.wallet >>= maybe (pure Nothing) (utxosAtByWallet addr)
   where
-  getUtxos :: JsonWsp.Address -> QueryM (Maybe Transaction.UtxoM)
-  getUtxos address = convertUtxos <$> utxosAt' address
+  -- Add more wallet types here:
+  utxosAtByWallet
+    :: Address -> Wallet -> QueryM (Maybe Transaction.UtxoM)
+  utxosAtByWallet address (Nami _) = namiUtxosAt address
+  -- Unreachable but helps build when we add wallets, most of them shouldn't
+  -- require any specific behaviour.
+  utxosAtByWallet address _ = allUtxosAt address
 
-  convertUtxos :: JsonWsp.UtxoQR -> Maybe Transaction.UtxoM
-  convertUtxos (JsonWsp.UtxoQR utxoQueryResult) =
-    let
-      out' :: Array (Maybe Transaction.TransactionInput /\ Maybe Transaction.TransactionOutput)
-      out' = Map.toUnfoldable utxoQueryResult
-        <#> bimap
-          txOutRefToTransactionInput
-          ogmiosTxOutToTransactionOutput
+  -- Gets all utxos at an (internal) Address in terms of (internal)
+  -- Transaction.Types.
+  allUtxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
+  allUtxosAt = addressToOgmiosAddress >>> getUtxos
+    where
+    getUtxos :: JsonWsp.Address -> QueryM (Maybe Transaction.UtxoM)
+    getUtxos address = convertUtxos <$> utxosAt' address
 
-      out :: Maybe (Array (Transaction.TransactionInput /\ Transaction.TransactionOutput))
-      out = out' <#> bisequence # sequence
-    in
-      (wrap <<< Map.fromFoldable) <$> out
+    convertUtxos :: JsonWsp.UtxoQR -> Maybe Transaction.UtxoM
+    convertUtxos (JsonWsp.UtxoQR utxoQueryResult) =
+      let
+        out' :: Array (Maybe Transaction.TransactionInput /\ Maybe Transaction.TransactionOutput)
+        out' = Map.toUnfoldable utxoQueryResult
+          <#> bimap
+            txOutRefToTransactionInput
+            ogmiosTxOutToTransactionOutput
+
+        out :: Maybe (Array (Transaction.TransactionInput /\ Transaction.TransactionOutput))
+        out = out' <#> bisequence # sequence
+      in
+        (wrap <<< Map.fromFoldable) <$> out
+
+  -- Nami appear to remove collateral from the utxo set, so we shall do the same.
+  -- This is crucial if we are submitting via Nami. If we decide to submit with
+  -- Ogmios, we can remove this.
+  -- More detail can be found here https://github.com/Berry-Pool/nami-wallet/blob/ecb32e39173b28d4a7a85b279a748184d4759f6f/src/api/extension/index.js
+  -- by searching "// exclude collateral input from overall utxo set"
+  -- or functions getUtxos and checkCollateral.
+  namiUtxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
+  namiUtxosAt address = do
+    utxos' <- allUtxosAt address
+    collateral' <- getWalletCollateral
+    pure do
+      utxos <- unwrap <$> utxos'
+      collateral <- unwrap <$> collateral'
+      pure $ wrap $ Map.delete collateral.input utxos
 
 -- I think txId is a hexadecimal encoding.
 -- | Converts an Ogmios TxOutRef to (internal) TransactionInput
