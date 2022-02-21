@@ -1,4 +1,6 @@
-module Deserialization.PlutusData where
+module Deserialization.PlutusData
+  ( convertPlutusData
+  ) where
 
 import Prelude
 
@@ -6,7 +8,7 @@ import Control.Alt ((<|>))
 import Data.Map as Map
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
-import Data.Tuple (Tuple(..))
+import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Deserialization.BigInt (convertBigInt)
 import Deserialization.BigNum (bigNumToBigInt)
