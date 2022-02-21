@@ -19,6 +19,7 @@ module BalanceTx
 
 import Prelude
 
+import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Data.Array ((\\), findIndex, modifyAt)
 import Data.Array as Array
 import Data.Bifunctor (lmap, rmap)
@@ -243,75 +244,58 @@ calculateMinFee' = calculateMinFee >>> map (rmap unwrap)
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L54
 -- FIX ME: UnbalancedTx contains requiredSignatories which would be a part of
 -- multisig but we don't have such functionality ATM.
--- | Balances an unbalanced transaction
+
+-- | Balances an unbalanced transaction. For submitting a tx via Nami, the
+-- utxo set shouldn't include the collateral which is vital for balancing.
+-- In particular, the transaction inputs must not include the collateral.
 balanceTxM :: UnbalancedTx -> QueryM (Either BalanceTxError Transaction)
-balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
-  ownAddr' <- getWalletAddress
-  collateral' <- getWalletCollateral
-  -- Saves on an extra nested case:
-  case ownAddr', collateral' of
-    Nothing, _ ->
-      pure $ Left $ GetWalletAddressError' CouldNotGetNamiWalletAddress
-    _, Nothing ->
-      pure $ Left $ GetWalletCollateralError' CouldNotGetNamiCollateral
-    Just ownAddr, Just collateral -> do
-      utxos' <- map unwrap <$> utxosAt ownAddr
-      let utxoIndex' = utxoIndexToUtxo utxoIndex
-      -- Don't need to sequence, can just do as above
-      case utxos', utxoIndex' of
-        Nothing, _ ->
-          pure $ Left $ UtxosAtError' CouldNotGetUtxos
-        _, Nothing ->
-          pure $ Left $ UtxoIndexToUtxoError' CouldNotConvertUtxoIndex
-        Just utxos, Just utxoIndex'' -> do
-          let
-            -- Combines utxos at the user address and those from any scripts
-            -- involved with the contract in the unbalanced transaction.
-            -- For submitting a tx via Nami, this shouldn't include the collateral.
-            -- This is vital for balancing with Nami tx submission.
-            allUtxos :: Utxo
-            allUtxos = utxos `Map.union` utxoIndex''
+balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) =
+  runExceptT do
+    -- Get own wallet address, collateral and utxo set:
+    ownAddr <- ExceptT $ getWalletAddress <#>
+      note (GetWalletAddressError' CouldNotGetNamiWalletAddress)
+    collateral <- ExceptT $ getWalletCollateral <#>
+      note (GetWalletCollateralError' CouldNotGetNamiCollateral)
+    utxos <- ExceptT $ utxosAt ownAddr <#>
+      (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
+    utxoIndex' <- ExceptT $ pure $ utxoIndexToUtxo utxoIndex #
+      note (UtxoIndexToUtxoError' CouldNotConvertUtxoIndex)
+    let
+      -- Combines utxos at the user address and those from any scripts
+      -- involved with the contract in the unbalanced transaction.
+      allUtxos :: Utxo
+      allUtxos = utxos `Map.union` utxoIndex'
 
-            -- After adding collateral, we need to balance the inputs and
-            -- non-Ada outputs before looping, i.e. we need to add input fees
-            -- for the Ada only collateral. No MinUtxos required. In fact perhaps
-            -- this step can be skipped and we can go straight to prebalancer.
-            unbalancedCollTx = addTxCollateral unbalancedTx collateral
-          -- Logging Unbalanced Tx with collateral added
-          logTx' "Unbalanced Collaterised Tx " allUtxos unbalancedCollTx
-          -- Prebalance tx without fees:
-          case prebalanceCollateral zero allUtxos ownAddr unbalancedCollTx of
-            Left err -> pure $ Left err
-            Right ubcTx' -> do
-              fees' <- lmap CalculateMinFeeError' <$> calculateMinFee' ubcTx'
-              -- Prebalance tx with fees:
-              let
-                unbalancedCollTx' = fees' >>= \fees ->
-                  prebalanceCollateral
-                    (fees + feeBuffer)
-                    allUtxos
-                    ownAddr
-                    ubcTx'
-              case unbalancedCollTx' of
-                Left err -> pure $ Left err
-                Right unbalancedCollTx'' ->
-                  loop allUtxos ownAddr [] unbalancedCollTx'' >>= case _ of
-                    Left err -> pure $ Left err
-                    Right nonAdaBalancedCollTx ->
-                      lmap ReturnAdaChangeError' <$>
-                        returnAdaChange ownAddr allUtxos nonAdaBalancedCollTx
-                        >>= case _ of
-                          Left err -> pure $ Left err
-                          Right unsignedTx -> do
-                            signedTx' <- signTransaction unsignedTx
-                              <#> note (SignTxError' $ CouldNotSignTx ownAddr)
-                            -- Some post balancer logging:
-                            case signedTx' of
-                              Left err -> pure $ Left err
-                              Right signedTx -> do
-                                logTx "Post-balancing Tx " allUtxos
-                                  signedTx <#> pure
+      -- After adding collateral, we need to balance the inputs and
+      -- non-Ada outputs before looping, i.e. we need to add input fees
+      -- for the Ada only collateral. No MinUtxos required. In fact perhaps
+      -- this step can be skipped and we can go straight to prebalancer.
+      unbalancedCollTx :: Transaction
+      unbalancedCollTx = addTxCollateral unbalancedTx collateral
 
+    -- Logging Unbalanced Tx with collateral added:
+    logTx' "Unbalanced Collaterised Tx " allUtxos unbalancedCollTx
+
+    -- Prebalance collaterised tx without fees:
+    ubcTx <- except $
+      prebalanceCollateral zero allUtxos ownAddr unbalancedCollTx
+    -- Prebalance collaterised tx with fees:
+    fees <- ExceptT $ calculateMinFee' ubcTx <#> lmap CalculateMinFeeError'
+    ubcTx' <- except $
+      prebalanceCollateral (fees + feeBuffer) allUtxos ownAddr ubcTx
+
+    -- Loop to balance non-Ada assets
+    nonAdaBalancedCollTx <- ExceptT $ loop allUtxos ownAddr [] ubcTx'
+    -- Return excess Ada change to wallet:
+    unsignedTx <- ExceptT $
+      returnAdaChange ownAddr allUtxos nonAdaBalancedCollTx <#>
+        lmap ReturnAdaChangeError'
+    -- Sign transaction:
+    balancedTx <- ExceptT $
+      signTransaction unsignedTx <#> note (SignTxError' $ CouldNotSignTx ownAddr)
+
+    -- Logs final balanced tx and returns it
+    ExceptT $ logTx "Post-balancing Tx " allUtxos balancedTx <#> Right
   where
   prebalanceCollateral
     :: BigInt
@@ -347,12 +331,7 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
       minUtxos' :: MinUtxos
       minUtxos' = prevMinUtxos' <> nextMinUtxos'
 
-    balancedTxBody' :: Either BalanceTxError TxBody <-
-      chainedBalancer
-        minUtxos'
-        utxoIndex'
-        ownAddr'
-        tx''
+    balancedTxBody' <- chainedBalancer minUtxos' utxoIndex' ownAddr' tx''
 
     case balancedTxBody' of
       Left err -> pure $ Left err
@@ -377,36 +356,48 @@ balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
     utxoIndex'
     ownAddr'
     (Transaction tx'@{ body: txBody' }) =
-    do
-      pure $ preBalanceTxBody
+    runExceptT do
+      txBodyWithoutFees' <- except $ preBalanceTxBody
         minUtxos'
         zero
         utxoIndex'
         ownAddr'
         txBody'
-      >>= case _ of
-        Left err -> pure $ Left err
-        Right txBodyWithoutFees' -> do
-          let
-            tx'' :: Transaction
-            tx'' = wrap tx' { body = txBodyWithoutFees' }
-          fees'' <- lmap CalculateMinFeeError' <$> calculateMinFee' tx''
-          case fees'' of
-            Left err -> pure $ Left err
-            Right fees' ->
-              pure $ preBalanceTxBody
-                minUtxos'
-                (fees' + feeBuffer) -- FIX ME: Add 0.5 Ada to ensure enough input for later on in final balancing.
-                utxoIndex'
-                ownAddr'
-                txBody'
+      let tx'' = wrap tx' { body = txBodyWithoutFees' }
+      fees' <- ExceptT $ calculateMinFee' tx'' <#> lmap CalculateMinFeeError'
+      except $ preBalanceTxBody
+        minUtxos'
+        (fees' + feeBuffer) -- FIX ME: Add 0.5 Ada to ensure enough input for later on in final balancing.
+        utxoIndex'
+        ownAddr'
+        txBody'
 
+  -- We expect the user has a minimum amount of Ada (this buffer) on top of
+  -- their transaction, so by the time the prebalancer finishes, should it
+  -- succeed, there will be some excess Ada (since all non Ada is balanced).
+  -- In particular, this excess Ada will be at least this buffer. This is
+  -- important for when returnAdaChange is called to return Ada change back
+  -- to the user. The idea is this buffer provides enough so that returning
+  -- excess Ada is covered by two main scenarios (see returnAdaChange for more
+  -- details):
+  -- 1) A new utxo doesn't need to be created (no extra fees).
+  -- 2) A new utxo needs to be created but the buffer provides enough Ada to
+  -- create the utxo, cover any extra fees without a further need for looping.
+  -- This buffer could potentially be calculated exactly using (the Haskell server)
+  -- https://github.com/input-output-hk/plutus/blob/8abffd78abd48094cfc72f1ad7b81b61e760c4a0/plutus-core/untyped-plutus-core/src/UntypedPlutusCore/Evaluation/Machine/Cek/Internal.hs#L723
+  -- The trade off for this set up is any transaction requires this buffer on
+  -- top of their transaction as input.
   feeBuffer :: BigInt
   feeBuffer = fromInt 500000
 
 -- Logging for Transaction type
 logTx'
-  :: forall m. MonadEffect m => String -> Utxo -> Transaction -> m Unit
+  :: forall (m :: Type -> Type)
+   . MonadEffect m
+  => String
+  -> Utxo
+  -> Transaction
+  -> m Unit
 logTx' msg utxos (Transaction { body: body'@(TxBody body) }) =
   traverse_ (log <<< (<>) msg)
     -- Add to log more:
@@ -416,7 +407,12 @@ logTx' msg utxos (Transaction { body: body'@(TxBody body) }) =
     ]
 
 logTx
-  :: forall m. MonadEffect m => String -> Utxo -> Transaction -> m Transaction
+  :: forall (m :: Type -> Type)
+   . MonadEffect m
+  => String
+  -> Utxo
+  -> Transaction
+  -> m Transaction
 logTx msg utxo tx = logTx' msg utxo tx *> pure tx
 
 -- Nami provides a 5 Ada collateral that we should add the tx before balancing
@@ -437,130 +433,124 @@ returnAdaChange
   -> Transaction
   -> QueryM (Either ReturnAdaChangeError Transaction)
 returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
-  lmap ReturnAdaChangeCalculateMinFee
-    <$> (calculateMinFee' $ wrap tx)
-    >>= case _ of
-      Left err -> pure $ Left err
-      Right fees -> do
+  runExceptT do
+    fees <- ExceptT $ calculateMinFee' (wrap tx) <#>
+      lmap ReturnAdaChangeCalculateMinFee
+    let
+      txOutputs :: Array TransactionOutput
+      txOutputs = txBody.outputs
+
+      inputValue :: Value
+      inputValue = getInputValue utxos (wrap txBody)
+
+      inputAda :: BigInt
+      inputAda = getLovelace $ valueToCoin inputValue
+
+      -- FIX ME, ignore mint value?
+      outputValue :: Value
+      outputValue = Array.foldMap getAmount txOutputs
+
+      outputAda :: BigInt
+      outputAda = getLovelace $ valueToCoin outputValue
+
+      returnAda :: BigInt
+      returnAda = inputAda - outputAda - fees
+    case compare returnAda zero of
+      LT ->
+        except $ Left $
+          ReturnAdaChangeImpossibleError
+            "Not enough Input Ada to cover output and fees after prebalance."
+            Impossible
+      EQ -> except $ Right $ wrap tx { body = wrap txBody { fee = wrap fees } }
+      GT -> ExceptT do
+        -- Short circuits and adds Ada to any output utxo of the owner. This saves
+        -- on fees but does not create a separate utxo. Do we want this behaviour?
+        -- I expect if there are any output utxos to the user, they are either Ada
+        -- only or non-Ada with minimum Ada value. Either way, we can just add the
+        -- the value and it shouldn't incur extra fees.
+        -- If we do require a new utxo, then we must add fees, under the assumption
+        -- we have enough Ada in the input at this stage, otherwise we fail because
+        -- we don't want to loop again over the addition of one output utxo.
         let
-          txOutputs :: Array TransactionOutput
-          txOutputs = txBody.outputs
+          changeIndex :: Maybe Int
+          changeIndex =
+            findIndex ((==) changeAddr <<< _.address <<< unwrap) txOutputs
 
-          inputValue :: Value
-          inputValue = getInputValue utxos (wrap txBody)
-
-          inputAda :: BigInt
-          inputAda = getLovelace $ valueToCoin inputValue
-
-          -- FIX ME, ignore mint value?
-          outputValue :: Value
-          outputValue = Array.foldMap getAmount txOutputs
-
-          outputAda :: BigInt
-          outputAda = getLovelace $ valueToCoin outputValue
-
-          returnAda :: BigInt
-          returnAda = inputAda - outputAda - fees
-        case compare returnAda zero of
-          LT ->
-            pure $ Left $
-              ReturnAdaChangeImpossibleError
-                "Not enough Input Ada to cover output and fees after prebalance."
-                Impossible
-          EQ -> pure $ Right $ wrap tx { body = wrap txBody { fee = wrap fees } }
-          GT -> do
-            -- Short circuits and adds Ada to any output utxo of the owner. This saves
-            -- on fees but does not create a separate utxo. Do we want this behaviour?
-            -- I expect if there are any output utxos to the user, they are either Ada
-            -- only or non-Ada with minimum Ada value. Either way, we can just add the
-            -- the value and it shouldn't incur extra fees.
-            -- If we do require a new utxo, then we must add fees, under the assumption
-            -- we have enough Ada in the input at this stage, otherwise we fail because
-            -- we don't want to loop again over the addition of one output utxo.
+        case changeIndex of
+          Just idx -> pure do
+            -- Add the Ada value to the first output utxo of the owner to not
+            -- concur fees. This should be Ada only or non-Ada which has min Ada.
+            newOutputs <-
+              note
+                ( ReturnAdaChangeError
+                    "Couldn't modify utxo to return change."
+                ) $
+                modifyAt
+                  idx
+                  ( \(TransactionOutput o@{ amount }) -> TransactionOutput
+                      o { amount = amount <> lovelaceValueOf returnAda }
+                  )
+                  txOutputs
+            -- Fees unchanged because we aren't adding a new utxo.
+            pure $
+              wrap
+                tx { body = wrap txBody { outputs = newOutputs, fee = wrap fees } }
+          Nothing -> do
+            -- Create a txBody with the extra output utxo then recalculate fees,
+            -- then adjust as necessary if we have sufficient Ada in the input.
             let
-              changeIndex :: Maybe Int
-              changeIndex =
-                findIndex ((==) changeAddr <<< _.address <<< unwrap) txOutputs
+              utxoCost :: BigInt
+              utxoCost = getLovelace protocolParamUTxOCostPerWord
 
-            case changeIndex of
-              Just idx -> pure do
-                -- Add the Ada value to the first output utxo of the owner to not
-                -- concur fees. This should be Ada only or non-Ada which has min Ada.
-                newOutputs :: Array TransactionOutput <-
-                  note
-                    ( ReturnAdaChangeError
-                        "Couldn't modify utxo to return change."
-                    ) $
-                    modifyAt
-                      idx
-                      ( \(TransactionOutput o@{ amount }) -> TransactionOutput
-                          o { amount = amount <> lovelaceValueOf returnAda }
-                      )
-                      txOutputs
-                -- Fees unchanged because we aren't adding a new utxo.
-                pure $
-                  wrap
-                    tx { body = wrap txBody { outputs = newOutputs, fee = wrap fees } }
-              Nothing -> do
-                -- Create a txBody with the extra output utxo then recalculate fees,
-                -- then adjust as necessary if we have sufficient Ada in the input.
-                let
-                  utxoCost :: BigInt
-                  utxoCost = getLovelace protocolParamUTxOCostPerWord
+              changeMinUtxo :: BigInt
+              changeMinUtxo = adaOnlyWords * utxoCost
 
-                  changeMinUtxo :: BigInt
-                  changeMinUtxo = adaOnlyWords * utxoCost
-
-                  txBody' :: TxBody
-                  txBody' =
-                    wrap
-                      txBody
-                        { outputs =
-                            wrap
-                              { address: changeAddr
-                              , amount: lovelaceValueOf returnAda
-                              , data_hash: Nothing
-                              }
-                              `Array.cons` txBody.outputs
-                        }
-
-                  tx' :: Transaction
-                  tx' = wrap tx { body = txBody' }
-
-                fees'' :: Either ReturnAdaChangeError BigInt <-
-                  lmap ReturnAdaChangeCalculateMinFee <$> calculateMinFee' tx'
-
-                -- fees should increase.
-                pure case fees'' of
-                  Left err -> Left err
-                  Right fees' -> do
-                    -- New return Ada amount should decrease:
-                    let
-                      returnAda' :: BigInt
-                      returnAda' = returnAda + fees - fees'
-
-                    if returnAda' >= changeMinUtxo then do
-                      newOutputs :: Array TransactionOutput <-
-                        note
-                          ( ReturnAdaChangeImpossibleError
-                              "Couldn't modify head utxo to add Ada"
-                              Impossible
-                          )
-                          $ modifyAt
-                              0
-                              ( \(TransactionOutput o) -> TransactionOutput
-                                  o { amount = lovelaceValueOf returnAda' }
-                              )
-                          $ _.outputs <<< unwrap
-                          $ txBody'
-                      pure $
+              txBody' :: TxBody
+              txBody' =
+                wrap
+                  txBody
+                    { outputs =
                         wrap
-                          tx { body = wrap txBody { outputs = newOutputs, fee = wrap fees' } }
-                    else
-                      Left $
-                        ReturnAdaChangeError
-                          "ReturnAda' does not cover min. utxo requirement for \
-                          \single Ada-only output."
+                          { address: changeAddr
+                          , amount: lovelaceValueOf returnAda
+                          , data_hash: Nothing
+                          }
+                          `Array.cons` txBody.outputs
+                    }
+
+              tx' :: Transaction
+              tx' = wrap tx { body = txBody' }
+
+            fees'' <- lmap ReturnAdaChangeCalculateMinFee <$> calculateMinFee' tx'
+            -- fees should increase.
+            pure case fees'' of
+              Left err -> Left err
+              Right fees' -> do
+                -- New return Ada amount should decrease:
+                let returnAda' = returnAda + fees - fees'
+
+                if returnAda' >= changeMinUtxo then do
+                  newOutputs <-
+                    note
+                      ( ReturnAdaChangeImpossibleError
+                          "Couldn't modify head utxo to add Ada"
+                          Impossible
+                      )
+                      $ modifyAt
+                          0
+                          ( \(TransactionOutput o) -> TransactionOutput
+                              o { amount = lovelaceValueOf returnAda' }
+                          )
+                      $ _.outputs <<< unwrap
+                      $ txBody'
+                  pure $
+                    wrap
+                      tx { body = wrap txBody { outputs = newOutputs, fee = wrap fees' } }
+                else
+                  Left $
+                    ReturnAdaChangeError
+                      "ReturnAda' does not cover min. utxo requirement for \
+                      \single Ada-only output."
 
 calculateMinUtxos :: Array TransactionOutput -> MinUtxos
 calculateMinUtxos = map (\a -> a /\ calculateMinUtxo a)
