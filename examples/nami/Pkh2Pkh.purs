@@ -52,6 +52,7 @@ import Effect.Aff.Class (liftAff)
 import Effect.Console as Console
 import QueryM
   ( QueryM
+  , defaultOgmiosWsConfig
   , defaultServerConfig
   , getWalletAddress
   , mkOgmiosWebSocketAff
@@ -79,7 +80,7 @@ import Wallet (mkNamiWalletAff)
 main :: Effect Unit
 main = launchAff_ $ do
   wallet <- Just <$> mkNamiWalletAff
-  ws <- mkOgmiosWebSocketAff "ws:127.0.0.1:1337"
+  ws <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
   tx <- runReaderT
     buildTransaction
     { ws
