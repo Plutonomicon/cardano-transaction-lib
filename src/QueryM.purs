@@ -13,10 +13,12 @@ module QueryM
   , addressToOgmiosAddress
   , calculateMinFee
   , defaultServerConfig
+  , defaultOgmiosWsConfig
   , getWalletAddress
   , getWalletCollateral
   , mkOgmiosWebSocketAff
-  , mkServerUrl
+  , mkHttpUrl
+  , mkWsUrl
   , ogmiosAddressToAddress
   , signTransaction
   , utxosAt
@@ -150,7 +152,7 @@ withMWalletAff act = asks _.wallet >>= case _ of
   Just wallet -> liftAff $ act wallet
   Nothing -> pure Nothing
 
--- HTTP Haskell server and related
+-- WS/HTTP server config
 --------------------------------------------------------------------------------
 
 type ServerConfig =
@@ -166,11 +168,24 @@ defaultServerConfig =
   , secure: false
   }
 
+defaultOgmiosWsConfig :: ServerConfig
+defaultOgmiosWsConfig =
+  { port: UInt.fromInt 1337
+  , host: "localhost"
+  , secure: false
+  }
+
 type Host = String
 
-mkServerUrl :: ServerConfig -> Url
-mkServerUrl cfg =
-  (if cfg.secure then "https" else "http")
+mkHttpUrl :: ServerConfig -> Url
+mkHttpUrl = mkServerUrl "http"
+
+mkWsUrl :: ServerConfig -> Url
+mkWsUrl = mkServerUrl "ws"
+
+mkServerUrl :: String -> ServerConfig -> Url
+mkServerUrl protocol cfg =
+  (if cfg.secure then (protocol <> "s") else protocol)
     <> "://"
     <> cfg.host
     <> ":"
@@ -210,7 +225,7 @@ instance Show FeeEstimateError where
 calculateMinFee
   :: Transaction.Transaction -> QueryM (Either FeeEstimateError Coin)
 calculateMinFee tx = do
-  url <- asks $ mkServerUrl <<< _.serverConfig
+  url <- asks $ mkHttpUrl <<< _.serverConfig
   txHex <- liftEffect $
     byteArrayToHex
       <<< Serialization.toBytes
