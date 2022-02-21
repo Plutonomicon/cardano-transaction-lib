@@ -10,9 +10,16 @@
 
 with inputs;
 
+let
+  ogmios-dc = (
+    import inputs.nixpkgs-unstable { inherit system; }
+  ).haskellPackages.callPackage ogmios-datum-cache
+    { };
+in
 pkgs.mkShell {
   buildInputs = with easy-ps; [
     ogmios.packages.${system}."ogmios:exe:ogmios"
+    ogmios-dc
     cardano-node-exe.packages.${system}.cardano-cli
     compiler
     spago
