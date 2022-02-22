@@ -1,0 +1,13 @@
+# configuration file for `ogmios-datum-cache`
+
+dbConnectionString = "host=localhost port=5432 user=ctxlib dbname=ctxlib password=ctxlib"
+
+saveAllDatums = true
+
+server.port = 9999
+
+ogmios.address = "127.0.0.1"
+ogmios.port = 1337
+
+firstFetchBlock.slot = 44366242
+firstFetchBlock.id = "d2a4249fe3d0607535daa26caf12a38da2233586bc51e79ed0b3a36170471bf5"
