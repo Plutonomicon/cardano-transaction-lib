@@ -521,6 +521,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "lattice" = pkgs.stdenv.mkDerivation {
+        name = "lattice";
+        version = "v0.3.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/Risto-Stevcev/purescript-lattice.git";
+          rev = "aebe3686eba30f199d17964bfa892f0176c1742d";
+          sha256 = "0n6030mj526l6c1bv7m5fp4qwikczpbaal17q10a67hmhljg2s8i";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "lazy" = pkgs.stdenv.mkDerivation {
         name = "lazy";
         version = "v5.0.0";
@@ -876,6 +888,18 @@ let
           url = "https://github.com/purescript-contrib/purescript-profunctor-lenses.git";
           rev = "9c3d87a6dab8eb785a93bff11aa183796dc93183";
           sha256 = "1wknj7g6vwk2ga1rq57l470h322308ddjn5bd3x2hhfkiy039kc3";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "properties" = pkgs.stdenv.mkDerivation {
+        name = "properties";
+        version = "v0.2.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/Risto-Stevcev/purescript-properties.git";
+          rev = "ddcad0f6043cc665037538467a2e2e4173ef276a";
+          sha256 = "1iwik230gs8v5sw1xd3bcrbfid3pgml0ck9a8k991ddshfscbq3i";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

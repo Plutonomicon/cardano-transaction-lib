@@ -18,6 +18,7 @@ import Data.Eq (class Eq, eq)
 import Data.Function (on)
 import Data.Maybe (Maybe)
 import Data.Monoid ((<>))
+import Data.Ord (class Ord, compare)
 import Data.Show (class Show)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization.Csl (class ToCsl)
@@ -30,6 +31,10 @@ foreign import data Ed25519KeyHash :: Type
 
 instance Eq Ed25519KeyHash where
   eq = eq `on` ed25519KeyHashToBytes
+
+instance Ord Ed25519KeyHash where
+  compare ePkh ePkh' =
+    compare (ed25519KeyHashToBytes ePkh) (ed25519KeyHashToBytes ePkh')
 
 instance Show Ed25519KeyHash where
   show edkh = "(Ed25519KeyHash " <> byteArrayToHex (ed25519KeyHashToBytes edkh) <> ")"

@@ -5,6 +5,7 @@ module Types.Value
   , TokenName
   , Value(..)
   , coinToValue
+  , currencyMPSHash
   , eq
   , filterNonAda
   , geq
@@ -39,7 +40,7 @@ module Types.Value
   , valueToCoin'
   ) where
 
-import Prelude
+import Prelude hiding (join)
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Data.Array (filter)
@@ -47,19 +48,27 @@ import Data.BigInt (BigInt, fromInt)
 import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Foldable (any, fold, foldl, length)
 import Data.Generic.Rep (class Generic)
+import Data.Lattice
+  ( class JoinSemilattice
+  , class MeetSemilattice
+  , join
+  , meet
+  )
 import Data.List ((:), all, List(Nil))
 import Data.Map (keys, lookup, Map, toUnfoldable, unions, values)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype)
 import Data.Set (Set)
 import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This))
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested ((/\), type (/\))
+import Partial.Unsafe (unsafePartial)
 
 import Serialization.Hash (scriptHashFromBytes)
 import Types.ByteArray (ByteArray, byteLength)
+import Types.Minting (MintingPolicyHash(MintingPolicyHash))
 
 --------------------------------------------------------------------------------
 -- Coin (Ada)
@@ -78,6 +87,12 @@ instance semigroupCoin :: Semigroup Coin where
 
 instance monoidCoin :: Monoid Coin where
   mempty = Coin zero
+
+instance joinSemilatticeCoin :: JoinSemilattice Coin where
+  join (Coin c1) (Coin c2) = Coin (max c1 c2)
+
+instance meetSemilatticeCoin :: MeetSemilattice Coin where
+  meet (Coin c1) (Coin c2) = Coin (min c1 c2)
 
 -- This module rewrites functionality from:
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
@@ -189,6 +204,12 @@ instance semigroupNonAdaAsset :: Semigroup NonAdaAsset where
 instance monoidNonAdaAsset :: Monoid NonAdaAsset where
   mempty = NonAdaAsset Map.empty
 
+instance joinSemilatticeNonAdaAsset :: JoinSemilattice NonAdaAsset where
+  join = unionWith max
+
+instance meetSemilatticeNonAdaAsset :: MeetSemilattice NonAdaAsset where
+  meet = unionWith min
+
 -- We shouldn't need this check if we don't export unsafeAdaSymbol etc.
 -- | Create a singleton NonAdaAsset which by definition should be safe since
 -- | CurrencySymbol and TokenName are safe
@@ -270,6 +291,12 @@ instance semigroupValue :: Semigroup Value where
 
 instance monoidValue :: Monoid Value where
   mempty = Value mempty mempty
+
+instance joinSemilatticeValue :: JoinSemilattice Value where
+  join (Value c1 m1) (Value c2 m2) = Value (c1 `join` c2) (m1 `join` m2)
+
+instance meetSemilatticeValue :: MeetSemilattice Value where
+  meet (Value c1 m1) (Value c2 m2) = Value (c1 `meet` c2) (m1 `meet` m2)
 
 -- | Create a Value from Coin and NonAdaAsset, the latter should have been
 -- | constructed safely at this point.
@@ -540,3 +567,12 @@ sumTokenNameLengths = foldl lenAdd zero <<< unsafeAllTokenNames
 -- | Filter a value to contain only non Ada assets
 filterNonAda :: Value -> Value
 filterNonAda (Value _ nonAda) = Value mempty nonAda
+
+-- I think this is safe because a CurrencySymbol can only be constructed by
+-- checking scriptHashFromBytes so it must be a valid ScriptHash too. Otherwise
+-- we'd have to use scriptHashFromBytes again from something we already know
+-- is a valid CurrencySymbol
+-- | The minting policy hash of a currency symbol
+currencyMPSHash :: CurrencySymbol -> MintingPolicyHash
+currencyMPSHash (CurrencySymbol byteArray) =
+  unsafePartial $ fromJust $ MintingPolicyHash <$> scriptHashFromBytes byteArray
