@@ -45,6 +45,8 @@ After starting the node, you can use `make query-testnet-sync` to check its sync
 
 In particular, `syncProgress` is the important part here.
 
+In order to query for datums, another service, `omgios-datum-cache`, is required. This service in turn depends on a running Postgresql instance. `ogmios-datum-cache` is available in the Nix shell environment. There is also a Makefile target to run a Postgres Docker container (`run-datum-cache-postgres`) with a username, password, and DB name corresponding to the `ogmios-datum-cache` configuration file (`config.toml`) in the repository root.
+
 ### Building the project & testing
 
 You can run `nix build` to build the Purescript project. `nix build .#check.<SYSTEM>` will build the packages (in the future, once we have a public `ogmios` instance to test against, this will run the tests as well; `nix flake check` unfortunately won't work because we depend on haskell.nix projects). `npm run test` can be used to only run the test suite.

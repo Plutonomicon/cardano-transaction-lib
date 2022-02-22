@@ -7,6 +7,10 @@
 
     # for the purescript project
     ogmios.url = "github:mlabs-haskell/ogmios";
+    ogmios-datum-cache = {
+      url = "github:mlabs-haskell/ogmios-datum-cache";
+      flake = false;
+    };
     # so named because we also need a different version of the repo below
     # in the server inputs and we use this one just for the `cardano-cli`
     # executables
@@ -26,6 +30,7 @@
     iohk-nix.url = "github:input-output-hk/iohk-nix";
     haskell-nix.url = "github:L-as/haskell.nix?ref=master";
     nixpkgs.follows = "haskell-nix/nixpkgs-2105";
+    nixpkgs-unstable.follows = "haskell-nix/nixpkgs-unstable";
     cardano-addresses = {
       url =
         "github:input-output-hk/cardano-addresses/d2f86caa085402a953920c6714a0de6a50b655ec";
