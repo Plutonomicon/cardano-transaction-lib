@@ -16,7 +16,7 @@ import Control.Alt ((<|>))
 import Data.Argonaut
   ( class DecodeJson
   , Json
-  , JsonDecodeError(..)
+  , JsonDecodeError(TypeMismatch)
   , caseJsonArray
   , caseJsonObject
   , caseJsonString
@@ -36,11 +36,11 @@ import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (wrap)
 import Data.Show.Generic (genericShow)
 import Data.String
-  ( Pattern(..)
+  ( Pattern(Pattern)
   , indexOf
   , splitAt
   , uncons
@@ -193,7 +193,7 @@ newtype Assets = Assets (Map CurrencySymbol (Map TokenName BigInt))
 instance DecodeJson Assets where
   decodeJson j = do
     wspAssets :: Array (String /\ String) <- FO.toUnfoldable <$> decodeJson j
-    Assets <<< Map.fromFoldableWith Map.union <$> sequence (uncurry decodeAsset <$> wspAssets)
+    Assets <<< Map.fromFoldableWith (Map.unionWith (+)) <$> sequence (uncurry decodeAsset <$> wspAssets)
     where
     decodeAsset :: String -> String -> Either JsonDecodeError (CurrencySymbol /\ Map TokenName BigInt)
     decodeAsset assetStr quantityStr = do

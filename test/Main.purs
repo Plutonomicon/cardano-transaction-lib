@@ -49,7 +49,7 @@ testPlan = do
   ByteArrayTest.suite
   Helpers.suite
   ParseTest.suite
-  AffInterface.suite
+  -- AffInterface.suite
   Serialization.suite
   Serialization.Address.suite
   Serialization.Hash.suite
