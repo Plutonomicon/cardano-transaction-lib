@@ -29,5 +29,16 @@ run-testnet-ogmios:
 run-haskell-server:
 	nix run -L .#cardano-browser-tx-server:exe:cardano-browser-tx-server
 
+run-datum-cache-postgres:
+	docker run -d --rm \
+		-e "POSTGRES_USER=ctxlib" \
+		-e "POSTGRES_PASSWORD=ctxlib" \
+		-e "POSTGRES_DB=ctxlib" \
+		-p 127.0.0.1:5432:5432 \
+		postgres:13
+
+run-datum-cache-postgres-console:
+	nix shell nixpkgs#postgresql -c psql postgresql://ctxlib:ctxlib@localhost:5432
+
 query-testnet-sync:
 	cardano-cli query tip --testnet-magic 1097911063
