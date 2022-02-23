@@ -8,10 +8,13 @@ exports._getNamiAddress = (nami) => () =>
   nami.getUsedAddresses().then((addrs) => addrs[0]);
 
 // _getNamiCollateral
-//   :: NamiConnection
+//   :: MaybeFfiHelper
+//   -> NamiConnection
 //   -> Effect (Promise String)
-exports._getNamiCollateral = (nami) => () =>
-  nami.experimental.getCollateral().then((utxos) => utxos[0]);
+exports._getNamiCollateral = maybe => (nami) => () =>
+nami.experimental.getCollateral().then((utxos) => {
+  return utxos.length ? maybe.just(utxos[0]) : maybe.nothing;
+});
 
 // _signTxNami :: String -> NamiConnection -> Effect (Promise String)
 exports._signTxNami = (txHex) => (nami) => () => nami.signTx(txHex);
@@ -19,8 +22,9 @@ exports._signTxNami = (txHex) => (nami) => () => nami.signTx(txHex);
 // _submitTxNami :: String -> NamiConnection -> Effect (Promise String)
 exports._submitTxNami = (txHex) => (nami) => () => {
   try {
-    nami.submitTx(txHex);
+    return nami.submitTx(txHex);
   } catch (e) {
-    console.log(e);
+      console.log(e);
+      throw(e);
   }
 };
