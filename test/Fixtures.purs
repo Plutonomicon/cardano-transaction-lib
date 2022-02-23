@@ -9,6 +9,13 @@ module Test.Fixtures
   , nativeScriptFixture5
   , nativeScriptFixture6
   , nativeScriptFixture7
+  , plutusDataFixture1
+  , plutusDataFixture2
+  , plutusDataFixture3
+  , plutusDataFixture4
+  , plutusDataFixture5
+  , plutusDataFixture6
+  , plutusDataFixture7
   , tokenName1
   , txOutputBinaryFixture1
   , txFixture1
@@ -32,6 +39,7 @@ module Test.Fixtures
 import Prelude
 
 import Data.BigInt as BigInt
+import Data.Map as Map
 import Data.Maybe (Maybe(..), fromJust)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
@@ -39,6 +47,7 @@ import Partial.Unsafe (unsafePartial)
 import Serialization.Address (Address, Slot(Slot), baseAddress, baseAddressToAddress, keyHashCredential, mainnetId, testnetId)
 import Serialization.Hash (Ed25519KeyHash, ed25519KeyHashFromBytes)
 import Types.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe, hexToByteArrayUnsafe)
+import Types.PlutusData as PD
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry)
@@ -362,3 +371,35 @@ keyHashBaseAddress { payment, stake } = baseAddressToAddress $ baseAddress
         -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
         $ hexToByteArrayUnsafe payment
   }
+
+plutusDataFixture1 :: PD.PlutusData
+plutusDataFixture1 = PD.List []
+
+plutusDataFixture2 :: PD.PlutusData
+plutusDataFixture2 = PD.List [ plutusDataFixture1 ]
+
+plutusDataFixture3 :: PD.PlutusData
+plutusDataFixture3 = PD.Bytes (hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971")
+
+plutusDataFixture4 :: PD.PlutusData
+plutusDataFixture4 = PD.Constr (BigInt.fromInt 1)
+  [ plutusDataFixture2, plutusDataFixture3 ]
+
+plutusDataFixture5 :: PD.PlutusData
+plutusDataFixture5 = PD.Integer (BigInt.fromInt 42)
+
+plutusDataFixture6 :: PD.PlutusData
+plutusDataFixture6 = PD.Map $ Map.fromFoldable
+  [ plutusDataFixture1 /\ plutusDataFixture2
+  , plutusDataFixture3 /\ plutusDataFixture4
+  ]
+
+plutusDataFixture7 :: PD.PlutusData
+plutusDataFixture7 = PD.List
+  [ plutusDataFixture1
+  , plutusDataFixture2
+  , plutusDataFixture3
+  , plutusDataFixture4
+  , plutusDataFixture5
+  , plutusDataFixture6
+  ]

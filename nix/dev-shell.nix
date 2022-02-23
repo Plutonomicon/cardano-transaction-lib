@@ -10,9 +10,19 @@
 
 with inputs;
 
+let
+  ogmios-dc = (
+    # One of ODC's dependencies is marked as broken on the stable branch
+    # We could just override that one package from unstable, but it's more
+    # convenient to just use unstable to build the package
+    import nixpkgs-unstable { inherit system; }
+  ).haskellPackages.callPackage ogmios-datum-cache
+    { };
+in
 pkgs.mkShell {
   buildInputs = with easy-ps; [
     ogmios.packages.${system}."ogmios:exe:ogmios"
+    ogmios-dc
     cardano-node-exe.packages.${system}.cardano-cli
     compiler
     spago
