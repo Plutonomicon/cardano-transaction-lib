@@ -273,12 +273,12 @@ instance Show TransactionWitnessSet where
 instance semigroupTransactionWitnessSet :: Semigroup TransactionWitnessSet where
   append (TransactionWitnessSet tws) (TransactionWitnessSet tws') =
     TransactionWitnessSet
-      { vkeys: lift2 union tws.vkeys tws'.vkeys
-      , native_scripts: lift2 union tws.native_scripts tws'.native_scripts
-      , bootstraps: lift2 union tws.bootstraps tws'.bootstraps
-      , plutus_scripts: lift2 union tws.plutus_scripts tws'.plutus_scripts
-      , plutus_data: lift2 union tws.plutus_data tws'.plutus_data
-      , redeemers: lift2 union tws.redeemers tws'.redeemers
+      { vkeys: tws.vkeys <<>> tws'.vkeys
+      , native_scripts: tws.native_scripts <<>> tws'.native_scripts
+      , bootstraps: tws.bootstraps <<>> tws'.bootstraps
+      , plutus_scripts: tws.plutus_scripts <<>> tws'.plutus_scripts
+      , plutus_data: tws.plutus_data <<>> tws'.plutus_data
+      , redeemers: tws.redeemers <<>> tws'.redeemers
       }
 
 instance monoidTransactionWitnessSet :: Monoid TransactionWitnessSet where
