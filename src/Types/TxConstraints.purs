@@ -34,7 +34,7 @@ module Types.TxConstraints
 import Prelude hiding (join)
 
 import Data.Array as Array
-import Data.Array ((:))
+import Data.Array ((:), concat)
 import Data.Bifunctor (class Bifunctor)
 import Data.BigInt (BigInt)
 import Data.Foldable (class Foldable, any, foldl, foldMap, foldr, null)
@@ -78,7 +78,7 @@ data TxConstraint
   | MustPayToPubKey PubKeyHash Value
   | MustPayToOtherScript ValidatorHash Datum Value
   | MustHashDatum DatumHash Datum
-  | MustSatisfyAnyOf (Array TxConstraint)
+  | MustSatisfyAnyOf (Array (Array TxConstraint))
 
 derive instance eqTxConstraint :: Eq TxConstraint
 derive instance genericTxConstraint :: Generic TxConstraint _
@@ -273,7 +273,7 @@ mustSatisfyAnyOf
   -> TxConstraints i o
 mustSatisfyAnyOf =
   Array.fromFoldable
-    >>> Array.concatMap (_.txConstraints <<< unwrap)
+    >>> map (_.txConstraints <<< unwrap)
     >>> MustSatisfyAnyOf
     >>> singleton
 
@@ -362,7 +362,7 @@ modifiesUtxoSet (TxConstraints { txConstraints, txInputs, txOutputs }) =
       MustMintValue _ _ _ _ -> true
       MustPayToPubKey _ vl -> not (isZero vl)
       MustPayToOtherScript _ _ vl -> not (isZero vl)
-      MustSatisfyAnyOf xs -> any requiresInputOutput xs
+      MustSatisfyAnyOf xs -> any requiresInputOutput $ concat xs
       _ -> false
   in
     any requiresInputOutput txConstraints
