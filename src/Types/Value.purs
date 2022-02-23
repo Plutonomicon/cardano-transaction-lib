@@ -4,6 +4,7 @@ module Types.Value
   , NonAdaAsset(..)
   , TokenName
   , Value(..)
+  , adaToken
   , coinToValue
   , eq
   , filterNonAda
@@ -102,7 +103,7 @@ valueToCoin :: Value -> Coin
 valueToCoin = Coin <<< valueToCoin'
 
 valueToCoin' :: Value -> BigInt
-valueToCoin' v = valueOf v unsafeAdaSymbol unsafeAdaToken
+valueToCoin' v = valueOf v unsafeAdaSymbol adaToken
 
 --------------------------------------------------------------------------------
 -- CurrencySymbol
@@ -148,9 +149,9 @@ instance showTokenName :: Show TokenName where
 getTokenName :: TokenName -> ByteArray
 getTokenName (TokenName tokenName) = tokenName
 
--- Do not export. Token name for Ada. For internal use only.
-unsafeAdaToken :: TokenName
-unsafeAdaToken = TokenName mempty
+-- Safe to export because this can be created by mkTokenName now
+adaToken :: TokenName
+adaToken = TokenName mempty
 
 -- | Create a TokenName from a ByteArray since TokenName data constructor is not
 -- | exported
@@ -166,11 +167,6 @@ mkTokenNames
   => t (ByteArray /\ BigInt)
   -> Maybe (Map TokenName BigInt)
 mkTokenNames = traverse (ltraverse mkTokenName) >>> map Map.fromFoldable
-
--- Do not export. Create an Ada TokenName from a ByteArray
-mkUnsafeTokenSymbol :: ByteArray -> Maybe TokenName
-mkUnsafeTokenSymbol byteArr =
-  if byteArr == mempty then pure unsafeAdaToken else Nothing
 
 --------------------------------------------------------------------------------
 -- NonAdaAsset
@@ -281,23 +277,22 @@ mkValue = Value
 mkSingletonValue :: ByteArray -> ByteArray -> BigInt -> Maybe Value
 mkSingletonValue curSymbol' tokenName' amount = do
   curSymbol <- mkCurrencySymbol curSymbol' <|> mkUnsafeAdaSymbol curSymbol'
-  tokenName <- mkTokenName tokenName' <|> mkUnsafeTokenSymbol tokenName'
+  tokenName <- mkTokenName tokenName'
   mkSingletonValue' curSymbol tokenName amount
 
 -- Similar to mkSingletonValue but the user has a CurrencySymbol and TokenName
 -- at hand. This could be exported (and used only for NonAdaAsset) or internally
 -- for both Coin and NonAdaAsset.
 mkSingletonValue' :: CurrencySymbol -> TokenName -> BigInt -> Maybe Value
-mkSingletonValue' curSymbol tokenName amount =
-  if curSymbol == unsafeAdaSymbol then
-    if tokenName == unsafeAdaToken then pure $ Value (Coin amount) mempty
-    else Nothing -- can't a non-empty TokenName with Ada CurrencySymbol
-  -- Prevents an empty TokenName with a non-empty CurrencySymbol in line with CSL.
-  else if tokenName == unsafeAdaToken then Nothing
-  else
-    pure
-      $ Value mempty
-      $ mkSingletonNonAdaAsset curSymbol tokenName amount
+mkSingletonValue' curSymbol tokenName amount = do
+  let isAdaCs = curSymbol == unsafeAdaSymbol
+  -- Can't have a non-empty TokenName with Ada CurrencySymbol. I.e. It's either
+  -- not an Ada currency symbol (with any valid TokenName) or an Ada currency
+  -- symbol with an empty TokenName
+  guard $ not isAdaCs || (isAdaCs && tokenName == adaToken)
+  pure
+    if isAdaCs then Value (Coin amount) mempty
+    else Value mempty $ mkSingletonNonAdaAsset curSymbol tokenName amount
 
 --------------------------------------------------------------------------------
 -- Helpers
@@ -388,7 +383,7 @@ unsafeFlattenValue (Value coin@(Coin lovelaces) nonAdaAsset) =
   in
     case coin == mempty of
       true -> flattenedNonAda
-      false -> (unsafeAdaSymbol /\ unsafeAdaToken /\ lovelaces) : flattenedNonAda
+      false -> (unsafeAdaSymbol /\ adaToken /\ lovelaces) : flattenedNonAda
 
 -- From https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- Converts a single tuple to Value
@@ -402,7 +397,7 @@ isAdaOnly v =
   case unsafeFlattenValue v of
     (cs /\ tn /\ _) : Nil ->
       cs == unsafeAdaSymbol &&
-        tn == unsafeAdaToken
+        tn == adaToken
     _ -> false
 
 -- From https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
@@ -483,7 +478,7 @@ eq = checkBinRel (==)
 unsafeIsAda :: CurrencySymbol -> TokenName -> Boolean
 unsafeIsAda curSymbol tokenName =
   curSymbol == unsafeAdaSymbol &&
-    tokenName == unsafeAdaToken
+    tokenName == adaToken
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#valueOf
 -- | Get the quantity of the given currency in the 'Value'.
@@ -515,7 +510,7 @@ unsafeAllTokenNames' (Value coin@(Coin lovelaces) (NonAdaAsset nonAdaAsset)) =
   in
     case coin == mempty of
       false -> nonAdaUnion
-      true -> Map.singleton unsafeAdaToken lovelaces `Map.union` nonAdaUnion
+      true -> Map.singleton adaToken lovelaces `Map.union` nonAdaUnion
 
 -- Don't export as we don't to expose tokenNames although may be it's okay
 -- given mkTokenName doesn't need to be Maybe.
