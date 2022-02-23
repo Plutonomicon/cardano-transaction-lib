@@ -12,7 +12,7 @@ exports._getNamiAddress = (nami) => () =>
 //   -> NamiConnection
 //   -> Effect (Promise String)
 exports._getNamiCollateral = maybe => (nami) => () =>
-nami.experimental.getCollateral().then((utxos) => {
+  nami.experimental.getCollateral().then((utxos) => {
   return utxos.length ? maybe.just(utxos[0]) : maybe.nothing;
 });
 

@@ -53,7 +53,7 @@ You can run `nix build` to build the Purescript project. `nix build .#check.<SYS
 
 ### Running the project in the browser
 
-`npm run dev` will start a Webpack development server at `localhost:4008`. By default, Webpack will build a small Purescript example (`examples/nami/Simple.purs`). You should have a Nami wallet enabled and allow the page to access your wallet
+`npm run dev` will start a Webpack development server at `localhost:4008`. By default, Webpack will build a small Purescript example (`examples/nami/Simple.purs`). You should have a Nami wallet enabled and allow the page to access your wallet. The example expects that wallet has some funds available and Nami's 0.5ADA collateral set (which can be done from the wallet gui - click on the robot's face). 
 
 `npm run build` will output the Webpack-bundled project in `dist` (again using the example in `Simple.purs`)
 
