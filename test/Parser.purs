@@ -39,7 +39,7 @@ suite = do
     eJsonStr
   let
     (stringArray :: Array String) = Json.caseJsonArray [] convertJsonArray json
-    (jsonArrayStr :: Array Json.Json) = Json.caseJsonArray [] identity jsonStr
+    (jsonStrArray :: Array Json.Json) = Json.caseJsonArray [] identity jsonStr
   schema <- lift $ getSchema "./fixtures/schemata/JsonWsp/UtxoQueryResponse.medea"
   group "Parser tests" $ do
     group "Schemata parse tests" $ do
@@ -50,7 +50,7 @@ suite = do
         (runValidationM $ validateJsonArray schema stringArray) `shouldSatisfy` isRight
     group "Type parsing" $ do
       test "fixtures parse correctly - UtxoQueryResponse" $
-        (traverseJsonWsps jsonArrayStr) `shouldSatisfy` isRight
+        (traverseJsonWsps jsonStrArray) `shouldSatisfy` isRight
 
 traverseJsonWsps :: Array Json.Json -> Either Json.JsonDecodeError (Array (JsonWspResponse UtxoQR))
 traverseJsonWsps arr = traverse parseJsonWspResponse arr

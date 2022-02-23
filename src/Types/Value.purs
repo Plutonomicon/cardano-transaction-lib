@@ -156,7 +156,7 @@ unsafeAdaToken = TokenName mempty
 -- | exported
 mkTokenName :: ByteArray -> Maybe TokenName
 mkTokenName byteArr =
-  if byteLength byteArr > 0 then pure $ TokenName byteArr else Nothing
+  if byteLength byteArr <= 32 then pure $ TokenName byteArr else Nothing
 
 -- | Creates a Map of TokenName and Big Integers from a Traversable of 2-tuple
 -- | ByteArray and Big Integers with the possibility of failure
