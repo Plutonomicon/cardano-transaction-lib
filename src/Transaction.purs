@@ -1,4 +1,4 @@
-module Transaction (attachDatums) where
+module Transaction (attachDatum) where
 
 import Prelude
 import Undefined
@@ -14,8 +14,8 @@ import Serialization.PlutusData as Serialization.PlutusData
 import Types.PlutusData as PlutusData
 import Types.Transaction (Transaction(Transaction))
 
-attachDatums :: PlutusData.PlutusData -> Transaction -> Effect (Maybe Transaction)
-attachDatums pd (Transaction tx) = runMaybeT $ do
+attachDatum :: PlutusData.PlutusData -> Transaction -> Effect (Maybe Transaction)
+attachDatum pd (Transaction tx) = runMaybeT $ do
   pd' <- liftMaybe $ Serialization.PlutusData.convertPlutusData pd
   datumWits <- MaybeT $
     map (map unwrap <<< Deserialization.WitnessSet.convertWitnessSet)
