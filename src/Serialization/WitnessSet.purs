@@ -1,7 +1,6 @@
 module Serialization.WitnessSet where
 
 import Prelude
-import Undefined
 
 import Data.Array as Array
 import Data.Maybe (maybe)
@@ -38,13 +37,9 @@ import Types.PlutusData as PlutusData
 import Types.RedeemerTag as Tag
 import Types.Transaction as T
 
-setPlutusData :: PlutusData.PlutusData -> Effect TransactionWitnessSet
-setPlutusData pd = do
-  ws <- newTransactionWitnessSet
-  pd' <- maybe (throw "Failed to convert datums") pure $
-    Serialization.PlutusData.convertPlutusData pd
-  _wsSetPlutusData containerHelper ws $ Array.singleton pd'
-  pure ws
+setPlutusData :: PlutusData -> TransactionWitnessSet -> Effect TransactionWitnessSet
+setPlutusData pd ws = _wsSetPlutusData containerHelper ws (Array.singleton pd)
+  *> pure ws
 
 convertWitnessSet :: T.TransactionWitnessSet -> Effect TransactionWitnessSet
 convertWitnessSet (T.TransactionWitnessSet tws) = do
