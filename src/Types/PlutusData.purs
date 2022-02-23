@@ -1,12 +1,11 @@
 module Types.PlutusData
-  ( BuiltinPlutusData(..)
-  , Datum(..)
+  ( Datum(..)
   , DatumHash
   , PlutusData(..)
-  , class FromPlutusData
-  , class ToPlutusData
-  , fromBuiltinPlutusData
-  , toBuiltinPlutusData
+  , class FromData
+  , class ToData
+  , fromData
+  , toData
   , unitRedeemer
   ) where
 
@@ -23,6 +22,7 @@ import Types.RedeemerTag (RedeemerTag)
 import Types.Transaction (DataHash, Redeemer)
 import Undefined (undefined)
 
+-- Don't distinguish "BuiltinData" and "Data" like Plutus:
 data PlutusData
   = Constr BigInt (Array PlutusData)
   | Map (Map PlutusData PlutusData)
@@ -37,31 +37,19 @@ derive instance Generic PlutusData _
 instance Show PlutusData where
   show x = genericShow x
 
--- On-chain PlutusData. Do we need this representation to separate when writing
--- the Contract Monad?
-newtype BuiltinPlutusData = BuiltinPlutusData PlutusData
-
-derive newtype instance Eq BuiltinPlutusData
-derive newtype instance Ord BuiltinPlutusData
-derive instance Newtype BuiltinPlutusData _
-derive instance Generic BuiltinPlutusData _
-
-instance Show BuiltinPlutusData where
-  show = genericShow
-
-class ToPlutusData (a :: Type) where
-  toBuiltinPlutusData :: a -> BuiltinPlutusData
+class ToData (a :: Type) where
+  toData :: a -> PlutusData
 
 -- FIX ME (create an issue unless someone notices simple solution to this in PR
 -- review)
 unitRedeemer :: RedeemerTag -> Redeemer
 unitRedeemer = undefined
 
-class FromPlutusData (a :: Type) where
+class FromData (a :: Type) where
   -- | Convert a value from 'BuiltinPlutusData', returning 'Nothing' if this fails.
-  fromBuiltinPlutusData :: BuiltinPlutusData -> Maybe a
+  fromData :: PlutusData -> Maybe a
 
-newtype Datum = Datum BuiltinPlutusData
+newtype Datum = Datum PlutusData
 
 derive newtype instance Eq Datum
 derive newtype instance Ord Datum
@@ -71,5 +59,5 @@ derive instance Generic Datum _
 instance showDatum :: Show Datum where
   show = genericShow
 
--- Do we want a newtype?
+-- To help with people copying & pasting code from Haskell to Purescript
 type DatumHash = DataHash

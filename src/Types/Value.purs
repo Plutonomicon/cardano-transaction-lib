@@ -68,7 +68,7 @@ import Partial.Unsafe (unsafePartial)
 
 import Serialization.Hash (scriptHashFromBytes)
 import Types.ByteArray (ByteArray, byteLength)
-import Types.Minting (MintingPolicyHash(MintingPolicyHash))
+import Types.ScriptHash (MintingPolicyHash(MintingPolicyHash))
 
 --------------------------------------------------------------------------------
 -- Coin (Ada)
@@ -570,8 +570,8 @@ filterNonAda (Value _ nonAda) = Value mempty nonAda
 
 -- I think this is safe because a CurrencySymbol can only be constructed by
 -- checking scriptHashFromBytes so it must be a valid ScriptHash too. Otherwise
--- we'd have to use scriptHashFromBytes again from something we already know
--- is a valid CurrencySymbol
+-- we'd have a Maybe context from scriptHashFromBytes again from something we
+-- already know is a valid CurrencySymbol
 -- | The minting policy hash of a currency symbol
 currencyMPSHash :: CurrencySymbol -> MintingPolicyHash
 currencyMPSHash (CurrencySymbol byteArray) =

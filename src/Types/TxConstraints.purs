@@ -46,19 +46,24 @@ import Data.Newtype (class Newtype, over, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested ((/\), type (/\))
-import Types.Minting (MintingPolicyHash)
 import Types.PlutusData
-  ( class ToPlutusData
+  ( class ToData
   , Datum(Datum)
   , DatumHash
-  , toBuiltinPlutusData
+  , toData
   , unitRedeemer
   )
-import Types.POSIXTimeRange (POSIXTimeRange, always, intersection, isEmpty)
+import Types.Interval (POSIXTimeRange, always, intersection, isEmpty)
 import Types.RedeemerTag (RedeemerTag(Mint))
+import Types.ScriptHash (MintingPolicyHash, ValidatorHash)
 import Types.Transaction (Redeemer)
-import Types.UnbalancedTransaction (PubKeyHash, TxOutputRef, ValidatorHash)
+import Types.UnbalancedTransaction (PubKeyHash, TxOutRef)
 import Types.Value (TokenName, Value, currencyMPSHash, getNonAdaAsset, isZero)
+
+--------------------------------------------------------------------------------
+-- TxConstraints Type and related
+--------------------------------------------------------------------------------
+-- Taken from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-constraints/html/Ledger-Constraints.html
 
 -- | Constraints on transactions that want to spend script outputs
 data TxConstraint
@@ -67,8 +72,8 @@ data TxConstraint
   | MustBeSignedBy PubKeyHash
   | MustSpendAtLeast Value
   | MustProduceAtLeast Value
-  | MustSpendPubKeyOutput TxOutputRef
-  | MustSpendScriptOutput TxOutputRef Redeemer
+  | MustSpendPubKeyOutput TxOutRef
+  | MustSpendScriptOutput TxOutRef Redeemer
   | MustMintValue MintingPolicyHash Redeemer TokenName BigInt
   | MustPayToPubKey PubKeyHash Value
   | MustPayToOtherScript ValidatorHash Datum Value
@@ -83,7 +88,7 @@ instance showTxConstraint :: Show TxConstraint where
 
 newtype InputConstraint (i :: Type) = InputConstraint
   { icRedeemer :: i
-  , icTxOutRef :: TxOutputRef
+  , icTxOutRef :: TxOutRef
   }
 
 derive instance genericInputConstraint :: Generic (InputConstraint i) _
@@ -94,20 +99,8 @@ derive newtype instance eqInputConstraint :: Eq i => Eq (InputConstraint i)
 instance showInputConstraint :: Show i => Show (InputConstraint i) where
   show = genericShow
 
-addTxIn
-  :: forall (i :: Type) (o :: Type)
-   . TxOutputRef
-  -> i
-  -> TxConstraints i o
-  -> TxConstraints i o
-addTxIn outRef red (TxConstraints txc@{ txInputs }) =
-  let
-    ic = InputConstraint { icRedeemer: red, icTxOutRef: outRef }
-  in
-    TxConstraints txc { txInputs = ic : txInputs }
-
-newtype OutputConstraint (a :: Type) = OutputConstraint
-  { ocDatum :: a
+newtype OutputConstraint (o :: Type) = OutputConstraint
+  { ocDatum :: o
   , ocValue :: Value
   }
 
@@ -143,6 +136,21 @@ instance bifunctorTxConstraints :: Bifunctor TxConstraints where
       , txOutputs = map (map g) txOutputs
       }
 
+--------------------------------------------------------------------------------
+-- Helpers
+--------------------------------------------------------------------------------
+addTxIn
+  :: forall (i :: Type) (o :: Type)
+   . TxOutRef
+  -> i
+  -> TxConstraints i o
+  -> TxConstraints i o
+addTxIn outRef red (TxConstraints txc@{ txInputs }) =
+  let
+    ic = InputConstraint { icRedeemer: red, icTxOutRef: outRef }
+  in
+    TxConstraints txc { txInputs = ic : txInputs }
+
 singleton
   :: forall (i :: Type) (o :: Type). TxConstraint -> TxConstraints i o
 singleton a = over TxConstraints _ { txConstraints = Array.singleton a } mempty
@@ -162,18 +170,17 @@ mustBeSignedBy = singleton <<< MustBeSignedBy
 mustIncludeDatum :: forall (i :: Type) (o :: Type). Datum -> TxConstraints i o
 mustIncludeDatum = singleton <<< MustIncludeDatum
 
--- POTENTIAL FIX ME: depending on how ToPlutusData potentially changes
 -- | Lock the value to the script currently being validated
 mustPayToTheScript
   :: forall (i :: Type) (o :: Type)
-   . ToPlutusData o
+   . ToData o
   => o
   -> Value
   -> TxConstraints i o
 mustPayToTheScript dt value =
   TxConstraints
     { txConstraints: Array.singleton
-        $ MustIncludeDatum (Datum $ toBuiltinPlutusData dt)
+        $ MustIncludeDatum (Datum $ toData dt)
     , txInputs: []
     , txOutputs: Array.singleton $ OutputConstraint
         { ocDatum: dt
@@ -197,7 +204,7 @@ mustPayToOtherScript vh dt vl =
   singleton (MustPayToOtherScript vh dt vl)
     <> singleton (MustIncludeDatum dt)
 
--- | Create the given value. FIX ME: Broken until unitRedeemer defined.
+-- | Create the given value. FIX ME: Broken until unitRedeemer properly defined.
 mustMintValue :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
 mustMintValue = mustMintValueWithRedeemer (unitRedeemer Mint)
 
@@ -248,11 +255,11 @@ mustProduceAtLeast :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
 mustProduceAtLeast = singleton <<< MustProduceAtLeast
 
 mustSpendPubKeyOutput
-  :: forall (i :: Type) (o :: Type). TxOutputRef -> TxConstraints i o
+  :: forall (i :: Type) (o :: Type). TxOutRef -> TxConstraints i o
 mustSpendPubKeyOutput = singleton <<< MustSpendPubKeyOutput
 
 mustSpendScriptOutput
-  :: forall (i :: Type) (o :: Type). TxOutputRef -> Redeemer -> TxConstraints i o
+  :: forall (i :: Type) (o :: Type). TxOutRef -> Redeemer -> TxConstraints i o
 mustSpendScriptOutput txOutRef = singleton <<< MustSpendScriptOutput txOutRef
 
 mustHashDatum
@@ -270,7 +277,7 @@ mustSatisfyAnyOf =
     >>> MustSatisfyAnyOf
     >>> singleton
 
--- | Are the constraints satisfiable?
+-- | Are the constraints satisfiable given the time intervals?
 isSatisfiable :: forall (i :: Type) (o :: Type). TxConstraints i o -> Boolean
 isSatisfiable (TxConstraints { txConstraints }) =
   let

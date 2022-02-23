@@ -1,5 +1,6 @@
-module Types.Minting
+module Types.ScriptHash
   ( MintingPolicyHash(..)
+  , ValidatorHash(..)
   ) where
 
 import Prelude
@@ -16,4 +17,13 @@ derive instance newtypeMintingPolicyHash :: Newtype MintingPolicyHash _
 derive newtype instance eqMintingPolicyHash :: Eq MintingPolicyHash
 
 instance showMintingPolicyHash :: Show MintingPolicyHash where
+  show = genericShow
+
+newtype ValidatorHash = ValidatorHash ScriptHash
+
+derive instance Generic ValidatorHash _
+derive instance Newtype ValidatorHash _
+derive newtype instance Eq ValidatorHash
+
+instance Show ValidatorHash where
   show = genericShow
