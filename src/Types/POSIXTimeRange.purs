@@ -47,6 +47,7 @@ import Prelude
 -- Interval Type and related
 --------------------------------------------------------------------------------
 -- Taken from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/Plutus-V1-Ledger-Interval.html
+-- Plutus rev: cc72a56eafb02333c96f662581b57504f8f8992f via Plutus-apps (localhost): abe4785a4fc4a10ba0c4e6417f0ab9f1b4169b26
 -- | Whether a bound is inclusive or not.
 type Closure = Boolean
 
@@ -94,7 +95,7 @@ derive instance Functor UpperBound
 instance Show a => Show (UpperBound a) where
   show = genericShow
 
--- | An interval of @a@s.
+-- | An interval of `a`s.
 -- |
 -- | The interval may be either closed or open at either end, meaning
 -- | that the endpoints may or may not be included in the interval.
@@ -125,26 +126,27 @@ instance Ord a => BoundedMeetSemilattice (Interval a) where
 -- POSIXTIME Type and related
 --------------------------------------------------------------------------------
 -- Taken from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/Plutus-V1-Ledger-Time.html#t:POSIXTimeRange
+-- Plutus rev: cc72a56eafb02333c96f662581b57504f8f8992f via Plutus-apps (localhost): abe4785a4fc4a10ba0c4e6417f0ab9f1b4169b26
 newtype POSIXTime = POSIXTime BigInt
 
 derive instance Generic POSIXTime _
 derive newtype instance Eq POSIXTime
 derive newtype instance Ord POSIXTime
--- There isn't an Enum instance for BigInt so we derive Semiring instead whuch
+-- There isn't an Enum instance for BigInt so we derive Semiring instead which
 -- has consequences on how isEmpty and overlaps are defined in
 -- Types.POSIXTimeRange (Interval API).
 derive newtype instance Semiring POSIXTime
 instance Show POSIXTime where
   show = genericShow
 
--- | An 'Interval' of 'POSIXTime's.
+-- | An `Interval` of `POSIXTime`s.
 type POSIXTimeRange = Interval POSIXTime
 
 --------------------------------------------------------------------------------
 -- Helpers
 --------------------------------------------------------------------------------
 mkInterval :: forall (a :: Type). LowerBound a -> UpperBound a -> Interval a
-mkInterval f t = Interval { ivFrom: f, ivTo: t }
+mkInterval ivFrom ivTo = Interval { ivFrom, ivTo }
 
 strictUpperBound :: forall (a :: Type). a -> UpperBound a
 strictUpperBound a = UpperBound (Finite a) false
@@ -153,34 +155,34 @@ strictLowerBound :: forall (a :: Type). a -> LowerBound a
 strictLowerBound a = LowerBound (Finite a) false
 
 lowerBound :: forall (a :: Type). a -> LowerBound a
-lowerBound a = LowerBound (Finite a) false
+lowerBound a = LowerBound (Finite a) true
 
 upperBound :: forall (a :: Type). a -> UpperBound a
 upperBound a = UpperBound (Finite a) true
 
--- | @interval a b@ includes all values that are greater than or equal to @a@
--- and smaller than or equal to @b@. Therefore it includes @a@ and @b@.
+-- | `interval a b` includes all values that are greater than or equal to `a`
+-- | and smaller than or equal to `b`. Therefore it includes `a` and `b`.
 interval :: forall (a :: Type). a -> a -> Interval a
 interval s s' = mkInterval (lowerBound s) (upperBound s')
 
 singleton :: forall (a :: Type). a -> Interval a
 singleton s = interval s s
 
--- | @from a@ is an 'Interval' that includes all values that are
---  greater than or equal to @a@.
+-- | `from a` is an `Interval` that includes all values that are
+-- | greater than or equal to `a`.
 from :: forall (a :: Type). a -> Interval a
 from s = mkInterval (lowerBound s) (UpperBound PosInf true)
 
--- | @to a@ is an 'Interval' that includes all values that are
---  smaller than or equal to @a@.
+-- | `to a` is an `Interval` that includes all values that are
+-- | smaller than or equal to `a`.
 to :: forall (a :: Type). a -> Interval a
 to s = mkInterval (LowerBound NegInf true) (upperBound s)
 
--- | An 'Interval' that covers every slot.
+-- | An `Interval` that covers every slot.
 always :: forall (a :: Type). Interval a
 always = mkInterval (LowerBound NegInf true) (UpperBound PosInf true)
 
--- | An 'Interval' that is empty.
+-- | An `Interval` that is empty.
 never :: forall (a :: Type). Interval a
 never = mkInterval (LowerBound PosInf true) (UpperBound NegInf true)
 
@@ -189,9 +191,10 @@ member :: forall (a :: Type). Ord a => a -> Interval a -> Boolean
 member a i = i `contains` singleton a
 
 -- | Check whether two intervals overlap, that is, whether there is a value that
---   is a member of both intervals. This is the Plutus implementation but
--- BigInt used in POSIXTime is cannot be enumerated so the isEmpty we use in
--- practice uses Semiring instead. See `overlaps` for the practical version.
+-- | is a member of both intervals. This is the Plutus implementation but
+-- | `BigInt` used in `POSIXTime` is cannot be enumerated so the `isEmpty` we
+-- | use in practice uses `Semiring` instead. See `overlaps` for the practical
+-- | version.
 overlaps'
   :: forall (a :: Type). Enum a => Interval a -> Interval a -> Boolean
 overlaps' l r = not $ isEmpty' (l `intersection` r)
@@ -199,7 +202,7 @@ overlaps' l r = not $ isEmpty' (l `intersection` r)
 -- Potential FIX ME: shall we just fix the type to POSIXTime and remove overlaps'
 -- and Semiring constraint?
 -- | Check whether two intervals overlap, that is, whether there is a value that
---   is a member of both intervals.
+-- | is a member of both intervals.
 overlaps
   :: forall (a :: Type)
    . Ord a
@@ -209,28 +212,28 @@ overlaps
   -> Boolean
 overlaps l r = not $ isEmpty (l `intersection` r)
 
--- | 'intersection a b' is the largest interval that is contained in 'a' and in
---   'b', if it exists.
+-- | `intersection a b` is the largest interval that is contained in `a` and in
+-- | `b`, if it exists.
 intersection
   :: forall (a :: Type). Ord a => Interval a -> Interval a -> Interval a
 intersection (Interval int) (Interval int') =
   mkInterval (max int.ivFrom int'.ivFrom) (min int.ivTo int'.ivTo)
 
--- | 'hull a b' is the smallest interval containing 'a' and 'b'.
+-- | `hull a b` is the smallest interval containing `a` and `b`.
 hull :: forall (a :: Type). Ord a => Interval a -> Interval a -> Interval a
 hull (Interval int) (Interval int') =
   mkInterval (min int.ivFrom int'.ivFrom) (max int.ivTo int'.ivTo)
 
--- | @a `contains` b@ is true if the 'Interval' @b@ is entirely contained in
---   @a@. That is, @a `contains` b@ if for every entry @s@, if @member s b@ then
---   @member s a@.
+-- | `a` `contains` `b` is `true` if the `Interval b` is entirely contained in
+-- | `a`. That is, `a `contains` `b` if for every entry `s`, if `member s b` then
+-- | `member s a`.
 contains :: forall (a :: Type). Ord a => Interval a -> Interval a -> Boolean
 contains (Interval int) (Interval int') =
   int.ivFrom <= int'.ivFrom && int'.ivTo <= int.ivTo
 
--- | Check if an 'Interval' is empty. This is the Plutus implementation but
--- BigInt used in POSIXTime is cannot be enumerated so the isEmpty we use in
--- practice uses Semiring instead. See `isEmpty` for the practical version.
+-- | Check if an `Interval` is empty. This is the Plutus implementation but
+-- | BigInt used in `POSIXTime` is cannot be enumerated so the `isEmpty` we use in
+-- | practice uses `Semiring` instead. See `isEmpty` for the practical version.
 isEmpty' :: forall (a :: Type). Enum a => Interval a -> Boolean
 isEmpty' (Interval { ivFrom: LowerBound v1 in1, ivTo: UpperBound v2 in2 }) =
   case v1 `compare` v2 of
@@ -242,15 +245,15 @@ isEmpty' (Interval { ivFrom: LowerBound v1 in1, ivTo: UpperBound v2 in2 }) =
   openInterval = not in1 && not in2
 
   -- | We check two finite ends to figure out if there are elements between them.
-  -- If there are no elements then the interval is empty.
+  -- | If there are no elements then the interval is empty.
   checkEnds :: Extended a -> Extended a -> Boolean
   checkEnds (Finite v1') (Finite v2') = (succ v1') `compare` (Just v2') == EQ
   checkEnds _ _ = false
 
 -- Potential FIX ME: shall we just fix the type to POSIXTime and remove isEmpty'
 -- and Semiring constraint?
--- | Check if an 'Interval' is empty. This is the practical version to use
--- with a = POSIXTime.
+-- | Check if an `Interval` is empty. This is the practical version to use
+-- | with `a = POSIXTime`.
 isEmpty :: forall (a :: Type). Ord a => Semiring a => Interval a -> Boolean
 isEmpty (Interval { ivFrom: LowerBound v1 in1, ivTo: UpperBound v2 in2 }) =
   case v1 `compare` v2 of
@@ -262,15 +265,15 @@ isEmpty (Interval { ivFrom: LowerBound v1 in1, ivTo: UpperBound v2 in2 }) =
   openInterval = not in1 && not in2
 
   -- | We check two finite ends to figure out if there are elements between them.
-  -- If there are no elements then the interval is empty.
+  -- | If there are no elements then the interval is empty.
   checkEnds :: Extended a -> Extended a -> Boolean
   checkEnds (Finite v1') (Finite v2') = (v1' `add` one) `compare` v2' == EQ
   checkEnds _ _ = false
 
--- | Check if a value is earlier than the beginning of an 'Interval'.
+-- | Check if a value is earlier than the beginning of an `Interval`.
 before :: forall (a :: Type). Ord a => a -> Interval a -> Boolean
 before h (Interval { ivFrom }) = lowerBound h < ivFrom
 
--- | Check if a value is later than the end of a 'Interval'.
+-- | Check if a value is later than the end of a `Interval`.
 after :: forall (a :: Type). Ord a => a -> Interval a -> Boolean
 after h (Interval { ivTo }) = upperBound h > ivTo

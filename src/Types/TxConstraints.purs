@@ -15,7 +15,10 @@ module Types.TxConstraints
   , mustMintValueWithRedeemer
   , mustPayToOtherScript
   , mustPayToPubKey
+  , mustPayToPubKeyAddress
   , mustPayToTheScript
+  , mustPayWithDatumToPubKey
+  , mustPayWithDatumToPubKeyAddress
   , mustProduceAtLeast
   , mustProduceAtLeastTotal
   , mustSatisfyAnyOf
@@ -29,7 +32,8 @@ module Types.TxConstraints
   , requiredMonetaryPolicies
   , requiredSignatories
   , singleton
-  ) where
+  )
+  where
 
 import Prelude hiding (join)
 
@@ -40,7 +44,7 @@ import Data.BigInt (BigInt)
 import Data.Foldable (class Foldable, any, foldl, foldMap, foldr, null)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
-import Data.Map (fromFoldableWith, toUnfoldable)
+import Data.Map (Map, fromFoldableWith, toUnfoldable)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, over, unwrap)
 import Data.Show.Generic (genericShow)
@@ -57,59 +61,67 @@ import Types.Interval (POSIXTimeRange, always, intersection, isEmpty)
 import Types.RedeemerTag (RedeemerTag(Mint))
 import Types.ScriptHash (MintingPolicyHash, ValidatorHash)
 import Types.Transaction (Redeemer)
-import Types.UnbalancedTransaction (PubKeyHash, TxOutRef)
-import Types.Value (TokenName, Value, currencyMPSHash, getNonAdaAsset, isZero)
+import Types.UnbalancedTransaction (PaymentPubKeyHash, StakePubKeyHash, TxOutRef)
+import Types.Value
+  ( CurrencySymbol
+  , TokenName
+  , Value
+  , currencyMPSHash
+  , getNonAdaAsset
+  , isZero
+  )
 
 --------------------------------------------------------------------------------
 -- TxConstraints Type and related
 --------------------------------------------------------------------------------
 -- Taken from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-constraints/html/Ledger-Constraints.html
+-- Plutus rev: cc72a56eafb02333c96f662581b57504f8f8992f via Plutus-apps (localhost): abe4785a4fc4a10ba0c4e6417f0ab9f1b4169b26
 
 -- | Constraints on transactions that want to spend script outputs
 data TxConstraint
   = MustIncludeDatum Datum
   | MustValidateIn POSIXTimeRange
-  | MustBeSignedBy PubKeyHash
+  | MustBeSignedBy PaymentPubKeyHash
   | MustSpendAtLeast Value
   | MustProduceAtLeast Value
   | MustSpendPubKeyOutput TxOutRef
   | MustSpendScriptOutput TxOutRef Redeemer
   | MustMintValue MintingPolicyHash Redeemer TokenName BigInt
-  | MustPayToPubKey PubKeyHash Value
+  | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash) (Maybe Datum) Value
   | MustPayToOtherScript ValidatorHash Datum Value
   | MustHashDatum DatumHash Datum
   | MustSatisfyAnyOf (Array (Array TxConstraint))
 
-derive instance eqTxConstraint :: Eq TxConstraint
-derive instance genericTxConstraint :: Generic TxConstraint _
+derive instance Eq TxConstraint
+derive instance Generic TxConstraint _
 
-instance showTxConstraint :: Show TxConstraint where
+instance Show TxConstraint where
   show x = genericShow x
 
 newtype InputConstraint (i :: Type) = InputConstraint
-  { icRedeemer :: i
-  , icTxOutRef :: TxOutRef
+  { redeemer :: i
+  , txOutRef :: TxOutRef
   }
 
-derive instance genericInputConstraint :: Generic (InputConstraint i) _
-derive instance newtypeInputConstraint :: Newtype (InputConstraint i) _
-derive instance functorInputConstraint :: Functor InputConstraint
-derive newtype instance eqInputConstraint :: Eq i => Eq (InputConstraint i)
+derive instance Generic (InputConstraint i) _
+derive instance Newtype (InputConstraint i) _
+derive instance Functor InputConstraint
+derive newtype instance Eq i => Eq (InputConstraint i)
 
 instance showInputConstraint :: Show i => Show (InputConstraint i) where
   show = genericShow
 
 newtype OutputConstraint (o :: Type) = OutputConstraint
-  { ocDatum :: o
-  , ocValue :: Value
+  { datum :: o
+  , value :: Value
   }
 
-derive instance genericOutputConstraint :: Generic (OutputConstraint o) _
-derive instance newtypeOutputConstraint :: Newtype (OutputConstraint o) _
-derive instance functorOutputConstraint :: Functor OutputConstraint
-derive newtype instance eqOutputConstraint :: Eq o => Eq (OutputConstraint o)
+derive instance Generic (OutputConstraint o) _
+derive instance Newtype (OutputConstraint o) _
+derive instance Functor OutputConstraint
+derive newtype instance Eq o => Eq (OutputConstraint o)
 
-instance showOutputConstraint :: Show o => Show (OutputConstraint o) where
+instance Show o => Show (OutputConstraint o) where
   show = genericShow
 
 -- | Restrictions placed on the allocation of funds to outputs of transactions.
@@ -119,17 +131,17 @@ newtype TxConstraints (i :: Type) (o :: Type) = TxConstraints
   , txOutputs :: Array (OutputConstraint o)
   }
 
-derive instance genericTxConstraints :: Generic (TxConstraints i o) _
-derive instance newtypeTxConstraints :: Newtype (TxConstraints i o) _
-derive newtype instance eqTxConstraints :: (Eq i, Eq o) => Eq (TxConstraints i o)
+derive instance Generic (TxConstraints i o) _
+derive instance Newtype (TxConstraints i o) _
+derive newtype instance (Eq i, Eq o) => Eq (TxConstraints i o)
 -- Array concatenation allowing duplicates like Plutus
-derive newtype instance semigroupTxConstraints :: Semigroup (TxConstraints i o)
-derive newtype instance monoidTxConstraints :: Monoid (TxConstraints i o)
+derive newtype instance Semigroup (TxConstraints i o)
+derive newtype instance Monoid (TxConstraints i o)
 
-instance showTxConstraints :: (Show i, Show o) => Show (TxConstraints i o) where
+instance (Show i, Show o) => Show (TxConstraints i o) where
   show = genericShow
 
-instance bifunctorTxConstraints :: Bifunctor TxConstraints where
+instance Bifunctor TxConstraints where
   bimap f g (TxConstraints txc@{ txInputs, txOutputs }) =
     TxConstraints txc
       { txInputs = map (map f) txInputs
@@ -147,7 +159,7 @@ addTxIn
   -> TxConstraints i o
 addTxIn outRef red (TxConstraints txc@{ txInputs }) =
   let
-    ic = InputConstraint { icRedeemer: red, icTxOutRef: outRef }
+    ic = InputConstraint { redeemer: red, txOutRef: outRef }
   in
     TxConstraints txc { txInputs = ic : txInputs }
 
@@ -155,15 +167,15 @@ singleton
   :: forall (i :: Type) (o :: Type). TxConstraint -> TxConstraints i o
 singleton a = over TxConstraints _ { txConstraints = Array.singleton a } mempty
 
--- | @mustValidateIn r@ requires the transaction's time range to be contained
---   in @r@.
+-- | `mustValidateIn r` requires the transaction's time range to be contained
+-- |  in `r`.
 mustValidateIn
   :: forall (i :: Type) (o :: Type). POSIXTimeRange -> TxConstraints i o
 mustValidateIn = singleton <<< MustValidateIn
 
 -- | Require the transaction to be signed by the public key.
 mustBeSignedBy
-  :: forall (i :: Type) (o :: Type). PubKeyHash -> TxConstraints i o
+  :: forall (i :: Type) (o :: Type). PaymentPubKeyHash -> TxConstraints i o
 mustBeSignedBy = singleton <<< MustBeSignedBy
 
 -- | Require the transaction to include a datum.
@@ -179,19 +191,53 @@ mustPayToTheScript
   -> TxConstraints i o
 mustPayToTheScript dt value =
   TxConstraints
-    { txConstraints: Array.singleton
-        $ MustIncludeDatum (Datum $ toData dt)
+    { txConstraints: Array.singleton $ MustIncludeDatum (Datum $ toData dt)
     , txInputs: []
     , txOutputs: Array.singleton $ OutputConstraint
-        { ocDatum: dt
-        , ocValue: value
+        { datum: dt
+        , value: value
         }
     }
 
--- | Lock the value to a public key
+-- | Lock the value with a public key
 mustPayToPubKey
-  :: forall (i :: Type) (o :: Type). PubKeyHash -> Value -> TxConstraints i o
-mustPayToPubKey pkh = singleton <<< MustPayToPubKey pkh
+  :: forall (i :: Type) (o :: Type)
+   . PaymentPubKeyHash
+  -> Value
+  -> TxConstraints i o
+mustPayToPubKey pkh = singleton <<< MustPayToPubKeyAddress pkh Nothing Nothing
+
+-- | Lock the value with a payment public key hash and (optionally) a stake
+-- | public key hash.
+mustPayToPubKeyAddress
+  :: forall (i :: Type) (o :: Type)
+    . PaymentPubKeyHash
+  -> StakePubKeyHash
+  -> Value
+  -> TxConstraints i o
+mustPayToPubKeyAddress pkh skh =
+  singleton <<< MustPayToPubKeyAddress pkh (Just skh) Nothing
+
+-- | Lock the value and datum with a payment public key hash
+mustPayWithDatumToPubKey
+  :: forall (i :: Type) (o :: Type)
+    . PaymentPubKeyHash
+  -> Datum
+  -> Value
+  -> TxConstraints i o
+mustPayWithDatumToPubKey pkh datum =
+  singleton <<< MustPayToPubKeyAddress pkh Nothing (Just datum)
+
+-- | Lock the value and datum with a payment public key hash and (optionally) a
+-- | stake public key hash.
+mustPayWithDatumToPubKeyAddress
+  :: forall i o. PaymentPubKeyHash
+  -> StakePubKeyHash
+  -> Datum
+  -> Value
+  -> TxConstraints i o
+mustPayWithDatumToPubKeyAddress pkh skh datum =
+  singleton <<< MustPayToPubKeyAddress pkh (Just skh) (Just datum)
 
 -- | Lock the value to any arbitrary script
 mustPayToOtherScript
@@ -208,8 +254,7 @@ mustPayToOtherScript vh dt vl =
 mustMintValue :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
 mustMintValue = mustMintValueWithRedeemer (unitRedeemer Mint)
 
--- Datatype doesn't match Plutus because of currencyMPSHash in Maybe context.
--- | Mint the given Value by accessing NonAdaAsset
+-- | Mint the given `Value` by accessing `NonAdaAsset`
 mustMintValueWithRedeemer
   :: forall (i :: Type) (o :: Type)
    . Redeemer
@@ -218,6 +263,8 @@ mustMintValueWithRedeemer
 mustMintValueWithRedeemer redeemer =
   Array.foldMap valueConstraint <<< toUnfoldable <<< unwrap <<< getNonAdaAsset
   where
+  valueConstraint
+    :: CurrencySymbol /\ (Map TokenName BigInt) -> TxConstraints i o
   valueConstraint (currencySymbol /\ tokenMap) =
     let
       mintingPolicyHash = currencyMPSHash currencySymbol
@@ -226,8 +273,8 @@ mustMintValueWithRedeemer redeemer =
         (uncurry (mustMintCurrencyWithRedeemer mintingPolicyHash redeemer))
         $ toUnfoldable tokenMap
 
--- | Create the given amount of the currency. FIX ME: Broken until unitRedeemer
--- defined.
+-- | Create the given amount of the currency. FIX ME: Broken until `unitRedeemer`
+-- | defined.
 mustMintCurrency
   :: forall (i :: Type) (o :: Type)
    . MintingPolicyHash
@@ -295,16 +342,16 @@ isSatisfiable (TxConstraints { txConstraints }) =
 pubKeyPayments
   :: forall (i :: Type) (o :: Type)
    . TxConstraints i o
-  -> Array (PubKeyHash /\ Value)
+  -> Array (PaymentPubKeyHash /\ Value)
 pubKeyPayments (TxConstraints { txConstraints }) =
   toUnfoldable
     $ fromFoldableWith (<>)
     $ txConstraints >>=
         case _ of
-          MustPayToPubKey pkh vl -> Array.singleton (pkh /\ vl)
+          MustPayToPubKeyAddress pkh _ _ vl -> Array.singleton (pkh /\ vl)
           _ -> []
 
--- | The minimum 'Value' that satisfies all 'MustSpendAtLeast' constraints
+-- | The minimum `Value` that satisfies all `MustSpendAtLeast` constraints
 mustSpendAtLeastTotal
   :: forall (i :: Type) (o :: Type). TxConstraints i o -> Value
 mustSpendAtLeastTotal =
@@ -314,7 +361,7 @@ mustSpendAtLeastTotal =
   f (MustSpendAtLeast v) = v
   f _ = mempty
 
--- | The minimum 'Value' that satisfies all 'MustProduceAtLeast' constraints
+-- | The minimum `Value` that satisfies all `MustProduceAtLeast` constraints
 mustProduceAtLeastTotal
   :: forall (i :: Type) (o :: Type). TxConstraints i o -> Value
 mustProduceAtLeastTotal =
@@ -325,10 +372,10 @@ mustProduceAtLeastTotal =
   f _ = mempty
 
 requiredSignatories
-  :: forall (i :: Type) (o :: Type). TxConstraints i o -> Array PubKeyHash
+  :: forall (i :: Type) (o :: Type). TxConstraints i o -> Array PaymentPubKeyHash
 requiredSignatories = foldMap f <<< _.txConstraints <<< unwrap
   where
-  f :: TxConstraint -> Array PubKeyHash
+  f :: TxConstraint -> Array PaymentPubKeyHash
   f (MustBeSignedBy pkh) = Array.singleton pkh
   f _ = []
 
@@ -349,7 +396,7 @@ requiredDatums = foldMap f <<< _.txConstraints <<< unwrap
   f _ = []
 
 -- | Check whether every transaction that satisfies the constraints has to
---   modify the UTXO set.
+-- | modify the UTXO set.
 modifiesUtxoSet :: forall (i :: Type) (o :: Type). TxConstraints i o -> Boolean
 modifiesUtxoSet (TxConstraints { txConstraints, txInputs, txOutputs }) =
   let
@@ -360,7 +407,7 @@ modifiesUtxoSet (TxConstraints { txConstraints, txInputs, txOutputs }) =
       MustSpendPubKeyOutput _ -> true
       MustSpendScriptOutput _ _ -> true
       MustMintValue _ _ _ _ -> true
-      MustPayToPubKey _ vl -> not (isZero vl)
+      MustPayToPubKeyAddress _ _ _ vl -> not (isZero vl)
       MustPayToOtherScript _ _ vl -> not (isZero vl)
       MustSatisfyAnyOf xs -> any requiresInputOutput $ concat xs
       _ -> false
