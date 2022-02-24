@@ -19,7 +19,7 @@ import Types.Transaction
   ( Transaction(Transaction)
   , TransactionWitnessSet(TransactionWitnessSet)
   )
-import Types.PlutusData (PlutusData(Integer))
+import Types.PlutusData (Datum(Datum), PlutusData(Integer))
 
 suite :: TestPlanM Unit
 suite = group "attach datums to tx"
@@ -33,10 +33,11 @@ testAttachDatum = liftEffect (attachDatum datum tx) >>= case _ of
       Just [ pd ] -> do
         pd' <- Deserialization.PlutusData.convertPlutusData
           <$> liftEffect (Serialization.WitnessSet.convertPlutusData pd)
-        pd' `shouldEqual` Just datum
+        pd' `shouldEqual` Just (unwrap datum)
       _ -> liftEffect $ throw "Failed to attach datum"
   where
   tx :: Transaction
   tx = mempty
 
-  datum = Integer $ BigInt.fromInt 1
+  datum :: Datum
+  datum = Datum $ Integer $ BigInt.fromInt 1

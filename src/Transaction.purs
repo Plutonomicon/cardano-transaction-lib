@@ -11,11 +11,11 @@ import Effect (Effect)
 import Serialization.WitnessSet as Serialization.WitnessSet
 import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Serialization.PlutusData as Serialization.PlutusData
-import Types.PlutusData as PlutusData
+import Types.PlutusData (Datum(Datum))
 import Types.Transaction (Transaction(Transaction))
 
-attachDatum :: PlutusData.PlutusData -> Transaction -> Effect (Maybe Transaction)
-attachDatum pd (Transaction tx) = runMaybeT $ do
+attachDatum :: Datum -> Transaction -> Effect (Maybe Transaction)
+attachDatum (Datum pd) (Transaction tx) = runMaybeT $ do
   pd' <- liftMaybe $ Serialization.PlutusData.convertPlutusData pd
   datumWits <- MaybeT $
     map (map unwrap <<< Deserialization.WitnessSet.convertWitnessSet)
