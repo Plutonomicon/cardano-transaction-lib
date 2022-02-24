@@ -89,6 +89,8 @@ mkNamiWalletAff = do
             <$> fromBytesEffect bytes
         )
     where
+    -- We have to combine the newly returned witness set with the existing one
+    -- Otherwise, any datums, etc... won't be retained
     combineWitnessSet :: Transaction -> TransactionWitnessSet -> Transaction
     combineWitnessSet (Transaction tx'@{witness_set: oldWits}) newWits =
       Transaction $ tx' { witness_set = oldWits <> newWits }
