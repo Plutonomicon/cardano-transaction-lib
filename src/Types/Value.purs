@@ -38,7 +38,8 @@ module Types.Value
   , valueOf
   , valueToCoin
   , valueToCoin'
-  ) where
+  )
+  where
 
 import Prelude hiding (join)
 import Control.Alt ((<|>))
@@ -66,7 +67,7 @@ import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested ((/\), type (/\))
 import Partial.Unsafe (unsafePartial)
 
-import Serialization.Hash (scriptHashFromBytes)
+import Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Types.ByteArray (ByteArray, byteLength)
 import Types.ScriptHash (MintingPolicyHash(MintingPolicyHash))
 
@@ -572,7 +573,10 @@ filterNonAda (Value _ nonAda) = Value mempty nonAda
 -- checking scriptHashFromBytes so it must be a valid ScriptHash too. Otherwise
 -- we'd have a Maybe context from scriptHashFromBytes again from something we
 -- already know is a valid CurrencySymbol
+currencyScriptHash :: CurrencySymbol -> ScriptHash
+currencyScriptHash (CurrencySymbol byteArray) =
+  unsafePartial $ fromJust $ scriptHashFromBytes byteArray
+
 -- | The minting policy hash of a currency symbol
 currencyMPSHash :: CurrencySymbol -> MintingPolicyHash
-currencyMPSHash (CurrencySymbol byteArray) =
-  unsafePartial $ fromJust $ MintingPolicyHash <$> scriptHashFromBytes byteArray
+currencyMPSHash = MintingPolicyHash <<< currencyScriptHash
