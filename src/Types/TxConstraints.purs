@@ -32,8 +32,7 @@ module Types.TxConstraints
   , requiredMonetaryPolicies
   , requiredSignatories
   , singleton
-  )
-  where
+  ) where
 
 import Prelude hiding (join)
 
@@ -211,7 +210,7 @@ mustPayToPubKey pkh = singleton <<< MustPayToPubKeyAddress pkh Nothing Nothing
 -- | public key hash.
 mustPayToPubKeyAddress
   :: forall (i :: Type) (o :: Type)
-    . PaymentPubKeyHash
+   . PaymentPubKeyHash
   -> StakePubKeyHash
   -> Value
   -> TxConstraints i o
@@ -221,7 +220,7 @@ mustPayToPubKeyAddress pkh skh =
 -- | Lock the value and datum with a payment public key hash
 mustPayWithDatumToPubKey
   :: forall (i :: Type) (o :: Type)
-    . PaymentPubKeyHash
+   . PaymentPubKeyHash
   -> Datum
   -> Value
   -> TxConstraints i o
@@ -231,7 +230,8 @@ mustPayWithDatumToPubKey pkh datum =
 -- | Lock the value and datum with a payment public key hash and (optionally) a
 -- | stake public key hash.
 mustPayWithDatumToPubKeyAddress
-  :: forall i o. PaymentPubKeyHash
+  :: forall i o
+   . PaymentPubKeyHash
   -> StakePubKeyHash
   -> Datum
   -> Value

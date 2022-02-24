@@ -10,8 +10,7 @@ module Types.UnbalancedTransaction
   , UnbalancedTx(..)
   , scriptOutputToTxOutput
   , utxoIndexToUtxo
-  )
-  where
+  ) where
 
 import Prelude
 
@@ -91,7 +90,6 @@ derive newtype instance Ord StakePubKeyHash
 
 instance Show StakePubKeyHash where
   show = genericShow
-
 
 -- Use Plutus' name to assist with copy & paste from Haskell to Purescript.
 -- | Transaction inputs reference some other transaction's outputs.
