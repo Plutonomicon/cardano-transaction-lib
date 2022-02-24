@@ -60,12 +60,6 @@ import QueryM
   , utxosAt
   )
 import Serialization.Address (testnetId)
-import Types.POSIXTimeRange
-  ( Extended(NegInf, PosInf)
-  , Interval(Interval)
-  , LowerBound(LowerBound)
-  , UpperBound(UpperBound)
-  )
 import Types.Transaction
   ( Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
@@ -132,12 +126,7 @@ buildUnbalancedTransaction = do
         , witness_set: mempty
         , auxiliary_data: Nothing
         }
-    , requiredSignatories: Map.empty
     , utxoIndex: Map.empty
-    , validityTimeRange: Interval
-        { from: LowerBound NegInf true
-        , to: UpperBound PosInf true
-        }
     }
 
 throw :: forall (a :: Type). String -> QueryM a

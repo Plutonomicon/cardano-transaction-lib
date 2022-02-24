@@ -94,9 +94,17 @@ $schema valueType
         $property-name "coins"
         $property-schema $number
         $property-name "assets"
-        $property-schema $object
+        $property-schema assetsType
+        $optional-property
 
 $schema datumType
     $type
         $null
         $string
+
+$schema assetsType
+    $type
+        $object
+    $properties
+        $additional-properties-allowed
+        $additional-property-schema $number

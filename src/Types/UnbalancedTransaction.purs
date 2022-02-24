@@ -4,24 +4,31 @@ module Types.UnbalancedTransaction
   , PubKey(..)
   , PubKeyHash(..)
   , ScriptOutput(..)
-  , TxOutputRef(..)
+  , TxOutRef(..)
   , UnbalancedTx(..)
-  , ValidatorHash(..)
   , scriptOutputToTxOutput
   , utxoIndexToUtxo
   ) where
 
 import Prelude
 
+import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, wrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Show.Generic (genericShow)
 import Data.Traversable (sequence)
 import Serialization.Address (addressFromBytes)
-import Serialization.Hash (Ed25519KeyHash, ScriptHash, scriptHashToBytes)
-import Types.ByteArray (ByteArray(..))
-import Types.POSIXTimeRange (POSIXTimeRange)
-import Types.Transaction (DataHash, Transaction, TransactionInput, TransactionOutput, Utxo)
+import Serialization.Hash (Ed25519KeyHash, scriptHashToBytes)
+import Types.ByteArray (ByteArray(ByteArray))
+import Types.PlutusData (DatumHash)
+import Types.ScriptHash (ValidatorHash)
+import Types.Transaction
+  ( Transaction
+  , TransactionInput
+  , TransactionOutput
+  , Utxo
+  )
 import Types.Value (Value)
 
 newtype PubKey = PubKey ByteArray
@@ -34,37 +41,39 @@ newtype PaymentPubKey = PaymentPubKey PubKey
 derive instance Newtype PaymentPubKey _
 derive newtype instance Eq PaymentPubKey
 
-type ValidatorHash = ScriptHash
-
 newtype ScriptOutput = ScriptOutput
   { validatorHash :: ValidatorHash
   , value :: Value
-  , datumHash :: DataHash
+  , datumHash :: DatumHash
   }
 
 derive instance Newtype ScriptOutput _
 
 newtype PubKeyHash = PubKeyHash Ed25519KeyHash
 
+derive instance Generic PubKeyHash _
 derive instance Newtype PubKeyHash _
 derive newtype instance Eq PubKeyHash
+derive newtype instance Ord PubKeyHash
+
+instance Show PubKeyHash where
+  show = genericShow
 
 newtype PaymentPubKeyHash = PaymentPubKeyHash PubKeyHash
 
 derive instance Newtype PaymentPubKeyHash _
 derive newtype instance Eq PaymentPubKeyHash
 
+-- Use Plutus' name to assist with copy & paste from Haskell to Purescript.
 -- | Transaction inputs reference some other transaction's outputs.
-type TxOutputRef = TransactionInput
+type TxOutRef = TransactionInput
 
 -- | An unbalanced transaction. It needs to be balanced and signed before it
 -- | can be submitted to the ledeger.
 -- | Resembles `UnbalancedTx` from `plutus-apps`.
 newtype UnbalancedTx = UnbalancedTx
   { transaction :: Transaction
-  , requiredSignatories :: Map PaymentPubKeyHash (Maybe PaymentPubKey)
-  , utxoIndex :: Map TxOutputRef ScriptOutput
-  , validityTimeRange :: POSIXTimeRange
+  , utxoIndex :: Map TxOutRef ScriptOutput
   }
 
 derive instance Newtype UnbalancedTx _
@@ -75,9 +84,9 @@ derive instance Newtype UnbalancedTx _
 -- | Converts a ScriptOutput to a TransactionOutput with potential failure
 scriptOutputToTxOutput :: ScriptOutput -> Maybe TransactionOutput
 scriptOutputToTxOutput (ScriptOutput { validatorHash, value, datumHash }) = do
-  address <- validatorHash # scriptHashToBytes >>> addressFromBytes
+  address <- validatorHash # unwrap # scriptHashToBytes >>> addressFromBytes
   pure $ wrap { address, amount: value, data_hash: pure datumHash }
 
 -- | Converts a utxoIndex from UnbalancedTx to Utxo with potential failure
-utxoIndexToUtxo :: Map TxOutputRef ScriptOutput -> Maybe Utxo
+utxoIndexToUtxo :: Map TxOutRef ScriptOutput -> Maybe Utxo
 utxoIndexToUtxo = map scriptOutputToTxOutput >>> sequence
