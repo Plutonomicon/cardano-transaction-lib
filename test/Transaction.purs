@@ -1,7 +1,6 @@
 module Test.Transaction (suite) where
 
 import Prelude
-import Undefined
 
 import Data.BigInt as BigInt
 import Data.Maybe (Maybe(Just, Nothing))
@@ -34,7 +33,8 @@ testAttachDatum = liftEffect (attachDatum datum tx) >>= case _ of
         pd' <- Deserialization.PlutusData.convertPlutusData
           <$> liftEffect (Serialization.WitnessSet.convertPlutusData pd)
         pd' `shouldEqual` Just (unwrap datum)
-      _ -> liftEffect $ throw "Failed to attach datum"
+      Just _ -> liftEffect $ throw "Incorrect number of datums attached"
+      _ -> liftEffect $ throw "Datum wasn't attached"
   where
   tx :: Transaction
   tx = mempty

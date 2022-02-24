@@ -1,12 +1,10 @@
 module Transaction (attachDatum) where
 
 import Prelude
-import Undefined
 
 import Control.Monad.Maybe.Trans (MaybeT(MaybeT), runMaybeT)
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just))
 import Data.Newtype (unwrap, wrap)
-import Data.Traversable
 import Effect (Effect)
 import Serialization.WitnessSet as Serialization.WitnessSet
 import Deserialization.WitnessSet as Deserialization.WitnessSet

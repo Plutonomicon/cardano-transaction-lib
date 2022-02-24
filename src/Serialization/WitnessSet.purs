@@ -8,7 +8,6 @@ import Data.Newtype (unwrap)
 import Data.Traversable (for_, traverse, traverse_)
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytesEffect)
-import Serialization.PlutusData as Serialization.PlutusData
 import Effect (Effect)
 import Effect.Exception (throw)
 import FfiHelpers (ContainerHelper, containerHelper)
@@ -33,7 +32,6 @@ import Serialization.Types
   )
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
-import Types.PlutusData as PlutusData
 import Types.RedeemerTag as Tag
 import Types.Transaction as T
 
