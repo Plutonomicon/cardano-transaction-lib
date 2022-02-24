@@ -38,8 +38,7 @@ module Types.Value
   , valueOf
   , valueToCoin
   , valueToCoin'
-  )
-  where
+  ) where
 
 import Prelude hiding (join)
 import Control.Alt ((<|>))
