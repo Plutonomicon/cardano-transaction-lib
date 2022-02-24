@@ -34,6 +34,7 @@ import Serialization.Types
   )
 import Types.ByteArray (ByteArray)
 import Types.RedeemerTag as Tag
+import Types.Scripts (PlutusScript(PlutusScript)) as S
 import Types.Transaction as T
 import Untagged.Union (asOneOf)
 import Deserialization.NativeScript (convertNativeScript)
@@ -81,8 +82,8 @@ convertBootstraps = extractBootstraps >>> map \bootstrap ->
   , attributes: getBootstrapAttributes bootstrap
   }
 
-convertPlutusScripts :: PlutusScripts -> Array T.PlutusScript
-convertPlutusScripts = extractPlutusScripts >>> map (plutusScriptBytes >>> T.PlutusScript)
+convertPlutusScripts :: PlutusScripts -> Array S.PlutusScript
+convertPlutusScripts = extractPlutusScripts >>> map (plutusScriptBytes >>> S.PlutusScript)
 
 convertPlutusList :: PlutusList -> Array T.PlutusData
 convertPlutusList = extractPlutusData >>> map convertPlutusData

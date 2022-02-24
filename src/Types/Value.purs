@@ -69,7 +69,7 @@ import Partial.Unsafe (unsafePartial)
 
 import Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Types.ByteArray (ByteArray, byteLength)
-import Types.ScriptHash (MintingPolicyHash(MintingPolicyHash))
+import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 
 --------------------------------------------------------------------------------
 -- Coin (Ada)

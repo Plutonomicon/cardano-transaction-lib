@@ -58,7 +58,7 @@ import Types.PlutusData
   )
 import Types.Interval (POSIXTimeRange, always, intersection, isEmpty)
 import Types.RedeemerTag (RedeemerTag(Mint))
-import Types.ScriptHash (MintingPolicyHash, ValidatorHash)
+import Types.Scripts (MintingPolicyHash, ValidatorHash)
 import Types.Transaction (Redeemer)
 import Types.UnbalancedTransaction (PaymentPubKeyHash, StakePubKeyHash, TxOutRef)
 import Types.Value

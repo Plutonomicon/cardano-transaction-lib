@@ -15,6 +15,7 @@ import Deserialization.FromBytes (fromBytesEffect)
 import FfiHelpers (ContainerHelper, containerHelper)
 import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.NativeScript (convertNativeScripts)
+import Types.Scripts (PlutusScript(PlutusScript)) as S
 import Types.Transaction as T
 import Types.Aliases (Bech32String)
 
@@ -71,8 +72,8 @@ convertBootstrap { vkey, signature, chain_code, attributes } = do
   signature' <- convertEd25519Signature signature
   newBootstrapWitness vkey' signature' chain_code attributes
 
-convertPlutusScript :: T.PlutusScript -> Effect PlutusScript
-convertPlutusScript (T.PlutusScript bytes) = do
+convertPlutusScript :: S.PlutusScript -> Effect PlutusScript
+convertPlutusScript (S.PlutusScript bytes) = do
   newPlutusScript bytes
 
 convertVkeywitnesses :: Array T.Vkeywitness -> Effect Vkeywitnesses

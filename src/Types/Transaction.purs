@@ -23,6 +23,7 @@ import Serialization.Address (Address, NetworkId, RewardAddress, Slot(Slot))
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
 import Types.RedeemerTag (RedeemerTag)
+import Types.Scripts (PlutusScript)
 import Types.Value (Coin, Value)
 import Serialization.Hash (Ed25519KeyHash)
 
@@ -335,15 +336,6 @@ derive instance Generic Ed25519Signature _
 derive newtype instance Eq Ed25519Signature
 
 instance Show Ed25519Signature where
-  show = genericShow
-
-newtype PlutusScript = PlutusScript ByteArray
-
-derive instance newtypePlutusScript :: Newtype PlutusScript _
-derive newtype instance eqPlutusScript :: Eq PlutusScript
-derive instance Generic PlutusScript _
-
-instance Show PlutusScript where
   show = genericShow
 
 newtype PlutusData = PlutusData ByteArray
