@@ -15,7 +15,7 @@ import Serialization.WitnessSet as Serialization.WitnessSet
 import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Serialization.PlutusData as Serialization.PlutusData
 import Types.PlutusData (Datum(Datum))
-import Types.Transaction (Transaction(Transaction), TransactionWitnessSet)
+import Types.Transaction (Transaction(Transaction))
 
 data ModifyTxError
   = ConvertWitsError
@@ -24,8 +24,11 @@ data ModifyTxError
 derive instance Generic ModifyTxError _
 
 instance Show ModifyTxError where
-  show a = genericShow a
+  show = genericShow
 
+-- | Attach a `Datum` to a transaction by modifying its existing witness set.
+-- | Fails if either the datum or updated witness set cannot be converted during
+-- | (de-)serialization
 attachDatum :: Datum -> Transaction -> Effect (Either ModifyTxError Transaction)
 attachDatum (Datum pd) (Transaction tx@{ witness_set: ws }) = runExceptT $ do
   pd' <- liftEither
