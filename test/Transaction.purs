@@ -3,6 +3,7 @@ module Test.Transaction (suite) where
 import Prelude
 
 import Data.BigInt as BigInt
+import Data.Either (Either(Left, Right))
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap)
 import Effect.Aff (Aff)
@@ -25,16 +26,17 @@ suite = group "attach datums to tx"
   $ test "datum should be correctly attached" testAttachDatum
 
 testAttachDatum :: Aff Unit
-testAttachDatum = liftEffect (attachDatum datum tx) >>= case _ of
-  Nothing -> liftEffect $ throw "Failed to attach datum"
-  Just (Transaction { witness_set: TransactionWitnessSet ws }) -> do
-    case ws.plutus_data of
-      Just [ pd ] -> do
-        pd' <- Deserialization.PlutusData.convertPlutusData
-          <$> liftEffect (Serialization.WitnessSet.convertPlutusData pd)
-        pd' `shouldEqual` Just (unwrap datum)
-      Just _ -> liftEffect $ throw "Incorrect number of datums attached"
-      _ -> liftEffect $ throw "Datum wasn't attached"
+testAttachDatum = liftEffect $
+  attachDatum datum tx >>= case _ of
+    Left e -> throw $ "Failed to attach datum: " <> show e
+    Right (Transaction { witness_set: TransactionWitnessSet ws }) ->
+      case ws.plutus_data of
+        Just [ pd ] -> do
+          pd' <- Deserialization.PlutusData.convertPlutusData
+            <$> (Serialization.WitnessSet.convertPlutusData pd)
+          pd' `shouldEqual` Just (unwrap datum)
+        Just _ -> throw "Incorrect number of datums attached"
+        Nothing -> throw "Datum wasn't attached"
   where
   tx :: Transaction
   tx = mempty
