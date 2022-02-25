@@ -498,5 +498,8 @@ data MkTxError
   | TypedValidatorMissing
   | DatumWrongHash DatumHash Datum
   | CannotSatisfyAny
+derive instance Generic MkTxError _
+derive instance Eq MkTxError
 
-derive instance
+instance Show MkTxError where
+  show = genericShow
