@@ -578,7 +578,7 @@ calculateMinUtxo txOut = unwrap lovelacePerUTxOWord * utxoEntrySize txOut
 -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
 -- | Calculates how many words are needed depending on whether the datum is
 -- | hashed or not. 10 words for a hashed datum and 0 for no hash. The argument
--- | to the function is the datum hash found in TransactionOutput.
+-- | to the function is the datum hash found in `TransactionOutput`.
 dataHashSize :: Maybe DataHash -> BigInt -- Should we add type safety?
 dataHashSize Nothing = zero
 dataHashSize (Just _) = fromInt 10
@@ -642,8 +642,8 @@ preBalanceTxBody minUtxos fees utxos ownAddr txBody =
 --     note CollateralUtxosUnavailable <<< Array.head
 
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
--- | Get TransactionInput such that it is associated to PaymentCredentialKey
--- | and not PaymentCredentialScript, i.e. we want wallets only
+-- | Get `TransactionInput` such that it is associated to `PaymentCredentialKey`
+-- | and not `PaymentCredentialScript`, i.e. we want wallets only
 getPublicKeyTransactionInput
   :: TransactionInput /\ TransactionOutput
   -> Either GetPublicKeyTransactionInputError TransactionInput

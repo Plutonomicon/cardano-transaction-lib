@@ -13,7 +13,7 @@ import Test.Spec.Reporter (consoleReporter)
 import Test.ByteArray as ByteArrayTest
 import Test.Parser as ParseTest
 import Test.Helpers as Helpers
-import Test.AffInterface as AffInterface
+-- import Test.AffInterface as AffInterface
 import Test.Serialization.Address as Serialization.Address
 import Test.Serialization.Hash as Serialization.Hash
 import TestM (TestPlanM)
@@ -50,7 +50,7 @@ testPlan = do
   ByteArrayTest.suite
   Helpers.suite
   ParseTest.suite
-  AffInterface.suite
+  -- AffInterface.suite
   Serialization.suite
   Serialization.Address.suite
   Serialization.Hash.suite

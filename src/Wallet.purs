@@ -17,6 +17,7 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
+import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization as Serialization
 import Serialization.Address (Address, addressFromBytes)
 import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex)
@@ -72,7 +73,7 @@ mkNamiWalletAff = do
     (_ >>= addressFromBytes) >>> pure
 
   getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
-  getCollateral nami = fromNamiHexString _getNamiCollateral nami >>= case _ of
+  getCollateral nami = fromNamiMaybeHexString getNamiCollateral nami >>= case _ of
     Nothing -> pure Nothing
     Just bytes -> do
       liftEffect $
@@ -112,6 +113,12 @@ mkNamiWalletAff = do
     -> Aff (Maybe ByteArray)
   fromNamiHexString act = map hexToByteArray <<< Promise.toAffE <<< act
 
+  fromNamiMaybeHexString
+    :: (NamiConnection -> Effect (Promise (Maybe String)))
+    -> NamiConnection
+    -> Aff (Maybe ByteArray)
+  fromNamiMaybeHexString act = map (flip bind hexToByteArray) <<< Promise.toAffE <<< act
+
 -------------------------------------------------------------------------------
 -- FFI stuff
 -------------------------------------------------------------------------------
@@ -121,7 +128,10 @@ foreign import _enableNami :: Effect (Promise NamiConnection)
 
 foreign import _getNamiAddress :: NamiConnection -> Effect (Promise String)
 
-foreign import _getNamiCollateral :: NamiConnection -> Effect (Promise String)
+foreign import _getNamiCollateral :: MaybeFfiHelper -> NamiConnection -> Effect (Promise (Maybe String))
+
+getNamiCollateral :: NamiConnection -> Effect (Promise (Maybe String))
+getNamiCollateral = _getNamiCollateral maybeFfiHelper
 
 foreign import _signTxNami
   :: String -- Hex-encoded cbor of tx

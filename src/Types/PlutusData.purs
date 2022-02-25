@@ -46,7 +46,7 @@ unitRedeemer :: RedeemerTag -> Redeemer
 unitRedeemer = undefined
 
 class FromData (a :: Type) where
-  -- | Convert a value from 'BuiltinPlutusData', returning 'Nothing' if this fails.
+  -- | Convert a value from `PlutusData`, returning `Nothing` if this fails.
   fromData :: PlutusData -> Maybe a
 
 newtype Datum = Datum PlutusData

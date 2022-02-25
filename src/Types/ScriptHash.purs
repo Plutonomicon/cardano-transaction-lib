@@ -12,11 +12,11 @@ import Serialization.Hash (ScriptHash)
 
 newtype MintingPolicyHash = MintingPolicyHash ScriptHash
 
-derive instance genericMintingPolicyHash :: Generic MintingPolicyHash _
-derive instance newtypeMintingPolicyHash :: Newtype MintingPolicyHash _
-derive newtype instance eqMintingPolicyHash :: Eq MintingPolicyHash
+derive instance Generic MintingPolicyHash _
+derive instance Newtype MintingPolicyHash _
+derive newtype instance Eq MintingPolicyHash
 
-instance showMintingPolicyHash :: Show MintingPolicyHash where
+instance Show MintingPolicyHash where
   show = genericShow
 
 newtype ValidatorHash = ValidatorHash ScriptHash

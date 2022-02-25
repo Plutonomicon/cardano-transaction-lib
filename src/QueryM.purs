@@ -417,17 +417,17 @@ messageFoldF msg acc' func = do
 -- Ogmios functions and types to internal types
 --------------------------------------------------------------------------------
 -- JsonWsp.Address is a bech32 string, so wrap to Transaction.Types.Bech32
--- | Converts an JsonWsp.Address (bech32string) to Address
+-- | Converts an `JsonWsp.Address` (bech32string) to Address
 ogmiosAddressToAddress :: JsonWsp.Address -> Maybe Address
 ogmiosAddressToAddress = addressFromBech32
 
--- | Converts an (internal) Address to JsonWsp.Address (bech32string)
+-- | Converts an (internal) Address to `JsonWsp.Address` (bech32string)
 addressToOgmiosAddress :: Address -> JsonWsp.Address
 addressToOgmiosAddress = addressBech32
 
 -- If required, we can change to Either with more granular error handling.
--- | Gets utxos at an (internal) Address in terms of (internal) Transaction.Types.
--- Results may vary depending on Wallet type.
+-- | Gets utxos at an (internal) `Address` in terms of (internal) `Transaction.Types`.
+-- Results may vary depending on `Wallet` type.
 utxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
 utxosAt addr = asks _.wallet >>= maybe (pure Nothing) (utxosAtByWallet addr)
   where
@@ -477,7 +477,7 @@ utxosAt addr = asks _.wallet >>= maybe (pure Nothing) (utxosAtByWallet addr)
       pure $ wrap $ Map.delete collateral.input utxos
 
 -- I think txId is a hexadecimal encoding.
--- | Converts an Ogmios TxOutRef to (internal) TransactionInput
+-- | Converts an Ogmios `TxOutRef` to (internal) `TransactionInput`
 txOutRefToTransactionInput :: JsonWsp.TxOutRef -> Maybe Transaction.TransactionInput
 txOutRefToTransactionInput { txId, index } = do
   transaction_id <- hexToByteArray txId <#> wrap
@@ -489,7 +489,7 @@ txOutRefToTransactionInput { txId, index } = do
 -- https://ogmios.dev/ogmios.wsp.json see "datum", potential FIX ME: it says
 -- base64 but the  example provided looks like a hexadecimal so use
 -- hexToByteArray for now.
--- | Converts an Ogmios TxOut to (internal) TransactionOutput
+-- | Converts an Ogmios `TxOut` to (internal) `TransactionOutput`
 ogmiosTxOutToTransactionOutput
   :: JsonWsp.OgmiosTxOut
   -> Maybe Transaction.TransactionOutput
