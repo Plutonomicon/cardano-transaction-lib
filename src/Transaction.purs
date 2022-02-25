@@ -10,18 +10,16 @@ import Serialization.WitnessSet as Serialization.WitnessSet
 import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Serialization.PlutusData as Serialization.PlutusData
 import Types.PlutusData (Datum(Datum))
-import Types.Transaction (Transaction(Transaction))
+import Types.Transaction (Transaction(Transaction), TransactionWitnessSet)
 
 attachDatum :: Datum -> Transaction -> Effect (Maybe Transaction)
-attachDatum (Datum pd) (Transaction tx) = runMaybeT $ do
+attachDatum (Datum pd) (Transaction tx@{ witness_set: ws }) = runMaybeT $ do
   pd' <- liftMaybe $ Serialization.PlutusData.convertPlutusData pd
-  datumWits <- MaybeT $
-    map (map unwrap <<< Deserialization.WitnessSet.convertWitnessSet)
+  newWits <- MaybeT $
+    map Deserialization.WitnessSet.convertWitnessSet
       <<< Serialization.WitnessSet.setPlutusData pd'
-      =<< Serialization.WitnessSet.newTransactionWitnessSet
-  liftMaybe $ Just $ Transaction $ tx
-    { witness_set = wrap $ unwrap tx.witness_set <> datumWits
-    }
+      =<< Serialization.WitnessSet.convertWitnessSet ws
+  liftMaybe $ Just $ Transaction $ tx { witness_set = newWits }
   where
   liftMaybe
     :: forall (a :: Type) (m :: Type -> Type)
