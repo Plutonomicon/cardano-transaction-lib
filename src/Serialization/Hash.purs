@@ -18,6 +18,7 @@ import Data.Eq (class Eq, eq)
 import Data.Function (on)
 import Data.Maybe (Maybe)
 import Data.Monoid ((<>))
+import Data.Ord (class Ord, compare)
 import Data.Show (class Show)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization.Csl (class ToCsl)
@@ -30,6 +31,9 @@ foreign import data Ed25519KeyHash :: Type
 
 instance Eq Ed25519KeyHash where
   eq = eq `on` ed25519KeyHashToBytes
+
+instance Ord Ed25519KeyHash where
+  compare = compare `on` ed25519KeyHashToBytes
 
 instance Show Ed25519KeyHash where
   show edkh = "(Ed25519KeyHash " <> byteArrayToHex (ed25519KeyHashToBytes edkh) <> ")"
@@ -120,7 +124,7 @@ scriptHashFromBech32 :: Bech32String -> Maybe ScriptHash
 scriptHashFromBech32 = _scriptHashFromBech32Impl maybeFfiHelper
 
 -- | Convert scriptHash to Bech32 representation with given prefix.
--- | Will return Nothing if prefix is invalid (length, mixed-case, etc)
+-- | Will return `Nothing` if prefix is invalid (length, mixed-case, etc)
 -- | More on prefixes: https://cips.cardano.org/cips/cip5
 scriptHashToBech32 :: String -> ScriptHash -> Maybe Bech32String
 scriptHashToBech32 = _scriptHashToBech32Impl maybeFfiHelper

@@ -1,4 +1,4 @@
--- | Our domain type for byte arrays, a wrapper over Uint8Array.
+-- | Our domain type for byte arrays, a wrapper over `Uint8Array`.
 module Types.ByteArray
   ( ByteArray(..)
   , byteArrayFromIntArray
