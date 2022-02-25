@@ -8,6 +8,9 @@ module Types.UnbalancedTransaction
   , StakePubKeyHash(..)
   , TxOutRef(..)
   , UnbalancedTx(..)
+  , emptyUnbalancedTx
+  , payPubKeyHash
+  , pubKeyHash
   , scriptOutputToTxOutput
   , utxoIndexToUtxo
   ) where
@@ -15,13 +18,18 @@ module Types.UnbalancedTransaction
 import Prelude
 
 import Data.Generic.Rep (class Generic)
-import Data.Map (Map)
-import Data.Maybe (Maybe)
+import Data.Map (Map, empty)
+import Data.Maybe (Maybe, fromJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (sequence)
+import Partial.Unsafe (unsafePartial)
 import Serialization.Address (addressFromBytes)
-import Serialization.Hash (Ed25519KeyHash, scriptHashToBytes)
+import Serialization.Hash
+  ( Ed25519KeyHash
+  , ed25519KeyHashFromBytes
+  , scriptHashToBytes
+  )
 import Types.ByteArray (ByteArray(ByteArray))
 import Types.PlutusData (DatumHash)
 import Types.Scripts (ValidatorHash)
@@ -35,13 +43,21 @@ import Types.Value (Value)
 
 newtype PubKey = PubKey ByteArray
 
+derive instance Generic PubKey _
 derive instance Newtype PubKey _
 derive newtype instance Eq PubKey
 
+instance Show PubKey where
+  show = genericShow
+
 newtype PaymentPubKey = PaymentPubKey PubKey
 
+derive instance Generic PaymentPubKey _
 derive instance Newtype PaymentPubKey _
 derive newtype instance Eq PaymentPubKey
+
+instance Show PaymentPubKey where
+  show = genericShow
 
 newtype ScriptOutput = ScriptOutput
   { validatorHash :: ValidatorHash
@@ -60,6 +76,15 @@ derive newtype instance Ord PubKeyHash
 
 instance Show PubKeyHash where
   show = genericShow
+
+payPubKeyHash :: PaymentPubKey -> PaymentPubKeyHash
+payPubKeyHash (PaymentPubKey pk) = pubKeyHash pk
+
+-- Is this safe? If we start with a PubKey, we should be guaranteed a hash
+-- (even if via ByteArray)
+pubKeyHash :: PubKey -> PaymentPubKeyHash
+pubKeyHash (PubKey bytes) =
+  wrap $ wrap $ unsafePartial fromJust $ ed25519KeyHashFromBytes bytes
 
 newtype PaymentPubKeyHash = PaymentPubKeyHash PubKeyHash
 
@@ -104,6 +129,9 @@ newtype UnbalancedTx = UnbalancedTx
   }
 
 derive instance Newtype UnbalancedTx _
+
+emptyUnbalancedTx :: UnbalancedTx
+emptyUnbalancedTx = UnbalancedTx { transaction: mempty, utxoIndex: empty }
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-constraints/html/src/Ledger.Constraints.OffChain.html#fromScriptOutput
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger/html/src/Ledger.Tx.html#toTxOut

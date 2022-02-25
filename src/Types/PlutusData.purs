@@ -2,6 +2,7 @@ module Types.PlutusData
   ( Datum(..)
   , DatumHash
   , PlutusData(..)
+  , RedeemerHash(..)
   , class FromData
   , class ToData
   , fromData
@@ -61,3 +62,13 @@ instance showDatum :: Show Datum where
 
 -- To help with people copying & pasting code from Haskell to Purescript
 type DatumHash = DataHash
+
+newtype RedeemerHash = RedeemerHash ByteArray
+
+derive instance Generic RedeemerHash _
+derive instance Newtype RedeemerHash _
+derive newtype instance Eq RedeemerHash
+derive newtype instance Ord RedeemerHash
+
+instance Show RedeemerHash where
+  show = genericShow

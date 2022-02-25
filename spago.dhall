@@ -40,6 +40,7 @@ You can edit this file as you like.
   , "partial"
   , "prelude"
   , "profunctor"
+  , "profunctor-lenses"
   , "properties"
   , "psci-support"
   , "quickcheck"
