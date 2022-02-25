@@ -33,7 +33,7 @@ testAttachDatum = liftEffect $
       case ws.plutus_data of
         Just [ pd ] -> do
           pd' <- Deserialization.PlutusData.convertPlutusData
-            <$> (Serialization.WitnessSet.convertPlutusData pd)
+            <$> Serialization.WitnessSet.convertPlutusData pd
           pd' `shouldEqual` Just (unwrap datum)
         Just _ -> throw "Incorrect number of datums attached"
         Nothing -> throw "Datum wasn't attached"
