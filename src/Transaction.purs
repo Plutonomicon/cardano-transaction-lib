@@ -4,7 +4,8 @@ import Prelude
 
 import Control.Monad.Maybe.Trans (MaybeT(MaybeT), runMaybeT)
 import Data.Maybe (Maybe(Just))
-import Data.Newtype (unwrap, wrap)
+import Data.Generic.Rep (class Generic)
+import Data.Show.Generic (genericShow)
 import Effect (Effect)
 import Serialization.WitnessSet as Serialization.WitnessSet
 import Deserialization.WitnessSet as Deserialization.WitnessSet
@@ -27,3 +28,12 @@ attachDatum (Datum pd) (Transaction tx@{ witness_set: ws }) = runMaybeT $ do
     => Maybe a
     -> MaybeT m a
   liftMaybe = MaybeT <<< pure
+
+data ModifyTxError
+  = ConvertWitsError
+  | ConvertDatumError
+
+derive instance Generic ModifyTxError _
+
+instance Show ModifyTxError where
+  show a = genericShow a
