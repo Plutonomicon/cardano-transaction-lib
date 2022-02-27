@@ -21,6 +21,9 @@ run-testnet-node:
 	  -v "$$PWD"/.node/data:/data \
 	  inputoutput/cardano-node:1.31.0
 
+run-ogmios-datum-cache:
+  ogmios-datum-cache
+
 run-testnet-ogmios:
 	ogmios \
 		--node-socket "$$CARDANO_NODE_SOCKET_PATH" \
