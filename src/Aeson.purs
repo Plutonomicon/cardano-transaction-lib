@@ -16,6 +16,9 @@
 -- | Known limitations: does not support Record decoding (no GDecodeJson-like
 -- | machinery). But it is possible to decode records manually, because
 -- | `getField` is implemented.
+-- |
+-- | Does not support optional fields because they're not needeed yet, but this
+-- |  functionality can be adapted from argonaut similarly to `getField`.
 module Aeson
   ( NumberIndex
   , class DecodeAeson

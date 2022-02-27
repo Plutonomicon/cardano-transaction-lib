@@ -1,5 +1,5 @@
 // parseJsonExtractingIntegers
-//   :: (forall a b. a -> b -> Tuple a b) -> String -> Tuple (String /\ Array (Int /\ String))
+//   :: (forall a b. a -> b -> Tuple a b) -> String -> String /\ Array String
 const parseJsonExtractingIntegers = str => {
     const s = String(str);
 
