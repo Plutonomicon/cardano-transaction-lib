@@ -1146,6 +1146,22 @@
         "type": "github"
       }
     },
+    "ogmios-datum-cache": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1643991341,
+        "narHash": "sha256-MfHvoPcTrqX51Zv8ryzWZC6/t2TCtaFhTgJPY/vZ+iI=",
+        "owner": "mlabs-haskell",
+        "repo": "ogmios-datum-cache",
+        "rev": "64bf9307798fb104260c562455b9fb6736d78de0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "mlabs-haskell",
+        "repo": "ogmios-datum-cache",
+        "type": "github"
+      }
+    },
     "old-ghc-nix": {
       "flake": false,
       "locked": {
@@ -1305,7 +1321,12 @@
           "haskell-nix",
           "nixpkgs-2105"
         ],
+        "nixpkgs-unstable": [
+          "haskell-nix",
+          "nixpkgs-unstable"
+        ],
         "ogmios": "ogmios",
+        "ogmios-datum-cache": "ogmios-datum-cache",
         "optparse-applicative": "optparse-applicative",
         "ouroboros-network": "ouroboros-network",
         "plutus": "plutus",
