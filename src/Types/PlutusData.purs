@@ -4,23 +4,19 @@ module Types.PlutusData
 
 import Prelude
 
-import Types.ByteArray (ByteArray)
+import Aeson (class DecodeAeson, decodeAeson, getJson, (.:))
+import Control.Alt ((<|>))
+import Data.Argonaut.Decode (JsonDecodeError(..))
 import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
+import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
-import Data.Maybe
-import Data.Either
-import Data.Show.Generic (genericShow)
-import Data.Argonaut
-import Data.Argonaut.Decode
-import Undefined
-import Data.Traversable
-import Data.Tuple.Nested
 import Data.Map as Map
-import Control.Alt
-import Types.ByteArray
-import Aeson
+import Data.Maybe (Maybe(..))
+import Data.Show.Generic (genericShow)
+import Data.Traversable (for)
+import Data.Tuple.Nested ((/\))
+import Types.ByteArray (ByteArray, hexToByteArray)
 
 data PlutusData
   = Constr BigInt (Array PlutusData)
@@ -37,16 +33,15 @@ instance Show PlutusData where
   show x = genericShow x
 
 instance DecodeAeson PlutusData where
-  decodeAeson index json = decodeConstr <|> decodeMap <|> decodeList <|> decodeInteger
+  decodeAeson aeson = decodeConstr <|> decodeMap <|> decodeList <|> decodeInteger <|> decodeBytes
     where
     decodeConstr = do
-      x <- hush $ decodeJson json
-      constrStr <- x .: "constr" -- mandatory field
-      constr <- BigInt.fromString constrStr
+      x <- decodeAeson aeson
+      constr <- x .: "constr"
       fields <- x .: "fields"
       pure $ Constr constr fields
     decodeMap = do
-      obj <- decodeJson json
+      obj <- decodeAeson aeson
       map1 <- (obj .: "map" :: Either _ (Array _))
       kvs <- for map1 \entryJson -> do
         key <- entryJson .: "key"
@@ -54,14 +49,11 @@ instance DecodeAeson PlutusData where
         pure $ key /\ value
       pure $ Map (Map.fromFoldable kvs)
     decodeList = do
-      List <$> decodeJson json
+      List <$> decodeAeson aeson
     decodeInteger = do
-      integerStr <- decodeJson json
-      case BigInt.fromString integerStr of
-        Nothing -> Left $ UnexpectedValue json
-        Just res -> pure $ Integer res
+      Integer <$> decodeAeson aeson
     decodeBytes = do
-      bytesHex <- decodeJson json
+      bytesHex <- decodeAeson aeson
       case hexToByteArray bytesHex of
-        Nothing -> Left $ UnexpectedValue json
+        Nothing -> Left $ UnexpectedValue $ getJson aeson
         Just res -> pure $ Bytes res
