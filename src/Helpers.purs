@@ -14,7 +14,6 @@ import Data.Argonaut
   , Json
   , parseJson
   )
-import Data.Either (Either, either)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Either (Either, either)
 import Effect (Effect)
