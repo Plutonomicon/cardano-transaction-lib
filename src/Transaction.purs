@@ -36,7 +36,7 @@ attachDatum (Datum pd) (Transaction tx@{ witness_set: ws }) = runExceptT $ do
     $ note ConvertDatumError
     $ Serialization.PlutusData.convertPlutusData pd
   ws' <- liftEffect $ Serialization.WitnessSet.convertWitnessSet ws
-  void $ liftEffect $ Serialization.WitnessSet.setPlutusData pd' ws'
+  liftEffect $ Serialization.WitnessSet.setPlutusData pd' ws'
   newWits <- liftEither $ note ConvertWitnessesError
     $ Deserialization.WitnessSet.convertWitnessSet ws'
   liftEither $ Right $ Transaction $ tx { witness_set = newWits }
