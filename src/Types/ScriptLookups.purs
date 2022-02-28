@@ -38,10 +38,14 @@ module Types.ScriptLookups
   , validatorHash
   ) where
 
-import Prelude
+import Prelude hiding (join)
+import Control.Monad.Error.Class (class MonadThrow)
+import Control.Monad.Reader.Class (class MonadAsk)
+import Control.Monad.State.Class (class MonadState)
 import Data.Either (Either(Left, Right))
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
+import Data.Lattice (join)
 import Data.Lens (lens')
 import Data.Lens.Iso (iso)
 import Data.Lens.Prism (prism')
@@ -76,14 +80,17 @@ import Types.Scripts
   )
 import Data.Symbol (SProxy(SProxy))
 import Types.Transaction (Redeemer, TransactionOutput(TransactionOutput))
+import Types.TxConstraints (TxConstraint(MustIncludeDatum))
 import Types.UnbalancedTransaction
   ( TxOutRef
   , PaymentPubKey
   , PaymentPubKeyHash
   , StakePubKeyHash
+  , UnbalancedTx
+  , emptyUnbalancedTx
   , payPubKeyHash
   )
-import Types.Value (Value)
+import Types.Value (Value, negation, split)
 import Undefined (undefined)
 
 --------------------------------------------------------------------------------
@@ -487,6 +494,75 @@ ownStakePubKeyHash :: forall (a :: Type). StakePubKeyHash -> ScriptLookups a
 ownStakePubKeyHash skh =
   over ScriptLookups _ { ownStakePubKeyHash = Just skh } mempty
 
+-- -Note [Balance of value spent]
+
+-- To build a transaction that satisfies the 'MustSpendAtLeast' and
+-- 'MustProduceAtLeast' constraints, we keep a tally of the required and
+-- actual values we encounter on either side of the transaction. Then we
+-- compute the missing value on both sides, and add an input with the
+-- join of the positive parts [1] of the missing values.
+
+-- | The balances we track for computing the missing 'Value' (if any)
+-- | that needs to be added to the transaction.
+-- | See note [Balance of value spent].
+newtype ValueSpentBalances = ValueSpentBalances
+  { required :: Value
+  -- Required value spent by the transaction.
+  , provided :: Value
+  -- Value provided by an input or output of the transaction.
+  }
+
+derive instance Generic ValueSpentBalances _
+
+instance Show ValueSpentBalances where
+  show = genericShow
+
+instance Semigroup ValueSpentBalances where
+  append (ValueSpentBalances l) (ValueSpentBalances r) = ValueSpentBalances
+    { required: l.required `join` r.required -- least upper bound on Value
+    , provided: l.provided `join` r.provided
+    }
+
+newtype ConstraintProcessingState = ConstraintProcessingState
+  { unbalancedTx :: UnbalancedTx
+  -- The unbalanced transaction that we're building
+  , mintRedeemers :: Map MintingPolicyHash Redeemer
+  -- Redeemers for minting policies
+  , valueSpentBalancesInputs :: ValueSpentBalances
+  -- Balance of the values given and required for the transaction's inputs
+  , valueSpentBalancesOutputs :: ValueSpentBalances
+  -- Balance of the values produced and required for the transaction's outputs
+  }
+
+missingValueSpent :: ValueSpentBalances -> Value
+missingValueSpent (ValueSpentBalances { required, provided }) =
+  let
+    difference = required <> negation provided
+    _ /\ missing = split difference
+  in
+    missing
+
+totalMissingValue :: ConstraintProcessingState -> Value
+totalMissingValue (ConstraintProcessingState { valueSpentBalancesInputs, valueSpentBalancesOutputs}) =
+  missingValueSpent valueSpentBalancesInputs `join`
+  missingValueSpent valueSpentBalancesOutputs
+
+initialState :: ConstraintProcessingState
+initialState = ConstraintProcessingState
+  { unbalancedTx: emptyUnbalancedTx
+  , mintRedeemers: empty
+  , valueSpentBalancesInputs:
+      ValueSpentBalances { required: mempty, provided: mempty }
+  , valueSpentBalancesOutputs:
+      ValueSpentBalances { required: mempty, provided: mempty }
+  }
+
+provide :: Value -> ValueSpentBalances
+provide provided = ValueSpentBalances { provided, required: mempty }
+
+require :: Value -> ValueSpentBalances
+require required = ValueSpentBalances { required, provided: mempty }
+
 data MkTxError
   -- = TypeCheckFailed ConnectionError
   = TxOutRefNotFound TxOutRef
@@ -498,8 +574,102 @@ data MkTxError
   | TypedValidatorMissing
   | DatumWrongHash DatumHash Datum
   | CannotSatisfyAny
+
 derive instance Generic MkTxError _
 derive instance Eq MkTxError
 
 instance Show MkTxError where
   show = genericShow
+
+-- -- | Modify the `UnbalancedTx` so that it satisfies the constraints, if
+-- -- | possible. Fails if a hash is missing from the lookups, or if an output
+-- -- | of the wrong type is spent.
+-- processConstraint
+--   :: forall (a :: Type) (m :: Type -> Type)
+--    . MonadAsk (ScriptLookups a) m
+--   => MonadThrow MkTxError m
+--   => MonadState ConstraintProcessingState m
+--   => TxConstraint
+--   -> m Unit
+-- processConstraint = case _ of
+--     MustIncludeDatum dt ->
+--       let dh = datumHash dt in
+--       unbalancedTx . tx . Tx.datumWitnesses . at dh .= Just dv
+--     _ -> pure unit
+    -- MustValidateIn timeRange ->
+    --     unbalancedTx . validityTimeRange %= (timeRange /\)
+    -- MustBeSignedBy pk -> do
+    --     sigs <- getSignatories pk
+    --     unbalancedTx . requiredSignatories <>= sigs
+    -- MustSpendAtLeast vl -> valueSpentInputs <>= required vl
+    -- MustProduceAtLeast vl -> valueSpentOutputs <>= required vl
+    -- MustSpendPubKeyOutput txo -> do
+    --     txout <- lookupTxOutRef txo
+    --     case txout of
+    --       Tx.PublicKeyChainIndexTxOut { Tx._ciTxOutValue } -> do
+    --           unbalancedTx . tx . Tx.inputs %= Set.insert (Tx.pubKeyTxIn txo)
+    --           valueSpentInputs <>= provided _ciTxOutValue
+    --       _ -> throwError (TxOutRefWrongType txo)
+    -- MustSpendScriptOutput txo red -> do
+    --     txout <- lookupTxOutRef txo
+    --     case txout of
+    --       Tx.ScriptChainIndexTxOut { Tx._ciTxOutValidator, Tx._ciTxOutDatum, Tx._ciTxOutValue } -> do
+    --         -- first check in the 'ChainIndexTx' for the validator, then
+    --         -- look for it in the 'slOtherScripts map.
+    --         validator <- either lookupValidator pure _ciTxOutValidator
+
+    --         -- first check in the 'ChainIndexTx' for the datum, then
+    --         -- look for it in the 'slOtherData' map.
+    --         dataValue <- either lookupDatum pure _ciTxOutDatum
+    --         let dvh = datumHash dataValue
+
+    --         -- TODO: When witnesses are properly segregated we can
+    --         --       probably get rid of the 'slOtherData' map and of
+    --         --       'lookupDatum'
+    --         let input = Tx.scriptTxIn txo validator red dataValue
+    --         unbalancedTx . tx . Tx.inputs %= Set.insert input
+    --         unbalancedTx . tx . Tx.datumWitnesses . at dvh .= Just dataValue
+    --         valueSpentInputs <>= provided _ciTxOutValue
+    --       _ -> throwError (TxOutRefWrongType txo)
+
+    -- MustMintValue mpsHash red tn i -> do
+    --     mintingPolicyScript <- lookupMintingPolicy mpsHash
+    --     let value = Value.singleton (Value.mpsSymbol mpsHash) tn
+    --     -- If i is negative we are burning tokens. The tokens burned must
+    --     -- be provided as an input. So we add the value burnt to
+    --     -- 'valueSpentInputs'. If i is positive then new tokens are created
+    --     -- which must be added to 'valueSpentOutputs'.
+    --     if i < 0
+    --         then valueSpentInputs <>= provided (value (negate i))
+    --         else valueSpentOutputs <>= provided (value i)
+
+    --     unbalancedTx . tx . Tx.mintScripts %= Set.insert mintingPolicyScript
+    --     unbalancedTx . tx . Tx.mint <>= value i
+    --     mintRedeemers . at mpsHash .= Just red
+    -- MustPayToPubKeyAddress pk skhM mdv vl -> do
+    --     -- if datum is presented, add it to 'datumWitnesses'
+    --     forM_ mdv $ \dv -> do
+    --         unbalancedTx . tx . Tx.datumWitnesses . at (datumHash dv) .= Just dv
+    --     let hash = datumHash <$> mdv
+    --     unbalancedTx . tx . Tx.outputs %= (Tx.TxOut{ txOutAddress=pubKeyHashAddress pk skhM
+    --                                                , txOutValue=vl
+    --                                                , txOutDatumHash=hash
+    --                                                } :)
+    --     valueSpentOutputs <>= provided vl
+    -- MustPayToOtherScript vlh dv vl -> do
+    --     let addr = Address.scriptHashAddress vlh
+    --         theHash = datumHash dv
+    --     unbalancedTx . tx . Tx.datumWitnesses . at theHash .= Just dv
+    --     unbalancedTx . tx . Tx.outputs %= (Tx.scriptTxOut' vl addr dv :)
+    --     valueSpentOutputs <>= provided vl
+    -- MustHashDatum dvh dv -> do
+    --     unless (datumHash dv == dvh)
+    --         (throwError $ DatumWrongHash dvh dv)
+    --     unbalancedTx . tx . Tx.datumWitnesses . at dvh .= Just dv
+    -- MustSatisfyAnyOf xs -> do
+    --     s <- get
+    --     let tryNext [] =
+    --             throwError CannotSatisfyAny
+    --         tryNext (hs:qs) = do
+    --             traverse_ processConstraint hs `catchError` \_ -> put s >> tryNext qs
+    --     tryNext xs
