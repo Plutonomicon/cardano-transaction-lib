@@ -1,5 +1,13 @@
+
 // parseJsonExtractingIntegers
 //   :: (forall a b. a -> b -> Tuple a b) -> String -> String /\ Array String
+exports.parseJsonExtractingIntegers = tuple => str => {
+    const [output, index] = parseJsonExtractingIntegers(str);
+    return tuple(output)(index);
+};
+
+// NOTE: For a general overview of this function's purpose,
+//       consult module docstring in Aeson.purs
 const parseJsonExtractingIntegers = str => {
     const s = String(str);
 
@@ -28,6 +36,7 @@ const parseJsonExtractingIntegers = str => {
         if(!in_string){
             if (c >= '0' && c <= '9' || c == '-') {
                 if (!in_number) {
+                    // push a number index in-place of a number
                     arr.push((counter++).toString());
                 }
                 in_number=true;
@@ -35,6 +44,8 @@ const parseJsonExtractingIntegers = str => {
             // assuming a number can only end with:
             if (c == ',' || c == '}' || c == ']' || /\s/.test(c)){
                 if (in_number) {
+                    // push the accumulated number string into the
+                    // number index
                     index.push(numberAcc.join(''));
                     numberAcc = [];
                 }
@@ -49,6 +60,7 @@ const parseJsonExtractingIntegers = str => {
         }
     }
 
+    // single number case
     if (in_number) {
         index.push(numberAcc.join(''));
     }
@@ -56,7 +68,3 @@ const parseJsonExtractingIntegers = str => {
     return [arr.join(''), index];
 };
 
-exports.parseJsonExtractingIntegers = tuple => str => {
-    const [ output, index ] = parseJsonExtractingIntegers(str);
-    return tuple(output)(index);
-};
