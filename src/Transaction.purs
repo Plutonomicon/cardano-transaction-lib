@@ -5,20 +5,21 @@ module Transaction
 
 import Prelude
 
-import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
+import Control.Monad.Except.Trans (runExceptT)
 import Data.Either (Either(Right), note)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
-import Effect (Effect)
-import Helpers (liftEither)
-import Serialization.WitnessSet as Serialization.WitnessSet
 import Deserialization.WitnessSet as Deserialization.WitnessSet
+import Effect (Effect)
+import Effect.Class (liftEffect)
+import Helpers (liftEither)
 import Serialization.PlutusData as Serialization.PlutusData
+import Serialization.WitnessSet as Serialization.WitnessSet
 import Types.PlutusData (Datum(Datum))
 import Types.Transaction (Transaction(Transaction))
 
 data ModifyTxError
-  = ConvertWitsError
+  = ConvertWitnessesError
   | ConvertDatumError
 
 derive instance Generic ModifyTxError _
@@ -34,11 +35,8 @@ attachDatum (Datum pd) (Transaction tx@{ witness_set: ws }) = runExceptT $ do
   pd' <- liftEither
     $ note ConvertDatumError
     $ Serialization.PlutusData.convertPlutusData pd
-  newWits <- ExceptT $
-    map
-      ( note ConvertDatumError
-          <<< Deserialization.WitnessSet.convertWitnessSet
-      )
-      <<< Serialization.WitnessSet.setPlutusData pd'
-      =<< Serialization.WitnessSet.convertWitnessSet ws
+  ws' <- liftEffect $ Serialization.WitnessSet.convertWitnessSet ws
+  void $ liftEffect $ Serialization.WitnessSet.setPlutusData pd' ws'
+  newWits <- liftEither $ note ConvertWitnessesError
+    $ Deserialization.WitnessSet.convertWitnessSet ws'
   liftEither $ Right $ Transaction $ tx { witness_set = newWits }

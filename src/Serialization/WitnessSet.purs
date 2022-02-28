@@ -35,9 +35,8 @@ import Types.ByteArray (ByteArray)
 import Types.RedeemerTag as Tag
 import Types.Transaction as T
 
-setPlutusData :: PlutusData -> TransactionWitnessSet -> Effect TransactionWitnessSet
-setPlutusData pd ws = _wsSetPlutusData containerHelper ws (Array.singleton pd)
-  *> pure ws
+setPlutusData :: PlutusData -> TransactionWitnessSet -> Effect Unit
+setPlutusData pd ws = _wsSetPlutusData containerHelper ws $ Array.singleton pd
 
 convertWitnessSet :: T.TransactionWitnessSet -> Effect TransactionWitnessSet
 convertWitnessSet (T.TransactionWitnessSet tws) = do
