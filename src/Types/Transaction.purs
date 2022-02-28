@@ -11,7 +11,7 @@ import Data.HashMap (HashMap, empty)
 import Data.HashMap (unionWith) as HashMap
 import Data.Map (Map)
 import Data.Map (unionWith) as Map
-import Data.Maybe (Maybe(Nothing))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Maybe.Last (Last(Last))
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype)
@@ -128,6 +128,16 @@ appendLastMaybe :: forall (a :: Type). Maybe a -> Maybe a -> Maybe a
 appendLastMaybe m m' = Last m <> Last m' # \(Last m'') -> m''
 
 infixr 5 appendLastMaybe as <<>>
+
+maybeArrayMerge
+  :: forall (a :: Type)
+   . Eq a
+  => Maybe (Array a)
+  -> Maybe (Array a)
+  -> Maybe (Array a)
+maybeArrayMerge Nothing y = y
+maybeArrayMerge x Nothing = x
+maybeArrayMerge (Just x) (Just y) = Just $ union x y
 
 -- Provide an append for Maps where the value has as Semigroup instance
 appendMap
@@ -273,12 +283,12 @@ instance Show TransactionWitnessSet where
 instance semigroupTransactionWitnessSet :: Semigroup TransactionWitnessSet where
   append (TransactionWitnessSet tws) (TransactionWitnessSet tws') =
     TransactionWitnessSet
-      { vkeys: lift2 union tws.vkeys tws'.vkeys
-      , native_scripts: lift2 union tws.native_scripts tws'.native_scripts
-      , bootstraps: lift2 union tws.bootstraps tws'.bootstraps
-      , plutus_scripts: lift2 union tws.plutus_scripts tws'.plutus_scripts
-      , plutus_data: lift2 union tws.plutus_data tws'.plutus_data
-      , redeemers: lift2 union tws.redeemers tws'.redeemers
+      { vkeys: tws.vkeys `maybeArrayMerge` tws'.vkeys
+      , native_scripts: tws.native_scripts `maybeArrayMerge` tws'.native_scripts
+      , bootstraps: tws.bootstraps `maybeArrayMerge` tws'.bootstraps
+      , plutus_scripts: tws.plutus_scripts `maybeArrayMerge` tws'.plutus_scripts
+      , plutus_data: tws.plutus_data `maybeArrayMerge` tws'.plutus_data
+      , redeemers: tws.redeemers `maybeArrayMerge` tws'.redeemers
       }
 
 instance monoidTransactionWitnessSet :: Monoid TransactionWitnessSet where

@@ -85,13 +85,16 @@ mkNamiWalletAff = do
     txHex <- txToHex tx
     fromNamiHexString (_signTxNami txHex) nami >>= case _ of
       Nothing -> pure Nothing
-      Just bytes -> map (addWitnessSet tx) <$> liftEffect
+      Just bytes -> map (combineWitnessSet tx) <$> liftEffect
         ( Deserialization.WitnessSet.convertWitnessSet
             <$> fromBytesEffect bytes
         )
     where
-    addWitnessSet :: Transaction -> TransactionWitnessSet -> Transaction
-    addWitnessSet (Transaction tx') ws = Transaction $ tx' { witness_set = ws }
+    -- We have to combine the newly returned witness set with the existing one
+    -- Otherwise, any datums, etc... won't be retained
+    combineWitnessSet :: Transaction -> TransactionWitnessSet -> Transaction
+    combineWitnessSet (Transaction tx'@{ witness_set: oldWits }) newWits =
+      Transaction $ tx' { witness_set = oldWits <> newWits }
 
   submitTx :: NamiConnection -> Transaction -> Aff (Maybe TransactionHash)
   submitTx nami tx = do
