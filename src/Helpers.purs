@@ -3,6 +3,7 @@ module Helpers
   , parseJsonStringifyNumbers
   , jsonTurnNumbersToStrings
   , liftEither
+  , fromRightEff
   ) where
 
 import Prelude
@@ -13,7 +14,7 @@ import Data.Argonaut
   , Json
   , parseJson
   )
-import Data.Either (Either)
+import Data.Either (Either, either)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Either (Either, either)
 import Effect (Effect)
@@ -43,3 +44,6 @@ liftEither
   => Either e a
   -> m a
 liftEither = either throwError pure
+
+fromRightEff :: forall (a :: Type) (e :: Type). Show e => Either e a -> Effect a
+fromRightEff = either (throw <<< show) pure
