@@ -8,7 +8,8 @@
 -- | JSON such that it contains indices of original numbers in the array,
 -- | instead of the actual numbers.
 -- |
--- | E.g. from `{ "a": 42, "b": 24 }` we get `{ json: {"a": 0, "b": 1 }, index: [ 42, 24 ] }`.
+-- | E.g. from `{ "a": 42, "b": 24 }` we get
+-- | `{ json: {"a": 0, "b": 1 }, index: [ "42", "24" ] }`.
 -- |
 -- | Then, in decoders for `Int` and `BigInt` we access that array to get the
 -- | values back.

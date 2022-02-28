@@ -7,13 +7,12 @@ const parseJsonExtractingIntegers = str => {
     let counter = 0;
     let numberAcc = [];
 
-    var arr = [];
-    var prev_in_number = false;
-    var in_number = false;
-    var in_string = false;
-    var escaped = -1;
+    const arr = [];
+    let in_number = false;
+    let in_string = false;
+    let escaped = -1;
 
-    for (var i = 0, n = s.length; i < n; ++i) {
+    for (let i = 0, n = s.length; i < n; ++i) {
         const c = s[i];
         // set the escape flag
         if (in_string && escaped!=i){
@@ -41,7 +40,6 @@ const parseJsonExtractingIntegers = str => {
                 }
                 in_number=false;
             }
-            prev_in_number = in_number;
         }
         // push char if in string or is not a whitespace
         if (in_number) {
