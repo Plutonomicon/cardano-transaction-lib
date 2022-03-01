@@ -1,6 +1,7 @@
 module Transaction
   ( ModifyTxError(..)
   , attachDatum
+  , attachRedeemer
   ) where
 
 import Prelude
@@ -26,7 +27,6 @@ import Types.Transaction
 data ModifyTxError
   = ConvertWitnessesError
   | ConvertDatumError
-  | ConvertRedeemerError
 
 derive instance Generic ModifyTxError _
 
@@ -43,6 +43,20 @@ attachDatum (Datum pd) (Transaction tx@{ witness_set: ws }) = runExceptT $ do
     $ Serialization.PlutusData.convertPlutusData pd
   newWits <- convertWitnessesWith ws $
     Serialization.WitnessSet.setPlutusData pd'
+  liftEither $ Right $ Transaction $ tx { witness_set = newWits }
+
+-- | Attach a `Redeemer` to a transaction by modifying its existing witness set.
+-- | Note that this is the `Types.Transaction` reprentation of a redeemer and
+-- | not a wrapped `PlutusData`.
+--
+-- | Fails if either the redeemer or updated witness set cannot be converted
+-- | during (de-)serialization
+attachRedeemer
+  :: Redeemer -> Transaction -> Effect (Either ModifyTxError Transaction)
+attachRedeemer r (Transaction tx@{ witness_set: ws }) = runExceptT $ do
+  r' <- liftEffect $ Serialization.WitnessSet.convertRedeemer r
+  newWits <- convertWitnessesWith ws $
+    Serialization.WitnessSet.setRedeemer r'
   liftEither $ Right $ Transaction $ tx { witness_set = newWits }
 
 convertWitnessesWith
