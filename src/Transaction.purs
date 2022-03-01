@@ -23,6 +23,7 @@ data ModifyTxError
   | ConvertDatumError
 
 derive instance Generic ModifyTxError _
+derive instance Eq ModifyTxError
 
 instance Show ModifyTxError where
   show = genericShow

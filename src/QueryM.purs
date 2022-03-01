@@ -56,6 +56,7 @@ import Helpers as Helpers
 import Serialization as Serialization
 import Serialization.Address (Address, addressBech32, addressFromBech32)
 import Types.ByteArray (hexToByteArray, byteArrayToHex)
+import Types.Interval (SlotConfig)
 import Types.JsonWsp as JsonWsp
 import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
@@ -98,7 +99,11 @@ type Url = String
 -- when we add multiple query backends or wallets,
 -- we just need to extend this type
 type QueryConfig =
-  { ws :: OgmiosWebSocket, serverConfig :: ServerConfig, wallet :: Maybe Wallet }
+  { ws :: OgmiosWebSocket
+  , serverConfig :: ServerConfig
+  , wallet :: Maybe Wallet
+  , slotConfig :: SlotConfig
+  }
 
 type QueryM (a :: Type) = ReaderT QueryConfig Aff a
 

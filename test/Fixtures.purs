@@ -354,10 +354,10 @@ nativeScriptFixture5 :: NativeScript
 nativeScriptFixture5 = ScriptNOfK 1 [ nativeScriptFixture1, nativeScriptFixture2 ]
 
 nativeScriptFixture6 :: NativeScript
-nativeScriptFixture6 = TimelockStart $ Slot $ UInt.fromInt 1000
+nativeScriptFixture6 = TimelockStart $ Slot $ BigInt.fromInt 1000
 
 nativeScriptFixture7 :: NativeScript
-nativeScriptFixture7 = TimelockExpiry $ Slot $ UInt.fromInt 2000
+nativeScriptFixture7 = TimelockExpiry $ Slot $ BigInt.fromInt 2000
 
 keyHashBaseAddress :: { payment :: String, stake :: String } -> Address
 keyHashBaseAddress { payment, stake } = baseAddressToAddress $ baseAddress

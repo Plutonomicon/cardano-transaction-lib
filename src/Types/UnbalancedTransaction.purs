@@ -1,15 +1,17 @@
 module Types.UnbalancedTransaction
   ( PaymentPubKey(..)
   , PaymentPubKeyHash(..)
-  , PubKey(..)
   , PubKeyHash(..)
   , ScriptOutput(..)
   , StakeKeyHash(..)
   , StakePubKeyHash(..)
   , TxOutRef(..)
   , UnbalancedTx(..)
+  , _transaction
   , emptyUnbalancedTx
   , payPubKeyHash
+  , payPubKeyRequiredSigner
+  , payPubKeyVkey
   , pubKeyHash
   , scriptOutputToTxOutput
   , utxoIndexToUtxo
@@ -18,19 +20,21 @@ module Types.UnbalancedTransaction
 import Prelude
 
 import Data.Generic.Rep (class Generic)
+import Data.Lens (lens')
+import Data.Lens.Types (Lens')
 import Data.Map (Map, empty)
 import Data.Maybe (Maybe, fromJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (sequence)
+import Data.Tuple (Tuple(Tuple))
 import Partial.Unsafe (unsafePartial)
 import Serialization.Address (addressFromBytes)
 import Serialization.Hash
   ( Ed25519KeyHash
-  , ed25519KeyHashFromBytes
+  , ed25519KeyHashFromBech32
   , scriptHashToBytes
   )
-import Types.ByteArray (ByteArray(ByteArray))
 import Types.PlutusData (DatumHash)
 import Types.Scripts (ValidatorHash)
 import Types.Transaction
@@ -38,19 +42,14 @@ import Types.Transaction
   , TransactionInput
   , TransactionOutput
   , Utxo
+  , PublicKey(PublicKey)
+  , Vkey(Vkey)
+  , RequiredSigner(RequiredSigner)
   )
 import Types.Value (Value)
 
-newtype PubKey = PubKey ByteArray
-
-derive instance Generic PubKey _
-derive instance Newtype PubKey _
-derive newtype instance Eq PubKey
-
-instance Show PubKey where
-  show = genericShow
-
-newtype PaymentPubKey = PaymentPubKey PubKey
+-- Plutus has a type called `PubKey` which we replace with `PublicKey`
+newtype PaymentPubKey = PaymentPubKey PublicKey
 
 derive instance Generic PaymentPubKey _
 derive instance Newtype PaymentPubKey _
@@ -82,9 +81,15 @@ payPubKeyHash (PaymentPubKey pk) = pubKeyHash pk
 
 -- Is this safe? If we start with a PubKey, we should be guaranteed a hash
 -- (even if via ByteArray)
-pubKeyHash :: PubKey -> PaymentPubKeyHash
-pubKeyHash (PubKey bytes) =
-  wrap $ wrap $ unsafePartial fromJust $ ed25519KeyHashFromBytes bytes
+pubKeyHash :: PublicKey -> PaymentPubKeyHash
+pubKeyHash (PublicKey bech32) =
+  wrap $ wrap $ unsafePartial fromJust $ ed25519KeyHashFromBech32 bech32
+
+payPubKeyVkey :: PaymentPubKey -> Vkey
+payPubKeyVkey (PaymentPubKey pk) = Vkey pk
+
+payPubKeyRequiredSigner :: PaymentPubKey -> RequiredSigner
+payPubKeyRequiredSigner pk = RequiredSigner $ payPubKeyVkey pk
 
 newtype PaymentPubKeyHash = PaymentPubKeyHash PubKeyHash
 
@@ -129,6 +134,13 @@ newtype UnbalancedTx = UnbalancedTx
   }
 
 derive instance Newtype UnbalancedTx _
+
+_transaction :: Lens' UnbalancedTx Transaction
+_transaction = lens'
+  \(UnbalancedTx { transaction, utxoIndex }) ->
+    Tuple
+      transaction
+      \tx -> UnbalancedTx { transaction: tx, utxoIndex }
 
 emptyUnbalancedTx :: UnbalancedTx
 emptyUnbalancedTx = UnbalancedTx { transaction: mempty, utxoIndex: empty }

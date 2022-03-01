@@ -13,6 +13,7 @@ import Effect.Exception (throw)
 import FfiHelpers (ContainerHelper, containerHelper)
 import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.NativeScript (convertNativeScripts)
+import Types.Scripts (PlutusScript(PlutusScript)) as S
 import Serialization.Types
   ( BigNum
   , BootstrapWitness

@@ -60,6 +60,7 @@ import QueryM
   , utxosAt
   )
 import Serialization.Address (testnetId)
+import Types.Interval (defaultSlotConfig)
 import Types.Transaction
   ( Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
@@ -79,6 +80,7 @@ main = launchAff_ $ do
     { ws
     , wallet
     , serverConfig: defaultServerConfig
+    , slotConfig: defaultSlotConfig
     }
   liftEffect $ Console.log $ show txId
 

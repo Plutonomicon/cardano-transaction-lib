@@ -5,9 +5,9 @@ module Deserialization.NativeScript
 import Prelude
 
 import Control.Alt ((<|>))
+import Data.BigInt as BigInt
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
-import Data.UInt as UInt
 
 import FfiHelpers (ContainerHelper, MaybeFfiHelper, containerHelper, maybeFfiHelper)
 import Serialization.Hash (Ed25519KeyHash)
@@ -58,12 +58,12 @@ convertScriptNOfK ns = do
 
 convertTimelockStart :: NativeScript -> Maybe T.NativeScript
 convertTimelockStart ns =
-  T.TimelockStart <<< Slot <<< UInt.fromInt <<< timelockStart_slot <$>
+  T.TimelockStart <<< Slot <<< BigInt.fromInt <<< timelockStart_slot <$>
     getTimelockStart maybeFfiHelper ns
 
 convertTimelockExpiry :: NativeScript -> Maybe T.NativeScript
 convertTimelockExpiry ns = do
-  T.TimelockExpiry <<< Slot <<< UInt.fromInt <<< timelockExpiry_slot <$>
+  T.TimelockExpiry <<< Slot <<< BigInt.fromInt <<< timelockExpiry_slot <$>
     getTimelockExpiry maybeFfiHelper ns
 
 foreign import getScriptPubkey :: MaybeFfiHelper -> NativeScript -> Maybe ScriptPubkey

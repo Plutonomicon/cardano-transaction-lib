@@ -24,6 +24,7 @@ import QueryM
   , getWalletCollateral
   , defaultServerConfig
   )
+import Types.Interval (defaultSlotConfig)
 import Wallet (mkNamiWalletAff)
 
 main :: Effect Unit
@@ -31,7 +32,11 @@ main = launchAff_ $ do
   wallet <- Just <$> mkNamiWalletAff
   runReaderT
     walletActions
-    { ws: {-TODO-}  undefined, wallet, serverConfig: defaultServerConfig }
+    { ws: {-TODO-}  undefined
+    , wallet
+    , serverConfig: defaultServerConfig
+    , slotConfig: defaultSlotConfig
+    }
   where
   walletActions :: QueryM Unit
   walletActions = sequence_ [ logWalletAddress, logWalletCollateral ]

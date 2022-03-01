@@ -43,8 +43,7 @@ module Types.Value
   , valueOf
   , valueToCoin
   , valueToCoin'
-  )
-  where
+  ) where
 
 import Prelude hiding (join)
 import Control.Alt ((<|>))
@@ -346,7 +345,7 @@ instance Negate Value where
 instance Split Value where
   split (Value coin nonAdaAsset) =
     bimap (flip Value mempty) (flip Value mempty) (split coin)
-    <> bimap (Value mempty) (Value mempty) (split nonAdaAsset)
+      <> bimap (Value mempty) (Value mempty) (split nonAdaAsset)
 
 -- | Create a `Value` from `Coin` and `NonAdaAsset`, the latter should have been
 -- | constructed safely at this point.

@@ -83,6 +83,7 @@ module Serialization.Address
 import Prelude
 
 import Control.Alt ((<|>))
+import Data.BigInt (BigInt)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(..))
@@ -95,7 +96,10 @@ import Serialization.Types (Bip32PublicKey)
 import Types.Aliases (Bech32String, Base58String)
 import Types.ByteArray (ByteArray)
 
-newtype Slot = Slot UInt
+-- Is UInt going to be an issue? For example, see beginningOfTime and the fact
+-- we're limited to 4294967295 slots with UInt. I've changed it back to BigInt,
+-- any objections welcome.
+newtype Slot = Slot BigInt
 
 derive newtype instance Eq Slot
 derive instance Newtype Slot _

@@ -9,6 +9,8 @@ import Data.Generic.Rep (class Generic)
 import Data.Hashable (class Hashable, hash)
 import Data.HashMap (HashMap, empty)
 import Data.HashMap (unionWith) as HashMap
+import Data.Lens (lens')
+import Data.Lens.Types (Lens')
 import Data.Map (Map)
 import Data.Map (unionWith) as Map
 import Data.Maybe (Maybe(Just, Nothing))
@@ -17,6 +19,7 @@ import Data.Monoid (guard)
 import Data.Newtype (class Newtype)
 import Data.Rational (Rational)
 import Data.Show.Generic (genericShow)
+import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Serialization.Address (Address, NetworkId, RewardAddress, Slot(Slot))
@@ -38,6 +41,13 @@ newtype Transaction = Transaction
   }
 
 derive instance newtypeTransaction :: Newtype Transaction _
+
+_body :: Lens' Transaction TxBody
+_body = lens'
+  \(Transaction { body, witness_set, is_valid, auxiliary_data }) ->
+    Tuple
+      body
+      \bod -> Transaction { body: bod, witness_set, is_valid, auxiliary_data }
 
 instance semigroupTransaction :: Semigroup Transaction where
   append (Transaction tx) (Transaction tx') =
@@ -62,6 +72,9 @@ instance monoidTransaction :: Monoid Transaction where
     , auxiliary_data: Nothing
     }
 
+-- According to https://github.com/input-output-hk/cardano-ledger/blob/0738804155245062f05e2f355fadd1d16f04cd56/alonzo/impl/cddl-files/alonzo.cddl
+-- required_signers is an Array over `VKey`s essentially. But some comments at
+-- the bottom say it's Maybe?
 newtype TxBody = TxBody
   { inputs :: Array TransactionInput
   , outputs :: Array TransactionOutput
@@ -309,7 +322,7 @@ type BootstrapWitness =
   , attributes :: ByteArray
   }
 
-newtype RequiredSigner = RequiredSigner String
+newtype RequiredSigner = RequiredSigner Vkey
 
 derive instance newtypeRequiredSigner :: Newtype RequiredSigner _
 derive newtype instance eqRequiredSigner :: Eq RequiredSigner

@@ -18,6 +18,7 @@ import QueryM
   )
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
+import Types.Interval (defaultSlotConfig)
 import Types.JsonWsp (Address)
 
 testnet_addr1 :: Address
@@ -51,7 +52,11 @@ testUtxosAt testAddr = do
     Nothing -> liftEffect $ throw "Failed UtxosAt"
     Just addr -> runReaderT
       (utxosAt addr *> pure unit)
-      { ws, serverConfig: defaultServerConfig, wallet: Nothing }
+      { ws
+      , serverConfig: defaultServerConfig
+      , wallet: Nothing
+      , slotConfig: defaultSlotConfig
+      }
 
 testFromOgmiosAddress :: Address -> Aff Unit
 testFromOgmiosAddress testAddr = do

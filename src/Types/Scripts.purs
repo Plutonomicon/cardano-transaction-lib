@@ -23,7 +23,6 @@ import Serialization.Address
   )
 import Serialization.Hash (ScriptHash)
 import Types.ByteArray (ByteArray)
-import Undefined (undefined)
 
 -- | Corresponds to "Script" in Plutus
 newtype PlutusScript = PlutusScript ByteArray
