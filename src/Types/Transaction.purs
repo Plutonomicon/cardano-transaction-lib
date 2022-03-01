@@ -226,7 +226,8 @@ derive newtype instance eqCostmdls :: Eq Costmdls
 
 data Language = PlutusV1
 
-derive instance eqLanguage :: Eq Language
+derive instance Eq Language
+derive instance Ord Language
 
 newtype CostModel = CostModel (Array UInt)
 
