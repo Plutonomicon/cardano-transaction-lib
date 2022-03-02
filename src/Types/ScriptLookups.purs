@@ -176,8 +176,9 @@ plutusScriptHash = wrap <<< scriptHash <<< unwrap
 -- 1) Follows ChainIndexTxOut more directly which would benefit users copying
 -- code from Haskell including related lenses below.
 -- 2) Can be simplified (see OPTION 2) to get rid of sum type although its
--- meaning may be obsecured.
--- 3) IMPORTANT: Can we coincide this with Ogmios query? In particular, can we
+-- meaning may be obsecured. This is more closely related to our current
+-- OgmiosTxOut
+-- 3) Can we coincide this with Ogmios query? In particular, can we
 -- even get Validator and Datum directly or we just restricted to their hashes?
 data OgmiosTxOut
   = PublicKeyOgmiosTxOut PublicKeyOgmiosTxOut

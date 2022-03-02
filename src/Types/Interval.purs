@@ -41,8 +41,7 @@ module Types.Interval
   , upperBound
   ) where
 
-import Data.BigInt (BigInt)
-import Data.BigInt (fromString, fromInt) as BigInt
+import Data.BigInt (BigInt, fromString, fromInt, quot)
 import Data.Enum (class Enum, succ)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice
@@ -314,11 +313,11 @@ instance Show SlotConfig where
 -- | (2020-07-29T21:44:51Z) which is 1596059091000 in POSIX time
 -- | (number of milliseconds since 1970-01-01T00:00:00Z).
 beginningOfTime :: BigInt
-beginningOfTime = unsafePartial fromJust $ BigInt.fromString "1596059091000"
+beginningOfTime = unsafePartial fromJust $ fromString "1596059091000"
 
 defaultSlotConfig :: SlotConfig
 defaultSlotConfig = SlotConfig
-  { slotLength: BigInt.fromInt 1000 -- One second = 1 slot currently.
+  { slotLength: fromInt 1000 -- One second = 1 slot currently.
   , slotZeroTime: POSIXTime beginningOfTime
   }
 
@@ -444,7 +443,9 @@ posixTimeToEnclosingSlot :: SlotConfig -> POSIXTime -> Slot
 posixTimeToEnclosingSlot (SlotConfig { slotLength, slotZeroTime }) (POSIXTime t) =
   let
     timePassed = t - unwrap slotZeroTime
-    slotsPassed = div timePassed slotLength
+    -- Plutus uses inbuilt `divide` which rounds towards downwards which should
+    -- be `quot`, not `div` which is Euclidean division.
+    slotsPassed = quot timePassed slotLength
   in
     Slot slotsPassed
 
