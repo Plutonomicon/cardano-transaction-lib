@@ -2,6 +2,7 @@ module Transaction
   ( ModifyTxError(..)
   , attachDatum
   , attachRedeemer
+  , attachPlutusScript
   ) where
 
 import Prelude
@@ -9,6 +10,7 @@ import Prelude
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Data.Either (Either(Right), note)
 import Data.Generic.Rep (class Generic)
+import Data.Newtype (over)
 import Data.Show.Generic (genericShow)
 import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
@@ -19,8 +21,9 @@ import Serialization.Types as Serialization
 import Serialization.WitnessSet as Serialization.WitnessSet
 import Types.PlutusData (Datum(Datum))
 import Types.Transaction
-  ( Transaction(Transaction)
+  ( PlutusScript
   , Redeemer
+  , Transaction(Transaction)
   , TransactionWitnessSet
   )
 
@@ -37,13 +40,12 @@ instance Show ModifyTxError where
 -- | Fails if either the datum or updated witness set cannot be converted during
 -- | (de-)serialization
 attachDatum :: Datum -> Transaction -> Effect (Either ModifyTxError Transaction)
-attachDatum (Datum pd) (Transaction tx@{ witness_set: ws }) = runExceptT $ do
+attachDatum (Datum pd) tx@(Transaction { witness_set: ws }) = runExceptT $ do
   pd' <- liftEither
     $ note ConvertDatumError
     $ Serialization.PlutusData.convertPlutusData pd
-  newWits <- convertWitnessesWith ws $
-    Serialization.WitnessSet.setPlutusData pd'
-  liftEither $ Right $ Transaction $ tx { witness_set = newWits }
+  updateTxWithWitnesses tx
+    =<< convertWitnessesWith ws (Serialization.WitnessSet.setPlutusData pd')
 
 -- | Attach a `Redeemer` to a transaction by modifying its existing witness set.
 -- | Note that this is the `Types.Transaction` representation of a redeemer and
@@ -53,11 +55,22 @@ attachDatum (Datum pd) (Transaction tx@{ witness_set: ws }) = runExceptT $ do
 -- | during (de-)serialization
 attachRedeemer
   :: Redeemer -> Transaction -> Effect (Either ModifyTxError Transaction)
-attachRedeemer r (Transaction tx@{ witness_set: ws }) = runExceptT $ do
+attachRedeemer r tx@(Transaction { witness_set: ws }) = runExceptT $ do
   r' <- liftEffect $ Serialization.WitnessSet.convertRedeemer r
-  newWits <- convertWitnessesWith ws $
-    Serialization.WitnessSet.setRedeemer r'
-  liftEither $ Right $ Transaction $ tx { witness_set = newWits }
+  updateTxWithWitnesses tx
+    =<< convertWitnessesWith ws (Serialization.WitnessSet.setRedeemer r')
+
+-- | Attach a `PlutusScript` to a transaction by modifying its existing witness
+-- | set
+--
+-- | Fails if either the script or updated witness set cannot be converted
+-- | during (de-)serialization
+attachPlutusScript
+  :: PlutusScript -> Transaction -> Effect (Either ModifyTxError Transaction)
+attachPlutusScript ps tx@(Transaction { witness_set: ws }) = runExceptT $ do
+  ps' <- liftEffect $ Serialization.WitnessSet.convertPlutusScript ps
+  updateTxWithWitnesses tx
+    =<< convertWitnessesWith ws (Serialization.WitnessSet.setPlutusScript ps')
 
 convertWitnessesWith
   :: TransactionWitnessSet
@@ -68,3 +81,11 @@ convertWitnessesWith ws act = do
   liftEffect $ act ws'
   liftEither $ note ConvertWitnessesError
     $ Deserialization.WitnessSet.convertWitnessSet ws'
+
+updateTxWithWitnesses
+  :: forall (e :: Type)
+   . Transaction
+  -> TransactionWitnessSet
+  -> ExceptT e Effect Transaction
+updateTxWithWitnesses tx ws =
+  liftEither $ Right $ over Transaction _ { witness_set = ws } tx
