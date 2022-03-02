@@ -398,29 +398,40 @@ posixTimeRangeToContainedSlotRange sc ptr =
         _ -> def
 
 type TransactionValiditySlot =
-  { timeToLive :: Maybe Slot, validityStartInterval :: Maybe Slot }
+  { validityStartInterval :: Maybe Slot, timeToLive :: Maybe Slot }
 
--- FIX ME: are Types.Transaction bounds included?
--- I'm going to assume Nothing means Neg and Pos Infinity for LowerBound
--- and UpperBound, respectively. Not sure how to representthese as slots.
--- BUG: How do you represent `never` as Slots if we assume LowerBound Nothing
--- ~ Neg Inf, and UpperBound Nothing ~ Pos Inf?
+-- FIX ME: Does Nothing represent Positive Infinity? Otherwise, not sure how to
+-- represent maximum Slot unless we use UInt.
 -- | Converts a SlotRange to two separate slots used in building Types.Transaction.
--- | Note we lose information regarding whether the bounds or not.
+-- | Note we lose information regarding whether the bounds or not. `Nothing`
+-- | represents Positive Infinity. Note that we lose inclusive bounds information
+-- | with this function.
 slotRangeToTransactionSlot
   :: SlotRange
   -> TransactionValiditySlot
 slotRangeToTransactionSlot
-  (Interval { ivFrom: LowerBound start _, ivTo: UpperBound end _ }) =
-  { timeToLive, validityStartInterval }
+  (Interval { ivFrom: LowerBound start startIncl, ivTo: UpperBound end endIncl }) =
+  { validityStartInterval, timeToLive }
   where
-  timeToLive = case start of
-    Finite s -> Just s
-    _ -> Nothing -- this needs fixing
+  validityStartInterval = case start, startIncl of
+    Finite s, true -> Just s
+    Finite s, false -> Just $ s <> Slot one
+    NegInf, true -> Just $ Slot zero
+    NegInf, false -> Just $ Slot one -- Do we want this as zero?
+    PosInf, _ -> Nothing
 
-  validityStartInterval = case end of
-    Finite s -> Just s
-    _ -> Nothing -- this needs fixing
+  timeToLive = case end, endIncl of
+    Finite s, true -> Just s
+    Finite s, false -> Just $ s <> Slot (negate one)
+    -- The upper bound being NegInf, false doesn't really make much sense as
+    -- we'd want ~ Slot -1
+    NegInf, _ -> Just $ Slot zero
+    PosInf, _ -> Nothing
+
+-- FIX ME: this is the largest UInt possible. How to determine maximum slot if
+-- BigInt? Currently using Nothing as above.
+-- maxSlot :: Slot
+-- maxSlot = Slot $ unsafePartial fromJust $ BigInt.fromString "4294967295"
 
 posixTimeRangeToTransactionSlot
   :: SlotConfig -> POSIXTimeRange -> TransactionValiditySlot

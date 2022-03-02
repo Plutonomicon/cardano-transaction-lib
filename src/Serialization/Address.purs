@@ -102,6 +102,7 @@ import Types.ByteArray (ByteArray)
 newtype Slot = Slot BigInt
 
 derive newtype instance Eq Slot
+derive newtype instance Ord Slot
 derive instance Newtype Slot _
 derive instance Generic Slot _
 
