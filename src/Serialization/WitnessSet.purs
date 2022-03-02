@@ -36,10 +36,21 @@ import Types.RedeemerTag as Tag
 import Types.Transaction as T
 
 setPlutusData :: PlutusData -> TransactionWitnessSet -> Effect Unit
-setPlutusData pd ws = _wsSetPlutusData containerHelper ws $ Array.singleton pd
+setPlutusData pd ws = setWitness _wsSetPlutusData ws pd
 
 setRedeemer :: Redeemer -> TransactionWitnessSet -> Effect Unit
-setRedeemer r ws = _wsSetRedeemers containerHelper ws $ Array.singleton r
+setRedeemer r ws = setWitness _wsSetRedeemers ws r
+
+setPlutusScript :: PlutusScript -> TransactionWitnessSet -> Effect Unit
+setPlutusScript ps ws = setWitness _wsSetPlutusScripts ws ps
+
+setWitness
+  :: forall (a :: Type)
+   . (ContainerHelper -> TransactionWitnessSet -> Array a -> Effect Unit)
+  -> TransactionWitnessSet
+  -> a
+  -> Effect Unit
+setWitness f ws = f containerHelper ws <<< Array.singleton
 
 convertWitnessSet :: T.TransactionWitnessSet -> Effect TransactionWitnessSet
 convertWitnessSet (T.TransactionWitnessSet tws) = do
@@ -136,3 +147,4 @@ foreign import newRedeemer :: RedeemerTag -> BigNum -> PlutusData -> ExUnits -> 
 foreign import _newRedeemerTag :: String -> Effect RedeemerTag
 foreign import newExUnits :: BigNum -> BigNum -> ExUnits
 foreign import _wsSetRedeemers :: ContainerHelper -> TransactionWitnessSet -> Array Redeemer -> Effect Unit
+foreign import _wsSetPlutusScripts :: ContainerHelper -> TransactionWitnessSet -> Array PlutusScript -> Effect Unit
