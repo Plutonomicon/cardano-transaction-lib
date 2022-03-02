@@ -5,16 +5,19 @@ module Serialization
   , toBytes
   , newTransactionUnspentOutputFromBytes
   , newTransactionWitnessSetFromBytes
+  , convertCostmdls
   ) where
 
 import Prelude
 
 import Data.BigInt as BigInt
 import Data.FoldableWithIndex (forWithIndex_)
+import Data.Map as Map
 import Data.Maybe (maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse_, for_)
 import Data.UInt (UInt)
+import Data.UInt as UInt
 import Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Effect (Effect)
 import Effect.Exception (throw)
@@ -27,8 +30,12 @@ import Serialization.Types
   , Assets
   , AuxiliaryData
   , BigNum
+  , Costmdls
+  , CostModel
   , DataHash
   , Ed25519Signature
+  , Int32
+  , Language
   , MultiAsset
   , NativeScript
   , PlutusData
@@ -52,7 +59,9 @@ import Serialization.WitnessSet (convertWitnessSet)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
 import Types.Transaction
-  ( Transaction(Transaction)
+  ( Costmdls(Costmdls)
+  , Language(PlutusV1)
+  , Transaction(Transaction)
   , TransactionInput(TransactionInput)
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
@@ -94,6 +103,12 @@ foreign import newPlutusScript :: ByteArray -> Effect PlutusScript
 foreign import newPlutusScripts :: Effect PlutusScripts
 foreign import txWitnessSetSetPlutusScripts :: TransactionWitnessSet -> PlutusScripts -> Effect Unit
 foreign import addPlutusScript :: PlutusScripts -> PlutusScript -> Effect Unit
+foreign import newCostmdls :: Effect Costmdls
+foreign import costmdlsSetCostModel :: Costmdls -> Language -> CostModel -> Effect Unit
+foreign import newCostModel :: Effect CostModel
+foreign import costModelSetCost :: CostModel -> Int -> Int32 -> Effect Unit
+foreign import newPlutusV1 :: Effect Language
+foreign import newInt32 :: Int -> Effect Int32
 
 foreign import toBytes
   :: ( Transaction
@@ -161,3 +176,15 @@ convertValue val = do
   value <- newValueFromAssets multiasset
   valueSetCoin value =<< newBigNum (BigInt.toString lovelace)
   pure value
+
+convertCostmdls :: T.Costmdls -> Effect Costmdls
+convertCostmdls (T.Costmdls cs) = do
+  costs <- map unwrap <<< fromJustEff "`PlutusV1` not found in `Costmdls`"
+    $ Map.lookup T.PlutusV1 cs
+  costModel <- newCostModel
+  forWithIndex_ costs $ \operation cost ->
+    costModelSetCost costModel operation =<< newInt32 (UInt.toInt cost)
+  costmdls <- newCostmdls
+  plutusV1 <- newPlutusV1
+  costmdlsSetCostModel costmdls plutusV1 costModel
+  pure costmdls

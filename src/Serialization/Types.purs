@@ -43,3 +43,7 @@ foreign import data Redeemers :: Type
 foreign import data Redeemer :: Type
 foreign import data RedeemerTag :: Type
 foreign import data ExUnits :: Type
+foreign import data Costmdls :: Type
+foreign import data CostModel :: Type
+foreign import data Language :: Type
+foreign import data Int32 :: Type
