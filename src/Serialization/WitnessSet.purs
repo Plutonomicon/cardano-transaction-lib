@@ -39,6 +39,9 @@ import Types.Transaction as T
 setPlutusData :: PlutusData -> TransactionWitnessSet -> Effect Unit
 setPlutusData pd ws = _wsSetPlutusData containerHelper ws $ Array.singleton pd
 
+setRedeemer :: Redeemer -> TransactionWitnessSet -> Effect Unit
+setRedeemer r ws = _wsSetRedeemers containerHelper ws $ Array.singleton r
+
 convertWitnessSet :: T.TransactionWitnessSet -> Effect TransactionWitnessSet
 convertWitnessSet (T.TransactionWitnessSet tws) = do
   ws <- newTransactionWitnessSet

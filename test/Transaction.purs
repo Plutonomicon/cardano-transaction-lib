@@ -13,26 +13,32 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Helpers (fromRightEff)
+import Helpers (fromJustEff, fromRightEff)
 import Mote (group, test)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
+import Serialization (toBytes)
+import Serialization.PlutusData as Serialization.PlutusData
 import Serialization.WitnessSet as Serialization.WitnessSet
-import Transaction (attachDatum)
+import Transaction (attachDatum, attachRedeemer)
 import Types.Transaction as Transaction
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , PublicKey(PublicKey)
+  , Redeemer(Redeemer)
   , Transaction(Transaction)
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   )
 import Types.PlutusData (Datum(Datum), PlutusData(Integer))
+import Types.RedeemerTag (RedeemerTag(Spend))
+import Untagged.Union (asOneOf)
 
 suite :: TestPlanM Unit
 suite = group "attach datums to tx" $ do
   test "datum should be correctly attached" testAttachDatum
+  test "redeemer should be correctly attached" testAttachRedeemer
   test "existing witnesses should be preserved" testPreserveWitness
 
 testAttachDatum :: Aff Unit
@@ -53,6 +59,37 @@ testAttachDatum = liftEffect $
   datum :: Datum
   datum = Datum $ Integer $ BigInt.fromInt 1
 
+testAttachRedeemer :: Aff Unit
+testAttachRedeemer = liftEffect $ do
+  redeemer <- mkRedeemer <<< Transaction.PlutusData <<< toBytes <<< asOneOf
+    <$> fromJustEff
+      "Failed to convert datum"
+      (Serialization.PlutusData.convertPlutusData datum)
+  attachRedeemer redeemer tx >>= case _ of
+    Left e -> throw $ "Failed to attach redeemer: " <> show e
+    Right (Transaction { witness_set: TransactionWitnessSet ws }) -> do
+      case ws.redeemers of
+        Just [ r ] -> r `shouldEqual` redeemer
+        Just _ -> throw "Incorrect number of redeemers attached"
+        Nothing -> throw "Redeemer wasn't attached"
+  where
+  tx :: Transaction
+  tx = mempty
+
+  datum :: PlutusData
+  datum = Integer $ BigInt.fromInt 1
+
+  mkRedeemer :: Transaction.PlutusData -> Redeemer
+  mkRedeemer pd = Redeemer
+    { tag: Spend
+    , index: BigInt.fromInt 0
+    , data: pd
+    , ex_units:
+        { mem: BigInt.fromInt 7000000
+        , steps: BigInt.fromInt 300000000
+        }
+    }
+
 testPreserveWitness :: Aff Unit
 testPreserveWitness = liftEffect $ do
   Transaction { witness_set: TransactionWitnessSet { plutus_data, vkeys } } <-
@@ -70,14 +107,14 @@ testPreserveWitness = liftEffect $ do
   where
   tx :: Transaction
   tx = over Transaction _ { witness_set = initialWitnessSet }
-    $ (mempty :: Transaction)
+    $ mempty
 
   datum :: Datum
   datum = Datum $ Integer $ BigInt.fromInt 1
 
   initialWitnessSet :: TransactionWitnessSet
   initialWitnessSet = over TransactionWitnessSet _ { vkeys = Just [ vk ] }
-    $ (mempty :: TransactionWitnessSet)
+    $ mempty
 
   vk :: Vkeywitness
   vk = Vkeywitness
