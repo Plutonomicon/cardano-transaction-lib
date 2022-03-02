@@ -729,13 +729,13 @@ processConstraint lookups cps@(ConstraintProcessingState cps') = case _ of
     cps # _valueSpentBalancesOutputs <>~ require vl
   MustSpendPubKeyOutput txo ->
     pure case lookupTxOutRef lookups txo of
-      Right (PublicKeyOgmiosTxOut { value }) -> do
+      Right (PublicKeyOgmiosTxOut { value }) ->
         -- POTENTIAL FIX ME: Plutus has Tx.TxIn and Tx.PubKeyTxIn -- TxIn
         -- keeps track TxOutRef and TxInType (the input type, whether consuming
         -- script, public key or simple script)
-        let
-          cps'' = cps # _cpsToTxBody <<< _Newtype <<< _inputs %~ (:) txo
-        Right $ cps'' # _valueSpentBalancesInputs <>~ provide value
+        Right $ cps
+          # _cpsToTxBody <<< _Newtype <<< _inputs %~ (:) txo
+          # _valueSpentBalancesInputs <>~ provide value
       Left err -> Left err
       _ -> Left $ TxOutRefWrongType txo
   MustSpendScriptOutput txo red ->
@@ -757,7 +757,9 @@ processConstraint lookups cps@(ConstraintProcessingState cps') = case _ of
           -- let input = Tx.scriptTxIn txo validator red dataValue
           cps'' = cps # _cpsToTxBody <<< _Newtype <<< _inputs %~ (:) txo
 
-        Left $ OwnPubKeyMissing
+        -- TODO: Attached Validator once https://github.com/Plutonomicon/cardano-browser-tx/issues/145
+        -- is ready.
+        Right $ cps''
       -- NEED TO ATTACH REDEEMER AND DATUM:
       -- unbalancedTx . tx . Tx.datumWitnesses . at dvh .= Just dataValue
       -- valueSpentInputs <>= provided _ciTxOutValue
