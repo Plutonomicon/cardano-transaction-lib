@@ -861,7 +861,7 @@ processConstraint lookups cps = case _ of
     Right $ valCps
       # _cpsToTxBody <<< _Newtype <<< _mint <>~ Just (wrap mintVal)
       # _mintRedeemers <<< at mpsHash .~ Just red
-  MustPayToPubKeyAddress pkh mSkh mDt amount -> runExceptT do
+  MustPayToPubKeyAddress pkh _mSkh mDt amount -> runExceptT do
     -- if datum is presented, add it to 'datumWitnesses'
     datCps <- maybe
       (liftEither $ Right cps)
