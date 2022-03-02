@@ -32,9 +32,11 @@ module Types.Value
   , mkNonAdaAssetsFromTokenMap
   , mkSingletonNonAdaAsset
   , mkSingletonValue
+  , mkSingletonValue'
   , mkTokenName
   , mkTokenNames
   , mkValue
+  , mpsSymbol
   , negation
   , numCurrencySymbols
   , numTokenNames
@@ -73,7 +75,7 @@ import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested ((/\), type (/\))
 import Partial.Unsafe (unsafePartial)
 
-import Serialization.Hash (ScriptHash, scriptHashFromBytes)
+import Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
 import Types.ByteArray (ByteArray, byteLength)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 
@@ -627,6 +629,13 @@ currencyScriptHash (CurrencySymbol byteArray) =
 -- | The minting policy hash of a currency symbol
 currencyMPSHash :: CurrencySymbol -> MintingPolicyHash
 currencyMPSHash = MintingPolicyHash <<< currencyScriptHash
+
+-- We haven't provided any safety on MintingPolicyHash, analagous to
+-- CurrencySymbol, so we need Maybe context. We could remove Maybe if we do.
+-- Plutus doesn't use Maybe here.
+-- | The currency symbol of a monetary policy hash
+mpsSymbol :: MintingPolicyHash -> Maybe CurrencySymbol
+mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol $ scriptHashToBytes h
 
 -- | Like `mapEither` that works with 'These'.
 mapThese

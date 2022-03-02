@@ -10,10 +10,18 @@ module Types.UnbalancedTransaction
   , _transaction
   , emptyUnbalancedTx
   , payPubKeyHash
+  , payPubKeyHashAddress
+  , payPubKeyHashBaseAddress
   , payPubKeyRequiredSigner
   , payPubKeyVkey
   , pubKeyHash
+  , pubKeyHashAddress
+  , pubKeyHashBaseAddress
   , scriptOutputToTxOutput
+  , stakeKeyHashAddress
+  , stakeKeyHashBaseAddress
+  , stakePubKeyHashAddress
+  , stakePubKeyHashBaseAddress
   , utxoIndexToUtxo
   ) where
 
@@ -29,7 +37,14 @@ import Data.Show.Generic (genericShow)
 import Data.Traversable (sequence)
 import Data.Tuple (Tuple(Tuple))
 import Partial.Unsafe (unsafePartial)
-import Serialization.Address (addressFromBytes)
+import Serialization.Address
+  ( Address
+  , BaseAddress
+  , NetworkId
+  , addressFromBytes
+  , baseAddressToAddress
+  , pubKeyAddress
+  )
 import Serialization.Hash
   ( Ed25519KeyHash
   , ed25519KeyHashFromBech32
@@ -91,6 +106,21 @@ payPubKeyVkey (PaymentPubKey pk) = Vkey pk
 payPubKeyRequiredSigner :: PaymentPubKey -> RequiredSigner
 payPubKeyRequiredSigner pk = RequiredSigner $ payPubKeyVkey pk
 
+ed25519BaseAddress
+  :: forall (n :: Type)
+   . Newtype n Ed25519KeyHash
+  => NetworkId
+  -> n
+  -> BaseAddress
+ed25519BaseAddress networkId n = pubKeyAddress networkId (unwrap n)
+
+pubKeyHashBaseAddress :: NetworkId -> PubKeyHash -> BaseAddress
+pubKeyHashBaseAddress networkId = ed25519BaseAddress networkId
+
+pubKeyHashAddress :: NetworkId -> PubKeyHash -> Address
+pubKeyHashAddress networkId =
+  baseAddressToAddress <<< pubKeyHashBaseAddress networkId
+
 newtype PaymentPubKeyHash = PaymentPubKeyHash PubKeyHash
 
 derive instance Generic PaymentPubKeyHash _
@@ -100,6 +130,16 @@ derive newtype instance Ord PaymentPubKeyHash
 
 instance Show PaymentPubKeyHash where
   show = genericShow
+
+payPubKeyHashBaseAddress :: NetworkId -> PaymentPubKeyHash -> BaseAddress
+payPubKeyHashBaseAddress networkId (PaymentPubKeyHash pkh) =
+  pubKeyHashBaseAddress networkId pkh
+
+-- Note, Plutus has a function pubKeyHashAddress :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> Address
+-- but we don't appear to require an optional StakePubKeyHash.
+payPubKeyHashAddress :: NetworkId -> PaymentPubKeyHash -> Address
+payPubKeyHashAddress networkId (PaymentPubKeyHash pkh) =
+  pubKeyHashAddress networkId pkh
 
 newtype StakeKeyHash = StakeKeyHash Ed25519KeyHash
 
@@ -111,6 +151,13 @@ derive newtype instance Ord StakeKeyHash
 instance Show StakeKeyHash where
   show = genericShow
 
+stakeKeyHashBaseAddress :: NetworkId -> StakeKeyHash -> BaseAddress
+stakeKeyHashBaseAddress networkId = ed25519BaseAddress networkId
+
+stakeKeyHashAddress :: NetworkId -> StakeKeyHash -> Address
+stakeKeyHashAddress networkId =
+  baseAddressToAddress <<< stakeKeyHashBaseAddress networkId
+
 newtype StakePubKeyHash = StakePubKeyHash StakeKeyHash
 
 derive instance Generic StakePubKeyHash _
@@ -120,6 +167,16 @@ derive newtype instance Ord StakePubKeyHash
 
 instance Show StakePubKeyHash where
   show = genericShow
+
+stakePubKeyHashBaseAddress :: NetworkId -> StakePubKeyHash -> BaseAddress
+stakePubKeyHashBaseAddress networkId (StakePubKeyHash skh) =
+  stakeKeyHashBaseAddress networkId skh
+
+-- Note, Plutus has a function pubKeyHashAddress :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> Address
+-- but we don't appear to require an optional StakePubKeyHash.
+stakePubKeyHashAddress :: NetworkId -> StakePubKeyHash -> Address
+stakePubKeyHashAddress networkId (StakePubKeyHash skh) =
+  stakeKeyHashAddress networkId skh
 
 -- Use Plutus' name to assist with copy & paste from Haskell to Purescript.
 -- | Transaction inputs reference some other transaction's outputs.

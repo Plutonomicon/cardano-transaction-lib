@@ -54,7 +54,11 @@ import Effect.Exception (Error, error)
 import Effect.Ref as Ref
 import Helpers as Helpers
 import Serialization as Serialization
-import Serialization.Address (Address, addressBech32, addressFromBech32)
+import Serialization.Address
+  ( Address
+  , addressBech32
+  , addressFromBech32
+  )
 import Types.ByteArray (hexToByteArray, byteArrayToHex)
 import Types.Interval (SlotConfig)
 import Types.JsonWsp as JsonWsp

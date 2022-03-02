@@ -10,6 +10,8 @@ import Data.Hashable (class Hashable, hash)
 import Data.HashMap (HashMap, empty)
 import Data.HashMap (unionWith) as HashMap
 import Data.Lens (lens')
+import Data.Lens.Iso.Newtype (_Newtype)
+import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.Map (Map)
 import Data.Map (unionWith) as Map
@@ -19,6 +21,7 @@ import Data.Monoid (guard)
 import Data.Newtype (class Newtype)
 import Data.Rational (Rational)
 import Data.Show.Generic (genericShow)
+import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
@@ -136,6 +139,13 @@ instance monoidTxBody :: Monoid TxBody where
     , required_signers: Nothing
     , network_id: Nothing
     }
+
+_network_id :: Lens' TxBody (Maybe NetworkId)
+_network_id = _Newtype <<< _network_id'
+  where
+  _network_id'
+    :: forall (a :: Type) (r :: Row Type). Lens' { network_id :: a | r } a
+  _network_id' = prop (SProxy :: SProxy "network_id")
 
 -- We could pick First but Last allows for convenient transforming later in the code.
 appendLastMaybe :: forall (a :: Type). Maybe a -> Maybe a -> Maybe a
