@@ -46,7 +46,7 @@ attachDatum (Datum pd) (Transaction tx@{ witness_set: ws }) = runExceptT $ do
   liftEither $ Right $ Transaction $ tx { witness_set = newWits }
 
 -- | Attach a `Redeemer` to a transaction by modifying its existing witness set.
--- | Note that this is the `Types.Transaction` reprentation of a redeemer and
+-- | Note that this is the `Types.Transaction` representation of a redeemer and
 -- | not a wrapped `PlutusData`.
 --
 -- | Fails if either the redeemer or updated witness set cannot be converted
