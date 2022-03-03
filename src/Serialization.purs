@@ -5,7 +5,7 @@ module Serialization
   , toBytes
   , newTransactionUnspentOutputFromBytes
   , newTransactionWitnessSetFromBytes
-  , convertCostmdls
+  , hashScriptData
   ) where
 
 import Prelude
@@ -25,6 +25,7 @@ import Helpers (fromJustEff)
 import Serialization.Address (Address)
 import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes)
+import Serialization.PlutusData (packPlutusList)
 import Serialization.Types
   ( AssetName
   , Assets
@@ -42,6 +43,7 @@ import Serialization.Types
   , PlutusList
   , PlutusScripts
   , PublicKey
+  , Redeemer
   , Redeemers
   , ScriptDataHash
   , Transaction
@@ -58,12 +60,14 @@ import Serialization.Types
   , PlutusScript
   , Vkeywitness
   )
-import Serialization.WitnessSet (convertWitnessSet)
+import Serialization.WitnessSet (convertWitnessSet, convertRedeemer)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
+import Types.PlutusData as PlutusData
 import Types.Transaction
   ( Costmdls(Costmdls)
   , Language(PlutusV1)
+  , Redeemer
   , Transaction(Transaction)
   , TransactionInput(TransactionInput)
   , TransactionOutput(TransactionOutput)
@@ -113,6 +117,8 @@ foreign import costModelSetCost :: CostModel -> Int -> Int32 -> Effect Unit
 foreign import newPlutusV1 :: Effect Language
 foreign import newInt32 :: Int -> Effect Int32
 foreign import _hashScriptData :: Redeemers -> Costmdls -> PlutusList -> Effect ScriptDataHash
+foreign import newRedeemers :: Effect Redeemers
+foreign import addRedeemer :: Redeemers -> Redeemer -> Effect Unit
 
 foreign import toBytes
   :: ( Transaction
@@ -122,6 +128,7 @@ foreign import toBytes
          |+| PlutusData
          |+| TransactionWitnessSet
          |+| NativeScript
+         |+| ScriptDataHash
      -- Add more as needed.
      )
   -> ByteArray
@@ -192,3 +199,15 @@ convertCostmdls (T.Costmdls cs) = do
   plutusV1 <- newPlutusV1
   costmdlsSetCostModel costmdls plutusV1 costModel
   pure costmdls
+
+hashScriptData
+  :: Array T.Redeemer
+  -> T.Costmdls
+  -> Array PlutusData.PlutusData
+  -> Effect ScriptDataHash
+hashScriptData rs cms ps = do
+  plist <- fromJustEff "failed to convert datums" $ packPlutusList ps
+  rs' <- newRedeemers
+  cms' <- convertCostmdls cms
+  traverse_ (addRedeemer rs' <=< convertRedeemer) rs
+  _hashScriptData rs' cms' plist
