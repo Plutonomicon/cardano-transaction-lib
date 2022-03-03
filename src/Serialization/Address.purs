@@ -1,5 +1,6 @@
 module Serialization.Address
   ( Slot(Slot)
+  , BlockId(BlockId)
   , TransactionIndex(TransactionIndex)
   , CertificateIndex(CertificateIndex)
   , Pointer
@@ -83,11 +84,13 @@ module Serialization.Address
 import Prelude
 
 import Control.Alt ((<|>))
+import Data.Argonaut (class EncodeJson)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
+import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization.Hash (Ed25519KeyHash, ScriptHash)
@@ -101,14 +104,32 @@ derive newtype instance Eq Slot
 derive instance Newtype Slot _
 derive instance Generic Slot _
 
+instance EncodeJson Slot where
+  encodeJson = undefined -- TODO
+
 instance Show Slot where
   show = genericShow
 
-instance Semigroup Slot where
-  append (Slot s1) (Slot s2) = Slot $ s1 + s2
+-- it is an integer in ogmios
+-- bytestring in plutus
+-- uint32 in csl
+newtype BlockId = BlockId UInt
 
-instance Monoid Slot where
-  mempty = Slot zero
+derive newtype instance Eq BlockId
+derive instance Newtype BlockId _
+derive instance Generic BlockId _
+
+instance EncodeJson BlockId where
+  encodeJson = undefined -- TODO
+
+instance Show BlockId where
+  show = genericShow
+
+-- instance Semigroup Slot where
+--   append (Slot s1) (Slot s2) = Slot $ s1 + s2
+
+-- instance Monoid Slot where
+--   mempty = Slot zero
 
 newtype TransactionIndex = TransactionIndex UInt
 

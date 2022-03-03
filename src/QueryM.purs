@@ -31,8 +31,13 @@ module QueryM
   , queryDatumCache
   , getDatumByHash
   , getDatumsByHashes
+  , startFetchBlocksRequest
+  , cancelFetchBlocksRequest
+  , datumFilterAddHashesRequest
+  , datumFilterRemoveHashesRequest
+  , datumFilterSetHashesRequest
+  , datumFilterGetHashesRequest
   ) where
-
 
 import Prelude
 
@@ -55,7 +60,33 @@ import Data.Traversable (sequence)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import DatumCacheWsp (DatumCacheRequest(..), DatumCacheResponse(..), faultToString, requestMethodName)
+import DatumCacheWsp
+  ( DatumCacheMethod
+      ( StartFetchBlocks
+      , CancelFetchBlocks
+      , DatumFilterAddHashes
+      , DatumFilterRemoveHashes
+      , DatumFilterSetHashes
+      )
+  , DatumCacheRequest
+      ( GetDatumByHashRequest
+      , GetDatumsByHashesRequest
+      , StartFetchBlocksRequest
+      , CancelFetchBlocksRequest
+      , DatumFilterAddHashesRequest
+      , DatumFilterRemoveHashesRequest
+      , DatumFilterSetHashesRequest
+      , DatumFilterGetHashesRequest
+      )
+  , DatumCacheResponse
+      ( GetDatumByHashResponse
+      , GetDatumsByHashesResponse
+      , DatumFilterGetHashesResponse
+      )
+  , faultToString
+  , requestMethodName
+  , responseMethod
+  )
 import DatumCacheWsp as DcWsp
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), makeAff)
@@ -68,8 +99,17 @@ import Helpers as Helpers
 import MultiMap (MultiMap)
 import MultiMap as MM
 import Serialization as Serialization
-import Serialization.Address (Address, addressBech32, addressFromBech32)
-import Types.ByteArray (hexToByteArray, byteArrayToHex)
+import Serialization.Address
+  ( Address
+  , BlockId
+  , Slot
+  , addressBech32
+  , addressFromBech32
+  )
+import Types.ByteArray
+  ( hexToByteArray
+  , byteArrayToHex
+  )
 import Types.JsonWsp as JsonWsp
 import Types.PlutusData (DatumHash, PlutusData)
 import Types.Transaction as Transaction
@@ -98,7 +138,7 @@ foreign import _wsSend :: JsWebSocket -> String -> Effect Unit
 
 foreign import _wsClose :: JsWebSocket -> Effect Unit
 
-foreign import _stringify :: forall a. a -> Effect String
+foreign import _stringify :: forall (a :: Type). a -> Effect String
 
 foreign import _wsWatch :: JsWebSocket -> Effect Unit -> Effect Unit
 
@@ -116,7 +156,8 @@ type QueryConfig =
   { ogmiosWs :: OgmiosWebSocket
   , datumCacheWs :: DatumCacheWebSocket
   , serverConfig :: ServerConfig
-  , wallet :: Maybe Wallet }
+  , wallet :: Maybe Wallet
+  }
 
 type QueryM (a :: Type) = ReaderT QueryConfig Aff a
 
@@ -152,7 +193,7 @@ utxosAt' addr = do
 getDatumByHash :: DatumHash -> QueryM (Maybe PlutusData)
 getDatumByHash hash = do
   queryDatumCache (GetDatumByHashRequest hash) >>= case _ of
-    GetDatumByHashResponse mData -> pure $ mData
+    GetDatumByHashResponse mData -> pure mData
     _ -> liftEffect $ throw "Request-response type mismatch. Should not have happened"
 
 getDatumsByHashes :: Array DatumHash -> QueryM (Array PlutusData)
@@ -161,12 +202,46 @@ getDatumsByHashes hashes = do
     GetDatumsByHashesResponse plutusDatums -> pure $ plutusDatums
     _ -> liftEffect $ throw "Request-response type mismatch. Should not have happened"
 
+startFetchBlocksRequest :: { slot :: Slot, id :: BlockId } -> QueryM Unit
+startFetchBlocksRequest = matchCacheQuery StartFetchBlocksRequest StartFetchBlocks
+
+-- | Cancels a running block fetcher job. Throws on no fetchers running
+cancelFetchBlocksRequest :: QueryM Unit
+cancelFetchBlocksRequest = matchCacheQuery (const CancelFetchBlocksRequest) CancelFetchBlocks unit
+
+datumFilterAddHashesRequest :: Array DatumHash -> QueryM Unit
+datumFilterAddHashesRequest = matchCacheQuery DatumFilterAddHashesRequest DatumFilterAddHashes
+
+datumFilterRemoveHashesRequest :: Array DatumHash -> QueryM Unit
+datumFilterRemoveHashesRequest = matchCacheQuery DatumFilterRemoveHashesRequest DatumFilterRemoveHashes
+
+datumFilterSetHashesRequest :: Array DatumHash -> QueryM Unit
+datumFilterSetHashesRequest = matchCacheQuery DatumFilterSetHashesRequest DatumFilterSetHashes
+
+datumFilterGetHashesRequest :: QueryM (Array DatumHash)
+datumFilterGetHashesRequest = do
+  queryDatumCache DatumFilterGetHashesRequest >>= case _ of
+    DatumFilterGetHashesResponse hashes -> pure $ hashes
+    _ -> liftEffect $ throw "Request-response type mismatch. Should not have happened"
+
+matchCacheQuery
+  :: forall (args :: Type)
+   . (args -> DatumCacheRequest)
+  -> DatumCacheMethod
+  -> args
+  -> QueryM Unit
+matchCacheQuery query method args = do
+  resp <- queryDatumCache (query args)
+  if responseMethod resp == method then pure unit
+  else liftEffect $ throw "Request-response type mismatch. Should not have happened"
+
 queryDatumCache :: DatumCacheRequest -> QueryM DatumCacheResponse
 queryDatumCache request = do
-  sBody <- liftEffect $ _stringify $  DcWsp.jsonWspRequest request
+  sBody <- liftEffect $ _stringify $ DcWsp.jsonWspRequest request
   config <- ask
   let
     id = requestMethodName request
+
     affFunc :: (Either Error DcWsp.JsonWspResponse -> Effect Unit) -> Effect Canceler
     affFunc cont = do
       let
@@ -186,7 +261,7 @@ queryDatumCache request = do
     Right resp -> pure resp
     Left fault -> liftEffect $ throw $ "Ogmios-datum-cache service call fault" <> faultToString fault
 
-allowError :: forall a. (Either Error a -> Effect Unit) -> a -> Effect Unit
+allowError :: forall (a :: Type). (Either Error a -> Effect Unit) -> a -> Effect Unit
 allowError func = func <<< Right
 
 --------------------------------------------------------------------------------
@@ -334,6 +409,7 @@ calculateMinFee tx = do
 data WebSocket listeners = WebSocket JsWebSocket listeners
 type OgmiosWebSocket = WebSocket OgmiosListeners
 type DatumCacheWebSocket = WebSocket DatumCacheListeners
+
 -- smart-constructor for OgmiosWebSocket in Aff Context
 -- (prevents sending messages before the websocket opens, etc)
 mkOgmiosWebSocket'
@@ -366,7 +442,6 @@ mkDatumCacheWebSocket' serverCfg cb = do
     cb $ Right $ WebSocket ws (mkListenerSet dispatchMap)
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
 
-
 -- makeAff
 -- :: forall a
 -- . ((Either Error a -> Effect Unit) -> Effect Canceler)
@@ -384,8 +459,6 @@ underlyingWebSocket (WebSocket ws _) = ws
 -- getter
 listeners :: forall listeners. WebSocket listeners -> listeners
 listeners (WebSocket _ ls) = ls
-
-
 
 -- interface required for adding/removing listeners
 type DatumCacheListeners = ListenerSet DcWsp.JsonWspResponse

@@ -54,7 +54,7 @@ testUtxosAt testAddr = do
     Nothing -> liftEffect $ throw "Failed UtxosAt"
     Just addr -> runReaderT
       (utxosAt addr *> pure unit)
-      {ogmiosWs, datumCacheWs, serverConfig: defaultServerConfig, wallet: Nothing }
+      { ogmiosWs, datumCacheWs, serverConfig: defaultServerConfig, wallet: Nothing }
 
 testFromOgmiosAddress :: Address -> Aff Unit
 testFromOgmiosAddress testAddr = do
