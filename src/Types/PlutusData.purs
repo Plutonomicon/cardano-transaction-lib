@@ -11,6 +11,7 @@ module Types.PlutusData
 
 import Prelude
 
+import Data.Argonaut (class DecodeJson)
 import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
@@ -33,6 +34,9 @@ data PlutusData
 derive instance Eq PlutusData
 derive instance Ord PlutusData
 derive instance Generic PlutusData _
+
+instance DecodeJson PlutusData where
+  decodeJson = undefined -- TODO
 
 instance Show PlutusData where
   show x = genericShow x

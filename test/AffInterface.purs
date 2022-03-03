@@ -13,7 +13,9 @@ import QueryM
   , defaultServerConfig
   , defaultOgmiosWsConfig
   , mkOgmiosWebSocketAff
+  , mkDatumCacheWebSocketAff
   , ogmiosAddressToAddress
+  , defaultDatumCacheWsConfig
   , utxosAt
   )
 import Test.Spec.Assertions (shouldEqual)
@@ -46,12 +48,13 @@ suite = do
 
 testUtxosAt :: Address -> Aff Unit
 testUtxosAt testAddr = do
-  ws <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
+  ogmiosWs <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
+  datumCacheWs <- mkDatumCacheWebSocketAff defaultDatumCacheWsConfig
   case ogmiosAddressToAddress testAddr of
     Nothing -> liftEffect $ throw "Failed UtxosAt"
     Just addr -> runReaderT
       (utxosAt addr *> pure unit)
-      { ws, serverConfig: defaultServerConfig, wallet: Nothing }
+      {ogmiosWs, datumCacheWs, serverConfig: defaultServerConfig, wallet: Nothing }
 
 testFromOgmiosAddress :: Address -> Aff Unit
 testFromOgmiosAddress testAddr = do
