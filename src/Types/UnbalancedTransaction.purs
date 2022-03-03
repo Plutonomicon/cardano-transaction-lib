@@ -8,6 +8,7 @@ module Types.UnbalancedTransaction
   , TxOutRef(..)
   , UnbalancedTx(..)
   , _transaction
+  , _utxoIndex
   , emptyUnbalancedTx
   , payPubKeyHash
   , payPubKeyHashAddress
@@ -194,10 +195,17 @@ derive instance Newtype UnbalancedTx _
 
 _transaction :: Lens' UnbalancedTx Transaction
 _transaction = lens'
-  \(UnbalancedTx { transaction, utxoIndex }) ->
+  \(UnbalancedTx rec@{ transaction }) ->
     Tuple
       transaction
-      \tx -> UnbalancedTx { transaction: tx, utxoIndex }
+      \tx -> UnbalancedTx rec { transaction = tx }
+
+_utxoIndex :: Lens' UnbalancedTx (Map TxOutRef ScriptOutput)
+_utxoIndex = lens'
+  \(UnbalancedTx rec@{ utxoIndex }) ->
+    Tuple
+      utxoIndex
+      \utxoIx -> UnbalancedTx rec { utxoIndex = utxoIx }
 
 emptyUnbalancedTx :: UnbalancedTx
 emptyUnbalancedTx = UnbalancedTx { transaction: mempty, utxoIndex: empty }

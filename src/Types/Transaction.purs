@@ -47,10 +47,17 @@ derive instance newtypeTransaction :: Newtype Transaction _
 
 _body :: Lens' Transaction TxBody
 _body = lens'
-  \(Transaction { body, witness_set, is_valid, auxiliary_data }) ->
+  \(Transaction rec@{ body }) ->
     Tuple
       body
-      \bod -> Transaction { body: bod, witness_set, is_valid, auxiliary_data }
+      \bod -> Transaction rec { body = bod }
+
+_witness_set :: Lens' Transaction TransactionWitnessSet
+_witness_set = lens'
+  \(Transaction rec@{ witness_set }) ->
+    Tuple
+      witness_set
+      \ws -> Transaction rec { witness_set = ws }
 
 instance semigroupTransaction :: Semigroup Transaction where
   append (Transaction tx) (Transaction tx') =
@@ -324,6 +331,27 @@ instance monoidTransactionWitnessSet :: Monoid TransactionWitnessSet where
     , plutus_data: Nothing
     , redeemers: Nothing
     }
+
+_plutus_scripts :: Lens' TransactionWitnessSet (Maybe (Array PlutusScript))
+_plutus_scripts = lens'
+  \(TransactionWitnessSet rec@{ plutus_scripts }) ->
+    Tuple
+      plutus_scripts
+      \ps -> TransactionWitnessSet rec { plutus_scripts = ps }
+
+_plutus_data :: Lens' TransactionWitnessSet (Maybe (Array PlutusData))
+_plutus_data = lens'
+  \(TransactionWitnessSet rec@{ plutus_data }) ->
+    Tuple
+      plutus_data
+      \pd -> TransactionWitnessSet rec { plutus_data = pd }
+
+_redeemers :: Lens' TransactionWitnessSet (Maybe (Array Redeemer))
+_redeemers = lens'
+  \(TransactionWitnessSet rec@{ redeemers }) ->
+    Tuple
+      redeemers
+      \red -> TransactionWitnessSet rec { redeemers = red }
 
 type BootstrapWitness =
   { vkey :: Vkey
