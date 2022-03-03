@@ -10,12 +10,15 @@ import Prelude
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Data.Either (Either(Right), note)
 import Data.Generic.Rep (class Generic)
-import Data.Newtype (over)
+import Data.Maybe (Maybe(Just))
+import Data.Newtype (over, unwrap)
 import Data.Show.Generic (genericShow)
 import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
 import Effect.Class (liftEffect)
 import Helpers (liftEither)
+import ProtocolParametersAlonzo (costModels)
+import Serialization (hashScriptData, toBytes)
 import Serialization.PlutusData as Serialization.PlutusData
 import Serialization.Types as Serialization
 import Serialization.WitnessSet as Serialization.WitnessSet
@@ -23,9 +26,12 @@ import Types.PlutusData (Datum(Datum))
 import Types.Transaction
   ( PlutusScript
   , Redeemer
+  , ScriptDataHash(ScriptDataHash)
   , Transaction(Transaction)
   , TransactionWitnessSet
+  , TxBody(TxBody)
   )
+import Untagged.Union (asOneOf)
 
 data ModifyTxError
   = ConvertWitnessesError
@@ -35,6 +41,17 @@ derive instance Generic ModifyTxError _
 
 instance Show ModifyTxError where
   show = genericShow
+
+setScriptDataHash
+  :: Array Redeemer -> Array Datum -> Transaction -> Effect Transaction
+setScriptDataHash rs ds tx@(Transaction { body }) = do
+  scriptDataHash <- ScriptDataHash <<< toBytes <<< asOneOf
+    <$> hashScriptData rs costModels (unwrap <$> ds)
+  pure $ over Transaction
+    _
+      { body = over TxBody _ { script_data_hash = Just scriptDataHash } body
+      }
+    tx
 
 -- | Attach a `Datum` to a transaction by modifying its existing witness set.
 -- | Fails if either the datum or updated witness set cannot be converted during
