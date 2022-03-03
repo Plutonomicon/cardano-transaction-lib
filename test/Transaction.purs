@@ -20,10 +20,14 @@ import TestM (TestPlanM)
 import Serialization (toBytes)
 import Serialization.PlutusData as Serialization.PlutusData
 import Serialization.WitnessSet as Serialization.WitnessSet
-import Transaction (attachDatum, attachRedeemer)
+import Transaction (attachDatum, attachRedeemer, attachPlutusScript)
+import Types.ByteArray (hexToByteArrayUnsafe)
+import Types.PlutusData (Datum(Datum), PlutusData(Integer))
+import Types.RedeemerTag (RedeemerTag(Spend))
 import Types.Transaction as Transaction
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
+  , PlutusScript(PlutusScript)
   , PublicKey(PublicKey)
   , Redeemer(Redeemer)
   , Transaction(Transaction)
@@ -31,14 +35,13 @@ import Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   )
-import Types.PlutusData (Datum(Datum), PlutusData(Integer))
-import Types.RedeemerTag (RedeemerTag(Spend))
 import Untagged.Union (asOneOf)
 
 suite :: TestPlanM Unit
 suite = group "attach datums to tx" $ do
   test "datum should be correctly attached" testAttachDatum
   test "redeemer should be correctly attached" testAttachRedeemer
+  test "scripts should be correctly attached" testAttachScript
   test "existing witnesses should be preserved" testPreserveWitness
 
 testAttachDatum :: Aff Unit
@@ -89,6 +92,23 @@ testAttachRedeemer = liftEffect $ do
         , steps: BigInt.fromInt 300000000
         }
     }
+
+testAttachScript :: Aff Unit
+testAttachScript = liftEffect $
+  attachPlutusScript script tx >>= case _ of
+    Left e -> throw $ "Failed to attach script: " <> show e
+    Right (Transaction { witness_set: TransactionWitnessSet ws }) ->
+      case ws.plutus_scripts of
+        Just [ ps ] -> ps `shouldEqual` script
+        Just _ -> throw "Incorrect number of scripts attached"
+        Nothing -> throw "Script wasn't attached"
+  where
+  tx :: Transaction
+  tx = mempty
+
+  script :: PlutusScript
+  script = PlutusScript $
+    hexToByteArrayUnsafe "4e4d01000033222220051200120011"
 
 testPreserveWitness :: Aff Unit
 testPreserveWitness = liftEffect $ do

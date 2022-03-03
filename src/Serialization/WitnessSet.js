@@ -69,4 +69,4 @@ exports._wsSetRedeemers = helper => ws => redeemers => () =>
     ws.set_redeemers(helper.pack(lib.Redeemers, redeemers));
 
 exports._wsSetPlutusScripts = helper => ws => scripts => () =>
-    ws.set_redeemers(helper.pack(lib.PlutusScripts, scripts));
+    ws.set_plutus_scripts(helper.pack(lib.PlutusScripts, scripts));
