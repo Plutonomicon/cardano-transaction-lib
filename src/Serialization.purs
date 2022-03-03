@@ -39,8 +39,11 @@ import Serialization.Types
   , MultiAsset
   , NativeScript
   , PlutusData
+  , PlutusList
   , PlutusScripts
   , PublicKey
+  , Redeemers
+  , ScriptDataHash
   , Transaction
   , TransactionBody
   , TransactionHash
@@ -109,6 +112,7 @@ foreign import newCostModel :: Effect CostModel
 foreign import costModelSetCost :: CostModel -> Int -> Int32 -> Effect Unit
 foreign import newPlutusV1 :: Effect Language
 foreign import newInt32 :: Int -> Effect Int32
+foreign import _hashScriptData :: Redeemers -> Costmdls -> PlutusList -> Effect ScriptDataHash
 
 foreign import toBytes
   :: ( Transaction

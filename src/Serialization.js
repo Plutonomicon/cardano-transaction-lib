@@ -125,3 +125,6 @@ exports.newPlutusV1 = () =>
 
 exports.newInt32 = x => () =>
     lib.Int.new_i32(x);
+
+exports._hashScriptData = rs => cms => ds => () =>
+    lib.hash_script_data(rs, cms, ds);

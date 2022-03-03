@@ -47,3 +47,4 @@ foreign import data Costmdls :: Type
 foreign import data CostModel :: Type
 foreign import data Language :: Type
 foreign import data Int32 :: Type
+foreign import data ScriptDataHash :: Type
