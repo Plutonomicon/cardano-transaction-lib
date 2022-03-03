@@ -3,6 +3,7 @@ module Transaction
   , attachDatum
   , attachRedeemer
   , attachPlutusScript
+  , setScriptDataHash
   ) where
 
 import Prelude
