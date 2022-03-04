@@ -23,13 +23,12 @@
 module Aeson
   ( NumberIndex
   , class DecodeAeson
-  , Aeson(..)
-  , decodeAesonViaJson
+  , Aeson
   , decodeAeson
   , decodeAesonString
   , getField
+  , parseJsonStringToAeson
   , (.:)
-  , getJson
   ) where
 
 import Prelude
@@ -44,15 +43,14 @@ import Data.Either (Either(..), hush, note)
 import Data.Int as Int
 import Data.Maybe (maybe)
 import Data.Traversable (class Traversable, for)
-import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested (type (/\), (/\))
 import Foreign.Object as FO
 
--- | A piece of JSON where all numbers are extracted away into `NumberIndex`.
-newtype Aeson = Aeson { json :: Json, index :: NumberIndex }
 
-getJson :: Aeson -> Json
-getJson (Aeson { json }) = json
+-- | A piece of JSON where all numbers are replaced with their indexes
+newtype AesonPatchedJson = AesonPatchedJson Json
+
+-- | A piece of JSON where all numbers are extracted into `NumberIndex`.
+newtype Aeson = Aeson { patchedJson :: AesonPatchedJson, numberIndex :: NumberIndex }
 
 -- | A list of numbers extracted from Json, as they appear in the payload.
 type NumberIndex = Array String
@@ -61,17 +59,17 @@ class DecodeAeson (a :: Type) where
   decodeAeson :: Aeson -> Either JsonDecodeError a
 
 instance DecodeAeson Int where
-  decodeAeson aeson@(Aeson { index }) = do
+  decodeAeson aeson@(Aeson { numberIndex }) = do
     -- Numbers are replaced by their index in the array.
     ix <- decodeAesonViaJson aeson
-    numberStr <- note MissingValue (index Array.!! ix)
+    numberStr <- note MissingValue (numberIndex Array.!! ix)
     note MissingValue $ Int.fromString numberStr
 
 instance DecodeAeson BigInt where
-  decodeAeson aeson@(Aeson { index }) = do
+  decodeAeson aeson@(Aeson { numberIndex }) = do
     -- Numbers are replaced by their index in the array.
     ix <- decodeAesonViaJson aeson
-    numberStr <- note MissingValue (index Array.!! ix)
+    numberStr <- note MissingValue (numberIndex Array.!! ix)
     note MissingValue $ BigInt.fromString numberStr
 
 instance DecodeAeson String where
@@ -87,9 +85,9 @@ instance DecodeAeson Aeson where
   decodeAeson = pure
 
 instance (Traversable t, DecodeAeson a, DecodeJson (t Json)) => DecodeAeson (t a) where
-  decodeAeson (Aeson { index, json }) = do
-    jsons :: t _ <- decodeJson json
-    for jsons (\valueJson -> decodeAeson (Aeson { json: valueJson, index }))
+  decodeAeson (Aeson { numberIndex, patchedJson: AesonPatchedJson pJson }) = do
+    jsons :: t _ <- map AesonPatchedJson <$> decodeJson pJson
+    for jsons (\patchedJson -> decodeAeson (Aeson { patchedJson, numberIndex }))
 
 getField
   :: forall (a :: Type)
@@ -117,19 +115,20 @@ infix 7 getField as .:
 -- TODO: add getFieldOptional if ever needed.
 
 foreign import parseJsonExtractingIntegers
-  :: (forall (a :: Type) (b :: Type). a -> b -> Tuple a b)
-  -> String
-  -> String /\ NumberIndex
+  :: String
+  -> {patchedPayload :: String, numberIndex :: NumberIndex}
 
 -- | Ignore numeric index and reuse Argonaut decoder.
 decodeAesonViaJson
   :: forall (a :: Type). DecodeJson a => Aeson -> Either JsonDecodeError a
-decodeAesonViaJson (Aeson { json }) = decodeJson json
+decodeAesonViaJson (Aeson { patchedJson: AesonPatchedJson j}) = decodeJson j
+
+parseJsonStringToAeson :: String -> Either JsonDecodeError Aeson
+parseJsonStringToAeson payload = do
+  let {patchedPayload , numberIndex} = parseJsonExtractingIntegers payload
+  patchedJson <- note MissingValue $ hush $ AesonPatchedJson <$> jsonParser patchedPayload
+  pure $ Aeson { numberIndex, patchedJson }
 
 decodeAesonString
   :: forall (a :: Type). DecodeAeson a => String -> Either JsonDecodeError a
-decodeAesonString payload = do
-  json <- note MissingValue $ hush $ jsonParser patchedPayload
-  decodeAeson (Aeson { index, json })
-  where
-  patchedPayload /\ index = parseJsonExtractingIntegers Tuple payload
+decodeAesonString = parseJsonStringToAeson >=> decodeAeson
