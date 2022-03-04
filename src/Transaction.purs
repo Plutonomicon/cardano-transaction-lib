@@ -17,7 +17,7 @@ import Helpers (liftEither)
 import Serialization.PlutusData as Serialization.PlutusData
 import Serialization.Types as Serialization
 import Serialization.WitnessSet as Serialization.WitnessSet
-import Types.PlutusData (Datum(Datum))
+import Types.Datum (Datum(Datum))
 import Types.Transaction
   ( Transaction(Transaction)
   , Redeemer

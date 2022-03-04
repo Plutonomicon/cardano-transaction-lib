@@ -49,17 +49,16 @@ import Data.Newtype (class Newtype, over, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested ((/\), type (/\))
-import Types.PlutusData
-  ( class ToData
-  , Datum(Datum)
+import Types.Datum
+  ( Datum(Datum)
   , DatumHash
-  , toData
+  , Redeemer
   , unitRedeemer
   )
+import Types.PlutusData (class ToData, toData)
 import Types.Interval (POSIXTimeRange, always, intersection, isEmpty)
 import Types.RedeemerTag (RedeemerTag(Mint))
 import Types.Scripts (MintingPolicyHash, ValidatorHash)
-import Types.Transaction (Redeemer)
 import Types.UnbalancedTransaction (PaymentPubKeyHash, StakePubKeyHash, TxOutRef)
 import Types.Value
   ( CurrencySymbol

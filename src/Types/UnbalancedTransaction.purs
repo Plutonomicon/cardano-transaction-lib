@@ -51,7 +51,7 @@ import Serialization.Hash
   , ed25519KeyHashFromBech32
   , scriptHashToBytes
   )
-import Types.PlutusData (DatumHash)
+import Types.Datum (DatumHash)
 import Types.Scripts (ValidatorHash)
 import Types.Transaction
   ( Transaction
