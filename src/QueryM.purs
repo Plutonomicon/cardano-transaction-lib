@@ -364,6 +364,8 @@ utxoQueryDispatch
   -> String
   -> Effect (Either Json.JsonDecodeError (Effect Unit))
 utxoQueryDispatch ref str = do
+  -- TODO: replace it with the new implementation in `Aeson`.
+  -- https://github.com/Plutonomicon/cardano-browser-tx/issues/151
   let parsed' = JsonWsp.parseJsonWspResponse =<< Helpers.parseJsonStringifyNumbers str
   case parsed' of
     (Left err) -> pure $ Left err
