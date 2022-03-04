@@ -21,6 +21,7 @@ import Serialization (toBytes)
 import Serialization.PlutusData as Serialization.PlutusData
 import Serialization.WitnessSet as Serialization.WitnessSet
 import Transaction (attachDatum, attachRedeemer)
+import Types.Datum (Datum(Datum))
 import Types.Transaction as Transaction
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
@@ -31,7 +32,7 @@ import Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   )
-import Types.PlutusData (Datum(Datum), PlutusData(Integer))
+import Types.PlutusData (PlutusData(Integer))
 import Types.RedeemerTag (RedeemerTag(Spend))
 import Untagged.Union (asOneOf)
 
