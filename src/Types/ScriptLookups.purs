@@ -912,7 +912,6 @@ processConstraint lookups cps = case _ of
       Left err -> pure $ throwError err
       _ -> pure $ throwError (TxOutRefWrongType txo)
   MustMintValue mpsHash red tn i -> pure do
-    -- FIX ME: don't need runExceptT as we aren't using Effect
     _mintingPolicyScript <- lookupMintingPolicy lookups mpsHash
     cs <- note (MintingPolicyHashNotCurrencySymbol mpsHash) $ mpsSymbol mpsHash
     let value = mkSingletonValue' cs tn
