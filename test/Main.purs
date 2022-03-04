@@ -21,6 +21,7 @@ import Mote (Plan, foldPlan, planT)
 import Test.Deserialization as Deserialization
 import Test.Serialization as Serialization
 import Test.Aeson as Aeson
+import Test.Transaction as Transaction
 
 -- we use `mote` here so that we can use effects to build up a test tree, which
 -- is then interpreted here in a pure context, mainly due to some painful types
@@ -56,3 +57,4 @@ testPlan = do
   Serialization.Address.suite
   Serialization.Hash.suite
   Deserialization.suite
+  Transaction.suite

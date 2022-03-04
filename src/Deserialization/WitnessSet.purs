@@ -1,6 +1,7 @@
 module Deserialization.WitnessSet
   ( convertWitnessSet
   , deserializeWitnessSet
+  , convertVkeyWitnesses
   ) where
 
 import Prelude
