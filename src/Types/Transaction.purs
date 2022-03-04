@@ -8,15 +8,12 @@ import Data.BigInt (BigInt, toNumber)
 import Data.Generic.Rep (class Generic)
 import Data.Hashable (class Hashable, hash)
 import Data.HashMap (HashMap, empty)
-import Data.HashMap (unionWith) as HashMap
 import Data.Lens (lens')
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.Map (Map)
-import Data.Map (unionWith) as Map
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Maybe.Last (Last(Last))
+import Data.Maybe (Maybe(Nothing))
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype)
 import Data.Rational (Rational)
@@ -25,6 +22,7 @@ import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
+import Helpers ((</>), (<<>>), appendMap, appendRightHashMap)
 import Serialization.Address (Address, NetworkId, RewardAddress, Slot(Slot))
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
@@ -46,18 +44,20 @@ newtype Transaction = Transaction
 derive instance newtypeTransaction :: Newtype Transaction _
 
 _body :: Lens' Transaction TxBody
-_body = lens'
-  \(Transaction rec@{ body }) ->
-    Tuple
-      body
-      \bod -> Transaction rec { body = bod }
+_body = lens' \(Transaction rec@{ body }) ->
+  Tuple body \bod -> Transaction rec { body = bod }
 
 _witness_set :: Lens' Transaction TransactionWitnessSet
-_witness_set = lens'
-  \(Transaction rec@{ witness_set }) ->
-    Tuple
-      witness_set
-      \ws -> Transaction rec { witness_set = ws }
+_witness_set = lens' \(Transaction rec@{ witness_set }) ->
+  Tuple witness_set \ws -> Transaction rec { witness_set = ws }
+
+_is_valid :: Lens' Transaction Boolean
+_is_valid = lens' \(Transaction rec@{ is_valid }) ->
+  Tuple is_valid \iv -> Transaction rec { is_valid = iv }
+
+_auxiliary_data :: Lens' Transaction (Maybe AuxiliaryData)
+_auxiliary_data = lens' \(Transaction rec@{ auxiliary_data }) ->
+  Tuple auxiliary_data \ad -> Transaction rec { auxiliary_data = ad }
 
 instance semigroupTransaction :: Semigroup Transaction where
   append (Transaction tx) (Transaction tx') =
@@ -113,17 +113,17 @@ instance semigroupTxBody :: Semigroup TxBody where
     , ttl: lift2 lowerbound txB.ttl txB'.ttl
     , certs: lift2 union txB.certs txB'.certs
     , withdrawals: lift2 appendMap txB.withdrawals txB'.withdrawals
-    , update: txB.update <<>> txB'.update
-    , auxiliary_data_hash: txB.auxiliary_data_hash <<>> txB'.auxiliary_data_hash
+    , update: txB.update </> txB'.update
+    , auxiliary_data_hash: txB.auxiliary_data_hash </> txB'.auxiliary_data_hash
     , validity_start_interval:
         lift2 lowerbound
           txB.validity_start_interval
           txB'.validity_start_interval
     , mint: txB.mint <> txB'.mint
-    , script_data_hash: txB.script_data_hash <<>> txB'.script_data_hash
+    , script_data_hash: txB.script_data_hash </> txB'.script_data_hash
     , collateral: lift2 union txB.collateral txB'.collateral
     , required_signers: lift2 union txB.required_signers txB'.required_signers
-    , network_id: txB.network_id <<>> txB'.network_id
+    , network_id: txB.network_id </> txB'.network_id
     }
     where
     lowerbound :: Slot -> Slot -> Slot
@@ -148,37 +148,7 @@ instance monoidTxBody :: Monoid TxBody where
     }
 
 _network_id :: Lens' TxBody (Maybe NetworkId)
-_network_id = _Newtype <<< _network_id'
-  where
-  _network_id'
-    :: forall (a :: Type) (r :: Row Type). Lens' { network_id :: a | r } a
-  _network_id' = prop (SProxy :: SProxy "network_id")
-
--- We could pick First but Last allows for convenient transforming later in the code.
-appendLastMaybe :: forall (a :: Type). Maybe a -> Maybe a -> Maybe a
-appendLastMaybe m m' = Last m <> Last m' # \(Last m'') -> m''
-
-infixr 5 appendLastMaybe as <<>>
-
-maybeArrayMerge
-  :: forall (a :: Type)
-   . Eq a
-  => Maybe (Array a)
-  -> Maybe (Array a)
-  -> Maybe (Array a)
-maybeArrayMerge Nothing y = y
-maybeArrayMerge x Nothing = x
-maybeArrayMerge (Just x) (Just y) = Just $ union x y
-
--- Provide an append for Maps where the value has as Semigroup instance
-appendMap
-  :: forall (k :: Type) (v :: Type)
-   . Ord k
-  => Semigroup v
-  => Map k v
-  -> Map k v
-  -> Map k v
-appendMap = Map.unionWith (<>)
+_network_id = _Newtype <<< prop (SProxy :: SProxy "network_id")
 
 newtype ScriptDataHash = ScriptDataHash String
 
@@ -314,12 +284,12 @@ instance Show TransactionWitnessSet where
 instance semigroupTransactionWitnessSet :: Semigroup TransactionWitnessSet where
   append (TransactionWitnessSet tws) (TransactionWitnessSet tws') =
     TransactionWitnessSet
-      { vkeys: tws.vkeys `maybeArrayMerge` tws'.vkeys
-      , native_scripts: tws.native_scripts `maybeArrayMerge` tws'.native_scripts
-      , bootstraps: tws.bootstraps `maybeArrayMerge` tws'.bootstraps
-      , plutus_scripts: tws.plutus_scripts `maybeArrayMerge` tws'.plutus_scripts
-      , plutus_data: tws.plutus_data `maybeArrayMerge` tws'.plutus_data
-      , redeemers: tws.redeemers `maybeArrayMerge` tws'.redeemers
+      { vkeys: tws.vkeys <<>> tws'.vkeys
+      , native_scripts: tws.native_scripts <<>> tws'.native_scripts
+      , bootstraps: tws.bootstraps <<>> tws'.bootstraps
+      , plutus_scripts: tws.plutus_scripts <<>> tws'.plutus_scripts
+      , plutus_data: tws.plutus_data <<>> tws'.plutus_data
+      , redeemers: tws.redeemers <<>> tws'.redeemers
       }
 
 instance monoidTransactionWitnessSet :: Monoid TransactionWitnessSet where
@@ -333,25 +303,16 @@ instance monoidTransactionWitnessSet :: Monoid TransactionWitnessSet where
     }
 
 _plutus_scripts :: Lens' TransactionWitnessSet (Maybe (Array PlutusScript))
-_plutus_scripts = lens'
-  \(TransactionWitnessSet rec@{ plutus_scripts }) ->
-    Tuple
-      plutus_scripts
-      \ps -> TransactionWitnessSet rec { plutus_scripts = ps }
+_plutus_scripts = lens' \(TransactionWitnessSet rec@{ plutus_scripts }) ->
+  Tuple plutus_scripts \ps -> TransactionWitnessSet rec { plutus_scripts = ps }
 
 _plutus_data :: Lens' TransactionWitnessSet (Maybe (Array PlutusData))
-_plutus_data = lens'
-  \(TransactionWitnessSet rec@{ plutus_data }) ->
-    Tuple
-      plutus_data
-      \pd -> TransactionWitnessSet rec { plutus_data = pd }
+_plutus_data = lens' \(TransactionWitnessSet rec@{ plutus_data }) ->
+  Tuple plutus_data \pd -> TransactionWitnessSet rec { plutus_data = pd }
 
 _redeemers :: Lens' TransactionWitnessSet (Maybe (Array Redeemer))
-_redeemers = lens'
-  \(TransactionWitnessSet rec@{ redeemers }) ->
-    Tuple
-      redeemers
-      \red -> TransactionWitnessSet rec { redeemers = red }
+_redeemers = lens' \(TransactionWitnessSet rec@{ redeemers }) ->
+  Tuple redeemers \red -> TransactionWitnessSet rec { redeemers = red }
 
 type BootstrapWitness =
   { vkey :: Vkey
@@ -462,15 +423,6 @@ instance semigroupGeneralTransactionMetadata :: Semigroup GeneralTransactionMeta
 
 instance monoidGeneralTransactionMetadata :: Monoid GeneralTransactionMetadata where
   mempty = GeneralTransactionMetadata empty
-
--- Provide an append for HashMaps where we take the rightmost value
-appendRightHashMap
-  :: forall (k :: Type) (v :: Type)
-   . Hashable k
-  => HashMap k v
-  -> HashMap k v
-  -> HashMap k v
-appendRightHashMap = HashMap.unionWith (flip const)
 
 newtype TransactionMetadatumLabel = TransactionMetadatumLabel BigInt
 

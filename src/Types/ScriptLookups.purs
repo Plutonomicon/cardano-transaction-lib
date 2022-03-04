@@ -12,7 +12,6 @@ module Types.ScriptLookups
   , _datum
   , _validator
   , _value
-  , appendFirstMaybe
   , fromScriptOutput
   , fromTxOut
   , mintingPolicy
@@ -39,7 +38,6 @@ import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (foldM)
 import Data.FoldableWithIndex (foldWithIndexM)
-import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
 import Data.Lens ((%~), (.~), (<>~), (^.), lens', view)
@@ -55,7 +53,6 @@ import Data.List (List(Nil, Cons))
 import Data.Map (catMaybes) as Map
 import Data.Map (Map, empty, lookup, singleton, union)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Maybe.First (First(First))
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
@@ -63,7 +60,7 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Class (liftEffect)
-import Helpers (liftEither)
+import Helpers ((<\>), liftEither)
 import QueryM (QueryM)
 import Scripts
   ( mintingPolicyHash
@@ -337,15 +334,15 @@ _ScriptOgmiosTxOut' = _ScriptOgmiosTxOut <<< _ScriptIso
     { address, validator, datum, value }
 
 -- -------------------------------- OPTION 2 --------------------------------------
--- -- Isomorphic to OPTION 1 but is more succient but less expressive. In particular
--- -- Maybe failure and success provides a public key and script key address
+-- -- Isomorphic to OPTION 1, is more succinct but less expressive. In particular
+-- -- Maybe failure and success implies a public key and script key address
 -- -- respectively. The ' is just temporary so we can compile.
 -- -- 1) Cleaner but the Maybe doesn't really explain what's going on. Feels like
 -- -- a bad use of validating instead of parsing.
 -- -- 2) Potentially less flexible in the long run, in case we want to use datum at
--- -- public keys for example (seems unlikely given the eutxo set up).
+-- -- public keys for example (not sure if we'd want to though)
 -- -- 3) More changes for Haskell code.
--- -- 4) Less lenses required.
+-- -- 4) Less lenses (or none) required given row polymorphism convenience.
 -- data OgmiosTxOut' = OgmiosTxOut' OgmiosTxOut''
 
 -- -- Can think of a better name:
@@ -354,9 +351,9 @@ _ScriptOgmiosTxOut' = _ScriptOgmiosTxOut <<< _ScriptIso
 --   , validatorDatum :: Maybe ValidatorDatum -- Nothing = PublicKey, Just = Script
 --   , value :: Value
 --   }
-
+--
 -- --------------------------------------------------------------------------------
--- -- OgmiotsTxOut Option 2 helpers and lenses
+-- -- OgmiosTxOut Option 2 helpers and lenses
 -- --------------------------------------------------------------------------------
 -- toTxOut' :: OgmiosTxOut' -> Maybe TransactionOutput
 -- toTxOut' (OgmiosTxOut' { address, validatorDatum: Nothing, value }) =
@@ -437,12 +434,6 @@ derive newtype instance Eq (ScriptLookups a)
 
 instance Show (ScriptLookups a) where
   show = genericShow
-
--- Perhaps move this and appendLastMaybe into helpers
-appendFirstMaybe :: forall (a :: Type). Maybe a -> Maybe a -> Maybe a
-appendFirstMaybe m m' = on (<>) First m m' # \(First m'') -> m''
-
-infixr 5 appendFirstMaybe as <\>
 
 -- Using `Data.Map.union`, we can reeplicate left-biased <> from Data.Map used
 -- in Plutus (*not* Plutus' internal Map that uses something like unionWith (<>))
