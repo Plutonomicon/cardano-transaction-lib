@@ -31,6 +31,9 @@ import Types.Scripts (PlutusScript)
 import Types.Value (Coin, Value)
 import Serialization.Hash (Ed25519KeyHash)
 
+--------------------------------------------------------------------------------
+-- `Transaction`
+--------------------------------------------------------------------------------
 -- note: these types are derived from the cardano-serialization-lib Sundae fork
 -- the source of truth for these types should be that library and the
 -- corresponding Rust types
@@ -42,22 +45,6 @@ newtype Transaction = Transaction
   }
 
 derive instance newtypeTransaction :: Newtype Transaction _
-
-_body :: Lens' Transaction TxBody
-_body = lens' \(Transaction rec@{ body }) ->
-  Tuple body \bod -> Transaction rec { body = bod }
-
-_witness_set :: Lens' Transaction TransactionWitnessSet
-_witness_set = lens' \(Transaction rec@{ witness_set }) ->
-  Tuple witness_set \ws -> Transaction rec { witness_set = ws }
-
-_is_valid :: Lens' Transaction Boolean
-_is_valid = lens' \(Transaction rec@{ is_valid }) ->
-  Tuple is_valid \iv -> Transaction rec { is_valid = iv }
-
-_auxiliary_data :: Lens' Transaction (Maybe AuxiliaryData)
-_auxiliary_data = lens' \(Transaction rec@{ auxiliary_data }) ->
-  Tuple auxiliary_data \ad -> Transaction rec { auxiliary_data = ad }
 
 instance semigroupTransaction :: Semigroup Transaction where
   append (Transaction tx) (Transaction tx') =
@@ -82,6 +69,28 @@ instance monoidTransaction :: Monoid Transaction where
     , auxiliary_data: Nothing
     }
 
+--------------------------------------------------------------------------------
+-- `Transaction` Lenses
+--------------------------------------------------------------------------------
+_body :: Lens' Transaction TxBody
+_body = lens' \(Transaction rec@{ body }) ->
+  Tuple body \bod -> Transaction rec { body = bod }
+
+_witness_set :: Lens' Transaction TransactionWitnessSet
+_witness_set = lens' \(Transaction rec@{ witness_set }) ->
+  Tuple witness_set \ws -> Transaction rec { witness_set = ws }
+
+_is_valid :: Lens' Transaction Boolean
+_is_valid = lens' \(Transaction rec@{ is_valid }) ->
+  Tuple is_valid \iv -> Transaction rec { is_valid = iv }
+
+_auxiliary_data :: Lens' Transaction (Maybe AuxiliaryData)
+_auxiliary_data = lens' \(Transaction rec@{ auxiliary_data }) ->
+  Tuple auxiliary_data \ad -> Transaction rec { auxiliary_data = ad }
+
+--------------------------------------------------------------------------------
+-- `TxBody`
+--------------------------------------------------------------------------------
 -- According to https://github.com/input-output-hk/cardano-ledger/blob/0738804155245062f05e2f355fadd1d16f04cd56/alonzo/impl/cddl-files/alonzo.cddl
 -- required_signers is an Array over `VKey`s essentially. But some comments at
 -- the bottom say it's Maybe?
@@ -146,9 +155,6 @@ instance monoidTxBody :: Monoid TxBody where
     , required_signers: Nothing
     , network_id: Nothing
     }
-
-_network_id :: Lens' TxBody (Maybe NetworkId)
-_network_id = _Newtype <<< prop (SProxy :: SProxy "network_id")
 
 newtype ScriptDataHash = ScriptDataHash String
 
@@ -265,6 +271,55 @@ data Certificate
 
 derive instance eqCertificate :: Eq Certificate
 
+--------------------------------------------------------------------------------
+-- `TxBody` Lenses
+--------------------------------------------------------------------------------
+_inputs :: Lens' TxBody (Array TransactionInput)
+_inputs = _Newtype <<< prop (SProxy :: SProxy "inputs")
+
+_outputs :: Lens' TxBody (Array TransactionOutput)
+_outputs = _Newtype <<< prop (SProxy :: SProxy "outputs")
+
+_fee :: Lens' TxBody (Coin)
+_fee = _Newtype <<< prop (SProxy :: SProxy "fee")
+
+_ttl :: Lens' TxBody (Maybe Slot)
+_ttl = _Newtype <<< prop (SProxy :: SProxy "ttl")
+
+_certs :: Lens' TxBody (Maybe (Array Certificate))
+_certs = _Newtype <<< prop (SProxy :: SProxy "certs")
+
+_withdrawals :: Lens' TxBody (Maybe (Map RewardAddress Coin))
+_withdrawals = _Newtype <<< prop (SProxy :: SProxy "withdrawals")
+
+_update :: Lens' TxBody (Maybe Update)
+_update = _Newtype <<< prop (SProxy :: SProxy "update")
+
+_auxiliary_data_hash :: Lens' TxBody (Maybe AuxiliaryDataHash)
+_auxiliary_data_hash = _Newtype <<< prop (SProxy :: SProxy "auxiliary_data_hash")
+
+_validity_start_interval :: Lens' TxBody (Maybe Slot)
+_validity_start_interval =
+  _Newtype <<< prop (SProxy :: SProxy "validity_start_interval")
+
+_mint :: Lens' TxBody (Maybe Mint)
+_mint = _Newtype <<< prop (SProxy :: SProxy "mint")
+
+_script_data_hash :: Lens' TxBody (Maybe ScriptDataHash)
+_script_data_hash = _Newtype <<< prop (SProxy :: SProxy "script_data_hash")
+
+_collateral :: Lens' TxBody (Maybe (Array TransactionInput))
+_collateral = _Newtype <<< prop (SProxy :: SProxy "collateral")
+
+_required_signers :: Lens' TxBody (Maybe (Array RequiredSigner))
+_required_signers = _Newtype <<< prop (SProxy :: SProxy "required_signers")
+
+_network_id :: Lens' TxBody (Maybe NetworkId)
+_network_id = _Newtype <<< prop (SProxy :: SProxy "network_id")
+
+--------------------------------------------------------------------------------
+-- `TransactionWitnessSet`
+--------------------------------------------------------------------------------
 newtype TransactionWitnessSet = TransactionWitnessSet
   { vkeys :: Maybe (Array Vkeywitness)
   , native_scripts :: Maybe (Array NativeScript)
@@ -302,6 +357,21 @@ instance monoidTransactionWitnessSet :: Monoid TransactionWitnessSet where
     , redeemers: Nothing
     }
 
+--------------------------------------------------------------------------------
+-- `TransactionWitnessSet` Lenses
+--------------------------------------------------------------------------------
+_vkeys :: Lens' TransactionWitnessSet (Maybe (Array Vkeywitness))
+_vkeys = lens' \(TransactionWitnessSet rec@{ vkeys }) ->
+  Tuple vkeys \vk -> TransactionWitnessSet rec { vkeys = vk }
+
+_native_scripts :: Lens' TransactionWitnessSet (Maybe (Array NativeScript))
+_native_scripts = lens' \(TransactionWitnessSet rec@{ native_scripts }) ->
+  Tuple native_scripts \ns -> TransactionWitnessSet rec { native_scripts = ns }
+
+_bootstraps :: Lens' TransactionWitnessSet (Maybe (Array BootstrapWitness))
+_bootstraps = lens' \(TransactionWitnessSet rec@{ bootstraps }) ->
+  Tuple bootstraps \bs -> TransactionWitnessSet rec { bootstraps = bs }
+
 _plutus_scripts :: Lens' TransactionWitnessSet (Maybe (Array PlutusScript))
 _plutus_scripts = lens' \(TransactionWitnessSet rec@{ plutus_scripts }) ->
   Tuple plutus_scripts \ps -> TransactionWitnessSet rec { plutus_scripts = ps }
@@ -314,6 +384,9 @@ _redeemers :: Lens' TransactionWitnessSet (Maybe (Array Redeemer))
 _redeemers = lens' \(TransactionWitnessSet rec@{ redeemers }) ->
   Tuple redeemers \red -> TransactionWitnessSet rec { redeemers = red }
 
+--------------------------------------------------------------------------------
+-- Other Datatypes
+--------------------------------------------------------------------------------
 type BootstrapWitness =
   { vkey :: Vkey
   , signature :: Ed25519Signature
