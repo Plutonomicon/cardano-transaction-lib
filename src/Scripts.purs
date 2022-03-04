@@ -35,8 +35,8 @@ import Types.Scripts
   , ValidatorHash
   )
 
--- Helpers for `PlutusScript` and `ScriptHash` newtype wrappers, have it separate
--- to prevent cylic dependencies.
+-- | Helpers for `PlutusScript` and `ScriptHash` newtype wrappers, separate from
+-- | the data type definitions to prevent cylic dependencies.
 
 -- | Converts a Plutus-style `Validator` to a `BaseAddress`
 validatorBaseAddress :: NetworkId -> Validator -> Effect (Maybe BaseAddress)

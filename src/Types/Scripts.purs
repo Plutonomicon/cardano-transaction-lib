@@ -7,8 +7,7 @@ module Types.Scripts
   , TypedValidator(..)
   , Validator(..)
   , ValidatorHash(..)
-  )
-  where
+  ) where
 
 import Prelude
 

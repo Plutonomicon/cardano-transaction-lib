@@ -25,8 +25,7 @@ module Types.ScriptLookups
   , toTxOut
   , typedValidatorLookups
   , unspentOutputs
-  )
-  where
+  ) where
 
 import Prelude hiding (join)
 import Control.Monad.Error.Class (catchError, throwError)
@@ -154,10 +153,10 @@ convertRedeemer = undefined
 -- OgmiotsTxOut type (new version)
 --------------------------------------------------------------------------------
 -- ChainIndexTxOut will be replaced by OgmiosTxOut. Note we already have an
--- OgmiosTxOut in JsonWsp.OgmiosTxOut - that may be not be sufficient so
--- consider the two options below. OPTION 1 follows ChainIndexTxOut closely
--- although I don't know if we can construct Validator and Datum (see below)
--- OPTION 2 is simpler although less informative.
+-- OgmiosTxOut in JsonWsp.OgmiosTxOut but the one in this module includes extra
+-- information. OPTION 1 follows ChainIndexTxOut closely although I don't know
+--  if we can construct Validator and Datum (see below)
+-- OPTION 2 is simpler although less informative and closer to JsonWsp.OgmiosTxOut
 
 -------------------------------- OPTION 1 --------------------------------------
 -- If we can deserialise the below information from Ogmios, we should replace
@@ -168,7 +167,8 @@ convertRedeemer = undefined
 -- meaning may be obsecured. This is more closely related to our current
 -- OgmiosTxOut
 -- 3) Can we coincide this with Ogmios query? In particular, can we
--- even get Validator and Datum directly or we just restricted to their hashes?
+-- even get Validator and Datum directly or are we restricted to just their
+-- hashes?
 data OgmiosTxOut
   = PublicKeyOgmiosTxOut PublicKeyOgmiosTxOut
   | ScriptOgmiosTxOut ScriptOgmiosTxOut
@@ -179,13 +179,16 @@ derive instance Eq OgmiosTxOut
 instance Show OgmiosTxOut where
   show = genericShow
 
+-- Write as a type alias for convenience when writing Lenses.
 type PublicKeyOgmiosTxOut =
   { address :: Address
   , value :: Value
   }
 
-type PublicKeyOgmiosTxOut' = Address /\ Value
+-- Separate as a type alias for convenience when writing Lenses
+type PublicKeyOgmiosTxOutTuple = Address /\ Value
 
+-- Separate as a type alias for convenience when writing Lenses
 type ScriptOgmiosTxOut =
   { address :: Address
   , validator :: Either ValidatorHash Validator
@@ -193,18 +196,20 @@ type ScriptOgmiosTxOut =
   , value :: Value
   }
 
-type ScriptOgmiosTxOut' =
+-- Separate as a type alias for convenience when writing Lenses
+type ScriptOgmiosTxOutTuple =
   Address /\ Either ValidatorHash Validator /\ Either DatumHash Datum /\ Value
 
 --------------------------------------------------------------------------------
--- OgmiotsTxOut Option 1 helpers and lenses
+-- OgmiosTxOut Option 1 helpers and lenses
 --------------------------------------------------------------------------------
 -- | Converts a transaction output from the Ogmios TxOut to the internal
 -- | transaction input.
 -- |
 -- | Note that converting from `OgmiosTxOut` to `TxOutRef` and back to
 -- | `OgmiosTxOut` loses precision (`Datum` and `Validator` are changed to
--- | `DatumHash` and `ValidatorHash` respectively)
+-- | `DatumHash` and `ValidatorHash` respectively).
+-- | This can fail because of `datumHash` invocation.
 toTxOut :: OgmiosTxOut -> Maybe TransactionOutput
 toTxOut (PublicKeyOgmiosTxOut { address, value }) =
   pure $ TransactionOutput
@@ -229,7 +234,7 @@ toTxOut (ScriptOgmiosTxOut { address, datum: Right datum, value }) = do
     , data_hash: Just datHash
     }
 
--- | Converts a internal transaction output to the Ogmios transaction output.
+-- | Converts an internal transaction output to the Ogmios transaction output.
 fromTxOut :: TransactionOutput -> Maybe OgmiosTxOut
 fromTxOut (TransactionOutput { address, amount: value, data_hash }) = do
   paymentCred <- addressPaymentCred address
@@ -240,7 +245,8 @@ fromTxOut (TransactionOutput { address, amount: value, data_hash }) = do
           { address, validator: Left $ ValidatorHash sh, datum: Left dh, value }
     }
 
--- This is impure because of `validatorHash`.
+-- | Converts an Ogmios Transaction output to a `ScriptOutput`. This is impure
+-- |because of `validatorHash`.
 toScriptOutput :: OgmiosTxOut -> Effect (Maybe ScriptOutput)
 toScriptOutput (ScriptOgmiosTxOut { validator, datum, value }) = runMaybeT do
   -- Recall: validator is a validator hash or validator
@@ -253,6 +259,7 @@ toScriptOutput (ScriptOgmiosTxOut { validator, datum, value }) = runMaybeT do
     }
 toScriptOutput _ = pure Nothing
 
+-- | Converts an `ScriptOutput` to Ogmios Transaction output.
 fromScriptOutput :: NetworkId -> ScriptOutput -> OgmiosTxOut
 fromScriptOutput
   networkId
@@ -264,82 +271,68 @@ fromScriptOutput
     , value
     }
 
--- Lenses to replicate the Plutus API incase anyone uses these, we don't have
--- Template Purescript so they need to be created manually.
+-- | Lenses to replicate the Plutus API
 --
--- I'm using a seemingly Purescript convention to underscore lenses, which seems
--- to be "the opposite" of Haskell, where underscores are used in a record type
--- then TH derives lenses. This could be confusing with FFIs.
+-- We don't have Template Purescript, therefore they are created manually.
+-- I'm using a Purescript convention to underscore lenses, which appears to be
+-- "the opposite" of Haskell, where underscores are used in a record type
+-- then TH derives. This could be confusing with FFIs.
+
 _value :: Lens' OgmiosTxOut Value
 _value = lens' case _ of
-  PublicKeyOgmiosTxOut { address, value } ->
-    Tuple
-      value
-      \val -> PublicKeyOgmiosTxOut { address, value: val }
-  ScriptOgmiosTxOut { address, validator, datum, value } ->
-    Tuple
-      value
-      \val -> ScriptOgmiosTxOut { address, validator, datum, value: val }
+  PublicKeyOgmiosTxOut rec@{ value } ->
+    Tuple value \val -> PublicKeyOgmiosTxOut rec { value = val }
+  ScriptOgmiosTxOut rec@{ value } ->
+    Tuple value \val -> ScriptOgmiosTxOut rec { value = val }
 
 _address :: Lens' OgmiosTxOut Address
 _address = lens' case _ of
-  PublicKeyOgmiosTxOut { address, value } ->
-    Tuple
-      address
-      \addr -> PublicKeyOgmiosTxOut { address: addr, value }
-  ScriptOgmiosTxOut { address, validator, datum, value } ->
-    Tuple
-      address
-      \addr -> ScriptOgmiosTxOut { address: addr, validator, datum, value }
+  PublicKeyOgmiosTxOut rec@{ address } ->
+    Tuple address \addr -> PublicKeyOgmiosTxOut rec { address = addr }
+  ScriptOgmiosTxOut rec@{ address } ->
+    Tuple address \addr -> ScriptOgmiosTxOut rec { address = addr }
 
--- Can be AffineTraversal' also
+-- Can be an `AffineTraversal'` also
 _validator :: Traversal' OgmiosTxOut (Either ValidatorHash Validator)
-_validator = _ScriptOgmiosTxOut' <<< _validatorField
-  where
-  _validatorField
-    :: forall (a :: Type) (r :: Row Type). Lens' { validator :: a | r } a
-  _validatorField = prop (SProxy :: SProxy "validator")
+_validator = _ScriptOgmiosTxOut <<< prop (SProxy :: SProxy "validator")
 
--- Can be AffineTraversal' also
+-- Can be an `AffineTraversal'` also
 _datum :: Traversal' OgmiosTxOut (Either DatumHash Datum)
-_datum = _ScriptOgmiosTxOut' <<< _datumField
-  where
-  _datumField :: forall (a :: Type) (r :: Row Type). Lens' { datum :: a | r } a
-  _datumField = prop (SProxy :: SProxy "datum")
+_datum = _ScriptOgmiosTxOut <<< prop (SProxy :: SProxy "datum")
 
-_PublicKeyOgmiosTxOut' :: Prism' OgmiosTxOut PublicKeyOgmiosTxOut
-_PublicKeyOgmiosTxOut' = prism' PublicKeyOgmiosTxOut case _ of
+_PublicKeyOgmiosTxOut :: Prism' OgmiosTxOut PublicKeyOgmiosTxOut
+_PublicKeyOgmiosTxOut = prism' PublicKeyOgmiosTxOut case _ of
   PublicKeyOgmiosTxOut x -> Just x
   ScriptOgmiosTxOut _ -> Nothing
 
-_PublicKeyOgmiosTxOut :: Prism' OgmiosTxOut PublicKeyOgmiosTxOut'
-_PublicKeyOgmiosTxOut = _PublicKeyOgmiosTxOut' <<< _PubKeyIso
+_PublicKeyOgmiosTxOut' :: Prism' OgmiosTxOut PublicKeyOgmiosTxOutTuple
+_PublicKeyOgmiosTxOut' = _PublicKeyOgmiosTxOut <<< _PubKeyIso
+  where
+  _PubKeyIso :: Iso' PublicKeyOgmiosTxOut PublicKeyOgmiosTxOutTuple
+  _PubKeyIso = iso recordToTuple tupleToRecord
 
-_ScriptOgmiosTxOut' :: Prism' OgmiosTxOut ScriptOgmiosTxOut
-_ScriptOgmiosTxOut' = prism' ScriptOgmiosTxOut case _ of
+  recordToTuple :: PublicKeyOgmiosTxOut -> PublicKeyOgmiosTxOutTuple
+  recordToTuple { address, value } = address /\ value
+
+  tupleToRecord :: PublicKeyOgmiosTxOutTuple -> PublicKeyOgmiosTxOut
+  tupleToRecord (address /\ value) = { address, value }
+
+_ScriptOgmiosTxOut :: Prism' OgmiosTxOut ScriptOgmiosTxOut
+_ScriptOgmiosTxOut = prism' ScriptOgmiosTxOut case _ of
   ScriptOgmiosTxOut x -> Just x
   PublicKeyOgmiosTxOut _ -> Nothing
 
-_ScriptOgmiosTxOut :: Prism' OgmiosTxOut ScriptOgmiosTxOut'
-_ScriptOgmiosTxOut = _ScriptOgmiosTxOut' <<< _ScriptIso
-
-_PubKeyIso :: Iso' PublicKeyOgmiosTxOut PublicKeyOgmiosTxOut'
-_PubKeyIso = iso recordToTuple tupleToRecord
+_ScriptOgmiosTxOut' :: Prism' OgmiosTxOut ScriptOgmiosTxOutTuple
+_ScriptOgmiosTxOut' = _ScriptOgmiosTxOut <<< _ScriptIso
   where
-  recordToTuple :: PublicKeyOgmiosTxOut -> PublicKeyOgmiosTxOut'
-  recordToTuple { address, value } = address /\ value
+  _ScriptIso :: Iso' ScriptOgmiosTxOut ScriptOgmiosTxOutTuple
+  _ScriptIso = iso recordToTuple tupleToRecord
 
-  tupleToRecord :: PublicKeyOgmiosTxOut' -> PublicKeyOgmiosTxOut
-  tupleToRecord (address /\ value) = { address, value }
-
-_ScriptIso :: Iso' ScriptOgmiosTxOut ScriptOgmiosTxOut'
-_ScriptIso = iso recordToTuple tupleToRecord
-  where
-  recordToTuple :: ScriptOgmiosTxOut -> ScriptOgmiosTxOut'
+  recordToTuple :: ScriptOgmiosTxOut -> ScriptOgmiosTxOutTuple
   recordToTuple { address, validator, datum, value } =
     address /\ validator /\ datum /\ value
 
-  tupleToRecord :: ScriptOgmiosTxOut' -> ScriptOgmiosTxOut
+  tupleToRecord :: ScriptOgmiosTxOutTuple -> ScriptOgmiosTxOut
   tupleToRecord (address /\ validator /\ datum /\ value) =
     { address, validator, datum, value }
 
@@ -702,7 +695,7 @@ processLookupsAndConstraints
   -> QueryM (Either MkTxError ConstraintProcessingState)
 processLookupsAndConstraints
   lookups
-  (TxConstraints { txConstraints }) = runExceptT $
+  (TxConstraints { constraints }) = runExceptT $
   ExceptT
     ( foldM
         ( \cps constr -> runExceptT do -- FIX ME: factor this out
@@ -710,7 +703,7 @@ processLookupsAndConstraints
             ExceptT $ processConstraint lookups cps' constr
         )
         (Right initialCps)
-        txConstraints
+        constraints
     )
     >>= ExceptT <<< addMintingRedeemers
     >>= ExceptT <<< addMissingValueSpent lookups

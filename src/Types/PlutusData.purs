@@ -4,8 +4,7 @@ module Types.PlutusData
   , class ToData
   , fromData
   , toData
-  )
-  where
+  ) where
 
 import Prelude
 

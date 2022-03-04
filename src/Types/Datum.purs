@@ -7,8 +7,7 @@ module Types.Datum
   , plutusDatumHash
   , redeemerHash
   , unitRedeemer
-  )
-  where
+  ) where
 
 import Prelude
 
@@ -24,6 +23,10 @@ import Types.RedeemerTag (RedeemerTag)
 import Types.Transaction (DataHash)
 import Untagged.Union (asOneOf)
 import Undefined (undefined)
+
+-- | Define data types mirroring Plutus `Datum`, like `Datum` itself and
+-- | `Redeemer` where the latter is not to be confused with the CSL-stype
+-- | `Types.Transaction.Redeemer`.
 
 -- | `Datum` is defined as a newtype of `PlutusData`
 newtype Datum = Datum PlutusData
