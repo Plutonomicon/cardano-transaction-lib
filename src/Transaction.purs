@@ -43,6 +43,8 @@ derive instance Generic ModifyTxError _
 instance Show ModifyTxError where
   show = genericShow
 
+-- | Set the `Transaction` body's script data hash. NOTE: Must include all of
+-- | the datums and redeemers for the given transaction
 setScriptDataHash
   :: Array Redeemer -> Array Datum -> Transaction -> Effect Transaction
 setScriptDataHash rs ds tx@(Transaction { body }) = do
