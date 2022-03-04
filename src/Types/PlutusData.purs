@@ -45,13 +45,20 @@ instance Show PlutusData where
   show x = genericShow x
 
 instance DecodeAeson PlutusData where
-  decodeAeson aeson = decodeConstr <|> decodeMap <|> decodeList <|> decodeInteger <|> decodeBytes
+  decodeAeson aeson = decodeConstr
+    <|> decodeMap
+    <|> decodeList
+    <|> decodeInteger
+    <|> decodeBytes
     where
+    decodeConstr :: Either JsonDecodeError PlutusData
     decodeConstr = do
       x <- decodeAeson aeson
       constr <- x .: "constr"
       fields <- x .: "fields"
       pure $ Constr constr fields
+
+    decodeMap :: Either JsonDecodeError PlutusData
     decodeMap = do
       obj <- decodeAeson aeson
       map1 <- (obj .: "map" :: Either _ (Array _))
@@ -60,10 +67,16 @@ instance DecodeAeson PlutusData where
         value <- entryJson .: "value"
         pure $ key /\ value
       pure $ Map (Map.fromFoldable kvs)
+
+    decodeList :: Either JsonDecodeError PlutusData
     decodeList = do
       List <$> decodeAeson aeson
+
+    decodeInteger :: Either JsonDecodeError PlutusData
     decodeInteger = do
       Integer <$> decodeAeson aeson
+
+    decodeBytes :: Either JsonDecodeError PlutusData
     decodeBytes = do
       bytesHex <- decodeAeson aeson
       case hexToByteArray bytesHex of
@@ -89,7 +102,7 @@ derive newtype instance Ord Datum
 derive instance Newtype Datum _
 derive instance Generic Datum _
 
-instance showDatum :: Show Datum where
+instance Show Datum where
   show = genericShow
 
 -- To help with people copying & pasting code from Haskell to Purescript

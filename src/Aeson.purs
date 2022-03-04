@@ -57,7 +57,7 @@ getJson (Aeson { json }) = json
 -- | A list of numbers extracted from Json, as they appear in the payload.
 type NumberIndex = Array String
 
-class DecodeAeson a where
+class DecodeAeson (a :: Type) where
   decodeAeson :: Aeson -> Either JsonDecodeError a
 
 instance DecodeAeson Int where
@@ -91,12 +91,17 @@ instance (Traversable t, DecodeAeson a, DecodeJson (t Json)) => DecodeAeson (t a
     jsons :: t _ <- decodeJson json
     for jsons (\valueJson -> decodeAeson (Aeson { json: valueJson, index }))
 
-getField :: forall a. DecodeAeson a => FO.Object Aeson -> String -> Either JsonDecodeError a
+getField
+  :: forall (a :: Type)
+   . DecodeAeson a
+  => FO.Object Aeson
+  -> String
+  -> Either JsonDecodeError a
 getField aesonObject field = getField' decodeAeson aesonObject field
 
 -- | Adapted from `Data.Argonaut.Decode.Decoders`
 getField'
-  :: forall a
+  :: forall (a :: Type)
    . (Aeson -> Either JsonDecodeError a)
   -> FO.Object Aeson
   -> String
@@ -112,13 +117,17 @@ infix 7 getField as .:
 -- TODO: add getFieldOptional if ever needed.
 
 foreign import parseJsonExtractingIntegers
-  :: (forall a b. a -> b -> Tuple a b) -> String -> String /\ NumberIndex
+  :: (forall (a :: Type) (b :: Type). a -> b -> Tuple a b)
+  -> String
+  -> String /\ NumberIndex
 
 -- | Ignore numeric index and reuse Argonaut decoder.
-decodeAesonViaJson :: forall a. DecodeJson a => Aeson -> Either JsonDecodeError a
+decodeAesonViaJson
+  :: forall (a :: Type). DecodeJson a => Aeson -> Either JsonDecodeError a
 decodeAesonViaJson (Aeson { json }) = decodeJson json
 
-decodeAesonString :: forall a. DecodeAeson a => String -> Either JsonDecodeError a
+decodeAesonString
+  :: forall (a :: Type). DecodeAeson a => String -> Either JsonDecodeError a
 decodeAesonString payload = do
   json <- note MissingValue $ hush $ jsonParser patchedPayload
   decodeAeson (Aeson { index, json })
