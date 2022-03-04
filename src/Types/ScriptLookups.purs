@@ -91,8 +91,12 @@ import Types.Transaction
   , TransactionOutput(TransactionOutput)
   , TxBody
   , _body
+  , _inputs
+  , _mint
   , _network_id
+  , _outputs
   , _plutus_scripts
+  , _required_signers
   , _witness_set
   )
 import Types.TxConstraints
@@ -435,7 +439,7 @@ derive newtype instance Eq (ScriptLookups a)
 instance Show (ScriptLookups a) where
   show = genericShow
 
--- Using `Data.Map.union`, we can reeplicate left-biased <> from Data.Map used
+-- Using `Data.Map.union`, we can replicate left-biased <> from Data.Map used
 -- in Plutus (*not* Plutus' internal Map that uses something like unionWith (<>))
 instance Semigroup (ScriptLookups a) where
   append (ScriptLookups l) (ScriptLookups r) =
@@ -743,7 +747,7 @@ addMissingValueSpent (ScriptLookups lookups) cps = do
         , data_hash: Nothing
         }
     liftEither $ Right $ cps
-      # _cpsToTxBody <<< _Newtype <<< _outputs %~ (:) txOut
+      # _cpsToTxBody <<< _outputs %~ (:) txOut
 
 addMintingRedeemers
   :: ConstraintProcessingState
@@ -866,7 +870,7 @@ processConstraint lookups cps = case _ of
       sigs = Array.singleton <<< payPubKeyRequiredSigner <$>
         lookup pkh (unwrap lookups).paymentPubKeyHashes
     pure $ Right $ cps
-      # _cpsToTxBody <<< _Newtype <<< _required_signers <>~ sigs
+      # _cpsToTxBody <<< _required_signers <>~ sigs
   MustSpendAtLeast vl -> pure $ Right $
     cps # _valueSpentBalancesInputs <>~ require vl
   MustProduceAtLeast vl -> pure $ Right $
@@ -878,7 +882,7 @@ processConstraint lookups cps = case _ of
         -- keeps track TxOutRef and TxInType (the input type, whether consuming
         -- script, public key or simple script)
         Right $ cps
-          # _cpsToTxBody <<< _Newtype <<< _inputs %~ (:) txo
+          # _cpsToTxBody <<< _inputs %~ (:) txo
           # _valueSpentBalancesInputs <>~ provide value
       Left err -> throwError err
       _ -> throwError $ TxOutRefWrongType txo
@@ -903,7 +907,7 @@ processConstraint lookups cps = case _ of
         --       `lookupDatum`
         -- let input = Tx.scriptTxIn txo validator red dataValue
         liftEither $ Right $ redCps
-          # _cpsToTxBody <<< _Newtype <<< _inputs %~ (:) txo
+          # _cpsToTxBody <<< _inputs %~ (:) txo
           # _valueSpentBalancesInputs <>~ provide value
       Left err -> pure $ throwError err
       _ -> pure $ throwError (TxOutRefWrongType txo)
@@ -928,7 +932,7 @@ processConstraint lookups cps = case _ of
     -- is ready - I presume this will use the same functionality.
     -- unbalancedTx . tx . Tx.mintScripts %= Set.insert mintingPolicyScript
     Right $ valCps
-      # _cpsToTxBody <<< _Newtype <<< _mint <>~ Just (wrap mintVal)
+      # _cpsToTxBody <<< _mint <>~ Just (wrap mintVal)
       # _mintRedeemers <<< at mpsHash .~ Just red
   MustPayToPubKeyAddress pkh _mSkh mDt amount -> runExceptT do -- FIX ME, USE _mSkh as backup.
     -- if datum is presented, add it to 'datumWitnesses'
@@ -944,7 +948,7 @@ processConstraint lookups cps = case _ of
       txOut = TransactionOutput
         { address: payPubKeyHashAddress networkId pkh, amount, data_hash }
     liftEither $ Right $ datCps
-      # _cpsToTxBody <<< _Newtype <<< _outputs %~ (:) txOut
+      # _cpsToTxBody <<< _outputs %~ (:) txOut
       # _valueSpentBalancesOutputs <>~ provide amount
   MustPayToOtherScript vlh dt amount -> runExceptT do
     let mNetworkId = cps ^. _cpsToTxBody <<< _network_id
@@ -955,7 +959,7 @@ processConstraint lookups cps = case _ of
         { address: validatorHashAddress networkId vlh, amount, data_hash }
     datCps <- ExceptT $ liftEffect $ attachToCps attachDatum cps dt
     liftEither $ Right $ datCps
-      # _cpsToTxBody <<< _Newtype <<< _outputs %~ (:) txOut
+      # _cpsToTxBody <<< _outputs %~ (:) txOut
       # _valueSpentBalancesOutputs <>~ provide amount
   MustHashDatum dh dt ->
     if datumHash dt == Just dh then liftEffect $ attachToCps attachDatum cps dt
@@ -985,17 +989,6 @@ processConstraint lookups cps = case _ of
           ys
     in
       tryNext (toUnfoldable $ map toUnfoldable xs)
-  where
-  _required_signers
-    :: forall (b :: Type) (r :: Row Type)
-     . Lens' { required_signers :: b | r } b
-  _required_signers = prop (SProxy :: SProxy "required_signers")
-
-  _inputs :: forall (b :: Type) (r :: Row Type). Lens' { inputs :: b | r } b
-  _inputs = prop (SProxy :: SProxy "inputs")
-
-  _mint :: forall (b :: Type) (r :: Row Type). Lens' { mint :: b | r } b
-  _mint = prop (SProxy :: SProxy "mint")
 
 -- Attach a Datum or Redeemer depending on the handler. They share error
 -- type so this is fine.
@@ -1016,7 +1009,3 @@ attachToCps handler cps''@(ConstraintProcessingState cps') object =
 
 _cpsToTxBody :: Lens' ConstraintProcessingState TxBody
 _cpsToTxBody = _unbalancedTx <<< _transaction <<< _body
-
--- FIX ME: move and rewrite this
-_outputs :: forall (b :: Type) (r :: Row Type). Lens' { outputs :: b | r } b
-_outputs = prop (SProxy :: SProxy "outputs")
