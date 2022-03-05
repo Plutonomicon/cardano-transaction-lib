@@ -2,7 +2,17 @@ module Test.Aeson where
 
 import Prelude
 
-import Aeson (decodeAesonString)
+import Aeson
+  ( decodeAeson
+  , decodeAesonString
+  , getField
+  , getNestedAeson
+  , jsonToAeson
+  , parseJsonStringToAeson
+  , toObject
+  , toStringifiedNumbersJson
+  )
+import Data.Argonaut (parseJson, stringify)
 import Data.BigInt as BigInt
 import Data.Either (Either(..))
 import Data.Map as Map
@@ -60,3 +70,45 @@ suite = do
           , Integer $ BigInt.fromInt 3
           ]
       decodeAesonString input `shouldEqual` Right expected
+
+    test "Record" $ liftEffect do
+      let
+        expected = { a: 10 }
+      decodeAesonString "{\"a\": 10}" `shouldEqual` Right expected
+
+  group "Object field accessing" do
+    let
+      asn = unsafePartial $ fromRight $ parseJsonStringToAeson
+        "{\"a\": 10, \"b\":[{\"b1\":\"valb\"}], \"c\":{\"c1\": \"valc\"}}"
+      asnObj = unsafePartial $ fromJust $ toObject $ asn
+    test "getField" $ liftEffect do
+      getField asnObj "a" `shouldEqual` Right 10
+      getField asnObj "b" `shouldEqual` Right ([ { b1: "valb" } ])
+
+    test "getNestedAeson" $ liftEffect do
+      (getNestedAeson asn [ "c", "c1" ] >>= decodeAeson) `shouldEqual` (Right "valc")
+
+  group "Json <-> Aeson" do
+    test "toStringifiedNumbersJson" $ liftEffect do
+      let
+        asn = unsafePartial $ fromRight $ parseJsonStringToAeson
+          "{\"a\":10,\"b\":[{\"b1\":\"valb\"}],\"c\":{\"c1\":\"valc\"}}"
+        expected = "{\"a\":\"10\",\"b\":[{\"b1\":\"valb\"}],\"c\":{\"c1\":\"valc\"}}"
+      (toStringifiedNumbersJson asn # stringify) `shouldEqual` expected
+
+    test "jsonToAeson" $ liftEffect do
+      let
+        jsn = unsafePartial $ fromRight $ parseJson
+          "{\"a\":10,\"b\":[{\"b1\":\"valb\"}],\"c\":{\"c1\":\"valc\"}}"
+        expected = "{\"a\":\"10\",\"b\":[{\"b1\":\"valb\"}],\"c\":{\"c1\":\"valc\"}}"
+      (jsonToAeson jsn # toStringifiedNumbersJson # stringify) `shouldEqual` expected
+
+-- TODO
+-- group "caseAeson" do
+--   let asn = unsafePartial $ fromRight $ parseJsonStringToAeson
+--   test "caseObject" $ liftEffect do
+--     let f = caseAeson $ constAesonCases (const Nothing) # _{caseObject = Just}
+--         -a
+
+fromRight :: forall (a :: Type) (e :: Type). Partial => Either e a -> a
+fromRight (Right x) = x
