@@ -303,6 +303,7 @@ after h (Interval { ivTo }) = upperBound h > ivTo
 -- Most of these functions could use a Reader constraint over `SlotConfig` but
 -- that would depend on how the `Contract` monad pans out, we'll keep it
 -- explicit for now.
+
 type SlotRange = Interval Slot
 
 newtype SlotConfig = SlotConfig
@@ -399,15 +400,16 @@ posixTimeRangeToContainedSlotRange sc ptr = do
       Finite s -> f sc s `member` ptr
       _ -> def
 
-    getExtended :: Extended (Maybe Slot) -> Maybe (Extended Slot)
-    getExtended = case _ of
+    seqExtended :: Extended (Maybe Slot) -> Maybe (Extended Slot)
+    seqExtended = case _ of
       Finite (Just s) -> pure $ Finite s
       Finite Nothing -> Nothing
       NegInf -> pure NegInf
       PosInf -> pure PosInf
 
-  start' <- getExtended start
-  end' <- getExtended end
+  -- Fail if any of the outputs of `posixTimeToEnclosingSlot` are `Nothing`.
+  start' <- seqExtended start
+  end' <- seqExtended end
   pure $ Interval
     { ivFrom: LowerBound start' (closureWith slotToBeginPOSIXTime startIncl start')
     , ivTo: UpperBound end' (closureWith slotToBeginPOSIXTime endIncl end')
@@ -417,7 +419,8 @@ type TransactionValiditySlot =
   { validityStartInterval :: Maybe Slot, timeToLive :: Maybe Slot }
 
 -- FIX ME: I've interpreted `Nothing` as below, although this may change
--- depending on our desired behaviour.
+-- depending on our desired behaviour. I'm not entirely sure what why we have
+-- a Maybe Slot in `TxBody`. Thoughts on this would be great.
 -- | Converts a SlotRange to two separate slots used in building Types.Transaction.
 -- | Note that we lose information regarding whether the bounds or not, although
 -- | everything is one-to-one.
