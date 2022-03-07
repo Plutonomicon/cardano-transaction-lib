@@ -300,6 +300,9 @@ after h (Interval { ivTo }) = upperBound h > ivTo
 --------------------------------------------------------------------------------
 -- SlotConfig Type and related
 --------------------------------------------------------------------------------
+-- Most of these functions could use a Reader constraint over `SlotConfig` but
+-- that would depend on how the `Contract` monad pans out, we'll keep it
+-- explicit for now.
 type SlotRange = Interval Slot
 
 newtype SlotConfig = SlotConfig
@@ -326,8 +329,8 @@ defaultSlotConfig = SlotConfig
   }
 
 -- | Convert a 'SlotRange' to a 'POSIXTimeRange' given a 'SlotConfig'. The
--- resulting 'POSIXTimeRange' refers to the starting time of the lower bound of
--- the 'SlotRange' and the ending time of the upper bound of the 'SlotRange'.
+-- | resulting 'POSIXTimeRange' refers to the starting time of the lower bound of
+-- | the 'SlotRange' and the ending time of the upper bound of the 'SlotRange'.
 slotRangeToPOSIXTimeRange :: SlotConfig -> SlotRange -> POSIXTimeRange
 slotRangeToPOSIXTimeRange
   sc
@@ -348,7 +351,7 @@ slotRangeToPOSIXTimeRange
       }
 
 -- | Convert a 'Slot' to a 'POSIXTimeRange' given a 'SlotConfig'. Each 'Slot'
--- can be represented by an interval of time.
+-- | can be represented by an interval of time.
 slotToPOSIXTimeRange :: SlotConfig -> Slot -> POSIXTimeRange
 slotToPOSIXTimeRange sc slot =
   interval (slotToBeginPOSIXTime sc slot) (slotToEndPOSIXTime sc slot)
@@ -359,11 +362,10 @@ slotToPOSIXTimeRange sc slot =
 uIntToBigInt :: UInt -> BigInt
 uIntToBigInt = unsafePartial fromJust <<< BigInt.fromString <<< UInt.toString
 
--- This should be left in Maybe context as BigInt may exceed UInt
+-- This should be left allowed to fail as BigInt may exceed UInt
 bigIntToUInt :: BigInt -> Maybe UInt
 bigIntToUInt = UInt.fromString <<< BigInt.toString
 
--- Changing slot back to UInt would require a Maybe here
 -- | Get the starting `POSIXTime` of a `Slot` given a `SlotConfig`.
 slotToBeginPOSIXTime :: SlotConfig -> Slot -> POSIXTime
 slotToBeginPOSIXTime (SlotConfig { slotLength, slotZeroTime }) (Slot n) =
@@ -448,6 +450,7 @@ slotRangeToTransactionSlot
     PosInf, true -> pure maxSlot
     PosInf, false -> pure $ maxSlot <> Slot (negate one)
 
+-- | Maximum slot under `Data.UInt`
 maxSlot :: Slot
 maxSlot = Slot $ unsafePartial fromJust $ UInt.fromString "4294967295"
 
@@ -456,26 +459,18 @@ posixTimeRangeToTransactionSlot
 posixTimeRangeToTransactionSlot sc =
   map slotRangeToTransactionSlot <<< posixTimeRangeToContainedSlotRange sc
 
--- Changing slot back to UInt would require a Maybe here
 -- | Convert a 'POSIXTime' to 'Slot' given a 'SlotConfig'. This differs from
 -- | Plutus by potential failure.
 posixTimeToEnclosingSlot :: SlotConfig -> POSIXTime -> Maybe Slot
 posixTimeToEnclosingSlot (SlotConfig { slotLength, slotZeroTime }) (POSIXTime t) =
   let
     timePassed = t - unwrap slotZeroTime
-    -- Plutus uses inbuilt `divide` which rounds towards downwards which should
-    -- be `quot`, not `div` which is Euclidean division.
+    -- Plutus uses inbuilt `divide` which rounds towards downwards which is `quot`
+    -- not `div`.
     slotsPassed = quot timePassed slotLength
   in
     Slot <$> bigIntToUInt slotsPassed
 
 -- TO DO:
 -- -- | Get the current slot number
--- currentSlot :: SlotConfig -> IO Slot
--- currentSlot sc = timeToSlot <$> Time.getPOSIXTime
---     where
---       timeToSlot = posixTimeToEnclosingSlot sc
---                  . POSIXTime
---                  . (* 1000) -- Convert to ms
---                  . Haskell.floor
---                  . Time.nominalDiffTimeToSeconds
+-- currentSlot :: SlotConfig -> Effect Slot

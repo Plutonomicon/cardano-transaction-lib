@@ -5,7 +5,6 @@ module Serialization.NativeScript
 
 import Prelude
 
-import Data.BigInt as BigInt
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
 import Data.UInt as UInt
@@ -61,11 +60,11 @@ convertScriptNOfK n nss =
 
 convertTimelockStart :: T.Slot -> NativeScript
 convertTimelockStart (T.Slot slot) =
-  nativeScript_new_timelock_start <<< mkTimelockStart $ UInt.toInt slot
+  nativeScript_new_timelock_start $ mkTimelockStart $ UInt.toInt slot
 
 convertTimelockExpiry :: T.Slot -> NativeScript
 convertTimelockExpiry (T.Slot slot) =
-  nativeScript_new_timelock_expiry <<< mkTimelockExpiry $ UInt.toInt slot
+  nativeScript_new_timelock_expiry $ mkTimelockExpiry $ UInt.toInt slot
 
 packNativeScripts :: Array NativeScript -> NativeScripts
 packNativeScripts = _packNativeScripts containerHelper
