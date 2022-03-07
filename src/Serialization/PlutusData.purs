@@ -1,5 +1,6 @@
 module Serialization.PlutusData
   ( convertPlutusData
+  , packPlutusList
   ) where
 
 import Prelude
@@ -50,6 +51,10 @@ convertPlutusInteger n =
 
 convertBigInt :: BigInt.BigInt -> Maybe BigInt
 convertBigInt n = _bigIntFromString maybeFfiHelper (BigInt.toString n)
+
+packPlutusList :: Array T.PlutusData -> Maybe PlutusList
+packPlutusList = map (_packPlutusList containerHelper)
+  <<< traverse convertPlutusData
 
 foreign import _mkPlutusData_bytes :: ByteArray -> PlutusData
 foreign import _mkPlutusData_list :: PlutusList -> PlutusData
