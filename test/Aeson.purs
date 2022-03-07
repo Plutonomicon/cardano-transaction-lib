@@ -2,21 +2,13 @@ module Test.Aeson where
 
 import Prelude
 
-import Aeson
-  ( decodeAeson
-  , decodeAesonString
-  , getField
-  , getNestedAeson
-  , jsonToAeson
-  , parseJsonStringToAeson
-  , toObject
-  , toStringifiedNumbersJson
-  )
-import Data.Argonaut (parseJson, stringify)
+import Aeson (Aeson, AesonCases, caseAeson, constAesonCases, decodeAeson, decodeAesonString, getField, getNestedAeson, jsonToAeson, parseJsonStringToAeson, toObject, toStringifiedNumbersJson)
+import Data.Argonaut (encodeJson, parseJson, stringify)
+import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Either (Either(..))
 import Data.Map as Map
-import Data.Maybe (fromJust)
+import Data.Maybe (Maybe(..), fromJust)
 import Data.Tuple.Nested ((/\))
 import Effect.Class (liftEffect)
 import Mote (group, test)
@@ -103,12 +95,23 @@ suite = do
         expected = "{\"a\":\"10\",\"b\":[{\"b1\":\"valb\"}],\"c\":{\"c1\":\"valc\"}}"
       (jsonToAeson jsn # toStringifiedNumbersJson # stringify) `shouldEqual` expected
 
--- TODO
--- group "caseAeson" do
---   let asn = unsafePartial $ fromRight $ parseJsonStringToAeson
---   test "caseObject" $ liftEffect do
---     let f = caseAeson $ constAesonCases (const Nothing) # _{caseObject = Just}
---         -a
+  group "caseAeson" do
+    test "caseObject" $ liftEffect do
+      let asn = jsonToAeson $ encodeJson {a: 10}
+      (caseMaybeAeson _{caseObject = Just <<< flip getField "a"}) asn `shouldEqual` (Just $ Right 10)
+    test "caseArray" $ liftEffect do
+      let asn = jsonToAeson $ encodeJson [10]
+      (caseMaybeAeson _{caseArray = map decodeAeson <<< head}) asn `shouldEqual` (Just $ Right 10)
+    test "caseNumber" $ liftEffect do
+      let asn = jsonToAeson $ encodeJson 20222202
+      (caseMaybeAeson _{caseNumber = Just}) asn `shouldEqual` (Just "20222202")
+
+
+caseMaybeAeson :: forall b a.
+  ( AesonCases (Maybe a) -> AesonCases (Maybe b))
+  -> Aeson -> Maybe b
+caseMaybeAeson upd = caseAeson (constAesonCases (const Nothing) # upd)
+
 
 fromRight :: forall (a :: Type) (e :: Type). Partial => Either e a -> a
 fromRight (Right x) = x

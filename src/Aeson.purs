@@ -26,6 +26,7 @@ module Aeson
   , class DecodeAesonField
   , class GDecodeAeson
   , Aeson
+  , AesonCases
   , (.:)
   , caseAeson
   , constAesonCases
