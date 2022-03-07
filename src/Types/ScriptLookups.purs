@@ -84,7 +84,12 @@ import Types.Scripts
   , ValidatorHash(ValidatorHash)
   )
 import Data.Symbol (SProxy(SProxy))
-import Transaction (ModifyTxError, attachDatum, attachRedeemer)
+import Transaction
+  ( ModifyTxError
+  , attachDatum
+  , attachPlutusScript
+  , attachRedeemer
+  )
 import Types.Transaction (Redeemer) as Transaction
 import Types.Transaction
   ( Transaction
@@ -744,7 +749,7 @@ updateUtxoIndex
   -> QueryM (Either MkTxError ConstraintProcessingState)
 updateUtxoIndex (ScriptLookups { txOutputs }) cps = do
   txOutsMap <- liftEffect $ Map.catMaybes <$> traverse toScriptOutput txOutputs
-  -- Left bias towards original map, hence flip:
+  -- Left bias towards original map, hence `flip`:
   pure $ Right $ cps # _unbalancedTx <<< _utxoIndex %~ flip union txOutsMap
 
 data MkTxError
@@ -849,49 +854,48 @@ processConstraint lookups cps = case _ of
       Right (ScriptOgmiosTxOut { validator, datum, value }) -> runExceptT do
         -- Check in the `OgmiosTx` for the validator, then look for it in the
         -- `otherScripts` map.
-        _val' <-
-          liftEither $ either (lookupValidator lookups) pure validator
+        plutusScript <-
+          liftEither $ either (lookupValidator lookups) pure validator <#> unwrap
 
         -- Check in the `OgmiosTx` for the datum, then look for it in the
         -- `otherData` map.
         dataValue <- liftEither $ either (lookupDatum lookups) pure datum
-        -- TODO: Attach Validator once https://github.com/Plutonomicon/cardano-browser-tx/issues/145
-        -- is ready.
+        psCps <-
+          ExceptT $ liftEffect $ attachToCps attachPlutusScript cps plutusScript
+        datCps <-
+          ExceptT $ liftEffect $ attachToCps attachDatum psCps dataValue
         redT <- ExceptT $ Right <$> convertRedeemer red
-        datCps <- ExceptT $ liftEffect $ attachToCps attachDatum cps dataValue
         redCps <- ExceptT $ liftEffect $ attachToCps attachRedeemer datCps redT
-        -- TODO: When witnesses are properly segregated we can
-        --       probably get rid of the `otherData` map and of
-        --       `lookupDatum`
-        -- let input = Tx.scriptTxIn txo validator red dataValue
         liftEither $ Right $ redCps
           # _cpsToTxBody <<< _inputs %~ (:) txo
           # _valueSpentBalancesInputs <>~ provide value
       Left err -> pure $ throwError err
       _ -> pure $ throwError (TxOutRefWrongType txo)
-  MustMintValue mpsHash red tn i -> pure do
-    _mintingPolicyScript <- lookupMintingPolicy lookups mpsHash
-    cs <- note (MintingPolicyHashNotCurrencySymbol mpsHash) $ mpsSymbol mpsHash
+  MustMintValue mpsHash red tn i -> runExceptT do
+    plutusScript <- liftEither $ lookupMintingPolicy lookups mpsHash <#> unwrap
+    cs <- liftEither
+      $ note (MintingPolicyHashNotCurrencySymbol mpsHash)
+      $ mpsSymbol mpsHash
     let value = mkSingletonValue' cs tn
     -- If i is negative we are burning tokens. The tokens burned must
     -- be provided as an input. So we add the value burnt to
     -- 'valueSpentBalancesInputs'. If i is positive then new tokens are created
     -- which must be added to 'valueSpentBalancesOutputs'.
     mintVal /\ valCps <-
-      if i < zero then do
-        val <- note (CannotMakeValue cs tn i) $ value (negate i)
-        Right $ val /\ (cps # _valueSpentBalancesInputs <>~ provide val)
-      else do
-        val <- note (CannotMakeValue cs tn i) $ value i
-        Right $ val /\ (cps # _valueSpentBalancesOutputs <>~ provide val)
+      liftEither
+        if i < zero then do
+          val <- note (CannotMakeValue cs tn i) $ value (negate i)
+          Right $ val /\ (cps # _valueSpentBalancesInputs <>~ provide val)
+        else do
+          val <- note (CannotMakeValue cs tn i) $ value i
+          Right $ val /\ (cps # _valueSpentBalancesOutputs <>~ provide val)
 
-    -- TODO: Attach MintingPolicy once https://github.com/Plutonomicon/cardano-browser-tx/issues/145
-    -- is ready - I presume this will use the same functionality.
-    -- unbalancedTx . tx . Tx.mintScripts %= Set.insert mintingPolicyScript
-    Right $ valCps
+    psCps <-
+      ExceptT $ liftEffect $ attachToCps attachPlutusScript valCps plutusScript
+    liftEither $ Right $ psCps
       # _cpsToTxBody <<< _mint <>~ Just (wrap mintVal)
       # _mintRedeemers <<< at mpsHash .~ Just red
-  MustPayToPubKeyAddress pkh _mSkh mDt amount -> runExceptT do -- FIX ME, USE _mSkh as backup.
+  MustPayToPubKeyAddress pkh _mSkh mDt amount -> runExceptT do -- _mSkh currently redundant.
     -- if datum is presented, add it to 'datumWitnesses'
     datCps <- maybe
       (liftEither $ Right cps)
@@ -953,7 +957,7 @@ attachToCps
   :: forall (b :: Type)
    . (b -> Transaction -> Effect (Either ModifyTxError Transaction))
   -> ConstraintProcessingState
-  -> b -- Redeemer or Datum
+  -> b -- Redeemer, Datum, or PlutusScript.
   -> Effect (Either MkTxError ConstraintProcessingState)
 attachToCps handler cps''@(ConstraintProcessingState cps') object =
   let

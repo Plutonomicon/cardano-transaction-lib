@@ -86,6 +86,8 @@ data TxConstraint
   | MustSpendScriptOutput TxOutRef Redeemer
   | MustMintValue MintingPolicyHash Redeemer TokenName BigInt
   | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash) (Maybe Datum) Value
+  -- From our POV, it appears as though (Maybe StakePubKeyHash) is redundant,
+  -- we can potentially remove.
   | MustPayToOtherScript ValidatorHash Datum Value
   | MustHashDatum DatumHash Datum
   | MustSatisfyAnyOf (Array (Array TxConstraint))
