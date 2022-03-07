@@ -126,7 +126,7 @@ enterpriseAddressFunctionsTest = test "EnterpriseAddress tests" $ do
 pointerAddressFunctionsTest :: TestPlanM Unit
 pointerAddressFunctionsTest = test "PointerAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
-  let pointer = { slot: wrap (BigInt.fromInt (2147483648)), certIx: wrap (UInt.fromInt 20), txIx: wrap (UInt.fromInt 120) }
+  let pointer = { slot: wrap (BigInt.fromInt (-2147483648)), certIx: wrap (UInt.fromInt 20), txIx: wrap (UInt.fromInt 120) }
   paddr <- doesNotThrow $ pointerAddress { network: mainnetId, paymentCred: keyHashCredential pkh, stakePointer: pointer }
   addr <- doesNotThrow $ pointerAddressToAddress paddr
   paddr2 <- errMaybe "pointerAddressFromAddress failed on valid pointer address" $ pointerAddressFromAddress addr
