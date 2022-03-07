@@ -37,7 +37,6 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (sequence)
 import Data.Tuple (Tuple(Tuple))
-import Partial.Unsafe (unsafePartial)
 import Serialization.Address
   ( Address
   , BaseAddress
@@ -92,14 +91,12 @@ derive newtype instance Ord PubKeyHash
 instance Show PubKeyHash where
   show = genericShow
 
-payPubKeyHash :: PaymentPubKey -> PaymentPubKeyHash
+payPubKeyHash :: PaymentPubKey -> Maybe PaymentPubKeyHash
 payPubKeyHash (PaymentPubKey pk) = pubKeyHash pk
 
--- Is this safe? If we start with a PubKey, we should be guaranteed a hash
--- (even if via ByteArray)
-pubKeyHash :: PublicKey -> PaymentPubKeyHash
+pubKeyHash :: PublicKey -> Maybe PaymentPubKeyHash
 pubKeyHash (PublicKey bech32) =
-  wrap $ wrap $ unsafePartial fromJust $ ed25519KeyHashFromBech32 bech32
+  wrap <<< wrap <$> ed25519KeyHashFromBech32 bech32
 
 payPubKeyVkey :: PaymentPubKey -> Vkey
 payPubKeyVkey (PaymentPubKey pk) = Vkey pk

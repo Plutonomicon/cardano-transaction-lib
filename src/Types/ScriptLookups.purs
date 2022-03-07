@@ -471,8 +471,8 @@ instance Monoid (ScriptLookups a) where
 -- Create ScriptLookups helpers
 --------------------------------------------------------------------------------
 -- FIX ME: Need to work out what to do with TypedValidator and constraints.
--- Also, some of these functions are impure which doesn't reflect the original
--- library.
+-- Also, some of these functions are in Monadic contexts which differs from
+-- Plutus. Not sure if there's anything we can do about this.
 
 -- | A script lookups value with a script instance. For convenience this also
 -- | includes the minting policy script that forwards all checks to the
@@ -519,11 +519,13 @@ otherData dt = do
   dh <- datumHash dt
   pure $ over ScriptLookups _ { otherData = singleton dh dt } mempty
 
--- | A script lookups value with a payment public key
-paymentPubKey :: forall (a :: Type). PaymentPubKey -> ScriptLookups a
-paymentPubKey ppk =
-  over ScriptLookups
-    _ { paymentPubKeyHashes = singleton (payPubKeyHash ppk) ppk }
+-- | A script lookups value with a payment public key. This is contained in
+-- | `Maybe` context because we invoke `payPubKeyHash`.
+paymentPubKey :: forall (a :: Type). PaymentPubKey -> Maybe (ScriptLookups a)
+paymentPubKey ppk = do
+  pkh <- payPubKeyHash ppk
+  pure $ over ScriptLookups
+    _ { paymentPubKeyHashes = singleton pkh ppk }
     mempty
 
 ownPaymentPubKeyHash :: forall (a :: Type). PaymentPubKeyHash -> ScriptLookups a
@@ -637,7 +639,7 @@ provide provided = ValueSpentBalances { provided, required: mempty }
 require :: Value -> ValueSpentBalances
 require required = ValueSpentBalances { required, provided: mempty }
 
--- TODO: Plutus uses a bunch of FromData and ToData constraints we'll probably
+-- TO DO: Plutus uses a bunch of FromData and ToData constraints we'll probably
 -- need to replicate if we uses `InputConstraint`s and `OutputConstraint`s
 -- i.e. ~ foldM addOwnInput txOwnInputs then foldM addOwnOutput txOwnOutputs
 -- | Resolve some `TxConstraints` by modifying the `UnbalancedTx` in the
