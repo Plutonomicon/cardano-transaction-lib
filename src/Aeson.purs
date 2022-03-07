@@ -48,7 +48,12 @@ import Control.Lazy (fix)
 import Data.Argonaut
   ( class DecodeJson
   , Json
-  , JsonDecodeError(..)
+  , JsonDecodeError
+      ( TypeMismatch
+      , AtKey
+      , MissingValue
+      , UnexpectedValue
+      )
   , caseJson
   , caseJsonObject
   , decodeJson
@@ -65,14 +70,14 @@ import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either
-  ( Either(..)
+  ( Either(Left, Right)
   , fromRight
   , hush
   , note
   )
 import Data.Int (round)
 import Data.Int as Int
-import Data.Maybe (Maybe(..), maybe)
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Symbol (class IsSymbol, reflectSymbol)
 import Data.Traversable (class Traversable, for)
 import Data.Typelevel.Undefined (undefined)
@@ -82,7 +87,7 @@ import Partial.Unsafe (unsafePartial)
 import Prim.Row as Row
 import Prim.RowList as RL
 import Record as Record
-import Type.Prelude (Proxy(..))
+import Type.Prelude (Proxy(Proxy))
 
 -- | A piece of JSON where all numbers are replaced with their indexes
 newtype AesonPatchedJson = AesonPatchedJson Json

@@ -2,13 +2,26 @@ module Test.Aeson where
 
 import Prelude
 
-import Aeson (Aeson, AesonCases, caseAeson, constAesonCases, decodeAeson, decodeAesonString, getField, getNestedAeson, jsonToAeson, parseJsonStringToAeson, toObject, toStringifiedNumbersJson)
+import Aeson
+  ( Aeson
+  , AesonCases
+  , caseAeson
+  , constAesonCases
+  , decodeAeson
+  , decodeAesonString
+  , getField
+  , getNestedAeson
+  , jsonToAeson
+  , parseJsonStringToAeson
+  , toObject
+  , toStringifiedNumbersJson
+  )
 import Data.Argonaut (encodeJson, parseJson, stringify)
 import Data.Array (head)
 import Data.BigInt as BigInt
-import Data.Either (Either(..))
+import Data.Either (Either(Right))
 import Data.Map as Map
-import Data.Maybe (Maybe(..), fromJust)
+import Data.Maybe (Maybe(Nothing, Just), fromJust)
 import Data.Tuple.Nested ((/\))
 import Effect.Class (liftEffect)
 import Mote (group, test)
@@ -16,7 +29,15 @@ import Partial.Unsafe (unsafePartial)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.ByteArray (hexToByteArrayUnsafe)
-import Types.PlutusData (PlutusData(..))
+import Types.PlutusData
+  ( PlutusData
+      ( Integer
+      , Bytes
+      , List
+      , Map
+      , Constr
+      )
+  )
 
 suite :: TestPlanM Unit
 suite = do
@@ -97,21 +118,21 @@ suite = do
 
   group "caseAeson" do
     test "caseObject" $ liftEffect do
-      let asn = jsonToAeson $ encodeJson {a: 10}
-      (caseMaybeAeson _{caseObject = Just <<< flip getField "a"}) asn `shouldEqual` (Just $ Right 10)
+      let asn = jsonToAeson $ encodeJson { a: 10 }
+      (caseMaybeAeson _ { caseObject = Just <<< flip getField "a" }) asn `shouldEqual` (Just $ Right 10)
     test "caseArray" $ liftEffect do
-      let asn = jsonToAeson $ encodeJson [10]
-      (caseMaybeAeson _{caseArray = map decodeAeson <<< head}) asn `shouldEqual` (Just $ Right 10)
+      let asn = jsonToAeson $ encodeJson [ 10 ]
+      (caseMaybeAeson _ { caseArray = map decodeAeson <<< head }) asn `shouldEqual` (Just $ Right 10)
     test "caseNumber" $ liftEffect do
       let asn = jsonToAeson $ encodeJson 20222202
-      (caseMaybeAeson _{caseNumber = Just}) asn `shouldEqual` (Just "20222202")
+      (caseMaybeAeson _ { caseNumber = Just }) asn `shouldEqual` (Just "20222202")
 
-
-caseMaybeAeson :: forall b a.
-  ( AesonCases (Maybe a) -> AesonCases (Maybe b))
-  -> Aeson -> Maybe b
+caseMaybeAeson
+  :: forall b a
+   . (AesonCases (Maybe a) -> AesonCases (Maybe b))
+  -> Aeson
+  -> Maybe b
 caseMaybeAeson upd = caseAeson (constAesonCases (const Nothing) # upd)
-
 
 fromRight :: forall (a :: Type) (e :: Type). Partial => Either e a -> a
 fromRight (Right x) = x
