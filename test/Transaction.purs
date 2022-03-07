@@ -20,10 +20,6 @@ import TestM (TestPlanM)
 import Serialization (toBytes)
 import Serialization.PlutusData as Serialization.PlutusData
 import Serialization.WitnessSet as Serialization.WitnessSet
-<<<<<<< HEAD
-import Transaction (attachDatum, attachRedeemer)
-import Types.Datum (Datum(Datum))
-=======
 import Transaction
   ( attachDatum
   , attachRedeemer
@@ -31,13 +27,13 @@ import Transaction
   , setScriptDataHash
   )
 import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
-import Types.PlutusData (Datum(Datum), PlutusData(Integer))
+import Types.Datum (Datum(Datum))
+import Types.PlutusData (PlutusData(Integer))
+import Types.Scripts (PlutusScript(PlutusScript))
 import Types.RedeemerTag (RedeemerTag(Spend))
->>>>>>> master
 import Types.Transaction as Transaction
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
-  , PlutusScript(PlutusScript)
   , PublicKey(PublicKey)
   , Redeemer(Redeemer)
   , ScriptDataHash(ScriptDataHash)
@@ -47,11 +43,6 @@ import Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   )
-<<<<<<< HEAD
-import Types.PlutusData (PlutusData(Integer))
-import Types.RedeemerTag (RedeemerTag(Spend))
-=======
->>>>>>> master
 import Untagged.Union (asOneOf)
 
 suite :: TestPlanM Unit

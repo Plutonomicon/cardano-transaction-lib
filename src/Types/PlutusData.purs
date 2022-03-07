@@ -40,9 +40,6 @@ derive instance Generic PlutusData _
 instance Show PlutusData where
   show x = genericShow x
 
-<<<<<<< HEAD
--- | Don't distinguish "BuiltinData" and "Data" like Plutus:
-=======
 instance DecodeAeson PlutusData where
   decodeAeson aeson = decodeConstr
     <|> decodeMap
@@ -82,7 +79,6 @@ instance DecodeAeson PlutusData where
         Nothing -> Left $ UnexpectedValue $ getJson aeson
         Just res -> pure $ Bytes res
 
->>>>>>> master
 class ToData (a :: Type) where
   toData :: a -> PlutusData
 
@@ -90,19 +86,3 @@ class ToData (a :: Type) where
 class FromData (a :: Type) where
   -- | Convert a value from `PlutusData`, returning `Nothing` if this fails.
   fromData :: PlutusData -> Maybe a
-<<<<<<< HEAD
-=======
-
-newtype Datum = Datum PlutusData
-
-derive newtype instance Eq Datum
-derive newtype instance Ord Datum
-derive instance Newtype Datum _
-derive instance Generic Datum _
-
-instance Show Datum where
-  show = genericShow
-
--- To help with people copying & pasting code from Haskell to Purescript
-type DatumHash = DataHash
->>>>>>> master

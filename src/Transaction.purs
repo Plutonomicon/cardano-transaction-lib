@@ -24,9 +24,9 @@ import Serialization.PlutusData as Serialization.PlutusData
 import Serialization.Types as Serialization
 import Serialization.WitnessSet as Serialization.WitnessSet
 import Types.Datum (Datum(Datum))
+import Types.Scripts (PlutusScript(PlutusScript))
 import Types.Transaction
-  ( PlutusScript
-  , Redeemer
+  ( Redeemer
   , ScriptDataHash(ScriptDataHash)
   , Transaction(Transaction)
   , TransactionWitnessSet
