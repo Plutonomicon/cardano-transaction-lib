@@ -1,9 +1,8 @@
 module Deserialization.WitnessSet
   ( convertVkeyWitnesses
   , convertWitnessSet
-  , deserializeWitnessSet
-  , convertVkeyWitnesses
   , convertPlutusScripts
+  , deserializeWitnessSet
   , plutusScriptBytes
   ) where
 

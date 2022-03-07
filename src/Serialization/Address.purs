@@ -83,7 +83,6 @@ module Serialization.Address
 import Prelude
 
 import Control.Alt ((<|>))
-import Data.BigInt (BigInt)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(..))

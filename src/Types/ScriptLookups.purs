@@ -470,6 +470,10 @@ instance Monoid (ScriptLookups a) where
 --------------------------------------------------------------------------------
 -- Create ScriptLookups helpers
 --------------------------------------------------------------------------------
+-- FIX ME: Need to work out what to do with TypedValidator and constraints.
+-- Also, some of these functions are impure which doesn't reflect the original
+-- library.
+
 -- | A script lookups value with a script instance. For convenience this also
 -- | includes the minting policy script that forwards all checks to the
 -- | instance's validator.
@@ -574,80 +578,32 @@ derive instance Newtype ConstraintProcessingState _
 
 _unbalancedTx :: Lens' ConstraintProcessingState UnbalancedTx
 _unbalancedTx = lens'
-  \( ConstraintProcessingState
-       { unbalancedTx
-       , mintRedeemers
-       , valueSpentBalancesInputs
-       , valueSpentBalancesOutputs
-       }
-   ) ->
+  \(ConstraintProcessingState rec@{ unbalancedTx }) ->
     Tuple
       unbalancedTx
-      \unbalTx ->
-        ConstraintProcessingState
-          { unbalancedTx: unbalTx
-          , mintRedeemers
-          , valueSpentBalancesInputs
-          , valueSpentBalancesOutputs
-          }
+      \unbalTx -> ConstraintProcessingState rec { unbalancedTx = unbalTx }
 
 _mintRedeemers
   :: Lens' ConstraintProcessingState (Map MintingPolicyHash Redeemer)
 _mintRedeemers = lens'
-  \( ConstraintProcessingState
-       { unbalancedTx
-       , mintRedeemers
-       , valueSpentBalancesInputs
-       , valueSpentBalancesOutputs
-       }
-   ) ->
+  \(ConstraintProcessingState rec@{ mintRedeemers }) ->
     Tuple
       mintRedeemers
-      \mintReds ->
-        ConstraintProcessingState
-          { unbalancedTx
-          , mintRedeemers: mintReds
-          , valueSpentBalancesInputs
-          , valueSpentBalancesOutputs
-          }
+      \mintReds -> ConstraintProcessingState rec { mintRedeemers = mintReds }
 
 _valueSpentBalancesInputs :: Lens' ConstraintProcessingState ValueSpentBalances
 _valueSpentBalancesInputs = lens'
-  \( ConstraintProcessingState
-       { unbalancedTx
-       , mintRedeemers
-       , valueSpentBalancesInputs
-       , valueSpentBalancesOutputs
-       }
-   ) ->
+  \(ConstraintProcessingState rec@{ valueSpentBalancesInputs }) ->
     Tuple
       valueSpentBalancesInputs
-      \vsbi ->
-        ConstraintProcessingState
-          { unbalancedTx
-          , mintRedeemers
-          , valueSpentBalancesInputs: vsbi
-          , valueSpentBalancesOutputs
-          }
+      \vsbi -> ConstraintProcessingState rec { valueSpentBalancesInputs = vsbi }
 
 _valueSpentBalancesOutputs :: Lens' ConstraintProcessingState ValueSpentBalances
 _valueSpentBalancesOutputs = lens'
-  \( ConstraintProcessingState
-       { unbalancedTx
-       , mintRedeemers
-       , valueSpentBalancesInputs
-       , valueSpentBalancesOutputs
-       }
-   ) ->
+  \(ConstraintProcessingState rec@{ valueSpentBalancesOutputs }) ->
     Tuple
       valueSpentBalancesOutputs
-      \vsbo ->
-        ConstraintProcessingState
-          { unbalancedTx
-          , mintRedeemers
-          , valueSpentBalancesInputs
-          , valueSpentBalancesOutputs: vsbo
-          }
+      \vsbo -> ConstraintProcessingState rec { valueSpentBalancesOutputs = vsbo }
 
 missingValueSpent :: ValueSpentBalances -> Value
 missingValueSpent (ValueSpentBalances { required, provided }) =
@@ -658,7 +614,10 @@ missingValueSpent (ValueSpentBalances { required, provided }) =
     missing
 
 totalMissingValue :: ConstraintProcessingState -> Value
-totalMissingValue (ConstraintProcessingState { valueSpentBalancesInputs, valueSpentBalancesOutputs }) =
+totalMissingValue
+  ( ConstraintProcessingState
+      { valueSpentBalancesInputs, valueSpentBalancesOutputs }
+  ) =
   missingValueSpent valueSpentBalancesInputs `join`
     missingValueSpent valueSpentBalancesOutputs
 
@@ -741,7 +700,7 @@ addMissingValueSpent (ScriptLookups lookups) cps = do
         , amount: missing
         , data_hash: Nothing
         }
-      Nothing, Just skh -> liftEither $ Right $ TransactionOutput
+      _, Just skh -> liftEither $ Right $ TransactionOutput
         { address: stakePubKeyHashAddress networkId skh
         , amount: missing
         , data_hash: Nothing
@@ -749,6 +708,7 @@ addMissingValueSpent (ScriptLookups lookups) cps = do
     liftEither $ Right $ cps
       # _cpsToTxBody <<< _outputs %~ (:) txOut
 
+-- FIX ME: Conversion of all redeemers will be done together.
 addMintingRedeemers
   :: ConstraintProcessingState
   -> QueryM (Either MkTxError ConstraintProcessingState)
@@ -768,7 +728,8 @@ addMintingRedeemers cps = do
             -- PlutusScripts mapped to their ScriptHash.
             containsHash <- ExceptT $ liftEffect $ traverse scriptHash ps <#>
               catMaybes >>> map MintingPolicyHash >>> elem mpsHash >>> Right
-            if containsHash then ExceptT $ liftEffect $ attachToCps attachRedeemer cps'' red
+            if containsHash then
+              ExceptT $ liftEffect $ attachToCps attachRedeemer cps'' red
             else throwError (MintingPolicyNotFound mpsHash)
         ) -- If Nothing, just return the state.
         (Right cps)
@@ -781,7 +742,7 @@ updateUtxoIndex
   -> QueryM (Either MkTxError ConstraintProcessingState)
 updateUtxoIndex (ScriptLookups { txOutputs }) cps = do
   txOutsMap <- liftEffect $ Map.catMaybes <$> traverse toScriptOutput txOutputs
-  -- Left bias towards original map:
+  -- Left bias towards original map, hence flip:
   pure $ Right $ cps # _unbalancedTx <<< _utxoIndex %~ flip union txOutsMap
 
 data MkTxError
@@ -807,9 +768,6 @@ derive instance Eq MkTxError
 instance Show MkTxError where
   show = genericShow
 
--- Can we add ScriptLookups to ReaderT, if so, we can simplfiy this. Perhaps
--- Another ReaderT on QueryM although this seems unnecessarily complicated.
--- FIX ME: change to throw error.
 lookupTxOutRef
   :: forall (a :: Type)
    . ScriptLookups a
@@ -842,12 +800,9 @@ lookupValidator
 lookupValidator (ScriptLookups { otherScripts }) vh =
   note (ValidatorHashNotFound vh) (lookup vh otherScripts)
 
--- Plutus uses MonadState but functions like attachDatum are impure so  the state is
---  m ConstraintProcessingState instead of just ConstraintProcessingState.
--- We could alternatively return m (Either MkTxError ConstraintProcessingState)
--- similar to the balancer.
+-- Plutus uses MonadState for `ConstraintProcessingState`
 -- Plutus also uses lenses to modify the state in this, we're going to skip this
---  for now.
+-- for now and just return in `Either` context.
 -- | Modify the `UnbalancedTx` so that it satisfies the constraints, if
 -- | possible. Fails if a hash is missing from the lookups, or if an output
 -- | of the wrong type is spent.
@@ -1007,5 +962,6 @@ attachToCps handler cps''@(ConstraintProcessingState cps') object =
         ModifyTx
         (\trx' -> cps'' # _unbalancedTx <<< _transaction .~ trx')
 
+-- Helper to focus from `ConstraintProcessingState` down to `TxBody`.
 _cpsToTxBody :: Lens' ConstraintProcessingState TxBody
 _cpsToTxBody = _unbalancedTx <<< _transaction <<< _body

@@ -12,17 +12,8 @@ module Types.Scripts
 import Prelude
 
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
-import Effect (Effect)
-import Serialization.Address
-  ( Address
-  , BaseAddress
-  , NetworkId
-  , baseAddressToAddress
-  , scriptAddress
-  )
 import Serialization.Hash (ScriptHash)
 import Types.ByteArray (ByteArray)
 

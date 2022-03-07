@@ -5,7 +5,6 @@ module Deserialization.NativeScript
 import Prelude
 
 import Control.Alt ((<|>))
-import Data.BigInt as BigInt
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
 import Data.UInt as UInt
