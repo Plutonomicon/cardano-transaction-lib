@@ -53,9 +53,11 @@ import Effect.Console as Console
 import QueryM
   ( QueryM
   , defaultOgmiosWsConfig
+  , defaultDatumCacheWsConfig
   , defaultServerConfig
   , getWalletAddress
   , mkOgmiosWebSocketAff
+  , mkDatumCacheWebSocketAff
   , submitTransaction
   , utxosAt
   )
@@ -73,10 +75,12 @@ import Wallet (mkNamiWalletAff)
 main :: Effect Unit
 main = launchAff_ $ do
   wallet <- Just <$> mkNamiWalletAff
-  ws <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
+  ogmiosWs <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
+  datumCacheWs <- mkDatumCacheWebSocketAff defaultDatumCacheWsConfig
   txId <- runReaderT
     buildAndSubmit
-    { ws
+    { ogmiosWs
+    , datumCacheWs
     , wallet
     , serverConfig: defaultServerConfig
     }

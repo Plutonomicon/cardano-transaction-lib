@@ -10,8 +10,10 @@ import Effect.Exception (throw)
 import Mote (group, test)
 import QueryM
   ( addressToOgmiosAddress
-  , defaultServerConfig
+  , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
+  , defaultServerConfig
+  , mkDatumCacheWebSocketAff
   , mkOgmiosWebSocketAff
   , ogmiosAddressToAddress
   , utxosAt
@@ -46,12 +48,13 @@ suite = do
 
 testUtxosAt :: Address -> Aff Unit
 testUtxosAt testAddr = do
-  ws <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
+  ogmiosWs <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
+  datumCacheWs <- mkDatumCacheWebSocketAff defaultDatumCacheWsConfig
   case ogmiosAddressToAddress testAddr of
     Nothing -> liftEffect $ throw "Failed UtxosAt"
     Just addr -> runReaderT
       (utxosAt addr *> pure unit)
-      { ws, serverConfig: defaultServerConfig, wallet: Nothing }
+      { ogmiosWs, datumCacheWs, serverConfig: defaultServerConfig, wallet: Nothing }
 
 testFromOgmiosAddress :: Address -> Aff Unit
 testFromOgmiosAddress testAddr = do
