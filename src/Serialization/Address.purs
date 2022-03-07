@@ -99,7 +99,7 @@ import Types.ByteArray (ByteArray)
 -- Is UInt going to be an issue? For example, see beginningOfTime and the fact
 -- we're limited to 4294967295 slots with UInt. I've changed it back to BigInt,
 -- any objections welcome.
-newtype Slot = Slot BigInt
+newtype Slot = Slot UInt
 
 derive newtype instance Eq Slot
 derive newtype instance Ord Slot

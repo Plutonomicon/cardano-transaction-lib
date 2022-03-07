@@ -2,7 +2,6 @@ module Test.Serialization.Address (suite) where
 
 import Prelude
 
-import Data.BigInt (fromInt) as BigInt
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (wrap)
 import Data.UInt (fromInt) as UInt
@@ -126,7 +125,7 @@ enterpriseAddressFunctionsTest = test "EnterpriseAddress tests" $ do
 pointerAddressFunctionsTest :: TestPlanM Unit
 pointerAddressFunctionsTest = test "PointerAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
-  let pointer = { slot: wrap (BigInt.fromInt (-2147483648)), certIx: wrap (UInt.fromInt 20), txIx: wrap (UInt.fromInt 120) }
+  let pointer = { slot: wrap (UInt.fromInt (-2147483648)), certIx: wrap (UInt.fromInt 20), txIx: wrap (UInt.fromInt 120) }
   paddr <- doesNotThrow $ pointerAddress { network: mainnetId, paymentCred: keyHashCredential pkh, stakePointer: pointer }
   addr <- doesNotThrow $ pointerAddressToAddress paddr
   paddr2 <- errMaybe "pointerAddressFromAddress failed on valid pointer address" $ pointerAddressFromAddress addr

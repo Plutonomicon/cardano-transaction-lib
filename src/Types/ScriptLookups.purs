@@ -75,7 +75,7 @@ import Serialization.Address
   , withStakeCredential
   )
 import Types.Datum (Datum, DatumHash, Redeemer, datumHash)
-import Types.Interval (posixTimeRangeToTransactionSlot)
+import Types.Interval (POSIXTimeRange, posixTimeRangeToTransactionSlot)
 import Types.Scripts
   ( MintingPolicy
   , MintingPolicyHash(MintingPolicyHash)
@@ -799,6 +799,7 @@ data MkTxError
   -- | TypedValidatorMissing
   | DatumWrongHash DatumHash Datum
   | CannotSatisfyAny
+  | CannotConvertPOSIXTimeRange POSIXTimeRange
 
 derive instance Generic MkTxError _
 derive instance Eq MkTxError
@@ -860,11 +861,11 @@ processConstraint lookups cps = case _ of
   MustIncludeDatum datum -> liftEffect $ attachToCps attachDatum cps datum
   MustValidateIn posixTimeRange -> do
     sc <- asks _.slotConfig
-    let
-      { timeToLive, validityStartInterval } =
-        posixTimeRangeToTransactionSlot sc posixTimeRange
-    pure $ Right $ cps # _cpsToTxBody <<< _Newtype %~
-      _ { ttl = timeToLive, validity_start_interval = validityStartInterval }
+    case posixTimeRangeToTransactionSlot sc posixTimeRange of
+      Nothing -> pure $ throwError $ CannotConvertPOSIXTimeRange posixTimeRange
+      Just { timeToLive, validityStartInterval } ->
+        pure $ Right $ cps # _cpsToTxBody <<< _Newtype %~
+          _ { ttl = timeToLive, validity_start_interval = validityStartInterval }
   MustBeSignedBy pkh -> do
     let
       sigs = Array.singleton <<< payPubKeyRequiredSigner <$>

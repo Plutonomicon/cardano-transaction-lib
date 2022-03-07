@@ -41,8 +41,10 @@ module Types.Interval
   , upperBound
   ) where
 
-import Data.BigInt (BigInt, fromString, fromInt, quot)
+import Data.BigInt (BigInt, quot)
+import Data.BigInt (fromString, fromInt, toString) as BigInt
 import Data.Enum (class Enum, succ)
+-- import Data.EuclideanRing (quot)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice
   ( class BoundedJoinSemilattice
@@ -53,6 +55,8 @@ import Data.Lattice
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
+import Data.UInt (UInt)
+import Data.UInt (fromString, toString) as UInt
 import Partial.Unsafe (unsafePartial)
 import Prelude
 import Serialization.Address (Slot(Slot))
@@ -313,11 +317,11 @@ instance Show SlotConfig where
 -- | (2020-07-29T21:44:51Z) which is 1596059091000 in POSIX time
 -- | (number of milliseconds since 1970-01-01T00:00:00Z).
 beginningOfTime :: BigInt
-beginningOfTime = unsafePartial fromJust $ fromString "1596059091000"
+beginningOfTime = unsafePartial fromJust $ BigInt.fromString "1596059091000"
 
 defaultSlotConfig :: SlotConfig
 defaultSlotConfig = SlotConfig
-  { slotLength: fromInt 1000 -- One second = 1 slot currently.
+  { slotLength: BigInt.fromInt 1000 -- One second = 1 slot currently.
   , slotZeroTime: POSIXTime beginningOfTime
   }
 
@@ -349,22 +353,22 @@ slotToPOSIXTimeRange :: SlotConfig -> Slot -> POSIXTimeRange
 slotToPOSIXTimeRange sc slot =
   interval (slotToBeginPOSIXTime sc slot) (slotToEndPOSIXTime sc slot)
 
--- -- UInt.toInt is unsafe so we'll go via String. BigInt.fromString returns a
--- -- Maybe but we should be safe if we go from UInt originally via String,
--- -- as this UInt can't be larger than BigInt.
--- uIntToBigInt :: UInt -> BigInt
--- uIntToBigInt = unsafePartial fromJust <<< BigInt.fromString <<< UInt.toString
+-- UInt.toInt is unsafe so we'll go via String. BigInt.fromString returns a
+-- Maybe but we should be safe if we go from UInt originally via String,
+-- as this UInt can't be larger than BigInt.
+uIntToBigInt :: UInt -> BigInt
+uIntToBigInt = unsafePartial fromJust <<< BigInt.fromString <<< UInt.toString
 
--- -- This should be left in Maybe context as BigInt may exceed UInt
--- bigInttoUInt :: BigInt -> Maybe UInt
--- bigInttoUInt = UInt.fromString <<< BigInt.toString
+-- This should be left in Maybe context as BigInt may exceed UInt
+bigIntToUInt :: BigInt -> Maybe UInt
+bigIntToUInt = UInt.fromString <<< BigInt.toString
 
 -- Changing slot back to UInt would require a Maybe here
 -- | Get the starting `POSIXTime` of a `Slot` given a `SlotConfig`.
 slotToBeginPOSIXTime :: SlotConfig -> Slot -> POSIXTime
 slotToBeginPOSIXTime (SlotConfig { slotLength, slotZeroTime }) (Slot n) =
   let
-    msAfterBegin = n * slotLength
+    msAfterBegin = uIntToBigInt n * slotLength
   in
     POSIXTime $ unwrap slotZeroTime + msAfterBegin
 
@@ -373,38 +377,52 @@ slotToEndPOSIXTime :: SlotConfig -> Slot -> POSIXTime
 slotToEndPOSIXTime sc@(SlotConfig { slotLength }) slot =
   slotToBeginPOSIXTime sc slot + POSIXTime (slotLength - one)
 
--- Changing slot back to UInt would require a Maybe here
 -- | Convert a 'POSIXTimeRange' to 'SlotRange' given a 'SlotConfig'. This gives
--- the biggest slot range that is entirely contained by the given time range.
+-- | the biggest slot range that is entirely contained by the given time range.
 posixTimeRangeToContainedSlotRange
-  :: SlotConfig -> POSIXTimeRange -> SlotRange
-posixTimeRangeToContainedSlotRange sc ptr =
-  case map (posixTimeToEnclosingSlot sc) ptr of
-    Interval { ivFrom: LowerBound start startIncl, ivTo: UpperBound end endIncl } ->
-      Interval
-        { ivFrom: LowerBound start (closureWith slotToBeginPOSIXTime startIncl start)
-        , ivTo: UpperBound end (closureWith slotToBeginPOSIXTime endIncl end)
-        }
+  :: SlotConfig -> POSIXTimeRange -> Maybe SlotRange
+posixTimeRangeToContainedSlotRange sc ptr = do
+  let
+    Interval
+      { ivFrom: LowerBound start startIncl
+      , ivTo: UpperBound end endIncl
+      } = map (posixTimeToEnclosingSlot sc) ptr
 
-      where
-      closureWith
-        :: (SlotConfig -> Slot -> POSIXTime)
-        -> Boolean -- Default Boolean
-        -> Extended Slot
-        -> Boolean
-      closureWith f def = case _ of
-        Finite s -> f sc s `member` ptr
-        _ -> def
+    closureWith
+      :: (SlotConfig -> Slot -> POSIXTime)
+      -> Boolean -- Default Boolean
+      -> Extended Slot
+      -> Boolean
+    closureWith f def = case _ of
+      Finite s -> f sc s `member` ptr
+      _ -> def
+
+    getExtended :: Extended (Maybe Slot) -> Maybe (Extended Slot)
+    getExtended = case _ of
+      Finite (Just s) -> pure $ Finite s
+      Finite Nothing -> Nothing
+      NegInf -> pure NegInf
+      PosInf -> pure PosInf
+
+  start' <- getExtended start
+  end' <- getExtended end
+  pure $ Interval
+    { ivFrom: LowerBound start' (closureWith slotToBeginPOSIXTime startIncl start')
+    , ivTo: UpperBound end' (closureWith slotToBeginPOSIXTime endIncl end')
+    }
 
 type TransactionValiditySlot =
   { validityStartInterval :: Maybe Slot, timeToLive :: Maybe Slot }
 
--- FIX ME: Does Nothing represent Positive Infinity? Otherwise, not sure how to
--- represent maximum Slot unless we use UInt.
+-- FIX ME: I've interpreted `Nothing` as below, although this may change
+-- depending on our desired behaviour.
 -- | Converts a SlotRange to two separate slots used in building Types.Transaction.
--- | Note we lose information regarding whether the bounds or not. `Nothing`
--- | represents Positive Infinity. Note that we lose inclusive bounds information
--- | with this function.
+-- | Note that we lose information regarding whether the bounds or not, although
+-- | everything is one-to-one.
+-- | `Nothing` for `validityStartInterval` means `PosInf` and `false` because
+-- | we can either start at `maxSlot` because it exceeds `UInt` range.
+-- | `Nothing` for `timeToLive` means `NegInf` and `false` because it doesn't
+-- | make sense to end before the start.
 slotRangeToTransactionSlot
   :: SlotRange
   -> TransactionValiditySlot
@@ -412,34 +430,36 @@ slotRangeToTransactionSlot
   (Interval { ivFrom: LowerBound start startIncl, ivTo: UpperBound end endIncl }) =
   { validityStartInterval, timeToLive }
   where
+  validityStartInterval :: Maybe Slot
   validityStartInterval = case start, startIncl of
-    Finite s, true -> Just s
-    Finite s, false -> Just $ s <> Slot one
-    NegInf, true -> Just $ Slot zero
-    NegInf, false -> Just $ Slot one -- Do we want this as zero?
-    PosInf, _ -> Nothing
+    Finite s, true -> pure s
+    Finite s, false -> pure $ s <> Slot one
+    NegInf, true -> pure $ Slot zero
+    NegInf, false -> pure $ Slot one
+    PosInf, true -> pure maxSlot
+    PosInf, false -> Nothing -- Outside of `UInt` range (over `maxSlot`).
 
+  timeToLive :: Maybe Slot
   timeToLive = case end, endIncl of
-    Finite s, true -> Just s
-    Finite s, false -> Just $ s <> Slot (negate one)
-    -- The upper bound being NegInf, false doesn't really make much sense as
-    -- we'd want ~ Slot -1
-    NegInf, _ -> Just $ Slot zero
-    PosInf, _ -> Nothing
+    Finite s, true -> pure s
+    Finite s, false -> pure $ s <> Slot (negate one)
+    NegInf, true -> pure $ Slot zero
+    NegInf, false -> Nothing -- Outside of `UInt` range (negative).
+    PosInf, true -> pure maxSlot
+    PosInf, false -> pure $ maxSlot <> Slot (negate one)
 
--- FIX ME: this is the largest UInt possible. How to determine maximum slot if
--- BigInt? Currently using Nothing as above.
--- maxSlot :: Slot
--- maxSlot = Slot $ unsafePartial fromJust $ BigInt.fromString "4294967295"
+maxSlot :: Slot
+maxSlot = Slot $ unsafePartial fromJust $ UInt.fromString "4294967295"
 
 posixTimeRangeToTransactionSlot
-  :: SlotConfig -> POSIXTimeRange -> TransactionValiditySlot
+  :: SlotConfig -> POSIXTimeRange -> Maybe TransactionValiditySlot
 posixTimeRangeToTransactionSlot sc =
-  slotRangeToTransactionSlot <<< posixTimeRangeToContainedSlotRange sc
+  map slotRangeToTransactionSlot <<< posixTimeRangeToContainedSlotRange sc
 
 -- Changing slot back to UInt would require a Maybe here
--- | Convert a 'POSIXTime' to 'Slot' given a 'SlotConfig'.
-posixTimeToEnclosingSlot :: SlotConfig -> POSIXTime -> Slot
+-- | Convert a 'POSIXTime' to 'Slot' given a 'SlotConfig'. This differs from
+-- | Plutus by potential failure.
+posixTimeToEnclosingSlot :: SlotConfig -> POSIXTime -> Maybe Slot
 posixTimeToEnclosingSlot (SlotConfig { slotLength, slotZeroTime }) (POSIXTime t) =
   let
     timePassed = t - unwrap slotZeroTime
@@ -447,7 +467,7 @@ posixTimeToEnclosingSlot (SlotConfig { slotLength, slotZeroTime }) (POSIXTime t)
     -- be `quot`, not `div` which is Euclidean division.
     slotsPassed = quot timePassed slotLength
   in
-    Slot slotsPassed
+    Slot <$> bigIntToUInt slotsPassed
 
 -- TO DO:
 -- -- | Get the current slot number
