@@ -20,6 +20,7 @@ import TestM (TestPlanM)
 import Mote (Plan, foldPlan, planT)
 import Test.Deserialization as Deserialization
 import Test.Serialization as Serialization
+import Test.Aeson as Aeson
 import Test.Transaction as Transaction
 
 -- we use `mote` here so that we can use effects to build up a test tree, which
@@ -47,6 +48,7 @@ interpret spif = do
 
 testPlan :: TestPlanM Unit
 testPlan = do
+  Aeson.suite
   ByteArrayTest.suite
   Helpers.suite
   ParseTest.suite
