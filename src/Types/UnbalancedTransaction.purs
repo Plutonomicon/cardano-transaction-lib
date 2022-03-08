@@ -23,10 +23,10 @@ import Data.Traversable (sequence)
 import Serialization.Address (addressFromBytes)
 import Serialization.Hash (Ed25519KeyHash, scriptHashToBytes)
 import Types.ByteArray (ByteArray(ByteArray))
-import Types.PlutusData (DatumHash)
 import Types.ScriptHash (ValidatorHash)
 import Types.Transaction
-  ( Transaction
+  ( DatumHash
+  , Transaction
   , TransactionInput
   , TransactionOutput
   , Utxo

@@ -17,9 +17,9 @@ import Helpers (liftEither)
 import Serialization.PlutusData as Serialization.PlutusData
 import Serialization.Types as Serialization
 import Serialization.WitnessSet as Serialization.WitnessSet
-import Types.PlutusData (Datum(Datum))
 import Types.Transaction
-  ( Transaction(Transaction)
+  ( Datum(Datum)
+  , Transaction(Transaction)
   , Redeemer
   , TransactionWitnessSet
   )
@@ -57,7 +57,7 @@ attachRedeemer r (Transaction tx@{ witness_set: ws }) = runExceptT $ do
   r' <- liftEffect $ Serialization.WitnessSet.convertRedeemer r
   newWits <- convertWitnessesWith ws $
     Serialization.WitnessSet.setRedeemer r'
-  liftEither $ Right $ Transaction $ tx { witness_set = newWits }
+  pure $ Transaction $ tx { witness_set = newWits }
 
 convertWitnessesWith
   :: TransactionWitnessSet

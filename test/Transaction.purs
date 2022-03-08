@@ -9,21 +9,20 @@ import Data.Newtype (unwrap, over)
 import Data.Tuple.Nested ((/\))
 import Deserialization.PlutusData as Deserialization.PlutusData
 import Deserialization.WitnessSet as Deserialization.WitnessSet
-import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Helpers (fromJustEff, fromRightEff)
+import Helpers (fromRightEff)
 import Mote (group, test)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
-import Serialization (toBytes)
 import Serialization.PlutusData as Serialization.PlutusData
 import Serialization.WitnessSet as Serialization.WitnessSet
 import Transaction (attachDatum, attachRedeemer)
-import Types.Transaction as Transaction
+import Types.PlutusData (PlutusData(Integer))
 import Types.Transaction
-  ( Ed25519Signature(Ed25519Signature)
+  ( Datum(Datum)
+  , Ed25519Signature(Ed25519Signature)
   , PublicKey(PublicKey)
   , Redeemer(Redeemer)
   , Transaction(Transaction)
@@ -31,9 +30,7 @@ import Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   )
-import Types.PlutusData (Datum(Datum), PlutusData(Integer))
 import Types.RedeemerTag (RedeemerTag(Spend))
-import Untagged.Union (asOneOf)
 
 suite :: TestPlanM Unit
 suite = group "attach datums to tx" $ do
@@ -48,8 +45,7 @@ testAttachDatum = liftEffect $
     Right (Transaction { witness_set: TransactionWitnessSet ws }) ->
       case ws.plutus_data of
         Just [ pd ] -> do
-          pd' <- checkDatum pd
-          pd' `shouldEqual` Just (unwrap datum)
+          checkDatum pd `shouldEqual` Just (unwrap datum)
         Just _ -> throw "Incorrect number of datums attached"
         Nothing -> throw "Datum wasn't attached"
   where
@@ -61,10 +57,7 @@ testAttachDatum = liftEffect $
 
 testAttachRedeemer :: Aff Unit
 testAttachRedeemer = liftEffect $ do
-  redeemer <- mkRedeemer <<< Transaction.PlutusData <<< toBytes <<< asOneOf
-    <$> fromJustEff
-      "Failed to convert datum"
-      (Serialization.PlutusData.convertPlutusData datum)
+  let redeemer = mkRedeemer datum
   attachRedeemer redeemer tx >>= case _ of
     Left e -> throw $ "Failed to attach redeemer: " <> show e
     Right (Transaction { witness_set: TransactionWitnessSet ws }) -> do
@@ -79,7 +72,7 @@ testAttachRedeemer = liftEffect $ do
   datum :: PlutusData
   datum = Integer $ BigInt.fromInt 1
 
-  mkRedeemer :: Transaction.PlutusData -> Redeemer
+  mkRedeemer :: PlutusData -> Redeemer
   mkRedeemer pd = Redeemer
     { tag: Spend
     , index: BigInt.fromInt 0
@@ -96,8 +89,7 @@ testPreserveWitness = liftEffect $ do
     fromRightEff =<< attachDatum datum tx
   case plutus_data /\ vkeys of
     Just [ pd ] /\ Just vs@[ _ ] -> do
-      pd' <- checkDatum pd
-      pd' `shouldEqual` Just (unwrap datum)
+      checkDatum pd `shouldEqual` Just (unwrap datum)
       vk' <- Deserialization.WitnessSet.convertVkeyWitnesses <$>
         Serialization.WitnessSet.convertVkeywitnesses vs
       vk' `shouldEqual` [ vk ]
@@ -122,6 +114,6 @@ testPreserveWitness = liftEffect $ do
         (Ed25519Signature "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08qrz0mgdxv5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq6faxl6")
     )
 
-checkDatum :: Transaction.PlutusData -> Effect (Maybe PlutusData)
-checkDatum = map Deserialization.PlutusData.convertPlutusData
-  <<< Serialization.WitnessSet.convertPlutusData
+checkDatum :: PlutusData -> Maybe PlutusData
+checkDatum = Deserialization.PlutusData.convertPlutusData
+  <=< Serialization.PlutusData.convertPlutusData

@@ -4,15 +4,14 @@ import Prelude
 
 import Data.Array as Array
 import Data.Maybe (maybe)
-import Data.Newtype (unwrap)
 import Data.Traversable (for_, traverse, traverse_)
 import Data.Tuple.Nested ((/\))
-import Deserialization.FromBytes (fromBytesEffect)
 import Effect (Effect)
 import Effect.Exception (throw)
 import FfiHelpers (ContainerHelper, containerHelper)
 import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.NativeScript (convertNativeScripts)
+import Serialization.PlutusData (convertPlutusData)
 import Serialization.Types
   ( BigNum
   , BootstrapWitness
@@ -33,7 +32,18 @@ import Serialization.Types
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
 import Types.RedeemerTag as Tag
-import Types.Transaction as T
+import Types.Transaction
+  ( BootstrapWitness
+  , Ed25519Signature(..)
+  , ExUnits
+  , PlutusScript(..)
+  , PublicKey(..)
+  , Redeemer(..)
+  , TransactionWitnessSet(..)
+  , Vkey(..)
+  , Vkeywitness(..)
+  ) as T
+import Types.PlutusData (PlutusData) as T
 
 setPlutusData :: PlutusData -> TransactionWitnessSet -> Effect Unit
 setPlutusData pd ws = _wsSetPlutusData containerHelper ws $ Array.singleton pd
@@ -56,7 +66,7 @@ convertWitnessSet (T.TransactionWitnessSet tws) = do
     for_ ps (convertPlutusScript >=> addPlutusScript scripts)
     txWitnessSetSetPlutusScripts ws scripts
   for_ tws.plutus_data
-    (traverse convertPlutusData >=> _wsSetPlutusData containerHelper ws)
+    (traverse convertPlutusDataEffect >=> _wsSetPlutusData containerHelper ws)
   for_ tws.redeemers
     (traverse convertRedeemer >=> _wsSetRedeemers containerHelper ws)
   pure ws
@@ -65,9 +75,12 @@ convertRedeemer :: T.Redeemer -> Effect Redeemer
 convertRedeemer (T.Redeemer { tag, index, "data": data_, ex_units }) = do
   tag' <- convertRedeemerTag tag
   index' <- maybe (throw "Failed to convert redeemer index") pure $ bigNumFromBigInt index
-  data' <- convertPlutusData data_
+  data' <- convertPlutusDataEffect data_
   ex_units' <- convertExUnits ex_units
   newRedeemer tag' index' data' ex_units'
+
+convertPlutusDataEffect :: T.PlutusData -> Effect PlutusData
+convertPlutusDataEffect pd = maybe (throw "Failed to convert PlutusData") pure $ convertPlutusData pd
 
 convertRedeemerTag :: Tag.RedeemerTag -> Effect RedeemerTag
 convertRedeemerTag = _newRedeemerTag <<< case _ of
@@ -82,9 +95,6 @@ convertExUnits { mem, steps } =
     mem' <- bigNumFromBigInt mem
     steps' <- bigNumFromBigInt steps
     pure $ newExUnits mem' steps'
-
-convertPlutusData :: T.PlutusData -> Effect PlutusData
-convertPlutusData = fromBytesEffect <<< unwrap
 
 convertBootstrap :: T.BootstrapWitness -> Effect BootstrapWitness
 convertBootstrap { vkey, signature, chain_code, attributes } = do

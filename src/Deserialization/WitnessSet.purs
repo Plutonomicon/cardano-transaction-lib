@@ -11,7 +11,6 @@ import Data.Traversable (for, traverse)
 import Data.Tuple.Nested ((/\))
 import Deserialization.BigNum (bigNumToBigInt)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import Serialization (toBytes)
 import Serialization.Types
   ( BigNum
   , BootstrapWitness
@@ -34,10 +33,22 @@ import Serialization.Types
   , Vkeywitnesses
   )
 import Types.ByteArray (ByteArray)
+import Types.PlutusData (PlutusData) as T
 import Types.RedeemerTag as Tag
-import Types.Transaction as T
-import Untagged.Union (asOneOf)
+import Types.Transaction
+  ( BootstrapWitness
+  , Ed25519Signature(..)
+  , ExUnits
+  , NativeScript
+  , PlutusScript(..)
+  , PublicKey(..)
+  , Redeemer(..)
+  , TransactionWitnessSet(..)
+  , Vkey(..)
+  , Vkeywitness(..)
+  ) as T
 import Deserialization.NativeScript (convertNativeScript)
+import Deserialization.PlutusData (convertPlutusData)
 
 deserializeWitnessSet :: ByteArray -> Maybe TransactionWitnessSet
 deserializeWitnessSet = _deserializeWitnessSet maybeFfiHelper
@@ -46,12 +57,13 @@ convertWitnessSet :: TransactionWitnessSet -> Maybe T.TransactionWitnessSet
 convertWitnessSet ws = do
   native_scripts <- for (getNativeScripts maybeFfiHelper ws) convertNativeScripts
   redeemers <- for (getRedeemers maybeFfiHelper ws) convertRedeemers
+  plutus_data <- for (getWitnessSetPlutusData maybeFfiHelper ws) convertPlutusList
   pure $ T.TransactionWitnessSet
     { vkeys: getVkeywitnesses maybeFfiHelper ws <#> convertVkeyWitnesses
     , native_scripts
     , bootstraps: getBootstraps maybeFfiHelper ws <#> convertBootstraps
     , plutus_scripts: getPlutusScripts maybeFfiHelper ws <#> convertPlutusScripts
-    , plutus_data: getWitnessSetPlutusData maybeFfiHelper ws <#> convertPlutusList
+    , plutus_data
     , redeemers
     }
 
@@ -85,11 +97,8 @@ convertBootstraps = extractBootstraps >>> map \bootstrap ->
 convertPlutusScripts :: PlutusScripts -> Array T.PlutusScript
 convertPlutusScripts = extractPlutusScripts >>> map (plutusScriptBytes >>> T.PlutusScript)
 
-convertPlutusList :: PlutusList -> Array T.PlutusData
-convertPlutusList = extractPlutusData >>> map convertPlutusData
-
-convertPlutusData :: PlutusData -> T.PlutusData
-convertPlutusData = asOneOf >>> toBytes >>> T.PlutusData
+convertPlutusList :: PlutusList -> Maybe (Array T.PlutusData)
+convertPlutusList = extractPlutusData >>> traverse convertPlutusData
 
 convertRedeemers :: Redeemers -> Maybe (Array T.Redeemer)
 convertRedeemers = extractRedeemers >>> traverse convertRedeemer
@@ -99,10 +108,11 @@ convertRedeemer redeemer = do
   tag <- convertRedeemerTag $ getRedeemerTag redeemer
   index <- bigNumToBigInt $ getRedeemerIndex redeemer
   ex_units <- convertExUnits $ getExUnits redeemer
+  data_ <- convertPlutusData $ getRedeemerPlutusData redeemer
   pure $ T.Redeemer
     { tag
     , index
-    , data: convertPlutusData $ getRedeemerPlutusData redeemer
+    , data: data_
     , ex_units
     }
 

@@ -25,6 +25,7 @@ import Types.ByteArray (ByteArray)
 import Types.RedeemerTag (RedeemerTag)
 import Types.Value (Coin, Value)
 import Serialization.Hash (Ed25519KeyHash)
+import Types.PlutusData (PlutusData)
 
 -- note: these types are derived from the cardano-serialization-lib Sundae fork
 -- the source of truth for these types should be that library and the
@@ -356,15 +357,6 @@ derive instance Generic PlutusScript _
 instance Show PlutusScript where
   show = genericShow
 
-newtype PlutusData = PlutusData ByteArray
-
-derive instance Generic PlutusData _
-derive newtype instance Eq PlutusData
-derive instance Newtype PlutusData _
-
-instance Show PlutusData where
-  show = genericShow
-
 newtype Redeemer = Redeemer
   { tag :: RedeemerTag
   , index :: BigInt
@@ -513,6 +505,19 @@ derive newtype instance eqDataHash :: Eq DataHash
 derive newtype instance ordDataHash :: Ord DataHash
 
 instance Show DataHash where
+  show = genericShow
+
+-- To help with people copying & pasting code from Haskell to Purescript
+type DatumHash = DataHash
+
+newtype Datum = Datum PlutusData
+
+derive newtype instance Eq Datum
+derive newtype instance Ord Datum
+derive instance Newtype Datum _
+derive instance Generic Datum _
+
+instance Show Datum where
   show = genericShow
 
 -- Option<Certificates>,
