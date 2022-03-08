@@ -10,7 +10,6 @@ import Data.List (List)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Profunctor.Strong ((***))
-import Data.Tuple (Tuple)
 import Data.Tuple.Nested (type (/\), (/\))
 import Prim.TypeError (class Fail, Text)
 import Types.ByteArray (ByteArray)
@@ -29,7 +28,7 @@ instance ToData Boolean where
 instance ToData BigInt where
   toData = Integer
 
-instance Fail (Text "Use BigInt") => ToData Int where
+instance Fail (Text "Int is not supported, use BigInt instead") => ToData Int where
   toData = toData <<< BigInt.fromInt
 
 instance (ToData k, ToData v) => ToData (Map k v) where

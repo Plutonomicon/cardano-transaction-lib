@@ -12,6 +12,7 @@ import Data.Maybe (Maybe(..))
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(..))
 import Data.Tuple.Nested (type (/\), (/\))
+import Prim.TypeError (class Fail, Text)
 import Data.Unfoldable (class Unfoldable)
 import Types.PlutusData (PlutusData(..))
 
@@ -26,6 +27,9 @@ instance FromData Boolean where
   fromData (Integer n)
     | n == BigInt.fromInt 0 = Just false
     | n == BigInt.fromInt 1 = Just true
+  fromData _ = Nothing
+
+instance Fail (Text "Int is not supported, use BigInt instead") => FromData Int where
   fromData _ = Nothing
 
 instance FromData BigInt where
