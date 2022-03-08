@@ -18,7 +18,6 @@ import QueryM
   )
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
-import Types.Interval (defaultSlotConfig)
 import Types.JsonWsp (Address)
 
 testnet_addr1 :: Address
@@ -55,7 +54,6 @@ testUtxosAt testAddr = do
       { ws
       , serverConfig: defaultServerConfig
       , wallet: Nothing
-      , slotConfig: defaultSlotConfig
       }
 
 testFromOgmiosAddress :: Address -> Aff Unit

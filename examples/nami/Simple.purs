@@ -24,7 +24,6 @@ import QueryM
   , getWalletCollateral
   , defaultServerConfig
   )
-import Types.Interval (defaultSlotConfig)
 import Wallet (mkNamiWalletAff)
 
 main :: Effect Unit
@@ -35,7 +34,6 @@ main = launchAff_ $ do
     { ws: {-TODO-}  undefined
     , wallet
     , serverConfig: defaultServerConfig
-    , slotConfig: defaultSlotConfig
     }
   where
   walletActions :: QueryM Unit

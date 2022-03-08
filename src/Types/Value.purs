@@ -79,12 +79,18 @@ import Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
 import Types.ByteArray (ByteArray, byteLength)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 
--- Negation to create an AdditiveGroup for Value. Call it negation to not confuse
--- with negate.
+-- `Negate` and `Split` seem a bit too contrived, and their purpose is to
+-- combine similar behaviour without satisfying any useful laws. I wonder
+-- if we're better off simply writing functions for Coin, NonAdaAsset and Value
+-- to `split` and `negate` (it's just 6 functions) in total without the need of
+-- a somewhat meaningless typeclass.
+
 -- We could write a Ring instance to get `negate` but I'm not sure this would
 -- make much sense for Value. Plutus uses a custom AdditiveGroup.
 -- We could define a Data.Group although zero-valued tokens don't degenerate
 -- from our map currently - I don't think we'd want this behaviour.
+-- | Negation to create an AdditiveGroup for Value. Call it negation to not confuse
+-- | with negate.
 class Negate (a :: Type) where
   negation :: a -> a
 

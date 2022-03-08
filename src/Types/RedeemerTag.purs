@@ -12,6 +12,7 @@ data RedeemerTag = Spend | Mint | Cert | Reward
 
 derive instance Generic RedeemerTag _
 derive instance Eq RedeemerTag
+derive instance Ord RedeemerTag
 
 instance Show RedeemerTag where
   show = genericShow
