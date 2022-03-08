@@ -329,9 +329,9 @@ defaultSlotConfig = SlotConfig
   , slotZeroTime: POSIXTime beginningOfTime
   }
 
--- | Convert a 'SlotRange' to a 'POSIXTimeRange' given a 'SlotConfig'. The
--- | resulting 'POSIXTimeRange' refers to the starting time of the lower bound of
--- | the 'SlotRange' and the ending time of the upper bound of the 'SlotRange'.
+-- | Convert a `SlotRange` to a `POSIXTimeRange` given a `SlotConfig`. The
+-- | resulting `POSIXTimeRange` refers to the starting time of the lower bound of
+-- | the `SlotRange` and the ending time of the upper bound of the `SlotRange`.
 slotRangeToPOSIXTimeRange :: SlotConfig -> SlotRange -> POSIXTimeRange
 slotRangeToPOSIXTimeRange
   sc
@@ -351,7 +351,7 @@ slotRangeToPOSIXTimeRange
       , ivTo: UpperBound ubound endIncl
       }
 
--- | Convert a 'Slot' to a 'POSIXTimeRange' given a 'SlotConfig'. Each 'Slot'
+-- | Convert a `Slot` to a `POSIXTimeRange` given a `SlotConfig`. Each `Slot`
 -- | can be represented by an interval of time.
 slotToPOSIXTimeRange :: SlotConfig -> Slot -> POSIXTimeRange
 slotToPOSIXTimeRange sc slot =
@@ -375,12 +375,12 @@ slotToBeginPOSIXTime (SlotConfig { slotLength, slotZeroTime }) (Slot n) =
   in
     POSIXTime $ unwrap slotZeroTime + msAfterBegin
 
--- | Get the ending `POSIXTime` of a 'Slot' given a `SlotConfig`.
+-- | Get the ending `POSIXTime` of a `Slot` given a `SlotConfig`.
 slotToEndPOSIXTime :: SlotConfig -> Slot -> POSIXTime
 slotToEndPOSIXTime sc@(SlotConfig { slotLength }) slot =
   slotToBeginPOSIXTime sc slot + POSIXTime (slotLength - one)
 
--- | Convert a 'POSIXTimeRange' to 'SlotRange' given a 'SlotConfig'. This gives
+-- | Convert a `POSIXTimeRange` to `SlotRange` given a `SlotConfig`. This gives
 -- | the biggest slot range that is entirely contained by the given time range.
 posixTimeRangeToContainedSlotRange
   :: SlotConfig -> POSIXTimeRange -> Maybe SlotRange
@@ -462,7 +462,7 @@ posixTimeRangeToTransactionSlot
 posixTimeRangeToTransactionSlot sc =
   map slotRangeToTransactionSlot <<< posixTimeRangeToContainedSlotRange sc
 
--- | Convert a 'POSIXTime' to 'Slot' given a 'SlotConfig'. This differs from
+-- | Convert a `POSIXTime` to `Slot` given a `SlotConfig`. This differs from
 -- | Plutus by potential failure.
 posixTimeToEnclosingSlot :: SlotConfig -> POSIXTime -> Maybe Slot
 posixTimeToEnclosingSlot (SlotConfig { slotLength, slotZeroTime }) (POSIXTime t) =
