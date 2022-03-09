@@ -84,14 +84,15 @@ module Serialization.Address
 import Prelude
 
 import Control.Alt ((<|>))
-import Data.Argonaut (class EncodeJson, encodeJson)
+import Data.Argonaut (class EncodeJson, fromNumber)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
-import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
+import Data.UInt as UInt
+
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization.Hash (Ed25519KeyHash, ScriptHash)
 import Serialization.Types (Bip32PublicKey)
@@ -105,7 +106,7 @@ derive instance Newtype Slot _
 derive instance Generic Slot _
 
 instance EncodeJson Slot where
-  encodeJson = undefined
+  encodeJson (Slot uint) = fromNumber (UInt.toNumber uint)
 
 instance Show Slot where
   show = genericShow
@@ -123,7 +124,7 @@ derive instance Newtype BlockId _
 derive instance Generic BlockId _
 
 instance EncodeJson BlockId where
-  encodeJson = undefined -- TODO
+  encodeJson (BlockId id) = fromNumber (UInt.toNumber id)
 
 instance Show BlockId where
   show = genericShow

@@ -31,10 +31,11 @@ main = launchAff_ $ do
   wallet <- Just <$> mkNamiWalletAff
   runReaderT
     walletActions
-    { datumCacheWs: {-TODO-} undefined
-    , ogmiosWs: {-TODO-} undefined
+    { datumCacheWs: {-TODO-}  undefined
+    , ogmiosWs: {-TODO-}  undefined
     , wallet
-    , serverConfig: defaultServerConfig }
+    , serverConfig: defaultServerConfig
+    }
   where
   walletActions :: QueryM Unit
   walletActions = sequence_ [ logWalletAddress, logWalletCollateral ]
