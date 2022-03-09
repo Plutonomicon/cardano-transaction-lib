@@ -29,12 +29,11 @@ module Types.ScriptLookups
 import Prelude hiding (join)
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
-import Control.Monad.Maybe.Trans (MaybeT(MaybeT), runMaybeT)
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
-import Data.Array (singleton) as Array
-import Data.Array ((:), catMaybes, concat, elem, fromFoldable, toUnfoldable)
+import Data.Array (mapMaybe, singleton) as Array
+import Data.Array ((:), concat, elem, fromFoldable, toUnfoldable)
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), either)
@@ -48,13 +47,10 @@ import Data.Lens.Getter (use)
 import Data.Lens.Iso (iso)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Prism (prism')
--- import Data.Lens.Prism.Maybe (_Just)
 import Data.Lens.Record (prop)
--- import Data.Lens.Lens.Tuple (_1, _2)
 import Data.Lens.Types (Iso', Lens', Prism', Traversal')
 import Data.List (List(Nil, Cons))
-import Data.Map (catMaybes) as Map
-import Data.Map (Map, empty, lookup, singleton, union, values)
+import Data.Map (Map, empty, lookup, mapMaybe, singleton, union, values)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -108,11 +104,11 @@ import Types.Transaction
   , _body
   , _inputs
   , _mint
-  , _network_id
+  , _networkId
   , _outputs
-  , _plutus_scripts
-  , _required_signers
-  , _witness_set
+  , _plutusScripts
+  , _requiredSigners
+  , _witnessSet
   )
 import Types.TxConstraints
   ( TxConstraint
@@ -166,7 +162,9 @@ import Undefined (undefined)
 --------------------------------------------------------------------------------
 -- Misc. helpers (can remove after `convertRedeemer` defined)
 --------------------------------------------------------------------------------
--- TO DO: replace with real function call to Haskell server
+-- TO DO: remove this functionality and convert Redeemers as an Array T.Redeemer
+-- https://github.com/Plutonomicon/cardano-browser-tx/issues/156 (closed now)
+-- https://github.com/Plutonomicon/cardano-browser-tx/issues/167
 convertRedeemer
   :: forall (sl :: Type)
    . Redeemer
@@ -273,19 +271,18 @@ fromTxOut (TransactionOutput { address, amount: value, data_hash }) = do
           { address, validator: Left $ ValidatorHash sh, datum: Left dh, value }
     }
 
--- | Converts an Ogmios Transaction output to a `ScriptOutput`. This is impure
--- |because of `validatorHash`.
-toScriptOutput :: OgmiosTxOut -> Effect (Maybe ScriptOutput)
-toScriptOutput (ScriptOgmiosTxOut { validator, datum, value }) = runMaybeT do
+-- | Converts an Ogmios Transaction output to a `ScriptOutput`.
+toScriptOutput :: OgmiosTxOut -> Maybe ScriptOutput
+toScriptOutput (ScriptOgmiosTxOut { validator, datum, value }) = do
   -- Recall: validator is a validator hash or validator
-  vHash <- MaybeT $ either (pure <<< Just) validatorHash validator
-  dHash <- MaybeT $ pure $ either Just datumHash datum
-  MaybeT $ pure $ Just $ ScriptOutput
+  vHash <- either Just validatorHash validator
+  dHash <- either Just datumHash datum
+  pure $ ScriptOutput
     { validatorHash: vHash
     , value
     , datumHash: dHash
     }
-toScriptOutput _ = pure Nothing
+toScriptOutput _ = Nothing
 
 -- | Converts an `ScriptOutput` to Ogmios Transaction output.
 fromScriptOutput :: NetworkId -> ScriptOutput -> OgmiosTxOut
@@ -502,10 +499,12 @@ instance Monoid (ScriptLookups a) where
 --------------------------------------------------------------------------------
 -- Create ScriptLookups helpers for `Contract` monad.
 --------------------------------------------------------------------------------
+-- https://github.com/Plutonomicon/cardano-browser-tx/issues/166
 -- FIX ME: Need to work out what to do with TypedValidator and constraints.
 -- Also, some of these functions are in Monadic contexts which differs from
 -- Plutus. Not sure if there's anything we can do about this.
 
+-- https://github.com/Plutonomicon/cardano-browser-tx/issues/166
 -- FIX ME: this just replicates Plutus API, it's meaningless ATM.
 -- | A script lookups value with a script instance. For convenience this also
 -- | includes the minting policy script that forwards all checks to the
@@ -525,35 +524,29 @@ unspentOutputs
   :: forall (a :: Type). Map TxOutRef OgmiosTxOut -> ScriptLookups a
 unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 
--- | A script lookups value with a minting policy script. This is impure, unlike
--- | Plutus because we invoke `mintingPolicyHash`.
-mintingPolicy
-  :: forall (a :: Type). MintingPolicy -> Effect (Maybe (ScriptLookups a))
-mintingPolicy pl =
-  mintingPolicyHash pl >>= case _ of
-    Nothing -> pure Nothing
-    Just hsh ->
-      pure $ Just $ over ScriptLookups _ { mps = singleton hsh pl } mempty
+-- | A script lookups value with a minting policy script. This can fail because
+-- | we invoke `mintingPolicyHash`.
+mintingPolicy :: forall (a :: Type). MintingPolicy -> Maybe (ScriptLookups a)
+mintingPolicy pl = do
+  hsh <- mintingPolicyHash pl
+  pure $ over ScriptLookups _ { mps = singleton hsh pl } mempty
 
--- | A script lookups value with a validator script. This is impure, unlike
--- | Plutus because we invoke `validatorHash`.
-otherScript :: forall (a :: Type). Validator -> Effect (Maybe (ScriptLookups a))
+-- | A script lookups value with a validator script. This can fail because we
+-- |invoke `validatorHash`.
+otherScript :: forall (a :: Type). Validator -> Maybe (ScriptLookups a)
 otherScript vl = do
-  validatorHash vl >>= case _ of
-    Nothing -> pure Nothing
-    Just vh ->
-      pure $ Just $
-        over ScriptLookups _ { otherScripts = singleton vh vl } mempty
+  vh <- validatorHash vl
+  pure $ over ScriptLookups _ { otherScripts = singleton vh vl } mempty
 
--- | A script lookups value with a datum. This is contained in `Maybe` context
--- | because we invoke `datumHash`.
+-- | A script lookups value with a datum. This can fail because we invoke
+-- | `datumHash`.
 otherData :: forall (a :: Type). Datum -> Maybe (ScriptLookups a)
 otherData dt = do
   dh <- datumHash dt
   pure $ over ScriptLookups _ { otherData = singleton dh dt } mempty
 
--- | A script lookups value with a payment public key. This is contained in
--- | `Maybe` context because we invoke `payPubKeyHash`.
+-- | A script lookups value with a payment public key. This can fail because we
+-- | invoke `payPubKeyHash`.
 paymentPubKey :: forall (a :: Type). PaymentPubKey -> Maybe (ScriptLookups a)
 paymentPubKey ppk = do
   pkh <- payPubKeyHash ppk
@@ -661,16 +654,13 @@ type ConstraintsConfig (sl :: Type) =
   , slotConfig :: SlotConfig
   }
 
--- A `ReaderT` and `StateT` ontop of `QueryM`. The config is `ConstraintsConfig`
--- which holds the scriptlookups and a `defaultSlotConfig`. The state is
--- `ConstraintProcessingState` which keeps track of the unbalanced transaction
--- etc.
--- QUESTION: Replacing `ReaderT QueryConfig Aff` with `QueryM` isn't allowed
--- because type synonyms need to be fully applied. Is there any way around this
--- other than newtyping `QueryM`? Perhaps we do want to newtype it in
--- anticipation for the `Contract` Monad?
+-- A `ReaderT` and `StateT` ontop of `QueryM` ~ ReaderT QueryConfig Aff`.
+-- The config is `ConstraintsConfig`  which holds the scriptlookups and a
+-- `defaultSlotConfig`. The state is `ConstraintProcessingState` which keeps
+-- track of the unbalanced transaction etc.
+-- We write `ReaderT QueryConfig Aff` below since type synonyms need to be fully
+-- applied.
 type ConstraintsM (sl :: Type) (a :: Type) =
-  -- Type synonyms need to be fully applied so can't write `QueryM` below.
   ReaderT (ConstraintsConfig sl)
     (StateT ConstraintProcessingState (ReaderT QueryConfig Aff))
     a
@@ -678,6 +668,7 @@ type ConstraintsM (sl :: Type) (a :: Type) =
 -- TO DO: Plutus uses a bunch of FromData and ToData constraints we'll probably
 -- need to replicate if we uses `InputConstraint`s and `OutputConstraint`s
 -- i.e. ~ foldM addOwnInput txOwnInputs then foldM addOwnOutput txOwnOutputs
+-- see https://github.com/Plutonomicon/cardano-browser-tx/issues/166
 -- | Resolve some `TxConstraints` by modifying the `UnbalancedTx` in the
 -- | `ConstraintProcessingState`
 processLookupsAndConstraints
@@ -791,7 +782,7 @@ addMintingRedeemers
    . ConstraintsM sl (Either MkUnbalancedTxError Unit)
 addMintingRedeemers = do
   mPs <-
-    use (_unbalancedTx <<< _transaction <<< _witness_set <<< _plutus_scripts)
+    use (_unbalancedTx <<< _transaction <<< _witnessSet <<< _plutusScripts)
   case mPs of
     Nothing -> pure $ Right unit -- no side effects
     Just ps -> runExceptT do
@@ -802,8 +793,9 @@ addMintingRedeemers = do
         ( \mpsHash _ red -> runExceptT do
             -- POTENTIAL FIX ME: We are wrapping MintingPolicyHash on Array of
             --  generic PlutusScripts mapped to their ScriptHash.
-            containsHash <- ExceptT $ liftEffect $ traverse scriptHash ps <#>
-              catMaybes >>> map MintingPolicyHash >>> elem mpsHash >>> Right
+            containsHash <- liftEither $ Right $ elem mpsHash $
+              Array.mapMaybe (map MintingPolicyHash <<< scriptHash) ps
+            -- # elem mpsHash >>> Right >>> liftEither
             if containsHash then do
               ExceptT $ attachToCps attachRedeemer red
             else liftEither $ throwError $ MintingPolicyNotFound mpsHash
@@ -816,12 +808,11 @@ updateUtxoIndex
    . ConstraintsM sl (Either MkUnbalancedTxError Unit)
 updateUtxoIndex = runExceptT do
   txOutputs <- asks (_.scriptLookups >>> unwrap >>> _.txOutputs)
-  txOutsMap <- liftEffect $ Map.catMaybes <$> traverse toScriptOutput txOutputs
+  let txOutsMap = mapMaybe toScriptOutput txOutputs
   -- Left bias towards original map, hence `flip`:
   _unbalancedTx <<< _utxoIndex %= flip union txOutsMap
 
 data MkUnbalancedTxError
-  -- = TypeCheckFailed ConnectionError
   = ModifyTx ModifyTxError
   | TxOutRefNotFound TxOutRef
   | TxOutRefWrongType TxOutRef
@@ -903,7 +894,7 @@ processConstraint = do
     MustBeSignedBy pkh -> runExceptT do
       ppkh <- asks (_.scriptLookups >>> unwrap >>> _.paymentPubKeyHashes)
       let sigs = lookup pkh ppkh <#> payPubKeyRequiredSigner >>> Array.singleton
-      _cpsToTxBody <<< _required_signers <>= sigs
+      _cpsToTxBody <<< _requiredSigners <>= sigs
     MustSpendAtLeast vl ->
       runExceptT $ _valueSpentBalancesInputs <>= require vl
     MustProduceAtLeast vl ->
@@ -1049,5 +1040,5 @@ _cpsToTxBody = _unbalancedTx <<< _transaction <<< _body
 getNetworkId
   :: forall (sl :: Type)
    . ConstraintsM sl (Either MkUnbalancedTxError NetworkId)
-getNetworkId = runExceptT $ use (_cpsToTxBody <<< _network_id)
+getNetworkId = runExceptT $ use (_cpsToTxBody <<< _networkId)
   >>= liftEither <<< maybe (throwError NetworkIdMissing) Right

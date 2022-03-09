@@ -76,16 +76,16 @@ _body :: Lens' Transaction TxBody
 _body = lens' \(Transaction rec@{ body }) ->
   Tuple body \bod -> Transaction rec { body = bod }
 
-_witness_set :: Lens' Transaction TransactionWitnessSet
-_witness_set = lens' \(Transaction rec@{ witness_set }) ->
+_witnessSet :: Lens' Transaction TransactionWitnessSet
+_witnessSet = lens' \(Transaction rec@{ witness_set }) ->
   Tuple witness_set \ws -> Transaction rec { witness_set = ws }
 
-_is_valid :: Lens' Transaction Boolean
-_is_valid = lens' \(Transaction rec@{ is_valid }) ->
+_isValid :: Lens' Transaction Boolean
+_isValid = lens' \(Transaction rec@{ is_valid }) ->
   Tuple is_valid \iv -> Transaction rec { is_valid = iv }
 
-_auxiliary_data :: Lens' Transaction (Maybe AuxiliaryData)
-_auxiliary_data = lens' \(Transaction rec@{ auxiliary_data }) ->
+_auxiliaryData :: Lens' Transaction (Maybe AuxiliaryData)
+_auxiliaryData = lens' \(Transaction rec@{ auxiliary_data }) ->
   Tuple auxiliary_data \ad -> Transaction rec { auxiliary_data = ad }
 
 --------------------------------------------------------------------------------
@@ -296,27 +296,27 @@ _withdrawals = _Newtype <<< prop (SProxy :: SProxy "withdrawals")
 _update :: Lens' TxBody (Maybe Update)
 _update = _Newtype <<< prop (SProxy :: SProxy "update")
 
-_auxiliary_data_hash :: Lens' TxBody (Maybe AuxiliaryDataHash)
-_auxiliary_data_hash = _Newtype <<< prop (SProxy :: SProxy "auxiliary_data_hash")
+_auxiliaryDataHash :: Lens' TxBody (Maybe AuxiliaryDataHash)
+_auxiliaryDataHash = _Newtype <<< prop (SProxy :: SProxy "auxiliary_data_hash")
 
-_validity_start_interval :: Lens' TxBody (Maybe Slot)
-_validity_start_interval =
+_validityStartInterval :: Lens' TxBody (Maybe Slot)
+_validityStartInterval =
   _Newtype <<< prop (SProxy :: SProxy "validity_start_interval")
 
 _mint :: Lens' TxBody (Maybe Mint)
 _mint = _Newtype <<< prop (SProxy :: SProxy "mint")
 
-_script_data_hash :: Lens' TxBody (Maybe ScriptDataHash)
-_script_data_hash = _Newtype <<< prop (SProxy :: SProxy "script_data_hash")
+_scriptDataHash :: Lens' TxBody (Maybe ScriptDataHash)
+_scriptDataHash = _Newtype <<< prop (SProxy :: SProxy "script_data_hash")
 
 _collateral :: Lens' TxBody (Maybe (Array TransactionInput))
 _collateral = _Newtype <<< prop (SProxy :: SProxy "collateral")
 
-_required_signers :: Lens' TxBody (Maybe (Array RequiredSigner))
-_required_signers = _Newtype <<< prop (SProxy :: SProxy "required_signers")
+_requiredSigners :: Lens' TxBody (Maybe (Array RequiredSigner))
+_requiredSigners = _Newtype <<< prop (SProxy :: SProxy "required_signers")
 
-_network_id :: Lens' TxBody (Maybe NetworkId)
-_network_id = _Newtype <<< prop (SProxy :: SProxy "network_id")
+_networkId :: Lens' TxBody (Maybe NetworkId)
+_networkId = _Newtype <<< prop (SProxy :: SProxy "network_id")
 
 --------------------------------------------------------------------------------
 -- `TransactionWitnessSet`
@@ -365,20 +365,20 @@ _vkeys :: Lens' TransactionWitnessSet (Maybe (Array Vkeywitness))
 _vkeys = lens' \(TransactionWitnessSet rec@{ vkeys }) ->
   Tuple vkeys \vk -> TransactionWitnessSet rec { vkeys = vk }
 
-_native_scripts :: Lens' TransactionWitnessSet (Maybe (Array NativeScript))
-_native_scripts = lens' \(TransactionWitnessSet rec@{ native_scripts }) ->
+_nativeScripts :: Lens' TransactionWitnessSet (Maybe (Array NativeScript))
+_nativeScripts = lens' \(TransactionWitnessSet rec@{ native_scripts }) ->
   Tuple native_scripts \ns -> TransactionWitnessSet rec { native_scripts = ns }
 
 _bootstraps :: Lens' TransactionWitnessSet (Maybe (Array BootstrapWitness))
 _bootstraps = lens' \(TransactionWitnessSet rec@{ bootstraps }) ->
   Tuple bootstraps \bs -> TransactionWitnessSet rec { bootstraps = bs }
 
-_plutus_scripts :: Lens' TransactionWitnessSet (Maybe (Array PlutusScript))
-_plutus_scripts = lens' \(TransactionWitnessSet rec@{ plutus_scripts }) ->
+_plutusScripts :: Lens' TransactionWitnessSet (Maybe (Array PlutusScript))
+_plutusScripts = lens' \(TransactionWitnessSet rec@{ plutus_scripts }) ->
   Tuple plutus_scripts \ps -> TransactionWitnessSet rec { plutus_scripts = ps }
 
-_plutus_data :: Lens' TransactionWitnessSet (Maybe (Array PlutusData))
-_plutus_data = lens' \(TransactionWitnessSet rec@{ plutus_data }) ->
+_plutusData :: Lens' TransactionWitnessSet (Maybe (Array PlutusData))
+_plutusData = lens' \(TransactionWitnessSet rec@{ plutus_data }) ->
   Tuple plutus_data \pd -> TransactionWitnessSet rec { plutus_data = pd }
 
 _redeemers :: Lens' TransactionWitnessSet (Maybe (Array Redeemer))

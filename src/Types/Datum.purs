@@ -51,8 +51,7 @@ derive instance Generic Redeemer _
 instance Show Redeemer where
   show = genericShow
 
--- FIX ME (create an issue unless someone notices simple solution to this in PR
--- review)
+-- FIX ME https://github.com/Plutonomicon/cardano-browser-tx/issues/147
 unitRedeemer :: RedeemerTag -> Redeemer
 unitRedeemer = undefined
 

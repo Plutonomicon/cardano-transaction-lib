@@ -17,13 +17,10 @@ import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
-import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for)
 import Data.Tuple.Nested ((/\))
 import Types.ByteArray (ByteArray, hexToByteArray)
-import Types.RedeemerTag (RedeemerTag)
-import Undefined (undefined)
 
 -- | Don't distinguish "BuiltinData" and "Data" like Plutus:
 data PlutusData

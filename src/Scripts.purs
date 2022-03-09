@@ -23,7 +23,6 @@ import Serialization.Address
   , scriptAddress
   )
 import Serialization.Hash (ScriptHash, scriptHashFromBytes)
-import Serialization.WitnessSet (convertPlutusScript)
 import Types.Scripts
   ( MintingPolicy
   , MintingPolicyHash
@@ -39,14 +38,14 @@ import Types.Scripts
 -- | the data type definitions to prevent cylic dependencies.
 
 -- | Converts a Plutus-style `Validator` to a `BaseAddress`
-validatorBaseAddress :: NetworkId -> Validator -> Effect (Maybe BaseAddress)
+validatorBaseAddress :: NetworkId -> Validator -> Maybe BaseAddress
 validatorBaseAddress networkId =
-  map (map (validatorHashBaseAddress networkId)) <<< validatorHash
+  map (validatorHashBaseAddress networkId) <<< validatorHash
 
 -- | Converts a Plutus-style `Validator` to an `Address`
-validatorAddress :: NetworkId -> Validator -> Effect (Maybe Address)
+validatorAddress :: NetworkId -> Validator -> Maybe Address
 validatorAddress networkId =
-  map (map baseAddressToAddress) <<< validatorBaseAddress networkId
+  map baseAddressToAddress <<< validatorBaseAddress networkId
 
 -- | Converts a Plutus-style `TypedValidator` to an `Address`
 typedValidatorAddress
@@ -55,11 +54,11 @@ typedValidatorAddress networkId (TypedValidator typedVal) =
   baseAddressToAddress $ scriptAddress networkId $ unwrap typedVal.validatorHash
 
 -- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
-mintingPolicyHash :: MintingPolicy -> Effect (Maybe MintingPolicyHash)
+mintingPolicyHash :: MintingPolicy -> Maybe MintingPolicyHash
 mintingPolicyHash = plutusScriptHash
 
 -- | Converts a Plutus-style `Validator` to an `ValidatorHash`
-validatorHash :: Validator -> Effect (Maybe ValidatorHash)
+validatorHash :: Validator -> Maybe ValidatorHash
 validatorHash = plutusScriptHash
 
 -- | Converts a Plutus-style `ValidatorHash` to a `BaseAddress`
@@ -72,7 +71,7 @@ validatorHashAddress networkId =
   baseAddressToAddress <<< validatorHashBaseAddress networkId
 
 -- | Converts a Plutus-style `StakeValidator` to an `Address`
-stakeValidatorHash :: StakeValidator -> Effect (Maybe StakeValidatorHash)
+stakeValidatorHash :: StakeValidator -> Maybe StakeValidatorHash
 stakeValidatorHash = plutusScriptHash
 
 plutusScriptHash
@@ -80,11 +79,9 @@ plutusScriptHash
    . Newtype m PlutusScript
   => Newtype n ScriptHash
   => m
-  -> Effect (Maybe n)
-plutusScriptHash = map (map wrap) <<< scriptHash <<< unwrap
+  -> Maybe n
+plutusScriptHash = map wrap <<< scriptHash <<< unwrap
 
 -- | Converts a `PlutusScript` to a `ScriptHash`.
-scriptHash :: PlutusScript -> Effect (Maybe ScriptHash)
-scriptHash =
-  map (scriptHashFromBytes <<< plutusScriptBytes)
-    <<< convertPlutusScript
+scriptHash :: PlutusScript -> Maybe ScriptHash
+scriptHash = scriptHashFromBytes <<< unwrap
