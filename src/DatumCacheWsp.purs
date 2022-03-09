@@ -34,8 +34,10 @@ import Data.Either (Either(Left, Right), note)
 import Data.Eq (class Eq)
 import Data.Function ((>>>), const, ($))
 import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Monoid ((<>))
 import Data.Newtype (unwrap)
-import Data.Traversable (traverse)
+import Data.Show (class Show)
+import Data.TraversableWithIndex (forWithIndex)
 import Data.Unit (Unit, unit)
 import Serialization.Address (BlockId, Slot)
 import Types.ByteArray (byteArrayToHex, hexToByteArray)
@@ -75,6 +77,9 @@ data DatumCacheMethod
   | DatumFilterGetHashes
 
 derive instance Eq DatumCacheMethod
+
+instance Show DatumCacheMethod where
+  show = datumCacheMethodToString
 
 datumCacheMethodToString :: DatumCacheMethod -> String
 datumCacheMethodToString = case _ of
@@ -170,15 +175,13 @@ jsonWspRequest req =
 parseJsonWspResponse :: JsonWspResponse -> Either WspFault DatumCacheResponse
 parseJsonWspResponse resp@{ methodname, result, fault } =
   maybe
-    (Left $ maybe invalidResponseError WspFault (toStringifiedNumbersJson <$> fault))
+    (toLeftWspFault fault)
     decodeResponse
     result
   where
-  decodeHashes :: Aeson -> Either JsonDecodeError (Array DatumHash)
-  decodeHashes j = do
-    { hashes } :: { hashes :: Array String } <- decodeJson $ toStringifiedNumbersJson j
-    note (UnexpectedValue $ toStringifiedNumbersJson j) $
-      traverse (map DataHash <<< hexToByteArray) hashes
+
+  toLeftWspFault :: Maybe Aeson -> Either WspFault DatumCacheResponse
+  toLeftWspFault = Left <<< maybe invalidResponseError WspFault <<< map toStringifiedNumbersJson
 
   decodeResponse :: Aeson -> Either WspFault DatumCacheResponse
   decodeResponse r = case datumCacheMethodFromString methodname of
@@ -203,6 +206,16 @@ parseJsonWspResponse resp@{ methodname, result, fault } =
       DatumFilterGetHashes -> DatumFilterGetHashesResponse <$>
         liftErr (decodeHashes =<< getNestedAeson r [ "hashes" ])
 
+  decodeHashes :: Aeson -> Either JsonDecodeError (Array DatumHash)
+  decodeHashes j = do
+    let jStr = toStringifiedNumbersJson j
+    { hashes } :: { hashes :: Array String } <- decodeJson jStr
+    forWithIndex hashes
+      ( \idx h ->
+          note (AtIndex idx $ Named ("Cannot convert to ByteArray: " <> h) $ UnexpectedValue jStr)
+            $ DataHash <$> hexToByteArray h
+      )
+
   invalidResponseError :: WspFault
   invalidResponseError = WspFault $ encodeJson
     { error: "Invalid datum cache response"
@@ -219,4 +232,3 @@ parseJsonWspResponse resp@{ methodname, result, fault } =
   decodeDoneFlag locator r = do
     done :: Boolean <- liftErr (decodeAeson =<< getNestedAeson r locator)
     if done then Right unit else Left invalidResponseError
-
