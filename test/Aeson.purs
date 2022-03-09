@@ -132,7 +132,7 @@ caseMaybeAeson
    . (AesonCases (Maybe a) -> AesonCases (Maybe b))
   -> Aeson
   -> Maybe b
-caseMaybeAeson upd = caseAeson (constAesonCases (const Nothing) # upd)
+caseMaybeAeson upd = caseAeson (constAesonCases Nothing # upd)
 
 fromRight :: forall (a :: Type) (e :: Type). Partial => Either e a -> a
 fromRight (Right x) = x

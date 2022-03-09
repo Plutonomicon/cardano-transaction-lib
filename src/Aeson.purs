@@ -116,9 +116,9 @@ parseJsonStringToAeson payload = do
 -------- Json <-> Aeson --------
 
 -- | Replaces indexes in the Aeson's payload with stringified
---   numbers from numberIndex.
---   Given original payload of: `{"a": 10}`
---   The result will be an Json object representing: `{"a": "10"}`
+-- | numbers from numberIndex.
+-- | Given original payload of: `{"a": 10}`
+-- | The result will be an Json object representing: `{"a": "10"}`
 toStringifiedNumbersJson :: Aeson -> Json
 toStringifiedNumbersJson = fix \_ ->
   caseAeson
@@ -131,8 +131,8 @@ toStringifiedNumbersJson = fix \_ ->
     }
 
 -- | Recodes Json to Aeson.
---   NOTE. The operation is costly as its stringifies given Json
---         and reparses resulting string as Aeson.
+-- | NOTE. The operation is costly as its stringifies given Json
+-- |       and reparses resulting string as Aeson.
 jsonToAeson :: Json -> Aeson
 jsonToAeson = stringify >>> decodeAesonString >>> fromRight shouldNotHappen
   where
@@ -150,6 +150,8 @@ getField
   -> Either JsonDecodeError a
 getField aesonObject field = getField' decodeAeson aesonObject field
 
+infix 7 getField as .:
+
 -- | Adapted from `Data.Argonaut.Decode.Decoders`
 getField'
   :: forall (a :: Type)
@@ -164,7 +166,7 @@ getField' decoder obj str =
     (FO.lookup str obj)
 
 -- | Returns an Aeson available under a sequence of keys in given Aeson.
---   If not possible returns JsonDecodeError.
+-- | If not possible returns JsonDecodeError.
 getNestedAeson :: Aeson -> Array String -> Either JsonDecodeError Aeson
 getNestedAeson asn@(Aeson { numberIndex, patchedJson: AesonPatchedJson pjson }) keys =
   note (UnexpectedValue $ toStringifiedNumbersJson asn) $
@@ -176,8 +178,8 @@ getNestedAeson asn@(Aeson { numberIndex, patchedJson: AesonPatchedJson pjson }) 
   mkAeson :: Json -> Aeson
   mkAeson json = Aeson { numberIndex, patchedJson: AesonPatchedJson json }
 
-infix 7 getField as .:
 
+-- | Utility abbrevation. See `caseAeson` for an example usage.
 type AesonCases a =
   { caseNull :: Unit -> a
   , caseBoolean :: Boolean -> a
@@ -214,13 +216,16 @@ caseAeson
   coerceNumber :: Number -> Int
   coerceNumber = round
 
-constAesonCases :: forall (a :: Type). (forall x. x -> a) -> AesonCases a
-constAesonCases c =
+constAesonCases :: forall (a :: Type). a -> AesonCases a
+constAesonCases v =
   { caseObject: c, caseNull: c, caseBoolean: c, caseString: c, caseNumber: c, caseArray: c }
+  where
+    c :: forall (b :: Type). b -> a
+    c = const v
 
 toObject :: Aeson -> Maybe (Object Aeson)
 toObject =
-  caseAeson $ constAesonCases (const Nothing) # _ { caseObject = Just }
+  caseAeson $ constAesonCases Nothing # _ { caseObject = Just }
 
 -------- Decode helpers --------
 
@@ -278,10 +283,10 @@ else instance (Traversable t, DecodeAeson a, DecodeJson (t Json)) => DecodeAeson
 class GDecodeAeson (row :: Row Type) (list :: RL.RowList Type) | list -> row where
   gDecodeAeson :: forall proxy. FO.Object Aeson -> proxy list -> Either JsonDecodeError (Record row)
 
-instance gDecodeAesonNil :: GDecodeAeson () RL.Nil where
+instance GDecodeAeson () RL.Nil where
   gDecodeAeson _ _ = Right {}
 
-instance gDecodeAesonCons ::
+instance
   ( DecodeAesonField value
   , GDecodeAeson rowTail tail
   , IsSymbol field
