@@ -2,6 +2,7 @@ module Deserialization.WitnessSet
   ( convertWitnessSet
   , deserializeWitnessSet
   , convertVkeyWitnesses
+  , convertPlutusScripts
   ) where
 
 import Prelude

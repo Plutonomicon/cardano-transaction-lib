@@ -5,16 +5,19 @@ module Serialization
   , toBytes
   , newTransactionUnspentOutputFromBytes
   , newTransactionWitnessSetFromBytes
+  , hashScriptData
   ) where
 
 import Prelude
 
 import Data.BigInt as BigInt
 import Data.FoldableWithIndex (forWithIndex_)
+import Data.Map as Map
 import Data.Maybe (maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse_, for_)
 import Data.UInt (UInt)
+import Data.UInt as UInt
 import Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Effect (Effect)
 import Effect.Exception (throw)
@@ -22,18 +25,27 @@ import Helpers (fromJustEff)
 import Serialization.Address (Address)
 import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes)
+import Serialization.PlutusData (packPlutusList)
 import Serialization.Types
   ( AssetName
   , Assets
   , AuxiliaryData
   , BigNum
+  , Costmdls
+  , CostModel
   , DataHash
   , Ed25519Signature
+  , Int32
+  , Language
   , MultiAsset
   , NativeScript
   , PlutusData
+  , PlutusList
   , PlutusScripts
   , PublicKey
+  , Redeemer
+  , Redeemers
+  , ScriptDataHash
   , Transaction
   , TransactionBody
   , TransactionHash
@@ -48,11 +60,15 @@ import Serialization.Types
   , PlutusScript
   , Vkeywitness
   )
-import Serialization.WitnessSet (convertWitnessSet)
+import Serialization.WitnessSet (convertWitnessSet, convertRedeemer)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
+import Types.PlutusData as PlutusData
 import Types.Transaction
-  ( Transaction(Transaction)
+  ( Costmdls(Costmdls)
+  , Language(PlutusV1)
+  , Redeemer
+  , Transaction(Transaction)
   , TransactionInput(TransactionInput)
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
@@ -94,6 +110,15 @@ foreign import newPlutusScript :: ByteArray -> Effect PlutusScript
 foreign import newPlutusScripts :: Effect PlutusScripts
 foreign import txWitnessSetSetPlutusScripts :: TransactionWitnessSet -> PlutusScripts -> Effect Unit
 foreign import addPlutusScript :: PlutusScripts -> PlutusScript -> Effect Unit
+foreign import newCostmdls :: Effect Costmdls
+foreign import costmdlsSetCostModel :: Costmdls -> Language -> CostModel -> Effect Unit
+foreign import newCostModel :: Effect CostModel
+foreign import costModelSetCost :: CostModel -> Int -> Int32 -> Effect Unit
+foreign import newPlutusV1 :: Effect Language
+foreign import newInt32 :: Int -> Effect Int32
+foreign import _hashScriptData :: Redeemers -> Costmdls -> PlutusList -> Effect ScriptDataHash
+foreign import newRedeemers :: Effect Redeemers
+foreign import addRedeemer :: Redeemers -> Redeemer -> Effect Unit
 
 foreign import toBytes
   :: ( Transaction
@@ -103,6 +128,7 @@ foreign import toBytes
          |+| PlutusData
          |+| TransactionWitnessSet
          |+| NativeScript
+         |+| ScriptDataHash
      -- Add more as needed.
      )
   -> ByteArray
@@ -161,3 +187,27 @@ convertValue val = do
   value <- newValueFromAssets multiasset
   valueSetCoin value =<< newBigNum (BigInt.toString lovelace)
   pure value
+
+convertCostmdls :: T.Costmdls -> Effect Costmdls
+convertCostmdls (T.Costmdls cs) = do
+  costs <- map unwrap <<< fromJustEff "`PlutusV1` not found in `Costmdls`"
+    $ Map.lookup T.PlutusV1 cs
+  costModel <- newCostModel
+  forWithIndex_ costs $ \operation cost ->
+    costModelSetCost costModel operation =<< newInt32 (UInt.toInt cost)
+  costmdls <- newCostmdls
+  plutusV1 <- newPlutusV1
+  costmdlsSetCostModel costmdls plutusV1 costModel
+  pure costmdls
+
+hashScriptData
+  :: Array T.Redeemer
+  -> T.Costmdls
+  -> Array PlutusData.PlutusData
+  -> Effect ScriptDataHash
+hashScriptData rs cms ps = do
+  plist <- fromJustEff "failed to convert datums" $ packPlutusList ps
+  rs' <- newRedeemers
+  cms' <- convertCostmdls cms
+  traverse_ (addRedeemer rs' <=< convertRedeemer) rs
+  _hashScriptData rs' cms' plist

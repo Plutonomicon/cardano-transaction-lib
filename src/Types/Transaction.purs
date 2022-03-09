@@ -150,10 +150,10 @@ appendMap
   -> Map k v
 appendMap = Map.unionWith (<>)
 
-newtype ScriptDataHash = ScriptDataHash String
+newtype ScriptDataHash = ScriptDataHash ByteArray
 
-derive instance newtypeScriptDataHash :: Newtype ScriptDataHash _
-derive newtype instance eqScriptDataHash :: Eq ScriptDataHash
+derive instance Newtype ScriptDataHash _
+derive newtype instance Eq ScriptDataHash
 
 newtype Mint = Mint Value
 
@@ -227,7 +227,8 @@ derive newtype instance eqCostmdls :: Eq Costmdls
 
 data Language = PlutusV1
 
-derive instance eqLanguage :: Eq Language
+derive instance Eq Language
+derive instance Ord Language
 
 newtype CostModel = CostModel (Array UInt)
 

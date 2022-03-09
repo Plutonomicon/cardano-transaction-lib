@@ -107,3 +107,30 @@ exports.addPlutusScript = scripts => script => () =>
     scripts.add(script);
 
 exports.toBytes = sth => sth.to_bytes();
+
+exports.newCostmdls = () =>
+    lib.Costmdls.new();
+
+exports.costmdlsSetCostModel = cms => lang => cm => () =>
+    cms.insert(lang, cm);
+
+exports.newCostModel = () =>
+    lib.CostModel.new();
+
+exports.costModelSetCost = cm => op => cost => () =>
+    cm.set(op, cost);
+
+exports.newPlutusV1 = () =>
+    lib.Language.new_plutus_v1();
+
+exports.newInt32 = x => () =>
+    lib.Int.new_i32(x);
+
+exports._hashScriptData = rs => cms => ds => () =>
+    lib.hash_script_data(rs, cms, ds);
+
+exports.newRedeemers = () =>
+    lib.Redeemers.new();
+
+exports.addRedeemer = rs => r => () =>
+    rs.add(r);
