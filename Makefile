@@ -11,7 +11,7 @@ check-format:
 	purs-tidy check "src/**/*.purs" "test/**/*.purs"
 
 format:
-	purs-tidy format-in-place "src/**/*.purs" "test/**/*.purs"
+	purs-tidy format-in-place "src/**/*.purs" "test/**/*.purs" "examples/**/*.purs"
 
 
 run-testnet-node:
