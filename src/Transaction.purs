@@ -29,7 +29,6 @@ import Types.Transaction
   , PlutusScript
   , Redeemer
   , ScriptDataHash(ScriptDataHash)
-  , Transaction(Transaction)
   , TransactionWitnessSet
   , TxBody(TxBody)
   )

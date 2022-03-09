@@ -1,5 +1,7 @@
 module Types.PlutusData
   ( PlutusData(..)
+  , Datum(..)
+  , unitDatum
   ) where
 
 import Prelude
@@ -13,6 +15,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
+import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for)
 import Data.Tuple.Nested ((/\))
@@ -71,3 +74,15 @@ instance DecodeAeson PlutusData where
       case hexToByteArray bytesHex of
         Nothing -> Left $ UnexpectedValue $ getJson aeson
         Just res -> pure $ Bytes res
+
+newtype Datum = Datum PlutusData
+
+derive instance Generic Datum _
+derive instance Newtype Datum _
+derive newtype instance Eq Datum
+
+instance Show Datum where
+  show = genericShow
+
+unitDatum :: Datum
+unitDatum = Datum (List [])
