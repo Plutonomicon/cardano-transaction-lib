@@ -8,7 +8,7 @@ import Aeson
   , caseAeson
   , constAesonCases
   , decodeAeson
-  , decodeAesonString
+  , decodeJsonString
   , getField
   , getNestedAeson
   , jsonToAeson
@@ -46,22 +46,22 @@ suite = do
       let
         expected =
           Integer $ unsafePartial $ fromJust $ BigInt.fromString "999999999999999999999999"
-      decodeAesonString "999999999999999999999999" `shouldEqual` Right expected
+      decodeJsonString "999999999999999999999999" `shouldEqual` Right expected
     test "Bytes" $ liftEffect do
       let
         expected =
           Bytes $ hexToByteArrayUnsafe "00FFAA"
-      decodeAesonString "\"00FFAA\"" `shouldEqual` Right expected
+      decodeJsonString "\"00FFAA\"" `shouldEqual` Right expected
     test "List" $ liftEffect do
       let
         expected =
           List [ Bytes $ hexToByteArrayUnsafe "00FFAA", Integer $ BigInt.fromInt 1 ]
-      decodeAesonString "[\"00FFAA\", 1]" `shouldEqual` Right expected
+      decodeJsonString "[\"00FFAA\", 1]" `shouldEqual` Right expected
     test "Map #1" $ liftEffect do
       let
         expected =
           Map (Map.fromFoldable [ Bytes (hexToByteArrayUnsafe "00FFAA") /\ Integer (BigInt.fromInt 1) ])
-      decodeAesonString "{\"map\": [ { \"key\": \"00FFAA\", \"value\": 1 } ] }" `shouldEqual` Right expected
+      decodeJsonString "{\"map\": [ { \"key\": \"00FFAA\", \"value\": 1 } ] }" `shouldEqual` Right expected
     test "Map #2" $ liftEffect do
       let
         input =
@@ -72,7 +72,7 @@ suite = do
           [ Bytes (hexToByteArrayUnsafe "00FFAA") /\ Integer (BigInt.fromInt 1)
           , Bytes (hexToByteArrayUnsafe "AAAA") /\ Integer (BigInt.fromInt 200)
           ]
-      decodeAesonString input `shouldEqual` Right expected
+      decodeJsonString input `shouldEqual` Right expected
     test "Constr" $ liftEffect do
       let
         input =
@@ -82,12 +82,12 @@ suite = do
           , Integer $ BigInt.fromInt 2
           , Integer $ BigInt.fromInt 3
           ]
-      decodeAesonString input `shouldEqual` Right expected
+      decodeJsonString input `shouldEqual` Right expected
 
     test "Record" $ liftEffect do
       let
         expected = { a: 10 }
-      decodeAesonString "{\"a\": 10}" `shouldEqual` Right expected
+      decodeJsonString "{\"a\": 10}" `shouldEqual` Right expected
 
   group "Object field accessing" do
     let

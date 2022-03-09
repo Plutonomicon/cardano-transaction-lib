@@ -33,7 +33,7 @@ module Aeson
   , decodeAeson
   , decodeAesonField
   , gDecodeAeson
-  , decodeAesonString
+  , decodeJsonString
   , getField
   , getNestedAeson
   , jsonToAeson
@@ -69,12 +69,7 @@ import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Either
-  ( Either(Left, Right)
-  , fromRight
-  , hush
-  , note
-  )
+import Data.Either (Either(Right, Left), fromRight, note)
 import Data.Int (round)
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing), maybe)
@@ -110,7 +105,7 @@ foreign import parseJsonExtractingIntegers
 parseJsonStringToAeson :: String -> Either JsonDecodeError Aeson
 parseJsonStringToAeson payload = do
   let { patchedPayload, numberIndex } = parseJsonExtractingIntegers payload
-  patchedJson <- note MissingValue $ hush $ AesonPatchedJson <$> jsonParser patchedPayload
+  patchedJson <- lmap (const MissingValue) $ AesonPatchedJson <$> jsonParser patchedPayload
   pure $ Aeson { numberIndex, patchedJson }
 
 -------- Json <-> Aeson --------
@@ -134,7 +129,7 @@ toStringifiedNumbersJson = fix \_ ->
 -- | NOTE. The operation is costly as its stringifies given Json
 -- |       and reparses resulting string as Aeson.
 jsonToAeson :: Json -> Aeson
-jsonToAeson = stringify >>> decodeAesonString >>> fromRight shouldNotHappen
+jsonToAeson = stringify >>> decodeJsonString >>> fromRight shouldNotHappen
   where
   -- valid json should always decode without errors
   shouldNotHappen = undefined
@@ -145,7 +140,7 @@ jsonToAeson = stringify >>> decodeAesonString >>> fromRight shouldNotHappen
 getField
   :: forall (a :: Type)
    . DecodeAeson a
-  => FO.Object Aeson
+  => Object Aeson
   -> String
   -> Either JsonDecodeError a
 getField aesonObject field = getField' decodeAeson aesonObject field
@@ -156,7 +151,7 @@ infix 7 getField as .:
 getField'
   :: forall (a :: Type)
    . (Aeson -> Either JsonDecodeError a)
-  -> FO.Object Aeson
+  -> Object Aeson
   -> String
   -> Either JsonDecodeError a
 getField' decoder obj str =
@@ -177,7 +172,6 @@ getNestedAeson asn@(Aeson { numberIndex, patchedJson: AesonPatchedJson pjson }) 
 
   mkAeson :: Json -> Aeson
   mkAeson json = Aeson { numberIndex, patchedJson: AesonPatchedJson json }
-
 
 -- | Utility abbrevation. See `caseAeson` for an example usage.
 type AesonCases a =
@@ -220,8 +214,8 @@ constAesonCases :: forall (a :: Type). a -> AesonCases a
 constAesonCases v =
   { caseObject: c, caseNull: c, caseBoolean: c, caseString: c, caseNumber: c, caseArray: c }
   where
-    c :: forall (b :: Type). b -> a
-    c = const v
+  c :: forall (b :: Type). b -> a
+  c = const v
 
 toObject :: Aeson -> Maybe (Object Aeson)
 toObject =
@@ -234,9 +228,10 @@ decodeAesonViaJson
   :: forall (a :: Type). DecodeJson a => Aeson -> Either JsonDecodeError a
 decodeAesonViaJson (Aeson { patchedJson: AesonPatchedJson j }) = decodeJson j
 
-decodeAesonString
+-- | Decodes a value encoded as JSON via Aeson decoding algorithm.
+decodeJsonString
   :: forall (a :: Type). DecodeAeson a => String -> Either JsonDecodeError a
-decodeAesonString = parseJsonStringToAeson >=> decodeAeson
+decodeJsonString = parseJsonStringToAeson >=> decodeAeson
 
 -------- DecodeAeson instances --------
 
@@ -281,7 +276,7 @@ else instance (Traversable t, DecodeAeson a, DecodeJson (t Json)) => DecodeAeson
     for jsons (\patchedJson -> decodeAeson (Aeson { patchedJson, numberIndex }))
 
 class GDecodeAeson (row :: Row Type) (list :: RL.RowList Type) | list -> row where
-  gDecodeAeson :: forall proxy. FO.Object Aeson -> proxy list -> Either JsonDecodeError (Record row)
+  gDecodeAeson :: forall proxy. Object Aeson -> proxy list -> Either JsonDecodeError (Record row)
 
 instance GDecodeAeson () RL.Nil where
   gDecodeAeson _ _ = Right {}
@@ -313,8 +308,7 @@ class DecodeAesonField a where
   decodeAesonField :: Maybe Aeson -> Maybe (Either JsonDecodeError a)
 
 instance DecodeAeson a => DecodeAesonField (Maybe a) where
-  decodeAesonField Nothing = Just $ Right Nothing
-  decodeAesonField (Just j) = Just $ decodeAeson j
+  decodeAesonField = Just <<< maybe (Right Nothing) decodeAeson
 
 else instance DecodeAeson a => DecodeAesonField a where
   decodeAesonField j = decodeAeson <$> j
