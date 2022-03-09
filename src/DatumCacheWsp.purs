@@ -23,7 +23,11 @@ import Control.Bind ((=<<), bind)
 import Control.Category ((<<<))
 import Data.Argonaut
   ( Json
-  , JsonDecodeError(UnexpectedValue)
+  , JsonDecodeError
+      ( UnexpectedValue
+      , AtIndex
+      , Named
+      )
   , decodeJson
   , encodeJson
   , jsonNull
