@@ -5,8 +5,10 @@
       flake = false;
     };
 
+    nixpkgs.url = "github:NixOS/nixpkgs/dde1557825c5644c869c5efc7448dc03722a8f09";
+
     # for the purescript project
-    ogmios.url = "github:mlabs-haskell/ogmios";
+    ogmios.url = "github:mlabs-haskell/ogmios/c4f896bf32ad066be8edd8681ee11e4ab059be7f";
     ogmios-datum-cache = {
       url = "github:mlabs-haskell/ogmios-datum-cache";
       flake = false;
@@ -29,7 +31,6 @@
     # for the haskell server
     iohk-nix.url = "github:input-output-hk/iohk-nix";
     haskell-nix.url = "github:L-as/haskell.nix?ref=master";
-    nixpkgs.follows = "haskell-nix/nixpkgs-2105";
     nixpkgs-unstable.follows = "haskell-nix/nixpkgs-unstable";
     cardano-addresses = {
       url =
