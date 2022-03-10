@@ -34,7 +34,7 @@ import Data.Map (unionWith) as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Maybe.First (First(First))
 import Data.Maybe.Last (Last(Last))
-import Data.Either (Either(Right), either, note)
+import Data.Either (Either(Right), either)
 import Effect (Effect)
 import Effect.Exception (throw)
 

@@ -13,8 +13,6 @@ module Scripts
 import Prelude
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Deserialization.WitnessSet (plutusScriptBytes)
-import Effect (Effect)
 import Serialization.Address
   ( Address
   , BaseAddress
