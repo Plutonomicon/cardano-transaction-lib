@@ -12,18 +12,20 @@ module Types.JsonWsp
 
 import Prelude
 
-import Control.Alt ((<|>))
-import Data.Argonaut
-  ( class DecodeJson
-  , Json
-  , JsonDecodeError(TypeMismatch)
-  , caseJsonArray
-  , caseJsonObject
-  , caseJsonString
-  , decodeJson
+import Aeson
+  ( class DecodeAeson
+  , Aeson
+  , caseAesonArray
+  , caseAesonObject
+  , caseAesonString
+  , caseAesonUInt
+  , caseAesonBigInt
+  , decodeAeson
   , getField
-  , getFieldOptional'
+  , getFieldOptional
   )
+import Control.Alt ((<|>))
+import Data.Argonaut (JsonDecodeError(TypeMismatch))
 import Data.Array (index)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -135,53 +137,50 @@ type JsonWspResponse a =
 -- polymorphic parser
 parseJsonWspResponse
   :: forall a
-   . DecodeJson a
-  => Json
+   . DecodeAeson a
+  => Aeson
   -> Either JsonDecodeError (JsonWspResponse a)
-parseJsonWspResponse = jsonObject
+parseJsonWspResponse = aesonObject
   ( \o -> do
       typeField <- parseFieldToString o "type"
       version <- parseFieldToString o "version"
       servicename <- parseFieldToString o "servicename"
       methodname <- parseFieldToString o "methodname"
-      result <- decodeJson =<< getField o "result"
+      result <- decodeAeson =<< getField o "result"
       reflection <- parseMirror =<< getField o "reflection"
       pure { "type": typeField, version, servicename, methodname, result, reflection }
   )
 
 -- parses json string at a given field to an ordinary string
-parseFieldToString :: Object Json -> String -> Either JsonDecodeError String
+parseFieldToString :: Object Aeson -> String -> Either JsonDecodeError String
 parseFieldToString o str =
-  caseJsonString (Left (TypeMismatch ("expected field: '" <> str <> "' as a String"))) Right =<< getField o str
+  caseAesonString (Left (TypeMismatch ("expected field: '" <> str <> "' as a String"))) Right =<< getField o str
 
 -- parses a string at the given field to a UInt
-parseFieldToUInt :: Object Json -> String -> Either JsonDecodeError UInt.UInt
+parseFieldToUInt :: Object Aeson -> String -> Either JsonDecodeError UInt.UInt
 parseFieldToUInt o str = do
   let err = TypeMismatch $ "expected field: '" <> str <> "' as a UInt"
   -- We use string parsing for Ogmios (AffInterface tests) but also change Medea
   -- schema and UtxoQueryResponse.json to be a string to pass (local) parsing
   -- tests. Notice "index" is a string in our local example.
-  num <- caseJsonString (Left err) Right =<< getField o str
-  note err $ UInt.fromString num
+  caseAesonUInt (Left err) Right =<< getField o str
 
 -- -- The below doesn't seem to work with Ogmios query test (AffInterface)
 -- -- eventhough it seems more reasonable.
 -- num <- decodeNumber =<< getField o str
 -- note err $ UInt.fromNumber' num
 -- parses a string at the given field to a BigInt
-parseFieldToBigInt :: Object Json -> String -> Either JsonDecodeError BigInt.BigInt
+parseFieldToBigInt :: Object Aeson -> String -> Either JsonDecodeError BigInt.BigInt
 parseFieldToBigInt o str = do
   -- We use string parsing for Ogmios (AffInterface tests) but also change Medea
   -- schema and UtxoQueryResponse.json to be a string to pass (local) parsing
   -- tests. Notice "coins" is a string in our local example.
   let err = TypeMismatch $ "expected field: '" <> str <> "' as a BigInt"
-
-  num <- caseJsonString (Left err) Right =<< getField o str
-  note err $ BigInt.fromString num
+  caseAesonBigInt (Left err) Right =<< getField o str
 
 -- parser for the `Mirror` type.
-parseMirror :: Json -> Either JsonDecodeError Mirror
-parseMirror = caseJsonObject (Left (TypeMismatch "expected object")) $
+parseMirror :: Aeson -> Either JsonDecodeError Mirror
+parseMirror = caseAesonObject (Left (TypeMismatch "expected object")) $
   ( \o -> do
       step <- parseFieldToString o "step"
       id <- parseFieldToString o "id"
@@ -190,13 +189,13 @@ parseMirror = caseJsonObject (Left (TypeMismatch "expected object")) $
 
 newtype Assets = Assets (Map CurrencySymbol (Map TokenName BigInt))
 
-instance DecodeJson Assets where
-  decodeJson j = do
-    wspAssets :: Array (String /\ String) <- FO.toUnfoldable <$> decodeJson j
+instance DecodeAeson Assets where
+  decodeAeson j = do
+    wspAssets :: Array (String /\ BigInt) <- FO.toUnfoldable <$> decodeAeson j
     Assets <<< Map.fromFoldableWith (Map.unionWith (+)) <$> sequence (uncurry decodeAsset <$> wspAssets)
     where
-    decodeAsset :: String -> String -> Either JsonDecodeError (CurrencySymbol /\ Map TokenName BigInt)
-    decodeAsset assetStr quantityStr = do
+    decodeAsset :: String -> BigInt -> Either JsonDecodeError (CurrencySymbol /\ Map TokenName BigInt)
+    decodeAsset assetStr quantity = do
       let
         -- Ogmios encodes CurrencySymbol and TokenName to hex strings separated with '.'
         -- TokenName part is optional
@@ -213,9 +212,7 @@ instance DecodeJson Assets where
         $ mkCurrencySymbol =<< hexToByteArray currSymStr
       tokenName <- note (assetStrError assetStr "TokenName" tnStr)
         $ mkTokenName =<< hexToByteArray tnStr
-      quant <- note (TypeMismatch $ "Expected string encoded BigInt, got: " <> quantityStr)
-        $ BigInt.fromString quantityStr
-      pure $ currSymb /\ Map.singleton tokenName quant
+      pure $ currSymb /\ Map.singleton tokenName quantity
 
     assetStrError str t v = (TypeMismatch ("In " <> str <> ": Expected hex-encoded " <> t <> ", got: " <> v))
 
@@ -225,8 +222,8 @@ newtype UtxoQR = UtxoQR UtxoQueryResult
 
 derive newtype instance showUtxoQR :: Show UtxoQR
 
-instance decodeJsonUtxoQR :: DecodeJson UtxoQR where
-  decodeJson j = UtxoQR <$> parseUtxoQueryResult j
+instance decodeAesonUtxoQR :: DecodeAeson UtxoQR where
+  decodeAeson j = UtxoQR <$> parseUtxoQueryResult j
 
 -- the inner type for Utxo Queries
 type UtxoQueryResult = Map.Map TxOutRef OgmiosTxOut
@@ -237,17 +234,17 @@ type TxOutRef =
   , index :: UInt.UInt
   }
 
-parseUtxoQueryResult :: Json -> Either JsonDecodeError UtxoQueryResult
-parseUtxoQueryResult = caseJsonArray (Left (TypeMismatch "Expected Array")) $
+parseUtxoQueryResult :: Aeson -> Either JsonDecodeError UtxoQueryResult
+parseUtxoQueryResult = caseAesonArray (Left (TypeMismatch "Expected Array")) $
   (\array -> foldl insertFunc (Right Map.empty) array)
   where
   insertFunc
     :: Either JsonDecodeError UtxoQueryResult
-    -> Json
+    -> Aeson
     -> Either JsonDecodeError UtxoQueryResult
-  insertFunc acc = caseJsonArray (Left (TypeMismatch "Expected Array")) $ inner
+  insertFunc acc = caseAesonArray (Left (TypeMismatch "Expected Array")) $ inner
     where
-    inner :: Array Json -> Either JsonDecodeError UtxoQueryResult
+    inner :: Array Aeson -> Either JsonDecodeError UtxoQueryResult
     inner innerArray = do
       txOutRefJson <- note (TypeMismatch "missing 0th element, expected a TxOutRef") $
         index innerArray 0
@@ -258,16 +255,16 @@ parseUtxoQueryResult = caseJsonArray (Left (TypeMismatch "Expected Array")) $
       Map.insert txOutRef txOut <$> acc
 
 -- helper for assuming we get an object
-jsonObject
+aesonObject
   :: forall a
-   . (Object Json -> Either JsonDecodeError a)
-  -> Json
+   . (Object Aeson -> Either JsonDecodeError a)
+  -> Aeson
   -> Either JsonDecodeError a
-jsonObject = caseJsonObject (Left (TypeMismatch "expected object"))
+aesonObject = caseAesonObject (Left (TypeMismatch "expected object"))
 
 -- parser for txOutRef
-parseTxOutRef :: Json -> Either JsonDecodeError TxOutRef
-parseTxOutRef = jsonObject $
+parseTxOutRef :: Aeson -> Either JsonDecodeError TxOutRef
+parseTxOutRef = aesonObject $
   ( \o -> do
       txId <- parseFieldToString o "txId"
       index <- parseFieldToUInt o "index"
@@ -283,8 +280,8 @@ type OgmiosTxOut =
 -- Ogmios currently supplies the Raw Address in addr1 format, rather than the
 -- cardano-serialization-lib 'Address' type,  perhaps this information can be
 -- extracted.
-parseTxOut :: Json -> Either JsonDecodeError OgmiosTxOut
-parseTxOut = jsonObject $
+parseTxOut :: Aeson -> Either JsonDecodeError OgmiosTxOut
+parseTxOut = aesonObject $
   ( \o -> do
       address <- parseFieldToString o "address"
       value <- parseValue o
@@ -293,9 +290,9 @@ parseTxOut = jsonObject $
   )
 
 -- parses the `Value` type
-parseValue :: Object Json -> Either JsonDecodeError Value
+parseValue :: Object Aeson -> Either JsonDecodeError Value
 parseValue outer = do
   o <- getField outer "value"
   coins <- parseFieldToBigInt o "coins" <|> Left (TypeMismatch "Expected 'coins' to be an Int or a BigInt")
-  Assets assetsMap <- fromMaybe (Assets Map.empty) <$> getFieldOptional' o "assets"
+  Assets assetsMap <- fromMaybe (Assets Map.empty) <$> getFieldOptional o "assets"
   pure $ mkValue (wrap coins) (wrap assetsMap)

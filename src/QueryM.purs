@@ -32,6 +32,7 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (ReaderT, ask, asks)
 import Data.Argonaut as Json
+import Aeson as Aeson
 import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -52,7 +53,6 @@ import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (Error, error)
 import Effect.Ref as Ref
-import Helpers as Helpers
 import Serialization as Serialization
 import Serialization.Address (Address, addressBech32, addressFromBech32)
 import Types.ByteArray (hexToByteArray, byteArrayToHex)
@@ -366,7 +366,7 @@ utxoQueryDispatch
 utxoQueryDispatch ref str = do
   -- TODO: replace it with the new implementation in `Aeson`.
   -- https://github.com/Plutonomicon/cardano-browser-tx/issues/151
-  let parsed' = JsonWsp.parseJsonWspResponse =<< Helpers.parseJsonStringifyNumbers str
+  let parsed' = JsonWsp.parseJsonWspResponse =<< Aeson.parseJsonStringToAeson str
   case parsed' of
     (Left err) -> pure $ Left err
     (Right res) -> afterParse res

@@ -1,9 +1,56 @@
-
 // parseJsonExtractingIntegers
 //   :: String -> {patchedPayload :: String, numberIndex :: Array String}
 exports.parseJsonExtractingIntegers = str => {
     const [patchedPayload, numberIndex] = parseJsonExtractingIntegers(str);
     return {patchedPayload, numberIndex};
+};
+
+exports.stringifyAeson_ = numberIndex => object => {
+    const fatal = msg => {
+        throw new Error(msg);
+    };
+
+    let res = '';
+
+    // Recursively iterate over object fields.
+    // TODO: use a trampoline?
+    const go = object => {
+        if (object === null || typeof object == 'string' || typeof object == 'boolean') {
+            res += JSON.stringify(object);
+        } else if (object instanceof Array) {
+            res += '[';
+            object.forEach((elem, ix) => {
+                go(elem);
+                if (ix != object.length - 1) {
+                    res += ',';
+                }
+            });
+            res += ']';
+        } else if (typeof object == 'object') {
+            res += '{';
+            for (let key in object) {
+                if (object.hasOwnProperty(key)) {
+                    res += JSON.stringify(key);
+                    res += ':';
+                    go(object[key]);
+                    res += ',';
+                }
+            }
+            res = res.slice(0, res.length - 1); // remove last ','
+            res += '}';
+        } else if (typeof object == 'number') {
+            if (object in numberIndex) {
+                res += numberIndex[object];
+            } else {
+                fatal("Error in stringifyObject: No such index in numberIndex!");
+            }
+        } else {
+            fatal("Malformed object in stringifyObject");
+        }
+    };
+
+    go(object);
+    return res;
 };
 
 // NOTE: For a general overview of this function's purpose,
@@ -67,4 +114,3 @@ const parseJsonExtractingIntegers = str => {
 
     return [arr.join(''), index];
 };
-
