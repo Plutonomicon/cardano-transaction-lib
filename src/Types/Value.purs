@@ -247,7 +247,7 @@ instance Negate NonAdaAsset where
   negation = wrap <<< map (map negate) <<< unwrap
 
 instance Split NonAdaAsset where
-  split (NonAdaAsset mp) = NonAdaAsset neg /\ NonAdaAsset nneg
+  split (NonAdaAsset mp) = NonAdaAsset npos /\ NonAdaAsset pos
     where
     splitIntl
       :: Map TokenName BigInt
@@ -256,7 +256,7 @@ instance Split NonAdaAsset where
       where
       l /\ r = mapThese (\i -> if i <= zero then This (negate i) else That i) mp'
 
-    neg /\ nneg = mapThese splitIntl mp
+    npos /\ pos = mapThese splitIntl mp
 
 -- We shouldn't need this check if we don't export unsafeAdaSymbol etc.
 -- | Create a singleton `NonAdaAsset` which by definition should be safe since

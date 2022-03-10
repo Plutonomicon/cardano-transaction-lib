@@ -22,7 +22,7 @@ import Data.Traversable (for)
 import Data.Tuple.Nested ((/\))
 import Types.ByteArray (ByteArray, hexToByteArray)
 
--- | Don't distinguish "BuiltinData" and "Data" like Plutus:
+-- Doesn't distinguish "BuiltinData" and "Data" like Plutus:
 data PlutusData
   = Constr BigInt (Array PlutusData)
   | Map (Map PlutusData PlutusData)
@@ -79,7 +79,7 @@ instance DecodeAeson PlutusData where
 class ToData (a :: Type) where
   toData :: a -> PlutusData
 
--- | Don't distinguish "BuiltinData" and "Data" like Plutus:
+-- Doesn't distinguish "BuiltinData" and "Data" like Plutus:
 class FromData (a :: Type) where
   -- | Convert a value from `PlutusData`, returning `Nothing` if this fails.
   fromData :: PlutusData -> Maybe a

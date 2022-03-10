@@ -391,6 +391,9 @@ posixTimeRangeToContainedSlotRange sc ptr = do
       , ivTo: UpperBound end endIncl
       } = map (posixTimeToEnclosingSlot sc) ptr
 
+    -- Determines the closure of the interval with a handler over whether it's
+    -- the start or end of the interval and a default Boolean if we aren't
+    -- dealing with the `Finite` case.
     closureWith
       :: (SlotConfig -> Slot -> POSIXTime)
       -> Boolean -- Default Boolean
