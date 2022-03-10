@@ -5,6 +5,8 @@ module Types.Value
   , TokenName
   , Value(..)
   , adaToken
+  , class Negate
+  , class Split
   , coinToValue
   , currencyMPSHash
   , eq
@@ -30,11 +32,15 @@ module Types.Value
   , mkNonAdaAssetsFromTokenMap
   , mkSingletonNonAdaAsset
   , mkSingletonValue
+  , mkSingletonValue'
   , mkTokenName
   , mkTokenNames
   , mkValue
+  , mpsSymbol
+  , negation
   , numCurrencySymbols
   , numTokenNames
+  , split
   , sumTokenNameLengths
   , valueOf
   , valueToCoin
@@ -44,10 +50,12 @@ module Types.Value
 import Prelude hiding (join)
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
-import Data.Array (filter)
+import Data.Array (cons, filter)
 import Data.BigInt (BigInt, fromInt)
+import Data.Bifunctor (bimap)
 import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Foldable (any, fold, foldl, length)
+import Data.FoldableWithIndex (foldrWithIndex)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice
   ( class JoinSemilattice
@@ -59,7 +67,7 @@ import Data.List ((:), all, List(Nil))
 import Data.Map (keys, lookup, Map, toUnfoldable, unions, values)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This))
@@ -67,9 +75,31 @@ import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested ((/\), type (/\))
 import Partial.Unsafe (unsafePartial)
 
-import Serialization.Hash (ScriptHash, scriptHashFromBytes)
+import Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
 import Types.ByteArray (ByteArray, byteLength)
-import Types.ScriptHash (MintingPolicyHash(MintingPolicyHash))
+import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
+
+-- `Negate` and `Split` seem a bit too contrived, and their purpose is to
+-- combine similar behaviour without satisfying any useful laws. I wonder
+-- if we're better off simply writing functions for Coin, NonAdaAsset and Value
+-- to `split` and `negate` (it's just 6 functions) in total without the need of
+-- a somewhat meaningless typeclass.
+
+-- We could write a Ring instance to get `negate` but I'm not sure this would
+-- make much sense for Value. Plutus uses a custom AdditiveGroup.
+-- We could define a Data.Group although zero-valued tokens don't degenerate
+-- from our map currently - I don't think we'd want this behaviour.
+-- | Negation to create an AdditiveGroup for Value. Call it negation to not confuse
+-- | with negate.
+class Negate (a :: Type) where
+  negation :: a -> a
+
+-- | Split a value into its positive and non-positive parts. The first element of
+-- | the tuple contains the non-positive parts of the value, the second element
+-- | contains the positive parts. The convention is non-positive parts are
+-- | negated to make them positive in the output.
+class Split (a :: Type) where
+  split :: a -> a /\ a
 
 --------------------------------------------------------------------------------
 -- Coin (Ada)
@@ -94,6 +124,13 @@ instance joinSemilatticeCoin :: JoinSemilattice Coin where
 
 instance meetSemilatticeCoin :: MeetSemilattice Coin where
   meet (Coin c1) (Coin c2) = Coin (min c1 c2)
+
+instance Negate Coin where
+  negation = wrap <<< negate <<< unwrap
+
+instance Split Coin where
+  split (Coin c) =
+    if c <= zero then Coin (negate c) /\ Coin zero else Coin zero /\ Coin c
 
 -- This module rewrites functionality from:
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
@@ -206,6 +243,21 @@ instance joinSemilatticeNonAdaAsset :: JoinSemilattice NonAdaAsset where
 instance meetSemilatticeNonAdaAsset :: MeetSemilattice NonAdaAsset where
   meet = unionWith min
 
+instance Negate NonAdaAsset where
+  negation = wrap <<< map (map negate) <<< unwrap
+
+instance Split NonAdaAsset where
+  split (NonAdaAsset mp) = NonAdaAsset npos /\ NonAdaAsset pos
+    where
+    splitIntl
+      :: Map TokenName BigInt
+      -> These (Map TokenName BigInt) (Map TokenName BigInt)
+    splitIntl mp' = Both l r
+      where
+      l /\ r = mapThese (\i -> if i <= zero then This (negate i) else That i) mp'
+
+    npos /\ pos = mapThese splitIntl mp
+
 -- We shouldn't need this check if we don't export unsafeAdaSymbol etc.
 -- | Create a singleton `NonAdaAsset` which by definition should be safe since
 -- | `CurrencySymbol` and `TokenName` are safe
@@ -293,6 +345,15 @@ instance joinSemilatticeValue :: JoinSemilattice Value where
 
 instance meetSemilatticeValue :: MeetSemilattice Value where
   meet (Value c1 m1) (Value c2 m2) = Value (c1 `meet` c2) (m1 `meet` m2)
+
+instance Negate Value where
+  negation (Value coin nonAdaAsset) =
+    Value (negation coin) (negation nonAdaAsset)
+
+instance Split Value where
+  split (Value coin nonAdaAsset) =
+    bimap (flip Value mempty) (flip Value mempty) (split coin)
+      <> bimap (Value mempty) (Value mempty) (split nonAdaAsset)
 
 -- | Create a `Value` from `Coin` and `NonAdaAsset`, the latter should have been
 -- | constructed safely at this point.
@@ -569,8 +630,40 @@ filterNonAda (Value _ nonAda) = Value mempty nonAda
 -- already know is a valid CurrencySymbol
 currencyScriptHash :: CurrencySymbol -> ScriptHash
 currencyScriptHash (CurrencySymbol byteArray) =
-  unsafePartial $ fromJust $ scriptHashFromBytes byteArray
+  unsafePartial fromJust $ scriptHashFromBytes byteArray
 
 -- | The minting policy hash of a currency symbol
 currencyMPSHash :: CurrencySymbol -> MintingPolicyHash
 currencyMPSHash = MintingPolicyHash <<< currencyScriptHash
+
+-- We haven't provided any safety on MintingPolicyHash, analagous to
+-- CurrencySymbol, so we need Maybe context. We could remove Maybe if we do.
+-- Plutus doesn't use Maybe here.
+-- | The currency symbol of a monetary policy hash
+mpsSymbol :: MintingPolicyHash -> Maybe CurrencySymbol
+mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol $ scriptHashToBytes h
+
+-- | Like `mapEither` that works with 'These'.
+mapThese
+  :: forall (a :: Type) (b :: Type) (k :: Type) (v :: Type)
+   . Ord k
+  => (v -> These a b)
+  -> Map k v
+  -> Map k a /\ Map k b
+mapThese f mps =
+  bimap Map.fromFoldable Map.fromFoldable $ foldrWithIndex f' ([] /\ []) mps'
+  where
+  mps' :: Map k (These a b)
+  mps' = map f mps
+
+  f'
+    :: k
+    -> These a b
+    -> Array (k /\ a) /\ Array (k /\ b)
+    -> Array (k /\ a) /\ Array (k /\ b)
+  f' k v (as /\ bs) = case v of
+    This a -> (k /\ a) `cons` as /\ bs
+    That b -> as /\ (k /\ b) `cons` bs
+    Both a b -> (k /\ a) `cons` as /\ (k /\ b) `cons` bs
+
+-- splitCoin :: Coin -> Coin /\ Coin

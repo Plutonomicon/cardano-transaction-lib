@@ -13,7 +13,6 @@ module QueryM
   , QueryM
   , ServerConfig
   , JsWebSocket
-  , addressToOgmiosAddress
   , calculateMinFee
   , defaultServerConfig
   , defaultDatumCacheWsConfig
@@ -24,7 +23,6 @@ module QueryM
   , mkDatumCacheWebSocketAff
   , mkHttpUrl
   , mkWsUrl
-  , ogmiosAddressToAddress
   , signTransaction
   , submitTransaction
   , utxosAt
@@ -41,6 +39,7 @@ module QueryM
 
 import Prelude
 
+import Address (addressToOgmiosAddress)
 import Aeson (decodeAeson, parseJsonStringToAeson)
 import Affjax as Affjax
 import Affjax.ResponseFormat as Affjax.ResponseFormat
@@ -104,18 +103,15 @@ import Serialization.Address
   ( Address
   , BlockId
   , Slot
-  , addressBech32
-  , addressFromBech32
   )
-import Types.ByteArray
-  ( hexToByteArray
-  , byteArrayToHex
-  )
+import Types.ByteArray (byteArrayToHex)
+import Types.Datum (DatumHash)
 import Types.JsonWsp as JsonWsp
-import Types.PlutusData (DatumHash, PlutusData)
+import Types.PlutusData (PlutusData)
 import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.Value (Coin(Coin))
+import TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
 import Untagged.Union (asOneOf)
 import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
 
@@ -163,7 +159,7 @@ type QueryConfig =
 type QueryM (a :: Type) = ReaderT QueryConfig Aff a
 
 -- the first query type in the QueryM/Aff interface
-utxosAt' :: JsonWsp.Address -> QueryM JsonWsp.UtxoQR
+utxosAt' :: JsonWsp.OgmiosAddress -> QueryM JsonWsp.UtxoQR
 utxosAt' addr = do
   body <- liftEffect $ JsonWsp.mkUtxosAtQuery { utxo: [ addr ] }
   let id = body.mirror.id
@@ -607,15 +603,6 @@ messageFoldF msg acc' func = do
 --------------------------------------------------------------------------------
 -- Ogmios functions and types to internal types
 --------------------------------------------------------------------------------
--- JsonWsp.Address is a bech32 string, so wrap to Transaction.Types.Bech32
--- | Converts an `JsonWsp.Address` (bech32string) to Address
-ogmiosAddressToAddress :: JsonWsp.Address -> Maybe Address
-ogmiosAddressToAddress = addressFromBech32
-
--- | Converts an (internal) Address to `JsonWsp.Address` (bech32string)
-addressToOgmiosAddress :: Address -> JsonWsp.Address
-addressToOgmiosAddress = addressBech32
-
 -- If required, we can change to Either with more granular error handling.
 -- | Gets utxos at an (internal) `Address` in terms of (internal) `Transaction.Types`.
 -- Results may vary depending on `Wallet` type.
@@ -635,7 +622,7 @@ utxosAt addr = asks _.wallet >>= maybe (pure Nothing) (utxosAtByWallet addr)
   allUtxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
   allUtxosAt = addressToOgmiosAddress >>> getUtxos
     where
-    getUtxos :: JsonWsp.Address -> QueryM (Maybe Transaction.UtxoM)
+    getUtxos :: JsonWsp.OgmiosAddress -> QueryM (Maybe Transaction.UtxoM)
     getUtxos address = convertUtxos <$> utxosAt' address
 
     convertUtxos :: JsonWsp.UtxoQR -> Maybe Transaction.UtxoM
@@ -666,28 +653,3 @@ utxosAt addr = asks _.wallet >>= maybe (pure Nothing) (utxosAtByWallet addr)
       utxos <- unwrap <$> utxos'
       collateral <- unwrap <$> collateral'
       pure $ wrap $ Map.delete collateral.input utxos
-
--- I think txId is a hexadecimal encoding.
--- | Converts an Ogmios `TxOutRef` to (internal) `TransactionInput`
-txOutRefToTransactionInput :: JsonWsp.TxOutRef -> Maybe Transaction.TransactionInput
-txOutRefToTransactionInput { txId, index } = do
-  transaction_id <- hexToByteArray txId <#> wrap
-  pure $ wrap
-    { transaction_id
-    , index
-    }
-
--- https://ogmios.dev/ogmios.wsp.json see "datum", potential FIX ME: it says
--- base64 but the  example provided looks like a hexadecimal so use
--- hexToByteArray for now.
--- | Converts an Ogmios `TxOut` to (internal) `TransactionOutput`
-ogmiosTxOutToTransactionOutput
-  :: JsonWsp.OgmiosTxOut
-  -> Maybe Transaction.TransactionOutput
-ogmiosTxOutToTransactionOutput { address, value, datum } = do
-  address' <- ogmiosAddressToAddress address
-  pure $ wrap
-    { address: address'
-    , amount: value
-    , data_hash: datum >>= hexToByteArray <#> wrap
-    }

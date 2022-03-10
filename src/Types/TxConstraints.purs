@@ -49,17 +49,16 @@ import Data.Newtype (class Newtype, over, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested ((/\), type (/\))
-import Types.PlutusData
-  ( class ToData
-  , Datum(Datum)
+import Types.Datum
+  ( Datum(Datum)
   , DatumHash
-  , toData
+  , Redeemer
   , unitRedeemer
   )
+import Types.PlutusData (class ToData, toData)
 import Types.Interval (POSIXTimeRange, always, intersection, isEmpty)
 import Types.RedeemerTag (RedeemerTag(Mint))
-import Types.ScriptHash (MintingPolicyHash, ValidatorHash)
-import Types.Transaction (Redeemer)
+import Types.Scripts (MintingPolicyHash, ValidatorHash)
 import Types.UnbalancedTransaction (PaymentPubKeyHash, StakePubKeyHash, TxOutRef)
 import Types.Value
   ( CurrencySymbol
@@ -125,9 +124,9 @@ instance Show o => Show (OutputConstraint o) where
 
 -- | Restrictions placed on the allocation of funds to outputs of transactions.
 newtype TxConstraints (i :: Type) (o :: Type) = TxConstraints
-  { txConstraints :: Array TxConstraint
-  , txInputs :: Array (InputConstraint i)
-  , txOutputs :: Array (OutputConstraint o)
+  { constraints :: Array TxConstraint
+  , ownInputs :: Array (InputConstraint i)
+  , ownOutputs :: Array (OutputConstraint o)
   }
 
 derive instance Generic (TxConstraints i o) _
@@ -141,10 +140,10 @@ instance (Show i, Show o) => Show (TxConstraints i o) where
   show = genericShow
 
 instance Bifunctor TxConstraints where
-  bimap f g (TxConstraints txc@{ txInputs, txOutputs }) =
+  bimap f g (TxConstraints txc@{ ownInputs, ownOutputs }) =
     TxConstraints txc
-      { txInputs = map (map f) txInputs
-      , txOutputs = map (map g) txOutputs
+      { ownInputs = map (map f) ownInputs
+      , ownOutputs = map (map g) ownOutputs
       }
 
 --------------------------------------------------------------------------------
@@ -156,15 +155,15 @@ addTxIn
   -> i
   -> TxConstraints i o
   -> TxConstraints i o
-addTxIn outRef red (TxConstraints txc@{ txInputs }) =
+addTxIn outRef red (TxConstraints txc@{ ownInputs }) =
   let
     ic = InputConstraint { redeemer: red, txOutRef: outRef }
   in
-    TxConstraints txc { txInputs = ic : txInputs }
+    TxConstraints txc { ownInputs = ic : ownInputs }
 
 singleton
   :: forall (i :: Type) (o :: Type). TxConstraint -> TxConstraints i o
-singleton a = over TxConstraints _ { txConstraints = Array.singleton a } mempty
+singleton a = over TxConstraints _ { constraints = Array.singleton a } mempty
 
 -- | `mustValidateIn r` requires the transaction's time range to be contained
 -- |  in `r`.
@@ -190,9 +189,9 @@ mustPayToTheScript
   -> TxConstraints i o
 mustPayToTheScript dt value =
   TxConstraints
-    { txConstraints: Array.singleton $ MustIncludeDatum (Datum $ toData dt)
-    , txInputs: []
-    , txOutputs: Array.singleton $ OutputConstraint
+    { constraints: Array.singleton $ MustIncludeDatum (Datum $ toData dt)
+    , ownInputs: []
+    , ownOutputs: Array.singleton $ OutputConstraint
         { datum: dt
         , value: value
         }
@@ -320,13 +319,13 @@ mustSatisfyAnyOf
   -> TxConstraints i o
 mustSatisfyAnyOf =
   Array.fromFoldable
-    >>> map (_.txConstraints <<< unwrap)
+    >>> map (_.constraints <<< unwrap)
     >>> MustSatisfyAnyOf
     >>> singleton
 
 -- | Are the constraints satisfiable given the time intervals?
 isSatisfiable :: forall (i :: Type) (o :: Type). TxConstraints i o -> Boolean
-isSatisfiable (TxConstraints { txConstraints }) =
+isSatisfiable (TxConstraints { constraints }) =
   let
     intervals =
       Array.mapMaybe
@@ -334,7 +333,7 @@ isSatisfiable (TxConstraints { txConstraints }) =
             MustValidateIn i -> Just i
             _ -> Nothing
         )
-        txConstraints
+        constraints
     itvl = foldl intersection always intervals
   in
     not (isEmpty itvl)
@@ -343,10 +342,10 @@ pubKeyPayments
   :: forall (i :: Type) (o :: Type)
    . TxConstraints i o
   -> Array (PaymentPubKeyHash /\ Value)
-pubKeyPayments (TxConstraints { txConstraints }) =
+pubKeyPayments (TxConstraints { constraints }) =
   toUnfoldable
     $ fromFoldableWith (<>)
-    $ txConstraints >>=
+    $ constraints >>=
         case _ of
           MustPayToPubKeyAddress pkh _ _ vl -> Array.singleton (pkh /\ vl)
           _ -> []
@@ -355,7 +354,7 @@ pubKeyPayments (TxConstraints { txConstraints }) =
 mustSpendAtLeastTotal
   :: forall (i :: Type) (o :: Type). TxConstraints i o -> Value
 mustSpendAtLeastTotal =
-  foldr (join <<< f) mempty <<< _.txConstraints <<< unwrap
+  foldr (join <<< f) mempty <<< _.constraints <<< unwrap
   where
   f :: TxConstraint -> Value
   f (MustSpendAtLeast v) = v
@@ -365,7 +364,7 @@ mustSpendAtLeastTotal =
 mustProduceAtLeastTotal
   :: forall (i :: Type) (o :: Type). TxConstraints i o -> Value
 mustProduceAtLeastTotal =
-  foldr (join <<< f) mempty <<< _.txConstraints <<< unwrap
+  foldr (join <<< f) mempty <<< _.constraints <<< unwrap
   where
   f :: TxConstraint -> Value
   f (MustProduceAtLeast v) = v
@@ -373,7 +372,7 @@ mustProduceAtLeastTotal =
 
 requiredSignatories
   :: forall (i :: Type) (o :: Type). TxConstraints i o -> Array PaymentPubKeyHash
-requiredSignatories = foldMap f <<< _.txConstraints <<< unwrap
+requiredSignatories = foldMap f <<< _.constraints <<< unwrap
   where
   f :: TxConstraint -> Array PaymentPubKeyHash
   f (MustBeSignedBy pkh) = Array.singleton pkh
@@ -381,7 +380,7 @@ requiredSignatories = foldMap f <<< _.txConstraints <<< unwrap
 
 requiredMonetaryPolicies
   :: forall (i :: Type) (o :: Type). TxConstraints i o -> Array MintingPolicyHash
-requiredMonetaryPolicies = foldMap f <<< _.txConstraints <<< unwrap
+requiredMonetaryPolicies = foldMap f <<< _.constraints <<< unwrap
   where
   f :: TxConstraint -> Array MintingPolicyHash
   f (MustMintValue mph _ _ _) = Array.singleton mph
@@ -389,7 +388,7 @@ requiredMonetaryPolicies = foldMap f <<< _.txConstraints <<< unwrap
 
 requiredDatums
   :: forall (i :: Type) (o :: Type). TxConstraints i o -> Array Datum
-requiredDatums = foldMap f <<< _.txConstraints <<< unwrap
+requiredDatums = foldMap f <<< _.constraints <<< unwrap
   where
   f :: TxConstraint -> Array Datum
   f (MustIncludeDatum dt) = Array.singleton dt
@@ -398,7 +397,7 @@ requiredDatums = foldMap f <<< _.txConstraints <<< unwrap
 -- | Check whether every transaction that satisfies the constraints has to
 -- | modify the UTXO set.
 modifiesUtxoSet :: forall (i :: Type) (o :: Type). TxConstraints i o -> Boolean
-modifiesUtxoSet (TxConstraints { txConstraints, txInputs, txOutputs }) =
+modifiesUtxoSet (TxConstraints { constraints, ownInputs, ownOutputs }) =
   let
     requiresInputOutput :: TxConstraint -> Boolean
     requiresInputOutput = case _ of
@@ -412,6 +411,6 @@ modifiesUtxoSet (TxConstraints { txConstraints, txInputs, txOutputs }) =
       MustSatisfyAnyOf xs -> any requiresInputOutput $ concat xs
       _ -> false
   in
-    any requiresInputOutput txConstraints
-      || not (null txInputs)
-      || not (null txOutputs)
+    any requiresInputOutput constraints
+      || not (null ownInputs)
+      || not (null ownOutputs)
