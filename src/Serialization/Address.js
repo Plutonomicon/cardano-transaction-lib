@@ -49,8 +49,12 @@ exports.byronAddressBytes = callToBytes;
 exports.stakeCredentialToBytes = callToBytes;
 
 exports.addressBech32 = callToBech32;
-exports.addressNetworkId = callNetworkId;
-exports.byronAddressNetworkId = callNetworkId;
+exports._addressNetworkId = toAdt => addr => {
+    return toAdt(callNetworkId(addr));
+}
+exports._byronAddressNetworkId = toAdt => addr => {
+    return toAdt(callNetworkId(addr));
+}
 
 exports._addressFromBytes = callClassStaticMaybe('Address','from_bytes');
 exports._stakeCredentialFromBytes = callClassStaticMaybe('StakeCredential', 'from_bytes');
@@ -96,24 +100,24 @@ exports.pointerAddressStakePointer = pa => {
 };
 
 // newEnterpriseAddress :: { network:: NetworkId, paymentCred :: StakeCredential } -> EnterpriseAddress
-exports.enterpriseAddress = inpRec => {
-    return CardanoWasm.EnterpriseAddress.new(inpRec.network, inpRec.paymentCred);
+exports._enterpriseAddress = netIdToInt => inpRec => {
+    return CardanoWasm.EnterpriseAddress.new(netIdToInt(inpRec.network), inpRec.paymentCred);
 };
 
 // newRewardAddress :: { network:: NetworkId, paymentCred :: StakeCredential } -> RewardAddress
-exports.rewardAddress = inpRec => {
-    return CardanoWasm.RewardAddress.new(inpRec.network, inpRec.paymentCred);
+exports._rewardAddress = netIdToInt => inpRec => {
+    return CardanoWasm.RewardAddress.new(netIdToInt(inpRec.network), inpRec.paymentCred);
 };
 
 // newBaseAddress ::
 //    { network :: NetworkId, paymentCred :: StakeCredential, delegationCred :: StakeCredential } -> BaseAddress
-exports.baseAddress = inpRec => {
-    return CardanoWasm.BaseAddress.new(inpRec.network, inpRec.paymentCred, inpRec.delegationCred);
+exports._baseAddress = netIdToInt => inpRec => {
+    return CardanoWasm.BaseAddress.new(netIdToInt(inpRec.network), inpRec.paymentCred, inpRec.delegationCred);
 };
 
 // newPointerAddress :: { network:: NetworkId, paymentCred :: StakeCredential, stakePointer :: Pointer } -> PointerAddress
-exports.pointerAddress = inpRec => {
+exports._pointerAddress = netIdToInt => inpRec => {
     const p =  inpRec.stakePointer;
     const pointerForeign = CardanoWasm.Pointer.new(p.slot,p.txIx, p.certIx);
-    return CardanoWasm.PointerAddress.new(inpRec.network, inpRec.paymentCred, pointerForeign);
+    return CardanoWasm.PointerAddress.new(netIdToInt(inpRec.network), inpRec.paymentCred, pointerForeign);
 };
