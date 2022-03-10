@@ -46,9 +46,9 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)
 import Data.Tuple (fst)
 import Effect (Effect)
-import Effect.Class (liftEffect)
 import Effect.Aff (error, launchAff_)
 import Effect.Aff.Class (liftAff)
+import Effect.Class (liftEffect)
 import Effect.Console as Console
 import QueryM
   ( QueryM
@@ -61,7 +61,7 @@ import QueryM
   , submitTransaction
   , utxosAt
   )
-import Serialization.Address (testnetId)
+import Serialization.Address (NetworkId(TestnetId))
 import Types.Transaction
   ( Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
@@ -114,7 +114,7 @@ buildUnbalancedTransaction = do
                 }
             -- ??
             , fee: Value.mkCoin 0
-            , network_id: Just testnetId
+            , network_id: Just TestnetId
             , certs: Nothing
             , collateral: Nothing
             , auxiliary_data_hash: Nothing
