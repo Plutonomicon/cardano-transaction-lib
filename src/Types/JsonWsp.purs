@@ -8,6 +8,7 @@ module Types.JsonWsp
   , UtxoQueryResult
   , mkUtxosAtQuery
   , parseJsonWspResponse
+  , parseFieldToString
   ) where
 
 import Prelude

@@ -8,8 +8,9 @@ module Types.PlutusData
 
 import Prelude
 
-import Aeson (class DecodeAeson, decodeAeson, getJson, (.:))
+import Aeson (class DecodeAeson, decodeAeson, (.:))
 import Control.Alt ((<|>))
+import Data.Argonaut (encodeJson)
 import Data.Argonaut.Decode (JsonDecodeError(..))
 import Data.BigInt (BigInt)
 import Data.Either (Either(..))
@@ -73,7 +74,7 @@ instance DecodeAeson PlutusData where
     decodeBytes = do
       bytesHex <- decodeAeson aeson
       case hexToByteArray bytesHex of
-        Nothing -> Left $ UnexpectedValue $ getJson aeson
+        Nothing -> Left $ UnexpectedValue $ encodeJson bytesHex
         Just res -> pure $ Bytes res
 
 class ToData (a :: Type) where

@@ -31,7 +31,8 @@ main = launchAff_ $ do
   wallet <- Just <$> mkNamiWalletAff
   runReaderT
     walletActions
-    { ws: {-TODO-}  undefined
+    { datumCacheWs: {-TODO-}  undefined
+    , ogmiosWs: {-TODO-}  undefined
     , wallet
     , serverConfig: defaultServerConfig
     }

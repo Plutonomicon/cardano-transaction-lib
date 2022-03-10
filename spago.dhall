@@ -49,6 +49,7 @@ You can edit this file as you like.
   , "quickcheck"
   , "quickcheck-laws"
   , "rationals"
+  , "record"
   , "refs"
   , "spec"
   , "strings"
