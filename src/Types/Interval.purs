@@ -44,7 +44,6 @@ module Types.Interval
 import Data.BigInt (BigInt, quot)
 import Data.BigInt (fromString, fromInt, toString) as BigInt
 import Data.Enum (class Enum, succ)
--- import Data.EuclideanRing (quot)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice
   ( class BoundedJoinSemilattice
@@ -421,16 +420,13 @@ posixTimeRangeToContainedSlotRange sc ptr = do
 type TransactionValiditySlot =
   { validityStartInterval :: Maybe Slot, timeToLive :: Maybe Slot }
 
--- FIX ME: I've interpreted `Nothing` as below, although this may change
--- depending on our desired behaviour. I'm not entirely sure what why we have
--- a Maybe Slot in `TxBody`. Thoughts on this would be great.
 -- | Converts a SlotRange to two separate slots used in building Types.Transaction.
--- | Note that we lose information regarding whether the bounds or not, although
--- | everything is one-to-one.
--- | `Nothing` for `validityStartInterval` means `PosInf` and `false` because
--- | we can either start at `maxSlot` because it exceeds `UInt` range.
--- | `Nothing` for `timeToLive` means `NegInf` and `false` because it doesn't
--- | make sense to end before the start.
+-- | Note that we lose information regarding whether the bounds are included
+-- | or not at `NegInf` and `PosInf`.
+-- | `Nothing` for `validityStartInterval` represents `Slot zero`.
+-- | `Nothing` for `timeToLive` represents `maxSlot`.
+-- | For `Finite` values exclusive of bounds, we add and subtract one slot for
+-- | `validityStartInterval` and `timeToLive`, respectively.
 slotRangeToTransactionSlot
   :: SlotRange
   -> TransactionValiditySlot
@@ -442,19 +438,15 @@ slotRangeToTransactionSlot
   validityStartInterval = case start, startIncl of
     Finite s, true -> pure s
     Finite s, false -> pure $ s <> Slot one
-    NegInf, true -> pure $ Slot zero
-    NegInf, false -> pure $ Slot one
-    PosInf, true -> pure maxSlot
-    PosInf, false -> Nothing -- Outside of `UInt` range (over `maxSlot`).
+    NegInf, _ -> Nothing
+    PosInf, _ -> pure maxSlot
 
   timeToLive :: Maybe Slot
   timeToLive = case end, endIncl of
     Finite s, true -> pure s
     Finite s, false -> pure $ s <> Slot (negate one)
-    NegInf, true -> pure $ Slot zero
-    NegInf, false -> Nothing -- Outside of `UInt` range (negative).
-    PosInf, true -> pure maxSlot
-    PosInf, false -> pure $ maxSlot <> Slot (negate one)
+    NegInf, _ -> pure $ Slot zero
+    PosInf, _ -> Nothing
 
 -- | Maximum slot under `Data.UInt`
 maxSlot :: Slot
