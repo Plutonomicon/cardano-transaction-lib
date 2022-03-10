@@ -8,7 +8,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/dde1557825c5644c869c5efc7448dc03722a8f09";
 
     # for the purescript project
-    ogmios.url = "github:mlabs-haskell/ogmios/e78fd982e720c93a24607d37c6f6f5188da27929";
+    ogmios.url = "github:mlabs-haskell/ogmios/c4f896bf32ad066be8edd8681ee11e4ab059be7f";
     ogmios-datum-cache = {
       url = "github:mlabs-haskell/ogmios-datum-cache";
       flake = false;

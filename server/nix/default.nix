@@ -41,8 +41,6 @@ pkgs.haskell-nix.cabalProject {
       [
         haskellPackages.fourmolu
         hlint
-        entr
-        ghcid
         git
         libsodium-vrf
       ];
