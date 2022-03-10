@@ -1,19 +1,6 @@
 module Types.ScriptLookups
   ( MkUnbalancedTxError(..)
-  , OgmiosTxOut(..)
-  , PublicKeyOgmiosTxOut
   , ScriptLookups(..)
-  , ScriptOgmiosTxOut
-  , _PublicKeyOgmiosTxOut
-  , _PublicKeyOgmiosTxOut'
-  , _ScriptOgmiosTxOut
-  , _ScriptOgmiosTxOut'
-  , _address
-  , _datum
-  , _validator
-  , _value
-  , fromScriptOutput
-  , fromTxOut
   , mintingPolicy
   , mkUnbalancedTx
   , otherData
@@ -21,12 +8,12 @@ module Types.ScriptLookups
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
   , paymentPubKey
-  , toTxOut
   , typedValidatorLookups
   , unspentOutputs
   ) where
 
 import Prelude hiding (join)
+import Address (addressValidatorHash, ogmiosAddressToAddress)
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Control.Monad.Reader.Class (asks)
@@ -41,14 +28,12 @@ import Data.Foldable (foldM)
 import Data.FoldableWithIndex (foldWithIndexM)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
-import Data.Lens ((%=), (<>=), (.=), lens')
+import Data.Lens ((%=), (<>=), (.=))
 import Data.Lens.At (at)
 import Data.Lens.Getter (use)
-import Data.Lens.Iso (iso)
 import Data.Lens.Iso.Newtype (_Newtype)
-import Data.Lens.Prism (prism')
 import Data.Lens.Record (prop)
-import Data.Lens.Types (Iso', Lens', Prism', Traversal')
+import Data.Lens.Types (Lens')
 import Data.List (List(Nil, Cons))
 import Data.Map (Map, empty, lookup, mapMaybe, singleton, union, values)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
@@ -59,7 +44,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
-import Helpers ((<\>), liftEither)
+import Helpers ((<\>), liftEither, liftM, liftMWith)
 import QueryM (QueryConfig, QueryM)
 import Scripts
   ( mintingPolicyHash
@@ -67,12 +52,7 @@ import Scripts
   , validatorHash
   , validatorHashAddress
   )
-import Serialization.Address
-  ( Address
-  , NetworkId
-  , addressPaymentCred
-  , withStakeCredential
-  )
+import Serialization.Address (Address, NetworkId)
 import Types.Datum (Datum, DatumHash, Redeemer, datumHash)
 import Types.Interval
   ( POSIXTimeRange
@@ -80,13 +60,14 @@ import Types.Interval
   , defaultSlotConfig
   , posixTimeRangeToTransactionSlot
   )
+import Types.JsonWsp (OgmiosTxOut)
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
 import Types.Scripts
   ( MintingPolicy
   , MintingPolicyHash(MintingPolicyHash)
   , TypedValidator(TypedValidator)
   , Validator
-  , ValidatorHash(ValidatorHash)
+  , ValidatorHash
   )
 import Data.Symbol (SProxy(SProxy))
 import Transaction
@@ -131,7 +112,6 @@ import Types.UnbalancedTransaction
   ( TxOutRef
   , PaymentPubKey
   , PaymentPubKeyHash
-  , ScriptOutput(ScriptOutput)
   , StakePubKeyHash
   , UnbalancedTx
   , _transaction
@@ -152,6 +132,7 @@ import Types.Value
   , negation
   , split
   )
+import TxOutput (ogmiosDatumHashToDatumHash, ogmiosTxOutToScriptOutput)
 import Undefined (undefined)
 
 -- Taken mainly from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-constraints/html/Ledger-Constraints-OffChain.html
@@ -172,281 +153,6 @@ convertRedeemer
 convertRedeemer = undefined
 
 --------------------------------------------------------------------------------
--- OgmiotsTxOut type (new version)
---------------------------------------------------------------------------------
--- ChainIndexTxOut will be replaced by OgmiosTxOut. Note we already have an
--- OgmiosTxOut in JsonWsp.OgmiosTxOut but the one in this module includes extra
--- information. OPTION 1 follows ChainIndexTxOut closely although I don't know
--- if we can construct Validator and Datum (see below)
--- OPTION 2 is simpler although less informative and closer to JsonWsp.OgmiosTxOut
--- OPTION 3 is sticking to JsonWsp.OgmiosTxOut which I suspect is what we will
--- do in the short run. Changing the functions below to accept this data type
--- should be easy and part of the review.
-
--------------------------------- OPTION 1 --------------------------------------
--- If we can deserialise the below information from Ogmios, we should replace
--- the datatype JsonWsp.OgmiosTxOut.
--- 1) Follows ChainIndexTxOut more directly which would benefit users copying
--- code from Haskell including related lenses below. I believe these lenses are
--- often used for off-chain code.
--- 2) Can be simplified (see OPTION 2) to get rid of sum type although its
--- meaning may be obsecured. This is more closely related to our current
--- OgmiosTxOut
--- 3) Can we coincide this with Ogmios query? In particular, can we
--- even get Validator and Datum directly or are we restricted to just their
--- hashes?
-data OgmiosTxOut
-  = PublicKeyOgmiosTxOut PublicKeyOgmiosTxOut
-  | ScriptOgmiosTxOut ScriptOgmiosTxOut
-
-derive instance Generic OgmiosTxOut _
-derive instance Eq OgmiosTxOut
-
-instance Show OgmiosTxOut where
-  show = genericShow
-
--- Write as a type alias for convenience when writing Lenses.
-type PublicKeyOgmiosTxOut =
-  { address :: Address
-  , value :: Value
-  }
-
--- Separate as a type alias for convenience when writing Lenses
-type PublicKeyOgmiosTxOutTuple = Address /\ Value
-
--- Separate as a type alias for convenience when writing Lenses
-type ScriptOgmiosTxOut =
-  { address :: Address
-  , validator :: Either ValidatorHash Validator
-  , datum :: Either DatumHash Datum
-  , value :: Value
-  }
-
--- Separate as a type alias for convenience when writing Lenses
-type ScriptOgmiosTxOutTuple =
-  Address /\ Either ValidatorHash Validator /\ Either DatumHash Datum /\ Value
-
---------------------------------------------------------------------------------
--- OgmiosTxOut Option 1 helpers and lenses
---------------------------------------------------------------------------------
--- | Converts a transaction output from the Ogmios TxOut to the internal
--- | transaction input.
--- |
--- | Note that converting from `OgmiosTxOut` to `TxOutRef` and back to
--- | `OgmiosTxOut` loses precision (`Datum` and `Validator` are changed to
--- | `DatumHash` and `ValidatorHash` respectively).
--- | This can fail because of `datumHash` invocation.
-toTxOut :: OgmiosTxOut -> Maybe TransactionOutput
-toTxOut (PublicKeyOgmiosTxOut { address, value }) =
-  pure $ TransactionOutput
-    { address
-    , amount: value
-    , data_hash: Nothing
-    }
-toTxOut (ScriptOgmiosTxOut { address, datum: Left datHash, value }) =
-  pure $ TransactionOutput
-    { address
-    , amount: value
-    , data_hash: Just datHash
-    }
-toTxOut (ScriptOgmiosTxOut { address, datum: Right datum, value }) = do
-  -- We want failure for `ScriptOgmiosTxOut` if we can't get the datum hash,
-  -- as opposed to setting it to `Nothing` which would suggest we have a wallet
-  -- address.
-  datHash <- datumHash datum
-  pure $ TransactionOutput
-    { address
-    , amount: value
-    , data_hash: Just datHash
-    }
-
--- | Converts an internal transaction output to the Ogmios transaction output.
-fromTxOut :: TransactionOutput -> Maybe OgmiosTxOut
-fromTxOut (TransactionOutput { address, amount: value, data_hash }) = do
-  paymentCred <- addressPaymentCred address
-  paymentCred # withStakeCredential
-    { onKeyHash: const $ pure $ PublicKeyOgmiosTxOut { address, value }
-    , onScriptHash: \sh -> data_hash >>= \dh ->
-        pure $ ScriptOgmiosTxOut
-          { address, validator: Left $ ValidatorHash sh, datum: Left dh, value }
-    }
-
--- | Converts an Ogmios Transaction output to a `ScriptOutput`.
-toScriptOutput :: OgmiosTxOut -> Maybe ScriptOutput
-toScriptOutput (ScriptOgmiosTxOut { validator, datum, value }) = do
-  -- Recall: validator is a validator hash or validator
-  vHash <- either Just validatorHash validator
-  dHash <- either Just datumHash datum
-  pure $ ScriptOutput
-    { validatorHash: vHash
-    , value
-    , datumHash: dHash
-    }
-toScriptOutput _ = Nothing
-
--- | Converts an `ScriptOutput` to Ogmios Transaction output.
-fromScriptOutput :: NetworkId -> ScriptOutput -> OgmiosTxOut
-fromScriptOutput
-  networkId
-  (ScriptOutput { validatorHash: vh, value, datumHash: dh }) =
-  ScriptOgmiosTxOut
-    { address: validatorHashAddress networkId vh
-    , validator: Left vh
-    , datum: Left dh
-    , value
-    }
-
--- | Lenses to replicate the Plutus API
---
--- We don't have Template Purescript, therefore they are created manually.
--- I'm using a Purescript convention to underscore lenses, which appears to be
--- "the opposite" of Haskell, where underscores are used in a record type
--- then TH derives. This could be confusing with FFIs.
-
-_value :: Lens' OgmiosTxOut Value
-_value = lens' case _ of
-  PublicKeyOgmiosTxOut rec@{ value } ->
-    value /\ \val -> PublicKeyOgmiosTxOut rec { value = val }
-  ScriptOgmiosTxOut rec@{ value } ->
-    value /\ \val -> ScriptOgmiosTxOut rec { value = val }
-
-_address :: Lens' OgmiosTxOut Address
-_address = lens' case _ of
-  PublicKeyOgmiosTxOut rec@{ address } ->
-    address /\ \addr -> PublicKeyOgmiosTxOut rec { address = addr }
-  ScriptOgmiosTxOut rec@{ address } ->
-    address /\ \addr -> ScriptOgmiosTxOut rec { address = addr }
-
--- Can be an `AffineTraversal'` also
-_validator :: Traversal' OgmiosTxOut (Either ValidatorHash Validator)
-_validator = _ScriptOgmiosTxOut <<< prop (SProxy :: SProxy "validator")
-
--- Can be an `AffineTraversal'` also
-_datum :: Traversal' OgmiosTxOut (Either DatumHash Datum)
-_datum = _ScriptOgmiosTxOut <<< prop (SProxy :: SProxy "datum")
-
-_PublicKeyOgmiosTxOut :: Prism' OgmiosTxOut PublicKeyOgmiosTxOut
-_PublicKeyOgmiosTxOut = prism' PublicKeyOgmiosTxOut case _ of
-  PublicKeyOgmiosTxOut x -> Just x
-  ScriptOgmiosTxOut _ -> Nothing
-
-_PublicKeyOgmiosTxOut' :: Prism' OgmiosTxOut PublicKeyOgmiosTxOutTuple
-_PublicKeyOgmiosTxOut' = _PublicKeyOgmiosTxOut <<< _PubKeyIso
-  where
-  _PubKeyIso :: Iso' PublicKeyOgmiosTxOut PublicKeyOgmiosTxOutTuple
-  _PubKeyIso = iso recordToTuple tupleToRecord
-
-  recordToTuple :: PublicKeyOgmiosTxOut -> PublicKeyOgmiosTxOutTuple
-  recordToTuple { address, value } = address /\ value
-
-  tupleToRecord :: PublicKeyOgmiosTxOutTuple -> PublicKeyOgmiosTxOut
-  tupleToRecord (address /\ value) = { address, value }
-
-_ScriptOgmiosTxOut :: Prism' OgmiosTxOut ScriptOgmiosTxOut
-_ScriptOgmiosTxOut = prism' ScriptOgmiosTxOut case _ of
-  ScriptOgmiosTxOut x -> Just x
-  PublicKeyOgmiosTxOut _ -> Nothing
-
-_ScriptOgmiosTxOut' :: Prism' OgmiosTxOut ScriptOgmiosTxOutTuple
-_ScriptOgmiosTxOut' = _ScriptOgmiosTxOut <<< _ScriptIso
-  where
-  _ScriptIso :: Iso' ScriptOgmiosTxOut ScriptOgmiosTxOutTuple
-  _ScriptIso = iso recordToTuple tupleToRecord
-
-  recordToTuple :: ScriptOgmiosTxOut -> ScriptOgmiosTxOutTuple
-  recordToTuple { address, validator, datum, value } =
-    address /\ validator /\ datum /\ value
-
-  tupleToRecord :: ScriptOgmiosTxOutTuple -> ScriptOgmiosTxOut
-  tupleToRecord (address /\ validator /\ datum /\ value) =
-    { address, validator, datum, value }
-
--- -------------------------------- OPTION 2 --------------------------------------
--- -- Isomorphic to OPTION 1, is more succinct but less expressive. In particular
--- -- Maybe failure and success implies a public key and script key address
--- -- respectively. The ' is just temporary so we can compile.
--- -- 1) Cleaner but the Maybe doesn't really explain what's going on. Feels like
--- -- a bad use of validating instead of parsing.
--- -- 2) Potentially less flexible in the long run, in case we want to use datum at
--- -- public keys for example (not sure if we'd want to though)
--- -- 3) More changes for Haskell code.
--- -- 4) Less lenses (or none) required given row polymorphism convenience.
--- data OgmiosTxOut' = OgmiosTxOut' OgmiosTxOut''
-
--- -- Can think of a better name:
--- type OgmiosTxOut'' =
---   { address :: Address
---   , validatorDatum :: Maybe ValidatorDatum -- Nothing = PublicKey, Just = Script
---   , value :: Value
---   }
---
--- --------------------------------------------------------------------------------
--- -- OgmiosTxOut Option 2 helpers and lenses
--- --------------------------------------------------------------------------------
--- toTxOut' :: OgmiosTxOut' -> Maybe TransactionOutput
--- toTxOut' (OgmiosTxOut' { address, validatorDatum: Nothing, value }) =
---   pure $ TransactionOutput
---     { address
---     , amount: value
---     , data_hash: Nothing
---     }
--- toTxOut' (OgmiosTxOut' { address, validatorDatum: Just (_ /\ Left dh), value }) =
---   pure $  TransactionOutput
---     { address
---     , amount: value
---     , data_hash: Just dh
---     }
--- toTxOut' (OgmiosTxOut' { address, validatorDatum: Just (_ /\ Right d), value }) = do
---   -- We want failure if we can't get the datum hash, as opposed to setting it to
---   -- `Nothing` which would suggest we have a wallet address.
---   dh <- datumHash d
---   pure $ TransactionOutput
---     { address
---     , amount: value
---     , data_hash: Just dh
---     }
-
--- -- Less of a requirement for Lenses here but can still be useful for the user
--- _OgmiosTxOut' :: Lens' OgmiosTxOut' OgmiosTxOut''
--- _OgmiosTxOut' =
---   lens' (\(OgmiosTxOut' record) -> record /\ (\rec -> OgmiosTxOut' rec))
-
--- -- Can be AffineTraversal' also
--- _validator' :: Traversal' OgmiosTxOut' (Either ValidatorHash Validator)
--- _validator' = _OgmiosTxOut' <<< _validatorDatum <<< _Just <<< _1
-
--- -- Can be AffineTraversal' also
--- _datum' :: Traversal' OgmiosTxOut' (Either DatumHash Datum)
--- _datum' = _OgmiosTxOut' <<< _validatorDatum <<< _Just <<< _2
-
--- _validatorDatum
---   :: forall (a :: Type) (r :: Row Type). Lens' { validatorDatum :: a | r } a
--- _validatorDatum = prop (SProxy :: SProxy "validatorDatum")
-
--- fromTxOut' :: TransactionOutput -> Maybe OgmiosTxOut'
--- fromTxOut' (TransactionOutput { address, amount: value, data_hash }) = do
---   paymentCred <- addressPaymentCred address
---   paymentCred # withStakeCredential
---     { onKeyHash: const
---         $ pure
---         $ OgmiosTxOut' { address, validatorDatum: Nothing, value }
---     , onScriptHash: \sh -> data_hash >>= \dh ->
---         pure $ OgmiosTxOut'
---           { address
---           , validatorDatum: Just (Left (ValidatorHash sh) /\ Left dh)
---           , value
---           }
---     }
-
--- type ValidatorDatum =
---   (Either ValidatorHash Validator) /\ (Either DatumHash Datum)
-
--------------------------------- OPTION 3 --------------------------------------
--- Stick to the current JsonWsp.OgmiosTxOut which seems easiest.
--- I wrote the functions below with Option 1 but it should be very simple to
--- convert to option 3.
-
---------------------------------------------------------------------------------
 -- ScriptLookups type
 --------------------------------------------------------------------------------
 newtype ScriptLookups (a :: Type) = ScriptLookups
@@ -456,7 +162,7 @@ newtype ScriptLookups (a :: Type) = ScriptLookups
   , otherData :: Map DatumHash Datum --  Datums that we might need
   , paymentPubKeyHashes :: Map PaymentPubKeyHash PaymentPubKey -- Public keys that we might need
   , typedValidator :: Maybe (TypedValidator a) -- The script instance with the typed validator hash & actual compiled program
-  -- NOTE: not sure how to make sense of Typed Validators ATM.
+  -- NOTE: not sure how to make sense of Typed Validators ATM. https://github.com/Plutonomicon/cardano-browser-tx/issues/166
   , ownPaymentPubKeyHash :: Maybe PaymentPubKeyHash -- The contract's payment public key hash, used for depositing tokens etc.
   , ownStakePubKeyHash :: Maybe StakePubKeyHash -- The contract's stake public key hash (optional)
   }
@@ -795,7 +501,6 @@ addMintingRedeemers = do
             --  generic PlutusScripts mapped to their ScriptHash.
             containsHash <- liftEither $ Right $ elem mpsHash $
               Array.mapMaybe (map MintingPolicyHash <<< scriptHash) ps
-            -- # elem mpsHash >>> Right >>> liftEither
             if containsHash then do
               ExceptT $ attachToCps attachRedeemer red
             else liftEither $ throwError $ MintingPolicyNotFound mpsHash
@@ -808,7 +513,7 @@ updateUtxoIndex
    . ConstraintsM sl (Either MkUnbalancedTxError Unit)
 updateUtxoIndex = runExceptT do
   txOutputs <- asks (_.scriptLookups >>> unwrap >>> _.txOutputs)
-  let txOutsMap = mapMaybe toScriptOutput txOutputs
+  let txOutsMap = mapMaybe ogmiosTxOutToScriptOutput txOutputs
   -- Left bias towards original map, hence `flip`:
   _unbalancedTx <<< _utxoIndex %= flip union txOutsMap
 
@@ -825,8 +530,12 @@ data MkUnbalancedTxError
   | OwnPubKeyAndStakeKeyMissing
   -- | TypedValidatorMissing
   | DatumWrongHash DatumHash Datum
-  | CannotSatisfyAny
+  | CannotHashDatum Datum
   | CannotConvertPOSIXTimeRange POSIXTimeRange
+  | CannotConvertOgmiosAddress String -- Conversion from an Ogmios Address ~ String to `Address`
+  | CannotConvertOgmiosDatumHash String -- Conversion from an Ogmios DatumHash ~ `Maybe String` to` Maybe DatumHash`
+  | CannotGetValidatorHashFromAddress Address -- Get `ValidatorHash` from internal `Address`
+  | CannotSatisfyAny
 
 derive instance Generic MkUnbalancedTxError _
 derive instance Eq MkUnbalancedTxError
@@ -901,8 +610,10 @@ processConstraint = do
       runExceptT $ _valueSpentBalancesOutputs <>= require vl
     MustSpendPubKeyOutput txo -> runExceptT do
       txOut <- ExceptT $ lookupTxOutRef txo
+      -- Recall an Ogmios datum is a `Maybe String` where `Nothing` implies a
+      -- wallet address and `Just` as script address.
       case txOut of
-        PublicKeyOgmiosTxOut { value } -> do
+        { value, datum: Nothing } -> do
           -- POTENTIAL FIX ME: Plutus has Tx.TxIn and Tx.PubKeyTxIn -- TxIn
           -- keeps track TxOutRef and TxInType (the input type, whether
           -- consuming script, public key or simple script)
@@ -911,18 +622,27 @@ processConstraint = do
         _ -> liftEither $ throwError $ TxOutRefWrongType txo
     MustSpendScriptOutput txo red -> runExceptT do
       txOut <- ExceptT $ lookupTxOutRef txo
+      -- Recall an Ogmios datum is a `Maybe String` where `Nothing` implies a
+      -- wallet address and `Just` as script address.
       case txOut of
-        ScriptOgmiosTxOut { validator, datum, value } -> do
-          -- Check in the `OgmiosTx` for the validator, then look for it in the
-          -- `otherScripts` map.
-          plutusScript <-
-            ExceptT $ either lookupValidator (pure <<< Right) validator
-              <#> map unwrap
-
+        { address, datum: Just datumStr, value } -> do
+          -- Convert the address into a validator hash to use the lookup
+          address' <- liftM
+            (CannotConvertOgmiosAddress address)
+            (ogmiosAddressToAddress address)
+          vHash <- liftM
+            (CannotGetValidatorHashFromAddress address')
+            (addressValidatorHash address')
+          plutusScript <- ExceptT $ lookupValidator vHash <#> map unwrap
           -- Note: Plutus uses `TxIn` to attach a redeemer and datum.
-          -- Check in the `OgmiosTx` for the datum, then look for it in the
-          -- `otherData` map.
-          dataValue <- ExceptT $ either lookupDatum (pure <<< Right) datum
+          -- Use the datum hash inside the lookup
+          -- Note: if we get `Nothing`, we have to throw eventhough that's a
+          -- valid input, because our `txOut` above is a Script address via
+          -- `Just`.
+          dHash <- liftM
+            (CannotConvertOgmiosDatumHash datumStr)
+            (ogmiosDatumHashToDatumHash datumStr)
+          dataValue <- ExceptT $ lookupDatum dHash
           ExceptT $ attachToCps attachPlutusScript plutusScript
           ExceptT $ addDatums dataValue
           -- FIX ME: we could conveniently convert redeemers as we go along
@@ -937,10 +657,7 @@ processConstraint = do
     MustMintValue mpsHash red tn i -> runExceptT do
       plutusScript <- ExceptT $ lookupMintingPolicy mpsHash <#> map unwrap
       cs <-
-        liftEither $ maybe
-          (throwError $ MintingPolicyHashNotCurrencySymbol mpsHash)
-          Right
-          (mpsSymbol mpsHash)
+        liftM (MintingPolicyHashNotCurrencySymbol mpsHash) (mpsSymbol mpsHash)
       let value = mkSingletonValue' cs tn
       -- If i is negative we are burning tokens. The tokens burned must
       -- be provided as an input. So we add the value burnt to
@@ -948,15 +665,11 @@ processConstraint = do
       -- created which must be added to 'valueSpentBalancesOutputs'.
       mintVal <-
         if i < zero then do
-          v <- liftEither
-            $ maybe (throwError $ CannotMakeValue cs tn i) Right
-            $ value (negate i)
+          v <- liftM (CannotMakeValue cs tn i) (value $ negate i)
           _valueSpentBalancesInputs <>= provide v
           liftEither $ Right v
         else do
-          v <- liftEither
-            $ maybe (throwError $ CannotMakeValue cs tn i) Right
-            $ value i
+          v <- liftM (CannotMakeValue cs tn i) (value i)
           _valueSpentBalancesOutputs <>= provide v
           liftEither $ Right v
       ExceptT $ attachToCps attachPlutusScript plutusScript
@@ -965,20 +678,46 @@ processConstraint = do
       _redeemers <<< at Mint <>= Just (Array.singleton red)
     MustPayToPubKeyAddress pkh _ mDatum amount -> runExceptT do
       -- If datum is presented, add it to 'datumWitnesses' and Array of datums.
+      -- Otherwise continue, hence `liftEither $ Right unit`.
       maybe (liftEither $ Right unit) (ExceptT <<< addDatums) mDatum
       networkId <- ExceptT getNetworkId
+      -- [DatumHash Note]
+      -- The behaviour below is subtle because of `datumHash`'s `Maybe` context.
+      -- In particular, if `mDatum` is `Nothing`, then return nothing (note: we
+      -- don't want to fail). However, if we have a datum value, we attempt to
+      -- hash, which may fail. We want to capture this failure.
+      -- Given `data_hash` ~ `Maybe DatumHash`, we don't want return this
+      -- failure in the output. It's possible that this is okay for
+      -- `MustPayToPubKeyAddress` because datums are essentially redundant
+      -- for wallet addresses, but let's fail for now. It is important to
+      -- capture failure for `MustPayToOtherScript` however, because datums
+      -- at script addresses matter.
+      -- e.g. in psuedo code:
+      -- If mDatum = Nothing -> data_hash = Nothing (don't fail)
+      -- If mDatum = Just datum ->
+      --     If datumHash datum = Nothing -> FAIL
+      --     If datumHash datum = Just dHash -> data_hash = dHash
+      -- As mentioned, we could remove this fail behaviour for
+      -- `MustPayToPubKeyAddress`
+      data_hash <- maybe
+        (liftEither $ Right Nothing) -- Don't throw an error if Nothing.
+        (\datum -> liftMWith (CannotHashDatum datum) Just (datumHash datum))
+        mDatum
       let
-        data_hash = mDatum >>= datumHash
         txOut = TransactionOutput
           { address: payPubKeyHashAddress networkId pkh, amount, data_hash }
       _cpsToTxBody <<< _outputs %= (:) txOut
       _valueSpentBalancesOutputs <>= provide amount
     MustPayToOtherScript vlh datum amount -> runExceptT do
       networkId <- ExceptT getNetworkId
+      -- Don't write `let data_hash = datumHash datum`, see [datumHash Note]
+      data_hash <- liftM (CannotHashDatum datum) (datumHash datum <#> Just)
       let
-        data_hash = datumHash datum
         txOut = TransactionOutput
-          { address: validatorHashAddress networkId vlh, amount, data_hash }
+          { address: validatorHashAddress networkId vlh
+          , amount
+          , data_hash
+          }
       ExceptT $ addDatums datum
       _cpsToTxBody <<< _outputs %= (:) txOut
       _valueSpentBalancesOutputs <>= provide amount
@@ -1040,5 +779,5 @@ _cpsToTxBody = _unbalancedTx <<< _transaction <<< _body
 getNetworkId
   :: forall (sl :: Type)
    . ConstraintsM sl (Either MkUnbalancedTxError NetworkId)
-getNetworkId = runExceptT $ use (_cpsToTxBody <<< _networkId)
-  >>= liftEither <<< maybe (throwError NetworkIdMissing) Right
+getNetworkId = runExceptT $
+  use (_cpsToTxBody <<< _networkId) >>= liftM NetworkIdMissing

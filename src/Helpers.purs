@@ -10,6 +10,8 @@ module Helpers
   , fromRightEff
   , jsonTurnNumbersToStrings
   , liftEither
+  , liftM
+  , liftMWith
   , maybeArrayMerge
   , parseJsonStringifyNumbers
   ) where
@@ -29,10 +31,10 @@ import Data.HashMap (unionWith) as HashMap
 import Data.HashMap (HashMap)
 import Data.Map (Map)
 import Data.Map (unionWith) as Map
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Maybe.First (First(First))
 import Data.Maybe.Last (Last(Last))
-import Data.Either (Either, either)
+import Data.Either (Either(Right), either, note)
 import Effect (Effect)
 import Effect.Exception (throw)
 
@@ -63,6 +65,26 @@ liftEither = either throwError pure
 
 fromRightEff :: forall (a :: Type) (e :: Type). Show e => Either e a -> Effect a
 fromRightEff = either (throw <<< show) pure
+
+-- | Given an error and a `Maybe` value, lift the context via `liftEither`.
+liftM
+  :: forall (e :: Type) (m :: Type -> Type) (a :: Type)
+   . MonadError e m
+  => e
+  -> Maybe a
+  -> m a
+liftM err = liftEither <<< maybe (throwError err) Right
+
+-- | Given an error and a `Maybe` value, lift the context via `liftEither` with
+-- | a handler on `Right`.
+liftMWith
+  :: forall (e :: Type) (m :: Type -> Type) (a :: Type) (b :: Type)
+   . MonadError e m
+  => e
+  -> (a -> b)
+  -> Maybe a
+  -> m b
+liftMWith err f = liftEither <<< maybe (throwError err) (Right <<< f)
 
 -- | Combine two `Maybe`s taking the `First` `Maybe`
 appendFirstMaybe :: forall (a :: Type). Maybe a -> Maybe a -> Maybe a
