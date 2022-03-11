@@ -353,6 +353,8 @@ type ConstraintsM (sl :: Type) (a :: Type) =
     (StateT ConstraintProcessingState (ReaderT QueryConfig Aff))
     a
 
+-- Fix me: add execution units from Ogmios where this function should be
+-- inside QueryM https://github.com/Plutonomicon/cardano-browser-tx/issues/174
 -- TO DO: Plutus uses a bunch of FromData and ToData constraints we'll probably
 -- need to replicate if we uses `InputConstraint`s and `OutputConstraint`s
 -- i.e. ~ foldM addOwnInput txOwnInputs then foldM addOwnOutput txOwnOutputs
@@ -370,9 +372,6 @@ processLookupsAndConstraints (TxConstraints { constraints }) = runExceptT do
   ExceptT addScriptDataHash
   ExceptT addMissingValueSpent
   ExceptT updateUtxoIndex
-
--- Fix me: add execution units from Ogmios where this function should be
--- inside QueryM
 
 -- Helper to run the stack and get back to `QueryM`.
 runConstraintsM
@@ -744,13 +743,13 @@ processConstraint = do
   -- The follow default to zero before calling Ogmios to calculate execution
   -- units, otherwise, set to some non-zero buffer in the short term. I suspect
   -- we can set them to be non zero now and call Ogmios anyhow.
+  -- https://github.com/Plutonomicon/cardano-browser-tx/issues/174
   ------------------------------------------------------------------------------
   scriptExUnits :: ExUnits
   scriptExUnits = { mem: zero, steps: zero }
 
   mintExUnits :: ExUnits
   mintExUnits = { mem: zero, steps: zero }
-  ------------------------------------------------------------------------------
 
 -- Attach a Datum, Redeemer, or PlutusScript depending on the handler. They
 -- share error type anyway.
