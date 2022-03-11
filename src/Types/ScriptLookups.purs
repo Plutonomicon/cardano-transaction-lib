@@ -745,7 +745,6 @@ processConstraint = do
   -- The follow hardcoded before calling Ogmios to calculate execution
   -- unit. Calling Ogmios is an outstanding issue:
   -- https://github.com/Plutonomicon/cardano-browser-tx/issues/174
-  ------------------------------------------------------------------------------
   scriptExUnits :: ExUnits
   scriptExUnits = { mem: fromInt 2000000, steps: fromInt 1000000000 }
 
