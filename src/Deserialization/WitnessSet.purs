@@ -1,7 +1,7 @@
 module Deserialization.WitnessSet
-  ( convertVkeyWitnesses
+  ( convertPlutusScripts
+  , convertVkeyWitnesses
   , convertWitnessSet
-  , convertPlutusScripts
   , deserializeWitnessSet
   , plutusScriptBytes
   ) where
@@ -49,7 +49,6 @@ import Types.Transaction
   , Vkeywitness(..)
   ) as T
 import Types.Scripts (PlutusScript(PlutusScript)) as S
-import Untagged.Union (asOneOf)
 import Deserialization.NativeScript (convertNativeScript)
 import Deserialization.PlutusData (convertPlutusData)
 
