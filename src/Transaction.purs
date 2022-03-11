@@ -23,10 +23,10 @@ import Serialization (hashScriptData, toBytes)
 import Serialization.PlutusData as Serialization.PlutusData
 import Serialization.Types as Serialization
 import Serialization.WitnessSet as Serialization.WitnessSet
-import Types.PlutusData (Datum(Datum))
+import Types.Datum (Datum(Datum))
+import Types.Scripts (PlutusScript)
 import Types.Transaction
-  ( PlutusScript
-  , Redeemer
+  ( Redeemer
   , ScriptDataHash(ScriptDataHash)
   , Transaction(Transaction)
   , TransactionWitnessSet
@@ -39,6 +39,7 @@ data ModifyTxError
   | ConvertDatumError
 
 derive instance Generic ModifyTxError _
+derive instance Eq ModifyTxError
 
 instance Show ModifyTxError where
   show = genericShow
