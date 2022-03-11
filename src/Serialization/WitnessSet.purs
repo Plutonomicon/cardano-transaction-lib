@@ -34,13 +34,13 @@ import Types.ByteArray (ByteArray)
 import Types.RedeemerTag as Tag
 import Types.Transaction
   ( BootstrapWitness
-  , Ed25519Signature(..)
+  , Ed25519Signature(Ed25519Signature)
   , ExUnits
-  , PublicKey(..)
-  , Redeemer(..)
-  , TransactionWitnessSet(..)
-  , Vkey(..)
-  , Vkeywitness(..)
+  , PublicKey(PublicKey)
+  , Redeemer(Redeemer)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
   ) as T
 import Types.PlutusData (PlutusData) as PD
 import Serialization.Types (PlutusData) as PDS

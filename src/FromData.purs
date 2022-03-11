@@ -1,4 +1,7 @@
-module FromData where
+module FromData
+  ( class FromData
+  , fromData
+  ) where
 
 import Prelude
 
@@ -8,13 +11,14 @@ import Data.BigInt as BigInt
 import Data.List (List)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(Nothing, Just))
 import Data.Traversable (for, traverse)
-import Data.Tuple (Tuple(..))
+import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Prim.TypeError (class Fail, Text)
 import Data.Unfoldable (class Unfoldable)
-import Types.PlutusData (PlutusData(..))
+import Types.ByteArray (ByteArray)
+import Types.PlutusData (PlutusData(Bytes, List, Map, Integer))
 
 class FromData (a :: Type) where
   fromData :: PlutusData -> Maybe a
@@ -52,6 +56,10 @@ instance (FromData k, Ord k, FromData v) => FromData (Map k v) where
       Tuple <$> fromData k <*> fromData v
   fromData _ = Nothing
 
-fromDataUnfoldable :: forall a t. Unfoldable t => FromData a => PlutusData -> Maybe (t a)
+instance FromData ByteArray where
+  fromData (Bytes res) = Just res
+  fromData _ = Nothing
+
+fromDataUnfoldable :: forall (a :: Type) (t :: Type -> Type). Unfoldable t => FromData a => PlutusData -> Maybe (t a)
 fromDataUnfoldable (List entries) = Array.toUnfoldable <$> traverse fromData entries
 fromDataUnfoldable _ = Nothing
