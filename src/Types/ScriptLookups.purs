@@ -486,7 +486,6 @@ data MkUnbalancedTxError
   | CannotGetValidatorHashFromAddress Address -- Get `ValidatorHash` from internal `Address`
   | CannotGetMintingPolicyScriptIndex -- Cannot get the Minting Policy Index - this should be impossible.
   | CannotGetMintingValidatorScriptIndex -- Cannot get the Validator Index - this should be impossible.
-  | CannotSerializeRedeemer Redeemer -- Cannot convert to ByteArray representation of redeemer
   | CannotSatisfyAny
 
 derive instance Generic MkUnbalancedTxError _
