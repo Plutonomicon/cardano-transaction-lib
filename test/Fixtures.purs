@@ -44,9 +44,20 @@ import Data.Maybe (Maybe(..), fromJust)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Partial.Unsafe (unsafePartial)
-import Serialization.Address (Address, Slot(Slot), baseAddress, baseAddressToAddress, keyHashCredential, mainnetId, testnetId)
+import Serialization.Address
+  ( Address
+  , NetworkId(MainnetId, TestnetId)
+  , Slot(Slot)
+  , baseAddress
+  , baseAddressToAddress
+  , keyHashCredential
+  )
 import Serialization.Hash (Ed25519KeyHash, ed25519KeyHashFromBytes)
-import Types.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe, hexToByteArrayUnsafe)
+import Types.ByteArray
+  ( ByteArray
+  , byteArrayFromIntArrayUnsafe
+  , hexToByteArrayUnsafe
+  )
 import Types.PlutusData as PD
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
@@ -62,13 +73,21 @@ import Types.Transaction
   , Vkeywitness(Vkeywitness)
   )
 import Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput))
-import Types.Value (Coin(Coin), CurrencySymbol, TokenName, Value(Value), mkCurrencySymbol, mkTokenName, mkSingletonNonAdaAsset)
+import Types.Value
+  ( Coin(Coin)
+  , CurrencySymbol
+  , TokenName
+  , Value(Value)
+  , mkCurrencySymbol
+  , mkTokenName
+  , mkSingletonNonAdaAsset
+  )
 
 txOutputFixture1 :: TransactionOutput
 txOutputFixture1 =
   TransactionOutput
     { address: baseAddressToAddress $ baseAddress
-        { network: testnetId
+        { network: TestnetId
         , delegationCred:
             keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
               -- $ T.Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
@@ -123,7 +142,7 @@ txFixture1 =
         , script_data_hash: Nothing
         , collateral: Nothing
         , required_signers: Nothing
-        , network_id: Just mainnetId
+        , network_id: Just MainnetId
         }
     , witness_set: TransactionWitnessSet
         { vkeys: Nothing
@@ -154,7 +173,7 @@ txFixture2 =
         , script_data_hash: Nothing
         , collateral: Nothing
         , required_signers: Nothing
-        , network_id: Just mainnetId
+        , network_id: Just MainnetId
         }
     , witness_set: TransactionWitnessSet
         { vkeys: Nothing
@@ -204,7 +223,7 @@ txFixture3 =
         , script_data_hash: Nothing
         , collateral: Nothing
         , required_signers: Nothing
-        , network_id: Just mainnetId
+        , network_id: Just MainnetId
         }
     , witness_set: TransactionWitnessSet
         { vkeys: Nothing
@@ -255,7 +274,7 @@ utxoFixture1' =
     , output:
         ( TransactionOutput
             { address: baseAddressToAddress $ baseAddress
-                { network: testnetId
+                { network: TestnetId
                 , paymentCred: keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes $
                     byteArrayFromIntArrayUnsafe [ 243, 63, 250, 132, 253, 242, 10, 0, 52, 67, 165, 226, 118, 142, 18, 233, 45, 179, 21, 53, 220, 166, 32, 136, 177, 83, 223, 36 ]
                 , delegationCred: keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes $
@@ -360,7 +379,7 @@ nativeScriptFixture7 = TimelockExpiry $ Slot $ UInt.fromInt 2000
 
 keyHashBaseAddress :: { payment :: String, stake :: String } -> Address
 keyHashBaseAddress { payment, stake } = baseAddressToAddress $ baseAddress
-  { network: testnetId
+  { network: TestnetId
   , delegationCred:
       keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
         -- $ T.Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"

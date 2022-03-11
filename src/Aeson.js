@@ -1,9 +1,9 @@
 
 // parseJsonExtractingIntegers
-//   :: (forall a b. a -> b -> Tuple a b) -> String -> String /\ Array String
-exports.parseJsonExtractingIntegers = tuple => str => {
-    const [output, index] = parseJsonExtractingIntegers(str);
-    return tuple(output)(index);
+//   :: String -> {patchedPayload :: String, numberIndex :: Array String}
+exports.parseJsonExtractingIntegers = str => {
+    const [patchedPayload, numberIndex] = parseJsonExtractingIntegers(str);
+    return {patchedPayload, numberIndex};
 };
 
 // NOTE: For a general overview of this function's purpose,
@@ -36,7 +36,7 @@ const parseJsonExtractingIntegers = str => {
         if(!in_string){
             if (c >= '0' && c <= '9' || c == '-') {
                 if (!in_number) {
-                    // push a number index in-place of a number
+                    // push a number index in place of a number
                     arr.push((counter++).toString());
                 }
                 in_number=true;

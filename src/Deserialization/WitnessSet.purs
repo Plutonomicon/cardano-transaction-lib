@@ -1,8 +1,9 @@
 module Deserialization.WitnessSet
-  ( convertWitnessSet
-  , deserializeWitnessSet
-  , convertVkeyWitnesses
+  ( convertVkeyWitnesses
+  , convertWitnessSet
   , convertPlutusScripts
+  , deserializeWitnessSet
+  , plutusScriptBytes
   ) where
 
 import Prelude
@@ -41,13 +42,14 @@ import Types.Transaction
   , Ed25519Signature(..)
   , ExUnits
   , NativeScript
-  , PlutusScript(..)
   , PublicKey(..)
   , Redeemer(..)
   , TransactionWitnessSet(..)
   , Vkey(..)
   , Vkeywitness(..)
   ) as T
+import Types.Scripts (PlutusScript(PlutusScript)) as S
+import Untagged.Union (asOneOf)
 import Deserialization.NativeScript (convertNativeScript)
 import Deserialization.PlutusData (convertPlutusData)
 
@@ -95,8 +97,8 @@ convertBootstraps = extractBootstraps >>> map \bootstrap ->
   , attributes: getBootstrapAttributes bootstrap
   }
 
-convertPlutusScripts :: PlutusScripts -> Array T.PlutusScript
-convertPlutusScripts = extractPlutusScripts >>> map (plutusScriptBytes >>> T.PlutusScript)
+convertPlutusScripts :: PlutusScripts -> Array S.PlutusScript
+convertPlutusScripts = extractPlutusScripts >>> map (plutusScriptBytes >>> S.PlutusScript)
 
 convertPlutusList :: PlutusList -> Maybe (Array T.PlutusData)
 convertPlutusList = extractPlutusData >>> traverse convertPlutusData

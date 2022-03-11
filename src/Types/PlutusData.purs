@@ -4,8 +4,9 @@ module Types.PlutusData
 
 import Prelude
 
-import Aeson (class DecodeAeson, decodeAeson, getJson, (.:))
+import Aeson (class DecodeAeson, decodeAeson, (.:))
 import Control.Alt ((<|>))
+import Data.Argonaut (encodeJson)
 import Data.Argonaut.Decode (JsonDecodeError(..))
 import Data.BigInt (BigInt)
 import Data.Either (Either(..))
@@ -18,7 +19,7 @@ import Data.Traversable (for)
 import Data.Tuple.Nested ((/\))
 import Types.ByteArray (ByteArray, hexToByteArray)
 
--- Don't distinguish "BuiltinData" and "Data" like Plutus:
+-- Doesn't distinguish "BuiltinData" and "Data" like Plutus:
 data PlutusData
   = Constr BigInt (Array PlutusData)
   | Map (Map PlutusData PlutusData)
@@ -69,5 +70,5 @@ instance DecodeAeson PlutusData where
     decodeBytes = do
       bytesHex <- decodeAeson aeson
       case hexToByteArray bytesHex of
-        Nothing -> Left $ UnexpectedValue $ getJson aeson
+        Nothing -> Left $ UnexpectedValue $ encodeJson bytesHex
         Just res -> pure $ Bytes res

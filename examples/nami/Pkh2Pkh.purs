@@ -46,20 +46,22 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)
 import Data.Tuple (fst)
 import Effect (Effect)
-import Effect.Class (liftEffect)
 import Effect.Aff (error, launchAff_)
 import Effect.Aff.Class (liftAff)
+import Effect.Class (liftEffect)
 import Effect.Console as Console
 import QueryM
   ( QueryM
   , defaultOgmiosWsConfig
+  , defaultDatumCacheWsConfig
   , defaultServerConfig
   , getWalletAddress
   , mkOgmiosWebSocketAff
+  , mkDatumCacheWebSocketAff
   , submitTransaction
   , utxosAt
   )
-import Serialization.Address (testnetId)
+import Serialization.Address (NetworkId(TestnetId))
 import Types.Transaction
   ( Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
@@ -73,10 +75,12 @@ import Wallet (mkNamiWalletAff)
 main :: Effect Unit
 main = launchAff_ $ do
   wallet <- Just <$> mkNamiWalletAff
-  ws <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
+  ogmiosWs <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
+  datumCacheWs <- mkDatumCacheWebSocketAff defaultDatumCacheWsConfig
   txId <- runReaderT
     buildAndSubmit
-    { ws
+    { ogmiosWs
+    , datumCacheWs
     , wallet
     , serverConfig: defaultServerConfig
     }
@@ -110,7 +114,7 @@ buildUnbalancedTransaction = do
                 }
             -- ??
             , fee: Value.mkCoin 0
-            , network_id: Just testnetId
+            , network_id: Just TestnetId
             , certs: Nothing
             , collateral: Nothing
             , auxiliary_data_hash: Nothing

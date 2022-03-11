@@ -8,25 +8,33 @@ import Data.BigInt (BigInt, toNumber)
 import Data.Generic.Rep (class Generic)
 import Data.Hashable (class Hashable, hash)
 import Data.HashMap (HashMap, empty)
-import Data.HashMap (unionWith) as HashMap
+import Data.Lens (lens')
+import Data.Lens.Iso.Newtype (_Newtype)
+import Data.Lens.Record (prop)
+import Data.Lens.Types (Lens')
 import Data.Map (Map)
-import Data.Map (unionWith) as Map
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Maybe.Last (Last(Last))
+import Data.Maybe (Maybe(Nothing))
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype)
 import Data.Rational (Rational)
 import Data.Show.Generic (genericShow)
+import Data.Symbol (SProxy(SProxy))
+import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
+import Helpers ((</>), (<<>>), appendMap, appendRightHashMap)
 import Serialization.Address (Address, NetworkId, RewardAddress, Slot(Slot))
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
 import Types.RedeemerTag (RedeemerTag)
+import Types.Scripts (PlutusScript)
 import Types.Value (Coin, Value)
 import Serialization.Hash (Ed25519KeyHash)
-import Types.PlutusData (PlutusData)
+import Types.PlutusData (PlutusData) as PD
 
+--------------------------------------------------------------------------------
+-- `Transaction`
+--------------------------------------------------------------------------------
 -- note: these types are derived from the cardano-serialization-lib Sundae fork
 -- the source of truth for these types should be that library and the
 -- corresponding Rust types
@@ -62,6 +70,31 @@ instance monoidTransaction :: Monoid Transaction where
     , auxiliary_data: Nothing
     }
 
+--------------------------------------------------------------------------------
+-- `Transaction` Lenses
+--------------------------------------------------------------------------------
+_body :: Lens' Transaction TxBody
+_body = lens' \(Transaction rec@{ body }) ->
+  Tuple body \bod -> Transaction rec { body = bod }
+
+_witnessSet :: Lens' Transaction TransactionWitnessSet
+_witnessSet = lens' \(Transaction rec@{ witness_set }) ->
+  Tuple witness_set \ws -> Transaction rec { witness_set = ws }
+
+_isValid :: Lens' Transaction Boolean
+_isValid = lens' \(Transaction rec@{ is_valid }) ->
+  Tuple is_valid \iv -> Transaction rec { is_valid = iv }
+
+_auxiliaryData :: Lens' Transaction (Maybe AuxiliaryData)
+_auxiliaryData = lens' \(Transaction rec@{ auxiliary_data }) ->
+  Tuple auxiliary_data \ad -> Transaction rec { auxiliary_data = ad }
+
+--------------------------------------------------------------------------------
+-- `TxBody`
+--------------------------------------------------------------------------------
+-- According to https://github.com/input-output-hk/cardano-ledger/blob/0738804155245062f05e2f355fadd1d16f04cd56/alonzo/impl/cddl-files/alonzo.cddl
+-- required_signers is an Array over `VKey`s essentially. But some comments at
+-- the bottom say it's Maybe?
 newtype TxBody = TxBody
   { inputs :: Array TransactionInput
   , outputs :: Array TransactionOutput
@@ -90,17 +123,17 @@ instance semigroupTxBody :: Semigroup TxBody where
     , ttl: lift2 lowerbound txB.ttl txB'.ttl
     , certs: lift2 union txB.certs txB'.certs
     , withdrawals: lift2 appendMap txB.withdrawals txB'.withdrawals
-    , update: txB.update <<>> txB'.update
-    , auxiliary_data_hash: txB.auxiliary_data_hash <<>> txB'.auxiliary_data_hash
+    , update: txB.update </> txB'.update
+    , auxiliary_data_hash: txB.auxiliary_data_hash </> txB'.auxiliary_data_hash
     , validity_start_interval:
         lift2 lowerbound
           txB.validity_start_interval
           txB'.validity_start_interval
     , mint: txB.mint <> txB'.mint
-    , script_data_hash: txB.script_data_hash <<>> txB'.script_data_hash
+    , script_data_hash: txB.script_data_hash </> txB'.script_data_hash
     , collateral: lift2 union txB.collateral txB'.collateral
     , required_signers: lift2 union txB.required_signers txB'.required_signers
-    , network_id: txB.network_id <<>> txB'.network_id
+    , network_id: txB.network_id </> txB'.network_id
     }
     where
     lowerbound :: Slot -> Slot -> Slot
@@ -123,32 +156,6 @@ instance monoidTxBody :: Monoid TxBody where
     , required_signers: Nothing
     , network_id: Nothing
     }
-
--- We could pick First but Last allows for convenient transforming later in the code.
-appendLastMaybe :: forall (a :: Type). Maybe a -> Maybe a -> Maybe a
-appendLastMaybe m m' = Last m <> Last m' # \(Last m'') -> m''
-
-infixr 5 appendLastMaybe as <<>>
-
-maybeArrayMerge
-  :: forall (a :: Type)
-   . Eq a
-  => Maybe (Array a)
-  -> Maybe (Array a)
-  -> Maybe (Array a)
-maybeArrayMerge Nothing y = y
-maybeArrayMerge x Nothing = x
-maybeArrayMerge (Just x) (Just y) = Just $ union x y
-
--- Provide an append for Maps where the value has as Semigroup instance
-appendMap
-  :: forall (k :: Type) (v :: Type)
-   . Ord k
-  => Semigroup v
-  => Map k v
-  -> Map k v
-  -> Map k v
-appendMap = Map.unionWith (<>)
 
 newtype ScriptDataHash = ScriptDataHash ByteArray
 
@@ -266,12 +273,61 @@ data Certificate
 
 derive instance eqCertificate :: Eq Certificate
 
+--------------------------------------------------------------------------------
+-- `TxBody` Lenses
+--------------------------------------------------------------------------------
+_inputs :: Lens' TxBody (Array TransactionInput)
+_inputs = _Newtype <<< prop (SProxy :: SProxy "inputs")
+
+_outputs :: Lens' TxBody (Array TransactionOutput)
+_outputs = _Newtype <<< prop (SProxy :: SProxy "outputs")
+
+_fee :: Lens' TxBody (Coin)
+_fee = _Newtype <<< prop (SProxy :: SProxy "fee")
+
+_ttl :: Lens' TxBody (Maybe Slot)
+_ttl = _Newtype <<< prop (SProxy :: SProxy "ttl")
+
+_certs :: Lens' TxBody (Maybe (Array Certificate))
+_certs = _Newtype <<< prop (SProxy :: SProxy "certs")
+
+_withdrawals :: Lens' TxBody (Maybe (Map RewardAddress Coin))
+_withdrawals = _Newtype <<< prop (SProxy :: SProxy "withdrawals")
+
+_update :: Lens' TxBody (Maybe Update)
+_update = _Newtype <<< prop (SProxy :: SProxy "update")
+
+_auxiliaryDataHash :: Lens' TxBody (Maybe AuxiliaryDataHash)
+_auxiliaryDataHash = _Newtype <<< prop (SProxy :: SProxy "auxiliary_data_hash")
+
+_validityStartInterval :: Lens' TxBody (Maybe Slot)
+_validityStartInterval =
+  _Newtype <<< prop (SProxy :: SProxy "validity_start_interval")
+
+_mint :: Lens' TxBody (Maybe Mint)
+_mint = _Newtype <<< prop (SProxy :: SProxy "mint")
+
+_scriptDataHash :: Lens' TxBody (Maybe ScriptDataHash)
+_scriptDataHash = _Newtype <<< prop (SProxy :: SProxy "script_data_hash")
+
+_collateral :: Lens' TxBody (Maybe (Array TransactionInput))
+_collateral = _Newtype <<< prop (SProxy :: SProxy "collateral")
+
+_requiredSigners :: Lens' TxBody (Maybe (Array RequiredSigner))
+_requiredSigners = _Newtype <<< prop (SProxy :: SProxy "required_signers")
+
+_networkId :: Lens' TxBody (Maybe NetworkId)
+_networkId = _Newtype <<< prop (SProxy :: SProxy "network_id")
+
+--------------------------------------------------------------------------------
+-- `TransactionWitnessSet`
+--------------------------------------------------------------------------------
 newtype TransactionWitnessSet = TransactionWitnessSet
   { vkeys :: Maybe (Array Vkeywitness)
   , native_scripts :: Maybe (Array NativeScript)
   , bootstraps :: Maybe (Array BootstrapWitness)
   , plutus_scripts :: Maybe (Array PlutusScript)
-  , plutus_data :: Maybe (Array PlutusData)
+  , plutus_data :: Maybe (Array PD.PlutusData)
   , redeemers :: Maybe (Array Redeemer)
   }
 
@@ -285,12 +341,12 @@ instance Show TransactionWitnessSet where
 instance semigroupTransactionWitnessSet :: Semigroup TransactionWitnessSet where
   append (TransactionWitnessSet tws) (TransactionWitnessSet tws') =
     TransactionWitnessSet
-      { vkeys: tws.vkeys `maybeArrayMerge` tws'.vkeys
-      , native_scripts: tws.native_scripts `maybeArrayMerge` tws'.native_scripts
-      , bootstraps: tws.bootstraps `maybeArrayMerge` tws'.bootstraps
-      , plutus_scripts: tws.plutus_scripts `maybeArrayMerge` tws'.plutus_scripts
-      , plutus_data: tws.plutus_data `maybeArrayMerge` tws'.plutus_data
-      , redeemers: tws.redeemers `maybeArrayMerge` tws'.redeemers
+      { vkeys: tws.vkeys <<>> tws'.vkeys
+      , native_scripts: tws.native_scripts <<>> tws'.native_scripts
+      , bootstraps: tws.bootstraps <<>> tws'.bootstraps
+      , plutus_scripts: tws.plutus_scripts <<>> tws'.plutus_scripts
+      , plutus_data: tws.plutus_data <<>> tws'.plutus_data
+      , redeemers: tws.redeemers <<>> tws'.redeemers
       }
 
 instance monoidTransactionWitnessSet :: Monoid TransactionWitnessSet where
@@ -303,6 +359,36 @@ instance monoidTransactionWitnessSet :: Monoid TransactionWitnessSet where
     , redeemers: Nothing
     }
 
+--------------------------------------------------------------------------------
+-- `TransactionWitnessSet` Lenses
+--------------------------------------------------------------------------------
+_vkeys :: Lens' TransactionWitnessSet (Maybe (Array Vkeywitness))
+_vkeys = lens' \(TransactionWitnessSet rec@{ vkeys }) ->
+  Tuple vkeys \vk -> TransactionWitnessSet rec { vkeys = vk }
+
+_nativeScripts :: Lens' TransactionWitnessSet (Maybe (Array NativeScript))
+_nativeScripts = lens' \(TransactionWitnessSet rec@{ native_scripts }) ->
+  Tuple native_scripts \ns -> TransactionWitnessSet rec { native_scripts = ns }
+
+_bootstraps :: Lens' TransactionWitnessSet (Maybe (Array BootstrapWitness))
+_bootstraps = lens' \(TransactionWitnessSet rec@{ bootstraps }) ->
+  Tuple bootstraps \bs -> TransactionWitnessSet rec { bootstraps = bs }
+
+_plutusScripts :: Lens' TransactionWitnessSet (Maybe (Array PlutusScript))
+_plutusScripts = lens' \(TransactionWitnessSet rec@{ plutus_scripts }) ->
+  Tuple plutus_scripts \ps -> TransactionWitnessSet rec { plutus_scripts = ps }
+
+_plutusData :: Lens' TransactionWitnessSet (Maybe (Array PD.PlutusData))
+_plutusData = lens' \(TransactionWitnessSet rec@{ plutus_data }) ->
+  Tuple plutus_data \pd -> TransactionWitnessSet rec { plutus_data = pd }
+
+_redeemers :: Lens' TransactionWitnessSet (Maybe (Array Redeemer))
+_redeemers = lens' \(TransactionWitnessSet rec@{ redeemers }) ->
+  Tuple redeemers \red -> TransactionWitnessSet rec { redeemers = red }
+
+--------------------------------------------------------------------------------
+-- Other Datatypes
+--------------------------------------------------------------------------------
 type BootstrapWitness =
   { vkey :: Vkey
   , signature :: Ed25519Signature
@@ -310,7 +396,7 @@ type BootstrapWitness =
   , attributes :: ByteArray
   }
 
-newtype RequiredSigner = RequiredSigner String
+newtype RequiredSigner = RequiredSigner Vkey
 
 derive instance newtypeRequiredSigner :: Newtype RequiredSigner _
 derive newtype instance eqRequiredSigner :: Eq RequiredSigner
@@ -349,19 +435,10 @@ derive newtype instance Eq Ed25519Signature
 instance Show Ed25519Signature where
   show = genericShow
 
-newtype PlutusScript = PlutusScript ByteArray
-
-derive instance newtypePlutusScript :: Newtype PlutusScript _
-derive newtype instance eqPlutusScript :: Eq PlutusScript
-derive instance Generic PlutusScript _
-
-instance Show PlutusScript where
-  show = genericShow
-
 newtype Redeemer = Redeemer
   { tag :: RedeemerTag
   , index :: BigInt
-  , data :: PlutusData
+  , data :: PD.PlutusData
   , ex_units :: ExUnits
   }
 
@@ -412,15 +489,6 @@ instance semigroupGeneralTransactionMetadata :: Semigroup GeneralTransactionMeta
 
 instance monoidGeneralTransactionMetadata :: Monoid GeneralTransactionMetadata where
   mempty = GeneralTransactionMetadata empty
-
--- Provide an append for HashMaps where we take the rightmost value
-appendRightHashMap
-  :: forall (k :: Type) (v :: Type)
-   . Hashable k
-  => HashMap k v
-  -> HashMap k v
-  -> HashMap k v
-appendRightHashMap = HashMap.unionWith (flip const)
 
 newtype TransactionMetadatumLabel = TransactionMetadatumLabel BigInt
 
@@ -510,16 +578,6 @@ instance Show DataHash where
 
 -- To help with people copying & pasting code from Haskell to Purescript
 type DatumHash = DataHash
-
-newtype Datum = Datum PlutusData
-
-derive newtype instance Eq Datum
-derive newtype instance Ord Datum
-derive instance Newtype Datum _
-derive instance Generic Datum _
-
-instance Show Datum where
-  show = genericShow
 
 -- Option<Certificates>,
 -- these are the constructors, but this will generally be an Empty Option in our initial efforts

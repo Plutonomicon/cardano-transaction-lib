@@ -6,31 +6,43 @@ module Types.Interval
   , LowerBound(..)
   , POSIXTime(..)
   , POSIXTimeRange
+  , SlotConfig(..)
+  , SlotRange
   , UpperBound(..)
   , after
   , always
   , before
+  , beginningOfTime
   , contains
+  , defaultSlotConfig
   , from
   , hull
   , intersection
   , interval
   , isEmpty
-  , isEmpty' -- Potentially remove and restrict "isEmpty" to BigInt/POSIXTime
+  , isEmpty'
   , lowerBound
   , member
   , mkInterval
   , never
   , overlaps
-  , overlaps' -- Potentially remove and restrict "overlaps" to BigInt/POSIXTime
+  , overlaps'
+  , posixTimeRangeToContainedSlotRange
+  , posixTimeRangeToTransactionSlot
+  , posixTimeToEnclosingSlot
   , singleton
+  , slotRangeToPOSIXTimeRange
+  , slotRangeToTransactionSlot
+  , slotToEndPOSIXTime
+  , slotToPOSIXTimeRange
   , strictLowerBound
   , strictUpperBound
   , to
   , upperBound
   ) where
 
-import Data.BigInt (BigInt)
+import Data.BigInt (BigInt, quot)
+import Data.BigInt (fromString, fromInt, toString) as BigInt
 import Data.Enum (class Enum, succ)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice
@@ -39,9 +51,14 @@ import Data.Lattice
   , class JoinSemilattice
   , class MeetSemilattice
   )
-import Data.Maybe (Maybe(Just))
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
+import Data.UInt (UInt)
+import Data.UInt (fromString, toString) as UInt
+import Partial.Unsafe (unsafePartial)
 import Prelude
+import Serialization.Address (Slot(Slot))
 
 --------------------------------------------------------------------------------
 -- Interval Type and related
@@ -130,6 +147,7 @@ instance Ord a => BoundedMeetSemilattice (Interval a) where
 newtype POSIXTime = POSIXTime BigInt
 
 derive instance Generic POSIXTime _
+derive instance Newtype POSIXTime _
 derive newtype instance Eq POSIXTime
 derive newtype instance Ord POSIXTime
 -- There isn't an Enum instance for BigInt so we derive Semiring instead which
@@ -277,3 +295,180 @@ before h (Interval { ivFrom }) = lowerBound h < ivFrom
 -- | Check if a value is later than the end of a `Interval`.
 after :: forall (a :: Type). Ord a => a -> Interval a -> Boolean
 after h (Interval { ivTo }) = upperBound h > ivTo
+
+--------------------------------------------------------------------------------
+-- SlotConfig Type and related
+--------------------------------------------------------------------------------
+-- Most of these functions could use a Reader constraint over `SlotConfig` but
+-- that would depend on how the `Contract` monad pans out, we'll keep it
+-- explicit for now.
+
+type SlotRange = Interval Slot
+
+newtype SlotConfig = SlotConfig
+  { slotLength :: BigInt -- Length (number of milliseconds) of one slot
+  , slotZeroTime :: POSIXTime -- Beginning of slot 0 (in milliseconds)
+  }
+
+derive instance Generic SlotConfig _
+derive newtype instance Eq SlotConfig
+
+instance Show SlotConfig where
+  show = genericShow
+
+-- | 'beginningOfTime' corresponds to the Shelley launch date
+-- | (2020-07-29T21:44:51Z) which is 1596059091000 in POSIX time
+-- | (number of milliseconds since 1970-01-01T00:00:00Z).
+beginningOfTime :: BigInt
+beginningOfTime = unsafePartial fromJust $ BigInt.fromString "1596059091000"
+
+defaultSlotConfig :: SlotConfig
+defaultSlotConfig = SlotConfig
+  { slotLength: BigInt.fromInt 1000 -- One second = 1 slot currently.
+  , slotZeroTime: POSIXTime beginningOfTime
+  }
+
+-- | Convert a `SlotRange` to a `POSIXTimeRange` given a `SlotConfig`. The
+-- | resulting `POSIXTimeRange` refers to the starting time of the lower bound of
+-- | the `SlotRange` and the ending time of the upper bound of the `SlotRange`.
+slotRangeToPOSIXTimeRange :: SlotConfig -> SlotRange -> POSIXTimeRange
+slotRangeToPOSIXTimeRange
+  sc
+  (Interval { ivFrom: LowerBound start startIncl, ivTo: UpperBound end endIncl }) =
+  let
+    lbound =
+      map
+        (if startIncl then slotToBeginPOSIXTime sc else slotToEndPOSIXTime sc)
+        start
+    ubound =
+      map
+        (if endIncl then slotToEndPOSIXTime sc else slotToBeginPOSIXTime sc)
+        end
+  in
+    Interval
+      { ivFrom: LowerBound lbound startIncl
+      , ivTo: UpperBound ubound endIncl
+      }
+
+-- | Convert a `Slot` to a `POSIXTimeRange` given a `SlotConfig`. Each `Slot`
+-- | can be represented by an interval of time.
+slotToPOSIXTimeRange :: SlotConfig -> Slot -> POSIXTimeRange
+slotToPOSIXTimeRange sc slot =
+  interval (slotToBeginPOSIXTime sc slot) (slotToEndPOSIXTime sc slot)
+
+-- UInt.toInt is unsafe so we'll go via String. BigInt.fromString returns a
+-- Maybe but we should be safe if we go from UInt originally via String,
+-- as this UInt can't be larger than BigInt.
+uIntToBigInt :: UInt -> BigInt
+uIntToBigInt = unsafePartial fromJust <<< BigInt.fromString <<< UInt.toString
+
+-- This should be left allowed to fail as BigInt may exceed UInt
+bigIntToUInt :: BigInt -> Maybe UInt
+bigIntToUInt = UInt.fromString <<< BigInt.toString
+
+-- | Get the starting `POSIXTime` of a `Slot` given a `SlotConfig`.
+slotToBeginPOSIXTime :: SlotConfig -> Slot -> POSIXTime
+slotToBeginPOSIXTime (SlotConfig { slotLength, slotZeroTime }) (Slot n) =
+  let
+    msAfterBegin = uIntToBigInt n * slotLength
+  in
+    POSIXTime $ unwrap slotZeroTime + msAfterBegin
+
+-- | Get the ending `POSIXTime` of a `Slot` given a `SlotConfig`.
+slotToEndPOSIXTime :: SlotConfig -> Slot -> POSIXTime
+slotToEndPOSIXTime sc@(SlotConfig { slotLength }) slot =
+  slotToBeginPOSIXTime sc slot + POSIXTime (slotLength - one)
+
+-- | Convert a `POSIXTimeRange` to `SlotRange` given a `SlotConfig`. This gives
+-- | the biggest slot range that is entirely contained by the given time range.
+posixTimeRangeToContainedSlotRange
+  :: SlotConfig -> POSIXTimeRange -> Maybe SlotRange
+posixTimeRangeToContainedSlotRange sc ptr = do
+  let
+    Interval
+      { ivFrom: LowerBound start startIncl
+      , ivTo: UpperBound end endIncl
+      } = map (posixTimeToEnclosingSlot sc) ptr
+
+    -- Determines the closure of the interval with a handler over whether it's
+    -- the start or end of the interval and a default Boolean if we aren't
+    -- dealing with the `Finite` case.
+    closureWith
+      :: (SlotConfig -> Slot -> POSIXTime)
+      -> Boolean -- Default Boolean
+      -> Extended Slot
+      -> Boolean
+    closureWith f def = case _ of
+      Finite s -> f sc s `member` ptr
+      _ -> def
+
+    seqExtended :: Extended (Maybe Slot) -> Maybe (Extended Slot)
+    seqExtended = case _ of
+      Finite (Just s) -> pure $ Finite s
+      Finite Nothing -> Nothing
+      NegInf -> pure NegInf
+      PosInf -> pure PosInf
+
+  -- Fail if any of the outputs of `posixTimeToEnclosingSlot` are `Nothing`.
+  start' <- seqExtended start
+  end' <- seqExtended end
+  pure $ Interval
+    { ivFrom: LowerBound start' (closureWith slotToBeginPOSIXTime startIncl start')
+    , ivTo: UpperBound end' (closureWith slotToBeginPOSIXTime endIncl end')
+    }
+
+type TransactionValiditySlot =
+  { validityStartInterval :: Maybe Slot, timeToLive :: Maybe Slot }
+
+-- | Converts a SlotRange to two separate slots used in building Types.Transaction.
+-- | Note that we lose information regarding whether the bounds are included
+-- | or not at `NegInf` and `PosInf`.
+-- | `Nothing` for `validityStartInterval` represents `Slot zero`.
+-- | `Nothing` for `timeToLive` represents `maxSlot`.
+-- | For `Finite` values exclusive of bounds, we add and subtract one slot for
+-- | `validityStartInterval` and `timeToLive`, respectively.
+slotRangeToTransactionSlot
+  :: SlotRange
+  -> TransactionValiditySlot
+slotRangeToTransactionSlot
+  (Interval { ivFrom: LowerBound start startIncl, ivTo: UpperBound end endIncl }) =
+  { validityStartInterval, timeToLive }
+  where
+  validityStartInterval :: Maybe Slot
+  validityStartInterval = case start, startIncl of
+    Finite s, true -> pure s
+    Finite s, false -> pure $ s <> Slot one
+    NegInf, _ -> Nothing
+    PosInf, _ -> pure maxSlot
+
+  timeToLive :: Maybe Slot
+  timeToLive = case end, endIncl of
+    Finite s, true -> pure s
+    Finite s, false -> pure $ s <> Slot (negate one)
+    NegInf, _ -> pure $ Slot zero
+    PosInf, _ -> Nothing
+
+-- | Maximum slot under `Data.UInt`
+maxSlot :: Slot
+maxSlot = Slot $ unsafePartial fromJust $ UInt.fromString "4294967295"
+
+posixTimeRangeToTransactionSlot
+  :: SlotConfig -> POSIXTimeRange -> Maybe TransactionValiditySlot
+posixTimeRangeToTransactionSlot sc =
+  map slotRangeToTransactionSlot <<< posixTimeRangeToContainedSlotRange sc
+
+-- | Convert a `POSIXTime` to `Slot` given a `SlotConfig`. This differs from
+-- | Plutus by potential failure.
+posixTimeToEnclosingSlot :: SlotConfig -> POSIXTime -> Maybe Slot
+posixTimeToEnclosingSlot (SlotConfig { slotLength, slotZeroTime }) (POSIXTime t) =
+  let
+    timePassed = t - unwrap slotZeroTime
+    -- Plutus uses inbuilt `divide` which rounds towards downwards which is `quot`
+    -- not `div`.
+    slotsPassed = quot timePassed slotLength
+  in
+    Slot <$> bigIntToUInt slotsPassed
+
+-- TO DO: https://github.com/Plutonomicon/cardano-browser-tx/issues/169
+-- -- | Get the current slot number
+-- currentSlot :: SlotConfig -> Effect Slot

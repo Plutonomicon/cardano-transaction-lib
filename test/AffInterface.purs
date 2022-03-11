@@ -2,6 +2,7 @@ module Test.AffInterface (suite) where
 
 import Prelude
 
+import Address (addressToOgmiosAddress, ogmiosAddressToAddress)
 import Control.Monad.Reader.Trans (runReaderT)
 import Data.Maybe (Maybe(Just, Nothing))
 import Effect.Aff (Aff)
@@ -9,21 +10,21 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
 import QueryM
-  ( addressToOgmiosAddress
-  , defaultServerConfig
+  ( defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
+  , defaultServerConfig
+  , mkDatumCacheWebSocketAff
   , mkOgmiosWebSocketAff
-  , ogmiosAddressToAddress
   , utxosAt
   )
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
-import Types.JsonWsp (Address)
+import Types.JsonWsp (OgmiosAddress)
 
-testnet_addr1 :: Address
+testnet_addr1 :: OgmiosAddress
 testnet_addr1 = "addr_test1qr7g8nrv76fc7k4ueqwecljxx9jfwvsgawhl55hck3n8uwaz26mpcwu58zdkhpdnc6nuq3fa8vylc8ak9qvns7r2dsysp7ll4d"
 
-addr1 :: Address
+addr1 :: OgmiosAddress
 addr1 = "addr1qyc0kwu98x23ufhsxjgs5k3h7gktn8v5682qna5amwh2juguztcrc8hjay66es67ctn0jmr9plfmlw37je2s2px4xdssgvxerq"
 
 -- note: currently this suite relies on Ogmios being open and running against the
@@ -44,16 +45,21 @@ suite = do
     test "Ogmios Address to Address & back non-Testnet"
       $ testFromOgmiosAddress addr1
 
-testUtxosAt :: Address -> Aff Unit
+testUtxosAt :: OgmiosAddress -> Aff Unit
 testUtxosAt testAddr = do
-  ws <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
+  ogmiosWs <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
+  datumCacheWs <- mkDatumCacheWebSocketAff defaultDatumCacheWsConfig
   case ogmiosAddressToAddress testAddr of
     Nothing -> liftEffect $ throw "Failed UtxosAt"
     Just addr -> runReaderT
       (utxosAt addr *> pure unit)
-      { ws, serverConfig: defaultServerConfig, wallet: Nothing }
+      { ogmiosWs
+      , datumCacheWs
+      , serverConfig: defaultServerConfig
+      , wallet: Nothing
+      }
 
-testFromOgmiosAddress :: Address -> Aff Unit
+testFromOgmiosAddress :: OgmiosAddress -> Aff Unit
 testFromOgmiosAddress testAddr = do
   liftEffect $ case ogmiosAddressToAddress testAddr of
     Nothing -> throw "Failed Address loop"
