@@ -29,7 +29,6 @@ import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
 import Data.Lens ((%=), (<>=), (.=))
 import Data.Lens.Getter (to, use)
-import Data.Lens.Internal.Forget (Forget)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
@@ -38,7 +37,6 @@ import Data.Map (Map, empty, lookup, mapMaybe, singleton, union)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Tuple (snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff (Aff)
@@ -295,10 +293,10 @@ type ConstraintProcessingState =
   -- Balance of the values produced and required for the transaction's outputs
   , datums :: Array Datum
   -- Ordered accumulation of datums so we can use to `setScriptDataHash`
-  , redeemers :: Array (RedeemerTag /\ T.Redeemer)
+  , redeemers :: Array T.Redeemer
   -- Ordered accumulation of redeemers so we can use to `setScriptDataHash` and
   -- add execution units via Ogmios. Note: this mixes script and minting
-  -- redeemers. RedeemerTag is not required at the moment but kept just in case.
+  -- redeemers.
   }
 
 -- We could make these signatures polymorphic but they're not exported so don't
@@ -315,7 +313,7 @@ _valueSpentBalancesOutputs = prop (SProxy :: SProxy "valueSpentBalancesOutputs")
 _datums :: Lens' ConstraintProcessingState (Array Datum)
 _datums = prop (SProxy :: SProxy "datums")
 
-_redeemers :: Lens' ConstraintProcessingState (Array (RedeemerTag /\ T.Redeemer))
+_redeemers :: Lens' ConstraintProcessingState (Array T.Redeemer)
 _redeemers = prop (SProxy :: SProxy "redeemers")
 
 missingValueSpent :: ValueSpentBalances -> Value
@@ -421,7 +419,7 @@ addScriptDataHash
 addScriptDataHash = runExceptT do
   dats <- use _datums
   -- Use both script and minting redeemers in the order they were appended.
-  reds <- map snd <$> use _redeemers
+  reds <- use _redeemers
   tx <- use (_unbalancedTx <<< _transaction)
   tx' <- ExceptT $ liftEffect $ setScriptDataHash reds dats tx <#> Right
   _cpsToTransaction .= tx'
@@ -486,7 +484,8 @@ data MkUnbalancedTxError
   | CannotConvertOgmiosAddress String -- Conversion from an Ogmios Address ~ String to `Address`
   | CannotConvertOgmiosDatumHash String -- Conversion from an Ogmios DatumHash ~ `Maybe String` to` Maybe DatumHash`
   | CannotGetValidatorHashFromAddress Address -- Get `ValidatorHash` from internal `Address`
-  | CannotGetMintingPolicyScriptIndex -- Should be impossible.
+  | CannotGetMintingPolicyScriptIndex -- Cannot get the Minting Policy Index - this should be impossible.
+  | CannotGetMintingValidatorScriptIndex -- Cannot get the Validator Index - this should be impossible.
   | CannotSerializeRedeemer Redeemer -- Cannot convert to ByteArray representation of redeemer
   | CannotSatisfyAny
 
@@ -597,16 +596,19 @@ processConstraint = do
             (ogmiosDatumHashToDatumHash datumStr)
           dataValue <- ExceptT $ lookupDatum dHash
           ExceptT $ attachToCps attachPlutusScript plutusScript
+          -- Get the redeemer index, which is the current length of scripts - 1
+          mIndex <-
+            use (_cpsToWitnessSet <<< _plutusScripts <<< to (map lastIndex))
+          -- This error should be impossible as we just attached:
+          index <- liftM CannotGetMintingValidatorScriptIndex mIndex
           ExceptT $ addDatums dataValue
           _cpsToTxBody <<< _inputs %= (:) txo
-          -- Get the redeemer index, which is the current length of inputs - 1
-          index <- use (_cpsToTxBody <<< _inputs <<< _lastIndex)
           -- Serialise the `Redeemer` into `ByteArray` representation:
           serRed <-
             liftM (CannotSerializeRedeemer red) $ plutusDataBytes (unwrap red)
           let
-            -- Create a redeemer with zero execution units then call Ogmios to
-            -- add the units in at the very end.
+            -- Create a redeemer with hardcoded execution units then call Ogmios
+            -- to add the units in at the very end.
             redeemer = T.Redeemer
               { tag: Spend
               , index
@@ -615,7 +617,7 @@ processConstraint = do
               }
           _valueSpentBalancesInputs <>= provide value
           -- Append redeemer for spending to array.
-          _redeemers <>= Array.singleton (Spend /\ redeemer)
+          _redeemers <>= Array.singleton redeemer
           -- Attach redeemer to witness set.
           ExceptT $ attachToCps attachRedeemer redeemer
         _ -> liftEither $ throwError $ TxOutRefWrongType txo
@@ -656,7 +658,7 @@ processConstraint = do
           }
       _cpsToTxBody <<< _mint <>= Just (wrap mintVal)
       -- Append redeemer for minting to array.
-      _redeemers <>= Array.singleton (Mint /\ redeemer)
+      _redeemers <>= Array.singleton redeemer
       -- Attach redeemer to witness set.
       ExceptT $ attachToCps attachRedeemer redeemer
     MustPayToPubKeyAddress pkh _ mDatum amount -> runExceptT do
@@ -740,16 +742,15 @@ processConstraint = do
     ExceptT $ attachToCps attachDatum datum
     _datums %= (:) datum
 
-  -- The follow default to zero before calling Ogmios to calculate execution
-  -- units, otherwise, set to some non-zero buffer in the short term. I suspect
-  -- we can set them to be non zero now and call Ogmios anyhow.
+  -- The follow hardcoded before calling Ogmios to calculate execution
+  -- unit. Calling Ogmios is an outstanding issue:
   -- https://github.com/Plutonomicon/cardano-browser-tx/issues/174
   ------------------------------------------------------------------------------
   scriptExUnits :: ExUnits
-  scriptExUnits = { mem: zero, steps: zero }
+  scriptExUnits = { mem: fromInt 2000000, steps: fromInt 1000000000 }
 
   mintExUnits :: ExUnits
-  mintExUnits = { mem: zero, steps: zero }
+  mintExUnits = { mem: fromInt 2000000, steps: fromInt 1000000000 }
 
 -- Attach a Datum, Redeemer, or PlutusScript depending on the handler. They
 -- share error type anyway.
@@ -778,14 +779,6 @@ _cpsToWitnessSet = _cpsToTransaction <<< _witnessSet
 -- Helper to focus from `ConstraintProcessingState` down to `TxBody`.
 _cpsToTxBody :: Lens' ConstraintProcessingState TxBody
 _cpsToTxBody = _cpsToTransaction <<< _body
-
--- Lens to get last index of an Array. Used in conjunction after adding something
--- to an array and getting its index.
-_lastIndex
-  :: forall (a :: Type) (b :: Type) (c :: Type) (d :: Type)
-   . Forget a BigInt b
-  -> Forget a (Array c) d
-_lastIndex = to lastIndex
 
 lastIndex :: forall (a :: Type). Array a -> BigInt
 lastIndex = length >>> flip (-) one >>> fromInt
