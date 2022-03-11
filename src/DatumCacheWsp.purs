@@ -45,7 +45,8 @@ import Data.TraversableWithIndex (forWithIndex)
 import Data.Unit (Unit, unit)
 import Serialization.Address (BlockId, Slot)
 import Types.ByteArray (byteArrayToHex, hexToByteArray)
-import Types.PlutusData (PlutusData, DatumHash)
+import Types.Datum (DatumHash)
+import Types.PlutusData (PlutusData)
 import Types.Transaction (DataHash(DataHash))
 
 newtype WspFault = WspFault Json

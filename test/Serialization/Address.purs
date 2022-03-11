@@ -8,7 +8,8 @@ import Data.UInt (fromInt)
 import Effect.Class.Console (log)
 import Mote (group, test)
 import Serialization.Address
-  ( addressBech32
+  ( NetworkId(MainnetId, TestnetId)
+  , addressBech32
   , addressBytes
   , addressFromBech32
   , addressFromBytes
@@ -22,7 +23,6 @@ import Serialization.Address
   , enterpriseAddressPaymentCred
   , enterpriseAddressToAddress
   , keyHashCredential
-  , mainnetId
   , pointerAddress
   , pointerAddressFromAddress
   , pointerAddressPaymentCred
@@ -38,9 +38,13 @@ import Serialization.Address
   , stakeCredentialToBytes
   , stakeCredentialToKeyHash
   , stakeCredentialToScriptHash
-  , testnetId
   )
-import Serialization.Hash (Ed25519KeyHash, ScriptHash, ed25519KeyHashFromBech32, scriptHashFromBytes)
+import Serialization.Hash
+  ( Ed25519KeyHash
+  , ScriptHash
+  , ed25519KeyHashFromBech32
+  , scriptHashFromBytes
+  )
 import Test.Spec.Assertions (shouldEqual)
 import Test.Utils (errMaybe)
 import TestM (TestPlanM)
@@ -71,7 +75,7 @@ addressFunctionsTest = test "Address tests" $ do
   let addrBts = addressBytes addr1
   addr2 <- errMaybe "addressFromBech32 failed on valid bech32" $ addressFromBytes addrBts
   addr2 `shouldEqual` addr1
-  addressNetworkId addr2 `shouldEqual` mainnetId
+  addressNetworkId addr2 `shouldEqual` MainnetId
 
 stakeCredentialTests :: TestPlanM Unit
 stakeCredentialTests = test "StakeCredential tests" $ do
@@ -97,7 +101,7 @@ stakeCredentialTests = test "StakeCredential tests" $ do
 baseAddressFunctionsTest :: TestPlanM Unit
 baseAddressFunctionsTest = test "BaseAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
-  baddr <- doesNotThrow $ pubKeyAddress mainnetId pkh
+  baddr <- doesNotThrow $ pubKeyAddress MainnetId pkh
   addr <- doesNotThrow $ baseAddressToAddress baddr
   baddr2 <- errMaybe "baseAddressFromAddress failed on valid base address" $ baseAddressFromAddress addr
   baddr2 `shouldEqual` baddr
@@ -107,7 +111,7 @@ baseAddressFunctionsTest = test "BaseAddress tests" $ do
 rewardAddressFunctionsTest :: TestPlanM Unit
 rewardAddressFunctionsTest = test "RewardAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
-  raddr <- doesNotThrow $ rewardAddress { network: testnetId, paymentCred: keyHashCredential pkh }
+  raddr <- doesNotThrow $ rewardAddress { network: TestnetId, paymentCred: keyHashCredential pkh }
   addr <- doesNotThrow $ rewardAddressToAddress raddr
   raddr2 <- errMaybe "rewardAddressFromAddress failed on valid reward address" $ rewardAddressFromAddress addr
   raddr2 `shouldEqual` raddr
@@ -116,7 +120,7 @@ rewardAddressFunctionsTest = test "RewardAddress tests" $ do
 enterpriseAddressFunctionsTest :: TestPlanM Unit
 enterpriseAddressFunctionsTest = test "EnterpriseAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
-  eaddr <- doesNotThrow $ enterpriseAddress { network: mainnetId, paymentCred: keyHashCredential pkh }
+  eaddr <- doesNotThrow $ enterpriseAddress { network: MainnetId, paymentCred: keyHashCredential pkh }
   addr <- doesNotThrow $ enterpriseAddressToAddress eaddr
   eaddr2 <- errMaybe "enterpriseAddressFromAddress failed on valid enterprise address" $ enterpriseAddressFromAddress addr
   eaddr2 `shouldEqual` eaddr
@@ -126,7 +130,7 @@ pointerAddressFunctionsTest :: TestPlanM Unit
 pointerAddressFunctionsTest = test "PointerAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
   let pointer = { slot: wrap (fromInt (-2147483648)), certIx: wrap (fromInt 20), txIx: wrap (fromInt 120) }
-  paddr <- doesNotThrow $ pointerAddress { network: mainnetId, paymentCred: keyHashCredential pkh, stakePointer: pointer }
+  paddr <- doesNotThrow $ pointerAddress { network: MainnetId, paymentCred: keyHashCredential pkh, stakePointer: pointer }
   addr <- doesNotThrow $ pointerAddressToAddress paddr
   paddr2 <- errMaybe "pointerAddressFromAddress failed on valid pointer address" $ pointerAddressFromAddress addr
   paddr2 `shouldEqual` paddr

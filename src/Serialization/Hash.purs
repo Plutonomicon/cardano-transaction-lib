@@ -85,6 +85,9 @@ foreign import data ScriptHash :: Type
 instance Eq ScriptHash where
   eq = eq `on` scriptHashToBytes
 
+instance Ord ScriptHash where
+  compare = compare `on` scriptHashToBytes
+
 instance Show ScriptHash where
   show edkh = "(ScriptHash " <> byteArrayToHex (scriptHashToBytes edkh) <> ")"
 

@@ -5,9 +5,9 @@ module Serialization.NativeScript
 
 import Prelude
 
-import Data.UInt as UInt
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
+import Data.UInt as UInt
 
 import FfiHelpers (ContainerHelper, containerHelper)
 import Serialization.Address (Slot(Slot)) as T
