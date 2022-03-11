@@ -186,7 +186,7 @@ getField aesonObject field = getField' decodeAeson aesonObject field
 
 infix 7 getField as .:
 
-getFieldOptional :: forall a. DecodeAeson a => Object Aeson -> String -> Either JsonDecodeError (Maybe a)
+getFieldOptional :: forall (a :: Type). DecodeAeson a => Object Aeson -> String -> Either JsonDecodeError (Maybe a)
 getFieldOptional = getFieldOptional' decodeAeson
   where
   getFieldOptional'
@@ -225,7 +225,7 @@ type AesonCases a =
   }
 
 caseAeson
-  :: forall a
+  :: forall (a :: Type)
    . AesonCases a
   -> Aeson
   -> a
@@ -262,37 +262,37 @@ toObject :: Aeson -> Maybe (Object Aeson)
 toObject =
   caseAeson $ constAesonCases Nothing # _ { caseObject = Just }
 
-caseAesonObject :: forall a. a -> (Object Aeson -> a) -> Aeson -> a
+caseAesonObject :: forall (a :: Type). a -> (Object Aeson -> a) -> Aeson -> a
 caseAesonObject def f = caseAeson (constAesonCases def # _ { caseObject = f })
 
-caseAesonString :: forall a. a -> (String -> a) -> Aeson -> a
+caseAesonString :: forall (a :: Type). a -> (String -> a) -> Aeson -> a
 caseAesonString def f = caseAeson (constAesonCases def # _ { caseString = f })
 
-caseAesonArray :: forall a. a -> (Array Aeson -> a) -> Aeson -> a
+caseAesonArray :: forall (a :: Type). a -> (Array Aeson -> a) -> Aeson -> a
 caseAesonArray def f = caseAeson (constAesonCases def # _ { caseArray = f })
 
-caseAesonBoolean :: forall a. a -> (Boolean -> a) -> Aeson -> a
+caseAesonBoolean :: forall (a :: Type). a -> (Boolean -> a) -> Aeson -> a
 caseAesonBoolean def f = caseAeson (constAesonCases def # _ { caseBoolean = f })
 
 -- | String representation is used to allow users to choose numeric representation downstream.
-caseAesonNumber :: forall a. a -> (String -> a) -> Aeson -> a
+caseAesonNumber :: forall (a :: Type). a -> (String -> a) -> Aeson -> a
 caseAesonNumber def f = caseAeson (constAesonCases def # _ { caseNumber = f })
 
 -- | `caseAesonNumber` specialized to `UInt` (fails if no parse)
-caseAesonUInt :: forall a. a -> (UInt -> a) -> Aeson -> a
+caseAesonUInt :: forall (a :: Type). a -> (UInt -> a) -> Aeson -> a
 caseAesonUInt def f = caseAesonNumber def \str ->
   case UInt.fromString str of
     Nothing -> def
     Just res -> f res
 
 -- | `caseAesonNumber` specialized to `BigInt` (fails if no parse)
-caseAesonBigInt :: forall a. a -> (BigInt -> a) -> Aeson -> a
+caseAesonBigInt :: forall (a :: Type). a -> (BigInt -> a) -> Aeson -> a
 caseAesonBigInt def f = caseAesonNumber def \str ->
   case BigInt.fromString str of
     Nothing -> def
     Just res -> f res
 
-caseAesonNull :: forall a. a -> (Unit -> a) -> Aeson -> a
+caseAesonNull :: forall (a :: Type). a -> (Unit -> a) -> Aeson -> a
 caseAesonNull def f = caseAeson (constAesonCases def # _ { caseNull = f })
 
 -------- Decode helpers --------

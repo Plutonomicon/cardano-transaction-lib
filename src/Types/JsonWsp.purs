@@ -257,7 +257,7 @@ parseUtxoQueryResult = caseAesonArray (Left (TypeMismatch "Expected Array")) $
 
 -- helper for assuming we get an object
 aesonObject
-  :: forall a
+  :: forall (a :: Type)
    . (Object Aeson -> Either JsonDecodeError a)
   -> Aeson
   -> Either JsonDecodeError a
