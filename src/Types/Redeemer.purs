@@ -1,7 +1,7 @@
 module Types.Redeemer
-  ( Redeemer(..)
+  ( Redeemer(Redeemer)
   , unitRedeemer
-  , RedeemerHash(..)
+  , RedeemerHash(RedeemerHash)
   , redeemerHash
   ) where
 

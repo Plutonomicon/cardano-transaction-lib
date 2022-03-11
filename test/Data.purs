@@ -5,7 +5,7 @@ import Prelude
 
 import Data.BigInt as BigInt
 import Data.Map as Map
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(Just))
 import Data.Traversable (for_)
 import Data.Tuple.Nested ((/\))
 import FromData (fromData)
