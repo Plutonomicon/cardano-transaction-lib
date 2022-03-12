@@ -27,9 +27,9 @@ import Data.Argonaut (encodeJson, parseJson)
 import Data.Argonaut as Json
 import Data.Array (head, length, (!!), zip)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right))
+import Data.Either (Either(Left, Right), hush)
 import Data.Map as Map
-import Data.Maybe (Maybe(Nothing, Just), fromJust)
+import Data.Maybe (Maybe(Nothing, Just), fromJust, fromMaybe, isJust)
 import Data.Traversable (for_, traverse)
 import Data.Tuple (Tuple(Tuple), uncurry)
 import Data.Tuple.Nested ((/\))
@@ -40,7 +40,9 @@ import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (FilePath)
 import Partial.Unsafe (unsafePartial)
+import Test.ArbitraryJson (stringifyArbJson)
 import Test.Spec.Assertions (shouldEqual)
+import Test.QuickCheck (quickCheck', (<?>))
 import Test.Utils (assertTrue)
 import TestM (TestPlanM)
 import Types.ByteArray (hexToByteArrayUnsafe)
@@ -148,6 +150,9 @@ suite = do
     parseBoolAndNullTests
     fixtureTests
 
+  group "Arbitrary Aeson" do
+    testArbitraryAeson
+
 -- | This function reads from `./fixtures/` folder.
 -- | `expected/*` contains JSONs corresponding to `Aeson` type (with number
 -- | index) as returned by `parseJsonExtractingIntegers`.
@@ -252,3 +257,15 @@ testSimpleValue s jsonCb = uncurry assertTrue $
     Right _ -> case parseJsonStringToAeson s of
       Left _ -> Tuple ("Argonaut could not parse jsonTurnNumbersToStrings result: " <> s) false
       Right json -> jsonCb json
+
+testArbitraryAeson :: TestPlanM Unit
+testArbitraryAeson = liftEffect $ quickCheck' 3000 \arbJson ->
+  let
+    jsonString = stringifyArbJson arbJson
+    res = do
+      aeson1 <- hush $ parseJsonStringToAeson jsonString
+      aeson2 <- hush $ parseJsonStringToAeson $ stringifyAeson aeson1
+      pure $ aeson1 /\ aeson2
+  in
+    fromMaybe false (res <#> uncurry eq) <?>
+      "Test failed for input " <> show (isJust res) <> " - " <> jsonString

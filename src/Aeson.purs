@@ -98,12 +98,11 @@ import Type.Prelude (Proxy(Proxy))
 -- | A piece of JSON where all numbers are replaced with their indexes
 newtype AesonPatchedJson = AesonPatchedJson Json
 
-derive newtype instance Eq AesonPatchedJson
-
 -- | A piece of JSON where all numbers are extracted into `NumberIndex`.
 newtype Aeson = Aeson { patchedJson :: AesonPatchedJson, numberIndex :: NumberIndex }
 
-derive newtype instance Eq Aeson
+instance Eq Aeson where
+  eq a b = stringifyAeson a == stringifyAeson b
 
 instance Show Aeson where
   show = stringifyAeson

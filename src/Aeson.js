@@ -28,15 +28,21 @@ exports.stringifyAeson_ = numberIndex => object => {
             res += ']';
         } else if (typeof object == 'object') {
             res += '{';
+            let keys = [];
             for (let key in object) {
                 if (object.hasOwnProperty(key)) {
-                    res += JSON.stringify(key);
-                    res += ':';
-                    go(object[key]);
+                    keys.push(key);
+                }
+            };
+            keys.sort(); // for stability of Eq instance
+            keys.forEach((key, ix) => {
+                res += JSON.stringify(key);
+                res += ':';
+                go(object[key]);
+                if (ix != keys.length - 1) {
                     res += ',';
                 }
-            }
-            res = res.slice(0, res.length - 1); // remove last ','
+            });
             res += '}';
         } else if (typeof object == 'number') {
             if (object in numberIndex) {
