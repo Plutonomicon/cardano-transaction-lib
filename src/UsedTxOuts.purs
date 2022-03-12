@@ -1,11 +1,11 @@
 module UsedTxOuts
-  ( UsedTxOuts(UsedTxOuts),
-    TxOutRefCache,
-    isTxOutRefUsed,
-    lockTransactionInputs,
-    newUsedTxOuts,
-    unlockTxOutRefs,
-    unlockTransactionInputs
+  ( UsedTxOuts(UsedTxOuts)
+  , TxOutRefCache
+  , isTxOutRefUsed
+  , lockTransactionInputs
+  , newUsedTxOuts
+  , unlockTxOutRefs
+  , unlockTransactionInputs
   ) where
 
 import Control.Alt (void, (<$>))
@@ -55,6 +55,7 @@ lockTransactionInputs tx =
   let
     txOutRefs :: Array { transaction_id :: TransactionHash, index :: UInt }
     txOutRefs = unwrap <$> (unwrap (unwrap tx).body).inputs
+
     updateCache :: TxOutRefCache -> TxOutRefCache
     updateCache cache = foldr
       (\ {transaction_id, index} ->
@@ -84,7 +85,7 @@ unlockTxOutRefs
    . MonadAsk UsedTxOuts m
   => MonadEffect m
   => Foldable t
-  => t {transaction_id :: TransactionHash, index :: UInt}
+  => t { transaction_id :: TransactionHash, index :: UInt }
   -> m Unit
 unlockTxOutRefs txOutRefs =
   let
@@ -96,7 +97,6 @@ unlockTxOutRefs txOutRefs =
       txOutRefs
   in
     void $ ask >>= (unwrap >>> Ref.modify updateCache >>> liftEffect)
-
 
 -- | Query if TxOutRef is marked as used.
 isTxOutRefUsed

@@ -113,6 +113,7 @@ import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.Value (Coin(Coin))
 import TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
 import Untagged.Union (asOneOf)
+import UsedTxOuts (UsedTxOuts)
 import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
@@ -154,6 +155,8 @@ type QueryConfig =
   , datumCacheWs :: DatumCacheWebSocket
   , serverConfig :: ServerConfig
   , wallet :: Maybe Wallet
+  -- should probably be more tightly coupled with a wallet
+  , usedTxOuts :: UsedTxOuts
   }
 
 type QueryM (a :: Type) = ReaderT QueryConfig Aff a
