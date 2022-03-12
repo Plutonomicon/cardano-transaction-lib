@@ -12,6 +12,7 @@ module Helpers
   , liftEither
   , liftM
   , liftMWith
+  , filterMapWithKeyM
   , maybeArrayMerge
   , never
   , parseJsonStringifyNumbers
@@ -26,16 +27,19 @@ import Data.Argonaut
   , Json
   , parseJson
   )
+import Data.Either (Either(Right), either)
 import Data.Function (on)
-import Data.Hashable (class Hashable)
-import Data.HashMap (unionWith) as HashMap
 import Data.HashMap (HashMap)
+import Data.HashMap (unionWith) as HashMap
+import Data.Hashable (class Hashable)
+import Data.List.Lazy as LL
 import Data.Map (Map)
-import Data.Map (unionWith) as Map
+import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Maybe.First (First(First))
 import Data.Maybe.Last (Last(Last))
-import Data.Either (Either(Right), either)
+import Data.Tuple (uncurry)
+import Data.Typelevel.Undefined (undefined)
 import Effect (Effect)
 import Effect.Exception (throw)
 
@@ -139,3 +143,12 @@ never
   -> a
   -> Maybe a
 never p a = if p a then Nothing else Just a
+
+filterMapWithKeyM
+  :: forall (m :: Type -> Type) (k :: Type) (v :: Type)
+   . Ord k
+  => Monad m
+  => (k -> v -> m Boolean)
+  -> Map k v
+  -> m (Map k v)
+filterMapWithKeyM p = map Map.fromFoldable <<< LL.filterM (uncurry p) <<< Map.toUnfoldable

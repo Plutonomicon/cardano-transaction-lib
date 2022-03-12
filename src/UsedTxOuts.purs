@@ -14,6 +14,7 @@ import Control.Bind (bind, (=<<), (>>=))
 import Control.Category ((<<<), (>>>))
 import Control.Monad.RWS (ask)
 import Control.Monad.Reader (class MonadAsk)
+import Data.Bounded (class Ord)
 import Data.Foldable (class Foldable, foldr)
 import Data.Function (($))
 import Data.Map (Map)
@@ -58,8 +59,9 @@ lockTransactionInputs tx =
 
     updateCache :: TxOutRefCache -> TxOutRefCache
     updateCache cache = foldr
-      (\ {transaction_id, index} ->
-        Map.update (\old -> Just $ Set.insert index old) transaction_id)
+      ( \{ transaction_id, index } ->
+          Map.update (\old -> Just $ Set.insert index old) transaction_id
+      )
       cache
       txOutRefs
   in
@@ -91,8 +93,9 @@ unlockTxOutRefs txOutRefs =
   let
     updateCache :: TxOutRefCache -> TxOutRefCache
     updateCache cache = foldr
-      (\ {transaction_id, index} ->
-        Map.update (\old -> never Set.isEmpty $ Set.delete index old) transaction_id)
+      ( \{ transaction_id, index } ->
+          Map.update (\old -> never Set.isEmpty $ Set.delete index old) transaction_id
+      )
       cache
       txOutRefs
   in
@@ -103,9 +106,9 @@ isTxOutRefUsed
   :: forall (m :: Type -> Type) (a :: Type)
    . MonadAsk UsedTxOuts m
   => MonadEffect m
-  => {transaction_id :: TransactionHash, index :: UInt}
+  => { transaction_id :: TransactionHash, index :: UInt }
   -> m Boolean
-isTxOutRefUsed {transaction_id, index} = do
+isTxOutRefUsed { transaction_id, index } = do
   cache <- liftEffect <<< Ref.read <<< unwrap =<< ask
   pure $ isJust $ do
     indices <- Map.lookup transaction_id cache
