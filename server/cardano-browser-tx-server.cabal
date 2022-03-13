@@ -58,6 +58,7 @@ library
     , exceptions
     , extra
     , mtl
+    , plutus-ledger-api
     , plutus-tx
     , servant
     , servant-client

@@ -3,6 +3,7 @@ module Types (
   Env (..),
   Cbor (..),
   Fee (..),
+  ApplyArgsRequest (..),
   FeeEstimateError (..),
   CardanoBrowserServerError (..),
   newEnvIO,
@@ -25,6 +26,7 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import GHC.Generics (Generic)
 import Paths_cardano_browser_tx_server (getDataFileName)
+import Plutus.V1.Ledger.Api qualified as Ledger
 import Servant (FromHttpApiData, QueryParam', Required, ToHttpApiData)
 import Servant.Docs qualified as Docs
 import Text.Read (readMaybe)
@@ -72,6 +74,13 @@ instance FromJSON Fee where
       maybe (fail "Expected quoted integer") (pure . Fee)
         . readMaybe @Integer
         . Text.unpack
+
+data ApplyArgsRequest = ApplyArgsRequest
+  { script :: Ledger.Script
+  , args :: [Ledger.Data]
+  }
+  deriving stock (Show, Eq, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 -- We'll probably extend this with more error types over time
 newtype CardanoBrowserServerError = FeeEstimate FeeEstimateError
