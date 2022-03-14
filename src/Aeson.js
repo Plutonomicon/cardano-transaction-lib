@@ -5,9 +5,9 @@ exports.parseJsonExtractingIntegers = str => {
     return {patchedPayload, numberIndex};
 };
 
-exports.stringifyAeson_ = numberIndex => object => {
+exports.stringifyAeson_ = numberIndex => originalObject => {
     const fatal = msg => {
-        throw new Error(msg);
+        throw new Error("Error in stringifyObject: " + msg);
     };
 
     let res = '';
@@ -48,14 +48,14 @@ exports.stringifyAeson_ = numberIndex => object => {
             if (object in numberIndex) {
                 res += numberIndex[object];
             } else {
-                fatal("Error in stringifyObject: No such index in numberIndex!");
+                fatal("No such index in numberIndex!");
             }
         } else {
-            fatal("Malformed object in stringifyObject");
+            fatal("Wrong type of object: " + typeof object);
         }
     };
 
-    go(object);
+    go(originalObject);
     return res;
 };
 

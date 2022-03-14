@@ -190,6 +190,15 @@ fixtureTests = do
 
   fixtureDir = "./fixtures/test/parsing/json_stringify_numbers/"
 
+-- | Make simple test
+mkTest :: forall a. (a -> Tuple String Boolean) -> a -> TestPlanM Unit
+mkTest doTest inp =
+  let
+    Tuple errMsg testRes = doTest inp
+  in
+    if testRes then pure unit
+    else liftEffect $ throwException $ error errMsg
+
 parseBoolAndNullTests :: TestPlanM Unit
 parseBoolAndNullTests = do
   testNull
@@ -240,15 +249,6 @@ caseMaybeAeson upd = caseAeson (constAesonCases Nothing # upd)
 
 fromRight :: forall (a :: Type) (e :: Type). Partial => Either e a -> a
 fromRight (Right x) = x
-
--- | Make simple test
-mkTest :: forall a. (a -> Tuple String Boolean) -> a -> TestPlanM Unit
-mkTest doTest inp =
-  let
-    Tuple errMsg testRes = doTest inp
-  in
-    if testRes then pure unit
-    else liftEffect $ throwException $ error errMsg
 
 testSimpleValue :: String -> (Aeson -> Tuple String Boolean) -> TestPlanM Unit
 testSimpleValue s jsonCb = uncurry assertTrue $

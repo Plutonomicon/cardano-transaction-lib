@@ -42,6 +42,7 @@ module Aeson
   , gDecodeAeson
   , getField
   , getFieldOptional
+  , getFieldOptional'
   , getNestedAeson
   , getNumberIndex
   , jsonToAeson
@@ -70,6 +71,7 @@ import Data.Argonaut
   , fromObject
   , jsonNull
   , stringify
+  , isNull
   )
 import Data.Argonaut.Encode.Encoders (encodeBoolean, encodeString)
 import Data.Argonaut.Parser (jsonParser)
@@ -185,20 +187,54 @@ getField aesonObject field = getField' decodeAeson aesonObject field
 
 infix 7 getField as .:
 
+-- | Attempt to get the value for a given key on an `Object Aeson`.
+-- |
+-- | The result will be `Right Nothing` if the key and value are not present,
+-- | but will fail if the key is present but the value cannot be converted to the right type.
+-- |
+-- | This function will treat `null` as a value and attempt to decode it into your desired type.
+-- | If you would like to treat `null` values the same as absent values, use
+-- | `getFieldOptional'` (`.:?`) instead.
 getFieldOptional :: forall (a :: Type). DecodeAeson a => Object Aeson -> String -> Either JsonDecodeError (Maybe a)
-getFieldOptional = getFieldOptional' decodeAeson
+getFieldOptional = getFieldOptional_ decodeAeson
   where
-  getFieldOptional'
+  getFieldOptional_
     :: (Aeson -> Either JsonDecodeError a)
-    -> FO.Object Aeson
+    -> Object Aeson
     -> String
     -> Either JsonDecodeError (Maybe a)
-  getFieldOptional' decoder obj str =
+  getFieldOptional_ decoder obj str =
     maybe (pure Nothing) (map Just <<< decode) (FO.lookup str obj)
     where
     decode = lmap (AtKey str) <<< decoder
 
-infix 7 getField as .:?
+infix 7 getFieldOptional as .:!
+
+-- | Attempt to get the value for a given key on an `Object Aeson`.
+-- |
+-- | The result will be `Right Nothing` if the key and value are not present,
+-- | or if the key is present and the value is `null`.
+-- |
+-- | Use this accessor if the key and value are optional in your object.
+-- | If the key and value are mandatory, use `getField` (`.:`) instead.
+getFieldOptional' :: forall (a :: Type). DecodeAeson a => Object Aeson -> String -> Either JsonDecodeError (Maybe a)
+getFieldOptional' = getFieldOptional'_ decodeAeson
+  where
+  getFieldOptional'_
+    :: (Aeson -> Either JsonDecodeError a)
+    -> Object Aeson
+    -> String
+    -> Either JsonDecodeError (Maybe a)
+  getFieldOptional'_ decoder obj str =
+    maybe (pure Nothing) decode (FO.lookup str obj)
+    where
+    decode aeson@(Aeson { patchedJson: AesonPatchedJson json }) =
+      if isNull json then
+        pure Nothing
+      else
+        Just <$> (lmap (AtKey str) <<< decoder) aeson
+
+infix 7 getFieldOptional' as .:?
 
 -- | Returns an Aeson available under a sequence of keys in given Aeson.
 -- | If not possible returns JsonDecodeError.
