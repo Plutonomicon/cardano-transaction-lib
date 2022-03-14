@@ -13,11 +13,11 @@ import Control.Alt ((<|>))
 import Data.Argonaut (encodeJson)
 import Data.Argonaut.Decode (JsonDecodeError(..))
 import Data.BigInt (BigInt)
-import Data.Either (Either(..))
+import Data.Either (Either(Left, Right))
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for)
 import Data.Tuple.Nested ((/\))
@@ -80,7 +80,13 @@ instance DecodeAeson PlutusData where
 class ToData (a :: Type) where
   toData :: a -> PlutusData
 
+instance ToData PlutusData where
+  toData = identity
+
 -- Doesn't distinguish "BuiltinData" and "Data" like Plutus:
 class FromData (a :: Type) where
   -- | Convert a value from `PlutusData`, returning `Nothing` if this fails.
   fromData :: PlutusData -> Maybe a
+
+instance FromData PlutusData where
+  fromData = Just

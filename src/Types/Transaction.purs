@@ -26,10 +26,12 @@ import Helpers ((</>), (<<>>), appendMap, appendRightHashMap)
 import Serialization.Address (Address, NetworkId, RewardAddress, Slot(Slot))
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
+import Types.PlutusData (class FromData, class ToData)
 import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
 import Types.Value (Coin, Value)
 import Serialization.Hash (Ed25519KeyHash)
+import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- `Transaction`
@@ -68,6 +70,14 @@ instance monoidTransaction :: Monoid Transaction where
     , is_valid: true
     , auxiliary_data: Nothing
     }
+
+-- Do we actually need this? Is it on chain to the point that it is not required.
+instance FromData Transaction where
+  fromData = undefined
+
+-- Do we actually need this? Is it on chain to the point that it is not required.
+instance ToData Transaction where
+  toData = undefined
 
 --------------------------------------------------------------------------------
 -- `Transaction` Lenses

@@ -18,7 +18,13 @@ import Data.Show.Generic (genericShow)
 import Serialization (toBytes)
 import Serialization.PlutusData (convertPlutusData)
 import Types.ByteArray (ByteArray)
-import Types.PlutusData (PlutusData)
+import Types.PlutusData
+  ( class FromData
+  , class ToData
+  , PlutusData
+  , fromData
+  , toData
+  )
 import Types.RedeemerTag (RedeemerTag)
 import Types.Transaction (DataHash)
 import Untagged.Union (asOneOf)
@@ -32,7 +38,9 @@ import Undefined (undefined)
 newtype Datum = Datum PlutusData
 
 derive newtype instance Eq Datum
+derive newtype instance FromData Datum
 derive newtype instance Ord Datum
+derive newtype instance ToData Datum
 derive instance Newtype Datum _
 derive instance Generic Datum _
 
@@ -44,7 +52,9 @@ instance Show Datum where
 newtype Redeemer = Redeemer PlutusData
 
 derive newtype instance Eq Redeemer
+derive newtype instance FromData Redeemer
 derive newtype instance Ord Redeemer
+derive newtype instance ToData Redeemer
 derive instance Newtype Redeemer _
 derive instance Generic Redeemer _
 
