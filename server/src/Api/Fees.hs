@@ -12,11 +12,11 @@ import Data.Text (Text)
 import Data.Text.Encoding qualified as Text.Encoding
 import Types (
   AppM,
-  CardanoBrowserServerError (..),
-  Cbor (..),
-  Env (..),
-  Fee (..),
-  FeeEstimateError (..),
+  CardanoBrowserServerError (FeeEstimate),
+  Cbor (Cbor),
+  Env (protocolParams),
+  Fee (Fee),
+  FeeEstimateError (InvalidCbor, InvalidHex),
  )
 
 estimateTxFees :: Cbor -> AppM Fee
