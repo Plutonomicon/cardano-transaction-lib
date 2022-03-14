@@ -2,7 +2,7 @@
 
 module Api.Handlers (
   estimateTxFees,
-  applyScriptArgs,
+  applyArgs,
 ) where
 
 import Cardano.Api qualified as C
@@ -15,6 +15,7 @@ import Data.ByteString.Base16 qualified as Base16
 import Data.Proxy (Proxy (Proxy))
 import Data.Text (Text)
 import Data.Text.Encoding qualified as Text.Encoding
+import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
 import Types (
   AppM,
   AppliedScript (AppliedScript),
@@ -32,8 +33,10 @@ estimateTxFees cbor = do
   pparams <- asks protocolParams
   pure . Fee $ estimateFee pparams decoded
 
-applyScriptArgs :: ApplyArgsRequest -> AppM AppliedScript
-applyScriptArgs ApplyArgsRequest {script, args} = undefined
+applyArgs :: ApplyArgsRequest -> AppM AppliedScript
+applyArgs ApplyArgsRequest {script, args} =
+  pure . AppliedScript $
+    Ledger.Scripts.applyArguments script args
 
 -- Helpers
 

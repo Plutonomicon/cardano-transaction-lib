@@ -82,7 +82,7 @@ api :: Proxy Api
 api = Proxy
 
 server :: ServerT Api AppM
-server = Handlers.estimateTxFees :<|> Handlers.applyScriptArgs
+server = Handlers.estimateTxFees :<|> Handlers.applyArgs
 
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
