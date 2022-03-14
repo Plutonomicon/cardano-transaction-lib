@@ -1,8 +1,6 @@
-{-# LANGUAGE NamedFieldPuns #-}
-
 module Main (main) where
 
-import Api (app, getTransactionFeeEstimate)
+import Api (app, applyArgs, estimateTxFees)
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.Kind (Type)
 import Network.HTTP.Client (defaultManagerSettings, newManager)
@@ -32,40 +30,60 @@ import Test.Hspec (
   shouldBe,
   shouldSatisfy,
  )
-import Types (Cbor (Cbor), Env, Fee (Fee), newEnvIO)
+import Test.Hspec.Core.Spec (SpecM)
+import Types (
+  ApplyArgsRequest (ApplyArgsRequest, args, script),
+  Cbor (Cbor),
+  Env,
+  Fee (Fee),
+  newEnvIO, AppliedScript (AppliedScript)
+ )
 
 main :: IO ()
 main = hspec serverSpec
 
 serverSpec :: Spec
 serverSpec = do
+  describe "Api.Handlers.applyArgs" applyArgsSpec
   describe "Api.Handlers.estimateTxFees" feeEstimateSpec
 
+applyArgsSpec :: Spec
+applyArgsSpec = around withTestApp $ do
+  clientEnv <- setupClientEnv
+
+  context "POST /apply-args" $ do
+    it "returns the correct fully saturated Plutus script" $ \port -> do
+      result <-
+        runClientM' (clientEnv port) $
+          applyArgs argsRequestFixture
+      result `shouldBe` Right appliedScript
+  where
+    appliedScript :: AppliedScript
+    appliedScript = AppliedScript undefined -- TODO
+
 feeEstimateSpec :: Spec
-feeEstimateSpec = around withFeeEstimate $ do
-  baseUrl <- runIO $ parseBaseUrl "http://localhost"
-  manager <- runIO $ newManager defaultManagerSettings
-  let clientEnv baseUrlPort = mkClientEnv manager $ baseUrl {baseUrlPort}
+feeEstimateSpec = around withTestApp $ do
+  clientEnv <- setupClientEnv
 
   context "GET /fees" $ do
     it "estimates the correct fee" $ \port -> do
       result <-
         runClientM' (clientEnv port) $
-          getTransactionFeeEstimate cborTxFixture
+          estimateTxFees cborTxFixture
       -- TODO verify with another tool that this is the correct fee estimate
       result `shouldBe` Right (Fee 168449)
 
     it "catches invalid hex strings" $ \port -> do
       result <-
         runClientM' (clientEnv port)
-          . getTransactionFeeEstimate
+          . estimateTxFees
           $ Cbor "deadbeefq"
       result `shouldSatisfy` expectError 400 "invalid bytestring size"
 
     it "catches invalid CBOR-encoded transactions" $ \port -> do
       result <-
         runClientM' (clientEnv port)
-          . getTransactionFeeEstimate
+          . estimateTxFees
           $ Cbor "deadbeef"
       result
         `shouldSatisfy` expectError
@@ -79,8 +97,16 @@ feeEstimateSpec = around withFeeEstimate $ do
         | scode == code && sbody == body -> True
       _ -> False
 
-withFeeEstimate :: ActionWith (Port -> IO ())
-withFeeEstimate = Warp.testWithApplication $ app <$> newEnvIO'
+setupClientEnv :: SpecM Port (Port -> ClientEnv)
+setupClientEnv = do
+  baseUrl <- runIO $ parseBaseUrl "http://localhost"
+  manager <- runIO $ newManager defaultManagerSettings
+  pure $
+    let clientEnv port = mkClientEnv manager $ baseUrl {baseUrlPort = port}
+     in clientEnv
+
+withTestApp :: ActionWith (Port -> IO ())
+withTestApp = Warp.testWithApplication $ app <$> newEnvIO'
   where
     newEnvIO' :: IO Env
     newEnvIO' = either die pure =<< newEnvIO
@@ -91,6 +117,13 @@ runClientM' ::
   ClientM a ->
   IO (Either ClientError a)
 runClientM' = flip runClientM
+
+argsRequestFixture :: ApplyArgsRequest
+argsRequestFixture =
+  ApplyArgsRequest
+    { script = undefined -- TODO
+    , args = undefined -- TODO
+    }
 
 -- This is a known-good 'Tx AlonzoEra'
 cborTxFixture :: Cbor

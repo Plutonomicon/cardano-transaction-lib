@@ -1,7 +1,7 @@
 module Api (
   app,
-  getTransactionFeeEstimate,
-  applyScriptArgs,
+  estimateTxFees,
+  applyArgs,
   apiDocs,
 ) where
 
@@ -87,6 +87,6 @@ server = Handlers.estimateTxFees :<|> Handlers.applyArgs
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
 
-getTransactionFeeEstimate :: Cbor -> ClientM Fee
-applyScriptArgs :: ApplyArgsRequest -> ClientM AppliedScript
-getTransactionFeeEstimate :<|> applyScriptArgs = client api
+estimateTxFees :: Cbor -> ClientM Fee
+applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
+estimateTxFees :<|> applyArgs = client api
