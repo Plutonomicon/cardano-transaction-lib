@@ -14,12 +14,11 @@ import Control.Bind (bind, (=<<), (>>=))
 import Control.Category ((<<<), (>>>))
 import Control.Monad.RWS (ask)
 import Control.Monad.Reader (class MonadAsk)
-import Data.Bounded (class Ord)
 import Data.Foldable (class Foldable, foldr)
 import Data.Function (($))
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..), isJust)
+import Data.Maybe (Maybe(Just), fromMaybe, isJust)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Set (Set)
 import Data.Set as Set
@@ -60,7 +59,7 @@ lockTransactionInputs tx =
     updateCache :: TxOutRefCache -> TxOutRefCache
     updateCache cache = foldr
       ( \{ transaction_id, index } ->
-          Map.update (\old -> Just $ Set.insert index old) transaction_id
+          Map.alter (fromMaybe Set.empty >>> Set.insert index >>> Just) transaction_id
       )
       cache
       txOutRefs
