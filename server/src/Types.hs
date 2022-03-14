@@ -4,6 +4,7 @@ module Types (
   Cbor (..),
   Fee (..),
   ApplyArgsRequest (..),
+  AppliedScript (..),
   FeeEstimateError (..),
   CardanoBrowserServerError (..),
   newEnvIO,
@@ -15,7 +16,7 @@ import Control.Exception (Exception)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (MonadReader, ReaderT)
-import Data.Aeson (FromJSON, ToJSON (..))
+import Data.Aeson (FromJSON, ToJSON (toJSON))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Encoding qualified as Aeson.Encoding
 import Data.Aeson.Types (withText)
@@ -82,6 +83,10 @@ data ApplyArgsRequest = ApplyArgsRequest
   deriving stock (Show, Eq, Generic)
   deriving anyclass (FromJSON, ToJSON)
 
+newtype AppliedScript = AppliedScript Ledger.Script
+  deriving stock (Show, Generic)
+  deriving newtype (Eq, FromJSON, ToJSON)
+
 -- We'll probably extend this with more error types over time
 newtype CardanoBrowserServerError = FeeEstimate FeeEstimateError
   deriving stock (Show)
@@ -120,3 +125,9 @@ instance Docs.ToSample Fee where
       , Fee 160265
       )
     ]
+
+instance Docs.ToSample ApplyArgsRequest where
+  toSamples _ = [] -- TODO
+
+instance Docs.ToSample AppliedScript where
+  toSamples _ = [] -- TODO

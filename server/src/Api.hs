@@ -1,4 +1,9 @@
-module Api (app, getTransactionFeeEstimate, apiDocs) where
+module Api (
+  app,
+  getTransactionFeeEstimate,
+  applyScriptArgs,
+  apiDocs,
+) where
 
 import Api.Fees qualified as Fees
 import Control.Monad.Catch (try)
@@ -7,6 +12,7 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.Kind (Type)
+import Data.Proxy (Proxy (Proxy))
 import Network.Wai.Middleware.Cors (simpleCors)
 import Servant (
   Application,
@@ -14,21 +20,25 @@ import Servant (
   Handler,
   HasServer (ServerT),
   JSON,
-  Proxy (..),
+  Post,
   QueryParam',
+  ReqBody,
   Required,
   Server,
   ServerError (errBody),
   err400,
   hoistServer,
   serve,
+  type (:<|>) ((:<|>)),
   type (:>),
  )
 import Servant.Client (ClientM, client)
 import Servant.Docs qualified as Docs
 import Types (
-  AppM (..),
-  CardanoBrowserServerError (..),
+  AppM (AppM),
+  AppliedScript,
+  ApplyArgsRequest,
+  CardanoBrowserServerError (FeeEstimate),
   Cbor,
   Env,
   Fee,
@@ -36,7 +46,13 @@ import Types (
  )
 import Utils (lbshow)
 
-type Api = "fees" :> QueryParam' '[Required] "tx" Cbor :> Get '[JSON] Fee
+type Api =
+  "fees" :> QueryParam' '[Required] "tx" Cbor :> Get '[JSON] Fee
+    -- Since @Script@ and @Data@ have @From/ToJSON@ instances, we can just
+    -- accept them in the body of a POST request
+    :<|> "apply-args"
+      :> ReqBody '[JSON] ApplyArgsRequest
+      :> Post '[JSON] AppliedScript
 
 app :: Env -> Application
 app = simpleCors . serve api . appServer
@@ -66,10 +82,11 @@ api :: Proxy Api
 api = Proxy
 
 server :: ServerT Api AppM
-server = Fees.estimateTxFees
+server = Fees.estimateTxFees :<|> {- TODO -} undefined
 
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
 
 getTransactionFeeEstimate :: Cbor -> ClientM Fee
-getTransactionFeeEstimate = client api
+applyScriptArgs :: ApplyArgsRequest -> ClientM AppliedScript
+getTransactionFeeEstimate :<|> applyScriptArgs = client api
