@@ -39,7 +39,7 @@ main = hspec serverSpec
 
 serverSpec :: Spec
 serverSpec = do
-  describe "Api.Fees" feeEstimateSpec
+  describe "Api.Handlers.estimateTxFees" feeEstimateSpec
 
 feeEstimateSpec :: Spec
 feeEstimateSpec = around withFeeEstimate $ do
