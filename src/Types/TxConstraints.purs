@@ -49,16 +49,12 @@ import Data.Newtype (class Newtype, over, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested ((/\), type (/\))
-import Types.Datum
-  ( Datum(Datum)
-  , DatumHash
-  , Redeemer
-  , unitRedeemer
-  )
-import Types.PlutusData (class ToData, toData)
+import ToData (class ToData, toData)
+import Types.Redeemer (Redeemer, unitRedeemer)
 import Types.Interval (POSIXTimeRange, always, intersection, isEmpty)
-import Types.RedeemerTag (RedeemerTag(Mint))
 import Types.Scripts (MintingPolicyHash, ValidatorHash)
+import Types.Datum (Datum(Datum))
+import Types.Transaction (DatumHash)
 import Types.UnbalancedTransaction (PaymentPubKeyHash, StakePubKeyHash, TxOutRef)
 import Types.Value
   ( CurrencySymbol
@@ -251,7 +247,7 @@ mustPayToOtherScript vh dt vl =
 
 -- | Create the given value. FIX ME: Broken until unitRedeemer properly defined.
 mustMintValue :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
-mustMintValue = mustMintValueWithRedeemer (unitRedeemer Mint)
+mustMintValue = mustMintValueWithRedeemer unitRedeemer
 
 -- | Mint the given `Value` by accessing `NonAdaAsset`
 mustMintValueWithRedeemer
@@ -280,7 +276,7 @@ mustMintCurrency
   -> TokenName
   -> BigInt
   -> TxConstraints i o
-mustMintCurrency mph = mustMintCurrencyWithRedeemer mph (unitRedeemer Mint)
+mustMintCurrency mph = mustMintCurrencyWithRedeemer mph unitRedeemer
 
 -- | Create the given amount of the currency
 mustMintCurrencyWithRedeemer

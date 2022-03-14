@@ -30,6 +30,7 @@ import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
 import Types.Value (Coin, Value)
 import Serialization.Hash (Ed25519KeyHash)
+import Types.PlutusData (PlutusData) as PD
 
 --------------------------------------------------------------------------------
 -- `Transaction`
@@ -326,7 +327,7 @@ newtype TransactionWitnessSet = TransactionWitnessSet
   , native_scripts :: Maybe (Array NativeScript)
   , bootstraps :: Maybe (Array BootstrapWitness)
   , plutus_scripts :: Maybe (Array PlutusScript)
-  , plutus_data :: Maybe (Array PlutusData)
+  , plutus_data :: Maybe (Array PD.PlutusData)
   , redeemers :: Maybe (Array Redeemer)
   }
 
@@ -377,7 +378,7 @@ _plutusScripts :: Lens' TransactionWitnessSet (Maybe (Array PlutusScript))
 _plutusScripts = lens' \(TransactionWitnessSet rec@{ plutus_scripts }) ->
   Tuple plutus_scripts \ps -> TransactionWitnessSet rec { plutus_scripts = ps }
 
-_plutusData :: Lens' TransactionWitnessSet (Maybe (Array PlutusData))
+_plutusData :: Lens' TransactionWitnessSet (Maybe (Array PD.PlutusData))
 _plutusData = lens' \(TransactionWitnessSet rec@{ plutus_data }) ->
   Tuple plutus_data \pd -> TransactionWitnessSet rec { plutus_data = pd }
 
@@ -434,19 +435,10 @@ derive newtype instance Eq Ed25519Signature
 instance Show Ed25519Signature where
   show = genericShow
 
-newtype PlutusData = PlutusData ByteArray
-
-derive instance Generic PlutusData _
-derive newtype instance Eq PlutusData
-derive instance Newtype PlutusData _
-
-instance Show PlutusData where
-  show = genericShow
-
 newtype Redeemer = Redeemer
   { tag :: RedeemerTag
   , index :: BigInt
-  , data :: PlutusData
+  , data :: PD.PlutusData
   , ex_units :: ExUnits
   }
 
@@ -583,6 +575,9 @@ derive newtype instance ordDataHash :: Ord DataHash
 
 instance Show DataHash where
   show = genericShow
+
+-- To help with people copying & pasting code from Haskell to Purescript
+type DatumHash = DataHash
 
 -- Option<Certificates>,
 -- these are the constructors, but this will generally be an Empty Option in our initial efforts
