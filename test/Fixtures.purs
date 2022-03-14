@@ -63,15 +63,7 @@ import Types.ByteArray
 import Types.PlutusData as PD
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
-  , NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
-  , PlutusData(PlutusData)
+  , NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry)
   , PublicKey(PublicKey)
   , Transaction(Transaction)
   , TransactionHash(TransactionHash)
@@ -392,7 +384,7 @@ witnessSetFixture3Value =
     { bootstraps: Nothing
     , native_scripts: Nothing
     , plutus_data:
-        Just [ PlutusData (byteArrayFromIntArrayUnsafe [ 88, 32, 43, 184, 13, 83, 123, 29, 163, 227, 139, 211, 3, 97, 170, 133, 86, 134, 189, 224, 234, 205, 113, 98, 254, 246, 162, 95, 233, 123, 245, 39, 162, 91 ]) ]
+        Just [ PD.Bytes (byteArrayFromIntArrayUnsafe [ 43, 184, 13, 83, 123, 29, 163, 227, 139, 211, 3, 97, 170, 133, 86, 134, 189, 224, 234, 205, 113, 98, 254, 246, 162, 95, 233, 123, 245, 39, 162, 91 ]) ]
     , plutus_scripts: Nothing
     , redeemers: Nothing
     , vkeys: Just

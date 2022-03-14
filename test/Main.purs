@@ -23,6 +23,7 @@ import Test.Serialization as Serialization
 import Test.Aeson as Aeson
 import Test.Transaction as Transaction
 import Test.UsedTxOuts as UsedTxOuts
+import Test.Data as Data
 
 -- we use `mote` here so that we can use effects to build up a test tree, which
 -- is then interpreted here in a pure context, mainly due to some painful types
@@ -49,6 +50,7 @@ interpret spif = do
 
 testPlan :: TestPlanM Unit
 testPlan = do
+  Data.suite
   Aeson.suite
   ByteArrayTest.suite
   Helpers.suite
