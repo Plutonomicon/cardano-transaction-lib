@@ -5,8 +5,7 @@ module Api (
   apiDocs,
 ) where
 
-import Api.Apply qualified as Apply
-import Api.Fees qualified as Fees
+import Api.Handlers qualified as Handlers
 import Control.Monad.Catch (try)
 import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (liftIO)
@@ -83,7 +82,7 @@ api :: Proxy Api
 api = Proxy
 
 server :: ServerT Api AppM
-server = Fees.estimateTxFees :<|> Apply.applyScriptArgs
+server = Handlers.estimateTxFees :<|> Handlers.applyScriptArgs
 
 apiDocs :: Docs.API
 apiDocs = Docs.docs api

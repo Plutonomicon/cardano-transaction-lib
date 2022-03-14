@@ -1,4 +1,9 @@
-module Api.Fees (estimateTxFees) where
+{-# LANGUAGE NamedFieldPuns #-}
+
+module Api.Handlers (
+  estimateTxFees,
+  applyScriptArgs,
+) where
 
 import Cardano.Api qualified as C
 import Cardano.Api.Shelley qualified as Shelley
@@ -12,6 +17,8 @@ import Data.Text (Text)
 import Data.Text.Encoding qualified as Text.Encoding
 import Types (
   AppM,
+  AppliedScript (AppliedScript),
+  ApplyArgsRequest (ApplyArgsRequest, args, script),
   CardanoBrowserServerError (FeeEstimate),
   Cbor (Cbor),
   Env (protocolParams),
@@ -24,6 +31,11 @@ estimateTxFees cbor = do
   decoded <- either (throwM . FeeEstimate) pure $ decodeCborTx cbor
   pparams <- asks protocolParams
   pure . Fee $ estimateFee pparams decoded
+
+applyScriptArgs :: ApplyArgsRequest -> AppM AppliedScript
+applyScriptArgs ApplyArgsRequest {script, args} = undefined
+
+-- Helpers
 
 estimateFee :: Shelley.ProtocolParameters -> C.Tx C.AlonzoEra -> Integer
 estimateFee pparams (C.Tx txBody keyWits) = estimate

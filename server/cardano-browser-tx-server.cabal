@@ -70,8 +70,7 @@ library
 
   exposed-modules:
     Api
-    Api.Apply
-    Api.Fees
+    Api.Handlers
     Paths_cardano_browser_tx_server
     Types
     Utils
