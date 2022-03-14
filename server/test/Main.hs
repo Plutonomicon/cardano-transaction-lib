@@ -70,7 +70,8 @@ feeEstimateSpec = around withTestApp $ do
       result <-
         runClientM' (clientEnv port) $
           estimateTxFees cborTxFixture
-      -- TODO verify with another tool that this is the correct fee estimate
+      -- This is probably incorrect. See:
+      -- https://github.com/Plutonomicon/cardano-browser-tx/issues/123
       result `shouldBe` Right (Fee 168449)
 
     it "catches invalid hex strings" $ \port -> do
