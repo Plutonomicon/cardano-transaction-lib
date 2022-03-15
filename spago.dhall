@@ -60,6 +60,7 @@ You can edit this file as you like.
   , "typelevel-prelude"
   , "uint"
   , "undefined"
+  , "unfoldable"
   , "unordered-collections"
   , "unsafe-coerce"
   , "untagged-union"

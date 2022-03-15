@@ -51,7 +51,6 @@ import Serialization.Hash
   , scriptHashToBytes
   )
 import Types.Datum (DatumHash)
-import Types.Scripts (ValidatorHash)
 import Types.Transaction
   ( Transaction
   , TransactionInput
@@ -61,6 +60,7 @@ import Types.Transaction
   , Vkey(Vkey)
   , RequiredSigner(RequiredSigner)
   )
+import Types.Scripts (ValidatorHash)
 import Types.Value (Value)
 
 -- Plutus has a type called `PubKey` which we replace with `PublicKey`

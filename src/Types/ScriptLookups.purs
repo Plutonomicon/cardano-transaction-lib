@@ -41,11 +41,11 @@ import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
 import Data.Tuple.Nested (type (/\), (/\))
+import FromData (class FromData)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Helpers ((<\>), liftEither, liftM, liftMWith)
-import PlutusData (plutusDataBytes)
 import QueryM (QueryConfig, QueryM, getDatumByHash)
 import Scripts
   ( mintingPolicyHash
@@ -53,8 +53,9 @@ import Scripts
   , validatorHashAddress
   )
 import Serialization.Address (Address, NetworkId)
+import ToData (class ToData)
 import Types.Any (Any)
-import Types.Datum (Datum, DatumHash, Redeemer, datumHash)
+import Types.Datum (Datum, DatumHash, datumHash)
 import Types.Interval
   ( POSIXTimeRange
   , SlotConfig
@@ -62,7 +63,6 @@ import Types.Interval
   , posixTimeRangeToTransactionSlot
   )
 import Types.JsonWsp (OgmiosTxOut)
-import Types.PlutusData (class FromData, class ToData)
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
 import Types.Scripts
   ( MintingPolicy
@@ -594,7 +594,6 @@ data MkUnbalancedTxError
   | CannotGetValidatorHashFromAddress Address -- Get `ValidatorHash` from internal `Address`
   | CannotGetMintingPolicyScriptIndex -- Cannot get the Minting Policy Index - this should be impossible.
   | CannotGetMintingValidatorScriptIndex -- Cannot get the Validator Index - this should be impossible.
-  | CannotSerializeRedeemer Redeemer -- Cannot convert to ByteArray representation of redeemer
   | MkTypedTxOutFailed
   | TypedTxOutHasNoDatumHash
   | CannotSatisfyAny
@@ -713,16 +712,13 @@ processConstraint = do
           index <- liftM CannotGetMintingValidatorScriptIndex mIndex
           ExceptT $ addDatum dataValue
           _cpsToTxBody <<< _inputs %= (:) txo
-          -- Serialise the `Redeemer` into `ByteArray` representation:
-          serRed <-
-            liftM (CannotSerializeRedeemer red) $ plutusDataBytes (unwrap red)
           let
             -- Create a redeemer with hardcoded execution units then call Ogmios
             -- to add the units in at the very end.
             redeemer = T.Redeemer
               { tag: Spend
               , index
-              , data: serRed
+              , data: unwrap red
               , ex_units: scriptExUnits
               }
           _valueSpentBalancesInputs <>= provide value
@@ -754,16 +750,13 @@ processConstraint = do
       mIndex <- use (_cpsToWitnessSet <<< _plutusScripts <<< to (map lastIndex))
       -- This error should be impossible as we just attached:
       index <- liftM CannotGetMintingPolicyScriptIndex mIndex
-      -- Serialise the `Redeemer` into `ByteArray` representation:
-      serRed <-
-        liftM (CannotSerializeRedeemer red) (plutusDataBytes $ unwrap red)
       let
         -- Create a redeemer with zero execution units then call Ogmios to
         -- add the units in at the very end.
         redeemer = T.Redeemer
           { tag: Mint
           , index
-          , data: serRed
+          , data: unwrap red
           , ex_units: mintExUnits
           }
       _cpsToTxBody <<< _mint <>= Just (wrap mintVal)

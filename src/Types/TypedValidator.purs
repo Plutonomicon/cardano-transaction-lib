@@ -18,9 +18,10 @@ import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Effect (Effect)
+import FromData (class FromData, fromData)
 import Helpers (fromJustEff)
 import Types.Any (Any)
-import Types.PlutusData (class FromData, fromData, PlutusData)
+import Types.PlutusData (PlutusData)
 import Types.Scripts
   ( MintingPolicy
   , MintingPolicyHash

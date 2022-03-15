@@ -19,7 +19,6 @@ module Types.TypedTxOut
 
 import Prelude
 import Address (ogmiosAddressToAddress)
-import Control.Applicative (unless)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Data.Either (Either, note)
@@ -27,19 +26,15 @@ import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Show.Generic (genericShow)
+import FromData (class FromData, fromData)
 import Helpers (liftM)
 import QueryM (QueryM, getDatumByHash)
 import Scripts (typedValidatorAddress)
 import Serialization.Address (Address, NetworkId)
+import ToData (class ToData, toData)
 import Types.Datum (Datum(Datum), DatumHash, datumHash)
 import Types.JsonWsp (OgmiosAddress, OgmiosTxOut)
-import Types.PlutusData
-  ( class FromData
-  , class ToData
-  , PlutusData
-  , fromData
-  , toData
-  )
+import Types.PlutusData (PlutusData)
 import Types.Transaction (TransactionInput, TransactionOutput)
 import Types.TypedValidator
   ( class DatumType

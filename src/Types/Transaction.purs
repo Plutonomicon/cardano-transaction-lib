@@ -22,15 +22,17 @@ import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
+import FromData (class FromData)
 import Helpers ((</>), (<<>>), appendMap, appendRightHashMap)
 import Serialization.Address (Address, NetworkId, RewardAddress, Slot(Slot))
+import ToData (class ToData)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
-import Types.PlutusData (class FromData, class ToData)
 import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
 import Types.Value (Coin, Value)
 import Serialization.Hash (Ed25519KeyHash)
+import Types.PlutusData (PlutusData) as PD
 import Undefined (undefined)
 
 --------------------------------------------------------------------------------
@@ -336,7 +338,7 @@ newtype TransactionWitnessSet = TransactionWitnessSet
   , native_scripts :: Maybe (Array NativeScript)
   , bootstraps :: Maybe (Array BootstrapWitness)
   , plutus_scripts :: Maybe (Array PlutusScript)
-  , plutus_data :: Maybe (Array PlutusData)
+  , plutus_data :: Maybe (Array PD.PlutusData)
   , redeemers :: Maybe (Array Redeemer)
   }
 
@@ -387,7 +389,7 @@ _plutusScripts :: Lens' TransactionWitnessSet (Maybe (Array PlutusScript))
 _plutusScripts = lens' \(TransactionWitnessSet rec@{ plutus_scripts }) ->
   Tuple plutus_scripts \ps -> TransactionWitnessSet rec { plutus_scripts = ps }
 
-_plutusData :: Lens' TransactionWitnessSet (Maybe (Array PlutusData))
+_plutusData :: Lens' TransactionWitnessSet (Maybe (Array PD.PlutusData))
 _plutusData = lens' \(TransactionWitnessSet rec@{ plutus_data }) ->
   Tuple plutus_data \pd -> TransactionWitnessSet rec { plutus_data = pd }
 
@@ -444,19 +446,10 @@ derive newtype instance Eq Ed25519Signature
 instance Show Ed25519Signature where
   show = genericShow
 
-newtype PlutusData = PlutusData ByteArray
-
-derive instance Generic PlutusData _
-derive newtype instance Eq PlutusData
-derive instance Newtype PlutusData _
-
-instance Show PlutusData where
-  show = genericShow
-
 newtype Redeemer = Redeemer
   { tag :: RedeemerTag
   , index :: BigInt
-  , data :: PlutusData
+  , data :: PD.PlutusData
   , ex_units :: ExUnits
   }
 
@@ -587,12 +580,17 @@ instance Show TransactionHash where
 newtype DataHash = DataHash ByteArray
 
 derive instance Generic DataHash _
-derive instance newtypeDataHash :: Newtype DataHash _
-derive newtype instance eqDataHash :: Eq DataHash
-derive newtype instance ordDataHash :: Ord DataHash
+derive instance Newtype DataHash _
+derive newtype instance Eq DataHash
+derive newtype instance FromData DataHash
+derive newtype instance Ord DataHash
+derive newtype instance ToData DataHash
 
 instance Show DataHash where
   show = genericShow
+
+-- To help with people copying & pasting code from Haskell to Purescript
+type DatumHash = DataHash
 
 -- Option<Certificates>,
 -- these are the constructors, but this will generally be an Empty Option in our initial efforts

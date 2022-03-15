@@ -4,15 +4,14 @@ import Prelude
 
 import Data.Array as Array
 import Data.Maybe (maybe)
-import Data.Newtype (unwrap)
 import Data.Traversable (for_, traverse, traverse_)
 import Data.Tuple.Nested ((/\))
-import Deserialization.FromBytes (fromBytesEffect)
 import Effect (Effect)
 import Effect.Exception (throw)
 import FfiHelpers (ContainerHelper, containerHelper)
 import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.NativeScript (convertNativeScripts)
+import Serialization.PlutusData (convertPlutusData)
 import Types.Scripts (PlutusScript(PlutusScript)) as S
 import Serialization.Types
   ( BigNum
@@ -20,7 +19,6 @@ import Serialization.Types
   , Ed25519Signature
   , ExUnits
   , NativeScripts
-  , PlutusData
   , PlutusScript
   , PlutusScripts
   , PublicKey
@@ -34,9 +32,20 @@ import Serialization.Types
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
 import Types.RedeemerTag as Tag
-import Types.Transaction as T
+import Types.Transaction
+  ( BootstrapWitness
+  , Ed25519Signature(Ed25519Signature)
+  , ExUnits
+  , PublicKey(PublicKey)
+  , Redeemer(Redeemer)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
+  ) as T
+import Types.PlutusData (PlutusData) as PD
+import Serialization.Types (PlutusData) as PDS
 
-setPlutusData :: PlutusData -> TransactionWitnessSet -> Effect Unit
+setPlutusData :: PDS.PlutusData -> TransactionWitnessSet -> Effect Unit
 setPlutusData pd ws = setWitness _wsSetPlutusData ws pd
 
 setRedeemer :: Redeemer -> TransactionWitnessSet -> Effect Unit
@@ -68,7 +77,7 @@ convertWitnessSet (T.TransactionWitnessSet tws) = do
     for_ ps (convertPlutusScript >=> addPlutusScript scripts)
     txWitnessSetSetPlutusScripts ws scripts
   for_ tws.plutus_data
-    (traverse convertPlutusData >=> _wsSetPlutusData containerHelper ws)
+    (traverse convertPlutusDataEffect >=> _wsSetPlutusData containerHelper ws)
   for_ tws.redeemers
     (traverse convertRedeemer >=> _wsSetRedeemers containerHelper ws)
   pure ws
@@ -77,9 +86,12 @@ convertRedeemer :: T.Redeemer -> Effect Redeemer
 convertRedeemer (T.Redeemer { tag, index, "data": data_, ex_units }) = do
   tag' <- convertRedeemerTag tag
   index' <- maybe (throw "Failed to convert redeemer index") pure $ bigNumFromBigInt index
-  data' <- convertPlutusData data_
+  data' <- convertPlutusDataEffect data_
   ex_units' <- convertExUnits ex_units
   newRedeemer tag' index' data' ex_units'
+
+convertPlutusDataEffect :: PD.PlutusData -> Effect PDS.PlutusData
+convertPlutusDataEffect pd = maybe (throw "Failed to convert PlutusData") pure $ convertPlutusData pd
 
 convertRedeemerTag :: Tag.RedeemerTag -> Effect RedeemerTag
 convertRedeemerTag = _newRedeemerTag <<< case _ of
@@ -94,9 +106,6 @@ convertExUnits { mem, steps } =
     mem' <- bigNumFromBigInt mem
     steps' <- bigNumFromBigInt steps
     pure $ newExUnits mem' steps'
-
-convertPlutusData :: T.PlutusData -> Effect PlutusData
-convertPlutusData = fromBytesEffect <<< unwrap
 
 convertBootstrap :: T.BootstrapWitness -> Effect BootstrapWitness
 convertBootstrap { vkey, signature, chain_code, attributes } = do
@@ -143,8 +152,8 @@ foreign import txWitnessSetSetPlutusScripts :: TransactionWitnessSet -> PlutusSc
 foreign import transactionWitnessSetSetNativeScripts :: TransactionWitnessSet -> NativeScripts -> Effect Unit
 foreign import _wsSetBootstraps :: ContainerHelper -> TransactionWitnessSet -> Array BootstrapWitness -> Effect Unit
 foreign import newBootstrapWitness :: Vkey -> Ed25519Signature -> ByteArray -> ByteArray -> Effect BootstrapWitness
-foreign import _wsSetPlutusData :: ContainerHelper -> TransactionWitnessSet -> Array PlutusData -> Effect Unit
-foreign import newRedeemer :: RedeemerTag -> BigNum -> PlutusData -> ExUnits -> Effect Redeemer
+foreign import _wsSetPlutusData :: ContainerHelper -> TransactionWitnessSet -> Array PDS.PlutusData -> Effect Unit
+foreign import newRedeemer :: RedeemerTag -> BigNum -> PDS.PlutusData -> ExUnits -> Effect Redeemer
 foreign import _newRedeemerTag :: String -> Effect RedeemerTag
 foreign import newExUnits :: BigNum -> BigNum -> ExUnits
 foreign import _wsSetRedeemers :: ContainerHelper -> TransactionWitnessSet -> Array Redeemer -> Effect Unit

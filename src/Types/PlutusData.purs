@@ -1,9 +1,5 @@
 module Types.PlutusData
   ( PlutusData(..)
-  , class FromData
-  , class ToData
-  , fromData
-  , toData
   ) where
 
 import Prelude
@@ -76,17 +72,3 @@ instance DecodeAeson PlutusData where
       case hexToByteArray bytesHex of
         Nothing -> Left $ UnexpectedValue $ encodeJson bytesHex
         Just res -> pure $ Bytes res
-
-class ToData (a :: Type) where
-  toData :: a -> PlutusData
-
-instance ToData PlutusData where
-  toData = identity
-
--- Doesn't distinguish "BuiltinData" and "Data" like Plutus:
-class FromData (a :: Type) where
-  -- | Convert a value from `PlutusData`, returning `Nothing` if this fails.
-  fromData :: PlutusData -> Maybe a
-
-instance FromData PlutusData where
-  fromData = Just
