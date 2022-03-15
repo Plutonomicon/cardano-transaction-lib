@@ -8,7 +8,7 @@ module UsedTxOuts
   , unlockTransactionInputs
   ) where
 
-import Control.Alt (void, (<$>))
+import Control.Alt ((<$>))
 import Control.Alternative (guard, pure)
 import Control.Bind (bind, (=<<), (>>=))
 import Control.Category ((<<<), (>>>))
@@ -32,7 +32,7 @@ import Types.Transaction (Transaction, TransactionHash)
 
 type TxOutRefCache = Map TransactionHash (Set UInt)
 
--- | Stores stores TxOutRefs in a compact map.
+-- | Stores TxOutRefs in a compact map.
 newtype UsedTxOuts = UsedTxOuts (Ref TxOutRefCache)
 
 derive instance Newtype UsedTxOuts _
@@ -53,18 +53,15 @@ lockTransactionInputs
   -> m Unit
 lockTransactionInputs tx =
   let
-    txOutRefs :: Array { transaction_id :: TransactionHash, index :: UInt }
-    txOutRefs = unwrap <$> (unwrap (unwrap tx).body).inputs
-
     updateCache :: TxOutRefCache -> TxOutRefCache
     updateCache cache = foldr
       ( \{ transaction_id, index } ->
           Map.alter (fromMaybe Set.empty >>> Set.insert index >>> Just) transaction_id
       )
       cache
-      txOutRefs
+      (txOutRefs tx)
   in
-    void $ ask >>= (unwrap >>> Ref.modify updateCache >>> liftEffect)
+    ask >>= (unwrap >>> Ref.modify_ updateCache >>> liftEffect)
 
 -- | Remove transaction's inputs used marks.
 unlockTransactionInputs
@@ -73,12 +70,7 @@ unlockTransactionInputs
   => MonadEffect m
   => Transaction
   -> m Unit
-unlockTransactionInputs tx =
-  let
-    txOutRefs :: Array { transaction_id :: TransactionHash, index :: UInt }
-    txOutRefs = unwrap <$> (unwrap (unwrap tx).body).inputs
-  in
-    unlockTxOutRefs txOutRefs
+unlockTransactionInputs = txOutRefs >>> unlockTxOutRefs
 
 -- | Remove used marks from TxOutRefs given directly.
 unlockTxOutRefs
@@ -88,7 +80,7 @@ unlockTxOutRefs
   => Foldable t
   => t { transaction_id :: TransactionHash, index :: UInt }
   -> m Unit
-unlockTxOutRefs txOutRefs =
+unlockTxOutRefs txOutRefs' =
   let
     updateCache :: TxOutRefCache -> TxOutRefCache
     updateCache cache = foldr
@@ -96,9 +88,9 @@ unlockTxOutRefs txOutRefs =
           Map.update (\old -> never Set.isEmpty $ Set.delete index old) transaction_id
       )
       cache
-      txOutRefs
+      txOutRefs'
   in
-    void $ ask >>= (unwrap >>> Ref.modify updateCache >>> liftEffect)
+    ask >>= (unwrap >>> Ref.modify_ updateCache >>> liftEffect)
 
 -- | Query if TxOutRef is marked as used.
 isTxOutRefUsed
@@ -112,3 +104,6 @@ isTxOutRefUsed { transaction_id, index } = do
   pure $ isJust $ do
     indices <- Map.lookup transaction_id cache
     guard $ Set.member index indices
+
+txOutRefs :: Transaction -> Array { transaction_id :: TransactionHash, index :: UInt }
+txOutRefs tx = unwrap <$> (unwrap (unwrap tx).body).inputs

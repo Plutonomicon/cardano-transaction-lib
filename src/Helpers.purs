@@ -39,7 +39,6 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Maybe.First (First(First))
 import Data.Maybe.Last (Last(Last))
 import Data.Tuple (uncurry)
-import Data.Typelevel.Undefined (undefined)
 import Effect (Effect)
 import Effect.Exception (throw)
 
