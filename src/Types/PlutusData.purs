@@ -7,9 +7,9 @@ import Prelude
 import Aeson (class DecodeAeson, decodeAeson, (.:))
 import Control.Alt ((<|>))
 import Data.Argonaut (encodeJson)
-import Data.Argonaut.Decode (JsonDecodeError(..))
+import Data.Argonaut.Decode (JsonDecodeError(UnexpectedValue))
 import Data.BigInt (BigInt)
-import Data.Either (Either(Left, Right))
+import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map as Map

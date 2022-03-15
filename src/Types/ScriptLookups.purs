@@ -168,7 +168,6 @@ newtype ScriptLookups (a :: Type) = ScriptLookups
   , otherData :: Map DatumHash Datum --  Datums that we might need
   , paymentPubKeyHashes :: Map PaymentPubKeyHash PaymentPubKey -- Public keys that we might need
   , typedValidator :: Maybe (TypedValidator a) -- The script instance with the typed validator hash & actual compiled program
-  -- NOTE: not sure how to make sense of Typed Validators ATM. https://github.com/Plutonomicon/cardano-browser-tx/issues/166
   , ownPaymentPubKeyHash :: Maybe PaymentPubKeyHash -- The contract's payment public key hash, used for depositing tokens etc.
   , ownStakePubKeyHash :: Maybe StakePubKeyHash -- The contract's stake public key hash (optional)
   }
@@ -218,13 +217,6 @@ instance Monoid (ScriptLookups a) where
 --------------------------------------------------------------------------------
 -- Create ScriptLookups helpers for `Contract` monad.
 --------------------------------------------------------------------------------
--- https://github.com/Plutonomicon/cardano-browser-tx/issues/166
--- FIX ME: Need to work out what to do with TypedValidator and constraints.
--- Also, some of these functions are in Monadic contexts which differs from
--- Plutus. Not sure if there's anything we can do about this.
-
--- https://github.com/Plutonomicon/cardano-browser-tx/issues/166
--- FIX ME: this just replicates Plutus API, it's meaningless ATM.
 -- | A script lookups value with a script instance. For convenience this also
 -- | includes the minting policy script that forwards all checks to the
 -- | instance's validator.
@@ -384,13 +376,14 @@ liftQueryM = lift <<< lift
 -- The constraints don't precisely match those of Plutus:
 -- `forall a. (FromData (DatumType a), ToData (DatumType a), ToData (RedeemerType a))`
 -- as we don't have the same granularity on the classes, but the type `a` fixes
--- a type `b` as seen below.
+-- a type `b` as seen below. We could alternatively create specific typeclasses:
+-- ToData (Datumtype a) <-> (Datumtype a b, ToData b) <= ToDataDatumType a b
+-- if we require granular control, similarly FromDataToDatumType a b etc.
+-- We could use `MonadError` to clean up the `ExceptT`s below although we can't
+-- use the type alias because they need to be fully applied so this is perhaps
+-- more readable.
 -- Fix me: add execution units from Ogmios where this function should be
 -- inside QueryM https://github.com/Plutonomicon/cardano-browser-tx/issues/174
--- TO DO: Plutus uses a bunch of FromData and ToData constraints we'll probably
--- need to replicate if we uses `InputConstraint`s and `OutputConstraint`s
--- i.e. ~ foldM addOwnInput txOwnInputs then foldM addOwnOutput txOwnOutputs
--- see https://github.com/Plutonomicon/cardano-browser-tx/issues/166
 -- | Resolve some `TxConstraints` by modifying the `UnbalancedTx` in the
 -- | `ConstraintProcessingState`
 processLookupsAndConstraints
@@ -411,7 +404,7 @@ processLookupsAndConstraints
   ExceptT updateUtxoIndex
   where
   -- Don't write the output in terms of ExceptT because we can't write a
-  -- partially applied `ConstraintsM`. This is more readable.
+  -- partially applied `ConstraintsM` meaning this is more readable.
   foldConstraints
     :: forall (constr :: Type) (c :: Type)
      . (constr -> ConstraintsM c (Either MkUnbalancedTxError Unit))
@@ -421,7 +414,8 @@ processLookupsAndConstraints
     (\_ constr -> runExceptT $ ExceptT $ handler constr)
     (Right unit)
 
--- Helper to run the stack and get back to `QueryM`.
+-- Helper to run the stack and get back to `QueryM`. See comments in
+-- `processLookupsAndConstraints` regarding constraints.
 runConstraintsM
   :: forall (a :: Type) (b :: Type)
    . DatumType a b
@@ -458,6 +452,7 @@ runConstraintsM scriptLookups txConstraints =
           processLookupsAndConstraints txConstraints
       )
 
+-- See comments in `processLookupsAndConstraints` regarding constraints.
 -- | Create an `UnbalancedTx` given `ScriptLookups` and `TxConstraints`.
 mkUnbalancedTx
   :: forall (a :: Type) (b :: Type)
@@ -565,7 +560,9 @@ addOwnOutput (OutputConstraint { datum, value }) = runExceptT do
   typedTxOut <-
     liftM MkTypedTxOutFailed (mkTypedTxOut networkId inst datum value)
   let txOut = typedTxOutTxOut typedTxOut
-  dHash <- liftM TypedTxOutHasNoDatumHash (typedTxOutDatumHash typedTxOut) -- FIX ME: DO WE WANT ERROR?
+  -- We are erroring if we don't have a datumhash given the polymorphic datum
+  -- in the `OutputConstraint`:
+  dHash <- liftM TypedTxOutHasNoDatumHash (typedTxOutDatumHash typedTxOut)
   dat <-
     ExceptT $ liftQueryM $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
   _cpsToTxBody <<< _outputs %= (:) txOut
@@ -861,7 +858,7 @@ attachToCps handler object = do
     (map Right <<< (.=) (_unbalancedTx <<< _transaction))
     newTx
 
--- Attachs datum to the transaction and to Array of datums in the state.
+-- Attaches datum to the transaction and to Array of datums in the state.
 addDatum
   :: forall (a :: Type)
    . Datum

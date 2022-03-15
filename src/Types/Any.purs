@@ -7,7 +7,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 
 -- Not sure if this is necessary but keep for now.
--- | For converting a subsset of polymorphic types to that which will work with
+-- | For converting a subset of polymorphic types to that which will work with
 -- | `PlutusData`.
 data Any
 

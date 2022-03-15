@@ -101,6 +101,7 @@ derive newtype instance Eq (TypedValidator a)
 instance Show (TypedValidator a) where
   show = genericShow
 
+-- Not sure how necessary this is:
 -- | Generalise the typed validator to one that works with the `PlutusData` type.
 generalise :: forall (a :: Type). TypedValidator a -> TypedValidator Any
 generalise
@@ -111,7 +112,6 @@ generalise
   -- signature anymore.
   TypedValidator { validator, validatorHash: vh, forwardingMPS, forwardingMPSHash }
 
--- FIX ME: move these to scripts?
 -- | The hash of the validator.
 typedValidatorHash :: forall (a :: Type). TypedValidator a -> ValidatorHash
 typedValidatorHash = _.validatorHash <<< unwrap
@@ -125,7 +125,9 @@ forwardingMintingPolicy
   :: forall (a :: Type). TypedValidator a -> MintingPolicy
 forwardingMintingPolicy = _.forwardingMPS <<< unwrap
 
--- -- TO DO: broken, see below (we need some notion of `applyCode`)
+-- We have a few functions, I'm not sure if we even need these for off chain
+-- code:
+-- -- Broken, see below (we need some notion of `applyCode`)
 -- -- | Make a `TypedValidator` (with no type constraints) from an untyped
 -- -- |`Validator` script.
 -- unsafeMkTypedValidator :: Scripts.Validator -> Maybe (TypedValidator Any)
@@ -140,8 +142,8 @@ forwardingMintingPolicy = _.forwardingMPS <<< unwrap
 --       , forwardingMPSHash
 --       }
 
--- -- TO DO: mkTypedValidator, mkForwardingMintingPolicy and
+-- -- mkTypedValidator, mkForwardingMintingPolicy and
 -- --  mkTypedValidatorParam requires some notion
--- -- of compiled code and `applyCode`
+-- -- of compiled code and `applyCode` also
 -- mkForwardingMintingPolicy :: ValidatorHash -> MintingPolicy
 -- mkForwardingMintingPolicy = undefined

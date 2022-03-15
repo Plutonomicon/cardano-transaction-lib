@@ -10,6 +10,7 @@ module Types.TypedTxOut
   , typedTxOutDatumHash
   , typedTxOutRefAddress
   , typedTxOutRefDatumHash
+  , typedTxOutRefInput
   , typedTxOutRefValue
   , typedTxOutTxOut
   , typedTxOutValue
@@ -56,6 +57,7 @@ newtype TypedTxOutRef (a :: Type) (b :: Type) = TypedTxOutRef
 -- type safety.
 derive newtype instance (DatumType a b, Eq b) => Eq (TypedTxOutRef a b)
 
+-- | Extract the `Address` of a `TypedTxOutRef`
 typedTxOutRefAddress
   :: forall (a :: Type) (b :: Type)
    . DatumType a b
@@ -66,6 +68,7 @@ typedTxOutRefAddress
 typedTxOutRefAddress (TypedTxOutRef { typedTxOut }) =
   typedTxOutAddress typedTxOut
 
+-- | Extract the `DatumHash` of a `TypedTxOutRef`
 typedTxOutRefDatumHash
   :: forall (a :: Type) (b :: Type)
    . DatumType a b
@@ -76,6 +79,7 @@ typedTxOutRefDatumHash
 typedTxOutRefDatumHash (TypedTxOutRef { typedTxOut }) =
   typedTxOutDatumHash typedTxOut
 
+-- | Extract the `Value` of a `TypedTxOutRef`
 typedTxOutRefValue
   :: forall (a :: Type) (b :: Type)
    . DatumType a b
@@ -84,6 +88,16 @@ typedTxOutRefValue
   => TypedTxOutRef a b
   -> Value
 typedTxOutRefValue (TypedTxOutRef { typedTxOut }) = typedTxOutValue typedTxOut
+
+-- | Extract the `TxOutRef` ~ `TransactionInput` of a `TypedTxOutRef`
+typedTxOutRefInput
+  :: forall (a :: Type) (b :: Type)
+   . DatumType a b
+  => FromData b
+  => ToData b
+  => TypedTxOutRef a b
+  -> TransactionInput
+typedTxOutRefInput (TypedTxOutRef { txOutRef }) = txOutRef
 
 -- A `TransactionOutput` tagged by a phantom type: and the connection type of
 -- the output. DO NOT import as extra constraints are required so only import
@@ -95,6 +109,7 @@ newtype TypedTxOut (a :: Type) (b :: Type) = TypedTxOut
 -- type safety.
 derive newtype instance (DatumType a b, Eq b) => Eq (TypedTxOut a b)
 
+-- | Extract the `Address` of a `TypedTxOut`
 typedTxOutAddress
   :: forall (a :: Type) (b :: Type)
    . DatumType a b
@@ -104,6 +119,7 @@ typedTxOutAddress
   -> Address
 typedTxOutAddress (TypedTxOut { txOut }) = (unwrap txOut).address
 
+-- | Extract the `DatumHash` of a `TypedTxOut`
 typedTxOutDatumHash
   :: forall (a :: Type) (b :: Type)
    . DatumType a b
@@ -113,6 +129,7 @@ typedTxOutDatumHash
   -> Maybe DatumHash
 typedTxOutDatumHash (TypedTxOut { txOut }) = (unwrap txOut).data_hash
 
+-- | Extract the `Value` of a `TypedTxOut`
 typedTxOutValue
   :: forall (a :: Type) (b :: Type)
    . DatumType a b
@@ -122,6 +139,7 @@ typedTxOutValue
   -> Value
 typedTxOutValue (TypedTxOut { txOut }) = (unwrap txOut).amount
 
+-- | Extract the `TxOut` ~ `TransactionOutput` of a `TypedTxOut`
 typedTxOutTxOut
   :: forall (a :: Type) (b :: Type)
    . DatumType a b
@@ -131,24 +149,12 @@ typedTxOutTxOut
   -> TransactionOutput
 typedTxOutTxOut (TypedTxOut { txOut }) = txOut
 
--- FIX ME: COMMENTS & EXPORTS
 -- Purescript's lack of dependent types requires this smart constructor as we
 -- cannot constrain the `TypedTxOut` datatype.
--- | Smart constructor to directly create a `TypedTxOut`, which is required
--- | because extra constraints are needed. The `TransactionOutput` is tagged by
--- | a phantom type.
-mkTypedTxOut'
-  :: forall (a :: Type) (b :: Type)
-   . DatumType a b
-  => FromData b
-  => ToData b
-  => TransactionOutput
-  -> b -- Data
-  -> TypedTxOut a b
-mkTypedTxOut' txOut dt = TypedTxOut { txOut, data: dt }
-
--- | Create a `TypedTxOut` from a network ID, a correctly-typed data
--- | script, an address, and a value.
+-- | Smart constructor to create a `TypedTxOut` from a network ID,
+-- | a correctly-typed data, script, an address, and a value. A smart
+-- | constructor is required because extra constraints are needed.
+-- | `TransactionOutput` is tagged by a phantom type.
 mkTypedTxOut
   :: forall (a :: Type) (b :: Type)
    . DatumType a b
@@ -163,10 +169,14 @@ mkTypedTxOut networkId typedVal dt amount = do
   dHash <- datumHash $ Datum $ toData dt
   let address = typedValidatorAddress networkId typedVal
   pure $ mkTypedTxOut' (wrap { address, amount, data_hash: pure dHash }) dt
+  where
+  mkTypedTxOut'
+    :: TransactionOutput
+    -> b -- Data
+    -> TypedTxOut a b
+  mkTypedTxOut' txOut dat = TypedTxOut { txOut, data: dat }
 
-data WrongOutTypeError = ExpectedScriptGotPubkey
-
--- | ExpectedPubkeyGotScript
+data WrongOutTypeError = ExpectedScriptGotPubkey -- | ExpectedPubkeyGotScript
 
 derive instance Generic WrongOutTypeError _
 derive instance Eq WrongOutTypeError
@@ -182,7 +192,7 @@ data ConnectionError
   | WrongRedeemerType PlutusData
   | WrongDatumType PlutusData
   | CannotConvertOgmiosAddress OgmiosAddress
-  | CannotConvertOgmiosDatumHash String -- FIX ME: Unify error?
+  | CannotConvertOgmiosDatumHash String
   | CannotQueryDatum DatumHash
   | CannotMakeTypedTxOut
   | UnknownRef
@@ -253,7 +263,7 @@ typeTxOut networkId typedVal { address, value, datum } = runExceptT do
   dHash <- liftM
     (CannotConvertOgmiosDatumHash datumStr)
     (ogmiosDatumHashToDatumHash datumStr)
-  pd <- ExceptT $ getDatumByHash dHash <#> note (CannotQueryDatum dHash) -- Fix me: unify error
+  pd <- ExceptT $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
   dtOut <- ExceptT $ checkDatum typedVal (wrap pd)
   liftM
     CannotMakeTypedTxOut
