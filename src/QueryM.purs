@@ -48,9 +48,9 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.RequestBody as Affjax.RequestBody
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (ReaderT, ask, asks)
-import Data.Argonaut (JsonDecodeError)
+import Data.Argonaut (class DecodeJson, JsonDecodeError)
 import Data.Argonaut as Json
-import Data.Bifunctor (bimap)
+import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Bitraversable (bisequence)
@@ -404,18 +404,19 @@ calculateMinFee tx = do
 applyArgs
   :: forall (a :: Type)
    . Newtype a PlutusScript
+  => DecodeJson a
   => a
   -> Array PlutusData
   -> QueryM (Either ClientError a)
 applyArgs script args = do
   url <- asks $ (_ <> "/apply-args") <<< mkHttpUrl <<< _.serverConfig
   liftAff (Affjax.post Affjax.ResponseFormat.json url (Just reqBody))
-    <#> case _ of
-      Left e -> Left $ ClientHttpError e
-      Right _ -> undefined -- TODO needs `DecodeJson` instance for `PlutusScript`
+    <#> either
+      (Left <<< ClientHttpError)
+      (lmap ClientDecodeJsonError <<< Json.decodeJson <<< _.body)
   where
   reqBody :: Affjax.RequestBody.RequestBody
-  reqBody = Affjax.RequestBody.Json undefined -- Needs `EncodeJson` instance for `PlutusData`
+  reqBody = Affjax.RequestBody.Json undefined -- TODO Needs `EncodeJson` instance for `PlutusData`
 
   bytes :: ByteArray
   bytes = unwrap $ unwrap script
