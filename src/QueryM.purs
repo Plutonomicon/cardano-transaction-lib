@@ -50,6 +50,7 @@ import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, ask, asks)
 import Data.Argonaut (JsonDecodeError)
 import Data.Argonaut as Json
+import Aeson as Aeson
 import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -549,7 +550,7 @@ utxoQueryDispatch
 utxoQueryDispatch ref str = do
   -- TODO: replace it with the new implementation in `Aeson`.
   -- https://github.com/Plutonomicon/cardano-browser-tx/issues/151
-  let parsed' = JsonWsp.parseJsonWspResponse =<< Helpers.parseJsonStringifyNumbers str
+  let parsed' = JsonWsp.parseJsonWspResponse =<< Aeson.parseJsonStringToAeson str
   case parsed' of
     (Left err) -> pure $ Left err
     (Right res) -> afterParse res
