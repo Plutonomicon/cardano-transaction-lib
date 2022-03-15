@@ -20,6 +20,7 @@ module Types.TypedTxOut
 -- | This module defines typed versions the transaction input and output types
 -- | to ensure that the validator script type agrees with the attached inputs
 -- | and outputs.
+-- | https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger/html/src/Ledger.Typed.Tx.html
 
 import Prelude
 import Address (ogmiosAddressToAddress)
