@@ -73,11 +73,11 @@ instance monoidTransaction :: Monoid Transaction where
     , auxiliary_data: Nothing
     }
 
--- Do we actually need this? Is it on chain to the point that it is not required.
+-- Do we actually need this?
 instance FromData Transaction where
   fromData = undefined
 
--- Do we actually need this? Is it on chain to the point that it is not required.
+-- Do we actually need this?
 instance ToData Transaction where
   toData = undefined
 
