@@ -387,17 +387,20 @@ calculateMinFee tx = do
       <<< asOneOf
       <$> Serialization.convertTransaction tx
   url <- asks $ (_ <> "/fees?tx=" <> txHex) <<< mkHttpUrl <<< _.serverConfig
-  liftAff (Affjax.get Affjax.ResponseFormat.json url) <#> case _ of
-    Left e -> Left $ ClientHttpError e
-    Right resp ->
-      bimap
-        ClientDecodeJsonError
-        -- FIXME
-        -- Add some "padding" to the fees so the transaction will submit
-        -- The server is calculating fees that are too low
-        -- See https://github.com/Plutonomicon/cardano-browser-tx/issues/123
-        (Coin <<< ((+) (BigInt.fromInt 50000)) <<< (unwrap :: FeeEstimate -> BigInt))
-        $ Json.decodeJson resp.body
+  liftAff (Affjax.get Affjax.ResponseFormat.json url)
+    <#> either
+      (Left <<< ClientHttpError)
+      ( bimap ClientDecodeJsonError coinFromEstimate
+          <<< Json.decodeJson
+          <<< _.body
+      )
+  where
+  -- FIXME
+  -- Add some "padding" to the fees so the transaction will submit
+  -- The server is calculating fees that are too low
+  -- See https://github.com/Plutonomicon/cardano-browser-tx/issues/123
+  coinFromEstimate :: FeeEstimate -> Coin
+  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 50000)) <<< unwrap
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
