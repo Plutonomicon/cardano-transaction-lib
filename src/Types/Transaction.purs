@@ -33,7 +33,6 @@ import Types.Scripts (PlutusScript)
 import Types.Value (Coin, Value)
 import Serialization.Hash (Ed25519KeyHash)
 import Types.PlutusData (PlutusData) as PD
-import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- `Transaction`
