@@ -1,7 +1,7 @@
 module QueryM
   ( DispatchIdMap
-  , FeeEstimate(FeeEstimate)
-  , FeeEstimateError(FeeEstimateHttpError, FeeEstimateDecodeJsonError)
+  , FeeEstimate(..)
+  , ClientError(..)
   , Host
   , ListenerSet
   , OgmiosListeners
@@ -14,6 +14,7 @@ module QueryM
   , ServerConfig
   , JsWebSocket
   , calculateMinFee
+  , applyArgs
   , defaultServerConfig
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
@@ -38,11 +39,13 @@ module QueryM
   ) where
 
 import Prelude
+import Undefined -- FIXME
 
 import Address (addressToOgmiosAddress)
 import Aeson (decodeAeson, parseJsonStringToAeson)
 import Affjax as Affjax
 import Affjax.ResponseFormat as Affjax.ResponseFormat
+import Affjax.RequestBody as Affjax.RequestBody
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (ReaderT, ask, asks)
 import Data.Argonaut (JsonDecodeError)
@@ -104,10 +107,11 @@ import Serialization.Address
   , BlockId
   , Slot
   )
-import Types.ByteArray (byteArrayToHex)
+import Types.ByteArray (ByteArray, byteArrayToHex)
 import Types.Datum (DatumHash)
 import Types.JsonWsp as JsonWsp
 import Types.PlutusData (PlutusData)
+import Types.Scripts (PlutusScript)
 import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.Value (Coin(Coin))
@@ -358,43 +362,63 @@ instance Json.DecodeJson FeeEstimate where
         Right
         str
 
-data FeeEstimateError
-  = FeeEstimateHttpError Affjax.Error
-  | FeeEstimateDecodeJsonError Json.JsonDecodeError
+data ClientError
+  = ClientHttpError Affjax.Error
+  | ClientDecodeJsonError Json.JsonDecodeError
 
 -- No Show instance of Affjax.Error
-instance Show FeeEstimateError where
-  show (FeeEstimateHttpError err) =
-    "(FeeEstimateHttpError "
+instance Show ClientError where
+  show (ClientHttpError err) =
+    "(ClientHttpError "
       <> Affjax.printError err
       <> ")"
-  show (FeeEstimateDecodeJsonError err) =
-    "(FeeEstimateDecodeJsonError "
+  show (ClientDecodeJsonError err) =
+    "(ClientDecodeJsonError "
       <> show err
       <> ")"
 
 -- Query the Haskell server for the minimum transaction fee
 calculateMinFee
-  :: Transaction.Transaction -> QueryM (Either FeeEstimateError Coin)
+  :: Transaction.Transaction -> QueryM (Either ClientError Coin)
 calculateMinFee tx = do
-  url <- asks $ mkHttpUrl <<< _.serverConfig
   txHex <- liftEffect $
     byteArrayToHex
       <<< Serialization.toBytes
       <<< asOneOf
       <$> Serialization.convertTransaction tx
-  liftAff (Affjax.get Affjax.ResponseFormat.json $ url <> "/fees?tx=" <> txHex)
+  url <- asks $ (_ <> "/fees?tx=" <> txHex) <<< mkHttpUrl <<< _.serverConfig
+  liftAff (Affjax.get Affjax.ResponseFormat.json url) <#> case _ of
+    Left e -> Left $ ClientHttpError e
+    Right resp ->
+      bimap
+        ClientDecodeJsonError
+        -- FIXME
+        -- Add some "padding" to the fees so the transaction will submit
+        -- The server is calculating fees that are too low
+        -- See https://github.com/Plutonomicon/cardano-browser-tx/issues/123
+        (Coin <<< ((+) (BigInt.fromInt 50000)) <<< (unwrap :: FeeEstimate -> BigInt))
+        $ Json.decodeJson resp.body
+
+-- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
+-- | returning an updated script with the provided arguments applied
+applyArgs
+  :: forall (a :: Type)
+   . Newtype a PlutusScript
+  => a
+  -> Array PlutusData
+  -> QueryM (Either ClientError a)
+applyArgs script args = do
+  url <- asks $ (_ <> "/apply-args") <<< mkHttpUrl <<< _.serverConfig
+  liftAff (Affjax.post Affjax.ResponseFormat.json url (Just reqBody))
     <#> case _ of
-      Left e -> Left $ FeeEstimateHttpError e
-      Right resp ->
-        bimap
-          FeeEstimateDecodeJsonError
-          -- FIXME
-          -- Add some "padding" to the fees so the transaction will submit
-          -- The server is calculating fees that are too low
-          -- See https://github.com/Plutonomicon/cardano-browser-tx/issues/123
-          (Coin <<< ((+) (BigInt.fromInt 50000)) <<< (unwrap :: FeeEstimate -> BigInt))
-          $ Json.decodeJson resp.body
+      Left e -> Left $ ClientHttpError e
+      Right _ -> undefined -- TODO needs `DecodeJson` instance for `PlutusScript`
+  where
+  reqBody :: Affjax.RequestBody.RequestBody
+  reqBody = Affjax.RequestBody.Json undefined -- Needs `EncodeJson` instance for `PlutusData`
+
+  bytes :: ByteArray
+  bytes = unwrap $ unwrap script
 
 --------------------------------------------------------------------------------
 -- OgmiosWebSocket Setup and PrimOps
