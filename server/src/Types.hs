@@ -78,6 +78,12 @@ instance FromJSON Fee where
 
 data ApplyArgsRequest = ApplyArgsRequest
   { script :: Ledger.Script
+  -- FIXME
+  -- Need to use a newtype around @Data@ with its own @FromJSON@ instance
+  --
+  -- If the client sends regular JSON, there will be precision loss in integral
+  -- values; instead numbers must be stringified during encoding (the PS @Json@
+  -- type is just a wrapper around the JS value)
   , args :: [Ledger.Data]
   }
   deriving stock (Show, Eq, Generic)
