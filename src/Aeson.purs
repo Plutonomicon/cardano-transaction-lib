@@ -17,27 +17,37 @@
 -- | Known limitations: does not support Record decoding (no GDecodeJson-like
 -- | machinery). But it is possible to decode records manually, because
 -- | `getField` is implemented.
--- |
--- | Does not support optional fields because they're not needeed yet, but this
--- |  functionality can be adapted from argonaut similarly to `getField`.
 module Aeson
   ( NumberIndex
   , class DecodeAeson
   , class DecodeAesonField
   , class GDecodeAeson
   , Aeson
-  , AesonCases
   , (.:)
+  , (.:?)
+  , AesonCases
   , caseAeson
+  , caseAesonArray
+  , caseAesonBoolean
+  , caseAesonNull
+  , caseAesonObject
+  , caseAesonString
+  , caseAesonNumber
+  , caseAesonUInt
+  , caseAesonBigInt
   , constAesonCases
   , decodeAeson
   , decodeAesonField
-  , gDecodeAeson
   , decodeJsonString
+  , gDecodeAeson
   , getField
+  , getFieldOptional
+  , getFieldOptional'
   , getNestedAeson
+  , getNumberIndex
   , jsonToAeson
   , parseJsonStringToAeson
+  , stringifyAeson
   , toObject
   , toStringifiedNumbersJson
   ) where
@@ -61,6 +71,7 @@ import Data.Argonaut
   , fromObject
   , jsonNull
   , stringify
+  , isNull
   )
 import Data.Argonaut.Encode.Encoders (encodeBoolean, encodeString)
 import Data.Argonaut.Parser (jsonParser)
@@ -76,6 +87,8 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Symbol (class IsSymbol, reflectSymbol)
 import Data.Traversable (class Traversable, for)
 import Data.Typelevel.Undefined (undefined)
+import Data.UInt (UInt)
+import Data.UInt as UInt
 import Foreign.Object (Object)
 import Foreign.Object as FO
 import Partial.Unsafe (unsafePartial)
@@ -89,6 +102,12 @@ newtype AesonPatchedJson = AesonPatchedJson Json
 
 -- | A piece of JSON where all numbers are extracted into `NumberIndex`.
 newtype Aeson = Aeson { patchedJson :: AesonPatchedJson, numberIndex :: NumberIndex }
+
+instance Eq Aeson where
+  eq a b = stringifyAeson a == stringifyAeson b
+
+instance Show Aeson where
+  show = stringifyAeson
 
 -- | A list of numbers extracted from Json, as they appear in the payload.
 type NumberIndex = Array String
@@ -107,6 +126,13 @@ parseJsonStringToAeson payload = do
   let { patchedPayload, numberIndex } = parseJsonExtractingIntegers payload
   patchedJson <- lmap (const MissingValue) $ AesonPatchedJson <$> jsonParser patchedPayload
   pure $ Aeson { numberIndex, patchedJson }
+
+-------- Stringifying: Aeson -> String
+
+foreign import stringifyAeson_ :: NumberIndex -> AesonPatchedJson -> String
+
+stringifyAeson :: Aeson -> String
+stringifyAeson (Aeson { patchedJson, numberIndex }) = stringifyAeson_ numberIndex patchedJson
 
 -------- Json <-> Aeson --------
 
@@ -134,9 +160,11 @@ jsonToAeson = stringify >>> decodeJsonString >>> fromRight shouldNotHappen
   -- valid json should always decode without errors
   shouldNotHappen = undefined
 
+getNumberIndex :: Aeson -> NumberIndex
+getNumberIndex (Aeson { numberIndex }) = numberIndex
+
 -------- Aeson manipulation and field accessors --------
 
--- TODO: add getFieldOptional if ever needed.
 getField
   :: forall (a :: Type)
    . DecodeAeson a
@@ -144,21 +172,69 @@ getField
   -> String
   -> Either JsonDecodeError a
 getField aesonObject field = getField' decodeAeson aesonObject field
+  where
+  -- | Adapted from `Data.Argonaut.Decode.Decoders`
+  getField'
+    :: (Aeson -> Either JsonDecodeError a)
+    -> Object Aeson
+    -> String
+    -> Either JsonDecodeError a
+  getField' decoder obj str =
+    maybe
+      (Left $ AtKey str MissingValue)
+      (lmap (AtKey str) <<< decoder)
+      (FO.lookup str obj)
 
 infix 7 getField as .:
 
--- | Adapted from `Data.Argonaut.Decode.Decoders`
-getField'
-  :: forall (a :: Type)
-   . (Aeson -> Either JsonDecodeError a)
-  -> Object Aeson
-  -> String
-  -> Either JsonDecodeError a
-getField' decoder obj str =
-  maybe
-    (Left $ AtKey str MissingValue)
-    (lmap (AtKey str) <<< decoder)
-    (FO.lookup str obj)
+-- | Attempt to get the value for a given key on an `Object Aeson`.
+-- |
+-- | The result will be `Right Nothing` if the key and value are not present,
+-- | but will fail if the key is present but the value cannot be converted to the right type.
+-- |
+-- | This function will treat `null` as a value and attempt to decode it into your desired type.
+-- | If you would like to treat `null` values the same as absent values, use
+-- | `getFieldOptional'` (`.:?`) instead.
+getFieldOptional :: forall (a :: Type). DecodeAeson a => Object Aeson -> String -> Either JsonDecodeError (Maybe a)
+getFieldOptional = getFieldOptional_ decodeAeson
+  where
+  getFieldOptional_
+    :: (Aeson -> Either JsonDecodeError a)
+    -> Object Aeson
+    -> String
+    -> Either JsonDecodeError (Maybe a)
+  getFieldOptional_ decoder obj str =
+    maybe (pure Nothing) (map Just <<< decode) (FO.lookup str obj)
+    where
+    decode = lmap (AtKey str) <<< decoder
+
+infix 7 getFieldOptional as .:!
+
+-- | Attempt to get the value for a given key on an `Object Aeson`.
+-- |
+-- | The result will be `Right Nothing` if the key and value are not present,
+-- | or if the key is present and the value is `null`.
+-- |
+-- | Use this accessor if the key and value are optional in your object.
+-- | If the key and value are mandatory, use `getField` (`.:`) instead.
+getFieldOptional' :: forall (a :: Type). DecodeAeson a => Object Aeson -> String -> Either JsonDecodeError (Maybe a)
+getFieldOptional' = getFieldOptional'_ decodeAeson
+  where
+  getFieldOptional'_
+    :: (Aeson -> Either JsonDecodeError a)
+    -> Object Aeson
+    -> String
+    -> Either JsonDecodeError (Maybe a)
+  getFieldOptional'_ decoder obj str =
+    maybe (pure Nothing) decode (FO.lookup str obj)
+    where
+    decode aeson@(Aeson { patchedJson: AesonPatchedJson json }) =
+      if isNull json then
+        pure Nothing
+      else
+        Just <$> (lmap (AtKey str) <<< decoder) aeson
+
+infix 7 getFieldOptional' as .:?
 
 -- | Returns an Aeson available under a sequence of keys in given Aeson.
 -- | If not possible returns JsonDecodeError.
@@ -184,7 +260,7 @@ type AesonCases a =
   }
 
 caseAeson
-  :: forall a
+  :: forall (a :: Type)
    . AesonCases a
   -> Aeson
   -> a
@@ -220,6 +296,39 @@ constAesonCases v =
 toObject :: Aeson -> Maybe (Object Aeson)
 toObject =
   caseAeson $ constAesonCases Nothing # _ { caseObject = Just }
+
+caseAesonObject :: forall (a :: Type). a -> (Object Aeson -> a) -> Aeson -> a
+caseAesonObject def f = caseAeson (constAesonCases def # _ { caseObject = f })
+
+caseAesonString :: forall (a :: Type). a -> (String -> a) -> Aeson -> a
+caseAesonString def f = caseAeson (constAesonCases def # _ { caseString = f })
+
+caseAesonArray :: forall (a :: Type). a -> (Array Aeson -> a) -> Aeson -> a
+caseAesonArray def f = caseAeson (constAesonCases def # _ { caseArray = f })
+
+caseAesonBoolean :: forall (a :: Type). a -> (Boolean -> a) -> Aeson -> a
+caseAesonBoolean def f = caseAeson (constAesonCases def # _ { caseBoolean = f })
+
+-- | String representation is used to allow users to choose numeric representation downstream.
+caseAesonNumber :: forall (a :: Type). a -> (String -> a) -> Aeson -> a
+caseAesonNumber def f = caseAeson (constAesonCases def # _ { caseNumber = f })
+
+-- | `caseAesonNumber` specialized to `UInt` (fails if no parse)
+caseAesonUInt :: forall (a :: Type). a -> (UInt -> a) -> Aeson -> a
+caseAesonUInt def f = caseAesonNumber def \str ->
+  case UInt.fromString str of
+    Nothing -> def
+    Just res -> f res
+
+-- | `caseAesonNumber` specialized to `BigInt` (fails if no parse)
+caseAesonBigInt :: forall (a :: Type). a -> (BigInt -> a) -> Aeson -> a
+caseAesonBigInt def f = caseAesonNumber def \str ->
+  case BigInt.fromString str of
+    Nothing -> def
+    Just res -> f res
+
+caseAesonNull :: forall (a :: Type). a -> (Unit -> a) -> Aeson -> a
+caseAesonNull def f = caseAeson (constAesonCases def # _ { caseNull = f })
 
 -------- Decode helpers --------
 

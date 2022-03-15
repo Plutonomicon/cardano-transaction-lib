@@ -12,7 +12,6 @@ import Test.Spec.Runner (runSpec)
 import Test.Spec.Reporter (consoleReporter)
 import Test.ByteArray as ByteArrayTest
 import Test.Parser as ParseTest
-import Test.Helpers as Helpers
 import Test.AffInterface as AffInterface
 import Test.Serialization.Address as Serialization.Address
 import Test.Serialization.Hash as Serialization.Hash
@@ -52,7 +51,6 @@ testPlan = do
   Data.suite
   Aeson.suite
   ByteArrayTest.suite
-  Helpers.suite
   ParseTest.suite
   Serialization.suite
   Serialization.Address.suite
