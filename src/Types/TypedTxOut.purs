@@ -1,8 +1,7 @@
 module Types.TypedTxOut
-  ( ConnectionError(..)
+  ( TypeCheckError(..)
   , TypedTxOut
   , TypedTxOutRef
-  , WrongOutTypeError(..)
   , mkTypedTxOut
   , typeTxOut
   , typeTxOutRef
@@ -17,6 +16,10 @@ module Types.TypedTxOut
   ) where
 
 -- DO NOT export data constructors for `TypedTxOut` and `TypedTxOutRef`.
+
+-- | This module defines typed versions the transaction input and output types
+-- | to ensure that the validator script type agrees with the attached inputs
+-- | and outputs.
 
 import Prelude
 import Address (ogmiosAddressToAddress)
@@ -176,19 +179,10 @@ mkTypedTxOut networkId typedVal dt amount = do
     -> TypedTxOut a b
   mkTypedTxOut' txOut dat = TypedTxOut { txOut, data: dat }
 
-data WrongOutTypeError = ExpectedScriptGotPubkey -- | ExpectedPubkeyGotScript
-
-derive instance Generic WrongOutTypeError _
-derive instance Eq WrongOutTypeError
-derive instance Ord WrongOutTypeError
-
-instance Show WrongOutTypeError where
-  show = genericShow
-
 -- | An error we can get while trying to type an existing transaction part.
-data ConnectionError
+data TypeCheckError
   = WrongValidatorAddress Address Address
-  | WrongOutType WrongOutTypeError
+  | ExpectedScriptGotPubkey
   | WrongRedeemerType PlutusData
   | WrongDatumType PlutusData
   | CannotConvertOgmiosAddress OgmiosAddress
@@ -197,11 +191,11 @@ data ConnectionError
   | CannotMakeTypedTxOut
   | UnknownRef
 
-derive instance Generic ConnectionError _
-derive instance Eq ConnectionError
-derive instance Ord ConnectionError
+derive instance Generic TypeCheckError _
+derive instance Eq TypeCheckError
+derive instance Ord TypeCheckError
 
-instance Show ConnectionError where
+instance Show TypeCheckError where
   show = genericShow
 
 -- | Checks that the given validator hash is consistent with the actual validator.
@@ -211,7 +205,7 @@ checkValidatorAddress
   => NetworkId
   -> TypedValidator a
   -> Address
-  -> m (Either ConnectionError Unit)
+  -> m (Either TypeCheckError Unit)
 checkValidatorAddress networkId typedVal actualAddr = runExceptT do
   let expectedAddr = typedValidatorAddress networkId typedVal
   unless (expectedAddr == actualAddr)
@@ -226,7 +220,7 @@ checkValidatorAddress networkId typedVal actualAddr = runExceptT do
 --   => FromData b
 --   => TypedValidator a
 --   -> Redeemer
---   -> m (Either ConnectionError b)
+--   -> m (Either TypeCheckError b)
 -- checkRedeemer _ (Redeemer pd) =
 --   runExceptT $ liftM (WrongRedeemerType pd) (fromData pd :: Maybe b)
 
@@ -238,7 +232,7 @@ checkDatum
   => FromData b
   => TypedValidator a
   -> Datum
-  -> m (Either ConnectionError b)
+  -> m (Either TypeCheckError b)
 checkDatum _ (Datum pd) =
   runExceptT $ liftM (WrongDatumType pd) (fromData pd :: Maybe b)
 
@@ -252,10 +246,10 @@ typeTxOut
   => NetworkId
   -> TypedValidator a
   -> OgmiosTxOut
-  -> QueryM (Either ConnectionError (TypedTxOut a b))
+  -> QueryM (Either TypeCheckError (TypedTxOut a b))
 typeTxOut networkId typedVal { address, value, datum } = runExceptT do
   -- Assume `Nothing` is a public key.
-  datumStr <- liftM (WrongOutType ExpectedScriptGotPubkey) datum
+  datumStr <- liftM ExpectedScriptGotPubkey datum
   addr <- liftM
     (CannotConvertOgmiosAddress address)
     (ogmiosAddressToAddress address)
@@ -282,7 +276,7 @@ typeTxOutRef
   -> (TransactionInput -> Maybe OgmiosTxOut)
   -> TypedValidator a
   -> TransactionInput
-  -> QueryM (Either ConnectionError (TypedTxOutRef a b))
+  -> QueryM (Either TypeCheckError (TypedTxOutRef a b))
 typeTxOutRef networkId lookupRef typedVal txOutRef = runExceptT do
   out <- liftM UnknownRef (lookupRef txOutRef)
   typedTxOut <- ExceptT $ typeTxOut networkId typedVal out

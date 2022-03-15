@@ -9,7 +9,6 @@ module Types.TypedValidator
   , generalise
   , typedValidatorHash
   , typedValidatorScript
-  , wrapValidator
   ) where
 
 import Prelude
@@ -18,8 +17,6 @@ import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Effect (Effect)
-import FromData (class FromData, fromData)
-import Helpers (fromJustEff)
 import Types.Any (Any)
 import Types.PlutusData (PlutusData)
 import Types.Scripts
@@ -73,15 +70,16 @@ type ValidatorType (a :: Type) (b :: Type) =
 type WrappedValidatorType =
   PlutusData -> PlutusData -> PlutusData -> Effect Unit
 
-wrapValidator
-  :: forall (d :: Type) (r :: Type)
-   . FromData d
-  => FromData r
-  => (d -> r -> Transaction -> Boolean)
-  -> WrappedValidatorType
-wrapValidator f d r p =
-  map (const unit) $ fromJustEff "Failed wrapValidator" $
-    f <$> fromData d <*> fromData r <*> fromData p
+-- Would require `ToData/FromData` for `Transaction`:
+-- wrapValidator
+--   :: forall (d :: Type) (r :: Type)
+--    . FromData d
+--   => FromData r
+--   => (d -> r -> Transaction -> Boolean)
+--   -> WrappedValidatorType
+-- wrapValidator f d r p =
+--   map (const unit) $ fromJustEff "Failed wrapValidator" $
+--     f <$> fromData d <*> fromData r <*> fromData p
 
 -- Plutus rev: cc72a56eafb02333c96f662581b57504f8f8992f via Plutus-apps (localhost): abe4785a4fc4a10ba0c4e6417f0ab9f1b4169b26
 -- | A typed validator script with its `ValidatorScript` and `Address`.
@@ -127,7 +125,7 @@ forwardingMintingPolicy = _.forwardingMPS <<< unwrap
 
 -- We have a few functions, I'm not sure if we even need these for off chain
 -- code:
--- -- Broken, see below (we need some notion of `applyCode`)
+-- -- Broken, see below (we need some notion of `applyCode`) https://github.com/Plutonomicon/cardano-browser-tx/issues/24
 -- -- | Make a `TypedValidator` (with no type constraints) from an untyped
 -- -- |`Validator` script.
 -- unsafeMkTypedValidator :: Scripts.Validator -> Maybe (TypedValidator Any)

@@ -115,7 +115,7 @@ import Types.TxConstraints
   )
 
 import Types.TypedTxOut
-  ( ConnectionError
+  ( TypeCheckError
   , mkTypedTxOut
   , typedTxOutDatumHash
   , typedTxOutRefValue
@@ -570,7 +570,7 @@ addOwnOutput (OutputConstraint { datum, value }) = runExceptT do
   _valueSpentBalancesOutputs <>= provide value
 
 data MkUnbalancedTxError
-  = TypeCheckFailed ConnectionError
+  = TypeCheckFailed TypeCheckError
   | ModifyTx ModifyTxError
   | TxOutRefNotFound TxOutRef
   | TxOutRefWrongType TxOutRef
