@@ -1,3 +1,8 @@
+-- | The set of wallets utxos selected as inputs for any subsequent transaction
+-- | might actually be already submitted by a previous one and pending
+-- | to be spent.
+-- | This module provides a simple, in-memory cache that helps with keeping
+-- | submitted utxos in-check.
 module UsedTxOuts
   ( UsedTxOuts(UsedTxOuts)
   , TxOutRefCache
@@ -18,17 +23,26 @@ import Data.Foldable (class Foldable, foldr)
 import Data.Function (($))
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just), fromMaybe, isJust)
+import Data.Maybe
+  ( Maybe(Just, Nothing)
+  , fromMaybe
+  , isJust
+  )
 import Data.Newtype (class Newtype, unwrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.UInt (UInt)
 import Data.Unit (Unit)
-import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Class
+  ( class MonadEffect
+  , liftEffect
+  )
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
-import Helpers (never)
-import Types.Transaction (Transaction, TransactionHash)
+import Types.Transaction
+  ( Transaction
+  , TransactionHash
+  )
 
 type TxOutRefCache = Map TransactionHash (Set UInt)
 
@@ -85,7 +99,9 @@ unlockTxOutRefs txOutRefs' =
     updateCache :: TxOutRefCache -> TxOutRefCache
     updateCache cache = foldr
       ( \{ transaction_id, index } ->
-          Map.update (\old -> never Set.isEmpty $ Set.delete index old) transaction_id
+          Map.update
+            (Set.delete index >>> \s -> if Set.isEmpty s then Nothing else Just s)
+            transaction_id
       )
       cache
       txOutRefs'

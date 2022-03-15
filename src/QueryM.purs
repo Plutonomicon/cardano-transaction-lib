@@ -1,3 +1,4 @@
+-- | TODO docstring
 module QueryM
   ( DispatchIdMap
   , FeeEstimate(FeeEstimate)

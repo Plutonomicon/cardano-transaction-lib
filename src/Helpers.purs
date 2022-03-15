@@ -14,7 +14,6 @@ module Helpers
   , liftMWith
   , filterMapWithKeyM
   , maybeArrayMerge
-  , never
   , parseJsonStringifyNumbers
   ) where
 
@@ -134,14 +133,6 @@ appendRightHashMap
   -> HashMap k v
   -> HashMap k v
 appendRightHashMap = HashMap.unionWith (flip const)
-
--- | Ensures that given predicate does not hold for a value.
-never
-  :: forall (a :: Type)
-   . (a -> Boolean)
-  -> a
-  -> Maybe a
-never p a = if p a then Nothing else Just a
 
 filterMapWithKeyM
   :: forall (m :: Type -> Type) (k :: Type) (v :: Type)
