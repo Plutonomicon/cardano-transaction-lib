@@ -6,15 +6,15 @@ module BalanceTx
   , BalanceTxInsError(..)
   , CannotMinusError(..)
   , Expected(..)
+  , GetPublicKeyTransactionInputError(..)
   , GetWalletAddressError(..)
   , GetWalletCollateralError(..)
   , ImpossibleError(..)
   , ReturnAdaChangeError(..)
   , SignTxError(..)
-  , GetPublicKeyTransactionInputError(..)
   , UtxoIndexToUtxoError(..)
   , UtxosAtError(..)
-  , balanceTxM
+  , balanceTx
   ) where
 
 import Prelude
@@ -248,8 +248,8 @@ calculateMinFee' = calculateMinFee >>> map (rmap unwrap)
 -- | Balances an unbalanced transaction. For submitting a tx via Nami, the
 -- utxo set shouldn't include the collateral which is vital for balancing.
 -- In particular, the transaction inputs must not include the collateral.
-balanceTxM :: UnbalancedTx -> QueryM (Either BalanceTxError Transaction)
-balanceTxM (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) =
+balanceTx :: UnbalancedTx -> QueryM (Either BalanceTxError Transaction)
+balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) =
   runExceptT do
     -- Get own wallet address, collateral and utxo set:
     ownAddr <- ExceptT $ getWalletAddress <#>

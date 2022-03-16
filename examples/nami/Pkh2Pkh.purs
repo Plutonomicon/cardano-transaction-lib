@@ -35,7 +35,7 @@ module Examples.Nami.Pkh2Pkh (main) where
 
 import Prelude
 
-import BalanceTx (balanceTxM)
+import BalanceTx (balanceTx)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader (runReaderT)
 import Data.Array as Array
@@ -92,7 +92,7 @@ buildAndSubmit = mthrow "Failed to submit transaction" $
 
 buildTransaction :: QueryM Transaction
 buildTransaction = either (throw <<< show) pure
-  =<< balanceTxM
+  =<< balanceTx
   =<< buildUnbalancedTransaction
 
 buildUnbalancedTransaction :: QueryM UnbalancedTx

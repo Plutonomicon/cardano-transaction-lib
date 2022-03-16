@@ -44,4 +44,5 @@ instance Show RedeemerHash where
 -- | Converts Plutus-style `Redeemer` to internal (non-CSL) `RedeemerHash`.
 -- | This is a duplicate of `datumHash`.
 redeemerHash :: Redeemer -> Maybe RedeemerHash
-redeemerHash = map (wrap <<< toBytes <<< asOneOf) <<< convertPlutusData <<< unwrap
+redeemerHash =
+  map (wrap <<< toBytes <<< asOneOf) <<< convertPlutusData <<< unwrap

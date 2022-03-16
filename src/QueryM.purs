@@ -605,7 +605,7 @@ messageFoldF msg acc' func = do
 --------------------------------------------------------------------------------
 -- If required, we can change to Either with more granular error handling.
 -- | Gets utxos at an (internal) `Address` in terms of (internal) `Transaction.Types`.
--- Results may vary depending on `Wallet` type.
+-- | Results may vary depending on `Wallet` type.
 utxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
 utxosAt addr = asks _.wallet >>= maybe (pure Nothing) (utxosAtByWallet addr)
   where
