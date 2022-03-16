@@ -4,7 +4,6 @@ module Types.Scripts
   , PlutusScript(..)
   , StakeValidator(..)
   , StakeValidatorHash(..)
-  , TypedValidator(..)
   , Validator(..)
   , ValidatorHash(..)
   ) where
@@ -65,23 +64,6 @@ derive newtype instance Eq StakeValidator
 derive newtype instance Ord StakeValidator
 
 instance Show StakeValidator where
-  show = genericShow
-
--- Plutus rev: cc72a56eafb02333c96f662581b57504f8f8992f via Plutus-apps (localhost): abe4785a4fc4a10ba0c4e6417f0ab9f1b4169b26
--- | A typed validator script with its `ValidatorScript` and `Address`.
-newtype TypedValidator (a :: Type) = TypedValidator
-  { validator :: Validator
-  , validatorHash :: ValidatorHash
-  , forwardingMPS :: MintingPolicy
-  , forwardingMPSHash :: MintingPolicyHash
-  -- The hash of the minting policy that checks whether the validator
-  -- is run in this transaction
-  }
-
-derive instance Generic (TypedValidator a) _
-derive newtype instance Eq (TypedValidator a)
-
-instance Show (TypedValidator a) where
   show = genericShow
 
 --------------------------------------------------------------------------------

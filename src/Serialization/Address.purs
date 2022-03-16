@@ -168,6 +168,9 @@ showVia nm toShowable addr = "(" <> nm <> " " <> show (toShowable addr) <> ")"
 instance Eq Address where
   eq = eq `on` addressBytes
 
+instance Ord Address where
+  compare = compare `on` addressBytes
+
 foreign import data BaseAddress :: Type
 
 instance Show BaseAddress where

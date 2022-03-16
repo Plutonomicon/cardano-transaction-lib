@@ -61,7 +61,7 @@ instance FromData ByteArray where
   fromData _ = Nothing
 
 instance FromData PlutusData where
-  fromData pd = Just pd
+  fromData = Just
 
 fromDataUnfoldable :: forall (a :: Type) (t :: Type -> Type). Unfoldable t => FromData a => PlutusData -> Maybe (t a)
 fromDataUnfoldable (List entries) = Array.toUnfoldable <$> traverse fromData entries

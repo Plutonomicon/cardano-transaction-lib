@@ -24,17 +24,20 @@ import QueryM
   , getWalletCollateral
   , defaultServerConfig
   )
+import UsedTxOuts (newUsedTxOuts)
 import Wallet (mkNamiWalletAff)
 
 main :: Effect Unit
 main = launchAff_ $ do
   wallet <- Just <$> mkNamiWalletAff
+  usedTxOuts <- newUsedTxOuts
   runReaderT
     walletActions
     { datumCacheWs: {-TODO-}  undefined
     , ogmiosWs: {-TODO-}  undefined
     , wallet
     , serverConfig: defaultServerConfig
+    , usedTxOuts
     }
   where
   walletActions :: QueryM Unit

@@ -27,10 +27,10 @@ import Types.Scripts
   , PlutusScript
   , StakeValidator
   , StakeValidatorHash
-  , TypedValidator(TypedValidator)
   , Validator
   , ValidatorHash
   )
+import Types.TypedValidator (TypedValidator(TypedValidator))
 
 -- | Helpers for `PlutusScript` and `ScriptHash` newtype wrappers, separate from
 -- | the data type definitions to prevent cylic dependencies.
