@@ -105,6 +105,7 @@ test-suite test
     , hspec-core
     , http-client
     , http-types
+    , plutus-ledger-api
     , servant
     , servant-client
     , servant-server
