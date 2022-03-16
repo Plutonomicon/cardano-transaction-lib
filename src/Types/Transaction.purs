@@ -6,8 +6,8 @@ import Control.Apply (lift2)
 import Data.Array (union)
 import Data.BigInt (BigInt, toNumber)
 import Data.Generic.Rep (class Generic)
-import Data.Hashable (class Hashable, hash)
 import Data.HashMap (HashMap, empty)
+import Data.Hashable (class Hashable, hash)
 import Data.Lens (lens')
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
@@ -25,13 +25,13 @@ import Data.UInt (UInt)
 import FromData (class FromData)
 import Helpers ((</>), (<<>>), appendMap, appendRightHashMap)
 import Serialization.Address (Address, NetworkId, RewardAddress, Slot(Slot))
+import Serialization.Hash (Ed25519KeyHash)
 import ToData (class ToData)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
 import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
 import Types.Value (Coin, Value)
-import Serialization.Hash (Ed25519KeyHash)
 import Types.PlutusData (PlutusData) as PD
 
 --------------------------------------------------------------------------------
@@ -47,9 +47,10 @@ newtype Transaction = Transaction
   , auxiliary_data :: Maybe AuxiliaryData
   }
 
-derive instance newtypeTransaction :: Newtype Transaction _
+derive instance Eq Transaction
+derive instance Newtype Transaction _
 
-instance semigroupTransaction :: Semigroup Transaction where
+instance Semigroup Transaction where
   append (Transaction tx) (Transaction tx') =
     Transaction
       { body: txCheck tx.body <> txCheck' tx'.body
@@ -64,7 +65,7 @@ instance semigroupTransaction :: Semigroup Transaction where
     txCheck' :: forall (m :: Type). Monoid m => m -> m
     txCheck' = guard tx'.is_valid
 
-instance monoidTransaction :: Monoid Transaction where
+instance Monoid Transaction where
   mempty = Transaction
     { body: mempty
     , witness_set: mempty
@@ -114,8 +115,8 @@ newtype TxBody = TxBody
   , network_id :: Maybe NetworkId
   }
 
-derive instance newtypeTxBody :: Newtype TxBody _
-derive newtype instance eqTxBody :: Eq TxBody
+derive instance Newtype TxBody _
+derive newtype instance Eq TxBody
 
 instance semigroupTxBody :: Semigroup TxBody where
   append (TxBody txB) (TxBody txB') = TxBody
@@ -166,10 +167,10 @@ derive newtype instance Eq ScriptDataHash
 
 newtype Mint = Mint Value
 
-derive instance newtypeMint :: Newtype Mint _
-derive newtype instance eqMint :: Eq Mint
-derive newtype instance semigroupMint :: Semigroup Mint
-derive newtype instance monoidMint :: Monoid Mint
+derive instance Newtype Mint _
+derive newtype instance Eq Mint
+derive newtype instance Semigroup Mint
+derive newtype instance Monoid Mint
 
 newtype AuxiliaryDataHash = AuxiliaryDataHash String
 
@@ -183,14 +184,14 @@ type Update =
 
 newtype ProposedProtocolParameterUpdates = ProposedProtocolParameterUpdates (Map GenesisHash ProtocolParamUpdate)
 
-derive instance newtypeProposedProtocolParameterUpdates :: Newtype ProposedProtocolParameterUpdates _
+derive instance Newtype ProposedProtocolParameterUpdates _
 
-derive newtype instance eqProposedProtocolParameterUpdates :: Eq ProposedProtocolParameterUpdates
+derive newtype instance Eq ProposedProtocolParameterUpdates
 
 newtype GenesisHash = GenesisHash String
 
-derive instance newtypeGenesisHash :: Newtype GenesisHash _
-derive newtype instance eqGenesisHash :: Eq GenesisHash
+derive instance Newtype GenesisHash _
+derive newtype instance Eq GenesisHash
 
 type ProtocolParamUpdate =
   { minfee_a :: Maybe Coin
@@ -231,8 +232,8 @@ type SubCoin = UnitInterval
 
 newtype Costmdls = Costmdls (Map Language CostModel)
 
-derive instance newtypeCostmdls :: Newtype Costmdls _
-derive newtype instance eqCostmdls :: Eq Costmdls
+derive instance Newtype Costmdls _
+derive newtype instance Eq Costmdls
 
 data Language = PlutusV1
 
@@ -241,8 +242,8 @@ derive instance Ord Language
 
 newtype CostModel = CostModel (Array UInt)
 
-derive instance newtypeCostModel :: Newtype CostModel _
-derive newtype instance eqCostModel :: Eq CostModel
+derive instance Newtype CostModel _
+derive newtype instance Eq CostModel
 
 type ProtocolVersion =
   { major :: UInt
@@ -251,8 +252,8 @@ type ProtocolVersion =
 
 newtype Nonce = Nonce String
 
-derive instance newtypeNonce :: Newtype Nonce _
-derive newtype instance eqNonce :: Eq Nonce
+derive instance Newtype Nonce _
+derive newtype instance Eq Nonce
 
 type UnitInterval =
   { numerator :: BigInt
@@ -261,8 +262,8 @@ type UnitInterval =
 
 newtype Epoch = Epoch UInt
 
-derive instance newtypeEpoch :: Newtype Epoch _
-derive newtype instance eqEpoch :: Eq Epoch
+derive instance Newtype Epoch _
+derive newtype instance Eq Epoch
 
 data Certificate
   = StakeRegistration
@@ -273,7 +274,7 @@ data Certificate
   | GenesisKeyDelegation
   | MoveInstantaneousRewardsCert
 
-derive instance eqCertificate :: Eq Certificate
+derive instance Eq Certificate
 
 --------------------------------------------------------------------------------
 -- `TxBody` Lenses
@@ -400,8 +401,8 @@ type BootstrapWitness =
 
 newtype RequiredSigner = RequiredSigner Vkey
 
-derive instance newtypeRequiredSigner :: Newtype RequiredSigner _
-derive newtype instance eqRequiredSigner :: Eq RequiredSigner
+derive instance Newtype RequiredSigner _
+derive newtype instance Eq RequiredSigner
 
 newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
@@ -456,7 +457,7 @@ newtype AuxiliaryData = AuxiliaryData
   , plutus_scripts :: Maybe (Array PlutusScript)
   }
 
-derive newtype instance eqAuxiliaryData :: Eq AuxiliaryData
+derive newtype instance Eq AuxiliaryData
 
 instance semigroupAuxiliaryData :: Semigroup AuxiliaryData where
   append (AuxiliaryData ad) (AuxiliaryData ad') =
@@ -476,9 +477,9 @@ instance monoidAuxiliaryData :: Monoid AuxiliaryData where
 newtype GeneralTransactionMetadata =
   GeneralTransactionMetadata (HashMap TransactionMetadatumLabel TransactionMetadatum)
 
-derive instance newtypeGeneralTransactionMetadata :: Newtype GeneralTransactionMetadata _
+derive instance Newtype GeneralTransactionMetadata _
 
-derive newtype instance eqGeneralTransactionMetadata :: Eq GeneralTransactionMetadata
+derive newtype instance Eq GeneralTransactionMetadata
 
 -- This Semigroup instance simply takes the Last value for duplicate keys
 -- to avoid a Semigroup instance for TransactionMetadatum.
@@ -494,9 +495,9 @@ instance monoidGeneralTransactionMetadata :: Monoid GeneralTransactionMetadata w
 
 newtype TransactionMetadatumLabel = TransactionMetadatumLabel BigInt
 
-derive instance newtypeTransactionMetadatumLabel :: Newtype TransactionMetadatumLabel _
+derive instance Newtype TransactionMetadatumLabel _
 
-derive newtype instance eqTransactionMetadatumLabel :: Eq TransactionMetadatumLabel
+derive newtype instance Eq TransactionMetadatumLabel
 
 -- Hashable requires a = b implies hash a = hash b so I think losing precision might be okay?
 instance hashableTransactionMetadatumLabel :: Hashable TransactionMetadatumLabel where
@@ -509,7 +510,7 @@ data TransactionMetadatum
   | Bytes ByteArray
   | Text String
 
-derive instance eqTransactionMetadatum :: Eq TransactionMetadatum
+derive instance Eq TransactionMetadatum
 
 data NativeScript
   = ScriptPubkey Ed25519KeyHash
@@ -519,7 +520,7 @@ data NativeScript
   | TimelockStart Slot
   | TimelockExpiry Slot
 
-derive instance eqNativeScript :: Eq NativeScript
+derive instance Eq NativeScript
 derive instance Generic NativeScript _
 
 instance Show NativeScript where
@@ -530,10 +531,10 @@ newtype TransactionInput = TransactionInput
   , index :: UInt
   }
 
-derive instance newtypeTransactionInput :: Newtype TransactionInput _
-derive instance genericTransactionInput :: Generic TransactionInput _
-derive newtype instance eqTransactionInput :: Eq TransactionInput
-derive newtype instance ordTransactionInput :: Ord TransactionInput
+derive instance Newtype TransactionInput _
+derive instance Generic TransactionInput _
+derive newtype instance Eq TransactionInput
+derive newtype instance Ord TransactionInput
 
 instance showTransactionInput :: Show TransactionInput where
   show = genericShow
@@ -544,20 +545,23 @@ newtype TransactionOutput = TransactionOutput
   , data_hash :: Maybe DataHash
   }
 
-derive instance genericTransactionOutput :: Generic TransactionOutput _
-derive instance newtypeTransactionOutput :: Newtype TransactionOutput _
-derive newtype instance eqTransactionOutput :: Eq TransactionOutput
+derive instance Generic TransactionOutput _
+derive instance Newtype TransactionOutput _
+derive newtype instance Eq TransactionOutput
 
 instance showTransactionOutput :: Show TransactionOutput where
   show = genericShow
 
 newtype UtxoM = UtxoM Utxo
 
-derive instance newtypeUtxoM :: Newtype UtxoM _
-derive newtype instance showUtxoM :: Show UtxoM
+derive instance Newtype UtxoM _
+derive newtype instance Show UtxoM
 
 type Utxo = Map TransactionInput TransactionOutput
 
+-- | 32-bytes blake2b256 hash of a tx body.
+-- | NOTE. Plutus docs might incorrectly state that it uses
+-- |       SHA256 for this purposes.
 newtype TransactionHash = TransactionHash ByteArray
 
 derive newtype instance Eq TransactionHash

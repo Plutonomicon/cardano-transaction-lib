@@ -12,7 +12,6 @@ import Test.Spec.Runner (runSpec)
 import Test.Spec.Reporter (consoleReporter)
 import Test.ByteArray as ByteArrayTest
 import Test.Parser as ParseTest
-import Test.Helpers as Helpers
 import Test.AffInterface as AffInterface
 import Test.Serialization.Address as Serialization.Address
 import Test.Serialization.Hash as Serialization.Hash
@@ -22,6 +21,7 @@ import Test.Deserialization as Deserialization
 import Test.Serialization as Serialization
 import Test.Aeson as Aeson
 import Test.Transaction as Transaction
+import Test.UsedTxOuts as UsedTxOuts
 import Test.Data as Data
 
 -- we use `mote` here so that we can use effects to build up a test tree, which
@@ -52,13 +52,13 @@ testPlan = do
   Data.suite
   Aeson.suite
   ByteArrayTest.suite
-  Helpers.suite
   ParseTest.suite
   Serialization.suite
   Serialization.Address.suite
   Serialization.Hash.suite
   Deserialization.suite
   Transaction.suite
+  UsedTxOuts.suite
   -- requires external servers
   -- see README.md
   AffInterface.suite
