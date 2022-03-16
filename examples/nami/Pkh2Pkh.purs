@@ -70,6 +70,7 @@ import Types.Transaction
   )
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx))
 import Types.Value as Value
+import UsedTxOuts (newUsedTxOuts)
 import Wallet (mkNamiWalletAff)
 
 main :: Effect Unit
@@ -77,12 +78,14 @@ main = launchAff_ $ do
   wallet <- Just <$> mkNamiWalletAff
   ogmiosWs <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
   datumCacheWs <- mkDatumCacheWebSocketAff defaultDatumCacheWsConfig
+  usedTxOuts <- newUsedTxOuts
   txId <- runReaderT
     buildAndSubmit
     { ogmiosWs
     , datumCacheWs
     , wallet
     , serverConfig: defaultServerConfig
+    , usedTxOuts
     }
   liftEffect $ Console.log $ show txId
 

@@ -1,3 +1,4 @@
+-- | TODO docstring
 module QueryM
   ( DispatchIdMap
   , FeeEstimate(FeeEstimate)
@@ -26,6 +27,7 @@ module QueryM
   , signTransaction
   , submitTransaction
   , utxosAt
+  , filterUnusedUtxos
   , queryDatumCache
   , getDatumByHash
   , getDatumsByHashes
@@ -44,9 +46,11 @@ import Aeson (decodeAeson, parseJsonStringToAeson)
 import Affjax as Affjax
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Monad.Error.Class (throwError)
+import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, ask, asks)
 import Data.Argonaut (JsonDecodeError)
 import Data.Argonaut as Json
+import Aeson as Aeson
 import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -108,11 +112,13 @@ import Types.ByteArray (byteArrayToHex)
 import Types.Datum (DatumHash)
 import Types.JsonWsp as JsonWsp
 import Types.PlutusData (PlutusData)
+import Types.Transaction (UtxoM(UtxoM))
 import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.Value (Coin(Coin))
 import TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
 import Untagged.Union (asOneOf)
+import UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
 import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
@@ -154,6 +160,8 @@ type QueryConfig =
   , datumCacheWs :: DatumCacheWebSocket
   , serverConfig :: ServerConfig
   , wallet :: Maybe Wallet
+  -- should probably be more tightly coupled with a wallet
+  , usedTxOuts :: UsedTxOuts
   }
 
 type QueryM (a :: Type) = ReaderT QueryConfig Aff a
@@ -182,6 +190,19 @@ utxosAt' addr = do
         liftEffect $ ls.utxo.removeMessageListener id
         liftEffect $ throwError $ err
   liftAff $ makeAff $ affFunc
+
+--------------------------------------------------------------------------------
+-- Used Utxos helpers
+
+filterUnusedUtxos :: UtxoM -> QueryM UtxoM
+filterUnusedUtxos (UtxoM utxos) = withTxRefsCache $
+  UtxoM <$> Helpers.filterMapWithKeyM (\k _ -> isTxOutRefUsed (unwrap k)) utxos
+
+withTxRefsCache
+  :: forall (m :: Type -> Type) (a :: Type)
+   . ReaderT UsedTxOuts Aff a
+  -> QueryM a
+withTxRefsCache f = withReaderT (_.usedTxOuts) f
 
 --------------------------------------------------------------------------------
 -- Datum Cache Queries
@@ -529,7 +550,7 @@ utxoQueryDispatch
 utxoQueryDispatch ref str = do
   -- TODO: replace it with the new implementation in `Aeson`.
   -- https://github.com/Plutonomicon/cardano-browser-tx/issues/151
-  let parsed' = JsonWsp.parseJsonWspResponse =<< Helpers.parseJsonStringifyNumbers str
+  let parsed' = JsonWsp.parseJsonWspResponse =<< Aeson.parseJsonStringToAeson str
   case parsed' of
     (Left err) -> pure $ Left err
     (Right res) -> afterParse res
@@ -603,6 +624,7 @@ messageFoldF msg acc' func = do
 --------------------------------------------------------------------------------
 -- Ogmios functions and types to internal types
 --------------------------------------------------------------------------------
+
 -- If required, we can change to Either with more granular error handling.
 -- | Gets utxos at an (internal) `Address` in terms of (internal) `Transaction.Types`.
 -- | Results may vary depending on `Wallet` type.

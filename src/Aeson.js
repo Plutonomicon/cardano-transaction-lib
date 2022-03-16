@@ -1,9 +1,62 @@
-
 // parseJsonExtractingIntegers
 //   :: String -> {patchedPayload :: String, numberIndex :: Array String}
 exports.parseJsonExtractingIntegers = str => {
     const [patchedPayload, numberIndex] = parseJsonExtractingIntegers(str);
     return {patchedPayload, numberIndex};
+};
+
+exports.stringifyAeson_ = numberIndex => originalObject => {
+    const fatal = msg => {
+        throw new Error("Error in stringifyObject: " + msg);
+    };
+
+    let res = '';
+
+    // Recursively iterate over object fields.
+    // TODO: use a trampoline?
+    const go = object => {
+        if (object === null || typeof object == 'string' || typeof object == 'boolean') {
+            res += JSON.stringify(object);
+        } else if (object instanceof Array) {
+            res += '[';
+            object.forEach((elem, ix) => {
+                go(elem);
+                if (ix != object.length - 1) {
+                    res += ',';
+                }
+            });
+            res += ']';
+        } else if (typeof object == 'object') {
+            res += '{';
+            let keys = [];
+            for (let key in object) {
+                if (object.hasOwnProperty(key)) {
+                    keys.push(key);
+                }
+            };
+            keys.sort(); // for stability of Eq instance
+            keys.forEach((key, ix) => {
+                res += JSON.stringify(key);
+                res += ':';
+                go(object[key]);
+                if (ix != keys.length - 1) {
+                    res += ',';
+                }
+            });
+            res += '}';
+        } else if (typeof object == 'number') {
+            if (object in numberIndex) {
+                res += numberIndex[object];
+            } else {
+                fatal("No such index in numberIndex!");
+            }
+        } else {
+            fatal("Wrong type of object: " + typeof object);
+        }
+    };
+
+    go(originalObject);
+    return res;
 };
 
 // NOTE: For a general overview of this function's purpose,
@@ -67,4 +120,3 @@ const parseJsonExtractingIntegers = str => {
 
     return [arr.join(''), index];
 };
-

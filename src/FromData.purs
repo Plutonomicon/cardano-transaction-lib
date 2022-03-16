@@ -61,6 +61,9 @@ instance FromData ByteArray where
   fromData (Bytes res) = Just res
   fromData _ = Nothing
 
+instance FromData PlutusData where
+  fromData = Just
+
 -- | This covers `Bech32` which is just a type alias for `String`
 instance FromData String where
   fromData (Bytes res) = Just $ byteArrayToHex res

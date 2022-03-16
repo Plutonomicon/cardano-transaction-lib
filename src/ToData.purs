@@ -52,6 +52,9 @@ instance (ToData k, ToData v) => ToData (Map k v) where
 instance ToData ByteArray where
   toData = Bytes
 
+instance ToData PlutusData where
+  toData = identity
+
 -- | This covers `Bech32` which is just a type alias for `String`
 instance ToData String where
   toData = Bytes <<< hexToByteArrayUnsafe -- unsafe, maybe there's a better way.
