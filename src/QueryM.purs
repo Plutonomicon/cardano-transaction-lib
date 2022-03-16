@@ -1,42 +1,44 @@
 -- | TODO docstring
 module QueryM
-  ( DispatchIdMap
-  , FeeEstimate(FeeEstimate)
-  , FeeEstimateError(FeeEstimateHttpError, FeeEstimateDecodeJsonError)
+  ( DatumCacheListeners
+  , DatumCacheWebSocket
+  , DispatchIdMap
+  , FeeEstimate(..)
+  , FeeEstimateError(..)
   , Host
+  , JsWebSocket
   , ListenerSet
   , OgmiosListeners
-  , DatumCacheListeners
-  , WebSocket
   , OgmiosWebSocket
-  , DatumCacheWebSocket
   , QueryConfig
   , QueryM
   , ServerConfig
-  , JsWebSocket
+  , WebSocket
   , calculateMinFee
-  , defaultServerConfig
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , getWalletAddress
-  , getWalletCollateral
-  , mkOgmiosWebSocketAff
-  , mkDatumCacheWebSocketAff
-  , mkHttpUrl
-  , mkWsUrl
-  , signTransaction
-  , submitTransaction
-  , utxosAt
-  , filterUnusedUtxos
-  , queryDatumCache
-  , getDatumByHash
-  , getDatumsByHashes
-  , startFetchBlocksRequest
   , cancelFetchBlocksRequest
   , datumFilterAddHashesRequest
+  , datumFilterGetHashesRequest
   , datumFilterRemoveHashesRequest
   , datumFilterSetHashesRequest
-  , datumFilterGetHashesRequest
+  , defaultDatumCacheWsConfig
+  , defaultOgmiosWsConfig
+  , defaultServerConfig
+  , filterUnusedUtxos
+  , getDatumByHash
+  , getDatumsByHashes
+  , getWalletAddress
+  , getWalletCollateral
+  , mkDatumCacheWebSocketAff
+  , mkHttpUrl
+  , mkOgmiosWebSocketAff
+  , mkWsUrl
+  , ownPaymentPubKeyHash
+  , ownPubKeyHash
+  , queryDatumCache
+  , signTransaction
+  , startFetchBlocksRequest
+  , submitTransaction
+  , utxosAt
   ) where
 
 import Prelude
@@ -107,6 +109,7 @@ import Serialization.Address
   ( Address
   , BlockId
   , Slot
+  , addressBech32
   )
 import Types.ByteArray (byteArrayToHex)
 import Types.Datum (DatumHash)
@@ -115,6 +118,7 @@ import Types.PlutusData (PlutusData)
 import Types.Transaction (UtxoM(UtxoM))
 import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Types.UnbalancedTransaction (PubKeyHash, PaymentPubKeyHash, pubKeyHash)
 import Types.Value (Coin(Coin))
 import TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
 import Untagged.Union (asOneOf)
@@ -303,6 +307,13 @@ submitTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.TransactionHash)
 submitTransaction tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.submitTx tx
+
+ownPubKeyHash :: QueryM (Maybe PubKeyHash)
+ownPubKeyHash =
+  map ((=<<) pubKeyHash <<< map (wrap <<< addressBech32)) getWalletAddress
+
+ownPaymentPubKeyHash :: QueryM (Maybe PaymentPubKeyHash)
+ownPaymentPubKeyHash = map wrap <$> ownPubKeyHash
 
 withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
@@ -622,7 +633,7 @@ messageFoldF msg acc' func = do
   if isRight acc then acc' else func msg
 
 --------------------------------------------------------------------------------
--- Ogmios functions and types to internal types
+-- Ogmios functions
 --------------------------------------------------------------------------------
 
 -- If required, we can change to Either with more granular error handling.

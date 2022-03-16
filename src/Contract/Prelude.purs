@@ -1,3 +1,4 @@
+-- | A custom Prelude that re-exports Purescript's prelude and further expands.
 module Contract.Prelude
   ( module PurescriptPrelude
   , module Either
@@ -9,9 +10,6 @@ module Contract.Prelude
   , module TupleNested
   , module Undefined
   ) where
-
--- | A custom Prelude with re-exports Purescript's prelude and other modules
--- | to aid the user.
 
 -- We could potentially export `Effect.Exception`, `Effect.Aff` and `Effect`
 -- although there are conflicts in `Effect.Exception` and `Effect.Aff` for

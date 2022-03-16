@@ -9,6 +9,7 @@ module TxOutput
   , transactionOutputToOgmiosTxOut
   , transactionOutputToScriptOutput
   , txOutRefToTransactionInput
+  , utxoIndexToUtxo
   ) where
 
 import Prelude
@@ -18,6 +19,7 @@ import Address
   , addressValidatorHash
   , ogmiosAddressToAddress
   )
+import Data.Map (Map)
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap)
 import Scripts (validatorHashAddress)
@@ -34,9 +36,9 @@ import Types.UnbalancedTransaction as UTx
 -- Conversion between transaction input/output types
 --------------------------------------------------------------------------------
 -- I think txId is a hexadecimal encoding.
--- | Converts an Ogmios `TxOutRef` to (internal) `TransactionInput`
+-- | Converts an Ogmios transaction input to (internal) `TransactionInput`
 txOutRefToTransactionInput
-  :: JsonWsp.TxOutRef -> Maybe Transaction.TransactionInput
+  :: JsonWsp.OgmiosTxOutRef -> Maybe Transaction.TransactionInput
 txOutRefToTransactionInput { txId, index } = do
   transaction_id <- hexToByteArray txId <#> wrap
   pure $ wrap
@@ -44,9 +46,9 @@ txOutRefToTransactionInput { txId, index } = do
     , index
     }
 
--- | Converts an (internal) `TransactionInput` to an Ogmios `TxOutRef`
+-- | Converts an (internal) `TransactionInput` to an Ogmios transaction input
 transactionInputToTxOutRef
-  :: Transaction.TransactionInput -> JsonWsp.TxOutRef
+  :: Transaction.TransactionInput -> JsonWsp.OgmiosTxOutRef
 transactionInputToTxOutRef
   (Transaction.TransactionInput { transaction_id, index }) =
   { txId: byteArrayToHex (unwrap transaction_id)
@@ -56,7 +58,7 @@ transactionInputToTxOutRef
 -- https://ogmios.dev/ogmios.wsp.json see "datum", potential FIX ME: it says
 -- base64 but the  example provided looks like a hexadecimal so use
 -- hexToByteArray for now. https://github.com/Plutonomicon/cardano-browser-tx/issues/78
--- | Converts an Ogmios `TxOut` to (internal) `TransactionOutput`
+-- | Converts an Ogmios transaction output to (internal) `TransactionOutput`
 ogmiosTxOutToTransactionOutput
   :: JsonWsp.OgmiosTxOut -> Maybe Transaction.TransactionOutput
 ogmiosTxOutToTransactionOutput { address, value, datum } = do
@@ -144,3 +146,13 @@ ogmiosDatumHashToDatumHash str = hexToByteArray str <#> wrap
 -- | Converts an internal `DatumHash` to an Ogmios datumhash `String`
 datumHashToOgmiosDatumHash :: DatumHash -> String
 datumHashToOgmiosDatumHash = byteArrayToHex <<< unwrap
+
+--------------------------------------------------------------------------------
+-- Conversion between Utxo types
+--------------------------------------------------------------------------------
+-- | Converts a utxoIndex from `UnbalancedTx` to `Utxo`.
+utxoIndexToUtxo
+  :: NetworkId
+  -> Map Transaction.TransactionInput UTx.ScriptOutput
+  -> Transaction.Utxo
+utxoIndexToUtxo networkId = map (scriptOutputToTransactionOutput networkId)

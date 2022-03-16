@@ -12,7 +12,6 @@ module BalanceTx
   , ImpossibleError(..)
   , ReturnAdaChangeError(..)
   , SignTxError(..)
-  , UtxoIndexToUtxoError(..)
   , UtxosAtError(..)
   , balanceTx
   ) where
@@ -27,6 +26,7 @@ import Data.BigInt (BigInt, fromInt, quot)
 import Data.Either (Either(Left, Right), hush, note)
 import Data.Foldable as Foldable
 import Data.Generic.Rep (class Generic)
+import Data.Lens.Getter ((^.))
 import Data.List ((:), List(Nil), partition)
 import Data.Map as Map
 import Data.Maybe (fromMaybe, maybe, Maybe(Just, Nothing))
@@ -38,6 +38,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 -- import Debug (spy)
 import Effect.Class (class MonadEffect)
 import Effect.Class.Console (log)
+import Helpers (liftM)
 import ProtocolParametersAlonzo
   ( adaOnlyWords
   , coinSize
@@ -67,9 +68,11 @@ import Types.Transaction
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
   , Utxo
+  , _body
+  , _networkId
   )
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), utxoIndexToUtxo)
+import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx))
 import Types.Value
   ( filterNonAda
   , geq
@@ -85,6 +88,7 @@ import Types.Value
   , valueToCoin
   , Value
   )
+import TxOutput (utxoIndexToUtxo)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
@@ -98,7 +102,6 @@ data BalanceTxError
   = GetWalletAddressError' GetWalletAddressError
   | GetWalletCollateralError' GetWalletCollateralError
   | UtxosAtError' UtxosAtError
-  | UtxoIndexToUtxoError' UtxoIndexToUtxoError
   | ReturnAdaChangeError' ReturnAdaChangeError
   | AddTxCollateralsError' AddTxCollateralsError
   | GetPublicKeyTransactionInputError' GetPublicKeyTransactionInputError
@@ -106,6 +109,7 @@ data BalanceTxError
   | BalanceNonAdaOutsError' BalanceNonAdaOutsError
   | SignTxError' SignTxError
   | CalculateMinFeeError' FeeEstimateError
+  | NetworkIdMissing
 
 derive instance genericBalanceTxError :: Generic BalanceTxError _
 
@@ -131,13 +135,6 @@ data UtxosAtError = CouldNotGetUtxos
 derive instance genericUtxosAtError :: Generic UtxosAtError _
 
 instance showUtxosAtError :: Show UtxosAtError where
-  show = genericShow
-
-data UtxoIndexToUtxoError = CouldNotConvertUtxoIndex
-
-derive instance genericUtxoIndexToUtxoError :: Generic UtxoIndexToUtxoError _
-
-instance showUtxoIndexToUtxoError :: Show UtxoIndexToUtxoError where
   show = genericShow
 
 data ReturnAdaChangeError
@@ -258,13 +255,12 @@ balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) =
       note (GetWalletCollateralError' CouldNotGetNamiCollateral)
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
-    utxoIndex' <- ExceptT $ pure $ utxoIndexToUtxo utxoIndex #
-      note (UtxoIndexToUtxoError' CouldNotConvertUtxoIndex)
+    networkId <- liftM NetworkIdMissing (unbalancedTx ^. _body <<< _networkId)
     let
       -- Combines utxos at the user address and those from any scripts
       -- involved with the contract in the unbalanced transaction.
       allUtxos :: Utxo
-      allUtxos = utxos `Map.union` utxoIndex'
+      allUtxos = utxos `Map.union` (utxoIndexToUtxo networkId utxoIndex)
 
       -- After adding collateral, we need to balance the inputs and
       -- non-Ada outputs before looping, i.e. we need to add input fees

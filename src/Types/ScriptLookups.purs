@@ -163,7 +163,7 @@ import TxOutput (ogmiosDatumHashToDatumHash, ogmiosTxOutToScriptOutput)
 --------------------------------------------------------------------------------
 newtype ScriptLookups (a :: Type) = ScriptLookups
   { mps :: Map MintingPolicyHash MintingPolicy -- Minting policies that the script interacts with
-  , txOutputs :: Map TxOutRef OgmiosTxOut -- Unspent outputs that the script may want to spend
+  , txOutputs :: Map TxOutRef OgmiosTxOut -- Unspent outputs that the script may want to spend. This may need tweaking to `TransactionOutput`
   , otherScripts :: Map ValidatorHash Validator -- Validators of scripts other than "our script"
   , otherData :: Map DatumHash Datum --  Datums that we might need
   , paymentPubKeyHashes :: Map PaymentPubKeyHash PaymentPubKey -- Public keys that we might need

@@ -93,11 +93,14 @@ import Data.Show.Generic (genericShow)
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import FromData (class FromData)
 import Partial.Unsafe (unsafePartial)
 import Serialization.Hash (Ed25519KeyHash, ScriptHash)
 import Serialization.Types (Bip32PublicKey)
+import ToData (class ToData, toData)
 import Types.Aliases (Bech32String, Base58String)
 import Types.ByteArray (ByteArray)
+import Types.PlutusData (PlutusData(Bytes))
 
 newtype Slot = Slot UInt
 
@@ -171,6 +174,13 @@ instance Eq Address where
 instance Ord Address where
   compare = compare `on` addressBytes
 
+instance FromData Address where
+  fromData (Bytes res) = addressFromBytes res
+  fromData _ = Nothing
+
+instance ToData Address where
+  toData addr = toData (addressBytes addr)
+
 foreign import data BaseAddress :: Type
 
 instance Show BaseAddress where
@@ -178,6 +188,13 @@ instance Show BaseAddress where
 
 instance Eq BaseAddress where
   eq = eq `on` baseAddressToAddress
+
+instance FromData BaseAddress where
+  fromData (Bytes res) = baseAddressFromBytes res
+  fromData _ = Nothing
+
+instance ToData BaseAddress where
+  toData = toData <<< baseAddressToAddress
 
 foreign import data ByronAddress :: Type
 
@@ -187,6 +204,13 @@ instance Eq ByronAddress where
 instance Show ByronAddress where
   show = showVia "ByronAddress" byronAddressToAddress
 
+instance FromData ByronAddress where
+  fromData (Bytes res) = byronAddressFromBytes res
+  fromData _ = Nothing
+
+instance ToData ByronAddress where
+  toData = toData <<< byronAddressToAddress
+
 foreign import data EnterpriseAddress :: Type
 
 instance Eq EnterpriseAddress where
@@ -195,6 +219,13 @@ instance Eq EnterpriseAddress where
 instance Show EnterpriseAddress where
   show = showVia "EnterpriseAddress" enterpriseAddressToAddress
 
+instance FromData EnterpriseAddress where
+  fromData (Bytes res) = enterpriseAddressFromBytes res
+  fromData _ = Nothing
+
+instance ToData EnterpriseAddress where
+  toData = toData <<< enterpriseAddressToAddress
+
 foreign import data PointerAddress :: Type
 
 instance Eq PointerAddress where
@@ -202,6 +233,13 @@ instance Eq PointerAddress where
 
 instance Show PointerAddress where
   show = showVia "PointerAddress" pointerAddressToAddress
+
+instance FromData PointerAddress where
+  fromData (Bytes res) = pointerAddressFromBytes res
+  fromData _ = Nothing
+
+instance ToData PointerAddress where
+  toData = toData <<< pointerAddressToAddress
 
 foreign import data RewardAddress :: Type
 
@@ -214,6 +252,13 @@ instance Show RewardAddress where
 instance Ord RewardAddress where
   compare = compare `on` rewardAddressBytes
 
+instance FromData RewardAddress where
+  fromData (Bytes res) = rewardAddressFromBytes res
+  fromData _ = Nothing
+
+instance ToData RewardAddress where
+  toData = toData <<< rewardAddressBytes
+
 foreign import data StakeCredential :: Type
 
 instance Eq StakeCredential where
@@ -222,6 +267,13 @@ instance Eq StakeCredential where
 instance Show StakeCredential where
   show = showVia "StakeCredenetial" $ withStakeCredential
     { onKeyHash: show, onScriptHash: show }
+
+instance FromData StakeCredential where
+  fromData (Bytes res) = stakeCredentialFromBytes res
+  fromData _ = Nothing
+
+instance ToData StakeCredential where
+  toData = toData <<< stakeCredentialToBytes
 
 foreign import _addressFromBech32 :: MaybeFfiHelper -> Bech32String -> Maybe Address
 foreign import _addressFromBytes :: MaybeFfiHelper -> ByteArray -> Maybe Address

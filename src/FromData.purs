@@ -15,7 +15,9 @@ import Data.Maybe (Maybe(Nothing, Just))
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
+import Data.UInt (UInt)
 import Data.Unfoldable (class Unfoldable)
+import Helpers (bigIntToUInt)
 import Prim.TypeError (class Fail, Text)
 import Serialization.Hash (Ed25519KeyHash, ed25519KeyHashFromBytes)
 import Types.ByteArray (ByteArray, byteArrayToHex)
@@ -23,6 +25,9 @@ import Types.PlutusData (PlutusData(Bytes, List, Map, Integer))
 
 class FromData (a :: Type) where
   fromData :: PlutusData -> Maybe a
+
+instance FromData Void where
+  fromData _ = Nothing
 
 instance FromData Unit where
   fromData (List []) = Just unit
@@ -39,6 +44,10 @@ instance Fail (Text "Int is not supported, use BigInt instead") => FromData Int 
 
 instance FromData BigInt where
   fromData (Integer n) = Just n
+  fromData _ = Nothing
+
+instance FromData UInt where
+  fromData (Integer n) = bigIntToUInt n
   fromData _ = Nothing
 
 instance FromData a => FromData (Array a) where

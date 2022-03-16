@@ -18,12 +18,10 @@ module Types.UnbalancedTransaction
   , pubKeyHash
   , pubKeyHashAddress
   , pubKeyHashBaseAddress
-  , scriptOutputToTxOutput
   , stakeKeyHashAddress
   , stakeKeyHashBaseAddress
   , stakePubKeyHashAddress
   , stakePubKeyHashBaseAddress
-  , utxoIndexToUtxo
   ) where
 
 import Prelude
@@ -35,29 +33,24 @@ import Data.Map (Map, empty)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Traversable (sequence)
 import Data.Tuple (Tuple(Tuple))
 import FromData (class FromData)
 import Serialization.Address
   ( Address
   , BaseAddress
   , NetworkId
-  , addressFromBytes
   , baseAddressToAddress
   , pubKeyAddress
   )
 import Serialization.Hash
   ( Ed25519KeyHash
   , ed25519KeyHashFromBech32
-  , scriptHashToBytes
   )
 import ToData (class ToData)
 import Types.Datum (DatumHash)
 import Types.Transaction
   ( Transaction
   , TransactionInput
-  , TransactionOutput
-  , Utxo
   , PublicKey(PublicKey)
   , Vkey(Vkey)
   , RequiredSigner(RequiredSigner)
@@ -78,6 +71,7 @@ derive newtype instance ToData PaymentPubKey
 instance Show PaymentPubKey where
   show = genericShow
 
+-- Plutus uses this type in recent revs but wonder if we even need it.
 newtype ScriptOutput = ScriptOutput
   { validatorHash :: ValidatorHash
   , value :: Value
@@ -219,16 +213,3 @@ _utxoIndex = lens'
 
 emptyUnbalancedTx :: UnbalancedTx
 emptyUnbalancedTx = UnbalancedTx { transaction: mempty, utxoIndex: empty }
-
--- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-constraints/html/src/Ledger.Constraints.OffChain.html#fromScriptOutput
--- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger/html/src/Ledger.Tx.html#toTxOut
--- Combining these two into one function skipping Chain Index
--- | Converts a `ScriptOutput` to a `TransactionOutput` with potential failure
-scriptOutputToTxOutput :: ScriptOutput -> Maybe TransactionOutput
-scriptOutputToTxOutput (ScriptOutput { validatorHash, value, datumHash }) = do
-  address <- validatorHash # unwrap # scriptHashToBytes >>> addressFromBytes
-  pure $ wrap { address, amount: value, data_hash: pure datumHash }
-
--- | Converts a utxoIndex from `UnbalancedTx` to `Utxo` with potential failure
-utxoIndexToUtxo :: Map TxOutRef ScriptOutput -> Maybe Utxo
-utxoIndexToUtxo = map scriptOutputToTxOutput >>> sequence

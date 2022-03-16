@@ -1,3 +1,4 @@
+-- | A module defining the `Contract` monad.
 module Contract.Monad
   ( Contract(..)
   , module QueryM

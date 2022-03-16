@@ -1,4 +1,69 @@
-module Types.Transaction where
+module Types.Transaction
+  ( AuxiliaryData(..)
+  , AuxiliaryDataHash(..)
+  , BootstrapWitness
+  , Certificate(..)
+  , CostModel(..)
+  , Costmdls(..)
+  , DataHash(..)
+  , DatumHash
+  , Ed25519Signature(..)
+  , Epoch(..)
+  , ExUnitPrices
+  , ExUnits
+  , GeneralTransactionMetadata(..)
+  , GenesisHash(..)
+  , Language(..)
+  , Mint(..)
+  , NativeScript(..)
+  , Nonce(..)
+  , ProposedProtocolParameterUpdates(..)
+  , ProtocolParamUpdate
+  , ProtocolVersion
+  , PublicKey(..)
+  , Redeemer(..)
+  , RequiredSigner(..)
+  , ScriptDataHash(..)
+  , SubCoin
+  , Transaction(..)
+  , TransactionHash(..)
+  , TransactionInput(..)
+  , TransactionMetadatum(..)
+  , TransactionMetadatumLabel(..)
+  , TransactionOutput(..)
+  , TransactionWitnessSet(..)
+  , TxBody(..)
+  , UnitInterval
+  , Update
+  , Utxo
+  , UtxoM(..)
+  , Vkey(..)
+  , Vkeywitness(..)
+  , _auxiliaryData
+  , _auxiliaryDataHash
+  , _body
+  , _bootstraps
+  , _certs
+  , _collateral
+  , _fee
+  , _inputs
+  , _isValid
+  , _mint
+  , _nativeScripts
+  , _networkId
+  , _outputs
+  , _plutusData
+  , _plutusScripts
+  , _redeemers
+  , _requiredSigners
+  , _scriptDataHash
+  , _ttl
+  , _update
+  , _validityStartInterval
+  , _vkeys
+  , _withdrawals
+  , _witnessSet
+  ) where
 
 import Prelude
 
@@ -22,17 +87,17 @@ import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
-import FromData (class FromData)
+import FromData (class FromData, fromData)
 import Helpers ((</>), (<<>>), appendMap, appendRightHashMap)
 import Serialization.Address (Address, NetworkId, RewardAddress, Slot(Slot))
 import Serialization.Hash (Ed25519KeyHash)
-import ToData (class ToData)
+import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
 import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
 import Types.Value (Coin, Value)
-import Types.PlutusData (PlutusData) as PD
+import Types.PlutusData (PlutusData(Constr))
 
 --------------------------------------------------------------------------------
 -- `Transaction`
@@ -330,7 +395,7 @@ newtype TransactionWitnessSet = TransactionWitnessSet
   , native_scripts :: Maybe (Array NativeScript)
   , bootstraps :: Maybe (Array BootstrapWitness)
   , plutus_scripts :: Maybe (Array PlutusScript)
-  , plutus_data :: Maybe (Array PD.PlutusData)
+  , plutus_data :: Maybe (Array PlutusData)
   , redeemers :: Maybe (Array Redeemer)
   }
 
@@ -381,7 +446,7 @@ _plutusScripts :: Lens' TransactionWitnessSet (Maybe (Array PlutusScript))
 _plutusScripts = lens' \(TransactionWitnessSet rec@{ plutus_scripts }) ->
   Tuple plutus_scripts \ps -> TransactionWitnessSet rec { plutus_scripts = ps }
 
-_plutusData :: Lens' TransactionWitnessSet (Maybe (Array PD.PlutusData))
+_plutusData :: Lens' TransactionWitnessSet (Maybe (Array PlutusData))
 _plutusData = lens' \(TransactionWitnessSet rec@{ plutus_data }) ->
   Tuple plutus_data \pd -> TransactionWitnessSet rec { plutus_data = pd }
 
@@ -453,7 +518,7 @@ instance Show Ed25519Signature where
 newtype Redeemer = Redeemer
   { tag :: RedeemerTag
   , index :: BigInt
-  , data :: PD.PlutusData
+  , data :: PlutusData
   , ex_units :: ExUnits
   }
 
@@ -548,8 +613,23 @@ derive instance Generic TransactionInput _
 derive newtype instance Eq TransactionInput
 derive newtype instance Ord TransactionInput
 
-instance showTransactionInput :: Show TransactionInput where
+instance Show TransactionInput where
   show = genericShow
+
+-- `Constr` is used for indexing, and `TransactionInput` is always zero-indexed
+instance FromData TransactionInput where
+  fromData (Constr id [ txId, idx ]) =
+    if id == zero then
+      (\transaction_id index -> TransactionInput { transaction_id, index })
+        <$> fromData txId
+        <*> fromData idx
+    else Nothing
+  fromData _ = Nothing
+
+-- `Constr` is used for indexing, and `TransactionInput` is always zero-indexed
+instance ToData TransactionInput where
+  toData (TransactionInput { transaction_id, index }) =
+    Constr zero [ toData transaction_id, toData index ]
 
 newtype TransactionOutput = TransactionOutput
   { address :: Address
@@ -561,7 +641,7 @@ derive instance Generic TransactionOutput _
 derive instance Newtype TransactionOutput _
 derive newtype instance Eq TransactionOutput
 
-instance showTransactionOutput :: Show TransactionOutput where
+instance Show TransactionOutput where
   show = genericShow
 
 newtype UtxoM = UtxoM Utxo
@@ -576,10 +656,12 @@ type Utxo = Map TransactionInput TransactionOutput
 -- |       SHA256 for this purposes.
 newtype TransactionHash = TransactionHash ByteArray
 
-derive newtype instance Eq TransactionHash
-derive newtype instance Ord TransactionHash
 derive instance Generic TransactionHash _
 derive instance Newtype TransactionHash _
+derive newtype instance Eq TransactionHash
+derive newtype instance FromData TransactionHash
+derive newtype instance Ord TransactionHash
+derive newtype instance ToData TransactionHash
 
 instance Show TransactionHash where
   show = genericShow

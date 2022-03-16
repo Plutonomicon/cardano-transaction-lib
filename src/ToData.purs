@@ -14,6 +14,8 @@ import Data.Map (Map)
 import Data.Map as Map
 import Data.Profunctor.Strong ((***))
 import Data.Tuple.Nested (type (/\), (/\))
+import Data.UInt (UInt)
+import Helpers (uIntToBigInt)
 import Prim.TypeError (class Fail, Text)
 import Serialization.Hash (Ed25519KeyHash, ed25519KeyHashToBytes)
 import Types.ByteArray (ByteArray, hexToByteArrayUnsafe)
@@ -21,6 +23,9 @@ import Types.PlutusData (PlutusData(Integer, List, Map, Bytes))
 
 class ToData (a :: Type) where
   toData :: a -> PlutusData
+
+instance ToData Void where
+  toData = absurd
 
 instance ToData Unit where
   toData _ = List []
@@ -34,6 +39,9 @@ instance Fail (Text "Int is not supported, use BigInt instead") => ToData Int wh
 
 instance ToData BigInt where
   toData = Integer
+
+instance ToData UInt where
+  toData = toData <<< uIntToBigInt
 
 instance ToData a => ToData (Array a) where
   toData = List <<< map toData

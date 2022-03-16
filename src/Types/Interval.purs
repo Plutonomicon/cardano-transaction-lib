@@ -42,7 +42,7 @@ module Types.Interval
   ) where
 
 import Data.BigInt (BigInt, quot)
-import Data.BigInt (fromString, fromInt, toString) as BigInt
+import Data.BigInt (fromString, fromInt) as BigInt
 import Data.Enum (class Enum, succ)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice
@@ -54,8 +54,8 @@ import Data.Lattice
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
-import Data.UInt (UInt)
-import Data.UInt (fromString, toString) as UInt
+import Data.UInt (fromString) as UInt
+import Helpers (uIntToBigInt, bigIntToUInt)
 import Partial.Unsafe (unsafePartial)
 import Prelude
 import Serialization.Address (Slot(Slot))
@@ -355,16 +355,6 @@ slotRangeToPOSIXTimeRange
 slotToPOSIXTimeRange :: SlotConfig -> Slot -> POSIXTimeRange
 slotToPOSIXTimeRange sc slot =
   interval (slotToBeginPOSIXTime sc slot) (slotToEndPOSIXTime sc slot)
-
--- UInt.toInt is unsafe so we'll go via String. BigInt.fromString returns a
--- Maybe but we should be safe if we go from UInt originally via String,
--- as this UInt can't be larger than BigInt.
-uIntToBigInt :: UInt -> BigInt
-uIntToBigInt = unsafePartial fromJust <<< BigInt.fromString <<< UInt.toString
-
--- This should be left allowed to fail as BigInt may exceed UInt
-bigIntToUInt :: BigInt -> Maybe UInt
-bigIntToUInt = UInt.fromString <<< BigInt.toString
 
 -- | Get the starting `POSIXTime` of a `Slot` given a `SlotConfig`.
 slotToBeginPOSIXTime :: SlotConfig -> Slot -> POSIXTime

@@ -1,3 +1,7 @@
+-- | This module that defines query functionality via Ogmios to get `PlutusData`
+-- | from `DatumHash` along with related `PlutusData` newtype wrappers such as
+-- | `Datum` and `Redeemer`. It also contains typeclasses like `FromData` and
+-- | `ToData`.
 module Contract.PlutusData
   ( cancelFetchBlocksRequest
   , datumFilterAddHashesRequest
@@ -8,6 +12,10 @@ module Contract.PlutusData
   , getDatumsByHashes
   , startFetchBlocksRequest
   , module Datum
+  , module PlutusData
+  , module Redeemer
+  , module Transaction
+  , module TxOutput
   ) where
 
 import Prelude
@@ -25,30 +33,35 @@ import QueryM
   , startFetchBlocksRequest
   ) as QueryM
 import Serialization.Address (Slot, BlockId)
-import Types.PlutusData (PlutusData)
+import Types.PlutusData
+  ( PlutusData(Constr, Map, List, Integer, Bytes)
+  ) as PlutusData
 import Types.Datum
   ( Datum(Datum)
   , DatumHash
   , unitDatum
   , datumHash
   ) as Datum
-import Types.Datum
-  ( Datum(Datum)
-  , DatumHash
-  , unitDatum
-  , datumHash
-  ) as Datum
+import Types.Redeemer
+  ( Redeemer(Redeemer)
+  , RedeemerHash(RedeemerHash)
+  , redeemerHash
+  , unitRedeemer
+  ) as Redeemer
+-- Not importing `RedeemerTag` for now.
 import Types.Transaction (DatumHash)
-
--- | This module defines query functionality via Ogmios to get `PlutusData`
--- | from `DatumHash`.
+import Types.Transaction (DataHash(DataHash)) as Transaction
+import TxOutput
+  ( datumHashToOgmiosDatumHash
+  , ogmiosDatumHashToDatumHash
+  ) as TxOutput
 
 -- | Get a `PlutusData` given a `DatumHash`.
-getDatumByHash :: DatumHash -> Contract (Maybe PlutusData)
+getDatumByHash :: DatumHash -> Contract (Maybe PlutusData.PlutusData)
 getDatumByHash = wrap <<< QueryM.getDatumByHash
 
 -- | Get `PlutusData`s given a an `Array` of `DatumHash`.
-getDatumsByHashes :: Array DatumHash -> Contract (Array PlutusData)
+getDatumsByHashes :: Array DatumHash -> Contract (Array PlutusData.PlutusData)
 getDatumsByHashes = wrap <<< QueryM.getDatumsByHashes
 
 startFetchBlocksRequest :: { slot :: Slot, id :: BlockId } -> Contract Unit
