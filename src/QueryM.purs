@@ -53,6 +53,7 @@ import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, ask, asks)
 import Data.Argonaut (class DecodeJson, JsonDecodeError)
 import Data.Argonaut as Json
+import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -62,8 +63,8 @@ import Data.Foldable (foldl)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Traversable (sequence)
-import Data.Tuple.Nested (type (/\))
+import Data.Traversable (sequence, traverse)
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import DatumCacheWsp
@@ -101,6 +102,7 @@ import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
+import Foreign.Object as Object
 import Helpers as Helpers
 import MultiMap (MultiMap)
 import MultiMap as MM
@@ -110,6 +112,7 @@ import Serialization.Address
   , BlockId
   , Slot
   )
+import Serialization.PlutusData (convertPlutusData)
 import Types.ByteArray (ByteArray, byteArrayToHex)
 import Types.Datum (DatumHash)
 import Types.JsonWsp as JsonWsp
@@ -385,6 +388,7 @@ instance Json.DecodeJson FeeEstimate where
 data ClientError
   = ClientHttpError Affjax.Error
   | ClientDecodeJsonError Json.JsonDecodeError
+  | ClientEncodingError String
 
 -- No Show instance of Affjax.Error
 instance Show ClientError where
@@ -395,6 +399,10 @@ instance Show ClientError where
   show (ClientDecodeJsonError err) =
     "(ClientDecodeJsonError "
       <> show err
+      <> ")"
+  show (ClientEncodingError err) =
+    "(ClientEncodingError "
+      <> err
       <> ")"
 
 -- Query the Haskell server for the minimum transaction fee
@@ -431,18 +439,42 @@ applyArgs
   => a
   -> Array PlutusData
   -> QueryM (Either ClientError a)
-applyArgs script args = do
-  url <- asks $ (_ <> "/apply-args") <<< mkHttpUrl <<< _.serverConfig
-  liftAff (Affjax.post Affjax.ResponseFormat.json url (Just reqBody))
-    <#> either
-      (Left <<< ClientHttpError)
-      (lmap ClientDecodeJsonError <<< Json.decodeJson <<< _.body)
-  where
-  reqBody :: Affjax.RequestBody.RequestBody
-  reqBody = Affjax.RequestBody.Json undefined -- TODO Needs `EncodeJson` instance for `PlutusData`
+applyArgs script args = case traverse plutusDataToJson args of
+  Nothing -> pure $ Left $ ClientEncodingError "Failed to convert script args"
+  Just ps -> do
+    let
+      -- It's easier to just write the encoder here than provide an `EncodeJson`
+      -- instance (there are some brutal cyclical dependency issues trying to
+      -- write an instance in the `Types.*` modules)
+      scriptJson :: Json.Json
+      scriptJson = encodeString $ byteArrayToHex $ unwrap $ unwrap script
 
-  bytes :: ByteArray
-  bytes = unwrap $ unwrap script
+      argsJson :: Json.Json
+      argsJson = Json.encodeJson ps
+
+      reqBody :: Maybe Affjax.RequestBody.RequestBody
+      reqBody = Just
+        $ Affjax.RequestBody.Json
+        $ Json.fromObject
+        $ Object.fromFoldable
+            [ "script" /\ scriptJson
+            , "args" /\ argsJson
+            ]
+    url <- asks $ (_ <> "/apply-args") <<< mkHttpUrl <<< _.serverConfig
+    liftAff (Affjax.post Affjax.ResponseFormat.json url reqBody)
+      <#> either
+        (Left <<< ClientHttpError)
+        (lmap ClientDecodeJsonError <<< Json.decodeJson <<< _.body)
+  where
+  plutusDataToJson :: PlutusData -> Maybe Json.Json
+  plutusDataToJson =
+    map
+      ( encodeString
+          <<< byteArrayToHex
+          <<< Serialization.toBytes
+          <<< asOneOf
+      )
+      <<< convertPlutusData
 
 --------------------------------------------------------------------------------
 -- OgmiosWebSocket Setup and PrimOps
