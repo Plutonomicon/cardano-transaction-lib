@@ -21,6 +21,7 @@ import Test.Deserialization as Deserialization
 import Test.Serialization as Serialization
 import Test.Aeson as Aeson
 import Test.Transaction as Transaction
+import Test.UsedTxOuts as UsedTxOuts
 import Test.Data as Data
 
 -- we use `mote` here so that we can use effects to build up a test tree, which
@@ -57,6 +58,7 @@ testPlan = do
   Serialization.Hash.suite
   Deserialization.suite
   Transaction.suite
+  UsedTxOuts.suite
   -- requires external servers
   -- see README.md
   AffInterface.suite

@@ -57,7 +57,6 @@ import Types.Interval
   , posixTimeRangeToTransactionSlot
   )
 import Types.JsonWsp (OgmiosTxOut)
-import Types.Redeemer (Redeemer)
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
 import Types.Scripts
   ( MintingPolicy
