@@ -13,6 +13,7 @@ import Data.List (List)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Profunctor.Strong ((***))
+import Data.Ratio (Ratio, denominator, numerator)
 import Data.Tuple.Nested (type (/\), (/\))
 import Prim.TypeError (class Fail, Text)
 import Types.ByteArray (ByteArray)
@@ -47,6 +48,9 @@ instance (ToData k, ToData v) => ToData (Map k v) where
   toData mp = Map $ entries # map (toData *** toData) # Map.fromFoldable
     where
     entries = Map.toUnfoldable mp :: Array (k /\ v)
+
+instance ToData a => ToData (Ratio a) where
+  toData ratio = List [ toData (numerator ratio), toData (denominator ratio) ]
 
 instance ToData ByteArray where
   toData = Bytes
