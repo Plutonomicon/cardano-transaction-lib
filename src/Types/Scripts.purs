@@ -14,7 +14,9 @@ import Prelude
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
+import FromData (class FromData)
 import Serialization.Hash (ScriptHash)
+import ToData (class ToData)
 import Types.ByteArray (ByteArray)
 
 --------------------------------------------------------------------------------
@@ -95,12 +97,17 @@ derive newtype instance Ord MintingPolicyHash
 instance Show MintingPolicyHash where
   show = genericShow
 
+derive newtype instance ToData MintingPolicyHash
+derive newtype instance FromData MintingPolicyHash
+
 newtype ValidatorHash = ValidatorHash ScriptHash
 
 derive instance Generic ValidatorHash _
 derive instance Newtype ValidatorHash _
 derive newtype instance Eq ValidatorHash
 derive newtype instance Ord ValidatorHash
+derive newtype instance FromData ValidatorHash
+derive newtype instance ToData ValidatorHash
 
 instance Show ValidatorHash where
   show = genericShow

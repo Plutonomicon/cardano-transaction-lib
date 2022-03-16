@@ -34,6 +34,7 @@ module Test.Fixtures
   , witnessSetFixture3Value
   , addressString1
   , txInputFixture1
+  , seabugMetadataFixture1
   ) where
 
 import Prelude
@@ -43,6 +44,8 @@ import Data.Map as Map
 import Data.Maybe (Maybe(..), fromJust)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
+import Metadata.Seabug (SeabugMetadata(SeabugMetadata))
+import Metadata.Seabug.Share (Share, mkShare)
 import Partial.Unsafe (unsafePartial)
 import Serialization.Address
   ( Address
@@ -52,13 +55,15 @@ import Serialization.Address
   , baseAddressToAddress
   , keyHashCredential
   )
-import Serialization.Hash (Ed25519KeyHash, ed25519KeyHashFromBytes)
+import Serialization.Hash (Ed25519KeyHash, ScriptHash, ed25519KeyHashFromBytes, scriptHashFromBytes)
 import Types.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
   , hexToByteArrayUnsafe
   )
+import Types.Natural as Natural
 import Types.PlutusData as PD
+import Types.Scripts (MintingPolicyHash(MintingPolicyHash), ValidatorHash(ValidatorHash))
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry)
@@ -82,6 +87,7 @@ import Types.Value
   , mkTokenName
   , mkSingletonNonAdaAsset
   )
+import Types.UnbalancedTransaction (PubKeyHash(PubKeyHash))
 
 txOutputFixture1 :: TransactionOutput
 txOutputFixture1 =
@@ -421,3 +427,37 @@ plutusDataFixture7 = PD.List
   , plutusDataFixture5
   , plutusDataFixture6
   ]
+
+scriptHash1 :: ScriptHash
+scriptHash1 = unsafePartial $ fromJust $ scriptHashFromBytes $
+  hexToByteArrayUnsafe "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
+
+scriptHash2 :: ScriptHash
+scriptHash2 = unsafePartial $ fromJust $ scriptHashFromBytes $
+  hexToByteArrayUnsafe "00000000005bb21ce6d8c7502aca70b9316d10e958611f3c6b758f60"
+
+mintPolicy :: MintingPolicyHash
+mintPolicy = MintingPolicyHash scriptHash1
+
+validatorHashFixture1 :: ValidatorHash
+validatorHashFixture1 = ValidatorHash scriptHash1
+
+validatorHashFixture2 :: ValidatorHash
+validatorHashFixture2 = ValidatorHash scriptHash2
+
+shareFixture :: Share
+shareFixture = unsafePartial $ fromJust $ mkShare 100
+
+seabugMetadataFixture1 :: SeabugMetadata
+seabugMetadataFixture1 = SeabugMetadata
+  { mintPolicy: mintPolicy
+  , collectionNftCS: currencySymbol1
+  , collectionNftTN: tokenName1
+  , lockingScript: validatorHashFixture1
+  , authorPkh: PubKeyHash ed25519KeyHashFixture1
+  , authorShare: shareFixture
+  , marketplaceScript: validatorHashFixture2
+  , marketplaceShare: shareFixture
+  , ownerPkh: PubKeyHash ed25519KeyHashFixture2
+  , ownerPrice: unsafePartial $ fromJust $ Natural.fromBigInt $ BigInt.fromInt 10
+  }

@@ -10,10 +10,10 @@ import Prelude
 
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(Nothing, Just))
 import FromData (class FromData)
 import ToData (class ToData, toData)
-import Types.PlutusData (PlutusData(..))
+import Types.PlutusData (PlutusData(Integer))
 
 newtype Natural = Natural BigInt
 
