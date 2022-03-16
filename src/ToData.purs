@@ -51,5 +51,8 @@ instance (ToData k, ToData v) => ToData (Map k v) where
 instance ToData ByteArray where
   toData = Bytes
 
+instance ToData PlutusData where
+  toData = identity
+
 foldableToPlutusData :: forall (a :: Type) (t :: Type -> Type). Foldable t => ToData a => t a -> PlutusData
 foldableToPlutusData = Array.fromFoldable >>> map toData >>> List
