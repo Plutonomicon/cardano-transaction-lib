@@ -2,6 +2,8 @@ module Test.Fixtures
   ( txOutputFixture1
   , txOutputFixture2
   , currencySymbol1
+  , mkTxInput
+  , mkSampleTx
   , nativeScriptFixture1
   , nativeScriptFixture2
   , nativeScriptFixture3
@@ -61,15 +63,7 @@ import Types.ByteArray
 import Types.PlutusData as PD
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
-  , NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
-  , PlutusData(PlutusData)
+  , NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry)
   , PublicKey(PublicKey)
   , Transaction(Transaction)
   , TransactionHash(TransactionHash)
@@ -132,6 +126,71 @@ tokenName1 = unsafePartial $ fromJust $ mkTokenName $
 txOutputBinaryFixture1 :: String
 txOutputBinaryFixture1 =
   "8258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d5336100"
+
+-- | Extend this for your needs.
+type SampleTxConfig =
+  { inputs :: Array TransactionInput }
+
+-- | Build a sample transaction using convenient config
+-- | and existing one as a base.
+mkSampleTx
+  :: Transaction
+  -> (SampleTxConfig -> SampleTxConfig)
+  -> Transaction
+mkSampleTx startTx changes =
+  applyChanges startTx $ buildChanges startTx changes
+
+  where
+  buildChanges :: Transaction -> (SampleTxConfig -> SampleTxConfig) -> SampleTxConfig
+  buildChanges (Transaction { body: TxBody { inputs } }) mkChanges =
+    mkChanges { inputs }
+
+  applyChanges :: Transaction -> SampleTxConfig -> Transaction
+  applyChanges
+    ( Transaction
+        { body: TxBody
+            { outputs
+            , fee
+            , ttl
+            , certs
+            , withdrawals
+            , update
+            , auxiliary_data_hash
+            , validity_start_interval
+            , mint
+            , script_data_hash
+            , collateral
+            , required_signers
+            , network_id
+            }
+        , witness_set
+        , is_valid
+        , auxiliary_data
+        }
+    )
+    { inputs: newInputs } =
+    ( Transaction
+        { body: TxBody
+            { inputs: newInputs
+            , outputs
+            , fee
+            , ttl
+            , certs
+            , withdrawals
+            , update
+            , auxiliary_data_hash
+            , validity_start_interval
+            , mint
+            , script_data_hash
+            , collateral
+            , required_signers
+            , network_id
+            }
+        , witness_set
+        , is_valid
+        , auxiliary_data
+        }
+    )
 
 txFixture1 :: Transaction
 txFixture1 =
@@ -325,7 +384,7 @@ witnessSetFixture3Value =
     { bootstraps: Nothing
     , native_scripts: Nothing
     , plutus_data:
-        Just [ PlutusData (byteArrayFromIntArrayUnsafe [ 88, 32, 43, 184, 13, 83, 123, 29, 163, 227, 139, 211, 3, 97, 170, 133, 86, 134, 189, 224, 234, 205, 113, 98, 254, 246, 162, 95, 233, 123, 245, 39, 162, 91 ]) ]
+        Just [ PD.Bytes (byteArrayFromIntArrayUnsafe [ 43, 184, 13, 83, 123, 29, 163, 227, 139, 211, 3, 97, 170, 133, 86, 134, 189, 224, 234, 205, 113, 98, 254, 246, 162, 95, 233, 123, 245, 39, 162, 91 ]) ]
     , plutus_scripts: Nothing
     , redeemers: Nothing
     , vkeys: Just
@@ -342,13 +401,19 @@ witnessSetFixture4 = hexToByteArrayUnsafe "a30081825820096092b8515d75c2a2f75d6aa
 addressString1 :: String
 addressString1 = "addr1qyc0kwu98x23ufhsxjgs5k3h7gktn8v5682qna5amwh2juguztcrc8hjay66es67ctn0jmr9plfmlw37je2s2px4xdssgvxerq"
 
-txInputFixture1 :: TransactionInput
-txInputFixture1 =
+mkTxInput :: { txId :: String, ix :: Int } -> TransactionInput
+mkTxInput { txId, ix } =
   TransactionInput
     { transaction_id: TransactionHash $
-        hexToByteArrayUnsafe "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad959996"
-    , index: UInt.fromInt 0
+        hexToByteArrayUnsafe txId
+    , index: UInt.fromInt ix
     }
+
+txInputFixture1 :: TransactionInput
+txInputFixture1 = mkTxInput
+  { txId: "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad959996"
+  , ix: 0
+  }
 
 ed25519KeyHashFixture1 :: Ed25519KeyHash
 ed25519KeyHashFixture1 =

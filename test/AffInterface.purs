@@ -20,6 +20,7 @@ import QueryM
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.JsonWsp (OgmiosAddress)
+import UsedTxOuts (newUsedTxOuts)
 
 testnet_addr1 :: OgmiosAddress
 testnet_addr1 = "addr_test1qr7g8nrv76fc7k4ueqwecljxx9jfwvsgawhl55hck3n8uwaz26mpcwu58zdkhpdnc6nuq3fa8vylc8ak9qvns7r2dsysp7ll4d"
@@ -49,6 +50,7 @@ testUtxosAt :: OgmiosAddress -> Aff Unit
 testUtxosAt testAddr = do
   ogmiosWs <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
   datumCacheWs <- mkDatumCacheWebSocketAff defaultDatumCacheWsConfig
+  usedTxOuts <- newUsedTxOuts
   case ogmiosAddressToAddress testAddr of
     Nothing -> liftEffect $ throw "Failed UtxosAt"
     Just addr -> runReaderT
@@ -57,6 +59,7 @@ testUtxosAt testAddr = do
       , datumCacheWs
       , serverConfig: defaultServerConfig
       , wallet: Nothing
+      , usedTxOuts
       }
 
 testFromOgmiosAddress :: OgmiosAddress -> Aff Unit
