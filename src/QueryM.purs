@@ -41,7 +41,6 @@ module QueryM
   ) where
 
 import Prelude
-import Undefined -- FIXME
 
 import Address (addressToOgmiosAddress)
 import Aeson as Aeson
@@ -113,7 +112,7 @@ import Serialization.Address
   , Slot
   )
 import Serialization.PlutusData (convertPlutusData)
-import Types.ByteArray (ByteArray, byteArrayToHex)
+import Types.ByteArray (byteArrayToHex)
 import Types.Datum (DatumHash)
 import Types.JsonWsp as JsonWsp
 import Types.PlutusData (PlutusData)
