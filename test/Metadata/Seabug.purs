@@ -1,4 +1,6 @@
-module Test.Metadata.Seabug where
+module Test.Metadata.Seabug
+  ( suite
+  ) where
 
 import Prelude
 
