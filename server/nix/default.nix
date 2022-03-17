@@ -26,6 +26,7 @@ pkgs.haskell-nix.cabalProject {
       cardano-ledger-shelley-ma
       cardano-prelude
       plutus-tx
+      plutus-tx-plugin
       plutus-ledger-api
     ];
 
