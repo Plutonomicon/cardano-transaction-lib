@@ -13,11 +13,11 @@ import Data.List (List)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Profunctor.Strong ((***))
+import Data.Ratio (Ratio, denominator, numerator)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Helpers (uIntToBigInt)
 import Prim.TypeError (class Fail, Text)
-import Serialization.Hash (Ed25519KeyHash, ed25519KeyHashToBytes)
 import Types.ByteArray (ByteArray, hexToByteArrayUnsafe)
 import Types.PlutusData (PlutusData(Integer, List, Map, Bytes))
 
@@ -57,6 +57,9 @@ instance (ToData k, ToData v) => ToData (Map k v) where
     where
     entries = Map.toUnfoldable mp :: Array (k /\ v)
 
+instance ToData a => ToData (Ratio a) where
+  toData ratio = List [ toData (numerator ratio), toData (denominator ratio) ]
+
 instance ToData ByteArray where
   toData = Bytes
 
@@ -66,9 +69,6 @@ instance ToData PlutusData where
 -- | This covers `Bech32` which is just a type alias for `String`
 instance ToData String where
   toData = Bytes <<< hexToByteArrayUnsafe -- unsafe, maybe there's a better way.
-
-instance ToData Ed25519KeyHash where
-  toData = Bytes <<< ed25519KeyHashToBytes
 
 foldableToPlutusData :: forall (a :: Type) (t :: Type -> Type). Foldable t => ToData a => t a -> PlutusData
 foldableToPlutusData = Array.fromFoldable >>> map toData >>> List

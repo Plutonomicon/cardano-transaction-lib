@@ -12,6 +12,7 @@ import Data.List (List)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just))
+import Data.Ratio (Ratio, reduce)
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
@@ -19,7 +20,6 @@ import Data.UInt (UInt)
 import Data.Unfoldable (class Unfoldable)
 import Helpers (bigIntToUInt)
 import Prim.TypeError (class Fail, Text)
-import Serialization.Hash (Ed25519KeyHash, ed25519KeyHashFromBytes)
 import Types.ByteArray (ByteArray, byteArrayToHex)
 import Types.PlutusData (PlutusData(Bytes, List, Map, Integer))
 
@@ -70,16 +70,16 @@ instance FromData ByteArray where
   fromData (Bytes res) = Just res
   fromData _ = Nothing
 
+instance (Ord a, EuclideanRing a, FromData a) => FromData (Ratio a) where
+  fromData (List [ a, b ]) = reduce <$> fromData a <*> fromData b
+  fromData _ = Nothing
+
 instance FromData PlutusData where
   fromData = Just
 
 -- | This covers `Bech32` which is just a type alias for `String`
 instance FromData String where
   fromData (Bytes res) = Just $ byteArrayToHex res
-  fromData _ = Nothing
-
-instance FromData Ed25519KeyHash where
-  fromData (Bytes res) = ed25519KeyHashFromBytes res
   fromData _ = Nothing
 
 fromDataUnfoldable :: forall (a :: Type) (t :: Type -> Type). Unfoldable t => FromData a => PlutusData -> Maybe (t a)

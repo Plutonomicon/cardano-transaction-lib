@@ -8,6 +8,7 @@ module Types.ByteArray
   , byteLength
   , hexToByteArray
   , hexToByteArrayUnsafe
+  , byteArrayFromString
   ) where
 
 import Data.ArrayBuffer.Types (Uint8Array)
@@ -15,6 +16,9 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, unwrap)
 import Prelude
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
+import Data.Char (toCharCode)
+import Data.String.CodeUnits (toCharArray)
+import Data.Traversable (for)
 
 newtype ByteArray = ByteArray Uint8Array
 
@@ -75,3 +79,12 @@ byteLength = _byteLength <<< unwrap
 
 instance arbitraryByteArray :: Arbitrary ByteArray where
   arbitrary = byteArrayFromIntArrayUnsafe <$> arbitrary
+
+-- | Convert characters in range `0-255` into a `ByteArray`.
+-- | Fails with `Nothing` if there are characters out of this range in a string.
+byteArrayFromString :: String -> Maybe ByteArray
+byteArrayFromString str = do
+  byteArrayFromIntArrayUnsafe <$> for (toCharArray str) \cp -> do
+    let charCode = toCharCode cp
+    if charCode <= 255 && charCode >= 0 then pure charCode
+    else Nothing
