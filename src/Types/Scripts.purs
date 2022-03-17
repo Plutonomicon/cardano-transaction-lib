@@ -12,7 +12,6 @@ import Prelude
 
 import Data.Argonaut (class DecodeJson)
 import Data.Argonaut as Json
-import Data.Bifunctor (rmap)
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, wrap)
@@ -41,7 +40,7 @@ instance Show PlutusScript where
 instance DecodeJson PlutusScript where
   decodeJson j = Json.caseJsonString
     (Left (Json.TypeMismatch "expected a hex-encoded CBOR string"))
-    (rmap wrap <<< note (Json.UnexpectedValue j) <<< hexToByteArray)
+    (map wrap <<< note (Json.UnexpectedValue j) <<< hexToByteArray)
     j
 
 -- | `MintingPolicy` is a wrapper around `PlutusScript`s which are used as
