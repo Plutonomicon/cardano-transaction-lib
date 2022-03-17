@@ -40,5 +40,36 @@ The server executable can be built with `nix build .#cardano-browser-tx-server:e
 - The `Fee` will be returned encoded as a JSON string (`application/json;charset=utf-8`, `application/json`):
 
 ```javascript
-"160265";
+"160265"
+```
+
+## POST /apply-args
+
+### Request:
+
+- Supported content types are:
+
+  - `application/json;charset=utf-8`
+  - `application/json`
+
+- Both the `script` and each of its `args` should be hex-encoded CBOR (`application/json;charset=utf-8`, `application/json`):
+
+```javascript
+{"args":["01"],"script": "590a9a0100003233322232323232323322323322323233322233322233322233223233322232323322323233223233333222223322"}
+```
+
+### Response:
+
+- Status code 200
+- Headers: []
+
+- Supported content types are:
+
+  - `application/json;charset=utf-8`
+  - `application/json`
+
+- The applied script will be returned as hex-encoded CBOR (`application/json;charset=utf-8`, `application/json`):
+
+```javascript
+"590a9a0100003233322232323232323322323322323233322233322233322233223233322232323322323233223233333222223322"
 ```

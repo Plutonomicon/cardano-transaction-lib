@@ -3,6 +3,7 @@ module Scripts
   , scriptHash
   , stakeValidatorHash
   , typedValidatorAddress
+  , typedValidatorBaseAddress
   , validatorAddress
   , validatorBaseAddress
   , validatorHash
@@ -17,39 +18,55 @@ import Serialization.Address
   ( Address
   , BaseAddress
   , NetworkId
+  , addressFromBytes
+  , baseAddressFromBytes
   , baseAddressToAddress
   , scriptAddress
   )
-import Serialization.Hash (ScriptHash, scriptHashFromBytes)
+import Serialization.Hash
+  ( ScriptHash
+  , scriptHashFromBytes
+  , scriptHashToBytes
+  )
 import Types.Scripts
   ( MintingPolicy
   , MintingPolicyHash
   , PlutusScript
   , StakeValidator
   , StakeValidatorHash
-  , TypedValidator(TypedValidator)
   , Validator
   , ValidatorHash
   )
+import Types.TypedValidator (TypedValidator(TypedValidator))
 
 -- | Helpers for `PlutusScript` and `ScriptHash` newtype wrappers, separate from
 -- | the data type definitions to prevent cylic dependencies.
 
 -- | Converts a Plutus-style `Validator` to a `BaseAddress`
-validatorBaseAddress :: NetworkId -> Validator -> Maybe BaseAddress
-validatorBaseAddress networkId =
-  map (validatorHashBaseAddress networkId) <<< validatorHash
+validatorBaseAddress :: Validator -> Maybe BaseAddress
+validatorBaseAddress =
+  (=<<) baseAddressFromBytes
+    <<< map (scriptHashToBytes <<< unwrap)
+    <<< validatorHash
 
 -- | Converts a Plutus-style `Validator` to an `Address`
-validatorAddress :: NetworkId -> Validator -> Maybe Address
-validatorAddress networkId =
-  map baseAddressToAddress <<< validatorBaseAddress networkId
+validatorAddress :: Validator -> Maybe Address
+validatorAddress =
+  (=<<) addressFromBytes
+    <<< map (scriptHashToBytes <<< unwrap)
+    <<< validatorHash
+
+-- | Converts a Plutus-style `TypedValidator` to an `BaseAddress`
+typedValidatorBaseAddress
+  :: forall (a :: Type). NetworkId -> TypedValidator a -> BaseAddress
+typedValidatorBaseAddress networkId (TypedValidator typedVal) =
+  scriptAddress networkId $ unwrap typedVal.validatorHash
 
 -- | Converts a Plutus-style `TypedValidator` to an `Address`
 typedValidatorAddress
   :: forall (a :: Type). NetworkId -> TypedValidator a -> Address
-typedValidatorAddress networkId (TypedValidator typedVal) =
-  baseAddressToAddress $ scriptAddress networkId $ unwrap typedVal.validatorHash
+typedValidatorAddress networkId =
+  baseAddressToAddress <<< typedValidatorBaseAddress networkId
 
 -- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
 mintingPolicyHash :: MintingPolicy -> Maybe MintingPolicyHash

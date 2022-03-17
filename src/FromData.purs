@@ -7,30 +7,51 @@ import Prelude
 
 import Data.Array as Array
 import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
+import Data.Either (Either(Left, Right))
 import Data.List (List)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just))
+import Data.Ratio (Ratio, reduce)
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
-import Prim.TypeError (class Fail, Text)
+import Data.UInt (UInt)
 import Data.Unfoldable (class Unfoldable)
-import Types.ByteArray (ByteArray)
-import Types.PlutusData (PlutusData(Bytes, List, Map, Integer))
+import Helpers (bigIntToUInt)
+import Prim.TypeError (class Fail, Text)
+import Types.ByteArray (ByteArray, byteArrayToHex)
+import Types.PlutusData (PlutusData(Bytes, Constr, List, Map, Integer))
 
 class FromData (a :: Type) where
   fromData :: PlutusData -> Maybe a
+
+instance FromData Void where
+  fromData _ = Nothing
 
 instance FromData Unit where
   fromData (List []) = Just unit
   fromData _ = Nothing
 
 instance FromData Boolean where
-  fromData (Integer n)
-    | n == BigInt.fromInt 0 = Just false
-    | n == BigInt.fromInt 1 = Just true
+  fromData (Constr n [])
+    | n == zero = Just false
+    | n == one = Just true
+    | otherwise = Nothing
+  fromData _ = Nothing
+
+instance FromData a => FromData (Maybe a) where
+  fromData (Constr n [ pd ]) = case fromData pd of
+    Just Nothing | n == one -> Just Nothing
+    Just (Just x) | n == zero -> Just (Just x) -- Just is one-indexed by Plutus
+    _ -> Nothing
+  fromData _ = Nothing
+
+instance (FromData a, FromData b) => FromData (Either a b) where
+  fromData (Constr n [ pd ]) = case fromData pd of
+    Just (Left x) | n == zero -> Just (Left x)
+    Just (Right x) | n == one -> Just (Right x)
+    _ -> Nothing
   fromData _ = Nothing
 
 instance Fail (Text "Int is not supported, use BigInt instead") => FromData Int where
@@ -38,6 +59,10 @@ instance Fail (Text "Int is not supported, use BigInt instead") => FromData Int 
 
 instance FromData BigInt where
   fromData (Integer n) = Just n
+  fromData _ = Nothing
+
+instance FromData UInt where
+  fromData (Integer n) = bigIntToUInt n
   fromData _ = Nothing
 
 instance FromData a => FromData (Array a) where
@@ -58,6 +83,18 @@ instance (FromData k, Ord k, FromData v) => FromData (Map k v) where
 
 instance FromData ByteArray where
   fromData (Bytes res) = Just res
+  fromData _ = Nothing
+
+instance (Ord a, EuclideanRing a, FromData a) => FromData (Ratio a) where
+  fromData (List [ a, b ]) = reduce <$> fromData a <*> fromData b
+  fromData _ = Nothing
+
+instance FromData PlutusData where
+  fromData = Just
+
+-- | This covers `Bech32` which is just a type alias for `String`
+instance FromData String where
+  fromData (Bytes res) = Just $ byteArrayToHex res
   fromData _ = Nothing
 
 fromDataUnfoldable :: forall (a :: Type) (t :: Type -> Type). Unfoldable t => FromData a => PlutusData -> Maybe (t a)

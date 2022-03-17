@@ -4,7 +4,6 @@ module Types.Scripts
   , PlutusScript(..)
   , StakeValidator(..)
   , StakeValidatorHash(..)
-  , TypedValidator(..)
   , Validator(..)
   , ValidatorHash(..)
   ) where
@@ -13,12 +12,13 @@ import Prelude
 
 import Data.Argonaut (class DecodeJson)
 import Data.Argonaut as Json
-import Data.Bifunctor (rmap)
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
+import FromData (class FromData)
 import Serialization.Hash (ScriptHash)
+import ToData (class ToData)
 import Types.ByteArray (ByteArray, hexToByteArray)
 
 --------------------------------------------------------------------------------
@@ -40,7 +40,7 @@ instance Show PlutusScript where
 instance DecodeJson PlutusScript where
   decodeJson j = Json.caseJsonString
     (Left (Json.TypeMismatch "expected a hex-encoded CBOR string"))
-    (rmap wrap <<< note (Json.UnexpectedValue j) <<< hexToByteArray)
+    (map wrap <<< note (Json.UnexpectedValue j) <<< hexToByteArray)
     j
 
 -- | `MintingPolicy` is a wrapper around `PlutusScript`s which are used as
@@ -80,23 +80,6 @@ derive newtype instance DecodeJson StakeValidator
 instance Show StakeValidator where
   show = genericShow
 
--- Plutus rev: cc72a56eafb02333c96f662581b57504f8f8992f via Plutus-apps (localhost): abe4785a4fc4a10ba0c4e6417f0ab9f1b4169b26
--- | A typed validator script with its `ValidatorScript` and `Address`.
-newtype TypedValidator (a :: Type) = TypedValidator
-  { validator :: Validator
-  , validatorHash :: ValidatorHash
-  , forwardingMPS :: MintingPolicy
-  , forwardingMPSHash :: MintingPolicyHash
-  -- The hash of the minting policy that checks whether the validator
-  -- is run in this transaction
-  }
-
-derive instance Generic (TypedValidator a) _
-derive newtype instance Eq (TypedValidator a)
-
-instance Show (TypedValidator a) where
-  show = genericShow
-
 --------------------------------------------------------------------------------
 -- `ScriptHash` newtypes
 --------------------------------------------------------------------------------
@@ -110,12 +93,17 @@ derive newtype instance Ord MintingPolicyHash
 instance Show MintingPolicyHash where
   show = genericShow
 
+derive newtype instance ToData MintingPolicyHash
+derive newtype instance FromData MintingPolicyHash
+
 newtype ValidatorHash = ValidatorHash ScriptHash
 
 derive instance Generic ValidatorHash _
 derive instance Newtype ValidatorHash _
 derive newtype instance Eq ValidatorHash
 derive newtype instance Ord ValidatorHash
+derive newtype instance FromData ValidatorHash
+derive newtype instance ToData ValidatorHash
 
 instance Show ValidatorHash where
   show = genericShow
