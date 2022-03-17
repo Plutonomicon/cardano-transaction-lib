@@ -1,8 +1,11 @@
--- | Arbitrary precision natural number (backed by BigInt).
+-- | Arbitrary precision natural numbers (backed by `BigInt`).
 module Types.Natural
-  ( Natural
+  ( (^-)
+  , Natural
+  , binaryOnBigInt
   , fromBigInt
   , fromBigInt'
+  , minus
   , toBigInt
   ) where
 
@@ -10,7 +13,8 @@ import Prelude
 
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Maybe (Maybe(Nothing, Just))
+import Data.Function (on)
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe)
 import FromData (class FromData)
 import ToData (class ToData, toData)
 import Types.PlutusData (PlutusData(Integer))
@@ -44,3 +48,31 @@ fromBigInt' n =
 
 toBigInt :: Natural -> BigInt
 toBigInt (Natural n) = n
+
+instance Semiring Natural where
+  one = Natural one -- This is safe so don't need `fromBigInt`
+  mul = unsafeBinaryOnBigInt mul
+  zero = Natural zero -- This is safe so don't need `fromBigInt`
+  add = unsafeBinaryOnBigInt add
+
+-- DO NOT EXPORT:
+-- This is not safe to export unless we use `fromBigInt` to return
+-- `Maybe Natural` but is okay on `mul` and `add` for above.
+unsafeBinaryOnBigInt
+  :: (BigInt -> BigInt -> BigInt) -> Natural -> Natural -> Natural
+unsafeBinaryOnBigInt bin n = Natural <<< (bin `on` toBigInt) n
+
+-- | Use an arbitrary binary operation on the underlying `BigInt` for two
+-- | natural numbers to return a natural number with potential failure if the
+-- | output is not natural.
+binaryOnBigInt
+  :: (BigInt -> BigInt -> BigInt) -> Natural -> Natural -> Maybe Natural
+binaryOnBigInt bin n = fromBigInt <<< (bin `on` toBigInt) n
+
+-- | Subtracts one natural number from another via `BigInt`. If the number
+-- | becomes negative, we return zero.
+minus :: Natural -> Natural -> Natural
+minus n = fromMaybe zero <<< binaryOnBigInt (-) n
+
+-- Part of an `AdditiveHemigroup` notation but we'll use this for now.
+infixl 6 minus as ^-

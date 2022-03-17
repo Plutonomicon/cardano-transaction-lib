@@ -43,7 +43,7 @@ instance FromData Boolean where
 instance FromData a => FromData (Maybe a) where
   fromData (Constr n [ pd ]) = case fromData pd of
     Just Nothing | n == one -> Just Nothing
-    Just (Just x) | n == zero -> Just (Just x) -- Just is one-indexed by Plutus
+    Just (Just x) | n == zero -> Just (Just x) -- Just is zero-indexed by Plutus
     _ -> Nothing
   fromData _ = Nothing
 
@@ -85,6 +85,8 @@ instance FromData ByteArray where
   fromData (Bytes res) = Just res
   fromData _ = Nothing
 
+-- Nothing prevents fromData b ~ Maybe BigInt from being zero here, perhaps
+-- we want more safety:
 instance (Ord a, EuclideanRing a, FromData a) => FromData (Ratio a) where
   fromData (List [ a, b ]) = reduce <$> fromData a <*> fromData b
   fromData _ = Nothing

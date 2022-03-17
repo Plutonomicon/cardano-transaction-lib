@@ -118,7 +118,7 @@ instance Show a => Show (UpperBound a) where
 -- | that the endpoints may or may not be included in the interval.
 -- |
 -- | The interval can also be unbounded on either side.
-newtype Interval a = Interval { ivFrom :: LowerBound a, ivTo :: UpperBound a }
+newtype Interval a = Interval { from :: LowerBound a, to :: UpperBound a }
 
 derive instance Generic (Interval a) _
 derive newtype instance Eq a => Eq (Interval a)
@@ -164,7 +164,7 @@ type POSIXTimeRange = Interval POSIXTime
 -- Helpers
 --------------------------------------------------------------------------------
 mkInterval :: forall (a :: Type). LowerBound a -> UpperBound a -> Interval a
-mkInterval ivFrom ivTo = Interval { ivFrom, ivTo }
+mkInterval from' to' = Interval { from: from', to: to' }
 
 strictUpperBound :: forall (a :: Type). a -> UpperBound a
 strictUpperBound a = UpperBound (Finite a) false
@@ -235,25 +235,25 @@ overlaps l r = not $ isEmpty (l `intersection` r)
 intersection
   :: forall (a :: Type). Ord a => Interval a -> Interval a -> Interval a
 intersection (Interval int) (Interval int') =
-  mkInterval (max int.ivFrom int'.ivFrom) (min int.ivTo int'.ivTo)
+  mkInterval (max int.from int'.from) (min int.to int'.to)
 
 -- | `hull a b` is the smallest interval containing `a` and `b`.
 hull :: forall (a :: Type). Ord a => Interval a -> Interval a -> Interval a
 hull (Interval int) (Interval int') =
-  mkInterval (min int.ivFrom int'.ivFrom) (max int.ivTo int'.ivTo)
+  mkInterval (min int.from int'.from) (max int.to int'.to)
 
 -- | `a` `contains` `b` is `true` if the `Interval b` is entirely contained in
 -- | `a`. That is, `a `contains` `b` if for every entry `s`, if `member s b` then
 -- | `member s a`.
 contains :: forall (a :: Type). Ord a => Interval a -> Interval a -> Boolean
 contains (Interval int) (Interval int') =
-  int.ivFrom <= int'.ivFrom && int'.ivTo <= int.ivTo
+  int.from <= int'.from && int'.to <= int.to
 
 -- | Check if an `Interval` is empty. This is the Plutus implementation but
 -- | BigInt used in `POSIXTime` is cannot be enumerated so the `isEmpty` we use in
 -- | practice uses `Semiring` instead. See `isEmpty` for the practical version.
 isEmpty' :: forall (a :: Type). Enum a => Interval a -> Boolean
-isEmpty' (Interval { ivFrom: LowerBound v1 in1, ivTo: UpperBound v2 in2 }) =
+isEmpty' (Interval { from: LowerBound v1 in1, to: UpperBound v2 in2 }) =
   case v1 `compare` v2 of
     LT -> if openInterval then checkEnds v1 v2 else false
     GT -> true
@@ -273,7 +273,7 @@ isEmpty' (Interval { ivFrom: LowerBound v1 in1, ivTo: UpperBound v2 in2 }) =
 -- | Check if an `Interval` is empty. This is the practical version to use
 -- | with `a = POSIXTime`.
 isEmpty :: forall (a :: Type). Ord a => Semiring a => Interval a -> Boolean
-isEmpty (Interval { ivFrom: LowerBound v1 in1, ivTo: UpperBound v2 in2 }) =
+isEmpty (Interval { from: LowerBound v1 in1, to: UpperBound v2 in2 }) =
   case v1 `compare` v2 of
     LT -> if openInterval then checkEnds v1 v2 else false
     GT -> true
@@ -290,11 +290,11 @@ isEmpty (Interval { ivFrom: LowerBound v1 in1, ivTo: UpperBound v2 in2 }) =
 
 -- | Check if a value is earlier than the beginning of an `Interval`.
 before :: forall (a :: Type). Ord a => a -> Interval a -> Boolean
-before h (Interval { ivFrom }) = lowerBound h < ivFrom
+before h (Interval { from: from' }) = lowerBound h < from'
 
 -- | Check if a value is later than the end of a `Interval`.
 after :: forall (a :: Type). Ord a => a -> Interval a -> Boolean
-after h (Interval { ivTo }) = upperBound h > ivTo
+after h (Interval { to: to' }) = upperBound h > to'
 
 --------------------------------------------------------------------------------
 -- SlotConfig Type and related
@@ -334,7 +334,7 @@ defaultSlotConfig = SlotConfig
 slotRangeToPOSIXTimeRange :: SlotConfig -> SlotRange -> POSIXTimeRange
 slotRangeToPOSIXTimeRange
   sc
-  (Interval { ivFrom: LowerBound start startIncl, ivTo: UpperBound end endIncl }) =
+  (Interval { from: LowerBound start startIncl, to: UpperBound end endIncl }) =
   let
     lbound =
       map
@@ -346,8 +346,8 @@ slotRangeToPOSIXTimeRange
         end
   in
     Interval
-      { ivFrom: LowerBound lbound startIncl
-      , ivTo: UpperBound ubound endIncl
+      { from: LowerBound lbound startIncl
+      , to: UpperBound ubound endIncl
       }
 
 -- | Convert a `Slot` to a `POSIXTimeRange` given a `SlotConfig`. Each `Slot`
@@ -376,8 +376,8 @@ posixTimeRangeToContainedSlotRange
 posixTimeRangeToContainedSlotRange sc ptr = do
   let
     Interval
-      { ivFrom: LowerBound start startIncl
-      , ivTo: UpperBound end endIncl
+      { from: LowerBound start startIncl
+      , to: UpperBound end endIncl
       } = map (posixTimeToEnclosingSlot sc) ptr
 
     -- Determines the closure of the interval with a handler over whether it's
@@ -403,8 +403,8 @@ posixTimeRangeToContainedSlotRange sc ptr = do
   start' <- seqExtended start
   end' <- seqExtended end
   pure $ Interval
-    { ivFrom: LowerBound start' (closureWith slotToBeginPOSIXTime startIncl start')
-    , ivTo: UpperBound end' (closureWith slotToBeginPOSIXTime endIncl end')
+    { from: LowerBound start' (closureWith slotToBeginPOSIXTime startIncl start')
+    , to: UpperBound end' (closureWith slotToBeginPOSIXTime endIncl end')
     }
 
 type TransactionValiditySlot =
@@ -421,7 +421,7 @@ slotRangeToTransactionSlot
   :: SlotRange
   -> TransactionValiditySlot
 slotRangeToTransactionSlot
-  (Interval { ivFrom: LowerBound start startIncl, ivTo: UpperBound end endIncl }) =
+  (Interval { from: LowerBound start startIncl, to: UpperBound end endIncl }) =
   { validityStartInterval, timeToLive }
   where
   validityStartInterval :: Maybe Slot
