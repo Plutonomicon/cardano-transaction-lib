@@ -62,6 +62,8 @@ applyArgsSpec = around withTestApp $ do
       result `shouldBe` Right (AppliedScript unappliedScriptFixture)
 
     -- FIXME
+    -- See: https://github.com/Plutonomicon/cardano-browser-tx/issues/189
+    --
     -- This is returning a different applied script than the test fixtures. The
     -- fixtures were obtained with Plutus using `applyCode` (not `applyArguments`
     -- which the server implementation uses). Need to investigate more
