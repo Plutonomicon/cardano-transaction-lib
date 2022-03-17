@@ -73,9 +73,10 @@ import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This))
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested ((/\), type (/\))
+import FromData (class FromData)
 import Partial.Unsafe (unsafePartial)
-
 import Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
+import ToData (class ToData)
 import Types.ByteArray (ByteArray, byteLength)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 
@@ -164,6 +165,8 @@ newtype CurrencySymbol = CurrencySymbol ByteArray
 
 derive newtype instance eqCurrencySymbol :: Eq CurrencySymbol
 derive newtype instance ordCurrencySymbol :: Ord CurrencySymbol
+derive newtype instance FromData CurrencySymbol
+derive newtype instance ToData CurrencySymbol
 
 instance showCurrencySymbol :: Show CurrencySymbol where
   show (CurrencySymbol cs) = "(CurrencySymbol" <> show cs <> ")"
@@ -194,6 +197,8 @@ newtype TokenName = TokenName ByteArray
 
 derive newtype instance eqTokenName :: Eq TokenName
 derive newtype instance ordTokenName :: Ord TokenName
+derive newtype instance FromData TokenName
+derive newtype instance ToData TokenName
 
 instance showTokenName :: Show TokenName where
   show (TokenName tn) = "(TokenName" <> show tn <> ")"
