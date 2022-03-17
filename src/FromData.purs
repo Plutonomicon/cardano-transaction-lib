@@ -7,7 +7,7 @@ import Prelude
 
 import Data.Array as Array
 import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
+import Data.Either (Either(Left, Right))
 import Data.List (List)
 import Data.Map (Map)
 import Data.Map as Map
@@ -21,7 +21,7 @@ import Data.Unfoldable (class Unfoldable)
 import Helpers (bigIntToUInt)
 import Prim.TypeError (class Fail, Text)
 import Types.ByteArray (ByteArray, byteArrayToHex)
-import Types.PlutusData (PlutusData(Bytes, List, Map, Integer))
+import Types.PlutusData (PlutusData(Bytes, Constr, List, Map, Integer))
 
 class FromData (a :: Type) where
   fromData :: PlutusData -> Maybe a
@@ -34,9 +34,24 @@ instance FromData Unit where
   fromData _ = Nothing
 
 instance FromData Boolean where
-  fromData (Integer n)
-    | n == BigInt.fromInt 0 = Just false
-    | n == BigInt.fromInt 1 = Just true
+  fromData (Constr n [])
+    | n == zero = Just false
+    | n == one = Just true
+    | otherwise = Nothing
+  fromData _ = Nothing
+
+instance FromData a => FromData (Maybe a) where
+  fromData (Constr n [ pd ]) = case fromData pd of
+    Just Nothing | n == one -> Just Nothing
+    Just (Just x) | n == zero -> Just (Just x) -- Just is one-indexed by Plutus
+    _ -> Nothing
+  fromData _ = Nothing
+
+instance (FromData a, FromData b) => FromData (Either a b) where
+  fromData (Constr n [ pd ]) = case fromData pd of
+    Just (Left x) | n == zero -> Just (Left x)
+    Just (Right x) | n == one -> Just (Right x)
+    _ -> Nothing
   fromData _ = Nothing
 
 instance Fail (Text "Int is not supported, use BigInt instead") => FromData Int where

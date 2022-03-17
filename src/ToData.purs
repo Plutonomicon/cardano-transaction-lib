@@ -8,10 +8,12 @@ import Prelude
 import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
+import Data.Either (Either(Left, Right))
 import Data.Foldable (class Foldable)
 import Data.List (List)
 import Data.Map (Map)
 import Data.Map as Map
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Profunctor.Strong ((***))
 import Data.Ratio (Ratio, denominator, numerator)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -19,7 +21,7 @@ import Data.UInt (UInt)
 import Helpers (uIntToBigInt)
 import Prim.TypeError (class Fail, Text)
 import Types.ByteArray (ByteArray, hexToByteArrayUnsafe)
-import Types.PlutusData (PlutusData(Integer, List, Map, Bytes))
+import Types.PlutusData (PlutusData(Integer, Constr, List, Map, Bytes))
 
 class ToData (a :: Type) where
   toData :: a -> PlutusData
@@ -31,8 +33,16 @@ instance ToData Unit where
   toData _ = List []
 
 instance ToData Boolean where
-  toData false = Integer (BigInt.fromInt 0)
-  toData true = Integer (BigInt.fromInt 1)
+  toData false = Constr zero []
+  toData true = Constr one []
+
+instance ToData a => ToData (Maybe a) where
+  toData (Just x) = Constr zero [ toData x ] -- Just is one-indexed by Plutus
+  toData Nothing = Constr one []
+
+instance (ToData a, ToData b) => ToData (Either a b) where
+  toData (Left e) = Constr zero [ toData e ]
+  toData (Right x) = Constr one [ toData x ]
 
 instance Fail (Text "Int is not supported, use BigInt instead") => ToData Int where
   toData = toData <<< BigInt.fromInt

@@ -620,9 +620,8 @@ instance Show TransactionInput where
 instance FromData TransactionInput where
   fromData (Constr id [ txId, idx ]) =
     if id == zero then
-      (\transaction_id index -> TransactionInput { transaction_id, index })
-        <$> fromData txId
-        <*> fromData idx
+      TransactionInput <$>
+        ({ transaction_id: _, index: _ } <$> fromData txId <*> fromData idx)
     else Nothing
   fromData _ = Nothing
 
@@ -643,6 +642,24 @@ derive newtype instance Eq TransactionOutput
 
 instance Show TransactionOutput where
   show = genericShow
+
+-- `Constr` is used for indexing, and `TransactionOutput` is always zero-indexed
+instance FromData TransactionOutput where
+  fromData (Constr id [ addr, amt, dh ]) =
+    if id == zero then
+      TransactionOutput <$>
+        ( { address: _, amount: _, data_hash: _ }
+            <$> fromData addr
+            <*> fromData amt
+            <*> fromData dh
+        )
+    else Nothing
+  fromData _ = Nothing
+
+-- `Constr` is used for indexing, and `TransactionOutput` is always zero-indexed
+instance ToData TransactionOutput where
+  toData (TransactionOutput { address, amount, data_hash }) =
+    Constr zero [ toData address, toData amount, toData data_hash ]
 
 newtype UtxoM = UtxoM Utxo
 
