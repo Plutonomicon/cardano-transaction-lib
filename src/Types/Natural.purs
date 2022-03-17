@@ -23,6 +23,7 @@ newtype Natural = Natural BigInt
 
 derive newtype instance Eq Natural
 derive newtype instance Ord Natural
+derive newtype instance Semiring Natural
 
 instance Show Natural where
   show (Natural n) = "(fromBigInt' (BigInt." <> show n <> "))"
@@ -48,19 +49,6 @@ fromBigInt' n =
 
 toBigInt :: Natural -> BigInt
 toBigInt (Natural n) = n
-
-instance Semiring Natural where
-  one = Natural one -- This is safe so don't need `fromBigInt`
-  mul = unsafeBinaryOnBigInt mul
-  zero = Natural zero -- This is safe so don't need `fromBigInt`
-  add = unsafeBinaryOnBigInt add
-
--- DO NOT EXPORT:
--- This is not safe to export unless we use `fromBigInt` to return
--- `Maybe Natural` but is okay on `mul` and `add` for above.
-unsafeBinaryOnBigInt
-  :: (BigInt -> BigInt -> BigInt) -> Natural -> Natural -> Natural
-unsafeBinaryOnBigInt bin n = Natural <<< (bin `on` toBigInt) n
 
 -- | Use an arbitrary binary operation on the underlying `BigInt` for two
 -- | natural numbers to return a natural number with potential failure if the
