@@ -12,6 +12,7 @@ import Data.List (List)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just))
+import Data.Ratio (Ratio, reduce)
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
@@ -59,6 +60,13 @@ instance (FromData k, Ord k, FromData v) => FromData (Map k v) where
 instance FromData ByteArray where
   fromData (Bytes res) = Just res
   fromData _ = Nothing
+
+instance (Ord a, EuclideanRing a, FromData a) => FromData (Ratio a) where
+  fromData (List [ a, b ]) = reduce <$> fromData a <*> fromData b
+  fromData _ = Nothing
+
+instance FromData PlutusData where
+  fromData = Just
 
 fromDataUnfoldable :: forall (a :: Type) (t :: Type -> Type). Unfoldable t => FromData a => PlutusData -> Maybe (t a)
 fromDataUnfoldable (List entries) = Array.toUnfoldable <$> traverse fromData entries

@@ -37,6 +37,7 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (sequence)
 import Data.Tuple (Tuple(Tuple))
+import FromData (class FromData)
 import Serialization.Address
   ( Address
   , BaseAddress
@@ -50,6 +51,7 @@ import Serialization.Hash
   , ed25519KeyHashFromBech32
   , scriptHashToBytes
   )
+import ToData (class ToData)
 import Types.Datum (DatumHash)
 import Types.Transaction
   ( Transaction
@@ -87,6 +89,8 @@ derive instance Generic PubKeyHash _
 derive instance Newtype PubKeyHash _
 derive newtype instance Eq PubKeyHash
 derive newtype instance Ord PubKeyHash
+derive newtype instance FromData PubKeyHash
+derive newtype instance ToData PubKeyHash
 
 instance Show PubKeyHash where
   show = genericShow

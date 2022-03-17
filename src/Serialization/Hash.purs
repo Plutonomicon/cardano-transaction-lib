@@ -13,17 +13,17 @@ module Serialization.Hash
   , scriptHashToBech32
   ) where
 
-import Control.Category (identity)
-import Data.Eq (class Eq, eq)
+import Prelude
+
 import Data.Function (on)
-import Data.Maybe (Maybe)
-import Data.Monoid ((<>))
-import Data.Ord (class Ord, compare)
-import Data.Show (class Show)
+import Data.Maybe (Maybe(Nothing))
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import FromData (class FromData)
 import Serialization.Csl (class ToCsl)
+import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray, byteArrayToHex)
+import Types.PlutusData (PlutusData(Bytes))
 
 -- | PubKeyHash and StakeKeyHash refers to blake2b-224 hash digests of Ed25519
 -- | verification keys
@@ -40,6 +40,13 @@ instance Show Ed25519KeyHash where
 
 instance ToCsl Ed25519KeyHash Ed25519KeyHash where
   toCslRep = identity
+
+instance ToData Ed25519KeyHash where
+  toData = toData <<< ed25519KeyHashToBytes
+
+instance FromData Ed25519KeyHash where
+  fromData (Bytes kh) = ed25519KeyHashFromBytes kh
+  fromData _ = Nothing
 
 foreign import _ed25519KeyHashFromBytesImpl
   :: MaybeFfiHelper
@@ -93,6 +100,13 @@ instance Show ScriptHash where
 
 instance ToCsl ScriptHash ScriptHash where
   toCslRep = identity
+
+instance ToData ScriptHash where
+  toData = toData <<< scriptHashToBytes
+
+instance FromData ScriptHash where
+  fromData (Bytes bytes) = scriptHashFromBytes bytes
+  fromData _ = Nothing
 
 foreign import _scriptHashFromBytesImpl
   :: MaybeFfiHelper

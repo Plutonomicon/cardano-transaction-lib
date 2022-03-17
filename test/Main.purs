@@ -23,6 +23,7 @@ import Test.Aeson as Aeson
 import Test.Transaction as Transaction
 import Test.UsedTxOuts as UsedTxOuts
 import Test.Data as Data
+import Test.Metadata.Seabug as Seabug
 
 -- we use `mote` here so that we can use effects to build up a test tree, which
 -- is then interpreted here in a pure context, mainly due to some painful types
@@ -62,3 +63,4 @@ testPlan = do
   -- requires external servers
   -- see README.md
   AffInterface.suite
+  Seabug.suite

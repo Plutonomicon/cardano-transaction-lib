@@ -22,9 +22,11 @@ import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
+import FromData (class FromData)
 import Helpers ((</>), (<<>>), appendMap, appendRightHashMap)
 import Serialization.Address (Address, NetworkId, RewardAddress, Slot(Slot))
 import Serialization.Hash (Ed25519KeyHash)
+import ToData (class ToData)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
 import Types.RedeemerTag (RedeemerTag)
@@ -575,7 +577,9 @@ newtype DataHash = DataHash ByteArray
 derive instance Generic DataHash _
 derive instance Newtype DataHash _
 derive newtype instance Eq DataHash
+derive newtype instance FromData DataHash
 derive newtype instance Ord DataHash
+derive newtype instance ToData DataHash
 
 instance Show DataHash where
   show = genericShow
