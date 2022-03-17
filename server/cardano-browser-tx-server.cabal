@@ -58,6 +58,7 @@ library
     , exceptions
     , extra
     , mtl
+    , plutus-ledger-api
     , plutus-tx
     , servant
     , servant-client
@@ -69,7 +70,7 @@ library
 
   exposed-modules:
     Api
-    Api.Fees
+    Api.Handlers
     Paths_cardano_browser_tx_server
     Types
     Utils
@@ -101,8 +102,10 @@ test-suite test
     , bytestring
     , cardano-browser-tx-server
     , hspec
+    , hspec-core
     , http-client
     , http-types
+    , plutus-ledger-api
     , servant
     , servant-client
     , servant-server

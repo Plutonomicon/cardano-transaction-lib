@@ -47,7 +47,7 @@ import ProtocolParametersAlonzo
   , utxoEntrySizeWithoutVal
   )
 import QueryM
-  ( FeeEstimateError
+  ( ClientError
   , QueryM
   , calculateMinFee
   , getWalletAddress
@@ -105,7 +105,7 @@ data BalanceTxError
   | BalanceTxInsError' BalanceTxInsError
   | BalanceNonAdaOutsError' BalanceNonAdaOutsError
   | SignTxError' SignTxError
-  | CalculateMinFeeError' FeeEstimateError
+  | CalculateMinFeeError' ClientError
 
 derive instance genericBalanceTxError :: Generic BalanceTxError _
 
@@ -143,7 +143,7 @@ instance showUtxoIndexToUtxoError :: Show UtxoIndexToUtxoError where
 data ReturnAdaChangeError
   = ReturnAdaChangeError String
   | ReturnAdaChangeImpossibleError String ImpossibleError
-  | ReturnAdaChangeCalculateMinFee FeeEstimateError
+  | ReturnAdaChangeCalculateMinFee ClientError
 
 derive instance genericReturnAdaChangeError :: Generic ReturnAdaChangeError _
 
@@ -235,7 +235,7 @@ type MinUtxos = Array (TransactionOutput /\ BigInt)
 
 calculateMinFee'
   :: Transaction
-  -> QueryM (Either FeeEstimateError BigInt)
+  -> QueryM (Either ClientError BigInt)
 calculateMinFee' = calculateMinFee >>> map (rmap unwrap)
 
 --------------------------------------------------------------------------------

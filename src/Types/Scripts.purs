@@ -10,13 +10,16 @@ module Types.Scripts
 
 import Prelude
 
+import Data.Argonaut (class DecodeJson)
+import Data.Argonaut as Json
+import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
 import FromData (class FromData)
 import Serialization.Hash (ScriptHash)
 import ToData (class ToData)
-import Types.ByteArray (ByteArray)
+import Types.ByteArray (ByteArray, hexToByteArray)
 
 --------------------------------------------------------------------------------
 -- `PlutusScript` newtypes and `TypedValidator`
@@ -32,6 +35,14 @@ derive newtype instance Ord PlutusScript
 instance Show PlutusScript where
   show = genericShow
 
+-- This instance is needed as the server will return a hex-encoded CBOR string
+-- when `applyArgs` is called
+instance DecodeJson PlutusScript where
+  decodeJson j = Json.caseJsonString
+    (Left (Json.TypeMismatch "expected a hex-encoded CBOR string"))
+    (map wrap <<< note (Json.UnexpectedValue j) <<< hexToByteArray)
+    j
+
 -- | `MintingPolicy` is a wrapper around `PlutusScript`s which are used as
 -- | validators for minting constraints.
 newtype MintingPolicy = MintingPolicy PlutusScript
@@ -40,6 +51,7 @@ derive instance Generic MintingPolicy _
 derive instance Newtype MintingPolicy _
 derive newtype instance Eq MintingPolicy
 derive newtype instance Ord MintingPolicy
+derive newtype instance DecodeJson MintingPolicy
 
 instance Show MintingPolicy where
   show = genericShow
@@ -50,6 +62,7 @@ derive instance Generic Validator _
 derive instance Newtype Validator _
 derive newtype instance Eq Validator
 derive newtype instance Ord Validator
+derive newtype instance DecodeJson Validator
 
 instance Show Validator where
   show = genericShow
@@ -62,6 +75,7 @@ derive instance Generic StakeValidator _
 derive instance Newtype StakeValidator _
 derive newtype instance Eq StakeValidator
 derive newtype instance Ord StakeValidator
+derive newtype instance DecodeJson StakeValidator
 
 instance Show StakeValidator where
   show = genericShow
