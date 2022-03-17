@@ -95,7 +95,7 @@ exports.transactionWitnessSetSetVkeys = ws => vkeys => () =>
     ws.set_vkeys(vkeys);
 
 exports.newPlutusScript = bytes => () =>
-    lib.PlutusScript.new(bytes);
+    lib.PlutusScript.from_bytes(bytes);
 
 exports.newPlutusScripts = bytes => () =>
     lib.PlutusScripts.new(bytes);

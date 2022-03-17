@@ -4,7 +4,7 @@ module QueryM
   , DatumCacheWebSocket
   , DispatchIdMap
   , FeeEstimate(..)
-  , FeeEstimateError(..)
+  , ClientError(..)
   , Host
   , JsWebSocket
   , ListenerSet
@@ -14,6 +14,7 @@ module QueryM
   , QueryM
   , ServerConfig
   , WebSocket
+  , applyArgs
   , calculateMinFee
   , cancelFetchBlocksRequest
   , datumFilterAddHashesRequest
@@ -44,16 +45,17 @@ module QueryM
 import Prelude
 
 import Address (addressToOgmiosAddress)
-import Aeson (decodeAeson, parseJsonStringToAeson)
+import Aeson as Aeson
 import Affjax as Affjax
 import Affjax.ResponseFormat as Affjax.ResponseFormat
+import Affjax.RequestBody as Affjax.RequestBody
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, ask, asks)
-import Data.Argonaut (JsonDecodeError)
+import Data.Argonaut (class DecodeJson, JsonDecodeError)
 import Data.Argonaut as Json
-import Aeson as Aeson
-import Data.Bifunctor (bimap)
+import Data.Argonaut.Encode.Encoders (encodeString)
+import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Bitraversable (bisequence)
@@ -62,8 +64,8 @@ import Data.Foldable (foldl)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Traversable (sequence)
-import Data.Tuple.Nested (type (/\))
+import Data.Traversable (sequence, traverse)
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import DatumCacheWsp
@@ -101,6 +103,7 @@ import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
+import Foreign.Object as Object
 import Helpers as Helpers
 import MultiMap (MultiMap)
 import MultiMap as MM
@@ -111,10 +114,12 @@ import Serialization.Address
   , Slot
   , addressBech32
   )
+import Serialization.PlutusData (convertPlutusData)
 import Types.ByteArray (byteArrayToHex)
 import Types.Datum (DatumHash)
 import Types.JsonWsp as JsonWsp
 import Types.PlutusData (PlutusData)
+import Types.Scripts (PlutusScript)
 import Types.Transaction (UtxoM(UtxoM))
 import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
@@ -390,43 +395,96 @@ instance Json.DecodeJson FeeEstimate where
         Right
         str
 
-data FeeEstimateError
-  = FeeEstimateHttpError Affjax.Error
-  | FeeEstimateDecodeJsonError Json.JsonDecodeError
+data ClientError
+  = ClientHttpError Affjax.Error
+  | ClientDecodeJsonError Json.JsonDecodeError
+  | ClientEncodingError String
 
 -- No Show instance of Affjax.Error
-instance Show FeeEstimateError where
-  show (FeeEstimateHttpError err) =
-    "(FeeEstimateHttpError "
+instance Show ClientError where
+  show (ClientHttpError err) =
+    "(ClientHttpError "
       <> Affjax.printError err
       <> ")"
-  show (FeeEstimateDecodeJsonError err) =
-    "(FeeEstimateDecodeJsonError "
+  show (ClientDecodeJsonError err) =
+    "(ClientDecodeJsonError "
       <> show err
+      <> ")"
+  show (ClientEncodingError err) =
+    "(ClientEncodingError "
+      <> err
       <> ")"
 
 -- Query the Haskell server for the minimum transaction fee
 calculateMinFee
-  :: Transaction.Transaction -> QueryM (Either FeeEstimateError Coin)
+  :: Transaction.Transaction -> QueryM (Either ClientError Coin)
 calculateMinFee tx = do
-  url <- asks $ mkHttpUrl <<< _.serverConfig
   txHex <- liftEffect $
     byteArrayToHex
       <<< Serialization.toBytes
       <<< asOneOf
       <$> Serialization.convertTransaction tx
-  liftAff (Affjax.get Affjax.ResponseFormat.json $ url <> "/fees?tx=" <> txHex)
-    <#> case _ of
-      Left e -> Left $ FeeEstimateHttpError e
-      Right resp ->
-        bimap
-          FeeEstimateDecodeJsonError
-          -- FIXME
-          -- Add some "padding" to the fees so the transaction will submit
-          -- The server is calculating fees that are too low
-          -- See https://github.com/Plutonomicon/cardano-browser-tx/issues/123
-          (Coin <<< ((+) (BigInt.fromInt 50000)) <<< (unwrap :: FeeEstimate -> BigInt))
-          $ Json.decodeJson resp.body
+  url <- asks $ (_ <> "/fees?tx=" <> txHex) <<< mkHttpUrl <<< _.serverConfig
+  liftAff (Affjax.get Affjax.ResponseFormat.json url)
+    <#> either
+      (Left <<< ClientHttpError)
+      ( bimap ClientDecodeJsonError coinFromEstimate
+          <<< Json.decodeJson
+          <<< _.body
+      )
+  where
+  -- FIXME
+  -- Add some "padding" to the fees so the transaction will submit
+  -- The server is calculating fees that are too low
+  -- See https://github.com/Plutonomicon/cardano-browser-tx/issues/123
+  coinFromEstimate :: FeeEstimate -> Coin
+  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 50000)) <<< unwrap
+
+-- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
+-- | returning an updated script with the provided arguments applied
+applyArgs
+  :: forall (a :: Type)
+   . Newtype a PlutusScript
+  => DecodeJson a
+  => a
+  -> Array PlutusData
+  -> QueryM (Either ClientError a)
+applyArgs script args = case traverse plutusDataToJson args of
+  Nothing -> pure $ Left $ ClientEncodingError "Failed to convert script args"
+  Just ps -> do
+    let
+      -- It's easier to just write the encoder here than provide an `EncodeJson`
+      -- instance (there are some brutal cyclical dependency issues trying to
+      -- write an instance in the `Types.*` modules)
+      scriptJson :: Json.Json
+      scriptJson = encodeString $ byteArrayToHex $ unwrap $ unwrap script
+
+      argsJson :: Json.Json
+      argsJson = Json.encodeJson ps
+
+      reqBody :: Maybe Affjax.RequestBody.RequestBody
+      reqBody = Just
+        $ Affjax.RequestBody.Json
+        $ Json.fromObject
+        $ Object.fromFoldable
+            [ "script" /\ scriptJson
+            , "args" /\ argsJson
+            ]
+    url <- asks $ (_ <> "/apply-args") <<< mkHttpUrl <<< _.serverConfig
+    liftAff (Affjax.post Affjax.ResponseFormat.json url reqBody)
+      <#> either
+        (Left <<< ClientHttpError)
+        (lmap ClientDecodeJsonError <<< Json.decodeJson <<< _.body)
+  where
+  plutusDataToJson :: PlutusData -> Maybe Json.Json
+  plutusDataToJson =
+    map
+      ( encodeString
+          <<< byteArrayToHex
+          <<< Serialization.toBytes
+          <<< asOneOf
+      )
+      <<< convertPlutusData
 
 --------------------------------------------------------------------------------
 -- OgmiosWebSocket Setup and PrimOps
@@ -588,7 +646,7 @@ datumCacheQueryDispatch dim str = do
     (Right res) -> afterParse res
   where
   parse :: String -> Either JsonDecodeError DcWsp.JsonWspResponse
-  parse = parseJsonStringToAeson >=> decodeAeson
+  parse = Aeson.parseJsonStringToAeson >=> Aeson.decodeAeson
 
   afterParse
     :: DcWsp.JsonWspResponse

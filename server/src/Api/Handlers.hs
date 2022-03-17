@@ -1,4 +1,9 @@
-module Api.Fees (estimateTxFees) where
+{-# LANGUAGE NamedFieldPuns #-}
+
+module Api.Handlers (
+  estimateTxFees,
+  applyArgs,
+) where
 
 import Cardano.Api qualified as C
 import Cardano.Api.Shelley qualified as Shelley
@@ -10,13 +15,16 @@ import Data.ByteString.Base16 qualified as Base16
 import Data.Proxy (Proxy (Proxy))
 import Data.Text (Text)
 import Data.Text.Encoding qualified as Text.Encoding
+import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
 import Types (
   AppM,
-  CardanoBrowserServerError (..),
-  Cbor (..),
-  Env (..),
-  Fee (..),
-  FeeEstimateError (..),
+  AppliedScript (AppliedScript),
+  ApplyArgsRequest (ApplyArgsRequest, args, script),
+  CardanoBrowserServerError (FeeEstimate),
+  Cbor (Cbor),
+  Env (protocolParams),
+  Fee (Fee),
+  FeeEstimateError (InvalidCbor, InvalidHex),
  )
 
 estimateTxFees :: Cbor -> AppM Fee
@@ -24,6 +32,13 @@ estimateTxFees cbor = do
   decoded <- either (throwM . FeeEstimate) pure $ decodeCborTx cbor
   pparams <- asks protocolParams
   pure . Fee $ estimateFee pparams decoded
+
+applyArgs :: ApplyArgsRequest -> AppM AppliedScript
+applyArgs ApplyArgsRequest {script, args} =
+  pure . AppliedScript $
+    Ledger.Scripts.applyArguments script args
+
+-- Helpers
 
 estimateFee :: Shelley.ProtocolParameters -> C.Tx C.AlonzoEra -> Integer
 estimateFee pparams (C.Tx txBody keyWits) = estimate
