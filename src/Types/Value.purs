@@ -369,6 +369,8 @@ instance Split Value where
     bimap (flip Value mempty) (flip Value mempty) (split coin)
       <> bimap (Value mempty) (Value mempty) (split nonAdaAsset)
 
+-- Because our `Value` is different to Plutus, I wonder if this will become an
+-- issue.
 instance FromData Value where
   fromData (PD.List [ coin, nonAdaAsset ]) =
     Value <$> fromData coin <*> fromData nonAdaAsset

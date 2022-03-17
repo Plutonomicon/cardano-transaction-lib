@@ -177,7 +177,6 @@ import Data.Foldable
   , foldlDefault
   , foldr
   , foldrDefault
-  , for_
   , indexl
   , indexr
   , intercalate
@@ -193,11 +192,9 @@ import Data.Foldable
   , oneOfMap
   , or
   , product
-  , sequence_
   , sum
   , surround
   , surroundMap
-  , traverse_
   ) as Foldable
 import Data.Maybe
   ( Maybe(Just, Nothing)
@@ -215,14 +212,17 @@ import Data.Traversable
   ( class Traversable
   , Accum
   , for
+  , for_
   , mapAccumL
   , mapAccumR
   , scanl
   , scanr
   , sequence
   , sequenceDefault
+  , sequence_
   , traverse
   , traverseDefault
+  , traverse_
   ) as Traversable
 import Data.Tuple (Tuple(Tuple), curry, fst, snd, swap, uncurry) as Tuple
 import Data.Tuple.Nested

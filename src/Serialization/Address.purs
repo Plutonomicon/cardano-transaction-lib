@@ -174,6 +174,9 @@ instance Eq Address where
 instance Ord Address where
   compare = compare `on` addressBytes
 
+-- Plutus uses `PlutusTx.makeIsDataIndexed ''Address [('Address,0)]` on their
+-- record, I'm not sure if this will become an issue given our foreign
+-- representation.
 instance FromData Address where
   fromData (Bytes res) = addressFromBytes res
   fromData _ = Nothing
