@@ -1,24 +1,67 @@
 module Examples.Nami.WithDatums (main) where
 
-import Prelude
-import Undefined
+import Contract.Prelude
 
-import Data.Maybe (Maybe)
+import Contract.Monad (Contract(Contract), QueryConfig)
+import Contract.Transaction (TransactionHash, UnbalancedTx)
+import Contract.Value (lovelaceValueOf)
+import Control.Monad.Error.Class (throwError)
+import Control.Monad.Reader (runReaderT)
+import Data.BigInt as BigInt
 import Data.Newtype (wrap)
 import Effect (Effect)
-import Effect.Aff (Aff, launchAff_)
+import Effect.Aff (Aff, error, launchAff_)
+import FromData (class FromData)
+import ToData (class ToData)
 import Types.ByteArray (hexToByteArrayUnsafe)
+import Types.ScriptLookups (MkUnbalancedTxError, mkUnbalancedTx)
+import Types.ScriptLookups as Lookups
 import Types.Scripts (Validator)
-import Types.Transaction (TransactionHash)
+import Types.TxConstraints as Constraints
+import Types.TypedValidator (class DatumType, class RedeemerType)
 
 main :: Effect Unit
-main = launchAff_ $ do
+main = launchAff_ $ runContract undefined $ do
   undefined
 
-alwaysSucceeds :: Aff (Maybe TransactionHash)
-alwaysSucceeds = undefined
+payToAlwaysSucceeds :: Contract (Maybe TransactionHash)
+payToAlwaysSucceeds = do
+  let
+    constraints :: Constraints.TxConstraints Void Void
+    constraints = Constraints.mustPayToOtherScript undefined undefined
+      $ lovelaceValueOf
+      $ BigInt.fromInt 1000
+
+    lookups :: Maybe (Lookups.ScriptLookups Void)
+    lookups = Lookups.otherScript alwaysSucceedsValidator
+  unbalancedTx <- liftRight
+    =<< flip mkUnbalancedTx' constraints
+    =<< liftJust "Failed to get validator hash" lookups
+  undefined
 
 alwaysSucceedsValidator :: Validator
 alwaysSucceedsValidator = wrap
   $ wrap
   $ hexToByteArrayUnsafe "4d01000033222220051200120011"
+
+-- All of these can probably go once PR #158 is merged
+
+runContract :: forall (a :: Type). QueryConfig -> Contract a -> Aff a
+runContract qcfg (Contract x) = runReaderT x qcfg
+
+liftRight :: forall (a :: Type) (e :: Type). Show e => Either e a -> Contract a
+liftRight = either (throwError <<< error <<< show) pure
+
+liftJust :: forall (a :: Type). String -> Maybe a -> Contract a
+liftJust msg = maybe (throwError $ error msg) pure
+
+mkUnbalancedTx'
+  :: forall (a :: Type) (b :: Type)
+   . DatumType a b
+  => RedeemerType a b
+  => FromData b
+  => ToData b
+  => Lookups.ScriptLookups a
+  -> Constraints.TxConstraints b b
+  -> Contract (Either MkUnbalancedTxError UnbalancedTx)
+mkUnbalancedTx' ls = wrap <<< mkUnbalancedTx ls
