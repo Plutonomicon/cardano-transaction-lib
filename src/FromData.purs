@@ -11,7 +11,7 @@ import Data.Either (Either(Left, Right))
 import Data.List (List)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Nothing, Just))
+import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Ratio (Ratio, reduce)
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
@@ -41,16 +41,15 @@ instance FromData Boolean where
 
 instance FromData a => FromData (Maybe a) where
   fromData (Constr n [ pd ]) = case fromData pd of
-    Just Nothing | n == one -> Just Nothing
-    Just (Just x) | n == zero -> Just (Just x) -- Just is zero-indexed by Plutus
+    Just _ | n == one -> Just Nothing
+    Just x | n == zero -> Just (Just x) -- Just is zero-indexed by Plutus
     _ -> Nothing
   fromData _ = Nothing
 
 instance (FromData a, FromData b) => FromData (Either a b) where
-  fromData (Constr n [ pd ]) = case fromData pd of
-    Just (Left x) | n == zero -> Just (Left x)
-    Just (Right x) | n == one -> Just (Right x)
-    _ -> Nothing
+  fromData (Constr n [ pd ])
+    | n == zero = maybe Nothing (Just <<< Left) (fromData pd)
+    | n == one = maybe Nothing (Just <<< Right) (fromData pd)
   fromData _ = Nothing
 
 instance Fail (Text "Int is not supported, use BigInt instead") => FromData Int where
