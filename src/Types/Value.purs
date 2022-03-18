@@ -369,6 +369,7 @@ instance Split Value where
     bimap (flip Value mempty) (flip Value mempty) (split coin)
       <> bimap (Value mempty) (Value mempty) (split nonAdaAsset)
 
+-- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/193
 -- Because our `Value` is different to Plutus, I wonder if this will become an
 -- issue.
 instance FromData Value where

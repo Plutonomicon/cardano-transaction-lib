@@ -260,7 +260,7 @@ balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) =
       -- Combines utxos at the user address and those from any scripts
       -- involved with the contract in the unbalanced transaction.
       allUtxos :: Utxo
-      allUtxos = utxos `Map.union` (utxoIndexToUtxo networkId utxoIndex)
+      allUtxos = utxos `Map.union` utxoIndexToUtxo networkId utxoIndex
 
       -- After adding collateral, we need to balance the inputs and
       -- non-Ada outputs before looping, i.e. we need to add input fees

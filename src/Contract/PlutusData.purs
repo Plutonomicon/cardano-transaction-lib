@@ -25,14 +25,20 @@ import Contract.Monad (Contract)
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
 import FromData (class FromData, fromData) as FromData
+
 import QueryM
-  ( cancelFetchBlocksRequest
+  ( DatumCacheListeners
+  , DatumCacheWebSocket
+  , cancelFetchBlocksRequest
   , datumFilterAddHashesRequest
   , datumFilterGetHashesRequest
   , datumFilterRemoveHashesRequest
   , datumFilterSetHashesRequest
+  , defaultDatumCacheWsConfig
   , getDatumByHash
   , getDatumsByHashes
+  , mkDatumCacheWebSocketAff
+  , queryDatumCache
   , startFetchBlocksRequest
   ) as QueryM
 import Serialization.Address (Slot, BlockId)

@@ -20,7 +20,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Helpers (uIntToBigInt)
 import Prim.TypeError (class Fail, Text)
-import Types.ByteArray (ByteArray, hexToByteArrayUnsafe)
+import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Integer, Constr, List, Map, Bytes))
 
 class ToData (a :: Type) where
@@ -77,12 +77,6 @@ instance ToData ByteArray where
 
 instance ToData PlutusData where
   toData = identity
-
--- | This covers `Bech32` which is just a type alias for `String`
-instance ToData String where
-  -- Unsafe, maybe there's a better way. Do we want to leave it in `Maybe`
-  -- with `hexToByteArray` then use `toData` (of `Maybe ByteArray`)?
-  toData = Bytes <<< hexToByteArrayUnsafe
 
 foldableToPlutusData :: forall (a :: Type) (t :: Type -> Type). Foldable t => ToData a => t a -> PlutusData
 foldableToPlutusData = Array.fromFoldable >>> map toData >>> List

@@ -2,11 +2,14 @@
 -- | over `PlutusScript`. Corresponding hashes are also included as newtype
 -- | wrappers over `ScriptHash`.
 module Contract.Scripts
-  ( module TypesScripts
+  ( applyArgs
+  , applyArgsM
   , module Address
+  , module ExportedQueryM
+  , module Hash
   , module Scripts
   , module TypedValidator
-  , module Hash
+  , module TypesScripts
   ) where
 
 import Address
@@ -15,6 +18,8 @@ import Address
   , addressStakeValidatorHash
   , addressValidatorHash
   ) as Address
+import QueryM (ClientError(..)) as ExportedQueryM
+import QueryM (applyArgs) as QueryM
 import Scripts
   ( mintingPolicyHash
   , scriptHash
@@ -54,8 +59,41 @@ import Types.TypedValidator
   ( TypedValidator(TypedValidator)
   , ValidatorType
   , WrappedValidatorType
+  , class DatumType
+  , class RedeemerType
+  , class ValidatorTypes
   , forwardingMintingPolicy
   , generalise
   , typedValidatorHash
   , typedValidatorScript
   ) as TypedValidator
+
+import Prelude
+import Contract.Monad (Contract)
+import Data.Argonaut (class DecodeJson)
+import Data.Either (Either, hush)
+import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype, wrap)
+import Types.PlutusData (PlutusData)
+import Types.Scripts (PlutusScript)
+
+-- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
+-- | returning an updated script with the provided arguments applied
+applyArgs
+  :: forall (a :: Type)
+   . Newtype a PlutusScript
+  => DecodeJson a
+  => a
+  -> Array PlutusData
+  -> Contract (Either ExportedQueryM.ClientError a)
+applyArgs a = wrap <<< QueryM.applyArgs a
+
+-- | Same as `applyArgs` with arguments hushed.
+applyArgsM
+  :: forall (a :: Type)
+   . Newtype a PlutusScript
+  => DecodeJson a
+  => a
+  -> Array PlutusData
+  -> Contract (Maybe a)
+applyArgsM a = map hush <<< applyArgs a

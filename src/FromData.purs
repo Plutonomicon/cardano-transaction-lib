@@ -20,7 +20,7 @@ import Data.UInt (UInt)
 import Data.Unfoldable (class Unfoldable)
 import Helpers (bigIntToUInt)
 import Prim.TypeError (class Fail, Text)
-import Types.ByteArray (ByteArray, byteArrayToHex)
+import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Bytes, Constr, List, Map, Integer))
 
 class FromData (a :: Type) where
@@ -93,11 +93,6 @@ instance (Ord a, EuclideanRing a, FromData a) => FromData (Ratio a) where
 
 instance FromData PlutusData where
   fromData = Just
-
--- | This covers `Bech32` which is just a type alias for `String`
-instance FromData String where
-  fromData (Bytes res) = Just $ byteArrayToHex res
-  fromData _ = Nothing
 
 fromDataUnfoldable :: forall (a :: Type) (t :: Type -> Type). Unfoldable t => FromData a => PlutusData -> Maybe (t a)
 fromDataUnfoldable (List entries) = Array.toUnfoldable <$> traverse fromData entries
