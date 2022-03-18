@@ -37,6 +37,7 @@ module Test.Fixtures
   , addressString1
   , txInputFixture1
   , seabugMetadataFixture1
+  , seabugMetadataDeltaFixture1
   ) where
 
 import Prelude
@@ -46,7 +47,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(..), fromJust)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
-import Metadata.Seabug (SeabugMetadata(SeabugMetadata))
+import Metadata.Seabug (SeabugMetadata(SeabugMetadata), SeabugMetadataDelta(SeabugMetadataDelta))
 import Metadata.Seabug.Share (Share, mkShare)
 import Partial.Unsafe (unsafePartial)
 import Serialization.Address
@@ -532,6 +533,13 @@ seabugMetadataFixture1 = SeabugMetadata
   , authorShare: shareFixture
   , marketplaceScript: validatorHashFixture2
   , marketplaceShare: shareFixture
+  , ownerPkh: PubKeyHash ed25519KeyHashFixture2
+  , ownerPrice: unsafePartial $ fromJust $ Natural.fromBigInt $ BigInt.fromInt 10
+  }
+
+seabugMetadataDeltaFixture1 :: SeabugMetadataDelta
+seabugMetadataDeltaFixture1 = SeabugMetadataDelta
+  { policyId: policyId
   , ownerPkh: PubKeyHash ed25519KeyHashFixture2
   , ownerPrice: unsafePartial $ fromJust $ Natural.fromBigInt $ BigInt.fromInt 10
   }
