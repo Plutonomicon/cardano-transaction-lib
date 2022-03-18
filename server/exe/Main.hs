@@ -23,7 +23,8 @@ import Types (ServerOptions (ServerOptions, port), newEnvIO)
 main :: IO ()
 main = do
   ServerOptions {port} <- Options.execParser opts
-  withStdoutLogger $ \logger ->
+  withStdoutLogger $ \logger -> do
+    putStrLn $ "CBTx server starting on port " <> show port
     runSettings (mkSettings port logger)
       . app
       =<< either die pure
