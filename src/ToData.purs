@@ -17,17 +17,17 @@ import Data.Ratio (Ratio, denominator, numerator)
 import Data.Tuple.Nested (type (/\), (/\))
 import Prim.TypeError (class Fail, Text)
 import Types.ByteArray (ByteArray)
-import Types.PlutusData (PlutusData(Integer, List, Map, Bytes))
+import Types.PlutusData (PlutusData(Constr, Integer, List, Map, Bytes))
 
 class ToData (a :: Type) where
   toData :: a -> PlutusData
 
 instance ToData Unit where
-  toData _ = List []
+  toData _ = Constr zero []
 
 instance ToData Boolean where
-  toData false = Integer (BigInt.fromInt 0)
-  toData true = Integer (BigInt.fromInt 1)
+  toData false = Constr zero []
+  toData true = Constr one []
 
 instance Fail (Text "Int is not supported, use BigInt instead") => ToData Int where
   toData = toData <<< BigInt.fromInt
@@ -42,7 +42,7 @@ instance ToData a => ToData (List a) where
   toData = foldableToPlutusData
 
 instance (ToData a, ToData b) => ToData (a /\ b) where
-  toData (a /\ b) = List [ toData a, toData b ]
+  toData (a /\ b) = Constr zero [ toData a, toData b ]
 
 instance (ToData k, ToData v) => ToData (Map k v) where
   toData mp = Map $ entries # map (toData *** toData) # Map.fromFoldable
