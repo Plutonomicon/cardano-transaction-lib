@@ -6,7 +6,12 @@ import Contract.Monad (Contract, runContract)
 import Contract.PlutusData (class FromData, class ToData, unitDatum)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, validatorHash)
-import Contract.Transaction (TransactionHash, UnbalancedTx, balanceTx, submitTransaction)
+import Contract.Transaction
+  ( TransactionHash
+  , UnbalancedTx
+  , balanceTx
+  , submitTransaction
+  )
 import Contract.TxConstraints as Constraints
 import Contract.Value (lovelaceValueOf)
 import Data.Argonaut (decodeJson, parseJson)
@@ -14,15 +19,31 @@ import Data.BigInt as BigInt
 import Data.Newtype (wrap)
 import Effect (Effect)
 import Effect.Aff (error, launchAff_, throwError)
+import QueryM as QueryM
 import Types.TypedValidator (class DatumType, class RedeemerType)
+import UsedTxOuts (newUsedTxOuts)
+import Wallet (mkNamiWalletAff)
 
 main :: Effect Unit
-main = launchAff_ $ runContract undefined $ do
-  payToAlwaysSucceeds
+main = launchAff_ $ do
+  wallet <- Just <$> mkNamiWalletAff
+  ogmiosWs <- QueryM.mkOgmiosWebSocketAff QueryM.defaultOgmiosWsConfig
+  usedTxOuts <- newUsedTxOuts
+  let
+    cfg =
+      { ogmiosWs
+      , datumCacheWs: undefined -- broken
+      , wallet
+      , serverConfig: QueryM.defaultServerConfig
+      , usedTxOuts
+      }
+  runContract cfg $ do
+    payToAlwaysSucceeds
 
 payToAlwaysSucceeds :: Contract (Maybe TransactionHash)
 payToAlwaysSucceeds = do
-  validator <- throwOnNothing "Got `Nothing` for validator" alwaysSucceedsValidator
+  validator <- throwOnNothing "Got `Nothing` for validator"
+    alwaysSucceedsValidator
   valHash <- throwOnNothing "Got `Nothing` for validator hash"
     $ validatorHash validator
   let
@@ -33,6 +54,7 @@ payToAlwaysSucceeds = do
 
     lookups :: Maybe (Lookups.ScriptLookups Void)
     lookups = Lookups.otherScriptM validator
+
   unbalancedTx <- throwOnLeft
     =<< flip mkUnbalancedTx' constraints
     =<< throwOnNothing "Lookups were `Nothing`" lookups
@@ -46,7 +68,8 @@ alwaysSucceedsValidator = hush
 
 -- All of these can probably go once PR #158 is merged
 
-throwOnLeft :: forall (a :: Type) (e :: Type). Show e => Either e a -> Contract a
+throwOnLeft
+  :: forall (a :: Type) (e :: Type). Show e => Either e a -> Contract a
 throwOnLeft = either (throwError <<< error <<< show) pure
 
 throwOnNothing :: forall (a :: Type). String -> Maybe a -> Contract a
