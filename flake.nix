@@ -164,11 +164,14 @@
         self.hsFlake.${system}.packages // (psProjectFor system).packages
       );
 
-      apps = perSystem (system: {
-        inherit
-          (self.hsFlake.${system}.apps)
-          "cardano-browser-tx-server:exe:cardano-browser-tx-server";
-      });
+      apps = perSystem (system:
+        let
+          serverApp = "cardano-browser-tx-server:exe:cardano-browser-tx-server";
+        in
+        {
+          cbtx-server = self.hsFlake.${system}.apps.${serverApp};
+        }
+      );
 
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);
 
