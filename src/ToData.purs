@@ -37,7 +37,7 @@ instance ToData Boolean where
   toData true = Constr one []
 
 instance ToData a => ToData (Maybe a) where
-  toData (Just x) = Constr zero [ toData x ] -- Just is one-indexed by Plutus
+  toData (Just x) = Constr zero [ toData x ] -- Just is zero-indexed by Plutus
   toData Nothing = Constr one []
 
 instance (ToData a, ToData b) => ToData (Either a b) where
@@ -67,6 +67,8 @@ instance (ToData k, ToData v) => ToData (Map k v) where
     where
     entries = Map.toUnfoldable mp :: Array (k /\ v)
 
+-- Note that nothing prevents the denominator from being zero, we could provide
+-- safety here:
 instance ToData a => ToData (Ratio a) where
   toData ratio = List [ toData (numerator ratio), toData (denominator ratio) ]
 
@@ -78,7 +80,9 @@ instance ToData PlutusData where
 
 -- | This covers `Bech32` which is just a type alias for `String`
 instance ToData String where
-  toData = Bytes <<< hexToByteArrayUnsafe -- unsafe, maybe there's a better way.
+  -- Unsafe, maybe there's a better way. Do we want to leave it in `Maybe`
+  -- with `hexToByteArray` then use `toData` (of `Maybe ByteArray`)?
+  toData = Bytes <<< hexToByteArrayUnsafe
 
 foldableToPlutusData :: forall (a :: Type) (t :: Type -> Type). Foldable t => ToData a => t a -> PlutusData
 foldableToPlutusData = Array.fromFoldable >>> map toData >>> List

@@ -7,6 +7,7 @@ module Contract.Transaction
   , submitTransaction
   , module BalanceTxError
   , module JsonWsp
+  , module ScriptLookups
   , module Transaction
   , module TxOutput
   , module UnbalancedTx
@@ -21,6 +22,10 @@ import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
 import QueryM (signTransaction, submitTransaction) as QueryM
 import Types.JsonWsp (OgmiosTxOut, OgmiosTxOutRef) as JsonWsp --  Perhaps it's best not to expose `JsonWsp`.
+import Types.ScriptLookups
+  ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
+  , mkUnbalancedTx
+  ) as ScriptLookups
 import Types.Transaction (Transaction, TransactionHash)
 import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and associated lens.
   ( AuxiliaryData(AuxiliaryData)

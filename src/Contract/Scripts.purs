@@ -1,4 +1,4 @@
--- | A module for the various script types, most of which are newtype wrappers
+-- | A module for various script types, most of which are newtype wrappers
 -- | over `PlutusScript`. Corresponding hashes are also included as newtype
 -- | wrappers over `ScriptHash`.
 module Contract.Scripts

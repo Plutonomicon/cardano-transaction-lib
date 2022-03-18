@@ -1,9 +1,12 @@
--- | Arbitrary precision natural number (backed by BigInt).
+-- | Arbitrary precision natural numbers (backed by `BigInt`).
 module Contract.Numeric.Natural (module Natural) where
 
 import Types.Natural
-  ( Natural
+  ( (^-)
+  , Natural
+  , binaryOnBigInt
   , fromBigInt
   , fromBigInt'
+  , minus
   , toBigInt
   ) as Natural

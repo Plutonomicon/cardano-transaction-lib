@@ -145,6 +145,8 @@ instance Bifunctor TxConstraints where
 --------------------------------------------------------------------------------
 -- Helpers
 --------------------------------------------------------------------------------
+-- | Adds a `TransactionInput` as an input constraint with an arbitrary
+-- | redeemer.
 addTxIn
   :: forall (i :: Type) (o :: Type)
    . TxOutRef
@@ -268,8 +270,7 @@ mustMintValueWithRedeemer redeemer =
         (uncurry (mustMintCurrencyWithRedeemer mintingPolicyHash redeemer))
         $ toUnfoldable tokenMap
 
--- | Create the given amount of the currency. FIX ME: Broken until `unitRedeemer`
--- | defined.
+-- | Create the given amount of the currency.
 mustMintCurrency
   :: forall (i :: Type) (o :: Type)
    . MintingPolicyHash

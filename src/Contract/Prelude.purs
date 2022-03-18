@@ -1,10 +1,12 @@
 -- | A custom Prelude that re-exports Purescript's prelude and further expands.
 module Contract.Prelude
-  ( module PurescriptPrelude
+  ( mconcat
+  , module Helpers
   , module Either
   , module Enum
   , module Foldable
   , module Maybe
+  , module PurescriptPrelude
   , module Traversable
   , module Tuple
   , module TupleNested
@@ -299,4 +301,24 @@ import Data.Tuple.Nested
   , uncurry9
   , (/\)
   ) as TupleNested
+import Helpers -- Could maybe move this somewhere better:
+  ( (</>)
+  , (<<>>)
+  , (<\>)
+  , appendFirstMaybe
+  , appendLastMaybe
+  , fromJustEff
+  , fromRightEff
+  , liftEither
+  , liftM
+  , liftMWith
+  ) as Helpers
 import Undefined (undefined) as Undefined
+
+-- Imports for extra functions:
+import Prelude
+import Data.Foldable (class Foldable, foldr)
+
+mconcat
+  :: forall (f :: Type -> Type) (m :: Type). Foldable f => Monoid m => f m -> m
+mconcat = foldr (<>) mempty

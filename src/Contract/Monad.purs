@@ -2,24 +2,24 @@
 module Contract.Monad
   ( Contract(..)
   , module QueryM
+  , runContract
+  , runContract_
+  , throwError
   ) where
 
 import Prelude
--- import BalanceTx (BalanceTxError)
 import Control.Alt (class Alt)
 import Control.Monad.Error.Class (class MonadError, class MonadThrow)
 import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
+import Control.Monad.Reader.Trans (runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Plus (class Plus)
--- import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype)
--- import Data.Show.Generic (genericShow)
-import Effect.Class (class MonadEffect) -- , liftEffect)
-import Effect.Exception (Error) -- , throw)
+import Data.Newtype (class Newtype, unwrap)
+import Effect.Aff (Aff)
+import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Exception (Error, throw)
 import QueryM (QueryM)
 import QueryM (QueryConfig) as QueryM
-
--- import Types.ScriptLookups (MkUnbalancedTxError)
 
 -- | The `Contract` monad is a newtype wrapper over `QueryM` which is `ReaderT`
 -- | on `QueryConfig` over asynchronous effects, `Aff`. Throwing and catching
@@ -52,26 +52,21 @@ derive newtype instance Monad Contract
 derive newtype instance MonadEffect Contract
 derive newtype instance Semigroup a => Semigroup (Contract a)
 derive newtype instance Monoid a => Monoid (Contract a)
--- TO DO: can we define MonadError for `ContractError`? `Error` below come's from the `Aff`
--- Monad, is it possible to derive a `ContractError` error type without
--- using `Contract (ExceptT ContractError QueryM)`? Or would we rather `Error`
--- to make use of Javascript native erroring.
+-- Utilise JavaScript's native `Error` via underlying `Aff` for flexibility:
 derive newtype instance MonadThrow Error Contract
 derive newtype instance MonadError Error Contract
 derive newtype instance MonadAsk QueryM.QueryConfig Contract
 derive newtype instance MonadReader QueryM.QueryConfig Contract
 derive newtype instance MonadRec Contract
 
--- data ContractError
---   = ConstrantResolutionError MkUnbalancedTxError
---   | OtherError String
---   | BalanceError BalanceTxError
+-- | Throws an `Error` for any showable error.
+throwError :: forall (e :: Type). Show e => e -> Contract e
+throwError = liftEffect <<< throw <<< show
 
--- derive instance Generic ContractError _
+-- | Runs the contract, essentially `runReaderT` but with arguments flipped.
+runContract :: forall (a :: Type). QueryM.QueryConfig -> Contract a -> Aff a
+runContract config = flip runReaderT config <<< unwrap
 
--- instance Show ContractError where
---   show = genericShow
-
--- Custom MonadThrow:
--- instance MonadThrow ContractError Contract where
---   throwError = liftEffect <<< throw <<< show
+-- | Same as `runContract` discarding output.
+runContract_ :: forall (a :: Type). QueryM.QueryConfig -> Contract a -> Aff Unit
+runContract_ config = void <<< flip runReaderT config <<< unwrap

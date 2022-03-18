@@ -14,6 +14,8 @@ module Contract.PlutusData
   , module Datum
   , module PlutusData
   , module Redeemer
+  , module FromData
+  , module ToData
   , module Transaction
   , module TxOutput
   ) where
@@ -22,6 +24,7 @@ import Prelude
 import Contract.Monad (Contract)
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
+import FromData (class FromData, fromData) as FromData
 import QueryM
   ( cancelFetchBlocksRequest
   , datumFilterAddHashesRequest
@@ -33,6 +36,7 @@ import QueryM
   , startFetchBlocksRequest
   ) as QueryM
 import Serialization.Address (Slot, BlockId)
+import ToData (class ToData, toData) as ToData
 import Types.PlutusData
   ( PlutusData(Constr, Map, List, Integer, Bytes)
   ) as PlutusData
