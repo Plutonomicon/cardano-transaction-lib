@@ -3,22 +3,13 @@ module Examples.Nami.WithDatums (main) where
 import Contract.Prelude
 
 import Contract.Monad (Contract, runContract)
-import Contract.PlutusData
-  ( class FromData
-  , class ToData
-  , unitDatum
-  )
-import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
+import Contract.PlutusData (class FromData, class ToData, unitDatum)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, validatorHash)
-import Contract.Transaction
-  ( TransactionHash
-  , UnbalancedTx
-  , balanceTx
-  , submitTransaction
-  )
+import Contract.Transaction (TransactionHash, UnbalancedTx, balanceTx, submitTransaction)
 import Contract.TxConstraints as Constraints
 import Contract.Value (lovelaceValueOf)
+import Data.Argonaut (decodeJson, parseJson)
 import Data.BigInt as BigInt
 import Data.Newtype (wrap)
 import Effect (Effect)
@@ -31,8 +22,9 @@ main = launchAff_ $ runContract undefined $ do
 
 payToAlwaysSucceeds :: Contract (Maybe TransactionHash)
 payToAlwaysSucceeds = do
+  validator <- throwOnNothing "Got `Nothing` for validator" alwaysSucceedsValidator
   valHash <- throwOnNothing "Got `Nothing` for validator hash"
-    $ validatorHash alwaysSucceedsValidator
+    $ validatorHash validator
   let
     constraints :: Constraints.TxConstraints Void Void
     constraints = Constraints.mustPayToOtherScript valHash unitDatum
@@ -40,17 +32,17 @@ payToAlwaysSucceeds = do
       $ BigInt.fromInt 1000
 
     lookups :: Maybe (Lookups.ScriptLookups Void)
-    lookups = Lookups.otherScriptM alwaysSucceedsValidator
+    lookups = Lookups.otherScriptM validator
   unbalancedTx <- throwOnLeft
     =<< flip mkUnbalancedTx' constraints
     =<< throwOnNothing "Lookups were `Nothing`" lookups
   balancedTx <- throwOnLeft =<< balanceTx unbalancedTx
   submitTransaction balancedTx
 
-alwaysSucceedsValidator :: Validator
-alwaysSucceedsValidator = wrap
-  $ wrap
-  $ hexToByteArrayUnsafe "4d01000033222220051200120011"
+alwaysSucceedsValidator :: Maybe Validator
+alwaysSucceedsValidator = hush
+  $ decodeJson
+  =<< parseJson "\"4d01000033222220051200120011\""
 
 -- All of these can probably go once PR #158 is merged
 
