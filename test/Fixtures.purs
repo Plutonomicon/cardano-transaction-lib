@@ -509,8 +509,8 @@ scriptHash2 :: ScriptHash
 scriptHash2 = unsafePartial $ fromJust $ scriptHashFromBytes $
   hexToByteArrayUnsafe "00000000005bb21ce6d8c7502aca70b9316d10e958611f3c6b758f60"
 
-mintPolicy :: MintingPolicyHash
-mintPolicy = MintingPolicyHash scriptHash1
+policyId :: MintingPolicyHash
+policyId = MintingPolicyHash scriptHash1
 
 validatorHashFixture1 :: ValidatorHash
 validatorHashFixture1 = ValidatorHash scriptHash1
@@ -523,7 +523,8 @@ shareFixture = unsafePartial $ fromJust $ mkShare 100
 
 seabugMetadataFixture1 :: SeabugMetadata
 seabugMetadataFixture1 = SeabugMetadata
-  { mintPolicy: mintPolicy
+  { policyId: policyId
+  , mintPolicy: hexToByteArrayUnsafe "00000000"
   , collectionNftCS: currencySymbol1
   , collectionNftTN: tokenName1
   , lockingScript: validatorHashFixture1
