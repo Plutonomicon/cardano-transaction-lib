@@ -372,6 +372,9 @@ mkHttpUrl = mkServerUrl "http"
 mkWsUrl :: ServerConfig -> Url
 mkWsUrl = mkServerUrl "ws"
 
+mkOgmiosDatumCacheWsUrl :: ServerConfig -> Url
+mkOgmiosDatumCacheWsUrl cfg = mkWsUrl cfg <> "/ws"
+
 mkServerUrl :: String -> ServerConfig -> Url
 mkServerUrl protocol cfg =
   (if cfg.secure then (protocol <> "s") else protocol)
@@ -521,7 +524,7 @@ mkDatumCacheWebSocket'
 mkDatumCacheWebSocket' serverCfg cb = do
   dispatchMap <- createMutableDispatch
   let md = (datumCacheMessageDispatch dispatchMap)
-  ws <- _mkWebSocket $ mkWsUrl serverCfg
+  ws <- _mkWebSocket $ mkOgmiosDatumCacheWsUrl serverCfg
   _onWsConnect ws $ do
     _wsWatch ws (removeAllListeners dispatchMap)
     _onWsMessage ws (defaultMessageListener md)

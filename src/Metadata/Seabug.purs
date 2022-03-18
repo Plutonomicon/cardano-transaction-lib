@@ -14,7 +14,7 @@ import FromData (class FromData, fromData)
 import Metadata.Seabug.Share (Share)
 import Partial.Unsafe (unsafePartial)
 import ToData (class ToData, toData)
-import Types.ByteArray (byteArrayFromString)
+import Types.ByteArray (ByteArray, byteArrayFromString)
 import Types.Natural (Natural)
 import Types.PlutusData (PlutusData(Bytes, Map))
 import Types.Scripts (MintingPolicyHash, ValidatorHash)
@@ -22,7 +22,8 @@ import Types.UnbalancedTransaction (PubKeyHash)
 import Types.Value (CurrencySymbol, TokenName)
 
 newtype SeabugMetadata = SeabugMetadata
-  { mintPolicy :: MintingPolicyHash
+  { policyId :: MintingPolicyHash
+  , mintPolicy :: ByteArray
   , collectionNftCS :: CurrencySymbol
   , collectionNftTN :: TokenName
   , lockingScript :: ValidatorHash
@@ -44,8 +45,9 @@ instance Show SeabugMetadata where
 instance ToData SeabugMetadata where
   toData (SeabugMetadata meta) = unsafePartial $ toData $ Map.fromFoldable
     [ mkKey "727" /\ Map.fromFoldable
-        [ meta.mintPolicy /\ Map.fromFoldable
-            [ mkKey "collectionNftCS" /\ toData meta.collectionNftCS
+        [ meta.policyId /\ Map.fromFoldable
+            [ mkKey "mintPolicy" /\ toData meta.mintPolicy
+            , mkKey "collectionNftCS" /\ toData meta.collectionNftCS
             , mkKey "collectionNftTN" /\ toData meta.collectionNftTN
             , mkKey "lockingScript" /\ toData meta.lockingScript
             , mkKey "authorPkh" /\ toData meta.authorPkh
@@ -60,11 +62,12 @@ instance ToData SeabugMetadata where
 
 instance FromData SeabugMetadata where
   fromData (Map sm) = unsafePartial do
-    mintPolicy /\ contents <- lookupKey "727" sm >>= case _ of
+    policyId /\ contents <- lookupKey "727" sm >>= case _ of
       Map mp1 -> case Map.toUnfoldable mp1 of
-        [ mintPolicy /\ contents ] -> Tuple <$> fromData mintPolicy <*> fromData contents
+        [ policyId /\ contents ] -> Tuple <$> fromData policyId <*> fromData contents
         _ -> Nothing
       _ -> Nothing
+    mintPolicy <- lookupKey "mintPolicy" contents >>= fromData
     collectionNftCS <- lookupKey "collectionNftCS" contents >>= fromData
     collectionNftTN <- lookupKey "collectionNftTN" contents >>= fromData
     lockingScript <- lookupKey "lockingScript" contents >>= fromData
@@ -75,7 +78,8 @@ instance FromData SeabugMetadata where
     ownerPkh <- lookupKey "ownerPkh" contents >>= fromData
     ownerPrice <- lookupKey "ownerPrice" contents >>= fromData
     pure $ SeabugMetadata
-      { mintPolicy
+      { policyId
+      , mintPolicy
       , collectionNftCS
       , collectionNftTN
       , lockingScript
