@@ -3,7 +3,9 @@ module Examples.Nami.WithDatums (main) where
 import Contract.Prelude
 
 import Contract.Monad (Contract(Contract), QueryConfig)
-import Contract.Transaction (TransactionHash, UnbalancedTx)
+import Contract.PlutusData (unitDatum)
+import Contract.Scripts (Validator, validatorHash)
+import Contract.Transaction (TransactionHash, UnbalancedTx, balanceTx, submitTransaction)
 import Contract.Value (lovelaceValueOf)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader (runReaderT)
@@ -16,19 +18,20 @@ import ToData (class ToData)
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Types.ScriptLookups (MkUnbalancedTxError, mkUnbalancedTx)
 import Types.ScriptLookups as Lookups
-import Types.Scripts (Validator)
 import Types.TxConstraints as Constraints
 import Types.TypedValidator (class DatumType, class RedeemerType)
 
 main :: Effect Unit
 main = launchAff_ $ runContract undefined $ do
-  undefined
+  payToAlwaysSucceeds
 
 payToAlwaysSucceeds :: Contract (Maybe TransactionHash)
 payToAlwaysSucceeds = do
+  valHash <- liftJust "Got `Nothing` for validator hash"
+    $ validatorHash alwaysSucceedsValidator
   let
     constraints :: Constraints.TxConstraints Void Void
-    constraints = Constraints.mustPayToOtherScript undefined undefined
+    constraints = Constraints.mustPayToOtherScript valHash unitDatum
       $ lovelaceValueOf
       $ BigInt.fromInt 1000
 
@@ -36,8 +39,9 @@ payToAlwaysSucceeds = do
     lookups = Lookups.otherScript alwaysSucceedsValidator
   unbalancedTx <- liftRight
     =<< flip mkUnbalancedTx' constraints
-    =<< liftJust "Failed to get validator hash" lookups
-  undefined
+    =<< liftJust "Lookups were `Nothing`" lookups
+  balancedTx <- liftRight =<< balanceTx unbalancedTx
+  submitTransaction balancedTx
 
 alwaysSucceedsValidator :: Validator
 alwaysSucceedsValidator = wrap
