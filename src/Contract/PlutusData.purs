@@ -12,6 +12,7 @@ module Contract.PlutusData
   , getDatumsByHashes
   , startFetchBlocksRequest
   , module Datum
+  , module ExportedQueryM
   , module PlutusData
   , module Redeemer
   , module FromData
@@ -25,22 +26,22 @@ import Contract.Monad (Contract)
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
 import FromData (class FromData, fromData) as FromData
-
 import QueryM
-  ( DatumCacheListeners
-  , DatumCacheWebSocket
-  , cancelFetchBlocksRequest
+  ( cancelFetchBlocksRequest
   , datumFilterAddHashesRequest
   , datumFilterGetHashesRequest
   , datumFilterRemoveHashesRequest
   , datumFilterSetHashesRequest
-  , defaultDatumCacheWsConfig
   , getDatumByHash
   , getDatumsByHashes
-  , mkDatumCacheWebSocketAff
-  , queryDatumCache
   , startFetchBlocksRequest
   ) as QueryM
+import QueryM
+  ( DatumCacheListeners
+  , DatumCacheWebSocket
+  , defaultDatumCacheWsConfig
+  , mkDatumCacheWebSocketAff
+  ) as ExportedQueryM
 import Serialization.Address (Slot, BlockId)
 import ToData (class ToData, toData) as ToData
 import Types.PlutusData

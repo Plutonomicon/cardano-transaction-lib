@@ -37,7 +37,6 @@ instance FromData Boolean where
   fromData (Constr n [])
     | n == zero = Just false
     | n == one = Just true
-    | otherwise = Nothing
   fromData _ = Nothing
 
 instance FromData a => FromData (Maybe a) where

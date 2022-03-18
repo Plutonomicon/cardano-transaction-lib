@@ -161,6 +161,8 @@ calculateMinFee
 calculateMinFee = wrap <<< QueryM.calculateMinFee
 
 -- | Same as `calculateMinFee` hushing the error.
+calculateMinFeeM
+  :: Transaction -> Contract (Maybe Coin)
 calculateMinFeeM = map hush <<< calculateMinFee
 
 -- | Attempts to balance an `UnbalancedTx`.
