@@ -37,7 +37,9 @@ main = do
 opts :: Options.ParserInfo ServerOptions
 opts =
   Options.info (serverOptions <**> Options.helper) $
-    Options.fullDesc <> Options.progDesc "CBTx server"
+    Options.fullDesc
+      <> Options.progDesc
+        "CBTx server. See the README for routes and request/response types"
 
 serverOptions :: Options.Parser ServerOptions
 serverOptions =
@@ -45,6 +47,7 @@ serverOptions =
     <$> Options.option
       Options.auto
       ( Options.long "port"
+          <> Options.short 'p'
           <> Options.help "Server port"
           <> Options.showDefault
           <> Options.value 8081
