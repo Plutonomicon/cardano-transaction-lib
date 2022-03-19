@@ -7,7 +7,6 @@ import Prelude
 
 import Data.Array as Array
 import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
 import Data.List (List)
 import Data.Map (Map)
 import Data.Map as Map
@@ -19,19 +18,20 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Prim.TypeError (class Fail, Text)
 import Data.Unfoldable (class Unfoldable)
 import Types.ByteArray (ByteArray)
-import Types.PlutusData (PlutusData(Bytes, List, Map, Integer))
+import Types.PlutusData (PlutusData(Bytes, Constr, List, Map, Integer))
 
 class FromData (a :: Type) where
   fromData :: PlutusData -> Maybe a
 
 instance FromData Unit where
-  fromData (List []) = Just unit
+  fromData (Constr n [])
+    | n == zero = Just unit
   fromData _ = Nothing
 
 instance FromData Boolean where
-  fromData (Integer n)
-    | n == BigInt.fromInt 0 = Just false
-    | n == BigInt.fromInt 1 = Just true
+  fromData (Constr n [])
+    | n == zero = Just false
+    | n == one = Just true
   fromData _ = Nothing
 
 instance Fail (Text "Int is not supported, use BigInt instead") => FromData Int where
@@ -48,7 +48,8 @@ instance FromData a => FromData (List a) where
   fromData = fromDataUnfoldable
 
 instance (FromData a, FromData b) => FromData (a /\ b) where
-  fromData (List [ a, b ]) = Tuple <$> fromData a <*> fromData b
+  fromData (Constr n [ a, b ])
+    | n == zero = Tuple <$> fromData a <*> fromData b
   fromData _ = Nothing
 
 instance (FromData k, Ord k, FromData v) => FromData (Map k v) where
