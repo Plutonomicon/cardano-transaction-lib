@@ -1,11 +1,14 @@
 -- | A module that defines the different transaction data types, balancing
--- | functionality, signing and submission.
+-- | functionality, transaction fees, signing and submission.
 module Contract.Transaction
   ( balanceTx
   , balanceTxM
+  , calculateMinFee
+  , calculateMinFeeM
   , signTransaction
   , submitTransaction
   , module BalanceTxError
+  , module ExportQueryM
   , module JsonWsp
   , module ScriptLookups
   , module Transaction
@@ -20,8 +23,16 @@ import Contract.Monad (Contract)
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
-import QueryM (signTransaction, submitTransaction) as QueryM
-import Types.JsonWsp (OgmiosTxOut, OgmiosTxOutRef) as JsonWsp --  Perhaps it's best not to expose `JsonWsp`.
+import QueryM
+  ( FeeEstimate(FeeEstimate)
+  , ClientError(..) -- implicit as this error list will likely increase.
+  ) as ExportQueryM
+import QueryM
+  ( calculateMinFee
+  , signTransaction
+  , submitTransaction
+  ) as QueryM
+import Types.JsonWsp (OgmiosTxOut, OgmiosTxOutRef) as JsonWsp -- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
 import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
   , mkUnbalancedTx
@@ -42,9 +53,9 @@ import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and ass
       )
   , CostModel(CostModel)
   , Costmdls(Costmdls)
-  -- , DataHash(DataHash)
-  -- , DatumHash
-  -- , Ed25519Signature(Ed25519Signature)
+  , DataHash(DataHash)
+  , DatumHash
+  , Ed25519Signature(Ed25519Signature)
   , Epoch(Epoch)
   , ExUnitPrices
   , ExUnits
@@ -64,8 +75,8 @@ import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and ass
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate
   , ProtocolVersion
-  -- , PublicKey(PublicKey)
-  -- , RequiredSigner(RequiredSigner)
+  , PublicKey(PublicKey)
+  , RequiredSigner(RequiredSigner)
   , ScriptDataHash(ScriptDataHash)
   , SubCoin
   , Transaction(Transaction)
@@ -84,8 +95,8 @@ import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and ass
   , TxBody(TxBody)
   , UnitInterval
   , Update
-  -- , Utxo
-  -- , UtxoM(UtxoM)
+  , Utxo
+  , UtxoM(UtxoM)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   , _auxiliaryData
@@ -112,7 +123,7 @@ import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and ass
   , _withdrawals
   , _witnessSet
   ) as Transaction
-import TxOutput -- Could potentially trim this down:
+import TxOutput -- Could potentially trim this down, -- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
   ( ogmiosTxOutToScriptOutput
   , ogmiosTxOutToTransactionOutput
   , scriptOutputToOgmiosTxOut
@@ -131,6 +142,7 @@ import Types.UnbalancedTransaction
   , _utxoIndex
   , emptyUnbalancedTx
   ) as UnbalancedTx
+import Types.Value (Coin)
 
 -- | This module defines transaction-related requests. Currently signing and
 -- | submission is done with Nami.
@@ -142,6 +154,16 @@ signTransaction = wrap <<< QueryM.signTransaction
 -- | Submits a `Transaction` with potential failure.
 submitTransaction :: Transaction -> Contract (Maybe TransactionHash)
 submitTransaction = wrap <<< QueryM.submitTransaction
+
+-- | Query the Haskell server for the minimum transaction fee
+calculateMinFee
+  :: Transaction -> Contract (Either ExportQueryM.ClientError Coin)
+calculateMinFee = wrap <<< QueryM.calculateMinFee
+
+-- | Same as `calculateMinFee` hushing the error.
+calculateMinFeeM
+  :: Transaction -> Contract (Maybe Coin)
+calculateMinFeeM = map hush <<< calculateMinFee
 
 -- | Attempts to balance an `UnbalancedTx`.
 balanceTx

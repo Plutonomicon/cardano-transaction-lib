@@ -12,6 +12,7 @@ module Contract.PlutusData
   , getDatumsByHashes
   , startFetchBlocksRequest
   , module Datum
+  , module ExportedQueryM
   , module PlutusData
   , module Redeemer
   , module FromData
@@ -35,6 +36,12 @@ import QueryM
   , getDatumsByHashes
   , startFetchBlocksRequest
   ) as QueryM
+import QueryM
+  ( DatumCacheListeners
+  , DatumCacheWebSocket
+  , defaultDatumCacheWsConfig
+  , mkDatumCacheWebSocketAff
+  ) as ExportedQueryM
 import Serialization.Address (Slot, BlockId)
 import ToData (class ToData, toData) as ToData
 import Types.PlutusData

@@ -13,6 +13,10 @@ module Types.ScriptLookups
   , paymentPubKeyM
   , typedValidatorLookups
   , typedValidatorLookupsM
+  , unsafeMintingPolicyM
+  , unsafeOtherDataM
+  , unsafeOtherScriptM
+  , unsafePaymentPubKey
   , unspentOutputs
   , unspentOutputsM
   ) where
@@ -40,7 +44,7 @@ import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.List (List(Nil, Cons))
 import Data.Map (Map, empty, lookup, mapMaybe, singleton, union)
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
@@ -50,6 +54,7 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Helpers ((<\>), liftEither, liftM, liftMWith)
+import Partial.Unsafe (unsafePartial)
 import QueryM (QueryConfig, QueryM, getDatumByHash)
 import Scripts
   ( mintingPolicyHash
@@ -221,13 +226,13 @@ instance Monoid (ScriptLookups a) where
 --------------------------------------------------------------------------------
 -- Create ScriptLookups helpers
 --------------------------------------------------------------------------------
--- | The lookup functions may come in pairs. If the function cannot fail, there
+-- | The lookup functions come in pairs. If the function cannot fail, there
 -- | is another version contained in a `Maybe` context (that also does not fail).
 -- | This is to aid users who wish to utilise the underlying `ScriptLookups`
 -- | `Monoid` for `foldMap` etc.
 -- |
--- | Otherwise, there will be just one version that can fail (because of
--- | hashing).
+-- | Otherwise, there are lookups that may fail with `Maybe` (because of
+-- | hashing) and an unsafe counterpart via `fromJust`.
 
 -- | A script lookups value with a script instance. For convenience this also
 -- | includes the minting policy script that forwards all checks to the
@@ -247,12 +252,14 @@ typedValidatorLookupsM
   :: forall (a :: Type). TypedValidator a -> Maybe (ScriptLookups a)
 typedValidatorLookupsM = pure <<< typedValidatorLookups
 
+-- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
 -- | A script lookups value that uses the map of unspent outputs to resolve
 -- | input constraints.
 unspentOutputs
   :: forall (a :: Type). Map TxOutRef OgmiosTxOut -> ScriptLookups a
 unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 
+-- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
 -- | Same as `unspentOutputs` but in `Maybe` context for convenience. This
 -- | should not fail.
 unspentOutputsM
@@ -266,6 +273,11 @@ mintingPolicyM pl = do
   hsh <- mintingPolicyHash pl
   pure $ over ScriptLookups _ { mps = singleton hsh pl } mempty
 
+-- | A script lookups value with a minting policy script. This is unsafe because
+-- | the underlying function `mintingPolicyM` can fail.
+unsafeMintingPolicyM :: forall (a :: Type). MintingPolicy -> ScriptLookups a
+unsafeMintingPolicyM = unsafePartial fromJust <<< mintingPolicyM
+
 -- | A script lookups value with a validator script. This can fail because we
 -- | invoke `validatorHash`.
 otherScriptM :: forall (a :: Type). Validator -> Maybe (ScriptLookups a)
@@ -273,12 +285,22 @@ otherScriptM vl = do
   vh <- validatorHash vl
   pure $ over ScriptLookups _ { otherScripts = singleton vh vl } mempty
 
+-- | A script lookups value with a validator script. This is unsafe because
+-- | the underlying function `otherScriptM` can fail.
+unsafeOtherScriptM :: forall (a :: Type). Validator -> ScriptLookups a
+unsafeOtherScriptM = unsafePartial fromJust <<< otherScriptM
+
 -- | A script lookups value with a datum. This can fail because we invoke
 -- | `datumHash`.
 otherDataM :: forall (a :: Type). Datum -> Maybe (ScriptLookups a)
 otherDataM dt = do
   dh <- datumHash dt
   pure $ over ScriptLookups _ { otherData = singleton dh dt } mempty
+
+-- | A script lookups value with a datum. This is unsafe because the underlying
+-- | function `otherDataM` can fail.
+unsafeOtherDataM :: forall (a :: Type). Datum -> ScriptLookups a
+unsafeOtherDataM = unsafePartial fromJust <<< otherDataM
 
 -- | A script lookups value with a payment public key. This can fail because we
 -- | invoke `payPubKeyHash`.
@@ -288,6 +310,11 @@ paymentPubKeyM ppk = do
   pure $ over ScriptLookups
     _ { paymentPubKeyHashes = singleton pkh ppk }
     mempty
+
+-- | A script lookups value with a payment public key. This is unsafe because
+-- | the underlying function `paymentPubKeyM` can fail.
+unsafePaymentPubKey :: forall (a :: Type). PaymentPubKey -> ScriptLookups a
+unsafePaymentPubKey = unsafePartial fromJust <<< paymentPubKeyM
 
 -- | Add your own `PaymentPubKeyHash` to the lookup.
 ownPaymentPubKeyHash :: forall (a :: Type). PaymentPubKeyHash -> ScriptLookups a

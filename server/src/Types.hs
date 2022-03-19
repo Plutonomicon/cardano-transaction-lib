@@ -1,5 +1,6 @@
 module Types (
   AppM (AppM),
+  ServerOptions (..),
   Env (..),
   Cbor (..),
   Fee (..),
@@ -29,6 +30,7 @@ import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import GHC.Generics (Generic)
+import Network.Wai.Handler.Warp (Port)
 import Paths_cardano_browser_tx_server (getDataFileName)
 import Plutus.V1.Ledger.Api qualified as Ledger
 import Servant (FromHttpApiData, QueryParam', Required, ToHttpApiData)
@@ -48,6 +50,11 @@ newtype AppM (a :: Type) = AppM (ReaderT Env IO a)
 
 newtype Env = Env
   { protocolParams :: Shelley.ProtocolParameters
+  }
+  deriving stock (Generic)
+
+newtype ServerOptions = ServerOptions
+  { port :: Port
   }
   deriving stock (Generic)
 

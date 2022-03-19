@@ -64,9 +64,7 @@ newtype PaymentPubKey = PaymentPubKey PublicKey
 derive instance Generic PaymentPubKey _
 derive instance Newtype PaymentPubKey _
 derive newtype instance Eq PaymentPubKey
-derive newtype instance FromData PaymentPubKey
 derive newtype instance Ord PaymentPubKey
-derive newtype instance ToData PaymentPubKey
 
 instance Show PaymentPubKey where
   show = genericShow

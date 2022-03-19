@@ -468,9 +468,7 @@ newtype RequiredSigner = RequiredSigner Vkey
 
 derive instance Newtype RequiredSigner _
 derive newtype instance Eq RequiredSigner
-derive newtype instance FromData RequiredSigner
 derive newtype instance Ord RequiredSigner
-derive newtype instance ToData RequiredSigner
 
 newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
@@ -485,9 +483,7 @@ newtype Vkey = Vkey PublicKey
 derive instance Generic Vkey _
 derive instance Newtype Vkey _
 derive newtype instance Eq Vkey
-derive newtype instance FromData Vkey
 derive newtype instance Ord Vkey
-derive newtype instance ToData Vkey
 
 instance Show Vkey where
   show = genericShow
@@ -497,9 +493,7 @@ newtype PublicKey = PublicKey Bech32String
 derive instance Generic PublicKey _
 derive instance Newtype PublicKey _
 derive newtype instance Eq PublicKey
-derive newtype instance FromData PublicKey
 derive newtype instance Ord PublicKey
-derive newtype instance ToData PublicKey
 
 instance Show PublicKey where
   show = genericShow
@@ -509,8 +503,6 @@ newtype Ed25519Signature = Ed25519Signature Bech32String
 derive instance Generic Ed25519Signature _
 derive newtype instance Eq Ed25519Signature
 derive newtype instance Ord Ed25519Signature
-derive newtype instance FromData Ed25519Signature
-derive newtype instance ToData Ed25519Signature
 
 instance Show Ed25519Signature where
   show = genericShow

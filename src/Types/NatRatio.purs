@@ -25,6 +25,8 @@ newtype NatRatio = NatRatio Rational
 
 derive newtype instance Eq NatRatio
 derive newtype instance Ord NatRatio
+-- If `NatRatio`s are safely constructed, then the underlying `Rational`s
+-- should obey Semiring laws.
 derive newtype instance Semiring NatRatio
 
 instance Show NatRatio where

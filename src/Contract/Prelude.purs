@@ -1,11 +1,15 @@
 -- | A custom Prelude that re-exports Purescript's prelude and further expands.
 module Contract.Prelude
   ( mconcat
+  , module Aff
   , module Helpers
+  , module Effect
   , module Either
   , module Enum
   , module Foldable
+  , module Generic
   , module Maybe
+  , module Newtype
   , module PurescriptPrelude
   , module Traversable
   , module Tuple
@@ -198,6 +202,7 @@ import Data.Foldable
   , surround
   , surroundMap
   ) as Foldable
+import Data.Generic.Rep (class Generic) as Generic
 import Data.Maybe
   ( Maybe(Just, Nothing)
   , fromJust
@@ -209,6 +214,8 @@ import Data.Maybe
   , maybe'
   , optional
   ) as Maybe
+import Data.Newtype (class Newtype, over, unwrap, wrap) as Newtype
+import Data.Show.Generic (genericShow) as Generic
 -- A lot of this module is already re-exported from Data.Foldable
 import Data.Traversable
   ( class Traversable
@@ -301,6 +308,8 @@ import Data.Tuple.Nested
   , uncurry9
   , (/\)
   ) as TupleNested
+import Effect (Effect) as Effect
+import Effect.Aff (Aff) as Aff
 import Helpers -- Could maybe move this somewhere better:
   ( (</>)
   , (<<>>)

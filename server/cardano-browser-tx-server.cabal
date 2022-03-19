@@ -86,6 +86,7 @@ executable cardano-browser-tx-server
     , base
     , cardano-browser-tx-server
     , http-types
+    , optparse-applicative
     , wai
     , wai-logger
     , warp

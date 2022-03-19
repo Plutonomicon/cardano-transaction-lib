@@ -11,7 +11,7 @@ import Data.Either (Either(Left, Right))
 import Data.List (List)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Nothing, Just))
+import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Ratio (Ratio, reduce)
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
@@ -20,7 +20,7 @@ import Data.UInt (UInt)
 import Data.Unfoldable (class Unfoldable)
 import Helpers (bigIntToUInt)
 import Prim.TypeError (class Fail, Text)
-import Types.ByteArray (ByteArray, byteArrayToHex)
+import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Bytes, Constr, List, Map, Integer))
 
 class FromData (a :: Type) where
@@ -37,21 +37,19 @@ instance FromData Boolean where
   fromData (Constr n [])
     | n == zero = Just false
     | n == one = Just true
-    | otherwise = Nothing
   fromData _ = Nothing
 
 instance FromData a => FromData (Maybe a) where
   fromData (Constr n [ pd ]) = case fromData pd of
-    Just Nothing | n == one -> Just Nothing
-    Just (Just x) | n == zero -> Just (Just x) -- Just is zero-indexed by Plutus
+    Just _ | n == one -> Just Nothing
+    Just x | n == zero -> Just (Just x) -- Just is zero-indexed by Plutus
     _ -> Nothing
   fromData _ = Nothing
 
 instance (FromData a, FromData b) => FromData (Either a b) where
-  fromData (Constr n [ pd ]) = case fromData pd of
-    Just (Left x) | n == zero -> Just (Left x)
-    Just (Right x) | n == one -> Just (Right x)
-    _ -> Nothing
+  fromData (Constr n [ pd ])
+    | n == zero = maybe Nothing (Just <<< Left) (fromData pd)
+    | n == one = maybe Nothing (Just <<< Right) (fromData pd)
   fromData _ = Nothing
 
 instance Fail (Text "Int is not supported, use BigInt instead") => FromData Int where
@@ -93,11 +91,6 @@ instance (Ord a, EuclideanRing a, FromData a) => FromData (Ratio a) where
 
 instance FromData PlutusData where
   fromData = Just
-
--- | This covers `Bech32` which is just a type alias for `String`
-instance FromData String where
-  fromData (Bytes res) = Just $ byteArrayToHex res
-  fromData _ = Nothing
 
 fromDataUnfoldable :: forall (a :: Type) (t :: Type -> Type). Unfoldable t => FromData a => PlutusData -> Maybe (t a)
 fromDataUnfoldable (List entries) = Array.toUnfoldable <$> traverse fromData entries
