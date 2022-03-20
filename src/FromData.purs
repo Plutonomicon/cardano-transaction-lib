@@ -40,10 +40,10 @@ instance FromData Boolean where
   fromData _ = Nothing
 
 instance FromData a => FromData (Maybe a) where
-  fromData (Constr n [ pd ]) = case fromData pd of
-    Just _ | n == one -> Just Nothing
-    Just x | n == zero -> Just (Just x) -- Just is zero-indexed by Plutus
-    _ -> Nothing
+  fromData (Constr n [ pd ])
+    | n == zero = maybe Nothing (Just <<< Just) (fromData pd) -- Just is zero-indexed by Plutus
+  fromData (Constr n [])
+    | n == one = Just Nothing
   fromData _ = Nothing
 
 instance (FromData a, FromData b) => FromData (Either a b) where
