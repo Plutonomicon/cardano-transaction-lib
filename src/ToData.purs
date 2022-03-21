@@ -10,8 +10,7 @@ module ToData
   , toData
   , toDataArgs
   , constrToIndex
-  )
-  where
+  ) where
 
 import Prelude
 
@@ -38,6 +37,7 @@ import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Constr, Integer, List, Map, Bytes))
 
 data Day = Mon | Tue | Wed | Thurs | Fri | Sat | Sun
+
 derive instance genericDay :: G.Generic Day _
 
 instance showDay :: Show Day where
@@ -53,7 +53,7 @@ class ConstrIndex (a :: Type) where
   constrToIndex :: Proxy a -> Map String Int
 
 instance dayConstrIndex :: ConstrIndex Day where
-  constrToIndex _ = Map.fromFoldable [Tuple "Mon" 0]
+  constrToIndex _ = Map.fromFoldable [ Tuple "Mon" 0 ]
 
 -- Generic
 class ToDataArgs a where
@@ -63,7 +63,7 @@ instance toDataArgsNoArguments :: ToDataArgs G.NoArguments where
   toDataArgs _ = []
 
 instance toDataArgsArgument :: ToData a => ToDataArgs (G.Argument a) where
-  toDataArgs (G.Argument x) = [toData x]
+  toDataArgs (G.Argument x) = [ toData x ]
 
 instance toDataArgsProduct :: (ToDataArgs a, ToDataArgs b) => ToDataArgs (G.Product a b) where
   toDataArgs (G.Product x y) = toDataArgs x <> toDataArgs y
@@ -84,16 +84,15 @@ class IsIndexed (a :: Type) where
   indexFromConstructor :: forall name. IsSymbol name => IsIndexed a => Int -> SProxy name -> Proxy a -> BigInt
 
 instance sumIsIndexed :: (IsSymbol ln, IsSymbol rn) => IsIndexed (G.Sum (G.Constructor ln la) (G.Constructor rn ra)) where
-  indexFromConstructor i sname _ = if reflectSymbol sname == reflectSymbol (Proxy :: Proxy ln)
-                                   then fromInt i
-                                   else if reflectSymbol sname == reflectSymbol (Proxy :: Proxy rn)
-                                        then (fromInt i + fromInt 1)
-                                        else BigInt.fromInt (-1)
+  indexFromConstructor i sname _ =
+    if reflectSymbol sname == reflectSymbol (Proxy :: Proxy ln) then fromInt i
+    else if reflectSymbol sname == reflectSymbol (Proxy :: Proxy rn) then (fromInt i + fromInt 1)
+    else BigInt.fromInt (-1)
 
 instance sumIsIndexed' :: (IsSymbol ln, IsIndexed (G.Sum l r)) => IsIndexed (G.Sum (G.Constructor ln la) (G.Sum l r)) where
-  indexFromConstructor i constrName _ = if reflectSymbol constrName == reflectSymbol (Proxy :: Proxy ln)
-                                        then fromInt i
-                                        else indexFromConstructor (i + 1) constrName (Proxy :: Proxy (G.Sum l r))
+  indexFromConstructor i constrName _ =
+    if reflectSymbol constrName == reflectSymbol (Proxy :: Proxy ln) then fromInt i
+    else indexFromConstructor (i + 1) constrName (Proxy :: Proxy (G.Sum l r))
 
 genericIndexFromConstructor
   :: forall a rep name. G.Generic a rep => IsIndexed rep => IsSymbol name => SProxy name -> Proxy a -> BigInt
