@@ -73,11 +73,12 @@ import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This))
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested ((/\), type (/\))
-import FromData (class FromData)
+import FromData (class FromData, fromData)
 import Partial.Unsafe (unsafePartial)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
-import ToData (class ToData)
+import ToData (class ToData, toData)
 import Types.ByteArray (ByteArray, byteLength)
+import Types.PlutusData (PlutusData(List)) as PD
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 
 -- `Negate` and `Split` seem a bit too contrived, and their purpose is to
@@ -109,21 +110,23 @@ newtype Coin = Coin BigInt
 
 derive instance Generic Coin _
 derive instance Newtype Coin _
-derive newtype instance eqCoin :: Eq Coin
+derive newtype instance Eq Coin
+derive newtype instance FromData Coin
+derive newtype instance ToData Coin
 
 instance Show Coin where
   show = genericShow
 
-instance semigroupCoin :: Semigroup Coin where
+instance Semigroup Coin where
   append (Coin c1) (Coin c2) = Coin (c1 + c2)
 
-instance monoidCoin :: Monoid Coin where
+instance Monoid Coin where
   mempty = Coin zero
 
-instance joinSemilatticeCoin :: JoinSemilattice Coin where
+instance JoinSemilattice Coin where
   join (Coin c1) (Coin c2) = Coin (max c1 c2)
 
-instance meetSemilatticeCoin :: MeetSemilattice Coin where
+instance MeetSemilattice Coin where
   meet (Coin c1) (Coin c2) = Coin (min c1 c2)
 
 instance Negate Coin where
@@ -141,9 +144,11 @@ instance Split Coin where
 mkCoin :: Int -> Coin
 mkCoin = Coin <<< fromInt
 
+-- | Get the amount of lovelaces in Ada `Coin`.
 getLovelace :: Coin -> BigInt
 getLovelace (Coin l) = l
 
+-- | Convert a `BigInt` to Ada-only `Value`
 lovelaceValueOf :: BigInt -> Value
 lovelaceValueOf = flip (Value <<< Coin) mempty
 
@@ -155,6 +160,7 @@ coinToValue (Coin i) = lovelaceValueOf i
 valueToCoin :: Value -> Coin
 valueToCoin = Coin <<< valueToCoin'
 
+-- | Get the `Coin` in the given `Value` as a `BigInt`
 valueToCoin' :: Value -> BigInt
 valueToCoin' v = valueOf v unsafeAdaSymbol adaToken
 
@@ -163,12 +169,12 @@ valueToCoin' v = valueOf v unsafeAdaSymbol adaToken
 --------------------------------------------------------------------------------
 newtype CurrencySymbol = CurrencySymbol ByteArray
 
-derive newtype instance eqCurrencySymbol :: Eq CurrencySymbol
-derive newtype instance ordCurrencySymbol :: Ord CurrencySymbol
+derive newtype instance Eq CurrencySymbol
 derive newtype instance FromData CurrencySymbol
+derive newtype instance Ord CurrencySymbol
 derive newtype instance ToData CurrencySymbol
 
-instance showCurrencySymbol :: Show CurrencySymbol where
+instance Show CurrencySymbol where
   show (CurrencySymbol cs) = "(CurrencySymbol" <> show cs <> ")"
 
 getCurrencySymbol :: CurrencySymbol -> ByteArray
@@ -195,18 +201,19 @@ mkUnsafeAdaSymbol byteArr =
 --------------------------------------------------------------------------------
 newtype TokenName = TokenName ByteArray
 
-derive newtype instance eqTokenName :: Eq TokenName
-derive newtype instance ordTokenName :: Ord TokenName
+derive newtype instance Eq TokenName
 derive newtype instance FromData TokenName
+derive newtype instance Ord TokenName
 derive newtype instance ToData TokenName
 
-instance showTokenName :: Show TokenName where
+instance Show TokenName where
   show (TokenName tn) = "(TokenName" <> show tn <> ")"
 
 getTokenName :: TokenName -> ByteArray
 getTokenName (TokenName tokenName) = tokenName
 
 -- Safe to export because this can be created by mkTokenName now
+-- | The empty token name.
 adaToken :: TokenName
 adaToken = TokenName mempty
 
@@ -230,22 +237,24 @@ mkTokenNames = traverse (ltraverse mkTokenName) >>> map Map.fromFoldable
 --------------------------------------------------------------------------------
 newtype NonAdaAsset = NonAdaAsset (Map CurrencySymbol (Map TokenName BigInt))
 
-derive instance newtypeNonAdaAsset :: Newtype NonAdaAsset _
-derive newtype instance eqNonAdaAsset :: Eq NonAdaAsset
+derive instance Newtype NonAdaAsset _
+derive newtype instance FromData NonAdaAsset
+derive newtype instance Eq NonAdaAsset
+derive newtype instance ToData NonAdaAsset
 
-instance showNonAdaAsset :: Show NonAdaAsset where
+instance Show NonAdaAsset where
   show (NonAdaAsset nonAdaAsset) = "(NonAdaAsset" <> show nonAdaAsset <> ")"
 
-instance semigroupNonAdaAsset :: Semigroup NonAdaAsset where
+instance Semigroup NonAdaAsset where
   append = unionWith (+)
 
-instance monoidNonAdaAsset :: Monoid NonAdaAsset where
+instance Monoid NonAdaAsset where
   mempty = NonAdaAsset Map.empty
 
-instance joinSemilatticeNonAdaAsset :: JoinSemilattice NonAdaAsset where
+instance JoinSemilattice NonAdaAsset where
   join = unionWith max
 
-instance meetSemilatticeNonAdaAsset :: MeetSemilattice NonAdaAsset where
+instance MeetSemilattice NonAdaAsset where
   meet = unionWith min
 
 instance Negate NonAdaAsset where
@@ -333,22 +342,22 @@ getNonAdaAsset' (Value _ (NonAdaAsset nonAdaAsset)) = nonAdaAsset
 -- | distinction between native tokens and Ada, and we follow this convention.
 data Value = Value Coin NonAdaAsset
 
-derive instance genericValue :: Generic Value _
-derive instance eqValue :: Eq Value
+derive instance Generic Value _
+derive instance Eq Value
 
-instance showValue :: Show Value where
+instance Show Value where
   show = genericShow
 
-instance semigroupValue :: Semigroup Value where
+instance Semigroup Value where
   append (Value c1 m1) (Value c2 m2) = Value (c1 <> c2) (m1 <> m2)
 
-instance monoidValue :: Monoid Value where
+instance Monoid Value where
   mempty = Value mempty mempty
 
-instance joinSemilatticeValue :: JoinSemilattice Value where
+instance JoinSemilattice Value where
   join (Value c1 m1) (Value c2 m2) = Value (c1 `join` c2) (m1 `join` m2)
 
-instance meetSemilatticeValue :: MeetSemilattice Value where
+instance MeetSemilattice Value where
   meet (Value c1 m1) (Value c2 m2) = Value (c1 `meet` c2) (m1 `meet` m2)
 
 instance Negate Value where
@@ -359,6 +368,17 @@ instance Split Value where
   split (Value coin nonAdaAsset) =
     bimap (flip Value mempty) (flip Value mempty) (split coin)
       <> bimap (Value mempty) (Value mempty) (split nonAdaAsset)
+
+-- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/193
+-- Because our `Value` is different to Plutus, I wonder if this will become an
+-- issue.
+instance FromData Value where
+  fromData (PD.List [ coin, nonAdaAsset ]) =
+    Value <$> fromData coin <*> fromData nonAdaAsset
+  fromData _ = Nothing
+
+instance ToData Value where
+  toData (Value coin nonAdaAsset) = toData (coin /\ nonAdaAsset)
 
 -- | Create a `Value` from `Coin` and `NonAdaAsset`, the latter should have been
 -- | constructed safely at this point.
@@ -648,7 +668,7 @@ currencyMPSHash = MintingPolicyHash <<< currencyScriptHash
 mpsSymbol :: MintingPolicyHash -> Maybe CurrencySymbol
 mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol $ scriptHashToBytes h
 
--- | Like `mapEither` that works with 'These'.
+-- Like `mapEither` that works with 'These'.
 mapThese
   :: forall (a :: Type) (b :: Type) (k :: Type) (v :: Type)
    . Ord k

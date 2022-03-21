@@ -6,30 +6,37 @@ module Helpers
   , appendLastMaybe
   , appendMap
   , appendRightMap
+  , bigIntToUInt
+  , filterMapWithKeyM
   , fromJustEff
   , fromRightEff
   , liftEither
   , liftM
   , liftMWith
-  , filterMapWithKeyM
   , maybeArrayMerge
+  , uIntToBigInt
   ) where
 
 import Prelude
 
 import Control.Monad.Error.Class (class MonadError, throwError)
 import Data.Array (union)
+import Data.BigInt (BigInt)
+import Data.BigInt as BigInt
 import Data.Either (Either(Right), either)
 import Data.Function (on)
 import Data.List.Lazy as LL
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Maybe.First (First(First))
 import Data.Maybe.Last (Last(Last))
 import Data.Tuple (uncurry)
+import Data.UInt (UInt)
+import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Exception (throw)
+import Partial.Unsafe (unsafePartial)
 
 -- | Throws provided error on `Nothing`
 fromJustEff :: forall (a :: Type). String -> Maybe a -> Effect a
@@ -120,3 +127,15 @@ filterMapWithKeyM
   -> Map k v
   -> m (Map k v)
 filterMapWithKeyM p = map Map.fromFoldable <<< LL.filterM (uncurry p) <<< Map.toUnfoldable
+
+-- UInt.toInt is unsafe so we'll go via String. BigInt.fromString returns a
+-- Maybe but we should be safe if we go from UInt originally via String,
+-- as this UInt can't be larger than BigInt.
+-- | Converts an `UInt` to `BigInt`
+uIntToBigInt :: UInt -> BigInt
+uIntToBigInt = unsafePartial fromJust <<< BigInt.fromString <<< UInt.toString
+
+-- This should be left allowed to fail as BigInt may exceed UInt
+-- | Converts a `BigInt` to `UInt` with potential failure.
+bigIntToUInt :: BigInt -> Maybe UInt
+bigIntToUInt = UInt.fromString <<< BigInt.toString

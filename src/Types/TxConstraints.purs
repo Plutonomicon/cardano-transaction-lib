@@ -145,6 +145,8 @@ instance Bifunctor TxConstraints where
 --------------------------------------------------------------------------------
 -- Helpers
 --------------------------------------------------------------------------------
+-- | Adds a `TransactionInput` as an input constraint with an arbitrary
+-- | redeemer.
 addTxIn
   :: forall (i :: Type) (o :: Type)
    . TxOutRef
@@ -176,6 +178,7 @@ mustBeSignedBy = singleton <<< MustBeSignedBy
 mustIncludeDatum :: forall (i :: Type) (o :: Type). Datum -> TxConstraints i o
 mustIncludeDatum = singleton <<< MustIncludeDatum
 
+-- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
 -- | Lock the value to the script currently being validated
 mustPayToTheScript
   :: forall (i :: Type) (o :: Type)
@@ -268,8 +271,7 @@ mustMintValueWithRedeemer redeemer =
         (uncurry (mustMintCurrencyWithRedeemer mintingPolicyHash redeemer))
         $ toUnfoldable tokenMap
 
--- | Create the given amount of the currency. FIX ME: Broken until `unitRedeemer`
--- | defined.
+-- | Create the given amount of the currency.
 mustMintCurrency
   :: forall (i :: Type) (o :: Type)
    . MintingPolicyHash
