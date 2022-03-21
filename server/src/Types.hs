@@ -6,6 +6,7 @@ module Types (
   Fee (..),
   ApplyArgsRequest (..),
   AppliedScript (..),
+  HashedScript (..),
   FeeEstimateError (..),
   CardanoBrowserServerError (..),
   newEnvIO,
@@ -14,6 +15,7 @@ module Types (
 
 import Cardano.Api.Shelley qualified as Shelley
 import Cardano.Binary qualified as Cbor
+import Codec.Serialise (Serialise)
 import Control.Exception (Exception)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO)
@@ -33,6 +35,7 @@ import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (Port)
 import Paths_cardano_browser_tx_server (getDataFileName)
 import Plutus.V1.Ledger.Api qualified as Ledger
+import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
 import Servant (FromHttpApiData, QueryParam', Required, ToHttpApiData)
 import Servant.Docs qualified as Docs
 import Text.Read (readMaybe)
@@ -96,6 +99,18 @@ data ApplyArgsRequest = ApplyArgsRequest
 newtype AppliedScript = AppliedScript Ledger.Script
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
+
+-- This is newtype for a custom @ToJSON@ instance. We want the CBOR-encoded hex,
+-- not the raw bytes of the @ScriptHash@
+newtype HashedScript = HashedScript Ledger.Scripts.ScriptHash
+  deriving stock (Show, Generic)
+  deriving newtype (Eq, Serialise)
+
+instance ToJSON HashedScript where
+  toJSON = undefined -- TODO
+
+instance FromJSON HashedScript where
+  parseJSON = undefined -- TODO
 
 -- We'll probably extend this with more error types over time
 newtype CardanoBrowserServerError = FeeEstimate FeeEstimateError
