@@ -21,7 +21,7 @@ import Data.UInt (UInt)
 import Helpers (uIntToBigInt)
 import Prim.TypeError (class Fail, Text)
 import Types.ByteArray (ByteArray)
-import Types.PlutusData (PlutusData(Integer, Constr, List, Map, Bytes))
+import Types.PlutusData (PlutusData(Constr, Integer, List, Map, Bytes))
 
 class ToData (a :: Type) where
   toData :: a -> PlutusData
@@ -30,7 +30,7 @@ instance ToData Void where
   toData = absurd
 
 instance ToData Unit where
-  toData _ = List []
+  toData _ = Constr zero []
 
 instance ToData Boolean where
   toData false = Constr zero []
@@ -60,7 +60,7 @@ instance ToData a => ToData (List a) where
   toData = foldableToPlutusData
 
 instance (ToData a, ToData b) => ToData (a /\ b) where
-  toData (a /\ b) = List [ toData a, toData b ]
+  toData (a /\ b) = Constr zero [ toData a, toData b ]
 
 instance (ToData k, ToData v) => ToData (Map k v) where
   toData mp = Map $ entries # map (toData *** toData) # Map.fromFoldable

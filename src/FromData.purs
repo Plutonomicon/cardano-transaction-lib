@@ -30,7 +30,8 @@ instance FromData Void where
   fromData _ = Nothing
 
 instance FromData Unit where
-  fromData (List []) = Just unit
+  fromData (Constr n [])
+    | n == zero = Just unit
   fromData _ = Nothing
 
 instance FromData Boolean where
@@ -70,7 +71,8 @@ instance FromData a => FromData (List a) where
   fromData = fromDataUnfoldable
 
 instance (FromData a, FromData b) => FromData (a /\ b) where
-  fromData (List [ a, b ]) = Tuple <$> fromData a <*> fromData b
+  fromData (Constr n [ a, b ])
+    | n == zero = Tuple <$> fromData a <*> fromData b
   fromData _ = Nothing
 
 instance (FromData k, Ord k, FromData v) => FromData (Map k v) where
