@@ -4,15 +4,14 @@ import Prelude
 
 import Control.Apply (lift2)
 import Data.Array (union)
-import Data.BigInt (BigInt, toNumber)
+import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
-import Data.HashMap (HashMap, empty)
-import Data.Hashable (class Hashable, hash)
 import Data.Lens (lens')
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.Map (Map)
+import Data.Map as Map
 import Data.Maybe (Maybe(Nothing))
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype)
@@ -23,7 +22,7 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import FromData (class FromData)
-import Helpers ((</>), (<<>>), appendMap, appendRightHashMap)
+import Helpers ((</>), (<<>>), appendMap, appendRightMap)
 import Serialization.Address (Address, NetworkId, RewardAddress, Slot(Slot))
 import Serialization.Hash (Ed25519KeyHash)
 import ToData (class ToData)
@@ -475,7 +474,7 @@ instance monoidAuxiliaryData :: Monoid AuxiliaryData where
     }
 
 newtype GeneralTransactionMetadata =
-  GeneralTransactionMetadata (HashMap TransactionMetadatumLabel TransactionMetadatum)
+  GeneralTransactionMetadata (Map TransactionMetadatumLabel TransactionMetadatum)
 
 derive instance Newtype GeneralTransactionMetadata _
 
@@ -486,25 +485,21 @@ derive newtype instance Eq GeneralTransactionMetadata
 -- Do we want to avoid a Semigroup instance for TransactionMetadatum? Recursion
 -- is fine but how to combine Text with Bytes for example? One would have to take
 -- precedence and replace the other.
-instance semigroupGeneralTransactionMetadata :: Semigroup GeneralTransactionMetadata where
+instance Semigroup GeneralTransactionMetadata where
   append (GeneralTransactionMetadata hm) (GeneralTransactionMetadata hm') =
-    GeneralTransactionMetadata $ hm `appendRightHashMap` hm'
+    GeneralTransactionMetadata $ hm `appendRightMap` hm'
 
-instance monoidGeneralTransactionMetadata :: Monoid GeneralTransactionMetadata where
-  mempty = GeneralTransactionMetadata empty
+instance Monoid GeneralTransactionMetadata where
+  mempty = GeneralTransactionMetadata Map.empty
 
 newtype TransactionMetadatumLabel = TransactionMetadatumLabel BigInt
 
 derive instance Newtype TransactionMetadatumLabel _
-
 derive newtype instance Eq TransactionMetadatumLabel
-
--- Hashable requires a = b implies hash a = hash b so I think losing precision might be okay?
-instance hashableTransactionMetadatumLabel :: Hashable TransactionMetadatumLabel where
-  hash (TransactionMetadatumLabel bi) = hash $ toNumber bi
+derive newtype instance Ord TransactionMetadatumLabel
 
 data TransactionMetadatum
-  = MetadataMap (HashMap TransactionMetadatum TransactionMetadatum)
+  = MetadataMap (Map TransactionMetadatum TransactionMetadatum)
   | MetadataList (Array TransactionMetadatum)
   | Int Int
   | Bytes ByteArray
