@@ -2,15 +2,23 @@ module Types.ScriptLookups
   ( MkUnbalancedTxError(..)
   , ScriptLookups(..)
   , generalise
-  , mintingPolicy
+  , mintingPolicyM
   , mkUnbalancedTx
-  , otherData
-  , otherScript
+  , otherDataM
+  , otherScriptM
   , ownPaymentPubKeyHash
+  , ownPaymentPubKeyHashM
   , ownStakePubKeyHash
-  , paymentPubKey
+  , ownStakePubKeyHashM
+  , paymentPubKeyM
   , typedValidatorLookups
+  , typedValidatorLookupsM
+  , unsafeMintingPolicyM
+  , unsafeOtherDataM
+  , unsafeOtherScriptM
+  , unsafePaymentPubKey
   , unspentOutputs
+  , unspentOutputsM
   ) where
 
 import Prelude hiding (join)
@@ -36,7 +44,7 @@ import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.List (List(Nil, Cons))
 import Data.Map (Map, empty, lookup, mapMaybe, singleton, union)
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
@@ -46,6 +54,7 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Helpers ((<\>), liftEither, liftM, liftMWith)
+import Partial.Unsafe (unsafePartial)
 import QueryM (QueryConfig, QueryM, getDatumByHash)
 import Scripts
   ( mintingPolicyHash
@@ -163,7 +172,7 @@ import TxOutput (ogmiosDatumHashToDatumHash, ogmiosTxOutToScriptOutput)
 --------------------------------------------------------------------------------
 newtype ScriptLookups (a :: Type) = ScriptLookups
   { mps :: Map MintingPolicyHash MintingPolicy -- Minting policies that the script interacts with
-  , txOutputs :: Map TxOutRef OgmiosTxOut -- Unspent outputs that the script may want to spend
+  , txOutputs :: Map TxOutRef OgmiosTxOut -- Unspent outputs that the script may want to spend. This may need tweaking to `TransactionOutput`
   , otherScripts :: Map ValidatorHash Validator -- Validators of scripts other than "our script"
   , otherData :: Map DatumHash Datum --  Datums that we might need
   , paymentPubKeyHashes :: Map PaymentPubKeyHash PaymentPubKey -- Public keys that we might need
@@ -215,8 +224,16 @@ instance Monoid (ScriptLookups a) where
     }
 
 --------------------------------------------------------------------------------
--- Create ScriptLookups helpers for `Contract` monad.
+-- Create ScriptLookups helpers
 --------------------------------------------------------------------------------
+-- | The lookup functions come in pairs. If the function cannot fail, there
+-- | is another version contained in a `Maybe` context (that also does not fail).
+-- | This is to aid users who wish to utilise the underlying `ScriptLookups`
+-- | `Monoid` for `foldMap` etc.
+-- |
+-- | Otherwise, there are lookups that may fail with `Maybe` (because of
+-- | hashing) and an unsafe counterpart via `fromJust`.
+
 -- | A script lookups value with a script instance. For convenience this also
 -- | includes the minting policy script that forwards all checks to the
 -- | instance's validator.
@@ -229,49 +246,97 @@ typedValidatorLookups tv@(TypedValidator inst) =
       }
     mempty
 
+-- | Same as `typedValidatorLookups` but in `Maybe` context for convenience.
+-- | This should not fail.
+typedValidatorLookupsM
+  :: forall (a :: Type). TypedValidator a -> Maybe (ScriptLookups a)
+typedValidatorLookupsM = pure <<< typedValidatorLookups
+
+-- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
 -- | A script lookups value that uses the map of unspent outputs to resolve
 -- | input constraints.
 unspentOutputs
   :: forall (a :: Type). Map TxOutRef OgmiosTxOut -> ScriptLookups a
 unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 
+-- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
+-- | Same as `unspentOutputs` but in `Maybe` context for convenience. This
+-- | should not fail.
+unspentOutputsM
+  :: forall (a :: Type). Map TxOutRef OgmiosTxOut -> Maybe (ScriptLookups a)
+unspentOutputsM = pure <<< unspentOutputs
+
 -- | A script lookups value with a minting policy script. This can fail because
 -- | we invoke `mintingPolicyHash`.
-mintingPolicy :: forall (a :: Type). MintingPolicy -> Maybe (ScriptLookups a)
-mintingPolicy pl = do
+mintingPolicyM :: forall (a :: Type). MintingPolicy -> Maybe (ScriptLookups a)
+mintingPolicyM pl = do
   hsh <- mintingPolicyHash pl
   pure $ over ScriptLookups _ { mps = singleton hsh pl } mempty
 
+-- | A script lookups value with a minting policy script. This is unsafe because
+-- | the underlying function `mintingPolicyM` can fail.
+unsafeMintingPolicyM :: forall (a :: Type). MintingPolicy -> ScriptLookups a
+unsafeMintingPolicyM = unsafePartial fromJust <<< mintingPolicyM
+
 -- | A script lookups value with a validator script. This can fail because we
--- |invoke `validatorHash`.
-otherScript :: forall (a :: Type). Validator -> Maybe (ScriptLookups a)
-otherScript vl = do
+-- | invoke `validatorHash`.
+otherScriptM :: forall (a :: Type). Validator -> Maybe (ScriptLookups a)
+otherScriptM vl = do
   vh <- validatorHash vl
   pure $ over ScriptLookups _ { otherScripts = singleton vh vl } mempty
 
+-- | A script lookups value with a validator script. This is unsafe because
+-- | the underlying function `otherScriptM` can fail.
+unsafeOtherScriptM :: forall (a :: Type). Validator -> ScriptLookups a
+unsafeOtherScriptM = unsafePartial fromJust <<< otherScriptM
+
 -- | A script lookups value with a datum. This can fail because we invoke
 -- | `datumHash`.
-otherData :: forall (a :: Type). Datum -> Maybe (ScriptLookups a)
-otherData dt = do
+otherDataM :: forall (a :: Type). Datum -> Maybe (ScriptLookups a)
+otherDataM dt = do
   dh <- datumHash dt
   pure $ over ScriptLookups _ { otherData = singleton dh dt } mempty
 
+-- | A script lookups value with a datum. This is unsafe because the underlying
+-- | function `otherDataM` can fail.
+unsafeOtherDataM :: forall (a :: Type). Datum -> ScriptLookups a
+unsafeOtherDataM = unsafePartial fromJust <<< otherDataM
+
 -- | A script lookups value with a payment public key. This can fail because we
 -- | invoke `payPubKeyHash`.
-paymentPubKey :: forall (a :: Type). PaymentPubKey -> Maybe (ScriptLookups a)
-paymentPubKey ppk = do
+paymentPubKeyM :: forall (a :: Type). PaymentPubKey -> Maybe (ScriptLookups a)
+paymentPubKeyM ppk = do
   pkh <- payPubKeyHash ppk
   pure $ over ScriptLookups
     _ { paymentPubKeyHashes = singleton pkh ppk }
     mempty
 
+-- | A script lookups value with a payment public key. This is unsafe because
+-- | the underlying function `paymentPubKeyM` can fail.
+unsafePaymentPubKey :: forall (a :: Type). PaymentPubKey -> ScriptLookups a
+unsafePaymentPubKey = unsafePartial fromJust <<< paymentPubKeyM
+
+-- | Add your own `PaymentPubKeyHash` to the lookup.
 ownPaymentPubKeyHash :: forall (a :: Type). PaymentPubKeyHash -> ScriptLookups a
 ownPaymentPubKeyHash pkh =
   over ScriptLookups _ { ownPaymentPubKeyHash = Just pkh } mempty
 
+-- | Same as `ownPaymentPubKeyHash` but in `Maybe` context for convenience. This
+-- | should not fail.
+ownPaymentPubKeyHashM
+  :: forall (a :: Type). PaymentPubKeyHash -> Maybe (ScriptLookups a)
+ownPaymentPubKeyHashM = pure <<< ownPaymentPubKeyHash
+
+-- | Add your own `StakePubKeyHash` to the lookup.
 ownStakePubKeyHash :: forall (a :: Type). StakePubKeyHash -> ScriptLookups a
 ownStakePubKeyHash skh =
   over ScriptLookups _ { ownStakePubKeyHash = Just skh } mempty
+
+-- | Same as `ownStakePubKeyHash` but in `Maybe` context for convenience. This
+-- | should not fail.
+ownStakePubKeyHashM
+  :: forall (a :: Type). StakePubKeyHash -> Maybe (ScriptLookups a)
+ownStakePubKeyHashM = pure <<< ownStakePubKeyHash
 
 -- -Note [Balance of value spent]
 

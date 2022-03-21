@@ -3,7 +3,7 @@ module Types.JsonWsp
   , JsonWspResponse
   , Mirror
   , OgmiosTxOut
-  , TxOutRef
+  , OgmiosTxOutRef
   , UtxoQR(UtxoQR)
   , UtxoQueryResult
   , mkUtxosAtQuery
@@ -227,10 +227,10 @@ instance decodeAesonUtxoQR :: DecodeAeson UtxoQR where
   decodeAeson j = UtxoQR <$> parseUtxoQueryResult j
 
 -- the inner type for Utxo Queries
-type UtxoQueryResult = Map.Map TxOutRef OgmiosTxOut
+type UtxoQueryResult = Map.Map OgmiosTxOutRef OgmiosTxOut
 
--- TxOutRef
-type TxOutRef =
+-- Ogmios TxOutRef
+type OgmiosTxOutRef =
   { txId :: String
   , index :: UInt.UInt
   }
@@ -247,7 +247,7 @@ parseUtxoQueryResult = caseAesonArray (Left (TypeMismatch "Expected Array")) $
     where
     inner :: Array Aeson -> Either JsonDecodeError UtxoQueryResult
     inner innerArray = do
-      txOutRefJson <- note (TypeMismatch "missing 0th element, expected a TxOutRef") $
+      txOutRefJson <- note (TypeMismatch "missing 0th element, expected an OgmiosTxOutRef") $
         index innerArray 0
       txOutJson <- note (TypeMismatch "missing 1st element, expected a TxOut") $
         index innerArray 1
@@ -264,7 +264,7 @@ aesonObject
 aesonObject = caseAesonObject (Left (TypeMismatch "expected object"))
 
 -- parser for txOutRef
-parseTxOutRef :: Aeson -> Either JsonDecodeError TxOutRef
+parseTxOutRef :: Aeson -> Either JsonDecodeError OgmiosTxOutRef
 parseTxOutRef = aesonObject $
   ( \o -> do
       txId <- parseFieldToString o "txId"
