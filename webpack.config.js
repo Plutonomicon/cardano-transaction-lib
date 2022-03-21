@@ -59,6 +59,7 @@ module.exports = {
               spago: true,
               watch: isWebpackDevServer || isWatch,
               pscIde: true,
+              bundle: true
             },
           },
         ],
