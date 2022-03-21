@@ -124,6 +124,7 @@ hashLedgerScript =
     . toCardanoApiScript
 
 -- Adapted from `plutus-apps` implementation
+-- rev. d637b1916522e4ec20b719487a8a2e066937aceb
 toCardanoApiScript :: Ledger.Script -> C.Script C.PlutusScriptV1
 toCardanoApiScript =
   C.PlutusScript C.PlutusScriptV1
@@ -133,6 +134,7 @@ toCardanoApiScript =
     . serialise
 
 -- We'll probably extend this with more error types over time
+-- rev. d637b1916522e4ec20b719487a8a2e066937aceb
 newtype CardanoBrowserServerError = FeeEstimate FeeEstimateError
   deriving stock (Show)
 
