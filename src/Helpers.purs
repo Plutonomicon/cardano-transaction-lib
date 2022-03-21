@@ -5,7 +5,7 @@ module Helpers
   , appendFirstMaybe
   , appendLastMaybe
   , appendMap
-  , appendRightHashMap
+  , appendRightMap
   , bigIntToUInt
   , filterMapWithKeyM
   , fromJustEff
@@ -25,9 +25,6 @@ import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Right), either)
 import Data.Function (on)
-import Data.HashMap (HashMap)
-import Data.HashMap (unionWith) as HashMap
-import Data.Hashable (class Hashable)
 import Data.List.Lazy as LL
 import Data.Map (Map)
 import Data.Map as Map
@@ -113,14 +110,14 @@ appendMap
   -> Map k v
 appendMap = Map.unionWith (<>)
 
--- | Provide an append for `HashMap`s where with right bias
-appendRightHashMap
+-- | Provide an append for `Map`s with right bias
+appendRightMap
   :: forall (k :: Type) (v :: Type)
-   . Hashable k
-  => HashMap k v
-  -> HashMap k v
-  -> HashMap k v
-appendRightHashMap = HashMap.unionWith (flip const)
+   . Ord k
+  => Map k v
+  -> Map k v
+  -> Map k v
+appendRightMap = Map.unionWith (flip const)
 
 filterMapWithKeyM
   :: forall (m :: Type -> Type) (k :: Type) (v :: Type)
