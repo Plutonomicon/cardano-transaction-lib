@@ -13,7 +13,7 @@ module Scripts
 
 import Prelude
 import Control.Monad.Maybe.Trans (runMaybeT, MaybeT(MaybeT))
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(Nothing), maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import QueryM (QueryM)
 import Serialization.Address
@@ -46,15 +46,15 @@ import Undefined (undefined)
 
 -- | Converts a Plutus-style `Validator` to a `BaseAddress`
 validatorBaseAddress :: Validator -> QueryM (Maybe BaseAddress)
-validatorBaseAddress val = runMaybeT do
-  bytes <- MaybeT $ map (scriptHashToBytes <<< unwrap) <$> validatorHash val
-  MaybeT $ pure $ baseAddressFromBytes bytes
+validatorBaseAddress val =
+  map (scriptHashToBytes <<< unwrap) <$> validatorHash val >>=
+    maybe Nothing baseAddressFromBytes >>> pure
 
 -- | Converts a Plutus-style `Validator` to an `Address`
 validatorAddress :: Validator -> QueryM (Maybe Address)
-validatorAddress val = runMaybeT do
-  bytes <- MaybeT $ map (scriptHashToBytes <<< unwrap) <$> validatorHash val
-  MaybeT $ pure $ addressFromBytes bytes
+validatorAddress val =
+  map (scriptHashToBytes <<< unwrap) <$> validatorHash val >>=
+    maybe Nothing addressFromBytes >>> pure
 
 -- | Converts a Plutus-style `TypedValidator` to an `BaseAddress`
 typedValidatorBaseAddress
