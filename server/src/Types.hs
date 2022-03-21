@@ -6,6 +6,7 @@ module Types (
   Fee (..),
   ApplyArgsRequest (..),
   AppliedScript (..),
+  HashScriptRequest (..),
   HashedScript (..),
   FeeEstimateError (..),
   CardanoBrowserServerError (..),
@@ -103,6 +104,11 @@ newtype AppliedScript = AppliedScript Ledger.Script
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
 
+-- This is only to avoid an orphan instance for @ToDocs@
+newtype HashScriptRequest = HashScriptRequest Ledger.Script
+  deriving stock (Show, Generic)
+  deriving newtype (Eq, FromJSON, ToJSON)
+
 -- This is newtype for a custom @ToJSON@ instance. We want the CBOR-encoded hex,
 -- not the raw bytes of the @ScriptHash@
 newtype HashedScript = HashedScript Ledger.Scripts.ScriptHash
@@ -194,6 +200,12 @@ instance Docs.ToSample AppliedScript where
       , AppliedScript exampleScript
       )
     ]
+
+instance Docs.ToSample HashScriptRequest where
+  toSamples _ = [] -- TODO
+
+instance Docs.ToSample HashedScript where
+  toSamples _ = [] -- TODO
 
 -- For decoding test fixtures, samples, etc...
 unsafeDecode :: forall (a :: Type). FromJSON a => String -> LC8.ByteString -> a
