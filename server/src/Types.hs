@@ -10,7 +10,7 @@ module Types (
   HashedScript (..),
   FeeEstimateError (..),
   CardanoBrowserServerError (..),
-  hashScript,
+  hashLedgerScript,
   newEnvIO,
   unsafeDecode,
 ) where
@@ -122,8 +122,8 @@ instance FromJSON HashedScript where
   parseJSON = undefined -- TODO
 
 -- Adapted from `plutus-apps` implementation
-hashScript :: Ledger.Script -> Ledger.Scripts.ScriptHash
-hashScript =
+hashLedgerScript :: Ledger.Script -> Ledger.Scripts.ScriptHash
+hashLedgerScript =
   Ledger.Scripts.ScriptHash
     . Ledger.toBuiltin
     . C.serialiseToRawBytes

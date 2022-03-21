@@ -3,6 +3,7 @@
 module Api.Handlers (
   estimateTxFees,
   applyArgs,
+  hashScript,
 ) where
 
 import Cardano.Api qualified as C
@@ -25,6 +26,9 @@ import Types (
   Env (protocolParams),
   Fee (Fee),
   FeeEstimateError (InvalidCbor, InvalidHex),
+  HashScriptRequest (HashScriptRequest),
+  HashedScript (HashedScript),
+  hashLedgerScript,
  )
 
 estimateTxFees :: Cbor -> AppM Fee
@@ -37,6 +41,10 @@ applyArgs :: ApplyArgsRequest -> AppM AppliedScript
 applyArgs ApplyArgsRequest {script, args} =
   pure . AppliedScript $
     Ledger.Scripts.applyArguments script args
+
+hashScript :: HashScriptRequest -> AppM HashedScript
+hashScript (HashScriptRequest script) =
+  pure . HashedScript $ hashLedgerScript script
 
 -- Helpers
 

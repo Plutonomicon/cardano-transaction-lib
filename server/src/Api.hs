@@ -88,7 +88,10 @@ api :: Proxy Api
 api = Proxy
 
 server :: ServerT Api AppM
-server = Handlers.estimateTxFees :<|> Handlers.applyArgs :<|> undefined -- TODO
+server =
+  Handlers.estimateTxFees
+    :<|> Handlers.applyArgs
+    :<|> Handlers.hashScript
 
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
