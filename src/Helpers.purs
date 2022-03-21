@@ -110,7 +110,7 @@ appendMap
   -> Map k v
 appendMap = Map.unionWith (<>)
 
--- | Provide an append for `Map`s where with right bias
+-- | Provide an append for `Map`s with right bias
 appendRightMap
   :: forall (k :: Type) (v :: Type)
    . Ord k
