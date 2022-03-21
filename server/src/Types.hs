@@ -9,13 +9,15 @@ module Types (
   HashedScript (..),
   FeeEstimateError (..),
   CardanoBrowserServerError (..),
+  hashScript,
   newEnvIO,
   unsafeDecode,
 ) where
 
+import Cardano.Api qualified as C
 import Cardano.Api.Shelley qualified as Shelley
 import Cardano.Binary qualified as Cbor
-import Codec.Serialise (Serialise)
+import Codec.Serialise (Serialise, serialise)
 import Control.Exception (Exception)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO)
@@ -26,6 +28,7 @@ import Data.Aeson.Encoding qualified as Aeson.Encoding
 import Data.Aeson.Types (withText)
 import Data.Bifunctor (second)
 import Data.ByteString.Lazy.Char8 qualified as LC8
+import Data.ByteString.Short qualified as SBS
 import Data.Functor ((<&>))
 import Data.Kind (Type)
 import Data.Maybe (fromMaybe)
@@ -111,6 +114,24 @@ instance ToJSON HashedScript where
 
 instance FromJSON HashedScript where
   parseJSON = undefined -- TODO
+
+-- Adapted from `plutus-apps` implementation
+hashScript :: Ledger.Script -> Ledger.Scripts.ScriptHash
+hashScript =
+  Ledger.Scripts.ScriptHash
+    . Ledger.toBuiltin
+    . C.serialiseToRawBytes
+    . C.hashScript
+    . toCardanoApiScript
+
+-- Adapted from `plutus-apps` implementation
+toCardanoApiScript :: Ledger.Script -> C.Script C.PlutusScriptV1
+toCardanoApiScript =
+  C.PlutusScript C.PlutusScriptV1
+    . Shelley.PlutusScriptSerialised
+    . SBS.toShort
+    . LC8.toStrict
+    . serialise
 
 -- We'll probably extend this with more error types over time
 newtype CardanoBrowserServerError = FeeEstimate FeeEstimateError
