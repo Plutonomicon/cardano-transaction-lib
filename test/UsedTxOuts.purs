@@ -29,11 +29,10 @@ import UsedTxOuts
   )
 
 buildSampleTransaction
-  ::
-       { tx :: Transaction
-       , usedTxOutRefs :: Array { transaction_id :: TransactionHash, index :: UInt }
-       , unusedTxOutRefs :: Array { transaction_id :: TransactionHash, index :: UInt }
-       }
+  :: { tx :: Transaction
+     , usedTxOutRefs :: Array { transaction_id :: TransactionHash, index :: UInt }
+     , unusedTxOutRefs :: Array { transaction_id :: TransactionHash, index :: UInt }
+     }
 buildSampleTransaction =
   let
     usedTxOutRefs =
