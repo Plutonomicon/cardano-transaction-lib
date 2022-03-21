@@ -9,14 +9,7 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
-import QueryM
-  ( defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
-  , mkDatumCacheWebSocketAff
-  , mkOgmiosWebSocketAff
-  , utxosAt
-  )
+import QueryM (defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, getChainTip, mkDatumCacheWebSocketAff, mkOgmiosWebSocketAff, utxosAt)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.JsonWsp (OgmiosAddress)
@@ -39,6 +32,7 @@ suite = do
   group "Aff Int" do
     test "UtxosAt Testnet" $ testUtxosAt testnet_addr1
     test "UtxosAt non-Testnet" $ testUtxosAt addr1
+    test "Get ChainTip" $ testGetChainTip
   -- Test inverse in one direction.
   group "Address loop" do
     test "Ogmios Address to Address & back Testnet"
@@ -61,6 +55,20 @@ testUtxosAt testAddr = do
       , wallet: Nothing
       , usedTxOuts
       }
+
+testGetChainTip :: Aff Unit
+testGetChainTip = do
+  ogmiosWs <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
+  datumCacheWs <- mkDatumCacheWebSocketAff defaultDatumCacheWsConfig
+  usedTxOuts <- newUsedTxOuts
+  runReaderT
+    (getChainTip *> pure unit)
+    { ogmiosWs
+    , datumCacheWs
+    , serverConfig: defaultServerConfig
+    , wallet: Nothing
+    , usedTxOuts
+    }
 
 testFromOgmiosAddress :: OgmiosAddress -> Aff Unit
 testFromOgmiosAddress testAddr = do

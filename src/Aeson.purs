@@ -96,6 +96,7 @@ import Prim.Row as Row
 import Prim.RowList as RL
 import Record as Record
 import Type.Prelude (Proxy(Proxy))
+import Untagged.Union (class InOneOf, type (|+|), asOneOf)
 
 -- | A piece of JSON where all numbers are replaced with their indexes
 newtype AesonPatchedJson = AesonPatchedJson Json
@@ -344,6 +345,13 @@ decodeJsonString = parseJsonStringToAeson >=> decodeAeson
 
 -------- DecodeAeson instances --------
 
+instance DecodeAeson UInt where
+  decodeAeson aeson@(Aeson { numberIndex }) = do
+    -- Numbers are replaced by their index in the array.
+    ix <- decodeAesonViaJson aeson
+    numberStr <- note MissingValue (numberIndex Array.!! ix)
+    note MissingValue $ UInt.fromString numberStr
+
 instance DecodeAeson Int where
   decodeAeson aeson@(Aeson { numberIndex }) = do
     -- Numbers are replaced by their index in the array.
@@ -378,6 +386,14 @@ instance (GDecodeAeson row list, RL.RowToList row list) => DecodeAeson (Record r
     case toObject json of
       Just object -> gDecodeAeson object (Proxy :: Proxy list)
       Nothing -> Left $ TypeMismatch "Object"
+
+else instance (InOneOf b a b, DecodeAeson a, DecodeAeson b) => DecodeAeson (a |+| b) where
+  decodeAeson j =
+     let a = asOneOf <$> (decodeAeson j :: Either JsonDecodeError a)
+     in case a of
+      Left _ -> asOneOf <$> (decodeAeson j :: Either JsonDecodeError b)
+      Right _ -> a
+
 
 else instance (Traversable t, DecodeAeson a, DecodeJson (t Json)) => DecodeAeson (t a) where
   decodeAeson (Aeson { numberIndex, patchedJson: AesonPatchedJson pJson }) = do

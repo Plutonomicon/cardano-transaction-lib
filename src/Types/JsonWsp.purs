@@ -5,7 +5,12 @@ module Types.JsonWsp
   , OgmiosTxOut
   , OgmiosTxOutRef
   , UtxoQR(UtxoQR)
+  , OgmiosBlockHeaderHash(OgmiosBlockHeaderHash)
+  , ChainOrigin(ChainOrigin)
+  , ChainPoint
+  , ChainTipQR
   , UtxoQueryResult
+  , mkChainTipQuery
   , mkUtxosAtQuery
   , parseJsonWspResponse
   , parseFieldToString
@@ -48,6 +53,7 @@ import Data.String
   , splitAt
   , uncons
   )
+import Serialization.Address (Slot)
 import Data.Traversable (sequence)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested ((/\), type (/\))
@@ -64,12 +70,14 @@ import Types.Value
   , mkTokenName
   , mkValue
   )
+import Untagged.TypeCheck (class HasRuntimeType)
+import Untagged.Union (type (|+|))
 
 -- creates a unique id prefixed by its argument
 foreign import _uniqueId :: String -> Effect String
 
 -- denotes which query (Utxo, tx, datum, etc) we are making
-data QueryType = UTXO
+data QueryType = UTXO | GetChainTip
 
 derive instance genericQueryType :: Generic QueryType _
 
@@ -94,6 +102,10 @@ type JsonWspRequest a =
 -- this is fully determined by us - we can adjust this type as we have more complex
 -- needs, it always just gets echoed back, so it is useful for req/res pairing
 type Mirror = { step :: String, id :: String }
+
+-- | make a well-formed Chain Tip Query with a unique ID attached
+mkChainTipQuery :: Effect (JsonWspRequest (QueryArgs String))
+mkChainTipQuery = mkJsonWspQuery "chainTip" GetChainTip
 
 -- | make a well-formed Utxo Query with a unique ID attached
 mkUtxosAtQuery :: UtxoQueryParams -> Effect (JsonWspRequest (QueryArgs UtxoQueryParams))
@@ -297,3 +309,29 @@ parseValue outer = do
   coins <- parseFieldToBigInt o "coins" <|> Left (TypeMismatch "Expected 'coins' to be an Int or a BigInt")
   Assets assetsMap <- fromMaybe (Assets Map.empty) <$> getFieldOptional o "assets"
   pure $ mkValue (wrap coins) (wrap assetsMap)
+
+-- chain tip query
+
+type ChainTipQR = ChainOrigin |+| ChainPoint
+
+
+-- | A Blake2b 32-byte digest of an era-independent block header, serialised as CBOR in base16
+newtype OgmiosBlockHeaderHash = OgmiosBlockHeaderHash String
+
+derive instance Eq OgmiosBlockHeaderHash
+derive newtype instance DecodeAeson OgmiosBlockHeaderHash
+
+
+-- | The origin of the blockchain. It doesn't point to any existing slots, but is preceding any existing other point.
+newtype ChainOrigin = ChainOrigin String
+
+derive instance Eq ChainOrigin
+derive newtype instance DecodeAeson ChainOrigin
+derive newtype instance HasRuntimeType ChainOrigin
+
+
+-- | A point on the chain, identified by a slot and a block header hash
+type ChainPoint =
+  { slot :: Slot
+  , hash :: OgmiosBlockHeaderHash
+  }
