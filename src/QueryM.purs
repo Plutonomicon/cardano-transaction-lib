@@ -1,10 +1,10 @@
 -- | TODO docstring
 module QueryM
-  ( DatumCacheListeners
+  ( ClientError(..)
+  , DatumCacheListeners
   , DatumCacheWebSocket
   , DispatchIdMap
   , FeeEstimate(..)
-  , ClientError(..)
   , Host
   , JsWebSocket
   , ListenerSet
@@ -14,6 +14,9 @@ module QueryM
   , QueryM
   , ServerConfig
   , WebSocket
+  , _stringify
+  , _wsSend
+  , allowError
   , applyArgs
   , calculateMinFee
   , cancelFetchBlocksRequest
@@ -29,6 +32,7 @@ module QueryM
   , getDatumsByHashes
   , getWalletAddress
   , getWalletCollateral
+  , listeners
   , mkDatumCacheWebSocketAff
   , mkHttpUrl
   , mkOgmiosWebSocketAff
@@ -39,12 +43,11 @@ module QueryM
   , signTransaction
   , startFetchBlocksRequest
   , submitTransaction
-  , utxosAt
+  , underlyingWebSocket
   ) where
 
 import Prelude
 
-import Address (addressToOgmiosAddress)
 import Aeson as Aeson
 import Affjax as Affjax
 import Affjax.ResponseFormat as Affjax.ResponseFormat
@@ -58,14 +61,12 @@ import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Bitraversable (bisequence)
 import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
-import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Traversable (sequence, traverse)
-import Data.Tuple.Nested (type (/\), (/\))
+import Data.Traversable (traverse)
+import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import DatumCacheWsp
@@ -125,7 +126,6 @@ import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.UnbalancedTransaction (PubKeyHash, PaymentPubKeyHash, pubKeyHash)
 import Types.Value (Coin(Coin))
-import TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
 import Untagged.Union (asOneOf)
 import UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
 import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
@@ -174,31 +174,6 @@ type QueryConfig =
   }
 
 type QueryM (a :: Type) = ReaderT QueryConfig Aff a
-
--- the first query type in the QueryM/Aff interface
-utxosAt' :: JsonWsp.OgmiosAddress -> QueryM JsonWsp.UtxoQR
-utxosAt' addr = do
-  body <- liftEffect $ JsonWsp.mkUtxosAtQuery { utxo: [ addr ] }
-  let id = body.mirror.id
-  sBody <- liftEffect $ _stringify body
-  config <- ask
-  -- not sure there's an easy way to factor this out unfortunately
-  let
-    affFunc :: (Either Error JsonWsp.UtxoQR -> Effect Unit) -> Effect Canceler
-    affFunc cont = do
-      let
-        ls = listeners config.ogmiosWs
-        ws = underlyingWebSocket config.ogmiosWs
-      ls.utxo.addMessageListener id
-        ( \result -> do
-            ls.utxo.removeMessageListener id
-            allowError cont $ result
-        )
-      _wsSend ws sBody
-      pure $ Canceler $ \err -> do
-        liftEffect $ ls.utxo.removeMessageListener id
-        liftEffect $ throwError $ err
-  liftAff $ makeAff $ affFunc
 
 --------------------------------------------------------------------------------
 -- Used Utxos helpers
@@ -692,58 +667,3 @@ messageFoldF
 messageFoldF msg acc' func = do
   acc <- acc'
   if isRight acc then acc' else func msg
-
---------------------------------------------------------------------------------
--- Ogmios functions
---------------------------------------------------------------------------------
-
--- If required, we can change to Either with more granular error handling.
--- | Gets utxos at an (internal) `Address` in terms of (internal) `Transaction.Types`.
--- | Results may vary depending on `Wallet` type.
-utxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
-utxosAt addr = asks _.wallet >>= maybe (pure Nothing) (utxosAtByWallet addr)
-  where
-  -- Add more wallet types here:
-  utxosAtByWallet
-    :: Address -> Wallet -> QueryM (Maybe Transaction.UtxoM)
-  utxosAtByWallet address (Nami _) = namiUtxosAt address
-  -- Unreachable but helps build when we add wallets, most of them shouldn't
-  -- require any specific behaviour.
-  utxosAtByWallet address _ = allUtxosAt address
-
-  -- Gets all utxos at an (internal) Address in terms of (internal)
-  -- Transaction.Types.
-  allUtxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
-  allUtxosAt = addressToOgmiosAddress >>> getUtxos
-    where
-    getUtxos :: JsonWsp.OgmiosAddress -> QueryM (Maybe Transaction.UtxoM)
-    getUtxos address = convertUtxos <$> utxosAt' address
-
-    convertUtxos :: JsonWsp.UtxoQR -> Maybe Transaction.UtxoM
-    convertUtxos (JsonWsp.UtxoQR utxoQueryResult) =
-      let
-        out' :: Array (Maybe Transaction.TransactionInput /\ Maybe Transaction.TransactionOutput)
-        out' = Map.toUnfoldable utxoQueryResult
-          <#> bimap
-            txOutRefToTransactionInput
-            ogmiosTxOutToTransactionOutput
-
-        out :: Maybe (Array (Transaction.TransactionInput /\ Transaction.TransactionOutput))
-        out = out' <#> bisequence # sequence
-      in
-        (wrap <<< Map.fromFoldable) <$> out
-
-  -- Nami appear to remove collateral from the utxo set, so we shall do the same.
-  -- This is crucial if we are submitting via Nami. If we decide to submit with
-  -- Ogmios, we can remove this.
-  -- More detail can be found here https://github.com/Berry-Pool/nami-wallet/blob/ecb32e39173b28d4a7a85b279a748184d4759f6f/src/api/extension/index.js
-  -- by searching "// exclude collateral input from overall utxo set"
-  -- or functions getUtxos and checkCollateral.
-  namiUtxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
-  namiUtxosAt address = do
-    utxos' <- allUtxosAt address
-    collateral' <- getWalletCollateral
-    pure do
-      utxos <- unwrap <$> utxos'
-      collateral <- unwrap <$> collateral'
-      pure $ wrap $ Map.delete collateral.input utxos

@@ -87,7 +87,7 @@ newtype TypedValidator (a :: Type) = TypedValidator
   { validator :: Validator
   , validatorHash :: ValidatorHash
   , forwardingMPS :: MintingPolicy
-  , forwardingMPSHash :: MintingPolicyHash
+  , forwardingMPSHash :: MintingPolicyHash -- Can maybe remove as unused in lookups.
   -- The hash of the minting policy that checks whether the validator
   -- is run in this transaction
   }

@@ -2,9 +2,11 @@ module Types.ScriptLookups
   ( MkUnbalancedTxError(..)
   , ScriptLookups(..)
   , generalise
+  , mintingPolicy
   , mintingPolicyM
   , mkUnbalancedTx
   , otherDataM
+  , otherScript
   , otherScriptM
   , ownPaymentPubKeyHash
   , ownPaymentPubKeyHashM
@@ -13,9 +15,7 @@ module Types.ScriptLookups
   , paymentPubKeyM
   , typedValidatorLookups
   , typedValidatorLookupsM
-  , unsafeMintingPolicyM
   , unsafeOtherDataM
-  , unsafeOtherScriptM
   , unsafePaymentPubKey
   , unspentOutputs
   , unspentOutputsM
@@ -29,8 +29,8 @@ import Control.Monad.Reader.Class (asks)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
-import Data.Array (singleton) as Array
-import Data.Array ((:), length, toUnfoldable)
+import Data.Array (singleton, union) as Array
+import Data.Array ((:), length, toUnfoldable, zip)
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
 import Data.Either (Either(Left, Right), either, note)
@@ -43,11 +43,12 @@ import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.List (List(Nil, Cons))
-import Data.Map (Map, empty, lookup, mapMaybe, singleton, union)
+import Data.Map (Map, empty, fromFoldable, lookup, mapMaybe, singleton, union)
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
+import Data.Traversable (for, sequence)
 import Data.Tuple.Nested (type (/\), (/\))
 import FromData (class FromData)
 import Effect (Effect)
@@ -170,10 +171,14 @@ import TxOutput (ogmiosDatumHashToDatumHash, ogmiosTxOutToScriptOutput)
 --------------------------------------------------------------------------------
 -- ScriptLookups type
 --------------------------------------------------------------------------------
+-- We reduce `mps` and `otherScripts` to an `Array`, meaning our lookup helpers
+-- aren't required to hash and therefore not lifted to `QueryM`. The downside is
+-- they contain less information. All hashing is done inside `ConstraintsM`, see
+-- `processLookupsAndConstraints`.
 newtype ScriptLookups (a :: Type) = ScriptLookups
-  { mps :: Map MintingPolicyHash MintingPolicy -- Minting policies that the script interacts with
+  { mps :: Array MintingPolicy -- Minting policies that the script interacts with
   , txOutputs :: Map TxOutRef OgmiosTxOut -- Unspent outputs that the script may want to spend. This may need tweaking to `TransactionOutput`
-  , otherScripts :: Map ValidatorHash Validator -- Validators of scripts other than "our script"
+  , otherScripts :: Array Validator -- Validators of scripts other than "our script"
   , otherData :: Map DatumHash Datum --  Datums that we might need
   , paymentPubKeyHashes :: Map PaymentPubKeyHash PaymentPubKey -- Public keys that we might need
   , typedValidator :: Maybe (TypedValidator a) -- The script instance with the typed validator hash & actual compiled program
@@ -200,9 +205,9 @@ generalise (ScriptLookups sl) =
 instance Semigroup (ScriptLookups a) where
   append (ScriptLookups l) (ScriptLookups r) =
     ScriptLookups
-      { mps: l.mps `union` r.mps
+      { mps: l.mps `Array.union` r.mps
       , txOutputs: l.txOutputs `union` r.txOutputs
-      , otherScripts: l.otherScripts `union` r.otherScripts
+      , otherScripts: l.otherScripts `Array.union` r.otherScripts
       , otherData: l.otherData `union` r.otherData
       , paymentPubKeyHashes: l.paymentPubKeyHashes `union` r.paymentPubKeyHashes
       -- 'First' to match the semigroup instance of Map (left-biased)
@@ -213,9 +218,9 @@ instance Semigroup (ScriptLookups a) where
 
 instance Monoid (ScriptLookups a) where
   mempty = ScriptLookups
-    { mps: empty
+    { mps: mempty
     , txOutputs: empty
-    , otherScripts: empty
+    , otherScripts: mempty
     , otherData: empty
     , paymentPubKeyHashes: empty
     , typedValidator: Nothing
@@ -241,7 +246,7 @@ typedValidatorLookups :: forall (a :: Type). TypedValidator a -> ScriptLookups a
 typedValidatorLookups tv@(TypedValidator inst) =
   over ScriptLookups
     _
-      { mps = singleton (inst.forwardingMPSHash) (inst.forwardingMPS)
+      { mps = Array.singleton inst.forwardingMPS
       , typedValidator = Just tv
       }
     mempty
@@ -266,29 +271,24 @@ unspentOutputsM
   :: forall (a :: Type). Map TxOutRef OgmiosTxOut -> Maybe (ScriptLookups a)
 unspentOutputsM = pure <<< unspentOutputs
 
--- | A script lookups value with a minting policy script. This can fail because
--- | we invoke `mintingPolicyHash`.
+-- | A script lookups value with a minting policy script.
+mintingPolicy :: forall (a :: Type). MintingPolicy -> ScriptLookups a
+mintingPolicy pl = over ScriptLookups _ { mps = Array.singleton pl } mempty
+
+-- | Same as `mintingPolicy` but in `Maybe` context for convenience. This
+-- | should not fail.
 mintingPolicyM :: forall (a :: Type). MintingPolicy -> Maybe (ScriptLookups a)
-mintingPolicyM pl = do
-  hsh <- mintingPolicyHash pl
-  pure $ over ScriptLookups _ { mps = singleton hsh pl } mempty
+mintingPolicyM = pure <<< mintingPolicy
 
--- | A script lookups value with a minting policy script. This is unsafe because
--- | the underlying function `mintingPolicyM` can fail.
-unsafeMintingPolicyM :: forall (a :: Type). MintingPolicy -> ScriptLookups a
-unsafeMintingPolicyM = unsafePartial fromJust <<< mintingPolicyM
+-- | A script lookups value with a validator script.
+otherScript :: forall (a :: Type). Validator -> ScriptLookups a
+otherScript vl =
+  over ScriptLookups _ { otherScripts = Array.singleton vl } mempty
 
--- | A script lookups value with a validator script. This can fail because we
--- | invoke `validatorHash`.
+-- | Same as `otherScript` but in `Maybe` context for convenience. This
+-- | should not fail.
 otherScriptM :: forall (a :: Type). Validator -> Maybe (ScriptLookups a)
-otherScriptM vl = do
-  vh <- validatorHash vl
-  pure $ over ScriptLookups _ { otherScripts = singleton vh vl } mempty
-
--- | A script lookups value with a validator script. This is unsafe because
--- | the underlying function `otherScriptM` can fail.
-unsafeOtherScriptM :: forall (a :: Type). Validator -> ScriptLookups a
-unsafeOtherScriptM = unsafePartial fromJust <<< otherScriptM
+otherScriptM = pure <<< otherScript
 
 -- | A script lookups value with a datum. This can fail because we invoke
 -- | `datumHash`.
@@ -461,7 +461,31 @@ processLookupsAndConstraints
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
 processLookupsAndConstraints
   (TxConstraints { constraints, ownInputs, ownOutputs }) = runExceptT do
-  ExceptT $ foldConstraints processConstraint constraints
+  -- Hash all the MintingPolicys and Scripts beforehand so we don't repeatedly
+  -- do it inside lookup helpers. These maps are lost after we `runReaderT`,
+  -- unlike Plutus.
+  lookups <- asks (_.scriptLookups >>> unwrap)
+  let
+    mps = lookups.mps
+    otherScripts = lookups.otherScripts
+  mpsHashes <-
+    ExceptT $ liftQueryM $
+      for mps
+        ( \mp -> do
+            mph <- mintingPolicyHash mp
+            pure $ note (CannotHashMintingPolicy mp) mph
+        ) <#> sequence
+  otherScriptHashes <-
+    ExceptT $ liftQueryM $
+      for otherScripts
+        ( \s -> do
+            sh <- validatorHash s
+            pure $ note (CannotHashValidator s) sh
+        ) <#> sequence
+  let
+    mpsMap = fromFoldable $ zip mpsHashes mps
+    osMap = fromFoldable $ zip otherScriptHashes otherScripts
+  ExceptT $ foldConstraints (processConstraint mpsMap osMap) constraints
   ExceptT $ foldConstraints addOwnInput ownInputs
   ExceptT $ foldConstraints addOwnOutput ownOutputs
   ExceptT addScriptDataHash
@@ -490,10 +514,13 @@ runConstraintsM
   => ScriptLookups a
   -> TxConstraints b b
   -> QueryM (Either MkUnbalancedTxError ConstraintProcessingState)
-runConstraintsM scriptLookups txConstraints =
+runConstraintsM scriptLookups txConstraints = do
   let
     config :: ConstraintsConfig a
-    config = { scriptLookups, slotConfig: defaultSlotConfig }
+    config =
+      { scriptLookups
+      , slotConfig: defaultSlotConfig
+      }
 
     initCps :: ConstraintProcessingState
     initCps =
@@ -511,11 +538,10 @@ runConstraintsM scriptLookups txConstraints =
       -> Either MkUnbalancedTxError ConstraintProcessingState
     unpackTuple (Left err /\ _) = Left err
     unpackTuple (_ /\ cps) = Right cps
-  in
-    unpackTuple <$>
-      ( flip runStateT initCps $ flip runReaderT config $
-          processLookupsAndConstraints txConstraints
-      )
+  unpackTuple <$>
+    ( flip runStateT initCps $ flip runReaderT config $
+        processLookupsAndConstraints txConstraints
+    )
 
 -- See comments in `processLookupsAndConstraints` regarding constraints.
 -- | Create an `UnbalancedTx` given `ScriptLookups` and `TxConstraints`.
@@ -658,6 +684,8 @@ data MkUnbalancedTxError
   | CannotGetMintingValidatorScriptIndex -- Cannot get the Validator Index - this should be impossible.
   | MkTypedTxOutFailed
   | TypedTxOutHasNoDatumHash
+  | CannotHashMintingPolicy MintingPolicy
+  | CannotHashValidator Validator
   | CannotSatisfyAny
 
 derive instance Generic MkUnbalancedTxError _
@@ -687,29 +715,31 @@ lookupDatum dh = do
 lookupMintingPolicy
   :: forall (a :: Type)
    . MintingPolicyHash
+  -> Map MintingPolicyHash MintingPolicy
   -> ConstraintsM a (Either MkUnbalancedTxError MintingPolicy)
-lookupMintingPolicy mph = do
-  mps <- asks (_.scriptLookups >>> unwrap >>> _.mps)
+lookupMintingPolicy mph mpsMap = do
   let err = pure $ throwError $ MintingPolicyNotFound mph
-  maybe err (pure <<< Right) $ lookup mph mps
+  maybe err (pure <<< Right) $ lookup mph mpsMap
 
 lookupValidator
   :: forall (a :: Type)
    . ValidatorHash
+  -> Map ValidatorHash Validator
   -> ConstraintsM a (Either MkUnbalancedTxError Validator)
-lookupValidator vh = do
-  otherScripts <- asks (_.scriptLookups >>> unwrap >>> _.otherScripts)
+lookupValidator vh osMap = do
   let err = pure $ throwError $ ValidatorHashNotFound vh
-  maybe err (pure <<< Right) $ lookup vh otherScripts
+  maybe err (pure <<< Right) $ lookup vh osMap
 
 -- | Modify the `UnbalancedTx` so that it satisfies the constraints, if
 -- | possible. Fails if a hash is missing from the lookups, or if an output
 -- | of the wrong type is spent.
 processConstraint
   :: forall (a :: Type)
-   . TxConstraint
+   . Map MintingPolicyHash MintingPolicy
+  -> Map ValidatorHash Validator
+  -> TxConstraint
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
-processConstraint = do
+processConstraint mpsMap osMap = do
   case _ of
     MustIncludeDatum datum -> addDatum datum
     MustValidateIn posixTimeRange -> runExceptT do
@@ -756,7 +786,7 @@ processConstraint = do
           vHash <- liftM
             (CannotGetValidatorHashFromAddress address')
             (addressValidatorHash address')
-          plutusScript <- ExceptT $ lookupValidator vHash <#> map unwrap
+          plutusScript <- ExceptT $ lookupValidator vHash osMap <#> map unwrap
           -- Note: Plutus uses `TxIn` to attach a redeemer and datum.
           -- Use the datum hash inside the lookup
           -- Note: if we get `Nothing`, we have to throw eventhough that's a
@@ -790,7 +820,8 @@ processConstraint = do
           ExceptT $ attachToCps attachRedeemer redeemer
         _ -> liftEither $ throwError $ TxOutRefWrongType txo
     MustMintValue mpsHash red tn i -> runExceptT do
-      plutusScript <- ExceptT $ lookupMintingPolicy mpsHash <#> map unwrap
+      plutusScript <-
+        ExceptT $ lookupMintingPolicy mpsHash mpsMap <#> map unwrap
       cs <-
         liftM (MintingPolicyHashNotCurrencySymbol mpsHash) (mpsSymbol mpsHash)
       let value = mkSingletonValue' cs tn
@@ -892,7 +923,7 @@ processConstraint = do
           -- `put`)
           foldM
             ( \_ constr -> runExceptT do
-                ExceptT $ processConstraint constr
+                ExceptT $ processConstraint mpsMap osMap constr
                   `catchError` \_ -> put cps *> tryNext zs
             )
             (Right unit)
