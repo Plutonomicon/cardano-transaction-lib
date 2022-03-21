@@ -469,19 +469,9 @@ processLookupsAndConstraints
     mps = lookups.mps
     otherScripts = lookups.otherScripts
   mpsHashes <-
-    ExceptT $ liftQueryM $
-      for mps
-        ( \mp -> do
-            mph <- mintingPolicyHash mp
-            pure $ note (CannotHashMintingPolicy mp) mph
-        ) <#> sequence
+    ExceptT $ hashScripts mintingPolicyHash CannotHashMintingPolicy mps
   otherScriptHashes <-
-    ExceptT $ liftQueryM $
-      for otherScripts
-        ( \s -> do
-            sh <- validatorHash s
-            pure $ note (CannotHashValidator s) sh
-        ) <#> sequence
+    ExceptT $ hashScripts validatorHash CannotHashValidator otherScripts
   let
     mpsMap = fromFoldable $ zip mpsHashes mps
     osMap = fromFoldable $ zip otherScriptHashes otherScripts
@@ -492,6 +482,22 @@ processLookupsAndConstraints
   ExceptT addMissingValueSpent
   ExceptT updateUtxoIndex
   where
+  -- Polymorphic helper to hash an Array of `Validator`s or `MintingPolicy`s
+  -- with a way to error.
+  hashScripts
+    :: forall (script :: Type) (scriptHash :: Type) (c :: Type)
+     . (script -> QueryM (Maybe scriptHash))
+    -> (script -> MkUnbalancedTxError)
+    -> Array script
+    -> ConstraintsM c (Either MkUnbalancedTxError (Array scriptHash))
+  hashScripts hasher error scripts =
+    liftQueryM $
+      for scripts
+        ( \s -> do
+            sh <- hasher s
+            pure $ note (error s) sh
+        ) <#> sequence
+
   -- Don't write the output in terms of ExceptT because we can't write a
   -- partially applied `ConstraintsM` meaning this is more readable.
   foldConstraints
