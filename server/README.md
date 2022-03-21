@@ -73,3 +73,34 @@ The server executable can be built with `nix build .#cardano-browser-tx-server:e
 ```javascript
 "590a9a0100003233322232323232323322323322323233322233322233322233223233322232323322323233223233333222223322"
 ```
+
+## POST /hash-script
+
+### Request:
+
+- Supported content types are:
+
+    - `application/json;charset=utf-8`
+    - `application/json`
+
+- The script should be CBOR-encoded hex (`application/json;charset=utf-8`, `application/json`):
+
+```javascript
+"4d01000033222220051200120011"
+```
+
+### Response:
+
+- Status code 200
+- Headers: []
+
+- Supported content types are:
+
+    - `application/json;charset=utf-8`
+    - `application/json`
+
+- The hashed script will be returned as a JSON object with a `getScriptHash` field containing the script hash (`application/json;charset=utf-8`, `application/json`):
+
+```javascript
+{"getScriptHash":"67f33146617a5e61936081db3b2117cbf59bd2123748f58ac9678656"}
+```
