@@ -1,18 +1,21 @@
-module ToData (
-    class IsIndexed
+module ToData
+  ( Day(..)
+  , class ConstrIndex
+  , class IsIndexed
   , class ToData
   , class ToDataArgs
+  , genericIndexFromConstructor
+  , genericToData
   , indexFromConstructor
   , toData
   , toDataArgs
-  , genericToData
-  , genericIndexFromConstructor
-  , Day(..)
-  ) where
+  , constrToIndex
+  )
+  where
 
 import Prelude
 
-import Contract.Prelude (genericShow)
+import Contract.Prelude (Tuple(..), genericShow)
 import Data.Array as Array
 import Data.BigInt (BigInt, fromInt)
 import Data.BigInt as BigInt
@@ -46,8 +49,11 @@ instance dayToData :: ToData Day where
 class ToData (a :: Type) where
   toData :: a -> PlutusData
 
-class ToDataWithIndex (a :: Type) where
-  toDataWithIndex :: a -> PlutusData
+class ConstrIndex (a :: Type) where
+  constrToIndex :: Proxy a -> Map String Int
+
+instance dayConstrIndex :: ConstrIndex Day where
+  constrToIndex _ = Map.fromFoldable [Tuple "Mon" 0]
 
 -- Generic
 class ToDataArgs a where
@@ -62,10 +68,6 @@ instance toDataArgsArgument :: ToData a => ToDataArgs (G.Argument a) where
 instance toDataArgsProduct :: (ToDataArgs a, ToDataArgs b) => ToDataArgs (G.Product a b) where
   toDataArgs (G.Product x y) = toDataArgs x <> toDataArgs y
 
--- instance toDataSum :: (ToData a, ToData b) => ToData (G.Sum a b) where
---   toData (G.Inl a) = toData a
---   toData (G.Inr b) = toData b
-
 instance toDataSum' :: (ToDataArgs largs, ToDataArgs rargs) => ToData (G.Sum (G.Constructor lname largs) (G.Constructor rname rargs)) where
   toData (G.Inl (G.Constructor args)) = Constr zero (toDataArgs args)
   toData (G.Inr (G.Constructor args)) = Constr one (toDataArgs args)
@@ -73,13 +75,6 @@ instance toDataSum' :: (ToDataArgs largs, ToDataArgs rargs) => ToData (G.Sum (G.
 instance toDataSum'' :: (ToDataArgs args, ToData (G.Sum l r)) => ToData (G.Sum (G.Constructor name args) (G.Sum l r)) where
   toData (G.Inl (G.Constructor args)) = Constr zero (toDataArgs args)
   toData (G.Inr x) = toData x
-
-instance toDataConstructor :: (IsIndexed a, IsSymbol name, ToDataArgs a) => ToData (G.Constructor name a) where
-  toData (G.Constructor x) =
-    -- let
-    --   index = indexFromConstructor 0 (SProxy :: SProxy name) (Proxy :: Proxy Int)
-    -- in
-      Constr zero (toDataArgs x)
 
 genericToData
   :: forall a rep. G.Generic a rep => ToData rep => a -> PlutusData
