@@ -18,7 +18,7 @@ module Types (
 import Cardano.Api qualified as C
 import Cardano.Api.Shelley qualified as Shelley
 import Cardano.Binary qualified as Cbor
-import Codec.Serialise (Serialise, serialise)
+import Codec.Serialise (serialise)
 import Control.Exception (Exception)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO)
@@ -109,17 +109,10 @@ newtype HashScriptRequest = HashScriptRequest Ledger.Script
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
 
--- This is newtype for a custom @ToJSON@ instance. We want the CBOR-encoded hex,
--- not the raw bytes of the @ScriptHash@
+-- This is a newtype to avoid the orphan instance
 newtype HashedScript = HashedScript Ledger.Scripts.ScriptHash
   deriving stock (Show, Generic)
-  deriving newtype (Eq, Serialise)
-
-instance ToJSON HashedScript where
-  toJSON = undefined -- TODO
-
-instance FromJSON HashedScript where
-  parseJSON = undefined -- TODO
+  deriving newtype (Eq, FromJSON, ToJSON)
 
 -- Adapted from `plutus-apps` implementation
 hashLedgerScript :: Ledger.Script -> Ledger.Scripts.ScriptHash
