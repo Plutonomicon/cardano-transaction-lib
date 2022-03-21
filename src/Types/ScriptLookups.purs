@@ -171,9 +171,10 @@ import TxOutput (ogmiosDatumHashToDatumHash, ogmiosTxOutToScriptOutput)
 --------------------------------------------------------------------------------
 -- ScriptLookups type
 --------------------------------------------------------------------------------
--- We reduce `mps` and `otherScripts` to an `Array`, meaning our lookup helpers
--- aren't required to hash and therefore not lifted to `QueryM`. The downside is
--- they contain less information. All hashing is done inside `ConstraintsM`, see
+-- We write `mps` and `otherScripts` as an `Array` instead of `Map`, meaning
+-- our lookup helpers aren't required to hash (`mintingPolicy`, `otherScript`)
+-- and therefore not lifted to `QueryM`. The downside is the lookups contain
+-- less information. All hashing is done inside `ConstraintsM`, see
 -- `processLookupsAndConstraints`.
 newtype ScriptLookups (a :: Type) = ScriptLookups
   { mps :: Array MintingPolicy -- Minting policies that the script interacts with
@@ -461,9 +462,8 @@ processLookupsAndConstraints
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
 processLookupsAndConstraints
   (TxConstraints { constraints, ownInputs, ownOutputs }) = runExceptT do
-  -- Hash all the MintingPolicys and Scripts beforehand so we don't repeatedly
-  -- do it inside lookup helpers. These maps are lost after we `runReaderT`,
-  -- unlike Plutus.
+  -- Hash all the MintingPolicys and Scripts beforehand. These maps are lost
+  -- after we `runReaderT`, unlike Plutus that has a `Map` instead of `Array`.
   lookups <- asks (_.scriptLookups >>> unwrap)
   let
     mps = lookups.mps
