@@ -520,7 +520,7 @@ runConstraintsM
   => ScriptLookups a
   -> TxConstraints b b
   -> QueryM (Either MkUnbalancedTxError ConstraintProcessingState)
-runConstraintsM scriptLookups txConstraints = do
+runConstraintsM scriptLookups txConstraints =
   let
     config :: ConstraintsConfig a
     config =
@@ -544,10 +544,11 @@ runConstraintsM scriptLookups txConstraints = do
       -> Either MkUnbalancedTxError ConstraintProcessingState
     unpackTuple (Left err /\ _) = Left err
     unpackTuple (_ /\ cps) = Right cps
-  unpackTuple <$>
-    ( flip runStateT initCps $ flip runReaderT config $
-        processLookupsAndConstraints txConstraints
-    )
+  in
+    unpackTuple <$>
+      ( flip runStateT initCps $ flip runReaderT config $
+          processLookupsAndConstraints txConstraints
+      )
 
 -- See comments in `processLookupsAndConstraints` regarding constraints.
 -- | Create an `UnbalancedTx` given `ScriptLookups` and `TxConstraints`.
