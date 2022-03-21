@@ -27,7 +27,6 @@ module QueryM
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
-  , filterUnusedUtxos
   , getDatumByHash
   , getDatumsByHashes
   , getWalletAddress
@@ -53,7 +52,6 @@ import Affjax as Affjax
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.RequestBody as Affjax.RequestBody
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, ask, asks)
 import Data.Argonaut (class DecodeJson, JsonDecodeError)
 import Data.Argonaut as Json
@@ -105,7 +103,6 @@ import Effect.Console (log)
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
 import Foreign.Object as Object
-import Helpers as Helpers
 import MultiMap (MultiMap)
 import MultiMap as MM
 import Serialization as Serialization
@@ -121,14 +118,13 @@ import Types.Datum (DatumHash)
 import Types.JsonWsp as JsonWsp
 import Types.PlutusData (PlutusData)
 import Types.Scripts (PlutusScript)
-import Types.Transaction (UtxoM(UtxoM))
 import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.UnbalancedTransaction (PubKeyHash, PaymentPubKeyHash, pubKeyHash)
 import Types.Value (Coin(Coin))
 import Untagged.Union (asOneOf)
-import UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
 import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
+import UsedTxOuts (UsedTxOuts)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -174,19 +170,6 @@ type QueryConfig =
   }
 
 type QueryM (a :: Type) = ReaderT QueryConfig Aff a
-
---------------------------------------------------------------------------------
--- Used Utxos helpers
-
-filterUnusedUtxos :: UtxoM -> QueryM UtxoM
-filterUnusedUtxos (UtxoM utxos) = withTxRefsCache $
-  UtxoM <$> Helpers.filterMapWithKeyM (\k _ -> isTxOutRefUsed (unwrap k)) utxos
-
-withTxRefsCache
-  :: forall (m :: Type -> Type) (a :: Type)
-   . ReaderT UsedTxOuts Aff a
-  -> QueryM a
-withTxRefsCache f = withReaderT (_.usedTxOuts) f
 
 --------------------------------------------------------------------------------
 -- Datum Cache Queries

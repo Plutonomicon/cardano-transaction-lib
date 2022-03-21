@@ -1,11 +1,14 @@
+-- | A module for `QueryM` queries related to utxos.
 module QueryM.Utxos
-  ( utxosAt
+  ( filterUnusedUtxos
+  , utxosAt
   ) where
 
 import Prelude
 import Address (addressToOgmiosAddress)
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Reader.Trans (ask, asks)
+import Control.Monad.Reader (withReaderT)
+import Control.Monad.Reader.Trans (ReaderT, ask, asks)
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (bisequence)
 import Data.Either (Either)
@@ -15,10 +18,11 @@ import Data.Newtype (unwrap, wrap)
 import Data.Traversable (sequence)
 import Data.Tuple.Nested (type (/\))
 import Effect (Effect)
-import Effect.Aff (Canceler(Canceler), makeAff)
+import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (Error)
+import Helpers as Helpers
 import QueryM
   ( QueryM
   , _stringify
@@ -30,10 +34,15 @@ import QueryM
   )
 import Serialization.Address (Address)
 import Types.JsonWsp as JsonWsp
+import Types.Transaction (UtxoM(UtxoM))
 import Types.Transaction as Transaction
 import TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
+import UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
 import Wallet (Wallet(Nami))
 
+--------------------------------------------------------------------------------
+-- UtxosAt
+--------------------------------------------------------------------------------
 -- the first query type in the QueryM/Aff interface
 utxosAt' :: JsonWsp.OgmiosAddress -> QueryM JsonWsp.UtxoQR
 utxosAt' addr = do
@@ -109,3 +118,16 @@ utxosAt addr = asks _.wallet >>= maybe (pure Nothing) (utxosAtByWallet addr)
       utxos <- unwrap <$> utxos'
       collateral <- unwrap <$> collateral'
       pure $ wrap $ Map.delete collateral.input utxos
+
+--------------------------------------------------------------------------------
+-- Used Utxos helpers
+
+filterUnusedUtxos :: UtxoM -> QueryM UtxoM
+filterUnusedUtxos (UtxoM utxos) = withTxRefsCache $
+  UtxoM <$> Helpers.filterMapWithKeyM (\k _ -> isTxOutRefUsed (unwrap k)) utxos
+
+withTxRefsCache
+  :: forall (m :: Type -> Type) (a :: Type)
+   . ReaderT UsedTxOuts Aff a
+  -> QueryM a
+withTxRefsCache f = withReaderT (_.usedTxOuts) f
