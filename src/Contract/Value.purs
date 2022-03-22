@@ -54,7 +54,6 @@ import Types.Value
   , numCurrencySymbols
   , numTokenNames
   , unionWith
-  , unionWithNonAda
   , valueOf
   , valueToCoin
   , valueToCoin'
