@@ -62,6 +62,7 @@ import QueryM
   )
 import QueryM.Utxos (utxosAt)
 import Serialization.Address (NetworkId(TestnetId))
+import Types.Interval (defaultSlotConfig)
 import Types.Transaction
   ( Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
@@ -87,6 +88,7 @@ main = launchAff_ $ do
     , serverConfig: defaultServerConfig
     , usedTxOuts
     , networkId: TestnetId
+    , slotConfig: defaultSlotConfig
     }
   liftEffect $ Console.log $ show txId
 

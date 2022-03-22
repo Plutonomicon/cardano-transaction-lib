@@ -118,6 +118,7 @@ import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData)
 import Types.ByteArray (byteArrayToHex)
 import Types.Datum (DatumHash)
+import Types.Interval (SlotConfig)
 import Types.JsonWsp as JsonWsp
 import Types.PlutusData (PlutusData)
 import Types.Scripts (PlutusScript)
@@ -171,6 +172,7 @@ type QueryConfig =
   -- should probably be more tightly coupled with a wallet
   , usedTxOuts :: UsedTxOuts
   , networkId :: NetworkId
+  , slotConfig :: SlotConfig
   }
 
 type QueryM (a :: Type) = ReaderT QueryConfig Aff a
