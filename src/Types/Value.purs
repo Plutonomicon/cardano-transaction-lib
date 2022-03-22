@@ -42,6 +42,8 @@ module Types.Value
   , numTokenNames
   , split
   , sumTokenNameLengths
+  , unionWith
+  , unionWithNonAda
   , valueOf
   , valueToCoin
   , valueToCoin'
@@ -246,16 +248,16 @@ instance Show NonAdaAsset where
   show (NonAdaAsset nonAdaAsset) = "(NonAdaAsset" <> show nonAdaAsset <> ")"
 
 instance Semigroup NonAdaAsset where
-  append = unionWith (+)
+  append = unionWithNonAda (+)
 
 instance Monoid NonAdaAsset where
   mempty = NonAdaAsset Map.empty
 
 instance JoinSemilattice NonAdaAsset where
-  join = unionWith max
+  join = unionWithNonAda max
 
 instance MeetSemilattice NonAdaAsset where
-  meet = unionWith min
+  meet = unionWithNonAda min
 
 instance Negate NonAdaAsset where
   negation = wrap <<< map (map negate) <<< unwrap
@@ -459,13 +461,14 @@ unionNonAda (NonAdaAsset l) (NonAdaAsset r) =
   in
     unBoth <$> combined
 
--- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#unionWith
-unionWith
+-- Don't export to `Contract` due to https://github.com/Plutonomicon/cardano-browser-tx/issues/193
+-- | Same as `unionWith` but specifically for `NonAdaAsset`
+unionWithNonAda
   :: (BigInt -> BigInt -> BigInt)
   -> NonAdaAsset
   -> NonAdaAsset
   -> NonAdaAsset
-unionWith f ls rs =
+unionWithNonAda f ls rs =
   let
     combined :: Map CurrencySymbol (Map TokenName (These BigInt BigInt))
     combined = unionNonAda ls rs
@@ -477,6 +480,16 @@ unionWith f ls rs =
       Both a b -> f a b
   in
     NonAdaAsset $ map unBoth <$> combined
+
+-- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#unionWith
+-- | Combines `Value` with a binary function on `BigInt`s.
+unionWith
+  :: (BigInt -> BigInt -> BigInt)
+  -> Value
+  -> Value
+  -> Value
+unionWith f (Value (Coin c) na) (Value (Coin c') na') =
+  Value (Coin $ f c c') (unionWithNonAda f na na')
 
 -- Based on https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#flattenValue
 -- Flattens non-Ada Value into a list
@@ -690,5 +703,3 @@ mapThese f mps =
     This a -> (k /\ a) `cons` as /\ bs
     That b -> as /\ (k /\ b) `cons` bs
     Both a b -> (k /\ a) `cons` as /\ (k /\ b) `cons` bs
-
--- splitCoin :: Coin -> Coin /\ Coin

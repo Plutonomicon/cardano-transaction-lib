@@ -120,17 +120,22 @@ applyArgsM
   -> Contract (Maybe a)
 applyArgsM a = map hush <<< applyArgs a
 
+-- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
 mintingPolicyHash :: MintingPolicy -> Contract (Maybe MintingPolicyHash)
 mintingPolicyHash = wrap <<< Scripts.mintingPolicyHash
 
+-- | Converts a Plutus-style `StakeValidator` to an `StakeValidatorHash`
 stakeValidatorHash :: StakeValidator -> Contract (Maybe StakeValidatorHash)
 stakeValidatorHash = wrap <<< Scripts.stakeValidatorHash
 
+-- | Converts a Plutus-style `Validator` to a `ValidatorHash`
 validatorHash :: Validator -> Contract (Maybe ValidatorHash)
 validatorHash = wrap <<< Scripts.validatorHash
 
+-- | Converts a Plutus-style `Validator` to an `Address`
 validatorAddress :: Validator -> Contract (Maybe Address)
 validatorAddress = wrap <<< Scripts.validatorAddress
 
+-- | Converts a Plutus-style `Validator` to a `BaseAddress`
 validatorBaseAddress :: Validator -> Contract (Maybe BaseAddress)
 validatorBaseAddress = wrap <<< Scripts.validatorBaseAddress
