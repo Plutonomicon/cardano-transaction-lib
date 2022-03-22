@@ -2,6 +2,7 @@ module Api (
   app,
   estimateTxFees,
   applyArgs,
+  hashScript,
   apiDocs,
 ) where
 
@@ -13,7 +14,7 @@ import Control.Monad.Reader (ReaderT, runReaderT)
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.Kind (Type)
 import Data.Proxy (Proxy (Proxy))
-import Network.Wai.Middleware.Cors (simpleCors)
+import Network.Wai.Middleware.Cors qualified as Cors
 import Servant (
   Application,
   Get,
@@ -43,6 +44,8 @@ import Types (
   Env,
   Fee,
   FeeEstimateError (InvalidCbor, InvalidHex),
+  HashScriptRequest,
+  HashedScript,
  )
 import Utils (lbshow)
 
@@ -53,9 +56,18 @@ type Api =
     :<|> "apply-args"
       :> ReqBody '[JSON] ApplyArgsRequest
       :> Post '[JSON] AppliedScript
+    :<|> "hash-script"
+      :> ReqBody '[JSON] HashScriptRequest
+      :> Post '[JSON] HashedScript
 
 app :: Env -> Application
-app = simpleCors . serve api . appServer
+app = Cors.cors (const $ Just policy) . serve api . appServer
+  where
+    policy :: Cors.CorsResourcePolicy
+    policy = Cors.simpleCorsResourcePolicy
+      { Cors.corsRequestHeaders = ["Content-Type"]
+      , Cors.corsMethods = ["OPTIONS", "GET", "POST"]
+      }
 
 appServer :: Env -> Server Api
 appServer env = hoistServer api appHandler server
@@ -82,11 +94,15 @@ api :: Proxy Api
 api = Proxy
 
 server :: ServerT Api AppM
-server = Handlers.estimateTxFees :<|> Handlers.applyArgs
+server =
+  Handlers.estimateTxFees
+    :<|> Handlers.applyArgs
+    :<|> Handlers.hashScript
 
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
 
 estimateTxFees :: Cbor -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
-estimateTxFees :<|> applyArgs = client api
+hashScript :: HashScriptRequest -> ClientM HashedScript
+estimateTxFees :<|> applyArgs :<|> hashScript = client api
