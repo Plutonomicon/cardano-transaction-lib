@@ -25,8 +25,10 @@ import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
   , ScriptLookups(ScriptLookups)
   , generalise
+  , mintingPolicy
   , mintingPolicyM
   , otherDataM
+  , otherScript
   , otherScriptM
   , ownPaymentPubKeyHash
   , ownPaymentPubKeyHashM
@@ -35,9 +37,7 @@ import Types.ScriptLookups
   , paymentPubKeyM
   , typedValidatorLookups
   , typedValidatorLookupsM
-  , unsafeMintingPolicyM
   , unsafeOtherDataM
-  , unsafeOtherScriptM
   , unsafePaymentPubKey
   , unspentOutputs
   , unspentOutputsM

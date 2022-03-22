@@ -54,8 +54,8 @@ import QueryM
   , getWalletAddress
   , getWalletCollateral
   , signTransaction
-  , utxosAt
   )
+import QueryM.Utxos (utxosAt)
 import Serialization.Address
   ( Address
   , addressPaymentCred

@@ -15,8 +15,8 @@ import QueryM
   , defaultServerConfig
   , mkDatumCacheWebSocketAff
   , mkOgmiosWebSocketAff
-  , utxosAt
   )
+import QueryM.Utxos (utxosAt)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.JsonWsp (OgmiosAddress)
