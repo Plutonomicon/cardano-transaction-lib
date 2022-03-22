@@ -461,8 +461,7 @@ unionNonAda (NonAdaAsset l) (NonAdaAsset r) =
   in
     unBoth <$> combined
 
--- Can remove from export once https://github.com/Plutonomicon/cardano-browser-tx/issues/193
--- is resolved.
+-- Don't export to `Contract` due to https://github.com/Plutonomicon/cardano-browser-tx/issues/193
 -- | Same as `unionWith` but specifically for `NonAdaAsset`
 unionWithNonAda
   :: (BigInt -> BigInt -> BigInt)
@@ -704,5 +703,3 @@ mapThese f mps =
     This a -> (k /\ a) `cons` as /\ bs
     That b -> as /\ (k /\ b) `cons` bs
     Both a b -> (k /\ a) `cons` as /\ (k /\ b) `cons` bs
-
--- splitCoin :: Coin -> Coin /\ Coin
