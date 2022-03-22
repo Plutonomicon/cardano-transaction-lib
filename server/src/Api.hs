@@ -2,6 +2,7 @@ module Api (
   app,
   estimateTxFees,
   applyArgs,
+  hashScript,
   apiDocs,
 ) where
 
@@ -43,6 +44,8 @@ import Types (
   Env,
   Fee,
   FeeEstimateError (InvalidCbor, InvalidHex),
+  HashScriptRequest,
+  HashedScript,
  )
 import Utils (lbshow)
 
@@ -53,6 +56,9 @@ type Api =
     :<|> "apply-args"
       :> ReqBody '[JSON] ApplyArgsRequest
       :> Post '[JSON] AppliedScript
+    :<|> "hash-script"
+      :> ReqBody '[JSON] HashScriptRequest
+      :> Post '[JSON] HashedScript
 
 app :: Env -> Application
 app = simpleCors . serve api . appServer
@@ -82,11 +88,15 @@ api :: Proxy Api
 api = Proxy
 
 server :: ServerT Api AppM
-server = Handlers.estimateTxFees :<|> Handlers.applyArgs
+server =
+  Handlers.estimateTxFees
+    :<|> Handlers.applyArgs
+    :<|> Handlers.hashScript
 
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
 
 estimateTxFees :: Cbor -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
-estimateTxFees :<|> applyArgs = client api
+hashScript :: HashScriptRequest -> ClientM HashedScript
+estimateTxFees :<|> applyArgs :<|> hashScript = client api

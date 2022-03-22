@@ -60,6 +60,7 @@ library
     , mtl
     , plutus-ledger-api
     , plutus-tx
+    , serialise
     , servant
     , servant-client
     , servant-docs

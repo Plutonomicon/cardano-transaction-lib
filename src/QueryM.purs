@@ -31,6 +31,7 @@ module QueryM
   , getDatumsByHashes
   , getWalletAddress
   , getWalletCollateral
+  , hashScript
   , listeners
   , mkDatumCacheWebSocketAff
   , mkHttpUrl
@@ -112,8 +113,9 @@ import Serialization.Address
   , Slot
   , addressBech32
   )
+import Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Serialization.PlutusData (convertPlutusData)
-import Types.ByteArray (byteArrayToHex)
+import Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Types.Datum (DatumHash)
 import Types.JsonWsp as JsonWsp
 import Types.PlutusData (PlutusData)
@@ -385,7 +387,7 @@ calculateMinFee tx = do
       <<< Serialization.toBytes
       <<< asOneOf
       <$> Serialization.convertTransaction tx
-  url <- asks $ (_ <> "/fees?tx=" <> txHex) <<< mkHttpUrl <<< _.serverConfig
+  url <- mkServerEndpointUrl $ "fees?tx=" <> txHex
   liftAff (Affjax.get Affjax.ResponseFormat.json url)
     <#> either
       (Left <<< ClientHttpError)
@@ -414,12 +416,6 @@ applyArgs script args = case traverse plutusDataToJson args of
   Nothing -> pure $ Left $ ClientEncodingError "Failed to convert script args"
   Just ps -> do
     let
-      -- It's easier to just write the encoder here than provide an `EncodeJson`
-      -- instance (there are some brutal cyclical dependency issues trying to
-      -- write an instance in the `Types.*` modules)
-      scriptJson :: Json.Json
-      scriptJson = encodeString $ byteArrayToHex $ unwrap $ unwrap script
-
       argsJson :: Json.Json
       argsJson = Json.encodeJson ps
 
@@ -428,10 +424,10 @@ applyArgs script args = case traverse plutusDataToJson args of
         $ Affjax.RequestBody.Json
         $ Json.fromObject
         $ Object.fromFoldable
-            [ "script" /\ scriptJson
+            [ "script" /\ scriptToJson (unwrap script)
             , "args" /\ argsJson
             ]
-    url <- asks $ (_ <> "/apply-args") <<< mkHttpUrl <<< _.serverConfig
+    url <- mkServerEndpointUrl "apply-args"
     liftAff (Affjax.post Affjax.ResponseFormat.json url reqBody)
       <#> either
         (Left <<< ClientHttpError)
@@ -446,6 +442,36 @@ applyArgs script args = case traverse plutusDataToJson args of
           <<< asOneOf
       )
       <<< convertPlutusData
+
+hashScript
+  :: forall (a :: Type) (b :: Type)
+   . Newtype a PlutusScript
+  => Newtype b ScriptHash
+  => a
+  -> QueryM (Either ClientError b)
+hashScript script = do
+  url <- mkServerEndpointUrl "hash-script"
+  let
+    reqBody :: Maybe Affjax.RequestBody.RequestBody
+    reqBody = Just
+      $ Affjax.RequestBody.Json
+      $ scriptToJson
+      $ unwrap script
+  liftAff (Affjax.post Affjax.ResponseFormat.json url reqBody)
+    <#> either
+      (Left <<< ClientHttpError)
+      (bimap ClientDecodeJsonError wrap <<< Json.decodeJson <<< _.body)
+
+-- It's easier to just write the encoder here than provide an `EncodeJson`
+-- instance (there are some brutal cyclical dependency issues trying to
+-- write an instance in the `Types.*` modules)
+scriptToJson :: PlutusScript -> Json.Json
+scriptToJson = encodeString <<< byteArrayToHex <<< unwrap
+
+mkServerEndpointUrl :: String -> QueryM Url
+mkServerEndpointUrl path = asks $ (_ <> "/" <> path)
+  <<< mkHttpUrl
+  <<< _.serverConfig
 
 --------------------------------------------------------------------------------
 -- OgmiosWebSocket Setup and PrimOps

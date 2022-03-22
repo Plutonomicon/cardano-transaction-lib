@@ -5,7 +5,6 @@ module Contract.Scripts
   ( applyArgs
   , applyArgsM
   , mintingPolicyHash
-  , scriptHash
   , stakeValidatorHash
   , validatorAddress
   , validatorBaseAddress
@@ -123,9 +122,6 @@ applyArgsM a = map hush <<< applyArgs a
 
 mintingPolicyHash :: MintingPolicy -> Contract (Maybe MintingPolicyHash)
 mintingPolicyHash = wrap <<< Scripts.mintingPolicyHash
-
-scriptHash :: PlutusScript -> Contract (Maybe Hash.ScriptHash)
-scriptHash = wrap <<< Scripts.scriptHash
 
 stakeValidatorHash :: StakeValidator -> Contract (Maybe StakeValidatorHash)
 stakeValidatorHash = wrap <<< Scripts.stakeValidatorHash
