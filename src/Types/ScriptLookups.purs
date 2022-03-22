@@ -22,6 +22,8 @@ module Types.ScriptLookups
   ) where
 
 import Prelude hiding (join)
+import Undefined
+
 import Address (addressValidatorHash, ogmiosAddressToAddress)
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
@@ -588,6 +590,7 @@ addMissingValueSpent
    . ConstraintsM a (Either MkUnbalancedTxError Unit)
 addMissingValueSpent = do
   missing <- gets totalMissingValue
+  networkId <- getNetworkId
   if isZero missing then pure $ Right unit
   else runExceptT do
     -- add 'missing' to the transaction's outputs. This ensures that the
@@ -599,7 +602,6 @@ addMissingValueSpent = do
       -- lookups = unwrap $ cfg.scriptLookups
       pkh' = lookups.ownPaymentPubKeyHash
       skh' = lookups.ownStakePubKeyHash
-    networkId <- ExceptT getNetworkId
     txOut <- case pkh', skh' of
       Nothing, Nothing -> throwError OwnPubKeyAndStakeKeyMissing
       -- Prioritise pkh:
@@ -636,19 +638,20 @@ addOwnInput
   => ToData b
   => InputConstraint b
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
-addOwnInput (InputConstraint { txOutRef }) = runExceptT do
-  ScriptLookups { txOutputs, typedValidator } <- use _config <#> _.scriptLookups
-  inst <- liftM TypedValidatorMissing typedValidator
-  networkId <- ExceptT getNetworkId
-  -- This line is to type check the `TxOutRef`. Plutus actually creates a `TxIn`
-  -- but we don't have such a datatype for our `TxBody`. Therefore, if we pass
-  -- this line, we just insert `TxOutRef` into the body.
-  typedTxOutRef <- ExceptT $ lift $
-    typeTxOutRef networkId (flip lookup txOutputs) inst txOutRef
-      <#> lmap TypeCheckFailed
-  let value = typedTxOutRefValue typedTxOutRef
-  _cpsToTxBody <<< _inputs %= (:) txOutRef
-  _valueSpentBalancesInputs <>= provide value
+addOwnInput (InputConstraint { txOutRef }) = do
+  networkId <- getNetworkId
+  runExceptT do
+    ScriptLookups { txOutputs, typedValidator } <- use _config <#> _.scriptLookups
+    inst <- liftM TypedValidatorMissing typedValidator
+    -- This line is to type check the `TxOutRef`. Plutus actually creates a `TxIn`
+    -- but we don't have such a datatype for our `TxBody`. Therefore, if we pass
+    -- this line, we just insert `TxOutRef` into the body.
+    typedTxOutRef <- ExceptT $ lift $
+      typeTxOutRef networkId (flip lookup txOutputs) inst txOutRef
+        <#> lmap TypeCheckFailed
+    let value = typedTxOutRefValue typedTxOutRef
+    _cpsToTxBody <<< _inputs %= (:) txOutRef
+    _valueSpentBalancesInputs <>= provide value
 
 -- | Add a typed output and return its value.
 addOwnOutput
@@ -658,21 +661,22 @@ addOwnOutput
   => ToData b
   => OutputConstraint b
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
-addOwnOutput (OutputConstraint { datum, value }) = runExceptT do
-  ScriptLookups { typedValidator } <- use _config <#> _.scriptLookups
-  inst <- liftM TypedValidatorMissing typedValidator
-  networkId <- ExceptT getNetworkId
-  typedTxOut <-
-    liftM MkTypedTxOutFailed (mkTypedTxOut networkId inst datum value)
-  let txOut = typedTxOutTxOut typedTxOut
-  -- We are erroring if we don't have a datumhash given the polymorphic datum
-  -- in the `OutputConstraint`:
-  dHash <- liftM TypedTxOutHasNoDatumHash (typedTxOutDatumHash typedTxOut)
-  dat <-
-    ExceptT $ lift $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
-  _cpsToTxBody <<< _outputs %= (:) txOut
-  ExceptT $ addDatum (wrap dat)
-  _valueSpentBalancesOutputs <>= provide value
+addOwnOutput (OutputConstraint { datum, value }) = do
+  networkId <- getNetworkId
+  runExceptT do
+    ScriptLookups { typedValidator } <- use _config <#> _.scriptLookups
+    inst <- liftM TypedValidatorMissing typedValidator
+    typedTxOut <-
+      liftM MkTypedTxOutFailed (mkTypedTxOut networkId inst datum value)
+    let txOut = typedTxOutTxOut typedTxOut
+    -- We are erroring if we don't have a datumhash given the polymorphic datum
+    -- in the `OutputConstraint`:
+    dHash <- liftM TypedTxOutHasNoDatumHash (typedTxOutDatumHash typedTxOut)
+    dat <-
+      ExceptT $ lift $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
+    _cpsToTxBody <<< _outputs %= (:) txOut
+    ExceptT $ addDatum (wrap dat)
+    _valueSpentBalancesOutputs <>= provide value
 
 data MkUnbalancedTxError
   = TypeCheckFailed TypeCheckError
@@ -872,51 +876,53 @@ processConstraint mpsMap osMap = do
       _redeemers <>= Array.singleton redeemer
       -- Attach redeemer to witness set.
       ExceptT $ attachToCps attachRedeemer redeemer
-    MustPayToPubKeyAddress pkh _ mDatum amount -> runExceptT do
-      -- If datum is presented, add it to 'datumWitnesses' and Array of datums.
-      -- Otherwise continue, hence `liftEither $ Right unit`.
-      maybe (liftEither $ Right unit) (ExceptT <<< addDatum) mDatum
-      networkId <- ExceptT getNetworkId
-      -- [DatumHash Note]
-      -- The behaviour below is subtle because of `datumHash`'s `Maybe` context.
-      -- In particular, if `mDatum` is `Nothing`, then return nothing (note: we
-      -- don't want to fail). However, if we have a datum value, we attempt to
-      -- hash, which may fail. We want to capture this failure.
-      -- Given `data_hash` ~ `Maybe DatumHash`, we don't want return this
-      -- failure in the output. It's possible that this is okay for
-      -- `MustPayToPubKeyAddress` because datums are essentially redundant
-      -- for wallet addresses, but let's fail for now. It is important to
-      -- capture failure for `MustPayToOtherScript` however, because datums
-      -- at script addresses matter.
-      -- e.g. in psuedo code:
-      -- If mDatum = Nothing -> data_hash = Nothing (don't fail)
-      -- If mDatum = Just datum ->
-      --     If datumHash datum = Nothing -> FAIL
-      --     If datumHash datum = Just dHash -> data_hash = dHash
-      -- As mentioned, we could remove this fail behaviour for
-      -- `MustPayToPubKeyAddress`
-      data_hash <- maybe
-        (liftEither $ Right Nothing) -- Don't throw an error if Nothing.
-        (\datum -> liftMWith (CannotHashDatum datum) Just (datumHash datum))
-        mDatum
-      let
-        txOut = TransactionOutput
-          { address: payPubKeyHashAddress networkId pkh, amount, data_hash }
-      _cpsToTxBody <<< _outputs %= (:) txOut
-      _valueSpentBalancesOutputs <>= provide amount
-    MustPayToOtherScript vlh datum amount -> runExceptT do
-      networkId <- ExceptT getNetworkId
-      -- Don't write `let data_hash = datumHash datum`, see [datumHash Note]
-      data_hash <- liftM (CannotHashDatum datum) (datumHash datum <#> Just)
-      let
-        txOut = TransactionOutput
-          { address: validatorHashAddress networkId vlh
-          , amount
-          , data_hash
-          }
-      ExceptT $ addDatum datum
-      _cpsToTxBody <<< _outputs %= (:) txOut
-      _valueSpentBalancesOutputs <>= provide amount
+    MustPayToPubKeyAddress pkh _ mDatum amount -> do
+      networkId <- getNetworkId
+      runExceptT do
+        -- If datum is presented, add it to 'datumWitnesses' and Array of datums.
+        -- Otherwise continue, hence `liftEither $ Right unit`.
+        maybe (liftEither $ Right unit) (ExceptT <<< addDatum) mDatum
+        -- [DatumHash Note]
+        -- The behaviour below is subtle because of `datumHash`'s `Maybe` context.
+        -- In particular, if `mDatum` is `Nothing`, then return nothing (note: we
+        -- don't want to fail). However, if we have a datum value, we attempt to
+        -- hash, which may fail. We want to capture this failure.
+        -- Given `data_hash` ~ `Maybe DatumHash`, we don't want return this
+        -- failure in the output. It's possible that this is okay for
+        -- `MustPayToPubKeyAddress` because datums are essentially redundant
+        -- for wallet addresses, but let's fail for now. It is important to
+        -- capture failure for `MustPayToOtherScript` however, because datums
+        -- at script addresses matter.
+        -- e.g. in psuedo code:
+        -- If mDatum = Nothing -> data_hash = Nothing (don't fail)
+        -- If mDatum = Just datum ->
+        --     If datumHash datum = Nothing -> FAIL
+        --     If datumHash datum = Just dHash -> data_hash = dHash
+        -- As mentioned, we could remove this fail behaviour for
+        -- `MustPayToPubKeyAddress`
+        data_hash <- maybe
+          (liftEither $ Right Nothing) -- Don't throw an error if Nothing.
+          (\datum -> liftMWith (CannotHashDatum datum) Just (datumHash datum))
+          mDatum
+        let
+          txOut = TransactionOutput
+            { address: payPubKeyHashAddress networkId pkh, amount, data_hash }
+        _cpsToTxBody <<< _outputs %= (:) txOut
+        _valueSpentBalancesOutputs <>= provide amount
+    MustPayToOtherScript vlh datum amount -> do
+      networkId <- getNetworkId
+      runExceptT do
+        -- Don't write `let data_hash = datumHash datum`, see [datumHash Note]
+        data_hash <- liftM (CannotHashDatum datum) (datumHash datum <#> Just)
+        let
+          txOut = TransactionOutput
+            { address: validatorHashAddress networkId vlh
+            , amount
+            , data_hash
+            }
+        ExceptT $ addDatum datum
+        _cpsToTxBody <<< _outputs %= (:) txOut
+        _valueSpentBalancesOutputs <>= provide amount
     MustHashDatum dh dt ->
       if datumHash dt == Just dh then addDatum dt
       else pure $ throwError $ DatumWrongHash dh dt
@@ -999,6 +1005,6 @@ lastIndex = length >>> flip (-) one >>> fromInt
 
 getNetworkId
   :: forall (a :: Type)
-   . ConstraintsM a (Either MkUnbalancedTxError NetworkId)
-getNetworkId = runExceptT $
-  use (_cpsToTxBody <<< _networkId) >>= liftM NetworkIdMissing
+   . ConstraintsM a NetworkId
+getNetworkId = use (_cpsToTxBody <<< _networkId)
+  >>= maybe (lift $ asks _.networkId) pure
