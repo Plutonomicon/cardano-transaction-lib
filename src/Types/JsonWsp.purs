@@ -314,13 +314,11 @@ parseValue outer = do
 
 type ChainTipQR = ChainOrigin |+| ChainPoint
 
-
 -- | A Blake2b 32-byte digest of an era-independent block header, serialised as CBOR in base16
 newtype OgmiosBlockHeaderHash = OgmiosBlockHeaderHash String
 
 derive instance Eq OgmiosBlockHeaderHash
 derive newtype instance DecodeAeson OgmiosBlockHeaderHash
-
 
 -- | The origin of the blockchain. It doesn't point to any existing slots, but is preceding any existing other point.
 newtype ChainOrigin = ChainOrigin String
@@ -328,7 +326,6 @@ newtype ChainOrigin = ChainOrigin String
 derive instance Eq ChainOrigin
 derive newtype instance DecodeAeson ChainOrigin
 derive newtype instance HasRuntimeType ChainOrigin
-
 
 -- | A point on the chain, identified by a slot and a block header hash
 type ChainPoint =

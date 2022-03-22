@@ -202,7 +202,6 @@ utxosAt' addr = do
         liftEffect $ throwError $ err
   liftAff $ makeAff $ affFunc
 
-
 getChainTip :: QueryM JsonWsp.ChainTipQR
 getChainTip = do
   body <- liftEffect $ JsonWsp.mkChainTipQuery
@@ -226,7 +225,6 @@ getChainTip = do
         liftEffect $ ls.chainTip.removeMessageListener id
         liftEffect $ throwError $ err
   liftAff $ makeAff $ affFunc
-
 
 --------------------------------------------------------------------------------
 -- Used Utxos helpers
@@ -537,13 +535,13 @@ mkOgmiosWebSocket'
 mkOgmiosWebSocket' serverCfg cb = do
   utxoDispatchMap <- createMutableDispatch
   chainTipDispatchMap <- createMutableDispatch
-  let md = ogmiosMessageDispatch {utxoDispatchMap, chainTipDispatchMap }
+  let md = ogmiosMessageDispatch { utxoDispatchMap, chainTipDispatchMap }
   ws <- _mkWebSocket $ mkWsUrl serverCfg
   _onWsConnect ws $ do
     _wsWatch ws (removeAllListeners utxoDispatchMap *> removeAllListeners chainTipDispatchMap)
     _onWsMessage ws (defaultMessageListener md)
     _onWsError ws defaultErrorListener
-    cb $ Right $ WebSocket ws { utxo: mkListenerSet utxoDispatchMap, chainTip: mkListenerSet chainTipDispatchMap}
+    cb $ Right $ WebSocket ws { utxo: mkListenerSet utxoDispatchMap, chainTip: mkListenerSet chainTipDispatchMap }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
 
 mkDatumCacheWebSocket'
@@ -627,11 +625,12 @@ type WebsocketDispatch = String -> Effect (Either Json.JsonDecodeError (Effect U
 type DispatchIdMap a = Ref.Ref (MultiMap String (a -> Effect Unit))
 
 -- an immutable queue of response type handlers
-ogmiosMessageDispatch ::
-  { utxoDispatchMap :: DispatchIdMap JsonWsp.UtxoQR
-  , chainTipDispatchMap :: DispatchIdMap JsonWsp.ChainTipQR
-  } -> Array WebsocketDispatch
-ogmiosMessageDispatch {utxoDispatchMap, chainTipDispatchMap} =
+ogmiosMessageDispatch
+  :: { utxoDispatchMap :: DispatchIdMap JsonWsp.UtxoQR
+     , chainTipDispatchMap :: DispatchIdMap JsonWsp.ChainTipQR
+     }
+  -> Array WebsocketDispatch
+ogmiosMessageDispatch { utxoDispatchMap, chainTipDispatchMap } =
   [ ogmiosQueryDispatch utxoDispatchMap
   , ogmiosQueryDispatch chainTipDispatchMap
   ]
@@ -650,7 +649,8 @@ createMutableDispatch = Ref.new MM.empty
 -- with the provided id, if we are then we dispatch to the effect that is
 -- waiting on this result
 ogmiosQueryDispatch
-  :: forall a. DecodeAeson a
+  :: forall a
+   . DecodeAeson a
   => Ref.Ref (MultiMap String (a -> Effect Unit))
   -> String
   -> Effect (Either Json.JsonDecodeError (Effect Unit))

@@ -54,6 +54,7 @@ module Aeson
 
 import Prelude
 
+import Control.Alt ((<|>))
 import Control.Lazy (fix)
 import Data.Argonaut
   ( class DecodeJson
@@ -345,26 +346,22 @@ decodeJsonString = parseJsonStringToAeson >=> decodeAeson
 
 -------- DecodeAeson instances --------
 
-instance DecodeAeson UInt where
-  decodeAeson aeson@(Aeson { numberIndex }) = do
+decodeIntegral :: forall a. (String -> Maybe a) -> Aeson -> Either JsonDecodeError a
+decodeIntegral parse aeson@(Aeson { numberIndex }) = do
     -- Numbers are replaced by their index in the array.
     ix <- decodeAesonViaJson aeson
     numberStr <- note MissingValue (numberIndex Array.!! ix)
-    note MissingValue $ UInt.fromString numberStr
+    note MissingValue $ parse numberStr
+
+
+instance DecodeAeson UInt where
+  decodeAeson = decodeIntegral UInt.fromString
 
 instance DecodeAeson Int where
-  decodeAeson aeson@(Aeson { numberIndex }) = do
-    -- Numbers are replaced by their index in the array.
-    ix <- decodeAesonViaJson aeson
-    numberStr <- note MissingValue (numberIndex Array.!! ix)
-    note MissingValue $ Int.fromString numberStr
+  decodeAeson = decodeIntegral Int.fromString
 
 instance DecodeAeson BigInt where
-  decodeAeson aeson@(Aeson { numberIndex }) = do
-    -- Numbers are replaced by their index in the array.
-    ix <- decodeAesonViaJson aeson
-    numberStr <- note MissingValue (numberIndex Array.!! ix)
-    note MissingValue $ BigInt.fromString numberStr
+  decodeAeson = decodeIntegral BigInt.fromString
 
 instance DecodeAeson Boolean where
   decodeAeson = decodeAesonViaJson
@@ -389,11 +386,8 @@ instance (GDecodeAeson row list, RL.RowToList row list) => DecodeAeson (Record r
 
 else instance (InOneOf b a b, DecodeAeson a, DecodeAeson b) => DecodeAeson (a |+| b) where
   decodeAeson j =
-     let a = asOneOf <$> (decodeAeson j :: Either JsonDecodeError a)
-     in case a of
-      Left _ -> asOneOf <$> (decodeAeson j :: Either JsonDecodeError b)
-      Right _ -> a
-
+    (asOneOf <$> (decodeAeson j :: Either JsonDecodeError a))
+      <|> (asOneOf <$> (decodeAeson j :: Either JsonDecodeError b))
 
 else instance (Traversable t, DecodeAeson a, DecodeJson (t Json)) => DecodeAeson (t a) where
   decodeAeson (Aeson { numberIndex, patchedJson: AesonPatchedJson pJson }) = do

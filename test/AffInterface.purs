@@ -9,7 +9,15 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
-import QueryM (defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, getChainTip, mkDatumCacheWebSocketAff, mkOgmiosWebSocketAff, utxosAt)
+import QueryM
+  ( defaultDatumCacheWsConfig
+  , defaultOgmiosWsConfig
+  , defaultServerConfig
+  , getChainTip
+  , mkDatumCacheWebSocketAff
+  , mkOgmiosWebSocketAff
+  , utxosAt
+  )
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.JsonWsp (OgmiosAddress)
