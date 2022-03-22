@@ -36,10 +36,10 @@ import Scripts
   , typedValidatorBaseAddress
   , validatorHashAddress
   , validatorHashBaseAddress
+  , scriptHash
   ) as ExportScripts
 import Scripts
   ( mintingPolicyHash
-  , scriptHash
   , stakeValidatorHash
   , validatorAddress
   , validatorBaseAddress

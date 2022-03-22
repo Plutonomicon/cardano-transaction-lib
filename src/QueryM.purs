@@ -113,9 +113,9 @@ import Serialization.Address
   , Slot
   , addressBech32
   )
-import Serialization.Hash (ScriptHash, scriptHashFromBytes)
+import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData)
-import Types.ByteArray (byteArrayToHex, hexToByteArray)
+import Types.ByteArray (byteArrayToHex)
 import Types.Datum (DatumHash)
 import Types.JsonWsp as JsonWsp
 import Types.PlutusData (PlutusData)
