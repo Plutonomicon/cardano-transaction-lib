@@ -110,7 +110,6 @@ data BalanceTxError
   | BalanceNonAdaOutsError' BalanceNonAdaOutsError
   | SignTxError' SignTxError
   | CalculateMinFeeError' ClientError
-  | NetworkIdMissing
 
 derive instance genericBalanceTxError :: Generic BalanceTxError _
 
