@@ -14,7 +14,7 @@ import Control.Monad.Reader (ReaderT, runReaderT)
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.Kind (Type)
 import Data.Proxy (Proxy (Proxy))
-import Network.Wai.Middleware.Cors (simpleCors)
+import Network.Wai.Middleware.Cors qualified as Cors
 import Servant (
   Application,
   Get,
@@ -61,7 +61,12 @@ type Api =
       :> Post '[JSON] HashedScript
 
 app :: Env -> Application
-app = simpleCors . serve api . appServer
+app = Cors.cors (const $ Just policy) . serve api . appServer
+  where
+    policy :: Cors.CorsResourcePolicy
+    policy = Cors.simpleCorsResourcePolicy
+      { Cors.corsMethods = ["OPTIONS", "GET", "POST"]
+      }
 
 appServer :: Env -> Server Api
 appServer env = hoistServer api appHandler server
