@@ -1,5 +1,6 @@
 module Scripts
   ( mintingPolicyHash
+  , scriptCurrencySymbol
   , scriptHash
   , stakeValidatorHash
   , typedValidatorAddress
@@ -39,6 +40,7 @@ import Types.Scripts
   , ValidatorHash
   )
 import Types.TypedValidator (TypedValidator(TypedValidator))
+import Types.Value (CurrencySymbol, mpsSymbol)
 
 -- | Helpers for `PlutusScript` and `ScriptHash` newtype wrappers, separate from
 -- | the data type definitions to prevent cylic dependencies.
@@ -84,10 +86,12 @@ validatorHashAddress :: NetworkId -> ValidatorHash -> Address
 validatorHashAddress networkId =
   baseAddressToAddress <<< validatorHashBaseAddress networkId
 
--- | Converts a Plutus-style `StakeValidator` to an `Address`
+-- | Converts a Plutus-style `StakeValidator` to an `StakeValidatorHash`
 stakeValidatorHash :: StakeValidator -> QueryM (Maybe StakeValidatorHash)
 stakeValidatorHash = scriptHash
 
+-- | Converts any newtype wrapper of `PlutusScript` to a newtype wrapper
+-- | of `ScriptHash`.
 scriptHash
   :: forall (m :: Type) (n :: Type)
    . Newtype m PlutusScript
@@ -95,3 +99,9 @@ scriptHash
   => m
   -> QueryM (Maybe n)
 scriptHash = map hush <<< hashScript
+
+-- | Converts a `MintingPolicy` to a `CurrencySymbol`.
+scriptCurrencySymbol :: MintingPolicy -> QueryM (Maybe CurrencySymbol)
+scriptCurrencySymbol mp =
+  mintingPolicyHash mp >>= maybe Nothing mpsSymbol >>> pure
+

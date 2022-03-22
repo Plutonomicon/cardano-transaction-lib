@@ -379,9 +379,8 @@ type ConstraintProcessingState (a :: Type) =
   -- add execution units via Ogmios. Note: this mixes script and minting
   -- redeemers.
   , lookups :: ScriptLookups a
-  -- Treat the lookups as an immuntable `Reader` variable. This was simpler than
-  -- adding `ReaderT` ontop of `ConstraintsM` then obsecuring the original
-  -- `ReaderT`.
+  -- ScriptLookups for resolving constraints. Should be treated as an immutable
+  -- value despite living inside the processing state
   }
 
 -- We could make these signatures polymorphic but they're not exported so don't
@@ -430,8 +429,10 @@ provide provided = ValueSpentBalances { provided, required: mempty }
 require :: Value -> ValueSpentBalances
 require required = ValueSpentBalances { required, provided: mempty }
 
--- The state is `ConstraintProcessingState` which keeps track of the unbalanced
--- transaction etc.
+-- A `StateT` ontop of `QueryM` ~ ReaderT QueryConfig Aff`.
+-- The state is `ConstraintProcessingState`, which keeps track of the unbalanced
+-- transaction etc and additionally holds a `ConstraintsConfig` containing the
+-- scriptlookups and a `defaultSlotConfig`.
 -- We write `ReaderT QueryConfig Aff` below since type synonyms need to be fully
 -- applied.
 type ConstraintsM (a :: Type) (b :: Type) =
