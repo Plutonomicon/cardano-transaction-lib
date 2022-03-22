@@ -19,6 +19,7 @@ module BalanceTx
 import Prelude
 
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
+import Control.Monad.Reader.Class (asks)
 import Data.Array ((\\), findIndex, modifyAt)
 import Data.Array as Array
 import Data.Bifunctor (lmap, rmap)
@@ -38,7 +39,6 @@ import Data.Tuple.Nested ((/\), type (/\))
 -- import Debug (spy)
 import Effect.Class (class MonadEffect)
 import Effect.Class.Console (log)
-import Helpers (liftM)
 import ProtocolParametersAlonzo
   ( adaOnlyWords
   , coinSize
@@ -109,7 +109,6 @@ data BalanceTxError
   | BalanceNonAdaOutsError' BalanceNonAdaOutsError
   | SignTxError' SignTxError
   | CalculateMinFeeError' ClientError
-  | NetworkIdMissing
 
 derive instance genericBalanceTxError :: Generic BalanceTxError _
 
@@ -246,7 +245,9 @@ calculateMinFee' = calculateMinFee >>> map (rmap unwrap)
 -- utxo set shouldn't include the collateral which is vital for balancing.
 -- In particular, the transaction inputs must not include the collateral.
 balanceTx :: UnbalancedTx -> QueryM (Either BalanceTxError Transaction)
-balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) =
+balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
+  networkId <- (unbalancedTx ^. _body <<< _networkId) #
+    maybe (asks _.networkId) pure
   runExceptT do
     -- Get own wallet address, collateral and utxo set:
     ownAddr <- ExceptT $ getWalletAddress <#>
@@ -255,7 +256,7 @@ balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) =
       note (GetWalletCollateralError' CouldNotGetNamiCollateral)
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
-    networkId <- liftM NetworkIdMissing (unbalancedTx ^. _body <<< _networkId)
+
     let
       -- Combines utxos at the user address and those from any scripts
       -- involved with the contract in the unbalanced transaction.

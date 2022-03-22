@@ -86,6 +86,7 @@ main = launchAff_ $ do
     , wallet
     , serverConfig: defaultServerConfig
     , usedTxOuts
+    , networkId: TestnetId
     }
   liftEffect $ Console.log $ show txId
 

@@ -110,6 +110,7 @@ import Serialization as Serialization
 import Serialization.Address
   ( Address
   , BlockId
+  , NetworkId
   , Slot
   , addressBech32
   )
@@ -169,6 +170,7 @@ type QueryConfig =
   , wallet :: Maybe Wallet
   -- should probably be more tightly coupled with a wallet
   , usedTxOuts :: UsedTxOuts
+  , networkId :: NetworkId
   }
 
 type QueryM (a :: Type) = ReaderT QueryConfig Aff a

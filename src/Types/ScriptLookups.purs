@@ -22,11 +22,12 @@ module Types.ScriptLookups
   ) where
 
 import Prelude hiding (join)
+
 import Address (addressValidatorHash, ogmiosAddressToAddress)
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Control.Monad.Reader.Class (asks)
-import Control.Monad.Reader.Trans (ReaderT, runReaderT)
+import Control.Monad.Reader.Trans (ReaderT)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Data.Array (singleton, union) as Array
@@ -369,7 +370,7 @@ instance Semigroup ValueSpentBalances where
     }
 
 -- This is the state for essentially creating an unbalanced transaction.
-type ConstraintProcessingState =
+type ConstraintProcessingState (a :: Type) =
   { unbalancedTx :: UnbalancedTx
   -- The unbalanced transaction that we're building
   , valueSpentBalancesInputs :: ValueSpentBalances
@@ -382,24 +383,37 @@ type ConstraintProcessingState =
   -- Ordered accumulation of redeemers so we can use to `setScriptDataHash` and
   -- add execution units via Ogmios. Note: this mixes script and minting
   -- redeemers.
+  , config :: ConstraintsConfig a
+  -- Configuration options for resolving constraints/lookups. Should be treated
+  -- as an immutable value despite living inside the processing state
   }
 
 -- We could make these signatures polymorphic but they're not exported so don't
 -- bother.
-_unbalancedTx :: Lens' ConstraintProcessingState UnbalancedTx
+_unbalancedTx
+  :: forall (a :: Type). Lens' (ConstraintProcessingState a) UnbalancedTx
 _unbalancedTx = prop (SProxy :: SProxy "unbalancedTx")
 
-_valueSpentBalancesInputs :: Lens' ConstraintProcessingState ValueSpentBalances
+_valueSpentBalancesInputs
+  :: forall (a :: Type). Lens' (ConstraintProcessingState a) ValueSpentBalances
 _valueSpentBalancesInputs = prop (SProxy :: SProxy "valueSpentBalancesInputs")
 
-_valueSpentBalancesOutputs :: Lens' ConstraintProcessingState ValueSpentBalances
+_valueSpentBalancesOutputs
+  :: forall (a :: Type). Lens' (ConstraintProcessingState a) ValueSpentBalances
 _valueSpentBalancesOutputs = prop (SProxy :: SProxy "valueSpentBalancesOutputs")
 
-_datums :: Lens' ConstraintProcessingState (Array Datum)
+_datums
+  :: forall (a :: Type). Lens' (ConstraintProcessingState a) (Array Datum)
 _datums = prop (SProxy :: SProxy "datums")
 
-_redeemers :: Lens' ConstraintProcessingState (Array T.Redeemer)
+_redeemers
+  :: forall (a :: Type). Lens' (ConstraintProcessingState a) (Array T.Redeemer)
 _redeemers = prop (SProxy :: SProxy "redeemers")
+
+_config
+  :: forall (a :: Type)
+   . Lens' (ConstraintProcessingState a) (ConstraintsConfig a)
+_config = prop (SProxy :: SProxy "config")
 
 missingValueSpent :: ValueSpentBalances -> Value
 missingValueSpent (ValueSpentBalances { required, provided }) =
@@ -409,7 +423,7 @@ missingValueSpent (ValueSpentBalances { required, provided }) =
   in
     missing
 
-totalMissingValue :: ConstraintProcessingState -> Value
+totalMissingValue :: forall (a :: Type). ConstraintProcessingState a -> Value
 totalMissingValue { valueSpentBalancesInputs, valueSpentBalancesOutputs } =
   missingValueSpent valueSpentBalancesInputs `join`
     missingValueSpent valueSpentBalancesOutputs
@@ -425,19 +439,14 @@ type ConstraintsConfig (a :: Type) =
   , slotConfig :: SlotConfig
   }
 
--- A `ReaderT` and `StateT` ontop of `QueryM` ~ ReaderT QueryConfig Aff`.
--- The config is `ConstraintsConfig`  which holds the scriptlookups and a
--- `defaultSlotConfig`. The state is `ConstraintProcessingState` which keeps
--- track of the unbalanced transaction etc.
+-- A `StateT` ontop of `QueryM` ~ ReaderT QueryConfig Aff`.
+-- The state is `ConstraintProcessingState`, which keeps track of the unbalanced
+-- transaction etc and additionally holds a `ConstraintsConfig` containing the
+-- scriptlookups and a `defaultSlotConfig`.
 -- We write `ReaderT QueryConfig Aff` below since type synonyms need to be fully
 -- applied.
 type ConstraintsM (a :: Type) (b :: Type) =
-  ReaderT (ConstraintsConfig a)
-    (StateT ConstraintProcessingState (ReaderT QueryConfig Aff))
-    b
-
-liftQueryM :: forall (a :: Type) (b :: Type). QueryM b -> ConstraintsM a b
-liftQueryM = lift <<< lift
+  StateT (ConstraintProcessingState a) (ReaderT QueryConfig Aff) b
 
 -- The constraints don't precisely match those of Plutus:
 -- `forall a. (FromData (DatumType a), ToData (DatumType a), ToData (RedeemerType a))`
@@ -464,7 +473,7 @@ processLookupsAndConstraints
   (TxConstraints { constraints, ownInputs, ownOutputs }) = runExceptT do
   -- Hash all the MintingPolicys and Scripts beforehand. These maps are lost
   -- after we `runReaderT`, unlike Plutus that has a `Map` instead of `Array`.
-  lookups <- asks (_.scriptLookups >>> unwrap)
+  lookups <- use _config <#> _.scriptLookups >>> unwrap
   let
     mps = lookups.mps
     otherScripts = lookups.otherScripts
@@ -491,7 +500,7 @@ processLookupsAndConstraints
     -> Array script
     -> ConstraintsM c (Either MkUnbalancedTxError (Array scriptHash))
   hashScripts hasher error scripts =
-    liftQueryM $
+    lift $
       for scripts
         ( \s -> do
             sh <- hasher s
@@ -519,7 +528,7 @@ runConstraintsM
   => ToData b
   => ScriptLookups a
   -> TxConstraints b b
-  -> QueryM (Either MkUnbalancedTxError ConstraintProcessingState)
+  -> QueryM (Either MkUnbalancedTxError (ConstraintProcessingState a))
 runConstraintsM scriptLookups txConstraints =
   let
     config :: ConstraintsConfig a
@@ -528,7 +537,7 @@ runConstraintsM scriptLookups txConstraints =
       , slotConfig: defaultSlotConfig
       }
 
-    initCps :: ConstraintProcessingState
+    initCps :: ConstraintProcessingState a
     initCps =
       { unbalancedTx: emptyUnbalancedTx
       , valueSpentBalancesInputs:
@@ -537,17 +546,17 @@ runConstraintsM scriptLookups txConstraints =
           ValueSpentBalances { required: mempty, provided: mempty }
       , datums: mempty
       , redeemers: mempty
+      , config
       }
 
     unpackTuple
-      :: Either MkUnbalancedTxError Unit /\ ConstraintProcessingState
-      -> Either MkUnbalancedTxError ConstraintProcessingState
+      :: Either MkUnbalancedTxError Unit /\ (ConstraintProcessingState a)
+      -> Either MkUnbalancedTxError (ConstraintProcessingState a)
     unpackTuple (Left err /\ _) = Left err
     unpackTuple (_ /\ cps) = Right cps
   in
     unpackTuple <$>
-      ( flip runStateT initCps $ flip runReaderT config $
-          processLookupsAndConstraints txConstraints
+      ( flip runStateT initCps $ processLookupsAndConstraints txConstraints
       )
 
 -- See comments in `processLookupsAndConstraints` regarding constraints.
@@ -582,17 +591,18 @@ addMissingValueSpent
    . ConstraintsM a (Either MkUnbalancedTxError Unit)
 addMissingValueSpent = do
   missing <- gets totalMissingValue
+  networkId <- getNetworkId
   if isZero missing then pure $ Right unit
   else runExceptT do
     -- add 'missing' to the transaction's outputs. This ensures that the
     -- wallet will add a corresponding input when balancing the
     -- transaction.
     -- Step 4 of the process described in [Balance of value spent]
-    lookups <- asks (_.scriptLookups >>> unwrap)
+    lookups <- use _config <#> _.scriptLookups >>> unwrap
     let
+      -- lookups = unwrap $ cfg.scriptLookups
       pkh' = lookups.ownPaymentPubKeyHash
       skh' = lookups.ownStakePubKeyHash
-    networkId <- ExceptT getNetworkId
     txOut <- case pkh', skh' of
       Nothing, Nothing -> throwError OwnPubKeyAndStakeKeyMissing
       -- Prioritise pkh:
@@ -612,7 +622,7 @@ updateUtxoIndex
   :: forall (a :: Type)
    . ConstraintsM a (Either MkUnbalancedTxError Unit)
 updateUtxoIndex = runExceptT do
-  txOutputs <- asks (_.scriptLookups >>> unwrap >>> _.txOutputs)
+  txOutputs <- use _config <#> _.scriptLookups >>> unwrap >>> _.txOutputs
   let txOutsMap = mapMaybe ogmiosTxOutToScriptOutput txOutputs
   -- Left bias towards original map, hence `flip`:
   _unbalancedTx <<< _utxoIndex %= flip union txOutsMap
@@ -629,19 +639,20 @@ addOwnInput
   => ToData b
   => InputConstraint b
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
-addOwnInput (InputConstraint { txOutRef }) = runExceptT do
-  ScriptLookups { txOutputs, typedValidator } <- asks _.scriptLookups
-  inst <- liftM TypedValidatorMissing typedValidator
-  networkId <- ExceptT getNetworkId
-  -- This line is to type check the `TxOutRef`. Plutus actually creates a `TxIn`
-  -- but we don't have such a datatype for our `TxBody`. Therefore, if we pass
-  -- this line, we just insert `TxOutRef` into the body.
-  typedTxOutRef <- ExceptT $ liftQueryM $
-    typeTxOutRef networkId (flip lookup txOutputs) inst txOutRef
-      <#> lmap TypeCheckFailed
-  let value = typedTxOutRefValue typedTxOutRef
-  _cpsToTxBody <<< _inputs %= (:) txOutRef
-  _valueSpentBalancesInputs <>= provide value
+addOwnInput (InputConstraint { txOutRef }) = do
+  networkId <- getNetworkId
+  runExceptT do
+    ScriptLookups { txOutputs, typedValidator } <- use _config <#> _.scriptLookups
+    inst <- liftM TypedValidatorMissing typedValidator
+    -- This line is to type check the `TxOutRef`. Plutus actually creates a `TxIn`
+    -- but we don't have such a datatype for our `TxBody`. Therefore, if we pass
+    -- this line, we just insert `TxOutRef` into the body.
+    typedTxOutRef <- ExceptT $ lift $
+      typeTxOutRef networkId (flip lookup txOutputs) inst txOutRef
+        <#> lmap TypeCheckFailed
+    let value = typedTxOutRefValue typedTxOutRef
+    _cpsToTxBody <<< _inputs %= (:) txOutRef
+    _valueSpentBalancesInputs <>= provide value
 
 -- | Add a typed output and return its value.
 addOwnOutput
@@ -651,21 +662,22 @@ addOwnOutput
   => ToData b
   => OutputConstraint b
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
-addOwnOutput (OutputConstraint { datum, value }) = runExceptT do
-  ScriptLookups { typedValidator } <- asks _.scriptLookups
-  inst <- liftM TypedValidatorMissing typedValidator
-  networkId <- ExceptT getNetworkId
-  typedTxOut <-
-    liftM MkTypedTxOutFailed (mkTypedTxOut networkId inst datum value)
-  let txOut = typedTxOutTxOut typedTxOut
-  -- We are erroring if we don't have a datumhash given the polymorphic datum
-  -- in the `OutputConstraint`:
-  dHash <- liftM TypedTxOutHasNoDatumHash (typedTxOutDatumHash typedTxOut)
-  dat <-
-    ExceptT $ liftQueryM $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
-  _cpsToTxBody <<< _outputs %= (:) txOut
-  ExceptT $ addDatum (wrap dat)
-  _valueSpentBalancesOutputs <>= provide value
+addOwnOutput (OutputConstraint { datum, value }) = do
+  networkId <- getNetworkId
+  runExceptT do
+    ScriptLookups { typedValidator } <- use _config <#> _.scriptLookups
+    inst <- liftM TypedValidatorMissing typedValidator
+    typedTxOut <-
+      liftM MkTypedTxOutFailed (mkTypedTxOut networkId inst datum value)
+    let txOut = typedTxOutTxOut typedTxOut
+    -- We are erroring if we don't have a datumhash given the polymorphic datum
+    -- in the `OutputConstraint`:
+    dHash <- liftM TypedTxOutHasNoDatumHash (typedTxOutDatumHash typedTxOut)
+    dat <-
+      ExceptT $ lift $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
+    _cpsToTxBody <<< _outputs %= (:) txOut
+    ExceptT $ addDatum (wrap dat)
+    _valueSpentBalancesOutputs <>= provide value
 
 data MkUnbalancedTxError
   = TypeCheckFailed TypeCheckError
@@ -677,7 +689,6 @@ data MkUnbalancedTxError
   | MintingPolicyHashNotCurrencySymbol MintingPolicyHash
   | CannotMakeValue CurrencySymbol TokenName BigInt
   | ValidatorHashNotFound ValidatorHash
-  | NetworkIdMissing
   | OwnPubKeyAndStakeKeyMissing
   | TypedValidatorMissing
   | DatumWrongHash DatumHash Datum
@@ -706,7 +717,7 @@ lookupTxOutRef
    . TxOutRef
   -> ConstraintsM a (Either MkUnbalancedTxError OgmiosTxOut)
 lookupTxOutRef outRef = do
-  txOutputs <- asks (_.scriptLookups >>> unwrap >>> _.txOutputs)
+  txOutputs <- use _config <#> _.scriptLookups >>> unwrap >>> _.txOutputs
   let err = pure $ throwError $ TxOutRefNotFound outRef
   maybe err (pure <<< Right) $ lookup outRef txOutputs
 
@@ -715,7 +726,7 @@ lookupDatum
    . DatumHash
   -> ConstraintsM a (Either MkUnbalancedTxError Datum)
 lookupDatum dh = do
-  otherDt <- asks (_.scriptLookups >>> unwrap >>> _.otherData)
+  otherDt <- use _config <#> _.scriptLookups >>> unwrap >>> _.otherData
   let err = pure $ throwError $ DatumNotFound dh
   maybe err (pure <<< Right) $ lookup dh otherDt
 
@@ -750,7 +761,7 @@ processConstraint mpsMap osMap = do
   case _ of
     MustIncludeDatum datum -> addDatum datum
     MustValidateIn posixTimeRange -> runExceptT do
-      sc <- asks _.slotConfig
+      sc <- use _config <#> _.slotConfig
       case posixTimeRangeToTransactionSlot sc posixTimeRange of
         Nothing ->
           liftEither $ throwError $ CannotConvertPOSIXTimeRange posixTimeRange
@@ -761,7 +772,8 @@ processConstraint mpsMap osMap = do
               , validity_start_interval = validityStartInterval
               }
     MustBeSignedBy pkh -> runExceptT do
-      ppkh <- asks (_.scriptLookups >>> unwrap >>> _.paymentPubKeyHashes)
+      ppkh <- use _config
+        <#> _.scriptLookups >>> unwrap >>> _.paymentPubKeyHashes
       let sigs = lookup pkh ppkh <#> payPubKeyRequiredSigner >>> Array.singleton
       _cpsToTxBody <<< _requiredSigners <>= sigs
     MustSpendAtLeast vl ->
@@ -864,51 +876,53 @@ processConstraint mpsMap osMap = do
       _redeemers <>= Array.singleton redeemer
       -- Attach redeemer to witness set.
       ExceptT $ attachToCps attachRedeemer redeemer
-    MustPayToPubKeyAddress pkh _ mDatum amount -> runExceptT do
-      -- If datum is presented, add it to 'datumWitnesses' and Array of datums.
-      -- Otherwise continue, hence `liftEither $ Right unit`.
-      maybe (liftEither $ Right unit) (ExceptT <<< addDatum) mDatum
-      networkId <- ExceptT getNetworkId
-      -- [DatumHash Note]
-      -- The behaviour below is subtle because of `datumHash`'s `Maybe` context.
-      -- In particular, if `mDatum` is `Nothing`, then return nothing (note: we
-      -- don't want to fail). However, if we have a datum value, we attempt to
-      -- hash, which may fail. We want to capture this failure.
-      -- Given `data_hash` ~ `Maybe DatumHash`, we don't want return this
-      -- failure in the output. It's possible that this is okay for
-      -- `MustPayToPubKeyAddress` because datums are essentially redundant
-      -- for wallet addresses, but let's fail for now. It is important to
-      -- capture failure for `MustPayToOtherScript` however, because datums
-      -- at script addresses matter.
-      -- e.g. in psuedo code:
-      -- If mDatum = Nothing -> data_hash = Nothing (don't fail)
-      -- If mDatum = Just datum ->
-      --     If datumHash datum = Nothing -> FAIL
-      --     If datumHash datum = Just dHash -> data_hash = dHash
-      -- As mentioned, we could remove this fail behaviour for
-      -- `MustPayToPubKeyAddress`
-      data_hash <- maybe
-        (liftEither $ Right Nothing) -- Don't throw an error if Nothing.
-        (\datum -> liftMWith (CannotHashDatum datum) Just (datumHash datum))
-        mDatum
-      let
-        txOut = TransactionOutput
-          { address: payPubKeyHashAddress networkId pkh, amount, data_hash }
-      _cpsToTxBody <<< _outputs %= (:) txOut
-      _valueSpentBalancesOutputs <>= provide amount
-    MustPayToOtherScript vlh datum amount -> runExceptT do
-      networkId <- ExceptT getNetworkId
-      -- Don't write `let data_hash = datumHash datum`, see [datumHash Note]
-      data_hash <- liftM (CannotHashDatum datum) (datumHash datum <#> Just)
-      let
-        txOut = TransactionOutput
-          { address: validatorHashAddress networkId vlh
-          , amount
-          , data_hash
-          }
-      ExceptT $ addDatum datum
-      _cpsToTxBody <<< _outputs %= (:) txOut
-      _valueSpentBalancesOutputs <>= provide amount
+    MustPayToPubKeyAddress pkh _ mDatum amount -> do
+      networkId <- getNetworkId
+      runExceptT do
+        -- If datum is presented, add it to 'datumWitnesses' and Array of datums.
+        -- Otherwise continue, hence `liftEither $ Right unit`.
+        maybe (liftEither $ Right unit) (ExceptT <<< addDatum) mDatum
+        -- [DatumHash Note]
+        -- The behaviour below is subtle because of `datumHash`'s `Maybe` context.
+        -- In particular, if `mDatum` is `Nothing`, then return nothing (note: we
+        -- don't want to fail). However, if we have a datum value, we attempt to
+        -- hash, which may fail. We want to capture this failure.
+        -- Given `data_hash` ~ `Maybe DatumHash`, we don't want return this
+        -- failure in the output. It's possible that this is okay for
+        -- `MustPayToPubKeyAddress` because datums are essentially redundant
+        -- for wallet addresses, but let's fail for now. It is important to
+        -- capture failure for `MustPayToOtherScript` however, because datums
+        -- at script addresses matter.
+        -- e.g. in psuedo code:
+        -- If mDatum = Nothing -> data_hash = Nothing (don't fail)
+        -- If mDatum = Just datum ->
+        --     If datumHash datum = Nothing -> FAIL
+        --     If datumHash datum = Just dHash -> data_hash = dHash
+        -- As mentioned, we could remove this fail behaviour for
+        -- `MustPayToPubKeyAddress`
+        data_hash <- maybe
+          (liftEither $ Right Nothing) -- Don't throw an error if Nothing.
+          (\datum -> liftMWith (CannotHashDatum datum) Just (datumHash datum))
+          mDatum
+        let
+          txOut = TransactionOutput
+            { address: payPubKeyHashAddress networkId pkh, amount, data_hash }
+        _cpsToTxBody <<< _outputs %= (:) txOut
+        _valueSpentBalancesOutputs <>= provide amount
+    MustPayToOtherScript vlh datum amount -> do
+      networkId <- getNetworkId
+      runExceptT do
+        -- Don't write `let data_hash = datumHash datum`, see [datumHash Note]
+        data_hash <- liftM (CannotHashDatum datum) (datumHash datum <#> Just)
+        let
+          txOut = TransactionOutput
+            { address: validatorHashAddress networkId vlh
+            , amount
+            , data_hash
+            }
+        ExceptT $ addDatum datum
+        _cpsToTxBody <<< _outputs %= (:) txOut
+        _valueSpentBalancesOutputs <>= provide amount
     MustHashDatum dh dt ->
       if datumHash dt == Just dh then addDatum dt
       else pure $ throwError $ DatumWrongHash dh dt
@@ -971,16 +985,19 @@ addDatum datum = runExceptT do
   _datums %= (:) datum
 
 -- Helper to focus from `ConstraintProcessingState` down to `Transaction`.
-_cpsToTransaction :: Lens' ConstraintProcessingState Transaction
+_cpsToTransaction
+  :: forall (a :: Type). Lens' (ConstraintProcessingState a) Transaction
 _cpsToTransaction = _unbalancedTx <<< _transaction
 
 -- Helper to focus from `ConstraintProcessingState` down to
 -- `TransactionWitnessSet`.
-_cpsToWitnessSet :: Lens' ConstraintProcessingState TransactionWitnessSet
+_cpsToWitnessSet
+  :: forall (a :: Type)
+   . Lens' (ConstraintProcessingState a) TransactionWitnessSet
 _cpsToWitnessSet = _cpsToTransaction <<< _witnessSet
 
 -- Helper to focus from `ConstraintProcessingState` down to `TxBody`.
-_cpsToTxBody :: Lens' ConstraintProcessingState TxBody
+_cpsToTxBody :: forall (a :: Type). Lens' (ConstraintProcessingState a) TxBody
 _cpsToTxBody = _cpsToTransaction <<< _body
 
 lastIndex :: forall (a :: Type). Array a -> BigInt
@@ -988,6 +1005,6 @@ lastIndex = length >>> flip (-) one >>> fromInt
 
 getNetworkId
   :: forall (a :: Type)
-   . ConstraintsM a (Either MkUnbalancedTxError NetworkId)
-getNetworkId = runExceptT $
-  use (_cpsToTxBody <<< _networkId) >>= liftM NetworkIdMissing
+   . ConstraintsM a NetworkId
+getNetworkId = use (_cpsToTxBody <<< _networkId)
+  >>= maybe (lift $ asks _.networkId) pure
