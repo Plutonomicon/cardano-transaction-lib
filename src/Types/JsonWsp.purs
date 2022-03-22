@@ -71,7 +71,7 @@ import Types.Value
   , mkValue
   )
 import Untagged.TypeCheck (class HasRuntimeType)
-import Untagged.Union (type (|+|))
+import Untagged.Union (type (|+|), toEither1)
 
 -- creates a unique id prefixed by its argument
 foreign import _uniqueId :: String -> Effect String
@@ -312,7 +312,16 @@ parseValue outer = do
 
 -- chain tip query
 
-type ChainTipQR = ChainOrigin |+| ChainPoint
+data ChainTipQR
+  = CtChainOrigin ChainOrigin
+  | CtChainPoint ChainPoint
+
+instance DecodeAeson ChainTipQR where
+  decodeAeson j = do
+    r :: (ChainOrigin |+| ChainPoint) <- decodeAeson j
+    pure $ case toEither1 r of
+      Left co -> CtChainOrigin co
+      Right cp -> CtChainPoint cp
 
 -- | A Blake2b 32-byte digest of an era-independent block header, serialised as CBOR in base16
 newtype OgmiosBlockHeaderHash = OgmiosBlockHeaderHash String
