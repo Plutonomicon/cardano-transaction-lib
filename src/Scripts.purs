@@ -86,7 +86,7 @@ validatorHashAddress :: NetworkId -> ValidatorHash -> Address
 validatorHashAddress networkId =
   baseAddressToAddress <<< validatorHashBaseAddress networkId
 
--- | Converts a Plutus-style `StakeValidator` to an `Address`
+-- | Converts a Plutus-style `StakeValidator` to an `StakeValidatorHash`
 stakeValidatorHash :: StakeValidator -> QueryM (Maybe StakeValidatorHash)
 stakeValidatorHash = scriptHash
 
