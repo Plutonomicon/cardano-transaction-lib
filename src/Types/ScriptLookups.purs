@@ -406,8 +406,7 @@ _redeemers
 _redeemers = prop (SProxy :: SProxy "redeemers")
 
 _lookups
-  :: forall (a :: Type)
-   . Lens' (ConstraintProcessingState a) (ScriptLookups a)
+  :: forall (a :: Type). Lens' (ConstraintProcessingState a) (ScriptLookups a)
 _lookups = prop (SProxy :: SProxy "lookups")
 
 missingValueSpent :: ValueSpentBalances -> Value
