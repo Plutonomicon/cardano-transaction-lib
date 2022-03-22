@@ -31,14 +31,13 @@ payToAlwaysSucceeds = do
     constraints :: Constraints.TxConstraints Void Void
     constraints = Constraints.mustPayToOtherScript valHash unitDatum
       $ lovelaceValueOf
-      $ BigInt.fromInt 1000
+      $ BigInt.fromInt 2_000_000
 
-    lookups :: Maybe (Lookups.ScriptLookups Void)
-    lookups = Lookups.otherScriptM validator
+    lookups :: Lookups.ScriptLookups Void
+    lookups = Lookups.otherScript validator
 
   unbalancedTx <- throwOnLeft
-    =<< flip Lookups.mkUnbalancedTx constraints
-    =<< throwOnNothing "Lookups were `Nothing`" lookups
+    =<< Lookups.mkUnbalancedTx lookups constraints
   balancedTx <- throwOnLeft =<< balanceTx unbalancedTx
   submitTransaction balancedTx
 
