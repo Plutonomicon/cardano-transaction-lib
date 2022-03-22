@@ -90,7 +90,8 @@ validatorHashAddress networkId =
 stakeValidatorHash :: StakeValidator -> QueryM (Maybe StakeValidatorHash)
 stakeValidatorHash = scriptHash
 
--- | Converts a `PlutusScript` to a `ScriptHash`.
+-- | Converts any newtype wrapper of `PlutusScript` to a newtype wrapper
+-- | of `ScriptHash`.
 scriptHash
   :: forall (m :: Type) (n :: Type)
    . Newtype m PlutusScript
