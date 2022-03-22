@@ -460,19 +460,7 @@ hashScript script = do
   liftAff (Affjax.post Affjax.ResponseFormat.json url reqBody)
     <#> either
       (Left <<< ClientHttpError)
-      (bimap ClientDecodeJsonError wrap <<< decodeScriptHash <<< _.body)
-  where
-  -- I'm not sure if this should be the "canonical" way to decode a script
-  -- hash, so it might be better to define this here instead of defining a
-  -- `DecodeJson` instance
-  decodeScriptHash :: Json.Json → Either JsonDecodeError ScriptHash
-  decodeScriptHash =
-    Json.caseJsonObject
-      (Left (Json.TypeMismatch "Expected object"))
-      $
-        note (Json.TypeMismatch "Expected hex-encoded script hash")
-          <<< (scriptHashFromBytes <=< hexToByteArray)
-          <=< flip Json.getField "getScriptHash"
+      (bimap ClientDecodeJsonError wrap <<< Json.decodeJson <<< _.body)
 
 -- It's easier to just write the encoder here than provide an `EncodeJson`
 -- instance (there are some brutal cyclical dependency issues trying to
