@@ -2,8 +2,17 @@
 -- | `Value` is isomorphic to Plutus' reprsentation with the only difference
 -- | being that Ada's currency symbol does not exist, instead, Ada is
 -- | represented by `Coin`.
-module Contract.Value (module Value) where
+module Contract.Value
+  ( module Value
+  , scriptCurrencySymbol
+  ) where
 
+import Prelude
+import Contract.Monad (Contract)
+import Data.Maybe (Maybe)
+import Data.Newtype (wrap)
+import Scripts (scriptCurrencySymbol) as Scripts
+import Types.Scripts (MintingPolicy)
 import Types.Value
   ( Coin(Coin)
   , CurrencySymbol
@@ -44,7 +53,12 @@ import Types.Value
   , negation
   , numCurrencySymbols
   , numTokenNames
+  , unionWith
+  , unionWithNonAda
   , valueOf
   , valueToCoin
   , valueToCoin'
   ) as Value
+
+scriptCurrencySymbol :: MintingPolicy -> Contract (Maybe Value.CurrencySymbol)
+scriptCurrencySymbol = wrap <<< Scripts.scriptCurrencySymbol

@@ -1,5 +1,6 @@
 module Scripts
   ( mintingPolicyHash
+  , scriptCurrencySymbol
   , scriptHash
   , stakeValidatorHash
   , typedValidatorAddress
@@ -39,6 +40,7 @@ import Types.Scripts
   , ValidatorHash
   )
 import Types.TypedValidator (TypedValidator(TypedValidator))
+import Types.Value (CurrencySymbol, mpsSymbol)
 import Undefined (undefined)
 
 -- | Helpers for `PlutusScript` and `ScriptHash` newtype wrappers, separate from
@@ -100,3 +102,7 @@ plutusScriptHash = map (map wrap) <<< scriptHash <<< unwrap
 -- | Converts a `PlutusScript` to a `ScriptHash`.
 scriptHash :: PlutusScript -> QueryM (Maybe ScriptHash)
 scriptHash = undefined
+
+scriptCurrencySymbol :: MintingPolicy -> QueryM (Maybe CurrencySymbol)
+scriptCurrencySymbol mp =
+  mintingPolicyHash mp >>= maybe Nothing mpsSymbol >>> pure
