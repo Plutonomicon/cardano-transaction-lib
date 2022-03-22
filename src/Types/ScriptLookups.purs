@@ -384,6 +384,8 @@ type ConstraintProcessingState (a :: Type) =
   -- add execution units via Ogmios. Note: this mixes script and minting
   -- redeemers.
   , config :: ConstraintsConfig a
+  -- Configuration options for resolving constraints/lookups. Should be treated
+  -- as an immutable value despite living inside the processing state
   }
 
 -- We could make these signatures polymorphic but they're not exported so don't
@@ -437,10 +439,10 @@ type ConstraintsConfig (a :: Type) =
   , slotConfig :: SlotConfig
   }
 
--- A `ReaderT` and `StateT` ontop of `QueryM` ~ ReaderT QueryConfig Aff`.
--- The config is `ConstraintsConfig`  which holds the scriptlookups and a
--- `defaultSlotConfig`. The state is `ConstraintProcessingState` which keeps
--- track of the unbalanced transaction etc.
+-- A `StateT` ontop of `QueryM` ~ ReaderT QueryConfig Aff`.
+-- The state is `ConstraintProcessingState`, which keeps track of the unbalanced
+-- transaction etc and additionally holds a `ConstraintsConfig` containing the
+-- scriptlookups and a `defaultSlotConfig`.
 -- We write `ReaderT QueryConfig Aff` below since type synonyms need to be fully
 -- applied.
 type ConstraintsM (a :: Type) (b :: Type) =
