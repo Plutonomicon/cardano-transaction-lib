@@ -17,6 +17,7 @@ import QueryM
   , mkOgmiosWebSocketAff
   )
 import QueryM.Utxos (utxosAt)
+import Serialization.Address (NetworkId(TestnetId))
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.JsonWsp (OgmiosAddress)
@@ -60,6 +61,7 @@ testUtxosAt testAddr = do
       , serverConfig: defaultServerConfig
       , wallet: Nothing
       , usedTxOuts
+      , networkId: TestnetId
       }
 
 testFromOgmiosAddress :: OgmiosAddress -> Aff Unit
