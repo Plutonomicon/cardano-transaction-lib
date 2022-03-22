@@ -20,6 +20,7 @@ import QueryM.Utxos (utxosAt)
 import Serialization.Address (NetworkId(TestnetId))
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
+import Types.Interval (defaultSlotConfig)
 import Types.JsonWsp (OgmiosAddress)
 import UsedTxOuts (newUsedTxOuts)
 
@@ -62,6 +63,7 @@ testUtxosAt testAddr = do
       , wallet: Nothing
       , usedTxOuts
       , networkId: TestnetId
+      , slotConfig: defaultSlotConfig
       }
 
 testFromOgmiosAddress :: OgmiosAddress -> Aff Unit
