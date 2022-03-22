@@ -1,10 +1,7 @@
 module ToData
-  ( Z, S
-  , class ToDataWithIndex
+  ( class ToDataWithIndex
   , class ToData
   , class ToDataArgs
-  , class Countable
-  , count
   , genericToData
   , toData
   , toDataArgs
@@ -29,7 +26,6 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Helpers (uIntToBigInt)
 import Prim.TypeError (class Fail, Text)
-import Type.Proxy (Proxy(..))
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Constr, Integer, List, Map, Bytes))
 
@@ -37,33 +33,21 @@ class ToData (a :: Type) where
   toData :: a -> PlutusData
 
 -- Generic
-data Z
-data S (n :: Type)
+class ToDataWithIndex t where
+  toDataWithIndex :: BigInt -> t -> PlutusData
 
-class Countable (n :: Type) where
-  count :: Proxy n -> BigInt
+instance toDataWithIndexSumA :: (ToDataArgs la, ToDataWithIndex (G.Sum a b))
+                                => ToDataWithIndex (G.Sum (G.Constructor ln la) (G.Sum a b))  where
+  toDataWithIndex n (G.Inl (G.Constructor args)) = Constr n (toDataArgs args)
+  toDataWithIndex n (G.Inr x) = toDataWithIndex (n + fromInt 1) x
 
-instance countableZ :: Countable Z where
-  count _ = fromInt 0
+instance toDataWithIndexSumB :: (ToDataArgs la, ToDataArgs ra)
+                                => ToDataWithIndex (G.Sum (G.Constructor ln la) (G.Constructor rn ra)) where
+  toDataWithIndex n (G.Inl (G.Constructor args)) = Constr n (toDataArgs args)
+  toDataWithIndex n (G.Inr (G.Constructor args)) = Constr (n + fromInt 1) (toDataArgs args)
 
-instance countableS :: (Countable n) => Countable (S n) where
-  count _ = fromInt 1 + count (Proxy :: Proxy n)
-
-class ToDataWithIndex t n where
-  toDataWithIndex :: Countable n => Proxy n -> t -> PlutusData
-
-instance toDataWithIndexSumA :: (ToDataArgs la, ToDataWithIndex (G.Sum a b) (S n), Countable n)
-                                => ToDataWithIndex (G.Sum (G.Constructor ln la) (G.Sum a b)) n  where
-  toDataWithIndex n (G.Inl (G.Constructor args)) = Constr (count n) (toDataArgs args)
-  toDataWithIndex _ (G.Inr x) = toDataWithIndex (Proxy :: Proxy (S n)) x
-
-instance toDataWithIndexSumB :: (ToDataArgs la, ToDataArgs ra, Countable n)
-                                => ToDataWithIndex (G.Sum (G.Constructor ln la) (G.Constructor rn ra)) n where
-  toDataWithIndex n (G.Inl (G.Constructor args)) = Constr (count n) (toDataArgs args)
-  toDataWithIndex n (G.Inr (G.Constructor args)) = Constr (count n + fromInt 1) (toDataArgs args)
-
-instance (ToDataWithIndex (G.Sum l r) Z) => ToData (G.Sum l r) where
-  toData x = toDataWithIndex (Proxy :: Proxy Z) x
+instance (ToDataWithIndex (G.Sum l r)) => ToData (G.Sum l r) where
+  toData x = toDataWithIndex zero x
 
 -- As explained in https://harry.garrood.me/blog/write-your-own-generics/ this
 -- is just a neat pattern that flattens a skewed Product of Products
