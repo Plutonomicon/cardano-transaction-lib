@@ -67,12 +67,7 @@ import Serialization.Address (Address, NetworkId)
 import ToData (class ToData)
 import Types.Any (Any)
 import Types.Datum (Datum, DatumHash, datumHash)
-import Types.Interval
-  ( POSIXTimeRange
-  , SlotConfig
-  , defaultSlotConfig
-  , posixTimeRangeToTransactionSlot
-  )
+import Types.Interval (POSIXTimeRange, posixTimeRangeToTransactionSlot)
 import Types.JsonWsp (OgmiosTxOut)
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
 import Types.Scripts
@@ -383,7 +378,10 @@ type ConstraintProcessingState (a :: Type) =
   -- Ordered accumulation of redeemers so we can use to `setScriptDataHash` and
   -- add execution units via Ogmios. Note: this mixes script and minting
   -- redeemers.
-  , config :: ConstraintsConfig a
+  , lookups :: ScriptLookups a
+  -- Treat the lookups as an immuntable `Reader` variable. This was simpler than
+  -- adding `ReaderT` ontop of `ConstraintsM` then obsecuring the original
+  -- `ReaderT`.
   }
 
 -- We could make these signatures polymorphic but they're not exported so don't
@@ -408,10 +406,10 @@ _redeemers
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) (Array T.Redeemer)
 _redeemers = prop (SProxy :: SProxy "redeemers")
 
-_config
+_lookups
   :: forall (a :: Type)
-   . Lens' (ConstraintProcessingState a) (ConstraintsConfig a)
-_config = prop (SProxy :: SProxy "config")
+   . Lens' (ConstraintProcessingState a) (ScriptLookups a)
+_lookups = prop (SProxy :: SProxy "lookups")
 
 missingValueSpent :: ValueSpentBalances -> Value
 missingValueSpent (ValueSpentBalances { required, provided }) =
@@ -432,15 +430,8 @@ provide provided = ValueSpentBalances { provided, required: mempty }
 require :: Value -> ValueSpentBalances
 require required = ValueSpentBalances { required, provided: mempty }
 
-type ConstraintsConfig (a :: Type) =
-  { scriptLookups :: ScriptLookups a
-  , slotConfig :: SlotConfig
-  }
-
--- A `ReaderT` and `StateT` ontop of `QueryM` ~ ReaderT QueryConfig Aff`.
--- The config is `ConstraintsConfig`  which holds the scriptlookups and a
--- `defaultSlotConfig`. The state is `ConstraintProcessingState` which keeps
--- track of the unbalanced transaction etc.
+-- The state is `ConstraintProcessingState` which keeps track of the unbalanced
+-- transaction etc.
 -- We write `ReaderT QueryConfig Aff` below since type synonyms need to be fully
 -- applied.
 type ConstraintsM (a :: Type) (b :: Type) =
@@ -471,7 +462,7 @@ processLookupsAndConstraints
   (TxConstraints { constraints, ownInputs, ownOutputs }) = runExceptT do
   -- Hash all the MintingPolicys and Scripts beforehand. These maps are lost
   -- after we `runReaderT`, unlike Plutus that has a `Map` instead of `Array`.
-  lookups <- use _config <#> _.scriptLookups >>> unwrap
+  lookups <- use _lookups <#> unwrap
   let
     mps = lookups.mps
     otherScripts = lookups.otherScripts
@@ -527,14 +518,8 @@ runConstraintsM
   => ScriptLookups a
   -> TxConstraints b b
   -> QueryM (Either MkUnbalancedTxError (ConstraintProcessingState a))
-runConstraintsM scriptLookups txConstraints =
+runConstraintsM lookups txConstraints =
   let
-    config :: ConstraintsConfig a
-    config =
-      { scriptLookups
-      , slotConfig: defaultSlotConfig
-      }
-
     initCps :: ConstraintProcessingState a
     initCps =
       { unbalancedTx: emptyUnbalancedTx
@@ -544,7 +529,7 @@ runConstraintsM scriptLookups txConstraints =
           ValueSpentBalances { required: mempty, provided: mempty }
       , datums: mempty
       , redeemers: mempty
-      , config
+      , lookups
       }
 
     unpackTuple
@@ -596,7 +581,7 @@ addMissingValueSpent = do
     -- wallet will add a corresponding input when balancing the
     -- transaction.
     -- Step 4 of the process described in [Balance of value spent]
-    lookups <- use _config <#> _.scriptLookups >>> unwrap
+    lookups <- use _lookups <#> unwrap
     let
       -- lookups = unwrap $ cfg.scriptLookups
       pkh' = lookups.ownPaymentPubKeyHash
@@ -620,7 +605,7 @@ updateUtxoIndex
   :: forall (a :: Type)
    . ConstraintsM a (Either MkUnbalancedTxError Unit)
 updateUtxoIndex = runExceptT do
-  txOutputs <- use _config <#> _.scriptLookups >>> unwrap >>> _.txOutputs
+  txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
   let txOutsMap = mapMaybe ogmiosTxOutToScriptOutput txOutputs
   -- Left bias towards original map, hence `flip`:
   _unbalancedTx <<< _utxoIndex %= flip union txOutsMap
@@ -640,7 +625,7 @@ addOwnInput
 addOwnInput (InputConstraint { txOutRef }) = do
   networkId <- getNetworkId
   runExceptT do
-    ScriptLookups { txOutputs, typedValidator } <- use _config <#> _.scriptLookups
+    ScriptLookups { txOutputs, typedValidator } <- use _lookups
     inst <- liftM TypedValidatorMissing typedValidator
     -- This line is to type check the `TxOutRef`. Plutus actually creates a `TxIn`
     -- but we don't have such a datatype for our `TxBody`. Therefore, if we pass
@@ -663,7 +648,7 @@ addOwnOutput
 addOwnOutput (OutputConstraint { datum, value }) = do
   networkId <- getNetworkId
   runExceptT do
-    ScriptLookups { typedValidator } <- use _config <#> _.scriptLookups
+    ScriptLookups { typedValidator } <- use _lookups
     inst <- liftM TypedValidatorMissing typedValidator
     typedTxOut <-
       liftM MkTypedTxOutFailed (mkTypedTxOut networkId inst datum value)
@@ -715,7 +700,7 @@ lookupTxOutRef
    . TxOutRef
   -> ConstraintsM a (Either MkUnbalancedTxError OgmiosTxOut)
 lookupTxOutRef outRef = do
-  txOutputs <- use _config <#> _.scriptLookups >>> unwrap >>> _.txOutputs
+  txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
   let err = pure $ throwError $ TxOutRefNotFound outRef
   maybe err (pure <<< Right) $ lookup outRef txOutputs
 
@@ -724,7 +709,7 @@ lookupDatum
    . DatumHash
   -> ConstraintsM a (Either MkUnbalancedTxError Datum)
 lookupDatum dh = do
-  otherDt <- use _config <#> _.scriptLookups >>> unwrap >>> _.otherData
+  otherDt <- use _lookups <#> unwrap >>> _.otherData
   let err = pure $ throwError $ DatumNotFound dh
   maybe err (pure <<< Right) $ lookup dh otherDt
 
@@ -759,7 +744,7 @@ processConstraint mpsMap osMap = do
   case _ of
     MustIncludeDatum datum -> addDatum datum
     MustValidateIn posixTimeRange -> runExceptT do
-      sc <- use _config <#> _.slotConfig
+      sc <- asks _.slotConfig
       case posixTimeRangeToTransactionSlot sc posixTimeRange of
         Nothing ->
           liftEither $ throwError $ CannotConvertPOSIXTimeRange posixTimeRange
@@ -770,8 +755,7 @@ processConstraint mpsMap osMap = do
               , validity_start_interval = validityStartInterval
               }
     MustBeSignedBy pkh -> runExceptT do
-      ppkh <- use _config
-        <#> _.scriptLookups >>> unwrap >>> _.paymentPubKeyHashes
+      ppkh <- use _lookups <#> unwrap >>> _.paymentPubKeyHashes
       let sigs = lookup pkh ppkh <#> payPubKeyRequiredSigner >>> Array.singleton
       _cpsToTxBody <<< _requiredSigners <>= sigs
     MustSpendAtLeast vl ->

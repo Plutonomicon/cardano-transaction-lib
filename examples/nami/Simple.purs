@@ -25,6 +25,7 @@ import QueryM
   , defaultServerConfig
   )
 import Serialization.Address (NetworkId(TestnetId))
+import Types.Interval (defaultSlotConfig)
 import UsedTxOuts (newUsedTxOuts)
 import Wallet (mkNamiWalletAff)
 
@@ -40,6 +41,7 @@ main = launchAff_ $ do
     , serverConfig: defaultServerConfig
     , usedTxOuts
     , networkId: TestnetId
+    , slotConfig: defaultSlotConfig
     }
   where
   walletActions :: QueryM Unit
