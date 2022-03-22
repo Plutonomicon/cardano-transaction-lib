@@ -44,6 +44,7 @@ import QueryM
   , mkOgmiosWebSocketAff
   , mkWsUrl
   ) as QueryM
+import Serialization.Address (NetworkId(TestnetId))
 import UsedTxOuts (newUsedTxOuts)
 import Wallet (mkNamiWalletAff)
 
@@ -129,6 +130,7 @@ defaultContractConfig = do
     , wallet
     , serverConfig: QueryM.defaultServerConfig
     , usedTxOuts
+    , networkId: TestnetId
     }
 
 -- | Same as `defaultContractConfig` but lifted into `Contract`.

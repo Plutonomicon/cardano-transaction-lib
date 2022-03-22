@@ -24,6 +24,7 @@ import QueryM
   , getWalletCollateral
   , defaultServerConfig
   )
+import Serialization.Address (NetworkId(TestnetId))
 import UsedTxOuts (newUsedTxOuts)
 import Wallet (mkNamiWalletAff)
 
@@ -38,6 +39,7 @@ main = launchAff_ $ do
     , wallet
     , serverConfig: defaultServerConfig
     , usedTxOuts
+    , networkId: TestnetId
     }
   where
   walletActions :: QueryM Unit
