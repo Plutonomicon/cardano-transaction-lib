@@ -115,6 +115,7 @@ newtype HashedScript = HashedScript Ledger.Scripts.ScriptHash
   deriving newtype (Eq, FromJSON, ToJSON)
 
 -- Adapted from `plutus-apps` implementation
+-- rev. d637b1916522e4ec20b719487a8a2e066937aceb
 hashLedgerScript :: Ledger.Script -> Ledger.Scripts.ScriptHash
 hashLedgerScript =
   Ledger.Scripts.ScriptHash
@@ -134,7 +135,6 @@ toCardanoApiScript =
     . serialise
 
 -- We'll probably extend this with more error types over time
--- rev. d637b1916522e4ec20b719487a8a2e066937aceb
 newtype CardanoBrowserServerError = FeeEstimate FeeEstimateError
   deriving stock (Show)
 
