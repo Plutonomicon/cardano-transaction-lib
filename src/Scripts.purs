@@ -13,10 +13,10 @@ module Scripts
   ) where
 
 import Prelude
-import Control.Monad.Maybe.Trans (runMaybeT, MaybeT(MaybeT))
+import Data.Either (hush)
 import Data.Maybe (Maybe(Nothing), maybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
-import QueryM (QueryM)
+import Data.Newtype (class Newtype, unwrap)
+import QueryM (QueryM, hashScript)
 import Serialization.Address
   ( Address
   , BaseAddress
@@ -41,7 +41,6 @@ import Types.Scripts
   )
 import Types.TypedValidator (TypedValidator(TypedValidator))
 import Types.Value (CurrencySymbol, mpsSymbol)
-import Undefined (undefined)
 
 -- | Helpers for `PlutusScript` and `ScriptHash` newtype wrappers, separate from
 -- | the data type definitions to prevent cylic dependencies.
@@ -72,11 +71,11 @@ typedValidatorAddress networkId =
 
 -- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
 mintingPolicyHash :: MintingPolicy -> QueryM (Maybe MintingPolicyHash)
-mintingPolicyHash = plutusScriptHash
+mintingPolicyHash = scriptHash
 
 -- | Converts a Plutus-style `Validator` to an `ValidatorHash`
 validatorHash :: Validator -> QueryM (Maybe ValidatorHash)
-validatorHash = plutusScriptHash
+validatorHash = scriptHash
 
 -- | Converts a Plutus-style `ValidatorHash` to a `BaseAddress`
 validatorHashBaseAddress :: NetworkId -> ValidatorHash -> BaseAddress
@@ -89,20 +88,19 @@ validatorHashAddress networkId =
 
 -- | Converts a Plutus-style `StakeValidator` to an `Address`
 stakeValidatorHash :: StakeValidator -> QueryM (Maybe StakeValidatorHash)
-stakeValidatorHash = plutusScriptHash
+stakeValidatorHash = scriptHash
 
-plutusScriptHash
+-- | Converts a `PlutusScript` to a `ScriptHash`.
+scriptHash
   :: forall (m :: Type) (n :: Type)
    . Newtype m PlutusScript
   => Newtype n ScriptHash
   => m
   -> QueryM (Maybe n)
-plutusScriptHash = map (map wrap) <<< scriptHash <<< unwrap
+scriptHash = map hush <<< hashScript
 
--- | Converts a `PlutusScript` to a `ScriptHash`.
-scriptHash :: PlutusScript -> QueryM (Maybe ScriptHash)
-scriptHash = undefined
-
+-- | Converts a `MintingPolicy` to a `CurrencySymbol`.
 scriptCurrencySymbol :: MintingPolicy -> QueryM (Maybe CurrencySymbol)
 scriptCurrencySymbol mp =
   mintingPolicyHash mp >>= maybe Nothing mpsSymbol >>> pure
+

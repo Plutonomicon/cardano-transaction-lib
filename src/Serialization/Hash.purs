@@ -15,6 +15,9 @@ module Serialization.Hash
 
 import Prelude
 
+import Data.Argonaut (class DecodeJson)
+import Data.Argonaut as Json
+import Data.Either (Either(Left), note)
 import Data.Function (on)
 import Data.Maybe (Maybe(Nothing))
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
@@ -22,7 +25,7 @@ import FromData (class FromData)
 import Serialization.Csl (class ToCsl)
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
-import Types.ByteArray (ByteArray, byteArrayToHex)
+import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.PlutusData (PlutusData(Bytes))
 
 -- | PubKeyHash and StakeKeyHash refers to blake2b-224 hash digests of Ed25519
@@ -107,6 +110,14 @@ instance ToData ScriptHash where
 instance FromData ScriptHash where
   fromData (Bytes bytes) = scriptHashFromBytes bytes
   fromData _ = Nothing
+
+-- Corresponds to Plutus' `Plutus.V1.Ledger.Api.Script` Aeson instances
+instance DecodeJson ScriptHash where
+  decodeJson =
+    Json.caseJsonObject (Left (Json.TypeMismatch "Expected object")) $
+      note (Json.TypeMismatch "Expected hex-encoded script hash")
+        <<< (scriptHashFromBytes <=< hexToByteArray)
+        <=< flip Json.getField "getScriptHash"
 
 foreign import _scriptHashFromBytesImpl
   :: MaybeFfiHelper
