@@ -24,7 +24,13 @@ import Address
   , addressStakeValidatorHash
   , addressValidatorHash
   ) as Address
-import QueryM (ClientError(..)) as ExportQueryM
+import QueryM
+  ( ClientError
+      ( ClientHttpError
+      , ClientDecodeJsonError
+      , ClientEncodingError
+      )
+  ) as ExportQueryM
 import QueryM (applyArgs) as QueryM
 import Scripts
   ( typedValidatorAddress
