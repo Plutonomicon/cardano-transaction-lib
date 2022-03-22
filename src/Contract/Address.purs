@@ -9,6 +9,7 @@ module Contract.Address
   , module ByteArray
   , module JsonWsp
   , module Scripts
+  , module ContractScripts
   , module SerializationAddress
   , module Transaction
   , module UnbalancedTransaction
@@ -23,6 +24,10 @@ import Address
   , ogmiosAddressToAddress
   ) as Address
 import Contract.Monad (Contract)
+import Contract.Scripts
+  ( validatorAddress
+  , validatorBaseAddress
+  ) as ContractScripts
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
 import QueryM
@@ -34,8 +39,6 @@ import QueryM
 import Scripts
   ( typedValidatorAddress
   , typedValidatorBaseAddress
-  , validatorAddress
-  , validatorBaseAddress
   , validatorHashAddress
   , validatorHashBaseAddress
   ) as Scripts
