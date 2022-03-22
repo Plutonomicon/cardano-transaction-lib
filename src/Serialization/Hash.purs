@@ -111,15 +111,13 @@ instance FromData ScriptHash where
   fromData (Bytes bytes) = scriptHashFromBytes bytes
   fromData _ = Nothing
 
--- This matches the Plutus `ToJSON` instance
+-- Corresponds to Plutus' `Plutus.V1.Ledger.Api.Script` Aeson instances
 instance DecodeJson ScriptHash where
   decodeJson =
-    Json.caseJsonObject
-      (Left (Json.TypeMismatch "Expected object"))
-      $
-        note (Json.TypeMismatch "Expected hex-encoded script hash")
-          <<< (scriptHashFromBytes <=< hexToByteArray)
-          <=< flip Json.getField "getScriptHash"
+    Json.caseJsonObject (Left (Json.TypeMismatch "Expected object")) $
+      note (Json.TypeMismatch "Expected hex-encoded script hash")
+        <<< (scriptHashFromBytes <=< hexToByteArray)
+        <=< flip Json.getField "getScriptHash"
 
 foreign import _scriptHashFromBytesImpl
   :: MaybeFfiHelper

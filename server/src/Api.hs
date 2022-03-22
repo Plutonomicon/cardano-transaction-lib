@@ -65,7 +65,8 @@ app = Cors.cors (const $ Just policy) . serve api . appServer
   where
     policy :: Cors.CorsResourcePolicy
     policy = Cors.simpleCorsResourcePolicy
-      { Cors.corsMethods = ["OPTIONS", "GET", "POST"]
+      { Cors.corsRequestHeaders = ["Content-Type"]
+      , Cors.corsMethods = ["OPTIONS", "GET", "POST"]
       }
 
 appServer :: Env -> Server Api

@@ -12,10 +12,9 @@ module Scripts
   ) where
 
 import Prelude
-import Control.Monad.Maybe.Trans (runMaybeT, MaybeT(MaybeT))
 import Data.Either (hush)
 import Data.Maybe (Maybe(Nothing), maybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Newtype (class Newtype, unwrap)
 import QueryM (QueryM, hashScript)
 import Serialization.Address
   ( Address
@@ -40,7 +39,6 @@ import Types.Scripts
   , ValidatorHash
   )
 import Types.TypedValidator (TypedValidator(TypedValidator))
-import Undefined (undefined)
 
 -- | Helpers for `PlutusScript` and `ScriptHash` newtype wrappers, separate from
 -- | the data type definitions to prevent cylic dependencies.
