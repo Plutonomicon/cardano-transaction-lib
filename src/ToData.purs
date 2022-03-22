@@ -1,20 +1,18 @@
 module ToData
-  ( Day(..)
-  , class ConstrIndex
-  , class IsIndexed
+  ( Z, S
+  , class ToDataWithIndex
   , class ToData
   , class ToDataArgs
-  , genericIndexFromConstructor
+  , class Countable
+  , count
   , genericToData
-  , indexFromConstructor
   , toData
   , toDataArgs
-  , constrToIndex
+  , toDataWithIndex
   ) where
 
 import Prelude
 
-import Contract.Prelude (Tuple(..), genericShow)
 import Data.Array as Array
 import Data.BigInt (BigInt, fromInt)
 import Data.BigInt as BigInt
@@ -27,7 +25,6 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Profunctor.Strong ((***))
 import Data.Ratio (Ratio, denominator, numerator)
-import Data.Symbol (class IsSymbol, reflectSymbol, SProxy(..))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Helpers (uIntToBigInt)
@@ -36,26 +33,41 @@ import Type.Proxy (Proxy(..))
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Constr, Integer, List, Map, Bytes))
 
-data Day = Mon | Tue | Wed | Thurs | Fri | Sat | Sun
-
-derive instance genericDay :: G.Generic Day _
-
-instance showDay :: Show Day where
-  show = genericShow
-
-instance dayToData :: ToData Day where
-  toData = genericToData
-
 class ToData (a :: Type) where
   toData :: a -> PlutusData
 
-class ConstrIndex (a :: Type) where
-  constrToIndex :: Proxy a -> Map String Int
-
-instance dayConstrIndex :: ConstrIndex Day where
-  constrToIndex _ = Map.fromFoldable [ Tuple "Mon" 0 ]
-
 -- Generic
+data Z
+data S (n :: Type)
+
+class Countable (n :: Type) where
+  count :: Proxy n -> BigInt
+
+instance countableZ :: Countable Z where
+  count _ = fromInt 0
+
+instance countableS :: (Countable n) => Countable (S n) where
+  count _ = fromInt 1 + count (Proxy :: Proxy n)
+
+class ToDataWithIndex t n where
+  toDataWithIndex :: Countable n => Proxy n -> t -> PlutusData
+
+instance toDataWithIndexSumA :: (ToDataArgs la, ToDataWithIndex (G.Sum a b) (S n), Countable n)
+                                => ToDataWithIndex (G.Sum (G.Constructor ln la) (G.Sum a b)) n  where
+  toDataWithIndex n (G.Inl (G.Constructor args)) = Constr (count n) (toDataArgs args)
+  toDataWithIndex _ (G.Inr x) = toDataWithIndex (Proxy :: Proxy (S n)) x
+
+instance toDataWithIndexSumB :: (ToDataArgs la, ToDataArgs ra, Countable n)
+                                => ToDataWithIndex (G.Sum (G.Constructor ln la) (G.Constructor rn ra)) n where
+  toDataWithIndex n (G.Inl (G.Constructor args)) = Constr (count n) (toDataArgs args)
+  toDataWithIndex n (G.Inr (G.Constructor args)) = Constr (count n + fromInt 1) (toDataArgs args)
+
+instance (ToDataWithIndex (G.Sum l r) Z) => ToData (G.Sum l r) where
+  toData x = toDataWithIndex (Proxy :: Proxy Z) x
+
+-- As explained in https://harry.garrood.me/blog/write-your-own-generics/ this
+-- is just a neat pattern that flattens a skewed Product of Products
+
 class ToDataArgs a where
   toDataArgs :: a -> Array (PlutusData)
 
@@ -68,35 +80,9 @@ instance toDataArgsArgument :: ToData a => ToDataArgs (G.Argument a) where
 instance toDataArgsProduct :: (ToDataArgs a, ToDataArgs b) => ToDataArgs (G.Product a b) where
   toDataArgs (G.Product x y) = toDataArgs x <> toDataArgs y
 
-instance toDataSum' :: (ToDataArgs largs, ToDataArgs rargs) => ToData (G.Sum (G.Constructor lname largs) (G.Constructor rname rargs)) where
-  toData (G.Inl (G.Constructor args)) = Constr zero (toDataArgs args)
-  toData (G.Inr (G.Constructor args)) = Constr one (toDataArgs args)
-
-instance toDataSum'' :: (ToDataArgs args, ToData (G.Sum l r)) => ToData (G.Sum (G.Constructor name args) (G.Sum l r)) where
-  toData (G.Inl (G.Constructor args)) = Constr zero (toDataArgs args)
-  toData (G.Inr x) = toData x
-
 genericToData
   :: forall a rep. G.Generic a rep => ToData rep => a -> PlutusData
 genericToData = toData <<< G.from
-
-class IsIndexed (a :: Type) where
-  indexFromConstructor :: forall name. IsSymbol name => IsIndexed a => Int -> SProxy name -> Proxy a -> BigInt
-
-instance sumIsIndexed :: (IsSymbol ln, IsSymbol rn) => IsIndexed (G.Sum (G.Constructor ln la) (G.Constructor rn ra)) where
-  indexFromConstructor i sname _ =
-    if reflectSymbol sname == reflectSymbol (Proxy :: Proxy ln) then fromInt i
-    else if reflectSymbol sname == reflectSymbol (Proxy :: Proxy rn) then (fromInt i + fromInt 1)
-    else BigInt.fromInt (-1)
-
-instance sumIsIndexed' :: (IsSymbol ln, IsIndexed (G.Sum l r)) => IsIndexed (G.Sum (G.Constructor ln la) (G.Sum l r)) where
-  indexFromConstructor i constrName _ =
-    if reflectSymbol constrName == reflectSymbol (Proxy :: Proxy ln) then fromInt i
-    else indexFromConstructor (i + 1) constrName (Proxy :: Proxy (G.Sum l r))
-
-genericIndexFromConstructor
-  :: forall a rep name. G.Generic a rep => IsIndexed rep => IsSymbol name => SProxy name -> Proxy a -> BigInt
-genericIndexFromConstructor sname x = indexFromConstructor 0 sname (G.from <$> x)
 
 -- Instances
 instance ToData Void where
