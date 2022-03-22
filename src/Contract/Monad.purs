@@ -4,6 +4,7 @@ module Contract.Monad
   , ContractConfig(..)
   , defaultContractConfig
   , defaultContractConfigLifted
+  , module Interval
   , module QueryM
   , runContract
   , runContract_
@@ -44,6 +45,8 @@ import QueryM
   , mkOgmiosWebSocketAff
   , mkWsUrl
   ) as QueryM
+import Serialization.Address (NetworkId(TestnetId))
+import Types.Interval (defaultSlotConfig) as Interval
 import UsedTxOuts (newUsedTxOuts)
 import Wallet (mkNamiWalletAff)
 
@@ -129,6 +132,8 @@ defaultContractConfig = do
     , wallet
     , serverConfig: QueryM.defaultServerConfig
     , usedTxOuts
+    , networkId: TestnetId
+    , slotConfig: Interval.defaultSlotConfig
     }
 
 -- | Same as `defaultContractConfig` but lifted into `Contract`.

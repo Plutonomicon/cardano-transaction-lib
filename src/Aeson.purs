@@ -348,11 +348,10 @@ decodeJsonString = parseJsonStringToAeson >=> decodeAeson
 
 decodeIntegral :: forall a. (String -> Maybe a) -> Aeson -> Either JsonDecodeError a
 decodeIntegral parse aeson@(Aeson { numberIndex }) = do
-    -- Numbers are replaced by their index in the array.
-    ix <- decodeAesonViaJson aeson
-    numberStr <- note MissingValue (numberIndex Array.!! ix)
-    note MissingValue $ parse numberStr
-
+  -- Numbers are replaced by their index in the array.
+  ix <- decodeAesonViaJson aeson
+  numberStr <- note MissingValue (numberIndex Array.!! ix)
+  note MissingValue $ parse numberStr
 
 instance DecodeAeson UInt where
   decodeAeson = decodeIntegral UInt.fromString

@@ -13,13 +13,15 @@ import QueryM
   ( defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
-  , getChainTip
   , mkDatumCacheWebSocketAff
   , mkOgmiosWebSocketAff
-  , utxosAt
   )
+import QueryM.Utxos (utxosAt)
+import QueryM.ChainInfo (getChainTip)
+import Serialization.Address (NetworkId(TestnetId))
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
+import Types.Interval (defaultSlotConfig)
 import Types.JsonWsp (OgmiosAddress)
 import UsedTxOuts (newUsedTxOuts)
 
@@ -62,6 +64,8 @@ testUtxosAt testAddr = do
       , serverConfig: defaultServerConfig
       , wallet: Nothing
       , usedTxOuts
+      , networkId: TestnetId
+      , slotConfig: defaultSlotConfig
       }
 
 testGetChainTip :: Aff Unit
@@ -76,6 +80,8 @@ testGetChainTip = do
     , serverConfig: defaultServerConfig
     , wallet: Nothing
     , usedTxOuts
+    , networkId: TestnetId
+    , slotConfig: defaultSlotConfig
     }
 
 testFromOgmiosAddress :: OgmiosAddress -> Aff Unit

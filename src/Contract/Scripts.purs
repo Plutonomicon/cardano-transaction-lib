@@ -4,10 +4,15 @@
 module Contract.Scripts
   ( applyArgs
   , applyArgsM
+  , mintingPolicyHash
+  , stakeValidatorHash
+  , validatorAddress
+  , validatorBaseAddress
+  , validatorHash
   , module Address
-  , module ExportedQueryM
+  , module ExportQueryM
+  , module ExportScripts
   , module Hash
-  , module Scripts
   , module TypedValidator
   , module TypesScripts
   ) where
@@ -18,19 +23,27 @@ import Address
   , addressStakeValidatorHash
   , addressValidatorHash
   ) as Address
-import QueryM (ClientError(..)) as ExportedQueryM
+import QueryM
+  ( ClientError
+      ( ClientHttpError
+      , ClientDecodeJsonError
+      , ClientEncodingError
+      )
+  ) as ExportQueryM
 import QueryM (applyArgs) as QueryM
 import Scripts
-  ( mintingPolicyHash
-  , scriptHash
-  , stakeValidatorHash
-  , typedValidatorAddress
+  ( typedValidatorAddress
   , typedValidatorBaseAddress
+  , validatorHashAddress
+  , validatorHashBaseAddress
+  , scriptHash
+  ) as ExportScripts
+import Scripts
+  ( mintingPolicyHash
+  , stakeValidatorHash
   , validatorAddress
   , validatorBaseAddress
   , validatorHash
-  , validatorHashAddress
-  , validatorHashBaseAddress
   ) as Scripts
 import Serialization.Hash -- Includes low level helpers. Do we want these?
   ( Ed25519KeyHash
@@ -74,8 +87,17 @@ import Data.Argonaut (class DecodeJson)
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, wrap)
+import Serialization.Address (Address, BaseAddress)
 import Types.PlutusData (PlutusData)
-import Types.Scripts (PlutusScript)
+import Types.Scripts
+  ( MintingPolicy
+  , MintingPolicyHash
+  , PlutusScript
+  , StakeValidator
+  , StakeValidatorHash
+  , Validator
+  , ValidatorHash
+  )
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
@@ -85,7 +107,7 @@ applyArgs
   => DecodeJson a
   => a
   -> Array PlutusData
-  -> Contract (Either ExportedQueryM.ClientError a)
+  -> Contract (Either ExportQueryM.ClientError a)
 applyArgs a = wrap <<< QueryM.applyArgs a
 
 -- | Same as `applyArgs` with arguments hushed.
@@ -97,3 +119,23 @@ applyArgsM
   -> Array PlutusData
   -> Contract (Maybe a)
 applyArgsM a = map hush <<< applyArgs a
+
+-- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
+mintingPolicyHash :: MintingPolicy -> Contract (Maybe MintingPolicyHash)
+mintingPolicyHash = wrap <<< Scripts.mintingPolicyHash
+
+-- | Converts a Plutus-style `StakeValidator` to an `StakeValidatorHash`
+stakeValidatorHash :: StakeValidator -> Contract (Maybe StakeValidatorHash)
+stakeValidatorHash = wrap <<< Scripts.stakeValidatorHash
+
+-- | Converts a Plutus-style `Validator` to a `ValidatorHash`
+validatorHash :: Validator -> Contract (Maybe ValidatorHash)
+validatorHash = wrap <<< Scripts.validatorHash
+
+-- | Converts a Plutus-style `Validator` to an `Address`
+validatorAddress :: Validator -> Contract (Maybe Address)
+validatorAddress = wrap <<< Scripts.validatorAddress
+
+-- | Converts a Plutus-style `Validator` to a `BaseAddress`
+validatorBaseAddress :: Validator -> Contract (Maybe BaseAddress)
+validatorBaseAddress = wrap <<< Scripts.validatorBaseAddress
