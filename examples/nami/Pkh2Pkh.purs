@@ -59,8 +59,8 @@ import QueryM
   , mkOgmiosWebSocketAff
   , mkDatumCacheWebSocketAff
   , submitTransaction
-  , utxosAt
   )
+import QueryM.Utxos (utxosAt)
 import Serialization.Address (NetworkId(TestnetId))
 import Types.Transaction
   ( Transaction(Transaction)

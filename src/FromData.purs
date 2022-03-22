@@ -30,7 +30,8 @@ instance FromData Void where
   fromData _ = Nothing
 
 instance FromData Unit where
-  fromData (List []) = Just unit
+  fromData (Constr n [])
+    | n == zero = Just unit
   fromData _ = Nothing
 
 instance FromData Boolean where
@@ -40,10 +41,10 @@ instance FromData Boolean where
   fromData _ = Nothing
 
 instance FromData a => FromData (Maybe a) where
-  fromData (Constr n [ pd ]) = case fromData pd of
-    Just _ | n == one -> Just Nothing
-    Just x | n == zero -> Just (Just x) -- Just is zero-indexed by Plutus
-    _ -> Nothing
+  fromData (Constr n [ pd ])
+    | n == zero = maybe Nothing (Just <<< Just) (fromData pd) -- Just is zero-indexed by Plutus
+  fromData (Constr n [])
+    | n == one = Just Nothing
   fromData _ = Nothing
 
 instance (FromData a, FromData b) => FromData (Either a b) where
@@ -70,7 +71,8 @@ instance FromData a => FromData (List a) where
   fromData = fromDataUnfoldable
 
 instance (FromData a, FromData b) => FromData (a /\ b) where
-  fromData (List [ a, b ]) = Tuple <$> fromData a <*> fromData b
+  fromData (Constr n [ a, b ])
+    | n == zero = Tuple <$> fromData a <*> fromData b
   fromData _ = Nothing
 
 instance (FromData k, Ord k, FromData v) => FromData (Map k v) where

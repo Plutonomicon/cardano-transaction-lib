@@ -3,11 +3,11 @@ module Contract.Monad
   ( Contract(..)
   , ContractConfig(..)
   , defaultContractConfig
-  , defaultContractConfigAff
+  , defaultContractConfigLifted
+  , module QueryM
   , runContract
   , runContract_
   , throwContractError
-  , module QueryM
   ) where
 
 import Prelude
@@ -116,8 +116,8 @@ runContract_ config = void <<< flip runReaderT (unwrap config) <<< unwrap
 
 -- | Creates a default `ContractConfig` with a Nami wallet inside `Aff` as
 -- | required by the websockets.
-defaultContractConfigAff :: Aff ContractConfig
-defaultContractConfigAff = do
+defaultContractConfig :: Aff ContractConfig
+defaultContractConfig = do
   wallet <- Just <$> mkNamiWalletAff
   ogmiosWs <- QueryM.mkOgmiosWebSocketAff QueryM.defaultOgmiosWsConfig
   datumCacheWs <-
@@ -131,7 +131,7 @@ defaultContractConfigAff = do
     , usedTxOuts
     }
 
--- | Same as `defaultContractConfigAff` but lifted into `Contract`.
-defaultContractConfig :: Contract ContractConfig
-defaultContractConfig = liftAff defaultContractConfigAff
+-- | Same as `defaultContractConfig` but lifted into `Contract`.
+defaultContractConfigLifted :: Contract ContractConfig
+defaultContractConfigLifted = liftAff defaultContractConfig
 

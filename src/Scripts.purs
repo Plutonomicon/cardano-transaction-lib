@@ -12,8 +12,10 @@ module Scripts
   ) where
 
 import Prelude
-import Data.Maybe (Maybe)
+import Control.Monad.Maybe.Trans (runMaybeT, MaybeT(MaybeT))
+import Data.Maybe (Maybe(Nothing), maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
+import QueryM (QueryM)
 import Serialization.Address
   ( Address
   , BaseAddress
@@ -25,7 +27,6 @@ import Serialization.Address
   )
 import Serialization.Hash
   ( ScriptHash
-  , scriptHashFromBytes
   , scriptHashToBytes
   )
 import Types.Scripts
@@ -38,23 +39,22 @@ import Types.Scripts
   , ValidatorHash
   )
 import Types.TypedValidator (TypedValidator(TypedValidator))
+import Undefined (undefined)
 
 -- | Helpers for `PlutusScript` and `ScriptHash` newtype wrappers, separate from
 -- | the data type definitions to prevent cylic dependencies.
 
 -- | Converts a Plutus-style `Validator` to a `BaseAddress`
-validatorBaseAddress :: Validator -> Maybe BaseAddress
-validatorBaseAddress =
-  (=<<) baseAddressFromBytes
-    <<< map (scriptHashToBytes <<< unwrap)
-    <<< validatorHash
+validatorBaseAddress :: Validator -> QueryM (Maybe BaseAddress)
+validatorBaseAddress val =
+  map (scriptHashToBytes <<< unwrap) <$> validatorHash val >>=
+    maybe Nothing baseAddressFromBytes >>> pure
 
 -- | Converts a Plutus-style `Validator` to an `Address`
-validatorAddress :: Validator -> Maybe Address
-validatorAddress =
-  (=<<) addressFromBytes
-    <<< map (scriptHashToBytes <<< unwrap)
-    <<< validatorHash
+validatorAddress :: Validator -> QueryM (Maybe Address)
+validatorAddress val =
+  map (scriptHashToBytes <<< unwrap) <$> validatorHash val >>=
+    maybe Nothing addressFromBytes >>> pure
 
 -- | Converts a Plutus-style `TypedValidator` to an `BaseAddress`
 typedValidatorBaseAddress
@@ -69,11 +69,11 @@ typedValidatorAddress networkId =
   baseAddressToAddress <<< typedValidatorBaseAddress networkId
 
 -- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
-mintingPolicyHash :: MintingPolicy -> Maybe MintingPolicyHash
+mintingPolicyHash :: MintingPolicy -> QueryM (Maybe MintingPolicyHash)
 mintingPolicyHash = plutusScriptHash
 
 -- | Converts a Plutus-style `Validator` to an `ValidatorHash`
-validatorHash :: Validator -> Maybe ValidatorHash
+validatorHash :: Validator -> QueryM (Maybe ValidatorHash)
 validatorHash = plutusScriptHash
 
 -- | Converts a Plutus-style `ValidatorHash` to a `BaseAddress`
@@ -86,7 +86,7 @@ validatorHashAddress networkId =
   baseAddressToAddress <<< validatorHashBaseAddress networkId
 
 -- | Converts a Plutus-style `StakeValidator` to an `Address`
-stakeValidatorHash :: StakeValidator -> Maybe StakeValidatorHash
+stakeValidatorHash :: StakeValidator -> QueryM (Maybe StakeValidatorHash)
 stakeValidatorHash = plutusScriptHash
 
 plutusScriptHash
@@ -94,9 +94,9 @@ plutusScriptHash
    . Newtype m PlutusScript
   => Newtype n ScriptHash
   => m
-  -> Maybe n
-plutusScriptHash = map wrap <<< scriptHash <<< unwrap
+  -> QueryM (Maybe n)
+plutusScriptHash = map (map wrap) <<< scriptHash <<< unwrap
 
 -- | Converts a `PlutusScript` to a `ScriptHash`.
-scriptHash :: PlutusScript -> Maybe ScriptHash
-scriptHash = scriptHashFromBytes <<< unwrap
+scriptHash :: PlutusScript -> QueryM (Maybe ScriptHash)
+scriptHash = undefined
