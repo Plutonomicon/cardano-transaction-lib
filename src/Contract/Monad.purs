@@ -44,7 +44,7 @@ import QueryM
   , mkOgmiosWebSocketAff
   , mkWsUrl
   ) as QueryM
-import Serialization.Address (NetworkId(MainnetId, TestnetId))
+import Serialization.Address (NetworkId(TestnetId))
 import UsedTxOuts (newUsedTxOuts)
 import Wallet (mkNamiWalletAff)
 

@@ -22,13 +22,12 @@ module Types.ScriptLookups
   ) where
 
 import Prelude hiding (join)
-import Undefined
 
 import Address (addressValidatorHash, ogmiosAddressToAddress)
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Control.Monad.Reader.Class (asks)
-import Control.Monad.Reader.Trans (ReaderT, runReaderT)
+import Control.Monad.Reader.Trans (ReaderT)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Data.Array (singleton, union) as Array

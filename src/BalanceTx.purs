@@ -39,7 +39,6 @@ import Data.Tuple.Nested ((/\), type (/\))
 -- import Debug (spy)
 import Effect.Class (class MonadEffect)
 import Effect.Class.Console (log)
-import Helpers (liftM)
 import ProtocolParametersAlonzo
   ( adaOnlyWords
   , coinSize
