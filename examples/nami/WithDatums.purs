@@ -2,7 +2,7 @@ module Examples.Nami.WithDatums (main) where
 
 import Contract.Prelude
 
-import Contract.Monad (Contract, defaultContractConfigAff, runContract)
+import Contract.Monad (Contract, defaultContractConfig, runContract)
 import Contract.PlutusData (unitDatum)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, validatorHash)
@@ -16,7 +16,7 @@ import Effect.Aff (error, launchAff_, throwError)
 
 main :: Effect Unit
 main = launchAff_ $ do
-  cfg <- defaultContractConfigAff
+  cfg <- defaultContractConfig
   runContract cfg $ do
     payToAlwaysSucceeds
 
@@ -24,8 +24,9 @@ payToAlwaysSucceeds :: Contract (Maybe TransactionHash)
 payToAlwaysSucceeds = do
   validator <- throwOnNothing "Got `Nothing` for validator"
     alwaysSucceedsValidator
-  valHash <- throwOnNothing "Got `Nothing` for validator hash"
-    $ validatorHash validator
+  valHash <-
+    throwOnNothing "Got `Nothing` for validator hash"
+    =<< validatorHash validator
   let
     constraints :: Constraints.TxConstraints Void Void
     constraints = Constraints.mustPayToOtherScript valHash unitDatum
