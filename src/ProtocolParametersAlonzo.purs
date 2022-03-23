@@ -1,12 +1,14 @@
 module ProtocolParametersAlonzo
   ( adaOnlyWords
   , coinSize
+  , costModels
   , lovelacePerUTxOWord
+  , minAdaTxOut
   , pidSize
   , protocolParamUTxOCostPerWord
   , utxoEntrySizeWithoutVal
-  , costModels
-  ) where
+  )
+  where
 
 import Prelude
 
@@ -42,6 +44,10 @@ pidSize = fromInt 28
 -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
 coinSize :: BigInt
 coinSize = fromInt 2
+
+-- Minimum required Ada for each tx output.
+minAdaTxOut :: Coin
+minAdaTxOut = Coin $ fromInt 2_000_000
 
 -- An ada-only UTxO entry is 29 words. More details about min utxo
 -- calculation can be found here:
