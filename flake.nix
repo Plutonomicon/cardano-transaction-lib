@@ -180,7 +180,7 @@
 
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);
 
-      ci= flake-compat-ci.lib.recurseIntoFlakeWith {
+      ci = flake-compat-ci.lib.recurseIntoFlakeWith {
         flake = self;
         systems = [ "x86_64-linux" ];
       };
