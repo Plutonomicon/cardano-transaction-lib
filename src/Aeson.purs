@@ -351,7 +351,7 @@ decodeIntegral parse aeson@(Aeson { numberIndex }) = do
   -- Numbers are replaced by their index in the array.
   ix <- decodeAesonViaJson aeson
   numberStr <- note MissingValue (numberIndex Array.!! ix)
-  note MissingValue $ parse numberStr
+  note (TypeMismatch $ "Couldn't parse to integral: " <> numberStr) (parse numberStr)
 
 instance DecodeAeson UInt where
   decodeAeson = decodeIntegral UInt.fromString
@@ -385,8 +385,8 @@ instance (GDecodeAeson row list, RL.RowToList row list) => DecodeAeson (Record r
 
 else instance (InOneOf b a b, DecodeAeson a, DecodeAeson b) => DecodeAeson (a |+| b) where
   decodeAeson j =
-    (asOneOf <$> (decodeAeson j :: Either JsonDecodeError a))
-      <|> (asOneOf <$> (decodeAeson j :: Either JsonDecodeError b))
+    asOneOf <$> (decodeAeson j :: Either JsonDecodeError a)
+      <|> asOneOf <$> (decodeAeson j :: Either JsonDecodeError b)
 
 else instance (Traversable t, DecodeAeson a, DecodeJson (t Json)) => DecodeAeson (t a) where
   decodeAeson (Aeson { numberIndex, patchedJson: AesonPatchedJson pJson }) = do

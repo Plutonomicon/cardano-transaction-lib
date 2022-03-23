@@ -10,7 +10,7 @@ import Contract.Prelude
   )
 import Control.Bind (bind, discard)
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.RWS (ask)
+import Control.Monad.RWS (asks)
 import Data.Function (($))
 import Effect.Aff (Canceler(..), makeAff)
 import QueryM
@@ -30,13 +30,13 @@ getChainTip = do
   body <- liftEffect $ JsonWsp.mkChainTipQuery
   let id = body.mirror.id
   sBody <- liftEffect $ _stringify body
-  config <- ask
+  ogmiosWs <- asks _.ogmiosWs
   let
     affFunc :: (Either Error JsonWsp.ChainTipQR -> Effect Unit) -> Effect Canceler
     affFunc cont = do
       let
-        ls = listeners config.ogmiosWs
-        ws = underlyingWebSocket config.ogmiosWs
+        ls = listeners ogmiosWs
+        ws = underlyingWebSocket ogmiosWs
       ls.chainTip.addMessageListener id
         ( \result -> do
             ls.chainTip.removeMessageListener id
