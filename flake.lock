@@ -560,6 +560,21 @@
         "type": "github"
       }
     },
+    "flake-compat-ci": {
+      "locked": {
+        "lastModified": 1646664117,
+        "narHash": "sha256-AX2VewPcS9eRsoirVHfnk07MHAOH6CTDiD10XtRaZbk=",
+        "owner": "hercules-ci",
+        "repo": "flake-compat-ci",
+        "rev": "e588637b2eec4261ed0d36335c83a117f2744dea",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hercules-ci",
+        "repo": "flake-compat-ci",
+        "type": "github"
+      }
+    },
     "flake-compat_2": {
       "flake": false,
       "locked": {
@@ -1565,6 +1580,7 @@
         "cardano-wallet": "cardano-wallet",
         "easy-purescript-nix": "easy-purescript-nix",
         "flake-compat": "flake-compat",
+        "flake-compat-ci": "flake-compat-ci",
         "flat": "flat",
         "goblins": "goblins",
         "haskell-nix": "haskell-nix",
