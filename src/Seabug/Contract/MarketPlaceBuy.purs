@@ -1,14 +1,24 @@
 module Seabug.Contract.MarketPlaceBuy where
 
 import Contract.Prelude
-import Contract.Address (ownPaymentPubKeyHash)
+import Contract.Address (ownPaymentPubKeyHash, payPubKeyHashAddress)
 import Contract.Monad (Contract, liftContractM, liftedM)
 import Contract.Numeric.Natural (toBigInt)
-import Contract.PlutusData (Redeemer(Redeemer), toData)
+import Contract.PlutusData (Datum(Datum), Redeemer(Redeemer), toData)
+import Contract.ProtocolParameters.Alonzo (minAdaTxOut)
 import Contract.Scripts (MintingPolicy, validatorAddress)
 import Contract.Transaction (TransactionOutput)
-import Contract.Value (mkSingletonValue', scriptCurrencySymbol, valueOf)
+import Contract.Utxos (utxosAt)
+import Contract.Value
+  ( lovelaceValueOf
+  , mkSingletonValue'
+  , scriptCurrencySymbol
+  , valueOf
+  )
+import Control.Monad.Reader.Class (asks)
+import Data.Array (find)
 import Data.BigInt (BigInt, fromInt)
+import Data.Map (toUnfoldable)
 import Effect.Exception (Error, error, throw)
 import Seabug.MarketPlace (marketplaceValidator)
 import Seabug.Token (mkTokenName, policy)
@@ -32,7 +42,7 @@ marketplaceBuy nftData@(NftData nftData') mp = do
     nft = nftData'.nftId
     nft' = unwrap nft
     newNft = NftId nft' { owner = pkh }
-  scriptAddr <- liftedM "marketplaceBuy: Cannot get Address."
+  scriptAddr <- liftedM "marketplaceBuy: Cannot get script Address."
     (validatorAddress marketplaceValidator'.validator)
   oldName <-
     liftContractM "marketplaceBuy: Cannot hash old token." (mkTokenName nft)
@@ -44,10 +54,12 @@ marketplaceBuy nftData@(NftData nftData') mp = do
     (mkSingletonValue' curr oldName $ negate one)
   newNftValue <- liftContractM "marketplaceBuy: Cannot create new NFT Value."
     (mkSingletonValue' curr newName one)
+  networkId <- asks (unwrap >>> _.networkId)
   let
     nftPrice = nft'.price
     valHash = marketplaceValidator'.validatorHash
     mintRedeemer = Redeemer $ toData $ ChangeOwner nft pkh
+    nftCollection = unwrap nftData'.nftCollection
 
     containsNft :: forall (a :: Type). (a /\ TransactionOutput) -> Boolean
     containsNft (_ /\ tx) = valueOf (unwrap tx).amount curr oldName == one
@@ -55,22 +67,33 @@ marketplaceBuy nftData@(NftData nftData') mp = do
     getShare :: BigInt -> BigInt
     getShare share = (toBigInt nftPrice * share) `div` fromInt 10_000
 
-    authorShare = getShare (toBigInt $ (unwrap nftData'.nftCollection).authorShare)
-    daoShare = getShare (toBigInt $ (unwrap nftData'.nftCollection).daoShare)
-  --     shareToSubtract v
-  --       | v < getLovelace minAdaTxOut = 0
-  --       | otherwise = v
-  --     ownerShare = lovelaceValueOf (addExtend nftPrice - shareToSubtract authorShare - shareToSubtract daoShare)
-  --     datum = Datum . toBuiltinData $ (curr, oldName)
-  --     filterLowValue v t
-  --       | v < getLovelace minAdaTxOut = mempty
-  --       | otherwise = t (lovelaceValueOf v)
-  --     newNftData = NftData (nftData'nftCollection nftData) newNft
-  -- userUtxos <- getUserUtxos
-  -- utxo' <- find containsNft . Map.toList <$> getAddrUtxos scriptAddr
-  -- (utxo, utxoIndex) <- case utxo' of
-  --   Nothing -> Contract.throwError "NFT not found on marketplace"
-  --   Just x -> Hask.pure x
+    shareToSubtract :: BigInt -> BigInt
+    shareToSubtract v
+        | v < unwrap minAdaTxOut = zero
+        | otherwise = v
+
+    -- filterLowValue :: BigInt -> BigInt -> Value
+    -- filterLowValue v t
+    --   | v < unwrap minAdaTxOut = mempty
+    --   | otherwise = t (lovelaceValueOf v)
+
+    authorShare = getShare $ toBigInt nftCollection.authorShare
+    daoShare = getShare $ toBigInt nftCollection.daoShare
+
+    ownerShare = lovelaceValueOf $
+      toBigInt nftPrice - shareToSubtract authorShare - shareToSubtract daoShare
+    datum = Datum $ toData $ curr /\ oldName -- CHECK Tuple implementation
+    newNftData =
+      NftData { nftCollection: (nftData'.nftCollection), nftId: newNft}
+
+    userAddr = payPubKeyHashAddress networkId pkh
+  userUtxos <-
+    liftedM "marketplaceBuy: Cannot get user Utxos." (utxosAt userAddr)
+  scriptUtxos <-
+    liftedM "marketplaceBuy: Cannot get script Utxos." (utxosAt scriptAddr)
+  let utxo' = find containsNft $ toUnfoldable (unwrap scriptUtxos)
+  utxo /\ utxoIndex <-
+    liftContractM "marketplaceBuy: NFT not found on marketplace" utxo'
   -- let lookup =
   --       Hask.mconcat
   --         [ Constraints.mintingPolicy policy'
