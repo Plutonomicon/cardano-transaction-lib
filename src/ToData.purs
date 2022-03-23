@@ -2,16 +2,20 @@ module ToData
   ( class ToDataWithIndex
   , class ToData
   , class ToDataArgs
+  , class ConstrIndex
+  , resolveIndex
   , genericToData
   , toData
   , toDataArgs
   , toDataWithIndex
+  , Day(..)
+  , genericToDataWithIndex
   ) where
 
 import Prelude
 
 import Data.Array as Array
-import Data.BigInt (BigInt, fromInt)
+import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Foldable (class Foldable)
@@ -22,36 +26,49 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Profunctor.Strong ((***))
 import Data.Ratio (Ratio, denominator, numerator)
+import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Helpers (uIntToBigInt)
 import Prim.TypeError (class Fail, Text)
+import Type.Proxy (Proxy(..))
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Constr, Integer, List, Map, Bytes))
 
 class ToData (a :: Type) where
   toData :: a -> PlutusData
 
+class ConstrIndex (a :: Type) where
+  resolveIndex :: forall s. IsSymbol s => Proxy a -> SProxy s -> BigInt
+
+class ToDataWithIndex a ci where
+  toDataWithIndex :: ConstrIndex ci => Proxy ci -> a -> PlutusData
+
 -- Generic
-class ToDataWithIndex t where
-  toDataWithIndex :: BigInt -> t -> PlutusData
+instance toDataWithIndexSumB ::
+  ( IsSymbol ln
+  , IsSymbol rn
+  , ConstrIndex ci
+  , ConstrIndex ci
+  , ToDataArgs la
+  , ToDataArgs ra
+  ) =>
+  ToDataWithIndex (G.Sum (G.Constructor ln la) (G.Constructor rn ra)) ci where
+  toDataWithIndex n (G.Inl (G.Constructor args)) = Constr (resolveIndex n (SProxy :: SProxy ln)) (toDataArgs args)
+  toDataWithIndex n (G.Inr (G.Constructor args)) = Constr (resolveIndex n (SProxy :: SProxy rn)) (toDataArgs args)
 
-instance toDataWithIndexSumA :: (ToDataArgs la, ToDataWithIndex (G.Sum a b))
-                                => ToDataWithIndex (G.Sum (G.Constructor ln la) (G.Sum a b))  where
-  toDataWithIndex n (G.Inl (G.Constructor args)) = Constr n (toDataArgs args)
-  toDataWithIndex n (G.Inr x) = toDataWithIndex (n + fromInt 1) x
-
-instance toDataWithIndexSumB :: (ToDataArgs la, ToDataArgs ra)
-                                => ToDataWithIndex (G.Sum (G.Constructor ln la) (G.Constructor rn ra)) where
-  toDataWithIndex n (G.Inl (G.Constructor args)) = Constr n (toDataArgs args)
-  toDataWithIndex n (G.Inr (G.Constructor args)) = Constr (n + fromInt 1) (toDataArgs args)
-
-instance (ToDataWithIndex (G.Sum l r)) => ToData (G.Sum l r) where
-  toData x = toDataWithIndex zero x
+instance toDataWithIndexSumA ::
+  ( IsSymbol ln
+  , ConstrIndex ci
+  , ToDataArgs la
+  , ToDataWithIndex (G.Sum a b) ci
+  ) =>
+  ToDataWithIndex (G.Sum (G.Constructor ln la) (G.Sum a b)) ci where
+  toDataWithIndex n (G.Inl (G.Constructor args)) = Constr (resolveIndex n (SProxy :: SProxy ln)) (toDataArgs args)
+  toDataWithIndex n (G.Inr x) = toDataWithIndex (n :: Proxy ci) x
 
 -- As explained in https://harry.garrood.me/blog/write-your-own-generics/ this
 -- is just a neat pattern that flattens a skewed Product of Products
-
 class ToDataArgs a where
   toDataArgs :: a -> Array (PlutusData)
 
@@ -68,13 +85,38 @@ genericToData
   :: forall a rep. G.Generic a rep => ToData rep => a -> PlutusData
 genericToData = toData <<< G.from
 
+genericToDataWithIndex
+  :: forall a rep. G.Generic a rep => ToDataWithIndex rep a => ConstrIndex a => a -> PlutusData
+genericToDataWithIndex = toDataWithIndex (Proxy :: Proxy a) <<< G.from
+
 -- Instances
+
+-- TODO: Remove Day as it's only for demo
+data Day = Mon | Tue | Wed | Thurs | Fri | Sat | Sun
+
+derive instance genericDay :: G.Generic Day _
+
+instance dayConstrIndex :: ConstrIndex Day where
+  resolveIndex _ constrSymb = case reflectSymbol constrSymb of
+    "Mon" -> zero
+    "Tue" -> one
+    "Wed" -> BigInt.fromInt 2
+    "Thurs" -> BigInt.fromInt 3
+    "Fri" -> BigInt.fromInt 4
+    "Sat" -> BigInt.fromInt 5
+    "Sun" -> BigInt.fromInt 6
+    _ -> zero - BigInt.fromInt 1
+
+instance ToData Day where
+  toData = genericToDataWithIndex
+
 instance ToData Void where
   toData = absurd
 
 instance ToData Unit where
   toData _ = Constr zero []
 
+-- NOTE: For the sake of compatibility the following toDatas have to match
 -- https://github.com/input-output-hk/plutus/blob/1f31e640e8a258185db01fa899da63f9018c0e85/plutus-tx/src/PlutusTx/IsData/Instances.hs
 instance ToData Boolean where
   toData false = Constr zero []
