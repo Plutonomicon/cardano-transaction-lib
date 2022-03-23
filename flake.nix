@@ -178,5 +178,13 @@
       checks = perSystem (system: (psProjectFor system).checks);
 
       check = perSystem (system: (psProjectFor system).check);
+
+      ci =
+        let
+          system = "x86_64-linux";
+        in
+        {
+          packages = self.packages.${system};
+        };
     };
 }
