@@ -111,9 +111,6 @@ import Types.PlutusData (PlutusData(Bytes))
 
 newtype Slot = Slot UInt
 
-derive newtype instance Eq Slot
-derive newtype instance Ord Slot
-derive newtype instance DecodeAeson Slot
 derive instance Newtype Slot _
 derive instance Generic Slot _
 derive newtype instance Eq Slot

@@ -2,14 +2,17 @@ module Seabug.Contract.MarketPlaceBuy where
 
 import Contract.Prelude
 import Contract.Address (ownPaymentPubKeyHash)
-import Contract.Monad (Contract, liftedM)
+import Contract.Monad (Contract, liftContractM, liftedM)
+import Contract.Numeric.Natural (toBigInt)
+import Contract.PlutusData (Redeemer(Redeemer), toData)
 import Contract.Scripts (MintingPolicy, validatorAddress)
 import Contract.Transaction (TransactionOutput)
-import Contract.Value (scriptCurrencySymbol, valueOf)
+import Contract.Value (mkSingletonValue', scriptCurrencySymbol, valueOf)
+import Data.BigInt (BigInt, fromInt)
 import Effect.Exception (Error, error, throw)
 import Seabug.MarketPlace (marketplaceValidator)
-import Seabug.Token (policy)
-import Seabug.Types (NftData(NftData))
+import Seabug.Token (mkTokenName, policy)
+import Seabug.Types (MintAct(ChangeOwner), NftData(NftData), NftId(NftId))
 
 -- https://github.com/mlabs-haskell/plutus-use-cases/blob/927eade6aa9ad37bf2e9acaf8a14ae2fc304b5ba/mlabs/src/Mlabs/EfficientNFT/Contract/MarketplaceBuy.hs
 -- rev: 2c9ce295ccef4af3f3cb785982dfe554f8781541
@@ -18,33 +21,42 @@ import Seabug.Types (NftData(NftData))
 -- applied to arguments. See `Seabug.Token.policy`
 marketplaceBuy :: NftData -> MintingPolicy -> Contract NftData
 marketplaceBuy nftData@(NftData nftData') mp = do
-  pkh <- liftedM "marketplaceBuy: Couldn't get PaymentPubKeyHash."
+  pkh <- liftedM "marketplaceBuy: Cannot get PaymentPubKeyHash."
     ownPaymentPubKeyHash
-  policy' <- liftedM "marketplaceBuy: Couldn't apply arguments."
+  policy' <- liftedM "marketplaceBuy: Cannot apply arguments."
     (policy nftData'.nftCollection mp)
-  curr <- liftedM "marketplaceBuy: Couldn't get CurrencySymbol."
+  curr <- liftedM "marketplaceBuy: Cannot get CurrencySymbol."
     (scriptCurrencySymbol policy')
   let
     marketplaceValidator' = unwrap marketplaceValidator
     nft = nftData'.nftId
-  scriptAddr <- liftedM "marketplaceBuy: Couldn't get Address."
+    nft' = unwrap nft
+    newNft = NftId nft' { owner = pkh }
+  scriptAddr <- liftedM "marketplaceBuy: Cannot get Address."
     (validatorAddress marketplaceValidator'.validator)
-  -- let
-    -- oldName = mkTokenName nft
-    -- containsNft :: forall (a :: Type). (a /\ TransactionOutput) -> Boolean
-    -- containsNft (_ /\ tx) = valueOf (unwrap tx).amount curr oldName == one
-    -- containsNft (_, tx) = valueOf (_ciTxOutValue tx) curr oldName == 1
-  --     valHash = validatorHash marketplaceValidator
-  --     nftPrice = nftId'price nft
-  --     newNft = nft {nftId'owner = pkh}
-  --     oldName = mkTokenName nft
-  --     newName = mkTokenName newNft
-  --     oldNftValue = singleton curr oldName (-1)
-  --     newNftValue = singleton curr newName 1
-  --     mintRedeemer = Redeemer . toBuiltinData $ ChangeOwner nft pkh
-  --     getShare share = (addExtend nftPrice * share) `divide` 10000
-  --     authorShare = getShare (addExtend . nftCollection'authorShare . nftData'nftCollection $ nftData)
-  --     daoShare = getShare (addExtend . nftCollection'daoShare . nftData'nftCollection $ nftData)
+  oldName <-
+    liftContractM "marketplaceBuy: Cannot hash old token." (mkTokenName nft)
+  newName <-
+    liftContractM "marketplaceBuy: Cannot hash new token." (mkTokenName newNft)
+  -- Eventually we'll have a non-CSL-Plutus-style `Value` so this will likely
+  -- change:
+  oldNftValue <- liftContractM "marketplaceBuy: Cannot create old NFT Value."
+    (mkSingletonValue' curr oldName $ negate one)
+  newNftValue <- liftContractM "marketplaceBuy: Cannot create new NFT Value."
+    (mkSingletonValue' curr newName one)
+  let
+    nftPrice = nft'.price
+    valHash = marketplaceValidator'.validatorHash
+    mintRedeemer = Redeemer $ toData $ ChangeOwner nft pkh
+
+    containsNft :: forall (a :: Type). (a /\ TransactionOutput) -> Boolean
+    containsNft (_ /\ tx) = valueOf (unwrap tx).amount curr oldName == one
+
+    getShare :: BigInt -> BigInt
+    getShare share = (toBigInt nftPrice * share) `div` fromInt 10_000
+
+    authorShare = getShare (toBigInt $ (unwrap nftData'.nftCollection).authorShare)
+    daoShare = getShare (toBigInt $ (unwrap nftData'.nftCollection).daoShare)
   --     shareToSubtract v
   --       | v < getLovelace minAdaTxOut = 0
   --       | otherwise = v

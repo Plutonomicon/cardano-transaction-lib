@@ -3,12 +3,13 @@ module Contract.Prim.ByteArray (module ByteArray) where
 
 import Types.ByteArray
   ( ByteArray(ByteArray)
+  , blake2b_256
   , byteArrayFromIntArray
   , byteArrayFromIntArrayUnsafe
-  , byteArrayToIntArray
+  , byteArrayFromString
   , byteArrayToHex
+  , byteArrayToIntArray
   , byteLength
   , hexToByteArray
   , hexToByteArrayUnsafe
   ) as ByteArray
-
