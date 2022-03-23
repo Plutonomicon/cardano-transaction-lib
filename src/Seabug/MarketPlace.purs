@@ -1,7 +1,6 @@
 module Seabug.MarketPlace
   ( marketplaceValidator
-  )
-  where
+  ) where
 
 import Contract.Prelude
 import Contract.Prim.Any (Any)
