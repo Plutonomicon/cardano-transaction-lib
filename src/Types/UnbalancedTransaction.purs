@@ -26,6 +26,14 @@ module Types.UnbalancedTransaction
 
 import Prelude
 
+import Data.Argonaut
+  ( class DecodeJson
+  , caseJsonObject
+  , decodeJson
+  , getField
+  , JsonDecodeError(TypeMismatch)
+  )
+import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
 import Data.Lens.Types (Lens')
@@ -90,6 +98,13 @@ derive newtype instance ToData PubKeyHash
 instance Show PubKeyHash where
   show = genericShow
 
+-- This is needed for `ApplyArgs`. Plutus has an `getPubKeyHash` field so don't
+-- newtype derive.
+instance DecodeJson PubKeyHash where
+  decodeJson = caseJsonObject
+    (Left $ TypeMismatch "Expected object")
+    (flip getField "getPubKeyHash" >=> decodeJson >>> map PubKeyHash)
+
 payPubKeyHash :: PaymentPubKey -> Maybe PaymentPubKeyHash
 payPubKeyHash (PaymentPubKey pk) = wrap <$> pubKeyHash pk
 
@@ -129,6 +144,15 @@ derive newtype instance ToData PaymentPubKeyHash
 
 instance Show PaymentPubKeyHash where
   show = genericShow
+
+-- This is needed for `ApplyArgs`. Plutus has an `unPaymentPubKeyHash` field so
+-- don't newtype derive.
+instance DecodeJson PaymentPubKeyHash where
+  decodeJson = caseJsonObject
+    (Left $ TypeMismatch "Expected object")
+    ( flip getField "unPaymentPubKeyHash" >=>
+        decodeJson >>> map PaymentPubKeyHash
+    )
 
 payPubKeyHashBaseAddress :: NetworkId -> PaymentPubKeyHash -> BaseAddress
 payPubKeyHashBaseAddress networkId (PaymentPubKeyHash pkh) =

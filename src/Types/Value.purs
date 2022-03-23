@@ -52,10 +52,18 @@ module Types.Value
 import Prelude hiding (join)
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
+import Data.Argonaut
+  ( class DecodeJson
+  , JsonDecodeError(TypeMismatch)
+  , caseJsonObject
+  , decodeJson
+  , getField
+  )
 import Data.Array (cons, filter)
 import Data.BigInt (BigInt, fromInt)
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (bitraverse, ltraverse)
+import Data.Either (Either(Left), note)
 import Data.Foldable (any, fold, foldl, length)
 import Data.FoldableWithIndex (foldrWithIndex)
 import Data.Generic.Rep (class Generic)
@@ -79,7 +87,7 @@ import FromData (class FromData, fromData)
 import Partial.Unsafe (unsafePartial)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
 import ToData (class ToData, toData)
-import Types.ByteArray (ByteArray, byteLength)
+import Types.ByteArray (ByteArray, byteLength, hexToByteArray)
 import Types.PlutusData (PlutusData(List)) as PD
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 
@@ -178,6 +186,15 @@ derive newtype instance ToData CurrencySymbol
 
 instance Show CurrencySymbol where
   show (CurrencySymbol cs) = "(CurrencySymbol" <> show cs <> ")"
+
+-- This is needed for `ApplyArgs`. Plutus has an `unCurrencySymbol` field.
+instance DecodeJson CurrencySymbol where
+  decodeJson = caseJsonObject
+    (Left $ TypeMismatch "Expected object")
+    ( note (TypeMismatch "Invalid CurrencySymbol") <<< mkCurrencySymbol
+        <=< note (TypeMismatch "Invalid ByteArray") <<< hexToByteArray
+        <=< flip getField "unCurrencySymbol"
+    )
 
 getCurrencySymbol :: CurrencySymbol -> ByteArray
 getCurrencySymbol (CurrencySymbol curSymbol) = curSymbol

@@ -358,6 +358,13 @@ instance DecodeAeson BigInt where
     numberStr <- note MissingValue (numberIndex Array.!! ix)
     note MissingValue $ BigInt.fromString numberStr
 
+instance DecodeAeson UInt where
+  decodeAeson aeson@(Aeson { numberIndex }) = do
+    -- Numbers are replaced by their index in the array.
+    ix <- decodeAesonViaJson aeson
+    numberStr <- note MissingValue (numberIndex Array.!! ix)
+    note MissingValue $ UInt.fromString numberStr
+
 instance DecodeAeson Boolean where
   decodeAeson = decodeAesonViaJson
 

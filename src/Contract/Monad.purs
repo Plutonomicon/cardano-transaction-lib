@@ -4,6 +4,10 @@ module Contract.Monad
   , ContractConfig(..)
   , defaultContractConfig
   , defaultContractConfigLifted
+  , liftContractE
+  , liftContractM
+  , liftedE
+  , liftedM
   , module Interval
   , module QueryM
   , runContract
@@ -13,7 +17,8 @@ module Contract.Monad
 
 import Prelude
 import Control.Alt (class Alt)
-import Data.Maybe (Maybe(Just))
+import Data.Either (Either, hush)
+import Data.Maybe (Maybe(Just), maybe)
 import Control.Monad.Error.Class (class MonadError, class MonadThrow)
 import Control.Monad.Reader.Class (class MonadAsk, class MonadReader, ask, local)
 import Control.Monad.Reader.Trans (runReaderT)
@@ -108,6 +113,35 @@ derive instance Newtype ContractConfig _
 -- | and lifting into the `Contract` monad.
 throwContractError :: forall (e :: Type) (a :: Type). Show e => e -> Contract a
 throwContractError = liftEffect <<< throw <<< show
+
+-- | Given a string error and `Maybe` value, if the latter is `Nothing`, throw
+-- | the error with the given string, otherwise, return the value. If using
+-- | using `runExceptT`, see `liftM` inside `Contract.Prelude`. This can be
+-- | thought of as `liftM` restricted to JavaScript's `Error` and without the
+-- | need to call `error :: String -> Error` each time.
+liftContractM :: forall (a :: Type). String -> Maybe a -> Contract a
+liftContractM str = maybe (liftEffect $ throw str) pure
+
+-- | Same as `liftContractM` but the `Maybe` value is already in the `Contract`
+-- | context.
+liftedM :: forall (a :: Type). String -> Contract (Maybe a) -> Contract a
+liftedM str cm = cm >>= liftContractM str
+
+-- | Similar to `liftContractM`, throwing the string instead of the `Left`
+-- | value. For throwing the `Left` value, see `liftEither` in
+-- | `Contract.Prelude`.
+liftContractE
+  :: forall (e :: Type) (a :: Type). String -> Either e a -> Contract a
+liftContractE str = liftContractM str <<< hush
+
+-- | Same as `liftContractE` but the `Either` value is already in the `Contract`
+-- | context.
+liftedE
+  :: forall (e :: Type) (a :: Type)
+   . String
+  -> Contract (Either e a)
+  -> Contract a
+liftedE str em = em >>= liftContractE str
 
 -- | Runs the contract, essentially `runReaderT` but with arguments flipped.
 runContract :: forall (a :: Type). ContractConfig -> Contract a -> Aff a
