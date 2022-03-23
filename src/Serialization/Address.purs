@@ -83,6 +83,7 @@ module Serialization.Address
 
 import Prelude
 
+import Aeson (class DecodeAeson)
 import Control.Alt ((<|>))
 import Data.Argonaut (class EncodeJson, fromNumber)
 import Data.Function (on)
@@ -106,6 +107,7 @@ newtype Slot = Slot UInt
 
 derive newtype instance Eq Slot
 derive newtype instance Ord Slot
+derive newtype instance DecodeAeson Slot
 derive instance Newtype Slot _
 derive instance Generic Slot _
 

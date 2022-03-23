@@ -50,8 +50,8 @@ import Prelude
 
 import Aeson as Aeson
 import Affjax as Affjax
-import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.RequestBody as Affjax.RequestBody
+import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (ReaderT, ask, asks)
 import Data.Argonaut (class DecodeJson, JsonDecodeError)
@@ -495,14 +495,15 @@ mkOgmiosWebSocket'
   -> (Either Error OgmiosWebSocket -> Effect Unit)
   -> Effect Canceler
 mkOgmiosWebSocket' serverCfg cb = do
-  utxoQueryDispatchIdMap <- createMutableDispatch
-  let md = ogmiosMessageDispatch utxoQueryDispatchIdMap
+  utxoDispatchMap <- createMutableDispatch
+  chainTipDispatchMap <- createMutableDispatch
+  let md = ogmiosMessageDispatch { utxoDispatchMap, chainTipDispatchMap }
   ws <- _mkWebSocket $ mkWsUrl serverCfg
   _onWsConnect ws $ do
-    _wsWatch ws (removeAllListeners utxoQueryDispatchIdMap)
+    _wsWatch ws (removeAllListeners utxoDispatchMap *> removeAllListeners chainTipDispatchMap)
     _onWsMessage ws (defaultMessageListener md)
     _onWsError ws defaultErrorListener
-    cb $ Right $ WebSocket ws { utxo: mkListenerSet utxoQueryDispatchIdMap }
+    cb $ Right $ WebSocket ws { utxo: mkListenerSet utxoDispatchMap, chainTip: mkListenerSet chainTipDispatchMap }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
 
 mkDatumCacheWebSocket'
@@ -543,6 +544,7 @@ type DatumCacheListeners = ListenerSet DcWsp.JsonWspResponse
 
 type OgmiosListeners =
   { utxo :: ListenerSet JsonWsp.UtxoQR
+  , chainTip :: ListenerSet JsonWsp.ChainTipQR
   }
 
 -- convenience type for adding additional query types later
@@ -585,9 +587,14 @@ type WebsocketDispatch = String -> Effect (Either Json.JsonDecodeError (Effect U
 type DispatchIdMap a = Ref.Ref (MultiMap String (a -> Effect Unit))
 
 -- an immutable queue of response type handlers
-ogmiosMessageDispatch :: DispatchIdMap JsonWsp.UtxoQR -> Array WebsocketDispatch
-ogmiosMessageDispatch dim =
-  [ utxoQueryDispatch dim
+ogmiosMessageDispatch
+  :: { utxoDispatchMap :: DispatchIdMap JsonWsp.UtxoQR
+     , chainTipDispatchMap :: DispatchIdMap JsonWsp.ChainTipQR
+     }
+  -> Array WebsocketDispatch
+ogmiosMessageDispatch { utxoDispatchMap, chainTipDispatchMap } =
+  [ ogmiosQueryDispatch utxoDispatchMap
+  , ogmiosQueryDispatch chainTipDispatchMap
   ]
 
 datumCacheMessageDispatch :: DispatchIdMap DcWsp.JsonWspResponse -> Array WebsocketDispatch
@@ -603,11 +610,13 @@ createMutableDispatch = Ref.new MM.empty
 -- we parse out the utxo query result, then check if we're expecting a result
 -- with the provided id, if we are then we dispatch to the effect that is
 -- waiting on this result
-utxoQueryDispatch
-  :: Ref.Ref (MultiMap String (JsonWsp.UtxoQR -> Effect Unit))
+ogmiosQueryDispatch
+  :: forall a
+   . Aeson.DecodeAeson a
+  => Ref.Ref (MultiMap String (a -> Effect Unit))
   -> String
   -> Effect (Either Json.JsonDecodeError (Effect Unit))
-utxoQueryDispatch ref str = do
+ogmiosQueryDispatch ref str = do
   -- TODO: replace it with the new implementation in `Aeson`.
   -- https://github.com/Plutonomicon/cardano-browser-tx/issues/151
   let parsed' = JsonWsp.parseJsonWspResponse =<< Aeson.parseJsonStringToAeson str
@@ -616,13 +625,13 @@ utxoQueryDispatch ref str = do
     (Right res) -> afterParse res
   where
   afterParse
-    :: JsonWsp.JsonWspResponse JsonWsp.UtxoQR
+    :: JsonWsp.JsonWspResponse a
     -> Effect (Either Json.JsonDecodeError (Effect Unit))
   afterParse parsed = do
     let (id :: String) = parsed.reflection.id
     idMap <- Ref.read ref
     let
-      (mAction :: Maybe (JsonWsp.UtxoQR -> Effect Unit)) = (MM.lookup id idMap)
+      (mAction :: Maybe (a -> Effect Unit)) = (MM.lookup id idMap)
     case mAction of
       Nothing -> pure $ (Left (Json.TypeMismatch ("Parse succeeded but Request Id: " <> id <> " has been cancelled")) :: Either Json.JsonDecodeError (Effect Unit))
       Just action -> pure $ Right $ action parsed.result
