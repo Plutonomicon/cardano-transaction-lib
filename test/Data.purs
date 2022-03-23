@@ -94,7 +94,6 @@ suite = do
         [ BigInt.fromInt (negate 1000) /\ "3903e7"
         , BigInt.fromInt 1000 /\ "1903e8"
         , BigInt.fromInt 1 /\ "01"
-        , BigInt.fromInt 0 /\ "00"
         , unsafePartial (fromJust $ BigInt.fromString "999999999999999999999999999999999999999")
             /\ "c25102f050fe938943acc45f65567fffffffff"
         ]
