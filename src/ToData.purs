@@ -1,15 +1,21 @@
 module ToData
-  ( class ToDataWithIndex
+  ( AnotherDay(..)
+  , Day(..)
+  , Tree(..)
+  , class ConstrIndex
   , class ToData
   , class ToDataArgs
-  , class ConstrIndex
-  , resolveIndex
+  , class ToDataWithIndex
+  , class CountedConstrIndex
+  , defaultMakeConstrIndex
+  , defaultResolveIndex
   , genericToData
+  , genericToDataWithIndex
+  , makeConstrIndex
+  , resolveIndex
   , toData
   , toDataArgs
   , toDataWithIndex
-  , Day(..)
-  , genericToDataWithIndex
   ) where
 
 import Prelude
@@ -34,6 +40,9 @@ import Prim.TypeError (class Fail, Text)
 import Type.Proxy (Proxy(..))
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Constr, Integer, List, Map, Bytes))
+import Data.Tuple (Tuple)
+
+-- Classes
 
 class ToData (a :: Type) where
   toData :: a -> PlutusData
@@ -44,33 +53,33 @@ class ConstrIndex (a :: Type) where
 class ToDataWithIndex a ci where
   toDataWithIndex :: ConstrIndex ci => Proxy ci -> a -> PlutusData
 
--- Generic
-instance toDataWithIndexSumB ::
-  ( IsSymbol ln
-  , IsSymbol rn
-  , ConstrIndex ci
-  , ConstrIndex ci
-  , ToDataArgs la
-  , ToDataArgs ra
-  ) =>
-  ToDataWithIndex (G.Sum (G.Constructor ln la) (G.Constructor rn ra)) ci where
-  toDataWithIndex n (G.Inl (G.Constructor args)) = Constr (resolveIndex n (SProxy :: SProxy ln)) (toDataArgs args)
-  toDataWithIndex n (G.Inr (G.Constructor args)) = Constr (resolveIndex n (SProxy :: SProxy rn)) (toDataArgs args)
-
-instance toDataWithIndexSumA ::
-  ( IsSymbol ln
-  , ConstrIndex ci
-  , ToDataArgs la
-  , ToDataWithIndex (G.Sum a b) ci
-  ) =>
-  ToDataWithIndex (G.Sum (G.Constructor ln la) (G.Sum a b)) ci where
-  toDataWithIndex n (G.Inl (G.Constructor args)) = Constr (resolveIndex n (SProxy :: SProxy ln)) (toDataArgs args)
-  toDataWithIndex n (G.Inr x) = toDataWithIndex (n :: Proxy ci) x
-
 -- As explained in https://harry.garrood.me/blog/write-your-own-generics/ this
 -- is just a neat pattern that flattens a skewed Product of Products
 class ToDataArgs a where
   toDataArgs :: a -> Array (PlutusData)
+
+-- Default constructor indices
+class CountedConstrIndex (a :: Type) where
+  makeConstrIndex :: Proxy a -> Int -> Map String Int -> Map String Int
+
+-- Data.Generic.Rep instances
+
+instance toDataWithIndexSum ::
+  ( ConstrIndex ci
+  , ToDataWithIndex l ci
+  , ToDataWithIndex r ci
+  ) =>
+  ToDataWithIndex (G.Sum l r) ci where
+  toDataWithIndex p (G.Inl x) = toDataWithIndex (p :: Proxy ci) x
+  toDataWithIndex p (G.Inr x) = toDataWithIndex (p :: Proxy ci) x
+
+instance toDataWithIndexConstr ::
+  ( IsSymbol ln
+  , ConstrIndex ci
+  , ToDataArgs la
+  ) =>
+  ToDataWithIndex (G.Constructor ln la) ci where
+  toDataWithIndex p (G.Constructor args) = Constr (resolveIndex p (SProxy :: SProxy ln)) (toDataArgs args)
 
 instance toDataArgsNoArguments :: ToDataArgs G.NoArguments where
   toDataArgs _ = []
@@ -81,13 +90,36 @@ instance toDataArgsArgument :: ToData a => ToDataArgs (G.Argument a) where
 instance toDataArgsProduct :: (ToDataArgs a, ToDataArgs b) => ToDataArgs (G.Product a b) where
   toDataArgs (G.Product x y) = toDataArgs x <> toDataArgs y
 
+instance countedConstrIndexSum ::
+  ( CountedConstrIndex a
+  , CountedConstrIndex b
+  ) =>
+  CountedConstrIndex (G.Sum a b) where
+  makeConstrIndex _ i sym2ix = makeConstrIndex (Proxy :: Proxy b) (i + 1) (makeConstrIndex (Proxy :: Proxy a) i sym2ix)
+
+instance countedConstrIndexConstr :: (IsSymbol ln) => CountedConstrIndex (G.Constructor ln la) where
+  makeConstrIndex _ i sym2ix = (Map.insert (reflectSymbol (SProxy :: SProxy ln)) i sym2ix)
+
 genericToData
   :: forall a rep. G.Generic a rep => ToData rep => a -> PlutusData
 genericToData = toData <<< G.from
 
 genericToDataWithIndex
-  :: forall a rep. G.Generic a rep => ToDataWithIndex rep a => ConstrIndex a => a -> PlutusData
+  :: forall a rep. G.Generic a rep => ConstrIndex a => ToDataWithIndex rep a => a -> PlutusData
 genericToDataWithIndex = toDataWithIndex (Proxy :: Proxy a) <<< G.from
+
+defaultMakeConstrIndex :: forall a rep. G.Generic a rep => CountedConstrIndex rep => Proxy a -> Map String Int
+defaultMakeConstrIndex _ = makeConstrIndex (Proxy :: Proxy rep) 0 Map.empty
+
+defaultResolveIndex :: forall a rep s. G.Generic a rep => CountedConstrIndex rep => IsSymbol s => Proxy a -> SProxy s -> BigInt
+defaultResolveIndex _ constrSym =
+  let
+    constrName = reflectSymbol constrSym
+    constrIndex = defaultMakeConstrIndex (Proxy :: Proxy a)
+  in
+    case Map.lookup constrName constrIndex of
+      Just i -> BigInt.fromInt i
+      Nothing -> zero - BigInt.fromInt 1
 
 -- Instances
 
@@ -96,7 +128,7 @@ data Day = Mon | Tue | Wed | Thurs | Fri | Sat | Sun
 
 derive instance genericDay :: G.Generic Day _
 
-instance dayConstrIndex :: ConstrIndex Day where
+instance ConstrIndex Day where
   resolveIndex _ constrSymb = case reflectSymbol constrSymb of
     "Mon" -> zero
     "Tue" -> one
@@ -109,6 +141,26 @@ instance dayConstrIndex :: ConstrIndex Day where
 
 instance ToData Day where
   toData = genericToDataWithIndex
+
+data AnotherDay = AMon | ATue | AWed | AThurs | AFri | ASat | ASun
+
+derive instance genericAnotherDay :: G.Generic AnotherDay _
+
+instance ConstrIndex AnotherDay where
+  resolveIndex = defaultResolveIndex
+
+instance ToData AnotherDay where
+  toData = genericToDataWithIndex
+
+data Tree a = Node a (Tuple (Tree a) (Tree a)) | Leaf a
+
+derive instance genericTree :: G.Generic (Tree a) _
+
+instance ConstrIndex (Tree a) where
+  resolveIndex = defaultResolveIndex
+
+instance (ToData a) => ToData (Tree a) where
+  toData x = genericToDataWithIndex x -- https://github.com/purescript/documentation/blob/master/guides/Type-Class-Deriving.md#avoiding-stack-overflow-errors-with-recursive-types
 
 instance ToData Void where
   toData = absurd
