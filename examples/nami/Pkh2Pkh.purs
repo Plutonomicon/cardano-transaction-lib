@@ -35,7 +35,7 @@ module Examples.Nami.Pkh2Pkh (main) where
 
 import Prelude
 
-import BalanceTx (balanceTxM)
+import BalanceTx (balanceTx)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader (runReaderT)
 import Data.Array as Array
@@ -59,9 +59,10 @@ import QueryM
   , mkOgmiosWebSocketAff
   , mkDatumCacheWebSocketAff
   , submitTransaction
-  , utxosAt
   )
+import QueryM.Utxos (utxosAt)
 import Serialization.Address (NetworkId(TestnetId))
+import Types.Interval (defaultSlotConfig)
 import Types.Transaction
   ( Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
@@ -86,6 +87,8 @@ main = launchAff_ $ do
     , wallet
     , serverConfig: defaultServerConfig
     , usedTxOuts
+    , networkId: TestnetId
+    , slotConfig: defaultSlotConfig
     }
   liftEffect $ Console.log $ show txId
 
@@ -95,7 +98,7 @@ buildAndSubmit = mthrow "Failed to submit transaction" $
 
 buildTransaction :: QueryM Transaction
 buildTransaction = either (throw <<< show) pure
-  =<< balanceTxM
+  =<< balanceTx
   =<< buildUnbalancedTransaction
 
 buildUnbalancedTransaction :: QueryM UnbalancedTx

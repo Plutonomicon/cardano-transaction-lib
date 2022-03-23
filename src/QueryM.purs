@@ -1,54 +1,58 @@
 -- | TODO docstring
 module QueryM
-  ( DispatchIdMap
+  ( ClientError(..)
+  , DatumCacheListeners
+  , DatumCacheWebSocket
+  , DispatchIdMap
   , FeeEstimate(..)
-  , ClientError(..)
   , Host
+  , JsWebSocket
   , ListenerSet
   , OgmiosListeners
-  , DatumCacheListeners
-  , WebSocket
   , OgmiosWebSocket
-  , DatumCacheWebSocket
   , QueryConfig
   , QueryM
   , ServerConfig
-  , JsWebSocket
-  , calculateMinFee
+  , WebSocket
+  , _stringify
+  , _wsSend
+  , allowError
   , applyArgs
-  , defaultServerConfig
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , getWalletAddress
-  , getWalletCollateral
-  , mkOgmiosWebSocketAff
-  , mkDatumCacheWebSocketAff
-  , mkHttpUrl
-  , mkWsUrl
-  , signTransaction
-  , submitTransaction
-  , utxosAt
-  , filterUnusedUtxos
-  , queryDatumCache
-  , getDatumByHash
-  , getDatumsByHashes
-  , startFetchBlocksRequest
+  , calculateMinFee
   , cancelFetchBlocksRequest
   , datumFilterAddHashesRequest
+  , datumFilterGetHashesRequest
   , datumFilterRemoveHashesRequest
   , datumFilterSetHashesRequest
-  , datumFilterGetHashesRequest
+  , defaultDatumCacheWsConfig
+  , defaultOgmiosWsConfig
+  , defaultServerConfig
+  , getDatumByHash
+  , getDatumsByHashes
+  , getWalletAddress
+  , getWalletCollateral
+  , hashScript
+  , listeners
+  , mkDatumCacheWebSocketAff
+  , mkHttpUrl
+  , mkOgmiosWebSocketAff
+  , mkWsUrl
+  , ownPaymentPubKeyHash
+  , ownPubKeyHash
+  , queryDatumCache
+  , signTransaction
+  , startFetchBlocksRequest
+  , submitTransaction
+  , underlyingWebSocket
   ) where
 
 import Prelude
 
-import Address (addressToOgmiosAddress)
 import Aeson as Aeson
 import Affjax as Affjax
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.RequestBody as Affjax.RequestBody
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, ask, asks)
 import Data.Argonaut (class DecodeJson, JsonDecodeError)
 import Data.Argonaut as Json
@@ -56,14 +60,12 @@ import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Bitraversable (bisequence)
 import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
-import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Traversable (sequence, traverse)
-import Data.Tuple.Nested (type (/\), (/\))
+import Data.Traversable (traverse)
+import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import DatumCacheWsp
@@ -102,29 +104,31 @@ import Effect.Console (log)
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
 import Foreign.Object as Object
-import Helpers as Helpers
 import MultiMap (MultiMap)
 import MultiMap as MM
 import Serialization as Serialization
 import Serialization.Address
   ( Address
   , BlockId
+  , NetworkId
   , Slot
+  , addressBech32
   )
+import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData)
 import Types.ByteArray (byteArrayToHex)
 import Types.Datum (DatumHash)
+import Types.Interval (SlotConfig)
 import Types.JsonWsp as JsonWsp
 import Types.PlutusData (PlutusData)
 import Types.Scripts (PlutusScript)
-import Types.Transaction (UtxoM(UtxoM))
 import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Types.UnbalancedTransaction (PubKeyHash, PaymentPubKeyHash, pubKeyHash)
 import Types.Value (Coin(Coin))
-import TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
 import Untagged.Union (asOneOf)
-import UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
 import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
+import UsedTxOuts (UsedTxOuts)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -167,47 +171,11 @@ type QueryConfig =
   , wallet :: Maybe Wallet
   -- should probably be more tightly coupled with a wallet
   , usedTxOuts :: UsedTxOuts
+  , networkId :: NetworkId
+  , slotConfig :: SlotConfig
   }
 
 type QueryM (a :: Type) = ReaderT QueryConfig Aff a
-
--- the first query type in the QueryM/Aff interface
-utxosAt' :: JsonWsp.OgmiosAddress -> QueryM JsonWsp.UtxoQR
-utxosAt' addr = do
-  body <- liftEffect $ JsonWsp.mkUtxosAtQuery { utxo: [ addr ] }
-  let id = body.mirror.id
-  sBody <- liftEffect $ _stringify body
-  config <- ask
-  -- not sure there's an easy way to factor this out unfortunately
-  let
-    affFunc :: (Either Error JsonWsp.UtxoQR -> Effect Unit) -> Effect Canceler
-    affFunc cont = do
-      let
-        ls = listeners config.ogmiosWs
-        ws = underlyingWebSocket config.ogmiosWs
-      ls.utxo.addMessageListener id
-        ( \result -> do
-            ls.utxo.removeMessageListener id
-            allowError cont $ result
-        )
-      _wsSend ws sBody
-      pure $ Canceler $ \err -> do
-        liftEffect $ ls.utxo.removeMessageListener id
-        liftEffect $ throwError $ err
-  liftAff $ makeAff $ affFunc
-
---------------------------------------------------------------------------------
--- Used Utxos helpers
-
-filterUnusedUtxos :: UtxoM -> QueryM UtxoM
-filterUnusedUtxos (UtxoM utxos) = withTxRefsCache $
-  UtxoM <$> Helpers.filterMapWithKeyM (\k _ -> isTxOutRefUsed (unwrap k)) utxos
-
-withTxRefsCache
-  :: forall (m :: Type -> Type) (a :: Type)
-   . ReaderT UsedTxOuts Aff a
-  -> QueryM a
-withTxRefsCache f = withReaderT (_.usedTxOuts) f
 
 --------------------------------------------------------------------------------
 -- Datum Cache Queries
@@ -308,6 +276,13 @@ submitTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.TransactionHash)
 submitTransaction tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.submitTx tx
+
+ownPubKeyHash :: QueryM (Maybe PubKeyHash)
+ownPubKeyHash =
+  map ((=<<) pubKeyHash <<< map (wrap <<< addressBech32)) getWalletAddress
+
+ownPaymentPubKeyHash :: QueryM (Maybe PaymentPubKeyHash)
+ownPaymentPubKeyHash = map wrap <$> ownPubKeyHash
 
 withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
@@ -416,7 +391,7 @@ calculateMinFee tx = do
       <<< Serialization.toBytes
       <<< asOneOf
       <$> Serialization.convertTransaction tx
-  url <- asks $ (_ <> "/fees?tx=" <> txHex) <<< mkHttpUrl <<< _.serverConfig
+  url <- mkServerEndpointUrl $ "fees?tx=" <> txHex
   liftAff (Affjax.get Affjax.ResponseFormat.json url)
     <#> either
       (Left <<< ClientHttpError)
@@ -445,12 +420,6 @@ applyArgs script args = case traverse plutusDataToJson args of
   Nothing -> pure $ Left $ ClientEncodingError "Failed to convert script args"
   Just ps -> do
     let
-      -- It's easier to just write the encoder here than provide an `EncodeJson`
-      -- instance (there are some brutal cyclical dependency issues trying to
-      -- write an instance in the `Types.*` modules)
-      scriptJson :: Json.Json
-      scriptJson = encodeString $ byteArrayToHex $ unwrap $ unwrap script
-
       argsJson :: Json.Json
       argsJson = Json.encodeJson ps
 
@@ -459,10 +428,10 @@ applyArgs script args = case traverse plutusDataToJson args of
         $ Affjax.RequestBody.Json
         $ Json.fromObject
         $ Object.fromFoldable
-            [ "script" /\ scriptJson
+            [ "script" /\ scriptToJson (unwrap script)
             , "args" /\ argsJson
             ]
-    url <- asks $ (_ <> "/apply-args") <<< mkHttpUrl <<< _.serverConfig
+    url <- mkServerEndpointUrl "apply-args"
     liftAff (Affjax.post Affjax.ResponseFormat.json url reqBody)
       <#> either
         (Left <<< ClientHttpError)
@@ -477,6 +446,36 @@ applyArgs script args = case traverse plutusDataToJson args of
           <<< asOneOf
       )
       <<< convertPlutusData
+
+hashScript
+  :: forall (a :: Type) (b :: Type)
+   . Newtype a PlutusScript
+  => Newtype b ScriptHash
+  => a
+  -> QueryM (Either ClientError b)
+hashScript script = do
+  url <- mkServerEndpointUrl "hash-script"
+  let
+    reqBody :: Maybe Affjax.RequestBody.RequestBody
+    reqBody = Just
+      $ Affjax.RequestBody.Json
+      $ scriptToJson
+      $ unwrap script
+  liftAff (Affjax.post Affjax.ResponseFormat.json url reqBody)
+    <#> either
+      (Left <<< ClientHttpError)
+      (bimap ClientDecodeJsonError wrap <<< Json.decodeJson <<< _.body)
+
+-- It's easier to just write the encoder here than provide an `EncodeJson`
+-- instance (there are some brutal cyclical dependency issues trying to
+-- write an instance in the `Types.*` modules)
+scriptToJson :: PlutusScript -> Json.Json
+scriptToJson = encodeString <<< byteArrayToHex <<< unwrap
+
+mkServerEndpointUrl :: String -> QueryM Url
+mkServerEndpointUrl path = asks $ (_ <> "/" <> path)
+  <<< mkHttpUrl
+  <<< _.serverConfig
 
 --------------------------------------------------------------------------------
 -- OgmiosWebSocket Setup and PrimOps
@@ -681,58 +680,3 @@ messageFoldF
 messageFoldF msg acc' func = do
   acc <- acc'
   if isRight acc then acc' else func msg
-
---------------------------------------------------------------------------------
--- Ogmios functions and types to internal types
---------------------------------------------------------------------------------
-
--- If required, we can change to Either with more granular error handling.
--- | Gets utxos at an (internal) `Address` in terms of (internal) `Transaction.Types`.
--- Results may vary depending on `Wallet` type.
-utxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
-utxosAt addr = asks _.wallet >>= maybe (pure Nothing) (utxosAtByWallet addr)
-  where
-  -- Add more wallet types here:
-  utxosAtByWallet
-    :: Address -> Wallet -> QueryM (Maybe Transaction.UtxoM)
-  utxosAtByWallet address (Nami _) = namiUtxosAt address
-  -- Unreachable but helps build when we add wallets, most of them shouldn't
-  -- require any specific behaviour.
-  utxosAtByWallet address _ = allUtxosAt address
-
-  -- Gets all utxos at an (internal) Address in terms of (internal)
-  -- Transaction.Types.
-  allUtxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
-  allUtxosAt = addressToOgmiosAddress >>> getUtxos
-    where
-    getUtxos :: JsonWsp.OgmiosAddress -> QueryM (Maybe Transaction.UtxoM)
-    getUtxos address = convertUtxos <$> utxosAt' address
-
-    convertUtxos :: JsonWsp.UtxoQR -> Maybe Transaction.UtxoM
-    convertUtxos (JsonWsp.UtxoQR utxoQueryResult) =
-      let
-        out' :: Array (Maybe Transaction.TransactionInput /\ Maybe Transaction.TransactionOutput)
-        out' = Map.toUnfoldable utxoQueryResult
-          <#> bimap
-            txOutRefToTransactionInput
-            ogmiosTxOutToTransactionOutput
-
-        out :: Maybe (Array (Transaction.TransactionInput /\ Transaction.TransactionOutput))
-        out = out' <#> bisequence # sequence
-      in
-        (wrap <<< Map.fromFoldable) <$> out
-
-  -- Nami appear to remove collateral from the utxo set, so we shall do the same.
-  -- This is crucial if we are submitting via Nami. If we decide to submit with
-  -- Ogmios, we can remove this.
-  -- More detail can be found here https://github.com/Berry-Pool/nami-wallet/blob/ecb32e39173b28d4a7a85b279a748184d4759f6f/src/api/extension/index.js
-  -- by searching "// exclude collateral input from overall utxo set"
-  -- or functions getUtxos and checkCollateral.
-  namiUtxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
-  namiUtxosAt address = do
-    utxos' <- allUtxosAt address
-    collateral' <- getWalletCollateral
-    pure do
-      utxos <- unwrap <$> utxos'
-      collateral <- unwrap <$> collateral'
-      pure $ wrap $ Map.delete collateral.input utxos

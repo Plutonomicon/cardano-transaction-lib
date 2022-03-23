@@ -89,6 +89,7 @@ derive instance Generic MintingPolicyHash _
 derive instance Newtype MintingPolicyHash _
 derive newtype instance Eq MintingPolicyHash
 derive newtype instance Ord MintingPolicyHash
+derive newtype instance DecodeJson MintingPolicyHash
 
 instance Show MintingPolicyHash where
   show = genericShow
@@ -104,6 +105,7 @@ derive newtype instance Eq ValidatorHash
 derive newtype instance Ord ValidatorHash
 derive newtype instance FromData ValidatorHash
 derive newtype instance ToData ValidatorHash
+derive newtype instance DecodeJson ValidatorHash
 
 instance Show ValidatorHash where
   show = genericShow
@@ -114,6 +116,7 @@ derive instance Generic StakeValidatorHash _
 derive instance Newtype StakeValidatorHash _
 derive newtype instance Eq StakeValidatorHash
 derive newtype instance Ord StakeValidatorHash
+derive newtype instance DecodeJson StakeValidatorHash
 
 instance Show StakeValidatorHash where
   show = genericShow

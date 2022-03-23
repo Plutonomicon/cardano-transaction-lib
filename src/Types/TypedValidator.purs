@@ -13,6 +13,13 @@ module Types.TypedValidator
 
 import Prelude
 
+import Data.Argonaut
+  ( class DecodeJson
+  , JsonDecodeError(TypeMismatch)
+  , (.:)
+  , caseJsonObject
+  )
+import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
@@ -87,7 +94,7 @@ newtype TypedValidator (a :: Type) = TypedValidator
   { validator :: Validator
   , validatorHash :: ValidatorHash
   , forwardingMPS :: MintingPolicy
-  , forwardingMPSHash :: MintingPolicyHash
+  , forwardingMPSHash :: MintingPolicyHash -- Can maybe remove as unused in lookups.
   -- The hash of the minting policy that checks whether the validator
   -- is run in this transaction
   }
@@ -98,6 +105,18 @@ derive newtype instance Eq (TypedValidator a)
 
 instance Show (TypedValidator a) where
   show = genericShow
+
+instance DecodeJson (TypedValidator a) where
+  decodeJson = caseJsonObject
+    (Left $ TypeMismatch "Expected Object")
+    ( \o -> do
+        validator <- o .: "validator"
+        validatorHash <- o .: "validatorHash"
+        forwardingMPS <- o .: "forwardingMPS"
+        forwardingMPSHash <- o .: "forwardingMPSHash"
+        pure $ TypedValidator
+          { validator, validatorHash, forwardingMPS, forwardingMPSHash }
+    )
 
 -- Not sure how necessary this is:
 -- | Generalise the typed validator to one that works with the `PlutusData` type.
