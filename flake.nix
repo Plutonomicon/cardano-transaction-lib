@@ -172,20 +172,13 @@
         // { hsDevShell = self.hsFlake.${system}.devShell; }
       );
 
-      # apps = perSystem (system:
-      #   let
-      #     serverApp = "cardano-browser-tx-server:exe:cardano-browser-tx-server";
-      #   in
-      #   {
-      #     cbtx-server = self.hsFlake.${system}.apps.${serverApp};
-      #   }
-      # );
+      apps = perSystem (system: {
+        inherit
+          (self.hsFlake.${system}.apps)
+          "cardano-browser-tx-server:exe:cardano-browser-tx-server";
+      });
 
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);
-
-      # checks = perSystem (system: (psProjectFor system).checks);
-
-      # check = perSystem (system: (psProjectFor system).check);
 
       ci= flake-compat-ci.lib.recurseIntoFlakeWith {
         flake = self;
