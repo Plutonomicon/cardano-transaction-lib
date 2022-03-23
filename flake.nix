@@ -4,6 +4,7 @@
       url = "github:edolstra/flake-compat";
       flake = false;
     };
+    flake-compat-ci.url = "github:hercules-ci/flake-compat-ci";
 
     nixpkgs.url = "github:NixOS/nixpkgs/dde1557825c5644c869c5efc7448dc03722a8f09";
 
@@ -118,7 +119,14 @@
     };
   };
 
-  outputs = { self, nixpkgs, haskell-nix, iohk-nix, ... }@inputs:
+  outputs =
+    { self
+    , nixpkgs
+    , haskell-nix
+    , iohk-nix
+    , flake-compat-ci
+    , ...
+    }@inputs:
     let
       defaultSystems = [ "x86_64-linux" "x86_64-darwin" ];
       perSystem = nixpkgs.lib.genAttrs defaultSystems;
@@ -164,27 +172,24 @@
         // { hsDevShell = self.hsFlake.${system}.devShell; }
       );
 
-      apps = perSystem (system:
-        let
-          serverApp = "cardano-browser-tx-server:exe:cardano-browser-tx-server";
-        in
-        {
-          cbtx-server = self.hsFlake.${system}.apps.${serverApp};
-        }
-      );
+      # apps = perSystem (system:
+      #   let
+      #     serverApp = "cardano-browser-tx-server:exe:cardano-browser-tx-server";
+      #   in
+      #   {
+      #     cbtx-server = self.hsFlake.${system}.apps.${serverApp};
+      #   }
+      # );
 
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);
 
-      checks = perSystem (system: (psProjectFor system).checks);
+      # checks = perSystem (system: (psProjectFor system).checks);
 
-      check = perSystem (system: (psProjectFor system).check);
+      # check = perSystem (system: (psProjectFor system).check);
 
-      ci =
-        let
-          system = "x86_64-linux";
-        in
-        {
-          packages = self.packages.${system};
-        };
+      ci= flake-compat-ci.lib.recurseIntoFlakeWith {
+        flake = self;
+        systems = [ "x86_64-linux" ];
+      };
     };
 }
