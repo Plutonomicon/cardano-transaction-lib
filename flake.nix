@@ -4,6 +4,7 @@
       url = "github:edolstra/flake-compat";
       flake = false;
     };
+    flake-compat-ci.url = "github:hercules-ci/flake-compat-ci";
 
     nixpkgs.url = "github:NixOS/nixpkgs/dde1557825c5644c869c5efc7448dc03722a8f09";
 
@@ -118,7 +119,14 @@
     };
   };
 
-  outputs = { self, nixpkgs, haskell-nix, iohk-nix, ... }@inputs:
+  outputs =
+    { self
+    , nixpkgs
+    , haskell-nix
+    , iohk-nix
+    , flake-compat-ci
+    , ...
+    }@inputs:
     let
       defaultSystems = [ "x86_64-linux" "x86_64-darwin" ];
       perSystem = nixpkgs.lib.genAttrs defaultSystems;
@@ -153,30 +161,28 @@
 
       devShell = perSystem (system: (psProjectFor system).devShell);
 
-      # It might be a good idea to keep this as a separate shell; if you're
-      # working on the PS frontend, it doesn't make a lot of sense to pull
-      # in all of the Haskell dependencies
-      #
-      # This can be used with `nix develop .#hsDevShell.<SYSTEM>`
-      hsDevShell = perSystem (system: self.hsFlake.${system}.devShell);
-
       packages = perSystem (system:
-        self.hsFlake.${system}.packages // (psProjectFor system).packages
+        self.hsFlake.${system}.packages
+        // (psProjectFor system).packages
+        # It might be a good idea to keep this as a separate shell; if you're
+        # working on the PS frontend, it doesn't make a lot of sense to pull
+        # in all of the Haskell dependencies
+        #
+        # This can be used with `nix develop .#hsDevShell
+        // { hsDevShell = self.hsFlake.${system}.devShell; }
       );
 
-      apps = perSystem (system:
-        let
-          serverApp = "cardano-browser-tx-server:exe:cardano-browser-tx-server";
-        in
-        {
-          cbtx-server = self.hsFlake.${system}.apps.${serverApp};
-        }
-      );
+      apps = perSystem (system: {
+        inherit
+          (self.hsFlake.${system}.apps)
+          "cardano-browser-tx-server:exe:cardano-browser-tx-server";
+      });
 
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);
 
-      checks = perSystem (system: (psProjectFor system).checks);
-
-      check = perSystem (system: (psProjectFor system).check);
+      ci = flake-compat-ci.lib.recurseIntoFlakeWith {
+        flake = self;
+        systems = [ "x86_64-linux" ];
+      };
     };
 }
