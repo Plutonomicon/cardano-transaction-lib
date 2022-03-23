@@ -134,3 +134,9 @@ exports.newRedeemers = () =>
 
 exports.addRedeemer = rs => r => () =>
     rs.add(r);
+
+exports.newScriptDataHashFromBytes = bytes => () =>
+    lib.ScriptDataHash.from_bytes(bytes);
+
+exports.setTxBodyScriptDataHash = body => sdh => () =>
+    body.set_script_data_hash(sdh)
