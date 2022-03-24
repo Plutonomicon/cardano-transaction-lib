@@ -44,6 +44,7 @@ module QueryM
   , startFetchBlocksRequest
   , submitTransaction
   , underlyingWebSocket
+  , finalizeTx
   ) where
 
 import Prelude
@@ -129,6 +130,10 @@ import Types.Value (Coin(Coin))
 import Untagged.Union (asOneOf)
 import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
 import UsedTxOuts (UsedTxOuts)
+
+import Affjax.RequestBody as RequestBody
+import Undefined
+import Data.Argonaut.Encode.Class (encodeJson)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -406,6 +411,36 @@ calculateMinFee tx = do
   -- See https://github.com/Plutonomicon/cardano-browser-tx/issues/123
   coinFromEstimate :: FeeEstimate -> Coin
   coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 50000)) <<< unwrap
+
+type DatumCbor = String
+
+type RedeemerCbor = String
+
+finalizeTx
+  :: Transaction.Transaction -> QueryM (Either Unit Unit)
+finalizeTx tx = do
+  txHex <- liftEffect $
+    byteArrayToHex
+      <<< Serialization.toBytes
+      <<< asOneOf
+      <$> Serialization.convertTransaction tx
+  let
+    body
+      :: { tx :: String
+         , datums :: Array DatumCbor
+         , redeemers :: Array RedeemerCbor
+         }
+    body =
+      { tx: txHex
+      , datums: []
+      , redeemers: []
+      }
+  url <- mkServerEndpointUrl $ "finalize"
+  liftAff
+    ( Affjax.post Affjax.ResponseFormat.json url
+        (Just $ RequestBody.Json $ encodeJson body)
+    )
+    <#> either (const $ Left unit) (const $ Right unit)
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied

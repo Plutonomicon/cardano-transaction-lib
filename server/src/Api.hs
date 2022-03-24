@@ -46,8 +46,10 @@ import Types (
   FeeEstimateError (InvalidCbor, InvalidHex),
   HashScriptRequest,
   HashedScript,
+  FinalizeRequest(..)
  )
 import Utils (lbshow)
+
 
 type Api =
   "fees" :> QueryParam' '[Required] "tx" Cbor :> Get '[JSON] Fee
@@ -59,6 +61,10 @@ type Api =
     :<|> "hash-script"
       :> ReqBody '[JSON] HashScriptRequest
       :> Post '[JSON] HashedScript
+    :<|> "finalize"
+      :> QueryParam' '[Required] "tx" Cbor
+      -- :> ReqBody '[JSON] FinalizeRequest
+      :> Get '[JSON] ()
 
 app :: Env -> Application
 app = Cors.cors (const $ Just policy) . serve api . appServer
@@ -98,6 +104,7 @@ server =
   Handlers.estimateTxFees
     :<|> Handlers.applyArgs
     :<|> Handlers.hashScript
+    :<|> flip Handlers.finalizeTx (FinalizeRequest 0)
 
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
@@ -105,4 +112,6 @@ apiDocs = Docs.docs api
 estimateTxFees :: Cbor -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
 hashScript :: HashScriptRequest -> ClientM HashedScript
-estimateTxFees :<|> applyArgs :<|> hashScript = client api
+finalizeTx :: Cbor -- -> FinalizeRequest
+  -> ClientM ()
+estimateTxFees :<|> applyArgs :<|> hashScript :<|> finalizeTx = client api

@@ -4,6 +4,7 @@ module Api.Handlers (
   estimateTxFees,
   applyArgs,
   hashScript,
+  finalizeTx
 ) where
 
 import Cardano.Api qualified as C
@@ -28,8 +29,11 @@ import Types (
   FeeEstimateError (InvalidCbor, InvalidHex),
   HashScriptRequest (HashScriptRequest),
   HashedScript (HashedScript),
+  FinalizeRequest (FinalizeRequest),
   hashLedgerScript,
  )
+
+import Control.Monad.IO.Class
 
 estimateTxFees :: Cbor -> AppM Fee
 estimateTxFees cbor = do
@@ -45,6 +49,14 @@ applyArgs ApplyArgsRequest {script, args} =
 hashScript :: HashScriptRequest -> AppM HashedScript
 hashScript (HashScriptRequest script) =
   pure . HashedScript $ hashLedgerScript script
+
+finalizeTx :: Cbor -> FinalizeRequest -> AppM ()
+finalizeTx cbor _ = do
+  liftIO $ print $ "cbor:"
+  liftIO $ print $ show cbor
+  decoded <- either (throwM . FeeEstimate) pure $ decodeCborTx cbor
+  liftIO $ print decoded
+  pure ()
 
 -- Helpers
 

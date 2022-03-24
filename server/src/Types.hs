@@ -4,6 +4,7 @@ module Types (
   Env (..),
   Cbor (..),
   Fee (..),
+  FinalizeRequest(..),
   ApplyArgsRequest (..),
   AppliedScript (..),
   HashScriptRequest (..),
@@ -39,6 +40,7 @@ import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (Port)
 import Paths_cardano_browser_tx_server (getDataFileName)
 import Plutus.V1.Ledger.Api qualified as Ledger
+import Plutus.V1.Ledger.Tx qualified as Ledger
 import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
 import Servant (FromHttpApiData, QueryParam', Required, ToHttpApiData)
 import Servant.Docs qualified as Docs
@@ -101,6 +103,10 @@ data ApplyArgsRequest = ApplyArgsRequest
   deriving anyclass (FromJSON, ToJSON)
 
 newtype AppliedScript = AppliedScript Ledger.Script
+  deriving stock (Show, Generic)
+  deriving newtype (Eq, FromJSON, ToJSON)
+
+newtype FinalizeRequest = FinalizeRequest Int -- TODO
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
 
@@ -211,6 +217,19 @@ instance Docs.ToSample HashedScript where
           "{\"getScriptHash\":\
           \\"67f33146617a5e61936081db3b2117cbf59bd2123748f58ac9678656\"}"
       )
+    ]
+
+instance Docs.ToSample FinalizeRequest where
+  toSamples _ =
+    [
+      ( "TODO"
+      , FinalizeRequest (Cbor "00") [Cbor "00"] [Cbor "00"]
+      )
+    ]
+
+instance Docs.ToSample FinalizedTransaction where
+  toSamples _ =
+    [ ("The script should be CBOR-encoded hex", undefined)
     ]
 
 -- For decoding test fixtures, samples, etc...
