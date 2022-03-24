@@ -18,7 +18,7 @@ import Contract.PlutusData
   , fromData
   , toData
   )
-import Contract.Prim.ByteArray (ByteArray, blake2b_256, byteArrayFromIntArrayUnsafe)
+import Contract.Prim.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe)
 import Contract.Numeric.Natural (Natural, toBigInt)
 import Contract.Scripts
   ( ValidatorHash
@@ -168,7 +168,7 @@ class Hashable a where
   hash :: a -> Maybe ByteArray -- Plutus BuiltinByteString
 
 instance Hashable ByteArray where
-  hash = pure <<< blake2b_256 -- blake2b_256 https://github.com/dcposch/blakejs/blob/master/blake2b.js#L327
+  hash _ = Nothing -- FIXME
 
 instance Hashable Natural where
   hash = hash <=< pure <<< toBin <=< toInt <<< toBigInt

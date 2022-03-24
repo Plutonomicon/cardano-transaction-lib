@@ -1,7 +1,6 @@
 -- | Our domain type for byte arrays, a wrapper over `Uint8Array`.
 module Types.ByteArray
   ( ByteArray(..)
-  , blake2b_256
   , byteArrayFromIntArray
   , byteArrayFromIntArrayUnsafe
   , byteArrayFromString
@@ -13,8 +12,11 @@ module Types.ByteArray
   )
   where
 
+import Data.Argonaut (class DecodeJson)
+import Data.Argonaut as Json
 import Data.Array (replicate, (..))
 import Data.ArrayBuffer.Types (Uint8Array)
+import Data.Either (Either(Left), note)
 import Data.Maybe (Maybe(..), fromJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Profunctor (dimap)
@@ -52,6 +54,12 @@ instance Semigroup ByteArray where
 
 instance Monoid ByteArray where
   mempty = byteArrayFromIntArrayUnsafe []
+
+instance DecodeJson ByteArray where
+  decodeJson j = Json.caseJsonString
+    (Left (Json.TypeMismatch "expected a hex-encoded CBOR string"))
+    (note (Json.UnexpectedValue j) <<< hexToByteArray)
+    j
 
 foreign import ord_ :: (Int -> Int -> Int) -> ByteArray -> ByteArray -> Int
 
@@ -96,18 +104,3 @@ byteArrayFromString str = do
     let charCode = toCharCode cp
     if charCode <= 255 && charCode >= 0 then pure charCode
     else Nothing
-
-foreign import _blake2b :: Uint8Array ->  Int -> Uint8Array
-
--- Blake2b-256 hash with key, outlen, salt, and personal left as default.
--- https://github.com/dcposch/blakejs/blob/master/blake2b.js#L327
-blake2b_256 :: ByteArray -> ByteArray
-blake2b_256 = dimap unwrap wrap (flip _blake2b 32)
-
--- test :: ByteArray -> Effect Unit
--- test input = do
---   for_ (1 .. 64) ( \i -> do
---     let key = byteArrayFromIntArrayUnsafe $ replicate i 3
---     log (show i)
---     log (byteArrayToHex $ blake2b_256 input key)
---   )
