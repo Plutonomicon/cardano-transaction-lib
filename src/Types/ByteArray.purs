@@ -9,26 +9,19 @@ module Types.ByteArray
   , byteLength
   , hexToByteArray
   , hexToByteArrayUnsafe
-  )
-  where
+  ) where
 
 import Data.Argonaut (class DecodeJson)
 import Data.Argonaut as Json
-import Data.Array (replicate, (..))
 import Data.ArrayBuffer.Types (Uint8Array)
 import Data.Either (Either(Left), note)
-import Data.Maybe (Maybe(..), fromJust)
-import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Profunctor (dimap)
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (class Newtype, unwrap)
 import Prelude
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Data.Char (toCharCode)
 import Data.String.CodeUnits (toCharArray)
-import Data.Traversable (for, for_)
-import Effect (Effect)
-import Effect.Console (log)
-import Partial.Unsafe (unsafePartial)
-
+import Data.Traversable (for)
 
 newtype ByteArray = ByteArray Uint8Array
 

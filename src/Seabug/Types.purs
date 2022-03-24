@@ -1,16 +1,16 @@
 module Seabug.Types
-  ( MintAct(..)
+  ( MarketplaceDatum(..)
+  , MintAct(..)
   , NftCollection(..)
   , NftData(..)
   , NftId(..)
   , class Hashable
   , hash
-  )
-  where
+  ) where
 
 import Contract.Prelude
 import Contract.Monad (Contract)
-import Contract.Address (PaymentPubKeyHash)
+import Contract.Address (PaymentPubKeyHash, PubKeyHash)
 import Contract.Aeson (caseAesonObject, getField, jsonToAeson) as Aeson
 import Contract.PlutusData
   ( class FromData
@@ -47,6 +47,26 @@ import Data.BigInt (BigInt, fromInt, toInt)
 
 -- Field names have been simplified due to row polymorphism. Please let me know
 -- if the field names must be exact.
+-- | Parameters that need to be submitted when minting a new NFT.
+newtype MintParams = MintParams
+  { -- | Shares retained by author.
+    authorShare :: Natural
+  , daoShare :: Natural
+  , -- | Listing price of the NFT, in Lovelace.
+    price :: Natural
+  , lockLockup :: BigInt
+  , lockLockupEnd :: Slot
+  , fakeAuthor :: Maybe PaymentPubKeyHash
+  , feeVaultKeys :: Array PubKeyHash -- `List` is also an option
+  }
+
+derive instance Generic MintParams _
+derive instance Newtype MintParams _
+derive newtype instance Eq MintParams
+
+instance Show MintParams where
+  show = genericShow
+
 newtype NftId = NftId
   { collectionNftTn :: TokenName
   , price :: Natural
@@ -129,31 +149,6 @@ instance Json.DecodeJson NftCollection where
 instance Show NftCollection where
   show = genericShow
 
-data MintAct
-  = MintToken NftId
-  | ChangePrice NftId Natural
-  | ChangeOwner NftId PaymentPubKeyHash
-  | BurnToken NftId
-derive instance Generic MintAct _
-
-instance Show MintAct where
-  show = genericShow
-
-instance ToData MintAct where
-  toData (MintToken nft) = Constr zero [ toData nft ]
-  toData (ChangePrice nft price) = Constr one [ toData nft, toData price ]
-  toData (ChangeOwner nft pkh) = Constr (fromInt 2) [ toData nft, toData pkh ]
-  toData (BurnToken nft) =  Constr (fromInt 3) [ toData nft ]
-
-instance FromData MintAct where
-  fromData (Constr n [ nft ])
-    | n == zero = MintToken <$> fromData nft
-    | n == (fromInt 3) = BurnToken <$> fromData nft
-  fromData (Constr n [ nft, pd ])
-    | n == one = ChangePrice <$> fromData nft <*> fromData pd
-    | n == (fromInt 2) = ChangeOwner <$> fromData nft <*> fromData pd
-  fromData _ = Nothing
-
 newtype NftData = NftData
   { nftCollection :: NftCollection
   , nftId :: NftId
@@ -166,6 +161,126 @@ derive newtype instance Ord NftData
 
 instance Show NftData where
   show = genericShow
+
+newtype SetPriceParams = SetPriceParams
+  { -- | Token which price is set.
+    nftData :: NftData
+  , -- | New price, in Lovelace.
+    price :: Natural
+  }
+
+derive instance Generic SetPriceParams _
+derive instance Newtype SetPriceParams _
+derive newtype instance Eq SetPriceParams
+
+instance Show SetPriceParams where
+  show = genericShow
+
+newtype ChangeOwnerParams = ChangeOwnerParams
+  { -- | Token which owner is set.
+    nftData :: NftData
+  , -- | New Owner
+    owner :: PaymentPubKeyHash
+  }
+
+derive instance Generic ChangeOwnerParams _
+derive instance Newtype ChangeOwnerParams _
+derive newtype instance Eq ChangeOwnerParams
+
+instance Show ChangeOwnerParams where
+  show = genericShow
+
+data MintAct
+  = MintToken NftId
+  | ChangePrice NftId Natural
+  | ChangeOwner NftId PaymentPubKeyHash
+  | BurnToken NftId
+
+derive instance Generic MintAct _
+
+instance Show MintAct where
+  show = genericShow
+
+instance ToData MintAct where
+  toData (MintToken nft) = Constr zero [ toData nft ]
+  toData (ChangePrice nft price) = Constr one [ toData nft, toData price ]
+  toData (ChangeOwner nft pkh) = Constr (fromInt 2) [ toData nft, toData pkh ]
+  toData (BurnToken nft) = Constr (fromInt 3) [ toData nft ]
+
+instance FromData MintAct where
+  fromData (Constr n [ nft ])
+    | n == zero = MintToken <$> fromData nft
+    | n == fromInt 3 = BurnToken <$> fromData nft
+  fromData (Constr n [ nft, m ])
+    | n == one = ChangePrice <$> fromData nft <*> fromData m
+    | n == fromInt 2 = ChangeOwner <$> fromData nft <*> fromData m
+  fromData _ = Nothing
+
+data LockAct
+  = Unstake PaymentPubKeyHash Natural
+  | Restake PaymentPubKeyHash Natural
+
+derive instance Generic LockAct _
+
+instance Show LockAct where
+  show = genericShow
+
+instance ToData LockAct where
+  toData (Unstake pkh n) = Constr zero [ toData pkh, toData n ]
+  toData (Restake pkh n) = Constr one [ toData pkh, toData n ]
+
+instance FromData LockAct where
+  fromData (Constr n [ pkh, m ])
+    | n == zero = Unstake <$> fromData pkh <*> fromData m
+    | n == one = Restake <$> fromData pkh <*> fromData m
+  fromData _ = Nothing
+
+newtype LockDatum = LockDatum
+  { sgNft :: CurrencySymbol
+  , entered :: Slot
+  , underlyingTn :: TokenName
+  }
+
+derive instance Generic LockDatum _
+derive instance Newtype LockDatum _
+derive newtype instance Eq LockDatum
+
+instance Show LockDatum where
+  show = genericShow
+
+instance ToData LockDatum where
+  toData (LockDatum { sgNft, entered, underlyingTn }) =
+    Constr zero [ toData sgNft, toData entered, toData underlyingTn ]
+
+instance FromData LockDatum where
+  fromData (Constr n [ cs, s, tn ])
+    | n == zero = LockDatum <$>
+        ( { sgNft: _, entered: _, underlyingTn: _ }
+            <$> fromData cs
+            <*> fromData s
+            <*> fromData tn
+        )
+  fromData _ = Nothing
+
+newtype MarketplaceDatum = MarketplaceDatum
+  { getMarketplaceDatum :: CurrencySymbol /\ TokenName }
+
+derive instance Generic MarketplaceDatum _
+derive instance Newtype MarketplaceDatum _
+derive newtype instance Eq MarketplaceDatum
+derive newtype instance Ord MarketplaceDatum
+
+instance Show MarketplaceDatum where
+  show = genericShow
+
+instance ToData MarketplaceDatum where
+  toData (MarketplaceDatum { getMarketplaceDatum }) =
+    Constr zero [ toData getMarketplaceDatum ]
+
+instance FromData MarketplaceDatum where
+  fromData (Constr n [ asset ]) | n == zero =
+    MarketplaceDatum <$> ({ getMarketplaceDatum: _ } <$> fromData asset)
+  fromData _ = Nothing
 
 -- This differs from Plutus because of `Natural` when we convert from a `BigInt`
 -- to an `Int`. Otherwise, the rest should not fail.

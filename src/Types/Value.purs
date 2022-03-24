@@ -56,7 +56,6 @@ import Data.Argonaut
   ( class DecodeJson
   , JsonDecodeError(TypeMismatch)
   , caseJsonObject
-  , decodeJson
   , getField
   )
 import Data.Array (cons, filter)

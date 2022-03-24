@@ -7,8 +7,7 @@ module ProtocolParametersAlonzo
   , pidSize
   , protocolParamUTxOCostPerWord
   , utxoEntrySizeWithoutVal
-  )
-  where
+  ) where
 
 import Prelude
 

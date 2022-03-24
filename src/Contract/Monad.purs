@@ -5,8 +5,10 @@ module Contract.Monad
   , defaultContractConfig
   , defaultContractConfigLifted
   , liftContractE
+  , liftContractE'
   , liftContractM
   , liftedE
+  , liftedE'
   , liftedM
   , module Interval
   , module QueryM
@@ -17,7 +19,7 @@ module Contract.Monad
 
 import Prelude
 import Control.Alt (class Alt)
-import Data.Either (Either, hush)
+import Data.Either (Either, either, hush)
 import Data.Maybe (Maybe(Just), maybe)
 import Control.Monad.Error.Class (class MonadError, class MonadThrow)
 import Control.Monad.Reader.Class (class MonadAsk, class MonadReader, ask, local)
@@ -134,6 +136,12 @@ liftContractE
   :: forall (e :: Type) (a :: Type). String -> Either e a -> Contract a
 liftContractE str = liftContractM str <<< hush
 
+-- | Similar to `liftContractE` except it directly throws the showable error
+-- | via `throwContractError` instead of an arbitrary string.
+liftContractE'
+  :: forall (e :: Type) (a :: Type). Show e => Either e a -> Contract a
+liftContractE' = either throwContractError pure
+
 -- | Same as `liftContractE` but the `Either` value is already in the `Contract`
 -- | context.
 liftedE
@@ -142,6 +150,15 @@ liftedE
   -> Contract (Either e a)
   -> Contract a
 liftedE str em = em >>= liftContractE str
+
+-- | Similar to `liftedE` except it directly throws the showable error via
+-- | `throwContractError` instead of an arbitrary string.
+liftedE'
+  :: forall (e :: Type) (a :: Type)
+   . Show e
+  => Contract (Either e a)
+  -> Contract a
+liftedE' = (=<<) liftContractE'
 
 -- | Runs the contract, essentially `runReaderT` but with arguments flipped.
 runContract :: forall (a :: Type). ContractConfig -> Contract a -> Aff a
