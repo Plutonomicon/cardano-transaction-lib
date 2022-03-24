@@ -1,8 +1,12 @@
 module Seabug.Types
-  ( NftCollection(..)
+  ( MintAct(..)
+  , NftCollection(..)
   , NftData(..)
   , NftId(..)
-  ) where
+  , class Hashable
+  , hash
+  )
+  where
 
 import Contract.Prelude
 import Contract.Address (PaymentPubKeyHash)
@@ -14,8 +18,8 @@ import Contract.PlutusData
   , fromData
   , toData
   )
-import Contract.Prim.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe)
-import Contract.Numeric.Natural (Natural)
+import Contract.Prim.ByteArray (ByteArray, blake2b_256, byteArrayFromIntArrayUnsafe)
+import Contract.Numeric.Natural (Natural, toBigInt)
 import Contract.Scripts
   ( ValidatorHash
   , ed25519KeyHashToBytes
@@ -34,7 +38,7 @@ import Data.Argonaut
   , caseJsonObject
   , getField
   ) as Json
-import Data.BigInt (BigInt, toInt)
+import Data.BigInt (BigInt, fromInt, toInt)
 
 -- Field names have been simplified due to row polymorphism. Please let me know
 -- if the field names must be exact.
@@ -120,6 +124,31 @@ instance Json.DecodeJson NftCollection where
 instance Show NftCollection where
   show = genericShow
 
+data MintAct
+  = MintToken NftId
+  | ChangePrice NftId Natural
+  | ChangeOwner NftId PaymentPubKeyHash
+  | BurnToken NftId
+derive instance Generic MintAct _
+
+instance Show MintAct where
+  show = genericShow
+
+instance ToData MintAct where
+  toData (MintToken nft) = Constr zero [ toData nft ]
+  toData (ChangePrice nft price) = Constr one [ toData nft, toData price ]
+  toData (ChangeOwner nft pkh) = Constr (fromInt 2) [ toData nft, toData pkh ]
+  toData (BurnToken nft) =  Constr (fromInt 3) [ toData nft ]
+
+instance FromData MintAct where
+  fromData (Constr n [ nft ])
+    | n == zero = MintToken <$> fromData nft
+    | n == (fromInt 3) = BurnToken <$> fromData nft
+  fromData (Constr n [ nft, pd ])
+    | n == one = ChangePrice <$> fromData nft <*> fromData pd
+    | n == (fromInt 2) = ChangeOwner <$> fromData nft <*> fromData pd
+  fromData _ = Nothing
+
 newtype NftData = NftData
   { nftCollection :: NftCollection
   , nftId :: NftId
@@ -133,22 +162,29 @@ derive newtype instance Ord NftData
 instance Show NftData where
   show = genericShow
 
+-- This differs from Plutus because of `Natural` when we convert from a `BigInt`
+-- to an `Int`. Otherwise, the rest should not fail.
 class Hashable a where
-  hash :: a -> ByteArray -- Actually a Plutus BuiltinByteString
+  hash :: a -> Maybe ByteArray -- Plutus BuiltinByteString
 
--- TO DO:
 instance Hashable ByteArray where
-  hash = undefined -- blake2b_256 https://github.com/dcposch/blakejs/blob/master/blake2b.js#L327
+  hash = pure <<< blake2b_256 -- blake2b_256 https://github.com/dcposch/blakejs/blob/master/blake2b.js#L327
 
--- instance Hashable Natural where
---   hash = hash <<< toBin <<< toInt
---   where
---   toBin :: Int -> ByteArray
---   toBin n = toBin' n mempty
---     where
---       toBin' n' rest
---         | n' < 256 = byteArrayFromIntArrayUnsafe [n'] <> rest
---         | otherwise = toBin' (n' `divide` 256) (consByteString (n' `modulo` 256) rest)
+instance Hashable Natural where
+  hash = hash <=< pure <<< toBin <=< toInt <<< toBigInt
+    where
+    toBin :: Int -> ByteArray
+    toBin n = toBin' n mempty
+
+    -- Should be safe to use `byteArrayFromIntArrayUnsafe` since in both
+    -- cases, n' < 256.
+    toBin' :: Int -> ByteArray -> ByteArray
+    toBin' n' rest
+      | n' < 256 = byteArrayFromIntArrayUnsafe [ n' ] <> rest
+      | otherwise =
+          toBin'
+            (n' `div` 256)
+            (byteArrayFromIntArrayUnsafe [ n' `mod` 256 ] <> rest)
 
 instance Hashable CurrencySymbol where
   hash = hash <<< getCurrencySymbol
@@ -163,4 +199,8 @@ instance Hashable PaymentPubKeyHash where
   hash = hash <<< ed25519KeyHashToBytes <<< unwrap <<< unwrap
 
 instance (Hashable a, Hashable b) => Hashable (a /\ b) where
-  hash (a /\ b) = hash (hash a <> hash b)
+  hash (a /\ b) = hash a <> hash b >>= hash
+
+instance Hashable NftId where
+  hash (NftId { collectionNftTn, price, owner }) =
+    hash =<< hash collectionNftTn <> hash price <> hash owner

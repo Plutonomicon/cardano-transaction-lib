@@ -1,12 +1,20 @@
 module Seabug.Token
-  ( policy
-  ) where
+  ( mkTokenName
+  , policy
+  )
+  where
 
 import Contract.Prelude
 import Contract.Monad (Contract)
 import Contract.PlutusData (toData)
 import Contract.Scripts (MintingPolicy, applyArgsM)
-import Seabug.Types (NftCollection(NftCollection))
+import Contract.Value (mkTokenName) as Value
+import Contract.Value (TokenName)
+import Seabug.Types (NftCollection(NftCollection), NftId, hash)
+
+-- rev: 2c9ce295ccef4af3f3cb785982dfe554f8781541
+mkTokenName :: NftId -> Maybe TokenName
+mkTokenName = Value.mkTokenName <=< hash
 
 -- rev: 2c9ce295ccef4af3f3cb785982dfe554f8781541
 -- Apply arguments to an unapplied `MintingPolicy` to give a `MintingPolicy`.
