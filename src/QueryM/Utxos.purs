@@ -8,7 +8,7 @@ import Prelude
 import Address (addressToOgmiosAddress)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader (withReaderT)
-import Control.Monad.Reader.Trans (ReaderT, ask, asks)
+import Control.Monad.Reader.Trans (ReaderT, asks)
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (bisequence)
 import Data.Either (Either)
@@ -49,14 +49,14 @@ utxosAt' addr = do
   body <- liftEffect $ JsonWsp.mkUtxosAtQuery { utxo: [ addr ] }
   let id = body.mirror.id
   sBody <- liftEffect $ _stringify body
-  config <- ask
+  ogmiosWs <- asks _.ogmiosWs
   -- not sure there's an easy way to factor this out unfortunately
   let
     affFunc :: (Either Error JsonWsp.UtxoQR -> Effect Unit) -> Effect Canceler
     affFunc cont = do
       let
-        ls = listeners config.ogmiosWs
-        ws = underlyingWebSocket config.ogmiosWs
+        ls = listeners ogmiosWs
+        ws = underlyingWebSocket ogmiosWs
       ls.utxo.addMessageListener id
         ( \result -> do
             ls.utxo.removeMessageListener id
