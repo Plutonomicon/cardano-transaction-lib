@@ -9,7 +9,6 @@ module Contract.Transaction
   , submitTransaction
   , module BalanceTxError
   , module ExportQueryM
-  , module JsonWsp
   , module ScriptLookups
   , module Transaction
   , module TxOutput
@@ -32,7 +31,6 @@ import QueryM
   , signTransaction
   , submitTransaction
   ) as QueryM
-import Types.JsonWsp (OgmiosTxOut, OgmiosTxOutRef) as JsonWsp -- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
 import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
   , mkUnbalancedTx
@@ -93,6 +91,7 @@ import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and ass
   , TransactionOutput(TransactionOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
+  , TxOut
   , UnitInterval
   , Update
   , Utxo

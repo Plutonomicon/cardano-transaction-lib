@@ -33,6 +33,7 @@ module Types.Transaction
   , TransactionOutput(..)
   , TransactionWitnessSet(..)
   , TxBody(..)
+  , TxOut
   , UnitInterval
   , Update
   , Utxo
@@ -643,6 +644,9 @@ instance FromData TransactionOutput where
 instance ToData TransactionOutput where
   toData (TransactionOutput { address, amount, data_hash }) =
     Constr zero [ toData address, toData amount, toData data_hash ]
+
+-- For convenience of Haskell code:
+type TxOut = TransactionOutput
 
 newtype UtxoM = UtxoM Utxo
 

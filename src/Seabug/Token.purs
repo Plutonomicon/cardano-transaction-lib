@@ -1,8 +1,8 @@
 module Seabug.Token
   ( mkTokenName
   , policy
-  )
-  where
+  , unappliedMintingPolicy
+  ) where
 
 import Contract.Prelude
 import Contract.Monad (Contract)
@@ -10,6 +10,8 @@ import Contract.PlutusData (toData)
 import Contract.Scripts (MintingPolicy, applyArgsM)
 import Contract.Value (mkTokenName) as Value
 import Contract.Value (TokenName)
+import Data.Argonaut.Decode.Error (JsonDecodeError)
+import Seabug.Helpers (jsonReader)
 import Seabug.Types (NftCollection(NftCollection), NftId, hash)
 
 -- rev: 2c9ce295ccef4af3f3cb785982dfe554f8781541
@@ -51,3 +53,8 @@ policy
       ]
   in
     applyArgsM mph pd
+
+-- This is read in locally as a minting policy with unapplied arguments. We
+-- may prefer to change this to a fully appllied MintingPolicy.
+unappliedMintingPolicy :: Aff (Either JsonDecodeError MintingPolicy)
+unappliedMintingPolicy = jsonReader "./inputs/UnappliedMintingPolicy.json"
