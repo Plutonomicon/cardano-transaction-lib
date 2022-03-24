@@ -21,10 +21,7 @@ import Prelude
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Data.Char (toCharCode)
 import Data.String.CodeUnits (toCharArray)
-import Data.Traversable (for, for_)
-import Effect (Effect)
-import Effect.Console (log)
-import Partial.Unsafe (unsafePartial)
+import Data.Traversable (for)
 
 newtype ByteArray = ByteArray Uint8Array
 
