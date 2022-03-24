@@ -13,4 +13,4 @@ import Seabug.Helpers (jsonReader)
 -- type families. We are restricted to functional dependencies in Purescript,
 -- so are required to type with the output, namely, `PlutusData`.
 marketplaceValidator :: Aff (Either JsonDecodeError (TypedValidator PlutusData))
-marketplaceValidator = jsonReader "./inputs/TypedValidator.json"
+marketplaceValidator = jsonReader "./inputs/TypedValidator.json" "typedValidator"
