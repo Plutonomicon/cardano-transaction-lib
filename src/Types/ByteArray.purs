@@ -1,30 +1,38 @@
 -- | Our domain type for byte arrays, a wrapper over `Uint8Array`.
 module Types.ByteArray
   ( ByteArray(..)
+  , blake2b_256
   , byteArrayFromIntArray
   , byteArrayFromIntArrayUnsafe
-  , byteArrayToIntArray
+  , byteArrayFromString
   , byteArrayToHex
+  , byteArrayToIntArray
   , byteLength
   , hexToByteArray
   , hexToByteArrayUnsafe
-  , byteArrayFromString
-  ) where
+  )
+  where
 
+import Data.Array (replicate, (..))
 import Data.ArrayBuffer.Types (Uint8Array)
-import Data.Maybe (Maybe(..))
-import Data.Newtype (class Newtype, unwrap)
+import Data.Maybe (Maybe(..), fromJust)
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Profunctor (dimap)
 import Prelude
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Data.Char (toCharCode)
 import Data.String.CodeUnits (toCharArray)
-import Data.Traversable (for)
+import Data.Traversable (for, for_)
+import Effect (Effect)
+import Effect.Console (log)
+import Partial.Unsafe (unsafePartial)
+
 
 newtype ByteArray = ByteArray Uint8Array
 
-derive instance newtypeByteArray :: Newtype ByteArray _
+derive instance Newtype ByteArray _
 
-instance showByteArray :: Show ByteArray where
+instance Show ByteArray where
   show arr = "(byteArrayFromIntArrayUnsafe " <> show (byteArrayToIntArray arr) <> ")"
 
 instance Eq ByteArray where
@@ -77,7 +85,7 @@ foreign import _byteLength :: Uint8Array -> Int
 byteLength :: ByteArray -> Int
 byteLength = _byteLength <<< unwrap
 
-instance arbitraryByteArray :: Arbitrary ByteArray where
+instance Arbitrary ByteArray where
   arbitrary = byteArrayFromIntArrayUnsafe <$> arbitrary
 
 -- | Convert characters in range `0-255` into a `ByteArray`.
@@ -88,3 +96,18 @@ byteArrayFromString str = do
     let charCode = toCharCode cp
     if charCode <= 255 && charCode >= 0 then pure charCode
     else Nothing
+
+foreign import _blake2b :: Uint8Array ->  Int -> Uint8Array
+
+-- Blake2b-256 hash with key, outlen, salt, and personal left as default.
+-- https://github.com/dcposch/blakejs/blob/master/blake2b.js#L327
+blake2b_256 :: ByteArray -> ByteArray
+blake2b_256 = dimap unwrap wrap (flip _blake2b 32)
+
+-- test :: ByteArray -> Effect Unit
+-- test input = do
+--   for_ (1 .. 64) ( \i -> do
+--     let key = byteArrayFromIntArrayUnsafe $ replicate i 3
+--     log (show i)
+--     log (byteArrayToHex $ blake2b_256 input key)
+--   )
