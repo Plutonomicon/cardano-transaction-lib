@@ -57,4 +57,5 @@ policy
 -- This is read in locally as a minting policy with unapplied arguments. We
 -- may prefer to change this to a fully appllied MintingPolicy.
 unappliedMintingPolicy :: Aff (Either JsonDecodeError MintingPolicy)
-unappliedMintingPolicy = jsonReader "./inputs/UnappliedMintingPolicy.json"
+unappliedMintingPolicy =
+  jsonReader "./inputs/UnappliedMintingPolicy.json" "mintingPolicy"
