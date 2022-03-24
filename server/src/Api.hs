@@ -107,7 +107,7 @@ server =
   Handlers.estimateTxFees
     :<|> Handlers.applyArgs
     :<|> Handlers.hashScript
-    :<|> undefined -- "TODO"
+    :<|> Handlers.blake2bHash
 
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
