@@ -13,8 +13,8 @@ import Contract.Value (TokenName)
 import Seabug.Types (NftCollection(NftCollection), NftId, hash)
 
 -- rev: 2c9ce295ccef4af3f3cb785982dfe554f8781541
-mkTokenName :: NftId -> Maybe TokenName
-mkTokenName = Value.mkTokenName <=< hash
+mkTokenName :: NftId -> Contract (Maybe TokenName)
+mkTokenName nftId = hash nftId <#> maybe Nothing Value.mkTokenName
 
 -- rev: 2c9ce295ccef4af3f3cb785982dfe554f8781541
 -- Apply arguments to an unapplied `MintingPolicy` to give a `MintingPolicy`.
