@@ -45,6 +45,7 @@ import Data.Argonaut
   , getField
   ) as Json
 import Data.BigInt (BigInt, fromInt, toInt)
+import Partial.Unsafe (unsafePartial)
 
 -- Field names have been simplified due to row polymorphism. Please let me know
 -- if the field names must be exact.
@@ -326,8 +327,7 @@ instance FromData MarketplaceDatum where
     MarketplaceDatum <$> ({ getMarketplaceDatum: _ } <$> fromData asset)
   fromData _ = Nothing
 
--- This differs from Plutus because of `Natural` when we convert from a `BigInt`
--- to an `Int`. Otherwise, the rest should not fail.
+-- The Contract Maybe is because we use a Haskell server
 class Hashable a where
   hash :: a -> Contract (Maybe ByteArray) -- Plutus BuiltinByteString
 
@@ -335,20 +335,28 @@ instance Hashable ByteArray where
   hash = blake2bHash
 
 instance Hashable Natural where
-  hash = maybe (pure Nothing) (hash <<< toBin) <<< toInt <<< toBigInt
+  hash = hash <<< toBin <<< toBigInt
     where
-    toBin :: Int -> ByteArray
+    toBin :: BigInt -> ByteArray
     toBin n = toBin' n mempty
+
+    threshold :: BigInt
+    threshold = fromInt 256
+
+    -- This function is generally unsafe but our usage below is safe because
+    -- either, it is below 256 or we have used modulo arithmetic.
+    toInt' :: BigInt -> Int
+    toInt' = unsafePartial fromJust <<< toInt
 
     -- Should be safe to use `byteArrayFromIntArrayUnsafe` since in both
     -- cases, n' < 256.
-    toBin' :: Int -> ByteArray -> ByteArray
+    toBin' :: BigInt -> ByteArray -> ByteArray
     toBin' n' rest
-      | n' < 256 = byteArrayFromIntArrayUnsafe [ n' ] <> rest
+      | n' < threshold = byteArrayFromIntArrayUnsafe [ toInt' n' ] <> rest
       | otherwise =
           toBin'
-            (n' `div` 256)
-            (byteArrayFromIntArrayUnsafe [ n' `mod` 256 ] <> rest)
+            (n' `div` threshold)
+            (byteArrayFromIntArrayUnsafe [ toInt' $ n' `mod` threshold ] <> rest)
 
 instance Hashable CurrencySymbol where
   hash = hash <<< getCurrencySymbol
