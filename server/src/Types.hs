@@ -1,3 +1,5 @@
+{-# LANGUAGE DerivingVia #-}
+
 module Types (
   AppM (AppM),
   ServerOptions (..),
@@ -13,6 +15,9 @@ module Types (
   hashLedgerScript,
   newEnvIO,
   unsafeDecode,
+  -- blake2b stuff
+  BytesToHash (..),
+  Blake2bHash (..),
 ) where
 
 import Cardano.Api qualified as C
@@ -44,6 +49,11 @@ import Servant (FromHttpApiData, QueryParam', Required, ToHttpApiData)
 import Servant.Docs qualified as Docs
 import Text.Read (readMaybe)
 import Utils (tshow)
+
+-- blake2b imports
+import Data.ByteString (ByteString)
+import Data.ByteString.Base16 qualified as Base16
+import Data.Text.Encoding qualified as Text.Encoding
 
 newtype AppM (a :: Type) = AppM (ReaderT Env IO a)
   deriving newtype
@@ -224,3 +234,37 @@ unsafeDecode name = fromMaybe (error errorMsg) . Aeson.decode
 -- Replace this with a simpler script
 exampleScript :: Ledger.Script
 exampleScript = unsafeDecode "Script" "\"4d01000033222220051200120011\""
+
+-- blake2b types
+newtype BytesToHash = BytesToHash ByteString
+  deriving stock (Show, Generic)
+  deriving newtype (Eq)
+  deriving (FromJSON, ToJSON) via JsonHexString
+
+newtype Blake2bHash = Blake2bHash ByteString
+  deriving stock (Show, Generic)
+  deriving newtype (Eq)
+  deriving (FromJSON, ToJSON) via JsonHexString
+
+-- Not going to bother with docs for the endpoint associated with these two
+-- types. The instances below are just needed for compilation
+instance Docs.ToSample BytesToHash where
+  toSamples _ = []
+
+instance Docs.ToSample Blake2bHash where
+  toSamples _ = []
+
+newtype JsonHexString = JsonHexString ByteString
+
+instance FromJSON JsonHexString where
+  parseJSON =
+    withText "JsonHexString" $
+      either (const $ fail "Couldn't decode hex string") (pure . JsonHexString)
+        . Base16.decode
+        . Text.Encoding.encodeUtf8
+
+instance ToJSON JsonHexString where
+  toJSON (JsonHexString jhs) =
+    Aeson.String
+      . Text.Encoding.decodeUtf8
+      $ Base16.encode jhs

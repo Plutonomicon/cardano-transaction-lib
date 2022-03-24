@@ -21,7 +21,10 @@ import Prelude
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Data.Char (toCharCode)
 import Data.String.CodeUnits (toCharArray)
-import Data.Traversable (for)
+import Data.Traversable (for, for_)
+import Effect (Effect)
+import Effect.Console (log)
+import Partial.Unsafe (unsafePartial)
 
 newtype ByteArray = ByteArray Uint8Array
 
@@ -47,6 +50,12 @@ instance Semigroup ByteArray where
 
 instance Monoid ByteArray where
   mempty = byteArrayFromIntArrayUnsafe []
+
+instance DecodeJson ByteArray where
+  decodeJson j = Json.caseJsonString
+    (Left (Json.TypeMismatch "expected a hex-encoded CBOR string"))
+    (note (Json.UnexpectedValue j) <<< hexToByteArray)
+    j
 
 foreign import ord_ :: (Int -> Int -> Int) -> ByteArray -> ByteArray -> Int
 

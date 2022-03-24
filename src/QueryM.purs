@@ -18,6 +18,7 @@ module QueryM
   , _wsSend
   , allowError
   , applyArgs
+  , blake2bHash
   , calculateMinFee
   , cancelFetchBlocksRequest
   , datumFilterAddHashesRequest
@@ -116,7 +117,7 @@ import Serialization.Address
   )
 import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData)
-import Types.ByteArray (byteArrayToHex)
+import Types.ByteArray (ByteArray, byteArrayToHex)
 import Types.Datum (DatumHash)
 import Types.Interval (SlotConfig)
 import Types.JsonWsp as JsonWsp
@@ -471,6 +472,20 @@ hashScript script = do
 -- write an instance in the `Types.*` modules)
 scriptToJson :: PlutusScript -> Json.Json
 scriptToJson = encodeString <<< byteArrayToHex <<< unwrap
+
+blake2bHash :: ByteArray -> QueryM (Either ClientError ByteArray)
+blake2bHash bytes = do
+  url <- mkServerEndpointUrl "blake2b"
+  let
+    reqBody :: Maybe Affjax.RequestBody.RequestBody
+    reqBody = Just
+      $ Affjax.RequestBody.Json
+      $ encodeString
+      $ byteArrayToHex bytes
+  liftAff (Affjax.post Affjax.ResponseFormat.json url reqBody)
+    <#> either
+      (Left <<< ClientHttpError)
+      (lmap ClientDecodeJsonError <<< Json.decodeJson <<< _.body)
 
 mkServerEndpointUrl :: String -> QueryM Url
 mkServerEndpointUrl path = asks $ (_ <> "/" <> path)
