@@ -3,9 +3,14 @@ module Seabug.MarketPlace
   ) where
 
 import Contract.Prelude
-import Contract.Prim.Any (Any)
+import Contract.PlutusData (PlutusData)
 import Contract.Scripts (TypedValidator)
+import Data.Argonaut.Decode.Error (JsonDecodeError)
+import Seabug.Helpers (jsonReader)
 
--- Will likely be read in from JSON
-marketplaceValidator :: TypedValidator Any
-marketplaceValidator = undefined
+-- This is read in locally as a typed validator.
+-- Recall, Plutus typed validators map `Any` to `PlutusData` using associated
+-- type families. We are restricted to functional dependencies in Purescript,
+-- so are required to type with the output, namely, `PlutusData`.
+marketplaceValidator :: Aff (Either JsonDecodeError (TypedValidator PlutusData))
+marketplaceValidator = jsonReader "./inputs/TypedValidator.json"
