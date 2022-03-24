@@ -24,7 +24,7 @@ module Types.ScriptLookups
 
 import Prelude hiding (join)
 
-import Address (addressValidatorHash, ogmiosAddressToAddress)
+import Address (addressValidatorHash)
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Control.Monad.Reader.Class (asks)
@@ -69,7 +69,6 @@ import ToData (class ToData)
 import Types.Any (Any)
 import Types.Datum (Datum, DatumHash, datumHash)
 import Types.Interval (POSIXTimeRange, posixTimeRangeToTransactionSlot)
-import Types.JsonWsp (OgmiosTxOut)
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
 import Types.Scripts
   ( MintingPolicy
@@ -157,7 +156,7 @@ import Types.Value
   , negation
   , split
   )
-import TxOutput (ogmiosDatumHashToDatumHash, ogmiosTxOutToScriptOutput)
+import TxOutput (transactionOutputToScriptOutput)
 
 -- Taken mainly from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-constraints/html/Ledger-Constraints-OffChain.html
 -- Plutus rev: cc72a56eafb02333c96f662581b57504f8f8992f via Plutus-apps (localhost): abe4785a4fc4a10ba0c4e6417f0ab9f1b4169b26
@@ -174,7 +173,7 @@ import TxOutput (ogmiosDatumHashToDatumHash, ogmiosTxOutToScriptOutput)
 -- `processLookupsAndConstraints`.
 newtype ScriptLookups (a :: Type) = ScriptLookups
   { mps :: Array MintingPolicy -- Minting policies that the script interacts with
-  , txOutputs :: Map TxOutRef OgmiosTxOut -- Unspent outputs that the script may want to spend. This may need tweaking to `TransactionOutput`
+  , txOutputs :: Map TxOutRef TransactionOutput -- Unspent outputs that the script may want to spend. This may need tweaking to `TransactionOutput`
   , otherScripts :: Array Validator -- Validators of scripts other than "our script"
   , otherData :: Map DatumHash Datum --  Datums that we might need
   , paymentPubKeyHashes :: Map PaymentPubKeyHash PaymentPubKey -- Public keys that we might need
@@ -258,14 +257,14 @@ typedValidatorLookupsM = pure <<< typedValidatorLookups
 -- | A script lookups value that uses the map of unspent outputs to resolve
 -- | input constraints.
 unspentOutputs
-  :: forall (a :: Type). Map TxOutRef OgmiosTxOut -> ScriptLookups a
+  :: forall (a :: Type). Map TxOutRef TransactionOutput -> ScriptLookups a
 unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 
 -- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
 -- | Same as `unspentOutputs` but in `Maybe` context for convenience. This
 -- | should not fail.
 unspentOutputsM
-  :: forall (a :: Type). Map TxOutRef OgmiosTxOut -> Maybe (ScriptLookups a)
+  :: forall (a :: Type). Map TxOutRef TransactionOutput -> Maybe (ScriptLookups a)
 unspentOutputsM = pure <<< unspentOutputs
 
 -- | A script lookups value with a minting policy script.
@@ -649,7 +648,7 @@ updateUtxoIndex
    . ConstraintsM a (Either MkUnbalancedTxError Unit)
 updateUtxoIndex = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
-  let txOutsMap = mapMaybe ogmiosTxOutToScriptOutput txOutputs
+  let txOutsMap = mapMaybe transactionOutputToScriptOutput txOutputs
   -- Left bias towards original map, hence `flip`:
   _unbalancedTx <<< _utxoIndex %= flip union txOutsMap
 
@@ -721,8 +720,6 @@ data MkUnbalancedTxError
   | CannotQueryDatum DatumHash
   | CannotHashDatum Datum
   | CannotConvertPOSIXTimeRange POSIXTimeRange
-  | CannotConvertOgmiosAddress String -- Conversion from an Ogmios Address ~ String to `Address`
-  | CannotConvertOgmiosDatumHash String -- Conversion from an Ogmios DatumHash ~ `Maybe String` to` Maybe DatumHash`
   | CannotGetValidatorHashFromAddress Address -- Get `ValidatorHash` from internal `Address`
   | CannotGetMintingPolicyScriptIndex -- Cannot get the Minting Policy Index - this should be impossible.
   | CannotGetMintingValidatorScriptIndex -- Cannot get the Validator Index - this should be impossible.
@@ -741,7 +738,7 @@ instance Show MkUnbalancedTxError where
 lookupTxOutRef
   :: forall (a :: Type)
    . TxOutRef
-  -> ConstraintsM a (Either MkUnbalancedTxError OgmiosTxOut)
+  -> ConstraintsM a (Either MkUnbalancedTxError TransactionOutput)
 lookupTxOutRef outRef = do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
   let err = pure $ throwError $ TxOutRefNotFound outRef
@@ -810,35 +807,28 @@ processConstraint mpsMap osMap = do
       -- Recall an Ogmios datum is a `Maybe String` where `Nothing` implies a
       -- wallet address and `Just` as script address.
       case txOut of
-        { value, datum: Nothing } -> do
+        TransactionOutput { amount, data_hash: Nothing } -> do
           -- POTENTIAL FIX ME: Plutus has Tx.TxIn and Tx.PubKeyTxIn -- TxIn
           -- keeps track TxOutRef and TxInType (the input type, whether
           -- consuming script, public key or simple script)
           _cpsToTxBody <<< _inputs %= (:) txo
-          _valueSpentBalancesInputs <>= provide value
+          _valueSpentBalancesInputs <>= provide amount
         _ -> liftEither $ throwError $ TxOutRefWrongType txo
     MustSpendScriptOutput txo red -> runExceptT do
       txOut <- ExceptT $ lookupTxOutRef txo
       -- Recall an Ogmios datum is a `Maybe String` where `Nothing` implies a
       -- wallet address and `Just` as script address.
       case txOut of
-        { address, datum: Just datumStr, value } -> do
-          -- Convert the address into a validator hash to use the lookup
-          address' <- liftM
-            (CannotConvertOgmiosAddress address)
-            (ogmiosAddressToAddress address)
+        TransactionOutput { address, amount, data_hash: Just dHash } -> do
           vHash <- liftM
-            (CannotGetValidatorHashFromAddress address')
-            (addressValidatorHash address')
+            (CannotGetValidatorHashFromAddress address)
+            (addressValidatorHash address)
           plutusScript <- ExceptT $ lookupValidator vHash osMap <#> map unwrap
           -- Note: Plutus uses `TxIn` to attach a redeemer and datum.
           -- Use the datum hash inside the lookup
           -- Note: if we get `Nothing`, we have to throw eventhough that's a
           -- valid input, because our `txOut` above is a Script address via
           -- `Just`.
-          dHash <- liftM
-            (CannotConvertOgmiosDatumHash datumStr)
-            (ogmiosDatumHashToDatumHash datumStr)
           dataValue <- ExceptT $ lookupDatum dHash
           ExceptT $ attachToCps attachPlutusScript plutusScript
           -- Get the redeemer index, which is the current length of scripts - 1
@@ -857,7 +847,7 @@ processConstraint mpsMap osMap = do
               , data: unwrap red
               , ex_units: scriptExUnits
               }
-          _valueSpentBalancesInputs <>= provide value
+          _valueSpentBalancesInputs <>= provide amount
           -- Append redeemer for spending to array.
           _redeemers <>= Array.singleton redeemer
           -- Attach redeemer to witness set.

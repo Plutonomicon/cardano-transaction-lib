@@ -18,7 +18,6 @@ import Prelude
 import Data.Argonaut
   ( class DecodeJson
   , caseJsonString
-  , decodeJson
   , JsonDecodeError(TypeMismatch)
   )
 import Data.Argonaut as Json
