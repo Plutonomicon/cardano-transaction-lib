@@ -751,15 +751,6 @@ let
         sha512 = "jDctJ/IVQbZoJykoeHbhXpOlNBqGNcwXJKJog42E5HDPUwQTSdjCHdihjj0DlnheQ7blbT6dHOafNAiS8ooQKA==";
       };
     };
-    "blakejs-1.2.1" = {
-      name = "blakejs";
-      packageName = "blakejs";
-      version = "1.2.1";
-      src = fetchurl {
-        url = "https://registry.npmjs.org/blakejs/-/blakejs-1.2.1.tgz";
-        sha512 = "QXUSXI3QVc/gJME0dBpXrag1kbzOqCjCX8/b54ntNyW6sjtoqxqRk3LTmXzaJoh71zMsDCjM+47jS7XiwN/+fQ==";
-      };
-    };
     "bluebird-3.7.2" = {
       name = "bluebird";
       packageName = "bluebird";
@@ -4581,7 +4572,6 @@ let
       sources."big-integer-1.6.51"
       sources."big.js-5.2.2"
       sources."binary-extensions-2.2.0"
-      sources."blakejs-1.2.1"
       sources."bluebird-3.7.2"
       sources."bn.js-5.2.0"
       (sources."body-parser-1.19.1" // {
