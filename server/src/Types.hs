@@ -5,11 +5,13 @@ module Types (
   Cbor (..),
   Fee (..),
   FinalizeRequest(..),
+  FinalizedTransaction(..),
   ApplyArgsRequest (..),
   AppliedScript (..),
   HashScriptRequest (..),
   HashedScript (..),
   FeeEstimateError (..),
+  FinalizeTxError(..),
   CardanoBrowserServerError (..),
   hashLedgerScript,
   newEnvIO,
@@ -75,7 +77,7 @@ newEnvIO =
 
 newtype Cbor = Cbor Text
   deriving stock (Show)
-  deriving newtype (Eq, FromHttpApiData, ToHttpApiData)
+  deriving newtype (Eq, FromHttpApiData, ToHttpApiData, FromJSON, ToJSON)
 
 newtype Fee = Fee Integer
   deriving stock (Show, Generic)
@@ -106,7 +108,16 @@ newtype AppliedScript = AppliedScript Ledger.Script
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
 
-newtype FinalizeRequest = FinalizeRequest Int -- TODO
+data FinalizeRequest = FinalizeRequest
+  { tx :: Cbor
+  , datums :: [Cbor]
+  , redeemers :: [Cbor]
+  }
+  deriving stock (Show, Generic)
+  deriving (Eq, FromJSON, ToJSON)
+
+-- This is only to avoid an orphan instance for @ToDocs@
+newtype FinalizedTransaction = FinalizedTransaction Ledger.Tx
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
 
@@ -140,18 +151,26 @@ toCardanoApiScript =
     . LC8.toStrict
     . serialise
 
--- We'll probably extend this with more error types over time
-newtype CardanoBrowserServerError = FeeEstimate FeeEstimateError
+data CardanoBrowserServerError
+  = FeeEstimate FeeEstimateError
+  | FinalizeTx FinalizeTxError
   deriving stock (Show)
 
 instance Exception CardanoBrowserServerError
 
 data FeeEstimateError
-  = InvalidCbor Cbor.DecoderError
-  | InvalidHex String
+  = FEInvalidCbor Cbor.DecoderError
+  | FEInvalidHex String
   deriving stock (Show)
 
 instance Exception FeeEstimateError
+
+data FinalizeTxError
+  = FTInvalidCbor Cbor.DecoderError
+  | FTInvalidHex String
+  deriving stock (Show)
+
+instance Exception FinalizeTxError
 
 -- API doc stuff
 instance Docs.ToParam (QueryParam' '[Required] "tx" Cbor) where
