@@ -45,9 +45,9 @@ marketplaceBuy nftData@(NftData nftData') mp = do
   scriptAddr <- liftedM "marketplaceBuy: Cannot get script Address."
     (validatorAddress marketplaceValidator'.validator)
   oldName <-
-    liftContractM "marketplaceBuy: Cannot hash old token." (mkTokenName nft)
+    liftContractM "marketplaceBuy: Cannot hash old token." =<< mkTokenName nft
   newName <-
-    liftContractM "marketplaceBuy: Cannot hash new token." (mkTokenName newNft)
+    liftContractM "marketplaceBuy: Cannot hash new token." =<< mkTokenName newNft
   -- Eventually we'll have a non-CSL-Plutus-style `Value` so this will likely
   -- change:
   oldNftValue <- liftContractM "marketplaceBuy: Cannot create old NFT Value."
