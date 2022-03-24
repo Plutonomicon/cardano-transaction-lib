@@ -1,4 +1,6 @@
-module Seabug.Contract.MarketPlaceBuy where
+module Seabug.Contract.MarketPlaceBuy
+  ( marketplaceBuy
+  ) where
 
 import Contract.Prelude
 import Contract.Address
