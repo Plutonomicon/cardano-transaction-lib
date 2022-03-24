@@ -13,6 +13,9 @@ module Types (
   hashLedgerScript,
   newEnvIO,
   unsafeDecode,
+  -- blake2b stuff
+  HexString (..),
+  Blake2bHash (..),
 ) where
 
 import Cardano.Api qualified as C
@@ -44,6 +47,12 @@ import Servant (FromHttpApiData, QueryParam', Required, ToHttpApiData)
 import Servant.Docs qualified as Docs
 import Text.Read (readMaybe)
 import Utils (tshow)
+-- blake2b imports
+import Data.Aeson.Types qualified as Aeson.Types
+import Data.ByteString (ByteString)
+import Data.ByteString.Base16 qualified as Base16
+import Data.Text.Encoding qualified as Text.Encoding
+import PlutusTx.Prelude qualified as PlutusTx
 
 newtype AppM (a :: Type) = AppM (ReaderT Env IO a)
   deriving newtype
@@ -224,3 +233,47 @@ unsafeDecode name = fromMaybe (error errorMsg) . Aeson.decode
 -- Replace this with a simpler script
 exampleScript :: Ledger.Script
 exampleScript = unsafeDecode "Script" "\"4d01000033222220051200120011\""
+
+-- blake2b types
+newtype HexString = HexString ByteString
+  deriving stock (Show, Generic)
+  deriving newtype (Eq)
+
+instance FromJSON HexString where
+  parseJSON = fromJsonHexString "HexString" HexString
+
+instance ToJSON HexString where
+  toJSON (HexString hs) = textToJsonHexString hs
+
+newtype Blake2bHash = Blake2bHash PlutusTx.BuiltinByteString
+  deriving stock (Show, Generic)
+  deriving newtype (Eq)
+
+instance FromJSON Blake2bHash where
+  parseJSON = fromJsonHexString "HexString" (Blake2bHash . PlutusTx.toBuiltin)
+
+instance ToJSON Blake2bHash where
+  toJSON (Blake2bHash b2bh) = textToJsonHexString $ PlutusTx.fromBuiltin b2bh
+
+-- Not going to bother with docs for the endpoint associated with these two
+-- types. The instances below are just needed for compilation
+instance Docs.ToSample HexString where
+  toSamples _ = []
+
+instance Docs.ToSample Blake2bHash where
+  toSamples _ = []
+
+textToJsonHexString :: ByteString -> Aeson.Value
+textToJsonHexString = Aeson.String . Text.Encoding.decodeUtf8 . Base16.encode
+
+fromJsonHexString ::
+  forall (a :: Type).
+  String ->
+  (ByteString -> a) ->
+  Aeson.Value ->
+  Aeson.Types.Parser a
+fromJsonHexString name ctor =
+  withText name $
+    either (const $ fail "Couldn't decode hex string") (pure . ctor)
+      . Base16.decode
+      . Text.Encoding.encodeUtf8
