@@ -7,6 +7,7 @@ import Types.Natural
   , binaryOnBigInt
   , fromBigInt
   , fromBigInt'
+  , fromString
   , minus
   , toBigInt
   ) as Natural
