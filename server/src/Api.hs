@@ -48,7 +48,7 @@ import Types (
   FeeEstimateError (InvalidCbor, InvalidHex),
   HashScriptRequest,
   HashedScript,
-  HexString,
+  BytesToHash,
  )
 import Utils (lbshow)
 
@@ -66,7 +66,7 @@ type Api =
     -- Making this a POST request so we can just use the @From/ToJSON@
     -- instances instead of decoding in the handler
     :<|> "blake2b"
-      :> ReqBody '[JSON] HexString
+      :> ReqBody '[JSON] BytesToHash
       :> Post '[JSON] Blake2bHash
 
 app :: Env -> Application
@@ -115,7 +115,7 @@ apiDocs = Docs.docs api
 estimateTxFees :: Cbor -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
 hashScript :: HashScriptRequest -> ClientM HashedScript
-blake2bHash :: HexString -> ClientM Blake2bHash
+blake2bHash :: BytesToHash -> ClientM Blake2bHash
 estimateTxFees
   :<|> applyArgs
   :<|> hashScript

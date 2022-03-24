@@ -31,7 +31,7 @@ import Types (
   FeeEstimateError (InvalidCbor, InvalidHex),
   HashScriptRequest (HashScriptRequest),
   HashedScript (HashedScript),
-  HexString (HexString),
+  BytesToHash (BytesToHash),
   hashLedgerScript,
  )
 
@@ -50,8 +50,8 @@ hashScript :: HashScriptRequest -> AppM HashedScript
 hashScript (HashScriptRequest script) =
   pure . HashedScript $ hashLedgerScript script
 
-blake2bHash :: HexString -> AppM Blake2bHash
-blake2bHash (HexString hs) =
+blake2bHash :: BytesToHash -> AppM Blake2bHash
+blake2bHash (BytesToHash hs) =
   pure . Blake2bHash . PlutusTx.fromBuiltin . PlutusTx.blake2b_256 $
     PlutusTx.toBuiltin hs
 
