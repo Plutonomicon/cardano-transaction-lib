@@ -18,6 +18,7 @@ module QueryM
   , _wsSend
   , allowError
   , applyArgs
+  , blake2bHash
   , calculateMinFee
   , cancelFetchBlocksRequest
   , datumFilterAddHashesRequest
