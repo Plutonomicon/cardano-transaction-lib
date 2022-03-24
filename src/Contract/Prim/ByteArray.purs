@@ -3,7 +3,6 @@ module Contract.Prim.ByteArray (module ByteArray) where
 
 import Types.ByteArray
   ( ByteArray(ByteArray)
-  , blake2b_256
   , byteArrayFromIntArray
   , byteArrayFromIntArrayUnsafe
   , byteArrayFromString
