@@ -16,7 +16,7 @@ module Types (
   newEnvIO,
   unsafeDecode,
   -- blake2b stuff
-  HexString (..),
+  BytesToHash (..),
   Blake2bHash (..),
 ) where
 
@@ -236,7 +236,7 @@ exampleScript :: Ledger.Script
 exampleScript = unsafeDecode "Script" "\"4d01000033222220051200120011\""
 
 -- blake2b types
-newtype HexString = HexString ByteString
+newtype BytesToHash = BytesToHash ByteString
   deriving stock (Show, Generic)
   deriving newtype (Eq)
   deriving (FromJSON, ToJSON) via JsonHexString
@@ -248,7 +248,7 @@ newtype Blake2bHash = Blake2bHash ByteString
 
 -- Not going to bother with docs for the endpoint associated with these two
 -- types. The instances below are just needed for compilation
-instance Docs.ToSample HexString where
+instance Docs.ToSample BytesToHash where
   toSamples _ = []
 
 instance Docs.ToSample Blake2bHash where
