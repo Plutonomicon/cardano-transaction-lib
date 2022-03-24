@@ -13,4 +13,4 @@ in
     {
       src = ./..;
     }
-).defaultNix.hsDevShell.${system}
+).defaultNix.packages.${system}.hsDevShell
