@@ -18,7 +18,6 @@ module Contract.PlutusData
   , module FromData
   , module ToData
   , module Transaction
-  , module TxOutput
   ) where
 
 import Prelude
@@ -62,10 +61,6 @@ import Types.Redeemer
 -- Not importing `RedeemerTag` for now.
 import Types.Transaction (DatumHash)
 import Types.Transaction (DataHash(DataHash)) as Transaction
-import TxOutput
-  ( datumHashToOgmiosDatumHash
-  , ogmiosDatumHashToDatumHash
-  ) as TxOutput
 
 -- | Get a `PlutusData` given a `DatumHash`.
 getDatumByHash :: DatumHash -> Contract (Maybe PlutusData.PlutusData)

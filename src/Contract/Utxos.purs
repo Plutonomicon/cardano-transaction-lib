@@ -3,7 +3,6 @@
 -- | a given `Address` is defined.
 module Contract.Utxos
   ( utxosAt
-  , module JsonWsp
   , module Transaction
   ) where
 
@@ -15,7 +14,6 @@ import QueryM.Utxos (utxosAt) as Utxos
 import Serialization.Address (Address)
 -- Can potentially remove, perhaps we move utxo related all to Contract.Address
 -- and/or Contract.Transaction. Perhaps it's best to not expose JsonWsp.
-import Types.JsonWsp (UtxoQueryResult, UtxoQR(UtxoQR)) as JsonWsp
 import Types.Transaction (Utxo, UtxoM(UtxoM)) as Transaction
 
 -- | This module defines query functionality via Ogmios to get utxos.
