@@ -9,6 +9,7 @@ module Seabug.Types
   where
 
 import Contract.Prelude
+import Contract.Monad (Contract)
 import Contract.Address (PaymentPubKeyHash)
 import Contract.Aeson (caseAesonObject, getField, jsonToAeson) as Aeson
 import Contract.PlutusData
@@ -18,7 +19,11 @@ import Contract.PlutusData
   , fromData
   , toData
   )
-import Contract.Prim.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe)
+import Contract.Prim.ByteArray
+  ( ByteArray
+  , blake2bHash
+  , byteArrayFromIntArrayUnsafe
+  )
 import Contract.Numeric.Natural (Natural, toBigInt)
 import Contract.Scripts
   ( ValidatorHash
@@ -165,13 +170,13 @@ instance Show NftData where
 -- This differs from Plutus because of `Natural` when we convert from a `BigInt`
 -- to an `Int`. Otherwise, the rest should not fail.
 class Hashable a where
-  hash :: a -> Maybe ByteArray -- Plutus BuiltinByteString
+  hash :: a -> Contract (Maybe ByteArray) -- Plutus BuiltinByteString
 
 instance Hashable ByteArray where
-  hash _ = Nothing -- FIXME
+  hash = blake2bHash
 
 instance Hashable Natural where
-  hash = hash <=< pure <<< toBin <=< toInt <<< toBigInt
+  hash = maybe (pure Nothing) (hash <<< toBin) <<< toInt <<< toBigInt
     where
     toBin :: Int -> ByteArray
     toBin n = toBin' n mempty
@@ -199,8 +204,12 @@ instance Hashable PaymentPubKeyHash where
   hash = hash <<< ed25519KeyHashToBytes <<< unwrap <<< unwrap
 
 instance (Hashable a, Hashable b) => Hashable (a /\ b) where
-  hash (a /\ b) = hash a <> hash b >>= hash
+  hash (a /\ b) = ((<>) <$> hash a <*> hash b) >>= maybe (pure Nothing) hash
 
 instance Hashable NftId where
   hash (NftId { collectionNftTn, price, owner }) =
-    hash =<< hash collectionNftTn <> hash price <> hash owner
+    op3 <$> hash collectionNftTn <*> hash price <*> hash owner
+      >>= maybe (pure Nothing) hash
+    where
+    op3 :: forall (a :: Type). Semigroup a => a -> a -> a -> a
+    op3 a b c = a <> b <> c
