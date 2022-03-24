@@ -1,6 +1,7 @@
 module Seabug.Types
   ( MarketplaceDatum(..)
   , MintAct(..)
+  , MintParams(..)
   , NftCollection(..)
   , NftData(..)
   , NftId(..)
@@ -66,6 +67,49 @@ derive newtype instance Eq MintParams
 
 instance Show MintParams where
   show = genericShow
+
+instance FromData MintParams where
+  fromData (Constr n [ as, ds, pr, ll, lle, fa, fvk ]) | n == zero =
+    MintParams <$>
+      ( { authorShare: _
+        , daoShare: _
+        , price: _
+        , lockLockup: _
+        , lockLockupEnd: _
+        , fakeAuthor: _
+        , feeVaultKeys: _
+        }
+          <$> fromData as
+          <*> fromData ds
+          <*> fromData pr
+          <*> fromData ll
+          <*> fromData lle
+          <*> fromData fa
+          <*> fromData fvk
+      )
+  fromData _ = Nothing
+
+instance ToData MintParams where
+  toData
+    ( MintParams
+        { authorShare
+        , daoShare
+        , price
+        , lockLockup
+        , lockLockupEnd
+        , fakeAuthor
+        , feeVaultKeys
+        }
+    ) =
+    Constr zero
+      [ toData authorShare
+      , toData daoShare
+      , toData price
+      , toData lockLockup
+      , toData lockLockupEnd
+      , toData fakeAuthor
+      , toData feeVaultKeys
+      ]
 
 newtype NftId = NftId
   { collectionNftTn :: TokenName
