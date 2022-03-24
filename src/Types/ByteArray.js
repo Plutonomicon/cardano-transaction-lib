@@ -1,3 +1,5 @@
+blakejs = require('blakejs')
+
 // From instance for Array in prelude
 exports.ord_ = f => xs => ys => {
     let i = 0;
@@ -66,3 +68,7 @@ exports.byteArrayToIntArray = bytes => Array.from(bytes);
 // _byteLength :: Uint8Array -> BigInt
 exports._byteLength = bytes =>
   bytes.byteLength;
+
+// _blake2b :: Uint8Array -> Int -> Uint8Array
+exports._blake2b = input => outlen =>
+  blakejs.blake2b(input, undefined, outlen);
