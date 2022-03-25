@@ -87,41 +87,58 @@ pkgs.haskell-nix.cabalProject {
       ];
     }
     {
+      src = inputs.cardano-config;
+      subdirs = [
+        "."
+      ];
+    }
+    {
       src = inputs.cardano-crypto;
       subdirs = [
         "."
       ];
     }
     {
-      src = inputs.cardano-ledger-specs;
+      src = inputs.cardano-ledger;
       subdirs = [
-        "byron/ledger/impl"
-        "cardano-ledger-core"
-        "cardano-protocol-tpraos"
         "eras/alonzo/impl"
+        "eras/alonzo/test-suite"
         "eras/byron/chain/executable-spec"
         "eras/byron/crypto"
         "eras/byron/crypto/test"
         "eras/byron/ledger/executable-spec"
+        "eras/byron/ledger/impl"
         "eras/byron/ledger/impl/test"
         "eras/shelley/impl"
-        "eras/shelley-ma/impl"
-        "eras/shelley/chain-and-ledger/executable-spec"
         "eras/shelley/test-suite"
-        "shelley/chain-and-ledger/shelley-spec-ledger-test"
-        "libs/non-integral"
-        "libs/small-steps"
+        "eras/shelley-ma/impl"
+        "eras/shelley-ma/test-suite"
+        "libs/cardano-ledger-core"
         "libs/cardano-ledger-pretty"
-        "semantics/small-steps-test"
+        "libs/cardano-protocol-tpraos"
+        "libs/cardano-data"
+        "libs/compact-map"
+        "libs/set-algebra"
+        "libs/small-steps"
+        "libs/small-steps-test"
+        "libs/non-integral"
       ];
     }
     {
       src = inputs.cardano-node;
       subdirs = [
         "cardano-api"
-        "cardano-node"
         "cardano-cli"
-        "cardano-config"
+        "cardano-node"
+        "cardano-node-capi"
+        "cardano-node-chairman"
+        "cardano-submit-api"
+        "bench/cardano-topology"
+        "bench/locli"
+        "bench/tx-generator"
+        "trace-dispatcher"
+        "trace-resources"
+        "trace-forward"
       ];
     }
     {
@@ -139,10 +156,12 @@ pkgs.haskell-nix.cabalProject {
         "lib/core"
         "lib/test-utils"
         "lib/numeric"
-        "lib/launcher"
-        "lib/core-integration"
-        "lib/cli"
-        "lib/shelley"
+      ];
+    }
+    {
+      src = inputs.ekg-forward;
+      subdirs = [
+        "."
       ];
     }
     {
@@ -160,14 +179,14 @@ pkgs.haskell-nix.cabalProject {
     {
       src = inputs.iohk-monitoring-framework;
       subdirs = [
-        "iohk-monitoring"
-        "tracer-transformers"
         "contra-tracer"
+        "iohk-monitoring"
         "plugins/backend-aggregation"
         "plugins/backend-ekg"
         "plugins/backend-monitoring"
         "plugins/backend-trace-forwarder"
         "plugins/scribe-systemd"
+        "tracer-transformers"
       ];
     }
     {
@@ -179,21 +198,23 @@ pkgs.haskell-nix.cabalProject {
     {
       src = inputs.ouroboros-network;
       subdirs = [
+        "io-sim"
+        "io-classes"
         "monoidal-synchronisation"
-        "typed-protocols"
-        "typed-protocols-cborg"
-        "typed-protocols-examples"
-        "ouroboros-network"
-        "ouroboros-network-testing"
-        "ouroboros-network-framework"
+        "network-mux"
+        "ntp-client"
         "ouroboros-consensus"
         "ouroboros-consensus-byron"
         "ouroboros-consensus-cardano"
+        "ouroboros-consensus-protocol"
         "ouroboros-consensus-shelley"
-        "io-sim"
-        "io-classes"
-        "network-mux"
-        "ntp-client"
+        "ouroboros-network"
+        "ouroboros-network-framework"
+        "ouroboros-network-testing"
+        "strict-stm"
+        "typed-protocols"
+        "typed-protocols-cborg"
+        "typed-protocols-examples"
       ];
     }
     {

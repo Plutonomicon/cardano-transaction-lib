@@ -5,6 +5,7 @@ module Types.ScriptLookups
   , mintingPolicy
   , mintingPolicyM
   , mkUnbalancedTx
+  , mkUnbalancedTx'
   , otherDataM
   , otherScript
   , otherScriptM
@@ -38,7 +39,7 @@ import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (foldM)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
-import Data.Lens ((%=), (<>=), (.=))
+import Data.Lens ((%=), (%~), (.=), (.~), (<>=))
 import Data.Lens.Getter (to, use)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
@@ -86,9 +87,9 @@ import Transaction
 import Types.Transaction (Redeemer(Redeemer)) as T
 import Types.Transaction
   ( ExUnits
-  , Transaction
+  , Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
-  , TxBody
+  , TxBody(TxBody)
   , TransactionWitnessSet
   , _body
   , _inputs
@@ -118,7 +119,6 @@ import Types.TxConstraints
       )
   , TxConstraints(TxConstraints)
   )
-
 import Types.TypedTxOut
   ( TypeCheckError
   , mkTypedTxOut
@@ -137,7 +137,7 @@ import Types.UnbalancedTransaction
   , PaymentPubKey
   , PaymentPubKeyHash
   , StakePubKeyHash
-  , UnbalancedTx
+  , UnbalancedTx(UnbalancedTx)
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
@@ -554,6 +554,49 @@ mkUnbalancedTx
   -> QueryM (Either MkUnbalancedTxError UnbalancedTx)
 mkUnbalancedTx scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map _.unbalancedTx
+
+-- | An temporary implementation that strips `witness_set` and data hash from
+-- | returned `UnbalancedTx` in order to calculate them later on server.
+-- | It returns part of the `ConstraintProcessingState` for later consumption by
+-- | the server.
+mkUnbalancedTx'
+  :: forall (a :: Type) (b :: Type)
+   . DatumType a b
+  => RedeemerType a b
+  => FromData b
+  => ToData b
+  => ScriptLookups a
+  -> TxConstraints b b
+  -> QueryM
+       ( Either MkUnbalancedTxError
+           { unbalancedTx :: UnbalancedTx
+           , datums :: Array Datum
+           , redeemers :: Array T.Redeemer
+           }
+       )
+mkUnbalancedTx' scriptLookups txConstraints =
+  runConstraintsM scriptLookups txConstraints <#> map
+    \{ unbalancedTx, datums, redeemers } ->
+      let
+        _transaction = prop (SProxy :: SProxy "transaction")
+        _witness_set = prop (SProxy :: SProxy "witness_set")
+        _body = prop (SProxy :: SProxy "body")
+        _script_data_hash = prop (SProxy :: SProxy "script_data_hash")
+
+        stripWitnessSet :: UnbalancedTx -> UnbalancedTx
+        stripWitnessSet =
+          over UnbalancedTx $
+            _transaction %~ over Transaction
+              (_witness_set .~ mempty)
+
+        stripScriptDataHash :: UnbalancedTx -> UnbalancedTx
+        stripScriptDataHash =
+          over UnbalancedTx $
+            _transaction %~ over Transaction
+              (_body %~ over TxBody (_script_data_hash .~ Nothing))
+        tx = stripWitnessSet $ stripScriptDataHash unbalancedTx
+      in
+        { unbalancedTx: tx, datums, redeemers }
 
 addScriptDataHash
   :: forall (a :: Type)
