@@ -14,12 +14,12 @@ module ToData
   , toData
   , toDataArgs
   , toDataWithIndex
-  )
-  where
+  ) where
 
 import Prelude
 
 import Data.Array as Array
+import Data.Array ((..))
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
@@ -100,7 +100,7 @@ genericToData
 genericToData = toDataWithIndex (Proxy :: Proxy a) <<< G.from
 
 defaultConstrIndex :: forall a rep. G.Generic a rep => CountedConstrIndex rep => Proxy a -> Map String Int
-defaultConstrIndex _ = countedConstrIndex (Proxy :: Proxy rep) 0 Map.empty
+defaultConstrIndex _ = countedConstrIndex (Proxy :: Proxy rep) 0 Map.empty -- TODO: Do this computation at type level instead
 
 resolveIndex :: forall a s. ConstrIndex a => IsSymbol s => Proxy a -> SProxy s -> BigInt
 resolveIndex pa sps =
@@ -120,7 +120,7 @@ data Day = Mon | Tue | Wed | Thurs | Fri | Sat | Sun
 derive instance genericDay :: G.Generic Day _
 
 instance ConstrIndex Day where
-  constrIndex _ = Map.fromFoldable (Array.zip [ "Mon", "Tue", "Wed", "Thurs", "Fri", "Sat", "Sun" ] [ 0 ])
+  constrIndex _ = Map.fromFoldable (Array.zip [ "Mon", "Tue", "Wed", "Thurs", "Fri", "Sat", "Sun" ] (0 .. 7))
 
 instance ToData Day where
   toData = genericToData
