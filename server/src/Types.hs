@@ -111,7 +111,7 @@ newtype AppliedScript = AppliedScript Ledger.Script
 data FinalizeRequest = FinalizeRequest
   { tx :: Cbor
   , datums :: [Cbor]
-  , redeemers :: [Cbor]
+  , redeemers :: Cbor
   }
   deriving stock (Show, Generic)
   deriving (Eq, FromJSON, ToJSON)
@@ -242,7 +242,7 @@ instance Docs.ToSample FinalizeRequest where
   toSamples _ =
     [
       ( "TODO"
-      , FinalizeRequest (Cbor "00") [Cbor "00"] [Cbor "00"]
+      , FinalizeRequest (Cbor "00") [Cbor "00"] (Cbor "00")
       )
     ]
 

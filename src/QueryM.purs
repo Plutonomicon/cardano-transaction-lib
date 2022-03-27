@@ -57,15 +57,16 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (ReaderT, ask, asks)
 import Data.Argonaut (class DecodeJson, JsonDecodeError)
 import Data.Argonaut as Json
+import Data.Argonaut.Encode.Class (encodeJson)
 import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe(Just, Nothing), maybe, maybe')
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Traversable (traverse)
+import Data.Traversable (traverse, for)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -107,7 +108,7 @@ import Effect.Ref as Ref
 import Foreign.Object as Object
 import MultiMap (MultiMap)
 import MultiMap as MM
-import Serialization as Serialization
+import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address
   ( Address
   , BlockId
@@ -116,7 +117,8 @@ import Serialization.Address
   , addressBech32
   )
 import Serialization.Hash (ScriptHash)
-import Serialization.PlutusData (convertPlutusData)
+import Serialization.PlutusData (convertPlutusData) as Serialization
+import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (byteArrayToHex)
 import Types.Datum (DatumHash)
 import Types.Interval (SlotConfig)
@@ -130,10 +132,6 @@ import Types.Value (Coin(Coin))
 import Untagged.Union (asOneOf)
 import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
 import UsedTxOuts (UsedTxOuts)
-
-import Affjax.RequestBody as RequestBody
-import Undefined
-import Data.Argonaut.Encode.Class (encodeJson)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -412,33 +410,44 @@ calculateMinFee tx = do
   coinFromEstimate :: FeeEstimate -> Coin
   coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 50000)) <<< unwrap
 
-type DatumCbor = String
-
-type RedeemerCbor = String
-
 finalizeTx
-  :: Transaction.Transaction -> QueryM (Either Unit Unit)
-finalizeTx tx = do
+  :: Transaction.Transaction
+  -> Array PlutusData
+  -> Array Transaction.Redeemer
+  -> QueryM (Either Unit Unit)
+finalizeTx tx datums redeemers = do
+  -- tx
   txHex <- liftEffect $
     byteArrayToHex
       <<< Serialization.toBytes
       <<< asOneOf
       <$> Serialization.convertTransaction tx
+  -- datums
+  encodedDatums <- liftEffect do
+    for datums \datum -> do
+      byteArrayToHex <<< Serialization.toBytes <<< asOneOf
+        <$> maybe' (\_ -> throw $ "Failed to convert plutus data: " <> show datum) pure
+          (Serialization.convertPlutusData datum)
+  -- redeemers
+  encodedRedeemers <- liftEffect $
+    byteArrayToHex <<< Serialization.toBytes <<< asOneOf <$>
+      Serialization.convertRedeemers redeemers
   let
     body
-      :: { tx :: String
-         , datums :: Array DatumCbor
-         , redeemers :: Array RedeemerCbor
-         }
+      ::
+           { tx :: String
+           , datums :: Array String
+           , redeemers :: String
+           }
     body =
       { tx: txHex
-      , datums: []
-      , redeemers: []
+      , datums: encodedDatums
+      , redeemers: encodedRedeemers
       }
   url <- mkServerEndpointUrl $ "finalize"
   liftAff
     ( Affjax.post Affjax.ResponseFormat.json url
-        (Just $ RequestBody.Json $ encodeJson body)
+        (Just $ Affjax.RequestBody.Json $ encodeJson body)
     )
     <#> either (const $ Left unit) (const $ Right unit)
 
@@ -480,7 +489,7 @@ applyArgs script args = case traverse plutusDataToJson args of
           <<< Serialization.toBytes
           <<< asOneOf
       )
-      <<< convertPlutusData
+      <<< Serialization.convertPlutusData
 
 hashScript
   :: forall (a :: Type) (b :: Type)

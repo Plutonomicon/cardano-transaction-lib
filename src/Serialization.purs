@@ -131,6 +131,7 @@ foreign import toBytes
          |+| TransactionWitnessSet
          |+| NativeScript
          |+| ScriptDataHash
+         |+| Redeemers
      -- Add more as needed.
      )
   -> ByteArray
