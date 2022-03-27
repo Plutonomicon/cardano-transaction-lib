@@ -63,7 +63,7 @@ import Seabug.Types
 marketplaceBuy :: NftData -> Contract NftData
 marketplaceBuy (NftData nftData) = do
   -- Read in the unapplied minting policy:
-  mp <- liftedE' $ liftAff unappliedMintingPolicy
+  mp <- liftedE' $ pure unappliedMintingPolicy
   pkh <- liftedM "marketplaceBuy: Cannot get PaymentPubKeyHash"
     ownPaymentPubKeyHash
   policy' <- liftedM "marketplaceBuy: Cannot apply arguments"
@@ -71,7 +71,7 @@ marketplaceBuy (NftData nftData) = do
   curr <- liftedM "marketplaceBuy: Cannot get CurrencySymbol"
     (scriptCurrencySymbol policy')
   -- Reader in the typed validator:
-  marketplaceValidator' <- liftedE' $ liftAff marketplaceValidator
+  marketplaceValidator' <- liftedE' $ pure marketplaceValidator
   let
     marketplaceValidator'' = unwrap marketplaceValidator'
     nft = nftData.nftId

@@ -12,5 +12,5 @@ import Seabug.Helpers (jsonReader)
 -- Recall, Plutus typed validators map `Any` to `PlutusData` using associated
 -- type families. We are restricted to functional dependencies in Purescript,
 -- so are required to type with the output, namely, `PlutusData`.
-marketplaceValidator :: Aff (Either JsonDecodeError (TypedValidator PlutusData))
-marketplaceValidator = jsonReader "./inputs/TypedValidator.json" "typedValidator"
+marketplaceValidator :: Either JsonDecodeError (TypedValidator PlutusData)
+marketplaceValidator = undefined -- TODO
