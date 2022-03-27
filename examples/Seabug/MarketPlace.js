@@ -1,1 +1,9 @@
-exports._marketplaceValidator = { typedValidator: "" }; // FIXME
+exports._marketplaceValidator = {
+  // FIXME
+  typedValidator: {
+    validator: "",
+    validatorHash: { getScriptHash: "" },
+    forwardingMPS: "",
+    forwardingMPSHash: { getScriptHash: "" },
+  },
+};
