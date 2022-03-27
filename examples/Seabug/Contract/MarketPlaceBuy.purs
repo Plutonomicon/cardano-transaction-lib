@@ -16,7 +16,13 @@ import Contract.ScriptLookups
   , typedValidatorLookups
   , unspentOutputs
   ) as ScriptLookups
-import Contract.Monad (Contract, liftContractM, liftedE', liftedM)
+import Contract.Monad
+  ( Contract
+  , liftContractM
+  , liftContractE'
+  , liftedE'
+  , liftedM
+  )
 import Contract.Numeric.Natural (toBigInt)
 import Contract.PlutusData
   ( Datum(Datum)
@@ -70,15 +76,14 @@ marketplaceBuy (NftData nftData) = do
     (policy nftData.nftCollection mp)
   curr <- liftedM "marketplaceBuy: Cannot get CurrencySymbol"
     (scriptCurrencySymbol policy')
-  -- Reader in the typed validator:
-  marketplaceValidator' <- liftedE' $ pure marketplaceValidator
+  -- Read in the typed validator:
+  marketplaceValidator' <- unwrap <$> liftContractE' marketplaceValidator
   let
-    marketplaceValidator'' = unwrap marketplaceValidator'
     nft = nftData.nftId
     nft' = unwrap nft
     newNft = NftId nft' { owner = pkh }
   scriptAddr <- liftedM "marketplaceBuy: Cannot get script Address"
-    (validatorAddress marketplaceValidator''.validator)
+    (validatorAddress marketplaceValidator'.validator)
   oldName <- liftedM "marketplaceBuy: Cannot hash old token" (mkTokenName nft)
   newName <- liftedM "marketplaceBuy: Cannot hash new token" (mkTokenName newNft)
   -- Eventually we'll have a non-CSL-Plutus-style `Value` so this will likely
@@ -90,7 +95,7 @@ marketplaceBuy (NftData nftData) = do
   networkId <- getNetworkId
   let
     nftPrice = nft'.price
-    valHash = marketplaceValidator''.validatorHash
+    valHash = marketplaceValidator'.validatorHash
     mintRedeemer = Redeemer $ toData $ ChangeOwner nft pkh
     nftCollection = unwrap nftData.nftCollection
 
@@ -133,8 +138,8 @@ marketplaceBuy (NftData nftData) = do
   let
     lookup = mconcat
       [ ScriptLookups.mintingPolicy policy'
-      , ScriptLookups.typedValidatorLookups marketplaceValidator'
-      , ScriptLookups.otherScript marketplaceValidator''.validator
+      , ScriptLookups.typedValidatorLookups $ wrap marketplaceValidator'
+      , ScriptLookups.otherScript marketplaceValidator'.validator
       , ScriptLookups.unspentOutputs $ insert utxo utxoIndex (unwrap userUtxos)
       , ScriptLookups.ownPaymentPubKeyHash pkh
       ]
