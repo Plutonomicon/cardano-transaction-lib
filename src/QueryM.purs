@@ -5,6 +5,7 @@ module QueryM
   , DatumCacheWebSocket
   , DispatchIdMap
   , FeeEstimate(..)
+  , FinalizedTransaction(..)
   , Host
   , JsWebSocket
   , ListenerSet
@@ -62,10 +63,12 @@ import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), either, isRight, note)
+import Data.Either (Either(Left, Right), either, isRight, note, hush)
 import Data.Foldable (foldl)
+import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing), maybe, maybe')
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse, for)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
@@ -119,7 +122,7 @@ import Serialization.Address
 import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
-import Types.ByteArray (byteArrayToHex)
+import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.Datum (DatumHash)
 import Types.Interval (SlotConfig)
 import Types.JsonWsp as JsonWsp
@@ -410,11 +413,26 @@ calculateMinFee tx = do
   coinFromEstimate :: FeeEstimate -> Coin
   coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 50000)) <<< unwrap
 
+-- | CborHex-encoded tx
+newtype FinalizedTransaction = FinalizedTransaction ByteArray
+
+derive instance Generic FinalizedTransaction _
+
+instance Show FinalizedTransaction where
+  show = genericShow
+
+instance Json.DecodeJson FinalizedTransaction where
+  decodeJson =
+    map FinalizedTransaction <<<
+      Json.caseJsonString (Left err) (note err <<< hexToByteArray)
+    where
+    err = Json.TypeMismatch "Expected CborHex of Tx"
+
 finalizeTx
   :: Transaction.Transaction
   -> Array PlutusData
   -> Array Transaction.Redeemer
-  -> QueryM (Either Unit Unit)
+  -> QueryM (Maybe FinalizedTransaction)
 finalizeTx tx datums redeemers = do
   -- tx
   txHex <- liftEffect $
@@ -432,6 +450,7 @@ finalizeTx tx datums redeemers = do
   encodedRedeemers <- liftEffect $
     byteArrayToHex <<< Serialization.toBytes <<< asOneOf <$>
       Serialization.convertRedeemers redeemers
+  -- construct payload
   let
     body
       ::
@@ -444,12 +463,15 @@ finalizeTx tx datums redeemers = do
       , datums: encodedDatums
       , redeemers: encodedRedeemers
       }
-  url <- mkServerEndpointUrl $ "finalize"
-  liftAff
-    ( Affjax.post Affjax.ResponseFormat.json url
-        (Just $ Affjax.RequestBody.Json $ encodeJson body)
-    )
-    <#> either (const $ Left unit) (const $ Right unit)
+  url <- mkServerEndpointUrl "finalize"
+  -- get response json
+  jsonBody <-
+    liftAff
+      ( Affjax.post Affjax.ResponseFormat.json url
+          (Just $ Affjax.RequestBody.Json $ encodeJson body)
+      ) <#> map \x -> x.body
+  -- decode
+  pure $ hush <<< Json.decodeJson =<< hush jsonBody
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied

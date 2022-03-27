@@ -117,7 +117,7 @@ data FinalizeRequest = FinalizeRequest
   deriving (Eq, FromJSON, ToJSON)
 
 -- This is only to avoid an orphan instance for @ToDocs@
-newtype FinalizedTransaction = FinalizedTransaction Ledger.Tx
+newtype FinalizedTransaction = FinalizedTransaction Cbor
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
 
