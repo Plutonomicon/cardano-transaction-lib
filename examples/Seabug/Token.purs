@@ -10,7 +10,7 @@ import Contract.PlutusData (toData)
 import Contract.Scripts (MintingPolicy, applyArgsM)
 import Contract.Value (mkTokenName) as Value
 import Contract.Value (TokenName)
-import Data.Argonaut.Decode.Error (JsonDecodeError)
+import Data.Argonaut (Json, JsonDecodeError)
 import Seabug.Helpers (jsonReader)
 import Seabug.Types (NftCollection(NftCollection), NftId, hash)
 
@@ -57,4 +57,6 @@ policy
 -- This is read in locally as a minting policy with unapplied arguments. We
 -- may prefer to change this to a fully appllied MintingPolicy.
 unappliedMintingPolicy :: Either JsonDecodeError MintingPolicy
-unappliedMintingPolicy = undefined -- TODO
+unappliedMintingPolicy = jsonReader "mintingPolicy" _unappliedMintingPolicy
+
+foreign import _unappliedMintingPolicy :: Json
