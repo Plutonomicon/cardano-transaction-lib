@@ -79,16 +79,16 @@ finalizeTx req@(FinalizeRequest {tx, datums, redeemers}) = do
     decodeCborRedeemers redeemers
   decodedDatums <- maybe (handleError $ InvalidHex "Failed to decode Datums") pure $
     traverse decodeCborDatum datums
-  mbIntegrityHash <- liftIO $ do
-    let
-      languages = Set.fromList [PlutusV1, PlutusV2]
-      txDatums = TxWitness.TxDats . Map.fromList $
-        decodedDatums <&> \datum -> (Data.hashData datum, datum)
-      mbIntegrityHash = Tx.hashScriptIntegrity
-        (C.toLedgerPParams C.ShelleyBasedEraAlonzo pparams)
-        languages
-        decodedRedeemers
-        txDatums
+  let
+    languages = Set.fromList [PlutusV1, PlutusV2]
+    txDatums = TxWitness.TxDats . Map.fromList $
+      decodedDatums <&> \datum -> (Data.hashData datum, datum)
+    mbIntegrityHash = Tx.hashScriptIntegrity
+      (C.toLedgerPParams C.ShelleyBasedEraAlonzo pparams)
+      languages
+      decodedRedeemers
+      txDatums
+  liftIO $ do
     putStrLn "tx:"
     print decodedTx
     putStrLn "redeemres:"
@@ -97,14 +97,19 @@ finalizeTx req@(FinalizeRequest {tx, datums, redeemers}) = do
     print decodedDatums
     putStrLn "integrity hash:"
     print mbIntegrityHash
-    pure mbIntegrityHash
   let
-    finalizedTx :: Tx.ValidatedTx (Alonzo.AlonzoEra StandardCrypto) = decodedTx
-      { body = body decodedTx &
-        \body -> body { scriptIntegrityHash = mbIntegrityHash } }
+    addIntegrityHash t =
+      t { body = body t &
+          \body -> body { scriptIntegrityHash = mbIntegrityHash } }
+    addDatumsAndRedeemers t =
+      t { wits = wits t &
+          \witness -> witness { txdats = txDatums, txrdmrs = decodedRedeemers } }
+    finalizedTx = addIntegrityHash $ addDatumsAndRedeemers decodedTx
     response = FinalizedTransaction . encodeCborText . Cbor.serializeEncoding $
       Tx.toCBORForMempoolSubmission finalizedTx
   liftIO $ do
+    putStrLn "finalized:"
+    print finalizedTx
     putStrLn "response:"
     print response
   pure response
