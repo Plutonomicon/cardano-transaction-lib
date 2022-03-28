@@ -12,12 +12,12 @@ import Contract.Utxos (UtxoM, utxosAt)
 import Contract.Value (scriptCurrencySymbol, valueOf)
 import Seabug.MarketPlace (marketplaceValidator)
 import Seabug.Token (mkTokenName, policy, unappliedMintingPolicy)
-import Seabug.Types (NftData(NftData))
+import Seabug.Types (MarketplaceDatum(MarketplaceDatum), NftData(NftData))
 
 -- | Lists the utxos at the script address that contain a datum of type
 -- | `NftData` with the correct NFT
-marketPlaceListNft :: Contract UtxoM
-marketPlaceListNft = do
+marketPlaceListNft :: NftData -> Contract UtxoM
+marketPlaceListNft (NftData nftData) = do
   marketplaceValidator' <- unwrap <$> liftContractE' marketplaceValidator
   scriptAddr <- liftedM "marketPlaceListNft: Cannot get script Address"
     (validatorAddress marketplaceValidator'.validator)
@@ -35,14 +35,20 @@ marketPlaceListNft = do
       plutusData <- liftedM "marketPlaceListNft: Cannot get datum from hash"
         (getDatumByHash datumHash)
       case fromData plutusData of
-        Just (NftData nftData) -> do
+        Just (MarketplaceDatum { getMarketplaceDatum: curr' /\ name' }) -> do
           policy' <- liftedM "marketPlaceListNft: Cannot apply arguments"
             (policy nftData.nftCollection mp)
           curr <- liftedM "marketPlaceListNft: Cannot get CurrencySymbol"
             (scriptCurrencySymbol policy')
-          name <- liftedM "marketPlaceListNft: Cannot hash old token"
+          name <- liftedM "marketPlaceListNft: Cannot hash token"
             (mkTokenName nftData.nftId)
-          pure $ valueOf amount curr name == one
+          pure
+            $ curr
+            == curr'
+            && name
+            == name'
+            && valueOf amount curr name
+            == one
         _ -> pure false
     containsNft _ = pure false
   wrap <$> filterMapM containsNft (unwrap scriptUtxos)
