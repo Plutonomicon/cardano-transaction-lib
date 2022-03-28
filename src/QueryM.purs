@@ -44,6 +44,7 @@ module QueryM
   , signTransaction
   , startFetchBlocksRequest
   , submitTransaction
+  , submitTransactionBytes
   , underlyingWebSocket
   , finalizeTx
   ) where
@@ -282,6 +283,11 @@ submitTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.TransactionHash)
 submitTransaction tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.submitTx tx
+
+submitTransactionBytes
+  :: ByteArray -> QueryM (Maybe Transaction.TransactionHash)
+submitTransactionBytes tx = withMWalletAff $ case _ of
+  Nami nami -> callNami nami $ \nw -> flip nw.submitTxHex tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash =

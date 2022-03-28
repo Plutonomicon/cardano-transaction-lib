@@ -50,6 +50,8 @@ type NamiWallet =
   , signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
   -- Submit a (balanced) transaction
   , submitTx :: NamiConnection -> Transaction -> Aff (Maybe TransactionHash)
+  -- Submit a (balanced) transaction encoded as CBORHex
+  , submitTxBytes :: NamiConnection -> ByteArray -> Aff (Maybe TransactionHash)
   }
 
 mkNamiWalletAff :: Aff Wallet
@@ -62,6 +64,7 @@ mkNamiWalletAff = do
     , getCollateral
     , signTx
     , submitTx
+    , submitTxBytes
     }
 
   where
@@ -97,14 +100,22 @@ mkNamiWalletAff = do
       Transaction $ tx' { witness_set = oldWits <> newWits }
 
   submitTx :: NamiConnection -> Transaction -> Aff (Maybe TransactionHash)
-  submitTx nami tx = do
-    txHex <- txToHex tx
-    map TransactionHash <$> fromNamiHexString (_submitTxNami txHex) nami
+  submitTx nami tx = submitTxBytes nami =<< txToBytes tx
+
+  submitTxBytes :: NamiConnection -> ByteArray -> Aff (Maybe TransactionHash)
+  submitTxBytes nami txBytes = do
+    map TransactionHash <$> fromNamiHexString (_submitTxNami $ byteArrayToHex txBytes) nami
 
   txToHex :: Transaction -> Aff String
   txToHex =
     liftEffect
       <<< map (byteArrayToHex <<< Serialization.toBytes <<< asOneOf)
+      <<< Serialization.convertTransaction
+
+  txToBytes :: Transaction -> Aff ByteArray
+  txToBytes =
+    liftEffect
+      <<< map (Serialization.toBytes <<< asOneOf)
       <<< Serialization.convertTransaction
 
   fromNamiHexString
