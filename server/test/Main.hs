@@ -132,7 +132,6 @@ hashScriptSpec = around withTestApp $ do
           hashScript hashScriptRequestFixture
       result `shouldBe` Right hashedScriptFixture
 
-
 setupClientEnv :: SpecM Port (Port -> ClientEnv)
 setupClientEnv = do
   baseUrl <- runIO $ parseBaseUrl "http://localhost"

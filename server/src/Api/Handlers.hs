@@ -17,7 +17,6 @@ import Data.Proxy (Proxy (Proxy))
 import Data.Text (Text)
 import Data.Text.Encoding qualified as Text.Encoding
 import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
-import PlutusTx.Builtins qualified as PlutusTx
 import Types (
   AppM,
   AppliedScript (AppliedScript),

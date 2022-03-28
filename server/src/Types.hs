@@ -1,5 +1,3 @@
-{-# LANGUAGE DerivingVia #-}
-
 module Types (
   AppM (AppM),
   ServerOptions (..),
