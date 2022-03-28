@@ -42,7 +42,6 @@ import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (Port)
 import Paths_cardano_browser_tx_server (getDataFileName)
 import Plutus.V1.Ledger.Api qualified as Ledger
-import Plutus.V1.Ledger.Tx qualified as Ledger
 import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
 import Servant (FromHttpApiData, QueryParam', Required, ToHttpApiData)
 import Servant.Docs qualified as Docs
@@ -113,8 +112,8 @@ data FinalizeRequest = FinalizeRequest
   , datums :: [Cbor]
   , redeemers :: Cbor
   }
-  deriving stock (Show, Generic)
-  deriving (Eq, FromJSON, ToJSON)
+  deriving stock (Show, Generic, Eq)
+  deriving anyclass (FromJSON, ToJSON)
 
 -- This is only to avoid an orphan instance for @ToDocs@
 newtype FinalizedTransaction = FinalizedTransaction Cbor
@@ -241,15 +240,23 @@ instance Docs.ToSample HashedScript where
 instance Docs.ToSample FinalizeRequest where
   toSamples _ =
     [
-      ( "TODO"
+      ( "The input should contain CBOR of Tx, Redeemers and individual plutus datums"
       , FinalizeRequest (Cbor "00") [Cbor "00"] (Cbor "00")
       )
     ]
 
 instance Docs.ToSample FinalizedTransaction where
   toSamples _ =
-    [ ("The script should be CBOR-encoded hex", undefined)
+    [ ("The output is CBOR-encoded Tx", exampleTx)
     ]
+    where
+      exampleTx = FinalizedTransaction . Cbor $ mconcat
+        [ "84a300818258205d677265fa5bb21ce6d8c7502aca70b93"
+        , "16d10e958611f3c6b758f65ad9599960001818258390030"
+        , "fb3b8539951e26f034910a5a37f22cb99d94d1d409f69dd"
+        , "baea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba"
+        , "3e96550504d5336100021a0002b569a0f5f6"
+        ]
 
 -- For decoding test fixtures, samples, etc...
 unsafeDecode :: forall (a :: Type). FromJSON a => String -> LC8.ByteString -> a
