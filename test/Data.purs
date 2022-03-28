@@ -4,7 +4,7 @@ module Test.Data (suite) where
 import Prelude
 
 import ConstrIndex (class HasConstrIndex, defaultConstrIndex, fromConstr2Index)
-import Control.Lazy (class Lazy, fix)
+import Control.Lazy (fix)
 import Data.Array (zip, (..))
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -17,11 +17,9 @@ import Data.Tuple (Tuple)
 import Data.Tuple.Nested ((/\))
 import FromData (class FromData, fromData, genericFromData)
 import Mote (group, test)
-import Test.QuickCheck ((===))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary, genericArbitrary)
-import Test.QuickCheck.Gen (Gen, arrayOf, chooseInt, elements)
+import Test.QuickCheck.Gen (Gen)
 import Test.Spec.Assertions (shouldEqual)
-import Test.Spec.QuickCheck (quickCheck)
 import TestM (TestPlanM)
 import ToData (class ToData, genericToData, toData)
 
@@ -58,7 +56,11 @@ suite = do
         input = Map.fromFoldable
           [ Map.fromFoldable [ unit /\ unit ] /\ Map.fromFoldable [ unit /\ unit ] ]
       fromData (toData input) `shouldEqual` Just input
-    test "from . to == id" $ quickCheck (\(input :: TestType) -> fromData (toData input) === Just input)
+    test "from . to == id" do
+      let
+        input = E0 D1 true (C2 (MyBigInt (BigInt.fromInt 123)) false)
+        --testFn = \input -> fromData (toData input) === Just input
+      fromData (toData input) `shouldEqual` Just input
 
 -- | Newtype wrapper to avoid an orphan instance
 newtype MyBigInt = MyBigInt BigInt
@@ -75,9 +77,9 @@ instance Arbitrary MyBigInt where
     pure $ MyBigInt bi
 
 -- | Types used to test generic fromData and toData
-data TestType = C0 | C1 MyBigInt | C2 MyBigInt Boolean | C3 MyBigInt Boolean Boolean | C4 MyBigInt TestType
-data TestType1 = D0 TestType MyBigInt (Maybe Boolean)
-data TestType2 = E0 TestType TestType1
+data TestType = C0 | C1 (Maybe MyBigInt) | C2 MyBigInt Boolean | C3 MyBigInt Boolean Boolean
+data TestType1 = D0 TestType MyBigInt (Maybe Boolean) | D1 | D2 TestType
+data TestType2 = E0 TestType1 Boolean TestType
 
 derive instance G.Generic TestType _
 derive instance G.Generic TestType1 _
@@ -108,10 +110,10 @@ instance ToData TestType2 where
   toData = genericToData
 
 instance FromData TestType where
-  fromData pd = genericFromData pd -- NOTE: I get a compiler error if I remove the arguments
+  fromData pd = genericFromData pd -- NOTE: https://github.com/purescript/documentation/blob/master/errors/CycleInDeclaration.md
 
 instance ToData TestType where
-  toData x = genericToData x -- NOTE: I get a compiler error if I remove the arguments
+  toData x = genericToData x -- NOTE: https://github.com/purescript/documentation/blob/master/errors/CycleInDeclaration.md
 
 -- https://stackoverflow.com/questions/51215083/how-to-quickcheck-on-custom-adt-in-purescript
 -- https://github.com/purescript/purescript/issues/2975

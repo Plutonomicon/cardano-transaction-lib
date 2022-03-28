@@ -46,9 +46,6 @@ class FromDataWithIndex a ci where
 class FromDataArgs a where
   fromDataArgs :: Array PlutusData -> Maybe a
 
-resolveConstr :: forall a. HasConstrIndex a => Proxy a -> Int -> Maybe String
-resolveConstr pa i = let Tuple _ i2c = constrIndex pa in Map.lookup i i2c
-
 -- > data TestType = C0 | C1 Int | C2 Int String | C3 Int String Boolean | C4 Int TestType
 -- > derive instance Generic TestType _
 -- > :t (from C0)
@@ -106,6 +103,9 @@ instance (FromDataArgs a, FromDataArgs b) => FromDataArgs (G.Product a b) where
 
 genericFromData :: forall a rep. G.Generic a rep => HasConstrIndex a => FromDataWithIndex rep a => PlutusData -> Maybe a
 genericFromData pd = G.to <$> fromDataWithIndex (Proxy :: Proxy rep) (Proxy :: Proxy a) pd
+
+resolveConstr :: forall a. HasConstrIndex a => Proxy a -> Int -> Maybe String
+resolveConstr pa i = let Tuple _ i2c = constrIndex pa in Map.lookup i i2c
 
 -- | Base instances
 
