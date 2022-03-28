@@ -64,11 +64,6 @@ import Seabug.Types
   , NftId(NftId)
   )
 
--- https://github.com/mlabs-haskell/plutus-use-cases/blob/927eade6aa9ad37bf2e9acaf8a14ae2fc304b5ba/mlabs/src/Mlabs/EfficientNFT/Contract/MarketplaceBuy.hs
--- rev: 2c9ce295ccef4af3f3cb785982dfe554f8781541
--- The `MintingPolicy` may be decoded as Json, although I'm not sure as we don't
--- have `mkMintingPolicyScript`. Otherwise, it's an policy that hasn't been
--- applied to arguments. See `Seabug.Token.policy`
 marketplaceBuy :: NftData -> Contract Unit
 marketplaceBuy nftData = do
   unbalancedTx /\  curr /\ newName  <- mkMarketplaceTx nftData
@@ -83,7 +78,13 @@ marketplaceBuy nftData = do
     <> show transactionHash
   log $ "marketplaceBuy: Buy successful: " <> show (curr /\ newName)
 
-mkMarketplaceTx :: NftData -> Contract (UnbalancedTx /\  CurrencySymbol /\ TokenName )
+-- https://github.com/mlabs-haskell/plutus-use-cases/blob/927eade6aa9ad37bf2e9acaf8a14ae2fc304b5ba/mlabs/src/Mlabs/EfficientNFT/Contract/MarketplaceBuy.hs
+-- rev: 2c9ce295ccef4af3f3cb785982dfe554f8781541
+-- The `MintingPolicy` may be decoded as Json, although I'm not sure as we don't
+-- have `mkMintingPolicyScript`. Otherwise, it's an policy that hasn't been
+-- applied to arguments. See `Seabug.Token.policy`
+mkMarketplaceTx
+  :: NftData -> Contract (UnbalancedTx /\ CurrencySymbol /\ TokenName)
 mkMarketplaceTx (NftData nftData) = do
   -- Read in the unapplied minting policy:
   mp <- liftedE' $ pure unappliedMintingPolicy
