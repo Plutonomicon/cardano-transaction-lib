@@ -3,7 +3,6 @@ module Api (
   estimateTxFees,
   applyArgs,
   hashScript,
-  blake2bHash,
   apiDocs,
 ) where
 
@@ -40,7 +39,6 @@ import Types (
   AppM (AppM),
   AppliedScript,
   ApplyArgsRequest,
-  Blake2bHash,
   CardanoBrowserServerError (FeeEstimate),
   Cbor,
   Env,
@@ -48,7 +46,6 @@ import Types (
   FeeEstimateError (InvalidCbor, InvalidHex),
   HashScriptRequest,
   HashedScript,
-  BytesToHash,
  )
 import Utils (lbshow)
 
@@ -62,12 +59,6 @@ type Api =
     :<|> "hash-script"
       :> ReqBody '[JSON] HashScriptRequest
       :> Post '[JSON] HashedScript
-
-    -- Making this a POST request so we can just use the @From/ToJSON@
-    -- instances instead of decoding in the handler
-    :<|> "blake2b"
-      :> ReqBody '[JSON] BytesToHash
-      :> Post '[JSON] Blake2bHash
 
 app :: Env -> Application
 app = Cors.cors (const $ Just policy) . serve api . appServer
@@ -107,7 +98,6 @@ server =
   Handlers.estimateTxFees
     :<|> Handlers.applyArgs
     :<|> Handlers.hashScript
-    :<|> Handlers.blake2bHash
 
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
@@ -115,9 +105,7 @@ apiDocs = Docs.docs api
 estimateTxFees :: Cbor -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
 hashScript :: HashScriptRequest -> ClientM HashedScript
-blake2bHash :: BytesToHash -> ClientM Blake2bHash
 estimateTxFees
   :<|> applyArgs
-  :<|> hashScript
-  :<|> blake2bHash =
+  :<|> hashScript =
     client api

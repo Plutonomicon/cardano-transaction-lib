@@ -7,6 +7,7 @@ module Contract.Monad
   , liftContractE
   , liftContractE'
   , liftContractM
+  , liftContractWithE
   , liftedE
   , liftedE'
   , liftedM
@@ -142,23 +143,29 @@ liftContractE'
   :: forall (e :: Type) (a :: Type). Show e => Either e a -> Contract a
 liftContractE' = either throwContractError pure
 
--- | Same as `liftContractE` but the `Either` value is already in the `Contract`
--- | context.
-liftedE
-  :: forall (e :: Type) (a :: Type)
-   . String
-  -> Contract (Either e a)
-  -> Contract a
-liftedE str em = em >>= liftContractE str
+-- | Similar to `liftContractE'` but with an arbitrary to-`String` handler on
+-- | the error.
+liftContractWithE
+  :: forall (e :: Type) (a :: Type). (e -> String) -> Either e a -> Contract a
+liftContractWithE handler = either (liftEffect <<< throw <<< handler) pure
 
--- | Similar to `liftedE` except it directly throws the showable error via
+-- | Similar to `liftedE'` except it directly throws the showable error via
 -- | `throwContractError` instead of an arbitrary string.
-liftedE'
+liftedE
   :: forall (e :: Type) (a :: Type)
    . Show e
   => Contract (Either e a)
   -> Contract a
-liftedE' = (=<<) liftContractE'
+liftedE = (=<<) liftContractE'
+
+-- | Same as `liftContractE` but the `Either` value is already in the `Contract`
+-- | context.
+liftedE'
+  :: forall (e :: Type) (a :: Type)
+   . String
+  -> Contract (Either e a)
+  -> Contract a
+liftedE' str em = em >>= liftContractE str
 
 -- | Runs the contract, essentially `runReaderT` but with arguments flipped.
 runContract :: forall (a :: Type). ContractConfig -> Contract a -> Aff a

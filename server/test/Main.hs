@@ -1,6 +1,6 @@
 module Main (main) where
 
-import Api (app, applyArgs, blake2bHash, estimateTxFees, hashScript)
+import Api (app, applyArgs, estimateTxFees, hashScript)
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.Kind (Type)
 import Network.HTTP.Client (defaultManagerSettings, newManager)
@@ -35,8 +35,6 @@ import Test.Hspec.Core.Spec (SpecM)
 import Types (
   AppliedScript (AppliedScript),
   ApplyArgsRequest (ApplyArgsRequest, args, script),
-  Blake2bHash (Blake2bHash),
-  BytesToHash (BytesToHash),
   Cbor (Cbor),
   Env,
   Fee (Fee),
@@ -54,7 +52,6 @@ serverSpec = do
   describe "Api.Handlers.applyArgs" applyArgsSpec
   describe "Api.Handlers.estimateTxFees" feeEstimateSpec
   describe "Api.Handlers.hashScript" hashScriptSpec
-  describe "Api.Handlers.blake2bHash" blake2bHashSpec
 
 applyArgsSpec :: Spec
 applyArgsSpec = around withTestApp $ do
@@ -135,22 +132,6 @@ hashScriptSpec = around withTestApp $ do
           hashScript hashScriptRequestFixture
       result `shouldBe` Right hashedScriptFixture
 
-blake2bHashSpec :: Spec
-blake2bHashSpec = around withTestApp $ do
-  clientEnv <- setupClientEnv
-
-  context "POST blake2b" $ do
-    it "gets the blake2b_256 hash" $ \port -> do
-      result <-
-        runClientM' (clientEnv port) $
-          blake2bHash (BytesToHash "foo")
-      result `shouldBe` Right blake2bRes
-  where
-    -- obtained from `fromBuiltin . blake2b_256 $ toBuiltin @ByteString "foo"`
-    blake2bRes :: Blake2bHash
-    blake2bRes =
-      Blake2bHash
-        "\184\254\159\DELbU\166\250\b\246h\171c*\141\b\SUB\216y\131\199|\210t\228\140\228P\240\179I\253"
 
 setupClientEnv :: SpecM Port (Port -> ClientEnv)
 setupClientEnv = do

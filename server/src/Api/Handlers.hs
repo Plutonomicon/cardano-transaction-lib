@@ -4,7 +4,6 @@ module Api.Handlers (
   estimateTxFees,
   applyArgs,
   hashScript,
-  blake2bHash,
 ) where
 
 import Cardano.Api qualified as C
@@ -23,7 +22,6 @@ import Types (
   AppM,
   AppliedScript (AppliedScript),
   ApplyArgsRequest (ApplyArgsRequest, args, script),
-  Blake2bHash (Blake2bHash),
   CardanoBrowserServerError (FeeEstimate),
   Cbor (Cbor),
   Env (protocolParams),
@@ -31,7 +29,6 @@ import Types (
   FeeEstimateError (InvalidCbor, InvalidHex),
   HashScriptRequest (HashScriptRequest),
   HashedScript (HashedScript),
-  BytesToHash (BytesToHash),
   hashLedgerScript,
  )
 
@@ -49,11 +46,6 @@ applyArgs ApplyArgsRequest {script, args} =
 hashScript :: HashScriptRequest -> AppM HashedScript
 hashScript (HashScriptRequest script) =
   pure . HashedScript $ hashLedgerScript script
-
-blake2bHash :: BytesToHash -> AppM Blake2bHash
-blake2bHash (BytesToHash hs) =
-  pure . Blake2bHash . PlutusTx.fromBuiltin . PlutusTx.blake2b_256 $
-    PlutusTx.toBuiltin hs
 
 -- Helpers
 
