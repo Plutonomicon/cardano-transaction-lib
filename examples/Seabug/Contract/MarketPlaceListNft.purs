@@ -5,47 +5,39 @@ module Seabug.Contract.MarketPlaceListNft
 
 import Contract.Prelude
 import Contract.Address (validatorAddress)
-import Contract.Monad (Contract, liftContractE', liftedE', liftedM)
+import Contract.Monad (Contract, liftContractE', liftedM)
 import Contract.PlutusData (fromData, getDatumByHash)
 import Contract.Transaction (TransactionOutput(TransactionOutput))
 import Contract.Utxos (UtxoM, utxosAt)
-import Contract.Value (scriptCurrencySymbol, valueOf)
+import Contract.Value (valueOf)
 import Seabug.MarketPlace (marketplaceValidator)
-import Seabug.Token (mkTokenName, policy, unappliedMintingPolicy)
-import Seabug.Types (MarketplaceDatum(MarketplaceDatum), NftData(NftData))
+import Seabug.Types (MarketplaceDatum(MarketplaceDatum))
 
 -- | Lists the utxos at the script address that contain a datum of type
--- | `NftData` with the correct NFT
-marketPlaceListNft :: NftData -> Contract UtxoM
-marketPlaceListNft (NftData nftData) = do
+-- | `MarketplaceDatum` with unit value. It currently doesn't have any logic
+-- | on matching `CurrencySymbol` and `TokenName`.
+marketPlaceListNft :: Contract UtxoM
+marketPlaceListNft = do
   marketplaceValidator' <- unwrap <$> liftContractE' marketplaceValidator
   scriptAddr <- liftedM "marketPlaceListNft: Cannot get script Address"
     (validatorAddress marketplaceValidator'.validator)
   scriptUtxos <-
     liftedM "marketPlaceListNft: Cannot get script Utxos" (utxosAt scriptAddr)
-  -- Get the applied minting policy before hand so we don't repeat the same code
-  -- inside `containsNft`
-  mp <- liftedE' $ pure unappliedMintingPolicy
   let
     -- Given a `TxOut`/`TransactionOutput`, returns a `Boolean` on whether the
-    -- datum is of type `NftData` and has the correct NFT value.
+    -- datum is of type `MarketplaceDatum` and unit value. We don't have access
+    -- to NftData (or NftCollection) so we presumably can't get the currency
+    -- symbol to match on?
     containsNft :: TransactionOutput -> Contract Boolean
     containsNft
       (TransactionOutput { amount, data_hash: Just datumHash }) = do
       plutusData <- liftedM "marketPlaceListNft: Cannot get datum from hash"
         (getDatumByHash datumHash)
-      case fromData plutusData of
-        Just (MarketplaceDatum { getMarketplaceDatum: curr' /\ name' }) -> do
-          policy' <- liftedM "marketPlaceListNft: Cannot apply arguments"
-            (policy nftData.nftCollection mp)
-          curr <- liftedM "marketPlaceListNft: Cannot get CurrencySymbol"
-            (scriptCurrencySymbol policy')
-          name <- liftedM "marketPlaceListNft: Cannot hash token"
-            (mkTokenName nftData.nftId)
-          pure
-            $ (curr == curr')
-            && (name == name')
-            && (valueOf amount curr name == one)
-        _ -> pure false
+      pure case fromData plutusData of
+        Just (MarketplaceDatum { getMarketplaceDatum: curr /\ name }) ->
+          -- Simplified logic without checking currency symbol matches as we
+          -- can't get a fully applied policy.
+          valueOf amount curr name == one
+        _ -> false
     containsNft _ = pure false
   wrap <$> filterMapM containsNft (unwrap scriptUtxos)
