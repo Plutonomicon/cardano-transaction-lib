@@ -21,8 +21,7 @@ mkTokenName nftId = hash nftId <#> maybe Nothing Value.mkTokenName
 -- rev: 2c9ce295ccef4af3f3cb785982dfe554f8781541
 -- Apply arguments to an unapplied `MintingPolicy` to give a `MintingPolicy`.
 -- It's possible this is given as JSON since we don't have
--- `mkMintingPolicyScript`. I'm not convinced this type signature actually makes
--- sense.
+-- `mkMintingPolicyScript`.
 policy
   :: NftCollection
   -> MintingPolicy
