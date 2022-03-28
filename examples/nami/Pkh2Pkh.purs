@@ -52,7 +52,6 @@ import Effect.Class (liftEffect)
 import Effect.Console as Console
 import QueryM
   ( QueryM
-  , FinalizedTransaction(..)
   , defaultOgmiosWsConfig
   , defaultDatumCacheWsConfig
   , defaultServerConfig
@@ -60,12 +59,9 @@ import QueryM
   , mkOgmiosWebSocketAff
   , mkDatumCacheWebSocketAff
   , submitTransaction
-  , submitTransactionBytes
-  , finalizeTx
   )
 import QueryM.Utxos (utxosAt)
 import Serialization.Address (NetworkId(TestnetId))
-import Types.ByteArray (ByteArray)
 import Types.Interval (defaultSlotConfig)
 import Types.Transaction
   ( Transaction(Transaction)
@@ -98,17 +94,12 @@ main = launchAff_ $ do
 
 buildAndSubmit :: QueryM TransactionHash
 buildAndSubmit = mthrow "Failed to submit transaction" $
-  submitTransactionBytes =<< buildTransaction
+  submitTransaction =<< buildTransaction
 
-buildTransaction :: QueryM ByteArray
-buildTransaction = do
-  unbalancedTx <- buildUnbalancedTransaction
-  balancedTx <- either (throw <<< show) pure
-    =<< balanceTx unbalancedTx
-  FinalizedTransaction byteArray <-
-    mthrow "Failed to get finalized Tx" $
-    finalizeTx balancedTx [] []
-  pure byteArray
+buildTransaction :: QueryM Transaction
+buildTransaction = either (throw <<< show) pure
+  =<< balanceTx
+  =<< buildUnbalancedTransaction
 
 buildUnbalancedTransaction :: QueryM UnbalancedTx
 buildUnbalancedTransaction = do
