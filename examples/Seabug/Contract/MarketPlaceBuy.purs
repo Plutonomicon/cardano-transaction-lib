@@ -1,5 +1,6 @@
 module Seabug.Contract.MarketPlaceBuy
   ( marketplaceBuy
+  , mkMarketplaceTx
   ) where
 
 import Contract.Prelude
@@ -32,7 +33,7 @@ import Contract.PlutusData
   )
 import Contract.ProtocolParameters.Alonzo (minAdaTxOut)
 import Contract.Scripts (validatorAddress)
-import Contract.Transaction (TxOut, balanceTx, submitTransaction)
+import Contract.Transaction (TxOut, UnbalancedTx, balanceTx, submitTransaction)
 import Contract.TxConstraints
   ( TxConstraints
   , mustMintValueWithRedeemer
@@ -42,7 +43,9 @@ import Contract.TxConstraints
   )
 import Contract.Utxos (utxosAt)
 import Contract.Value
-  ( Value
+  ( CurrencySymbol
+  , TokenName
+  , Value
   , coinToValue
   , lovelaceValueOf
   , mkSingletonValue'
@@ -66,8 +69,22 @@ import Seabug.Types
 -- The `MintingPolicy` may be decoded as Json, although I'm not sure as we don't
 -- have `mkMintingPolicyScript`. Otherwise, it's an policy that hasn't been
 -- applied to arguments. See `Seabug.Token.policy`
-marketplaceBuy :: NftData -> Contract NftData
-marketplaceBuy (NftData nftData) = do
+marketplaceBuy :: NftData -> Contract Unit
+marketplaceBuy nftData = do
+  unbalancedTx /\  curr /\ newName  <- mkMarketplaceTx nftData
+  log "marketplaceBuy: Unbalanced transaction successfully built"
+  -- Balance unbalanced tx:
+  balancedTx <- liftedE' $ balanceTx unbalancedTx
+  log "marketplaceBuy: Transaction successfully balanced"
+  -- Submit balanced tx:
+  transactionHash <- liftedM "marketplaceBuy: Failed transaction Submission"
+    (submitTransaction balancedTx)
+  log $ "marketplaceBuy: Transaction successfully submitted with hash: "
+    <> show transactionHash
+  log $ "marketplaceBuy: Buy successful: " <> show (curr /\ newName)
+
+mkMarketplaceTx :: NftData -> Contract (UnbalancedTx /\  CurrencySymbol /\ TokenName )
+mkMarketplaceTx (NftData nftData) = do
   -- Read in the unapplied minting policy:
   mp <- liftedE' $ pure unappliedMintingPolicy
   pkh <- liftedM "marketplaceBuy: Cannot get PaymentPubKeyHash"
@@ -125,8 +142,6 @@ marketplaceBuy (NftData nftData) = do
       - shareToSubtract authorShare
       - shareToSubtract daoShare
     datum = Datum $ toData $ curr /\ oldName
-    newNftData =
-      NftData { nftCollection: nftData.nftCollection, nftId: newNft }
     userAddr = payPubKeyHashAddress networkId pkh
   userUtxos <-
     liftedM "marketplaceBuy: Cannot get user Utxos" (utxosAt userAddr)
@@ -162,16 +177,5 @@ marketplaceBuy (NftData nftData) = do
               (newNftValue <> coinToValue minAdaTxOut)
           ]
   -- Created unbalanced tx:
-  unbalancedTx <- liftedE' $ ScriptLookups.mkUnbalancedTx lookup constraints
-  log "marketplaceBuy: Unbalanced transaction successfully built"
-  -- Balance unbalanced tx:
-  balancedTx <- liftedE' $ balanceTx unbalancedTx
-  log "marketplaceBuy: Transaction successfully balanced"
-  -- Submit balanced tx:
-  transactionHash <- liftedM "marketplaceBuy: Failed transaction Submission"
-    (submitTransaction balancedTx)
-  log $ "marketplaceBuy: Transaction successfully submitted with hash: "
-    <> show transactionHash
-  log $ "marketplaceBuy: Buy successful: " <> show (curr /\ newName)
-  -- As far as I can tell, we don't actually need the return value:
-  pure newNftData
+  tx <- liftedE' $ ScriptLookups.mkUnbalancedTx lookup constraints
+  pure $ tx /\ curr /\ newName
