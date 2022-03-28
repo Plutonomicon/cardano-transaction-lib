@@ -1,12 +1,17 @@
 module FromData
   ( class FromData
   , fromData
+  , genericFromData
+  , class FromDataWithIndex
+  , fromDataWithIndex
+  , class FromDataArgs
+  , fromDataArgs
   ) where
 
 import Prelude
 
-import Control.Alternative ((<|>))
-import Control.Alternative (guard)
+import ConstrIndex (class HasConstrIndex, constrIndex)
+import Control.Alternative ((<|>), guard)
 import Data.Array (cons, head, uncons, (:))
 import Data.Array as Array
 import Data.BigInt (BigInt)
@@ -36,28 +41,21 @@ import Types.PlutusData (PlutusData(Bytes, Constr, List, Map, Integer))
 class FromData (a :: Type) where
   fromData :: PlutusData -> Maybe a
 
-class ConstrIndex (a :: Type) where
-  constrIndex :: Proxy a -> Map Int String
-
 class FromDataWithIndex a ci where
-  fromDataWithIndex :: ConstrIndex ci => Proxy a -> Proxy ci -> PlutusData -> Maybe a
+  fromDataWithIndex :: HasConstrIndex ci => Proxy a -> Proxy ci -> PlutusData -> Maybe a
 
 class FromDataArgs a where
   fromDataArgs :: Array PlutusData -> Maybe a
 
--- Default constructor indices
-class CountedConstrIndex (a :: Type) where
-  countedConstrIndex :: Proxy a -> Int -> Map Int String -> Map Int String
-
-resolveConstr :: forall a. ConstrIndex a => Proxy a -> Int -> Maybe String
-resolveConstr pa i = Map.lookup i (constrIndex pa)
+resolveConstr :: forall a. HasConstrIndex a => Proxy a -> Int -> Maybe String
+resolveConstr pa i = let Tuple _ i2c = constrIndex pa in Map.lookup i i2c
 
 -- instance FromDataArgs G.NoArguments where
 --   fromDataArgs pdArgs = case uncons pdArgs of
 --     Just {head: (Constr i []), tail: pds} -> Just G.NoArguments
 --     Nothing -> Nothing
 
--- > data TestType = C0 | C1 Int | C2 Int String | C3 Int String Boolean
+-- > data TestType = C0 | C1 Int | C2 Int String | C3 Int String Boolean | C4 Int TestType
 -- > derive instance getTestType :: Generic TestType _
 -- > :t (from C0)
 -- Sum
@@ -74,12 +72,12 @@ resolveConstr pa i = Map.lookup i (constrIndex pa)
 --             (Argument String)
 --             (Argument Boolean))))))
 
-instance (ConstrIndex a, FromDataWithIndex l a, FromDataWithIndex r a) => FromDataWithIndex (G.Sum l r) a where
+instance (HasConstrIndex a, FromDataWithIndex l a, FromDataWithIndex r a) => FromDataWithIndex (G.Sum l r) a where
   fromDataWithIndex _ pci pd = G.Inl <$> fromDataWithIndex (Proxy :: Proxy l) pci pd
     <|> G.Inr <$> fromDataWithIndex (Proxy :: Proxy r) pci pd
 
 -- https://purescript-simple-json.readthedocs.io/en/latest/generics-rep.html
-instance (IsSymbol n, ConstrIndex a, FromDataArgs arg) => FromDataWithIndex (G.Constructor n arg) a where
+instance (IsSymbol n, HasConstrIndex a, FromDataArgs arg) => FromDataWithIndex (G.Constructor n arg) a where
   fromDataWithIndex _ pci (Constr i pdArgs) = do
     ix <- BigInt.toInt i
     cn <- resolveConstr pci ix
@@ -93,18 +91,20 @@ instance FromDataArgs (G.NoArguments) where
   fromDataArgs [] = Just G.NoArguments
   fromDataArgs _ = Nothing
 
-instance (FromData a) => FromData (G.Argument a) where
-  fromData pd = G.Argument <$> fromData pd
+instance (HasConstrIndex ci, FromDataWithIndex a ci) => FromDataWithIndex (G.Argument a) ci where
+  fromDataWithIndex pa pci pd = G.Argument <$> fromDataWithIndex (Proxy :: Proxy a) (Proxy :: Proxy ci) pd
 
-instance (FromData a, FromDataArgs b) => FromDataArgs (G.Product a b) where
+--Sum (Constructor "C0" NoArguments) (Sum (Constructor "C1" (Argument Int)) (Sum (Constructor "C2" (Product (Argument Int) (Argument String))) (Sum (Constructor "C3" (Product (Argument Int) (Product (Argument String) (Argument Boolean)))) (Constructor "C4" (Product (Argument Int) (Argument TestType))))))
+
+instance (HasConstrIndex ci, FromDataWithIndex a ci, FromDataArgs b) => FromDataArgs (G.Product a b) where
   fromDataArgs pdArgs = do
     { head: pd, tail: pds } <- uncons pdArgs
-    repFst <- fromData pd
+    repFst <- fromDataWithIndex (Proxy :: Proxy a) (Proxy :: Proxy ci) pd
     repSnd <- fromDataArgs pds
     pure $ G.Product repFst repSnd
 
--- genericFromData :: forall a rep. G.Generic a rep => ConstrIndex a => PlutusData -> Maybe a
--- genericFromData pd = G.to <$> fromDataWithIndex (Proxy :: Proxy rep) (Proxy :: Proxy a) pd
+genericFromData :: forall a rep. G.Generic a rep => HasConstrIndex a => FromDataWithIndex rep a => PlutusData -> Maybe a
+genericFromData pd = G.to <$> fromDataWithIndex (Proxy :: Proxy rep) (Proxy :: Proxy a) pd
 
 -- Constr BigInt (Array PlutusData)
 

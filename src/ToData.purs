@@ -2,14 +2,9 @@ module ToData
   ( AnotherDay(..)
   , Day(..)
   , Tree(..)
-  , class ConstrIndex
-  , class CountedConstrIndex
   , class ToData
   , class ToDataArgs
   , class ToDataWithIndex
-  , constrIndex
-  , countedConstrIndex
-  , defaultConstrIndex
   , genericToData
   , toData
   , toDataArgs
@@ -18,21 +13,22 @@ module ToData
 
 import Prelude
 
-import Data.Array as Array
+import ConstrIndex (class HasConstrIndex, class HasCountedConstrIndex, constrIndex, defaultConstrIndex, fromConstr2Index)
 import Data.Array ((..))
+import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Foldable (class Foldable)
 import Data.Generic.Rep as G
-import Data.Map (Map)
 import Data.List (List)
+import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Profunctor.Strong ((***))
 import Data.Ratio (Ratio, denominator, numerator)
 import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
-import Data.Tuple (Tuple)
+import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Helpers (uIntToBigInt)
@@ -46,25 +42,18 @@ import Types.PlutusData (PlutusData(Constr, Integer, List, Map, Bytes))
 class ToData (a :: Type) where
   toData :: a -> PlutusData
 
-class ConstrIndex (a :: Type) where
-  constrIndex :: Proxy a -> Map String Int
-
 class ToDataWithIndex a ci where
-  toDataWithIndex :: ConstrIndex ci => Proxy ci -> a -> PlutusData
+  toDataWithIndex :: HasConstrIndex ci => Proxy ci -> a -> PlutusData
 
 -- As explained in https://harry.garrood.me/blog/write-your-own-generics/ this
 -- is just a neat pattern that flattens a skewed Product of Products
 class ToDataArgs a where
   toDataArgs :: a -> Array (PlutusData)
 
--- Default constructor indices
-class CountedConstrIndex (a :: Type) where
-  countedConstrIndex :: Proxy a -> Int -> Map String Int -> Map String Int
-
 -- Data.Generic.Rep instances
 
 instance toDataWithIndexSum ::
-  ( ConstrIndex a
+  ( HasConstrIndex a
   , ToDataWithIndex l a
   , ToDataWithIndex r a
   ) =>
@@ -74,7 +63,7 @@ instance toDataWithIndexSum ::
 
 instance toDataWithIndexConstr ::
   ( IsSymbol n
-  , ConstrIndex a
+  , HasConstrIndex a
   , ToDataArgs arg
   ) =>
   ToDataWithIndex (G.Constructor n arg) a where
@@ -89,26 +78,17 @@ instance toDataArgsArgument :: ToData a => ToDataArgs (G.Argument a) where
 instance toDataArgsProduct :: (ToDataArgs a, ToDataArgs b) => ToDataArgs (G.Product a b) where
   toDataArgs (G.Product x y) = toDataArgs x <> toDataArgs y
 
-instance (CountedConstrIndex a, CountedConstrIndex b) => CountedConstrIndex (G.Sum a b) where
-  countedConstrIndex _ i sym2ix = countedConstrIndex (Proxy :: Proxy b) (i + 1) (countedConstrIndex (Proxy :: Proxy a) i sym2ix)
-
-instance (IsSymbol n) => CountedConstrIndex (G.Constructor n a) where
-  countedConstrIndex _ i sym2ix = (Map.insert (reflectSymbol (SProxy :: SProxy n)) i sym2ix)
-
 genericToData
-  :: forall a rep. G.Generic a rep => ConstrIndex a => ToDataWithIndex rep a => a -> PlutusData
+  :: forall a rep. G.Generic a rep => HasConstrIndex a => ToDataWithIndex rep a => a -> PlutusData
 genericToData = toDataWithIndex (Proxy :: Proxy a) <<< G.from
 
-defaultConstrIndex :: forall a rep. G.Generic a rep => CountedConstrIndex rep => Proxy a -> Map String Int
-defaultConstrIndex _ = countedConstrIndex (Proxy :: Proxy rep) 0 Map.empty -- TODO: Do this computation at type level instead
-
-resolveIndex :: forall a s. ConstrIndex a => IsSymbol s => Proxy a -> SProxy s -> BigInt
+resolveIndex :: forall a s. HasConstrIndex a => IsSymbol s => Proxy a -> SProxy s -> BigInt
 resolveIndex pa sps =
   let
     cn = reflectSymbol sps
-    ci = constrIndex pa
+    Tuple c2i _ = constrIndex pa
   in
-    case Map.lookup cn ci of
+    case Map.lookup cn c2i of
       Just i -> BigInt.fromInt i
       Nothing -> zero - BigInt.fromInt 1 -- TODO: Figure out type level
 
@@ -117,19 +97,19 @@ resolveIndex pa sps =
 -- TODO: Remove Day as it's only for demo
 data Day = Mon | Tue | Wed | Thurs | Fri | Sat | Sun
 
-derive instance genericDay :: G.Generic Day _
+derive instance G.Generic Day _
 
-instance ConstrIndex Day where
-  constrIndex _ = Map.fromFoldable (Array.zip [ "Mon", "Tue", "Wed", "Thurs", "Fri", "Sat", "Sun" ] (0 .. 7))
+instance HasConstrIndex Day where
+  constrIndex _ = fromConstr2Index (Array.zip [ "Mon", "Tue", "Wed", "Thurs", "Fri", "Sat", "Sun" ] (0 .. 7))
 
 instance ToData Day where
   toData = genericToData
 
 data AnotherDay = AMon | ATue | AWed | AThurs | AFri | ASat | ASun
 
-derive instance genericAnotherDay :: G.Generic AnotherDay _
+derive instance G.Generic AnotherDay _
 
-instance ConstrIndex AnotherDay where
+instance HasConstrIndex AnotherDay where
   constrIndex = defaultConstrIndex
 
 instance ToData AnotherDay where
@@ -137,9 +117,9 @@ instance ToData AnotherDay where
 
 data Tree a = Node a (Tuple (Tree a) (Tree a)) | Leaf a
 
-derive instance genericTree :: G.Generic (Tree a) _
+derive instance G.Generic (Tree a) _
 
-instance ConstrIndex (Tree a) where
+instance HasConstrIndex (Tree a) where
   constrIndex = defaultConstrIndex
 
 instance (ToData a) => ToData (Tree a) where
