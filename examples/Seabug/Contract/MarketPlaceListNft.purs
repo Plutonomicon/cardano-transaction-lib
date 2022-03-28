@@ -43,12 +43,9 @@ marketPlaceListNft (NftData nftData) = do
           name <- liftedM "marketPlaceListNft: Cannot hash token"
             (mkTokenName nftData.nftId)
           pure
-            $ curr
-            == curr'
-            && name
-            == name'
-            && valueOf amount curr name
-            == one
+            $ (curr == curr')
+            && (name == name')
+            && (valueOf amount curr name == one)
         _ -> pure false
     containsNft _ = pure false
   wrap <$> filterMapM containsNft (unwrap scriptUtxos)
