@@ -2,7 +2,12 @@ module Seabug.Test (main) where
 
 import Contract.Prelude
 
-import Contract.Monad (Contract, liftContractM)
+import Contract.Monad
+  ( Contract
+  , defaultContractConfig
+  , liftContractM
+  , runContract_
+  )
 import Contract.Numeric.Natural (fromBigInt')
 import Contract.Prim.ByteArray
   ( byteArrayFromString
@@ -14,24 +19,26 @@ import Contract.Transaction (UnbalancedTx(UnbalancedTx))
 import Contract.Value (mkCurrencySymbol, mkTokenName)
 import Data.BigInt as BigInt
 import Data.UInt as UInt
+import Effect.Aff (launchAff_)
 import Seabug.Contract.MarketPlaceBuy (mkMarketplaceTx)
 import Seabug.Types
 import Serialization as Serialization
 import Serialization.Hash (ed25519KeyHashFromBytes, scriptHashFromBytes)
 import Untagged.Union (asOneOf)
 
-main :: Contract Unit
-main = do
-  UnbalancedTx { transaction } /\ _ <- mkMarketplaceTx =<< testNftData
-  log =<<
-    ( liftEffect
-        <<< map
-          ( byteArrayToHex
-              <<< Serialization.toBytes
-              <<< asOneOf
-          )
-    )
-      (Serialization.convertTransaction transaction)
+main :: Effect Unit
+main = launchAff_ $ do
+  cfg <- defaultContractConfig
+  runContract_ cfg $ do
+    UnbalancedTx { transaction } /\ _ <- mkMarketplaceTx =<< testNftData
+    log =<<
+      ( liftEffect
+          <<< map
+            ( byteArrayToHex
+                <<< Serialization.toBytes
+                <<< asOneOf
+            )
+      ) (Serialization.convertTransaction transaction)
 
 testNftData :: Contract NftData
 testNftData = do
