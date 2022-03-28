@@ -20,7 +20,6 @@ import Cardano.Ledger.Crypto (StandardCrypto)
 import Codec.CBOR.Read (deserialiseFromBytes)
 import Control.Lens
 import Control.Monad.Catch (throwM)
-import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (asks)
 import Data.Bifunctor (first, second)
 import Data.ByteString (ByteString)
@@ -70,9 +69,6 @@ hashScript (HashScriptRequest script) =
 finalizeTx :: FinalizeRequest -> AppM FinalizedTransaction
 finalizeTx req@(FinalizeRequest {tx, datums, redeemers}) = do
   pparams <- asks protocolParams
-  liftIO $ do
-    putStrLn "cbor:"
-    print req
   decodedTx <- maybe (handleError $ InvalidHex "Failed to decode Tx") pure $
     decodeCborValidatedTx tx
   decodedRedeemers <- maybe (handleError $ InvalidHex "Failed to decode Redeemers") pure $
@@ -88,15 +84,6 @@ finalizeTx req@(FinalizeRequest {tx, datums, redeemers}) = do
       languages
       decodedRedeemers
       txDatums
-  liftIO $ do
-    putStrLn "tx:"
-    print decodedTx
-    putStrLn "redeemres:"
-    print decodedRedeemers
-    putStrLn "datums:"
-    print decodedDatums
-    putStrLn "integrity hash:"
-    print mbIntegrityHash
   let
     addIntegrityHash t =
       t { body = body t &
@@ -107,11 +94,6 @@ finalizeTx req@(FinalizeRequest {tx, datums, redeemers}) = do
     finalizedTx = addIntegrityHash $ addDatumsAndRedeemers decodedTx
     response = FinalizedTransaction . encodeCborText . Cbor.serializeEncoding $
       Tx.toCBORForMempoolSubmission finalizedTx
-  liftIO $ do
-    putStrLn "finalized:"
-    print finalizedTx
-    putStrLn "response:"
-    print response
   pure response
   where
     handleError = throwM . FinalizeTx . decodeErrorToFinalizeError
