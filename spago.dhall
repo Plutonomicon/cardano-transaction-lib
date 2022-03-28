@@ -65,6 +65,7 @@ You can edit this file as you like.
   , "unordered-collections"
   , "unsafe-coerce"
   , "untagged-union"
+  , "spec-quickcheck"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs", "examples/**/*.purs" ]

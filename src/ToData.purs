@@ -1,8 +1,5 @@
 module ToData
-  ( AnotherDay(..)
-  , Day(..)
-  , Tree(..)
-  , class ToData
+  ( class ToData
   , class ToDataArgs
   , class ToDataWithIndex
   , genericToData
@@ -13,8 +10,7 @@ module ToData
 
 import Prelude
 
-import ConstrIndex (class HasConstrIndex, class HasCountedConstrIndex, constrIndex, defaultConstrIndex, fromConstr2Index)
-import Data.Array ((..))
+import ConstrIndex (class HasConstrIndex, constrIndex)
 import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -33,11 +29,11 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Helpers (uIntToBigInt)
 import Prim.TypeError (class Fail, Text)
-import Type.Proxy (Proxy(..))
+import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Constr, Integer, List, Map, Bytes))
 
--- Classes
+-- | Classes
 
 class ToData (a :: Type) where
   toData :: a -> PlutusData
@@ -50,32 +46,22 @@ class ToDataWithIndex a ci where
 class ToDataArgs a where
   toDataArgs :: a -> Array (PlutusData)
 
--- Data.Generic.Rep instances
+-- | Data.Generic.Rep instances
 
-instance toDataWithIndexSum ::
-  ( HasConstrIndex a
-  , ToDataWithIndex l a
-  , ToDataWithIndex r a
-  ) =>
-  ToDataWithIndex (G.Sum l r) a where
+instance (HasConstrIndex a, ToDataWithIndex l a, ToDataWithIndex r a) => ToDataWithIndex (G.Sum l r) a where
   toDataWithIndex p (G.Inl x) = toDataWithIndex (p :: Proxy a) x
   toDataWithIndex p (G.Inr x) = toDataWithIndex (p :: Proxy a) x
 
-instance toDataWithIndexConstr ::
-  ( IsSymbol n
-  , HasConstrIndex a
-  , ToDataArgs arg
-  ) =>
-  ToDataWithIndex (G.Constructor n arg) a where
+instance (IsSymbol n, HasConstrIndex a, ToDataArgs arg) => ToDataWithIndex (G.Constructor n arg) a where
   toDataWithIndex p (G.Constructor args) = Constr (resolveIndex p (SProxy :: SProxy n)) (toDataArgs args)
 
-instance toDataArgsNoArguments :: ToDataArgs G.NoArguments where
+instance ToDataArgs G.NoArguments where
   toDataArgs _ = []
 
-instance toDataArgsArgument :: ToData a => ToDataArgs (G.Argument a) where
+instance ToData a => ToDataArgs (G.Argument a) where
   toDataArgs (G.Argument x) = [ toData x ]
 
-instance toDataArgsProduct :: (ToDataArgs a, ToDataArgs b) => ToDataArgs (G.Product a b) where
+instance (ToDataArgs a, ToDataArgs b) => ToDataArgs (G.Product a b) where
   toDataArgs (G.Product x y) = toDataArgs x <> toDataArgs y
 
 genericToData
@@ -92,38 +78,7 @@ resolveIndex pa sps =
       Just i -> BigInt.fromInt i
       Nothing -> zero - BigInt.fromInt 1 -- TODO: Figure out type level
 
--- Instances
-
--- TODO: Remove Day as it's only for demo
-data Day = Mon | Tue | Wed | Thurs | Fri | Sat | Sun
-
-derive instance G.Generic Day _
-
-instance HasConstrIndex Day where
-  constrIndex _ = fromConstr2Index (Array.zip [ "Mon", "Tue", "Wed", "Thurs", "Fri", "Sat", "Sun" ] (0 .. 7))
-
-instance ToData Day where
-  toData = genericToData
-
-data AnotherDay = AMon | ATue | AWed | AThurs | AFri | ASat | ASun
-
-derive instance G.Generic AnotherDay _
-
-instance HasConstrIndex AnotherDay where
-  constrIndex = defaultConstrIndex
-
-instance ToData AnotherDay where
-  toData = genericToData
-
-data Tree a = Node a (Tuple (Tree a) (Tree a)) | Leaf a
-
-derive instance G.Generic (Tree a) _
-
-instance HasConstrIndex (Tree a) where
-  constrIndex = defaultConstrIndex
-
-instance (ToData a) => ToData (Tree a) where
-  toData x = genericToData x -- https://github.com/purescript/documentation/blob/master/guides/Type-Class-Deriving.md#avoiding-stack-overflow-errors-with-recursive-types
+-- | Base instances
 
 instance ToData Void where
   toData = absurd

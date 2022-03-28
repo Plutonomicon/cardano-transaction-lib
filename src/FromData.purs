@@ -12,19 +12,18 @@ import Prelude
 
 import ConstrIndex (class HasConstrIndex, constrIndex)
 import Control.Alternative ((<|>), guard)
-import Data.Array (cons, head, uncons, (:))
+import Data.Array (uncons)
 import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
-import Data.Generic.Rep (repOf)
 import Data.Generic.Rep as G
 import Data.List (List)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Ratio (Ratio, reduce)
-import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol, reifySymbol)
+import Data.Symbol (class IsSymbol, reflectSymbol)
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
@@ -36,7 +35,7 @@ import Type.Proxy (Proxy(..))
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Bytes, Constr, List, Map, Integer))
 
--- Classes
+-- | Classes
 
 class FromData (a :: Type) where
   fromData :: PlutusData -> Maybe a
@@ -50,13 +49,8 @@ class FromDataArgs a where
 resolveConstr :: forall a. HasConstrIndex a => Proxy a -> Int -> Maybe String
 resolveConstr pa i = let Tuple _ i2c = constrIndex pa in Map.lookup i i2c
 
--- instance FromDataArgs G.NoArguments where
---   fromDataArgs pdArgs = case uncons pdArgs of
---     Just {head: (Constr i []), tail: pds} -> Just G.NoArguments
---     Nothing -> Nothing
-
 -- > data TestType = C0 | C1 Int | C2 Int String | C3 Int String Boolean | C4 Int TestType
--- > derive instance getTestType :: Generic TestType _
+-- > derive instance Generic TestType _
 -- > :t (from C0)
 -- Sum
 --  (Constructor "C0" NoArguments)
@@ -71,6 +65,8 @@ resolveConstr pa i = let Tuple _ i2c = constrIndex pa in Map.lookup i i2c
 --           (Product
 --             (Argument String)
 --             (Argument Boolean))))))
+
+-- | Data.Generic.Rep instances
 
 instance (HasConstrIndex a, FromDataWithIndex l a, FromDataWithIndex r a) => FromDataWithIndex (G.Sum l r) a where
   fromDataWithIndex _ pci pd = G.Inl <$> fromDataWithIndex (Proxy :: Proxy l) pci pd
@@ -92,21 +88,26 @@ instance FromDataArgs (G.NoArguments) where
   fromDataArgs _ = Nothing
 
 instance (HasConstrIndex ci, FromDataWithIndex a ci) => FromDataWithIndex (G.Argument a) ci where
-  fromDataWithIndex pa pci pd = G.Argument <$> fromDataWithIndex (Proxy :: Proxy a) (Proxy :: Proxy ci) pd
+  fromDataWithIndex _ pci pd = G.Argument <$> fromDataWithIndex (Proxy :: Proxy a) pci pd
 
---Sum (Constructor "C0" NoArguments) (Sum (Constructor "C1" (Argument Int)) (Sum (Constructor "C2" (Product (Argument Int) (Argument String))) (Sum (Constructor "C3" (Product (Argument Int) (Product (Argument String) (Argument Boolean)))) (Constructor "C4" (Product (Argument Int) (Argument TestType))))))
-
-instance (HasConstrIndex ci, FromDataWithIndex a ci, FromDataArgs b) => FromDataArgs (G.Product a b) where
+instance (FromData a) => FromDataArgs (G.Argument a) where
   fromDataArgs pdArgs = do
     { head: pd, tail: pds } <- uncons pdArgs
-    repFst <- fromDataWithIndex (Proxy :: Proxy a) (Proxy :: Proxy ci) pd
+    guard $ pds == []
+    repArg <- fromData pd
+    pure $ G.Argument repArg
+
+instance (FromDataArgs a, FromDataArgs b) => FromDataArgs (G.Product a b) where
+  fromDataArgs pdArgs = do
+    { head: pd, tail: pds } <- uncons pdArgs
+    repFst <- fromDataArgs [ pd ]
     repSnd <- fromDataArgs pds
     pure $ G.Product repFst repSnd
 
 genericFromData :: forall a rep. G.Generic a rep => HasConstrIndex a => FromDataWithIndex rep a => PlutusData -> Maybe a
 genericFromData pd = G.to <$> fromDataWithIndex (Proxy :: Proxy rep) (Proxy :: Proxy a) pd
 
--- Constr BigInt (Array PlutusData)
+-- | Base instances
 
 instance FromData Void where
   fromData _ = Nothing
@@ -116,6 +117,8 @@ instance FromData Unit where
     | n == zero = Just unit
   fromData _ = Nothing
 
+-- NOTE: For the sake of compatibility the following fromDatas have to match
+-- https://github.com/input-output-hk/plutus/blob/1f31e640e8a258185db01fa899da63f9018c0e85/plutus-tx/src/PlutusTx/IsData/Instances.hs
 instance FromData Boolean where
   fromData (Constr n [])
     | n == zero = Just false
