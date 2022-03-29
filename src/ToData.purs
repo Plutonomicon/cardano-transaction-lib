@@ -2,7 +2,9 @@ module ToData
   ( class ToData
   , class ToDataArgs
   , class ToDataWithIndex
+  , class ToDataArgsRL
   , genericToData
+  , toDataArgsRec
   , toData
   , toDataArgs
   , toDataWithIndex
@@ -11,6 +13,7 @@ module ToData
 import Prelude
 
 import ConstrIndex (class HasConstrIndex, constrIndex)
+import Data.Array (cons)
 import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -28,7 +31,10 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Helpers (uIntToBigInt)
+import Prim.Row as Row
+import Prim.RowList as RL
 import Prim.TypeError (class Fail, Text)
+import Record as Record
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Constr, Integer, List, Map, Bytes))
@@ -43,8 +49,14 @@ class ToDataWithIndex a ci where
 
 -- As explained in https://harry.garrood.me/blog/write-your-own-generics/ this
 -- is just a neat pattern that flattens a skewed Product of Products
-class ToDataArgs a where
+class ToDataArgs (a :: Type) where
   toDataArgs :: a -> Array (PlutusData)
+
+-- | A helper typeclass to implement `ToDataArgs` for records.
+-- Stolen from https://github.com/purescript/purescript-quickcheck/blob/v7.1.0/src/Test/QuickCheck/Arbitrary.purs#L247
+class ToDataArgsRL :: RL.RowList Type -> Row Type -> Constraint
+class ToDataArgsRL list row | list -> row where
+  toDataArgsRec :: forall rlproxy. rlproxy list -> Record row -> Array PlutusData
 
 -- | Data.Generic.Rep instances
 
@@ -58,8 +70,36 @@ instance (IsSymbol n, HasConstrIndex a, ToDataArgs arg) => ToDataWithIndex (G.Co
 instance ToDataArgs G.NoArguments where
   toDataArgs _ = []
 
-instance ToData a => ToDataArgs (G.Argument a) where
+instance (ToDataArgs (Record row)) => ToDataArgs (G.Argument (Record row)) where
+  toDataArgs (G.Argument r) = toDataArgs r
+else instance ToData a => ToDataArgs (G.Argument a) where
   toDataArgs (G.Argument x) = [ toData x ]
+
+instance (ToDataArgsRL list row, RL.RowToList row list) => ToDataArgs (Record row) where
+  toDataArgs = toDataArgsRec (Proxy :: Proxy list)
+
+-- | ToDataArgsRL instances
+
+instance ToDataArgsRL RL.Nil row where
+  toDataArgsRec _ _ = []
+
+instance
+  ( ToData a
+  , ToDataArgsRL listRest rowRest
+  , Row.Lacks key rowRest
+  , Row.Cons key a rowRest rowFull
+  , RL.RowToList rowFull (RL.Cons key a listRest)
+  , IsSymbol key
+  ) =>
+  ToDataArgsRL (RL.Cons key a listRest) rowFull where
+  toDataArgsRec p x =
+    let
+      keyProxy = (Proxy :: Proxy key)
+
+      field :: a
+      field = Record.get keyProxy x
+    in
+      toData field `cons` toDataArgsRec (Proxy :: Proxy listRest) (Record.delete keyProxy x)
 
 instance (ToDataArgs a, ToDataArgs b) => ToDataArgs (G.Product a b) where
   toDataArgs (G.Product x y) = toDataArgs x <> toDataArgs y

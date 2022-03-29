@@ -4,7 +4,7 @@ module Test.Data (suite) where
 import Prelude
 
 import ConstrIndex (class HasConstrIndex, defaultConstrIndex, fromConstr2Index)
-import Contract.PlutusData (PlutusData(Constr, Integer))
+import Contract.PlutusData (PlutusData(..))
 import Control.Lazy (fix)
 import Data.Array (zip, (..))
 import Data.BigInt (BigInt)
@@ -74,6 +74,24 @@ suite = do
         let
           pd = Constr (BigInt.fromInt 0) [ (Constr (BigInt.fromInt 1) []) ]
         fromData pd `shouldEqual` (Nothing :: Maybe CType)
+      test "FType and FType' toData/fromData the same: F0 == F0'" do
+        let
+          f0 = F0 { f0A: BigInt.fromInt 1337 }
+          f0' = F0' (BigInt.fromInt 1337)
+          output = Constr (BigInt.fromInt 0) [ Integer (BigInt.fromInt 1337) ]
+        toData f0 `shouldEqual` output
+        toData f0' `shouldEqual` output
+      test "FType and FType' toData/fromData the same: F1 == F1'" do
+        let
+          f1 = F1 { f1A: true, f1B: false, f1C: true }
+          f1' = F1' true false true
+          output = Constr (BigInt.fromInt 1)
+            [ (Constr (BigInt.fromInt 1) [])
+            , (Constr (BigInt.fromInt 0) [])
+            , (Constr (BigInt.fromInt 1) [])
+            ]
+        toData f1 `shouldEqual` output
+        toData f1' `shouldEqual` output
 
 -- | Newtype wrapper to avoid an orphan instance
 newtype MyBigInt = MyBigInt BigInt
@@ -93,21 +111,31 @@ instance Arbitrary MyBigInt where
 data CType = C0 | C1 (Maybe MyBigInt) | C2 MyBigInt Boolean | C3 MyBigInt Boolean Boolean
 data DType = D0 CType MyBigInt (Maybe Boolean) | D1 DType | D2 CType
 data EType = E0 DType Boolean CType
-data FType = F0
--- F0 {
--- ttrF0 :: TestType2,
--- ttrF1 :: Maybe Boolean
--- }
+data FType
+  = F0
+      { f0A :: BigInt
+      }
+  | F1
+      { f1A :: Boolean
+      , f1B :: Boolean
+      , f1C :: Boolean
+      }
+
+data FType'
+  = F0' BigInt
+  | F1' Boolean Boolean Boolean
 
 derive instance G.Generic CType _
 derive instance G.Generic DType _
 derive instance G.Generic EType _
 derive instance G.Generic FType _
+derive instance G.Generic FType' _
 
 derive instance Eq CType
 derive instance Eq DType
 derive instance Eq EType
 derive instance Eq FType
+derive instance Eq FType'
 
 instance HasConstrIndex CType where
   constrIndex = defaultConstrIndex
@@ -119,6 +147,9 @@ instance HasConstrIndex EType where
   constrIndex = defaultConstrIndex
 
 instance HasConstrIndex FType where
+  constrIndex = defaultConstrIndex
+
+instance HasConstrIndex FType' where
   constrIndex = defaultConstrIndex
 
 instance FromData DType where
@@ -143,6 +174,9 @@ instance ToData CType where
 --   fromData = genericFromData
 
 instance ToData FType where
+  toData x = genericToData x
+
+instance ToData FType' where
   toData x = genericToData x
 
 -- https://stackoverflow.com/questions/51215083/how-to-quickcheck-on-custom-adt-in-purescript
