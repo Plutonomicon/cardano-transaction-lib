@@ -158,53 +158,6 @@ derive instance Newtype NftCollection _
 derive newtype instance Eq NftCollection
 derive newtype instance Ord NftCollection
 
-instance FromData NftCollection where
-  fromData (Constr n [ cs, ll, lle, ls, a, as, dsc, dsh ]) | n == zero =
-    NftCollection <$>
-      ( { collectionNftCs: _
-        , lockLockup: _
-        , lockLockupEnd: _
-        , lockingScript: _
-        , author: _
-        , authorShare: _
-        , daoScript: _
-        , daoShare: _
-        }
-          <$> fromData cs
-          <*> fromData ll
-          <*> fromData lle
-          <*> fromData ls
-          <*> fromData a
-          <*> fromData as
-          <*> fromData dsc
-          <*> fromData dsh
-      )
-  fromData _ = Nothing
-
-instance ToData NftCollection where
-  toData
-    ( NftCollection
-        { collectionNftCs
-        , lockLockup
-        , lockLockupEnd
-        , lockingScript
-        , author
-        , authorShare
-        , daoScript
-        , daoShare
-        }
-    ) =
-    Constr zero
-      [ toData collectionNftCs
-      , toData lockLockup
-      , toData lockLockupEnd
-      , toData lockingScript
-      , toData author
-      , toData authorShare
-      , toData daoScript
-      , toData daoShare
-      ]
-
 -- Note the renaming of fields from their Plutus equivalents, e.g.
 -- "nftCollection'collectionNftCs" to "collectionNftCs".
 instance Json.DecodeJson NftCollection where
@@ -253,15 +206,6 @@ derive newtype instance Ord NftData
 
 instance Show NftData where
   show = genericShow
-
-instance FromData NftData where
-  fromData (Constr n [ col, id ]) | n == zero = NftData <$>
-    ({ nftCollection: _, nftId: _ } <$> fromData col <*> fromData id)
-  fromData _ = Nothing
-
-instance ToData NftData where
-  toData (NftData { nftCollection, nftId }) =
-    Constr zero [ toData nftCollection, toData nftId ]
 
 newtype SetPriceParams = SetPriceParams
   { -- | Token which price is set.
