@@ -30,8 +30,13 @@ main :: Effect Unit
 main = launchAff_ $ do
   cfg <- defaultContractConfig
   runContract_ cfg $ do
+    pkh <- wrap <<< wrap <$> liftContractM "`Ed25519KeyHash`"
+      ( ed25519KeyHashFromBytes
+          =<< hexToByteArray
+            "3f3464650beb5324d0e463ebe81fbe1fd519b6438521e96d0d35bd75"
+      )
     UnbalancedTx { transaction } /\ _ <-
-      mkMarketplaceTx undefined =<< testNftData
+      mkMarketplaceTx pkh =<< testNftData
     log =<<
       ( liftEffect
           <<< map
