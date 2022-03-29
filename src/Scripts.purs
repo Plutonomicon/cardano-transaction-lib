@@ -20,20 +20,11 @@ import QueryM (QueryM, hashScript)
 import Serialization.Address
   ( Address
   , BaseAddress
-  , ByronAddress
-  , EnterpriseAddress
-  , PointerAddress
-  , RewardAddress
   , NetworkId
   , addressFromBytes
   , baseAddressFromBytes
   , baseAddressToAddress
-  , enterpriseAddressFromBytes
-  , byronAddressFromBytes
   , scriptHashCredential
-  , pointerAddressFromBytes
-  , rewardAddress
-  , rewardAddressFromBytes
   , scriptAddress
   , enterpriseAddressToAddress
   , enterpriseAddress
