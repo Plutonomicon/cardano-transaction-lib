@@ -7,6 +7,8 @@ module Contract.Transaction
   , calculateMinFeeM
   , signTransaction
   , submitTransaction
+  , submitTransactionBytes
+  , finalizeTx
   , module BalanceTxError
   , module ExportQueryM
   , module JsonWsp
@@ -26,13 +28,18 @@ import Data.Newtype (wrap)
 import QueryM
   ( FeeEstimate(FeeEstimate)
   , ClientError(..) -- implicit as this error list will likely increase.
+  , FinalizedTransaction(FinalizedTransaction)
   ) as ExportQueryM
 import QueryM
-  ( calculateMinFee
+  ( FinalizedTransaction
+  , calculateMinFee
   , signTransaction
   , submitTransaction
+  , submitTransactionBytes
+  , finalizeTx
   ) as QueryM
 import Types.JsonWsp (OgmiosTxOut, OgmiosTxOutRef) as JsonWsp -- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
+import Types.PlutusData (PlutusData)
 import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
   , mkUnbalancedTx
@@ -76,6 +83,7 @@ import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and ass
   , ProtocolParamUpdate
   , ProtocolVersion
   , PublicKey(PublicKey)
+  , Redeemer
   , RequiredSigner(RequiredSigner)
   , ScriptDataHash(ScriptDataHash)
   , SubCoin
@@ -133,6 +141,7 @@ import TxOutput -- Could potentially trim this down, -- FIX ME: https://github.c
   , transactionOutputToScriptOutput
   , txOutRefToTransactionInput
   ) as TxOutput
+import Types.ByteArray (ByteArray)
 import Types.UnbalancedTransaction (UnbalancedTx)
 import Types.UnbalancedTransaction
   ( ScriptOutput(ScriptOutput) -- More up-to-date Plutus uses this, wonder if we can just use `TransactionOutput`
@@ -155,6 +164,9 @@ signTransaction = wrap <<< QueryM.signTransaction
 submitTransaction :: Transaction -> Contract (Maybe TransactionHash)
 submitTransaction = wrap <<< QueryM.submitTransaction
 
+submitTransactionBytes :: ByteArray -> Contract (Maybe TransactionHash)
+submitTransactionBytes = wrap <<< QueryM.submitTransactionBytes
+
 -- | Query the Haskell server for the minimum transaction fee
 calculateMinFee
   :: Transaction -> Contract (Either ExportQueryM.ClientError Coin)
@@ -173,3 +185,10 @@ balanceTx = wrap <<< BalanceTx.balanceTx
 -- | Attempts to balance an `UnbalancedTx` hushing the error.
 balanceTxM :: UnbalancedTx -> Contract (Maybe Transaction)
 balanceTxM = map hush <<< balanceTx
+
+finalizeTx
+  :: Transaction.Transaction
+  -> Array PlutusData
+  -> Array Transaction.Redeemer
+  -> Contract (Maybe QueryM.FinalizedTransaction)
+finalizeTx tx datums redeemers = wrap $ QueryM.finalizeTx tx datums redeemers

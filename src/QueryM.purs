@@ -287,7 +287,7 @@ submitTransaction tx = withMWalletAff $ case _ of
 submitTransactionBytes
   :: ByteArray -> QueryM (Maybe Transaction.TransactionHash)
 submitTransactionBytes tx = withMWalletAff $ case _ of
-  Nami nami -> callNami nami $ \nw -> flip nw.submitTxHex tx
+  Nami nami -> callNami nami $ \nw -> flip nw.submitTxBytes tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash =
