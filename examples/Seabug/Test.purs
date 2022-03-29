@@ -30,7 +30,8 @@ main :: Effect Unit
 main = launchAff_ $ do
   cfg <- defaultContractConfig
   runContract_ cfg $ do
-    UnbalancedTx { transaction } /\ _ <- mkMarketplaceTx =<< testNftData
+    UnbalancedTx { transaction } /\ _ <-
+      mkMarketplaceTx undefined =<< testNftData
     log =<<
       ( liftEffect
           <<< map

@@ -5,7 +5,8 @@ module Seabug.Contract.MarketPlaceBuy
 
 import Contract.Prelude
 import Contract.Address
-  ( getNetworkId
+  ( PaymentPubKeyHash
+  , getNetworkId
   , ownPaymentPubKeyHash
   , payPubKeyHashAddress
   )
@@ -31,6 +32,7 @@ import Contract.PlutusData
   , toData
   , unitRedeemer
   )
+import Contract.Prim.ByteArray
 import Contract.ProtocolParameters.Alonzo (minAdaTxOut)
 import Contract.Scripts (validatorAddress)
 import Contract.Transaction (TxOut, UnbalancedTx, balanceTx, submitTransaction)
@@ -64,9 +66,9 @@ import Seabug.Types
   , NftId(NftId)
   )
 
-marketplaceBuy :: NftData -> Contract Unit
-marketplaceBuy nftData = do
-  unbalancedTx /\  curr /\ newName  <- mkMarketplaceTx nftData
+marketplaceBuy :: PaymentPubKeyHash -> NftData -> Contract Unit
+marketplaceBuy pkh nftData = do
+  unbalancedTx /\ curr /\ newName <- mkMarketplaceTx pkh nftData
   log "marketplaceBuy: Unbalanced transaction successfully built"
   -- Balance unbalanced tx:
   balancedTx <- liftedE' $ balanceTx unbalancedTx
@@ -84,12 +86,12 @@ marketplaceBuy nftData = do
 -- have `mkMintingPolicyScript`. Otherwise, it's an policy that hasn't been
 -- applied to arguments. See `Seabug.Token.policy`
 mkMarketplaceTx
-  :: NftData -> Contract (UnbalancedTx /\ CurrencySymbol /\ TokenName)
-mkMarketplaceTx (NftData nftData) = do
+  :: PaymentPubKeyHash
+  -> NftData
+  -> Contract (UnbalancedTx /\ CurrencySymbol /\ TokenName)
+mkMarketplaceTx pkh (NftData nftData) = do
   -- Read in the unapplied minting policy:
   mp <- liftedE' $ pure unappliedMintingPolicy
-  pkh <- liftedM "marketplaceBuy: Cannot get PaymentPubKeyHash"
-    ownPaymentPubKeyHash
   policy' <- liftedM "marketplaceBuy: Cannot apply arguments"
     (policy nftData.nftCollection mp)
   curr <- liftedM "marketplaceBuy: Cannot get CurrencySymbol"
