@@ -5,7 +5,8 @@ module Seabug.Contract.MarketPlaceBuy
 
 import Contract.Prelude
 import Contract.Address
-  ( PaymentPubKeyHash
+  ( NetworkId(TestnetId)
+  , PaymentPubKeyHash
   , getNetworkId
   , ownPaymentPubKeyHash
   , payPubKeyHashAddress
@@ -34,7 +35,7 @@ import Contract.PlutusData
   )
 import Contract.Prim.ByteArray
 import Contract.ProtocolParameters.Alonzo (minAdaTxOut)
-import Contract.Scripts (validatorAddress)
+import Contract.Scripts (typedValidatorAddress)
 import Contract.Transaction (TxOut, UnbalancedTx, balanceTx, submitTransaction)
 import Contract.TxConstraints
   ( TxConstraints
@@ -102,8 +103,7 @@ mkMarketplaceTx pkh (NftData nftData) = do
     nft = nftData.nftId
     nft' = unwrap nft
     newNft = NftId nft' { owner = pkh }
-  scriptAddr <- liftedM "marketplaceBuy: Cannot get script Address"
-    (validatorAddress marketplaceValidator'.validator)
+    scriptAddr = typedValidatorAddress TestnetId $ wrap marketplaceValidator'
   oldName <- liftedM "marketplaceBuy: Cannot hash old token" (mkTokenName nft)
   newName <- liftedM "marketplaceBuy: Cannot hash new token" (mkTokenName newNft)
   -- Eventually we'll have a non-CSL-Plutus-style `Value` so this will likely
