@@ -5,14 +5,23 @@ module Types.Natural
   , binaryOnBigInt
   , fromBigInt
   , fromBigInt'
+  , fromString
   , minus
   , toBigInt
   ) where
 
 import Prelude
 
+import Aeson
+  ( class DecodeAeson
+  , caseAesonBigInt
+  , decodeAeson
+  , jsonToAeson
+  )
+import Data.Argonaut (class DecodeJson, JsonDecodeError(TypeMismatch))
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
+import Data.Either (Either(Left), note)
 import Data.Function (on)
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe)
 import FromData (class FromData)
@@ -35,6 +44,18 @@ instance FromData Natural where
 instance ToData Natural where
   toData (Natural n) = toData n
 
+instance DecodeAeson Natural where
+  decodeAeson =
+    caseAesonBigInt
+      (Left $ TypeMismatch "Expected BigInt from Aeson decoding")
+      ( \bi -> note (TypeMismatch $ "Invalid Natural number: " <> show bi) $
+          fromBigInt bi
+      )
+
+-- This is needed for `ApplyArgs`.
+instance DecodeJson Natural where
+  decodeJson = decodeAeson <<< jsonToAeson
+
 -- | Fails with `Nothing` on negative input.
 fromBigInt :: BigInt -> Maybe Natural
 fromBigInt n =
@@ -49,6 +70,9 @@ fromBigInt' n =
 
 toBigInt :: Natural -> BigInt
 toBigInt (Natural n) = n
+
+fromString :: String -> Maybe Natural
+fromString = fromBigInt <=< BigInt.fromString
 
 -- | Use an arbitrary binary operation on the underlying `BigInt` for two
 -- | natural numbers to return a natural number with potential failure if the

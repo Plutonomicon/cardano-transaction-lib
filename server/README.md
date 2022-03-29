@@ -7,13 +7,14 @@ This is a small Haskell project to provide services to the `cardano-browser-tx` 
 We plan on supporting at least the following features:
 
 - [x] Transaction fee estimation via `Cardano.Api`
-- [ ] Plutus' `applyCode`
+- [x] Plutus' `applyArguments` for applying `Data` arguments to scripts
+- [x] Obtaining the hash of scripts (e.g. `validatorHash`, etc...)
 
 ## Development
 
-Run `nix develop .#hsDevShell.x86_64-{linux|darwin}` (NB: not currently tested on macOS) in the repository root (i.e. up one level from `server`). This will place you in a development shell with `cabal`, `hoogle`, `haskell-language-server`, etc...
+Run `nix develop .#hsDevShell` (or equivalently `nix develop .#package.x86_64-{linux|darwin}`; NB: not currently tested on macOS) in the repository root (i.e. up one level from `server`). This will place you in a development shell with `cabal`, `hoogle`, `haskell-language-server`, etc...
 
-The server executable can be built with `nix build .#cardano-browser-tx-server:exe:cardano-browser-tx-server` and run with `./result/bin/cardano-browser-tx-server`. `cabal` can also be used once in the development shell. The server will run on port 8081
+The server executable can be built with `nix build .#cardano-browser-tx-server:exe:cardano-browser-tx-server` and run with `./result/bin/cardano-browser-tx-server`. `cabal` can also be used once in the development shell. The server will run on port 8081. You can optionally pass the `--port`/`-p` flag to explicitly choose a port to run on
 
 ---
 

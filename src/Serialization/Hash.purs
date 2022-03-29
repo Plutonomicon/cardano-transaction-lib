@@ -15,7 +15,11 @@ module Serialization.Hash
 
 import Prelude
 
-import Data.Argonaut (class DecodeJson)
+import Data.Argonaut
+  ( class DecodeJson
+  , caseJsonString
+  , JsonDecodeError(TypeMismatch)
+  )
 import Data.Argonaut as Json
 import Data.Either (Either(Left), note)
 import Data.Function (on)
@@ -50,6 +54,16 @@ instance ToData Ed25519KeyHash where
 instance FromData Ed25519KeyHash where
   fromData (Bytes kh) = ed25519KeyHashFromBytes kh
   fromData _ = Nothing
+
+-- This is needed for `ApplyArgs`.
+instance DecodeJson Ed25519KeyHash where
+  -- ed25519KeyHashFromBech32 goes from Bech32String directly although this
+  -- feels unsafe.
+  decodeJson = caseJsonString
+    (Left $ TypeMismatch "Expected Plutus BuiltinByteString")
+    ( note (TypeMismatch "Invalid Ed25519KeyHash") <<< ed25519KeyHashFromBytes
+        <=< note (TypeMismatch "Invalid ByteArray") <<< hexToByteArray
+    )
 
 foreign import _ed25519KeyHashFromBytesImpl
   :: MaybeFfiHelper
