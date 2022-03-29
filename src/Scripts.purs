@@ -3,8 +3,8 @@ module Scripts
   , scriptCurrencySymbol
   , scriptHash
   , stakeValidatorHash
-  , typedValidatorAddress
   , typedValidatorBaseAddress
+  , typedValidatorEnterpriseAddress
   , validatorAddress
   , validatorBaseAddress
   , validatorHash
@@ -20,11 +20,23 @@ import QueryM (QueryM, hashScript)
 import Serialization.Address
   ( Address
   , BaseAddress
+  , ByronAddress
+  , EnterpriseAddress
+  , PointerAddress
+  , RewardAddress
   , NetworkId
   , addressFromBytes
   , baseAddressFromBytes
   , baseAddressToAddress
+  , enterpriseAddressFromBytes
+  , byronAddressFromBytes
+  , scriptHashCredential
+  , pointerAddressFromBytes
+  , rewardAddress
+  , rewardAddressFromBytes
   , scriptAddress
+  , enterpriseAddressToAddress
+  , enterpriseAddress
   )
 import Serialization.Hash
   ( ScriptHash
@@ -57,17 +69,24 @@ validatorAddress val =
   map (scriptHashToBytes <<< unwrap) <$> validatorHash val >>=
     maybe Nothing addressFromBytes >>> pure
 
--- | Converts a Plutus-style `TypedValidator` to an `BaseAddress`
+-- | Converts a Plutus-style `TypedValidator` to an `Address` as a `BaseAddress`
 typedValidatorBaseAddress
-  :: forall (a :: Type). NetworkId -> TypedValidator a -> BaseAddress
-typedValidatorBaseAddress networkId (TypedValidator typedVal) =
-  scriptAddress networkId $ unwrap typedVal.validatorHash
-
--- | Converts a Plutus-style `TypedValidator` to an `Address`
-typedValidatorAddress
   :: forall (a :: Type). NetworkId -> TypedValidator a -> Address
-typedValidatorAddress networkId =
-  baseAddressToAddress <<< typedValidatorBaseAddress networkId
+typedValidatorBaseAddress networkId (TypedValidator typedVal) =
+  baseAddressToAddress $ scriptAddress networkId $ unwrap typedVal.validatorHash
+
+-- | Converts a Plutus-style `TypedValidator` to an `Address` as an
+-- | `EnterpriseAddress`. This is likely what you will use since Plutus
+-- | currently uses `scriptHashAddress` on non-staking addresses which is
+-- | invoked in `validatorAddress`
+typedValidatorEnterpriseAddress
+  :: forall (a :: Type). NetworkId -> TypedValidator a -> Address
+typedValidatorEnterpriseAddress network (TypedValidator typedVal) =
+  enterpriseAddressToAddress $
+    enterpriseAddress
+      { network
+      , paymentCred: scriptHashCredential (unwrap typedVal.validatorHash)
+      }
 
 -- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
 mintingPolicyHash :: MintingPolicy -> QueryM (Maybe MintingPolicyHash)

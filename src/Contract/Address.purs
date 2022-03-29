@@ -36,8 +36,8 @@ import QueryM
   , ownPubKeyHash
   ) as QueryM
 import Scripts
-  ( typedValidatorAddress
-  , typedValidatorBaseAddress
+  ( typedValidatorBaseAddress
+  , typedValidatorEnterpriseAddress
   , validatorHashAddress
   , validatorHashBaseAddress
   ) as Scripts

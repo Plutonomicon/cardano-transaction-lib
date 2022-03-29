@@ -32,8 +32,8 @@ import QueryM
   ) as ExportQueryM
 import QueryM (applyArgs) as QueryM
 import Scripts
-  ( typedValidatorAddress
-  , typedValidatorBaseAddress
+  ( typedValidatorBaseAddress
+  , typedValidatorEnterpriseAddress
   , validatorHashAddress
   , validatorHashBaseAddress
   , scriptHash
