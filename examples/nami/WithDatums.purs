@@ -6,13 +6,15 @@ import Contract.Monad (Contract, defaultContractConfig, runContract)
 import Contract.PlutusData (unitDatum)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, validatorHash)
-import Contract.Transaction (TransactionHash, balanceTx, submitTransaction)
+import Contract.Transaction (TransactionHash, FinalizedTransaction(..), balanceTx, submitTransactionBytes, finalizeTx)
 import Contract.TxConstraints as Constraints
 import Contract.Value (lovelaceValueOf)
 import Data.Argonaut (decodeJson, parseJson)
 import Data.BigInt as BigInt
 import Effect (Effect)
 import Effect.Aff (error, launchAff_, throwError)
+
+import Effect.Console as Console
 
 main :: Effect Unit
 main = launchAff_ $ do
@@ -32,14 +34,16 @@ payToAlwaysSucceeds = do
     constraints = Constraints.mustPayToOtherScript valHash unitDatum
       $ lovelaceValueOf
       $ BigInt.fromInt 2_000_000
-
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.otherScript validator
-
   unbalancedTx <- throwOnLeft
     =<< Lookups.mkUnbalancedTx lookups constraints
   balancedTx <- throwOnLeft =<< balanceTx unbalancedTx
-  submitTransaction balancedTx
+  liftEffect $ Console.log $ show balancedTx
+  FinalizedTransaction byteArray <-
+    throwOnNothing "Failed to get finalized Tx" =<<
+    finalizeTx balancedTx [] []
+  submitTransactionBytes byteArray
 
 alwaysSucceedsValidator :: Maybe Validator
 alwaysSucceedsValidator = hush
