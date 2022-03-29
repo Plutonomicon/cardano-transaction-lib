@@ -23,6 +23,7 @@ import Serialization.Types
   , PlutusScripts
   , PublicKey
   , Redeemer
+  , Redeemers
   , RedeemerTag
   , TransactionWitnessSet
   , Vkey
@@ -81,6 +82,10 @@ convertWitnessSet (T.TransactionWitnessSet tws) = do
   for_ tws.redeemers
     (traverse convertRedeemer >=> _wsSetRedeemers containerHelper ws)
   pure ws
+
+convertRedeemers :: Array T.Redeemer -> Effect Redeemers
+convertRedeemers redeemers = do
+  _mkRedeemers containerHelper <$> traverse convertRedeemer redeemers
 
 convertRedeemer :: T.Redeemer -> Effect Redeemer
 convertRedeemer (T.Redeemer { tag, index, "data": data_, ex_units }) = do
@@ -157,4 +162,5 @@ foreign import newRedeemer :: RedeemerTag -> BigNum -> PDS.PlutusData -> ExUnits
 foreign import _newRedeemerTag :: String -> Effect RedeemerTag
 foreign import newExUnits :: BigNum -> BigNum -> ExUnits
 foreign import _wsSetRedeemers :: ContainerHelper -> TransactionWitnessSet -> Array Redeemer -> Effect Unit
+foreign import _mkRedeemers :: ContainerHelper -> Array Redeemer -> Redeemers
 foreign import _wsSetPlutusScripts :: ContainerHelper -> TransactionWitnessSet -> Array PlutusScript -> Effect Unit

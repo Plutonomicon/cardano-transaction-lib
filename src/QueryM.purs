@@ -5,6 +5,7 @@ module QueryM
   , DatumCacheWebSocket
   , DispatchIdMap
   , FeeEstimate(..)
+  , FinalizedTransaction(..)
   , Host
   , JsWebSocket
   , ListenerSet
@@ -44,6 +45,7 @@ module QueryM
   , startFetchBlocksRequest
   , submitTransaction
   , underlyingWebSocket
+  , finalizeTx
   ) where
 
 import Prelude
@@ -56,15 +58,18 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (ReaderT, ask, asks)
 import Data.Argonaut (class DecodeJson, JsonDecodeError)
 import Data.Argonaut as Json
+import Data.Argonaut.Encode.Class (encodeJson)
 import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), either, isRight, note)
+import Data.Either (Either(Left, Right), either, isRight, note, hush)
 import Data.Foldable (foldl)
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Generic.Rep (class Generic)
+import Data.Maybe (Maybe(Just, Nothing), maybe, maybe')
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Traversable (traverse)
+import Data.Show.Generic (genericShow)
+import Data.Traversable (traverse, for)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -106,7 +111,7 @@ import Effect.Ref as Ref
 import Foreign.Object as Object
 import MultiMap (MultiMap)
 import MultiMap as MM
-import Serialization as Serialization
+import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address
   ( Address
   , BlockId
@@ -115,8 +120,9 @@ import Serialization.Address
   , addressBech32
   )
 import Serialization.Hash (ScriptHash)
-import Serialization.PlutusData (convertPlutusData)
-import Types.ByteArray (byteArrayToHex)
+import Serialization.PlutusData (convertPlutusData) as Serialization
+import Serialization.WitnessSet (convertRedeemers) as Serialization
+import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.Datum (DatumHash)
 import Types.Interval (SlotConfig)
 import Types.JsonWsp as JsonWsp
@@ -407,6 +413,65 @@ calculateMinFee tx = do
   coinFromEstimate :: FeeEstimate -> Coin
   coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 50000)) <<< unwrap
 
+-- | CborHex-encoded tx
+newtype FinalizedTransaction = FinalizedTransaction ByteArray
+
+derive instance Generic FinalizedTransaction _
+
+instance Show FinalizedTransaction where
+  show = genericShow
+
+instance Json.DecodeJson FinalizedTransaction where
+  decodeJson =
+    map FinalizedTransaction <<<
+      Json.caseJsonString (Left err) (note err <<< hexToByteArray)
+    where
+    err = Json.TypeMismatch "Expected CborHex of Tx"
+
+finalizeTx
+  :: Transaction.Transaction
+  -> Array PlutusData
+  -> Array Transaction.Redeemer
+  -> QueryM (Maybe FinalizedTransaction)
+finalizeTx tx datums redeemers = do
+  -- tx
+  txHex <- liftEffect $
+    byteArrayToHex
+      <<< Serialization.toBytes
+      <<< asOneOf
+      <$> Serialization.convertTransaction tx
+  -- datums
+  encodedDatums <- liftEffect do
+    for datums \datum -> do
+      byteArrayToHex <<< Serialization.toBytes <<< asOneOf
+        <$> maybe' (\_ -> throw $ "Failed to convert plutus data: " <> show datum) pure
+          (Serialization.convertPlutusData datum)
+  -- redeemers
+  encodedRedeemers <- liftEffect $
+    byteArrayToHex <<< Serialization.toBytes <<< asOneOf <$>
+      Serialization.convertRedeemers redeemers
+  -- construct payload
+  let
+    body
+      :: { tx :: String
+         , datums :: Array String
+         , redeemers :: String
+         }
+    body =
+      { tx: txHex
+      , datums: encodedDatums
+      , redeemers: encodedRedeemers
+      }
+  url <- mkServerEndpointUrl "finalize"
+  -- get response json
+  jsonBody <-
+    liftAff
+      ( Affjax.post Affjax.ResponseFormat.json url
+          (Just $ Affjax.RequestBody.Json $ encodeJson body)
+      ) <#> map \x -> x.body
+  -- decode
+  pure $ hush <<< Json.decodeJson =<< hush jsonBody
+
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
 applyArgs
@@ -445,7 +510,7 @@ applyArgs script args = case traverse plutusDataToJson args of
           <<< Serialization.toBytes
           <<< asOneOf
       )
-      <<< convertPlutusData
+      <<< Serialization.convertPlutusData
 
 hashScript
   :: forall (a :: Type) (b :: Type)

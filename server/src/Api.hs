@@ -2,8 +2,9 @@ module Api (
   app,
   estimateTxFees,
   applyArgs,
+  finalizeTx,
   hashScript,
-  apiDocs,
+  apiDocs
 ) where
 
 import Api.Handlers qualified as Handlers
@@ -39,15 +40,19 @@ import Types (
   AppM (AppM),
   AppliedScript,
   ApplyArgsRequest,
-  CardanoBrowserServerError (FeeEstimate),
+  CardanoBrowserServerError (FeeEstimate, FinalizeTx),
   Cbor,
   Env,
   Fee,
-  FeeEstimateError (InvalidCbor, InvalidHex),
+  FeeEstimateError (FEInvalidCbor, FEInvalidHex),
+  FinalizeTxError (FTInvalidCbor, FTInvalidHex),
   HashScriptRequest,
   HashedScript,
+  FinalizeRequest(..),
+  FinalizedTransaction(..)
  )
 import Utils (lbshow)
+
 
 type Api =
   "fees" :> QueryParam' '[Required] "tx" Cbor :> Get '[JSON] Fee
@@ -59,6 +64,9 @@ type Api =
     :<|> "hash-script"
       :> ReqBody '[JSON] HashScriptRequest
       :> Post '[JSON] HashedScript
+    :<|> "finalize"
+      :> ReqBody '[JSON] FinalizeRequest
+      :> Post '[JSON] FinalizedTransaction
 
 app :: Env -> Application
 app = Cors.cors (const $ Just policy) . serve api . appServer
@@ -87,8 +95,11 @@ appServer env = hoistServer api appHandler server
           CardanoBrowserServerError ->
           Handler a
         handleError (FeeEstimate fe) = case fe of
-          InvalidCbor ic -> throwError err400 {errBody = lbshow ic}
-          InvalidHex ih -> throwError err400 {errBody = LC8.pack ih}
+          FEInvalidCbor ic -> throwError err400 {errBody = lbshow ic}
+          FEInvalidHex ih -> throwError err400 {errBody = LC8.pack ih}
+        handleError (FinalizeTx fe) = case fe of
+          FTInvalidCbor ic -> throwError err400 {errBody = lbshow ic}
+          FTInvalidHex ih -> throwError err400 {errBody = LC8.pack ih}
 
 api :: Proxy Api
 api = Proxy
@@ -98,6 +109,7 @@ server =
   Handlers.estimateTxFees
     :<|> Handlers.applyArgs
     :<|> Handlers.hashScript
+    :<|> Handlers.finalizeTx
 
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
@@ -105,7 +117,5 @@ apiDocs = Docs.docs api
 estimateTxFees :: Cbor -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
 hashScript :: HashScriptRequest -> ClientM HashedScript
-estimateTxFees
-  :<|> applyArgs
-  :<|> hashScript =
-    client api
+finalizeTx :: FinalizeRequest -> ClientM FinalizedTransaction
+estimateTxFees :<|> applyArgs :<|> hashScript :<|> finalizeTx = client api
