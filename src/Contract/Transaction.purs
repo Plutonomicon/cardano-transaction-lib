@@ -152,6 +152,7 @@ import Types.UnbalancedTransaction
   , emptyUnbalancedTx
   ) as UnbalancedTx
 import Types.Value (Coin)
+import Types.Datum (Datum)
 
 -- | This module defines transaction-related requests. Currently signing and
 -- | submission is done with Nami.
@@ -188,7 +189,7 @@ balanceTxM = map hush <<< balanceTx
 
 finalizeTx
   :: Transaction.Transaction
-  -> Array PlutusData
+  -> Array Datum
   -> Array Transaction.Redeemer
   -> Contract (Maybe QueryM.FinalizedTransaction)
 finalizeTx tx datums redeemers = wrap $ QueryM.finalizeTx tx datums redeemers
