@@ -2,6 +2,7 @@ module Seabug.Test (main) where
 
 import Contract.Prelude
 
+import Contract.Address (getWalletAddress)
 import Contract.Monad
   ( Contract
   , defaultContractConfig
@@ -20,6 +21,7 @@ import Contract.Value (mkCurrencySymbol, mkTokenName)
 import Data.BigInt as BigInt
 import Data.UInt as UInt
 import Effect.Aff (launchAff_)
+import Effect.Aff.Class (liftAff)
 import Seabug.Contract.MarketPlaceBuy (mkMarketplaceTx)
 import Seabug.Types
 import Serialization as Serialization
@@ -28,8 +30,11 @@ import Untagged.Union (asOneOf)
 
 main :: Effect Unit
 main = launchAff_ $ do
+  log "hey"
   cfg <- defaultContractConfig
   runContract_ cfg $ do
+    log "foo"
+    log <<< show =<< getWalletAddress
     UnbalancedTx { transaction } /\ _ <- mkMarketplaceTx =<< testNftData
     log =<<
       ( liftEffect
