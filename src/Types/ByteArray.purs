@@ -3,16 +3,16 @@ module Types.ByteArray
   ( ByteArray(..)
   , byteArrayFromIntArray
   , byteArrayFromIntArrayUnsafe
-  , byteArrayToIntArray
+  , byteArrayFromString
   , byteArrayToHex
+  , byteArrayToIntArray
   , byteLength
   , hexToByteArray
   , hexToByteArrayUnsafe
-  , byteArrayFromString
   ) where
 
 import Data.ArrayBuffer.Types (Uint8Array)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap)
 import Prelude
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
@@ -22,9 +22,9 @@ import Data.Traversable (for)
 
 newtype ByteArray = ByteArray Uint8Array
 
-derive instance newtypeByteArray :: Newtype ByteArray _
+derive instance Newtype ByteArray _
 
-instance showByteArray :: Show ByteArray where
+instance Show ByteArray where
   show arr = "(byteArrayFromIntArrayUnsafe " <> show (byteArrayToIntArray arr) <> ")"
 
 instance Eq ByteArray where
@@ -77,7 +77,7 @@ foreign import _byteLength :: Uint8Array -> Int
 byteLength :: ByteArray -> Int
 byteLength = _byteLength <<< unwrap
 
-instance arbitraryByteArray :: Arbitrary ByteArray where
+instance Arbitrary ByteArray where
   arbitrary = byteArrayFromIntArrayUnsafe <$> arbitrary
 
 -- | Convert characters in range `0-255` into a `ByteArray`.

@@ -83,11 +83,17 @@ module Serialization.Address
 
 import Prelude
 
-import Aeson (class DecodeAeson)
+import Aeson (class DecodeAeson, caseAesonObject, getField, jsonToAeson)
 import Control.Alt ((<|>))
-import Data.Argonaut (class EncodeJson, fromNumber)
+import Data.Argonaut
+  ( class DecodeJson
+  , class EncodeJson
+  , JsonDecodeError(TypeMismatch)
+  , fromNumber
+  )
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
+import Data.Either (Either(Left))
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
@@ -105,20 +111,29 @@ import Types.PlutusData (PlutusData(Bytes))
 
 newtype Slot = Slot UInt
 
+derive instance Newtype Slot _
+derive instance Generic Slot _
 derive newtype instance Eq Slot
 derive newtype instance Ord Slot
 derive newtype instance DecodeAeson Slot
-derive instance Newtype Slot _
-derive instance Generic Slot _
-
-instance EncodeJson Slot where
-  encodeJson (Slot uint) = fromNumber (UInt.toNumber uint)
+derive newtype instance FromData Slot
+derive newtype instance ToData Slot
 
 instance Show Slot where
   show = genericShow
 
 instance Semigroup Slot where
   append (Slot s1) (Slot s2) = Slot $ s1 + s2
+
+-- Needed for Haskell server. Slot is given by `getSlot` field.
+instance DecodeJson Slot where
+  decodeJson = jsonToAeson >>>
+    caseAesonObject
+      (Left $ TypeMismatch "Expected object")
+      (flip getField "getSlot" >=> Slot >>> pure)
+
+instance EncodeJson Slot where
+  encodeJson (Slot uint) = fromNumber (UInt.toNumber uint)
 
 -- it is an integer in ogmios
 -- bytestring in plutus

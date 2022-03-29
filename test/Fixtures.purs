@@ -44,7 +44,7 @@ import Prelude
 
 import Data.BigInt as BigInt
 import Data.Map as Map
-import Data.Maybe (Maybe(..), fromJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Metadata.Seabug (SeabugMetadata(SeabugMetadata), SeabugMetadataDelta(SeabugMetadataDelta))

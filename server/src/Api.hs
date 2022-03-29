@@ -105,4 +105,7 @@ apiDocs = Docs.docs api
 estimateTxFees :: Cbor -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
 hashScript :: HashScriptRequest -> ClientM HashedScript
-estimateTxFees :<|> applyArgs :<|> hashScript = client api
+estimateTxFees
+  :<|> applyArgs
+  :<|> hashScript =
+    client api

@@ -4,12 +4,15 @@ module Address
   , addressStakeValidatorHash
   , addressToOgmiosAddress
   , addressValidatorHash
+  , getNetworkId
   , ogmiosAddressToAddress
   ) where
 
 import Prelude
 
+import Control.Monad.Reader.Class (asks)
 import Data.Maybe (Maybe)
+import QueryM (QueryM)
 import Types.JsonWsp as JsonWsp
 import Types.Scripts
   ( MintingPolicyHash(MintingPolicyHash)
@@ -18,6 +21,7 @@ import Types.Scripts
   )
 import Serialization.Address
   ( Address
+  , NetworkId
   , addressBech32
   , addressFromBech32
   , addressPaymentCred
@@ -57,3 +61,9 @@ addressMintingPolicyHash = map MintingPolicyHash <<< addressScriptHash
 -- | Get the `StakeValidatorHash` with an internal `Address`
 addressStakeValidatorHash :: Address -> Maybe StakeValidatorHash
 addressStakeValidatorHash = map StakeValidatorHash <<< addressScriptHash
+
+--------------------------------------------------------------------------------
+-- NetworkId
+--------------------------------------------------------------------------------
+getNetworkId :: QueryM NetworkId
+getNetworkId = asks _.networkId
