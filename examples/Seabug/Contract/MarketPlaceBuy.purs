@@ -5,8 +5,7 @@ module Seabug.Contract.MarketPlaceBuy
 
 import Contract.Prelude
 import Contract.Address
-  ( NetworkId(TestnetId)
-  , getNetworkId
+  ( getNetworkId
   , ownPaymentPubKeyHash
   , payPubKeyHashAddress
   )
@@ -33,7 +32,7 @@ import Contract.PlutusData
   , unitRedeemer
   )
 import Contract.ProtocolParameters.Alonzo (minAdaTxOut)
-import Contract.Scripts (typedValidatorAddress)
+import Contract.Scripts (typedValidatorEnterpriseAddress)
 import Contract.Transaction (TxOut, UnbalancedTx, balanceTx, submitTransaction)
 import Contract.TxConstraints
   ( TxConstraints
@@ -98,11 +97,13 @@ mkMarketplaceTx (NftData nftData) = do
     (scriptCurrencySymbol policy')
   -- Read in the typed validator:
   marketplaceValidator' <- unwrap <$> liftContractE' marketplaceValidator
+  networkId <- getNetworkId
   let
     nft = nftData.nftId
     nft' = unwrap nft
     newNft = NftId nft' { owner = pkh }
-    scriptAddr = typedValidatorAddress TestnetId $ wrap marketplaceValidator'
+    scriptAddr =
+      typedValidatorEnterpriseAddress networkId $ wrap marketplaceValidator'
   oldName <- liftedM "marketplaceBuy: Cannot hash old token" (mkTokenName nft)
   newName <- liftedM "marketplaceBuy: Cannot hash new token" (mkTokenName newNft)
   -- Eventually we'll have a non-CSL-Plutus-style `Value` so this will likely
@@ -111,7 +112,6 @@ mkMarketplaceTx (NftData nftData) = do
     (mkSingletonValue' curr oldName $ negate one)
   newNftValue <- liftContractM "marketplaceBuy: Cannot create new NFT Value"
     (mkSingletonValue' curr newName one)
-  networkId <- getNetworkId
   let
     nftPrice = nft'.price
     valHash = marketplaceValidator'.validatorHash
