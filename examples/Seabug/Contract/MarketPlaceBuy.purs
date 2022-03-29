@@ -66,7 +66,7 @@ import Seabug.Types
 
 marketplaceBuy :: NftData -> Contract Unit
 marketplaceBuy nftData = do
-  unbalancedTx /\  curr /\ newName  <- mkMarketplaceTx nftData
+  unbalancedTx /\ curr /\ newName <- mkMarketplaceTx nftData
   log "marketplaceBuy: Unbalanced transaction successfully built"
   -- Balance unbalanced tx:
   balancedTx <- liftedE' $ balanceTx unbalancedTx
