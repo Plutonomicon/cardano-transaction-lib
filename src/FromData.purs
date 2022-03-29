@@ -43,8 +43,9 @@ class FromData (a :: Type) where
 class FromDataWithIndex a ci where
   fromDataWithIndex :: HasConstrIndex ci => Proxy a -> Proxy ci -> PlutusData -> Maybe a
 
+-- NOTE: Using https://github.com/purescript-contrib/purescript-argonaut-generic/blob/3ae9622814fd3f3f06fa8e5e58fd58d2ef256b91/src/Data/Argonaut/Decode/Generic.purs
 class FromDataArgs a where
-  fromDataArgs :: Array PlutusData -> Maybe a
+  fromDataArgs :: Array PlutusData -> Maybe { head :: a, tail :: Array PlutusData }
 
 -- > data TestType = C0 | C1 Int | C2 Int String | C3 Int String Boolean | C4 Int TestType
 -- > derive instance Generic TestType _
@@ -76,30 +77,29 @@ instance (IsSymbol n, HasConstrIndex a, FromDataArgs arg) => FromDataWithIndex (
     cn <- resolveConstr pci ix
     let rn = reflectSymbol (Proxy :: Proxy n)
     guard $ cn == rn
-    repArgs <- fromDataArgs pdArgs
+    { head: repArgs, tail: pdArgs' } <- fromDataArgs pdArgs
+    guard $ pdArgs' == []
     pure $ (G.Constructor repArgs :: G.Constructor n arg)
   fromDataWithIndex _ _ _ = Nothing
-
-instance FromDataArgs (G.NoArguments) where
-  fromDataArgs [] = Just G.NoArguments
-  fromDataArgs _ = Nothing
 
 instance (HasConstrIndex ci, FromDataWithIndex a ci) => FromDataWithIndex (G.Argument a) ci where
   fromDataWithIndex _ pci pd = G.Argument <$> fromDataWithIndex (Proxy :: Proxy a) pci pd
 
+instance FromDataArgs (G.NoArguments) where
+  fromDataArgs [] = Just { head: G.NoArguments, tail: [] }
+  fromDataArgs _ = Nothing -- TODO: Error "No PlutusData expected but got some"
+
 instance (FromData a) => FromDataArgs (G.Argument a) where
   fromDataArgs pdArgs = do
-    { head: pd, tail: pds } <- uncons pdArgs
-    guard $ pds == []
+    { head: pd, tail: pds } <- uncons pdArgs -- TODO: Error "Expected PlutusData but got none"
     repArg <- fromData pd
-    pure $ G.Argument repArg
+    pure $ { head: G.Argument repArg, tail: pds }
 
 instance (FromDataArgs a, FromDataArgs b) => FromDataArgs (G.Product a b) where
   fromDataArgs pdArgs = do
-    { head: pd, tail: pds } <- uncons pdArgs
-    repFst <- fromDataArgs [ pd ]
-    repSnd <- fromDataArgs pds
-    pure $ G.Product repFst repSnd
+    { head: repFst, tail: pdArgs' } <- fromDataArgs pdArgs
+    { head: repSnd, tail: pdArgs'' } <- fromDataArgs pdArgs'
+    pure $ { head: G.Product repFst repSnd, tail: pdArgs'' }
 
 genericFromData :: forall a rep. G.Generic a rep => HasConstrIndex a => FromDataWithIndex rep a => PlutusData -> Maybe a
 genericFromData pd = G.to <$> fromDataWithIndex (Proxy :: Proxy rep) (Proxy :: Proxy a) pd

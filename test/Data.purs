@@ -4,13 +4,14 @@ module Test.Data (suite) where
 import Prelude
 
 import ConstrIndex (class HasConstrIndex, defaultConstrIndex, fromConstr2Index)
+import Contract.PlutusData (PlutusData(Constr, Integer))
 import Control.Lazy (fix)
 import Data.Array (zip, (..))
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Generic.Rep as G
 import Data.Map as Map
-import Data.Maybe (Maybe(Just))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for_)
 import Data.Tuple (Tuple)
@@ -56,11 +57,23 @@ suite = do
         input = Map.fromFoldable
           [ Map.fromFoldable [ unit /\ unit ] /\ Map.fromFoldable [ unit /\ unit ] ]
       fromData (toData input) `shouldEqual` Just input
-    test "from . to == id" do
-      let
-        input = E0 D1 true (C2 (MyBigInt (BigInt.fromInt 123)) false)
-        --testFn = \input -> fromData (toData input) === Just input
-      fromData (toData input) `shouldEqual` Just input
+    group "Generic" do
+      test "EType: from . to == id" do
+        let
+          input = E0 (D1 (D2 (C1 Nothing))) true (C2 (MyBigInt (BigInt.fromInt 123)) false)
+        fromData (toData input) `shouldEqual` Just input
+      test "CType: C1 constructor shouldn't accept empty arguments" do
+        let
+          pd = Constr (BigInt.fromInt 1) []
+        fromData pd `shouldEqual` (Nothing :: Maybe CType)
+      test "CType: C1 constructor shouldn't accept more than one argument" do
+        let
+          pd = Constr (BigInt.fromInt 1) [ (Constr (BigInt.fromInt 1) []), (Integer $ BigInt.fromInt 0) ]
+        fromData pd `shouldEqual` (Nothing :: Maybe CType)
+      test "CType: C0 constructor shouldn't accept any arguments" do
+        let
+          pd = Constr (BigInt.fromInt 0) [ (Constr (BigInt.fromInt 1) []) ]
+        fromData pd `shouldEqual` (Nothing :: Maybe CType)
 
 -- | Newtype wrapper to avoid an orphan instance
 newtype MyBigInt = MyBigInt BigInt
@@ -77,63 +90,80 @@ instance Arbitrary MyBigInt where
     pure $ MyBigInt bi
 
 -- | Types used to test generic fromData and toData
-data TestType = C0 | C1 (Maybe MyBigInt) | C2 MyBigInt Boolean | C3 MyBigInt Boolean Boolean
-data TestType1 = D0 TestType MyBigInt (Maybe Boolean) | D1 | D2 TestType
-data TestType2 = E0 TestType1 Boolean TestType
+data CType = C0 | C1 (Maybe MyBigInt) | C2 MyBigInt Boolean | C3 MyBigInt Boolean Boolean
+data DType = D0 CType MyBigInt (Maybe Boolean) | D1 DType | D2 CType
+data EType = E0 DType Boolean CType
+data FType = F0
+-- F0 {
+-- ttrF0 :: TestType2,
+-- ttrF1 :: Maybe Boolean
+-- }
 
-derive instance G.Generic TestType _
-derive instance G.Generic TestType1 _
-derive instance G.Generic TestType2 _
-derive instance Eq TestType
-derive instance Eq TestType1
-derive instance Eq TestType2
+derive instance G.Generic CType _
+derive instance G.Generic DType _
+derive instance G.Generic EType _
+derive instance G.Generic FType _
 
-instance HasConstrIndex TestType where
+derive instance Eq CType
+derive instance Eq DType
+derive instance Eq EType
+derive instance Eq FType
+
+instance HasConstrIndex CType where
   constrIndex = defaultConstrIndex
 
-instance HasConstrIndex TestType1 where
+instance HasConstrIndex DType where
   constrIndex = defaultConstrIndex
 
-instance HasConstrIndex TestType2 where
+instance HasConstrIndex EType where
   constrIndex = defaultConstrIndex
 
-instance FromData TestType1 where
+instance HasConstrIndex FType where
+  constrIndex = defaultConstrIndex
+
+instance FromData DType where
+  fromData x = genericFromData x
+
+instance ToData DType where
+  toData pd = genericToData pd
+
+instance FromData EType where
   fromData = genericFromData
 
-instance ToData TestType1 where
+instance ToData EType where
   toData = genericToData
 
-instance FromData TestType2 where
-  fromData = genericFromData
-
-instance ToData TestType2 where
-  toData = genericToData
-
-instance FromData TestType where
+instance FromData CType where
   fromData pd = genericFromData pd -- NOTE: https://github.com/purescript/documentation/blob/master/errors/CycleInDeclaration.md
 
-instance ToData TestType where
+instance ToData CType where
   toData x = genericToData x -- NOTE: https://github.com/purescript/documentation/blob/master/errors/CycleInDeclaration.md
+
+-- instance FromData FType where
+--   fromData = genericFromData
+
+instance ToData FType where
+  toData x = genericToData x
 
 -- https://stackoverflow.com/questions/51215083/how-to-quickcheck-on-custom-adt-in-purescript
 -- https://github.com/purescript/purescript/issues/2975
 -- https://github.com/purescript/documentation/blob/master/errors/CycleInDeclaration.md
-instance Arbitrary TestType where
+instance Arbitrary CType where
   arbitrary = fix $ \arb -> arb
 
-instance Arbitrary TestType2 where
+instance Arbitrary EType where
   arbitrary = genericArbitrary
 
-instance Arbitrary TestType1 where
-  arbitrary = genericArbitrary
+instance Arbitrary DType where
+  arbitrary = fix $ \arb -> arb
 
-instance Show TestType1 where
+instance Show DType where
+  show x = genericShow x
+
+instance Show EType where
   show = genericShow
 
-instance Show TestType2 where
-  show = genericShow
-
-instance Show TestType where
+instance Show CType where
   show x = genericShow x
 
 data Day = Mon | Tue | Wed | Thurs | Fri | Sat | Sun
