@@ -22,6 +22,10 @@ import Data.UInt as UInt
 import Effect.Aff (launchAff_)
 import Seabug.Contract.MarketPlaceBuy (mkMarketplaceTx)
 import Seabug.Types
+  ( NftCollection(NftCollection)
+  , NftData(NftData)
+  , NftId(NftId)
+  )
 import Serialization as Serialization
 import Serialization.Hash (ed25519KeyHashFromBytes, scriptHashFromBytes)
 import Untagged.Union (asOneOf)
@@ -30,13 +34,7 @@ main :: Effect Unit
 main = launchAff_ $ do
   cfg <- defaultContractConfig
   runContract_ cfg $ do
-    pkh <- wrap <<< wrap <$> liftContractM "`Ed25519KeyHash`"
-      ( ed25519KeyHashFromBytes
-          =<< hexToByteArray
-            "3f3464650beb5324d0e463ebe81fbe1fd519b6438521e96d0d35bd75"
-      )
-    UnbalancedTx { transaction } /\ _ <-
-      mkMarketplaceTx pkh =<< testNftData
+    UnbalancedTx { transaction } /\ _ <- mkMarketplaceTx =<< testNftData
     log =<<
       ( liftEffect
           <<< map

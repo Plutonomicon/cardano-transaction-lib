@@ -13,11 +13,11 @@ module Types.ScriptLookups
   , ownPaymentPubKeyHashM
   , ownStakePubKeyHash
   , ownStakePubKeyHashM
-  , paymentPubKeyM
+  -- , paymentPubKeyM
   , typedValidatorLookups
   , typedValidatorLookupsM
   , unsafeOtherDataM
-  , unsafePaymentPubKey
+  -- , unsafePaymentPubKey
   , unspentOutputs
   , unspentOutputsM
   ) where
@@ -141,7 +141,7 @@ import Types.UnbalancedTransaction
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
-  , payPubKeyHash
+  -- , payPubKeyHash
   , payPubKeyHashAddress
   , payPubKeyRequiredSigner
   , stakePubKeyHashAddress
@@ -298,19 +298,19 @@ otherDataM dt = do
 unsafeOtherDataM :: forall (a :: Type). Datum -> ScriptLookups a
 unsafeOtherDataM = unsafePartial fromJust <<< otherDataM
 
--- | A script lookups value with a payment public key. This can fail because we
--- | invoke `payPubKeyHash`.
-paymentPubKeyM :: forall (a :: Type). PaymentPubKey -> Maybe (ScriptLookups a)
-paymentPubKeyM ppk = do
-  pkh <- payPubKeyHash ppk
-  pure $ over ScriptLookups
-    _ { paymentPubKeyHashes = singleton pkh ppk }
-    mempty
+-- -- | A script lookups value with a payment public key. This can fail because we
+-- -- | invoke `payPubKeyHash`.
+-- paymentPubKeyM :: forall (a :: Type). PaymentPubKey -> Maybe (ScriptLookups a)
+-- paymentPubKeyM ppk = do
+--   pkh <- payPubKeyHash ppk
+--   pure $ over ScriptLookups
+--     _ { paymentPubKeyHashes = singleton pkh ppk }
+--     mempty
 
--- | A script lookups value with a payment public key. This is unsafe because
--- | the underlying function `paymentPubKeyM` can fail.
-unsafePaymentPubKey :: forall (a :: Type). PaymentPubKey -> ScriptLookups a
-unsafePaymentPubKey = unsafePartial fromJust <<< paymentPubKeyM
+-- -- | A script lookups value with a payment public key. This is unsafe because
+-- -- | the underlying function `paymentPubKeyM` can fail.
+-- unsafePaymentPubKey :: forall (a :: Type). PaymentPubKey -> ScriptLookups a
+-- unsafePaymentPubKey = unsafePartial fromJust <<< paymentPubKeyM
 
 -- | Add your own `PaymentPubKeyHash` to the lookup.
 ownPaymentPubKeyHash :: forall (a :: Type). PaymentPubKeyHash -> ScriptLookups a

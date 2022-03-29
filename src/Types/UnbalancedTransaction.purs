@@ -10,12 +10,12 @@ module Types.UnbalancedTransaction
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
-  , payPubKeyHash
+  -- , payPubKeyHash
   , payPubKeyHashAddress
   , payPubKeyHashBaseAddress
   , payPubKeyRequiredSigner
   , payPubKeyVkey
-  , pubKeyHash
+  -- , pubKeyHash
   , pubKeyHashAddress
   , pubKeyHashBaseAddress
   , stakeKeyHashAddress
@@ -38,8 +38,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
 import Data.Lens.Types (Lens')
 import Data.Map (Map, empty)
-import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))
 import FromData (class FromData)
@@ -52,7 +51,6 @@ import Serialization.Address
   )
 import Serialization.Hash
   ( Ed25519KeyHash
-  , ed25519KeyHashFromBech32
   )
 import ToData (class ToData)
 import Types.Datum (DatumHash)
@@ -105,12 +103,12 @@ instance DecodeJson PubKeyHash where
     (Left $ TypeMismatch "Expected object")
     (flip getField "getPubKeyHash" >=> decodeJson >>> map PubKeyHash)
 
-payPubKeyHash :: PaymentPubKey -> Maybe PaymentPubKeyHash
-payPubKeyHash (PaymentPubKey pk) = wrap <$> pubKeyHash pk
+-- payPubKeyHash :: PaymentPubKey -> Maybe PaymentPubKeyHash
+-- payPubKeyHash (PaymentPubKey pk) = wrap <$> pubKeyHash pk
 
-pubKeyHash :: PublicKey -> Maybe PubKeyHash
-pubKeyHash (PublicKey bech32) =
-  wrap <$> ed25519KeyHashFromBech32 bech32
+-- pubKeyHash :: PublicKey -> Maybe PubKeyHash
+-- pubKeyHash (PublicKey bech32) =
+--   wrap <$> ed25519KeyHashFromBech32 bech32
 
 payPubKeyVkey :: PaymentPubKey -> Vkey
 payPubKeyVkey (PaymentPubKey pk) = Vkey pk

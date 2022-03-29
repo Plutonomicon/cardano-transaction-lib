@@ -71,12 +71,11 @@ import Types.UnbalancedTransaction
   , ScriptOutput(ScriptOutput)
   , StakeKeyHash(StakeKeyHash)
   , StakePubKeyHash(StakePubKeyHash)
-  , payPubKeyHash
   , payPubKeyHashAddress
   , payPubKeyHashBaseAddress
   , payPubKeyRequiredSigner
   , payPubKeyVkey
-  , pubKeyHash
+  -- , pubKeyHash
   , pubKeyHashAddress
   , pubKeyHashBaseAddress
   , stakeKeyHashAddress
