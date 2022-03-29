@@ -23,7 +23,6 @@ module Types.TypedTxOut
 -- | https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger/html/src/Ledger.Typed.Tx.html
 
 import Prelude
-import Address (ogmiosAddressToAddress)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Data.Either (Either, note)
@@ -38,15 +37,16 @@ import Scripts (typedValidatorAddress)
 import Serialization.Address (Address, NetworkId)
 import ToData (class ToData, toData)
 import Types.Datum (Datum(Datum), DatumHash, datumHash)
-import Types.JsonWsp (OgmiosAddress, OgmiosTxOut)
 import Types.PlutusData (PlutusData)
-import Types.Transaction (TransactionInput, TransactionOutput)
+import Types.Transaction
+  ( TransactionInput
+  , TransactionOutput(TransactionOutput)
+  )
 import Types.TypedValidator
   ( class DatumType
   , TypedValidator
   )
 import Types.Value (Value)
-import TxOutput (ogmiosDatumHashToDatumHash)
 
 -- | A `TxOutRef` ~ `TransactionInput` tagged by a phantom type: and the
 -- | connection type of the output.
@@ -186,8 +186,6 @@ data TypeCheckError
   | ExpectedScriptGotPubkey
   | WrongRedeemerType PlutusData
   | WrongDatumType PlutusData
-  | CannotConvertOgmiosAddress OgmiosAddress
-  | CannotConvertOgmiosDatumHash String
   | CannotQueryDatum DatumHash
   | CannotMakeTypedTxOut
   | UnknownRef
@@ -246,23 +244,17 @@ typeTxOut
   => ToData b
   => NetworkId
   -> TypedValidator a
-  -> OgmiosTxOut
+  -> TransactionOutput
   -> QueryM (Either TypeCheckError (TypedTxOut a b))
-typeTxOut networkId typedVal { address, value, datum } = runExceptT do
+typeTxOut networkId typedVal (TransactionOutput { address, amount, data_hash }) = runExceptT do
   -- Assume `Nothing` is a public key.
-  datumStr <- liftM ExpectedScriptGotPubkey datum
-  addr <- liftM
-    (CannotConvertOgmiosAddress address)
-    (ogmiosAddressToAddress address)
-  void $ checkValidatorAddress networkId typedVal addr
-  dHash <- liftM
-    (CannotConvertOgmiosDatumHash datumStr)
-    (ogmiosDatumHashToDatumHash datumStr)
+  dHash <- liftM ExpectedScriptGotPubkey data_hash
+  void $ checkValidatorAddress networkId typedVal address
   pd <- ExceptT $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
   dtOut <- ExceptT $ checkDatum typedVal (wrap pd)
   liftM
     CannotMakeTypedTxOut
-    (mkTypedTxOut networkId typedVal dtOut value)
+    (mkTypedTxOut networkId typedVal dtOut amount)
 
 -- | Create a `TypedTxOutRef` from an existing `TxOutRef` ~ `TransactionInput`
 -- | by checking the types of its parts. To do this we need to cross-reference
@@ -274,7 +266,7 @@ typeTxOutRef
   => FromData b
   => ToData b
   => NetworkId
-  -> (TransactionInput -> Maybe OgmiosTxOut)
+  -> (TransactionInput -> Maybe TransactionOutput)
   -> TypedValidator a
   -> TransactionInput
   -> QueryM (Either TypeCheckError (TypedTxOutRef a b))

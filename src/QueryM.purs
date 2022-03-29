@@ -459,11 +459,10 @@ finalizeTx tx datums redeemers = do
   -- construct payload
   let
     body
-      ::
-           { tx :: String
-           , datums :: Array String
-           , redeemers :: String
-           }
+      :: { tx :: String
+         , datums :: Array String
+         , redeemers :: String
+         }
     body =
       { tx: txHex
       , datums: encodedDatums

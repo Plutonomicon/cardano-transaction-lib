@@ -7,6 +7,7 @@ module Helpers
   , appendMap
   , appendRightMap
   , bigIntToUInt
+  , filterMapM
   , filterMapWithKeyM
   , fromJustEff
   , fromRightEff
@@ -31,7 +32,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Maybe.First (First(First))
 import Data.Maybe.Last (Last(Last))
-import Data.Tuple (uncurry)
+import Data.Tuple (snd, uncurry)
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
@@ -119,6 +120,8 @@ appendRightMap
   -> Map k v
 appendRightMap = Map.unionWith (flip const)
 
+-- | Filters a map on a Monadic context over a lifted predicate on both the
+-- | map's key and value
 filterMapWithKeyM
   :: forall (m :: Type -> Type) (k :: Type) (v :: Type)
    . Ord k
@@ -126,7 +129,20 @@ filterMapWithKeyM
   => (k -> v -> m Boolean)
   -> Map k v
   -> m (Map k v)
-filterMapWithKeyM p = map Map.fromFoldable <<< LL.filterM (uncurry p) <<< Map.toUnfoldable
+filterMapWithKeyM p =
+  map Map.fromFoldable <<< LL.filterM (uncurry p) <<< Map.toUnfoldable
+
+-- | Filters a map on a Monadic context over a lifted predicate on the map's
+-- | value
+filterMapM
+  :: forall (m :: Type -> Type) (k :: Type) (v :: Type)
+   . Ord k
+  => Monad m
+  => (v -> m Boolean)
+  -> Map k v
+  -> m (Map k v)
+filterMapM p =
+  map Map.fromFoldable <<< LL.filterM (p <<< snd) <<< Map.toUnfoldable
 
 -- UInt.toInt is unsafe so we'll go via String. BigInt.fromString returns a
 -- Maybe but we should be safe if we go from UInt originally via String,

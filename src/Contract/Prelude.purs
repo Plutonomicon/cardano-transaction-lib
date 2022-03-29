@@ -320,6 +320,8 @@ import Helpers -- Could maybe move this somewhere better:
   , (<\>)
   , appendFirstMaybe
   , appendLastMaybe
+  , filterMapM
+  , filterMapWithKeyM
   , fromJustEff
   , fromRightEff
   , liftEither

@@ -33,6 +33,7 @@ module Types.Transaction
   , TransactionOutput(..)
   , TransactionWitnessSet(..)
   , TxBody(..)
+  , TxOut
   , UnitInterval
   , Update
   , Utxo
@@ -678,11 +679,9 @@ instance Show TransactionInput where
 
 -- `Constr` is used for indexing, and `TransactionInput` is always zero-indexed
 instance FromData TransactionInput where
-  fromData (Constr id [ txId, idx ]) =
-    if id == zero then
-      TransactionInput <$>
-        ({ transaction_id: _, index: _ } <$> fromData txId <*> fromData idx)
-    else Nothing
+  fromData (Constr n [ txId, idx ]) | n == zero =
+    TransactionInput <$>
+      ({ transaction_id: _, index: _ } <$> fromData txId <*> fromData idx)
   fromData _ = Nothing
 
 -- `Constr` is used for indexing, and `TransactionInput` is always zero-indexed
@@ -705,21 +704,22 @@ instance Show TransactionOutput where
 
 -- `Constr` is used for indexing, and `TransactionOutput` is always zero-indexed
 instance FromData TransactionOutput where
-  fromData (Constr id [ addr, amt, dh ]) =
-    if id == zero then
-      TransactionOutput <$>
-        ( { address: _, amount: _, data_hash: _ }
-            <$> fromData addr
-            <*> fromData amt
-            <*> fromData dh
-        )
-    else Nothing
+  fromData (Constr n [ addr, amt, dh ]) | n == zero =
+    TransactionOutput <$>
+      ( { address: _, amount: _, data_hash: _ }
+          <$> fromData addr
+          <*> fromData amt
+          <*> fromData dh
+      )
   fromData _ = Nothing
 
 -- `Constr` is used for indexing, and `TransactionOutput` is always zero-indexed
 instance ToData TransactionOutput where
   toData (TransactionOutput { address, amount, data_hash }) =
     Constr zero [ toData address, toData amount, toData data_hash ]
+
+-- For convenience of Haskell code:
+type TxOut = TransactionOutput
 
 newtype UtxoM = UtxoM Utxo
 
