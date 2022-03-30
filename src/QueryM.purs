@@ -21,6 +21,7 @@ module QueryM
   , applyArgs
   , blake2bHash
   , calculateMinFee
+  , getAssetMetadata
   , cancelFetchBlocksRequest
   , datumFilterAddHashesRequest
   , datumFilterGetHashesRequest
