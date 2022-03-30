@@ -138,7 +138,6 @@ let additions =
             , "foldable-traversable"
             , "foreign-object"
             , "free"
-            , "http-methods"
             , "integers"
             , "lists"
             , "maybe"
