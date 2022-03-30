@@ -49,10 +49,12 @@ module QueryM
   ) where
 
 import Prelude
+import Undefined
 
 import Aeson as Aeson
 import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
+import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (ReaderT, ask, asks)
@@ -64,10 +66,12 @@ import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
+import Data.Function (on)
+import Data.HTTP.Method (Method(GET))
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (traverse)
-import Data.Tuple.Nested ((/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import DatumCacheWsp
@@ -127,7 +131,13 @@ import Types.Scripts (PlutusScript)
 import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.UnbalancedTransaction (PubKeyHash, PaymentPubKeyHash, pubKeyHash)
-import Types.Value (Coin(Coin))
+import Types.Value
+  ( Coin(Coin)
+  , CurrencySymbol
+  , TokenName
+  , getCurrencySymbol
+  , getTokenName
+  )
 import Untagged.Union (asOneOf)
 import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
 import UsedTxOuts (UsedTxOuts)
@@ -495,6 +505,42 @@ mkServerEndpointUrl :: String -> QueryM Url
 mkServerEndpointUrl path = asks $ (_ <> "/" <> path)
   <<< mkHttpUrl
   <<< _.serverConfig
+
+getAssetMetadata
+  :: forall (a :: Type)
+   . DecodeJson a
+  => CurrencySymbol /\ TokenName
+  -> QueryM (Either ClientError a)
+getAssetMetadata (currSym /\ tname) = do
+  projectId <- asks _.projectId
+  let
+    req :: Affjax.Request Json.Json
+    req = Affjax.defaultRequest
+      { url = url
+      , responseFormat = Affjax.ResponseFormat.json
+      , method = Left GET
+      , headers =
+          [ Affjax.RequestHeader.RequestHeader "project_id" projectId
+          ]
+      }
+  liftAff (Affjax.request req)
+    <#> either
+      (Left <<< ClientHttpError)
+      (lmap ClientDecodeJsonError <<< decodeMetadata <<< _.body)
+  where
+  url :: Url
+  url = "https://cardano-testnet.blockfrost.io/api/v0/assets/" <> asset
+
+  asset :: String
+  asset = mkAsset (getCurrencySymbol currSym) (getTokenName tname)
+
+  mkAsset :: ByteArray -> ByteArray -> String
+  mkAsset = (<>) `on` byteArrayToHex
+
+  decodeMetadata :: Json.Json -> Either Json.JsonDecodeError a
+  decodeMetadata = Json.decodeJson <=< Json.caseJsonObject
+    (Left (Json.TypeMismatch "Expected Object"))
+    (flip Json.getField "metadata")
 
 --------------------------------------------------------------------------------
 -- OgmiosWebSocket Setup and PrimOps
