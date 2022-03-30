@@ -26,38 +26,47 @@ import ToData (class ToData, genericToData, toData)
 
 suite :: TestPlanM Unit
 suite = do
-  group "ToData/FromData" $ do
-    test "Unit" do
-      let
-        input = unit
-      fromData (toData input) `shouldEqual` Just input
-    group "Boolean" do
-      let
-        inputs = [ true, false ]
-      for_ inputs \input -> do
-        test (show input) do
+  group "PlutusData representation tests: ToData/FromData" $ do
+    group "Primitives" do
+      test "Unit" do
+        let
+          input = unit
+        fromData (toData input) `shouldEqual` Just input
+      group "Boolean" do
+        let
+          inputs = [ true, false ]
+        for_ inputs \input -> do
+          test (show input) do
+            fromData (toData input) `shouldEqual` Just input
+      group "Maybe" do
+        let
+          inputs = [ Just true, Just false, Nothing ]
+        for_ inputs \input -> do
+          test (show input) do
+            fromData (toData input) `shouldEqual` Just input
+      group "BigInt" do
+        let
+          inputs =
+            [ BigInt.fromInt 0
+            , BigInt.fromInt 10000
+            , BigInt.fromInt (-10000)
+            ]
+        for_ inputs \input -> do
+          test (show input) do
+            fromData (toData input) `shouldEqual` Just input
+      group "Map" do
+        test "Map #1" do
+          let
+            input =
+              Map.fromFoldable [ unit /\ unit ]
           fromData (toData input) `shouldEqual` Just input
-    group "BigInt" do
-      let
-        inputs =
-          [ BigInt.fromInt 0
-          , BigInt.fromInt 10000
-          , BigInt.fromInt (-10000)
-          ]
-      for_ inputs \input -> do
-        test (show input) do
+        test "Map #2" do
+          let
+            input = Map.fromFoldable
+              [ Map.fromFoldable [ unit /\ unit ] /\ Map.fromFoldable [ unit /\ unit ] ]
           fromData (toData input) `shouldEqual` Just input
-    test "Map #1" do
-      let
-        input =
-          Map.fromFoldable [ unit /\ unit ]
-      fromData (toData input) `shouldEqual` Just input
-    test "Map #2" do
-      let
-        input = Map.fromFoldable
-          [ Map.fromFoldable [ unit /\ unit ] /\ Map.fromFoldable [ unit /\ unit ] ]
-      fromData (toData input) `shouldEqual` Just input
     group "Generic" do
+      -- TODO: Quickcheckify
       test "EType: from . to == id" do
         let
           input = E0 (D1 (D2 (C1 Nothing))) true (C2 (MyBigInt (BigInt.fromInt 123)) false)
@@ -78,20 +87,20 @@ suite = do
         let
           f0 = F0 { f0A: BigInt.fromInt 1337 }
           f0' = F0' (BigInt.fromInt 1337)
-          output = Constr (BigInt.fromInt 0) [ Integer (BigInt.fromInt 1337) ]
-        toData f0 `shouldEqual` output
-        toData f0' `shouldEqual` output
+        fromData (toData f0) `shouldEqual` Just f0'
+        fromData (toData f0') `shouldEqual` Just f0
       test "FType and FType' toData/fromData the same: F1 == F1'" do
         let
           f1 = F1 { f1A: true, f1B: false, f1C: true }
           f1' = F1' true false true
-          output = Constr (BigInt.fromInt 1)
-            [ (Constr (BigInt.fromInt 1) [])
-            , (Constr (BigInt.fromInt 0) [])
-            , (Constr (BigInt.fromInt 1) [])
-            ]
-        toData f1 `shouldEqual` output
-        toData f1' `shouldEqual` output
+        fromData (toData f1) `shouldEqual` Just f1'
+        fromData (toData f1') `shouldEqual` Just f1
+      test "FType and FType' toData/fromData the same: F2 == F2'" do
+        let
+          f2 = F2 { f2A: BigInt.fromInt 1337, f2B: F1 { f1A: true, f1B: false, f1C: true } }
+          f2' = F2' (BigInt.fromInt 1337) (F1' true false true)
+        fromData (toData f2) `shouldEqual` Just f2'
+        fromData (toData f2') `shouldEqual` Just f2
 
 -- | Newtype wrapper to avoid an orphan instance
 newtype MyBigInt = MyBigInt BigInt
@@ -120,10 +129,15 @@ data FType
       , f1B :: Boolean
       , f1C :: Boolean
       }
+  | F2
+      { f2A :: BigInt
+      , f2B :: FType
+      }
 
 data FType'
   = F0' BigInt
   | F1' Boolean Boolean Boolean
+  | F2' BigInt FType'
 
 derive instance G.Generic CType _
 derive instance G.Generic DType _
@@ -170,8 +184,11 @@ instance FromData CType where
 instance ToData CType where
   toData x = genericToData x -- NOTE: https://github.com/purescript/documentation/blob/master/errors/CycleInDeclaration.md
 
--- instance FromData FType where
---   fromData = genericFromData
+instance FromData FType where
+  fromData pd = genericFromData pd
+
+instance FromData FType' where
+  fromData pd = genericFromData pd
 
 instance ToData FType where
   toData x = genericToData x
@@ -191,13 +208,19 @@ instance Arbitrary EType where
 instance Arbitrary DType where
   arbitrary = fix $ \arb -> arb
 
+instance Show CType where
+  show x = genericShow x
+
 instance Show DType where
   show x = genericShow x
 
 instance Show EType where
   show = genericShow
 
-instance Show CType where
+instance Show FType where
+  show x = genericShow x
+
+instance Show FType' where
   show x = genericShow x
 
 data Day = Mon | Tue | Wed | Thurs | Fri | Sat | Sun

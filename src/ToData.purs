@@ -58,7 +58,7 @@ class ToDataArgsRL :: RL.RowList Type -> Row Type -> Constraint
 class ToDataArgsRL list row | list -> row where
   toDataArgsRec :: forall rlproxy. rlproxy list -> Record row -> Array PlutusData
 
--- | Data.Generic.Rep instances
+-- | ToDataArgs isntances for Data.Generic.Rep
 
 instance (HasConstrIndex a, ToDataWithIndex l a, ToDataWithIndex r a) => ToDataWithIndex (G.Sum l r) a where
   toDataWithIndex p (G.Inl x) = toDataWithIndex (p :: Proxy a) x
@@ -77,6 +77,9 @@ else instance ToData a => ToDataArgs (G.Argument a) where
 
 instance (ToDataArgsRL list row, RL.RowToList row list) => ToDataArgs (Record row) where
   toDataArgs = toDataArgsRec (Proxy :: Proxy list)
+
+instance (ToDataArgs a, ToDataArgs b) => ToDataArgs (G.Product a b) where
+  toDataArgs (G.Product x y) = toDataArgs x <> toDataArgs y
 
 -- | ToDataArgsRL instances
 
@@ -101,9 +104,6 @@ instance
     in
       toData field `cons` toDataArgsRec (Proxy :: Proxy listRest) (Record.delete keyProxy x)
 
-instance (ToDataArgs a, ToDataArgs b) => ToDataArgs (G.Product a b) where
-  toDataArgs (G.Product x y) = toDataArgs x <> toDataArgs y
-
 genericToData
   :: forall a rep. G.Generic a rep => HasConstrIndex a => ToDataWithIndex rep a => a -> PlutusData
 genericToData = toDataWithIndex (Proxy :: Proxy a) <<< G.from
@@ -118,7 +118,7 @@ resolveIndex pa sps =
       Just i -> BigInt.fromInt i
       Nothing -> zero - BigInt.fromInt 1 -- TODO: Figure out type level
 
--- | Base instances
+-- | Base ToData instances
 
 instance ToData Void where
   toData = absurd

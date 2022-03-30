@@ -1,11 +1,13 @@
 module FromData
   ( class FromData
-  , fromData
-  , genericFromData
-  , class FromDataWithIndex
-  , fromDataWithIndex
   , class FromDataArgs
+  , class FromDataWithIndex
+  , class FromDataArgsRL
+  , fromDataArgsRec
+  , fromData
   , fromDataArgs
+  , fromDataWithIndex
+  , genericFromData
   ) where
 
 import Prelude
@@ -30,8 +32,11 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.Unfoldable (class Unfoldable)
 import Helpers (bigIntToUInt)
+import Prim.Row as Row
+import Prim.RowList as RL
 import Prim.TypeError (class Fail, Text)
-import Type.Proxy (Proxy(..))
+import Record as Record
+import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Bytes, Constr, List, Map, Integer))
 
@@ -43,34 +48,23 @@ class FromData (a :: Type) where
 class FromDataWithIndex a ci where
   fromDataWithIndex :: HasConstrIndex ci => Proxy a -> Proxy ci -> PlutusData -> Maybe a
 
--- NOTE: Using https://github.com/purescript-contrib/purescript-argonaut-generic/blob/3ae9622814fd3f3f06fa8e5e58fd58d2ef256b91/src/Data/Argonaut/Decode/Generic.purs
+-- NOTE: Using the 'parser' approach as in https://github.com/purescript-contrib/purescript-argonaut-generic/blob/3ae9622814fd3f3f06fa8e5e58fd58d2ef256b91/src/Data/Argonaut/Decode/Generic.purs
 class FromDataArgs a where
   fromDataArgs :: Array PlutusData -> Maybe { head :: a, tail :: Array PlutusData }
 
--- > data TestType = C0 | C1 Int | C2 Int String | C3 Int String Boolean | C4 Int TestType
--- > derive instance Generic TestType _
--- > :t (from C0)
--- Sum
---  (Constructor "C0" NoArguments)
---  (Sum
---     (Constructor "C1" (Argument Int))
---     (Sum
---       (Constructor "C2"
---         (Product (Argument Int) (Argument String)))
---       (Constructor "C3"
---         (Product
---           (Argument Int)
---           (Product
---             (Argument String)
---             (Argument Boolean))))))
+-- | A helper typeclass to implement `ToDataArgs` for records.
+-- Stolen from https://github.com/purescript/purescript-quickcheck/blob/v7.1.0/src/Test/QuickCheck/Arbitrary.purs#L247
+class FromDataArgsRL :: RL.RowList Type -> Row Type -> Constraint
+class FromDataArgsRL list row | list -> row where
+  fromDataArgsRec :: forall rlproxy. rlproxy list -> Array PlutusData -> Maybe { head :: Record row, tail :: Array PlutusData }
 
--- | Data.Generic.Rep instances
+-- | FromDataWithIndex instances for Data.Generic.Rep
+-- See https://purescript-simple-json.readthedocs.io/en/latest/generics-rep.html
 
 instance (HasConstrIndex a, FromDataWithIndex l a, FromDataWithIndex r a) => FromDataWithIndex (G.Sum l r) a where
   fromDataWithIndex _ pci pd = G.Inl <$> fromDataWithIndex (Proxy :: Proxy l) pci pd
     <|> G.Inr <$> fromDataWithIndex (Proxy :: Proxy r) pci pd
 
--- https://purescript-simple-json.readthedocs.io/en/latest/generics-rep.html
 instance (IsSymbol n, HasConstrIndex a, FromDataArgs arg) => FromDataWithIndex (G.Constructor n arg) a where
   fromDataWithIndex _ pci (Constr i pdArgs) = do
     ix <- BigInt.toInt i
@@ -85,11 +79,17 @@ instance (IsSymbol n, HasConstrIndex a, FromDataArgs arg) => FromDataWithIndex (
 instance (HasConstrIndex ci, FromDataWithIndex a ci) => FromDataWithIndex (G.Argument a) ci where
   fromDataWithIndex _ pci pd = G.Argument <$> fromDataWithIndex (Proxy :: Proxy a) pci pd
 
+-- | FromDataArgs instance for Data.Generic.Rep
+
 instance FromDataArgs (G.NoArguments) where
   fromDataArgs [] = Just { head: G.NoArguments, tail: [] }
   fromDataArgs _ = Nothing -- TODO: Error "No PlutusData expected but got some"
 
-instance (FromData a) => FromDataArgs (G.Argument a) where
+instance (FromDataArgsRL list row, RL.RowToList row list) => FromDataArgs (G.Argument (Record row)) where
+  fromDataArgs pdArgs = do
+    { head, tail } <- fromDataArgsRec (Proxy :: Proxy list) pdArgs
+    pure { head: G.Argument head, tail }
+else instance (FromData a) => FromDataArgs (G.Argument a) where
   fromDataArgs pdArgs = do
     { head: pd, tail: pds } <- uncons pdArgs -- TODO: Error "Expected PlutusData but got none"
     repArg <- fromData pd
@@ -101,13 +101,38 @@ instance (FromDataArgs a, FromDataArgs b) => FromDataArgs (G.Product a b) where
     { head: repSnd, tail: pdArgs'' } <- fromDataArgs pdArgs'
     pure $ { head: G.Product repFst repSnd, tail: pdArgs'' }
 
+-- | FromDataArgsRL instances
+
+instance FromDataArgsRL RL.Nil () where
+  fromDataArgsRec _ [] = Just { head: {}, tail: [] }
+  fromDataArgsRec _ _ = Nothing
+
+instance
+  ( FromData a
+  , FromDataArgsRL listRest rowRest
+  , Row.Lacks key rowRest
+  , Row.Cons key a rowRest rowFull
+  , RL.RowToList rowFull (RL.Cons key a listRest)
+  , IsSymbol key
+  ) =>
+  FromDataArgsRL (RL.Cons key a listRest) rowFull where
+  fromDataArgsRec _ pdArgs = do
+    let keyProxy = Proxy :: Proxy key
+    { head: pdArg, tail: pdArgs' } <- uncons pdArgs -- TODO: Error "Expected PlutusData but got none"
+    field <- fromData pdArg
+    { head: rec, tail: pdArgs'' } <- fromDataArgsRec (Proxy :: Proxy listRest) pdArgs'
+    pure $
+      { head: (Record.insert keyProxy field rec)
+      , tail: pdArgs''
+      }
+
 genericFromData :: forall a rep. G.Generic a rep => HasConstrIndex a => FromDataWithIndex rep a => PlutusData -> Maybe a
 genericFromData pd = G.to <$> fromDataWithIndex (Proxy :: Proxy rep) (Proxy :: Proxy a) pd
 
 resolveConstr :: forall a. HasConstrIndex a => Proxy a -> Int -> Maybe String
 resolveConstr pa i = let Tuple _ i2c = constrIndex pa in Map.lookup i i2c
 
--- | Base instances
+-- | Base FromData instances
 
 instance FromData Void where
   fromData _ = Nothing
