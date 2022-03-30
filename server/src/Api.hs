@@ -2,7 +2,9 @@ module Api (
   app,
   estimateTxFees,
   applyArgs,
-  apiDocs,
+  finalizeTx,
+  hashScript,
+  apiDocs
 ) where
 
 import Api.Handlers qualified as Handlers
@@ -13,7 +15,7 @@ import Control.Monad.Reader (ReaderT, runReaderT)
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.Kind (Type)
 import Data.Proxy (Proxy (Proxy))
-import Network.Wai.Middleware.Cors (simpleCors)
+import Network.Wai.Middleware.Cors qualified as Cors
 import Servant (
   Application,
   Get,
@@ -38,13 +40,19 @@ import Types (
   AppM (AppM),
   AppliedScript,
   ApplyArgsRequest,
-  CardanoBrowserServerError (FeeEstimate),
+  CardanoBrowserServerError (FeeEstimate, FinalizeTx),
   Cbor,
   Env,
   Fee,
-  FeeEstimateError (InvalidCbor, InvalidHex),
+  FeeEstimateError (FEInvalidCbor, FEInvalidHex),
+  FinalizeTxError (FTInvalidCbor, FTInvalidHex),
+  HashScriptRequest,
+  HashedScript,
+  FinalizeRequest(..),
+  FinalizedTransaction(..)
  )
 import Utils (lbshow)
+
 
 type Api =
   "fees" :> QueryParam' '[Required] "tx" Cbor :> Get '[JSON] Fee
@@ -53,9 +61,21 @@ type Api =
     :<|> "apply-args"
       :> ReqBody '[JSON] ApplyArgsRequest
       :> Post '[JSON] AppliedScript
+    :<|> "hash-script"
+      :> ReqBody '[JSON] HashScriptRequest
+      :> Post '[JSON] HashedScript
+    :<|> "finalize"
+      :> ReqBody '[JSON] FinalizeRequest
+      :> Post '[JSON] FinalizedTransaction
 
 app :: Env -> Application
-app = simpleCors . serve api . appServer
+app = Cors.cors (const $ Just policy) . serve api . appServer
+  where
+    policy :: Cors.CorsResourcePolicy
+    policy = Cors.simpleCorsResourcePolicy
+      { Cors.corsRequestHeaders = ["Content-Type"]
+      , Cors.corsMethods = ["OPTIONS", "GET", "POST"]
+      }
 
 appServer :: Env -> Server Api
 appServer env = hoistServer api appHandler server
@@ -75,18 +95,27 @@ appServer env = hoistServer api appHandler server
           CardanoBrowserServerError ->
           Handler a
         handleError (FeeEstimate fe) = case fe of
-          InvalidCbor ic -> throwError err400 {errBody = lbshow ic}
-          InvalidHex ih -> throwError err400 {errBody = LC8.pack ih}
+          FEInvalidCbor ic -> throwError err400 {errBody = lbshow ic}
+          FEInvalidHex ih -> throwError err400 {errBody = LC8.pack ih}
+        handleError (FinalizeTx fe) = case fe of
+          FTInvalidCbor ic -> throwError err400 {errBody = lbshow ic}
+          FTInvalidHex ih -> throwError err400 {errBody = LC8.pack ih}
 
 api :: Proxy Api
 api = Proxy
 
 server :: ServerT Api AppM
-server = Handlers.estimateTxFees :<|> Handlers.applyArgs
+server =
+  Handlers.estimateTxFees
+    :<|> Handlers.applyArgs
+    :<|> Handlers.hashScript
+    :<|> Handlers.finalizeTx
 
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
 
 estimateTxFees :: Cbor -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
-estimateTxFees :<|> applyArgs = client api
+hashScript :: HashScriptRequest -> ClientM HashedScript
+finalizeTx :: FinalizeRequest -> ClientM FinalizedTransaction
+estimateTxFees :<|> applyArgs :<|> hashScript :<|> finalizeTx = client api

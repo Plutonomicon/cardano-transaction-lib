@@ -3,6 +3,7 @@ module Contract.Prelude
   ( mconcat
   , module Aff
   , module Helpers
+  , module Console
   , module Effect
   , module Either
   , module Enum
@@ -309,13 +310,18 @@ import Data.Tuple.Nested
   , (/\)
   ) as TupleNested
 import Effect (Effect) as Effect
+import Effect.Class (liftEffect) as Effect
+import Effect.Class.Console (log) as Console
 import Effect.Aff (Aff) as Aff
+import Effect.Aff.Class (liftAff) as Aff
 import Helpers -- Could maybe move this somewhere better:
   ( (</>)
   , (<<>>)
   , (<\>)
   , appendFirstMaybe
   , appendLastMaybe
+  , filterMapM
+  , filterMapWithKeyM
   , fromJustEff
   , fromRightEff
   , liftEither

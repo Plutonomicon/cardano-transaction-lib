@@ -24,6 +24,7 @@ import Test.Transaction as Transaction
 import Test.UsedTxOuts as UsedTxOuts
 import Test.Data as Data
 import Test.Metadata.Seabug as Seabug
+import Test.FinalizeTx as FinalizeTx
 
 -- we use `mote` here so that we can use effects to build up a test tree, which
 -- is then interpreted here in a pure context, mainly due to some painful types
@@ -62,5 +63,6 @@ testPlan = do
   UsedTxOuts.suite
   -- requires external servers
   -- see README.md
+  FinalizeTx.suite
   AffInterface.suite
   Seabug.suite

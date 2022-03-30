@@ -5,6 +5,7 @@ import Prelude
 
 import ConstrIndex (class HasConstrIndex, defaultConstrIndex, fromConstr2Index)
 import Contract.PlutusData (PlutusData(..))
+import Contract.Prelude (fromJust, traverse_, uncurry)
 import Control.Lazy (fix)
 import Data.Array (zip, (..))
 import Data.BigInt (BigInt)
@@ -17,12 +18,19 @@ import Data.Traversable (for_)
 import Data.Tuple (Tuple)
 import Data.Tuple.Nested ((/\))
 import FromData (class FromData, fromData, genericFromData)
-import Mote (group, test)
+import Mote (group, skip, test)
+import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary, genericArbitrary)
 import Test.QuickCheck.Gen (Gen)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import ToData (class ToData, genericToData, toData)
+import Deserialization.FromBytes (fromBytes)
+import Deserialization.PlutusData as PDD
+import Serialization (toBytes)
+import Serialization.PlutusData as PDS
+import Types.ByteArray (hexToByteArrayUnsafe)
+import Untagged.Union (asOneOf)
 
 suite :: TestPlanM Unit
 suite = do
@@ -101,6 +109,52 @@ suite = do
           f2' = F2' (BigInt.fromInt 1337) (F1' true false true)
         fromData (toData f2) `shouldEqual` Just f2'
         fromData (toData f2') `shouldEqual` Just f2
+  group "ToData and serialization - binary fixtures" do
+    -- How to get binary fixtures:
+    --
+    -- ```
+    -- import PlutusTx
+    -- import PlutusTx.IsData
+    -- import Codec.Serialise
+    -- import Data.ByteString.Lazy as BL
+    --
+    -- showBinary = toHexDigest . BL.toStrict . serialise . toData
+    -- ```
+    test "Unit" do
+      let
+        binaryFixture = "d87980"
+        expectedOutput = unit
+      fromBytesFromData binaryFixture `shouldEqual` Just expectedOutput
+    group "Boolean" do
+      let
+        fixtures =
+          [ false /\ "d87980"
+          , true /\ "d87a80"
+          ]
+      for_ fixtures \(value /\ binaryFixture) -> do
+        test (show value) do
+          fromBytesFromData binaryFixture `shouldEqual` Just value
+    group "Maybe" do
+      let
+        fixtures =
+          [ Nothing /\ "d87a80"
+          , Just (BigInt.fromInt 1) /\ "d8799f01ff"
+          ]
+      for_ fixtures \(value /\ binaryFixture) -> do
+        test (show value) do
+          fromBytesFromData binaryFixture `shouldEqual` Just value
+    group "BigInt" do
+      traverse_ (uncurry testBinaryFixture)
+        [ BigInt.fromInt (negate 1000) /\ "3903e7"
+        , BigInt.fromInt 1000 /\ "1903e8"
+        , BigInt.fromInt 1 /\ "01"
+        , unsafePartial (fromJust $ BigInt.fromString "999999999999999999999999999999999999999")
+            /\ "c25102f050fe938943acc45f65567fffffffff"
+        ]
+    skip $ group "BigInt - failing (problem with encoding of 0)" do
+      traverse_ (uncurry testBinaryFixture)
+        [ BigInt.fromInt 0 /\ "00"
+        ]
 
 -- | Newtype wrapper to avoid an orphan instance
 newtype MyBigInt = MyBigInt BigInt
@@ -252,3 +306,13 @@ instance HasConstrIndex (Tree a) where
 
 instance (ToData a) => ToData (Tree a) where
   toData x = genericToData x -- https://github.com/purescript/documentation/blob/master/guides/Type-Class-Deriving.md#avoiding-stack-overflow-errors-with-recursive-types
+
+fromBytesFromData :: forall a. FromData a => String -> Maybe a
+fromBytesFromData binary = fromData =<< PDD.convertPlutusData =<< fromBytes (hexToByteArrayUnsafe binary)
+
+testBinaryFixture :: forall a. Eq a => Show a => FromData a => ToData a => a -> String -> TestPlanM Unit
+testBinaryFixture value binaryFixture = do
+  test ("Deserialization: " <> show value) do
+    fromBytesFromData binaryFixture `shouldEqual` Just value
+  test ("Serialization: " <> show value) do
+    map (toBytes <<< asOneOf) (PDS.convertPlutusData (toData value)) `shouldEqual` Just (hexToByteArrayUnsafe binaryFixture)

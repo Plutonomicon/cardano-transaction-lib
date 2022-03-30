@@ -54,12 +54,17 @@ library
     , bytestring
     , cardano-api
     , cardano-binary
+    , cardano-ledger-core
+    , cardano-ledger-alonzo
+    , cborg
     , containers
     , exceptions
     , extra
+    , lens
     , mtl
     , plutus-ledger-api
     , plutus-tx
+    , serialise
     , servant
     , servant-client
     , servant-docs

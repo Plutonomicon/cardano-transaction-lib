@@ -15,10 +15,13 @@ import QueryM
   , defaultServerConfig
   , mkDatumCacheWebSocketAff
   , mkOgmiosWebSocketAff
-  , utxosAt
   )
+import QueryM.Utxos (utxosAt)
+import QueryM.ChainInfo (getChainTip)
+import Serialization.Address (NetworkId(TestnetId))
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
+import Types.Interval (defaultSlotConfig)
 import Types.JsonWsp (OgmiosAddress)
 import UsedTxOuts (newUsedTxOuts)
 
@@ -39,6 +42,7 @@ suite = do
   group "Aff Int" do
     test "UtxosAt Testnet" $ testUtxosAt testnet_addr1
     test "UtxosAt non-Testnet" $ testUtxosAt addr1
+    test "Get ChainTip" $ testGetChainTip
   -- Test inverse in one direction.
   group "Address loop" do
     test "Ogmios Address to Address & back Testnet"
@@ -60,7 +64,25 @@ testUtxosAt testAddr = do
       , serverConfig: defaultServerConfig
       , wallet: Nothing
       , usedTxOuts
+      , networkId: TestnetId
+      , slotConfig: defaultSlotConfig
       }
+
+testGetChainTip :: Aff Unit
+testGetChainTip = do
+  ogmiosWs <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
+  datumCacheWs <- mkDatumCacheWebSocketAff defaultDatumCacheWsConfig
+  usedTxOuts <- newUsedTxOuts
+  runReaderT
+    (getChainTip *> pure unit)
+    { ogmiosWs
+    , datumCacheWs
+    , serverConfig: defaultServerConfig
+    , wallet: Nothing
+    , usedTxOuts
+    , networkId: TestnetId
+    , slotConfig: defaultSlotConfig
+    }
 
 testFromOgmiosAddress :: OgmiosAddress -> Aff Unit
 testFromOgmiosAddress testAddr = do

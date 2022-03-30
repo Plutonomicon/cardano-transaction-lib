@@ -1,6 +1,6 @@
 module Main (main) where
 
-import Api (app, applyArgs, estimateTxFees)
+import Api (app, applyArgs, estimateTxFees, hashScript)
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.Kind (Type)
 import Network.HTTP.Client (defaultManagerSettings, newManager)
@@ -38,6 +38,8 @@ import Types (
   Cbor (Cbor),
   Env,
   Fee (Fee),
+  HashScriptRequest (HashScriptRequest),
+  HashedScript (HashedScript),
   newEnvIO,
   unsafeDecode,
  )
@@ -49,6 +51,7 @@ serverSpec :: Spec
 serverSpec = do
   describe "Api.Handlers.applyArgs" applyArgsSpec
   describe "Api.Handlers.estimateTxFees" feeEstimateSpec
+  describe "Api.Handlers.hashScript" hashScriptSpec
 
 applyArgsSpec :: Spec
 applyArgsSpec = around withTestApp $ do
@@ -118,6 +121,17 @@ feeEstimateSpec = around withTestApp $ do
         | scode == code && sbody == body -> True
       _ -> False
 
+hashScriptSpec :: Spec
+hashScriptSpec = around withTestApp $ do
+  clientEnv <- setupClientEnv
+
+  context "POST hash-script" $ do
+    it "hashes the script" $ \port -> do
+      result <-
+        runClientM' (clientEnv port) $
+          hashScript hashScriptRequestFixture
+      result `shouldBe` Right hashedScriptFixture
+
 setupClientEnv :: SpecM Port (Port -> ClientEnv)
 setupClientEnv = do
   baseUrl <- runIO $ parseBaseUrl "http://localhost"
@@ -154,6 +168,19 @@ cborTxFixture =
       , "767366ecf6709b8354e02e2df6c35d78453adb04ec76f8a3d1287468b8c244ff051dcd0"
       , "f29dbcac1f7baf3e2d06ce06f5f6"
       ]
+
+hashScriptRequestFixture :: HashScriptRequest
+hashScriptRequestFixture =
+  HashScriptRequest $
+    unsafeDecode "Script" "\"4d01000033222220051200120011\""
+
+hashedScriptFixture :: HashedScript
+hashedScriptFixture =
+  HashedScript $
+    unsafeDecode
+      "ScriptHash"
+      "{\"getScriptHash\":\
+      \\"67f33146617a5e61936081db3b2117cbf59bd2123748f58ac9678656\"}"
 
 unappliedRequestFixture :: ApplyArgsRequest
 unappliedRequestFixture =

@@ -119,6 +119,8 @@ foreign import newInt32 :: Int -> Effect Int32
 foreign import _hashScriptData :: Redeemers -> Costmdls -> PlutusList -> Effect ScriptDataHash
 foreign import newRedeemers :: Effect Redeemers
 foreign import addRedeemer :: Redeemers -> Redeemer -> Effect Unit
+foreign import newScriptDataHashFromBytes :: ByteArray -> Effect ScriptDataHash
+foreign import setTxBodyScriptDataHash :: TransactionBody -> ScriptDataHash -> Effect TransactionBody
 
 foreign import toBytes
   :: ( Transaction
@@ -129,6 +131,7 @@ foreign import toBytes
          |+| TransactionWitnessSet
          |+| NativeScript
          |+| ScriptDataHash
+         |+| Redeemers
      -- Add more as needed.
      )
   -> ByteArray
@@ -139,6 +142,9 @@ convertTransaction (T.Transaction { body: T.TxBody body, witness_set }) = do
   outputs <- convertTxOutputs body.outputs
   fee <- maybe (throw "Failed to convert fee") pure $ bigNumFromBigInt (unwrap body.fee)
   txBody <- newTransactionBody inputs outputs fee
+  traverse_
+    (unwrap >>> newScriptDataHashFromBytes >=> setTxBodyScriptDataHash txBody)
+    body.script_data_hash
   ws <- convertWitnessSet witness_set
   newTransaction txBody ws
 

@@ -38,13 +38,14 @@ module Test.Fixtures
   , txInputFixture1
   , seabugMetadataFixture1
   , seabugMetadataDeltaFixture1
+  , redeemerFixture1
   ) where
 
 import Prelude
 
 import Data.BigInt as BigInt
 import Data.Map as Map
-import Data.Maybe (Maybe(..), fromJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Metadata.Seabug (SeabugMetadata(SeabugMetadata), SeabugMetadataDelta(SeabugMetadataDelta))
@@ -66,11 +67,13 @@ import Types.ByteArray
   )
 import Types.Natural as Natural
 import Types.PlutusData as PD
+import Types.RedeemerTag (RedeemerTag(Spend))
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash), ValidatorHash(ValidatorHash))
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry)
   , PublicKey(PublicKey)
+  , Redeemer(Redeemer)
   , Transaction(Transaction)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
@@ -542,4 +545,15 @@ seabugMetadataDeltaFixture1 = SeabugMetadataDelta
   { policyId: policyId
   , ownerPkh: PubKeyHash ed25519KeyHashFixture2
   , ownerPrice: unsafePartial $ fromJust $ Natural.fromBigInt $ BigInt.fromInt 10
+  }
+
+redeemerFixture1 :: Redeemer
+redeemerFixture1 = Redeemer
+  { tag: Spend
+  , index: BigInt.fromInt 0
+  , data: plutusDataFixture7
+  , ex_units:
+      { mem: BigInt.fromInt 1
+      , steps: BigInt.fromInt 1
+      }
   }

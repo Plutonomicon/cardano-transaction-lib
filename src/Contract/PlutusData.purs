@@ -12,13 +12,12 @@ module Contract.PlutusData
   , getDatumsByHashes
   , startFetchBlocksRequest
   , module Datum
-  , module ExportedQueryM
+  , module ExportQueryM
   , module PlutusData
   , module Redeemer
   , module FromData
   , module ToData
   , module Transaction
-  , module TxOutput
   ) where
 
 import Prelude
@@ -41,7 +40,7 @@ import QueryM
   , DatumCacheWebSocket
   , defaultDatumCacheWsConfig
   , mkDatumCacheWebSocketAff
-  ) as ExportedQueryM
+  ) as ExportQueryM
 import Serialization.Address (Slot, BlockId)
 import ToData (class ToData, toData) as ToData
 import Types.PlutusData
@@ -62,10 +61,6 @@ import Types.Redeemer
 -- Not importing `RedeemerTag` for now.
 import Types.Transaction (DatumHash)
 import Types.Transaction (DataHash(DataHash)) as Transaction
-import TxOutput
-  ( datumHashToOgmiosDatumHash
-  , ogmiosDatumHashToDatumHash
-  ) as TxOutput
 
 -- | Get a `PlutusData` given a `DatumHash`.
 getDatumByHash :: DatumHash -> Contract (Maybe PlutusData.PlutusData)

@@ -160,8 +160,8 @@ instance ToData a => ToData (Array a) where
 instance ToData a => ToData (List a) where
   toData = foldableToPlutusData
 
-instance (ToData a, ToData b) => ToData (a /\ b) where
-  toData (a /\ b) = Constr zero [ toData a, toData b ]
+instance (ToData a, ToData b) => ToData (Tuple a b) where
+  toData (Tuple a b) = Constr zero [ toData a, toData b ]
 
 instance (ToData k, ToData v) => ToData (Map k v) where
   toData mp = Map $ entries # map (toData *** toData) # Map.fromFoldable

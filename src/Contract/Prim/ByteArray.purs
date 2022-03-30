@@ -5,10 +5,10 @@ import Types.ByteArray
   ( ByteArray(ByteArray)
   , byteArrayFromIntArray
   , byteArrayFromIntArrayUnsafe
-  , byteArrayToIntArray
+  , byteArrayFromString
   , byteArrayToHex
+  , byteArrayToIntArray
   , byteLength
   , hexToByteArray
   , hexToByteArrayUnsafe
   ) as ByteArray
-

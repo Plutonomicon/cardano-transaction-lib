@@ -4,6 +4,7 @@
       url = "github:edolstra/flake-compat";
       flake = false;
     };
+    flake-compat-ci.url = "github:hercules-ci/flake-compat-ci";
 
     nixpkgs.url = "github:NixOS/nixpkgs/dde1557825c5644c869c5efc7448dc03722a8f09";
 
@@ -39,32 +40,42 @@
     };
     cardano-base = {
       url =
-        "github:input-output-hk/cardano-base/4ea7e2d927c9a7f78ddc69738409a5827ab66b98";
+        "github:input-output-hk/cardano-base/41545ba3ac6b3095966316a99883d678b5ab8da8";
+      flake = false;
+    };
+    cardano-config = {
+      url =
+        "github:input-output-hk/cardano-config/fe7855e981072d392513f9cf3994e0b6eba40d7d";
       flake = false;
     };
     cardano-crypto = {
       url =
-        "github:input-output-hk/cardano-crypto/07397f0e50da97eaa0575d93bee7ac4b2b2576ec";
+        "github:input-output-hk/cardano-crypto/f73079303f663e028288f9f4a9e08bcca39a923e";
       flake = false;
     };
-    cardano-ledger-specs = {
+    cardano-ledger = {
       url =
-        "github:input-output-hk/cardano-ledger-specs/bf008ce028751cae9fb0b53c3bef20f07c06e333";
+        "github:input-output-hk/cardano-ledger/1a9ec4ae9e0b09d54e49b2a40c4ead37edadcce5";
       flake = false;
     };
     cardano-node = {
       url =
-        "github:input-output-hk/cardano-node/2cbe363874d0261bc62f52185cf23ed492cf4859";
+        "github:input-output-hk/cardano-node/8909dea9b3996b8288f15f0e4f31fb0f63964197";
       flake = false;
     };
     cardano-prelude = {
       url =
-        "github:input-output-hk/cardano-prelude/fd773f7a58412131512b9f694ab95653ac430852";
+        "github:input-output-hk/cardano-prelude/bb4ed71ba8e587f672d06edf9d2e376f4b055555";
       flake = false;
     };
     cardano-wallet = {
       url =
-        "github:j-mueller/cardano-wallet/6be73ab852c0592713dfe78218856d4a8a0ee69e";
+        "github:input-output-hk/cardano-wallet/ae7569293e94241ef6829139ec02bd91abd069df";
+      flake = false;
+    };
+    ekg-forward = {
+      url =
+        "github:input-output-hk/ekg-forward/297cd9db5074339a2fb2e5ae7d0780debb670c63";
       flake = false;
     };
     flat = {
@@ -79,7 +90,7 @@
     };
     iohk-monitoring-framework = {
       url =
-        "github:input-output-hk/iohk-monitoring-framework/46f994e216a1f8b36fe4669b47b2a7011b0e153c";
+        "github:input-output-hk/iohk-monitoring-framework/808724ff8a19a33d0ed06f9ef59fbd900b08553c";
       flake = false;
     };
     optparse-applicative = {
@@ -89,12 +100,12 @@
     };
     ouroboros-network = {
       url =
-        "github:input-output-hk/ouroboros-network/1f4973f36f689d6da75b5d351fb124d66ef1057d";
+        "github:input-output-hk/ouroboros-network/d2d219a86cda42787325bb8c20539a75c2667132";
       flake = false;
     };
     plutus = {
       url =
-        "github:input-output-hk/plutus/3f089ccf0ca746b399c99afe51e063b0640af547";
+        "github:input-output-hk/plutus/1efbb276ef1a10ca6961d0fd32e6141e9798bd11";
       flake = false;
     };
     # NOTE
@@ -103,12 +114,12 @@
     # be useful for communicating with the frontend
     purescript-bridge = {
       url =
-        "github:input-output-hk/purescript-bridge/366fc70b341e2633f3ad0158a577d52e1cd2b138";
+        "github:shmish111/purescript-bridge/6a92d7853ea514be8b70bab5e72077bf5a510596";
       flake = false;
     };
     servant-purescript = {
       url =
-        "github:input-output-hk/servant-purescript/ebea59c7bdfc0338d83fca772b9a57e28560bcde";
+        "github:shmish111/servant-purescript/a76104490499aa72d40c2790d10e9383e0dbde63";
       flake = false;
     };
     Win32-network = {
@@ -118,7 +129,14 @@
     };
   };
 
-  outputs = { self, nixpkgs, haskell-nix, iohk-nix, ... }@inputs:
+  outputs =
+    { self
+    , nixpkgs
+    , haskell-nix
+    , iohk-nix
+    , flake-compat-ci
+    , ...
+    }@inputs:
     let
       defaultSystems = [ "x86_64-linux" "x86_64-darwin" ];
       perSystem = nixpkgs.lib.genAttrs defaultSystems;
@@ -153,30 +171,28 @@
 
       devShell = perSystem (system: (psProjectFor system).devShell);
 
-      # It might be a good idea to keep this as a separate shell; if you're
-      # working on the PS frontend, it doesn't make a lot of sense to pull
-      # in all of the Haskell dependencies
-      #
-      # This can be used with `nix develop .#hsDevShell.<SYSTEM>`
-      hsDevShell = perSystem (system: self.hsFlake.${system}.devShell);
-
       packages = perSystem (system:
-        self.hsFlake.${system}.packages // (psProjectFor system).packages
+        self.hsFlake.${system}.packages
+        // (psProjectFor system).packages
+        # It might be a good idea to keep this as a separate shell; if you're
+        # working on the PS frontend, it doesn't make a lot of sense to pull
+        # in all of the Haskell dependencies
+        #
+        # This can be used with `nix develop .#hsDevShell
+        // { hsDevShell = self.hsFlake.${system}.devShell; }
       );
 
-      apps = perSystem (system:
-        let
-          serverApp = "cardano-browser-tx-server:exe:cardano-browser-tx-server";
-        in
-        {
-          cbtx-server = self.hsFlake.${system}.apps.${serverApp};
-        }
-      );
+      apps = perSystem (system: {
+        inherit
+          (self.hsFlake.${system}.apps)
+          "cardano-browser-tx-server:exe:cardano-browser-tx-server";
+      });
 
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);
 
-      checks = perSystem (system: (psProjectFor system).checks);
-
-      check = perSystem (system: (psProjectFor system).check);
+      ci = flake-compat-ci.lib.recurseIntoFlakeWith {
+        flake = self;
+        systems = [ "x86_64-linux" ];
+      };
     };
 }

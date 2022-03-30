@@ -1,28 +1,32 @@
 -- | A module for Address-related functionality and querying own wallet.
 module Contract.Address
-  ( getWalletAddress
+  ( getNetworkId
+  , getWalletAddress
   , getWalletCollateral
-  , ownPaymentPubKeyHash
-  , ownPubKeyHash
-  , module Address
+  , module ExportAddress
   , module Bech32
   , module ByteArray
-  , module JsonWsp
+  , module ContractScripts
   , module Scripts
   , module SerializationAddress
   , module Transaction
   , module UnbalancedTransaction
+  , ownPaymentPubKeyHash
+  , ownPubKeyHash
   ) where
 
 import Address
   ( addressMintingPolicyHash
   , addressScriptHash
   , addressStakeValidatorHash
-  , addressToOgmiosAddress
   , addressValidatorHash
-  , ogmiosAddressToAddress
-  ) as Address
+  ) as ExportAddress
+import Address (getNetworkId) as Address
 import Contract.Monad (Contract)
+import Contract.Scripts
+  ( validatorAddress
+  , validatorBaseAddress
+  ) as ContractScripts
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
 import QueryM
@@ -34,8 +38,6 @@ import QueryM
 import Scripts
   ( typedValidatorAddress
   , typedValidatorBaseAddress
-  , validatorAddress
-  , validatorBaseAddress
   , validatorHashAddress
   , validatorHashBaseAddress
   ) as Scripts
@@ -58,7 +60,6 @@ import Serialization.Address -- There are a lot of helpers we have ignored here,
   ) as SerializationAddress
 import Types.Aliases (Bech32String) as Bech32
 import Types.ByteArray (ByteArray) as ByteArray
-import Types.JsonWsp (OgmiosAddress) as JsonWsp
 import Types.UnbalancedTransaction
   ( PubKeyHash
   , PaymentPubKeyHash
@@ -109,3 +110,7 @@ ownPaymentPubKeyHash = wrap QueryM.ownPaymentPubKeyHash
 -- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
 ownPubKeyHash :: Contract (Maybe PubKeyHash)
 ownPubKeyHash = wrap QueryM.ownPubKeyHash
+
+-- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
+getNetworkId :: Contract SerializationAddress.NetworkId
+getNetworkId = wrap Address.getNetworkId
