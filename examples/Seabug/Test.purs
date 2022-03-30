@@ -54,7 +54,7 @@ testNftData = do
     =<< hexToByteArray "cf0c1cbf47537f238f756fc1be191abf76009e1988910092184c4b7f"
   lockingScript <- liftContractM "`ScriptHash`"
     $ scriptHashFromBytes
-    =<< hexToByteArray "cf0c1cbf47537f238f756fc1be191abf76009e1988910092184c4b7f"
+    =<< hexToByteArray "6c1039b6973bb0e7ad42de5b16a691ede3e0265cd58caf070ff15ef3"
   daoScript <- liftContractM "`ScriptHash`"
     $ scriptHashFromBytes
     =<< hexToByteArray "9da8fa76a2a0f52aa5df10fb7b81f9afe4b20e9068b3f95fadc7477a"
