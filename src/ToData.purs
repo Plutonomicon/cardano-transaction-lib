@@ -41,15 +41,18 @@ import Types.PlutusData (PlutusData(Constr, Integer, List, Map, Bytes))
 
 -- | Classes
 
+class ToData :: Type -> Constraint
 class ToData (a :: Type) where
   toData :: a -> PlutusData
 
+class ToDataWithIndex :: Type -> Type -> Constraint
 class ToDataWithIndex a ci where
   toDataWithIndex :: HasConstrIndex ci => Proxy ci -> a -> PlutusData
 
 -- As explained in https://harry.garrood.me/blog/write-your-own-generics/ this
 -- is just a neat pattern that flattens a skewed Product of Products
-class ToDataArgs (a :: Type) where
+class ToDataArgs :: Type -> Constraint
+class ToDataArgs a where
   toDataArgs :: a -> Array (PlutusData)
 
 -- | A helper typeclass to implement `ToDataArgs` for records.
@@ -58,14 +61,16 @@ class ToDataArgsRL :: RL.RowList Type -> Row Type -> Constraint
 class ToDataArgsRL list row | list -> row where
   toDataArgsRec :: forall rlproxy. rlproxy list -> Record row -> Array PlutusData
 
--- | ToDataArgs isntances for Data.Generic.Rep
+-- | ToDataWithIndex instances for Data.Generic.Rep
 
 instance (HasConstrIndex a, ToDataWithIndex l a, ToDataWithIndex r a) => ToDataWithIndex (G.Sum l r) a where
-  toDataWithIndex p (G.Inl x) = toDataWithIndex (p :: Proxy a) x
-  toDataWithIndex p (G.Inr x) = toDataWithIndex (p :: Proxy a) x
+  toDataWithIndex p (G.Inl x) = toDataWithIndex p x
+  toDataWithIndex p (G.Inr x) = toDataWithIndex p x
 
 instance (IsSymbol n, HasConstrIndex a, ToDataArgs arg) => ToDataWithIndex (G.Constructor n arg) a where
   toDataWithIndex p (G.Constructor args) = Constr (resolveIndex p (SProxy :: SProxy n)) (toDataArgs args)
+
+-- | ToDataArgs instances for Data.Generic.Rep
 
 instance ToDataArgs G.NoArguments where
   toDataArgs _ = []
@@ -116,7 +121,7 @@ resolveIndex pa sps =
   in
     case Map.lookup cn c2i of
       Just i -> BigInt.fromInt i
-      Nothing -> zero - BigInt.fromInt 1 -- TODO: Figure out type level
+      Nothing -> negate BigInt.fromInt 1 -- TODO: Figure out type level
 
 -- | Base ToData instances
 

@@ -42,13 +42,16 @@ import Types.PlutusData (PlutusData(Bytes, Constr, List, Map, Integer))
 
 -- | Classes
 
+class FromData :: Type -> Constraint
 class FromData (a :: Type) where
   fromData :: PlutusData -> Maybe a
 
+class FromDataWithIndex :: Type -> Type -> Constraint
 class FromDataWithIndex a ci where
   fromDataWithIndex :: HasConstrIndex ci => Proxy a -> Proxy ci -> PlutusData -> Maybe a
 
 -- NOTE: Using the 'parser' approach as in https://github.com/purescript-contrib/purescript-argonaut-generic/blob/3ae9622814fd3f3f06fa8e5e58fd58d2ef256b91/src/Data/Argonaut/Decode/Generic.purs
+class FromDataArgs :: Type -> Constraint
 class FromDataArgs a where
   fromDataArgs :: Array PlutusData -> Maybe { head :: a, tail :: Array PlutusData }
 
@@ -61,11 +64,11 @@ class FromDataArgsRL list row | list -> row where
 -- | FromDataWithIndex instances for Data.Generic.Rep
 -- See https://purescript-simple-json.readthedocs.io/en/latest/generics-rep.html
 
-instance (HasConstrIndex a, FromDataWithIndex l a, FromDataWithIndex r a) => FromDataWithIndex (G.Sum l r) a where
+instance (FromDataWithIndex l a, FromDataWithIndex r a) => FromDataWithIndex (G.Sum l r) a where
   fromDataWithIndex _ pci pd = G.Inl <$> fromDataWithIndex (Proxy :: Proxy l) pci pd
     <|> G.Inr <$> fromDataWithIndex (Proxy :: Proxy r) pci pd
 
-instance (IsSymbol n, HasConstrIndex a, FromDataArgs arg) => FromDataWithIndex (G.Constructor n arg) a where
+instance (IsSymbol n, FromDataArgs arg) => FromDataWithIndex (G.Constructor n arg) a where
   fromDataWithIndex _ pci (Constr i pdArgs) = do
     ix <- BigInt.toInt i
     cn <- resolveConstr pci ix
@@ -73,7 +76,7 @@ instance (IsSymbol n, HasConstrIndex a, FromDataArgs arg) => FromDataWithIndex (
     guard $ cn == rn
     { head: repArgs, tail: pdArgs' } <- fromDataArgs pdArgs
     guard $ pdArgs' == []
-    pure $ (G.Constructor repArgs :: G.Constructor n arg)
+    pure $ G.Constructor repArgs
   fromDataWithIndex _ _ _ = Nothing
 
 instance (HasConstrIndex ci, FromDataWithIndex a ci) => FromDataWithIndex (G.Argument a) ci where
