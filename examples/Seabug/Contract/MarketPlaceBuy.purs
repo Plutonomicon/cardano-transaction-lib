@@ -31,6 +31,7 @@ import Contract.PlutusData
   , toData
   , unitRedeemer
   )
+import Contract.Prim.ByteArray (hexToByteArray)
 import Contract.ProtocolParameters.Alonzo (minAdaTxOut)
 import Contract.Scripts (typedValidatorEnterpriseAddress)
 import Contract.Transaction (TxOut, UnbalancedTx, balanceTx, submitTransaction)
@@ -48,8 +49,8 @@ import Contract.Value
   , Value
   , coinToValue
   , lovelaceValueOf
+  , mkCurrencySymbol
   , mkSingletonValue'
-  , scriptCurrencySymbol
   , valueOf
   )
 import Data.Array (find) as Array
@@ -93,8 +94,9 @@ mkMarketplaceTx (NftData nftData) = do
     ownPaymentPubKeyHash
   policy' <- liftedM "marketplaceBuy: Cannot apply arguments"
     (policy nftData.nftCollection mp)
-  curr <- liftedM "marketplaceBuy: Cannot get CurrencySymbol"
-    (scriptCurrencySymbol policy')
+  curr <- liftContractM "marketplaceBuy: Cannot get CurrencySymbol"
+    (mkCurrencySymbol =<< hexToByteArray
+      "7040636730e73aea054c0b2dd0b734bec3ecaaca1e3cbe48b482ca14")
   -- Read in the typed validator:
   marketplaceValidator' <- unwrap <$> liftContractE' marketplaceValidator
   networkId <- getNetworkId
