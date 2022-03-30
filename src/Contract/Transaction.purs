@@ -7,8 +7,10 @@ module Contract.Transaction
   , calculateMinFeeM
   , signTransaction
   , submitTransaction
+  , finalizeTx
   , module BalanceTxError
   , module ExportQueryM
+  , module JsonWsp
   , module ScriptLookups
   , module Transaction
   , module TxOutput
@@ -25,12 +27,17 @@ import Data.Newtype (wrap)
 import QueryM
   ( FeeEstimate(FeeEstimate)
   , ClientError(..) -- implicit as this error list will likely increase.
+  , FinalizedTransaction(FinalizedTransaction)
   ) as ExportQueryM
 import QueryM
-  ( calculateMinFee
+  ( FinalizedTransaction
+  , calculateMinFee
   , signTransaction
   , submitTransaction
+  , finalizeTx
   ) as QueryM
+import Types.JsonWsp (OgmiosTxOut, OgmiosTxOutRef) as JsonWsp -- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
+import Types.PlutusData (PlutusData)
 import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
   , mkUnbalancedTx
@@ -74,6 +81,7 @@ import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and ass
   , ProtocolParamUpdate
   , ProtocolVersion
   , PublicKey(PublicKey)
+  , Redeemer
   , RequiredSigner(RequiredSigner)
   , ScriptDataHash(ScriptDataHash)
   , SubCoin
@@ -91,7 +99,6 @@ import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and ass
   , TransactionOutput(TransactionOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
-  , TxOut
   , UnitInterval
   , Update
   , Utxo
@@ -132,6 +139,7 @@ import TxOutput -- Could potentially trim this down, -- FIX ME: https://github.c
   , transactionOutputToScriptOutput
   , txOutRefToTransactionInput
   ) as TxOutput
+import Types.ByteArray (ByteArray)
 import Types.UnbalancedTransaction (UnbalancedTx)
 import Types.UnbalancedTransaction
   ( ScriptOutput(ScriptOutput) -- More up-to-date Plutus uses this, wonder if we can just use `TransactionOutput`
@@ -142,6 +150,7 @@ import Types.UnbalancedTransaction
   , emptyUnbalancedTx
   ) as UnbalancedTx
 import Types.Value (Coin)
+import Types.Datum (Datum)
 
 -- | This module defines transaction-related requests. Currently signing and
 -- | submission is done with Nami.
@@ -172,3 +181,10 @@ balanceTx = wrap <<< BalanceTx.balanceTx
 -- | Attempts to balance an `UnbalancedTx` hushing the error.
 balanceTxM :: UnbalancedTx -> Contract (Maybe Transaction)
 balanceTxM = map hush <<< balanceTx
+
+finalizeTx
+  :: Transaction.Transaction
+  -> Array Datum
+  -> Array Transaction.Redeemer
+  -> Contract (Maybe QueryM.FinalizedTransaction)
+finalizeTx tx datums redeemers = wrap $ QueryM.finalizeTx tx datums redeemers
