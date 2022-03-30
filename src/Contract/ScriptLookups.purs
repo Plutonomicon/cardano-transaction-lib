@@ -34,11 +34,11 @@ import Types.ScriptLookups
   , ownPaymentPubKeyHashM
   , ownStakePubKeyHash
   , ownStakePubKeyHashM
-  , paymentPubKeyM
+  -- , paymentPubKeyM
   , typedValidatorLookups
   , typedValidatorLookupsM
   , unsafeOtherDataM
-  , unsafePaymentPubKey
+  -- , unsafePaymentPubKey
   , unspentOutputs
   , unspentOutputsM
   ) as ScriptLookups

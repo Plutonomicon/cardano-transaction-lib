@@ -118,7 +118,8 @@ import Serialization.Address
   , BlockId
   , NetworkId
   , Slot
-  , addressBech32
+  , addressPaymentCred
+  , stakeCredentialToKeyHash
   )
 import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData)
@@ -130,7 +131,7 @@ import Types.PlutusData (PlutusData)
 import Types.Scripts (PlutusScript)
 import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Types.UnbalancedTransaction (PubKeyHash, PaymentPubKeyHash, pubKeyHash)
+import Types.UnbalancedTransaction (PubKeyHash, PaymentPubKeyHash)
 import Types.Value
   ( Coin(Coin)
   , CurrencySymbol
@@ -294,7 +295,8 @@ submitTransaction tx = withMWalletAff $ case _ of
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash =
-  map ((=<<) pubKeyHash <<< map (wrap <<< addressBech32)) getWalletAddress
+  map (map wrap <<< (=<<) (stakeCredentialToKeyHash <=< addressPaymentCred))
+    getWalletAddress
 
 ownPaymentPubKeyHash :: QueryM (Maybe PaymentPubKeyHash)
 ownPaymentPubKeyHash = map wrap <$> ownPubKeyHash

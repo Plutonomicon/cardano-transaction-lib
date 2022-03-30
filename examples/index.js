@@ -1,7 +1,7 @@
 "use strict";
 
 // This needs to be asynchronous to load the WASM from CSL
-import("./nami/Pkh2Pkh.purs").then((m) => m.main());
+import("./Seabug/Test.purs").then((m) => m.main());
 
 if (module.hot) {
   module.hot.accept();

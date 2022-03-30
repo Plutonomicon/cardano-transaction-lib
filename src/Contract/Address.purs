@@ -36,8 +36,8 @@ import QueryM
   , ownPubKeyHash
   ) as QueryM
 import Scripts
-  ( typedValidatorAddress
-  , typedValidatorBaseAddress
+  ( typedValidatorBaseAddress
+  , typedValidatorEnterpriseAddress
   , validatorHashAddress
   , validatorHashBaseAddress
   ) as Scripts
@@ -71,12 +71,11 @@ import Types.UnbalancedTransaction
   , ScriptOutput(ScriptOutput)
   , StakeKeyHash(StakeKeyHash)
   , StakePubKeyHash(StakePubKeyHash)
-  , payPubKeyHash
   , payPubKeyHashAddress
   , payPubKeyHashBaseAddress
   , payPubKeyRequiredSigner
   , payPubKeyVkey
-  , pubKeyHash
+  -- , pubKeyHash
   , pubKeyHashAddress
   , pubKeyHashBaseAddress
   , stakeKeyHashAddress
