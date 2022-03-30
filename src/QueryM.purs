@@ -10,6 +10,7 @@ module QueryM
   , ListenerSet
   , OgmiosListeners
   , OgmiosWebSocket
+  , ProjectId
   , QueryConfig
   , QueryM
   , ServerConfig
@@ -174,7 +175,10 @@ type QueryConfig =
   , usedTxOuts :: UsedTxOuts
   , networkId :: NetworkId
   , slotConfig :: SlotConfig
+  , projectId :: ProjectId
   }
+
+type ProjectId = String
 
 type QueryM (a :: Type) = ReaderT QueryConfig Aff a
 
