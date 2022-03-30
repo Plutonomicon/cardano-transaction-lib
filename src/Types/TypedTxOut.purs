@@ -33,7 +33,7 @@ import Data.Show.Generic (genericShow)
 import FromData (class FromData, fromData)
 import Helpers (liftM)
 import QueryM (QueryM, getDatumByHash)
-import Scripts (typedValidatorAddress)
+import Scripts (typedValidatorEnterpriseAddress)
 import Serialization.Address (Address, NetworkId)
 import ToData (class ToData, toData)
 import Types.Datum (Datum(Datum), DatumHash, datumHash)
@@ -171,7 +171,9 @@ mkTypedTxOut
   -> Maybe (TypedTxOut a b)
 mkTypedTxOut networkId typedVal dt amount = do
   dHash <- datumHash $ Datum $ toData dt
-  let address = typedValidatorAddress networkId typedVal
+  -- FIX ME: This is hardcoded to enterprise address, it seems like Plutus'
+  -- "validatorAddress" also currently doesn't accoutn for staking.
+  let address = typedValidatorEnterpriseAddress networkId typedVal
   pure $ mkTypedTxOut' (wrap { address, amount, data_hash: pure dHash }) dt
   where
   mkTypedTxOut'
@@ -206,7 +208,7 @@ checkValidatorAddress
   -> Address
   -> m (Either TypeCheckError Unit)
 checkValidatorAddress networkId typedVal actualAddr = runExceptT do
-  let expectedAddr = typedValidatorAddress networkId typedVal
+  let expectedAddr = typedValidatorEnterpriseAddress networkId typedVal
   unless (expectedAddr == actualAddr)
     $ throwError
     $ WrongValidatorAddress expectedAddr actualAddr
