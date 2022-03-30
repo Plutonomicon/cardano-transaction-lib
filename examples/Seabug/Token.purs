@@ -29,8 +29,6 @@ policy
 policy
   ( NftCollection
       { collectionNftCs -- CurrencySymbol
-      , lockLockup -- BigInt
-      , lockLockupEnd -- Slot
       , lockingScript -- ValidatorHash
       , author -- PaymentPubKeyHash
       , authorShare -- Natural
@@ -42,8 +40,6 @@ policy
   let
     pd =
       [ toData collectionNftCs
-      , toData lockLockup
-      , toData lockLockupEnd
       , toData lockingScript
       , toData author
       , toData authorShare
