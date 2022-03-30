@@ -49,7 +49,6 @@ module QueryM
   ) where
 
 import Prelude
-import Undefined
 
 import Aeson as Aeson
 import Affjax as Affjax
