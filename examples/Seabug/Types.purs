@@ -375,7 +375,7 @@ instance (Hashable a, Hashable b) => Hashable (a /\ b) where
 
 instance Hashable NftId where
   hash (NftId { collectionNftTn, price, owner }) =
-    op3 <$> hash collectionNftTn <*> hash price <*> hash owner
+    op3 <$> hash price <*> hash owner <*> hash collectionNftTn
       >>= maybe (pure Nothing) hash
     where
     op3 :: forall (a :: Type). Semigroup a => a -> a -> a -> a
