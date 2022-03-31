@@ -4,9 +4,10 @@ module Seabug.Contract.MarketPlaceListNft
   ) where
 
 import Contract.Prelude
-import Contract.Address (validatorAddress)
+import Contract.Address (getNetworkId)
 import Contract.Monad (Contract, liftContractE', liftedM)
 import Contract.PlutusData (fromData, getDatumByHash)
+import Contract.Scripts (typedValidatorEnterpriseAddress)
 import Contract.Transaction (TransactionOutput(TransactionOutput))
 import Contract.Utxos (UtxoM, utxosAt)
 import Contract.Value (valueOf)
@@ -19,8 +20,10 @@ import Seabug.Types (MarketplaceDatum(MarketplaceDatum))
 marketPlaceListNft :: Contract UtxoM
 marketPlaceListNft = do
   marketplaceValidator' <- unwrap <$> liftContractE' marketplaceValidator
-  scriptAddr <- liftedM "marketPlaceListNft: Cannot get script Address"
-    (validatorAddress marketplaceValidator'.validator)
+  networkId <- getNetworkId
+  let
+    scriptAddr =
+      typedValidatorEnterpriseAddress networkId $ wrap marketplaceValidator'
   scriptUtxos <-
     liftedM "marketPlaceListNft: Cannot get script Utxos" (utxosAt scriptAddr)
   let
