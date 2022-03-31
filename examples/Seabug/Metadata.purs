@@ -8,20 +8,28 @@ import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Monad (Contract)
 import Contract.Prim.ByteArray
-import Contract.Transaction (ClientError(ClientHttpError, ClientDecodeJsonError))
+import Contract.Transaction
+  ( ClientError(ClientHttpError, ClientDecodeJsonError)
+  )
 import Contract.Value
+import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Trans (asks)
+import Control.Monad.Trans.Class (lift)
 import Data.Argonaut (class DecodeJson)
 import Data.Argonaut as Json
 import Data.Bifunctor (bimap, lmap)
 import Data.Function (on)
 import Data.HTTP.Method (Method(GET))
 import Data.Newtype (unwrap)
+import Foreign.Object (Object)
+
+type Hash = String
 
 getMintingTxHash
-  :: CurrencySymbol /\ TokenName -> Contract (Either ClientError String)
-getMintingTxHash (currSym /\ tname) = mkGetRequest ("assets/" <> asset)
-  <#> either Left (decodeField "initial_mint_tx_hash")
+  :: CurrencySymbol /\ TokenName -> ExceptT ClientError Contract Hash
+getMintingTxHash (currSym /\ tname) =
+  except <<< decodeField "initial_mint_tx_hash"
+    =<< mkGetRequest ("assets/" <> asset)
   where
   asset :: String
   asset = mkAsset (getCurrencySymbol currSym) (getTokenName tname)
@@ -42,9 +50,9 @@ decodeField field = lmap ClientDecodeJsonError <<<
         (flip Json.getField field)
   )
 
-mkGetRequest :: String -> Contract (Either ClientError Json.Json)
+mkGetRequest :: String -> ExceptT ClientError Contract Json.Json
 mkGetRequest path = do
-  projectId <- asks $ _.projectId <<< unwrap
+  projectId <- lift $ asks $ _.projectId <<< unwrap
   let
     req :: Affjax.Request Json.Json
     req = Affjax.defaultRequest
@@ -55,7 +63,7 @@ mkGetRequest path = do
           [ Affjax.RequestHeader.RequestHeader "project_id" projectId
           ]
       }
-  liftAff $ Affjax.request req <#> bimap ClientHttpError _.body
+  ExceptT $ liftAff $ Affjax.request req <#> bimap ClientHttpError _.body
   where
   mkUrl :: String
   mkUrl = "https://cardano-testnet.blockfrost.io/api/v0/" <> path
