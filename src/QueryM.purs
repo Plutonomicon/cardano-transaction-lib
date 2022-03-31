@@ -68,12 +68,11 @@ import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, isRight, note, hush)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
-import Data.HTTP.Method (Method(GET))
 import Data.Maybe (Maybe(Just, Nothing), maybe, maybe')
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse, for)
-import Data.Tuple.Nested (type (/\), (/\))
+import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import DatumCacheWsp
@@ -380,6 +379,7 @@ data ClientError
   = ClientHttpError Affjax.Error
   | ClientDecodeJsonError Json.JsonDecodeError
   | ClientEncodingError String
+  | ClientOtherError String
 
 -- No Show instance of Affjax.Error
 instance Show ClientError where
@@ -392,6 +392,10 @@ instance Show ClientError where
       <> show err
       <> ")"
   show (ClientEncodingError err) =
+    "(ClientEncodingError "
+      <> err
+      <> ")"
+  show (ClientOtherError err) =
     "(ClientEncodingError "
       <> err
       <> ")"
