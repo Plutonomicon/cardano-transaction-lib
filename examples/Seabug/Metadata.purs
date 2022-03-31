@@ -7,7 +7,6 @@ module Seabug.Metadata
 import Contract.Prelude
 
 import Affjax as Affjax
-import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Monad (Contract)
@@ -31,7 +30,6 @@ import Data.Bifunctor (bimap, lmap)
 import Data.Function (on)
 import Data.HTTP.Method (Method(GET))
 import Data.Newtype (unwrap)
-import Foreign.Object (Object)
 import Metadata.Seabug (SeabugMetadata(SeabugMetadata))
 
 type Hash = String
