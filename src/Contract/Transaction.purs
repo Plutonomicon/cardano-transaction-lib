@@ -99,6 +99,7 @@ import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and ass
   , TransactionOutput(TransactionOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
+  , TxOut
   , UnitInterval
   , Update
   , Utxo
