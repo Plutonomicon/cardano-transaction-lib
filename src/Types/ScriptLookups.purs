@@ -6,18 +6,15 @@ module Types.ScriptLookups
   , mintingPolicyM
   , mkUnbalancedTx
   , mkUnbalancedTx'
-  , otherDataM
+  , otherData
   , otherScript
   , otherScriptM
   , ownPaymentPubKeyHash
   , ownPaymentPubKeyHashM
   , ownStakePubKeyHash
   , ownStakePubKeyHashM
-  -- , paymentPubKeyM
   , typedValidatorLookups
   , typedValidatorLookupsM
-  , unsafeOtherDataM
-  -- , unsafePaymentPubKey
   , unspentOutputs
   , unspentOutputsM
   ) where
@@ -25,6 +22,7 @@ module Types.ScriptLookups
 import Prelude hiding (join)
 
 import Address (addressValidatorHash)
+import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Control.Monad.Reader.Class (asks)
@@ -56,9 +54,10 @@ import FromData (class FromData)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
+import Effect.Class.Console (log)
 import Helpers ((<\>), liftEither, liftM, liftMWith)
 import Partial.Unsafe (unsafePartial)
-import QueryM (QueryConfig, QueryM, getDatumByHash)
+import QueryM (QueryConfig, QueryM, datumHash, getDatumByHash)
 import Scripts
   ( mintingPolicyHash
   , validatorHash
@@ -67,7 +66,7 @@ import Scripts
 import Serialization.Address (Address, NetworkId)
 import ToData (class ToData)
 import Types.Any (Any)
-import Types.Datum (Datum, DatumHash, datumHash)
+import Types.Datum (Datum(Datum), DatumHash)
 import Types.Interval (POSIXTimeRange, posixTimeRangeToTransactionSlot)
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
 import Types.Scripts
@@ -287,16 +286,14 @@ otherScriptM :: forall (a :: Type). Validator -> Maybe (ScriptLookups a)
 otherScriptM = pure <<< otherScript
 
 -- | A script lookups value with a datum. This can fail because we invoke
--- | `datumHash`.
-otherDataM :: forall (a :: Type). Datum -> Maybe (ScriptLookups a)
-otherDataM dt = do
-  dh <- datumHash dt
-  pure $ over ScriptLookups _ { otherData = singleton dh dt } mempty
-
--- | A script lookups value with a datum. This is unsafe because the underlying
--- | function `otherDataM` can fail.
-unsafeOtherDataM :: forall (a :: Type). Datum -> ScriptLookups a
-unsafeOtherDataM = unsafePartial fromJust <<< otherDataM
+-- | `datumHash` using a server.
+otherData :: forall (a :: Type). Datum -> QueryM (Maybe (ScriptLookups a))
+otherData dt = do
+  mDh <- datumHash dt
+  pure $ maybe
+    Nothing
+    (\dh -> Just $ over ScriptLookups _ { otherData = singleton dh dt } mempty)
+    mDh
 
 -- -- | A script lookups value with a payment public key. This can fail because we
 -- -- | invoke `payPubKeyHash`.
@@ -692,8 +689,8 @@ addOwnOutput (OutputConstraint { datum, value }) = do
   runExceptT do
     ScriptLookups { typedValidator } <- use _lookups
     inst <- liftM TypedValidatorMissing typedValidator
-    typedTxOut <-
-      liftM MkTypedTxOutFailed (mkTypedTxOut networkId inst datum value)
+    typedTxOut <- ExceptT $ lift $ mkTypedTxOut networkId inst datum value
+      <#> note MkTypedTxOutFailed
     let txOut = typedTxOutTxOut typedTxOut
     -- We are erroring if we don't have a datumhash given the polymorphic datum
     -- in the `OutputConstraint`:
@@ -829,7 +826,14 @@ processConstraint mpsMap osMap = do
           -- Note: if we get `Nothing`, we have to throw eventhough that's a
           -- valid input, because our `txOut` above is a Script address via
           -- `Just`.
-          dataValue <- ExceptT $ lookupDatum dHash
+          log "Try to get datum from Ogmios"
+          dataValue <- ExceptT $
+            ( lift $ getDatumByHash dHash
+                <#> note (CannotQueryDatum dHash) >>> map Datum
+            ) <|>
+              lookupDatum dHash
+          log "Got datum from Ogmios"
+          -- dataValue <- ExceptT $ lookupDatum dHash
           ExceptT $ attachToCps attachPlutusScript plutusScript
           -- Get the redeemer index, which is the current length of scripts - 1
           mIndex <-
@@ -867,11 +871,11 @@ processConstraint mpsMap osMap = do
         if i < zero then do
           v <- liftM (CannotMakeValue cs tn i) (value $ negate i)
           _valueSpentBalancesInputs <>= provide v
-          liftEither $ Right v
+          liftEither $ Right $ value i
         else do
           v <- liftM (CannotMakeValue cs tn i) (value i)
           _valueSpentBalancesOutputs <>= provide v
-          liftEither $ Right v
+          liftEither $ Right $ value i
       ExceptT $ attachToCps attachPlutusScript plutusScript
       -- Get the redeemer index, which is the current length of scripts - 1
       mIndex <- use (_cpsToWitnessSet <<< _plutusScripts <<< to (map lastIndex))
@@ -886,7 +890,7 @@ processConstraint mpsMap osMap = do
           , data: unwrap red
           , ex_units: mintExUnits
           }
-      _cpsToTxBody <<< _mint <>= Just (wrap mintVal)
+      _cpsToTxBody <<< _mint <>= (wrap <$> mintVal)
       -- Append redeemer for minting to array.
       _redeemers <>= Array.singleton redeemer
       -- Attach redeemer to witness set.
@@ -897,6 +901,14 @@ processConstraint mpsMap osMap = do
         -- If datum is presented, add it to 'datumWitnesses' and Array of datums.
         -- Otherwise continue, hence `liftEither $ Right unit`.
         maybe (liftEither $ Right unit) (ExceptT <<< addDatum) mDatum
+        let
+          liftDatumHash
+            :: forall (e :: Type) (dh :: Type)
+             . e
+            -> Maybe dh
+            -> Either e (Maybe dh)
+          liftDatumHash e Nothing = Left e
+          liftDatumHash _ (Just x) = Right (Just x)
         -- [DatumHash Note]
         -- The behaviour below is subtle because of `datumHash`'s `Maybe` context.
         -- In particular, if `mDatum` is `Nothing`, then return nothing (note: we
@@ -917,7 +929,9 @@ processConstraint mpsMap osMap = do
         -- `MustPayToPubKeyAddress`
         data_hash <- maybe
           (liftEither $ Right Nothing) -- Don't throw an error if Nothing.
-          (\datum -> liftMWith (CannotHashDatum datum) Just (datumHash datum))
+          ( \datum -> ExceptT $ lift $
+              liftDatumHash (CannotHashDatum datum) <$> datumHash datum
+          )
           mDatum
         let
           txOut = TransactionOutput
@@ -928,7 +942,9 @@ processConstraint mpsMap osMap = do
       networkId <- getNetworkId
       runExceptT do
         -- Don't write `let data_hash = datumHash datum`, see [datumHash Note]
-        data_hash <- liftM (CannotHashDatum datum) (datumHash datum <#> Just)
+        data_hash <- ExceptT $ lift $ note (CannotHashDatum datum)
+          <$> map Just
+          <$> datumHash datum
         let
           txOut = TransactionOutput
             { address: validatorHashAddress networkId vlh
@@ -938,8 +954,9 @@ processConstraint mpsMap osMap = do
         ExceptT $ addDatum datum
         _cpsToTxBody <<< _outputs %= (:) txOut
         _valueSpentBalancesOutputs <>= provide amount
-    MustHashDatum dh dt ->
-      if datumHash dt == Just dh then addDatum dt
+    MustHashDatum dh dt -> do
+      mdh <- lift $ datumHash dt
+      if mdh == Just dh then addDatum dt
       else pure $ throwError $ DatumWrongHash dh dt
     MustSatisfyAnyOf xs -> do
       cps <- get
