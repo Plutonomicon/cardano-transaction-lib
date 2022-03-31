@@ -130,7 +130,7 @@ import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
-import Types.Datum (DatumHash)
+import Types.Datum (Datum, DatumHash)
 import Types.Interval (SlotConfig)
 import Types.JsonWsp as JsonWsp
 import Types.PlutusData (PlutusData)
@@ -447,7 +447,7 @@ instance Json.DecodeJson FinalizedTransaction where
 
 finalizeTx
   :: Transaction.Transaction
-  -> Array PlutusData
+  -> Array Datum
   -> Array Transaction.Redeemer
   -> QueryM (Maybe FinalizedTransaction)
 finalizeTx tx datums redeemers = do
@@ -462,7 +462,7 @@ finalizeTx tx datums redeemers = do
     for datums \datum -> do
       byteArrayToHex <<< Serialization.toBytes <<< asOneOf
         <$> maybe' (\_ -> throw $ "Failed to convert plutus data: " <> show datum) pure
-          (Serialization.convertPlutusData datum)
+          (Serialization.convertPlutusData $ unwrap datum)
   -- redeemers
   encodedRedeemers <- liftEffect $
     byteArrayToHex <<< Serialization.toBytes <<< asOneOf <$>
@@ -630,13 +630,18 @@ mkOgmiosWebSocket'
 mkOgmiosWebSocket' serverCfg cb = do
   utxoDispatchMap <- createMutableDispatch
   chainTipDispatchMap <- createMutableDispatch
+  submitDispatchMap <- createMutableDispatch
   let md = ogmiosMessageDispatch { utxoDispatchMap, chainTipDispatchMap }
   ws <- _mkWebSocket $ mkWsUrl serverCfg
   _onWsConnect ws $ do
     _wsWatch ws (removeAllListeners utxoDispatchMap *> removeAllListeners chainTipDispatchMap)
     _onWsMessage ws (defaultMessageListener md)
     _onWsError ws defaultErrorListener
-    cb $ Right $ WebSocket ws { utxo: mkListenerSet utxoDispatchMap, chainTip: mkListenerSet chainTipDispatchMap }
+    cb $ Right $ WebSocket ws
+      { utxo: mkListenerSet utxoDispatchMap
+      , chainTip: mkListenerSet chainTipDispatchMap
+      , submit: mkListenerSet submitDispatchMap
+      }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
 
 mkDatumCacheWebSocket'
@@ -678,6 +683,7 @@ type DatumCacheListeners = ListenerSet DcWsp.JsonWspResponse
 type OgmiosListeners =
   { utxo :: ListenerSet JsonWsp.UtxoQR
   , chainTip :: ListenerSet JsonWsp.ChainTipQR
+  , submit :: ListenerSet String
   }
 
 -- convenience type for adding additional query types later

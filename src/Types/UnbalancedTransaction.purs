@@ -83,6 +83,10 @@ newtype ScriptOutput = ScriptOutput
   }
 
 derive instance Newtype ScriptOutput _
+derive instance Generic ScriptOutput _
+
+instance Show ScriptOutput where
+  show = genericShow
 
 newtype PubKeyHash = PubKeyHash Ed25519KeyHash
 
@@ -216,6 +220,10 @@ newtype UnbalancedTx = UnbalancedTx
   }
 
 derive instance Newtype UnbalancedTx _
+derive instance Generic UnbalancedTx _
+
+instance Show UnbalancedTx where
+  show = genericShow
 
 _transaction :: Lens' UnbalancedTx Transaction
 _transaction = lens'
