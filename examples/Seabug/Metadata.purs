@@ -12,6 +12,7 @@ import Contract.Transaction
   ( ClientError(ClientHttpError, ClientDecodeJsonError)
   )
 import Contract.Value
+import Control.Alternative (guard)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Trans (asks)
 import Control.Monad.Trans.Class (lift)
@@ -21,9 +22,29 @@ import Data.Bifunctor (bimap, lmap)
 import Data.Function (on)
 import Data.HTTP.Method (Method(GET))
 import Data.Newtype (unwrap)
-import Foreign.Object (Object)
+import Metadata.Seabug (SeabugMetadata(SeabugMetadata))
 
 type Hash = String
+
+getMintingTxSeabugMetadata
+  :: Hash -> ExceptT ClientError Contract SeabugMetadata
+getMintingTxSeabugMetadata txHash = do
+  j <- mkGetRequest $ "txs/" <> txHash <> "/metadata"
+  ms <- except
+    $ lmap ClientDecodeJsonError
+    $ Json.caseJsonArray
+        (Left (Json.TypeMismatch "Expected array of objects"))
+        Right
+        j
+  except
+    $ note (ClientDecodeJsonError (Json.UnexpectedValue j))
+    $ findSeabugMetadata ms
+  where
+  findSeabugMetadata :: Array Json.Json -> Maybe SeabugMetadata
+  findSeabugMetadata = findMap $ Json.caseJsonObject Nothing $ \o -> do
+    label <- hush $ Json.getField o "label"
+    guard $ label == "727"
+    hush $ Json.decodeJson =<< Json.getField o "json_metadata"
 
 getMintingTxHash
   :: CurrencySymbol /\ TokenName -> ExceptT ClientError Contract Hash
