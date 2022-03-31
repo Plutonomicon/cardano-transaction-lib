@@ -6,6 +6,7 @@ module QueryM
   , DispatchIdMap
   , FeeEstimate(..)
   , FinalizedTransaction(..)
+  , HashedData(..)
   , Host
   , JsWebSocket
   , ListenerSet
@@ -22,19 +23,22 @@ module QueryM
   , applyArgs
   , blake2bHash
   , calculateMinFee
-  , getAssetMetadata
   , cancelFetchBlocksRequest
   , datumFilterAddHashesRequest
   , datumFilterGetHashesRequest
   , datumFilterRemoveHashesRequest
   , datumFilterSetHashesRequest
+  , datumHash
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
+  , finalizeTx
+  , getAssetMetadata
   , getDatumByHash
   , getDatumsByHashes
   , getWalletAddress
   , getWalletCollateral
+  , hashData
   , hashScript
   , listeners
   , mkDatumCacheWebSocketAff
@@ -48,7 +52,6 @@ module QueryM
   , startFetchBlocksRequest
   , submitTransaction
   , underlyingWebSocket
-  , finalizeTx
   ) where
 
 import Prelude
@@ -428,7 +431,7 @@ calculateMinFee tx = do
   -- The server is calculating fees that are too low
   -- See https://github.com/Plutonomicon/cardano-browser-tx/issues/123
   coinFromEstimate :: FeeEstimate -> Coin
-  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 50000)) <<< unwrap
+  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 250000)) <<< unwrap
 
 -- | CborHex-encoded tx
 newtype FinalizedTransaction = FinalizedTransaction ByteArray
@@ -470,11 +473,10 @@ finalizeTx tx datums redeemers = do
   -- construct payload
   let
     body
-      ::
-           { tx :: String
-           , datums :: Array String
-           , redeemers :: String
-           }
+      :: { tx :: String
+         , datums :: Array String
+         , redeemers :: String
+         }
     body =
       { tx: txHex
       , datums: encodedDatums
@@ -489,6 +491,46 @@ finalizeTx tx datums redeemers = do
       ) <#> map \x -> x.body
   -- decode
   pure $ hush <<< Json.decodeJson =<< hush jsonBody
+
+newtype HashedData = HashedData ByteArray
+
+derive instance Generic HashedData _
+
+instance Show HashedData where
+  show = genericShow
+
+instance Json.DecodeJson HashedData where
+  decodeJson =
+    map HashedData <<<
+      Json.caseJsonString (Left err) (note err <<< hexToByteArray)
+    where
+    err = Json.TypeMismatch "Expected CborHex of hashed data"
+
+hashData :: Datum -> QueryM (Maybe HashedData)
+hashData datum = do
+  encodedDatum <-
+    liftEffect $ byteArrayToHex <<< Serialization.toBytes <<< asOneOf
+      <$> maybe' (\_ -> throw $ "Failed to convert plutus data: " <> show datum) pure
+        (Serialization.convertPlutusData $ unwrap datum)
+  -- construct payload
+  let body = encodedDatum
+  url <- mkServerEndpointUrl "hash-data"
+  -- get response json
+  jsonBody <-
+    liftAff
+      ( Affjax.post Affjax.ResponseFormat.json url
+          (Just $ Affjax.RequestBody.Json $ encodeString body)
+      ) <#> map \x -> x.body
+  -- decode
+  pure $ hush <<< Json.decodeJson =<< hush jsonBody
+
+datumHash :: Datum -> QueryM (Maybe DatumHash)
+datumHash datum = do
+  mHd <- hashData datum
+  pure $ maybe
+    Nothing
+    (\(HashedData bytes) -> Just $ Transaction.DataHash bytes)
+    mHd
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied

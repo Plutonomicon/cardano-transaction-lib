@@ -3,6 +3,7 @@
 module Api.Handlers (
   estimateTxFees,
   applyArgs,
+  hashDataServer,
   hashScript,
   blake2bHash,
   finalizeTx
@@ -43,6 +44,9 @@ import Types (
   Fee (Fee),
   FeeEstimateError (FEInvalidCbor, FEInvalidHex),
   FinalizeTxError (FTInvalidCbor, FTInvalidHex),
+  HashDataError (HDInvalidCbor, HDInvalidHex),
+  HashDataRequest (HashDataRequest),
+  HashedData (HashedData),
   HashScriptRequest (HashScriptRequest),
   HashedScript (HashedScript),
   BytesToHash (BytesToHash),
@@ -69,6 +73,18 @@ applyArgs ApplyArgsRequest {script, args} =
 hashScript :: HashScriptRequest -> AppM HashedScript
 hashScript (HashScriptRequest script) =
   pure . HashedScript $ hashLedgerScript script
+
+hashDataServer :: HashDataRequest -> AppM HashedData
+hashDataServer (HashDataRequest datum) = do
+  decodedDatum <- maybe (handleError $ InvalidHex "Failed to decode Datum") pure $
+    decodeCborDatum datum
+  let hashedDatum = Data.hashData decodedDatum
+  pure . HashedData . encodeCborText . Cbor.serializeEncoding . Cbor.toCBOR $
+    hashedDatum
+  where
+    handleError = throwM . decodeErrorToHashDataError
+    decodeErrorToHashDataError (InvalidCbor cbe) = HDInvalidCbor cbe
+    decodeErrorToHashDataError (InvalidHex he) = HDInvalidHex he
 
 blake2bHash :: BytesToHash -> AppM Blake2bHash
 blake2bHash (BytesToHash hs) =

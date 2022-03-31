@@ -1,7 +1,6 @@
 module Types.Datum
   ( Datum(..)
   , unitDatum
-  , datumHash
   , module X
   ) where
 
@@ -39,7 +38,3 @@ instance Show Datum where
 
 unitDatum :: Datum
 unitDatum = Datum (toData unit)
-
--- | Converts Plutus-style `Datum` to internal (non-CSL) `DatumHash`
-datumHash :: Datum -> Maybe DatumHash
-datumHash = map (wrap <<< toBytes <<< asOneOf) <<< convertPlutusData <<< unwrap
