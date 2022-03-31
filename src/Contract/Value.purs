@@ -9,12 +9,8 @@ module Contract.Value
 
 import Prelude
 import Contract.Monad (Contract)
-import Data.Argonaut (class DecodeJson)
-import Data.Either (hush)
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
-import Data.Tuple.Nested (type (/\))
-import QueryM (getAssetMetadata) as QueryM
 import Scripts (scriptCurrencySymbol) as Scripts
 import Types.Scripts (MintingPolicy)
 import Types.Value
@@ -65,10 +61,3 @@ import Types.Value
 
 scriptCurrencySymbol :: MintingPolicy -> Contract (Maybe Value.CurrencySymbol)
 scriptCurrencySymbol = wrap <<< Scripts.scriptCurrencySymbol
-
-getAssetMetadata
-  :: forall (a :: Type)
-   . DecodeJson a
-  => Value.CurrencySymbol /\ Value.TokenName
-  -> Contract (Maybe a)
-getAssetMetadata = wrap <<< map hush <<< QueryM.getAssetMetadata
