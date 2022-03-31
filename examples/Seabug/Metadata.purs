@@ -1,4 +1,8 @@
-module Seabug.Metadata where
+module Seabug.Metadata
+  ( FullSeabugMetadata
+  , Hash
+  , getFullSeabugMetadata
+  ) where
 
 import Contract.Prelude
 
@@ -7,11 +11,16 @@ import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Monad (Contract)
-import Contract.Prim.ByteArray
+import Contract.Prim.ByteArray (byteArrayToHex)
 import Contract.Transaction
   ( ClientError(ClientHttpError, ClientDecodeJsonError)
   )
 import Contract.Value
+  ( CurrencySymbol
+  , TokenName
+  , getCurrencySymbol
+  , getTokenName
+  )
 import Control.Alternative (guard)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Trans (asks)
@@ -26,6 +35,19 @@ import Foreign.Object (Object)
 import Metadata.Seabug (SeabugMetadata(SeabugMetadata))
 
 type Hash = String
+
+type FullSeabugMetadata =
+  { seabugMetadata :: SeabugMetadata
+  , ipfsHash :: Hash
+  }
+
+getFullSeabugMetadata
+  :: CurrencySymbol /\ TokenName
+  -> Contract (Either ClientError FullSeabugMetadata)
+getFullSeabugMetadata a = runExceptT $ do
+  seabugMetadata <- getMintingTxSeabugMetadata =<< getMintingTxHash a
+  ipfsHash <- getIpfsHash seabugMetadata
+  pure { seabugMetadata, ipfsHash }
 
 getIpfsHash :: SeabugMetadata -> ExceptT ClientError Contract Hash
 getIpfsHash (SeabugMetadata { collectionNftCS, collectionNftTN }) = do
