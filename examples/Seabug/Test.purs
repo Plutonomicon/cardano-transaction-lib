@@ -36,6 +36,7 @@ main = launchAff_ $ do
   cfg <- defaultContractConfig
   runContract_ cfg $ do
     marketplaceBuy =<< testNftData
+  
 
 -- UnbalancedTx { transaction } /\ _ <- mkMarketplaceTx =<< testNftData
 -- log =<<
