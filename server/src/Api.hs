@@ -2,6 +2,7 @@ module Api (
   app,
   estimateTxFees,
   applyArgs,
+  finalizeTx,
   hashScript,
   blake2bHash,
   apiDocs,
@@ -41,16 +42,20 @@ import Types (
   AppliedScript,
   ApplyArgsRequest,
   Blake2bHash,
-  CardanoBrowserServerError (FeeEstimate),
+  CardanoBrowserServerError (FeeEstimate, FinalizeTx),
   Cbor,
   Env,
   Fee,
-  FeeEstimateError (InvalidCbor, InvalidHex),
+  FeeEstimateError (FEInvalidCbor, FEInvalidHex),
+  FinalizeTxError (FTInvalidCbor, FTInvalidHex),
   HashScriptRequest,
   HashedScript,
   BytesToHash,
+  FinalizeRequest(..),
+  FinalizedTransaction(..)
  )
 import Utils (lbshow)
+
 
 type Api =
   "fees" :> QueryParam' '[Required] "tx" Cbor :> Get '[JSON] Fee
@@ -62,12 +67,14 @@ type Api =
     :<|> "hash-script"
       :> ReqBody '[JSON] HashScriptRequest
       :> Post '[JSON] HashedScript
-
     -- Making this a POST request so we can just use the @From/ToJSON@
     -- instances instead of decoding in the handler
     :<|> "blake2b"
       :> ReqBody '[JSON] BytesToHash
       :> Post '[JSON] Blake2bHash
+    :<|> "finalize"
+      :> ReqBody '[JSON] FinalizeRequest
+      :> Post '[JSON] FinalizedTransaction
 
 app :: Env -> Application
 app = Cors.cors (const $ Just policy) . serve api . appServer
@@ -96,8 +103,11 @@ appServer env = hoistServer api appHandler server
           CardanoBrowserServerError ->
           Handler a
         handleError (FeeEstimate fe) = case fe of
-          InvalidCbor ic -> throwError err400 {errBody = lbshow ic}
-          InvalidHex ih -> throwError err400 {errBody = LC8.pack ih}
+          FEInvalidCbor ic -> throwError err400 {errBody = lbshow ic}
+          FEInvalidHex ih -> throwError err400 {errBody = LC8.pack ih}
+        handleError (FinalizeTx fe) = case fe of
+          FTInvalidCbor ic -> throwError err400 {errBody = lbshow ic}
+          FTInvalidHex ih -> throwError err400 {errBody = LC8.pack ih}
 
 api :: Proxy Api
 api = Proxy
@@ -108,6 +118,7 @@ server =
     :<|> Handlers.applyArgs
     :<|> Handlers.hashScript
     :<|> Handlers.blake2bHash
+    :<|> Handlers.finalizeTx
 
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
@@ -116,8 +127,10 @@ estimateTxFees :: Cbor -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
 hashScript :: HashScriptRequest -> ClientM HashedScript
 blake2bHash :: BytesToHash -> ClientM Blake2bHash
+finalizeTx :: FinalizeRequest -> ClientM FinalizedTransaction
 estimateTxFees
   :<|> applyArgs
   :<|> hashScript
-  :<|> blake2bHash =
+  :<|> blake2bHash
+  :<|> finalizeTx =
     client api

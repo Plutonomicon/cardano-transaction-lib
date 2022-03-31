@@ -6,11 +6,14 @@ module Types (
   Env (..),
   Cbor (..),
   Fee (..),
+  FinalizeRequest(..),
+  FinalizedTransaction(..),
   ApplyArgsRequest (..),
   AppliedScript (..),
   HashScriptRequest (..),
   HashedScript (..),
   FeeEstimateError (..),
+  FinalizeTxError(..),
   CardanoBrowserServerError (..),
   hashLedgerScript,
   newEnvIO,
@@ -83,7 +86,7 @@ newEnvIO =
 
 newtype Cbor = Cbor Text
   deriving stock (Show)
-  deriving newtype (Eq, FromHttpApiData, ToHttpApiData)
+  deriving newtype (Eq, FromHttpApiData, ToHttpApiData, FromJSON, ToJSON)
 
 newtype Fee = Fee Integer
   deriving stock (Show, Generic)
@@ -111,6 +114,19 @@ data ApplyArgsRequest = ApplyArgsRequest
   deriving anyclass (FromJSON, ToJSON)
 
 newtype AppliedScript = AppliedScript Ledger.Script
+  deriving stock (Show, Generic)
+  deriving newtype (Eq, FromJSON, ToJSON)
+
+data FinalizeRequest = FinalizeRequest
+  { tx :: Cbor
+  , datums :: [Cbor]
+  , redeemers :: Cbor
+  }
+  deriving stock (Show, Generic, Eq)
+  deriving anyclass (FromJSON, ToJSON)
+
+-- This is only to avoid an orphan instance for @ToDocs@
+newtype FinalizedTransaction = FinalizedTransaction Cbor
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
 
@@ -144,18 +160,26 @@ toCardanoApiScript =
     . LC8.toStrict
     . serialise
 
--- We'll probably extend this with more error types over time
-newtype CardanoBrowserServerError = FeeEstimate FeeEstimateError
+data CardanoBrowserServerError
+  = FeeEstimate FeeEstimateError
+  | FinalizeTx FinalizeTxError
   deriving stock (Show)
 
 instance Exception CardanoBrowserServerError
 
 data FeeEstimateError
-  = InvalidCbor Cbor.DecoderError
-  | InvalidHex String
+  = FEInvalidCbor Cbor.DecoderError
+  | FEInvalidHex String
   deriving stock (Show)
 
 instance Exception FeeEstimateError
+
+data FinalizeTxError
+  = FTInvalidCbor Cbor.DecoderError
+  | FTInvalidHex String
+  deriving stock (Show)
+
+instance Exception FinalizeTxError
 
 -- API doc stuff
 instance Docs.ToParam (QueryParam' '[Required] "tx" Cbor) where
@@ -222,6 +246,27 @@ instance Docs.ToSample HashedScript where
           \\"67f33146617a5e61936081db3b2117cbf59bd2123748f58ac9678656\"}"
       )
     ]
+
+instance Docs.ToSample FinalizeRequest where
+  toSamples _ =
+    [
+      ( "The input should contain CBOR of Tx, Redeemers and individual plutus datums"
+      , FinalizeRequest (Cbor "00") [Cbor "00"] (Cbor "00")
+      )
+    ]
+
+instance Docs.ToSample FinalizedTransaction where
+  toSamples _ =
+    [ ("The output is CBOR-encoded Tx", exampleTx)
+    ]
+    where
+      exampleTx = FinalizedTransaction . Cbor $ mconcat
+        [ "84a300818258205d677265fa5bb21ce6d8c7502aca70b93"
+        , "16d10e958611f3c6b758f65ad9599960001818258390030"
+        , "fb3b8539951e26f034910a5a37f22cb99d94d1d409f69dd"
+        , "baea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba"
+        , "3e96550504d5336100021a0002b569a0f5f6"
+        ]
 
 -- For decoding test fixtures, samples, etc...
 unsafeDecode :: forall (a :: Type). FromJSON a => String -> LC8.ByteString -> a
