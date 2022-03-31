@@ -431,7 +431,7 @@ calculateMinFee tx = do
   -- The server is calculating fees that are too low
   -- See https://github.com/Plutonomicon/cardano-browser-tx/issues/123
   coinFromEstimate :: FeeEstimate -> Coin
-  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 250000)) <<< unwrap
+  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 150000)) <<< unwrap
 
 -- | CborHex-encoded tx
 newtype FinalizedTransaction = FinalizedTransaction ByteArray
@@ -508,12 +508,10 @@ instance Json.DecodeJson HashedData where
 
 hashData :: Datum -> QueryM (Maybe HashedData)
 hashData datum = do
-  encodedDatum <-
+  body <-
     liftEffect $ byteArrayToHex <<< Serialization.toBytes <<< asOneOf
       <$> maybe' (\_ -> throw $ "Failed to convert plutus data: " <> show datum) pure
         (Serialization.convertPlutusData $ unwrap datum)
-  -- construct payload
-  let body = encodedDatum
   url <- mkServerEndpointUrl "hash-data"
   -- get response json
   jsonBody <-
