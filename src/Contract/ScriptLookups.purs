@@ -12,6 +12,7 @@ module Contract.ScriptLookups
   ( mkUnbalancedTx
   , mkUnbalancedTxM
   , module ScriptLookups
+  , otherData
   ) where
 
 import Prelude
@@ -21,13 +22,13 @@ import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
 import FromData (class FromData)
 import ToData (class ToData)
+import Types.Datum (Datum)
 import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
   , ScriptLookups(ScriptLookups)
   , generalise
   , mintingPolicy
   , mintingPolicyM
-  , otherDataM
   , otherScript
   , otherScriptM
   , ownPaymentPubKeyHash
@@ -37,12 +38,11 @@ import Types.ScriptLookups
   -- , paymentPubKeyM
   , typedValidatorLookups
   , typedValidatorLookupsM
-  , unsafeOtherDataM
   -- , unsafePaymentPubKey
   , unspentOutputs
   , unspentOutputsM
   ) as ScriptLookups
-import Types.ScriptLookups (mkUnbalancedTx) as SL
+import Types.ScriptLookups (otherData, mkUnbalancedTx) as SL
 import Types.TxConstraints (TxConstraints)
 import Types.TypedValidator
   ( class DatumType
@@ -73,3 +73,9 @@ mkUnbalancedTxM
   -> TxConstraints b b
   -> Contract (Maybe UnbalancedTx)
 mkUnbalancedTxM lookups = map hush <<< mkUnbalancedTx lookups
+
+otherData
+  :: forall (a :: Type)
+   . Datum
+  -> Contract (Maybe (ScriptLookups.ScriptLookups a))
+otherData = wrap <<< SL.otherData

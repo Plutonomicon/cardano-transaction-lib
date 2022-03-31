@@ -50,7 +50,6 @@ import Types.Datum
   ( Datum(Datum)
   , DatumHash
   , unitDatum
-  , datumHash
   ) as Datum
 import Types.Redeemer
   ( Redeemer(Redeemer)
