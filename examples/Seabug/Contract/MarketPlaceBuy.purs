@@ -31,7 +31,6 @@ import Contract.PlutusData
   , toData
   , unitRedeemer
   )
-import Contract.Prim.ByteArray (hexToByteArray)
 import Contract.ProtocolParameters.Alonzo (minAdaTxOut)
 import Contract.Scripts (typedValidatorEnterpriseAddress)
 import Contract.Transaction (TxOut, UnbalancedTx, balanceTx, submitTransaction)
@@ -49,15 +48,16 @@ import Contract.Value
   , Value
   , coinToValue
   , lovelaceValueOf
-  , mkCurrencySymbol
   , mkSingletonValue'
+  , scriptCurrencySymbol
   , valueOf
   )
 import Data.Array (find) as Array
 import Data.BigInt (BigInt, fromInt)
 import Data.Map (insert, toUnfoldable)
 import Seabug.MarketPlace (marketplaceValidator)
-import Seabug.Token (mkTokenName, policy, unappliedMintingPolicy)
+import Seabug.MintingPolicy (mintingPolicy)
+import Seabug.Token (mkTokenName)
 import Seabug.Types
   ( MarketplaceDatum(MarketplaceDatum)
   , MintAct(ChangeOwner)
@@ -88,15 +88,11 @@ mkMarketplaceTx
   :: NftData
   -> Contract (UnbalancedTx /\ CurrencySymbol /\ TokenName)
 mkMarketplaceTx (NftData nftData) = do
-  -- Read in the unapplied minting policy:
-  mp <- liftedE' $ pure unappliedMintingPolicy
   pkh <- liftedM "marketplaceBuy: Cannot get PaymentPubKeyHash"
     ownPaymentPubKeyHash
-  policy' <- liftedM "marketplaceBuy: Cannot apply arguments"
-    (policy nftData.nftCollection mp)
-  curr <- liftContractM "marketplaceBuy: Cannot get CurrencySymbol"
-    (mkCurrencySymbol =<< hexToByteArray
-      "7040636730e73aea054c0b2dd0b734bec3ecaaca1e3cbe48b482ca14")
+  policy <- liftedE' $ pure mintingPolicy
+  curr <- liftedM "marketplaceBuy: Cannot get CurrencySymbol"
+    (scriptCurrencySymbol policy)
   -- Read in the typed validator:
   marketplaceValidator' <- unwrap <$> liftContractE' marketplaceValidator
   networkId <- getNetworkId
@@ -156,7 +152,7 @@ mkMarketplaceTx (NftData nftData) = do
     liftContractM "marketplaceBuy: NFT not found on marketplace" utxo'
   let
     lookup = mconcat
-      [ ScriptLookups.mintingPolicy policy'
+      [ ScriptLookups.mintingPolicy policy
       , ScriptLookups.typedValidatorLookups $ wrap marketplaceValidator'
       , ScriptLookups.otherScript marketplaceValidator'.validator
       , ScriptLookups.unspentOutputs $ insert utxo utxoIndex (unwrap userUtxos)

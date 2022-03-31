@@ -185,6 +185,8 @@ defaultContractConfig = do
     , usedTxOuts
     , networkId: TestnetId
     , slotConfig: Interval.defaultSlotConfig
+    -- Will update at the use site
+    , projectId: ""
     }
 
 -- | Same as `defaultContractConfig` but lifted into `Contract`.

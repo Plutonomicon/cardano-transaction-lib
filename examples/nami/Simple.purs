@@ -42,6 +42,8 @@ main = launchAff_ $ do
     , usedTxOuts
     , networkId: TestnetId
     , slotConfig: defaultSlotConfig
+    -- unused
+    , projectId: ""
     }
   where
   walletActions :: QueryM Unit

@@ -66,6 +66,8 @@ testUtxosAt testAddr = do
       , usedTxOuts
       , networkId: TestnetId
       , slotConfig: defaultSlotConfig
+      -- unused
+      , projectId: ""
       }
 
 testGetChainTip :: Aff Unit
@@ -82,6 +84,8 @@ testGetChainTip = do
     , usedTxOuts
     , networkId: TestnetId
     , slotConfig: defaultSlotConfig
+    -- unused
+    , projectId: ""
     }
 
 testFromOgmiosAddress :: OgmiosAddress -> Aff Unit

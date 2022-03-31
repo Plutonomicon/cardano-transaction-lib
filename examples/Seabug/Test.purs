@@ -11,38 +11,40 @@ import Contract.Monad
 import Contract.Numeric.Natural (fromBigInt')
 import Contract.Prim.ByteArray
   ( byteArrayFromString
-  , byteArrayToHex
+  -- , byteArrayToHex
   , hexToByteArray
   )
 import Contract.Time (Slot(Slot))
-import Contract.Transaction (UnbalancedTx(UnbalancedTx))
+-- import Contract.Transaction (UnbalancedTx(UnbalancedTx))
 import Contract.Value (mkCurrencySymbol, mkTokenName)
 import Data.BigInt as BigInt
 import Data.UInt as UInt
 import Effect.Aff (launchAff_)
-import Seabug.Contract.MarketPlaceBuy (mkMarketplaceTx)
+import Seabug.Contract.MarketPlaceBuy (marketplaceBuy)
 import Seabug.Types
   ( NftCollection(NftCollection)
   , NftData(NftData)
   , NftId(NftId)
   )
-import Serialization as Serialization
+-- import Serialization as Serialization
 import Serialization.Hash (ed25519KeyHashFromBytes, scriptHashFromBytes)
-import Untagged.Union (asOneOf)
+-- import Untagged.Union (asOneOf)
 
 main :: Effect Unit
 main = launchAff_ $ do
   cfg <- defaultContractConfig
   runContract_ cfg $ do
-    UnbalancedTx { transaction } /\ _ <- mkMarketplaceTx =<< testNftData
-    log =<<
-      ( liftEffect
-          <<< map
-            ( byteArrayToHex
-                <<< Serialization.toBytes
-                <<< asOneOf
-            )
-      ) (Serialization.convertTransaction transaction)
+    marketplaceBuy =<< testNftData
+
+-- UnbalancedTx { transaction } /\ _ <- mkMarketplaceTx =<< testNftData
+-- log =<<
+--   ( liftEffect
+--       <<< map
+--         ( byteArrayToHex
+--             <<< Serialization.toBytes
+--             <<< asOneOf
+--         )
+--   ) (Serialization.convertTransaction transaction)
 
 testNftData :: Contract NftData
 testNftData = do

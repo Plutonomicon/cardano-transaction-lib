@@ -5,6 +5,9 @@ module Metadata.Seabug
 
 import Prelude
 
+import Data.Argonaut (class DecodeJson)
+import Data.Argonaut as Json
+import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing), fromJust)
@@ -13,7 +16,7 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested ((/\))
 import FromData (class FromData, fromData)
-import Metadata.Seabug.Share (Share)
+import Metadata.Seabug.Share (Share, mkShare)
 import Partial.Unsafe (unsafePartial)
 import ToData (class ToData, toData)
 import Types.ByteArray (ByteArray, byteArrayFromString)
@@ -21,7 +24,7 @@ import Types.Natural (Natural)
 import Types.PlutusData (PlutusData(Bytes, Map))
 import Types.Scripts (MintingPolicyHash, ValidatorHash)
 import Types.UnbalancedTransaction (PubKeyHash)
-import Types.Value (CurrencySymbol, TokenName)
+import Types.Value (CurrencySymbol, TokenName, mkTokenName)
 
 newtype SeabugMetadata = SeabugMetadata
   { policyId :: MintingPolicyHash
@@ -93,6 +96,43 @@ instance FromData SeabugMetadata where
       , ownerPrice
       }
   fromData _ = Nothing
+
+instance DecodeJson SeabugMetadata where
+  decodeJson =
+    Json.caseJsonObject
+      (Left (Json.TypeMismatch "Expected object"))
+      $ \o -> do
+          policyId <- Json.getField o "policyId"
+          mintPolicy <- Json.getField o "mintPolicy"
+          collectionNftCS <- Json.getField o "collectionNftCS"
+          collectionNftTN <-
+            note (Json.TypeMismatch "expected ASCII-encoded `TokenName`")
+              <<< (mkTokenName <=< byteArrayFromString)
+              =<< Json.getField o "collectionNftTN"
+          lockingScript <- Json.getField o "lockingScript"
+          authorPkh <- Json.getField o "authorPkh"
+          authorShare <- decodeShare =<< Json.getField o "authorShare"
+          marketplaceScript <- Json.getField o "marketplaceScript"
+          marketplaceShare <- decodeShare =<< Json.getField o "marketplaceShare"
+          ownerPkh <- Json.getField o "ownerPkh"
+          ownerPrice <- Json.getField o "ownerPrice"
+          pure $ SeabugMetadata
+            { policyId
+            , mintPolicy
+            , collectionNftCS
+            , collectionNftTN
+            , lockingScript
+            , authorPkh
+            , authorShare
+            , marketplaceScript
+            , marketplaceShare
+            , ownerPkh
+            , ownerPrice
+            }
+    where
+    decodeShare :: Int -> Either Json.JsonDecodeError Share
+    decodeShare = note (Json.TypeMismatch "Expected int between 0 and 1000")
+      <<< mkShare
 
 newtype SeabugMetadataDelta = SeabugMetadataDelta
   { policyId :: MintingPolicyHash
