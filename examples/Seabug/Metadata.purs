@@ -22,9 +22,15 @@ import Data.Bifunctor (bimap, lmap)
 import Data.Function (on)
 import Data.HTTP.Method (Method(GET))
 import Data.Newtype (unwrap)
+import Foreign.Object (Object)
 import Metadata.Seabug (SeabugMetadata(SeabugMetadata))
 
 type Hash = String
+
+getIpfsHash :: SeabugMetadata -> ExceptT ClientError Contract Hash
+getIpfsHash (SeabugMetadata { collectionNftCS, collectionNftTN }) = do
+  except <<< (decodeField "image" <=< decodeField "onchain_metadata")
+    =<< mkGetRequest ("assets/" <> mkAsset collectionNftCS collectionNftTN)
 
 getMintingTxSeabugMetadata
   :: Hash -> ExceptT ClientError Contract SeabugMetadata
@@ -48,15 +54,13 @@ getMintingTxSeabugMetadata txHash = do
 
 getMintingTxHash
   :: CurrencySymbol /\ TokenName -> ExceptT ClientError Contract Hash
-getMintingTxHash (currSym /\ tname) =
+getMintingTxHash a =
   except <<< decodeField "initial_mint_tx_hash"
-    =<< mkGetRequest ("assets/" <> asset)
-  where
-  asset :: String
-  asset = mkAsset (getCurrencySymbol currSym) (getTokenName tname)
+    =<< mkGetRequest ("assets/" <> uncurry mkAsset a)
 
-  mkAsset :: ByteArray -> ByteArray -> String
-  mkAsset = (<>) `on` byteArrayToHex
+mkAsset :: CurrencySymbol -> TokenName -> String
+mkAsset currSym tname =
+  ((<>) `on` byteArrayToHex) (getCurrencySymbol currSym) (getTokenName tname)
 
 decodeField
   :: forall (a :: Type)
