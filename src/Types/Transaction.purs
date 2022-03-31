@@ -249,10 +249,6 @@ derive instance Newtype Mint _
 derive newtype instance Eq Mint
 derive newtype instance Semigroup Mint
 derive newtype instance Monoid Mint
-derive instance Generic Mint _
-
-instance Show Mint where
-  show = genericShow
 
 instance Show Mint where
   show = genericShow
