@@ -67,7 +67,7 @@ hashScript (HashScriptRequest script) =
   pure . HashedScript $ hashLedgerScript script
 
 finalizeTx :: FinalizeRequest -> AppM FinalizedTransaction
-finalizeTx req@(FinalizeRequest {tx, datums, redeemers}) = do
+finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
   pparams <- asks protocolParams
   decodedTx <- maybe (handleError $ InvalidHex "Failed to decode Tx") pure $
     decodeCborValidatedTx tx

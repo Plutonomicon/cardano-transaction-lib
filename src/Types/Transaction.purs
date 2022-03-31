@@ -112,8 +112,12 @@ newtype Transaction = Transaction
   , auxiliary_data :: Maybe AuxiliaryData
   }
 
+derive instance Generic Transaction _
 derive instance Eq Transaction
 derive instance Newtype Transaction _
+
+instance Show Transaction where
+  show = genericShow
 
 instance Semigroup Transaction where
   append (Transaction tx) (Transaction tx') =
@@ -180,8 +184,12 @@ newtype TxBody = TxBody
   , network_id :: Maybe NetworkId
   }
 
+derive instance Generic TxBody _
 derive instance Newtype TxBody _
 derive newtype instance Eq TxBody
+
+instance Show TxBody where
+  show = genericShow
 
 instance semigroupTxBody :: Semigroup TxBody where
   append (TxBody txB) (TxBody txB') = TxBody
@@ -228,7 +236,11 @@ instance monoidTxBody :: Monoid TxBody where
 newtype ScriptDataHash = ScriptDataHash ByteArray
 
 derive instance Newtype ScriptDataHash _
+derive instance Generic ScriptDataHash _
 derive newtype instance Eq ScriptDataHash
+
+instance Show ScriptDataHash where
+  show = genericShow
 
 newtype Mint = Mint Value
 
@@ -236,11 +248,19 @@ derive instance Newtype Mint _
 derive newtype instance Eq Mint
 derive newtype instance Semigroup Mint
 derive newtype instance Monoid Mint
+derive instance Generic Mint _
+
+instance Show Mint where
+  show = genericShow
 
 newtype AuxiliaryDataHash = AuxiliaryDataHash String
 
 derive instance newtypeAuxiliaryDataHash :: Newtype AuxiliaryDataHash _
 derive newtype instance eqAuxiliaryDataHash :: Eq AuxiliaryDataHash
+derive instance Generic AuxiliaryDataHash _
+
+instance Show AuxiliaryDataHash where
+  show = genericShow
 
 type Update =
   { proposed_protocol_parameter_updates :: ProposedProtocolParameterUpdates
@@ -253,10 +273,19 @@ derive instance Newtype ProposedProtocolParameterUpdates _
 
 derive newtype instance Eq ProposedProtocolParameterUpdates
 
+derive instance Generic ProposedProtocolParameterUpdates _
+
+instance Show ProposedProtocolParameterUpdates where
+  show = genericShow
+
 newtype GenesisHash = GenesisHash String
 
 derive instance Newtype GenesisHash _
 derive newtype instance Eq GenesisHash
+derive instance Generic GenesisHash _
+
+instance Show GenesisHash where
+  show = genericShow
 
 type ProtocolParamUpdate =
   { minfee_a :: Maybe Coin
@@ -299,16 +328,32 @@ newtype Costmdls = Costmdls (Map Language CostModel)
 
 derive instance Newtype Costmdls _
 derive newtype instance Eq Costmdls
+derive instance Generic Costmdls _
+
+instance Show Costmdls where
+  show = genericShow
 
 data Language = PlutusV1
 
 derive instance Eq Language
 derive instance Ord Language
+derive instance Generic Language _
+
+instance Show Language where
+  show = genericShow
 
 newtype CostModel = CostModel (Array UInt)
 
 derive instance Newtype CostModel _
 derive newtype instance Eq CostModel
+derive instance Generic Nonce _
+derive instance Generic CostModel _
+
+instance Show CostModel where
+  show = genericShow
+
+instance Show Nonce where
+  show = genericShow
 
 type ProtocolVersion =
   { major :: UInt
@@ -328,7 +373,11 @@ type UnitInterval =
 newtype Epoch = Epoch UInt
 
 derive instance Newtype Epoch _
+derive instance Generic Epoch _
 derive newtype instance Eq Epoch
+
+instance Show Epoch where
+  show = genericShow
 
 data Certificate
   = StakeRegistration
@@ -340,6 +389,10 @@ data Certificate
   | MoveInstantaneousRewardsCert
 
 derive instance Eq Certificate
+derive instance Generic Certificate _
+
+instance Show Certificate where
+  show = genericShow
 
 --------------------------------------------------------------------------------
 -- `TxBody` Lenses
@@ -469,6 +522,10 @@ newtype RequiredSigner = RequiredSigner Vkey
 derive instance Newtype RequiredSigner _
 derive newtype instance Eq RequiredSigner
 derive newtype instance Ord RequiredSigner
+derive instance Generic RequiredSigner _
+
+instance Show RequiredSigner where
+  show = genericShow
 
 newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
@@ -527,6 +584,10 @@ newtype AuxiliaryData = AuxiliaryData
   }
 
 derive newtype instance Eq AuxiliaryData
+derive instance Generic AuxiliaryData _
+
+instance Show AuxiliaryData where
+  show = genericShow
 
 instance semigroupAuxiliaryData :: Semigroup AuxiliaryData where
   append (AuxiliaryData ad) (AuxiliaryData ad') =
@@ -549,6 +610,10 @@ newtype GeneralTransactionMetadata =
 derive instance Newtype GeneralTransactionMetadata _
 
 derive newtype instance Eq GeneralTransactionMetadata
+derive instance Generic GeneralTransactionMetadata _
+
+instance Show GeneralTransactionMetadata where
+  show = genericShow
 
 -- This Semigroup instance simply takes the Last value for duplicate keys
 -- to avoid a Semigroup instance for TransactionMetadatum.
@@ -567,6 +632,10 @@ newtype TransactionMetadatumLabel = TransactionMetadatumLabel BigInt
 derive instance Newtype TransactionMetadatumLabel _
 derive newtype instance Eq TransactionMetadatumLabel
 derive newtype instance Ord TransactionMetadatumLabel
+derive instance Generic TransactionMetadatumLabel _
+
+instance Show TransactionMetadatumLabel where
+  show = genericShow
 
 data TransactionMetadatum
   = MetadataMap (Map TransactionMetadatum TransactionMetadatum)
@@ -576,6 +645,10 @@ data TransactionMetadatum
   | Text String
 
 derive instance Eq TransactionMetadatum
+derive instance Generic TransactionMetadatum _
+
+instance Show TransactionMetadatum where
+  show x = genericShow x
 
 data NativeScript
   = ScriptPubkey Ed25519KeyHash
