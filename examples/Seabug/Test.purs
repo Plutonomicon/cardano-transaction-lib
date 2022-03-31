@@ -28,6 +28,7 @@ import Seabug.Types
   )
 -- import Serialization as Serialization
 import Serialization.Hash (ed25519KeyHashFromBytes, scriptHashFromBytes)
+
 -- import Untagged.Union (asOneOf)
 
 main :: Effect Unit
