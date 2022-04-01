@@ -934,9 +934,11 @@ processConstraint mpsMap osMap = do
               liftDatumHash (CannotHashDatum datum) <$> datumHash datum
           )
           mDatum
+        -- Changed this to enterprise address for Seabug, it could be an issue
+        -- down the road as we track all types of Addresses properly
         let
           txOut = TransactionOutput
-            { address: payPubKeyHashBaseAddress networkId pkh, amount, data_hash }
+            { address: payPubKeyHashEnterpriseAddress networkId pkh, amount, data_hash }
         _cpsToTxBody <<< _outputs %= (:) txOut
         _valueSpentBalancesOutputs <>= provide amount
     MustPayToOtherScript vlh datum amount -> do
