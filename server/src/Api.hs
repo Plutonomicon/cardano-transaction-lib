@@ -3,6 +3,7 @@ module Api (
   estimateTxFees,
   applyArgs,
   finalizeTx,
+  hashData,
   hashScript,
   blake2bHash,
   apiDocs,
@@ -48,6 +49,8 @@ import Types (
   Fee,
   FeeEstimateError (FEInvalidCbor, FEInvalidHex),
   FinalizeTxError (FTInvalidCbor, FTInvalidHex),
+  HashDataRequest,
+  HashedData,
   HashScriptRequest,
   HashedScript,
   BytesToHash,
@@ -75,6 +78,9 @@ type Api =
     :<|> "finalize"
       :> ReqBody '[JSON] FinalizeRequest
       :> Post '[JSON] FinalizedTransaction
+    :<|> "hash-data"
+      :> ReqBody '[JSON] HashDataRequest
+      :> Post '[JSON] HashedData
 
 app :: Env -> Application
 app = Cors.cors (const $ Just policy) . serve api . appServer
@@ -119,6 +125,7 @@ server =
     :<|> Handlers.hashScript
     :<|> Handlers.blake2bHash
     :<|> Handlers.finalizeTx
+    :<|> Handlers.hashData
 
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
@@ -128,9 +135,11 @@ applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
 hashScript :: HashScriptRequest -> ClientM HashedScript
 blake2bHash :: BytesToHash -> ClientM Blake2bHash
 finalizeTx :: FinalizeRequest -> ClientM FinalizedTransaction
+hashData :: HashDataRequest -> ClientM HashedData
 estimateTxFees
   :<|> applyArgs
   :<|> hashScript
   :<|> blake2bHash
-  :<|> finalizeTx =
+  :<|> finalizeTx
+  :<|> hashData =
     client api

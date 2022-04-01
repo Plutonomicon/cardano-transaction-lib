@@ -10,8 +10,7 @@ import Contract.Address
   , payPubKeyHashAddress
   )
 import Contract.ScriptLookups
-  ( mkUnbalancedTx
-  , mintingPolicy
+  ( mintingPolicy
   , otherScript
   , ownPaymentPubKeyHash
   , typedValidatorLookups
@@ -33,7 +32,12 @@ import Contract.PlutusData
   )
 import Contract.ProtocolParameters.Alonzo (minAdaTxOut)
 import Contract.Scripts (typedValidatorEnterpriseAddress)
-import Contract.Transaction (TxOut, UnbalancedTx, balanceTx, submitTransaction)
+import Contract.Transaction
+  ( TxOut
+  , UnbalancedTx
+  , balanceTx
+  , finalizeTx
+  )
 import Contract.TxConstraints
   ( TxConstraints
   , mustMintValueWithRedeemer
@@ -55,25 +59,35 @@ import Contract.Value
 import Data.Array (find) as Array
 import Data.BigInt (BigInt, fromInt)
 import Data.Map (insert, toUnfoldable)
+import QueryM (FinalizedTransaction(FinalizedTransaction))
+import QueryM.Submit (submit)
 import Seabug.MarketPlace (marketplaceValidator)
-import Seabug.Token (mkTokenName, policy, unappliedMintingPolicy)
+import Seabug.MintingPolicy (mintingPolicy)
+import Seabug.Token (mkTokenName)
 import Seabug.Types
   ( MarketplaceDatum(MarketplaceDatum)
   , MintAct(ChangeOwner)
   , NftData(NftData)
   , NftId(NftId)
   )
+import Types.ScriptLookups (mkUnbalancedTx')
+import Types.Transaction (Redeemer) as T
 
 marketplaceBuy :: NftData -> Contract Unit
 marketplaceBuy nftData = do
-  unbalancedTx /\ curr /\ newName <- mkMarketplaceTx nftData
-  log "marketplaceBuy: Unbalanced transaction successfully built"
+  { unbalancedTx, datums, redeemers } /\ curr /\ newName <-
+    mkMarketplaceTx nftData
   -- Balance unbalanced tx:
   balancedTx <- liftedE' $ balanceTx unbalancedTx
   log "marketplaceBuy: Transaction successfully balanced"
-  -- Submit balanced tx:
-  transactionHash <- liftedM "marketplaceBuy: Failed transaction Submission"
-    (submitTransaction balancedTx)
+  -- Reattach datums and redeemer:
+  FinalizedTransaction txCbor <-
+    liftedM "marketplaceBuy: Cannot attach datums and redeemer"
+      (finalizeTx balancedTx datums redeemers)
+  log "marketplaceBuy: Datums and redeemer attached"
+  -- Submit transaction:
+  transactionHash <- wrap $ submit txCbor
+  -- -- Submit balanced tx:
   log $ "marketplaceBuy: Transaction successfully submitted with hash: "
     <> show transactionHash
   log $ "marketplaceBuy: Buy successful: " <> show (curr /\ newName)
@@ -85,16 +99,18 @@ marketplaceBuy nftData = do
 -- applied to arguments. See `Seabug.Token.policy`
 mkMarketplaceTx
   :: NftData
-  -> Contract (UnbalancedTx /\ CurrencySymbol /\ TokenName)
+  -> Contract
+       ( { unbalancedTx :: UnbalancedTx
+         , datums :: Array Datum
+         , redeemers :: Array T.Redeemer
+         } /\ CurrencySymbol /\ TokenName
+       )
 mkMarketplaceTx (NftData nftData) = do
-  -- Read in the unapplied minting policy:
-  mp <- liftedE' $ pure unappliedMintingPolicy
   pkh <- liftedM "marketplaceBuy: Cannot get PaymentPubKeyHash"
     ownPaymentPubKeyHash
-  policy' <- liftedM "marketplaceBuy: Cannot apply arguments"
-    (policy nftData.nftCollection mp)
+  policy <- liftedE' $ pure mintingPolicy
   curr <- liftedM "marketplaceBuy: Cannot get CurrencySymbol"
-    (scriptCurrencySymbol policy')
+    (scriptCurrencySymbol policy)
   -- Read in the typed validator:
   marketplaceValidator' <- unwrap <$> liftContractE' marketplaceValidator
   networkId <- getNetworkId
@@ -154,7 +170,7 @@ mkMarketplaceTx (NftData nftData) = do
     liftContractM "marketplaceBuy: NFT not found on marketplace" utxo'
   let
     lookup = mconcat
-      [ ScriptLookups.mintingPolicy policy'
+      [ ScriptLookups.mintingPolicy policy
       , ScriptLookups.typedValidatorLookups $ wrap marketplaceValidator'
       , ScriptLookups.otherScript marketplaceValidator'.validator
       , ScriptLookups.unspentOutputs $ insert utxo utxoIndex (unwrap userUtxos)
@@ -178,6 +194,6 @@ mkMarketplaceTx (NftData nftData) = do
               )
               (newNftValue <> coinToValue minAdaTxOut)
           ]
-  -- Created unbalanced tx:
-  tx <- liftedE' $ ScriptLookups.mkUnbalancedTx lookup constraints
-  pure $ tx /\ curr /\ newName
+  -- Created unbalanced tx which stripped datums and redeemers:
+  txDatumsRedeemer <- liftedE' $ wrap (mkUnbalancedTx' lookup constraints)
+  pure $ txDatumsRedeemer /\ curr /\ newName

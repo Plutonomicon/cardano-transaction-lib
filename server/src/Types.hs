@@ -10,6 +10,9 @@ module Types (
   FinalizedTransaction(..),
   ApplyArgsRequest (..),
   AppliedScript (..),
+  HashDataRequest (..),
+  HashDataError(..),
+  HashedData (..),
   HashScriptRequest (..),
   HashedScript (..),
   FeeEstimateError (..),
@@ -140,6 +143,14 @@ newtype HashedScript = HashedScript Ledger.Scripts.ScriptHash
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
 
+newtype HashDataRequest = HashDataRequest Cbor
+  deriving stock (Show, Generic)
+  deriving newtype (Eq, FromJSON, ToJSON)
+
+newtype HashedData = HashedData Cbor
+  deriving stock (Show, Generic)
+  deriving newtype (Eq, FromJSON, ToJSON)
+
 -- Adapted from `plutus-apps` implementation
 -- rev. d637b1916522e4ec20b719487a8a2e066937aceb
 hashLedgerScript :: Ledger.Script -> Ledger.Scripts.ScriptHash
@@ -166,6 +177,13 @@ data CardanoBrowserServerError
   deriving stock (Show)
 
 instance Exception CardanoBrowserServerError
+
+data HashDataError
+  = HDInvalidCbor Cbor.DecoderError
+  | HDInvalidHex String
+  deriving stock (Show)
+
+instance Exception HashDataError
 
 data FeeEstimateError
   = FEInvalidCbor Cbor.DecoderError
@@ -229,6 +247,29 @@ instance Docs.ToSample AppliedScript where
       , AppliedScript exampleScript
       )
     ]
+
+instance Docs.ToSample HashDataRequest where
+  toSamples _ =
+    [
+      ( "The input should contain CBOR of a single datum"
+      , HashDataRequest (Cbor "00")
+      )
+    ]
+
+instance Docs.ToSample HashedData where
+  toSamples _ =
+    [ ("The data will be returned as hex-encoded CBOR", HashedData exampleData)
+    ]
+    where
+      -- Fix this with an actual hash
+      exampleData = Cbor $ mconcat
+        [ "84a300818258205d677265fa5bb21ce6d8c7502aca70b93"
+        , "16d10e958611f3c6b758f65ad9599960001818258390030"
+        , "fb3b8539951e26f034910a5a37f22cb99d94d1d409f69dd"
+        , "baea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba"
+        , "3e96550504d5336100021a0002b569a0f5f6"
+          ]
+
 
 instance Docs.ToSample HashScriptRequest where
   toSamples _ =

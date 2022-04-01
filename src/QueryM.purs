@@ -6,6 +6,7 @@ module QueryM
   , DispatchIdMap
   , FeeEstimate(..)
   , FinalizedTransaction(..)
+  , HashedData(..)
   , Host
   , JsWebSocket
   , ListenerSet
@@ -27,13 +28,16 @@ module QueryM
   , datumFilterGetHashesRequest
   , datumFilterRemoveHashesRequest
   , datumFilterSetHashesRequest
+  , datumHash
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
+  , finalizeTx
   , getDatumByHash
   , getDatumsByHashes
   , getWalletAddress
   , getWalletCollateral
+  , hashData
   , hashScript
   , listeners
   , mkDatumCacheWebSocketAff
@@ -47,7 +51,6 @@ module QueryM
   , startFetchBlocksRequest
   , submitTransaction
   , underlyingWebSocket
-  , finalizeTx
   ) where
 
 import Prelude
@@ -483,6 +486,45 @@ finalizeTx tx datums redeemers = do
       ) <#> map \x -> x.body
   -- decode
   pure $ hush <<< Json.decodeJson =<< hush jsonBody
+
+newtype HashedData = HashedData ByteArray
+
+derive instance Generic HashedData _
+
+instance Show HashedData where
+  show = genericShow
+
+instance Json.DecodeJson HashedData where
+  decodeJson =
+    map HashedData <<<
+      Json.caseJsonString (Left err) (note err <<< hexToByteArray)
+    where
+    err = Json.TypeMismatch "Expected CborHex of hashed data"
+
+hashData :: Datum -> QueryM (Maybe HashedData)
+hashData datum = do
+  body <-
+    liftEffect $ byteArrayToHex <<< Serialization.toBytes <<< asOneOf
+      <$> maybe' (\_ -> throw $ "Failed to convert plutus data: " <> show datum) pure
+        (Serialization.convertPlutusData $ unwrap datum)
+  url <- mkServerEndpointUrl "hash-data"
+  -- get response json
+  jsonBody <-
+    liftAff
+      ( Affjax.post Affjax.ResponseFormat.json url
+          (Just $ Affjax.RequestBody.Json $ encodeString body)
+      ) <#> map \x -> x.body
+  -- decode
+  pure $ hush <<< Json.decodeJson =<< hush jsonBody
+
+-- | Hashes an Plutus-style Datum
+datumHash :: Datum -> QueryM (Maybe DatumHash)
+datumHash datum = do
+  mHd <- hashData datum
+  pure $ maybe
+    Nothing
+    (\(HashedData bytes) -> Just $ Transaction.DataHash bytes)
+    mHd
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied

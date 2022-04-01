@@ -1,6 +1,6 @@
 module Main (main) where
 
-import Api (app, applyArgs, blake2bHash, estimateTxFees, hashScript)
+import Api (app, applyArgs, blake2bHash, estimateTxFees, hashData, hashScript)
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.Kind (Type)
 import Network.HTTP.Client (defaultManagerSettings, newManager)
@@ -40,6 +40,8 @@ import Types (
   Cbor (Cbor),
   Env,
   Fee (Fee),
+  HashDataRequest (HashDataRequest),
+  HashedData (HashedData),
   HashScriptRequest (HashScriptRequest),
   HashedScript (HashedScript),
   newEnvIO,
@@ -55,6 +57,7 @@ serverSpec = do
   describe "Api.Handlers.estimateTxFees" feeEstimateSpec
   describe "Api.Handlers.hashScript" hashScriptSpec
   describe "Api.Handlers.blake2bHash" blake2bHashSpec
+  describe "Api.Handlers.hashData" hashDataSpec
 
 applyArgsSpec :: Spec
 applyArgsSpec = around withTestApp $ do
@@ -124,6 +127,15 @@ feeEstimateSpec = around withTestApp $ do
         | scode == code && sbody == body -> True
       _ -> False
 
+hashDataSpec :: Spec
+hashDataSpec = around withTestApp $ do
+  clientEnv <- setupClientEnv
+  context "POST hash-data" $ do
+    it "hashes the data" $ \port -> do
+      result <- runClientM' (clientEnv port) $
+        hashData cborDatumFixture
+      result `shouldBe` Right hashedDatumFixture
+
 hashScriptSpec :: Spec
 hashScriptSpec = around withTestApp $ do
   clientEnv <- setupClientEnv
@@ -172,6 +184,18 @@ runClientM' ::
   ClientM a ->
   IO (Either ClientError a)
 runClientM' = flip runClientM
+
+cborDatumFixture :: HashDataRequest
+cborDatumFixture =
+  HashDataRequest $ Cbor $
+    mconcat
+      [ "d8799f581c7040636730e73aea054c0b2dd0b734bec3ecaaca1e3cbe48b482ca145820d"
+      , "850d7a70fd5ff97ab104b127d4c9630c64d8ac158a14cdcc4f65157b79af0baff"
+      ]
+
+hashedDatumFixture :: HashedData
+hashedDatumFixture = HashedData $
+  Cbor "5820961d7ebd383bef116ef9bcb527f1bc1a4587f819d4ec0e723fef5ab228ad1d8f"
 
 -- This is a known-good 'Tx AlonzoEra'
 cborTxFixture :: Cbor
