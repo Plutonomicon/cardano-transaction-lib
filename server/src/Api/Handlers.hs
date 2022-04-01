@@ -3,7 +3,7 @@
 module Api.Handlers (
   estimateTxFees,
   applyArgs,
-  hashDataServer,
+  hashData,
   hashScript,
   blake2bHash,
   finalizeTx
@@ -13,11 +13,11 @@ import Cardano.Api qualified as C
 import Cardano.Api.Shelley qualified as Shelley
 import Cardano.Binary (Annotator(runAnnotator), FullByteString(Full))
 import Cardano.Binary qualified as Cbor
-import Cardano.Ledger.Alonzo as Alonzo
-import Cardano.Ledger.Alonzo.Data as Data
+import Cardano.Ledger.Alonzo qualified as Alonzo
+import Cardano.Ledger.Alonzo.Data qualified as Data
 import Cardano.Ledger.Alonzo.Language (Language(PlutusV1))
-import Cardano.Ledger.Alonzo.Tx as Tx
-import Cardano.Ledger.Alonzo.TxWitness as TxWitness
+import Cardano.Ledger.Alonzo.Tx qualified as Tx
+import Cardano.Ledger.Alonzo.TxWitness qualified as TxWitness
 import Cardano.Ledger.Crypto (StandardCrypto)
 import Codec.CBOR.Read (deserialiseFromBytes)
 import Control.Lens
@@ -74,8 +74,8 @@ hashScript :: HashScriptRequest -> AppM HashedScript
 hashScript (HashScriptRequest script) =
   pure . HashedScript $ hashLedgerScript script
 
-hashDataServer :: HashDataRequest -> AppM HashedData
-hashDataServer (HashDataRequest datum) = do
+hashData :: HashDataRequest -> AppM HashedData
+hashData (HashDataRequest datum) = do
   decodedDatum <- maybe (handleError $ InvalidHex "Failed to decode Datum") pure $
     decodeCborDatum datum
   let hashedDatum = Data.hashData decodedDatum
@@ -111,11 +111,11 @@ finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
       txDatums
   let
     addIntegrityHash t =
-      t { body = body t &
-          \body -> body { scriptIntegrityHash = mbIntegrityHash } }
+      t { Tx.body = Tx.body t &
+          \body -> body { Tx.scriptIntegrityHash = mbIntegrityHash } }
     addDatumsAndRedeemers t =
-      t { wits = wits t &
-          \witness -> witness { txdats = txDatums, txrdmrs = decodedRedeemers } }
+      t { Tx.wits = Tx.wits t &
+          \witness -> witness { TxWitness.txdats = txDatums, TxWitness.txrdmrs = decodedRedeemers } }
     finalizedTx = addIntegrityHash $ addDatumsAndRedeemers decodedTx
     response = FinalizedTransaction . encodeCborText . Cbor.serializeEncoding $
       Tx.toCBORForMempoolSubmission finalizedTx

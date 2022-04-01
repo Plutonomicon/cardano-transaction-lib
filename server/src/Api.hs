@@ -125,7 +125,7 @@ server =
     :<|> Handlers.hashScript
     :<|> Handlers.blake2bHash
     :<|> Handlers.finalizeTx
-    :<|> Handlers.hashDataServer
+    :<|> Handlers.hashData
 
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
