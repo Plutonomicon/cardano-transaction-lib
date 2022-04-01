@@ -323,8 +323,10 @@ instance ToData MarketplaceDatum where
     Constr zero [ toData getMarketplaceDatum ]
 
 instance FromData MarketplaceDatum where
-  fromData (Constr n [ asset ]) | n == zero =
-    MarketplaceDatum <$> ({ getMarketplaceDatum: _ } <$> fromData asset)
+  fromData (Constr n [ cs, tn ]) | n == zero = do
+    curr <- fromData cs
+    name <- fromData tn
+    pure $ MarketplaceDatum { getMarketplaceDatum: curr /\ name }
   fromData _ = Nothing
 
 -- The Contract Maybe is because we use a Haskell server
