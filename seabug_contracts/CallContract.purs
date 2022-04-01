@@ -1,37 +1,47 @@
-module Seabug.CallContract (callMarketPlaceBuyTest, callMarketPlaceBuy) where
+module Seabug.CallContract (callMarketPlaceBuy, callMarketPlaceListNft) where
 
-import Data.Unit (Unit)
-import Data.Function (($))
-import Data.Semigroup ((<>))
+import Contract.Monad (ContractConfig, runContract, runContract_)
+import Contract.Prelude (Aff, pure)
+import Contract.Transaction (UtxoM)
 import Control.Bind (bind)
+import Control.Promise (Promise)
+import Control.Promise as Promise
+import Data.BigInt (BigInt)
+import Data.Function (($))
+import Data.Unit (Unit)
 import Effect (Effect)
 import Effect.Class (liftEffect)
-import Effect.Class.Console (log)
-import Effect.Aff (launchAff_)
-
-import Contract.Monad (runContract_, defaultContractConfig)
-
-import Seabug.Types (NftData)
 import Seabug.Contract.MarketPlaceBuy (marketplaceBuy)
-
+import Seabug.Contract.MarketPlaceListNft (marketPlaceListNft)
+import Seabug.Types (NftData)
 import Undefined (undefined)
 
-callMarketPlaceBuyTest :: {name :: String } -> Effect Unit
-callMarketPlaceBuyTest {name} = log $ "Aloha" <> name
-
-callMarketPlaceBuy :: BuyNftArgs -> Effect Unit
-callMarketPlaceBuy args = launchAff_ do
-  contractConfig <- defaultContractConfig
+callMarketPlaceBuy :: ContractConfiguration -> BuyNftArgs -> Effect (Promise Unit)
+callMarketPlaceBuy cfg args = Promise.fromAff do
+  contractConfig <- buildContractConfig cfg
   nftData <- liftEffect $ buildNftData args
   runContract_ contractConfig (marketplaceBuy nftData)
 
--- callMarketPlaceListNft :: Effect Unit
--- callMarketPlaceListNft = do
---   contractConfig <- defaultContractConfig
---   nftData <- liftEffect $ buildNftData args
---   utxos <- runContract contractConfig callMarketPlaceListNft
---   pututxosToNftList
-                          -- UtxoM
+callMarketPlaceListNft :: ContractConfiguration -> Effect (Promise NftListing)
+callMarketPlaceListNft cfg = Promise.fromAff do
+  contractConfig <- buildContractConfig cfg
+  utxos <- runContract contractConfig marketPlaceListNft
+  pure $ buildNftList utxos
+
+type ContractConfiguration =
+  { server_host :: String
+  , server_port :: Int
+  , server_secure_conn :: Boolean
+  , ogmios_host :: String
+  , ogmios_port :: Int
+  , ogmios_secure_conn :: Boolean
+  , datum_cache_host :: String
+  , datum_cache_port :: Int
+  , datum_cache_secure_conn :: Boolean
+  , networkId :: Int
+  }
+
+type NftListing = Array {currencySymbol :: String, tokenName :: String, amount :: BigInt}
 
 type BuyNftArgs =
   { nftCollection ::
@@ -51,6 +61,11 @@ type BuyNftArgs =
     }
 }
 
+buildContractConfig :: ContractConfiguration -> Aff ContractConfig
+buildContractConfig = undefined
+
+buildNftList :: UtxoM -> NftListing
+buildNftList _ = []
+
 buildNftData :: BuyNftArgs -> Effect NftData
 buildNftData = undefined
-

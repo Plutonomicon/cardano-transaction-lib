@@ -4,15 +4,15 @@ const CallContract = import("./CallContract.purs");
 /**
  * TODO
  */
-exports.callMarketPlaceBuy = async (str) => {
+exports.callMarketPlaceBuy = async (config, args) => {
     const CC = await CallContract;
-    return CC.callMarketPlaceBuyTest({ name: str })();
+    return CC.callMarketPlaceBuy(config)(args)();
 };
 
 /**
  * TODO
  */
-exports.callMarketPlaceListNft = async (str) => {
+exports.callMarketPlaceListNft = async (config) => {
     const CC = await CallContract;
-    return CC.callMarketPlaceBuyTest({ name: str })();
+    return CC.callMarketPlaceListNft(config)();
 };
