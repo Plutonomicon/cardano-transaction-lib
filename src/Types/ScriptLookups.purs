@@ -224,8 +224,9 @@ instance Monoid (ScriptLookups a) where
 --------------------------------------------------------------------------------
 -- Create ScriptLookups helpers
 --------------------------------------------------------------------------------
--- | The lookup functions come in pairs. If the function cannot fail, there
--- | is another version contained in a `Maybe` context (that also does not fail).
+-- | The lookup functions come in pairs with the exception of `otherData`.
+-- | If the function cannot fail, there is another version contained in a `Maybe`
+-- | context (that also does not fail).
 -- | This is to aid users who wish to utilise the underlying `ScriptLookups`
 -- | `Monoid` for `foldMap` etc.
 -- |
