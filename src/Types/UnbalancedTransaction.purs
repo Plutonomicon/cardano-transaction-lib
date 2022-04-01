@@ -149,10 +149,10 @@ ed25519RewardAddress
   => NetworkId
   -> n
   -> RewardAddress
-ed25519RewardAddress network pkh =
+ed25519RewardAddress network skh =
   rewardAddress
     { network
-    , paymentCred: keyHashCredential (unwrap pkh)
+    , paymentCred: keyHashCredential (unwrap skh)
     }
 
 pubKeyHashBaseAddress :: NetworkId -> PubKeyHash -> Address
