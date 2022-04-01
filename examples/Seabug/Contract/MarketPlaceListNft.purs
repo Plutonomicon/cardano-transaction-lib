@@ -7,7 +7,6 @@ import Contract.Prelude
 import Contract.Address (getNetworkId, typedValidatorEnterpriseAddress)
 import Contract.Monad (Contract, liftContractE', liftedM)
 import Contract.PlutusData (fromData, getDatumByHash)
-import Contract.Scripts (typedValidatorEnterpriseAddress)
 import Contract.Transaction (TransactionOutput(TransactionOutput))
 import Contract.Utxos (UtxoM, utxosAt)
 import Contract.Value (valueOf)

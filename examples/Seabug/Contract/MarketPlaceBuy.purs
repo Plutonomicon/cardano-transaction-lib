@@ -10,9 +10,7 @@ import Contract.Address
   , payPubKeyHashAddress
   )
 import Contract.ScriptLookups
-  ( mkUnbalancedTx
-  , mintingPolicy
-  , otherData
+  ( mintingPolicy
   , otherScript
   , ownPaymentPubKeyHash
   , typedValidatorLookups
@@ -39,7 +37,6 @@ import Contract.Transaction
   , UnbalancedTx
   , balanceTx
   , finalizeTx
-  , submitTransaction
   )
 import Contract.TxConstraints
   ( TxConstraints
@@ -80,15 +77,9 @@ marketplaceBuy :: NftData -> Contract Unit
 marketplaceBuy nftData = do
   { unbalancedTx, datums, redeemers } /\ curr /\ newName <-
     mkMarketplaceTx nftData
-  log "marketplaceBuy: Unbalanced transaction successfully built"
-  log $ show unbalancedTx
-  log =<< show <$> balanceTx unbalancedTx
   -- Balance unbalanced tx:
   balancedTx <- liftedE' $ balanceTx unbalancedTx
   log "marketplaceBuy: Transaction successfully balanced"
-  log $ show (unwrap balancedTx).body
-  log $ show (unwrap balancedTx).witness_set
-  log $ show (unwrap balancedTx).is_valid
   -- Reattach datums and redeemer:
   FinalizedTransaction txCbor <-
     liftedM "marketplaceBuy: Cannot attach datums and redeemer"
@@ -97,8 +88,6 @@ marketplaceBuy nftData = do
   -- Submit transaction:
   transactionHash <- wrap $ submit txCbor
   -- -- Submit balanced tx:
-  -- transactionHash <- liftedM "marketplaceBuy: Failed transaction Submission"
-  --   (submitTransaction txCbor)
   log $ "marketplaceBuy: Transaction successfully submitted with hash: "
     <> show transactionHash
   log $ "marketplaceBuy: Buy successful: " <> show (curr /\ newName)
@@ -181,10 +170,6 @@ mkMarketplaceTx (NftData nftData) = do
   let utxo' = Array.find containsNft $ toUnfoldable (unwrap scriptUtxos)
   utxo /\ utxoIndex <-
     liftContractM "marketplaceBuy: NFT not found on marketplace" utxo'
-  log "hey"
-  -- let x = utxoIndex.datum
-  -- datumLookup <- liftedM "marketplaceBuy: Cannot hash datum for lookup"
-  -- (ScriptLookups.otherData datum)
   log "ho"
   let
     lookup = mconcat
@@ -193,7 +178,6 @@ mkMarketplaceTx (NftData nftData) = do
       , ScriptLookups.otherScript marketplaceValidator'.validator
       , ScriptLookups.unspentOutputs $ insert utxo utxoIndex (unwrap userUtxos)
       , ScriptLookups.ownPaymentPubKeyHash pkh
-      -- , datumLookup
       ]
     constraints =
       filterLowValue
