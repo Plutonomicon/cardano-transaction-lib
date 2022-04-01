@@ -522,6 +522,7 @@ hashData datum = do
   -- decode
   pure $ hush <<< Json.decodeJson =<< hush jsonBody
 
+-- | Hashes an Plutus-style Datum
 datumHash :: Datum -> QueryM (Maybe DatumHash)
 datumHash datum = do
   mHd <- hashData datum

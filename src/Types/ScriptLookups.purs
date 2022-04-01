@@ -44,7 +44,7 @@ import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.List (List(Nil, Cons))
 import Data.Map (Map, empty, fromFoldable, lookup, mapMaybe, singleton, union)
-import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
@@ -54,9 +54,7 @@ import FromData (class FromData)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
-import Effect.Class.Console (log)
-import Helpers ((<\>), liftEither, liftM, liftMWith)
-import Partial.Unsafe (unsafePartial)
+import Helpers ((<\>), liftEither, liftM)
 import QueryM (QueryConfig, QueryM, datumHash, getDatumByHash)
 import Scripts
   ( mintingPolicyHash
@@ -826,14 +824,11 @@ processConstraint mpsMap osMap = do
           -- Note: if we get `Nothing`, we have to throw eventhough that's a
           -- valid input, because our `txOut` above is a Script address via
           -- `Just`.
-          log "Try to get datum from Ogmios"
           dataValue <- ExceptT $
             ( lift $ getDatumByHash dHash
                 <#> note (CannotQueryDatum dHash) >>> map Datum
             ) <|>
               lookupDatum dHash
-          log "Got datum from Ogmios"
-          -- dataValue <- ExceptT $ lookupDatum dHash
           ExceptT $ attachToCps attachPlutusScript plutusScript
           -- Get the redeemer index, which is the current length of scripts - 1
           mIndex <-
