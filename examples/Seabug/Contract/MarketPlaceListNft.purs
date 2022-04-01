@@ -4,7 +4,7 @@ module Seabug.Contract.MarketPlaceListNft
   ) where
 
 import Contract.Prelude
-import Contract.Address (getNetworkId)
+import Contract.Address (getNetworkId, typedValidatorEnterpriseAddress)
 import Contract.Monad (Contract, liftContractE', liftedM)
 import Contract.PlutusData (fromData, getDatumByHash)
 import Contract.Scripts (typedValidatorEnterpriseAddress)
