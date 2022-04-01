@@ -14,7 +14,7 @@ import Cardano.Binary (Annotator(runAnnotator), FullByteString(Full))
 import Cardano.Binary qualified as Cbor
 import Cardano.Ledger.Alonzo as Alonzo
 import Cardano.Ledger.Alonzo.Data as Data
-import Cardano.Ledger.Alonzo.Language (Language(PlutusV1, PlutusV2))
+import Cardano.Ledger.Alonzo.Language (Language(PlutusV1))
 import Cardano.Ledger.Alonzo.Tx as Tx
 import Cardano.Ledger.Alonzo.TxWitness as TxWitness
 import Cardano.Ledger.Crypto (StandardCrypto)
@@ -85,7 +85,7 @@ finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
   decodedDatums <- maybe (handleError $ InvalidHex "Failed to decode Datums") pure $
     traverse decodeCborDatum datums
   let
-    languages = Set.fromList [PlutusV1, PlutusV2]
+    languages = Set.fromList [PlutusV1]
     txDatums = TxWitness.TxDats . Map.fromList $
       decodedDatums <&> \datum -> (Data.hashData datum, datum)
     mbIntegrityHash = Tx.hashScriptIntegrity
