@@ -42,8 +42,8 @@ type FullSeabugMetadata =
 getFullSeabugMetadata
   :: CurrencySymbol /\ TokenName
   -> Contract (Either ClientError FullSeabugMetadata)
-getFullSeabugMetadata a = runExceptT $ do
-  seabugMetadata <- getMintingTxSeabugMetadata =<< getMintingTxHash a
+getFullSeabugMetadata a@(currSym /\ _) = runExceptT $ do
+  seabugMetadata <- getMintingTxSeabugMetadata currSym =<< getMintingTxHash a
   ipfsHash <- getIpfsHash seabugMetadata
   pure { seabugMetadata, ipfsHash }
 
@@ -53,8 +53,8 @@ getIpfsHash (SeabugMetadata { collectionNftCS, collectionNftTN }) = do
     =<< mkGetRequest ("assets/" <> mkAsset collectionNftCS collectionNftTN)
 
 getMintingTxSeabugMetadata
-  :: Hash -> ExceptT ClientError Contract SeabugMetadata
-getMintingTxSeabugMetadata txHash = do
+  :: CurrencySymbol -> Hash -> ExceptT ClientError Contract SeabugMetadata
+getMintingTxSeabugMetadata currSym txHash = do
   j <- mkGetRequest $ "txs/" <> txHash <> "/metadata"
   ms <- except
     $ lmap ClientDecodeJsonError
@@ -70,7 +70,12 @@ getMintingTxSeabugMetadata txHash = do
   findSeabugMetadata = findMap $ Json.caseJsonObject Nothing $ \o -> do
     label <- hush $ Json.getField o "label"
     guard $ label == "727"
-    hush $ Json.decodeJson =<< Json.getField o "json_metadata"
+    hush $ do
+      md <- Json.getField o "json_metadata"
+      Json.decodeJson =<< Json.getField md currSymKey
+
+  currSymKey :: String
+  currSymKey = byteArrayToHex $ getCurrencySymbol currSym
 
 getMintingTxHash
   :: CurrencySymbol /\ TokenName -> ExceptT ClientError Contract Hash
