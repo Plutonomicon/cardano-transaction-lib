@@ -33,7 +33,6 @@ module QueryM
   , defaultOgmiosWsConfig
   , defaultServerConfig
   , finalizeTx
-  , getAssetMetadata
   , getDatumByHash
   , getDatumsByHashes
   , getWalletAddress
