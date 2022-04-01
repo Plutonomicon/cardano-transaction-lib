@@ -21,7 +21,7 @@ module Types.ScriptLookups
 
 import Prelude hiding (join)
 
-import Address (addressValidatorHash)
+import Address (enterpriseAddressValidatorHash)
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
@@ -59,7 +59,7 @@ import QueryM (QueryConfig, QueryM, datumHash, getDatumByHash)
 import Scripts
   ( mintingPolicyHash
   , validatorHash
-  , validatorHashAddress
+  , validatorHashEnterpriseAddress
   )
 import Serialization.Address (Address, NetworkId)
 import ToData (class ToData)
@@ -139,9 +139,10 @@ import Types.UnbalancedTransaction
   , _utxoIndex
   , emptyUnbalancedTx
   -- , payPubKeyHash
-  , payPubKeyHashAddress
+  , payPubKeyHashBaseAddress
+  , payPubKeyHashEnterpriseAddress
   , payPubKeyRequiredSigner
-  , stakePubKeyHashAddress
+  , stakePubKeyHashRewardAddress
   )
 import Types.Value
   ( CurrencySymbol
@@ -621,19 +622,23 @@ addMissingValueSpent = do
     -- Step 4 of the process described in [Balance of value spent]
     lookups <- use _lookups <#> unwrap
     let
-      -- lookups = unwrap $ cfg.scriptLookups
       pkh' = lookups.ownPaymentPubKeyHash
       skh' = lookups.ownStakePubKeyHash
+    -- Potential fix me: This logic may be suspect:
     txOut <- case pkh', skh' of
       Nothing, Nothing -> throwError OwnPubKeyAndStakeKeyMissing
-      -- Prioritise pkh:
-      Just pkh, _ -> liftEither $ Right $ TransactionOutput
-        { address: payPubKeyHashAddress networkId pkh
+      Just pkh, Just _ -> liftEither $ Right $ TransactionOutput
+        { address: payPubKeyHashBaseAddress networkId pkh
         , amount: missing
         , data_hash: Nothing
         }
-      _, Just skh -> liftEither $ Right $ TransactionOutput
-        { address: stakePubKeyHashAddress networkId skh
+      Just pkh, Nothing -> liftEither $ Right $ TransactionOutput
+        { address: payPubKeyHashEnterpriseAddress networkId pkh
+        , amount: missing
+        , data_hash: Nothing
+        }
+      Nothing, Just skh -> liftEither $ Right $ TransactionOutput
+        { address: stakePubKeyHashRewardAddress networkId skh
         , amount: missing
         , data_hash: Nothing
         }
@@ -818,7 +823,7 @@ processConstraint mpsMap osMap = do
         TransactionOutput { address, amount, data_hash: Just dHash } -> do
           vHash <- liftM
             (CannotGetValidatorHashFromAddress address)
-            (addressValidatorHash address)
+            (enterpriseAddressValidatorHash address)
           plutusScript <- ExceptT $ lookupValidator vHash osMap <#> map unwrap
           -- Note: Plutus uses `TxIn` to attach a redeemer and datum.
           -- Use the datum hash inside the lookup
@@ -931,7 +936,7 @@ processConstraint mpsMap osMap = do
           mDatum
         let
           txOut = TransactionOutput
-            { address: payPubKeyHashAddress networkId pkh, amount, data_hash }
+            { address: payPubKeyHashBaseAddress networkId pkh, amount, data_hash }
         _cpsToTxBody <<< _outputs %= (:) txOut
         _valueSpentBalancesOutputs <>= provide amount
     MustPayToOtherScript vlh datum amount -> do
@@ -943,7 +948,7 @@ processConstraint mpsMap osMap = do
           <$> datumHash datum
         let
           txOut = TransactionOutput
-            { address: validatorHashAddress networkId vlh
+            { address: validatorHashEnterpriseAddress networkId vlh
             , amount
             , data_hash
             }

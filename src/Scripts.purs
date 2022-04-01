@@ -8,8 +8,8 @@ module Scripts
   , validatorAddress
   , validatorBaseAddress
   , validatorHash
-  , validatorHashAddress
   , validatorHashBaseAddress
+  , validatorHashEnterpriseAddress
   ) where
 
 import Prelude
@@ -73,11 +73,7 @@ typedValidatorBaseAddress networkId (TypedValidator typedVal) =
 typedValidatorEnterpriseAddress
   :: forall (a :: Type). NetworkId -> TypedValidator a -> Address
 typedValidatorEnterpriseAddress network (TypedValidator typedVal) =
-  enterpriseAddressToAddress $
-    enterpriseAddress
-      { network
-      , paymentCred: scriptHashCredential (unwrap typedVal.validatorHash)
-      }
+  validatorHashEnterpriseAddress network typedVal.validatorHash
 
 -- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
 mintingPolicyHash :: MintingPolicy -> QueryM (Maybe MintingPolicyHash)
@@ -87,14 +83,22 @@ mintingPolicyHash = scriptHash
 validatorHash :: Validator -> QueryM (Maybe ValidatorHash)
 validatorHash = scriptHash
 
--- | Converts a Plutus-style `ValidatorHash` to a `BaseAddress`
-validatorHashBaseAddress :: NetworkId -> ValidatorHash -> BaseAddress
-validatorHashBaseAddress networkId = scriptAddress networkId <<< unwrap
+-- | Converts a Plutus-style `ValidatorHash` to a `Address` as a `BaseAddress`
+validatorHashBaseAddress :: NetworkId -> ValidatorHash -> Address
+validatorHashBaseAddress networkId =
+  baseAddressToAddress <<< scriptAddress networkId <<< unwrap
 
--- | Converts a Plutus-style `ValidatorHash` to an `Address`
-validatorHashAddress :: NetworkId -> ValidatorHash -> Address
-validatorHashAddress networkId =
-  baseAddressToAddress <<< validatorHashBaseAddress networkId
+-- | Converts a Plutus-style `ValidatorHash` to an `Address` as an
+-- | `EnterpriseAddress`. This is likely what you will use since Plutus
+-- | currently uses `scriptHashAddress` on non-staking addresses which is
+-- | invoked in `validatorAddress`
+validatorHashEnterpriseAddress :: NetworkId -> ValidatorHash -> Address
+validatorHashEnterpriseAddress network valHash =
+  enterpriseAddressToAddress $
+    enterpriseAddress
+      { network
+      , paymentCred: scriptHashCredential (unwrap valHash)
+      }
 
 -- | Converts a Plutus-style `StakeValidator` to an `StakeValidatorHash`
 stakeValidatorHash :: StakeValidator -> QueryM (Maybe StakeValidatorHash)

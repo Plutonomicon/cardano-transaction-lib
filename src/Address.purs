@@ -1,9 +1,9 @@
 module Address
-  ( addressMintingPolicyHash
-  , addressScriptHash
-  , addressStakeValidatorHash
-  , addressToOgmiosAddress
-  , addressValidatorHash
+  ( addressToOgmiosAddress
+  , enterpriseAddressMintingPolicyHash
+  , enterpriseAddressScriptHash
+  , enterpriseAddressStakeValidatorHash
+  , enterpriseAddressValidatorHash
   , getNetworkId
   , ogmiosAddressToAddress
   ) where
@@ -24,7 +24,8 @@ import Serialization.Address
   , NetworkId
   , addressBech32
   , addressFromBech32
-  , addressPaymentCred
+  , enterpriseAddressFromAddress
+  , enterpriseAddressPaymentCred
   , stakeCredentialToScriptHash
   )
 import Serialization.Hash (ScriptHash)
@@ -47,20 +48,26 @@ addressToOgmiosAddress = addressBech32
 -- `Address` to `ScriptHash`
 --------------------------------------------------------------------------------
 -- | Get the `ScriptHash` with an internal `Address`
-addressScriptHash :: Address -> Maybe ScriptHash
-addressScriptHash = stakeCredentialToScriptHash <=< addressPaymentCred
+enterpriseAddressScriptHash :: Address -> Maybe ScriptHash
+enterpriseAddressScriptHash =
+  stakeCredentialToScriptHash
+    <=< pure <<< enterpriseAddressPaymentCred
+    <=< enterpriseAddressFromAddress
 
 -- | Get the `ValidatorHash` with an internal `Address`
-addressValidatorHash :: Address -> Maybe ValidatorHash
-addressValidatorHash = map ValidatorHash <<< addressScriptHash
+enterpriseAddressValidatorHash :: Address -> Maybe ValidatorHash
+enterpriseAddressValidatorHash =
+  map ValidatorHash <<< enterpriseAddressScriptHash
 
 -- | Get the `MintingPolicyHash` with an internal `Address`
-addressMintingPolicyHash :: Address -> Maybe MintingPolicyHash
-addressMintingPolicyHash = map MintingPolicyHash <<< addressScriptHash
+enterpriseAddressMintingPolicyHash :: Address -> Maybe MintingPolicyHash
+enterpriseAddressMintingPolicyHash =
+  map MintingPolicyHash <<< enterpriseAddressScriptHash
 
 -- | Get the `StakeValidatorHash` with an internal `Address`
-addressStakeValidatorHash :: Address -> Maybe StakeValidatorHash
-addressStakeValidatorHash = map StakeValidatorHash <<< addressScriptHash
+enterpriseAddressStakeValidatorHash :: Address -> Maybe StakeValidatorHash
+enterpriseAddressStakeValidatorHash =
+  map StakeValidatorHash <<< enterpriseAddressScriptHash
 
 --------------------------------------------------------------------------------
 -- NetworkId

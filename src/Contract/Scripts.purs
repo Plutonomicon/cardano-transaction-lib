@@ -18,10 +18,10 @@ module Contract.Scripts
   ) where
 
 import Address
-  ( addressMintingPolicyHash
-  , addressScriptHash
-  , addressStakeValidatorHash
-  , addressValidatorHash
+  ( enterpriseAddressMintingPolicyHash
+  , enterpriseAddressScriptHash
+  , enterpriseAddressStakeValidatorHash
+  , enterpriseAddressValidatorHash
   ) as Address
 import QueryM
   ( ClientError
@@ -34,8 +34,8 @@ import QueryM (applyArgs) as QueryM
 import Scripts
   ( typedValidatorBaseAddress
   , typedValidatorEnterpriseAddress
-  , validatorHashAddress
   , validatorHashBaseAddress
+  , validatorHashEnterpriseAddress
   , scriptHash
   ) as ExportScripts
 import Scripts
