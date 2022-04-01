@@ -128,8 +128,6 @@ mkMarketplaceTx (NftData nftData) = do
     (mkSingletonValue' curr oldName $ negate one)
   newNftValue <- liftContractM "marketplaceBuy: Cannot create new NFT Value"
     (mkSingletonValue' curr newName one)
-  log "oldNftValue"
-  log $ show oldNftValue
   let
     nftPrice = nft'.price
     valHash = marketplaceValidator'.validatorHash
@@ -170,7 +168,6 @@ mkMarketplaceTx (NftData nftData) = do
   let utxo' = Array.find containsNft $ toUnfoldable (unwrap scriptUtxos)
   utxo /\ utxoIndex <-
     liftContractM "marketplaceBuy: NFT not found on marketplace" utxo'
-  log "ho"
   let
     lookup = mconcat
       [ ScriptLookups.mintingPolicy policy
