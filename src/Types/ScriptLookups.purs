@@ -886,7 +886,7 @@ processConstraint mpsMap osMap = do
           , data: unwrap red
           , ex_units: mintExUnits
           }
-      _cpsToTxBody <<< _mint <>= (wrap <$> mintVal)
+      _cpsToTxBody <<< _mint <>= map wrap mintVal
       -- Append redeemer for minting to array.
       _redeemers <>= Array.singleton redeemer
       -- Attach redeemer to witness set.
