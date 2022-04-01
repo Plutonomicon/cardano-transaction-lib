@@ -114,7 +114,7 @@ instance DecodeJson SeabugMetadata where
               =<< Json.getField o "collectionNftCS"
           collectionNftTN <-
             note (Json.TypeMismatch "expected ASCII-encoded `TokenName`")
-              <<< (mkTokenName <=< byteArrayFromString)
+              <<< (mkTokenName <=< hexToByteArray)
               =<< Json.getField o "collectionNftTN"
           lockingScript <-
             map wrap
