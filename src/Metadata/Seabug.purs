@@ -11,7 +11,7 @@ import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing), fromJust)
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested ((/\))
@@ -19,12 +19,18 @@ import FromData (class FromData, fromData)
 import Metadata.Seabug.Share (Share, mkShare)
 import Partial.Unsafe (unsafePartial)
 import ToData (class ToData, toData)
-import Types.ByteArray (ByteArray, byteArrayFromString)
+import Serialization.Hash (ScriptHash, scriptHashFromBytes)
+import Types.ByteArray
+  ( ByteArray
+  , byteArrayFromString
+  , hexToByteArray
+  , hexToByteArrayUnsafe
+  )
 import Types.Natural (Natural)
 import Types.PlutusData (PlutusData(Bytes, Map))
 import Types.Scripts (MintingPolicyHash, ValidatorHash)
 import Types.UnbalancedTransaction (PubKeyHash)
-import Types.Value (CurrencySymbol, TokenName, mkTokenName)
+import Types.Value (CurrencySymbol, TokenName, mkTokenName, mkCurrencySymbol)
 
 newtype SeabugMetadata = SeabugMetadata
   { policyId :: MintingPolicyHash
@@ -102,23 +108,36 @@ instance DecodeJson SeabugMetadata where
     Json.caseJsonObject
       (Left (Json.TypeMismatch "Expected object"))
       $ \o -> do
-          policyId <- Json.getField o "policyId"
-          mintPolicy <- Json.getField o "mintPolicy"
-          collectionNftCS <- Json.getField o "collectionNftCS"
+          collectionNftCS <-
+            note (Json.TypeMismatch "Invalid ByteArray")
+              <<< (mkCurrencySymbol <=< hexToByteArray)
+              =<< Json.getField o "collectionNftCS"
           collectionNftTN <-
             note (Json.TypeMismatch "expected ASCII-encoded `TokenName`")
               <<< (mkTokenName <=< byteArrayFromString)
               =<< Json.getField o "collectionNftTN"
-          lockingScript <- Json.getField o "lockingScript"
-          authorPkh <- Json.getField o "authorPkh"
+          lockingScript <-
+            map wrap
+              <<< decodeScriptHash =<< Json.getField o "lockingScript"
+          authorPkh <-
+            map wrap
+              <<< Json.decodeJson =<< Json.getField o "authorPkh"
           authorShare <- decodeShare =<< Json.getField o "authorShare"
-          marketplaceScript <- Json.getField o "marketplaceScript"
+          marketplaceScript <- map wrap <<< decodeScriptHash
+            =<< Json.getField o "marketplaceScript"
           marketplaceShare <- decodeShare =<< Json.getField o "marketplaceShare"
-          ownerPkh <- Json.getField o "ownerPkh"
+          ownerPkh <- map wrap <<< Json.decodeJson =<< Json.getField o "ownerPkh"
           ownerPrice <- Json.getField o "ownerPrice"
           pure $ SeabugMetadata
-            { policyId
-            , mintPolicy
+            { -- Not used in the endpoints where we parse the metadata, so we
+              -- can set a dummy value
+              policyId: wrap
+                $ unsafePartial
+                $ fromJust
+                $ scriptHashFromBytes
+                $ hexToByteArrayUnsafe
+                    "00000000000000000000000000000000000000000000000000000000"
+            , mintPolicy: mempty
             , collectionNftCS
             , collectionNftTN
             , lockingScript
@@ -133,6 +152,12 @@ instance DecodeJson SeabugMetadata where
     decodeShare :: Int -> Either Json.JsonDecodeError Share
     decodeShare = note (Json.TypeMismatch "Expected int between 0 and 1000")
       <<< mkShare
+
+    decodeScriptHash :: String -> Either Json.JsonDecodeError ScriptHash
+    decodeScriptHash =
+      note
+        (Json.TypeMismatch "Expected hex-encoded script hash")
+        <<< (scriptHashFromBytes <=< hexToByteArray)
 
 newtype SeabugMetadataDelta = SeabugMetadataDelta
   { policyId :: MintingPolicyHash
