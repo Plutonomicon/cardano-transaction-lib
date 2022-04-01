@@ -29,14 +29,12 @@ module Types (
 import Cardano.Api qualified as C
 import Cardano.Api.Shelley qualified as Shelley
 import Cardano.Binary qualified as Cbor
-import Cardano.Ledger.Alonzo.Data as Data
-import Cardano.Ledger.Era as Era
 import Codec.Serialise (serialise)
 import Control.Exception (Exception)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (MonadReader, ReaderT)
-import Data.Aeson (FromJSON, ToJSON (toJSON), parseJSON, toEncoding, toJSON)
+import Data.Aeson (FromJSON, ToJSON (toJSON))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Encoding qualified as Aeson.Encoding
 import Data.Aeson.Types (withText)
