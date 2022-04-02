@@ -73,6 +73,8 @@ import Seabug.Types
 import Types.ScriptLookups (mkUnbalancedTx')
 import Types.Transaction (Redeemer) as T
 
+
+-- TODO docstring
 marketplaceBuy :: NftData -> Contract Unit
 marketplaceBuy nftData = do
   { unbalancedTx, datums, redeemers } /\ curr /\ newName <-
@@ -87,7 +89,7 @@ marketplaceBuy nftData = do
   log "marketplaceBuy: Datums and redeemer attached"
   -- Submit transaction:
   transactionHash <- wrap $ submit txCbor
-  -- -- Submit balanced tx:
+  -- Log success
   log $ "marketplaceBuy: Transaction successfully submitted with hash: "
     <> show transactionHash
   log $ "marketplaceBuy: Buy successful: " <> show (curr /\ newName)
@@ -97,6 +99,7 @@ marketplaceBuy nftData = do
 -- The `MintingPolicy` may be decoded as Json, although I'm not sure as we don't
 -- have `mkMintingPolicyScript`. Otherwise, it's an policy that hasn't been
 -- applied to arguments. See `Seabug.Token.policy`
+-- TODO docstring
 mkMarketplaceTx
   :: NftData
   -> Contract
