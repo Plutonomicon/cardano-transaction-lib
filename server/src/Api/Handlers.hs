@@ -40,15 +40,13 @@ import Types (
   ApplyArgsRequest (ApplyArgsRequest, args, script),
   Blake2bHash (Blake2bHash),
   BytesToHash (BytesToHash),
-  CardanoBrowserServerError (FeeEstimate, FinalizeTx),
+  CardanoBrowserServerError (CborDecode),
   Cbor (Cbor),
+  CborDecodeError (InvalidCbor, InvalidHex, OtherDecodeError),
   Env (protocolParams),
   Fee (Fee),
-  FeeEstimateError (FEInvalidCbor, FEInvalidHex),
   FinalizeRequest (..),
-  FinalizeTxError (FTInvalidCbor, FTInvalidHex),
   FinalizedTransaction (..),
-  HashDataError (HDInvalidCbor, HDInvalidHex),
   HashDataRequest (HashDataRequest),
   HashScriptRequest (HashScriptRequest),
   HashedData (HashedData),
@@ -59,13 +57,10 @@ import Types (
 estimateTxFees :: Cbor -> AppM Fee
 estimateTxFees cbor = do
   decoded <-
-    either (throwM . FeeEstimate . decodeErrorToEstimateError) pure $
+    either (throwM . CborDecode) pure $
       decodeCborTx cbor
   pparams <- asks protocolParams
   pure . Fee $ estimateFee pparams decoded
-  where
-    decodeErrorToEstimateError (InvalidCbor cbe) = FEInvalidCbor cbe
-    decodeErrorToEstimateError (InvalidHex he) = FEInvalidHex he
 
 applyArgs :: ApplyArgsRequest -> AppM AppliedScript
 applyArgs ApplyArgsRequest {script, args} =
@@ -79,15 +74,14 @@ hashScript (HashScriptRequest script) =
 hashData :: HashDataRequest -> AppM HashedData
 hashData (HashDataRequest datum) = do
   decodedDatum <-
-    maybe (handleError $ InvalidHex "Failed to decode Datum") pure $
+    throwDecodeErrorWithMessage "Failed to decode Datum" $
       decodeCborDatum datum
-  let hashedDatum = Data.hashData decodedDatum
   pure . HashedData . encodeCborText . Cbor.serializeEncoding . Cbor.toCBOR $
-    hashedDatum
-  where
-    handleError = throwM . decodeErrorToHashDataError
-    decodeErrorToHashDataError (InvalidCbor cbe) = HDInvalidCbor cbe
-    decodeErrorToHashDataError (InvalidHex he) = HDInvalidHex he
+    Data.hashData decodedDatum
+
+throwDecodeErrorWithMessage :: forall (a :: Type). String -> Maybe a -> AppM a
+throwDecodeErrorWithMessage msg =
+  maybe (throwM . CborDecode $ OtherDecodeError msg) pure
 
 blake2bHash :: BytesToHash -> AppM Blake2bHash
 blake2bHash (BytesToHash hs) =
@@ -98,13 +92,13 @@ finalizeTx :: FinalizeRequest -> AppM FinalizedTransaction
 finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
   pparams <- asks protocolParams
   decodedTx <-
-    maybe (handleError $ InvalidHex "Failed to decode tx") pure $
+    throwDecodeErrorWithMessage "Failed to decode tx" $
       decodeCborValidatedTx tx
   decodedRedeemers <-
-    maybe (handleError $ InvalidHex "Failed to decode redeemers") pure $
+    throwDecodeErrorWithMessage "Failed to decode redeemers" $
       decodeCborRedeemers redeemers
   decodedDatums <-
-    maybe (handleError $ InvalidHex "Failed to decode datums") pure $
+    throwDecodeErrorWithMessage "Failed to decode datums" $
       traverse decodeCborDatum datums
   let languages = Set.fromList [PlutusV1]
       txDatums =
@@ -137,10 +131,6 @@ finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
         FinalizedTransaction . encodeCborText . Cbor.serializeEncoding $
           Tx.toCBORForMempoolSubmission finalizedTx
   pure response
-  where
-    handleError = throwM . FinalizeTx . decodeErrorToFinalizeError
-    decodeErrorToFinalizeError (InvalidCbor cbe) = FTInvalidCbor cbe
-    decodeErrorToFinalizeError (InvalidHex he) = FTInvalidHex he
 
 -- Helpers
 
@@ -159,9 +149,7 @@ estimateFee pparams (C.Tx txBody keyWits) = estimate
             -- 'evaluateTransactionFee' won't work with them anyway
             0
 
-data DecodeError = InvalidCbor Cbor.DecoderError | InvalidHex String
-
-decodeCborText :: Cbor -> Either DecodeError ByteString
+decodeCborText :: Cbor -> Either CborDecodeError ByteString
 decodeCborText (Cbor cborText) =
   first InvalidHex . Base16.decode $
     Text.Encoding.encodeUtf8 cborText
@@ -169,7 +157,7 @@ decodeCborText (Cbor cborText) =
 encodeCborText :: BL.ByteString -> Cbor
 encodeCborText = Cbor . Text.Encoding.decodeUtf8 . Base16.encode . BL.toStrict
 
-decodeCborTx :: Cbor -> Either DecodeError (C.Tx C.AlonzoEra)
+decodeCborTx :: Cbor -> Either CborDecodeError (C.Tx C.AlonzoEra)
 decodeCborTx cbor =
   first InvalidCbor
     . C.deserialiseFromCBOR (C.proxyToAsType Proxy)
@@ -178,12 +166,6 @@ decodeCborTx cbor =
 decodeCborValidatedTx ::
   Cbor -> Maybe (Tx.ValidatedTx (Alonzo.AlonzoEra StandardCrypto))
 decodeCborValidatedTx = decodeCborComponent
-
-decodeCborTextLazyBS :: Cbor -> Either DecodeError BL.ByteString
-decodeCborTextLazyBS (Cbor text) =
-  bimap InvalidHex BL.fromStrict
-    . Base16.decode
-    $ Text.Encoding.encodeUtf8 text
 
 decodeCborRedeemers ::
   Cbor -> Maybe (TxWitness.Redeemers (Alonzo.AlonzoEra StandardCrypto))
@@ -199,3 +181,9 @@ decodeCborComponent cbor = do
   bs <- preview _Right $ decodeCborTextLazyBS cbor
   fmap (`runAnnotator` Full bs) . preview _Right . fmap snd $
     deserialiseFromBytes Cbor.fromCBOR bs
+
+decodeCborTextLazyBS :: Cbor -> Either CborDecodeError BL.ByteString
+decodeCborTextLazyBS (Cbor text) =
+  bimap InvalidHex BL.fromStrict
+    . Base16.decode
+    $ Text.Encoding.encodeUtf8 text

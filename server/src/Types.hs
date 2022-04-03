@@ -11,12 +11,10 @@ module Types (
   ApplyArgsRequest (..),
   AppliedScript (..),
   HashDataRequest (..),
-  HashDataError(..),
   HashedData (..),
   HashScriptRequest (..),
   HashedScript (..),
-  FeeEstimateError (..),
-  FinalizeTxError(..),
+  CborDecodeError (..),
   CardanoBrowserServerError (..),
   BytesToHash (..),
   Blake2bHash (..),
@@ -170,33 +168,18 @@ toCardanoApiScript =
     . LC8.toStrict
     . serialise
 
-data CardanoBrowserServerError
-  = FeeEstimate FeeEstimateError
-  | FinalizeTx FinalizeTxError
+newtype CardanoBrowserServerError = CborDecode CborDecodeError
   deriving stock (Show)
 
 instance Exception CardanoBrowserServerError
 
-data HashDataError
-  = HDInvalidCbor Cbor.DecoderError
-  | HDInvalidHex String
+data CborDecodeError
+  = InvalidCbor Cbor.DecoderError
+  | InvalidHex String
+  | OtherDecodeError String
   deriving stock (Show)
 
-instance Exception HashDataError
-
-data FeeEstimateError
-  = FEInvalidCbor Cbor.DecoderError
-  | FEInvalidHex String
-  deriving stock (Show)
-
-instance Exception FeeEstimateError
-
-data FinalizeTxError
-  = FTInvalidCbor Cbor.DecoderError
-  | FTInvalidHex String
-  deriving stock (Show)
-
-instance Exception FinalizeTxError
+instance Exception CborDecodeError
 
 -- API doc stuff
 instance Docs.ToParam (QueryParam' '[Required] "tx" Cbor) where

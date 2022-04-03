@@ -43,22 +43,20 @@ import Types (
   AppliedScript,
   ApplyArgsRequest,
   Blake2bHash,
-  CardanoBrowserServerError (FeeEstimate, FinalizeTx),
+  BytesToHash,
+  CardanoBrowserServerError (CborDecode),
   Cbor,
+  CborDecodeError (InvalidCbor, InvalidHex, OtherDecodeError),
   Env,
   Fee,
-  FeeEstimateError (FEInvalidCbor, FEInvalidHex),
-  FinalizeTxError (FTInvalidCbor, FTInvalidHex),
+  FinalizeRequest,
+  FinalizedTransaction,
   HashDataRequest,
-  HashedData,
   HashScriptRequest,
+  HashedData,
   HashedScript,
-  BytesToHash,
-  FinalizeRequest(..),
-  FinalizedTransaction(..)
  )
 import Utils (lbshow)
-
 
 type Api =
   "fees" :> QueryParam' '[Required] "tx" Cbor :> Get '[JSON] Fee
@@ -86,10 +84,11 @@ app :: Env -> Application
 app = Cors.cors (const $ Just policy) . serve api . appServer
   where
     policy :: Cors.CorsResourcePolicy
-    policy = Cors.simpleCorsResourcePolicy
-      { Cors.corsRequestHeaders = ["Content-Type"]
-      , Cors.corsMethods = ["OPTIONS", "GET", "POST"]
-      }
+    policy =
+      Cors.simpleCorsResourcePolicy
+        { Cors.corsRequestHeaders = ["Content-Type"]
+        , Cors.corsMethods = ["OPTIONS", "GET", "POST"]
+        }
 
 appServer :: Env -> Server Api
 appServer env = hoistServer api appHandler server
@@ -108,12 +107,10 @@ appServer env = hoistServer api appHandler server
         handleError ::
           CardanoBrowserServerError ->
           Handler a
-        handleError (FeeEstimate fe) = case fe of
-          FEInvalidCbor ic -> throwError err400 {errBody = lbshow ic}
-          FEInvalidHex ih -> throwError err400 {errBody = LC8.pack ih}
-        handleError (FinalizeTx fe) = case fe of
-          FTInvalidCbor ic -> throwError err400 {errBody = lbshow ic}
-          FTInvalidHex ih -> throwError err400 {errBody = LC8.pack ih}
+        handleError (CborDecode de) = case de of
+          InvalidCbor ic -> throwError err400 {errBody = lbshow ic}
+          InvalidHex ih -> throwError err400 {errBody = LC8.pack ih}
+          OtherDecodeError str -> throwError err400 {errBody = LC8.pack str}
 
 api :: Proxy Api
 api = Proxy
