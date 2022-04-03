@@ -73,7 +73,6 @@ import Seabug.Types
 import Types.ScriptLookups (mkUnbalancedTx')
 import Types.Transaction (Redeemer) as T
 
-
 -- TODO docstring
 marketplaceBuy :: NftData -> Contract Unit
 marketplaceBuy nftData = do

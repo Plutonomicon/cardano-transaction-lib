@@ -8,10 +8,10 @@ autogen-deps:
 		&& node2nix -l package-lock.json -d -c node2nix.nix
 
 check-format:
-	purs-tidy check "src/**/*.purs" "test/**/*.purs"
+	purs-tidy check "src/**/*.purs" "test/**/*.purs" "examples/**/*.purs" "seabug_contracts/**/*.purs"
 
 format:
-	purs-tidy format-in-place "src/**/*.purs" "test/**/*.purs" "examples/**/*.purs"
+	purs-tidy format-in-place "src/**/*.purs" "test/**/*.purs" "examples/**/*.purs" "seabug_contracts/**/*.purs"
 
 run-testnet-node:
 	docker run --rm \

@@ -11,6 +11,7 @@ module Types.Value
   , currencyMPSHash
   , eq
   , filterNonAda
+  , flattenNonAdaValue
   , geq
   , getCurrencySymbol
   , getLovelace
