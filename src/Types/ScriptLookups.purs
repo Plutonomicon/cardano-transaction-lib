@@ -153,6 +153,7 @@ import Types.Value
   , mpsSymbol
   , negation
   , split
+  , getNonAdaAsset
   )
 import TxOutput (transactionOutputToScriptOutput)
 
@@ -865,11 +866,11 @@ processConstraint mpsMap osMap = do
         if i < zero then do
           v <- liftM (CannotMakeValue cs tn i) (value $ negate i)
           _valueSpentBalancesInputs <>= provide v
-          liftEither $ Right $ value i
+          liftEither $ Right $ map getNonAdaAsset $ value i
         else do
           v <- liftM (CannotMakeValue cs tn i) (value i)
           _valueSpentBalancesOutputs <>= provide v
-          liftEither $ Right $ value i
+          liftEither $ Right $ map getNonAdaAsset $ value i
       ExceptT $ attachToCps attachPlutusScript plutusScript
       -- Get the redeemer index, which is the current length of scripts - 1
       mIndex <- use (_cpsToWitnessSet <<< _plutusScripts <<< to (map lastIndex))

@@ -96,7 +96,7 @@ import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
 import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
-import Types.Value (Coin, Value)
+import Types.Value (Coin, NonAdaAsset, Value)
 import Types.PlutusData (PlutusData(Constr))
 
 --------------------------------------------------------------------------------
@@ -242,7 +242,7 @@ derive newtype instance Eq ScriptDataHash
 instance Show ScriptDataHash where
   show = genericShow
 
-newtype Mint = Mint Value
+newtype Mint = Mint NonAdaAsset
 
 derive instance Generic Mint _
 derive instance Newtype Mint _

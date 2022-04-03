@@ -7,6 +7,8 @@ foreign import data Value :: Type
 foreign import data AuxiliaryData :: Type
 foreign import data Transaction :: Type
 foreign import data TransactionBody :: Type
+foreign import data Mint :: Type
+foreign import data MintAssets :: Type
 foreign import data TransactionWitnessSet :: Type
 foreign import data TransactionHash :: Type
 foreign import data TransactionInput :: Type
