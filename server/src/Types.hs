@@ -18,12 +18,11 @@ module Types (
   FeeEstimateError (..),
   FinalizeTxError(..),
   CardanoBrowserServerError (..),
+  BytesToHash (..),
+  Blake2bHash (..),
   hashLedgerScript,
   newEnvIO,
   unsafeDecode,
-  -- blake2b stuff
-  BytesToHash (..),
-  Blake2bHash (..),
 ) where
 
 import Cardano.Api qualified as C
@@ -124,6 +123,7 @@ data FinalizeRequest = FinalizeRequest
   { tx :: Cbor
   , datums :: [Cbor]
   , redeemers :: Cbor
+  , scripts :: [Cbor]
   }
   deriving stock (Show, Generic, Eq)
   deriving anyclass (FromJSON, ToJSON)
@@ -291,8 +291,9 @@ instance Docs.ToSample HashedScript where
 instance Docs.ToSample FinalizeRequest where
   toSamples _ =
     [
-      ( "The input should contain CBOR of Tx, Redeemers and individual plutus datums"
-      , FinalizeRequest (Cbor "00") [Cbor "00"] (Cbor "00")
+      ( "The input should contain CBOR of tx, redeemers, individual Plutus\
+        \datums, and Plutus script hashes"
+      , FinalizeRequest (Cbor "00") [Cbor "00"] (Cbor "00") [Cbor "00"]
       )
     ]
 
