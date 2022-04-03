@@ -17,7 +17,13 @@ exports._getNamiCollateral = maybe => nami => () =>
 });
 
 // _signTxNami :: String -> NamiConnection -> Effect (Promise String)
-exports._signTxNami = txHex => nami => () => nami.signTx(txHex);
+exports._signTxNami = txHex => nami => () => {
+  return nami.signTx(txHex, true) // here
+      .catch(e => {
+          console.log("Error in signTxNami: ", e);
+          throw (JSON.stringify(e));
+      });
+}
 
 // _submitTxNami :: String -> NamiConnection -> Effect (Promise String)
 exports._submitTxNami = txHex => nami => () => {

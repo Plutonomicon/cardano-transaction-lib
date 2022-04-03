@@ -28,6 +28,7 @@ import Data.Either (Either(Left, Right), hush, note)
 import Data.Foldable as Foldable
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
+import Data.Lens.Setter ((.~))
 import Data.List ((:), List(Nil), partition)
 import Data.Map as Map
 import Data.Maybe (fromMaybe, maybe, Maybe(Just, Nothing))
@@ -248,6 +249,7 @@ balanceTx :: UnbalancedTx -> QueryM (Either BalanceTxError Transaction)
 balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
   networkId <- (unbalancedTx ^. _body <<< _networkId) #
     maybe (asks _.networkId) pure
+  let unbalancedTx' = unbalancedTx # _body <<< _networkId .~ Just networkId
   runExceptT do
     -- Get own wallet address, collateral and utxo set:
     ownAddr <- ExceptT $ getWalletAddress <#>
@@ -268,7 +270,7 @@ balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
       -- for the Ada only collateral. No MinUtxos required. In fact perhaps
       -- this step can be skipped and we can go straight to prebalancer.
       unbalancedCollTx :: Transaction
-      unbalancedCollTx = addTxCollateral unbalancedTx collateral
+      unbalancedCollTx = addTxCollateral unbalancedTx' collateral
 
     -- Logging Unbalanced Tx with collateral added:
     logTx' "Unbalanced Collaterised Tx " allUtxos unbalancedCollTx

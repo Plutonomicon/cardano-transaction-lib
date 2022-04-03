@@ -16,13 +16,13 @@ import Prelude
 
 import Address
   ( addressToOgmiosAddress
-  , addressValidatorHash
+  , enterpriseAddressValidatorHash
   , ogmiosAddressToAddress
   )
 import Data.Map (Map)
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap)
-import Scripts (validatorHashAddress)
+import Scripts (validatorHashEnterpriseAddress)
 import Serialization.Address (NetworkId)
 import Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Types.Datum (DatumHash)
@@ -87,7 +87,7 @@ transactionOutputToOgmiosTxOut
 ogmiosTxOutToScriptOutput :: JsonWsp.OgmiosTxOut -> Maybe UTx.ScriptOutput
 ogmiosTxOutToScriptOutput { address, value, datum: Just dHash } = do
   address' <- ogmiosAddressToAddress address
-  validatorHash <- addressValidatorHash address'
+  validatorHash <- enterpriseAddressValidatorHash address'
   datumHash <- ogmiosDatumHashToDatumHash dHash
   pure $ UTx.ScriptOutput
     { validatorHash
@@ -103,7 +103,7 @@ scriptOutputToOgmiosTxOut
   networkId
   (UTx.ScriptOutput { validatorHash, value, datumHash }) =
   { address:
-      addressToOgmiosAddress $ validatorHashAddress networkId validatorHash
+      addressToOgmiosAddress $ validatorHashEnterpriseAddress networkId validatorHash
   , value
   , datum: pure (datumHashToOgmiosDatumHash datumHash)
   }
@@ -115,7 +115,7 @@ transactionOutputToScriptOutput
   ( Transaction.TransactionOutput
       { address, amount: value, data_hash: Just datumHash }
   ) = do
-  validatorHash <- addressValidatorHash address
+  validatorHash <- enterpriseAddressValidatorHash address
   pure $ UTx.ScriptOutput
     { validatorHash
     , value
@@ -131,7 +131,7 @@ scriptOutputToTransactionOutput
   networkId
   (UTx.ScriptOutput { validatorHash, value, datumHash }) =
   Transaction.TransactionOutput
-    { address: validatorHashAddress networkId validatorHash
+    { address: validatorHashEnterpriseAddress networkId validatorHash
     , amount: value
     , data_hash: Just datumHash
     }

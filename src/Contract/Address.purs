@@ -16,10 +16,10 @@ module Contract.Address
   ) where
 
 import Address
-  ( addressMintingPolicyHash
-  , addressScriptHash
-  , addressStakeValidatorHash
-  , addressValidatorHash
+  ( enterpriseAddressMintingPolicyHash
+  , enterpriseAddressScriptHash
+  , enterpriseAddressStakeValidatorHash
+  , enterpriseAddressValidatorHash
   ) as ExportAddress
 import Address (getNetworkId) as Address
 import Contract.Monad (Contract)
@@ -38,8 +38,8 @@ import QueryM
 import Scripts
   ( typedValidatorBaseAddress
   , typedValidatorEnterpriseAddress
-  , validatorHashAddress
   , validatorHashBaseAddress
+  , validatorHashEnterpriseAddress
   ) as Scripts
 import Serialization.Address (Address)
 import Serialization.Address -- There are a lot of helpers we have ignored here, we may want to include them.
@@ -71,17 +71,15 @@ import Types.UnbalancedTransaction
   , ScriptOutput(ScriptOutput)
   , StakeKeyHash(StakeKeyHash)
   , StakePubKeyHash(StakePubKeyHash)
-  , payPubKeyHashAddress
   , payPubKeyHashBaseAddress
+  , payPubKeyHashEnterpriseAddress
   , payPubKeyRequiredSigner
   , payPubKeyVkey
   -- , pubKeyHash
-  , pubKeyHashAddress
   , pubKeyHashBaseAddress
-  , stakeKeyHashAddress
-  , stakeKeyHashBaseAddress
-  , stakePubKeyHashAddress
-  , stakePubKeyHashBaseAddress
+  , pubKeyHashEnterpriseAddress
+  , stakeKeyHashRewardAddress
+  , stakePubKeyHashRewardAddress
   ) as UnbalancedTransaction
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
