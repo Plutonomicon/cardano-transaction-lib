@@ -7,7 +7,7 @@ import Contract.Prelude
 import Contract.Address
   ( getNetworkId
   , ownPaymentPubKeyHash
-  , payPubKeyHashAddress
+  , payPubKeyHashBaseAddress
   )
 import Contract.ScriptLookups
   ( mintingPolicy
@@ -160,7 +160,7 @@ mkMarketplaceTx (NftData nftData) = do
       - shareToSubtract authorShare
       - shareToSubtract daoShare
     datum = Datum $ toData $ curr /\ oldName
-    userAddr = payPubKeyHashAddress networkId pkh
+    userAddr = payPubKeyHashBaseAddress networkId pkh
   userUtxos <-
     liftedM "marketplaceBuy: Cannot get user Utxos" (utxosAt userAddr)
   scriptUtxos <-
