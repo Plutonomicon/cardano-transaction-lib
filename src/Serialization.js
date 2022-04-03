@@ -176,3 +176,14 @@ exports.insertMintAssets = mint => scriptHash => mintAssets => () =>
 
 exports.insertMintAsset = mintAssets => assetName => int => () =>
     mintAssets.insert(assetName, int);
+
+exports.networkIdTestnet = () =>
+    lib.NetworkId.testnet();
+
+exports.networkIdMainnet = () =>
+    lib.NetworkId.mainnet();
+exports.setTxBodyCollateral = body => inputs => () =>
+    body.set_collateral(inputs);
+
+exports.setTxBodyNetworkId = body => network_id => () =>
+    body.set_network_id(network_id);

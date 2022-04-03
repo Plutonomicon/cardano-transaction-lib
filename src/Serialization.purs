@@ -24,6 +24,7 @@ import Effect.Exception (throw)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Helpers (fromJustEff)
 import Serialization.Address (Address)
+import Serialization.Address (NetworkId(TestnetId, MainnetId)) as T
 import Serialization.BigInt as Serialization
 import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes)
@@ -44,6 +45,7 @@ import Serialization.Types
   , MintAssets
   , MultiAsset
   , NativeScript
+  , NetworkId
   , PlutusData
   , PlutusList
   , PlutusScripts
@@ -133,6 +135,10 @@ foreign import newMintAssets :: Effect MintAssets
 foreign import _bigIntToInt :: MaybeFfiHelper -> BigInt -> Maybe Int
 foreign import insertMintAssets :: Mint -> ScriptHash -> MintAssets -> Effect Unit
 foreign import insertMintAsset :: MintAssets -> AssetName -> Int -> Effect Unit
+foreign import setTxBodyNetworkId :: TransactionBody -> NetworkId -> Effect Unit
+foreign import networkIdTestnet :: Effect NetworkId
+foreign import networkIdMainnet :: Effect NetworkId
+foreign import setTxBodyCollateral :: TransactionBody -> TransactionInputs -> Effect Unit
 
 foreign import toBytes
   :: ( Transaction
@@ -154,12 +160,19 @@ convertTransaction (T.Transaction { body: T.TxBody body, witness_set }) = do
   outputs <- convertTxOutputs body.outputs
   fee <- maybe (throw "Failed to convert fee") pure $ bigNumFromBigInt (unwrap body.fee)
   txBody <- newTransactionBody inputs outputs fee
+  for_ body.network_id $ convertNetworkId >=> setTxBodyNetworkId txBody
   traverse_
     (unwrap >>> newScriptDataHashFromBytes >=> setTxBodyScriptDataHash txBody)
     body.script_data_hash
   for_ body.mint $ convertMint >=> setTxBodyMint txBody
+  for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
   ws <- convertWitnessSet witness_set
   newTransaction txBody ws
+
+convertNetworkId :: T.NetworkId -> Effect NetworkId
+convertNetworkId = case _ of
+  T.TestnetId -> networkIdTestnet
+  T.MainnetId -> networkIdMainnet
 
 convertMint :: T.Mint -> Effect Mint
 convertMint (T.Mint (Value.NonAdaAsset m)) = do

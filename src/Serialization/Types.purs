@@ -29,6 +29,7 @@ foreign import data PlutusScript :: Type
 foreign import data PlutusScripts :: Type
 foreign import data NativeScript :: Type
 foreign import data NativeScripts :: Type
+foreign import data NetworkId :: Type
 foreign import data ScriptPubkey :: Type
 foreign import data ScriptAll :: Type
 foreign import data ScriptAny :: Type
