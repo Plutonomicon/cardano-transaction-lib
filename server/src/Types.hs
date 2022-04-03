@@ -123,7 +123,6 @@ data FinalizeRequest = FinalizeRequest
   { tx :: Cbor
   , datums :: [Cbor]
   , redeemers :: Cbor
-  , scripts :: [Cbor]
   }
   deriving stock (Show, Generic, Eq)
   deriving anyclass (FromJSON, ToJSON)
@@ -293,7 +292,7 @@ instance Docs.ToSample FinalizeRequest where
     [
       ( "The input should contain CBOR of tx, redeemers, individual Plutus\
         \datums, and Plutus script hashes"
-      , FinalizeRequest (Cbor "00") [Cbor "00"] (Cbor "00") [Cbor "00"]
+      , FinalizeRequest (Cbor "00") [Cbor "00"] (Cbor "00")
       )
     ]
 
