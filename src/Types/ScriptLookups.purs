@@ -576,22 +576,15 @@ mkUnbalancedTx' scriptLookups txConstraints =
     \{ unbalancedTx, datums, redeemers } ->
       let
         _transaction = prop (SProxy :: SProxy "transaction")
-        _witness_set = prop (SProxy :: SProxy "witness_set")
         _body = prop (SProxy :: SProxy "body")
         _script_data_hash = prop (SProxy :: SProxy "script_data_hash")
-
-        stripWitnessSet :: UnbalancedTx -> UnbalancedTx
-        stripWitnessSet =
-          over UnbalancedTx $
-            _transaction %~ over Transaction
-              (_witness_set .~ mempty)
 
         stripScriptDataHash :: UnbalancedTx -> UnbalancedTx
         stripScriptDataHash =
           over UnbalancedTx $
             _transaction %~ over Transaction
               (_body %~ over TxBody (_script_data_hash .~ Nothing))
-        tx = stripWitnessSet $ stripScriptDataHash unbalancedTx
+        tx = stripScriptDataHash unbalancedTx
       in
         { unbalancedTx: tx, datums, redeemers }
 
