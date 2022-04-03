@@ -426,7 +426,7 @@ calculateMinFee tx = do
   -- The server is calculating fees that are too low
   -- See https://github.com/Plutonomicon/cardano-browser-tx/issues/123
   coinFromEstimate :: FeeEstimate -> Coin
-  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 50000)) <<< unwrap
+  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 500000)) <<< unwrap
 
 -- | CborHex-encoded tx
 newtype FinalizedTransaction = FinalizedTransaction ByteArray
