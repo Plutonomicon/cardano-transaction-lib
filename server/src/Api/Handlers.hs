@@ -6,16 +6,16 @@ module Api.Handlers (
   hashData,
   hashScript,
   blake2bHash,
-  finalizeTx
+  finalizeTx,
 ) where
 
 import Cardano.Api qualified as C
 import Cardano.Api.Shelley qualified as Shelley
-import Cardano.Binary (Annotator(runAnnotator), FullByteString(Full))
+import Cardano.Binary (Annotator (runAnnotator), FullByteString (Full))
 import Cardano.Binary qualified as Cbor
 import Cardano.Ledger.Alonzo qualified as Alonzo
 import Cardano.Ledger.Alonzo.Data qualified as Data
-import Cardano.Ledger.Alonzo.Language (Language(PlutusV1))
+import Cardano.Ledger.Alonzo.Language (Language (PlutusV1))
 import Cardano.Ledger.Alonzo.Tx qualified as Tx
 import Cardano.Ledger.Alonzo.TxWitness qualified as TxWitness
 import Cardano.Ledger.Crypto (StandardCrypto)
@@ -23,10 +23,11 @@ import Codec.CBOR.Read (deserialiseFromBytes)
 import Control.Lens
 import Control.Monad.Catch (throwM)
 import Control.Monad.Reader (asks)
-import Data.Bifunctor (first, second)
+import Data.Bifunctor (first)
 import Data.ByteString (ByteString)
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Lazy qualified as BL
+import Data.Kind (Type)
 import Data.Map qualified as Map
 import Data.Proxy (Proxy (Proxy))
 import Data.Set qualified as Set
@@ -38,27 +39,28 @@ import Types (
   AppliedScript (AppliedScript),
   ApplyArgsRequest (ApplyArgsRequest, args, script),
   Blake2bHash (Blake2bHash),
+  BytesToHash (BytesToHash),
   CardanoBrowserServerError (FeeEstimate, FinalizeTx),
   Cbor (Cbor),
   Env (protocolParams),
   Fee (Fee),
   FeeEstimateError (FEInvalidCbor, FEInvalidHex),
+  FinalizeRequest (..),
   FinalizeTxError (FTInvalidCbor, FTInvalidHex),
+  FinalizedTransaction (..),
   HashDataError (HDInvalidCbor, HDInvalidHex),
   HashDataRequest (HashDataRequest),
-  HashedData (HashedData),
   HashScriptRequest (HashScriptRequest),
+  HashedData (HashedData),
   HashedScript (HashedScript),
-  BytesToHash (BytesToHash),
-  FinalizeRequest (..),
-  FinalizedTransaction(..),
   hashLedgerScript,
  )
 
 estimateTxFees :: Cbor -> AppM Fee
 estimateTxFees cbor = do
-  decoded <- either (throwM . FeeEstimate . decodeErrorToEstimateError) pure $
-    decodeCborTx cbor
+  decoded <-
+    either (throwM . FeeEstimate . decodeErrorToEstimateError) pure $
+      decodeCborTx cbor
   pparams <- asks protocolParams
   pure . Fee $ estimateFee pparams decoded
   where
@@ -76,8 +78,9 @@ hashScript (HashScriptRequest script) =
 
 hashData :: HashDataRequest -> AppM HashedData
 hashData (HashDataRequest datum) = do
-  decodedDatum <- maybe (handleError $ InvalidHex "Failed to decode Datum") pure $
-    decodeCborDatum datum
+  decodedDatum <-
+    maybe (handleError $ InvalidHex "Failed to decode Datum") pure $
+      decodeCborDatum datum
   let hashedDatum = Data.hashData decodedDatum
   pure . HashedData . encodeCborText . Cbor.serializeEncoding . Cbor.toCBOR $
     hashedDatum
@@ -94,31 +97,45 @@ blake2bHash (BytesToHash hs) =
 finalizeTx :: FinalizeRequest -> AppM FinalizedTransaction
 finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
   pparams <- asks protocolParams
-  decodedTx <- maybe (handleError $ InvalidHex "Failed to decode Tx") pure $
-    decodeCborValidatedTx tx
-  decodedRedeemers <- maybe (handleError $ InvalidHex "Failed to decode Redeemers") pure $
-    decodeCborRedeemers redeemers
-  decodedDatums <- maybe (handleError $ InvalidHex "Failed to decode Datums") pure $
-    traverse decodeCborDatum datums
-  let
-    languages = Set.fromList [PlutusV1]
-    txDatums = TxWitness.TxDats . Map.fromList $
-      decodedDatums <&> \datum -> (Data.hashData datum, datum)
-    mbIntegrityHash = Tx.hashScriptIntegrity
-      (C.toLedgerPParams C.ShelleyBasedEraAlonzo pparams)
-      languages
-      decodedRedeemers
-      txDatums
-  let
-    addIntegrityHash t =
-      t { Tx.body = Tx.body t &
-          \body -> body { Tx.scriptIntegrityHash = mbIntegrityHash } }
-    addDatumsAndRedeemers t =
-      t { Tx.wits = Tx.wits t &
-          \witness -> witness { TxWitness.txdats = txDatums, TxWitness.txrdmrs = decodedRedeemers } }
-    finalizedTx = addIntegrityHash $ addDatumsAndRedeemers decodedTx
-    response = FinalizedTransaction . encodeCborText . Cbor.serializeEncoding $
-      Tx.toCBORForMempoolSubmission finalizedTx
+  decodedTx <-
+    maybe (handleError $ InvalidHex "Failed to decode tx") pure $
+      decodeCborValidatedTx tx
+  decodedRedeemers <-
+    maybe (handleError $ InvalidHex "Failed to decode redeemers") pure $
+      decodeCborRedeemers redeemers
+  decodedDatums <-
+    maybe (handleError $ InvalidHex "Failed to decode datums") pure $
+      traverse decodeCborDatum datums
+  let languages = Set.fromList [PlutusV1]
+      txDatums =
+        TxWitness.TxDats . Map.fromList $
+          decodedDatums <&> \datum -> (Data.hashData datum, datum)
+      mbIntegrityHash =
+        Tx.hashScriptIntegrity
+          (C.toLedgerPParams C.ShelleyBasedEraAlonzo pparams)
+          languages
+          decodedRedeemers
+          txDatums
+  let addIntegrityHash t =
+        t
+          { Tx.body =
+              Tx.body t
+                & \body -> body {Tx.scriptIntegrityHash = mbIntegrityHash}
+          }
+      addDatumsAndRedeemers t =
+        t
+          { Tx.wits =
+              Tx.wits t
+                & \witness ->
+                  witness
+                    { TxWitness.txdats = txDatums
+                    , TxWitness.txrdmrs = decodedRedeemers
+                    }
+          }
+      finalizedTx = addIntegrityHash $ addDatumsAndRedeemers decodedTx
+      response =
+        FinalizedTransaction . encodeCborText . Cbor.serializeEncoding $
+          Tx.toCBORForMempoolSubmission finalizedTx
   pure response
   where
     handleError = throwM . FinalizeTx . decodeErrorToFinalizeError
@@ -145,8 +162,9 @@ estimateFee pparams (C.Tx txBody keyWits) = estimate
 data DecodeError = InvalidCbor Cbor.DecoderError | InvalidHex String
 
 decodeCborText :: Cbor -> Either DecodeError ByteString
-decodeCborText (Cbor cborText) = first InvalidHex . Base16.decode $
-  Text.Encoding.encodeUtf8 cborText
+decodeCborText (Cbor cborText) =
+  first InvalidHex . Base16.decode $
+    Text.Encoding.encodeUtf8 cborText
 
 encodeCborText :: BL.ByteString -> Cbor
 encodeCborText = Cbor . Text.Encoding.decodeUtf8 . Base16.encode . BL.toStrict
@@ -158,28 +176,26 @@ decodeCborTx cbor =
     =<< decodeCborText cbor
 
 decodeCborValidatedTx ::
-    Cbor -> Maybe (Tx.ValidatedTx (Alonzo.AlonzoEra StandardCrypto))
-decodeCborValidatedTx cbor = do
-  bs <- preview _Right $ decodeCborTextLazyBS cbor
-  fmap (flip runAnnotator (Full bs)) $ preview _Right $ fmap snd $
-    deserialiseFromBytes Cbor.fromCBOR bs
+  Cbor -> Maybe (Tx.ValidatedTx (Alonzo.AlonzoEra StandardCrypto))
+decodeCborValidatedTx = decodeCborComponent
 
 decodeCborTextLazyBS :: Cbor -> Either DecodeError BL.ByteString
 decodeCborTextLazyBS (Cbor text) =
-  first InvalidHex .
-  second BL.fromStrict .
-  Base16.decode $ Text.Encoding.encodeUtf8 text
+  bimap InvalidHex BL.fromStrict
+    . Base16.decode
+    $ Text.Encoding.encodeUtf8 text
 
 decodeCborRedeemers ::
   Cbor -> Maybe (TxWitness.Redeemers (Alonzo.AlonzoEra StandardCrypto))
-decodeCborRedeemers cbor = do
-  bs <- preview _Right $ decodeCborTextLazyBS cbor
-  fmap (flip runAnnotator (Full bs)) $  preview _Right $ fmap snd $
-    deserialiseFromBytes Cbor.fromCBOR bs
+decodeCborRedeemers = decodeCborComponent
 
 decodeCborDatum ::
   Cbor -> Maybe (Data.Data (Alonzo.AlonzoEra StandardCrypto))
-decodeCborDatum cbor = do
+decodeCborDatum = decodeCborComponent
+
+decodeCborComponent ::
+  forall (a :: Type). Cbor.FromCBOR (Cbor.Annotator a) => Cbor -> Maybe a
+decodeCborComponent cbor = do
   bs <- preview _Right $ decodeCborTextLazyBS cbor
-  fmap (flip runAnnotator (Full bs)) $ preview _Right $ fmap snd $
+  fmap (`runAnnotator` Full bs) . preview _Right . fmap snd $
     deserialiseFromBytes Cbor.fromCBOR bs
