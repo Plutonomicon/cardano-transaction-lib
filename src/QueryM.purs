@@ -12,11 +12,14 @@ module QueryM
   , OgmiosListeners
   , OgmiosWebSocket
   , QueryConfig
+  , DefaultQueryConfig
   , QueryM
+  , QueryMExtended
   , ServerConfig
   , WebSocket
   , _stringify
   , _wsSend
+  , liftQueryM
   , allowError
   , applyArgs
   , calculateMinFee
@@ -55,7 +58,7 @@ import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Reader.Trans (ReaderT, ask, asks)
+import Control.Monad.Reader.Trans (ReaderT, withReaderT, ask, asks)
 import Data.Argonaut (class DecodeJson, JsonDecodeError)
 import Data.Argonaut as Json
 import Data.Argonaut.Encode.Class (encodeJson)
@@ -170,7 +173,7 @@ type Url = String
 
 -- when we add multiple query backends or wallets,
 -- we just need to extend this type
-type QueryConfig =
+type QueryConfig (r :: #Type) =
   { ogmiosWs :: OgmiosWebSocket
   , datumCacheWs :: DatumCacheWebSocket
   , serverConfig :: ServerConfig
@@ -178,10 +181,28 @@ type QueryConfig =
   -- should probably be more tightly coupled with a wallet
   , usedTxOuts :: UsedTxOuts
   , networkId :: NetworkId
-  , slotConfig :: SlotConfig
+  , slotConfig :: SlotConfig | r
   }
 
-type QueryM (a :: Type) = ReaderT QueryConfig Aff a
+type DefaultQueryConfig = QueryConfig ()
+
+type QueryM (a :: Type) = ReaderT DefaultQueryConfig Aff a
+
+type QueryMExtended (r :: #Type) (a :: Type) = ReaderT (QueryConfig r) Aff a
+
+liftQueryM :: forall (r :: #Type) (a :: Type). QueryM a -> QueryMExtended r a
+liftQueryM = withReaderT toDefaultQueryConfig
+  where toDefaultQueryConfig :: forall (r :: #Type). QueryConfig r -> DefaultQueryConfig
+        toDefaultQueryConfig c =
+          { ogmiosWs: c.ogmiosWs
+          , datumCacheWs: c.datumCacheWs
+          , serverConfig: c.serverConfig
+          , wallet: c.wallet
+          , usedTxOuts: c.usedTxOuts
+          , networkId: c.networkId
+          , slotConfig: c.slotConfig
+          }
+
 
 --------------------------------------------------------------------------------
 -- Datum Cache Queries

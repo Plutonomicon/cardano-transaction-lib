@@ -1,7 +1,9 @@
 -- | A module defining the `Contract` monad.
 module Contract.Monad
-  ( Contract(..)
-  , ContractConfig(..)
+  ( Contract'(..)
+  , Contract
+  , ContractConfig'(..)
+  , ContractConfig
   , defaultContractConfig
   , defaultContractConfigLifted
   , liftContractE
@@ -33,7 +35,7 @@ import Effect.Aff (Aff)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
-import QueryM (QueryM, QueryConfig)
+import QueryM (QueryMExtended, QueryConfig, liftQueryM)
 import QueryM
   ( DatumCacheListeners
   , DatumCacheWebSocket
@@ -77,40 +79,47 @@ import Wallet (mkNamiWalletAff)
 -- | All useful functions written in `QueryM` should be lifted into the
 -- | `Contract` monad and available in the same namespace. If anything is
 -- | missing, please contact us.
-newtype Contract (a :: Type) = Contract (QueryM a)
+newtype Contract' (r :: #Type) (a :: Type) = Contract (QueryMExtended r a)
+
+type Contract (a :: Type) = Contract' () a
 
 -- Many of these derivations of depending on the underlying `ReaderT` and
 -- asychronous effects,`Aff`.
-derive instance Newtype (Contract a) _
-derive newtype instance Functor Contract
-derive newtype instance Apply Contract
-derive newtype instance Applicative Contract
-derive newtype instance Alt Contract
-derive newtype instance Plus Contract
-derive newtype instance Bind Contract
-derive newtype instance Monad Contract
-derive newtype instance MonadEffect Contract
-derive newtype instance MonadAff Contract
-derive newtype instance Semigroup a => Semigroup (Contract a)
-derive newtype instance Monoid a => Monoid (Contract a)
+derive instance Newtype (Contract' r a) _
+derive newtype instance Functor (Contract' r)
+derive newtype instance Apply (Contract' r)
+derive newtype instance Applicative (Contract' r)
+derive newtype instance Alt (Contract' r)
+derive newtype instance Plus (Contract' r)
+derive newtype instance Bind (Contract' r)
+derive newtype instance Monad (Contract' r)
+derive newtype instance MonadEffect (Contract' r)
+derive newtype instance MonadAff (Contract' r)
+derive newtype instance Semigroup a => Semigroup (Contract' r a)
+derive newtype instance Monoid a => Monoid (Contract' r a)
 -- Utilise JavaScript's native `Error` via underlying `Aff` for flexibility:
-derive newtype instance MonadThrow Error Contract
-derive newtype instance MonadError Error Contract
-derive newtype instance MonadRec Contract
+derive newtype instance MonadThrow Error (Contract' r)
+derive newtype instance MonadError Error (Contract' r)
+derive newtype instance MonadRec (Contract' r)
 
-instance MonadAsk ContractConfig Contract where
+instance MonadAsk (ContractConfig' r) (Contract' r) where
   -- Use the underlying `ask`:
   ask = Contract $ ContractConfig <$> ask
 
-instance MonadReader ContractConfig Contract where
+instance MonadReader (ContractConfig' r) (Contract' r) where
   -- Use the underlying `local` after dimapping and unwrapping:
   local f contract = Contract $ local (dimap wrap unwrap f) (unwrap contract)
 
 -- | The config for `Contract` is just a newtype wrapper over the underlying
 -- | `QueryM` config.
-newtype ContractConfig = ContractConfig QueryConfig
+newtype ContractConfig' (r :: #Type) = ContractConfig (QueryConfig r)
 
-derive instance Newtype ContractConfig _
+type ContractConfig = ContractConfig' ()
+
+derive instance Newtype (ContractConfig' r) _
+
+liftContract' :: forall (r :: #Type) (a :: Type). Contract a -> Contract' r a
+liftContract' (Contract m) = Contract (liftQueryM m)
 
 -- | Throws an `Error` for any showable error using `Effect.Exception.throw`
 -- | and lifting into the `Contract` monad.
