@@ -10,6 +10,7 @@ module Api.Handlers (
   hashScript,
 ) where
 
+import Control.Monad.IO.Class (liftIO)
 import Cardano.Api qualified as C
 import Cardano.Api.Shelley qualified as Shelley
 import Cardano.Binary (Annotator (runAnnotator), FullByteString (Full))
@@ -103,6 +104,7 @@ finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
   decodedDatums <-
     throwDecodeErrorWithMessage "Failed to decode datums" $
       traverse decodeCborDatum datums
+  liftIO $ putStrLn $ show decodedTx
   let languages = Set.fromList [PlutusV1]
       txDatums =
         TxWitness.TxDats . Map.fromList $
