@@ -319,8 +319,7 @@ instance Show MarketplaceDatum where
   show = genericShow
 
 instance ToData MarketplaceDatum where
-  toData (MarketplaceDatum { getMarketplaceDatum }) =
-    Constr zero [ toData getMarketplaceDatum ]
+  toData (MarketplaceDatum { getMarketplaceDatum }) = toData getMarketplaceDatum
 
 instance FromData MarketplaceDatum where
   fromData (Constr n [ cs, tn ]) | n == zero = do
