@@ -68,6 +68,7 @@ import Data.Argonaut (class DecodeJson, JsonDecodeError)
 import Data.Argonaut as Json
 import Data.Argonaut.Encode.Class (encodeJson)
 import Data.Argonaut.Encode.Encoders (encodeString)
+import Data.Array (drop)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -131,7 +132,13 @@ import Serialization.Address
 import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
-import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
+import Types.ByteArray
+  ( ByteArray
+  , byteArrayFromIntArray
+  , byteArrayToHex
+  , byteArrayToIntArray
+  , hexToByteArray
+  )
 import Types.Datum (Datum, DatumHash)
 import Types.Interval (SlotConfig)
 import Types.JsonWsp as JsonWsp
@@ -541,6 +548,7 @@ attachSignature req = do
 
 newtype HashedData = HashedData ByteArray
 
+derive instance Newtype HashedData _
 derive instance Generic HashedData _
 
 instance Show HashedData where
@@ -573,6 +581,8 @@ hashData datum = do
 datumHash :: Datum -> QueryM (Maybe DatumHash)
 datumHash datum = do
   mHd <- hashData datum
+  -- let fixedH = mHd >>= unwrap >>> byteArrayToIntArray >>> drop 2 >>> byteArrayFromIntArray
+  -- pure $ maybe Nothing (Just <<< Transaction.DataHash) fixedH
   pure $ maybe
     Nothing
     (\(HashedData bytes) -> Just $ Transaction.DataHash bytes)
