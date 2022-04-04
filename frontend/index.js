@@ -2,5 +2,7 @@
 
 const SeabugContracts = require("../seabug_contracts/api.js");
 
+const args = 'test';
+
 console.log("app starting");
-setTimeout(() => SeabugContracts.callMarketPlaceBuy(" to you"), 1);
+setTimeout(() => SeabugContracts.callMarketPlaceBuyTest(args).then(r => console.log(r)), 1);

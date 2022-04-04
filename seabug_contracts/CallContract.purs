@@ -1,4 +1,4 @@
-module Seabug.CallContract (callMarketPlaceBuy, callMarketPlaceListNft) where
+module Seabug.CallContract (callMarketPlaceBuy, callMarketPlaceListNft, callMarketPlaceBuyTest) where
 
 import Contract.Address (Slot(Slot))
 import Contract.Monad
@@ -26,6 +26,7 @@ import Contract.Prelude
   , (<>)
   , (=<<)
   , (>>>)
+  , show
   )
 import Contract.Prim.ByteArray
   ( byteArrayFromString
@@ -69,33 +70,36 @@ import Effect.Exception (Error)
 import Metadata.Seabug (SeabugMetadata(SeabugMetadata))
 import Metadata.Seabug.Share (unShare)
 import Seabug.Contract.MarketPlaceBuy (marketplaceBuy)
-import Seabug.Contract.MarketPlaceListNft
-  ( ListNftResult
-  , marketPlaceListNft
-  )
-import Seabug.Types
-  ( NftCollection(NftCollection)
-  , NftData(NftData)
-  , NftId(NftId)
-  )
+import Seabug.Contract.MarketPlaceListNft (ListNftResult, marketPlaceListNft)
+import Seabug.Types (NftCollection(NftCollection), NftData(NftData), NftId(NftId))
 import Serialization.Address (addressBech32, intToNetworkId)
 import Types.Natural as Nat
 import Types.Value (flattenNonAdaValue)
 import UsedTxOuts (newUsedTxOuts)
 import Wallet (mkNamiWalletAff)
 
+-- | Exists temporarily for testing purposes
+callMarketPlaceBuyTest :: String -> Effect (Promise String)
+callMarketPlaceBuyTest str = Promise.fromAff do
+  pure str
+
+-- | Calls Seabugs marketplaceBuy and takes care of converting data types.
+--   Returns a JS promise holding no data.
 callMarketPlaceBuy :: ContractConfiguration -> BuyNftArgs -> Effect (Promise Unit)
 callMarketPlaceBuy cfg args = Promise.fromAff do
   contractConfig <- buildContractConfig cfg
   nftData <- liftEffect $ liftEither $ buildNftData args
   runContract_ contractConfig (marketplaceBuy nftData)
 
+-- | Calls Seabugs marketPlaceListNft and takes care of converting data types.
+--   Returns a JS promise holding nft listings.
 callMarketPlaceListNft :: ContractConfiguration -> Effect (Promise (Array ListNftResultOut))
 callMarketPlaceListNft cfg = Promise.fromAff do
   contractConfig <- buildContractConfig cfg
   listnft <- runContract contractConfig marketPlaceListNft
   pure $ buildNftList <$> listnft
 
+-- | Configuation needed to call contracts from JS.
 type ContractConfiguration =
   { server_host :: String
   , server_port :: Int
@@ -107,6 +111,24 @@ type ContractConfiguration =
   , datum_cache_port :: Int
   , datum_cache_secure_conn :: Boolean
   , networkId :: Int
+  }
+
+type BuyNftArgs =
+  { nftCollectionArgs ::
+      { collectionNftCs :: String -- CurrencySymbol
+      , lockLockup :: BigInt -- BigInt
+      , lockLockupEnd :: BigInt -- Slot
+      , lockingScript :: String -- ValidatorHash
+      , author :: String -- PaymentPubKeyHash
+      , authorShare :: BigInt -- Natural
+      , daoScript :: String -- ValidatorHash
+      , daoShare :: BigInt -- Natural
+      }
+  , nftIdArgs ::
+      { collectionNftTn :: String -- TokenName
+      , price :: BigInt -- Natural
+      , owner :: String -- PaymentPubKeyHash
+      }
   }
 
 -- Placeholder for types I'm not sure how should we represent on frontend.
@@ -133,23 +155,6 @@ type ListNftResultOut =
       }
   }
 
-type BuyNftArgs =
-  { nftCollectionArgs ::
-      { collectionNftCs :: String -- CurrencySymbol
-      , lockLockup :: String -- BigInt
-      , lockLockupEnd :: String -- Slot
-      , lockingScript :: String -- ValidatorHash
-      , author :: String -- PaymentPubKeyHash
-      , authorShare :: String -- Natural
-      , daoScript :: String -- ValidatorHash
-      , daoShare :: String -- Natural
-      }
-  , nftIdArgs ::
-      { collectionNftTn :: String -- TokenName
-      , price :: String -- Natural
-      , owner :: String -- PaymentPubKeyHash
-      }
-  }
 
 buildContractConfig :: ContractConfiguration -> Aff ContractConfig
 buildContractConfig cfg = do
@@ -235,8 +240,8 @@ buildNftData { nftCollectionArgs, nftIdArgs } = do
   mkId r = do
     tn <- note (error $ "Invalid collection token name: " <> r.collectionNftTn)
       $ mkTokenName =<< hexToByteArray r.collectionNftTn
-    price <- note (error $ "Invalid price: " <> r.price)
-      $ Nat.fromString r.price
+    price <- note (error $ "Invalid price: " <> show r.price)
+      $ Nat.fromBigInt r.price
     owner <- note (error $ "Invalid owner: " <> r.owner)
       $ wrap <<< wrap <$> ed25519KeyHashFromBech32 r.owner
     pure $ NftId
@@ -247,23 +252,21 @@ buildNftData { nftCollectionArgs, nftIdArgs } = do
   mkCollection r = do
     collectionNftCs <- note (error $ "Invalid collection currency symbol: " <> r.collectionNftCs)
       $ mkCurrencySymbol =<< byteArrayFromString r.collectionNftCs
-    lockLockup <- note (error $ "Invalid nft lockLockup: " <> r.lockLockup)
-      $ BigInt.fromString r.lockLockup
-    lockLockupEnd <- note (error $ "Invalid nft lockLockupEnd: " <> r.lockLockupEnd)
-      $ Slot <$> UInt.fromString r.lockLockupEnd
+    lockLockupEnd <- note (error $ "Invalid nft lockLockupEnd: " <> show r.lockLockupEnd)
+      $ Slot <$> (UInt.fromString $ BigInt.toString r.lockLockupEnd)
     lockingScript <- note (error $ "Invalid nft lockingScript: " <> r.lockingScript)
       $ wrap <$> scriptHashFromBech32 r.lockingScript
     author <- note (error $ "Invalid author: " <> r.author)
       $ wrap <<< wrap <$> ed25519KeyHashFromBech32 r.author
-    authorShare <- note (error $ "Invalid authorShare: " <> r.authorShare)
-      $ Nat.fromString r.authorShare
+    authorShare <- note (error $ "Invalid authorShare: " <> show r.authorShare)
+      $ Nat.fromBigInt r.authorShare
     daoScript <- note (error $ "Invalid nft daoScript: " <> r.daoScript)
       $ wrap <$> scriptHashFromBech32 r.daoScript
-    daoShare <- note (error $ "Invalid daoShare: " <> r.daoShare)
-      $ Nat.fromString r.daoShare
+    daoShare <- note (error $ "Invalid daoShare: " <> show r.daoShare)
+      $ Nat.fromBigInt r.daoShare
     pure $ NftCollection
       { collectionNftCs
-      , lockLockup
+      , lockLockup: r.lockLockup
       , lockLockupEnd
       , lockingScript
       , author
