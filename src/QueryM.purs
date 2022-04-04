@@ -507,7 +507,7 @@ instance Json.DecodeJson HashedData where
     map HashedData <<<
       Json.caseJsonString (Left err) (note err <<< hexToByteArray)
     where
-    err = Json.TypeMismatch "Expected CborHex of hashed data"
+    err = Json.TypeMismatch "Expected Hexstring of hashed data"
 
 hashData :: Datum -> QueryM (Maybe HashedData)
 hashData datum = do
@@ -529,12 +529,12 @@ hashData datum = do
 datumHash :: Datum -> QueryM (Maybe DatumHash)
 datumHash datum = do
   mHd <- hashData datum
-  -- let fixedH = mHd >>= unwrap >>> byteArrayToIntArray >>> drop 2 >>> byteArrayFromIntArray
-  -- pure $ maybe Nothing (Just <<< Transaction.DataHash) fixedH
-  pure $ maybe
-    Nothing
-    (\(HashedData bytes) -> Just $ Transaction.DataHash bytes)
-    mHd
+  -- Remove the first two bytes because CBOR prepends which is in hexstring
+  -- ByteArray [88,32] ~ Hexstring "5820"
+  let
+    fixedH = mHd >>=
+      unwrap >>> byteArrayToIntArray >>> drop 2 >>> byteArrayFromIntArray
+  pure $ maybe Nothing (Just <<< Transaction.DataHash) fixedH
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
