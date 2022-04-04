@@ -15,10 +15,9 @@ module Contract.ScriptLookups
   ) where
 
 import Prelude
-import Contract.Monad (Contract)
+import Contract.Monad (Contract, wrapContract)
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
-import Data.Newtype (wrap)
 import FromData (class FromData)
 import ToData (class ToData)
 import Types.ScriptLookups
@@ -52,24 +51,24 @@ import Types.UnbalancedTransaction (UnbalancedTx)
 
 -- | Create an `UnbalancedTx` given `ScriptLookups` and `TxConstraints`.
 mkUnbalancedTx
-  :: forall (a :: Type) (b :: Type)
+  :: forall (r :: Row Type) (a :: Type) (b :: Type)
    . DatumType a b
   => RedeemerType a b
   => FromData b
   => ToData b
   => ScriptLookups.ScriptLookups a
   -> TxConstraints b b
-  -> Contract (Either ScriptLookups.MkUnbalancedTxError UnbalancedTx)
-mkUnbalancedTx lookups = wrap <<< SL.mkUnbalancedTx lookups
+  -> Contract r (Either ScriptLookups.MkUnbalancedTxError UnbalancedTx)
+mkUnbalancedTx lookups = wrapContract <<< SL.mkUnbalancedTx lookups
 
 -- | Same as `mkUnbalancedTx` but hushes the error.
 mkUnbalancedTxM
-  :: forall (a :: Type) (b :: Type)
+  :: forall (r :: Row Type) (a :: Type) (b :: Type)
    . DatumType a b
   => RedeemerType a b
   => FromData b
   => ToData b
   => ScriptLookups.ScriptLookups a
   -> TxConstraints b b
-  -> Contract (Maybe UnbalancedTx)
+  -> Contract r (Maybe UnbalancedTx)
 mkUnbalancedTxM lookups = map hush <<< mkUnbalancedTx lookups

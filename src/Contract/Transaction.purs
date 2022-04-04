@@ -20,10 +20,9 @@ module Contract.Transaction
 import Prelude
 import BalanceTx (balanceTx) as BalanceTx
 import BalanceTx (BalanceTxError) as BalanceTxError
-import Contract.Monad (Contract)
+import Contract.Monad (Contract, wrapContract)
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
-import Data.Newtype (wrap)
 import QueryM
   ( FeeEstimate(FeeEstimate)
   , ClientError(..) -- implicit as this error list will likely increase.
@@ -156,35 +155,36 @@ import Types.Datum (Datum)
 -- | submission is done with Nami.
 
 -- | Signs a `Transaction` with potential failure.
-signTransaction :: Transaction -> Contract (Maybe Transaction)
-signTransaction = wrap <<< QueryM.signTransaction
+signTransaction :: forall (r :: Row Type). Transaction -> Contract r (Maybe Transaction)
+signTransaction = wrapContract <<< QueryM.signTransaction
 
 -- | Submits a `Transaction` with potential failure.
-submitTransaction :: Transaction -> Contract (Maybe TransactionHash)
-submitTransaction = wrap <<< QueryM.submitTransaction
+submitTransaction :: forall (r :: Row Type). Transaction -> Contract r (Maybe TransactionHash)
+submitTransaction = wrapContract <<< QueryM.submitTransaction
 
 -- | Query the Haskell server for the minimum transaction fee
 calculateMinFee
-  :: Transaction -> Contract (Either ExportQueryM.ClientError Coin)
-calculateMinFee = wrap <<< QueryM.calculateMinFee
+  :: forall (r :: Row Type). Transaction -> Contract r (Either ExportQueryM.ClientError Coin)
+calculateMinFee = wrapContract <<< QueryM.calculateMinFee
 
 -- | Same as `calculateMinFee` hushing the error.
 calculateMinFeeM
-  :: Transaction -> Contract (Maybe Coin)
+  :: forall (r :: Row Type). Transaction -> Contract r (Maybe Coin)
 calculateMinFeeM = map hush <<< calculateMinFee
 
 -- | Attempts to balance an `UnbalancedTx`.
 balanceTx
-  :: UnbalancedTx -> Contract (Either BalanceTxError.BalanceTxError Transaction)
-balanceTx = wrap <<< BalanceTx.balanceTx
+  :: forall (r :: Row Type). UnbalancedTx -> Contract r (Either BalanceTxError.BalanceTxError Transaction)
+balanceTx = wrapContract <<< BalanceTx.balanceTx
 
 -- | Attempts to balance an `UnbalancedTx` hushing the error.
-balanceTxM :: UnbalancedTx -> Contract (Maybe Transaction)
+balanceTxM :: forall (r :: Row Type). UnbalancedTx -> Contract r (Maybe Transaction)
 balanceTxM = map hush <<< balanceTx
 
 finalizeTx
-  :: Transaction.Transaction
+  :: forall (r :: Row Type)
+   . Transaction.Transaction
   -> Array Datum
   -> Array Transaction.Redeemer
-  -> Contract (Maybe QueryM.FinalizedTransaction)
-finalizeTx tx datums redeemers = wrap $ QueryM.finalizeTx tx datums redeemers
+  -> Contract r (Maybe QueryM.FinalizedTransaction)
+finalizeTx tx datums redeemers = wrapContract $ QueryM.finalizeTx tx datums redeemers

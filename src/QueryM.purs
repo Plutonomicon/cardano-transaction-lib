@@ -173,7 +173,7 @@ type Url = String
 
 -- when we add multiple query backends or wallets,
 -- we just need to extend this type
-type QueryConfig (r :: #Type) =
+type QueryConfig (r :: # Type) =
   { ogmiosWs :: OgmiosWebSocket
   , datumCacheWs :: DatumCacheWebSocket
   , serverConfig :: ServerConfig
@@ -181,28 +181,29 @@ type QueryConfig (r :: #Type) =
   -- should probably be more tightly coupled with a wallet
   , usedTxOuts :: UsedTxOuts
   , networkId :: NetworkId
-  , slotConfig :: SlotConfig | r
+  , slotConfig :: SlotConfig
+  | r
   }
 
 type DefaultQueryConfig = QueryConfig ()
 
 type QueryM (a :: Type) = ReaderT DefaultQueryConfig Aff a
 
-type QueryMExtended (r :: #Type) (a :: Type) = ReaderT (QueryConfig r) Aff a
+type QueryMExtended (r :: Row Type) (a :: Type) = ReaderT (QueryConfig r) Aff a
 
-liftQueryM :: forall (r :: #Type) (a :: Type). QueryM a -> QueryMExtended r a
+liftQueryM :: forall (r :: Row Type) (a :: Type). QueryM a -> QueryMExtended r a
 liftQueryM = withReaderT toDefaultQueryConfig
-  where toDefaultQueryConfig :: forall (r :: #Type). QueryConfig r -> DefaultQueryConfig
-        toDefaultQueryConfig c =
-          { ogmiosWs: c.ogmiosWs
-          , datumCacheWs: c.datumCacheWs
-          , serverConfig: c.serverConfig
-          , wallet: c.wallet
-          , usedTxOuts: c.usedTxOuts
-          , networkId: c.networkId
-          , slotConfig: c.slotConfig
-          }
-
+  where
+  toDefaultQueryConfig :: forall (r :: Row Type). QueryConfig r -> DefaultQueryConfig
+  toDefaultQueryConfig c =
+    { ogmiosWs: c.ogmiosWs
+    , datumCacheWs: c.datumCacheWs
+    , serverConfig: c.serverConfig
+    , wallet: c.wallet
+    , usedTxOuts: c.usedTxOuts
+    , networkId: c.networkId
+    , slotConfig: c.slotConfig
+    }
 
 --------------------------------------------------------------------------------
 -- Datum Cache Queries
