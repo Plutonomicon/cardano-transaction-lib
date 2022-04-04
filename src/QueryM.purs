@@ -507,7 +507,7 @@ instance Json.DecodeJson HashedData where
     map HashedData <<<
       Json.caseJsonString (Left err) (note err <<< hexToByteArray)
     where
-    err = Json.TypeMismatch "Expected Hexstring of hashed data"
+    err = Json.TypeMismatch "Expected CborHex of hashed data"
 
 hashData :: Datum -> QueryM (Maybe HashedData)
 hashData datum = do

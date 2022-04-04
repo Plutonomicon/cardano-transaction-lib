@@ -48,7 +48,7 @@ testNftData = do
     =<< hexToByteArray "9da8fa76a2a0f52aa5df10fb7b81f9afe4b20e9068b3f95fadc7477a"
   tokenName <- liftContractM "`TokenName`"
     $ mkTokenName
-    =<< byteArrayFromString "NFT-1-3"
+    =<< byteArrayFromString "NFT-1-2"
   pure $ NftData
     { nftCollection: NftCollection
         { collectionNftCs

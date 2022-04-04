@@ -101,7 +101,6 @@ finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
   decodedDatums <-
     throwDecodeErrorWithMessage "Failed to decode datums" $
       traverse decodeCborDatum datums
-  liftIO $ putStrLn $ show decodedTx
   let languages = Set.fromList [PlutusV1]
       txDatums =
         TxWitness.TxDats . Map.fromList $

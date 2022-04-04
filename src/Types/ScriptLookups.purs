@@ -838,7 +838,6 @@ processConstraint mpsMap osMap = do
           _cpsToTxBody <<< _inputs <>= Array.singleton txo
           -- Get the redeemer index, which is the current length of inputs - 1
           index <- use (_cpsToTxBody <<< _inputs <<< to lastIndex)
-          -- let index = zero
           ExceptT $ addDatum dataValue
           let
             -- Create a redeemer with hardcoded execution units then call Ogmios
