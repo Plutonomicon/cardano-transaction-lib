@@ -182,6 +182,37 @@ exports.networkIdTestnet = () =>
 
 exports.networkIdMainnet = () =>
     lib.NetworkId.mainnet();
+
+exports.setTxBodyCerts = body => certs => () =>
+    body.set_certs(certs);
+
+exports.newCertificates = () =>
+    lib.Certificates.new();
+
+exports.certificate_new_stake_registration = () =>
+    lib.Certificate.new_stake_registration();
+
+exports.certificate_new_stake_deregistration = () =>
+    lib.Certificate.new_stake_deregistration();
+
+exports.certificate_new_stake_delegation = () =>
+    lib.Certificate.new_stake_delegation();
+
+exports.certificate_new_pool_registration = () =>
+    lib.Certificate.new_pool_registration();
+
+exports.certificate_new_pool_retirement = () =>
+    lib.Certificate.new_pool_retirement();
+
+exports.certificate_new_genesis_key_delegation = () =>
+    lib.Certificate.new_genesis_key_delegation();
+
+exports.certificate_new_move_instantaneous_rewards_cert = () =>
+    lib.Certificate.new_move_instantaneous_rewards_cert();
+
+exports.addCert = certificates => certificate => () =>
+    certificates.add(certificate);
+
 exports.setTxBodyCollateral = body => inputs => () =>
     body.set_collateral(inputs);
 

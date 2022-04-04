@@ -35,6 +35,8 @@ import Serialization.Types
   , AuxiliaryData
   , BigNum
   , BigInt
+  , Certificates
+  , Certificate
   , Costmdls
   , CostModel
   , DataHash
@@ -72,7 +74,16 @@ import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
 import Types.PlutusData as PlutusData
 import Types.Transaction
-  ( Costmdls(Costmdls)
+  ( Certificate
+      ( StakeRegistration
+      , StakeDeregistration
+      , StakeDelegation
+      , PoolRegistration
+      , PoolRetirement
+      , GenesisKeyDelegation
+      , MoveInstantaneousRewardsCert
+      )
+  , Costmdls(Costmdls)
   , Language(PlutusV1)
   , Mint(Mint)
   , Redeemer
@@ -138,6 +149,16 @@ foreign import insertMintAsset :: MintAssets -> AssetName -> Int -> Effect Unit
 foreign import setTxBodyNetworkId :: TransactionBody -> NetworkId -> Effect Unit
 foreign import networkIdTestnet :: Effect NetworkId
 foreign import networkIdMainnet :: Effect NetworkId
+foreign import setTxBodyCerts :: TransactionBody -> Certificates -> Effect Unit
+foreign import newCertificates :: Effect Certificates
+foreign import certificate_new_stake_registration :: Effect Certificate
+foreign import certificate_new_stake_deregistration :: Effect Certificate
+foreign import certificate_new_stake_delegation :: Effect Certificate
+foreign import certificate_new_pool_registration :: Effect Certificate
+foreign import certificate_new_pool_retirement :: Effect Certificate
+foreign import certificate_new_genesis_key_delegation :: Effect Certificate
+foreign import certificate_new_move_instantaneous_rewards_cert :: Effect Certificate
+foreign import addCert :: Certificates -> Certificate -> Effect Unit
 foreign import setTxBodyCollateral :: TransactionBody -> TransactionInputs -> Effect Unit
 
 foreign import toBytes
@@ -165,9 +186,26 @@ convertTransaction (T.Transaction { body: T.TxBody body, witness_set }) = do
     (unwrap >>> newScriptDataHashFromBytes >=> setTxBodyScriptDataHash txBody)
     body.script_data_hash
   for_ body.mint $ convertMint >=> setTxBodyMint txBody
+  for_ body.certs $ convertCerts >=> setTxBodyCerts txBody
   for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
   ws <- convertWitnessSet witness_set
   newTransaction txBody ws
+
+convertCerts :: Array T.Certificate -> Effect Certificates
+convertCerts certs = do
+  certificates <- newCertificates
+  for_ certs $ convertCert >=> addCert certificates
+  pure certificates
+
+convertCert :: T.Certificate -> Effect Certificate
+convertCert = case _ of
+  T.StakeRegistration -> certificate_new_stake_registration
+  T.StakeDeregistration -> certificate_new_stake_deregistration
+  T.StakeDelegation -> certificate_new_stake_delegation
+  T.PoolRegistration -> certificate_new_pool_registration
+  T.PoolRetirement -> certificate_new_pool_retirement
+  T.GenesisKeyDelegation -> certificate_new_genesis_key_delegation
+  T.MoveInstantaneousRewardsCert -> certificate_new_move_instantaneous_rewards_cert
 
 convertNetworkId :: T.NetworkId -> Effect NetworkId
 convertNetworkId = case _ of

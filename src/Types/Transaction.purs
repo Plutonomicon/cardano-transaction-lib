@@ -89,8 +89,9 @@ import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import FromData (class FromData, fromData)
 import Helpers ((</>), (<<>>), appendMap, appendRightMap)
-import Serialization.Address (Address, NetworkId, RewardAddress, Slot(Slot))
+import Serialization.Address (Address, NetworkId, RewardAddress, Slot(Slot), StakeCredential)
 import Serialization.Hash (Ed25519KeyHash)
+import Serialization.Types (BigNum, VRFKeyHash)
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray, byteArrayToHex)
@@ -380,11 +381,24 @@ instance Show Epoch where
   show = genericShow
 
 data Certificate
-  = StakeRegistration
-  | StakeDeregistration
-  | StakeDelegation
+  = StakeRegistration StakeCredential
+  | StakeDeregistration StakeCredential
+  | StakeDelegation StakeCredential Ed25519KeyHash
   | PoolRegistration
+      { operator :: Ed25519KeyHash
+      , vrf_keyhash :: VRFKeyHash
+      , pledge :: BigNum
+      , cost :: BigNum
+      , margin :: UnitInterval
+      , reward_account :: RewardAddress
+      , pool_owners :: Array Ed25519KeyHash
+      , relays :: Array Relay
+      , pool_metadata :: Maybe PoolMetadata
+      }
   | PoolRetirement
+      { pool_keyhash :: Ed25519KeyHash
+      , epoch :: UInt
+      }
   | GenesisKeyDelegation
   | MoveInstantaneousRewardsCert
 

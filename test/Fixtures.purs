@@ -73,6 +73,15 @@ import Types.RedeemerTag (RedeemerTag(Spend))
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash), ValidatorHash(ValidatorHash))
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
+  , Certificate
+      ( StakeRegistration
+      , StakeDeregistration
+      , StakeDelegation
+      , PoolRegistration
+      , PoolRetirement
+      , GenesisKeyDelegation
+      , MoveInstantaneousRewardsCert
+      )
   , Mint(Mint)
   , NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry)
   , PublicKey(PublicKey)
@@ -346,7 +355,15 @@ txFixture4 =
             ]
         , fee: Coin $ BigInt.fromInt 177513
         , ttl: Nothing
-        , certs: Nothing
+        , certs: Just
+            [ StakeRegistration
+            , StakeDeregistration
+            , StakeDelegation
+            , PoolRegistration
+            , PoolRetirement
+            , GenesisKeyDelegation
+            , MoveInstantaneousRewardsCert
+            ]
         , withdrawals: Nothing
         , update: Nothing
         , auxiliary_data_hash: Nothing

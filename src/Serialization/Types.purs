@@ -51,3 +51,6 @@ foreign import data CostModel :: Type
 foreign import data Language :: Type
 foreign import data Int32 :: Type
 foreign import data ScriptDataHash :: Type
+foreign import data Certificates :: Type
+foreign import data Certificate :: Type
+foreign import data VRFKeyHash :: Type
