@@ -21,8 +21,6 @@ module Types.ScriptLookups
 
 import Prelude hiding (join)
 
-import Types.ByteArray (byteArrayToHex)
-import Effect.Class.Console (log)
 import Address (enterpriseAddressValidatorHash)
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, throwError)
@@ -837,10 +835,6 @@ processConstraint mpsMap osMap = do
             ) <|>
               lookupDatum dHash
           ExceptT $ attachToCps attachPlutusScript plutusScript
-          log "datum hash in MustSpendScriptOutput"
-          log $ show dHash
-          log $ byteArrayToHex $ unwrap dHash
-          log $ show dataValue
           _cpsToTxBody <<< _inputs <>= Array.singleton txo
           -- Get the redeemer index, which is the current length of inputs - 1
           index <- use (_cpsToTxBody <<< _inputs <<< to lastIndex)
@@ -951,9 +945,6 @@ processConstraint mpsMap osMap = do
         data_hash <- ExceptT $ lift $ note (CannotHashDatum datum)
           <$> map Just
           <$> datumHash datum
-        log "datum hash in MustPayToOtherScript"
-        log $ show data_hash
-        log $ show $ map (byteArrayToHex <<< unwrap) data_hash
         let
           txOut = TransactionOutput
             { address: validatorHashEnterpriseAddress networkId vlh
