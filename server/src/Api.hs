@@ -1,4 +1,5 @@
 module Api (
+  attachSignature,
   app,
   estimateTxFees,
   applyArgs,
@@ -42,6 +43,8 @@ import Types (
   AppM (AppM),
   AppliedScript,
   ApplyArgsRequest,
+  AttachSignatureRequest,
+  AttachSignatureResponse,
   Blake2bHash,
   BytesToHash,
   CardanoBrowserServerError (CborDecode),
@@ -79,6 +82,9 @@ type Api =
     :<|> "hash-data"
       :> ReqBody '[JSON] HashDataRequest
       :> Post '[JSON] HashedData
+    :<|> "attach-signature"
+      :> ReqBody '[JSON] AttachSignatureRequest
+      :> Post '[JSON] AttachSignatureResponse
 
 app :: Env -> Application
 app = Cors.cors (const $ Just policy) . serve api . appServer
@@ -123,6 +129,7 @@ server =
     :<|> Handlers.blake2bHash
     :<|> Handlers.finalizeTx
     :<|> Handlers.hashData
+    :<|> Handlers.attachSignature
 
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
@@ -133,10 +140,12 @@ hashScript :: HashScriptRequest -> ClientM HashedScript
 blake2bHash :: BytesToHash -> ClientM Blake2bHash
 finalizeTx :: FinalizeRequest -> ClientM FinalizedTransaction
 hashData :: HashDataRequest -> ClientM HashedData
+attachSignature :: AttachSignatureRequest -> ClientM AttachSignatureResponse
 estimateTxFees
   :<|> applyArgs
   :<|> hashScript
   :<|> blake2bHash
   :<|> finalizeTx
-  :<|> hashData =
+  :<|> hashData
+  :<|> attachSignature =
     client api

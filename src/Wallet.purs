@@ -48,6 +48,8 @@ type NamiWallet =
   , getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
   -- Sign a transaction with the current wallet
   , signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
+  -- Sign a transaction with the current wallet
+  , signTxBytes :: NamiConnection -> ByteArray -> Aff (Maybe ByteArray)
   -- Submit a (balanced) transaction
   , submitTx :: NamiConnection -> Transaction -> Aff (Maybe TransactionHash)
   }
@@ -61,6 +63,7 @@ mkNamiWalletAff = do
     , getWalletAddress
     , getCollateral
     , signTx
+    , signTxBytes
     , submitTx
     }
 
@@ -95,6 +98,11 @@ mkNamiWalletAff = do
     combineWitnessSet :: Transaction -> TransactionWitnessSet -> Transaction
     combineWitnessSet (Transaction tx'@{ witness_set: oldWits }) newWits =
       Transaction $ tx' { witness_set = oldWits <> newWits }
+
+  signTxBytes :: NamiConnection -> ByteArray -> Aff (Maybe ByteArray)
+  signTxBytes nami txBytes = do
+    let txHex = byteArrayToHex txBytes
+    fromNamiHexString (_signTxNami txHex) nami
 
   submitTx :: NamiConnection -> Transaction -> Aff (Maybe TransactionHash)
   submitTx nami tx = do

@@ -2,6 +2,8 @@
 
 module Types (
   AppM (AppM),
+  AttachSignatureRequest(..),
+  AttachSignatureResponse(..),
   ServerOptions (..),
   Env (..),
   Cbor (..),
@@ -129,6 +131,17 @@ data FinalizeRequest = FinalizeRequest
 newtype FinalizedTransaction = FinalizedTransaction Cbor
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
+
+data AttachSignatureRequest = AttachSignatureRequest
+  { unsigned_tx :: Cbor
+  , witness_set :: Cbor
+  }
+  deriving stock (Show, Generic, Eq)
+  deriving anyclass (FromJSON, ToJSON)
+
+newtype AttachSignatureResponse = AttachSignatureResponse Cbor
+  deriving stock (Show, Generic, Eq)
+  deriving newtype (FromJSON, ToJSON)
 
 -- This is only to avoid an orphan instance for @ToDocs@
 newtype HashScriptRequest = HashScriptRequest Ledger.Script
@@ -291,6 +304,29 @@ instance Docs.ToSample FinalizedTransaction where
         , "baea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba"
         , "3e96550504d5336100021a0002b569a0f5f6"
         ]
+
+instance Docs.ToSample AttachSignatureRequest where
+  toSamples _ =
+    [
+      ( "CBOR-encoded tx and witness to attach"
+      , AttachSignatureRequest exampleTx (Cbor "00")
+      )
+    ]
+    where
+      exampleTx = Cbor $ mconcat
+        [ "84a300818258205d677265fa5bb21ce6d8c7502aca70b93"
+        , "16d10e958611f3c6b758f65ad9599960001818258390030"
+        , "fb3b8539951e26f034910a5a37f22cb99d94d1d409f69dd"
+        , "baea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba"
+        , "3e96550504d5336100021a0002b569a0f5f6"
+        ]
+
+instance Docs.ToSample AttachSignatureResponse where
+  toSamples _ =
+    [ ( "CBOR-encoded tx with attached vkey witness"
+      , AttachSignatureResponse (Cbor "00")
+      )
+    ]
 
 -- For decoding test fixtures, samples, etc...
 unsafeDecode :: forall (a :: Type). FromJSON a => String -> LC8.ByteString -> a

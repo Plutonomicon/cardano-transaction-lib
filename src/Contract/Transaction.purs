@@ -1,11 +1,13 @@
 -- | A module that defines the different transaction data types, balancing
 -- | functionality, transaction fees, signing and submission.
 module Contract.Transaction
-  ( balanceTx
+  ( attachSignature
+  , balanceTx
   , balanceTxM
   , calculateMinFee
   , calculateMinFeeM
   , signTransaction
+  , signTransactionBytes
   , submitTransaction
   , finalizeTx
   , module BalanceTxError
@@ -25,14 +27,18 @@ import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
 import QueryM
-  ( FeeEstimate(FeeEstimate)
+  ( AttachSignatureRequest(AttachSignatureRequest)
+  , FeeEstimate(FeeEstimate)
   , ClientError(..) -- implicit as this error list will likely increase.
   , FinalizedTransaction(FinalizedTransaction)
   ) as ExportQueryM
 import QueryM
   ( FinalizedTransaction
+  , AttachSignatureRequest
+  , attachSignature
   , calculateMinFee
   , signTransaction
+  , signTransactionBytes
   , submitTransaction
   , finalizeTx
   ) as QueryM
@@ -139,6 +145,7 @@ import TxOutput -- Could potentially trim this down, -- FIX ME: https://github.c
   , transactionOutputToScriptOutput
   , txOutRefToTransactionInput
   ) as TxOutput
+import Types.ByteArray (ByteArray)
 import Types.UnbalancedTransaction (UnbalancedTx)
 import Types.UnbalancedTransaction
   ( ScriptOutput(ScriptOutput) -- More up-to-date Plutus uses this, wonder if we can just use `TransactionOutput`
@@ -158,6 +165,10 @@ import Types.Datum (Datum)
 signTransaction :: Transaction -> Contract (Maybe Transaction)
 signTransaction = wrap <<< QueryM.signTransaction
 
+-- | Signs a `Transaction` with potential failure. Returns CBOR-encoded witness set.
+signTransactionBytes :: ByteArray -> Contract (Maybe ByteArray)
+signTransactionBytes = wrap <<< QueryM.signTransactionBytes
+
 -- | Submits a `Transaction` with potential failure.
 submitTransaction :: Transaction -> Contract (Maybe TransactionHash)
 submitTransaction = wrap <<< QueryM.submitTransaction
@@ -171,6 +182,10 @@ calculateMinFee = wrap <<< QueryM.calculateMinFee
 calculateMinFeeM
   :: Transaction -> Contract (Maybe Coin)
 calculateMinFeeM = map hush <<< calculateMinFee
+
+attachSignature
+  :: QueryM.AttachSignatureRequest -> Contract (Maybe ByteArray)
+attachSignature = wrap <<< QueryM.attachSignature
 
 -- | Attempts to balance an `UnbalancedTx`.
 balanceTx

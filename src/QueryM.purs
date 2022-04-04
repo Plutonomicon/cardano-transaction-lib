@@ -1,6 +1,7 @@
 -- | TODO docstring
 module QueryM
-  ( ClientError(..)
+  ( AttachSignatureRequest(..)
+  , ClientError(..)
   , DatumCacheListeners
   , DatumCacheWebSocket
   , DispatchIdMap
@@ -21,6 +22,7 @@ module QueryM
   , _wsSend
   , allowError
   , applyArgs
+  , attachSignature
   , blake2bHash
   , calculateMinFee
   , cancelFetchBlocksRequest
@@ -48,6 +50,7 @@ module QueryM
   , ownPubKeyHash
   , queryDatumCache
   , signTransaction
+  , signTransactionBytes
   , startFetchBlocksRequest
   , submitTransaction
   , underlyingWebSocket
@@ -287,6 +290,11 @@ signTransaction
 signTransaction tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.signTx tx
 
+signTransactionBytes
+  :: ByteArray -> QueryM (Maybe ByteArray)
+signTransactionBytes tx = withMWalletAff $ case _ of
+  Nami nami -> callNami nami $ \nw -> flip nw.signTxBytes tx
+
 submitTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.TransactionHash)
 submitTransaction tx = withMWalletAff $ case _ of
@@ -483,6 +491,50 @@ finalizeTx tx datums redeemers = do
     liftAff
       ( Affjax.post Affjax.ResponseFormat.json url
           (Just $ Affjax.RequestBody.Json $ encodeJson body)
+      ) <#> map \x -> x.body
+  -- decode
+  pure $ hush <<< Json.decodeJson =<< hush jsonBody
+
+-- | CborHex-encoded tx
+newtype AttachSignatureRequest = AttachSignatureRequest
+  { unsigned_tx :: ByteArray
+  , witness_set :: ByteArray
+  }
+
+derive instance Generic AttachSignatureRequest _
+
+instance Show AttachSignatureRequest where
+  show = genericShow
+
+instance Json.EncodeJson AttachSignatureRequest where
+  encodeJson (AttachSignatureRequest req) = encodeJson
+    { unsigned_tx: byteArrayToHex req.unsigned_tx
+    , witness_set: byteArrayToHex req.witness_set
+    }
+
+newtype AttachSignatureResponse = AttachSignatureResponse ByteArray
+
+derive instance Generic AttachSignatureResponse _
+
+instance Show AttachSignatureResponse where
+  show = genericShow
+
+instance Json.DecodeJson AttachSignatureResponse where
+  decodeJson =
+    map AttachSignatureResponse <<<
+      Json.caseJsonString (Left err) (note err <<< hexToByteArray)
+    where
+    err = Json.TypeMismatch "Expected CborHex of Tx"
+
+attachSignature
+  :: AttachSignatureRequest -> QueryM (Maybe ByteArray)
+attachSignature req = do
+  url <- mkServerEndpointUrl "attach-signature"
+  -- get response json
+  jsonBody <-
+    liftAff
+      ( Affjax.post Affjax.ResponseFormat.json url
+          (Just $ Affjax.RequestBody.Json $ encodeJson req)
       ) <#> map \x -> x.body
   -- decode
   pure $ hush <<< Json.decodeJson =<< hush jsonBody

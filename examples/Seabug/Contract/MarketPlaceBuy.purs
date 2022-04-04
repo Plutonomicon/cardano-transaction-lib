@@ -35,8 +35,11 @@ import Contract.Scripts (typedValidatorEnterpriseAddress)
 import Contract.Transaction
   ( TxOut
   , UnbalancedTx
+  , AttachSignatureRequest(AttachSignatureRequest)
+  , attachSignature
   , balanceTx
   , finalizeTx
+  , signTransactionBytes
   )
 import Contract.TxConstraints
   ( TxConstraints
@@ -85,8 +88,15 @@ marketplaceBuy nftData = do
     liftedM "marketplaceBuy: Cannot attach datums and redeemer"
       (finalizeTx balancedTx datums redeemers)
   log "marketplaceBuy: Datums and redeemer attached"
+  -- Re-sign and attach witness to transaction
+  witness <- liftedM "Failed to sign transaction" $ signTransactionBytes txCbor
+  signedTxCbor <- liftedM "Failed to attach signature" do
+    attachSignature $ AttachSignatureRequest
+      { unsigned_tx: txCbor
+      , witness_set: witness
+      }
   -- Submit transaction:
-  transactionHash <- wrap $ submit txCbor
+  transactionHash <- wrap $ submit signedTxCbor
   -- -- Submit balanced tx:
   log $ "marketplaceBuy: Transaction successfully submitted with hash: "
     <> show transactionHash

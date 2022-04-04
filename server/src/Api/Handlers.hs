@@ -1,12 +1,13 @@
 {-# LANGUAGE NamedFieldPuns #-}
 
 module Api.Handlers (
-  estimateTxFees,
   applyArgs,
+  attachSignature,
+  blake2bHash,
+  estimateTxFees,
+  finalizeTx,
   hashData,
   hashScript,
-  blake2bHash,
-  finalizeTx,
 ) where
 
 import Cardano.Api qualified as C
@@ -38,6 +39,8 @@ import Types (
   AppM,
   AppliedScript (AppliedScript),
   ApplyArgsRequest (ApplyArgsRequest, args, script),
+  AttachSignatureRequest(..),
+  AttachSignatureResponse(..),
   Blake2bHash (Blake2bHash),
   BytesToHash (BytesToHash),
   CardanoBrowserServerError (CborDecode),
@@ -124,6 +127,7 @@ finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
                   witness
                     { TxWitness.txdats = txDatums
                     , TxWitness.txrdmrs = decodedRedeemers
+                    -- , TxWitness.txwitsVKey = mempty TODO?
                     }
           }
       finalizedTx = addIntegrityHash $ addDatumsAndRedeemers decodedTx
@@ -131,6 +135,22 @@ finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
         FinalizedTransaction . encodeCborText . Cbor.serializeEncoding $
           Tx.toCBORForMempoolSubmission finalizedTx
   pure response
+
+attachSignature :: AttachSignatureRequest -> AppM AttachSignatureResponse
+attachSignature AttachSignatureRequest{unsigned_tx, witness_set} = do
+  decodedTx <- throwDecodeErrorWithMessage "Failed to decode tx" $
+    decodeCborValidatedTx unsigned_tx
+  decodedWitnesses <- throwDecodeErrorWithMessage "Failed to decode wintesses" $
+    decodeCborWitnesses witness_set
+  let
+    updatedTx = decodedTx
+      { Tx.wits = (Tx.wits decodedTx)
+        { TxWitness.txwitsVKey = TxWitness.txwitsVKey decodedWitnesses } }
+  pure
+    . AttachSignatureResponse
+    . encodeCborText
+    . Cbor.serializeEncoding
+    $ Tx.toCBORForMempoolSubmission updatedTx
 
 -- Helpers
 
@@ -166,6 +186,10 @@ decodeCborTx cbor =
 decodeCborValidatedTx ::
   Cbor -> Maybe (Tx.ValidatedTx (Alonzo.AlonzoEra StandardCrypto))
 decodeCborValidatedTx = decodeCborComponent
+
+decodeCborWitnesses ::
+  Cbor -> Maybe (TxWitness.TxWitness (Alonzo.AlonzoEra StandardCrypto))
+decodeCborWitnesses = decodeCborComponent
 
 decodeCborRedeemers ::
   Cbor -> Maybe (TxWitness.Redeemers (Alonzo.AlonzoEra StandardCrypto))
