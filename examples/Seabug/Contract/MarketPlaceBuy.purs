@@ -74,6 +74,7 @@ import Seabug.Types
   , NftData(NftData)
   , NftId(NftId)
   )
+import Types.ByteArray (ByteArray)
 import Types.ScriptLookups (mkUnbalancedTx')
 import Types.Transaction (Redeemer) as T
 
@@ -91,12 +92,14 @@ marketplaceBuy nftData = do
       (finalizeTx balancedTx datums redeemers)
   log "marketplaceBuy: Datums and redeemer attached"
   -- Re-sign and attach witness to transaction
-  witness <- liftedM "Failed to sign transaction" $ signTransactionBytes txCbor
-  signedTxCbor <- liftedM "Failed to attach signature" do
-    attachSignature $ AttachSignatureRequest
-      { unsigned_tx: txCbor
-      , witness_set: witness
-      }
+  witnessCbor <- liftedM "Failed to sign transaction" $ signTransactionBytes txCbor
+  -- signedTxCbor <- liftedM "Failed to attach signature" do
+  --   attachSignature $ AttachSignatureRequest
+  --     { unsigned_tx: txCbor
+  --     , witness_set: witnessCbor
+  --     }
+  signedTxCbor <- liftEffect $ attachSignatureLocally txCbor witnessCbor
+  log "marketplaceBuy: signed"
   -- Submit transaction:
   transactionHash <- wrap $ submit signedTxCbor
   -- -- Submit balanced tx:
@@ -370,3 +373,5 @@ mkMarketplaceTx (NftData nftData) = do
 --     _txrdmrs = RedeemersRaw (fromList [])},
 --     isValid = IsValid True,
 --     auxiliaryData = SNothing}
+
+foreign import attachSignatureLocally :: ByteArray -> ByteArray -> Effect ByteArray

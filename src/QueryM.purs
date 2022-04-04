@@ -581,12 +581,8 @@ hashData datum = do
 datumHash :: Datum -> QueryM (Maybe DatumHash)
 datumHash datum = do
   mHd <- hashData datum
-  -- let fixedH = mHd >>= unwrap >>> byteArrayToIntArray >>> drop 2 >>> byteArrayFromIntArray
-  -- pure $ maybe Nothing (Just <<< Transaction.DataHash) fixedH
-  pure $ maybe
-    Nothing
-    (\(HashedData bytes) -> Just $ Transaction.DataHash bytes)
-    mHd
+  let fixedH = mHd >>= unwrap >>> byteArrayToIntArray >>> drop 2 >>> byteArrayFromIntArray
+  pure $ maybe Nothing (Just <<< Transaction.DataHash) fixedH
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
