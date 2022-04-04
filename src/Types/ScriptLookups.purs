@@ -32,7 +32,7 @@ import Control.Monad.Reader.Trans (ReaderT)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Data.Array (singleton, union) as Array
-import Data.Array (drop, length, toUnfoldable, zip)
+import Data.Array (length, toUnfoldable, zip)
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
 import Data.Either (Either(Left, Right), either, note)
@@ -95,7 +95,6 @@ import Types.Transaction
   , _mint
   , _networkId
   , _outputs
-  , _plutusScripts
   , _requiredSigners
   , _scriptDataHash
   , _witnessSet
@@ -378,9 +377,9 @@ type ConstraintProcessingState (a :: Type) =
   -- Ordered accumulation of redeemers so we can use to `setScriptDataHash` and
   -- add execution units via Ogmios. Note: this mixes script and minting
   -- redeemers.
-  -- , mintingPolicies :: Array MintingPolicy
-  -- -- An array of minting policies, we need to keep track of the index for
-  -- -- redeemers
+  , mintingPolicies :: Array MintingPolicy
+  -- An array of minting policies, we need to keep track of the index for
+  -- minting redeemers
   , lookups :: ScriptLookups a
   -- ScriptLookups for resolving constraints. Should be treated as an immutable
   -- value despite living inside the processing state
@@ -407,6 +406,10 @@ _datums = prop (SProxy :: SProxy "datums")
 _redeemers
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) (Array T.Redeemer)
 _redeemers = prop (SProxy :: SProxy "redeemers")
+
+_mintingPolicies
+  :: forall (a :: Type). Lens' (ConstraintProcessingState a) (Array MintingPolicy)
+_mintingPolicies = prop (SProxy :: SProxy "mintingPolicies")
 
 _lookups
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) (ScriptLookups a)
@@ -532,6 +535,7 @@ runConstraintsM lookups txConstraints =
           ValueSpentBalances { required: mempty, provided: mempty }
       , datums: mempty
       , redeemers: mempty
+      , mintingPolicies: mempty
       , lookups
       }
 
@@ -721,8 +725,6 @@ data MkUnbalancedTxError
   | CannotHashDatum Datum
   | CannotConvertPOSIXTimeRange POSIXTimeRange
   | CannotGetValidatorHashFromAddress Address -- Get `ValidatorHash` from internal `Address`
-  | CannotGetMintingPolicyScriptIndex -- Cannot get the Minting Policy Index - this should be impossible.
-  | CannotGetMintingValidatorScriptIndex -- Cannot get the Validator Index - this should be impossible.
   | MkTypedTxOutFailed
   | TypedTxOutHasNoDatumHash
   | CannotHashMintingPolicy MintingPolicy
@@ -839,15 +841,11 @@ processConstraint mpsMap osMap = do
           log $ show dHash
           log $ byteArrayToHex $ unwrap dHash
           log $ show dataValue
-          -- FIX ME: use tx inputs order
-          -- Get the redeemer index, which is the current length of scripts - 1
-          mIndex <-
-            use (_cpsToWitnessSet <<< _plutusScripts <<< to (map lastIndex))
-          -- This error should be impossible as we just attached:
-          -- index <- liftM CannotGetMintingValidatorScriptIndex mIndex
-          let index = zero
-          ExceptT $ addDatum dataValue
           _cpsToTxBody <<< _inputs <>= Array.singleton txo
+          -- Get the redeemer index, which is the current length of inputs - 1
+          index <- use (_cpsToTxBody <<< _inputs <<< to lastIndex)
+          -- let index = zero
+          ExceptT $ addDatum dataValue
           let
             -- Create a redeemer with hardcoded execution units then call Ogmios
             -- to add the units in at the very end.
@@ -883,12 +881,10 @@ processConstraint mpsMap osMap = do
           _valueSpentBalancesOutputs <>= provide v
           liftEither $ Right $ map getNonAdaAsset $ value i
       ExceptT $ attachToCps attachPlutusScript plutusScript
-      -- FIX ME: use a separate redeeming order on minting policies.
+      -- Use a separate redeeming order on minting policies.
       -- Get the redeemer index, which is the current length of scripts - 1
-      mIndex <- use (_cpsToWitnessSet <<< _plutusScripts <<< to (map lastIndex))
-      -- This error should be impossible as we just attached:
-      -- index <- liftM CannotGetMintingPolicyScriptIndex mIndex
-      let index = zero
+      _mintingPolicies <>= Array.singleton (wrap plutusScript)
+      index <- use (_mintingPolicies <<< to lastIndex)
       let
         -- Create a redeemer with zero execution units then call Ogmios to
         -- add the units in at the very end.
@@ -1033,13 +1029,6 @@ addDatum datum = runExceptT do
 _cpsToTransaction
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) Transaction
 _cpsToTransaction = _unbalancedTx <<< _transaction
-
--- Helper to focus from `ConstraintProcessingState` down to
--- `TransactionWitnessSet`.
-_cpsToWitnessSet
-  :: forall (a :: Type)
-   . Lens' (ConstraintProcessingState a) TransactionWitnessSet
-_cpsToWitnessSet = _cpsToTransaction <<< _witnessSet
 
 -- Helper to focus from `ConstraintProcessingState` down to `TxBody`.
 _cpsToTxBody :: forall (a :: Type). Lens' (ConstraintProcessingState a) TxBody
