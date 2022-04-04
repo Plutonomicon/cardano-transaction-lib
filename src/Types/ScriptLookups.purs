@@ -30,7 +30,7 @@ import Control.Monad.Reader.Trans (ReaderT)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Data.Array (singleton, union) as Array
-import Data.Array (length, toUnfoldable, zip)
+import Data.Array (elemIndex, insert, toUnfoldable, zip)
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
 import Data.Either (Either(Left, Right), either, note)
@@ -48,7 +48,8 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
-import Data.Traversable (for, sequence)
+import Data.Traversable (for, sequence, traverse)
+import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import FromData (class FromData)
 import Effect (Effect)
@@ -371,7 +372,7 @@ type ConstraintProcessingState (a :: Type) =
   -- Balance of the values produced and required for the transaction's outputs
   , datums :: Array Datum
   -- Ordered accumulation of datums so we can use to `setScriptDataHash`
-  , redeemers :: Array T.Redeemer
+  , redeemers :: Array (T.Redeemer /\ Maybe TxOutRef)
   -- Ordered accumulation of redeemers so we can use to `setScriptDataHash` and
   -- add execution units via Ogmios. Note: this mixes script and minting
   -- redeemers.
@@ -402,7 +403,8 @@ _datums
 _datums = prop (SProxy :: SProxy "datums")
 
 _redeemers
-  :: forall (a :: Type). Lens' (ConstraintProcessingState a) (Array T.Redeemer)
+  :: forall (a :: Type)
+   . Lens' (ConstraintProcessingState a) (Array (T.Redeemer /\ Maybe TxOutRef))
 _redeemers = prop (SProxy :: SProxy "redeemers")
 
 _mintingPolicies
@@ -483,6 +485,7 @@ processLookupsAndConstraints
   ExceptT addScriptDataHash
   ExceptT addMissingValueSpent
   ExceptT updateUtxoIndex
+  ExceptT reindexSpentScriptRedeemers
   where
   -- Polymorphic helper to hash an Array of `Validator`s or `MintingPolicy`s
   -- with a way to error.
@@ -510,6 +513,29 @@ processLookupsAndConstraints
   foldConstraints handler = foldM
     (\_ constr -> runExceptT $ ExceptT $ handler constr)
     (Right unit)
+
+-- Reindex the utxos from spending scripts, because we are constantly insert
+-- (in order) to the array, so we get the final Array at the end which we must
+-- index.
+reindexSpentScriptRedeemers
+  :: forall (a :: Type)
+   . ConstraintsM a (Either MkUnbalancedTxError Unit)
+reindexSpentScriptRedeemers = runExceptT do
+  redsTxInputs <- use _redeemers
+  ipts <- use (_cpsToTxBody <<< _inputs)
+  newRedeemers <- liftEither $ traverse (reindex ipts) redsTxInputs
+  _redeemers .= newRedeemers
+  where
+  reindex
+    :: Array TxOutRef
+    -> T.Redeemer /\ Maybe TxOutRef
+    -> Either MkUnbalancedTxError (T.Redeemer /\ Maybe TxOutRef)
+  reindex ipts = case _ of
+    red@(T.Redeemer red'@{ tag: Spend }) /\ Just txOutRef -> do
+      index <- note (CannotGetTxOutRefIndexForRedeemer red)
+        (fromInt <$> elemIndex txOutRef ipts)
+      Right $ T.Redeemer red' { index = index } /\ Just txOutRef
+    mintRed /\ txOutRef -> Right $ mintRed /\ txOutRef
 
 -- Helper to run the stack and get back to `QueryM`. See comments in
 -- `processLookupsAndConstraints` regarding constraints.
@@ -594,7 +620,7 @@ mkUnbalancedTx' scriptLookups txConstraints =
             _ { plutus_data = Nothing, redeemers = Nothing }
         tx = stripDatumsRedeemers $ stripScriptDataHash unbalancedTx
       in
-        { unbalancedTx: tx, datums, redeemers }
+        { unbalancedTx: tx, datums, redeemers: map fst redeemers }
 
 addScriptDataHash
   :: forall (a :: Type)
@@ -602,7 +628,7 @@ addScriptDataHash
 addScriptDataHash = runExceptT do
   dats <- use _datums
   -- Use both script and minting redeemers in the order they were appended.
-  reds <- use _redeemers
+  reds <- use (_redeemers <<< to (map fst))
   tx <- use (_unbalancedTx <<< _transaction)
   tx' <- ExceptT $ liftEffect $ setScriptDataHash reds dats tx <#> Right
   _cpsToTransaction .= tx'
@@ -678,7 +704,8 @@ addOwnInput (InputConstraint { txOutRef }) = do
       typeTxOutRef networkId (flip lookup txOutputs) inst txOutRef
         <#> lmap TypeCheckFailed
     let value = typedTxOutRefValue typedTxOutRef
-    _cpsToTxBody <<< _inputs <>= Array.singleton txOutRef
+    -- Must be inserted in order. Hopefully this matches the order under CSL
+    _cpsToTxBody <<< _inputs %= insert txOutRef
     _valueSpentBalancesInputs <>= provide value
 
 -- | Add a typed output and return its value.
@@ -722,7 +749,9 @@ data MkUnbalancedTxError
   | CannotQueryDatum DatumHash
   | CannotHashDatum Datum
   | CannotConvertPOSIXTimeRange POSIXTimeRange
+  | CannotGetMintingPolicyScriptIndex -- Should be impossible
   | CannotGetValidatorHashFromAddress Address -- Get `ValidatorHash` from internal `Address`
+  | CannotGetTxOutRefIndexForRedeemer T.Redeemer
   | MkTypedTxOutFailed
   | TypedTxOutHasNoDatumHash
   | CannotHashMintingPolicy MintingPolicy
@@ -811,7 +840,7 @@ processConstraint mpsMap osMap = do
           -- POTENTIAL FIX ME: Plutus has Tx.TxIn and Tx.PubKeyTxIn -- TxIn
           -- keeps track TxOutRef and TxInType (the input type, whether
           -- consuming script, public key or simple script)
-          _cpsToTxBody <<< _inputs <>= Array.singleton txo
+          _cpsToTxBody <<< _inputs %= insert txo
           _valueSpentBalancesInputs <>= provide amount
         _ -> liftEither $ throwError $ TxOutRefWrongType txo
     MustSpendScriptOutput txo red -> runExceptT do
@@ -835,22 +864,22 @@ processConstraint mpsMap osMap = do
             ) <|>
               lookupDatum dHash
           ExceptT $ attachToCps attachPlutusScript plutusScript
-          _cpsToTxBody <<< _inputs <>= Array.singleton txo
-          -- Get the redeemer index, which is the current length of inputs - 1
-          index <- use (_cpsToTxBody <<< _inputs <<< to lastIndex)
+          _cpsToTxBody <<< _inputs %= insert txo
           ExceptT $ addDatum dataValue
           let
             -- Create a redeemer with hardcoded execution units then call Ogmios
             -- to add the units in at the very end.
+            -- Hardcode script spend index then reindex at the end with
+            -- `reindexSpentScriptRedeemers`
             redeemer = T.Redeemer
               { tag: Spend
-              , index
+              , index: zero
               , data: unwrap red
               , ex_units: scriptExUnits
               }
           _valueSpentBalancesInputs <>= provide amount
           -- Append redeemer for spending to array.
-          _redeemers <>= Array.singleton redeemer
+          _redeemers <>= Array.singleton (redeemer /\ Just txo)
           -- Attach redeemer to witness set.
           ExceptT $ attachToCps attachRedeemer redeemer
         _ -> liftEither $ throwError $ TxOutRefWrongType txo
@@ -875,9 +904,10 @@ processConstraint mpsMap osMap = do
           liftEither $ Right $ map getNonAdaAsset $ value i
       ExceptT $ attachToCps attachPlutusScript plutusScript
       -- Use a separate redeeming order on minting policies.
-      -- Get the redeemer index, which is the current length of scripts - 1
       _mintingPolicies <>= Array.singleton (wrap plutusScript)
-      index <- use (_mintingPolicies <<< to lastIndex)
+      mIndex <-
+        use (_mintingPolicies <<< to (elemIndex (wrap plutusScript) >>> map fromInt))
+      index <- liftM CannotGetMintingPolicyScriptIndex mIndex
       let
         -- Create a redeemer with zero execution units then call Ogmios to
         -- add the units in at the very end.
@@ -889,7 +919,7 @@ processConstraint mpsMap osMap = do
           }
       _cpsToTxBody <<< _mint <>= map wrap mintVal
       -- Append redeemer for minting to array.
-      _redeemers <>= Array.singleton redeemer
+      _redeemers <>= Array.singleton (redeemer /\ Nothing)
       -- Attach redeemer to witness set.
       ExceptT $ attachToCps attachRedeemer redeemer
     MustPayToPubKeyAddress pkh _ mDatum amount -> do
@@ -1023,9 +1053,6 @@ _cpsToTransaction = _unbalancedTx <<< _transaction
 -- Helper to focus from `ConstraintProcessingState` down to `TxBody`.
 _cpsToTxBody :: forall (a :: Type). Lens' (ConstraintProcessingState a) TxBody
 _cpsToTxBody = _cpsToTransaction <<< _body
-
-lastIndex :: forall (a :: Type). Array a -> BigInt
-lastIndex = length >>> flip (-) one >>> fromInt
 
 getNetworkId
   :: forall (a :: Type)

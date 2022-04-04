@@ -573,6 +573,7 @@ newtype Redeemer = Redeemer
 
 derive instance Generic Redeemer _
 derive newtype instance Eq Redeemer
+derive newtype instance Ord Redeemer
 
 instance Show Redeemer where
   show = genericShow
