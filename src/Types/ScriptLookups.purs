@@ -21,6 +21,8 @@ module Types.ScriptLookups
 
 import Prelude hiding (join)
 
+import Types.ByteArray (byteArrayToHex)
+import Effect.Class.Console (log)
 import Address (enterpriseAddressValidatorHash)
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, throwError)
@@ -30,7 +32,7 @@ import Control.Monad.Reader.Trans (ReaderT)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Data.Array (singleton, union) as Array
-import Data.Array ((:), length, toUnfoldable, zip)
+import Data.Array (drop, length, toUnfoldable, zip)
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
 import Data.Either (Either(Left, Right), either, note)
@@ -376,6 +378,9 @@ type ConstraintProcessingState (a :: Type) =
   -- Ordered accumulation of redeemers so we can use to `setScriptDataHash` and
   -- add execution units via Ogmios. Note: this mixes script and minting
   -- redeemers.
+  -- , mintingPolicies :: Array MintingPolicy
+  -- -- An array of minting policies, we need to keep track of the index for
+  -- -- redeemers
   , lookups :: ScriptLookups a
   -- ScriptLookups for resolving constraints. Should be treated as an immutable
   -- value despite living inside the processing state
@@ -636,7 +641,7 @@ addMissingValueSpent = do
         , amount: missing
         , data_hash: Nothing
         }
-    _cpsToTxBody <<< _outputs %= (:) txOut
+    _cpsToTxBody <<< _outputs <>= Array.singleton txOut
 
 updateUtxoIndex
   :: forall (a :: Type)
@@ -671,7 +676,7 @@ addOwnInput (InputConstraint { txOutRef }) = do
       typeTxOutRef networkId (flip lookup txOutputs) inst txOutRef
         <#> lmap TypeCheckFailed
     let value = typedTxOutRefValue typedTxOutRef
-    _cpsToTxBody <<< _inputs %= (:) txOutRef
+    _cpsToTxBody <<< _inputs <>= Array.singleton txOutRef
     _valueSpentBalancesInputs <>= provide value
 
 -- | Add a typed output and return its value.
@@ -695,7 +700,7 @@ addOwnOutput (OutputConstraint { datum, value }) = do
     dHash <- liftM TypedTxOutHasNoDatumHash (typedTxOutDatumHash typedTxOut)
     dat <-
       ExceptT $ lift $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
-    _cpsToTxBody <<< _outputs %= (:) txOut
+    _cpsToTxBody <<< _outputs <>= Array.singleton txOut
     ExceptT $ addDatum (wrap dat)
     _valueSpentBalancesOutputs <>= provide value
 
@@ -806,7 +811,7 @@ processConstraint mpsMap osMap = do
           -- POTENTIAL FIX ME: Plutus has Tx.TxIn and Tx.PubKeyTxIn -- TxIn
           -- keeps track TxOutRef and TxInType (the input type, whether
           -- consuming script, public key or simple script)
-          _cpsToTxBody <<< _inputs %= (:) txo
+          _cpsToTxBody <<< _inputs <>= Array.singleton txo
           _valueSpentBalancesInputs <>= provide amount
         _ -> liftEither $ throwError $ TxOutRefWrongType txo
     MustSpendScriptOutput txo red -> runExceptT do
@@ -830,13 +835,19 @@ processConstraint mpsMap osMap = do
             ) <|>
               lookupDatum dHash
           ExceptT $ attachToCps attachPlutusScript plutusScript
+          log "datum hash in MustSpendScriptOutput"
+          log $ show dHash
+          log $ byteArrayToHex $ unwrap dHash
+          log $ show dataValue
+          -- FIX ME: use tx inputs order
           -- Get the redeemer index, which is the current length of scripts - 1
           mIndex <-
             use (_cpsToWitnessSet <<< _plutusScripts <<< to (map lastIndex))
           -- This error should be impossible as we just attached:
-          index <- liftM CannotGetMintingValidatorScriptIndex mIndex
+          -- index <- liftM CannotGetMintingValidatorScriptIndex mIndex
+          let index = zero
           ExceptT $ addDatum dataValue
-          _cpsToTxBody <<< _inputs %= (:) txo
+          _cpsToTxBody <<< _inputs <>= Array.singleton txo
           let
             -- Create a redeemer with hardcoded execution units then call Ogmios
             -- to add the units in at the very end.
@@ -872,10 +883,12 @@ processConstraint mpsMap osMap = do
           _valueSpentBalancesOutputs <>= provide v
           liftEither $ Right $ map getNonAdaAsset $ value i
       ExceptT $ attachToCps attachPlutusScript plutusScript
+      -- FIX ME: use a separate redeeming order on minting policies.
       -- Get the redeemer index, which is the current length of scripts - 1
       mIndex <- use (_cpsToWitnessSet <<< _plutusScripts <<< to (map lastIndex))
       -- This error should be impossible as we just attached:
-      index <- liftM CannotGetMintingPolicyScriptIndex mIndex
+      -- index <- liftM CannotGetMintingPolicyScriptIndex mIndex
+      let index = zero
       let
         -- Create a redeemer with zero execution units then call Ogmios to
         -- add the units in at the very end.
@@ -933,7 +946,7 @@ processConstraint mpsMap osMap = do
         let
           txOut = TransactionOutput
             { address: payPubKeyHashEnterpriseAddress networkId pkh, amount, data_hash }
-        _cpsToTxBody <<< _outputs %= (:) txOut
+        _cpsToTxBody <<< _outputs <>= Array.singleton txOut
         _valueSpentBalancesOutputs <>= provide amount
     MustPayToOtherScript vlh datum amount -> do
       networkId <- getNetworkId
@@ -942,6 +955,9 @@ processConstraint mpsMap osMap = do
         data_hash <- ExceptT $ lift $ note (CannotHashDatum datum)
           <$> map Just
           <$> datumHash datum
+        log "datum hash in MustPayToOtherScript"
+        log $ show data_hash
+        log $ show $ map (byteArrayToHex <<< unwrap) data_hash
         let
           txOut = TransactionOutput
             { address: validatorHashEnterpriseAddress networkId vlh
@@ -949,7 +965,7 @@ processConstraint mpsMap osMap = do
             , data_hash
             }
         ExceptT $ addDatum datum
-        _cpsToTxBody <<< _outputs %= (:) txOut
+        _cpsToTxBody <<< _outputs <>= Array.singleton txOut
         _valueSpentBalancesOutputs <>= provide amount
     MustHashDatum dh dt -> do
       mdh <- lift $ datumHash dt
@@ -1011,7 +1027,7 @@ addDatum
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
 addDatum datum = runExceptT do
   ExceptT $ attachToCps attachDatum datum
-  _datums %= (:) datum
+  _datums <>= Array.singleton datum
 
 -- Helper to focus from `ConstraintProcessingState` down to `Transaction`.
 _cpsToTransaction
