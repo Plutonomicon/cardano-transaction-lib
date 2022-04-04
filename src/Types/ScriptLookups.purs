@@ -84,10 +84,10 @@ import Transaction
 import Types.Transaction (Redeemer(Redeemer)) as T
 import Types.Transaction
   ( ExUnits
-  , Transaction(Transaction)
+  , Transaction
   , TransactionOutput(TransactionOutput)
-  , TxBody(TxBody)
-  , TransactionWitnessSet
+  , TxBody
+  , TransactionWitnessSet(TransactionWitnessSet)
   , _body
   , _inputs
   , _mint
@@ -95,6 +95,7 @@ import Types.Transaction
   , _outputs
   , _plutusScripts
   , _requiredSigners
+  , _scriptDataHash
   , _witnessSet
   )
 import Types.TxConstraints
@@ -134,7 +135,7 @@ import Types.UnbalancedTransaction
   , PaymentPubKey
   , PaymentPubKeyHash
   , StakePubKeyHash
-  , UnbalancedTx(UnbalancedTx)
+  , UnbalancedTx
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
@@ -576,16 +577,15 @@ mkUnbalancedTx' scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map
     \{ unbalancedTx, datums, redeemers } ->
       let
-        _transaction = prop (SProxy :: SProxy "transaction")
-        _body = prop (SProxy :: SProxy "body")
-        _script_data_hash = prop (SProxy :: SProxy "script_data_hash")
-
         stripScriptDataHash :: UnbalancedTx -> UnbalancedTx
-        stripScriptDataHash =
-          over UnbalancedTx $
-            _transaction %~ over Transaction
-              (_body %~ over TxBody (_script_data_hash .~ Nothing))
-        tx = stripScriptDataHash unbalancedTx
+        stripScriptDataHash uTx =
+          uTx # _transaction <<< _body <<< _scriptDataHash .~ Nothing
+
+        stripDatumsRedeemers :: UnbalancedTx -> UnbalancedTx
+        stripDatumsRedeemers uTx = uTx # _transaction <<< _witnessSet %~
+          over TransactionWitnessSet
+            _ { plutus_data = Nothing, redeemers = Nothing }
+        tx = stripDatumsRedeemers $ stripScriptDataHash unbalancedTx
       in
         { unbalancedTx: tx, datums, redeemers }
 
