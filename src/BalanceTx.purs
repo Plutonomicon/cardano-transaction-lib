@@ -83,6 +83,8 @@ import Types.Value
   , isPos
   , isZero
   , minus
+  , mkCoin
+  , mkValue
   , numCurrencySymbols
   , numTokenNames
   , sumTokenNameLengths
@@ -678,7 +680,7 @@ balanceTxIns' utxos fees (TxBody txBody) = do
     txOutputs = txBody.outputs
 
     mintVal :: Value
-    mintVal = maybe mempty unwrap txBody.mint
+    mintVal = maybe mempty (mkValue (mkCoin zero) <<< unwrap) txBody.mint
 
   nonMintedValue <- note (BalanceTxInsCannotMinus $ CannotMinus $ wrap mintVal)
     $ Array.foldMap getAmount txOutputs `minus` mintVal
@@ -787,7 +789,7 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
     outputValue = Array.foldMap getAmount txOutputs
 
     mintVal :: Value
-    mintVal = maybe mempty unwrap txBody.mint
+    mintVal = maybe mempty (mkValue (mkCoin zero) <<< unwrap) txBody.mint
 
   nonMintedOutputValue <- note (BalanceNonAdaOutsCannotMinus $ CannotMinus $ wrap mintVal)
     $ outputValue `minus` mintVal
