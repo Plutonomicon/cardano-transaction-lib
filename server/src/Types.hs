@@ -6,18 +6,19 @@ module Types (
   Env (..),
   Cbor (..),
   Fee (..),
-  FinalizeRequest(..),
-  FinalizedTransaction(..),
+  WitnessCount (..),
   ApplyArgsRequest (..),
   AppliedScript (..),
+  BytesToHash (..),
+  Blake2bHash (..),
+  FinalizeRequest (..),
+  FinalizedTransaction (..),
   HashDataRequest (..),
   HashedData (..),
   HashScriptRequest (..),
   HashedScript (..),
   CborDecodeError (..),
   CardanoBrowserServerError (..),
-  BytesToHash (..),
-  Blake2bHash (..),
   hashLedgerScript,
   newEnvIO,
   unsafeDecode,
@@ -36,6 +37,8 @@ import Data.Aeson qualified as Aeson
 import Data.Aeson.Encoding qualified as Aeson.Encoding
 import Data.Aeson.Types (withText)
 import Data.Bifunctor (second)
+import Data.ByteString (ByteString)
+import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.ByteString.Short qualified as SBS
 import Data.Functor ((<&>))
@@ -43,6 +46,7 @@ import Data.Kind (Type)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Text.Encoding qualified as Text.Encoding
 import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (Port)
 import Paths_cardano_browser_tx_server (getDataFileName)
@@ -52,11 +56,6 @@ import Servant (FromHttpApiData, QueryParam', Required, ToHttpApiData)
 import Servant.Docs qualified as Docs
 import Text.Read (readMaybe)
 import Utils (tshow)
-
--- blake2b imports
-import Data.ByteString (ByteString)
-import Data.ByteString.Base16 qualified as Base16
-import Data.Text.Encoding qualified as Text.Encoding
 
 newtype AppM (a :: Type) = AppM (ReaderT Env IO a)
   deriving newtype
@@ -92,6 +91,10 @@ newtype Fee = Fee Integer
   deriving stock (Show, Generic)
   deriving newtype (Eq)
 
+newtype WitnessCount = WitnessCount Word
+  deriving stock (Show, Generic)
+  deriving newtype (Eq, FromHttpApiData, ToHttpApiData)
+
 instance ToJSON Fee where
   -- to avoid issues with integer parsing in PS, we should probably return
   -- a JSON string, and not a number
@@ -116,6 +119,16 @@ data ApplyArgsRequest = ApplyArgsRequest
 newtype AppliedScript = AppliedScript Ledger.Script
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
+
+newtype BytesToHash = BytesToHash ByteString
+  deriving stock (Show, Generic)
+  deriving newtype (Eq)
+  deriving (FromJSON, ToJSON) via JsonHexString
+
+newtype Blake2bHash = Blake2bHash ByteString
+  deriving stock (Show, Generic)
+  deriving newtype (Eq)
+  deriving (FromJSON, ToJSON) via JsonHexString
 
 data FinalizeRequest = FinalizeRequest
   { tx :: Cbor
@@ -191,6 +204,7 @@ instance Docs.ToParam (QueryParam' '[Required] "tx" Cbor) where
       "A CBOR-encoded `Tx AlonzoEra`; should be sent as a hexadecimal string"
       Docs.Normal
     where
+      sampleTx :: String
       sampleTx =
         mconcat
           [ "84a300818258205d677265fa5bb21ce6d8c7502aca70b93"
@@ -199,6 +213,15 @@ instance Docs.ToParam (QueryParam' '[Required] "tx" Cbor) where
           , "baea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba"
           , "3e96550504d5336100021a0002b569a0f5f6"
           ]
+
+instance Docs.ToParam (QueryParam' '[Required] "count" WitnessCount) where
+  toParam _ =
+    Docs.DocQueryParam
+      "wit-count"
+      ["1"]
+      "A natural number representing the intended number of key witnesses\
+      \for the transaction"
+      Docs.Normal
 
 instance Docs.ToSample Fee where
   toSamples _ =
@@ -246,14 +269,14 @@ instance Docs.ToSample HashedData where
     where
       -- Fix this with an actual hash
       exampleData :: ByteString
-      exampleData = mconcat
-        [ "84a300818258205d677265fa5bb21ce6d8c7502aca70b93"
-        , "16d10e958611f3c6b758f65ad9599960001818258390030"
-        , "fb3b8539951e26f034910a5a37f22cb99d94d1d409f69dd"
-        , "baea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba"
-        , "3e96550504d5336100021a0002b569a0f5f6"
+      exampleData =
+        mconcat
+          [ "84a300818258205d677265fa5bb21ce6d8c7502aca70b93"
+          , "16d10e958611f3c6b758f65ad9599960001818258390030"
+          , "fb3b8539951e26f034910a5a37f22cb99d94d1d409f69dd"
+          , "baea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba"
+          , "3e96550504d5336100021a0002b569a0f5f6"
           ]
-
 
 instance Docs.ToSample HashScriptRequest where
   toSamples _ =
@@ -287,13 +310,27 @@ instance Docs.ToSample FinalizedTransaction where
     ]
     where
       exampleTx :: FinalizedTransaction
-      exampleTx = FinalizedTransaction . Cbor $ mconcat
-        [ "84a300818258205d677265fa5bb21ce6d8c7502aca70b93"
-        , "16d10e958611f3c6b758f65ad9599960001818258390030"
-        , "fb3b8539951e26f034910a5a37f22cb99d94d1d409f69dd"
-        , "baea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba"
-        , "3e96550504d5336100021a0002b569a0f5f6"
-        ]
+      exampleTx =
+        FinalizedTransaction . Cbor $
+          mconcat
+            [ "84a300818258205d677265fa5bb21ce6d8c7502aca70b93"
+            , "16d10e958611f3c6b758f65ad9599960001818258390030"
+            , "fb3b8539951e26f034910a5a37f22cb99d94d1d409f69dd"
+            , "baea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba"
+            , "3e96550504d5336100021a0002b569a0f5f6"
+            ]
+
+instance Docs.ToSample BytesToHash where
+  toSamples _ = [ ("Bytes to hash as hexadecimal string", BytesToHash "foo")]
+
+instance Docs.ToSample Blake2bHash where
+  toSamples _ =
+    [
+      ( "Hash bytes are returned as hexidecimal string"
+      , Blake2bHash "\184\254\159\DELbU\166\250\b\246h\171c*\
+        \\141\b\SUB\216y\131\199|\210t\228\140\228P\240\179I\253"
+      )
+    ]
 
 -- For decoding test fixtures, samples, etc...
 unsafeDecode :: forall (a :: Type). FromJSON a => String -> LC8.ByteString -> a
@@ -306,25 +343,6 @@ unsafeDecode name = fromMaybe (error errorMsg) . Aeson.decode
 -- Replace this with a simpler script
 exampleScript :: Ledger.Script
 exampleScript = unsafeDecode "Script" "\"4d01000033222220051200120011\""
-
--- blake2b types
-newtype BytesToHash = BytesToHash ByteString
-  deriving stock (Show, Generic)
-  deriving newtype (Eq)
-  deriving (FromJSON, ToJSON) via JsonHexString
-
-newtype Blake2bHash = Blake2bHash ByteString
-  deriving stock (Show, Generic)
-  deriving newtype (Eq)
-  deriving (FromJSON, ToJSON) via JsonHexString
-
--- Not going to bother with docs for the endpoint associated with these two
--- types. The instances below are just needed for compilation
-instance Docs.ToSample BytesToHash where
-  toSamples _ = []
-
-instance Docs.ToSample Blake2bHash where
-  toSamples _ = []
 
 newtype JsonHexString = JsonHexString ByteString
 

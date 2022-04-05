@@ -41,9 +41,10 @@ import Types (
   Env,
   Fee (Fee),
   HashDataRequest (HashDataRequest),
-  HashedData (HashedData),
   HashScriptRequest (HashScriptRequest),
+  HashedData (HashedData),
   HashedScript (HashedScript),
+  WitnessCount (WitnessCount),
   newEnvIO,
   unsafeDecode,
  )
@@ -98,7 +99,7 @@ feeEstimateSpec = around withTestApp $ do
     it "estimates the correct fee" $ \port -> do
       result <-
         runClientM' (clientEnv port) $
-          estimateTxFees cborTxFixture
+          estimateTxFees (WitnessCount 1) cborTxFixture
       -- This is probably incorrect. See:
       -- https://github.com/Plutonomicon/cardano-browser-tx/issues/123
       result `shouldBe` Right (Fee 168449)
@@ -106,14 +107,14 @@ feeEstimateSpec = around withTestApp $ do
     it "catches invalid hex strings" $ \port -> do
       result <-
         runClientM' (clientEnv port)
-          . estimateTxFees
+          . estimateTxFees (WitnessCount 1)
           $ Cbor "deadbeefq"
       result `shouldSatisfy` expectError 400 "invalid bytestring size"
 
     it "catches invalid CBOR-encoded transactions" $ \port -> do
       result <-
         runClientM' (clientEnv port)
-          . estimateTxFees
+          . estimateTxFees (WitnessCount 1)
           $ Cbor "deadbeef"
       result
         `shouldSatisfy` expectError
@@ -132,8 +133,9 @@ hashDataSpec = around withTestApp $ do
   clientEnv <- setupClientEnv
   context "POST hash-data" $ do
     it "hashes the data" $ \port -> do
-      result <- runClientM' (clientEnv port) $
-        hashData cborDatumFixture
+      result <-
+        runClientM' (clientEnv port) $
+          hashData cborDatumFixture
       result `shouldBe` Right hashedDatumFixture
 
 hashScriptSpec :: Spec
@@ -187,15 +189,17 @@ runClientM' = flip runClientM
 
 cborDatumFixture :: HashDataRequest
 cborDatumFixture =
-  HashDataRequest $ Cbor $
-    mconcat
-      [ "d8799f581c7040636730e73aea054c0b2dd0b734bec3ecaaca1e3cbe48b482ca145820d"
-      , "850d7a70fd5ff97ab104b127d4c9630c64d8ac158a14cdcc4f65157b79af0baff"
-      ]
+  HashDataRequest $
+    Cbor $
+      mconcat
+        [ "d8799f581c7040636730e73aea054c0b2dd0b734bec3ecaaca1e3cbe48b482ca145820d"
+        , "850d7a70fd5ff97ab104b127d4c9630c64d8ac158a14cdcc4f65157b79af0baff"
+        ]
 
 hashedDatumFixture :: HashedData
-hashedDatumFixture = HashedData
-  "\150\GS~\189\&8;\239\DC1n\249\188\181'\241\188\SUBE\135\248\EM\212\236\SOr?\239Z\178(\173\GS\143"
+hashedDatumFixture =
+  HashedData
+    "\150\GS~\189\&8;\239\DC1n\249\188\181'\241\188\SUBE\135\248\EM\212\236\SOr?\239Z\178(\173\GS\143"
 
 -- This is a known-good 'Tx AlonzoEra'
 cborTxFixture :: Cbor

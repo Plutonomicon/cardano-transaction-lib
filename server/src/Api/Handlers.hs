@@ -52,16 +52,17 @@ import Types (
   HashScriptRequest (HashScriptRequest),
   HashedData (HashedData),
   HashedScript (HashedScript),
+  WitnessCount (WitnessCount),
   hashLedgerScript,
  )
 
-estimateTxFees :: Cbor -> AppM Fee
-estimateTxFees cbor = do
+estimateTxFees :: WitnessCount -> Cbor -> AppM Fee
+estimateTxFees (WitnessCount numWits) cbor = do
   decoded <-
     either (throwM . CborDecode) pure $
       decodeCborTx cbor
   pparams <- asks protocolParams
-  pure . Fee $ estimateFee pparams decoded
+  pure . Fee $ estimateFee pparams numWits decoded
 
 applyArgs :: ApplyArgsRequest -> AppM AppliedScript
 applyArgs ApplyArgsRequest {script, args} =
@@ -135,20 +136,19 @@ finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
 
 -- Helpers
 
-estimateFee :: Shelley.ProtocolParameters -> C.Tx C.AlonzoEra -> Integer
-estimateFee pparams (C.Tx txBody keyWits) = estimate
-  where
-    estimate :: Integer
-    C.Lovelace estimate =
-      let -- No. of Shelley key witnesses
-          numWits = fromIntegral $ length keyWits
-       in C.evaluateTransactionFee
-            pparams
-            txBody
-            numWits
-            -- No. of Byron key witnesses; there shouldn't be any of these and
-            -- 'evaluateTransactionFee' won't work with them anyway
-            0
+estimateFee ::
+  Shelley.ProtocolParameters -> Word -> C.Tx C.AlonzoEra -> Integer
+estimateFee pparams numWits (C.Tx txBody _) =
+  let estimate :: Integer
+      C.Lovelace estimate =
+        C.evaluateTransactionFee
+          pparams
+          txBody
+          numWits
+          -- No. of Byron key witnesses; there shouldn't be any of these and
+          -- 'evaluateTransactionFee' won't work with them anyway
+          0
+   in estimate
 
 decodeCborText :: Cbor -> Either CborDecodeError ByteString
 decodeCborText (Cbor cborText) =

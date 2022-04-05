@@ -55,11 +55,15 @@ import Types (
   HashScriptRequest,
   HashedData,
   HashedScript,
+  WitnessCount,
  )
 import Utils (lbshow)
 
 type Api =
-  "fees" :> QueryParam' '[Required] "tx" Cbor :> Get '[JSON] Fee
+  "fees"
+    :> QueryParam' '[Required] "count" WitnessCount
+    :> QueryParam' '[Required] "tx" Cbor
+    :> Get '[JSON] Fee
     -- Since @Script@ and @Data@ have @From/ToJSON@ instances, we can just
     -- accept them in the body of a POST request
     :<|> "apply-args"
@@ -127,7 +131,7 @@ server =
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
 
-estimateTxFees :: Cbor -> ClientM Fee
+estimateTxFees :: WitnessCount -> Cbor -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
 hashScript :: HashScriptRequest -> ClientM HashedScript
 blake2bHash :: BytesToHash -> ClientM Blake2bHash
