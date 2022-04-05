@@ -52,6 +52,7 @@ import ReindexRedeemers
   ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
   ) as ReindexRedeemersExport
 import Types.JsonWsp (OgmiosTxOut, OgmiosTxOutRef) as JsonWsp -- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
+import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
   , mkUnbalancedTx
@@ -242,11 +243,10 @@ instance Show BalancedSignedTransaction where
 -- | logging and more importantly, the `ByteArray` to be used with `Submit` to
 -- | submit  the transaction.
 balanceAndSignTx
-  :: UnbalancedTx
-  -> Array Datum
-  -> Array (Transaction.Redeemer /\ Maybe Transaction.TransactionInput)
+  :: UnattachedUnbalancedTx
   -> Contract (Maybe BalancedSignedTransaction)
-balanceAndSignTx unbalancedTx datums redeemersTxIns = do
+balanceAndSignTx
+  (UnattachedUnbalancedTx { unbalancedTx, datums, redeemersTxIns }) = do
   -- Balance unbalanced tx:
   balancedTx <- liftedE' $ balanceTx unbalancedTx
   log "balanceAndSignTx: Transaction successfully balanced"

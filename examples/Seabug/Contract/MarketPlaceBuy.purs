@@ -9,10 +9,7 @@ import Contract.Address
   , ownPaymentPubKeyHash
   , payPubKeyHashBaseAddress
   )
-import Contract.ScriptLookups
-  ( UnattachedUnbalancedTx(UnattachedUnbalancedTx)
-  , mkUnbalancedTx
-  )
+import Contract.ScriptLookups (UnattachedUnbalancedTx, mkUnbalancedTx)
 import Contract.ScriptLookups
   ( mintingPolicy
   , otherScript
@@ -75,9 +72,7 @@ import Seabug.Types
 
 marketplaceBuy :: NftData -> Contract Unit
 marketplaceBuy nftData = do
-  UnattachedUnbalancedTx { unbalancedTx, datums, redeemersTxIns }
-    /\ curr
-    /\ newName <- mkMarketplaceTx nftData
+  unattachedBalancedTx /\ curr /\ newName <- mkMarketplaceTx nftData
   -- `balanceAndSignTx` does the following:
   -- 1) Balance a transaction
   -- 2) Reindex `Spend` redeemers after finalising transaction inputs.
@@ -86,7 +81,7 @@ marketplaceBuy nftData = do
   BalancedSignedTransaction { signedTxCbor } <- liftedM
     "marketplaceBuy: Cannot balance, reindex redeemers, attach datums/redeemers\
     \ and sign"
-    (balanceAndSignTx unbalancedTx datums redeemersTxIns)
+    (balanceAndSignTx unattachedBalancedTx)
   -- Submit transaction using Cbor-hex encoded `ByteArray`
   transactionHash <- submit signedTxCbor
   log $ "marketplaceBuy: Transaction successfully submitted with hash: "
