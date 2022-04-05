@@ -674,9 +674,11 @@ derive instance Newtype TransactionInput _
 derive instance Generic TransactionInput _
 derive newtype instance Eq TransactionInput
 
--- | Nnot newtype derived this because it is not lexigraphical because `index`
--- | is tested before `transaction_id`. We require lexigraphical order over
--- | hexstring `TransactionHash` seemingly inline with Cardano/Plutus.
+-- Potential fix me: the below is based on a small sample of smart contract
+-- transactions, so fix this as required.
+-- Not newtype derived this because it is not lexigraphical as `index` is tested
+-- before `transaction_id`. We require lexigraphical order over hexstring
+-- `TransactionHash`, then `index`, seemingly inline with Cardano/Plutus.
 instance Ord TransactionInput where
   compare (TransactionInput txInput) (TransactionInput txInput') =
     case compare txInput.transaction_id txInput'.transaction_id of
@@ -748,9 +750,10 @@ derive newtype instance Eq TransactionHash
 derive newtype instance FromData TransactionHash
 derive newtype instance ToData TransactionHash
 
--- | This is not newtyped derived because it will ultimately be used for
--- | ordering a `TransactionInput`, we want lexicographical ordering on the
--- | hexstring.
+-- This is not newtyped derived because it will be used for ordering a
+-- `TransactionInput`, we want lexicographical ordering on the hexstring.
+-- We could newtype derive this and write a different ordering for
+-- `TransactionHash`es inside `TransactionInput` also.
 instance Ord TransactionHash where
   compare (TransactionHash h) (TransactionHash h') =
     compare (byteArrayToHex h) (byteArrayToHex h')
