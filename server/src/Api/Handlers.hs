@@ -19,6 +19,7 @@ import Cardano.Ledger.Alonzo.Language (Language (PlutusV1))
 import Cardano.Ledger.Alonzo.Tx qualified as Tx
 import Cardano.Ledger.Alonzo.TxWitness qualified as TxWitness
 import Cardano.Ledger.Crypto (StandardCrypto)
+import Cardano.Ledger.SafeHash qualified as SafeHash
 import Codec.CBOR.Read (deserialiseFromBytes)
 import Control.Lens
 import Control.Monad.Catch (throwM)
@@ -76,7 +77,7 @@ hashData (HashDataRequest datum) = do
   decodedDatum <-
     throwDecodeErrorWithMessage "Failed to decode Datum" $
       decodeCborDatum datum
-  pure . HashedData . encodeCborText . Cbor.serializeEncoding . Cbor.toCBOR $
+  pure . HashedData . SafeHash.originalBytes $
     Data.hashData decodedDatum
 
 throwDecodeErrorWithMessage :: forall (a :: Type). String -> Maybe a -> AppM a

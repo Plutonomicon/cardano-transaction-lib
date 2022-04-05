@@ -37,6 +37,7 @@ import Contract.Transaction
   , UnbalancedTx
   , balanceTx
   , finalizeTx
+  , signTransactionBytes
   )
 import Contract.TxConstraints
   ( TxConstraints
@@ -85,8 +86,10 @@ marketplaceBuy nftData = do
     liftedM "marketplaceBuy: Cannot attach datums and redeemer"
       (finalizeTx balancedTx datums redeemers)
   log "marketplaceBuy: Datums and redeemer attached"
+  signedTxCbor <- liftedM "Failed to sign transaction" $
+    signTransactionBytes txCbor
   -- Submit transaction:
-  transactionHash <- wrap $ submit txCbor
+  transactionHash <- wrap $ submit signedTxCbor
   -- -- Submit balanced tx:
   log $ "marketplaceBuy: Transaction successfully submitted with hash: "
     <> show transactionHash

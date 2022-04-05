@@ -48,6 +48,7 @@ module QueryM
   , ownPubKeyHash
   , queryDatumCache
   , signTransaction
+  , signTransactionBytes
   , startFetchBlocksRequest
   , submitTransaction
   , underlyingWebSocket
@@ -294,6 +295,11 @@ signTransaction
 signTransaction tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.signTx tx
 
+signTransactionBytes
+  :: ByteArray -> QueryM (Maybe ByteArray)
+signTransactionBytes tx = withMWalletAff $ case _ of
+  Nami nami -> callNami nami $ \nw -> flip nw.signTxBytes tx
+
 submitTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.TransactionHash)
 submitTransaction tx = withMWalletAff $ case _ of
@@ -507,7 +513,8 @@ instance Json.DecodeJson HashedData where
     map HashedData <<<
       Json.caseJsonString (Left err) (note err <<< hexToByteArray)
     where
-    err = Json.TypeMismatch "Expected CborHex of hashed data"
+    err :: Json.JsonDecodeError
+    err = Json.TypeMismatch "Expected hex bytes (raw) of hashed data"
 
 hashData :: Datum -> QueryM (Maybe HashedData)
 hashData datum = do
@@ -527,14 +534,7 @@ hashData datum = do
 
 -- | Hashes an Plutus-style Datum
 datumHash :: Datum -> QueryM (Maybe DatumHash)
-datumHash datum = do
-  mHd <- hashData datum
-  -- Remove the first two bytes because CBOR prepends which is in hexstring
-  -- ByteArray [88,32] ~ Hexstring "5820"
-  let
-    fixedH = mHd >>=
-      unwrap >>> byteArrayToIntArray >>> drop 2 >>> byteArrayFromIntArray
-  pure $ maybe Nothing (Just <<< Transaction.DataHash) fixedH
+datumHash = map (map (Transaction.DataHash <<< unwrap)) <<< hashData
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
