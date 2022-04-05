@@ -1,5 +1,4 @@
-const CallContract = import("./CallContract.purs");
-
+const CallContract = import("./dist/bundle.js");
 
 /**
  * Exists temporarily for testing purposes. Returns given argument.

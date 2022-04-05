@@ -1,0 +1,15 @@
+{
+  "name": "seabug-test",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "klntsky",
+  "license": "ISC",
+  "dependencies": {
+    "cardano-transaction-lib-seabug": "^0.1.0"
+  },
+  "devDependencies": {},
+  "description": ""
+}

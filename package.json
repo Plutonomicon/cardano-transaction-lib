@@ -10,7 +10,8 @@
     "test": "spago run --main Test.Main",
     "dev": "BROWSER_RUNTIME=1 webpack-dev-server --progress --hot",
     "build": "BROWSER_RUNTIME=1 webpack --mode=production",
-    "bundle-seabug": "BROWSER_RUNTIME=1 webpack --config ./webpack.config.seabug-bundle.js"
+    "bundle-seabug": "spago bundle-module --main Seabug.CallContract --to npm-packages/cardano-transaction-lib-seabug/dist/bundle.js",
+    "bundle-seabug-example": "BROWSER_RUNTIME=1 webpack --config ./webpack.config.seabug-example.js"
   },
   "author": "",
   "license": "ISC",

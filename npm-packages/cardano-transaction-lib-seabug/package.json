@@ -1,0 +1,30 @@
+{
+  "name": "cardano-transaction-lib-seabug",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Plutonomicon/cardano-browser-tx.git"
+  },
+  "keywords": [
+    "cardano"
+  ],
+  "author": "klntsky",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Plutonomicon/cardano-browser-tx/issues"
+  },
+  "dependencies": {
+    "@ngua/cardano-serialization-lib-browser": "^9.1.2",
+    "uniqid": "^5.4.0",
+    "ws": "^8.5.0"
+  },
+  "files": [
+      "dist/*", ".gitignore"
+  ],
+  "homepage": "https://github.com/Plutonomicon/cardano-browser-tx#readme"
+}

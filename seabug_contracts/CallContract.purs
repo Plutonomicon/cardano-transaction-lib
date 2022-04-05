@@ -155,7 +155,6 @@ type ListNftResultOut =
       }
   }
 
-
 buildContractConfig :: ContractConfiguration -> Aff ContractConfig
 buildContractConfig cfg = do
   server_port <- liftM (error "Invalid server port number")
