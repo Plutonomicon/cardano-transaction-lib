@@ -28,6 +28,7 @@ import BalanceTx (BalanceTxError) as BalanceTxError
 import Contract.Monad (Contract, liftedE', liftedM)
 import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
+import Data.Lens.Getter ((^.))
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
@@ -57,7 +58,7 @@ import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
   , mkUnbalancedTx
   ) as ScriptLookups
-import Types.Transaction (Transaction)
+import Types.Transaction (Transaction, _body, _inputs)
 import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and associated lens.
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
@@ -213,7 +214,7 @@ finalizeTx tx datums redeemers = wrap $ QueryM.finalizeTx tx datums redeemers
 -- | reindex the redeemers with such inputs. This must be crucially called after
 -- | balancing when all inputs are in place so they cannot be reordered.
 reindexSpentScriptRedeemers
-  :: Transaction.Transaction
+  :: Array Transaction.TransactionInput
   -> Array (Transaction.Redeemer /\ Maybe Transaction.TransactionInput)
   -> Contract
        ( Either
@@ -250,7 +251,8 @@ balanceAndSignTx
   -- Balance unbalanced tx:
   balancedTx <- liftedE' $ balanceTx unbalancedTx
   log "balanceAndSignTx: Transaction successfully balanced"
-  redeemers <- liftedE' $ reindexSpentScriptRedeemers balancedTx redeemersTxIns
+  let inputs = balancedTx ^. _body <<< _inputs
+  redeemers <- liftedE' $ reindexSpentScriptRedeemers inputs redeemersTxIns
   log "balanceAndSignTx: Redeemers reindexed returned"
   -- Reattach datums and redeemer:
   QueryM.FinalizedTransaction txCbor <-
