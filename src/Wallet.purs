@@ -10,6 +10,8 @@ import Prelude
 import Control.Promise (Promise)
 import Control.Promise as Promise
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (over)
+import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytesEffect)
 import Deserialization.UnspentOutput as Deserialization.UnspentOuput
 import Deserialization.WitnessSet as Deserialization.WitnessSet
@@ -18,13 +20,19 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import Helpers ((<<>>))
 import Serialization as Serialization
+import Serialization.Types as Serialization
 import Serialization.Address (Address, addressFromBytes)
 import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex)
 import Types.Transaction
-  ( Transaction(Transaction)
+  ( Ed25519Signature(Ed25519Signature)
+  , PublicKey(PublicKey)
+  , Transaction(Transaction)
   , TransactionHash(TransactionHash)
-  , TransactionWitnessSet
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
   )
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Untagged.Union (asOneOf)
@@ -126,7 +134,29 @@ mkNamiWalletAff = do
     :: (NamiConnection -> Effect (Promise (Maybe String)))
     -> NamiConnection
     -> Aff (Maybe ByteArray)
-  fromNamiMaybeHexString act = map (flip bind hexToByteArray) <<< Promise.toAffE <<< act
+  fromNamiMaybeHexString act =
+    map (flip bind hexToByteArray) <<< Promise.toAffE <<< act
+
+-- Attach a dummy vkey witness to a transaction. Helpful for when we need to
+-- know the number of witnesses (e.g. fee calculation) but the wallet hasn't
+-- signed (or cannot sign) yet
+dummySign :: Transaction -> Transaction
+dummySign tx@(Transaction { witness_set: tws@(TransactionWitnessSet ws) }) =
+  over Transaction _
+    { witness_set = over TransactionWitnessSet
+        _
+          { vkeys = ws.vkeys <<>> Just [ vk ]
+          }
+        tws
+    }
+    $ tx
+  where
+  vk :: Vkeywitness
+  vk = Vkeywitness
+    ( Vkey (PublicKey "ed25519_pk1eamrnx3pph58yr5l4z2wghjpu2dt2f0rp0zq9qquqa39p52ct0xsudjp4e")
+        /\ Ed25519Signature
+          "ed25519_sig1ynufn5umzl746ekpjtzt2rf58ep0wg6mxpgyezh8vx0e8jpgm3kuu3tgm453wlz4rq5yjtth0fnj0ltxctaue0dgc2hwmysr9jvhjzswt86uk"
+    )
 
 -------------------------------------------------------------------------------
 -- FFI stuff
@@ -137,7 +167,8 @@ foreign import _enableNami :: Effect (Promise NamiConnection)
 
 foreign import _getNamiAddress :: NamiConnection -> Effect (Promise String)
 
-foreign import _getNamiCollateral :: MaybeFfiHelper -> NamiConnection -> Effect (Promise (Maybe String))
+foreign import _getNamiCollateral
+  :: MaybeFfiHelper -> NamiConnection -> Effect (Promise (Maybe String))
 
 getNamiCollateral :: NamiConnection -> Effect (Promise (Maybe String))
 getNamiCollateral = _getNamiCollateral maybeFfiHelper
