@@ -48,6 +48,7 @@ module QueryM
   , ownPubKeyHash
   , queryDatumCache
   , signTransaction
+  , signTransactionBytes
   , startFetchBlocksRequest
   , submitTransaction
   , underlyingWebSocket
@@ -65,6 +66,7 @@ import Data.Argonaut (class DecodeJson, JsonDecodeError)
 import Data.Argonaut as Json
 import Data.Argonaut.Encode.Class (encodeJson)
 import Data.Argonaut.Encode.Encoders (encodeString)
+import Data.Array (drop)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -128,7 +130,13 @@ import Serialization.Address
 import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
-import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
+import Types.ByteArray
+  ( ByteArray
+  , byteArrayFromIntArray
+  , byteArrayToHex
+  , byteArrayToIntArray
+  , hexToByteArray
+  )
 import Types.Datum (Datum, DatumHash)
 import Types.Interval (SlotConfig)
 import Types.JsonWsp as JsonWsp
@@ -286,6 +294,11 @@ signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
 signTransaction tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.signTx tx
+
+signTransactionBytes
+  :: ByteArray -> QueryM (Maybe ByteArray)
+signTransactionBytes tx = withMWalletAff $ case _ of
+  Nami nami -> callNami nami $ \nw -> flip nw.signTxBytes tx
 
 submitTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.TransactionHash)
@@ -489,6 +502,7 @@ finalizeTx tx datums redeemers = do
 
 newtype HashedData = HashedData ByteArray
 
+derive instance Newtype HashedData _
 derive instance Generic HashedData _
 
 instance Show HashedData where
@@ -499,7 +513,8 @@ instance Json.DecodeJson HashedData where
     map HashedData <<<
       Json.caseJsonString (Left err) (note err <<< hexToByteArray)
     where
-    err = Json.TypeMismatch "Expected CborHex of hashed data"
+    err :: Json.JsonDecodeError
+    err = Json.TypeMismatch "Expected hex bytes (raw) of hashed data"
 
 hashData :: Datum -> QueryM (Maybe HashedData)
 hashData datum = do
@@ -519,12 +534,7 @@ hashData datum = do
 
 -- | Hashes an Plutus-style Datum
 datumHash :: Datum -> QueryM (Maybe DatumHash)
-datumHash datum = do
-  mHd <- hashData datum
-  pure $ maybe
-    Nothing
-    (\(HashedData bytes) -> Just $ Transaction.DataHash bytes)
-    mHd
+datumHash = map (map (Transaction.DataHash <<< unwrap)) <<< hashData
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
