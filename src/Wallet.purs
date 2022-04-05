@@ -3,6 +3,7 @@ module Wallet
   , NamiWallet
   , Wallet(..)
   , mkNamiWalletAff
+  , dummySign
   ) where
 
 import Prelude

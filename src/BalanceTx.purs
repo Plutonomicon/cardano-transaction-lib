@@ -11,7 +11,6 @@ module BalanceTx
   , GetWalletCollateralError(..)
   , ImpossibleError(..)
   , ReturnAdaChangeError(..)
-  , SignTxError(..)
   , UtxosAtError(..)
   , balanceTx
   ) where
@@ -54,7 +53,6 @@ import QueryM
   , calculateMinFee
   , getWalletAddress
   , getWalletCollateral
-  , signTransaction
   )
 import QueryM.Utxos (utxosAt)
 import Serialization.Address
@@ -110,7 +108,6 @@ data BalanceTxError
   | GetPublicKeyTransactionInputError' GetPublicKeyTransactionInputError
   | BalanceTxInsError' BalanceTxInsError
   | BalanceNonAdaOutsError' BalanceNonAdaOutsError
-  | SignTxError' SignTxError
   | CalculateMinFeeError' ClientError
 
 derive instance genericBalanceTxError :: Generic BalanceTxError _
@@ -211,13 +208,6 @@ derive instance genericBalanceNonAdaOutsError :: Generic BalanceNonAdaOutsError 
 instance showBalanceNonAdaOutsError :: Show BalanceNonAdaOutsError where
   show = genericShow
 
-data SignTxError = CouldNotSignTx Address
-
-derive instance genericSignTxError :: Generic SignTxError _
-
-instance showSignTxError :: Show SignTxError where
-  show = genericShow
-
 -- | Represents that an error reason should be impossible
 data ImpossibleError = Impossible
 
@@ -291,12 +281,9 @@ balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
     unsignedTx <- ExceptT $
       returnAdaChange ownAddr allUtxos nonAdaBalancedCollTx <#>
         lmap ReturnAdaChangeError'
-    -- Sign transaction:
-    balancedTx <- ExceptT $
-      signTransaction unsignedTx <#> note (SignTxError' $ CouldNotSignTx ownAddr)
 
     -- Logs final balanced tx and returns it
-    ExceptT $ logTx "Post-balancing Tx " allUtxos balancedTx <#> Right
+    ExceptT $ logTx "Post-balancing Tx " allUtxos unsignedTx <#> Right
   where
   prebalanceCollateral
     :: BigInt
