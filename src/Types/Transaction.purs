@@ -752,8 +752,6 @@ derive newtype instance ToData TransactionHash
 
 -- This is not newtyped derived because it will be used for ordering a
 -- `TransactionInput`, we want lexicographical ordering on the hexstring.
--- We could newtype derive this and write a different ordering for
--- `TransactionHash`es inside `TransactionInput` also.
 instance Ord TransactionHash where
   compare (TransactionHash h) (TransactionHash h') =
     compare (byteArrayToHex h) (byteArrayToHex h')
