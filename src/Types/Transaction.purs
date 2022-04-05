@@ -676,8 +676,8 @@ derive newtype instance Eq TransactionInput
 
 -- Potential fix me: the below is based on a small sample of smart contract
 -- transactions, so fix this as required.
--- Not newtype derived this because it is not lexigraphical as `index` is tested
--- before `transaction_id`. We require lexigraphical order over hexstring
+-- Not newtype derived this because it is not lexicographical as `index` is tested
+-- before `transaction_id`. We require lexicographical order over hexstring
 -- `TransactionHash`, then `index`, seemingly inline with Cardano/Plutus.
 instance Ord TransactionInput where
   compare (TransactionInput txInput) (TransactionInput txInput') =
