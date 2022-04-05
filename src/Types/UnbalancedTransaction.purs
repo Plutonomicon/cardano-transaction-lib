@@ -87,6 +87,7 @@ newtype ScriptOutput = ScriptOutput
 
 derive instance Newtype ScriptOutput _
 derive instance Generic ScriptOutput _
+derive newtype instance Eq ScriptOutput
 
 instance Show ScriptOutput where
   show = genericShow
@@ -238,6 +239,7 @@ newtype UnbalancedTx = UnbalancedTx
 
 derive instance Newtype UnbalancedTx _
 derive instance Generic UnbalancedTx _
+derive newtype instance Eq UnbalancedTx
 
 instance Show UnbalancedTx where
   show = genericShow

@@ -26,6 +26,7 @@ import Types.Datum (Datum)
 import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
   , ScriptLookups(ScriptLookups)
+  , UnattachedUnbalancedTx(UnattachedUnbalancedTx)
   , generalise
   , mintingPolicy
   , mintingPolicyM
@@ -48,9 +49,12 @@ import Types.TypedValidator
   ( class DatumType
   , class RedeemerType
   )
-import Types.UnbalancedTransaction (UnbalancedTx)
 
--- | Create an `UnbalancedTx` given `ScriptLookups` and `TxConstraints`.
+-- | Create an `UnattachedUnbalancedTx` given `ScriptLookups` and
+-- | `TxConstraints`. You will probably want to use this version as it returns
+-- | datums and redeemers that require attaching (and maybe reindexing) in
+-- | a separate call. In particular, this should be called in conjuction with
+-- | `balanceAndSignTx`.
 mkUnbalancedTx
   :: forall (a :: Type) (b :: Type)
    . DatumType a b
@@ -59,7 +63,11 @@ mkUnbalancedTx
   => ToData b
   => ScriptLookups.ScriptLookups a
   -> TxConstraints b b
-  -> Contract (Either ScriptLookups.MkUnbalancedTxError UnbalancedTx)
+  -> Contract
+       ( Either
+           ScriptLookups.MkUnbalancedTxError
+           ScriptLookups.UnattachedUnbalancedTx
+       )
 mkUnbalancedTx lookups = wrap <<< SL.mkUnbalancedTx lookups
 
 -- | Same as `mkUnbalancedTx` but hushes the error.
@@ -71,7 +79,7 @@ mkUnbalancedTxM
   => ToData b
   => ScriptLookups.ScriptLookups a
   -> TxConstraints b b
-  -> Contract (Maybe UnbalancedTx)
+  -> Contract (Maybe ScriptLookups.UnattachedUnbalancedTx)
 mkUnbalancedTxM lookups = map hush <<< mkUnbalancedTx lookups
 
 otherData

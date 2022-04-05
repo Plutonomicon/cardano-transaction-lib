@@ -1,6 +1,7 @@
 module Types.ScriptLookups
   ( MkUnbalancedTxError(..)
   , ScriptLookups(..)
+  , UnattachedUnbalancedTx(..)
   , generalise
   , mintingPolicy
   , mintingPolicyM
@@ -551,22 +552,6 @@ runConstraintsM lookups txConstraints =
 
 -- See comments in `processLookupsAndConstraints` regarding constraints.
 -- | Create an `UnbalancedTx` given `ScriptLookups` and `TxConstraints`.
-mkUnbalancedTx
-  :: forall (a :: Type) (b :: Type)
-   . DatumType a b
-  => RedeemerType a b
-  => FromData b
-  => ToData b
-  => ScriptLookups a
-  -> TxConstraints b b
-  -> QueryM (Either MkUnbalancedTxError UnbalancedTx)
-mkUnbalancedTx scriptLookups txConstraints =
-  runConstraintsM scriptLookups txConstraints <#> map _.unbalancedTx
-
--- | An temporary implementation that strips `witness_set` and data hash from
--- | returned `UnbalancedTx` in order to calculate them later on server.
--- | It returns part of the `ConstraintProcessingState` for later consumption by
--- | the server.
 mkUnbalancedTx'
   :: forall (a :: Type) (b :: Type)
    . DatumType a b
@@ -575,14 +560,45 @@ mkUnbalancedTx'
   => ToData b
   => ScriptLookups a
   -> TxConstraints b b
-  -> QueryM
-       ( Either MkUnbalancedTxError
-           { unbalancedTx :: UnbalancedTx
-           , datums :: Array Datum
-           , redeemersTxIns :: Array (T.Redeemer /\ Maybe TxOutRef)
-           }
-       )
+  -> QueryM (Either MkUnbalancedTxError UnbalancedTx)
 mkUnbalancedTx' scriptLookups txConstraints =
+  runConstraintsM scriptLookups txConstraints <#> map _.unbalancedTx
+
+-- | A newtype for the unbalanced transaction after creating one with datums
+-- | and redeemers not attached
+newtype UnattachedUnbalancedTx = UnattachedUnbalancedTx
+  { unbalancedTx :: UnbalancedTx -- the unbalanced tx created
+  , datums :: Array Datum -- the array of ordered datums that require attaching
+  , redeemersTxIns :: Array (T.Redeemer /\ Maybe TxOutRef) -- the array of
+  -- ordered redeemers that require attaching alongside a potential transaction
+  -- input. The input is required to determine the index of `Spend` redeemers
+  -- after balancing (when inputs are finalised). The potential input is
+  -- `Just` for spending script utxos, i.e. `MustSpendScriptOutput` and
+  -- `Nothing` otherwise.
+  }
+
+derive instance Generic UnattachedUnbalancedTx _
+derive instance Newtype UnattachedUnbalancedTx _
+derive newtype instance Eq UnattachedUnbalancedTx
+
+instance Show UnattachedUnbalancedTx where
+  show = genericShow
+
+-- | An implementation that strips `witness_set` and data hash from
+-- | returned `UnbalancedTx` in order to calculate them later on server.
+-- | It returns part of the `ConstraintProcessingState` for later consumption by
+-- | the server. The `Spend` redeemers will require reindexing and all hardcoded
+-- | to `zero` from this function.
+mkUnbalancedTx
+  :: forall (a :: Type) (b :: Type)
+   . DatumType a b
+  => RedeemerType a b
+  => FromData b
+  => ToData b
+  => ScriptLookups a
+  -> TxConstraints b b
+  -> QueryM (Either MkUnbalancedTxError UnattachedUnbalancedTx)
+mkUnbalancedTx scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map
     \{ unbalancedTx, datums, redeemers } ->
       let
@@ -596,7 +612,7 @@ mkUnbalancedTx' scriptLookups txConstraints =
             _ { plutus_data = Nothing, redeemers = Nothing }
         tx = stripDatumsRedeemers $ stripScriptDataHash unbalancedTx
       in
-        { unbalancedTx: tx, datums, redeemersTxIns: redeemers }
+        wrap { unbalancedTx: tx, datums, redeemersTxIns: redeemers }
 
 addScriptDataHash
   :: forall (a :: Type)
