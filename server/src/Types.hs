@@ -144,9 +144,10 @@ newtype HashDataRequest = HashDataRequest Cbor
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
 
-newtype HashedData = HashedData Cbor
+newtype HashedData = HashedData ByteString
   deriving stock (Show, Generic)
-  deriving newtype (Eq, FromJSON, ToJSON)
+  deriving newtype (Eq)
+  deriving (FromJSON, ToJSON) via JsonHexString
 
 -- Adapted from `plutus-apps` implementation
 -- rev. d637b1916522e4ec20b719487a8a2e066937aceb
@@ -244,7 +245,8 @@ instance Docs.ToSample HashedData where
     ]
     where
       -- Fix this with an actual hash
-      exampleData = Cbor $ mconcat
+      exampleData :: ByteString
+      exampleData = mconcat
         [ "84a300818258205d677265fa5bb21ce6d8c7502aca70b93"
         , "16d10e958611f3c6b758f65ad9599960001818258390030"
         , "fb3b8539951e26f034910a5a37f22cb99d94d1d409f69dd"
@@ -284,6 +286,7 @@ instance Docs.ToSample FinalizedTransaction where
     [ ("The output is CBOR-encoded Tx", exampleTx)
     ]
     where
+      exampleTx :: FinalizedTransaction
       exampleTx = FinalizedTransaction . Cbor $ mconcat
         [ "84a300818258205d677265fa5bb21ce6d8c7502aca70b93"
         , "16d10e958611f3c6b758f65ad9599960001818258390030"
