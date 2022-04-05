@@ -5,13 +5,16 @@ module Contract.Transaction
   , balanceTxM
   , calculateMinFee
   , calculateMinFeeM
+  , reindexSpentScriptRedeemers
   , signTransaction
+  , signTransactionBytes
   , submitTransaction
   , finalizeTx
   , module BalanceTxError
   , module ExportQueryM
   , module JsonWsp
   , module ScriptLookups
+  , module ReindexRedeemersExport
   , module Transaction
   , module TxOutput
   , module UnbalancedTx
@@ -24,6 +27,7 @@ import Contract.Monad (Contract)
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
+import Data.Tuple.Nested (type (/\))
 import QueryM
   ( FeeEstimate(FeeEstimate)
   , ClientError(..) -- implicit as this error list will likely increase.
@@ -33,9 +37,15 @@ import QueryM
   ( FinalizedTransaction
   , calculateMinFee
   , signTransaction
+  , signTransactionBytes
   , submitTransaction
   , finalizeTx
   ) as QueryM
+import Types.ByteArray (ByteArray)
+import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
+import ReindexRedeemers
+  ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
+  ) as ReindexRedeemersExport
 import Types.JsonWsp (OgmiosTxOut, OgmiosTxOutRef) as JsonWsp -- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
 import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
@@ -158,6 +168,10 @@ import Types.Datum (Datum)
 signTransaction :: Transaction -> Contract (Maybe Transaction)
 signTransaction = wrap <<< QueryM.signTransaction
 
+-- | Signs a `Transaction` with potential failure
+signTransactionBytes :: ByteArray -> Contract (Maybe ByteArray)
+signTransactionBytes = wrap <<< QueryM.signTransactionBytes
+
 -- | Submits a `Transaction` with potential failure.
 submitTransaction :: Transaction -> Contract (Maybe TransactionHash)
 submitTransaction = wrap <<< QueryM.submitTransaction
@@ -187,3 +201,17 @@ finalizeTx
   -> Array Transaction.Redeemer
   -> Contract (Maybe QueryM.FinalizedTransaction)
 finalizeTx tx datums redeemers = wrap $ QueryM.finalizeTx tx datums redeemers
+
+-- | Reindex the `Spend` redeemers. Since we insert to an ordered array, we must
+-- | reindex the redeemers with such inputs. This must be crucially called after
+-- | balancing when all inputs are in place so they cannot be reordered.
+reindexSpentScriptRedeemers
+  :: Transaction.Transaction
+  -> Array (Transaction.Redeemer /\ Maybe Transaction.TransactionInput)
+  -> Contract
+       ( Either
+           ReindexRedeemersExport.ReindexErrors
+           (Array Transaction.Redeemer)
+       )
+reindexSpentScriptRedeemers balancedTx =
+  wrap <<< ReindexRedeemers.reindexSpentScriptRedeemers balancedTx

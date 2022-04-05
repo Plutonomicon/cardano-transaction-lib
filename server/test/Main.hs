@@ -194,8 +194,8 @@ cborDatumFixture =
       ]
 
 hashedDatumFixture :: HashedData
-hashedDatumFixture = HashedData $
-  Cbor "5820961d7ebd383bef116ef9bcb527f1bc1a4587f819d4ec0e723fef5ab228ad1d8f"
+hashedDatumFixture = HashedData
+  "\150\GS~\189\&8;\239\DC1n\249\188\181'\241\188\SUBE\135\248\EM\212\236\SOr?\239Z\178(\173\GS\143"
 
 -- This is a known-good 'Tx AlonzoEra'
 cborTxFixture :: Cbor

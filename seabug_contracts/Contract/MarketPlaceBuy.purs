@@ -33,10 +33,13 @@ import Contract.PlutusData
 import Contract.ProtocolParameters.Alonzo (minAdaTxOut)
 import Contract.Scripts (typedValidatorEnterpriseAddress)
 import Contract.Transaction
-  ( TxOut
+  ( TransactionInput
+  , TxOut
   , UnbalancedTx
   , balanceTx
   , finalizeTx
+  , reindexSpentScriptRedeemers
+  , signTransactionBytes
   )
 import Contract.TxConstraints
   ( TxConstraints
@@ -76,18 +79,22 @@ import Types.Transaction (Redeemer) as T
 -- TODO docstring
 marketplaceBuy :: NftData -> Contract Unit
 marketplaceBuy nftData = do
-  { unbalancedTx, datums, redeemers } /\ curr /\ newName <-
+  { unbalancedTx, datums, redeemersTxIns } /\ curr /\ newName <-
     mkMarketplaceTx nftData
   -- Balance unbalanced tx:
   balancedTx <- liftedE' $ balanceTx unbalancedTx
   log "marketplaceBuy: Transaction successfully balanced"
+  redeemers <- liftedE' $ reindexSpentScriptRedeemers balancedTx redeemersTxIns
+  log "marketplaceBuy: Redeemers reindexed returned"
   -- Reattach datums and redeemer:
   FinalizedTransaction txCbor <-
     liftedM "marketplaceBuy: Cannot attach datums and redeemer"
       (finalizeTx balancedTx datums redeemers)
   log "marketplaceBuy: Datums and redeemer attached"
+  signedTxCbor <- liftedM "Failed to sign transaction" $
+    signTransactionBytes txCbor
   -- Submit transaction:
-  transactionHash <- wrap $ submit txCbor
+  transactionHash <- wrap $ submit signedTxCbor
   -- Log success
   log $ "marketplaceBuy: Transaction successfully submitted with hash: "
     <> show transactionHash
@@ -104,7 +111,7 @@ mkMarketplaceTx
   -> Contract
        ( { unbalancedTx :: UnbalancedTx
          , datums :: Array Datum
-         , redeemers :: Array T.Redeemer
+         , redeemersTxIns :: Array (T.Redeemer /\ Maybe TransactionInput)
          } /\ CurrencySymbol /\ TokenName
        )
 mkMarketplaceTx (NftData nftData) = do
@@ -196,6 +203,6 @@ mkMarketplaceTx (NftData nftData) = do
               )
               (newNftValue <> coinToValue minAdaTxOut)
           ]
-  -- Created unbalanced tx which stripped datums and redeemers:
-  txDatumsRedeemer <- liftedE' $ wrap (mkUnbalancedTx' lookup constraints)
-  pure $ txDatumsRedeemer /\ curr /\ newName
+  -- Created unbalanced tx which stripped datums and redeemers with tx inputs:
+  txDatumsRedeemerTxIns <- liftedE' $ wrap (mkUnbalancedTx' lookup constraints)
+  pure $ txDatumsRedeemerTxIns /\ curr /\ newName

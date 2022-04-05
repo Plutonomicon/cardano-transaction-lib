@@ -8,6 +8,6 @@ import Data.Argonaut (Json, JsonDecodeError)
 import Seabug.Helpers (jsonReader)
 
 mintingPolicy :: Either JsonDecodeError MintingPolicy
-mintingPolicy = jsonReader "mintingPolicy" _mintingPolicy
+mintingPolicy = jsonReader "mintingPolicy1" _mintingPolicy
 
 foreign import _mintingPolicy :: Json

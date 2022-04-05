@@ -8,6 +8,7 @@ module Contract.PlutusData
   , datumFilterGetHashesRequest
   , datumFilterRemoveHashesRequest
   , datumFilterSetHashesRequest
+  , datumHash
   , getDatumByHash
   , getDatumsByHashes
   , startFetchBlocksRequest
@@ -31,6 +32,7 @@ import QueryM
   , datumFilterGetHashesRequest
   , datumFilterRemoveHashesRequest
   , datumFilterSetHashesRequest
+  , datumHash
   , getDatumByHash
   , getDatumsByHashes
   , startFetchBlocksRequest
@@ -87,3 +89,7 @@ datumFilterSetHashesRequest = wrap <<< QueryM.datumFilterSetHashesRequest
 
 datumFilterGetHashesRequest :: Contract (Array DatumHash)
 datumFilterGetHashesRequest = wrap QueryM.datumFilterGetHashesRequest
+
+-- | Hashes a Plutus-style Datum
+datumHash :: Datum.Datum -> Contract (Maybe DatumHash)
+datumHash = wrap <<< QueryM.datumHash
