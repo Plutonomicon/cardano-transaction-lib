@@ -6,6 +6,7 @@ module Contract.Transaction
   , calculateMinFee
   , calculateMinFeeM
   , signTransaction
+  , signTransactionBytes
   , submitTransaction
   , finalizeTx
   , module BalanceTxError
@@ -33,9 +34,11 @@ import QueryM
   ( FinalizedTransaction
   , calculateMinFee
   , signTransaction
+  , signTransactionBytes
   , submitTransaction
   , finalizeTx
   ) as QueryM
+import Types.ByteArray (ByteArray)
 import Types.JsonWsp (OgmiosTxOut, OgmiosTxOutRef) as JsonWsp -- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
 import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
@@ -157,6 +160,10 @@ import Types.Datum (Datum)
 -- | Signs a `Transaction` with potential failure.
 signTransaction :: Transaction -> Contract (Maybe Transaction)
 signTransaction = wrap <<< QueryM.signTransaction
+
+-- | Signs a `Transaction` with potential failure
+signTransactionBytes :: ByteArray -> Contract (Maybe ByteArray)
+signTransactionBytes = wrap <<< QueryM.signTransactionBytes
 
 -- | Submits a `Transaction` with potential failure.
 submitTransaction :: Transaction -> Contract (Maybe TransactionHash)

@@ -48,6 +48,8 @@ type NamiWallet =
   , getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
   -- Sign a transaction with the current wallet
   , signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
+  -- Sign a transaction with the current wallet
+  , signTxBytes :: NamiConnection -> ByteArray -> Aff (Maybe ByteArray)
   -- Submit a (balanced) transaction
   , submitTx :: NamiConnection -> Transaction -> Aff (Maybe TransactionHash)
   }
@@ -61,6 +63,7 @@ mkNamiWalletAff = do
     , getWalletAddress
     , getCollateral
     , signTx
+    , signTxBytes
     , submitTx
     }
 
@@ -95,6 +98,12 @@ mkNamiWalletAff = do
     combineWitnessSet :: Transaction -> TransactionWitnessSet -> Transaction
     combineWitnessSet (Transaction tx'@{ witness_set: oldWits }) newWits =
       Transaction $ tx' { witness_set = oldWits <> newWits }
+
+  signTxBytes :: NamiConnection -> ByteArray -> Aff (Maybe ByteArray)
+  signTxBytes nami txBytes = do
+    fromNamiHexString (_signTxNami (byteArrayToHex txBytes)) nami >>= case _ of
+      Nothing -> pure Nothing
+      Just witBytes -> Just <$> liftEffect (_attachSignature txBytes witBytes)
 
   submitTx :: NamiConnection -> Transaction -> Aff (Maybe TransactionHash)
   submitTx nami tx = do
@@ -142,3 +151,8 @@ foreign import _submitTxNami
   :: String -- Hex-encoded cbor of tx
   -> NamiConnection
   -> Effect (Promise String) -- Submitted tx hash
+
+foreign import _attachSignature
+  :: ByteArray -- CBOR bytes of tx
+  -> ByteArray -- CBOR bytes of witness set
+  -> Effect (ByteArray)
