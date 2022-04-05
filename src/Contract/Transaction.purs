@@ -178,7 +178,7 @@ signTransactionBytes :: ByteArray -> Contract (Maybe ByteArray)
 signTransactionBytes = wrap <<< QueryM.signTransactionBytes
 
 -- | Submits a Cbor-hex encoded transaction, which is the output of
--- | `signTransactionBytes` or  `balanceAndSignTx`
+-- | `signTransactionBytes` or `balanceAndSignTx`
 submit :: ByteArray -> Contract String
 submit = wrap <<< Submit.submit
 
@@ -249,17 +249,17 @@ balanceAndSignTx
 balanceAndSignTx unbalancedTx datums redeemersTxIns = do
   -- Balance unbalanced tx:
   balancedTx <- liftedE' $ balanceTx unbalancedTx
-  log "Transaction successfully balanced"
+  log "balanceAndSignTx: Transaction successfully balanced"
   redeemers <- liftedE' $ reindexSpentScriptRedeemers balancedTx redeemersTxIns
-  log "Redeemers reindexed returned"
+  log "balanceAndSignTx: Redeemers reindexed returned"
   -- Reattach datums and redeemer:
   QueryM.FinalizedTransaction txCbor <-
-    liftedM "Cannot attach datums and redeemer"
+    liftedM "balanceAndSignTx: Cannot attach datums and redeemer"
       (finalizeTx balancedTx datums redeemers)
-  log "Datums and redeemer attached"
+  log "balanceAndSignTx: Datums and redeemer attached"
   -- Sign the transaction returned as Cbor-hex encoded:
-  signedTxCbor <- liftedM "Failed to sign transaction" $
+  signedTxCbor <- liftedM "balanceAndSignTx: Failed to sign transaction" $
     signTransactionBytes txCbor
-  log "Transaction signed"
+  log "balanceAndSignTx: Transaction signed"
   pure $ pure $ BalancedSignedTransaction
     { transaction: balancedTx, signedTxCbor }
