@@ -48,7 +48,7 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
-import Data.Traversable (for, sequence, traverse)
+import Data.Traversable (for, sequence)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import FromData (class FromData)
@@ -485,7 +485,6 @@ processLookupsAndConstraints
   ExceptT addScriptDataHash
   ExceptT addMissingValueSpent
   ExceptT updateUtxoIndex
-  ExceptT reindexSpentScriptRedeemers
   where
   -- Polymorphic helper to hash an Array of `Validator`s or `MintingPolicy`s
   -- with a way to error.
@@ -513,29 +512,6 @@ processLookupsAndConstraints
   foldConstraints handler = foldM
     (\_ constr -> runExceptT $ ExceptT $ handler constr)
     (Right unit)
-
--- Reindex the utxos from spending scripts, because we are constantly insert
--- (in order) to the array, so we get the final Array at the end which we must
--- index.
-reindexSpentScriptRedeemers
-  :: forall (a :: Type)
-   . ConstraintsM a (Either MkUnbalancedTxError Unit)
-reindexSpentScriptRedeemers = runExceptT do
-  redsTxInputs <- use _redeemers
-  ipts <- use (_cpsToTxBody <<< _inputs)
-  newRedeemers <- liftEither $ traverse (reindex ipts) redsTxInputs
-  _redeemers .= newRedeemers
-  where
-  reindex
-    :: Array TxOutRef
-    -> T.Redeemer /\ Maybe TxOutRef
-    -> Either MkUnbalancedTxError (T.Redeemer /\ Maybe TxOutRef)
-  reindex ipts = case _ of
-    red@(T.Redeemer red'@{ tag: Spend }) /\ Just txOutRef -> do
-      index <- note (CannotGetTxOutRefIndexForRedeemer red)
-        (fromInt <$> elemIndex txOutRef ipts)
-      Right $ T.Redeemer red' { index = index } /\ Just txOutRef
-    mintRed /\ txOutRef -> Right $ mintRed /\ txOutRef
 
 -- Helper to run the stack and get back to `QueryM`. See comments in
 -- `processLookupsAndConstraints` regarding constraints.
@@ -603,7 +579,7 @@ mkUnbalancedTx'
        ( Either MkUnbalancedTxError
            { unbalancedTx :: UnbalancedTx
            , datums :: Array Datum
-           , redeemers :: Array T.Redeemer
+           , redeemersTxIns :: Array (T.Redeemer /\ Maybe TxOutRef)
            }
        )
 mkUnbalancedTx' scriptLookups txConstraints =
@@ -620,7 +596,7 @@ mkUnbalancedTx' scriptLookups txConstraints =
             _ { plutus_data = Nothing, redeemers = Nothing }
         tx = stripDatumsRedeemers $ stripScriptDataHash unbalancedTx
       in
-        { unbalancedTx: tx, datums, redeemers: map fst redeemers }
+        { unbalancedTx: tx, datums, redeemersTxIns: redeemers }
 
 addScriptDataHash
   :: forall (a :: Type)
@@ -751,7 +727,6 @@ data MkUnbalancedTxError
   | CannotConvertPOSIXTimeRange POSIXTimeRange
   | CannotGetMintingPolicyScriptIndex -- Should be impossible
   | CannotGetValidatorHashFromAddress Address -- Get `ValidatorHash` from internal `Address`
-  | CannotGetTxOutRefIndexForRedeemer T.Redeemer
   | MkTypedTxOutFailed
   | TypedTxOutHasNoDatumHash
   | CannotHashMintingPolicy MintingPolicy
@@ -869,11 +844,11 @@ processConstraint mpsMap osMap = do
           let
             -- Create a redeemer with hardcoded execution units then call Ogmios
             -- to add the units in at the very end.
-            -- Hardcode script spend index then reindex at the end with
-            -- `reindexSpentScriptRedeemers`
+            -- Hardcode script spend index then reindex at the end *after
+            -- balancing* with `reindexSpentScriptRedeemers`
             redeemer = T.Redeemer
               { tag: Spend
-              , index: zero
+              , index: zero -- hardcoded and tweaked after balancing.
               , data: unwrap red
               , ex_units: scriptExUnits
               }

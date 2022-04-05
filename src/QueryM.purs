@@ -66,7 +66,6 @@ import Data.Argonaut (class DecodeJson, JsonDecodeError)
 import Data.Argonaut as Json
 import Data.Argonaut.Encode.Class (encodeJson)
 import Data.Argonaut.Encode.Encoders (encodeString)
-import Data.Array (drop)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -132,9 +131,7 @@ import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray
   ( ByteArray
-  , byteArrayFromIntArray
   , byteArrayToHex
-  , byteArrayToIntArray
   , hexToByteArray
   )
 import Types.Datum (Datum, DatumHash)
@@ -532,7 +529,7 @@ hashData datum = do
   -- decode
   pure $ hush <<< Json.decodeJson =<< hush jsonBody
 
--- | Hashes an Plutus-style Datum
+-- | Hashes a Plutus-style Datum
 datumHash :: Datum -> QueryM (Maybe DatumHash)
 datumHash = map (map (Transaction.DataHash <<< unwrap)) <<< hashData
 

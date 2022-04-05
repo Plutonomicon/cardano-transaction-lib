@@ -36,7 +36,6 @@ import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
--- import Debug (spy)
 import Effect.Class (class MonadEffect)
 import Effect.Class.Console (log)
 import ProtocolParametersAlonzo
@@ -715,10 +714,7 @@ collectTxIns originalTxIns utxos value =
     Foldable.foldl
       ( \newTxIns txIn ->
           if isSufficient newTxIns then newTxIns
-          else
-            -- set insertion in original code.
-            if txIn `Array.elem` newTxIns then newTxIns
-          else txIn `Array.cons` newTxIns
+          else txIn `Array.insert` newTxIns -- treat as a set.
       )
       originalTxIns
       $ utxosToTransactionInput utxos

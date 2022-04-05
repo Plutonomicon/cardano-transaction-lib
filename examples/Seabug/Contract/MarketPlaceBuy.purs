@@ -33,10 +33,12 @@ import Contract.PlutusData
 import Contract.ProtocolParameters.Alonzo (minAdaTxOut)
 import Contract.Scripts (typedValidatorEnterpriseAddress)
 import Contract.Transaction
-  ( TxOut
+  ( TransactionInput
+  , TxOut
   , UnbalancedTx
   , balanceTx
   , finalizeTx
+  , reindexSpentScriptRedeemers
   , signTransactionBytes
   )
 import Contract.TxConstraints
@@ -76,11 +78,13 @@ import Types.Transaction (Redeemer) as T
 
 marketplaceBuy :: NftData -> Contract Unit
 marketplaceBuy nftData = do
-  { unbalancedTx, datums, redeemers } /\ curr /\ newName <-
+  { unbalancedTx, datums, redeemersTxIns } /\ curr /\ newName <-
     mkMarketplaceTx nftData
   -- Balance unbalanced tx:
   balancedTx <- liftedE' $ balanceTx unbalancedTx
   log "marketplaceBuy: Transaction successfully balanced"
+  redeemers <- liftedE' $ reindexSpentScriptRedeemers balancedTx redeemersTxIns
+  log "marketplaceBuy: Redeemers reindexed returned"
   -- Reattach datums and redeemer:
   FinalizedTransaction txCbor <-
     liftedM "marketplaceBuy: Cannot attach datums and redeemer"
@@ -105,7 +109,7 @@ mkMarketplaceTx
   -> Contract
        ( { unbalancedTx :: UnbalancedTx
          , datums :: Array Datum
-         , redeemers :: Array T.Redeemer
+         , redeemersTxIns :: Array (T.Redeemer /\ Maybe TransactionInput)
          } /\ CurrencySymbol /\ TokenName
        )
 mkMarketplaceTx (NftData nftData) = do
@@ -197,6 +201,6 @@ mkMarketplaceTx (NftData nftData) = do
               )
               (newNftValue <> coinToValue minAdaTxOut)
           ]
-  -- Created unbalanced tx which stripped datums and redeemers:
-  txDatumsRedeemer <- liftedE' $ wrap (mkUnbalancedTx' lookup constraints)
-  pure $ txDatumsRedeemer /\ curr /\ newName
+  -- Created unbalanced tx which stripped datums and redeemers with tx inputs:
+  txDatumsRedeemerTxIns <- liftedE' $ wrap (mkUnbalancedTx' lookup constraints)
+  pure $ txDatumsRedeemerTxIns /\ curr /\ newName
