@@ -529,7 +529,7 @@ hashData datum = do
   -- decode
   pure $ hush <<< Json.decodeJson =<< hush jsonBody
 
--- | Hashes an Plutus-style Datum
+-- | Hashes a Plutus-style Datum
 datumHash :: Datum -> QueryM (Maybe DatumHash)
 datumHash = map (map (Transaction.DataHash <<< unwrap)) <<< hashData
 
