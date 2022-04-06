@@ -9,6 +9,7 @@ import Contract.Address
   , ownPaymentPubKeyHash
   , payPubKeyHashBaseAddress
   )
+import Contract.ScriptLookups (UnattachedUnbalancedTx, mkUnbalancedTx)
 import Contract.ScriptLookups
   ( mintingPolicy
   , otherScript
@@ -33,11 +34,10 @@ import Contract.PlutusData
 import Contract.ProtocolParameters.Alonzo (minAdaTxOut)
 import Contract.Scripts (typedValidatorEnterpriseAddress)
 import Contract.Transaction
-  ( TxOut
-  , UnbalancedTx
-  , balanceTx
-  , finalizeTx
-  , signTransactionBytes
+  ( BalancedSignedTransaction(BalancedSignedTransaction)
+  , TxOut
+  , balanceAndSignTx
+  , submit
   )
 import Contract.TxConstraints
   ( TxConstraints
@@ -60,8 +60,6 @@ import Contract.Value
 import Data.Array (find) as Array
 import Data.BigInt (BigInt, fromInt)
 import Data.Map (insert, toUnfoldable)
-import QueryM (FinalizedTransaction(FinalizedTransaction))
-import QueryM.Submit (submit)
 import Seabug.MarketPlace (marketplaceValidator)
 import Seabug.MintingPolicy (mintingPolicy)
 import Seabug.Token (mkTokenName)
@@ -71,26 +69,21 @@ import Seabug.Types
   , NftData(NftData)
   , NftId(NftId)
   )
-import Types.ScriptLookups (mkUnbalancedTx')
-import Types.Transaction (Redeemer) as T
 
 marketplaceBuy :: NftData -> Contract Unit
 marketplaceBuy nftData = do
-  { unbalancedTx, datums, redeemers } /\ curr /\ newName <-
-    mkMarketplaceTx nftData
-  -- Balance unbalanced tx:
-  balancedTx <- liftedE' $ balanceTx unbalancedTx
-  log "marketplaceBuy: Transaction successfully balanced"
-  -- Reattach datums and redeemer:
-  FinalizedTransaction txCbor <-
-    liftedM "marketplaceBuy: Cannot attach datums and redeemer"
-      (finalizeTx balancedTx datums redeemers)
-  log "marketplaceBuy: Datums and redeemer attached"
-  signedTxCbor <- liftedM "Failed to sign transaction" $
-    signTransactionBytes txCbor
-  -- Submit transaction:
-  transactionHash <- wrap $ submit signedTxCbor
-  -- -- Submit balanced tx:
+  unattachedBalancedTx /\ curr /\ newName <- mkMarketplaceTx nftData
+  -- `balanceAndSignTx` does the following:
+  -- 1) Balance a transaction
+  -- 2) Reindex `Spend` redeemers after finalising transaction inputs.
+  -- 3) Attach datums and redeemers to transaction.
+  -- 3) Sign tx, returning the Cbor-hex encoded `ByteArray`.
+  BalancedSignedTransaction { signedTxCbor } <- liftedM
+    "marketplaceBuy: Cannot balance, reindex redeemers, attach datums/redeemers\
+    \ and sign"
+    (balanceAndSignTx unattachedBalancedTx)
+  -- Submit transaction using Cbor-hex encoded `ByteArray`
+  transactionHash <- submit signedTxCbor
   log $ "marketplaceBuy: Transaction successfully submitted with hash: "
     <> show transactionHash
   log $ "marketplaceBuy: Buy successful: " <> show (curr /\ newName)
@@ -102,12 +95,7 @@ marketplaceBuy nftData = do
 -- applied to arguments. See `Seabug.Token.policy`
 mkMarketplaceTx
   :: NftData
-  -> Contract
-       ( { unbalancedTx :: UnbalancedTx
-         , datums :: Array Datum
-         , redeemers :: Array T.Redeemer
-         } /\ CurrencySymbol /\ TokenName
-       )
+  -> Contract (UnattachedUnbalancedTx /\ CurrencySymbol /\ TokenName)
 mkMarketplaceTx (NftData nftData) = do
   pkh <- liftedM "marketplaceBuy: Cannot get PaymentPubKeyHash"
     ownPaymentPubKeyHash
@@ -197,6 +185,8 @@ mkMarketplaceTx (NftData nftData) = do
               )
               (newNftValue <> coinToValue minAdaTxOut)
           ]
-  -- Created unbalanced tx which stripped datums and redeemers:
-  txDatumsRedeemer <- liftedE' $ wrap (mkUnbalancedTx' lookup constraints)
-  pure $ txDatumsRedeemer /\ curr /\ newName
+  -- Created unbalanced tx which stripped datums and redeemers with tx inputs,
+  -- the datums and redeemers will be reattached using a server with redeemers
+  -- reindexed also.
+  txDatumsRedeemerTxIns <- liftedE' (mkUnbalancedTx lookup constraints)
+  pure $ txDatumsRedeemerTxIns /\ curr /\ newName

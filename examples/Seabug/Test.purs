@@ -32,6 +32,11 @@ main = launchAff_ $ do
   runContract_ cfg $ do
     marketplaceBuy =<< testNftData
 
+-- collectionNftCs 1 "cf0c1cbf47537f238f756fc1be191abf76009e1988910092184c4b7f"
+-- lockingScript 1  "6c1039b6973bb0e7ad42de5b16a691ede3e0265cd58caf070ff15ef3"
+-- collectionNftCs 2: "66bf118ef8560059d9049b3e7939b928c7ce273718f69484c06a9705"
+-- lockingScript 2: "7e2d5a0798997f8c8cdc08856ce2bcfa09390b0ba375c9b7d4bd6638"
+-- The rest are the same.
 testNftData :: Contract NftData
 testNftData = do
   kh <- liftContractM "`Ed25519KeyHash`"
