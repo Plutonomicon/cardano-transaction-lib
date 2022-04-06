@@ -16,10 +16,10 @@ module Contract.Scripts
   ) where
 
 import Address
-  ( addressMintingPolicyHash
-  , addressScriptHash
-  , addressStakeValidatorHash
-  , addressValidatorHash
+  ( enterpriseAddressMintingPolicyHash
+  , enterpriseAddressScriptHash
+  , enterpriseAddressStakeValidatorHash
+  , enterpriseAddressValidatorHash
   ) as Address
 import QueryM
   ( ClientError
@@ -30,10 +30,10 @@ import QueryM
   ) as ExportQueryM
 import QueryM (applyArgs) as QueryM
 import Scripts
-  ( typedValidatorAddress
-  , typedValidatorBaseAddress
-  , validatorHashAddress
+  ( typedValidatorBaseAddress
+  , typedValidatorEnterpriseAddress
   , validatorHashBaseAddress
+  , validatorHashEnterpriseAddress
   , scriptHash
   ) as ExportScripts
 import Scripts
@@ -82,7 +82,7 @@ import Contract.Monad (Contract, wrapContract)
 import Data.Argonaut (class DecodeJson)
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, wrap)
+import Data.Newtype (class Newtype)
 import Types.PlutusData (PlutusData)
 import Types.Scripts
   ( MintingPolicy

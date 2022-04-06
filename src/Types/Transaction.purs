@@ -93,10 +93,10 @@ import Serialization.Address (Address, NetworkId, RewardAddress, Slot(Slot))
 import Serialization.Hash (Ed25519KeyHash)
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
-import Types.ByteArray (ByteArray)
+import Types.ByteArray (ByteArray, byteArrayToHex)
 import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
-import Types.Value (Coin, Value)
+import Types.Value (Coin, NonAdaAsset, Value)
 import Types.PlutusData (PlutusData(Constr))
 
 --------------------------------------------------------------------------------
@@ -242,13 +242,13 @@ derive newtype instance Eq ScriptDataHash
 instance Show ScriptDataHash where
   show = genericShow
 
-newtype Mint = Mint Value
+newtype Mint = Mint NonAdaAsset
 
+derive instance Generic Mint _
 derive instance Newtype Mint _
 derive newtype instance Eq Mint
 derive newtype instance Semigroup Mint
 derive newtype instance Monoid Mint
-derive instance Generic Mint _
 
 instance Show Mint where
   show = genericShow
@@ -573,6 +573,7 @@ newtype Redeemer = Redeemer
 
 derive instance Generic Redeemer _
 derive newtype instance Eq Redeemer
+derive newtype instance Ord Redeemer
 
 instance Show Redeemer where
   show = genericShow
@@ -672,7 +673,17 @@ newtype TransactionInput = TransactionInput
 derive instance Newtype TransactionInput _
 derive instance Generic TransactionInput _
 derive newtype instance Eq TransactionInput
-derive newtype instance Ord TransactionInput
+
+-- Potential fix me: the below is based on a small sample of smart contract
+-- transactions, so fix this as required.
+-- Not newtype derived this because it is not lexicographical as `index` is tested
+-- before `transaction_id`. We require lexicographical order over hexstring
+-- `TransactionHash`, then `index`, seemingly inline with Cardano/Plutus.
+instance Ord TransactionInput where
+  compare (TransactionInput txInput) (TransactionInput txInput') =
+    case compare txInput.transaction_id txInput'.transaction_id of
+      EQ -> compare txInput.index txInput'.index
+      x -> x
 
 instance Show TransactionInput where
   show = genericShow
@@ -737,8 +748,13 @@ derive instance Generic TransactionHash _
 derive instance Newtype TransactionHash _
 derive newtype instance Eq TransactionHash
 derive newtype instance FromData TransactionHash
-derive newtype instance Ord TransactionHash
 derive newtype instance ToData TransactionHash
+
+-- This is not newtyped derived because it will be used for ordering a
+-- `TransactionInput`, we want lexicographical ordering on the hexstring.
+instance Ord TransactionHash where
+  compare (TransactionHash h) (TransactionHash h') =
+    compare (byteArrayToHex h) (byteArrayToHex h')
 
 instance Show TransactionHash where
   show = genericShow

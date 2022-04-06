@@ -9,7 +9,6 @@ module Contract.Monad
   , liftContractE
   , liftContractE'
   , liftContractM
-  , liftContractWithE
   , liftedE
   , liftedE'
   , liftedM
@@ -166,32 +165,23 @@ liftContractE'
   -> Contract r a
 liftContractE' = either throwContractError pure
 
--- | Similar to `liftContractE'` but with an arbitrary to-`String` handler on
--- | the error.
-liftContractWithE
-  :: forall (e :: Type) (r :: Row Type) (a :: Type)
-   . (e -> String)
-  -> Either e a
-  -> Contract r a
-liftContractWithE handler = either (liftEffect <<< throw <<< handler) pure
-
--- | Similar to `liftedE'` except it directly throws the showable error via
--- | `throwContractError` instead of an arbitrary string.
-liftedE
-  :: forall (e :: Type) (r :: Row Type) (a :: Type)
-   . Show e
-  => Contract r (Either e a)
-  -> Contract r a
-liftedE = (=<<) liftContractE'
-
 -- | Same as `liftContractE` but the `Either` value is already in the `Contract`
 -- | context.
-liftedE'
+liftedE
   :: forall (e :: Type) (r :: Row Type) (a :: Type)
    . String
   -> Contract r (Either e a)
   -> Contract r a
-liftedE' str em = em >>= liftContractE str
+liftedE str em = em >>= liftContractE str
+
+-- | Similar to `liftedE` except it directly throws the showable error via
+-- | `throwContractError` instead of an arbitrary string.
+liftedE'
+  :: forall (e :: Type) (r :: Row Type) (a :: Type)
+   . Show e
+  => Contract r (Either e a)
+  -> Contract r a
+liftedE' = (=<<) liftContractE'
 
 -- | Runs the contract, essentially `runReaderT` but with arguments flipped.
 runContract
@@ -226,6 +216,7 @@ defaultContractConfig = do
     , usedTxOuts
     , networkId: TestnetId
     , slotConfig: Interval.defaultSlotConfig
+    -- Will update at the use site
     }
 
 -- | Same as `defaultContractConfig` but lifted into `Contract`.

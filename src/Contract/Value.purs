@@ -58,5 +58,8 @@ import Types.Value
   , valueToCoin'
   ) as Value
 
-scriptCurrencySymbol :: forall (r :: Row Type). MintingPolicy -> Contract r (Maybe Value.CurrencySymbol)
+scriptCurrencySymbol
+  :: forall (r :: Row Type)
+   . MintingPolicy
+  -> Contract r (Maybe Value.CurrencySymbol)
 scriptCurrencySymbol = wrapContract <<< Scripts.scriptCurrencySymbol

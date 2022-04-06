@@ -8,6 +8,7 @@ module Contract.PlutusData
   , datumFilterGetHashesRequest
   , datumFilterRemoveHashesRequest
   , datumFilterSetHashesRequest
+  , datumHash
   , getDatumByHash
   , getDatumsByHashes
   , startFetchBlocksRequest
@@ -30,6 +31,7 @@ import QueryM
   , datumFilterGetHashesRequest
   , datumFilterRemoveHashesRequest
   , datumFilterSetHashesRequest
+  , datumHash
   , getDatumByHash
   , getDatumsByHashes
   , startFetchBlocksRequest
@@ -49,7 +51,6 @@ import Types.Datum
   ( Datum(Datum)
   , DatumHash
   , unitDatum
-  , datumHash
   ) as Datum
 import Types.Redeemer
   ( Redeemer(Redeemer)
@@ -62,28 +63,48 @@ import Types.Transaction (DatumHash)
 import Types.Transaction (DataHash(DataHash)) as Transaction
 
 -- | Get a `PlutusData` given a `DatumHash`.
-getDatumByHash :: forall (r :: Row Type). DatumHash -> Contract r (Maybe PlutusData.PlutusData)
+getDatumByHash
+  :: forall (r :: Row Type)
+   . DatumHash
+  -> Contract r (Maybe PlutusData.PlutusData)
 getDatumByHash = wrapContract <<< QueryM.getDatumByHash
 
 -- | Get `PlutusData`s given a an `Array` of `DatumHash`.
-getDatumsByHashes :: forall (r :: Row Type). Array DatumHash -> Contract r (Array PlutusData.PlutusData)
+getDatumsByHashes
+  :: forall (r :: Row Type)
+   . Array DatumHash
+  -> Contract r (Array PlutusData.PlutusData)
 getDatumsByHashes = wrapContract <<< QueryM.getDatumsByHashes
 
-startFetchBlocksRequest :: forall (r :: Row Type). { slot :: Slot, id :: BlockId } -> Contract r Unit
+startFetchBlocksRequest
+  :: forall (r :: Row Type)
+   . { slot :: Slot, id :: BlockId }
+  -> Contract r Unit
 startFetchBlocksRequest = wrapContract <<< QueryM.startFetchBlocksRequest
 
 -- | Cancels a running block fetcher job. Throws on no fetchers running
 cancelFetchBlocksRequest :: forall (r :: Row Type). Contract r Unit
 cancelFetchBlocksRequest = wrapContract QueryM.cancelFetchBlocksRequest
 
-datumFilterAddHashesRequest :: forall (r :: Row Type). Array DatumHash -> Contract r Unit
-datumFilterAddHashesRequest = wrapContract <<< QueryM.datumFilterAddHashesRequest
+datumFilterAddHashesRequest
+  :: forall (r :: Row Type). Array DatumHash -> Contract r Unit
+datumFilterAddHashesRequest =
+  wrapContract <<< QueryM.datumFilterAddHashesRequest
 
-datumFilterRemoveHashesRequest :: forall (r :: Row Type). Array DatumHash -> Contract r Unit
-datumFilterRemoveHashesRequest = wrapContract <<< QueryM.datumFilterRemoveHashesRequest
+datumFilterRemoveHashesRequest
+  :: forall (r :: Row Type). Array DatumHash -> Contract r Unit
+datumFilterRemoveHashesRequest =
+  wrapContract <<< QueryM.datumFilterRemoveHashesRequest
 
-datumFilterSetHashesRequest :: forall (r :: Row Type). Array DatumHash -> Contract r Unit
-datumFilterSetHashesRequest = wrapContract <<< QueryM.datumFilterSetHashesRequest
+datumFilterSetHashesRequest
+  :: forall (r :: Row Type). Array DatumHash -> Contract r Unit
+datumFilterSetHashesRequest =
+  wrapContract <<< QueryM.datumFilterSetHashesRequest
 
-datumFilterGetHashesRequest :: forall (r :: Row Type). Contract r (Array DatumHash)
+datumFilterGetHashesRequest
+  :: forall (r :: Row Type). Contract r (Array DatumHash)
 datumFilterGetHashesRequest = wrapContract QueryM.datumFilterGetHashesRequest
+
+-- | Hashes a Plutus-style Datum
+datumHash :: forall (r :: Row Type). Datum.Datum -> Contract r (Maybe DatumHash)
+datumHash = wrapContract <<< QueryM.datumHash

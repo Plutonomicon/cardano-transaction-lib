@@ -11,7 +11,10 @@ module Types.ByteArray
   , hexToByteArrayUnsafe
   ) where
 
+import Data.Argonaut (class DecodeJson)
+import Data.Argonaut as Json
 import Data.ArrayBuffer.Types (Uint8Array)
+import Data.Either (Either(Left), note)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap)
 import Prelude
@@ -44,6 +47,12 @@ instance Semigroup ByteArray where
 
 instance Monoid ByteArray where
   mempty = byteArrayFromIntArrayUnsafe []
+
+instance DecodeJson ByteArray where
+  decodeJson j = Json.caseJsonString
+    (Left (Json.TypeMismatch "expected a hex-encoded CBOR string"))
+    (note (Json.UnexpectedValue j) <<< hexToByteArray)
+    j
 
 foreign import ord_ :: (Int -> Int -> Int) -> ByteArray -> ByteArray -> Int
 
