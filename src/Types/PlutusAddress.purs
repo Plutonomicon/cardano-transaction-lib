@@ -2,11 +2,12 @@ module Types.PlutusAddress where
 
 import Prelude
 import Data.Maybe (Maybe(..))
-import Data.Array (head, take, drop)
+import Data.Array
+import Data.Tuple (Tuple(Tuple), fst)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
-import Data.Newtype (wrap)
-import Data.Int.Bits (and, shr) as Bits
+import Data.Newtype (class Newtype, wrap)
+import Data.UInt (UInt, fromInt, toInt, (.&.), and, zshr, shl)
 import Types.ByteArray (ByteArray, byteArrayToIntArray, byteArrayFromIntArray)
 import Types.UnbalancedTransaction (PubKeyHash)
 import Types.Scripts (ValidatorHash)
@@ -102,7 +103,7 @@ class IsoNativeForeign native foreign' | native -> foreign', foreign' -> native 
 
 instance IsoNativeForeign PlutusAddress Serialization.Address where
   toNativeType addrForeign = addrType >>= \addrType' ->
-    case addrType' of -- TODO: Byron addresses, `Pointer` delegation part
+    case toInt addrType' of -- TODO: Byron addresses
       -- %b0000 | network tag | key hash | key hash
       0 -> buildAddress pubKeyCredential $ Just $
         map StakingHash <<< pubKeyCredential
@@ -119,6 +120,12 @@ instance IsoNativeForeign PlutusAddress Serialization.Address where
       3 -> buildAddress scriptCredential $ Just $
         map StakingHash <<< scriptCredential
 
+      -- %b0100 | network tag | key hash | pointer
+      4 -> buildAddress pubKeyCredential $ Just stakingPtr
+
+      -- %b0101 | network tag | script hash | pointer
+      5 -> buildAddress scriptCredential $ Just stakingPtr
+
       -- %b0110 | network tag | key hash
       6 -> buildAddress pubKeyCredential Nothing
 
@@ -130,8 +137,8 @@ instance IsoNativeForeign PlutusAddress Serialization.Address where
     addrBytes :: Array Int
     addrBytes = byteArrayToIntArray $ addressBytes addrForeign
 
-    addrType :: Maybe Int
-    addrType = head addrBytes >>= (pure <<< flip Bits.shr 4)
+    addrType :: Maybe UInt
+    addrType = head addrBytes >>= (pure <<< flip zshr (fromInt 4) <<< fromInt)
 
     pubKeyCredential :: ByteArray -> Maybe Credential
     pubKeyCredential =
@@ -159,3 +166,27 @@ instance IsoNativeForeign PlutusAddress Serialization.Address where
           Just stakingCredential ->
             delegationPartHash >>= stakingCredential >>= \sc -> Just $
               Address { addressCredential: c, addressStakingCredential: Just sc }
+
+    stakingPtr :: ByteArray -> Maybe StakingCredential
+    stakingPtr byteArray = do
+      Tuple slot bytes0 <- worker (byteArrayToIntArray byteArray) []
+      Tuple txIx bytes1 <- worker bytes0 []
+      Tuple certIx _ <- worker bytes1 []
+      pure $ StakingPtr { slot, txIx, certIx }
+      where
+        worker :: forall t. Newtype t UInt
+               => Array Int
+               -> Array UInt
+               -> Maybe (Tuple t (Array Int))
+        worker bytes acc = do
+          { head: x', tail: xs } <- uncons bytes
+          let x = fromInt x'
+          case (x .&. fromInt 128 == zero) of
+            true ->
+              let uintArray = flip map (snoc acc x) $ and (fromInt 127)
+                  foldr_ m t f = foldr f m t
+                  uintValue = fst $
+                    foldr_ (Tuple zero 0) uintArray $ \lhs (Tuple rhs c) ->
+                      Tuple ((lhs `shl` fromInt (7 * c)) + rhs) (c + 1)
+              in Just $ Tuple (wrap uintValue) xs
+            _ -> worker xs (snoc acc x)
