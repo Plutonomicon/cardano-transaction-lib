@@ -70,6 +70,7 @@ import Seabug.Types
   , NftId(NftId)
   )
 
+-- TODO docstring
 marketplaceBuy :: NftData -> Contract Unit
 marketplaceBuy nftData = do
   unattachedBalancedTx /\ curr /\ newName <- mkMarketplaceTx nftData
@@ -93,6 +94,7 @@ marketplaceBuy nftData = do
 -- The `MintingPolicy` may be decoded as Json, although I'm not sure as we don't
 -- have `mkMintingPolicyScript`. Otherwise, it's an policy that hasn't been
 -- applied to arguments. See `Seabug.Token.policy`
+-- TODO docstring
 mkMarketplaceTx
   :: NftData
   -> Contract (UnattachedUnbalancedTx /\ CurrencySymbol /\ TokenName)

@@ -7,6 +7,8 @@
 [Cachix badge]: https://img.shields.io/badge/cachix-public_plutonomicon-blue.svg
 [Cachix link]: https://public-plutonomicon.cachix.org
 
+_Information about calling Seabug contracts are placed in ./seabug_contracts/README.md_
+
 ## Goals:
 
 1. build a transaction in the browser that works with at least 1 light wallet (Nami).
