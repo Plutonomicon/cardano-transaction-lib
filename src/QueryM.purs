@@ -66,7 +66,7 @@ import Data.Argonaut (class DecodeJson, JsonDecodeError)
 import Data.Argonaut as Json
 import Data.Argonaut.Encode.Class (encodeJson)
 import Data.Argonaut.Encode.Encoders (encodeString)
-import Data.Array (drop)
+import Data.Array (length)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -130,19 +130,14 @@ import Serialization.Address
 import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
-import Types.ByteArray
-  ( ByteArray
-  , byteArrayFromIntArray
-  , byteArrayToHex
-  , byteArrayToIntArray
-  , hexToByteArray
-  )
+import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.Datum (Datum, DatumHash)
 import Types.Interval (SlotConfig)
 import Types.JsonWsp as JsonWsp
 import Types.PlutusData (PlutusData)
 import Types.Scripts (PlutusScript)
 import Types.Transaction as Transaction
+import Types.Transaction (Transaction(Transaction))
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.UnbalancedTransaction (PubKeyHash, PaymentPubKeyHash)
 import Types.Value (Coin(Coin))
@@ -417,15 +412,18 @@ instance Show ClientError where
       <> ")"
 
 -- Query the Haskell server for the minimum transaction fee
-calculateMinFee
-  :: Transaction.Transaction -> QueryM (Either ClientError Coin)
-calculateMinFee tx = do
+calculateMinFee :: Transaction -> QueryM (Either ClientError Coin)
+calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   txHex <- liftEffect $
     byteArrayToHex
       <<< Serialization.toBytes
       <<< asOneOf
       <$> Serialization.convertTransaction tx
-  url <- mkServerEndpointUrl $ "fees?tx=" <> txHex
+  url <- mkServerEndpointUrl
+    $ "fees?tx="
+        <> txHex
+        <> "&count="
+        <> show witCount
   liftAff (Affjax.get Affjax.ResponseFormat.json url)
     <#> either
       (Left <<< ClientHttpError)
@@ -440,6 +438,23 @@ calculateMinFee tx = do
   -- See https://github.com/Plutonomicon/cardano-browser-tx/issues/123
   coinFromEstimate :: FeeEstimate -> Coin
   coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 500000)) <<< unwrap
+
+  -- Fee estimation occurs before balancing the transaction, so we need to know
+  -- the expected number of witnesses to use the cardano-api fee estimation
+  -- functions
+  --
+  -- We obtain the expected number of key witnesses for the transaction, with
+  -- the following assumptions:
+  --   * if `required_signers` is `Nothing`, add one key witness for the
+  --     current wallet. Thus there should normally be at least one witness
+  --     for any transaction
+  --   * otherwise, the expected number of signers has been implicitly
+  --     specified by the `required_signers` field; take the length of the
+  --     array
+  --   * this assumes of course that users will not pass `Just mempty` for the
+  --     required signers
+  witCount :: UInt
+  witCount = maybe one UInt.fromInt $ length <$> body.required_signers
 
 -- | CborHex-encoded tx
 newtype FinalizedTransaction = FinalizedTransaction ByteArray
