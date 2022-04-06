@@ -10,7 +10,7 @@ import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Mote (group, test)
 import QueryM
-  ( QueryConfig
+  ( DefaultQueryConfig
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
@@ -38,7 +38,7 @@ suite = do
         byteArrayToHex bytes
       pure unit
 
-getQueryConfig :: Aff QueryConfig
+getQueryConfig :: Aff DefaultQueryConfig
 getQueryConfig = do
   ogmiosWs <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
   datumCacheWs <- mkDatumCacheWebSocketAff defaultDatumCacheWsConfig

@@ -78,11 +78,11 @@ import Types.TypedValidator
   ) as TypedValidator
 
 import Prelude
-import Contract.Monad (Contract)
+import Contract.Monad (Contract, wrapContract)
 import Data.Argonaut (class DecodeJson)
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, wrap)
+import Data.Newtype (class Newtype)
 import Types.PlutusData (PlutusData)
 import Types.Scripts
   ( MintingPolicy
@@ -97,32 +97,39 @@ import Types.Scripts
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
 applyArgs
-  :: forall (a :: Type)
+  :: forall (r :: Row Type) (a :: Type)
    . Newtype a PlutusScript
   => DecodeJson a
   => a
   -> Array PlutusData
-  -> Contract (Either ExportQueryM.ClientError a)
-applyArgs a = wrap <<< QueryM.applyArgs a
+  -> Contract r (Either ExportQueryM.ClientError a)
+applyArgs a = wrapContract <<< QueryM.applyArgs a
 
 -- | Same as `applyArgs` with arguments hushed.
 applyArgsM
-  :: forall (a :: Type)
+  :: forall (r :: Row Type) (a :: Type)
    . Newtype a PlutusScript
   => DecodeJson a
   => a
   -> Array PlutusData
-  -> Contract (Maybe a)
+  -> Contract r (Maybe a)
 applyArgsM a = map hush <<< applyArgs a
 
 -- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
-mintingPolicyHash :: MintingPolicy -> Contract (Maybe MintingPolicyHash)
-mintingPolicyHash = wrap <<< Scripts.mintingPolicyHash
+mintingPolicyHash
+  :: forall (r :: Row Type)
+   . MintingPolicy
+  -> Contract r (Maybe MintingPolicyHash)
+mintingPolicyHash = wrapContract <<< Scripts.mintingPolicyHash
 
 -- | Converts a Plutus-style `StakeValidator` to an `StakeValidatorHash`
-stakeValidatorHash :: StakeValidator -> Contract (Maybe StakeValidatorHash)
-stakeValidatorHash = wrap <<< Scripts.stakeValidatorHash
+stakeValidatorHash
+  :: forall (r :: Row Type)
+   . StakeValidator
+  -> Contract r (Maybe StakeValidatorHash)
+stakeValidatorHash = wrapContract <<< Scripts.stakeValidatorHash
 
 -- | Converts a Plutus-style `Validator` to a `ValidatorHash`
-validatorHash :: Validator -> Contract (Maybe ValidatorHash)
-validatorHash = wrap <<< Scripts.validatorHash
+validatorHash
+  :: forall (r :: Row Type). Validator -> Contract r (Maybe ValidatorHash)
+validatorHash = wrapContract <<< Scripts.validatorHash

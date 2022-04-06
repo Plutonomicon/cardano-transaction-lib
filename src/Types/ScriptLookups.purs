@@ -57,7 +57,12 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Helpers ((<\>), liftEither, liftM)
-import QueryM (QueryConfig, QueryM, datumHash, getDatumByHash)
+import QueryM
+  ( DefaultQueryConfig
+  , QueryM
+  , datumHash
+  , getDatumByHash
+  )
 import Scripts
   ( mintingPolicyHash
   , validatorHash
@@ -442,7 +447,7 @@ require required = ValueSpentBalances { required, provided: mempty }
 -- We write `ReaderT QueryConfig Aff` below since type synonyms need to be fully
 -- applied.
 type ConstraintsM (a :: Type) (b :: Type) =
-  StateT (ConstraintProcessingState a) (ReaderT QueryConfig Aff) b
+  StateT (ConstraintProcessingState a) (ReaderT DefaultQueryConfig Aff) b
 
 -- The constraints don't precisely match those of Plutus:
 -- `forall a. (FromData (DatumType a), ToData (DatumType a), ToData (RedeemerType a))`
