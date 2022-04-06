@@ -158,6 +158,8 @@ newtype TransactionIndex = TransactionIndex UInt
 derive instance Eq TransactionIndex
 derive instance Newtype TransactionIndex _
 derive instance Generic TransactionIndex _
+derive newtype instance ToData TransactionIndex
+derive newtype instance FromData TransactionIndex
 
 instance Show TransactionIndex where
   show = genericShow
@@ -167,6 +169,8 @@ newtype CertificateIndex = CertificateIndex UInt
 derive instance Eq CertificateIndex
 derive instance Newtype CertificateIndex _
 derive instance Generic CertificateIndex _
+derive newtype instance ToData CertificateIndex
+derive newtype instance FromData CertificateIndex
 
 instance Show CertificateIndex where
   show = genericShow
