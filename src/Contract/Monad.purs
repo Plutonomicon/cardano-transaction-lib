@@ -1,6 +1,6 @@
 -- | A module defining the `Contract` monad.
 module Contract.Monad
-  ( Contract
+  ( Contract(..)
   , ContractConfig(..)
   , DefaultContractConfig
   , wrapContract
@@ -122,7 +122,8 @@ wrapContract = wrap <<< QueryM.liftQueryM
 
 -- | Throws an `Error` for any showable error using `Effect.Exception.throw`
 -- | and lifting into the `Contract` monad.
-throwContractError :: forall (e :: Type) (r :: Row Type) (a :: Type). Show e => e -> Contract r a
+throwContractError
+  :: forall (e :: Type) (r :: Row Type) (a :: Type). Show e => e -> Contract r a
 throwContractError = liftEffect <<< throw <<< show
 
 -- | Given a string error and `Maybe` value, if the latter is `Nothing`, throw
@@ -130,31 +131,48 @@ throwContractError = liftEffect <<< throw <<< show
 -- | using `runExceptT`, see `liftM` inside `Contract.Prelude`. This can be
 -- | thought of as `liftM` restricted to JavaScript's `Error` and without the
 -- | need to call `error :: String -> Error` each time.
-liftContractM :: forall (r :: Row Type) (a :: Type). String -> Maybe a -> Contract r a
+liftContractM
+  :: forall (r :: Row Type) (a :: Type)
+   . String
+  -> Maybe a
+  -> Contract r a
 liftContractM str = maybe (liftEffect $ throw str) pure
 
 -- | Same as `liftContractM` but the `Maybe` value is already in the `Contract`
 -- | context.
-liftedM :: forall (r :: Row Type) (a :: Type). String -> Contract r (Maybe a) -> Contract r a
+liftedM
+  :: forall (r :: Row Type) (a :: Type)
+   . String
+  -> Contract r (Maybe a)
+  -> Contract r a
 liftedM str cm = cm >>= liftContractM str
 
 -- | Similar to `liftContractM`, throwing the string instead of the `Left`
 -- | value. For throwing the `Left` value, see `liftEither` in
 -- | `Contract.Prelude`.
 liftContractE
-  :: forall (e :: Type) (r :: Row Type) (a :: Type). String -> Either e a -> Contract r a
+  :: forall (e :: Type) (r :: Row Type) (a :: Type)
+   . String
+  -> Either e a
+  -> Contract r a
 liftContractE str = liftContractM str <<< hush
 
 -- | Similar to `liftContractE` except it directly throws the showable error
 -- | via `throwContractError` instead of an arbitrary string.
 liftContractE'
-  :: forall (e :: Type) (r :: Row Type) (a :: Type). Show e => Either e a -> Contract r a
+  :: forall (e :: Type) (r :: Row Type) (a :: Type)
+   . Show e
+  => Either e a
+  -> Contract r a
 liftContractE' = either throwContractError pure
 
 -- | Similar to `liftContractE'` but with an arbitrary to-`String` handler on
 -- | the error.
 liftContractWithE
-  :: forall (e :: Type) (r :: Row Type) (a :: Type). (e -> String) -> Either e a -> Contract r a
+  :: forall (e :: Type) (r :: Row Type) (a :: Type)
+   . (e -> String)
+  -> Either e a
+  -> Contract r a
 liftContractWithE handler = either (liftEffect <<< throw <<< handler) pure
 
 -- | Similar to `liftedE'` except it directly throws the showable error via
@@ -176,11 +194,19 @@ liftedE'
 liftedE' str em = em >>= liftContractE str
 
 -- | Runs the contract, essentially `runReaderT` but with arguments flipped.
-runContract :: forall (r :: Row Type) (a :: Type). ContractConfig r -> Contract r a -> Aff a
+runContract
+  :: forall (r :: Row Type) (a :: Type)
+   . ContractConfig r
+  -> Contract r a
+  -> Aff a
 runContract config = flip runReaderT (unwrap config) <<< unwrap
 
 -- | Same as `runContract` discarding output.
-runContract_ :: forall (r :: Row Type) (a :: Type). ContractConfig r -> Contract r a -> Aff Unit
+runContract_
+  :: forall (r :: Row Type) (a :: Type)
+   . ContractConfig r
+  -> Contract r a
+  -> Aff Unit
 runContract_ config = void <<< flip runReaderT (unwrap config) <<< unwrap
 
 -- | Creates a default `ContractConfig` with a Nami wallet inside `Aff` as
@@ -203,5 +229,6 @@ defaultContractConfig = do
     }
 
 -- | Same as `defaultContractConfig` but lifted into `Contract`.
-defaultContractConfigLifted :: forall (r :: Row Type). Contract r DefaultContractConfig
+defaultContractConfigLifted
+  :: forall (r :: Row Type). Contract r DefaultContractConfig
 defaultContractConfigLifted = liftAff defaultContractConfig

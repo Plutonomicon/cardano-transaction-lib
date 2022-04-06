@@ -116,13 +116,20 @@ applyArgsM
 applyArgsM a = map hush <<< applyArgs a
 
 -- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
-mintingPolicyHash :: forall (r :: Row Type). MintingPolicy -> Contract r (Maybe MintingPolicyHash)
+mintingPolicyHash
+  :: forall (r :: Row Type)
+   . MintingPolicy
+  -> Contract r (Maybe MintingPolicyHash)
 mintingPolicyHash = wrapContract <<< Scripts.mintingPolicyHash
 
 -- | Converts a Plutus-style `StakeValidator` to an `StakeValidatorHash`
-stakeValidatorHash :: forall (r :: Row Type). StakeValidator -> Contract r (Maybe StakeValidatorHash)
+stakeValidatorHash
+  :: forall (r :: Row Type)
+   . StakeValidator
+  -> Contract r (Maybe StakeValidatorHash)
 stakeValidatorHash = wrapContract <<< Scripts.stakeValidatorHash
 
 -- | Converts a Plutus-style `Validator` to a `ValidatorHash`
-validatorHash :: Validator -> Contract (Maybe ValidatorHash)
-validatorHash = wrap <<< Scripts.validatorHash
+validatorHash
+  :: forall (r :: Row Type). Validator -> Contract r (Maybe ValidatorHash)
+validatorHash = wrapContract <<< Scripts.validatorHash

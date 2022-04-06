@@ -21,7 +21,7 @@ import Address
   , addressValidatorHash
   ) as ExportAddress
 import Address (getNetworkId) as Address
-import Contract.Monad (Contract)
+import Contract.Monad (Contract, wrapContract)
 import Data.Maybe (Maybe)
 import QueryM
   ( getWalletAddress

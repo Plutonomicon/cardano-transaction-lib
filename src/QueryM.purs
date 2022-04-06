@@ -173,7 +173,7 @@ type Url = String
 
 -- when we add multiple query backends or wallets,
 -- we just need to extend this type
-type QueryConfig (r :: # Type) =
+type QueryConfig (r :: Row Type) =
   { ogmiosWs :: OgmiosWebSocket
   , datumCacheWs :: DatumCacheWebSocket
   , serverConfig :: ServerConfig
@@ -194,7 +194,7 @@ type QueryMExtended (r :: Row Type) (a :: Type) = ReaderT (QueryConfig r) Aff a
 liftQueryM :: forall (r :: Row Type) (a :: Type). QueryM a -> QueryMExtended r a
 liftQueryM = withReaderT toDefaultQueryConfig
   where
-  toDefaultQueryConfig :: forall (r :: Row Type). QueryConfig r -> DefaultQueryConfig
+  toDefaultQueryConfig :: QueryConfig r -> DefaultQueryConfig
   toDefaultQueryConfig c =
     { ogmiosWs: c.ogmiosWs
     , datumCacheWs: c.datumCacheWs
