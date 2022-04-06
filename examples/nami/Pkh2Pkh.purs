@@ -117,25 +117,25 @@ buildUnbalancedTransaction = do
             , outputs: Array.singleton $ TransactionOutput
                 { address: ownAddress
                 , amount: Value.lovelaceValueOf $ BigInt.fromInt 2000000
-                , data_hash: Nothing
+                , dataHash: Nothing
                 }
             -- ??
             , fee: Value.mkCoin 0
-            , network_id: Just TestnetId
+            , networkId: Just TestnetId
             , certs: Nothing
             , collateral: Nothing
-            , auxiliary_data_hash: Nothing
+            , auxiliaryDataHash: Nothing
             , mint: Nothing
-            , required_signers: Nothing
-            , script_data_hash: Nothing
+            , requiredSigners: Nothing
+            , scriptDataHash: Nothing
             , ttl: Nothing
             , update: Nothing
-            , validity_start_interval: Nothing
+            , validityStartInterval: Nothing
             , withdrawals: Nothing
             }
-        , is_valid: true
-        , witness_set: mempty
-        , auxiliary_data: Nothing
+        , isValid: true
+        , witnessSet: mempty
+        , auxiliaryData: Nothing
         }
     , utxoIndex: Map.empty
     }

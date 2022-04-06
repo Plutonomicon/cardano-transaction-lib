@@ -584,7 +584,7 @@ derive newtype instance Eq UnattachedUnbalancedTx
 instance Show UnattachedUnbalancedTx where
   show = genericShow
 
--- | An implementation that strips `witness_set` and data hash from
+-- | An implementation that strips `witnessSet` and data hash from
 -- | returned `UnbalancedTx` in order to calculate them later on server.
 -- | It returns part of the `ConstraintProcessingState` for later consumption by
 -- | the server. The `Spend` redeemers will require reindexing and all hardcoded
@@ -609,7 +609,7 @@ mkUnbalancedTx scriptLookups txConstraints =
         stripDatumsRedeemers :: UnbalancedTx -> UnbalancedTx
         stripDatumsRedeemers uTx = uTx # _transaction <<< _witnessSet %~
           over TransactionWitnessSet
-            _ { plutus_data = Nothing, redeemers = Nothing }
+            _ { plutusData = Nothing, redeemers = Nothing }
         tx = stripDatumsRedeemers $ stripScriptDataHash unbalancedTx
       in
         wrap { unbalancedTx: tx, datums, redeemersTxIns: redeemers }
@@ -649,17 +649,17 @@ addMissingValueSpent = do
       Just pkh, Just _ -> liftEither $ Right $ TransactionOutput
         { address: payPubKeyHashBaseAddress networkId pkh
         , amount: missing
-        , data_hash: Nothing
+        , dataHash: Nothing
         }
       Just pkh, Nothing -> liftEither $ Right $ TransactionOutput
         { address: payPubKeyHashEnterpriseAddress networkId pkh
         , amount: missing
-        , data_hash: Nothing
+        , dataHash: Nothing
         }
       Nothing, Just skh -> liftEither $ Right $ TransactionOutput
         { address: stakePubKeyHashRewardAddress networkId skh
         , amount: missing
-        , data_hash: Nothing
+        , dataHash: Nothing
         }
     _cpsToTxBody <<< _outputs <>= Array.singleton txOut
 
@@ -812,7 +812,7 @@ processConstraint mpsMap osMap = do
           _cpsToTxBody <<< _Newtype %=
             _
               { ttl = timeToLive
-              , validity_start_interval = validityStartInterval
+              , validityStartInterval = validityStartInterval
               }
     MustBeSignedBy pkh -> runExceptT do
       ppkh <- use _lookups <#> unwrap >>> _.paymentPubKeyHashes
@@ -827,7 +827,7 @@ processConstraint mpsMap osMap = do
       -- Recall an Ogmios datum is a `Maybe String` where `Nothing` implies a
       -- wallet address and `Just` as script address.
       case txOut of
-        TransactionOutput { amount, data_hash: Nothing } -> do
+        TransactionOutput { amount, dataHash: Nothing } -> do
           -- POTENTIAL FIX ME: Plutus has Tx.TxIn and Tx.PubKeyTxIn -- TxIn
           -- keeps track TxOutRef and TxInType (the input type, whether
           -- consuming script, public key or simple script)
@@ -839,7 +839,7 @@ processConstraint mpsMap osMap = do
       -- Recall an Ogmios datum is a `Maybe String` where `Nothing` implies a
       -- wallet address and `Just` as script address.
       case txOut of
-        TransactionOutput { address, amount, data_hash: Just dHash } -> do
+        TransactionOutput { address, amount, dataHash: Just dHash } -> do
           vHash <- liftM
             (CannotGetValidatorHashFromAddress address)
             (enterpriseAddressValidatorHash address)
@@ -866,7 +866,7 @@ processConstraint mpsMap osMap = do
               { tag: Spend
               , index: zero -- hardcoded and tweaked after balancing.
               , data: unwrap red
-              , ex_units: scriptExUnits
+              , exUnits: scriptExUnits
               }
           _valueSpentBalancesInputs <>= provide amount
           -- Append redeemer for spending to array.
@@ -906,7 +906,7 @@ processConstraint mpsMap osMap = do
           { tag: Mint
           , index
           , data: unwrap red
-          , ex_units: mintExUnits
+          , exUnits: mintExUnits
           }
       _cpsToTxBody <<< _mint <>= map wrap mintVal
       -- Append redeemer for minting to array.
@@ -932,20 +932,20 @@ processConstraint mpsMap osMap = do
         -- In particular, if `mDatum` is `Nothing`, then return nothing (note: we
         -- don't want to fail). However, if we have a datum value, we attempt to
         -- hash, which may fail. We want to capture this failure.
-        -- Given `data_hash` ~ `Maybe DatumHash`, we don't want return this
+        -- Given `dataHash` ~ `Maybe DatumHash`, we don't want return this
         -- failure in the output. It's possible that this is okay for
         -- `MustPayToPubKeyAddress` because datums are essentially redundant
         -- for wallet addresses, but let's fail for now. It is important to
         -- capture failure for `MustPayToOtherScript` however, because datums
         -- at script addresses matter.
         -- e.g. in psuedo code:
-        -- If mDatum = Nothing -> data_hash = Nothing (don't fail)
+        -- If mDatum = Nothing -> dataHash = Nothing (don't fail)
         -- If mDatum = Just datum ->
         --     If datumHash datum = Nothing -> FAIL
-        --     If datumHash datum = Just dHash -> data_hash = dHash
+        --     If datumHash datum = Just dHash -> dataHash = dHash
         -- As mentioned, we could remove this fail behaviour for
         -- `MustPayToPubKeyAddress`
-        data_hash <- maybe
+        dataHash <- maybe
           (liftEither $ Right Nothing) -- Don't throw an error if Nothing.
           ( \datum -> ExceptT $ lift $
               liftDatumHash (CannotHashDatum datum) <$> datumHash datum
@@ -955,21 +955,21 @@ processConstraint mpsMap osMap = do
         -- down the road as we track all types of Addresses properly
         let
           txOut = TransactionOutput
-            { address: payPubKeyHashEnterpriseAddress networkId pkh, amount, data_hash }
+            { address: payPubKeyHashEnterpriseAddress networkId pkh, amount, dataHash }
         _cpsToTxBody <<< _outputs <>= Array.singleton txOut
         _valueSpentBalancesOutputs <>= provide amount
     MustPayToOtherScript vlh datum amount -> do
       networkId <- getNetworkId
       runExceptT do
-        -- Don't write `let data_hash = datumHash datum`, see [datumHash Note]
-        data_hash <- ExceptT $ lift $ note (CannotHashDatum datum)
+        -- Don't write `let dataHash = datumHash datum`, see [datumHash Note]
+        dataHash <- ExceptT $ lift $ note (CannotHashDatum datum)
           <$> map Just
           <$> datumHash datum
         let
           txOut = TransactionOutput
             { address: validatorHashEnterpriseAddress networkId vlh
             , amount
-            , data_hash
+            , dataHash
             }
         ExceptT $ addDatum datum
         _cpsToTxBody <<< _outputs <>= Array.singleton txOut

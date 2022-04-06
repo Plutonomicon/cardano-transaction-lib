@@ -155,18 +155,18 @@ foreign import toBytes
   -> ByteArray
 
 convertTransaction :: T.Transaction -> Effect Transaction
-convertTransaction (T.Transaction { body: T.TxBody body, witness_set }) = do
+convertTransaction (T.Transaction { body: T.TxBody body, witnessSet }) = do
   inputs <- convertTxInputs body.inputs
   outputs <- convertTxOutputs body.outputs
   fee <- maybe (throw "Failed to convert fee") pure $ bigNumFromBigInt (unwrap body.fee)
   txBody <- newTransactionBody inputs outputs fee
-  for_ body.network_id $ convertNetworkId >=> setTxBodyNetworkId txBody
+  for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
   traverse_
     (unwrap >>> newScriptDataHashFromBytes >=> setTxBodyScriptDataHash txBody)
-    body.script_data_hash
+    body.scriptDataHash
   for_ body.mint $ convertMint >=> setTxBodyMint txBody
   for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
-  ws <- convertWitnessSet witness_set
+  ws <- convertWitnessSet witnessSet
   newTransaction txBody ws
 
 convertNetworkId :: T.NetworkId -> Effect NetworkId
@@ -199,8 +199,8 @@ convertTxInputs arrInputs = do
   pure inputs
 
 convertTxInput :: T.TransactionInput -> Effect TransactionInput
-convertTxInput (T.TransactionInput { transaction_id, index }) = do
-  tx_hash <- fromBytesEffect (unwrap transaction_id)
+convertTxInput (T.TransactionInput { transactionId, index }) = do
+  tx_hash <- fromBytesEffect (unwrap transactionId)
   newTransactionInput tx_hash index
 
 convertTxOutputs :: Array T.TransactionOutput -> Effect TransactionOutputs
@@ -210,10 +210,10 @@ convertTxOutputs arrOutputs = do
   pure outputs
 
 convertTxOutput :: T.TransactionOutput -> Effect TransactionOutput
-convertTxOutput (T.TransactionOutput { address, amount, data_hash }) = do
+convertTxOutput (T.TransactionOutput { address, amount, dataHash }) = do
   value <- convertValue amount
   txo <- newTransactionOutput address value
-  for_ (unwrap <$> data_hash) \bytes -> do
+  for_ (unwrap <$> dataHash) \bytes -> do
     for_ (fromBytes bytes) $
       transactionOutputSetDataHash txo
   pure txo

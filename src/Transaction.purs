@@ -53,7 +53,7 @@ setScriptDataHash rs ds tx@(Transaction { body }) = do
     <$> hashScriptData rs costModels (unwrap <$> ds)
   pure $ over Transaction
     _
-      { body = over TxBody _ { script_data_hash = Just scriptDataHash } body
+      { body = over TxBody _ { scriptDataHash = Just scriptDataHash } body
       }
     tx
 
@@ -61,7 +61,7 @@ setScriptDataHash rs ds tx@(Transaction { body }) = do
 -- | Fails if either the datum or updated witness set cannot be converted during
 -- | (de-)serialization
 attachDatum :: Datum -> Transaction -> Effect (Either ModifyTxError Transaction)
-attachDatum (Datum pd) tx@(Transaction { witness_set: ws }) = runExceptT $ do
+attachDatum (Datum pd) tx@(Transaction { witnessSet: ws }) = runExceptT $ do
   pd' <- liftEither
     $ note ConvertDatumError
     $ Serialization.PlutusData.convertPlutusData pd
@@ -76,7 +76,7 @@ attachDatum (Datum pd) tx@(Transaction { witness_set: ws }) = runExceptT $ do
 -- | during (de-)serialization
 attachRedeemer
   :: Redeemer -> Transaction -> Effect (Either ModifyTxError Transaction)
-attachRedeemer r tx@(Transaction { witness_set: ws }) = runExceptT $ do
+attachRedeemer r tx@(Transaction { witnessSet: ws }) = runExceptT $ do
   r' <- liftEffect $ Serialization.WitnessSet.convertRedeemer r
   updateTxWithWitnesses tx
     =<< convertWitnessesWith ws (Serialization.WitnessSet.setRedeemer r')
@@ -88,7 +88,7 @@ attachRedeemer r tx@(Transaction { witness_set: ws }) = runExceptT $ do
 -- | during (de-)serialization
 attachPlutusScript
   :: PlutusScript -> Transaction -> Effect (Either ModifyTxError Transaction)
-attachPlutusScript ps tx@(Transaction { witness_set: ws }) = runExceptT $ do
+attachPlutusScript ps tx@(Transaction { witnessSet: ws }) = runExceptT $ do
   ps' <- liftEffect $ Serialization.WitnessSet.convertPlutusScript ps
   updateTxWithWitnesses tx
     =<< convertWitnessesWith ws (Serialization.WitnessSet.setPlutusScript ps')
@@ -109,4 +109,4 @@ updateTxWithWitnesses
   -> TransactionWitnessSet
   -> ExceptT e Effect Transaction
 updateTxWithWitnesses tx@(Transaction t) ws =
-  liftEither $ Right $ over Transaction _ { witness_set = t.witness_set <> ws } tx
+  liftEither $ Right $ over Transaction _ { witnessSet = t.witnessSet <> ws } tx
