@@ -5,8 +5,6 @@ module Scripts
   , stakeValidatorHash
   , typedValidatorBaseAddress
   , typedValidatorEnterpriseAddress
-  , validatorAddress
-  , validatorBaseAddress
   , validatorHash
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
@@ -21,18 +19,13 @@ import Serialization.Address
   ( Address
   , BaseAddress
   , NetworkId
-  , addressFromBytes
-  , baseAddressFromBytes
   , baseAddressToAddress
   , scriptHashCredential
   , scriptAddress
   , enterpriseAddressToAddress
   , enterpriseAddress
   )
-import Serialization.Hash
-  ( ScriptHash
-  , scriptHashToBytes
-  )
+import Serialization.Hash (ScriptHash)
 import Types.Scripts
   ( MintingPolicy
   , MintingPolicyHash
@@ -48,19 +41,7 @@ import Types.Value (CurrencySymbol, mpsSymbol)
 -- | Helpers for `PlutusScript` and `ScriptHash` newtype wrappers, separate from
 -- | the data type definitions to prevent cylic dependencies.
 
--- | Converts a Plutus-style `Validator` to a `BaseAddress`
-validatorBaseAddress :: Validator -> QueryM (Maybe BaseAddress)
-validatorBaseAddress val =
-  map (scriptHashToBytes <<< unwrap) <$> validatorHash val >>=
-    maybe Nothing baseAddressFromBytes >>> pure
-
--- | Converts a Plutus-style `Validator` to an `Address`
-validatorAddress :: Validator -> QueryM (Maybe Address)
-validatorAddress val =
-  map (scriptHashToBytes <<< unwrap) <$> validatorHash val >>=
-    maybe Nothing addressFromBytes >>> pure
-
--- | Converts a Plutus-style `TypedValidator` to an `Address` as a `BaseAddress`
+-- | Converts a Plutus-style `TypedValidator` to an `BaseAddress`
 typedValidatorBaseAddress
   :: forall (a :: Type). NetworkId -> TypedValidator a -> Address
 typedValidatorBaseAddress networkId (TypedValidator typedVal) =
