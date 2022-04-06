@@ -23,9 +23,11 @@ module Test.Fixtures
   , txFixture1
   , txFixture2
   , txFixture3
+  , txFixture4
   , txBinaryFixture1
   , txBinaryFixture2
   , txBinaryFixture3
+  , txBinaryFixture4
   , utxoFixture1
   , utxoFixture1'
   , witnessSetFixture1
@@ -71,6 +73,7 @@ import Types.RedeemerTag (RedeemerTag(Spend))
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash), ValidatorHash(ValidatorHash))
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
+  , Mint(Mint)
   , NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry)
   , PublicKey(PublicKey)
   , Redeemer(Redeemer)
@@ -90,6 +93,7 @@ import Types.Value
   , TokenName
   , Value(Value)
   , mkCurrencySymbol
+  , mkNonAdaAsset
   , mkTokenName
   , mkSingletonNonAdaAsset
   )
@@ -110,7 +114,7 @@ txOutputFixture1 =
               $ hexToByteArrayUnsafe "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
         }
     , amount: Value (Coin $ BigInt.fromInt 0) mempty
-    , data_hash: Nothing
+    , dataHash: Nothing
     }
 
 txOutputFixture2 :: TransactionOutput
@@ -122,7 +126,7 @@ txOutputFixture2 =
         }
     , amount: Value (Coin $ BigInt.fromInt 0) $
         mkSingletonNonAdaAsset currencySymbol1 tokenName1 (BigInt.fromInt 1000000)
-    , data_hash: Nothing
+    , dataHash: Nothing
     }
 
 currencySymbol1 :: CurrencySymbol
@@ -165,17 +169,17 @@ mkSampleTx startTx changes =
             , certs
             , withdrawals
             , update
-            , auxiliary_data_hash
-            , validity_start_interval
+            , auxiliaryDataHash
+            , validityStartInterval
             , mint
-            , script_data_hash
+            , scriptDataHash
             , collateral
-            , required_signers
-            , network_id
+            , requiredSigners
+            , networkId
             }
-        , witness_set
-        , is_valid
-        , auxiliary_data
+        , witnessSet
+        , isValid
+        , auxiliaryData
         }
     )
     { inputs: newInputs } =
@@ -188,17 +192,17 @@ mkSampleTx startTx changes =
             , certs
             , withdrawals
             , update
-            , auxiliary_data_hash
-            , validity_start_interval
+            , auxiliaryDataHash
+            , validityStartInterval
             , mint
-            , script_data_hash
+            , scriptDataHash
             , collateral
-            , required_signers
-            , network_id
+            , requiredSigners
+            , networkId
             }
-        , witness_set
-        , is_valid
-        , auxiliary_data
+        , witnessSet
+        , isValid
+        , auxiliaryData
         }
     )
 
@@ -213,24 +217,24 @@ txFixture1 =
         , certs: Nothing
         , withdrawals: Nothing
         , update: Nothing
-        , auxiliary_data_hash: Nothing
-        , validity_start_interval: Nothing
+        , auxiliaryDataHash: Nothing
+        , validityStartInterval: Nothing
         , mint: Nothing
-        , script_data_hash: Nothing
+        , scriptDataHash: Nothing
         , collateral: Nothing
-        , required_signers: Nothing
-        , network_id: Just MainnetId
+        , requiredSigners: Nothing
+        , networkId: Just MainnetId
         }
-    , witness_set: TransactionWitnessSet
+    , witnessSet: TransactionWitnessSet
         { vkeys: Nothing
-        , native_scripts: Nothing
+        , nativeScripts: Nothing
         , bootstraps: Nothing
-        , plutus_scripts: Nothing
-        , plutus_data: Nothing
+        , plutusScripts: Nothing
+        , plutusData: Nothing
         , redeemers: Nothing
         }
-    , is_valid: true
-    , auxiliary_data: Nothing
+    , isValid: true
+    , auxiliaryData: Nothing
     }
 
 txFixture2 :: Transaction
@@ -244,24 +248,24 @@ txFixture2 =
         , certs: Nothing
         , withdrawals: Nothing
         , update: Nothing
-        , auxiliary_data_hash: Nothing
-        , validity_start_interval: Nothing
+        , auxiliaryDataHash: Nothing
+        , validityStartInterval: Nothing
         , mint: Nothing
-        , script_data_hash: Nothing
+        , scriptDataHash: Nothing
         , collateral: Nothing
-        , required_signers: Nothing
-        , network_id: Just MainnetId
+        , requiredSigners: Nothing
+        , networkId: Just MainnetId
         }
-    , witness_set: TransactionWitnessSet
+    , witnessSet: TransactionWitnessSet
         { vkeys: Nothing
-        , native_scripts: Nothing
+        , nativeScripts: Nothing
         , bootstraps: Nothing
-        , plutus_scripts: Nothing
-        , plutus_data: Nothing
+        , plutusScripts: Nothing
+        , plutusData: Nothing
         , redeemers: Nothing
         }
-    , is_valid: true
-    , auxiliary_data: Nothing
+    , isValid: true
+    , auxiliaryData: Nothing
     }
 
 txFixture3 :: Transaction
@@ -277,7 +281,7 @@ txFixture3 =
                     , payment: "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                     }
                 , amount: Value (Coin $ BigInt.fromInt 2353402) mempty
-                , data_hash: Nothing
+                , dataHash: Nothing
                 }
             , TransactionOutput
                 { address: keyHashBaseAddress
@@ -286,7 +290,7 @@ txFixture3 =
                     , payment: "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                     }
                 , amount: Value (Coin $ BigInt.fromInt 1000000) mempty
-                , data_hash: Nothing
+                , dataHash: Nothing
                 }
             ]
         , fee: Coin $ BigInt.fromInt 177513
@@ -294,24 +298,76 @@ txFixture3 =
         , certs: Nothing
         , withdrawals: Nothing
         , update: Nothing
-        , auxiliary_data_hash: Nothing
-        , validity_start_interval: Nothing
+        , auxiliaryDataHash: Nothing
+        , validityStartInterval: Nothing
         , mint: Nothing
-        , script_data_hash: Nothing
+        , scriptDataHash: Nothing
         , collateral: Nothing
-        , required_signers: Nothing
-        , network_id: Just MainnetId
+        , requiredSigners: Nothing
+        , networkId: Just MainnetId
         }
-    , witness_set: TransactionWitnessSet
+    , witnessSet: TransactionWitnessSet
         { vkeys: Nothing
-        , native_scripts: Nothing
+        , nativeScripts: Nothing
         , bootstraps: Nothing
-        , plutus_scripts: Nothing
-        , plutus_data: Nothing
+        , plutusScripts: Nothing
+        , plutusData: Nothing
         , redeemers: Nothing
         }
-    , is_valid: true
-    , auxiliary_data: Nothing
+    , isValid: true
+    , auxiliaryData: Nothing
+    }
+
+-- txFixture3 + mint
+txFixture4 :: Transaction
+txFixture4 =
+  Transaction
+    { body: TxBody
+        { inputs: [ txInputFixture1 ]
+        , outputs:
+            [ TransactionOutput
+                { address: keyHashBaseAddress
+                    { stake: "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
+                    -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
+                    , payment: "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
+                    }
+                , amount: Value (Coin $ BigInt.fromInt 2353402) mempty
+                , dataHash: Nothing
+                }
+            , TransactionOutput
+                { address: keyHashBaseAddress
+                    { stake: "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
+                    -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
+                    , payment: "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
+                    }
+                , amount: Value (Coin $ BigInt.fromInt 1000000) mempty
+                , dataHash: Nothing
+                }
+            ]
+        , fee: Coin $ BigInt.fromInt 177513
+        , ttl: Nothing
+        , certs: Nothing
+        , withdrawals: Nothing
+        , update: Nothing
+        , auxiliaryDataHash: Nothing
+        , validityStartInterval: Nothing
+        , mint: Just $ Mint $ mkNonAdaAsset $ Map.fromFoldable
+            [ currencySymbol1 /\ Map.fromFoldable [ tokenName1 /\ one ] ]
+        , scriptDataHash: Nothing
+        , collateral: Nothing
+        , requiredSigners: Nothing
+        , networkId: Just MainnetId
+        }
+    , witnessSet: TransactionWitnessSet
+        { vkeys: Nothing
+        , nativeScripts: Nothing
+        , bootstraps: Nothing
+        , plutusScripts: Nothing
+        , plutusData: Nothing
+        , redeemers: Nothing
+        }
+    , isValid: true
+    , auxiliaryData: Nothing
     }
 
 -- | To quickly check a serialized tx, create a file with the following contents:
@@ -327,14 +383,16 @@ txFixture3 =
 -- |
 -- | And call `cardano-cli transaction view --tx-file ./that-file`
 txBinaryFixture1 :: String
-txBinaryFixture1 = "84a300818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001818258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d5336100021a0002b569a0f5f6"
+txBinaryFixture1 = "84a400818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001818258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d5336100021a0002b5690f01a0f5f6"
 
 txBinaryFixture2 :: String
-txBinaryFixture2 =
-  "84a300818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001818258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d533618200a1581c1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e1a000f4240021a0002b569a0f5f6"
+txBinaryFixture2 = "84a400818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001818258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d533618200a1581c1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e1a000f4240021a0002b5690f01a0f5f6"
 
 txBinaryFixture3 :: String
-txBinaryFixture3 = "84a300818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001828258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a0023e8fa8258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a000f4240021a0002b569a0f5f6"
+txBinaryFixture3 = "84a400818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001828258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a0023e8fa8258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a000f4240021a0002b5690f01a0f5f6"
+
+txBinaryFixture4 :: String
+txBinaryFixture4 = "84a500818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001828258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a0023e8fa8258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a000f4240021a0002b56909a1581c1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e010f01a0f5f6"
 
 utxoFixture1 :: ByteArray
 utxoFixture1 = hexToByteArrayUnsafe "82825820c6b54aa301887af390bd3449833e4cd66ff61b5e68b1f77c84a8c0873b776ff90082583900f33ffa84fdf20a003443a5e2768e12e92db31535dca62088b153df243903103ae70681439b5476fef59f439b8bc86d84bfb2d376fc3f56171a004c4b40"
@@ -345,7 +403,7 @@ utxoFixture1' =
     { input:
         ( TransactionInput
             { index: UInt.fromInt 0
-            , transaction_id: TransactionHash (byteArrayFromIntArrayUnsafe [ 198, 181, 74, 163, 1, 136, 122, 243, 144, 189, 52, 73, 131, 62, 76, 214, 111, 246, 27, 94, 104, 177, 247, 124, 132, 168, 192, 135, 59, 119, 111, 249 ])
+            , transactionId: TransactionHash (byteArrayFromIntArrayUnsafe [ 198, 181, 74, 163, 1, 136, 122, 243, 144, 189, 52, 73, 131, 62, 76, 214, 111, 246, 27, 94, 104, 177, 247, 124, 132, 168, 192, 135, 59, 119, 111, 249 ])
             }
         )
     , output:
@@ -358,7 +416,7 @@ utxoFixture1' =
                     (byteArrayFromIntArrayUnsafe [ 57, 3, 16, 58, 231, 6, 129, 67, 155, 84, 118, 254, 245, 159, 67, 155, 139, 200, 109, 132, 191, 178, 211, 118, 252, 63, 86, 23 ])
                 }
             , amount: Value (Coin (BigInt.fromInt 5000000)) mempty
-            , data_hash: Nothing
+            , dataHash: Nothing
             }
         )
     }
@@ -373,9 +431,9 @@ witnessSetFixture2Value :: TransactionWitnessSet
 witnessSetFixture2Value =
   TransactionWitnessSet
     { bootstraps: Nothing
-    , native_scripts: Nothing
-    , plutus_data: Nothing
-    , plutus_scripts: Nothing
+    , nativeScripts: Nothing
+    , plutusData: Nothing
+    , plutusScripts: Nothing
     , redeemers: Nothing
     , vkeys: Just
         [ Vkeywitness
@@ -392,10 +450,10 @@ witnessSetFixture3Value :: TransactionWitnessSet
 witnessSetFixture3Value =
   TransactionWitnessSet
     { bootstraps: Nothing
-    , native_scripts: Nothing
-    , plutus_data:
+    , nativeScripts: Nothing
+    , plutusData:
         Just [ PD.Bytes (byteArrayFromIntArrayUnsafe [ 43, 184, 13, 83, 123, 29, 163, 227, 139, 211, 3, 97, 170, 133, 86, 134, 189, 224, 234, 205, 113, 98, 254, 246, 162, 95, 233, 123, 245, 39, 162, 91 ]) ]
-    , plutus_scripts: Nothing
+    , plutusScripts: Nothing
     , redeemers: Nothing
     , vkeys: Just
         [ Vkeywitness
@@ -414,7 +472,7 @@ addressString1 = "addr1qyc0kwu98x23ufhsxjgs5k3h7gktn8v5682qna5amwh2juguztcrc8hja
 mkTxInput :: { txId :: String, ix :: Int } -> TransactionInput
 mkTxInput { txId, ix } =
   TransactionInput
-    { transaction_id: TransactionHash $
+    { transactionId: TransactionHash $
         hexToByteArrayUnsafe txId
     , index: UInt.fromInt ix
     }
@@ -552,7 +610,7 @@ redeemerFixture1 = Redeemer
   { tag: Spend
   , index: BigInt.fromInt 0
   , data: plutusDataFixture7
-  , ex_units:
+  , exUnits:
       { mem: BigInt.fromInt 1
       , steps: BigInt.fromInt 1
       }

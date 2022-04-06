@@ -21,3 +21,4 @@ exports._fromBytesPlutusData = fromBytes('PlutusData');
 exports._fromBytesTransactionUnspentOutput = fromBytes('TransactionUnspentOutput');
 exports._fromBytesTransactionWitnessSet = fromBytes('TransactionWitnessSet');
 exports._fromBytesNativeScript = fromBytes('NativeScript');
+exports._fromBytesMint = fromBytes('Mint');

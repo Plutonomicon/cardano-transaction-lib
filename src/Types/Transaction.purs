@@ -93,10 +93,10 @@ import Serialization.Address (Address, NetworkId, RewardAddress, Slot(Slot))
 import Serialization.Hash (Ed25519KeyHash)
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
-import Types.ByteArray (ByteArray)
+import Types.ByteArray (ByteArray, byteArrayToHex)
 import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
-import Types.Value (Coin, Value)
+import Types.Value (Coin, NonAdaAsset, Value)
 import Types.PlutusData (PlutusData(Constr))
 
 --------------------------------------------------------------------------------
@@ -107,9 +107,9 @@ import Types.PlutusData (PlutusData(Constr))
 -- corresponding Rust types
 newtype Transaction = Transaction
   { body :: TxBody
-  , witness_set :: TransactionWitnessSet
-  , is_valid :: Boolean
-  , auxiliary_data :: Maybe AuxiliaryData
+  , witnessSet :: TransactionWitnessSet
+  , isValid :: Boolean
+  , auxiliaryData :: Maybe AuxiliaryData
   }
 
 derive instance Generic Transaction _
@@ -123,23 +123,23 @@ instance Semigroup Transaction where
   append (Transaction tx) (Transaction tx') =
     Transaction
       { body: txCheck tx.body <> txCheck' tx'.body
-      , witness_set: txCheck tx.witness_set <> txCheck' tx'.witness_set
-      , is_valid: tx.is_valid && tx'.is_valid
-      , auxiliary_data: txCheck tx.auxiliary_data <> txCheck' tx'.auxiliary_data
+      , witnessSet: txCheck tx.witnessSet <> txCheck' tx'.witnessSet
+      , isValid: tx.isValid && tx'.isValid
+      , auxiliaryData: txCheck tx.auxiliaryData <> txCheck' tx'.auxiliaryData
       }
     where
     txCheck :: forall (m :: Type). Monoid m => m -> m
-    txCheck = guard tx.is_valid
+    txCheck = guard tx.isValid
 
     txCheck' :: forall (m :: Type). Monoid m => m -> m
-    txCheck' = guard tx'.is_valid
+    txCheck' = guard tx'.isValid
 
 instance Monoid Transaction where
   mempty = Transaction
     { body: mempty
-    , witness_set: mempty
-    , is_valid: true
-    , auxiliary_data: Nothing
+    , witnessSet: mempty
+    , isValid: true
+    , auxiliaryData: Nothing
     }
 
 --------------------------------------------------------------------------------
@@ -150,22 +150,22 @@ _body = lens' \(Transaction rec@{ body }) ->
   Tuple body \bod -> Transaction rec { body = bod }
 
 _witnessSet :: Lens' Transaction TransactionWitnessSet
-_witnessSet = lens' \(Transaction rec@{ witness_set }) ->
-  Tuple witness_set \ws -> Transaction rec { witness_set = ws }
+_witnessSet = lens' \(Transaction rec@{ witnessSet }) ->
+  Tuple witnessSet \ws -> Transaction rec { witnessSet = ws }
 
 _isValid :: Lens' Transaction Boolean
-_isValid = lens' \(Transaction rec@{ is_valid }) ->
-  Tuple is_valid \iv -> Transaction rec { is_valid = iv }
+_isValid = lens' \(Transaction rec@{ isValid }) ->
+  Tuple isValid \iv -> Transaction rec { isValid = iv }
 
 _auxiliaryData :: Lens' Transaction (Maybe AuxiliaryData)
-_auxiliaryData = lens' \(Transaction rec@{ auxiliary_data }) ->
-  Tuple auxiliary_data \ad -> Transaction rec { auxiliary_data = ad }
+_auxiliaryData = lens' \(Transaction rec@{ auxiliaryData }) ->
+  Tuple auxiliaryData \ad -> Transaction rec { auxiliaryData = ad }
 
 --------------------------------------------------------------------------------
 -- `TxBody`
 --------------------------------------------------------------------------------
 -- According to https://github.com/input-output-hk/cardano-ledger/blob/0738804155245062f05e2f355fadd1d16f04cd56/alonzo/impl/cddl-files/alonzo.cddl
--- required_signers is an Array over `VKey`s essentially. But some comments at
+-- requiredSigners is an Array over `VKey`s essentially. But some comments at
 -- the bottom say it's Maybe?
 newtype TxBody = TxBody
   { inputs :: Array TransactionInput
@@ -175,13 +175,13 @@ newtype TxBody = TxBody
   , certs :: Maybe (Array Certificate)
   , withdrawals :: Maybe (Map RewardAddress Coin)
   , update :: Maybe Update
-  , auxiliary_data_hash :: Maybe AuxiliaryDataHash
-  , validity_start_interval :: Maybe Slot
+  , auxiliaryDataHash :: Maybe AuxiliaryDataHash
+  , validityStartInterval :: Maybe Slot
   , mint :: Maybe Mint
-  , script_data_hash :: Maybe ScriptDataHash
+  , scriptDataHash :: Maybe ScriptDataHash
   , collateral :: Maybe (Array TransactionInput)
-  , required_signers :: Maybe (Array RequiredSigner)
-  , network_id :: Maybe NetworkId
+  , requiredSigners :: Maybe (Array RequiredSigner)
+  , networkId :: Maybe NetworkId
   }
 
 derive instance Generic TxBody _
@@ -200,16 +200,16 @@ instance semigroupTxBody :: Semigroup TxBody where
     , certs: lift2 union txB.certs txB'.certs
     , withdrawals: lift2 appendMap txB.withdrawals txB'.withdrawals
     , update: txB.update </> txB'.update
-    , auxiliary_data_hash: txB.auxiliary_data_hash </> txB'.auxiliary_data_hash
-    , validity_start_interval:
+    , auxiliaryDataHash: txB.auxiliaryDataHash </> txB'.auxiliaryDataHash
+    , validityStartInterval:
         lift2 lowerbound
-          txB.validity_start_interval
-          txB'.validity_start_interval
+          txB.validityStartInterval
+          txB'.validityStartInterval
     , mint: txB.mint <> txB'.mint
-    , script_data_hash: txB.script_data_hash </> txB'.script_data_hash
+    , scriptDataHash: txB.scriptDataHash </> txB'.scriptDataHash
     , collateral: lift2 union txB.collateral txB'.collateral
-    , required_signers: lift2 union txB.required_signers txB'.required_signers
-    , network_id: txB.network_id </> txB'.network_id
+    , requiredSigners: lift2 union txB.requiredSigners txB'.requiredSigners
+    , networkId: txB.networkId </> txB'.networkId
     }
     where
     lowerbound :: Slot -> Slot -> Slot
@@ -224,13 +224,13 @@ instance monoidTxBody :: Monoid TxBody where
     , certs: Nothing
     , withdrawals: Nothing
     , update: Nothing
-    , auxiliary_data_hash: Nothing
-    , validity_start_interval: Nothing
+    , auxiliaryDataHash: Nothing
+    , validityStartInterval: Nothing
     , mint: Nothing
-    , script_data_hash: Nothing
+    , scriptDataHash: Nothing
     , collateral: Nothing
-    , required_signers: Nothing
-    , network_id: Nothing
+    , requiredSigners: Nothing
+    , networkId: Nothing
     }
 
 newtype ScriptDataHash = ScriptDataHash ByteArray
@@ -242,32 +242,33 @@ derive newtype instance Eq ScriptDataHash
 instance Show ScriptDataHash where
   show = genericShow
 
-newtype Mint = Mint Value
+newtype Mint = Mint NonAdaAsset
 
+derive instance Generic Mint _
 derive instance Newtype Mint _
 derive newtype instance Eq Mint
 derive newtype instance Semigroup Mint
 derive newtype instance Monoid Mint
-derive instance Generic Mint _
 
 instance Show Mint where
   show = genericShow
 
 newtype AuxiliaryDataHash = AuxiliaryDataHash String
 
-derive instance newtypeAuxiliaryDataHash :: Newtype AuxiliaryDataHash _
-derive newtype instance eqAuxiliaryDataHash :: Eq AuxiliaryDataHash
 derive instance Generic AuxiliaryDataHash _
+derive instance Newtype AuxiliaryDataHash _
+derive newtype instance Eq AuxiliaryDataHash
 
 instance Show AuxiliaryDataHash where
   show = genericShow
 
 type Update =
-  { proposed_protocol_parameter_updates :: ProposedProtocolParameterUpdates
+  { proposedProtocolParameterUpdates :: ProposedProtocolParameterUpdates
   , epoch :: Epoch
   }
 
-newtype ProposedProtocolParameterUpdates = ProposedProtocolParameterUpdates (Map GenesisHash ProtocolParamUpdate)
+newtype ProposedProtocolParameterUpdates =
+  ProposedProtocolParameterUpdates (Map GenesisHash ProtocolParamUpdate)
 
 derive instance Newtype ProposedProtocolParameterUpdates _
 
@@ -288,33 +289,33 @@ instance Show GenesisHash where
   show = genericShow
 
 type ProtocolParamUpdate =
-  { minfee_a :: Maybe Coin
-  , minfee_b :: Maybe Coin
-  , max_block_body_size :: Maybe UInt
-  , max_tx_size :: Maybe UInt
-  , max_block_header_size :: Maybe UInt
-  , key_deposit :: Maybe Coin
-  , pool_deposit :: Maybe Coin
-  , max_epoch :: Maybe Epoch
-  , n_opt :: Maybe UInt
-  , pool_pledge_influence :: Maybe Rational
-  , expansion_rate :: Maybe UnitInterval
-  , treasury_growth_rate :: Maybe UnitInterval
+  { minfeeA :: Maybe Coin
+  , minfeeB :: Maybe Coin
+  , maxBlockBodySize :: Maybe UInt
+  , maxTxSize :: Maybe UInt
+  , maxBlockHeaderSize :: Maybe UInt
+  , keyDeposit :: Maybe Coin
+  , poolDeposit :: Maybe Coin
+  , maxEpoch :: Maybe Epoch
+  , nOpt :: Maybe UInt
+  , poolPledgeInfluence :: Maybe Rational
+  , expansionRate :: Maybe UnitInterval
+  , treasuryGrowthRate :: Maybe UnitInterval
   , d :: Maybe UnitInterval
-  , extra_entropy :: Maybe Nonce
-  , protocol_version :: Maybe (Array ProtocolVersion)
-  , min_pool_cost :: Maybe Coin
-  , ada_per_utxo_byte :: Maybe Coin
-  , cost_models :: Maybe Costmdls
-  , execution_costs :: Maybe ExUnitPrices
-  , max_tx_ex_units :: Maybe ExUnits
-  , max_block_ex_units :: Maybe ExUnits
-  , max_value_size :: Maybe UInt
+  , extraEntropy :: Maybe Nonce
+  , protocolVersion :: Maybe (Array ProtocolVersion)
+  , minPoolCost :: Maybe Coin
+  , adaPerUtxoByte :: Maybe Coin
+  , costModels :: Maybe Costmdls
+  , executionCosts :: Maybe ExUnitPrices
+  , maxTxExUnits :: Maybe ExUnits
+  , maxBlockExUnits :: Maybe ExUnits
+  , maxValueSize :: Maybe UInt
   }
 
 type ExUnitPrices =
-  { mem_price :: SubCoin
-  , step_price :: SubCoin
+  { memPrice :: SubCoin
+  , stepPrice :: SubCoin
   }
 
 type ExUnits =
@@ -419,36 +420,36 @@ _update :: Lens' TxBody (Maybe Update)
 _update = _Newtype <<< prop (SProxy :: SProxy "update")
 
 _auxiliaryDataHash :: Lens' TxBody (Maybe AuxiliaryDataHash)
-_auxiliaryDataHash = _Newtype <<< prop (SProxy :: SProxy "auxiliary_data_hash")
+_auxiliaryDataHash = _Newtype <<< prop (SProxy :: SProxy "auxiliaryDataHash")
 
 _validityStartInterval :: Lens' TxBody (Maybe Slot)
 _validityStartInterval =
-  _Newtype <<< prop (SProxy :: SProxy "validity_start_interval")
+  _Newtype <<< prop (SProxy :: SProxy "validityStartInterval")
 
 _mint :: Lens' TxBody (Maybe Mint)
 _mint = _Newtype <<< prop (SProxy :: SProxy "mint")
 
 _scriptDataHash :: Lens' TxBody (Maybe ScriptDataHash)
-_scriptDataHash = _Newtype <<< prop (SProxy :: SProxy "script_data_hash")
+_scriptDataHash = _Newtype <<< prop (SProxy :: SProxy "scriptDataHash")
 
 _collateral :: Lens' TxBody (Maybe (Array TransactionInput))
 _collateral = _Newtype <<< prop (SProxy :: SProxy "collateral")
 
 _requiredSigners :: Lens' TxBody (Maybe (Array RequiredSigner))
-_requiredSigners = _Newtype <<< prop (SProxy :: SProxy "required_signers")
+_requiredSigners = _Newtype <<< prop (SProxy :: SProxy "requiredSigners")
 
 _networkId :: Lens' TxBody (Maybe NetworkId)
-_networkId = _Newtype <<< prop (SProxy :: SProxy "network_id")
+_networkId = _Newtype <<< prop (SProxy :: SProxy "networkId")
 
 --------------------------------------------------------------------------------
 -- `TransactionWitnessSet`
 --------------------------------------------------------------------------------
 newtype TransactionWitnessSet = TransactionWitnessSet
   { vkeys :: Maybe (Array Vkeywitness)
-  , native_scripts :: Maybe (Array NativeScript)
+  , nativeScripts :: Maybe (Array NativeScript)
   , bootstraps :: Maybe (Array BootstrapWitness)
-  , plutus_scripts :: Maybe (Array PlutusScript)
-  , plutus_data :: Maybe (Array PlutusData)
+  , plutusScripts :: Maybe (Array PlutusScript)
+  , plutusData :: Maybe (Array PlutusData)
   , redeemers :: Maybe (Array Redeemer)
   }
 
@@ -459,24 +460,24 @@ derive newtype instance Eq TransactionWitnessSet
 instance Show TransactionWitnessSet where
   show = genericShow
 
-instance semigroupTransactionWitnessSet :: Semigroup TransactionWitnessSet where
+instance Semigroup TransactionWitnessSet where
   append (TransactionWitnessSet tws) (TransactionWitnessSet tws') =
     TransactionWitnessSet
       { vkeys: tws.vkeys <<>> tws'.vkeys
-      , native_scripts: tws.native_scripts <<>> tws'.native_scripts
+      , nativeScripts: tws.nativeScripts <<>> tws'.nativeScripts
       , bootstraps: tws.bootstraps <<>> tws'.bootstraps
-      , plutus_scripts: tws.plutus_scripts <<>> tws'.plutus_scripts
-      , plutus_data: tws.plutus_data <<>> tws'.plutus_data
+      , plutusScripts: tws.plutusScripts <<>> tws'.plutusScripts
+      , plutusData: tws.plutusData <<>> tws'.plutusData
       , redeemers: tws.redeemers <<>> tws'.redeemers
       }
 
-instance monoidTransactionWitnessSet :: Monoid TransactionWitnessSet where
+instance Monoid TransactionWitnessSet where
   mempty = TransactionWitnessSet
     { vkeys: Nothing
-    , native_scripts: Nothing
+    , nativeScripts: Nothing
     , bootstraps: Nothing
-    , plutus_scripts: Nothing
-    , plutus_data: Nothing
+    , plutusScripts: Nothing
+    , plutusData: Nothing
     , redeemers: Nothing
     }
 
@@ -488,20 +489,20 @@ _vkeys = lens' \(TransactionWitnessSet rec@{ vkeys }) ->
   Tuple vkeys \vk -> TransactionWitnessSet rec { vkeys = vk }
 
 _nativeScripts :: Lens' TransactionWitnessSet (Maybe (Array NativeScript))
-_nativeScripts = lens' \(TransactionWitnessSet rec@{ native_scripts }) ->
-  Tuple native_scripts \ns -> TransactionWitnessSet rec { native_scripts = ns }
+_nativeScripts = lens' \(TransactionWitnessSet rec@{ nativeScripts }) ->
+  Tuple nativeScripts \ns -> TransactionWitnessSet rec { nativeScripts = ns }
 
 _bootstraps :: Lens' TransactionWitnessSet (Maybe (Array BootstrapWitness))
 _bootstraps = lens' \(TransactionWitnessSet rec@{ bootstraps }) ->
   Tuple bootstraps \bs -> TransactionWitnessSet rec { bootstraps = bs }
 
 _plutusScripts :: Lens' TransactionWitnessSet (Maybe (Array PlutusScript))
-_plutusScripts = lens' \(TransactionWitnessSet rec@{ plutus_scripts }) ->
-  Tuple plutus_scripts \ps -> TransactionWitnessSet rec { plutus_scripts = ps }
+_plutusScripts = lens' \(TransactionWitnessSet rec@{ plutusScripts }) ->
+  Tuple plutusScripts \ps -> TransactionWitnessSet rec { plutusScripts = ps }
 
 _plutusData :: Lens' TransactionWitnessSet (Maybe (Array PlutusData))
-_plutusData = lens' \(TransactionWitnessSet rec@{ plutus_data }) ->
-  Tuple plutus_data \pd -> TransactionWitnessSet rec { plutus_data = pd }
+_plutusData = lens' \(TransactionWitnessSet rec@{ plutusData }) ->
+  Tuple plutusData \pd -> TransactionWitnessSet rec { plutusData = pd }
 
 _redeemers :: Lens' TransactionWitnessSet (Maybe (Array Redeemer))
 _redeemers = lens' \(TransactionWitnessSet rec@{ redeemers }) ->
@@ -513,7 +514,7 @@ _redeemers = lens' \(TransactionWitnessSet rec@{ redeemers }) ->
 type BootstrapWitness =
   { vkey :: Vkey
   , signature :: Ed25519Signature
-  , chain_code :: ByteArray
+  , chainCode :: ByteArray
   , attributes :: ByteArray
   }
 
@@ -568,19 +569,20 @@ newtype Redeemer = Redeemer
   { tag :: RedeemerTag
   , index :: BigInt
   , data :: PlutusData
-  , ex_units :: ExUnits
+  , exUnits :: ExUnits
   }
 
 derive instance Generic Redeemer _
 derive newtype instance Eq Redeemer
+derive newtype instance Ord Redeemer
 
 instance Show Redeemer where
   show = genericShow
 
 newtype AuxiliaryData = AuxiliaryData
   { metadata :: Maybe GeneralTransactionMetadata
-  , native_scripts :: Maybe (Array NativeScript)
-  , plutus_scripts :: Maybe (Array PlutusScript)
+  , nativeScripts :: Maybe (Array NativeScript)
+  , plutusScripts :: Maybe (Array PlutusScript)
   }
 
 derive newtype instance Eq AuxiliaryData
@@ -589,19 +591,19 @@ derive instance Generic AuxiliaryData _
 instance Show AuxiliaryData where
   show = genericShow
 
-instance semigroupAuxiliaryData :: Semigroup AuxiliaryData where
+instance Semigroup AuxiliaryData where
   append (AuxiliaryData ad) (AuxiliaryData ad') =
     AuxiliaryData
       { metadata: ad.metadata <> ad'.metadata
-      , native_scripts: lift2 union ad.native_scripts ad'.native_scripts
-      , plutus_scripts: lift2 union ad.plutus_scripts ad'.plutus_scripts
+      , nativeScripts: lift2 union ad.nativeScripts ad'.nativeScripts
+      , plutusScripts: lift2 union ad.plutusScripts ad'.plutusScripts
       }
 
-instance monoidAuxiliaryData :: Monoid AuxiliaryData where
+instance Monoid AuxiliaryData where
   mempty = AuxiliaryData
     { metadata: Nothing
-    , native_scripts: Nothing
-    , plutus_scripts: Nothing
+    , nativeScripts: Nothing
+    , plutusScripts: Nothing
     }
 
 newtype GeneralTransactionMetadata =
@@ -665,14 +667,24 @@ instance Show NativeScript where
   show x = genericShow x
 
 newtype TransactionInput = TransactionInput
-  { transaction_id :: TransactionHash
+  { transactionId :: TransactionHash
   , index :: UInt
   }
 
 derive instance Newtype TransactionInput _
 derive instance Generic TransactionInput _
 derive newtype instance Eq TransactionInput
-derive newtype instance Ord TransactionInput
+
+-- Potential fix me: the below is based on a small sample of smart contract
+-- transactions, so fix this as required.
+-- Not newtype derived this because it is not lexicographical as `index` is tested
+-- before `transactionId`. We require lexicographical order over hexstring
+-- `TransactionHash`, then `index`, seemingly inline with Cardano/Plutus.
+instance Ord TransactionInput where
+  compare (TransactionInput txInput) (TransactionInput txInput') =
+    case compare txInput.transactionId txInput'.transactionId of
+      EQ -> compare txInput.index txInput'.index
+      x -> x
 
 instance Show TransactionInput where
   show = genericShow
@@ -681,18 +693,18 @@ instance Show TransactionInput where
 instance FromData TransactionInput where
   fromData (Constr n [ txId, idx ]) | n == zero =
     TransactionInput <$>
-      ({ transaction_id: _, index: _ } <$> fromData txId <*> fromData idx)
+      ({ transactionId: _, index: _ } <$> fromData txId <*> fromData idx)
   fromData _ = Nothing
 
 -- `Constr` is used for indexing, and `TransactionInput` is always zero-indexed
 instance ToData TransactionInput where
-  toData (TransactionInput { transaction_id, index }) =
-    Constr zero [ toData transaction_id, toData index ]
+  toData (TransactionInput { transactionId, index }) =
+    Constr zero [ toData transactionId, toData index ]
 
 newtype TransactionOutput = TransactionOutput
   { address :: Address
   , amount :: Value
-  , data_hash :: Maybe DataHash
+  , dataHash :: Maybe DataHash
   }
 
 derive instance Generic TransactionOutput _
@@ -706,7 +718,7 @@ instance Show TransactionOutput where
 instance FromData TransactionOutput where
   fromData (Constr n [ addr, amt, dh ]) | n == zero =
     TransactionOutput <$>
-      ( { address: _, amount: _, data_hash: _ }
+      ( { address: _, amount: _, dataHash: _ }
           <$> fromData addr
           <*> fromData amt
           <*> fromData dh
@@ -715,8 +727,8 @@ instance FromData TransactionOutput where
 
 -- `Constr` is used for indexing, and `TransactionOutput` is always zero-indexed
 instance ToData TransactionOutput where
-  toData (TransactionOutput { address, amount, data_hash }) =
-    Constr zero [ toData address, toData amount, toData data_hash ]
+  toData (TransactionOutput { address, amount, dataHash }) =
+    Constr zero [ toData address, toData amount, toData dataHash ]
 
 -- For convenience of Haskell code:
 type TxOut = TransactionOutput
@@ -737,8 +749,13 @@ derive instance Generic TransactionHash _
 derive instance Newtype TransactionHash _
 derive newtype instance Eq TransactionHash
 derive newtype instance FromData TransactionHash
-derive newtype instance Ord TransactionHash
 derive newtype instance ToData TransactionHash
+
+-- This is not newtyped derived because it will be used for ordering a
+-- `TransactionInput`, we want lexicographical ordering on the hexstring.
+instance Ord TransactionHash where
+  compare (TransactionHash h) (TransactionHash h') =
+    compare (byteArrayToHex h) (byteArrayToHex h')
 
 instance Show TransactionHash where
   show = genericShow
