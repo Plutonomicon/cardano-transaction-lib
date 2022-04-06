@@ -9,7 +9,7 @@
 pkgs.haskell-nix.cabalProject {
   inherit src;
 
-  name = "cardano-browser-tx-server";
+  name = "cardano-trasaction-lib-server";
 
   compiler-nix-name = "ghc8107";
 

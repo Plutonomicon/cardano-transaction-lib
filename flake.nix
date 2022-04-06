@@ -185,7 +185,7 @@
       apps = perSystem (system: {
         inherit
           (self.hsFlake.${system}.apps)
-          "cardano-browser-tx-server:exe:cardano-browser-tx-server";
+          "cardano-trasaction-lib-server:exe:cardano-trasaction-lib-server";
       });
 
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);

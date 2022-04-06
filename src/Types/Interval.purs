@@ -459,6 +459,6 @@ posixTimeToEnclosingSlot (SlotConfig { slotLength, slotZeroTime }) (POSIXTime t)
   in
     Slot <$> bigIntToUInt slotsPassed
 
--- TO DO: https://github.com/Plutonomicon/cardano-browser-tx/issues/169
+-- TO DO: https://github.com/Plutonomicon/cardano-transaction-lib/issues/169
 -- -- | Get the current slot number
 -- currentSlot :: SlotConfig -> Effect Slot

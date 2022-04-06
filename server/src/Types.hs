@@ -49,7 +49,7 @@ import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text.Encoding
 import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (Port)
-import Paths_cardano_browser_tx_server (getDataFileName)
+import Paths_cardano_transaction_lib_server (getDataFileName)
 import Plutus.V1.Ledger.Api qualified as Ledger
 import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
 import Servant (FromHttpApiData, QueryParam', Required, ToHttpApiData)

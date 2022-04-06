@@ -51,7 +51,7 @@ import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import ReindexRedeemers
   ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
   ) as ReindexRedeemersExport
-import TxOutput -- Could potentially trim this down, -- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
+import TxOutput -- Could potentially trim this down, -- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/200
   ( ogmiosTxOutToScriptOutput
   , ogmiosTxOutToTransactionOutput
   , scriptOutputToOgmiosTxOut
@@ -63,7 +63,7 @@ import TxOutput -- Could potentially trim this down, -- FIX ME: https://github.c
   ) as TxOutput
 import Types.ByteArray (ByteArray)
 import Types.Datum (Datum)
-import Types.JsonWsp (OgmiosTxOut, OgmiosTxOutRef) as JsonWsp -- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
+import Types.JsonWsp (OgmiosTxOut, OgmiosTxOutRef) as JsonWsp -- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/200
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
