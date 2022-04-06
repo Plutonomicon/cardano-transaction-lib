@@ -6,7 +6,6 @@ module Contract.Address
   , module ExportAddress
   , module Bech32
   , module ByteArray
-  , module ContractScripts
   , module Scripts
   , module SerializationAddress
   , module Transaction
@@ -23,10 +22,6 @@ import Address
   ) as ExportAddress
 import Address (getNetworkId) as Address
 import Contract.Monad (Contract)
-import Contract.Scripts
-  ( validatorAddress
-  , validatorBaseAddress
-  ) as ContractScripts
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
 import QueryM
