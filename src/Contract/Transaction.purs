@@ -250,18 +250,14 @@ balanceAndSignTx
   (UnattachedUnbalancedTx { unbalancedTx, datums, redeemersTxIns }) = do
   -- Balance unbalanced tx:
   balancedTx <- liftedE' $ balanceTx unbalancedTx
-  log "balanceAndSignTx: Transaction successfully balanced"
   let inputs = balancedTx ^. _body <<< _inputs
   redeemers <- liftedE' $ reindexSpentScriptRedeemers inputs redeemersTxIns
-  log "balanceAndSignTx: Redeemers reindexed returned"
   -- Reattach datums and redeemer:
   QueryM.FinalizedTransaction txCbor <-
     liftedM "balanceAndSignTx: Cannot attach datums and redeemer"
       (finalizeTx balancedTx datums redeemers)
-  log "balanceAndSignTx: Datums and redeemer attached"
   -- Sign the transaction returned as Cbor-hex encoded:
   signedTxCbor <- liftedM "balanceAndSignTx: Failed to sign transaction" $
     signTransactionBytes txCbor
-  log "balanceAndSignTx: Transaction signed"
   pure $ pure $ BalancedSignedTransaction
     { transaction: balancedTx, signedTxCbor }
