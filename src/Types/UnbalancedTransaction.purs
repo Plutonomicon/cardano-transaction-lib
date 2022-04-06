@@ -10,18 +10,14 @@ module Types.UnbalancedTransaction
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
-  , payPubKeyHash
-  , payPubKeyHashAddress
   , payPubKeyHashBaseAddress
+  , payPubKeyHashEnterpriseAddress
   , payPubKeyRequiredSigner
   , payPubKeyVkey
-  , pubKeyHash
-  , pubKeyHashAddress
   , pubKeyHashBaseAddress
-  , stakeKeyHashAddress
-  , stakeKeyHashBaseAddress
-  , stakePubKeyHashAddress
-  , stakePubKeyHashBaseAddress
+  , pubKeyHashEnterpriseAddress
+  , stakeKeyHashRewardAddress
+  , stakePubKeyHashRewardAddress
   ) where
 
 import Prelude
@@ -38,21 +34,26 @@ import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
 import Data.Lens.Types (Lens')
 import Data.Map (Map, empty)
-import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))
 import FromData (class FromData)
 import Serialization.Address
   ( Address
   , BaseAddress
+  , EnterpriseAddress
+  , RewardAddress
   , NetworkId
   , baseAddressToAddress
+  , enterpriseAddress
+  , enterpriseAddressToAddress
+  , keyHashCredential
   , pubKeyAddress
+  , rewardAddress
+  , rewardAddressToAddress
   )
 import Serialization.Hash
   ( Ed25519KeyHash
-  , ed25519KeyHashFromBech32
   )
 import ToData (class ToData)
 import Types.Datum (DatumHash)
@@ -86,6 +87,7 @@ newtype ScriptOutput = ScriptOutput
 
 derive instance Newtype ScriptOutput _
 derive instance Generic ScriptOutput _
+derive newtype instance Eq ScriptOutput
 
 instance Show ScriptOutput where
   show = genericShow
@@ -109,12 +111,12 @@ instance DecodeJson PubKeyHash where
     (Left $ TypeMismatch "Expected object")
     (flip getField "getPubKeyHash" >=> decodeJson >>> map PubKeyHash)
 
-payPubKeyHash :: PaymentPubKey -> Maybe PaymentPubKeyHash
-payPubKeyHash (PaymentPubKey pk) = wrap <$> pubKeyHash pk
+-- payPubKeyHash :: PaymentPubKey -> Maybe PaymentPubKeyHash
+-- payPubKeyHash (PaymentPubKey pk) = wrap <$> pubKeyHash pk
 
-pubKeyHash :: PublicKey -> Maybe PubKeyHash
-pubKeyHash (PublicKey bech32) =
-  wrap <$> ed25519KeyHashFromBech32 bech32
+-- pubKeyHash :: PublicKey -> Maybe PubKeyHash
+-- pubKeyHash (PublicKey bech32) =
+--   wrap <$> ed25519KeyHashFromBech32 bech32
 
 payPubKeyVkey :: PaymentPubKey -> Vkey
 payPubKeyVkey (PaymentPubKey pk) = Vkey pk
@@ -130,12 +132,37 @@ ed25519BaseAddress
   -> BaseAddress
 ed25519BaseAddress networkId n = pubKeyAddress networkId (unwrap n)
 
-pubKeyHashBaseAddress :: NetworkId -> PubKeyHash -> BaseAddress
-pubKeyHashBaseAddress networkId = ed25519BaseAddress networkId
+ed25519EnterpriseAddress
+  :: forall (n :: Type)
+   . Newtype n Ed25519KeyHash
+  => NetworkId
+  -> n
+  -> EnterpriseAddress
+ed25519EnterpriseAddress network pkh =
+  enterpriseAddress
+    { network
+    , paymentCred: keyHashCredential (unwrap pkh)
+    }
 
-pubKeyHashAddress :: NetworkId -> PubKeyHash -> Address
-pubKeyHashAddress networkId =
-  baseAddressToAddress <<< pubKeyHashBaseAddress networkId
+ed25519RewardAddress
+  :: forall (n :: Type)
+   . Newtype n Ed25519KeyHash
+  => NetworkId
+  -> n
+  -> RewardAddress
+ed25519RewardAddress network skh =
+  rewardAddress
+    { network
+    , paymentCred: keyHashCredential (unwrap skh)
+    }
+
+pubKeyHashBaseAddress :: NetworkId -> PubKeyHash -> Address
+pubKeyHashBaseAddress networkId =
+  baseAddressToAddress <<< ed25519BaseAddress networkId
+
+pubKeyHashEnterpriseAddress :: NetworkId -> PubKeyHash -> Address
+pubKeyHashEnterpriseAddress networkId =
+  enterpriseAddressToAddress <<< ed25519EnterpriseAddress networkId
 
 newtype PaymentPubKeyHash = PaymentPubKeyHash PubKeyHash
 
@@ -158,15 +185,13 @@ instance DecodeJson PaymentPubKeyHash where
         decodeJson >>> map PaymentPubKeyHash
     )
 
-payPubKeyHashBaseAddress :: NetworkId -> PaymentPubKeyHash -> BaseAddress
+payPubKeyHashBaseAddress :: NetworkId -> PaymentPubKeyHash -> Address
 payPubKeyHashBaseAddress networkId (PaymentPubKeyHash pkh) =
   pubKeyHashBaseAddress networkId pkh
 
--- Note, Plutus has a function pubKeyHashAddress :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> Address
--- but we don't appear to require an optional StakePubKeyHash.
-payPubKeyHashAddress :: NetworkId -> PaymentPubKeyHash -> Address
-payPubKeyHashAddress networkId (PaymentPubKeyHash pkh) =
-  pubKeyHashAddress networkId pkh
+payPubKeyHashEnterpriseAddress :: NetworkId -> PaymentPubKeyHash -> Address
+payPubKeyHashEnterpriseAddress networkId (PaymentPubKeyHash pkh) =
+  pubKeyHashEnterpriseAddress networkId pkh
 
 newtype StakeKeyHash = StakeKeyHash Ed25519KeyHash
 
@@ -180,12 +205,9 @@ derive newtype instance ToData StakeKeyHash
 instance Show StakeKeyHash where
   show = genericShow
 
-stakeKeyHashBaseAddress :: NetworkId -> StakeKeyHash -> BaseAddress
-stakeKeyHashBaseAddress networkId = ed25519BaseAddress networkId
-
-stakeKeyHashAddress :: NetworkId -> StakeKeyHash -> Address
-stakeKeyHashAddress networkId =
-  baseAddressToAddress <<< stakeKeyHashBaseAddress networkId
+stakeKeyHashRewardAddress :: NetworkId -> StakeKeyHash -> Address
+stakeKeyHashRewardAddress networkId =
+  rewardAddressToAddress <<< ed25519RewardAddress networkId
 
 newtype StakePubKeyHash = StakePubKeyHash StakeKeyHash
 
@@ -199,15 +221,9 @@ derive newtype instance ToData StakePubKeyHash
 instance Show StakePubKeyHash where
   show = genericShow
 
-stakePubKeyHashBaseAddress :: NetworkId -> StakePubKeyHash -> BaseAddress
-stakePubKeyHashBaseAddress networkId (StakePubKeyHash skh) =
-  stakeKeyHashBaseAddress networkId skh
-
--- Note, Plutus has a function pubKeyHashAddress :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> Address
--- but we don't appear to require an optional StakePubKeyHash.
-stakePubKeyHashAddress :: NetworkId -> StakePubKeyHash -> Address
-stakePubKeyHashAddress networkId (StakePubKeyHash skh) =
-  stakeKeyHashAddress networkId skh
+stakePubKeyHashRewardAddress :: NetworkId -> StakePubKeyHash -> Address
+stakePubKeyHashRewardAddress networkId (StakePubKeyHash skh) =
+  stakeKeyHashRewardAddress networkId skh
 
 -- Use Plutus' name to assist with copy & paste from Haskell to Purescript.
 -- | Transaction inputs reference some other transaction's outputs.
@@ -223,6 +239,7 @@ newtype UnbalancedTx = UnbalancedTx
 
 derive instance Newtype UnbalancedTx _
 derive instance Generic UnbalancedTx _
+derive newtype instance Eq UnbalancedTx
 
 instance Show UnbalancedTx where
   show = genericShow

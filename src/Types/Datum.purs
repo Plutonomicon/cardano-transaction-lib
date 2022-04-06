@@ -1,24 +1,18 @@
 module Types.Datum
   ( Datum(..)
   , unitDatum
-  , datumHash
   , module X
   ) where
 
 import Prelude
 
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import FromData (class FromData)
-import Serialization (toBytes)
-import Serialization.PlutusData (convertPlutusData)
 import ToData (class ToData, toData)
 import Types.PlutusData (PlutusData)
-import Types.Transaction (DatumHash)
 import Types.Transaction (DatumHash) as X
-import Untagged.Union (asOneOf)
 
 -- | Define data types mirroring Plutus `Datum`, like `Datum` itself and
 -- | `Redeemer` where the latter is not to be confused with the CSL-stype
@@ -39,7 +33,3 @@ instance Show Datum where
 
 unitDatum :: Datum
 unitDatum = Datum (toData unit)
-
--- | Converts Plutus-style `Datum` to internal (non-CSL) `DatumHash`
-datumHash :: Datum -> Maybe DatumHash
-datumHash = map (wrap <<< toBytes <<< asOneOf) <<< convertPlutusData <<< unwrap

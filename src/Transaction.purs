@@ -108,5 +108,5 @@ updateTxWithWitnesses
    . Transaction
   -> TransactionWitnessSet
   -> ExceptT e Effect Transaction
-updateTxWithWitnesses tx ws =
-  liftEither $ Right $ over Transaction _ { witness_set = ws } tx
+updateTxWithWitnesses tx@(Transaction t) ws =
+  liftEither $ Right $ over Transaction _ { witness_set = t.witness_set <> ws } tx

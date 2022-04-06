@@ -3,11 +3,11 @@ module Scripts
   , scriptCurrencySymbol
   , scriptHash
   , stakeValidatorHash
-  , typedValidatorAddress
   , typedValidatorBaseAddress
+  , typedValidatorEnterpriseAddress
   , validatorHash
-  , validatorHashAddress
   , validatorHashBaseAddress
+  , validatorHashEnterpriseAddress
   ) where
 
 import Prelude
@@ -20,7 +20,10 @@ import Serialization.Address
   , BaseAddress
   , NetworkId
   , baseAddressToAddress
+  , scriptHashCredential
   , scriptAddress
+  , enterpriseAddressToAddress
+  , enterpriseAddress
   )
 import Serialization.Hash (ScriptHash)
 import Types.Scripts
@@ -40,15 +43,18 @@ import Types.Value (CurrencySymbol, mpsSymbol)
 
 -- | Converts a Plutus-style `TypedValidator` to an `BaseAddress`
 typedValidatorBaseAddress
-  :: forall (a :: Type). NetworkId -> TypedValidator a -> BaseAddress
-typedValidatorBaseAddress networkId (TypedValidator typedVal) =
-  scriptAddress networkId $ unwrap typedVal.validatorHash
-
--- | Converts a Plutus-style `TypedValidator` to an `Address`
-typedValidatorAddress
   :: forall (a :: Type). NetworkId -> TypedValidator a -> Address
-typedValidatorAddress networkId =
-  baseAddressToAddress <<< typedValidatorBaseAddress networkId
+typedValidatorBaseAddress networkId (TypedValidator typedVal) =
+  baseAddressToAddress $ scriptAddress networkId $ unwrap typedVal.validatorHash
+
+-- | Converts a Plutus-style `TypedValidator` to an `Address` as an
+-- | `EnterpriseAddress`. This is likely what you will use since Plutus
+-- | currently uses `scriptHashAddress` on non-staking addresses which is
+-- | invoked in `validatorAddress`
+typedValidatorEnterpriseAddress
+  :: forall (a :: Type). NetworkId -> TypedValidator a -> Address
+typedValidatorEnterpriseAddress network (TypedValidator typedVal) =
+  validatorHashEnterpriseAddress network typedVal.validatorHash
 
 -- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
 mintingPolicyHash :: MintingPolicy -> QueryM (Maybe MintingPolicyHash)
@@ -58,14 +64,22 @@ mintingPolicyHash = scriptHash
 validatorHash :: Validator -> QueryM (Maybe ValidatorHash)
 validatorHash = scriptHash
 
--- | Converts a Plutus-style `ValidatorHash` to a `BaseAddress`
-validatorHashBaseAddress :: NetworkId -> ValidatorHash -> BaseAddress
-validatorHashBaseAddress networkId = scriptAddress networkId <<< unwrap
+-- | Converts a Plutus-style `ValidatorHash` to a `Address` as a `BaseAddress`
+validatorHashBaseAddress :: NetworkId -> ValidatorHash -> Address
+validatorHashBaseAddress networkId =
+  baseAddressToAddress <<< scriptAddress networkId <<< unwrap
 
--- | Converts a Plutus-style `ValidatorHash` to an `Address`
-validatorHashAddress :: NetworkId -> ValidatorHash -> Address
-validatorHashAddress networkId =
-  baseAddressToAddress <<< validatorHashBaseAddress networkId
+-- | Converts a Plutus-style `ValidatorHash` to an `Address` as an
+-- | `EnterpriseAddress`. This is likely what you will use since Plutus
+-- | currently uses `scriptHashAddress` on non-staking addresses which is
+-- | invoked in `validatorAddress`
+validatorHashEnterpriseAddress :: NetworkId -> ValidatorHash -> Address
+validatorHashEnterpriseAddress network valHash =
+  enterpriseAddressToAddress $
+    enterpriseAddress
+      { network
+      , paymentCred: scriptHashCredential (unwrap valHash)
+      }
 
 -- | Converts a Plutus-style `StakeValidator` to an `StakeValidatorHash`
 stakeValidatorHash :: StakeValidator -> QueryM (Maybe StakeValidatorHash)

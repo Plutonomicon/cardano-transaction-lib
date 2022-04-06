@@ -23,9 +23,11 @@ module Test.Fixtures
   , txFixture1
   , txFixture2
   , txFixture3
+  , txFixture4
   , txBinaryFixture1
   , txBinaryFixture2
   , txBinaryFixture3
+  , txBinaryFixture4
   , utxoFixture1
   , utxoFixture1'
   , witnessSetFixture1
@@ -71,6 +73,7 @@ import Types.RedeemerTag (RedeemerTag(Spend))
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash), ValidatorHash(ValidatorHash))
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
+  , Mint(Mint)
   , NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry)
   , PublicKey(PublicKey)
   , Redeemer(Redeemer)
@@ -90,6 +93,7 @@ import Types.Value
   , TokenName
   , Value(Value)
   , mkCurrencySymbol
+  , mkNonAdaAsset
   , mkTokenName
   , mkSingletonNonAdaAsset
   )
@@ -314,6 +318,58 @@ txFixture3 =
     , auxiliary_data: Nothing
     }
 
+-- txFixture3 + mint
+txFixture4 :: Transaction
+txFixture4 =
+  Transaction
+    { body: TxBody
+        { inputs: [ txInputFixture1 ]
+        , outputs:
+            [ TransactionOutput
+                { address: keyHashBaseAddress
+                    { stake: "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
+                    -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
+                    , payment: "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
+                    }
+                , amount: Value (Coin $ BigInt.fromInt 2353402) mempty
+                , data_hash: Nothing
+                }
+            , TransactionOutput
+                { address: keyHashBaseAddress
+                    { stake: "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
+                    -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
+                    , payment: "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
+                    }
+                , amount: Value (Coin $ BigInt.fromInt 1000000) mempty
+                , data_hash: Nothing
+                }
+            ]
+        , fee: Coin $ BigInt.fromInt 177513
+        , ttl: Nothing
+        , certs: Nothing
+        , withdrawals: Nothing
+        , update: Nothing
+        , auxiliary_data_hash: Nothing
+        , validity_start_interval: Nothing
+        , mint: Just $ Mint $ mkNonAdaAsset $ Map.fromFoldable
+            [ currencySymbol1 /\ Map.fromFoldable [ tokenName1 /\ one ] ]
+        , script_data_hash: Nothing
+        , collateral: Nothing
+        , required_signers: Nothing
+        , network_id: Just MainnetId
+        }
+    , witness_set: TransactionWitnessSet
+        { vkeys: Nothing
+        , native_scripts: Nothing
+        , bootstraps: Nothing
+        , plutus_scripts: Nothing
+        , plutus_data: Nothing
+        , redeemers: Nothing
+        }
+    , is_valid: true
+    , auxiliary_data: Nothing
+    }
+
 -- | To quickly check a serialized tx, create a file with the following contents:
 -- |
 -- |
@@ -327,14 +383,16 @@ txFixture3 =
 -- |
 -- | And call `cardano-cli transaction view --tx-file ./that-file`
 txBinaryFixture1 :: String
-txBinaryFixture1 = "84a300818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001818258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d5336100021a0002b569a0f5f6"
+txBinaryFixture1 = "84a400818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001818258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d5336100021a0002b5690f01a0f5f6"
 
 txBinaryFixture2 :: String
-txBinaryFixture2 =
-  "84a300818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001818258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d533618200a1581c1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e1a000f4240021a0002b569a0f5f6"
+txBinaryFixture2 = "84a400818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001818258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d533618200a1581c1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e1a000f4240021a0002b5690f01a0f5f6"
 
 txBinaryFixture3 :: String
-txBinaryFixture3 = "84a300818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001828258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a0023e8fa8258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a000f4240021a0002b569a0f5f6"
+txBinaryFixture3 = "84a400818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001828258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a0023e8fa8258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a000f4240021a0002b5690f01a0f5f6"
+
+txBinaryFixture4 :: String
+txBinaryFixture4 = "84a500818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001828258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a0023e8fa8258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a000f4240021a0002b56909a1581c1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e010f01a0f5f6"
 
 utxoFixture1 :: ByteArray
 utxoFixture1 = hexToByteArrayUnsafe "82825820c6b54aa301887af390bd3449833e4cd66ff61b5e68b1f77c84a8c0873b776ff90082583900f33ffa84fdf20a003443a5e2768e12e92db31535dca62088b153df243903103ae70681439b5476fef59f439b8bc86d84bfb2d376fc3f56171a004c4b40"
