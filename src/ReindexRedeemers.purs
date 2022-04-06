@@ -12,7 +12,6 @@ import Data.Array (elemIndex)
 import Data.BigInt (fromInt)
 import Data.Either (Either(Right), note)
 import Data.Generic.Rep (class Generic)
-import Data.Lens.Getter ((^.))
 import Data.Maybe (Maybe(Just))
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
@@ -21,12 +20,7 @@ import Helpers (liftEither)
 import QueryM (QueryM)
 import Types.RedeemerTag (RedeemerTag(Spend))
 import Types.Transaction (Redeemer(Redeemer)) as T
-import Types.Transaction
-  ( Transaction
-  , TransactionInput
-  , _body
-  , _inputs
-  )
+import Types.Transaction (TransactionInput)
 
 -- | The only error should be impossible but we keep this here in case the user
 -- | decides to call this function at some point where inputs have been
@@ -42,11 +36,10 @@ instance Show ReindexErrors where
 -- | reindex the redeemers with such inputs. This must be crucially called after
 -- | balancing when all inputs are in place so they cannot be reordered.
 reindexSpentScriptRedeemers
-  :: Transaction
+  :: Array TransactionInput
   -> Array (T.Redeemer /\ Maybe TransactionInput)
   -> QueryM (Either ReindexErrors (Array T.Redeemer))
-reindexSpentScriptRedeemers balancedTx redeemersTxIns = runExceptT do
-  let inputs = balancedTx ^. _body <<< _inputs
+reindexSpentScriptRedeemers inputs redeemersTxIns = runExceptT do
   liftEither $ traverse (reindex inputs) redeemersTxIns
   where
   reindex
