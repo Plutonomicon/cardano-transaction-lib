@@ -423,7 +423,7 @@ calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
     $ "fees?tx="
         <> txHex
         <> "&count="
-        <> show witCount
+        <> UInt.toString witCount
   liftAff (Affjax.get Affjax.ResponseFormat.json url)
     <#> either
       (Left <<< ClientHttpError)
