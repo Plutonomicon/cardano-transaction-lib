@@ -6,8 +6,6 @@ module Contract.Scripts
   , applyArgsM
   , mintingPolicyHash
   , stakeValidatorHash
-  , validatorAddress
-  , validatorBaseAddress
   , validatorHash
   , module Address
   , module ExportQueryM
@@ -41,8 +39,6 @@ import Scripts
 import Scripts
   ( mintingPolicyHash
   , stakeValidatorHash
-  , validatorAddress
-  , validatorBaseAddress
   , validatorHash
   ) as Scripts
 import Serialization.Hash -- Includes low level helpers. Do we want these?
@@ -86,8 +82,7 @@ import Contract.Monad (Contract, wrapContract)
 import Data.Argonaut (class DecodeJson)
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype)
-import Serialization.Address (Address, BaseAddress)
+import Data.Newtype (class Newtype, wrap)
 import Types.PlutusData (PlutusData)
 import Types.Scripts
   ( MintingPolicy
@@ -129,13 +124,5 @@ stakeValidatorHash :: forall (r :: Row Type). StakeValidator -> Contract r (Mayb
 stakeValidatorHash = wrapContract <<< Scripts.stakeValidatorHash
 
 -- | Converts a Plutus-style `Validator` to a `ValidatorHash`
-validatorHash :: forall (r :: Row Type). Validator -> Contract r (Maybe ValidatorHash)
-validatorHash = wrapContract <<< Scripts.validatorHash
-
--- | Converts a Plutus-style `Validator` to an `Address`
-validatorAddress :: forall (r :: Row Type). Validator -> Contract r (Maybe Address)
-validatorAddress = wrapContract <<< Scripts.validatorAddress
-
--- | Converts a Plutus-style `Validator` to a `BaseAddress`
-validatorBaseAddress :: forall (r :: Row Type). Validator -> Contract r (Maybe BaseAddress)
-validatorBaseAddress = wrapContract <<< Scripts.validatorBaseAddress
+validatorHash :: Validator -> Contract (Maybe ValidatorHash)
+validatorHash = wrap <<< Scripts.validatorHash

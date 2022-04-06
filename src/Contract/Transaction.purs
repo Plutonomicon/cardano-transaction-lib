@@ -36,7 +36,6 @@ import QueryM
   , finalizeTx
   ) as QueryM
 import Types.JsonWsp (OgmiosTxOut, OgmiosTxOutRef) as JsonWsp -- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
-import Types.PlutusData (PlutusData)
 import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
   , mkUnbalancedTx
@@ -138,7 +137,6 @@ import TxOutput -- Could potentially trim this down, -- FIX ME: https://github.c
   , transactionOutputToScriptOutput
   , txOutRefToTransactionInput
   ) as TxOutput
-import Types.ByteArray (ByteArray)
 import Types.UnbalancedTransaction (UnbalancedTx)
 import Types.UnbalancedTransaction
   ( ScriptOutput(ScriptOutput) -- More up-to-date Plutus uses this, wonder if we can just use `TransactionOutput`
