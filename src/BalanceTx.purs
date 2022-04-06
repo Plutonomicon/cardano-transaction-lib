@@ -501,7 +501,7 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
                         wrap
                           { address: changeAddr
                           , amount: lovelaceValueOf returnAda
-                          , data_hash: Nothing
+                          , dataHash: Nothing
                           }
                           `Array.cons` txBody.outputs
                     }
@@ -560,7 +560,7 @@ calculateMinUtxo txOut = unwrap lovelacePerUTxOWord * utxoEntrySize txOut
       if isAdaOnly outputValue then utxoEntrySizeWithoutVal + coinSize -- 29 in Alonzo
       else utxoEntrySizeWithoutVal
         + size outputValue
-        + dataHashSize txOut'.data_hash
+        + dataHashSize txOut'.dataHash
 
 -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
 -- | Calculates how many words are needed depending on whether the datum is
@@ -801,7 +801,7 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
             TransactionOutput
               { address: changeAddr
               , amount: nonAdaChange
-              , data_hash: Nothing
+              , dataHash: Nothing
               } : txOuts
           { no: txOuts'
           , yes: TransactionOutput txOut@{ amount: v } : txOuts

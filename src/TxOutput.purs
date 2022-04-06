@@ -40,9 +40,9 @@ import Types.UnbalancedTransaction as UTx
 txOutRefToTransactionInput
   :: JsonWsp.OgmiosTxOutRef -> Maybe Transaction.TransactionInput
 txOutRefToTransactionInput { txId, index } = do
-  transaction_id <- hexToByteArray txId <#> wrap
+  transactionId <- hexToByteArray txId <#> wrap
   pure $ wrap
-    { transaction_id
+    { transactionId
     , index
     }
 
@@ -50,8 +50,8 @@ txOutRefToTransactionInput { txId, index } = do
 transactionInputToTxOutRef
   :: Transaction.TransactionInput -> JsonWsp.OgmiosTxOutRef
 transactionInputToTxOutRef
-  (Transaction.TransactionInput { transaction_id, index }) =
-  { txId: byteArrayToHex (unwrap transaction_id)
+  (Transaction.TransactionInput { transactionId, index }) =
+  { txId: byteArrayToHex (unwrap transactionId)
   , index
   }
 
@@ -65,22 +65,22 @@ ogmiosTxOutToTransactionOutput { address, value, datum } = do
   address' <- ogmiosAddressToAddress address
   -- If datum ~ Maybe String is Nothing, do nothing. Otherwise, attempt to hash
   -- and capture failure if we can't hash.
-  data_hash <-
+  dataHash <-
     maybe (Just Nothing) (map Just <<< ogmiosDatumHashToDatumHash) datum
   pure $ wrap
     { address: address'
     , amount: value
-    , data_hash
+    , dataHash
     }
 
 -- | Converts an internal transaction output to the Ogmios transaction output.
 transactionOutputToOgmiosTxOut
   :: Transaction.TransactionOutput -> JsonWsp.OgmiosTxOut
 transactionOutputToOgmiosTxOut
-  (Transaction.TransactionOutput { address, amount: value, data_hash }) =
+  (Transaction.TransactionOutput { address, amount: value, dataHash }) =
   { address: addressToOgmiosAddress address
   , value
-  , datum: datumHashToOgmiosDatumHash <$> data_hash
+  , datum: datumHashToOgmiosDatumHash <$> dataHash
   }
 
 -- | Converts an Ogmios Transaction output to a `ScriptOutput`.
@@ -113,7 +113,7 @@ transactionOutputToScriptOutput
   :: Transaction.TransactionOutput -> Maybe UTx.ScriptOutput
 transactionOutputToScriptOutput
   ( Transaction.TransactionOutput
-      { address, amount: value, data_hash: Just datumHash }
+      { address, amount: value, dataHash: Just datumHash }
   ) = do
   validatorHash <- enterpriseAddressValidatorHash address
   pure $ UTx.ScriptOutput
@@ -122,7 +122,7 @@ transactionOutputToScriptOutput
     , datumHash
     }
 transactionOutputToScriptOutput
-  (Transaction.TransactionOutput { data_hash: Nothing }) = Nothing
+  (Transaction.TransactionOutput { dataHash: Nothing }) = Nothing
 
 -- | Converts `ScriptOutput` to an internal transaction output.
 scriptOutputToTransactionOutput
@@ -133,7 +133,7 @@ scriptOutputToTransactionOutput
   Transaction.TransactionOutput
     { address: validatorHashEnterpriseAddress networkId validatorHash
     , amount: value
-    , data_hash: Just datumHash
+    , dataHash: Just datumHash
     }
 
 --------------------------------------------------------------------------------

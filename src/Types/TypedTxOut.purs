@@ -131,7 +131,7 @@ typedTxOutDatumHash
   => ToData b
   => TypedTxOut a b
   -> Maybe DatumHash
-typedTxOutDatumHash (TypedTxOut { txOut }) = (unwrap txOut).data_hash
+typedTxOutDatumHash (TypedTxOut { txOut }) = (unwrap txOut).dataHash
 
 -- | Extract the `Value` of a `TypedTxOut`
 typedTxOutValue
@@ -176,7 +176,7 @@ mkTypedTxOut networkId typedVal dt amount = do
   let address = typedValidatorEnterpriseAddress networkId typedVal
   pure $ maybe Nothing
     ( \dHash ->
-        Just $ mkTypedTxOut' (wrap { address, amount, data_hash: pure dHash }) dt
+        Just $ mkTypedTxOut' (wrap { address, amount, dataHash: pure dHash }) dt
     )
     mDHash
   where
@@ -252,14 +252,15 @@ typeTxOut
   -> TypedValidator a
   -> TransactionOutput
   -> QueryM (Either TypeCheckError (TypedTxOut a b))
-typeTxOut networkId typedVal (TransactionOutput { address, amount, data_hash }) = runExceptT do
-  -- Assume `Nothing` is a public key.
-  dHash <- liftM ExpectedScriptGotPubkey data_hash
-  void $ checkValidatorAddress networkId typedVal address
-  pd <- ExceptT $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
-  dtOut <- ExceptT $ checkDatum typedVal (wrap pd)
-  ExceptT $
-    note CannotMakeTypedTxOut <$> mkTypedTxOut networkId typedVal dtOut amount
+typeTxOut networkId typedVal (TransactionOutput { address, amount, dataHash }) =
+  runExceptT do
+    -- Assume `Nothing` is a public key.
+    dHash <- liftM ExpectedScriptGotPubkey dataHash
+    void $ checkValidatorAddress networkId typedVal address
+    pd <- ExceptT $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
+    dtOut <- ExceptT $ checkDatum typedVal (wrap pd)
+    ExceptT $
+      note CannotMakeTypedTxOut <$> mkTypedTxOut networkId typedVal dtOut amount
 
 -- | Create a `TypedTxOutRef` from an existing `TxOutRef` ~ `TransactionInput`
 -- | by checking the types of its parts. To do this we need to cross-reference

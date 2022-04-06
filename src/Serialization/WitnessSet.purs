@@ -68,16 +68,16 @@ convertWitnessSet (T.TransactionWitnessSet tws) = do
   ws <- newTransactionWitnessSet
   for_ tws.vkeys
     (convertVkeywitnesses >=> transactionWitnessSetSetVkeys ws)
-  for_ tws.native_scripts $
+  for_ tws.nativeScripts $
     maybe (throw "Failed to convert NativeScripts")
       (transactionWitnessSetSetNativeScripts ws) <<< convertNativeScripts
   for_ tws.bootstraps
     (traverse convertBootstrap >=> _wsSetBootstraps containerHelper ws)
-  for_ tws.plutus_scripts \ps -> do
+  for_ tws.plutusScripts \ps -> do
     scripts <- newPlutusScripts
     for_ ps (convertPlutusScript >=> addPlutusScript scripts)
     txWitnessSetSetPlutusScripts ws scripts
-  for_ tws.plutus_data
+  for_ tws.plutusData
     (traverse convertPlutusDataEffect >=> _wsSetPlutusData containerHelper ws)
   for_ tws.redeemers
     (traverse convertRedeemer >=> _wsSetRedeemers containerHelper ws)
@@ -88,12 +88,12 @@ convertRedeemers redeemers = do
   _mkRedeemers containerHelper <$> traverse convertRedeemer redeemers
 
 convertRedeemer :: T.Redeemer -> Effect Redeemer
-convertRedeemer (T.Redeemer { tag, index, "data": data_, ex_units }) = do
+convertRedeemer (T.Redeemer { tag, index, "data": data_, exUnits }) = do
   tag' <- convertRedeemerTag tag
   index' <- maybe (throw "Failed to convert redeemer index") pure $ bigNumFromBigInt index
   data' <- convertPlutusDataEffect data_
-  ex_units' <- convertExUnits ex_units
-  newRedeemer tag' index' data' ex_units'
+  exUnits' <- convertExUnits exUnits
+  newRedeemer tag' index' data' exUnits'
 
 convertPlutusDataEffect :: PD.PlutusData -> Effect PDS.PlutusData
 convertPlutusDataEffect pd = maybe (throw "Failed to convert PlutusData") pure $ convertPlutusData pd
@@ -113,10 +113,10 @@ convertExUnits { mem, steps } =
     pure $ newExUnits mem' steps'
 
 convertBootstrap :: T.BootstrapWitness -> Effect BootstrapWitness
-convertBootstrap { vkey, signature, chain_code, attributes } = do
+convertBootstrap { vkey, signature, chainCode, attributes } = do
   vkey' <- convertVkey vkey
   signature' <- convertEd25519Signature signature
-  newBootstrapWitness vkey' signature' chain_code attributes
+  newBootstrapWitness vkey' signature' chainCode attributes
 
 convertPlutusScript :: S.PlutusScript -> Effect PlutusScript
 convertPlutusScript (S.PlutusScript bytes) = do

@@ -104,8 +104,8 @@ mkNamiWalletAff = do
     -- We have to combine the newly returned witness set with the existing one
     -- Otherwise, any datums, etc... won't be retained
     combineWitnessSet :: Transaction -> TransactionWitnessSet -> Transaction
-    combineWitnessSet (Transaction tx'@{ witness_set: oldWits }) newWits =
-      Transaction $ tx' { witness_set = oldWits <> newWits }
+    combineWitnessSet (Transaction tx'@{ witnessSet: oldWits }) newWits =
+      Transaction $ tx' { witnessSet = oldWits <> newWits }
 
   signTxBytes :: NamiConnection -> ByteArray -> Aff (Maybe ByteArray)
   signTxBytes nami txBytes = do
@@ -141,9 +141,9 @@ mkNamiWalletAff = do
 -- know the number of witnesses (e.g. fee calculation) but the wallet hasn't
 -- signed (or cannot sign) yet
 dummySign :: Transaction -> Transaction
-dummySign tx@(Transaction { witness_set: tws@(TransactionWitnessSet ws) }) =
+dummySign tx@(Transaction { witnessSet: tws@(TransactionWitnessSet ws) }) =
   over Transaction _
-    { witness_set = over TransactionWitnessSet
+    { witnessSet = over TransactionWitnessSet
         _
           { vkeys = ws.vkeys <<>> Just [ vk ]
           }

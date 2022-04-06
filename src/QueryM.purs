@@ -462,16 +462,16 @@ calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   --
   -- We obtain the expected number of key witnesses for the transaction, with
   -- the following assumptions:
-  --   * if `required_signers` is `Nothing`, add one key witness for the
+  --   * if `requiredSigners` is `Nothing`, add one key witness for the
   --     current wallet. Thus there should normally be at least one witness
   --     for any transaction
   --   * otherwise, the expected number of signers has been implicitly
-  --     specified by the `required_signers` field; take the length of the
+  --     specified by the `requiredSigners` field; take the length of the
   --     array
   --   * this assumes of course that users will not pass `Just mempty` for the
   --     required signers
   witCount :: UInt
-  witCount = maybe one UInt.fromInt $ length <$> body.required_signers
+  witCount = maybe one UInt.fromInt $ length <$> body.requiredSigners
 
 -- | CborHex-encoded tx
 newtype FinalizedTransaction = FinalizedTransaction ByteArray

@@ -69,8 +69,8 @@ lockTransactionInputs tx =
   let
     updateCache :: TxOutRefCache -> TxOutRefCache
     updateCache cache = foldr
-      ( \{ transaction_id, index } ->
-          Map.alter (fromMaybe Set.empty >>> Set.insert index >>> Just) transaction_id
+      ( \{ transactionId, index } ->
+          Map.alter (fromMaybe Set.empty >>> Set.insert index >>> Just) transactionId
       )
       cache
       (txOutRefs tx)
@@ -92,16 +92,16 @@ unlockTxOutRefs
    . MonadAsk UsedTxOuts m
   => MonadEffect m
   => Foldable t
-  => t { transaction_id :: TransactionHash, index :: UInt }
+  => t { transactionId :: TransactionHash, index :: UInt }
   -> m Unit
 unlockTxOutRefs txOutRefs' =
   let
     updateCache :: TxOutRefCache -> TxOutRefCache
     updateCache cache = foldr
-      ( \{ transaction_id, index } ->
+      ( \{ transactionId, index } ->
           Map.update
             (Set.delete index >>> \s -> if Set.isEmpty s then Nothing else Just s)
-            transaction_id
+            transactionId
       )
       cache
       txOutRefs'
@@ -113,13 +113,13 @@ isTxOutRefUsed
   :: forall (m :: Type -> Type) (a :: Type)
    . MonadAsk UsedTxOuts m
   => MonadEffect m
-  => { transaction_id :: TransactionHash, index :: UInt }
+  => { transactionId :: TransactionHash, index :: UInt }
   -> m Boolean
-isTxOutRefUsed { transaction_id, index } = do
+isTxOutRefUsed { transactionId, index } = do
   cache <- liftEffect <<< Ref.read <<< unwrap =<< ask
   pure $ isJust $ do
-    indices <- Map.lookup transaction_id cache
+    indices <- Map.lookup transactionId cache
     guard $ Set.member index indices
 
-txOutRefs :: Transaction -> Array { transaction_id :: TransactionHash, index :: UInt }
+txOutRefs :: Transaction -> Array { transactionId :: TransactionHash, index :: UInt }
 txOutRefs tx = unwrap <$> (unwrap (unwrap tx).body).inputs
