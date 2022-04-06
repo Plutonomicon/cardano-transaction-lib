@@ -15,7 +15,7 @@ import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Ratio (Ratio, reduce)
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested (type (/\), (/\))
+import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.Unfoldable (class Unfoldable)
 import Helpers (bigIntToUInt)
@@ -70,7 +70,7 @@ instance FromData a => FromData (Array a) where
 instance FromData a => FromData (List a) where
   fromData = fromDataUnfoldable
 
-instance (FromData a, FromData b) => FromData (a /\ b) where
+instance (FromData a, FromData b) => FromData (Tuple a b) where
   fromData (Constr n [ a, b ])
     | n == zero = Tuple <$> fromData a <*> fromData b
   fromData _ = Nothing

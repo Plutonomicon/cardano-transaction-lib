@@ -18,7 +18,7 @@ run-testnet-node:
 	  -e NETWORK=testnet \
 	  -v "$$PWD"/.node/socket:/ipc \
 	  -v "$$PWD"/.node/data:/data \
-	  inputoutput/cardano-node:1.31.0
+	  inputoutput/cardano-node:1.34.0
 
 run-testnet-ogmios:
 	ogmios \

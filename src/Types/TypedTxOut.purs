@@ -27,16 +27,16 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Data.Either (Either, note)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import FromData (class FromData, fromData)
 import Helpers (liftM)
-import QueryM (QueryM, getDatumByHash)
-import Scripts (typedValidatorAddress)
+import QueryM (QueryM, getDatumByHash, datumHash)
+import Scripts (typedValidatorEnterpriseAddress)
 import Serialization.Address (Address, NetworkId)
 import ToData (class ToData, toData)
-import Types.Datum (Datum(Datum), DatumHash, datumHash)
+import Types.Datum (Datum(Datum), DatumHash)
 import Types.PlutusData (PlutusData)
 import Types.Transaction
   ( TransactionInput
@@ -168,11 +168,17 @@ mkTypedTxOut
   -> TypedValidator a
   -> b
   -> Value
-  -> Maybe (TypedTxOut a b)
+  -> QueryM (Maybe (TypedTxOut a b))
 mkTypedTxOut networkId typedVal dt amount = do
-  dHash <- datumHash $ Datum $ toData dt
-  let address = typedValidatorAddress networkId typedVal
-  pure $ mkTypedTxOut' (wrap { address, amount, data_hash: pure dHash }) dt
+  mDHash <- datumHash $ Datum $ toData dt
+  -- FIX ME: This is hardcoded to enterprise address, it seems like Plutus'
+  -- "validatorAddress" also currently doesn't accoutn for staking.
+  let address = typedValidatorEnterpriseAddress networkId typedVal
+  pure $ maybe Nothing
+    ( \dHash ->
+        Just $ mkTypedTxOut' (wrap { address, amount, data_hash: pure dHash }) dt
+    )
+    mDHash
   where
   mkTypedTxOut'
     :: TransactionOutput
@@ -206,7 +212,7 @@ checkValidatorAddress
   -> Address
   -> m (Either TypeCheckError Unit)
 checkValidatorAddress networkId typedVal actualAddr = runExceptT do
-  let expectedAddr = typedValidatorAddress networkId typedVal
+  let expectedAddr = typedValidatorEnterpriseAddress networkId typedVal
   unless (expectedAddr == actualAddr)
     $ throwError
     $ WrongValidatorAddress expectedAddr actualAddr
@@ -252,9 +258,8 @@ typeTxOut networkId typedVal (TransactionOutput { address, amount, data_hash }) 
   void $ checkValidatorAddress networkId typedVal address
   pd <- ExceptT $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
   dtOut <- ExceptT $ checkDatum typedVal (wrap pd)
-  liftM
-    CannotMakeTypedTxOut
-    (mkTypedTxOut networkId typedVal dtOut amount)
+  ExceptT $
+    note CannotMakeTypedTxOut <$> mkTypedTxOut networkId typedVal dtOut amount
 
 -- | Create a `TypedTxOutRef` from an existing `TxOutRef` ~ `TransactionInput`
 -- | by checking the types of its parts. To do this we need to cross-reference

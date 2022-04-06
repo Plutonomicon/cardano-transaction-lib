@@ -13,7 +13,7 @@ import Prelude
 import Data.BigInt as BigInt
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.Map as Map
-import Data.Maybe (maybe)
+import Data.Maybe (Maybe, maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse_, for_)
 import Data.UInt (UInt)
@@ -21,8 +21,11 @@ import Data.UInt as UInt
 import Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Effect (Effect)
 import Effect.Exception (throw)
+import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Helpers (fromJustEff)
 import Serialization.Address (Address)
+import Serialization.Address (NetworkId(TestnetId, MainnetId)) as T
+import Serialization.BigInt as Serialization
 import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Serialization.PlutusData (packPlutusList)
@@ -31,14 +34,18 @@ import Serialization.Types
   , Assets
   , AuxiliaryData
   , BigNum
+  , BigInt
   , Costmdls
   , CostModel
   , DataHash
   , Ed25519Signature
   , Int32
   , Language
+  , Mint
+  , MintAssets
   , MultiAsset
   , NativeScript
+  , NetworkId
   , PlutusData
   , PlutusList
   , PlutusScripts
@@ -67,6 +74,7 @@ import Types.PlutusData as PlutusData
 import Types.Transaction
   ( Costmdls(Costmdls)
   , Language(PlutusV1)
+  , Mint(Mint)
   , Redeemer
   , Transaction(Transaction)
   , TransactionInput(TransactionInput)
@@ -77,7 +85,7 @@ import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.Value as Value
 import Untagged.Union (type (|+|))
 
-foreign import newBigNum :: String -> Effect BigNum
+foreign import newBigNum :: MaybeFfiHelper -> String -> Maybe BigNum
 foreign import newValue :: BigNum -> Effect Value
 foreign import valueSetCoin :: Value -> BigNum -> Effect Unit
 foreign import newValueFromAssets :: MultiAsset -> Effect Value
@@ -120,7 +128,17 @@ foreign import _hashScriptData :: Redeemers -> Costmdls -> PlutusList -> Effect 
 foreign import newRedeemers :: Effect Redeemers
 foreign import addRedeemer :: Redeemers -> Redeemer -> Effect Unit
 foreign import newScriptDataHashFromBytes :: ByteArray -> Effect ScriptDataHash
-foreign import setTxBodyScriptDataHash :: TransactionBody -> ScriptDataHash -> Effect TransactionBody
+foreign import setTxBodyScriptDataHash :: TransactionBody -> ScriptDataHash -> Effect Unit
+foreign import setTxBodyMint :: TransactionBody -> Mint -> Effect Unit
+foreign import newMint :: Effect Mint
+foreign import newMintAssets :: Effect MintAssets
+foreign import _bigIntToInt :: MaybeFfiHelper -> BigInt -> Maybe Int
+foreign import insertMintAssets :: Mint -> ScriptHash -> MintAssets -> Effect Unit
+foreign import insertMintAsset :: MintAssets -> AssetName -> Int -> Effect Unit
+foreign import setTxBodyNetworkId :: TransactionBody -> NetworkId -> Effect Unit
+foreign import networkIdTestnet :: Effect NetworkId
+foreign import networkIdMainnet :: Effect NetworkId
+foreign import setTxBodyCollateral :: TransactionBody -> TransactionInputs -> Effect Unit
 
 foreign import toBytes
   :: ( Transaction
@@ -142,11 +160,37 @@ convertTransaction (T.Transaction { body: T.TxBody body, witness_set }) = do
   outputs <- convertTxOutputs body.outputs
   fee <- maybe (throw "Failed to convert fee") pure $ bigNumFromBigInt (unwrap body.fee)
   txBody <- newTransactionBody inputs outputs fee
+  for_ body.network_id $ convertNetworkId >=> setTxBodyNetworkId txBody
   traverse_
     (unwrap >>> newScriptDataHashFromBytes >=> setTxBodyScriptDataHash txBody)
     body.script_data_hash
+  for_ body.mint $ convertMint >=> setTxBodyMint txBody
+  for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
   ws <- convertWitnessSet witness_set
   newTransaction txBody ws
+
+convertNetworkId :: T.NetworkId -> Effect NetworkId
+convertNetworkId = case _ of
+  T.TestnetId -> networkIdTestnet
+  T.MainnetId -> networkIdMainnet
+
+convertMint :: T.Mint -> Effect Mint
+convertMint (T.Mint (Value.NonAdaAsset m)) = do
+  mint <- newMint
+  forWithIndex_ m \scriptHashBytes' values -> do
+    let mScripthash = scriptHashFromBytes $ Value.getCurrencySymbol scriptHashBytes'
+    scripthash <- fromJustEff "scriptHashFromBytes failed while converting value" mScripthash
+    assets <- newMintAssets
+    forWithIndex_ values \tokenName' bigIntValue -> do
+      let tokenName = Value.getTokenName tokenName'
+      assetName <- newAssetName tokenName
+      bigInt <- fromJustEff "convertMint: failed to convert BigInt" $
+        Serialization.convertBigInt bigIntValue
+      int <- fromJustEff "converMint: numeric overflow or underflow" $
+        _bigIntToInt maybeFfiHelper bigInt
+      insertMintAsset assets assetName int
+    insertMintAssets mint scripthash assets
+  pure mint
 
 convertTxInputs :: Array T.TransactionInput -> Effect TransactionInputs
 convertTxInputs arrInputs = do
@@ -187,11 +231,14 @@ convertValue val = do
     forWithIndex_ values \tokenName' bigIntValue -> do
       let tokenName = Value.getTokenName tokenName'
       assetName <- newAssetName tokenName
-      value <- newBigNum (BigInt.toString bigIntValue)
+      -- possible failure below, because bigIntValue can be negative
+      value <- fromJustEff "convertValue: number must not be negative" $
+        newBigNum maybeFfiHelper (BigInt.toString bigIntValue)
       insertAssets assets assetName value
     insertMultiAsset multiasset scripthash assets
   value <- newValueFromAssets multiasset
-  valueSetCoin value =<< newBigNum (BigInt.toString lovelace)
+  valueSetCoin value =<< fromJustEff "convertValue: coin value must not be negative"
+    (newBigNum maybeFfiHelper (BigInt.toString lovelace))
   pure value
 
 convertCostmdls :: T.Costmdls -> Effect Costmdls

@@ -6,6 +6,7 @@ module QueryM
   , DispatchIdMap
   , FeeEstimate(..)
   , FinalizedTransaction(..)
+  , HashedData(..)
   , Host
   , JsWebSocket
   , ListenerSet
@@ -25,13 +26,16 @@ module QueryM
   , datumFilterGetHashesRequest
   , datumFilterRemoveHashesRequest
   , datumFilterSetHashesRequest
+  , datumHash
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
+  , finalizeTx
   , getDatumByHash
   , getDatumsByHashes
   , getWalletAddress
   , getWalletCollateral
+  , hashData
   , hashScript
   , listeners
   , mkDatumCacheWebSocketAff
@@ -42,10 +46,10 @@ module QueryM
   , ownPubKeyHash
   , queryDatumCache
   , signTransaction
+  , signTransactionBytes
   , startFetchBlocksRequest
   , submitTransaction
   , underlyingWebSocket
-  , finalizeTx
   ) where
 
 import Prelude
@@ -60,6 +64,7 @@ import Data.Argonaut (class DecodeJson, JsonDecodeError)
 import Data.Argonaut as Json
 import Data.Argonaut.Encode.Class (encodeJson)
 import Data.Argonaut.Encode.Encoders (encodeString)
+import Data.Array (length)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -117,7 +122,8 @@ import Serialization.Address
   , BlockId
   , NetworkId
   , Slot
-  , addressBech32
+  , addressPaymentCred
+  , stakeCredentialToKeyHash
   )
 import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
@@ -129,8 +135,9 @@ import Types.JsonWsp as JsonWsp
 import Types.PlutusData (PlutusData)
 import Types.Scripts (PlutusScript)
 import Types.Transaction as Transaction
+import Types.Transaction (Transaction(Transaction))
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Types.UnbalancedTransaction (PubKeyHash, PaymentPubKeyHash, pubKeyHash)
+import Types.UnbalancedTransaction (PubKeyHash, PaymentPubKeyHash)
 import Types.Value (Coin(Coin))
 import Untagged.Union (asOneOf)
 import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
@@ -278,6 +285,11 @@ signTransaction
 signTransaction tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.signTx tx
 
+signTransactionBytes
+  :: ByteArray -> QueryM (Maybe ByteArray)
+signTransactionBytes tx = withMWalletAff $ case _ of
+  Nami nami -> callNami nami $ \nw -> flip nw.signTxBytes tx
+
 submitTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.TransactionHash)
 submitTransaction tx = withMWalletAff $ case _ of
@@ -285,7 +297,8 @@ submitTransaction tx = withMWalletAff $ case _ of
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash =
-  map ((=<<) pubKeyHash <<< map (wrap <<< addressBech32)) getWalletAddress
+  map (map wrap <<< (=<<) (stakeCredentialToKeyHash <=< addressPaymentCred))
+    getWalletAddress
 
 ownPaymentPubKeyHash :: QueryM (Maybe PaymentPubKeyHash)
 ownPaymentPubKeyHash = map wrap <$> ownPubKeyHash
@@ -372,6 +385,7 @@ data ClientError
   = ClientHttpError Affjax.Error
   | ClientDecodeJsonError Json.JsonDecodeError
   | ClientEncodingError String
+  | ClientOtherError String
 
 -- No Show instance of Affjax.Error
 instance Show ClientError where
@@ -387,17 +401,24 @@ instance Show ClientError where
     "(ClientEncodingError "
       <> err
       <> ")"
+  show (ClientOtherError err) =
+    "(ClientEncodingError "
+      <> err
+      <> ")"
 
 -- Query the Haskell server for the minimum transaction fee
-calculateMinFee
-  :: Transaction.Transaction -> QueryM (Either ClientError Coin)
-calculateMinFee tx = do
+calculateMinFee :: Transaction -> QueryM (Either ClientError Coin)
+calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   txHex <- liftEffect $
     byteArrayToHex
       <<< Serialization.toBytes
       <<< asOneOf
       <$> Serialization.convertTransaction tx
-  url <- mkServerEndpointUrl $ "fees?tx=" <> txHex
+  url <- mkServerEndpointUrl
+    $ "fees?tx="
+        <> txHex
+        <> "&count="
+        <> UInt.toString witCount
   liftAff (Affjax.get Affjax.ResponseFormat.json url)
     <#> either
       (Left <<< ClientHttpError)
@@ -411,7 +432,24 @@ calculateMinFee tx = do
   -- The server is calculating fees that are too low
   -- See https://github.com/Plutonomicon/cardano-browser-tx/issues/123
   coinFromEstimate :: FeeEstimate -> Coin
-  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 50000)) <<< unwrap
+  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 500000)) <<< unwrap
+
+  -- Fee estimation occurs before balancing the transaction, so we need to know
+  -- the expected number of witnesses to use the cardano-api fee estimation
+  -- functions
+  --
+  -- We obtain the expected number of key witnesses for the transaction, with
+  -- the following assumptions:
+  --   * if `required_signers` is `Nothing`, add one key witness for the
+  --     current wallet. Thus there should normally be at least one witness
+  --     for any transaction
+  --   * otherwise, the expected number of signers has been implicitly
+  --     specified by the `required_signers` field; take the length of the
+  --     array
+  --   * this assumes of course that users will not pass `Just mempty` for the
+  --     required signers
+  witCount :: UInt
+  witCount = maybe one UInt.fromInt $ length <$> body.required_signers
 
 -- | CborHex-encoded tx
 newtype FinalizedTransaction = FinalizedTransaction ByteArray
@@ -471,6 +509,42 @@ finalizeTx tx datums redeemers = do
       ) <#> map \x -> x.body
   -- decode
   pure $ hush <<< Json.decodeJson =<< hush jsonBody
+
+newtype HashedData = HashedData ByteArray
+
+derive instance Newtype HashedData _
+derive instance Generic HashedData _
+
+instance Show HashedData where
+  show = genericShow
+
+instance Json.DecodeJson HashedData where
+  decodeJson =
+    map HashedData <<<
+      Json.caseJsonString (Left err) (note err <<< hexToByteArray)
+    where
+    err :: Json.JsonDecodeError
+    err = Json.TypeMismatch "Expected hex bytes (raw) of hashed data"
+
+hashData :: Datum -> QueryM (Maybe HashedData)
+hashData datum = do
+  body <-
+    liftEffect $ byteArrayToHex <<< Serialization.toBytes <<< asOneOf
+      <$> maybe' (\_ -> throw $ "Failed to convert plutus data: " <> show datum) pure
+        (Serialization.convertPlutusData $ unwrap datum)
+  url <- mkServerEndpointUrl "hash-data"
+  -- get response json
+  jsonBody <-
+    liftAff
+      ( Affjax.post Affjax.ResponseFormat.json url
+          (Just $ Affjax.RequestBody.Json $ encodeString body)
+      ) <#> map \x -> x.body
+  -- decode
+  pure $ hush <<< Json.decodeJson =<< hush jsonBody
+
+-- | Hashes an Plutus-style Datum
+datumHash :: Datum -> QueryM (Maybe DatumHash)
+datumHash = map (map (Transaction.DataHash <<< unwrap)) <<< hashData
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
@@ -688,8 +762,6 @@ ogmiosQueryDispatch
   -> String
   -> Effect (Either Json.JsonDecodeError (Effect Unit))
 ogmiosQueryDispatch ref str = do
-  -- TODO: replace it with the new implementation in `Aeson`.
-  -- https://github.com/Plutonomicon/cardano-browser-tx/issues/151
   let parsed' = JsonWsp.parseJsonWspResponse =<< Aeson.parseJsonStringToAeson str
   case parsed' of
     (Left err) -> pure $ Left err

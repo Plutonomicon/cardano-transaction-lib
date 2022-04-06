@@ -11,7 +11,6 @@ module BalanceTx
   , GetWalletCollateralError(..)
   , ImpossibleError(..)
   , ReturnAdaChangeError(..)
-  , SignTxError(..)
   , UtxosAtError(..)
   , balanceTx
   ) where
@@ -28,6 +27,7 @@ import Data.Either (Either(Left, Right), hush, note)
 import Data.Foldable as Foldable
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
+import Data.Lens.Setter ((.~))
 import Data.List ((:), List(Nil), partition)
 import Data.Map as Map
 import Data.Maybe (fromMaybe, maybe, Maybe(Just, Nothing))
@@ -36,7 +36,6 @@ import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
--- import Debug (spy)
 import Effect.Class (class MonadEffect)
 import Effect.Class.Console (log)
 import ProtocolParametersAlonzo
@@ -53,7 +52,6 @@ import QueryM
   , calculateMinFee
   , getWalletAddress
   , getWalletCollateral
-  , signTransaction
   )
 import QueryM.Utxos (utxosAt)
 import Serialization.Address
@@ -82,6 +80,8 @@ import Types.Value
   , isPos
   , isZero
   , minus
+  , mkCoin
+  , mkValue
   , numCurrencySymbols
   , numTokenNames
   , sumTokenNameLengths
@@ -107,7 +107,6 @@ data BalanceTxError
   | GetPublicKeyTransactionInputError' GetPublicKeyTransactionInputError
   | BalanceTxInsError' BalanceTxInsError
   | BalanceNonAdaOutsError' BalanceNonAdaOutsError
-  | SignTxError' SignTxError
   | CalculateMinFeeError' ClientError
 
 derive instance genericBalanceTxError :: Generic BalanceTxError _
@@ -208,13 +207,6 @@ derive instance genericBalanceNonAdaOutsError :: Generic BalanceNonAdaOutsError 
 instance showBalanceNonAdaOutsError :: Show BalanceNonAdaOutsError where
   show = genericShow
 
-data SignTxError = CouldNotSignTx Address
-
-derive instance genericSignTxError :: Generic SignTxError _
-
-instance showSignTxError :: Show SignTxError where
-  show = genericShow
-
 -- | Represents that an error reason should be impossible
 data ImpossibleError = Impossible
 
@@ -248,6 +240,7 @@ balanceTx :: UnbalancedTx -> QueryM (Either BalanceTxError Transaction)
 balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
   networkId <- (unbalancedTx ^. _body <<< _networkId) #
     maybe (asks _.networkId) pure
+  let unbalancedTx' = unbalancedTx # _body <<< _networkId .~ Just networkId
   runExceptT do
     -- Get own wallet address, collateral and utxo set:
     ownAddr <- ExceptT $ getWalletAddress <#>
@@ -268,7 +261,7 @@ balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
       -- for the Ada only collateral. No MinUtxos required. In fact perhaps
       -- this step can be skipped and we can go straight to prebalancer.
       unbalancedCollTx :: Transaction
-      unbalancedCollTx = addTxCollateral unbalancedTx collateral
+      unbalancedCollTx = addTxCollateral unbalancedTx' collateral
 
     -- Logging Unbalanced Tx with collateral added:
     logTx' "Unbalanced Collaterised Tx " allUtxos unbalancedCollTx
@@ -287,12 +280,9 @@ balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
     unsignedTx <- ExceptT $
       returnAdaChange ownAddr allUtxos nonAdaBalancedCollTx <#>
         lmap ReturnAdaChangeError'
-    -- Sign transaction:
-    balancedTx <- ExceptT $
-      signTransaction unsignedTx <#> note (SignTxError' $ CouldNotSignTx ownAddr)
 
     -- Logs final balanced tx and returns it
-    ExceptT $ logTx "Post-balancing Tx " allUtxos balancedTx <#> Right
+    ExceptT $ logTx "Post-balancing Tx " allUtxos unsignedTx <#> Right
   where
   prebalanceCollateral
     :: BigInt
@@ -676,7 +666,7 @@ balanceTxIns' utxos fees (TxBody txBody) = do
     txOutputs = txBody.outputs
 
     mintVal :: Value
-    mintVal = maybe mempty unwrap txBody.mint
+    mintVal = maybe mempty (mkValue (mkCoin zero) <<< unwrap) txBody.mint
 
   nonMintedValue <- note (BalanceTxInsCannotMinus $ CannotMinus $ wrap mintVal)
     $ Array.foldMap getAmount txOutputs `minus` mintVal
@@ -724,10 +714,7 @@ collectTxIns originalTxIns utxos value =
     Foldable.foldl
       ( \newTxIns txIn ->
           if isSufficient newTxIns then newTxIns
-          else
-            -- set insertion in original code.
-            if txIn `Array.elem` newTxIns then newTxIns
-          else txIn `Array.cons` newTxIns
+          else txIn `Array.insert` newTxIns -- treat as a set.
       )
       originalTxIns
       $ utxosToTransactionInput utxos
@@ -785,7 +772,7 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
     outputValue = Array.foldMap getAmount txOutputs
 
     mintVal :: Value
-    mintVal = maybe mempty unwrap txBody.mint
+    mintVal = maybe mempty (mkValue (mkCoin zero) <<< unwrap) txBody.mint
 
   nonMintedOutputValue <- note (BalanceNonAdaOutsCannotMinus $ CannotMinus $ wrap mintVal)
     $ outputValue `minus` mintVal

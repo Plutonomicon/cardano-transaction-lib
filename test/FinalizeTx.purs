@@ -51,4 +51,5 @@ getQueryConfig = do
     , usedTxOuts
     , networkId: TestnetId
     , slotConfig: defaultSlotConfig
+    -- unused
     }
