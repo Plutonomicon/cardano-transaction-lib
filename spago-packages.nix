@@ -449,18 +449,6 @@ let
         installPhase = "ln -s $src $out";
       };
 
-    "http-methods" = pkgs.stdenv.mkDerivation {
-        name = "http-methods";
-        version = "v5.0.0";
-        src = pkgs.fetchgit {
-          url = "https://github.com/purescript-contrib/purescript-http-methods.git";
-          rev = "d373066a45017e886d1580cd359372368231de47";
-          sha256 = "1g0ywd5zpckmhq28mr14yr4k28hiii1px8r8xbdx8nv45ryw69l3";
-        };
-        phases = "installPhase";
-        installPhase = "ln -s $src $out";
-      };
-
     "identity" = pkgs.stdenv.mkDerivation {
         name = "identity";
         version = "v5.0.0";
