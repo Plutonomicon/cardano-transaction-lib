@@ -89,7 +89,6 @@ main = launchAff_ $ do
     , usedTxOuts
     , networkId: TestnetId
     , slotConfig: defaultSlotConfig
-    -- unused
     }
   liftEffect $ Console.log $ show txId
 

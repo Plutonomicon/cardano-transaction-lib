@@ -21,9 +21,8 @@ import Address
   , enterpriseAddressValidatorHash
   ) as ExportAddress
 import Address (getNetworkId) as Address
-import Contract.Monad (Contract)
+import Contract.Monad (Contract, wrapContract)
 import Data.Maybe (Maybe)
-import Data.Newtype (wrap)
 import QueryM
   ( getWalletAddress
   , getWalletCollateral
@@ -86,23 +85,23 @@ import Types.Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 
 -- | Get the `Address` of the browser wallet.
-getWalletAddress :: Contract (Maybe Address)
-getWalletAddress = wrap QueryM.getWalletAddress
+getWalletAddress :: forall (r :: Row Type). Contract r (Maybe Address)
+getWalletAddress = wrapContract QueryM.getWalletAddress
 
 -- | Get the collateral of the browser wallet. This collateral will vary
 -- | depending on the wallet.
 -- | E.g. Nami creates a hardcoded 5 Ada collateral.
-getWalletCollateral :: Contract (Maybe TransactionUnspentOutput)
-getWalletCollateral = wrap QueryM.getWalletCollateral
+getWalletCollateral :: forall (r :: Row Type). Contract r (Maybe TransactionUnspentOutput)
+getWalletCollateral = wrapContract QueryM.getWalletCollateral
 
 -- | Gets the wallet `PaymentPubKeyHash` via `getWalletAddress`.
-ownPaymentPubKeyHash :: Contract (Maybe PaymentPubKeyHash)
-ownPaymentPubKeyHash = wrap QueryM.ownPaymentPubKeyHash
+ownPaymentPubKeyHash :: forall (r :: Row Type). Contract r (Maybe PaymentPubKeyHash)
+ownPaymentPubKeyHash = wrapContract QueryM.ownPaymentPubKeyHash
 
 -- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
-ownPubKeyHash :: Contract (Maybe PubKeyHash)
-ownPubKeyHash = wrap QueryM.ownPubKeyHash
+ownPubKeyHash :: forall (r :: Row Type). Contract r (Maybe PubKeyHash)
+ownPubKeyHash = wrapContract QueryM.ownPubKeyHash
 
 -- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
-getNetworkId :: Contract SerializationAddress.NetworkId
-getNetworkId = wrap Address.getNetworkId
+getNetworkId :: forall (r :: Row Type). Contract r SerializationAddress.NetworkId
+getNetworkId = wrapContract Address.getNetworkId

@@ -26,12 +26,12 @@ import Prelude
 
 import BalanceTx (balanceTx) as BalanceTx
 import BalanceTx (BalanceTxError) as BalanceTxError
-import Contract.Monad (Contract, liftedE', liftedM)
+import Contract.Monad (Contract, liftedE', liftedM, wrapContract)
 import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
 import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, wrap)
+import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\))
 import QueryM
@@ -172,57 +172,69 @@ import Types.Value (Coin)
 -- | submission is done with Nami.
 
 -- | Signs a `Transaction` with potential failure.
-signTransaction :: Transaction -> Contract (Maybe Transaction)
-signTransaction = wrap <<< QueryM.signTransaction
+signTransaction
+  :: forall (r :: Row Type). Transaction -> Contract r (Maybe Transaction)
+signTransaction = wrapContract <<< QueryM.signTransaction
 
 -- | Signs a `Transaction` with potential failure
-signTransactionBytes :: ByteArray -> Contract (Maybe ByteArray)
-signTransactionBytes = wrap <<< QueryM.signTransactionBytes
+signTransactionBytes
+  :: forall (r :: Row Type)
+   . ByteArray
+  -> Contract r (Maybe ByteArray)
+signTransactionBytes = wrapContract <<< QueryM.signTransactionBytes
 
 -- | Submits a Cbor-hex encoded transaction, which is the output of
 -- | `signTransactionBytes` or `balanceAndSignTx`
-submit :: ByteArray -> Contract String
-submit = wrap <<< Submit.submit
+submit :: forall (r :: Row Type). ByteArray -> Contract r String
+submit = wrapContract <<< Submit.submit
 
 -- | Query the Haskell server for the minimum transaction fee
 calculateMinFee
-  :: Transaction -> Contract (Either ExportQueryM.ClientError Coin)
-calculateMinFee = wrap <<< QueryM.calculateMinFee
+  :: forall (r :: Row Type)
+   . Transaction
+  -> Contract r (Either ExportQueryM.ClientError Coin)
+calculateMinFee = wrapContract <<< QueryM.calculateMinFee
 
 -- | Same as `calculateMinFee` hushing the error.
 calculateMinFeeM
-  :: Transaction -> Contract (Maybe Coin)
+  :: forall (r :: Row Type). Transaction -> Contract r (Maybe Coin)
 calculateMinFeeM = map hush <<< calculateMinFee
 
 -- | Attempts to balance an `UnbalancedTx`.
 balanceTx
-  :: UnbalancedTx -> Contract (Either BalanceTxError.BalanceTxError Transaction)
-balanceTx = wrap <<< BalanceTx.balanceTx
+  :: forall (r :: Row Type)
+   . UnbalancedTx
+  -> Contract r (Either BalanceTxError.BalanceTxError Transaction)
+balanceTx = wrapContract <<< BalanceTx.balanceTx
 
 -- | Attempts to balance an `UnbalancedTx` hushing the error.
-balanceTxM :: UnbalancedTx -> Contract (Maybe Transaction)
+balanceTxM
+  :: forall (r :: Row Type). UnbalancedTx -> Contract r (Maybe Transaction)
 balanceTxM = map hush <<< balanceTx
 
 finalizeTx
-  :: Transaction.Transaction
+  :: forall (r :: Row Type)
+   . Transaction.Transaction
   -> Array Datum
   -> Array Transaction.Redeemer
-  -> Contract (Maybe QueryM.FinalizedTransaction)
-finalizeTx tx datums redeemers = wrap $ QueryM.finalizeTx tx datums redeemers
+  -> Contract r (Maybe QueryM.FinalizedTransaction)
+finalizeTx tx datums redeemers = wrapContract
+  $ QueryM.finalizeTx tx datums redeemers
 
 -- | Reindex the `Spend` redeemers. Since we insert to an ordered array, we must
 -- | reindex the redeemers with such inputs. This must be crucially called after
 -- | balancing when all inputs are in place so they cannot be reordered.
 reindexSpentScriptRedeemers
-  :: Array Transaction.TransactionInput
+  :: forall (r :: Row Type)
+   . Array Transaction.TransactionInput
   -> Array (Transaction.Redeemer /\ Maybe Transaction.TransactionInput)
-  -> Contract
+  -> Contract r
        ( Either
            ReindexRedeemersExport.ReindexErrors
            (Array Transaction.Redeemer)
        )
 reindexSpentScriptRedeemers balancedTx =
-  wrap <<< ReindexRedeemers.reindexSpentScriptRedeemers balancedTx
+  wrapContract <<< ReindexRedeemers.reindexSpentScriptRedeemers balancedTx
 
 newtype BalancedSignedTransaction = BalancedSignedTransaction
   { transaction :: Transaction.Transaction -- the balanced and unsigned transaction to help with logging
@@ -244,8 +256,9 @@ instance Show BalancedSignedTransaction where
 -- | logging and more importantly, the `ByteArray` to be used with `Submit` to
 -- | submit  the transaction.
 balanceAndSignTx
-  :: UnattachedUnbalancedTx
-  -> Contract (Maybe BalancedSignedTransaction)
+  :: forall (r :: Row Type)
+   . UnattachedUnbalancedTx
+  -> Contract r (Maybe BalancedSignedTransaction)
 balanceAndSignTx
   (UnattachedUnbalancedTx { unbalancedTx, datums, redeemersTxIns }) = do
   -- Balance unbalanced tx:

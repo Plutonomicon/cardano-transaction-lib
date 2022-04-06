@@ -16,10 +16,9 @@ module Contract.ScriptLookups
   ) where
 
 import Prelude
-import Contract.Monad (Contract)
+import Contract.Monad (Contract, wrapContract)
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
-import Data.Newtype (wrap)
 import FromData (class FromData)
 import ToData (class ToData)
 import Types.Datum (Datum)
@@ -56,34 +55,34 @@ import Types.TypedValidator
 -- | a separate call. In particular, this should be called in conjuction with
 -- | `balanceAndSignTx`.
 mkUnbalancedTx
-  :: forall (a :: Type) (b :: Type)
+  :: forall (r :: Row Type) (a :: Type) (b :: Type)
    . DatumType a b
   => RedeemerType a b
   => FromData b
   => ToData b
   => ScriptLookups.ScriptLookups a
   -> TxConstraints b b
-  -> Contract
+  -> Contract r
        ( Either
            ScriptLookups.MkUnbalancedTxError
            ScriptLookups.UnattachedUnbalancedTx
        )
-mkUnbalancedTx lookups = wrap <<< SL.mkUnbalancedTx lookups
+mkUnbalancedTx lookups = wrapContract <<< SL.mkUnbalancedTx lookups
 
 -- | Same as `mkUnbalancedTx` but hushes the error.
 mkUnbalancedTxM
-  :: forall (a :: Type) (b :: Type)
+  :: forall (r :: Row Type) (a :: Type) (b :: Type)
    . DatumType a b
   => RedeemerType a b
   => FromData b
   => ToData b
   => ScriptLookups.ScriptLookups a
   -> TxConstraints b b
-  -> Contract (Maybe ScriptLookups.UnattachedUnbalancedTx)
+  -> Contract r (Maybe ScriptLookups.UnattachedUnbalancedTx)
 mkUnbalancedTxM lookups = map hush <<< mkUnbalancedTx lookups
 
 otherData
-  :: forall (a :: Type)
+  :: forall (r :: Row Type) (a :: Type)
    . Datum
-  -> Contract (Maybe (ScriptLookups.ScriptLookups a))
-otherData = wrap <<< SL.otherData
+  -> Contract r (Maybe (ScriptLookups.ScriptLookups a))
+otherData = wrapContract <<< SL.otherData
