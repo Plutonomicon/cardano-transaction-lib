@@ -101,16 +101,17 @@ callMarketPlaceListNft cfg = Promise.fromAff do
 
 -- | Configuation needed to call contracts from JS.
 type ContractConfiguration =
-  { server_host :: String
-  , server_port :: Int
-  , server_secure_conn :: Boolean
-  , ogmios_host :: String
-  , ogmios_port :: Int
-  , ogmios_secure_conn :: Boolean
-  , datum_cache_host :: String
-  , datum_cache_port :: Int
-  , datum_cache_secure_conn :: Boolean
+  { serverHost :: String
+  , serverPort :: Int
+  , serverSecureConn :: Boolean
+  , ogmiosHost :: String
+  , ogmiosPort :: Int
+  , ogmiosSecureConn :: Boolean
+  , datumCacheHost :: String
+  , datumCachePort :: Int
+  , datumCacheSecureConn :: Boolean
   , networkId :: Int
+  , projectId :: String
   }
 
 type BuyNftArgs =
@@ -155,23 +156,35 @@ type ListNftResultOut =
       }
   }
 
-
 buildContractConfig :: ContractConfiguration -> Aff ContractConfig
 buildContractConfig cfg = do
-  server_port <- liftM (error "Invalid server port number")
-    $ UInt.fromInt' cfg.server_port
-  ogmios_port <- liftM (error "Invalid ogmios port number")
-    $ UInt.fromInt' cfg.ogmios_port
-  datum_cache_port <- liftM (error "Invalid datum cache port number")
-    $ UInt.fromInt' cfg.datum_cache_port
+  serverPort <- liftM (error "Invalid server port number")
+    $ UInt.fromInt' cfg.serverPort
+  ogmiosPort <- liftM (error "Invalid ogmios port number")
+    $ UInt.fromInt' cfg.ogmiosPort
+  datumCachePort <- liftM (error "Invalid datum cache port number")
+    $ UInt.fromInt' cfg.datumCachePort
   networkId <- liftM (error "Invalid network id")
     $ intToNetworkId cfg.networkId
 
-  let serverConfig = { port: server_port, host: cfg.server_host, secure: cfg.server_secure_conn }
+  let
+    serverConfig =
+      { port: serverPort
+      , host: cfg.serverHost
+      , secure: cfg.serverSecureConn
+      }
   wallet <- Just <$> mkNamiWalletAff
 
-  ogmiosWs <- mkOgmiosWebSocketAff { port: ogmios_port, host: cfg.ogmios_host, secure: cfg.ogmios_secure_conn }
-  datumCacheWs <- mkDatumCacheWebSocketAff { port: datum_cache_port, host: cfg.datum_cache_host, secure: cfg.datum_cache_secure_conn }
+  ogmiosWs <- mkOgmiosWebSocketAff
+    { port: ogmiosPort
+    , host: cfg.ogmiosHost
+    , secure: cfg.ogmiosSecureConn
+    }
+  datumCacheWs <- mkDatumCacheWebSocketAff
+    { port: datumCachePort
+    , host: cfg.datumCacheHost
+    , secure: cfg.datumCacheSecureConn
+    }
   usedTxOuts <- newUsedTxOuts
   pure $ ContractConfig
     { ogmiosWs
@@ -181,7 +194,7 @@ buildContractConfig cfg = do
     , usedTxOuts
     , slotConfig: defaultSlotConfig
     , networkId
-    , projectId: ""
+    , projectId: cfg.projectId
     }
 
 buildNftList :: ListNftResult -> ListNftResultOut

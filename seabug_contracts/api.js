@@ -17,16 +17,17 @@ exports.callMarketPlaceBuyTest = async (str) => {
  * to structure:
  *
  *   config ::
- *   { server_host :: String               - CTL Haskell Server host address
- *   , server_port :: Int                  - CTL Haskell Server port
- *   , server_secure_conn :: Boolean       - If the server connection uses secure communication
- *   , ogmios_host :: String               - Ogmios service host adddress
- *   , ogmios_port :: Int                  - Ogmios service port
- *   , ogmios_secure_conn :: Boolean       - If the Ogmios connection uses secure communication
- *   , datum_cache_host :: String          - Datum Cache service host address
- *   , datum_cache_port :: Int             - Datum Cache service port
- *   , datum_cache_secure_conn :: Boolean  - If the Ogmios connection uses secure communication
- *   , networkId :: Int                    - On which Cardano network should contracts be run
+ *   { serverHost :: String             - CTL Haskell Server host address
+ *   , serverPort :: Int                - CTL Haskell Server port
+ *   , serverSecureConn :: Boolean      - If the server connection uses secure communication
+ *   , ogmiosHost :: String             - Ogmios service host adddress
+ *   , ogmiosPort :: Int                - Ogmios service port
+ *   , ogmiosSecureConn :: Boolean      - If the Ogmios connection uses secure communication
+ *   , datumCacheHost :: String         - Datum Cache service host address
+ *   , datumCachePort :: Int            - Datum Cache service port
+ *   , datumCacheSecureConn :: Boolean  - If the Ogmios connection uses secure communication
+ *   , networkId :: Int                 - On which Cardano network should contracts be run
+ *   , projectId :: String              - blockfrost.io API key
  *   }
  *
  * Second argument 'args' should be an object with a structure described below:
