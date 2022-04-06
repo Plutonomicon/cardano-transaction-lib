@@ -33,7 +33,6 @@ import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\))
-import Effect.Class.Console (log)
 import QueryM
   ( FeeEstimate(FeeEstimate)
   , ClientError(..) -- implicit as this error list will likely increase.
