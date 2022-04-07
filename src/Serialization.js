@@ -7,8 +7,13 @@ if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
     lib = require('@ngua/cardano-serialization-lib-nodejs');
 }
 
-exports.newBigNum = string => () =>
-    lib.BigNum.from_str(string);
+exports.newBigNum = maybe => string => {
+    try {
+        return maybe.just(lib.BigNum.from_str(string));
+    } catch (_) {
+        return maybe.nothing;
+    }
+};
 
 exports.newValue = coin => () =>
     lib.Value.new(coin);
@@ -139,4 +144,46 @@ exports.newScriptDataHashFromBytes = bytes => () =>
     lib.ScriptDataHash.from_bytes(bytes);
 
 exports.setTxBodyScriptDataHash = body => sdh => () =>
-    body.set_script_data_hash(sdh)
+    body.set_script_data_hash(sdh);
+
+exports.setTxBodyMint = body => mint => () =>
+    body.set_mint(mint);
+
+exports.newMint = () =>
+    lib.Mint.new();
+
+exports._bigIntToInt = maybeFfiHelper => bigInt => {
+    try {
+        const str = bigInt.to_str();
+        if (str[0] == '-') {
+            return maybeFfiHelper.just(
+                lib.Int.new_negative(lib.BigNum.from_str(str.slice(1)))
+            );
+        } else {
+            return maybeFfiHelper.just(
+                lib.Int.new(lib.BigNum.from_str(str))
+            );
+        }
+    } catch (_) {
+        return Maybe.nothing;
+    }
+};
+
+exports.newMintAssets = lib.MintAssets.new;
+
+exports.insertMintAssets = mint => scriptHash => mintAssets => () =>
+    mint.insert(scriptHash, mintAssets);
+
+exports.insertMintAsset = mintAssets => assetName => int => () =>
+    mintAssets.insert(assetName, int);
+
+exports.networkIdTestnet = () =>
+    lib.NetworkId.testnet();
+
+exports.networkIdMainnet = () =>
+    lib.NetworkId.mainnet();
+exports.setTxBodyCollateral = body => inputs => () =>
+    body.set_collateral(inputs);
+
+exports.setTxBodyNetworkId = body => network_id => () =>
+    body.set_network_id(network_id);

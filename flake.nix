@@ -1,4 +1,6 @@
 {
+  description = "cardano-transaction-lib";
+
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/dde1557825c5644c869c5efc7448dc03722a8f09";
 
@@ -177,8 +179,7 @@
 
       apps = perSystem (system: {
         inherit
-          (self.hsFlake.${system}.apps)
-          "cardano-browser-tx-server:exe:cardano-browser-tx-server";
+          (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
       });
 
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);

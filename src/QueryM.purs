@@ -5,17 +5,22 @@ module QueryM
   , DatumCacheWebSocket
   , DispatchIdMap
   , FeeEstimate(..)
+  , FinalizedTransaction(..)
+  , HashedData(..)
   , Host
   , JsWebSocket
   , ListenerSet
   , OgmiosListeners
   , OgmiosWebSocket
   , QueryConfig
+  , DefaultQueryConfig
   , QueryM
+  , QueryMExtended
   , ServerConfig
   , WebSocket
   , _stringify
   , _wsSend
+  , liftQueryM
   , allowError
   , applyArgs
   , calculateMinFee
@@ -24,13 +29,16 @@ module QueryM
   , datumFilterGetHashesRequest
   , datumFilterRemoveHashesRequest
   , datumFilterSetHashesRequest
+  , datumHash
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
+  , finalizeTx
   , getDatumByHash
   , getDatumsByHashes
   , getWalletAddress
   , getWalletCollateral
+  , hashData
   , hashScript
   , listeners
   , mkDatumCacheWebSocketAff
@@ -41,6 +49,7 @@ module QueryM
   , ownPubKeyHash
   , queryDatumCache
   , signTransaction
+  , signTransactionBytes
   , startFetchBlocksRequest
   , submitTransaction
   , underlyingWebSocket
@@ -53,18 +62,22 @@ import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Reader.Trans (ReaderT, ask, asks)
+import Control.Monad.Reader.Trans (ReaderT, withReaderT, ask, asks)
 import Data.Argonaut (class DecodeJson, JsonDecodeError)
 import Data.Argonaut as Json
+import Data.Argonaut.Encode.Class (encodeJson)
 import Data.Argonaut.Encode.Encoders (encodeString)
+import Data.Array (length)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), either, isRight, note)
+import Data.Either (Either(Left, Right), either, isRight, note, hush)
 import Data.Foldable (foldl)
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Generic.Rep (class Generic)
+import Data.Maybe (Maybe(Just, Nothing), maybe, maybe')
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Traversable (traverse)
+import Data.Show.Generic (genericShow)
+import Data.Traversable (traverse, for)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -106,25 +119,28 @@ import Effect.Ref as Ref
 import Foreign.Object as Object
 import MultiMap (MultiMap)
 import MultiMap as MM
-import Serialization as Serialization
+import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address
   ( Address
   , BlockId
   , NetworkId
   , Slot
-  , addressBech32
+  , addressPaymentCred
+  , stakeCredentialToKeyHash
   )
 import Serialization.Hash (ScriptHash)
-import Serialization.PlutusData (convertPlutusData)
-import Types.ByteArray (byteArrayToHex)
-import Types.Datum (DatumHash)
+import Serialization.PlutusData (convertPlutusData) as Serialization
+import Serialization.WitnessSet (convertRedeemers) as Serialization
+import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
+import Types.Datum (Datum, DatumHash)
 import Types.Interval (SlotConfig)
 import Types.JsonWsp as JsonWsp
 import Types.PlutusData (PlutusData)
 import Types.Scripts (PlutusScript)
 import Types.Transaction as Transaction
+import Types.Transaction (Transaction(Transaction))
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Types.UnbalancedTransaction (PubKeyHash, PaymentPubKeyHash, pubKeyHash)
+import Types.UnbalancedTransaction (PubKeyHash, PaymentPubKeyHash)
 import Types.Value (Coin(Coin))
 import Untagged.Union (asOneOf)
 import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
@@ -164,7 +180,7 @@ type Url = String
 
 -- when we add multiple query backends or wallets,
 -- we just need to extend this type
-type QueryConfig =
+type QueryConfig (r :: Row Type) =
   { ogmiosWs :: OgmiosWebSocket
   , datumCacheWs :: DatumCacheWebSocket
   , serverConfig :: ServerConfig
@@ -173,9 +189,28 @@ type QueryConfig =
   , usedTxOuts :: UsedTxOuts
   , networkId :: NetworkId
   , slotConfig :: SlotConfig
+  | r
   }
 
-type QueryM (a :: Type) = ReaderT QueryConfig Aff a
+type DefaultQueryConfig = QueryConfig ()
+
+type QueryM (a :: Type) = ReaderT DefaultQueryConfig Aff a
+
+type QueryMExtended (r :: Row Type) (a :: Type) = ReaderT (QueryConfig r) Aff a
+
+liftQueryM :: forall (r :: Row Type) (a :: Type). QueryM a -> QueryMExtended r a
+liftQueryM = withReaderT toDefaultQueryConfig
+  where
+  toDefaultQueryConfig :: QueryConfig r -> DefaultQueryConfig
+  toDefaultQueryConfig c =
+    { ogmiosWs: c.ogmiosWs
+    , datumCacheWs: c.datumCacheWs
+    , serverConfig: c.serverConfig
+    , wallet: c.wallet
+    , usedTxOuts: c.usedTxOuts
+    , networkId: c.networkId
+    , slotConfig: c.slotConfig
+    }
 
 --------------------------------------------------------------------------------
 -- Datum Cache Queries
@@ -272,6 +307,11 @@ signTransaction
 signTransaction tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.signTx tx
 
+signTransactionBytes
+  :: ByteArray -> QueryM (Maybe ByteArray)
+signTransactionBytes tx = withMWalletAff $ case _ of
+  Nami nami -> callNami nami $ \nw -> flip nw.signTxBytes tx
+
 submitTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.TransactionHash)
 submitTransaction tx = withMWalletAff $ case _ of
@@ -279,7 +319,8 @@ submitTransaction tx = withMWalletAff $ case _ of
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash =
-  map ((=<<) pubKeyHash <<< map (wrap <<< addressBech32)) getWalletAddress
+  map (map wrap <<< (=<<) (stakeCredentialToKeyHash <=< addressPaymentCred))
+    getWalletAddress
 
 ownPaymentPubKeyHash :: QueryM (Maybe PaymentPubKeyHash)
 ownPaymentPubKeyHash = map wrap <$> ownPubKeyHash
@@ -366,6 +407,7 @@ data ClientError
   = ClientHttpError Affjax.Error
   | ClientDecodeJsonError Json.JsonDecodeError
   | ClientEncodingError String
+  | ClientOtherError String
 
 -- No Show instance of Affjax.Error
 instance Show ClientError where
@@ -381,17 +423,24 @@ instance Show ClientError where
     "(ClientEncodingError "
       <> err
       <> ")"
+  show (ClientOtherError err) =
+    "(ClientEncodingError "
+      <> err
+      <> ")"
 
 -- Query the Haskell server for the minimum transaction fee
-calculateMinFee
-  :: Transaction.Transaction -> QueryM (Either ClientError Coin)
-calculateMinFee tx = do
+calculateMinFee :: Transaction -> QueryM (Either ClientError Coin)
+calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   txHex <- liftEffect $
     byteArrayToHex
       <<< Serialization.toBytes
       <<< asOneOf
       <$> Serialization.convertTransaction tx
-  url <- mkServerEndpointUrl $ "fees?tx=" <> txHex
+  url <- mkServerEndpointUrl
+    $ "fees?tx="
+        <> txHex
+        <> "&count="
+        <> UInt.toString witCount
   liftAff (Affjax.get Affjax.ResponseFormat.json url)
     <#> either
       (Left <<< ClientHttpError)
@@ -403,9 +452,121 @@ calculateMinFee tx = do
   -- FIXME
   -- Add some "padding" to the fees so the transaction will submit
   -- The server is calculating fees that are too low
-  -- See https://github.com/Plutonomicon/cardano-browser-tx/issues/123
+  -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/123
   coinFromEstimate :: FeeEstimate -> Coin
-  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 50000)) <<< unwrap
+  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 500000)) <<< unwrap
+
+  -- Fee estimation occurs before balancing the transaction, so we need to know
+  -- the expected number of witnesses to use the cardano-api fee estimation
+  -- functions
+  --
+  -- We obtain the expected number of key witnesses for the transaction, with
+  -- the following assumptions:
+  --   * if `requiredSigners` is `Nothing`, add one key witness for the
+  --     current wallet. Thus there should normally be at least one witness
+  --     for any transaction
+  --   * otherwise, the expected number of signers has been implicitly
+  --     specified by the `requiredSigners` field; take the length of the
+  --     array
+  --   * this assumes of course that users will not pass `Just mempty` for the
+  --     required signers
+  witCount :: UInt
+  witCount = maybe one UInt.fromInt $ length <$> body.requiredSigners
+
+-- | CborHex-encoded tx
+newtype FinalizedTransaction = FinalizedTransaction ByteArray
+
+derive instance Generic FinalizedTransaction _
+
+instance Show FinalizedTransaction where
+  show = genericShow
+
+instance Json.DecodeJson FinalizedTransaction where
+  decodeJson =
+    map FinalizedTransaction <<<
+      Json.caseJsonString (Left err) (note err <<< hexToByteArray)
+    where
+    err = Json.TypeMismatch "Expected CborHex of Tx"
+
+finalizeTx
+  :: Transaction.Transaction
+  -> Array Datum
+  -> Array Transaction.Redeemer
+  -> QueryM (Maybe FinalizedTransaction)
+finalizeTx tx datums redeemers = do
+  -- tx
+  txHex <- liftEffect $
+    byteArrayToHex
+      <<< Serialization.toBytes
+      <<< asOneOf
+      <$> Serialization.convertTransaction tx
+  -- datums
+  encodedDatums <- liftEffect do
+    for datums \datum -> do
+      byteArrayToHex <<< Serialization.toBytes <<< asOneOf
+        <$> maybe' (\_ -> throw $ "Failed to convert plutus data: " <> show datum) pure
+          (Serialization.convertPlutusData $ unwrap datum)
+  -- redeemers
+  encodedRedeemers <- liftEffect $
+    byteArrayToHex <<< Serialization.toBytes <<< asOneOf <$>
+      Serialization.convertRedeemers redeemers
+  -- construct payload
+  let
+    body
+      :: { tx :: String
+         , datums :: Array String
+         , redeemers :: String
+         }
+    body =
+      { tx: txHex
+      , datums: encodedDatums
+      , redeemers: encodedRedeemers
+      }
+  url <- mkServerEndpointUrl "finalize"
+  -- get response json
+  jsonBody <-
+    liftAff
+      ( Affjax.post Affjax.ResponseFormat.json url
+          (Just $ Affjax.RequestBody.Json $ encodeJson body)
+      ) <#> map \x -> x.body
+  -- decode
+  pure $ hush <<< Json.decodeJson =<< hush jsonBody
+
+newtype HashedData = HashedData ByteArray
+
+derive instance Newtype HashedData _
+derive instance Generic HashedData _
+
+instance Show HashedData where
+  show = genericShow
+
+instance Json.DecodeJson HashedData where
+  decodeJson =
+    map HashedData <<<
+      Json.caseJsonString (Left err) (note err <<< hexToByteArray)
+    where
+    err :: Json.JsonDecodeError
+    err = Json.TypeMismatch "Expected hex bytes (raw) of hashed data"
+
+hashData :: Datum -> QueryM (Maybe HashedData)
+hashData datum = do
+  body <-
+    liftEffect $ byteArrayToHex <<< Serialization.toBytes <<< asOneOf
+      <$> maybe' (\_ -> throw $ "Failed to convert plutus data: " <> show datum) pure
+        (Serialization.convertPlutusData $ unwrap datum)
+  url <- mkServerEndpointUrl "hash-data"
+  -- get response json
+  jsonBody <-
+    liftAff
+      ( Affjax.post Affjax.ResponseFormat.json url
+          (Just $ Affjax.RequestBody.Json $ encodeString body)
+      ) <#> map \x -> x.body
+  -- decode
+  pure $ hush <<< Json.decodeJson =<< hush jsonBody
+
+-- | Hashes an Plutus-style Datum
+datumHash :: Datum -> QueryM (Maybe DatumHash)
+datumHash = map (map (Transaction.DataHash <<< unwrap)) <<< hashData
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
@@ -445,7 +606,7 @@ applyArgs script args = case traverse plutusDataToJson args of
           <<< Serialization.toBytes
           <<< asOneOf
       )
-      <<< convertPlutusData
+      <<< Serialization.convertPlutusData
 
 hashScript
   :: forall (a :: Type) (b :: Type)
@@ -497,13 +658,18 @@ mkOgmiosWebSocket'
 mkOgmiosWebSocket' serverCfg cb = do
   utxoDispatchMap <- createMutableDispatch
   chainTipDispatchMap <- createMutableDispatch
+  submitDispatchMap <- createMutableDispatch
   let md = ogmiosMessageDispatch { utxoDispatchMap, chainTipDispatchMap }
   ws <- _mkWebSocket $ mkWsUrl serverCfg
   _onWsConnect ws $ do
     _wsWatch ws (removeAllListeners utxoDispatchMap *> removeAllListeners chainTipDispatchMap)
     _onWsMessage ws (defaultMessageListener md)
     _onWsError ws defaultErrorListener
-    cb $ Right $ WebSocket ws { utxo: mkListenerSet utxoDispatchMap, chainTip: mkListenerSet chainTipDispatchMap }
+    cb $ Right $ WebSocket ws
+      { utxo: mkListenerSet utxoDispatchMap
+      , chainTip: mkListenerSet chainTipDispatchMap
+      , submit: mkListenerSet submitDispatchMap
+      }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
 
 mkDatumCacheWebSocket'
@@ -545,6 +711,7 @@ type DatumCacheListeners = ListenerSet DcWsp.JsonWspResponse
 type OgmiosListeners =
   { utxo :: ListenerSet JsonWsp.UtxoQR
   , chainTip :: ListenerSet JsonWsp.ChainTipQR
+  , submit :: ListenerSet String
   }
 
 -- convenience type for adding additional query types later
@@ -617,8 +784,6 @@ ogmiosQueryDispatch
   -> String
   -> Effect (Either Json.JsonDecodeError (Effect Unit))
 ogmiosQueryDispatch ref str = do
-  -- TODO: replace it with the new implementation in `Aeson`.
-  -- https://github.com/Plutonomicon/cardano-browser-tx/issues/151
   let parsed' = JsonWsp.parseJsonWspResponse =<< Aeson.parseJsonStringToAeson str
   case parsed' of
     (Left err) -> pure $ Left err

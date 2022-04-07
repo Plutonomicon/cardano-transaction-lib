@@ -16,13 +16,13 @@ import Prelude
 
 import Address
   ( addressToOgmiosAddress
-  , addressValidatorHash
+  , enterpriseAddressValidatorHash
   , ogmiosAddressToAddress
   )
 import Data.Map (Map)
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap)
-import Scripts (validatorHashAddress)
+import Scripts (validatorHashEnterpriseAddress)
 import Serialization.Address (NetworkId)
 import Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Types.Datum (DatumHash)
@@ -40,9 +40,9 @@ import Types.UnbalancedTransaction as UTx
 txOutRefToTransactionInput
   :: JsonWsp.OgmiosTxOutRef -> Maybe Transaction.TransactionInput
 txOutRefToTransactionInput { txId, index } = do
-  transaction_id <- hexToByteArray txId <#> wrap
+  transactionId <- hexToByteArray txId <#> wrap
   pure $ wrap
-    { transaction_id
+    { transactionId
     , index
     }
 
@@ -50,14 +50,14 @@ txOutRefToTransactionInput { txId, index } = do
 transactionInputToTxOutRef
   :: Transaction.TransactionInput -> JsonWsp.OgmiosTxOutRef
 transactionInputToTxOutRef
-  (Transaction.TransactionInput { transaction_id, index }) =
-  { txId: byteArrayToHex (unwrap transaction_id)
+  (Transaction.TransactionInput { transactionId, index }) =
+  { txId: byteArrayToHex (unwrap transactionId)
   , index
   }
 
 -- https://ogmios.dev/ogmios.wsp.json see "datum", potential FIX ME: it says
 -- base64 but the  example provided looks like a hexadecimal so use
--- hexToByteArray for now. https://github.com/Plutonomicon/cardano-browser-tx/issues/78
+-- hexToByteArray for now. https://github.com/Plutonomicon/cardano-transaction-lib/issues/78
 -- | Converts an Ogmios transaction output to (internal) `TransactionOutput`
 ogmiosTxOutToTransactionOutput
   :: JsonWsp.OgmiosTxOut -> Maybe Transaction.TransactionOutput
@@ -65,29 +65,29 @@ ogmiosTxOutToTransactionOutput { address, value, datum } = do
   address' <- ogmiosAddressToAddress address
   -- If datum ~ Maybe String is Nothing, do nothing. Otherwise, attempt to hash
   -- and capture failure if we can't hash.
-  data_hash <-
+  dataHash <-
     maybe (Just Nothing) (map Just <<< ogmiosDatumHashToDatumHash) datum
   pure $ wrap
     { address: address'
     , amount: value
-    , data_hash
+    , dataHash
     }
 
 -- | Converts an internal transaction output to the Ogmios transaction output.
 transactionOutputToOgmiosTxOut
   :: Transaction.TransactionOutput -> JsonWsp.OgmiosTxOut
 transactionOutputToOgmiosTxOut
-  (Transaction.TransactionOutput { address, amount: value, data_hash }) =
+  (Transaction.TransactionOutput { address, amount: value, dataHash }) =
   { address: addressToOgmiosAddress address
   , value
-  , datum: datumHashToOgmiosDatumHash <$> data_hash
+  , datum: datumHashToOgmiosDatumHash <$> dataHash
   }
 
 -- | Converts an Ogmios Transaction output to a `ScriptOutput`.
 ogmiosTxOutToScriptOutput :: JsonWsp.OgmiosTxOut -> Maybe UTx.ScriptOutput
 ogmiosTxOutToScriptOutput { address, value, datum: Just dHash } = do
   address' <- ogmiosAddressToAddress address
-  validatorHash <- addressValidatorHash address'
+  validatorHash <- enterpriseAddressValidatorHash address'
   datumHash <- ogmiosDatumHashToDatumHash dHash
   pure $ UTx.ScriptOutput
     { validatorHash
@@ -103,7 +103,7 @@ scriptOutputToOgmiosTxOut
   networkId
   (UTx.ScriptOutput { validatorHash, value, datumHash }) =
   { address:
-      addressToOgmiosAddress $ validatorHashAddress networkId validatorHash
+      addressToOgmiosAddress $ validatorHashEnterpriseAddress networkId validatorHash
   , value
   , datum: pure (datumHashToOgmiosDatumHash datumHash)
   }
@@ -113,16 +113,16 @@ transactionOutputToScriptOutput
   :: Transaction.TransactionOutput -> Maybe UTx.ScriptOutput
 transactionOutputToScriptOutput
   ( Transaction.TransactionOutput
-      { address, amount: value, data_hash: Just datumHash }
+      { address, amount: value, dataHash: Just datumHash }
   ) = do
-  validatorHash <- addressValidatorHash address
+  validatorHash <- enterpriseAddressValidatorHash address
   pure $ UTx.ScriptOutput
     { validatorHash
     , value
     , datumHash
     }
 transactionOutputToScriptOutput
-  (Transaction.TransactionOutput { data_hash: Nothing }) = Nothing
+  (Transaction.TransactionOutput { dataHash: Nothing }) = Nothing
 
 -- | Converts `ScriptOutput` to an internal transaction output.
 scriptOutputToTransactionOutput
@@ -131,9 +131,9 @@ scriptOutputToTransactionOutput
   networkId
   (UTx.ScriptOutput { validatorHash, value, datumHash }) =
   Transaction.TransactionOutput
-    { address: validatorHashAddress networkId validatorHash
+    { address: validatorHashEnterpriseAddress networkId validatorHash
     , amount: value
-    , data_hash: Just datumHash
+    , dataHash: Just datumHash
     }
 
 --------------------------------------------------------------------------------

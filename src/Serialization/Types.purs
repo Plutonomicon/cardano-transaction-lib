@@ -7,6 +7,8 @@ foreign import data Value :: Type
 foreign import data AuxiliaryData :: Type
 foreign import data Transaction :: Type
 foreign import data TransactionBody :: Type
+foreign import data Mint :: Type
+foreign import data MintAssets :: Type
 foreign import data TransactionWitnessSet :: Type
 foreign import data TransactionHash :: Type
 foreign import data TransactionInput :: Type
@@ -27,6 +29,7 @@ foreign import data PlutusScript :: Type
 foreign import data PlutusScripts :: Type
 foreign import data NativeScript :: Type
 foreign import data NativeScripts :: Type
+foreign import data NetworkId :: Type
 foreign import data ScriptPubkey :: Type
 foreign import data ScriptAll :: Type
 foreign import data ScriptAny :: Type

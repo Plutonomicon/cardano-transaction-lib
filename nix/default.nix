@@ -33,11 +33,11 @@ let
     (modules { }).shell.nodeDependencies;
 in
 {
-  defaultPackage = self.packages.${system}.cardano-browser-tx;
+  defaultPackage = self.packages.${system}.cardano-transaction-lib;
 
   packages = {
-    cardano-browser-tx = ps-lib.buildPursProject {
-      name = "cardano-browser-tx";
+    cardano-transaction-lib = ps-lib.buildPursProject {
+      name = "cardano-transaction-lib";
       inherit src;
     };
   };
@@ -46,8 +46,8 @@ in
   # Since we depend on two haskell.nix projects, `nix flake check`
   # is currently broken because of IFD issues
   checks = {
-    cardano-browser-tx = ps-lib.runPursTest {
-      name = "cardano-browser-tx";
+    cardano-transaction-lib = ps-lib.runPursTest {
+      name = "cardano-transaction-lib";
       subdir = builtins.toString src;
       inherit src;
     };

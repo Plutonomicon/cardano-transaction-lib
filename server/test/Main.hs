@@ -1,6 +1,6 @@
 module Main (main) where
 
-import Api (app, applyArgs, estimateTxFees, hashScript)
+import Api (app, applyArgs, blake2bHash, estimateTxFees, hashData, hashScript)
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.Kind (Type)
 import Network.HTTP.Client (defaultManagerSettings, newManager)
@@ -35,11 +35,16 @@ import Test.Hspec.Core.Spec (SpecM)
 import Types (
   AppliedScript (AppliedScript),
   ApplyArgsRequest (ApplyArgsRequest, args, script),
+  Blake2bHash (Blake2bHash),
+  BytesToHash (BytesToHash),
   Cbor (Cbor),
   Env,
   Fee (Fee),
+  HashDataRequest (HashDataRequest),
   HashScriptRequest (HashScriptRequest),
+  HashedData (HashedData),
   HashedScript (HashedScript),
+  WitnessCount (WitnessCount),
   newEnvIO,
   unsafeDecode,
  )
@@ -52,6 +57,8 @@ serverSpec = do
   describe "Api.Handlers.applyArgs" applyArgsSpec
   describe "Api.Handlers.estimateTxFees" feeEstimateSpec
   describe "Api.Handlers.hashScript" hashScriptSpec
+  describe "Api.Handlers.blake2bHash" blake2bHashSpec
+  describe "Api.Handlers.hashData" hashDataSpec
 
 applyArgsSpec :: Spec
 applyArgsSpec = around withTestApp $ do
@@ -65,7 +72,7 @@ applyArgsSpec = around withTestApp $ do
       result `shouldBe` Right (AppliedScript unappliedScriptFixture)
 
     -- FIXME
-    -- See: https://github.com/Plutonomicon/cardano-browser-tx/issues/189
+    -- See: https://github.com/Plutonomicon/cardano-transaction-lib/issues/189
     --
     -- This is returning a different applied script than the test fixtures. The
     -- fixtures were obtained with Plutus using `applyCode` (not `applyArguments`
@@ -92,22 +99,22 @@ feeEstimateSpec = around withTestApp $ do
     it "estimates the correct fee" $ \port -> do
       result <-
         runClientM' (clientEnv port) $
-          estimateTxFees cborTxFixture
+          estimateTxFees (WitnessCount 1) cborTxFixture
       -- This is probably incorrect. See:
-      -- https://github.com/Plutonomicon/cardano-browser-tx/issues/123
+      -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/123
       result `shouldBe` Right (Fee 168449)
 
     it "catches invalid hex strings" $ \port -> do
       result <-
         runClientM' (clientEnv port)
-          . estimateTxFees
+          . estimateTxFees (WitnessCount 1)
           $ Cbor "deadbeefq"
       result `shouldSatisfy` expectError 400 "invalid bytestring size"
 
     it "catches invalid CBOR-encoded transactions" $ \port -> do
       result <-
         runClientM' (clientEnv port)
-          . estimateTxFees
+          . estimateTxFees (WitnessCount 1)
           $ Cbor "deadbeef"
       result
         `shouldSatisfy` expectError
@@ -121,6 +128,16 @@ feeEstimateSpec = around withTestApp $ do
         | scode == code && sbody == body -> True
       _ -> False
 
+hashDataSpec :: Spec
+hashDataSpec = around withTestApp $ do
+  clientEnv <- setupClientEnv
+  context "POST hash-data" $ do
+    it "hashes the data" $ \port -> do
+      result <-
+        runClientM' (clientEnv port) $
+          hashData cborDatumFixture
+      result `shouldBe` Right hashedDatumFixture
+
 hashScriptSpec :: Spec
 hashScriptSpec = around withTestApp $ do
   clientEnv <- setupClientEnv
@@ -131,6 +148,23 @@ hashScriptSpec = around withTestApp $ do
         runClientM' (clientEnv port) $
           hashScript hashScriptRequestFixture
       result `shouldBe` Right hashedScriptFixture
+
+blake2bHashSpec :: Spec
+blake2bHashSpec = around withTestApp $ do
+  clientEnv <- setupClientEnv
+
+  context "POST blake2b" $ do
+    it "gets the blake2b_256 hash" $ \port -> do
+      result <-
+        runClientM' (clientEnv port) $
+          blake2bHash (BytesToHash "foo")
+      result `shouldBe` Right blake2bRes
+  where
+    -- obtained from `fromBuiltin . blake2b_256 $ toBuiltin @ByteString "foo"`
+    blake2bRes :: Blake2bHash
+    blake2bRes =
+      Blake2bHash
+        "\184\254\159\DELbU\166\250\b\246h\171c*\141\b\SUB\216y\131\199|\210t\228\140\228P\240\179I\253"
 
 setupClientEnv :: SpecM Port (Port -> ClientEnv)
 setupClientEnv = do
@@ -152,6 +186,20 @@ runClientM' ::
   ClientM a ->
   IO (Either ClientError a)
 runClientM' = flip runClientM
+
+cborDatumFixture :: HashDataRequest
+cborDatumFixture =
+  HashDataRequest $
+    Cbor $
+      mconcat
+        [ "d8799f581c7040636730e73aea054c0b2dd0b734bec3ecaaca1e3cbe48b482ca145820d"
+        , "850d7a70fd5ff97ab104b127d4c9630c64d8ac158a14cdcc4f65157b79af0baff"
+        ]
+
+hashedDatumFixture :: HashedData
+hashedDatumFixture =
+  HashedData
+    "\150\GS~\189\&8;\239\DC1n\249\188\181'\241\188\SUBE\135\248\EM\212\236\SOr?\239Z\178(\173\GS\143"
 
 -- This is a known-good 'Tx AlonzoEra'
 cborTxFixture :: Cbor

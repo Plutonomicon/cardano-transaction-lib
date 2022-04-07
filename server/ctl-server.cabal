@@ -1,5 +1,5 @@
 cabal-version: 2.4
-name:          cardano-browser-tx-server
+name:          ctl-server
 version:       0.1.0.0
 author:        mlabs
 build-type:    Simple
@@ -54,9 +54,13 @@ library
     , bytestring
     , cardano-api
     , cardano-binary
+    , cardano-ledger-core
+    , cardano-ledger-alonzo
+    , cborg
     , containers
     , exceptions
     , extra
+    , lens
     , mtl
     , plutus-ledger-api
     , plutus-tx
@@ -72,11 +76,11 @@ library
   exposed-modules:
     Api
     Api.Handlers
-    Paths_cardano_browser_tx_server
+    Paths_ctl_server
     Types
     Utils
 
-executable cardano-browser-tx-server
+executable ctl-server
   import:           common-language
   import:           common-options
   ghc-options:      -threaded -rtsopts
@@ -85,7 +89,7 @@ executable cardano-browser-tx-server
   main-is:          Main.hs
   build-depends:
     , base
-    , cardano-browser-tx-server
+    , ctl-server
     , http-types
     , optparse-applicative
     , wai
@@ -102,7 +106,7 @@ test-suite test
   build-depends:
     , base
     , bytestring
-    , cardano-browser-tx-server
+    , ctl-server
     , hspec
     , hspec-core
     , http-client

@@ -19,5 +19,5 @@ import Contract.Address
   ) as ContractAddress
 
 -- | Make a wallet lifted into `Contract` from `Aff`.
-mkNamiWallet :: Contract Wallet.Wallet
+mkNamiWallet :: forall (r :: Row Type). Contract r Wallet.Wallet
 mkNamiWallet = liftAff mkNamiWalletAff
