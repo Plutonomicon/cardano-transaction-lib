@@ -3,15 +3,17 @@ SHELL := bash
 .PHONY: autogen-deps run-testnet-node run-testnet-ogmios
 .SHELLFLAGS := -eu -o pipefail -c
 
+ps-sources := $$(find ./* -iregex ".*.purs")
+
 autogen-deps:
 	spago2nix generate \
 		&& node2nix -l package-lock.json -d -c node2nix.nix
 
 check-format:
-	purs-tidy check "src/**/*.purs" "test/**/*.purs"
+	purs-tidy check ${ps-sources}
 
 format:
-	purs-tidy format-in-place "src/**/*.purs" "test/**/*.purs" "examples/**/*.purs"
+	purs-tidy format-in-place ${ps-sources}
 
 run-testnet-node:
 	docker run --rm \
