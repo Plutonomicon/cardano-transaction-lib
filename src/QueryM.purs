@@ -452,7 +452,7 @@ calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   -- FIXME
   -- Add some "padding" to the fees so the transaction will submit
   -- The server is calculating fees that are too low
-  -- See https://github.com/Plutonomicon/cardano-browser-tx/issues/123
+  -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/123
   coinFromEstimate :: FeeEstimate -> Coin
   coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 500000)) <<< unwrap
 

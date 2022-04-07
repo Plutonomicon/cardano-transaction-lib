@@ -260,14 +260,14 @@ typedValidatorLookupsM
   :: forall (a :: Type). TypedValidator a -> Maybe (ScriptLookups a)
 typedValidatorLookupsM = pure <<< typedValidatorLookups
 
--- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
+-- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/200
 -- | A script lookups value that uses the map of unspent outputs to resolve
 -- | input constraints.
 unspentOutputs
   :: forall (a :: Type). Map TxOutRef TransactionOutput -> ScriptLookups a
 unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 
--- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
+-- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/200
 -- | Same as `unspentOutputs` but in `Maybe` context for convenience. This
 -- | should not fail.
 unspentOutputsM
@@ -459,7 +459,7 @@ type ConstraintsM (a :: Type) (b :: Type) =
 -- use the type alias because they need to be fully applied so this is perhaps
 -- more readable.
 -- Fix me: add execution units from Ogmios where this function should be
--- inside QueryM https://github.com/Plutonomicon/cardano-browser-tx/issues/174
+-- inside QueryM https://github.com/Plutonomicon/cardano-transaction-lib/issues/174
 -- | Resolve some `TxConstraints` by modifying the `UnbalancedTx` in the
 -- | `ConstraintProcessingState`
 processLookupsAndConstraints
@@ -1010,7 +1010,7 @@ processConstraint mpsMap osMap = do
   where
   -- The follow hardcoded before calling Ogmios to calculate execution
   -- unit. Calling Ogmios is an outstanding issue:
-  -- https://github.com/Plutonomicon/cardano-browser-tx/issues/174
+  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/174
   scriptExUnits :: ExUnits
   scriptExUnits = { mem: fromInt 2000000, steps: fromInt 1000000000 }
 

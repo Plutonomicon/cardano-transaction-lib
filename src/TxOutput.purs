@@ -57,7 +57,7 @@ transactionInputToTxOutRef
 
 -- https://ogmios.dev/ogmios.wsp.json see "datum", potential FIX ME: it says
 -- base64 but the  example provided looks like a hexadecimal so use
--- hexToByteArray for now. https://github.com/Plutonomicon/cardano-browser-tx/issues/78
+-- hexToByteArray for now. https://github.com/Plutonomicon/cardano-transaction-lib/issues/78
 -- | Converts an Ogmios transaction output to (internal) `TransactionOutput`
 ogmiosTxOutToTransactionOutput
   :: JsonWsp.OgmiosTxOut -> Maybe Transaction.TransactionOutput
