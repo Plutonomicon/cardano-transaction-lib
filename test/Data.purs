@@ -4,7 +4,7 @@ module Test.Data (suite) where
 import Prelude
 
 import ConstrIndex (class HasConstrIndex, defaultConstrIndex, fromConstr2Index)
-import Contract.PlutusData (PlutusData(..))
+import Contract.PlutusData (PlutusData(Constr, Integer))
 import Contract.Prelude (fromJust, traverse_, uncurry)
 import Control.Lazy (fix)
 import Data.Array (zip, (..))

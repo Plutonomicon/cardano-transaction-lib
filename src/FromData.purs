@@ -1,11 +1,12 @@
 module FromData
-  ( class FromData
+  ( FromDataError(..)
+  , class FromData
   , class FromDataArgs
-  , class FromDataWithIndex
   , class FromDataArgsRL
-  , fromDataArgsRec
+  , class FromDataWithIndex
   , fromData
   , fromDataArgs
+  , fromDataArgsRec
   , fromDataWithIndex
   , genericFromData
   ) where
@@ -13,12 +14,13 @@ module FromData
 import Prelude
 
 import ConstrIndex (class HasConstrIndex, constrIndex)
+import Data.Show.Generic (genericShow)
 import Control.Alternative ((<|>), guard)
 import Data.Array (uncons)
 import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right))
+import Data.Either (Either(Left, Right), hush, note)
 import Data.Generic.Rep as G
 import Data.List (List)
 import Data.Map (Map)
@@ -40,6 +42,16 @@ import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Bytes, Constr, List, Map, Integer))
 
+-- | Errors
+data FromDataError
+  = ArgsWantedButGot Int (Array PlutusData)
+  | FromDataFailed PlutusData
+
+derive instance G.Generic FromDataError _
+
+instance Show FromDataError where
+  show = genericShow
+
 -- | Classes
 
 class FromData :: Type -> Constraint
@@ -55,7 +67,8 @@ class HasConstrIndex ci <= FromDataWithIndex a ci where
 class FromDataArgs :: Type -> Constraint
 class FromDataArgs a where
   fromDataArgs
-    :: Array PlutusData -> Maybe { head :: a, tail :: Array PlutusData }
+    :: Array PlutusData
+    -> Either FromDataError { head :: a, tail :: Array PlutusData }
 
 -- | A helper typeclass to implement `ToDataArgs` for records.
 -- Stolen from https://github.com/purescript/purescript-quickcheck/blob/v7.1.0/src/Test/QuickCheck/Arbitrary.purs#L247
@@ -65,7 +78,7 @@ class FromDataArgsRL list row | list -> row where
     :: forall (rlproxy :: RL.RowList Type -> Type)
      . rlproxy list
     -> Array PlutusData
-    -> Maybe { head :: Record row, tail :: Array PlutusData }
+    -> Either FromDataError { head :: Record row, tail :: Array PlutusData }
 
 -- | FromDataWithIndex instances for Data.Generic.Rep
 -- See https://purescript-simple-json.readthedocs.io/en/latest/generics-rep.html
@@ -89,8 +102,9 @@ instance
     ix <- BigInt.toInt i
     cn <- resolveConstr pci ix
     let rn = reflectSymbol (Proxy :: Proxy n)
+    -- TODO: Add err reporting to FromDataWithIndex
     guard $ cn == rn
-    { head: repArgs, tail: pdArgs' } <- fromDataArgs pdArgs
+    { head: repArgs, tail: pdArgs' } <- hush $ fromDataArgs pdArgs
     guard $ pdArgs' == []
     pure $ G.Constructor repArgs
   fromDataWithIndex _ _ _ = Nothing
@@ -108,8 +122,8 @@ instance
 -- | FromDataArgs instance for Data.Generic.Rep
 
 instance FromDataArgs (G.NoArguments) where
-  fromDataArgs [] = Just { head: G.NoArguments, tail: [] }
-  fromDataArgs _ = Nothing -- TODO: Error "No PlutusData expected but got some"
+  fromDataArgs [] = Right { head: G.NoArguments, tail: [] }
+  fromDataArgs pdArgs = Left $ ArgsWantedButGot 0 pdArgs
 
 instance
   ( FromDataArgsRL list row
@@ -121,8 +135,8 @@ instance
     pure { head: G.Argument head, tail }
 else instance (FromData a) => FromDataArgs (G.Argument a) where
   fromDataArgs pdArgs = do
-    { head: pd, tail: pds } <- uncons pdArgs -- TODO: Error "Expected PlutusData but got none"
-    repArg <- fromData pd
+    { head: pd, tail: pds } <- note (ArgsWantedButGot 1 pdArgs) $ uncons pdArgs
+    repArg <- note (FromDataFailed pd) $ fromData pd
     pure $ { head: G.Argument repArg, tail: pds }
 
 instance (FromDataArgs a, FromDataArgs b) => FromDataArgs (G.Product a b) where
@@ -134,8 +148,8 @@ instance (FromDataArgs a, FromDataArgs b) => FromDataArgs (G.Product a b) where
 -- | FromDataArgsRL instances
 
 instance FromDataArgsRL RL.Nil () where
-  fromDataArgsRec _ [] = Just { head: {}, tail: [] }
-  fromDataArgsRec _ _ = Nothing
+  fromDataArgsRec _ [] = Right { head: {}, tail: [] }
+  fromDataArgsRec _ pdArgs = Left $ ArgsWantedButGot 0 pdArgs
 
 instance
   ( FromData a
@@ -148,8 +162,9 @@ instance
   FromDataArgsRL (RL.Cons key a listRest) rowFull where
   fromDataArgsRec _ pdArgs = do
     let keyProxy = Proxy :: Proxy key
-    { head: pdArg, tail: pdArgs' } <- uncons pdArgs -- TODO: Error "Expected PlutusData but got none"
-    field <- fromData pdArg
+    { head: pdArg, tail: pdArgs' } <- note (ArgsWantedButGot 1 pdArgs) $ uncons
+      pdArgs
+    field <- note (FromDataFailed pdArg) $ fromData pdArg
     { head: rec, tail: pdArgs'' } <- fromDataArgsRec (Proxy :: Proxy listRest)
       pdArgs'
     pure $
