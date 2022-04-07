@@ -3,7 +3,7 @@ module Test.Data (suite) where
 
 import Prelude
 
-import ConstrIndex (class HasConstrIndex, defaultConstrIndex, fromConstr2Index)
+import ConstrIndices (class HasConstrIndices, defaultConstrIndices, fromConstr2Index)
 import Contract.PlutusData (PlutusData(Constr, Integer))
 import Contract.Prelude (fromJust, traverse_, uncurry)
 import Control.Lazy (fix)
@@ -220,20 +220,20 @@ derive instance Eq EType
 derive instance Eq FType
 derive instance Eq FType'
 
-instance HasConstrIndex CType where
-  constrIndex = defaultConstrIndex
+instance HasConstrIndices CType where
+  constrIndices = defaultConstrIndices
 
-instance HasConstrIndex DType where
-  constrIndex = defaultConstrIndex
+instance HasConstrIndices DType where
+  constrIndices = defaultConstrIndices
 
-instance HasConstrIndex EType where
-  constrIndex = defaultConstrIndex
+instance HasConstrIndices EType where
+  constrIndices = defaultConstrIndices
 
-instance HasConstrIndex FType where
-  constrIndex = defaultConstrIndex
+instance HasConstrIndices FType where
+  constrIndices = defaultConstrIndices
 
-instance HasConstrIndex FType' where
-  constrIndex = defaultConstrIndex
+instance HasConstrIndices FType' where
+  constrIndices = defaultConstrIndices
 
 instance FromData DType where
   fromData x = genericFromData x
@@ -296,8 +296,8 @@ data Day = Mon | Tue | Wed | Thurs | Fri | Sat | Sun
 
 derive instance G.Generic Day _
 
-instance HasConstrIndex Day where
-  constrIndex _ = fromConstr2Index
+instance HasConstrIndices Day where
+  constrIndices _ = fromConstr2Index
     (zip [ "Mon", "Tue", "Wed", "Thurs", "Fri", "Sat", "Sun" ] (0 .. 7))
 
 instance ToData Day where
@@ -310,8 +310,8 @@ data AnotherDay = AMon | ATue | AWed | AThurs | AFri | ASat | ASun
 
 derive instance G.Generic AnotherDay _
 
-instance HasConstrIndex AnotherDay where
-  constrIndex = defaultConstrIndex
+instance HasConstrIndices AnotherDay where
+  constrIndices = defaultConstrIndices
 
 instance ToData AnotherDay where
   toData = genericToData
@@ -323,8 +323,8 @@ data Tree a = Node a (Tuple (Tree a) (Tree a)) | Leaf a
 
 derive instance G.Generic (Tree a) _
 
-instance HasConstrIndex (Tree a) where
-  constrIndex = defaultConstrIndex
+instance HasConstrIndices (Tree a) where
+  constrIndices = defaultConstrIndices
 
 instance (ToData a) => ToData (Tree a) where
   toData x = genericToData x -- https://github.com/purescript/documentation/blob/master/guides/Type-Class-Deriving.md#avoiding-stack-overflow-errors-with-recursive-types

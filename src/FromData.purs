@@ -13,7 +13,7 @@ module FromData
 
 import Prelude
 
-import ConstrIndex (class HasConstrIndex, constrIndex)
+import ConstrIndices (class HasConstrIndices, constrIndices)
 import Data.Show.Generic (genericShow)
 import Control.Alternative ((<|>), guard)
 import Data.Array (uncons)
@@ -59,7 +59,7 @@ class FromData (a :: Type) where
   fromData :: PlutusData -> Maybe a
 
 class FromDataWithIndex :: Type -> Type -> Constraint
-class HasConstrIndex ci <= FromDataWithIndex a ci where
+class HasConstrIndices ci <= FromDataWithIndex a ci where
   fromDataWithIndex
     :: Proxy a -> Proxy ci -> PlutusData -> Maybe a
 
@@ -94,7 +94,7 @@ instance
 
 instance
   ( IsSymbol n
-  , HasConstrIndex a
+  , HasConstrIndices a
   , FromDataArgs arg
   ) =>
   FromDataWithIndex (G.Constructor n arg) a where
@@ -110,7 +110,7 @@ instance
   fromDataWithIndex _ _ _ = Nothing
 
 instance
-  ( HasConstrIndex ci
+  ( HasConstrIndices ci
   , FromDataWithIndex a ci
   ) =>
   FromDataWithIndex (G.Argument a) ci where
@@ -182,8 +182,8 @@ genericFromData pd = G.to <$> fromDataWithIndex (Proxy :: Proxy rep)
   (Proxy :: Proxy a)
   pd
 
-resolveConstr :: forall a. HasConstrIndex a => Proxy a -> Int -> Maybe String
-resolveConstr pa i = let Tuple _ i2c = constrIndex pa in Map.lookup i i2c
+resolveConstr :: forall a. HasConstrIndices a => Proxy a -> Int -> Maybe String
+resolveConstr pa i = let Tuple _ i2c = constrIndices pa in Map.lookup i i2c
 
 -- | Base FromData instances
 

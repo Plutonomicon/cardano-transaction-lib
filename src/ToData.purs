@@ -12,7 +12,7 @@ module ToData
 
 import Prelude
 
-import ConstrIndex (class HasConstrIndex, constrIndex)
+import ConstrIndices (class HasConstrIndices, constrIndices)
 import Data.Array (cons)
 import Data.Array as Array
 import Data.BigInt (BigInt)
@@ -46,7 +46,7 @@ class ToData a where
   toData :: a -> PlutusData
 
 class ToDataWithIndex :: Type -> Type -> Constraint
-class HasConstrIndex ci <= ToDataWithIndex a ci where
+class HasConstrIndices ci <= ToDataWithIndex a ci where
   toDataWithIndex :: Proxy ci -> a -> PlutusData
 
 -- As explained in https://harry.garrood.me/blog/write-your-own-generics/ this
@@ -75,7 +75,7 @@ instance
 instance
   ( IsSymbol n
   , ToDataArgs arg
-  , HasConstrIndex a
+  , HasConstrIndices a
   ) =>
   ToDataWithIndex (G.Constructor n arg) a where
   toDataWithIndex p (G.Constructor args) = Constr
@@ -136,7 +136,7 @@ genericToData = toDataWithIndex (Proxy :: Proxy a) <<< G.from
 
 resolveIndex
   :: forall (a :: Type) (s :: Symbol)
-   . HasConstrIndex a
+   . HasConstrIndices a
   => IsSymbol s
   => Proxy a
   -> SProxy s
@@ -144,7 +144,7 @@ resolveIndex
 resolveIndex pa sps =
   let
     cn = reflectSymbol sps
-    Tuple c2i _ = constrIndex pa
+    Tuple c2i _ = constrIndices pa
   in
     case Map.lookup cn c2i of
       Just i -> BigInt.fromInt i
