@@ -1,4 +1,6 @@
 {
+  description = "cardano-transaction-lib";
+
   inputs = {
     flake-compat = {
       url = "github:edolstra/flake-compat";
@@ -184,8 +186,7 @@
 
       apps = perSystem (system: {
         inherit
-          (self.hsFlake.${system}.apps)
-          "cardano-browser-tx-server:exe:cardano-browser-tx-server";
+          (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
       });
 
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);

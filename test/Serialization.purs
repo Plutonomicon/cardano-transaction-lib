@@ -16,9 +16,11 @@ import Test.Fixtures
   ( txBinaryFixture1
   , txBinaryFixture2
   , txBinaryFixture3
+  , txBinaryFixture4
   , txFixture1
   , txFixture2
   , txFixture3
+  , txFixture4
   , txOutputBinaryFixture1
   , txOutputFixture1
   )
@@ -83,3 +85,7 @@ suite = do
         tx <- convertTransaction txFixture3
         let bytes = toBytes (asOneOf tx)
         byteArrayToHex bytes `shouldEqual` txBinaryFixture3
+      test "Transaction serialization #4 - ada + mint" $ liftEffect do
+        tx <- convertTransaction txFixture4
+        let bytes = toBytes (asOneOf tx)
+        byteArrayToHex bytes `shouldEqual` txBinaryFixture4

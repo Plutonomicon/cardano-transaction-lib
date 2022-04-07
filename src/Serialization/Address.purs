@@ -192,7 +192,7 @@ instance Eq Address where
 instance Ord Address where
   compare = compare `on` addressBytes
 
--- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/193
+-- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/193
 -- Plutus uses `PlutusTx.makeIsDataIndexed ''Address [('Address,0)]` on their
 -- record, I'm not sure if this will become an issue given our foreign
 -- representation.

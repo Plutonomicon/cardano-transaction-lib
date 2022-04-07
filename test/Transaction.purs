@@ -52,8 +52,8 @@ testAttachDatum :: Aff Unit
 testAttachDatum = liftEffect $
   attachDatum datum tx >>= case _ of
     Left e -> throw $ "Failed to attach datum: " <> show e
-    Right (Transaction { witness_set: TransactionWitnessSet ws }) ->
-      case ws.plutus_data of
+    Right (Transaction { witnessSet: TransactionWitnessSet ws }) ->
+      case ws.plutusData of
         Just [ pd ] -> do
           pd `shouldEqual` unwrap datum
         Just _ -> throw "Incorrect number of datums attached"
@@ -70,7 +70,7 @@ testAttachRedeemer = liftEffect $ do
   redeemer <- mkRedeemer datum
   attachRedeemer redeemer tx >>= case _ of
     Left e -> throw $ "Failed to attach redeemer: " <> show e
-    Right (Transaction { witness_set: TransactionWitnessSet ws }) -> do
+    Right (Transaction { witnessSet: TransactionWitnessSet ws }) -> do
       case ws.redeemers of
         Just [ r ] -> r `shouldEqual` redeemer
         Just _ -> throw "Incorrect number of redeemers attached"
@@ -86,8 +86,8 @@ testAttachScript :: Aff Unit
 testAttachScript = liftEffect $
   attachPlutusScript script tx >>= case _ of
     Left e -> throw $ "Failed to attach script: " <> show e
-    Right (Transaction { witness_set: TransactionWitnessSet ws }) ->
-      case ws.plutus_scripts of
+    Right (Transaction { witnessSet: TransactionWitnessSet ws }) ->
+      case ws.plutusScripts of
         Just [ ps ] -> ps `shouldEqual` script
         Just _ -> throw "Incorrect number of scripts attached"
         Nothing -> throw "Script wasn't attached"
@@ -104,7 +104,7 @@ testSetScriptDataHash = liftEffect $ do
   redeemer <- mkRedeemer datum2
   Transaction { body: TxBody body } <-
     setScriptDataHash [ redeemer ] [ datum1 ] tx
-  case body.script_data_hash of
+  case body.scriptDataHash of
     Nothing -> throw "Script data hash wasn't set"
     Just (ScriptDataHash sdh) ->
       -- TODO
@@ -124,9 +124,9 @@ testSetScriptDataHash = liftEffect $ do
 
 testPreserveWitness :: Aff Unit
 testPreserveWitness = liftEffect $ do
-  Transaction { witness_set: TransactionWitnessSet { plutus_data, vkeys } } <-
+  Transaction { witnessSet: TransactionWitnessSet { plutusData, vkeys } } <-
     fromRightEff =<< attachDatum datum tx
-  case plutus_data /\ vkeys of
+  case plutusData /\ vkeys of
     Just [ pd ] /\ Just vs@[ _ ] -> do
       pd `shouldEqual` unwrap datum
       vk' <- Deserialization.WitnessSet.convertVkeyWitnesses <$>
@@ -137,7 +137,7 @@ testPreserveWitness = liftEffect $ do
     _ /\ Nothing -> throw "Vkey witness wasn't preserved"
   where
   tx :: Transaction
-  tx = over Transaction _ { witness_set = initialWitnessSet }
+  tx = over Transaction _ { witnessSet = initialWitnessSet }
     $ mempty
 
   datum :: Datum
@@ -165,7 +165,7 @@ mkRedeemer pd = do
     { tag: Spend
     , index: BigInt.fromInt 0
     , data: pd
-    , ex_units:
+    , exUnits:
         { mem: BigInt.fromInt 7000000
         , steps: BigInt.fromInt 300000000
         }

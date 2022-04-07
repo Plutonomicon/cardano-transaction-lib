@@ -57,18 +57,16 @@ deserializeWitnessSet = _deserializeWitnessSet maybeFfiHelper
 
 convertWitnessSet :: TransactionWitnessSet -> Maybe T.TransactionWitnessSet
 convertWitnessSet ws = do
-  native_scripts <- for (getNativeScripts maybeFfiHelper ws)
-    convertNativeScripts
+  nativeScripts <- for (getNativeScripts maybeFfiHelper ws) convertNativeScripts
   redeemers <- for (getRedeemers maybeFfiHelper ws) convertRedeemers
-  plutus_data <- for (getWitnessSetPlutusData maybeFfiHelper ws)
+  plutusData <- for (getWitnessSetPlutusData maybeFfiHelper ws)
     convertPlutusList
   pure $ T.TransactionWitnessSet
     { vkeys: getVkeywitnesses maybeFfiHelper ws <#> convertVkeyWitnesses
-    , native_scripts
+    , nativeScripts
     , bootstraps: getBootstraps maybeFfiHelper ws <#> convertBootstraps
-    , plutus_scripts: getPlutusScripts maybeFfiHelper ws <#>
-        convertPlutusScripts
-    , plutus_data
+    , plutusScripts: getPlutusScripts maybeFfiHelper ws <#> convertPlutusScripts
+    , plutusData
     , redeemers
     }
 
@@ -95,7 +93,7 @@ convertBootstraps :: BootstrapWitnesses -> Array T.BootstrapWitness
 convertBootstraps = extractBootstraps >>> map \bootstrap ->
   { vkey: convertVkey $ getBootstrapVkey bootstrap
   , signature: convertSignature $ getBootstrapSignature bootstrap
-  , chain_code: getBootstrapChainCode bootstrap
+  , chainCode: getBootstrapChainCode bootstrap
   , attributes: getBootstrapAttributes bootstrap
   }
 
@@ -113,13 +111,13 @@ convertRedeemer :: Redeemer -> Maybe T.Redeemer
 convertRedeemer redeemer = do
   tag <- convertRedeemerTag $ getRedeemerTag redeemer
   index <- bigNumToBigInt $ getRedeemerIndex redeemer
-  ex_units <- convertExUnits $ getExUnits redeemer
+  exUnits <- convertExUnits $ getExUnits redeemer
   data_ <- convertPlutusData $ getRedeemerPlutusData redeemer
   pure $ T.Redeemer
     { tag
     , index
     , data: data_
-    , ex_units
+    , exUnits
     }
 
 convertRedeemerTag :: RedeemerTag -> Maybe Tag.RedeemerTag

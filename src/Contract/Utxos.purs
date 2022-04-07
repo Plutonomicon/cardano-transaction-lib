@@ -7,9 +7,8 @@ module Contract.Utxos
   ) where
 
 import Prelude
-import Contract.Monad (Contract)
+import Contract.Monad (Contract, wrapContract)
 import Data.Maybe (Maybe)
-import Data.Newtype (wrap)
 import QueryM.Utxos (utxosAt) as Utxos
 import Serialization.Address (Address)
 -- Can potentially remove, perhaps we move utxo related all to Contract.Address
@@ -21,5 +20,6 @@ import Types.Transaction (Utxo, UtxoM(UtxoM)) as Transaction
 -- | Gets utxos at an (internal) `Address` in terms of (internal) `Transaction.Types`.
 -- | Results may vary depending on `Wallet` type. See `QueryM` for more details
 -- | on wallet variance.
-utxosAt :: Address -> Contract (Maybe Transaction.UtxoM)
-utxosAt = wrap <<< Utxos.utxosAt
+utxosAt
+  :: forall (r :: Row Type). Address -> Contract r (Maybe Transaction.UtxoM)
+utxosAt = wrapContract <<< Utxos.utxosAt

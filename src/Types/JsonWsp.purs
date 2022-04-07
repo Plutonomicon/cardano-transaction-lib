@@ -12,6 +12,7 @@ module Types.JsonWsp
   , UtxoQueryResult
   , mkChainTipQuery
   , mkUtxosAtQuery
+  , mkJsonWspSubmit
   , parseJsonWspResponse
   , parseFieldToString
   ) where
@@ -61,7 +62,7 @@ import Data.UInt as UInt
 import Effect (Effect)
 import Foreign.Object (Object)
 import Foreign.Object as FO
-import Types.ByteArray (hexToByteArray)
+import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.Value
   ( CurrencySymbol
   , TokenName
@@ -127,6 +128,20 @@ mkJsonWspQuery a qt = do
     , servicename: "ogmios"
     , methodname: "Query"
     , args: { query: a }
+    , mirror: { step: "INIT", id }
+    }
+
+type SubmitArgs = { submit :: String } -- base16 encoded tx
+
+mkJsonWspSubmit :: ByteArray -> Effect (JsonWspRequest SubmitArgs)
+mkJsonWspSubmit bytes = do
+  id <- _uniqueId "SubmitTx-"
+  pure
+    { "type": "jsonwsp/request"
+    , version: "1.0"
+    , servicename: "ogmios"
+    , methodname: "SubmitTx"
+    , "args": { "submit": byteArrayToHex bytes }
     , mirror: { step: "INIT", id }
     }
 

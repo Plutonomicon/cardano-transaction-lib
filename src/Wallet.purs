@@ -3,6 +3,7 @@ module Wallet
   , NamiWallet
   , Wallet(..)
   , mkNamiWalletAff
+  , dummySign
   ) where
 
 import Prelude
@@ -10,6 +11,8 @@ import Prelude
 import Control.Promise (Promise)
 import Control.Promise as Promise
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (over)
+import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytesEffect)
 import Deserialization.UnspentOutput as Deserialization.UnspentOuput
 import Deserialization.WitnessSet as Deserialization.WitnessSet
@@ -18,13 +21,18 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import Helpers ((<<>>))
 import Serialization as Serialization
 import Serialization.Address (Address, addressFromBytes)
 import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex)
 import Types.Transaction
-  ( Transaction(Transaction)
+  ( Ed25519Signature(Ed25519Signature)
+  , PublicKey(PublicKey)
+  , Transaction(Transaction)
   , TransactionHash(TransactionHash)
-  , TransactionWitnessSet
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
   )
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Untagged.Union (asOneOf)
@@ -48,6 +56,8 @@ type NamiWallet =
   , getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
   -- Sign a transaction with the current wallet
   , signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
+  -- Sign a transaction with the current wallet
+  , signTxBytes :: NamiConnection -> ByteArray -> Aff (Maybe ByteArray)
   -- Submit a (balanced) transaction
   , submitTx :: NamiConnection -> Transaction -> Aff (Maybe TransactionHash)
   }
@@ -61,6 +71,7 @@ mkNamiWalletAff = do
     , getWalletAddress
     , getCollateral
     , signTx
+    , signTxBytes
     , submitTx
     }
 
@@ -94,8 +105,14 @@ mkNamiWalletAff = do
     -- We have to combine the newly returned witness set with the existing one
     -- Otherwise, any datums, etc... won't be retained
     combineWitnessSet :: Transaction -> TransactionWitnessSet -> Transaction
-    combineWitnessSet (Transaction tx'@{ witness_set: oldWits }) newWits =
-      Transaction $ tx' { witness_set = oldWits <> newWits }
+    combineWitnessSet (Transaction tx'@{ witnessSet: oldWits }) newWits =
+      Transaction $ tx' { witnessSet = oldWits <> newWits }
+
+  signTxBytes :: NamiConnection -> ByteArray -> Aff (Maybe ByteArray)
+  signTxBytes nami txBytes = do
+    fromNamiHexString (_signTxNami (byteArrayToHex txBytes)) nami >>= case _ of
+      Nothing -> pure Nothing
+      Just witBytes -> Just <$> liftEffect (_attachSignature txBytes witBytes)
 
   submitTx :: NamiConnection -> Transaction -> Aff (Maybe TransactionHash)
   submitTx nami tx = do
@@ -118,8 +135,32 @@ mkNamiWalletAff = do
     :: (NamiConnection -> Effect (Promise (Maybe String)))
     -> NamiConnection
     -> Aff (Maybe ByteArray)
-  fromNamiMaybeHexString act = map (flip bind hexToByteArray) <<< Promise.toAffE
-    <<< act
+  fromNamiMaybeHexString act =
+    map (flip bind hexToByteArray) <<< Promise.toAffE <<< act
+
+-- Attach a dummy vkey witness to a transaction. Helpful for when we need to
+-- know the number of witnesses (e.g. fee calculation) but the wallet hasn't
+-- signed (or cannot sign) yet
+dummySign :: Transaction -> Transaction
+dummySign tx@(Transaction { witnessSet: tws@(TransactionWitnessSet ws) }) =
+  over Transaction _
+    { witnessSet = over TransactionWitnessSet
+        _
+          { vkeys = ws.vkeys <<>> Just [ vk ]
+          }
+        tws
+    }
+    $ tx
+  where
+  vk :: Vkeywitness
+  vk = Vkeywitness
+    ( Vkey
+        ( PublicKey
+            "ed25519_pk1eamrnx3pph58yr5l4z2wghjpu2dt2f0rp0zq9qquqa39p52ct0xsudjp4e"
+        )
+        /\ Ed25519Signature
+          "ed25519_sig1ynufn5umzl746ekpjtzt2rf58ep0wg6mxpgyezh8vx0e8jpgm3kuu3tgm453wlz4rq5yjtth0fnj0ltxctaue0dgc2hwmysr9jvhjzswt86uk"
+    )
 
 -------------------------------------------------------------------------------
 -- FFI stuff
@@ -145,3 +186,8 @@ foreign import _submitTxNami
   :: String -- Hex-encoded cbor of tx
   -> NamiConnection
   -> Effect (Promise String) -- Submitted tx hash
+
+foreign import _attachSignature
+  :: ByteArray -- CBOR bytes of tx
+  -> ByteArray -- CBOR bytes of witness set
+  -> Effect (ByteArray)

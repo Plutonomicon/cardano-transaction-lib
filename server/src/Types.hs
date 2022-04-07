@@ -1,18 +1,24 @@
+{-# LANGUAGE DerivingVia #-}
+
 module Types (
   AppM (AppM),
   ServerOptions (..),
   Env (..),
   Cbor (..),
   Fee (..),
-  FinalizeRequest(..),
-  FinalizedTransaction(..),
+  WitnessCount (..),
   ApplyArgsRequest (..),
   AppliedScript (..),
+  BytesToHash (..),
+  Blake2bHash (..),
+  FinalizeRequest (..),
+  FinalizedTransaction (..),
+  HashDataRequest (..),
+  HashedData (..),
   HashScriptRequest (..),
   HashedScript (..),
-  FeeEstimateError (..),
-  FinalizeTxError(..),
-  CardanoBrowserServerError (..),
+  CborDecodeError (..),
+  CtlServerError (..),
   hashLedgerScript,
   newEnvIO,
   unsafeDecode,
@@ -31,6 +37,8 @@ import Data.Aeson qualified as Aeson
 import Data.Aeson.Encoding qualified as Aeson.Encoding
 import Data.Aeson.Types (withText)
 import Data.Bifunctor (second)
+import Data.ByteString (ByteString)
+import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.ByteString.Short qualified as SBS
 import Data.Functor ((<&>))
@@ -38,9 +46,10 @@ import Data.Kind (Type)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Text.Encoding qualified as Text.Encoding
 import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (Port)
-import Paths_cardano_browser_tx_server (getDataFileName)
+import Paths_ctl_server (getDataFileName)
 import Plutus.V1.Ledger.Api qualified as Ledger
 import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
 import Servant (FromHttpApiData, QueryParam', Required, ToHttpApiData)
@@ -82,6 +91,10 @@ newtype Fee = Fee Integer
   deriving stock (Show, Generic)
   deriving newtype (Eq)
 
+newtype WitnessCount = WitnessCount Word
+  deriving stock (Show, Generic)
+  deriving newtype (Eq, FromHttpApiData, ToHttpApiData)
+
 instance ToJSON Fee where
   -- to avoid issues with integer parsing in PS, we should probably return
   -- a JSON string, and not a number
@@ -107,6 +120,16 @@ newtype AppliedScript = AppliedScript Ledger.Script
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
 
+newtype BytesToHash = BytesToHash ByteString
+  deriving stock (Show, Generic)
+  deriving newtype (Eq)
+  deriving (FromJSON, ToJSON) via JsonHexString
+
+newtype Blake2bHash = Blake2bHash ByteString
+  deriving stock (Show, Generic)
+  deriving newtype (Eq)
+  deriving (FromJSON, ToJSON) via JsonHexString
+
 data FinalizeRequest = FinalizeRequest
   { tx :: Cbor
   , datums :: [Cbor]
@@ -130,6 +153,15 @@ newtype HashedScript = HashedScript Ledger.Scripts.ScriptHash
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
 
+newtype HashDataRequest = HashDataRequest Cbor
+  deriving stock (Show, Generic)
+  deriving newtype (Eq, FromJSON, ToJSON)
+
+newtype HashedData = HashedData ByteString
+  deriving stock (Show, Generic)
+  deriving newtype (Eq)
+  deriving (FromJSON, ToJSON) via JsonHexString
+
 -- Adapted from `plutus-apps` implementation
 -- rev. d637b1916522e4ec20b719487a8a2e066937aceb
 hashLedgerScript :: Ledger.Script -> Ledger.Scripts.ScriptHash
@@ -150,26 +182,18 @@ toCardanoApiScript =
     . LC8.toStrict
     . serialise
 
-data CardanoBrowserServerError
-  = FeeEstimate FeeEstimateError
-  | FinalizeTx FinalizeTxError
+newtype CtlServerError = CborDecode CborDecodeError
   deriving stock (Show)
 
-instance Exception CardanoBrowserServerError
+instance Exception CtlServerError
 
-data FeeEstimateError
-  = FEInvalidCbor Cbor.DecoderError
-  | FEInvalidHex String
+data CborDecodeError
+  = InvalidCbor Cbor.DecoderError
+  | InvalidHex String
+  | OtherDecodeError String
   deriving stock (Show)
 
-instance Exception FeeEstimateError
-
-data FinalizeTxError
-  = FTInvalidCbor Cbor.DecoderError
-  | FTInvalidHex String
-  deriving stock (Show)
-
-instance Exception FinalizeTxError
+instance Exception CborDecodeError
 
 -- API doc stuff
 instance Docs.ToParam (QueryParam' '[Required] "tx" Cbor) where
@@ -180,6 +204,7 @@ instance Docs.ToParam (QueryParam' '[Required] "tx" Cbor) where
       "A CBOR-encoded `Tx AlonzoEra`; should be sent as a hexadecimal string"
       Docs.Normal
     where
+      sampleTx :: String
       sampleTx =
         mconcat
           [ "84a300818258205d677265fa5bb21ce6d8c7502aca70b93"
@@ -188,6 +213,15 @@ instance Docs.ToParam (QueryParam' '[Required] "tx" Cbor) where
           , "baea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba"
           , "3e96550504d5336100021a0002b569a0f5f6"
           ]
+
+instance Docs.ToParam (QueryParam' '[Required] "count" WitnessCount) where
+  toParam _ =
+    Docs.DocQueryParam
+      "wit-count"
+      ["1"]
+      "A natural number representing the intended number of key witnesses\
+      \for the transaction"
+      Docs.Normal
 
 instance Docs.ToSample Fee where
   toSamples _ =
@@ -220,6 +254,30 @@ instance Docs.ToSample AppliedScript where
       )
     ]
 
+instance Docs.ToSample HashDataRequest where
+  toSamples _ =
+    [
+      ( "The input should contain CBOR of a single datum"
+      , HashDataRequest (Cbor "00")
+      )
+    ]
+
+instance Docs.ToSample HashedData where
+  toSamples _ =
+    [ ("The data will be returned as hex-encoded CBOR", HashedData exampleData)
+    ]
+    where
+      -- Fix this with an actual hash
+      exampleData :: ByteString
+      exampleData =
+        mconcat
+          [ "84a300818258205d677265fa5bb21ce6d8c7502aca70b93"
+          , "16d10e958611f3c6b758f65ad9599960001818258390030"
+          , "fb3b8539951e26f034910a5a37f22cb99d94d1d409f69dd"
+          , "baea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba"
+          , "3e96550504d5336100021a0002b569a0f5f6"
+          ]
+
 instance Docs.ToSample HashScriptRequest where
   toSamples _ =
     [ ("The script should be CBOR-encoded hex", HashScriptRequest exampleScript)
@@ -240,7 +298,8 @@ instance Docs.ToSample HashedScript where
 instance Docs.ToSample FinalizeRequest where
   toSamples _ =
     [
-      ( "The input should contain CBOR of Tx, Redeemers and individual plutus datums"
+      ( "The input should contain CBOR of tx, redeemers, individual Plutus\
+        \datums, and Plutus script hashes"
       , FinalizeRequest (Cbor "00") [Cbor "00"] (Cbor "00")
       )
     ]
@@ -250,13 +309,29 @@ instance Docs.ToSample FinalizedTransaction where
     [ ("The output is CBOR-encoded Tx", exampleTx)
     ]
     where
-      exampleTx = FinalizedTransaction . Cbor $ mconcat
-        [ "84a300818258205d677265fa5bb21ce6d8c7502aca70b93"
-        , "16d10e958611f3c6b758f65ad9599960001818258390030"
-        , "fb3b8539951e26f034910a5a37f22cb99d94d1d409f69dd"
-        , "baea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba"
-        , "3e96550504d5336100021a0002b569a0f5f6"
-        ]
+      exampleTx :: FinalizedTransaction
+      exampleTx =
+        FinalizedTransaction . Cbor $
+          mconcat
+            [ "84a300818258205d677265fa5bb21ce6d8c7502aca70b93"
+            , "16d10e958611f3c6b758f65ad9599960001818258390030"
+            , "fb3b8539951e26f034910a5a37f22cb99d94d1d409f69dd"
+            , "baea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba"
+            , "3e96550504d5336100021a0002b569a0f5f6"
+            ]
+
+instance Docs.ToSample BytesToHash where
+  toSamples _ = [("Bytes to hash as hexadecimal string", BytesToHash "foo")]
+
+instance Docs.ToSample Blake2bHash where
+  toSamples _ =
+    [
+      ( "Hash bytes are returned as hexidecimal string"
+      , Blake2bHash
+          "\184\254\159\DELbU\166\250\b\246h\171c*\
+          \\141\b\SUB\216y\131\199|\210t\228\140\228P\240\179I\253"
+      )
+    ]
 
 -- For decoding test fixtures, samples, etc...
 unsafeDecode :: forall (a :: Type). FromJSON a => String -> LC8.ByteString -> a
@@ -269,3 +344,18 @@ unsafeDecode name = fromMaybe (error errorMsg) . Aeson.decode
 -- Replace this with a simpler script
 exampleScript :: Ledger.Script
 exampleScript = unsafeDecode "Script" "\"4d01000033222220051200120011\""
+
+newtype JsonHexString = JsonHexString ByteString
+
+instance FromJSON JsonHexString where
+  parseJSON =
+    withText "JsonHexString" $
+      either (const $ fail "Couldn't decode hex string") (pure . JsonHexString)
+        . Base16.decode
+        . Text.Encoding.encodeUtf8
+
+instance ToJSON JsonHexString where
+  toJSON (JsonHexString jhs) =
+    Aeson.String
+      . Text.Encoding.decodeUtf8
+      $ Base16.encode jhs

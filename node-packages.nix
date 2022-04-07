@@ -4470,9 +4470,9 @@ let
     };
   };
   args = {
-    name = "realpab";
-    packageName = "realpab";
-    version = "1.0.0";
+    name = "cardano-transaction-lib";
+    packageName = "cardano-transaction-lib";
+    version = "0.1.0";
     src = ./.;
     dependencies = [
       (sources."@cardano-ogmios/client-4.2.1" // {

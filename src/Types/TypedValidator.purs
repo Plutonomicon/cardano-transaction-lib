@@ -152,7 +152,7 @@ forwardingMintingPolicy = _.forwardingMPS <<< unwrap
 
 -- We have a few functions, I'm not sure if we even need these for off chain
 -- code:
--- -- Broken, see below (we need some notion of `applyCode`) https://github.com/Plutonomicon/cardano-browser-tx/issues/24
+-- -- Broken, see below (we need some notion of `applyCode`) https://github.com/Plutonomicon/cardano-transaction-lib/issues/24
 -- -- | Make a `TypedValidator` (with no type constraints) from an untyped
 -- -- |`Validator` script.
 -- unsafeMkTypedValidator :: Scripts.Validator -> Maybe (TypedValidator Any)

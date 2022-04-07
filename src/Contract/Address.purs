@@ -6,7 +6,6 @@ module Contract.Address
   , module ExportAddress
   , module Bech32
   , module ByteArray
-  , module ContractScripts
   , module Scripts
   , module SerializationAddress
   , module Transaction
@@ -16,19 +15,14 @@ module Contract.Address
   ) where
 
 import Address
-  ( addressMintingPolicyHash
-  , addressScriptHash
-  , addressStakeValidatorHash
-  , addressValidatorHash
+  ( enterpriseAddressMintingPolicyHash
+  , enterpriseAddressScriptHash
+  , enterpriseAddressStakeValidatorHash
+  , enterpriseAddressValidatorHash
   ) as ExportAddress
 import Address (getNetworkId) as Address
-import Contract.Monad (Contract)
-import Contract.Scripts
-  ( validatorAddress
-  , validatorBaseAddress
-  ) as ContractScripts
+import Contract.Monad (Contract, wrapContract)
 import Data.Maybe (Maybe)
-import Data.Newtype (wrap)
 import QueryM
   ( getWalletAddress
   , getWalletCollateral
@@ -36,10 +30,10 @@ import QueryM
   , ownPubKeyHash
   ) as QueryM
 import Scripts
-  ( typedValidatorAddress
-  , typedValidatorBaseAddress
-  , validatorHashAddress
+  ( typedValidatorBaseAddress
+  , typedValidatorEnterpriseAddress
   , validatorHashBaseAddress
+  , validatorHashEnterpriseAddress
   ) as Scripts
 import Serialization.Address (Address)
 import Serialization.Address -- There are a lot of helpers we have ignored here, we may want to include them.
@@ -71,18 +65,15 @@ import Types.UnbalancedTransaction
   , ScriptOutput(ScriptOutput)
   , StakeKeyHash(StakeKeyHash)
   , StakePubKeyHash(StakePubKeyHash)
-  , payPubKeyHash
-  , payPubKeyHashAddress
   , payPubKeyHashBaseAddress
+  , payPubKeyHashEnterpriseAddress
   , payPubKeyRequiredSigner
   , payPubKeyVkey
-  , pubKeyHash
-  , pubKeyHashAddress
+  -- , pubKeyHash
   , pubKeyHashBaseAddress
-  , stakeKeyHashAddress
-  , stakeKeyHashBaseAddress
-  , stakePubKeyHashAddress
-  , stakePubKeyHashBaseAddress
+  , pubKeyHashEnterpriseAddress
+  , stakeKeyHashRewardAddress
+  , stakePubKeyHashRewardAddress
   ) as UnbalancedTransaction
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
@@ -94,23 +85,26 @@ import Types.Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 
 -- | Get the `Address` of the browser wallet.
-getWalletAddress :: Contract (Maybe Address)
-getWalletAddress = wrap QueryM.getWalletAddress
+getWalletAddress :: forall (r :: Row Type). Contract r (Maybe Address)
+getWalletAddress = wrapContract QueryM.getWalletAddress
 
 -- | Get the collateral of the browser wallet. This collateral will vary
 -- | depending on the wallet.
 -- | E.g. Nami creates a hardcoded 5 Ada collateral.
-getWalletCollateral :: Contract (Maybe TransactionUnspentOutput)
-getWalletCollateral = wrap QueryM.getWalletCollateral
+getWalletCollateral
+  :: forall (r :: Row Type). Contract r (Maybe TransactionUnspentOutput)
+getWalletCollateral = wrapContract QueryM.getWalletCollateral
 
 -- | Gets the wallet `PaymentPubKeyHash` via `getWalletAddress`.
-ownPaymentPubKeyHash :: Contract (Maybe PaymentPubKeyHash)
-ownPaymentPubKeyHash = wrap QueryM.ownPaymentPubKeyHash
+ownPaymentPubKeyHash
+  :: forall (r :: Row Type). Contract r (Maybe PaymentPubKeyHash)
+ownPaymentPubKeyHash = wrapContract QueryM.ownPaymentPubKeyHash
 
 -- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
-ownPubKeyHash :: Contract (Maybe PubKeyHash)
-ownPubKeyHash = wrap QueryM.ownPubKeyHash
+ownPubKeyHash :: forall (r :: Row Type). Contract r (Maybe PubKeyHash)
+ownPubKeyHash = wrapContract QueryM.ownPubKeyHash
 
 -- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
-getNetworkId :: Contract SerializationAddress.NetworkId
-getNetworkId = wrap Address.getNetworkId
+getNetworkId
+  :: forall (r :: Row Type). Contract r SerializationAddress.NetworkId
+getNetworkId = wrapContract Address.getNetworkId

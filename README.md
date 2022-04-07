@@ -1,9 +1,9 @@
-# Cardano Browser Tx
+# Cardano Transaction Lib
 [![Hercules-ci][Herc badge]][Herc link]
 [![Cachix Cache][Cachix badge]][Cachix link]
 
 [Herc badge]: https://img.shields.io/badge/ci--by--hercules-green.svg
-[Herc link]: https://hercules-ci.com/github/Plutonomicon/cardano-browser-tx
+[Herc link]: https://hercules-ci.com/github/Plutonomicon/cardano-transaction-lib
 [Cachix badge]: https://img.shields.io/badge/cachix-public_plutonomicon-blue.svg
 [Cachix link]: https://public-plutonomicon.cachix.org
 

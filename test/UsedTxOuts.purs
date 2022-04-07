@@ -31,9 +31,9 @@ import UsedTxOuts
 buildSampleTransaction
   :: { tx :: Transaction
      , usedTxOutRefs ::
-         Array { transaction_id :: TransactionHash, index :: UInt }
+         Array { transactionId :: TransactionHash, index :: UInt }
      , unusedTxOutRefs ::
-         Array { transaction_id :: TransactionHash, index :: UInt }
+         Array { transactionId :: TransactionHash, index :: UInt }
      }
 buildSampleTransaction =
   let

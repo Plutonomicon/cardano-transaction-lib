@@ -65,7 +65,7 @@ convertInput :: TransactionInput -> Maybe T.TransactionInput
 convertInput input = do
   index <- UInt.fromInt' $ getTransactionIndex input
   pure $ T.TransactionInput
-    { transaction_id: T.TransactionHash $ toBytes
+    { transactionId: T.TransactionHash $ toBytes
         (asOneOf $ getTransactionHash input)
     , index
     }
@@ -75,10 +75,10 @@ convertOutput output = do
   amount <- convertValue $ getAmount output
   let
     address = getAddress output
-    data_hash =
+    dataHash =
       getDataHash maybeFfiHelper output <#>
         asOneOf >>> toBytes >>> T.DataHash
-  pure $ T.TransactionOutput { address, amount, data_hash }
+  pure $ T.TransactionOutput { address, amount, dataHash }
 
 convertValue :: Value -> Maybe T.Value
 convertValue value = do

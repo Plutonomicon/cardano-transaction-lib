@@ -12,6 +12,7 @@ import Effect.Exception (throw)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization.Types
   ( DataHash
+  , Mint
   , NativeScript
   , PlutusData
   , TransactionHash
@@ -42,6 +43,9 @@ instance FromBytes TransactionWitnessSet where
 instance FromBytes NativeScript where
   fromBytes = _fromBytesNativeScript maybeFfiHelper
 
+instance FromBytes Mint where
+  fromBytes = _fromBytesMint maybeFfiHelper
+
 fromBytesEffect :: forall a. FromBytes a => ByteArray -> Effect a
 fromBytesEffect bytes =
   case fromBytes bytes of
@@ -65,3 +69,5 @@ foreign import _fromBytesTransactionWitnessSet
 
 foreign import _fromBytesNativeScript
   :: MaybeFfiHelper -> ByteArray -> Maybe NativeScript
+
+foreign import _fromBytesMint :: MaybeFfiHelper -> ByteArray -> Maybe Mint

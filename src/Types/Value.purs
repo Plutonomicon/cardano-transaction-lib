@@ -388,7 +388,7 @@ instance Split Value where
     bimap (flip Value mempty) (flip Value mempty) (split coin)
       <> bimap (Value mempty) (Value mempty) (split nonAdaAsset)
 
--- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/193
+-- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/193
 -- Because our `Value` is different to Plutus, I wonder if this will become an
 -- issue.
 instance FromData Value where
@@ -479,7 +479,7 @@ unionNonAda (NonAdaAsset l) (NonAdaAsset r) =
   in
     unBoth <$> combined
 
--- Don't export to `Contract` due to https://github.com/Plutonomicon/cardano-browser-tx/issues/193
+-- Don't export to `Contract` due to https://github.com/Plutonomicon/cardano-transaction-lib/issues/193
 -- | Same as `unionWith` but specifically for `NonAdaAsset`
 unionWithNonAda
   :: (BigInt -> BigInt -> BigInt)

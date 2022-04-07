@@ -180,7 +180,7 @@ mustBeSignedBy = singleton <<< MustBeSignedBy
 mustIncludeDatum :: forall (i :: Type) (o :: Type). Datum -> TxConstraints i o
 mustIncludeDatum = singleton <<< MustIncludeDatum
 
--- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
+-- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/200
 -- | Lock the value to the script currently being validated
 mustPayToTheScript
   :: forall (i :: Type) (o :: Type)
