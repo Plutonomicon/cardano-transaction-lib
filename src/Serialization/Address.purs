@@ -156,6 +156,7 @@ instance Monoid Slot where
 newtype TransactionIndex = TransactionIndex UInt
 
 derive instance Eq TransactionIndex
+derive instance Ord TransactionIndex
 derive instance Newtype TransactionIndex _
 derive instance Generic TransactionIndex _
 derive newtype instance ToData TransactionIndex
@@ -167,6 +168,7 @@ instance Show TransactionIndex where
 newtype CertificateIndex = CertificateIndex UInt
 
 derive instance Eq CertificateIndex
+derive instance Ord CertificateIndex
 derive instance Newtype CertificateIndex _
 derive instance Generic CertificateIndex _
 derive newtype instance ToData CertificateIndex
