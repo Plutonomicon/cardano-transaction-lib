@@ -18,7 +18,7 @@ module Types (
   HashScriptRequest (..),
   HashedScript (..),
   CborDecodeError (..),
-  CardanoBrowserServerError (..),
+  CtlServerError (..),
   hashLedgerScript,
   newEnvIO,
   unsafeDecode,
@@ -182,10 +182,10 @@ toCardanoApiScript =
     . LC8.toStrict
     . serialise
 
-newtype CardanoBrowserServerError = CborDecode CborDecodeError
+newtype CtlServerError = CborDecode CborDecodeError
   deriving stock (Show)
 
-instance Exception CardanoBrowserServerError
+instance Exception CtlServerError
 
 data CborDecodeError
   = InvalidCbor Cbor.DecoderError
@@ -321,14 +321,15 @@ instance Docs.ToSample FinalizedTransaction where
             ]
 
 instance Docs.ToSample BytesToHash where
-  toSamples _ = [ ("Bytes to hash as hexadecimal string", BytesToHash "foo")]
+  toSamples _ = [("Bytes to hash as hexadecimal string", BytesToHash "foo")]
 
 instance Docs.ToSample Blake2bHash where
   toSamples _ =
     [
       ( "Hash bytes are returned as hexidecimal string"
-      , Blake2bHash "\184\254\159\DELbU\166\250\b\246h\171c*\
-        \\141\b\SUB\216y\131\199|\210t\228\140\228P\240\179I\253"
+      , Blake2bHash
+          "\184\254\159\DELbU\166\250\b\246h\171c*\
+          \\141\b\SUB\216y\131\199|\210t\228\140\228P\240\179I\253"
       )
     ]
 

@@ -44,9 +44,9 @@ import Types (
   ApplyArgsRequest,
   Blake2bHash,
   BytesToHash,
-  CardanoBrowserServerError (CborDecode),
   Cbor,
   CborDecodeError (InvalidCbor, InvalidHex, OtherDecodeError),
+  CtlServerError (CborDecode),
   Env,
   Fee,
   FinalizeRequest,
@@ -102,14 +102,14 @@ appServer env = hoistServer api appHandler server
       where
         tryServer ::
           ReaderT Env IO a ->
-          Handler (Either CardanoBrowserServerError a)
+          Handler (Either CtlServerError a)
         tryServer =
           liftIO
-            . try @_ @CardanoBrowserServerError
+            . try @_ @CtlServerError
             . flip runReaderT env
 
         handleError ::
-          CardanoBrowserServerError ->
+          CtlServerError ->
           Handler a
         handleError (CborDecode de) = case de of
           InvalidCbor ic -> throwError err400 {errBody = lbshow ic}
