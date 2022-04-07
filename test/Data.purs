@@ -303,6 +303,9 @@ instance HasConstrIndex Day where
 instance ToData Day where
   toData = genericToData
 
+instance FromData Day where
+  fromData = genericFromData
+
 data AnotherDay = AMon | ATue | AWed | AThurs | AFri | ASat | ASun
 
 derive instance G.Generic AnotherDay _
@@ -313,6 +316,9 @@ instance HasConstrIndex AnotherDay where
 instance ToData AnotherDay where
   toData = genericToData
 
+instance FromData AnotherDay where
+  fromData = genericFromData
+
 data Tree a = Node a (Tuple (Tree a) (Tree a)) | Leaf a
 
 derive instance G.Generic (Tree a) _
@@ -322,6 +328,9 @@ instance HasConstrIndex (Tree a) where
 
 instance (ToData a) => ToData (Tree a) where
   toData x = genericToData x -- https://github.com/purescript/documentation/blob/master/guides/Type-Class-Deriving.md#avoiding-stack-overflow-errors-with-recursive-types
+
+instance (FromData a) => FromData (Tree a) where
+  fromData x = genericFromData x
 
 fromBytesFromData :: forall a. FromData a => String -> Maybe a
 fromBytesFromData binary = fromData =<< PDD.convertPlutusData =<< fromBytes
