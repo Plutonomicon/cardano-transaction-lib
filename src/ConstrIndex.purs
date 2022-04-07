@@ -62,13 +62,14 @@ module ConstrIndex
   , fromConstr2Index
   ) where
 
-import Type.Proxy (Proxy(Proxy))
+import Prelude
+
+import Data.Generic.Rep as G
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Generic.Rep as G
 import Data.Symbol (reflectSymbol, SProxy(SProxy), class IsSymbol)
-import Data.Tuple (Tuple(Tuple))
-import Prelude
+import Data.Tuple (Tuple(Tuple), swap)
+import Type.Proxy (Proxy(Proxy))
 
 class HasConstrIndex :: Type -> Constraint
 class HasConstrIndex a where
@@ -98,7 +99,7 @@ instance (IsSymbol n) => HasCountedConstrIndex (G.Constructor n a) where
     (Map.insert i (reflectSymbol (SProxy :: SProxy n)) ix2Constr)
 
 defaultConstrIndex
-  :: forall a rep
+  :: forall (a :: Type) (rep :: Type)
    . G.Generic a rep
   => HasCountedConstrIndex rep
   => Proxy a
@@ -110,4 +111,4 @@ fromConstr2Index
   :: Array (Tuple String Int) -> Tuple (Map String Int) (Map Int String)
 fromConstr2Index c2Is = Tuple
   (Map.fromFoldable c2Is)
-  (Map.fromFoldable $ (\(Tuple c i) -> Tuple i c) <$> c2Is)
+  (Map.fromFoldable $ swap <$> c2Is)
