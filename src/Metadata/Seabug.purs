@@ -66,7 +66,8 @@ instance FromData SeabugMetadata where
   fromData (Map sm) = unsafePartial do
     policyId /\ contents <- lookupKey "727" sm >>= case _ of
       Map mp1 -> case Map.toUnfoldable mp1 of
-        [ policyId /\ contents ] -> Tuple <$> fromData policyId <*> fromData contents
+        [ policyId /\ contents ] -> Tuple <$> fromData policyId <*> fromData
+          contents
         _ -> Nothing
       _ -> Nothing
     mintPolicy <- lookupKey "mintPolicy" contents >>= fromData
@@ -121,7 +122,8 @@ instance FromData SeabugMetadataDelta where
   fromData (Map sm) = unsafePartial do
     policyId /\ contents <- lookupKey "727" sm >>= case _ of
       Map mp1 -> case Map.toUnfoldable mp1 of
-        [ policyId /\ contents ] -> Tuple <$> fromData policyId <*> fromData contents
+        [ policyId /\ contents ] -> Tuple <$> fromData policyId <*> fromData
+          contents
         _ -> Nothing
       _ -> Nothing
     ownerPkh <- lookupKey "ownerPkh" contents >>= fromData
@@ -136,5 +138,6 @@ instance FromData SeabugMetadataDelta where
 mkKey :: Partial => String -> PlutusData
 mkKey str = Bytes $ fromJust $ byteArrayFromString str
 
-lookupKey :: Partial => String -> Map.Map PlutusData PlutusData -> Maybe PlutusData
+lookupKey
+  :: Partial => String -> Map.Map PlutusData PlutusData -> Maybe PlutusData
 lookupKey keyStr = Map.lookup (mkKey keyStr)

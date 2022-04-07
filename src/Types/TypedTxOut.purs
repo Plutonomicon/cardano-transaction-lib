@@ -246,15 +246,16 @@ typeTxOut
   -> TypedValidator a
   -> TransactionOutput
   -> QueryM (Either TypeCheckError (TypedTxOut a b))
-typeTxOut networkId typedVal (TransactionOutput { address, amount, data_hash }) = runExceptT do
-  -- Assume `Nothing` is a public key.
-  dHash <- liftM ExpectedScriptGotPubkey data_hash
-  void $ checkValidatorAddress networkId typedVal address
-  pd <- ExceptT $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
-  dtOut <- ExceptT $ checkDatum typedVal (wrap pd)
-  liftM
-    CannotMakeTypedTxOut
-    (mkTypedTxOut networkId typedVal dtOut amount)
+typeTxOut networkId typedVal (TransactionOutput { address, amount, data_hash }) =
+  runExceptT do
+    -- Assume `Nothing` is a public key.
+    dHash <- liftM ExpectedScriptGotPubkey data_hash
+    void $ checkValidatorAddress networkId typedVal address
+    pd <- ExceptT $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
+    dtOut <- ExceptT $ checkDatum typedVal (wrap pd)
+    liftM
+      CannotMakeTypedTxOut
+      (mkTypedTxOut networkId typedVal dtOut amount)
 
 -- | Create a `TypedTxOutRef` from an existing `TxOutRef` ~ `TransactionInput`
 -- | by checking the types of its parts. To do this we need to cross-reference

@@ -35,7 +35,9 @@ convertConstr alt list =
 
 convertPlutusList :: Array T.PlutusData -> Maybe PlutusData
 convertPlutusList x =
-  _mkPlutusData_list <<< _packPlutusList containerHelper <$> traverse convertPlutusData x
+  _mkPlutusData_list <<< _packPlutusList containerHelper <$> traverse
+    convertPlutusData
+    x
 
 convertPlutusMap :: Map T.PlutusData T.PlutusData -> Maybe PlutusData
 convertPlutusMap mp = do
@@ -62,7 +64,9 @@ foreign import _mkPlutusData_map :: PlutusMap -> PlutusData
 foreign import _mkPlutusData_integer :: BigInt -> PlutusData
 foreign import _mkPlutusData_constr :: ConstrPlutusData -> PlutusData
 
-foreign import _packPlutusList :: ContainerHelper -> Array PlutusData -> PlutusList
+foreign import _packPlutusList
+  :: ContainerHelper -> Array PlutusData -> PlutusList
+
 foreign import _mkConstrPlutusData :: BigNum -> PlutusList -> ConstrPlutusData
 foreign import _bigIntFromString :: MaybeFfiHelper -> String -> Maybe BigInt
 foreign import _packMap

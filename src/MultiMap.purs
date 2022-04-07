@@ -31,11 +31,18 @@ singleton k v = MultiMap $ Map.insert k (Array.singleton v) Map.empty
 
 -- | Inserts value. In case k exist the value is stored at the end of
 --   existing values array.
-insert :: forall (k :: Type) (v :: Type). Ord k => k -> v -> MultiMap k v -> MultiMap k v
+insert
+  :: forall (k :: Type) (v :: Type)
+   . Ord k
+  => k
+  -> v
+  -> MultiMap k v
+  -> MultiMap k v
 insert k v (MultiMap m) = MultiMap $ Map.insertWith (<>) k (Array.singleton v) m
 
 -- | Deletes first value from a value array under given k.
-delete :: forall (k :: Type) (v :: Type). Ord k => k -> MultiMap k v -> MultiMap k v
+delete
+  :: forall (k :: Type) (v :: Type). Ord k => k -> MultiMap k v -> MultiMap k v
 delete k (MultiMap m) = MultiMap $ Map.update (Array.uncons >>> map _.tail) k m
 
 -- | Lookup first value for given key.

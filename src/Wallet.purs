@@ -73,12 +73,13 @@ mkNamiWalletAff = do
     (_ >>= addressFromBytes) >>> pure
 
   getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
-  getCollateral nami = fromNamiMaybeHexString getNamiCollateral nami >>= case _ of
-    Nothing -> pure Nothing
-    Just bytes -> do
-      liftEffect $
-        Deserialization.UnspentOuput.convertUnspentOutput
-          <$> fromBytesEffect bytes
+  getCollateral nami = fromNamiMaybeHexString getNamiCollateral nami >>=
+    case _ of
+      Nothing -> pure Nothing
+      Just bytes -> do
+        liftEffect $
+          Deserialization.UnspentOuput.convertUnspentOutput
+            <$> fromBytesEffect bytes
 
   signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
   signTx nami tx = do
@@ -117,7 +118,8 @@ mkNamiWalletAff = do
     :: (NamiConnection -> Effect (Promise (Maybe String)))
     -> NamiConnection
     -> Aff (Maybe ByteArray)
-  fromNamiMaybeHexString act = map (flip bind hexToByteArray) <<< Promise.toAffE <<< act
+  fromNamiMaybeHexString act = map (flip bind hexToByteArray) <<< Promise.toAffE
+    <<< act
 
 -------------------------------------------------------------------------------
 -- FFI stuff
@@ -128,7 +130,8 @@ foreign import _enableNami :: Effect (Promise NamiConnection)
 
 foreign import _getNamiAddress :: NamiConnection -> Effect (Promise String)
 
-foreign import _getNamiCollateral :: MaybeFfiHelper -> NamiConnection -> Effect (Promise (Maybe String))
+foreign import _getNamiCollateral
+  :: MaybeFfiHelper -> NamiConnection -> Effect (Promise (Maybe String))
 
 getNamiCollateral :: NamiConnection -> Effect (Promise (Maybe String))
 getNamiCollateral = _getNamiCollateral maybeFfiHelper

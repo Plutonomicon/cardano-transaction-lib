@@ -71,13 +71,16 @@ suite = do
         test "Map #2" do
           let
             input = Map.fromFoldable
-              [ Map.fromFoldable [ unit /\ unit ] /\ Map.fromFoldable [ unit /\ unit ] ]
+              [ Map.fromFoldable [ unit /\ unit ] /\ Map.fromFoldable
+                  [ unit /\ unit ]
+              ]
           fromData (toData input) `shouldEqual` Just input
     group "Generic" do
       -- TODO: Quickcheckify
       test "EType: from . to == id" do
         let
-          input = E0 (D1 (D2 (C1 Nothing))) true (C2 (MyBigInt (BigInt.fromInt 123)) false)
+          input = E0 (D1 (D2 (C1 Nothing))) true
+            (C2 (MyBigInt (BigInt.fromInt 123)) false)
         fromData (toData input) `shouldEqual` Just input
       test "CType: C1 constructor shouldn't accept empty arguments" do
         let
@@ -85,7 +88,8 @@ suite = do
         fromData pd `shouldEqual` (Nothing :: Maybe CType)
       test "CType: C1 constructor shouldn't accept more than one argument" do
         let
-          pd = Constr (BigInt.fromInt 1) [ (Constr (BigInt.fromInt 1) []), (Integer $ BigInt.fromInt 0) ]
+          pd = Constr (BigInt.fromInt 1)
+            [ (Constr (BigInt.fromInt 1) []), (Integer $ BigInt.fromInt 0) ]
         fromData pd `shouldEqual` (Nothing :: Maybe CType)
       test "CType: C0 constructor shouldn't accept any arguments" do
         let
@@ -105,7 +109,10 @@ suite = do
         fromData (toData f1') `shouldEqual` Just f1
       test "FType and FType' toData/fromData the same: F2 == F2'" do
         let
-          f2 = F2 { f2A: BigInt.fromInt 1337, f2B: F1 { f1A: true, f1B: false, f1C: true } }
+          f2 = F2
+            { f2A: BigInt.fromInt 1337
+            , f2B: F1 { f1A: true, f1B: false, f1C: true }
+            }
           f2' = F2' (BigInt.fromInt 1337) (F1' true false true)
         fromData (toData f2) `shouldEqual` Just f2'
         fromData (toData f2') `shouldEqual` Just f2
@@ -148,7 +155,10 @@ suite = do
         [ BigInt.fromInt (negate 1000) /\ "3903e7"
         , BigInt.fromInt 1000 /\ "1903e8"
         , BigInt.fromInt 1 /\ "01"
-        , unsafePartial (fromJust $ BigInt.fromString "999999999999999999999999999999999999999")
+        , unsafePartial
+            ( fromJust $ BigInt.fromString
+                "999999999999999999999999999999999999999"
+            )
             /\ "c25102f050fe938943acc45f65567fffffffff"
         ]
     skip $ group "BigInt - failing (problem with encoding of 0)" do
@@ -171,7 +181,12 @@ instance Arbitrary MyBigInt where
     pure $ MyBigInt bi
 
 -- | Types used to test generic fromData and toData
-data CType = C0 | C1 (Maybe MyBigInt) | C2 MyBigInt Boolean | C3 MyBigInt Boolean Boolean
+data CType
+  = C0
+  | C1 (Maybe MyBigInt)
+  | C2 MyBigInt Boolean
+  | C3 MyBigInt Boolean Boolean
+
 data DType = D0 CType MyBigInt (Maybe Boolean) | D1 DType | D2 CType
 data EType = E0 DType Boolean CType
 data FType
@@ -282,7 +297,8 @@ data Day = Mon | Tue | Wed | Thurs | Fri | Sat | Sun
 derive instance G.Generic Day _
 
 instance HasConstrIndex Day where
-  constrIndex _ = fromConstr2Index (zip [ "Mon", "Tue", "Wed", "Thurs", "Fri", "Sat", "Sun" ] (0 .. 7))
+  constrIndex _ = fromConstr2Index
+    (zip [ "Mon", "Tue", "Wed", "Thurs", "Fri", "Sat", "Sun" ] (0 .. 7))
 
 instance ToData Day where
   toData = genericToData
@@ -308,11 +324,22 @@ instance (ToData a) => ToData (Tree a) where
   toData x = genericToData x -- https://github.com/purescript/documentation/blob/master/guides/Type-Class-Deriving.md#avoiding-stack-overflow-errors-with-recursive-types
 
 fromBytesFromData :: forall a. FromData a => String -> Maybe a
-fromBytesFromData binary = fromData =<< PDD.convertPlutusData =<< fromBytes (hexToByteArrayUnsafe binary)
+fromBytesFromData binary = fromData =<< PDD.convertPlutusData =<< fromBytes
+  (hexToByteArrayUnsafe binary)
 
-testBinaryFixture :: forall a. Eq a => Show a => FromData a => ToData a => a -> String -> TestPlanM Unit
+testBinaryFixture
+  :: forall a
+   . Eq a
+  => Show a
+  => FromData a
+  => ToData a
+  => a
+  -> String
+  -> TestPlanM Unit
 testBinaryFixture value binaryFixture = do
   test ("Deserialization: " <> show value) do
     fromBytesFromData binaryFixture `shouldEqual` Just value
   test ("Serialization: " <> show value) do
-    map (toBytes <<< asOneOf) (PDS.convertPlutusData (toData value)) `shouldEqual` Just (hexToByteArrayUnsafe binaryFixture)
+    map (toBytes <<< asOneOf) (PDS.convertPlutusData (toData value))
+      `shouldEqual` Just
+        (hexToByteArrayUnsafe binaryFixture)

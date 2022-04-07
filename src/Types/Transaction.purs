@@ -247,7 +247,8 @@ type Update =
   , epoch :: Epoch
   }
 
-newtype ProposedProtocolParameterUpdates = ProposedProtocolParameterUpdates (Map GenesisHash ProtocolParamUpdate)
+newtype ProposedProtocolParameterUpdates = ProposedProtocolParameterUpdates
+  (Map GenesisHash ProtocolParamUpdate)
 
 derive instance Newtype ProposedProtocolParameterUpdates _
 
@@ -544,7 +545,8 @@ instance monoidAuxiliaryData :: Monoid AuxiliaryData where
     }
 
 newtype GeneralTransactionMetadata =
-  GeneralTransactionMetadata (Map TransactionMetadatumLabel TransactionMetadatum)
+  GeneralTransactionMetadata
+    (Map TransactionMetadatumLabel TransactionMetadatum)
 
 derive instance Newtype GeneralTransactionMetadata _
 

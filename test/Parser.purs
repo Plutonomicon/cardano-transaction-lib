@@ -25,7 +25,8 @@ import Types.JsonWsp (JsonWspResponse, UtxoQR, parseJsonWspResponse)
 
 suite :: TestPlanM Unit
 suite = do
-  str <- lift $ readTextFile UTF8 "./fixtures/test/parsing/JsonWsp/UtxoQueryResponse.json"
+  str <- lift $ readTextFile UTF8
+    "./fixtures/test/parsing/JsonWsp/UtxoQueryResponse.json"
   let
     eJson = parseJsonStringToAeson str
   json <- either
@@ -35,19 +36,22 @@ suite = do
   let
     stringArray = caseAesonArray [] convertJsonArray json :: Array String
     jsonStrArray = caseAesonArray [] identity json :: Array Aeson
-  schema <- lift $ getSchema "./fixtures/schemata/JsonWsp/UtxoQueryResponse.medea"
+  schema <- lift $ getSchema
+    "./fixtures/schemata/JsonWsp/UtxoQueryResponse.medea"
   group "Parser tests" $ do
     group "Schemata parse tests" $ do
       test "fixture array should not be empty" $
         stringArray `shouldNotSatisfy` Array.null
       test "fixtures match schema - utxoQueryResponse" $
         -- TODO: add a helper function or something so that the error displays the index it occured on, logs out the offending JSON string from the array.
-        runValidationM (validateJsonArray schema stringArray) `shouldSatisfy` isRight
+        runValidationM (validateJsonArray schema stringArray) `shouldSatisfy`
+          isRight
     group "Type parsing" $ do
       test "fixtures parse correctly - UtxoQueryResponse" $
         traverseJsonWsps jsonStrArray `shouldSatisfy` isRight
 
-traverseJsonWsps :: Array Aeson -> Either Json.JsonDecodeError (Array (JsonWspResponse UtxoQR))
+traverseJsonWsps
+  :: Array Aeson -> Either Json.JsonDecodeError (Array (JsonWspResponse UtxoQR))
 traverseJsonWsps arr = traverse parseJsonWspResponse arr
 
 convertJsonArray :: Array Aeson -> Array String

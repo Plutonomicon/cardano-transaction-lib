@@ -148,9 +148,11 @@ foreign import _mkWebSocket :: Url -> Effect JsWebSocket
 
 foreign import _onWsConnect :: JsWebSocket -> (Effect Unit) -> Effect Unit
 
-foreign import _onWsMessage :: JsWebSocket -> (String -> Effect Unit) -> Effect Unit
+foreign import _onWsMessage
+  :: JsWebSocket -> (String -> Effect Unit) -> Effect Unit
 
-foreign import _onWsError :: JsWebSocket -> (String -> Effect Unit) -> Effect Unit
+foreign import _onWsError
+  :: JsWebSocket -> (String -> Effect Unit) -> Effect Unit
 
 foreign import _wsSend :: JsWebSocket -> String -> Effect Unit
 
@@ -191,35 +193,44 @@ getDatumByHash :: DatumHash -> QueryM (Maybe PlutusData)
 getDatumByHash hash = do
   queryDatumCache (GetDatumByHashRequest hash) >>= case _ of
     GetDatumByHashResponse mData -> pure mData
-    _ -> liftEffect $ throw "Request-response type mismatch. Should not have happened"
+    _ -> liftEffect $ throw
+      "Request-response type mismatch. Should not have happened"
 
 getDatumsByHashes :: Array DatumHash -> QueryM (Array PlutusData)
 getDatumsByHashes hashes = do
   queryDatumCache (GetDatumsByHashesRequest hashes) >>= case _ of
     GetDatumsByHashesResponse plutusDatums -> pure $ plutusDatums
-    _ -> liftEffect $ throw "Request-response type mismatch. Should not have happened"
+    _ -> liftEffect $ throw
+      "Request-response type mismatch. Should not have happened"
 
 startFetchBlocksRequest :: { slot :: Slot, id :: BlockId } -> QueryM Unit
-startFetchBlocksRequest = matchCacheQuery StartFetchBlocksRequest StartFetchBlocks
+startFetchBlocksRequest = matchCacheQuery StartFetchBlocksRequest
+  StartFetchBlocks
 
 -- | Cancels a running block fetcher job. Throws on no fetchers running
 cancelFetchBlocksRequest :: QueryM Unit
-cancelFetchBlocksRequest = matchCacheQuery (const CancelFetchBlocksRequest) CancelFetchBlocks unit
+cancelFetchBlocksRequest = matchCacheQuery (const CancelFetchBlocksRequest)
+  CancelFetchBlocks
+  unit
 
 datumFilterAddHashesRequest :: Array DatumHash -> QueryM Unit
-datumFilterAddHashesRequest = matchCacheQuery DatumFilterAddHashesRequest DatumFilterAddHashes
+datumFilterAddHashesRequest = matchCacheQuery DatumFilterAddHashesRequest
+  DatumFilterAddHashes
 
 datumFilterRemoveHashesRequest :: Array DatumHash -> QueryM Unit
-datumFilterRemoveHashesRequest = matchCacheQuery DatumFilterRemoveHashesRequest DatumFilterRemoveHashes
+datumFilterRemoveHashesRequest = matchCacheQuery DatumFilterRemoveHashesRequest
+  DatumFilterRemoveHashes
 
 datumFilterSetHashesRequest :: Array DatumHash -> QueryM Unit
-datumFilterSetHashesRequest = matchCacheQuery DatumFilterSetHashesRequest DatumFilterSetHashes
+datumFilterSetHashesRequest = matchCacheQuery DatumFilterSetHashesRequest
+  DatumFilterSetHashes
 
 datumFilterGetHashesRequest :: QueryM (Array DatumHash)
 datumFilterGetHashesRequest = do
   queryDatumCache DatumFilterGetHashesRequest >>= case _ of
     DatumFilterGetHashesResponse hashes -> pure $ hashes
-    _ -> liftEffect $ throw "Request-response type mismatch. Should not have happened"
+    _ -> liftEffect $ throw
+      "Request-response type mismatch. Should not have happened"
 
 matchCacheQuery
   :: forall (args :: Type)
@@ -230,7 +241,8 @@ matchCacheQuery
 matchCacheQuery query method args = do
   resp <- queryDatumCache (query args)
   if responseMethod resp == method then pure unit
-  else liftEffect $ throw "Request-response type mismatch. Should not have happened"
+  else liftEffect $ throw
+    "Request-response type mismatch. Should not have happened"
 
 queryDatumCache :: DatumCacheRequest -> QueryM DatumCacheResponse
 queryDatumCache request = do
@@ -239,7 +251,8 @@ queryDatumCache request = do
   let
     id = requestMethodName request
 
-    affFunc :: (Either Error DcWsp.JsonWspResponse -> Effect Unit) -> Effect Canceler
+    affFunc
+      :: (Either Error DcWsp.JsonWspResponse -> Effect Unit) -> Effect Canceler
     affFunc cont = do
       let
         ls = listeners config.datumCacheWs
@@ -256,9 +269,12 @@ queryDatumCache request = do
   jsonwspresp <- liftAff $ makeAff $ affFunc
   case DcWsp.parseJsonWspResponse jsonwspresp of
     Right resp -> pure resp
-    Left fault -> liftEffect $ throw $ "Ogmios-datum-cache service call fault" <> faultToString fault
+    Left fault -> liftEffect $ throw $ "Ogmios-datum-cache service call fault"
+      <> faultToString
+        fault
 
-allowError :: forall (a :: Type). (Either Error a -> Effect Unit) -> a -> Effect Unit
+allowError
+  :: forall (a :: Type). (Either Error a -> Effect Unit) -> a -> Effect Unit
 allowError func = func <<< Right
 
 --------------------------------------------------------------------------------
@@ -444,7 +460,9 @@ finalizeTx tx datums redeemers = do
   encodedDatums <- liftEffect do
     for datums \datum -> do
       byteArrayToHex <<< Serialization.toBytes <<< asOneOf
-        <$> maybe' (\_ -> throw $ "Failed to convert plutus data: " <> show datum) pure
+        <$> maybe'
+          (\_ -> throw $ "Failed to convert plutus data: " <> show datum)
+          pure
           (Serialization.convertPlutusData datum)
   -- redeemers
   encodedRedeemers <- liftEffect $
@@ -565,10 +583,16 @@ mkOgmiosWebSocket' serverCfg cb = do
   let md = ogmiosMessageDispatch { utxoDispatchMap, chainTipDispatchMap }
   ws <- _mkWebSocket $ mkWsUrl serverCfg
   _onWsConnect ws $ do
-    _wsWatch ws (removeAllListeners utxoDispatchMap *> removeAllListeners chainTipDispatchMap)
+    _wsWatch ws
+      ( removeAllListeners utxoDispatchMap *> removeAllListeners
+          chainTipDispatchMap
+      )
     _onWsMessage ws (defaultMessageListener md)
     _onWsError ws defaultErrorListener
-    cb $ Right $ WebSocket ws { utxo: mkListenerSet utxoDispatchMap, chainTip: mkListenerSet chainTipDispatchMap }
+    cb $ Right $ WebSocket ws
+      { utxo: mkListenerSet utxoDispatchMap
+      , chainTip: mkListenerSet chainTipDispatchMap
+      }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
 
 mkDatumCacheWebSocket'
@@ -646,7 +670,8 @@ removeAllListeners dim = do
 -- A function which accepts some unparsed Json, and checks it against one or
 -- more possible types to perform an appropriate effect (such as supplying the
 -- parsed result to an async fiber/Aff listener)
-type WebsocketDispatch = String -> Effect (Either Json.JsonDecodeError (Effect Unit))
+type WebsocketDispatch =
+  String -> Effect (Either Json.JsonDecodeError (Effect Unit))
 
 -- A mutable queue of requests
 type DispatchIdMap a = Ref.Ref (MultiMap String (a -> Effect Unit))
@@ -662,7 +687,8 @@ ogmiosMessageDispatch { utxoDispatchMap, chainTipDispatchMap } =
   , ogmiosQueryDispatch chainTipDispatchMap
   ]
 
-datumCacheMessageDispatch :: DispatchIdMap DcWsp.JsonWspResponse -> Array WebsocketDispatch
+datumCacheMessageDispatch
+  :: DispatchIdMap DcWsp.JsonWspResponse -> Array WebsocketDispatch
 datumCacheMessageDispatch dim =
   [ datumCacheQueryDispatch dim ]
 
@@ -684,7 +710,8 @@ ogmiosQueryDispatch
 ogmiosQueryDispatch ref str = do
   -- TODO: replace it with the new implementation in `Aeson`.
   -- https://github.com/Plutonomicon/cardano-browser-tx/issues/151
-  let parsed' = JsonWsp.parseJsonWspResponse =<< Aeson.parseJsonStringToAeson str
+  let
+    parsed' = JsonWsp.parseJsonWspResponse =<< Aeson.parseJsonStringToAeson str
   case parsed' of
     (Left err) -> pure $ Left err
     (Right res) -> afterParse res
@@ -698,7 +725,15 @@ ogmiosQueryDispatch ref str = do
     let
       (mAction :: Maybe (a -> Effect Unit)) = (MM.lookup id idMap)
     case mAction of
-      Nothing -> pure $ (Left (Json.TypeMismatch ("Parse succeeded but Request Id: " <> id <> " has been cancelled")) :: Either Json.JsonDecodeError (Effect Unit))
+      Nothing -> pure $
+        ( Left
+            ( Json.TypeMismatch
+                ( "Parse succeeded but Request Id: " <> id <>
+                    " has been cancelled"
+                )
+            )
+            :: Either Json.JsonDecodeError (Effect Unit)
+        )
       Just action -> pure $ Right $ action parsed.result
 
 datumCacheQueryDispatch
@@ -720,7 +755,15 @@ datumCacheQueryDispatch dim str = do
     idMap <- Ref.read dim
     let id = parsed.methodname
     case MM.lookup id idMap of
-      Nothing -> pure $ (Left (Json.TypeMismatch ("Parse succeeded but Request Id: " <> id <> " has been cancelled")) :: Either Json.JsonDecodeError (Effect Unit))
+      Nothing -> pure $
+        ( Left
+            ( Json.TypeMismatch
+                ( "Parse succeeded but Request Id: " <> id <>
+                    " has been cancelled"
+                )
+            )
+            :: Either Json.JsonDecodeError (Effect Unit)
+        )
       Just action -> pure $ Right $ action parsed
 
 -- an empty error we can compare to, useful for ensuring we've not received any other kind of error
@@ -739,10 +782,16 @@ defaultMessageListener dispatchArray msg = do
   -- here, we need to fold the input over the array of functions until we get
   -- a success, then execute the effect.
   -- using a fold instead of a traverse allows us to skip a bunch of execution
-  eAction :: Either Json.JsonDecodeError (Effect Unit) <- foldl (messageFoldF msg) (pure $ Left defaultErr) dispatchArray
+  eAction :: Either Json.JsonDecodeError (Effect Unit) <- foldl
+    (messageFoldF msg)
+    (pure $ Left defaultErr)
+    dispatchArray
   either
     -- we expect a lot of parse errors, some messages could? fall through completely
-    (\err -> if err == defaultErr then pure unit else log ("unexpected parse error on input:" <> msg))
+    ( \err ->
+        if err == defaultErr then pure unit
+        else log ("unexpected parse error on input:" <> msg)
+    )
     (\act -> act)
     (eAction :: Either Json.JsonDecodeError (Effect Unit))
 

@@ -57,14 +57,17 @@ deserializeWitnessSet = _deserializeWitnessSet maybeFfiHelper
 
 convertWitnessSet :: TransactionWitnessSet -> Maybe T.TransactionWitnessSet
 convertWitnessSet ws = do
-  native_scripts <- for (getNativeScripts maybeFfiHelper ws) convertNativeScripts
+  native_scripts <- for (getNativeScripts maybeFfiHelper ws)
+    convertNativeScripts
   redeemers <- for (getRedeemers maybeFfiHelper ws) convertRedeemers
-  plutus_data <- for (getWitnessSetPlutusData maybeFfiHelper ws) convertPlutusList
+  plutus_data <- for (getWitnessSetPlutusData maybeFfiHelper ws)
+    convertPlutusList
   pure $ T.TransactionWitnessSet
     { vkeys: getVkeywitnesses maybeFfiHelper ws <#> convertVkeyWitnesses
     , native_scripts
     , bootstraps: getBootstraps maybeFfiHelper ws <#> convertBootstraps
-    , plutus_scripts: getPlutusScripts maybeFfiHelper ws <#> convertPlutusScripts
+    , plutus_scripts: getPlutusScripts maybeFfiHelper ws <#>
+        convertPlutusScripts
     , plutus_data
     , redeemers
     }
@@ -97,7 +100,8 @@ convertBootstraps = extractBootstraps >>> map \bootstrap ->
   }
 
 convertPlutusScripts :: PlutusScripts -> Array S.PlutusScript
-convertPlutusScripts = extractPlutusScripts >>> map (plutusScriptBytes >>> S.PlutusScript)
+convertPlutusScripts = extractPlutusScripts >>> map
+  (plutusScriptBytes >>> S.PlutusScript)
 
 convertPlutusList :: PlutusList -> Maybe (Array T.PlutusData)
 convertPlutusList = extractPlutusData >>> traverse convertPlutusData
@@ -132,28 +136,46 @@ convertExUnits eu = do
   steps <- bigNumToBigInt $ getExUnitsSteps eu
   pure { mem, steps }
 
-foreign import getVkeywitnesses :: MaybeFfiHelper -> TransactionWitnessSet -> Maybe Vkeywitnesses
+foreign import getVkeywitnesses
+  :: MaybeFfiHelper -> TransactionWitnessSet -> Maybe Vkeywitnesses
+
 foreign import extractWitnesses :: Vkeywitnesses -> Array Vkeywitness
 foreign import getVkey :: Vkeywitness -> Vkey
 foreign import getSignature :: Vkeywitness -> Ed25519Signature
 foreign import vkeyPublicKey :: Vkey -> PublicKey
 foreign import publicKeyToBech32 :: PublicKey -> String
 foreign import signatureToBech32 :: Ed25519Signature -> String
-foreign import getNativeScripts :: MaybeFfiHelper -> TransactionWitnessSet -> Maybe NativeScripts
+foreign import getNativeScripts
+  :: MaybeFfiHelper -> TransactionWitnessSet -> Maybe NativeScripts
+
 foreign import extractNativeScripts :: NativeScripts -> Array NativeScript
-foreign import nativeScriptAs :: MaybeFfiHelper -> String -> T.NativeScript -> NativeScript -> Maybe T.NativeScript
-foreign import getBootstraps :: MaybeFfiHelper -> TransactionWitnessSet -> Maybe BootstrapWitnesses
+foreign import nativeScriptAs
+  :: MaybeFfiHelper
+  -> String
+  -> T.NativeScript
+  -> NativeScript
+  -> Maybe T.NativeScript
+
+foreign import getBootstraps
+  :: MaybeFfiHelper -> TransactionWitnessSet -> Maybe BootstrapWitnesses
+
 foreign import extractBootstraps :: BootstrapWitnesses -> Array BootstrapWitness
 foreign import getBootstrapVkey :: BootstrapWitness -> Vkey
 foreign import getBootstrapSignature :: BootstrapWitness -> Ed25519Signature
 foreign import getBootstrapChainCode :: BootstrapWitness -> ByteArray
 foreign import getBootstrapAttributes :: BootstrapWitness -> ByteArray
-foreign import getPlutusScripts :: MaybeFfiHelper -> TransactionWitnessSet -> Maybe PlutusScripts
+foreign import getPlutusScripts
+  :: MaybeFfiHelper -> TransactionWitnessSet -> Maybe PlutusScripts
+
 foreign import extractPlutusScripts :: PlutusScripts -> Array PlutusScript
 foreign import plutusScriptBytes :: PlutusScript -> ByteArray
-foreign import getWitnessSetPlutusData :: MaybeFfiHelper -> TransactionWitnessSet -> Maybe PlutusList
+foreign import getWitnessSetPlutusData
+  :: MaybeFfiHelper -> TransactionWitnessSet -> Maybe PlutusList
+
 foreign import extractPlutusData :: PlutusList -> Array PlutusData
-foreign import getRedeemers :: MaybeFfiHelper -> TransactionWitnessSet -> Maybe Redeemers
+foreign import getRedeemers
+  :: MaybeFfiHelper -> TransactionWitnessSet -> Maybe Redeemers
+
 foreign import extractRedeemers :: Redeemers -> Array Redeemer
 foreign import getRedeemerTag :: Redeemer -> RedeemerTag
 foreign import getRedeemerTagKind :: RedeemerTag -> Int
@@ -162,4 +184,5 @@ foreign import getRedeemerPlutusData :: Redeemer -> PlutusData
 foreign import getExUnits :: Redeemer -> ExUnits
 foreign import getExUnitsMem :: ExUnits -> BigNum
 foreign import getExUnitsSteps :: ExUnits -> BigNum
-foreign import _deserializeWitnessSet :: MaybeFfiHelper -> ByteArray -> Maybe TransactionWitnessSet
+foreign import _deserializeWitnessSet
+  :: MaybeFfiHelper -> ByteArray -> Maybe TransactionWitnessSet

@@ -27,8 +27,12 @@ derive newtype instance applyValidationM :: Apply ValidationM
 derive newtype instance applicativeValidationM :: Applicative ValidationM
 derive newtype instance bindValidationM :: Bind ValidationM
 derive newtype instance monadValidationM :: Monad ValidationM
-derive newtype instance monadThrowValidationM :: MonadThrow ValidationError ValidationM
-derive newtype instance monadErrorValidationM :: MonadError ValidationError ValidationM
+derive newtype instance monadThrowValidationM ::
+  MonadThrow ValidationError ValidationM
+
+derive newtype instance monadErrorValidationM ::
+  MonadError ValidationError ValidationM
+
 -- note: MonadZero is being deprecated
 derive newtype instance monadZeroValidationM :: MonadZero ValidationM
 derive newtype instance monadPlusValidationM :: MonadPlus ValidationM

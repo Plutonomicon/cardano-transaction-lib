@@ -90,13 +90,16 @@ convertRedeemers redeemers = do
 convertRedeemer :: T.Redeemer -> Effect Redeemer
 convertRedeemer (T.Redeemer { tag, index, "data": data_, ex_units }) = do
   tag' <- convertRedeemerTag tag
-  index' <- maybe (throw "Failed to convert redeemer index") pure $ bigNumFromBigInt index
+  index' <- maybe (throw "Failed to convert redeemer index") pure $
+    bigNumFromBigInt index
   data' <- convertPlutusDataEffect data_
   ex_units' <- convertExUnits ex_units
   newRedeemer tag' index' data' ex_units'
 
 convertPlutusDataEffect :: PD.PlutusData -> Effect PDS.PlutusData
-convertPlutusDataEffect pd = maybe (throw "Failed to convert PlutusData") pure $ convertPlutusData pd
+convertPlutusDataEffect pd = maybe (throw "Failed to convert PlutusData") pure $
+  convertPlutusData
+    pd
 
 convertRedeemerTag :: Tag.RedeemerTag -> Effect RedeemerTag
 convertRedeemerTag = _newRedeemerTag <<< case _ of
@@ -152,15 +155,45 @@ foreign import addVkeywitness :: Vkeywitnesses -> Vkeywitness -> Effect Unit
 foreign import newPlutusScript :: ByteArray -> Effect PlutusScript
 foreign import newPlutusScripts :: Effect PlutusScripts
 foreign import addPlutusScript :: PlutusScripts -> PlutusScript -> Effect Unit
-foreign import transactionWitnessSetSetVkeys :: TransactionWitnessSet -> Vkeywitnesses -> Effect Unit
-foreign import txWitnessSetSetPlutusScripts :: TransactionWitnessSet -> PlutusScripts -> Effect Unit
-foreign import transactionWitnessSetSetNativeScripts :: TransactionWitnessSet -> NativeScripts -> Effect Unit
-foreign import _wsSetBootstraps :: ContainerHelper -> TransactionWitnessSet -> Array BootstrapWitness -> Effect Unit
-foreign import newBootstrapWitness :: Vkey -> Ed25519Signature -> ByteArray -> ByteArray -> Effect BootstrapWitness
-foreign import _wsSetPlutusData :: ContainerHelper -> TransactionWitnessSet -> Array PDS.PlutusData -> Effect Unit
-foreign import newRedeemer :: RedeemerTag -> BigNum -> PDS.PlutusData -> ExUnits -> Effect Redeemer
+foreign import transactionWitnessSetSetVkeys
+  :: TransactionWitnessSet -> Vkeywitnesses -> Effect Unit
+
+foreign import txWitnessSetSetPlutusScripts
+  :: TransactionWitnessSet -> PlutusScripts -> Effect Unit
+
+foreign import transactionWitnessSetSetNativeScripts
+  :: TransactionWitnessSet -> NativeScripts -> Effect Unit
+
+foreign import _wsSetBootstraps
+  :: ContainerHelper
+  -> TransactionWitnessSet
+  -> Array BootstrapWitness
+  -> Effect Unit
+
+foreign import newBootstrapWitness
+  :: Vkey
+  -> Ed25519Signature
+  -> ByteArray
+  -> ByteArray
+  -> Effect BootstrapWitness
+
+foreign import _wsSetPlutusData
+  :: ContainerHelper
+  -> TransactionWitnessSet
+  -> Array PDS.PlutusData
+  -> Effect Unit
+
+foreign import newRedeemer
+  :: RedeemerTag -> BigNum -> PDS.PlutusData -> ExUnits -> Effect Redeemer
+
 foreign import _newRedeemerTag :: String -> Effect RedeemerTag
 foreign import newExUnits :: BigNum -> BigNum -> ExUnits
-foreign import _wsSetRedeemers :: ContainerHelper -> TransactionWitnessSet -> Array Redeemer -> Effect Unit
+foreign import _wsSetRedeemers
+  :: ContainerHelper -> TransactionWitnessSet -> Array Redeemer -> Effect Unit
+
 foreign import _mkRedeemers :: ContainerHelper -> Array Redeemer -> Redeemers
-foreign import _wsSetPlutusScripts :: ContainerHelper -> TransactionWitnessSet -> Array PlutusScript -> Effect Unit
+foreign import _wsSetPlutusScripts
+  :: ContainerHelper
+  -> TransactionWitnessSet
+  -> Array PlutusScript
+  -> Effect Unit

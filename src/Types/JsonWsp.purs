@@ -108,7 +108,8 @@ mkChainTipQuery :: Effect (JsonWspRequest (QueryArgs String))
 mkChainTipQuery = mkJsonWspQuery "chainTip" GetChainTip
 
 -- | make a well-formed Utxo Query with a unique ID attached
-mkUtxosAtQuery :: UtxoQueryParams -> Effect (JsonWspRequest (QueryArgs UtxoQueryParams))
+mkUtxosAtQuery
+  :: UtxoQueryParams -> Effect (JsonWspRequest (QueryArgs UtxoQueryParams))
 mkUtxosAtQuery uqp = mkJsonWspQuery uqp UTXO
 
 -- this is polymorphic over the queryArgs even though QueryType should make them
@@ -116,7 +117,8 @@ mkUtxosAtQuery uqp = mkJsonWspQuery uqp UTXO
 -- but here we've chosen to just provide concrete impls where we want to support it
 
 -- once we add fixed export lists to this repo, this should NOT be exported
-mkJsonWspQuery :: forall a. a -> QueryType -> Effect (JsonWspRequest (QueryArgs a))
+mkJsonWspQuery
+  :: forall a. a -> QueryType -> Effect (JsonWspRequest (QueryArgs a))
 mkJsonWspQuery a qt = do
   id <- _uniqueId (show qt <> "-")
   pure
@@ -161,13 +163,23 @@ parseJsonWspResponse = aesonObject
       methodname <- parseFieldToString o "methodname"
       result <- decodeAeson =<< getField o "result"
       reflection <- parseMirror =<< getField o "reflection"
-      pure { "type": typeField, version, servicename, methodname, result, reflection }
+      pure
+        { "type": typeField
+        , version
+        , servicename
+        , methodname
+        , result
+        , reflection
+        }
   )
 
 -- parses json string at a given field to an ordinary string
 parseFieldToString :: Object Aeson -> String -> Either JsonDecodeError String
 parseFieldToString o str =
-  caseAesonString (Left (TypeMismatch ("expected field: '" <> str <> "' as a String"))) Right =<< getField o str
+  caseAesonString
+    (Left (TypeMismatch ("expected field: '" <> str <> "' as a String")))
+    Right =<<
+    getField o str
 
 -- parses a string at the given field to a UInt
 parseFieldToUInt :: Object Aeson -> String -> Either JsonDecodeError UInt.UInt
@@ -183,7 +195,8 @@ parseFieldToUInt o str = do
 -- num <- decodeNumber =<< getField o str
 -- note err $ UInt.fromNumber' num
 -- parses a string at the given field to a BigInt
-parseFieldToBigInt :: Object Aeson -> String -> Either JsonDecodeError BigInt.BigInt
+parseFieldToBigInt
+  :: Object Aeson -> String -> Either JsonDecodeError BigInt.BigInt
 parseFieldToBigInt o str = do
   -- We use string parsing for Ogmios (AffInterface tests) but also change Medea
   -- schema and UtxoQueryResponse.json to be a string to pass (local) parsing
@@ -205,9 +218,13 @@ newtype Assets = Assets (Map CurrencySymbol (Map TokenName BigInt))
 instance DecodeAeson Assets where
   decodeAeson j = do
     wspAssets :: Array (String /\ BigInt) <- FO.toUnfoldable <$> decodeAeson j
-    Assets <<< Map.fromFoldableWith (Map.unionWith (+)) <$> sequence (uncurry decodeAsset <$> wspAssets)
+    Assets <<< Map.fromFoldableWith (Map.unionWith (+)) <$> sequence
+      (uncurry decodeAsset <$> wspAssets)
     where
-    decodeAsset :: String -> BigInt -> Either JsonDecodeError (CurrencySymbol /\ Map TokenName BigInt)
+    decodeAsset
+      :: String
+      -> BigInt
+      -> Either JsonDecodeError (CurrencySymbol /\ Map TokenName BigInt)
     decodeAsset assetStr quantity = do
       let
         -- Ogmios encodes CurrencySymbol and TokenName to hex strings separated with '.'
@@ -227,7 +244,10 @@ instance DecodeAeson Assets where
         $ mkTokenName =<< hexToByteArray tnStr
       pure $ currSymb /\ Map.singleton tokenName quantity
 
-    assetStrError str t v = (TypeMismatch ("In " <> str <> ": Expected hex-encoded " <> t <> ", got: " <> v))
+    assetStrError str t v =
+      ( TypeMismatch
+          ("In " <> str <> ": Expected hex-encoded " <> t <> ", got: " <> v)
+      )
 
 -- the outer result type for Utxo queries, newtyped so that it can have
 -- appropriate instances to work with `parseJsonWspResponse`
@@ -259,8 +279,9 @@ parseUtxoQueryResult = caseAesonArray (Left (TypeMismatch "Expected Array")) $
     where
     inner :: Array Aeson -> Either JsonDecodeError UtxoQueryResult
     inner innerArray = do
-      txOutRefJson <- note (TypeMismatch "missing 0th element, expected an OgmiosTxOutRef") $
-        index innerArray 0
+      txOutRefJson <-
+        note (TypeMismatch "missing 0th element, expected an OgmiosTxOutRef") $
+          index innerArray 0
       txOutJson <- note (TypeMismatch "missing 1st element, expected a TxOut") $
         index innerArray 1
       txOutRef <- parseTxOutRef txOutRefJson
@@ -306,8 +327,10 @@ parseTxOut = aesonObject $
 parseValue :: Object Aeson -> Either JsonDecodeError Value
 parseValue outer = do
   o <- getField outer "value"
-  coins <- parseFieldToBigInt o "coins" <|> Left (TypeMismatch "Expected 'coins' to be an Int or a BigInt")
-  Assets assetsMap <- fromMaybe (Assets Map.empty) <$> getFieldOptional o "assets"
+  coins <- parseFieldToBigInt o "coins" <|> Left
+    (TypeMismatch "Expected 'coins' to be an Int or a BigInt")
+  Assets assetsMap <- fromMaybe (Assets Map.empty) <$> getFieldOptional o
+    "assets"
   pure $ mkValue (wrap coins) (wrap assetsMap)
 
 -- chain tip query

@@ -66,17 +66,30 @@ convertTimelockExpiry ns = do
   T.TimelockExpiry <<< Slot <<< UInt.fromInt <<< timelockExpiry_slot <$>
     getTimelockExpiry maybeFfiHelper ns
 
-foreign import getScriptPubkey :: MaybeFfiHelper -> NativeScript -> Maybe ScriptPubkey
+foreign import getScriptPubkey
+  :: MaybeFfiHelper -> NativeScript -> Maybe ScriptPubkey
+
 foreign import getScriptAll :: MaybeFfiHelper -> NativeScript -> Maybe ScriptAll
 foreign import getScriptAny :: MaybeFfiHelper -> NativeScript -> Maybe ScriptAny
-foreign import getScriptNOfK :: MaybeFfiHelper -> NativeScript -> Maybe ScriptNOfK
-foreign import getTimelockStart :: MaybeFfiHelper -> NativeScript -> Maybe TimelockStart
-foreign import getTimelockExpiry :: MaybeFfiHelper -> NativeScript -> Maybe TimelockExpiry
+foreign import getScriptNOfK
+  :: MaybeFfiHelper -> NativeScript -> Maybe ScriptNOfK
+
+foreign import getTimelockStart
+  :: MaybeFfiHelper -> NativeScript -> Maybe TimelockStart
+
+foreign import getTimelockExpiry
+  :: MaybeFfiHelper -> NativeScript -> Maybe TimelockExpiry
 
 foreign import scriptPubkey_addr_keyhash :: ScriptPubkey -> Ed25519KeyHash
-foreign import scriptAllScripts :: ContainerHelper -> ScriptAll -> Array NativeScript
-foreign import scriptAnyScripts :: ContainerHelper -> ScriptAny -> Array NativeScript
-foreign import scriptNOfKScripts :: ContainerHelper -> ScriptNOfK -> Array NativeScript
+foreign import scriptAllScripts
+  :: ContainerHelper -> ScriptAll -> Array NativeScript
+
+foreign import scriptAnyScripts
+  :: ContainerHelper -> ScriptAny -> Array NativeScript
+
+foreign import scriptNOfKScripts
+  :: ContainerHelper -> ScriptNOfK -> Array NativeScript
+
 foreign import scriptNOfK_n :: ScriptNOfK -> Int
 foreign import timelockStart_slot :: TimelockStart -> Int
 foreign import timelockExpiry_slot :: TimelockExpiry -> Int

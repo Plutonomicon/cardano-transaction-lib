@@ -93,13 +93,23 @@ utxosAt addr = asks _.wallet >>= maybe (pure Nothing) (utxosAtByWallet addr)
     convertUtxos :: JsonWsp.UtxoQR -> Maybe Transaction.UtxoM
     convertUtxos (JsonWsp.UtxoQR utxoQueryResult) =
       let
-        out' :: Array (Maybe Transaction.TransactionInput /\ Maybe Transaction.TransactionOutput)
+        out'
+          :: Array
+               ( Maybe Transaction.TransactionInput /\ Maybe
+                   Transaction.TransactionOutput
+               )
         out' = Map.toUnfoldable utxoQueryResult
           <#> bimap
             txOutRefToTransactionInput
             ogmiosTxOutToTransactionOutput
 
-        out :: Maybe (Array (Transaction.TransactionInput /\ Transaction.TransactionOutput))
+        out
+          :: Maybe
+               ( Array
+                   ( Transaction.TransactionInput /\
+                       Transaction.TransactionOutput
+                   )
+               )
         out = out' <#> bisequence # sequence
       in
         (wrap <<< Map.fromFoldable) <$> out

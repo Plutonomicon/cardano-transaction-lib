@@ -32,7 +32,8 @@ getChainTip = do
   sBody <- liftEffect $ _stringify body
   ogmiosWs <- asks _.ogmiosWs
   let
-    affFunc :: (Either Error JsonWsp.ChainTipQR -> Effect Unit) -> Effect Canceler
+    affFunc
+      :: (Either Error JsonWsp.ChainTipQR -> Effect Unit) -> Effect Canceler
     affFunc cont = do
       let
         ls = listeners ogmiosWs

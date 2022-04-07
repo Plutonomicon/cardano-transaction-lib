@@ -59,16 +59,29 @@ class ToDataArgs a where
 -- Stolen from https://github.com/purescript/purescript-quickcheck/blob/v7.1.0/src/Test/QuickCheck/Arbitrary.purs#L247
 class ToDataArgsRL :: RL.RowList Type -> Row Type -> Constraint
 class ToDataArgsRL list row | list -> row where
-  toDataArgsRec :: forall rlproxy. rlproxy list -> Record row -> Array PlutusData
+  toDataArgsRec
+    :: forall rlproxy. rlproxy list -> Record row -> Array PlutusData
 
 -- | ToDataWithIndex instances for Data.Generic.Rep
 
-instance (HasConstrIndex a, ToDataWithIndex l a, ToDataWithIndex r a) => ToDataWithIndex (G.Sum l r) a where
+instance
+  ( HasConstrIndex a
+  , ToDataWithIndex l a
+  , ToDataWithIndex r a
+  ) =>
+  ToDataWithIndex (G.Sum l r) a where
   toDataWithIndex p (G.Inl x) = toDataWithIndex p x
   toDataWithIndex p (G.Inr x) = toDataWithIndex p x
 
-instance (IsSymbol n, HasConstrIndex a, ToDataArgs arg) => ToDataWithIndex (G.Constructor n arg) a where
-  toDataWithIndex p (G.Constructor args) = Constr (resolveIndex p (SProxy :: SProxy n)) (toDataArgs args)
+instance
+  ( IsSymbol n
+  , HasConstrIndex a
+  , ToDataArgs arg
+  ) =>
+  ToDataWithIndex (G.Constructor n arg) a where
+  toDataWithIndex p (G.Constructor args) = Constr
+    (resolveIndex p (SProxy :: SProxy n))
+    (toDataArgs args)
 
 -- | ToDataArgs instances for Data.Generic.Rep
 
@@ -80,7 +93,11 @@ instance (ToDataArgs (Record row)) => ToDataArgs (G.Argument (Record row)) where
 else instance ToData a => ToDataArgs (G.Argument a) where
   toDataArgs (G.Argument x) = [ toData x ]
 
-instance (ToDataArgsRL list row, RL.RowToList row list) => ToDataArgs (Record row) where
+instance
+  ( ToDataArgsRL list row
+  , RL.RowToList row list
+  ) =>
+  ToDataArgs (Record row) where
   toDataArgs = toDataArgsRec (Proxy :: Proxy list)
 
 instance (ToDataArgs a, ToDataArgs b) => ToDataArgs (G.Product a b) where
@@ -107,13 +124,25 @@ instance
       field :: a
       field = Record.get keyProxy x
     in
-      toData field `cons` toDataArgsRec (Proxy :: Proxy listRest) (Record.delete keyProxy x)
+      toData field `cons` toDataArgsRec (Proxy :: Proxy listRest)
+        (Record.delete keyProxy x)
 
 genericToData
-  :: forall (a :: Type) (rep :: Type). G.Generic a rep => HasConstrIndex a => ToDataWithIndex rep a => a -> PlutusData
+  :: forall (a :: Type) (rep :: Type)
+   . G.Generic a rep
+  => HasConstrIndex a
+  => ToDataWithIndex rep a
+  => a
+  -> PlutusData
 genericToData = toDataWithIndex (Proxy :: Proxy a) <<< G.from
 
-resolveIndex :: forall (a :: Type) (s :: Symbol). HasConstrIndex a => IsSymbol s => Proxy a -> SProxy s -> BigInt
+resolveIndex
+  :: forall (a :: Type) (s :: Symbol)
+   . HasConstrIndex a
+  => IsSymbol s
+  => Proxy a
+  -> SProxy s
+  -> BigInt
 resolveIndex pa sps =
   let
     cn = reflectSymbol sps
@@ -179,6 +208,11 @@ instance ToData ByteArray where
 instance ToData PlutusData where
   toData = identity
 
-foldableToPlutusData :: forall (a :: Type) (t :: Type -> Type). Foldable t => ToData a => t a -> PlutusData
+foldableToPlutusData
+  :: forall (a :: Type) (t :: Type -> Type)
+   . Foldable t
+  => ToData a
+  => t a
+  -> PlutusData
 foldableToPlutusData = Array.fromFoldable >>> map toData >>> List
 

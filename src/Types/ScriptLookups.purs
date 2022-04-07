@@ -172,14 +172,21 @@ import TxOutput (transactionOutputToScriptOutput)
 -- less information. All hashing is done inside `ConstraintsM`, see
 -- `processLookupsAndConstraints`.
 newtype ScriptLookups (a :: Type) = ScriptLookups
-  { mps :: Array MintingPolicy -- Minting policies that the script interacts with
-  , txOutputs :: Map TxOutRef TransactionOutput -- Unspent outputs that the script may want to spend.
-  , otherScripts :: Array Validator -- Validators of scripts other than "our script"
+  { mps ::
+      Array MintingPolicy -- Minting policies that the script interacts with
+  , txOutputs ::
+      Map TxOutRef TransactionOutput -- Unspent outputs that the script may want to spend.
+  , otherScripts ::
+      Array Validator -- Validators of scripts other than "our script"
   , otherData :: Map DatumHash Datum --  Datums that we might need
-  , paymentPubKeyHashes :: Map PaymentPubKeyHash PaymentPubKey -- Public keys that we might need
-  , typedValidator :: Maybe (TypedValidator a) -- The script instance with the typed validator hash & actual compiled program
-  , ownPaymentPubKeyHash :: Maybe PaymentPubKeyHash -- The contract's payment public key hash, used for depositing tokens etc.
-  , ownStakePubKeyHash :: Maybe StakePubKeyHash -- The contract's stake public key hash (optional)
+  , paymentPubKeyHashes ::
+      Map PaymentPubKeyHash PaymentPubKey -- Public keys that we might need
+  , typedValidator ::
+      Maybe (TypedValidator a) -- The script instance with the typed validator hash & actual compiled program
+  , ownPaymentPubKeyHash ::
+      Maybe PaymentPubKeyHash -- The contract's payment public key hash, used for depositing tokens etc.
+  , ownStakePubKeyHash ::
+      Maybe StakePubKeyHash -- The contract's stake public key hash (optional)
   }
 
 derive instance Generic (ScriptLookups a) _
@@ -264,7 +271,9 @@ unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 -- | Same as `unspentOutputs` but in `Maybe` context for convenience. This
 -- | should not fail.
 unspentOutputsM
-  :: forall (a :: Type). Map TxOutRef TransactionOutput -> Maybe (ScriptLookups a)
+  :: forall (a :: Type)
+   . Map TxOutRef TransactionOutput
+  -> Maybe (ScriptLookups a)
 unspentOutputsM = pure <<< unspentOutputs
 
 -- | A script lookups value with a minting policy script.

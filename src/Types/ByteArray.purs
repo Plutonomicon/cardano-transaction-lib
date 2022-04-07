@@ -25,7 +25,8 @@ newtype ByteArray = ByteArray Uint8Array
 derive instance Newtype ByteArray _
 
 instance Show ByteArray where
-  show arr = "(byteArrayFromIntArrayUnsafe " <> show (byteArrayToIntArray arr) <> ")"
+  show arr = "(byteArrayFromIntArrayUnsafe " <> show (byteArrayToIntArray arr)
+    <> ")"
 
 instance Eq ByteArray where
   eq a b = compare a b == EQ
@@ -51,7 +52,11 @@ foreign import concat_ :: ByteArray -> ByteArray -> ByteArray
 
 foreign import byteArrayToHex :: ByteArray -> String
 
-foreign import hexToByteArray_ :: (forall a. Maybe a) -> (forall a. a -> Maybe a) -> String -> Maybe ByteArray
+foreign import hexToByteArray_
+  :: (forall a. Maybe a)
+  -> (forall a. a -> Maybe a)
+  -> String
+  -> Maybe ByteArray
 
 -- | Input string must consist of hexademical numbers.
 -- | Length of the input string must be even (2 characters per byte).
@@ -64,7 +69,11 @@ foreign import hexToByteArrayUnsafe :: String -> ByteArray
 -- | Overflowing integers will be silently accepted modulo 256.
 foreign import byteArrayFromIntArrayUnsafe :: Array Int -> ByteArray
 
-foreign import byteArrayFromIntArray_ :: (forall a. Maybe a) -> (forall a. a -> Maybe a) -> Array Int -> Maybe ByteArray
+foreign import byteArrayFromIntArray_
+  :: (forall a. Maybe a)
+  -> (forall a. a -> Maybe a)
+  -> Array Int
+  -> Maybe ByteArray
 
 -- | A safer version of `byteArrayFromIntArrayUnsafe` that checks that elements are in range 0-255.
 byteArrayFromIntArray :: Array Int -> Maybe ByteArray

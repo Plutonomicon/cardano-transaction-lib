@@ -81,46 +81,80 @@ foreign import newBigNum :: String -> Effect BigNum
 foreign import newValue :: BigNum -> Effect Value
 foreign import valueSetCoin :: Value -> BigNum -> Effect Unit
 foreign import newValueFromAssets :: MultiAsset -> Effect Value
-foreign import newTransactionInput :: TransactionHash -> UInt -> Effect TransactionInput
+foreign import newTransactionInput
+  :: TransactionHash -> UInt -> Effect TransactionInput
+
 foreign import newTransactionInputs :: Effect TransactionInputs
-foreign import addTransactionInput :: TransactionInputs -> TransactionInput -> Effect Unit
-foreign import newTransactionOutput :: Address -> Value -> Effect TransactionOutput
+foreign import addTransactionInput
+  :: TransactionInputs -> TransactionInput -> Effect Unit
+
+foreign import newTransactionOutput
+  :: Address -> Value -> Effect TransactionOutput
+
 foreign import newTransactionOutputs :: Effect TransactionOutputs
-foreign import addTransactionOutput :: TransactionOutputs -> TransactionOutput -> Effect Unit
-foreign import newTransactionBody :: TransactionInputs -> TransactionOutputs -> BigNum -> Effect TransactionBody
-foreign import newTransaction :: TransactionBody -> TransactionWitnessSet -> Effect Transaction
-foreign import newTransaction_ :: TransactionBody -> TransactionWitnessSet -> AuxiliaryData -> Effect Transaction
+foreign import addTransactionOutput
+  :: TransactionOutputs -> TransactionOutput -> Effect Unit
+
+foreign import newTransactionBody
+  :: TransactionInputs -> TransactionOutputs -> BigNum -> Effect TransactionBody
+
+foreign import newTransaction
+  :: TransactionBody -> TransactionWitnessSet -> Effect Transaction
+
+foreign import newTransaction_
+  :: TransactionBody
+  -> TransactionWitnessSet
+  -> AuxiliaryData
+  -> Effect Transaction
+
 foreign import newTransactionWitnessSet :: Effect TransactionWitnessSet
-foreign import newTransactionWitnessSetFromBytes :: ByteArray -> Effect TransactionWitnessSet
-foreign import newTransactionUnspentOutputFromBytes :: ByteArray -> Effect TransactionUnspentOutput
+foreign import newTransactionWitnessSetFromBytes
+  :: ByteArray -> Effect TransactionWitnessSet
+
+foreign import newTransactionUnspentOutputFromBytes
+  :: ByteArray -> Effect TransactionUnspentOutput
+
 foreign import newMultiAsset :: Effect MultiAsset
-foreign import insertMultiAsset :: MultiAsset -> ScriptHash -> Assets -> Effect Unit
+foreign import insertMultiAsset
+  :: MultiAsset -> ScriptHash -> Assets -> Effect Unit
+
 foreign import newAssets :: Effect Assets
 foreign import insertAssets :: Assets -> AssetName -> BigNum -> Effect Unit
 foreign import newAssetName :: ByteArray -> Effect AssetName
-foreign import transactionOutputSetDataHash :: TransactionOutput -> DataHash -> Effect Unit
+foreign import transactionOutputSetDataHash
+  :: TransactionOutput -> DataHash -> Effect Unit
+
 foreign import newVkeywitnesses :: Effect Vkeywitnesses
 foreign import newVkeywitness :: Vkey -> Ed25519Signature -> Effect Vkeywitness
 foreign import addVkeywitness :: Vkeywitnesses -> Vkeywitness -> Effect Unit
 foreign import newVkeyFromPublicKey :: PublicKey -> Effect Vkey
 foreign import newPublicKey :: Bech32String -> Effect PublicKey
 foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
-foreign import transactionWitnessSetSetVkeys :: TransactionWitnessSet -> Vkeywitnesses -> Effect Unit
+foreign import transactionWitnessSetSetVkeys
+  :: TransactionWitnessSet -> Vkeywitnesses -> Effect Unit
+
 foreign import newPlutusScript :: ByteArray -> Effect PlutusScript
 foreign import newPlutusScripts :: Effect PlutusScripts
-foreign import txWitnessSetSetPlutusScripts :: TransactionWitnessSet -> PlutusScripts -> Effect Unit
+foreign import txWitnessSetSetPlutusScripts
+  :: TransactionWitnessSet -> PlutusScripts -> Effect Unit
+
 foreign import addPlutusScript :: PlutusScripts -> PlutusScript -> Effect Unit
 foreign import newCostmdls :: Effect Costmdls
-foreign import costmdlsSetCostModel :: Costmdls -> Language -> CostModel -> Effect Unit
+foreign import costmdlsSetCostModel
+  :: Costmdls -> Language -> CostModel -> Effect Unit
+
 foreign import newCostModel :: Effect CostModel
 foreign import costModelSetCost :: CostModel -> Int -> Int32 -> Effect Unit
 foreign import newPlutusV1 :: Effect Language
 foreign import newInt32 :: Int -> Effect Int32
-foreign import _hashScriptData :: Redeemers -> Costmdls -> PlutusList -> Effect ScriptDataHash
+foreign import _hashScriptData
+  :: Redeemers -> Costmdls -> PlutusList -> Effect ScriptDataHash
+
 foreign import newRedeemers :: Effect Redeemers
 foreign import addRedeemer :: Redeemers -> Redeemer -> Effect Unit
 foreign import newScriptDataHashFromBytes :: ByteArray -> Effect ScriptDataHash
-foreign import setTxBodyScriptDataHash :: TransactionBody -> ScriptDataHash -> Effect TransactionBody
+foreign import setTxBodyScriptDataHash
+  :: TransactionBody -> ScriptDataHash -> Effect TransactionBody
 
 foreign import toBytes
   :: ( Transaction
@@ -140,7 +174,8 @@ convertTransaction :: T.Transaction -> Effect Transaction
 convertTransaction (T.Transaction { body: T.TxBody body, witness_set }) = do
   inputs <- convertTxInputs body.inputs
   outputs <- convertTxOutputs body.outputs
-  fee <- maybe (throw "Failed to convert fee") pure $ bigNumFromBigInt (unwrap body.fee)
+  fee <- maybe (throw "Failed to convert fee") pure $ bigNumFromBigInt
+    (unwrap body.fee)
   txBody <- newTransactionBody inputs outputs fee
   traverse_
     (unwrap >>> newScriptDataHashFromBytes >=> setTxBodyScriptDataHash txBody)
@@ -181,8 +216,12 @@ convertValue val = do
     m = Value.getNonAdaAsset' val
   multiasset <- newMultiAsset
   forWithIndex_ m \scriptHashBytes' values -> do
-    let mScripthash = scriptHashFromBytes $ Value.getCurrencySymbol scriptHashBytes'
-    scripthash <- fromJustEff "scriptHashFromBytes failed while converting value" mScripthash
+    let
+      mScripthash = scriptHashFromBytes $ Value.getCurrencySymbol
+        scriptHashBytes'
+    scripthash <- fromJustEff
+      "scriptHashFromBytes failed while converting value"
+      mScripthash
     assets <- newAssets
     forWithIndex_ values \tokenName' bigIntValue -> do
       let tokenName = Value.getTokenName tokenName'

@@ -16,7 +16,9 @@ suite :: TestPlanM Unit
 suite = do
   group "Seabug Metadata" $ do
     test "Fixture 1" do
-      fromData (toData seabugMetadataFixture1) `shouldEqual` Just seabugMetadataFixture1
+      fromData (toData seabugMetadataFixture1) `shouldEqual` Just
+        seabugMetadataFixture1
   group "Seabug Metadata delta" $ do
     test "Fixture 1" do
-      fromData (toData seabugMetadataDeltaFixture1) `shouldEqual` Just seabugMetadataDeltaFixture1
+      fromData (toData seabugMetadataDeltaFixture1) `shouldEqual` Just
+        seabugMetadataDeltaFixture1

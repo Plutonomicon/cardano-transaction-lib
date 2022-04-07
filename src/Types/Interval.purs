@@ -403,7 +403,8 @@ posixTimeRangeToContainedSlotRange sc ptr = do
   start' <- seqExtended start
   end' <- seqExtended end
   pure $ Interval
-    { from: LowerBound start' (closureWith slotToBeginPOSIXTime startIncl start')
+    { from: LowerBound start'
+        (closureWith slotToBeginPOSIXTime startIncl start')
     , to: UpperBound end' (closureWith slotToBeginPOSIXTime endIncl end')
     }
 
