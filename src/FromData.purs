@@ -47,9 +47,9 @@ class FromData (a :: Type) where
   fromData :: PlutusData -> Maybe a
 
 class FromDataWithIndex :: Type -> Type -> Constraint
-class FromDataWithIndex a ci where
+class HasConstrIndex ci <= FromDataWithIndex a ci where
   fromDataWithIndex
-    :: HasConstrIndex ci => Proxy a -> Proxy ci -> PlutusData -> Maybe a
+    :: Proxy a -> Proxy ci -> PlutusData -> Maybe a
 
 -- NOTE: Using the 'parser' approach as in https://github.com/purescript-contrib/purescript-argonaut-generic/blob/3ae9622814fd3f3f06fa8e5e58fd58d2ef256b91/src/Data/Argonaut/Decode/Generic.purs
 class FromDataArgs :: Type -> Constraint
@@ -62,7 +62,7 @@ class FromDataArgs a where
 class FromDataArgsRL :: RL.RowList Type -> Row Type -> Constraint
 class FromDataArgsRL list row | list -> row where
   fromDataArgsRec
-    :: forall rlproxy
+    :: forall (rlproxy :: RL.RowList Type -> Type)
      . rlproxy list
     -> Array PlutusData
     -> Maybe { head :: Record row, tail :: Array PlutusData }
@@ -81,6 +81,7 @@ instance
 
 instance
   ( IsSymbol n
+  , HasConstrIndex a
   , FromDataArgs arg
   ) =>
   FromDataWithIndex (G.Constructor n arg) a where
@@ -159,7 +160,6 @@ instance
 genericFromData
   :: forall a rep
    . G.Generic a rep
-  => HasConstrIndex a
   => FromDataWithIndex rep a
   => PlutusData
   -> Maybe a

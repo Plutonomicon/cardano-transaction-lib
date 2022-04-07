@@ -26,7 +26,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Profunctor.Strong ((***))
 import Data.Ratio (Ratio, denominator, numerator)
-import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
+import Data.Symbol (class IsSymbol, SProxy(SProxy), reflectSymbol)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
@@ -46,8 +46,8 @@ class ToData a where
   toData :: a -> PlutusData
 
 class ToDataWithIndex :: Type -> Type -> Constraint
-class ToDataWithIndex a ci where
-  toDataWithIndex :: HasConstrIndex ci => Proxy ci -> a -> PlutusData
+class HasConstrIndex ci <= ToDataWithIndex a ci where
+  toDataWithIndex :: Proxy ci -> a -> PlutusData
 
 -- As explained in https://harry.garrood.me/blog/write-your-own-generics/ this
 -- is just a neat pattern that flattens a skewed Product of Products
@@ -65,8 +65,7 @@ class ToDataArgsRL list row | list -> row where
 -- | ToDataWithIndex instances for Data.Generic.Rep
 
 instance
-  ( HasConstrIndex a
-  , ToDataWithIndex l a
+  ( ToDataWithIndex l a
   , ToDataWithIndex r a
   ) =>
   ToDataWithIndex (G.Sum l r) a where
@@ -75,8 +74,8 @@ instance
 
 instance
   ( IsSymbol n
-  , HasConstrIndex a
   , ToDataArgs arg
+  , HasConstrIndex a
   ) =>
   ToDataWithIndex (G.Constructor n arg) a where
   toDataWithIndex p (G.Constructor args) = Constr
@@ -130,7 +129,6 @@ instance
 genericToData
   :: forall (a :: Type) (rep :: Type)
    . G.Generic a rep
-  => HasConstrIndex a
   => ToDataWithIndex rep a
   => a
   -> PlutusData
@@ -150,7 +148,7 @@ resolveIndex pa sps =
   in
     case Map.lookup cn c2i of
       Just i -> BigInt.fromInt i
-      Nothing -> negate BigInt.fromInt 1 -- TODO: Figure out type level
+      Nothing -> negate one -- TODO: We should report here
 
 -- | Base ToData instances
 
