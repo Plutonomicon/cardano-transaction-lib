@@ -58,7 +58,7 @@ import QueryM
   , getWalletAddress
   , mkOgmiosWebSocketAff
   , mkDatumCacheWebSocketAff
-  , submitTransaction
+  , submitTxWallet
   )
 import QueryM.Utxos (utxosAt)
 import Serialization.Address (NetworkId(TestnetId))
@@ -94,7 +94,7 @@ main = launchAff_ $ do
 
 buildAndSubmit :: QueryM TransactionHash
 buildAndSubmit = mthrow "Failed to submit transaction" $
-  submitTransaction =<< buildTransaction
+  submitTxWallet =<< buildTransaction
 
 buildTransaction :: QueryM Transaction
 buildTransaction = either (throw <<< show) pure
