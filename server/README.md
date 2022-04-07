@@ -1,4 +1,4 @@
-# cardano-trasaction-lib-server
+# ctl-server
 
 This is a small Haskell project to provide services to the `cardano-transaction-lib` frontend that cannot be achieved using Purescript
 

@@ -184,8 +184,7 @@
 
       apps = perSystem (system: {
         inherit
-          (self.hsFlake.${system}.apps)
-          "cardano-trasaction-lib-server:exe:cardano-trasaction-lib-server";
+          (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
       });
 
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);

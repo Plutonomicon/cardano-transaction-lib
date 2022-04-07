@@ -26,7 +26,7 @@ run-testnet-ogmios:
 		--node-config "$$CARDANO_NODE_CONFIG"
 
 run-haskell-server:
-	nix run -L .#cardano-trasaction-lib-server:exe:cardano-trasaction-lib-server
+	nix run -L .#ctl-server:exe:ctl-server
 
 run-datum-cache-postgres:
 	docker run -d --rm \
