@@ -28,7 +28,7 @@ import Data.Profunctor.Strong ((***))
 import Data.Ratio (Ratio, denominator, numerator)
 import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested (type (/\), (/\))
+import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Helpers (uIntToBigInt)
 import Prim.Row as Row
@@ -42,7 +42,7 @@ import Types.PlutusData (PlutusData(Constr, Integer, List, Map, Bytes))
 -- | Classes
 
 class ToData :: Type -> Constraint
-class ToData (a :: Type) where
+class ToData a where
   toData :: a -> PlutusData
 
 class ToDataWithIndex :: Type -> Type -> Constraint
@@ -100,7 +100,7 @@ instance
   , IsSymbol key
   ) =>
   ToDataArgsRL (RL.Cons key a listRest) rowFull where
-  toDataArgsRec p x =
+  toDataArgsRec _ x =
     let
       keyProxy = (Proxy :: Proxy key)
 
@@ -110,10 +110,10 @@ instance
       toData field `cons` toDataArgsRec (Proxy :: Proxy listRest) (Record.delete keyProxy x)
 
 genericToData
-  :: forall a rep. G.Generic a rep => HasConstrIndex a => ToDataWithIndex rep a => a -> PlutusData
+  :: forall (a :: Type) (rep :: Type). G.Generic a rep => HasConstrIndex a => ToDataWithIndex rep a => a -> PlutusData
 genericToData = toDataWithIndex (Proxy :: Proxy a) <<< G.from
 
-resolveIndex :: forall a s. HasConstrIndex a => IsSymbol s => Proxy a -> SProxy s -> BigInt
+resolveIndex :: forall (a :: Type) (s :: Symbol). HasConstrIndex a => IsSymbol s => Proxy a -> SProxy s -> BigInt
 resolveIndex pa sps =
   let
     cn = reflectSymbol sps
