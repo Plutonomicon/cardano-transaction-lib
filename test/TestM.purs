@@ -5,7 +5,11 @@ import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
 import Control.MonadPlus (class MonadPlus)
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
-import Control.Monad.Error.Class (class MonadError, class MonadThrow, throwError)
+import Control.Monad.Error.Class
+  ( class MonadError
+  , class MonadThrow
+  , throwError
+  )
 import Control.MonadZero (class MonadZero)
 import Control.Plus (class Plus)
 import Data.Const (Const)
@@ -27,8 +31,12 @@ derive newtype instance applyValidationM :: Apply ValidationM
 derive newtype instance applicativeValidationM :: Applicative ValidationM
 derive newtype instance bindValidationM :: Bind ValidationM
 derive newtype instance monadValidationM :: Monad ValidationM
-derive newtype instance monadThrowValidationM :: MonadThrow ValidationError ValidationM
-derive newtype instance monadErrorValidationM :: MonadError ValidationError ValidationM
+derive newtype instance monadThrowValidationM ::
+  MonadThrow ValidationError ValidationM
+
+derive newtype instance monadErrorValidationM ::
+  MonadError ValidationError ValidationM
+
 -- note: MonadZero is being deprecated
 derive newtype instance monadZeroValidationM :: MonadZero ValidationM
 derive newtype instance monadPlusValidationM :: MonadPlus ValidationM

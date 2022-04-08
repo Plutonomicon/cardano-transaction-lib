@@ -52,10 +52,22 @@ fromBytesEffect bytes =
     Nothing -> throw "from_bytes() call failed"
     Just a -> pure a
 
-foreign import _fromBytesDataHash :: MaybeFfiHelper -> ByteArray -> Maybe DataHash
-foreign import _fromBytesTransactionHash :: MaybeFfiHelper -> ByteArray -> Maybe TransactionHash
-foreign import _fromBytesPlutusData :: MaybeFfiHelper -> ByteArray -> Maybe PlutusData
-foreign import _fromBytesTransactionUnspentOutput :: MaybeFfiHelper -> ByteArray -> Maybe TransactionUnspentOutput
-foreign import _fromBytesTransactionWitnessSet :: MaybeFfiHelper -> ByteArray -> Maybe TransactionWitnessSet
-foreign import _fromBytesNativeScript :: MaybeFfiHelper -> ByteArray -> Maybe NativeScript
+foreign import _fromBytesDataHash
+  :: MaybeFfiHelper -> ByteArray -> Maybe DataHash
+
+foreign import _fromBytesTransactionHash
+  :: MaybeFfiHelper -> ByteArray -> Maybe TransactionHash
+
+foreign import _fromBytesPlutusData
+  :: MaybeFfiHelper -> ByteArray -> Maybe PlutusData
+
+foreign import _fromBytesTransactionUnspentOutput
+  :: MaybeFfiHelper -> ByteArray -> Maybe TransactionUnspentOutput
+
+foreign import _fromBytesTransactionWitnessSet
+  :: MaybeFfiHelper -> ByteArray -> Maybe TransactionWitnessSet
+
+foreign import _fromBytesNativeScript
+  :: MaybeFfiHelper -> ByteArray -> Maybe NativeScript
+
 foreign import _fromBytesMint :: MaybeFfiHelper -> ByteArray -> Maybe Mint

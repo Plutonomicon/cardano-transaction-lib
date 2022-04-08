@@ -286,7 +286,8 @@ instance Split NonAdaAsset where
       -> These (Map TokenName BigInt) (Map TokenName BigInt)
     splitIntl mp' = Both l r
       where
-      l /\ r = mapThese (\i -> if i <= zero then This (negate i) else That i) mp'
+      l /\ r = mapThese (\i -> if i <= zero then This (negate i) else That i)
+        mp'
 
     npos /\ pos = mapThese splitIntl mp
 
@@ -464,7 +465,8 @@ unionNonAda
 unionNonAda (NonAdaAsset l) (NonAdaAsset r) =
   let
     combined
-      :: Map CurrencySymbol (These (Map TokenName BigInt) (Map TokenName BigInt))
+      :: Map CurrencySymbol
+           (These (Map TokenName BigInt) (Map TokenName BigInt))
     combined = union l r
 
     unBoth
@@ -509,7 +511,8 @@ unionWith f (Value (Coin c) na) (Value (Coin c') na') =
 
 -- Based on https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#flattenValue
 -- Flattens non-Ada Value into a list
-flattenNonAdaValue :: NonAdaAsset -> List (CurrencySymbol /\ TokenName /\ BigInt)
+flattenNonAdaValue
+  :: NonAdaAsset -> List (CurrencySymbol /\ TokenName /\ BigInt)
 flattenNonAdaValue (NonAdaAsset nonAdaAsset) = do
   cs /\ m <- toUnfoldable nonAdaAsset
   tn /\ a <- toUnfoldable m

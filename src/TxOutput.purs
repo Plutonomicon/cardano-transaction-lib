@@ -103,7 +103,8 @@ scriptOutputToOgmiosTxOut
   networkId
   (UTx.ScriptOutput { validatorHash, value, datumHash }) =
   { address:
-      addressToOgmiosAddress $ validatorHashEnterpriseAddress networkId validatorHash
+      addressToOgmiosAddress $ validatorHashEnterpriseAddress networkId
+        validatorHash
   , value
   , datum: pure (datumHashToOgmiosDatumHash datumHash)
   }

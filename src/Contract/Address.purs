@@ -91,11 +91,13 @@ getWalletAddress = wrapContract QueryM.getWalletAddress
 -- | Get the collateral of the browser wallet. This collateral will vary
 -- | depending on the wallet.
 -- | E.g. Nami creates a hardcoded 5 Ada collateral.
-getWalletCollateral :: forall (r :: Row Type). Contract r (Maybe TransactionUnspentOutput)
+getWalletCollateral
+  :: forall (r :: Row Type). Contract r (Maybe TransactionUnspentOutput)
 getWalletCollateral = wrapContract QueryM.getWalletCollateral
 
 -- | Gets the wallet `PaymentPubKeyHash` via `getWalletAddress`.
-ownPaymentPubKeyHash :: forall (r :: Row Type). Contract r (Maybe PaymentPubKeyHash)
+ownPaymentPubKeyHash
+  :: forall (r :: Row Type). Contract r (Maybe PaymentPubKeyHash)
 ownPaymentPubKeyHash = wrapContract QueryM.ownPaymentPubKeyHash
 
 -- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
@@ -103,5 +105,6 @@ ownPubKeyHash :: forall (r :: Row Type). Contract r (Maybe PubKeyHash)
 ownPubKeyHash = wrapContract QueryM.ownPubKeyHash
 
 -- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
-getNetworkId :: forall (r :: Row Type). Contract r SerializationAddress.NetworkId
+getNetworkId
+  :: forall (r :: Row Type). Contract r SerializationAddress.NetworkId
 getNetworkId = wrapContract Address.getNetworkId

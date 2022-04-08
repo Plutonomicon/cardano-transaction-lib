@@ -84,12 +84,13 @@ mkNamiWalletAff = do
     (_ >>= addressFromBytes) >>> pure
 
   getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
-  getCollateral nami = fromNamiMaybeHexString getNamiCollateral nami >>= case _ of
-    Nothing -> pure Nothing
-    Just bytes -> do
-      liftEffect $
-        Deserialization.UnspentOuput.convertUnspentOutput
-          <$> fromBytesEffect bytes
+  getCollateral nami = fromNamiMaybeHexString getNamiCollateral nami >>=
+    case _ of
+      Nothing -> pure Nothing
+      Just bytes -> do
+        liftEffect $
+          Deserialization.UnspentOuput.convertUnspentOutput
+            <$> fromBytesEffect bytes
 
   signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
   signTx nami tx = do
@@ -153,7 +154,10 @@ dummySign tx@(Transaction { witnessSet: tws@(TransactionWitnessSet ws) }) =
   where
   vk :: Vkeywitness
   vk = Vkeywitness
-    ( Vkey (PublicKey "ed25519_pk1eamrnx3pph58yr5l4z2wghjpu2dt2f0rp0zq9qquqa39p52ct0xsudjp4e")
+    ( Vkey
+        ( PublicKey
+            "ed25519_pk1eamrnx3pph58yr5l4z2wghjpu2dt2f0rp0zq9qquqa39p52ct0xsudjp4e"
+        )
         /\ Ed25519Signature
           "ed25519_sig1ynufn5umzl746ekpjtzt2rf58ep0wg6mxpgyezh8vx0e8jpgm3kuu3tgm453wlz4rq5yjtth0fnj0ltxctaue0dgc2hwmysr9jvhjzswt86uk"
     )

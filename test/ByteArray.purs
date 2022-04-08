@@ -11,7 +11,14 @@ import Test.QuickCheck.Laws.Data.Ord (checkOrd)
 import Test.QuickCheck.Laws.Data.Semigroup (checkSemigroup)
 import TestM (TestPlanM)
 import Type.Proxy (Proxy(..))
-import Types.ByteArray (ByteArray, byteArrayFromIntArray, byteArrayFromIntArrayUnsafe, byteArrayToHex, byteArrayToIntArray, hexToByteArray)
+import Types.ByteArray
+  ( ByteArray
+  , byteArrayFromIntArray
+  , byteArrayFromIntArrayUnsafe
+  , byteArrayToHex
+  , byteArrayToIntArray
+  , hexToByteArray
+  )
 
 suite :: TestPlanM Unit
 suite = do
@@ -27,9 +34,10 @@ suite = do
     test "hexToByteArray <<< byteArrayToHex = Just" $ liftEffect do
       quickCheck \bytes ->
         hexToByteArray (byteArrayToHex bytes) === Just bytes
-    test "byteArrayFromIntArrayUnsafe <<< byteArrayToIntArray = id" $ liftEffect do
-      quickCheck \bytes ->
-        byteArrayFromIntArrayUnsafe (byteArrayToIntArray bytes) === bytes
+    test "byteArrayFromIntArrayUnsafe <<< byteArrayToIntArray = id" $ liftEffect
+      do
+        quickCheck \bytes ->
+          byteArrayFromIntArrayUnsafe (byteArrayToIntArray bytes) === bytes
     test "byteArrayFromIntArray <<< byteArrayToIntArray = Just" $ liftEffect do
       quickCheck \bytes ->
         byteArrayFromIntArray (byteArrayToIntArray bytes) === Just bytes

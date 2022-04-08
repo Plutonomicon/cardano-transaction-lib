@@ -71,7 +71,7 @@ import Types.Transaction
   )
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx))
 import Types.Value as Value
-import UsedTxOuts (newUsedTxOuts)
+import Types.UsedTxOuts (newUsedTxOuts)
 import Wallet (mkNamiWalletAff)
 
 main :: Effect Unit

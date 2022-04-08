@@ -43,7 +43,8 @@ instance Ord Ed25519KeyHash where
   compare = compare `on` ed25519KeyHashToBytes
 
 instance Show Ed25519KeyHash where
-  show edkh = "(Ed25519KeyHash " <> byteArrayToHex (ed25519KeyHashToBytes edkh) <> ")"
+  show edkh = "(Ed25519KeyHash " <> byteArrayToHex (ed25519KeyHashToBytes edkh)
+    <> ")"
 
 instance ToCsl Ed25519KeyHash Ed25519KeyHash where
   toCslRep = identity

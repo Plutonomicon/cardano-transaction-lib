@@ -23,7 +23,14 @@ import Serialization.Types
   , TimelockStart
   )
 import Types.Transaction
-  ( NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry)
+  ( NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
   ) as T
 
 convertNativeScripts :: Array T.NativeScript -> Maybe NativeScripts
@@ -70,7 +77,9 @@ packNativeScripts :: Array NativeScript -> NativeScripts
 packNativeScripts = _packNativeScripts containerHelper
 
 foreign import mkScriptPubkey :: T.Ed25519KeyHash -> ScriptPubkey
-foreign import _packNativeScripts :: ContainerHelper -> Array NativeScript -> NativeScripts
+foreign import _packNativeScripts
+  :: ContainerHelper -> Array NativeScript -> NativeScripts
+
 foreign import mkScriptAll :: NativeScripts -> ScriptAll
 foreign import mkScriptAny :: NativeScripts -> ScriptAny
 foreign import mkScriptNOfK :: Int -> NativeScripts -> ScriptNOfK
@@ -81,4 +90,5 @@ foreign import nativeScript_new_script_all :: ScriptAll -> NativeScript
 foreign import nativeScript_new_script_any :: ScriptAny -> NativeScript
 foreign import nativeScript_new_script_n_of_k :: ScriptNOfK -> NativeScript
 foreign import nativeScript_new_timelock_start :: TimelockStart -> NativeScript
-foreign import nativeScript_new_timelock_expiry :: TimelockExpiry -> NativeScript
+foreign import nativeScript_new_timelock_expiry
+  :: TimelockExpiry -> NativeScript

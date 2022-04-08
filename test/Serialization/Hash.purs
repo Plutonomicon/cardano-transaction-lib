@@ -36,23 +36,27 @@ suite = do
   assertTrue "ed25519KeyHashFromBech32 returns Nothing on random string"
     (isNothing $ ed25519KeyHashFromBech32 invalidBech32)
 
-  pkh <- errMaybe "ed25519KeyHashFromBech32 failed" $ ed25519KeyHashFromBech32 pkhBech32
+  pkh <- errMaybe "ed25519KeyHashFromBech32 failed" $ ed25519KeyHashFromBech32
+    pkhBech32
   let
     pkhB32 = ed25519KeyHashToBech32Unsafe "addr_vkh" pkh
     mPkhB32 = ed25519KeyHashToBech32 "addr_vkh" pkh
     pkhBts = ed25519KeyHashToBytes pkh
     pkh2 = ed25519KeyHashFromBytes pkhBts
 
-  assertTrue "Safe ed25519KeyHashToBech32 should produce Just when unsafe version works"
+  assertTrue
+    "Safe ed25519KeyHashToBech32 should produce Just when unsafe version works"
     (mPkhB32 == Just pkhB32)
 
-  assertTrue "Safe ed25519KeyHashToBech32 should return Nothing on invalid prefix"
+  assertTrue
+    "Safe ed25519KeyHashToBech32 should return Nothing on invalid prefix"
     (ed25519KeyHashToBech32 "" pkh == Nothing)
 
   assertTrue "ed25519KeyHashFromBytes does not reverts ed25519KeyHashToBytes"
     (pkh2 == Just pkh)
 
-  assertTrue "ed25519KeyHashFromBech32 does not reverts ed25519KeyHashToBech32Unsafe"
+  assertTrue
+    "ed25519KeyHashFromBech32 does not reverts ed25519KeyHashToBech32Unsafe"
     (pkhB32 == pkhBech32)
 
   --
@@ -60,7 +64,9 @@ suite = do
   assertTrue "scriptHashFromBech32 returns Nothing on random string"
     (isNothing $ scriptHashFromBech32 invalidBech32)
 
-  scrh <- errMaybe "scriptHashFromBytes failed" $ scriptHashFromBytes $ hexToByteArrayUnsafe scriptHashHex
+  scrh <- errMaybe "scriptHashFromBytes failed" $ scriptHashFromBytes $
+    hexToByteArrayUnsafe
+      scriptHashHex
   let
     scrhB32 = scriptHashToBech32Unsafe "stake_vkh" scrh
     mScrhB32 = scriptHashToBech32 "stake_vkh" scrh

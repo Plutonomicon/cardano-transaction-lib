@@ -23,13 +23,15 @@ import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.Interval (defaultSlotConfig)
 import QueryM.Ogmios (OgmiosAddress)
-import UsedTxOuts (newUsedTxOuts)
+import Types.UsedTxOuts (newUsedTxOuts)
 
 testnet_addr1 :: OgmiosAddress
-testnet_addr1 = "addr_test1qr7g8nrv76fc7k4ueqwecljxx9jfwvsgawhl55hck3n8uwaz26mpcwu58zdkhpdnc6nuq3fa8vylc8ak9qvns7r2dsysp7ll4d"
+testnet_addr1 =
+  "addr_test1qr7g8nrv76fc7k4ueqwecljxx9jfwvsgawhl55hck3n8uwaz26mpcwu58zdkhpdnc6nuq3fa8vylc8ak9qvns7r2dsysp7ll4d"
 
 addr1 :: OgmiosAddress
-addr1 = "addr1qyc0kwu98x23ufhsxjgs5k3h7gktn8v5682qna5amwh2juguztcrc8hjay66es67ctn0jmr9plfmlw37je2s2px4xdssgvxerq"
+addr1 =
+  "addr1qyc0kwu98x23ufhsxjgs5k3h7gktn8v5682qna5amwh2juguztcrc8hjay66es67ctn0jmr9plfmlw37je2s2px4xdssgvxerq"
 
 -- note: currently this suite relies on Ogmios being open and running against the
 -- testnet, and does not directly test outputs, as this suite is intended to

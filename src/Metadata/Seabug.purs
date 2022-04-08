@@ -75,7 +75,8 @@ instance FromData SeabugMetadata where
   fromData (Map sm) = unsafePartial do
     policyId /\ contents <- lookupKey "727" sm >>= case _ of
       Map mp1 -> case Map.toUnfoldable mp1 of
-        [ policyId /\ contents ] -> Tuple <$> fromData policyId <*> fromData contents
+        [ policyId /\ contents ] -> Tuple <$> fromData policyId <*> fromData
+          contents
         _ -> Nothing
       _ -> Nothing
     mintPolicy <- lookupKey "mintPolicy" contents >>= fromData
@@ -126,7 +127,8 @@ instance DecodeJson SeabugMetadata where
           marketplaceScript <- map wrap <<< decodeScriptHash
             =<< Json.getField o "marketplaceScript"
           marketplaceShare <- decodeShare =<< Json.getField o "marketplaceShare"
-          ownerPkh <- map wrap <<< Json.decodeJson =<< Json.getField o "ownerPkh"
+          ownerPkh <- map wrap <<< Json.decodeJson =<< Json.getField o
+            "ownerPkh"
           ownerPrice <- Json.getField o "ownerPrice"
           pure $ SeabugMetadata
             { -- Not used in the endpoints where we parse the metadata, so we
@@ -186,7 +188,8 @@ instance FromData SeabugMetadataDelta where
   fromData (Map sm) = unsafePartial do
     policyId /\ contents <- lookupKey "727" sm >>= case _ of
       Map mp1 -> case Map.toUnfoldable mp1 of
-        [ policyId /\ contents ] -> Tuple <$> fromData policyId <*> fromData contents
+        [ policyId /\ contents ] -> Tuple <$> fromData policyId <*> fromData
+          contents
         _ -> Nothing
       _ -> Nothing
     ownerPkh <- lookupKey "ownerPkh" contents >>= fromData
@@ -201,5 +204,6 @@ instance FromData SeabugMetadataDelta where
 mkKey :: Partial => String -> PlutusData
 mkKey str = Bytes $ fromJust $ byteArrayFromString str
 
-lookupKey :: Partial => String -> Map.Map PlutusData PlutusData -> Maybe PlutusData
+lookupKey
+  :: Partial => String -> Map.Map PlutusData PlutusData -> Maybe PlutusData
 lookupKey keyStr = Map.lookup (mkKey keyStr)

@@ -55,7 +55,11 @@ import Types.Interval (POSIXTimeRange, always, intersection, isEmpty)
 import Types.Scripts (MintingPolicyHash, ValidatorHash)
 import Types.Datum (Datum(Datum))
 import Types.Transaction (DatumHash)
-import Types.UnbalancedTransaction (PaymentPubKeyHash, StakePubKeyHash, TxOutRef)
+import Types.UnbalancedTransaction
+  ( PaymentPubKeyHash
+  , StakePubKeyHash
+  , TxOutRef
+  )
 import Types.Value
   ( CurrencySymbol
   , TokenName
@@ -81,7 +85,9 @@ data TxConstraint
   | MustSpendPubKeyOutput TxOutRef
   | MustSpendScriptOutput TxOutRef Redeemer
   | MustMintValue MintingPolicyHash Redeemer TokenName BigInt
-  | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash) (Maybe Datum) Value
+  | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash)
+      (Maybe Datum)
+      Value
   | MustPayToOtherScript ValidatorHash Datum Value
   | MustHashDatum DatumHash Datum
   | MustSatisfyAnyOf (Array (Array TxConstraint))
@@ -369,7 +375,9 @@ mustProduceAtLeastTotal =
   f _ = mempty
 
 requiredSignatories
-  :: forall (i :: Type) (o :: Type). TxConstraints i o -> Array PaymentPubKeyHash
+  :: forall (i :: Type) (o :: Type)
+   . TxConstraints i o
+  -> Array PaymentPubKeyHash
 requiredSignatories = foldMap f <<< _.constraints <<< unwrap
   where
   f :: TxConstraint -> Array PaymentPubKeyHash
@@ -377,7 +385,9 @@ requiredSignatories = foldMap f <<< _.constraints <<< unwrap
   f _ = []
 
 requiredMonetaryPolicies
-  :: forall (i :: Type) (o :: Type). TxConstraints i o -> Array MintingPolicyHash
+  :: forall (i :: Type) (o :: Type)
+   . TxConstraints i o
+  -> Array MintingPolicyHash
 requiredMonetaryPolicies = foldMap f <<< _.constraints <<< unwrap
   where
   f :: TxConstraint -> Array MintingPolicyHash

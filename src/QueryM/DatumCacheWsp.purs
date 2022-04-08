@@ -186,7 +186,8 @@ parseJsonWspResponse resp@{ methodname, result, fault } =
   where
 
   toLeftWspFault :: Maybe Aeson -> Either WspFault DatumCacheResponse
-  toLeftWspFault = Left <<< maybe invalidResponseError WspFault <<< map toStringifiedNumbersJson
+  toLeftWspFault = Left <<< maybe invalidResponseError WspFault <<< map
+    toStringifiedNumbersJson
 
   decodeResponse :: Aeson -> Either WspFault DatumCacheResponse
   decodeResponse r = case datumCacheMethodFromString methodname of
@@ -195,19 +196,31 @@ parseJsonWspResponse resp@{ methodname, result, fault } =
       GetDatumByHash -> GetDatumByHashResponse <$>
         let
           datumFound =
-            Just <$> liftErr (decodeAeson =<< getNestedAeson r [ "DatumFound", "value" ])
+            Just <$> liftErr
+              (decodeAeson =<< getNestedAeson r [ "DatumFound", "value" ])
           datumNotFound =
             Nothing <$ liftErr (getNestedAeson r [ "DatumNotFound" ])
         in
           datumFound <|> datumNotFound
       GetDatumsByHashes -> GetDatumsByHashesResponse <$>
         liftErr (decodeAeson =<< getNestedAeson r [ "DatumFound", "value" ])
-      StartFetchBlocks -> StartFetchBlocksResponse <$ decodeDoneFlag [ "StartedBlockFetcher" ] r
+      StartFetchBlocks -> StartFetchBlocksResponse <$ decodeDoneFlag
+        [ "StartedBlockFetcher" ]
+        r
       -- fault version od the response should probably be implemented as one of expected results of API call
-      CancelFetchBlocks -> CancelFetchBlocksResponse <$ decodeDoneFlag [ "StoppedBlockFetcher" ] r
-      DatumFilterAddHashes -> DatumFilterAddHashesResponse <$ decodeDoneFlag [ "AddedHashes" ] r
-      DatumFilterRemoveHashes -> DatumFilterRemoveHashesResponse <$ decodeDoneFlag [ "RemovedHashes" ] r
-      DatumFilterSetHashes -> DatumFilterSetHashesResponse <$ decodeDoneFlag [ "SetHashes" ] r
+      CancelFetchBlocks -> CancelFetchBlocksResponse <$ decodeDoneFlag
+        [ "StoppedBlockFetcher" ]
+        r
+      DatumFilterAddHashes -> DatumFilterAddHashesResponse <$ decodeDoneFlag
+        [ "AddedHashes" ]
+        r
+      DatumFilterRemoveHashes -> DatumFilterRemoveHashesResponse <$
+        decodeDoneFlag
+          [ "RemovedHashes" ]
+          r
+      DatumFilterSetHashes -> DatumFilterSetHashesResponse <$ decodeDoneFlag
+        [ "SetHashes" ]
+        r
       DatumFilterGetHashes -> DatumFilterGetHashesResponse <$>
         liftErr (decodeHashes =<< getNestedAeson r [ "hashes" ])
 
@@ -217,7 +230,10 @@ parseJsonWspResponse resp@{ methodname, result, fault } =
     { hashes } :: { hashes :: Array String } <- decodeJson jStr
     forWithIndex hashes
       ( \idx h ->
-          note (AtIndex idx $ Named ("Cannot convert to ByteArray: " <> h) $ UnexpectedValue jStr)
+          note
+            ( AtIndex idx $ Named ("Cannot convert to ByteArray: " <> h) $
+                UnexpectedValue jStr
+            )
             $ DataHash <$> hexToByteArray h
       )
 

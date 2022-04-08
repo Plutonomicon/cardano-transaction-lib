@@ -11,7 +11,7 @@ import Control.Monad.Reader.Trans (ReaderT, asks)
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (bisequence)
 import Data.Map as Map
-import Data.Maybe (Maybe(Nothing), maybe)
+import Data.Maybe (Maybe, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (sequence)
 import Data.Tuple.Nested (type (/\))
@@ -22,7 +22,7 @@ import Serialization.Address (Address)
 import Types.Transaction (UtxoM(UtxoM))
 import Types.Transaction as Transaction
 import TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
-import UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
+import Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
 import Wallet (Wallet(Nami))
 import QueryM.Ogmios as Ogmios
 
@@ -58,13 +58,23 @@ utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
     convertUtxos :: Ogmios.UtxoQR -> Maybe Transaction.UtxoM
     convertUtxos (Ogmios.UtxoQR utxoQueryResult) =
       let
-        out' :: Array (Maybe Transaction.TransactionInput /\ Maybe Transaction.TransactionOutput)
+        out'
+          :: Array
+               ( Maybe Transaction.TransactionInput /\ Maybe
+                   Transaction.TransactionOutput
+               )
         out' = Map.toUnfoldable utxoQueryResult
           <#> bimap
             txOutRefToTransactionInput
             ogmiosTxOutToTransactionOutput
 
-        out :: Maybe (Array (Transaction.TransactionInput /\ Transaction.TransactionOutput))
+        out
+          :: Maybe
+               ( Array
+                   ( Transaction.TransactionInput /\
+                       Transaction.TransactionOutput
+                   )
+               )
         out = out' <#> bisequence # sequence
       in
         (wrap <<< Map.fromFoldable) <$> out
@@ -72,7 +82,8 @@ utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
   -- Nami appear to remove collateral from the utxo set, so we shall do the same.
   -- This is crucial if we are submitting via Nami. If we decide to submit with
   -- Ogmios, we can remove this.
-  -- More detail can be found here https://github.com/Berry-Pool/nami-wallet/blob/ecb32e39173b28d4a7a85b279a748184d4759f6f/src/api/extension/index.js
+  -- More detail can be found here
+  -- https://github.com/Berry-Pool/nami-wallet/blob/ecb32e39173b28d4a7a85b279a748184d4759f6f/src/api/extension/index.js
   -- by searching "// exclude collateral input from overall utxo set"
   -- or functions getUtxos and checkCollateral.
   namiUtxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
