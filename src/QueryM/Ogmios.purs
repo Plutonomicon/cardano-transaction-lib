@@ -47,12 +47,20 @@ queryChainTipCall = mkOgmiosCallType
 -- | Queries Ogmios for utxos at given addresses.
 -- NOTE. querying for utxos by address is deprecated, should use output reference instead
 queryUtxosCall :: JsonWspCall { utxo :: Array OgmiosAddress } UtxoQR
-queryUtxosCall = mkOgmiosCallType {methodname: "QueryUtxos", args: identity} Proxy
+queryUtxosCall = mkOgmiosCallType
+  { methodname: "Query"
+  , args: { query: _ }
+  }
+  Proxy
 
 -- | Queries Ogmios for utxos at given address.
 -- NOTE. querying for utxos by address is deprecated, should use output reference instead
 queryUtxosAtCall :: JsonWspCall OgmiosAddress UtxoQR
-queryUtxosAtCall = mkOgmiosCallType {methodname: "QueryUtxos", args: \addr -> {utxo: [ addr]} } Proxy
+queryUtxosAtCall = mkOgmiosCallType
+  { methodname: "Query"
+  , args: \addr -> { query: { utxo: [addr] } }
+  }
+  Proxy
 
 type OgmiosAddress = String
 
