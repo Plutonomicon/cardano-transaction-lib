@@ -58,7 +58,7 @@ queryUtxosCall = mkOgmiosCallType
 queryUtxosAtCall :: JsonWspCall OgmiosAddress UtxoQR
 queryUtxosAtCall = mkOgmiosCallType
   { methodname: "Query"
-  , args: \addr -> { query: { utxo: [addr] } }
+  , args: { query: _ } <<< { utxo: _ } <<< singleton
   }
   Proxy
 
@@ -69,11 +69,13 @@ type OgmiosAddress = String
 
 -- | Sends a serialized signed transaction with its full witness through the
 -- | Cardano network via Ogmios.
--- NOTE JSON doesn't support embedding raw bytes in objects. Bytes needs to be encoded in either Base16 or Base64.
+-- NOTE JSON doesn't support embedding raw bytes in objects. Bytes needs to be
+-- encoded in either Base16 or Base64.
 submitTxCall :: JsonWspCall { txCbor :: ByteArray } TxHash
 submitTxCall = mkOgmiosCallType
   { methodname: "SubmitTx"
-  , args: \ {txCbor} -> {submit: byteArrayToHex txCbor} }
+  , args: { submit: _ } <<< byteArrayToHex <<< _.txCbor
+  }
   Proxy
 
 type TxHash = String
@@ -83,7 +85,8 @@ type TxHash = String
 evaluateTxCall :: JsonWspCall { txCbor :: ByteArray } TxEvaluationResult
 evaluateTxCall = mkOgmiosCallType
   { methodname: "EvaluateTx"
-  , args: \ {txCbor} -> {evaluate: byteArrayToHex txCbor} }
+  , args: { evaluate: _ } <<< byteArrayToHex <<< _.txCbor
+  }
   Proxy
 
 -- convenience helper
