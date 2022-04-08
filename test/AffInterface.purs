@@ -15,14 +15,14 @@ import QueryM
   , defaultServerConfig
   , mkDatumCacheWebSocketAff
   , mkOgmiosWebSocketAff
+  ,getChainTip
   )
 import QueryM.Utxos (utxosAt)
-import QueryM.ChainInfo (getChainTip)
 import Serialization.Address (NetworkId(TestnetId))
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.Interval (defaultSlotConfig)
-import Types.JsonWsp (OgmiosAddress)
+import QueryM.Ogmios (OgmiosAddress)
 import UsedTxOuts (newUsedTxOuts)
 
 testnet_addr1 :: OgmiosAddress
