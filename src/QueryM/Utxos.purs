@@ -34,7 +34,7 @@ import QueryM.Ogmios as Ogmios
 -- | Gets utxos at an (internal) `Address` in terms of (internal) `Transaction.Types`.
 -- | Results may vary depending on `Wallet` type.
 utxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
-utxosAt addr = asks _.wallet >>= maybe (pure Nothing) (utxosAtByWallet addr)
+utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
   where
   -- Add more wallet types here:
   utxosAtByWallet
