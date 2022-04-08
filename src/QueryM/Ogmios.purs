@@ -109,6 +109,7 @@ type OgmiosAddress = String
 -- NOTE JSON doesn't support embedding raw bytes in objects. Bytes needs to be
 -- encoded in either Base16 or Base64.
 -- TODO Change return type to `TransactionHash`
+-- see https://github.com/Plutonomicon/cardano-transaction-lib/issues/290
 submitTxCall :: JsonWspCall { txCbor :: ByteArray } TxHash
 submitTxCall = mkOgmiosCallType
   { methodname: "SubmitTx"
