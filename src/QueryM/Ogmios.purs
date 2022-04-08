@@ -38,7 +38,11 @@ import Untagged.Union (type (|+|), toEither1)
 
 -- | Queries Ogmios for the chain’s current tip.
 queryChainTipCall :: JsonWspCall Unit ChainTipQR
-queryChainTipCall = mkOgmiosCallType {methodname: "QueryChainTip", args: identity} Proxy
+queryChainTipCall = mkOgmiosCallType
+  { methodname: "Query"
+  , args: const { query: "chainTip" }
+  }
+  Proxy
 
 -- | Queries Ogmios for utxos at given addresses.
 -- NOTE. querying for utxos by address is deprecated, should use output reference instead
