@@ -148,10 +148,7 @@ type Url = String
 
 ---------------------
 
-
-
 ------------------------
-
 
 -- when we add multiple query backends or wallets,
 -- we just need to extend this type
@@ -199,7 +196,7 @@ getChainTip = mkOgmiosRequest Ogmios.queryChainTipCall _.chainTip unit
 --------------------------------------------------------------------------------
 
 submitTxOgmios :: ByteArray -> QueryM String
-submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall _.submit {txCbor}
+submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall _.submit { txCbor }
 
 --------------------------------------------------------------------------------
 -- DATUM CACHE QUERIES
@@ -693,11 +690,11 @@ mkOgmiosWebSocketAff :: ServerConfig -> Aff OgmiosWebSocket
 mkOgmiosWebSocketAff serverCfg = makeAff $ mkOgmiosWebSocket' serverCfg
 
 -- getter
-underlyingWebSocket :: forall a. WebSocket a -> JsWebSocket
+underlyingWebSocket :: forall (a :: Type). WebSocket a -> JsWebSocket
 underlyingWebSocket (WebSocket ws _) = ws
 
 -- getter
-listeners :: forall listeners. WebSocket listeners -> listeners
+listeners :: forall (listeners :: Type). WebSocket listeners -> listeners
 listeners (WebSocket _ ls) = ls
 
 -- interface required for adding/removing listeners
@@ -719,7 +716,7 @@ type ListenerSet a =
 
 -- we manipluate closures to make the DispatchIdMap updateable using these
 -- methods, this can be picked up by a query or cancellation function
-mkListenerSet :: forall a. DispatchIdMap a -> ListenerSet a
+mkListenerSet :: forall (a :: Type). DispatchIdMap a -> ListenerSet a
 mkListenerSet dim =
   { addMessageListener:
       \id -> \func -> do
@@ -732,21 +729,21 @@ mkListenerSet dim =
   , dispatchIdMap: dim
   }
 
-removeAllListeners :: forall a. DispatchIdMap a -> Effect Unit
+removeAllListeners :: forall (a :: Type). DispatchIdMap a -> Effect Unit
 removeAllListeners dim = do
   log "error hit, removing all listeners"
   Ref.write MM.empty dim
 
 -- TODO after ogmios-datum-cache implements reflection this could be generalized to make request for the cache as well
 -- | Builds a Ogmios request action using QueryM
-mkOgmiosRequest ::
-  forall i o
+mkOgmiosRequest
+  :: forall (i :: Type) (o :: Type)
    . JsonWsp.JsonWspCall i o
   -> (OgmiosListeners -> ListenerSet o)
   -> i
   -> QueryM o
 mkOgmiosRequest jsonWspCall getLs inp = do
-  {body, id} <- liftEffect $ JsonWsp.buildRequest jsonWspCall inp
+  { body, id } <- liftEffect $ JsonWsp.buildRequest jsonWspCall inp
   ogmiosWs <- asks _.ogmiosWs
   let
     affFunc :: (Either Error o -> Effect Unit) -> Effect Canceler
@@ -764,7 +761,6 @@ mkOgmiosRequest jsonWspCall getLs inp = do
         liftEffect $ respLs.removeMessageListener id
         liftEffect $ throwError $ err
   liftAff $ makeAff $ affFunc
-
 
 -------------------------------------------------------------------------------
 -- Dispatch Setup
@@ -798,14 +794,14 @@ datumCacheMessageDispatch dim =
 -- each query type will have a corresponding ref that lives in ReaderT config or similar
 -- for utxoQueryDispatch, the `a` parameter will be `UtxoQR` or similar
 -- the add and remove listener functions will know to grab the correct mutable dispatch, if one exists.
-createMutableDispatch :: forall a. Effect (DispatchIdMap a)
+createMutableDispatch :: forall (a :: Type). Effect (DispatchIdMap a)
 createMutableDispatch = Ref.new MM.empty
 
 -- we parse out the utxo query result, then check if we're expecting a result
 -- with the provided id, if we are then we dispatch to the effect that is
 -- waiting on this result
 ogmiosQueryDispatch
-  :: forall a
+  :: forall (a :: Type)
    . Aeson.DecodeAeson a
   => Ref.Ref (MultiMap String (a -> Effect Unit))
   -> String

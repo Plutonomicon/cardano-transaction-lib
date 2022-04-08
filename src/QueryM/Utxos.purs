@@ -51,6 +51,7 @@ utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
     where
     utxosAt' :: Ogmios.OgmiosAddress -> QueryM Ogmios.UtxoQR
     utxosAt' addr' = mkOgmiosRequest Ogmios.queryUtxosAtCall _.utxo addr'
+
     getUtxos :: Ogmios.OgmiosAddress -> QueryM (Maybe Transaction.UtxoM)
     getUtxos address = convertUtxos <$> utxosAt' address
 
