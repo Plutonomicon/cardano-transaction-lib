@@ -32,6 +32,7 @@ pkgs.mkShell {
     spago2nix
     pkgs.nodePackages.node2nix
     nodejs
+    pkgs.nixpkgs-fmt
   ];
 
   shellHook = ''

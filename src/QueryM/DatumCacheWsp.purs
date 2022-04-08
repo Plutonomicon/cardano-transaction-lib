@@ -1,4 +1,4 @@
-module DatumCacheWsp
+module QueryM.DatumCacheWsp
   ( DatumCacheResponse(..)
   , DatumCacheRequest(..)
   , DatumCacheMethod(..)

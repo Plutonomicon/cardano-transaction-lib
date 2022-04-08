@@ -12,8 +12,20 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Deserialization.BigInt (convertBigInt)
 import Deserialization.BigNum (bigNumToBigInt)
-import FfiHelpers (ContainerHelper, MaybeFfiHelper, containerHelper, maybeFfiHelper)
-import Serialization.Types (BigInt, BigNum, ConstrPlutusData, PlutusData, PlutusList, PlutusMap)
+import FfiHelpers
+  ( ContainerHelper
+  , MaybeFfiHelper
+  , containerHelper
+  , maybeFfiHelper
+  )
+import Serialization.Types
+  ( BigInt
+  , BigNum
+  , ConstrPlutusData
+  , PlutusData
+  , PlutusList
+  , PlutusMap
+  )
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Constr, Map, List, Integer, Bytes)) as T
 

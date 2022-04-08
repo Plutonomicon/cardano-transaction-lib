@@ -24,7 +24,12 @@ import Control.Alt (class Alt)
 import Data.Either (Either, either, hush)
 import Data.Maybe (Maybe(Just), maybe)
 import Control.Monad.Error.Class (class MonadError, class MonadThrow)
-import Control.Monad.Reader.Class (class MonadAsk, class MonadReader, ask, local)
+import Control.Monad.Reader.Class
+  ( class MonadAsk
+  , class MonadReader
+  , ask
+  , local
+  )
 import Control.Monad.Reader.Trans (runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Plus (class Plus)
@@ -57,7 +62,7 @@ import QueryM
   ) as QueryM
 import Serialization.Address (NetworkId(TestnetId))
 import Types.Interval (defaultSlotConfig) as Interval
-import UsedTxOuts (newUsedTxOuts)
+import Types.UsedTxOuts (newUsedTxOuts)
 import Wallet (mkNamiWalletAff)
 
 -- | The `Contract` monad is a newtype wrapper over `QueryM` which is `ReaderT`

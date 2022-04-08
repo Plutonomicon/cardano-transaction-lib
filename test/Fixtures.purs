@@ -50,7 +50,10 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
-import Metadata.Seabug (SeabugMetadata(SeabugMetadata), SeabugMetadataDelta(SeabugMetadataDelta))
+import Metadata.Seabug
+  ( SeabugMetadata(SeabugMetadata)
+  , SeabugMetadataDelta(SeabugMetadataDelta)
+  )
 import Metadata.Seabug.Share (Share, mkShare)
 import Partial.Unsafe (unsafePartial)
 import Serialization.Address
@@ -61,7 +64,12 @@ import Serialization.Address
   , baseAddressToAddress
   , keyHashCredential
   )
-import Serialization.Hash (Ed25519KeyHash, ScriptHash, ed25519KeyHashFromBytes, scriptHashFromBytes)
+import Serialization.Hash
+  ( Ed25519KeyHash
+  , ScriptHash
+  , ed25519KeyHashFromBytes
+  , scriptHashFromBytes
+  )
 import Types.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
@@ -70,11 +78,21 @@ import Types.ByteArray
 import Types.Natural as Natural
 import Types.PlutusData as PD
 import Types.RedeemerTag (RedeemerTag(Spend))
-import Types.Scripts (MintingPolicyHash(MintingPolicyHash), ValidatorHash(ValidatorHash))
+import Types.Scripts
+  ( MintingPolicyHash(MintingPolicyHash)
+  , ValidatorHash(ValidatorHash)
+  )
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , Mint(Mint)
-  , NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry)
+  , NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
   , PublicKey(PublicKey)
   , Redeemer(Redeemer)
   , Transaction(Transaction)
@@ -86,7 +104,9 @@ import Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   )
-import Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput))
+import Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  )
 import Types.Value
   ( Coin(Coin)
   , CurrencySymbol

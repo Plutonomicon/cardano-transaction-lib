@@ -13,9 +13,21 @@ import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple, fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 
-import FfiHelpers (ContainerHelper, MaybeFfiHelper, containerHelper, maybeFfiHelper)
+import FfiHelpers
+  ( ContainerHelper
+  , MaybeFfiHelper
+  , containerHelper
+  , maybeFfiHelper
+  )
 import Serialization.BigNum (bigNumFromBigInt)
-import Serialization.Types (BigInt, BigNum, ConstrPlutusData, PlutusData, PlutusList, PlutusMap)
+import Serialization.Types
+  ( BigInt
+  , BigNum
+  , ConstrPlutusData
+  , PlutusData
+  , PlutusList
+  , PlutusMap
+  )
 import Types.ByteArray (ByteArray)
 import Types.PlutusData as T
 

@@ -3,7 +3,7 @@
 -- | to be spent.
 -- | This module provides a simple, in-memory cache that helps with keeping
 -- | submitted utxos in-check.
-module UsedTxOuts
+module Types.UsedTxOuts
   ( UsedTxOuts(UsedTxOuts)
   , TxOutRefCache
   , isTxOutRefUsed

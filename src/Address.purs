@@ -13,7 +13,7 @@ import Prelude
 import Control.Monad.Reader.Class (asks)
 import Data.Maybe (Maybe)
 import QueryM (QueryM)
-import Types.JsonWsp as JsonWsp
+import QueryM.Ogmios as Ogmios
 import Types.Scripts
   ( MintingPolicyHash(MintingPolicyHash)
   , StakeValidatorHash(StakeValidatorHash)
@@ -37,11 +37,11 @@ import Serialization.Hash (ScriptHash)
 --------------------------------------------------------------------------------
 -- JsonWsp.Address is a bech32 string, so wrap to Transaction.Types.Bech32
 -- | Converts an `JsonWsp.Address` (bech32string) to internal `Address`
-ogmiosAddressToAddress :: JsonWsp.OgmiosAddress -> Maybe Address
+ogmiosAddressToAddress :: Ogmios.OgmiosAddress -> Maybe Address
 ogmiosAddressToAddress = addressFromBech32
 
 -- | Converts an (internal) `Address` to `JsonWsp.Address` (bech32string)
-addressToOgmiosAddress :: Address -> JsonWsp.OgmiosAddress
+addressToOgmiosAddress :: Address -> Ogmios.OgmiosAddress
 addressToOgmiosAddress = addressBech32
 
 --------------------------------------------------------------------------------

@@ -9,7 +9,12 @@ import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
 import Data.UInt as UInt
 
-import FfiHelpers (ContainerHelper, MaybeFfiHelper, containerHelper, maybeFfiHelper)
+import FfiHelpers
+  ( ContainerHelper
+  , MaybeFfiHelper
+  , containerHelper
+  , maybeFfiHelper
+  )
 import Serialization.Hash (Ed25519KeyHash)
 import Serialization.Address (Slot(Slot))
 import Serialization.Types

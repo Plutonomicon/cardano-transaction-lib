@@ -1,6 +1,6 @@
 {
   "importSort": "source",
-  "importWrap": "source",
+  "importWrap": "auto",
   "indent": 2,
   "operatorsFile": null,
   "ribbon": 1,

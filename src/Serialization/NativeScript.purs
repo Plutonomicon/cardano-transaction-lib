@@ -23,7 +23,14 @@ import Serialization.Types
   , TimelockStart
   )
 import Types.Transaction
-  ( NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry)
+  ( NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
   ) as T
 
 convertNativeScripts :: Array T.NativeScript -> Maybe NativeScripts

@@ -21,7 +21,8 @@ import Node.Encoding (Encoding(UTF8))
 import Test.Spec.Assertions (shouldSatisfy, shouldNotSatisfy)
 import TestM (TestPlanM, ValidationM, runValidationM)
 import Mote (group, test)
-import Types.JsonWsp (JsonWspResponse, UtxoQR, parseJsonWspResponse)
+import QueryM.JsonWsp (JsonWspResponse, parseJsonWspResponse)
+import QueryM.Ogmios (UtxoQR)
 
 suite :: TestPlanM Unit
 suite = do

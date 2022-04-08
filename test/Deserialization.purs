@@ -18,7 +18,11 @@ import Deserialization.BigInt as DB
 import Deserialization.FromBytes (fromBytes)
 import Deserialization.NativeScript as NSD
 import Deserialization.PlutusData as DPD
-import Deserialization.UnspentOutput (convertUnspentOutput, mkTransactionUnspentOutput, newTransactionUnspentOutputFromBytes)
+import Deserialization.UnspentOutput
+  ( convertUnspentOutput
+  , mkTransactionUnspentOutput
+  , newTransactionUnspentOutputFromBytes
+  )
 import Deserialization.WitnessSet (deserializeWitnessSet, convertWitnessSet)
 import Serialization as Serialization
 import Serialization.BigNum (bigNumFromBigInt)
@@ -54,8 +58,14 @@ import Test.Fixtures
   , witnessSetFixture4
   )
 import Test.Utils (errMaybe)
-import Types.Transaction (NativeScript(ScriptAny), TransactionInput, TransactionOutput) as T
-import Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput)) as T
+import Types.Transaction
+  ( NativeScript(ScriptAny)
+  , TransactionInput
+  , TransactionOutput
+  ) as T
+import Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as T
 
 suite :: TestPlanM Unit
 suite = do

@@ -11,7 +11,14 @@ import Test.QuickCheck.Laws.Data.Ord (checkOrd)
 import Test.QuickCheck.Laws.Data.Semigroup (checkSemigroup)
 import TestM (TestPlanM)
 import Type.Proxy (Proxy(..))
-import Types.ByteArray (ByteArray, byteArrayFromIntArray, byteArrayFromIntArrayUnsafe, byteArrayToHex, byteArrayToIntArray, hexToByteArray)
+import Types.ByteArray
+  ( ByteArray
+  , byteArrayFromIntArray
+  , byteArrayFromIntArrayUnsafe
+  , byteArrayToHex
+  , byteArrayToIntArray
+  , hexToByteArray
+  )
 
 suite :: TestPlanM Unit
 suite = do

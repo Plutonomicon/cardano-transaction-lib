@@ -3,7 +3,11 @@ module Test.Data (suite) where
 
 import Prelude
 
-import ConstrIndices (class HasConstrIndices, defaultConstrIndices, fromConstr2Index)
+import ConstrIndices
+  ( class HasConstrIndices
+  , defaultConstrIndices
+  , fromConstr2Index
+  )
 import Contract.PlutusData (PlutusData(Constr, Integer))
 import Contract.Prelude (fromJust, traverse_, uncurry)
 import Control.Lazy (fix)

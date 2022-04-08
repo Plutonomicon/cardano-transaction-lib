@@ -41,7 +41,9 @@ import Types.Transaction
   , TransactionInput(TransactionInput)
   , TransactionOutput(TransactionOutput)
   ) as T
-import Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput)) as T
+import Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as T
 import Types.Value
   ( mkCurrencySymbol
   , mkNonAdaAsset

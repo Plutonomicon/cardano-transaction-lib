@@ -20,7 +20,7 @@ import Test.Fixtures
 import Test.Spec.Assertions (shouldReturn)
 import TestM (TestPlanM)
 import Types.Transaction (Transaction, TransactionHash)
-import UsedTxOuts
+import Types.UsedTxOuts
   ( isTxOutRefUsed
   , lockTransactionInputs
   , newUsedTxOuts

@@ -62,8 +62,8 @@ foreign import concat_ :: ByteArray -> ByteArray -> ByteArray
 foreign import byteArrayToHex :: ByteArray -> String
 
 foreign import hexToByteArray_
-  :: (forall a. Maybe a)
-  -> (forall a. a -> Maybe a)
+  :: (forall (a :: Type). Maybe a)
+  -> (forall (a :: Type). a -> Maybe a)
   -> String
   -> Maybe ByteArray
 
@@ -79,8 +79,8 @@ foreign import hexToByteArrayUnsafe :: String -> ByteArray
 foreign import byteArrayFromIntArrayUnsafe :: Array Int -> ByteArray
 
 foreign import byteArrayFromIntArray_
-  :: (forall a. Maybe a)
-  -> (forall a. a -> Maybe a)
+  :: (forall (a :: Type). Maybe a)
+  -> (forall (a :: Type). a -> Maybe a)
   -> Array Int
   -> Maybe ByteArray
 
