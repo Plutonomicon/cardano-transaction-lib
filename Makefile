@@ -3,7 +3,7 @@ SHELL := bash
 .PHONY: autogen-deps run-testnet-node run-testnet-ogmios
 .SHELLFLAGS := -eu -o pipefail -c
 
-ps-sources := $$(find ./* -iregex ".*.purs")
+ps-sources := $$(find ./* -iregex '.*.purs')
 
 autogen-deps:
 	spago2nix generate \

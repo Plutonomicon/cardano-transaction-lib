@@ -15,7 +15,7 @@ import QueryM
   , defaultServerConfig
   , mkDatumCacheWebSocketAff
   , mkOgmiosWebSocketAff
-  ,getChainTip
+  , getChainTip
   )
 import QueryM.Utxos (utxosAt)
 import Serialization.Address (NetworkId(TestnetId))

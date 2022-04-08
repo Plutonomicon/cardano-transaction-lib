@@ -187,11 +187,11 @@
             }
             ''
               cd ${self}
-              purs-tidy check $(find ./* -iregex ".*.purs")
+              purs-tidy check $(find ./* -iregex '.*.purs')
               fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost \
-                $(find ./server -iregex ".*.hs")
+                $(find ./server -iregex '.*.hs')
               nixpkgs-fmt --check ./{flake,default,shell}.nix \
-                 $(find ./nix ./server -iregex ".*.nix")
+                 $(find ./nix ./server -iregex '.*.nix')
               touch $out
             '';
           # It might be a good idea to keep this as a separate shell; if you're

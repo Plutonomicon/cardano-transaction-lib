@@ -46,7 +46,7 @@ instance FromBytes NativeScript where
 instance FromBytes Mint where
   fromBytes = _fromBytesMint maybeFfiHelper
 
-fromBytesEffect :: forall a. FromBytes a => ByteArray -> Effect a
+fromBytesEffect :: forall (a :: Type). FromBytes a => ByteArray -> Effect a
 fromBytesEffect bytes =
   case fromBytes bytes of
     Nothing -> throw "from_bytes() call failed"
