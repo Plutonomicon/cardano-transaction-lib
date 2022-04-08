@@ -1,5 +1,5 @@
-module Plutus.IsoNativeForeign
-  ( class IsoNativeForeign
+module Plutus.NativeForeignConvertible
+  ( class NativeForeignConvertible
   , toNativeType
   ) where
 
@@ -20,10 +20,9 @@ import Plutus.Types.Credential
   )
 
 -- | This type class asserts that two types (native Purescript and
--- | foreign Javascript) are isomorphic, so they can be converted
--- | to each other without losing information.
-class IsoNativeForeign :: Type -> Type -> Constraint
-class IsoNativeForeign native frgn | native -> frgn, frgn -> native where
+-- | foreign Javascript) can be converted to each other.
+class NativeForeignConvertible :: Type -> Type -> Constraint
+class NativeForeignConvertible native frgn | native -> frgn, frgn -> native where
   toNativeType :: frgn -> Maybe native
 -- TODO: toForeignType :: native -> frgn
 
@@ -33,13 +32,13 @@ class IsoNativeForeign native frgn | native -> frgn, frgn -> native where
 
 -- TODO: Currently only Shelley addresses are supported.
 -- Should we introduce support for Byron and stake (reward) addresses as well?
-instance IsoNativeForeign Plutus.Address Foreign.Address where
+instance NativeForeignConvertible Plutus.Address Foreign.Address where
   -- Spec: https://github.com/cardano-foundation/CIPs/tree/master/CIP-0019
   -- | Attempts to build a Plutus-like address from a CSL-level address
   -- | represented by a sequence of bytes based on the CIP-0019
   -- | (specification describing the structure of addresses in Cardano).
   toNativeType addrForeign = addrType >>= \addrType' ->
-    case toInt addrType' of -- TODO: Byron addresses
+    case toInt addrType' of
       -- %b0000 | network tag | key hash | key hash
       0 -> buildAddress pubKeyCredential $ Just $
         map StakingHash <<< pubKeyCredential
@@ -69,58 +68,62 @@ instance IsoNativeForeign Plutus.Address Foreign.Address where
       7 -> buildAddress scriptCredential Nothing
 
       _ -> Nothing
-     where
-     addrBytes :: Array Int
-     addrBytes = byteArrayToIntArray $ addressBytes addrForeign
+    where
+    addrBytes :: Array Int
+    addrBytes = byteArrayToIntArray $ addressBytes addrForeign
 
-     -- | Retrieves the address type by reading
-     -- | the first 4 bits (from the left) of the header-byte.
-     addrType :: Maybe UInt
-     addrType = head addrBytes >>= (pure <<< flip zshr (fromInt 4) <<< fromInt)
+    -- | Retrieves the address type by reading
+    -- | the first 4 bits (from the left) of the header-byte.
+    addrType :: Maybe UInt
+    addrType = head addrBytes >>= (pure <<< flip zshr (fromInt 4) <<< fromInt)
 
-     pubKeyCredential :: ByteArray -> Maybe Credential
-     pubKeyCredential =
-       map (PubKeyCredential <<< wrap) <<< Hash.ed25519KeyHashFromBytes
+    -- | Retrieves the payment part of the address by reading
+    -- | the first 28 bytes following the address header.
+    paymentPartHash :: Maybe ByteArray
+    paymentPartHash = byteArrayFromIntArray $ take 28 (drop 1 addrBytes)
 
-     scriptCredential :: ByteArray -> Maybe Credential
-     scriptCredential =
-       map (ScriptCredential <<< wrap) <<< Hash.scriptHashFromBytes
+    -- | Retrieves the delegation part of the address by reading
+    -- | the bytes following the payment part.
+    delegationPartHash :: Maybe ByteArray
+    delegationPartHash = byteArrayFromIntArray $ drop 29 addrBytes
 
-     paymentPartHash :: Maybe ByteArray
-     paymentPartHash = byteArrayFromIntArray $ take 28 (drop 1 addrBytes)
+    pubKeyCredential :: ByteArray -> Maybe Credential
+    pubKeyCredential =
+      map (PubKeyCredential <<< wrap) <<< Hash.ed25519KeyHashFromBytes
 
-     delegationPartHash :: Maybe ByteArray
-     delegationPartHash = byteArrayFromIntArray $ drop 29 addrBytes
+    scriptCredential :: ByteArray -> Maybe Credential
+    scriptCredential =
+      map (ScriptCredential <<< wrap) <<< Hash.scriptHashFromBytes
 
-     buildAddress
-       :: (ByteArray -> Maybe Credential)
-       -> Maybe (ByteArray -> Maybe StakingCredential)
-       -> Maybe Plutus.Address
-     buildAddress credential stakingCredential =
-       paymentPartHash >>= credential >>= \c ->
-         case stakingCredential of
-           Nothing -> Just $
-             wrap { addressCredential: c, addressStakingCredential: Nothing }
-           Just stakingCredential ->
-             delegationPartHash >>= stakingCredential >>= \sc -> Just $
-               wrap { addressCredential: c, addressStakingCredential: Just sc }
+    buildAddress
+      :: (ByteArray -> Maybe Credential)
+      -> Maybe (ByteArray -> Maybe StakingCredential)
+      -> Maybe Plutus.Address
+    buildAddress credential stakingCredential =
+      paymentPartHash >>= credential >>= \c ->
+        case stakingCredential of
+          Nothing -> Just $
+            wrap { addressCredential: c, addressStakingCredential: Nothing }
+          Just stakingCredential ->
+            delegationPartHash >>= stakingCredential >>= \sc -> Just $
+              wrap { addressCredential: c, addressStakingCredential: Just sc }
 
-     stakingPtr :: ByteArray -> Maybe StakingCredential
-     stakingPtr byteArray = do
-       Tuple slot bytes0 <- _parseChainPtr (byteArrayToIntArray byteArray) []
-       Tuple txIx bytes1 <- _parseChainPtr bytes0 []
-       Tuple certIx _ <- _parseChainPtr bytes1 []
-       pure $ StakingPtr { slot, txIx, certIx }
+    stakingPtr :: ByteArray -> Maybe StakingCredential
+    stakingPtr byteArray = do
+      Tuple slot bytes0 <- _parseChainPtr (byteArrayToIntArray byteArray) []
+      Tuple txIx bytes1 <- _parseChainPtr bytes0 []
+      Tuple certIx _ <- _parseChainPtr bytes1 []
+      pure $ StakingPtr { slot, txIx, certIx }
 
 -- | Extracts the variable-length positive number from a byte array
--- | following the ABNF grammar below:
+-- | according to the ABNF grammar below:
 -- |
 -- | variable-length-uint =
 -- |     (%b1 | uint7 | variable-length-uint)
 -- |   / (%b0 | uint7)
 -- | uint7 = 7bit
 _parseChainPtr
-  :: forall t
+  :: forall (t :: Type)
    . Newtype t UInt
   => Array Int
   -> Array UInt

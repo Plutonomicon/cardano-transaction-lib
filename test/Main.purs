@@ -25,6 +25,7 @@ import Test.UsedTxOuts as UsedTxOuts
 import Test.Data as Data
 import Test.Metadata.Seabug as Seabug
 import Test.FinalizeTx as FinalizeTx
+import Test.Plutus.Address as PlutusAddress
 
 -- we use `mote` here so that we can use effects to build up a test tree, which
 -- is then interpreted here in a pure context, mainly due to some painful types
@@ -51,6 +52,7 @@ interpret spif = do
 
 testPlan :: TestPlanM Unit
 testPlan = do
+  PlutusAddress.suite
   FinalizeTx.suite
   Data.suite
   Aeson.suite
