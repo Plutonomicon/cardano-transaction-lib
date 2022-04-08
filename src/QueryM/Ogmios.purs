@@ -35,10 +35,12 @@ import Data.Array (index, singleton)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), either, hush, note)
 import Data.Foldable (foldl)
+import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (wrap)
+import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern), indexOf, splitAt, uncons)
 import Data.Traversable (sequence)
 import Data.Tuple (uncurry)
@@ -160,6 +162,11 @@ data ChainTipQR
   = CtChainOrigin ChainOrigin
   | CtChainPoint ChainPoint
 
+derive instance Generic ChainTipQR _
+
+instance Show ChainTipQR where
+  show = genericShow
+
 instance DecodeAeson ChainTipQR where
   decodeAeson j = do
     r :: (ChainOrigin |+| ChainPoint) <- decodeAeson j
@@ -171,6 +178,10 @@ newtype OgmiosBlockHeaderHash = OgmiosBlockHeaderHash String
 
 derive instance Eq OgmiosBlockHeaderHash
 derive newtype instance DecodeAeson OgmiosBlockHeaderHash
+derive instance Generic OgmiosBlockHeaderHash _
+
+instance Show OgmiosBlockHeaderHash where
+  show = genericShow
 
 -- | The origin of the blockchain. It doesn't point to any existing slots, but
 -- is preceding any existing other point.
@@ -179,6 +190,10 @@ newtype ChainOrigin = ChainOrigin String
 derive instance Eq ChainOrigin
 derive newtype instance DecodeAeson ChainOrigin
 derive newtype instance HasRuntimeType ChainOrigin
+derive instance Generic ChainOrigin _
+
+instance Show ChainOrigin where
+  show = genericShow
 
 -- | A point on the chain, identified by a slot and a block header hash
 type ChainPoint =
@@ -193,9 +208,9 @@ type ChainPoint =
 -- | Ogmios response for Utxo Query
 newtype UtxoQR = UtxoQR UtxoQueryResult
 
-derive newtype instance showUtxoQR :: Show UtxoQR
+derive newtype instance Show UtxoQR
 
-instance decodeAesonUtxoQR :: DecodeAeson UtxoQR where
+instance DecodeAeson UtxoQR where
   decodeAeson j = UtxoQR <$> parseUtxoQueryResult j
 
 -- the inner type for Utxo Queries
