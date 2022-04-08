@@ -37,12 +37,14 @@ module QueryM
   , getDatumByHash
   , getDatumsByHashes
   , getWalletAddress
+  , getChainTip
   , getWalletCollateral
   , hashData
   , hashScript
   , listeners
   , mkDatumCacheWebSocketAff
   , mkHttpUrl
+  , mkOgmiosRequest
   , mkOgmiosWebSocketAff
   , mkWsUrl
   , ownPaymentPubKeyHash
@@ -51,7 +53,8 @@ module QueryM
   , signTransaction
   , signTransactionBytes
   , startFetchBlocksRequest
-  , submitTransaction
+  , submitTxWallet
+  , submitTxOgmios
   , underlyingWebSocket
   ) where
 
@@ -61,6 +64,7 @@ import Aeson as Aeson
 import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.ResponseFormat as Affjax.ResponseFormat
+import Contract.Prim.ByteArray (ByteArray(..))
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (ReaderT, withReaderT, ask, asks)
 import Data.Argonaut (class DecodeJson, JsonDecodeError)
@@ -81,34 +85,8 @@ import Data.Traversable (traverse, for)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import DatumCacheWsp
-  ( DatumCacheMethod
-      ( StartFetchBlocks
-      , CancelFetchBlocks
-      , DatumFilterAddHashes
-      , DatumFilterRemoveHashes
-      , DatumFilterSetHashes
-      )
-  , DatumCacheRequest
-      ( GetDatumByHashRequest
-      , GetDatumsByHashesRequest
-      , StartFetchBlocksRequest
-      , CancelFetchBlocksRequest
-      , DatumFilterAddHashesRequest
-      , DatumFilterRemoveHashesRequest
-      , DatumFilterSetHashesRequest
-      , DatumFilterGetHashesRequest
-      )
-  , DatumCacheResponse
-      ( GetDatumByHashResponse
-      , GetDatumsByHashesResponse
-      , DatumFilterGetHashesResponse
-      )
-  , faultToString
-  , requestMethodName
-  , responseMethod
-  )
-import DatumCacheWsp as DcWsp
+import QueryM.DatumCacheWsp (DatumCacheMethod(StartFetchBlocks, CancelFetchBlocks, DatumFilterAddHashes, DatumFilterRemoveHashes, DatumFilterSetHashes), DatumCacheRequest(GetDatumByHashRequest, GetDatumsByHashesRequest, StartFetchBlocksRequest, CancelFetchBlocksRequest, DatumFilterAddHashesRequest, DatumFilterRemoveHashesRequest, DatumFilterSetHashesRequest, DatumFilterGetHashesRequest), DatumCacheResponse(GetDatumByHashResponse, GetDatumsByHashesResponse, DatumFilterGetHashesResponse))
+import QueryM.DatumCacheWsp as DcWsp
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Aff.Class (liftAff)
@@ -119,32 +97,26 @@ import Effect.Ref as Ref
 import Foreign.Object as Object
 import MultiMap (MultiMap)
 import MultiMap as MM
+import QueryM.JsonWsp as JsonWsp
+import QueryM.Ogmios as Ogmios
 import Serialization (convertTransaction, toBytes) as Serialization
-import Serialization.Address
-  ( Address
-  , BlockId
-  , NetworkId
-  , Slot
-  , addressPaymentCred
-  , stakeCredentialToKeyHash
-  )
+import Serialization.Address (Address, BlockId, NetworkId, Slot, addressPaymentCred, stakeCredentialToKeyHash)
 import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.Datum (Datum, DatumHash)
 import Types.Interval (SlotConfig)
-import Types.JsonWsp as JsonWsp
 import Types.PlutusData (PlutusData)
 import Types.Scripts (PlutusScript)
-import Types.Transaction as Transaction
 import Types.Transaction (Transaction(Transaction))
+import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.UnbalancedTransaction (PubKeyHash, PaymentPubKeyHash)
 import Types.Value (Coin(Coin))
 import Untagged.Union (asOneOf)
-import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
 import UsedTxOuts (UsedTxOuts)
+import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -174,9 +146,12 @@ foreign import data JsWebSocket :: Type
 
 type Url = String
 
---------------------------------------------------------------------------------
--- Queries
---------------------------------------------------------------------------------
+---------------------
+
+
+
+------------------------
+
 
 -- when we add multiple query backends or wallets,
 -- we just need to extend this type
@@ -213,7 +188,21 @@ liftQueryM = withReaderT toDefaultQueryConfig
     }
 
 --------------------------------------------------------------------------------
--- Datum Cache Queries
+-- OGMIOS LOCAL STATE QUERY PROTOCOL
+--------------------------------------------------------------------------------
+
+getChainTip :: QueryM Ogmios.ChainTipQR
+getChainTip = mkOgmiosRequest Ogmios.queryChainTipCall _.chainTip unit
+
+--------------------------------------------------------------------------------
+-- OGMIOS LOCAL TX SUBMISSION PROTOCOL
+--------------------------------------------------------------------------------
+
+submitTxOgmios :: ByteArray -> QueryM String
+submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall _.submit {txCbor}
+
+--------------------------------------------------------------------------------
+-- DATUM CACHE QUERIES
 --------------------------------------------------------------------------------
 
 getDatumByHash :: DatumHash -> QueryM (Maybe PlutusData)
@@ -258,15 +247,16 @@ matchCacheQuery
   -> QueryM Unit
 matchCacheQuery query method args = do
   resp <- queryDatumCache (query args)
-  if responseMethod resp == method then pure unit
+  if DcWsp.responseMethod resp == method then pure unit
   else liftEffect $ throw "Request-response type mismatch. Should not have happened"
 
+-- TODO: To be unified with ogmios once reflection PR is merged in `ogmios-datum-cache`
 queryDatumCache :: DatumCacheRequest -> QueryM DatumCacheResponse
 queryDatumCache request = do
   sBody <- liftEffect $ _stringify $ DcWsp.jsonWspRequest request
   config <- ask
   let
-    id = requestMethodName request
+    id = DcWsp.requestMethodName request
 
     affFunc :: (Either Error DcWsp.JsonWspResponse -> Effect Unit) -> Effect Canceler
     affFunc cont = do
@@ -285,7 +275,7 @@ queryDatumCache request = do
   jsonwspresp <- liftAff $ makeAff $ affFunc
   case DcWsp.parseJsonWspResponse jsonwspresp of
     Right resp -> pure resp
-    Left fault -> liftEffect $ throw $ "Ogmios-datum-cache service call fault" <> faultToString fault
+    Left fault -> liftEffect $ throw $ "Ogmios-datum-cache service call fault" <> DcWsp.faultToString fault
 
 allowError :: forall (a :: Type). (Either Error a -> Effect Unit) -> a -> Effect Unit
 allowError func = func <<< Right
@@ -312,9 +302,9 @@ signTransactionBytes
 signTransactionBytes tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.signTxBytes tx
 
-submitTransaction
+submitTxWallet
   :: Transaction.Transaction -> QueryM (Maybe Transaction.TransactionHash)
-submitTransaction tx = withMWalletAff $ case _ of
+submitTxWallet tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.submitTx tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
@@ -658,17 +648,22 @@ mkOgmiosWebSocket'
 mkOgmiosWebSocket' serverCfg cb = do
   utxoDispatchMap <- createMutableDispatch
   chainTipDispatchMap <- createMutableDispatch
+  evaluateTxDispatchMap <- createMutableDispatch
   submitDispatchMap <- createMutableDispatch
-  let md = ogmiosMessageDispatch { utxoDispatchMap, chainTipDispatchMap }
+  let md = ogmiosMessageDispatch { utxoDispatchMap, chainTipDispatchMap, evaluateTxDispatchMap }
   ws <- _mkWebSocket $ mkWsUrl serverCfg
-  _onWsConnect ws $ do
-    _wsWatch ws (removeAllListeners utxoDispatchMap *> removeAllListeners chainTipDispatchMap)
+  _onWsConnect ws do
+    _wsWatch ws do
+      removeAllListeners utxoDispatchMap
+      removeAllListeners evaluateTxDispatchMap
+      removeAllListeners chainTipDispatchMap
     _onWsMessage ws (defaultMessageListener md)
     _onWsError ws defaultErrorListener
     cb $ Right $ WebSocket ws
       { utxo: mkListenerSet utxoDispatchMap
       , chainTip: mkListenerSet chainTipDispatchMap
       , submit: mkListenerSet submitDispatchMap
+      , evaluate: mkListenerSet evaluateTxDispatchMap
       }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
 
@@ -709,9 +704,10 @@ listeners (WebSocket _ ls) = ls
 type DatumCacheListeners = ListenerSet DcWsp.JsonWspResponse
 
 type OgmiosListeners =
-  { utxo :: ListenerSet JsonWsp.UtxoQR
-  , chainTip :: ListenerSet JsonWsp.ChainTipQR
+  { utxo :: ListenerSet Ogmios.UtxoQR
+  , chainTip :: ListenerSet Ogmios.ChainTipQR
   , submit :: ListenerSet String
+  , evaluate :: ListenerSet Ogmios.TxEvaluationResult
   }
 
 -- convenience type for adding additional query types later
@@ -741,6 +737,35 @@ removeAllListeners dim = do
   log "error hit, removing all listeners"
   Ref.write MM.empty dim
 
+-- TODO after ogmios-datum-cache implements reflection this could be generalized to make request for the cache as well
+-- | Builds a Ogmios request action using QueryM
+mkOgmiosRequest ::
+  forall i o
+   . JsonWsp.JsonWspCall i o
+  -> (OgmiosListeners -> ListenerSet o)
+  -> i
+  -> QueryM o
+mkOgmiosRequest jsonWspCall getLs inp = do
+  {body, id} <- liftEffect $ JsonWsp.buildRequest jsonWspCall inp
+  ogmiosWs <- asks _.ogmiosWs
+  let
+    affFunc :: (Either Error o -> Effect Unit) -> Effect Canceler
+    affFunc cont = do
+      let
+        ws = underlyingWebSocket ogmiosWs
+        respLs = ogmiosWs # listeners # getLs
+      _ <- respLs.addMessageListener id
+        ( \result -> do
+            respLs.removeMessageListener id
+            allowError cont $ result
+        )
+      _wsSend ws (Json.stringify $ Json.encodeJson body)
+      pure $ Canceler $ \err -> do
+        liftEffect $ respLs.removeMessageListener id
+        liftEffect $ throwError $ err
+  liftAff $ makeAff $ affFunc
+
+
 -------------------------------------------------------------------------------
 -- Dispatch Setup
 --------------------------------------------------------------------------------
@@ -755,13 +780,15 @@ type DispatchIdMap a = Ref.Ref (MultiMap String (a -> Effect Unit))
 
 -- an immutable queue of response type handlers
 ogmiosMessageDispatch
-  :: { utxoDispatchMap :: DispatchIdMap JsonWsp.UtxoQR
-     , chainTipDispatchMap :: DispatchIdMap JsonWsp.ChainTipQR
+  :: { utxoDispatchMap :: DispatchIdMap Ogmios.UtxoQR
+     , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipQR
+     , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationResult
      }
   -> Array WebsocketDispatch
-ogmiosMessageDispatch { utxoDispatchMap, chainTipDispatchMap } =
+ogmiosMessageDispatch { utxoDispatchMap, chainTipDispatchMap, evaluateTxDispatchMap } =
   [ ogmiosQueryDispatch utxoDispatchMap
   , ogmiosQueryDispatch chainTipDispatchMap
+  , ogmiosQueryDispatch evaluateTxDispatchMap
   ]
 
 datumCacheMessageDispatch :: DispatchIdMap DcWsp.JsonWspResponse -> Array WebsocketDispatch
