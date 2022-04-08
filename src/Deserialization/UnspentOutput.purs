@@ -41,7 +41,9 @@ import Types.Transaction
   , TransactionInput(TransactionInput)
   , TransactionOutput(TransactionOutput)
   ) as T
-import Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput)) as T
+import Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as T
 import Types.Value
   ( mkCurrencySymbol
   , mkNonAdaAsset
@@ -54,7 +56,8 @@ import Types.Value
   ) as T
 import Untagged.Union (asOneOf)
 
-convertUnspentOutput :: TransactionUnspentOutput -> Maybe T.TransactionUnspentOutput
+convertUnspentOutput
+  :: TransactionUnspentOutput -> Maybe T.TransactionUnspentOutput
 convertUnspentOutput tuo = do
   input <- convertInput $ getInput tuo
   output <- convertOutput $ getOutput tuo
@@ -64,7 +67,8 @@ convertInput :: TransactionInput -> Maybe T.TransactionInput
 convertInput input = do
   index <- UInt.fromInt' $ getTransactionIndex input
   pure $ T.TransactionInput
-    { transactionId: T.TransactionHash $ toBytes (asOneOf $ getTransactionHash input)
+    { transactionId: T.TransactionHash $ toBytes
+        (asOneOf $ getTransactionHash input)
     , index
     }
 
@@ -111,12 +115,27 @@ foreign import getAddress :: TransactionOutput -> Address
 foreign import getAmount :: TransactionOutput -> Value
 foreign import getCoin :: Value -> BigNum
 foreign import getMultiAsset :: MaybeFfiHelper -> Value -> Maybe MultiAsset
-foreign import extractMultiAsset :: (forall a b. a -> b -> a /\ b) -> MultiAsset -> Array (ScriptHash /\ Assets)
-foreign import extractAssets :: (forall a b. a -> b -> a /\ b) -> Assets -> Array (AssetName /\ BigNum)
-foreign import assetNameName :: AssetName -> ByteArray
-foreign import getDataHash :: MaybeFfiHelper -> TransactionOutput -> Maybe DataHash
-foreign import mkTransactionUnspentOutput :: TransactionInput -> TransactionOutput -> TransactionUnspentOutput
-foreign import _newTransactionUnspentOutputFromBytes :: MaybeFfiHelper -> ByteArray -> Maybe TransactionUnspentOutput
+foreign import extractMultiAsset
+  :: (forall (a :: Type) (b :: Type). a -> b -> a /\ b)
+  -> MultiAsset
+  -> Array (ScriptHash /\ Assets)
 
-newTransactionUnspentOutputFromBytes :: ByteArray -> Maybe TransactionUnspentOutput
-newTransactionUnspentOutputFromBytes = _newTransactionUnspentOutputFromBytes maybeFfiHelper
+foreign import extractAssets
+  :: (forall (a :: Type) (b :: Type). a -> b -> a /\ b)
+  -> Assets
+  -> Array (AssetName /\ BigNum)
+
+foreign import assetNameName :: AssetName -> ByteArray
+foreign import getDataHash
+  :: MaybeFfiHelper -> TransactionOutput -> Maybe DataHash
+
+foreign import mkTransactionUnspentOutput
+  :: TransactionInput -> TransactionOutput -> TransactionUnspentOutput
+
+foreign import _newTransactionUnspentOutputFromBytes
+  :: MaybeFfiHelper -> ByteArray -> Maybe TransactionUnspentOutput
+
+newTransactionUnspentOutputFromBytes
+  :: ByteArray -> Maybe TransactionUnspentOutput
+newTransactionUnspentOutputFromBytes = _newTransactionUnspentOutputFromBytes
+  maybeFfiHelper

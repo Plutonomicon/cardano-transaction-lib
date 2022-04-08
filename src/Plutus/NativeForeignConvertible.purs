@@ -21,9 +21,12 @@ import Plutus.Types.Credential
 
 -- | This type class asserts that two types (native Purescript and
 -- | foreign Javascript) can be converted to each other.
-class NativeForeignConvertible :: Type -> Type -> Constraint
-class NativeForeignConvertible native frgn | native -> frgn, frgn -> native where
+class
+  NativeForeignConvertible (native :: Type) (frgn :: Type)
+  | native -> frgn
+  , frgn -> native where
   toNativeType :: frgn -> Maybe native
+
 -- TODO: toForeignType :: native -> frgn
 
 --------------------------------------------------------------------------------

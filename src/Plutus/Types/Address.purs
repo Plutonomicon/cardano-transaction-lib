@@ -46,8 +46,8 @@ instance Show Address where
   show = genericShow
 
 instance ToData Address where
-  toData (Address a) =
-    Constr zero [ toData a.addressCredential, toData a.addressStakingCredential ]
+  toData (Address a) = Constr zero $
+    [ toData a.addressCredential, toData a.addressStakingCredential ]
 
 instance FromData Address where
   fromData (Constr n [ credD, stakingCredD ]) | n == zero =

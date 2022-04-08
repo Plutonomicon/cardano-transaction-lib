@@ -3,15 +3,17 @@ SHELL := bash
 .PHONY: autogen-deps run-testnet-node run-testnet-ogmios
 .SHELLFLAGS := -eu -o pipefail -c
 
+ps-sources := $$(find ./* -iregex '.*.purs')
+
 autogen-deps:
 	spago2nix generate \
 		&& node2nix -l package-lock.json -d -c node2nix.nix
 
 check-format:
-	purs-tidy check "src/**/*.purs" "test/**/*.purs"
+	purs-tidy check ${ps-sources}
 
 format:
-	purs-tidy format-in-place "src/**/*.purs" "test/**/*.purs" "examples/**/*.purs"
+	purs-tidy format-in-place ${ps-sources}
 
 run-testnet-node:
 	docker run --rm \
@@ -26,7 +28,7 @@ run-testnet-ogmios:
 		--node-config "$$CARDANO_NODE_CONFIG"
 
 run-haskell-server:
-	nix run -L .#cardano-browser-tx-server:exe:cardano-browser-tx-server
+	nix run -L .#ctl-server:exe:ctl-server
 
 run-datum-cache-postgres:
 	docker run -d --rm \

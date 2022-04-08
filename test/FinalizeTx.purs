@@ -25,7 +25,7 @@ import TestM (TestPlanM)
 import Types.ByteArray (byteArrayToHex)
 import Types.Datum (Datum(Datum))
 import Types.Interval (defaultSlotConfig)
-import UsedTxOuts (newUsedTxOuts)
+import Types.UsedTxOuts (newUsedTxOuts)
 
 suite :: TestPlanM Unit
 suite = do

@@ -10,7 +10,7 @@ module Contract.Transaction
   , finalizeTx
   , module BalanceTxError
   , module ExportQueryM
-  , module JsonWsp
+  , module Ogmios
   , module ReindexRedeemersExport
   , module ScriptLookups
   , module Transaction
@@ -45,13 +45,13 @@ import QueryM
   , signTransaction
   , signTransactionBytes
   , finalizeTx
+  , submitTxOgmios
   ) as QueryM
-import QueryM.Submit (submit) as Submit
 import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import ReindexRedeemers
   ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
   ) as ReindexRedeemersExport
-import TxOutput -- Could potentially trim this down, -- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
+import TxOutput -- Could potentially trim this down, -- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/200
   ( ogmiosTxOutToScriptOutput
   , ogmiosTxOutToTransactionOutput
   , scriptOutputToOgmiosTxOut
@@ -63,7 +63,7 @@ import TxOutput -- Could potentially trim this down, -- FIX ME: https://github.c
   ) as TxOutput
 import Types.ByteArray (ByteArray)
 import Types.Datum (Datum)
-import Types.JsonWsp (OgmiosTxOut, OgmiosTxOutRef) as JsonWsp -- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
+import QueryM.Ogmios (OgmiosTxOut, OgmiosTxOutRef) as Ogmios -- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/200
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
@@ -186,7 +186,7 @@ signTransactionBytes = wrapContract <<< QueryM.signTransactionBytes
 -- | Submits a Cbor-hex encoded transaction, which is the output of
 -- | `signTransactionBytes` or `balanceAndSignTx`
 submit :: forall (r :: Row Type). ByteArray -> Contract r String
-submit = wrapContract <<< Submit.submit
+submit = wrapContract <<< QueryM.submitTxOgmios
 
 -- | Query the Haskell server for the minimum transaction fee
 calculateMinFee

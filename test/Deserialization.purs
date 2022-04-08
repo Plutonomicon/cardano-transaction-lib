@@ -18,7 +18,11 @@ import Deserialization.BigInt as DB
 import Deserialization.FromBytes (fromBytes)
 import Deserialization.NativeScript as NSD
 import Deserialization.PlutusData as DPD
-import Deserialization.UnspentOutput (convertUnspentOutput, mkTransactionUnspentOutput, newTransactionUnspentOutputFromBytes)
+import Deserialization.UnspentOutput
+  ( convertUnspentOutput
+  , mkTransactionUnspentOutput
+  , newTransactionUnspentOutputFromBytes
+  )
 import Deserialization.WitnessSet (deserializeWitnessSet, convertWitnessSet)
 import Serialization as Serialization
 import Serialization.BigNum (bigNumFromBigInt)
@@ -54,8 +58,14 @@ import Test.Fixtures
   , witnessSetFixture4
   )
 import Test.Utils (errMaybe)
-import Types.Transaction (NativeScript(ScriptAny), TransactionInput, TransactionOutput) as T
-import Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput)) as T
+import Types.Transaction
+  ( NativeScript(ScriptAny)
+  , TransactionInput
+  , TransactionOutput
+  ) as T
+import Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as T
 
 suite :: TestPlanM Unit
 suite = do
@@ -69,7 +79,8 @@ suite = do
     group "BigNum" do
       test "Deserialization is inverse to serialization" do
         let bigInt = BigInt.fromInt 123
-        res <- errMaybe "Failed to serialize BigInt" $ bigNumFromBigInt bigInt >>= bigNumToBigInt
+        res <- errMaybe "Failed to serialize BigInt" $ bigNumFromBigInt bigInt
+          >>= bigNumToBigInt
         res `shouldEqual` bigInt
     group "PlutusData: deserialization is inverse to serialization" do
       test "fixture #1" do
@@ -114,7 +125,8 @@ suite = do
         res `shouldEqual` input
     group "UnspentTransactionOutput" do
       test "deserialization is inverse to serialization" do
-        unspentOutput <- liftEffect $ createUnspentOutput txInputFixture1 txOutputFixture1
+        unspentOutput <- liftEffect $ createUnspentOutput txInputFixture1
+          txOutputFixture1
         T.TransactionUnspentOutput { input, output } <-
           errMaybe "Failed deserialization 3" do
             convertUnspentOutput unspentOutput
@@ -122,7 +134,8 @@ suite = do
         output `shouldEqual` txOutputFixture1
       test "fixture #1" do
         res <- errMaybe "Failed deserialization 4" do
-          newTransactionUnspentOutputFromBytes utxoFixture1 >>= convertUnspentOutput
+          newTransactionUnspentOutputFromBytes utxoFixture1 >>=
+            convertUnspentOutput
         res `shouldEqual` utxoFixture1'
     group "WitnessSet - deserialization" do
       group "fixture #1" do
@@ -213,7 +226,10 @@ suite = do
         let wsBytes = Serialization.toBytes (asOneOf ws1)
         wsBytes `shouldEqual` witnessSetFixture4 -- byte representation
 
-createUnspentOutput :: T.TransactionInput -> T.TransactionOutput -> Effect TransactionUnspentOutput
+createUnspentOutput
+  :: T.TransactionInput
+  -> T.TransactionOutput
+  -> Effect TransactionUnspentOutput
 createUnspentOutput input output = do
   input' <- Serialization.convertTxInput input
   output' <- Serialization.convertTxOutput output

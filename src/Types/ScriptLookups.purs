@@ -178,14 +178,21 @@ import TxOutput (transactionOutputToScriptOutput)
 -- less information. All hashing is done inside `ConstraintsM`, see
 -- `processLookupsAndConstraints`.
 newtype ScriptLookups (a :: Type) = ScriptLookups
-  { mps :: Array MintingPolicy -- Minting policies that the script interacts with
-  , txOutputs :: Map TxOutRef TransactionOutput -- Unspent outputs that the script may want to spend. This may need tweaking to `TransactionOutput`
-  , otherScripts :: Array Validator -- Validators of scripts other than "our script"
+  { mps ::
+      Array MintingPolicy -- Minting policies that the script interacts with
+  , txOutputs ::
+      Map TxOutRef TransactionOutput -- Unspent outputs that the script may want to spend. This may need tweaking to `TransactionOutput`
+  , otherScripts ::
+      Array Validator -- Validators of scripts other than "our script"
   , otherData :: Map DatumHash Datum --  Datums that we might need
-  , paymentPubKeyHashes :: Map PaymentPubKeyHash PaymentPubKey -- Public keys that we might need
-  , typedValidator :: Maybe (TypedValidator a) -- The script instance with the typed validator hash & actual compiled program
-  , ownPaymentPubKeyHash :: Maybe PaymentPubKeyHash -- The contract's payment public key hash, used for depositing tokens etc.
-  , ownStakePubKeyHash :: Maybe StakePubKeyHash -- The contract's stake public key hash (optional)
+  , paymentPubKeyHashes ::
+      Map PaymentPubKeyHash PaymentPubKey -- Public keys that we might need
+  , typedValidator ::
+      Maybe (TypedValidator a) -- The script instance with the typed validator hash & actual compiled program
+  , ownPaymentPubKeyHash ::
+      Maybe PaymentPubKeyHash -- The contract's payment public key hash, used for depositing tokens etc.
+  , ownStakePubKeyHash ::
+      Maybe StakePubKeyHash -- The contract's stake public key hash (optional)
   }
 
 derive instance Generic (ScriptLookups a) _
@@ -260,18 +267,20 @@ typedValidatorLookupsM
   :: forall (a :: Type). TypedValidator a -> Maybe (ScriptLookups a)
 typedValidatorLookupsM = pure <<< typedValidatorLookups
 
--- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
+-- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/200
 -- | A script lookups value that uses the map of unspent outputs to resolve
 -- | input constraints.
 unspentOutputs
   :: forall (a :: Type). Map TxOutRef TransactionOutput -> ScriptLookups a
 unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 
--- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/200
+-- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/200
 -- | Same as `unspentOutputs` but in `Maybe` context for convenience. This
 -- | should not fail.
 unspentOutputsM
-  :: forall (a :: Type). Map TxOutRef TransactionOutput -> Maybe (ScriptLookups a)
+  :: forall (a :: Type)
+   . Map TxOutRef TransactionOutput
+  -> Maybe (ScriptLookups a)
 unspentOutputsM = pure <<< unspentOutputs
 
 -- | A script lookups value with a minting policy script.
@@ -414,7 +423,8 @@ _redeemers
 _redeemers = prop (SProxy :: SProxy "redeemers")
 
 _mintingPolicies
-  :: forall (a :: Type). Lens' (ConstraintProcessingState a) (Array MintingPolicy)
+  :: forall (a :: Type)
+   . Lens' (ConstraintProcessingState a) (Array MintingPolicy)
 _mintingPolicies = prop (SProxy :: SProxy "mintingPolicies")
 
 _lookups
@@ -459,7 +469,7 @@ type ConstraintsM (a :: Type) (b :: Type) =
 -- use the type alias because they need to be fully applied so this is perhaps
 -- more readable.
 -- Fix me: add execution units from Ogmios where this function should be
--- inside QueryM https://github.com/Plutonomicon/cardano-browser-tx/issues/174
+-- inside QueryM https://github.com/Plutonomicon/cardano-transaction-lib/issues/174
 -- | Resolve some `TxConstraints` by modifying the `UnbalancedTx` in the
 -- | `ConstraintProcessingState`
 processLookupsAndConstraints
@@ -902,7 +912,10 @@ processConstraint mpsMap osMap = do
       -- Use a separate redeeming order on minting policies.
       _mintingPolicies <>= Array.singleton (wrap plutusScript)
       mIndex <-
-        use (_mintingPolicies <<< to (elemIndex (wrap plutusScript) >>> map fromInt))
+        use
+          ( _mintingPolicies <<< to
+              (elemIndex (wrap plutusScript) >>> map fromInt)
+          )
       index <- liftM CannotGetMintingPolicyScriptIndex mIndex
       let
         -- Create a redeemer with zero execution units then call Ogmios to
@@ -960,7 +973,10 @@ processConstraint mpsMap osMap = do
         -- down the road as we track all types of Addresses properly
         let
           txOut = TransactionOutput
-            { address: payPubKeyHashEnterpriseAddress networkId pkh, amount, dataHash }
+            { address: payPubKeyHashEnterpriseAddress networkId pkh
+            , amount
+            , dataHash
+            }
         _cpsToTxBody <<< _outputs <>= Array.singleton txOut
         _valueSpentBalancesOutputs <>= provide amount
     MustPayToOtherScript vlh datum amount -> do
@@ -1010,7 +1026,7 @@ processConstraint mpsMap osMap = do
   where
   -- The follow hardcoded before calling Ogmios to calculate execution
   -- unit. Calling Ogmios is an outstanding issue:
-  -- https://github.com/Plutonomicon/cardano-browser-tx/issues/174
+  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/174
   scriptExUnits :: ExUnits
   scriptExUnits = { mem: fromInt 2000000, steps: fromInt 1000000000 }
 

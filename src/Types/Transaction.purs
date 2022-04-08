@@ -607,7 +607,8 @@ instance Monoid AuxiliaryData where
     }
 
 newtype GeneralTransactionMetadata =
-  GeneralTransactionMetadata (Map TransactionMetadatumLabel TransactionMetadatum)
+  GeneralTransactionMetadata
+    (Map TransactionMetadatumLabel TransactionMetadatum)
 
 derive instance Newtype GeneralTransactionMetadata _
 

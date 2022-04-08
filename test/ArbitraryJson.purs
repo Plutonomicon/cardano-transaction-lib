@@ -54,7 +54,8 @@ instance Arbitrary ArbJson where
     arbStr :: Gen String
     arbStr =
       let
-        stringWithEscapes = fromCharArray <$> (arrayOf (oneOf (pure '\\' :| [ arbitrary ])))
+        stringWithEscapes = fromCharArray <$>
+          (arrayOf (oneOf (pure '\\' :| [ arbitrary ])))
       in
         oneOf (stringWithEscapes :| [ arbitrary ])
 
@@ -71,7 +72,8 @@ instance Arbitrary ArbJson where
         num = JNum <$> arbNum
         str = JStr <$> arbStr
         list = JList <$> arrayOf (arbitraryRec (n - 1))
-        object = JObject <$> (arrayOf $ lift2 Tuple arbStr (arbitraryRec (n - 1)))
+        object = JObject <$>
+          (arrayOf $ lift2 Tuple arbStr (arbitraryRec (n - 1)))
       in
         oneOf
           ( pure JNull :|
@@ -90,7 +92,8 @@ stringifyArbJson = case _ of
   JList l -> "[" <> joinWith "," (stringifyArbJson <$> l) <> "]"
   JObject o -> "{" <> joinWith "," (stringifyKV <$> o) <> "}"
     where
-    stringifyKV (Tuple k v) = Json.stringify (Json.fromString k) <> ": " <> stringifyArbJson v
+    stringifyKV (Tuple k v) = Json.stringify (Json.fromString k) <> ": " <>
+      stringifyArbJson v
 
 -- | Turn ArbJson to Json if it does not contain BigInts
 arbJsonToJson :: ArbJson -> Maybe Json
