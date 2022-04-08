@@ -39,7 +39,7 @@ suite = do
 
 toNativeTypeFuncTest :: Int -> Bech32String -> Plutus.Address -> TestPlanM Unit
 toNativeTypeFuncTest addrType addrBech32 addrPlutus =
-  test ("Build valid address of type " <> show addrType) $ do
+  test ("Builds valid address of type " <> show addrType) $ do
     addrForeign <- errMaybe "addressFromBech32 failed on valid bech32" $
       addressFromBech32 addrBech32
     res <- errMaybe "toNativeType failed on valid foreign address" $
@@ -72,39 +72,31 @@ addressesBech32 =
   ]
 
 addresses :: Array Plutus.Address
-addresses =
-  [ wrap $
-      { addressCredential: pubKeyCredential
-      , addressStakingCredential: Just stakingHash
-      }
-  , wrap $
-      { addressCredential: scriptCredential
-      , addressStakingCredential: Just stakingHash
-      }
-  , wrap $
-      { addressCredential: pubKeyCredential
-      , addressStakingCredential: Just $ StakingHash scriptCredential
-      }
-  , wrap $
-      { addressCredential: scriptCredential
-      , addressStakingCredential: Just $ StakingHash scriptCredential
-      }
-  , wrap $
-      { addressCredential: pubKeyCredential
-      , addressStakingCredential: Just stakingPtr
-      }
-  , wrap $
-      { addressCredential: scriptCredential
-      , addressStakingCredential: Just stakingPtr
-      }
-  , wrap $
-      { addressCredential: pubKeyCredential
-      , addressStakingCredential: Nothing
-      }
-  , wrap $
-      { addressCredential: scriptCredential
-      , addressStakingCredential: Nothing
-      }
+addresses = wrap <$>
+  [ { addressCredential: pubKeyCredential
+    , addressStakingCredential: Just stakingHash
+    }
+  , { addressCredential: scriptCredential
+    , addressStakingCredential: Just stakingHash
+    }
+  , { addressCredential: pubKeyCredential
+    , addressStakingCredential: Just $ StakingHash scriptCredential
+    }
+  , { addressCredential: scriptCredential
+    , addressStakingCredential: Just $ StakingHash scriptCredential
+    }
+  , { addressCredential: pubKeyCredential
+    , addressStakingCredential: Just stakingPtr
+    }
+  , { addressCredential: scriptCredential
+    , addressStakingCredential: Just stakingPtr
+    }
+  , { addressCredential: pubKeyCredential
+    , addressStakingCredential: Nothing
+    }
+  , { addressCredential: scriptCredential
+    , addressStakingCredential: Nothing
+    }
   ]
 
 paymentKeyBech32 :: Bech32String
