@@ -116,12 +116,14 @@ foreign import getAmount :: TransactionOutput -> Value
 foreign import getCoin :: Value -> BigNum
 foreign import getMultiAsset :: MaybeFfiHelper -> Value -> Maybe MultiAsset
 foreign import extractMultiAsset
-  :: (forall a b. a -> b -> a /\ b)
+  :: (forall (a :: Type) (b :: Type). a -> b -> a /\ b)
   -> MultiAsset
   -> Array (ScriptHash /\ Assets)
 
 foreign import extractAssets
-  :: (forall a b. a -> b -> a /\ b) -> Assets -> Array (AssetName /\ BigNum)
+  :: (forall (a :: Type) (b :: Type). a -> b -> a /\ b)
+  -> Assets
+  -> Array (AssetName /\ BigNum)
 
 foreign import assetNameName :: AssetName -> ByteArray
 foreign import getDataHash

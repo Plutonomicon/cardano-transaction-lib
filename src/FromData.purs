@@ -55,7 +55,7 @@ instance Show FromDataError where
 -- | Classes
 
 class FromData :: Type -> Constraint
-class FromData (a :: Type) where
+class FromData a where
   fromData :: PlutusData -> Maybe a
 
 class FromDataWithIndex :: Type -> Type -> Constraint
@@ -173,7 +173,7 @@ instance
       }
 
 genericFromData
-  :: forall a rep
+  :: forall (a :: Type) (rep :: Type)
    . G.Generic a rep
   => FromDataWithIndex rep a
   => PlutusData
@@ -182,7 +182,8 @@ genericFromData pd = G.to <$> fromDataWithIndex (Proxy :: Proxy rep)
   (Proxy :: Proxy a)
   pd
 
-resolveConstr :: forall a. HasConstrIndices a => Proxy a -> Int -> Maybe String
+resolveConstr
+  :: forall (a :: Type). HasConstrIndices a => Proxy a -> Int -> Maybe String
 resolveConstr pa i = let Tuple _ i2c = constrIndices pa in Map.lookup i i2c
 
 -- | Base FromData instances
