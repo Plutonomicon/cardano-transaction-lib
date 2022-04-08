@@ -15,10 +15,22 @@ module QueryM.JsonWsp
 
 import Prelude
 
-import Aeson (class DecodeAeson, Aeson,
- caseAesonBigInt, caseAesonObject, caseAesonString, caseAesonUInt, decodeAeson, getField)
-import Data.Argonaut (class EncodeJson,
- Json, JsonDecodeError(TypeMismatch), encodeJson)
+import Aeson
+  ( class DecodeAeson
+  , Aeson
+  , caseAesonBigInt
+  , caseAesonObject
+  , caseAesonString
+  , caseAesonUInt
+  , decodeAeson
+  , getField
+  )
+import Data.Argonaut
+  ( class EncodeJson
+  , Json
+  , JsonDecodeError(TypeMismatch)
+  , encodeJson
+  )
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.UInt as UInt
@@ -27,14 +39,12 @@ import Foreign.Object (Object)
 import Record as Record
 import Type.Proxy (Proxy)
 
-
 -- creates a unique id prefixed by its argument
 foreign import _uniqueId :: String -> Effect String
 
-
 -- | Structure of all json wsp websocket requests
 -- described in: https://ogmios.dev/getting-started/basics/
-type JsonWspRequest a =
+type JsonWspRequest (a :: Type) =
   { type :: String
   , version :: String
   , servicename :: String
@@ -43,26 +53,27 @@ type JsonWspRequest a =
   , mirror :: Mirror
   }
 
-
 -- | Convenience helper function for creating `JsonWspRequest a` objects
 mkJsonWspRequest
-  :: forall a
+  :: forall (a :: Type)
    . { type :: String
      , version :: String
-     , servicename :: String }
+     , servicename :: String
+     }
   -> { methodname :: String
-     , args :: a }
+     , args :: a
+     }
   -> Effect (JsonWspRequest a)
 mkJsonWspRequest service method = do
   id <- _uniqueId $ method.methodname <> "-"
-  pure $
-    Record.merge { mirror: {step: "INIT", id}} $
-    Record.merge service method
-
+  pure
+    $ Record.merge { mirror: { step: "INIT", id } }
+    $
+      Record.merge service method
 
 -- | Structure of all json wsp websocket responses
 -- described in: https://ogmios.dev/getting-started/basics/
-type JsonWspResponse a =
+type JsonWspResponse (a :: Type) =
   { type :: String
   , version :: String
   , servicename :: String
@@ -76,53 +87,61 @@ type JsonWspResponse a =
 -- | A type we use to reflect jsonwsp request ids.
 type Mirror = { step :: String, id :: String }
 
-
 -- | A wrapper for tying arguments and response types to request building.
 newtype JsonWspCall :: Type -> Type -> Type
-newtype JsonWspCall i o = JsonWspCall (i -> Effect { body :: Json, id :: String})
+newtype JsonWspCall (i :: Type) (o :: Type) = JsonWspCall
+  (i -> Effect { body :: Json, id :: String })
 
 -- | Creates a "jsonwsp call" which ties together request input and response output types
 -- | along with a way to create a request object.
 mkCallType
-  :: forall a i o
+  :: forall (a :: Type) (i :: Type) (o :: Type)
    . EncodeJson (JsonWspRequest a)
   => { type :: String
      , version :: String
-     , servicename :: String }
+     , servicename :: String
+     }
   -> { methodname :: String, args :: i -> a }
   -> Proxy o
   -> JsonWspCall i o
-mkCallType service {methodname, args} _ = JsonWspCall $ \i -> do
-  req <- mkJsonWspRequest service {methodname, args: args i}
+mkCallType service { methodname, args } _ = JsonWspCall $ \i -> do
+  req <- mkJsonWspRequest service { methodname, args: args i }
   pure { body: encodeJson req, id: req.mirror.id }
 
-
 -- | Create a JsonWsp request body and id
-buildRequest :: forall i o. JsonWspCall i o -> i -> Effect { body :: Json, id :: String}
+buildRequest
+  :: forall (i :: Type) (o :: Type)
+   . JsonWspCall i o
+  -> i
+  -> Effect { body :: Json, id :: String }
 buildRequest (JsonWspCall c) = c
-
 
 -- | Polymorphic response parser
 parseJsonWspResponse
-  :: forall a
+  :: forall (a :: Type)
    . DecodeAeson a
   => Aeson
   -> Either JsonDecodeError (JsonWspResponse a)
-parseJsonWspResponse = aesonObject
-  ( \o -> do
-      typeField <- parseFieldToString o "type"
-      version <- parseFieldToString o "version"
-      servicename <- parseFieldToString o "servicename"
-      methodname <- parseFieldToString o "methodname"
-      result <- decodeAeson =<< getField o "result"
-      reflection <- parseMirror =<< getField o "reflection"
-      pure { "type": typeField, version, servicename, methodname, result, reflection }
-  )
+parseJsonWspResponse = aesonObject $ \o -> do
+  typeField <- parseFieldToString o "type"
+  version <- parseFieldToString o "version"
+  servicename <- parseFieldToString o "servicename"
+  methodname <- parseFieldToString o "methodname"
+  result <- decodeAeson =<< getField o "result"
+  reflection <- parseMirror =<< getField o "reflection"
+  pure
+    { "type": typeField
+    , version
+    , servicename
+    , methodname
+    , result
+    , reflection
+    }
 
 -- | Helper for assuming we get an object
 aesonObject
   :: forall (a :: Type)
-  . (Object Aeson -> Either JsonDecodeError a)
+   . (Object Aeson -> Either JsonDecodeError a)
   -> Aeson
   -> Either JsonDecodeError a
 aesonObject = caseAesonObject (Left (TypeMismatch "expected object"))
@@ -132,35 +151,40 @@ aesonObject = caseAesonObject (Left (TypeMismatch "expected object"))
 -- | Parses json string at a given field to an ordinary string
 parseFieldToString :: Object Aeson -> String -> Either JsonDecodeError String
 parseFieldToString o str =
-  caseAesonString (Left (TypeMismatch ("expected field: '" <> str <> "' as a String"))) Right =<< getField o str
+  caseAesonString
+    (Left (TypeMismatch ("expected field: '" <> str <> "' as a String")))
+    Right =<< getField o str
 
 -- | Parses a string at the given field to a UInt
 parseFieldToUInt :: Object Aeson -> String -> Either JsonDecodeError UInt.UInt
 parseFieldToUInt o str = do
-  let err = TypeMismatch $ "expected field: '" <> str <> "' as a UInt"
   -- We use string parsing for Ogmios (AffInterface tests) but also change Medea
   -- schema and UtxoQueryResponse.json to be a string to pass (local) parsing
   -- tests. Notice "index" is a string in our local example.
   caseAesonUInt (Left err) Right =<< getField o str
+  where
+  err :: JsonDecodeError
+  err = TypeMismatch $ "expected field: '" <> str <> "' as a UInt"
 
 -- -- The below doesn't seem to work with Ogmios query test (AffInterface)
 -- -- eventhough it seems more reasonable.
 -- num <- decodeNumber =<< getField o str
 -- note err $ UInt.fromNumber' num
 -- | Parses a string at the given field to a BigInt
-parseFieldToBigInt :: Object Aeson -> String -> Either JsonDecodeError BigInt.BigInt
+parseFieldToBigInt
+  :: Object Aeson -> String -> Either JsonDecodeError BigInt.BigInt
 parseFieldToBigInt o str = do
   -- We use string parsing for Ogmios (AffInterface tests) but also change Medea
   -- schema and UtxoQueryResponse.json to be a string to pass (local) parsing
   -- tests. Notice "coins" is a string in our local example.
-  let err = TypeMismatch $ "expected field: '" <> str <> "' as a BigInt"
   caseAesonBigInt (Left err) Right =<< getField o str
+  where
+  err :: JsonDecodeError
+  err = TypeMismatch $ "expected field: '" <> str <> "' as a BigInt"
 
 -- | A parser for the `Mirror` type.
 parseMirror :: Aeson -> Either JsonDecodeError Mirror
-parseMirror = caseAesonObject (Left (TypeMismatch "expected object")) $
-  ( \o -> do
-      step <- parseFieldToString o "step"
-      id <- parseFieldToString o "id"
-      pure { step, id }
-  )
+parseMirror = caseAesonObject (Left (TypeMismatch "expected object")) $ \o -> do
+  step <- parseFieldToString o "step"
+  id <- parseFieldToString o "id"
+  pure { step, id }
