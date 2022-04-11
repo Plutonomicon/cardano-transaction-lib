@@ -16,7 +16,7 @@ import Types.Aliases (Bech32String)
 import Serialization.Hash (ed25519KeyHashFromBech32, scriptHashFromBech32)
 import Serialization.Address (addressFromBech32)
 import Plutus.Types.Address (Address) as Plutus
-import Plutus.NativeForeignConvertible (toNativeType)
+import Plutus.NativeForeignConvertible (toNativeType, toForeignType)
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
@@ -26,25 +26,31 @@ suite :: TestPlanM Unit
 suite = do
   group "Plutus.Types.Address" $ do
     group "NativeForeignConvertible instance" $ do
-      group "toNativeType function" $ do
-        group "Shelley addresses" $ do
-          let indices = 0 .. (length addresses - 1)
-          let testData = zip (zip addressesBech32 addresses) indices
-          flip traverse_ testData $ \(Tuple (Tuple addrBech32 addr) addrType) ->
-            toNativeTypeFuncTest addrType addrBech32 addr
+      group "Shelley addresses" $ do
+        let indices = 0 .. (length addresses - 1)
+        let testData = zip (zip addressesBech32 addresses) indices
+        flip traverse_ testData $ \(Tuple (Tuple addrBech32 addr) addrType) ->
+          frgnNativeConversionTest addrType addrBech32 addr
 
 --------------------------------------------------------------------------------
--- toNativeType test
+-- toNativeType/toForeignType test
 --------------------------------------------------------------------------------
 
-toNativeTypeFuncTest :: Int -> Bech32String -> Plutus.Address -> TestPlanM Unit
-toNativeTypeFuncTest addrType addrBech32 addrPlutus =
-  test ("Builds valid address of type " <> show addrType) $ do
-    addrForeign <- errMaybe "addressFromBech32 failed on valid bech32" $
-      addressFromBech32 addrBech32
-    res <- errMaybe "toNativeType failed on valid foreign address" $
-      toNativeType addrForeign
-    res `shouldEqual` addrPlutus
+frgnNativeConversionTest
+  :: Int -> Bech32String -> Plutus.Address -> TestPlanM Unit
+frgnNativeConversionTest addrType addrBech32 addrPlutus =
+  test ("Converts between addresses of type " <> show addrType) $ do
+    addrForeign <-
+      errMaybe "addressFromBech32 failed on valid bech32" $
+        addressFromBech32 addrBech32
+    resAddrPlutus <-
+      errMaybe "toNativeType failed on valid foreign address" $
+        toNativeType addrForeign
+    resAddrPlutus `shouldEqual` addrPlutus
+    resAddrForeign <-
+      errMaybe "toForeignType failed on valid native address" $
+        toForeignType resAddrPlutus
+    resAddrForeign `shouldEqual` addrForeign
 
 -- Test vectors are taken from the CIP-0019 specification.
 -- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0019#test-vectors

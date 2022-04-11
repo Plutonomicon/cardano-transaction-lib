@@ -1,22 +1,47 @@
 module Plutus.NativeForeignConvertible
   ( class NativeForeignConvertible
   , toNativeType
+  , toForeignType
   ) where
 
 import Prelude
 import Data.Array
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Tuple (Tuple(Tuple), fst)
-import Data.UInt (UInt, fromInt, toInt, (.&.), and, zshr, shl)
-import Data.Newtype (class Newtype, wrap)
-import Types.ByteArray (ByteArray, byteArrayToIntArray, byteArrayFromIntArray)
-import Serialization.Hash (ed25519KeyHashFromBytes, scriptHashFromBytes) as Hash
-import Serialization.Address (addressBytes)
+import Data.UInt (UInt, fromInt, toInt, (.&.), and, (.|.), zshr, shl)
+import Data.Newtype (class Newtype, wrap, unwrap)
+import Serialization.Address (Pointer, addressBytes, addressFromBytes)
 import Serialization.Address (Address) as Foreign
-import Plutus.Types.Address (Address) as Plutus
+import Plutus.Types.Address (Address, AddressRecord) as Plutus
+import Types.ByteArray
+  ( ByteArray
+  , byteArrayToIntArray
+  , byteArrayFromIntArray
+  , byteArrayFromIntArrayUnsafe
+  )
+import Serialization.Hash
+  ( ed25519KeyHashFromBytes
+  , scriptHashFromBytes
+  , ed25519KeyHashToBytes
+  , scriptHashToBytes
+  )
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
+  )
+import Plutus.Types.AddressHeaderType
+  ( AddressHeaderType
+      ( PaymentKeyHash_StakeKeyHash
+      , ScriptHash_StakeKeyHash
+      , PaymentKeyHash_ScriptHash
+      , ScriptHash_ScriptHash
+      , PaymentKeyHash_Pointer
+      , ScriptHash_Pointer
+      , PaymentKeyHash
+      , ScriptHash
+      )
+  , addrHeaderTypeUInt
+  , addrHeaderType
   )
 
 -- | This type class asserts that two types (native Purescript and
@@ -26,8 +51,7 @@ class
   | native -> frgn
   , frgn -> native where
   toNativeType :: frgn -> Maybe native
-
--- TODO: toForeignType :: native -> frgn
+  toForeignType :: native -> Maybe frgn
 
 --------------------------------------------------------------------------------
 -- Isomorphic address types
@@ -35,40 +59,122 @@ class
 
 -- TODO: Currently only Shelley addresses are supported.
 -- Should we introduce support for Byron and stake (reward) addresses as well?
+--
+-- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0019
+-- (specification describing the structure of addresses in Cardano)
 instance NativeForeignConvertible Plutus.Address Foreign.Address where
-  -- Spec: https://github.com/cardano-foundation/CIPs/tree/master/CIP-0019
-  -- | Attempts to build a Plutus-like address from a CSL-level address
-  -- | represented by a sequence of bytes based on the CIP-0019
-  -- | (specification describing the structure of addresses in Cardano).
-  toNativeType addrForeign = addrType >>= \addrType' ->
-    case toInt addrType' of
+  -- | Attempts to build a CSL-level address from a Plutus address
+  -- | based on the CIP-0019.
+  toForeignType addrPlutus =
+    case rec.addressCredential, rec.addressStakingCredential of
       -- %b0000 | network tag | key hash | key hash
-      0 -> buildAddress pubKeyCredential $ Just $
-        map StakingHash <<< pubKeyCredential
+      PubKeyCredential pkh, Just (StakingHash (PubKeyCredential skh)) ->
+        addressFromBytes $
+          addrHeader PaymentKeyHash_StakeKeyHash
+            <> ed25519KeyHashToBytes (unwrap pkh)
+            <> ed25519KeyHashToBytes (unwrap skh)
 
       -- %b0001 | network tag | script hash | key hash
-      1 -> buildAddress scriptCredential $ Just $
-        map StakingHash <<< pubKeyCredential
+      ScriptCredential sh, Just (StakingHash (PubKeyCredential skh)) ->
+        addressFromBytes $
+          addrHeader ScriptHash_StakeKeyHash
+            <> scriptHashToBytes (unwrap sh)
+            <> ed25519KeyHashToBytes (unwrap skh)
 
       -- %b0010 | network tag | key hash | script hash
-      2 -> buildAddress pubKeyCredential $ Just $
-        map StakingHash <<< scriptCredential
+      PubKeyCredential pkh, Just (StakingHash (ScriptCredential sh)) ->
+        addressFromBytes $
+          addrHeader PaymentKeyHash_ScriptHash
+            <> ed25519KeyHashToBytes (unwrap pkh)
+            <> scriptHashToBytes (unwrap sh)
 
       -- %b0011 | network tag | script hash | script hash
-      3 -> buildAddress scriptCredential $ Just $
-        map StakingHash <<< scriptCredential
+      ScriptCredential sh, Just (StakingHash (ScriptCredential sh')) ->
+        addressFromBytes $
+          addrHeader ScriptHash_ScriptHash
+            <> scriptHashToBytes (unwrap sh)
+            <> scriptHashToBytes (unwrap sh')
 
       -- %b0100 | network tag | key hash | pointer
-      4 -> buildAddress pubKeyCredential $ Just stakingPtr
+      PubKeyCredential pkh, Just (StakingPtr ptr) ->
+        addressFromBytes $
+          addrHeader PaymentKeyHash_Pointer
+            <> ed25519KeyHashToBytes (unwrap pkh)
+            <> pointerToBytes ptr
 
       -- %b0101 | network tag | script hash | pointer
-      5 -> buildAddress scriptCredential $ Just stakingPtr
+      ScriptCredential sh, Just (StakingPtr ptr) ->
+        addressFromBytes $
+          addrHeader ScriptHash_Pointer
+            <> scriptHashToBytes (unwrap sh)
+            <> pointerToBytes ptr
 
       -- %b0110 | network tag | key hash
-      6 -> buildAddress pubKeyCredential Nothing
+      PubKeyCredential pkh, Nothing ->
+        addressFromBytes $
+          addrHeader PaymentKeyHash
+            <> ed25519KeyHashToBytes (unwrap pkh)
 
       -- %b0111 | network tag | script hash
-      7 -> buildAddress scriptCredential Nothing
+      ScriptCredential sh, Nothing ->
+        addressFromBytes $
+          addrHeader ScriptHash
+            <> scriptHashToBytes (unwrap sh)
+    where
+    rec :: Plutus.AddressRecord
+    rec = unwrap addrPlutus
+
+    -- | Encodes the address type along with the network tag (%b0001 - Mainnet)
+    -- | as a one-element byte array.
+    addrHeader :: AddressHeaderType -> ByteArray
+    addrHeader headerType =
+      byteArrayFromIntArrayUnsafe <<< singleton <<< toInt $
+        (addrHeaderTypeUInt headerType `shl` fromInt 4) + fromInt 1
+
+    pointerToBytes :: Pointer -> ByteArray
+    pointerToBytes ptr =
+      _toVarLengthUInt ptr.slot <> _toVarLengthUInt ptr.txIx <>
+        _toVarLengthUInt ptr.certIx
+
+  -- | Attempts to build a Plutus address from a CSL-level address
+  -- | represented by a sequence of bytes based on the CIP-0019.
+  toNativeType addrForeign = addrType >>= addrHeaderType >>= \addrType' ->
+    case addrType' of
+      -- %b0000 | network tag | key hash | key hash
+      PaymentKeyHash_StakeKeyHash ->
+        buildAddress pubKeyCredential $ Just $
+          map StakingHash <<< pubKeyCredential
+
+      -- %b0001 | network tag | script hash | key hash
+      ScriptHash_StakeKeyHash ->
+        buildAddress scriptCredential $ Just $
+          map StakingHash <<< pubKeyCredential
+
+      -- %b0010 | network tag | key hash | script hash
+      PaymentKeyHash_ScriptHash ->
+        buildAddress pubKeyCredential $ Just $
+          map StakingHash <<< scriptCredential
+
+      -- %b0011 | network tag | script hash | script hash
+      ScriptHash_ScriptHash ->
+        buildAddress scriptCredential $ Just $
+          map StakingHash <<< scriptCredential
+
+      -- %b0100 | network tag | key hash | pointer
+      PaymentKeyHash_Pointer ->
+        buildAddress pubKeyCredential $ Just stakingPtr
+
+      -- %b0101 | network tag | script hash | pointer
+      ScriptHash_Pointer ->
+        buildAddress scriptCredential $ Just stakingPtr
+
+      -- %b0110 | network tag | key hash
+      PaymentKeyHash ->
+        buildAddress pubKeyCredential Nothing
+
+      -- %b0111 | network tag | script hash
+      ScriptHash ->
+        buildAddress scriptCredential Nothing
 
       _ -> Nothing
     where
@@ -92,11 +198,11 @@ instance NativeForeignConvertible Plutus.Address Foreign.Address where
 
     pubKeyCredential :: ByteArray -> Maybe Credential
     pubKeyCredential =
-      map (PubKeyCredential <<< wrap) <<< Hash.ed25519KeyHashFromBytes
+      map (PubKeyCredential <<< wrap) <<< ed25519KeyHashFromBytes
 
     scriptCredential :: ByteArray -> Maybe Credential
     scriptCredential =
-      map (ScriptCredential <<< wrap) <<< Hash.scriptHashFromBytes
+      map (ScriptCredential <<< wrap) <<< scriptHashFromBytes
 
     buildAddress
       :: (ByteArray -> Maybe Credential)
@@ -113,9 +219,9 @@ instance NativeForeignConvertible Plutus.Address Foreign.Address where
 
     stakingPtr :: ByteArray -> Maybe StakingCredential
     stakingPtr byteArray = do
-      Tuple slot bytes0 <- _parseChainPtr (byteArrayToIntArray byteArray) []
-      Tuple txIx bytes1 <- _parseChainPtr bytes0 []
-      Tuple certIx _ <- _parseChainPtr bytes1 []
+      Tuple slot bytes0 <- _fromVarLengthUInt (byteArrayToIntArray byteArray) []
+      Tuple txIx bytes1 <- _fromVarLengthUInt bytes0 []
+      Tuple certIx _ <- _fromVarLengthUInt bytes1 []
       pure $ StakingPtr { slot, txIx, certIx }
 
 -- | Extracts the variable-length positive number from a byte array
@@ -125,27 +231,27 @@ instance NativeForeignConvertible Plutus.Address Foreign.Address where
 -- |     (%b1 | uint7 | variable-length-uint)
 -- |   / (%b0 | uint7)
 -- | uint7 = 7bit
-_parseChainPtr
+_fromVarLengthUInt
   :: forall (t :: Type)
    . Newtype t UInt
   => Array Int
   -> Array UInt
   -> Maybe (Tuple t (Array Int))
-_parseChainPtr bytes acc = do
+_fromVarLengthUInt bytes acc = do
   { head: x', tail: xs } <- uncons bytes
   let x = fromInt x'
-  -- Applying bit mask (128 = %b10000000) for inspecting the
+  -- Apply bit mask (128 = %b10000000) for inspecting the
   -- signal bit on the left. As long as the value of the signal bit
   -- is not zero, continue reading.
   case (x .&. fromInt 128 == zero) of
     true ->
       let
-        -- Applying bit mask (127 = %b01111111) for each individual byte
+        -- Apply bit mask (127 = %b01111111) for each individual byte
         -- that turns off the signal bit, so it couldn't create overlap
         -- issues when composing the target var-length number.
         uintArray = flip map (snoc acc x) $ and (fromInt 127)
         foldr_ m t f = foldr f m t
-        -- Composing the target var-length number by folding the byte
+        -- Compose the target var-length number by folding the byte
         -- array and bitwise shifting lhs by 7 bit positions on each
         -- `foldr` pass so that the bytes overlap on the signal bit.
         uintValue = fst
@@ -154,4 +260,30 @@ _parseChainPtr bytes acc = do
               Tuple ((lhs `shl` fromInt (7 * c)) + rhs) (c + 1)
       in
         Just $ Tuple (wrap uintValue) xs
-    _ -> _parseChainPtr xs (snoc acc x)
+    _ -> _fromVarLengthUInt xs (snoc acc x)
+
+-- | Encodes the variable-length positive number as a byte array
+-- | according to the ABNF grammar below.
+-- |
+-- | variable-length-uint =
+-- |     (%b1 | uint7 | variable-length-uint)
+-- |   / (%b0 | uint7)
+-- | uint7 = 7bit
+_toVarLengthUInt :: forall (t :: Type). Newtype t UInt => t -> ByteArray
+_toVarLengthUInt t = worker (unwrap t) false
+  where
+  worker :: UInt -> Boolean -> ByteArray
+  worker srcUInt setSignalBit
+    | srcUInt == zero = mempty
+    | otherwise =
+        let
+          -- Apply bit mask (127 = %b01111111) to extract the 7-bit component.
+          uint7 = srcUInt .&. (fromInt 127)
+          -- Right shift the var-length number by 7 bit positions to
+          -- prepare the source number for the next 7-bit component extraction.
+          srcUIntShifted = srcUInt `zshr` fromInt 7
+        in
+          append (worker srcUIntShifted true)
+            $ byteArrayFromIntArrayUnsafe <<< singleton <<< toInt
+            -- Turn off the signal bit for the last 7-bit component in the array.
+            $ if setSignalBit then uint7 .|. fromInt 128 else uint7
