@@ -12,7 +12,7 @@
     "build": "BROWSER_RUNTIME=1 webpack --mode=production"
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@ngua/cardano-serialization-lib-browser": "9.1.2",
     "@ngua/cardano-serialization-lib-nodejs": "9.1.2",
