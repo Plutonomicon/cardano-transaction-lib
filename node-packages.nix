@@ -4,33 +4,6 @@
 
 let
   sources = {
-    "@cardano-ogmios/client-4.2.1" = {
-      name = "_at_cardano-ogmios_slash_client";
-      packageName = "@cardano-ogmios/client";
-      version = "4.2.1";
-      src = fetchurl {
-        url = "https://registry.npmjs.org/@cardano-ogmios/client/-/client-4.2.1.tgz";
-        sha512 = "CiScFBqOeMZtFLN67jUqsiad4xIoW17TIt+QfZlgpX5nTHHjs1kTuoNYN088dICrBy7M6EvkETQBJLwK/BR83Q==";
-      };
-    };
-    "@cardano-ogmios/schema-4.2.1" = {
-      name = "_at_cardano-ogmios_slash_schema";
-      packageName = "@cardano-ogmios/schema";
-      version = "4.2.1";
-      src = fetchurl {
-        url = "https://registry.npmjs.org/@cardano-ogmios/schema/-/schema-4.2.1.tgz";
-        sha512 = "XRiew+YFeat/cfXAdjwWXux+agRGA5SzD0VCYXnZ9OtxgjyApwXxpbGFLeGxuz7FyMlAKimS88fq37dJPacS1Q==";
-      };
-    };
-    "@cardanosolutions/json-bigint-1.0.0" = {
-      name = "_at_cardanosolutions_slash_json-bigint";
-      packageName = "@cardanosolutions/json-bigint";
-      version = "1.0.0";
-      src = fetchurl {
-        url = "https://registry.npmjs.org/@cardanosolutions/json-bigint/-/json-bigint-1.0.0.tgz";
-        sha512 = "46ts2s0W63nzqHMhaXKACeY0GDWdnPet9wqOWtb8X3Y5LzokcaDKupLO2eHUwlvQyFzD9gxJlWPi/LqZPkn4oQ==";
-      };
-    };
     "@discoveryjs/json-ext-0.5.6" = {
       name = "_at_discoveryjs_slash_json-ext";
       packageName = "@discoveryjs/json-ext";
@@ -182,15 +155,6 @@ let
       src = fetchurl {
         url = "https://registry.npmjs.org/@types/http-proxy/-/http-proxy-1.17.8.tgz";
         sha512 = "5kPLG5BKpWYkw/LVOGWpiq3nEVqxiN32rTgI53Sk12/xHFQ2rG3ehI9IO+O3W2QoKeyB92dJkoka8SUm6BX1pA==";
-      };
-    };
-    "@types/json-bigint-1.0.1" = {
-      name = "_at_types_slash_json-bigint";
-      packageName = "@types/json-bigint";
-      version = "1.0.1";
-      src = fetchurl {
-        url = "https://registry.npmjs.org/@types/json-bigint/-/json-bigint-1.0.1.tgz";
-        sha512 = "zpchZLNsNuzJHi6v64UBoFWAvQlPhch7XAi36FkH6tL1bbbmimIF+cS7vwkzY4u5RaSWMoflQfu+TshMPPw8uw==";
       };
     };
     "@types/json-schema-7.0.9" = {
@@ -733,15 +697,6 @@ let
         sha512 = "vyL2OymJxmarO8gxMr0mhChsO9QGwhynfuu4+MHTAW6czfq9humCB7rKpUjDd9YUiDPU4mzpyupFSvOClAwbmQ==";
       };
     };
-    "bignumber.js-9.0.2" = {
-      name = "bignumber.js";
-      packageName = "bignumber.js";
-      version = "9.0.2";
-      src = fetchurl {
-        url = "https://registry.npmjs.org/bignumber.js/-/bignumber.js-9.0.2.tgz";
-        sha512 = "GAcQvbpsM0pUb0zw1EI0KhQEZ+lRwR5fYaAp3vPOYuP7aDvGy6cVN6XHLauvF8SOga2y0dcLcjt3iQDTSEliyw==";
-      };
-    };
     "binary-extensions-2.2.0" = {
       name = "binary-extensions";
       packageName = "binary-extensions";
@@ -1217,15 +1172,6 @@ let
       src = fetchurl {
         url = "https://registry.npmjs.org/create-hmac/-/create-hmac-1.1.7.tgz";
         sha512 = "MJG9liiZ+ogc4TzUwuvbER1JRdgvUFSB5+VR/g5h82fGaIRWMWddtKBHi7/sVhfjQZ6SehlyhvQYrcYkaUIpLg==";
-      };
-    };
-    "cross-fetch-3.1.4" = {
-      name = "cross-fetch";
-      packageName = "cross-fetch";
-      version = "3.1.4";
-      src = fetchurl {
-        url = "https://registry.npmjs.org/cross-fetch/-/cross-fetch-3.1.4.tgz";
-        sha512 = "1eAtFWdIubi6T4XPy6ei9iUFoKpUkIF971QLN8lIvvvwueI65+Nw5haMNKUwfJxabqlIIDODJKGrQ66gxC0PbQ==";
       };
     };
     "cross-spawn-3.0.1" = {
@@ -2587,15 +2533,6 @@ let
         sha1 = "4e431e92b11a9731636aa1f9c8d1ccbcfdab78df";
       };
     };
-    "isomorphic-ws-4.0.1" = {
-      name = "isomorphic-ws";
-      packageName = "isomorphic-ws";
-      version = "4.0.1";
-      src = fetchurl {
-        url = "https://registry.npmjs.org/isomorphic-ws/-/isomorphic-ws-4.0.1.tgz";
-        sha512 = "BhBvN2MBpWTaSHdWRb/bwdZJ1WaehQ2L1KngkCkfLUGF0mAWAT1sQUQacEmQ0jXkFw/czDXPNQSL5u2/Krsz1w==";
-      };
-    };
     "jest-worker-27.4.6" = {
       name = "jest-worker";
       packageName = "jest-worker";
@@ -2929,15 +2866,6 @@ let
         sha1 = "899f11d9686e5e05cb91b35d5f0e63b773cfc901";
       };
     };
-    "nanoid-3.1.30" = {
-      name = "nanoid";
-      packageName = "nanoid";
-      version = "3.1.30";
-      src = fetchurl {
-        url = "https://registry.npmjs.org/nanoid/-/nanoid-3.1.30.tgz";
-        sha512 = "zJpuPDwOv8D2zq2WRoMe1HsfZthVewpel9CAvTfc/2mBD1uUT/agc5f7GHGWXlYkFvi1mVxe4IjvP2HNrop7nQ==";
-      };
-    };
     "negotiator-0.6.3" = {
       name = "negotiator";
       packageName = "negotiator";
@@ -2963,15 +2891,6 @@ let
       src = fetchurl {
         url = "https://registry.npmjs.org/no-case/-/no-case-3.0.4.tgz";
         sha512 = "fgAN3jGAh+RoxUGZHTSOLJIqUc2wmoBwGR4tbpNAKmmovFoWq0OdRkb0VkldReO2a2iBT/OEulG9XSUc10r3zg==";
-      };
-    };
-    "node-fetch-2.6.1" = {
-      name = "node-fetch";
-      packageName = "node-fetch";
-      version = "2.6.1";
-      src = fetchurl {
-        url = "https://registry.npmjs.org/node-fetch/-/node-fetch-2.6.1.tgz";
-        sha512 = "V4aYg89jEoVRxRb2fJdAg8FHvI7cEyYdVAh94HH0UIK8oJxUfkjlDQN9RbMx+bEjP7+ggMiFRprSti032Oipxw==";
       };
     };
     "node-forge-1.2.1" = {
@@ -4126,15 +4045,6 @@ let
         sha512 = "o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA==";
       };
     };
-    "ts-custom-error-3.2.0" = {
-      name = "ts-custom-error";
-      packageName = "ts-custom-error";
-      version = "3.2.0";
-      src = fetchurl {
-        url = "https://registry.npmjs.org/ts-custom-error/-/ts-custom-error-3.2.0.tgz";
-        sha512 = "cBvC2QjtvJ9JfWLvstVnI45Y46Y5dMxIaG1TDMGAD/R87hpvqFL+7LhvUDhnRCfOnx/xitollFWWvUKKKhbN0A==";
-      };
-    };
     "tslib-2.3.1" = {
       name = "tslib";
       packageName = "tslib";
@@ -4414,15 +4324,6 @@ let
         sha1 = "b5243d8f3ec1aa35f1364605bc0d1036e30ab69f";
       };
     };
-    "ws-7.5.6" = {
-      name = "ws";
-      packageName = "ws";
-      version = "7.5.6";
-      src = fetchurl {
-        url = "https://registry.npmjs.org/ws/-/ws-7.5.6.tgz";
-        sha512 = "6GLgCqo2cy2A2rjCNFlxQS6ZljG/coZfZXclldI8FB/1G3CCI36Zd8xy2HrFVACi8tfk5XrgLQEk+P0Tnz9UcA==";
-      };
-    };
     "ws-8.4.0" = {
       name = "ws";
       packageName = "ws";
@@ -4475,22 +4376,6 @@ let
     version = "0.1.0";
     src = ./.;
     dependencies = [
-      (sources."@cardano-ogmios/client-4.2.1" // {
-        dependencies = [
-          sources."@cardano-ogmios/schema-4.2.1"
-          sources."@cardanosolutions/json-bigint-1.0.0"
-          sources."@types/json-bigint-1.0.1"
-          sources."bignumber.js-9.0.2"
-          sources."cross-fetch-3.1.4"
-          sources."fastq-1.13.0"
-          sources."isomorphic-ws-4.0.1"
-          sources."nanoid-3.1.30"
-          sources."node-fetch-2.6.1"
-          sources."reusify-1.0.4"
-          sources."ts-custom-error-3.2.0"
-          sources."ws-7.5.6"
-        ];
-      })
       sources."@discoveryjs/json-ext-0.5.6"
       sources."@ngua/cardano-serialization-lib-browser-9.1.2"
       sources."@ngua/cardano-serialization-lib-nodejs-9.1.2"
@@ -5100,7 +4985,7 @@ let
     buildInputs = globalBuildInputs;
     meta = {
       description = "";
-      license = "ISC";
+      license = "MIT";
     };
     production = false;
     bypassCache = true;
