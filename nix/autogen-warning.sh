@@ -33,5 +33,3 @@ EOF
 for file in spago-packages.nix node-packages.nix node2nix.nix node-env.nix; do
     printf '%s\n' "$msg" "$(cat $file)" >"$file"
 done
-
-# echo "$msg"
