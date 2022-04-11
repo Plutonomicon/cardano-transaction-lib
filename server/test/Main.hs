@@ -7,12 +7,7 @@ import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Network.HTTP.Types (Status (Status))
 import Network.Wai.Handler.Warp (Port)
 import Network.Wai.Handler.Warp qualified as Warp
-import Plutus.V1.Ledger.Api (CurrencySymbol (..), fromCompiledCode, unsafeFromBuiltinData)
 import Plutus.V1.Ledger.Api qualified as Ledger
-import Plutus.V1.Ledger.Scripts (Script, getValidator, mkValidatorScript)
-import PlutusTx qualified
-import PlutusTx.Prelude (BuiltinData)
-import PlutusTx.Prelude qualified as P
 import Servant.Client (
   BaseUrl (baseUrlPort),
   ClientEnv,
@@ -271,7 +266,6 @@ partiallyAppliedScript :: Ledger.Script
 partiallyAppliedScript =
   unsafeDecode "Script" $
     "\"58750100003333222323233222233222225335300c33225335300e0021001100f333500b22333573466e1c00800404003c0152002333500b22333573466e3c00800404003c0112210010091326353008009498cd4015d680119a802bae001120012001120011200112200212200120014c010218200001\""
-
 
 -- partiallyAppliedScript :: Integer -> Script
 -- partiallyAppliedScript i =
