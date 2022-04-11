@@ -7,14 +7,15 @@ import Prelude
 
 import Data.Argonaut (class DecodeJson)
 import Data.Argonaut as Json
+import Data.Array (find)
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing), fromJust)
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested ((/\))
+import Data.Tuple (Tuple(Tuple), fst, snd)
+import Data.Tuple.Nested (type (/\), (/\))
 import FromData (class FromData, fromData)
 import Metadata.Seabug.Share (Share, mkShare)
 import Partial.Unsafe (unsafePartial)
@@ -74,7 +75,7 @@ instance ToData SeabugMetadata where
 instance FromData SeabugMetadata where
   fromData (Map sm) = unsafePartial do
     policyId /\ contents <- lookupKey "727" sm >>= case _ of
-      Map mp1 -> case Map.toUnfoldable mp1 of
+      Map mp1 -> case mp1 of
         [ policyId /\ contents ] -> Tuple <$> fromData policyId <*> fromData
           contents
         _ -> Nothing
@@ -187,7 +188,7 @@ instance ToData SeabugMetadataDelta where
 instance FromData SeabugMetadataDelta where
   fromData (Map sm) = unsafePartial do
     policyId /\ contents <- lookupKey "727" sm >>= case _ of
-      Map mp1 -> case Map.toUnfoldable mp1 of
+      Map mp1 -> case mp1 of
         [ policyId /\ contents ] -> Tuple <$> fromData policyId <*> fromData
           contents
         _ -> Nothing
@@ -205,5 +206,5 @@ mkKey :: Partial => String -> PlutusData
 mkKey str = Bytes $ fromJust $ byteArrayFromString str
 
 lookupKey
-  :: Partial => String -> Map.Map PlutusData PlutusData -> Maybe PlutusData
-lookupKey keyStr = Map.lookup (mkKey keyStr)
+  :: Partial => String -> Array (PlutusData /\ PlutusData) -> Maybe PlutusData
+lookupKey keyStr array = find (fst >>> (==) (mkKey keyStr)) array <#> snd

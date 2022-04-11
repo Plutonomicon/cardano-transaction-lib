@@ -241,7 +241,7 @@ instance (FromData a, FromData b) => FromData (Tuple a b) where
 
 instance (FromData k, Ord k, FromData v) => FromData (Map k v) where
   fromData (Map mp) = do
-    Map.fromFoldable <$> for (Map.toUnfoldable mp :: Array _) \(k /\ v) ->
+    Map.fromFoldable <$> for mp \(k /\ v) ->
       Tuple <$> fromData k <*> fromData v
   fromData _ = Nothing
 
