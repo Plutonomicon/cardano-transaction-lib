@@ -9,7 +9,12 @@ import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Network.HTTP.Types (Status (Status))
 import Network.Wai.Handler.Warp (Port)
 import Network.Wai.Handler.Warp qualified as Warp
+import Plutus.V1.Ledger.Api (CurrencySymbol (..), fromCompiledCode, unsafeFromBuiltinData)
 import Plutus.V1.Ledger.Api qualified as Ledger
+import Plutus.V1.Ledger.Scripts (Script, getValidator, mkValidatorScript)
+import PlutusTx qualified
+import PlutusTx.Prelude (BuiltinData)
+import PlutusTx.Prelude qualified as P
 import Servant.Client (
   BaseUrl (baseUrlPort),
   ClientEnv,
@@ -50,11 +55,6 @@ import Types (
   newEnvIO,
   unsafeDecode,
  )
-import Plutus.V1.Ledger.Api (CurrencySymbol (..), unsafeFromBuiltinData, fromCompiledCode)
-import Plutus.V1.Ledger.Scripts(Script, mkValidatorScript, getValidator)
-import PlutusTx qualified
-import PlutusTx.Prelude (BuiltinData)
-import PlutusTx.Prelude qualified as P
 
 main :: IO ()
 main = hspec serverSpec
@@ -249,7 +249,7 @@ fullyAppliedRequestFixture =
     }
 
 mkTestValidator :: Integer -> CurrencySymbol -> BuiltinData -> BuiltinData -> BuiltinData -> ()
-mkTestValidator i (CurrencySymbol cs) _ _ _ = 
+mkTestValidator i (CurrencySymbol cs) _ _ _ =
   if i P.== 1 && cs P.== "" then () else P.error ()
 
 mkTestValidatorUntyped :: BuiltinData -> BuiltinData -> BuiltinData -> BuiltinData -> BuiltinData -> ()
@@ -261,17 +261,20 @@ mkTestValidatorUntyped p1 p2 =
 unappliedScript :: Script
 unappliedScript =
   fromCompiledCode
-    $$(PlutusTx.compile [|| mkTestValidatorUntyped ||])
+    $$(PlutusTx.compile [||mkTestValidatorUntyped||])
 
 partiallyAppliedScript :: Integer -> Script
 partiallyAppliedScript i =
   fromCompiledCode
-    ($$(PlutusTx.compile [|| mkTestValidatorUntyped ||])
-    `PlutusTx.applyCode` PlutusTx.liftCode (PlutusTx.toBuiltinData i))
+    ( $$(PlutusTx.compile [||mkTestValidatorUntyped||])
+        `PlutusTx.applyCode` PlutusTx.liftCode (PlutusTx.toBuiltinData i)
+    )
 
 fullyAppliedScript :: Integer -> CurrencySymbol -> Script
 fullyAppliedScript i b =
-  getValidator $ mkValidatorScript
-    ($$(PlutusTx.compile [|| mkTestValidatorUntyped ||]) 
-      `PlutusTx.applyCode` PlutusTx.liftCode (PlutusTx.toBuiltinData i)
-      `PlutusTx.applyCode` PlutusTx.liftCode (PlutusTx.toBuiltinData b))
+  getValidator $
+    mkValidatorScript
+      ( $$(PlutusTx.compile [||mkTestValidatorUntyped||])
+          `PlutusTx.applyCode` PlutusTx.liftCode (PlutusTx.toBuiltinData i)
+          `PlutusTx.applyCode` PlutusTx.liftCode (PlutusTx.toBuiltinData b)
+      )
