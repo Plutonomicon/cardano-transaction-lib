@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Main (main) where
 
 import Api (app, applyArgs, blake2bHash, estimateTxFees, hashData, hashScript)
@@ -48,8 +50,11 @@ import Types (
   newEnvIO,
   unsafeDecode,
  )
-import Plutus.V1.Ledger.Api (CurrencySymbol (..))
-import ApplyArgs qualified
+import Plutus.V1.Ledger.Api (CurrencySymbol (..), unsafeFromBuiltinData, fromCompiledCode)
+import Plutus.V1.Ledger.Scripts(Script, mkValidatorScript, getValidator)
+import PlutusTx qualified
+import PlutusTx.Prelude (BuiltinData)
+import PlutusTx.Prelude qualified as P
 
 main :: IO ()
 main = hspec serverSpec
@@ -71,21 +76,19 @@ applyArgsSpec = around withTestApp $ do
       result <-
         runClientM' (clientEnv port) $
           applyArgs unappliedRequestFixture
-      result `shouldBe` Right (AppliedScript ApplyArgs.unappliedScript)
+      result `shouldBe` Right (AppliedScript unappliedScript)
 
-    -- This one
     it "returns the correct partially applied Plutus script" $ \port -> do
       result <-
         runClientM' (clientEnv port) $
           applyArgs partiallyAppliedRequestFixture
-      result `shouldBe` Right (AppliedScript $ ApplyArgs.partiallyAppliedScript 32)
+      result `shouldBe` Right (AppliedScript $ partiallyAppliedScript 32)
 
-    -- This one
     it "returns the correct fully applied Plutus script" $ \port -> do
       result <-
         runClientM' (clientEnv port) $
           applyArgs fullyAppliedRequestFixture
-      result `shouldBe` Right (AppliedScript $ ApplyArgs.fullyAppliedScript 32 (CurrencySymbol "test"))
+      result `shouldBe` Right (AppliedScript $ fullyAppliedScript 32 (CurrencySymbol "test"))
 
 feeEstimateSpec :: Spec
 feeEstimateSpec = around withTestApp $ do
@@ -229,7 +232,7 @@ hashedScriptFixture =
 unappliedRequestFixture :: ApplyArgsRequest
 unappliedRequestFixture =
   ApplyArgsRequest
-    { script = ApplyArgs.unappliedScript
+    { script = unappliedScript
     , args = []
     }
 
@@ -244,3 +247,31 @@ fullyAppliedRequestFixture =
         , Ledger.B "test"
         ]
     }
+
+mkTestValidator :: Integer -> CurrencySymbol -> BuiltinData -> BuiltinData -> BuiltinData -> ()
+mkTestValidator i (CurrencySymbol cs) _ _ _ = 
+  if i P.== 1 && cs P.== "" then () else P.error ()
+
+mkTestValidatorUntyped :: BuiltinData -> BuiltinData -> BuiltinData -> BuiltinData -> BuiltinData -> ()
+mkTestValidatorUntyped p1 p2 =
+  mkTestValidator
+    (unsafeFromBuiltinData p1)
+    (unsafeFromBuiltinData p2)
+
+unappliedScript :: Script
+unappliedScript =
+  fromCompiledCode
+    $$(PlutusTx.compile [|| mkTestValidatorUntyped ||])
+
+partiallyAppliedScript :: Integer -> Script
+partiallyAppliedScript i =
+  fromCompiledCode
+    ($$(PlutusTx.compile [|| mkTestValidatorUntyped ||])
+    `PlutusTx.applyCode` PlutusTx.liftCode (PlutusTx.toBuiltinData i))
+
+fullyAppliedScript :: Integer -> CurrencySymbol -> Script
+fullyAppliedScript i b =
+  getValidator $ mkValidatorScript
+    ($$(PlutusTx.compile [|| mkTestValidatorUntyped ||]) 
+      `PlutusTx.applyCode` PlutusTx.liftCode (PlutusTx.toBuiltinData i)
+      `PlutusTx.applyCode` PlutusTx.liftCode (PlutusTx.toBuiltinData b))
