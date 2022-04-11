@@ -28,6 +28,7 @@ pkgs.haskell-nix.cabalProject {
       optparse-applicative
       plutus-tx
       plutus-ledger-api
+      plutus-tx-plugin
     ];
 
     withHoogle = true;

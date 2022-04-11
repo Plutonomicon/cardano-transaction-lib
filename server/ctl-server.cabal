@@ -64,6 +64,7 @@ library
     , mtl
     , plutus-ledger-api
     , plutus-tx
+    , plutus-tx-plugin
     , serialise
     , servant
     , servant-client
@@ -103,6 +104,8 @@ test-suite test
   type:           exitcode-stdio-1.0
   hs-source-dirs: test
   main-is:        Main.hs
+  other-modules:
+    ApplyArgs
   build-depends:
     , base
     , bytestring
@@ -112,6 +115,8 @@ test-suite test
     , http-client
     , http-types
     , plutus-ledger-api
+    , plutus-tx
+    , plutus-tx-plugin
     , servant
     , servant-client
     , servant-server
