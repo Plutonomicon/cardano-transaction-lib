@@ -1,5 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
-
 module Main (main) where
 
 import Api (app, applyArgs, blake2bHash, estimateTxFees, hashData, hashScript)
@@ -82,13 +80,13 @@ applyArgsSpec = around withTestApp $ do
       result <-
         runClientM' (clientEnv port) $
           applyArgs partiallyAppliedRequestFixture
-      result `shouldBe` Right (AppliedScript $ partiallyAppliedScript 32)
+      result `shouldBe` Right (AppliedScript $ partiallyAppliedScript)
 
     it "returns the correct fully applied Plutus script" $ \port -> do
       result <-
         runClientM' (clientEnv port) $
           applyArgs fullyAppliedRequestFixture
-      result `shouldBe` Right (AppliedScript $ fullyAppliedScript 32 (CurrencySymbol "test"))
+      result `shouldBe` Right (AppliedScript $ fullyAppliedScript)
 
 feeEstimateSpec :: Spec
 feeEstimateSpec = around withTestApp $ do
@@ -248,33 +246,51 @@ fullyAppliedRequestFixture =
         ]
     }
 
-mkTestValidator :: Integer -> CurrencySymbol -> BuiltinData -> BuiltinData -> BuiltinData -> ()
-mkTestValidator i (CurrencySymbol cs) _ _ _ =
-  if i P.== 1 && cs P.== "" then () else P.error ()
+-- mkTestValidator :: Integer -> CurrencySymbol -> BuiltinData -> BuiltinData -> BuiltinData -> ()
+-- mkTestValidator i (CurrencySymbol cs) _ _ _ =
+--   if i P.== 1 && cs P.== "" then () else P.error ()
 
-mkTestValidatorUntyped :: BuiltinData -> BuiltinData -> BuiltinData -> BuiltinData -> BuiltinData -> ()
-mkTestValidatorUntyped p1 p2 =
-  mkTestValidator
-    (unsafeFromBuiltinData p1)
-    (unsafeFromBuiltinData p2)
+-- mkTestValidatorUntyped :: BuiltinData -> BuiltinData -> BuiltinData -> BuiltinData -> BuiltinData -> ()
+-- mkTestValidatorUntyped p1 p2 =
+--   mkTestValidator
+--     (unsafeFromBuiltinData p1)
+--     (unsafeFromBuiltinData p2)
 
-unappliedScript :: Script
+unappliedScript :: Ledger.Script
 unappliedScript =
-  fromCompiledCode
-    $$(PlutusTx.compile [||mkTestValidatorUntyped||])
+  unsafeDecode "Script" $
+    "\"586f010000333222323233222233222225335300c33225335300e0021001100f333500b22333573466e1c00800404003c0152002333500b22333573466e3c00800404003c01122010010091326353008009498cd4015d680119a802bae0011200120011200112001122002122001200101\""
 
-partiallyAppliedScript :: Integer -> Script
-partiallyAppliedScript i =
-  fromCompiledCode
-    ( $$(PlutusTx.compile [||mkTestValidatorUntyped||])
-        `PlutusTx.applyCode` PlutusTx.liftCode (PlutusTx.toBuiltinData i)
-    )
+-- unappliedScript :: Script
+-- unappliedScript =
+--   fromCompiledCode
+--     $$(PlutusTx.compile [||mkTestValidatorUntyped||])
 
-fullyAppliedScript :: Integer -> CurrencySymbol -> Script
-fullyAppliedScript i b =
-  getValidator $
-    mkValidatorScript
-      ( $$(PlutusTx.compile [||mkTestValidatorUntyped||])
-          `PlutusTx.applyCode` PlutusTx.liftCode (PlutusTx.toBuiltinData i)
-          `PlutusTx.applyCode` PlutusTx.liftCode (PlutusTx.toBuiltinData b)
-      )
+-- Script applied with (I 32)
+partiallyAppliedScript :: Ledger.Script
+partiallyAppliedScript =
+  unsafeDecode "Script" $
+    "\"58750100003333222323233222233222225335300c33225335300e0021001100f333500b22333573466e1c00800404003c0152002333500b22333573466e3c00800404003c0112210010091326353008009498cd4015d680119a802bae001120012001120011200112200212200120014c010218200001\""
+
+
+-- partiallyAppliedScript :: Integer -> Script
+-- partiallyAppliedScript i =
+--   fromCompiledCode
+--     ( $$(PlutusTx.compile [||mkTestValidatorUntyped||])
+--         `PlutusTx.applyCode` PlutusTx.liftCode (PlutusTx.toBuiltinData i)
+--     )
+
+-- Script applied with (I 32) (B "test")
+fullyAppliedScript :: Ledger.Script
+fullyAppliedScript =
+  unsafeDecode "Script" $
+    "\"587f01000033333222323233222233222225335300c33225335300e0021001100f333500b22333573466e1c00800404003c0152002333500b22333573466e3c00800404003c01122010010091326353008009498cd4015d680119a802bae001120012001120011200112200212200120014c01021820004c010544746573740001\""
+
+-- fullyAppliedScript :: Integer -> CurrencySymbol -> Script
+-- fullyAppliedScript i b =
+--   getValidator $
+--     mkValidatorScript
+--       ( $$(PlutusTx.compile [||mkTestValidatorUntyped||])
+--           `PlutusTx.applyCode` PlutusTx.liftCode (PlutusTx.toBuiltinData i)
+--           `PlutusTx.applyCode` PlutusTx.liftCode (PlutusTx.toBuiltinData b)
+--       )

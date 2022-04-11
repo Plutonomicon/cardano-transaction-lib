@@ -27,7 +27,6 @@ pkgs.haskell-nix.cabalProject {
       cardano-prelude
       optparse-applicative
       plutus-tx
-      plutus-ledger-api
       plutus-tx-plugin
     ];
 

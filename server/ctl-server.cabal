@@ -113,7 +113,6 @@ test-suite test
     , http-types
     , plutus-ledger-api
     , plutus-tx
-    , plutus-tx-plugin
     , servant
     , servant-client
     , servant-server
