@@ -251,21 +251,15 @@ fullyAppliedRequestFixture =
 --     (unsafeFromBuiltinData p1)
 --     (unsafeFromBuiltinData p2)
 
-unappliedScript :: Ledger.Script
-unappliedScript =
-  unsafeDecode "Script" $
-    "\"586f010000333222323233222233222225335300c33225335300e0021001100f333500b22333573466e1c00800404003c0152002333500b22333573466e3c00800404003c01122010010091326353008009498cd4015d680119a802bae0011200120011200112001122002122001200101\""
-
 -- unappliedScript :: Script
 -- unappliedScript =
 --   fromCompiledCode
 --     $$(PlutusTx.compile [||mkTestValidatorUntyped||])
-
--- Script applied with (I 32)
-partiallyAppliedScript :: Ledger.Script
-partiallyAppliedScript =
-  unsafeDecode "Script" $
-    "\"58750100003333222323233222233222225335300c33225335300e0021001100f333500b22333573466e1c00800404003c0152002333500b22333573466e3c00800404003c0112210010091326353008009498cd4015d680119a802bae001120012001120011200112200212200120014c010218200001\""
+unappliedScript :: Ledger.Script
+unappliedScript =
+  unsafeDecode
+    "Script"
+    "\"586f010000333222323233222233222225335300c33225335300e0021001100f333500b22333573466e1c00800404003c0152002333500b22333573466e3c00800404003c01122010010091326353008009498cd4015d680119a802bae0011200120011200112001122002122001200101\""
 
 -- partiallyAppliedScript :: Integer -> Script
 -- partiallyAppliedScript i =
@@ -273,12 +267,12 @@ partiallyAppliedScript =
 --     ( $$(PlutusTx.compile [||mkTestValidatorUntyped||])
 --         `PlutusTx.applyCode` PlutusTx.liftCode (PlutusTx.toBuiltinData i)
 --     )
-
--- Script applied with (I 32) (B "test")
-fullyAppliedScript :: Ledger.Script
-fullyAppliedScript =
-  unsafeDecode "Script" $
-    "\"587f01000033333222323233222233222225335300c33225335300e0021001100f333500b22333573466e1c00800404003c0152002333500b22333573466e3c00800404003c01122010010091326353008009498cd4015d680119a802bae001120012001120011200112200212200120014c01021820004c010544746573740001\""
+-- Script applied with (I 32)
+partiallyAppliedScript :: Ledger.Script
+partiallyAppliedScript =
+  unsafeDecode
+    "Script"
+    "\"58750100003333222323233222233222225335300c33225335300e0021001100f333500b22333573466e1c00800404003c0152002333500b22333573466e3c00800404003c0112210010091326353008009498cd4015d680119a802bae001120012001120011200112200212200120014c010218200001\""
 
 -- fullyAppliedScript :: Integer -> CurrencySymbol -> Script
 -- fullyAppliedScript i b =
@@ -288,3 +282,9 @@ fullyAppliedScript =
 --           `PlutusTx.applyCode` PlutusTx.liftCode (PlutusTx.toBuiltinData i)
 --           `PlutusTx.applyCode` PlutusTx.liftCode (PlutusTx.toBuiltinData b)
 --       )
+-- Script applied with (I 32) (B "test")
+fullyAppliedScript :: Ledger.Script
+fullyAppliedScript =
+  unsafeDecode
+    "Script"
+    "\"587f01000033333222323233222233222225335300c33225335300e0021001100f333500b22333573466e1c00800404003c0152002333500b22333573466e3c00800404003c01122010010091326353008009498cd4015d680119a802bae001120012001120011200112200212200120014c01021820004c010544746573740001\""
