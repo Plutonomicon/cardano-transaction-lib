@@ -51,6 +51,7 @@ module QueryM
   , ownPaymentPubKeyHash
   , ownPubKeyHash
   , queryDatumCache
+  , runQueryM
   , signTransaction
   , signTransactionBytes
   , startFetchBlocksRequest
@@ -66,7 +67,8 @@ import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Reader.Trans (ReaderT, withReaderT, ask, asks)
+import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
+import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT, ask, asks)
 import Data.Argonaut (class DecodeJson, JsonDecodeError)
 import Data.Argonaut as Json
 import Data.Argonaut.Encode.Class (encodeJson)
@@ -79,6 +81,7 @@ import Data.Either (Either(Left, Right), either, isRight, note, hush)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel(Trace))
+import Data.Log.Formatter.Pretty (prettyFormatter)
 import Data.Maybe (Maybe(Just, Nothing), maybe, maybe')
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -86,6 +89,16 @@ import Data.Traversable (traverse, for)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
+import Effect (Effect)
+import Effect.Aff (Aff, Canceler(Canceler), makeAff)
+import Effect.Aff.Class (liftAff)
+import Effect.Class (liftEffect)
+import Effect.Class.Console (log)
+import Effect.Exception (Error, error, throw)
+import Effect.Ref as Ref
+import Foreign.Object as Object
+import Types.MultiMap (MultiMap)
+import Types.MultiMap as MultiMap
 import QueryM.DatumCacheWsp
   ( DatumCacheMethod
       ( StartFetchBlocks
@@ -111,16 +124,6 @@ import QueryM.DatumCacheWsp
       )
   )
 import QueryM.DatumCacheWsp as DcWsp
-import Effect (Effect)
-import Effect.Aff (Aff, Canceler(Canceler), makeAff)
-import Effect.Aff.Class (liftAff)
-import Effect.Class (liftEffect)
-import Effect.Console (log)
-import Effect.Exception (Error, error, throw)
-import Effect.Ref as Ref
-import Foreign.Object as Object
-import Types.MultiMap (MultiMap)
-import Types.MultiMap as MultiMap
 import QueryM.JsonWsp as JsonWsp
 import QueryM.Ogmios as Ogmios
 import Serialization (convertTransaction, toBytes) as Serialization
@@ -200,9 +203,11 @@ type QueryConfig (r :: Row Type) =
 
 type DefaultQueryConfig = QueryConfig ()
 
-type QueryM (a :: Type) = ReaderT DefaultQueryConfig Aff a
+type QueryM (a :: Type) = ReaderT DefaultQueryConfig (LoggerT Aff) a
 
-type QueryMExtended (r :: Row Type) (a :: Type) = ReaderT (QueryConfig r) Aff a
+type QueryMExtended (r :: Row Type) (a :: Type) = ReaderT (QueryConfig r)
+  (LoggerT Aff)
+  a
 
 liftQueryM :: forall (r :: Row Type) (a :: Type). QueryM a -> QueryMExtended r a
 liftQueryM = withReaderT toDefaultQueryConfig
@@ -218,6 +223,10 @@ liftQueryM = withReaderT toDefaultQueryConfig
     , slotConfig: c.slotConfig
     , logLevel: c.logLevel
     }
+
+runQueryM :: forall (a :: Type). DefaultQueryConfig -> QueryM a -> Aff a
+runQueryM cfg =
+  flip runLoggerT (log <=< prettyFormatter) <<< flip runReaderT cfg
 
 -- A `DefaultQueryConfig` useful for testing, with `logLevel` set to `Trace`
 traceQueryConfig :: Aff DefaultQueryConfig

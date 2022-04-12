@@ -3,17 +3,16 @@ module Test.AffInterface (suite) where
 import Prelude
 
 import Address (addressToOgmiosAddress, ogmiosAddressToAddress)
-import Control.Monad.Reader.Trans (runReaderT)
 import Data.Maybe (Maybe(Just, Nothing))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
-import QueryM (traceQueryConfig, getChainTip)
+import QueryM (getChainTip, runQueryM, traceQueryConfig)
+import QueryM.Ogmios (OgmiosAddress)
 import QueryM.Utxos (utxosAt)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
-import QueryM.Ogmios (OgmiosAddress)
 
 testnet_addr1 :: OgmiosAddress
 testnet_addr1 =
@@ -45,11 +44,11 @@ suite = do
 testUtxosAt :: OgmiosAddress -> Aff Unit
 testUtxosAt testAddr = case ogmiosAddressToAddress testAddr of
   Nothing -> liftEffect $ throw "Failed UtxosAt"
-  Just addr -> runReaderT (utxosAt addr *> pure unit) =<< traceQueryConfig
+  Just addr -> flip runQueryM (utxosAt addr *> pure unit) =<< traceQueryConfig
 
 testGetChainTip :: Aff Unit
 testGetChainTip = do
-  runReaderT (getChainTip *> pure unit) =<< traceQueryConfig
+  flip runQueryM (getChainTip *> pure unit) =<< traceQueryConfig
 
 testFromOgmiosAddress :: OgmiosAddress -> Aff Unit
 testFromOgmiosAddress testAddr = do

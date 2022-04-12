@@ -37,7 +37,6 @@ import Prelude
 
 import BalanceTx (balanceTx)
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Reader (runReaderT)
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (either)
@@ -48,9 +47,14 @@ import Data.Tuple (fst)
 import Effect (Effect)
 import Effect.Aff (error, launchAff_)
 import Effect.Aff.Class (liftAff)
-import Effect.Class (liftEffect)
-import Effect.Console as Console
-import QueryM (QueryM, traceQueryConfig, getWalletAddress, submitTxWallet)
+import Effect.Class.Console (log)
+import QueryM
+  ( QueryM
+  , traceQueryConfig
+  , getWalletAddress
+  , runQueryM
+  , submitTxWallet
+  )
 import QueryM.Utxos (utxosAt)
 import Serialization.Address (NetworkId(TestnetId))
 import Types.Transaction
@@ -67,8 +71,8 @@ main :: Effect Unit
 main = launchAff_ $ do
   wallet <- Just <$> mkNamiWalletAff
   cfg <- traceQueryConfig
-  txId <- runReaderT buildAndSubmit $ cfg { wallet = wallet }
-  liftEffect $ Console.log $ show txId
+  txId <- runQueryM cfg { wallet = wallet } buildAndSubmit
+  log $ show txId
 
 buildAndSubmit :: QueryM TransactionHash
 buildAndSubmit = mthrow "Failed to submit transaction" $

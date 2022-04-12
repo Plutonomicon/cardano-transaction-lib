@@ -20,11 +20,15 @@ module Contract.Monad
   ) where
 
 import Prelude
-import Control.Alt (class Alt)
+
+import Control.Alt (class Alt, alt)
 import Data.Either (Either, either, hush)
+import Data.Log.Formatter.Pretty (prettyFormatter)
 import Data.Log.Level (LogLevel(Error))
+import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just), maybe)
 import Control.Monad.Error.Class (class MonadError, class MonadThrow)
+import Control.Monad.Logger.Trans (runLoggerT)
 import Control.Monad.Reader.Class
   ( class MonadAsk
   , class MonadReader
@@ -33,12 +37,14 @@ import Control.Monad.Reader.Class
   )
 import Control.Monad.Reader.Trans (runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
+import Control.Monad.Trans.Class (lift)
 import Control.Plus (class Plus)
 import Data.Profunctor (dimap)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Class.Console (log)
 import Effect.Exception (Error, throw)
 import QueryM (QueryM, QueryMExtended, QueryConfig)
 import QueryM
@@ -93,8 +99,6 @@ derive instance Newtype (Contract r a) _
 derive newtype instance Functor (Contract r)
 derive newtype instance Apply (Contract r)
 derive newtype instance Applicative (Contract r)
-derive newtype instance Alt (Contract r)
-derive newtype instance Plus (Contract r)
 derive newtype instance Bind (Contract r)
 derive newtype instance Monad (Contract r)
 derive newtype instance MonadEffect (Contract r)
@@ -195,7 +199,13 @@ runContract
    . ContractConfig r
   -> Contract r a
   -> Aff a
-runContract config = flip runReaderT (unwrap config) <<< unwrap
+runContract config = flip runLoggerT printLog <<< flip runReaderT cfg <<< unwrap
+  where
+  printLog :: Message -> Aff Unit
+  printLog m = when (m.level >= cfg.logLevel) $ log =<< prettyFormatter m
+
+  cfg :: QueryConfig r
+  cfg = unwrap config
 
 -- | Same as `runContract` discarding output.
 runContract_
@@ -203,7 +213,7 @@ runContract_
    . ContractConfig r
   -> Contract r a
   -> Aff Unit
-runContract_ config = void <<< flip runReaderT (unwrap config) <<< unwrap
+runContract_ config = void <<< runContract config
 
 -- | Creates a default `ContractConfig` with a Nami wallet inside `Aff` as
 -- | required by the websockets.
