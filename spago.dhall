@@ -31,6 +31,7 @@ You can edit this file as you like.
   , "lists"
   , "maybe"
   , "medea"
+  , "monad-logger"
   , "mote"
   , "newtype"
   , "node-buffer"
