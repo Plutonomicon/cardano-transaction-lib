@@ -6,14 +6,12 @@ if (typeof BROWSER_RUNTIME == 'undefined' || !BROWSER_RUNTIME) {
 
 // _mkWebsocket :: String -> Effect WebSocket
 exports._mkWebSocket = url => () => {
-  console.log("Starting websocket attempt");
   var ws;
   if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
     ws = new WebSocket(url);
   } else {
     ws = new OurWebSocket(url, { perMessageDeflate: false });
   }
-  console.log("new websocket");
   return ws;
 };
 
@@ -26,7 +24,6 @@ exports._onWsConnect = ws => fn => () => {
 exports._onWsError = ws => fn => () => {
   ws.addEventListener('error', function func(event) {
     const str = event.toString();
-    console.log("error: ", str);
     fn(str)();
   });
 };
@@ -35,14 +32,12 @@ exports._onWsError = ws => fn => () => {
 exports._onWsMessage = ws => fn => () => {
   ws.addEventListener('message', function func(event) {
     const str = event.data;
-    console.log("message: ", str);
     fn(str)();
   });
 };
 
 // _wsSend :: WebSocket -> String -> Effect Unit
 exports._wsSend = ws => str => () => {
-  console.log("sending: ", str);
   ws.send(str);
 };
 
@@ -55,7 +50,6 @@ exports._stringify = a => () => JSON.stringify(a);
 // Every 30 seconds if we haven't heard from the server, sever the connection.
 // heartbeat :: WebSocket -> Int -> Effect Unit-> ImplicitUnsafeEffect Int
 const heartbeat = ws => id => onError => {
-  console.log("websocket heartbeat fired");
   ws.ping();
   if (id !== null) {
     clearTimeout(id);
