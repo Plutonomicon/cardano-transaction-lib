@@ -45,11 +45,13 @@ module Test.Fixtures
 
 import Prelude
 
+import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
+import Deserialization.FromBytes (fromBytes)
 import Metadata.Seabug (SeabugMetadata(SeabugMetadata), SeabugMetadataDelta(SeabugMetadataDelta))
 import Metadata.Seabug.Share (Share, mkShare)
 import Partial.Unsafe (unsafePartial)
@@ -57,22 +59,35 @@ import Serialization.Address
   ( Address
   , NetworkId(MainnetId, TestnetId)
   , Slot(Slot)
+  , StakeCredential
   , baseAddress
   , baseAddressToAddress
   , keyHashCredential
+  , rewardAddress
   )
-import Serialization.Hash (Ed25519KeyHash, ScriptHash, ed25519KeyHashFromBytes, scriptHashFromBytes)
+import Serialization.BigNum (bigNumFromBigInt)
+import Serialization.Hash
+  ( Ed25519KeyHash
+  , ScriptHash
+  , ed25519KeyHashFromBech32
+  , ed25519KeyHashFromBytes
+  , scriptHashFromBytes
+  )
+import Serialization.Types (BigNum)
+import Types.Aliases (Bech32String)
 import Types.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
   , hexToByteArrayUnsafe
   )
+import Types.Int as Int
 import Types.Natural as Natural
 import Types.PlutusData as PD
 import Types.RedeemerTag (RedeemerTag(Spend))
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash), ValidatorHash(ValidatorHash))
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
+  , Epoch(Epoch)
   , Certificate
       ( StakeRegistration
       , StakeDeregistration
@@ -82,6 +97,8 @@ import Types.Transaction
       , GenesisKeyDelegation
       , MoveInstantaneousRewardsCert
       )
+  , GenesisHash(GenesisHash)
+  , GenesisDelegateHash(GenesisDelegateHash)
   , Mint(Mint)
   , NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry)
   , PublicKey(PublicKey)
@@ -94,6 +111,14 @@ import Types.Transaction
   , TxBody(TxBody)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
+  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
+  , Ipv4(Ipv4)
+  , Ipv6(Ipv6)
+  , PoolMetadata(PoolMetadata)
+  , PoolMetadataHash(PoolMetadataHash)
+  , URL(URL)
+  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
+  , MIRToStakeCredentials(MIRToStakeCredentials)
   )
 import Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput))
 import Types.Value
@@ -327,6 +352,19 @@ txFixture3 =
     , auxiliary_data: Nothing
     }
 
+pkhBech32 :: Bech32String
+pkhBech32 = "addr_vkh1zuctrdcq6ctd29242w8g84nlz0q38t2lnv3zzfcrfqktx0c9tzp"
+
+stake1 :: StakeCredential
+stake1 = unsafePartial $ fromJust do
+  keyHashCredential <$> ed25519KeyHashFromBech32 pkhBech32
+
+ed25519KeyHash1 :: Ed25519KeyHash
+ed25519KeyHash1 = unsafePartial $ fromJust $ ed25519KeyHashFromBech32 pkhBech32
+
+bigNumOne :: BigNum
+bigNumOne = unsafePartial $ fromJust $ bigNumFromBigInt $ BigInt.fromInt 1
+
 -- txFixture3 + mint
 txFixture4 :: Transaction
 txFixture4 =
@@ -356,13 +394,60 @@ txFixture4 =
         , fee: Coin $ BigInt.fromInt 177513
         , ttl: Nothing
         , certs: Just
-            [ StakeRegistration
-            , StakeDeregistration
-            , StakeDelegation
+            [ StakeRegistration stake1
+            , StakeDeregistration stake1
+            , StakeDelegation stake1 ed25519KeyHash1
             , PoolRegistration
+                { operator: ed25519KeyHash1
+                , vrfKeyhash: unsafePartial $ fromJust $ fromBytes
+                    $ byteArrayFromIntArrayUnsafe
+                    $ Array.replicate 32 0
+                , pledge: bigNumOne
+                , cost: bigNumOne
+                , margin: { numerator: bigNumOne, denominator: bigNumOne }
+                , reward_account: rewardAddress { network: MainnetId, paymentCred: stake1 }
+                , poolOwners: [ ed25519KeyHash1 ]
+                , relays:
+                    [ SingleHostAddr
+                        { port: Just 8080
+                        , ipv4: Just $ Ipv4 $ byteArrayFromIntArrayUnsafe [ 127, 0, 0, 1 ]
+                        , ipv6: Just $ Ipv6 $ byteArrayFromIntArrayUnsafe
+                            $ Array.replicate 16 123
+                        }
+                    , SingleHostName
+                        { port: Just 8080
+                        , dnsName: "example.com"
+                        }
+                    , MultiHostName { dnsName: "example.com" }
+                    ]
+                , poolMetadata: Just $ PoolMetadata
+                    { url: URL "https://example.com/"
+                    , hash: PoolMetadataHash $
+                        hexToByteArrayUnsafe "94b8cac47761c1140c57a48d56ab15d27a842abff041b3798b8618fa84641f5a"
+                    }
+                }
             , PoolRetirement
+                { poolKeyhash: ed25519KeyHash1
+                , epoch: Epoch one
+                }
             , GenesisKeyDelegation
-            , MoveInstantaneousRewardsCert
+                { genesisHash: GenesisHash $
+                    hexToByteArrayUnsafe "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
+                , genesisDelegateHash: GenesisDelegateHash $
+                    hexToByteArrayUnsafe "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
+                , vrfKeyhash: unsafePartial $ fromJust $ fromBytes
+                    $ byteArrayFromIntArrayUnsafe
+                    $ Array.replicate 32 0
+                }
+            , MoveInstantaneousRewardsCert $ ToOtherPot
+                { pot: one
+                , amount: bigNumOne
+                }
+            , MoveInstantaneousRewardsCert $ ToStakeCreds
+                { pot: one
+                , amounts: MIRToStakeCredentials $ Map.fromFoldable
+                    [ stake1 /\ Int.newPositive bigNumOne ]
+                }
             ]
         , withdrawals: Nothing
         , update: Nothing

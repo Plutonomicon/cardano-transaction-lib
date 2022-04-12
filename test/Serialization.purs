@@ -80,7 +80,7 @@ suite = do
         tx <- convertTransaction txFixture3
         let bytes = toBytes (asOneOf tx)
         byteArrayToHex bytes `shouldEqual` txBinaryFixture3
-      test "Transaction serialization #4 - ada + mint" $ liftEffect do
+      test "Transaction serialization #4 - ada + mint + certificates" $ liftEffect do
         tx <- convertTransaction txFixture4
         let bytes = toBytes (asOneOf tx)
         byteArrayToHex bytes `shouldEqual` txBinaryFixture4

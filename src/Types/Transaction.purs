@@ -12,16 +12,24 @@ module Types.Transaction
   , ExUnitPrices
   , ExUnits
   , GeneralTransactionMetadata(..)
+  , GenesisDelegateHash(..)
   , GenesisHash(..)
+  , Ipv4(..)
+  , Ipv6(..)
   , Language(..)
   , Mint(..)
+  , MIRToStakeCredentials(..)
+  , MoveInstantaneousReward(..)
   , NativeScript(..)
   , Nonce(..)
+  , PoolMetadata(..)
+  , PoolMetadataHash(..)
   , ProposedProtocolParameterUpdates(..)
   , ProtocolParamUpdate
   , ProtocolVersion
   , PublicKey(..)
   , Redeemer(..)
+  , Relay(..)
   , RequiredSigner(..)
   , ScriptDataHash(..)
   , SubCoin
@@ -37,6 +45,7 @@ module Types.Transaction
   , UnitInterval
   , Update
   , Utxo
+  , URL(..)
   , UtxoM(..)
   , Vkey(..)
   , Vkeywitness(..)
@@ -95,6 +104,7 @@ import Serialization.Types (BigNum, VRFKeyHash)
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray, byteArrayToHex)
+import Types.Int as Int
 import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
 import Types.Value (Coin, NonAdaAsset, Value)
@@ -279,7 +289,7 @@ derive instance Generic ProposedProtocolParameterUpdates _
 instance Show ProposedProtocolParameterUpdates where
   show = genericShow
 
-newtype GenesisHash = GenesisHash String
+newtype GenesisHash = GenesisHash ByteArray
 
 derive instance Newtype GenesisHash _
 derive newtype instance Eq GenesisHash
@@ -367,8 +377,8 @@ derive instance Newtype Nonce _
 derive newtype instance Eq Nonce
 
 type UnitInterval =
-  { numerator :: BigInt
-  , denominator :: BigInt
+  { numerator :: BigNum
+  , denominator :: BigNum
   }
 
 newtype Epoch = Epoch UInt
@@ -380,27 +390,128 @@ derive newtype instance Eq Epoch
 instance Show Epoch where
   show = genericShow
 
+newtype Ipv4 = Ipv4 ByteArray
+
+derive instance Eq Ipv4
+derive instance Generic Ipv4 _
+derive instance Newtype Ipv4 _
+
+instance Show Ipv4 where
+  show = genericShow
+
+newtype Ipv6 = Ipv6 ByteArray
+
+derive instance Eq Ipv6
+derive instance Generic Ipv6 _
+derive instance Newtype Ipv6 _
+
+instance Show Ipv6 where
+  show = genericShow
+
+data Relay
+  = SingleHostAddr
+      { port :: Maybe Int
+      , ipv4 :: Maybe Ipv4
+      , ipv6 :: Maybe Ipv6
+      }
+  | SingleHostName
+      { port :: Maybe Int
+      , dnsName :: String
+      }
+  | MultiHostName { dnsName :: String }
+
+derive instance Eq Relay
+derive instance Generic Relay _
+
+instance Show Relay where
+  show = genericShow
+
+newtype URL = URL String
+
+derive instance Eq URL
+derive instance Generic URL _
+derive instance Newtype URL _
+
+instance Show URL where
+  show = genericShow
+
+newtype PoolMetadataHash = PoolMetadataHash ByteArray
+
+derive instance Eq PoolMetadataHash
+derive instance Generic PoolMetadataHash _
+derive instance Newtype PoolMetadataHash _
+
+instance Show PoolMetadataHash where
+  show = genericShow
+
+newtype PoolMetadata = PoolMetadata
+  { url :: URL
+  , hash :: PoolMetadataHash
+  }
+
+derive instance Eq PoolMetadata
+derive instance Generic PoolMetadata _
+
+instance Show PoolMetadata where
+  show = genericShow
+
+newtype GenesisDelegateHash = GenesisDelegateHash ByteArray
+
+derive instance Eq GenesisDelegateHash
+derive instance Generic GenesisDelegateHash _
+
+instance Show GenesisDelegateHash where
+  show = genericShow
+
+newtype MIRToStakeCredentials = MIRToStakeCredentials (Map StakeCredential Int.Int)
+
+derive instance Eq MIRToStakeCredentials
+derive instance Generic MIRToStakeCredentials _
+
+instance Show MIRToStakeCredentials where
+  show = genericShow
+
+data MoveInstantaneousReward
+  = ToOtherPot
+      { pot :: Number
+      , amount :: BigNum
+      }
+  | ToStakeCreds
+      { pot :: Number
+      , amounts :: MIRToStakeCredentials
+      }
+
+derive instance Eq MoveInstantaneousReward
+derive instance Generic MoveInstantaneousReward _
+
+instance Show MoveInstantaneousReward where
+  show = genericShow
+
 data Certificate
   = StakeRegistration StakeCredential
   | StakeDeregistration StakeCredential
   | StakeDelegation StakeCredential Ed25519KeyHash
   | PoolRegistration
       { operator :: Ed25519KeyHash
-      , vrf_keyhash :: VRFKeyHash
+      , vrfKeyhash :: VRFKeyHash
       , pledge :: BigNum
       , cost :: BigNum
       , margin :: UnitInterval
       , reward_account :: RewardAddress
-      , pool_owners :: Array Ed25519KeyHash
+      , poolOwners :: Array Ed25519KeyHash
       , relays :: Array Relay
-      , pool_metadata :: Maybe PoolMetadata
+      , poolMetadata :: Maybe PoolMetadata
       }
   | PoolRetirement
-      { pool_keyhash :: Ed25519KeyHash
-      , epoch :: UInt
+      { poolKeyhash :: Ed25519KeyHash
+      , epoch :: Epoch
       }
   | GenesisKeyDelegation
-  | MoveInstantaneousRewardsCert
+      { genesisHash :: GenesisHash
+      , genesisDelegateHash :: GenesisDelegateHash
+      , vrfKeyhash :: VRFKeyHash
+      }
+  | MoveInstantaneousRewardsCert MoveInstantaneousReward
 
 derive instance Eq Certificate
 derive instance Generic Certificate _

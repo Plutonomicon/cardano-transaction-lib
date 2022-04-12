@@ -6,6 +6,7 @@ module FfiHelpers
   ) where
 
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
+import Data.Tuple (Tuple(Tuple))
 
 type MaybeFfiHelper = { nothing :: forall x. Maybe x, just :: forall x. x -> Maybe x, from :: forall x. x -> Maybe x -> x }
 
@@ -14,4 +15,10 @@ maybeFfiHelper = { nothing: Nothing, just: Just, from: fromMaybe }
 
 foreign import data ContainerHelper :: Type
 
-foreign import containerHelper :: ContainerHelper
+foreign import _containerHelper :: (forall a. Tuple a a -> Array a) -> ContainerHelper
+
+containerHelper :: ContainerHelper
+containerHelper = _containerHelper untuple
+
+untuple :: forall a. Tuple a a -> Array a
+untuple (Tuple a b) = [ a, b ]

@@ -285,6 +285,9 @@ foreign import data StakeCredential :: Type
 instance Eq StakeCredential where
   eq = eq `on` stakeCredentialToBytes
 
+instance Ord StakeCredential where
+  compare = compare `on` stakeCredentialToBytes
+
 instance Show StakeCredential where
   show = showVia "StakeCredenetial" $ withStakeCredential
     { onKeyHash: show, onScriptHash: show }

@@ -25,7 +25,6 @@ You can edit this file as you like.
   , "foreign"
   , "foreign-object"
   , "gen"
-  , "http-methods"
   , "identity"
   , "integers"
   , "lattice"
