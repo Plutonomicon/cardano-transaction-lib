@@ -31,7 +31,14 @@ import Data.Maybe (Maybe(Just), maybe)
 import Control.Monad.Error.Class (class MonadError, class MonadThrow)
 import Control.Monad.Logger.Trans (runLoggerT)
 import Control.Monad.Logger.Class (class MonadLogger)
-import Control.Monad.Logger.Class (class MonadLogger, trace, debug, info, warn, error) as Logger
+import Control.Monad.Logger.Class
+  ( class MonadLogger
+  , trace
+  , debug
+  , info
+  , warn
+  , error
+  ) as Logger
 import Control.Monad.Reader.Class
   ( class MonadAsk
   , class MonadReader
