@@ -67,6 +67,7 @@ import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Monad.Error.Class (throwError)
+import Control.Monad.Logger.Class as Logger
 import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT, ask, asks)
 import Data.Argonaut (class DecodeJson, JsonDecodeError)
@@ -966,8 +967,8 @@ defaultMessageListener dispatchArray msg = do
         if err == defaultErr then pure unit
         else log ("unexpected parse error on input:" <> msg)
     )
-    (\act -> act)
-    (eAction :: Either Json.JsonDecodeError (Effect Unit))
+    identity
+    eAction
 
 messageFoldF
   :: String
