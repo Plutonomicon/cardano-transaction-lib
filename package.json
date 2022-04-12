@@ -12,24 +12,23 @@
     "build": "BROWSER_RUNTIME=1 webpack --mode=production"
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
-    "@cardano-ogmios/client": "^4.2.1",
-    "@ngua/cardano-serialization-lib-browser": "^9.1.2",
-    "@ngua/cardano-serialization-lib-nodejs": "^9.1.2",
-    "big-integer": "^1.6.51",
-    "bufferutil": "^4.0.5",
-    "node-polyfill-webpack-plugin": "^1.1.4",
-    "uniqid": "^5.4.0",
-    "ws": "^8.4.0",
-    "xhr2": "^0.2.1"
+    "@ngua/cardano-serialization-lib-browser": "9.1.2",
+    "@ngua/cardano-serialization-lib-nodejs": "9.1.2",
+    "big-integer": "1.6.51",
+    "bufferutil": "4.0.5",
+    "node-polyfill-webpack-plugin": "1.1.4",
+    "uniqid": "5.4.0",
+    "ws": "8.4.0",
+    "xhr2": "0.2.1"
   },
   "devDependencies": {
-    "buffer": "^6.0.3",
-    "webpack": "~5.67.0",
-    "webpack-cli": "^4.9.2",
-    "html-webpack-plugin": "^5.5.0",
-    "webpack-dev-server": "^4.7.4",
-    "purs-loader": "^3.7.2"
+    "buffer": "6.0.3",
+    "webpack": "5.67.0",
+    "webpack-cli": "4.9.2",
+    "html-webpack-plugin": "5.5.0",
+    "webpack-dev-server": "4.7.4",
+    "purs-loader": "3.7.2"
   }
 }
