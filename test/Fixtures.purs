@@ -95,6 +95,7 @@ import Types.Transaction
       )
   , PublicKey(PublicKey)
   , Redeemer(Redeemer)
+  , RequiredSigner(RequiredSigner)
   , Transaction(Transaction)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
@@ -349,7 +350,7 @@ txFixture3 =
     , auxiliaryData: Nothing
     }
 
--- txFixture3 + mint
+-- txFixture3 + mint + requiredSigners
 txFixture4 :: Transaction
 txFixture4 =
   Transaction
@@ -380,7 +381,7 @@ txFixture4 =
                 }
             ]
         , fee: Coin $ BigInt.fromInt 177513
-        , ttl: Nothing
+        , ttl: Just $ Slot $ UInt.fromInt 123
         , certs: Nothing
         , withdrawals: Nothing
         , update: Nothing
@@ -390,7 +391,7 @@ txFixture4 =
             [ currencySymbol1 /\ Map.fromFoldable [ tokenName1 /\ one ] ]
         , scriptDataHash: Nothing
         , collateral: Nothing
-        , requiredSigners: Nothing
+        , requiredSigners: Just [ RequiredSigner ed25519KeyHashFixture1 ]
         , networkId: Just MainnetId
         }
     , witnessSet: TransactionWitnessSet
@@ -431,7 +432,7 @@ txBinaryFixture3 =
 
 txBinaryFixture4 :: String
 txBinaryFixture4 =
-  "84a500818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001828258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a0023e8fa8258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a000f4240021a0002b56909a1581c1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e010f01a0f5f6"
+  "84a700818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001828258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a0023e8fa8258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a000f4240021a0002b56903187b09a1581c1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e010e81581c1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d533610f01a0f5f6"
 
 utxoFixture1 :: ByteArray
 utxoFixture1 = hexToByteArrayUnsafe

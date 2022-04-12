@@ -42,8 +42,8 @@ exports.newTransactionOutputs = () =>
 exports.addTransactionOutput = outputs => output => () =>
     outputs.add(output);
 
-exports.newTransactionBody = inputs => outputs => fee => () =>
-    lib.TransactionBody.new(inputs, outputs, fee);
+exports.newTransactionBody = inputs => outputs => fee => ttl => () =>
+    lib.TransactionBody.new(inputs, outputs, fee, ttl);
 
 exports.newTransaction = body => witness_set => () =>
     lib.Transaction.new(body, witness_set);
@@ -90,8 +90,15 @@ exports.addVkeywitness = witnesses => witness => () =>
 exports.newVkeyFromPublicKey = public_key => () =>
     lib.Vkey.new(public_key);
 
-exports.newPublicKey = bech32 => () =>
-    lib.PublicKey.from_bech32(bech32);
+exports._publicKeyFromBech32 = maybe => bech32 => () => {
+    try {
+        return maybe.just(lib.PublicKey.from_bech32(bech32));
+    } catch (_) {
+        return maybe.nothing;
+    }
+};
+
+exports.publicKeyHash = pk => pk.hash();
 
 exports.newEd25519Signature = bech32 => () =>
     lib.Ed25519Signature.from_bech32(bech32);
@@ -187,3 +194,8 @@ exports.setTxBodyCollateral = body => inputs => () =>
 
 exports.setTxBodyNetworkId = body => network_id => () =>
     body.set_network_id(network_id);
+
+exports.transactionBodySetRequiredSigners = containerHelper => body =>
+    keyHashes => () =>
+    body.set_required_signers(
+        containerHelper.pack(lib.Ed25519KeyHashes, keyHashes));
