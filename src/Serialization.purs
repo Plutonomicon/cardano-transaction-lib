@@ -195,6 +195,9 @@ foreign import setTxBodyCollateral
 foreign import transactionBodySetRequiredSigners
   :: ContainerHelper -> TransactionBody -> Array Ed25519KeyHash -> Effect Unit
 
+foreign import transactionBodySetValidityStartInterval
+  :: TransactionBody -> Int -> Effect Unit
+
 foreign import toBytes
   :: ( Transaction
          |+| TransactionOutput
@@ -217,6 +220,8 @@ convertTransaction (T.Transaction { body: T.TxBody body, witnessSet }) = do
     (unwrap body.fee)
   let ttl = body.ttl <#> unwrap >>> UInt.toInt
   txBody <- newTransactionBody inputs outputs fee (maybeToUor ttl)
+  for_ body.validityStartInterval $
+    unwrap >>> UInt.toInt >>> transactionBodySetValidityStartInterval txBody
   for_ body.requiredSigners $
     map unwrap >>> transactionBodySetRequiredSigners containerHelper txBody
   for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody

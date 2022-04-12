@@ -199,3 +199,7 @@ exports.transactionBodySetRequiredSigners = containerHelper => body =>
     keyHashes => () =>
     body.set_required_signers(
         containerHelper.pack(lib.Ed25519KeyHashes, keyHashes));
+
+exports.transactionBodySetValidityStartInterval =
+    txBody => validityStartInterval => () =>
+    txBody.set_validity_start_interval(validityStartInterval);
