@@ -253,7 +253,7 @@ derive newtype instance Monoid Mint
 instance Show Mint where
   show = genericShow
 
-newtype AuxiliaryDataHash = AuxiliaryDataHash String
+newtype AuxiliaryDataHash = AuxiliaryDataHash ByteArray
 
 derive instance Generic AuxiliaryDataHash _
 derive instance Newtype AuxiliaryDataHash _

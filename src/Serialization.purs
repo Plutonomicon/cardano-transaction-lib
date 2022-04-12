@@ -198,6 +198,9 @@ foreign import transactionBodySetRequiredSigners
 foreign import transactionBodySetValidityStartInterval
   :: TransactionBody -> Int -> Effect Unit
 
+foreign import transactionBodySetAuxiliaryDataHash
+  :: TransactionBody -> ByteArray -> Effect Unit
+
 foreign import toBytes
   :: ( Transaction
          |+| TransactionOutput
@@ -224,6 +227,8 @@ convertTransaction (T.Transaction { body: T.TxBody body, witnessSet }) = do
     unwrap >>> UInt.toInt >>> transactionBodySetValidityStartInterval txBody
   for_ body.requiredSigners $
     map unwrap >>> transactionBodySetRequiredSigners containerHelper txBody
+  for_ body.auxiliaryDataHash $
+    unwrap >>> transactionBodySetAuxiliaryDataHash txBody
   for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
   traverse_
     (unwrap >>> newScriptDataHashFromBytes >=> setTxBodyScriptDataHash txBody)

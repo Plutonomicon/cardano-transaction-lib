@@ -45,6 +45,7 @@ module Test.Fixtures
 
 import Prelude
 
+import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
@@ -83,7 +84,8 @@ import Types.Scripts
   , ValidatorHash(ValidatorHash)
   )
 import Types.Transaction
-  ( Ed25519Signature(Ed25519Signature)
+  ( AuxiliaryDataHash(AuxiliaryDataHash)
+  , Ed25519Signature(Ed25519Signature)
   , Mint(Mint)
   , NativeScript
       ( ScriptPubkey
@@ -385,7 +387,9 @@ txFixture4 =
         , certs: Nothing
         , withdrawals: Nothing
         , update: Nothing
-        , auxiliaryDataHash: Nothing
+        , auxiliaryDataHash: Just $ AuxiliaryDataHash
+            $ byteArrayFromIntArrayUnsafe
+            $ Array.replicate 32 0
         , validityStartInterval: Just $ Slot $ UInt.fromInt 124
         , mint: Just $ Mint $ mkNonAdaAsset $ Map.fromFoldable
             [ currencySymbol1 /\ Map.fromFoldable [ tokenName1 /\ one ] ]
@@ -432,7 +436,7 @@ txBinaryFixture3 =
 
 txBinaryFixture4 :: String
 txBinaryFixture4 =
-  "84a800818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001828258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a0023e8fa8258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a000f4240021a0002b56903187b08187c09a1581c1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e010e81581c1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d533610f01a0f5f6"
+  "84a900818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001828258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a0023e8fa8258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a000f4240021a0002b56903187b075820000000000000000000000000000000000000000000000000000000000000000008187c09a1581c1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e010e81581c1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d533610f01a0f5f6"
 
 utxoFixture1 :: ByteArray
 utxoFixture1 = hexToByteArrayUnsafe

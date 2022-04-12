@@ -203,3 +203,6 @@ exports.transactionBodySetRequiredSigners = containerHelper => body =>
 exports.transactionBodySetValidityStartInterval =
     txBody => validityStartInterval => () =>
     txBody.set_validity_start_interval(validityStartInterval);
+
+exports.transactionBodySetAuxiliaryDataHash = txBody => hashBytes => () =>
+    txBody.set_auxiliary_data_hash(lib.AuxiliaryDataHash.from_bytes(hashBytes));
