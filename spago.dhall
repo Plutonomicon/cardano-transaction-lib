@@ -60,6 +60,7 @@ You can edit this file as you like.
   , "unfoldable"
   , "unsafe-coerce"
   , "untagged-union"
+  , "enums"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs", "examples/**/*.purs" ]
