@@ -32,6 +32,7 @@ module QueryM
   , datumHash
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
+  , traceQueryConfig
   , defaultServerConfig
   , finalizeTx
   , getDatumByHash
@@ -64,7 +65,6 @@ import Aeson as Aeson
 import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.ResponseFormat as Affjax.ResponseFormat
-import Contract.Prim.ByteArray (ByteArray(..))
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (ReaderT, withReaderT, ask, asks)
 import Data.Argonaut (class DecodeJson, JsonDecodeError)
@@ -78,6 +78,7 @@ import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, isRight, note, hush)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
+import Data.Log.Level (LogLevel(Trace))
 import Data.Maybe (Maybe(Just, Nothing), maybe, maybe')
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -126,7 +127,7 @@ import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address
   ( Address
   , BlockId
-  , NetworkId
+  , NetworkId(TestnetId)
   , Slot
   , addressPaymentCred
   , stakeCredentialToKeyHash
@@ -136,16 +137,16 @@ import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.Datum (Datum, DatumHash)
-import Types.Interval (SlotConfig)
+import Types.Interval (SlotConfig, defaultSlotConfig)
 import Types.PlutusData (PlutusData)
 import Types.Scripts (PlutusScript)
 import Types.Transaction (Transaction(Transaction))
 import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.UnbalancedTransaction (PubKeyHash, PaymentPubKeyHash)
+import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Types.Value (Coin(Coin))
 import Untagged.Union (asOneOf)
-import Types.UsedTxOuts (UsedTxOuts)
 import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
@@ -193,6 +194,7 @@ type QueryConfig (r :: Row Type) =
   , usedTxOuts :: UsedTxOuts
   , networkId :: NetworkId
   , slotConfig :: SlotConfig
+  , logLevel :: LogLevel
   | r
   }
 
@@ -214,6 +216,24 @@ liftQueryM = withReaderT toDefaultQueryConfig
     , usedTxOuts: c.usedTxOuts
     , networkId: c.networkId
     , slotConfig: c.slotConfig
+    , logLevel: c.logLevel
+    }
+
+-- A `DefaultQueryConfig` useful for testing, with `logLevel` set to `Trace`
+traceQueryConfig :: Aff DefaultQueryConfig
+traceQueryConfig = do
+  ogmiosWs <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
+  datumCacheWs <- mkDatumCacheWebSocketAff defaultDatumCacheWsConfig
+  usedTxOuts <- newUsedTxOuts
+  pure
+    { ogmiosWs
+    , datumCacheWs
+    , serverConfig: defaultServerConfig
+    , wallet: Nothing
+    , usedTxOuts
+    , networkId: TestnetId
+    , slotConfig: defaultSlotConfig
+    , logLevel: Trace
     }
 
 --------------------------------------------------------------------------------

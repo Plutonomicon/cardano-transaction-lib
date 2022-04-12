@@ -13,7 +13,6 @@ import Prelude
 import Control.Monad.Reader (runReaderT)
 import Data.Foldable (sequence_)
 import Data.Maybe (Maybe(Just))
-import Data.Typelevel.Undefined (undefined)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
@@ -22,27 +21,15 @@ import QueryM
   ( QueryM
   , getWalletAddress
   , getWalletCollateral
-  , defaultServerConfig
+  , traceQueryConfig
   )
-import Serialization.Address (NetworkId(TestnetId))
-import Types.Interval (defaultSlotConfig)
-import Types.UsedTxOuts (newUsedTxOuts)
 import Wallet (mkNamiWalletAff)
 
 main :: Effect Unit
 main = launchAff_ $ do
   wallet <- Just <$> mkNamiWalletAff
-  usedTxOuts <- newUsedTxOuts
-  runReaderT
-    walletActions
-    { datumCacheWs: {-TODO-}  undefined
-    , ogmiosWs: {-TODO-}  undefined
-    , wallet
-    , serverConfig: defaultServerConfig
-    , usedTxOuts
-    , networkId: TestnetId
-    , slotConfig: defaultSlotConfig
-    }
+  cfg <- traceQueryConfig
+  runReaderT walletActions $ cfg { wallet = wallet }
   where
   walletActions :: QueryM Unit
   walletActions = sequence_ [ logWalletAddress, logWalletCollateral ]

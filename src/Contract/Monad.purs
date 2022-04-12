@@ -22,6 +22,7 @@ module Contract.Monad
 import Prelude
 import Control.Alt (class Alt)
 import Data.Either (Either, either, hush)
+import Data.Log.Level (LogLevel(Error))
 import Data.Maybe (Maybe(Just), maybe)
 import Control.Monad.Error.Class (class MonadError, class MonadThrow)
 import Control.Monad.Reader.Class
@@ -221,7 +222,7 @@ defaultContractConfig = do
     , usedTxOuts
     , networkId: TestnetId
     , slotConfig: Interval.defaultSlotConfig
-    -- Will update at the use site
+    , logLevel: Error
     }
 
 -- | Same as `defaultContractConfig` but lifted into `Contract`.

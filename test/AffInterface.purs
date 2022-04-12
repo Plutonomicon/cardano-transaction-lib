@@ -9,21 +9,11 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
-import QueryM
-  ( defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
-  , mkDatumCacheWebSocketAff
-  , mkOgmiosWebSocketAff
-  , getChainTip
-  )
+import QueryM (traceQueryConfig, getChainTip)
 import QueryM.Utxos (utxosAt)
-import Serialization.Address (NetworkId(TestnetId))
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
-import Types.Interval (defaultSlotConfig)
 import QueryM.Ogmios (OgmiosAddress)
-import Types.UsedTxOuts (newUsedTxOuts)
 
 testnet_addr1 :: OgmiosAddress
 testnet_addr1 =
@@ -53,38 +43,13 @@ suite = do
       $ testFromOgmiosAddress addr1
 
 testUtxosAt :: OgmiosAddress -> Aff Unit
-testUtxosAt testAddr = do
-  ogmiosWs <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
-  datumCacheWs <- mkDatumCacheWebSocketAff defaultDatumCacheWsConfig
-  usedTxOuts <- newUsedTxOuts
-  case ogmiosAddressToAddress testAddr of
-    Nothing -> liftEffect $ throw "Failed UtxosAt"
-    Just addr -> runReaderT
-      (utxosAt addr *> pure unit)
-      { ogmiosWs
-      , datumCacheWs
-      , serverConfig: defaultServerConfig
-      , wallet: Nothing
-      , usedTxOuts
-      , networkId: TestnetId
-      , slotConfig: defaultSlotConfig
-      }
+testUtxosAt testAddr = case ogmiosAddressToAddress testAddr of
+  Nothing -> liftEffect $ throw "Failed UtxosAt"
+  Just addr -> runReaderT (utxosAt addr *> pure unit) =<< traceQueryConfig
 
 testGetChainTip :: Aff Unit
 testGetChainTip = do
-  ogmiosWs <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
-  datumCacheWs <- mkDatumCacheWebSocketAff defaultDatumCacheWsConfig
-  usedTxOuts <- newUsedTxOuts
-  runReaderT
-    (getChainTip *> pure unit)
-    { ogmiosWs
-    , datumCacheWs
-    , serverConfig: defaultServerConfig
-    , wallet: Nothing
-    , usedTxOuts
-    , networkId: TestnetId
-    , slotConfig: defaultSlotConfig
-    }
+  runReaderT (getChainTip *> pure unit) =<< traceQueryConfig
 
 testFromOgmiosAddress :: OgmiosAddress -> Aff Unit
 testFromOgmiosAddress testAddr = do

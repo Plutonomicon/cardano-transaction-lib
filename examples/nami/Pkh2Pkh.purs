@@ -50,19 +50,9 @@ import Effect.Aff (error, launchAff_)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
-import QueryM
-  ( QueryM
-  , defaultOgmiosWsConfig
-  , defaultDatumCacheWsConfig
-  , defaultServerConfig
-  , getWalletAddress
-  , mkOgmiosWebSocketAff
-  , mkDatumCacheWebSocketAff
-  , submitTxWallet
-  )
+import QueryM (QueryM, traceQueryConfig, getWalletAddress, submitTxWallet)
 import QueryM.Utxos (utxosAt)
 import Serialization.Address (NetworkId(TestnetId))
-import Types.Interval (defaultSlotConfig)
 import Types.Transaction
   ( Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
@@ -71,25 +61,13 @@ import Types.Transaction
   )
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx))
 import Types.Value as Value
-import Types.UsedTxOuts (newUsedTxOuts)
 import Wallet (mkNamiWalletAff)
 
 main :: Effect Unit
 main = launchAff_ $ do
   wallet <- Just <$> mkNamiWalletAff
-  ogmiosWs <- mkOgmiosWebSocketAff defaultOgmiosWsConfig
-  datumCacheWs <- mkDatumCacheWebSocketAff defaultDatumCacheWsConfig
-  usedTxOuts <- newUsedTxOuts
-  txId <- runReaderT
-    buildAndSubmit
-    { ogmiosWs
-    , datumCacheWs
-    , wallet
-    , serverConfig: defaultServerConfig
-    , usedTxOuts
-    , networkId: TestnetId
-    , slotConfig: defaultSlotConfig
-    }
+  cfg <- traceQueryConfig
+  txId <- runReaderT buildAndSubmit $ cfg { wallet = wallet }
   liftEffect $ Console.log $ show txId
 
 buildAndSubmit :: QueryM TransactionHash
