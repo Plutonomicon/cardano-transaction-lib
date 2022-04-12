@@ -3,6 +3,9 @@ module Contract.Monad
   ( Contract(..)
   , ContractConfig(..)
   , DefaultContractConfig
+  , module Interval
+  , module QueryM
+  , module Logger
   , wrapContract
   , defaultContractConfig
   , defaultContractConfigLifted
@@ -12,8 +15,6 @@ module Contract.Monad
   , liftedE
   , liftedE'
   , liftedM
-  , module Interval
-  , module QueryM
   , runContract
   , runContract_
   , throwContractError
@@ -29,6 +30,8 @@ import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just), maybe)
 import Control.Monad.Error.Class (class MonadError, class MonadThrow)
 import Control.Monad.Logger.Trans (runLoggerT)
+import Control.Monad.Logger.Class (class MonadLogger)
+import Control.Monad.Logger.Class (class MonadLogger, trace, debug, info, warn, error) as Logger
 import Control.Monad.Reader.Class
   ( class MonadAsk
   , class MonadReader
@@ -109,6 +112,7 @@ derive newtype instance Monoid a => Monoid (Contract r a)
 derive newtype instance MonadThrow Error (Contract r)
 derive newtype instance MonadError Error (Contract r)
 derive newtype instance MonadRec (Contract r)
+derive newtype instance MonadLogger (Contract r)
 
 instance MonadAsk (ContractConfig r) (Contract r) where
   -- Use the underlying `ask`:
