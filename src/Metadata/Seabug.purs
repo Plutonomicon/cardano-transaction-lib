@@ -75,10 +75,8 @@ instance ToData SeabugMetadata where
 instance FromData SeabugMetadata where
   fromData (Map sm) = unsafePartial do
     policyId /\ contents <- lookupKey "727" sm >>= case _ of
-      Map mp1 -> case mp1 of
-        [ policyId /\ contents ] -> Tuple <$> fromData policyId <*> fromData
-          contents
-        _ -> Nothing
+      Map [ policyId /\ contents ] ->
+        Tuple <$> fromData policyId <*> fromData contents
       _ -> Nothing
     mintPolicy <- lookupKey "mintPolicy" contents >>= fromData
     collectionNftCS <- lookupKey "collectionNftCS" contents >>= fromData
@@ -188,10 +186,8 @@ instance ToData SeabugMetadataDelta where
 instance FromData SeabugMetadataDelta where
   fromData (Map sm) = unsafePartial do
     policyId /\ contents <- lookupKey "727" sm >>= case _ of
-      Map mp1 -> case mp1 of
-        [ policyId /\ contents ] -> Tuple <$> fromData policyId <*> fromData
-          contents
-        _ -> Nothing
+      Map [ policyId /\ contents ] ->
+        Tuple <$> fromData policyId <*> fromData contents
       _ -> Nothing
     ownerPkh <- lookupKey "ownerPkh" contents >>= fromData
     ownerPrice <- lookupKey "ownerPrice" contents >>= fromData

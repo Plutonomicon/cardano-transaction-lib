@@ -11,7 +11,6 @@ import Data.Argonaut.Decode (JsonDecodeError(UnexpectedValue))
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
-import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for)

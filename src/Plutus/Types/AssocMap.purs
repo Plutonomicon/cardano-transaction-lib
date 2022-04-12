@@ -123,7 +123,7 @@ delete k (Map xs) =
 keys :: forall (k :: Type) (v :: Type). Map k v -> Array k
 keys (Map xs) = fst <$> xs
 
--- | Combine two 'Map's.
+-- | Combine two `Map`s
 union
   :: forall (k :: Type) (v :: Type) (r :: Type)
    . Eq k
@@ -149,7 +149,7 @@ union (Map ls) (Map rs) =
   in
     Map (ls' <> rs'')
 
--- | Combine two 'Map's with the given combination function.
+-- | Combine two `Map`s with the given combination function
 unionWith
   :: forall (k :: Type) (a :: Type)
    . Eq k

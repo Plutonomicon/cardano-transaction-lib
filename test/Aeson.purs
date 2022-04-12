@@ -28,7 +28,6 @@ import Data.Argonaut as Json
 import Data.Array (head, length, (!!), zip)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), hush)
-import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just), fromJust, fromMaybe, isJust)
 import Data.Traversable (for_, traverse)
 import Data.Tuple (Tuple(Tuple), uncurry)

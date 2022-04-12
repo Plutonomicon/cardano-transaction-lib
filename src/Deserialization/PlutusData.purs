@@ -5,7 +5,6 @@ module Deserialization.PlutusData
 import Prelude
 
 import Control.Alt ((<|>))
-import Data.Map as Map
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
