@@ -53,7 +53,7 @@ convertPlutusMap pd = do
         k' <- convertPlutusData k
         v' <- convertPlutusData v
         pure (k' /\ v')
-  pure $ T.Map $ entries
+  pure $ T.Map entries
 
 convertPlutusList :: PlutusData -> Maybe T.PlutusData
 convertPlutusList pd = T.List <$> do
