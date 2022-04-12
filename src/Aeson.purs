@@ -103,7 +103,8 @@ import Untagged.Union (class InOneOf, type (|+|), asOneOf)
 newtype AesonPatchedJson = AesonPatchedJson Json
 
 -- | A piece of JSON where all numbers are extracted into `NumberIndex`.
-newtype Aeson = Aeson { patchedJson :: AesonPatchedJson, numberIndex :: NumberIndex }
+newtype Aeson = Aeson
+  { patchedJson :: AesonPatchedJson, numberIndex :: NumberIndex }
 
 instance Eq Aeson where
   eq a b = stringifyAeson a == stringifyAeson b
@@ -126,7 +127,8 @@ foreign import parseJsonExtractingIntegers
 parseJsonStringToAeson :: String -> Either JsonDecodeError Aeson
 parseJsonStringToAeson payload = do
   let { patchedPayload, numberIndex } = parseJsonExtractingIntegers payload
-  patchedJson <- lmap (const MissingValue) $ AesonPatchedJson <$> jsonParser patchedPayload
+  patchedJson <- lmap (const MissingValue) $ AesonPatchedJson <$> jsonParser
+    patchedPayload
   pure $ Aeson { numberIndex, patchedJson }
 
 -------- Stringifying: Aeson -> String
@@ -134,7 +136,9 @@ parseJsonStringToAeson payload = do
 foreign import stringifyAeson_ :: NumberIndex -> AesonPatchedJson -> String
 
 stringifyAeson :: Aeson -> String
-stringifyAeson (Aeson { patchedJson, numberIndex }) = stringifyAeson_ numberIndex patchedJson
+stringifyAeson (Aeson { patchedJson, numberIndex }) = stringifyAeson_
+  numberIndex
+  patchedJson
 
 -------- Json <-> Aeson --------
 
@@ -197,7 +201,12 @@ infix 7 getField as .:
 -- | This function will treat `null` as a value and attempt to decode it into your desired type.
 -- | If you would like to treat `null` values the same as absent values, use
 -- | `getFieldOptional'` (`.:?`) instead.
-getFieldOptional :: forall (a :: Type). DecodeAeson a => Object Aeson -> String -> Either JsonDecodeError (Maybe a)
+getFieldOptional
+  :: forall (a :: Type)
+   . DecodeAeson a
+  => Object Aeson
+  -> String
+  -> Either JsonDecodeError (Maybe a)
 getFieldOptional = getFieldOptional_ decodeAeson
   where
   getFieldOptional_
@@ -219,7 +228,12 @@ infix 7 getFieldOptional as .:!
 -- |
 -- | Use this accessor if the key and value are optional in your object.
 -- | If the key and value are mandatory, use `getField` (`.:`) instead.
-getFieldOptional' :: forall (a :: Type). DecodeAeson a => Object Aeson -> String -> Either JsonDecodeError (Maybe a)
+getFieldOptional'
+  :: forall (a :: Type)
+   . DecodeAeson a
+  => Object Aeson
+  -> String
+  -> Either JsonDecodeError (Maybe a)
 getFieldOptional' = getFieldOptional'_ decodeAeson
   where
   getFieldOptional'_
@@ -241,7 +255,9 @@ infix 7 getFieldOptional' as .:?
 -- | Returns an Aeson available under a sequence of keys in given Aeson.
 -- | If not possible returns JsonDecodeError.
 getNestedAeson :: Aeson -> Array String -> Either JsonDecodeError Aeson
-getNestedAeson asn@(Aeson { numberIndex, patchedJson: AesonPatchedJson pjson }) keys =
+getNestedAeson
+  asn@(Aeson { numberIndex, patchedJson: AesonPatchedJson pjson })
+  keys =
   note (UnexpectedValue $ toStringifiedNumbersJson asn) $
     mkAeson <$> (foldM lookup pjson keys :: Maybe Json)
   where
@@ -290,7 +306,13 @@ caseAeson
 
 constAesonCases :: forall (a :: Type). a -> AesonCases a
 constAesonCases v =
-  { caseObject: c, caseNull: c, caseBoolean: c, caseString: c, caseNumber: c, caseArray: c }
+  { caseObject: c
+  , caseNull: c
+  , caseBoolean: c
+  , caseString: c
+  , caseNumber: c
+  , caseArray: c
+  }
   where
   c :: forall (b :: Type). b -> a
   c = const v
@@ -346,12 +368,14 @@ decodeJsonString = parseJsonStringToAeson >=> decodeAeson
 
 -------- DecodeAeson instances --------
 
-decodeIntegral :: forall a. (String -> Maybe a) -> Aeson -> Either JsonDecodeError a
+decodeIntegral
+  :: forall a. (String -> Maybe a) -> Aeson -> Either JsonDecodeError a
 decodeIntegral parse aeson@(Aeson { numberIndex }) = do
   -- Numbers are replaced by their index in the array.
   ix <- decodeAesonViaJson aeson
   numberStr <- note MissingValue (numberIndex Array.!! ix)
-  note (TypeMismatch $ "Couldn't parse to integral: " <> numberStr) (parse numberStr)
+  note (TypeMismatch $ "Couldn't parse to integral: " <> numberStr)
+    (parse numberStr)
 
 instance DecodeAeson UInt where
   decodeAeson = decodeIntegral UInt.fromString
@@ -377,24 +401,44 @@ instance DecodeAeson Json where
 instance DecodeAeson Aeson where
   decodeAeson = pure
 
-instance (GDecodeAeson row list, RL.RowToList row list) => DecodeAeson (Record row) where
+instance
+  ( GDecodeAeson row list
+  , RL.RowToList row list
+  ) =>
+  DecodeAeson (Record row) where
   decodeAeson json =
     case toObject json of
       Just object -> gDecodeAeson object (Proxy :: Proxy list)
       Nothing -> Left $ TypeMismatch "Object"
 
-else instance (InOneOf b a b, DecodeAeson a, DecodeAeson b) => DecodeAeson (a |+| b) where
+else instance
+  ( InOneOf b a b
+  , DecodeAeson a
+  , DecodeAeson b
+  ) =>
+  DecodeAeson (a |+| b) where
   decodeAeson j =
     asOneOf <$> (decodeAeson j :: Either JsonDecodeError a)
       <|> asOneOf <$> (decodeAeson j :: Either JsonDecodeError b)
 
-else instance (Traversable t, DecodeAeson a, DecodeJson (t Json)) => DecodeAeson (t a) where
+else instance
+  ( Traversable t
+  , DecodeAeson a
+  , DecodeJson (t Json)
+  ) =>
+  DecodeAeson (t a) where
   decodeAeson (Aeson { numberIndex, patchedJson: AesonPatchedJson pJson }) = do
     jsons :: t _ <- map AesonPatchedJson <$> decodeJson pJson
     for jsons (\patchedJson -> decodeAeson (Aeson { patchedJson, numberIndex }))
 
-class GDecodeAeson (row :: Row Type) (list :: RL.RowList Type) | list -> row where
-  gDecodeAeson :: forall proxy. Object Aeson -> proxy list -> Either JsonDecodeError (Record row)
+class
+  GDecodeAeson (row :: Row Type) (list :: RL.RowList Type)
+  | list -> row where
+  gDecodeAeson
+    :: forall proxy
+     . Object Aeson
+    -> proxy list
+    -> Either JsonDecodeError (Record row)
 
 instance GDecodeAeson () RL.Nil where
   gDecodeAeson _ _ = Right {}

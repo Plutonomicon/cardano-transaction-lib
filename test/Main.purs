@@ -51,7 +51,6 @@ interpret spif = do
 
 testPlan :: TestPlanM Unit
 testPlan = do
-  FinalizeTx.suite
   Data.suite
   Aeson.suite
   ByteArrayTest.suite
@@ -64,5 +63,6 @@ testPlan = do
   UsedTxOuts.suite
   -- requires external servers
   -- see README.md
+  FinalizeTx.suite
   AffInterface.suite
   Seabug.suite

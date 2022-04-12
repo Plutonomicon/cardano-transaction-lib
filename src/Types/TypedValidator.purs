@@ -46,7 +46,12 @@ import Types.Transaction (Transaction)
 -- it suffices.
 -- | A typeclass that associates a type standing for a connection type with two
 -- | types, the type of the redeemer and the data script for that connection type.
-class (DatumType a b, RedeemerType a b) <= ValidatorTypes (a :: Type) (b :: Type) | a -> b
+class
+  ( DatumType a b
+  , RedeemerType a b
+  ) <=
+  ValidatorTypes (a :: Type) (b :: Type)
+  | a -> b
 
 -- | The type of the data of this connection type.
 class DatumType (a :: Type) (b :: Type) | a -> b
@@ -122,12 +127,15 @@ instance DecodeJson (TypedValidator a) where
 -- | Generalise the typed validator to one that works with the `PlutusData` type.
 generalise :: forall (a :: Type). TypedValidator a -> TypedValidator Any
 generalise
-  (TypedValidator { validator, validatorHash: vh, forwardingMPS, forwardingMPSHash }) =
+  ( TypedValidator
+      { validator, validatorHash: vh, forwardingMPS, forwardingMPSHash }
+  ) =
   -- we can do this safely because the on-chain validators are untyped, so they always
   -- take 'PlutusData' arguments. The validator script stays the same, so the conversion
   -- from 'PlutusData' to 'a' still takes place, even if it's not reflected in the type
   -- signature anymore.
-  TypedValidator { validator, validatorHash: vh, forwardingMPS, forwardingMPSHash }
+  TypedValidator
+    { validator, validatorHash: vh, forwardingMPS, forwardingMPSHash }
 
 -- | The hash of the validator.
 typedValidatorHash :: forall (a :: Type). TypedValidator a -> ValidatorHash
@@ -144,7 +152,7 @@ forwardingMintingPolicy = _.forwardingMPS <<< unwrap
 
 -- We have a few functions, I'm not sure if we even need these for off chain
 -- code:
--- -- Broken, see below (we need some notion of `applyCode`) https://github.com/Plutonomicon/cardano-browser-tx/issues/24
+-- -- Broken, see below (we need some notion of `applyCode`) https://github.com/Plutonomicon/cardano-transaction-lib/issues/24
 -- -- | Make a `TypedValidator` (with no type constraints) from an untyped
 -- -- |`Validator` script.
 -- unsafeMkTypedValidator :: Scripts.Validator -> Maybe (TypedValidator Any)

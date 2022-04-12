@@ -17,7 +17,6 @@ import Data.Newtype (class Newtype, unwrap)
 import QueryM (QueryM, hashScript)
 import Serialization.Address
   ( Address
-  , BaseAddress
   , NetworkId
   , baseAddressToAddress
   , scriptHashCredential

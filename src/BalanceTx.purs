@@ -123,7 +123,8 @@ instance showGetWalletAddressError :: Show GetWalletAddressError where
 
 data GetWalletCollateralError = CouldNotGetNamiCollateral
 
-derive instance genericGetWalletCollateralError :: Generic GetWalletCollateralError _
+derive instance genericGetWalletCollateralError ::
+  Generic GetWalletCollateralError _
 
 instance showGetWalletCollateralError :: Show GetWalletCollateralError where
   show = genericShow
@@ -154,9 +155,11 @@ instance showAddTxCollateralsError :: Show AddTxCollateralsError where
 
 data GetPublicKeyTransactionInputError = CannotConvertScriptOutputToTxInput
 
-derive instance genericGetPublicKeyTransactionInputError :: Generic GetPublicKeyTransactionInputError _
+derive instance genericGetPublicKeyTransactionInputError ::
+  Generic GetPublicKeyTransactionInputError _
 
-instance showGetPublicKeyTransactionInputError :: Show GetPublicKeyTransactionInputError where
+instance showGetPublicKeyTransactionInputError ::
+  Show GetPublicKeyTransactionInputError where
   show = genericShow
 
 data BalanceTxInsError
@@ -202,7 +205,8 @@ data BalanceNonAdaOutsError
   = InputsCannotBalanceNonAdaTokens
   | BalanceNonAdaOutsCannotMinus CannotMinusError
 
-derive instance genericBalanceNonAdaOutsError :: Generic BalanceNonAdaOutsError _
+derive instance genericBalanceNonAdaOutsError ::
+  Generic BalanceNonAdaOutsError _
 
 instance showBalanceNonAdaOutsError :: Show BalanceNonAdaOutsError where
   show = genericShow
@@ -482,7 +486,9 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
             -- Fees unchanged because we aren't adding a new utxo.
             pure $
               wrap
-                tx { body = wrap txBody { outputs = newOutputs, fee = wrap fees } }
+                tx
+                  { body = wrap txBody { outputs = newOutputs, fee = wrap fees }
+                  }
           Nothing -> do
             -- Create a txBody with the extra output utxo then recalculate fees,
             -- then adjust as necessary if we have sufficient Ada in the input.
@@ -501,7 +507,7 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
                         wrap
                           { address: changeAddr
                           , amount: lovelaceValueOf returnAda
-                          , data_hash: Nothing
+                          , dataHash: Nothing
                           }
                           `Array.cons` txBody.outputs
                     }
@@ -509,7 +515,8 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
               tx' :: Transaction
               tx' = wrap tx { body = txBody' }
 
-            fees'' <- lmap ReturnAdaChangeCalculateMinFee <$> calculateMinFee' tx'
+            fees'' <- lmap ReturnAdaChangeCalculateMinFee <$> calculateMinFee'
+              tx'
             -- fees should increase.
             pure $ fees'' >>= \fees' -> do
               -- New return Ada amount should decrease:
@@ -531,7 +538,10 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
                     $ txBody'
                 pure $
                   wrap
-                    tx { body = wrap txBody { outputs = newOutputs, fee = wrap fees' } }
+                    tx
+                      { body = wrap txBody
+                          { outputs = newOutputs, fee = wrap fees' }
+                      }
               else
                 Left $
                   ReturnAdaChangeError
@@ -560,7 +570,7 @@ calculateMinUtxo txOut = unwrap lovelacePerUTxOWord * utxoEntrySize txOut
       if isAdaOnly outputValue then utxoEntrySizeWithoutVal + coinSize -- 29 in Alonzo
       else utxoEntrySizeWithoutVal
         + size outputValue
-        + dataHashSize txOut'.data_hash
+        + dataHashSize txOut'.dataHash
 
 -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
 -- | Calculates how many words are needed depending on whether the datum is
@@ -685,7 +695,8 @@ balanceTxIns' utxos fees (TxBody txBody) = do
 
   txIns :: Array TransactionInput <-
     lmap
-      ( \(CollectTxInsInsufficientTxInputs insufficientTxInputs) -> insufficientTxInputs
+      ( \(CollectTxInsInsufficientTxInputs insufficientTxInputs) ->
+          insufficientTxInputs
       )
       $ collectTxIns txBody.inputs utxos minSpending
   -- Original code uses Set append which is union. Array unions behave
@@ -707,7 +718,8 @@ collectTxIns originalTxIns utxos value =
   if isSufficient updatedInputs then pure updatedInputs
   else
     Left $ CollectTxInsInsufficientTxInputs $
-      InsufficientTxInputs (Expected value) (Actual $ txInsValue utxos updatedInputs)
+      InsufficientTxInputs (Expected value)
+        (Actual $ txInsValue utxos updatedInputs)
   where
   updatedInputs :: Array TransactionInput
   updatedInputs =
@@ -774,13 +786,18 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
     mintVal :: Value
     mintVal = maybe mempty (mkValue (mkCoin zero) <<< unwrap) txBody.mint
 
-  nonMintedOutputValue <- note (BalanceNonAdaOutsCannotMinus $ CannotMinus $ wrap mintVal)
-    $ outputValue `minus` mintVal
+  nonMintedOutputValue <-
+    note (BalanceNonAdaOutsCannotMinus $ CannotMinus $ wrap mintVal)
+      $ outputValue `minus` mintVal
 
   let (nonMintedAdaOutputValue :: Value) = filterNonAda nonMintedOutputValue
 
-  nonAdaChange <- note (BalanceNonAdaOutsCannotMinus $ CannotMinus $ wrap nonMintedAdaOutputValue)
-    $ filterNonAda inputValue `minus` nonMintedAdaOutputValue
+  nonAdaChange <-
+    note
+      ( BalanceNonAdaOutsCannotMinus $ CannotMinus $ wrap
+          nonMintedAdaOutputValue
+      )
+      $ filterNonAda inputValue `minus` nonMintedAdaOutputValue
 
   let
     -- Useful spies for debugging:
@@ -801,7 +818,7 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
             TransactionOutput
               { address: changeAddr
               , amount: nonAdaChange
-              , data_hash: Nothing
+              , dataHash: Nothing
               } : txOuts
           { no: txOuts'
           , yes: TransactionOutput txOut@{ amount: v } : txOuts

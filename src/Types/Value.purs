@@ -286,7 +286,8 @@ instance Split NonAdaAsset where
       -> These (Map TokenName BigInt) (Map TokenName BigInt)
     splitIntl mp' = Both l r
       where
-      l /\ r = mapThese (\i -> if i <= zero then This (negate i) else That i) mp'
+      l /\ r = mapThese (\i -> if i <= zero then This (negate i) else That i)
+        mp'
 
     npos /\ pos = mapThese splitIntl mp
 
@@ -387,7 +388,7 @@ instance Split Value where
     bimap (flip Value mempty) (flip Value mempty) (split coin)
       <> bimap (Value mempty) (Value mempty) (split nonAdaAsset)
 
--- FIX ME: https://github.com/Plutonomicon/cardano-browser-tx/issues/193
+-- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/193
 -- Because our `Value` is different to Plutus, I wonder if this will become an
 -- issue.
 instance FromData Value where
@@ -464,7 +465,8 @@ unionNonAda
 unionNonAda (NonAdaAsset l) (NonAdaAsset r) =
   let
     combined
-      :: Map CurrencySymbol (These (Map TokenName BigInt) (Map TokenName BigInt))
+      :: Map CurrencySymbol
+           (These (Map TokenName BigInt) (Map TokenName BigInt))
     combined = union l r
 
     unBoth
@@ -477,7 +479,7 @@ unionNonAda (NonAdaAsset l) (NonAdaAsset r) =
   in
     unBoth <$> combined
 
--- Don't export to `Contract` due to https://github.com/Plutonomicon/cardano-browser-tx/issues/193
+-- Don't export to `Contract` due to https://github.com/Plutonomicon/cardano-transaction-lib/issues/193
 -- | Same as `unionWith` but specifically for `NonAdaAsset`
 unionWithNonAda
   :: (BigInt -> BigInt -> BigInt)
@@ -509,7 +511,8 @@ unionWith f (Value (Coin c) na) (Value (Coin c') na') =
 
 -- Based on https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#flattenValue
 -- Flattens non-Ada Value into a list
-flattenNonAdaValue :: NonAdaAsset -> List (CurrencySymbol /\ TokenName /\ BigInt)
+flattenNonAdaValue
+  :: NonAdaAsset -> List (CurrencySymbol /\ TokenName /\ BigInt)
 flattenNonAdaValue (NonAdaAsset nonAdaAsset) = do
   cs /\ m <- toUnfoldable nonAdaAsset
   tn /\ a <- toUnfoldable m

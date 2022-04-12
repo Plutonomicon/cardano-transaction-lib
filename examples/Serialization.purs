@@ -27,7 +27,8 @@ main = do
 txInputFixture1 :: T.TransactionInput
 txInputFixture1 =
   T.TransactionInput
-    { transaction_id: T.TransactionHash $
-        hexToByteArrayUnsafe "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad959996"
+    { transactionId: T.TransactionHash $
+        hexToByteArrayUnsafe
+          "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad959996"
     , index: UInt.fromInt 0
     }

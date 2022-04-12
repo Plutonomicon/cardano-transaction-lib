@@ -1,4 +1,6 @@
 {
+  description = "cardano-transaction-lib";
+
   inputs = {
     flake-compat = {
       url = "github:edolstra/flake-compat";
@@ -172,20 +174,41 @@
       devShell = perSystem (system: (psProjectFor system).devShell);
 
       packages = perSystem (system:
+        let
+          pkgs = nixpkgsFor system;
+          easy-ps = import inputs.easy-purescript-nix { inherit pkgs; };
+          formatting-check = pkgs.runCommand "formatting-check"
+            {
+              nativeBuildInputs = [
+                easy-ps.purs-tidy
+                pkgs.haskellPackages.fourmolu
+                pkgs.nixpkgs-fmt
+              ];
+            }
+            ''
+              cd ${self}
+              purs-tidy check $(find ./* -iregex '.*.purs')
+              fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost \
+                $(find ./server -iregex '.*.hs')
+              nixpkgs-fmt --check ./{flake,default,shell}.nix \
+                 $(find ./nix ./server -iregex '.*.nix')
+              touch $out
+            '';
+          # It might be a good idea to keep this as a separate shell; if you're
+          # working on the PS frontend, it doesn't make a lot of sense to pull
+          # in all of the Haskell dependencies
+          #
+          # This can be used with `nix develop .#hsDevShell
+          hsDevShell = self.hsFlake.${system}.devShell;
+        in
         self.hsFlake.${system}.packages
         // (psProjectFor system).packages
-        # It might be a good idea to keep this as a separate shell; if you're
-        # working on the PS frontend, it doesn't make a lot of sense to pull
-        # in all of the Haskell dependencies
-        #
-        # This can be used with `nix develop .#hsDevShell
-        // { hsDevShell = self.hsFlake.${system}.devShell; }
+        // { inherit formatting-check hsDevShell; }
       );
 
       apps = perSystem (system: {
         inherit
-          (self.hsFlake.${system}.apps)
-          "cardano-browser-tx-server:exe:cardano-browser-tx-server";
+          (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
       });
 
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);

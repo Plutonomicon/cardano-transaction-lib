@@ -20,5 +20,6 @@ import Types.Transaction (Utxo, UtxoM(UtxoM)) as Transaction
 -- | Gets utxos at an (internal) `Address` in terms of (internal) `Transaction.Types`.
 -- | Results may vary depending on `Wallet` type. See `QueryM` for more details
 -- | on wallet variance.
-utxosAt :: forall (r :: Row Type). Address -> Contract r (Maybe Transaction.UtxoM)
+utxosAt
+  :: forall (r :: Row Type). Address -> Contract r (Maybe Transaction.UtxoM)
 utxosAt = wrapContract <<< Utxos.utxosAt

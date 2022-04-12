@@ -273,6 +273,6 @@ exports.newMIRToStakeCredentials = containerHelper => entries =>
         entries);
 
 exports.newMoveInstantaneousRewardsCertificate = mir => () =>
-    lib.Cetificate.new_move_instantaneous_rewards_cert(
+    lib.Certificate.new_move_instantaneous_rewards_cert(
         lib.MoveInstantaneousRewardsCert.new(mir)
     );

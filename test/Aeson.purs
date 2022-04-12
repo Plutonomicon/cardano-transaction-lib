@@ -62,7 +62,8 @@ suite = do
     test "Integer" $ liftEffect do
       let
         expected =
-          Integer $ unsafePartial $ fromJust $ BigInt.fromString "999999999999999999999999"
+          Integer $ unsafePartial $ fromJust $ BigInt.fromString
+            "999999999999999999999999"
       decodeJsonString "999999999999999999999999" `shouldEqual` Right expected
     test "Bytes" $ liftEffect do
       let
@@ -72,13 +73,23 @@ suite = do
     test "List" $ liftEffect do
       let
         expected =
-          List [ Bytes $ hexToByteArrayUnsafe "00FFAA", Integer $ BigInt.fromInt 1 ]
+          List
+            [ Bytes $ hexToByteArrayUnsafe "00FFAA"
+            , Integer $ BigInt.fromInt 1
+            ]
       decodeJsonString "[\"00FFAA\", 1]" `shouldEqual` Right expected
     test "Map #1" $ liftEffect do
       let
         expected =
-          Map (Map.fromFoldable [ Bytes (hexToByteArrayUnsafe "00FFAA") /\ Integer (BigInt.fromInt 1) ])
-      decodeJsonString "{\"map\": [ { \"key\": \"00FFAA\", \"value\": 1 } ] }" `shouldEqual` Right expected
+          Map
+            ( Map.fromFoldable
+                [ Bytes (hexToByteArrayUnsafe "00FFAA") /\ Integer
+                    (BigInt.fromInt 1)
+                ]
+            )
+      decodeJsonString "{\"map\": [ { \"key\": \"00FFAA\", \"value\": 1 } ] }"
+        `shouldEqual` Right
+          expected
     test "Map #2" $ liftEffect do
       let
         input =
@@ -116,33 +127,42 @@ suite = do
       getField asnObj "b" `shouldEqual` Right ([ { b1: "valb" } ])
 
     test "getNestedAeson" $ liftEffect do
-      (getNestedAeson asn [ "c", "c1" ] >>= decodeAeson) `shouldEqual` (Right "valc")
+      (getNestedAeson asn [ "c", "c1" ] >>= decodeAeson) `shouldEqual`
+        (Right "valc")
 
   group "Json <-> Aeson" do
     test "toStringifiedNumbersJson" $ liftEffect do
       let
         asn = unsafePartial $ fromRight $ parseJsonStringToAeson
           "{\"a\":10,\"b\":[{\"b1\":\"valb\"}],\"c\":{\"c1\":\"valc\"}}"
-        expected = "{\"a\":\"10\",\"b\":[{\"b1\":\"valb\"}],\"c\":{\"c1\":\"valc\"}}"
+        expected =
+          "{\"a\":\"10\",\"b\":[{\"b1\":\"valb\"}],\"c\":{\"c1\":\"valc\"}}"
       Json.stringify (toStringifiedNumbersJson asn) `shouldEqual` expected
 
     test "jsonToAeson" $ liftEffect do
       let
         jsn = unsafePartial $ fromRight $ parseJson
           "{\"a\":10,\"b\":[{\"b1\":\"valb\"}],\"c\":{\"c1\":\"valc\"}}"
-        expected = "{\"a\":\"10\",\"b\":[{\"b1\":\"valb\"}],\"c\":{\"c1\":\"valc\"}}"
-      (jsonToAeson jsn # toStringifiedNumbersJson # Json.stringify) `shouldEqual` expected
+        expected =
+          "{\"a\":\"10\",\"b\":[{\"b1\":\"valb\"}],\"c\":{\"c1\":\"valc\"}}"
+      (jsonToAeson jsn # toStringifiedNumbersJson # Json.stringify)
+        `shouldEqual` expected
 
   group "caseAeson" do
     test "caseObject" $ liftEffect do
       let asn = jsonToAeson $ encodeJson { a: 10 }
-      (caseMaybeAeson _ { caseObject = Just <<< flip getField "a" }) asn `shouldEqual` (Just $ Right 10)
+      (caseMaybeAeson _ { caseObject = Just <<< flip getField "a" }) asn
+        `shouldEqual`
+          (Just $ Right 10)
     test "caseArray" $ liftEffect do
       let asn = jsonToAeson $ encodeJson [ 10 ]
-      (caseMaybeAeson _ { caseArray = map decodeAeson <<< head }) asn `shouldEqual` (Just $ Right 10)
+      (caseMaybeAeson _ { caseArray = map decodeAeson <<< head }) asn
+        `shouldEqual`
+          (Just $ Right 10)
     test "caseNumber" $ liftEffect do
       let asn = jsonToAeson $ encodeJson 20222202
-      (caseMaybeAeson _ { caseNumber = Just }) asn `shouldEqual` (Just "20222202")
+      (caseMaybeAeson _ { caseNumber = Just }) asn `shouldEqual`
+        (Just "20222202")
 
   group "Fixture tests for parseJsonStringifyNumbers" $ do
     parseNumbersTests
@@ -162,7 +182,8 @@ fixtureTests = do
   fixtures <- lift2 zip (readFixtures "input/") (readFixtures "expected/")
   for_ fixtures $ mkTest (uncurry testFixture)
   where
-  testFixture :: Tuple FilePath String -> Tuple FilePath String -> Tuple String Boolean
+  testFixture
+    :: Tuple FilePath String -> Tuple FilePath String -> Tuple String Boolean
   testFixture (Tuple inputPath input) (Tuple _expectedPath expected) =
     let
       mkError msg = Tuple (msg <> ": " <> show inputPath) false
@@ -175,7 +196,9 @@ fixtureTests = do
               case Json.decodeJson res :: Either _ (Array String) of
                 Left _ -> mkError "Unable to decode NumberIndex"
                 Right numberStrings ->
-                  if getNumberIndex aeson == numberStrings then Tuple "NumberIndex is correct" true -- success
+                  if getNumberIndex aeson == numberStrings then Tuple
+                    "NumberIndex is correct"
+                    true -- success
                   else mkError "NumberIndex does not match fixture"
         Left err /\ _ -> mkError $ "Failed to parse input JSON: " <> show err
         _ /\ Left err -> mkError $ "Failed to parse expected JSON: " <> show err
@@ -206,10 +229,12 @@ parseBoolAndNullTests = do
   testBoolean "true"
   where
   testNull = testSimpleValue "null" $ \json ->
-    Tuple "jsonTurnNumbersToStrings altered null value" (caseAesonNull false (const true) json)
+    Tuple "jsonTurnNumbersToStrings altered null value"
+      (caseAesonNull false (const true) json)
 
   testBoolean s = testSimpleValue s $ \json ->
-    Tuple "jsonTurnNumbersToStrings altered null value" (caseAesonBoolean false (const true) json)
+    Tuple "jsonTurnNumbersToStrings altered null value"
+      (caseAesonBoolean false (const true) json)
 
 parseNumbersTests :: TestPlanM Unit
 parseNumbersTests = do
@@ -221,7 +246,12 @@ parseNumbersTests = do
   where
   testNumber s = testSimpleValue s $ \aeson -> do
     if length (getNumberIndex aeson) == 0 then
-      Tuple ("parseJsonStringifyNumbers did not change number to string when parsing string: " <> stringifyAeson aeson) false
+      Tuple
+        ( "parseJsonStringifyNumbers did not change number to string when parsing string: "
+            <>
+              stringifyAeson aeson
+        )
+        false
     else Tuple
       ("parseJsonStringifyNumbers changed read number: " <> s <> " -> " <> s)
       (stringifyAeson aeson == s)
@@ -236,8 +266,19 @@ parseStringTests = do
   where
   testString s = testSimpleValue s $ \aeson ->
     caseAesonString
-      (Tuple ("parseJsonStringifyNumbers produced no string when parsing string: " <> stringifyAeson aeson) false)
-      (\decoded -> Tuple ("parseJsonStringifyNumbers changed read string: " <> s <> " -> " <> decoded) (show decoded == s))
+      ( Tuple
+          ( "parseJsonStringifyNumbers produced no string when parsing string: "
+              <> stringifyAeson
+                aeson
+          )
+          false
+      )
+      ( \decoded -> Tuple
+          ( "parseJsonStringifyNumbers changed read string: " <> s <> " -> " <>
+              decoded
+          )
+          (show decoded == s)
+      )
       aeson
 
 caseMaybeAeson
@@ -255,7 +296,9 @@ testSimpleValue s jsonCb = uncurry assertTrue $
   case (parseJson s) of
     Left _ -> Tuple "Invalid json passed to test." false
     Right _ -> case parseJsonStringToAeson s of
-      Left _ -> Tuple ("Argonaut could not parse jsonTurnNumbersToStrings result: " <> s) false
+      Left _ -> Tuple
+        ("Argonaut could not parse jsonTurnNumbersToStrings result: " <> s)
+        false
       Right json -> jsonCb json
 
 testArbitraryAeson :: TestPlanM Unit

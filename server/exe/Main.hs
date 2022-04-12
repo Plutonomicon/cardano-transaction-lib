@@ -24,7 +24,7 @@ main :: IO ()
 main = do
   ServerOptions {port} <- Options.execParser opts
   withStdoutLogger $ \logger -> do
-    putStrLn $ "CBTx server starting on port " <> show port
+    putStrLn $ "CTL server starting on port " <> show port
     runSettings (mkSettings port logger)
       . app
       =<< either die pure
