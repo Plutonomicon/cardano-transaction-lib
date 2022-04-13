@@ -11,13 +11,22 @@ const unpack = obj => {
     return res;
 };
 
-exports.containerHelper = {
+exports._containerHelper = untuple => ({
     // Abstracts away packing array of something into a monomorphic container.
     pack: (container, elements) => {
         const res = container.new();
         elements.forEach(elem => res.add(elem));
         return res;
     },
+    // Abstracts away packing a list of KV-pairs into a map-like structure.
+    packMap: (container, entries) => {
+        const res = container.new();
+        entries.forEach(entry => {
+            const [key, value] = untuple(entry);
+            res.insert(key, value);
+        });
+        return res;
+    },
     unpack,
     unpackFromProperty: prop => obj => unpack(obj[prop]())
-};
+});
