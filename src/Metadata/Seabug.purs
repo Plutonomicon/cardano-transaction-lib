@@ -56,18 +56,18 @@ instance Show SeabugMetadata where
 
 instance ToData SeabugMetadata where
   toData (SeabugMetadata meta) = unsafePartial $ toData $ Map.fromFoldable
-    [ mkKey "727" /\ Map.fromFoldable
+    [ unsafeMkKey "727" /\ Map.fromFoldable
         [ meta.policyId /\ Map.fromFoldable
-            [ mkKey "mintPolicy" /\ toData meta.mintPolicy
-            , mkKey "collectionNftCS" /\ toData meta.collectionNftCS
-            , mkKey "collectionNftTN" /\ toData meta.collectionNftTN
-            , mkKey "lockingScript" /\ toData meta.lockingScript
-            , mkKey "authorPkh" /\ toData meta.authorPkh
-            , mkKey "authorShare" /\ toData meta.authorShare
-            , mkKey "marketplaceScript" /\ toData meta.marketplaceScript
-            , mkKey "marketplaceShare" /\ toData meta.marketplaceShare
-            , mkKey "ownerPkh" /\ toData meta.ownerPkh
-            , mkKey "ownerPrice" /\ toData meta.ownerPrice
+            [ unsafeMkKey "mintPolicy" /\ toData meta.mintPolicy
+            , unsafeMkKey "collectionNftCS" /\ toData meta.collectionNftCS
+            , unsafeMkKey "collectionNftTN" /\ toData meta.collectionNftTN
+            , unsafeMkKey "lockingScript" /\ toData meta.lockingScript
+            , unsafeMkKey "authorPkh" /\ toData meta.authorPkh
+            , unsafeMkKey "authorShare" /\ toData meta.authorShare
+            , unsafeMkKey "marketplaceScript" /\ toData meta.marketplaceScript
+            , unsafeMkKey "marketplaceShare" /\ toData meta.marketplaceShare
+            , unsafeMkKey "ownerPkh" /\ toData meta.ownerPkh
+            , unsafeMkKey "ownerPrice" /\ toData meta.ownerPrice
             ]
         ]
     ]
@@ -175,10 +175,10 @@ instance Show SeabugMetadataDelta where
 
 instance ToData SeabugMetadataDelta where
   toData (SeabugMetadataDelta meta) = unsafePartial $ toData $ Map.fromFoldable
-    [ mkKey "727" /\ Map.fromFoldable
+    [ unsafeMkKey "727" /\ Map.fromFoldable
         [ meta.policyId /\ Map.fromFoldable
-            [ mkKey "ownerPkh" /\ toData meta.ownerPkh
-            , mkKey "ownerPrice" /\ toData meta.ownerPrice
+            [ unsafeMkKey "ownerPkh" /\ toData meta.ownerPkh
+            , unsafeMkKey "ownerPrice" /\ toData meta.ownerPrice
             ]
         ]
     ]
@@ -198,9 +198,12 @@ instance FromData SeabugMetadataDelta where
       }
   fromData _ = Nothing
 
-mkKey :: Partial => String -> PlutusData
-mkKey str = Bytes $ fromJust $ byteArrayFromString str
+mkKey :: String -> Maybe PlutusData
+mkKey str = Bytes <$> byteArrayFromString str
+
+unsafeMkKey :: Partial => String -> PlutusData
+unsafeMkKey = fromJust <<< mkKey
 
 lookupKey
-  :: Partial => String -> Array (PlutusData /\ PlutusData) -> Maybe PlutusData
-lookupKey keyStr = lookup (mkKey keyStr)
+  :: String -> Array (PlutusData /\ PlutusData) -> Maybe PlutusData
+lookupKey keyStr array = mkKey keyStr >>= flip lookup array
