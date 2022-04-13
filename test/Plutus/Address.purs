@@ -6,21 +6,21 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Array ((..), length, zip)
 import Data.Newtype (class Newtype, wrap)
 import Data.UInt (UInt, fromInt)
-import Data.Traversable (traverse_)
-import Partial.Unsafe (unsafePartial)
+import Data.Traversable (for_)
 import Mote (group, test)
-import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
-import Test.Utils (errMaybe)
-import Types.Aliases (Bech32String)
-import Serialization.Hash (ed25519KeyHashFromBech32, scriptHashFromBech32)
-import Serialization.Address (addressFromBech32)
+import Partial.Unsafe (unsafePartial)
 import Plutus.Types.Address (Address) as Plutus
 import Plutus.NativeForeignConvertible (toNativeType, toForeignType)
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
   )
+import Serialization.Hash (ed25519KeyHashFromBech32, scriptHashFromBech32)
+import Serialization.Address (addressFromBech32)
+import Test.Spec.Assertions (shouldEqual)
+import Test.Utils (errMaybe)
+import TestM (TestPlanM)
+import Types.Aliases (Bech32String)
 
 suite :: TestPlanM Unit
 suite = do
@@ -29,7 +29,7 @@ suite = do
       group "Shelley addresses" $ do
         let indices = 0 .. (length addresses - 1)
         let testData = zip (zip addressesBech32 addresses) indices
-        flip traverse_ testData $ \(Tuple (Tuple addrBech32 addr) addrType) ->
+        for_ testData $ \(Tuple (Tuple addrBech32 addr) addrType) ->
           frgnNativeConversionTest addrType addrBech32 addr
 
 --------------------------------------------------------------------------------
@@ -139,5 +139,5 @@ stakingPtr = StakingPtr $
   , certIx: wrapUInt 3
   }
 
-wrapUInt :: forall (t :: Type). (Newtype t UInt) => Int -> t
+wrapUInt :: forall (t :: Type). Newtype t UInt => Int -> t
 wrapUInt = wrap <<< fromInt
