@@ -15,6 +15,7 @@ import Serialization.Types
   , Mint
   , NativeScript
   , PlutusData
+  , Transaction
   , TransactionHash
   , TransactionUnspentOutput
   , TransactionWitnessSet
@@ -28,6 +29,9 @@ class FromBytes a where
 
 instance FromBytes DataHash where
   fromBytes = _fromBytesDataHash maybeFfiHelper
+
+instance FromBytes Transaction where
+  fromBytes = _fromBytesTransaction maybeFfiHelper
 
 instance FromBytes TransactionHash where
   fromBytes = _fromBytesTransactionHash maybeFfiHelper
@@ -64,6 +68,9 @@ foreign import _fromBytesTransactionHash
 
 foreign import _fromBytesPlutusData
   :: MaybeFfiHelper -> ByteArray -> Maybe PlutusData
+
+foreign import _fromBytesTransaction
+  :: MaybeFfiHelper -> ByteArray -> Maybe Transaction
 
 foreign import _fromBytesTransactionUnspentOutput
   :: MaybeFfiHelper -> ByteArray -> Maybe TransactionUnspentOutput

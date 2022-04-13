@@ -16,6 +16,7 @@ const fromBytes = name => helper => bytes => {
 };
 
 exports._fromBytesDataHash = fromBytes('DataHash');
+exports._fromBytesTransaction = fromBytes('Transaction');
 exports._fromBytesTransactionHash = fromBytes('TransactionHash');
 exports._fromBytesPlutusData = fromBytes('PlutusData');
 exports._fromBytesTransactionUnspentOutput = fromBytes('TransactionUnspentOutput');

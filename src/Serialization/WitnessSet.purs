@@ -2,49 +2,25 @@ module Serialization.WitnessSet where
 
 import Prelude
 
+import Contract.Prelude (unwrap)
 import Data.Array as Array
-import Data.Maybe (maybe)
+import Data.Maybe (Maybe, maybe)
 import Data.Traversable (for_, traverse, traverse_)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Exception (throw)
-import FfiHelpers (ContainerHelper, containerHelper)
+import FfiHelpers (ContainerHelper, MaybeFfiHelper, containerHelper, maybeFfiHelper)
 import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.NativeScript (convertNativeScripts)
 import Serialization.PlutusData (convertPlutusData)
-import Types.Scripts (PlutusScript(PlutusScript)) as S
-import Serialization.Types
-  ( BigNum
-  , BootstrapWitness
-  , Ed25519Signature
-  , ExUnits
-  , NativeScripts
-  , PlutusScript
-  , PlutusScripts
-  , PublicKey
-  , Redeemer
-  , Redeemers
-  , RedeemerTag
-  , TransactionWitnessSet
-  , Vkey
-  , Vkeywitness
-  , Vkeywitnesses
-  )
+import Serialization.Types (BigNum, BootstrapWitness, Ed25519Signature, ExUnits, NativeScripts, PlutusScript, PlutusScripts, PublicKey, Redeemer, Redeemers, RedeemerTag, TransactionWitnessSet, Vkey, Vkeywitness, Vkeywitnesses)
+import Serialization.Types (PlutusData) as PDS
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
-import Types.RedeemerTag as Tag
-import Types.Transaction
-  ( BootstrapWitness
-  , Ed25519Signature(Ed25519Signature)
-  , ExUnits
-  , PublicKey(PublicKey)
-  , Redeemer(Redeemer)
-  , TransactionWitnessSet(TransactionWitnessSet)
-  , Vkey(Vkey)
-  , Vkeywitness(Vkeywitness)
-  ) as T
 import Types.PlutusData (PlutusData) as PD
-import Serialization.Types (PlutusData) as PDS
+import Types.RedeemerTag as Tag
+import Types.Scripts (PlutusScript(PlutusScript)) as S
+import Types.Transaction (BootstrapWitness, Ed25519Signature(Ed25519Signature), ExUnits, PublicKey(PublicKey), Redeemer(Redeemer), TransactionWitnessSet(TransactionWitnessSet), Vkey(Vkey), Vkeywitness(Vkeywitness)) as T
 
 setPlutusData :: PDS.PlutusData -> TransactionWitnessSet -> Effect Unit
 setPlutusData pd ws = setWitness _wsSetPlutusData ws pd
@@ -121,6 +97,10 @@ convertBootstrap { vkey, signature, chainCode, attributes } = do
   signature' <- convertEd25519Signature signature
   newBootstrapWitness vkey' signature' chainCode attributes
 
+-- | NOTE: Does JS new object allocation without the Effect monad.
+convertPlutusScriptMaybe :: S.PlutusScript -> Maybe PlutusScript
+convertPlutusScriptMaybe = newPlutusScriptMaybe <<< unwrap
+
 convertPlutusScript :: S.PlutusScript -> Effect PlutusScript
 convertPlutusScript (S.PlutusScript bytes) = do
   newPlutusScript bytes
@@ -153,6 +133,11 @@ foreign import newVkeywitnesses :: Effect Vkeywitnesses
 foreign import newVkeywitness :: Vkey -> Ed25519Signature -> Effect Vkeywitness
 foreign import addVkeywitness :: Vkeywitnesses -> Vkeywitness -> Effect Unit
 foreign import newPlutusScript :: ByteArray -> Effect PlutusScript
+foreign import _newPlutusScriptMaybe :: MaybeFfiHelper -> ByteArray -> Maybe PlutusScript
+
+newPlutusScriptMaybe :: ByteArray -> Maybe PlutusScript
+newPlutusScriptMaybe = _newPlutusScriptMaybe maybeFfiHelper
+
 foreign import newPlutusScripts :: Effect PlutusScripts
 foreign import addPlutusScript :: PlutusScripts -> PlutusScript -> Effect Unit
 foreign import transactionWitnessSetSetVkeys

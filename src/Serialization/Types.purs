@@ -4,6 +4,7 @@ module Serialization.Types
   , BigNum
   , Value
   , AuxiliaryData
+  , AuxiliaryDataHash
   , Transaction
   , TransactionBody
   , Mint
@@ -28,6 +29,7 @@ module Serialization.Types
   , PlutusScripts
   , NativeScript
   , NativeScripts
+  , GeneralTransactionMetadata
   , NetworkId
   , ScriptPubkey
   , ScriptAll
@@ -63,7 +65,11 @@ module Serialization.Types
   , GenesisHash
   , GenesisDelegateHash
   , MoveInstantaneousReward
+  , Withdrawals
   , MIRToStakeCredentials
+  , ProposedProtocolParameterUpdates
+  , ProtocolParamUpdate
+  , Update
   ) where
 
 import Prelude
@@ -74,6 +80,7 @@ foreign import data Bip32PublicKey :: Type
 foreign import data BigNum :: Type
 foreign import data Value :: Type
 foreign import data AuxiliaryData :: Type
+foreign import data AuxiliaryDataHash :: Type
 foreign import data Transaction :: Type
 foreign import data TransactionBody :: Type
 foreign import data Mint :: Type
@@ -98,11 +105,13 @@ foreign import data PlutusScript :: Type
 foreign import data PlutusScripts :: Type
 foreign import data NativeScript :: Type
 foreign import data NativeScripts :: Type
+foreign import data GeneralTransactionMetadata :: Type
 foreign import data NetworkId :: Type
 foreign import data ScriptPubkey :: Type
 foreign import data ScriptAll :: Type
 foreign import data ScriptAny :: Type
 foreign import data ScriptNOfK :: Type
+foreign import data ScriptDataHash :: Type
 foreign import data TimelockStart :: Type
 foreign import data TimelockExpiry :: Type
 foreign import data BootstrapWitnesses :: Type
@@ -119,8 +128,8 @@ foreign import data Costmdls :: Type
 foreign import data CostModel :: Type
 foreign import data Language :: Type
 foreign import data Int32 :: Type
-foreign import data ScriptDataHash :: Type
 foreign import data Certificates :: Type
+foreign import data Withdrawals :: Type
 foreign import data Certificate :: Type
 foreign import data VRFKeyHash :: Type
 foreign import data UnitInterval :: Type
@@ -134,6 +143,9 @@ foreign import data GenesisHash :: Type
 foreign import data GenesisDelegateHash :: Type
 foreign import data MoveInstantaneousReward :: Type
 foreign import data MIRToStakeCredentials :: Type
+foreign import data ProposedProtocolParameterUpdates :: Type
+foreign import data ProtocolParamUpdate :: Type
+foreign import data Update :: Type
 
 instance Show BigNum where
   show = _to_str

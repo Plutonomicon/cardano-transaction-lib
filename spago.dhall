@@ -22,7 +22,6 @@ You can edit this file as you like.
   , "enums"
   , "exceptions"
   , "foldable-traversable"
-  , "foreign"
   , "foreign-object"
   , "gen"
   , "identity"
@@ -58,7 +57,6 @@ You can edit this file as you like.
   , "uint"
   , "undefined"
   , "unfoldable"
-  , "unsafe-coerce"
   , "untagged-union"
   , "enums"
   ]

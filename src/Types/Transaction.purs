@@ -270,7 +270,7 @@ derive newtype instance Monoid Mint
 instance Show Mint where
   show = genericShow
 
-newtype AuxiliaryDataHash = AuxiliaryDataHash String
+newtype AuxiliaryDataHash = AuxiliaryDataHash ByteArray
 
 derive instance Generic AuxiliaryDataHash _
 derive instance Newtype AuxiliaryDataHash _
@@ -300,6 +300,7 @@ newtype GenesisHash = GenesisHash ByteArray
 
 derive instance Newtype GenesisHash _
 derive newtype instance Eq GenesisHash
+derive newtype instance Ord GenesisHash
 derive instance Generic GenesisHash _
 
 instance Show GenesisHash where
