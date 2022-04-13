@@ -7,14 +7,14 @@ import Prelude
 
 import Data.Argonaut (class DecodeJson)
 import Data.Argonaut as Json
-import Data.Array (find)
 import Data.Either (Either(Left), note)
+import Data.Foldable (lookup)
 import Data.Generic.Rep (class Generic)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing), fromJust)
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Tuple (Tuple(Tuple), fst, snd)
+import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import FromData (class FromData, fromData)
 import Metadata.Seabug.Share (Share, mkShare)
@@ -203,4 +203,4 @@ mkKey str = Bytes $ fromJust $ byteArrayFromString str
 
 lookupKey
   :: Partial => String -> Array (PlutusData /\ PlutusData) -> Maybe PlutusData
-lookupKey keyStr array = find (fst >>> (==) (mkKey keyStr)) array <#> snd
+lookupKey keyStr = lookup (mkKey keyStr)

@@ -25,7 +25,6 @@ import Data.Array
   ( any
   , deleteAt
   , filter
-  , find
   , findIndex
   , mapMaybe
   , null
@@ -35,6 +34,7 @@ import Data.Bifunctor (bimap)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Data.Newtype (class Newtype, unwrap)
+import Data.Foldable (lookup) as Foldable
 import Data.Foldable
   ( class Foldable
   , foldlDefault
@@ -102,7 +102,7 @@ instance (Eq k, Semigroup v) => Monoid (Map k v) where
 
 -- | Find an entry in a `Map`.
 lookup :: forall (k :: Type) (v :: Type). Eq k => k -> Map k v -> Maybe v
-lookup k (Map xs) = Array.find (fst >>> (==) k) xs <#> snd
+lookup k (Map xs) = Foldable.lookup k xs
 
 -- | Whether is a key is a member of a `Map`
 member :: forall (k :: Type) (v :: Type). Eq k => k -> Map k v -> Boolean
