@@ -73,7 +73,7 @@ instance ToData SeabugMetadata where
     ]
 
 instance FromData SeabugMetadata where
-  fromData (Map sm) = unsafePartial do
+  fromData sm = unsafePartial do
     policyId /\ contents <- lookupKey "727" sm >>= case _ of
       Map [ policyId /\ contents ] ->
         Tuple <$> fromData policyId <*> fromData contents
@@ -184,7 +184,7 @@ instance ToData SeabugMetadataDelta where
     ]
 
 instance FromData SeabugMetadataDelta where
-  fromData (Map sm) = unsafePartial do
+  fromData sm = unsafePartial do
     policyId /\ contents <- lookupKey "727" sm >>= case _ of
       Map [ policyId /\ contents ] ->
         Tuple <$> fromData policyId <*> fromData contents
@@ -205,5 +205,6 @@ unsafeMkKey :: Partial => String -> PlutusData
 unsafeMkKey = fromJust <<< mkKey
 
 lookupKey
-  :: String -> Array (PlutusData /\ PlutusData) -> Maybe PlutusData
-lookupKey keyStr array = mkKey keyStr >>= flip lookup array
+  :: String -> PlutusData -> Maybe PlutusData
+lookupKey keyStr (Map array) = mkKey keyStr >>= flip lookup array
+lookupKey _ _ = Nothing
