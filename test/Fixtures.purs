@@ -849,7 +849,7 @@ plutusDataFixture5 :: PD.PlutusData
 plutusDataFixture5 = PD.Integer (BigInt.fromInt 42)
 
 plutusDataFixture6 :: PD.PlutusData
-plutusDataFixture6 = PD.Map $ Map.fromFoldable
+plutusDataFixture6 = PD.Map
   [ plutusDataFixture1 /\ plutusDataFixture2
   , plutusDataFixture3 /\ plutusDataFixture4
   ]

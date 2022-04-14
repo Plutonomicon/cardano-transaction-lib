@@ -3,7 +3,6 @@ module Test.Serialization (suite) where
 import Prelude
 
 import Data.BigInt as BigInt
-import Data.Map as Map
 import Data.Maybe (isJust)
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytesEffect)
@@ -51,7 +50,7 @@ suite = do
       test "PlutusData #2 - Map" $ do
         let
           datum =
-            PD.Map $ Map.fromFoldable
+            PD.Map
               [ PD.Integer (BigInt.fromInt 1) /\ PD.Integer (BigInt.fromInt 2)
               , PD.Integer (BigInt.fromInt 3) /\ PD.Integer (BigInt.fromInt 4)
               ]

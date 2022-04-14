@@ -28,7 +28,6 @@ import Data.Argonaut as Json
 import Data.Array (head, length, (!!), zip)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), hush)
-import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just), fromJust, fromMaybe, isJust)
 import Data.Traversable (for_, traverse)
 import Data.Tuple (Tuple(Tuple), uncurry)
@@ -82,11 +81,9 @@ suite = do
       let
         expected =
           Map
-            ( Map.fromFoldable
-                [ Bytes (hexToByteArrayUnsafe "00FFAA") /\ Integer
-                    (BigInt.fromInt 1)
-                ]
-            )
+            [ Bytes (hexToByteArrayUnsafe "00FFAA") /\ Integer
+                (BigInt.fromInt 1)
+            ]
       decodeJsonString "{\"map\": [ { \"key\": \"00FFAA\", \"value\": 1 } ] }"
         `shouldEqual` Right
           expected
@@ -96,7 +93,7 @@ suite = do
           "{\"map\": \
           \ [ { \"key\": \"00FFAA\", \"value\": 1 },\
           \   { \"key\": \"AAAA\", \"value\": 200 } ] }"
-        expected = Map $ Map.fromFoldable
+        expected = Map
           [ Bytes (hexToByteArrayUnsafe "00FFAA") /\ Integer (BigInt.fromInt 1)
           , Bytes (hexToByteArrayUnsafe "AAAA") /\ Integer (BigInt.fromInt 200)
           ]
