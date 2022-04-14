@@ -40,16 +40,22 @@ module Test.Fixtures
   , txInputFixture1
   , seabugMetadataFixture1
   , seabugMetadataDeltaFixture1
+  , cip25MetadataFixture1
+  , cip25MetadataJsonFixture1
   , redeemerFixture1
   ) where
 
 import Prelude
 
+import Data.Argonaut as Json
 import Data.Array as Array
 import Data.BigInt as BigInt
+import Data.Either (fromRight)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.NonEmpty (NonEmpty, (:|))
 import Data.Tuple.Nested ((/\))
+import Data.Traversable (traverse)
 import Data.UInt as UInt
 import Deserialization.FromBytes (fromBytes)
 import Metadata.Seabug
@@ -57,6 +63,11 @@ import Metadata.Seabug
   , SeabugMetadataDelta(SeabugMetadataDelta)
   )
 import Metadata.Seabug.Share (Share, mkShare)
+import Metadata.CIP25
+  ( CIP25Metadata(CIP25Metadata)
+  , CIP25MetadataEntry(CIP25MetadataEntry)
+  , CIP25MetadataFile(CIP25MetadataFile)
+  )
 import Partial.Unsafe (unsafePartial)
 import Serialization.Address
   ( Address
@@ -82,6 +93,7 @@ import Types.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
   , hexToByteArrayUnsafe
+  , byteArrayFromString
   )
 import Types.Int as Int
 import Types.Natural as Natural
@@ -191,6 +203,10 @@ currencySymbol1 = unsafePartial $ fromJust $ mkCurrencySymbol $
 tokenName1 :: TokenName
 tokenName1 = unsafePartial $ fromJust $ mkTokenName $
   hexToByteArrayUnsafe "4974657374546f6b656e"
+
+tokenName2 :: TokenName
+tokenName2 = unsafePartial $ fromJust $ mkTokenName $
+  hexToByteArrayUnsafe "54657374546f6b656e32"
 
 txOutputBinaryFixture1 :: String
 txOutputBinaryFixture1 =
@@ -909,6 +925,96 @@ seabugMetadataDeltaFixture1 = SeabugMetadataDelta
   , ownerPrice: unsafePartial $ fromJust $ Natural.fromBigInt $ BigInt.fromInt
       10
   }
+
+cip25MetadataFilesFixture1 :: Array CIP25MetadataFile
+cip25MetadataFilesFixture1 = CIP25MetadataFile <$>
+  [ { name: unsafePartial $ fromJust $ byteArrayFromString "file_name_1"
+    , mediaType: unsafePartial $ fromJust $ byteArrayFromString "media_type"
+    , uris: unsafePartial $ fromJust $ traverse byteArrayFromString $
+        "uri1" :| [ "uri2", "uri3" ]
+    }
+  , { name: unsafePartial $ fromJust $ byteArrayFromString "file_name_2"
+    , mediaType: unsafePartial $ fromJust $ byteArrayFromString "media_type_2"
+    , uris: unsafePartial $ fromJust $ traverse byteArrayFromString $
+        "uri4" :| [ "uri5", "uri6" ]
+    }
+  ]
+
+cip25MetadataEntryFixture1 :: CIP25MetadataEntry
+cip25MetadataEntryFixture1 = CIP25MetadataEntry
+  { policyId: policyId
+  , assetName: tokenName1
+  , imageUris: unsafePartial $ fromJust $ traverse byteArrayFromString $
+      "image_uri1" :| [ "image_uri2", "image_uri3" ]
+  , mediaType: byteArrayFromString "media_type"
+  , description: unsafePartial $ fromJust $ traverse byteArrayFromString $
+      [ "desc1", "desc2", "desc3" ]
+  , files: cip25MetadataFilesFixture1
+  }
+
+cip25MetadataEntryFixture2 :: CIP25MetadataEntry
+cip25MetadataEntryFixture2 = CIP25MetadataEntry
+  { policyId: policyId
+  , assetName: tokenName2
+  , imageUris: unsafePartial $ fromJust $ traverse byteArrayFromString $
+      "image_uri1" :| []
+  , mediaType: Nothing
+  , description: []
+  , files: []
+  }
+
+cip25MetadataFixture1 :: CIP25Metadata
+cip25MetadataFixture1 = CIP25Metadata
+  [ cip25MetadataEntryFixture1, cip25MetadataEntryFixture2 ]
+
+cip25MetadataJsonFixture1 :: Json.Json
+cip25MetadataJsonFixture1 = fromRight Json.jsonNull $ Json.parseJson $
+  """
+{
+   "721":{
+      "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65":{
+         "ItestToken":{
+            "name":"ItestToken",
+            "image":[
+               "image_uri1",
+               "image_uri2",
+               "image_uri3"
+            ],
+            "mediaType":"media_type",
+            "description":[
+               "desc1",
+               "desc2",
+               "desc3"
+            ],
+            "files":[
+               {
+                  "name":"file_name_1",
+                  "mediaType":"media_type",
+                  "src":[
+                     "uri1",
+                     "uri2",
+                     "uri3"
+                  ]
+               },
+               {
+                  "name":"file_name_2",
+                  "mediaType":"media_type_2",
+                  "src":[
+                     "uri4",
+                     "uri5",
+                     "uri6"
+                  ]
+               }
+            ]
+         },
+         "TestToken2":{
+            "name":"TestToken2",
+            "image":"image_uri1"
+         }
+      }
+   }
+}
+  """
 
 redeemerFixture1 :: Redeemer
 redeemerFixture1 = Redeemer

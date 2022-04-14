@@ -7,25 +7,32 @@ module Metadata.CIP25
 
 import Prelude
 
-import Data.Maybe (Maybe(Nothing))
-import Data.Array (concat, groupBy)
+import Control.Bind (bindFlipped)
+import Data.Argonaut (class DecodeJson, Json, (.:), (.:?))
+import Data.Argonaut as Json
+import Data.Array (uncons, concat, groupBy)
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (head) as NonEmpty
-import Data.NonEmpty (NonEmpty)
-import Data.Map (fromFoldable, singleton) as Map
-import Data.Tuple.Nested ((/\))
+import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
-import Data.Show.Generic (genericShow)
+import Data.Map (fromFoldable, singleton) as Map
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (class Newtype, wrap, unwrap)
-import Data.Traversable (for, sequence)
+import Data.NonEmpty (NonEmpty, (:|))
+import Data.Show.Generic (genericShow)
+import Data.Traversable (for, traverse, sequence)
+import Data.Tuple (Tuple)
+import Data.Tuple.Nested ((/\))
+import Foreign.Object (Object, toUnfoldable) as FO
 import Partial.Unsafe (unsafePartial)
 import FromData (class FromData, fromData)
 import ToData (class ToData, toData)
+import Serialization.Hash (scriptHashFromBytes)
 import Types.Scripts (MintingPolicyHash)
-import Types.Value (TokenName)
-import Types.ByteArray (ByteArray)
+import Types.Value (TokenName, mkTokenName)
+import Types.ByteArray (ByteArray, byteArrayFromString, hexToByteArray)
 import Types.PlutusData (PlutusData(Map))
-import Metadata.Helpers(mkKey, lookupKey)
+import Metadata.Helpers (unsafeMkKey, lookupKey)
 
 nftMetadataLabel :: String
 nftMetadataLabel = "721"
@@ -49,17 +56,32 @@ instance Show CIP25MetadataFile where
 
 instance ToData CIP25MetadataFile where
   toData (CIP25MetadataFile meta) = unsafePartial $ toData $ Map.fromFoldable $
-    [ mkKey "name" /\ toData meta.name
-    , mkKey "mediaType" /\ toData meta.mediaType
-    , mkKey "src" /\ toData meta.uris
+    [ unsafeMkKey "name" /\ toData meta.name
+    , unsafeMkKey "mediaType" /\ toData meta.mediaType
+    , unsafeMkKey "src" /\ toData meta.uris
     ]
 
 instance FromData CIP25MetadataFile where
   fromData contents = unsafePartial do
     name <- lookupKey "name" contents >>= fromData
     mediaType <- lookupKey "mediaType" contents >>= fromData
-    uris <- lookupKey "uris" contents >>= fromData
-    pure $ CIP25MetadataFile { name, mediaType, uris }
+    uris <- lookupKey "src" contents >>= fromData
+    pure $ wrap { name, mediaType, uris }
+
+instance DecodeJson CIP25MetadataFile where
+  decodeJson =
+    Json.caseJsonObject errExpectedObject $ \obj -> do
+      name <- obj .: "name" >>=
+        note errInvalidByteArray
+          <<< decodeByteArray
+      mediaType <- obj .: "mediaType" >>=
+        note errInvalidByteArray
+          <<< decodeByteArray
+      uris <- decodeNonEmptyStringArray =<< obj .: "src"
+      pure $ wrap { name, mediaType, uris }
+    where
+    errInvalidByteArray =
+      Json.TypeMismatch "Invalid ByteArray"
 
 --------------------------------------------------------------------------------
 -- CIP25MetadataEntry
@@ -83,34 +105,46 @@ derive instance Eq CIP25MetadataEntry
 instance Show CIP25MetadataEntry where
   show = genericShow
 
-metadataEntryToData :: CIP25MetadataEntry -> PlutusData
-metadataEntryToData (CIP25MetadataEntry meta) = unsafePartial $ toData $
+metadataEntryToData_ :: CIP25MetadataEntry -> PlutusData
+metadataEntryToData_ (CIP25MetadataEntry meta) = unsafePartial $ toData $
   Map.fromFoldable
-    [ mkKey "name" /\ toData meta.assetName
-    , mkKey "image" /\ toData meta.imageUris
-    , mkKey "mediaType" /\ toData meta.mediaType
-    , mkKey "description" /\ toData meta.description
-    , mkKey "files" /\ toData meta.files
+    [ unsafeMkKey "name" /\ toData meta.assetName
+    , unsafeMkKey "image" /\ toData meta.imageUris
+    , unsafeMkKey "mediaType" /\ toData meta.mediaType
+    , unsafeMkKey "description" /\ toData meta.description
+    , unsafeMkKey "files" /\ toData meta.files
     ]
 
-metadataEntryFromData
+metadataEntryFromData_
   :: MintingPolicyHash
   -> TokenName
   -> PlutusData
   -> Maybe CIP25MetadataEntry
-metadataEntryFromData policyId assetName contents = unsafePartial do
+metadataEntryFromData_ policyId assetName contents = unsafePartial do
   imageUris <- lookupKey "image" contents >>= fromData
   mediaType <- lookupKey "mediaType" contents >>= fromData
   description <- lookupKey "description" contents >>= fromData
   files <- lookupKey "files" contents >>= fromData
-  pure $ CIP25MetadataEntry
-    { policyId
-    , assetName
-    , imageUris
-    , mediaType
-    , description
-    , files
-    }
+  pure $
+    wrap { policyId, assetName, imageUris, mediaType, description, files }
+
+metadataEntryDecodeJson_
+  :: MintingPolicyHash
+  -> TokenName
+  -> Json
+  -> Either Json.JsonDecodeError CIP25MetadataEntry
+metadataEntryDecodeJson_ policyId assetName =
+  Json.caseJsonObject errExpectedObject $ \obj -> do
+    imageUris <- obj .: "image" >>=
+      decodeNonEmptyStringArray
+    mediaType <- obj .:? "mediaType" >>=
+      pure <<< bindFlipped decodeByteArray
+    description <- obj .:? "description" >>=
+      maybe (pure mempty) decodeStringArray
+    files <- obj .:? "files" >>= \arr ->
+      maybe (pure mempty) (traverse Json.decodeJson) (Json.toArray =<< arr)
+    pure $
+      wrap { policyId, assetName, imageUris, mediaType, description, files }
 
 --------------------------------------------------------------------------------
 -- CIP25Metadata
@@ -127,13 +161,13 @@ instance Show CIP25Metadata where
 
 instance ToData CIP25Metadata where
   toData (CIP25Metadata entries) = unsafePartial $ toData
-    $ Map.singleton (mkKey nftMetadataLabel)
+    $ Map.singleton (unsafeMkKey nftMetadataLabel)
     $ Map.fromFoldable
     $ flip map groups
     $ \group ->
         toData (_.policyId $ NonEmpty.head group) /\
           (Map.fromFoldable <<< flip map group) \entry ->
-            toData (entry.assetName) /\ metadataEntryToData (wrap entry)
+            toData (entry.assetName) /\ metadataEntryToData_ (wrap entry)
     where
     groups :: Array (NonEmptyArray CIP25MetadataEntryRecord)
     groups = flip groupBy (unwrap <$> entries) $
@@ -148,9 +182,80 @@ instance FromData CIP25Metadata where
             case assets of
               Map mp2 ->
                 for mp2 $ \(assetName /\ contents) ->
-                  metadataEntryFromData <$> fromData policyId
+                  metadataEntryFromData_ <$> fromData policyId
                     <*> fromData assetName
                     <*> pure contents
               _ -> Nothing
       _ -> Nothing
     wrap <$> sequence entries
+
+instance DecodeJson CIP25Metadata where
+  decodeJson =
+    Json.caseJsonObject errExpectedObject $ \obj -> do
+      policies <- obj .: nftMetadataLabel
+      caseJsonObject policies $ \objPolicies ->
+        map (wrap <<< concat)
+          $ for (objToArray objPolicies)
+          $ \(policyId /\ assets) ->
+              caseJsonObject assets $ \objAssets ->
+                for (objToArray objAssets) $ \(assetName /\ contents) -> do
+                  policyId_ <- decodePolicyId policyId
+                  assetName_ <- decodeAssetName assetName
+                  metadataEntryDecodeJson_ policyId_ assetName_ contents
+    where
+    objToArray :: forall a. FO.Object a -> Array (Tuple String a)
+    objToArray = FO.toUnfoldable
+
+    caseJsonObject
+      :: forall a
+       . Json
+      -> (FO.Object Json -> Either Json.JsonDecodeError a)
+      -> Either Json.JsonDecodeError a
+    caseJsonObject = flip (Json.caseJsonObject errExpectedObject)
+
+    decodePolicyId :: String -> Either Json.JsonDecodeError MintingPolicyHash
+    decodePolicyId =
+      note (Json.TypeMismatch "Expected hex-encoded policy id")
+        <<< map wrap
+        <<< (scriptHashFromBytes <=< hexToByteArray)
+
+    decodeAssetName :: String -> Either Json.JsonDecodeError TokenName
+    decodeAssetName =
+      note (Json.TypeMismatch "Expected UTF-8 encoded asset name")
+        <<< (mkTokenName <=< byteArrayFromString)
+
+--------------------------------------------------------------------------------
+-- Helpers
+--------------------------------------------------------------------------------
+
+errExpectedObject :: forall a. Either Json.JsonDecodeError a
+errExpectedObject =
+  Left (Json.TypeMismatch "Expected object")
+
+errExpectedArray :: forall a. Either Json.JsonDecodeError a
+errExpectedArray =
+  Left (Json.TypeMismatch "Expected array")
+
+errExpectedNonEmptyArray :: forall a. Either Json.JsonDecodeError a
+errExpectedNonEmptyArray =
+  Left (Json.TypeMismatch "Expected non-empty array")
+
+decodeByteArray :: Json -> Maybe ByteArray
+decodeByteArray = byteArrayFromString <=< Json.toString
+
+decodeStringArray
+  :: Json -> Either Json.JsonDecodeError (Array ByteArray)
+decodeStringArray json
+  | Json.isString json =
+      decodeStringArray (Json.jsonSingletonArray json)
+  | otherwise =
+      flip (Json.caseJsonArray errExpectedArray) json $ \arr ->
+        pure $ fromMaybe mempty (traverse decodeByteArray arr)
+
+decodeNonEmptyStringArray
+  :: Json -> Either Json.JsonDecodeError (NonEmpty Array ByteArray)
+decodeNonEmptyStringArray json =
+  decodeStringArray json >>= \arr ->
+    case uncons arr of
+      Just { head, tail } -> pure (head :| tail)
+      Nothing -> errExpectedNonEmptyArray
