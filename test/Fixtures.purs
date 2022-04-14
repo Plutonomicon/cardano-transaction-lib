@@ -45,11 +45,13 @@ module Test.Fixtures
 
 import Prelude
 
+import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
+import Deserialization.FromBytes (fromBytes)
 import Metadata.Seabug
   ( SeabugMetadata(SeabugMetadata)
   , SeabugMetadataDelta(SeabugMetadataDelta)
@@ -60,21 +62,28 @@ import Serialization.Address
   ( Address
   , NetworkId(MainnetId, TestnetId)
   , Slot(Slot)
+  , StakeCredential
   , baseAddress
   , baseAddressToAddress
   , keyHashCredential
+  , rewardAddress
   )
+import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.Hash
   ( Ed25519KeyHash
   , ScriptHash
+  , ed25519KeyHashFromBech32
   , ed25519KeyHashFromBytes
   , scriptHashFromBytes
   )
+import Serialization.Types (BigNum)
+import Types.Aliases (Bech32String)
 import Types.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
   , hexToByteArrayUnsafe
   )
+import Types.Int as Int
 import Types.Natural as Natural
 import Types.PlutusData as PD
 import Types.RedeemerTag (RedeemerTag(Spend))
@@ -84,6 +93,18 @@ import Types.Scripts
   )
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
+  , Epoch(Epoch)
+  , Certificate
+      ( StakeRegistration
+      , StakeDeregistration
+      , StakeDelegation
+      , PoolRegistration
+      , PoolRetirement
+      , GenesisKeyDelegation
+      , MoveInstantaneousRewardsCert
+      )
+  , GenesisHash(GenesisHash)
+  , GenesisDelegateHash(GenesisDelegateHash)
   , Mint(Mint)
   , NativeScript
       ( ScriptPubkey
@@ -103,6 +124,14 @@ import Types.Transaction
   , TxBody(TxBody)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
+  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
+  , Ipv4(Ipv4)
+  , Ipv6(Ipv6)
+  , PoolMetadata(PoolMetadata)
+  , PoolMetadataHash(PoolMetadataHash)
+  , URL(URL)
+  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
+  , MIRToStakeCredentials(MIRToStakeCredentials)
   )
 import Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
@@ -349,6 +378,19 @@ txFixture3 =
     , auxiliaryData: Nothing
     }
 
+pkhBech32 :: Bech32String
+pkhBech32 = "addr_vkh1zuctrdcq6ctd29242w8g84nlz0q38t2lnv3zzfcrfqktx0c9tzp"
+
+stake1 :: StakeCredential
+stake1 = unsafePartial $ fromJust do
+  keyHashCredential <$> ed25519KeyHashFromBech32 pkhBech32
+
+ed25519KeyHash1 :: Ed25519KeyHash
+ed25519KeyHash1 = unsafePartial $ fromJust $ ed25519KeyHashFromBech32 pkhBech32
+
+bigNumOne :: BigNum
+bigNumOne = unsafePartial $ fromJust $ bigNumFromBigInt $ BigInt.fromInt 1
+
 -- txFixture3 + mint
 txFixture4 :: Transaction
 txFixture4 =
@@ -381,7 +423,67 @@ txFixture4 =
             ]
         , fee: Coin $ BigInt.fromInt 177513
         , ttl: Nothing
-        , certs: Nothing
+        , certs: Just
+            [ StakeRegistration stake1
+            , StakeDeregistration stake1
+            , StakeDelegation stake1 ed25519KeyHash1
+            , PoolRegistration
+                { operator: ed25519KeyHash1
+                , vrfKeyhash: unsafePartial $ fromJust $ fromBytes
+                    $ byteArrayFromIntArrayUnsafe
+                    $ Array.replicate 32 0
+                , pledge: bigNumOne
+                , cost: bigNumOne
+                , margin: { numerator: bigNumOne, denominator: bigNumOne }
+                , reward_account: rewardAddress
+                    { network: MainnetId, paymentCred: stake1 }
+                , poolOwners: [ ed25519KeyHash1 ]
+                , relays:
+                    [ SingleHostAddr
+                        { port: Just 8080
+                        , ipv4: Just $ Ipv4 $ byteArrayFromIntArrayUnsafe
+                            [ 127, 0, 0, 1 ]
+                        , ipv6: Just $ Ipv6 $ byteArrayFromIntArrayUnsafe
+                            $ Array.replicate 16 123
+                        }
+                    , SingleHostName
+                        { port: Just 8080
+                        , dnsName: "example.com"
+                        }
+                    , MultiHostName { dnsName: "example.com" }
+                    ]
+                , poolMetadata: Just $ PoolMetadata
+                    { url: URL "https://example.com/"
+                    , hash: PoolMetadataHash $
+                        hexToByteArrayUnsafe
+                          "94b8cac47761c1140c57a48d56ab15d27a842abff041b3798b8618fa84641f5a"
+                    }
+                }
+            , PoolRetirement
+                { poolKeyhash: ed25519KeyHash1
+                , epoch: Epoch one
+                }
+            , GenesisKeyDelegation
+                { genesisHash: GenesisHash $
+                    hexToByteArrayUnsafe
+                      "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
+                , genesisDelegateHash: GenesisDelegateHash $
+                    hexToByteArrayUnsafe
+                      "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
+                , vrfKeyhash: unsafePartial $ fromJust $ fromBytes
+                    $ byteArrayFromIntArrayUnsafe
+                    $ Array.replicate 32 0
+                }
+            , MoveInstantaneousRewardsCert $ ToOtherPot
+                { pot: one
+                , amount: bigNumOne
+                }
+            , MoveInstantaneousRewardsCert $ ToStakeCreds
+                { pot: one
+                , amounts: MIRToStakeCredentials $ Map.fromFoldable
+                    [ stake1 /\ Int.newPositive bigNumOne ]
+                }
+            ]
         , withdrawals: Nothing
         , update: Nothing
         , auxiliaryDataHash: Nothing
@@ -431,7 +533,7 @@ txBinaryFixture3 =
 
 txBinaryFixture4 :: String
 txBinaryFixture4 =
-  "84a500818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001828258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a0023e8fa8258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a000f4240021a0002b56909a1581c1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e010f01a0f5f6"
+  "84a600818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001828258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a0023e8fa8258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a000f4240021a0002b569048882008200581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb382018200581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb383028200581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb3581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb38a03581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb3582000000000000000000000000000000000000000000000000000000000000000000101d81e820101581de11730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb381581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb3838400191f90447f000001507b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b8301191f906b6578616d706c652e636f6d82026b6578616d706c652e636f6d827468747470733a2f2f6578616d706c652e636f6d2f582094b8cac47761c1140c57a48d56ab15d27a842abff041b3798b8618fa84641f5a8304581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb3018405581c5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65581c5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f6558200000000000000000000000000000000000000000000000000000000000000000820682010182068201a18200581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb30109a1581c1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e010f01a0f5f6"
 
 utxoFixture1 :: ByteArray
 utxoFixture1 = hexToByteArrayUnsafe
@@ -747,7 +849,7 @@ plutusDataFixture5 :: PD.PlutusData
 plutusDataFixture5 = PD.Integer (BigInt.fromInt 42)
 
 plutusDataFixture6 :: PD.PlutusData
-plutusDataFixture6 = PD.Map $ Map.fromFoldable
+plutusDataFixture6 = PD.Map
   [ plutusDataFixture1 /\ plutusDataFixture2
   , plutusDataFixture3 /\ plutusDataFixture4
   ]

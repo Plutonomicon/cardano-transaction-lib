@@ -1,17 +1,22 @@
 module Metadata.Helpers
   ( mkKey
+  , unsafeMkKey
   , lookupKey
   ) where
 
 import Prelude
 
-import Data.Maybe (Maybe, fromJust)
-import Data.Map (Map, lookup)
+import Data.Maybe (Maybe(Nothing), fromJust)
+import Data.Foldable (lookup)
 import Types.ByteArray (byteArrayFromString)
-import Types.PlutusData (PlutusData(Bytes))
+import Types.PlutusData (PlutusData(Map, Bytes))
 
-mkKey :: Partial => String -> PlutusData
-mkKey str = Bytes $ fromJust $ byteArrayFromString str
+mkKey :: String -> Maybe PlutusData
+mkKey str = Bytes <$> byteArrayFromString str
 
-lookupKey :: Partial => String -> Map PlutusData PlutusData -> Maybe PlutusData
-lookupKey keyStr = lookup (mkKey keyStr)
+unsafeMkKey :: Partial => String -> PlutusData
+unsafeMkKey = fromJust <<< mkKey
+
+lookupKey :: String -> PlutusData -> Maybe PlutusData
+lookupKey keyStr (Map array) = mkKey keyStr >>= flip lookup array
+lookupKey _ _ = Nothing

@@ -195,7 +195,7 @@ instance (ToData a, ToData b) => ToData (Tuple a b) where
   toData (Tuple a b) = Constr zero [ toData a, toData b ]
 
 instance (ToData k, ToData v) => ToData (Map k v) where
-  toData mp = Map $ entries # map (toData *** toData) # Map.fromFoldable
+  toData mp = Map $ entries # map (toData *** toData)
     where
     entries = Map.toUnfoldable mp :: Array (k /\ v)
 

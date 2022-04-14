@@ -6,13 +6,13 @@ module Metadata.CIP25
   ) where
 
 import Prelude
+
 import Data.Maybe (Maybe(Nothing))
 import Data.Array (concat, groupBy)
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (head) as NonEmpty
 import Data.NonEmpty (NonEmpty)
-import Data.Map (Map, fromFoldable, toUnfoldable, singleton) as Map
-import Data.Tuple (Tuple)
+import Data.Map (fromFoldable, singleton) as Map
 import Data.Tuple.Nested ((/\))
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
@@ -55,12 +55,11 @@ instance ToData CIP25MetadataFile where
     ]
 
 instance FromData CIP25MetadataFile where
-  fromData (Map contents) = unsafePartial do
+  fromData contents = unsafePartial do
     name <- lookupKey "name" contents >>= fromData
     mediaType <- lookupKey "mediaType" contents >>= fromData
     uris <- lookupKey "uris" contents >>= fromData
     pure $ CIP25MetadataFile { name, mediaType, uris }
-  fromData _ = Nothing
 
 --------------------------------------------------------------------------------
 -- CIP25MetadataEntry
@@ -99,7 +98,7 @@ metadataEntryFromData
   -> TokenName
   -> PlutusData
   -> Maybe CIP25MetadataEntry
-metadataEntryFromData policyId assetName (Map contents) = unsafePartial do
+metadataEntryFromData policyId assetName contents = unsafePartial do
   imageUris <- lookupKey "image" contents >>= fromData
   mediaType <- lookupKey "mediaType" contents >>= fromData
   description <- lookupKey "description" contents >>= fromData
@@ -112,7 +111,6 @@ metadataEntryFromData policyId assetName (Map contents) = unsafePartial do
     , description
     , files
     }
-metadataEntryFromData _ _ _ = Nothing
 
 --------------------------------------------------------------------------------
 -- CIP25Metadata
@@ -142,21 +140,17 @@ instance ToData CIP25Metadata where
       \a b -> a.policyId == b.policyId
 
 instance FromData CIP25Metadata where
-  fromData (Map meta) = unsafePartial $ do
+  fromData meta = unsafePartial $ do
     entries <- lookupKey nftMetadataLabel meta >>= case _ of
       Map mp1 -> map concat
-        $ for (assocs mp1)
+        $ for mp1
         $ \(policyId /\ assets) ->
             case assets of
               Map mp2 ->
-                for (assocs mp2) $ \(assetName /\ contents) ->
+                for mp2 $ \(assetName /\ contents) ->
                   metadataEntryFromData <$> fromData policyId
                     <*> fromData assetName
                     <*> pure contents
               _ -> Nothing
       _ -> Nothing
     wrap <$> sequence entries
-    where
-    assocs :: forall k v. Map.Map k v -> Array (Tuple k v)
-    assocs = Map.toUnfoldable
-  fromData _ = Nothing

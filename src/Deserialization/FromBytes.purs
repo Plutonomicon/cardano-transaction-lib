@@ -18,6 +18,7 @@ import Serialization.Types
   , TransactionHash
   , TransactionUnspentOutput
   , TransactionWitnessSet
+  , VRFKeyHash
   )
 import Types.ByteArray (ByteArray)
 
@@ -46,6 +47,9 @@ instance FromBytes NativeScript where
 instance FromBytes Mint where
   fromBytes = _fromBytesMint maybeFfiHelper
 
+instance FromBytes VRFKeyHash where
+  fromBytes = _fromBytesVRFKeyHash maybeFfiHelper
+
 fromBytesEffect :: forall (a :: Type). FromBytes a => ByteArray -> Effect a
 fromBytesEffect bytes =
   case fromBytes bytes of
@@ -70,4 +74,8 @@ foreign import _fromBytesTransactionWitnessSet
 foreign import _fromBytesNativeScript
   :: MaybeFfiHelper -> ByteArray -> Maybe NativeScript
 
-foreign import _fromBytesMint :: MaybeFfiHelper -> ByteArray -> Maybe Mint
+foreign import _fromBytesMint
+  :: MaybeFfiHelper -> ByteArray -> Maybe Mint
+
+foreign import _fromBytesVRFKeyHash
+  :: MaybeFfiHelper -> ByteArray -> Maybe VRFKeyHash

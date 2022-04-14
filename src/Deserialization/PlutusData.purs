@@ -5,7 +5,6 @@ module Deserialization.PlutusData
 import Prelude
 
 import Control.Alt ((<|>))
-import Data.Map as Map
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
@@ -54,7 +53,7 @@ convertPlutusMap pd = do
         k' <- convertPlutusData k
         v' <- convertPlutusData v
         pure (k' /\ v')
-  pure $ T.Map $ Map.fromFoldable entries
+  pure $ T.Map entries
 
 convertPlutusList :: PlutusData -> Maybe T.PlutusData
 convertPlutusList pd = T.List <$> do

@@ -11,18 +11,17 @@ import Data.Argonaut.Decode (JsonDecodeError(UnexpectedValue))
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
-import Data.Map (Map)
-import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for)
+import Data.Tuple (Tuple)
 import Data.Tuple.Nested ((/\))
 import Types.ByteArray (ByteArray, hexToByteArray)
 
 -- Doesn't distinguish "BuiltinData" and "Data" like Plutus:
 data PlutusData
   = Constr BigInt (Array PlutusData)
-  | Map (Map PlutusData PlutusData)
+  | Map (Array (Tuple PlutusData PlutusData))
   | List (Array PlutusData)
   | Integer BigInt
   | Bytes ByteArray
@@ -56,7 +55,7 @@ instance DecodeAeson PlutusData where
         key <- entryJson .: "key"
         value <- entryJson .: "value"
         pure $ key /\ value
-      pure $ Map (Map.fromFoldable kvs)
+      pure $ Map kvs
 
     decodeList :: Either JsonDecodeError PlutusData
     decodeList = do
