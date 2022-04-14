@@ -18,6 +18,7 @@ import Data.Show.Generic (genericShow)
 import Control.Alternative ((<|>), guard)
 import Data.Array (uncons)
 import Data.Array as Array
+import Data.NonEmpty (NonEmpty(NonEmpty))
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), hush, note)
@@ -230,6 +231,11 @@ instance FromData UInt where
 
 instance FromData a => FromData (Array a) where
   fromData = fromDataUnfoldable
+
+instance FromData a => FromData (NonEmpty Array a) where
+  fromData d = do
+    { head, tail } <- Array.uncons =<< fromData d
+    pure $ NonEmpty head tail
 
 instance FromData a => FromData (List a) where
   fromData = fromDataUnfoldable

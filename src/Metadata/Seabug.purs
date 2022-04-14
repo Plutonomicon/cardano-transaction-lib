@@ -22,15 +22,15 @@ import ToData (class ToData, toData)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Types.ByteArray
   ( ByteArray
-  , byteArrayFromString
   , hexToByteArray
   , hexToByteArrayUnsafe
   )
 import Types.Natural (Natural)
-import Types.PlutusData (PlutusData(Bytes, Map))
+import Types.PlutusData (PlutusData(Map))
 import Types.Scripts (MintingPolicyHash, ValidatorHash)
 import Types.UnbalancedTransaction (PubKeyHash)
 import Types.Value (CurrencySymbol, TokenName, mkTokenName, mkCurrencySymbol)
+import Metadata.Helpers (mkKey, lookupKey)
 
 newtype SeabugMetadata = SeabugMetadata
   { policyId :: MintingPolicyHash
@@ -200,10 +200,3 @@ instance FromData SeabugMetadataDelta where
       , ownerPrice
       }
   fromData _ = Nothing
-
-mkKey :: Partial => String -> PlutusData
-mkKey str = Bytes $ fromJust $ byteArrayFromString str
-
-lookupKey
-  :: Partial => String -> Map.Map PlutusData PlutusData -> Maybe PlutusData
-lookupKey keyStr = Map.lookup (mkKey keyStr)

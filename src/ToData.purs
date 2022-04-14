@@ -15,6 +15,7 @@ import Prelude
 import ConstrIndices (class HasConstrIndices, constrIndices)
 import Data.Array (cons)
 import Data.Array as Array
+import Data.NonEmpty (NonEmpty)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
@@ -184,6 +185,9 @@ instance ToData UInt where
 instance ToData a => ToData (Array a) where
   toData = List <<< map toData
 
+instance (Foldable f, ToData a) => ToData (NonEmpty f a) where
+  toData = foldableToPlutusData
+
 instance ToData a => ToData (List a) where
   toData = foldableToPlutusData
 
@@ -213,4 +217,3 @@ foldableToPlutusData
   => t a
   -> PlutusData
 foldableToPlutusData = Array.fromFoldable >>> map toData >>> List
-
