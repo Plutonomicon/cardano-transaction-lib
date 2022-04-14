@@ -24,7 +24,6 @@ import Prelude
 
 import Control.Alt (class Alt, alt)
 import Data.Either (Either, either, hush)
-import Data.Log.Formatter.Pretty (prettyFormatter)
 import Data.Log.Level (LogLevel(Error))
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just), maybe)
@@ -54,8 +53,8 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Class.Console (log)
 import Effect.Exception (Error, throw)
+import Helpers (logWithLevel)
 import QueryM (QueryM, QueryMExtended, QueryConfig)
 import QueryM
   ( DatumCacheListeners
@@ -213,7 +212,7 @@ runContract
 runContract config = flip runLoggerT printLog <<< flip runReaderT cfg <<< unwrap
   where
   printLog :: Message -> Aff Unit
-  printLog m = when (m.level >= cfg.logLevel) $ log =<< prettyFormatter m
+  printLog = logWithLevel cfg.logLevel
 
   cfg :: QueryConfig r
   cfg = unwrap config
@@ -231,9 +230,9 @@ runContract_ config = void <<< runContract config
 defaultContractConfig :: Aff DefaultContractConfig
 defaultContractConfig = do
   wallet <- Just <$> mkNamiWalletAff
-  ogmiosWs <- QueryM.mkOgmiosWebSocketAff QueryM.defaultOgmiosWsConfig
+  ogmiosWs <- QueryM.mkOgmiosWebSocketAff logLevel QueryM.defaultOgmiosWsConfig
   datumCacheWs <-
-    QueryM.mkDatumCacheWebSocketAff QueryM.defaultDatumCacheWsConfig
+    QueryM.mkDatumCacheWebSocketAff logLevel QueryM.defaultDatumCacheWsConfig
   usedTxOuts <- newUsedTxOuts
   pure $ ContractConfig
     { ogmiosWs
@@ -243,8 +242,11 @@ defaultContractConfig = do
     , usedTxOuts
     , networkId: TestnetId
     , slotConfig: Interval.defaultSlotConfig
-    , logLevel: Error
+    , logLevel
     }
+  where
+  logLevel :: LogLevel
+  logLevel = Error
 
 -- | Same as `defaultContractConfig` but lifted into `Contract`.
 defaultContractConfigLifted
