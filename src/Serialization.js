@@ -267,12 +267,16 @@ exports.newMoveInstantaneousRewardToOtherPot = pot => amount => () =>
 exports.newMoveInstantaneousRewardToStakeCreds = pot => amounts => () =>
     lib.MoveInstantaneousReward.new_to_stake_creds(pot, amounts);
 
-exports.newMIRToStakeCredentials = containerHelper => entries =>
-    () => containerHelper.packMap(
-        lib.MIRToStakeCredentials,
-        entries);
+exports.newMIRToStakeCredentials = containerHelper => entries => () =>
+    containerHelper.packMap(lib.MIRToStakeCredentials, entries);
 
 exports.newMoveInstantaneousRewardsCertificate = mir => () =>
     lib.Certificate.new_move_instantaneous_rewards_cert(
         lib.MoveInstantaneousRewardsCert.new(mir)
     );
+
+exports.newWithdrawals = containerHelper => entries => () =>
+    containerHelper.packMap(lib.Withdrawals, entries);
+
+exports.setTxBodyWithdrawals = txBody => withdrawals => () =>
+    txBody.set_withdrawals(withdrawals);

@@ -16,7 +16,8 @@ import Data.Map as Map
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse_, for_, for)
-import Data.Tuple.Nested (type (/\))
+import Data.Tuple (Tuple(Tuple))
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Deserialization.FromBytes (fromBytes, fromBytesEffect)
@@ -71,6 +72,7 @@ import Serialization.Types
   , Value
   , Vkey
   , Vkeywitnesses
+  , Withdrawals
   , PlutusScript
   , Vkeywitness
   , UnitInterval
@@ -275,6 +277,14 @@ foreign import newMoveInstantaneousRewardsCertificate
 foreign import setTxBodyCollateral
   :: TransactionBody -> TransactionInputs -> Effect Unit
 
+foreign import newWithdrawals
+  :: ContainerHelper
+  -> Array (RewardAddress /\ BigNum)
+  -> Effect Withdrawals
+
+foreign import setTxBodyWithdrawals
+  :: TransactionBody -> Withdrawals -> Effect Unit
+
 foreign import toBytes
   :: ( Transaction
          |+| TransactionOutput
@@ -300,11 +310,19 @@ convertTransaction (T.Transaction { body: T.TxBody body, witnessSet }) = do
   traverse_
     (unwrap >>> newScriptDataHashFromBytes >=> setTxBodyScriptDataHash txBody)
     body.scriptDataHash
+  for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
   for_ body.mint $ convertMint >=> setTxBodyMint txBody
   for_ body.certs $ convertCerts >=> setTxBodyCerts txBody
   for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
   ws <- convertWitnessSet witnessSet
   newTransaction txBody ws
+
+convertWithdrawals :: Map.Map RewardAddress Value.Coin -> Effect Withdrawals
+convertWithdrawals mp =
+  newWithdrawals containerHelper =<< do
+    for (Map.toUnfoldable mp) \(k /\ Value.Coin v) -> do
+      Tuple k <$> fromJustEff "convertWithdrawals: Failed to convert BigNum"
+        (bigNumFromBigInt v)
 
 convertCerts :: Array T.Certificate -> Effect Certificates
 convertCerts certs = do
