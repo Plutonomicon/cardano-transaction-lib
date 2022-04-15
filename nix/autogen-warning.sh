@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 msg=$(
-    cat <<EOF
+  cat <<EOF
 /*
                                 **WARNING**
 
@@ -30,6 +30,6 @@ For JS dependencies:
 EOF
 )
 
-for file in spago-packages.nix node-packages.nix node2nix.nix node-env.nix; do
-    printf '%s\n' "$msg" "$(cat $file)" >"$file"
+for file in spago-packages.nix; do
+  printf '%s\n' "$msg" "$(cat $file)" >"$file"
 done
