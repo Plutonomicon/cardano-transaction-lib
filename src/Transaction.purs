@@ -8,6 +8,7 @@ module Transaction
 
 import Prelude
 
+import Contract.Prelude (traverse)
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Data.Either (Either(Right), note)
 import Data.Generic.Rep (class Generic)

@@ -1,15 +1,22 @@
 module Deserialization.FromBytes
   ( class FromBytes
+  , FromBytesError
+  , _fromBytesError
+  , fromBytesError
+  , fromBytes'
   , fromBytes
   , fromBytesEffect
   ) where
 
 import Prelude
 
+import Contract.Prelude (Either(..), hush)
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Variant (inj)
 import Effect (Effect)
 import Effect.Exception (throw)
-import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import Error (E)
+import FfiHelpers (ErrorFfiHelper, errorHelper)
 import Serialization.Types
   ( DataHash
   , Mint
@@ -21,38 +28,45 @@ import Serialization.Types
   , TransactionWitnessSet
   , VRFKeyHash
   )
+import Type.Prelude (Proxy(..))
+import Type.Row (type (+))
 import Types.ByteArray (ByteArray)
 
 -- | Calls `from_bytes` method for the appropriate type
 class FromBytes a where
-  fromBytes :: ByteArray -> Maybe a
+  fromBytes' :: forall r. ByteArray -> E (FromBytesError + r) a
 
 instance FromBytes DataHash where
-  fromBytes = _fromBytesDataHash maybeFfiHelper
+  fromBytes' = _fromBytesDataHash (eh "DataHash")
 
 instance FromBytes Transaction where
-  fromBytes = _fromBytesTransaction maybeFfiHelper
+  fromBytes' = _fromBytesTransaction (eh "Transaction")
 
 instance FromBytes TransactionHash where
-  fromBytes = _fromBytesTransactionHash maybeFfiHelper
+  fromBytes' = _fromBytesTransactionHash (eh "TransactionHash")
 
 instance FromBytes PlutusData where
-  fromBytes = _fromBytesPlutusData maybeFfiHelper
+  fromBytes' = _fromBytesPlutusData (eh "PlutusData")
 
 instance FromBytes TransactionUnspentOutput where
-  fromBytes = _fromBytesTransactionUnspentOutput maybeFfiHelper
+  fromBytes' = _fromBytesTransactionUnspentOutput
+    (eh "TransactionUnspentOutput")
 
 instance FromBytes TransactionWitnessSet where
-  fromBytes = _fromBytesTransactionWitnessSet maybeFfiHelper
+  fromBytes' = _fromBytesTransactionWitnessSet (eh "TransactionWitnessSet")
 
 instance FromBytes NativeScript where
-  fromBytes = _fromBytesNativeScript maybeFfiHelper
+  fromBytes' = _fromBytesNativeScript (eh "NativeScript")
 
 instance FromBytes Mint where
-  fromBytes = _fromBytesMint maybeFfiHelper
+  fromBytes' = _fromBytesMint (eh "Mint")
 
 instance FromBytes VRFKeyHash where
-  fromBytes = _fromBytesVRFKeyHash maybeFfiHelper
+  fromBytes' = _fromBytesVRFKeyHash (eh "VRFKeyHash")
+
+-- for backward compatibility until `Maybe` is abandoned. Then to be renamed.
+fromBytes :: forall (a :: Type). FromBytes a => ByteArray -> Maybe a
+fromBytes = fromBytes' >>> hush
 
 fromBytesEffect :: forall (a :: Type). FromBytes a => ByteArray -> Effect a
 fromBytesEffect bytes =
@@ -60,29 +74,50 @@ fromBytesEffect bytes =
     Nothing -> throw "from_bytes() call failed"
     Just a -> pure a
 
+---- Error types
+
+-- | FromBytesError row alias
+type FromBytesError r = (fromBytesError :: String | r)
+
+-- | Needed to craate a variant type
+_fromBytesError = Proxy :: Proxy "fromBytesError"
+
+-- | An error to use
+fromBytesError
+  :: forall (r :: Row Type) (a :: Type)
+   . String
+  -> E (FromBytesError + r) a
+fromBytesError = Left <<< inj _fromBytesError
+
+-- | A local helper to shorten code
+eh :: forall r. String -> ErrorFfiHelper (FromBytesError + r)
+eh = errorHelper <<< inj _fromBytesError
+
+---- Foreign imports
+
 foreign import _fromBytesDataHash
-  :: MaybeFfiHelper -> ByteArray -> Maybe DataHash
+  :: forall r. ErrorFfiHelper r -> ByteArray -> E r DataHash
 
 foreign import _fromBytesTransactionHash
-  :: MaybeFfiHelper -> ByteArray -> Maybe TransactionHash
+  :: forall r. ErrorFfiHelper r -> ByteArray -> E r TransactionHash
 
 foreign import _fromBytesPlutusData
-  :: MaybeFfiHelper -> ByteArray -> Maybe PlutusData
+  :: forall r. ErrorFfiHelper r -> ByteArray -> E r PlutusData
 
 foreign import _fromBytesTransaction
-  :: MaybeFfiHelper -> ByteArray -> Maybe Transaction
+  :: forall r. ErrorFfiHelper r -> ByteArray -> E r Transaction
 
 foreign import _fromBytesTransactionUnspentOutput
-  :: MaybeFfiHelper -> ByteArray -> Maybe TransactionUnspentOutput
+  :: forall r. ErrorFfiHelper r -> ByteArray -> E r TransactionUnspentOutput
 
 foreign import _fromBytesTransactionWitnessSet
-  :: MaybeFfiHelper -> ByteArray -> Maybe TransactionWitnessSet
+  :: forall r. ErrorFfiHelper r -> ByteArray -> E r TransactionWitnessSet
 
 foreign import _fromBytesNativeScript
-  :: MaybeFfiHelper -> ByteArray -> Maybe NativeScript
+  :: forall r. ErrorFfiHelper r -> ByteArray -> E r NativeScript
 
 foreign import _fromBytesMint
-  :: MaybeFfiHelper -> ByteArray -> Maybe Mint
+  :: forall r. ErrorFfiHelper r -> ByteArray -> E r Mint
 
 foreign import _fromBytesVRFKeyHash
-  :: MaybeFfiHelper -> ByteArray -> Maybe VRFKeyHash
+  :: forall r. ErrorFfiHelper r -> ByteArray -> E r VRFKeyHash

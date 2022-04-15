@@ -63,6 +63,7 @@ exports.ed25519KeyHashToBytes = hashToBytes;
 exports.ed25519KeyHashToBech32Unsafe = hashToBech32Unsafe;
 exports._ed25519KeyHashToBech32Impl = hashToBech32Impl;
 
+exports.scriptHashAsBytes = h => h;
 exports.scriptHashToBytes = hashToBytes;
 exports.scriptHashToBech32Unsafe = hashToBech32Unsafe;
 exports._scriptHashToBech32Impl = hashToBech32Impl;

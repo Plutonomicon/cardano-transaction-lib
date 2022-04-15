@@ -14,9 +14,11 @@ You can edit this file as you like.
   , "arrays"
   , "bifunctors"
   , "bigints"
+  , "checked-exceptions"
   , "console"
   , "const"
   , "control"
+  , "debug"
   , "effect"
   , "either"
   , "enums"
@@ -58,7 +60,7 @@ You can edit this file as you like.
   , "undefined"
   , "unfoldable"
   , "untagged-union"
-  , "enums"
+  , "variant"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs", "examples/**/*.purs" ]

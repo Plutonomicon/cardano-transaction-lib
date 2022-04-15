@@ -9,18 +9,48 @@ import Data.Traversable (for_, traverse, traverse_)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Exception (throw)
-import FfiHelpers (ContainerHelper, MaybeFfiHelper, containerHelper, maybeFfiHelper)
+import FfiHelpers
+  ( ContainerHelper
+  , MaybeFfiHelper
+  , containerHelper
+  , maybeFfiHelper
+  )
 import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.NativeScript (convertNativeScripts)
 import Serialization.PlutusData (convertPlutusData)
-import Serialization.Types (BigNum, BootstrapWitness, Ed25519Signature, ExUnits, NativeScripts, PlutusScript, PlutusScripts, PublicKey, Redeemer, Redeemers, RedeemerTag, TransactionWitnessSet, Vkey, Vkeywitness, Vkeywitnesses)
+import Serialization.Types
+  ( BigNum
+  , BootstrapWitness
+  , Ed25519Signature
+  , ExUnits
+  , NativeScripts
+  , PlutusScript
+  , PlutusScripts
+  , PublicKey
+  , Redeemer
+  , Redeemers
+  , RedeemerTag
+  , TransactionWitnessSet
+  , Vkey
+  , Vkeywitness
+  , Vkeywitnesses
+  )
 import Serialization.Types (PlutusData) as PDS
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData) as PD
 import Types.RedeemerTag as Tag
 import Types.Scripts (PlutusScript(PlutusScript)) as S
-import Types.Transaction (BootstrapWitness, Ed25519Signature(Ed25519Signature), ExUnits, PublicKey(PublicKey), Redeemer(Redeemer), TransactionWitnessSet(TransactionWitnessSet), Vkey(Vkey), Vkeywitness(Vkeywitness)) as T
+import Types.Transaction
+  ( BootstrapWitness
+  , Ed25519Signature(Ed25519Signature)
+  , ExUnits
+  , PublicKey(PublicKey)
+  , Redeemer(Redeemer)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
+  ) as T
 
 setPlutusData :: PDS.PlutusData -> TransactionWitnessSet -> Effect Unit
 setPlutusData pd ws = setWitness _wsSetPlutusData ws pd
@@ -133,7 +163,8 @@ foreign import newVkeywitnesses :: Effect Vkeywitnesses
 foreign import newVkeywitness :: Vkey -> Ed25519Signature -> Effect Vkeywitness
 foreign import addVkeywitness :: Vkeywitnesses -> Vkeywitness -> Effect Unit
 foreign import newPlutusScript :: ByteArray -> Effect PlutusScript
-foreign import _newPlutusScriptMaybe :: MaybeFfiHelper -> ByteArray -> Maybe PlutusScript
+foreign import _newPlutusScriptMaybe
+  :: MaybeFfiHelper -> ByteArray -> Maybe PlutusScript
 
 newPlutusScriptMaybe :: ByteArray -> Maybe PlutusScript
 newPlutusScriptMaybe = _newPlutusScriptMaybe maybeFfiHelper

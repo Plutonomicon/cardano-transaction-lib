@@ -19,6 +19,7 @@ import Data.Tuple.Nested (type (/\))
 import Data.UInt as UInt
 import Deserialization.BigNum (bigNumToBigInt)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import Helpers (notImplemented)
 import Serialization (toBytes)
 import Serialization.Address (Address)
 import Serialization.Hash (ScriptHash, scriptHashToBytes)
@@ -44,6 +45,7 @@ import Types.Transaction
 import Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
+import Types.Value (assetNameName)
 import Types.Value
   ( mkCurrencySymbol
   , mkNonAdaAsset
@@ -95,12 +97,13 @@ convertValue value = do
           :: Array (ScriptHash /\ Array (AssetName /\ BigNum))
     -- convert to domain types, except of BigNum
     multiasset'' :: Map T.CurrencySymbol (Map T.TokenName BigNum) <-
-      Map.fromFoldable <$>
-        ( traverse bisequence $ multiasset' <#>
-            scriptHashToBytes >>> T.mkCurrencySymbol ***
-              map Map.fromFoldable
-                <<< traverse (ltraverse $ assetNameName >>> T.mkTokenName)
-        )
+      notImplemented
+    -- Map.fromFoldable <$>
+    --   ( traverse bisequence $ multiasset' <#>
+    --       scriptHashToBytes >>> T.mkCurrencySymbol ***
+    --         map Map.fromFoldable
+    --   )
+    -- <<< traverse (ltraverse $ assetNameName >>> T.mkTokenName)
     -- convert BigNum values, possibly failing
     traverse (traverse bigNumToBigInt) multiasset''
   pure
@@ -125,7 +128,6 @@ foreign import extractAssets
   -> Assets
   -> Array (AssetName /\ BigNum)
 
-foreign import assetNameName :: AssetName -> ByteArray
 foreign import getDataHash
   :: MaybeFfiHelper -> TransactionOutput -> Maybe DataHash
 

@@ -52,8 +52,21 @@ exports._txBodyRequiredSigners = maybeGetterMulti("required_signers");
 exports._txBodyNetworkId = maybeGetter_(o => o.kind())("network_id");
 
 
-// foreign import _unpackWithdrawals :: (forall a b.a -> b -> Tuple a b) -> CSL.Withdrawals -> Array(Tuple CSL.RewardAddress CSL.BigNum)
-exports._unpackWithdrawals = () => {throw "notImplemented";};
+
+// foreign import _unpackWithdrawals :: ContainerHelper -> CSL.Withdrawals -> Array(Tuple CSL.RewardAddress CSL.BigNum)
+exports._unpackWithdrawals = containerhelper => containerhelper.unpackKeyIndexed;
 
 // foreign import _unpackUpdate :: (forall a b.a -> b -> Tuple a b) -> CSL.Update -> { epoch:: Int, paramUpdates:: Array(Tuple GenesisHash CSL.ProtocolParamUpdate) }
-exports._unpackUpdate = () => { throw "notImplemented"; };
+exports._unpackUpdate = containerhelper => update => {
+    const pppus = containerhelper.unpackKeyIndexed(update.proposed_protocol_parameter_updates());
+    return { epoch: update.epoch(), paramUpdates: pppus};
+};
+
+// foreign import _unpackMint :: ContainerHelper -> CSL.Mint -> Array(Tuple ScriptHash MintAssets  )
+exports._unpackMint = containerhelper => containerhelper.unpackKeyIndexed;
+
+// foreign import _unpackMintAssets :: ContainerHelper -> CSL.MintAssets -> Array (Tuple CSL.AssetName Int)
+exports._unpackMintAssets = containerhelper => containerhelper.unpackKeyIndexed;
+
+// foreign import _convertCert :: forall r.CertConvHelper r -> CSL.Certificate -> Err r Certificate
+exports._convertCert = certConvHelper => cert => certConvHelper.notImplementedError ("Cert conversion not implemented.")
