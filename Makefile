@@ -5,9 +5,6 @@ SHELL := bash
 
 ps-sources := $$(find ./* -iregex '.*.purs')
 
-autogen-deps:
-	spago2nix generate && ./nix/autogen-warning.sh
-
 check-format:
 	purs-tidy check ${ps-sources}
 
