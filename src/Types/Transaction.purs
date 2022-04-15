@@ -78,6 +78,7 @@ module Types.Transaction
 import Prelude
 
 import Control.Apply (lift2)
+import Data.Argonaut (encodeJson, class EncodeJson, JsonDecodeError(TypeMismatch))
 import Data.Array (union)
 import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
@@ -883,6 +884,12 @@ derive instance Newtype TransactionHash _
 derive newtype instance Eq TransactionHash
 derive newtype instance FromData TransactionHash
 derive newtype instance ToData TransactionHash
+
+
+-- NOTE JSON doesn't support embedding raw bytes in objects. Bytes needs to be
+-- encoded in either Base16 or Base64.
+instance EncodeJson TransactionHash where
+  encodeJson (TransactionHash ba) = encodeJson $ byteArrayToHex ba
 
 -- This is not newtyped derived because it will be used for ordering a
 -- `TransactionInput`, we want lexicographical ordering on the hexstring.

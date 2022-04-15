@@ -146,7 +146,7 @@ import Types.Datum (Datum, DatumHash)
 import Types.Interval (SlotConfig, defaultSlotConfig)
 import Types.PlutusData (PlutusData)
 import Types.Scripts (PlutusScript)
-import Types.Transaction (Transaction(Transaction))
+import Types.Transaction (Transaction(Transaction), TransactionHash(..))
 import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.UnbalancedTransaction
@@ -275,8 +275,9 @@ getChainTip = mkOgmiosRequest Ogmios.queryChainTipCall _.chainTip unit
 -- OGMIOS LOCAL TX SUBMISSION PROTOCOL
 --------------------------------------------------------------------------------
 
-submitTxOgmios :: ByteArray -> QueryM String
-submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall _.submit { txCbor }
+
+submitTxOgmios :: ByteArray -> QueryM TransactionHash
+submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall (?x <<< _.submit) { txCbor }
 
 --------------------------------------------------------------------------------
 -- DATUM CACHE QUERIES

@@ -61,6 +61,7 @@ import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.Natural (Natural)
 import Types.RedeemerTag as Tag
+import Types.Transaction as T
 import Types.Value
   ( CurrencySymbol
   , TokenName
@@ -108,18 +109,12 @@ type OgmiosAddress = String
 
 -- | Sends a serialized signed transaction with its full witness through the
 -- | Cardano network via Ogmios.
--- NOTE JSON doesn't support embedding raw bytes in objects. Bytes needs to be
--- encoded in either Base16 or Base64.
--- TODO Change return type to `TransactionHash`
--- see https://github.com/Plutonomicon/cardano-transaction-lib/issues/290
-submitTxCall :: JsonWspCall { txCbor :: ByteArray } TxHash
+submitTxCall :: JsonWspCall { txCbor :: ByteArray } T.TransactionHash
 submitTxCall = mkOgmiosCallType
   { methodname: "SubmitTx"
-  , args: { submit: _ } <<< byteArrayToHex <<< _.txCbor
+  , args: { submit: _ } <<< T.TransactionHash <<< _.txCbor
   }
   Proxy
-
-type TxHash = String
 
 -- | Evaluates the execution units of scripts present in a given transaction,
 -- | without actually submitting the transaction.
