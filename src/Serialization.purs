@@ -15,14 +15,14 @@ import Prelude
 import Data.BigInt as BigInt
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.Map as Map
-import Data.Maybe (Maybe, maybe)
+import Data.Maybe (Maybe)
 import Data.Newtype (unwrap)
-import Data.Traversable (traverse_, for_)
+import Data.Traversable (traverse_, for_, for)
+import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Effect (Effect)
-import Effect.Exception (throw)
 import FfiHelpers
   ( MaybeFfiHelper
   , maybeFfiHelper
@@ -30,7 +30,7 @@ import FfiHelpers
   , containerHelper
   )
 import Helpers (fromJustEff)
-import Serialization.Address (Address)
+import Serialization.Address (Address, StakeCredential, RewardAddress)
 import Serialization.Address (NetworkId(TestnetId, MainnetId)) as T
 import Serialization.BigInt as Serialization
 import Serialization.BigNum (bigNumFromBigInt)
@@ -42,6 +42,8 @@ import Serialization.Types
   , AuxiliaryData
   , BigNum
   , BigInt
+  , Certificates
+  , Certificate
   , Costmdls
   , CostModel
   , DataHash
@@ -73,13 +75,35 @@ import Serialization.Types
   , Vkeywitnesses
   , PlutusScript
   , Vkeywitness
+  , UnitInterval
+  , Ed25519KeyHashes
+  , Relay
+  , Relays
+  , Ipv4
+  , Ipv6
+  , PoolMetadata
+  , VRFKeyHash
+  , GenesisHash
+  , GenesisDelegateHash
+  , MoveInstantaneousReward
+  , MIRToStakeCredentials
   )
 import Serialization.WitnessSet (convertWitnessSet, convertRedeemer)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
+import Types.Int as Int
 import Types.PlutusData as PlutusData
 import Types.Transaction
-  ( Costmdls(Costmdls)
+  ( Certificate
+      ( StakeRegistration
+      , StakeDeregistration
+      , StakeDelegation
+      , PoolRegistration
+      , PoolRetirement
+      , GenesisKeyDelegation
+      , MoveInstantaneousRewardsCert
+      )
+  , Costmdls(Costmdls)
   , Language(PlutusV1)
   , Mint(Mint)
   , Redeemer
@@ -87,6 +111,14 @@ import Types.Transaction
   , TransactionInput(TransactionInput)
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
+  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
+  , PoolMetadata(PoolMetadata)
+  , PoolMetadataHash(PoolMetadataHash)
+  , URL(URL)
+  , GenesisHash(GenesisHash)
+  , GenesisDelegateHash(GenesisDelegateHash)
+  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
+  , MIRToStakeCredentials(MIRToStakeCredentials)
   ) as T
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.Value as Value
@@ -189,6 +221,66 @@ foreign import insertMintAsset :: MintAssets -> AssetName -> Int -> Effect Unit
 foreign import setTxBodyNetworkId :: TransactionBody -> NetworkId -> Effect Unit
 foreign import networkIdTestnet :: Effect NetworkId
 foreign import networkIdMainnet :: Effect NetworkId
+
+foreign import setTxBodyCerts :: TransactionBody -> Certificates -> Effect Unit
+foreign import newCertificates :: Effect Certificates
+foreign import newStakeRegistrationCertificate
+  :: StakeCredential -> Effect Certificate
+
+foreign import newStakeDeregistrationCertificate
+  :: StakeCredential -> Effect Certificate
+
+foreign import newStakeDelegationCertificate
+  :: StakeCredential -> Ed25519KeyHash -> Effect Certificate
+
+foreign import newPoolRegistrationCertificate
+  :: Ed25519KeyHash
+  -> VRFKeyHash
+  -> BigNum
+  -> BigNum
+  -> UnitInterval
+  -> RewardAddress
+  -> Ed25519KeyHashes
+  -> Relays
+  -> UndefinedOr PoolMetadata
+  -> Effect Certificate
+
+foreign import newPoolRetirementCertificate
+  :: Ed25519KeyHash -> Int -> Effect Certificate
+
+foreign import newGenesisKeyDelegationCertificate
+  :: GenesisHash -> GenesisDelegateHash -> VRFKeyHash -> Effect Certificate
+
+foreign import addCert :: Certificates -> Certificate -> Effect Unit
+foreign import newUnitInterval :: BigNum -> BigNum -> Effect UnitInterval
+foreign import convertPoolOwners
+  :: ContainerHelper -> Array Ed25519KeyHash -> Effect Ed25519KeyHashes
+
+foreign import packRelays :: ContainerHelper -> Array Relay -> Relays
+foreign import newIpv4 :: ByteArray -> Effect Ipv4
+foreign import newIpv6 :: ByteArray -> Effect Ipv6
+foreign import newSingleHostAddr
+  :: UndefinedOr Int -> UndefinedOr Ipv4 -> UndefinedOr Ipv6 -> Effect Relay
+
+foreign import newSingleHostName :: UndefinedOr Int -> String -> Effect Relay
+foreign import newMultiHostName :: String -> Effect Relay
+foreign import newPoolMetadata :: String -> ByteArray -> Effect PoolMetadata
+foreign import newGenesisHash :: ByteArray -> Effect GenesisHash
+foreign import newGenesisDelegateHash :: ByteArray -> Effect GenesisDelegateHash
+foreign import newMoveInstantaneousRewardToOtherPot
+  :: Number -> BigNum -> Effect MoveInstantaneousReward
+
+foreign import newMoveInstantaneousRewardToStakeCreds
+  :: Number -> MIRToStakeCredentials -> Effect MoveInstantaneousReward
+
+foreign import newMIRToStakeCredentials
+  :: ContainerHelper
+  -> Array (StakeCredential /\ Int.Int)
+  -> Effect MIRToStakeCredentials
+
+foreign import newMoveInstantaneousRewardsCertificate
+  :: MoveInstantaneousReward -> Effect Certificate
+
 foreign import setTxBodyCollateral
   :: TransactionBody -> TransactionInputs -> Effect Unit
 
@@ -219,7 +311,7 @@ convertTransaction :: T.Transaction -> Effect Transaction
 convertTransaction (T.Transaction { body: T.TxBody body, witnessSet }) = do
   inputs <- convertTxInputs body.inputs
   outputs <- convertTxOutputs body.outputs
-  fee <- maybe (throw "Failed to convert fee") pure $ bigNumFromBigInt
+  fee <- fromJustEff "Failed to convert fee" $ bigNumFromBigInt
     (unwrap body.fee)
   let ttl = body.ttl <#> unwrap >>> UInt.toInt
   txBody <- newTransactionBody inputs outputs fee (maybeToUor ttl)
@@ -234,12 +326,93 @@ convertTransaction (T.Transaction { body: T.TxBody body, witnessSet }) = do
     (unwrap >>> newScriptDataHashFromBytes >=> setTxBodyScriptDataHash txBody)
     body.scriptDataHash
   for_ body.mint $ convertMint >=> setTxBodyMint txBody
+  for_ body.certs $ convertCerts >=> setTxBodyCerts txBody
   for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
   ws <- convertWitnessSet witnessSet
   newTransaction txBody ws
 
 publicKeyFromBech32 :: Bech32String -> Maybe PublicKey
 publicKeyFromBech32 = _publicKeyFromBech32 maybeFfiHelper
+
+convertCerts :: Array T.Certificate -> Effect Certificates
+convertCerts certs = do
+  certificates <- newCertificates
+  for_ certs $ convertCert >=> addCert certificates
+  pure certificates
+
+convertCert :: T.Certificate -> Effect Certificate
+convertCert = case _ of
+  T.StakeRegistration stakeCredential ->
+    newStakeRegistrationCertificate stakeCredential
+  T.StakeDeregistration stakeCredential ->
+    newStakeDeregistrationCertificate stakeCredential
+  T.StakeDelegation stakeCredential keyHash ->
+    newStakeDelegationCertificate stakeCredential keyHash
+  T.PoolRegistration
+    { operator
+    , vrfKeyhash
+    , pledge
+    , cost
+    , margin
+    , reward_account
+    , poolOwners
+    , relays
+    , poolMetadata
+    } -> do
+    margin' <- newUnitInterval margin.numerator margin.denominator
+    poolOwners' <- convertPoolOwners containerHelper poolOwners
+    relays' <- convertRelays relays
+    poolMetadata' <- for poolMetadata convertPoolMetadata
+    newPoolRegistrationCertificate operator vrfKeyhash pledge cost margin'
+      reward_account
+      poolOwners'
+      relays'
+      (maybeToUor poolMetadata')
+  T.PoolRetirement { poolKeyhash, epoch } ->
+    newPoolRetirementCertificate poolKeyhash (UInt.toInt $ unwrap epoch)
+  T.GenesisKeyDelegation
+    { genesisHash: T.GenesisHash genesisHash
+    , genesisDelegateHash: T.GenesisDelegateHash genesisDelegateHash
+    , vrfKeyhash
+    } -> do
+    join $ newGenesisKeyDelegationCertificate
+      <$> newGenesisHash genesisHash
+      <*> newGenesisDelegateHash genesisDelegateHash
+      <*>
+        pure vrfKeyhash
+  T.MoveInstantaneousRewardsCert mir -> do
+    newMoveInstantaneousRewardsCertificate =<<
+      convertMoveInstantaneousReward mir
+
+convertMIRToStakeCredentials
+  :: T.MIRToStakeCredentials -> Effect MIRToStakeCredentials
+convertMIRToStakeCredentials (T.MIRToStakeCredentials mp) =
+  newMIRToStakeCredentials containerHelper (Map.toUnfoldable mp)
+
+convertMoveInstantaneousReward
+  :: T.MoveInstantaneousReward -> Effect MoveInstantaneousReward
+convertMoveInstantaneousReward (T.ToOtherPot { pot, amount }) =
+  newMoveInstantaneousRewardToOtherPot pot amount
+convertMoveInstantaneousReward (T.ToStakeCreds { pot, amounts }) =
+  convertMIRToStakeCredentials amounts >>=
+    newMoveInstantaneousRewardToStakeCreds pot
+
+convertPoolMetadata :: T.PoolMetadata -> Effect PoolMetadata
+convertPoolMetadata
+  (T.PoolMetadata { url: T.URL url, hash: T.PoolMetadataHash hash }) =
+  newPoolMetadata url hash
+
+convertRelays :: Array T.Relay -> Effect Relays
+convertRelays relays = do
+  packRelays containerHelper <$> for relays \relay -> case relay of
+    T.SingleHostAddr { port, ipv4, ipv6 } -> do
+      ipv4' <- maybeToUor <$> for (unwrap <$> ipv4) newIpv4
+      ipv6' <- maybeToUor <$> for (unwrap <$> ipv6) newIpv6
+      newSingleHostAddr (maybeToUor port) ipv4' ipv6'
+    T.SingleHostName { port, dnsName } ->
+      newSingleHostName (maybeToUor port) dnsName
+    T.MultiHostName { dnsName } ->
+      newMultiHostName dnsName
 
 convertNetworkId :: T.NetworkId -> Effect NetworkId
 convertNetworkId = case _ of
@@ -311,7 +484,6 @@ convertValue val = do
     forWithIndex_ values \tokenName' bigIntValue -> do
       let tokenName = Value.getTokenName tokenName'
       assetName <- newAssetName tokenName
-      -- possible failure below, because bigIntValue can be negative
       value <- fromJustEff "convertValue: number must not be negative" $
         newBigNum maybeFfiHelper (BigInt.toString bigIntValue)
       insertAssets assets assetName value

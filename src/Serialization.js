@@ -189,6 +189,46 @@ exports.networkIdTestnet = () =>
 
 exports.networkIdMainnet = () =>
     lib.NetworkId.mainnet();
+
+exports.setTxBodyCerts = body => certs => () =>
+    body.set_certs(certs);
+
+exports.newCertificates = () =>
+    lib.Certificates.new();
+
+exports.newStakeRegistrationCertificate = stakeCredential => () =>
+    lib.Certificate.new_stake_registration(lib.StakeRegistration.new(stakeCredential));
+
+exports.newStakeDeregistrationCertificate = stakeCredential => () =>
+    lib.Certificate.new_stake_deregistration(lib.StakeDeregistration.new(stakeCredential));
+
+exports.newStakeDelegationCertificate = stakeCredential => ed25519KeyHash => () =>
+    lib.Certificate.new_stake_delegation(lib.StakeDelegation.new(stakeCredential, ed25519KeyHash));
+
+exports.newPoolRegistrationCertificate = operator => vrfKeyhash => pledge =>
+    cost => margin => reward_account => poolOwners => relays => poolMetadata =>
+    () => lib.Certificate.new_pool_registration(
+        lib.PoolRegistration.new(
+            lib.PoolParams.new(
+                operator, vrfKeyhash, pledge, cost, margin, reward_account,
+                poolOwners, relays, poolMetadata)));
+
+exports.newUnitInterval = numerator => denominator => () =>
+    lib.UnitInterval.new(numerator, denominator);
+
+exports.newPoolRetirementCertificate = poolKeyHash => epoch => () =>
+    lib.Certificate.new_pool_retirement(
+        lib.PoolRetirement.new(
+            poolKeyHash, epoch));
+
+exports.newGenesisKeyDelegationCertificate =
+    genesisHash => genesisDelegateHash => vrfKeyhash => () =>
+    lib.Certificate.new_genesis_key_delegation(
+        lib.GenesisKeyDelegation.new(genesisHash, genesisDelegateHash, vrfKeyhash));
+
+exports.addCert = certificates => certificate => () =>
+    certificates.add(certificate);
+
 exports.setTxBodyCollateral = body => inputs => () =>
     body.set_collateral(inputs);
 
@@ -206,3 +246,52 @@ exports.transactionBodySetValidityStartInterval =
 
 exports.transactionBodySetAuxiliaryDataHash = txBody => hashBytes => () =>
     txBody.set_auxiliary_data_hash(lib.AuxiliaryDataHash.from_bytes(hashBytes));
+
+exports.convertPoolOwners = containerHelper => keyHashes => () =>
+    containerHelper.pack(lib.Ed25519KeyHashes, keyHashes);
+
+exports.packRelays = containerHelper => relays =>
+    containerHelper.pack(lib.Relays, relays);
+
+exports.newIpv4 = data => () => lib.Ipv4.new(data);
+
+exports.newIpv6 = data => () => lib.Ipv6.new(data);
+
+exports.newSingleHostAddr = port => ipv4 => ipv6 => () =>
+    lib.Relay.new_single_host_addr(
+        lib.SingleHostAddr.new(port, ipv4, ipv6)
+    );
+
+exports.newSingleHostName = port => dnsName => () =>
+    lib.Relay.new_single_host_name(
+        lib.SingleHostName.new(port, lib.DNSRecordAorAAAA.new(dnsName)));
+
+exports.newMultiHostName = dnsName => () =>
+    lib.Relay.new_multi_host_name(
+        lib.MultiHostName.new(
+            lib.DNSRecordSRV.new(dnsName)));
+
+exports.newPoolMetadata = url => hash => () =>
+    lib.PoolMetadata.new(lib.URL.new(url), lib.PoolMetadataHash.from_bytes(hash));
+
+exports.newGenesisHash = bytes => () =>
+    lib.GenesisHash.from_bytes(bytes);
+
+exports.newGenesisDelegateHash = bytes => () =>
+    lib.GenesisDelegateHash.from_bytes(bytes);
+
+exports.newMoveInstantaneousRewardToOtherPot = pot => amount => () =>
+    lib.MoveInstantaneousReward.new_to_other_pot(pot, amount);
+
+exports.newMoveInstantaneousRewardToStakeCreds = pot => amounts => () =>
+    lib.MoveInstantaneousReward.new_to_stake_creds(pot, amounts);
+
+exports.newMIRToStakeCredentials = containerHelper => entries =>
+    () => containerHelper.packMap(
+        lib.MIRToStakeCredentials,
+        entries);
+
+exports.newMoveInstantaneousRewardsCertificate = mir => () =>
+    lib.Certificate.new_move_instantaneous_rewards_cert(
+        lib.MoveInstantaneousRewardsCert.new(mir)
+    );

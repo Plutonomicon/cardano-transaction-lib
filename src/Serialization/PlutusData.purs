@@ -6,8 +6,6 @@ module Serialization.PlutusData
 import Prelude
 
 import Data.BigInt as BigInt
-import Data.Map (Map)
-import Data.Map as Data.Map
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple, fst, snd)
@@ -51,9 +49,9 @@ convertPlutusList x =
     convertPlutusData
     x
 
-convertPlutusMap :: Map T.PlutusData T.PlutusData -> Maybe PlutusData
+convertPlutusMap :: Array (T.PlutusData /\ T.PlutusData) -> Maybe PlutusData
 convertPlutusMap mp = do
-  entries <- for (Data.Map.toUnfoldable mp) \(k /\ v) -> do
+  entries <- for mp \(k /\ v) -> do
     k' <- convertPlutusData k
     v' <- convertPlutusData v
     pure $ k' /\ v'
