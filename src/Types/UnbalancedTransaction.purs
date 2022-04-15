@@ -196,7 +196,8 @@ payPubKeyHashRewardAddress :: NetworkId -> PaymentPubKeyHash -> Address
 payPubKeyHashRewardAddress networkId (PaymentPubKeyHash pkh) =
   pubKeyHashRewardAddress networkId pkh
 
-payPubKeyHashBaseAddress :: NetworkId -> PaymentPubKeyHash -> StakePubKeyHash -> Address
+payPubKeyHashBaseAddress
+  :: NetworkId -> PaymentPubKeyHash -> StakePubKeyHash -> Address
 payPubKeyHashBaseAddress networkId (PaymentPubKeyHash pkh) skh =
   pubKeyHashBaseAddress networkId pkh skh
 

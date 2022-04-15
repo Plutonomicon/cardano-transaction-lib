@@ -146,7 +146,11 @@ import Types.Scripts (PlutusScript)
 import Types.Transaction (Transaction(Transaction))
 import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Types.UnbalancedTransaction (PubKeyHash, StakePubKeyHash, PaymentPubKeyHash)
+import Types.UnbalancedTransaction
+  ( PubKeyHash
+  , StakePubKeyHash
+  , PaymentPubKeyHash
+  )
 import Types.Value (Coin(Coin))
 import Untagged.Union (asOneOf)
 import Types.UsedTxOuts (UsedTxOuts)

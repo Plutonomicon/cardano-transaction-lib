@@ -119,7 +119,8 @@ baseAddressFunctionsTest = test "BaseAddress tests" $ do
     baseAddressFromAddress
       addr
   baddr2 `shouldEqual` baddr
-  baseAddressDelegationCred baddr `shouldEqual` keyHashCredential ed25519KeyHashFixture1
+  baseAddressDelegationCred baddr `shouldEqual` keyHashCredential
+    ed25519KeyHashFixture1
   baseAddressPaymentCred baddr `shouldEqual` keyHashCredential pkh
 
 rewardAddressFunctionsTest :: TestPlanM Unit
