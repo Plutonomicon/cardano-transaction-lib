@@ -14,17 +14,24 @@ let
   nodejs = pkgs.nodejs-12_x;
   easy-ps = import inputs.easy-purescript-nix { inherit pkgs; };
   spagoPkgs = import ../spago-packages.nix { inherit pkgs; };
+  nodeEnv = import
+    (pkgs.runCommand "nodePackages"
+      {
+        buildInputs = [ pkgs.nodePackages.node2nix ];
+      } ''
+      mkdir $out
+      cp ${src}/package.json $out/package.json
+      cp ${src}/package-lock.json $out/package-lock.json
+      cd $out
+      node2nix --lock package-lock.json
+    '')
+    { inherit pkgs nodejs system; };
   nodeModules =
     let
       modules = pkgs.callPackage
         (_:
-          let
-            nodePkgs = import ../node2nix.nix {
-              inherit pkgs system nodejs;
-            };
-          in
-          nodePkgs // {
-            shell = nodePkgs.shell.override {
+          nodeEnv // {
+            shell = nodeEnv.shell.override {
               # see https://github.com/svanderburg/node2nix/issues/198
               buildInputs = [ pkgs.nodePackages.node-gyp-build ];
             };
