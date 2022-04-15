@@ -41,6 +41,7 @@ module Test.Fixtures
   , seabugMetadataFixture1
   , seabugMetadataDeltaFixture1
   , redeemerFixture1
+  , ed25519KeyHashFixture1
   ) where
 
 import Prelude

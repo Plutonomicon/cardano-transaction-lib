@@ -49,6 +49,7 @@ module QueryM
   , mkWsUrl
   , ownPaymentPubKeyHash
   , ownPubKeyHash
+  , ownStakePubKeyHash
   , queryDatumCache
   , signTransaction
   , signTransactionBytes
@@ -128,7 +129,10 @@ import Serialization.Address
   , BlockId
   , NetworkId
   , Slot
+  , baseAddressFromAddress
   , addressPaymentCred
+  , baseAddressPaymentCred
+  , baseAddressDelegationCred
   , stakeCredentialToKeyHash
   )
 import Serialization.Hash (ScriptHash)
@@ -142,7 +146,7 @@ import Types.Scripts (PlutusScript)
 import Types.Transaction (Transaction(Transaction))
 import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Types.UnbalancedTransaction (PubKeyHash, PaymentPubKeyHash)
+import Types.UnbalancedTransaction (PubKeyHash, StakePubKeyHash, PaymentPubKeyHash)
 import Types.Value (Coin(Coin))
 import Untagged.Union (asOneOf)
 import Types.UsedTxOuts (UsedTxOuts)
@@ -350,12 +354,21 @@ submitTxWallet tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.submitTx tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
-ownPubKeyHash =
-  map (map wrap <<< (=<<) (stakeCredentialToKeyHash <=< addressPaymentCred))
-    getWalletAddress
+ownPubKeyHash = do
+  mbAddress <- getWalletAddress
+  pure do
+    baseAddress <- mbAddress >>= baseAddressFromAddress
+    wrap <$> stakeCredentialToKeyHash (baseAddressPaymentCred baseAddress)
 
 ownPaymentPubKeyHash :: QueryM (Maybe PaymentPubKeyHash)
 ownPaymentPubKeyHash = map wrap <$> ownPubKeyHash
+
+ownStakePubKeyHash :: QueryM (Maybe StakePubKeyHash)
+ownStakePubKeyHash = do
+  mbAddress <- getWalletAddress
+  pure do
+    baseAddress <- mbAddress >>= baseAddressFromAddress
+    wrap <$> stakeCredentialToKeyHash (baseAddressDelegationCred baseAddress)
 
 withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)

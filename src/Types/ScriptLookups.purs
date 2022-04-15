@@ -661,8 +661,8 @@ addMissingValueSpent = do
     -- Potential fix me: This logic may be suspect:
     txOut <- case pkh', skh' of
       Nothing, Nothing -> throwError OwnPubKeyAndStakeKeyMissing
-      Just pkh, Just _ -> liftEither $ Right $ TransactionOutput
-        { address: payPubKeyHashBaseAddress networkId pkh
+      Just pkh, Just skh -> liftEither $ Right $ TransactionOutput
+        { address: payPubKeyHashBaseAddress networkId pkh skh
         , amount: missing
         , dataHash: Nothing
         }

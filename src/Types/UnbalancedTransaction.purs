@@ -3,7 +3,6 @@ module Types.UnbalancedTransaction
   , PaymentPubKeyHash(..)
   , PubKeyHash(..)
   , ScriptOutput(..)
-  , StakeKeyHash(..)
   , StakePubKeyHash(..)
   , TxOutRef
   , UnbalancedTx(..)
@@ -11,12 +10,13 @@ module Types.UnbalancedTransaction
   , _utxoIndex
   , emptyUnbalancedTx
   , payPubKeyHashBaseAddress
+  , payPubKeyHashRewardAddress
   , payPubKeyHashEnterpriseAddress
   , payPubKeyRequiredSigner
   , payPubKeyVkey
   , pubKeyHashBaseAddress
   , pubKeyHashEnterpriseAddress
-  , stakeKeyHashRewardAddress
+  , pubKeyHashRewardAddress
   , stakePubKeyHashRewardAddress
   ) where
 
@@ -40,7 +40,6 @@ import Data.Tuple (Tuple(Tuple))
 import FromData (class FromData)
 import Serialization.Address
   ( Address
-  , BaseAddress
   , EnterpriseAddress
   , RewardAddress
   , NetworkId
@@ -124,14 +123,6 @@ payPubKeyVkey (PaymentPubKey pk) = Vkey pk
 payPubKeyRequiredSigner :: PaymentPubKey -> RequiredSigner
 payPubKeyRequiredSigner pk = RequiredSigner $ payPubKeyVkey pk
 
-ed25519BaseAddress
-  :: forall (n :: Type)
-   . Newtype n Ed25519KeyHash
-  => NetworkId
-  -> n
-  -> BaseAddress
-ed25519BaseAddress networkId n = pubKeyAddress networkId (unwrap n)
-
 ed25519EnterpriseAddress
   :: forall (n :: Type)
    . Newtype n Ed25519KeyHash
@@ -156,9 +147,13 @@ ed25519RewardAddress network skh =
     , paymentCred: keyHashCredential (unwrap skh)
     }
 
-pubKeyHashBaseAddress :: NetworkId -> PubKeyHash -> Address
-pubKeyHashBaseAddress networkId =
-  baseAddressToAddress <<< ed25519BaseAddress networkId
+pubKeyHashBaseAddress :: NetworkId -> PubKeyHash -> StakePubKeyHash -> Address
+pubKeyHashBaseAddress networkId pkh skh =
+  baseAddressToAddress $ pubKeyAddress networkId (unwrap pkh) (unwrap skh)
+
+pubKeyHashRewardAddress :: NetworkId -> PubKeyHash -> Address
+pubKeyHashRewardAddress networkId =
+  rewardAddressToAddress <<< ed25519RewardAddress networkId
 
 pubKeyHashEnterpriseAddress :: NetworkId -> PubKeyHash -> Address
 pubKeyHashEnterpriseAddress networkId =
@@ -185,31 +180,7 @@ instance DecodeJson PaymentPubKeyHash where
         decodeJson >>> map PaymentPubKeyHash
     )
 
-payPubKeyHashBaseAddress :: NetworkId -> PaymentPubKeyHash -> Address
-payPubKeyHashBaseAddress networkId (PaymentPubKeyHash pkh) =
-  pubKeyHashBaseAddress networkId pkh
-
-payPubKeyHashEnterpriseAddress :: NetworkId -> PaymentPubKeyHash -> Address
-payPubKeyHashEnterpriseAddress networkId (PaymentPubKeyHash pkh) =
-  pubKeyHashEnterpriseAddress networkId pkh
-
-newtype StakeKeyHash = StakeKeyHash Ed25519KeyHash
-
-derive instance Generic StakeKeyHash _
-derive instance Newtype StakeKeyHash _
-derive newtype instance Eq StakeKeyHash
-derive newtype instance FromData StakeKeyHash
-derive newtype instance Ord StakeKeyHash
-derive newtype instance ToData StakeKeyHash
-
-instance Show StakeKeyHash where
-  show = genericShow
-
-stakeKeyHashRewardAddress :: NetworkId -> StakeKeyHash -> Address
-stakeKeyHashRewardAddress networkId =
-  rewardAddressToAddress <<< ed25519RewardAddress networkId
-
-newtype StakePubKeyHash = StakePubKeyHash StakeKeyHash
+newtype StakePubKeyHash = StakePubKeyHash Ed25519KeyHash
 
 derive instance Generic StakePubKeyHash _
 derive instance Newtype StakePubKeyHash _
@@ -221,9 +192,21 @@ derive newtype instance ToData StakePubKeyHash
 instance Show StakePubKeyHash where
   show = genericShow
 
+payPubKeyHashRewardAddress :: NetworkId -> PaymentPubKeyHash -> Address
+payPubKeyHashRewardAddress networkId (PaymentPubKeyHash pkh) =
+  pubKeyHashRewardAddress networkId pkh
+
+payPubKeyHashBaseAddress :: NetworkId -> PaymentPubKeyHash -> StakePubKeyHash -> Address
+payPubKeyHashBaseAddress networkId (PaymentPubKeyHash pkh) skh =
+  pubKeyHashBaseAddress networkId pkh skh
+
+payPubKeyHashEnterpriseAddress :: NetworkId -> PaymentPubKeyHash -> Address
+payPubKeyHashEnterpriseAddress networkId (PaymentPubKeyHash pkh) =
+  pubKeyHashEnterpriseAddress networkId pkh
+
 stakePubKeyHashRewardAddress :: NetworkId -> StakePubKeyHash -> Address
-stakePubKeyHashRewardAddress networkId (StakePubKeyHash skh) =
-  stakeKeyHashRewardAddress networkId skh
+stakePubKeyHashRewardAddress networkId =
+  rewardAddressToAddress <<< ed25519RewardAddress networkId
 
 -- Use Plutus' name to assist with copy & paste from Haskell to Purescript.
 -- | Transaction inputs reference some other transaction's outputs.

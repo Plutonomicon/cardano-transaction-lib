@@ -80,8 +80,8 @@ mkNamiWalletAff = do
   enable = Promise.toAffE $ _enableNami
 
   getWalletAddress :: NamiConnection -> Aff (Maybe Address)
-  getWalletAddress nami = fromNamiHexString _getNamiAddress nami >>=
-    (_ >>= addressFromBytes) >>> pure
+  getWalletAddress nami = fromNamiHexString _getNamiAddress nami <#>
+    (_ >>= addressFromBytes)
 
   getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
   getCollateral nami = fromNamiMaybeHexString getNamiCollateral nami >>=
