@@ -93,7 +93,8 @@ import Types.Scripts
   , ValidatorHash(ValidatorHash)
   )
 import Types.Transaction
-  ( Ed25519Signature(Ed25519Signature)
+  ( AuxiliaryDataHash(AuxiliaryDataHash)
+  , Ed25519Signature(Ed25519Signature)
   , Epoch(Epoch)
   , Certificate
       ( StakeRegistration
@@ -117,6 +118,7 @@ import Types.Transaction
       )
   , PublicKey(PublicKey)
   , Redeemer(Redeemer)
+  , RequiredSigner(RequiredSigner)
   , Transaction(Transaction)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
@@ -425,7 +427,7 @@ txFixture4 =
                 }
             ]
         , fee: Coin $ BigInt.fromInt 177513
-        , ttl: Nothing
+        , ttl: Just $ Slot $ UInt.fromInt 123
         , certs: Just
             [ StakeRegistration stake1
             , StakeDeregistration stake1
@@ -490,13 +492,15 @@ txFixture4 =
         , withdrawals: Just $ Map.fromFoldable
             [ rewardAddress1 /\ Coin one ]
         , update: Nothing
-        , auxiliaryDataHash: Nothing
-        , validityStartInterval: Nothing
+        , auxiliaryDataHash: Just $ AuxiliaryDataHash
+            $ byteArrayFromIntArrayUnsafe
+            $ Array.replicate 32 0
+        , validityStartInterval: Just $ Slot $ UInt.fromInt 124
         , mint: Just $ Mint $ mkNonAdaAsset $ Map.fromFoldable
             [ currencySymbol1 /\ Map.fromFoldable [ tokenName1 /\ one ] ]
         , scriptDataHash: Nothing
         , collateral: Nothing
-        , requiredSigners: Nothing
+        , requiredSigners: Just [ RequiredSigner ed25519KeyHashFixture1 ]
         , networkId: Just MainnetId
         }
     , witnessSet: TransactionWitnessSet
