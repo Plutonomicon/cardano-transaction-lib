@@ -12,6 +12,7 @@ module Contract.Monad
   , liftedE
   , liftedE'
   , liftedM
+  , module Aff
   , module Interval
   , module QueryM
   , runContract
@@ -36,6 +37,7 @@ import Control.Plus (class Plus)
 import Data.Profunctor (dimap)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Effect.Aff (Aff)
+import Effect.Aff (launchAff_) as Aff
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
