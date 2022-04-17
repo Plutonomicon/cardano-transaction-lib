@@ -3,7 +3,6 @@ module Test.Serialization (suite) where
 import Prelude
 
 import Data.BigInt as BigInt
-import Data.Map as Map
 import Data.Maybe (isJust)
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytesEffect)
@@ -51,7 +50,7 @@ suite = do
       test "PlutusData #2 - Map" $ do
         let
           datum =
-            PD.Map $ Map.fromFoldable
+            PD.Map
               [ PD.Integer (BigInt.fromInt 1) /\ PD.Integer (BigInt.fromInt 2)
               , PD.Integer (BigInt.fromInt 3) /\ PD.Integer (BigInt.fromInt 4)
               ]
@@ -85,7 +84,8 @@ suite = do
         tx <- convertTransaction txFixture3
         let bytes = toBytes (asOneOf tx)
         byteArrayToHex bytes `shouldEqual` txBinaryFixture3
-      test "Transaction serialization #4 - ada + mint" $ liftEffect do
-        tx <- convertTransaction txFixture4
-        let bytes = toBytes (asOneOf tx)
-        byteArrayToHex bytes `shouldEqual` txBinaryFixture4
+      test "Transaction serialization #4 - ada + mint + certificates" $
+        liftEffect do
+          tx <- convertTransaction txFixture4
+          let bytes = toBytes (asOneOf tx)
+          byteArrayToHex bytes `shouldEqual` txBinaryFixture4

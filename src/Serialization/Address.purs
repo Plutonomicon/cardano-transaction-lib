@@ -125,6 +125,9 @@ instance Show Slot where
 instance Semigroup Slot where
   append (Slot s1) (Slot s2) = Slot $ s1 + s2
 
+instance Monoid Slot where
+  mempty = Slot zero
+
 -- Needed for Haskell server. Slot is given by `getSlot` field.
 instance DecodeJson Slot where
   decodeJson = jsonToAeson >>>
@@ -150,14 +153,14 @@ instance EncodeJson BlockId where
 instance Show BlockId where
   show = genericShow
 
-instance Monoid Slot where
-  mempty = Slot zero
-
 newtype TransactionIndex = TransactionIndex UInt
 
 derive instance Eq TransactionIndex
+derive instance Ord TransactionIndex
 derive instance Newtype TransactionIndex _
 derive instance Generic TransactionIndex _
+derive newtype instance ToData TransactionIndex
+derive newtype instance FromData TransactionIndex
 
 instance Show TransactionIndex where
   show = genericShow
@@ -165,8 +168,11 @@ instance Show TransactionIndex where
 newtype CertificateIndex = CertificateIndex UInt
 
 derive instance Eq CertificateIndex
+derive instance Ord CertificateIndex
 derive instance Newtype CertificateIndex _
 derive instance Generic CertificateIndex _
+derive newtype instance ToData CertificateIndex
+derive newtype instance FromData CertificateIndex
 
 instance Show CertificateIndex where
   show = genericShow
@@ -285,6 +291,9 @@ foreign import data StakeCredential :: Type
 
 instance Eq StakeCredential where
   eq = eq `on` stakeCredentialToBytes
+
+instance Ord StakeCredential where
+  compare = compare `on` stakeCredentialToBytes
 
 instance Show StakeCredential where
   show = showVia "StakeCredenetial" $ withStakeCredential
