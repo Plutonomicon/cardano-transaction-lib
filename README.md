@@ -24,6 +24,18 @@
 
 ## Setup and dev environment
 
+**NOTE**: This project uses Nix flakes. In order to use flakes, you will need Nix version 2.4 or greater. You also need to enable additional experimental features. Make sure you have the following enabled in your `nix.conf` (typically located in `/etc/nix/` or `~/.config/nix/`) or in `nix.extraOptions` in your NixOS configuration: 
+
+```
+experimental-features = nix-command flakes
+```
+
+You may also choose to enable these every time you use `nix` commands (and without modifying your `nix.conf`) by passing the following command-line options:
+
+```
+nix <COMMAND> --extra-experimental-features nix-command --extra-experimental-features flakes
+```
+
 Running `nix develop` in the root of the repository will place you in an development environment with all of the necessary executables, tools, config, etc... to:
 
 - build the project or use the repl with `spago` (the Purescript project can also be built using Nix directly, e.g. `nix build`). All of the JS dependencies are also present through symlinked `node_modules`
