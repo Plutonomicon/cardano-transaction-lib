@@ -3,7 +3,6 @@ module Test.Serialization (suite) where
 import Prelude
 
 import Data.BigInt as BigInt
-import Data.Map as Map
 import Data.Maybe (isJust)
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytesEffect)
@@ -36,7 +35,8 @@ suite = do
     group "conversion between types" $ do
       test "newTransactionHash" do
         let
-          txString = "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad959996"
+          txString =
+            "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad959996"
           txBytes = hexToByteArrayUnsafe txString
         _txHash :: TransactionHash <- liftEffect $ fromBytesEffect txBytes
         pure unit
@@ -50,16 +50,20 @@ suite = do
       test "PlutusData #2 - Map" $ do
         let
           datum =
-            PD.Map $ Map.fromFoldable
+            PD.Map
               [ PD.Integer (BigInt.fromInt 1) /\ PD.Integer (BigInt.fromInt 2)
               , PD.Integer (BigInt.fromInt 3) /\ PD.Integer (BigInt.fromInt 4)
               ]
         (convertPlutusData datum $> unit) `shouldSatisfy` isJust
       test "PlutusData #3 - List" $ do
-        let datum = PD.List [ PD.Integer (BigInt.fromInt 1), PD.Integer (BigInt.fromInt 2) ]
+        let
+          datum = PD.List
+            [ PD.Integer (BigInt.fromInt 1), PD.Integer (BigInt.fromInt 2) ]
         (convertPlutusData datum $> unit) `shouldSatisfy` isJust
       test "PlutusData #4 - List" $ do
-        let datum = PD.List [ PD.Integer (BigInt.fromInt 1), PD.Integer (BigInt.fromInt 2) ]
+        let
+          datum = PD.List
+            [ PD.Integer (BigInt.fromInt 1), PD.Integer (BigInt.fromInt 2) ]
         (convertPlutusData datum $> unit) `shouldSatisfy` isJust
       test "PlutusData #5 - Bytes" $ do
         let datum = PD.Bytes $ hexToByteArrayUnsafe "00ff"
@@ -80,7 +84,8 @@ suite = do
         tx <- convertTransaction txFixture3
         let bytes = toBytes (asOneOf tx)
         byteArrayToHex bytes `shouldEqual` txBinaryFixture3
-      test "Transaction serialization #4 - ada + mint" $ liftEffect do
-        tx <- convertTransaction txFixture4
-        let bytes = toBytes (asOneOf tx)
-        byteArrayToHex bytes `shouldEqual` txBinaryFixture4
+      test "Transaction serialization #4 - ada + mint + certificates" $
+        liftEffect do
+          tx <- convertTransaction txFixture4
+          let bytes = toBytes (asOneOf tx)
+          byteArrayToHex bytes `shouldEqual` txBinaryFixture4

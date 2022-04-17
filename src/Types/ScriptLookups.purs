@@ -178,14 +178,21 @@ import TxOutput (transactionOutputToScriptOutput)
 -- less information. All hashing is done inside `ConstraintsM`, see
 -- `processLookupsAndConstraints`.
 newtype ScriptLookups (a :: Type) = ScriptLookups
-  { mps :: Array MintingPolicy -- Minting policies that the script interacts with
-  , txOutputs :: Map TxOutRef TransactionOutput -- Unspent outputs that the script may want to spend. This may need tweaking to `TransactionOutput`
-  , otherScripts :: Array Validator -- Validators of scripts other than "our script"
+  { mps ::
+      Array MintingPolicy -- Minting policies that the script interacts with
+  , txOutputs ::
+      Map TxOutRef TransactionOutput -- Unspent outputs that the script may want to spend. This may need tweaking to `TransactionOutput`
+  , otherScripts ::
+      Array Validator -- Validators of scripts other than "our script"
   , otherData :: Map DatumHash Datum --  Datums that we might need
-  , paymentPubKeyHashes :: Map PaymentPubKeyHash PaymentPubKey -- Public keys that we might need
-  , typedValidator :: Maybe (TypedValidator a) -- The script instance with the typed validator hash & actual compiled program
-  , ownPaymentPubKeyHash :: Maybe PaymentPubKeyHash -- The contract's payment public key hash, used for depositing tokens etc.
-  , ownStakePubKeyHash :: Maybe StakePubKeyHash -- The contract's stake public key hash (optional)
+  , paymentPubKeyHashes ::
+      Map PaymentPubKeyHash PaymentPubKey -- Public keys that we might need
+  , typedValidator ::
+      Maybe (TypedValidator a) -- The script instance with the typed validator hash & actual compiled program
+  , ownPaymentPubKeyHash ::
+      Maybe PaymentPubKeyHash -- The contract's payment public key hash, used for depositing tokens etc.
+  , ownStakePubKeyHash ::
+      Maybe StakePubKeyHash -- The contract's stake public key hash (optional)
   }
 
 derive instance Generic (ScriptLookups a) _
@@ -271,7 +278,9 @@ unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 -- | Same as `unspentOutputs` but in `Maybe` context for convenience. This
 -- | should not fail.
 unspentOutputsM
-  :: forall (a :: Type). Map TxOutRef TransactionOutput -> Maybe (ScriptLookups a)
+  :: forall (a :: Type)
+   . Map TxOutRef TransactionOutput
+  -> Maybe (ScriptLookups a)
 unspentOutputsM = pure <<< unspentOutputs
 
 -- | A script lookups value with a minting policy script.
@@ -414,7 +423,8 @@ _redeemers
 _redeemers = prop (SProxy :: SProxy "redeemers")
 
 _mintingPolicies
-  :: forall (a :: Type). Lens' (ConstraintProcessingState a) (Array MintingPolicy)
+  :: forall (a :: Type)
+   . Lens' (ConstraintProcessingState a) (Array MintingPolicy)
 _mintingPolicies = prop (SProxy :: SProxy "mintingPolicies")
 
 _lookups
@@ -752,6 +762,7 @@ data MkUnbalancedTxError
   | TypedTxOutHasNoDatumHash
   | CannotHashMintingPolicy MintingPolicy
   | CannotHashValidator Validator
+  | CannotConvertPaymentPubKeyHash PaymentPubKeyHash
   | CannotSatisfyAny
 
 derive instance Generic MkUnbalancedTxError _
@@ -821,7 +832,10 @@ processConstraint mpsMap osMap = do
               }
     MustBeSignedBy pkh -> runExceptT do
       ppkh <- use _lookups <#> unwrap >>> _.paymentPubKeyHashes
-      let sigs = lookup pkh ppkh <#> payPubKeyRequiredSigner >>> Array.singleton
+      sigs <- for (lookup pkh ppkh) $
+        payPubKeyRequiredSigner >>>
+          maybe (throwError (CannotConvertPaymentPubKeyHash pkh))
+            (pure <<< Array.singleton)
       _cpsToTxBody <<< _requiredSigners <>= sigs
     MustSpendAtLeast vl ->
       runExceptT $ _valueSpentBalancesInputs <>= require vl
@@ -902,7 +916,10 @@ processConstraint mpsMap osMap = do
       -- Use a separate redeeming order on minting policies.
       _mintingPolicies <>= Array.singleton (wrap plutusScript)
       mIndex <-
-        use (_mintingPolicies <<< to (elemIndex (wrap plutusScript) >>> map fromInt))
+        use
+          ( _mintingPolicies <<< to
+              (elemIndex (wrap plutusScript) >>> map fromInt)
+          )
       index <- liftM CannotGetMintingPolicyScriptIndex mIndex
       let
         -- Create a redeemer with zero execution units then call Ogmios to
@@ -960,7 +977,10 @@ processConstraint mpsMap osMap = do
         -- down the road as we track all types of Addresses properly
         let
           txOut = TransactionOutput
-            { address: payPubKeyHashEnterpriseAddress networkId pkh, amount, dataHash }
+            { address: payPubKeyHashEnterpriseAddress networkId pkh
+            , amount
+            , dataHash
+            }
         _cpsToTxBody <<< _outputs <>= Array.singleton txOut
         _valueSpentBalancesOutputs <>= provide amount
     MustPayToOtherScript vlh datum amount -> do

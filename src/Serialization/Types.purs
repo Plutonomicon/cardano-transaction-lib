@@ -1,4 +1,73 @@
-module Serialization.Types where
+module Serialization.Types
+  ( BigInt
+  , Bip32PublicKey
+  , BigNum
+  , Value
+  , AuxiliaryData
+  , Transaction
+  , TransactionBody
+  , Mint
+  , MintAssets
+  , TransactionWitnessSet
+  , TransactionHash
+  , TransactionInput
+  , TransactionInputs
+  , TransactionOutput
+  , TransactionOutputs
+  , TransactionUnspentOutput
+  , MultiAsset
+  , Assets
+  , AssetName
+  , DataHash
+  , Vkeywitnesses
+  , Vkeywitness
+  , Vkey
+  , Ed25519Signature
+  , PublicKey
+  , PlutusScript
+  , PlutusScripts
+  , NativeScript
+  , NativeScripts
+  , NetworkId
+  , ScriptPubkey
+  , ScriptAll
+  , ScriptAny
+  , ScriptNOfK
+  , TimelockStart
+  , TimelockExpiry
+  , BootstrapWitnesses
+  , BootstrapWitness
+  , ConstrPlutusData
+  , PlutusList
+  , PlutusMap
+  , PlutusData
+  , Redeemers
+  , Redeemer
+  , RedeemerTag
+  , ExUnits
+  , Costmdls
+  , CostModel
+  , Language
+  , Int32
+  , ScriptDataHash
+  , Certificates
+  , Certificate
+  , VRFKeyHash
+  , UnitInterval
+  , Ed25519KeyHashes
+  , Relay
+  , Relays
+  , Ipv4
+  , Ipv6
+  , PoolMetadata
+  , GenesisHash
+  , GenesisDelegateHash
+  , MoveInstantaneousReward
+  , MIRToStakeCredentials
+  ) where
+
+import Prelude
+import Data.Function (on)
 
 foreign import data BigInt :: Type
 foreign import data Bip32PublicKey :: Type
@@ -51,3 +120,32 @@ foreign import data CostModel :: Type
 foreign import data Language :: Type
 foreign import data Int32 :: Type
 foreign import data ScriptDataHash :: Type
+foreign import data Certificates :: Type
+foreign import data Certificate :: Type
+foreign import data VRFKeyHash :: Type
+foreign import data UnitInterval :: Type
+foreign import data Ed25519KeyHashes :: Type
+foreign import data Relay :: Type
+foreign import data Relays :: Type
+foreign import data Ipv4 :: Type
+foreign import data Ipv6 :: Type
+foreign import data PoolMetadata :: Type
+foreign import data GenesisHash :: Type
+foreign import data GenesisDelegateHash :: Type
+foreign import data MoveInstantaneousReward :: Type
+foreign import data MIRToStakeCredentials :: Type
+
+instance Show BigNum where
+  show = _to_str
+
+instance Eq BigNum where
+  eq = eq `on` show
+
+instance Show VRFKeyHash where
+  show = _to_bech32
+
+instance Eq VRFKeyHash where
+  eq = eq `on` show
+
+foreign import _to_str :: forall a. a -> String
+foreign import _to_bech32 :: forall a. a -> String

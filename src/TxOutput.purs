@@ -26,7 +26,7 @@ import Scripts (validatorHashEnterpriseAddress)
 import Serialization.Address (NetworkId)
 import Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Types.Datum (DatumHash)
-import Types.JsonWsp as JsonWsp
+import QueryM.Ogmios as Ogmios
 import Types.Transaction as Transaction
 import Types.UnbalancedTransaction as UTx
 
@@ -38,7 +38,7 @@ import Types.UnbalancedTransaction as UTx
 -- I think txId is a hexadecimal encoding.
 -- | Converts an Ogmios transaction input to (internal) `TransactionInput`
 txOutRefToTransactionInput
-  :: JsonWsp.OgmiosTxOutRef -> Maybe Transaction.TransactionInput
+  :: Ogmios.OgmiosTxOutRef -> Maybe Transaction.TransactionInput
 txOutRefToTransactionInput { txId, index } = do
   transactionId <- hexToByteArray txId <#> wrap
   pure $ wrap
@@ -48,7 +48,7 @@ txOutRefToTransactionInput { txId, index } = do
 
 -- | Converts an (internal) `TransactionInput` to an Ogmios transaction input
 transactionInputToTxOutRef
-  :: Transaction.TransactionInput -> JsonWsp.OgmiosTxOutRef
+  :: Transaction.TransactionInput -> Ogmios.OgmiosTxOutRef
 transactionInputToTxOutRef
   (Transaction.TransactionInput { transactionId, index }) =
   { txId: byteArrayToHex (unwrap transactionId)
@@ -60,7 +60,7 @@ transactionInputToTxOutRef
 -- hexToByteArray for now. https://github.com/Plutonomicon/cardano-transaction-lib/issues/78
 -- | Converts an Ogmios transaction output to (internal) `TransactionOutput`
 ogmiosTxOutToTransactionOutput
-  :: JsonWsp.OgmiosTxOut -> Maybe Transaction.TransactionOutput
+  :: Ogmios.OgmiosTxOut -> Maybe Transaction.TransactionOutput
 ogmiosTxOutToTransactionOutput { address, value, datum } = do
   address' <- ogmiosAddressToAddress address
   -- If datum ~ Maybe String is Nothing, do nothing. Otherwise, attempt to hash
@@ -75,7 +75,7 @@ ogmiosTxOutToTransactionOutput { address, value, datum } = do
 
 -- | Converts an internal transaction output to the Ogmios transaction output.
 transactionOutputToOgmiosTxOut
-  :: Transaction.TransactionOutput -> JsonWsp.OgmiosTxOut
+  :: Transaction.TransactionOutput -> Ogmios.OgmiosTxOut
 transactionOutputToOgmiosTxOut
   (Transaction.TransactionOutput { address, amount: value, dataHash }) =
   { address: addressToOgmiosAddress address
@@ -84,7 +84,7 @@ transactionOutputToOgmiosTxOut
   }
 
 -- | Converts an Ogmios Transaction output to a `ScriptOutput`.
-ogmiosTxOutToScriptOutput :: JsonWsp.OgmiosTxOut -> Maybe UTx.ScriptOutput
+ogmiosTxOutToScriptOutput :: Ogmios.OgmiosTxOut -> Maybe UTx.ScriptOutput
 ogmiosTxOutToScriptOutput { address, value, datum: Just dHash } = do
   address' <- ogmiosAddressToAddress address
   validatorHash <- enterpriseAddressValidatorHash address'
@@ -98,12 +98,13 @@ ogmiosTxOutToScriptOutput { datum: Nothing } = Nothing
 
 -- | Converts an `ScriptOutput` to Ogmios Transaction output.
 scriptOutputToOgmiosTxOut
-  :: NetworkId -> UTx.ScriptOutput -> JsonWsp.OgmiosTxOut
+  :: NetworkId -> UTx.ScriptOutput -> Ogmios.OgmiosTxOut
 scriptOutputToOgmiosTxOut
   networkId
   (UTx.ScriptOutput { validatorHash, value, datumHash }) =
   { address:
-      addressToOgmiosAddress $ validatorHashEnterpriseAddress networkId validatorHash
+      addressToOgmiosAddress $ validatorHashEnterpriseAddress networkId
+        validatorHash
   , value
   , datum: pure (datumHashToOgmiosDatumHash datumHash)
   }

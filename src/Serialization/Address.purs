@@ -125,6 +125,9 @@ instance Show Slot where
 instance Semigroup Slot where
   append (Slot s1) (Slot s2) = Slot $ s1 + s2
 
+instance Monoid Slot where
+  mempty = Slot zero
+
 -- Needed for Haskell server. Slot is given by `getSlot` field.
 instance DecodeJson Slot where
   decodeJson = jsonToAeson >>>
@@ -150,14 +153,14 @@ instance EncodeJson BlockId where
 instance Show BlockId where
   show = genericShow
 
-instance Monoid Slot where
-  mempty = Slot zero
-
 newtype TransactionIndex = TransactionIndex UInt
 
 derive instance Eq TransactionIndex
+derive instance Ord TransactionIndex
 derive instance Newtype TransactionIndex _
 derive instance Generic TransactionIndex _
+derive newtype instance ToData TransactionIndex
+derive newtype instance FromData TransactionIndex
 
 instance Show TransactionIndex where
   show = genericShow
@@ -165,8 +168,11 @@ instance Show TransactionIndex where
 newtype CertificateIndex = CertificateIndex UInt
 
 derive instance Eq CertificateIndex
+derive instance Ord CertificateIndex
 derive instance Newtype CertificateIndex _
 derive instance Generic CertificateIndex _
+derive newtype instance ToData CertificateIndex
+derive newtype instance FromData CertificateIndex
 
 instance Show CertificateIndex where
   show = genericShow
@@ -182,7 +188,8 @@ foreign import data Address :: Type
 instance Show Address where
   show a = "(Address " <> addressBech32 a <> ")"
 
-showVia :: forall (a :: Type) (b :: Type). Show b => String -> (a -> b) -> a -> String
+showVia
+  :: forall (a :: Type) (b :: Type). Show b => String -> (a -> b) -> a -> String
 showVia nm toShowable addr = "(" <> nm <> " " <> show (toShowable addr) <> ")"
 
 instance Eq Address where
@@ -285,6 +292,9 @@ foreign import data StakeCredential :: Type
 instance Eq StakeCredential where
   eq = eq `on` stakeCredentialToBytes
 
+instance Ord StakeCredential where
+  compare = compare `on` stakeCredentialToBytes
+
 instance Show StakeCredential where
   show = showVia "StakeCredenetial" $ withStakeCredential
     { onKeyHash: show, onScriptHash: show }
@@ -296,7 +306,9 @@ instance FromData StakeCredential where
 instance ToData StakeCredential where
   toData = toData <<< stakeCredentialToBytes
 
-foreign import _addressFromBech32 :: MaybeFfiHelper -> Bech32String -> Maybe Address
+foreign import _addressFromBech32
+  :: MaybeFfiHelper -> Bech32String -> Maybe Address
+
 foreign import _addressFromBytes :: MaybeFfiHelper -> ByteArray -> Maybe Address
 foreign import addressBytes :: Address -> ByteArray
 foreign import addressBech32 :: Address -> Bech32String
@@ -314,9 +326,15 @@ intToNetworkId = case _ of
 
 foreign import keyHashCredential :: Ed25519KeyHash -> StakeCredential
 foreign import scriptHashCredential :: ScriptHash -> StakeCredential
-foreign import withStakeCredential :: forall (a :: Type). { onKeyHash :: Ed25519KeyHash -> a, onScriptHash :: ScriptHash -> a } -> StakeCredential -> a
+foreign import withStakeCredential
+  :: forall (a :: Type)
+   . { onKeyHash :: Ed25519KeyHash -> a, onScriptHash :: ScriptHash -> a }
+  -> StakeCredential
+  -> a
+
 foreign import stakeCredentialToBytes :: StakeCredential -> ByteArray
-foreign import _stakeCredentialFromBytes :: MaybeFfiHelper -> ByteArray -> Maybe StakeCredential
+foreign import _stakeCredentialFromBytes
+  :: MaybeFfiHelper -> ByteArray -> Maybe StakeCredential
 
 foreign import _baseAddress
   :: (NetworkId -> Int)
@@ -336,7 +354,9 @@ baseAddress = _baseAddress networkIdtoInt
 
 foreign import baseAddressPaymentCred :: BaseAddress -> StakeCredential
 foreign import baseAddressDelegationCred :: BaseAddress -> StakeCredential
-foreign import _baseAddressFromAddress :: MaybeFfiHelper -> Address -> Maybe BaseAddress
+foreign import _baseAddressFromAddress
+  :: MaybeFfiHelper -> Address -> Maybe BaseAddress
+
 foreign import baseAddressToAddress :: BaseAddress -> Address
 
 newtype ByronProtocolMagic = ByronProtocolMagic UInt
@@ -420,12 +440,14 @@ baseAddressNetworkId :: BaseAddress -> NetworkId
 baseAddressNetworkId = baseAddressToAddress >>> addressNetworkId
 
 foreign import byronAddressToBase58 :: ByronAddress -> Base58String
-foreign import _byronAddressFromBase58 :: MaybeFfiHelper -> Base58String -> Maybe ByronAddress
+foreign import _byronAddressFromBase58
+  :: MaybeFfiHelper -> Base58String -> Maybe ByronAddress
 
 byronAddressFromBase58 :: Base58String -> Maybe ByronAddress
 byronAddressFromBase58 = _byronAddressFromBase58 maybeFfiHelper
 
-foreign import _byronAddressFromBytes :: MaybeFfiHelper -> ByteArray -> Maybe ByronAddress
+foreign import _byronAddressFromBytes
+  :: MaybeFfiHelper -> ByteArray -> Maybe ByronAddress
 
 byronAddressFromBytes :: ByteArray -> Maybe ByronAddress
 byronAddressFromBytes = _byronAddressFromBytes maybeFfiHelper
@@ -434,7 +456,8 @@ foreign import byronAddressBytes :: ByronAddress -> ByteArray
 
 foreign import byronProtocolMagic :: ByronAddress -> ByronProtocolMagic
 foreign import byronAddressAttributes :: ByronAddress -> ByteArray
-foreign import _byronAddressNetworkId :: (Int -> NetworkId) -> ByronAddress -> NetworkId
+foreign import _byronAddressNetworkId
+  :: (Int -> NetworkId) -> ByronAddress -> NetworkId
 
 byronAddressNetworkId :: ByronAddress -> NetworkId
 byronAddressNetworkId = _byronAddressNetworkId unsafeIntToNetId
@@ -442,12 +465,15 @@ byronAddressNetworkId = _byronAddressNetworkId unsafeIntToNetId
 byronAddressFromAddress :: Address -> Maybe ByronAddress
 byronAddressFromAddress = _byronAddressFromAddress maybeFfiHelper
 
-foreign import _byronAddressFromAddress :: MaybeFfiHelper -> Address -> Maybe ByronAddress
+foreign import _byronAddressFromAddress
+  :: MaybeFfiHelper -> Address -> Maybe ByronAddress
+
 foreign import byronAddressToAddress :: ByronAddress -> Address
 
 foreign import byronAddressIsValid :: String -> Boolean
 
-foreign import icarusFromKey :: Bip32PublicKey -> ByronProtocolMagic -> ByronAddress
+foreign import icarusFromKey
+  :: Bip32PublicKey -> ByronProtocolMagic -> ByronAddress
 
 foreign import _enterpriseAddress
   :: (NetworkId -> Int)
@@ -459,8 +485,12 @@ enterpriseAddress
   -> EnterpriseAddress
 enterpriseAddress = _enterpriseAddress networkIdtoInt
 
-foreign import enterpriseAddressPaymentCred :: EnterpriseAddress -> StakeCredential
-foreign import _enterpriseAddressFromAddress :: MaybeFfiHelper -> Address -> Maybe EnterpriseAddress
+foreign import enterpriseAddressPaymentCred
+  :: EnterpriseAddress -> StakeCredential
+
+foreign import _enterpriseAddressFromAddress
+  :: MaybeFfiHelper -> Address -> Maybe EnterpriseAddress
+
 foreign import enterpriseAddressToAddress :: EnterpriseAddress -> Address
 
 enterpriseAddressFromAddress :: Address -> Maybe EnterpriseAddress
@@ -498,7 +528,9 @@ pointerAddress
 pointerAddress = _pointerAddress networkIdtoInt
 
 foreign import pointerAddressPaymentCred :: PointerAddress -> StakeCredential
-foreign import _pointerAddressFromAddress :: MaybeFfiHelper -> Address -> Maybe PointerAddress
+foreign import _pointerAddressFromAddress
+  :: MaybeFfiHelper -> Address -> Maybe PointerAddress
+
 foreign import pointerAddressToAddress :: PointerAddress -> Address
 
 pointerAddressFromAddress :: Address -> Maybe PointerAddress
@@ -526,11 +558,14 @@ foreign import _rewardAddress
   -> { network :: NetworkId, paymentCred :: StakeCredential }
   -> RewardAddress
 
-rewardAddress :: { network :: NetworkId, paymentCred :: StakeCredential } -> RewardAddress
+rewardAddress
+  :: { network :: NetworkId, paymentCred :: StakeCredential } -> RewardAddress
 rewardAddress = _rewardAddress networkIdtoInt
 
 foreign import rewardAddressPaymentCred :: RewardAddress -> StakeCredential
-foreign import _rewardAddressFromAddress :: MaybeFfiHelper -> Address -> Maybe RewardAddress
+foreign import _rewardAddressFromAddress
+  :: MaybeFfiHelper -> Address -> Maybe RewardAddress
+
 foreign import rewardAddressToAddress :: RewardAddress -> Address
 
 rewardAddressFromAddress :: Address -> Maybe RewardAddress

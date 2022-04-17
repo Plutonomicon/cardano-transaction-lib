@@ -3,7 +3,7 @@
 -- | to be spent.
 -- | This module provides a simple, in-memory cache that helps with keeping
 -- | submitted utxos in-check.
-module UsedTxOuts
+module Types.UsedTxOuts
   ( UsedTxOuts(UsedTxOuts)
   , TxOutRefCache
   , isTxOutRefUsed
@@ -70,7 +70,8 @@ lockTransactionInputs tx =
     updateCache :: TxOutRefCache -> TxOutRefCache
     updateCache cache = foldr
       ( \{ transactionId, index } ->
-          Map.alter (fromMaybe Set.empty >>> Set.insert index >>> Just) transactionId
+          Map.alter (fromMaybe Set.empty >>> Set.insert index >>> Just)
+            transactionId
       )
       cache
       (txOutRefs tx)
@@ -100,7 +101,9 @@ unlockTxOutRefs txOutRefs' =
     updateCache cache = foldr
       ( \{ transactionId, index } ->
           Map.update
-            (Set.delete index >>> \s -> if Set.isEmpty s then Nothing else Just s)
+            ( Set.delete index >>> \s ->
+                if Set.isEmpty s then Nothing else Just s
+            )
             transactionId
       )
       cache
@@ -121,5 +124,6 @@ isTxOutRefUsed { transactionId, index } = do
     indices <- Map.lookup transactionId cache
     guard $ Set.member index indices
 
-txOutRefs :: Transaction -> Array { transactionId :: TransactionHash, index :: UInt }
+txOutRefs
+  :: Transaction -> Array { transactionId :: TransactionHash, index :: UInt }
 txOutRefs tx = unwrap <$> (unwrap (unwrap tx).body).inputs

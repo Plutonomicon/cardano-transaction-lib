@@ -58,7 +58,7 @@ import QueryM
   , getWalletAddress
   , mkOgmiosWebSocketAff
   , mkDatumCacheWebSocketAff
-  , submitTransaction
+  , submitTxWallet
   )
 import QueryM.Utxos (utxosAt)
 import Serialization.Address (NetworkId(TestnetId))
@@ -71,7 +71,7 @@ import Types.Transaction
   )
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx))
 import Types.Value as Value
-import UsedTxOuts (newUsedTxOuts)
+import Types.UsedTxOuts (newUsedTxOuts)
 import Wallet (mkNamiWalletAff)
 
 main :: Effect Unit
@@ -94,7 +94,7 @@ main = launchAff_ $ do
 
 buildAndSubmit :: QueryM TransactionHash
 buildAndSubmit = mthrow "Failed to submit transaction" $
-  submitTransaction =<< buildTransaction
+  submitTxWallet =<< buildTransaction
 
 buildTransaction :: QueryM Transaction
 buildTransaction = either (throw <<< show) pure

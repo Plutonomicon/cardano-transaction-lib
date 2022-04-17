@@ -42,8 +42,8 @@ exports.newTransactionOutputs = () =>
 exports.addTransactionOutput = outputs => output => () =>
     outputs.add(output);
 
-exports.newTransactionBody = inputs => outputs => fee => () =>
-    lib.TransactionBody.new(inputs, outputs, fee);
+exports.newTransactionBody = inputs => outputs => fee => ttl => () =>
+    lib.TransactionBody.new(inputs, outputs, fee, ttl);
 
 exports.newTransaction = body => witness_set => () =>
     lib.Transaction.new(body, witness_set);
@@ -90,8 +90,15 @@ exports.addVkeywitness = witnesses => witness => () =>
 exports.newVkeyFromPublicKey = public_key => () =>
     lib.Vkey.new(public_key);
 
-exports.newPublicKey = bech32 => () =>
-    lib.PublicKey.from_bech32(bech32);
+exports._publicKeyFromBech32 = maybe => bech32 => () => {
+    try {
+        return maybe.just(lib.PublicKey.from_bech32(bech32));
+    } catch (_) {
+        return maybe.nothing;
+    }
+};
+
+exports.publicKeyHash = pk => pk.hash();
 
 exports.newEd25519Signature = bech32 => () =>
     lib.Ed25519Signature.from_bech32(bech32);
@@ -182,8 +189,109 @@ exports.networkIdTestnet = () =>
 
 exports.networkIdMainnet = () =>
     lib.NetworkId.mainnet();
+
+exports.setTxBodyCerts = body => certs => () =>
+    body.set_certs(certs);
+
+exports.newCertificates = () =>
+    lib.Certificates.new();
+
+exports.newStakeRegistrationCertificate = stakeCredential => () =>
+    lib.Certificate.new_stake_registration(lib.StakeRegistration.new(stakeCredential));
+
+exports.newStakeDeregistrationCertificate = stakeCredential => () =>
+    lib.Certificate.new_stake_deregistration(lib.StakeDeregistration.new(stakeCredential));
+
+exports.newStakeDelegationCertificate = stakeCredential => ed25519KeyHash => () =>
+    lib.Certificate.new_stake_delegation(lib.StakeDelegation.new(stakeCredential, ed25519KeyHash));
+
+exports.newPoolRegistrationCertificate = operator => vrfKeyhash => pledge =>
+    cost => margin => reward_account => poolOwners => relays => poolMetadata =>
+    () => lib.Certificate.new_pool_registration(
+        lib.PoolRegistration.new(
+            lib.PoolParams.new(
+                operator, vrfKeyhash, pledge, cost, margin, reward_account,
+                poolOwners, relays, poolMetadata)));
+
+exports.newUnitInterval = numerator => denominator => () =>
+    lib.UnitInterval.new(numerator, denominator);
+
+exports.newPoolRetirementCertificate = poolKeyHash => epoch => () =>
+    lib.Certificate.new_pool_retirement(
+        lib.PoolRetirement.new(
+            poolKeyHash, epoch));
+
+exports.newGenesisKeyDelegationCertificate =
+    genesisHash => genesisDelegateHash => vrfKeyhash => () =>
+    lib.Certificate.new_genesis_key_delegation(
+        lib.GenesisKeyDelegation.new(genesisHash, genesisDelegateHash, vrfKeyhash));
+
+exports.addCert = certificates => certificate => () =>
+    certificates.add(certificate);
+
 exports.setTxBodyCollateral = body => inputs => () =>
     body.set_collateral(inputs);
 
 exports.setTxBodyNetworkId = body => network_id => () =>
     body.set_network_id(network_id);
+
+exports.transactionBodySetRequiredSigners = containerHelper => body =>
+    keyHashes => () =>
+    body.set_required_signers(
+        containerHelper.pack(lib.Ed25519KeyHashes, keyHashes));
+
+exports.transactionBodySetValidityStartInterval =
+    txBody => validityStartInterval => () =>
+    txBody.set_validity_start_interval(validityStartInterval);
+
+exports.transactionBodySetAuxiliaryDataHash = txBody => hashBytes => () =>
+    txBody.set_auxiliary_data_hash(lib.AuxiliaryDataHash.from_bytes(hashBytes));
+
+exports.convertPoolOwners = containerHelper => keyHashes => () =>
+    containerHelper.pack(lib.Ed25519KeyHashes, keyHashes);
+
+exports.packRelays = containerHelper => relays =>
+    containerHelper.pack(lib.Relays, relays);
+
+exports.newIpv4 = data => () => lib.Ipv4.new(data);
+
+exports.newIpv6 = data => () => lib.Ipv6.new(data);
+
+exports.newSingleHostAddr = port => ipv4 => ipv6 => () =>
+    lib.Relay.new_single_host_addr(
+        lib.SingleHostAddr.new(port, ipv4, ipv6)
+    );
+
+exports.newSingleHostName = port => dnsName => () =>
+    lib.Relay.new_single_host_name(
+        lib.SingleHostName.new(port, lib.DNSRecordAorAAAA.new(dnsName)));
+
+exports.newMultiHostName = dnsName => () =>
+    lib.Relay.new_multi_host_name(
+        lib.MultiHostName.new(
+            lib.DNSRecordSRV.new(dnsName)));
+
+exports.newPoolMetadata = url => hash => () =>
+    lib.PoolMetadata.new(lib.URL.new(url), lib.PoolMetadataHash.from_bytes(hash));
+
+exports.newGenesisHash = bytes => () =>
+    lib.GenesisHash.from_bytes(bytes);
+
+exports.newGenesisDelegateHash = bytes => () =>
+    lib.GenesisDelegateHash.from_bytes(bytes);
+
+exports.newMoveInstantaneousRewardToOtherPot = pot => amount => () =>
+    lib.MoveInstantaneousReward.new_to_other_pot(pot, amount);
+
+exports.newMoveInstantaneousRewardToStakeCreds = pot => amounts => () =>
+    lib.MoveInstantaneousReward.new_to_stake_creds(pot, amounts);
+
+exports.newMIRToStakeCredentials = containerHelper => entries =>
+    () => containerHelper.packMap(
+        lib.MIRToStakeCredentials,
+        entries);
+
+exports.newMoveInstantaneousRewardsCertificate = mir => () =>
+    lib.Certificate.new_move_instantaneous_rewards_cert(
+        lib.MoveInstantaneousRewardsCert.new(mir)
+    );

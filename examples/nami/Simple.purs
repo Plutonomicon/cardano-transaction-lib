@@ -26,7 +26,7 @@ import QueryM
   )
 import Serialization.Address (NetworkId(TestnetId))
 import Types.Interval (defaultSlotConfig)
-import UsedTxOuts (newUsedTxOuts)
+import Types.UsedTxOuts (newUsedTxOuts)
 import Wallet (mkNamiWalletAff)
 
 main :: Effect Unit
