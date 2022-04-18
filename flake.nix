@@ -2,12 +2,6 @@
   description = "cardano-transaction-lib";
 
   inputs = {
-    flake-compat = {
-      url = "github:edolstra/flake-compat";
-      flake = false;
-    };
-    flake-compat-ci.url = "github:hercules-ci/flake-compat-ci";
-
     nixpkgs.url = "github:NixOS/nixpkgs/dde1557825c5644c869c5efc7448dc03722a8f09";
 
     # for the purescript project
@@ -136,7 +130,6 @@
     , nixpkgs
     , haskell-nix
     , iohk-nix
-    , flake-compat-ci
     , ...
     }@inputs:
     let
@@ -213,9 +206,6 @@
 
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);
 
-      ci = flake-compat-ci.lib.recurseIntoFlakeWith {
-        flake = self;
-        systems = [ "x86_64-linux" ];
-      };
+      herculesCI.ciSystems = [ "x86_64-linux" ];
     };
 }
