@@ -27,8 +27,10 @@ import Data.List (List)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe)
+import Data.Newtype (unwrap)
 import Data.Ratio (Ratio, reduce)
 import Data.Symbol (class IsSymbol, reflectSymbol)
+import Data.TextDecoder (decodeUtf8)
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested ((/\))
@@ -253,6 +255,10 @@ instance (FromData k, Ord k, FromData v) => FromData (Map k v) where
 
 instance FromData ByteArray where
   fromData (Bytes res) = Just res
+  fromData _ = Nothing
+
+instance FromData String where
+  fromData (Bytes bytes) = hush $ decodeUtf8 $ unwrap bytes
   fromData _ = Nothing
 
 -- Nothing prevents fromData b ~ Maybe BigInt from being zero here, perhaps

@@ -28,6 +28,7 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Profunctor.Strong ((***))
 import Data.Ratio (Ratio, denominator, numerator)
 import Data.Symbol (class IsSymbol, SProxy(SProxy), reflectSymbol)
+import Data.TextEncoder (encodeUtf8)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
@@ -37,7 +38,7 @@ import Prim.RowList as RL
 import Prim.TypeError (class Fail, Text)
 import Record as Record
 import Type.Proxy (Proxy(Proxy))
-import Types.ByteArray (ByteArray)
+import Types.ByteArray (ByteArray(ByteArray))
 import Types.PlutusData (PlutusData(Constr, Integer, List, Map, Bytes))
 
 -- | Classes
@@ -206,6 +207,9 @@ instance ToData a => ToData (Ratio a) where
 
 instance ToData ByteArray where
   toData = Bytes
+
+instance ToData String where
+  toData = toData <<< ByteArray <<< encodeUtf8
 
 instance ToData PlutusData where
   toData = identity

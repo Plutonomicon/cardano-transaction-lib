@@ -26,7 +26,7 @@ import Test.Data as Data
 import Test.Metadata.Seabug as Seabug
 import Test.FinalizeTx as FinalizeTx
 import Test.Plutus.Address as PlutusAddress
-import Test.Metadata.CIP25 as CIP25
+import Test.Metadata.Cip25 as Cip25
 
 -- we use `mote` here so that we can use effects to build up a test tree, which
 -- is then interpreted here in a pure context, mainly due to some painful types
@@ -54,7 +54,7 @@ interpret spif = do
 testPlan :: TestPlanM Unit
 testPlan = do
   PlutusAddress.suite
-  CIP25.suite
+  Cip25.suite
   Data.suite
   Aeson.suite
   ByteArrayTest.suite

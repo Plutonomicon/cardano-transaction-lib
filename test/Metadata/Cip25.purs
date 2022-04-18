@@ -1,14 +1,14 @@
-module Test.Metadata.CIP25 (suite) where
+module Test.Metadata.Cip25 (suite) where
 
 import Prelude
 
+import Effect.Class (liftEffect)
 import Data.Argonaut (decodeJson)
 import Data.Either (Either(Right))
 import Data.Maybe (Maybe(Just))
 import Mote (group, test)
 import FromData (fromData)
 import ToData (toData)
-import Test.Fixtures (cip25MetadataFixture1)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Test.Fixtures (cip25MetadataFixture1, cip25MetadataJsonFixture1)
@@ -20,5 +20,6 @@ suite = do
       fromData (toData cip25MetadataFixture1) `shouldEqual`
         Just cip25MetadataFixture1
     test "DecodeJson instance" do
-      decodeJson cip25MetadataJsonFixture1 `shouldEqual`
+      jsonFixture <- liftEffect cip25MetadataJsonFixture1
+      decodeJson jsonFixture `shouldEqual`
         Right cip25MetadataFixture1
