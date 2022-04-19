@@ -90,15 +90,6 @@ let
           touch $out
         '';
       });
-
-  bundlePursProject = { name, ... }@args:
-    (buildPursProject args).overrideAttrs
-      (oldAttrs: {
-        name = "${name}-bundled";
-        installPhase = ''
-          spago bundle-module --no-install --no-build --to $out/index.js
-        '';
-      });
 in
 rec {
   defaultPackage = packages.cardano-transaction-lib;
