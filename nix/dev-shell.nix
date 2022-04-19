@@ -33,6 +33,7 @@ pkgs.mkShell {
     pkgs.nodePackages.node2nix
     nodejs
     pkgs.nixpkgs-fmt
+    pkgs.fd
   ];
 
   shellHook = ''
