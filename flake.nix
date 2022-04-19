@@ -178,20 +178,23 @@
       # flake from haskell.nix project
       hsFlake = perSystem (system: (hsProjectFor system).flake { });
 
-      devShell = perSystem (system: (psProjectFor system).devShell);
+      devShell = perSystem (system: self.devShells.${system}.ctl);
+
+      devShells = perSystem (system: {
+        # This is the default `devShell` and can be run without specifying
+        # it (i.e. `nix develop`)
+        ctl = (psProjectFor system).devShell;
+        # It might be a good idea to keep this as a separate shell; if you're
+        # working on the PS frontend, it doesn't make a lot of sense to pull
+        # in all of the Haskell dependencies
+        #
+        # This can be used with `nix develop .#hsDevShell
+        hsDevShell = self.hsFlake.${system}.devShell;
+      });
 
       packages = perSystem (system:
-        let
-          # It might be a good idea to keep this as a separate shell; if you're
-          # working on the PS frontend, it doesn't make a lot of sense to pull
-          # in all of the Haskell dependencies
-          #
-          # This can be used with `nix develop .#hsDevShell
-          hsDevShell = self.hsFlake.${system}.devShell;
-        in
         self.hsFlake.${system}.packages
         // (psProjectFor system).packages
-        // { inherit hsDevShell; }
       );
 
       apps = perSystem (system: {
@@ -223,6 +226,18 @@
               touch $out
             '';
         });
+
+      check = perSystem (system:
+        (nixpkgsFor system).runCommand "combined-check"
+          {
+            nativeBuildInputs =
+              builtins.attrValues self.checks.${system}
+              ++ builtins.attrValues self.packages.${system};
+          }
+          ''
+            touch $out
+          ''
+      );
 
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);
 
