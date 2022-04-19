@@ -594,37 +594,6 @@
         "type": "github"
       }
     },
-    "flake-compat-ci": {
-      "locked": {
-        "lastModified": 1646664117,
-        "narHash": "sha256-AX2VewPcS9eRsoirVHfnk07MHAOH6CTDiD10XtRaZbk=",
-        "owner": "hercules-ci",
-        "repo": "flake-compat-ci",
-        "rev": "e588637b2eec4261ed0d36335c83a117f2744dea",
-        "type": "github"
-      },
-      "original": {
-        "owner": "hercules-ci",
-        "repo": "flake-compat-ci",
-        "type": "github"
-      }
-    },
-    "flake-compat_2": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1641205782,
-        "narHash": "sha256-4jY7RCWUoZ9cKD8co0/4tFARpWB+57+r1bLLvXNJliY=",
-        "owner": "edolstra",
-        "repo": "flake-compat",
-        "rev": "b7547d3eed6f32d06102ead8991ec52ab0a4f1a7",
-        "type": "github"
-      },
-      "original": {
-        "owner": "edolstra",
-        "repo": "flake-compat",
-        "type": "github"
-      }
-    },
     "flake-utils": {
       "locked": {
         "lastModified": 1623875721,
@@ -1399,7 +1368,7 @@
         "cardano-ledger": "cardano-ledger_2",
         "cardano-node": "cardano-node_2",
         "cardano-prelude": "cardano-prelude_2",
-        "flake-compat": "flake-compat_2",
+        "flake-compat": "flake-compat",
         "flat": "flat_2",
         "goblins": "goblins_2",
         "haskell-nix": "haskell-nix_2",
@@ -1615,8 +1584,6 @@
         "cardano-wallet": "cardano-wallet",
         "easy-purescript-nix": "easy-purescript-nix",
         "ekg-forward": "ekg-forward",
-        "flake-compat": "flake-compat",
-        "flake-compat-ci": "flake-compat-ci",
         "flat": "flat",
         "goblins": "goblins",
         "haskell-nix": "haskell-nix",

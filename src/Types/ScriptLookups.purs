@@ -762,6 +762,7 @@ data MkUnbalancedTxError
   | TypedTxOutHasNoDatumHash
   | CannotHashMintingPolicy MintingPolicy
   | CannotHashValidator Validator
+  | CannotConvertPaymentPubKeyHash PaymentPubKeyHash
   | CannotSatisfyAny
 
 derive instance Generic MkUnbalancedTxError _
@@ -831,7 +832,10 @@ processConstraint mpsMap osMap = do
               }
     MustBeSignedBy pkh -> runExceptT do
       ppkh <- use _lookups <#> unwrap >>> _.paymentPubKeyHashes
-      let sigs = lookup pkh ppkh <#> payPubKeyRequiredSigner >>> Array.singleton
+      sigs <- for (lookup pkh ppkh) $
+        payPubKeyRequiredSigner >>>
+          maybe (throwError (CannotConvertPaymentPubKeyHash pkh))
+            (pure <<< Array.singleton)
       _cpsToTxBody <<< _requiredSigners <>= sigs
     MustSpendAtLeast vl ->
       runExceptT $ _valueSpentBalancesInputs <>= require vl

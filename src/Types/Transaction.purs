@@ -651,7 +651,7 @@ type BootstrapWitness =
   , attributes :: ByteArray
   }
 
-newtype RequiredSigner = RequiredSigner Vkey
+newtype RequiredSigner = RequiredSigner Ed25519KeyHash
 
 derive instance Newtype RequiredSigner _
 derive newtype instance Eq RequiredSigner

@@ -6,6 +6,8 @@ module Serialization
   , newTransactionUnspentOutputFromBytes
   , newTransactionWitnessSetFromBytes
   , hashScriptData
+  , publicKeyHash
+  , publicKeyFromBech32
   ) where
 
 import Prelude
@@ -22,10 +24,10 @@ import Data.UInt as UInt
 import Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Effect (Effect)
 import FfiHelpers
-  ( ContainerHelper
-  , MaybeFfiHelper
-  , containerHelper
+  ( MaybeFfiHelper
   , maybeFfiHelper
+  , ContainerHelper
+  , containerHelper
   )
 import Helpers (fromJustEff)
 import Serialization.Address (Address, StakeCredential, RewardAddress)
@@ -141,7 +143,11 @@ foreign import addTransactionOutput
   :: TransactionOutputs -> TransactionOutput -> Effect Unit
 
 foreign import newTransactionBody
-  :: TransactionInputs -> TransactionOutputs -> BigNum -> Effect TransactionBody
+  :: TransactionInputs
+  -> TransactionOutputs
+  -> BigNum
+  -> UndefinedOr Int
+  -> Effect TransactionBody
 
 foreign import newTransaction
   :: TransactionBody -> TransactionWitnessSet -> Effect Transaction
@@ -173,7 +179,10 @@ foreign import newVkeywitnesses :: Effect Vkeywitnesses
 foreign import newVkeywitness :: Vkey -> Ed25519Signature -> Effect Vkeywitness
 foreign import addVkeywitness :: Vkeywitnesses -> Vkeywitness -> Effect Unit
 foreign import newVkeyFromPublicKey :: PublicKey -> Effect Vkey
-foreign import newPublicKey :: Bech32String -> Effect PublicKey
+foreign import _publicKeyFromBech32
+  :: MaybeFfiHelper -> Bech32String -> Maybe PublicKey
+
+foreign import publicKeyHash :: PublicKey -> Ed25519KeyHash
 foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
 foreign import transactionWitnessSetSetVkeys
   :: TransactionWitnessSet -> Vkeywitnesses -> Effect Unit
@@ -275,6 +284,15 @@ foreign import newMoveInstantaneousRewardsCertificate
 foreign import setTxBodyCollateral
   :: TransactionBody -> TransactionInputs -> Effect Unit
 
+foreign import transactionBodySetRequiredSigners
+  :: ContainerHelper -> TransactionBody -> Array Ed25519KeyHash -> Effect Unit
+
+foreign import transactionBodySetValidityStartInterval
+  :: TransactionBody -> Int -> Effect Unit
+
+foreign import transactionBodySetAuxiliaryDataHash
+  :: TransactionBody -> ByteArray -> Effect Unit
+
 foreign import toBytes
   :: ( Transaction
          |+| TransactionOutput
@@ -295,7 +313,14 @@ convertTransaction (T.Transaction { body: T.TxBody body, witnessSet }) = do
   outputs <- convertTxOutputs body.outputs
   fee <- fromJustEff "Failed to convert fee" $ bigNumFromBigInt
     (unwrap body.fee)
-  txBody <- newTransactionBody inputs outputs fee
+  let ttl = body.ttl <#> unwrap >>> UInt.toInt
+  txBody <- newTransactionBody inputs outputs fee (maybeToUor ttl)
+  for_ body.validityStartInterval $
+    unwrap >>> UInt.toInt >>> transactionBodySetValidityStartInterval txBody
+  for_ body.requiredSigners $
+    map unwrap >>> transactionBodySetRequiredSigners containerHelper txBody
+  for_ body.auxiliaryDataHash $
+    unwrap >>> transactionBodySetAuxiliaryDataHash txBody
   for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
   traverse_
     (unwrap >>> newScriptDataHashFromBytes >=> setTxBodyScriptDataHash txBody)
@@ -305,6 +330,9 @@ convertTransaction (T.Transaction { body: T.TxBody body, witnessSet }) = do
   for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
   ws <- convertWitnessSet witnessSet
   newTransaction txBody ws
+
+publicKeyFromBech32 :: Bech32String -> Maybe PublicKey
+publicKeyFromBech32 = _publicKeyFromBech32 maybeFfiHelper
 
 convertCerts :: Array T.Certificate -> Effect Certificates
 convertCerts certs = do

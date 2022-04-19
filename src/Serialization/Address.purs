@@ -125,6 +125,9 @@ instance Show Slot where
 instance Semigroup Slot where
   append (Slot s1) (Slot s2) = Slot $ s1 + s2
 
+instance Monoid Slot where
+  mempty = Slot zero
+
 -- Needed for Haskell server. Slot is given by `getSlot` field.
 instance DecodeJson Slot where
   decodeJson = jsonToAeson >>>
@@ -149,9 +152,6 @@ instance EncodeJson BlockId where
 
 instance Show BlockId where
   show = genericShow
-
-instance Monoid Slot where
-  mempty = Slot zero
 
 newtype TransactionIndex = TransactionIndex UInt
 
