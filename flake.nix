@@ -139,6 +139,10 @@
         overlays = [
           haskell-nix.overlay
           iohk-nix.overlays.crypto
+          (prev: _: {
+            easy-ps =
+              import inputs.easy-purescript-nix { pkgs = prev; };
+          })
         ];
         inherit (haskell-nix) config;
         inherit system;
@@ -168,8 +172,6 @@
 
       packages = perSystem (system:
         let
-          pkgs = nixpkgsFor system;
-          easy-ps = import inputs.easy-purescript-nix { inherit pkgs; };
           # It might be a good idea to keep this as a separate shell; if you're
           # working on the PS frontend, it doesn't make a lot of sense to pull
           # in all of the Haskell dependencies
@@ -190,16 +192,15 @@
       checks = perSystem (system:
         let
           pkgs = nixpkgsFor system;
-          easy-ps = import inputs.easy-purescript-nix { inherit pkgs; };
         in
         {
           formatting-check = pkgs.runCommand "formatting-check"
             {
-              nativeBuildInputs = [
+              nativeBuildInputs = with pkgs; [
                 easy-ps.purs-tidy
-                pkgs.haskellPackages.fourmolu
-                pkgs.nixpkgs-fmt
-                pkgs.fd
+                haskellPackages.fourmolu
+                nixpkgs-fmt
+                fd
               ];
             }
             ''

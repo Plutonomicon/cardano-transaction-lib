@@ -1,8 +1,7 @@
 { pkgs
-, easy-ps
 , spagoPkgs
 , nodejs
-, compiler ? easy-ps.purs-0_14_5
+, compiler ? pkgs.easy-ps.purs-0_14_5
 , nodeModules
 , ...
 }:
@@ -16,7 +15,7 @@ rec {
       ];
       nativeBuildInputs = [
         compiler
-        easy-ps.spago
+        pkgs.easy-ps.spago
       ];
       buildPhase = ''
         export HOME="$TMP"

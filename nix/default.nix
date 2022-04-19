@@ -7,12 +7,11 @@
 
 let
   ps-lib = import ./lib.nix {
-    inherit pkgs easy-ps spagoPkgs nodejs nodeModules;
+    inherit pkgs spagoPkgs nodejs nodeModules;
   };
   # We should try to use a consistent version of node across all
   # project components
   nodejs = pkgs.nodejs-12_x;
-  easy-ps = import inputs.easy-purescript-nix { inherit pkgs; };
   spagoPkgs = import ../spago-packages.nix { inherit pkgs; };
   nodeEnv = import
     (pkgs.runCommand "nodePackages"
@@ -70,6 +69,6 @@ in
     } "touch $out";
 
   devShell = import ./dev-shell.nix {
-    inherit pkgs system inputs nodeModules easy-ps nodejs;
+    inherit pkgs system inputs nodeModules nodejs;
   };
 }

@@ -2,9 +2,8 @@
 , system
 , inputs
 , nodeModules
-, easy-ps
 , nodejs
-, compiler ? easy-ps.purs-0_14_5
+, compiler ? pkgs.easy-ps.purs-0_14_5
 , ...
 }:
 
@@ -20,7 +19,7 @@ let
     { };
 in
 pkgs.mkShell {
-  buildInputs = with easy-ps; [
+  buildInputs = with pkgs.easy-ps; [
     ogmios.packages.${system}."ogmios:exe:ogmios"
     ogmios-dc
     cardano-node-exe.packages.${system}.cardano-cli
