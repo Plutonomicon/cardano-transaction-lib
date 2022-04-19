@@ -12,7 +12,10 @@ let
   # We should try to use a consistent version of node across all
   # project components
   nodejs = pkgs.nodejs-12_x;
-  spagoPkgs = import ../spago-packages.nix { inherit pkgs; };
+  compiler = pkgs.easy-ps.purs-0_14_5;
+  spagoPkgs = import ../spago-packages.nix {
+    inherit pkgs;
+  };
   nodeEnv = import
     (pkgs.runCommand "nodePackages"
       {
@@ -51,13 +54,18 @@ in
   # NOTE
   # Since we depend on two haskell.nix projects, `nix flake check`
   # is currently broken because of IFD issues
-  checks = {
-    cardano-transaction-lib = ps-lib.runPursTest {
-      name = "cardano-transaction-lib";
-      subdir = builtins.toString src;
-      inherit src;
-    };
-  };
+  #
+  # FIXME
+  # Once we have ogmios/node instances available, we should include a
+  # test. This will need to be run via a Hercules `effect`
+  #
+  # checks = {
+  #   cardano-transaction-lib = ps-lib.runPursTest {
+  #     name = "cardano-transaction-lib";
+  #     subdir = builtins.toString src;
+  #     inherit src;
+  #   };
+  # };
 
   # TODO
   # Once we have a public ogmios instance to test against,
@@ -68,7 +76,61 @@ in
 
     } "touch $out";
 
-  devShell = import ./dev-shell.nix {
-    inherit pkgs system inputs nodeModules nodejs;
+  devShell = pkgs.mkShell {
+    buildInputs = [
+      compiler
+      pkgs.ogmios
+      pkgs.cardano-cli
+      pkgs.ogmios-datum-cache
+      pkgs.easy-ps.spago
+      pkgs.easy-ps.purs-tidy
+      pkgs.easy-ps.purescript-language-server
+      pkgs.easy-ps.pscid
+      pkgs.easy-ps.spago2nix
+      pkgs.nodePackages.node2nix
+      nodejs
+      pkgs.nixpkgs-fmt
+      pkgs.fd
+    ];
+
+    shellHook = ''
+      __ln-node-modules () {
+        local modules=./node_modules
+        if test -L "$modules"; then
+          rm "$modules";
+        elif test -e "$modules"; then
+          echo 'refusing to overwrite existing (non-symlinked) `node_modules`'
+          exit 1
+        fi
+
+        ln -s ${nodeModules}/lib/node_modules "$modules"
+      }
+
+      __ln-testnet-config () {
+        local cfgdir=./.node-cfg
+        if test -e "$cfgdir"; then
+          rm -r "$cfgdir"
+        fi
+
+        mkdir -p "$cfgdir"/testnet/{config,genesis}
+
+        ln -s ${pkgs.cardano-configurations}/network/testnet/cardano-node/config.json \
+          "$cfgdir"/testnet/config/config.json
+        ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/byron.json \
+          "$cfgdir"/testnet/genesis/byron.json
+        ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/shelley.json \
+          "$cfgdir"/testnet/genesis/shelley.json
+      }
+
+      __ln-node-modules
+      __ln-testnet-config
+
+      export NODE_PATH="$PWD/node_modules:$NODE_PATH"
+      export PATH="${nodeModules}/bin:$PATH"
+      export CARDANO_NODE_SOCKET_PATH="$PWD"/.node/socket/node.socket
+      export CARDANO_NODE_CONFIG="$PWD"/.node-cfg/testnet/config/config.json
+
+    '';
   };
+
 }
