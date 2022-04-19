@@ -163,7 +163,7 @@
           src = ./.;
         in
         import ./nix {
-          inherit src pkgs inputs system self;
+          inherit src pkgs system;
         };
       hsProjectFor = system:
         let

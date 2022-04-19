@@ -1,14 +1,6 @@
-{ src
-, pkgs
-, system
-, inputs
-, self
-}:
+{ src, pkgs, system }:
 
 let
-  ps-lib = import ./lib.nix {
-    inherit pkgs spagoPkgs nodejs nodeModules;
-  };
   # We should try to use a consistent version of node across all
   # project components
   nodejs = pkgs.nodejs-12_x;
@@ -40,12 +32,79 @@ let
           });
     in
     (modules { }).shell.nodeDependencies;
+
+  buildPursProject =
+    { name
+    , src
+    , filter ? name: type:
+        builtins.any (ext: pkgs.lib.hasSuffix ext name) [
+          ".purs"
+          ".dhall"
+        ]
+    }:
+    let
+      cleanedSrc = builtins.path {
+        inherit filter;
+        name = "src";
+        path = src;
+      };
+    in
+    pkgs.stdenv.mkDerivation {
+      inherit name src;
+      buildInputs = [
+        spagoPkgs.installSpagoStyle
+        spagoPkgs.buildSpagoStyle
+      ];
+      nativeBuildInputs = [
+        compiler
+        pkgs.easy-ps.spago
+      ];
+      unpackPhase = ''
+        export HOME="$TMP"
+        cp -r ${nodeModules}/lib/node_modules .
+        chmod -R u+rw node_modules
+        cp -r $src .
+        install-spago-style
+      '';
+      buildPhase = ''
+        build-spago-style "./**/*.purs"
+      '';
+      installPhase = ''
+        mkdir $out
+        mv output $out/
+      '';
+    };
+
+  runPursTest = { name, testMain ? "Test.Main", ... }@args:
+    (buildPursProject args).overrideAttrs
+      (oldAttrs: {
+        name = "${name}-check";
+        doCheck = true;
+        buildInputs = oldAttrs.buildInputs ++ [ nodejs ];
+        # spago will attempt to download things, which will fail in the
+        # sandbox (idea taken from `plutus-playground-client`)
+        checkPhase = ''
+          node -e 'require("./output/${testMain}").main()'
+        '';
+        installPhase = ''
+          touch $out
+        '';
+      });
+
+  bundlePursProject = { name, ... }@args:
+    (buildPursProject args).overrideAttrs
+      (oldAttrs: {
+        name = "${name}-bundled";
+        installPhase = ''
+          spago bundle-module --no-install --no-build --to $out/index.js
+        '';
+      });
 in
-{
-  defaultPackage = self.packages.${system}.cardano-transaction-lib;
+rec {
+  defaultPackage = packages.cardano-transaction-lib;
 
   packages = {
-    cardano-transaction-lib = ps-lib.buildPursProject {
+    cardano-transaction-lib = buildPursProject {
       name = "cardano-transaction-lib";
       inherit src;
     };
@@ -60,9 +119,8 @@ in
   # test. This will need to be run via a Hercules `effect`
   #
   # checks = {
-  #   cardano-transaction-lib = ps-lib.runPursTest {
+  #   cardano-transaction-lib = runPursTest {
   #     name = "cardano-transaction-lib";
-  #     subdir = builtins.toString src;
   #     inherit src;
   #   };
   # };
@@ -72,7 +130,7 @@ in
   # add `self.checks.${system}` to the `buildInputs`
   check = pkgs.runCommand "combined-check"
     {
-      nativeBuildInputs = builtins.attrValues self.packages.${system};
+      nativeBuildInputs = builtins.attrValues packages;
 
     } "touch $out";
 
