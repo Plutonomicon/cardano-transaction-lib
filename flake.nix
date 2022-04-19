@@ -136,12 +136,22 @@
       defaultSystems = [ "x86_64-linux" "x86_64-darwin" ];
       perSystem = nixpkgs.lib.genAttrs defaultSystems;
       nixpkgsFor = system: import nixpkgs {
-        overlays = [
+        overlays = with inputs; [
           haskell-nix.overlay
           iohk-nix.overlays.crypto
           (prev: _: {
             easy-ps =
               import inputs.easy-purescript-nix { pkgs = prev; };
+            # One of ODC's dependencies is marked as broken on the stable branch
+            # We could just override that one package from unstable, but it's more
+            # convenient to just use unstable to build the package
+            ogmios-datum-cache =
+              nixpkgs-unstable.legacyPackages.${system}.haskellPackages.callPackage
+                ogmios-datum-cache
+                { };
+            ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
+            cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
+            inherit cardano-configurations;
           })
         ];
         inherit (haskell-nix) config;

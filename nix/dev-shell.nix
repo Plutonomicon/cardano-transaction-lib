@@ -1,34 +1,22 @@
 { pkgs
 , system
-, inputs
 , nodeModules
 , nodejs
 , compiler ? pkgs.easy-ps.purs-0_14_5
 , ...
 }:
 
-with inputs;
-
-let
-  ogmios-dc = (
-    # One of ODC's dependencies is marked as broken on the stable branch
-    # We could just override that one package from unstable, but it's more
-    # convenient to just use unstable to build the package
-    import nixpkgs-unstable { inherit system; }
-  ).haskellPackages.callPackage ogmios-datum-cache
-    { };
-in
 pkgs.mkShell {
-  buildInputs = with pkgs.easy-ps; [
-    ogmios.packages.${system}."ogmios:exe:ogmios"
-    ogmios-dc
-    cardano-node-exe.packages.${system}.cardano-cli
+  buildInputs = [
     compiler
-    spago
-    purs-tidy
-    purescript-language-server
-    pscid
-    spago2nix
+    pkgs.ogmios
+    pkgs.cardano-cli
+    pkgs.ogmios-datum-cache
+    pkgs.easy-ps.spago
+    pkgs.easy-ps.purs-tidy
+    pkgs.easy-ps.purescript-language-server
+    pkgs.easy-ps.pscid
+    pkgs.easy-ps.spago2nix
     pkgs.nodePackages.node2nix
     nodejs
     pkgs.nixpkgs-fmt
@@ -56,11 +44,11 @@ pkgs.mkShell {
 
       mkdir -p "$cfgdir"/testnet/{config,genesis}
 
-      ln -s ${cardano-configurations}/network/testnet/cardano-node/config.json \
+      ln -s ${pkgs.cardano-configurations}/network/testnet/cardano-node/config.json \
         "$cfgdir"/testnet/config/config.json
-      ln -s ${cardano-configurations}/network/testnet/genesis/byron.json \
+      ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/byron.json \
         "$cfgdir"/testnet/genesis/byron.json
-      ln -s ${cardano-configurations}/network/testnet/genesis/shelley.json \
+      ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/shelley.json \
         "$cfgdir"/testnet/genesis/shelley.json
     }
 
