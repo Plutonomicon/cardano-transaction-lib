@@ -7,6 +7,8 @@
 [Cachix badge]: https://img.shields.io/badge/cachix-public_plutonomicon-blue.svg
 [Cachix link]: https://public-plutonomicon.cachix.org
 
+**cardano-transaction-lib** is a Purescript library for building smart contract transactions on Cardano
+
 ## Goals:
 
 - [x] **Stage 1** Build a simple transaction in the browser that works with at least one light wallet (Nami)
