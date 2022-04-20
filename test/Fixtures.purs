@@ -54,6 +54,7 @@ module Test.Fixtures
   , cip25MetadataFixture1
   , cip25MetadataJsonFixture1
   , redeemerFixture1
+  , ed25519KeyHashFixture1
   ) where
 
 import Prelude

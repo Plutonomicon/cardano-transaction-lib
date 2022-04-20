@@ -376,12 +376,18 @@ derive instance Generic NetworkId _
 instance Show NetworkId where
   show = genericShow
 
-pubKeyAddress :: NetworkId -> Ed25519KeyHash -> BaseAddress
-pubKeyAddress netId pkh = baseAddress
+pubKeyAddress
+  :: NetworkId
+  -> Ed25519KeyHash
+  -- ^ Payment credential
+  -> Ed25519KeyHash
+  -- ^ Delegation credential
+  -> BaseAddress
+pubKeyAddress netId pkh skh = baseAddress
   { network: netId
   , paymentCred:
       keyHashCredential pkh
-  , delegationCred: keyHashCredential pkh
+  , delegationCred: keyHashCredential skh
   }
 
 scriptAddress :: NetworkId -> ScriptHash -> BaseAddress
