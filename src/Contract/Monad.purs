@@ -2,6 +2,7 @@
 module Contract.Monad
   ( Contract(..)
   , ContractConfig(..)
+  , ConfigParams(..)
   , DefaultContractConfig
   , module Interval
   , module QueryM
@@ -14,15 +15,19 @@ module Contract.Monad
   , liftedE
   , liftedE'
   , liftedM
+  , logTrace
+  , logDebug
+  , logInfo
+  , logWarn
+  , logError
+  , mkContractConfig
   , runContract
   , runContract_
   , throwContractError
   ) where
 
 import Prelude
-import Undefined
 
-import Control.Alt (class Alt, alt)
 import Data.Either (Either, either, hush)
 import Data.Log.Level (LogLevel(Error))
 import Data.Log.Message (Message)
@@ -39,8 +44,6 @@ import Control.Monad.Reader.Class
   )
 import Control.Monad.Reader.Trans (runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
-import Control.Monad.Trans.Class (lift)
-import Control.Plus (class Plus)
 import Data.Log.Tag (TagSet)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Profunctor (dimap)
