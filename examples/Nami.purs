@@ -6,7 +6,7 @@
 --
 -- NOTE: due to Nami's limitations, only chromium-based browsers are supported
 
-module Examples.Nami.Simple (main) where
+module Examples.Nami (main) where
 
 import Contract.Prelude
 import Contract.Address (getWalletAddress, getWalletCollateral)

@@ -31,7 +31,7 @@
 --     access to your wallet if you have not run this example before. You will
 --     also be prompted to sign the transaction using your Nami password
 
-module Examples.Nami.Pkh2Pkh (main) where
+module Examples.Pkh2Pkh (main) where
 
 import Contract.Prelude
 
