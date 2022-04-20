@@ -49,7 +49,15 @@ import Control.Monad.Reader.Trans (runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Data.Log.Tag (TagSet)
 import Data.Log.Level as Log.Level
-import Data.Log.Tag as Log.Tag
+import Data.Log.Tag
+  ( TagSet
+  , tag
+  , intTag
+  , numberTag
+  , booleanTag
+  , jsDateTag
+  , tagSetTag
+  ) as Log.Tag
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Profunctor (dimap)
 import Effect.Aff (Aff)
