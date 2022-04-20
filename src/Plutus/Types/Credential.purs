@@ -4,7 +4,7 @@ module Plutus.Types.Credential
   ) where
 
 import Prelude
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Nothing))
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Types.UnbalancedTransaction (PubKeyHash)

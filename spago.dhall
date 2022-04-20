@@ -19,6 +19,7 @@ You can edit this file as you like.
   , "control"
   , "effect"
   , "either"
+  , "encoding"
   , "enums"
   , "exceptions"
   , "foldable-traversable"
@@ -36,6 +37,7 @@ You can edit this file as you like.
   , "mote"
   , "newtype"
   , "node-buffer"
+  , "node-fs"
   , "node-fs-aff"
   , "node-path"
   , "nonempty"
@@ -62,7 +64,6 @@ You can edit this file as you like.
   , "unfoldable"
   , "unsafe-coerce"
   , "untagged-union"
-  , "enums"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs", "examples/**/*.purs" ]

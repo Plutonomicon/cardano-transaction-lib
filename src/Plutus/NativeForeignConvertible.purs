@@ -5,7 +5,7 @@ module Plutus.NativeForeignConvertible
   ) where
 
 import Prelude
-import Data.Array
+import Data.Array (head, uncons, take, drop, foldr, singleton, snoc)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Tuple (Tuple(Tuple), fst)
 import Data.UInt (UInt, fromInt, toInt, (.&.), and, (.|.), zshr, shl)
@@ -175,8 +175,6 @@ instance NativeForeignConvertible Plutus.Address Foreign.Address where
       -- %b0111 | network tag | script hash
       ScriptHash ->
         buildAddress scriptCredential Nothing
-
-      _ -> Nothing
     where
     addrBytes :: Array Int
     addrBytes = byteArrayToIntArray $ addressBytes addrForeign
