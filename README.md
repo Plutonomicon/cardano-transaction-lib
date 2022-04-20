@@ -103,7 +103,7 @@ In the third iteration,  we want to support an interface that matches the origin
 We will support both a PureScript and a JavaScript api.
 
 ## Additional resources/tools:
-  - [`cardano-serialization-lib`(Sundae fork)](https://github.com/SundaeSwap-finance/cardano-serialization-lib)
+  - [`cardano-serialization-lib`](https://github.com/SundaeSwap-finance/cardano-serialization-lib)(Sundae fork)
   - [Ogmios](https://ogmios.dev ) for chain queries
   - [CIP-30](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0030) (wallet interface - Nami partially implements this)
   - [Nami docs](https://github.com/Berry-Pool/nami-wallet) 
