@@ -5,7 +5,7 @@ import Types.ByteArray
   ( ByteArray(ByteArray)
   , byteArrayFromIntArray
   , byteArrayFromIntArrayUnsafe
-  , byteArrayFromString
+  , byteArrayFromAscii
   , byteArrayToHex
   , byteArrayToIntArray
   , byteLength

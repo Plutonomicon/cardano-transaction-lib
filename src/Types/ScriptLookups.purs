@@ -26,6 +26,7 @@ import Address (enterpriseAddressValidatorHash)
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
+import Control.Monad.Logger.Trans (LoggerT)
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Reader.Trans (ReaderT)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
@@ -457,7 +458,9 @@ require required = ValueSpentBalances { required, provided: mempty }
 -- We write `ReaderT QueryConfig Aff` below since type synonyms need to be fully
 -- applied.
 type ConstraintsM (a :: Type) (b :: Type) =
-  StateT (ConstraintProcessingState a) (ReaderT DefaultQueryConfig Aff) b
+  StateT (ConstraintProcessingState a)
+    (ReaderT DefaultQueryConfig (LoggerT Aff))
+    b
 
 -- The constraints don't precisely match those of Plutus:
 -- `forall a. (FromData (DatumType a), ToData (DatumType a), ToData (RedeemerType a))`
@@ -762,6 +765,7 @@ data MkUnbalancedTxError
   | TypedTxOutHasNoDatumHash
   | CannotHashMintingPolicy MintingPolicy
   | CannotHashValidator Validator
+  | CannotConvertPaymentPubKeyHash PaymentPubKeyHash
   | CannotSatisfyAny
 
 derive instance Generic MkUnbalancedTxError _
@@ -831,7 +835,10 @@ processConstraint mpsMap osMap = do
               }
     MustBeSignedBy pkh -> runExceptT do
       ppkh <- use _lookups <#> unwrap >>> _.paymentPubKeyHashes
-      let sigs = lookup pkh ppkh <#> payPubKeyRequiredSigner >>> Array.singleton
+      sigs <- for (lookup pkh ppkh) $
+        payPubKeyRequiredSigner >>>
+          maybe (throwError (CannotConvertPaymentPubKeyHash pkh))
+            (pure <<< Array.singleton)
       _cpsToTxBody <<< _requiredSigners <>= sigs
     MustSpendAtLeast vl ->
       runExceptT $ _valueSpentBalancesInputs <>= require vl
@@ -864,11 +871,12 @@ processConstraint mpsMap osMap = do
           -- Note: if we get `Nothing`, we have to throw eventhough that's a
           -- valid input, because our `txOut` above is a Script address via
           -- `Just`.
-          dataValue <- ExceptT $
-            ( lift $ getDatumByHash dHash
-                <#> note (CannotQueryDatum dHash) >>> map Datum
-            ) <|>
-              lookupDatum dHash
+          dataValue <- ExceptT $ do
+            queryD <- lift $
+              getDatumByHash dHash <#> note (CannotQueryDatum dHash) >>> map
+                Datum
+            lookupD <- lookupDatum dHash
+            pure $ queryD <|> lookupD
           ExceptT $ attachToCps attachPlutusScript plutusScript
           _cpsToTxBody <<< _inputs %= insert txo
           ExceptT $ addDatum dataValue

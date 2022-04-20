@@ -34,10 +34,15 @@ import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
 import Data.Lens.Types (Lens')
 import Data.Map (Map, empty)
+import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))
 import FromData (class FromData)
+import Serialization
+  ( publicKeyFromBech32
+  , publicKeyHash
+  )
 import Serialization.Address
   ( Address
   , EnterpriseAddress
@@ -120,8 +125,9 @@ instance DecodeJson PubKeyHash where
 payPubKeyVkey :: PaymentPubKey -> Vkey
 payPubKeyVkey (PaymentPubKey pk) = Vkey pk
 
-payPubKeyRequiredSigner :: PaymentPubKey -> RequiredSigner
-payPubKeyRequiredSigner pk = RequiredSigner $ payPubKeyVkey pk
+payPubKeyRequiredSigner :: PaymentPubKey -> Maybe RequiredSigner
+payPubKeyRequiredSigner (PaymentPubKey (PublicKey bech32)) =
+  RequiredSigner <<< publicKeyHash <$> publicKeyFromBech32 bech32
 
 ed25519EnterpriseAddress
   :: forall (n :: Type)

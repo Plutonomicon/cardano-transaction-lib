@@ -8,7 +8,6 @@ import Prelude
 import Data.Argonaut (class DecodeJson)
 import Data.Argonaut as Json
 import Data.Either (Either(Left), note)
-import Data.Foldable (lookup)
 import Data.Generic.Rep (class Generic)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing), fromJust)
@@ -23,15 +22,15 @@ import ToData (class ToData, toData)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Types.ByteArray
   ( ByteArray
-  , byteArrayFromString
   , hexToByteArray
   , hexToByteArrayUnsafe
   )
 import Types.Natural (Natural)
-import Types.PlutusData (PlutusData(Bytes, Map))
+import Types.PlutusData (PlutusData(Map))
 import Types.Scripts (MintingPolicyHash, ValidatorHash)
 import Types.UnbalancedTransaction (PubKeyHash)
 import Types.Value (CurrencySymbol, TokenName, mkTokenName, mkCurrencySymbol)
+import Metadata.Helpers (unsafeMkKey, lookupKey)
 
 newtype SeabugMetadata = SeabugMetadata
   { policyId :: MintingPolicyHash
@@ -151,7 +150,7 @@ instance DecodeJson SeabugMetadata where
             }
     where
     decodeShare :: Int -> Either Json.JsonDecodeError Share
-    decodeShare = note (Json.TypeMismatch "Expected int between 0 and 1000")
+    decodeShare = note (Json.TypeMismatch "Expected int between 0 and 10000")
       <<< mkShare
 
     decodeScriptHash :: String -> Either Json.JsonDecodeError ScriptHash
@@ -197,14 +196,3 @@ instance FromData SeabugMetadataDelta where
       , ownerPrice
       }
   fromData _ = Nothing
-
-mkKey :: String -> Maybe PlutusData
-mkKey str = Bytes <$> byteArrayFromString str
-
-unsafeMkKey :: Partial => String -> PlutusData
-unsafeMkKey = fromJust <<< mkKey
-
-lookupKey
-  :: String -> PlutusData -> Maybe PlutusData
-lookupKey keyStr (Map array) = mkKey keyStr >>= flip lookup array
-lookupKey _ _ = Nothing

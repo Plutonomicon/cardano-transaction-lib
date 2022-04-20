@@ -4,16 +4,16 @@ if (typeof BROWSER_RUNTIME == 'undefined' || !BROWSER_RUNTIME) {
     var OurWebSocket = require("ws");
 }
 
-// _mkWebsocket :: String -> Effect WebSocket
-exports._mkWebSocket = url => () => {
-  console.log("Starting websocket attempt");
+// _mkWebsocket :: (String -> Effect Unit) -> String -> Effect WebSocket
+exports._mkWebSocket = logger => url => () => {
+  logger("Starting websocket attempt")();
   var ws;
   if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
     ws = new WebSocket(url);
   } else {
     ws = new OurWebSocket(url, { perMessageDeflate: false });
   }
-  console.log("new websocket");
+  logger("new websocket")();
   return ws;
 };
 
@@ -22,27 +22,35 @@ exports._onWsConnect = ws => fn => () => {
   ws.addEventListener('open', fn);
 };
 
-// _onWsError :: WebSocket -> (String -> Effect Unit) -> Effect Unit
-exports._onWsError = ws => fn => () => {
+// _onWsError
+//   :: WebSocket
+//   -> (String -> Effect Unit) -- logger
+//   -> (String -> Effect Unit) -- handler
+//   -> Effect Unit
+exports._onWsError = ws => logger => fn => () => {
   ws.addEventListener('error', function func(event) {
     const str = event.toString();
-    console.log("error: ", str);
+    logger(`error: ${str}`)();
     fn(str)();
   });
 };
 
-// _onWsMessage :: WebSocket -> (String -> Effect Unit) -> Effect Unit
-exports._onWsMessage = ws => fn => () => {
+// _onWsMessage
+//   :: WebSocket
+//   -> (String -> Effect Unit) -- logger
+//   -> (String -> Effect Unit) -- handler
+//   -> Effect Unit
+exports._onWsMessage = ws => logger => fn => () => {
   ws.addEventListener('message', function func(event) {
     const str = event.data;
-    console.log("message: ", str);
+    logger(`message: ${str}`)();
     fn(str)();
   });
 };
 
-// _wsSend :: WebSocket -> String -> Effect Unit
-exports._wsSend = ws => str => () => {
-  console.log("sending: ", str);
+// _wsSend :: WebSocket -> (String -> Effect Unit) -> String -> Effect Unit
+exports._wsSend = ws => logger => str => () => {
+  logger(`sending: ${str}`)();
   ws.send(str);
 };
 
@@ -53,9 +61,14 @@ exports._wsClose = ws => () => ws.close();
 exports._stringify = a => () => JSON.stringify(a);
 
 // Every 30 seconds if we haven't heard from the server, sever the connection.
-// heartbeat :: WebSocket -> Int -> Effect Unit-> ImplicitUnsafeEffect Int
-const heartbeat = ws => id => onError => {
-  console.log("websocket heartbeat fired");
+// heartbeat
+//   :: WebSocket
+//   -> (String -> Effect Unit)
+//   -> Int
+//   -> Effect Unit
+//   -> ImplicitUnsafeEffect Int
+const heartbeat = ws => logger => id => onError => {
+  console.log("websocket heartbeat fired")();
   ws.ping();
   if (id !== null) {
     clearTimeout(id);
@@ -67,10 +80,16 @@ const heartbeat = ws => id => onError => {
   return cancelId;
 };
 
-// _wsWatch :: WebSocket -> Effect Unit -> Effect Unit
-exports._wsWatch = ws => onError => () => {
+// _wsWatch
+//   :: WebSocket
+//   -> (String -> Effect Unit)
+//   -> Effect Unit
+//   -> Effect Unit
+exports._wsWatch = ws => logger => onError => () => {
   let counter = null;
-  let heartbeatAndCount = () => { counter = heartbeat(ws, counter, onError); };
+  let heartbeatAndCount = () => {
+    counter = heartbeat(ws, loger, counter, onError);
+  };
 
   ws.addEventListener('open', heartbeatAndCount);
   ws.addEventListener('ping', heartbeatAndCount);

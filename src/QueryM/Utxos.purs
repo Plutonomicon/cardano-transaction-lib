@@ -5,7 +5,9 @@ module QueryM.Utxos
   ) where
 
 import Prelude
+
 import Address (addressToOgmiosAddress)
+import Control.Monad.Logger.Trans (LoggerT)
 import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, asks)
 import Data.Bifunctor (bimap)
@@ -104,6 +106,6 @@ filterUnusedUtxos (UtxoM utxos) = withTxRefsCache $
 
 withTxRefsCache
   :: forall (m :: Type -> Type) (a :: Type)
-   . ReaderT UsedTxOuts Aff a
+   . ReaderT UsedTxOuts (LoggerT Aff) a
   -> QueryM a
 withTxRefsCache f = withReaderT (_.usedTxOuts) f
