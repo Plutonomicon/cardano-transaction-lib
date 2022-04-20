@@ -32,8 +32,9 @@
 - [x] **Stage 1** Build a simple transaction in the browser that works with at least one light wallet (Nami)
 - [x] **Stage 2** Once we can construct a simple user-to-user transaction, we will try to use the library to submit the tx with nami
 - [x] **Stage 3** Once we have a simple working transaction, we will seek to build a Plutus smart contract transaction with datum from scratch
-- [ ] **Stage 4** Once we can construct Plutus smart contract transactions, we will seek to build a library/DSL/interface such that transactions can be built using constraints and lookups - as close as possible to a cut-and-paste solution from Plutus' `Contract` monad code in haskell (but with no guarantee that code changes are not necessary) (**In progress**)
-- [ ] **Stage 5** Once we have a basic `Contract`-style API, we will further refine its public interface, expand wallet support (see [below](#light-wallet-support)), expose a test interface, and provide a more ergonomic JS/TS API
+- [ ] **Stage 4** Once we can construct Plutus smart contract transactions, we will seek to build a library/DSL/interface such that transactions can be built using constraints and lookups - as close as possible to a cut-and-paste solution from Plutus' `Contract` monad code in Haskell (but with no guarantee that code changes are not necessary) (**In progress**)
+- [ ] **Stage 5** Once we have a basic `Contract`-style API, we will further refine its public interface, expand wallet support (see [below](#light-wallet-support)), expose a test interface, provide a more ergonomic JS/TS API, support stake validators, and support CIP workflows on the public testnet
+- [ ] **Stage 6** Once CTL's `Contract` interface has been stabilized, we will add support for even more wallets and attempt to deprecate CTL's currently required Haskell server
 
 ### Light wallet support
 
@@ -68,7 +69,7 @@ Services that are currently required:
 
 ### Other requirements
 
-In order to run most `Contract` actions, **you must use Nami wallet**. The following steps must be taken to ensure that you can run CTL contracts:
+In order to run most `Contract` actions, **you must use Nami wallet for the time being**. The following steps must be taken to ensure that you can run CTL contracts:
 
 1. Install the [Nami extension](https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo)
    - Due to limitations with Nami itself, only Chromium-based browsers are supported
@@ -90,7 +91,7 @@ You may also choose to enable these every time you use `nix` commands (and witho
 nix <COMMAND> --extra-experimental-features nix-command --extra-experimental-features flakes
 ```
 
-Running `nix develop` in the root of the repository will place you in an development environment with all of the necessary executables, tools, config, etc... to:
+Running `nix develop` in the root of the repository will place you in a development environment with all of the necessary executables, tools, config, etc... to:
 
 - build the project or use the repl with `spago`
 - use `npm` and related commands; all of the project's JS dependencies are symlinked from the Nix store into `node_modules` in the repository root
@@ -170,7 +171,7 @@ CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, ho
 
 ## Additional resources/tools:
 
-- [`cardano-serialization-lib`](https://github.com/SundaeSwap-finance/cardano-serialization-lib)(Sundae fork)
+- [`cardano-serialization-lib`](https://github.com/SundaeSwap-finance/cardano-serialization-lib) (Sundae fork)
 - [Ogmios](https://ogmios.dev) for chain queries
 - [CIP-30](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0030) (wallet interface - Nami partially implements this)
 - [Nami docs](https://github.com/Berry-Pool/nami-wallet)
