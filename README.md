@@ -13,25 +13,17 @@
 - [x] **Stage 2** Once we can construct a simple user-to-user transaction, we will try to use the library to submit the tx with nami
 - [x] **Stage 3** Once we have a simple working transaction, we will seek to build a Plutus smart contract transaction with datum from scratch
 - [ ] **Stage 4** Once we can construct Plutus smart contract transactions, we will seek to build a library/DSL/interface such that transactions can be built using constraints and lookups - as close as possible to a cut-and-paste solution from Plutus' `Contract` monad code in haskell (but with no guarantee that code changes are not necessary) (**In progress**)
-- [ ] **Stage 5** Once we have a basic `Contract`-style API, we will further refine its public interface, expand wallet support (see [below](#light-wallet-support)), and expose a test interface
+- [ ] **Stage 5** Once we have a basic `Contract`-style API, we will further refine its public interface, expand wallet support (see [below](#light-wallet-support)), expose a test interface, and provide a more ergonomic JS/TS API
 
 ## Light wallet support
  
-Support is planned for the following light wallets, roughly in order of implementations:
+Support is planned for the following light wallets, roughly in order of implementation:
 
 - [x] [Nami](https://namiwallet.io/)
 - [ ] [Gero](https://gerowallet.io/)
 - [ ] [Typhon](https://typhonwallet.io/)
 - [ ] [Yoroi](https://yoroi-wallet.com/)
 - [ ] [Eternl (formerly CCvault)](https://eternl.io/)
-
-## resources/tools:
-  - `cardano-serialization-lib` (Sundae fork):https://github.com/SundaeSwap-finance/cardano-serialization-lib)
-  - Ogmios - for querying the chain - https://ogmios.dev 
-  - Example testbed - https://github.com/Benjmhart/nami-integration 
-  - CIP-30 (Wallet interface - nami partially implements this) -https://github.com/cardano-foundation/CIPs/tree/master/CIP-0030
-  - Nami docs - https://github.com/Berry-Pool/nami-wallet 
-  - CDDL spec for Alonzo - https://github.com/input-output-hk/cardano-ledger/blob/0738804155245062f05e2f355fadd1d16f04cd56/alonzo/impl/cddl-files/alonzo.cddl 
 
 ## Setup and dev environment
 
@@ -107,3 +99,10 @@ In the second iteration we will want to support multiple wallets and automatic b
 In the third iteration,  we want to support an interface that matches the original pab so people can easily port their code over. This will likely Not be a compiled eDSL in PureScript.   Library code in a Promise Monad is much more likely.
 
 We will support both a PureScript and a JavaScript api.
+
+## Additional resources/tools:
+  - [`cardano-serialization-lib`(Sundae fork)](https://github.com/SundaeSwap-finance/cardano-serialization-lib)
+  - [Ogmios](https://ogmios.dev ) for chain queries
+  - [CIP-30](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0030) (wallet interface - Nami partially implements this)
+  - [Nami docs](https://github.com/Berry-Pool/nami-wallet) 
+  - [Alonzo CDDL spec](https://github.com/input-output-hk/cardano-ledger/blob/0738804155245062f05e2f355fadd1d16f04cd56/alonzo/impl/cddl-files/alonzo.cddl) 
