@@ -26,7 +26,7 @@ import Prelude
 
 import BalanceTx (balanceTx) as BalanceTx
 import BalanceTx (BalanceTxError) as BalanceTxError
-import Contract.Monad (Contract, liftedE', liftedM, wrapContract)
+import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
 import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
@@ -262,9 +262,9 @@ balanceAndSignTx
 balanceAndSignTx
   (UnattachedUnbalancedTx { unbalancedTx, datums, redeemersTxIns }) = do
   -- Balance unbalanced tx:
-  balancedTx <- liftedE' $ balanceTx unbalancedTx
+  balancedTx <- liftedE $ balanceTx unbalancedTx
   let inputs = balancedTx ^. _body <<< _inputs
-  redeemers <- liftedE' $ reindexSpentScriptRedeemers inputs redeemersTxIns
+  redeemers <- liftedE $ reindexSpentScriptRedeemers inputs redeemersTxIns
   -- Reattach datums and redeemer:
   QueryM.FinalizedTransaction txCbor <-
     liftedM "balanceAndSignTx: Cannot attach datums and redeemer"

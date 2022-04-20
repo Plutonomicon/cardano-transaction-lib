@@ -44,7 +44,7 @@ import Contract.Monad
   , defaultServerConfig
   , defaultSlotConfig
   , launchAff_
-  , liftedE'
+  , liftedE
   , liftedM
   , logInfo
   , mkContractConfig
@@ -78,6 +78,7 @@ main = launchAff_ $ do
 
   runContract_ cfg $ do
     pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
+
     let
       constraints :: Constraints.TxConstraints Void Void
       constraints = Constraints.mustPayToPubKey pkh
@@ -87,7 +88,7 @@ main = launchAff_ $ do
       lookups :: Lookups.ScriptLookups Void
       lookups = mempty
 
-    ubTx <- liftedE' $ Lookups.mkUnbalancedTx lookups constraints
+    ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     BalancedSignedTransaction bsTx <-
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx.signedTxCbor

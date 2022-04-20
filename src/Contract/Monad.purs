@@ -223,42 +223,42 @@ liftedM
   -> Contract r a
 liftedM str cm = cm >>= liftContractM str
 
--- | Similar to `liftContractM`, throwing the string instead of the `Left`
--- | value. For throwing the `Left` value, see `liftEither` in
--- | `Contract.Prelude`.
-liftContractE
-  :: forall (e :: Type) (r :: Row Type) (a :: Type)
-   . String
-  -> Either e a
-  -> Contract r a
-liftContractE str = liftContractM str <<< hush
-
 -- | Similar to `liftContractE` except it directly throws the showable error
 -- | via `throwContractError` instead of an arbitrary string.
-liftContractE'
+liftContractE
   :: forall (e :: Type) (r :: Row Type) (a :: Type)
    . Show e
   => Either e a
   -> Contract r a
-liftContractE' = either throwContractError pure
+liftContractE = either throwContractError pure
 
--- | Same as `liftContractE` but the `Either` value is already in the `Contract`
--- | context.
-liftedE
+-- | Similar to `liftContractM`, throwing the string instead of the `Left`
+-- | value. For throwing the `Left` value, see `liftEither` in
+-- | `Contract.Prelude`.
+liftContractE'
   :: forall (e :: Type) (r :: Row Type) (a :: Type)
    . String
-  -> Contract r (Either e a)
+  -> Either e a
   -> Contract r a
-liftedE str em = em >>= liftContractE str
+liftContractE' str = liftContractM str <<< hush
 
 -- | Similar to `liftedE` except it directly throws the showable error via
 -- | `throwContractError` instead of an arbitrary string.
-liftedE'
+liftedE
   :: forall (e :: Type) (r :: Row Type) (a :: Type)
    . Show e
   => Contract r (Either e a)
   -> Contract r a
-liftedE' = (=<<) liftContractE'
+liftedE = (=<<) liftContractE
+
+-- | Same as `liftContractE` but the `Either` value is already in the `Contract`
+-- | context.
+liftedE'
+  :: forall (e :: Type) (r :: Row Type) (a :: Type)
+   . String
+  -> Contract r (Either e a)
+  -> Contract r a
+liftedE' str em = em >>= liftContractE' str
 
 -- | Runs the contract, essentially `runReaderT` but with arguments flipped.
 runContract
