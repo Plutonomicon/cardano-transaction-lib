@@ -41,17 +41,18 @@ Services that are currently required:
   - You can also use [our fork](https://github.com/mlabs-haskell/ogmios) which has improved Nix integration
 - [`ogmios-datum-cache`](https://github.com/mlabs-haskell/ogmios-datum-cache)
   - This in turn requires a PostgreSQL DB
-- [Our Haskell server](/server/README)
+- [Our Haskell server](/server/README.md)
   - We hope to deprecate this in the future, but we use it at the moment for certain Cardano libraries that have no Purescript analogue
+  - To build the server project, run the following from the repository root: `nix build -L .#ctl-server:exe:ctl-server`
 
-**NOTE**: CTL does **not** launch or provide these services for you. You must configure them and provide the appropriate values to the `ContractConfig` that you create to run your contracts.
+**NOTE**: CTL does **not** launch or provide these services for you. You must configure them and provide the appropriate values to the `ContractConfig` that you create to run your contracts. This repository contains [Makefile targets](#launching-services-for-development) to launch all required services on localhost, but this is intended for local development of CTL itself and is not suitable for deployment
 
 ### Other requirements
 
 In order to run most `Contract` actions, **you must use Nami wallet**. The following steps must be taken to ensure that you can run CTL contracts:
 
 1. Install the [Nami extension](https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo)
-  - Due to limitations with Nami itself, only Chromium-based browsers are supported
+   - Due to limitations with Nami itself, only Chromium-based browsers are supported
 2. Make sure that you have an active wallet
 3. Make sure that you have set collateral for the wallet, which Nami reserves apart from other wallet UTxOs
 4. Make sure that your wallet is running on the testnet (can be configured via a toggle in the settings menu)
@@ -74,6 +75,8 @@ Running `nix develop` in the root of the repository will place you in an develop
 
 - build the project or use the repl with `spago` (the Purescript project can also be built using Nix directly, e.g. `nix build`). All of the JS dependencies are also present through symlinked `node_modules`
 - run a Cardano testnet node along with our fork of `ogmios`. **Note**: at the moment, only running a public testnet node is supported. In future iterations we will support more scenarios (mainnet, private testnet, etc...)
+
+### Launching services for development
 
 There are a few Makefile targets provided for convenience, all of which require being in the Nix shell environment. `make run-testnet-node` starts the node in a Docker container and `make run-testnet-ogmios` starts our fork of `ogmios` with the correct flags (i.e. config and node socket locations). If you prefer to run these without `make`, the environment variables `CARDANO_NODE_SOCKET_PATH` and `CARDANO_NODE_CONFIG` are also exported in the shell pointing to the correct locations. 
 
