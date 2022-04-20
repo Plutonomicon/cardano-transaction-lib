@@ -641,6 +641,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "monad-logger" = pkgs.stdenv.mkDerivation {
+        name = "monad-logger";
+        version = "v1.3.1";
+        src = pkgs.fetchgit {
+          url = "https://github.com/cprussin/purescript-monad-logger.git";
+          rev = "55441b4caf390bc38078a9c5c865efb105549cef";
+          sha256 = "0r1cp2x6mamjca5r5rm5mp1gidlll72paqrjd3z0j69l7iy7dgas";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "mote" = pkgs.stdenv.mkDerivation {
         name = "mote";
         version = "v1.1.0";
