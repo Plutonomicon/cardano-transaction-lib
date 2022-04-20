@@ -40,6 +40,7 @@ Services that are currently required:
   - Ogmios itself requires a running Cardano node, so you may also need to deploy a node. Node v1.34.0 or greater is recommended
   - You can also use [our fork](https://github.com/mlabs-haskell/ogmios) which has improved Nix integration
 - [`ogmios-datum-cache`](https://github.com/mlabs-haskell/ogmios-datum-cache)
+  - This is required to query for datums, which Ogmios itself does not support
   - This in turn requires a PostgreSQL DB
 - [Our Haskell server](/server/README.md)
   - We hope to deprecate this in the future, but we use it at the moment for certain Cardano libraries that have no Purescript analogue
@@ -73,28 +74,32 @@ nix <COMMAND> --extra-experimental-features nix-command --extra-experimental-fea
 
 Running `nix develop` in the root of the repository will place you in an development environment with all of the necessary executables, tools, config, etc... to:
 
-- build the project or use the repl with `spago` (the Purescript project can also be built using Nix directly, e.g. `nix build`). All of the JS dependencies are also present through symlinked `node_modules`
-- run a Cardano testnet node along with our fork of `ogmios`. **Note**: at the moment, only running a public testnet node is supported. In future iterations we will support more scenarios (mainnet, private testnet, etc...)
+- build the project or use the repl with `spago`
+- use `npm` and related commands; all of the project's JS dependencies are symlinked from the Nix store into `node_modules` in the repository root
+- use Ogmios and other tools with the correct configurations, socket path, etc... These are also set in the `devShell`'s `shellHook`
+
+**NOTE**: As the Nix `devShell` currently symlinks the project's `node_modules`, **do not** use `npm install` in order to develop with `npm`. Use `nix develop` as noted above
 
 ### Launching services for development
 
-There are a few Makefile targets provided for convenience, all of which require being in the Nix shell environment. `make run-testnet-node` starts the node in a Docker container and `make run-testnet-ogmios` starts our fork of `ogmios` with the correct flags (i.e. config and node socket locations). If you prefer to run these without `make`, the environment variables `CARDANO_NODE_SOCKET_PATH` and `CARDANO_NODE_CONFIG` are also exported in the shell pointing to the correct locations. 
+There are a few Makefile targets provided for convenience, all of which require being in the Nix shell environment:
 
-After starting the node, you can use `make query-testnet-sync` to check its sync status. If the node is fully synced, you will see:
+- `make run-testnet-node` starts the node in a Docker container
+- `make run-testnet-ogmios` starts our fork of `ogmios` with the correct flags (i.e. config and node socket locations)
+- `make query-testnet-sync` checks the node's sync status. If the node is fully synced, you will see:
+  ```
+  {  "epoch": 1005, 
+     "hash": "<HASH>", 
+     "slot": 7232440, 
+     "block": 322985, 
+     "era": "Alonzo", 
+     "syncProgress": "100.00" 
+  } 
+  ``` 
+- `make run-datum-cache-postgres` runs a PostgreSQL docker container with the same username, password, and DB name as required for `ogmios-datum-cache`
+- `make run-datum-cache-postgres-console` runs `psql` to access the datum cache DB directly; useful for debugging the datum cache
 
-```
-{  "epoch": 1005, 
-   "hash": "162d6541cc5aa6b0e098add8fa08a94660a08b9463c0a86fcf84661b5f63375f", 
-   "slot": 7232440, 
-   "block": 322985, 
-   "era": "Alonzo", 
-   "syncProgress": "100.00" 
-} 
-``` 
-
-In particular, `syncProgress` is the important part here.
-
-In order to query for datums, another service, `omgios-datum-cache`, is required. This service in turn depends on a running Postgresql instance. `ogmios-datum-cache` is available in the Nix shell environment. There is also a Makefile target to run a Postgres Docker container (`run-datum-cache-postgres`) with a username, password, and DB name corresponding to the `ogmios-datum-cache` configuration file (`config.toml`) in the repository root.
+If you prefer to run these services locally without `make`, the environment variables `CARDANO_NODE_SOCKET_PATH` and `CARDANO_NODE_CONFIG` are also exported in the shell pointing to the correct locations as noted in the previous section.
 
 ### Building the PS project & testing
 
