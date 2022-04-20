@@ -128,7 +128,10 @@ instance MonadReader (ContractConfig r) (Contract r) where
   local f contract = Contract $ local (dimap wrap unwrap f) (unwrap contract)
 
 -- | The config for `Contract` is just a newtype wrapper over the underlying
--- | `QueryM` config.
+-- | `QueryM` config. To use a configuration with default values, see
+-- | `defaultContractConfig`. To specify non-default configuration values, it
+-- | is recommended to construct a `ContractConfig` indirectly with from
+-- | `ConfigParams` using `mkContractConfig`
 newtype ContractConfig (r :: Row Type) = ContractConfig (QueryConfig r)
 
 type DefaultContractConfig = ContractConfig ()
@@ -154,6 +157,8 @@ newtype ConfigParams (r :: Row Type) = ConfigParams
   -- | Additional config options to extend the `ContractConfig`
   , extraConfig :: { | r }
   }
+
+derive instance Newtype (ConfigParams r) _
 
 -- | Create a `ContractConfig` from the provided params. This will call the
 -- | necessary initialization code for the websocket connections
