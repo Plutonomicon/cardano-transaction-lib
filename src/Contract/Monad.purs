@@ -5,7 +5,6 @@ module Contract.Monad
   , DefaultContractConfig
   , module Interval
   , module QueryM
-  , module Logger
   , wrapContract
   , defaultContractConfig
   , defaultContractConfigLifted
@@ -31,14 +30,7 @@ import Data.Maybe (Maybe(Just), maybe)
 import Control.Monad.Error.Class (class MonadError, class MonadThrow)
 import Control.Monad.Logger.Trans (runLoggerT)
 import Control.Monad.Logger.Class (class MonadLogger)
-import Control.Monad.Logger.Class
-  ( class MonadLogger
-  , trace
-  , debug
-  , info
-  , warn
-  , error
-  ) as Logger
+import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class
   ( class MonadAsk
   , class MonadReader
@@ -49,8 +41,9 @@ import Control.Monad.Reader.Trans (runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Monad.Trans.Class (lift)
 import Control.Plus (class Plus)
-import Data.Profunctor (dimap)
+import Data.Log.Tag (TagSet)
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Profunctor (dimap)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -294,3 +287,25 @@ defaultContractConfig = do
 defaultContractConfigLifted
   :: forall (r :: Row Type). Contract r DefaultContractConfig
 defaultContractConfigLifted = liftAff defaultContractConfig
+
+-- Logging effects
+
+logTrace
+  :: forall (m :: Type -> Type). MonadLogger m => TagSet -> String -> m Unit
+logTrace = Logger.trace
+
+logDebug
+  :: forall (m :: Type -> Type). MonadLogger m => TagSet -> String -> m Unit
+logDebug = Logger.debug
+
+logInfo
+  :: forall (m :: Type -> Type). MonadLogger m => TagSet -> String -> m Unit
+logInfo = Logger.info
+
+logWarn
+  :: forall (m :: Type -> Type). MonadLogger m => TagSet -> String -> m Unit
+logWarn = Logger.warn
+
+logError
+  :: forall (m :: Type -> Type). MonadLogger m => TagSet -> String -> m Unit
+logError = Logger.error
