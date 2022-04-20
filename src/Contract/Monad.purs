@@ -21,6 +21,7 @@ module Contract.Monad
   ) where
 
 import Prelude
+import Undefined
 
 import Control.Alt (class Alt, alt)
 import Data.Either (Either, either, hush)
@@ -76,10 +77,12 @@ import QueryM
   , mkOgmiosWebSocketAff
   , mkWsUrl
   ) as QueryM
+import Record as Record
 import Serialization.Address (NetworkId(TestnetId))
+import Types.Interval (SlotConfig)
 import Types.Interval (defaultSlotConfig) as Interval
 import Types.UsedTxOuts (newUsedTxOuts)
-import Wallet (mkNamiWalletAff)
+import Wallet (Wallet, mkNamiWalletAff)
 
 -- | The `Contract` monad is a newtype wrapper over `QueryM` which is `ReaderT`
 -- | on `QueryConfig` over asynchronous effects, `Aff`. Throwing and catching
@@ -138,6 +141,45 @@ derive instance Newtype (ContractConfig r) _
 
 wrapContract :: forall (r :: Row Type) (a :: Type). QueryM a -> Contract r a
 wrapContract = wrap <<< QueryM.liftQueryM
+
+-- | Options to construct a `ContractConfig` indirectly. Use `mkContractConfig`
+-- | to create a `ContractConfig` which will call the necessary effects for
+-- | websocket initializations according to the provided options. `extraConfig`
+-- | holds additional options that will extend the resulting `ContractConfig`
+-- | directly
+newtype ConfigParams (r :: Row Type) = ConfigParams
+  { ogmiosConfig :: QueryM.ServerConfig
+  , datumCacheConfig :: QueryM.ServerConfig
+  , ctlServerConfig :: QueryM.ServerConfig
+  , networkId :: NetworkId
+  , slotConfig :: SlotConfig
+  , logLevel :: LogLevel
+  , wallet :: Maybe Wallet
+  -- | Additional config options to extend the `ContractConfig`
+  , extraConfig :: { | r }
+  }
+
+-- | Create a `ContractConfig` from the provided params. This will call the
+-- | necessary initialization code for the websocket connections
+mkContractConfig
+  :: forall (r :: Row Type). ConfigParams r -> Aff (ContractConfig r)
+mkContractConfig
+  (ConfigParams params@{ slotConfig, logLevel, networkId, wallet }) = do
+  ogmiosWs <- QueryM.mkOgmiosWebSocketAff logLevel params.ogmiosConfig
+  datumCacheWs <- QueryM.mkDatumCacheWebSocketAff logLevel params.ogmiosConfig
+  usedTxOuts <- newUsedTxOuts
+  let
+    queryConfig =
+      { slotConfig
+      , logLevel
+      , networkId
+      , ogmiosWs
+      , usedTxOuts
+      , wallet
+      , datumCacheWs
+      , serverConfig: params.ctlServerConfig
+      }
+  pure $ wrap $ queryConfig `Record.union` params.extraConfig
 
 -- | Throws an `Error` for any showable error using `Effect.Exception.throw`
 -- | and lifting into the `Contract` monad.
@@ -238,8 +280,8 @@ defaultContractConfig = do
     { ogmiosWs
     , datumCacheWs
     , wallet
-    , serverConfig: QueryM.defaultServerConfig
     , usedTxOuts
+    , serverConfig: QueryM.defaultServerConfig
     , networkId: TestnetId
     , slotConfig: Interval.defaultSlotConfig
     , logLevel
