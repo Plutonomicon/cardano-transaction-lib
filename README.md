@@ -9,10 +9,21 @@
 
 ## Goals:
 
-1. build a transaction in the browser that works with at least 1 light wallet (Nami).
-2. once we can construct a simple user-to-user transaction, we will try to use the library to submit the Tx with nami. 
-3. Once we have a simple working transaction, we will seek to build a Plutus Contract transaction With datum from scratch. 
-4. Once we can construct Plutus Contract transactions, we will seek to build a library/dsl/interface such that transactions can be built using constraints and lookups - as close as possible to a cut-and-paste solution from `Contract` Monad code in haskell (but with no guarantee that code changes are not necessary)
+- [x] **Stage 1** Build a simple transaction in the browser that works with at least one light wallet (Nami)
+- [x] **Stage 2** Once we can construct a simple user-to-user transaction, we will try to use the library to submit the tx with nami
+- [x] **Stage 3** Once we have a simple working transaction, we will seek to build a Plutus smart contract transaction with datum from scratch
+- [ ] **Stage 4** Once we can construct Plutus smart contract transactions, we will seek to build a library/DSL/interface such that transactions can be built using constraints and lookups - as close as possible to a cut-and-paste solution from Plutus' `Contract` monad code in haskell (but with no guarantee that code changes are not necessary) (**In progress**)
+- [ ] **Stage 5** Once we have a basic `Contract`-style API, we will further refine its public interface, expand wallet support (see below), and expose a test interface
+
+## Light wallet support
+ 
+Support is planned for the following light wallets, roughly in order of implementations:
+
+- [x] [Nami](https://namiwallet.io/)
+- [ ] [Gero](https://gerowallet.io/)
+- [ ] [Typhon](https://typhonwallet.io/)
+- [ ] [Yoroi](https://yoroi-wallet.com/)
+- [ ] [Eternl (formerly CCvault)](https://eternl.io/)
 
 ## resources/tools:
   - Cardano-serialization-lib (Sundae fork):https://github.com/SundaeSwap-finance/cardano-serialization-lib)
