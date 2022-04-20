@@ -1,3 +1,14 @@
+-- Feel free to update binary fixtures if they do not match the results you are
+-- getting in tests. However, make sure you understand the reason why they
+-- don't match.
+-- To update the fixture, simply copy the value from failing test output.
+--
+-- Or construct a value using CSL and get the hex string:
+--
+-- ```
+-- const byteArrayToHex = arr => Buffer.from(arr).toString('hex');
+-- console.log(byteArrayToHex(something.to_bytes()))
+-- ```
 module Test.Fixtures
   ( txOutputFixture1
   , txOutputFixture2
