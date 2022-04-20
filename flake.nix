@@ -2,12 +2,6 @@
   description = "cardano-transaction-lib";
 
   inputs = {
-    flake-compat = {
-      url = "github:edolstra/flake-compat";
-      flake = false;
-    };
-    flake-compat-ci.url = "github:hercules-ci/flake-compat-ci";
-
     nixpkgs.url = "github:NixOS/nixpkgs/dde1557825c5644c869c5efc7448dc03722a8f09";
 
     # for the purescript project
@@ -136,16 +130,29 @@
     , nixpkgs
     , haskell-nix
     , iohk-nix
-    , flake-compat-ci
     , ...
     }@inputs:
     let
       defaultSystems = [ "x86_64-linux" "x86_64-darwin" ];
       perSystem = nixpkgs.lib.genAttrs defaultSystems;
       nixpkgsFor = system: import nixpkgs {
-        overlays = [
+        overlays = with inputs; [
           haskell-nix.overlay
           iohk-nix.overlays.crypto
+          (prev: _: {
+            easy-ps =
+              import inputs.easy-purescript-nix { pkgs = prev; };
+            # One of ODC's dependencies is marked as broken on the stable branch
+            # We could just override that one package from unstable, but it's more
+            # convenient to just use unstable to build the package
+            ogmios-datum-cache =
+              nixpkgs-unstable.legacyPackages.${system}.haskellPackages.callPackage
+                ogmios-datum-cache
+                { };
+            ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
+            cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
+            inherit cardano-configurations;
+          })
         ];
         inherit (haskell-nix) config;
         inherit system;
@@ -156,7 +163,7 @@
           src = ./.;
         in
         import ./nix {
-          inherit src pkgs inputs system self;
+          inherit src pkgs system;
         };
       hsProjectFor = system:
         let
@@ -171,39 +178,23 @@
       # flake from haskell.nix project
       hsFlake = perSystem (system: (hsProjectFor system).flake { });
 
-      devShell = perSystem (system: (psProjectFor system).devShell);
+      devShell = perSystem (system: self.devShells.${system}.ctl);
+
+      devShells = perSystem (system: {
+        # This is the default `devShell` and can be run without specifying
+        # it (i.e. `nix develop`)
+        ctl = (psProjectFor system).devShell;
+        # It might be a good idea to keep this as a separate shell; if you're
+        # working on the PS frontend, it doesn't make a lot of sense to pull
+        # in all of the Haskell dependencies
+        #
+        # This can be used with `nix develop .#hsDevShell
+        hsDevShell = self.hsFlake.${system}.devShell;
+      });
 
       packages = perSystem (system:
-        let
-          pkgs = nixpkgsFor system;
-          easy-ps = import inputs.easy-purescript-nix { inherit pkgs; };
-          formatting-check = pkgs.runCommand "formatting-check"
-            {
-              nativeBuildInputs = [
-                easy-ps.purs-tidy
-                pkgs.haskellPackages.fourmolu
-                pkgs.nixpkgs-fmt
-              ];
-            }
-            ''
-              cd ${self}
-              purs-tidy check $(find ./* -iregex '.*.purs')
-              fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost \
-                $(find ./server -iregex '.*.hs')
-              nixpkgs-fmt --check ./{flake,default,shell}.nix \
-                 $(find ./nix ./server -iregex '.*.nix')
-              touch $out
-            '';
-          # It might be a good idea to keep this as a separate shell; if you're
-          # working on the PS frontend, it doesn't make a lot of sense to pull
-          # in all of the Haskell dependencies
-          #
-          # This can be used with `nix develop .#hsDevShell
-          hsDevShell = self.hsFlake.${system}.devShell;
-        in
         self.hsFlake.${system}.packages
         // (psProjectFor system).packages
-        // { inherit formatting-check hsDevShell; }
       );
 
       apps = perSystem (system: {
@@ -211,11 +202,45 @@
           (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
       });
 
+      checks = perSystem (system:
+        let
+          pkgs = nixpkgsFor system;
+        in
+        {
+          formatting-check = pkgs.runCommand "formatting-check"
+            {
+              nativeBuildInputs = with pkgs; [
+                easy-ps.purs-tidy
+                haskellPackages.fourmolu
+                nixpkgs-fmt
+                fd
+              ];
+            }
+            ''
+              cd ${self}
+              purs-tidy check $(fd -epurs)
+              fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost \
+                $(fd -ehs)
+              nixpkgs-fmt --check ./{flake,default,shell}.nix \
+                 $(fd -enix --exclude='spago*')
+              touch $out
+            '';
+        });
+
+      check = perSystem (system:
+        (nixpkgsFor system).runCommand "combined-check"
+          {
+            nativeBuildInputs =
+              builtins.attrValues self.checks.${system}
+              ++ builtins.attrValues self.packages.${system};
+          }
+          ''
+            touch $out
+          ''
+      );
+
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);
 
-      ci = flake-compat-ci.lib.recurseIntoFlakeWith {
-        flake = self;
-        systems = [ "x86_64-linux" ];
-      };
+      herculesCI.ciSystems = [ "x86_64-linux" ];
     };
 }

@@ -18,6 +18,7 @@ import Data.Show.Generic (genericShow)
 import Control.Alternative ((<|>), guard)
 import Data.Array (uncons)
 import Data.Array as Array
+import Data.NonEmpty (NonEmpty(NonEmpty))
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), hush, note)
@@ -26,8 +27,10 @@ import Data.List (List)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe)
+import Data.Newtype (unwrap)
 import Data.Ratio (Ratio, reduce)
 import Data.Symbol (class IsSymbol, reflectSymbol)
+import Data.TextDecoder (decodeUtf8)
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested ((/\))
@@ -231,6 +234,11 @@ instance FromData UInt where
 instance FromData a => FromData (Array a) where
   fromData = fromDataUnfoldable
 
+instance FromData a => FromData (NonEmpty Array a) where
+  fromData d = do
+    { head, tail } <- Array.uncons =<< fromData d
+    pure $ NonEmpty head tail
+
 instance FromData a => FromData (List a) where
   fromData = fromDataUnfoldable
 
@@ -247,6 +255,10 @@ instance (FromData k, Ord k, FromData v) => FromData (Map k v) where
 
 instance FromData ByteArray where
   fromData (Bytes res) = Just res
+  fromData _ = Nothing
+
+instance FromData String where
+  fromData (Bytes bytes) = hush $ decodeUtf8 $ unwrap bytes
   fromData _ = Nothing
 
 -- Nothing prevents fromData b ~ Maybe BigInt from being zero here, perhaps

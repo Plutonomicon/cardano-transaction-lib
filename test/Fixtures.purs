@@ -40,15 +40,21 @@ module Test.Fixtures
   , txInputFixture1
   , seabugMetadataFixture1
   , seabugMetadataDeltaFixture1
+  , cip25MetadataFixture1
+  , cip25MetadataJsonFixture1
   , redeemerFixture1
   ) where
 
 import Prelude
 
+import Effect (Effect)
+import Data.Argonaut as Json
 import Data.Array as Array
 import Data.BigInt as BigInt
+import Data.Either (fromRight)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.NonEmpty ((:|))
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Deserialization.FromBytes (fromBytes)
@@ -57,6 +63,13 @@ import Metadata.Seabug
   , SeabugMetadataDelta(SeabugMetadataDelta)
   )
 import Metadata.Seabug.Share (Share, mkShare)
+import Metadata.Cip25
+  ( Cip25Metadata(Cip25Metadata)
+  , Cip25MetadataEntry(Cip25MetadataEntry)
+  , Cip25MetadataFile(Cip25MetadataFile)
+  )
+import Node.FS.Sync (readTextFile)
+import Node.Encoding (Encoding(UTF8))
 import Partial.Unsafe (unsafePartial)
 import Serialization.Address
   ( Address
@@ -194,6 +207,10 @@ currencySymbol1 = unsafePartial $ fromJust $ mkCurrencySymbol $
 tokenName1 :: TokenName
 tokenName1 = unsafePartial $ fromJust $ mkTokenName $
   hexToByteArrayUnsafe "4974657374546f6b656e"
+
+tokenName2 :: TokenName
+tokenName2 = unsafePartial $ fromJust $ mkTokenName $
+  hexToByteArrayUnsafe "54657374546f6b656e32"
 
 txOutputBinaryFixture1 :: String
 txOutputBinaryFixture1 =
@@ -917,6 +934,47 @@ seabugMetadataDeltaFixture1 = SeabugMetadataDelta
   , ownerPrice: unsafePartial $ fromJust $ Natural.fromBigInt $ BigInt.fromInt
       10
   }
+
+cip25MetadataFilesFixture1 :: Array Cip25MetadataFile
+cip25MetadataFilesFixture1 = Cip25MetadataFile <$>
+  [ { name: "file_name_1"
+    , mediaType: "media_type"
+    , uris: "uri1" :| [ "uri2", "uri3" ]
+    }
+  , { name: "file_name_2"
+    , mediaType: "media_type_2"
+    , uris: "uri4" :| [ "uri5", "uri6" ]
+    }
+  ]
+
+cip25MetadataEntryFixture1 :: Cip25MetadataEntry
+cip25MetadataEntryFixture1 = Cip25MetadataEntry
+  { policyId: policyId
+  , assetName: tokenName1
+  , imageUris: "image_uri1" :| [ "image_uri2", "image_uri3" ]
+  , mediaType: Just "media_type"
+  , description: [ "desc1", "desc2", "desc3" ]
+  , files: cip25MetadataFilesFixture1
+  }
+
+cip25MetadataEntryFixture2 :: Cip25MetadataEntry
+cip25MetadataEntryFixture2 = Cip25MetadataEntry
+  { policyId: policyId
+  , assetName: tokenName2
+  , imageUris: "image_uri1" :| []
+  , mediaType: Nothing
+  , description: []
+  , files: []
+  }
+
+cip25MetadataFixture1 :: Cip25Metadata
+cip25MetadataFixture1 = Cip25Metadata
+  [ cip25MetadataEntryFixture1, cip25MetadataEntryFixture2 ]
+
+cip25MetadataJsonFixture1 :: Effect Json.Json
+cip25MetadataJsonFixture1 =
+  readTextFile UTF8 "test/Fixtures/cip25MetadataJsonFixture1.json" >>=
+    pure <<< fromRight Json.jsonNull <<< Json.parseJson
 
 redeemerFixture1 :: Redeemer
 redeemerFixture1 = Redeemer

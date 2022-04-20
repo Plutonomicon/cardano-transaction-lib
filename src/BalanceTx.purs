@@ -18,6 +18,8 @@ module BalanceTx
 import Prelude
 
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
+import Control.Monad.Logger.Class (class MonadLogger)
+import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
 import Data.Array ((\\), findIndex, modifyAt)
 import Data.Array as Array
@@ -29,6 +31,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((.~))
 import Data.List ((:), List(Nil), partition)
+import Data.Log.Tag (tag)
 import Data.Map as Map
 import Data.Maybe (fromMaybe, maybe, Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
@@ -37,7 +40,6 @@ import Data.Traversable (traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect)
-import Effect.Class.Console (log)
 import ProtocolParametersAlonzo
   ( adaOnlyWords
   , coinSize
@@ -385,13 +387,13 @@ balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
 logTx'
   :: forall (m :: Type -> Type)
    . MonadEffect m
+  => MonadLogger m
   => String
   -> Utxo
   -> Transaction
   -> m Unit
 logTx' msg utxos (Transaction { body: body'@(TxBody body) }) =
-  traverse_ (log <<< (<>) msg)
-    -- Add to log more:
+  traverse_ (Logger.trace (tag msg mempty))
     [ "Input Value: " <> show (getInputValue utxos body')
     , "Output Value: " <> show (Array.foldMap getAmount body.outputs)
     , "Fees: " <> show body.fee
@@ -401,6 +403,7 @@ logTx' msg utxos (Transaction { body: body'@(TxBody body) }) =
 logTx
   :: forall (m :: Type -> Type)
    . MonadEffect m
+  => MonadLogger m
   => String
   -> Utxo
   -> Transaction

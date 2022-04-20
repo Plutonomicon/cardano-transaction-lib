@@ -32,6 +32,7 @@ module QueryM
   , datumHash
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
+  , traceQueryConfig
   , defaultServerConfig
   , finalizeTx
   , getDatumByHash
@@ -50,6 +51,7 @@ module QueryM
   , ownPaymentPubKeyHash
   , ownPubKeyHash
   , queryDatumCache
+  , runQueryM
   , signTransaction
   , signTransactionBytes
   , startFetchBlocksRequest
@@ -64,9 +66,9 @@ import Aeson as Aeson
 import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.ResponseFormat as Affjax.ResponseFormat
-import Contract.Prim.ByteArray (ByteArray(..))
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Reader.Trans (ReaderT, withReaderT, ask, asks)
+import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
+import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT, ask, asks)
 import Data.Argonaut (class DecodeJson, JsonDecodeError)
 import Data.Argonaut as Json
 import Data.Argonaut.Encode.Class (encodeJson)
@@ -78,6 +80,7 @@ import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, isRight, note, hush)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
+import Data.Log.Level (LogLevel(Trace, Debug, Error))
 import Data.Maybe (Maybe(Just, Nothing), maybe, maybe')
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -85,6 +88,16 @@ import Data.Traversable (traverse, for)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
+import Effect (Effect)
+import Effect.Aff (Aff, Canceler(Canceler), makeAff)
+import Effect.Aff.Class (liftAff)
+import Effect.Class (liftEffect)
+import Effect.Exception (Error, error, throw)
+import Effect.Ref as Ref
+import Foreign.Object as Object
+import Helpers (logString, logWithLevel)
+import Types.MultiMap (MultiMap)
+import Types.MultiMap as MultiMap
 import QueryM.DatumCacheWsp
   ( DatumCacheMethod
       ( StartFetchBlocks
@@ -110,23 +123,13 @@ import QueryM.DatumCacheWsp
       )
   )
 import QueryM.DatumCacheWsp as DcWsp
-import Effect (Effect)
-import Effect.Aff (Aff, Canceler(Canceler), makeAff)
-import Effect.Aff.Class (liftAff)
-import Effect.Class (liftEffect)
-import Effect.Console (log)
-import Effect.Exception (Error, error, throw)
-import Effect.Ref as Ref
-import Foreign.Object as Object
-import Types.MultiMap (MultiMap)
-import Types.MultiMap as MultiMap
 import QueryM.JsonWsp as JsonWsp
 import QueryM.Ogmios as Ogmios
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address
   ( Address
   , BlockId
-  , NetworkId
+  , NetworkId(TestnetId)
   , Slot
   , addressPaymentCred
   , stakeCredentialToKeyHash
@@ -136,16 +139,16 @@ import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.Datum (Datum, DatumHash)
-import Types.Interval (SlotConfig)
+import Types.Interval (SlotConfig, defaultSlotConfig)
 import Types.PlutusData (PlutusData)
 import Types.Scripts (PlutusScript)
 import Types.Transaction (Transaction(Transaction))
 import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.UnbalancedTransaction (PubKeyHash, PaymentPubKeyHash)
+import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Types.Value (Coin(Coin))
 import Untagged.Union (asOneOf)
-import Types.UsedTxOuts (UsedTxOuts)
 import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
@@ -156,23 +159,32 @@ import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
 --------------------------------------------------------------------------------
 -- Websocket Basics
 --------------------------------------------------------------------------------
-foreign import _mkWebSocket :: Url -> Effect JsWebSocket
+foreign import _mkWebSocket
+  :: (String -> Effect Unit) -> Url -> Effect JsWebSocket
 
 foreign import _onWsConnect :: JsWebSocket -> (Effect Unit) -> Effect Unit
 
 foreign import _onWsMessage
-  :: JsWebSocket -> (String -> Effect Unit) -> Effect Unit
+  :: JsWebSocket
+  -> (String -> Effect Unit) -- logger
+  -> (String -> Effect Unit) -- handler
+  -> Effect Unit
 
 foreign import _onWsError
-  :: JsWebSocket -> (String -> Effect Unit) -> Effect Unit
+  :: JsWebSocket
+  -> (String -> Effect Unit) -- logger
+  -> (String -> Effect Unit) -- handler
+  -> Effect Unit
 
-foreign import _wsSend :: JsWebSocket -> String -> Effect Unit
+foreign import _wsSend
+  :: JsWebSocket -> (String -> Effect Unit) -> String -> Effect Unit
 
 foreign import _wsClose :: JsWebSocket -> Effect Unit
 
 foreign import _stringify :: forall (a :: Type). a -> Effect String
 
-foreign import _wsWatch :: JsWebSocket -> Effect Unit -> Effect Unit
+foreign import _wsWatch
+  :: JsWebSocket -> (String -> Effect Unit) -> Effect Unit -> Effect Unit
 
 foreign import data JsWebSocket :: Type
 
@@ -193,14 +205,17 @@ type QueryConfig (r :: Row Type) =
   , usedTxOuts :: UsedTxOuts
   , networkId :: NetworkId
   , slotConfig :: SlotConfig
+  , logLevel :: LogLevel
   | r
   }
 
 type DefaultQueryConfig = QueryConfig ()
 
-type QueryM (a :: Type) = ReaderT DefaultQueryConfig Aff a
+type QueryM (a :: Type) = ReaderT DefaultQueryConfig (LoggerT Aff) a
 
-type QueryMExtended (r :: Row Type) (a :: Type) = ReaderT (QueryConfig r) Aff a
+type QueryMExtended (r :: Row Type) (a :: Type) = ReaderT (QueryConfig r)
+  (LoggerT Aff)
+  a
 
 liftQueryM :: forall (r :: Row Type) (a :: Type). QueryM a -> QueryMExtended r a
 liftQueryM = withReaderT toDefaultQueryConfig
@@ -214,7 +229,32 @@ liftQueryM = withReaderT toDefaultQueryConfig
     , usedTxOuts: c.usedTxOuts
     , networkId: c.networkId
     , slotConfig: c.slotConfig
+    , logLevel: c.logLevel
     }
+
+runQueryM :: forall (a :: Type). DefaultQueryConfig -> QueryM a -> Aff a
+runQueryM cfg =
+  flip runLoggerT (logWithLevel cfg.logLevel) <<< flip runReaderT cfg
+
+-- A `DefaultQueryConfig` useful for testing, with `logLevel` set to `Trace`
+traceQueryConfig :: Aff DefaultQueryConfig
+traceQueryConfig = do
+  ogmiosWs <- mkOgmiosWebSocketAff logLevel defaultOgmiosWsConfig
+  datumCacheWs <- mkDatumCacheWebSocketAff logLevel defaultDatumCacheWsConfig
+  usedTxOuts <- newUsedTxOuts
+  pure
+    { ogmiosWs
+    , datumCacheWs
+    , serverConfig: defaultServerConfig
+    , wallet: Nothing
+    , usedTxOuts
+    , networkId: TestnetId
+    , slotConfig: defaultSlotConfig
+    , logLevel
+    }
+  where
+  logLevel :: LogLevel
+  logLevel = Trace
 
 --------------------------------------------------------------------------------
 -- OGMIOS LOCAL STATE QUERY PROTOCOL
@@ -285,8 +325,7 @@ matchCacheQuery
   -> QueryM Unit
 matchCacheQuery query method args = do
   resp <- queryDatumCache (query args)
-  if DcWsp.responseMethod resp == method then pure unit
-  else liftEffect $ throw
+  unless (DcWsp.responseMethod resp == method) $ liftEffect $ throw
     "Request-response type mismatch. Should not have happened"
 
 -- TODO: To be unified with ogmios once reflection PR is merged in `ogmios-datum-cache`
@@ -308,7 +347,7 @@ queryDatumCache request = do
             ls.removeMessageListener id
             allowError cont $ result
         )
-      _wsSend ws sBody
+      _wsSend ws (logString config.logLevel Debug) sBody
       pure $ Canceler $ \err -> do
         liftEffect $ ls.removeMessageListener id
         liftEffect $ throwError $ err
@@ -687,10 +726,11 @@ type DatumCacheWebSocket = WebSocket DatumCacheListeners
 -- smart-constructor for OgmiosWebSocket in Aff Context
 -- (prevents sending messages before the websocket opens, etc)
 mkOgmiosWebSocket'
-  :: ServerConfig
+  :: LogLevel
+  -> ServerConfig
   -> (Either Error OgmiosWebSocket -> Effect Unit)
   -> Effect Canceler
-mkOgmiosWebSocket' serverCfg cb = do
+mkOgmiosWebSocket' lvl serverCfg cb = do
   utxoDispatchMap <- createMutableDispatch
   chainTipDispatchMap <- createMutableDispatch
   evaluateTxDispatchMap <- createMutableDispatch
@@ -698,14 +738,14 @@ mkOgmiosWebSocket' serverCfg cb = do
   let
     md = ogmiosMessageDispatch
       { utxoDispatchMap, chainTipDispatchMap, evaluateTxDispatchMap }
-  ws <- _mkWebSocket $ mkWsUrl serverCfg
+  ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   _onWsConnect ws do
-    _wsWatch ws do
-      removeAllListeners utxoDispatchMap
-      removeAllListeners evaluateTxDispatchMap
-      removeAllListeners chainTipDispatchMap
-    _onWsMessage ws (defaultMessageListener md)
-    _onWsError ws defaultErrorListener
+    _wsWatch ws (logger Debug) do
+      removeAllListeners lvl utxoDispatchMap
+      removeAllListeners lvl evaluateTxDispatchMap
+      removeAllListeners lvl chainTipDispatchMap
+    _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
+    _onWsError ws (logger Error) defaultErrorListener
     cb $ Right $ WebSocket ws
       { utxo: mkListenerSet utxoDispatchMap
       , chainTip: mkListenerSet chainTipDispatchMap
@@ -713,31 +753,34 @@ mkOgmiosWebSocket' serverCfg cb = do
       , evaluate: mkListenerSet evaluateTxDispatchMap
       }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
+  where
+  logger :: LogLevel -> String -> Effect Unit
+  logger = logString lvl
 
 mkDatumCacheWebSocket'
-  :: ServerConfig
+  :: LogLevel
+  -> ServerConfig
   -> (Either Error DatumCacheWebSocket -> Effect Unit)
   -> Effect Canceler
-mkDatumCacheWebSocket' serverCfg cb = do
+mkDatumCacheWebSocket' lvl serverCfg cb = do
   dispatchMap <- createMutableDispatch
-  let md = (datumCacheMessageDispatch dispatchMap)
-  ws <- _mkWebSocket $ mkOgmiosDatumCacheWsUrl serverCfg
+  let md = datumCacheMessageDispatch dispatchMap
+  ws <- _mkWebSocket (logger Debug) $ mkOgmiosDatumCacheWsUrl serverCfg
   _onWsConnect ws $ do
-    _wsWatch ws (removeAllListeners dispatchMap)
-    _onWsMessage ws (defaultMessageListener md)
-    _onWsError ws defaultErrorListener
+    _wsWatch ws (logger Debug) $ removeAllListeners lvl dispatchMap
+    _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
+    _onWsError ws (logger Error) defaultErrorListener
     cb $ Right $ WebSocket ws (mkListenerSet dispatchMap)
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
+  where
+  logger :: LogLevel -> String -> Effect Unit
+  logger = logString lvl
 
--- makeAff
--- :: forall a
--- . ((Either Error a -> Effect Unit) -> Effect Canceler)
--- -> Aff a
-mkDatumCacheWebSocketAff :: ServerConfig -> Aff DatumCacheWebSocket
-mkDatumCacheWebSocketAff serverCfg = makeAff $ mkDatumCacheWebSocket' serverCfg
+mkDatumCacheWebSocketAff :: LogLevel -> ServerConfig -> Aff DatumCacheWebSocket
+mkDatumCacheWebSocketAff lvl = makeAff <<< mkDatumCacheWebSocket' lvl
 
-mkOgmiosWebSocketAff :: ServerConfig -> Aff OgmiosWebSocket
-mkOgmiosWebSocketAff serverCfg = makeAff $ mkOgmiosWebSocket' serverCfg
+mkOgmiosWebSocketAff :: LogLevel -> ServerConfig -> Aff OgmiosWebSocket
+mkOgmiosWebSocketAff lvl = makeAff <<< mkOgmiosWebSocket' lvl
 
 -- getter
 underlyingWebSocket :: forall (a :: Type). WebSocket a -> JsWebSocket
@@ -779,9 +822,10 @@ mkListenerSet dim =
   , dispatchIdMap: dim
   }
 
-removeAllListeners :: forall (a :: Type). DispatchIdMap a -> Effect Unit
-removeAllListeners dim = do
-  log "error hit, removing all listeners"
+removeAllListeners
+  :: forall (a :: Type). LogLevel -> DispatchIdMap a -> Effect Unit
+removeAllListeners lvl dim = do
+  logString lvl Error "error hit, removing all listeners"
   Ref.write MultiMap.empty dim
 
 -- TODO after ogmios-datum-cache implements reflection this could be generalized to make request for the cache as well
@@ -794,8 +838,11 @@ mkOgmiosRequest
   -> QueryM o
 mkOgmiosRequest jsonWspCall getLs inp = do
   { body, id } <- liftEffect $ JsonWsp.buildRequest jsonWspCall inp
-  ogmiosWs <- asks _.ogmiosWs
+  config <- ask
   let
+    ogmiosWs :: OgmiosWebSocket
+    ogmiosWs = config.ogmiosWs
+
     affFunc :: (Either Error o -> Effect Unit) -> Effect Canceler
     affFunc cont = do
       let
@@ -806,7 +853,8 @@ mkOgmiosRequest jsonWspCall getLs inp = do
             respLs.removeMessageListener id
             allowError cont $ result
         )
-      _wsSend ws (Json.stringify $ Json.encodeJson body)
+      _wsSend ws (logString config.logLevel Debug) $ Json.stringify $
+        Json.encodeJson body
       pure $ Canceler $ \err -> do
         liftEffect $ respLs.removeMessageListener id
         liftEffect $ throwError $ err
@@ -922,8 +970,9 @@ defaultErrorListener :: String -> Effect Unit
 defaultErrorListener str =
   throwError $ error $ "a JsWebSocket Error has occured: " <> str
 
-defaultMessageListener :: Array WebsocketDispatch -> String -> Effect Unit
-defaultMessageListener dispatchArray msg = do
+defaultMessageListener
+  :: LogLevel -> Array WebsocketDispatch -> String -> Effect Unit
+defaultMessageListener lvl dispatchArray msg = do
   -- here, we need to fold the input over the array of functions until we get
   -- a success, then execute the effect.
   -- using a fold instead of a traverse allows us to skip a bunch of execution
@@ -932,13 +981,13 @@ defaultMessageListener dispatchArray msg = do
     (pure $ Left defaultErr)
     dispatchArray
   either
-    -- we expect a lot of parse errors, some messages could? fall through completely
+    -- we expect a lot of parse errors, some messages (could?) fall through completely
     ( \err ->
-        if err == defaultErr then pure unit
-        else log ("unexpected parse error on input:" <> msg)
+        unless (err == defaultErr) $ logString lvl Error $
+          "unexpected parse error on input:" <> msg
     )
-    (\act -> act)
-    (eAction :: Either Json.JsonDecodeError (Effect Unit))
+    identity
+    eAction
 
 messageFoldF
   :: String

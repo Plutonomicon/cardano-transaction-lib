@@ -3,7 +3,7 @@ module Types.ByteArray
   ( ByteArray(..)
   , byteArrayFromIntArray
   , byteArrayFromIntArrayUnsafe
-  , byteArrayFromString
+  , byteArrayFromAscii
   , byteArrayToHex
   , byteArrayToIntArray
   , byteLength
@@ -100,8 +100,8 @@ instance Arbitrary ByteArray where
 
 -- | Convert characters in range `0-255` into a `ByteArray`.
 -- | Fails with `Nothing` if there are characters out of this range in a string.
-byteArrayFromString :: String -> Maybe ByteArray
-byteArrayFromString str = do
+byteArrayFromAscii :: String -> Maybe ByteArray
+byteArrayFromAscii str = do
   byteArrayFromIntArrayUnsafe <$> for (toCharArray str) \cp -> do
     let charCode = toCharCode cp
     if charCode <= 255 && charCode >= 0 then pure charCode
