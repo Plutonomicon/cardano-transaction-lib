@@ -1,4 +1,3 @@
-node*.nix linguist-generated=true
 spago-packages.nix linguist-generated=true
 flake.lock linguist-generated=true
 server/config/pparams.json linguist-generated=true
