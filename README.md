@@ -10,6 +10,28 @@
 
 **cardano-transaction-lib** (CTL) is a Purescript library for building smart contract transactions on Cardano. It aims to port the functionality and interface of Plutus off-chain code to the browser environment.
 
+<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
+
+**Table of Contents**
+
+- [cardano-transaction-lib](#cardano-transaction-lib)
+- [Goals:](#goals)
+- [Light wallet support](#light-wallet-support)
+- [Setup and dev environment](#setup-and-dev-environment)
+- [Required services](#required-services)
+- [Other requirements](#other-requirements)
+- [Nix environment](#nix-environment)
+- [Launching services for development](#launching-services-for-development)
+- [Building/testing the PS project and running it in the browser](#buildingtesting-the-ps-project-and-running-it-in-the-browser)
+- [Adding PS/JS dependencies](#adding-psjs-dependencies)
+- [Purescript](#purescript)
+- [JS](#js)
+- [Using CTL as a dependency](#using-ctl-as-a-dependency)
+- [Architecture](#architecture)
+- [Additional resources/tools:](#additional-resourcestools)
+
+<!-- markdown-toc end -->
+
 ## Goals:
 
 - [x] **Stage 1** Build a simple transaction in the browser that works with at least one light wallet (Nami)
