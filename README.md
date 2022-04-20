@@ -130,24 +130,22 @@ If you add a dependency to `package.json`, make sure to update the lockfile with
 We have recenly set up a small scaffolding repository for projects wishing to adopt CTL: https://github.com/mlabs-haskell/ctl-scaffold. More documentation and resources will be added soon to the repo
 
 ## Architecture
-So if we think of pab as a library instead of as a standalone process there are really just a few problems to consider:
+CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, however, CTL is a library and not a standalone process. Over the course of CTL's development, several questions have been raised as to how best create PAB-as-a-library:
 
-1. How do we get the transaction in the right format - this is handled by cardano-serialization-lib,  a rust library available as wasm
-2. How do we query the chain - Ogmios or BlockFrost api integration,   if these services don't have a permissive CORS setting,  the user/developer needs to provide the url for a proxy server.
-3. Querying Datum may require chain-index or blockfrost, as ogmios does not support this feature.
-note: this may have limitations for private testnets where Ogmios or blockfrost services do not yet exist
-4. How do we submit the transaction - through the light wallet integration in the browser based on cip-30
-5. The lingering question is around storage solutions if needed - this can be in memory,  in various browser storage solutions,  or a decentralized db like flurry
-
-The main goal of the library is to provide a reasonable interface to build and balance a transaction manually
-
-In the first iteration, we just want a library interface to achieve this with Nami so we can start shipping
-
-In the second iteration we will want to support multiple wallets and automatic balancing, rather than manual.
-
-In the third iteration,  we want to support an interface that matches the original pab so people can easily port their code over. This will likely Not be a compiled eDSL in PureScript.   Library code in a Promise Monad is much more likely.
-
-We will support both a PureScript and a JavaScript api.
+1. How do we get the transaction in the right format? 
+   - This is handled by `cardano-serialization-lib`, a Rust library available as WASM
+2. How do we query the chain? 
+   - This has been solved using Ogmios 
+   - We may, however, support a BlockFrost backend as well in the future
+3. How do we query for datums (i.e. the datums themselves and not just their hashes)?
+   - `ogmios-datum-cache` solves this problem
+4. How do we submit the transaction? 
+   - This is done via browser-based light wallet integration in the browser based on CIP-30
+5. How closely should we follow Plutus' `Contract` API?
+   - CTL's `Contract` model is **significantly** less restrictive than Plutus' and allows for arbitrary effects within the `Contract` monad
+   - Certain features cannot be directly translated into Purescript from Haskell due to differences between the two languages (e.g. CTL's `DatumType` and `RedeemerType` are type class with fundeps, as Purescript lacks any notion of type families/type-level functions)
+6. A lingering concern remains around storage solutions, if needed
+   - This can be in memory, in various browser storage solutions, or a decentralized DB like Fluree
 
 ## Additional resources/tools:
   - [`cardano-serialization-lib`](https://github.com/SundaeSwap-finance/cardano-serialization-lib)(Sundae fork)
