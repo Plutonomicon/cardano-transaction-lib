@@ -10,27 +10,22 @@
 
 **cardano-transaction-lib** (CTL) is a Purescript library for building smart contract transactions on Cardano. It aims to port the functionality and interface of Plutus off-chain code to the browser environment.
 
-<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
-
 **Table of Contents**
 
-- [cardano-transaction-lib](#cardano-transaction-lib)
 - [Goals:](#goals)
-- [Light wallet support](#light-wallet-support)
+  - [Light wallet support](#light-wallet-support)
 - [Setup and dev environment](#setup-and-dev-environment)
-- [Required services](#required-services)
-- [Other requirements](#other-requirements)
-- [Nix environment](#nix-environment)
-- [Launching services for development](#launching-services-for-development)
-- [Building/testing the PS project and running it in the browser](#buildingtesting-the-ps-project-and-running-it-in-the-browser)
-- [Adding PS/JS dependencies](#adding-psjs-dependencies)
-- [Purescript](#purescript)
-- [JS](#js)
+  - [Required services](#required-services)
+  - [Other requirements](#other-requirements)
+  - [Nix environment](#nix-environment)
+  - [Launching services for development](#launching-services-for-development)
+  - [Building/testing the PS project and running it in the browser](#buildingtesting-the-ps-project-and-running-it-in-the-browser)
+  - [Adding PS/JS dependencies](#adding-psjs-dependencies)
+    - [Purescript](#purescript)
+    - [JS](#js)
 - [Using CTL as a dependency](#using-ctl-as-a-dependency)
 - [Architecture](#architecture)
 - [Additional resources/tools:](#additional-resourcestools)
-
-<!-- markdown-toc end -->
 
 ## Goals:
 
@@ -40,7 +35,7 @@
 - [ ] **Stage 4** Once we can construct Plutus smart contract transactions, we will seek to build a library/DSL/interface such that transactions can be built using constraints and lookups - as close as possible to a cut-and-paste solution from Plutus' `Contract` monad code in haskell (but with no guarantee that code changes are not necessary) (**In progress**)
 - [ ] **Stage 5** Once we have a basic `Contract`-style API, we will further refine its public interface, expand wallet support (see [below](#light-wallet-support)), expose a test interface, and provide a more ergonomic JS/TS API
 
-## Light wallet support
+### Light wallet support
 
 Support is planned for the following light wallets, roughly in order of implementation:
 
