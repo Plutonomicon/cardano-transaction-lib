@@ -740,7 +740,7 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       { utxoDispatchMap, chainTipDispatchMap, evaluateTxDispatchMap }
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   _onWsConnect ws do
-    _wsWatch (logger Debug) ws do
+    _wsWatch ws (logger Debug) do
       removeAllListeners lvl utxoDispatchMap
       removeAllListeners lvl evaluateTxDispatchMap
       removeAllListeners lvl chainTipDispatchMap
@@ -767,7 +767,7 @@ mkDatumCacheWebSocket' lvl serverCfg cb = do
   let md = datumCacheMessageDispatch dispatchMap
   ws <- _mkWebSocket (logger Debug) $ mkOgmiosDatumCacheWsUrl serverCfg
   _onWsConnect ws $ do
-    _wsWatch (logger Debug) ws $ removeAllListeners lvl dispatchMap
+    _wsWatch ws (logger Debug) $ removeAllListeners lvl dispatchMap
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
     _onWsError ws (logger Error) defaultErrorListener
     cb $ Right $ WebSocket ws (mkListenerSet dispatchMap)
