@@ -33,96 +33,62 @@
 
 module Examples.Nami.Pkh2Pkh (main) where
 
-import Prelude
+import Contract.Prelude
 
-import BalanceTx (balanceTx)
-import Control.Monad.Error.Class (throwError)
-import Data.Array as Array
+import Contract.Address (NetworkId(TestnetId), ownPaymentPubKeyHash)
+import Contract.Monad
+  ( ConfigParams(ConfigParams)
+  , LogLevel(Trace)
+  , defaultDatumCacheWsConfig
+  , defaultOgmiosWsConfig
+  , defaultServerConfig
+  , defaultSlotConfig
+  , launchAff_
+  , liftedE'
+  , liftedM
+  , logInfo
+  , mkContractConfig
+  , runContract_
+  )
+import Contract.ScriptLookups as Lookups
+import Contract.Transaction
+  ( BalancedSignedTransaction(BalancedSignedTransaction)
+  , balanceAndSignTx
+  , submit
+  )
+import Contract.TxConstraints as Constraints
+import Contract.Value as Value
+import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
-import Data.Either (either)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Newtype (unwrap)
-import Data.Tuple (fst)
-import Effect (Effect)
-import Effect.Aff (error, launchAff_)
-import Effect.Aff.Class (liftAff)
-import Effect.Class.Console (log)
-import QueryM
-  ( QueryM
-  , traceQueryConfig
-  , getWalletAddress
-  , runQueryM
-  , submitTxWallet
-  )
-import QueryM.Utxos (utxosAt)
-import Serialization.Address (NetworkId(TestnetId))
-import Types.Transaction
-  ( Transaction(Transaction)
-  , TransactionOutput(TransactionOutput)
-  , TransactionHash
-  , TxBody(TxBody)
-  )
-import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx))
-import Types.Value as Value
-import Wallet (mkNamiWalletAff)
 
 main :: Effect Unit
 main = launchAff_ $ do
   wallet <- Just <$> mkNamiWalletAff
-  cfg <- traceQueryConfig
-  txId <- runQueryM cfg { wallet = wallet } buildAndSubmit
-  log $ show txId
-
-buildAndSubmit :: QueryM TransactionHash
-buildAndSubmit = mthrow "Failed to submit transaction" $
-  submitTxWallet =<< buildTransaction
-
-buildTransaction :: QueryM Transaction
-buildTransaction = either (throw <<< show) pure
-  =<< balanceTx
-  =<< buildUnbalancedTransaction
-
-buildUnbalancedTransaction :: QueryM UnbalancedTx
-buildUnbalancedTransaction = do
-  ownAddress <- mthrow "Failed to get wallet address" getWalletAddress
-  inputs <-
-    map fst
-      <<< Map.toUnfoldable
-      <<< unwrap
-      <$> mthrow "Failed to get utxos" (utxosAt ownAddress)
-  pure $ UnbalancedTx
-    { transaction: Transaction
-        { body: TxBody
-            { inputs
-            , outputs: Array.singleton $ TransactionOutput
-                { address: ownAddress
-                , amount: Value.lovelaceValueOf $ BigInt.fromInt 2000000
-                , dataHash: Nothing
-                }
-            -- ??
-            , fee: Value.mkCoin 0
-            , networkId: Just TestnetId
-            , certs: Nothing
-            , collateral: Nothing
-            , auxiliaryDataHash: Nothing
-            , mint: Nothing
-            , requiredSigners: Nothing
-            , scriptDataHash: Nothing
-            , ttl: Nothing
-            , update: Nothing
-            , validityStartInterval: Nothing
-            , withdrawals: Nothing
-            }
-        , isValid: true
-        , witnessSet: mempty
-        , auxiliaryData: Nothing
-        }
-    , utxoIndex: Map.empty
+  cfg <- mkContractConfig $ ConfigParams
+    { ogmiosConfig: defaultOgmiosWsConfig
+    , datumCacheConfig: defaultDatumCacheWsConfig
+    , ctlServerConfig: defaultServerConfig
+    , networkId: TestnetId
+    , slotConfig: defaultSlotConfig
+    , logLevel: Trace
+    , extraConfig: {}
+    , wallet
     }
 
-throw :: forall (a :: Type). String -> QueryM a
-throw = liftAff <<< throwError <<< error
+  runContract_ cfg $ do
+    pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
+    let
+      constraints :: Constraints.TxConstraints Void Void
+      constraints = Constraints.mustPayToPubKey pkh
+        $ Value.lovelaceValueOf
+        $ BigInt.fromInt 2_000_000
 
-mthrow :: forall (a :: Type). String -> QueryM (Maybe a) -> QueryM a
-mthrow msg act = maybe (throw msg) pure =<< act
+      lookups :: Lookups.ScriptLookups Void
+      lookups = mempty
+
+    ubTx <- liftedE' $ Lookups.mkUnbalancedTx lookups constraints
+    BalancedSignedTransaction bsTx <-
+      liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+    txId <- submit bsTx.signedTxCbor
+    logInfo Map.empty $ "Tx ID: " <> show txId
