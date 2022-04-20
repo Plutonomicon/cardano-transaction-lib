@@ -1,4 +1,4 @@
-# Cardano Transaction Lib
+# cardano-transaction-lib
 [![Hercules-ci][Herc badge]][Herc link]
 [![Cachix Cache][Cachix badge]][Cachix link]
 
@@ -7,7 +7,7 @@
 [Cachix badge]: https://img.shields.io/badge/cachix-public_plutonomicon-blue.svg
 [Cachix link]: https://public-plutonomicon.cachix.org
 
-**cardano-transaction-lib** is a Purescript library for building smart contract transactions on Cardano
+**cardano-transaction-lib** (CTL) is a Purescript library for building smart contract transactions on Cardano. It aims to port the functionality and interface of Plutus off-chain code to the browser environment.
 
 ## Goals:
 
@@ -29,7 +29,36 @@ Support is planned for the following light wallets, roughly in order of implemen
 
 ## Setup and dev environment
 
-**NOTE**: This project uses Nix flakes. In order to use flakes, you will need Nix version 2.4 or greater. You also need to enable additional experimental features. Make sure you have the following enabled in your `nix.conf` (typically located in `/etc/nix/` or `~/.config/nix/`) or in `nix.extraOptions` in your NixOS configuration: 
+### Required services
+
+In order to run CTL's `Contract` effects, several services are required. These can be configured through a `ContractConfig` that holds websocket connections, information about server hosts/ports, and other requisite information.
+
+Services that are currently required:
+
+- [Ogmios](https://ogmios.dev) 
+  - You **must** use Ogmios v5.2.0 or greater with CTL
+  - Ogmios itself requires a running Cardano node, so you may also need to deploy a node. Node v1.34.0 or greater is recommended
+  - You can also use [our fork](https://github.com/mlabs-haskell/ogmios) which has improved Nix integration
+- [`ogmios-datum-cache`](https://github.com/mlabs-haskell/ogmios-datum-cache)
+  - This in turn requires a PostgreSQL DB
+- [Our Haskell server](/server/README)
+  - We hope to deprecate this in the future, but we use it at the moment for certain Cardano libraries that have no Purescript analogue
+
+**NOTE**: CTL does **not** launch or provide these services for you. You must configure them and provide the appropriate values to the `ContractConfig` that you create to run your contracts.
+
+### Other requirements
+
+In order to run most `Contract` actions, **you must use Nami wallet**. The following steps must be taken to ensure that you can run CTL contracts:
+
+1. Install the [Nami extension](https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo)
+  - Due to limitations with Nami itself, only Chromium-based browsers are supported
+2. Make sure that you have an active wallet
+3. Make sure that you have set collateral for the wallet, which Nami reserves apart from other wallet UTxOs
+4. Make sure that your wallet is running on the testnet (can be configured via a toggle in the settings menu)
+
+### Nix environment
+
+This project uses Nix flakes. In order to use flakes, you will need Nix version 2.4 or greater. You also need to enable additional experimental features. Make sure you have the following enabled in your `nix.conf` (typically located in `/etc/nix/` or `~/.config/nix/`) or in `nix.extraOptions` in your NixOS configuration: 
 
 ```
 experimental-features = nix-command flakes
@@ -104,7 +133,7 @@ We will support both a PureScript and a JavaScript api.
 
 ## Additional resources/tools:
   - [`cardano-serialization-lib`](https://github.com/SundaeSwap-finance/cardano-serialization-lib)(Sundae fork)
-  - [Ogmios](https://ogmios.dev ) for chain queries
+  - [Ogmios](https://ogmios.dev) for chain queries
   - [CIP-30](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0030) (wallet interface - Nami partially implements this)
   - [Nami docs](https://github.com/Berry-Pool/nami-wallet) 
   - [Alonzo CDDL spec](https://github.com/input-output-hk/cardano-ledger/blob/0738804155245062f05e2f355fadd1d16f04cd56/alonzo/impl/cddl-files/alonzo.cddl) 
