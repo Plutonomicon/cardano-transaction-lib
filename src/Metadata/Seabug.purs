@@ -150,7 +150,7 @@ instance DecodeJson SeabugMetadata where
             }
     where
     decodeShare :: Int -> Either Json.JsonDecodeError Share
-    decodeShare = note (Json.TypeMismatch "Expected int between 0 and 1000")
+    decodeShare = note (Json.TypeMismatch "Expected int between 0 and 10000")
       <<< mkShare
 
     decodeScriptHash :: String -> Either Json.JsonDecodeError ScriptHash

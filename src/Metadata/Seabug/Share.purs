@@ -13,7 +13,7 @@ import FromData (class FromData)
 import ToData (class ToData)
 import Types.PlutusData (PlutusData(Integer))
 
--- | A number between 0 and 1000 (inclusive) representing percentage of the price.
+-- | A number between 0 and 10000 (inclusive) representing percentage of the price.
 newtype Share = Share BigInt
 
 derive newtype instance ToData Share
@@ -29,7 +29,7 @@ derive instance Eq Share
 
 mkShare :: Int -> Maybe Share
 mkShare n
-  | n >= 0 && n <= 1000 = Just $ Share $ BigInt.fromInt n
+  | n >= 0 && n <= 10000 = Just $ Share $ BigInt.fromInt n
   | otherwise = Nothing
 
 unShare :: Share -> BigInt
