@@ -17,7 +17,7 @@ let
       cp ${src}/package.json $out/package.json
       cp ${src}/package-lock.json $out/package-lock.json
       cd $out
-      node2nix --lock package-lock.json
+      node2nix --development --lock package-lock.json
     '')
     { inherit pkgs nodejs system; };
   nodeModules =
