@@ -25,4 +25,3 @@ suite = do
         finalizeTx txFixture1 [ Datum plutusDataFixture6 ] [ redeemerFixture1 ]
       log $ show $ res <#> \(FinalizedTransaction bytes) ->
         byteArrayToHex bytes
-      pure unit

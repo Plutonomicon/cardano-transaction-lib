@@ -206,7 +206,8 @@
         let
           pkgs = nixpkgsFor system;
         in
-        {
+        (psProjectFor system).checks
+        // {
           formatting-check = pkgs.runCommand "formatting-check"
             {
               nativeBuildInputs = with pkgs; [
