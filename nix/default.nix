@@ -48,7 +48,7 @@ let
         export HOME="$TMP"
         cp -r ${nodeModules}/lib/node_modules .
         chmod -R u+rw node_modules
-        cp -r $src .
+        cp -r $src/* .
         install-spago-style
       '';
       buildPhase = ''
@@ -67,7 +67,8 @@ let
         doCheck = true;
         buildInputs = oldAttrs.buildInputs ++ [ nodejs ];
         # spago will attempt to download things, which will fail in the
-        # sandbox (idea taken from `plutus-playground-client`)
+        # sandbox, so we can just use node instead
+        # (idea taken from `plutus-playground-client`)
         checkPhase = ''
           node -e 'require("./output/${testMain}").main()'
         '';
@@ -91,15 +92,15 @@ rec {
   # is currently broken because of IFD issues
   #
   # FIXME
-  # Once we have ogmios/node instances available, we should include a
+  # Once we have ogmios/node instances available, we should also include a
   # test. This will need to be run via a Hercules `effect`
-  #
-  # checks = {
-  #   cardano-transaction-lib = runPursTest {
-  #     name = "cardano-transaction-lib";
-  #     inherit src;
-  #   };
-  # };
+  checks = {
+    ctl-unit-test = runPursTest {
+      name = "ctl-unit-test";
+      testMain = "Test.Unit";
+      inherit src;
+    };
+  };
 
   # TODO
   # Once we have a public ogmios instance to test against,
