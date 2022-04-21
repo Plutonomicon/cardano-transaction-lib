@@ -3,7 +3,7 @@
 let
   # We should try to use a consistent version of node across all
   # project components
-  nodejs = pkgs.nodejs-12_x;
+  nodejs = pkgs.nodejs-14_x;
   compiler = pkgs.easy-ps.purs-0_14_5;
   spagoPkgs = import ../spago-packages.nix {
     inherit pkgs;
