@@ -161,3 +161,65 @@ exports._convertNonce = nonceCtors => cslNonce => {
     const hashBytes = cslNonce.get_hash();
     return hashBytes == null ? nonceCtors.identityNonce : nonceCtors.hashNonce(hashBytes);
 };
+
+// foreign import _unpackMetadatums
+//   :: ContainerHelper
+//     -> CSL.GeneralTransactionMetadata
+//     -> Array(Tuple CSL.BigNum CSL.TransactionMetadatum)
+exports._unpackMetadatums = containerHelper => containerHelper.unpackKeyIndexed;
+
+// foreign import _unpackMetadataMap :: ContainerHelper -> CSL.MetadataMap -> Array(Tuple CSL.TransactionMetadatum CSL.TransactionMetadatum)
+exports._unpackMetadataMap = containerHelper => containerHelper.unpackKeyIndexed;
+
+// foreign import _unpackMetadataList
+//   :: ContainerHelper -> CSL.MetadataList -> Array CSL.TransactionMetadatum
+exports._unpackMetadataList = containerHelper => containerHelper.unpack;
+
+exports._convertMetadatum = metadataCtors => cslMetadatum => {
+    // map
+    var r = null;
+    try{
+        r = cslMetadatum.as_map();
+    }
+    catch(_){
+        r = null;
+    }
+    if (r) return metadataCtors.from_map(r);
+    // list
+    try {
+        r = cslMetadatum.as_list();
+    }
+    catch (_) {
+        r = null;
+    }
+    if (r) return metadataCtors.from_list(r);
+
+    // int
+    try {
+        r = cslMetadatum.as_int();
+    }
+    catch (_) {
+        r = null;
+    }
+    if (r) return metadataCtors.from_int(r);
+
+    // bytes
+    try {
+        r = cslMetadatum.as_bytes();
+    }
+    catch (_) {
+        r = null;
+    }
+    if (r) return metadataCtors.from_bytes(r);
+
+    // text
+    try {
+        r = cslMetadatum.as_text();
+    }
+    catch (_) {
+        r = null;
+    }
+    if (r) return metadataCtors.from_text(r);
+
+    return metadataCtors.error("Could not convert to known types.");
+};

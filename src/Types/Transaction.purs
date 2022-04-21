@@ -777,11 +777,12 @@ instance Show TransactionMetadatumLabel where
 data TransactionMetadatum
   = MetadataMap (Map TransactionMetadatum TransactionMetadatum)
   | MetadataList (Array TransactionMetadatum)
-  | Int Int
+  | Int BigInt
   | Bytes ByteArray
   | Text String
 
 derive instance Eq TransactionMetadatum
+derive instance Ord TransactionMetadatum
 derive instance Generic TransactionMetadatum _
 
 instance Show TransactionMetadatum where

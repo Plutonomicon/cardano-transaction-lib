@@ -1,10 +1,7 @@
 module Error
   ( E
-  , ErrorType
   , NotImplementedError
-  , WrappedError
   , _notImplementedError
-  , _wrappedError
   , notImplementedError
   , traceAndHushAll
   , traceAndHushAll_
@@ -19,7 +16,6 @@ import Data.Maybe
 import Contract.Prelude
   ( class Monad
   , Either(..)
-  , Tuple
   , pure
   , unwrap
   , (*>)
@@ -45,23 +41,15 @@ import Type.Row (type (+))
 -- we could use the left side to store logs to get better error tracing
 type E v a = Either (Variant v) a
 
-type ErrorType :: forall k. k -> Type
-type ErrorType p = { name :: String, proxy :: Proxy p }
-
-type WrappedError r = (wrapped :: Tuple String (Variant r) | r)
-_wrappedError = { name: "wrapped", proxy: Proxy } :: ErrorType "wrapped"
-
 type NotImplementedError r = (notImplementedError :: String | r)
-_notImplementedError =
-  { name: "notImplementedError", proxy: Proxy }
-    :: ErrorType "notImplementedError"
+_notImplementedError = Proxy :: Proxy "notImplementedError"
 
 notImplementedError
   :: forall (r :: Row Type) (a :: Type)
    . Warn (Text "Function not implemented!")
   => String
   -> E (NotImplementedError + r) a
-notImplementedError = throwError <<< inj _notImplementedError.proxy
+notImplementedError = throwError <<< inj _notImplementedError
 
 -- | Allows hush errors tracing as debug outputs.
 -- | For use when error hadling is not yet supported at a call site.
