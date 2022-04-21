@@ -3,8 +3,10 @@ module ToData
   , class ToDataArgs
   , class ToDataWithIndex
   , class ToDataArgsRL
+  , class ToDataArgsRL'
   , genericToData
   , toDataArgsRec
+  , toDataArgsRec'
   , toData
   , toDataArgs
   , toDataWithIndex
@@ -12,8 +14,8 @@ module ToData
 
 import Prelude
 
-import ConstrIndices (class HasConstrIndices, constrIndices)
-import Data.Array (cons)
+import ConstrIndices (class HasConstrIndices, constrIndices, class IndexedRecField, getFieldIndex)
+import Data.Array (cons, sortWith)
 import Data.Array as Array
 import Data.NonEmpty (NonEmpty)
 import Data.BigInt (BigInt)
@@ -29,7 +31,7 @@ import Data.Profunctor.Strong ((***))
 import Data.Ratio (Ratio, denominator, numerator)
 import Data.Symbol (class IsSymbol, SProxy(SProxy), reflectSymbol)
 import Data.TextEncoder (encodeUtf8)
-import Data.Tuple (Tuple(Tuple))
+import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Helpers (uIntToBigInt)
@@ -53,16 +55,25 @@ class HasConstrIndices ci <= ToDataWithIndex a ci where
 
 -- As explained in https://harry.garrood.me/blog/write-your-own-generics/ this
 -- is just a neat pattern that flattens a skewed Product of Products
-class ToDataArgs :: Type -> Constraint
-class ToDataArgs a where
-  toDataArgs :: a -> Array (PlutusData)
+class ToDataArgs :: Type -> Type -> Constraint
+class ToDataArgs t a where
+  toDataArgs :: Proxy t -> a -> Array (PlutusData)
 
 -- | A helper typeclass to implement `ToDataArgs` for records.
 -- Stolen from https://github.com/purescript/purescript-quickcheck/blob/v7.1.0/src/Test/QuickCheck/Arbitrary.purs#L247
-class ToDataArgsRL :: RL.RowList Type -> Row Type -> Constraint
-class ToDataArgsRL list row | list -> row where
+class ToDataArgsRL :: Type -> RL.RowList Type -> Row Type -> Constraint
+class ToDataArgsRL t list row | list -> row where
   toDataArgsRec
-    :: forall rlproxy. rlproxy list -> Record row -> Array PlutusData
+    :: forall rlproxy. Proxy t -> rlproxy list -> Record row -> Array PlutusData
+
+instance ToDataArgsRL' t list row => ToDataArgsRL t list row where
+  toDataArgsRec proxy rlproxy rec = map snd <<< sortWith fst $ toDataArgsRec' proxy rlproxy rec
+
+class ToDataArgsRL' :: Type ->  RL.RowList Type -> Row Type -> Constraint
+class ToDataArgsRL' t list row | list -> row where
+  toDataArgsRec'
+    :: forall rlproxy. Proxy t -> rlproxy list -> Record row -> Array (Tuple Int PlutusData)
+
 
 -- | ToDataWithIndex instances for Data.Generic.Rep
 
@@ -76,56 +87,59 @@ instance
 
 instance
   ( IsSymbol n
-  , ToDataArgs arg
+  , ToDataArgs a arg
   , HasConstrIndices a
   ) =>
   ToDataWithIndex (G.Constructor n arg) a where
   toDataWithIndex p (G.Constructor args) = Constr
     (resolveIndex p (SProxy :: SProxy n))
-    (toDataArgs args)
+    (toDataArgs p args)
 
 -- | ToDataArgs instances for Data.Generic.Rep
 
-instance ToDataArgs G.NoArguments where
-  toDataArgs _ = []
+instance ToDataArgs a G.NoArguments where
+  toDataArgs _ _ = []
 
-instance (ToDataArgs (Record row)) => ToDataArgs (G.Argument (Record row)) where
-  toDataArgs (G.Argument r) = toDataArgs r
-else instance ToData a => ToDataArgs (G.Argument a) where
-  toDataArgs (G.Argument x) = [ toData x ]
+instance (ToDataArgs x (Record row)) => ToDataArgs x (G.Argument (Record row)) where
+  toDataArgs proxy (G.Argument r) = toDataArgs proxy r
+else instance ToData a => ToDataArgs x (G.Argument a) where
+  toDataArgs _ (G.Argument x) = [ toData x ]
 
 instance
-  ( ToDataArgsRL list row
+  ( ToDataArgsRL t list row
   , RL.RowToList row list
   ) =>
-  ToDataArgs (Record row) where
-  toDataArgs = toDataArgsRec (Proxy :: Proxy list)
+  ToDataArgs t (Record row) where
+  toDataArgs proxy rec = toDataArgsRec proxy (Proxy :: Proxy list) rec
 
-instance (ToDataArgs a, ToDataArgs b) => ToDataArgs (G.Product a b) where
-  toDataArgs (G.Product x y) = toDataArgs x <> toDataArgs y
+instance (ToDataArgs x a, ToDataArgs x b) => ToDataArgs x (G.Product a b) where
+  toDataArgs proxy (G.Product x y) = toDataArgs proxy x <> toDataArgs proxy y
 
 -- | ToDataArgsRL instances
 
-instance ToDataArgsRL RL.Nil row where
-  toDataArgsRec _ _ = []
+instance ToDataArgsRL' t RL.Nil row where
+  toDataArgsRec' _ _ _ = []
 
 instance
   ( ToData a
-  , ToDataArgsRL listRest rowRest
+  , ToDataArgsRL' t listRest rowRest
   , Row.Lacks key rowRest
   , Row.Cons key a rowRest rowFull
   , RL.RowToList rowFull (RL.Cons key a listRest)
   , IsSymbol key
+  , IndexedRecField t key
   ) =>
-  ToDataArgsRL (RL.Cons key a listRest) rowFull where
-  toDataArgsRec _ x =
+  ToDataArgsRL' t (RL.Cons key a listRest) rowFull where
+  toDataArgsRec' _  _ x =
     let
       keyProxy = (Proxy :: Proxy key)
+
+      ix = getFieldIndex (Proxy :: Proxy t) (SProxy :: SProxy key)
 
       field :: a
       field = Record.get keyProxy x
     in
-      toData field `cons` toDataArgsRec (Proxy :: Proxy listRest)
+      Tuple ix (toData field) `cons` toDataArgsRec' (Proxy :: Proxy t) (Proxy :: Proxy listRest)
         (Record.delete keyProxy x)
 
 genericToData

@@ -13,10 +13,10 @@ module FromData
 
 import Prelude
 
-import ConstrIndices (class HasConstrIndices, constrIndices)
+import ConstrIndices (class HasConstrIndices, constrIndices, class IndexedRecField, getFieldIndex)
 import Data.Show.Generic (genericShow)
 import Control.Alternative ((<|>), guard)
-import Data.Array (uncons)
+import Data.Array (uncons, sortWith)
 import Data.Array as Array
 import Data.NonEmpty (NonEmpty(NonEmpty))
 import Data.BigInt (BigInt)
@@ -75,13 +75,23 @@ class FromDataArgs a where
 
 -- | A helper typeclass to implement `ToDataArgs` for records.
 -- Stolen from https://github.com/purescript/purescript-quickcheck/blob/v7.1.0/src/Test/QuickCheck/Arbitrary.purs#L247
-class FromDataArgsRL :: RL.RowList Type -> Row Type -> Constraint
-class FromDataArgsRL list row | list -> row where
+class FromDataArgsRL :: Type -> RL.RowList Type -> Row Type -> Constraint
+class FromDataArgsRL t list row | list -> row where
   fromDataArgsRec
     :: forall (rlproxy :: RL.RowList Type -> Type)
-     . rlproxy list
+     . Proxy t
+    -> rlproxy list
     -> Array PlutusData
     -> Either FromDataError { head :: Record row, tail :: Array PlutusData }
+
+class FromDataArgsRL' :: Type -> RL.RowList Type -> Row Type -> Constraint
+class FromDataArgsRL' t list row | list -> row where
+  fromDataArgsRec'
+    :: forall (rlproxy :: RL.RowList Type -> Type)
+     . Proxy t
+    -> rlproxy list
+    -> Array PlutusData
+    -> Either FromDataError { head :: Record row, tail :: Array (Tuple Int PlutusData) }
 
 -- | FromDataWithIndex instances for Data.Generic.Rep
 -- See https://purescript-simple-json.readthedocs.io/en/latest/generics-rep.html
@@ -150,17 +160,18 @@ instance (FromDataArgs a, FromDataArgs b) => FromDataArgs (G.Product a b) where
 
 -- | FromDataArgsRL instances
 
-instance FromDataArgsRL RL.Nil () where
-  fromDataArgsRec _ [] = Right { head: {}, tail: [] }
-  fromDataArgsRec _ pdArgs = Left $ ArgsWantedButGot 0 pdArgs
+instance FromDataArgsRL' t RL.Nil () where
+  fromDataArgsRec _ _ [] = Right { head: {}, tail: [] }
+  fromDataArgsRec _ _ pdArgs = Left $ ArgsWantedButGot 0 pdArgs
 
 instance
   ( FromData a
-  , FromDataArgsRL listRest rowRest
+  , FromDataArgsRL' listRest rowRest
   , Row.Lacks key rowRest
   , Row.Cons key a rowRest rowFull
   , RL.RowToList rowFull (RL.Cons key a listRest)
   , IsSymbol key
+  ,
   ) =>
   FromDataArgsRL (RL.Cons key a listRest) rowFull where
   fromDataArgsRec _ pdArgs = do
