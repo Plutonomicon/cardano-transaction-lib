@@ -68,8 +68,28 @@ exports._unpackMint = containerhelper => containerhelper.unpackKeyIndexed;
 // foreign import _unpackMintAssets :: ContainerHelper -> CSL.MintAssets -> Array (Tuple CSL.AssetName Int)
 exports._unpackMintAssets = containerhelper => containerhelper.unpackKeyIndexed;
 
+
+// type CertConvHelper r =
+// {
+//     stakeDeregistration:: StakeCredential -> Err r Certificate
+//         , stakeRegistration :: StakeCredential -> Err r Certificate
+//             , stakeDelegation ::
+//     StakeCredential -> Ed25519KeyHash -> Err r Certificate
+//         , notImplementedError :: String -> Err r Certificate
+// }
 // foreign import _convertCert :: forall r.CertConvHelper r -> CSL.Certificate -> Err r Certificate
-exports._convertCert = certConvHelper => cert => certConvHelper.notImplementedError ("Cert conversion not implemented.")
+exports._convertCert = certConvHelper => cert => {
+    // StakeRegistration,
+    var r = cert.as_stake_registration();
+    if (r) return certConvHelper.stakeRegistration(r.stake_credential());
+    //     StakeDeregistration,
+    r = cert.as_stake_deregistration();
+    if (r) return certConvHelper.stakeDeregistration(r.stake_credential());
+    //     StakeDeregistration,
+    r = cert.as_stake_delegation();
+    if (r) return certConvHelper.stakeDelegation(r.stake_credential())(r.pool_keyhash());
+    certConvHelper.notImplementedError("Cert conversion not implemented for kind: ", cert.kind());
+};
 
 
 // foreign import _unpackProtocolParamUpdate :: CSL.ProtocolParamUpdate -> 

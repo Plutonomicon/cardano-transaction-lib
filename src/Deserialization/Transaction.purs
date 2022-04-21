@@ -10,7 +10,7 @@ import Contract.Scripts (Ed25519KeyHash)
 import Contract.Transaction
   ( AuxiliaryData(..)
   , AuxiliaryDataHash
-  , Certificate
+  , Certificate(..)
   , CostModel(..)
   , Costmdls(..)
   , Epoch(..)
@@ -20,6 +20,7 @@ import Contract.Transaction
   , Language(..)
   , Mint(..)
   , Nonce(..)
+  , ProposedProtocolParameterUpdates(..)
   , ProtocolParamUpdate
   , ProtocolVersion
   , ScriptDataHash
@@ -50,7 +51,7 @@ import Deserialization.WitnessSet
   , convertPlutusScripts
   , convertWitnessSet
   )
-import Error (E, NotImplementedError, noteE)
+import Error (E, NotImplementedError, notImplementedError, noteE)
 import FfiHelpers
   ( ContainerHelper
   , ErrorFfiHelper
@@ -171,7 +172,15 @@ convertMint mint = Mint $ NonAdaAsset
   convAssetName = bimap tokenNameFromAssetName BigInt.fromInt
 
 convertUpdate :: forall r. CSL.Update -> Err r Update
-convertUpdate = notImplemented
+convertUpdate u = do
+  let { epoch: e, paramUpdates } = _unpackUpdate containerHelper u
+  epoch <- map Epoch $ cslNumberToUInt "convertUpdate: epoch" e
+  ppus <- traverse (traverse convertProtocolParamUpdate) paramUpdates
+  pure
+    { epoch
+    , proposedProtocolParameterUpdates: ProposedProtocolParameterUpdates $
+        M.fromFoldable ppus
+    }
 
 convertProtocolParamUpdate
   :: forall r. CSL.ProtocolParamUpdate -> Err r ProtocolParamUpdate
@@ -450,7 +459,7 @@ foreign import _unpackWithdrawals
 foreign import _unpackUpdate
   :: ContainerHelper
   -> CSL.Update
-  -> { epoch :: Int
+  -> { epoch :: Number
      , paramUpdates :: Array (Tuple GenesisHash CSL.ProtocolParamUpdate)
      }
 
@@ -474,7 +483,12 @@ type CertConvHelper r =
   }
 
 certConvHelper :: forall r. CertConvHelper r
-certConvHelper = notImplemented
+certConvHelper =
+  { stakeDeregistration: pure <<< StakeDeregistration
+  , stakeRegistration: pure <<< StakeRegistration
+  , stakeDelegation: \sc -> pure <<< StakeDelegation sc
+  , notImplementedError: notImplementedError
+  }
 
 foreign import _convertCert
   :: forall r. CertConvHelper r -> CSL.Certificate -> Err r Certificate
