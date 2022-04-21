@@ -26,7 +26,6 @@
     # for the haskell server
     iohk-nix.url = "github:input-output-hk/iohk-nix";
     haskell-nix.url = "github:mlabs-haskell/haskell.nix?ref=master";
-    nixpkgs-unstable.follows = "haskell-nix/nixpkgs-unstable";
     nixpkgs.follows = "haskell-nix/nixpkgs-unstable";
     cardano-addresses = {
       url =
@@ -145,7 +144,7 @@
             # We could just override that one package from unstable, but it's more
             # convenient to just use unstable to build the package
             ogmios-datum-cache =
-              nixpkgs-unstable.legacyPackages.${system}.haskellPackages.callPackage
+              nixpkgs.legacyPackages.${system}.haskellPackages.callPackage
                 ogmios-datum-cache
                 { };
             ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
