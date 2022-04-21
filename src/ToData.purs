@@ -15,6 +15,7 @@ import Prelude
 import ConstrIndices (class HasConstrIndices, constrIndices)
 import Data.Array (cons)
 import Data.Array as Array
+import Data.NonEmpty (NonEmpty)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
@@ -27,6 +28,7 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Profunctor.Strong ((***))
 import Data.Ratio (Ratio, denominator, numerator)
 import Data.Symbol (class IsSymbol, SProxy(SProxy), reflectSymbol)
+import Data.TextEncoder (encodeUtf8)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
@@ -36,7 +38,7 @@ import Prim.RowList as RL
 import Prim.TypeError (class Fail, Text)
 import Record as Record
 import Type.Proxy (Proxy(Proxy))
-import Types.ByteArray (ByteArray)
+import Types.ByteArray (ByteArray(ByteArray))
 import Types.PlutusData (PlutusData(Constr, Integer, List, Map, Bytes))
 
 -- | Classes
@@ -184,6 +186,9 @@ instance ToData UInt where
 instance ToData a => ToData (Array a) where
   toData = List <<< map toData
 
+instance (Foldable f, ToData a) => ToData (NonEmpty f a) where
+  toData = foldableToPlutusData
+
 instance ToData a => ToData (List a) where
   toData = foldableToPlutusData
 
@@ -203,6 +208,9 @@ instance ToData a => ToData (Ratio a) where
 instance ToData ByteArray where
   toData = Bytes
 
+instance ToData String where
+  toData = toData <<< ByteArray <<< encodeUtf8
+
 instance ToData PlutusData where
   toData = identity
 
@@ -213,4 +221,3 @@ foldableToPlutusData
   => t a
   -> PlutusData
 foldableToPlutusData = Array.fromFoldable >>> map toData >>> List
-

@@ -1,3 +1,14 @@
+-- Feel free to update binary fixtures if they do not match the results you are
+-- getting in tests. However, make sure you understand the reason why they
+-- don't match.
+-- To update the fixture, simply copy the value from failing test output.
+--
+-- Or construct a value using CSL and get the hex string:
+--
+-- ```
+-- const byteArrayToHex = arr => Buffer.from(arr).toString('hex');
+-- console.log(byteArrayToHex(something.to_bytes()))
+-- ```
 module Test.Fixtures
   ( txOutputFixture1
   , txOutputFixture2
@@ -40,15 +51,22 @@ module Test.Fixtures
   , txInputFixture1
   , seabugMetadataFixture1
   , seabugMetadataDeltaFixture1
+  , cip25MetadataFixture1
+  , cip25MetadataJsonFixture1
   , redeemerFixture1
+  , ed25519KeyHashFixture1
   ) where
 
 import Prelude
 
+import Effect (Effect)
+import Data.Argonaut as Json
 import Data.Array as Array
 import Data.BigInt as BigInt
+import Data.Either (fromRight)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.NonEmpty ((:|))
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Deserialization.FromBytes (fromBytes)
@@ -57,10 +75,18 @@ import Metadata.Seabug
   , SeabugMetadataDelta(SeabugMetadataDelta)
   )
 import Metadata.Seabug.Share (Share, mkShare)
+import Metadata.Cip25
+  ( Cip25Metadata(Cip25Metadata)
+  , Cip25MetadataEntry(Cip25MetadataEntry)
+  , Cip25MetadataFile(Cip25MetadataFile)
+  )
+import Node.FS.Sync (readTextFile)
+import Node.Encoding (Encoding(UTF8))
 import Partial.Unsafe (unsafePartial)
 import Serialization.Address
   ( Address
   , NetworkId(MainnetId, TestnetId)
+  , RewardAddress
   , Slot(Slot)
   , StakeCredential
   , baseAddress
@@ -193,6 +219,10 @@ currencySymbol1 = unsafePartial $ fromJust $ mkCurrencySymbol $
 tokenName1 :: TokenName
 tokenName1 = unsafePartial $ fromJust $ mkTokenName $
   hexToByteArrayUnsafe "4974657374546f6b656e"
+
+tokenName2 :: TokenName
+tokenName2 = unsafePartial $ fromJust $ mkTokenName $
+  hexToByteArrayUnsafe "54657374546f6b656e32"
 
 txOutputBinaryFixture1 :: String
 txOutputBinaryFixture1 =
@@ -393,7 +423,9 @@ ed25519KeyHash1 = unsafePartial $ fromJust $ ed25519KeyHashFromBech32 pkhBech32
 bigNumOne :: BigNum
 bigNumOne = unsafePartial $ fromJust $ bigNumFromBigInt $ BigInt.fromInt 1
 
--- txFixture3 + mint + requiredSigners
+rewardAddress1 :: RewardAddress
+rewardAddress1 = rewardAddress { network: TestnetId, paymentCred: stake1 }
+
 txFixture4 :: Transaction
 txFixture4 =
   Transaction
@@ -486,7 +518,8 @@ txFixture4 =
                     [ stake1 /\ Int.newPositive bigNumOne ]
                 }
             ]
-        , withdrawals: Nothing
+        , withdrawals: Just $ Map.fromFoldable
+            [ rewardAddress1 /\ Coin one ]
         , update: Nothing
         , auxiliaryDataHash: Just $ AuxiliaryDataHash
             $ byteArrayFromIntArrayUnsafe
@@ -537,7 +570,7 @@ txBinaryFixture3 =
 
 txBinaryFixture4 :: String
 txBinaryFixture4 =
-  "84aa00818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001828258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a0023e8fa8258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a000f4240021a0002b56903187b048882008200581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb382018200581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb383028200581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb3581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb38a03581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb3582000000000000000000000000000000000000000000000000000000000000000000101d81e820101581de11730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb381581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb3838400191f90447f000001507b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b8301191f906b6578616d706c652e636f6d82026b6578616d706c652e636f6d827468747470733a2f2f6578616d706c652e636f6d2f582094b8cac47761c1140c57a48d56ab15d27a842abff041b3798b8618fa84641f5a8304581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb3018405581c5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65581c5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f6558200000000000000000000000000000000000000000000000000000000000000000820682010182068201a18200581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb301075820000000000000000000000000000000000000000000000000000000000000000008187c09a1581c1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e010e81581c1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d533610f01a0f5f6"
+  "84a700818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001828258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a0023e8fa8258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a000f4240021a0002b569048882008200581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb382018200581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb383028200581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb3581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb38a03581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb3582000000000000000000000000000000000000000000000000000000000000000000101d81e820101581de11730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb381581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb3838400191f90447f000001507b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b8301191f906b6578616d706c652e636f6d82026b6578616d706c652e636f6d827468747470733a2f2f6578616d706c652e636f6d2f582094b8cac47761c1140c57a48d56ab15d27a842abff041b3798b8618fa84641f5a8304581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb3018405581c5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65581c5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f6558200000000000000000000000000000000000000000000000000000000000000000820682010182068201a18200581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb30105a1581de01730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb30109a1581c1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e010f01a0f5f6"
 
 utxoFixture1 :: ByteArray
 utxoFixture1 = hexToByteArrayUnsafe
@@ -913,6 +946,47 @@ seabugMetadataDeltaFixture1 = SeabugMetadataDelta
   , ownerPrice: unsafePartial $ fromJust $ Natural.fromBigInt $ BigInt.fromInt
       10
   }
+
+cip25MetadataFilesFixture1 :: Array Cip25MetadataFile
+cip25MetadataFilesFixture1 = Cip25MetadataFile <$>
+  [ { name: "file_name_1"
+    , mediaType: "media_type"
+    , uris: "uri1" :| [ "uri2", "uri3" ]
+    }
+  , { name: "file_name_2"
+    , mediaType: "media_type_2"
+    , uris: "uri4" :| [ "uri5", "uri6" ]
+    }
+  ]
+
+cip25MetadataEntryFixture1 :: Cip25MetadataEntry
+cip25MetadataEntryFixture1 = Cip25MetadataEntry
+  { policyId: policyId
+  , assetName: tokenName1
+  , imageUris: "image_uri1" :| [ "image_uri2", "image_uri3" ]
+  , mediaType: Just "media_type"
+  , description: [ "desc1", "desc2", "desc3" ]
+  , files: cip25MetadataFilesFixture1
+  }
+
+cip25MetadataEntryFixture2 :: Cip25MetadataEntry
+cip25MetadataEntryFixture2 = Cip25MetadataEntry
+  { policyId: policyId
+  , assetName: tokenName2
+  , imageUris: "image_uri1" :| []
+  , mediaType: Nothing
+  , description: []
+  , files: []
+  }
+
+cip25MetadataFixture1 :: Cip25Metadata
+cip25MetadataFixture1 = Cip25Metadata
+  [ cip25MetadataEntryFixture1, cip25MetadataEntryFixture2 ]
+
+cip25MetadataJsonFixture1 :: Effect Json.Json
+cip25MetadataJsonFixture1 =
+  readTextFile UTF8 "test/Fixtures/cip25MetadataJsonFixture1.json" >>=
+    pure <<< fromRight Json.jsonNull <<< Json.parseJson
 
 redeemerFixture1 :: Redeemer
 redeemerFixture1 = Redeemer

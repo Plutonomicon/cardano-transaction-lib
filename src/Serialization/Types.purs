@@ -66,11 +66,11 @@ module Serialization.Types
   , GenesisHash
   , GenesisDelegateHash
   , MoveInstantaneousReward
-  , Withdrawals
   , MIRToStakeCredentials
   , ProposedProtocolParameterUpdates
   , ProtocolParamUpdate
   , Update
+  , Withdrawals
   ) where
 
 import Prelude
@@ -130,7 +130,6 @@ foreign import data CostModel :: Type
 foreign import data Language :: Type
 foreign import data Int32 :: Type
 foreign import data Certificates :: Type
-foreign import data Withdrawals :: Type
 foreign import data Certificate :: Type
 foreign import data VRFKeyHash :: Type
 foreign import data UnitInterval :: Type
@@ -148,6 +147,7 @@ foreign import data ProposedProtocolParameterUpdates :: Type
 foreign import data ProtocolParamUpdate :: Type
 foreign import data Nonce :: Type
 foreign import data Update :: Type
+foreign import data Withdrawals :: Type
 
 instance Show BigNum where
   show = _to_str

@@ -17,6 +17,8 @@ module Helpers
   , maybeArrayMerge
   , uIntToBigInt
   , notImplemented
+  , logWithLevel
+  , logString
   ) where
 
 import Prelude
@@ -27,7 +29,11 @@ import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Right), either)
 import Data.Function (on)
+import Data.JSDate (now)
 import Data.List.Lazy as LL
+import Data.Log.Formatter.Pretty (prettyFormatter)
+import Data.Log.Level (LogLevel)
+import Data.Log.Message (Message)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
@@ -38,6 +44,8 @@ import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
+import Effect.Class (class MonadEffect)
+import Effect.Class.Console (log)
 import Effect.Exception (throw)
 import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
@@ -161,3 +169,18 @@ bigIntToUInt = UInt.fromString <<< BigInt.toString
 
 notImplemented :: forall a. Warn (Text "Function not implemented!") => a
 notImplemented = undefined
+
+-- | Log a message by printing it to the console, depending on the provided
+-- | `LogLevel`
+logWithLevel
+  :: forall (m :: Type -> Type). MonadEffect m => LogLevel -> Message -> m Unit
+logWithLevel lvl msg = when (msg.level >= lvl) $ log =<< prettyFormatter msg
+
+-- | Log a message from the JS side of the FFI boundary. The first `LogLevel`
+-- | argument represents the configured log level (e.g. within `QueryConfig`).
+-- | The second argument is the level for this particular message
+logString :: LogLevel -> LogLevel -> String -> Effect Unit
+logString cfgLevel level message = do
+  timestamp <- now
+  logWithLevel cfgLevel $ { timestamp, message, level, tags: Map.empty }
+
