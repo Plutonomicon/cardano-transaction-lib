@@ -27,7 +27,7 @@
 
     # for the haskell server
     iohk-nix.url = "github:input-output-hk/iohk-nix";
-    haskell-nix.url = "github:L-as/haskell.nix?ref=master";
+    haskell-nix.url = "github:mlabs-haskell/haskell.nix?ref=master";
     nixpkgs-unstable.follows = "haskell-nix/nixpkgs-unstable";
     cardano-addresses = {
       url =
