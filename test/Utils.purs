@@ -24,6 +24,9 @@ import Type.Proxy (Proxy)
 
 foreign import unsafeCall :: forall a b. Proxy b -> String -> a -> b
 
+-- | We use `mote` here so that we can use effects to build up a test tree, which
+-- | is then interpreted here in a pure context, mainly due to some painful types
+-- | in Test.Spec which prohibit effects.
 interpret :: TestPlanM Unit -> Aff Unit
 interpret spif = do
   plan <- planT spif
@@ -37,7 +40,7 @@ interpret spif = do
       (\x -> describe x.label $ go x.value)
       sequence_
 
--- | Make boolean a test
+-- | Test a boolean value, throwing the provided string as an error if `false`
 assertTrue
   :: forall (m :: Type -> Type)
    . Applicative m
