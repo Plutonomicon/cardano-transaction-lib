@@ -132,7 +132,7 @@ If you prefer to run these services locally without `make`, the environment vari
   - `npm run dev` will start a Webpack development server at `localhost:4008`
   - `npm run build` will output the Webpack-bundled project in `dist`
 
-By default, Webpack will build a [small Purescript example](examples/nami/Pkh2Pkh.purs). Make sure to follow the [instructions for setting up Nami](#other-requirements) before running the examples. You can point Webpack to another Purescript entrypoint by editing `examples/index.js`.
+By default, Webpack will build a [small Purescript example](examples/Pkh2Pkh.purs). Make sure to follow the [instructions for setting up Nami](#other-requirements) before running the examples. You can point Webpack to another Purescript entrypoint by editing `examples/index.js`.
 
 **Note**: The `BROWSER_RUNTIME` environment variable must be set to `1` in order to build/bundle the project properly for the browser (e.g. `BROWSER_RUNTIME=1 webpack ...`). For Node environments, leave this variable unset or set it to `0`.
 
