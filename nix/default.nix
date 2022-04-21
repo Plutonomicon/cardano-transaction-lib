@@ -8,7 +8,7 @@ let
   spagoPkgs = import ../spago-packages.nix {
     inherit pkgs;
   };
-  nodeEnv = import
+  mkNodeEnv = { withDevDeps ? true }: import
     (pkgs.runCommand "nodePackages"
       {
         buildInputs = [ pkgs.nodePackages.node2nix ];
@@ -17,11 +17,13 @@ let
       cp ${src}/package.json $out/package.json
       cp ${src}/package-lock.json $out/package-lock.json
       cd $out
-      node2nix --development --lock package-lock.json
+      node2nix ${pkgs.lib.optionalString withDevDeps "--development" } \
+        --lock package-lock.json
     '')
     { inherit pkgs nodejs system; };
-  nodeModules =
+  mkNodeModules = { withDevDeps ? true }:
     let
+      nodeEnv = mkNodeEnv { inherit withDevDeps; };
       modules = pkgs.callPackage
         (_:
           nodeEnv // {
@@ -33,7 +35,10 @@ let
     in
     (modules { }).shell.nodeDependencies;
 
-  buildPursProject = { name, src, ... }:
+  buildPursProject = { name, src, withDevDeps ? false, ... }:
+    let
+      nodeModules = mkNodeModules { inherit withDevDeps; };
+    in
     pkgs.stdenv.mkDerivation {
       inherit name src;
       buildInputs = [
@@ -128,44 +133,48 @@ rec {
       pkgs.fd
     ];
 
-    shellHook = ''
-      __ln-node-modules () {
-        local modules=./node_modules
-        if test -L "$modules"; then
-          rm "$modules";
-        elif test -e "$modules"; then
-          echo 'refusing to overwrite existing (non-symlinked) `node_modules`'
-          exit 1
-        fi
+    shellHook =
+      let
+        nodeModules = mkNodeModules { };
+      in
+      ''
+        __ln-node-modules () {
+          local modules=./node_modules
+          if test -L "$modules"; then
+            rm "$modules";
+          elif test -e "$modules"; then
+            echo 'refusing to overwrite existing (non-symlinked) `node_modules`'
+            exit 1
+          fi
 
-        ln -s ${nodeModules}/lib/node_modules "$modules"
-      }
+          ln -s ${nodeModules}/lib/node_modules "$modules"
+        }
 
-      __ln-testnet-config () {
-        local cfgdir=./.node-cfg
-        if test -e "$cfgdir"; then
-          rm -r "$cfgdir"
-        fi
+        __ln-testnet-config () {
+          local cfgdir=./.node-cfg
+          if test -e "$cfgdir"; then
+            rm -r "$cfgdir"
+          fi
 
-        mkdir -p "$cfgdir"/testnet/{config,genesis}
+          mkdir -p "$cfgdir"/testnet/{config,genesis}
 
-        ln -s ${pkgs.cardano-configurations}/network/testnet/cardano-node/config.json \
-          "$cfgdir"/testnet/config/config.json
-        ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/byron.json \
-          "$cfgdir"/testnet/genesis/byron.json
-        ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/shelley.json \
-          "$cfgdir"/testnet/genesis/shelley.json
-      }
+          ln -s ${pkgs.cardano-configurations}/network/testnet/cardano-node/config.json \
+            "$cfgdir"/testnet/config/config.json
+          ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/byron.json \
+            "$cfgdir"/testnet/genesis/byron.json
+          ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/shelley.json \
+            "$cfgdir"/testnet/genesis/shelley.json
+        }
 
-      __ln-node-modules
-      __ln-testnet-config
+        __ln-node-modules
+        __ln-testnet-config
 
-      export NODE_PATH="$PWD/node_modules:$NODE_PATH"
-      export PATH="${nodeModules}/bin:$PATH"
-      export CARDANO_NODE_SOCKET_PATH="$PWD"/.node/socket/node.socket
-      export CARDANO_NODE_CONFIG="$PWD"/.node-cfg/testnet/config/config.json
+        export NODE_PATH="$PWD/node_modules:$NODE_PATH"
+        export PATH="${nodeModules}/bin:$PATH"
+        export CARDANO_NODE_SOCKET_PATH="$PWD"/.node/socket/node.socket
+        export CARDANO_NODE_CONFIG="$PWD"/.node-cfg/testnet/config/config.json
 
-    '';
+      '';
   };
 
 }
