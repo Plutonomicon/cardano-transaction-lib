@@ -37,32 +37,31 @@ class FromBytes a where
   fromBytes' :: forall r. ByteArray -> E (FromBytesError + r) a
 
 instance FromBytes DataHash where
-  fromBytes' = _fromBytesDataHash (eh "DataHash")
+  fromBytes' = _fromBytesDataHash eh
 
 instance FromBytes Transaction where
-  fromBytes' = _fromBytesTransaction (eh "Transaction")
+  fromBytes' = _fromBytesTransaction eh
 
 instance FromBytes TransactionHash where
-  fromBytes' = _fromBytesTransactionHash (eh "TransactionHash")
+  fromBytes' = _fromBytesTransactionHash eh
 
 instance FromBytes PlutusData where
-  fromBytes' = _fromBytesPlutusData (eh "PlutusData")
+  fromBytes' = _fromBytesPlutusData eh
 
 instance FromBytes TransactionUnspentOutput where
-  fromBytes' = _fromBytesTransactionUnspentOutput
-    (eh "TransactionUnspentOutput")
+  fromBytes' = _fromBytesTransactionUnspentOutput eh
 
 instance FromBytes TransactionWitnessSet where
-  fromBytes' = _fromBytesTransactionWitnessSet (eh "TransactionWitnessSet")
+  fromBytes' = _fromBytesTransactionWitnessSet eh
 
 instance FromBytes NativeScript where
-  fromBytes' = _fromBytesNativeScript (eh "NativeScript")
+  fromBytes' = _fromBytesNativeScript eh
 
 instance FromBytes Mint where
-  fromBytes' = _fromBytesMint (eh "Mint")
+  fromBytes' = _fromBytesMint eh
 
 instance FromBytes VRFKeyHash where
-  fromBytes' = _fromBytesVRFKeyHash (eh "VRFKeyHash")
+  fromBytes' = _fromBytesVRFKeyHash eh
 
 -- for backward compatibility until `Maybe` is abandoned. Then to be renamed.
 fromBytes :: forall (a :: Type). FromBytes a => ByteArray -> Maybe a
@@ -90,8 +89,8 @@ fromBytesError
 fromBytesError = Left <<< inj _fromBytesError
 
 -- | A local helper to shorten code
-eh :: forall r. String -> ErrorFfiHelper (FromBytesError + r)
-eh = errorHelper <<< inj _fromBytesError
+eh :: forall r. ErrorFfiHelper (FromBytesError + r)
+eh = errorHelper (inj _fromBytesError)
 
 ---- Foreign imports
 

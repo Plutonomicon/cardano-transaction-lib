@@ -77,6 +77,8 @@ module Types.Transaction
 
 import Prelude
 
+import Contract.Numeric.Rational (Rational)
+import Contract.Prim.ByteArray (ByteArray(..))
 import Control.Apply (lift2)
 import Data.Array (union)
 import Data.BigInt (BigInt)
@@ -90,7 +92,6 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Nothing))
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype)
-import Data.Rational (Rational)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
@@ -111,10 +112,10 @@ import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray, byteArrayToHex)
 import Types.Int as Int
+import Types.PlutusData (PlutusData(Constr))
 import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
 import Types.Value (Coin, NonAdaAsset, Value)
-import Types.PlutusData (PlutusData(Constr))
 
 --------------------------------------------------------------------------------
 -- `Transaction`
@@ -379,10 +380,10 @@ type ProtocolVersion =
   , minor :: UInt
   }
 
-newtype Nonce = Nonce String
+-- Following CSL Nonce is either None or a 32 byte hash
+data Nonce = IdentityNonce | HashNonce ByteArray
 
-derive instance Newtype Nonce _
-derive newtype instance Eq Nonce
+derive instance Eq Nonce
 
 type UnitInterval =
   { numerator :: BigNum

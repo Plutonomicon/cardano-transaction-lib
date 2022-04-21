@@ -48,6 +48,7 @@ module Serialization.Types
   , RedeemerTag
   , ExUnits
   , Costmdls
+  , Nonce
   , CostModel
   , Language
   , Int32
@@ -145,6 +146,7 @@ foreign import data MoveInstantaneousReward :: Type
 foreign import data MIRToStakeCredentials :: Type
 foreign import data ProposedProtocolParameterUpdates :: Type
 foreign import data ProtocolParamUpdate :: Type
+foreign import data Nonce :: Type
 foreign import data Update :: Type
 
 instance Show BigNum where

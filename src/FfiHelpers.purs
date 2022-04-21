@@ -7,7 +7,7 @@ module FfiHelpers
   , errorHelper
   ) where
 
-import Contract.Prelude (Either(..), hush, (>>>))
+import Contract.Prelude (Either(..), hush, (<<<), (>>>))
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Tuple (Tuple(Tuple))
 import Data.Variant (Variant)
@@ -20,14 +20,14 @@ type MaybeFfiHelper =
   }
 
 type ErrorFfiHelper r =
-  { error :: forall (x :: Type). E r x
+  { error :: forall (x :: Type). String -> E r x
   , valid :: forall (x :: Type). x -> E r x
   , from :: forall (x :: Type). x -> E r x -> x
   }
 
-errorHelper :: forall v. Variant v -> ErrorFfiHelper v
+errorHelper :: forall v. (String -> Variant v) -> ErrorFfiHelper v
 errorHelper v =
-  { error: Left v, valid: Right, from: \e -> hush >>> fromMaybe e }
+  { error: Left <<< v, valid: Right, from: \e -> hush >>> fromMaybe e }
 
 maybeFfiHelper :: MaybeFfiHelper
 maybeFfiHelper = { nothing: Nothing, just: Just, from: fromMaybe }

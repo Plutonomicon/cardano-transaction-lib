@@ -2,7 +2,8 @@ module Deserialization.Transaction where
 
 import Prelude
 
-import Contract.Address (NetworkId, RequiredSigner, Slot(..), StakeCredential)
+import Contract.Address (RequiredSigner(..), Slot(..), StakeCredential)
+import Contract.Numeric.Rational (reduce)
 import Contract.Prelude (Tuple, traverse)
 import Contract.Prim.ByteArray (ByteArray)
 import Contract.Scripts (Ed25519KeyHash)
@@ -10,12 +11,17 @@ import Contract.Transaction
   ( AuxiliaryData(..)
   , AuxiliaryDataHash
   , Certificate
+  , CostModel(..)
+  , Costmdls(..)
   , Epoch(..)
+  , ExUnits
   , GeneralTransactionMetadata
   , GenesisHash
+  , Language(..)
   , Mint(..)
-  , ProposedProtocolParameterUpdates(..)
+  , Nonce(..)
   , ProtocolParamUpdate
+  , ProtocolVersion
   , ScriptDataHash
   , TxBody(..)
   , Update
@@ -24,11 +30,19 @@ import Contract.Value (Coin(..), NonAdaAsset(..), TokenName)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
+import Data.Bitraversable (bitraverse)
 import Data.Map as M
 import Data.Maybe (Maybe)
+import Data.Ratio (Ratio)
+import Data.UInt (UInt)
 import Data.UInt as UInt
-import Deserialization.BigNum (bigNumToBigInt)
-import Deserialization.Error (FromCslRepError, fromCslRepError)
+import Data.Variant (inj)
+import Deserialization.BigNum (bigNumToBigInt')
+import Deserialization.Error
+  ( FromCslRepError
+  , _fromCslRepError
+  , fromCslRepError
+  )
 import Deserialization.FromBytes (FromBytesError, fromBytes')
 import Deserialization.UnspentOutput (convertInput, convertOutput)
 import Deserialization.WitnessSet
@@ -36,11 +50,13 @@ import Deserialization.WitnessSet
   , convertPlutusScripts
   , convertWitnessSet
   )
-import Error (E, NotImplementedError, notImplementedError, noteE)
+import Error (E, NotImplementedError, noteE)
 import FfiHelpers
   ( ContainerHelper
+  , ErrorFfiHelper
   , MaybeFfiHelper
   , containerHelper
+  , errorHelper
   , maybeFfiHelper
   )
 import Helpers (notImplemented)
@@ -54,6 +70,11 @@ import Types.Value (scriptHashAsCurrencySymbol, tokenNameFromAssetName)
 
 type Err r a = E (FromBytesError + NotImplementedError + FromCslRepError + r) a
 
+noteErr
+  :: forall a r
+   . String
+  -> Maybe a
+  -> E (FromCslRepError + r) a
 noteErr = noteE <<< fromCslRepError
 
 deserializeTransaction
@@ -81,19 +102,23 @@ convertTxBody txBody = do
     _txBodyOutputs containerHelper txBody
       # traverse (convertOutput >>> noteErr "TransactionOutput")
   fee <-
-    Coin <$>
-      ( _txBodyFee txBody
-          # bigNumToBigInt >>> noteErr "TxBodyFee to BigInt"
-      )
+    Coin <$> (_txBodyFee txBody # bigNumToBigInt' "txBody fee")
   networkId <-
     _txBodyNetworkId maybeFfiHelper txBody
       # traverse (intToNetworkId >>> noteErr "NetworkId")
   let
+    ws :: Maybe (Array (Tuple RewardAddress CSL.BigNum))
     ws = _unpackWithdrawals containerHelper <$> _txBodyWithdrawals
       maybeFfiHelper
       txBody
-    bignumToCoin = (pure <<< Coin) <=< bigNumToBigInt
-    withdrawals = map M.fromFoldable <<< traverse (traverse bignumToCoin) =<< ws
+
+  withdrawals :: Maybe (M.Map RewardAddress Coin) <-
+    -- array -> map
+    (map <<< map) M.fromFoldable
+      -- bignum -> coin
+      <<< (traverse <<< traverse <<< traverse)
+        (bigNumToBigInt' "txbody withdrawals" >>> map Coin)
+      $ ws
 
   update <- traverse convertUpdate $ _txBodyUpdate maybeFfiHelper txBody
 
@@ -119,7 +144,7 @@ convertTxBody txBody = do
     , collateral: _txBodyCollateral containerHelper maybeFfiHelper txBody >>=
         traverse convertInput
     , requiredSigners: _txBodyRequiredSigners maybeFfiHelper txBody #
-        (map <<< map) convertRequiredSigner
+        (map <<< map) RequiredSigner
     , networkId
     }
 
@@ -128,9 +153,6 @@ convertTxBody txBody = do
     noteErr ("validityStartInterval UInt.fromInt': " <> show x)
       <<< map Slot
       <<< UInt.fromInt' $ x
-
-convertRequiredSigner :: Ed25519KeyHash -> RequiredSigner
-convertRequiredSigner = notImplemented -- TODO: how?
 
 convertMint :: CSL.Mint -> Mint
 convertMint mint = Mint $ NonAdaAsset
@@ -149,21 +171,179 @@ convertMint mint = Mint $ NonAdaAsset
   convAssetName = bimap tokenNameFromAssetName BigInt.fromInt
 
 convertUpdate :: forall r. CSL.Update -> Err r Update
-convertUpdate = _unpackUpdate containerHelper >>> \{ epoch, paramUpdates } -> do
-  epoch' <- Epoch <$>
-    (noteErr ("fromInt epoch: " <> show epoch) $ UInt.fromInt' epoch)
+convertUpdate = notImplemented
+
+convertProtocolParamUpdate
+  :: forall r. CSL.ProtocolParamUpdate -> Err r ProtocolParamUpdate
+convertProtocolParamUpdate cslPpu = do
   let
-    convertUpdates = ProposedProtocolParameterUpdates <<< M.fromFoldable <<< map
-      (map convertProtocolParamUpdate)
+    ppu = _unpackProtocolParamUpdate maybeFfiHelper cslPpu
+    lbl = (<>) "ProtocolParamUpdate."
+
+  minfeeA <- traverse (map Coin <<< bigNumToBigInt' (lbl "minfeeA")) ppu.minfeeA
+  minfeeB <- traverse (map Coin <<< bigNumToBigInt' (lbl "minfeeB")) ppu.minfeeB
+  maxBlockBodySize <- traverse (cslNumberToUInt (lbl "maxBlockBodySize"))
+    ppu.maxBlockBodySize
+  maxTxSize <- traverse (cslNumberToUInt (lbl "maxTxSize")) ppu.maxTxSize
+  maxBlockHeaderSize <- traverse (cslNumberToUInt (lbl "maxBlockHeaderSize"))
+    ppu.maxBlockHeaderSize
+  keyDeposit <- traverse (map Coin <<< bigNumToBigInt' (lbl "keyDeposit"))
+    ppu.keyDeposit
+  poolDeposit <- traverse (map Coin <<< bigNumToBigInt' (lbl "poolDeposit"))
+    ppu.poolDeposit
+  maxEpoch <- traverse (map Epoch <<< cslNumberToUInt (lbl "maxEpoch"))
+    ppu.maxEpoch
+  nOpt <- traverse (cslNumberToUInt (lbl "nOpt")) ppu.nOpt
+  poolPledgeInfluence <- traverse
+    (cslRatioToRational (lbl "poolPledgeInfluence"))
+    ppu.poolPledgeInfluence
+  protocolVersion <- traverse
+    (traverse (cslToProtocolVersion (lbl "protocolVersion")))
+    ppu.protocolVersion
+  minPoolCost <- traverse (map Coin <<< bigNumToBigInt' (lbl "minPoolCost"))
+    ppu.minPoolCost
+  adaPerUtxoByte <- traverse
+    (map Coin <<< bigNumToBigInt' (lbl "adaPerUtxoByte"))
+    ppu.adaPerUtxoByte
+  costModels <- traverse (convertCostModels (lbl "costModels")) ppu.costModels
+  maxTxExUnits <- traverse (cslToExunits (lbl "maxTxExUnits")) ppu.maxTxExUnits
+  maxBlockExUnits <- traverse (cslToExunits (lbl "maxBlockExUnits"))
+    ppu.maxBlockExUnits
+  maxValueSize <- traverse (cslNumberToUInt (lbl "maxValueSize"))
+    ppu.maxValueSize
   pure
-    { epoch: epoch'
-    , proposedProtocolParameterUpdates: convertUpdates paramUpdates
+    { minfeeA
+    , minfeeB
+    , maxBlockBodySize
+    , maxTxSize
+    , maxBlockHeaderSize
+    , keyDeposit
+    , poolDeposit
+    , maxEpoch
+    , nOpt
+    , poolPledgeInfluence
+    , expansionRate: ppu.expansionRate
+    , treasuryGrowthRate: ppu.treasuryGrowthRate
+    , d: ppu.d
+    , extraEntropy: convertNonce <$> ppu.extraEntropy
+    , protocolVersion
+    , minPoolCost
+    , adaPerUtxoByte
+    , costModels
+    , executionCosts: ppu.executionCosts
+    , maxTxExUnits
+    , maxBlockExUnits
+    , maxValueSize
     }
 
-convertProtocolParamUpdate :: CSL.ProtocolParamUpdate -> ProtocolParamUpdate
-convertProtocolParamUpdate = notImplemented
+-- where
 
-convertAuxiliaryData :: CSL.AuxiliaryData -> AuxiliaryData
+-- declare export class ProtocolParamUpdate {
+--   minfee_a(): Maybe BigNum
+--   minfee_b(): Maybe BigNum
+--   max_tx_size(): Maybe Number
+--   max_block_header_size(): Maybe Number
+--   key_deposit(): Maybe BigNum
+--   pool_deposit(): Maybe BigNum
+--   max_epoch(): Maybe Number
+--   n_opt(): Maybe Number
+--   pool_pledge_influence(): Maybe { numerator :: BigNum, denominator :: BigNum }
+--   expansion_rate(): Maybe   { numerator :: BigNum, denominator :: BigNum  }
+--   treasury_growth_rate(): Maybe { numerator :: BigNum, denominator :: BigNum }
+--   d(): Maybe   { numerator :: BigNum, denominator :: BigNum  }
+--   extra_entropy(): Maybe Nonce
+--   protocol_version(): Maybe (Array {major :: Number, minor :: minor})
+--   min_pool_cost(): Maybe BigNum
+--   ada_per_utxo_byte(): Maybe BigNum
+--   cost_models(): Maybe CSL.Costmdls
+--   execution_costs(): Maybe { memPrice :: { numerator :: BigNum, denominator :: BigNum }, stepPrice :: { numerator :: BigNum, denominator :: BigNum }}
+--   max_tx_ex_units(): Maybe { mem :: BigNum, steps :: BigNum }
+--   max_block_ex_units(): Maybe { mem :: BigNum, steps :: BigNum }
+--   max_value_size(): Maybe Number
+--   collateral_percentage(): Maybe Number
+--   max_collateral_inputs(): Maybe Number
+-- }
+
+foreign import _unpackProtocolParamUpdate
+  :: MaybeFfiHelper
+  -> CSL.ProtocolParamUpdate
+  -> { minfeeA :: Maybe CSL.BigNum
+     , minfeeB :: Maybe CSL.BigNum
+     , maxBlockBodySize :: Maybe Number
+     , maxTxSize :: Maybe Number
+     , maxBlockHeaderSize :: Maybe Number
+     , keyDeposit :: Maybe CSL.BigNum
+     , poolDeposit :: Maybe CSL.BigNum
+     , maxEpoch :: Maybe Number
+     , nOpt :: Maybe Number
+     , poolPledgeInfluence ::
+         Maybe { numerator :: CSL.BigNum, denominator :: CSL.BigNum }
+     , expansionRate ::
+         Maybe { numerator :: CSL.BigNum, denominator :: CSL.BigNum }
+     , treasuryGrowthRate ::
+         Maybe { numerator :: CSL.BigNum, denominator :: CSL.BigNum }
+     , d :: Maybe { numerator :: CSL.BigNum, denominator :: CSL.BigNum }
+     , extraEntropy :: Maybe CSL.Nonce
+     , protocolVersion :: Maybe (Array { major :: Number, minor :: Number })
+     , minPoolCost :: Maybe CSL.BigNum
+     , adaPerUtxoByte :: Maybe CSL.BigNum
+     , costModels :: Maybe CSL.Costmdls
+     , executionCosts ::
+         Maybe
+           { memPrice :: { numerator :: CSL.BigNum, denominator :: CSL.BigNum }
+           , stepPrice :: { numerator :: CSL.BigNum, denominator :: CSL.BigNum }
+           }
+     , maxTxExUnits :: Maybe { mem :: CSL.BigNum, steps :: CSL.BigNum }
+     , maxBlockExUnits :: Maybe { mem :: CSL.BigNum, steps :: CSL.BigNum }
+     , maxValueSize :: Maybe Number
+     , collateralPercentage :: Maybe Number
+     , maxCollateralInputs :: Maybe Number
+     }
+
+convertNonce :: CSL.Nonce -> Nonce
+convertNonce = _convertNonce
+  { hashNonce: HashNonce, identityNonce: IdentityNonce }
+
+foreign import _convertNonce
+  :: { identityNonce :: Nonce, hashNonce :: ByteArray -> Nonce }
+  -> CSL.Nonce
+  -> Nonce
+
+convertCostModels
+  :: forall (r :: Row Type)
+   . String
+  -> CSL.Costmdls
+  -> E (FromCslRepError + r) Costmdls
+convertCostModels nm cslCostMdls =
+  let
+    mdls :: Array (Tuple CSL.Language CSL.CostModel)
+    mdls = _unpackCostModels containerHelper cslCostMdls
+  in
+    (Costmdls <<< M.fromFoldable) <$> traverse
+      (bitraverse (convertLanguage nm) (convertCostModel nm))
+      mdls
+
+convertLanguage
+  :: forall r. String -> CSL.Language -> E (FromCslRepError + r) Language
+convertLanguage err = _convertLanguage
+  (errorHelper (inj _fromCslRepError.proxy <<< \e -> err <> ": " <> e))
+  { plutusV1: PlutusV1 }
+
+foreign import _unpackCostModels
+  :: ContainerHelper -> CSL.Costmdls -> Array (Tuple CSL.Language CSL.CostModel)
+
+foreign import _unpackCostModel :: CSL.CostModel -> Array String
+
+convertCostModel
+  :: forall r. String -> CSL.CostModel -> E (FromCslRepError + r) CostModel
+convertCostModel err = map CostModel <<< traverse stringToUInt <<<
+  _unpackCostModel
+  where
+  stringToUInt s = noteErr (err <> ": string (" <> s <> ") -> uint") $
+    UInt.fromString s
+
+convertAuxiliaryData
+  :: forall (r :: Row Type). CSL.AuxiliaryData -> AuxiliaryData
 convertAuxiliaryData ad =
   AuxiliaryData
     { metadata: convertGeneralTransactionMetadata <$> _adGeneralMetadata
@@ -299,38 +479,40 @@ certConvHelper = notImplemented
 foreign import _convertCert
   :: forall r. CertConvHelper r -> CSL.Certificate -> Err r Certificate
 
--- = StakeRegistration StakeCredential
--- | StakeDeregistration StakeCredential
--- | StakeDelegation StakeCredential Ed25519KeyHash
--- | PoolRegistration
---     { operator :: Ed25519KeyHash
---     , vrfKeyhash :: VRFKeyHash
---     , pledge :: BigNum
---     , cost :: BigNum
---     , margin :: UnitInterval
---     , reward_account :: RewardAddress
---     , poolOwners :: Array Ed25519KeyHash
---     , relays :: Array Relay
---     , poolMetadata :: Maybe PoolMetadata
---     }
--- | PoolRetirement
---     { poolKeyhash :: Ed25519KeyHash
---     , epoch :: Epoch
---     }
--- | GenesisKeyDelegation
---     { genesisHash :: GenesisHash
---     , genesisDelegateHash :: GenesisDelegateHash
---     , vrfKeyhash :: VRFKeyHash
---     }
--- | MoveInstantaneousRewardsCert MoveInstantaneousReward
+foreign import _convertLanguage
+  :: forall r
+   . ErrorFfiHelper r
+  -> { plutusV1 :: Language }
+  -> CSL.Language
+  -> E r Language
 
--- declare export class Certificate {
---   kind(): number;
---   as_stake_registration(): StakeRegistration | void;
---   as_stake_deregistration(): StakeDeregistration | void;
---   as_stake_delegation(): StakeDelegation | void;
---   as_pool_registration(): PoolRegistration | void;
---   as_pool_retirement(): PoolRetirement | void;
---   as_genesis_key_delegation(): GenesisKeyDelegation | void;
---   as_move_instantaneous_rewards_cert(): MoveInstantaneousRewardsCert | void;
--- }
+cslNumberToUInt :: forall r. String -> Number -> E (FromCslRepError + r) UInt
+cslNumberToUInt nm nb = noteErr (nm <> ": Number (" <> show nb <> ") -> UInt") $
+  UInt.fromNumber' nb
+
+cslRatioToRational
+  :: forall r
+   . String
+  -> { denominator :: CSL.BigNum, numerator :: CSL.BigNum }
+  -> E (FromCslRepError + r) (Ratio BigInt)
+cslRatioToRational err { numerator, denominator } = reduce
+  <$> bigNumToBigInt' (err <> " cslRatioToRational") numerator
+  <*> bigNumToBigInt' (err <> " cslRatioToRational") denominator
+
+cslToExunits
+  :: forall r
+   . String
+  -> { mem :: CSL.BigNum, steps :: CSL.BigNum }
+  -> E (FromCslRepError + r) ExUnits
+cslToExunits nm { mem, steps } = { mem: _, steps: _ }
+  <$> bigNumToBigInt' (nm <> " mem") mem
+  <*> bigNumToBigInt' (nm <> " steps") steps
+
+cslToProtocolVersion
+  :: forall r
+   . String
+  -> { major :: Number, minor :: Number }
+  -> E (FromCslRepError + r) ProtocolVersion
+cslToProtocolVersion nm { major, minor } = { major: _, minor: _ }
+  <$> cslNumberToUInt (nm <> " major") major
+  <*> cslNumberToUInt (nm <> " minor") minor

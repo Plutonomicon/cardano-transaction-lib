@@ -70,3 +70,74 @@ exports._unpackMintAssets = containerhelper => containerhelper.unpackKeyIndexed;
 
 // foreign import _convertCert :: forall r.CertConvHelper r -> CSL.Certificate -> Err r Certificate
 exports._convertCert = certConvHelper => cert => certConvHelper.notImplementedError ("Cert conversion not implemented.")
+
+
+// foreign import _unpackProtocolParamUpdate :: CSL.ProtocolParamUpdate -> 
+//   { minfeeA :: Maybe CSL.BigNum
+//   , minfeeB :: Maybe CSL.BigNum
+//   , maxBlockBodySize :: Maybe Number
+//   , maxTxSize :: Maybe Number
+//   , maxBlockHeaderSize :: Maybe Number
+//   , keyDeposit :: Maybe CSL.BigNum
+//   , poolDeposit :: Maybe CSL.BigNum
+//   , maxEpoch :: Maybe Number
+//   , nOpt :: Maybe Number
+//   , poolPledgeInfluence :: Maybe { numerator :: CSL.BigNum, denominator :: CSL.BigNum }
+//   , expansionRate :: Maybe   { numerator :: CSL.BigNum, denominator :: CSL.BigNum}
+//   , treasuryGrowthRate :: Maybe { numerator :: CSL.BigNum, denominator :: CSL.BigNum }
+//   , d :: Maybe   { numerator :: CSL.BigNum, denominator :: CSL.BigNum  }
+//   , extraEntropy :: Maybe CSL.Nonce
+//   , protocolVersion :: Maybe (Array {major :: Number, minor :: Number})
+//   , minPoolCost :: Maybe CSL.BigNum
+//   , adaPerUtxoByte :: Maybe CSL.BigNum
+//   , costModels :: Maybe CSL.Costmdls
+//   , executionCosts :: Maybe { memPrice :: { numerator :: CSL.BigNum, denominator :: CSL.BigNum }, stepPrice :: { numerator :: CSL.BigNum, denominator :: CSL.BigNum }}
+//   , maxTxExUnits :: Maybe { mem :: CSL.BigNum, steps :: CSL.BigNum }
+//   , maxBlockExUnits :: Maybe { mem :: CSL.BigNum, steps :: CSL.BigNum }
+//   , maxValueSize :: Maybe Number
+//   , collateralPercentage :: Maybe Number
+//   , maxCollateralInputs :: Maybe Number
+//   }
+exports._unpackProtocolParamUpdate = maybe => protocolParamUpdate => {throw "not implemented";};
+
+// foreign import _unpackCostModels :: ContainerHelper -> CSL.Costmdls -> Array(Tuple CSL.Language CSL.CostModel)
+exports._unpackCostModels = containerhelper => containerhelper.unpackKeyIndexed;
+
+// foreign import unpackCostModel :: CSL.CostModel -> Array String
+exports._unpackCostModel = cm => {
+    // XXX should OP_COUNT be used instead?
+    var op = 0;
+    var err = false;
+    const res = [];
+    while(!err){
+        try{
+            res.push(cm.get(op).to_str());
+        }
+        catch(_){
+            err=true;
+        }
+    }
+    return res;
+};
+
+// foreign import _convertLanguage
+//   :: forall r.ErrorFfiHelper r -> { plutusV1:: Language } -> CSL.Language -> E r Language
+exports._convertLanguage = errorHelper => langCtors => cslLang => {
+    try{
+        if(cslLang.kind()==0){
+            return errorHelper.valid(langCtors.plutusV1);
+        }
+        else{
+            return errorHelper.error("_convertLanguage: Unsupported language kind: " + cslLang.kind());
+        }
+    }
+    catch(e){
+        return errorHelper.error("_convertLanguage raised: " + e);
+    }
+};
+
+// foreign import _convertNonce :: forall r. { identityNonce:: Nonce, hashNonce :: UInt8Array -> Nonce } -> CSL.Nonce -> Nonce
+exports._convertNonce = nonceCtors => cslNonce => {
+    const hashBytes = cslNonce.get_hash();
+    return hashBytes == null ? nonceCtors.identityNonce : nonceCtors.hashNonce(hashBytes);
+};
