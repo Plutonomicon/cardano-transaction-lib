@@ -468,8 +468,9 @@ convertProposedProtocolParameterUpdates
   -> Effect ProposedProtocolParameterUpdates
 convertProposedProtocolParameterUpdates ppus =
   newProposedProtocolParameterUpdates containerHelper =<<
-  for (Map.toUnfoldable $ unwrap ppus) \(genesisHash /\ ppu) -> do
-    Tuple <$> newGenesisHash (unwrap genesisHash) <*> convertProtocolParamUpdate ppu
+    for (Map.toUnfoldable $ unwrap ppus) \(genesisHash /\ ppu) -> do
+      Tuple <$> newGenesisHash (unwrap genesisHash) <*>
+        convertProtocolParamUpdate ppu
 
 convertProtocolParamUpdate
   :: T.ProtocolParamUpdate -> Effect ProtocolParamUpdate
@@ -709,14 +710,13 @@ convertValue val = do
       let tokenName = Value.getTokenName tokenName'
       assetName <- newAssetName tokenName
       value <- fromJustEff "convertValue: number must not be negative" $
-        -- TODO: bigNumFromBigInt bigIntValue
-        newBigNum maybeFfiHelper (BigInt.toString bigIntValue)
+        bigNumFromBigInt bigIntValue
       insertAssets assets assetName value
     insertMultiAsset multiasset scripthash assets
   value <- newValueFromAssets multiasset
   valueSetCoin value =<< fromJustEff
     "convertValue: coin value must not be negative"
-    (newBigNum maybeFfiHelper (BigInt.toString lovelace))
+    (bigNumFromBigInt lovelace)
   pure value
 
 convertCostmdls :: T.Costmdls -> Effect Costmdls

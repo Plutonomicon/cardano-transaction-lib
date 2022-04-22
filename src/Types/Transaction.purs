@@ -300,6 +300,7 @@ newtype GenesisHash = GenesisHash ByteArray
 
 derive instance Newtype GenesisHash _
 derive newtype instance Eq GenesisHash
+derive newtype instance Ord GenesisHash
 derive instance Generic GenesisHash _
 
 instance Show GenesisHash where
