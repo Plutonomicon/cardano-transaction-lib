@@ -18,7 +18,8 @@ import Data.Ratio (Ratio)
 import Data.Ratio ((%), numerator, denominator) as Ratio
 import FromData (class FromData)
 import ToData (class ToData)
-import Types.Natural (Natural, fromBigInt', toBigInt) as Nat
+import Types.Natural (Natural)
+import Types.Natural (fromBigInt', toBigInt) as Nat
 import Types.PlutusData (PlutusData(Constr, Integer))
 
 -- | `Rational` is a newtype over `Ratio` with a smart constructor `reduce`
@@ -59,7 +60,7 @@ denominator (Rational r) = Ratio.denominator r
 
 -- This is safe because the denominator is guaranteed to be positive.
 -- | Get the denominator of a `Rational` as `Natural`.
-denominatorAsNat :: Rational -> Nat.Natural
+denominatorAsNat :: Rational -> Natural
 denominatorAsNat = Nat.fromBigInt' <<< denominator
 
 --------------------------------------------------------------------------------
@@ -91,5 +92,5 @@ instance RationalComponent BigInt where
 instance RationalComponent Int where
   reduce n d = reduce (BigInt.fromInt n) (BigInt.fromInt d)
 
-instance RationalComponent Nat.Natural where
+instance RationalComponent Natural where
   reduce n d = reduce (Nat.toBigInt n) (Nat.toBigInt d)

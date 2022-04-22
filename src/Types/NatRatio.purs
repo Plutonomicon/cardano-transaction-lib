@@ -15,7 +15,8 @@ module Types.NatRatio
 import Prelude
 import Data.BigInt (BigInt)
 import Data.Maybe (Maybe(Just, Nothing))
-import Types.Natural (Natural, fromBigInt', toBigInt)
+import Types.Natural (Natural)
+import Types.Natural (fromBigInt', toBigInt) as Nat
 import Types.Rational (Rational)
 import Types.Rational ((%), numerator, denominator, denominatorAsNat) as Rational
 
@@ -44,7 +45,7 @@ toRational (NatRatio r) = r
 -- | Given two `Natural`s, attempts to convert to a `NatRatio`. Fails if the
 -- | denominator is `zero`.
 fromNaturals :: Natural -> Natural -> Maybe NatRatio
-fromNaturals n d = NatRatio <$> toBigInt n Rational.% toBigInt d
+fromNaturals n d = NatRatio <$> Nat.toBigInt n Rational.% Nat.toBigInt d
 
 -- | Given two `BigInt`s, attempts to convert to a `NatRatio`. Fails if the
 -- | denominator is `zero` or the overall sign is negative.
@@ -60,7 +61,7 @@ numerator (NatRatio r) = Rational.numerator r
 -- This is safe because the numerator is guaranteed to be non-negative.
 -- | Get the numerator of a `NatRatio` as `Natural`.
 numeratorAsNat :: NatRatio -> Natural
-numeratorAsNat (NatRatio r) = fromBigInt' $ Rational.numerator r
+numeratorAsNat (NatRatio r) = Nat.fromBigInt' $ Rational.numerator r
 
 -- | Get the denominator of a `NatRatio` as `BigInt`.
 denominator :: NatRatio -> BigInt
