@@ -104,8 +104,8 @@
     };
     # NOTE
     # I don't we need anything from `plutus-apps`, so the following two are
-    # not necessary. If we go with Servant for the server, though, they might
-    # be useful for communicating with the frontend
+    # not necessary. They might be useful for communicating with the frontend
+    # however in case this is needed
     purescript-bridge = {
       url =
         "github:shmish111/purescript-bridge/6a92d7853ea514be8b70bab5e72077bf5a510596";
@@ -134,18 +134,16 @@
       defaultSystems = [ "x86_64-linux" "x86_64-darwin" ];
       perSystem = nixpkgs.lib.genAttrs defaultSystems;
       overlay = system: with inputs; [
-        (prev: _: {
+        (prev: final: {
           easy-ps =
             import inputs.easy-purescript-nix { pkgs = prev; };
-          # One of ODC's dependencies is marked as broken on the stable branch
-          # We could just override that one package from unstable, but it's more
-          # convenient to just use unstable to build the package
           ogmios-datum-cache =
             nixpkgs.legacyPackages.${system}.haskellPackages.callPackage
               ogmios-datum-cache
               { };
           ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
           cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
+          purescriptProject = import ./nix { inherit system; pkgs = prev; };
           inherit cardano-configurations;
         })
       ];
@@ -153,7 +151,7 @@
         overlays = [
           haskell-nix.overlay
           iohk-nix.overlays.crypto
-        ] ++ overlay system;
+        ] ++ (overlay system);
         inherit (haskell-nix) config;
         inherit system;
       };
@@ -161,8 +159,92 @@
         let
           pkgs = nixpkgsFor system;
           src = ./.;
+          spagoPkgsSrc = ../spago-packages.nix;
+          project = pkgs.purescriptProject { inherit src pkgs spagoPkgsSrc; };
         in
-        (import ./nix).ctl { inherit src pkgs system; };
+        rec {
+          defaultPackage = packages.cardano-transaction-lib;
+
+          packages = {
+            cardano-transaction-lib = project.buildPursProject {
+              name = "cardano-transaction-lib";
+              inherit src;
+            };
+          };
+
+          # FIXME
+          # Once we have ogmios/node instances available, we should also include a
+          # test. This will need to be run via a Hercules `effect`
+          checks = {
+            ctl-unit-test = project.runPursTest {
+              name = "ctl-unit-test";
+              testMain = "Test.Unit";
+              inherit src;
+            };
+          };
+
+          devShell = pkgs.mkShell {
+            buildInputs = [
+              project.pursCompiler
+              pkgs.ogmios
+              pkgs.cardano-cli
+              pkgs.ogmios-datum-cache
+              pkgs.easy-ps.spago
+              pkgs.easy-ps.purs-tidy
+              pkgs.easy-ps.purescript-language-server
+              pkgs.easy-ps.pscid
+              pkgs.easy-ps.spago2nix
+              pkgs.nodePackages.node2nix
+              project.nodejs
+              pkgs.nixpkgs-fmt
+              pkgs.fd
+            ];
+
+            shellHook =
+              let
+                nodeModules = project.mkNodeModules { };
+              in
+              ''
+                __ln-node-modules () {
+                  local modules=./node_modules
+                  if test -L "$modules"; then
+                    rm "$modules";
+                  elif test -e "$modules"; then
+                    echo 'refusing to overwrite existing (non-symlinked) `node_modules`'
+                    exit 1
+                  fi
+
+                  ln -s ${nodeModules}/lib/node_modules "$modules"
+                }
+
+                __ln-testnet-config () {
+                  local cfgdir=./.node-cfg
+                  if test -e "$cfgdir"; then
+                    rm -r "$cfgdir"
+                  fi
+
+                  mkdir -p "$cfgdir"/testnet/{config,genesis}
+
+                  ln -s ${pkgs.cardano-configurations}/network/testnet/cardano-node/config.json \
+                    "$cfgdir"/testnet/config/config.json
+                  ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/byron.json \
+                    "$cfgdir"/testnet/genesis/byron.json
+                  ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/shelley.json \
+                    "$cfgdir"/testnet/genesis/shelley.json
+                }
+
+                __ln-node-modules
+                __ln-testnet-config
+
+                export NODE_PATH="$PWD/node_modules:$NODE_PATH"
+                export PATH="${nodeModules}/bin:$PATH"
+                export CARDANO_NODE_SOCKET_PATH="$PWD"/.node/socket/node.socket
+                export CARDANO_NODE_CONFIG="$PWD"/.node-cfg/testnet/config/config.json
+
+              '';
+          };
+        };
+
       hsProjectFor = system:
         let
           pkgs = nixpkgsFor system;
