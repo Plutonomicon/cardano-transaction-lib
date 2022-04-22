@@ -23,7 +23,6 @@ import Cardano.Ledger.SafeHash qualified as SafeHash
 import Codec.CBOR.Read (deserialiseFromBytes)
 import Control.Lens
 import Control.Monad.Catch (throwM)
-import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (asks)
 import Data.Bifunctor (first)
 import Data.ByteString (ByteString)
@@ -103,7 +102,6 @@ finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
   decodedDatums <-
     throwDecodeErrorWithMessage "Failed to decode datums" $
       traverse decodeCborDatum datums
-  liftIO $ putStrLn $ "Decoded Tx: " <> show decodedTx
   let languages = Set.fromList [PlutusV1]
       txDatums =
         TxWitness.TxDats . Map.fromList $
