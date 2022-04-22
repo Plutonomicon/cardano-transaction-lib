@@ -205,6 +205,7 @@
           pkgs = nixpkgsFor system;
         in
         (psProjectFor system).checks
+        // self.hsFlake.${system}.checks
         // {
           formatting-check = pkgs.runCommand "formatting-check"
             {
