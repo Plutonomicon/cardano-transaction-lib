@@ -8,7 +8,9 @@ module QueryM.Ogmios
   , OgmiosBlockHeaderHash(..)
   , OgmiosTxOut(..)
   , OgmiosTxOutRef(..)
+  , SubmitTxR(..)
   , TxEvaluationResult(..)
+  , TxHash
   , UtxoQueryResult(..)
   , UtxoQR(..)
   , queryChainTipCall
@@ -112,12 +114,14 @@ type OgmiosAddress = String
 -- encoded in either Base16 or Base64.
 -- TODO Change return type to `TransactionHash`
 -- see https://github.com/Plutonomicon/cardano-transaction-lib/issues/290
-submitTxCall :: JsonWspCall { txCbor :: ByteArray } TxHash
+submitTxCall :: JsonWspCall { txCbor :: ByteArray } SubmitTxR
 submitTxCall = mkOgmiosCallType
   { methodname: "SubmitTx"
   , args: { submit: _ } <<< byteArrayToHex <<< _.txCbor
   }
   Proxy
+
+newtype SubmitTxR = SubmitTxR TxHash
 
 type TxHash = String
 

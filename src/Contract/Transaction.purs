@@ -23,6 +23,7 @@ module Contract.Transaction
   ) where
 
 import Prelude
+import Undefined
 
 import BalanceTx (balanceTx) as BalanceTx
 import BalanceTx (BalanceTxError) as BalanceTxError
@@ -69,7 +70,7 @@ import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
   , mkUnbalancedTx
   ) as ScriptLookups
-import Types.Transaction (Transaction, _body, _inputs)
+import Types.Transaction (Transaction, TransactionHash, _body, _inputs)
 import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and associated lens.
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
@@ -185,8 +186,8 @@ signTransactionBytes = wrapContract <<< QueryM.signTransactionBytes
 
 -- | Submits a Cbor-hex encoded transaction, which is the output of
 -- | `signTransactionBytes` or `balanceAndSignTx`
-submit :: forall (r :: Row Type). ByteArray -> Contract r String
-submit = wrapContract <<< QueryM.submitTxOgmios
+submit :: forall (r :: Row Type). ByteArray -> Contract r TransactionHash
+submit bs = wrapContract $ undefined {-TODO-} QueryM.submitTxOgmios bs
 
 -- | Query the Haskell server for the minimum transaction fee
 calculateMinFee

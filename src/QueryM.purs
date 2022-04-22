@@ -275,7 +275,7 @@ getChainTip = mkOgmiosRequest Ogmios.queryChainTipCall _.chainTip unit
 -- OGMIOS LOCAL TX SUBMISSION PROTOCOL
 --------------------------------------------------------------------------------
 
-submitTxOgmios :: ByteArray -> QueryM String
+submitTxOgmios :: ByteArray -> QueryM Ogmios.SubmitTxR
 submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall _.submit { txCbor }
 
 --------------------------------------------------------------------------------
@@ -813,7 +813,7 @@ type DatumCacheListeners = ListenerSet DcWsp.JsonWspResponse
 type OgmiosListeners =
   { utxo :: ListenerSet Ogmios.UtxoQR
   , chainTip :: ListenerSet Ogmios.ChainTipQR
-  , submit :: ListenerSet String
+  , submit :: ListenerSet Ogmios.SubmitTxR
   , evaluate :: ListenerSet Ogmios.TxEvaluationResult
   }
 
