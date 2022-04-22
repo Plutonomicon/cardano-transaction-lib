@@ -57,6 +57,22 @@ module ConstrIndices
   ( class HasConstrIndices
   , class HasCountedConstrIndices
   , class IndexedRecField
+  , class IndexedRecFieldT
+  , RList
+  , Cons'
+  , Nil'
+  , S
+  , Z
+  , class SortRec
+  , class ToRList
+  , class Split
+  , class Merge
+  , class Sort
+  , class FromRList
+  , class RListToRow
+  , class KnownNat
+  , class RowToRList
+  , natVal
   , constrIndices
   , countedConstrIndices
   , getFieldIndex
@@ -64,8 +80,9 @@ module ConstrIndices
   , fromConstr2Index
   ) where
 
-import Prelude
+import Prelude hiding (Ordering(..))
 
+import Prim.Ordering
 import Data.Generic.Rep as G
 import Data.Map (Map)
 import Data.Map as Map
@@ -75,6 +92,7 @@ import Type.Proxy (Proxy(Proxy))
 import Type.RowList as RL
 import Type.Row as R
 import Type.Data.Ordering as Ord
+
 class HasConstrIndices :: Type -> Constraint
 class HasConstrIndices a where
   constrIndices :: Proxy a -> Tuple (Map String Int) (Map Int String)
@@ -124,9 +142,7 @@ data Z
 
 data S n
 
-class (IsSymbol s, KnownNat n) <= IndexedRecFieldT (t :: Type) s n | t s -> n where
-  getFieldIndexT :: Proxy t -> SProxy s -> Proxy n
-
+class (IsSymbol s, KnownNat n) <= IndexedRecFieldT (t :: Type) s n | t s -> n
 
 class KnownNat n where
   natVal :: Proxy n -> Int
@@ -137,56 +153,84 @@ instance KnownNat Z where
 instance KnownNat n => KnownNat (S n) where
   natVal _ = 1 + natVal (Proxy :: Proxy n)
 
-class (KnownNat n1, KnownNat n2, KnownNat n3) <= Maximum n1 n2 n3
-
-instance (KnownNat s) => Maximum Z s s
-else instance (KnownNat s) => Maximum s Z s
-else instance (KnownNat n1, KnownNat n2, KnownNat n3, Maximum n1 n2 n3) => Maximum (S n1) (S n2) (S n3)
-
-class KnownNat n <= MaxFieldIndex (t :: Type) rlist  n | t rlist -> n
-
-instance (IndexedRecFieldT t s n) => MaxFieldIndex t (RL.Cons s x RL.Nil) n
-else instance (MaxFieldIndex t xs n1, KnownNat n2, IsSymbol s, IndexedRecFieldT t s n2, Maximum n1 n2 n3) => MaxFieldIndex t (RL.Cons s x xs) n3
-
 -- a kind for UNORDERED rowlists. bleh
 data RList k
 
-foreign import data Cons' :: forall (k :: Type). Symbol -> k -> RList k -> RList k
+foreign import data Cons' :: forall (k :: Type) (nat :: Type). Symbol -> k -> nat ->  RList k -> RList k
 foreign import data Nil'  :: forall (k :: Type). RList k
 
 class SortRec :: forall k. Type -> RL.RowList k -> RList k -> Constraint
-class SortRec t rowList rList
+class SortRec t rowList rList | t rowList -> rList
+instance (ToRList t rowList rList,  Sort t rList' rList) => SortRec t rowList rList
 
-class KnownNat n <= Length rowList n
+class ToRList :: forall (k :: Type). Type -> RL.RowList k -> RList k -> Constraint
+class ToRList t rowList rList | t rowList -> rList
 
-instance Length RL.Nil Z
-instance (Length xs n, KnownNat n) => Length (RL.Cons s a xs) (S n)
+instance ToRList t RL.Nil Nil'
+--else instance (IndexedRecFieldT t key Z) => ToRList t (RL.Cons key a RL.Nil) (Cons' key a Z Nil')
+instance (ToRList t as as', IndexedRecFieldT t key n) => ToRList t (RL.Cons key a as) (Cons' key a n as')
 
-class ToRList :: forall (k :: Type). RL.RowList k -> RList k -> Constraint
-class ToRList rowList rList
 
-instance ToRList RL.Nil Nil'
-else instance (ToRList xs xs') => ToRList (RL.Cons key a xs) (Cons' key a xs')
 
--- these can be made "safer"
-class Take :: forall (k :: Type). Type -> RList k -> RList k -> Constraint
-class Take n rList rList' | n rList -> rList'
+class Sort :: forall (k :: Type). Type -> RList k -> RList k -> Constraint
+class Sort t rList result | t rList -> result
 
-instance Take Z rList Nil'
-else instance Take n Nil' Nil'
-else instance Take n xs ys => Take (S n) (Cons' key a xs) (Cons' key a ys)
+instance Sort t Nil' Nil'
+else instance Sort t (Cons' key a nA Nil') (Cons' key a nA Nil')
+else instance (Split xs ls rs, Sort t ls ls', Sort t rs rs', Merge t ls' rs' merged)
+              =>  Sort t xs merged
 
-class Drop :: forall (k :: Type). Type -> RList k -> RList k -> Constraint
-class Drop n rList rList'
+class Split :: forall (k :: Type). RList k ->  (RList k) -> (RList k) -> Constraint
+class Split k resultL resultR | k -> resultL, k -> resultR
 
-instance  Drop Z rList rList
-else instance Drop n Nil' Nil'
-else instance Drop n xs ys => Drop (S n) (Cons' key a xs) ys
+instance Split  Nil'  Nil' Nil'
+else instance Split (Cons' key a nA Nil')  (Cons' key a nA Nil') Nil'
+else instance Split rest as bs => Split (Cons' keyA a nA (Cons' keyB b nB rest)) (Cons' keyA a nA as) (Cons' keyB b nB bs)
 
-class SplitAt :: forall (k :: Type). Type -> RList k -> Tuple (RList k) (RList k) -> Constraint
-class (KnownNat n) <= SplitAt n rlist tup
+class Merge :: forall (k :: Type). Type -> (RList k) ->  (RList k) -> RList k -> Constraint
+class Merge t listL listR result | listL listR -> result
 
-instance (Take n rList taken, Drop n rList dropped) => SplitAt n rList (Tuple taken dropped)
+instance Merge t Nil' Nil' Nil'
+else instance Merge t (Cons' keyA a nA as)  Nil' (Cons' keyA a nA as)
+
+else instance Merge t Nil' (Cons' keyB b nB bs) (Cons' keyB b nB bs)
+
+else instance Merge t as (Cons' keyB b Z  bs) merged
+                => Merge t (Cons' keyA a Z as) (Cons' keyB b Z  bs) (Cons' keyA a Z merged)
+
+else instance Merge t as (Cons' keyB b Z  bs) merged
+                => Merge t (Cons' keyA a (S nA) as) (Cons' keyB b Z  bs) (Cons' keyA a (S nA)  merged)
+
+else instance Merge t (Cons' keyA a Z as) bs merged
+                => Merge t (Cons' keyA a Z as) (Cons' keyB b (S nB)  bs) (Cons' keyB b (S nB)  merged)
+
+else instance (Merge t (Cons' keyA a nA as) (Cons' keyB b nB bs) merged)
+                => Merge t (Cons' keyA a (S nA) as) (Cons' keyB b (S nB) bs) merged
+
+class FromRList :: forall (k :: Type). RList k -> RL.RowList k -> Constraint
+class FromRList rList rowList | rList -> rowList
+
+instance FromRList Nil' RL.Nil
+else instance FromRList rest result' => FromRList (Cons' key a n rest) (RL.Cons key a result)
+
+class RListToRow :: forall (k :: Type). RList k -> Row k -> Constraint
+class RListToRow rList row | rList -> row
+
+instance (FromRList rList rowList, RL.ListToRow rowList row) => RListToRow rList row
+
+class RowToRList :: forall (k :: Type). Type -> Row k -> RList k -> Constraint
+class RowToRList t row rList | t row -> rList
+
+instance (RL.RowToList row rowList, ToRList t rowList rList) => RowToRList t row rList
+
+{-
+class RListOf :: forall (k :: Type). RL.RowList k -> RList k -> Constraint
+class (ToRList rowList rList, FromRList rList rowList) <= RListOf rowList rList | rowList -> rList, rList -> rowList
+instance (ToRList rowList rList, FromRList rList rowList) => RListOf rowList rList
+
+class Sort :: forall (k :: Type). Type -> RList k -> RList k -> Constraint
+class Sort t rList result | t rList -> result
+-}
 
 {-
 data SortedRowList n k

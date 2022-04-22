@@ -5,8 +5,23 @@ import Prelude
 
 import ConstrIndices
   ( class HasConstrIndices
+  , class IndexedRecField
+  , class IndexedRecFieldT
+  , S
+  , Z
   , defaultConstrIndices
   , fromConstr2Index
+  , getFieldIndex
+  , RList
+  , Cons'
+  , Nil'
+  , class SortRec
+  , class Sort
+  , class ToRList
+  , class Split
+  , class Merge
+  , class FromRList
+  , class RListToRow
   )
 import Contract.PlutusData (PlutusData(Constr, Integer))
 import Contract.Prelude (fromJust, traverse_, uncurry)
@@ -21,7 +36,7 @@ import Data.Show.Generic (genericShow)
 import Data.Traversable (for_)
 import Data.Tuple (Tuple)
 import Data.Tuple.Nested ((/\))
-import FromData (class FromData, fromData, genericFromData)
+import FromData (class FromData, class FromDataArgsRL', class FromDataArgsRL,fromData, genericFromData)
 import Mote (group, skip, test)
 import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary, genericArbitrary)
@@ -211,6 +226,37 @@ data FType'
   = F0' BigInt
   | F1' Boolean Boolean Boolean
   | F2' BigInt FType'
+
+instance IndexedRecField FType "f0A" where
+  getFieldIndex _ _ = 0
+
+instance IndexedRecField FType "f1A" where
+  getFieldIndex _ _ = 0
+
+instance IndexedRecField FType "f1B" where
+  getFieldIndex _ _ = 1
+
+instance IndexedRecField FType "f1C" where
+  getFieldIndex _ _ = 2
+
+instance IndexedRecField FType "f2A" where
+  getFieldIndex _ _ = 0
+
+instance IndexedRecField FType "f2B" where
+  getFieldIndex _ _ = 1
+
+
+instance IndexedRecFieldT FType "f0A" Z
+
+instance IndexedRecFieldT FType "f1A" Z
+
+instance IndexedRecFieldT FType "f1B" (S Z)
+
+instance IndexedRecFieldT FType "f1C" (S (S Z))
+
+instance IndexedRecFieldT FType "f2A" Z
+
+instance IndexedRecFieldT FType "f2B" (S Z)
 
 derive instance G.Generic CType _
 derive instance G.Generic DType _
