@@ -1036,10 +1036,10 @@ processConstraint mpsMap osMap = do
   -- unit. Calling Ogmios is an outstanding issue:
   -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/174
   scriptExUnits :: ExUnits
-  scriptExUnits = { mem: fromInt 2000000, steps: fromInt 1000000000 }
+  scriptExUnits = { mem: fromInt 3_000_000, steps: fromInt 1_500_000_000 }
 
   mintExUnits :: ExUnits
-  mintExUnits = { mem: fromInt 2000000, steps: fromInt 1000000000 }
+  mintExUnits = { mem: fromInt 3_000_000, steps: fromInt 1_500_000_000 }
 
 -- Attach a Datum, Redeemer, or PlutusScript depending on the handler. They
 -- share error type anyway.
