@@ -754,20 +754,25 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
   submitDispatchMap <- createMutableDispatch
   let
     md = ogmiosMessageDispatch
-      { utxoDispatchMap, chainTipDispatchMap, evaluateTxDispatchMap }
+      { utxoDispatchMap
+      , chainTipDispatchMap
+      , evaluateTxDispatchMap
+      , submitDispatchMap
+      }
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   _onWsConnect ws do
     _wsWatch ws (logger Debug) do
       removeAllListeners lvl utxoDispatchMap
       removeAllListeners lvl evaluateTxDispatchMap
       removeAllListeners lvl chainTipDispatchMap
+      removeAllListeners lvl submitDispatchMap
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
     _onWsError ws (logger Error) defaultErrorListener
     cb $ Right $ WebSocket ws
       { utxo: mkListenerSet utxoDispatchMap
       , chainTip: mkListenerSet chainTipDispatchMap
-      , submit: mkListenerSet submitDispatchMap
       , evaluate: mkListenerSet evaluateTxDispatchMap
+      , submit: mkListenerSet submitDispatchMap
       }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
@@ -895,13 +900,19 @@ ogmiosMessageDispatch
   :: { utxoDispatchMap :: DispatchIdMap Ogmios.UtxoQR
      , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipQR
      , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationResult
+     , submitDispatchMap :: DispatchIdMap Ogmios.SubmitTxR
      }
   -> Array WebsocketDispatch
 ogmiosMessageDispatch
-  { utxoDispatchMap, chainTipDispatchMap, evaluateTxDispatchMap } =
+  { utxoDispatchMap
+  , chainTipDispatchMap
+  , evaluateTxDispatchMap
+  , submitDispatchMap
+  } =
   [ ogmiosQueryDispatch utxoDispatchMap
   , ogmiosQueryDispatch chainTipDispatchMap
   , ogmiosQueryDispatch evaluateTxDispatchMap
+  , ogmiosQueryDispatch submitDispatchMap
   ]
 
 datumCacheMessageDispatch
