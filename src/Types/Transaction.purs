@@ -371,9 +371,6 @@ derive instance Generic CostModel _
 instance Show CostModel where
   show = genericShow
 
-instance Show Nonce where
-  show = genericShow
-
 type ProtocolVersion =
   { major :: UInt
   , minor :: UInt
@@ -382,6 +379,9 @@ type ProtocolVersion =
 data Nonce = IdentityNonce | HashNonce ByteArray
 
 derive instance Eq Nonce
+
+instance Show Nonce where
+  show = genericShow
 
 type UnitInterval =
   { numerator :: BigNum

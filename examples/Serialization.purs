@@ -8,7 +8,7 @@ import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Console as Console
 import Serialization (convertTxInput)
-import Test.Main as Test
+import Test.Utils as Test.Utils
 import Test.Serialization as Serialization
 import Test.AffInterface as AffInterface
 import Types.ByteArray (hexToByteArrayUnsafe)
@@ -20,7 +20,7 @@ main = do
   input <- convertTxInput txInputFixture1
   Console.log $ show $ convertInput input
   launchAff_ $ do
-    Test.interpret do
+    Test.Utils.interpret do
       AffInterface.suite
       Serialization.suite
 
