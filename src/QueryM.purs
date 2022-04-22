@@ -277,7 +277,7 @@ getChainTip = mkOgmiosRequest Ogmios.queryChainTipCall _.chainTip unit
 
 
 submitTxOgmios :: ByteArray -> QueryM TransactionHash
-submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall (?x <<< _.submit) { txCbor }
+submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall _.submit { txCbor }
 
 --------------------------------------------------------------------------------
 -- DATUM CACHE QUERIES
@@ -814,7 +814,7 @@ type DatumCacheListeners = ListenerSet DcWsp.JsonWspResponse
 type OgmiosListeners =
   { utxo :: ListenerSet Ogmios.UtxoQR
   , chainTip :: ListenerSet Ogmios.ChainTipQR
-  , submit :: ListenerSet String
+  , submit :: ListenerSet TransactionHash
   , evaluate :: ListenerSet Ogmios.TxEvaluationResult
   }
 
