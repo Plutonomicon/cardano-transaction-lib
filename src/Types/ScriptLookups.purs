@@ -939,7 +939,7 @@ processConstraint mpsMap osMap = do
       _redeemers <>= Array.singleton (redeemer /\ Nothing)
       -- Attach redeemer to witness set.
       ExceptT $ attachToCps attachRedeemer redeemer
-    MustPayToPubKeyAddress pkh _ mDatum amount -> do
+    MustPayToPubKeyAddress pkh skh mDatum amount -> do
       networkId <- getNetworkId
       runExceptT do
         -- If datum is presented, add it to 'datumWitnesses' and Array of datums.
@@ -980,8 +980,11 @@ processConstraint mpsMap osMap = do
         -- Changed this to enterprise address for Seabug, it could be an issue
         -- down the road as we track all types of Addresses properly
         let
+          address = case skh of
+            Just skh' -> payPubKeyHashBaseAddress networkId pkh skh'
+            Nothing -> payPubKeyHashEnterpriseAddress networkId pkh
           txOut = TransactionOutput
-            { address: payPubKeyHashEnterpriseAddress networkId pkh
+            { address
             , amount
             , dataHash
             }
