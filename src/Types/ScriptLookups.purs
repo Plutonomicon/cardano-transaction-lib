@@ -977,8 +977,6 @@ processConstraint mpsMap osMap = do
               liftDatumHash (CannotHashDatum datum) <$> datumHash datum
           )
           mDatum
-        -- Changed this to enterprise address for Seabug, it could be an issue
-        -- down the road as we track all types of Addresses properly
         let
           address = case skh of
             Just skh' -> payPubKeyHashBaseAddress networkId pkh skh'
