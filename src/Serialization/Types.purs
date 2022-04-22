@@ -65,6 +65,11 @@ module Serialization.Types
   , MoveInstantaneousReward
   , MIRToStakeCredentials
   , Withdrawals
+  , Update
+  , ProposedProtocolParameterUpdates
+  , ProtocolParamUpdate
+  , ProtocolVersion
+  , ExUnitPrices
   ) where
 
 import Prelude
@@ -136,6 +141,11 @@ foreign import data GenesisDelegateHash :: Type
 foreign import data MoveInstantaneousReward :: Type
 foreign import data MIRToStakeCredentials :: Type
 foreign import data Withdrawals :: Type
+foreign import data Update :: Type
+foreign import data ProposedProtocolParameterUpdates :: Type
+foreign import data ProtocolParamUpdate :: Type
+foreign import data ProtocolVersion :: Type
+foreign import data ExUnitPrices :: Type
 
 instance Show BigNum where
   show = _to_str

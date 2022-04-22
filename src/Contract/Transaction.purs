@@ -103,7 +103,7 @@ import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and ass
       , TimelockStart
       , TimelockExpiry
       )
-  , Nonce(Nonce)
+  , Nonce(IdentityNonce, HashNonce)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate
   , ProtocolVersion

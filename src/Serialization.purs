@@ -17,7 +17,7 @@ import Data.FoldableWithIndex (forWithIndex_)
 import Data.Map as Map
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap)
-import Data.Traversable (traverse_, for_, for)
+import Data.Traversable (traverse_, for_, for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
@@ -41,27 +41,43 @@ import Serialization.Types
   ( AssetName
   , Assets
   , AuxiliaryData
-  , BigNum
   , BigInt
-  , Certificates
+  , BigNum
   , Certificate
-  , Costmdls
+  , Certificates
   , CostModel
+  , Costmdls
   , DataHash
+  , Ed25519KeyHashes
   , Ed25519Signature
+  , ExUnitPrices
+  , ExUnits
+  , GenesisDelegateHash
+  , GenesisHash
   , Int32
+  , Ipv4
+  , Ipv6
   , Language
+  , MIRToStakeCredentials
   , Mint
   , MintAssets
+  , MoveInstantaneousReward
   , MultiAsset
   , NativeScript
   , NetworkId
   , PlutusData
   , PlutusList
+  , PlutusScript
   , PlutusScripts
+  , PoolMetadata
+  , ProposedProtocolParameterUpdates
+  , ProtocolParamUpdate
+  , ProtocolVersion
   , PublicKey
   , Redeemer
   , Redeemers
+  , Relay
+  , Relays
   , ScriptDataHash
   , Transaction
   , TransactionBody
@@ -71,26 +87,20 @@ import Serialization.Types
   , TransactionOutput
   , TransactionOutputs
   , TransactionWitnessSet
+  , UnitInterval
+  , Update
+  , VRFKeyHash
   , Value
   , Vkey
+  , Vkeywitness
   , Vkeywitnesses
   , Withdrawals
-  , PlutusScript
-  , Vkeywitness
-  , UnitInterval
-  , Ed25519KeyHashes
-  , Relay
-  , Relays
-  , Ipv4
-  , Ipv6
-  , PoolMetadata
-  , VRFKeyHash
-  , GenesisHash
-  , GenesisDelegateHash
-  , MoveInstantaneousReward
-  , MIRToStakeCredentials
   )
-import Serialization.WitnessSet (convertWitnessSet, convertRedeemer)
+import Serialization.WitnessSet
+  ( convertWitnessSet
+  , convertRedeemer
+  , convertExUnits
+  )
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
 import Types.Int as Int
@@ -106,21 +116,25 @@ import Types.Transaction
       , MoveInstantaneousRewardsCert
       )
   , Costmdls(Costmdls)
+  , GenesisDelegateHash(GenesisDelegateHash)
+  , GenesisHash(GenesisHash)
   , Language(PlutusV1)
+  , MIRToStakeCredentials(MIRToStakeCredentials)
   , Mint(Mint)
+  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
+  , Nonce(IdentityNonce, HashNonce)
+  , PoolMetadata(PoolMetadata)
+  , PoolMetadataHash(PoolMetadataHash)
+  , ProposedProtocolParameterUpdates
+  , ProtocolParamUpdate
   , Redeemer
+  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
   , Transaction(Transaction)
   , TransactionInput(TransactionInput)
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
-  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
-  , PoolMetadata(PoolMetadata)
-  , PoolMetadataHash(PoolMetadataHash)
   , URL(URL)
-  , GenesisHash(GenesisHash)
-  , GenesisDelegateHash(GenesisDelegateHash)
-  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
-  , MIRToStakeCredentials(MIRToStakeCredentials)
+  , Update
   ) as T
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.Value as Value
@@ -303,6 +317,106 @@ foreign import newWithdrawals
 foreign import setTxBodyWithdrawals
   :: TransactionBody -> Withdrawals -> Effect Unit
 
+foreign import setTxBodyUpdate
+  :: TransactionBody -> Update -> Effect Unit
+
+foreign import newUpdate
+  :: ProposedProtocolParameterUpdates -> Int -> Effect Update
+
+foreign import newProtocolParamUpdate :: Effect ProtocolParamUpdate
+
+foreign import ppu_set_minfee_a :: ProtocolParamUpdate -> BigNum -> Effect Unit
+
+foreign import ppu_set_minfee_b :: ProtocolParamUpdate -> BigNum -> Effect Unit
+
+foreign import ppu_set_max_block_body_size
+  :: ProtocolParamUpdate -> Int -> Effect Unit
+
+foreign import ppu_set_max_tx_size :: ProtocolParamUpdate -> Int -> Effect Unit
+
+foreign import ppu_set_max_block_header_size
+  :: ProtocolParamUpdate -> Int -> Effect Unit
+
+foreign import ppu_set_key_deposit
+  :: ProtocolParamUpdate -> BigNum -> Effect Unit
+
+foreign import ppu_set_pool_deposit
+  :: ProtocolParamUpdate -> BigNum -> Effect Unit
+
+foreign import ppu_set_max_epoch :: ProtocolParamUpdate -> Int -> Effect Unit
+
+foreign import ppu_set_n_opt :: ProtocolParamUpdate -> Int -> Effect Unit
+
+foreign import ppu_set_pool_pledge_influence
+  :: ProtocolParamUpdate -> UnitInterval -> Effect Unit
+
+foreign import ppu_set_expansion_rate
+  :: ProtocolParamUpdate -> UnitInterval -> Effect Unit
+
+foreign import ppu_set_treasury_growth_rate
+  :: ProtocolParamUpdate -> UnitInterval -> Effect Unit
+
+foreign import ppu_set_d :: ProtocolParamUpdate -> UnitInterval -> Effect Unit
+
+foreign import ppu_set_extra_entropy_identity
+  :: ProtocolParamUpdate -> Effect Unit
+
+foreign import ppu_set_extra_entropy_from_hash
+  :: ProtocolParamUpdate -> ByteArray -> Effect Unit
+
+foreign import newProtocolVersion :: Int -> Int -> Effect ProtocolVersion
+
+foreign import ppu_set_protocol_version
+  :: ContainerHelper
+  -> ProtocolParamUpdate
+  -> Array ProtocolVersion
+  -> Effect Unit
+
+foreign import ppu_set_min_pool_cost
+  :: ProtocolParamUpdate
+  -> BigNum
+  -> Effect Unit
+
+foreign import ppu_set_ada_per_utxo_byte
+  :: ProtocolParamUpdate
+  -> BigNum
+  -> Effect Unit
+
+foreign import ppu_set_cost_models
+  :: ProtocolParamUpdate
+  -> Costmdls
+  -> Effect Unit
+
+foreign import newExUnitPrices
+  :: UnitInterval
+  -> UnitInterval
+  -> Effect ExUnitPrices
+
+foreign import ppu_set_execution_costs
+  :: ProtocolParamUpdate
+  -> ExUnitPrices
+  -> Effect Unit
+
+foreign import ppu_set_max_tx_ex_units
+  :: ProtocolParamUpdate
+  -> ExUnits
+  -> Effect Unit
+
+foreign import ppu_set_max_block_ex_units
+  :: ProtocolParamUpdate
+  -> ExUnits
+  -> Effect Unit
+
+foreign import ppu_set_max_value_size
+  :: ProtocolParamUpdate
+  -> Int
+  -> Effect Unit
+
+foreign import newProposedProtocolParameterUpdates
+  :: ContainerHelper
+  -> Array (GenesisHash /\ ProtocolParamUpdate)
+  -> Effect ProposedProtocolParameterUpdates
+
 foreign import toBytes
   :: ( Transaction
          |+| TransactionOutput
@@ -339,8 +453,100 @@ convertTransaction (T.Transaction { body: T.TxBody body, witnessSet }) = do
   for_ body.mint $ convertMint >=> setTxBodyMint txBody
   for_ body.certs $ convertCerts >=> setTxBodyCerts txBody
   for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
+  for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
   ws <- convertWitnessSet witnessSet
   newTransaction txBody ws
+
+convertUpdate :: T.Update -> Effect Update
+convertUpdate { proposedProtocolParameterUpdates, epoch } = do
+  ppUpdates <- convertProposedProtocolParameterUpdates
+    proposedProtocolParameterUpdates
+  newUpdate ppUpdates (UInt.toInt $ unwrap epoch)
+
+convertProposedProtocolParameterUpdates
+  :: T.ProposedProtocolParameterUpdates
+  -> Effect ProposedProtocolParameterUpdates
+convertProposedProtocolParameterUpdates ppus =
+  newProposedProtocolParameterUpdates containerHelper =<<
+  for (Map.toUnfoldable $ unwrap ppus) \(genesisHash /\ ppu) -> do
+    Tuple <$> newGenesisHash (unwrap genesisHash) <*> convertProtocolParamUpdate ppu
+
+convertProtocolParamUpdate
+  :: T.ProtocolParamUpdate -> Effect ProtocolParamUpdate
+convertProtocolParamUpdate
+  { minfeeA
+  , minfeeB
+  , maxBlockBodySize
+  , maxTxSize
+  , maxBlockHeaderSize
+  , keyDeposit
+  , poolDeposit
+  , maxEpoch
+  , nOpt
+  , poolPledgeInfluence
+  , expansionRate
+  , treasuryGrowthRate
+  , d
+  , extraEntropy
+  , protocolVersion
+  , minPoolCost
+  , adaPerUtxoByte
+  , costModels
+  , executionCosts
+  , maxTxExUnits
+  , maxBlockExUnits
+  , maxValueSize
+  } = do
+  ppu <- newProtocolParamUpdate
+  for_ minfeeA $ ppu_set_minfee_a ppu <=<
+    fromJustEff "convertProtocolParamUpdate: min_fee_a must not be negative"
+      <<< bigNumFromBigInt
+      <<< unwrap
+  for_ minfeeB $ ppu_set_minfee_b ppu <=<
+    fromJustEff "convertProtocolParamUpdate: min_fee_b must not be negative"
+      <<< bigNumFromBigInt
+      <<< unwrap
+  for_ maxBlockBodySize $ ppu_set_max_block_body_size ppu <<< UInt.toInt
+  for_ maxTxSize $ ppu_set_max_tx_size ppu <<< UInt.toInt
+  for_ maxBlockHeaderSize $ ppu_set_max_block_header_size ppu <<< UInt.toInt
+  for_ keyDeposit $ ppu_set_key_deposit ppu <=<
+    fromJustEff "convertProtocolParamUpdate: key_deposit must not be negative"
+      <<< bigNumFromBigInt
+      <<< unwrap
+  for_ poolDeposit $ ppu_set_pool_deposit ppu <=<
+    fromJustEff "convertProtocolParamUpdate: pool_deposit must not be negative"
+      <<< bigNumFromBigInt
+      <<< unwrap
+  for_ maxEpoch $ ppu_set_max_epoch ppu <<< UInt.toInt <<< unwrap
+  for_ nOpt $ ppu_set_n_opt ppu <<< UInt.toInt
+  for_ poolPledgeInfluence $
+    mkUnitInterval >=> ppu_set_pool_pledge_influence ppu
+  for_ expansionRate $
+    mkUnitInterval >=> ppu_set_expansion_rate ppu
+  for_ treasuryGrowthRate $
+    mkUnitInterval >=> ppu_set_treasury_growth_rate ppu
+  for_ d $
+    mkUnitInterval >=> ppu_set_d ppu
+  for_ extraEntropy $ case _ of
+    T.IdentityNonce -> ppu_set_extra_entropy_identity ppu
+    T.HashNonce bytes -> ppu_set_extra_entropy_from_hash ppu bytes
+  for_ protocolVersion $
+    ppu_set_protocol_version containerHelper ppu <=<
+      traverse \pv -> newProtocolVersion (UInt.toInt pv.major)
+        (UInt.toInt pv.minor)
+  for_ minPoolCost $ ppu_set_min_pool_cost ppu
+  for_ adaPerUtxoByte $ ppu_set_ada_per_utxo_byte ppu
+  for_ costModels $ convertCostmdls >=> ppu_set_cost_models ppu
+  for_ executionCosts $ convertExUnitPrices >=> ppu_set_execution_costs ppu
+  for_ maxTxExUnits $ convertExUnits >=> ppu_set_max_tx_ex_units ppu
+  for_ maxBlockExUnits $ convertExUnits >=> ppu_set_max_block_ex_units ppu
+  for_ maxValueSize $ UInt.toInt >>> ppu_set_max_value_size ppu
+  pure ppu
+  where
+  mkUnitInterval x = newUnitInterval x.numerator x.denominator
+  convertExUnitPrices { memPrice, stepPrice } =
+    join $ newExUnitPrices <$> mkUnitInterval memPrice <*> mkUnitInterval
+      stepPrice
 
 convertWithdrawals :: Map.Map RewardAddress Value.Coin -> Effect Withdrawals
 convertWithdrawals mp =
@@ -503,6 +709,7 @@ convertValue val = do
       let tokenName = Value.getTokenName tokenName'
       assetName <- newAssetName tokenName
       value <- fromJustEff "convertValue: number must not be negative" $
+        -- TODO: bigNumFromBigInt bigIntValue
         newBigNum maybeFfiHelper (BigInt.toString bigIntValue)
       insertAssets assets assetName value
     insertMultiAsset multiasset scripthash assets
