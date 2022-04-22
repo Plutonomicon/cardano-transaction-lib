@@ -2,8 +2,6 @@
   description = "cardano-transaction-lib";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/dde1557825c5644c869c5efc7448dc03722a8f09";
-
     # for the purescript project
     ogmios.url = "github:mlabs-haskell/ogmios/c4f896bf32ad066be8edd8681ee11e4ab059be7f";
     ogmios-datum-cache = {
@@ -27,8 +25,8 @@
 
     # for the haskell server
     iohk-nix.url = "github:input-output-hk/iohk-nix";
-    haskell-nix.url = "github:L-as/haskell.nix?ref=master";
-    nixpkgs-unstable.follows = "haskell-nix/nixpkgs-unstable";
+    haskell-nix.url = "github:mlabs-haskell/haskell.nix?ref=master";
+    nixpkgs.follows = "haskell-nix/nixpkgs-unstable";
     cardano-addresses = {
       url =
         "github:input-output-hk/cardano-addresses/d2f86caa085402a953920c6714a0de6a50b655ec";
@@ -146,7 +144,7 @@
             # We could just override that one package from unstable, but it's more
             # convenient to just use unstable to build the package
             ogmios-datum-cache =
-              nixpkgs-unstable.legacyPackages.${system}.haskellPackages.callPackage
+              nixpkgs.legacyPackages.${system}.haskellPackages.callPackage
                 ogmios-datum-cache
                 { };
             ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
@@ -207,6 +205,7 @@
           pkgs = nixpkgsFor system;
         in
         (psProjectFor system).checks
+        // self.hsFlake.${system}.checks
         // {
           formatting-check = pkgs.runCommand "formatting-check"
             {
