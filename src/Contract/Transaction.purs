@@ -23,7 +23,6 @@ module Contract.Transaction
   ) where
 
 import Prelude
-import Undefined
 
 import BalanceTx (balanceTx) as BalanceTx
 import BalanceTx (BalanceTxError) as BalanceTxError
@@ -32,7 +31,7 @@ import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
 import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\))
 import QueryM
@@ -187,7 +186,7 @@ signTransactionBytes = wrapContract <<< QueryM.signTransactionBytes
 -- | Submits a Cbor-hex encoded transaction, which is the output of
 -- | `signTransactionBytes` or `balanceAndSignTx`
 submit :: forall (r :: Row Type). ByteArray -> Contract r TransactionHash
-submit bs = wrapContract $ undefined {-TODO-}  QueryM.submitTxOgmios bs
+submit = wrapContract <<< map (wrap <<< unwrap) <<< QueryM.submitTxOgmios
 
 -- | Query the Haskell server for the minimum transaction fee
 calculateMinFee

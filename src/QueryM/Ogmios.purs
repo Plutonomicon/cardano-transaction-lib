@@ -40,7 +40,7 @@ import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern), indexOf, splitAt, uncons)
@@ -153,11 +153,12 @@ derive instance Newtype SubmitTxR _
 instance Show SubmitTxR where
   show = genericShow
 
-type TxHash = String
+type TxHash = ByteArray
 
 instance DecodeAeson SubmitTxR where
   decodeAeson = aesonObject $
-    \o -> getField o "SubmitSuccess" >>= flip getField "txId"
+    \o -> getField o "SubmitSuccess" >>= flip getField "txId" >>= hexToByteArray
+      >>> maybe (Left (TypeMismatch "Expected hexstring")) (pure <<< wrap)
 
 ---------------- TX EVALUATION QUERY RESPONSE & PARSING
 
