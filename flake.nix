@@ -133,25 +133,27 @@
     let
       defaultSystems = [ "x86_64-linux" "x86_64-darwin" ];
       perSystem = nixpkgs.lib.genAttrs defaultSystems;
+      overlay = system: with inputs; [
+        (prev: _: {
+          easy-ps =
+            import inputs.easy-purescript-nix { pkgs = prev; };
+          # One of ODC's dependencies is marked as broken on the stable branch
+          # We could just override that one package from unstable, but it's more
+          # convenient to just use unstable to build the package
+          ogmios-datum-cache =
+            nixpkgs.legacyPackages.${system}.haskellPackages.callPackage
+              ogmios-datum-cache
+              { };
+          ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
+          cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
+          inherit cardano-configurations;
+        })
+      ];
       nixpkgsFor = system: import nixpkgs {
-        overlays = with inputs; [
+        overlays = [
           haskell-nix.overlay
           iohk-nix.overlays.crypto
-          (prev: _: {
-            easy-ps =
-              import inputs.easy-purescript-nix { pkgs = prev; };
-            # One of ODC's dependencies is marked as broken on the stable branch
-            # We could just override that one package from unstable, but it's more
-            # convenient to just use unstable to build the package
-            ogmios-datum-cache =
-              nixpkgs.legacyPackages.${system}.haskellPackages.callPackage
-                ogmios-datum-cache
-                { };
-            ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
-            cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
-            inherit cardano-configurations;
-          })
-        ];
+        ] ++ overlay system;
         inherit (haskell-nix) config;
         inherit system;
       };
@@ -240,6 +242,8 @@
       );
 
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);
+
+      overlay = perSystem overlay;
 
       herculesCI.ciSystems = [ "x86_64-linux" ];
     };
