@@ -11,10 +11,11 @@ module Types.Rational
 
 import Prelude
 
-import Data.BigInt (BigInt, fromInt) as BI
+import Data.BigInt (BigInt)
+import Data.BigInt (fromInt) as BigInt
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Ratio (Ratio)
-import Data.Ratio ((%), numerator, denominator) as R
+import Data.Ratio ((%), numerator, denominator) as Ratio
 import FromData (class FromData)
 import ToData (class ToData)
 import Types.Natural (Natural, fromBigInt', toBigInt) as Nat
@@ -23,7 +24,7 @@ import Types.PlutusData (PlutusData(Constr, Integer))
 -- | `Rational` is a newtype over `Ratio` with a smart constructor `reduce`
 -- | that allows to create a `Rational` safely. The constructor is not exposed.
 -- | `Rational` also enforces the denominator to always be positive.
-newtype Rational = Rational (Ratio BI.BigInt)
+newtype Rational = Rational (Ratio BigInt)
 
 derive newtype instance Show Rational
 derive newtype instance Eq Rational
@@ -33,12 +34,12 @@ derive newtype instance Ring Rational
 derive newtype instance CommutativeRing Rational
 
 instance EuclideanRing Rational where
-  degree _ = 1
+  degree _ = one
   mod _ _ = zero
   div a b
     | numerator b == zero = zero
     | otherwise = Rational $
-        (numerator a * denominator b) R.% (denominator a * numerator b)
+        (numerator a * denominator b) Ratio.% (denominator a * numerator b)
 
 -- | Gives the reciprocal of a `Rational`.
 -- | Returns `Nothing` if applied to `zero` since the reciprocal of zero
@@ -49,12 +50,12 @@ recip r
   | otherwise = reduce (denominator r) (numerator r)
 
 -- | Get the numerator of a `Rational` as `BigInt`.
-numerator :: Rational -> BI.BigInt
-numerator (Rational r) = R.numerator r
+numerator :: Rational -> BigInt
+numerator (Rational r) = Ratio.numerator r
 
 -- | Get the denominator of a `Rational` as `BigInt`.
-denominator :: Rational -> BI.BigInt
-denominator (Rational r) = R.denominator r
+denominator :: Rational -> BigInt
+denominator (Rational r) = Ratio.denominator r
 
 -- This is safe because the denominator is guaranteed to be positive.
 -- | Get the denominator of a `Rational` as `Natural`.
@@ -82,13 +83,13 @@ class RationalComponent t where
 
 infixl 7 reduce as %
 
-instance RationalComponent BI.BigInt where
+instance RationalComponent BigInt where
   reduce n d
     | d == zero = Nothing
-    | otherwise = Just $ Rational (n R.% d)
+    | otherwise = Just $ Rational (n Ratio.% d)
 
 instance RationalComponent Int where
-  reduce n d = reduce (BI.fromInt n) (BI.fromInt d)
+  reduce n d = reduce (BigInt.fromInt n) (BigInt.fromInt d)
 
 instance RationalComponent Nat.Natural where
   reduce n d = reduce (Nat.toBigInt n) (Nat.toBigInt d)
