@@ -162,9 +162,7 @@
           pkgs = nixpkgsFor system;
           src = ./.;
         in
-        import ./nix {
-          inherit src pkgs system;
-        };
+        (import ./nix).ctl { inherit src pkgs system; };
       hsProjectFor = system:
         let
           pkgs = nixpkgsFor system;
