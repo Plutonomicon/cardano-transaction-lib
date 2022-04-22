@@ -39,7 +39,7 @@ let
     in
     (modules { }).shell.nodeDependencies;
 
-  buildPursProject = { name, src, withDevDeps ? false, ... }:
+  buildPursProject = { name, withDevDeps ? false, ... }:
     let
       nodeModules = mkNodeModules { inherit withDevDeps; };
     in
