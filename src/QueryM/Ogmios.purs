@@ -112,7 +112,7 @@ type OgmiosAddress = String
 submitTxCall :: JsonWspCall { txCbor :: ByteArray } T.TransactionHash
 submitTxCall = mkOgmiosCallType
   { methodname: "SubmitTx"
-  , args: { submit: _ } <<< T.TransactionHash <<< _.txCbor
+  , args: { submit: _ } <<< byteArrayToHex <<< _.txCbor
   }
   Proxy
 
