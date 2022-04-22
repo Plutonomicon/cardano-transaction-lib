@@ -63,13 +63,10 @@ module ConstrIndices
   , Nil'
   , S
   , Z
-  , class SortRec
   , class ToRList
   , class Split
   , class Merge
   , class Sort
-  , class FromRList
-  , class RListToRow
   , class KnownNat
   , class RowToRList
   , natVal
@@ -153,25 +150,23 @@ instance KnownNat Z where
 instance KnownNat n => KnownNat (S n) where
   natVal _ = 1 + natVal (Proxy :: Proxy n)
 
--- a kind for UNORDERED rowlists. bleh
+-- a kind for UNORDERED RowLists which contain a Nat representation of their intended position in a
+-- non-lexicographic order. Actual RowLists are automagically ordered lexicographically so we need this
 data RList k
 
 foreign import data Cons' :: forall (k :: Type) (nat :: Type). Symbol -> k -> nat ->  RList k -> RList k
 foreign import data Nil'  :: forall (k :: Type). RList k
 
-class SortRec :: forall k. Type -> RL.RowList k -> RList k -> Constraint
-class SortRec t rowList rList | t rowList -> rList
-instance (ToRList t rowList rList,  Sort t rList' rList) => SortRec t rowList rList
-
+-- | We convert from a RowList to a RList using the IndexedRecFieldT instances of t
 class ToRList :: forall (k :: Type). Type -> RL.RowList k -> RList k -> Constraint
 class ToRList t rowList rList | t rowList -> rList
 
 instance ToRList t RL.Nil Nil'
---else instance (IndexedRecFieldT t key Z) => ToRList t (RL.Cons key a RL.Nil) (Cons' key a Z Nil')
 instance (ToRList t as as', IndexedRecFieldT t key n) => ToRList t (RL.Cons key a as) (Cons' key a n as')
 
 
-
+-- Sorts an RList using the IndexedRecFieldT instances of t.
+-- This is basically mergesort but we use pattern matching instead of a compare function for the merging
 class Sort :: forall (k :: Type). Type -> RList k -> RList k -> Constraint
 class Sort t rList result | t rList -> result
 
@@ -180,6 +175,7 @@ else instance Sort t (Cons' key a nA Nil') (Cons' key a nA Nil')
 else instance (Split xs ls rs, Sort t ls ls', Sort t rs rs', Merge t ls' rs' merged)
               =>  Sort t xs merged
 
+-- Divides a RList in half. We use a "Prolog style" split instead of Length/SplitAt for simplicity
 class Split :: forall (k :: Type). RList k ->  (RList k) -> (RList k) -> Constraint
 class Split k resultL resultR | k -> resultL, k -> resultR
 
@@ -187,6 +183,7 @@ instance Split  Nil'  Nil' Nil'
 else instance Split (Cons' key a nA Nil')  (Cons' key a nA Nil') Nil'
 else instance Split rest as bs => Split (Cons' keyA a nA (Cons' keyB b nB rest)) (Cons' keyA a nA as) (Cons' keyB b nB bs)
 
+-- Combines two sorted RLists into one sorted RList (hopefully!)
 class Merge :: forall (k :: Type). Type -> (RList k) ->  (RList k) -> RList k -> Constraint
 class Merge t listL listR result | listL listR -> result
 
@@ -207,46 +204,7 @@ else instance Merge t (Cons' keyA a Z as) bs merged
 else instance (Merge t (Cons' keyA a nA as) (Cons' keyB b nB bs) merged)
                 => Merge t (Cons' keyA a (S nA) as) (Cons' keyB b (S nB) bs) merged
 
-class FromRList :: forall (k :: Type). RList k -> RL.RowList k -> Constraint
-class FromRList rList rowList | rList -> rowList
-
-instance FromRList Nil' RL.Nil
-else instance FromRList rest result' => FromRList (Cons' key a n rest) (RL.Cons key a result)
-
-class RListToRow :: forall (k :: Type). RList k -> Row k -> Constraint
-class RListToRow rList row | rList -> row
-
-instance (FromRList rList rowList, RL.ListToRow rowList row) => RListToRow rList row
-
 class RowToRList :: forall (k :: Type). Type -> Row k -> RList k -> Constraint
 class RowToRList t row rList | t row -> rList
 
 instance (RL.RowToList row rowList, ToRList t rowList rList) => RowToRList t row rList
-
-{-
-class RListOf :: forall (k :: Type). RL.RowList k -> RList k -> Constraint
-class (ToRList rowList rList, FromRList rList rowList) <= RListOf rowList rList | rowList -> rList, rList -> rowList
-instance (ToRList rowList rList, FromRList rList rowList) => RListOf rowList rList
-
-class Sort :: forall (k :: Type). Type -> RList k -> RList k -> Constraint
-class Sort t rList result | t rList -> result
--}
-
-{-
-data SortedRowList n k
-
-data Nil' z k
-
-data Cons' s n k xs
-
-class SortRec (t :: Type) (n :: Type) (list :: RowList k)  (sorted :: Type) | t list -> n, t list n -> sorted
-
-instance SortRec t Nil Z (Nil' Z k)
-
-instance
-  ( SortRec t n listRest sortedListRest
-  , RL.Cons key a rowRest rowFull
-  , IsSymbol key
-  , IndexedRecFieldT t key (S n)
-  ) => SortRec t (S n) (RL.Cons key a rowRest rowFull)  (Cons' s )
--}
