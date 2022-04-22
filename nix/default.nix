@@ -3,12 +3,12 @@
 let
   # We should try to use a consistent version of node across all
   # project components
-  nodejs = pkgs.nodejs-12_x;
+  nodejs = pkgs.nodejs-14_x;
   compiler = pkgs.easy-ps.purs-0_14_5;
   spagoPkgs = import ../spago-packages.nix {
     inherit pkgs;
   };
-  nodeEnv = import
+  mkNodeEnv = { withDevDeps ? true }: import
     (pkgs.runCommand "nodePackages"
       {
         buildInputs = [ pkgs.nodePackages.node2nix ];
@@ -17,11 +17,13 @@ let
       cp ${src}/package.json $out/package.json
       cp ${src}/package-lock.json $out/package-lock.json
       cd $out
-      node2nix --lock package-lock.json
+      node2nix ${pkgs.lib.optionalString withDevDeps "--development" } \
+        --lock package-lock.json
     '')
     { inherit pkgs nodejs system; };
-  nodeModules =
+  mkNodeModules = { withDevDeps ? true }:
     let
+      nodeEnv = mkNodeEnv { inherit withDevDeps; };
       modules = pkgs.callPackage
         (_:
           nodeEnv // {
@@ -33,7 +35,10 @@ let
     in
     (modules { }).shell.nodeDependencies;
 
-  buildPursProject = { name, src, ... }:
+  buildPursProject = { name, src, withDevDeps ? false, ... }:
+    let
+      nodeModules = mkNodeModules { inherit withDevDeps; };
+    in
     pkgs.stdenv.mkDerivation {
       inherit name src;
       buildInputs = [
@@ -48,7 +53,7 @@ let
         export HOME="$TMP"
         cp -r ${nodeModules}/lib/node_modules .
         chmod -R u+rw node_modules
-        cp -r $src .
+        cp -r $src/* .
         install-spago-style
       '';
       buildPhase = ''
@@ -67,7 +72,8 @@ let
         doCheck = true;
         buildInputs = oldAttrs.buildInputs ++ [ nodejs ];
         # spago will attempt to download things, which will fail in the
-        # sandbox (idea taken from `plutus-playground-client`)
+        # sandbox, so we can just use node instead
+        # (idea taken from `plutus-playground-client`)
         checkPhase = ''
           node -e 'require("./output/${testMain}").main()'
         '';
@@ -91,15 +97,15 @@ rec {
   # is currently broken because of IFD issues
   #
   # FIXME
-  # Once we have ogmios/node instances available, we should include a
+  # Once we have ogmios/node instances available, we should also include a
   # test. This will need to be run via a Hercules `effect`
-  #
-  # checks = {
-  #   cardano-transaction-lib = runPursTest {
-  #     name = "cardano-transaction-lib";
-  #     inherit src;
-  #   };
-  # };
+  checks = {
+    ctl-unit-test = runPursTest {
+      name = "ctl-unit-test";
+      testMain = "Test.Unit";
+      inherit src;
+    };
+  };
 
   # TODO
   # Once we have a public ogmios instance to test against,
@@ -127,44 +133,48 @@ rec {
       pkgs.fd
     ];
 
-    shellHook = ''
-      __ln-node-modules () {
-        local modules=./node_modules
-        if test -L "$modules"; then
-          rm "$modules";
-        elif test -e "$modules"; then
-          echo 'refusing to overwrite existing (non-symlinked) `node_modules`'
-          exit 1
-        fi
+    shellHook =
+      let
+        nodeModules = mkNodeModules { };
+      in
+      ''
+        __ln-node-modules () {
+          local modules=./node_modules
+          if test -L "$modules"; then
+            rm "$modules";
+          elif test -e "$modules"; then
+            echo 'refusing to overwrite existing (non-symlinked) `node_modules`'
+            exit 1
+          fi
 
-        ln -s ${nodeModules}/lib/node_modules "$modules"
-      }
+          ln -s ${nodeModules}/lib/node_modules "$modules"
+        }
 
-      __ln-testnet-config () {
-        local cfgdir=./.node-cfg
-        if test -e "$cfgdir"; then
-          rm -r "$cfgdir"
-        fi
+        __ln-testnet-config () {
+          local cfgdir=./.node-cfg
+          if test -e "$cfgdir"; then
+            rm -r "$cfgdir"
+          fi
 
-        mkdir -p "$cfgdir"/testnet/{config,genesis}
+          mkdir -p "$cfgdir"/testnet/{config,genesis}
 
-        ln -s ${pkgs.cardano-configurations}/network/testnet/cardano-node/config.json \
-          "$cfgdir"/testnet/config/config.json
-        ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/byron.json \
-          "$cfgdir"/testnet/genesis/byron.json
-        ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/shelley.json \
-          "$cfgdir"/testnet/genesis/shelley.json
-      }
+          ln -s ${pkgs.cardano-configurations}/network/testnet/cardano-node/config.json \
+            "$cfgdir"/testnet/config/config.json
+          ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/byron.json \
+            "$cfgdir"/testnet/genesis/byron.json
+          ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/shelley.json \
+            "$cfgdir"/testnet/genesis/shelley.json
+        }
 
-      __ln-node-modules
-      __ln-testnet-config
+        __ln-node-modules
+        __ln-testnet-config
 
-      export NODE_PATH="$PWD/node_modules:$NODE_PATH"
-      export PATH="${nodeModules}/bin:$PATH"
-      export CARDANO_NODE_SOCKET_PATH="$PWD"/.node/socket/node.socket
-      export CARDANO_NODE_CONFIG="$PWD"/.node-cfg/testnet/config/config.json
+        export NODE_PATH="$PWD/node_modules:$NODE_PATH"
+        export PATH="${nodeModules}/bin:$PATH"
+        export CARDANO_NODE_SOCKET_PATH="$PWD"/.node/socket/node.socket
+        export CARDANO_NODE_CONFIG="$PWD"/.node-cfg/testnet/config/config.json
 
-    '';
+      '';
   };
 
 }

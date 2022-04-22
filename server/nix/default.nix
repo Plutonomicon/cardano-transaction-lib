@@ -18,8 +18,6 @@ pkgs.haskell-nix.cabalProject {
 
     # Make sure to keep this list updated after upgrading git dependencies!
     additional = ps: with ps; [
-      filemanip
-      ieee
       cardano-api
       cardano-binary
       cardano-ledger-shelley
@@ -52,9 +50,6 @@ pkgs.haskell-nix.cabalProject {
   modules = [
     {
       packages = {
-        # see https://github.com/input-output-hk/haskell.nix/issues/1128
-        ieee.components.library.libs = pkgs.lib.mkForce [ ];
-
         cardano-crypto-praos.components.library.pkgconfig =
           pkgs.lib.mkForce [ [ pkgs.libsodium-vrf ] ];
         cardano-crypto-class.components.library.pkgconfig =

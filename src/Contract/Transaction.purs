@@ -31,7 +31,7 @@ import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
 import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\))
 import QueryM
@@ -69,7 +69,7 @@ import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
   , mkUnbalancedTx
   ) as ScriptLookups
-import Types.Transaction (Transaction, _body, _inputs)
+import Types.Transaction (Transaction, TransactionHash, _body, _inputs)
 import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and associated lens.
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
@@ -185,8 +185,8 @@ signTransactionBytes = wrapContract <<< QueryM.signTransactionBytes
 
 -- | Submits a Cbor-hex encoded transaction, which is the output of
 -- | `signTransactionBytes` or `balanceAndSignTx`
-submit :: forall (r :: Row Type). ByteArray -> Contract r String
-submit = wrapContract <<< QueryM.submitTxOgmios
+submit :: forall (r :: Row Type). ByteArray -> Contract r TransactionHash
+submit = wrapContract <<< map (wrap <<< unwrap) <<< QueryM.submitTxOgmios
 
 -- | Query the Haskell server for the minimum transaction fee
 calculateMinFee
