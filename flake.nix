@@ -241,6 +241,8 @@
 
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);
 
+      # Non flake outputs
       herculesCI.ciSystems = [ "x86_64-linux" ];
+      inherit nixpkgsFor;
     };
 }
