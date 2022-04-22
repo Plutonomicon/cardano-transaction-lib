@@ -41,7 +41,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
-import Data.Newtype (wrap)
+import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern), indexOf, splitAt, uncons)
 import Data.Traversable (sequence)
@@ -121,10 +121,6 @@ submitTxCall = mkOgmiosCallType
   }
   Proxy
 
-newtype SubmitTxR = SubmitTxR TxHash
-
-type TxHash = String
-
 -- | Evaluates the execution units of scripts present in a given transaction,
 -- | without actually submitting the transaction.
 evaluateTxCall :: JsonWspCall { txCbor :: ByteArray } TxEvaluationResult
@@ -147,7 +143,23 @@ mkOgmiosCallType = mkCallType
   , servicename: "ogmios"
   }
 
----------------- TX EVALUTATION QUERY RESPONSE & PARSING
+---------------- TX SUBMISSION QUERY RESPONSE & PARSING
+
+newtype SubmitTxR = SubmitTxR TxHash
+
+derive instance Generic SubmitTxR _
+derive instance Newtype SubmitTxR _
+
+instance Show SubmitTxR where
+  show = genericShow
+
+type TxHash = String
+
+instance DecodeAeson SubmitTxR where
+  decodeAeson = aesonObject $
+    \o -> getField o "SubmitSuccess" >>= flip getField "txId"
+
+---------------- TX EVALUATION QUERY RESPONSE & PARSING
 
 newtype TxEvaluationResult = TxEvaluationResult
   { "EvaluationResult" ::
