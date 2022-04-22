@@ -133,25 +133,24 @@
     let
       defaultSystems = [ "x86_64-linux" "x86_64-darwin" ];
       perSystem = nixpkgs.lib.genAttrs defaultSystems;
-      overlay = system: with inputs; [
-        (prev: final: {
-          easy-ps =
-            import inputs.easy-purescript-nix { pkgs = prev; };
-          ogmios-datum-cache =
-            nixpkgs.legacyPackages.${system}.haskellPackages.callPackage
-              ogmios-datum-cache
-              { };
-          ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
-          cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
-          purescriptProject = import ./nix { inherit system; pkgs = prev; };
-          inherit cardano-configurations;
-        })
-      ];
+      overlay = system: with inputs; (prev: final: {
+        easy-ps =
+          import inputs.easy-purescript-nix { pkgs = prev; };
+        ogmios-datum-cache =
+          nixpkgs.legacyPackages.${system}.haskellPackages.callPackage
+            ogmios-datum-cache
+            { };
+        ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
+        cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
+        purescriptProject = import ./nix { inherit system; pkgs = prev; };
+        inherit cardano-configurations;
+      });
       nixpkgsFor = system: import nixpkgs {
         overlays = [
           haskell-nix.overlay
           iohk-nix.overlays.crypto
-        ] ++ (overlay system);
+          (overlay system)
+        ];
         inherit (haskell-nix) config;
         inherit system;
       };
