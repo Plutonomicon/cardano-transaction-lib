@@ -59,7 +59,7 @@ module.exports = {
               spago: true,
               watch: isWebpackDevServer || isWatch,
               pscIde: true,
-              bundle: true
+              bundle: true,
             },
           },
         ],
@@ -99,7 +99,7 @@ module.exports = {
 
   plugins: [
     new webpack.DefinePlugin({
-      BROWSER_RUNTIME: !!process.env.BROWSER_RUNTIME
+      BROWSER_RUNTIME: !!process.env.BROWSER_RUNTIME,
     }),
     new NodePolyfillPlugin(),
     new webpack.LoaderOptionsPlugin({
@@ -113,5 +113,7 @@ module.exports = {
     new webpack.ProvidePlugin({
       Buffer: ["buffer", "Buffer"],
     }),
+    new webpack.ContextReplacementPlugin(/cardano-serialization-lib-browser/),
+    new webpack.ContextReplacementPlugin(/cardano-serialization-lib-nodejs/),
   ].concat(plugins),
 };
