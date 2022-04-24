@@ -8,7 +8,7 @@
 , ...
 }:
 let
-  pursCompiler = pkgs.easy-ps.purs-0_14_5;
+  purs = pkgs.easy-ps.purs-0_14_5;
   spagoPkgs = import spagoPackages { inherit pkgs; };
   mkNodeEnv = { withDevDeps ? true }: import
     (pkgs.runCommand "nodePackages"
@@ -51,7 +51,7 @@ let
           formatter
           [ "purs-tidy" "purty" ];
         [
-          pursCompiler
+          purs
           nodejs
           pkgs.easy-ps.spago
           pkgs.easy-ps."${formatter}"
@@ -100,7 +100,7 @@ let
         spagoPkgs.buildSpagoStyle
       ];
       nativeBuildInputs = [
-        pursCompiler
+        purs
         pkgs.easy-ps.spago
       ];
       unpackPhase = ''
@@ -137,6 +137,6 @@ let
       });
 in
 {
-  inherit mkNodeModules buildPursProject runPursTest pursCompiler nodejs;
+  inherit purs nodejs buildPursProject runPursTest mkNodeModules;
   devShell = shellFor shell;
 }
