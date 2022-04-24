@@ -158,9 +158,12 @@ foreign import _scriptHashToBech32Impl
   -> ScriptHash
   -> Maybe Bech32String
 
+-- | Decodes a script hash from its CBOR bytes encoding
+-- | NOTE. It does _not_ compute hash of given bytes.
 scriptHashFromBytes :: ByteArray -> Maybe ScriptHash
 scriptHashFromBytes = _scriptHashFromBytesImpl maybeFfiHelper
 
+-- | Decodes a script hash from its Bech32 representation
 scriptHashFromBech32 :: Bech32String -> Maybe ScriptHash
 scriptHashFromBech32 = _scriptHashFromBech32Impl maybeFfiHelper
 

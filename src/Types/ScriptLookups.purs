@@ -939,7 +939,7 @@ processConstraint mpsMap osMap = do
       _redeemers <>= Array.singleton (redeemer /\ Nothing)
       -- Attach redeemer to witness set.
       ExceptT $ attachToCps attachRedeemer redeemer
-    MustPayToPubKeyAddress pkh _ mDatum amount -> do
+    MustPayToPubKeyAddress pkh skh mDatum amount -> do
       networkId <- getNetworkId
       runExceptT do
         -- If datum is presented, add it to 'datumWitnesses' and Array of datums.
@@ -977,11 +977,12 @@ processConstraint mpsMap osMap = do
               liftDatumHash (CannotHashDatum datum) <$> datumHash datum
           )
           mDatum
-        -- Changed this to enterprise address for Seabug, it could be an issue
-        -- down the road as we track all types of Addresses properly
         let
+          address = case skh of
+            Just skh' -> payPubKeyHashBaseAddress networkId pkh skh'
+            Nothing -> payPubKeyHashEnterpriseAddress networkId pkh
           txOut = TransactionOutput
-            { address: payPubKeyHashEnterpriseAddress networkId pkh
+            { address
             , amount
             , dataHash
             }
@@ -1036,10 +1037,10 @@ processConstraint mpsMap osMap = do
   -- unit. Calling Ogmios is an outstanding issue:
   -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/174
   scriptExUnits :: ExUnits
-  scriptExUnits = { mem: fromInt 2000000, steps: fromInt 1000000000 }
+  scriptExUnits = { mem: fromInt 3000000, steps: fromInt 1500000000 }
 
   mintExUnits :: ExUnits
-  mintExUnits = { mem: fromInt 2000000, steps: fromInt 1000000000 }
+  mintExUnits = { mem: fromInt 3000000, steps: fromInt 1500000000 }
 
 -- Attach a Datum, Redeemer, or PlutusScript depending on the handler. They
 -- share error type anyway.

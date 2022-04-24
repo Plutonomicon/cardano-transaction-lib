@@ -275,7 +275,7 @@ getChainTip = mkOgmiosRequest Ogmios.queryChainTipCall _.chainTip unit
 -- OGMIOS LOCAL TX SUBMISSION PROTOCOL
 --------------------------------------------------------------------------------
 
-submitTxOgmios :: ByteArray -> QueryM String
+submitTxOgmios :: ByteArray -> QueryM Ogmios.SubmitTxR
 submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall _.submit { txCbor }
 
 --------------------------------------------------------------------------------
@@ -542,7 +542,7 @@ calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   -- The server is calculating fees that are too low
   -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/123
   coinFromEstimate :: FeeEstimate -> Coin
-  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 500000)) <<< unwrap
+  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 700000)) <<< unwrap
 
   -- Fee estimation occurs before balancing the transaction, so we need to know
   -- the expected number of witnesses to use the cardano-api fee estimation
@@ -754,20 +754,25 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
   submitDispatchMap <- createMutableDispatch
   let
     md = ogmiosMessageDispatch
-      { utxoDispatchMap, chainTipDispatchMap, evaluateTxDispatchMap }
+      { utxoDispatchMap
+      , chainTipDispatchMap
+      , evaluateTxDispatchMap
+      , submitDispatchMap
+      }
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   _onWsConnect ws do
     _wsWatch ws (logger Debug) do
       removeAllListeners lvl utxoDispatchMap
       removeAllListeners lvl evaluateTxDispatchMap
       removeAllListeners lvl chainTipDispatchMap
+      removeAllListeners lvl submitDispatchMap
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
     _onWsError ws (logger Error) defaultErrorListener
     cb $ Right $ WebSocket ws
       { utxo: mkListenerSet utxoDispatchMap
       , chainTip: mkListenerSet chainTipDispatchMap
-      , submit: mkListenerSet submitDispatchMap
       , evaluate: mkListenerSet evaluateTxDispatchMap
+      , submit: mkListenerSet submitDispatchMap
       }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
@@ -813,7 +818,7 @@ type DatumCacheListeners = ListenerSet DcWsp.JsonWspResponse
 type OgmiosListeners =
   { utxo :: ListenerSet Ogmios.UtxoQR
   , chainTip :: ListenerSet Ogmios.ChainTipQR
-  , submit :: ListenerSet String
+  , submit :: ListenerSet Ogmios.SubmitTxR
   , evaluate :: ListenerSet Ogmios.TxEvaluationResult
   }
 
@@ -895,13 +900,19 @@ ogmiosMessageDispatch
   :: { utxoDispatchMap :: DispatchIdMap Ogmios.UtxoQR
      , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipQR
      , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationResult
+     , submitDispatchMap :: DispatchIdMap Ogmios.SubmitTxR
      }
   -> Array WebsocketDispatch
 ogmiosMessageDispatch
-  { utxoDispatchMap, chainTipDispatchMap, evaluateTxDispatchMap } =
+  { utxoDispatchMap
+  , chainTipDispatchMap
+  , evaluateTxDispatchMap
+  , submitDispatchMap
+  } =
   [ ogmiosQueryDispatch utxoDispatchMap
   , ogmiosQueryDispatch chainTipDispatchMap
   , ogmiosQueryDispatch evaluateTxDispatchMap
+  , ogmiosQueryDispatch submitDispatchMap
   ]
 
 datumCacheMessageDispatch
