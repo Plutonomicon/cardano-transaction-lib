@@ -193,6 +193,8 @@ Furthermore, CTL exposes an `overlay` from its flake. You can use this in the Ni
       psProjectFor = system:
         let
           pkgs = nixpkgsFor system;
+          # You may also want to filter this to avoid bloat or unecessary
+          # rebuilds when copying the source into derivations
           src = self;
         in
         pkgs.purescriptProject {
