@@ -5,10 +5,10 @@ module Error
   , notImplementedError
   , traceAndHushAll
   , traceAndHushAll_
+  , hushedErr
   , hushable
   , safe_
   , noteE
-  , noteEM
   ) where
 
 import Data.Maybe
@@ -32,8 +32,6 @@ import Data.Function (($))
 import Data.Identity (Identity)
 import Data.Variant (Variant, inj)
 import Debug (class DebugWarning, traceM)
-import Helpers (notImplemented)
-import Prim.Row (class Union)
 import Prim.TypeError (class Warn, Text)
 import Type.Proxy (Proxy(Proxy))
 import Type.Row (type (+))
@@ -73,12 +71,29 @@ traceAndHushAll act = MaybeT $ runExceptT act >>= case _ of
   Right a -> pure (pure a)
 
 -- | Lifts underlying monad to MaybeT allowing hushing selected errors.
+-- | Example:
+-- |
+-- | > hushNotImplemented
+-- | >   :: forall (m :: Type -> Type) (r :: Row Type)
+-- | >    . Monad m
+-- | >   => ExceptV (NotImplementedError + r) m Int
+-- | >   -> ExceptV r (MaybeT m) Int
+-- | > hushNotImplemented m = hushable m # handleError
+-- | >   { notImplementedError: \_ -> hushedErr }
+-- |
 hushable
   :: forall (v :: Row Type) (m :: Type -> Type) (a :: Type)
    . Monad m
   => ExceptV v m a
   -> ExceptV v (MaybeT m) a
 hushable = runExceptT >>> lift >>> ExceptT
+
+-- | A `Nothing` based error value.
+hushedErr
+  :: forall (a :: Type) (b :: Type) (m :: Type -> Type) (r :: Row Type)
+   . Monad m
+  => ExceptV r (MaybeT m) a
+hushedErr = lift $ MaybeT $ pure Nothing
 
 -- TODO traceAndHushOne
 -- traceAndHushOne p = handleError (Record.set p.proxy (\x -> traceM p.name *> traceM x *> lift (MaybeT $ pure Nothing)) {})
@@ -92,29 +107,3 @@ safe_ = safe >>> unwrap
 -- | Annotates Maybe with more proper error instead of the Nothing case
 noteE :: forall v a. E v a -> Maybe a -> E v a
 noteE e = maybe e Right
-
--- TODO
-noteEM
-  :: forall v1 v2 v3 a m
-   . Union v1 v2 v3
-  => Monad m
-  => ExceptV v1 m a
-  -> ExceptV v2 m (Maybe a)
-  -> ExceptV v3 m a
-noteEM _ _ = notImplemented
-
--- inj
---   ∷ ∀ proxy sym a r1 r2
---   . R.Cons sym a r1 r2
---   ⇒ IsSymbol sym
---   ⇒ proxy sym
---   → a
---   → Variant r2
--- inj p value = coerceV $ VariantRep { type: reflectSymbol p, value }
-
--- wrapErr
---   :: forall a r
---    . String
---   -> E (WrappedError + r) a
---   -> E (WrappedError + WrappedError + r) a
--- wrapErr str = lmap (\e -> inj _wrappedError.proxy (Tuple str e))
