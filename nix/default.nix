@@ -4,6 +4,7 @@
   # project components
 , nodejs ? pkgs.nodejs-14_x
 , spagoPackages ? "${src}/spago-packages.nix"
+, shell ? { }
 , ...
 }:
 let
@@ -36,6 +37,58 @@ let
           });
     in
     (modules { }).shell.nodeDependencies;
+
+  shellFor =
+    { packages ? [ ]
+    , inputsFrom ? [ ]
+    , shellHook ? ""
+    , symlinkNodeModules ? true
+    , formatter ? "purs-tidy"
+    , pursls ? true
+    }: pkgs.mkShell {
+      buildInputs =
+        assert pkgs.lib.assertOneOf
+          "formatter"
+          formatter
+          [ "purs-tidy" "purty" ];
+        [
+          pursCompiler
+          nodejs
+          pkgs.easy-ps.spago
+          pkgs.easy-ps."${formatter}"
+          pkgs.easy-ps.pscid
+          pkgs.easy-ps.spago2nix
+          pkgs.nodePackages.node2nix
+        ] ++ pkgs.lib.lists.optional
+          pursls
+          pkgs.easy-ps.purescript-language-server;
+      inherit packages inputsFrom;
+      shellHook =
+        let
+          nodeModules = mkNodeModules { };
+        in
+        pkgs.lib.optionalString symlinkNodeModules ''
+          __ln-node-modules () {
+            local modules=./node_modules
+            if test -L "$modules"; then
+              rm "$modules";
+            elif test -e "$modules"; then
+              echo 'refusing to overwrite existing (non-symlinked) `node_modules`'
+              exit 1
+            fi
+
+            ln -s ${nodeModules}/lib/node_modules "$modules"
+          }
+
+          __ln-node-modules
+        ''
+        +
+        ''
+          export NODE_PATH="$PWD/node_modules:$NODE_PATH"
+          export PATH="${nodeModules}/bin:$PATH"
+        ''
+        + shellHook;
+    };
 
   buildPursProject = { name, withDevDeps ? false, ... }:
     let
@@ -86,4 +139,5 @@ let
 in
 {
   inherit mkNodeModules buildPursProject runPursTest pursCompiler nodejs;
+  devShell = shellFor shell;
 }
