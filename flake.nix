@@ -158,8 +158,7 @@
         let
           pkgs = nixpkgsFor system;
           src = ./.;
-          spagoPkgsSrc = ./spago-packages.nix;
-          project = pkgs.purescriptProject { inherit src pkgs spagoPkgsSrc; };
+          project = pkgs.purescriptProject { inherit src pkgs; };
         in
         rec {
           defaultPackage = packages.cardano-transaction-lib;

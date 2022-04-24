@@ -3,15 +3,13 @@
   # We should try to use a consistent version of node across all
   # project components
 , nodejs ? pkgs.nodejs-14_x
-, spagoPkgsSrc
+, spagoPackages ? "${src}/spago-packages.nix"
 , ...
 }:
 let
   nodejs = pkgs.nodejs-14_x;
   pursCompiler = pkgs.easy-ps.purs-0_14_5;
-  spagoPkgs = import spagoPkgsSrc {
-    inherit pkgs;
-  };
+  spagoPkgs = import spagoPackages { inherit pkgs; };
   mkNodeEnv = { withDevDeps ? true }: import
     (pkgs.runCommand "nodePackages"
       {
