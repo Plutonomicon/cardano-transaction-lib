@@ -8,7 +8,6 @@
 , ...
 }:
 let
-  nodejs = pkgs.nodejs-14_x;
   pursCompiler = pkgs.easy-ps.purs-0_14_5;
   spagoPkgs = import spagoPackages { inherit pkgs; };
   mkNodeEnv = { withDevDeps ? true }: import
