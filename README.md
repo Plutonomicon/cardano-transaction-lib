@@ -130,7 +130,8 @@ If you prefer to run these services locally without `make`, the environment vari
   - `nix build .#checks.<SYSTEM>.ctl-unit-test` will build and run the unit tests (useful for CI)
 - To run or build/bundle the project for the browser:
   - `npm run dev` will start a Webpack development server at `localhost:4008`
-  - `npm run build` will output the Webpack-bundled project in `dist`
+  - `npm run build` will output a Webpack-bundled example to `dist`
+  - `nix build -L .#ctl-example-bundle-web` will build an example using Nix and Webpack
 
 By default, Webpack will build a [small Purescript example](examples/Pkh2Pkh.purs). Make sure to follow the [instructions for setting up Nami](#other-requirements) before running the examples. You can point Webpack to another Purescript entrypoint by editing `examples/index.js`.
 
