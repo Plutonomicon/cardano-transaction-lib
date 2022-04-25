@@ -160,6 +160,7 @@
           src = self;
           project = pkgs.purescriptProject {
             inherit src pkgs;
+            projectName = "cardano-transaction-lib";
             shell = {
               packages = [
                 pkgs.ogmios
@@ -204,13 +205,11 @@
 
           packages = {
             cardano-transaction-lib = project.buildPursProject {
-              name = "cardano-transaction-lib";
               # Make sure the entire project compiles
               sources = [ "src" "test" "examples" ];
             };
 
             ctl-example-bundle-web = project.bundlePursProject {
-              name = "cardano-transaction-lib";
               sources = [ "src" "examples" ];
               main = "Examples.Pkh2Pkh";
               webpackConfig = "${self}/webpack.minimal.js";
@@ -223,7 +222,6 @@
           # test. This will need to be run via a Hercules `effect`
           checks = {
             ctl-unit-test = project.runPursTest {
-              name = "cardano-transaction-lib";
               testMain = "Test.Unit";
               sources = [ "src" "test" "fixtures" ];
             };
