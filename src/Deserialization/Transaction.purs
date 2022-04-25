@@ -1,4 +1,69 @@
-module Deserialization.Transaction where
+module Deserialization.Transaction
+  ( CertConvHelper
+  , MetadatumHelper
+  , _adGeneralMetadata
+  , _adNativeScripts
+  , _adPlutusScripts
+  , _convertCert
+  , _convertLanguage
+  , _convertMetadatum
+  , _convertNonce
+  , _txAuxiliaryData
+  , _txBody
+  , _txBodyAuxiliaryDataHash
+  , _txBodyCerts
+  , _txBodyCollateral
+  , _txBodyFee
+  , _txBodyInputs
+  , _txBodyMint
+  , _txBodyMultiAssets
+  , _txBodyNetworkId
+  , _txBodyOutputs
+  , _txBodyRequiredSigners
+  , _txBodyScriptDataHash
+  , _txBodyTtl
+  , _txBodyUpdate
+  , _txBodyValidityStartInterval
+  , _txBodyWithdrawals
+  , _txIsValid
+  , _txWitnessSet
+  , _unpackCostModel
+  , _unpackCostModels
+  , _unpackExUnits
+  , _unpackExUnitsPrices
+  , _unpackMetadataList
+  , _unpackMetadataMap
+  , _unpackMetadatums
+  , _unpackMint
+  , _unpackMintAssets
+  , _unpackProtocolParamUpdate
+  , _unpackProtocolVersions
+  , _unpackUnitInterval
+  , _unpackUpdate
+  , _unpackWithdrawals
+  , convertAuxiliaryData
+  , convertCertificate
+  , convertCostModel
+  , convertCostModels
+  , convertExUnitPrices
+  , convertExUnits
+  , convertGeneralTransactionMetadata
+  , convertLanguage
+  , convertMetadataList
+  , convertMetadataMap
+  , convertMetadatum
+  , convertMint
+  , convertNonce
+  , convertProtocolParamUpdate
+  , convertProtocolVersions
+  , convertTransaction
+  , convertTxBody
+  , convertUpdate
+  , cslNumberToUInt
+  , cslRatioToRational
+  , deserializeTransaction
+  )
+  where
 
 import Prelude
 
