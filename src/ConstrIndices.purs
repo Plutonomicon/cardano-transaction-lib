@@ -66,9 +66,12 @@ module ConstrIndices
   , class ToRList
   , class Split
   , class Merge
+  , class IsSorted
   , class Sort
   , class KnownNat
   , class RowToRList
+  , class FromRList
+  , class LTE
   , natVal
   , constrIndices
   , countedConstrIndices
@@ -164,6 +167,28 @@ class ToRList t rowList rList | t rowList -> rList
 instance ToRList t RL.Nil Nil'
 instance (ToRList t as as', IndexedRecFieldT t key n) => ToRList t (RL.Cons key a as) (Cons' key a n as')
 
+class FromRList :: forall (k :: Type). RList k -> RL.RowList k -> Constraint
+class FromRList rList rowList | rList -> rowList, rowList -> rList
+
+instance FromRList Nil' RL.Nil
+else instance (FromRList as' as) => FromRList (Cons' key a n as') (RL.Cons key a as)
+
+-- for debugging
+class IsSorted :: forall (k :: Type). RList k -> Constraint
+class IsSorted rList
+
+instance IsSorted Nil'
+else instance IsSorted (Cons' k a n Nil')
+else instance (IsSorted xs, IsSorted (Cons' k' a' n' xs), LTE n n') => IsSorted (Cons' k a n (Cons' k' a' n' xs))
+
+class LTE :: Type -> Type -> Constraint
+class (KnownNat n1, KnownNat n2) <= LTE n1 n2
+
+
+instance KnownNat x => LTE Z x
+else instance LTE Z Z
+else instance (KnownNat nl, KnownNat nr) => LTE (S nl) (S nr)
+
 
 -- Sorts an RList using the IndexedRecFieldT instances of t.
 -- This is basically mergesort but we use pattern matching instead of a compare function for the merging
@@ -185,21 +210,32 @@ else instance Split rest as bs => Split (Cons' keyA a nA (Cons' keyB b nB rest))
 
 -- Combines two sorted RLists into one sorted RList (hopefully!)
 class Merge :: forall (k :: Type). Type -> (RList k) ->  (RList k) -> RList k -> Constraint
-class Merge t listL listR result | listL listR -> result
+class IsSorted result <= Merge t listL listR result | listL listR -> result
 
 instance Merge t Nil' Nil' Nil'
-else instance Merge t (Cons' keyA a nA as)  Nil' (Cons' keyA a nA as)
+else instance IsSorted (Cons' keyA a nA as) => Merge t (Cons' keyA a nA as)  Nil' (Cons' keyA a nA as)
 
-else instance Merge t Nil' (Cons' keyB b nB bs) (Cons' keyB b nB bs)
+else instance IsSorted (Cons' keyB b nB bs) => Merge t Nil' (Cons' keyB b nB bs) (Cons' keyB b nB bs)
 
-else instance Merge t as (Cons' keyB b Z  bs) merged
-                => Merge t (Cons' keyA a Z as) (Cons' keyB b Z  bs) (Cons' keyA a Z merged)
+else instance (Merge t as (Cons' keyB b Z  bs) merged, IsSorted (Cons' keyA a Z merged))
+                => Merge t (Cons' keyA a Z as)
+                           (Cons' keyB b Z  bs)
+                           --------------------
+                           (Cons' keyA a Z merged)
 
-else instance Merge t as (Cons' keyB b Z  bs) merged
-                => Merge t (Cons' keyA a (S nA) as) (Cons' keyB b Z  bs) (Cons' keyA a (S nA)  merged)
+else instance ( Merge t as (Cons' keyB b (S nB) bs) merged
+              , IsSorted (Cons' keyA a Z  merged)
+              )  => Merge t (Cons' keyA a Z as)
+                            (Cons' keyB b (S nB)  bs)
+                            -------------------
+                            (Cons' keyA a Z  merged)
 
-else instance Merge t (Cons' keyA a Z as) bs merged
-                => Merge t (Cons' keyA a Z as) (Cons' keyB b (S nB)  bs) (Cons' keyB b (S nB)  merged)
+else instance ( Merge t (Cons' keyA a (S nA) as) bs merged
+              , IsSorted (Cons' keyB b Z merged))
+              => Merge t (Cons' keyA a (S nA) as)
+                         (Cons' keyB b Z bs)
+                         -------------------------
+                         (Cons' keyB b Z  merged)
 
 else instance (Merge t (Cons' keyA a nA as) (Cons' keyB b nB bs) merged)
                 => Merge t (Cons' keyA a (S nA) as) (Cons' keyB b (S nB) bs) merged

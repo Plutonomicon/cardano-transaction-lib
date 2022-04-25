@@ -14,8 +14,26 @@ module ToData
 
 import Prelude
 
-import ConstrIndices (class HasConstrIndices, constrIndices, class IndexedRecField, getFieldIndex)
-import Data.Array (cons, sortWith)
+import ConstrIndices (
+  class HasConstrIndices,
+  constrIndices,
+  class IndexedRecField,
+  getFieldIndex,
+  class IndexedRecFieldT,
+  RList,
+  Cons',
+  Nil',
+  class Sort,
+  class ToRList,
+  class Split,
+  class Merge,
+  class RowToRList,
+  class FromRList,
+  Z,
+  S,
+  class KnownNat,
+  natVal)
+import Data.Array (cons, sortWith, reverse, snoc)
 import Data.Array as Array
 import Data.NonEmpty (NonEmpty)
 import Data.BigInt (BigInt)
@@ -36,7 +54,7 @@ import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Helpers (uIntToBigInt)
 import Prim.Row as Row
-import Prim.RowList as RL
+import Type.RowList as RL
 import Prim.TypeError (class Fail, Text)
 import Record as Record
 import Type.Proxy (Proxy(Proxy))
@@ -69,8 +87,8 @@ class ToDataArgsRL t list row | list -> row where
 instance ToDataArgsRL' t list row => ToDataArgsRL t list row where
   toDataArgsRec proxy rlproxy rec = map snd <<< sortWith fst $ toDataArgsRec' proxy rlproxy rec
 
-class ToDataArgsRL' :: Type ->  RL.RowList Type -> Row Type -> Constraint
-class ToDataArgsRL' t list row | list -> row where
+class ToDataArgsRL' :: Type ->  RL.RowList  Type -> Row Type -> Constraint
+class ToDataArgsRL' t list row | t list -> row  where
   toDataArgsRec'
     :: forall rlproxy. Proxy t -> rlproxy list -> Record row -> Array (Tuple Int PlutusData)
 
@@ -110,31 +128,30 @@ instance
   , RL.RowToList row list
   ) =>
   ToDataArgs t (Record row) where
-  toDataArgs proxy rec = toDataArgsRec proxy (Proxy :: Proxy list) rec
+  toDataArgs proxy rec =  toDataArgsRec proxy (Proxy :: Proxy list) rec
 
 instance (ToDataArgs x a, ToDataArgs x b) => ToDataArgs x (G.Product a b) where
   toDataArgs proxy (G.Product x y) = toDataArgs proxy x <> toDataArgs proxy y
 
 -- | ToDataArgsRL instances
 
-instance ToDataArgsRL' t RL.Nil row where
+instance ToDataArgsRL' t RL.Nil ()  where
   toDataArgsRec' _ _ _ = []
-
-instance
+else instance
   ( ToData a
   , ToDataArgsRL' t listRest rowRest
   , Row.Lacks key rowRest
   , Row.Cons key a rowRest rowFull
   , RL.RowToList rowFull (RL.Cons key a listRest)
   , IsSymbol key
-  , IndexedRecField t key
+  , IndexedRecFieldT t key n
   ) =>
   ToDataArgsRL' t (RL.Cons key a listRest) rowFull where
   toDataArgsRec' _  _ x =
     let
       keyProxy = (Proxy :: Proxy key)
 
-      ix = getFieldIndex (Proxy :: Proxy t) (SProxy :: SProxy key)
+      ix = natVal (Proxy :: Proxy n)
 
       field :: a
       field = Record.get keyProxy x

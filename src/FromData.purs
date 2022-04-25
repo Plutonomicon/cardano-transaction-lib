@@ -4,12 +4,12 @@ module FromData
   , class FromDataArgs
 
   , class FromDataArgsRL
-  , class FromDataArgsRL'
+ -- , class FromDataArgsRL'
   , class FromDataWithIndex
   , fromData
   , fromDataArgs
   , fromDataArgsRec
-  , fromDataArgsRec'
+ -- , fromDataArgsRec'
   , fromDataWithIndex
   , genericFromData
   ) where
@@ -94,34 +94,17 @@ class FromDataArgs t a where
     -> Array PlutusData
     -> Either FromDataError { head :: a, tail :: Array PlutusData }
 
--- | A helper typeclass to implement `ToDataArgs` for records.
--- Stolen from https://github.com/purescript/purescript-quickcheck/blob/v7.1.0/src/Test/QuickCheck/Arbitrary.purs#L247
-class FromDataArgsRL :: Type -> RL.RowList Type -> RList Type -> Row Type -> Constraint
-class  FromDataArgsRL t rowList rList row | row -> rowList, t rowList -> rList   where
-  fromDataArgsRec
-    :: forall (rlproxy :: RL.RowList Type -> Type)
-     . Proxy t
-    -> rlproxy rowList
-    -> Array PlutusData
-    -> Either FromDataError { head :: Record row, tail :: Array PlutusData }
-
-
-instance ( ToRList t rowList rList'
-         , Sort t rList' rList
-         , FromDataArgsRL' t rList row)
-        => FromDataArgsRL t rowList rList row   where
-  fromDataArgsRec _ _ pdarr = fromDataArgsRec' (Proxy :: Proxy t) (Proxy :: Proxy rList) pdarr
-
-
 {-
-instance (RowToRList rowList rList', Sort t rList' rList, FromDataArgsRL' t rList row)
-       => FromDataArgs t rowList row where
-  fromDataArgsRec proxy rlproxy pdarr
-    = fromDataArgsRec' (Proxy :: Proxy t) (Proxy :: Proxy rList) pdarr
+-- | A helper typeclass to implement `ToDataArgs` for records.
+-- Adapted from https://github.com/purescript/purescript-quickcheck/blob/v7.1.0/src/Test/QuickCheck/Arbitrary.purs#L247
+--
+-- The second argument to the class is an @RList@ - an *unordered* version of RowList where each element of the
+-- typelevel list contains a nat which represents the position of that element in PlutusData. (See ConstrIndices.purs)
 -}
-class FromDataArgsRL' :: Type -> RList Type -> Row Type -> Constraint
-class FromDataArgsRL' t list row  | t list -> row where
-  fromDataArgsRec'
+
+class FromDataArgsRL :: Type -> RList Type -> Row Type -> Constraint
+class FromDataArgsRL t list row  | t list -> row where
+  fromDataArgsRec
     :: forall (rlproxy :: RList Type -> Type)
      . Proxy t
     -> rlproxy list
@@ -174,14 +157,14 @@ instance FromDataArgs t (G.NoArguments) where
   fromDataArgs _ pdArgs = Left $ ArgsWantedButGot 0 pdArgs
 
 instance
-  ( FromDataArgsRL t rowList rList row
+  ( FromDataArgsRL t rList row
   , RL.RowToList row rowList
   , ToRList t rowList rListUnsorted
   , Sort t rListUnsorted rList
   ) =>
   FromDataArgs t (G.Argument (Record row)) where
   fromDataArgs _ pdArgs = do
-    { head, tail } <- fromDataArgsRec (Proxy :: Proxy t) (Proxy :: Proxy rowList) pdArgs
+    { head, tail } <- fromDataArgsRec (Proxy :: Proxy t) (Proxy :: Proxy rList) pdArgs
     pure { head: G.Argument head, tail }
 else instance (FromData a) => FromDataArgs t (G.Argument a) where
   fromDataArgs _ pdArgs = do
@@ -197,25 +180,25 @@ instance (FromDataArgs t a, FromDataArgs t b) => FromDataArgs t (G.Product a b) 
 
 -- | FromDataArgsRL instances
 
-instance FromDataArgsRL' t Nil' ()  where
-  fromDataArgsRec' _ _ [] = Right { head: {}, tail: [] }
-  fromDataArgsRec' _ _ pdArgs = Left $ ArgsWantedButGot 0 pdArgs
+instance FromDataArgsRL t Nil' ()  where
+  fromDataArgsRec _ _ [] = Right { head: {}, tail: [] }
+  fromDataArgsRec _ _ pdArgs = Left $ ArgsWantedButGot 0 pdArgs
 instance
   ( FromData a
-  , FromDataArgsRL' t rListRest rowRest
+  , FromDataArgsRL t rListRest rowRest
   , Row.Lacks key rowRest
   , Row.Cons key a rowRest rowFull
  -- , RowToRList t rowFull rListUnsorted
  -- , Sort t rListUnsorted (Cons' key a n rListRest)
   , IsSymbol key
   ) =>
-  FromDataArgsRL' t (Cons' key a n rListRest) rowFull where
-  fromDataArgsRec' _ _ pdArgs = do
+  FromDataArgsRL t (Cons' key a n rListRest) rowFull where
+  fromDataArgsRec _ _ pdArgs = do
     let keyProxy = Proxy :: Proxy key
     { head: pdArg, tail: pdArgs' } <- note (ArgsWantedButGot 1 pdArgs) $ uncons
       pdArgs
     field <- note (FromDataFailed pdArg) $ fromData pdArg
-    { head: rec, tail: pdArgs'' } <- fromDataArgsRec' (Proxy :: Proxy t) (Proxy :: Proxy rListRest)
+    { head: rec, tail: pdArgs'' } <- fromDataArgsRec (Proxy :: Proxy t) (Proxy :: Proxy rListRest)
       pdArgs'
     pure $
       { head: (Record.insert keyProxy field rec)
