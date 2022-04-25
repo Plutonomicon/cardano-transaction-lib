@@ -43,6 +43,8 @@ module Serialization.Types
   , PoolMetadata
   , ProposedProtocolParameterUpdates
   , ProtocolParamUpdate
+  , ProtocolVersions
+  , ExUnitPrices
   , PublicKey
   , Redeemer
   , RedeemerTag
@@ -77,6 +79,7 @@ module Serialization.Types
   ) where
 
 import Prelude
+
 import Data.Function (on)
 
 foreign import data AssetName :: Type
@@ -123,6 +126,7 @@ foreign import data PlutusScripts :: Type
 foreign import data PoolMetadata :: Type
 foreign import data ProposedProtocolParameterUpdates :: Type
 foreign import data ProtocolParamUpdate :: Type
+foreign import data ProtocolVersions :: Type
 foreign import data PublicKey :: Type
 foreign import data Redeemer :: Type
 foreign import data RedeemerTag :: Type
@@ -154,6 +158,7 @@ foreign import data Vkey :: Type
 foreign import data Vkeywitness :: Type
 foreign import data Vkeywitnesses :: Type
 foreign import data Withdrawals :: Type
+foreign import data ExUnitPrices :: Type
 
 instance Show BigNum where
   show = _to_str

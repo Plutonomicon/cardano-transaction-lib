@@ -92,33 +92,62 @@ exports._convertCert = certConvHelper => cert => {
 };
 
 
-// foreign import _unpackProtocolParamUpdate :: CSL.ProtocolParamUpdate -> 
-//   { minfeeA :: Maybe CSL.BigNum
-//   , minfeeB :: Maybe CSL.BigNum
-//   , maxBlockBodySize :: Maybe Number
-//   , maxTxSize :: Maybe Number
-//   , maxBlockHeaderSize :: Maybe Number
-//   , keyDeposit :: Maybe CSL.BigNum
-//   , poolDeposit :: Maybe CSL.BigNum
-//   , maxEpoch :: Maybe Number
-//   , nOpt :: Maybe Number
-//   , poolPledgeInfluence :: Maybe { numerator :: CSL.BigNum, denominator :: CSL.BigNum }
-//   , expansionRate :: Maybe   { numerator :: CSL.BigNum, denominator :: CSL.BigNum}
-//   , treasuryGrowthRate :: Maybe { numerator :: CSL.BigNum, denominator :: CSL.BigNum }
-//   , d :: Maybe   { numerator :: CSL.BigNum, denominator :: CSL.BigNum  }
-//   , extraEntropy :: Maybe CSL.Nonce
-//   , protocolVersion :: Maybe (Array {major :: Number, minor :: Number})
-//   , minPoolCost :: Maybe CSL.BigNum
-//   , adaPerUtxoByte :: Maybe CSL.BigNum
-//   , costModels :: Maybe CSL.Costmdls
-//   , executionCosts :: Maybe { memPrice :: { numerator :: CSL.BigNum, denominator :: CSL.BigNum }, stepPrice :: { numerator :: CSL.BigNum, denominator :: CSL.BigNum }}
-//   , maxTxExUnits :: Maybe { mem :: CSL.BigNum, steps :: CSL.BigNum }
-//   , maxBlockExUnits :: Maybe { mem :: CSL.BigNum, steps :: CSL.BigNum }
-//   , maxValueSize :: Maybe Number
-//   , collateralPercentage :: Maybe Number
-//   , maxCollateralInputs :: Maybe Number
-//   }
-exports._unpackProtocolParamUpdate = maybe => protocolParamUpdate => {throw "not implemented";};
+// foreign import _unpackProtocolParamUpdate
+//   :: MaybeFfiHelper
+//   -> Csl.ProtocolParamUpdate
+//   -> { minfeeA :: Maybe Csl.BigNum
+//      , minfeeB :: Maybe Csl.BigNum
+//      , maxBlockBodySize :: Maybe Number
+//      , maxTxSize :: Maybe Number
+//      , maxBlockHeaderSize :: Maybe Number
+//      , keyDeposit :: Maybe Csl.BigNum
+//      , poolDeposit :: Maybe Csl.BigNum
+//      , maxEpoch :: Maybe Number
+//      , nOpt :: Maybe Number
+//      , poolPledgeInfluence :: Maybe Csl.UnitInterval
+//      , expansionRate ::
+//          Maybe Csl.UnitInterval
+//      , treasuryGrowthRate ::
+//          Maybe Csl.UnitInterval
+//      , d :: Maybe Csl.UnitInterval
+//      , extraEntropy :: Maybe Csl.Nonce
+//      , protocolVersion :: Maybe Csl.ProtocolVersions
+//      , minPoolCost :: Maybe Csl.BigNum
+//      , adaPerUtxoByte :: Maybe Csl.BigNum
+//      , costModels :: Maybe Csl.Costmdls
+//      , executionCosts :: Maybe Csl.ExUnitPrices
+//      , maxTxExUnits :: Maybe Csl.ExUnits
+//      , maxBlockExUnits :: Maybe Csl.ExUnits
+//      , maxValueSize :: Maybe Number
+//      }
+exports._unpackProtocolParamUpdate = maybe => ppu => {
+    const optional = x => (x == null) ? maybe.nothing : maybe.just(x);
+
+    return {
+        minfeeA: optional(ppu.minfee_a()),
+        minfeeB: optional(ppu.minfee_b()),
+        maxBlockHeaderSize: optional(ppu.max_block_body_size()),
+        maxTxSize: optional(ppu.max_tx_size()),
+        maxBlockHeaderSize: optional(ppu.max_block_header_size()),
+        keyDeposit: optional(ppu.key_deposit()),
+        poolDeposit: optional(ppu.pool_deposit()),
+        maxEpoch: optional(ppu.max_epoch()),
+        nOpt: optional(ppu.n_opt()),
+        poolPledgeInfluence: optional(ppu.pool_pledge_influence()),
+        expansionRate: optional(ppu.expansion_rate()),
+        treasuryGrowthRate: optional(ppu.treasury_growth_rate()),
+        d: optional(ppu.d()),
+        extraEntropy: optional(ppu.extra_entropy()),
+        protocolVersion: optional(ppu.protocol_version()),
+        minPoolCost: optional(ppu.min_pool_cost()),
+        adaPerUtxoByte: optional(ppu.ada_per_utxo_byte()),
+        costModels: optional(ppu.cost_models()),
+        executionCosts: optional(ppu.execution_costs()),
+        maxTxExUnits: optional(ppu.max_tx_ex_units()),
+        maxBlockExUnits:  optional(ppu.max_block_ex_units()),
+        maxValueSize: optional(ppu.max_value_size())
+    };
+};
 
 // foreign import _unpackCostModels :: ContainerHelper -> CSL.Costmdls -> Array(Tuple CSL.Language CSL.CostModel)
 exports._unpackCostModels = containerhelper => containerhelper.unpackKeyIndexed;
@@ -222,4 +251,44 @@ exports._convertMetadatum = metadataCtors => cslMetadatum => {
     if (r) return metadataCtors.from_text(r);
 
     return metadataCtors.error("Could not convert to known types.");
+};
+
+// foreign import _unpackExUnits
+// :: Csl.ExUnits -> {mem :: Csl.BigNum, steps :: Csl.BigNum}
+exports._unpackExUnits = exunits => {
+    return {
+      mem: exunits.mem(),
+      steps: exunits.steps()
+    };
+};
+
+
+// foreign import _unpackUnitInterval ::
+// Csl.UnitInterval -> { numerator :: Csl.BigNum, denominator :: Csl.BigNum}
+exports._unpackUnitInterval = ui => {
+    return {
+        mem: ui.numerator(),
+        steps: ui.denominator()
+    };
+};
+
+// foreign import _unpackProtocolVersions
+// :: ContainerHelper -> Csl.ProtocolVersions -> Array { major :: Number, minor :: Number }
+exports._unpackProtocolVersions = containerhelper => cslPV => {
+    const pvs = containerhelper.unpack(cslPV);
+    const res = [];
+    for(var i=0; i<pvs.length; i++){
+        res.push({major: pvs[i].major(), minor: pvs[i].minor()});
+    }
+    return res;
+};
+
+
+// foreign import _unpackExUnitsPrices
+// :: Csl.ExUnitPrices -> {memPrice :: Csl.UnitInterval, stepPrice :: Csl.UnitInterval}
+exports._unpackExUnitsPrices = cslEup => {
+    return {
+        memPrice: cslEup.mem_price(),
+        stepPrice: cslEup.step_price(),
+    };
 };
