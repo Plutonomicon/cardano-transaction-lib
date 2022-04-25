@@ -104,8 +104,8 @@
     };
     # NOTE
     # I don't we need anything from `plutus-apps`, so the following two are
-    # not necessary. If we go with Servant for the server, though, they might
-    # be useful for communicating with the frontend
+    # not necessary. They might be useful for communicating with the frontend
+    # however in case this is needed
     purescript-bridge = {
       url =
         "github:shmish111/purescript-bridge/6a92d7853ea514be8b70bab5e72077bf5a510596";
@@ -133,24 +133,23 @@
     let
       defaultSystems = [ "x86_64-linux" "x86_64-darwin" ];
       perSystem = nixpkgs.lib.genAttrs defaultSystems;
+      overlay = system: with inputs; (prev: final: {
+        easy-ps =
+          import inputs.easy-purescript-nix { pkgs = prev; };
+        ogmios-datum-cache =
+          nixpkgs.legacyPackages.${system}.haskellPackages.callPackage
+            ogmios-datum-cache
+            { };
+        ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
+        cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
+        purescriptProject = import ./nix { inherit system; pkgs = prev; };
+        inherit cardano-configurations;
+      });
       nixpkgsFor = system: import nixpkgs {
-        overlays = with inputs; [
+        overlays = [
           haskell-nix.overlay
           iohk-nix.overlays.crypto
-          (prev: _: {
-            easy-ps =
-              import inputs.easy-purescript-nix { pkgs = prev; };
-            # One of ODC's dependencies is marked as broken on the stable branch
-            # We could just override that one package from unstable, but it's more
-            # convenient to just use unstable to build the package
-            ogmios-datum-cache =
-              nixpkgs.legacyPackages.${system}.haskellPackages.callPackage
-                ogmios-datum-cache
-                { };
-            ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
-            cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
-            inherit cardano-configurations;
-          })
+          (overlay system)
         ];
         inherit (haskell-nix) config;
         inherit system;
@@ -158,11 +157,72 @@
       psProjectFor = system:
         let
           pkgs = nixpkgsFor system;
-          src = ./.;
+          src = self;
+          project = pkgs.purescriptProject {
+            inherit src pkgs;
+            projectName = "cardano-transaction-lib";
+            shell = {
+              packages = [
+                pkgs.ogmios
+                pkgs.cardano-cli
+                pkgs.ogmios-datum-cache
+                pkgs.nixpkgs-fmt
+                pkgs.fd
+              ];
+
+              shellHook =
+                let
+                  nodeModules = project.mkNodeModules { };
+                in
+                ''
+                  __ln-testnet-config () {
+                    local cfgdir=./.node-cfg
+                    if test -e "$cfgdir"; then
+                      rm -r "$cfgdir"
+                    fi
+
+                    mkdir -p "$cfgdir"/testnet/{config,genesis}
+
+                    ln -s ${pkgs.cardano-configurations}/network/testnet/cardano-node/config.json \
+                      "$cfgdir"/testnet/config/config.json
+                    ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/byron.json \
+                      "$cfgdir"/testnet/genesis/byron.json
+                    ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/shelley.json \
+                      "$cfgdir"/testnet/genesis/shelley.json
+                  }
+
+                  __ln-testnet-config
+
+                  export CARDANO_NODE_SOCKET_PATH="$PWD"/.node/socket/node.socket
+                  export CARDANO_NODE_CONFIG="$PWD"/.node-cfg/testnet/config/config.json
+
+                '';
+            };
+          };
         in
-        import ./nix {
-          inherit src pkgs system;
+        rec {
+          defaultPackage = packages.cardano-transaction-lib;
+
+          packages = {
+            cardano-transaction-lib = project.buildPursProject {
+              # Make sure the entire project compiles
+              sources = [ "src" "test" "examples" ];
+            };
+          };
+
+          # FIXME
+          # Once we have ogmios/node instances available, we should also include a
+          # test. This will need to be run via a Hercules `effect`
+          checks = {
+            ctl-unit-test = project.runPursTest {
+              testMain = "Test.Unit";
+              sources = [ "src" "test" "fixtures" ];
+            };
+          };
+
+          devShell = project.devShell;
         };
+
       hsProjectFor = system:
         let
           pkgs = nixpkgsFor system;
@@ -240,6 +300,8 @@
       );
 
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);
+
+      overlay = perSystem overlay;
 
       herculesCI.ciSystems = [ "x86_64-linux" ];
     };
