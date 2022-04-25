@@ -142,25 +142,22 @@ let
     { name
     , main ? "Main"
     , webRuntime ? true
-    , webpackConfig ? "${src}/webpack.config.js"
+    , webpackConfig ? "webpack.config.js"
+    , bundledModuleName ? "bundle.js"
     , ...
     }@args:
     (buildPursProject (args // { withDevDeps = true; })).overrideAttrs
       (oldAttrs: {
         name = "${name}-bundle-" + (if webRuntime then "web" else "nodejs");
         buildInputs = oldAttrs.buildInputs ++ [ nodejs ];
-        buildPhase = (
-          pkgs.lib.optionalString
-            webRuntime
-            ''
-              export WEB_RUNTIME=1
-            ''
-        ) +
-        ''
-          build-spago-style "./**/*.purs"
-          spago bundle-module --no-install --no-build -m "${main}" --to bundle.js
-          webpack --mode=production -c ${webpackConfig}
-        '';
+        buildPhase =
+          ''
+            ${pkgs.lib.optionalString webRuntime "export WEB_RUNTIME=1"}
+            build-spago-style "./**/*.purs"
+            spago bundle-module --no-install --no-build -m "${main}" \
+              --to ${bundledModuleName}
+            webpack --mode=production -c ${webpackConfig}
+          '';
         installPhase = ''
           mkdir $out
           mv dist $out
