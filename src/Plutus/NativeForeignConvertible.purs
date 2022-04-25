@@ -141,43 +141,42 @@ instance NativeForeignConvertible Plutus.Address Foreign.Address where
 
   -- | Attempts to build a Plutus address from a CSL-level address
   -- | represented by a sequence of bytes based on the CIP-0019.
-  toNativeType addrForeign = addrType >>= addrHeaderType >>= \addrType' ->
-    case addrType' of
-      -- %b0000 | network tag | key hash | key hash
-      PaymentKeyHashStakeKeyHash ->
-        buildAddress pubKeyCredential $ Just $
-          map StakingHash <<< pubKeyCredential
+  toNativeType addrForeign = addrType >>= addrHeaderType >>= case _ of
+    -- %b0000 | network tag | key hash | key hash
+    PaymentKeyHashStakeKeyHash ->
+      buildAddress pubKeyCredential $ Just $
+        map StakingHash <<< pubKeyCredential
 
-      -- %b0001 | network tag | script hash | key hash
-      ScriptHashStakeKeyHash ->
-        buildAddress scriptCredential $ Just $
-          map StakingHash <<< pubKeyCredential
+    -- %b0001 | network tag | script hash | key hash
+    ScriptHashStakeKeyHash ->
+      buildAddress scriptCredential $ Just $
+        map StakingHash <<< pubKeyCredential
 
-      -- %b0010 | network tag | key hash | script hash
-      PaymentKeyHashScriptHash ->
-        buildAddress pubKeyCredential $ Just $
-          map StakingHash <<< scriptCredential
+    -- %b0010 | network tag | key hash | script hash
+    PaymentKeyHashScriptHash ->
+      buildAddress pubKeyCredential $ Just $
+        map StakingHash <<< scriptCredential
 
-      -- %b0011 | network tag | script hash | script hash
-      ScriptHashScriptHash ->
-        buildAddress scriptCredential $ Just $
-          map StakingHash <<< scriptCredential
+    -- %b0011 | network tag | script hash | script hash
+    ScriptHashScriptHash ->
+      buildAddress scriptCredential $ Just $
+        map StakingHash <<< scriptCredential
 
-      -- %b0100 | network tag | key hash | pointer
-      PaymentKeyHashPointer ->
-        buildAddress pubKeyCredential $ Just stakingPtr
+    -- %b0100 | network tag | key hash | pointer
+    PaymentKeyHashPointer ->
+      buildAddress pubKeyCredential $ Just stakingPtr
 
-      -- %b0101 | network tag | script hash | pointer
-      ScriptHashPointer ->
-        buildAddress scriptCredential $ Just stakingPtr
+    -- %b0101 | network tag | script hash | pointer
+    ScriptHashPointer ->
+      buildAddress scriptCredential $ Just stakingPtr
 
-      -- %b0110 | network tag | key hash
-      PaymentKeyHash ->
-        buildAddress pubKeyCredential Nothing
+    -- %b0110 | network tag | key hash
+    PaymentKeyHash ->
+      buildAddress pubKeyCredential Nothing
 
-      -- %b0111 | network tag | script hash
-      ScriptHash ->
-        buildAddress scriptCredential Nothing
+    -- %b0111 | network tag | script hash
+    ScriptHash ->
+      buildAddress scriptCredential Nothing
     where
     addrBytes :: Array Int
     addrBytes = byteArrayToIntArray $ addressBytes addrForeign
@@ -244,7 +243,7 @@ _fromVarLengthUInt bytes acc = do
   -- Apply bit mask (128 = %b10000000) for inspecting the
   -- signal bit on the left. As long as the value of the signal bit
   -- is not zero, continue reading.
-  case (x .&. fromInt 128 == zero) of
+  case x .&. fromInt 128 == zero of
     true ->
       let
         -- Apply bit mask (127 = %b01111111) for each individual byte
