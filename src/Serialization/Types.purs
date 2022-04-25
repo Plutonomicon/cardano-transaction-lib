@@ -64,6 +64,7 @@ module Serialization.Types
   , GenesisDelegateHash
   , MoveInstantaneousReward
   , MIRToStakeCredentials
+  , Withdrawals
   ) where
 
 import Prelude
@@ -134,6 +135,7 @@ foreign import data GenesisHash :: Type
 foreign import data GenesisDelegateHash :: Type
 foreign import data MoveInstantaneousReward :: Type
 foreign import data MIRToStakeCredentials :: Type
+foreign import data Withdrawals :: Type
 
 instance Show BigNum where
   show = _to_str

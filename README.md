@@ -126,13 +126,13 @@ If you prefer to run these services locally without `make`, the environment vari
   - `nix build` _or_
   - `spago build`
 - To test the project, currently only supported when running in a NodeJS environment:
-  - `spago test` _or_
-  - `npm run test`
-- To run or build the project for the browser:
+  - `spago test` _or_ `npm run test` will run both the integration and unit tests
+  - `nix build .#checks.<SYSTEM>.ctl-unit-test` will build and run the unit tests (useful for CI)
+- To run or build/bundle the project for the browser:
   - `npm run dev` will start a Webpack development server at `localhost:4008`
   - `npm run build` will output the Webpack-bundled project in `dist`
 
-By default, Webpack will build a [small Purescript example](examples/nami/Pkh2Pkh.purs). Make sure to follow the [instructions for setting up Nami](#other-requirements) before running the examples. You can point Webpack to another Purescript entrypoint by editing `examples/index.js`.
+By default, Webpack will build a [small Purescript example](examples/Pkh2Pkh.purs). Make sure to follow the [instructions for setting up Nami](#other-requirements) before running the examples. You can point Webpack to another Purescript entrypoint by editing `examples/index.js`.
 
 **Note**: The `BROWSER_RUNTIME` environment variable must be set to `1` in order to build/bundle the project properly for the browser (e.g. `BROWSER_RUNTIME=1 webpack ...`). For Node environments, leave this variable unset or set it to `0`.
 
