@@ -150,19 +150,20 @@ let
       });
 
   bundlePursProject =
-    { name
+    { name ? "${projectName}-bundle-" +
+        (if browserRuntime then "web" else "nodejs")
     , main ? "Main"
-    , browserRuuntime ? true
+    , browserRuntime ? true
     , webpackConfig ? "webpack.config.js"
     , bundledModuleName ? "spago-bundle.js"
     , ...
     }@args:
     (buildPursProject (args // { withDevDeps = true; })).overrideAttrs
       (oldAttrs: {
-        name = "${name}-bundle-" + (if browserRuuntime then "web" else "nodejs");
+        inherit name;
         buildInputs = oldAttrs.buildInputs ++ [ nodejs ];
         buildPhase = ''
-          ${pkgs.lib.optionalString browserRuuntime "export BROWSER_RUNTIME=1"}
+          ${pkgs.lib.optionalString browserRuntime "export BROWSER_RUNTIME=1"}
           build-spago-style "./**/*.purs"
           chmod -R +w .
           spago bundle-module --no-install --no-build -m "${main}" \
