@@ -203,7 +203,7 @@ parseJsonWspResponse resp@{ methodname, result, fault } =
         in
           datumFound <|> datumNotFound
       GetDatumsByHashes -> GetDatumsByHashesResponse <$>
-        liftErr (decodeAeson =<< getNestedAeson r [ "DatumFound", "value" ])
+        liftErr (decodeAeson =<< getNestedAeson r [ "DatumsFound", "value" ])
       StartFetchBlocks -> StartFetchBlocksResponse <$ decodeDoneFlag
         [ "StartedBlockFetcher" ]
         r
