@@ -13,7 +13,7 @@ import Prelude
 
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt) as BigInt
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Ratio (Ratio)
 import Data.Ratio ((%), numerator, denominator) as Ratio
 import FromData (class FromData)
@@ -79,7 +79,13 @@ instance FromData Rational where
 -- RationalComponent
 --------------------------------------------------------------------------------
 
-class RationalComponent t where
+class RationalComponent (t :: Type) where
+  -- | Our `reduce` mirrors `PlutusTx.Ratio.ratio`, not `PlutusTx.Ratio.reduce`.
+  -- | Plutus' `reduce` does not do any positive denominator normalisation
+  -- |
+  -- | Also see:
+  -- | https://playground.plutus.iohkdev.io/doc/haddock/plutus-tx/html/src/PlutusTx.Ratio.html#ratio
+  -- | https://playground.plutus.iohkdev.io/doc/haddock/plutus-tx/html/src/PlutusTx.Ratio.html#reduce
   reduce :: t -> t -> Maybe Rational
 
 infixl 7 reduce as %

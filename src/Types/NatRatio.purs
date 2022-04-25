@@ -14,7 +14,7 @@ module Types.NatRatio
 
 import Prelude
 import Data.BigInt (BigInt)
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Nothing))
 import Types.Natural (Natural)
 import Types.Natural (fromBigInt', toBigInt) as Nat
 import Types.Rational (Rational)
