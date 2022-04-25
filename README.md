@@ -253,12 +253,32 @@ Furthermore, CTL exposes an `overlay` from its flake. You can use this in the Ni
           # pass to another derivation
           your-project = (psProjectFor system).buildPursProject {
             name = "cardano-transaction-lib";
-
             # A list of directories to copy into the builder, relative to the
             # root provided in `purescriptProject.src`, and defaulting to
             # `["src"]`. If you have files needed at runtime, you must include
             # them as well
             sources = ["src"];
+          };
+
+          # `bundlePursProject` creates a JS bundle with webpack
+          your-project-bundle = (psProjectFor system).bundlePursProject {
+            name = "cardano-transaction-lib";
+            # A list of directories to copy into the builder, relative to the
+            # root provided in `purescriptProject.src`, and defaulting to
+            # `["src"]`. If you have files needed at runtime, you must include
+            # them as well
+            sources = ["src" "exe"];
+            # All of the following are optional and show with default values:
+            #
+            # The main module entrypoint
+            main = "Main";
+            # If this should be bundled for the browser
+            browserRuntime = true;
+            # The path to the webpack config to use
+            webpackConfig = "webpack.config.js";
+            # The module that `spago bundle-module` should write to (must 
+            # match the one that is imported in your JS entrypoint)
+            bundledModuleName = "spago-bundle.js";
           };
         });
 
