@@ -12,15 +12,17 @@ module QueryM.DatumCacheWsp
   , requestMethodName
   ) where
 
+import Prelude
+
 import Aeson
   ( Aeson
   , decodeAeson
   , getNestedAeson
   , toStringifiedNumbersJson
   )
-import Control.Alt (map, (<$), (<$>), (<|>))
-import Control.Bind ((=<<), bind)
-import Control.Category ((<<<))
+import Control.Alt ((<|>))
+import Control.Applicative (unless)
+import Control.Monad (unlessM)
 import Data.Argonaut
   ( Json
   , JsonDecodeError
@@ -36,9 +38,8 @@ import Data.Argonaut
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), note)
 import Data.Eq (class Eq)
-import Data.Function ((>>>), const, ($))
+import Data.Function (const)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Monoid ((<>))
 import Data.Newtype (unwrap)
 import Data.Show (class Show)
 import Data.TraversableWithIndex (forWithIndex)
@@ -207,7 +208,8 @@ parseJsonWspResponse resp@{ methodname, result, fault } =
       StartFetchBlocks -> StartFetchBlocksResponse <$ decodeDoneFlag
         [ "StartedBlockFetcher" ]
         r
-      -- fault version od the response should probably be implemented as one of expected results of API call
+      -- fault version of the response should probably be implemented as one of
+      -- expected results of API call
       CancelFetchBlocks -> CancelFetchBlocksResponse <$ decodeDoneFlag
         [ "StoppedBlockFetcher" ]
         r
@@ -226,16 +228,16 @@ parseJsonWspResponse resp@{ methodname, result, fault } =
 
   decodeHashes :: Aeson -> Either JsonDecodeError (Array DatumHash)
   decodeHashes j = do
-    let jStr = toStringifiedNumbersJson j
-    { hashes } :: { hashes :: Array String } <- decodeJson jStr
-    forWithIndex hashes
-      ( \idx h ->
-          note
-            ( AtIndex idx $ Named ("Cannot convert to ByteArray: " <> h) $
-                UnexpectedValue jStr
-            )
-            $ DataHash <$> hexToByteArray h
-      )
+    { hashes } :: { hashes :: Array String } <- decodeJson jstr
+    forWithIndex hashes $ \idx h ->
+      note
+        ( AtIndex idx $ Named ("Cannot convert to ByteArray: " <> h) $
+            UnexpectedValue jstr
+        )
+        $ DataHash <$> hexToByteArray h
+    where
+    jstr :: Json
+    jstr = toStringifiedNumbersJson j
 
   invalidResponseError :: WspFault
   invalidResponseError = WspFault $ encodeJson
@@ -247,9 +249,9 @@ parseJsonWspResponse resp@{ methodname, result, fault } =
     }
 
   liftErr :: forall (a :: Type). Either JsonDecodeError a -> Either WspFault a
-  liftErr = lmap (const invalidResponseError)
+  liftErr = lmap $ const invalidResponseError
 
   decodeDoneFlag :: Array String -> Aeson -> Either WspFault Unit
-  decodeDoneFlag locator r = do
-    done :: Boolean <- liftErr (decodeAeson =<< getNestedAeson r locator)
-    if done then Right unit else Left invalidResponseError
+  decodeDoneFlag locator r =
+    unlessM (liftErr (decodeAeson =<< getNestedAeson r locator))
+      $ Left invalidResponseError
