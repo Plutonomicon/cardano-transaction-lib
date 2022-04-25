@@ -8,18 +8,16 @@ module Deserialization.UnspentOutput
 
 import Prelude
 
-import Data.Bitraversable (bisequence, ltraverse)
+import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe, fromMaybe)
-import Data.Profunctor.Strong ((***))
-import Data.Traversable (traverse, for)
+import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt as UInt
 import Deserialization.BigNum (bigNumToBigInt)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import Helpers (notImplemented)
 import Serialization (toBytes)
 import Serialization.Address (Address)
 import Serialization.Hash (ScriptHash, scriptHashToBytes)
@@ -45,17 +43,17 @@ import Types.Transaction
 import Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
-import Types.Value (assetNameName)
 import Types.Value
-  ( mkCurrencySymbol
-  , mkNonAdaAsset
-  , mkTokenName
-  , mkValue
-  , Coin(Coin)
+  ( Coin(Coin)
   , CurrencySymbol
   , TokenName
   , Value
+  , mkCurrencySymbol
+  , mkNonAdaAsset
+  , mkTokenName
+  , mkValue
   ) as T
+import Types.Value (assetNameName)
 import Untagged.Union (asOneOf)
 
 convertUnspentOutput
@@ -97,13 +95,22 @@ convertValue value = do
           :: Array (ScriptHash /\ Array (AssetName /\ BigNum))
     -- convert to domain types, except of BigNum
     multiasset'' :: Map T.CurrencySymbol (Map T.TokenName BigNum) <-
-      notImplemented
-    -- Map.fromFoldable <$>
-    --   ( traverse bisequence $ multiasset' <#>
-    --       scriptHashToBytes >>> T.mkCurrencySymbol ***
-    --         map Map.fromFoldable
-    --   )
-    -- <<< traverse (ltraverse $ assetNameName >>> T.mkTokenName)
+      multiasset' #
+        -- convert transporting out Maybes
+        ( traverse
+            ( bitraverse
+                -- scripthash to currency symbol
+                (scriptHashToBytes >>> T.mkCurrencySymbol)
+                -- nested assetname to tokenname
+                (traverse (ltraverse (assetNameName >>> T.mkTokenName)))
+            )
+            >>>
+              -- convert inner array
+              (map >>> map >>> map) Map.fromFoldable
+            >>>
+              -- convert outer array
+              map Map.fromFoldable
+        )
     -- convert BigNum values, possibly failing
     traverse (traverse bigNumToBigInt) multiasset''
   pure

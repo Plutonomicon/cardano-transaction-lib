@@ -10,7 +10,7 @@ module Deserialization.FromBytes
 
 import Prelude
 
-import Contract.Prelude (Either(..), hush)
+import Data.Either (Either(Left), hush)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Variant (inj)
 import Effect (Effect)

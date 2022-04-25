@@ -8,8 +8,9 @@ module Deserialization.Error
   , fromCslRepError
   ) where
 
-import Contract.Prelude (Either(Left), Maybe, (<<<), (<>))
-import Data.Function (($), (#))
+import Prelude
+import Data.Maybe (Maybe)
+import Data.Either (Either(Left))
 import Data.Variant (default, inj, onMatch)
 import Deserialization.FromBytes (FromBytesError, _fromBytesError)
 import Error (E, NotImplementedError, _notImplementedError, noteE)

@@ -7,7 +7,8 @@ module FfiHelpers
   , errorHelper
   ) where
 
-import Contract.Prelude (Either(..), hush, (<<<), (>>>))
+import Data.Either (Either(Left, Right), hush)
+import Data.Function ((<<<), (>>>))
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Tuple (Tuple(Tuple))
 import Data.Variant (Variant)

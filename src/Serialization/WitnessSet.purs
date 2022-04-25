@@ -2,7 +2,7 @@ module Serialization.WitnessSet where
 
 import Prelude
 
-import Contract.Prelude (unwrap)
+import Data.Newtype (unwrap)
 import Data.Array as Array
 import Data.Maybe (Maybe, maybe)
 import Data.Traversable (for_, traverse, traverse_)

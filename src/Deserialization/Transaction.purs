@@ -8,7 +8,6 @@ import Contract.Address
   , StakeCredential
   )
 import Contract.Numeric.Rational (reduce)
-import Contract.Prelude (Tuple, for, traverse, wrap)
 import Contract.Prim.ByteArray (ByteArray)
 import Contract.Scripts (Ed25519KeyHash)
 import Contract.Transaction
@@ -42,7 +41,10 @@ import Data.BigInt as BigInt
 import Data.Bitraversable (bitraverse)
 import Data.Map as M
 import Data.Maybe (Maybe)
+import Data.Newtype (wrap)
 import Data.Ratio (Ratio)
+import Data.Traversable (traverse, for)
+import Data.Tuple (Tuple)
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Data.Variant (inj)
