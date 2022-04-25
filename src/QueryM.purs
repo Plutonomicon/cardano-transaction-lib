@@ -132,10 +132,9 @@ import Serialization.Address
   , BlockId
   , NetworkId(TestnetId)
   , Slot
-  , baseAddressFromAddress
-  , addressPaymentCred
-  , baseAddressPaymentCred
   , baseAddressDelegationCred
+  , baseAddressFromAddress
+  , baseAddressPaymentCred
   , stakeCredentialToKeyHash
   )
 import Serialization.Hash (ScriptHash)
