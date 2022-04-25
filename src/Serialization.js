@@ -296,62 +296,62 @@ exports.setTxBodyUpdate = setter('update');
 exports.newUpdate = ppUpdates => epoch => () =>
     lib.Update.new(ppUpdates, epoch);
 
-exports.ppu_set_minfee_a = setter('minfee_a');
+exports.ppuSetMinfeeA = setter('minfee_a');
 
-exports.ppu_set_minfee_b = setter('minfee_b');
+exports.ppuSetMinfeeB = setter('minfee_b');
 
-exports.ppu_set_max_block_body_size = setter('max_block_body_size');
+exports.ppuSetMaxBlockBodySize = setter('max_block_body_size');
 
-exports.ppu_set_max_tx_size = setter('max_tx_size');
+exports.ppuSetMaxTxSize = setter('max_tx_size');
 
-exports.ppu_set_max_block_header_size = setter('max_block_header_size');
+exports.ppuSetMaxBlockHeaderSize = setter('max_block_header_size');
 
-exports.ppu_set_key_deposit = setter('key_deposit');
+exports.ppuSetKeyDeposit = setter('key_deposit');
 
-exports.ppu_set_pool_deposit = setter('pool_deposit');
+exports.ppuSetPoolDeposit = setter('pool_deposit');
 
-exports.ppu_set_max_epoch = setter('max_epoch');
+exports.ppuSetMaxEpoch = setter('max_epoch');
 
-exports.ppu_set_n_opt = setter('n_opt');
+exports.ppuSetNOpt = setter('n_opt');
 
-exports.ppu_set_pool_pledge_influence = setter('pool_pledge_influence');
+exports.ppuSetPoolPledgeInfluence = setter('pool_pledge_influence');
 
-exports.ppu_set_expansion_rate = setter('expansion_rate');
+exports.ppuSetExpansionRate = setter('expansion_rate');
 
-exports.ppu_set_treasury_growth_rate = setter('treasury_growth_rate');
+exports.ppuSetTreasuryGrowthRate = setter('treasury_growth_rate');
 
-exports.ppu_set_d = setter('d');
+exports.ppuSetD = setter('d');
 
-exports.ppu_set_extra_entropy_identity = ppu => () =>
+exports.ppuSetExtraEntropyIdentity = ppu => () =>
     ppu.set_extra_entropy(lib.Nonce.new_identity());
 
-exports.ppu_set_extra_entropy_from_hash = ppu => bytes => () =>
+exports.ppuSetExtraEntropyFromHash = ppu => bytes => () =>
     ppu.set_extra_entropy(lib.Nonce.new_from_hash(bytes));
 
 exports.newProtocolVersion = major => minor => () =>
     lib.ProtocolVersion.new(major, minor);
 
-exports.ppu_set_protocol_version = containerHelper => ppu => versions => () =>
+exports.ppuSetProtocolVersion = containerHelper => ppu => versions => () =>
     ppu.set_protocol_version(
         containerHelper.pack(lib.ProtocolVersions, versions)
     );
 
-exports.ppu_set_min_pool_cost = setter('min_pool_cost');
+exports.ppuSetMinPoolCost = setter('min_pool_cost');
 
-exports.ppu_set_ada_per_utxo_byte = setter('ada_per_utxo_byte');
+exports.ppuSetAdaPerUtxoByte = setter('ada_per_utxo_byte');
 
-exports.ppu_set_cost_models = setter('cost_models');
+exports.ppuSetCostModels = setter('cost_models');
 
 exports.newExUnitPrices = mem_price => step_price => () =>
     lib.ExUnitPrices.new(mem_price, step_price);
 
-exports.ppu_set_execution_costs = setter('execution_costs');
+exports.ppuSetExecutionCosts = setter('execution_costs');
 
-exports.ppu_set_max_tx_ex_units = setter('max_tx_ex_units');
+exports.ppuSetMaxTxExUnits = setter('max_tx_ex_units');
 
-exports.ppu_set_max_block_ex_units = setter('max_block_ex_units');
+exports.ppuSetMaxBlockExUnits = setter('max_block_ex_units');
 
-exports.ppu_set_max_value_size = setter('max_value_size');
+exports.ppuSetMaxValueSize = setter('max_value_size');
 
 exports.newProtocolParamUpdate = () =>
     lib.ProtocolParamUpdate.new();

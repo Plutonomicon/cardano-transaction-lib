@@ -133,6 +133,7 @@ import Types.Transaction
   , TransactionInput(TransactionInput)
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
+  , UnitInterval
   , URL(URL)
   , Update
   ) as T
@@ -325,64 +326,64 @@ foreign import newUpdate
 
 foreign import newProtocolParamUpdate :: Effect ProtocolParamUpdate
 
-foreign import ppu_set_minfee_a :: ProtocolParamUpdate -> BigNum -> Effect Unit
+foreign import ppuSetMinfeeA :: ProtocolParamUpdate -> BigNum -> Effect Unit
 
-foreign import ppu_set_minfee_b :: ProtocolParamUpdate -> BigNum -> Effect Unit
+foreign import ppuSetMinfeeB :: ProtocolParamUpdate -> BigNum -> Effect Unit
 
-foreign import ppu_set_max_block_body_size
+foreign import ppuSetMaxBlockBodySize
   :: ProtocolParamUpdate -> Int -> Effect Unit
 
-foreign import ppu_set_max_tx_size :: ProtocolParamUpdate -> Int -> Effect Unit
+foreign import ppuSetMaxTxSize :: ProtocolParamUpdate -> Int -> Effect Unit
 
-foreign import ppu_set_max_block_header_size
+foreign import ppuSetMaxBlockHeaderSize
   :: ProtocolParamUpdate -> Int -> Effect Unit
 
-foreign import ppu_set_key_deposit
+foreign import ppuSetKeyDeposit
   :: ProtocolParamUpdate -> BigNum -> Effect Unit
 
-foreign import ppu_set_pool_deposit
+foreign import ppuSetPoolDeposit
   :: ProtocolParamUpdate -> BigNum -> Effect Unit
 
-foreign import ppu_set_max_epoch :: ProtocolParamUpdate -> Int -> Effect Unit
+foreign import ppuSetMaxEpoch :: ProtocolParamUpdate -> Int -> Effect Unit
 
-foreign import ppu_set_n_opt :: ProtocolParamUpdate -> Int -> Effect Unit
+foreign import ppuSetNOpt :: ProtocolParamUpdate -> Int -> Effect Unit
 
-foreign import ppu_set_pool_pledge_influence
+foreign import ppuSetPoolPledgeInfluence
   :: ProtocolParamUpdate -> UnitInterval -> Effect Unit
 
-foreign import ppu_set_expansion_rate
+foreign import ppuSetExpansionRate
   :: ProtocolParamUpdate -> UnitInterval -> Effect Unit
 
-foreign import ppu_set_treasury_growth_rate
+foreign import ppuSetTreasuryGrowthRate
   :: ProtocolParamUpdate -> UnitInterval -> Effect Unit
 
-foreign import ppu_set_d :: ProtocolParamUpdate -> UnitInterval -> Effect Unit
+foreign import ppuSetD :: ProtocolParamUpdate -> UnitInterval -> Effect Unit
 
-foreign import ppu_set_extra_entropy_identity
+foreign import ppuSetExtraEntropyIdentity
   :: ProtocolParamUpdate -> Effect Unit
 
-foreign import ppu_set_extra_entropy_from_hash
+foreign import ppuSetExtraEntropyFromHash
   :: ProtocolParamUpdate -> ByteArray -> Effect Unit
 
 foreign import newProtocolVersion :: Int -> Int -> Effect ProtocolVersion
 
-foreign import ppu_set_protocol_version
+foreign import ppuSetProtocolVersion
   :: ContainerHelper
   -> ProtocolParamUpdate
   -> Array ProtocolVersion
   -> Effect Unit
 
-foreign import ppu_set_min_pool_cost
+foreign import ppuSetMinPoolCost
   :: ProtocolParamUpdate
   -> BigNum
   -> Effect Unit
 
-foreign import ppu_set_ada_per_utxo_byte
+foreign import ppuSetAdaPerUtxoByte
   :: ProtocolParamUpdate
   -> BigNum
   -> Effect Unit
 
-foreign import ppu_set_cost_models
+foreign import ppuSetCostModels
   :: ProtocolParamUpdate
   -> Costmdls
   -> Effect Unit
@@ -392,22 +393,22 @@ foreign import newExUnitPrices
   -> UnitInterval
   -> Effect ExUnitPrices
 
-foreign import ppu_set_execution_costs
+foreign import ppuSetExecutionCosts
   :: ProtocolParamUpdate
   -> ExUnitPrices
   -> Effect Unit
 
-foreign import ppu_set_max_tx_ex_units
+foreign import ppuSetMaxTxExUnits
   :: ProtocolParamUpdate
   -> ExUnits
   -> Effect Unit
 
-foreign import ppu_set_max_block_ex_units
+foreign import ppuSetMaxBlockExUnits
   :: ProtocolParamUpdate
   -> ExUnits
   -> Effect Unit
 
-foreign import ppu_set_max_value_size
+foreign import ppuSetMaxValueSize
   :: ProtocolParamUpdate
   -> Int
   -> Effect Unit
@@ -499,52 +500,58 @@ convertProtocolParamUpdate
   , maxValueSize
   } = do
   ppu <- newProtocolParamUpdate
-  for_ minfeeA $ ppu_set_minfee_a ppu <=<
+  for_ minfeeA $ ppuSetMinfeeA ppu <=<
     fromJustEff "convertProtocolParamUpdate: min_fee_a must not be negative"
       <<< bigNumFromBigInt
       <<< unwrap
-  for_ minfeeB $ ppu_set_minfee_b ppu <=<
+  for_ minfeeB $ ppuSetMinfeeB ppu <=<
     fromJustEff "convertProtocolParamUpdate: min_fee_b must not be negative"
       <<< bigNumFromBigInt
       <<< unwrap
-  for_ maxBlockBodySize $ ppu_set_max_block_body_size ppu <<< UInt.toInt
-  for_ maxTxSize $ ppu_set_max_tx_size ppu <<< UInt.toInt
-  for_ maxBlockHeaderSize $ ppu_set_max_block_header_size ppu <<< UInt.toInt
-  for_ keyDeposit $ ppu_set_key_deposit ppu <=<
+  for_ maxBlockBodySize $ ppuSetMaxBlockBodySize ppu <<< UInt.toInt
+  for_ maxTxSize $ ppuSetMaxTxSize ppu <<< UInt.toInt
+  for_ maxBlockHeaderSize $ ppuSetMaxBlockHeaderSize ppu <<< UInt.toInt
+  for_ keyDeposit $ ppuSetKeyDeposit ppu <=<
     fromJustEff "convertProtocolParamUpdate: key_deposit must not be negative"
       <<< bigNumFromBigInt
       <<< unwrap
-  for_ poolDeposit $ ppu_set_pool_deposit ppu <=<
+  for_ poolDeposit $ ppuSetPoolDeposit ppu <=<
     fromJustEff "convertProtocolParamUpdate: pool_deposit must not be negative"
       <<< bigNumFromBigInt
       <<< unwrap
-  for_ maxEpoch $ ppu_set_max_epoch ppu <<< UInt.toInt <<< unwrap
-  for_ nOpt $ ppu_set_n_opt ppu <<< UInt.toInt
+  for_ maxEpoch $ ppuSetMaxEpoch ppu <<< UInt.toInt <<< unwrap
+  for_ nOpt $ ppuSetNOpt ppu <<< UInt.toInt
   for_ poolPledgeInfluence $
-    mkUnitInterval >=> ppu_set_pool_pledge_influence ppu
+    mkUnitInterval >=> ppuSetPoolPledgeInfluence ppu
   for_ expansionRate $
-    mkUnitInterval >=> ppu_set_expansion_rate ppu
+    mkUnitInterval >=> ppuSetExpansionRate ppu
   for_ treasuryGrowthRate $
-    mkUnitInterval >=> ppu_set_treasury_growth_rate ppu
+    mkUnitInterval >=> ppuSetTreasuryGrowthRate ppu
   for_ d $
-    mkUnitInterval >=> ppu_set_d ppu
+    mkUnitInterval >=> ppuSetD ppu
   for_ extraEntropy $ case _ of
-    T.IdentityNonce -> ppu_set_extra_entropy_identity ppu
-    T.HashNonce bytes -> ppu_set_extra_entropy_from_hash ppu bytes
+    T.IdentityNonce -> ppuSetExtraEntropyIdentity ppu
+    T.HashNonce bytes -> ppuSetExtraEntropyFromHash ppu bytes
   for_ protocolVersion $
-    ppu_set_protocol_version containerHelper ppu <=<
+    ppuSetProtocolVersion containerHelper ppu <=<
       traverse \pv -> newProtocolVersion (UInt.toInt pv.major)
         (UInt.toInt pv.minor)
-  for_ minPoolCost $ ppu_set_min_pool_cost ppu
-  for_ adaPerUtxoByte $ ppu_set_ada_per_utxo_byte ppu
-  for_ costModels $ convertCostmdls >=> ppu_set_cost_models ppu
-  for_ executionCosts $ convertExUnitPrices >=> ppu_set_execution_costs ppu
-  for_ maxTxExUnits $ convertExUnits >=> ppu_set_max_tx_ex_units ppu
-  for_ maxBlockExUnits $ convertExUnits >=> ppu_set_max_block_ex_units ppu
-  for_ maxValueSize $ UInt.toInt >>> ppu_set_max_value_size ppu
+  for_ minPoolCost $ ppuSetMinPoolCost ppu
+  for_ adaPerUtxoByte $ ppuSetAdaPerUtxoByte ppu
+  for_ costModels $ convertCostmdls >=> ppuSetCostModels ppu
+  for_ executionCosts $ convertExUnitPrices >=> ppuSetExecutionCosts ppu
+  for_ maxTxExUnits $ convertExUnits >=> ppuSetMaxTxExUnits ppu
+  for_ maxBlockExUnits $ convertExUnits >=> ppuSetMaxBlockExUnits ppu
+  for_ maxValueSize $ UInt.toInt >>> ppuSetMaxValueSize ppu
   pure ppu
   where
+  mkUnitInterval
+    :: T.UnitInterval -> Effect UnitInterval
   mkUnitInterval x = newUnitInterval x.numerator x.denominator
+
+  convertExUnitPrices
+    :: { memPrice :: T.UnitInterval, stepPrice :: T.UnitInterval }
+    -> Effect ExUnitPrices
   convertExUnitPrices { memPrice, stepPrice } =
     join $ newExUnitPrices <$> mkUnitInterval memPrice <*> mkUnitInterval
       stepPrice
