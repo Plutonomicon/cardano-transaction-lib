@@ -107,6 +107,8 @@ let
         export HOME="$TMP"
         cp -r ${nodeModules}/lib/node_modules .
         chmod -R u+rw node_modules
+        export NODE_PATH="$PWD/node_modules:$NODE_PATH"
+        export PATH="${nodeModules}/bin:$PATH"
         cp -r $src/* .
         install-spago-style
       '';
@@ -135,8 +137,39 @@ let
           touch $out
         '';
       });
+
+  bundlePursProject =
+    { name
+    , main ? "Main"
+    , webRuntime ? true
+    , webpackConfig ? "${src}/webpack.config.js"
+    , ...
+    }@args:
+    (buildPursProject (args // { withDevDeps = true; })).overrideAttrs
+      (oldAttrs: {
+        name = "${name}-bundle-" + (if webRuntime then "web" else "nodejs");
+        buildInputs = oldAttrs.buildInputs ++ [ nodejs ];
+        buildPhase = (
+          pkgs.lib.optionalString
+            webRuntime
+            ''
+              export WEB_RUNTIME=1
+            ''
+        ) +
+        ''
+          build-spago-style "./**/*.purs"
+          spago bundle-module --no-install --no-build -m "${main}" --to bundle.js
+          webpack --mode=production -c ${webpackConfig}
+        '';
+        installPhase = ''
+          mkdir $out
+          mv dist $out
+        '';
+      });
+
 in
 {
-  inherit purs nodejs buildPursProject runPursTest mkNodeModules;
+  inherit buildPursProject runPursTest bundlePursProject;
+  inherit purs nodejs mkNodeModules;
   devShell = shellFor shell;
 }
