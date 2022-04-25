@@ -200,6 +200,9 @@ Furthermore, CTL exposes an `overlay` from its flake. You can use this in the Ni
         pkgs.purescriptProject {
           inherit pkgs src;
 
+          # Will be used to generate derivation name
+          projectName = "your-project";
+
           # Optional arg to override the version of `nodejs` used, defaulting to
           # the version used by CTL itself. This will be used throughout
           # `purescriptProject`
@@ -252,8 +255,6 @@ Furthermore, CTL exposes an `overlay` from its flake. You can use this in the Ni
           # it can be helpful for CI to ensure the project builds or to
           # pass to another derivation
           your-project = (psProjectFor system).buildPursProject {
-            name = "cardano-transaction-lib";
-
             # A list of directories to copy into the builder, relative to the
             # root provided in `purescriptProject.src`, and defaulting to
             # `["src"]`. If you have files needed at runtime, you must include
@@ -266,7 +267,6 @@ Furthermore, CTL exposes an `overlay` from its flake. You can use this in the Ni
         {
           # Build and run a test, also useful for CI
           your-project = (psProjectFor system).runPursTest {
-            name = "some-test";
             # Optional arg, the default value is:
             testMain = "Test.Main";
             # See note about `sources` above

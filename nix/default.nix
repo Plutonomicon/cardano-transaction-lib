@@ -1,5 +1,6 @@
 { pkgs, system }:
 { src
+, projectName
   # We should try to use a consistent version of node across all
   # project components
 , nodejs ? pkgs.nodejs-14_x
@@ -89,7 +90,12 @@ let
         + shellHook;
     };
 
-  buildPursProject = { name, sources ? [ "src" ], withDevDeps ? false, ... }:
+  buildPursProject =
+    { sources ? [ "src" ]
+    , withDevDeps ? false
+    , name ? projectName
+    , ...
+    }:
     let
       nodeModules = mkNodeModules { inherit withDevDeps; };
     in
@@ -119,10 +125,15 @@ let
       '';
     };
 
-  runPursTest = { name, testMain ? "Test.Main", ... }@args:
+  runPursTest =
+    { testMain ? "Test.Main"
+    , name ? "${projectName}-check"
+    , srcs ? [ "src" "test" ]
+    , ...
+    }@args:
     (buildPursProject args).overrideAttrs
       (oldAttrs: {
-        name = "${name}-check";
+        inherit name;
         doCheck = true;
         buildInputs = oldAttrs.buildInputs ++ [ nodejs ];
         # spago will attempt to download things, which will fail in the
