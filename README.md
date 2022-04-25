@@ -253,6 +253,12 @@ Furthermore, CTL exposes an `overlay` from its flake. You can use this in the Ni
           # pass to another derivation
           your-project = (psProjectFor system).buildPursProject {
             name = "cardano-transaction-lib";
+
+            # A list of directories to copy into the builder, relative to the
+            # root provided in `purescriptProject.src`, and defaulting to
+            # `["src"]`. If you have files needed at runtime, you must include
+            # them as well
+            sources = ["src"];
           };
         });
 
@@ -263,6 +269,8 @@ Furthermore, CTL exposes an `overlay` from its flake. You can use this in the Ni
             name = "some-test";
             # Optional arg, the default value is:
             testMain = "Test.Main";
+            # See note about `sources` above
+            sources = [ "src" "test" "fixtures" ];
           };
         });
 
