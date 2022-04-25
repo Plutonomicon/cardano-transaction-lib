@@ -205,6 +205,8 @@
           packages = {
             cardano-transaction-lib = project.buildPursProject {
               name = "cardano-transaction-lib";
+              # Make sure the entire project compiles
+              sources = [ "src" "test" "examples" ];
             };
           };
 
@@ -215,6 +217,7 @@
             ctl-unit-test = project.runPursTest {
               name = "ctl-unit-test";
               testMain = "Test.Unit";
+              sources = [ "src" "test" "fixtures" ];
             };
           };
 

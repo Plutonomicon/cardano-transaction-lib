@@ -89,7 +89,7 @@ let
         + shellHook;
     };
 
-  buildPursProject = { name, withDevDeps ? false, ... }:
+  buildPursProject = { name, sources ? [ "src" ], withDevDeps ? false, ... }:
     let
       nodeModules = mkNodeModules { inherit withDevDeps; };
     in
@@ -107,7 +107,7 @@ let
         export HOME="$TMP"
         cp -r ${nodeModules}/lib/node_modules .
         chmod -R u+rw node_modules
-        cp -r $src/* .
+        cp -r $src/{${builtins.concatStringsSep "," sources}} .
         install-spago-style
       '';
       buildPhase = ''
