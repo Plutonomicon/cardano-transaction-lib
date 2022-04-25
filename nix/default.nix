@@ -141,23 +141,24 @@ let
   bundlePursProject =
     { name
     , main ? "Main"
-    , webRuntime ? true
+    , browserRuuntime ? true
     , webpackConfig ? "webpack.config.js"
-    , bundledModuleName ? "bundle.js"
+    , bundledModuleName ? "spago-bundle.js"
     , ...
     }@args:
     (buildPursProject (args // { withDevDeps = true; })).overrideAttrs
       (oldAttrs: {
-        name = "${name}-bundle-" + (if webRuntime then "web" else "nodejs");
+        name = "${name}-bundle-" + (if browserRuuntime then "web" else "nodejs");
         buildInputs = oldAttrs.buildInputs ++ [ nodejs ];
-        buildPhase =
-          ''
-            ${pkgs.lib.optionalString webRuntime "export WEB_RUNTIME=1"}
-            build-spago-style "./**/*.purs"
-            spago bundle-module --no-install --no-build -m "${main}" \
-              --to ${bundledModuleName}
-            webpack --mode=production -c ${webpackConfig}
-          '';
+        buildPhase = ''
+          ${pkgs.lib.optionalString browserRuuntime "export BROWSER_RUNTIME=1"}
+          build-spago-style "./**/*.purs"
+          chmod -R +w .
+          spago bundle-module --no-install --no-build -m "${main}" \
+            --to ${bundledModuleName}
+          mkdir ./dist
+          webpack --mode=production -c ${webpackConfig} -o ./dist
+        '';
         installPhase = ''
           mkdir $out
           mv dist $out

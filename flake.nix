@@ -208,6 +208,14 @@
               # Make sure the entire project compiles
               sources = [ "src" "test" "examples" ];
             };
+
+            ctl-example-bundle-web = project.bundlePursProject {
+              name = "cardano-transaction-lib";
+              sources = [ "src" "examples" ];
+              main = "Examples.Pkh2Pkh";
+              webpackConfig = "${self}/webpack.minimal.js";
+              bundledModuleName = "examples/spago-bundle.js";
+            };
           };
 
           # FIXME
@@ -215,7 +223,7 @@
           # test. This will need to be run via a Hercules `effect`
           checks = {
             ctl-unit-test = project.runPursTest {
-              name = "ctl-unit-test";
+              name = "cardano-transaction-lib";
               testMain = "Test.Unit";
               sources = [ "src" "test" "fixtures" ];
             };

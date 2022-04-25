@@ -20,3 +20,4 @@ result-*
 /server/dist-newstyle/
 .projectile
 /dist/
+examples/spago-bundle.js
