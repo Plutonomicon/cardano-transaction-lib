@@ -12,7 +12,7 @@ import Data.UInt (UInt, fromInt, toInt, (.&.), and, (.|.), zshr, shl)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Serialization.Address (Pointer, addressBytes, addressFromBytes)
 import Serialization.Address (Address) as Foreign
-import Plutus.Types.Address (Address, AddressRecord) as Plutus
+import Plutus.Types.Address (Address) as Plutus
 import Types.ByteArray
   ( ByteArray
   , byteArrayToIntArray
@@ -31,12 +31,12 @@ import Plutus.Types.Credential
   )
 import Plutus.Types.AddressHeaderType
   ( AddressHeaderType
-      ( PaymentKeyHash_StakeKeyHash
-      , ScriptHash_StakeKeyHash
-      , PaymentKeyHash_ScriptHash
-      , ScriptHash_ScriptHash
-      , PaymentKeyHash_Pointer
-      , ScriptHash_Pointer
+      ( PaymentKeyHashStakeKeyHash
+      , ScriptHashStakeKeyHash
+      , PaymentKeyHashScriptHash
+      , ScriptHashScriptHash
+      , PaymentKeyHashPointer
+      , ScriptHashPointer
       , PaymentKeyHash
       , ScriptHash
       )
@@ -70,42 +70,42 @@ instance NativeForeignConvertible Plutus.Address Foreign.Address where
       -- %b0000 | network tag | key hash | key hash
       PubKeyCredential pkh, Just (StakingHash (PubKeyCredential skh)) ->
         addressFromBytes $
-          addrHeader PaymentKeyHash_StakeKeyHash
+          addrHeader PaymentKeyHashStakeKeyHash
             <> ed25519KeyHashToBytes (unwrap pkh)
             <> ed25519KeyHashToBytes (unwrap skh)
 
       -- %b0001 | network tag | script hash | key hash
       ScriptCredential sh, Just (StakingHash (PubKeyCredential skh)) ->
         addressFromBytes $
-          addrHeader ScriptHash_StakeKeyHash
+          addrHeader ScriptHashStakeKeyHash
             <> scriptHashToBytes (unwrap sh)
             <> ed25519KeyHashToBytes (unwrap skh)
 
       -- %b0010 | network tag | key hash | script hash
       PubKeyCredential pkh, Just (StakingHash (ScriptCredential sh)) ->
         addressFromBytes $
-          addrHeader PaymentKeyHash_ScriptHash
+          addrHeader PaymentKeyHashScriptHash
             <> ed25519KeyHashToBytes (unwrap pkh)
             <> scriptHashToBytes (unwrap sh)
 
       -- %b0011 | network tag | script hash | script hash
       ScriptCredential sh, Just (StakingHash (ScriptCredential sh')) ->
         addressFromBytes $
-          addrHeader ScriptHash_ScriptHash
+          addrHeader ScriptHashScriptHash
             <> scriptHashToBytes (unwrap sh)
             <> scriptHashToBytes (unwrap sh')
 
       -- %b0100 | network tag | key hash | pointer
       PubKeyCredential pkh, Just (StakingPtr ptr) ->
         addressFromBytes $
-          addrHeader PaymentKeyHash_Pointer
+          addrHeader PaymentKeyHashPointer
             <> ed25519KeyHashToBytes (unwrap pkh)
             <> pointerToBytes ptr
 
       -- %b0101 | network tag | script hash | pointer
       ScriptCredential sh, Just (StakingPtr ptr) ->
         addressFromBytes $
-          addrHeader ScriptHash_Pointer
+          addrHeader ScriptHashPointer
             <> scriptHashToBytes (unwrap sh)
             <> pointerToBytes ptr
 
@@ -121,7 +121,10 @@ instance NativeForeignConvertible Plutus.Address Foreign.Address where
           addrHeader ScriptHash
             <> scriptHashToBytes (unwrap sh)
     where
-    rec :: Plutus.AddressRecord
+    rec
+      :: { addressCredential :: Credential
+         , addressStakingCredential :: Maybe StakingCredential
+         }
     rec = unwrap addrPlutus
 
     -- | Encodes the address type along with the network tag (%b0001 - Mainnet)
@@ -141,31 +144,31 @@ instance NativeForeignConvertible Plutus.Address Foreign.Address where
   toNativeType addrForeign = addrType >>= addrHeaderType >>= \addrType' ->
     case addrType' of
       -- %b0000 | network tag | key hash | key hash
-      PaymentKeyHash_StakeKeyHash ->
+      PaymentKeyHashStakeKeyHash ->
         buildAddress pubKeyCredential $ Just $
           map StakingHash <<< pubKeyCredential
 
       -- %b0001 | network tag | script hash | key hash
-      ScriptHash_StakeKeyHash ->
+      ScriptHashStakeKeyHash ->
         buildAddress scriptCredential $ Just $
           map StakingHash <<< pubKeyCredential
 
       -- %b0010 | network tag | key hash | script hash
-      PaymentKeyHash_ScriptHash ->
+      PaymentKeyHashScriptHash ->
         buildAddress pubKeyCredential $ Just $
           map StakingHash <<< scriptCredential
 
       -- %b0011 | network tag | script hash | script hash
-      ScriptHash_ScriptHash ->
+      ScriptHashScriptHash ->
         buildAddress scriptCredential $ Just $
           map StakingHash <<< scriptCredential
 
       -- %b0100 | network tag | key hash | pointer
-      PaymentKeyHash_Pointer ->
+      PaymentKeyHashPointer ->
         buildAddress pubKeyCredential $ Just stakingPtr
 
       -- %b0101 | network tag | script hash | pointer
-      ScriptHash_Pointer ->
+      ScriptHashPointer ->
         buildAddress scriptCredential $ Just stakingPtr
 
       -- %b0110 | network tag | key hash
@@ -211,8 +214,8 @@ instance NativeForeignConvertible Plutus.Address Foreign.Address where
         case stakingCredential of
           Nothing -> Just $
             wrap { addressCredential: c, addressStakingCredential: Nothing }
-          Just stakingCredential ->
-            delegationPartHash >>= stakingCredential >>= \sc -> Just $
+          Just stakingCred ->
+            delegationPartHash >>= stakingCred >>= \sc -> Just $
               wrap { addressCredential: c, addressStakingCredential: Just sc }
 
     stakingPtr :: ByteArray -> Maybe StakingCredential

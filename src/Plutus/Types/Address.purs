@@ -1,6 +1,5 @@
 module Plutus.Types.Address
-  ( Address
-  , AddressRecord
+  ( Address(Address)
   , pubKeyHashAddress
   , scriptHashAddress
   , toPubKeyHash
@@ -27,15 +26,13 @@ import Plutus.Types.Credential
 -- Address
 --------------------------------------------------------------------------------
 
-type AddressRecord =
-  { addressCredential :: Credential
-  , addressStakingCredential :: Maybe StakingCredential
-  }
-
 -- Taken from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/Plutus-V1-Ledger-Tx.html#t:Address
 -- Plutus rev: dbefda30be6490c758aa88b600f5874f12712b3a
 -- | Address with two kinds of credentials, normal and staking.
-newtype Address = Address AddressRecord
+newtype Address = Address
+  { addressCredential :: Credential
+  , addressStakingCredential :: Maybe StakingCredential
+  }
 
 derive instance Eq Address
 derive instance Ord Address
