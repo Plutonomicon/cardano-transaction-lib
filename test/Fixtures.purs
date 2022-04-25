@@ -19,6 +19,7 @@ module Test.Fixtures
   , plutusDataFixture6
   , plutusDataFixture7
   , tokenName1
+  , tokenName2
   , txOutputBinaryFixture1
   , txFixture1
   , txFixture2
@@ -100,6 +101,7 @@ import Types.Int as Int
 import Types.Natural as Natural
 import Types.PlutusData as PD
 import Types.RedeemerTag (RedeemerTag(Spend))
+import Types.TokenName (TokenName, mkTokenName)
 import Types.Scripts
   ( MintingPolicyHash(MintingPolicyHash)
   , ValidatorHash(ValidatorHash)
@@ -154,11 +156,9 @@ import Types.TransactionUnspentOutput
 import Types.Value
   ( Coin(Coin)
   , CurrencySymbol
-  , TokenName
   , Value(Value)
   , mkCurrencySymbol
   , mkNonAdaAsset
-  , mkTokenName
   , mkSingletonNonAdaAsset
   )
 import Types.UnbalancedTransaction (PubKeyHash(PubKeyHash))

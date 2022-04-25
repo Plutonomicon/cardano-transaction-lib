@@ -75,6 +75,7 @@ import Types.Any (Any)
 import Types.Datum (Datum(Datum), DatumHash)
 import Types.Interval (POSIXTimeRange, posixTimeRangeToTransactionSlot)
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
+import Types.TokenName (TokenName)
 import Types.Scripts
   ( MintingPolicy
   , MintingPolicyHash
@@ -154,7 +155,6 @@ import Types.UnbalancedTransaction
   )
 import Types.Value
   ( CurrencySymbol
-  , TokenName
   , Value
   , isZero
   , mkSingletonValue'

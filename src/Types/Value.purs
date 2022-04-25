@@ -2,9 +2,8 @@ module Types.Value
   ( Coin(..)
   , CurrencySymbol
   , NonAdaAsset(..)
-  , TokenName
   , Value(..)
-  , adaToken
+  , PlutusValue(..)
   , class Negate
   , class Split
   , coinToValue
@@ -16,7 +15,6 @@ module Types.Value
   , getLovelace
   , getNonAdaAsset
   , getNonAdaAsset'
-  , getTokenName
   , gt
   , isAdaOnly
   , isPos
@@ -33,8 +31,6 @@ module Types.Value
   , mkSingletonNonAdaAsset
   , mkSingletonValue
   , mkSingletonValue'
-  , mkTokenName
-  , mkTokenNames
   , mkValue
   , mpsSymbol
   , negation
@@ -58,7 +54,7 @@ import Data.Argonaut
   , caseJsonObject
   , getField
   )
-import Data.Array (cons, filter)
+import Data.Array (cons, concatMap, filter, head, partition)
 import Data.BigInt (BigInt, fromInt)
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (bitraverse, ltraverse)
@@ -66,6 +62,7 @@ import Data.Either (Either(Left), note)
 import Data.Foldable (any, fold, foldl, length)
 import Data.FoldableWithIndex (foldrWithIndex)
 import Data.Generic.Rep (class Generic)
+import Data.Identity (Identity(Identity))
 import Data.Lattice
   ( class JoinSemilattice
   , class MeetSemilattice
@@ -75,20 +72,43 @@ import Data.Lattice
 import Data.List ((:), all, List(Nil))
 import Data.Map (keys, lookup, Map, toUnfoldable, unions, values)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, fromJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This))
 import Data.Traversable (class Traversable, traverse)
+import Data.Tuple (snd) as Tuple
 import Data.Tuple.Nested ((/\), type (/\))
 import FromData (class FromData, fromData)
 import Partial.Unsafe (unsafePartial)
+import Plutus.Types.AssocMap (lookup) as PlutusMap
+import Plutus.Types.Value (Value) as Plutus
+import Plutus.Types.Value
+  ( adaSymbol
+  , getValue
+  , getCurrencySymbol
+  , lovelaceValueOf
+  , singleton'
+  ) as PlutusValue
+import Plutus.ToFromPlutusType
+  ( class FromPlutusType
+  , fromPlutusType
+  , class ToPlutusType
+  , toPlutusType
+  )
 import Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
 import ToData (class ToData, toData)
 import Types.ByteArray (ByteArray, byteLength, hexToByteArray)
 import Types.PlutusData (PlutusData(List)) as PD
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
+import Types.TokenName
+  ( TokenName
+  , adaToken
+  , getTokenName
+  , mkTokenName
+  , mkTokenNames
+  )
 
 -- `Negate` and `Split` seem a bit too contrived, and their purpose is to
 -- combine similar behaviour without satisfying any useful laws. I wonder
@@ -213,42 +233,6 @@ mkCurrencySymbol byteArr =
 mkUnsafeAdaSymbol :: ByteArray -> Maybe CurrencySymbol
 mkUnsafeAdaSymbol byteArr =
   if byteArr == mempty then pure unsafeAdaSymbol else Nothing
-
---------------------------------------------------------------------------------
--- TokenName
---------------------------------------------------------------------------------
-newtype TokenName = TokenName ByteArray
-
-derive newtype instance Eq TokenName
-derive newtype instance FromData TokenName
-derive newtype instance Ord TokenName
-derive newtype instance ToData TokenName
-
-instance Show TokenName where
-  show (TokenName tn) = "(TokenName" <> show tn <> ")"
-
-getTokenName :: TokenName -> ByteArray
-getTokenName (TokenName tokenName) = tokenName
-
--- Safe to export because this can be created by mkTokenName now
--- | The empty token name.
-adaToken :: TokenName
-adaToken = TokenName mempty
-
--- | Create a `TokenName` from a `ByteArray` since TokenName data constructor is
--- | not exported
-mkTokenName :: ByteArray -> Maybe TokenName
-mkTokenName byteArr =
-  if byteLength byteArr <= 32 then pure $ TokenName byteArr else Nothing
-
--- | Creates a Map of `TokenName` and Big Integers from a `Traversable` of 2-tuple
--- | `ByteArray` and Big Integers with the possibility of failure
-mkTokenNames
-  :: forall (t :: Type -> Type)
-   . Traversable t
-  => t (ByteArray /\ BigInt)
-  -> Maybe (Map TokenName BigInt)
-mkTokenNames = traverse (ltraverse mkTokenName) >>> map Map.fromFoldable
 
 --------------------------------------------------------------------------------
 -- NonAdaAsset
@@ -388,16 +372,47 @@ instance Split Value where
     bimap (flip Value mempty) (flip Value mempty) (split coin)
       <> bimap (Value mempty) (Value mempty) (split nonAdaAsset)
 
--- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/193
--- Because our `Value` is different to Plutus, I wonder if this will become an
--- issue.
+newtype PlutusValue = PlutusValue Plutus.Value
+
+derive instance Newtype PlutusValue _
+
+instance FromPlutusType Identity PlutusValue Value where
+  fromPlutusType (PlutusValue plutusValue) =
+    Identity (adaValue <> mkValue mempty nonAdaAssets)
+    where
+    { adaTokenMap, nonAdaTokenMap } =
+      (\x -> { adaTokenMap: x.yes, nonAdaTokenMap: x.no }) <<<
+        partition (\(cs /\ _) -> cs == PlutusValue.adaSymbol) $
+        (unwrap $ PlutusValue.getValue plutusValue)
+
+    adaValue :: Value
+    adaValue = flip mkValue mempty <<< wrap <<< fromMaybe zero $ do
+      adaTokens <- Tuple.snd <$> head adaTokenMap
+      PlutusMap.lookup adaToken adaTokens
+
+    nonAdaAssets :: NonAdaAsset
+    nonAdaAssets = unsafePartial $ fromJust
+      $ mkNonAdaAssetsFromTokenMap
+      $ nonAdaTokenMap <#> \(cs /\ tokens) ->
+          PlutusValue.getCurrencySymbol cs /\ Map.fromFoldable (unwrap tokens)
+
+instance ToPlutusType Identity Value PlutusValue where
+  toPlutusType (Value (Coin adaAmount) (NonAdaAsset nonAdaAssets)) =
+    Identity <<< PlutusValue $
+      PlutusValue.lovelaceValueOf adaAmount <> fold nonAdaValues
+    where
+    nonAdaValues :: Array Plutus.Value
+    nonAdaValues =
+      flip concatMap (Map.toUnfoldable nonAdaAssets) $ \(cs /\ tokens) ->
+        Map.toUnfoldable tokens <#> \(tn /\ val) ->
+          unsafePartial $ fromJust $
+            PlutusValue.singleton' (getCurrencySymbol cs) (getTokenName tn) val
+
 instance FromData Value where
-  fromData (PD.List [ coin, nonAdaAsset ]) =
-    Value <$> fromData coin <*> fromData nonAdaAsset
-  fromData _ = Nothing
+  fromData pd = (unwrap <<< fromPlutusType <<< PlutusValue) <$> fromData pd
 
 instance ToData Value where
-  toData (Value coin nonAdaAsset) = toData (coin /\ nonAdaAsset)
+  toData = toPlutusType >>> unwrap >>> unwrap >>> toData
 
 -- | Create a `Value` from `Coin` and `NonAdaAsset`, the latter should have been
 -- | constructed safely at this point.

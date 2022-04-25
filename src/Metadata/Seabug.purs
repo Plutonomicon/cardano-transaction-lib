@@ -29,7 +29,8 @@ import Types.Natural (Natural)
 import Types.PlutusData (PlutusData(Map))
 import Types.Scripts (MintingPolicyHash, ValidatorHash)
 import Types.UnbalancedTransaction (PubKeyHash)
-import Types.Value (CurrencySymbol, TokenName, mkTokenName, mkCurrencySymbol)
+import Types.Value (CurrencySymbol, mkCurrencySymbol)
+import Types.TokenName (TokenName, mkTokenName)
 import Metadata.Helpers (unsafeMkKey, lookupKey)
 
 newtype SeabugMetadata = SeabugMetadata

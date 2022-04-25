@@ -4,6 +4,7 @@
 -- | represented by `Coin`.
 module Contract.Value
   ( module Value
+  , module TokenName
   , scriptCurrencySymbol
   ) where
 
@@ -12,13 +13,18 @@ import Contract.Monad (Contract, wrapContract)
 import Data.Maybe (Maybe)
 import Scripts (scriptCurrencySymbol) as Scripts
 import Types.Scripts (MintingPolicy)
+import Types.TokenName
+  ( TokenName
+  , adaToken
+  , getTokenName
+  , mkTokenName
+  , mkTokenNames
+  ) as TokenName
 import Types.Value
   ( Coin(Coin)
   , CurrencySymbol
   , NonAdaAsset(NonAdaAsset)
-  , TokenName
   , Value(Value)
-  , adaToken
   , coinToValue
   , currencyMPSHash
   , eq
@@ -28,7 +34,6 @@ import Types.Value
   , getLovelace
   , getNonAdaAsset
   , getNonAdaAsset'
-  , getTokenName
   , gt
   , isAdaOnly
   , isPos
@@ -45,8 +50,6 @@ import Types.Value
   , mkSingletonNonAdaAsset
   , mkSingletonValue
   , mkSingletonValue'
-  , mkTokenName
-  , mkTokenNames
   , mkValue
   , mpsSymbol
   , negation

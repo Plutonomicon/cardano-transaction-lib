@@ -55,6 +55,7 @@ import Types.Interval (POSIXTimeRange, always, intersection, isEmpty)
 import Types.Scripts (MintingPolicyHash, ValidatorHash)
 import Types.Datum (Datum(Datum))
 import Types.Transaction (DatumHash)
+import Types.TokenName (TokenName)
 import Types.UnbalancedTransaction
   ( PaymentPubKeyHash
   , StakePubKeyHash
@@ -62,7 +63,6 @@ import Types.UnbalancedTransaction
   )
 import Types.Value
   ( CurrencySymbol
-  , TokenName
   , Value
   , currencyMPSHash
   , getNonAdaAsset

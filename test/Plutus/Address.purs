@@ -1,16 +1,18 @@
 module Test.Plutus.Address (suite) where
 
 import Prelude
+
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Tuple (Tuple(Tuple))
 import Data.Array ((..), length, zip)
-import Data.Newtype (class Newtype, wrap)
+import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.UInt (UInt, fromInt)
 import Data.Traversable (for_)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
+import Plutus.ToFromPlutusType (fromPlutusType, toPlutusType)
 import Plutus.Types.Address (Address) as Plutus
-import Plutus.NativeForeignConvertible (toNativeType, toForeignType)
+import Plutus.Types.Address (ForeignAddress(ForeignAddress))
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
@@ -25,32 +27,28 @@ import Types.Aliases (Bech32String)
 suite :: TestPlanM Unit
 suite = do
   group "Plutus.Types.Address" $ do
-    group "NativeForeignConvertible instance" $ do
+    group "FromPlutusType & ToPlutusType" $ do
       group "Shelley addresses" $ do
         let indices = 0 .. (length addresses - 1)
         let testData = zip (zip addressesBech32 addresses) indices
         for_ testData $ \(Tuple (Tuple addrBech32 addr) addrType) ->
-          frgnNativeConversionTest addrType addrBech32 addr
+          toFromPlutusTypeTest addrType addrBech32 addr
 
---------------------------------------------------------------------------------
--- toNativeType/toForeignType test
---------------------------------------------------------------------------------
-
-frgnNativeConversionTest
+toFromPlutusTypeTest
   :: Int -> Bech32String -> Plutus.Address -> TestPlanM Unit
-frgnNativeConversionTest addrType addrBech32 addrPlutus =
+toFromPlutusTypeTest addrType addrBech32 addrPlutus =
   test ("Converts between addresses of type " <> show addrType) $ do
     addrForeign <-
       errMaybe "addressFromBech32 failed on valid bech32" $
         addressFromBech32 addrBech32
     resAddrPlutus <-
-      errMaybe "toNativeType failed on valid foreign address" $
-        toNativeType addrForeign
+      errMaybe "toPlutusType failed on valid foreign address" $
+        toPlutusType (ForeignAddress addrForeign)
     resAddrPlutus `shouldEqual` addrPlutus
     resAddrForeign <-
-      errMaybe "toForeignType failed on valid native address" $
-        toForeignType resAddrPlutus
-    resAddrForeign `shouldEqual` addrForeign
+      errMaybe "fromPlutusType failed on valid native address" $
+        fromPlutusType resAddrPlutus
+    unwrap resAddrForeign `shouldEqual` addrForeign
 
 -- Test vectors are taken from the CIP-0019 specification.
 -- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0019#test-vectors

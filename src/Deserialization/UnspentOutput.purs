@@ -47,13 +47,12 @@ import Types.TransactionUnspentOutput
 import Types.Value
   ( mkCurrencySymbol
   , mkNonAdaAsset
-  , mkTokenName
   , mkValue
   , Coin(Coin)
   , CurrencySymbol
-  , TokenName
   , Value
   ) as T
+import Types.TokenName (TokenName, mkTokenName) as T
 import Untagged.Union (asOneOf)
 
 convertUnspentOutput

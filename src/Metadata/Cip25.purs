@@ -27,9 +27,9 @@ import FromData (class FromData, fromData)
 import ToData (class ToData, toData)
 import Serialization.Hash (scriptHashFromBytes)
 import Types.Scripts (MintingPolicyHash)
-import Types.Value (TokenName, mkTokenName)
 import Types.ByteArray (ByteArray, hexToByteArray)
 import Types.PlutusData (PlutusData(Map))
+import Types.TokenName (TokenName, mkTokenName)
 import Metadata.Helpers (lookupKey)
 
 nftMetadataLabel :: String

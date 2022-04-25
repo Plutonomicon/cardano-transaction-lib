@@ -122,6 +122,7 @@ import Types.Transaction
   ) as T
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.Value as Value
+import Types.TokenName (getTokenName) as TokenName
 import Untagged.Union (type (|+|), UndefinedOr, maybeToUor)
 
 foreign import newBigNum :: MaybeFfiHelper -> String -> Maybe BigNum
@@ -431,7 +432,7 @@ convertMint (T.Mint (Value.NonAdaAsset m)) = do
       mScripthash
     assets <- newMintAssets
     forWithIndex_ values \tokenName' bigIntValue -> do
-      let tokenName = Value.getTokenName tokenName'
+      let tokenName = TokenName.getTokenName tokenName'
       assetName <- newAssetName tokenName
       bigInt <- fromJustEff "convertMint: failed to convert BigInt" $
         Serialization.convertBigInt bigIntValue
@@ -482,7 +483,7 @@ convertValue val = do
       mScripthash
     assets <- newAssets
     forWithIndex_ values \tokenName' bigIntValue -> do
-      let tokenName = Value.getTokenName tokenName'
+      let tokenName = TokenName.getTokenName tokenName'
       assetName <- newAssetName tokenName
       value <- fromJustEff "convertValue: number must not be negative" $
         newBigNum maybeFfiHelper (BigInt.toString bigIntValue)
