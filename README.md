@@ -282,7 +282,7 @@ Furthermore, CTL exposes an `overlay` from its flake. You can use this in the Ni
             entrypoint = "index.js";
             # The HTML template to render the bundle to (must correspond to
             # the template listed in the webpack config)
-            htmlTemplate = "index.js";
+            htmlTemplate = "index.html";
             # If this should be bundled for the browser
             browserRuntime = true;
             # The path to the webpack config to use
