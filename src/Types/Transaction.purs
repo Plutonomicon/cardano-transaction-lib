@@ -90,7 +90,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Nothing))
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype)
-import Data.Rational (Rational)
+import Data.Ratio (Ratio)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
@@ -300,6 +300,7 @@ newtype GenesisHash = GenesisHash ByteArray
 
 derive instance Newtype GenesisHash _
 derive newtype instance Eq GenesisHash
+derive newtype instance Ord GenesisHash
 derive instance Generic GenesisHash _
 
 instance Show GenesisHash where
@@ -315,14 +316,14 @@ type ProtocolParamUpdate =
   , poolDeposit :: Maybe Coin
   , maxEpoch :: Maybe Epoch
   , nOpt :: Maybe UInt
-  , poolPledgeInfluence :: Maybe Rational
+  , poolPledgeInfluence :: Maybe UnitInterval
   , expansionRate :: Maybe UnitInterval
   , treasuryGrowthRate :: Maybe UnitInterval
   , d :: Maybe UnitInterval
   , extraEntropy :: Maybe Nonce
   , protocolVersion :: Maybe (Array ProtocolVersion)
-  , minPoolCost :: Maybe Coin
-  , adaPerUtxoByte :: Maybe Coin
+  , minPoolCost :: Maybe BigNum
+  , adaPerUtxoByte :: Maybe BigNum
   , costModels :: Maybe Costmdls
   , executionCosts :: Maybe ExUnitPrices
   , maxTxExUnits :: Maybe ExUnits
@@ -370,18 +371,17 @@ derive instance Generic CostModel _
 instance Show CostModel where
   show = genericShow
 
-instance Show Nonce where
-  show = genericShow
-
 type ProtocolVersion =
   { major :: UInt
   , minor :: UInt
   }
 
-newtype Nonce = Nonce String
+data Nonce = IdentityNonce | HashNonce ByteArray
 
-derive instance Newtype Nonce _
-derive newtype instance Eq Nonce
+derive instance Eq Nonce
+
+instance Show Nonce where
+  show = genericShow
 
 type UnitInterval =
   { numerator :: BigNum

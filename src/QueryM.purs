@@ -341,6 +341,7 @@ queryDatumCache request = do
   sBody <- liftEffect $ _stringify $ DcWsp.jsonWspRequest request
   config <- ask
   let
+    id :: String
     id = DcWsp.requestMethodName request
 
     affFunc

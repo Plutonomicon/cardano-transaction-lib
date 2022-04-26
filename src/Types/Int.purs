@@ -1,3 +1,4 @@
+-- | `cardano-serialization-lib` Int type (can be positive or negative).
 module Types.Int
   ( Int
   , newPositive
