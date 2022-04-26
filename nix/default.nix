@@ -134,10 +134,10 @@ let
     , ...
     }@args:
     (buildPursProject args).overrideAttrs
-      (oldAttrs: {
+      (oas: {
         inherit name;
         doCheck = true;
-        buildInputs = oldAttrs.buildInputs ++ [ nodejs ];
+        buildInputs = oas.buildInputs ++ [ nodejs ];
         # spago will attempt to download things, which will fail in the
         # sandbox, so we can just use node instead
         # (idea taken from `plutus-playground-client`)
@@ -155,19 +155,20 @@ let
     , main ? "Main"
     , browserRuntime ? true
     , webpackConfig ? "webpack.config.js"
-    , bundledModuleName ? "spago-bundle.js"
+    , bundledModuleName ? "output.js"
     , ...
     }@args:
     (buildPursProject (args // { withDevDeps = true; })).overrideAttrs
-      (oldAttrs: {
+      (oas: {
         inherit name;
-        buildInputs = oldAttrs.buildInputs ++ [ nodejs ];
+        buildInputs = oas.buildInputs ++ [ nodejs ];
         buildPhase = ''
           ${pkgs.lib.optionalString browserRuntime "export BROWSER_RUNTIME=1"}
           build-spago-style "./**/*.purs"
-          chmod -R +w .
+          chmod -R +rwx .
           spago bundle-module --no-install --no-build -m "${main}" \
             --to ${bundledModuleName}
+          cp $src/${webpackConfig} .
           mkdir ./dist
           webpack --mode=production -c ${webpackConfig} -o ./dist
         '';

@@ -129,11 +129,11 @@ If you prefer to run these services locally without `make`, the environment vari
   - `spago test` _or_ `npm run test` will run both the integration and unit tests
   - `nix build .#checks.<SYSTEM>.ctl-unit-test` will build and run the unit tests (useful for CI)
 - To run or build/bundle the project for the browser:
-  - `npm run dev` will start a Webpack development server at `localhost:4008`
-  - `npm run build` will output a Webpack-bundled example to `dist`
-  - `nix build -L .#ctl-example-bundle-web` will build an example using Nix and Webpack
+  - `make run-dev` _or_ `npm run dev` will start a Webpack development server at `localhost:4008`
+  - `make run-build` _or_ `npm run build` will output a Webpack-bundled example module to `dist`
+  - `nix build -L .#ctl-example-bundle-web` will build an example module using Nix and Webpack
 
-By default, Webpack will build a [small Purescript example](examples/Pkh2Pkh.purs). Make sure to follow the [instructions for setting up Nami](#other-requirements) before running the examples. You can point Webpack to another Purescript entrypoint by editing `examples/index.js`.
+By default, Webpack will build a [small Purescript example](examples/Pkh2Pkh.purs). Make sure to follow the [instructions for setting up Nami](#other-requirements) before running the examples. You can point Webpack to another Purescript entrypoint by changing the `ps-bundle` variable in the Makefile or in the `main` argument in the flake's `packages.ctl-examples-bundle-web`.
 
 **Note**: The `BROWSER_RUNTIME` environment variable must be set to `1` in order to build/bundle the project properly for the browser (e.g. `BROWSER_RUNTIME=1 webpack ...`). For Node environments, leave this variable unset or set it to `0`.
 

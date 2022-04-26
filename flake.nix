@@ -212,8 +212,6 @@
             ctl-example-bundle-web = project.bundlePursProject {
               sources = [ "src" "examples" ];
               main = "Examples.Pkh2Pkh";
-              webpackConfig = "${self}/webpack.minimal.js";
-              bundledModuleName = "examples/spago-bundle.js";
             };
           };
 
