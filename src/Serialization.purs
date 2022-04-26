@@ -12,7 +12,6 @@ module Serialization
 
 import Prelude
 
-import Data.BigInt as BigInt
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.Map as Map
 import Data.Maybe (Maybe)
