@@ -279,8 +279,9 @@ Furthermore, CTL exposes an `overlay` from its flake. You can use this in the Ni
             # The path to the webpack config to use
             webpackConfig = "webpack.config.js";
             # The module that `spago bundle-module` should write to (must 
-            # match the one that is imported in your JS entrypoint)
-            bundledModuleName = "spago-bundle.js";
+            # match the one that is imported in your JS entrypoint). Is
+            # relative to the `src` argument provided to `purescriptProject`
+            bundledModuleName = "output.js";
           };
         });
 
