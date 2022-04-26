@@ -317,14 +317,14 @@ type ProtocolParamUpdate =
   , poolDeposit :: Maybe Coin
   , maxEpoch :: Maybe Epoch
   , nOpt :: Maybe UInt
-  , poolPledgeInfluence :: Maybe Rational
+  , poolPledgeInfluence :: Maybe UnitInterval
   , expansionRate :: Maybe UnitInterval
   , treasuryGrowthRate :: Maybe UnitInterval
   , d :: Maybe UnitInterval
   , extraEntropy :: Maybe Nonce
   , protocolVersion :: Maybe (Array ProtocolVersion)
-  , minPoolCost :: Maybe Coin
-  , adaPerUtxoByte :: Maybe Coin
+  , minPoolCost :: Maybe BigNum
+  , adaPerUtxoByte :: Maybe BigNum
   , costModels :: Maybe Costmdls
   , executionCosts :: Maybe ExUnitPrices
   , maxTxExUnits :: Maybe ExUnits
@@ -372,9 +372,6 @@ derive instance Generic CostModel _
 instance Show CostModel where
   show = genericShow
 
-instance Show Nonce where
-  show = genericShow
-
 type ProtocolVersion =
   { major :: UInt
   , minor :: UInt
@@ -384,6 +381,9 @@ type ProtocolVersion =
 data Nonce = IdentityNonce | HashNonce ByteArray
 
 derive instance Eq Nonce
+
+instance Show Nonce where
+  show = genericShow
 
 type UnitInterval =
   { numerator :: BigNum

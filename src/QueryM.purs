@@ -132,10 +132,9 @@ import Serialization.Address
   , BlockId
   , NetworkId(TestnetId)
   , Slot
-  , baseAddressFromAddress
-  , addressPaymentCred
-  , baseAddressPaymentCred
   , baseAddressDelegationCred
+  , baseAddressFromAddress
+  , baseAddressPaymentCred
   , stakeCredentialToKeyHash
   )
 import Serialization.Hash (ScriptHash)
@@ -342,6 +341,7 @@ queryDatumCache request = do
   sBody <- liftEffect $ _stringify $ DcWsp.jsonWspRequest request
   config <- ask
   let
+    id :: String
     id = DcWsp.requestMethodName request
 
     affFunc

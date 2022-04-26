@@ -297,16 +297,8 @@ convertProtocolParamUpdate cslPpu = do
   maxEpoch <- traverse (map Epoch <<< cslNumberToUInt (lbl "maxEpoch"))
     ppu.maxEpoch
   nOpt <- traverse (cslNumberToUInt (lbl "nOpt")) ppu.nOpt
-  poolPledgeInfluence <- traverse
-    (cslRatioToRational (lbl "poolPledgeInfluence") <<< _unpackUnitInterval)
-    ppu.poolPledgeInfluence
   protocolVersion <- traverse (convertProtocolVersions (lbl "protocolVersion"))
     ppu.protocolVersion
-  minPoolCost <- traverse (map Coin <<< bigNumToBigInt' (lbl "minPoolCost"))
-    ppu.minPoolCost
-  adaPerUtxoByte <- traverse
-    (map Coin <<< bigNumToBigInt' (lbl "adaPerUtxoByte"))
-    ppu.adaPerUtxoByte
   costModels <- traverse (convertCostModels (lbl "costModels")) ppu.costModels
   maxTxExUnits <- traverse (convertExUnits (lbl "maxTxExUnits"))
     ppu.maxTxExUnits
@@ -324,14 +316,14 @@ convertProtocolParamUpdate cslPpu = do
     , poolDeposit
     , maxEpoch
     , nOpt
-    , poolPledgeInfluence
+    , poolPledgeInfluence: _unpackUnitInterval <$> ppu.poolPledgeInfluence
     , expansionRate: _unpackUnitInterval <$> ppu.expansionRate
     , treasuryGrowthRate: _unpackUnitInterval <$> ppu.treasuryGrowthRate
     , d: _unpackUnitInterval <$> ppu.d
     , extraEntropy: convertNonce <$> ppu.extraEntropy
     , protocolVersion
-    , minPoolCost
-    , adaPerUtxoByte
+    , minPoolCost: ppu.minPoolCost
+    , adaPerUtxoByte: ppu.adaPerUtxoByte
     , costModels
     , executionCosts: convertExUnitPrices <$> ppu.executionCosts
     , maxTxExUnits

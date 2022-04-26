@@ -9,7 +9,6 @@ import Data.Maybe (fromJust)
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse)
 import Data.UInt (UInt)
-import Effect.Class.Console (log)
 import Mote (test, group)
 import Partial.Unsafe (unsafePartial)
 import Test.Fixtures

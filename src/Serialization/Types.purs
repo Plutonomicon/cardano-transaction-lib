@@ -76,6 +76,11 @@ module Serialization.Types
   , Vkeywitness
   , Vkeywitnesses
   , Withdrawals
+  , Update
+  , ProposedProtocolParameterUpdates
+  , ProtocolParamUpdate
+  , ProtocolVersion
+  , ExUnitPrices
   ) where
 
 import Prelude
@@ -99,6 +104,7 @@ foreign import data Costmdls :: Type
 foreign import data DataHash :: Type
 foreign import data Ed25519KeyHashes :: Type
 foreign import data Ed25519Signature :: Type
+foreign import data ExUnitPrices :: Type
 foreign import data ExUnits :: Type
 foreign import data GeneralTransactionMetadata :: Type
 foreign import data GenesisDelegateHash :: Type
@@ -126,6 +132,7 @@ foreign import data PlutusScripts :: Type
 foreign import data PoolMetadata :: Type
 foreign import data ProposedProtocolParameterUpdates :: Type
 foreign import data ProtocolParamUpdate :: Type
+foreign import data ProtocolVersion :: Type
 foreign import data ProtocolVersions :: Type
 foreign import data PublicKey :: Type
 foreign import data Redeemer :: Type
@@ -158,7 +165,6 @@ foreign import data Vkey :: Type
 foreign import data Vkeywitness :: Type
 foreign import data Vkeywitnesses :: Type
 foreign import data Withdrawals :: Type
-foreign import data ExUnitPrices :: Type
 
 instance Show BigNum where
   show = _to_str

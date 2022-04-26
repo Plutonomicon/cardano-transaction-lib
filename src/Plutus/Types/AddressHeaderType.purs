@@ -23,12 +23,12 @@ import Data.Enum.Generic
 -- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0019#shelley-addresses
 -- | The various types of Shelley address headers described in CIP-0019.
 data AddressHeaderType
-  = PaymentKeyHash_StakeKeyHash
-  | ScriptHash_StakeKeyHash
-  | PaymentKeyHash_ScriptHash
-  | ScriptHash_ScriptHash
-  | PaymentKeyHash_Pointer
-  | ScriptHash_Pointer
+  = PaymentKeyHashStakeKeyHash
+  | ScriptHashStakeKeyHash
+  | PaymentKeyHashScriptHash
+  | ScriptHashScriptHash
+  | PaymentKeyHashPointer
+  | ScriptHashPointer
   | PaymentKeyHash
   | ScriptHash
 
@@ -45,7 +45,7 @@ instance Enum AddressHeaderType where
 
 instance Bounded AddressHeaderType where
   top = ScriptHash
-  bottom = PaymentKeyHash_StakeKeyHash
+  bottom = PaymentKeyHashStakeKeyHash
 
 instance BoundedEnum AddressHeaderType where
   cardinality = genericCardinality
