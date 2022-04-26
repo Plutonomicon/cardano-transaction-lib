@@ -16,6 +16,9 @@ import Prelude
 
 import Aeson
   ( Aeson
+  , (.:)
+  , caseAesonArray
+  , caseAesonObject
   , decodeAeson
   , getNestedAeson
   , toStringifiedNumbersJson
@@ -26,9 +29,10 @@ import Control.Monad (unlessM)
 import Data.Argonaut
   ( Json
   , JsonDecodeError
-      ( UnexpectedValue
-      , AtIndex
+      ( AtIndex
       , Named
+      , TypeMismatch
+      , UnexpectedValue
       )
   , decodeJson
   , encodeJson
@@ -36,12 +40,13 @@ import Data.Argonaut
   , stringify
   )
 import Data.Bifunctor (lmap)
-import Data.Either (Either(Left, Right), note)
+import Data.Either (Either(Left, Right), fromRight, note)
 import Data.Eq (class Eq)
 import Data.Function (const)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)
 import Data.Show (class Show)
+import Data.Traversable (traverse)
 import Data.TraversableWithIndex (forWithIndex)
 import Data.Unit (Unit, unit)
 import Serialization.Address (BlockId, Slot)
@@ -185,7 +190,6 @@ parseJsonWspResponse resp@{ methodname, result, fault } =
     decodeResponse
     result
   where
-
   toLeftWspFault :: Maybe Aeson -> Either WspFault DatumCacheResponse
   toLeftWspFault = Left <<< maybe invalidResponseError WspFault <<< map
     toStringifiedNumbersJson
@@ -196,15 +200,31 @@ parseJsonWspResponse resp@{ methodname, result, fault } =
     Just method -> case method of
       GetDatumByHash -> GetDatumByHashResponse <$>
         let
+          datumFound :: Either WspFault (Maybe PlutusData)
           datumFound =
             Just <$> liftErr
               (decodeAeson =<< getNestedAeson r [ "DatumFound", "value" ])
+
+          datumNotFound :: Either WspFault (Maybe PlutusData)
           datumNotFound =
             Nothing <$ liftErr (getNestedAeson r [ "DatumNotFound" ])
         in
           datumFound <|> datumNotFound
-      GetDatumsByHashes -> GetDatumsByHashesResponse <$>
-        liftErr (decodeAeson =<< getNestedAeson r [ "DatumsFound", "value" ])
+      GetDatumsByHashes -> liftErr $
+        let
+          decodeDatumArray :: Aeson -> Either JsonDecodeError (Array PlutusData)
+          decodeDatumArray =
+            caseAesonArray (Left $ TypeMismatch "expected array")
+              $ traverse decodeDatum
+
+          decodeDatum :: Aeson -> Either JsonDecodeError PlutusData
+          decodeDatum = caseAesonObject (Left $ TypeMismatch "expected object")
+            $ decodeAeson <=< (_ .: "value")
+        in
+          map GetDatumsByHashesResponse <<< decodeDatumArray =<< getNestedAeson
+            r
+            [ "DatumsFound", "value" ]
+
       StartFetchBlocks -> StartFetchBlocksResponse <$ decodeDoneFlag
         [ "StartedBlockFetcher" ]
         r
