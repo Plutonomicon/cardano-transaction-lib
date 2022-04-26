@@ -24,8 +24,6 @@ import Aeson
   , toStringifiedNumbersJson
   )
 import Control.Alt ((<|>))
-import Control.Applicative (unless)
-import Control.Monad (unlessM)
 import Data.Argonaut
   ( Json
   , JsonDecodeError
@@ -40,15 +38,11 @@ import Data.Argonaut
   , stringify
   )
 import Data.Bifunctor (lmap)
-import Data.Either (Either(Left, Right), fromRight, note)
-import Data.Eq (class Eq)
-import Data.Function (const)
+import Data.Either (Either(Left), note)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)
-import Data.Show (class Show)
 import Data.Traversable (traverse)
 import Data.TraversableWithIndex (forWithIndex)
-import Data.Unit (Unit, unit)
 import Serialization.Address (BlockId, Slot)
 import Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Types.Datum (DatumHash)
