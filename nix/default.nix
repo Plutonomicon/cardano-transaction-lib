@@ -160,6 +160,8 @@ let
   bundlePursProject =
     { name ? "${projectName}-bundle-" +
         (if browserRuntime then "web" else "nodejs")
+    , entrypoint ? "index.js"
+    , htmlTemplate ? "index.html"
     , main ? "Main"
     , browserRuntime ? true
     , webpackConfig ? "webpack.config.js"
@@ -176,6 +178,8 @@ let
           chmod -R +rwx .
           spago bundle-module --no-install --no-build -m "${main}" \
             --to ${bundledModuleName}
+          cp $src/${entrypoint} .
+          cp $src/${htmlTemplate} .
           cp $src/${webpackConfig} .
           mkdir ./dist
           webpack --mode=production -c ${webpackConfig} -o ./dist

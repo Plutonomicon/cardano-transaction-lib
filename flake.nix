@@ -212,6 +212,8 @@
             ctl-example-bundle-web = project.bundlePursProject {
               sources = [ "src" "examples" ];
               main = "Examples.Pkh2Pkh";
+              entrypoint = "examples/index.js";
+              htmlTemplate = "examples/index.html";
             };
           };
 
@@ -286,8 +288,7 @@
               purs-tidy check $(fd -epurs)
               fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost \
                 $(fd -ehs)
-              nixpkgs-fmt --check ./{flake,default,shell}.nix \
-                 $(fd -enix --exclude='spago*')
+              nixpkgs-fmt --check $(fd -enix --exclude='spago*')
               touch $out
             '';
         });
