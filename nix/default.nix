@@ -109,15 +109,23 @@ let
         purs
         pkgs.easy-ps.spago
       ];
-      unpackPhase = ''
-        export HOME="$TMP"
-        cp -r ${nodeModules}/lib/node_modules .
-        chmod -R u+rw node_modules
-        export NODE_PATH="$PWD/node_modules:$NODE_PATH"
-        export PATH="${nodeModules}/bin:$PATH"
-        cp -r $src/{${builtins.concatStringsSep "," sources}} .
-        install-spago-style
-      '';
+      unpackPhase =
+        let
+          srcs = builtins.concatStringsSep "," sources;
+          # for e.g. `cp -r {a,b,c}` vs `cp -r a`
+          srcsStr =
+            if builtins.length sources > 1
+            then ("{" + srcs + "}") else srcs;
+        in
+        ''
+          export HOME="$TMP"
+          cp -r ${nodeModules}/lib/node_modules .
+          chmod -R u+rw node_modules
+          export NODE_PATH="$PWD/node_modules:$NODE_PATH"
+          export PATH="${nodeModules}/bin:$PATH"
+          cp -r $src/${srcsStr} .
+          install-spago-style
+        '';
       buildPhase = ''
         build-spago-style "./**/*.purs"
       '';

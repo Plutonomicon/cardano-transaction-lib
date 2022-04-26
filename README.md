@@ -194,6 +194,9 @@ Furthermore, CTL exposes an `overlay` from its flake. You can use this in the Ni
       psProjectFor = system:
         let
           pkgs = nixpkgsFor system;
+          # This is the root of the project. Typically, this would be `self`
+          # for flakes-based projects
+          #
           # You may also want to filter this to avoid bloat or unecessary
           # rebuilds when copying the source into derivations
           src = self;
@@ -278,7 +281,7 @@ Furthermore, CTL exposes an `overlay` from its flake. You can use this in the Ni
             browserRuntime = true;
             # The path to the webpack config to use
             webpackConfig = "webpack.config.js";
-            # The module that `spago bundle-module` should write to (must 
+            # The module that `spago bundle-module` should write to (must
             # match the one that is imported in your JS entrypoint). Is
             # relative to the `src` argument provided to `purescriptProject`
             bundledModuleName = "output.js";
