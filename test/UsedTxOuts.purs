@@ -9,7 +9,6 @@ import Data.Maybe (fromJust)
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse)
 import Data.UInt (UInt)
-import Effect.Class.Console (log)
 import Mote (test, group)
 import Partial.Unsafe (unsafePartial)
 import Test.Fixtures
@@ -94,7 +93,7 @@ buildSampleTransaction =
 
 suite :: TestPlanM Unit
 suite =
-  group "UsedTxOuts api tests" do
+  group "UsedTxOuts API tests" do
 
     let
       { tx, usedTxOutRefs, unusedTxOutRefs } = buildSampleTransaction
@@ -104,59 +103,44 @@ suite =
     test "UsedTxOuts cache properly locks and unlocks tx txouts" $ do
       newUsedTxOuts >>= runReaderT do
         -- starts empty
-        log "TxOuts should start unlocked"
         anyTxOutsLocked (usedTxOutRefs <> unusedTxOutRefs) `shouldReturn` false
-
         -- lock
         lockTransactionInputs tx
-        log "All usedTxOuts should be now locked"
         allTxOutsLocked usedTxOutRefs `shouldReturn` true
-        log "None of the unused should be locked"
         anyTxOutsLocked unusedTxOutRefs `shouldReturn` false
 
         -- unlock
         unlockTransactionInputs tx
-        log "All TxOuts should be now unlocked"
         anyTxOutsLocked (usedTxOutRefs <> unusedTxOutRefs) `shouldReturn` false
 
     test "UsedTxOuts cache properly locks and unlock selected txouts" $ do
       newUsedTxOuts >>= runReaderT do
         -- starts empty
-        log "TxOuts should start unlocked"
         anyTxOutsLocked (usedTxOutRefs <> unusedTxOutRefs) `shouldReturn` false
 
         -- lock
         lockTransactionInputs tx
-        log "All usedTxOuts should be now locked"
         allTxOutsLocked usedTxOutRefs `shouldReturn` true
-        log "None of the unused should be locked"
         anyTxOutsLocked unusedTxOutRefs `shouldReturn` false
 
         -- unlock unused
         unlockTxOutRefs unusedTxOutRefs
-        log "All usedTxOuts should be now locked"
         allTxOutsLocked usedTxOutRefs `shouldReturn` true
-        log "None of the unused should be locked"
         anyTxOutsLocked unusedTxOutRefs `shouldReturn` false
 
         -- unlock used
         unlockTxOutRefs usedTxOutRefs
-        log "All txouts should be now unlocked"
         anyTxOutsLocked (usedTxOutRefs <> unusedTxOutRefs) `shouldReturn` false
 
         -- lock
         lockTransactionInputs tx
-        log "All usedTxOuts should be now locked"
         allTxOutsLocked usedTxOutRefs `shouldReturn` true
 
         -- unlock 'head'
         let { head, tail } = unsafePartial $ fromJust (uncons usedTxOutRefs)
         unlockTxOutRefs $ singleton head
         -- head unlocked
-        log "Head should be unlocked"
         isTxOutRefUsed head `shouldReturn` false
         -- tail remains locked
-        log "Trail should be locked"
         allTxOutsLocked tail `shouldReturn` true
-        log "Unused should be unlocked"
         anyTxOutsLocked unusedTxOutRefs `shouldReturn` false

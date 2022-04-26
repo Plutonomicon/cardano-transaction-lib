@@ -1,18 +1,19 @@
 module Plutus.Types.Value
   ( Value
-  , CurrencySymbol
-  , getCurrencySymbol
-  , adaSymbol
-  , mkCurrencySymbol
   , getValue
   , singleton
   , singleton'
   , valueOf
   , lovelaceValueOf
+  , symbols
   , isZero
   , negation
   , split
   , unionWith
+  , CurrencySymbol
+  , getCurrencySymbol
+  , mkCurrencySymbol
+  , adaSymbol
   ) where
 
 import Prelude
@@ -20,36 +21,31 @@ import Prelude
 import Control.Apply (lift3)
 import Data.BigInt (BigInt)
 import Data.Foldable (all)
-import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe, fromMaybe)
-import Data.Ring (negate)
-import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This), these)
 import Data.Tuple.Nested (type (/\), (/\))
+import FromData (class FromData, fromData)
+import Serialization.Hash (scriptHashFromBytes)
+import ToData (class ToData, toData)
+import Types.ByteArray (ByteArray)
+import Types.TokenName (TokenName, adaToken, mkTokenName)
 import Plutus.Types.AssocMap
   ( Map(Map)
   , singleton
   , lookup
   , keys
   , union
-  , unionWith
   , mapThese
   ) as PlutusMap
-import FromData (class FromData, fromData)
-import Serialization.Hash (scriptHashFromBytes)
-import ToData (class ToData, toData)
-import Types.ByteArray (ByteArray)
-import Types.TokenName (TokenName, adaToken, mkTokenName)
 
 type PlutusMap = PlutusMap.Map
 
 newtype Value = Value (PlutusMap CurrencySymbol (PlutusMap TokenName BigInt))
 
-derive instance Generic Value _
 derive instance Eq Value
 
 instance Show Value where
-  show = genericShow
+  show (Value mp) = "(PlutusValue" <> show mp <> ")"
 
 instance Semigroup Value where
   append = unionWith add
@@ -141,9 +137,9 @@ unionWith :: (BigInt -> BigInt -> BigInt) -> Value -> Value -> Value
 unionWith f lhs =
   Value <<< map (map (these identity identity f)) <<< unionVal lhs
   where
-  unionVal (Value lhs) (Value rhs) =
+  unionVal (Value lhs') (Value rhs) =
     these (map This) (map That) PlutusMap.union <$>
-      PlutusMap.union lhs rhs
+      PlutusMap.union lhs' rhs
 
 --------------------------------------------------------------------------------
 -- CurrencySymbol

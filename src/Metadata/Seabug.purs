@@ -14,7 +14,7 @@ import Data.Maybe (Maybe(Nothing), fromJust)
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested (type (/\), (/\))
+import Data.Tuple.Nested ((/\))
 import FromData (class FromData, fromData)
 import Metadata.Seabug.Share (Share, mkShare)
 import Partial.Unsafe (unsafePartial)
@@ -101,7 +101,6 @@ instance FromData SeabugMetadata where
       , ownerPkh
       , ownerPrice
       }
-  fromData _ = Nothing
 
 instance DecodeJson SeabugMetadata where
   decodeJson =
@@ -196,4 +195,3 @@ instance FromData SeabugMetadataDelta where
       , ownerPkh
       , ownerPrice
       }
-  fromData _ = Nothing

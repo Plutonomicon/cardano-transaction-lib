@@ -50,6 +50,7 @@ import Test.Utils (errMaybe)
 import TestM (TestPlanM)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (hexToByteArrayUnsafe)
+import Test.Fixtures (ed25519KeyHashFixture1)
 
 doesNotThrow
   :: forall (f :: Type -> Type) (a :: Type). Applicative f => a -> f a
@@ -112,13 +113,14 @@ stakeCredentialTests = test "StakeCredential tests" $ do
 baseAddressFunctionsTest :: TestPlanM Unit
 baseAddressFunctionsTest = test "BaseAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
-  baddr <- doesNotThrow $ pubKeyAddress MainnetId pkh
+  baddr <- doesNotThrow $ pubKeyAddress MainnetId pkh ed25519KeyHashFixture1
   addr <- doesNotThrow $ baseAddressToAddress baddr
   baddr2 <- errMaybe "baseAddressFromAddress failed on valid base address" $
     baseAddressFromAddress
       addr
   baddr2 `shouldEqual` baddr
-  baseAddressDelegationCred baddr `shouldEqual` keyHashCredential pkh
+  baseAddressDelegationCred baddr `shouldEqual` keyHashCredential
+    ed25519KeyHashFixture1
   baseAddressPaymentCred baddr `shouldEqual` keyHashCredential pkh
 
 rewardAddressFunctionsTest :: TestPlanM Unit

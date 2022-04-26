@@ -7,6 +7,9 @@ if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
     lib = require('@ngua/cardano-serialization-lib-nodejs');
 }
 
+const setter = prop => obj => value => () =>
+      obj['set_' + prop](value);
+
 exports.newBigNum = maybe => string => {
     try {
         return maybe.just(lib.BigNum.from_str(string));
@@ -21,8 +24,7 @@ exports.newValue = coin => () =>
 exports.newValueFromAssets = multiasset => () =>
     lib.Value.new_from_assets(multiasset);
 
-exports.valueSetCoin = value => coin => () =>
-    value.set_coin(coin);
+exports.valueSetCoin = setter('coin');
 
 exports.newTransactionInput = transaction_id => index => () =>
     lib.TransactionInput.new(transaction_id, index);
@@ -75,8 +77,7 @@ exports.insertAssets = assets => key => value => () =>
 exports.newAssetName = name => () =>
     lib.AssetName.new(name);
 
-exports.transactionOutputSetDataHash = output => hash => () =>
-    output.set_data_hash(hash);
+exports.transactionOutputSetDataHash = setter('data_hash');
 
 exports.newVkeywitnesses = () =>
     lib.Vkeywitnesses.new();
@@ -103,8 +104,7 @@ exports.publicKeyHash = pk => pk.hash();
 exports.newEd25519Signature = bech32 => () =>
     lib.Ed25519Signature.from_bech32(bech32);
 
-exports.transactionWitnessSetSetVkeys = ws => vkeys => () =>
-    ws.set_vkeys(vkeys);
+exports.transactionWitnessSetSetVkeys = setter('vkeys');
 
 exports.newPlutusScript = bytes => () =>
     lib.PlutusScript.from_bytes(bytes);
@@ -112,8 +112,7 @@ exports.newPlutusScript = bytes => () =>
 exports.newPlutusScripts = bytes => () =>
     lib.PlutusScripts.new(bytes);
 
-exports.txWitnessSetSetPlutusScripts = ws => scripts => () =>
-    ws.set_plutus_scripts(scripts);
+exports.txWitnessSetSetPlutusScripts = setter('plutus_scripts');
 
 exports.addPlutusScript = scripts => script => () =>
     scripts.add(script);
@@ -150,11 +149,9 @@ exports.addRedeemer = rs => r => () =>
 exports.newScriptDataHashFromBytes = bytes => () =>
     lib.ScriptDataHash.from_bytes(bytes);
 
-exports.setTxBodyScriptDataHash = body => sdh => () =>
-    body.set_script_data_hash(sdh);
+exports.setTxBodyScriptDataHash = setter('script_data_hash');
 
-exports.setTxBodyMint = body => mint => () =>
-    body.set_mint(mint);
+exports.setTxBodyMint = setter('mint');
 
 exports.newMint = () =>
     lib.Mint.new();
@@ -190,8 +187,7 @@ exports.networkIdTestnet = () =>
 exports.networkIdMainnet = () =>
     lib.NetworkId.mainnet();
 
-exports.setTxBodyCerts = body => certs => () =>
-    body.set_certs(certs);
+exports.setTxBodyCerts = setter('certs');
 
 exports.newCertificates = () =>
     lib.Certificates.new();
@@ -229,20 +225,16 @@ exports.newGenesisKeyDelegationCertificate =
 exports.addCert = certificates => certificate => () =>
     certificates.add(certificate);
 
-exports.setTxBodyCollateral = body => inputs => () =>
-    body.set_collateral(inputs);
+exports.setTxBodyCollateral = setter('collateral');
 
-exports.setTxBodyNetworkId = body => network_id => () =>
-    body.set_network_id(network_id);
+exports.setTxBodyNetworkId = setter('network_id');
 
 exports.transactionBodySetRequiredSigners = containerHelper => body =>
     keyHashes => () =>
     body.set_required_signers(
         containerHelper.pack(lib.Ed25519KeyHashes, keyHashes));
 
-exports.transactionBodySetValidityStartInterval =
-    txBody => validityStartInterval => () =>
-    txBody.set_validity_start_interval(validityStartInterval);
+exports.transactionBodySetValidityStartInterval = setter('validity_start_interval');
 
 exports.transactionBodySetAuxiliaryDataHash = txBody => hashBytes => () =>
     txBody.set_auxiliary_data_hash(lib.AuxiliaryDataHash.from_bytes(hashBytes));
@@ -286,12 +278,83 @@ exports.newMoveInstantaneousRewardToOtherPot = pot => amount => () =>
 exports.newMoveInstantaneousRewardToStakeCreds = pot => amounts => () =>
     lib.MoveInstantaneousReward.new_to_stake_creds(pot, amounts);
 
-exports.newMIRToStakeCredentials = containerHelper => entries =>
-    () => containerHelper.packMap(
-        lib.MIRToStakeCredentials,
-        entries);
+exports.newMIRToStakeCredentials = containerHelper => entries => () =>
+    containerHelper.packMap(lib.MIRToStakeCredentials, entries);
 
 exports.newMoveInstantaneousRewardsCertificate = mir => () =>
     lib.Certificate.new_move_instantaneous_rewards_cert(
         lib.MoveInstantaneousRewardsCert.new(mir)
     );
+
+exports.newWithdrawals = containerHelper => entries => () =>
+    containerHelper.packMap(lib.Withdrawals, entries);
+
+exports.setTxBodyWithdrawals = setter('withdrawals');
+
+exports.setTxBodyUpdate = setter('update');
+
+exports.newUpdate = ppUpdates => epoch => () =>
+    lib.Update.new(ppUpdates, epoch);
+
+exports.ppuSetMinfeeA = setter('minfee_a');
+
+exports.ppuSetMinfeeB = setter('minfee_b');
+
+exports.ppuSetMaxBlockBodySize = setter('max_block_body_size');
+
+exports.ppuSetMaxTxSize = setter('max_tx_size');
+
+exports.ppuSetMaxBlockHeaderSize = setter('max_block_header_size');
+
+exports.ppuSetKeyDeposit = setter('key_deposit');
+
+exports.ppuSetPoolDeposit = setter('pool_deposit');
+
+exports.ppuSetMaxEpoch = setter('max_epoch');
+
+exports.ppuSetNOpt = setter('n_opt');
+
+exports.ppuSetPoolPledgeInfluence = setter('pool_pledge_influence');
+
+exports.ppuSetExpansionRate = setter('expansion_rate');
+
+exports.ppuSetTreasuryGrowthRate = setter('treasury_growth_rate');
+
+exports.ppuSetD = setter('d');
+
+exports.ppuSetExtraEntropyIdentity = ppu => () =>
+    ppu.set_extra_entropy(lib.Nonce.new_identity());
+
+exports.ppuSetExtraEntropyFromHash = ppu => bytes => () =>
+    ppu.set_extra_entropy(lib.Nonce.new_from_hash(bytes));
+
+exports.newProtocolVersion = major => minor => () =>
+    lib.ProtocolVersion.new(major, minor);
+
+exports.ppuSetProtocolVersion = containerHelper => ppu => versions => () =>
+    ppu.set_protocol_version(
+        containerHelper.pack(lib.ProtocolVersions, versions)
+    );
+
+exports.ppuSetMinPoolCost = setter('min_pool_cost');
+
+exports.ppuSetAdaPerUtxoByte = setter('ada_per_utxo_byte');
+
+exports.ppuSetCostModels = setter('cost_models');
+
+exports.newExUnitPrices = mem_price => step_price => () =>
+    lib.ExUnitPrices.new(mem_price, step_price);
+
+exports.ppuSetExecutionCosts = setter('execution_costs');
+
+exports.ppuSetMaxTxExUnits = setter('max_tx_ex_units');
+
+exports.ppuSetMaxBlockExUnits = setter('max_block_ex_units');
+
+exports.ppuSetMaxValueSize = setter('max_value_size');
+
+exports.newProtocolParamUpdate = () =>
+    lib.ProtocolParamUpdate.new();
+
+exports.newProposedProtocolParameterUpdates = containerHelper => kvs => () =>
+    containerHelper.packMap(lib.ProposedProtocolParameterUpdates, kvs);

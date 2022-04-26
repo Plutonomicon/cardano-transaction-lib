@@ -8,7 +8,9 @@ module QueryM.Ogmios
   , OgmiosBlockHeaderHash(..)
   , OgmiosTxOut(..)
   , OgmiosTxOutRef(..)
+  , SubmitTxR(..)
   , TxEvaluationResult(..)
+  , TxHash
   , UtxoQueryResult(..)
   , UtxoQR(..)
   , queryChainTipCall
@@ -38,8 +40,8 @@ import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
-import Data.Newtype (wrap)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
+import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern), indexOf, splitAt, uncons)
 import Data.Traversable (sequence)
@@ -102,18 +104,12 @@ type OgmiosAddress = String
 
 -- | Sends a serialized signed transaction with its full witness through the
 -- | Cardano network via Ogmios.
--- NOTE JSON doesn't support embedding raw bytes in objects. Bytes needs to be
--- encoded in either Base16 or Base64.
--- TODO Change return type to `TransactionHash`
--- see https://github.com/Plutonomicon/cardano-transaction-lib/issues/290
-submitTxCall :: JsonWspCall { txCbor :: ByteArray } TxHash
+submitTxCall :: JsonWspCall { txCbor :: ByteArray } SubmitTxR
 submitTxCall = mkOgmiosCallType
   { methodname: "SubmitTx"
   , args: { submit: _ } <<< byteArrayToHex <<< _.txCbor
   }
   Proxy
-
-type TxHash = String
 
 -- | Evaluates the execution units of scripts present in a given transaction,
 -- | without actually submitting the transaction.
@@ -137,7 +133,24 @@ mkOgmiosCallType = mkCallType
   , servicename: "ogmios"
   }
 
----------------- TX EVALUTATION QUERY RESPONSE & PARSING
+---------------- TX SUBMISSION QUERY RESPONSE & PARSING
+
+newtype SubmitTxR = SubmitTxR TxHash
+
+derive instance Generic SubmitTxR _
+derive instance Newtype SubmitTxR _
+
+instance Show SubmitTxR where
+  show = genericShow
+
+type TxHash = ByteArray
+
+instance DecodeAeson SubmitTxR where
+  decodeAeson = aesonObject $
+    \o -> getField o "SubmitSuccess" >>= flip getField "txId" >>= hexToByteArray
+      >>> maybe (Left (TypeMismatch "Expected hexstring")) (pure <<< wrap)
+
+---------------- TX EVALUATION QUERY RESPONSE & PARSING
 
 newtype TxEvaluationResult = TxEvaluationResult
   { "EvaluationResult" ::

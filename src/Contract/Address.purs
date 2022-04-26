@@ -12,6 +12,7 @@ module Contract.Address
   , module UnbalancedTransaction
   , ownPaymentPubKeyHash
   , ownPubKeyHash
+  , ownStakePubKeyHash
   ) where
 
 import Address
@@ -28,6 +29,7 @@ import QueryM
   , getWalletCollateral
   , ownPaymentPubKeyHash
   , ownPubKeyHash
+  , ownStakePubKeyHash
   ) as QueryM
 import Scripts
   ( typedValidatorBaseAddress
@@ -56,6 +58,7 @@ import Types.Aliases (Bech32String) as Bech32
 import Types.ByteArray (ByteArray) as ByteArray
 import Types.UnbalancedTransaction
   ( PubKeyHash
+  , StakePubKeyHash
   , PaymentPubKeyHash
   )
 import Types.UnbalancedTransaction
@@ -63,16 +66,15 @@ import Types.UnbalancedTransaction
   , PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
   , ScriptOutput(ScriptOutput)
-  , StakeKeyHash(StakeKeyHash)
   , StakePubKeyHash(StakePubKeyHash)
   , payPubKeyHashBaseAddress
+  , payPubKeyHashRewardAddress
   , payPubKeyHashEnterpriseAddress
   , payPubKeyRequiredSigner
   , payPubKeyVkey
   -- , pubKeyHash
   , pubKeyHashBaseAddress
   , pubKeyHashEnterpriseAddress
-  , stakeKeyHashRewardAddress
   , stakePubKeyHashRewardAddress
   ) as UnbalancedTransaction
 import Types.Transaction
@@ -103,6 +105,9 @@ ownPaymentPubKeyHash = wrapContract QueryM.ownPaymentPubKeyHash
 -- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
 ownPubKeyHash :: forall (r :: Row Type). Contract r (Maybe PubKeyHash)
 ownPubKeyHash = wrapContract QueryM.ownPubKeyHash
+
+ownStakePubKeyHash :: forall (r :: Row Type). Contract r (Maybe StakePubKeyHash)
+ownStakePubKeyHash = wrapContract QueryM.ownStakePubKeyHash
 
 -- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
 getNetworkId

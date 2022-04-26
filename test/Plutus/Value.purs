@@ -3,10 +3,10 @@ module Test.Plutus.Value (suite) where
 import Prelude
 
 import Data.Array ((..), length, zip)
-import Data.BigInt (BigInt, fromInt)
+import Data.BigInt (fromInt)
 import Data.Maybe (fromJust)
 import Data.Newtype (unwrap)
-import Data.Tuple (Tuple(Tuple), fst, snd)
+import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.Traversable (for_)
 import Mote (group, test)

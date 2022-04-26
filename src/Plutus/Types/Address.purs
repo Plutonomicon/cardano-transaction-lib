@@ -1,7 +1,6 @@
 module Plutus.Types.Address
-  ( Address
-  , AddressRecord
-  , ForeignAddress(..)
+  ( Address(Address)
+  , ForeignAddress(ForeignAddress)
   , pubKeyHashAddress
   , scriptHashAddress
   , toPubKeyHash
@@ -25,52 +24,50 @@ import Types.UnbalancedTransaction (PubKeyHash)
 import Types.Scripts (ValidatorHash)
 import Types.PlutusData (PlutusData(Constr))
 import Plutus.ToFromPlutusType (class FromPlutusType, class ToPlutusType)
+import Serialization.Address (Pointer, addressBytes, addressFromBytes)
+import Serialization.Address (Address) as Foreign
 import Types.ByteArray
   ( ByteArray
   , byteArrayFromIntArray
   , byteArrayFromIntArrayUnsafe
   , byteArrayToIntArray
   )
-import Serialization.Address (Pointer, addressBytes, addressFromBytes)
-import Serialization.Address (Address) as Foreign
 import Serialization.Hash
   ( ed25519KeyHashFromBytes
   , ed25519KeyHashToBytes
   , scriptHashFromBytes
   , scriptHashToBytes
   )
+import Plutus.Types.Credential
+  ( Credential(PubKeyCredential, ScriptCredential)
+  , StakingCredential(StakingHash, StakingPtr)
+  )
 import Plutus.Types.AddressHeaderType
   ( AddressHeaderType
-      ( PaymentKeyHash_StakeKeyHash
-      , ScriptHash_StakeKeyHash
-      , PaymentKeyHash_ScriptHash
-      , ScriptHash_ScriptHash
-      , PaymentKeyHash_Pointer
-      , ScriptHash_Pointer
+      ( PaymentKeyHashStakeKeyHash
+      , ScriptHashStakeKeyHash
+      , PaymentKeyHashScriptHash
+      , ScriptHashScriptHash
+      , PaymentKeyHashPointer
+      , ScriptHashPointer
       , PaymentKeyHash
       , ScriptHash
       )
   , addrHeaderType
   , addrHeaderTypeUInt
   )
-import Plutus.Types.Credential
-  ( Credential(PubKeyCredential, ScriptCredential)
-  , StakingCredential(StakingHash, StakingPtr)
-  )
 
 --------------------------------------------------------------------------------
 -- Address
 --------------------------------------------------------------------------------
 
-type AddressRecord =
-  { addressCredential :: Credential
-  , addressStakingCredential :: Maybe StakingCredential
-  }
-
 -- Taken from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/Plutus-V1-Ledger-Tx.html#t:Address
 -- Plutus rev: dbefda30be6490c758aa88b600f5874f12712b3a
 -- | Address with two kinds of credentials, normal and staking.
-newtype Address = Address AddressRecord
+newtype Address = Address
+  { addressCredential :: Credential
+  , addressStakingCredential :: Maybe StakingCredential
+  }
 
 derive instance Eq Address
 derive instance Ord Address
@@ -147,42 +144,42 @@ instance FromPlutusType Maybe Address ForeignAddress where
       -- %b0000 | network tag | key hash | key hash
       PubKeyCredential pkh, Just (StakingHash (PubKeyCredential skh)) ->
         addressFromBytes $
-          addrHeader PaymentKeyHash_StakeKeyHash
+          addrHeader PaymentKeyHashStakeKeyHash
             <> ed25519KeyHashToBytes (unwrap pkh)
             <> ed25519KeyHashToBytes (unwrap skh)
 
       -- %b0001 | network tag | script hash | key hash
       ScriptCredential sh, Just (StakingHash (PubKeyCredential skh)) ->
         addressFromBytes $
-          addrHeader ScriptHash_StakeKeyHash
+          addrHeader ScriptHashStakeKeyHash
             <> scriptHashToBytes (unwrap sh)
             <> ed25519KeyHashToBytes (unwrap skh)
 
       -- %b0010 | network tag | key hash | script hash
       PubKeyCredential pkh, Just (StakingHash (ScriptCredential sh)) ->
         addressFromBytes $
-          addrHeader PaymentKeyHash_ScriptHash
+          addrHeader PaymentKeyHashScriptHash
             <> ed25519KeyHashToBytes (unwrap pkh)
             <> scriptHashToBytes (unwrap sh)
 
       -- %b0011 | network tag | script hash | script hash
       ScriptCredential sh, Just (StakingHash (ScriptCredential sh')) ->
         addressFromBytes $
-          addrHeader ScriptHash_ScriptHash
+          addrHeader ScriptHashScriptHash
             <> scriptHashToBytes (unwrap sh)
             <> scriptHashToBytes (unwrap sh')
 
       -- %b0100 | network tag | key hash | pointer
       PubKeyCredential pkh, Just (StakingPtr ptr) ->
         addressFromBytes $
-          addrHeader PaymentKeyHash_Pointer
+          addrHeader PaymentKeyHashPointer
             <> ed25519KeyHashToBytes (unwrap pkh)
             <> pointerToBytes ptr
 
       -- %b0101 | network tag | script hash | pointer
       ScriptCredential sh, Just (StakingPtr ptr) ->
         addressFromBytes $
-          addrHeader ScriptHash_Pointer
+          addrHeader ScriptHashPointer
             <> scriptHashToBytes (unwrap sh)
             <> pointerToBytes ptr
 
@@ -198,7 +195,10 @@ instance FromPlutusType Maybe Address ForeignAddress where
           addrHeader ScriptHash
             <> scriptHashToBytes (unwrap sh)
     where
-    rec :: AddressRecord
+    rec
+      :: { addressCredential :: Credential
+         , addressStakingCredential :: Maybe StakingCredential
+         }
     rec = unwrap addrPlutus
 
     -- | Encodes the address type along with the network tag (%b0001 - Mainnet)
@@ -246,31 +246,31 @@ instance ToPlutusType Maybe ForeignAddress Address where
     addrType >>= addrHeaderType >>= \addrType' ->
       case addrType' of
         -- %b0000 | network tag | key hash | key hash
-        PaymentKeyHash_StakeKeyHash ->
+        PaymentKeyHashStakeKeyHash ->
           buildAddress pubKeyCredential $ Just $
             map StakingHash <<< pubKeyCredential
 
         -- %b0001 | network tag | script hash | key hash
-        ScriptHash_StakeKeyHash ->
+        ScriptHashStakeKeyHash ->
           buildAddress scriptCredential $ Just $
             map StakingHash <<< pubKeyCredential
 
         -- %b0010 | network tag | key hash | script hash
-        PaymentKeyHash_ScriptHash ->
+        PaymentKeyHashScriptHash ->
           buildAddress pubKeyCredential $ Just $
             map StakingHash <<< scriptCredential
 
         -- %b0011 | network tag | script hash | script hash
-        ScriptHash_ScriptHash ->
+        ScriptHashScriptHash ->
           buildAddress scriptCredential $ Just $
             map StakingHash <<< scriptCredential
 
         -- %b0100 | network tag | key hash | pointer
-        PaymentKeyHash_Pointer ->
+        PaymentKeyHashPointer ->
           buildAddress pubKeyCredential $ Just stakingPtr
 
         -- %b0101 | network tag | script hash | pointer
-        ScriptHash_Pointer ->
+        ScriptHashPointer ->
           buildAddress scriptCredential $ Just stakingPtr
 
         -- %b0110 | network tag | key hash
@@ -316,8 +316,8 @@ instance ToPlutusType Maybe ForeignAddress Address where
         case stakingCredential of
           Nothing -> Just $
             wrap { addressCredential: c, addressStakingCredential: Nothing }
-          Just stakingCredential ->
-            delegationPartHash >>= stakingCredential >>= \sc -> Just $
+          Just stakingCred ->
+            delegationPartHash >>= stakingCred >>= \sc -> Just $
               wrap { addressCredential: c, addressStakingCredential: Just sc }
 
     stakingPtr :: ByteArray -> Maybe StakingCredential
@@ -346,7 +346,7 @@ _fromVarLengthUInt bytes acc = do
   -- Apply bit mask (128 = %b10000000) for inspecting the
   -- signal bit on the left. As long as the value of the signal bit
   -- is not zero, continue reading.
-  case (x .&. fromInt 128 == zero) of
+  case x .&. fromInt 128 == zero of
     true ->
       let
         -- Apply bit mask (127 = %b01111111) for each individual byte

@@ -100,7 +100,6 @@ import Plutus.ToFromPlutusType
 import Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
 import ToData (class ToData, toData)
 import Types.ByteArray (ByteArray, byteLength, hexToByteArray)
-import Types.PlutusData (PlutusData(List)) as PD
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Types.TokenName
   ( TokenName
@@ -398,9 +397,13 @@ instance FromPlutusType Identity PlutusValue Value where
 
 instance ToPlutusType Identity Value PlutusValue where
   toPlutusType (Value (Coin adaAmount) (NonAdaAsset nonAdaAssets)) =
-    Identity <<< PlutusValue $
-      PlutusValue.lovelaceValueOf adaAmount <> fold nonAdaValues
+    Identity $ PlutusValue (adaValue <> fold nonAdaValues)
     where
+    adaValue :: Plutus.Value
+    adaValue
+      | adaAmount == zero = mempty
+      | otherwise = PlutusValue.lovelaceValueOf adaAmount
+
     nonAdaValues :: Array Plutus.Value
     nonAdaValues =
       flip concatMap (Map.toUnfoldable nonAdaAssets) $ \(cs /\ tokens) ->
