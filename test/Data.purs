@@ -4,24 +4,10 @@ module Test.Data (suite) where
 import Prelude
 
 import ConstrIndices
-  ( class HasConstrIndices
-  , class IndexedRecField
-  , class IndexedRecFieldT
-  , S
-  , Z
-  , defaultConstrIndices
-  , fromConstr2Index
-  , getFieldIndex
-  , RList
-  , Cons'
-  , Nil'
-  , class SortRec
-  , class Sort
-  , class ToRList
-  , class Split
-  , class Merge
-  , class FromRList
-  , class RListToRow
+  ( class HasConstrIndices,
+    constrIndices,
+    defaultConstrIndices,
+    fromConstr2Index
   )
 import Contract.PlutusData (PlutusData(Constr, Integer))
 import Contract.Prelude (fromJust, traverse_, uncurry)
@@ -36,7 +22,7 @@ import Data.Show.Generic (genericShow)
 import Data.Traversable (for_)
 import Data.Tuple (Tuple)
 import Data.Tuple.Nested ((/\))
-import FromData (class FromData, class FromDataArgsRL', class FromDataArgsRL,fromData, genericFromData)
+import FromData (class FromData,  class FromDataArgsRL,fromData, genericFromData)
 import Mote (group, skip, test)
 import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary, genericArbitrary)
@@ -49,7 +35,11 @@ import Deserialization.PlutusData as PDD
 import Serialization (toBytes)
 import Serialization.PlutusData as PDS
 import Types.ByteArray (hexToByteArrayUnsafe)
+import TypeLevel.IndexedRecField (class IndexedRecField)
+import TypeLevel.Nat (Z,S,class KnownNat,natVal)
 import Untagged.Union (asOneOf)
+
+import TypeLevel.DataSchema
 
 suite :: TestPlanM Unit
 suite = do
@@ -122,8 +112,8 @@ suite = do
         fromData (toData f0') `shouldEqual` Just f0
       test "FType and FType' toData/fromData the same: F1 == F1'" do
         let
-          f1 = F1 { f1A: true, f1B: false, f1C: true }
-          f1' = F1' true false true
+          f1 = F1 { f1A: false, f1B: false, f1C: true }
+          f1' = F1' false false true
         fromData (toData f1) `shouldEqual` Just f1'
         fromData (toData f1') `shouldEqual` Just f1
       test "FType and FType' toData/fromData the same: F2 == F2'" do
@@ -206,8 +196,27 @@ data CType
   | C2 MyBigInt Boolean
   | C3 MyBigInt Boolean Boolean
 
+instance HasPlutusSchema CType (
+            "C0" := PNil @@ Z
+         :+ "C1" := PNil @@ (S Z)
+         :+ "C2" := PNil @@ (S (S Z))
+         :+ "C3" := PNil @@ (S (S (S Z)))
+         :+ PNil
+         )
+
 data DType = D0 CType MyBigInt (Maybe Boolean) | D1 DType | D2 CType
+
+instance HasPlutusSchema DType (
+             "D0" := PNil @@ Z
+          :+ "D1" := PNil @@ (S Z)
+          :+ "D2" := PNil @@ (S (S Z))
+          :+ PNil
+         )
+
 data EType = E0 DType Boolean CType
+
+instance HasPlutusSchema EType ("E0" := PNil @@ Z :+ PNil)
+
 data FType
   = F0
       { f0A :: BigInt
@@ -222,41 +231,44 @@ data FType
       , f2B :: FType
       }
 
+instance HasPlutusSchema FType (
+           "F0" := ("f0A" := BigInt @@ Z :+ PNil) @@ (S Z)
+
+        :+ "F1" := (   "f1A" := Boolean @@ Z
+                    :+ "f1B" := Boolean @@ (S Z)
+                    :+ "f1C" := Boolean @@ (S (S Z))
+                    :+ PNil)
+                @@ (Z)
+
+        :+ "F2" :=  (  "f2A" := BigInt @@ Z
+                    :+ "f2B" := FType @@ (S Z)
+                    :+ PNil)
+                @@ (S (S Z))
+
+        :+ PNil)
+
 data FType'
   = F0' BigInt
   | F1' Boolean Boolean Boolean
   | F2' BigInt FType'
 
-instance IndexedRecField FType "f0A" where
-  getFieldIndex _ _ = 0
+instance HasPlutusSchema FType' (
+             "F0'" := PNil @@ (S Z)
+          :+ "F1'" := PNil @@ Z
+          :+ "F2'" := PNil @@ (S (S Z))
+          :+ PNil)
 
-instance IndexedRecField FType "f1A" where
-  getFieldIndex _ _ = 0
+instance IndexedRecField FType "f0A" Z
 
-instance IndexedRecField FType "f1B" where
-  getFieldIndex _ _ = 1
+instance IndexedRecField FType "f1A" (S Z)
 
-instance IndexedRecField FType "f1C" where
-  getFieldIndex _ _ = 2
+instance IndexedRecField FType "f1B" (S (S Z))
 
-instance IndexedRecField FType "f2A" where
-  getFieldIndex _ _ = 0
+instance IndexedRecField FType "f1C" Z
 
-instance IndexedRecField FType "f2B" where
-  getFieldIndex _ _ = 1
+instance IndexedRecField FType "f2A" Z
 
-
-instance IndexedRecFieldT FType "f0A" Z
-
-instance IndexedRecFieldT FType "f1A" Z
-
-instance IndexedRecFieldT FType "f1B" (S Z)
-
-instance IndexedRecFieldT FType "f1C" (S (S Z))
-
-instance IndexedRecFieldT FType "f2A" Z
-
-instance IndexedRecFieldT FType "f2B" (S Z)
+instance IndexedRecField FType "f2B" (S Z)
 
 derive instance G.Generic CType _
 derive instance G.Generic DType _
@@ -346,6 +358,19 @@ data Day = Mon | Tue | Wed | Thurs | Fri | Sat | Sun
 
 derive instance G.Generic Day _
 
+type NoRec n = PNil @@ n
+
+instance HasPlutusSchema Day (
+            "Mon" := NoRec Z
+         :+ "Tue" := NoRec (S Z)
+         :+ "Wed" := NoRec (S (S Z))
+         :+ "Thurs" := NoRec (S (S (S Z)))
+         :+ "Fri" := NoRec (S (S (S (S (S Z)))))
+         :+ "Sat" := NoRec (S (S (S (S (S (S Z))))))
+         :+ "Sun" := NoRec (S (S (S (S (S (S (S Z)))))))
+         :+ PNil
+         )
+
 instance HasConstrIndices Day where
   constrIndices _ = fromConstr2Index
     (zip [ "Mon", "Tue", "Wed", "Thurs", "Fri", "Sat", "Sun" ] (0 .. 7))
@@ -360,6 +385,18 @@ data AnotherDay = AMon | ATue | AWed | AThurs | AFri | ASat | ASun
 
 derive instance G.Generic AnotherDay _
 
+instance HasPlutusSchema AnotherDay (
+            "AMon" := NoRec Z
+         :+ "ATue" := NoRec (S Z)
+         :+ "AWed" := NoRec (S (S Z))
+         :+ "AThurs" := NoRec (S (S (S Z)))
+         :+ "AFri" := NoRec (S (S (S (S (S Z)))))
+         :+ "ASat" := NoRec (S (S (S (S (S (S Z))))))
+         :+ "ASun" := NoRec (S (S (S (S (S (S (S Z)))))))
+         :+ PNil
+         )
+
+
 instance HasConstrIndices AnotherDay where
   constrIndices = defaultConstrIndices
 
@@ -372,6 +409,12 @@ instance FromData AnotherDay where
 data Tree a = Node a (Tuple (Tree a) (Tree a)) | Leaf a
 
 derive instance G.Generic (Tree a) _
+
+instance HasPlutusSchema (Tree a) (
+                        "Node" := PNil @@ Z
+                    :+  "Leaf" := PNil @@ (S Z)
+                    :+  PNil
+                      )
 
 instance HasConstrIndices (Tree a) where
   constrIndices = defaultConstrIndices

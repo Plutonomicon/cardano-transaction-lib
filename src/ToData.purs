@@ -21,7 +21,7 @@ import ConstrIndices (
 import Data.Array (cons, sortWith, reverse, snoc)
 import Data.Array as Array
 import Data.NonEmpty (NonEmpty)
-import Data.BigInt (BigInt)
+import Data.BigInt (BigInt, fromInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Foldable (class Foldable)
@@ -44,10 +44,12 @@ import Prim.TypeError (class Fail, Text)
 import Record as Record
 import TypeLevel.IndexedRecField
 import TypeLevel.Nat (Z, S, class KnownNat, natVal)
+import TypeLevel.RList
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray(ByteArray))
 import Types.PlutusData (PlutusData(Constr, Integer, List, Map, Bytes))
 
+import TypeLevel.DataSchema
 -- | Classes
 
 class ToData :: Type -> Constraint
@@ -55,30 +57,37 @@ class ToData a where
   toData :: a -> PlutusData
 
 class ToDataWithIndex :: Type -> Type -> Constraint
-class HasConstrIndices ci <= ToDataWithIndex a ci where
+class  ToDataWithIndex a ci where
   toDataWithIndex :: Proxy ci -> a -> PlutusData
 
 -- As explained in https://harry.garrood.me/blog/write-your-own-generics/ this
 -- is just a neat pattern that flattens a skewed Product of Products
-class ToDataArgs :: Type -> Type -> Constraint
-class ToDataArgs t a where
-  toDataArgs :: Proxy t -> a -> Array (PlutusData)
+class ToDataArgs :: Type -> Symbol -> Type -> Constraint
+class IsSymbol constr <= ToDataArgs t constr a where
+  toDataArgs :: Proxy t -> Proxy constr -> a -> Array (PlutusData)
 
 -- | A helper typeclass to implement `ToDataArgs` for records.
 -- Stolen from https://github.com/purescript/purescript-quickcheck/blob/v7.1.0/src/Test/QuickCheck/Arbitrary.purs#L247
-class ToDataArgsRL :: Type -> RL.RowList Type -> Row Type -> Constraint
-class ToDataArgsRL t list row | list -> row where
+class ToDataArgsRL :: forall (k :: Type). Type -> Symbol -> RL.RowList k -> Row Type -> Constraint
+class ToDataArgsRL t constr list row  | t constr list -> row where
   toDataArgsRec
-    :: forall rlproxy. Proxy t -> rlproxy list -> Record row -> Array PlutusData
+    :: Proxy t
+    -> Proxy constr
+    -> Proxy list
+    -> Record row
+    -> Array PlutusData
 
-instance ToDataArgsRL' t list row => ToDataArgsRL t list row where
-  toDataArgsRec proxy rlproxy rec = map snd <<< sortWith fst $ toDataArgsRec' proxy rlproxy rec
+instance ToDataArgsRL' t constr list row => ToDataArgsRL t constr list row where
+  toDataArgsRec proxy constr list rec = map snd <<< sortWith fst $ toDataArgsRec' proxy constr list  rec
 
-class ToDataArgsRL' :: Type ->  RL.RowList  Type -> Row Type -> Constraint
-class ToDataArgsRL' t list row | t list -> row  where
+class ToDataArgsRL' :: forall (k :: Type). Type -> Symbol -> RL.RowList k -> Row Type -> Constraint
+class ToDataArgsRL' t constr list row | t constr list -> row  where
   toDataArgsRec'
-    :: forall rlproxy. Proxy t -> rlproxy list -> Record row -> Array (Tuple Int PlutusData)
-
+    :: Proxy t
+    -> Proxy constr
+    -> Proxy list
+    -> Record row
+    -> Array (Tuple Int PlutusData)
 
 -- | ToDataWithIndex instances for Data.Generic.Rep
 
@@ -91,59 +100,68 @@ instance
   toDataWithIndex p (G.Inr x) = toDataWithIndex p x
 
 instance
-  ( IsSymbol n
-  , ToDataArgs a arg
-  , HasConstrIndices a
+  ( IsSymbol label
+  , ToDataArgs a label arg
+  , HasPlutusSchema a schema
+  , ValidPlutusSchema schema list
+  , GetIndexWithLabel label list index
+  , KnownNat index
   ) =>
-  ToDataWithIndex (G.Constructor n arg) a where
+  ToDataWithIndex (G.Constructor label arg) a where
   toDataWithIndex p (G.Constructor args) = Constr
-    (resolveIndex p (SProxy :: SProxy n))
-    (toDataArgs p args)
+    (fromInt <<< natVal $ (Proxy :: Proxy index))
+    (toDataArgs p (Proxy :: Proxy label) args)
 
 -- | ToDataArgs instances for Data.Generic.Rep
 
-instance ToDataArgs a G.NoArguments where
-  toDataArgs _ _ = []
+instance IsSymbol constr => ToDataArgs a constr G.NoArguments where
+  toDataArgs _ _ _  = []
 
-instance (ToDataArgs x (Record row)) => ToDataArgs x (G.Argument (Record row)) where
-  toDataArgs proxy (G.Argument r) = toDataArgs proxy r
-else instance ToData a => ToDataArgs x (G.Argument a) where
-  toDataArgs _ (G.Argument x) = [ toData x ]
+instance (ToDataArgs t constr (Record row)) => ToDataArgs t constr (G.Argument (Record row)) where
+  toDataArgs proxy constr (G.Argument r) = toDataArgs proxy constr r
+else instance (ToData a, IsSymbol constr) => ToDataArgs x constr (G.Argument a) where
+  toDataArgs _ _ (G.Argument x) = [ toData x ]
 
 instance
-  ( ToDataArgsRL t list row
-  , RL.RowToList row list
+  ( IsSymbol constr,
+    ToDataArgsRL t constr list row,
+    RL.RowToList row list
   ) =>
-  ToDataArgs t (Record row) where
-  toDataArgs proxy rec =  toDataArgsRec proxy (Proxy :: Proxy list) rec
+  ToDataArgs t constr (Record row) where
+  toDataArgs proxy constr  rec =  toDataArgsRec proxy constr (Proxy :: Proxy list) rec
 
-instance (ToDataArgs x a, ToDataArgs x b) => ToDataArgs x (G.Product a b) where
-  toDataArgs proxy (G.Product x y) = toDataArgs proxy x <> toDataArgs proxy y
+instance (ToDataArgs x constr a, ToDataArgs x constr b) => ToDataArgs x constr (G.Product a b) where
+  toDataArgs proxy constr (G.Product x y) = toDataArgs proxy constr x <> toDataArgs proxy constr y
 
 -- | ToDataArgsRL instances
 
-instance ToDataArgsRL' t RL.Nil ()  where
-  toDataArgsRec' _ _ _ = []
+instance ToDataArgsRL' t symbol RL.Nil ()  where
+  toDataArgsRec' _ _ _ _ = []
 else instance
   ( ToData a
-  , ToDataArgsRL' t listRest rowRest
-  , Row.Lacks key rowRest
-  , Row.Cons key a rowRest rowFull
-  , RL.RowToList rowFull (RL.Cons key a listRest)
-  , IsSymbol key
-  , IndexedRecField t key n
+  , ToDataArgsRL' t constr listRest rowRest
+  , Row.Lacks label rowRest
+  , Row.Cons label a rowRest rowFull
+  , RL.RowToList rowFull (RL.Cons label a listRest)
+  , IsSymbol label
+  , IsSymbol constr
+  , HasPlutusSchema t schema
+  , ValidPlutusSchema schema rList
+  , GetWithLabel constr rList rec
+  , GetIndexWithLabel label rec n
+  , KnownNat n
   ) =>
-  ToDataArgsRL' t (RL.Cons key a listRest) rowFull where
-  toDataArgsRec' _  _ x =
+  ToDataArgsRL' t constr (RL.Cons label a listRest) rowFull where
+  toDataArgsRec' _ constr  _ x =
     let
-      keyProxy = (Proxy :: Proxy key)
+      keyProxy = (Proxy :: Proxy label)
 
       ix = natVal (Proxy :: Proxy n)
 
       field :: a
       field = Record.get keyProxy x
     in
-      Tuple ix (toData field) `cons` toDataArgsRec' (Proxy :: Proxy t) (Proxy :: Proxy listRest)
+      Tuple ix (toData field) `cons` toDataArgsRec' (Proxy :: Proxy t) constr (Proxy :: Proxy listRest)
         (Record.delete keyProxy x)
 
 genericToData

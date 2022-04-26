@@ -77,7 +77,7 @@ import Type.Proxy (Proxy(Proxy))
 import Type.RowList as RL
 import Type.Row as R
 import Type.Data.Ordering as Ord
-import Prim.TypeError (class Fail, Text, Beside)
+
 
 class HasConstrIndices :: Type -> Constraint
 class HasConstrIndices a where

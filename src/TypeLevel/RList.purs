@@ -57,12 +57,12 @@ else instance (IndexedRecField t label n, RelabelRecFields t _xs xs)
 
 
 -- "Normal" lookup
-class GetIndexWithLabel :: forall (k :: Type). Symbol -> RList k -> k -> Constraint
+class GetIndexWithLabel :: forall (k :: Type) (n :: Type). Symbol -> RList k -> n -> Constraint
 class IsSymbol label <=  GetIndexWithLabel label list n | label list -> n
 
-instance (Fail (Text "Label does not exist in RList!"), IsSymbol label) => GetIndexWithLabel label Nil' a
 
-else instance (AllUniqueLabels (Cons' label a n xs),
+
+instance (AllUniqueLabels (Cons' label a n xs),
                UniqueIndices (Cons' label a n xs),
                IsSymbol label,
                KnownNat n) => GetIndexWithLabel label (Cons' label a n xs) n
@@ -73,12 +73,14 @@ else instance (GetIndexWithLabel label xs n,
                IsSymbol label,
                KnownNat n) => GetIndexWithLabel label (Cons' label' a' n' xs) n
 
+--else instance (Fail (Text "Label does not exist in RList!"), IsSymbol label) => GetIndexWithLabel label Nil' a
+
 -- Reverse lookup
 class GetLabelWithIndex :: forall (k :: Type) (n :: Type). n -> RList k -> Symbol -> Constraint
-class KnownNat ix <= GetLabelWithIndex ix list label | ix list -> label
+class (KnownNat ix) <= GetLabelWithIndex ix list label | ix list -> label
 
-instance (Fail (Text "Index does not exist in RList!"), KnownNat n) => GetLabelWithIndex n Nil' l
-else instance (AllUniqueLabels (Cons' label a ix xs),
+
+instance (AllUniqueLabels (Cons' label a ix xs),
                UniqueIndices (Cons' label a ix xs),
                IsSymbol label,
                KnownNat ix) => GetLabelWithIndex ix (Cons' label a ix xs) label
@@ -87,3 +89,11 @@ else instance (GetLabelWithIndex ix xs label,
                UniqueIndices (Cons' label' a' n' xs),
                IsSymbol label,
                KnownNat ix) => GetLabelWithIndex ix (Cons' label' a' n' xs) label
+--else instance (Fail (Text "Index does not exist in RList!"), KnownNat n) => GetLabelWithIndex n Nil' l
+
+
+class GetWithLabel :: forall (k :: Type). Symbol -> RList k -> k -> Constraint
+class  GetWithLabel label rlist result | label rlist -> result
+
+instance IsSymbol l => GetWithLabel l (Cons' l a n xs) a
+else instance (GetWithLabel l xs a) => GetWithLabel l (Cons' _l _a _n xs) a

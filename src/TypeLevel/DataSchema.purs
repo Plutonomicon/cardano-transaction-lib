@@ -23,6 +23,7 @@ else instance StrictlyIncreasing (Cons' k a n Nil')
 else instance (StrictlyIncreasing xs, StrictlyIncreasing (Cons' k' a' (S n) xs))
               => StrictlyIncreasing (Cons' k a n (Cons' k' a' (S n)  xs))
 
+-- ensure that all constructors and records have unique indices and labels
 class AllUnique2 :: forall (k :: Type). RList (RList k) -> Constraint
 class AllUnique2 rList
 
@@ -38,6 +39,7 @@ class ValidPlutusSchema :: forall (k :: Type). PlutusSchema k -> RList (RList k)
 class (PlutusSchemaToRList schema list, AllUnique2 list, OrderedRecIndices list) <= ValidPlutusSchema schema list | schema -> list
 instance (PlutusSchemaToRList schema list, AllUnique2 list, OrderedRecIndices list) => ValidPlutusSchema schema list
 
+-- all of this is just for ergonomics, `PlutusSchema k` is (basically) syntactic sugar for `RList (RList k)`
 
 class HasPlutusSchema :: forall (k :: Type). Type -> PlutusSchema k -> Constraint
 class HasPlutusSchema t schema  | t -> schema
@@ -82,6 +84,7 @@ instance PlutusSchemaToRList PNil Nil'
 else instance (PlutusSchemaToRList xs xs', SchemaToRList a a', KnownNat n, IsSymbol l) => PlutusSchemaToRList (PCons (MkField l (MkIxK a n)) xs) (Cons' l a' n xs')
 
 
+-- example, remove later
 data Foo
   = F0
       { f0A :: String

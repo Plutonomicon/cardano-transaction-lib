@@ -54,6 +54,9 @@ import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Bytes, Constr, List, Map, Integer))
 
+
+import TypeLevel.DataSchema
+
 -- | Errors
 data FromDataError
   = ArgsWantedButGot Int (Array PlutusData)
@@ -76,10 +79,11 @@ class HasConstrIndices ci <= FromDataWithIndex a ci where
     :: Proxy a -> Proxy ci -> PlutusData -> Maybe a
 
 -- NOTE: Using the 'parser' approach as in https://github.com/purescript-contrib/purescript-argonaut-generic/blob/3ae9622814fd3f3f06fa8e5e58fd58d2ef256b91/src/Data/Argonaut/Decode/Generic.purs
-class FromDataArgs :: Type -> Type -> Constraint
-class FromDataArgs t a where
+class FromDataArgs :: Type -> Symbol -> Type -> Constraint
+class FromDataArgs t c a where
   fromDataArgs
     :: Proxy t
+    -> Proxy c
     -> Array PlutusData
     -> Either FromDataError { head :: a, tail :: Array PlutusData }
 
@@ -91,11 +95,12 @@ class FromDataArgs t a where
 -- typelevel list contains a nat which represents the position of that element in PlutusData. (See ConstrIndices.purs)
 -}
 
-class FromDataArgsRL :: Type -> RList Type -> Row Type -> Constraint
-class FromDataArgsRL t list row  | t list -> row where
+class FromDataArgsRL :: Type -> Symbol -> RList Type -> Row Type -> Constraint
+class FromDataArgsRL t constr list row  | t constr list -> row where
   fromDataArgsRec
     :: forall (rlproxy :: RList Type -> Type)
      . Proxy t
+    -> Proxy constr
     -> rlproxy list
     -> Array PlutusData
     -> Either FromDataError { head :: Record row, tail :: Array PlutusData }
@@ -115,7 +120,7 @@ instance
 instance
   ( IsSymbol n
   , HasConstrIndices a
-  , FromDataArgs a arg
+  , FromDataArgs a n arg
   ) =>
   FromDataWithIndex (G.Constructor n arg) a where
   fromDataWithIndex _ pci (Constr i pdArgs) = do
@@ -124,7 +129,7 @@ instance
     let rn = reflectSymbol (Proxy :: Proxy n)
     -- TODO: Add err reporting to FromDataWithIndex
     guard $ cn == rn
-    { head: repArgs, tail: pdArgs' } <- hush $ fromDataArgs (Proxy :: Proxy a) pdArgs
+    { head: repArgs, tail: pdArgs' } <- hush $ fromDataArgs (Proxy :: Proxy a) (Proxy :: Proxy n) pdArgs
     guard $ pdArgs' == []
     pure $ G.Constructor repArgs
   fromDataWithIndex _ _ _ = Nothing
@@ -141,54 +146,52 @@ instance
 
 -- | FromDataArgs instance for Data.Generic.Rep
 
-instance FromDataArgs t (G.NoArguments) where
-  fromDataArgs _ [] = Right { head: G.NoArguments, tail: [] }
-  fromDataArgs _ pdArgs = Left $ ArgsWantedButGot 0 pdArgs
+instance FromDataArgs t c (G.NoArguments) where
+  fromDataArgs _ _ [] = Right { head: G.NoArguments, tail: [] }
+  fromDataArgs _ _ pdArgs = Left $ ArgsWantedButGot 0 pdArgs
 
 instance
-  ( FromDataArgsRL t rList row
-  , RL.RowToList row rowList
-  , ToRList t rowList rListUnsorted
-  , Sort t rListUnsorted rList
-  , IsSorted rList
+  ( FromDataArgsRL t constr rList row,
+    HasPlutusSchema t schema,
+    ValidPlutusSchema schema rrList,
+    GetWithLabel constr rrList rList
   ) =>
-  FromDataArgs t (G.Argument (Record row)) where
-  fromDataArgs _ pdArgs = do
-    { head, tail } <- fromDataArgsRec (Proxy :: Proxy t) (Proxy :: Proxy rList) pdArgs
+  FromDataArgs t constr (G.Argument (Record row)) where
+  fromDataArgs _ constr pdArgs = do
+    { head, tail } <- fromDataArgsRec (Proxy :: Proxy t) (Proxy :: Proxy constr) (Proxy :: Proxy rList) pdArgs
     pure { head: G.Argument head, tail }
-else instance (FromData a) => FromDataArgs t (G.Argument a) where
-  fromDataArgs _ pdArgs = do
+else instance (FromData a) => FromDataArgs t constr (G.Argument a) where
+  fromDataArgs _ _ pdArgs = do
     { head: pd, tail: pds } <- note (ArgsWantedButGot 1 pdArgs) $ uncons pdArgs
     repArg <- note (FromDataFailed pd) $ fromData pd
     pure $ { head: G.Argument repArg, tail: pds }
 
-instance (FromDataArgs t a, FromDataArgs t b) => FromDataArgs t (G.Product a b) where
-  fromDataArgs _ pdArgs = do
-    { head: repFst, tail: pdArgs' } <- fromDataArgs (Proxy :: Proxy t) pdArgs
-    { head: repSnd, tail: pdArgs'' } <- fromDataArgs (Proxy :: Proxy t) pdArgs'
+instance (FromDataArgs t c a, FromDataArgs t c b) => FromDataArgs t c (G.Product a b) where
+  fromDataArgs _ constr pdArgs = do
+    { head: repFst, tail: pdArgs' } <- fromDataArgs (Proxy :: Proxy t)  (Proxy :: Proxy c) pdArgs
+    { head: repSnd, tail: pdArgs'' } <- fromDataArgs (Proxy :: Proxy t)  (Proxy :: Proxy c) pdArgs'
     pure $ { head: G.Product repFst repSnd, tail: pdArgs'' }
 
 -- | FromDataArgsRL instances
 
-instance FromDataArgsRL t Nil' ()  where
-  fromDataArgsRec _ _ [] = Right { head: {}, tail: [] }
-  fromDataArgsRec _ _ pdArgs = Left $ ArgsWantedButGot 0 pdArgs
+instance FromDataArgsRL t c Nil' ()  where
+  fromDataArgsRec _ _ _ [] = Right { head: {}, tail: [] }
+  fromDataArgsRec _ _ _ pdArgs = Left $ ArgsWantedButGot 0 pdArgs
 instance
   ( FromData a
-  , FromDataArgsRL t rListRest rowRest
+  , FromDataArgsRL t constr rListRest rowRest
   , Row.Lacks key rowRest
   , Row.Cons key a rowRest rowFull
- -- , RowToRList t rowFull rListUnsorted
  -- , Sort t rListUnsorted (Cons' key a n rListRest)
   , IsSymbol key
   ) =>
-  FromDataArgsRL t (Cons' key a n rListRest) rowFull where
-  fromDataArgsRec _ _ pdArgs = do
+  FromDataArgsRL t constr (Cons' key a n rListRest) rowFull where
+  fromDataArgsRec _ _ _ pdArgs = do
     let keyProxy = Proxy :: Proxy key
     { head: pdArg, tail: pdArgs' } <- note (ArgsWantedButGot 1 pdArgs) $ uncons
       pdArgs
     field <- note (FromDataFailed pdArg) $ fromData pdArg
-    { head: rec, tail: pdArgs'' } <- fromDataArgsRec (Proxy :: Proxy t) (Proxy :: Proxy rListRest)
+    { head: rec, tail: pdArgs'' } <- fromDataArgsRec (Proxy :: Proxy t) (Proxy :: Proxy constr) (Proxy :: Proxy rListRest)
       pdArgs'
     pure $
       { head: (Record.insert keyProxy field rec)
