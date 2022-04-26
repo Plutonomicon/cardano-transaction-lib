@@ -1,7 +1,7 @@
 module ToData
   ( class ToData
   , class ToDataArgs
-  , class ToDataWithIndex
+  , class ToDataWithSchema
   , class ToDataArgsRL
   , class ToDataArgsRL'
   , genericToData
@@ -9,15 +9,11 @@ module ToData
   , toDataArgsRec'
   , toData
   , toDataArgs
-  , toDataWithIndex
+  , toDataWithSchema
   ) where
 
 import Prelude
 
-import ConstrIndices (
-  class HasConstrIndices,
-  constrIndices
-  )
 import Data.Array (cons, sortWith, reverse, snoc)
 import Data.Array as Array
 import Data.NonEmpty (NonEmpty)
@@ -56,9 +52,10 @@ class ToData :: Type -> Constraint
 class ToData a where
   toData :: a -> PlutusData
 
-class ToDataWithIndex :: Type -> Type -> Constraint
-class  ToDataWithIndex a ci where
-  toDataWithIndex :: Proxy ci -> a -> PlutusData
+
+class ToDataWithSchema :: Type -> Type -> Constraint
+class  ToDataWithSchema t a where
+  toDataWithSchema :: Proxy t -> a -> PlutusData
 
 -- As explained in https://harry.garrood.me/blog/write-your-own-generics/ this
 -- is just a neat pattern that flattens a skewed Product of Products
@@ -92,25 +89,25 @@ class ToDataArgsRL' t constr list row | t constr list -> row  where
 -- | ToDataWithIndex instances for Data.Generic.Rep
 
 instance
-  ( ToDataWithIndex l a
-  , ToDataWithIndex r a
+  ( ToDataWithSchema t l
+  , ToDataWithSchema t r
   ) =>
-  ToDataWithIndex (G.Sum l r) a where
-  toDataWithIndex p (G.Inl x) = toDataWithIndex p x
-  toDataWithIndex p (G.Inr x) = toDataWithIndex p x
+  ToDataWithSchema t (G.Sum l r)  where
+    toDataWithSchema p (G.Inl x) = toDataWithSchema p x
+    toDataWithSchema p (G.Inr x) = toDataWithSchema p x
 
 instance
-  ( IsSymbol label
-  , ToDataArgs a label arg
-  , HasPlutusSchema a schema
+  ( IsSymbol constr
+  , ToDataArgs t constr arg
+  , HasPlutusSchema t schema
   , ValidPlutusSchema schema list
-  , GetIndexWithLabel label list index
+  , GetIndexWithLabel constr list index
   , KnownNat index
   ) =>
-  ToDataWithIndex (G.Constructor label arg) a where
-  toDataWithIndex p (G.Constructor args) = Constr
+  ToDataWithSchema t (G.Constructor constr arg)  where
+  toDataWithSchema p (G.Constructor args) = Constr
     (fromInt <<< natVal $ (Proxy :: Proxy index))
-    (toDataArgs p (Proxy :: Proxy label) args)
+    (toDataArgs p (Proxy :: Proxy constr) args)
 
 -- | ToDataArgs instances for Data.Generic.Rep
 
@@ -165,13 +162,14 @@ else instance
         (Record.delete keyProxy x)
 
 genericToData
-  :: forall (a :: Type) (rep :: Type)
-   . G.Generic a rep
-  => ToDataWithIndex rep a
-  => a
+  :: forall (t :: Type) (rep :: Type)
+   . G.Generic t rep
+  => ToDataWithSchema t rep
+  => t
   -> PlutusData
-genericToData = toDataWithIndex (Proxy :: Proxy a) <<< G.from
+genericToData = toDataWithSchema (Proxy :: Proxy t) <<< G.from
 
+{-
 resolveIndex
   :: forall (a :: Type) (s :: Symbol)
    . HasConstrIndices a
@@ -187,7 +185,7 @@ resolveIndex pa sps =
     case Map.lookup cn c2i of
       Just i -> BigInt.fromInt i
       Nothing -> negate one -- TODO: We should report here
-
+-}
 -- | Base ToData instances
 
 instance ToData Void where

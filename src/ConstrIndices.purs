@@ -53,15 +53,7 @@
 -- | instance HasConstrIndices Foo where
 -- |   constrIndices = defaultConstrIndices
 -- | ```
-module ConstrIndices
-  ( class HasConstrIndices
-  , class HasCountedConstrIndices
---  , Foo(..)
-  , constrIndices
-  , countedConstrIndices
-  , defaultConstrIndices
-  , fromConstr2Index
-  ) where
+module ConstrIndices  where
 
 import Prelude hiding (Ordering(..))
 import Data.Show.Generic
@@ -78,7 +70,7 @@ import Type.RowList as RL
 import Type.Row as R
 import Type.Data.Ordering as Ord
 
-
+{-
 class HasConstrIndices :: Type -> Constraint
 class HasConstrIndices a where
   constrIndices :: Proxy a -> Tuple (Map String Int) (Map Int String)
@@ -120,7 +112,7 @@ fromConstr2Index
 fromConstr2Index c2Is = Tuple
   (Map.fromFoldable c2Is)
   (Map.fromFoldable $ swap <$> c2Is)
-
+-}
 {-
 class IsPlutusData :: forall (k :: Type). Type -> RList (RList k) -> Constraint
 class IsSorted2 list <= IsPlutusData t list

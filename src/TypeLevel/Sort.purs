@@ -2,9 +2,7 @@ module TypeLevel.Sort (
   class Sort,
   class Split,
   class Merge,
-  class RowToRList,
-  class IsSorted,
-  class IsSorted2
+  class RowToRList
   ) where
 
 import TypeLevel.RList
@@ -60,19 +58,3 @@ class RowToRList :: forall (k :: Type). Type -> Row k -> RList k -> Constraint
 class RowToRList t row rList | t row -> rList
 
 instance (RL.RowToList row rowList, ToRList t rowList rList) => RowToRList t row rList
-
-class IsSorted2 :: forall (k :: Type). RList (RList k) -> Constraint
-class IsSorted2 rlist
-
-instance IsSorted2 Nil'
-else instance IsSorted a => IsSorted2 (Cons' k a n Nil')
-else instance (IsSorted a, IsSorted a', IsSorted2 xs, LTE n n', IsSorted2 (Cons' k' a' n' xs))
-              => IsSorted2 (Cons' k a n (Cons' k' a' n' xs))
-
--- for debugging
-class IsSorted :: forall (k :: Type). RList k -> Constraint
-class IsSorted rList
-
-instance IsSorted Nil'
-else instance IsSorted (Cons' k a n Nil')
-else instance (IsSorted xs, IsSorted (Cons' k' a' n' xs), LTE n n') => IsSorted (Cons' k a n (Cons' k' a' n'  xs))

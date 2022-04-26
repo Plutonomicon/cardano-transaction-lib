@@ -5,20 +5,17 @@ module FromData
 
   , class FromDataArgsRL
  -- , class FromDataArgsRL'
-  , class FromDataWithIndex
+  , class FromDataWithSchema
   , fromData
   , fromDataArgs
   , fromDataArgsRec
  -- , fromDataArgsRec'
-  , fromDataWithIndex
+  , fromDataWithSchema
   , genericFromData
   ) where
 
 import Prelude
 
-import ConstrIndices (
-  class HasConstrIndices,
-  constrIndices)
 import Data.Show.Generic (genericShow)
 import Control.Alternative ((<|>), guard)
 import Data.Array (uncons, sortWith)
@@ -57,6 +54,7 @@ import Types.PlutusData (PlutusData(Bytes, Constr, List, Map, Integer))
 
 import TypeLevel.DataSchema
 
+
 -- | Errors
 data FromDataError
   = ArgsWantedButGot Int (Array PlutusData)
@@ -73,10 +71,10 @@ class FromData :: Type -> Constraint
 class FromData a where
   fromData :: PlutusData -> Maybe a
 
-class FromDataWithIndex :: Type -> Type -> Constraint
-class HasConstrIndices ci <= FromDataWithIndex a ci where
-  fromDataWithIndex
-    :: Proxy a -> Proxy ci -> PlutusData -> Maybe a
+class FromDataWithSchema :: Type -> Type -> Constraint
+class FromDataWithSchema t a where
+  fromDataWithSchema
+    :: Proxy t -> Proxy a -> PlutusData -> Maybe a
 
 -- NOTE: Using the 'parser' approach as in https://github.com/purescript-contrib/purescript-argonaut-generic/blob/3ae9622814fd3f3f06fa8e5e58fd58d2ef256b91/src/Data/Argonaut/Decode/Generic.purs
 class FromDataArgs :: Type -> Symbol -> Type -> Constraint
@@ -109,39 +107,39 @@ class FromDataArgsRL t constr list row  | t constr list -> row where
 -- See https://purescript-simple-json.readthedocs.io/en/latest/generics-rep.html
 
 instance
-  ( FromDataWithIndex l a
-  , FromDataWithIndex r a
+  ( FromDataWithSchema t l
+  , FromDataWithSchema t r
   ) =>
-  FromDataWithIndex (G.Sum l r) a where
-  fromDataWithIndex _ pci pd =
-    G.Inl <$> fromDataWithIndex (Proxy :: Proxy l) (Proxy :: Proxy a) pd
-      <|> G.Inr <$> fromDataWithIndex (Proxy :: Proxy r) (Proxy :: Proxy a) pd
+  FromDataWithSchema t (G.Sum l r)  where
+  fromDataWithSchema _ pci pd =
+    G.Inl <$> fromDataWithSchema (Proxy :: Proxy t) (Proxy :: Proxy l) pd
+      <|> G.Inr <$> fromDataWithSchema (Proxy :: Proxy t) (Proxy :: Proxy r) pd
 
-instance
-  ( IsSymbol n
-  , HasConstrIndices a
-  , FromDataArgs a n arg
+else instance
+  ( IsSymbol constr
+  , HasPlutusSchema t schema
+  , ValidPlutusSchema schema rList
+  , GetIndexWithLabel constr rList ix
+  , FromDataArgs t constr args
+  , KnownNat ix
   ) =>
-  FromDataWithIndex (G.Constructor n arg) a where
-  fromDataWithIndex _ pci (Constr i pdArgs) = do
+  FromDataWithSchema t (G.Constructor constr args) where
+  fromDataWithSchema _ _ (Constr i pdArgs) = do
     ix <- BigInt.toInt i
-    cn <- resolveConstr pci ix
-    let rn = reflectSymbol (Proxy :: Proxy n)
     -- TODO: Add err reporting to FromDataWithIndex
-    guard $ cn == rn
-    { head: repArgs, tail: pdArgs' } <- hush $ fromDataArgs (Proxy :: Proxy a) (Proxy :: Proxy n) pdArgs
+    guard $ natVal (Proxy :: Proxy ix) == ix
+    { head: repArgs, tail: pdArgs' } <- hush $ fromDataArgs (Proxy :: Proxy t) (Proxy :: Proxy constr) pdArgs
     guard $ pdArgs' == []
     pure $ G.Constructor repArgs
-  fromDataWithIndex _ _ _ = Nothing
+  fromDataWithSchema _ _ _ = Nothing
 
-instance
-  ( HasConstrIndices ci
-  , FromDataWithIndex a ci
+else instance
+  ( FromDataWithSchema t a
   ) =>
-  FromDataWithIndex (G.Argument a) ci where
-  fromDataWithIndex _ pci pd = G.Argument <$> fromDataWithIndex
+  FromDataWithSchema t (G.Argument a)  where
+  fromDataWithSchema  _ _ pd = G.Argument <$> fromDataWithSchema
+    (Proxy :: Proxy t)
     (Proxy :: Proxy a)
-    (Proxy :: Proxy ci)
     pd
 
 -- | FromDataArgs instance for Data.Generic.Rep
@@ -199,19 +197,19 @@ instance
       }
 
 genericFromData
-  :: forall (a :: Type) (rep :: Type)
-   . G.Generic a rep
-  => FromDataWithIndex rep a
+  :: forall (t :: Type) (rep :: Type)
+   . G.Generic t rep
+  => FromDataWithSchema t rep
   => PlutusData
-  -> Maybe a
-genericFromData pd = G.to <$> fromDataWithIndex (Proxy :: Proxy rep)
-  (Proxy :: Proxy a)
+  -> Maybe t
+genericFromData pd = G.to <$> fromDataWithSchema (Proxy :: Proxy t)
+  (Proxy :: Proxy rep)
   pd
-
+{-
 resolveConstr
   :: forall (a :: Type). HasConstrIndices a => Proxy a -> Int -> Maybe String
 resolveConstr pa i = let Tuple _ i2c = constrIndices pa in Map.lookup i i2c
-
+-}
 -- | Base FromData instances
 
 instance FromData Void where
