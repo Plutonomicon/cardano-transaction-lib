@@ -16,23 +16,8 @@ import Prelude
 
 import ConstrIndices (
   class HasConstrIndices,
-  constrIndices,
-  class IndexedRecField,
-  getFieldIndex,
-  class IndexedRecFieldT,
-  RList,
-  Cons',
-  Nil',
-  class Sort,
-  class ToRList,
-  class Split,
-  class Merge,
-  class RowToRList,
-  class FromRList,
-  Z,
-  S,
-  class KnownNat,
-  natVal)
+  constrIndices
+  )
 import Data.Array (cons, sortWith, reverse, snoc)
 import Data.Array as Array
 import Data.NonEmpty (NonEmpty)
@@ -57,6 +42,8 @@ import Prim.Row as Row
 import Type.RowList as RL
 import Prim.TypeError (class Fail, Text)
 import Record as Record
+import TypeLevel.IndexedRecField
+import TypeLevel.Nat (Z, S, class KnownNat, natVal)
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray(ByteArray))
 import Types.PlutusData (PlutusData(Constr, Integer, List, Map, Bytes))
@@ -144,7 +131,7 @@ else instance
   , Row.Cons key a rowRest rowFull
   , RL.RowToList rowFull (RL.Cons key a listRest)
   , IsSymbol key
-  , IndexedRecFieldT t key n
+  , IndexedRecField t key n
   ) =>
   ToDataArgsRL' t (RL.Cons key a listRest) rowFull where
   toDataArgsRec' _  _ x =

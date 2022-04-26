@@ -56,32 +56,17 @@
 module ConstrIndices
   ( class HasConstrIndices
   , class HasCountedConstrIndices
-  , class IndexedRecField
-  , class IndexedRecFieldT
-  , RList
-  , Cons'
-  , Nil'
-  , S
-  , Z
-  , class ToRList
-  , class Split
-  , class Merge
-  , class IsSorted
-  , class Sort
-  , class KnownNat
-  , class RowToRList
-  , class FromRList
-  , class LTE
-  , natVal
+--  , Foo(..)
   , constrIndices
   , countedConstrIndices
-  , getFieldIndex
   , defaultConstrIndices
   , fromConstr2Index
   ) where
 
 import Prelude hiding (Ordering(..))
-
+import Data.Show.Generic
+import Data.Generic.Rep (class Generic)
+import Data.Semigroup
 import Prim.Ordering
 import Data.Generic.Rep as G
 import Data.Map (Map)
@@ -92,6 +77,7 @@ import Type.Proxy (Proxy(Proxy))
 import Type.RowList as RL
 import Type.Row as R
 import Type.Data.Ordering as Ord
+import Prim.TypeError (class Fail, Text, Beside)
 
 class HasConstrIndices :: Type -> Constraint
 class HasConstrIndices a where
@@ -135,112 +121,48 @@ fromConstr2Index c2Is = Tuple
   (Map.fromFoldable c2Is)
   (Map.fromFoldable $ swap <$> c2Is)
 
-class (IsSymbol s) <= IndexedRecField (t :: Type) s where
-  getFieldIndex :: Proxy t -> SProxy s -> Int
-
-data Z
-
-data S n
-
-class (IsSymbol s, KnownNat n) <= IndexedRecFieldT (t :: Type) s n | t s -> n
-
-class KnownNat n where
-  natVal :: Proxy n -> Int
-
-instance KnownNat Z where
-  natVal _ = 0
-
-instance KnownNat n => KnownNat (S n) where
-  natVal _ = 1 + natVal (Proxy :: Proxy n)
-
--- a kind for UNORDERED RowLists which contain a Nat representation of their intended position in a
--- non-lexicographic order. Actual RowLists are automagically ordered lexicographically so we need this
-data RList k
-
-foreign import data Cons' :: forall (k :: Type) (nat :: Type). Symbol -> k -> nat ->  RList k -> RList k
-foreign import data Nil'  :: forall (k :: Type). RList k
-
--- | We convert from a RowList to a RList using the IndexedRecFieldT instances of t
-class ToRList :: forall (k :: Type). Type -> RL.RowList k -> RList k -> Constraint
-class ToRList t rowList rList | t rowList -> rList
-
-instance ToRList t RL.Nil Nil'
-instance (ToRList t as as', IndexedRecFieldT t key n) => ToRList t (RL.Cons key a as) (Cons' key a n as')
-
-class FromRList :: forall (k :: Type). RList k -> RL.RowList k -> Constraint
-class FromRList rList rowList | rList -> rowList, rowList -> rList
-
-instance FromRList Nil' RL.Nil
-else instance (FromRList as' as) => FromRList (Cons' key a n as') (RL.Cons key a as)
-
--- for debugging
-class IsSorted :: forall (k :: Type). RList k -> Constraint
-class IsSorted rList
-
-instance IsSorted Nil'
-else instance IsSorted (Cons' k a n Nil')
-else instance (IsSorted xs, IsSorted (Cons' k' a' n' xs), LTE n n') => IsSorted (Cons' k a n (Cons' k' a' n' xs))
-
-class LTE :: Type -> Type -> Constraint
-class (KnownNat n1, KnownNat n2) <= LTE n1 n2
+{-
+class IsPlutusData :: forall (k :: Type). Type -> RList (RList k) -> Constraint
+class IsSorted2 list <= IsPlutusData t list
 
 
-instance KnownNat x => LTE Z x
-else instance LTE Z Z
-else instance (KnownNat nl, KnownNat nr) => LTE (S nl) (S nr)
 
 
--- Sorts an RList using the IndexedRecFieldT instances of t.
--- This is basically mergesort but we use pattern matching instead of a compare function for the merging
-class Sort :: forall (k :: Type). Type -> RList k -> RList k -> Constraint
-class Sort t rList result | t rList -> result
 
-instance Sort t Nil' Nil'
-else instance Sort t (Cons' key a nA Nil') (Cons' key a nA Nil')
-else instance (Split xs ls rs, Sort t ls ls', Sort t rs rs', Merge t ls' rs' merged)
-              =>  Sort t xs merged
 
--- Divides a RList in half. We use a "Prolog style" split instead of Length/SplitAt for simplicity
-class Split :: forall (k :: Type). RList k ->  (RList k) -> (RList k) -> Constraint
-class Split k resultL resultR | k -> resultL, k -> resultR
 
-instance Split  Nil'  Nil' Nil'
-else instance Split (Cons' key a nA Nil')  (Cons' key a nA Nil') Nil'
-else instance Split rest as bs => Split (Cons' keyA a nA (Cons' keyB b nB rest)) (Cons' keyA a nA as) (Cons' keyB b nB bs)
 
--- Combines two sorted RLists into one sorted RList (hopefully!)
-class Merge :: forall (k :: Type). Type -> (RList k) ->  (RList k) -> RList k -> Constraint
-class IsSorted result <= Merge t listL listR result | listL listR -> result
+data Foo
+  = F0
+      { f0A :: String
+      }
+  | F1
+      { f1A :: String
+      , f1B :: String
+      , f1C :: String
+      }
+  | F2
+      { f2A :: String
+      , f2B :: Boolean
+      }
 
-instance Merge t Nil' Nil' Nil'
-else instance IsSorted (Cons' keyA a nA as) => Merge t (Cons' keyA a nA as)  Nil' (Cons' keyA a nA as)
+derive instance Generic Foo _
 
-else instance IsSorted (Cons' keyB b nB bs) => Merge t Nil' (Cons' keyB b nB bs) (Cons' keyB b nB bs)
+instance Show Foo where
+  show x = genericShow x
 
-else instance (Merge t as (Cons' keyB b Z  bs) merged, IsSorted (Cons' keyA a Z merged))
-                => Merge t (Cons' keyA a Z as)
-                           (Cons' keyB b Z  bs)
-                           --------------------
-                           (Cons' keyA a Z merged)
+instance HasConstrIndices Foo where
+  constrIndices _ = fromConstr2Index [Tuple "F0" 0, Tuple "F1" 1, Tuple "F2" 2]
 
-else instance ( Merge t as (Cons' keyB b (S nB) bs) merged
-              , IsSorted (Cons' keyA a Z  merged)
-              )  => Merge t (Cons' keyA a Z as)
-                            (Cons' keyB b (S nB)  bs)
-                            -------------------
-                            (Cons' keyA a Z  merged)
+instance IndexedRecField Foo "f0A" Z
 
-else instance ( Merge t (Cons' keyA a (S nA) as) bs merged
-              , IsSorted (Cons' keyB b Z merged))
-              => Merge t (Cons' keyA a (S nA) as)
-                         (Cons' keyB b Z bs)
-                         -------------------------
-                         (Cons' keyB b Z  merged)
+instance IndexedRecField Foo "f1A" (S Z)
 
-else instance (Merge t (Cons' keyA a nA as) (Cons' keyB b nB bs) merged)
-                => Merge t (Cons' keyA a (S nA) as) (Cons' keyB b (S nB) bs) merged
+instance IndexedRecField Foo "f1B" Z
 
-class RowToRList :: forall (k :: Type). Type -> Row k -> RList k -> Constraint
-class RowToRList t row rList | t row -> rList
+instance IndexedRecField Foo "f1C" (S (S Z))
 
-instance (RL.RowToList row rowList, ToRList t rowList rList) => RowToRList t row rList
+instance IndexedRecField Foo "f2A" Z
+
+instance IndexedRecField Foo "f2B" (S Z)
+-}

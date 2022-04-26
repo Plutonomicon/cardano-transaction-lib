@@ -18,22 +18,7 @@ import Prelude
 
 import ConstrIndices (
   class HasConstrIndices,
-  constrIndices,
-  class IndexedRecField,
-  getFieldIndex,
-  class IndexedRecFieldT,
-  RList,
-  Cons',
-  Nil',
-  class Sort,
-  class ToRList,
-  class Split,
-  class Merge,
-  class RowToRList,
-  Z,
-  S,
-  class KnownNat,
-  natVal)
+  constrIndices)
 import Data.Show.Generic (genericShow)
 import Control.Alternative ((<|>), guard)
 import Data.Array (uncons, sortWith)
@@ -57,6 +42,10 @@ import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.Unfoldable (class Unfoldable)
 import Helpers (bigIntToUInt)
+import TypeLevel.IndexedRecField
+import TypeLevel.Nat
+import TypeLevel.RList
+import TypeLevel.Sort
 import Prim.Row as Row
 import Prim.RowList as RL
 import Prim.TypeError (class Fail, Text)
@@ -161,6 +150,7 @@ instance
   , RL.RowToList row rowList
   , ToRList t rowList rListUnsorted
   , Sort t rListUnsorted rList
+  , IsSorted rList
   ) =>
   FromDataArgs t (G.Argument (Record row)) where
   fromDataArgs _ pdArgs = do
