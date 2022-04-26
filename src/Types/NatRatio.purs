@@ -14,10 +14,11 @@ module Types.NatRatio
 
 import Prelude
 import Data.BigInt (BigInt)
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Ratio ((%), denominator, numerator) as R
-import Types.Natural (Natural, fromBigInt', toBigInt)
+import Data.Maybe (Maybe(Nothing))
+import Types.Natural (Natural)
+import Types.Natural (fromBigInt', toBigInt) as Nat
 import Types.Rational (Rational)
+import Types.Rational ((%), numerator, denominator, denominatorAsNat) as Rational
 
 -- | `NatRatio` is a newtype over `Rational` with smart constructors to create a
 -- | `NatRatio` safely. Therefore, the data constructor is not exported.
@@ -35,12 +36,7 @@ instance Show NatRatio where
 -- | Fails with `Nothing` if the denominator is zero or the overall sign of
 -- | the rational numbers is negative.
 fromRational :: Rational -> Maybe NatRatio
-fromRational r =
-  let
-    num = R.numerator r
-    den = R.denominator r
-  in
-    fromBigInts num den
+fromRational r = fromBigInts (Rational.numerator r) (Rational.denominator r)
 
 -- | Converts a `NatRatio` to the underlying `Rational`.
 toRational :: NatRatio -> Rational
@@ -49,32 +45,29 @@ toRational (NatRatio r) = r
 -- | Given two `Natural`s, attempts to convert to a `NatRatio`. Fails if the
 -- | denominator is `zero`.
 fromNaturals :: Natural -> Natural -> Maybe NatRatio
-fromNaturals n d =
-  if d /= zero then Just $ NatRatio $ toBigInt n R.% toBigInt d
-  else Nothing
+fromNaturals n d = NatRatio <$> Nat.toBigInt n Rational.% Nat.toBigInt d
 
 -- | Given two `BigInt`s, attempts to convert to a `NatRatio`. Fails if the
 -- | denominator is `zero` or the overall sign is negative.
 fromBigInts :: BigInt -> BigInt -> Maybe NatRatio
 fromBigInts n d
-  | n >= zero && d > zero = Just $ NatRatio $ n R.% d
-  | n <= zero && d < zero = Just $ NatRatio $ negate n R.% negate d
+  | (n < zero) == (d < zero) = NatRatio <$> n Rational.% d
   | otherwise = Nothing
 
 -- | Get the numerator of a `NatRatio` as `BigInt`.
 numerator :: NatRatio -> BigInt
-numerator (NatRatio r) = R.numerator r
+numerator (NatRatio r) = Rational.numerator r
 
 -- This is safe because the numerator is guaranteed to be non-negative.
 -- | Get the numerator of a `NatRatio` as `Natural`.
 numeratorAsNat :: NatRatio -> Natural
-numeratorAsNat (NatRatio r) = fromBigInt' $ R.numerator r
+numeratorAsNat (NatRatio r) = Nat.fromBigInt' $ Rational.numerator r
 
 -- | Get the denominator of a `NatRatio` as `BigInt`.
 denominator :: NatRatio -> BigInt
-denominator (NatRatio r) = R.denominator r
+denominator (NatRatio r) = Rational.denominator r
 
 -- This is safe because the denominator is guaranteed to be positive.
--- | Get the denominator of a `NatRatio` as `BigInt`.
+-- | Get the denominator of a `NatRatio` as `Natural`.
 denominatorAsNat :: NatRatio -> Natural
-denominatorAsNat (NatRatio r) = fromBigInt' $ R.denominator r
+denominatorAsNat (NatRatio r) = Rational.denominatorAsNat r

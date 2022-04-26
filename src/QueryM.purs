@@ -132,10 +132,9 @@ import Serialization.Address
   , BlockId
   , NetworkId(TestnetId)
   , Slot
-  , baseAddressFromAddress
-  , addressPaymentCred
-  , baseAddressPaymentCred
   , baseAddressDelegationCred
+  , baseAddressFromAddress
+  , baseAddressPaymentCred
   , stakeCredentialToKeyHash
   )
 import Serialization.Hash (ScriptHash)
@@ -542,7 +541,7 @@ calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   -- The server is calculating fees that are too low
   -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/123
   coinFromEstimate :: FeeEstimate -> Coin
-  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 500000)) <<< unwrap
+  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 700000)) <<< unwrap
 
   -- Fee estimation occurs before balancing the transaction, so we need to know
   -- the expected number of witnesses to use the cardano-api fee estimation
