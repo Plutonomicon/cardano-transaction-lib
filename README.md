@@ -277,9 +277,12 @@ Furthermore, CTL exposes an `overlay` from its flake. You can use this in the Ni
             #
             # The main Purscript module entrypoint
             main = "Main";
-            # The JS entrypoint (must correspond to the one listed in the 
+            # The JS entrypoint (must correspond to the one listed in the
             # webpack config), relative to the `src`
             entrypoint = "index.js";
+            # The HTML template to render the bundle to (must correspond to
+            # the template listed in the webpack config)
+            htmlTemplate = "index.js";
             # If this should be bundled for the browser
             browserRuntime = true;
             # The path to the webpack config to use
