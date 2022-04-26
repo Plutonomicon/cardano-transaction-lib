@@ -62,43 +62,10 @@ module Deserialization.Transaction
   , cslNumberToUInt
   , cslRatioToRational
   , deserializeTransaction
-  )
-  where
+  ) where
 
 import Prelude
 
-import Contract.Address
-  ( RequiredSigner(RequiredSigner)
-  , Slot(Slot)
-  , StakeCredential
-  )
-import Contract.Numeric.Rational (reduce)
-import Contract.Prim.ByteArray (ByteArray)
-import Contract.Scripts (Ed25519KeyHash)
-import Contract.Transaction
-  ( AuxiliaryData(AuxiliaryData)
-  , AuxiliaryDataHash
-  , Certificate(StakeDeregistration, StakeRegistration, StakeDelegation)
-  , CostModel(CostModel)
-  , Costmdls(Costmdls)
-  , Epoch(Epoch)
-  , ExUnitPrices
-  , ExUnits
-  , GeneralTransactionMetadata
-  , GenesisHash
-  , Language(PlutusV1)
-  , Mint(Mint)
-  , Nonce(HashNonce, IdentityNonce)
-  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
-  , ProtocolParamUpdate
-  , ProtocolVersion
-  , ScriptDataHash
-  , TransactionMetadatum(MetadataList, MetadataMap, Bytes, Int, Text)
-  , TransactionMetadatumLabel(TransactionMetadatumLabel)
-  , TxBody(TxBody)
-  , Update
-  )
-import Contract.Value (Coin(Coin), NonAdaAsset(NonAdaAsset), TokenName)
 import Control.Lazy (fix)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
@@ -107,7 +74,7 @@ import Data.Bitraversable (bitraverse)
 import Data.Map as M
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
-import Data.Ratio (Ratio)
+import Data.Ratio (Ratio, reduce)
 import Data.Traversable (traverse, for)
 import Data.Tuple (Tuple)
 import Data.UInt (UInt)
@@ -138,15 +105,52 @@ import FfiHelpers
   , errorHelper
   , maybeFfiHelper
   )
-import Serialization.Address (RewardAddress, intToNetworkId)
-import Serialization.Hash (ScriptHash)
+import Serialization.Address
+  ( RewardAddress
+  , intToNetworkId
+  , Slot(Slot)
+  , StakeCredential
+  )
+import Serialization.Hash (Ed25519KeyHash, ScriptHash)
 import Serialization.Types (NativeScripts, PlutusScripts)
 import Serialization.Types as Csl
 import Type.Row (type (+))
+import Types.ByteArray (ByteArray)
+import Types.Transaction
+  ( AuxiliaryData(AuxiliaryData)
+  , AuxiliaryDataHash
+  , RequiredSigner(RequiredSigner)
+  , Certificate(StakeDeregistration, StakeRegistration, StakeDelegation)
+  , CostModel(CostModel)
+  , Costmdls(Costmdls)
+  , Epoch(Epoch)
+  , ExUnitPrices
+  , ExUnits
+  , GeneralTransactionMetadata
+  , GenesisHash
+  , Language(PlutusV1)
+  , Mint(Mint)
+  , Nonce(HashNonce, IdentityNonce)
+  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
+  , ProtocolParamUpdate
+  , ProtocolVersion
+  , ScriptDataHash
+  , TransactionMetadatum(MetadataList, MetadataMap, Bytes, Int, Text)
+  , TransactionMetadatumLabel(TransactionMetadatumLabel)
+  , TxBody(TxBody)
+  , Update
+  )
 import Types.Transaction as T
-import Types.Value (scriptHashAsCurrencySymbol, tokenNameFromAssetName)
+import Types.Value
+  ( Coin(Coin)
+  , NonAdaAsset(NonAdaAsset)
+  , TokenName
+  , scriptHashAsCurrencySymbol
+  , tokenNameFromAssetName
+  )
 
 -- | Deserializes CBOR encoded transaction to a CTL's native type.
+-- NOTE: wrt ByteArray type and cbor keyword https://github.com/Plutonomicon/cardano-transaction-lib/issues/234
 deserializeTransaction
   :: forall (r :: Row Type). { txCbor :: ByteArray } -> Err r T.Transaction
 deserializeTransaction { txCbor } = fromBytes' txCbor >>= convertTransaction
