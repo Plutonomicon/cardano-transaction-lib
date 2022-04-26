@@ -129,10 +129,11 @@ If you prefer to run these services locally without `make`, the environment vari
   - `spago test` _or_ `npm run test` will run both the integration and unit tests
   - `nix build .#checks.<SYSTEM>.ctl-unit-test` will build and run the unit tests (useful for CI)
 - To run or build/bundle the project for the browser:
-  - `npm run dev` will start a Webpack development server at `localhost:4008`
-  - `npm run build` will output the Webpack-bundled project in `dist`
+  - `make run-dev` _or_ `npm run dev` will start a Webpack development server at `localhost:4008`
+  - `make run-build` _or_ `npm run build` will output a Webpack-bundled example module to `dist`
+  - `nix build -L .#ctl-example-bundle-web` will build an example module using Nix and Webpack
 
-By default, Webpack will build a [small Purescript example](examples/Pkh2Pkh.purs). Make sure to follow the [instructions for setting up Nami](#other-requirements) before running the examples. You can point Webpack to another Purescript entrypoint by editing `examples/index.js`.
+By default, Webpack will build a [small Purescript example](examples/Pkh2Pkh.purs). Make sure to follow the [instructions for setting up Nami](#other-requirements) before running the examples. You can point Webpack to another Purescript entrypoint by changing the `ps-bundle` variable in the Makefile or in the `main` argument in the flake's `packages.ctl-examples-bundle-web`.
 
 **Note**: The `BROWSER_RUNTIME` environment variable must be set to `1` in order to build/bundle the project properly for the browser (e.g. `BROWSER_RUNTIME=1 webpack ...`). For Node environments, leave this variable unset or set it to `0`.
 
@@ -260,6 +261,27 @@ Furthermore, CTL exposes an `overlay` from its flake. You can use this in the Ni
             # `["src"]`. If you have files needed at runtime, you must include
             # them as well
             sources = ["src"];
+          };
+
+          # `bundlePursProject` creates a JS bundle with webpack
+          your-project-bundle = (psProjectFor system).bundlePursProject {
+            # A list of directories to copy into the builder, relative to the
+            # root provided in `purescriptProject.src`, and defaulting to
+            # `["src"]`. If you have files needed at runtime, you must include
+            # them as well
+            sources = ["src" "exe"];
+            # All of the following are optional and show with default values:
+            #
+            # The main module entrypoint
+            main = "Main";
+            # If this should be bundled for the browser
+            browserRuntime = true;
+            # The path to the webpack config to use
+            webpackConfig = "webpack.config.js";
+            # The module that `spago bundle-module` should write to (must 
+            # match the one that is imported in your JS entrypoint). Is
+            # relative to the `src` argument provided to `purescriptProject`
+            bundledModuleName = "output.js";
           };
         });
 

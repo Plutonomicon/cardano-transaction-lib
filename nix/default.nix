@@ -113,6 +113,8 @@ let
         export HOME="$TMP"
         cp -r ${nodeModules}/lib/node_modules .
         chmod -R u+rw node_modules
+        export NODE_PATH="$PWD/node_modules:$NODE_PATH"
+        export PATH="${nodeModules}/bin:$PATH"
         cp -r $src/{${builtins.concatStringsSep "," sources}} .
         install-spago-style
       '';
@@ -132,10 +134,10 @@ let
     , ...
     }@args:
     (buildPursProject args).overrideAttrs
-      (oldAttrs: {
+      (oas: {
         inherit name;
         doCheck = true;
-        buildInputs = oldAttrs.buildInputs ++ [ nodejs ];
+        buildInputs = oas.buildInputs ++ [ nodejs ];
         # spago will attempt to download things, which will fail in the
         # sandbox, so we can just use node instead
         # (idea taken from `plutus-playground-client`)
@@ -146,8 +148,39 @@ let
           touch $out
         '';
       });
+
+  bundlePursProject =
+    { name ? "${projectName}-bundle-" +
+        (if browserRuntime then "web" else "nodejs")
+    , main ? "Main"
+    , browserRuntime ? true
+    , webpackConfig ? "webpack.config.js"
+    , bundledModuleName ? "output.js"
+    , ...
+    }@args:
+    (buildPursProject (args // { withDevDeps = true; })).overrideAttrs
+      (oas: {
+        inherit name;
+        buildInputs = oas.buildInputs ++ [ nodejs ];
+        buildPhase = ''
+          ${pkgs.lib.optionalString browserRuntime "export BROWSER_RUNTIME=1"}
+          build-spago-style "./**/*.purs"
+          chmod -R +rwx .
+          spago bundle-module --no-install --no-build -m "${main}" \
+            --to ${bundledModuleName}
+          cp $src/${webpackConfig} .
+          mkdir ./dist
+          webpack --mode=production -c ${webpackConfig} -o ./dist
+        '';
+        installPhase = ''
+          mkdir $out
+          mv dist $out
+        '';
+      });
+
 in
 {
-  inherit purs nodejs buildPursProject runPursTest mkNodeModules;
+  inherit buildPursProject runPursTest bundlePursProject;
+  inherit purs nodejs mkNodeModules;
   devShell = shellFor shell;
 }

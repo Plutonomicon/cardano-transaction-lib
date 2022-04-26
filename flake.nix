@@ -208,6 +208,11 @@
               # Make sure the entire project compiles
               sources = [ "src" "test" "examples" ];
             };
+
+            ctl-example-bundle-web = project.bundlePursProject {
+              sources = [ "src" "examples" ];
+              main = "Examples.Pkh2Pkh";
+            };
           };
 
           # FIXME

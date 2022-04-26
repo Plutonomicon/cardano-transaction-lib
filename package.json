@@ -8,8 +8,8 @@
   },
   "scripts": {
     "test": "spago run --main Test.Main",
-    "dev": "BROWSER_RUNTIME=1 webpack-dev-server --progress --hot",
-    "build": "BROWSER_RUNTIME=1 webpack --mode=production"
+    "dev": "make run-dev",
+    "build": "make run-build"
   },
   "author": "",
   "license": "MIT",
