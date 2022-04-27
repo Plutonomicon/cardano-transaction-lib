@@ -70,6 +70,7 @@ import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Bitraversable (bitraverse)
+import Data.Either (Either)
 import Data.Map as M
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
@@ -78,7 +79,7 @@ import Data.Traversable (traverse, for)
 import Data.Tuple (Tuple)
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Data.Variant (inj)
+import Data.Variant (Variant, inj)
 import Deserialization.BigNum (bigNumToBigInt')
 import Deserialization.Error
   ( Err
@@ -233,6 +234,8 @@ convertTxBody txBody = do
     }
 
   where
+  intToSlot
+    :: forall s. Int -> Either (Variant (fromCslRepError :: String | s)) Slot
   intToSlot x =
     cslErr ("validityStartInterval UInt.fromInt': " <> show x)
       <<< map Slot
@@ -254,6 +257,7 @@ convertCertificate
   :: forall (r :: Row Type). Csl.Certificate -> Err r Certificate
 convertCertificate = _convertCert certConvHelper
   where
+  certConvHelper :: CertConvHelper r
   certConvHelper =
     { stakeDeregistration: pure <<< StakeDeregistration
     , stakeRegistration: pure <<< StakeRegistration
@@ -369,6 +373,8 @@ convertCostModel
 convertCostModel err = map CostModel <<< traverse stringToUInt <<<
   _unpackCostModel
   where
+  stringToUInt
+    :: String -> Either (Variant (fromCslRepError :: String | r)) UInt
   stringToUInt s = cslErr (err <> ": string (" <> s <> ") -> uint") $
     UInt.fromString s
 
@@ -408,16 +414,21 @@ convertMetadatum
   -> Csl.TransactionMetadatum
   -> Err r TransactionMetadatum
 convertMetadatum err = fix \_ -> addErrTrace err <<< _convertMetadatum
-  (helper convertMetadatum)
-  where
-  helper rec =
-    { error: fromCslRepError
+  ( { error: fromCslRepError
     , from_bytes: pure <<< Bytes
     , from_int: map Int <<< stringToBigInt "Metadatum Int"
     , from_text: pure <<< Text
-    , from_map: convertMetadataMap rec
-    , from_list: convertMetadataList rec
+    , from_map: convertMetadataMap convertMetadatum
+    , from_list: convertMetadataList convertMetadatum
     }
+  )
+
+  where
+  stringToBigInt
+    :: forall s
+     . String
+    -> String
+    -> Either (Variant (fromCslRepError :: String | s)) BigInt
   stringToBigInt s = cslErr (err <> ": string (" <> s <> ") -> bigint") <<<
     BigInt.fromString
 
