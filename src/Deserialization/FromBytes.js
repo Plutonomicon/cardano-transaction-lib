@@ -9,13 +9,14 @@ if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
 
 const fromBytes = name => helper => bytes => {
     try {
-        return helper.just(lib[name].from_bytes(bytes));
+        return helper.valid(lib[name].from_bytes(bytes));
     } catch (e) {
-        return helper.nothing;
+        return helper.error(name + ".from_bytes() raised " + e);
     }
 };
 
 exports._fromBytesDataHash = fromBytes('DataHash');
+exports._fromBytesTransaction = fromBytes('Transaction');
 exports._fromBytesTransactionHash = fromBytes('TransactionHash');
 exports._fromBytesPlutusData = fromBytes('PlutusData');
 exports._fromBytesTransactionUnspentOutput = fromBytes('TransactionUnspentOutput');

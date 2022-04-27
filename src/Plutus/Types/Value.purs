@@ -45,7 +45,7 @@ newtype Value = Value (Plutus.Map CurrencySymbol (Plutus.Map TokenName BigInt))
 derive instance Eq Value
 
 instance Show Value where
-  show (Value mp) = "(PlutusValue" <> show mp <> ")"
+  show (Value mp) = "(PlutusValue " <> show mp <> ")"
 
 instance Semigroup Value where
   append = unionWith add
@@ -197,7 +197,7 @@ checkPred f l r = all (all f) (unionVal l r)
 -- Check whether a binary relation holds for value pairs of two `Value` maps,
 -- supplying 0 where a key is only present in one of them.
 checkBinRel :: (BigInt -> BigInt -> Boolean) -> Value -> Value -> Boolean
-checkBinRel f l r = checkPred (these (f zero) (f zero) f) l r
+checkBinRel f l r = checkPred (these (flip f zero) (f zero) f) l r
 
 --------------------------------------------------------------------------------
 -- CurrencySymbol
@@ -211,7 +211,7 @@ derive newtype instance FromData CurrencySymbol
 derive newtype instance ToData CurrencySymbol
 
 instance Show CurrencySymbol where
-  show (CurrencySymbol cs) = "(CurrencySymbol" <> show cs <> ")"
+  show (CurrencySymbol cs) = "(CurrencySymbol " <> show cs <> ")"
 
 getCurrencySymbol :: CurrencySymbol -> ByteArray
 getCurrencySymbol (CurrencySymbol curSymbol) = curSymbol
@@ -224,4 +224,4 @@ mkCurrencySymbol byteArr
   | byteArr == mempty =
       pure adaSymbol
   | otherwise =
-      scriptHashFromBytes byteArr *> pure (CurrencySymbol byteArr)
+      scriptHashFromBytes byteArr $> CurrencySymbol byteArr

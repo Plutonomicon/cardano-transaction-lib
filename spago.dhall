@@ -14,16 +14,17 @@ You can edit this file as you like.
   , "arrays"
   , "bifunctors"
   , "bigints"
+  , "checked-exceptions"
   , "console"
   , "const"
   , "control"
+  , "debug"
   , "effect"
   , "either"
   , "encoding"
   , "enums"
   , "exceptions"
   , "foldable-traversable"
-  , "foreign"
   , "foreign-object"
   , "gen"
   , "identity"
@@ -62,8 +63,8 @@ You can edit this file as you like.
   , "uint"
   , "undefined"
   , "unfoldable"
-  , "unsafe-coerce"
   , "untagged-union"
+  , "variant"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs", "examples/**/*.purs" ]

@@ -38,6 +38,7 @@ module Types.Value
   , numTokenNames
   , split
   , sumTokenNameLengths
+  , scriptHashAsCurrencySymbol
   , unionWith
   , unionWithNonAda
   , valueOf
@@ -46,6 +47,7 @@ module Types.Value
   ) where
 
 import Prelude hiding (join)
+
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Data.Argonaut
@@ -57,18 +59,14 @@ import Data.Argonaut
 import Data.Array (cons, concatMap, filter, head, partition)
 import Data.BigInt (BigInt, fromInt)
 import Data.Bifunctor (bimap)
+import Data.BigInt (BigInt, fromInt)
 import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Either (Either(Left), note)
 import Data.Foldable (any, fold, foldl, length)
 import Data.FoldableWithIndex (foldrWithIndex)
 import Data.Generic.Rep (class Generic)
 import Data.Identity (Identity(Identity))
-import Data.Lattice
-  ( class JoinSemilattice
-  , class MeetSemilattice
-  , join
-  , meet
-  )
+import Data.Lattice (class JoinSemilattice, class MeetSemilattice, join, meet)
 import Data.List ((:), all, List(Nil))
 import Data.Map (keys, lookup, Map, toUnfoldable, unions, values)
 import Data.Map as Map
@@ -97,7 +95,13 @@ import Plutus.ToFromPlutusType
   , class ToPlutusType
   , toPlutusType
   )
-import Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
+import Serialization.Hash
+  ( ScriptHash
+  , scriptHashAsBytes
+  , scriptHashFromBytes
+  , scriptHashToBytes
+  )
+import Serialization.Types as CSL
 import ToData (class ToData, toData)
 import Types.ByteArray (ByteArray, byteLength, hexToByteArray)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
@@ -706,6 +710,9 @@ filterNonAda (Value _ nonAda) = Value mempty nonAda
 currencyScriptHash :: CurrencySymbol -> ScriptHash
 currencyScriptHash (CurrencySymbol byteArray) =
   unsafePartial fromJust $ scriptHashFromBytes byteArray
+
+scriptHashAsCurrencySymbol :: ScriptHash -> CurrencySymbol
+scriptHashAsCurrencySymbol = CurrencySymbol <<< scriptHashAsBytes
 
 -- | The minting policy hash of a currency symbol
 currencyMPSHash :: CurrencySymbol -> MintingPolicyHash

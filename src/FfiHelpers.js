@@ -11,7 +11,20 @@ const unpack = obj => {
     return res;
 };
 
-exports._containerHelper = untuple => ({
+// unpacks an associative container where keys are stored in .keys()
+// and values for that keys might be missing.
+const unpackKeyIndexed = tuple => obj => {
+    const res = [];
+    for (let i = 0; i < obj.len(); i++) {
+        var k = obj.keys().get(i);
+        var v = obj.get(k);
+        if (v == null) continue;
+        res.push(tuple(k)(v));
+    };
+    return res;
+};
+
+exports._containerHelper = r => ({
     // Abstracts away packing array of something into a monomorphic container.
     pack: (container, elements) => {
         const res = container.new();
@@ -22,11 +35,12 @@ exports._containerHelper = untuple => ({
     packMap: (container, entries) => {
         const res = container.new();
         entries.forEach(entry => {
-            const [key, value] = untuple(entry);
+            const [key, value] = r.untuple(entry);
             res.insert(key, value);
         });
         return res;
     },
     unpack,
+    unpackKeyIndexed: unpackKeyIndexed(r.tuple),
     unpackFromProperty: prop => obj => unpack(obj[prop]())
 });

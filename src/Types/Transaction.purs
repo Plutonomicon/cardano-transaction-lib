@@ -110,10 +110,10 @@ import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray, byteArrayToHex)
 import Types.Int as Int
+import Types.PlutusData (PlutusData(Constr))
 import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
 import Types.Value (Coin, NonAdaAsset, Value)
-import Types.PlutusData (PlutusData(Constr))
 
 --------------------------------------------------------------------------------
 -- `Transaction`
@@ -375,6 +375,7 @@ type ProtocolVersion =
   , minor :: UInt
   }
 
+-- Following CSL Nonce is either None or a 32 byte hash
 data Nonce = IdentityNonce | HashNonce ByteArray
 
 derive instance Eq Nonce
@@ -774,11 +775,12 @@ instance Show TransactionMetadatumLabel where
 data TransactionMetadatum
   = MetadataMap (Map TransactionMetadatum TransactionMetadatum)
   | MetadataList (Array TransactionMetadatum)
-  | Int Int
+  | Int BigInt
   | Bytes ByteArray
   | Text String
 
 derive instance Eq TransactionMetadatum
+derive instance Ord TransactionMetadatum
 derive instance Generic TransactionMetadatum _
 
 instance Show TransactionMetadatum where

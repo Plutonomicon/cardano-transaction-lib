@@ -1,5 +1,6 @@
 module Deserialization.WitnessSet
-  ( convertPlutusScripts
+  ( convertNativeScripts
+  , convertPlutusScripts
   , convertVkeyWitnesses
   , convertWitnessSet
   , deserializeWitnessSet
