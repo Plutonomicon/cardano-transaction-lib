@@ -70,6 +70,8 @@ module Serialization.Types
   , ProtocolParamUpdate
   , ProtocolVersion
   , ExUnitPrices
+  , GeneralTransactionMetadata
+  , TransactionMetadatum
   ) where
 
 import Prelude
@@ -146,6 +148,8 @@ foreign import data ProposedProtocolParameterUpdates :: Type
 foreign import data ProtocolParamUpdate :: Type
 foreign import data ProtocolVersion :: Type
 foreign import data ExUnitPrices :: Type
+foreign import data GeneralTransactionMetadata :: Type
+foreign import data TransactionMetadatum :: Type
 
 instance Show BigNum where
   show = _to_str
