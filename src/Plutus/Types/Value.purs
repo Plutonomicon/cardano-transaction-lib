@@ -42,8 +42,6 @@ import Plutus.Types.AssocMap (singleton, lookup, keys, union, mapThese) as Plutu
 
 newtype Value = Value (Plutus.Map CurrencySymbol (Plutus.Map TokenName BigInt))
 
-derive instance Eq Value
-
 instance Show Value where
   show (Value mp) = "(PlutusValue " <> show mp <> ")"
 

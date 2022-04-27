@@ -11,12 +11,12 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.Traversable (for_)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Plutus.Types.Value (Value) as Plutus
-import Plutus.Types.Value as PlutusValue
+import Plutus.Types.Value (Value, CurrencySymbol) as Plutus
+import Plutus.Types.Value as Plutus.Value
 import Plutus.FromPlutusType (fromPlutusType)
 import Plutus.ToPlutusType (toPlutusType)
 import Test.Fixtures (currencySymbol1, tokenName1, tokenName2)
-import Test.Spec.Assertions (shouldEqual)
+import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import TestM (TestPlanM)
 import Types.Value (Value) as Types
 import Types.Value as Value
@@ -36,16 +36,16 @@ toFromPlutusTypeTest i valuePlutus value =
     let resValue = unwrap (fromPlutusType valuePlutus)
     resValue `shouldEqual` value
     let resValuePlutus = unwrap (toPlutusType resValue)
-    resValuePlutus `shouldEqual` valuePlutus
+    resValuePlutus `shouldSatisfy` (Plutus.Value.eq valuePlutus)
 
 testData :: Array (Plutus.Value /\ Types.Value)
 testData = [ emptyValues, adaValues, nonAdaValues, compositeValues ]
   where
   amount1 /\ amount2 = fromInt 5000 /\ fromInt 6000
 
-  currencySymbol1' :: PlutusValue.CurrencySymbol
+  currencySymbol1' :: Plutus.CurrencySymbol
   currencySymbol1' = unsafePartial $ fromJust $
-    PlutusValue.mkCurrencySymbol (Value.getCurrencySymbol currencySymbol1)
+    Plutus.Value.mkCurrencySymbol (Value.getCurrencySymbol currencySymbol1)
 
   nonAdaAsset1 :: Value.NonAdaAsset
   nonAdaAsset1 =
@@ -60,18 +60,18 @@ testData = [ emptyValues, adaValues, nonAdaValues, compositeValues ]
 
   adaValues :: Plutus.Value /\ Types.Value
   adaValues =
-    PlutusValue.lovelaceValueOf amount1 /\
+    Plutus.Value.lovelaceValueOf amount1 /\
       Value.lovelaceValueOf amount1
 
   nonAdaValues :: Plutus.Value /\ Types.Value
   nonAdaValues =
-    PlutusValue.singleton currencySymbol1' tokenName1 amount1 /\
+    Plutus.Value.singleton currencySymbol1' tokenName1 amount1 /\
       Value.mkValue mempty nonAdaAsset1
 
   compositeValues :: Plutus.Value /\ Types.Value
   compositeValues =
     ( fst adaValues <> fst nonAdaValues <>
-        PlutusValue.singleton currencySymbol1' tokenName2 amount2
+        Plutus.Value.singleton currencySymbol1' tokenName2 amount2
     ) /\
       ( snd adaValues <> snd nonAdaValues <>
           Value.mkValue mempty nonAdaAsset2

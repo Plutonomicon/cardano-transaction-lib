@@ -45,6 +45,10 @@ class FromPlutusType f pt t | pt -> t, t pt -> f where
 -- Plutus.Types.Value -> Types.Value
 --------------------------------------------------------------------------------
 
+-- The underlying `Plutus.Types.AssocMap` of `Plutus.Types.Value` doesn't
+-- have the `Ord` constraint on the keys. Therefore, one should be careful when
+-- performing conversions between `Value`s, since the ordering of components
+-- can't be guaranteed.
 instance FromPlutusType Identity Plutus.Value Types.Value where
   fromPlutusType plutusValue =
     Identity (adaValue <> mkValue mempty nonAdaAssets)

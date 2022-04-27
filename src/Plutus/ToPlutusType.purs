@@ -42,6 +42,10 @@ class ToPlutusType f t pt | t -> pt, t pt -> f where
 -- Types.Value -> Plutus.Types.Value
 --------------------------------------------------------------------------------
 
+-- The underlying `Plutus.Types.AssocMap` of `Plutus.Types.Value` doesn't
+-- have the `Ord` constraint on the keys. Therefore, one should be careful when
+-- performing conversions between `Value`s, since the ordering of components
+-- can't be guaranteed.
 instance ToPlutusType Identity Types.Value Plutus.Value where
   toPlutusType (Types.Value (Coin adaAmount) (NonAdaAsset nonAdaAssets)) =
     Identity (adaValue <> fold nonAdaValues)
