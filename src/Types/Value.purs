@@ -42,14 +42,18 @@ module Types.Value
   , numTokenNames
   , split
   , sumTokenNameLengths
+  , scriptHashAsCurrencySymbol
   , unionWith
   , unionWithNonAda
   , valueOf
   , valueToCoin
   , valueToCoin'
+  , tokenNameFromAssetName
+  , assetNameName
   ) where
 
 import Prelude hiding (join)
+
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Data.Argonaut
@@ -59,19 +63,14 @@ import Data.Argonaut
   , getField
   )
 import Data.Array (cons, filter)
-import Data.BigInt (BigInt, fromInt)
 import Data.Bifunctor (bimap)
+import Data.BigInt (BigInt, fromInt)
 import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Either (Either(Left), note)
 import Data.Foldable (any, fold, foldl, length)
 import Data.FoldableWithIndex (foldrWithIndex)
 import Data.Generic.Rep (class Generic)
-import Data.Lattice
-  ( class JoinSemilattice
-  , class MeetSemilattice
-  , join
-  , meet
-  )
+import Data.Lattice (class JoinSemilattice, class MeetSemilattice, join, meet)
 import Data.List ((:), all, List(Nil))
 import Data.Map (keys, lookup, Map, toUnfoldable, unions, values)
 import Data.Map as Map
@@ -84,7 +83,13 @@ import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested ((/\), type (/\))
 import FromData (class FromData, fromData)
 import Partial.Unsafe (unsafePartial)
-import Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
+import Serialization.Hash
+  ( ScriptHash
+  , scriptHashAsBytes
+  , scriptHashFromBytes
+  , scriptHashToBytes
+  )
+import Serialization.Types as CSL
 import ToData (class ToData, toData)
 import Types.ByteArray (ByteArray, byteLength, hexToByteArray)
 import Types.PlutusData (PlutusData(List)) as PD
@@ -240,6 +245,11 @@ adaToken = TokenName mempty
 mkTokenName :: ByteArray -> Maybe TokenName
 mkTokenName byteArr =
   if byteLength byteArr <= 32 then pure $ TokenName byteArr else Nothing
+
+foreign import assetNameName :: CSL.AssetName -> ByteArray
+
+tokenNameFromAssetName :: CSL.AssetName -> TokenName
+tokenNameFromAssetName = TokenName <<< assetNameName
 
 -- | Creates a Map of `TokenName` and Big Integers from a `Traversable` of 2-tuple
 -- | `ByteArray` and Big Integers with the possibility of failure
@@ -688,6 +698,9 @@ filterNonAda (Value _ nonAda) = Value mempty nonAda
 currencyScriptHash :: CurrencySymbol -> ScriptHash
 currencyScriptHash (CurrencySymbol byteArray) =
   unsafePartial fromJust $ scriptHashFromBytes byteArray
+
+scriptHashAsCurrencySymbol :: ScriptHash -> CurrencySymbol
+scriptHashAsCurrencySymbol = CurrencySymbol <<< scriptHashAsBytes
 
 -- | The minting policy hash of a currency symbol
 currencyMPSHash :: CurrencySymbol -> MintingPolicyHash

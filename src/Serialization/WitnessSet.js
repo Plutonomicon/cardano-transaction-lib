@@ -31,6 +31,17 @@ exports.addVkeywitness = witnesses => witness => () =>
 exports.newPlutusScript = bytes => () =>
     lib.PlutusScript.new(bytes);
 
+exports._newPlutusScriptMaybe = maybe => bytes => () => {
+    var res = null;
+    try{
+        res = lib.PlutusScript.new(bytes);
+    }
+    catch(_){
+        return maybe.nothing;
+    }
+    return maybe.just(res);
+};
+
 exports.newPlutusScripts = () =>
     lib.PlutusScripts.new();
 

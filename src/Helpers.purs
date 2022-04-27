@@ -16,6 +16,7 @@ module Helpers
   , liftMWith
   , maybeArrayMerge
   , uIntToBigInt
+  , notImplemented
   , logWithLevel
   , logString
   ) where
@@ -39,6 +40,7 @@ import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Maybe.First (First(First))
 import Data.Maybe.Last (Last(Last))
 import Data.Tuple (snd, uncurry)
+import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
@@ -46,6 +48,7 @@ import Effect.Class (class MonadEffect)
 import Effect.Class.Console (log)
 import Effect.Exception (throw)
 import Partial.Unsafe (unsafePartial)
+import Prim.TypeError (class Warn, Text)
 
 -- | Throws provided error on `Nothing`
 fromJustEff :: forall (a :: Type). String -> Maybe a -> Effect a
@@ -164,6 +167,9 @@ uIntToBigInt = unsafePartial fromJust <<< BigInt.fromString <<< UInt.toString
 bigIntToUInt :: BigInt -> Maybe UInt
 bigIntToUInt = UInt.fromString <<< BigInt.toString
 
+notImplemented :: forall a. Warn (Text "Function not implemented!") => a
+notImplemented = undefined
+
 -- | Log a message by printing it to the console, depending on the provided
 -- | `LogLevel`
 logWithLevel
@@ -177,3 +183,4 @@ logString :: LogLevel -> LogLevel -> String -> Effect Unit
 logString cfgLevel level message = do
   timestamp <- now
   logWithLevel cfgLevel $ { timestamp, message, level, tags: Map.empty }
+
