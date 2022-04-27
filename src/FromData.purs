@@ -4,12 +4,12 @@ module FromData
   , class FromDataArgs
 
   , class FromDataArgsRL
- -- , class FromDataArgsRL'
+  -- , class FromDataArgsRL'
   , class FromDataWithSchema
   , fromData
   , fromDataArgs
   , fromDataArgsRec
- -- , fromDataArgsRec'
+  -- , fromDataArgsRec'
   , fromDataWithSchema
   , genericFromData
   ) where
@@ -39,10 +39,8 @@ import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.Unfoldable (class Unfoldable)
 import Helpers (bigIntToUInt)
-import TypeLevel.IndexedRecField
 import TypeLevel.Nat
 import TypeLevel.RList
-import TypeLevel.Sort
 import Prim.Row as Row
 import Prim.RowList as RL
 import Prim.TypeError (class Fail, Text)
@@ -51,9 +49,7 @@ import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Bytes, Constr, List, Map, Integer))
 
-
 import TypeLevel.DataSchema
-
 
 -- | Errors
 data FromDataError
@@ -71,6 +67,10 @@ class FromData :: Type -> Constraint
 class FromData a where
   fromData :: PlutusData -> Maybe a
 
+{- | Replacement for 'FromDataWithIndex'. This converts a type into its Plutus Data representation with the help of a Plutus Data Schema (see TypeLevel.DataSchema)
+   We cannot require that the first type argument 't' is an instance of 'HasPlutusSchema' but in practice instances of this class must have a 't' with a
+   'HasPlutusSchema' instance as well.
+-}
 class FromDataWithSchema :: Type -> Type -> Constraint
 class FromDataWithSchema t a where
   fromDataWithSchema
@@ -85,16 +85,15 @@ class FromDataArgs t c a where
     -> Array PlutusData
     -> Either FromDataError { head :: a, tail :: Array PlutusData }
 
-{-
--- | A helper typeclass to implement `ToDataArgs` for records.
--- Adapted from https://github.com/purescript/purescript-quickcheck/blob/v7.1.0/src/Test/QuickCheck/Arbitrary.purs#L247
---
--- The second argument to the class is an @RList@ - an *unordered* version of RowList where each element of the
--- typelevel list contains a nat which represents the position of that element in PlutusData. (See ConstrIndices.purs)
--}
+{- | A helper typeclass to implement `ToDataArgs` for records.
+   Adapted from https://github.com/purescript/purescript-quickcheck/blob/v7.1.0/src/Test/QuickCheck/Arbitrary.purs#L247
 
+   The second argument is a symbol which represents the name of a record constructor.
+
+   The third argument to the class is an @RList@ - an *unordered* version of RowList. See TypeLevel.RList for details
+-}
 class FromDataArgsRL :: Type -> Symbol -> RList Type -> Row Type -> Constraint
-class FromDataArgsRL t constr list row  | t constr list -> row where
+class FromDataArgsRL t constr list row | t constr list -> row where
   fromDataArgsRec
     :: forall (rlproxy :: RList Type -> Type)
      . Proxy t
@@ -110,7 +109,7 @@ instance
   ( FromDataWithSchema t l
   , FromDataWithSchema t r
   ) =>
-  FromDataWithSchema t (G.Sum l r)  where
+  FromDataWithSchema t (G.Sum l r) where
   fromDataWithSchema _ pci pd =
     G.Inl <$> fromDataWithSchema (Proxy :: Proxy t) (Proxy :: Proxy l) pd
       <|> G.Inr <$> fromDataWithSchema (Proxy :: Proxy t) (Proxy :: Proxy r) pd
@@ -128,7 +127,9 @@ else instance
     ix <- BigInt.toInt i
     -- TODO: Add err reporting to FromDataWithIndex
     guard $ natVal (Proxy :: Proxy ix) == ix
-    { head: repArgs, tail: pdArgs' } <- hush $ fromDataArgs (Proxy :: Proxy t) (Proxy :: Proxy constr) pdArgs
+    { head: repArgs, tail: pdArgs' } <- hush $ fromDataArgs (Proxy :: Proxy t)
+      (Proxy :: Proxy constr)
+      pdArgs
     guard $ pdArgs' == []
     pure $ G.Constructor repArgs
   fromDataWithSchema _ _ _ = Nothing
@@ -136,8 +137,8 @@ else instance
 else instance
   ( FromDataWithSchema t a
   ) =>
-  FromDataWithSchema t (G.Argument a)  where
-  fromDataWithSchema  _ _ pd = G.Argument <$> fromDataWithSchema
+  FromDataWithSchema t (G.Argument a) where
+  fromDataWithSchema _ _ pd = G.Argument <$> fromDataWithSchema
     (Proxy :: Proxy t)
     (Proxy :: Proxy a)
     pd
@@ -149,14 +150,16 @@ instance FromDataArgs t c (G.NoArguments) where
   fromDataArgs _ _ pdArgs = Left $ ArgsWantedButGot 0 pdArgs
 
 instance
-  ( FromDataArgsRL t constr rList row,
-    HasPlutusSchema t schema,
-    ValidPlutusSchema schema rrList,
-    GetWithLabel constr rrList rList
+  ( FromDataArgsRL t constr rList row
+  , HasPlutusSchema t schema
+  , ValidPlutusSchema schema rrList
+  , GetWithLabel constr rrList rList
   ) =>
   FromDataArgs t constr (G.Argument (Record row)) where
   fromDataArgs _ constr pdArgs = do
-    { head, tail } <- fromDataArgsRec (Proxy :: Proxy t) (Proxy :: Proxy constr) (Proxy :: Proxy rList) pdArgs
+    { head, tail } <- fromDataArgsRec (Proxy :: Proxy t) (Proxy :: Proxy constr)
+      (Proxy :: Proxy rList)
+      pdArgs
     pure { head: G.Argument head, tail }
 else instance (FromData a) => FromDataArgs t constr (G.Argument a) where
   fromDataArgs _ _ pdArgs = do
@@ -164,23 +167,31 @@ else instance (FromData a) => FromDataArgs t constr (G.Argument a) where
     repArg <- note (FromDataFailed pd) $ fromData pd
     pure $ { head: G.Argument repArg, tail: pds }
 
-instance (FromDataArgs t c a, FromDataArgs t c b) => FromDataArgs t c (G.Product a b) where
+instance
+  ( FromDataArgs t c a
+  , FromDataArgs t c b
+  ) =>
+  FromDataArgs t c (G.Product a b) where
   fromDataArgs _ constr pdArgs = do
-    { head: repFst, tail: pdArgs' } <- fromDataArgs (Proxy :: Proxy t)  (Proxy :: Proxy c) pdArgs
-    { head: repSnd, tail: pdArgs'' } <- fromDataArgs (Proxy :: Proxy t)  (Proxy :: Proxy c) pdArgs'
+    { head: repFst, tail: pdArgs' } <- fromDataArgs (Proxy :: Proxy t)
+      (Proxy :: Proxy c)
+      pdArgs
+    { head: repSnd, tail: pdArgs'' } <- fromDataArgs (Proxy :: Proxy t)
+      (Proxy :: Proxy c)
+      pdArgs'
     pure $ { head: G.Product repFst repSnd, tail: pdArgs'' }
 
 -- | FromDataArgsRL instances
 
-instance FromDataArgsRL t c Nil' ()  where
+instance FromDataArgsRL t c Nil' () where
   fromDataArgsRec _ _ _ [] = Right { head: {}, tail: [] }
   fromDataArgsRec _ _ _ pdArgs = Left $ ArgsWantedButGot 0 pdArgs
+
 instance
   ( FromData a
   , FromDataArgsRL t constr rListRest rowRest
   , Row.Lacks key rowRest
   , Row.Cons key a rowRest rowFull
- -- , Sort t rListUnsorted (Cons' key a n rListRest)
   , IsSymbol key
   ) =>
   FromDataArgsRL t constr (Cons' key a n rListRest) rowFull where
@@ -189,7 +200,9 @@ instance
     { head: pdArg, tail: pdArgs' } <- note (ArgsWantedButGot 1 pdArgs) $ uncons
       pdArgs
     field <- note (FromDataFailed pdArg) $ fromData pdArg
-    { head: rec, tail: pdArgs'' } <- fromDataArgsRec (Proxy :: Proxy t) (Proxy :: Proxy constr) (Proxy :: Proxy rListRest)
+    { head: rec, tail: pdArgs'' } <- fromDataArgsRec (Proxy :: Proxy t)
+      (Proxy :: Proxy constr)
+      (Proxy :: Proxy rListRest)
       pdArgs'
     pure $
       { head: (Record.insert keyProxy field rec)
@@ -205,11 +218,7 @@ genericFromData
 genericFromData pd = G.to <$> fromDataWithSchema (Proxy :: Proxy t)
   (Proxy :: Proxy rep)
   pd
-{-
-resolveConstr
-  :: forall (a :: Type). HasConstrIndices a => Proxy a -> Int -> Maybe String
-resolveConstr pa i = let Tuple _ i2c = constrIndices pa in Map.lookup i i2c
--}
+
 -- | Base FromData instances
 
 instance FromData Void where
