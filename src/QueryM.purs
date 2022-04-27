@@ -144,15 +144,12 @@ import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.Datum (Datum, DatumHash)
 import Types.Interval (SlotConfig, defaultSlotConfig)
 import Types.PlutusData (PlutusData)
+import Types.PubKeyHash (PubKeyHash)
 import Types.Scripts (PlutusScript)
 import Types.Transaction (Transaction(Transaction))
 import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Types.UnbalancedTransaction
-  ( PubKeyHash
-  , StakePubKeyHash
-  , PaymentPubKeyHash
-  )
+import Types.UnbalancedTransaction (StakePubKeyHash, PaymentPubKeyHash)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Types.Value (Coin(Coin))
 import Untagged.Union (asOneOf)

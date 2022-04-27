@@ -30,7 +30,7 @@ derive newtype instance Ord TokenName
 derive newtype instance ToData TokenName
 
 instance Show TokenName where
-  show (TokenName tn) = "(TokenName " <> show tn <> ")"
+  show (TokenName tn) = "(TokenName" <> show tn <> ")"
 
 getTokenName :: TokenName -> ByteArray
 getTokenName (TokenName tokenName) = tokenName

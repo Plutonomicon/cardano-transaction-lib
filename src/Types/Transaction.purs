@@ -89,7 +89,7 @@ import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing))
 import Data.Monoid (guard)
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
@@ -97,6 +97,9 @@ import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import FromData (class FromData, fromData)
 import Helpers ((</>), (<<>>), appendMap, appendRightMap)
+import Plutus.FromPlutusType (fromPlutusType)
+import Plutus.ToPlutusType (toPlutusType)
+import Plutus.Types.Value (Value) as Plutus
 import Serialization.Address
   ( Address
   , NetworkId
@@ -854,15 +857,22 @@ instance FromData TransactionOutput where
     TransactionOutput <$>
       ( { address: _, amount: _, dataHash: _ }
           <$> fromData addr
-          <*> fromData amt
+          <*> amount
           <*> fromData dh
       )
+    where
+    amount :: Maybe Value
+    amount = unwrap <<< fromPlutusType <$>
+      (fromData :: PlutusData -> Maybe Plutus.Value) amt
   fromData _ = Nothing
 
 -- `Constr` is used for indexing, and `TransactionOutput` is always zero-indexed
 instance ToData TransactionOutput where
   toData (TransactionOutput { address, amount, dataHash }) =
-    Constr zero [ toData address, toData amount, toData dataHash ]
+    Constr zero [ toData address, valueData, toData dataHash ]
+    where
+    valueData :: PlutusData
+    valueData = toData $ unwrap $ toPlutusType amount
 
 -- For convenience of Haskell code:
 type TxOut = TransactionOutput

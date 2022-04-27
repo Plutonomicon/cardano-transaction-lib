@@ -6,6 +6,7 @@ module Contract.Address
   , module ExportAddress
   , module Bech32
   , module ByteArray
+  , module PubKeyHash
   , module Scripts
   , module SerializationAddress
   , module Transaction
@@ -56,15 +57,12 @@ import Serialization.Address -- There are a lot of helpers we have ignored here,
   ) as SerializationAddress
 import Types.Aliases (Bech32String) as Bech32
 import Types.ByteArray (ByteArray) as ByteArray
-import Types.UnbalancedTransaction
-  ( PubKeyHash
-  , StakePubKeyHash
-  , PaymentPubKeyHash
-  )
+import Types.PubKeyHash (PubKeyHash)
+import Types.PubKeyHash (PubKeyHash(PubKeyHash)) as PubKeyHash
+import Types.UnbalancedTransaction (StakePubKeyHash, PaymentPubKeyHash)
 import Types.UnbalancedTransaction
   ( PaymentPubKey(PaymentPubKey)
   , PaymentPubKeyHash(PaymentPubKeyHash)
-  , PubKeyHash(PubKeyHash)
   , ScriptOutput(ScriptOutput)
   , StakePubKeyHash(StakePubKeyHash)
   , payPubKeyHashBaseAddress

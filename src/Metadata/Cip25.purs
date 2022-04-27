@@ -9,11 +9,10 @@ import Prelude
 import Data.Argonaut (class DecodeJson, Json, (.:), (.:?))
 import Data.Argonaut as Json
 import Data.Array (uncons, concat, groupBy)
-import Data.Array.NonEmpty (NonEmptyArray)
+import Data.Array.NonEmpty (NonEmptyArray, toArray)
 import Data.Array.NonEmpty (head) as NonEmpty
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
-import Data.Map (fromFoldable, singleton) as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.NonEmpty (NonEmpty, (:|))
@@ -23,6 +22,8 @@ import Data.Traversable (for, traverse, sequence)
 import Data.Tuple (Tuple)
 import Data.Tuple.Nested ((/\))
 import Foreign.Object (Object, toUnfoldable) as FO
+import Plutus.Types.AssocMap (Map(Map)) as Plutus
+import Plutus.Types.AssocMap (singleton) as Plutus.Map
 import FromData (class FromData, fromData)
 import ToData (class ToData, toData)
 import Serialization.Hash (scriptHashFromBytes)
@@ -53,7 +54,7 @@ instance Show Cip25MetadataFile where
   show = genericShow
 
 instance ToData Cip25MetadataFile where
-  toData (Cip25MetadataFile meta) = toData $ Map.fromFoldable $
+  toData (Cip25MetadataFile meta) = toData $ Plutus.Map $
     [ toData "name" /\ toData meta.name
     , toData "mediaType" /\ toData meta.mediaType
     , toData "src" /\ toData meta.uris
@@ -95,14 +96,13 @@ instance Show Cip25MetadataEntry where
   show = genericShow
 
 metadataEntryToData :: Cip25MetadataEntry -> PlutusData
-metadataEntryToData (Cip25MetadataEntry meta) = toData $
-  Map.fromFoldable
-    [ toData "name" /\ toData meta.assetName
-    , toData "image" /\ toData meta.imageUris
-    , toData "mediaType" /\ toData meta.mediaType
-    , toData "description" /\ toData meta.description
-    , toData "files" /\ toData meta.files
-    ]
+metadataEntryToData (Cip25MetadataEntry meta) = toData $ Plutus.Map $
+  [ toData "name" /\ toData meta.assetName
+  , toData "image" /\ toData meta.imageUris
+  , toData "mediaType" /\ toData meta.mediaType
+  , toData "description" /\ toData meta.description
+  , toData "files" /\ toData meta.files
+  ]
 
 metadataEntryFromData
   :: MintingPolicyHash
@@ -149,12 +149,12 @@ instance Show Cip25Metadata where
 
 instance ToData Cip25Metadata where
   toData (Cip25Metadata entries) = toData
-    $ Map.singleton (toData nftMetadataLabel)
-    $ Map.fromFoldable
+    $ Plutus.Map.singleton (toData nftMetadataLabel)
+    $ Plutus.Map
     $ groups <#>
         \group ->
           toData (_.policyId <<< unwrap $ NonEmpty.head group) /\
-            (Map.fromFoldable <<< flip map group) \entry ->
+            (Plutus.Map <<< toArray <<< flip map group) \entry ->
               toData ((unwrap entry).assetName) /\ metadataEntryToData entry
     where
     groups :: Array (NonEmptyArray Cip25MetadataEntry)

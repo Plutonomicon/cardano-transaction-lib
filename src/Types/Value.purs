@@ -3,7 +3,6 @@ module Types.Value
   , CurrencySymbol
   , NonAdaAsset(..)
   , Value(..)
-  , PlutusValue(..)
   , class Negate
   , class Split
   , coinToValue
@@ -56,8 +55,7 @@ import Data.Argonaut
   , caseJsonObject
   , getField
   )
-import Data.Array (cons, concatMap, filter, head, partition)
-import Data.BigInt (BigInt, fromInt)
+import Data.Array (cons, filter)
 import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt, fromInt)
 import Data.Bitraversable (bitraverse, ltraverse)
@@ -65,44 +63,26 @@ import Data.Either (Either(Left), note)
 import Data.Foldable (any, fold, foldl, length)
 import Data.FoldableWithIndex (foldrWithIndex)
 import Data.Generic.Rep (class Generic)
-import Data.Identity (Identity(Identity))
 import Data.Lattice (class JoinSemilattice, class MeetSemilattice, join, meet)
 import Data.List ((:), all, List(Nil))
 import Data.Map (keys, lookup, Map, toUnfoldable, unions, values)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, fromJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This))
 import Data.Traversable (class Traversable, traverse)
-import Data.Tuple (snd) as Tuple
 import Data.Tuple.Nested ((/\), type (/\))
-import FromData (class FromData, fromData)
+import FromData (class FromData)
 import Partial.Unsafe (unsafePartial)
-import Plutus.Types.AssocMap (lookup) as PlutusMap
-import Plutus.Types.Value (Value) as Plutus
-import Plutus.Types.Value
-  ( adaSymbol
-  , getValue
-  , getCurrencySymbol
-  , lovelaceValueOf
-  , singleton'
-  ) as PlutusValue
-import Plutus.ToFromPlutusType
-  ( class FromPlutusType
-  , fromPlutusType
-  , class ToPlutusType
-  , toPlutusType
-  )
 import Serialization.Hash
   ( ScriptHash
   , scriptHashAsBytes
   , scriptHashFromBytes
   , scriptHashToBytes
   )
-import Serialization.Types as CSL
-import ToData (class ToData, toData)
+import ToData (class ToData)
 import Types.ByteArray (ByteArray, byteLength, hexToByteArray)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Types.TokenName
@@ -143,8 +123,6 @@ newtype Coin = Coin BigInt
 derive instance Generic Coin _
 derive instance Newtype Coin _
 derive newtype instance Eq Coin
-derive newtype instance FromData Coin
-derive newtype instance ToData Coin
 
 instance Show Coin where
   show = genericShow
@@ -243,9 +221,7 @@ mkUnsafeAdaSymbol byteArr =
 newtype NonAdaAsset = NonAdaAsset (Map CurrencySymbol (Map TokenName BigInt))
 
 derive instance Newtype NonAdaAsset _
-derive newtype instance FromData NonAdaAsset
 derive newtype instance Eq NonAdaAsset
-derive newtype instance ToData NonAdaAsset
 
 instance Show NonAdaAsset where
   show (NonAdaAsset nonAdaAsset) = "(NonAdaAsset" <> show nonAdaAsset <> ")"
@@ -374,52 +350,6 @@ instance Split Value where
   split (Value coin nonAdaAsset) =
     bimap (flip Value mempty) (flip Value mempty) (split coin)
       <> bimap (Value mempty) (Value mempty) (split nonAdaAsset)
-
-newtype PlutusValue = PlutusValue Plutus.Value
-
-derive instance Newtype PlutusValue _
-
-instance FromPlutusType Identity PlutusValue Value where
-  fromPlutusType (PlutusValue plutusValue) =
-    Identity (adaValue <> mkValue mempty nonAdaAssets)
-    where
-    { adaTokenMap, nonAdaTokenMap } =
-      (\x -> { adaTokenMap: x.yes, nonAdaTokenMap: x.no }) <<<
-        partition (\(cs /\ _) -> cs == PlutusValue.adaSymbol) $
-        (unwrap $ PlutusValue.getValue plutusValue)
-
-    adaValue :: Value
-    adaValue = flip mkValue mempty <<< wrap <<< fromMaybe zero $ do
-      adaTokens <- Tuple.snd <$> head adaTokenMap
-      PlutusMap.lookup adaToken adaTokens
-
-    nonAdaAssets :: NonAdaAsset
-    nonAdaAssets = unsafePartial $ fromJust
-      $ mkNonAdaAssetsFromTokenMap
-      $ nonAdaTokenMap <#> \(cs /\ tokens) ->
-          PlutusValue.getCurrencySymbol cs /\ Map.fromFoldable (unwrap tokens)
-
-instance ToPlutusType Identity Value PlutusValue where
-  toPlutusType (Value (Coin adaAmount) (NonAdaAsset nonAdaAssets)) =
-    Identity $ PlutusValue (adaValue <> fold nonAdaValues)
-    where
-    adaValue :: Plutus.Value
-    adaValue
-      | adaAmount == zero = mempty
-      | otherwise = PlutusValue.lovelaceValueOf adaAmount
-
-    nonAdaValues :: Array Plutus.Value
-    nonAdaValues =
-      flip concatMap (Map.toUnfoldable nonAdaAssets) $ \(cs /\ tokens) ->
-        Map.toUnfoldable tokens <#> \(tn /\ val) ->
-          unsafePartial $ fromJust $
-            PlutusValue.singleton' (getCurrencySymbol cs) (getTokenName tn) val
-
-instance FromData Value where
-  fromData pd = (unwrap <<< fromPlutusType <<< PlutusValue) <$> fromData pd
-
-instance ToData Value where
-  toData = toPlutusType >>> unwrap >>> unwrap >>> toData
 
 -- | Create a `Value` from `Coin` and `NonAdaAsset`, the latter should have been
 -- | constructed safely at this point.

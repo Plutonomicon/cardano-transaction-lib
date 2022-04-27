@@ -211,7 +211,7 @@ derive newtype instance FromData CurrencySymbol
 derive newtype instance ToData CurrencySymbol
 
 instance Show CurrencySymbol where
-  show (CurrencySymbol cs) = "(CurrencySymbol " <> show cs <> ")"
+  show (CurrencySymbol cs) = "(CurrencySymbol" <> show cs <> ")"
 
 getCurrencySymbol :: CurrencySymbol -> ByteArray
 getCurrencySymbol (CurrencySymbol curSymbol) = curSymbol

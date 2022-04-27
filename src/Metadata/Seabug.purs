@@ -9,7 +9,6 @@ import Data.Argonaut (class DecodeJson)
 import Data.Argonaut as Json
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
-import Data.Map as Map
 import Data.Maybe (Maybe(Nothing), fromJust)
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
@@ -18,6 +17,7 @@ import Data.Tuple.Nested ((/\))
 import FromData (class FromData, fromData)
 import Metadata.Seabug.Share (Share, mkShare)
 import Partial.Unsafe (unsafePartial)
+import Plutus.Types.AssocMap (Map(Map)) as Plutus
 import ToData (class ToData, toData)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Types.ByteArray
@@ -27,8 +27,8 @@ import Types.ByteArray
   )
 import Types.Natural (Natural)
 import Types.PlutusData (PlutusData(Map))
+import Types.PubKeyHash (PubKeyHash)
 import Types.Scripts (MintingPolicyHash, ValidatorHash)
-import Types.UnbalancedTransaction (PubKeyHash)
 import Types.Value (CurrencySymbol, mkCurrencySymbol)
 import Types.TokenName (TokenName, mkTokenName)
 import Metadata.Helpers (unsafeMkKey, lookupKey)
@@ -55,9 +55,9 @@ instance Show SeabugMetadata where
   show = genericShow
 
 instance ToData SeabugMetadata where
-  toData (SeabugMetadata meta) = unsafePartial $ toData $ Map.fromFoldable
-    [ unsafeMkKey "727" /\ Map.fromFoldable
-        [ meta.policyId /\ Map.fromFoldable
+  toData (SeabugMetadata meta) = unsafePartial $ toData $ Plutus.Map
+    [ unsafeMkKey "727" /\ Plutus.Map
+        [ meta.policyId /\ Plutus.Map
             [ unsafeMkKey "mintPolicy" /\ toData meta.mintPolicy
             , unsafeMkKey "collectionNftCS" /\ toData meta.collectionNftCS
             , unsafeMkKey "collectionNftTN" /\ toData meta.collectionNftTN
@@ -173,9 +173,9 @@ instance Show SeabugMetadataDelta where
   show = genericShow
 
 instance ToData SeabugMetadataDelta where
-  toData (SeabugMetadataDelta meta) = unsafePartial $ toData $ Map.fromFoldable
-    [ unsafeMkKey "727" /\ Map.fromFoldable
-        [ meta.policyId /\ Map.fromFoldable
+  toData (SeabugMetadataDelta meta) = unsafePartial $ toData $ Plutus.Map
+    [ unsafeMkKey "727" /\ Plutus.Map
+        [ meta.policyId /\ Plutus.Map
             [ unsafeMkKey "ownerPkh" /\ toData meta.ownerPkh
             , unsafeMkKey "ownerPrice" /\ toData meta.ownerPrice
             ]

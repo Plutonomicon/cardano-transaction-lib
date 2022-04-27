@@ -5,14 +5,14 @@ import Prelude
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Tuple (Tuple(Tuple))
 import Data.Array ((..), length, zip)
-import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Newtype (class Newtype, wrap)
 import Data.UInt (UInt, fromInt)
 import Data.Traversable (for_)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Plutus.ToFromPlutusType (fromPlutusType, toPlutusType)
+import Plutus.FromPlutusType (fromPlutusType)
+import Plutus.ToPlutusType (toPlutusType)
 import Plutus.Types.Address (Address) as Plutus
-import Plutus.Types.Address (ForeignAddress(ForeignAddress))
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
@@ -43,12 +43,12 @@ toFromPlutusTypeTest addrType addrBech32 addrPlutus =
         addressFromBech32 addrBech32
     resAddrPlutus <-
       errMaybe "toPlutusType failed on valid foreign address" $
-        toPlutusType (ForeignAddress addrForeign)
+        toPlutusType addrForeign
     resAddrPlutus `shouldEqual` addrPlutus
     resAddrForeign <-
       errMaybe "fromPlutusType failed on valid native address" $
         fromPlutusType resAddrPlutus
-    unwrap resAddrForeign `shouldEqual` addrForeign
+    resAddrForeign `shouldEqual` addrForeign
 
 -- Test vectors are taken from the CIP-0019 specification.
 -- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0019#test-vectors

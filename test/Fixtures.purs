@@ -114,6 +114,7 @@ import Types.ByteArray
 import Types.Int as Int
 import Types.Natural as Natural
 import Types.PlutusData as PD
+import Types.PubKeyHash (PubKeyHash(PubKeyHash))
 import Types.RedeemerTag (RedeemerTag(Spend))
 import Types.TokenName (TokenName, mkTokenName)
 import Types.Scripts
@@ -177,7 +178,6 @@ import Types.Value
   , mkNonAdaAsset
   , mkSingletonNonAdaAsset
   )
-import Types.UnbalancedTransaction (PubKeyHash(PubKeyHash))
 
 txOutputFixture1 :: TransactionOutput
 txOutputFixture1 =

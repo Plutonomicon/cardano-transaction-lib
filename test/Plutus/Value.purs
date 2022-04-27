@@ -13,11 +13,11 @@ import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Plutus.Types.Value (Value) as Plutus
 import Plutus.Types.Value as PlutusValue
-import Plutus.ToFromPlutusType (fromPlutusType, toPlutusType)
+import Plutus.FromPlutusType (fromPlutusType)
+import Plutus.ToPlutusType (toPlutusType)
 import Test.Fixtures (currencySymbol1, tokenName1, tokenName2)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
-import Types.Value (PlutusValue(PlutusValue))
 import Types.Value (Value) as Types
 import Types.Value as Value
 
@@ -33,9 +33,9 @@ toFromPlutusTypeTest
   :: Int -> Plutus.Value -> Types.Value -> TestPlanM Unit
 toFromPlutusTypeTest i valuePlutus value =
   test (show i <> ": Plutus.Types.Value <-> Types.Value") $ do
-    let resValue = unwrap $ fromPlutusType (PlutusValue valuePlutus)
+    let resValue = unwrap (fromPlutusType valuePlutus)
     resValue `shouldEqual` value
-    let resValuePlutus = unwrap <<< unwrap $ toPlutusType resValue
+    let resValuePlutus = unwrap (toPlutusType resValue)
     resValuePlutus `shouldEqual` valuePlutus
 
 testData :: Array (Plutus.Value /\ Types.Value)
