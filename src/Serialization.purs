@@ -412,6 +412,7 @@ foreign import newProposedProtocolParameterUpdates
 
 foreign import setTxIsValid :: Transaction -> Boolean -> Effect Unit
 
+-- NOTE returns cbor encoding for all but hash types, for which it returns raw bytes
 foreign import toBytes
   :: ( Transaction
          |+| TransactionOutput

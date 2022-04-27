@@ -90,7 +90,6 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Nothing))
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype)
-import Data.Ratio (Ratio)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
@@ -111,10 +110,10 @@ import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray, byteArrayToHex)
 import Types.Int as Int
+import Types.PlutusData (PlutusData(Constr))
 import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
 import Types.Value (Coin, NonAdaAsset, Value)
-import Types.PlutusData (PlutusData(Constr))
 
 --------------------------------------------------------------------------------
 -- `Transaction`
@@ -376,6 +375,7 @@ type ProtocolVersion =
   , minor :: UInt
   }
 
+-- Following CSL Nonce is either None or a 32 byte hash
 data Nonce = IdentityNonce | HashNonce ByteArray
 
 derive instance Eq Nonce
@@ -780,6 +780,7 @@ data TransactionMetadatum
   | Text String
 
 derive instance Eq TransactionMetadatum
+derive instance Ord TransactionMetadatum
 derive instance Generic TransactionMetadatum _
 
 instance Show TransactionMetadatum where

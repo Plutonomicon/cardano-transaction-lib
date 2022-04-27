@@ -9,30 +9,29 @@ import ConstrIndices
   , fromConstr2Index
   )
 import Contract.PlutusData (PlutusData(Constr, Integer))
-import Contract.Prelude (fromJust, traverse_, uncurry)
 import Control.Lazy (fix)
 import Data.Array (zip, (..))
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Generic.Rep as G
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Show.Generic (genericShow)
-import Data.Traversable (for_)
-import Data.Tuple (Tuple)
+import Data.Traversable (for_, traverse_)
+import Data.Tuple (Tuple, uncurry)
 import Data.Tuple.Nested ((/\))
+import Deserialization.FromBytes (fromBytes)
+import Deserialization.PlutusData as PDD
 import FromData (class FromData, fromData, genericFromData)
 import Mote (group, skip, test)
 import Partial.Unsafe (unsafePartial)
+import Serialization (toBytes)
+import Serialization.PlutusData as PDS
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary, genericArbitrary)
 import Test.QuickCheck.Gen (Gen)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import ToData (class ToData, genericToData, toData)
-import Deserialization.FromBytes (fromBytes)
-import Deserialization.PlutusData as PDD
-import Serialization (toBytes)
-import Serialization.PlutusData as PDS
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Untagged.Union (asOneOf)
 
