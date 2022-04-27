@@ -9,11 +9,15 @@ exports._txAuxiliaryData = maybe => tx => {
 
 
 const maybeGetter_ = fmap => propstr => maybe => obj => {
+    if (typeof(propstr) != 'string'){
+        const s = "maybeGetter_ propstr must be a string, got " + propstr;
+        throw s;
+    }
     const res = obj[propstr]();
     return res == null ? maybe.nothing : maybe.just(fmap(res));
 };
 const maybeGetter = maybeGetter_ (a => a);
-const maybeGetterMulti = containerHelper => maybeGetter_(o => containerHelper.unpack(o));
+const maybeGetterMulti = propstr => containerHelper => maybeGetter_(o => containerHelper.unpack(o))(propstr);
 
 exports._txAuxiliaryData = maybeGetter("auxiliary_data");
 exports._adGeneralMetadata = maybeGetter("metadata");
@@ -29,7 +33,7 @@ exports._txBodyFee = body => body.fee();
 // ttl(): number | void;
 exports._txBodyTtl = maybeGetter("ttl");
 // certs(): Certificates | void;
-exports._txBodyCerts = maybeGetter("certs");
+exports._txBodyCerts = maybeGetterMulti("certs");
 // withdrawals(): Withdrawals | void;
 exports._txBodyWithdrawals = maybeGetter("withdrawals");
 // update(): Update | void;
@@ -38,8 +42,6 @@ exports._txBodyUpdate = maybeGetter("update");
 exports._txBodyAuxiliaryDataHash = maybeGetter("auxiliary_data_hash");
 // validity_start_interval(): number | void;
 exports._txBodyValidityStartInterval = maybeGetter("validity_start_interval");
-// mint(): Mint | void;
-exports._txBodyMint = maybeGetter("mint");
 // multiassets(): Mint | void;
 exports._txBodyMultiAssets = maybeGetter("multiassets");
 // script_data_hash(): ScriptDataHash | void;

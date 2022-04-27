@@ -417,6 +417,7 @@ foreign import newProposedProtocolParameterUpdates
   -> Array (GenesisHash /\ ProtocolParamUpdate)
   -> Effect ProposedProtocolParameterUpdates
 
+-- NOTE returns cbor encoding for all but hash types, for which it returns raw bytes
 foreign import toBytes
   :: ( Transaction
          |+| TransactionOutput

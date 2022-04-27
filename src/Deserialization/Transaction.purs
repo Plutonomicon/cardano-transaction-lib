@@ -15,7 +15,6 @@ module Deserialization.Transaction
   , _txBodyCollateral
   , _txBodyFee
   , _txBodyInputs
-  , _txBodyMint
   , _txBodyMultiAssets
   , _txBodyNetworkId
   , _txBodyOutputs
@@ -105,6 +104,7 @@ import FfiHelpers
   , errorHelper
   , maybeFfiHelper
   )
+import Serialization (toBytes)
 import Serialization.Address
   ( RewardAddress
   , intToNetworkId
@@ -119,7 +119,6 @@ import Types.ByteArray (ByteArray)
 import Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash
-  , RequiredSigner(RequiredSigner)
   , Certificate(StakeDeregistration, StakeRegistration, StakeDelegation)
   , CostModel(CostModel)
   , Costmdls(Costmdls)
@@ -134,7 +133,8 @@ import Types.Transaction
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate
   , ProtocolVersion
-  , ScriptDataHash
+  , RequiredSigner(RequiredSigner)
+  , ScriptDataHash(ScriptDataHash)
   , TransactionMetadatum(MetadataList, MetadataMap, Bytes, Int, Text)
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   , TxBody(TxBody)
@@ -148,6 +148,7 @@ import Types.Value
   , scriptHashAsCurrencySymbol
   , tokenNameFromAssetName
   )
+import Untagged.Union (asOneOf)
 
 -- | Deserializes CBOR encoded transaction to a CTL's native type.
 -- NOTE: wrt ByteArray type and cbor keyword https://github.com/Plutonomicon/cardano-transaction-lib/issues/234
@@ -220,8 +221,10 @@ convertTxBody txBody = do
     , update
     , auxiliaryDataHash: _txBodyAuxiliaryDataHash maybeFfiHelper txBody
     , validityStartInterval
-    , mint: map convertMint $ _txBodyMint maybeFfiHelper txBody
-    , scriptDataHash: _txBodyScriptDataHash maybeFfiHelper txBody
+    , mint: map convertMint $ _txBodyMultiAssets maybeFfiHelper txBody
+    , scriptDataHash: convertScriptDataHash <$> _txBodyScriptDataHash
+        maybeFfiHelper
+        txBody
     , collateral: _txBodyCollateral containerHelper maybeFfiHelper txBody >>=
         traverse convertInput
     , requiredSigners: _txBodyRequiredSigners maybeFfiHelper txBody #
@@ -474,6 +477,9 @@ convertExUnits nm cslExunits =
       <$> bigNumToBigInt' (nm <> " mem") mem
       <*> bigNumToBigInt' (nm <> " steps") steps
 
+convertScriptDataHash :: Csl.ScriptDataHash -> ScriptDataHash
+convertScriptDataHash = asOneOf >>> toBytes >>> ScriptDataHash
+
 convertProtocolVersions
   :: forall (r :: Row Type)
    . String
@@ -632,17 +638,13 @@ foreign import _txBodyAuxiliaryDataHash
 foreign import _txBodyValidityStartInterval
   :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Int
 
--- mint(): Mint | void
-foreign import _txBodyMint
-  :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Csl.Mint
-
 -- multiassets(): Mint | void
 foreign import _txBodyMultiAssets
   :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Csl.Mint
 
 -- script_data_hash(): ScriptDataHash | void
 foreign import _txBodyScriptDataHash
-  :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe ScriptDataHash
+  :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Csl.ScriptDataHash
 
 -- collateral(): TransactionInputs | void
 foreign import _txBodyCollateral
