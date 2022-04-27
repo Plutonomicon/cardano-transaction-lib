@@ -37,4 +37,4 @@ instance Show Int where
 fromBigInt :: BigInt.BigInt -> Maybe Int
 fromBigInt bi =
   (newPositive <$> bigNumFromBigInt bi) <|>
-  (newNegative <$> bigNumFromBigInt (negate bi))
+    (newNegative <$> bigNumFromBigInt (negate bi))
