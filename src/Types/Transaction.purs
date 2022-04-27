@@ -77,8 +77,6 @@ module Types.Transaction
 
 import Prelude
 
-import Contract.Numeric.Rational (Rational)
-import Contract.Prim.ByteArray (ByteArray(..))
 import Control.Apply (lift2)
 import Data.Array (union)
 import Data.BigInt (BigInt)
