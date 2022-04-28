@@ -37,10 +37,3 @@ instance DecodeJson PubKeyHash where
   decodeJson = caseJsonObject
     (Left $ TypeMismatch "Expected object")
     (flip getField "getPubKeyHash" >=> decodeJson >>> map PubKeyHash)
-
--- payPubKeyHash :: PaymentPubKey -> Maybe PaymentPubKeyHash
--- payPubKeyHash (PaymentPubKey pk) = wrap <$> pubKeyHash pk
-
--- pubKeyHash :: PublicKey -> Maybe PubKeyHash
--- pubKeyHash (PublicKey bech32) =
---   wrap <$> ed25519KeyHashFromBech32 bech32

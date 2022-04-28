@@ -22,8 +22,7 @@ import Data.Traversable (for, traverse, sequence)
 import Data.Tuple (Tuple)
 import Data.Tuple.Nested ((/\))
 import Foreign.Object (Object, toUnfoldable) as FO
-import Plutus.Types.AssocMap (Map(Map)) as Plutus
-import Plutus.Types.AssocMap (singleton) as Plutus.Map
+import Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
 import FromData (class FromData, fromData)
 import ToData (class ToData, toData)
 import Serialization.Hash (scriptHashFromBytes)
@@ -54,7 +53,7 @@ instance Show Cip25MetadataFile where
   show = genericShow
 
 instance ToData Cip25MetadataFile where
-  toData (Cip25MetadataFile meta) = toData $ Plutus.Map $
+  toData (Cip25MetadataFile meta) = toData $ AssocMap.Map $
     [ toData "name" /\ toData meta.name
     , toData "mediaType" /\ toData meta.mediaType
     , toData "src" /\ toData meta.uris
@@ -96,7 +95,7 @@ instance Show Cip25MetadataEntry where
   show = genericShow
 
 metadataEntryToData :: Cip25MetadataEntry -> PlutusData
-metadataEntryToData (Cip25MetadataEntry meta) = toData $ Plutus.Map $
+metadataEntryToData (Cip25MetadataEntry meta) = toData $ AssocMap.Map $
   [ toData "name" /\ toData meta.assetName
   , toData "image" /\ toData meta.imageUris
   , toData "mediaType" /\ toData meta.mediaType
@@ -149,12 +148,12 @@ instance Show Cip25Metadata where
 
 instance ToData Cip25Metadata where
   toData (Cip25Metadata entries) = toData
-    $ Plutus.Map.singleton (toData nftMetadataLabel)
-    $ Plutus.Map
+    $ AssocMap.singleton (toData nftMetadataLabel)
+    $ AssocMap.Map
     $ groups <#>
         \group ->
           toData (_.policyId <<< unwrap $ NonEmpty.head group) /\
-            (Plutus.Map <<< toArray <<< flip map group) \entry ->
+            (AssocMap.Map <<< toArray <<< flip map group) \entry ->
               toData ((unwrap entry).assetName) /\ metadataEntryToData entry
     where
     groups :: Array (NonEmptyArray Cip25MetadataEntry)

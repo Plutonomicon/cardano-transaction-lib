@@ -3,8 +3,9 @@
 -- | being that Ada's currency symbol does not exist, instead, Ada is
 -- | represented by `Coin`.
 module Contract.Value
-  ( module Value
+  ( module CurrencySymbol
   , module TokenName
+  , module Value
   , scriptCurrencySymbol
   ) where
 
@@ -20,49 +21,38 @@ import Types.TokenName
   , mkTokenName
   , mkTokenNames
   ) as TokenName
-import Types.Value
-  ( Coin(Coin)
-  , CurrencySymbol
-  , NonAdaAsset(NonAdaAsset)
-  , Value(Value)
-  , coinToValue
+import Plutus.Types.CurrencySymbol
+  ( CurrencySymbol
+  , adaSymbol
   , currencyMPSHash
-  , eq
-  , filterNonAda
-  , geq
   , getCurrencySymbol
-  , getLovelace
-  , getNonAdaAsset
-  , getNonAdaAsset'
-  , gt
-  , isAdaOnly
-  , isPos
-  , isZero
-  , leq
-  , lovelaceValueOf
-  , lt
-  , minus
-  , mkCoin
   , mkCurrencySymbol
-  , mkNonAdaAsset
-  , mkNonAdaAssets
-  , mkNonAdaAssetsFromTokenMap
-  , mkSingletonNonAdaAsset
-  , mkSingletonValue
-  , mkSingletonValue'
-  , mkValue
   , mpsSymbol
-  , negation
-  , numCurrencySymbols
-  , numTokenNames
-  , unionWith
+  , scriptHashAsCurrencySymbol
+  ) as CurrencySymbol
+import Plutus.Types.Value
+  ( Value
+  , getValue
+  , singleton
+  , singleton'
   , valueOf
-  , valueToCoin
-  , valueToCoin'
+  , lovelaceValueOf
+  , scale
+  , symbols
+  , isZero
+  , negation
+  , split
+  , unionWith
+  , flattenValue
+  , flattenNonAdaAssets
+  , geq
+  , gt
+  , leq
+  , lt
   ) as Value
 
 scriptCurrencySymbol
   :: forall (r :: Row Type)
    . MintingPolicy
-  -> Contract r (Maybe Value.CurrencySymbol)
+  -> Contract r (Maybe CurrencySymbol.CurrencySymbol)
 scriptCurrencySymbol = wrapContract <<< Scripts.scriptCurrencySymbol

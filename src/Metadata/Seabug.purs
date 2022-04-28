@@ -17,7 +17,7 @@ import Data.Tuple.Nested ((/\))
 import FromData (class FromData, fromData)
 import Metadata.Seabug.Share (Share, mkShare)
 import Partial.Unsafe (unsafePartial)
-import Plutus.Types.AssocMap (Map(Map)) as Plutus
+import Plutus.Types.AssocMap (Map(Map)) as AssocMap
 import ToData (class ToData, toData)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Types.ByteArray
@@ -55,9 +55,9 @@ instance Show SeabugMetadata where
   show = genericShow
 
 instance ToData SeabugMetadata where
-  toData (SeabugMetadata meta) = unsafePartial $ toData $ Plutus.Map
-    [ unsafeMkKey "727" /\ Plutus.Map
-        [ meta.policyId /\ Plutus.Map
+  toData (SeabugMetadata meta) = unsafePartial $ toData $ AssocMap.Map
+    [ unsafeMkKey "727" /\ AssocMap.Map
+        [ meta.policyId /\ AssocMap.Map
             [ unsafeMkKey "mintPolicy" /\ toData meta.mintPolicy
             , unsafeMkKey "collectionNftCS" /\ toData meta.collectionNftCS
             , unsafeMkKey "collectionNftTN" /\ toData meta.collectionNftTN
@@ -173,9 +173,9 @@ instance Show SeabugMetadataDelta where
   show = genericShow
 
 instance ToData SeabugMetadataDelta where
-  toData (SeabugMetadataDelta meta) = unsafePartial $ toData $ Plutus.Map
-    [ unsafeMkKey "727" /\ Plutus.Map
-        [ meta.policyId /\ Plutus.Map
+  toData (SeabugMetadataDelta meta) = unsafePartial $ toData $ AssocMap.Map
+    [ unsafeMkKey "727" /\ AssocMap.Map
+        [ meta.policyId /\ AssocMap.Map
             [ unsafeMkKey "ownerPkh" /\ toData meta.ownerPkh
             , unsafeMkKey "ownerPrice" /\ toData meta.ownerPrice
             ]

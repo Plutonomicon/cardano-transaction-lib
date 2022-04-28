@@ -172,7 +172,7 @@ mkTypedTxOut
 mkTypedTxOut networkId typedVal dt amount = do
   mDHash <- datumHash $ Datum $ toData dt
   -- FIX ME: This is hardcoded to enterprise address, it seems like Plutus'
-  -- "validatorAddress" also currently doesn't accoutn for staking.
+  -- "validatorAddress" also currently doesn't account for staking.
   let address = typedValidatorEnterpriseAddress networkId typedVal
   pure $ maybe Nothing
     ( \dHash ->

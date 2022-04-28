@@ -11,36 +11,38 @@ module Plutus.Types.Value
   , negation
   , split
   , unionWith
+  , flattenValue
+  , flattenNonAdaAssets
   , geq
   , gt
   , leq
   , lt
-  , eq
-  , CurrencySymbol
-  , getCurrencySymbol
-  , mkCurrencySymbol
-  , adaSymbol
-  , flattenValue
   ) where
 
 import Prelude hiding (eq)
 
 import Control.Apply (lift3)
-import Data.Array (concatMap)
+import Data.Array (concatMap, filter)
 import Data.BigInt (BigInt)
 import Data.Foldable (all)
+import Data.Lattice (class JoinSemilattice, class MeetSemilattice)
 import Data.Maybe (Maybe(Nothing), fromMaybe)
 import Data.These (These(Both, That, This), these)
+import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import FromData (class FromData, fromData)
-import Serialization.Hash (scriptHashFromBytes)
 import ToData (class ToData, toData)
 import Types.ByteArray (ByteArray)
 import Types.TokenName (TokenName, adaToken, mkTokenName)
 import Plutus.Types.AssocMap (Map(Map)) as Plutus
 import Plutus.Types.AssocMap (singleton, lookup, keys, union, mapThese) as Plutus.Map
+import Plutus.Types.CurrencySymbol (CurrencySymbol, mkCurrencySymbol, adaSymbol)
 
 newtype Value = Value (Plutus.Map CurrencySymbol (Plutus.Map TokenName BigInt))
+
+-- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#eq
+instance Eq Value where
+  eq = checkBinRel (==)
 
 instance Show Value where
   show (Value mp) = "(PlutusValue " <> show mp <> ")"
@@ -50,6 +52,12 @@ instance Semigroup Value where
 
 instance Monoid Value where
   mempty = Value (Plutus.Map [])
+
+instance JoinSemilattice Value where
+  join = unionWith max
+
+instance MeetSemilattice Value where
+  meet = unionWith min
 
 --------------------------------------------------------------------------------
 -- ToData / FromData
@@ -62,7 +70,7 @@ instance FromData Value where
   fromData = map Value <<< fromData
 
 --------------------------------------------------------------------------------
--- Exported Functions
+-- Public
 --------------------------------------------------------------------------------
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#Value
@@ -141,40 +149,40 @@ unionWith f lhs =
   Value <<< map (map (these identity identity f)) <<< unionVal lhs
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#flattenValue
--- | Convert a value to a simple list, keeping only the non-zero amounts.
+-- | Converts a value to a simple list, keeping only the non-zero amounts.
 flattenValue :: Value -> Array (CurrencySymbol /\ TokenName /\ BigInt)
 flattenValue (Value (Plutus.Map arr)) =
   flip concatMap arr \(cs /\ (Plutus.Map tokens)) ->
     tokens <#> \(tn /\ value) ->
       cs /\ tn /\ value
 
+-- | Converts a value to a simple list, keeping only the non-Ada assets
+-- | with non-zero amounts.
+flattenNonAdaAssets :: Value -> Array (CurrencySymbol /\ TokenName /\ BigInt)
+flattenNonAdaAssets = filter (notEq adaSymbol <<< fst) <<< flattenValue
+
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#geq
--- | Check whether one `Value` is greater than or equal to another.
+-- | Checks whether one `Value` is greater than or equal to another.
 geq :: Value -> Value -> Boolean
 geq = checkBinRel (>=)
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#gt
--- | Check whether one `Value` is strictly greater than another.
+-- | Checks whether one `Value` is strictly greater than another.
 gt :: Value -> Value -> Boolean
 gt l r = not (isZero l && isZero r) && checkBinRel (>) l r
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#leq
--- | Check whether one `Value` is less than or equal to another.
+-- | Checks whether one `Value` is less than or equal to another.
 leq :: Value -> Value -> Boolean
 leq = checkBinRel (<=)
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#lt
--- | Check whether one `Value` is strictly less than another.
+-- | Checks whether one `Value` is strictly less than another.
 lt :: Value -> Value -> Boolean
 lt l r = not (isZero l && isZero r) && checkBinRel (<) l r
 
--- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#eq
--- | Check whether one `Value` is equal to another.
-eq :: Value -> Value -> Boolean
-eq = checkBinRel (==)
-
 --------------------------------------------------------------------------------
--- Internal Functions
+-- Internal
 --------------------------------------------------------------------------------
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#unionVal
@@ -196,30 +204,3 @@ checkPred f l r = all (all f) (unionVal l r)
 -- supplying 0 where a key is only present in one of them.
 checkBinRel :: (BigInt -> BigInt -> Boolean) -> Value -> Value -> Boolean
 checkBinRel f l r = checkPred (these (flip f zero) (f zero) f) l r
-
---------------------------------------------------------------------------------
--- CurrencySymbol
---------------------------------------------------------------------------------
-
-newtype CurrencySymbol = CurrencySymbol ByteArray
-
-derive newtype instance Eq CurrencySymbol
-derive newtype instance Ord CurrencySymbol
-derive newtype instance FromData CurrencySymbol
-derive newtype instance ToData CurrencySymbol
-
-instance Show CurrencySymbol where
-  show (CurrencySymbol cs) = "(CurrencySymbol" <> show cs <> ")"
-
-getCurrencySymbol :: CurrencySymbol -> ByteArray
-getCurrencySymbol (CurrencySymbol curSymbol) = curSymbol
-
-adaSymbol :: CurrencySymbol
-adaSymbol = CurrencySymbol mempty
-
-mkCurrencySymbol :: ByteArray -> Maybe CurrencySymbol
-mkCurrencySymbol byteArr
-  | byteArr == mempty =
-      pure adaSymbol
-  | otherwise =
-      scriptHashFromBytes byteArr $> CurrencySymbol byteArr

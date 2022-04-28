@@ -43,12 +43,13 @@ import Data.BigInt (BigInt)
 import Data.Foldable (class Foldable, any, foldl, foldMap, foldr, null)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
-import Data.Map (Map, fromFoldableWith, toUnfoldable)
+import Data.Map (fromFoldableWith, toUnfoldable)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, over, unwrap)
 import Data.Show.Generic (genericShow)
-import Data.Tuple (uncurry)
 import Data.Tuple.Nested ((/\), type (/\))
+import Plutus.Types.CurrencySymbol (CurrencySymbol, currencyMPSHash)
+import Plutus.Types.Value (Value, isZero, flattenNonAdaAssets)
 import ToData (class ToData, toData)
 import Types.Redeemer (Redeemer, unitRedeemer)
 import Types.Interval (POSIXTimeRange, always, intersection, isEmpty)
@@ -60,13 +61,6 @@ import Types.UnbalancedTransaction
   ( PaymentPubKeyHash
   , StakePubKeyHash
   , TxOutRef
-  )
-import Types.Value
-  ( CurrencySymbol
-  , Value
-  , currencyMPSHash
-  , getNonAdaAsset
-  , isZero
   )
 
 --------------------------------------------------------------------------------
@@ -258,24 +252,20 @@ mustPayToOtherScript vh dt vl =
 mustMintValue :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
 mustMintValue = mustMintValueWithRedeemer unitRedeemer
 
--- | Mint the given `Value` by accessing `NonAdaAsset`
+-- | Mint the given `Value` by accessing non-Ada assets.
 mustMintValueWithRedeemer
   :: forall (i :: Type) (o :: Type)
    . Redeemer
   -> Value
   -> TxConstraints i o
 mustMintValueWithRedeemer redeemer =
-  Array.foldMap valueConstraint <<< toUnfoldable <<< unwrap <<< getNonAdaAsset
+  Array.fold <<< Array.mapMaybe tokenConstraint <<< flattenNonAdaAssets
   where
-  valueConstraint
-    :: CurrencySymbol /\ (Map TokenName BigInt) -> TxConstraints i o
-  valueConstraint (currencySymbol /\ tokenMap) =
-    let
-      mintingPolicyHash = currencyMPSHash currencySymbol
-    in
-      Array.foldMap
-        (uncurry (mustMintCurrencyWithRedeemer mintingPolicyHash redeemer))
-        $ toUnfoldable tokenMap
+  tokenConstraint
+    :: CurrencySymbol /\ TokenName /\ BigInt -> Maybe (TxConstraints i o)
+  tokenConstraint (cs /\ tn /\ amount) = do
+    mintingPolicyHash <- currencyMPSHash cs
+    pure $ mustMintCurrencyWithRedeemer mintingPolicyHash redeemer tn amount
 
 -- | Create the given amount of the currency.
 mustMintCurrency

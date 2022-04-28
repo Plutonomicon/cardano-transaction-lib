@@ -29,8 +29,9 @@ import Plutus.Types.Credential
   , StakingCredential(StakingHash, StakingPtr)
   )
 import Plutus.Types.AssocMap (lookup) as Plutus.AssocMap
+import Plutus.Types.CurrencySymbol (adaSymbol, getCurrencySymbol) as Plutus
 import Plutus.Types.Value (Value) as Plutus
-import Plutus.Types.Value (getValue, getCurrencySymbol, adaSymbol) as Plutus.Value
+import Plutus.Types.Value (getValue) as Plutus.Value
 
 import Types.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe)
 import Types.TokenName (adaToken)
@@ -55,7 +56,7 @@ instance FromPlutusType Identity Plutus.Value Types.Value where
     where
     { adaTokenMap, nonAdaTokenMap } =
       (\x -> { adaTokenMap: x.yes, nonAdaTokenMap: x.no }) <<<
-        partition (\(cs /\ _) -> cs == Plutus.Value.adaSymbol) $
+        partition (\(cs /\ _) -> cs == Plutus.adaSymbol) $
         (unwrap $ Plutus.Value.getValue plutusValue)
 
     adaValue :: Types.Value
@@ -67,7 +68,7 @@ instance FromPlutusType Identity Plutus.Value Types.Value where
     nonAdaAssets = unsafePartial $ fromJust
       $ mkNonAdaAssetsFromTokenMap
       $ nonAdaTokenMap <#> \(cs /\ tokens) ->
-          Plutus.Value.getCurrencySymbol cs /\ Map.fromFoldable (unwrap tokens)
+          Plutus.getCurrencySymbol cs /\ Map.fromFoldable (unwrap tokens)
 
 --------------------------------------------------------------------------------
 -- Plutus.Types.Address -> Maybe Serialization.Address
@@ -147,8 +148,8 @@ instance FromPlutusType Maybe Plutus.Address Serialization.Address where
 
     pointerToBytes :: Serialization.Address.Pointer -> ByteArray
     pointerToBytes ptr =
-      _toVarLengthUInt ptr.slot <> _toVarLengthUInt ptr.txIx <>
-        _toVarLengthUInt ptr.certIx
+      toVarLengthUInt ptr.slot <> toVarLengthUInt ptr.txIx <>
+        toVarLengthUInt ptr.certIx
 
 -- | Encodes the variable-length positive number as a byte array
 -- | according to the ABNF grammar below.
@@ -157,8 +158,8 @@ instance FromPlutusType Maybe Plutus.Address Serialization.Address where
 -- |     (%b1 | uint7 | variable-length-uint)
 -- |   / (%b0 | uint7)
 -- | uint7 = 7bit
-_toVarLengthUInt :: forall (t :: Type). Newtype t UInt => t -> ByteArray
-_toVarLengthUInt t = worker (unwrap t) false
+toVarLengthUInt :: forall (t :: Type). Newtype t UInt => t -> ByteArray
+toVarLengthUInt t = worker (unwrap t) false
   where
   worker :: UInt -> Boolean -> ByteArray
   worker srcUInt setSignalBit

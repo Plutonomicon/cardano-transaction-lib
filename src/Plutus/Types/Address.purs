@@ -9,13 +9,10 @@ module Plutus.Types.Address
 
 import Prelude
 
-import Data.Array (head, singleton, uncons, take, drop, foldr, snoc)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Data.Newtype (class Newtype, wrap, unwrap)
-import Data.Tuple (fst)
-import Data.Tuple.Nested (type (/\), (/\))
 import FromData (class FromData, fromData)
 import ToData (class ToData, toData)
 import Types.Scripts (ValidatorHash)
@@ -23,7 +20,7 @@ import Types.PlutusData (PlutusData(Constr))
 import Types.PubKeyHash (PubKeyHash)
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
-  , StakingCredential(StakingHash, StakingPtr)
+  , StakingCredential
   )
 
 --------------------------------------------------------------------------------

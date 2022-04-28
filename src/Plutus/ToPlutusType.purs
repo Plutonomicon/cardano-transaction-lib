@@ -150,9 +150,9 @@ instance ToPlutusType Maybe Serialization.Address Plutus.Address where
 
     stakingPtr :: ByteArray -> Maybe StakingCredential
     stakingPtr byteArray = do
-      slot /\ bytes0 <- _fromVarLengthUInt (byteArrayToIntArray byteArray) []
-      txIx /\ bytes1 <- _fromVarLengthUInt bytes0 []
-      certIx /\ _ <- _fromVarLengthUInt bytes1 []
+      slot /\ bytes0 <- fromVarLengthUInt (byteArrayToIntArray byteArray) mempty
+      txIx /\ bytes1 <- fromVarLengthUInt bytes0 mempty
+      certIx /\ _ <- fromVarLengthUInt bytes1 mempty
       pure $ StakingPtr { slot, txIx, certIx }
 
 -- | Extracts the variable-length positive number from a byte array
@@ -162,13 +162,13 @@ instance ToPlutusType Maybe Serialization.Address Plutus.Address where
 -- |     (%b1 | uint7 | variable-length-uint)
 -- |   / (%b0 | uint7)
 -- | uint7 = 7bit
-_fromVarLengthUInt
+fromVarLengthUInt
   :: forall (t :: Type)
    . Newtype t UInt
   => Array Int
   -> Array UInt
   -> Maybe (t /\ Array Int)
-_fromVarLengthUInt bytes acc = do
+fromVarLengthUInt bytes acc = do
   { head: x', tail: xs } <- uncons bytes
   let x = fromInt x'
   -- Apply bit mask (128 = %b10000000) for inspecting the
@@ -191,4 +191,4 @@ _fromVarLengthUInt bytes acc = do
               ((lhs `shl` fromInt (7 * c)) + rhs) /\ (c + 1)
       in
         Just $ wrap uintValue /\ xs
-    _ -> _fromVarLengthUInt xs (snoc acc x)
+    _ -> fromVarLengthUInt xs (snoc acc x)

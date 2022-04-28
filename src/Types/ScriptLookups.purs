@@ -58,6 +58,7 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Helpers ((<\>), liftEither, liftM)
+import Plutus.FromPlutusType (fromPlutusType)
 import QueryM
   ( DefaultQueryConfig
   , QueryM
@@ -731,7 +732,8 @@ addOwnOutput (OutputConstraint { datum, value }) = do
   runExceptT do
     ScriptLookups { typedValidator } <- use _lookups
     inst <- liftM TypedValidatorMissing typedValidator
-    typedTxOut <- ExceptT $ lift $ mkTypedTxOut networkId inst datum value
+    let value' = unwrap $ fromPlutusType value
+    typedTxOut <- ExceptT $ lift $ mkTypedTxOut networkId inst datum value'
       <#> note MkTypedTxOutFailed
     let txOut = typedTxOutTxOut typedTxOut
     -- We are erroring if we don't have a datumhash given the polymorphic datum
@@ -741,7 +743,7 @@ addOwnOutput (OutputConstraint { datum, value }) = do
       ExceptT $ lift $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
     _cpsToTxBody <<< _outputs <>= Array.singleton txOut
     ExceptT $ addDatum (wrap dat)
-    _valueSpentBalancesOutputs <>= provide value
+    _valueSpentBalancesOutputs <>= provide value'
 
 data MkUnbalancedTxError
   = TypeCheckFailed TypeCheckError
@@ -840,10 +842,12 @@ processConstraint mpsMap osMap = do
           maybe (throwError (CannotConvertPaymentPubKeyHash pkh))
             (pure <<< Array.singleton)
       _cpsToTxBody <<< _requiredSigners <>= sigs
-    MustSpendAtLeast vl ->
-      runExceptT $ _valueSpentBalancesInputs <>= require vl
-    MustProduceAtLeast vl ->
-      runExceptT $ _valueSpentBalancesOutputs <>= require vl
+    MustSpendAtLeast plutusValue -> do
+      let value = unwrap $ fromPlutusType plutusValue
+      runExceptT $ _valueSpentBalancesInputs <>= require value
+    MustProduceAtLeast plutusValue -> do
+      let value = unwrap $ fromPlutusType plutusValue
+      runExceptT $ _valueSpentBalancesOutputs <>= require value
     MustSpendPubKeyOutput txo -> runExceptT do
       txOut <- ExceptT $ lookupTxOutRef txo
       -- Recall an Ogmios datum is a `Maybe String` where `Nothing` implies a
@@ -939,7 +943,8 @@ processConstraint mpsMap osMap = do
       _redeemers <>= Array.singleton (redeemer /\ Nothing)
       -- Attach redeemer to witness set.
       ExceptT $ attachToCps attachRedeemer redeemer
-    MustPayToPubKeyAddress pkh skh mDatum amount -> do
+    MustPayToPubKeyAddress pkh skh mDatum plutusValue -> do
+      let amount = unwrap $ fromPlutusType plutusValue
       networkId <- getNetworkId
       runExceptT do
         -- If datum is presented, add it to 'datumWitnesses' and Array of datums.
@@ -988,7 +993,8 @@ processConstraint mpsMap osMap = do
             }
         _cpsToTxBody <<< _outputs <>= Array.singleton txOut
         _valueSpentBalancesOutputs <>= provide amount
-    MustPayToOtherScript vlh datum amount -> do
+    MustPayToOtherScript vlh datum plutusValue -> do
+      let amount = unwrap $ fromPlutusType plutusValue
       networkId <- getNetworkId
       runExceptT do
         -- Don't write `let dataHash = datumHash datum`, see [datumHash Note]

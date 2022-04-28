@@ -11,12 +11,14 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.Traversable (for_)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Plutus.Types.Value (Value, CurrencySymbol) as Plutus
+import Plutus.Types.CurrencySymbol (CurrencySymbol) as Plutus
+import Plutus.Types.CurrencySymbol as Plutus.CurrencySymbol
+import Plutus.Types.Value (Value) as Plutus
 import Plutus.Types.Value as Plutus.Value
 import Plutus.FromPlutusType (fromPlutusType)
 import Plutus.ToPlutusType (toPlutusType)
 import Test.Fixtures (currencySymbol1, tokenName1, tokenName2)
-import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
+import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.Value (Value) as Types
 import Types.Value as Value
@@ -36,7 +38,7 @@ toFromPlutusTypeTest i valuePlutus value =
     let resValue = unwrap (fromPlutusType valuePlutus)
     resValue `shouldEqual` value
     let resValuePlutus = unwrap (toPlutusType resValue)
-    resValuePlutus `shouldSatisfy` (Plutus.Value.eq valuePlutus)
+    resValuePlutus `shouldEqual` valuePlutus
 
 testData :: Array (Plutus.Value /\ Types.Value)
 testData = [ emptyValues, adaValues, nonAdaValues, compositeValues ]
@@ -45,7 +47,8 @@ testData = [ emptyValues, adaValues, nonAdaValues, compositeValues ]
 
   currencySymbol1' :: Plutus.CurrencySymbol
   currencySymbol1' = unsafePartial $ fromJust $
-    Plutus.Value.mkCurrencySymbol (Value.getCurrencySymbol currencySymbol1)
+    Plutus.CurrencySymbol.mkCurrencySymbol
+      (Value.getCurrencySymbol currencySymbol1)
 
   nonAdaAsset1 :: Value.NonAdaAsset
   nonAdaAsset1 =

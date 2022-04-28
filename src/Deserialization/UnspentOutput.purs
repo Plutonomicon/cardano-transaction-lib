@@ -51,8 +51,7 @@ import Types.Value
   , mkNonAdaAsset
   , mkValue
   ) as T
-import Types.TokenName (TokenName, mkTokenName) as T
-import Types.TokenName (assetNameName)
+import Types.TokenName (TokenName, assetNameName, mkTokenName) as T
 import Untagged.Union (asOneOf)
 
 convertUnspentOutput
@@ -101,7 +100,7 @@ convertValue value = do
                 -- scripthash to currency symbol
                 (scriptHashToBytes >>> T.mkCurrencySymbol)
                 -- nested assetname to tokenname
-                (traverse (ltraverse (assetNameName >>> T.mkTokenName)))
+                (traverse (ltraverse (T.assetNameName >>> T.mkTokenName)))
             )
             >>>
               -- convert inner array
