@@ -144,8 +144,11 @@
         ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
         cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
         purescriptProject = import ./nix { inherit system; pkgs = prev; };
+        mkCtlRuntime = mkCtlRuntime system;
+        launchCtlRuntime = launchCtlRuntime system;
         inherit cardano-configurations;
       });
+
       nixpkgsFor = system: import nixpkgs {
         overlays = [
           haskell-nix.overlay
@@ -155,6 +158,113 @@
         inherit (haskell-nix) config;
         inherit system;
       };
+
+      mkCtlRuntime = system:
+        { nodePort ? 3001
+        , ogmiosPort ? 1337
+        , serverPort ? 8081
+        }@cfg:
+        { ... }:
+        let
+          inherit (builtins) toString;
+          pkgs = nixpkgsFor system;
+          nodeDbVol = "node-db";
+          nodeIpcVol = "node-ipc";
+          nodeSocketPath = "/ipc/node.socket";
+          serverName = "ctl-server:exe:ctl-server";
+          server = self.packages.${system}."${serverName}";
+        in
+        {
+          docker-compose.raw = {
+            volumes = {
+              "${nodeDbVol}" = { };
+              "${nodeIpcVol}" = { };
+            };
+          };
+          services = {
+            cardano-node = {
+              service = {
+                image = "inputoutput/cardano-node:1.34.1";
+                ports = [
+                  "${toString nodePort}:${toString nodePort}"
+                ];
+                volumes = [
+                  "${cardano-configurations}/network/testnet/cardano-node:/config"
+                  "${cardano-configurations}/network/testnet/genesis:/genesis"
+                  "${nodeDbVol}:/data"
+                  "${nodeIpcVol}:/ipc"
+                ];
+                command = [
+                  "run"
+                  "--config"
+                  "/config/config.json"
+                  "--database-path"
+                  "/data/db"
+                  "--socket-path"
+                  "${nodeSocketPath}"
+                  "--topology"
+                  "/config/topology.json"
+                ];
+              };
+            };
+            ogmios =
+              {
+                service = {
+                  useHostStore = true;
+                  ports = [
+                    "${toString ogmiosPort}:${toString ogmiosPort}"
+                  ];
+                  volumes = [
+                    "${cardano-configurations}/network/testnet:/config"
+                    "${nodeIpcVol}:/ipc"
+                  ];
+                  command = [
+                    "${pkgs.bash}/bin/sh"
+                    "-c"
+                    ''
+                      ${pkgs.ogmios}/bin/ogmios \
+                        --host 0.0.0.0 \
+                        --port ${toString ogmiosPort} \
+                        --node-socket /ipc/node.socket \
+                        --node-config /config/cardano-node/config.json
+                    ''
+                  ];
+                };
+              };
+            ctl-server = {
+              service = {
+                useHostStore = true;
+                ports = [
+                  "${toString serverPort}:${toString serverPort}"
+                ];
+                command = [
+                  "${pkgs.bash}/bin/sh"
+                  "-c"
+                  ''
+                    ${server}/bin/ctl-server
+                  ''
+                ];
+              };
+            };
+          };
+        };
+
+      launchCtlRuntime = system: config:
+        let
+          pkgs = nixpkgsFor system;
+          prebuilt = (pkgs.arion.build {
+            inherit pkgs;
+            modules = [ (mkCtlRuntime system config) ];
+          }).outPath;
+        in
+        (pkgs.writeShellScriptBin "ctl-runtime"
+          ''
+            ${pkgs.arion}/bin/arion --prebuilt-file ${prebuilt} up
+          ''
+        ).overrideAttrs (_: {
+          buildInputs = [ pkgs.arion pkgs.docker ];
+        });
+
       psProjectFor = system:
         let
           pkgs = nixpkgsFor system;
@@ -201,85 +311,6 @@
                 '';
             };
           };
-          ctlRuntime = { ... }:
-            let
-              nodeDbVol = "node-db";
-              nodeIpcVol = "node-ipc";
-              nodeSocketPath = "/ipc/node.socket";
-              serverName = "ctl-server:exe:ctl-server";
-              server = self.packages.${system}."${serverName}";
-            in
-            {
-              docker-compose.raw = {
-                volumes = {
-                  "${nodeDbVol}" = { };
-                  "${nodeIpcVol}" = { };
-                };
-              };
-              services = {
-                cardano-node = {
-                  service = {
-                    image = "inputoutput/cardano-node:1.34.1";
-                    ports = [ "3001:3001" ];
-                    volumes = [
-                      "${cardano-configurations}/network/testnet/cardano-node:/config"
-                      "${cardano-configurations}/network/testnet/genesis:/genesis"
-                      "${nodeDbVol}:/data"
-                      "${nodeIpcVol}:/ipc"
-                    ];
-                    command = [
-                      "run"
-                      "--config"
-                      "/config/config.json"
-                      "--database-path"
-                      "/data/db"
-                      "--socket-path"
-                      "${nodeSocketPath}"
-                      "--topology"
-                      "/config/topology.json"
-                    ];
-                  };
-                };
-                ogmios =
-                  let
-                    ogmiosPort = "1337";
-                  in
-                  {
-                    service = {
-                      useHostStore = true;
-                      ports = [ "${ogmiosPort}:${ogmiosPort}" ];
-                      volumes = [
-                        "${cardano-configurations}/network/testnet:/config"
-                        "${nodeIpcVol}:/ipc"
-                      ];
-                      command = [
-                        "${pkgs.bash}/bin/sh"
-                        "-c"
-                        ''
-                          ${pkgs.ogmios}/bin/ogmios \
-                            --host 0.0.0.0 \
-                            --port ${ogmiosPort} \
-                            --node-socket /ipc/node.socket \
-                            --node-config /config/cardano-node/config.json
-                        ''
-                      ];
-                    };
-                  };
-                ctl-server = {
-                  service = {
-                    useHostStore = true;
-                    ports = [ "8081:8081" ];
-                    command = [
-                      "${pkgs.bash}/bin/sh"
-                      "-c"
-                      ''
-                        ${server}/bin/ctl-server
-                      ''
-                    ];
-                  };
-                };
-              };
-            };
         in
         rec {
           defaultPackage = packages.ctl-example-bundle-web;
@@ -296,7 +327,7 @@
 
             ctl-runtime = pkgs.arion.build {
               inherit pkgs;
-              modules = [ ctlRuntime ];
+              modules = [ (mkCtlRuntime system { }) ];
             };
           };
 
@@ -348,13 +379,6 @@
       apps = perSystem (system:
         let
           pkgs = nixpkgsFor system;
-          prebuilt = self.packages.${system}.ctl-runtime.outPath;
-          runtime = (pkgs.writeShellScriptBin "ctl-runtime"
-            ''
-              ${pkgs.arion}/bin/arion --prebuilt-file ${prebuilt} up
-            '').overrideAttrs (_: {
-            buildInputs = [ pkgs.arion pkgs.docker ];
-          });
         in
         {
           inherit
@@ -362,7 +386,7 @@
         } // {
           ctl-runtime = {
             type = "app";
-            program = "${runtime}/bin/ctl-runtime";
+            program = "${launchCtlRuntime system {}}/bin/ctl-runtime";
           };
         });
 
