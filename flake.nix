@@ -206,6 +206,8 @@
               nodeDbVol = "node-db";
               nodeIpcVol = "node-ipc";
               nodeSocketPath = "/ipc/node.socket";
+              serverName = "ctl-server:exe:ctl-server";
+              server = ((hsProjectFor system).flake { }).packages."${serverName}";
             in
             {
               docker-compose.raw = {
@@ -218,6 +220,7 @@
                 cardano-node = {
                   service = {
                     image = "inputoutput/cardano-node:1.34.1";
+                    ports = [ "3001:3001" ];
                     volumes = [
                       "${cardano-configurations}/network/testnet/cardano-node:/config"
                       "${cardano-configurations}/network/testnet/genesis:/genesis"
@@ -240,6 +243,7 @@
                 ogmios = {
                   service = {
                     useHostStore = true;
+                    ports = [ "1337:1337" ];
                     volumes = [
                       "${cardano-configurations}/network/testnet:/config"
                       "${nodeIpcVol}:/ipc"
@@ -251,6 +255,19 @@
                         ${pkgs.ogmios}/bin/ogmios \
                           --node-socket /ipc/node.socket \
                           --node-config /config/cardano-node/config.json
+                      ''
+                    ];
+                  };
+                };
+                ctl-server = {
+                  service = {
+                    useHostStore = true;
+                    ports = [ "8081:8081" ];
+                    command = [
+                      "${pkgs.bash}/bin/sh"
+                      "-c"
+                      ''
+                        ${server}/bin/ctl-server
                       ''
                     ];
                   };
@@ -271,7 +288,7 @@
               htmlTemplate = "examples/index.html";
             };
 
-            ctlRuntime = pkgs.arion.build {
+            ctl-runtime = pkgs.arion.build {
               inherit pkgs;
               modules = [ ctlRuntime ];
             };
@@ -325,7 +342,7 @@
       apps = perSystem (system:
         let
           pkgs = nixpkgsFor system;
-          prebuilt = self.packages.${system}.ctlRuntime.outPath;
+          prebuilt = self.packages.${system}.ctl-runtime.outPath;
           runtime = (pkgs.writeShellScriptBin "ctl-runtime"
             ''
               ${pkgs.arion}/bin/arion --prebuilt-file ${prebuilt} up
