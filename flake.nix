@@ -128,6 +128,7 @@
     , nixpkgs
     , haskell-nix
     , iohk-nix
+    , cardano-configurations
     , ...
     }@inputs:
     let
@@ -199,6 +200,43 @@
                 '';
             };
           };
+          ctlRuntime = { ... }:
+            let
+              nodeDbVol = "node-db";
+              nodeIpcVol = "node-ipc";
+            in
+            {
+              docker-compose.raw = {
+                volumes = {
+                  "${nodeDbVol}" = { };
+                  "${nodeIpcVol}" = { };
+                };
+              };
+              services = {
+                cardano-node = {
+                  service = {
+                    image = "inputoutput/cardano-node:1.34.1";
+                    volumes = [
+                      "${cardano-configurations}/network/testnet/cardano-node:/config"
+                      "${cardano-configurations}/network/testnet/genesis:/genesis"
+                      "${nodeDbVol}:/data"
+                      "${nodeIpcVol}:/ipc"
+                    ];
+                    command = [
+                      "run"
+                      "--config"
+                      "/config/config.json"
+                      "--database-path"
+                      "/data/db"
+                      "--socket-path"
+                      "/ipc/node.socket"
+                      "--topology"
+                      "/config/topology.json"
+                    ];
+                  };
+                };
+              };
+            };
         in
         rec {
           defaultPackage = packages.ctl-example-bundle-web;
@@ -211,6 +249,11 @@
               main = "Examples.Pkh2Pkh";
               entrypoint = "examples/index.js";
               htmlTemplate = "examples/index.html";
+            };
+
+            ctlRuntime = pkgs.arion.build {
+              inherit pkgs;
+              modules = [ ctlRuntime ];
             };
           };
 
