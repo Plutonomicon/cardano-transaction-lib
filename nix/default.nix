@@ -42,16 +42,12 @@ let
     { packages ? [ ]
     , inputsFrom ? [ ]
     , shellHook ? ""
-    , symlinkNodeModules ? true
     , formatter ? "purs-tidy"
     , pursls ? true
-    }: pkgs.mkShell {
-      buildInputs =
-        assert pkgs.lib.assertOneOf
-          "formatter"
-          formatter
-          [ "purs-tidy" "purty" ];
-        [
+    }:
+      assert pkgs.lib.assertOneOf "formatter" formatter [ "purs-tidy" "purty" ];
+      pkgs.mkShell {
+        buildInputs = [
           purs
           nodejs
           pkgs.easy-ps.spago
@@ -62,33 +58,17 @@ let
         ] ++ pkgs.lib.lists.optional
           pursls
           pkgs.easy-ps.purescript-language-server;
-      inherit packages inputsFrom;
-      shellHook =
-        let
-          nodeModules = mkNodeModules { };
-        in
-        pkgs.lib.optionalString symlinkNodeModules ''
-          __ln-node-modules () {
-            local modules=./node_modules
-            if test -L "$modules"; then
-              rm "$modules";
-            elif test -e "$modules"; then
-              echo 'refusing to overwrite existing (non-symlinked) `node_modules`'
-              exit 1
-            fi
-
-            ln -s ${nodeModules}/lib/node_modules "$modules"
-          }
-
-          __ln-node-modules
-        ''
-        +
-        ''
-          export NODE_PATH="$PWD/node_modules:$NODE_PATH"
-          export PATH="${nodeModules}/bin:$PATH"
-        ''
-        + shellHook;
-    };
+        inherit packages inputsFrom;
+        shellHook =
+          let
+            nodeModules = mkNodeModules { };
+          in
+          ''
+            export NODE_PATH="${nodeModules}/node_modules"
+            export PATH="${nodeModules}/bin:$PATH"
+          ''
+          + shellHook;
+      };
 
   buildPursProject =
     { sources ? [ "src" ]
