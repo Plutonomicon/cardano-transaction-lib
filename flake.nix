@@ -207,7 +207,7 @@
               nodeIpcVol = "node-ipc";
               nodeSocketPath = "/ipc/node.socket";
               serverName = "ctl-server:exe:ctl-server";
-              server = ((hsProjectFor system).flake { }).packages."${serverName}";
+              server = self.packages.${system}."${serverName}";
             in
             {
               docker-compose.raw = {
@@ -240,25 +240,31 @@
                     ];
                   };
                 };
-                ogmios = {
-                  service = {
-                    useHostStore = true;
-                    ports = [ "1337:1337" ];
-                    volumes = [
-                      "${cardano-configurations}/network/testnet:/config"
-                      "${nodeIpcVol}:/ipc"
-                    ];
-                    command = [
-                      "${pkgs.bash}/bin/sh"
-                      "-c"
-                      ''
-                        ${pkgs.ogmios}/bin/ogmios \
-                          --node-socket /ipc/node.socket \
-                          --node-config /config/cardano-node/config.json
-                      ''
-                    ];
+                ogmios =
+                  let
+                    ogmiosPort = "1337";
+                  in
+                  {
+                    service = {
+                      useHostStore = true;
+                      ports = [ "${ogmiosPort}:${ogmiosPort}" ];
+                      volumes = [
+                        "${cardano-configurations}/network/testnet:/config"
+                        "${nodeIpcVol}:/ipc"
+                      ];
+                      command = [
+                        "${pkgs.bash}/bin/sh"
+                        "-c"
+                        ''
+                          ${pkgs.ogmios}/bin/ogmios \
+                            --host 0.0.0.0 \
+                            --port ${ogmiosPort} \
+                            --node-socket /ipc/node.socket \
+                            --node-config /config/cardano-node/config.json
+                        ''
+                      ];
+                    };
                   };
-                };
                 ctl-server = {
                   service = {
                     useHostStore = true;
