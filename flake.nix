@@ -201,14 +201,11 @@
           };
         in
         rec {
-          defaultPackage = packages.cardano-transaction-lib;
+          defaultPackage = packages.ctl-example-bundle-web;
 
+          # Building this package and the check below will ensure that the entire
+          # project compiles (i.e. all of `src`, `examples`, and `test`)
           packages = {
-            cardano-transaction-lib = project.buildPursProject {
-              # Make sure the entire project compiles
-              sources = [ "src" "test" "examples" ];
-            };
-
             ctl-example-bundle-web = project.bundlePursProject {
               sources = [ "src" "examples" ];
               main = "Examples.Pkh2Pkh";
