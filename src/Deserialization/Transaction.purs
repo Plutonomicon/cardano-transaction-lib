@@ -236,7 +236,9 @@ convertTxBody txBody = do
 
   where
   intToSlot
-    :: forall s. Int -> Either (Variant (fromCslRepError :: String | s)) Slot
+    :: forall (s :: Row Type)
+     . Int
+    -> Either (Variant (fromCslRepError :: String | s)) Slot
   intToSlot x =
     cslErr ("validityStartInterval UInt.fromInt': " <> show x)
       <<< map Slot
@@ -426,7 +428,7 @@ convertMetadatum err = fix \_ -> addErrTrace err <<< _convertMetadatum
 
   where
   stringToInt
-    :: forall s
+    :: forall (s :: Row Type)
      . String
     -> String
     -> Either (Variant (fromCslRepError :: String | s)) Int.Int
