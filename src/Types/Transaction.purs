@@ -116,7 +116,7 @@ import Types.Int as Int
 import Types.PlutusData (PlutusData(Constr))
 import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
-import Types.Value (Coin, NonAdaAsset, Value)
+import Cardano.Types.Value (Coin, NonAdaAsset, Value)
 
 --------------------------------------------------------------------------------
 -- `Transaction`

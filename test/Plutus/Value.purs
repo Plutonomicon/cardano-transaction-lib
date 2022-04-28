@@ -20,8 +20,8 @@ import Plutus.ToPlutusType (toPlutusType)
 import Test.Fixtures (currencySymbol1, tokenName1, tokenName2)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
-import Types.Value (Value) as Types
-import Types.Value as Value
+import Cardano.Types.Value (Value) as Types
+import Cardano.Types.Value as Value
 
 suite :: TestPlanM Unit
 suite = do

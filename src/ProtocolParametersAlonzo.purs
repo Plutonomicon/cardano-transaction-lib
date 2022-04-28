@@ -20,7 +20,7 @@ import Types.Transaction
   , CostModel(CostModel)
   , Language(PlutusV1)
   )
-import Types.Value (Coin(Coin))
+import Cardano.Types.Value (Coin(Coin))
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-pab/html/src/Cardano.Api.ProtocolParameters.html
 -- Shelley params, is this unchanged?

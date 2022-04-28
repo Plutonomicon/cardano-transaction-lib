@@ -154,7 +154,7 @@ import Types.UnbalancedTransaction
   , payPubKeyRequiredSigner
   , stakePubKeyHashRewardAddress
   )
-import Types.Value
+import Cardano.Types.Value
   ( CurrencySymbol
   , Value
   , isZero

@@ -137,7 +137,7 @@ import Types.Transaction
   , Update
   ) as T
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Types.Value as Value
+import Cardano.Types.Value as Value
 import Types.TokenName (getTokenName) as TokenName
 import Untagged.Union (type (|+|), UndefinedOr, maybeToUor)
 

@@ -1,4 +1,4 @@
-module Types.Value
+module Cardano.Types.Value
   ( Coin(..)
   , CurrencySymbol
   , NonAdaAsset(..)

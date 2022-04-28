@@ -166,7 +166,7 @@ import Types.UnbalancedTransaction
   , _utxoIndex
   , emptyUnbalancedTx
   ) as UnbalancedTx
-import Types.Value (Coin)
+import Cardano.Types.Value (Coin)
 
 -- | This module defines transaction-related requests. Currently signing and
 -- | submission is done with Nami.

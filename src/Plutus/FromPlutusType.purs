@@ -35,8 +35,8 @@ import Plutus.Types.Value (getValue) as Plutus.Value
 
 import Types.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe)
 import Types.TokenName (adaToken)
-import Types.Value (Value) as Types
-import Types.Value (NonAdaAsset, mkValue, mkNonAdaAssetsFromTokenMap)
+import Cardano.Types.Value (Value) as Types
+import Cardano.Types.Value (NonAdaAsset, mkValue, mkNonAdaAssetsFromTokenMap)
 
 class FromPlutusType :: (Type -> Type) -> Type -> Type -> Constraint
 class FromPlutusType f pt t | pt -> t, t pt -> f where

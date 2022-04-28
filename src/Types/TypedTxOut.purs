@@ -46,7 +46,7 @@ import Types.TypedValidator
   ( class DatumType
   , TypedValidator
   )
-import Types.Value (Value)
+import Cardano.Types.Value (Value)
 
 -- | A `TxOutRef` ~ `TransactionInput` tagged by a phantom type: and the
 -- | connection type of the output.

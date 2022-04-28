@@ -69,7 +69,7 @@ import Types.Transaction
   , RequiredSigner(RequiredSigner)
   )
 import Types.Scripts (ValidatorHash)
-import Types.Value (Value)
+import Cardano.Types.Value (Value)
 
 -- Plutus has a type called `PubKey` which we replace with `PublicKey`
 newtype PaymentPubKey = PaymentPubKey PublicKey

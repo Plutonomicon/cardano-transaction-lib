@@ -31,8 +31,8 @@ import Plutus.Types.Value (lovelaceValueOf, singleton') as Plutus.Value
 
 import Types.ByteArray (ByteArray, byteArrayFromIntArray, byteArrayToIntArray)
 import Types.TokenName (getTokenName)
-import Types.Value (Value(Value)) as Types
-import Types.Value (Coin(Coin), NonAdaAsset(NonAdaAsset), getCurrencySymbol)
+import Cardano.Types.Value (Value(Value)) as Types
+import Cardano.Types.Value (Coin(Coin), NonAdaAsset(NonAdaAsset), getCurrencySymbol)
 
 class ToPlutusType :: (Type -> Type) -> Type -> Type -> Constraint
 class ToPlutusType f t pt | t -> pt, t pt -> f where

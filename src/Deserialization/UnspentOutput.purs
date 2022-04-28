@@ -43,7 +43,7 @@ import Types.Transaction
 import Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
-import Types.Value
+import Cardano.Types.Value
   ( Coin(Coin)
   , CurrencySymbol
   , Value
