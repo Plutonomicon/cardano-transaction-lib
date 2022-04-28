@@ -99,9 +99,7 @@ let
         in
         ''
           export HOME="$TMP"
-          cp -r ${nodeModules}/lib/node_modules .
-          chmod -R u+rw node_modules
-          export NODE_PATH="$PWD/node_modules:$NODE_PATH"
+          export NODE_PATH="${nodeModules}/lib/node_modules"
           export PATH="${nodeModules}/bin:$PATH"
           cp -r $src/${srcsStr} .
           install-spago-style
