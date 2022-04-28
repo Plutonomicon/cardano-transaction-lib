@@ -163,7 +163,13 @@
         { nodePort ? 3001
         , ogmiosPort ? 1337
         , serverPort ? 8081
-        }@cfg:
+        , postgres ? {
+            port = 5432;
+            user = "ctxlib";
+            password = "ctxlib";
+            db = "ctxlib";
+          }
+        }:
         { ... }:
         let
           inherit (builtins) toString;
@@ -244,6 +250,20 @@
                     ${server}/bin/ctl-server
                   ''
                 ];
+              };
+            };
+
+            postgres = {
+              service = {
+                image = "postgres:13";
+                ports = [
+                  "${toString postgres.port}:${toString postgres.port}"
+                ];
+                environment = {
+                  POSTGRES_USER = "${postgres.user}";
+                  POSTGRES_PASSWORD = "${postgres.password}";
+                  POSTGRES_DB = "${postgres.db}";
+                };
               };
             };
           };
