@@ -239,10 +239,6 @@ Furthermore, CTL exposes an `overlay` from its flake. You can use this in the Ni
             # The same as `pkgs.mkShell.inputsFrom`
             inputsFrom = [ ];
 
-            # If `true`, will symlink the generated `node_modules` from the
-            # nix store to the CWD
-            symlinkNodeModules = true;
-
             # Which formatter to be made available, `purty` is another option
             formatter = "purs-tidy";
 
