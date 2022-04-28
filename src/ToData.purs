@@ -46,7 +46,8 @@ import TypeLevel.DataSchema
   , PNil
   )
 import TypeLevel.Nat (Z, S, class KnownNat, natVal)
-import TypeLevel.RList (class GetIndexWithLabel, class GetWithLabel)
+import TypeLevel.RowList.Unordered
+import TypeLevel.RowList.Unordered.Indexed
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray(ByteArray))
 import Types.PlutusData (PlutusData(Constr, Integer, List, Map, Bytes))
@@ -204,7 +205,7 @@ else instance
   -- The RList corresponding to the schema must have a Record argument at the given constructor
   , GetWithLabel constr rList rec
   -- That record at the given constructor must have a field at the given label, and that field has a Nat index
-  , GetIndexWithLabel label rec n
+  , GetLabelIndex label rec n
   -- we have to be able to reflect the nat index of the record entry located at 'label'
   , KnownNat n
   ) =>

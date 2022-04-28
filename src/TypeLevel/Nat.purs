@@ -1,6 +1,7 @@
 module TypeLevel.Nat
   ( Z
   , S
+  , Nat
   , class KnownNat
   , natVal
   ) where
@@ -8,12 +9,16 @@ module TypeLevel.Nat
 import Type.Proxy
 import Prelude ((+))
 
--- | Type level natural numbers. We need these for a variety of inductive "operations" (i.e. type classes w/ fundeps)
-data Z
+data Nat :: Type
+data Nat
 
-data S n
+-- | Type level natural numbers. We need these for a variety of inductive "operations" (i.e. type classes w/ fundeps)
+foreign import data Z :: Nat
+
+foreign import data S :: Nat  -> Nat
 
 -- | PureScript version of the Haskell class defined in GHC.TypeLits. This is the Nat version of IsSymbol, more or less.
+class KnownNat :: Nat  -> Constraint
 class KnownNat n where
   natVal :: Proxy n -> Int
 

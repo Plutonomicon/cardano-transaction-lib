@@ -3,16 +3,9 @@ module Test.Data (suite) where
 
 import Prelude
 
-import ConstrIndices
-  ( class HasConstrIndices,
-    constrIndices,
-    defaultConstrIndices,
-    fromConstr2Index
-  )
 import Contract.PlutusData (PlutusData(Constr, Integer))
 import Contract.Prelude (fromJust, traverse_, uncurry)
 import Control.Lazy (fix)
-import Data.Array (zip, (..))
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Generic.Rep as G
@@ -22,7 +15,7 @@ import Data.Show.Generic (genericShow)
 import Data.Traversable (for_)
 import Data.Tuple (Tuple)
 import Data.Tuple.Nested ((/\))
-import FromData (class FromData,  class FromDataArgsRL,fromData, genericFromData)
+import FromData (class FromData, fromData, genericFromData)
 import Mote (group, skip, test)
 import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary, genericArbitrary)
@@ -35,10 +28,10 @@ import Deserialization.PlutusData as PDD
 import Serialization (toBytes)
 import Serialization.PlutusData as PDS
 import Types.ByteArray (hexToByteArrayUnsafe)
-import TypeLevel.IndexedRecField (class IndexedRecField)
-import TypeLevel.Nat (Z,S,class KnownNat,natVal)
+import TypeLevel.Nat (Z, S, class KnownNat, natVal)
 import Untagged.Union (asOneOf)
 
+import TypeLevel.RowList.Unordered
 import TypeLevel.DataSchema
 
 suite :: TestPlanM Unit
@@ -196,22 +189,34 @@ data CType
   | C2 MyBigInt Boolean
   | C3 MyBigInt Boolean Boolean
 
-instance HasPlutusSchema CType (
-            "C0" := PNil @@ Z
-         :+ "C1" := PNil @@ (S Z)
-         :+ "C2" := PNil @@ (S (S Z))
-         :+ "C3" := PNil @@ (S (S (S Z)))
-         :+ PNil
-         )
+instance
+  HasPlutusSchema CType
+    ( "C0" := PNil @@ Z
+        :+ "C1"
+        := PNil
+        @@ (S Z)
+        :+ "C2"
+        := PNil
+        @@ (S (S Z))
+        :+ "C3"
+        := PNil
+        @@ (S (S (S Z)))
+        :+ PNil
+    )
 
 data DType = D0 CType MyBigInt (Maybe Boolean) | D1 DType | D2 CType
 
-instance HasPlutusSchema DType (
-             "D0" := PNil @@ Z
-          :+ "D1" := PNil @@ (S Z)
-          :+ "D2" := PNil @@ (S (S Z))
-          :+ PNil
-         )
+instance
+  HasPlutusSchema DType
+    ( "D0" := PNil @@ Z
+        :+ "D1"
+        := PNil
+        @@ (S Z)
+        :+ "D2"
+        := PNil
+        @@ (S (S Z))
+        :+ PNil
+    )
 
 data EType = E0 DType Boolean CType
 
@@ -231,44 +236,43 @@ data FType
       , f2B :: FType
       }
 
-instance HasPlutusSchema FType (
-           "F0" := ("f0A" := BigInt @@ Z :+ PNil) @@ (S Z)
+instance
+  HasPlutusSchema FType
+    ( "F0" :=
+          ( "f0A" := I BigInt
+          :+ PNil)
+       @@ (S Z)
 
-        :+ "F1" := (   "f1A" := Boolean @@ Z
-                    :+ "f1B" := Boolean @@ (S Z)
-                    :+ "f1C" := Boolean @@ (S (S Z))
-                    :+ PNil)
-                @@ (Z)
+    :+ "F1" :=
+          ( "f1A"  := I Boolean
+          :+ "f1B" := I Boolean
+          :+ "f1C" := I Boolean
+          :+ PNil
+          )
+        @@ Z
 
-        :+ "F2" :=  (  "f2A" := BigInt @@ Z
-                    :+ "f2B" := FType @@ (S Z)
-                    :+ PNil)
-                @@ (S (S Z))
+    :+ "F2" :=
+          (  "f2A" := I BigInt
+          :+ "f2B" := I FType
+          :+ PNil
+          )
+        @@ (S (S Z))
 
-        :+ PNil)
+    :+ PNil
+    )
 
 data FType'
   = F0' BigInt
   | F1' Boolean Boolean Boolean
   | F2' BigInt FType'
 
-instance HasPlutusSchema FType' (
-             "F0'" := PNil @@ (S Z)
-          :+ "F1'" := PNil @@ Z
-          :+ "F2'" := PNil @@ (S (S Z))
-          :+ PNil)
-
-instance IndexedRecField FType "f0A" Z
-
-instance IndexedRecField FType "f1A" (S Z)
-
-instance IndexedRecField FType "f1B" (S (S Z))
-
-instance IndexedRecField FType "f1C" Z
-
-instance IndexedRecField FType "f2A" Z
-
-instance IndexedRecField FType "f2B" (S Z)
+instance
+  HasPlutusSchema FType'
+    ( "F0'" := PNil @@ (S Z)
+    :+ "F1'" := PNil @@ (Z)
+    :+ "F2'" := PNil@@ (S (S Z))
+    :+ PNil
+    )
 
 derive instance G.Generic CType _
 derive instance G.Generic DType _
@@ -281,21 +285,6 @@ derive instance Eq DType
 derive instance Eq EType
 derive instance Eq FType
 derive instance Eq FType'
-
-instance HasConstrIndices CType where
-  constrIndices = defaultConstrIndices
-
-instance HasConstrIndices DType where
-  constrIndices = defaultConstrIndices
-
-instance HasConstrIndices EType where
-  constrIndices = defaultConstrIndices
-
-instance HasConstrIndices FType where
-  constrIndices = defaultConstrIndices
-
-instance HasConstrIndices FType' where
-  constrIndices = defaultConstrIndices
 
 instance FromData DType where
   fromData x = genericFromData x
@@ -358,22 +347,17 @@ data Day = Mon | Tue | Wed | Thurs | Fri | Sat | Sun
 
 derive instance G.Generic Day _
 
-type NoRec n = PNil @@ n
-
-instance HasPlutusSchema Day (
-            "Mon" := NoRec Z
-         :+ "Tue" := NoRec (S Z)
-         :+ "Wed" := NoRec (S (S Z))
-         :+ "Thurs" := NoRec (S (S (S Z)))
-         :+ "Fri" := NoRec (S (S (S (S (S Z)))))
-         :+ "Sat" := NoRec (S (S (S (S (S (S Z))))))
-         :+ "Sun" := NoRec (S (S (S (S (S (S (S Z)))))))
-         :+ PNil
-         )
-
-instance HasConstrIndices Day where
-  constrIndices _ = fromConstr2Index
-    (zip [ "Mon", "Tue", "Wed", "Thurs", "Fri", "Sat", "Sun" ] (0 .. 7))
+instance
+  HasPlutusSchema Day
+    (  "Mon"   := PNil @@ Z
+    :+ "Tue"   := PNil @@ (S Z)
+    :+ "Wed"   := PNil @@ (S (S Z))
+    :+ "Thurs" := PNil @@ (S (S (S Z)))
+    :+ "Fri"   := PNil @@ (S (S (S (S (S Z)))))
+    :+ "Sat"   := PNil @@ (S (S (S (S (S (S Z))))))
+    :+ "Sun"   := PNil @@ (S (S (S (S (S (S (S Z)))))))
+    :+ PNil
+    )
 
 instance ToData Day where
   toData = genericToData
@@ -385,20 +369,23 @@ data AnotherDay = AMon | ATue | AWed | AThurs | AFri | ASat | ASun
 
 derive instance G.Generic AnotherDay _
 
-instance HasPlutusSchema AnotherDay (
-            "AMon" := NoRec Z
-         :+ "ATue" := NoRec (S Z)
-         :+ "AWed" := NoRec (S (S Z))
-         :+ "AThurs" := NoRec (S (S (S Z)))
-         :+ "AFri" := NoRec (S (S (S (S (S Z)))))
-         :+ "ASat" := NoRec (S (S (S (S (S (S Z))))))
-         :+ "ASun" := NoRec (S (S (S (S (S (S (S Z)))))))
-         :+ PNil
-         )
-
-
-instance HasConstrIndices AnotherDay where
-  constrIndices = defaultConstrIndices
+instance
+  HasPlutusSchema AnotherDay
+    ( "AMon" := PNil @@ Z
+        :+ "ATue"
+        := PNil @@ (S Z)
+        :+ "AWed"
+        := PNil @@ (S (S Z))
+        :+ "AThurs"
+        := PNil @@ (S (S (S Z)))
+        :+ "AFri"
+        := PNil @@ (S (S (S (S (S Z)))))
+        :+ "ASat"
+        := PNil @@ (S (S (S (S (S (S Z))))))
+        :+ "ASun"
+        := PNil @@ (S (S (S (S (S (S (S Z)))))))
+        :+ PNil
+    )
 
 instance ToData AnotherDay where
   toData = genericToData
@@ -410,14 +397,14 @@ data Tree a = Node a (Tuple (Tree a) (Tree a)) | Leaf a
 
 derive instance G.Generic (Tree a) _
 
-instance HasPlutusSchema (Tree a) (
-                        "Node" := PNil @@ Z
-                    :+  "Leaf" := PNil @@ (S Z)
-                    :+  PNil
-                      )
-
-instance HasConstrIndices (Tree a) where
-  constrIndices = defaultConstrIndices
+instance
+  HasPlutusSchema (Tree a)
+    ( "Node" := PNil @@ Z
+        :+ "Leaf"
+        := PNil
+        @@ (S Z)
+        :+ PNil
+    )
 
 instance (ToData a) => ToData (Tree a) where
   toData x = genericToData x -- https://github.com/purescript/documentation/blob/master/guides/Type-Class-Deriving.md#avoiding-stack-overflow-errors-with-recursive-types

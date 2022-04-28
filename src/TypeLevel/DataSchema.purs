@@ -4,6 +4,8 @@ module TypeLevel.DataSchema
   , PNil
   , PCons
   , ApPCons
+  , Id
+  , I
   , type (:+)
   , IxK
   , MkIxK
@@ -12,17 +14,16 @@ module TypeLevel.DataSchema
   , Field
   , MkField
   , MkField_
+ -- , NoRec
   , type (:=)
-  , NoRec
-  , class OrderedRecIndices
-  , class StrictlyIncreasing
-  , class SchemaToRList
-  , class PlutusSchemaToRList
+  , class SchemaToRowList
+  , class PlutusSchemaToRowListI
   , class AllUnique2
   , class ValidPlutusSchema
   ) where
 
-import TypeLevel.RList
+import TypeLevel.RowList.Unordered
+import TypeLevel.RowList.Unordered.Indexed
 import TypeLevel.Nat
 import Data.Symbol
 import Type.Proxy
@@ -52,7 +53,7 @@ import Data.Unit
       to determine its index).
 
       I do not believe that it is possible to make FromData work without a type level representation of the indices of each record entry, and it would be difficult
-      (if not strictly impossible) to combine the term-level HasConstrIndices approach with the type level IndexedRecField approach, and the schema implented here unifies all
+      (if not strictly impossible) to combine the term-level HasConstrIndices approach with a type level IndexedRecField approach, and the schema implented here unifies all
       of the required information in a single place.
 
    3) Ergonomics/Safety. By encoding everything at the type level, we can express sophisticated constraints on the schema to ensure that patently invalid schemata are
@@ -64,185 +65,167 @@ import Data.Unit
 
 {- <<< Plutus Data Schema + Associated types/kinds/data >>> -}
 
+-- A type level Identity "functor kind". This is mainly used to overload the ':=' type operator.
+data Id :: forall (k :: Type). k -> Type
+data Id k
+
+foreign import data I :: forall (k :: Type). k -> Id k
+
 -- | A kind (never exists as a term). This is the kind of @PCons@ and @PNil@.
+
+data PSchema :: forall (k :: Type).  k -> Type
 data PSchema k
 
-{- | A concrete Plutus Data schema. This is morally a Row (Row Type). This is superfluous in the sense that we could simply do everything here with (RList (RList Type)), which
-   @PlutusSchema@s are all translated to, but this facilitates a more comprehensible syntax. (Conversely we could rewrite all of the RList machinery in terms of this, but it
-   would be much more difficult to read/debug/reason about).
+{- | A concrete Plutus Data schema. Morally equivalent to:  Row (Row Type). This is superfluous
+-- in the sense that we could simply do everything here with (RowListI (RowList Type)), which
+-- @PlutusSchema@s are all translated to, but this facilitates a more comprehensible syntax.
+-- (Conversely we could rewrite all of the RowList/RowListI machinery in terms of this, but it
+--  would be much more difficult to read/debug/reason about).
 
    Here's an example:
 
-   data Foo
-     = F0
-         { f0A :: String
-         }
-     | F1
-         { f1A :: String
-         , f1B :: String
-         , f1C :: String
-         }
-     | F2
-         { f2A :: String
-         , f2B :: Boolean
-         }
+    data FType
+      = F0
+          { f0A :: BigInt
+          }
+      | F1
+          { f1A :: Boolean
+          , f1B :: Boolean
+          , f1C :: Boolean
+          }
+      | F2
+          { f2A :: BigInt
+          , f2B :: FType
+          }
 
-   instance HasPlutusSchema Foo (
-              "F0" := ("f0A" := String @@ Z :+ PNil) @@ Z
+    instance
+      HasPlutusSchema FType
+        ( "F0" :=
+              ( "f0A" := I BigInt
+              :+ PNil)
+           @@ Z
 
-           :+ "F1" := (   "f1A" := String @@ Z
-                       :+ "f1B" := String @@ (S Z)
-                       :+ "f1C" := String @@ (S (S Z))
-                       :+ PNil)
-                   @@ (S Z)
+        :+ "F1" :=
+              ( "f1A"  := I Boolean
+              :+ "f1B" := I Boolean
+              :+ "f1C" := I Boolean
+              :+ PNil
+              )
+            @@ (S Z)
 
-           :+ "F2" :=  (  "f2A" := String @@ Z
-                       :+ "f2B" := Boolean @@ (S Z)
-                       :+ PNil)
-                   @@ (S (S Z))
+        :+ "F2" :=
+              (  "f2A" := I BigInt
+              :+ "f2B" := I FType
+              :+ PNil
+              )
+            @@ (S (S Z))
 
-           :+ PNil)
+        :+ PNil
+        )
 -}
-type PlutusSchema k = PSchema (PSchema k)
 
-{- | A class used to associate types with a Plutus Data Schema. The functional *should* guarantee that only one schema can exist for each type, and allows us to
-   rely on the compiler to get ahold of the schema associated with a particular type.
+
+type PlutusSchema = PSchema (PSchema Type)
+
+{- | A class used to associate types with a Plutus Data Schema. The fundeps *should* guarantee
+-- that only one schema can exist for each type. This allows us to make the compiler select the
+-- schema associated with a particular type.
 -}
 class HasPlutusSchema
-  :: forall (k :: Type). Type -> PlutusSchema k -> Constraint
+  ::  Type -> PlutusSchema  -> Constraint
 class HasPlutusSchema t schema | t -> schema
 
 -- Listlike constructors for the PSchema kind.
 foreign import data PNil :: forall (k :: Type). PSchema k
 foreign import data PCons
-  :: forall (k :: Type). Field k -> PSchema k -> PSchema k
+  :: forall (k :: Type). Field k  -> PSchema k -> PSchema k
 
 -- | Type synonym which is used to provide syntatic sugar to PCons. You can think of :+ as a type level version of : for PSchema
-type ApPCons field schema = PCons field schema
+type ApPCons :: forall (k :: Type). Field k -> PSchema k -> PSchema k
+type ApPCons x xs = PCons x xs
 
 infixr 0 type ApPCons as :+
 
 -- | Indexed kind. A kind representing a type @k@ indexed by a type level natural number @n@.
-data IxK k n
+data IxK :: forall (k :: Type).  k -> Type
+data IxK  k
 
 -- | A data type of Kind (IxK k n) for some k and n
-foreign import data MkIxK :: forall (k :: Type) (n :: Type). k -> n -> IxK k n
+foreign import data MkIxK :: forall (k :: Type).  Nat  -> k -> IxK k
 
 -- | Syntactic sugar which allows us to represent MkIxK as a type operator
-type MkIxK_ k n = MkIxK k n
+type MkIxK_ k  n = MkIxK n k
 
 infixr 9 type MkIxK_ as @@
 
 -- | A kind which is used to represent pairs of Symbols and IxKs. A fancy type level tuple, more or less.
+data Field :: forall (k :: Type). k -> Type
 data Field k
 
 -- | A data type of Kind (Field k)
 foreign import data MkField
-  :: forall (k :: Type) (n :: Type). Symbol -> IxK k n -> Field k
+  :: forall (k :: Type) (f :: Type -> Type). Symbol -> f k -> Field k
 
 -- | Type synonym used to represent MkField as a type operator.
 type MkField_ lbl ixty = MkField lbl ixty
 
 infixr 8 type MkField_ as :=
 
-type NoRec n = PNil @@ n
 
 {- <<< Constraints used to provide compile-time validation of a PSchema >>> -}
 
-{- | A class which ensures that the Nat indices "inner" RLists in a (RList (RList k)) are strictly increasing (so that they do not contain any gaps).
-   Because all @PSchema@s have to satisfy this constraint, it effectively requires all generated or user-defined PSchemas to use the "corrent"
-   Plutus Data constructor order.
-
-   Note that the inner RLists in a (RList (RList k)) represent *record fields*, while the outer RLists represent *data constructors*. The inner Plutus representation of
-   a record is just a list (without any label index) and so we require a complete ordering, whereas Plutus Constr data types contain an index (which may be user defined),
-   so we do not constrain the outer list in the same way.
-
-   Alternatively we could sort each RList that represents a record and then check that they are strictly increasing, but that is more error prone so we just require correct
-   Schemas from the start.
+{- | A class which ensures that the Nat indices of the RowListI are unique & that the Symbol
+-- labels of both the RowListI and RowList in a RowListI (RowList k) all contain unique labels
+-- (relative to  their "level", i.e., two record arguments of *different* constructors can
+-- have overlapping labels, but constructor names cannot overlap, nor can two labels or indices
+-- of the *same* record)
 -}
-class OrderedRecIndices :: forall (k :: Type). RList (RList k) -> Constraint
-class OrderedRecIndices rlist
-
-instance OrderedRecIndices Nil'
-else instance
-  ( StrictlyIncreasing a
-  , OrderedRecIndices xs
-  ) =>
-  OrderedRecIndices (Cons' k a n xs)
-
-{- | A class which ensures that the Nat indices of an RList are strictly increasing. This prevents "gaps" between the indices of record entries, which
-   would likely generate a plethora of hard to debug problems. We only use this for RLists that represent record entries, not for those that reprsent constructors.
--}
-class StrictlyIncreasing :: forall (k :: Type). RList k -> Constraint
-class StrictlyIncreasing rList
-
-instance StrictlyIncreasing Nil'
-else instance StrictlyIncreasing (Cons' k a n Nil')
-else instance
-  ( StrictlyIncreasing xs
-  , StrictlyIncreasing (Cons' k' a' (S n) xs)
-  ) =>
-  StrictlyIncreasing (Cons' k a n (Cons' k' a' (S n) xs))
-
-{- | A class which ensures that the Symbol labels and Nat indices of both the outer list and each inner list in a RList (RList k) all contain unique labels (relative to
-     their "level", i.e., two record arguments of *different* constructors can have overlapping labels, but constructor names cannot overlap, nor can two labels or indices
-     of the *same* record)
--}
-class AllUnique2 :: forall (k :: Type). RList (RList k) -> Constraint
-
+class AllUnique2 :: forall (k :: Type). RowListI (RowList k) -> Constraint
 class AllUnique2 rList
 
-instance AllUnique2 Nil'
+instance AllUnique2 NilI
 else instance
   ( AllUniqueLabels a
-  , UniqueIndices a
-  , AllUniqueLabels (Cons' l a n xs)
-  , UniqueIndices (Cons' l a n xs)
+  , AllUniqueLabelsI (ConsI l a n xs)
+  , UniqueIndices (ConsI l a n xs)
   , AllUnique2 xs
   ) =>
-  AllUnique2 (Cons' l a n xs)
+  AllUnique2 (ConsI l a n xs)
 
-{- | The class which combines all of the above constraints. To make use of genericFromData / genericToData, a type must have an associated Plutus Data schema which satisfies
-   this constraint.
+{- | The class which combines all of the above constraints. To make use of genericFromData / genericToData,
+-- a type must have an associated Plutus Data schema which satisfies this constraint.
 -}
-class ValidPlutusSchema
-  :: forall (k :: Type). PlutusSchema k -> RList (RList k) -> Constraint
+class ValidPlutusSchema :: PlutusSchema -> RowListI (RowList Type) -> Constraint
 class
-  ( PlutusSchemaToRList schema list
+  ( PlutusSchemaToRowListI schema list
   , AllUnique2 list
-  , OrderedRecIndices list
   ) <=
   ValidPlutusSchema schema list
   | schema -> list
 
 instance
-  ( PlutusSchemaToRList schema list
+  ( PlutusSchemaToRowListI schema list
   , AllUnique2 list
-  , OrderedRecIndices list
   ) =>
   ValidPlutusSchema schema list
 
--- Helper type classes used to convert a PlutusSchema to an RList (RList k). Should not need to be used outside of this module.
-class SchemaToRList :: forall (k :: Type). PSchema k -> RList k -> Constraint
-class SchemaToRList schema list | schema -> list
+-- Helper type classes used to convert a PlutusSchema to a RowListI (RowList k). Should not need to be used outside of this module.
+class SchemaToRowList :: forall (k :: Type). PSchema k -> RowList k -> Constraint
+class SchemaToRowList schema list | schema -> list
 
-instance SchemaToRList PNil Nil'
+instance SchemaToRowList PNil Nil
 else instance
-  ( SchemaToRList xs xs'
-  , KnownNat n
-  , IsSymbol l
+  ( SchemaToRowList xs xs'
   ) =>
-  SchemaToRList (PCons (MkField l (MkIxK k n)) xs) (Cons' l k n xs')
+  SchemaToRowList (PCons (MkField l (I k)) xs) (Cons l k xs')
 
-class PlutusSchemaToRList
-  :: forall (k :: Type). PlutusSchema k -> RList (RList k) -> Constraint
-class PlutusSchemaToRList schema list | schema -> list
+class PlutusSchemaToRowListI
+  :: PlutusSchema -> RowListI (RowList Type) -> Constraint
+class PlutusSchemaToRowListI schema list | schema -> list
 
-instance PlutusSchemaToRList PNil Nil'
+instance PlutusSchemaToRowListI PNil NilI
 else instance
-  ( PlutusSchemaToRList xs xs'
-  , SchemaToRList a a'
-  , KnownNat n
-  , IsSymbol l
+  ( PlutusSchemaToRowListI xs xs'
+  , SchemaToRowList a a'
   ) =>
-  PlutusSchemaToRList (PCons (MkField l (MkIxK a n)) xs) (Cons' l a' n xs')
+  PlutusSchemaToRowListI (PCons (MkField l (MkIxK n a)) xs) (ConsI l a' n xs')

@@ -39,8 +39,8 @@ import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.Unfoldable (class Unfoldable)
 import Helpers (bigIntToUInt)
-import TypeLevel.Nat
-import TypeLevel.RList
+
+
 import Prim.Row as Row
 import Prim.RowList as RL
 import Prim.TypeError (class Fail, Text)
@@ -49,6 +49,9 @@ import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Bytes, Constr, List, Map, Integer))
 
+import TypeLevel.Nat
+import TypeLevel.RowList.Unordered
+import TypeLevel.RowList.Unordered.Indexed
 import TypeLevel.DataSchema
 
 -- | Errors
@@ -92,10 +95,10 @@ class FromDataArgs t c a where
 
    The third argument to the class is an @RList@ - an *unordered* version of RowList. See TypeLevel.RList for details
 -}
-class FromDataArgsRL :: Type -> Symbol -> RList Type -> Row Type -> Constraint
+class FromDataArgsRL :: Type -> Symbol -> RowList Type -> Row Type -> Constraint
 class FromDataArgsRL t constr list row | t constr list -> row where
   fromDataArgsRec
-    :: forall (rlproxy :: RList Type -> Type)
+    :: forall (rlproxy :: RowList Type -> Type)
      . Proxy t
     -> Proxy constr
     -> rlproxy list
@@ -183,7 +186,7 @@ instance
 
 -- | FromDataArgsRL instances
 
-instance FromDataArgsRL t c Nil' () where
+instance FromDataArgsRL t c Nil () where
   fromDataArgsRec _ _ _ [] = Right { head: {}, tail: [] }
   fromDataArgsRec _ _ _ pdArgs = Left $ ArgsWantedButGot 0 pdArgs
 
@@ -194,7 +197,7 @@ instance
   , Row.Cons key a rowRest rowFull
   , IsSymbol key
   ) =>
-  FromDataArgsRL t constr (Cons' key a n rListRest) rowFull where
+  FromDataArgsRL t constr (Cons key a rListRest) rowFull where
   fromDataArgsRec _ _ _ pdArgs = do
     let keyProxy = Proxy :: Proxy key
     { head: pdArg, tail: pdArgs' } <- note (ArgsWantedButGot 1 pdArgs) $ uncons
