@@ -322,10 +322,26 @@
         // (psProjectFor system).packages
       );
 
-      apps = perSystem (system: {
-        inherit
-          (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
-      });
+      apps = perSystem (system:
+        let
+          pkgs = nixpkgsFor system;
+          prebuilt = self.packages.${system}.ctlRuntime.outPath;
+          runtime = (pkgs.writeShellScriptBin "ctl-runtime"
+            ''
+              ${pkgs.arion}/bin/arion --prebuilt-file ${prebuilt} up
+            '').overrideAttrs (_: {
+            buildInputs = [ pkgs.arion pkgs.docker ];
+          });
+        in
+        {
+          inherit
+            (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
+        } // {
+          ctl-runtime = {
+            type = "app";
+            program = "${runtime}/bin/ctl-runtime";
+          };
+        });
 
       checks = perSystem (system:
         let
