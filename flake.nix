@@ -169,6 +169,7 @@
                 pkgs.ogmios-datum-cache
                 pkgs.nixpkgs-fmt
                 pkgs.fd
+                pkgs.arion
               ];
 
               shellHook =
@@ -204,6 +205,7 @@
             let
               nodeDbVol = "node-db";
               nodeIpcVol = "node-ipc";
+              nodeSocketPath = "/ipc/node.socket";
             in
             {
               docker-compose.raw = {
@@ -229,9 +231,27 @@
                       "--database-path"
                       "/data/db"
                       "--socket-path"
-                      "/ipc/node.socket"
+                      "${nodeSocketPath}"
                       "--topology"
                       "/config/topology.json"
+                    ];
+                  };
+                };
+                ogmios = {
+                  service = {
+                    useHostStore = true;
+                    volumes = [
+                      "${cardano-configurations}/network/testnet:/config"
+                      "${nodeIpcVol}:/ipc"
+                    ];
+                    command = [
+                      "${pkgs.bash}/bin/sh"
+                      "-c"
+                      ''
+                        ${pkgs.ogmios}/bin/ogmios \
+                          --node-socket /ipc/node.socket \
+                          --node-config /config/cardano-node/config.json
+                      ''
                     ];
                   };
                 };
