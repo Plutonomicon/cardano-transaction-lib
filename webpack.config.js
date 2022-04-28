@@ -50,7 +50,7 @@ module.exports = {
   },
 
   resolve: {
-    modules: ["node_modules"],
+    modules: [process.env.NODE_PATH],
     extensions: [".js"],
     fallback: {
       buffer: require.resolve("buffer/"),

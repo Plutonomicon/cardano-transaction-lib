@@ -64,7 +64,7 @@ let
             nodeModules = mkNodeModules { };
           in
           ''
-            export NODE_PATH="${nodeModules}/node_modules"
+            export NODE_PATH="${nodeModules}/lib/node_modules"
             export PATH="${nodeModules}/bin:$PATH"
           ''
           + shellHook;
