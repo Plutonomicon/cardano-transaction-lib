@@ -32,6 +32,7 @@ import FfiHelpers
 import Helpers (fromJustEff)
 import Serialization.Address (Address, StakeCredential, RewardAddress)
 import Serialization.Address (NetworkId(TestnetId, MainnetId)) as T
+import Serialization.AuxiliaryData (convertAuxiliaryData, setTxAuxiliaryData)
 import Serialization.BigInt as Serialization
 import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.Hash (ScriptHash, Ed25519KeyHash, scriptHashFromBytes)
@@ -66,8 +67,6 @@ import Serialization.Types
   , NetworkId
   , PlutusData
   , PlutusList
-  , PlutusScript
-  , PlutusScripts
   , PoolMetadata
   , ProposedProtocolParameterUpdates
   , ProtocolParamUpdate
@@ -204,12 +203,6 @@ foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
 foreign import transactionWitnessSetSetVkeys
   :: TransactionWitnessSet -> Vkeywitnesses -> Effect Unit
 
-foreign import newPlutusScript :: ByteArray -> Effect PlutusScript
-foreign import newPlutusScripts :: Effect PlutusScripts
-foreign import txWitnessSetSetPlutusScripts
-  :: TransactionWitnessSet -> PlutusScripts -> Effect Unit
-
-foreign import addPlutusScript :: PlutusScripts -> PlutusScript -> Effect Unit
 foreign import newCostmdls :: Effect Costmdls
 foreign import costmdlsSetCostModel
   :: Costmdls -> Language -> CostModel -> Effect Unit
@@ -418,6 +411,8 @@ foreign import newProposedProtocolParameterUpdates
   -> Array (GenesisHash /\ ProtocolParamUpdate)
   -> Effect ProposedProtocolParameterUpdates
 
+foreign import setTxIsValid :: Transaction -> Boolean -> Effect Unit
+
 -- NOTE returns cbor encoding for all but hash types, for which it returns raw bytes
 foreign import toBytes
   :: ( Transaction
@@ -434,30 +429,36 @@ foreign import toBytes
   -> ByteArray
 
 convertTransaction :: T.Transaction -> Effect Transaction
-convertTransaction (T.Transaction { body: T.TxBody body, witnessSet }) = do
-  inputs <- convertTxInputs body.inputs
-  outputs <- convertTxOutputs body.outputs
-  fee <- fromJustEff "Failed to convert fee" $ bigNumFromBigInt
-    (unwrap body.fee)
-  let ttl = body.ttl <#> unwrap >>> UInt.toInt
-  txBody <- newTransactionBody inputs outputs fee (maybeToUor ttl)
-  for_ body.validityStartInterval $
-    unwrap >>> UInt.toInt >>> transactionBodySetValidityStartInterval txBody
-  for_ body.requiredSigners $
-    map unwrap >>> transactionBodySetRequiredSigners containerHelper txBody
-  for_ body.auxiliaryDataHash $
-    unwrap >>> transactionBodySetAuxiliaryDataHash txBody
-  for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
-  traverse_
-    (unwrap >>> newScriptDataHashFromBytes >=> setTxBodyScriptDataHash txBody)
-    body.scriptDataHash
-  for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
-  for_ body.mint $ convertMint >=> setTxBodyMint txBody
-  for_ body.certs $ convertCerts >=> setTxBodyCerts txBody
-  for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
-  for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
-  ws <- convertWitnessSet witnessSet
-  newTransaction txBody ws
+convertTransaction
+  ( T.Transaction
+      { body: T.TxBody body, witnessSet, isValid, auxiliaryData }
+  ) =
+  do
+    inputs <- convertTxInputs body.inputs
+    outputs <- convertTxOutputs body.outputs
+    fee <- fromJustEff "Failed to convert fee" $ bigNumFromBigInt
+      (unwrap body.fee)
+    let ttl = body.ttl <#> unwrap >>> UInt.toInt
+    txBody <- newTransactionBody inputs outputs fee (maybeToUor ttl)
+    for_ body.validityStartInterval $
+      unwrap >>> UInt.toInt >>> transactionBodySetValidityStartInterval txBody
+    for_ body.requiredSigners $
+      map unwrap >>> transactionBodySetRequiredSigners containerHelper txBody
+    for_ body.auxiliaryDataHash $
+      unwrap >>> transactionBodySetAuxiliaryDataHash txBody
+    for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
+    for_ body.scriptDataHash
+      (unwrap >>> newScriptDataHashFromBytes >=> setTxBodyScriptDataHash txBody)
+    for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
+    for_ body.mint $ convertMint >=> setTxBodyMint txBody
+    for_ body.certs $ convertCerts >=> setTxBodyCerts txBody
+    for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
+    for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
+    ws <- convertWitnessSet witnessSet
+    tx <- newTransaction txBody ws
+    setTxIsValid tx isValid
+    for_ auxiliaryData $ convertAuxiliaryData >=> setTxAuxiliaryData tx
+    pure tx
 
 convertUpdate :: T.Update -> Effect Update
 convertUpdate { proposedProtocolParameterUpdates, epoch } = do

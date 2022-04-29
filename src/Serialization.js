@@ -50,6 +50,9 @@ exports.newTransactionBody = inputs => outputs => fee => ttl => () =>
 exports.newTransaction = body => witness_set => () =>
     lib.Transaction.new(body, witness_set);
 
+exports.setTxIsValid = tx => isValid => () =>
+    tx.set_is_valid(isValid);
+
 exports.newTransaction_ = body => witness_set => auxiliary_data => () =>
     lib.Transaction.new(body, witness_set, auxiliary_data);
 
@@ -105,17 +108,6 @@ exports.newEd25519Signature = bech32 => () =>
     lib.Ed25519Signature.from_bech32(bech32);
 
 exports.transactionWitnessSetSetVkeys = setter('vkeys');
-
-exports.newPlutusScript = bytes => () =>
-    lib.PlutusScript.from_bytes(bytes);
-
-exports.newPlutusScripts = bytes => () =>
-    lib.PlutusScripts.new(bytes);
-
-exports.txWitnessSetSetPlutusScripts = setter('plutus_scripts');
-
-exports.addPlutusScript = scripts => script => () =>
-    scripts.add(script);
 
 exports.toBytes = sth => sth.to_bytes();
 

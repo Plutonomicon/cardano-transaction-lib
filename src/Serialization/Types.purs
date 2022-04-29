@@ -16,6 +16,7 @@ module Serialization.Types
   , DataHash
   , Ed25519KeyHashes
   , Ed25519Signature
+  , ExUnitPrices
   , ExUnits
   , GeneralTransactionMetadata
   , GenesisDelegateHash
@@ -43,8 +44,8 @@ module Serialization.Types
   , PoolMetadata
   , ProposedProtocolParameterUpdates
   , ProtocolParamUpdate
+  , ProtocolVersion
   , ProtocolVersions
-  , ExUnitPrices
   , PublicKey
   , Redeemer
   , RedeemerTag
@@ -76,11 +77,6 @@ module Serialization.Types
   , Vkeywitness
   , Vkeywitnesses
   , Withdrawals
-  , Update
-  , ProposedProtocolParameterUpdates
-  , ProtocolParamUpdate
-  , ProtocolVersion
-  , ExUnitPrices
   ) where
 
 import Prelude

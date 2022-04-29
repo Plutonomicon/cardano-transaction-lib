@@ -778,7 +778,7 @@ instance Show TransactionMetadatumLabel where
 data TransactionMetadatum
   = MetadataMap (Map TransactionMetadatum TransactionMetadatum)
   | MetadataList (Array TransactionMetadatum)
-  | Int BigInt
+  | Int Int.Int
   | Bytes ByteArray
   | Text String
 

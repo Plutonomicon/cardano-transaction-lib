@@ -117,6 +117,7 @@ import Serialization.Types (NativeScripts, PlutusScripts)
 import Serialization.Types as Csl
 import Type.Row (type (+))
 import Types.ByteArray (ByteArray)
+import Types.Int as Int
 import Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash
@@ -234,7 +235,9 @@ convertTxBody txBody = do
 
   where
   intToSlot
-    :: forall s. Int -> Either (Variant (fromCslRepError :: String | s)) Slot
+    :: forall (s :: Row Type)
+     . Int
+    -> Either (Variant (fromCslRepError :: String | s)) Slot
   intToSlot x =
     cslErr ("validityStartInterval UInt.fromInt': " <> show x)
       <<< map Slot
@@ -415,7 +418,7 @@ convertMetadatum
 convertMetadatum err = fix \_ -> addErrTrace err <<< _convertMetadatum
   ( { error: fromCslRepError
     , from_bytes: pure <<< Bytes
-    , from_int: map Int <<< stringToBigInt "Metadatum Int"
+    , from_int: map Int <<< stringToInt "Metadatum Int"
     , from_text: pure <<< Text
     , from_map: convertMetadataMap convertMetadatum
     , from_list: convertMetadataList convertMetadatum
@@ -423,13 +426,13 @@ convertMetadatum err = fix \_ -> addErrTrace err <<< _convertMetadatum
   )
 
   where
-  stringToBigInt
-    :: forall s
+  stringToInt
+    :: forall (s :: Row Type)
      . String
     -> String
-    -> Either (Variant (fromCslRepError :: String | s)) BigInt
-  stringToBigInt s = cslErr (err <> ": string (" <> s <> ") -> bigint") <<<
-    BigInt.fromString
+    -> Either (Variant (fromCslRepError :: String | s)) Int.Int
+  stringToInt s = cslErr (err <> ": string (" <> s <> ") -> bigint") <<<
+    (Int.fromBigInt <=< BigInt.fromString)
 
 convertMetadataList
   :: forall (r :: Row Type)
