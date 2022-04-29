@@ -160,14 +160,22 @@
       };
 
       mkCtlRuntime = system:
-        { nodePort ? 3001
-        , ogmiosPort ? 1337
-        , serverPort ? 8081
+        { node ? { port = 3001; }
+        , ogmios ? { port = 1337; }
+        , ctlServer ? { port = 8081; }
         , postgres ? {
             port = 5432;
             user = "ctxlib";
             password = "ctxlib";
             db = "ctxlib";
+          }
+        , datumCache ? {
+            port = 9999;
+            saveAllDatums = true;
+            firstFetchBlock = {
+              slot = 44366242;
+              id = "d2a4249fe3d0607535daa26caf12a38da2233586bc51e79ed0b3a36170471bf5";
+            };
           }
         }:
         { ... }:
@@ -179,6 +187,7 @@
           nodeSocketPath = "/ipc/node.socket";
           serverName = "ctl-server:exe:ctl-server";
           server = self.packages.${system}."${serverName}";
+          bindPort = port: "${toString port}:${toString port}";
         in
         {
           docker-compose.raw = {
@@ -191,9 +200,7 @@
             cardano-node = {
               service = {
                 image = "inputoutput/cardano-node:1.34.1";
-                ports = [
-                  "${toString nodePort}:${toString nodePort}"
-                ];
+                ports = [ (bindPort node.port) ];
                 volumes = [
                   "${cardano-configurations}/network/testnet/cardano-node:/config"
                   "${cardano-configurations}/network/testnet/genesis:/genesis"
@@ -213,36 +220,31 @@
                 ];
               };
             };
-            ogmios =
-              {
-                service = {
-                  useHostStore = true;
-                  ports = [
-                    "${toString ogmiosPort}:${toString ogmiosPort}"
-                  ];
-                  volumes = [
-                    "${cardano-configurations}/network/testnet:/config"
-                    "${nodeIpcVol}:/ipc"
-                  ];
-                  command = [
-                    "${pkgs.bash}/bin/sh"
-                    "-c"
-                    ''
-                      ${pkgs.ogmios}/bin/ogmios \
-                        --host 0.0.0.0 \
-                        --port ${toString ogmiosPort} \
-                        --node-socket /ipc/node.socket \
-                        --node-config /config/cardano-node/config.json
-                    ''
-                  ];
-                };
+            ogmios = {
+              service = {
+                useHostStore = true;
+                ports = [ (bindPort ogmios.port) ];
+                volumes = [
+                  "${cardano-configurations}/network/testnet:/config"
+                  "${nodeIpcVol}:/ipc"
+                ];
+                command = [
+                  "${pkgs.bash}/bin/sh"
+                  "-c"
+                  ''
+                    ${pkgs.ogmios}/bin/ogmios \
+                      --host 0.0.0.0 \
+                      --port ${toString ogmios.port} \
+                      --node-socket /ipc/node.socket \
+                      --node-config /config/cardano-node/config.json
+                  ''
+                ];
               };
+            };
             ctl-server = {
               service = {
                 useHostStore = true;
-                ports = [
-                  "${toString serverPort}:${toString serverPort}"
-                ];
+                ports = [ (bindPort ctlServer.port) ];
                 command = [
                   "${pkgs.bash}/bin/sh"
                   "-c"
@@ -252,13 +254,10 @@
                 ];
               };
             };
-
             postgres = {
               service = {
                 image = "postgres:13";
-                ports = [
-                  "${toString postgres.port}:${toString postgres.port}"
-                ];
+                ports = [ (bindPort postgres.port) ];
                 environment = {
                   POSTGRES_USER = "${postgres.user}";
                   POSTGRES_PASSWORD = "${postgres.password}";
@@ -266,6 +265,42 @@
                 };
               };
             };
+            ogmios-datum-cache =
+              let
+                configFile = ''
+                  dbConnectionString = """
+                    host=postgres \
+                    port=${toString postgres.port} \
+                    user=${postgres.user} \
+                    dbname=${postgres.db} \
+                    password=${postgres.password}\
+                  """
+                  saveAllDatums = ${pkgs.lib.boolToString datumCache.saveAllDatums}
+                  server.port = ${toString datumCache.port}
+                  ogmios.address = "ogmios"
+                  ogmios.port = ${toString ogmios.port}
+                  firstFetchBlock.slot = ${toString datumCache.firstFetchBlock.slot}
+                  firstFetchBlock.id = "${datumCache.firstFetchBlock.id}"
+                '';
+              in
+              {
+                service = {
+                  useHostStore = true;
+                  ports = [ (bindPort datumCache.port) ];
+                  restart = "on-failure";
+                  depends_on = [ "postgres" ];
+                  command = [
+                    "${pkgs.bash}/bin/sh"
+                    "-c"
+                    ''
+                      ${pkgs.coreutils}/bin/cat <<EOF > config.toml
+                        ${configFile}
+                      EOF
+                      ${pkgs.ogmios-datum-cache}/bin/ogmios-datum-cache
+                    ''
+                  ];
+                };
+              };
           };
         };
 
@@ -396,19 +431,14 @@
         // (psProjectFor system).packages
       );
 
-      apps = perSystem (system:
-        let
-          pkgs = nixpkgsFor system;
-        in
-        {
-          inherit
-            (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
-        } // {
-          ctl-runtime = {
-            type = "app";
-            program = "${launchCtlRuntime system {}}/bin/ctl-runtime";
-          };
-        });
+      apps = perSystem (system: {
+        inherit
+          (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
+        ctl-runtime = {
+          type = "app";
+          program = "${launchCtlRuntime system {}}/bin/ctl-runtime";
+        };
+      });
 
       checks = perSystem (system:
         let
