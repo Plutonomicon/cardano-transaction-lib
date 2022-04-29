@@ -128,6 +128,7 @@
     , nixpkgs
     , haskell-nix
     , iohk-nix
+    , cardano-configurations
     , ...
     }@inputs:
     let
@@ -143,8 +144,11 @@
         ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
         cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
         purescriptProject = import ./nix { inherit system; pkgs = prev; };
+        buildCtlRuntime = buildCtlRuntime system;
+        launchCtlRuntime = launchCtlRuntime system;
         inherit cardano-configurations;
       });
+
       nixpkgsFor = system: import nixpkgs {
         overlays = [
           haskell-nix.overlay
@@ -154,6 +158,178 @@
         inherit (haskell-nix) config;
         inherit system;
       };
+
+      buildCtlRuntime = system:
+        { node ? { port = 3001; }
+        , ogmios ? { port = 1337; }
+        , ctlServer ? { port = 8081; }
+        , postgres ? {
+            port = 5432;
+            user = "ctxlib";
+            password = "ctxlib";
+            db = "ctxlib";
+          }
+        , datumCache ? {
+            port = 9999;
+            dbConnectionString = nixpkgs.lib.concatStringsSep
+              " "
+              [
+                "host=postgres"
+                "port=${toString postgres.port}"
+                "user=${postgres.user}"
+                "dbname=${postgres.db}"
+                "password=${postgres.password}"
+              ];
+            saveAllDatums = true;
+            firstFetchBlock = {
+              slot = 44366242;
+              id = "d2a4249fe3d0607535daa26caf12a38da2233586bc51e79ed0b3a36170471bf5";
+            };
+          }
+        }:
+        { ... }:
+        let
+          inherit (builtins) toString;
+          pkgs = nixpkgsFor system;
+          nodeDbVol = "node-db";
+          nodeIpcVol = "node-ipc";
+          nodeSocketPath = "/ipc/node.socket";
+          serverName = "ctl-server:exe:ctl-server";
+          server = self.packages.${system}."${serverName}";
+          bindPort = port: "${toString port}:${toString port}";
+        in
+        {
+          docker-compose.raw = {
+            volumes = {
+              "${nodeDbVol}" = { };
+              "${nodeIpcVol}" = { };
+            };
+          };
+          services = {
+            cardano-node = {
+              service = {
+                image = "inputoutput/cardano-node:1.34.1";
+                ports = [ (bindPort node.port) ];
+                volumes = [
+                  "${cardano-configurations}/network/testnet/cardano-node:/config"
+                  "${cardano-configurations}/network/testnet/genesis:/genesis"
+                  "${nodeDbVol}:/data"
+                  "${nodeIpcVol}:/ipc"
+                ];
+                command = [
+                  "run"
+                  "--config"
+                  "/config/config.json"
+                  "--database-path"
+                  "/data/db"
+                  "--socket-path"
+                  "${nodeSocketPath}"
+                  "--topology"
+                  "/config/topology.json"
+                ];
+              };
+            };
+            ogmios = {
+              service = {
+                useHostStore = true;
+                ports = [ (bindPort ogmios.port) ];
+                volumes = [
+                  "${cardano-configurations}/network/testnet:/config"
+                  "${nodeIpcVol}:/ipc"
+                ];
+                command = [
+                  "${pkgs.bash}/bin/sh"
+                  "-c"
+                  ''
+                    ${pkgs.ogmios}/bin/ogmios \
+                      --host 0.0.0.0 \
+                      --port ${toString ogmios.port} \
+                      --node-socket /ipc/node.socket \
+                      --node-config /config/cardano-node/config.json
+                  ''
+                ];
+              };
+            };
+            ctl-server = {
+              service = {
+                useHostStore = true;
+                ports = [ (bindPort ctlServer.port) ];
+                command = [
+                  "${pkgs.bash}/bin/sh"
+                  "-c"
+                  ''
+                    ${server}/bin/ctl-server
+                  ''
+                ];
+              };
+            };
+            postgres = {
+              service = {
+                image = "postgres:13";
+                ports = [ (bindPort postgres.port) ];
+                environment = {
+                  POSTGRES_USER = "${postgres.user}";
+                  POSTGRES_PASSWORD = "${postgres.password}";
+                  POSTGRES_DB = "${postgres.db}";
+                };
+              };
+            };
+            ogmios-datum-cache =
+              let
+                configFile = ''
+                  dbConnectionString = "${datumCache.dbConnectionString}"
+                  saveAllDatums = ${pkgs.lib.boolToString datumCache.saveAllDatums}
+                  server.port = ${toString datumCache.port}
+                  ogmios.address = "ogmios"
+                  ogmios.port = ${toString ogmios.port}
+                  firstFetchBlock.slot = ${toString datumCache.firstFetchBlock.slot}
+                  firstFetchBlock.id = "${datumCache.firstFetchBlock.id}"
+                '';
+              in
+              {
+                service = {
+                  useHostStore = true;
+                  ports = [ (bindPort datumCache.port) ];
+                  restart = "on-failure";
+                  depends_on = [ "postgres" ];
+                  command = [
+                    "${pkgs.bash}/bin/sh"
+                    "-c"
+                    ''
+                      ${pkgs.coreutils}/bin/cat <<EOF > config.toml
+                        ${configFile}
+                      EOF
+                      ${pkgs.coreutils}/bin/sleep 1
+                      ${pkgs.ogmios-datum-cache}/bin/ogmios-datum-cache
+                    ''
+                  ];
+                };
+              };
+          };
+        };
+
+      # Makes a set compatible with flake `apps` to launch all runtime services
+      launchCtlRuntime = system: config:
+        let
+          pkgs = nixpkgsFor system;
+          binPath = "ctl-runtime";
+          prebuilt = (pkgs.arion.build {
+            inherit pkgs;
+            modules = [ (buildCtlRuntime system config) ];
+          }).outPath;
+          script = (pkgs.writeShellScriptBin "${binPath}"
+            ''
+              ${pkgs.arion}/bin/arion --prebuilt-file ${prebuilt} up
+            ''
+          ).overrideAttrs (_: {
+            buildInputs = [ pkgs.arion pkgs.docker ];
+          });
+        in
+        {
+          type = "app";
+          program = "${script}/bin/${binPath}";
+        };
+
       psProjectFor = system:
         let
           pkgs = nixpkgsFor system;
@@ -168,35 +344,8 @@
                 pkgs.ogmios-datum-cache
                 pkgs.nixpkgs-fmt
                 pkgs.fd
+                pkgs.arion
               ];
-
-              shellHook =
-                let
-                  nodeModules = project.mkNodeModules { };
-                in
-                ''
-                  __ln-testnet-config () {
-                    local cfgdir=./.node-cfg
-                    if test -e "$cfgdir"; then
-                      rm -r "$cfgdir"
-                    fi
-
-                    mkdir -p "$cfgdir"/testnet/{config,genesis}
-
-                    ln -s ${pkgs.cardano-configurations}/network/testnet/cardano-node/config.json \
-                      "$cfgdir"/testnet/config/config.json
-                    ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/byron.json \
-                      "$cfgdir"/testnet/genesis/byron.json
-                    ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/shelley.json \
-                      "$cfgdir"/testnet/genesis/shelley.json
-                  }
-
-                  __ln-testnet-config
-
-                  export CARDANO_NODE_SOCKET_PATH="$PWD"/.node/socket/node.socket
-                  export CARDANO_NODE_CONFIG="$PWD"/.node-cfg/testnet/config/config.json
-
-                '';
             };
           };
         in
@@ -211,6 +360,11 @@
               main = "Examples.Pkh2Pkh";
               entrypoint = "examples/index.js";
               htmlTemplate = "examples/index.html";
+            };
+
+            ctl-runtime = pkgs.arion.build {
+              inherit pkgs;
+              modules = [ (buildCtlRuntime system { }) ];
             };
           };
 
@@ -259,10 +413,12 @@
         // (psProjectFor system).packages
       );
 
-      apps = perSystem (system: {
-        inherit
-          (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
-      });
+      apps = perSystem
+        (system: {
+          inherit
+            (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
+          ctl-runtime = (nixpkgsFor system).launchCtlRuntime { };
+        });
 
       checks = perSystem (system:
         let

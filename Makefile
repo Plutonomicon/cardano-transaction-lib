@@ -3,9 +3,11 @@ SHELL := bash
 .PHONY: autogen-deps run-testnet-node run-testnet-ogmios
 .SHELLFLAGS := -eu -o pipefail -c
 
-ps-sources := $$(find ./* -iregex '.*.purs')
+ps-sources := $(shell fd -epurs)
 ps-entrypoint := Examples.Pkh2Pkh
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
+
+node-ipc = $(shell docker volume inspect cardano-transaction-lib_node-ipc | jq -r '.[0].Mountpoint')
 
 run-dev:
 	@${ps-bundle} && BROWSER_RUNTIME=1 webpack-dev-server --progress
@@ -14,36 +16,14 @@ run-build:
 	@${ps-bundle} && BROWSER_RUNTIME=1 webpack --mode=production
 
 check-format:
-	purs-tidy check ${ps-sources}
+	@purs-tidy check ${ps-sources}
 
 format:
-	purs-tidy format-in-place ${ps-sources}
-
-run-testnet-node:
-	docker run --rm \
-	  -e NETWORK=testnet \
-	  -v "$$PWD"/.node/socket:/ipc \
-	  -v "$$PWD"/.node/data:/data \
-	  inputoutput/cardano-node:1.34.0
-
-run-testnet-ogmios:
-	ogmios \
-		--node-socket "$$CARDANO_NODE_SOCKET_PATH" \
-		--node-config "$$CARDANO_NODE_CONFIG"
-
-run-haskell-server:
-	nix run -L .#ctl-server:exe:ctl-server
-
-run-datum-cache-postgres:
-	docker run -d --rm \
-		-e "POSTGRES_USER=ctxlib" \
-		-e "POSTGRES_PASSWORD=ctxlib" \
-		-e "POSTGRES_DB=ctxlib" \
-		-p 127.0.0.1:5432:5432 \
-		postgres:13
+	@purs-tidy format-in-place ${ps-sources}
 
 run-datum-cache-postgres-console:
-	nix shell nixpkgs#postgresql -c psql postgresql://ctxlib:ctxlib@localhost:5432
+	@nix shell nixpkgs#postgresql -c psql postgresql://ctxlib:ctxlib@localhost:5432
 
-query-testnet-sync:
-	cardano-cli query tip --testnet-magic 1097911063
+query-testnet-tip:
+	CARDANO_NODE_SOCKET_PATH=${node-ipc}/node.socket cardano-cli query tip \
+	  --testnet-magic 1097911063

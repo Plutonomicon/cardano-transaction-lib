@@ -65,7 +65,107 @@ Services that are currently required:
   - We hope to deprecate this in the future, but we use it at the moment for certain Cardano libraries that have no Purescript analogue
   - To build the server project, run the following from the repository root: `nix build -L .#ctl-server:exe:ctl-server`
 
-**NOTE**: CTL does **not** launch or provide these services for you. You must configure them and provide the appropriate values to the `ContractConfig` that you create to run your contracts. This repository contains [Makefile targets](#launching-services-for-development) to launch all required services on localhost, but this is intended for local development of CTL itself and is not suitable for deployment
+CTL's overlay (contained in its flake `outputs`) provides some mechanisms for conveniently launching all runtime services using [Arion](https://docs.hercules-ci.com/arion)(itself a wrapper around `docker-compose`). To use this, you must have a setup based on Nix flakes (recommended as well for [using CTL as a dependency for Purescript projects](#using-ctl-as-a-dependency)).
+
+Here is an example that uses the overlay to launch runtime services:
+
+``` nix
+{
+
+  inputs = {
+    # You should probably pin this to a specific revision, especially if using
+    # it for Purescript projects
+    cardano-transaction-lib.url = "github:Plutonomicon/cardano-transaction-lib";
+
+    # To use the same version of `nixpkgs` as we do
+    nixpkgs.follows = "cardano-transaction-lib/nixpkgs";
+  };
+
+  outputs = { self, cardano-transaction-lib, nixpkgs, ... }:
+    # some boilerplate
+    let
+      defaultSystems = [ "x86_64-linux" "x86_64-darwin" ];
+      perSystem = nixpkgs.lib.genAttrs defaultSystems;
+
+      # generate `pkgs` with the CTL overlay applied. This gives you access to
+      # various additional packages, using the same versions of CTL, including:
+      nixpkgsFor = system: import nixpkgs {
+        inherit system;
+        overlays = [ cardano-transaction-lib.overlay.${system} ];
+      };
+
+      # The configuration for the CTL runtime, which will be passed to the
+      # expression that builds the JSON file used by Arion. This value can be
+      # shared between `buildCtlRuntime` and `launchCtlRuntime`, as shown below
+      runtimeConfig = {
+        # *All* of these values are optional, and shown with their default
+        # values. If you need even more customization, you can use `overideAttrs`
+        # to change the values after calling `buildCtlRuntime` (e.g. a secrets
+        # volume for the `postgres` service)
+        node = { port = 3001; };
+        ogmios = { port = 1337; };
+        ctlServer = { port = 8081; };
+        postgres = {
+          port = 5432;
+          user = "ctxlib";
+          password = "ctxlib";
+          db = "ctxlib";
+        };
+        # These values will generate the `config.toml` required by ogmios-datum-cache
+        datumCache = {
+          port = 9999;
+          # If you override some part of `postgres` above, you may also need to
+          # modify the `dbConnectionString`
+          dbConnectionString = nixpkgs.lib.concatStringsSep
+            " "
+            [
+              "host=postgres"
+              "port=${toString postgres.port}"
+              "user=${postgres.user}"
+              "dbname=${postgres.db}"
+              "password=${postgres.password}"
+            ];
+          saveAllDatums = true;
+          firstFetchBlock = {
+            slot = 44366242;
+            id = "d2a4249fe3d0607535daa26caf12a38da2233586bc51e79ed0b3a36170471bf5";
+          };
+        };
+      };
+    in
+
+    {
+      # `launchCtlRuntime` will generate a Nix expression from the provided
+      # config, build it into a JSON file, and then run it with Arion
+      #
+      # Use `nix run .#<APP>` to run the services (e.g. `nix run .#ctl-runtime`)
+      apps = perSystem (system: {
+        ctl-runtime = (nixpkgsFor system).launchCtlRuntime runtimeConfig;
+      });
+
+      # `buildCtlRuntime` will generate a Nix expression that, when built with
+      # `pkgs.arion.build`, outputs a JSON file compatible with Arion. This can
+      # be run directly with Arion or passed to another derivation. Or you can
+      # use `buildCtlRuntime` with `runArion` (from the `hercules-ci-effects`)
+      # library
+      #
+      # Use `nix build .#<PACKAGE` to build. To run with Arion (i.e. in your
+      # shell): `arion --prebuilt-file ./result up`
+      packages = perSystem (system:
+        let
+          pkgs = nixpkgsFor system;
+        in
+        {
+          ctl-runtime = pkgs.arion.build {
+            inherit pkgs;
+            modules = [ (pkgs.buildCtlRuntime runtimeConfig) ];
+          };
+        });
+    };
+}
+```
+
+For launching services for developing CTL itself, see [below](#launching-services-for-development).
 
 ### Other requirements
 
@@ -101,24 +201,14 @@ Running `nix develop` in the root of the repository will place you in a developm
 
 ### Launching services for development
 
-There are a few Makefile targets provided for convenience, all of which require being in the Nix shell environment:
+To develop locally, you can use one the CTL flake to launch all required services (using default configuration values):
 
-- `make run-testnet-node` starts the node in a Docker container
-- `make run-testnet-ogmios` starts our fork of `ogmios` with the correct flags (i.e. config and node socket locations)
-- `make query-testnet-sync` checks the node's sync status. If the node is fully synced, you will see:
+- The easiest way: `nix run -L .#ctl-runtime` will both build and run the services
+- The same, but indirectly in your shell:
   ```
-  {  "epoch": 1005,
-     "hash": "<HASH>",
-     "slot": 7232440,
-     "block": 322985,
-     "era": "Alonzo",
-     "syncProgress": "100.00"
-  }
+  $ nix build -L .#ctl-runtime
+  $ arion --prebuilt-file ./result up
   ```
-- `make run-datum-cache-postgres` runs a PostgreSQL docker container with the same username, password, and DB name as required for `ogmios-datum-cache`
-- `make run-datum-cache-postgres-console` runs `psql` to access the datum cache DB directly; useful for debugging the datum cache
-
-If you prefer to run these services locally without `make`, the environment variables `CARDANO_NODE_SOCKET_PATH` and `CARDANO_NODE_CONFIG` are also exported in the shell pointing to the correct locations as noted in the previous section.
 
 ### Building/testing the PS project and running it in the browser
 
