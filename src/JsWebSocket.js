@@ -1,8 +1,21 @@
 /* global require exports WebSocket BROWSER_RUNTIME */
 
+const ReconnectingWebSocket = require('reconnecting-websocket');
+
+var OurWebSocket;
 if (typeof BROWSER_RUNTIME == 'undefined' || !BROWSER_RUNTIME) {
-    var OurWebSocket = require("ws");
+    OurWebSocket = require("ws");
+} else {
+    OurWebSocket = WebSocket;
 }
+
+class NoPerMessageDeflateWebSocket extends OurWebSocket {
+    constructor (url, protocols, options) {
+        options = options || {};
+        options.perMessageDeflate = false;
+        super(url, protocols, options);
+    }
+};
 
 // _mkWebsocket :: (String -> Effect Unit) -> String -> Effect WebSocket
 exports.mkWebSocket = logger => url => () => {
@@ -12,8 +25,7 @@ exports.mkWebSocket = logger => url => () => {
       ws = new ReconnectingWebSocket(url);
   } else {
       ws = new ReconnectingWebSocket(url, [], {
-          // perMessageDeflate: false, // TODO
-          WebSocket: OurWebSocket
+          WebSocket: NoPerMessageDeflateWebSocket
       });
   }
   logger("new websocket")();
