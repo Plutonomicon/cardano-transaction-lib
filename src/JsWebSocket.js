@@ -5,20 +5,23 @@ if (typeof BROWSER_RUNTIME == 'undefined' || !BROWSER_RUNTIME) {
 }
 
 // _mkWebsocket :: (String -> Effect Unit) -> String -> Effect WebSocket
-exports._mkWebSocket = logger => url => () => {
+exports.mkWebSocket = logger => url => () => {
   logger("Starting websocket attempt")();
   var ws;
   if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
-    ws = new WebSocket(url);
+      ws = new ReconnectingWebSocket(url);
   } else {
-    ws = new OurWebSocket(url, { perMessageDeflate: false });
+      ws = new ReconnectingWebSocket(url, [], {
+          // perMessageDeflate: false, // TODO
+          WebSocket: OurWebSocket
+      });
   }
   logger("new websocket")();
   return ws;
 };
 
 // _onWsConnect :: WebSocket -> (Unit -> Effect Unit) -> Effect Unit
-exports._onWsConnect = ws => fn => () => {
+exports.onWsConnect = ws => fn => () => {
   ws.addEventListener('open', fn);
 };
 
@@ -27,7 +30,7 @@ exports._onWsConnect = ws => fn => () => {
 //   -> (String -> Effect Unit) -- logger
 //   -> (String -> Effect Unit) -- handler
 //   -> Effect Unit
-exports._onWsError = ws => logger => fn => () => {
+exports.onWsError = ws => logger => fn => () => {
   ws.addEventListener('error', function func(event) {
     const str = event.toString();
     logger(`error: ${str}`)();
@@ -40,7 +43,7 @@ exports._onWsError = ws => logger => fn => () => {
 //   -> (String -> Effect Unit) -- logger
 //   -> (String -> Effect Unit) -- handler
 //   -> Effect Unit
-exports._onWsMessage = ws => logger => fn => () => {
+exports.onWsMessage = ws => logger => fn => () => {
   ws.addEventListener('message', function func(event) {
     const str = event.data;
     logger(`message: ${str}`)();
@@ -49,16 +52,13 @@ exports._onWsMessage = ws => logger => fn => () => {
 };
 
 // _wsSend :: WebSocket -> (String -> Effect Unit) -> String -> Effect Unit
-exports._wsSend = ws => logger => str => () => {
+exports.wsSend = ws => logger => str => () => {
   logger(`sending: ${str}`)();
   ws.send(str);
 };
 
 // _wsClose :: WebSocket -> Effect Unit
-exports._wsClose = ws => () => ws.close();
-
-// _stringify :: a -> Effect String
-exports._stringify = a => () => JSON.stringify(a);
+exports.wsClose = ws => () => ws.close();
 
 // Every 30 seconds if we haven't heard from the server, sever the connection.
 // heartbeat
@@ -85,7 +85,7 @@ const heartbeat = ws => logger => id => onError => {
 //   -> (String -> Effect Unit)
 //   -> Effect Unit
 //   -> Effect Unit
-exports._wsWatch = ws => logger => onError => () => {
+exports.wsWatch = ws => logger => onError => () => {
   let counter = null;
   let heartbeatAndCount = () => {
     counter = heartbeat(ws, loger, counter, onError);

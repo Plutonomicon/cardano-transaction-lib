@@ -19,6 +19,7 @@
     "big-integer": "1.6.51",
     "bufferutil": "4.0.5",
     "node-polyfill-webpack-plugin": "1.1.4",
+    "reconnecting-websocket": "^4.4.0",
     "uniqid": "5.4.0",
     "ws": "8.4.0",
     "xhr2": "0.2.1"

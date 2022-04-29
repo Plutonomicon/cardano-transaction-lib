@@ -7,8 +7,7 @@ module QueryM
   , FeeEstimate(..)
   , FinalizedTransaction(..)
   , HashedData(..)
-  , Host
-  , JsWebSocket
+  , module ServerConfig
   , ListenerSet
   , OgmiosListeners
   , OgmiosWebSocket
@@ -16,10 +15,7 @@ module QueryM
   , DefaultQueryConfig
   , QueryM
   , QueryMExtended
-  , ServerConfig
   , WebSocket
-  , _stringify
-  , _wsSend
   , liftQueryM
   , allowError
   , applyArgs
@@ -30,10 +26,7 @@ module QueryM
   , datumFilterRemoveHashesRequest
   , datumFilterSetHashesRequest
   , datumHash
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
   , traceQueryConfig
-  , defaultServerConfig
   , finalizeTx
   , getDatumByHash
   , getDatumsByHashes
@@ -44,10 +37,8 @@ module QueryM
   , hashScript
   , listeners
   , mkDatumCacheWebSocketAff
-  , mkHttpUrl
   , mkOgmiosRequest
   , mkOgmiosWebSocketAff
-  , mkWsUrl
   , ownPaymentPubKeyHash
   , ownPubKeyHash
   , ownStakePubKeyHash
@@ -97,6 +88,16 @@ import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
 import Foreign.Object as Object
 import Helpers (logString, logWithLevel)
+import JsWebSocket
+  ( JsWebSocket
+  , Url
+  , mkWebSocket
+  , onWsConnect
+  , onWsError
+  , onWsMessage
+  , wsSend
+  , wsWatch
+  )
 import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
 import QueryM.DatumCacheWsp
@@ -126,6 +127,8 @@ import QueryM.DatumCacheWsp
 import QueryM.DatumCacheWsp as DcWsp
 import QueryM.JsonWsp as JsonWsp
 import QueryM.Ogmios as Ogmios
+import QueryM.ServerConfig (Host, ServerConfig, defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkServerUrl, mkWsUrl) as ServerConfig
+import QueryM.ServerConfig (ServerConfig, defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkWsUrl)
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address
   ( Address
@@ -162,42 +165,6 @@ import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
 -- Since WebSockets do not define a mechanism for linking request/response
 -- Or for verifying that the connection is live, those concerns are addressed
 -- here
-
---------------------------------------------------------------------------------
--- Websocket Basics
---------------------------------------------------------------------------------
-foreign import _mkWebSocket
-  :: (String -> Effect Unit) -> Url -> Effect JsWebSocket
-
-foreign import _onWsConnect :: JsWebSocket -> (Effect Unit) -> Effect Unit
-
-foreign import _onWsMessage
-  :: JsWebSocket
-  -> (String -> Effect Unit) -- logger
-  -> (String -> Effect Unit) -- handler
-  -> Effect Unit
-
-foreign import _onWsError
-  :: JsWebSocket
-  -> (String -> Effect Unit) -- logger
-  -> (String -> Effect Unit) -- handler
-  -> Effect Unit
-
-foreign import _wsSend
-  :: JsWebSocket -> (String -> Effect Unit) -> String -> Effect Unit
-
-foreign import _wsClose :: JsWebSocket -> Effect Unit
-
-foreign import _stringify :: forall (a :: Type). a -> Effect String
-
-foreign import _wsWatch
-  :: JsWebSocket -> (String -> Effect Unit) -> Effect Unit -> Effect Unit
-
-foreign import data JsWebSocket :: Type
-
-type Url = String
-
----------------------
 
 ------------------------
 
@@ -338,9 +305,11 @@ matchCacheQuery query method args = do
 -- TODO: To be unified with ogmios once reflection PR is merged in `ogmios-datum-cache`
 queryDatumCache :: DatumCacheRequest -> QueryM DatumCacheResponse
 queryDatumCache request = do
-  sBody <- liftEffect $ _stringify $ DcWsp.jsonWspRequest request
   config <- ask
   let
+    sBody :: String
+    sBody = Json.stringify $ encodeJson $ DcWsp.jsonWspRequest request
+
     id :: String
     id = DcWsp.requestMethodName request
 
@@ -355,7 +324,7 @@ queryDatumCache request = do
             ls.removeMessageListener id
             allowError cont $ result
         )
-      _wsSend ws (logString config.logLevel Debug) sBody
+      wsSend ws (logString config.logLevel Debug) sBody
       pure $ Canceler $ \err -> do
         liftEffect $ ls.removeMessageListener id
         liftEffect $ throwError $ err
@@ -426,55 +395,6 @@ callNami nami act = act nami =<< readNamiConnection nami
   where
   readNamiConnection :: NamiWallet -> Aff NamiConnection
   readNamiConnection = liftEffect <<< Ref.read <<< _.connection
-
--- WS/HTTP server config
---------------------------------------------------------------------------------
-
-type ServerConfig =
-  { port :: UInt
-  , host :: Host
-  , secure :: Boolean
-  }
-
-defaultServerConfig :: ServerConfig
-defaultServerConfig =
-  { port: UInt.fromInt 8081
-  , host: "localhost"
-  , secure: false
-  }
-
-defaultOgmiosWsConfig :: ServerConfig
-defaultOgmiosWsConfig =
-  { port: UInt.fromInt 1337
-  , host: "localhost"
-  , secure: false
-  }
-
-defaultDatumCacheWsConfig :: ServerConfig
-defaultDatumCacheWsConfig =
-  { port: UInt.fromInt 9999
-  , host: "localhost"
-  , secure: false
-  }
-
-type Host = String
-
-mkHttpUrl :: ServerConfig -> Url
-mkHttpUrl = mkServerUrl "http"
-
-mkWsUrl :: ServerConfig -> Url
-mkWsUrl = mkServerUrl "ws"
-
-mkOgmiosDatumCacheWsUrl :: ServerConfig -> Url
-mkOgmiosDatumCacheWsUrl cfg = mkWsUrl cfg <> "/ws"
-
-mkServerUrl :: String -> ServerConfig -> Url
-mkServerUrl protocol cfg =
-  (if cfg.secure then (protocol <> "s") else protocol)
-    <> "://"
-    <> cfg.host
-    <> ":"
-    <> UInt.toString cfg.port
 
 -- The server will respond with a stringified integer value for the fee estimate
 newtype FeeEstimate = FeeEstimate BigInt
@@ -759,15 +679,15 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       , evaluateTxDispatchMap
       , submitDispatchMap
       }
-  ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
-  _onWsConnect ws do
-    _wsWatch ws (logger Debug) do
+  ws <- mkWebSocket (logger Debug) $ mkWsUrl serverCfg
+  onWsConnect ws do
+    wsWatch ws (logger Debug) do
       removeAllListeners lvl utxoDispatchMap
       removeAllListeners lvl evaluateTxDispatchMap
       removeAllListeners lvl chainTipDispatchMap
       removeAllListeners lvl submitDispatchMap
-    _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
-    _onWsError ws (logger Error) defaultErrorListener
+    onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
+    onWsError ws (logger Error) defaultErrorListener
     cb $ Right $ WebSocket ws
       { utxo: mkListenerSet utxoDispatchMap
       , chainTip: mkListenerSet chainTipDispatchMap
@@ -787,11 +707,11 @@ mkDatumCacheWebSocket'
 mkDatumCacheWebSocket' lvl serverCfg cb = do
   dispatchMap <- createMutableDispatch
   let md = datumCacheMessageDispatch dispatchMap
-  ws <- _mkWebSocket (logger Debug) $ mkOgmiosDatumCacheWsUrl serverCfg
-  _onWsConnect ws $ do
-    _wsWatch ws (logger Debug) $ removeAllListeners lvl dispatchMap
-    _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
-    _onWsError ws (logger Error) defaultErrorListener
+  ws <- mkWebSocket (logger Debug) $ mkOgmiosDatumCacheWsUrl serverCfg
+  onWsConnect ws $ do
+    wsWatch ws (logger Debug) $ removeAllListeners lvl dispatchMap
+    onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
+    onWsError ws (logger Error) defaultErrorListener
     cb $ Right $ WebSocket ws (mkListenerSet dispatchMap)
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
@@ -875,7 +795,7 @@ mkOgmiosRequest jsonWspCall getLs inp = do
             respLs.removeMessageListener id
             allowError cont $ result
         )
-      _wsSend ws (logString config.logLevel Debug) $ Json.stringify $
+      wsSend ws (logString config.logLevel Debug) $ Json.stringify $
         Json.encodeJson body
       pure $ Canceler $ \err -> do
         liftEffect $ respLs.removeMessageListener id
