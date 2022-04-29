@@ -4,17 +4,17 @@ const ReconnectingWebSocket = require('reconnecting-websocket');
 
 var OurWebSocket;
 if (typeof BROWSER_RUNTIME == 'undefined' || !BROWSER_RUNTIME) {
-    OurWebSocket = require("ws");
+  OurWebSocket = require("ws");
 } else {
-    OurWebSocket = WebSocket;
+  OurWebSocket = WebSocket;
 }
 
 class NoPerMessageDeflateWebSocket extends OurWebSocket {
-    constructor (url, protocols, options) {
-        options = options || {};
-        options.perMessageDeflate = false;
-        super(url, protocols, options);
-    }
+  constructor (url, protocols, options) {
+    options = options || {};
+    options.perMessageDeflate = false;
+    super(url, protocols, options);
+  }
 };
 
 // _mkWebsocket :: (String -> Effect Unit) -> String -> Effect WebSocket
@@ -22,11 +22,11 @@ exports.mkWebSocket = logger => url => () => {
   logger("Starting websocket attempt")();
   var ws;
   if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
-      ws = new ReconnectingWebSocket(url);
+    ws = new ReconnectingWebSocket(url);
   } else {
-      ws = new ReconnectingWebSocket(url, [], {
-          WebSocket: NoPerMessageDeflateWebSocket
-      });
+    ws = new ReconnectingWebSocket(url, [], {
+      WebSocket: NoPerMessageDeflateWebSocket
+    });
   }
   logger("new websocket")();
   return ws;
