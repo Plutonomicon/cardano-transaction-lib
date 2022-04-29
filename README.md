@@ -165,7 +165,7 @@ Here is an example that uses the overlay to launch runtime services:
 }
 ```
 
-For launch services for developing on CTL itself, see [below](#launching-services-for-development).
+For launching services for developing CTL itself, see [below](#launching-services-for-development).
 
 ### Other requirements
 
