@@ -296,6 +296,7 @@
                       ${pkgs.coreutils}/bin/cat <<EOF > config.toml
                         ${configFile}
                       EOF
+                      ${pkgs.coreutils}/bin/sleep 1
                       ${pkgs.ogmios-datum-cache}/bin/ogmios-datum-cache
                     ''
                   ];
