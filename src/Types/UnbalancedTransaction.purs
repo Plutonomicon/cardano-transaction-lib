@@ -1,7 +1,6 @@
 module Types.UnbalancedTransaction
   ( PaymentPubKey(..)
   , PaymentPubKeyHash(..)
-  , PubKeyHash(..)
   , ScriptOutput(..)
   , StakePubKeyHash(..)
   , TxOutRef
@@ -61,6 +60,7 @@ import Serialization.Hash
   )
 import ToData (class ToData)
 import Types.Datum (DatumHash)
+import Types.PubKeyHash (PubKeyHash)
 import Types.Transaction
   ( Transaction
   , TransactionInput
@@ -69,7 +69,7 @@ import Types.Transaction
   , RequiredSigner(RequiredSigner)
   )
 import Types.Scripts (ValidatorHash)
-import Types.Value (Value)
+import Cardano.Types.Value (Value)
 
 -- Plutus has a type called `PubKey` which we replace with `PublicKey`
 newtype PaymentPubKey = PaymentPubKey PublicKey
@@ -95,32 +95,6 @@ derive newtype instance Eq ScriptOutput
 
 instance Show ScriptOutput where
   show = genericShow
-
-newtype PubKeyHash = PubKeyHash Ed25519KeyHash
-
-derive instance Generic PubKeyHash _
-derive instance Newtype PubKeyHash _
-derive newtype instance Eq PubKeyHash
-derive newtype instance FromData PubKeyHash
-derive newtype instance Ord PubKeyHash
-derive newtype instance ToData PubKeyHash
-
-instance Show PubKeyHash where
-  show = genericShow
-
--- This is needed for `ApplyArgs`. Plutus has an `getPubKeyHash` field so don't
--- newtype derive.
-instance DecodeJson PubKeyHash where
-  decodeJson = caseJsonObject
-    (Left $ TypeMismatch "Expected object")
-    (flip getField "getPubKeyHash" >=> decodeJson >>> map PubKeyHash)
-
--- payPubKeyHash :: PaymentPubKey -> Maybe PaymentPubKeyHash
--- payPubKeyHash (PaymentPubKey pk) = wrap <$> pubKeyHash pk
-
--- pubKeyHash :: PublicKey -> Maybe PubKeyHash
--- pubKeyHash (PublicKey bech32) =
---   wrap <$> ed25519KeyHashFromBech32 bech32
 
 payPubKeyVkey :: PaymentPubKey -> Vkey
 payPubKeyVkey (PaymentPubKey pk) = Vkey pk

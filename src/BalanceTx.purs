@@ -73,7 +73,7 @@ import Types.Transaction
   )
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx))
-import Types.Value
+import Cardano.Types.Value
   ( filterNonAda
   , geq
   , getLovelace

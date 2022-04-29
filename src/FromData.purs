@@ -24,16 +24,14 @@ import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), hush, note)
 import Data.Generic.Rep as G
 import Data.List (List)
-import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap)
 import Data.Ratio (Ratio, reduce)
 import Data.Symbol (class IsSymbol, reflectSymbol)
 import Data.TextDecoder (decodeUtf8)
-import Data.Traversable (for, traverse)
+import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.Unfoldable (class Unfoldable)
 import Helpers (bigIntToUInt)
@@ -43,7 +41,7 @@ import Prim.TypeError (class Fail, Text)
 import Record as Record
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray)
-import Types.PlutusData (PlutusData(Bytes, Constr, List, Map, Integer))
+import Types.PlutusData (PlutusData(Bytes, Constr, List, Integer))
 
 -- | Errors
 data FromDataError
@@ -245,12 +243,6 @@ instance FromData a => FromData (List a) where
 instance (FromData a, FromData b) => FromData (Tuple a b) where
   fromData (Constr n [ a, b ])
     | n == zero = Tuple <$> fromData a <*> fromData b
-  fromData _ = Nothing
-
-instance (FromData k, Ord k, FromData v) => FromData (Map k v) where
-  fromData (Map mp) = do
-    Map.fromFoldable <$> for mp \(k /\ v) ->
-      Tuple <$> fromData k <*> fromData v
   fromData _ = Nothing
 
 instance FromData ByteArray where

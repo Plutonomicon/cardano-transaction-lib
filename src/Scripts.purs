@@ -14,6 +14,7 @@ import Prelude
 import Data.Either (hush)
 import Data.Maybe (Maybe(Nothing), maybe)
 import Data.Newtype (class Newtype, unwrap)
+import Plutus.Types.CurrencySymbol (CurrencySymbol, mpsSymbol)
 import QueryM (QueryM, hashScript)
 import Serialization.Address
   ( Address
@@ -35,7 +36,6 @@ import Types.Scripts
   , ValidatorHash
   )
 import Types.TypedValidator (TypedValidator(TypedValidator))
-import Types.Value (CurrencySymbol, mpsSymbol)
 
 -- | Helpers for `PlutusScript` and `ScriptHash` newtype wrappers, separate from
 -- | the data type definitions to prevent cylic dependencies.
@@ -98,4 +98,3 @@ scriptHash = map hush <<< hashScript
 scriptCurrencySymbol :: MintingPolicy -> QueryM (Maybe CurrencySymbol)
 scriptCurrencySymbol mp =
   mintingPolicyHash mp >>= maybe Nothing mpsSymbol >>> pure
-

@@ -63,14 +63,8 @@ import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.Natural (Natural)
 import Types.RedeemerTag as Tag
-import Types.Value
-  ( CurrencySymbol
-  , TokenName
-  , Value
-  , mkCurrencySymbol
-  , mkTokenName
-  , mkValue
-  )
+import Cardano.Types.Value (CurrencySymbol, Value, mkCurrencySymbol, mkValue)
+import Types.TokenName (TokenName, mkTokenName)
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
 

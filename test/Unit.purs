@@ -12,6 +12,7 @@ import Test.Metadata.Seabug as Seabug
 import Test.Metadata.Cip25 as Cip25
 import Test.Parser as Parser
 import Test.Plutus.Address as Plutus.Address
+import Test.Plutus.Value as Plutus.Value
 import Test.Serialization as Serialization
 import Test.Serialization.Address as Serialization.Address
 import Test.Serialization.Hash as Serialization.Hash
@@ -32,6 +33,7 @@ testPlan = do
   Deserialization.suite
   Parser.suite
   Plutus.Address.suite
+  Plutus.Value.suite
   Seabug.suite
   Serialization.suite
   Serialization.Address.suite

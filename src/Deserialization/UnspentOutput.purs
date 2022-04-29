@@ -43,17 +43,15 @@ import Types.Transaction
 import Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
-import Types.Value
+import Cardano.Types.Value
   ( Coin(Coin)
   , CurrencySymbol
-  , TokenName
   , Value
   , mkCurrencySymbol
   , mkNonAdaAsset
-  , mkTokenName
   , mkValue
   ) as T
-import Types.Value (assetNameName)
+import Types.TokenName (TokenName, assetNameName, mkTokenName) as T
 import Untagged.Union (asOneOf)
 
 convertUnspentOutput
@@ -102,7 +100,7 @@ convertValue value = do
                 -- scripthash to currency symbol
                 (scriptHashToBytes >>> T.mkCurrencySymbol)
                 -- nested assetname to tokenname
-                (traverse (ltraverse (assetNameName >>> T.mkTokenName)))
+                (traverse (ltraverse (T.assetNameName >>> T.mkTokenName)))
             )
             >>>
               -- convert inner array

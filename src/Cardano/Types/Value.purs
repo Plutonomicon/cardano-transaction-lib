@@ -1,10 +1,8 @@
-module Types.Value
+module Cardano.Types.Value
   ( Coin(..)
   , CurrencySymbol
   , NonAdaAsset(..)
-  , TokenName
   , Value(..)
-  , adaToken
   , class Negate
   , class Split
   , coinToValue
@@ -16,7 +14,6 @@ module Types.Value
   , getLovelace
   , getNonAdaAsset
   , getNonAdaAsset'
-  , getTokenName
   , gt
   , isAdaOnly
   , isPos
@@ -33,8 +30,6 @@ module Types.Value
   , mkSingletonNonAdaAsset
   , mkSingletonValue
   , mkSingletonValue'
-  , mkTokenName
-  , mkTokenNames
   , mkValue
   , mpsSymbol
   , negation
@@ -48,8 +43,6 @@ module Types.Value
   , valueOf
   , valueToCoin
   , valueToCoin'
-  , tokenNameFromAssetName
-  , assetNameName
   ) where
 
 import Prelude hiding (join)
@@ -81,7 +74,7 @@ import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This))
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested ((/\), type (/\))
-import FromData (class FromData, fromData)
+import FromData (class FromData)
 import Partial.Unsafe (unsafePartial)
 import Serialization.Hash
   ( ScriptHash
@@ -89,11 +82,16 @@ import Serialization.Hash
   , scriptHashFromBytes
   , scriptHashToBytes
   )
-import Serialization.Types as CSL
-import ToData (class ToData, toData)
+import ToData (class ToData)
 import Types.ByteArray (ByteArray, byteLength, hexToByteArray)
-import Types.PlutusData (PlutusData(List)) as PD
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
+import Types.TokenName
+  ( TokenName
+  , adaToken
+  , getTokenName
+  , mkTokenName
+  , mkTokenNames
+  )
 
 -- `Negate` and `Split` seem a bit too contrived, and their purpose is to
 -- combine similar behaviour without satisfying any useful laws. I wonder
@@ -125,8 +123,6 @@ newtype Coin = Coin BigInt
 derive instance Generic Coin _
 derive instance Newtype Coin _
 derive newtype instance Eq Coin
-derive newtype instance FromData Coin
-derive newtype instance ToData Coin
 
 instance Show Coin where
   show = genericShow
@@ -220,55 +216,12 @@ mkUnsafeAdaSymbol byteArr =
   if byteArr == mempty then pure unsafeAdaSymbol else Nothing
 
 --------------------------------------------------------------------------------
--- TokenName
---------------------------------------------------------------------------------
-newtype TokenName = TokenName ByteArray
-
-derive newtype instance Eq TokenName
-derive newtype instance FromData TokenName
-derive newtype instance Ord TokenName
-derive newtype instance ToData TokenName
-
-instance Show TokenName where
-  show (TokenName tn) = "(TokenName" <> show tn <> ")"
-
-getTokenName :: TokenName -> ByteArray
-getTokenName (TokenName tokenName) = tokenName
-
--- Safe to export because this can be created by mkTokenName now
--- | The empty token name.
-adaToken :: TokenName
-adaToken = TokenName mempty
-
--- | Create a `TokenName` from a `ByteArray` since TokenName data constructor is
--- | not exported
-mkTokenName :: ByteArray -> Maybe TokenName
-mkTokenName byteArr =
-  if byteLength byteArr <= 32 then pure $ TokenName byteArr else Nothing
-
-foreign import assetNameName :: CSL.AssetName -> ByteArray
-
-tokenNameFromAssetName :: CSL.AssetName -> TokenName
-tokenNameFromAssetName = TokenName <<< assetNameName
-
--- | Creates a Map of `TokenName` and Big Integers from a `Traversable` of 2-tuple
--- | `ByteArray` and Big Integers with the possibility of failure
-mkTokenNames
-  :: forall (t :: Type -> Type)
-   . Traversable t
-  => t (ByteArray /\ BigInt)
-  -> Maybe (Map TokenName BigInt)
-mkTokenNames = traverse (ltraverse mkTokenName) >>> map Map.fromFoldable
-
---------------------------------------------------------------------------------
 -- NonAdaAsset
 --------------------------------------------------------------------------------
 newtype NonAdaAsset = NonAdaAsset (Map CurrencySymbol (Map TokenName BigInt))
 
 derive instance Newtype NonAdaAsset _
-derive newtype instance FromData NonAdaAsset
 derive newtype instance Eq NonAdaAsset
-derive newtype instance ToData NonAdaAsset
 
 instance Show NonAdaAsset where
   show (NonAdaAsset nonAdaAsset) = "(NonAdaAsset" <> show nonAdaAsset <> ")"
@@ -397,17 +350,6 @@ instance Split Value where
   split (Value coin nonAdaAsset) =
     bimap (flip Value mempty) (flip Value mempty) (split coin)
       <> bimap (Value mempty) (Value mempty) (split nonAdaAsset)
-
--- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/193
--- Because our `Value` is different to Plutus, I wonder if this will become an
--- issue.
-instance FromData Value where
-  fromData (PD.List [ coin, nonAdaAsset ]) =
-    Value <$> fromData coin <*> fromData nonAdaAsset
-  fromData _ = Nothing
-
-instance ToData Value where
-  toData (Value coin nonAdaAsset) = toData (coin /\ nonAdaAsset)
 
 -- | Create a `Value` from `Coin` and `NonAdaAsset`, the latter should have been
 -- | constructed safely at this point.

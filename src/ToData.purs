@@ -22,15 +22,12 @@ import Data.Either (Either(Left, Right))
 import Data.Foldable (class Foldable)
 import Data.Generic.Rep as G
 import Data.List (List)
-import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Profunctor.Strong ((***))
 import Data.Ratio (Ratio, denominator, numerator)
 import Data.Symbol (class IsSymbol, SProxy(SProxy), reflectSymbol)
 import Data.TextEncoder (encodeUtf8)
 import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Helpers (uIntToBigInt)
 import Prim.Row as Row
@@ -39,7 +36,7 @@ import Prim.TypeError (class Fail, Text)
 import Record as Record
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray(ByteArray))
-import Types.PlutusData (PlutusData(Constr, Integer, List, Map, Bytes))
+import Types.PlutusData (PlutusData(Constr, Integer, List, Bytes))
 
 -- | Classes
 
@@ -194,11 +191,6 @@ instance ToData a => ToData (List a) where
 
 instance (ToData a, ToData b) => ToData (Tuple a b) where
   toData (Tuple a b) = Constr zero [ toData a, toData b ]
-
-instance (ToData k, ToData v) => ToData (Map k v) where
-  toData mp = Map $ entries # map (toData *** toData)
-    where
-    entries = Map.toUnfoldable mp :: Array (k /\ v)
 
 -- Note that nothing prevents the denominator from being zero, we could provide
 -- safety here:

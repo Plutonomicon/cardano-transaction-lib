@@ -21,3 +21,5 @@ result-*
 .projectile
 /dist/
 output.js
+.DS_Store
+.idea/

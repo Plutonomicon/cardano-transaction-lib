@@ -142,12 +142,11 @@ import Types.Transaction
   , Update
   )
 import Types.Transaction as T
-import Types.Value
+import Types.TokenName (TokenName, tokenNameFromAssetName)
+import Cardano.Types.Value
   ( Coin(Coin)
   , NonAdaAsset(NonAdaAsset)
-  , TokenName
   , scriptHashAsCurrencySymbol
-  , tokenNameFromAssetName
   )
 import Untagged.Union (asOneOf)
 

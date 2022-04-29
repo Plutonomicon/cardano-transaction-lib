@@ -14,7 +14,6 @@ import Data.Array (zip, (..))
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Generic.Rep as G
-import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for_, traverse_)
@@ -65,19 +64,6 @@ suite = do
         for_ inputs \input -> do
           test (show input) do
             fromData (toData input) `shouldEqual` Just input
-      group "Map" do
-        test "Map #1" do
-          let
-            input =
-              Map.fromFoldable [ unit /\ unit ]
-          fromData (toData input) `shouldEqual` Just input
-        test "Map #2" do
-          let
-            input = Map.fromFoldable
-              [ Map.fromFoldable [ unit /\ unit ] /\ Map.fromFoldable
-                  [ unit /\ unit ]
-              ]
-          fromData (toData input) `shouldEqual` Just input
     group "Generic" do
       -- TODO: Quickcheckify
       test "EType: from . to == id" do

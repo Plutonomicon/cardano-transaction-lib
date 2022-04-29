@@ -8,15 +8,16 @@ module Plutus.Types.Address
   ) where
 
 import Prelude
+
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Data.Newtype (class Newtype, wrap, unwrap)
-import Types.UnbalancedTransaction (PubKeyHash)
+import FromData (class FromData, fromData)
+import ToData (class ToData, toData)
 import Types.Scripts (ValidatorHash)
 import Types.PlutusData (PlutusData(Constr))
-import ToData (class ToData, toData)
-import FromData (class FromData, fromData)
+import Types.PubKeyHash (PubKeyHash)
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential
