@@ -346,34 +346,6 @@
                 pkgs.fd
                 pkgs.arion
               ];
-
-              shellHook =
-                let
-                  nodeModules = project.mkNodeModules { };
-                in
-                ''
-                  __ln-testnet-config () {
-                    local cfgdir=./.node-cfg
-                    if test -e "$cfgdir"; then
-                      rm -r "$cfgdir"
-                    fi
-
-                    mkdir -p "$cfgdir"/testnet/{config,genesis}
-
-                    ln -s ${pkgs.cardano-configurations}/network/testnet/cardano-node/config.json \
-                      "$cfgdir"/testnet/config/config.json
-                    ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/byron.json \
-                      "$cfgdir"/testnet/genesis/byron.json
-                    ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/shelley.json \
-                      "$cfgdir"/testnet/genesis/shelley.json
-                  }
-
-                  __ln-testnet-config
-
-                  export CARDANO_NODE_SOCKET_PATH="$PWD"/.node/socket/node.socket
-                  export CARDANO_NODE_CONFIG="$PWD"/.node-cfg/testnet/config/config.json
-
-                '';
             };
           };
         in
