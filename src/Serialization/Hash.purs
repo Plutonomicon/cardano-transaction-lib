@@ -27,11 +27,13 @@ import Data.Function (on)
 import Data.Maybe (Maybe(Nothing))
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import FromData (class FromData)
+import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata, toMetadata)
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.PlutusData (PlutusData(Bytes))
+import Types.TransactionMetadata (TransactionMetadatum(Bytes)) as Metadata
 
 -- | PubKeyHash and StakeKeyHash refers to blake2b-224 hash digests of Ed25519
 -- | verification keys
@@ -123,6 +125,10 @@ instance FromData ScriptHash where
 
 instance ToMetadata ScriptHash where
   toMetadata = toMetadata <<< scriptHashToBytes
+
+instance FromMetadata ScriptHash where
+  fromMetadata (Metadata.Bytes bytes) = scriptHashFromBytes bytes
+  fromMetadata _ = Nothing
 
 -- Corresponds to Plutus' `Plutus.V1.Ledger.Api.Script` Aeson instances
 instance DecodeJson ScriptHash where

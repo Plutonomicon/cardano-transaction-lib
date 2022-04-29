@@ -4,9 +4,6 @@ module Metadata.ToMetadata
   , AnyToMetadata
   , class AnyToMetadataClass
   , anyToMetadata
-  , class ToGeneralTransactionMetadata
-  , metadataLabel
-  , toGeneralTransactionMetadata
   ) where
 
 import Prelude
@@ -20,7 +17,6 @@ import Data.Newtype (wrap)
 import Data.NonEmpty (NonEmpty)
 import Data.Profunctor.Strong ((***))
 import Data.Tuple.Nested (type (/\))
-import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray)
 import Types.Int (Int) as Int
 import Types.TransactionMetadata
@@ -76,25 +72,10 @@ instance ToMetadata String where
 newtype AnyToMetadata = AnyToMetadata
   (forall (r :: Type). (forall (a :: Type). ToMetadata a => a -> r) -> Maybe r)
 
-class AnyToMetadataClass a where
+class AnyToMetadataClass (a :: Type) where
   anyToMetadata :: a -> AnyToMetadata
 
 instance ToMetadata a => AnyToMetadataClass (Maybe a) where
   anyToMetadata a = AnyToMetadata \f -> f <$> a
 else instance ToMetadata a => AnyToMetadataClass a where
   anyToMetadata a = AnyToMetadata \f -> Just (f a)
-
---------------------------------------------------------------------------------
--- ToGeneralTransactionMetadata
---------------------------------------------------------------------------------
-
-class ToMetadata a <= ToGeneralTransactionMetadata a where
-  metadataLabel :: Proxy a -> TransactionMetadatumLabel
-
-toGeneralTransactionMetadata
-  :: forall (a :: Type)
-   . ToGeneralTransactionMetadata a
-  => a
-  -> GeneralTransactionMetadata
-toGeneralTransactionMetadata =
-  wrap <<< Map.singleton (metadataLabel (Proxy :: Proxy a)) <<< toMetadata

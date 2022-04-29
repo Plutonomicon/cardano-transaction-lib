@@ -17,6 +17,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
 import FromData (class FromData)
+import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Serialization.Hash (ScriptHash)
 import ToData (class ToData)
@@ -95,9 +96,10 @@ derive newtype instance DecodeJson MintingPolicyHash
 instance Show MintingPolicyHash where
   show = genericShow
 
-derive newtype instance ToData MintingPolicyHash
 derive newtype instance FromData MintingPolicyHash
+derive newtype instance ToData MintingPolicyHash
 
+derive newtype instance FromMetadata MintingPolicyHash
 derive newtype instance ToMetadata MintingPolicyHash
 
 newtype ValidatorHash = ValidatorHash ScriptHash

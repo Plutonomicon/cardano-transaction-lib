@@ -8,12 +8,13 @@ import Prelude
 
 import Data.Argonaut (class DecodeJson, Json, (.:), (.:?))
 import Data.Argonaut as Json
-import Data.Array (uncons, concat, groupBy)
+import Data.Array (concat, groupBy, uncons)
 import Data.Array.NonEmpty (NonEmptyArray, toArray)
 import Data.Array.NonEmpty (head) as NonEmpty
 import Data.BigInt (fromInt)
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
+import Data.Map (toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.NonEmpty (NonEmpty, (:|))
@@ -26,19 +27,16 @@ import Foreign.Object (Object, toUnfoldable) as FO
 import Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
 import FromData (class FromData, fromData)
 import ToData (class ToData, toData)
-import Metadata.Helpers (lookupKey)
-import Metadata.ToMetadata
-  ( class ToMetadata
-  , class ToGeneralTransactionMetadata
-  , toMetadata
-  , anyToMetadata
-  )
+import Metadata.Helpers (lookupKey, lookupMetadata)
+import Metadata.FromMetadata (class FromMetadata, fromMetadata)
+import Metadata.ToMetadata (class ToMetadata, toMetadata, anyToMetadata)
+import Metadata.MetadataType (class MetadataType)
 import Serialization.Hash (scriptHashFromBytes)
 import Types.Scripts (MintingPolicyHash)
 import Types.ByteArray (hexToByteArray)
 import Types.PlutusData (PlutusData(Map))
 import Types.TokenName (TokenName, mkTokenName)
-import Types.TransactionMetadata (TransactionMetadatum)
+import Types.TransactionMetadata (TransactionMetadatum(MetadataMap))
 
 nftMetadataLabel :: String
 nftMetadataLabel = "721"
@@ -66,6 +64,13 @@ instance ToMetadata Cip25MetadataFile where
     , "mediaType" /\ toMetadata file.mediaType
     , "src" /\ toMetadata file.uris
     ]
+
+instance FromMetadata Cip25MetadataFile where
+  fromMetadata contents = do
+    name <- lookupMetadata "name" contents >>= fromMetadata
+    mediaType <- lookupMetadata "mediaType" contents >>= fromMetadata
+    uris <- lookupMetadata "src" contents >>= fromMetadata
+    pure $ wrap { name, mediaType, uris }
 
 instance ToData Cip25MetadataFile where
   toData (Cip25MetadataFile file) = toData $ AssocMap.Map $
@@ -109,15 +114,6 @@ derive instance Eq Cip25MetadataEntry
 instance Show Cip25MetadataEntry where
   show = genericShow
 
-metadataEntryToData :: Cip25MetadataEntry -> PlutusData
-metadataEntryToData (Cip25MetadataEntry entry) = toData $ AssocMap.Map $
-  [ "name" /\ toData entry.assetName
-  , "image" /\ toData entry.imageUris
-  , "mediaType" /\ toData entry.mediaType
-  , "description" /\ toData entry.description
-  , "files" /\ toData entry.files
-  ]
-
 metadataEntryToMetadata :: Cip25MetadataEntry -> TransactionMetadatum
 metadataEntryToMetadata (Cip25MetadataEntry entry) = toMetadata
   [ "name" /\ anyToMetadata entry.assetName
@@ -125,6 +121,28 @@ metadataEntryToMetadata (Cip25MetadataEntry entry) = toMetadata
   , "mediaType" /\ anyToMetadata entry.mediaType
   , "description" /\ anyToMetadata entry.description
   , "files" /\ anyToMetadata entry.files
+  ]
+
+metadataEntryFromMetadata
+  :: MintingPolicyHash
+  -> TokenName
+  -> TransactionMetadatum
+  -> Maybe Cip25MetadataEntry
+metadataEntryFromMetadata policyId assetName contents = do
+  imageUris <- lookupMetadata "image" contents >>= fromMetadata
+  mediaType <- fromMetadata <$> lookupMetadata "mediaType" contents
+  description <- lookupMetadata "description" contents >>= fromMetadata
+  files <- lookupMetadata "files" contents >>= fromMetadata
+  pure $
+    wrap { policyId, assetName, imageUris, mediaType, description, files }
+
+metadataEntryToData :: Cip25MetadataEntry -> PlutusData
+metadataEntryToData (Cip25MetadataEntry entry) = toData $ AssocMap.Map $
+  [ "name" /\ toData entry.assetName
+  , "image" /\ toData entry.imageUris
+  , "mediaType" /\ toData entry.mediaType
+  , "description" /\ toData entry.description
+  , "files" /\ toData entry.files
   ]
 
 metadataEntryFromData
@@ -184,7 +202,21 @@ instance ToMetadata Cip25Metadata where
           (toArray <<< flip map group) \entry ->
             (unwrap entry).assetName /\ metadataEntryToMetadata entry
 
-instance ToGeneralTransactionMetadata Cip25Metadata where
+instance FromMetadata Cip25Metadata where
+  fromMetadata (MetadataMap mp1) = do
+    entries <- map concat $
+      for (Map.toUnfoldable mp1) $ \(policyId /\ assets) ->
+        case assets of
+          MetadataMap mp2 ->
+            for (Map.toUnfoldable mp2) $ \(assetName /\ contents) ->
+              metadataEntryFromMetadata <$> fromMetadata policyId
+                <*> fromMetadata assetName
+                <*> pure contents
+          _ -> Nothing
+    wrap <$> sequence entries
+  fromMetadata _ = Nothing
+
+instance MetadataType Cip25Metadata where
   metadataLabel _ = wrap (fromInt 721)
 
 instance ToData Cip25Metadata where
