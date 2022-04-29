@@ -171,6 +171,15 @@
           }
         , datumCache ? {
             port = 9999;
+            dbConnectionString = nixpkgs.lib.concatStringsSep
+              " "
+              [
+                "host=postgres"
+                "port=${toString postgres.port}"
+                "user=${postgres.user}"
+                "dbname=${postgres.db}"
+                "password=${postgres.password}"
+              ];
             saveAllDatums = true;
             firstFetchBlock = {
               slot = 44366242;
@@ -268,13 +277,7 @@
             ogmios-datum-cache =
               let
                 configFile = ''
-                  dbConnectionString = """
-                    host=postgres \
-                    port=${toString postgres.port} \
-                    user=${postgres.user} \
-                    dbname=${postgres.db} \
-                    password=${postgres.password}\
-                  """
+                  dbConnectionString = "${datumCache.dbConnectionString}"
                   saveAllDatums = ${pkgs.lib.boolToString datumCache.saveAllDatums}
                   server.port = ${toString datumCache.port}
                   ogmios.address = "ogmios"
