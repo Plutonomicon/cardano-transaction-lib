@@ -144,7 +144,7 @@
         ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
         cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
         purescriptProject = import ./nix { inherit system; pkgs = prev; };
-        mkCtlRuntime = mkCtlRuntime system;
+        buildCtlRuntime = buildCtlRuntime system;
         launchCtlRuntime = launchCtlRuntime system;
         inherit cardano-configurations;
       });
@@ -159,7 +159,7 @@
         inherit system;
       };
 
-      mkCtlRuntime = system:
+      buildCtlRuntime = system:
         { node ? { port = 3001; }
         , ogmios ? { port = 1337; }
         , ctlServer ? { port = 8081; }
@@ -305,21 +305,27 @@
           };
         };
 
+      # Makes a set compatible with flake `apps` to launch all runtime services
       launchCtlRuntime = system: config:
         let
           pkgs = nixpkgsFor system;
+          binPath = "ctl-runtime";
           prebuilt = (pkgs.arion.build {
             inherit pkgs;
-            modules = [ (mkCtlRuntime system config) ];
+            modules = [ (buildCtlRuntime system config) ];
           }).outPath;
+          script = (pkgs.writeShellScriptBin "${binPath}"
+            ''
+              ${pkgs.arion}/bin/arion --prebuilt-file ${prebuilt} up
+            ''
+          ).overrideAttrs (_: {
+            buildInputs = [ pkgs.arion pkgs.docker ];
+          });
         in
-        (pkgs.writeShellScriptBin "ctl-runtime"
-          ''
-            ${pkgs.arion}/bin/arion --prebuilt-file ${prebuilt} up
-          ''
-        ).overrideAttrs (_: {
-          buildInputs = [ pkgs.arion pkgs.docker ];
-        });
+        {
+          type = "app";
+          program = "${script}/bin/${binPath}";
+        };
 
       psProjectFor = system:
         let
@@ -383,7 +389,7 @@
 
             ctl-runtime = pkgs.arion.build {
               inherit pkgs;
-              modules = [ (mkCtlRuntime system { }) ];
+              modules = [ (buildCtlRuntime system { }) ];
             };
           };
 
@@ -432,14 +438,12 @@
         // (psProjectFor system).packages
       );
 
-      apps = perSystem (system: {
-        inherit
-          (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
-        ctl-runtime = {
-          type = "app";
-          program = "${launchCtlRuntime system {}}/bin/ctl-runtime";
-        };
-      });
+      apps = perSystem
+        (system: {
+          inherit
+            (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
+          ctl-runtime = (nixpkgsFor system).launchCtlRuntime { };
+        });
 
       checks = perSystem (system:
         let
