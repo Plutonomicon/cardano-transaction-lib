@@ -9,6 +9,9 @@ module QueryM
   , HashedData(..)
   , module ServerConfig
   , ListenerSet
+  , PendingRequests
+  , ListenerId
+  , RequestBody
   , OgmiosListeners
   , OgmiosWebSocket
   , QueryConfig
@@ -73,10 +76,12 @@ import Data.Either (Either(Left, Right), either, isRight, note, hush)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel(Trace, Debug, Error))
+import Data.Map (Map)
+import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe, maybe')
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Traversable (traverse, for)
+import Data.Traversable (traverse, traverse_, for)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -85,6 +90,7 @@ import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, error, throw)
+import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
 import Helpers (logString, logWithLevel)
@@ -127,8 +133,26 @@ import QueryM.DatumCacheWsp
 import QueryM.DatumCacheWsp as DcWsp
 import QueryM.JsonWsp as JsonWsp
 import QueryM.Ogmios as Ogmios
-import QueryM.ServerConfig (Host, ServerConfig, defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkServerUrl, mkWsUrl) as ServerConfig
-import QueryM.ServerConfig (ServerConfig, defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkWsUrl)
+import QueryM.ServerConfig
+  ( Host
+  , ServerConfig
+  , defaultDatumCacheWsConfig
+  , defaultOgmiosWsConfig
+  , defaultServerConfig
+  , mkHttpUrl
+  , mkOgmiosDatumCacheWsUrl
+  , mkServerUrl
+  , mkWsUrl
+  ) as ServerConfig
+import QueryM.ServerConfig
+  ( ServerConfig
+  , defaultDatumCacheWsConfig
+  , defaultOgmiosWsConfig
+  , defaultServerConfig
+  , mkHttpUrl
+  , mkOgmiosDatumCacheWsUrl
+  , mkWsUrl
+  )
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address
   ( Address
@@ -307,7 +331,7 @@ queryDatumCache :: DatumCacheRequest -> QueryM DatumCacheResponse
 queryDatumCache request = do
   config <- ask
   let
-    sBody :: String
+    sBody :: RequestBody
     sBody = Json.stringify $ encodeJson $ DcWsp.jsonWspRequest request
 
     id :: String
@@ -324,6 +348,7 @@ queryDatumCache request = do
             ls.removeMessageListener id
             allowError cont $ result
         )
+      ls.addRequest id sBody
       wsSend ws (logString config.logLevel Debug) sBody
       pure $ Canceler $ \err -> do
         liftEffect $ ls.removeMessageListener id
@@ -672,6 +697,10 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
   chainTipDispatchMap <- createMutableDispatch
   evaluateTxDispatchMap <- createMutableDispatch
   submitDispatchMap <- createMutableDispatch
+  utxoPendingRequests <- createPendingRequests
+  chainTipPendingRequests <- createPendingRequests
+  evaluateTxPendingRequests <- createPendingRequests
+  submitPendingRequests <- createPendingRequests
   let
     md = ogmiosMessageDispatch
       { utxoDispatchMap
@@ -680,19 +709,23 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       , submitDispatchMap
       }
   ws <- mkWebSocket (logger Debug) $ mkWsUrl serverCfg
+  let
+    sendRequest = wsSend ws (logString lvl Debug)
+    onError = do
+      logString lvl Debug "WS error occured, resending requests"
+      Ref.read utxoPendingRequests >>= traverse_ sendRequest
+      Ref.read chainTipPendingRequests >>= traverse_ sendRequest
+      Ref.read evaluateTxPendingRequests >>= traverse_ sendRequest
+      Ref.read submitPendingRequests >>= traverse_ sendRequest
   onWsConnect ws do
-    wsWatch ws (logger Debug) do
-      removeAllListeners lvl utxoDispatchMap
-      removeAllListeners lvl evaluateTxDispatchMap
-      removeAllListeners lvl chainTipDispatchMap
-      removeAllListeners lvl submitDispatchMap
+    wsWatch ws (logger Debug) onError
     onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
-    onWsError ws (logger Error) defaultErrorListener
+    onWsError ws (logger Error) $ const onError
     cb $ Right $ WebSocket ws
-      { utxo: mkListenerSet utxoDispatchMap
-      , chainTip: mkListenerSet chainTipDispatchMap
-      , evaluate: mkListenerSet evaluateTxDispatchMap
-      , submit: mkListenerSet submitDispatchMap
+      { utxo: mkListenerSet utxoDispatchMap utxoPendingRequests
+      , chainTip: mkListenerSet chainTipDispatchMap chainTipPendingRequests
+      , evaluate: mkListenerSet evaluateTxDispatchMap evaluateTxPendingRequests
+      , submit: mkListenerSet submitDispatchMap submitPendingRequests
       }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
@@ -706,13 +739,19 @@ mkDatumCacheWebSocket'
   -> Effect Canceler
 mkDatumCacheWebSocket' lvl serverCfg cb = do
   dispatchMap <- createMutableDispatch
+  pendingRequests <- createPendingRequests
   let md = datumCacheMessageDispatch dispatchMap
   ws <- mkWebSocket (logger Debug) $ mkOgmiosDatumCacheWsUrl serverCfg
+  let
+    sendRequest = wsSend ws (logString lvl Debug)
+    onError = do
+      logString lvl Debug "Datum Cache: WS error occured, resending requests"
+      Ref.read pendingRequests >>= traverse_ sendRequest
   onWsConnect ws $ do
-    wsWatch ws (logger Debug) $ removeAllListeners lvl dispatchMap
+    wsWatch ws (logger Debug) onError
     onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
-    onWsError ws (logger Error) defaultErrorListener
-    cb $ Right $ WebSocket ws (mkListenerSet dispatchMap)
+    onWsError ws (logger Error) $ const onError
+    cb $ Right $ WebSocket ws (mkListenerSet dispatchMap pendingRequests)
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
   logger :: LogLevel -> String -> Effect Unit
@@ -733,51 +772,57 @@ listeners :: forall (listeners :: Type). WebSocket listeners -> listeners
 listeners (WebSocket _ ls) = ls
 
 -- interface required for adding/removing listeners
-type DatumCacheListeners = ListenerSet DcWsp.JsonWspResponse
+type DatumCacheListeners = ListenerSet DatumCacheRequest DcWsp.JsonWspResponse
+
+type PendingRequests (request :: Type) = Ref (Map ListenerId RequestBody)
 
 type OgmiosListeners =
-  { utxo :: ListenerSet Ogmios.UtxoQR
-  , chainTip :: ListenerSet Ogmios.ChainTipQR
-  , submit :: ListenerSet Ogmios.SubmitTxR
-  , evaluate :: ListenerSet Ogmios.TxEvaluationResult
+  { utxo :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoQR
+  , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
+  , submit :: ListenerSet { txCbor :: ByteArray } Ogmios.SubmitTxR
+  , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationResult
   }
 
+type RequestBody = String
+
 -- convenience type for adding additional query types later
-type ListenerSet a =
-  { addMessageListener :: String -> (a -> Effect Unit) -> Effect Unit
-  , removeMessageListener :: String -> Effect Unit
-  , dispatchIdMap :: DispatchIdMap a
+type ListenerSet (request :: Type) (response :: Type) =
+  { addMessageListener :: ListenerId -> (response -> Effect Unit) -> Effect Unit
+  , removeMessageListener :: ListenerId -> Effect Unit
+  -- ^ Removes ID from dispatch map and pending requests queue.
+  , addRequest :: ListenerId -> RequestBody -> Effect Unit
+  -- ^ Saves request body until the request is fulfilled. The body is used
+  --  to replay requests in case of a WebSocket failure.
   }
 
 -- we manipluate closures to make the DispatchIdMap updateable using these
 -- methods, this can be picked up by a query or cancellation function
-mkListenerSet :: forall (a :: Type). DispatchIdMap a -> ListenerSet a
-mkListenerSet dim =
+mkListenerSet
+  :: forall (request :: Type) (response :: Type)
+   . DispatchIdMap response
+  -> PendingRequests request
+  -> ListenerSet request response
+mkListenerSet dim pr =
   { addMessageListener:
-      \id -> \func -> do
-        idMap <- Ref.read dim
-        Ref.write (MultiMap.insert id func idMap) dim
+      \id func -> do
+        Ref.modify_ (MultiMap.insert id func) dim
   , removeMessageListener:
       \id -> do
-        idMap <- Ref.read dim
-        Ref.write (MultiMap.delete id idMap) dim
-  , dispatchIdMap: dim
+        Ref.modify_ (MultiMap.delete id) dim
+        Ref.modify_ (Map.delete id) pr
+  , addRequest:
+      \id req ->
+        Ref.modify_ (Map.insert id req) pr
   }
-
-removeAllListeners
-  :: forall (a :: Type). LogLevel -> DispatchIdMap a -> Effect Unit
-removeAllListeners lvl dim = do
-  logString lvl Error "error hit, removing all listeners"
-  Ref.write MultiMap.empty dim
 
 -- TODO after ogmios-datum-cache implements reflection this could be generalized to make request for the cache as well
 -- | Builds a Ogmios request action using QueryM
 mkOgmiosRequest
-  :: forall (i :: Type) (o :: Type)
-   . JsonWsp.JsonWspCall i o
-  -> (OgmiosListeners -> ListenerSet o)
-  -> i
-  -> QueryM o
+  :: forall (request :: Type) (response :: Type)
+   . JsonWsp.JsonWspCall request response
+  -> (OgmiosListeners -> ListenerSet request response)
+  -> request
+  -> QueryM response
 mkOgmiosRequest jsonWspCall getLs inp = do
   { body, id } <- liftEffect $ JsonWsp.buildRequest jsonWspCall inp
   config <- ask
@@ -785,18 +830,21 @@ mkOgmiosRequest jsonWspCall getLs inp = do
     ogmiosWs :: OgmiosWebSocket
     ogmiosWs = config.ogmiosWs
 
-    affFunc :: (Either Error o -> Effect Unit) -> Effect Canceler
+    affFunc :: (Either Error response -> Effect Unit) -> Effect Canceler
     affFunc cont = do
       let
         ws = underlyingWebSocket ogmiosWs
         respLs = ogmiosWs # listeners # getLs
+
+        sBody :: RequestBody
+        sBody = Json.stringify $ Json.encodeJson body
       _ <- respLs.addMessageListener id
         ( \result -> do
             respLs.removeMessageListener id
             allowError cont $ result
         )
-      wsSend ws (logString config.logLevel Debug) $ Json.stringify $
-        Json.encodeJson body
+      respLs.addRequest id sBody
+      wsSend ws (logString config.logLevel Debug) sBody
       pure $ Canceler $ \err -> do
         liftEffect $ respLs.removeMessageListener id
         liftEffect $ throwError $ err
@@ -812,8 +860,12 @@ mkOgmiosRequest jsonWspCall getLs inp = do
 type WebsocketDispatch =
   String -> Effect (Either Json.JsonDecodeError (Effect Unit))
 
+-- | A unique request ID used for dispatching
+type ListenerId = String
+
 -- A mutable queue of requests
-type DispatchIdMap a = Ref.Ref (MultiMap String (a -> Effect Unit))
+type DispatchIdMap response = Ref
+  (MultiMap ListenerId (response -> Effect Unit))
 
 -- an immutable queue of response type handlers
 ogmiosMessageDispatch
@@ -843,16 +895,21 @@ datumCacheMessageDispatch dim =
 -- each query type will have a corresponding ref that lives in ReaderT config or similar
 -- for utxoQueryDispatch, the `a` parameter will be `UtxoQR` or similar
 -- the add and remove listener functions will know to grab the correct mutable dispatch, if one exists.
-createMutableDispatch :: forall (a :: Type). Effect (DispatchIdMap a)
+createMutableDispatch
+  :: forall (response :: Type). Effect (DispatchIdMap response)
 createMutableDispatch = Ref.new MultiMap.empty
+
+createPendingRequests
+  :: forall (request :: Type). Effect (PendingRequests request)
+createPendingRequests = Ref.new Map.empty
 
 -- we parse out the utxo query result, then check if we're expecting a result
 -- with the provided id, if we are then we dispatch to the effect that is
 -- waiting on this result
 ogmiosQueryDispatch
-  :: forall (a :: Type)
-   . Aeson.DecodeAeson a
-  => Ref.Ref (MultiMap String (a -> Effect Unit))
+  :: forall (response :: Type)
+   . Aeson.DecodeAeson response
+  => Ref (MultiMap String (response -> Effect Unit))
   -> String
   -> Effect (Either Json.JsonDecodeError (Effect Unit))
 ogmiosQueryDispatch ref str = do
@@ -863,13 +920,13 @@ ogmiosQueryDispatch ref str = do
     (Right res) -> afterParse res
   where
   afterParse
-    :: JsonWsp.JsonWspResponse a
+    :: JsonWsp.JsonWspResponse response
     -> Effect (Either Json.JsonDecodeError (Effect Unit))
   afterParse parsed = do
     let (id :: String) = parsed.reflection.id
     idMap <- Ref.read ref
     let
-      (mAction :: Maybe (a -> Effect Unit)) = (MultiMap.lookup id idMap)
+      (mAction :: Maybe (response -> Effect Unit)) = (MultiMap.lookup id idMap)
     case mAction of
       Nothing -> pure $
         ( Left
@@ -882,7 +939,7 @@ ogmiosQueryDispatch ref str = do
       Just action -> pure $ Right $ action parsed.result
 
 datumCacheQueryDispatch
-  :: Ref.Ref (MultiMap String (DcWsp.JsonWspResponse -> Effect Unit))
+  :: Ref (MultiMap String (DcWsp.JsonWspResponse -> Effect Unit))
   -> String
   -> Effect (Either Json.JsonDecodeError (Effect Unit))
 datumCacheQueryDispatch dim str = either (pure <<< Left) afterParse $ parse str
@@ -910,13 +967,6 @@ datumCacheQueryDispatch dim str = either (pure <<< Left) afterParse $ parse str
 -- an empty error we can compare to, useful for ensuring we've not received any other kind of error
 defaultErr :: Json.JsonDecodeError
 defaultErr = Json.TypeMismatch "default error"
-
--- For now, we just throw this error, if we find error types that can be linked
--- to request Id's, then we should run a similar dispatch and throw within the
--- appropriate Aff handler
-defaultErrorListener :: String -> Effect Unit
-defaultErrorListener str =
-  throwError $ error $ "a JsWebSocket Error has occured: " <> str
 
 defaultMessageListener
   :: LogLevel -> Array WebsocketDispatch -> String -> Effect Unit
