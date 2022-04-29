@@ -27,6 +27,7 @@ import Data.Function (on)
 import Data.Maybe (Maybe(Nothing))
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import FromData (class FromData)
+import Metadata.ToMetadata (class ToMetadata, toMetadata)
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
@@ -119,6 +120,9 @@ instance ToData ScriptHash where
 instance FromData ScriptHash where
   fromData (Bytes bytes) = scriptHashFromBytes bytes
   fromData _ = Nothing
+
+instance ToMetadata ScriptHash where
+  toMetadata = toMetadata <<< scriptHashToBytes
 
 -- Corresponds to Plutus' `Plutus.V1.Ledger.Api.Script` Aeson instances
 instance DecodeJson ScriptHash where

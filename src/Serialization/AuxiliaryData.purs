@@ -27,9 +27,9 @@ import Serialization.WitnessSet
   )
 import Types.ByteArray (ByteArray)
 import Types.Int as Int
-import Types.Transaction
-  ( AuxiliaryData(AuxiliaryData)
-  , GeneralTransactionMetadata(GeneralTransactionMetadata)
+import Types.Transaction (AuxiliaryData(AuxiliaryData)) as T
+import Types.TransactionMetadata
+  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
   , TransactionMetadatum(Text, Bytes, Int, MetadataList, MetadataMap)
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   ) as T

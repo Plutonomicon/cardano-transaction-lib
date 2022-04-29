@@ -17,6 +17,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
 import FromData (class FromData)
+import Metadata.ToMetadata (class ToMetadata)
 import Serialization.Hash (ScriptHash)
 import ToData (class ToData)
 import Types.ByteArray (ByteArray, hexToByteArray)
@@ -96,6 +97,8 @@ instance Show MintingPolicyHash where
 
 derive newtype instance ToData MintingPolicyHash
 derive newtype instance FromData MintingPolicyHash
+
+derive newtype instance ToMetadata MintingPolicyHash
 
 newtype ValidatorHash = ValidatorHash ScriptHash
 
