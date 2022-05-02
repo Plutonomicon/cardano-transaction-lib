@@ -22,7 +22,7 @@ exports.mkWebSocket = logger => url => () => {
   logger("Starting websocket attempt")();
   var ws;
   if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
-    ws = new ReconnectingWebSocket(url);
+    ws = new ReconnectingWebSocket.default(url);
   } else {
     ws = new ReconnectingWebSocket(url, [], {
       WebSocket: NoPerMessageDeflateWebSocket
@@ -100,7 +100,7 @@ const heartbeat = ws => logger => id => onError => {
 exports.wsWatch = ws => logger => onError => () => {
   let counter = null;
   let heartbeatAndCount = () => {
-    counter = heartbeat(ws, loger, counter, onError);
+    counter = heartbeat(ws, logger, counter, onError);
   };
 
   ws.addEventListener('open', heartbeatAndCount);
