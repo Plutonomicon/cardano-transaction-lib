@@ -40,6 +40,8 @@ import Data.Traversable (traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect)
+import Plutus.FromPlutusType (fromPlutusType)
+import Plutus.ToPlutusType (toPlutusType)
 import ProtocolParametersAlonzo
   ( adaOnlyWords
   , coinSize
@@ -469,7 +471,7 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
         let
           changeIndex :: Maybe Int
           changeIndex =
-            findIndex ((==) changeAddr <<< _.address <<< unwrap) txOutputs
+            findIndex ((==) (Just changeAddr) <<< fromPlutusType <<< _.address <<< unwrap) txOutputs
 
         case changeIndex of
           Just idx -> pure do
@@ -483,7 +485,10 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
                 modifyAt
                   idx
                   ( \(TransactionOutput o@{ amount }) -> TransactionOutput
-                      o { amount = amount <> lovelaceValueOf returnAda }
+                      o
+                        { amount = amount <> unwrap
+                            (toPlutusType (lovelaceValueOf returnAda))
+                        }
                   )
                   txOutputs
             -- Fees unchanged because we aren't adding a new utxo.
@@ -493,6 +498,9 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
                   { body = wrap txBody { outputs = newOutputs, fee = wrap fees }
                   }
           Nothing -> do
+            changeAddress' <-
+              note (ReturnAdaChangeError "Unable to convert change address")
+              (toPlutusType changeAddr)
             -- Create a txBody with the extra output utxo then recalculate fees,
             -- then adjust as necessary if we have sufficient Ada in the input.
             let
@@ -508,8 +516,8 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
                   txBody
                     { outputs =
                         wrap
-                          { address: changeAddr
-                          , amount: lovelaceValueOf returnAda
+                          { address: changeAddress'
+                          , amount: unwrap $ toPlutusType $ lovelaceValueOf returnAda
                           , dataHash: Nothing
                           }
                           `Array.cons` txBody.outputs
@@ -535,7 +543,7 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
                     $ modifyAt
                         0
                         ( \(TransactionOutput o) -> TransactionOutput
-                            o { amount = lovelaceValueOf returnAda' }
+                            o { amount = unwrap $ toPlutusType $ lovelaceValueOf returnAda' }
                         )
                     $ _.outputs <<< unwrap
                     $ txBody'
@@ -568,7 +576,7 @@ calculateMinUtxo txOut = unwrap lovelacePerUTxOWord * utxoEntrySize txOut
   utxoEntrySize (TransactionOutput txOut') =
     let
       outputValue :: Value
-      outputValue = txOut'.amount
+      outputValue = unwrap $ fromPlutusType txOut'.amount
     in
       if isAdaOnly outputValue then utxoEntrySizeWithoutVal + coinSize -- 29 in Alonzo
       else utxoEntrySizeWithoutVal
@@ -649,7 +657,8 @@ getPublicKeyTransactionInput
   -> Either GetPublicKeyTransactionInputError TransactionInput
 getPublicKeyTransactionInput (txOutRef /\ txOut) =
   note CannotConvertScriptOutputToTxInput $ do
-    paymentCred <- unwrap txOut # (_.address >>> addressPaymentCred)
+    address <- unwrap txOut # (_.address >>> fromPlutusType)
+    paymentCred <- addressPaymentCred address
     -- TEST ME: using StakeCredential to determine whether wallet or script
     paymentCred # withStakeCredential
       { onKeyHash: const $ pure txOutRef
@@ -836,7 +845,7 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
   else Left InputsCannotBalanceNonAdaTokens
 
 getAmount :: TransactionOutput -> Value
-getAmount = _.amount <<< unwrap
+getAmount = unwrap <<< fromPlutusType <<< _.amount <<< unwrap
 
 -- | Add min lovelaces to each tx output
 addLovelaces :: MinUtxos -> TxBody -> TxBody

@@ -12,12 +12,14 @@ import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe, fromMaybe)
+import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt as UInt
 import Deserialization.BigNum (bigNumToBigInt)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import Plutus.ToPlutusType
 import Serialization (toBytes)
 import Serialization.Address (Address)
 import Serialization.Hash (ScriptHash, scriptHashToBytes)
@@ -72,9 +74,9 @@ convertInput input = do
 
 convertOutput :: TransactionOutput -> Maybe T.TransactionOutput
 convertOutput output = do
-  amount <- convertValue $ getAmount output
+  amount <- unwrap <<< toPlutusType <$> convertValue (getAmount output)
+  address <- toPlutusType $ getAddress output
   let
-    address = getAddress output
     dataHash =
       getDataHash maybeFfiHelper output <#>
         asOneOf >>> toBytes >>> T.DataHash

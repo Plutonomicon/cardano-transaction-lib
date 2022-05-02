@@ -30,6 +30,7 @@ import FfiHelpers
   , containerHelper
   )
 import Helpers (fromJustEff)
+import Plutus.FromPlutusType
 import Serialization.Address (Address, StakeCredential, RewardAddress)
 import Serialization.Address (NetworkId(TestnetId, MainnetId)) as T
 import Serialization.AuxiliaryData (convertAuxiliaryData, setTxAuxiliaryData)
@@ -694,8 +695,10 @@ convertTxOutputs arrOutputs = do
 
 convertTxOutput :: T.TransactionOutput -> Effect TransactionOutput
 convertTxOutput (T.TransactionOutput { address, amount, dataHash }) = do
-  value <- convertValue amount
-  txo <- newTransactionOutput address value
+  address' <- fromJustEff "convertTxOutput: failed to convert address" $
+    fromPlutusType address
+  value <- convertValue $ unwrap $ fromPlutusType amount
+  txo <- newTransactionOutput address' value
   for_ (unwrap <$> dataHash) \bytes -> do
     for_ (fromBytes bytes) $
       transactionOutputSetDataHash txo

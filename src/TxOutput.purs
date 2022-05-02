@@ -22,6 +22,9 @@ import Address
 import Data.Map (Map)
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap)
+import Data.Traversable (traverse)
+import Plutus.FromPlutusType (fromPlutusType)
+import Plutus.ToPlutusType (toPlutusType)
 import Scripts (validatorHashEnterpriseAddress)
 import Serialization.Address (NetworkId)
 import Types.ByteArray (byteArrayToHex, hexToByteArray)
@@ -67,21 +70,24 @@ ogmiosTxOutToTransactionOutput { address, value, datum } = do
   -- and capture failure if we can't hash.
   dataHash <-
     maybe (Just Nothing) (map Just <<< ogmiosDatumHashToDatumHash) datum
+  address'' <- toPlutusType address'
   pure $ wrap
-    { address: address'
-    , amount: value
+    { address: address''
+    , amount: unwrap $ toPlutusType value
     , dataHash
     }
 
 -- | Converts an internal transaction output to the Ogmios transaction output.
 transactionOutputToOgmiosTxOut
-  :: Transaction.TransactionOutput -> Ogmios.OgmiosTxOut
+  :: Transaction.TransactionOutput -> Maybe Ogmios.OgmiosTxOut
 transactionOutputToOgmiosTxOut
-  (Transaction.TransactionOutput { address, amount: value, dataHash }) =
-  { address: addressToOgmiosAddress address
-  , value
-  , datum: datumHashToOgmiosDatumHash <$> dataHash
-  }
+  (Transaction.TransactionOutput { address, amount, dataHash }) = do
+  address' <- fromPlutusType address
+  pure
+    { address: addressToOgmiosAddress address'
+    , value: unwrap $ fromPlutusType amount
+    , datum: datumHashToOgmiosDatumHash <$> dataHash
+    }
 
 -- | Converts an Ogmios Transaction output to a `ScriptOutput`.
 ogmiosTxOutToScriptOutput :: Ogmios.OgmiosTxOut -> Maybe UTx.ScriptOutput
@@ -114,9 +120,10 @@ transactionOutputToScriptOutput
   :: Transaction.TransactionOutput -> Maybe UTx.ScriptOutput
 transactionOutputToScriptOutput
   ( Transaction.TransactionOutput
-      { address, amount: value, dataHash: Just datumHash }
+      { address, amount, dataHash: Just datumHash }
   ) = do
-  validatorHash <- enterpriseAddressValidatorHash address
+  let value = unwrap $ fromPlutusType amount
+  validatorHash <- enterpriseAddressValidatorHash =<< fromPlutusType address
   pure $ UTx.ScriptOutput
     { validatorHash
     , value
@@ -127,13 +134,15 @@ transactionOutputToScriptOutput
 
 -- | Converts `ScriptOutput` to an internal transaction output.
 scriptOutputToTransactionOutput
-  :: NetworkId -> UTx.ScriptOutput -> Transaction.TransactionOutput
+  :: NetworkId -> UTx.ScriptOutput -> Maybe Transaction.TransactionOutput
 scriptOutputToTransactionOutput
   networkId
-  (UTx.ScriptOutput { validatorHash, value, datumHash }) =
-  Transaction.TransactionOutput
-    { address: validatorHashEnterpriseAddress networkId validatorHash
-    , amount: value
+  (UTx.ScriptOutput { validatorHash, value, datumHash }) = do
+  address <- toPlutusType $ validatorHashEnterpriseAddress networkId
+    validatorHash
+  pure $ Transaction.TransactionOutput
+    { address
+    , amount: unwrap $ toPlutusType value
     , dataHash: Just datumHash
     }
 
@@ -155,5 +164,5 @@ datumHashToOgmiosDatumHash = byteArrayToHex <<< unwrap
 utxoIndexToUtxo
   :: NetworkId
   -> Map Transaction.TransactionInput UTx.ScriptOutput
-  -> Transaction.Utxo
-utxoIndexToUtxo networkId = map (scriptOutputToTransactionOutput networkId)
+  -> Maybe Transaction.Utxo
+utxoIndexToUtxo networkId = traverse (scriptOutputToTransactionOutput networkId)
