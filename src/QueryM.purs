@@ -89,7 +89,7 @@ import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Effect.Exception (Error, error, throw)
+import Effect.Exception (Error, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
@@ -97,12 +97,12 @@ import Helpers (logString, logWithLevel)
 import JsWebSocket
   ( JsWebSocket
   , Url
-  , mkWebSocket
-  , onWsConnect
-  , onWsError
-  , onWsMessage
-  , wsSend
-  , wsWatch
+  , _mkWebSocket
+  , _onWsConnect
+  , _onWsError
+  , _onWsMessage
+  , _wsSend
+  , _wsWatch
   )
 import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
@@ -327,6 +327,7 @@ matchCacheQuery query method args = do
     "Request-response type mismatch. Should not have happened"
 
 -- TODO: To be unified with ogmios once reflection PR is merged in `ogmios-datum-cache`
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/363
 queryDatumCache :: DatumCacheRequest -> QueryM DatumCacheResponse
 queryDatumCache request = do
   config <- ask
@@ -349,7 +350,7 @@ queryDatumCache request = do
             allowError cont $ result
         )
       ls.addRequest id sBody
-      wsSend ws (logString config.logLevel Debug) sBody
+      _wsSend ws (logString config.logLevel Debug) sBody
       pure $ Canceler $ \err -> do
         liftEffect $ ls.removeMessageListener id
         liftEffect $ throwError $ err
@@ -708,19 +709,19 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       , evaluateTxDispatchMap
       , submitDispatchMap
       }
-  ws <- mkWebSocket (logger Debug) $ mkWsUrl serverCfg
+  ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   let
-    sendRequest = wsSend ws (logString lvl Debug)
+    sendRequest = _wsSend ws (logString lvl Debug)
     onError = do
       logString lvl Debug "WS error occured, resending requests"
       Ref.read utxoPendingRequests >>= traverse_ sendRequest
       Ref.read chainTipPendingRequests >>= traverse_ sendRequest
       Ref.read evaluateTxPendingRequests >>= traverse_ sendRequest
       Ref.read submitPendingRequests >>= traverse_ sendRequest
-  onWsConnect ws do
-    wsWatch ws (logger Debug) onError
-    onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
-    onWsError ws (logger Error) $ const onError
+  _onWsConnect ws do
+    _wsWatch ws (logger Debug) onError
+    _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
+    _onWsError ws (logger Error) $ const onError
     cb $ Right $ WebSocket ws
       { utxo: mkListenerSet utxoDispatchMap utxoPendingRequests
       , chainTip: mkListenerSet chainTipDispatchMap chainTipPendingRequests
@@ -741,16 +742,16 @@ mkDatumCacheWebSocket' lvl serverCfg cb = do
   dispatchMap <- createMutableDispatch
   pendingRequests <- createPendingRequests
   let md = datumCacheMessageDispatch dispatchMap
-  ws <- mkWebSocket (logger Debug) $ mkOgmiosDatumCacheWsUrl serverCfg
+  ws <- _mkWebSocket (logger Debug) $ mkOgmiosDatumCacheWsUrl serverCfg
   let
-    sendRequest = wsSend ws (logString lvl Debug)
+    sendRequest = _wsSend ws (logString lvl Debug)
     onError = do
       logString lvl Debug "Datum Cache: WS error occured, resending requests"
       Ref.read pendingRequests >>= traverse_ sendRequest
-  onWsConnect ws $ do
-    wsWatch ws (logger Debug) onError
-    onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
-    onWsError ws (logger Error) $ const onError
+  _onWsConnect ws $ do
+    _wsWatch ws (logger Debug) onError
+    _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
+    _onWsError ws (logger Error) $ const onError
     cb $ Right $ WebSocket ws (mkListenerSet dispatchMap pendingRequests)
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
@@ -844,7 +845,7 @@ mkOgmiosRequest jsonWspCall getLs inp = do
             allowError cont $ result
         )
       respLs.addRequest id sBody
-      wsSend ws (logString config.logLevel Debug) sBody
+      _wsSend ws (logString config.logLevel Debug) sBody
       pure $ Canceler $ \err -> do
         liftEffect $ respLs.removeMessageListener id
         liftEffect $ throwError $ err

@@ -18,7 +18,7 @@ class NoPerMessageDeflateWebSocket extends OurWebSocket {
 };
 
 // _mkWebsocket :: (String -> Effect Unit) -> String -> Effect WebSocket
-exports.mkWebSocket = logger => url => () => {
+exports._mkWebSocket = logger => url => () => {
   logger("Starting websocket attempt")();
   var ws;
   if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
@@ -33,7 +33,7 @@ exports.mkWebSocket = logger => url => () => {
 };
 
 // _onWsConnect :: WebSocket -> (Unit -> Effect Unit) -> Effect Unit
-exports.onWsConnect = ws => fn => () => {
+exports._onWsConnect = ws => fn => () => {
   ws.addEventListener('open', fn);
 };
 
@@ -42,7 +42,7 @@ exports.onWsConnect = ws => fn => () => {
 //   -> (String -> Effect Unit) -- logger
 //   -> (String -> Effect Unit) -- handler
 //   -> Effect Unit
-exports.onWsError = ws => logger => fn => () => {
+exports._onWsError = ws => logger => fn => () => {
   ws.addEventListener('error', function func(event) {
     const str = event.toString();
     logger(`error: ${str}`)();
@@ -55,7 +55,7 @@ exports.onWsError = ws => logger => fn => () => {
 //   -> (String -> Effect Unit) -- logger
 //   -> (String -> Effect Unit) -- handler
 //   -> Effect Unit
-exports.onWsMessage = ws => logger => fn => () => {
+exports._onWsMessage = ws => logger => fn => () => {
   ws.addEventListener('message', function func(event) {
     const str = event.data;
     logger(`message: ${str}`)();
@@ -64,13 +64,13 @@ exports.onWsMessage = ws => logger => fn => () => {
 };
 
 // _wsSend :: WebSocket -> (String -> Effect Unit) -> String -> Effect Unit
-exports.wsSend = ws => logger => str => () => {
+exports._wsSend = ws => logger => str => () => {
   logger(`sending: ${str}`)();
   ws.send(str);
 };
 
 // _wsClose :: WebSocket -> Effect Unit
-exports.wsClose = ws => () => ws.close();
+exports._wsClose = ws => () => ws.close();
 
 // Every 30 seconds if we haven't heard from the server, sever the connection.
 // heartbeat
@@ -97,7 +97,7 @@ const heartbeat = ws => logger => id => onError => {
 //   -> (String -> Effect Unit)
 //   -> Effect Unit
 //   -> Effect Unit
-exports.wsWatch = ws => logger => onError => () => {
+exports._wsWatch = ws => logger => onError => () => {
   let counter = null;
   let heartbeatAndCount = () => {
     counter = heartbeat(ws, logger, counter, onError);

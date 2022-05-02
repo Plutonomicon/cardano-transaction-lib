@@ -1,4 +1,14 @@
-module QueryM.ServerConfig where
+module QueryM.ServerConfig
+  ( Host
+  , ServerConfig
+  , defaultServerConfig
+  , defaultOgmiosWsConfig
+  , defaultDatumCacheWsConfig
+  , mkHttpUrl
+  , mkWsUrl
+  , mkOgmiosDatumCacheWsUrl
+  , mkServerUrl
+  ) where
 
 import Prelude
 

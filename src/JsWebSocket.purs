@@ -1,13 +1,13 @@
 module JsWebSocket
   ( JsWebSocket
   , Url
-  , mkWebSocket
-  , onWsConnect
-  , onWsError
-  , onWsMessage
-  , wsSend
-  , wsClose
-  , wsWatch
+  , _mkWebSocket
+  , _onWsConnect
+  , _onWsError
+  , _onWsMessage
+  , _wsSend
+  , _wsClose
+  , _wsWatch
   ) where
 
 import Prelude
@@ -21,29 +21,29 @@ foreign import data JsWebSocket :: Type
 
 type Url = String
 
-foreign import mkWebSocket
+foreign import _mkWebSocket
   :: (String -> Effect Unit)
   -> Url
   -> Effect JsWebSocket
 
-foreign import onWsConnect :: JsWebSocket -> (Effect Unit) -> Effect Unit
+foreign import _onWsConnect :: JsWebSocket -> (Effect Unit) -> Effect Unit
 
-foreign import onWsMessage
+foreign import _onWsMessage
   :: JsWebSocket
   -> (String -> Effect Unit) -- logger
   -> (String -> Effect Unit) -- handler
   -> Effect Unit
 
-foreign import onWsError
+foreign import _onWsError
   :: JsWebSocket
   -> (String -> Effect Unit) -- logger
   -> (String -> Effect Unit) -- handler
   -> Effect Unit
 
-foreign import wsSend
+foreign import _wsSend
   :: JsWebSocket -> (String -> Effect Unit) -> String -> Effect Unit
 
-foreign import wsClose :: JsWebSocket -> Effect Unit
+foreign import _wsClose :: JsWebSocket -> Effect Unit
 
-foreign import wsWatch
+foreign import _wsWatch
   :: JsWebSocket -> (String -> Effect Unit) -> Effect Unit -> Effect Unit
