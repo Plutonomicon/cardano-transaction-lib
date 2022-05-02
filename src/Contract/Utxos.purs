@@ -12,8 +12,6 @@ import Data.Maybe (Maybe)
 import QueryM.Utxos (utxosAt) as Utxos
 import Plutus.Types.Address (Address)
 import Plutus.FromPlutusType (fromPlutusType)
--- Can potentially remove, perhaps we move utxo related all to Contract.Address
--- and/or Contract.Transaction. Perhaps it's best to not expose JsonWsp.
 import Types.Transaction (Utxo, UtxoM(UtxoM)) as Transaction
 
 -- | This module defines query functionality via Ogmios to get utxos.

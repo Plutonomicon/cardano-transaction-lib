@@ -43,7 +43,7 @@ import Scripts
   ) as Scripts
 import Plutus.Types.Address (Address)
 import Plutus.ToPlutusType (toPlutusType)
-import Serialization.Address -- There are a lot of helpers we have ignored here, we may want to include them.
+import Serialization.Address
   ( Slot(Slot)
   , BlockId(BlockId)
   , TransactionIndex(TransactionIndex)
