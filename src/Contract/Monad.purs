@@ -72,7 +72,6 @@ import QueryM
   , DatumCacheWebSocket
   , DispatchIdMap
   , Host
-  , JsWebSocket
   , ListenerSet
   , OgmiosListeners
   , OgmiosWebSocket
