@@ -7,10 +7,11 @@ module Contract.Utxos
   ) where
 
 import Prelude
-import Contract.Monad (Contract, wrapContract)
+import Contract.Monad (Contract, wrapContract, liftedM)
 import Data.Maybe (Maybe)
 import QueryM.Utxos (utxosAt) as Utxos
-import Serialization.Address (Address)
+import Plutus.Types.Address (Address)
+import Plutus.FromPlutusType (fromPlutusType)
 -- Can potentially remove, perhaps we move utxo related all to Contract.Address
 -- and/or Contract.Transaction. Perhaps it's best to not expose JsonWsp.
 import Types.Transaction (Utxo, UtxoM(UtxoM)) as Transaction
@@ -22,4 +23,6 @@ import Types.Transaction (Utxo, UtxoM(UtxoM)) as Transaction
 -- | on wallet variance.
 utxosAt
   :: forall (r :: Row Type). Address -> Contract r (Maybe Transaction.UtxoM)
-utxosAt = wrapContract <<< Utxos.utxosAt
+utxosAt address =
+  liftedM "utxosAt: unable to serialize address" (pure $ fromPlutusType address)
+    >>= wrapContract <<< Utxos.utxosAt
