@@ -16,6 +16,8 @@ module Contract.Address
   , ownStakePubKeyHash
   ) where
 
+import Prelude
+
 import Address
   ( enterpriseAddressMintingPolicyHash
   , enterpriseAddressScriptHash
@@ -23,8 +25,9 @@ import Address
   , enterpriseAddressValidatorHash
   ) as ExportAddress
 import Address (getNetworkId) as Address
-import Contract.Monad (Contract, wrapContract)
+import Contract.Monad (Contract, wrapContract, liftedM)
 import Data.Maybe (Maybe)
+import Data.Traversable (for)
 import QueryM
   ( getWalletAddress
   , getWalletCollateral
@@ -38,20 +41,14 @@ import Scripts
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Scripts
-import Serialization.Address (Address)
+import Plutus.Types.Address (Address)
+import Plutus.ToPlutusType (toPlutusType)
 import Serialization.Address -- There are a lot of helpers we have ignored here, we may want to include them.
   ( Slot(Slot)
   , BlockId(BlockId)
   , TransactionIndex(TransactionIndex)
   , CertificateIndex(CertificateIndex)
   , Pointer
-  , Address
-  , BaseAddress
-  , ByronAddress
-  , EnterpriseAddress
-  , PointerAddress
-  , RewardAddress
-  , StakeCredential
   , ByronProtocolMagic(ByronProtocolMagic)
   , NetworkId(TestnetId, MainnetId)
   ) as SerializationAddress
@@ -86,7 +83,13 @@ import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 
 -- | Get the `Address` of the browser wallet.
 getWalletAddress :: forall (r :: Row Type). Contract r (Maybe Address)
-getWalletAddress = wrapContract QueryM.getWalletAddress
+getWalletAddress = do
+  mbAddr <- wrapContract $ QueryM.getWalletAddress
+  for mbAddr $
+    liftedM "getWalletAddress: failed to deserialize Address"
+      <<< wrapContract
+      <<< pure
+      <<< toPlutusType
 
 -- | Get the collateral of the browser wallet. This collateral will vary
 -- | depending on the wallet.
