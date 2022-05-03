@@ -13,7 +13,7 @@
 -- |        }' \
 -- |        -H 'Content-Type: application/json'
 -- |     ```
--- |   * Change the `ps-entrypoint` variable in the Makefile to `Examples.Datums`
+-- |   * change the `ps-entrypoint` variable in the Makefile to `Examples.Datums`
 -- |   * `make run-dev` and visit `localhost:4008` in your browser
 module Examples.Datums (main) where
 
