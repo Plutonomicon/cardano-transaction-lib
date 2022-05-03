@@ -33,7 +33,6 @@ import Types.TxConstraints
   , mustPayToOtherScript
   , mustPayToPubKey
   , mustPayToPubKeyAddress
-  , mustPayToTheScript
   , mustPayWithDatumToPubKey
   , mustPayWithDatumToPubKeyAddress
   , mustProduceAtLeast

@@ -16,7 +16,6 @@ module Types.TxConstraints
   , mustPayToOtherScript
   , mustPayToPubKey
   , mustPayToPubKeyAddress
-  , mustPayToTheScript
   , mustPayWithDatumToPubKey
   , mustPayWithDatumToPubKeyAddress
   , mustProduceAtLeast
@@ -177,24 +176,6 @@ mustBeSignedBy = singleton <<< MustBeSignedBy
 -- | Require the transaction to include a datum.
 mustIncludeDatum :: forall (i :: Type) (o :: Type). Datum -> TxConstraints i o
 mustIncludeDatum = singleton <<< MustIncludeDatum
-
--- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/200
--- | Lock the value to the script currently being validated
-mustPayToTheScript
-  :: forall (i :: Type) (o :: Type)
-   . ToData o
-  => o
-  -> Value
-  -> TxConstraints i o
-mustPayToTheScript dt value =
-  TxConstraints
-    { constraints: Array.singleton $ MustIncludeDatum (Datum $ toData dt)
-    , ownInputs: []
-    , ownOutputs: Array.singleton $ OutputConstraint
-        { datum: dt
-        , value: value
-        }
-    }
 
 -- | Lock the value with a public key
 mustPayToPubKey
