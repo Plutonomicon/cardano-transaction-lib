@@ -15,7 +15,7 @@ import Types.TxConstraints
       , MustSpendScriptOutput
       , MustMintValue
       , MustPayToPubKeyAddress
-      , MustPayToOtherScript
+      , MustPayToScript
       , MustHashDatum
       , MustSatisfyAnyOf
       )
@@ -30,7 +30,7 @@ import Types.TxConstraints
   , mustMintCurrencyWithRedeemer
   , mustMintValue
   , mustMintValueWithRedeemer
-  , mustPayToOtherScript
+  , mustPayToScript
   , mustPayToPubKey
   , mustPayToPubKeyAddress
   , mustPayWithDatumToPubKey

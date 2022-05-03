@@ -115,7 +115,7 @@ import Types.TxConstraints
       , MustHashDatum
       , MustIncludeDatum
       , MustMintValue
-      , MustPayToOtherScript
+      , MustPayToScript
       , MustPayToPubKeyAddress
       , MustProduceAtLeast
       , MustSatisfyAnyOf
@@ -966,7 +966,7 @@ processConstraint mpsMap osMap = do
         -- failure in the output. It's possible that this is okay for
         -- `MustPayToPubKeyAddress` because datums are essentially redundant
         -- for wallet addresses, but let's fail for now. It is important to
-        -- capture failure for `MustPayToOtherScript` however, because datums
+        -- capture failure for `MustPayToScript` however, because datums
         -- at script addresses matter.
         -- e.g. in psuedo code:
         -- If mDatum = Nothing -> dataHash = Nothing (don't fail)
@@ -992,7 +992,7 @@ processConstraint mpsMap osMap = do
             }
         _cpsToTxBody <<< _outputs <>= Array.singleton txOut
         _valueSpentBalancesOutputs <>= provide amount
-    MustPayToOtherScript vlh datum plutusValue -> do
+    MustPayToScript vlh datum plutusValue -> do
       let amount = unwrap $ fromPlutusType plutusValue
       networkId <- getNetworkId
       runExceptT do

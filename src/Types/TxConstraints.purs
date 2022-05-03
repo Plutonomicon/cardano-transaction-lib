@@ -13,7 +13,7 @@ module Types.TxConstraints
   , mustMintCurrencyWithRedeemer
   , mustMintValue
   , mustMintValueWithRedeemer
-  , mustPayToOtherScript
+  , mustPayToScript
   , mustPayToPubKey
   , mustPayToPubKeyAddress
   , mustPayWithDatumToPubKey
@@ -81,7 +81,7 @@ data TxConstraint
   | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash)
       (Maybe Datum)
       Value
-  | MustPayToOtherScript ValidatorHash Datum Value
+  | MustPayToScript ValidatorHash Datum Value
   | MustHashDatum DatumHash Datum
   | MustSatisfyAnyOf (Array (Array TxConstraint))
 
@@ -219,14 +219,14 @@ mustPayWithDatumToPubKeyAddress pkh skh datum =
   singleton <<< MustPayToPubKeyAddress pkh (Just skh) (Just datum)
 
 -- | Lock the value to any arbitrary script
-mustPayToOtherScript
+mustPayToScript
   :: forall (i :: Type) (o :: Type)
    . ValidatorHash
   -> Datum
   -> Value
   -> TxConstraints i o
-mustPayToOtherScript vh dt vl =
-  singleton (MustPayToOtherScript vh dt vl)
+mustPayToScript vh dt vl =
+  singleton (MustPayToScript vh dt vl)
     <> singleton (MustIncludeDatum dt)
 
 -- | Create the given value. FIX ME: Broken until unitRedeemer properly defined.
@@ -386,7 +386,7 @@ modifiesUtxoSet (TxConstraints { constraints, ownInputs, ownOutputs }) =
       MustSpendScriptOutput _ _ -> true
       MustMintValue _ _ _ _ -> true
       MustPayToPubKeyAddress _ _ _ vl -> not (isZero vl)
-      MustPayToOtherScript _ _ vl -> not (isZero vl)
+      MustPayToScript _ _ vl -> not (isZero vl)
       MustSatisfyAnyOf xs -> any requiresInputOutput $ concat xs
       _ -> false
   in
