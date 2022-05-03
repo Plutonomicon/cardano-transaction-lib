@@ -29,8 +29,8 @@ import Types.ScriptLookups
   , generalise
   , mintingPolicy
   , mintingPolicyM
-  , otherScript
-  , otherScriptM
+  , validator
+  , validatorM
   , ownPaymentPubKeyHash
   , ownPaymentPubKeyHashM
   , ownStakePubKeyHash

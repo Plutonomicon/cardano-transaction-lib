@@ -8,8 +8,8 @@ module Types.ScriptLookups
   , mkUnbalancedTx
   , mkUnbalancedTx'
   , otherData
-  , otherScript
-  , otherScriptM
+  , validator
+  , validatorM
   , ownPaymentPubKeyHash
   , ownPaymentPubKeyHashM
   , ownStakePubKeyHash
@@ -174,8 +174,8 @@ import TxOutput (transactionOutputToScriptOutput)
 --------------------------------------------------------------------------------
 -- ScriptLookups type
 --------------------------------------------------------------------------------
--- We write `mps` and `otherScripts` as an `Array` instead of `Map`, meaning
--- our lookup helpers aren't required to hash (`mintingPolicy`, `otherScript`)
+-- We write `mps` and `scripts` as an `Array` instead of `Map`, meaning
+-- our lookup helpers aren't required to hash (`mintingPolicy`, `validator`)
 -- and therefore not lifted to `QueryM`. The downside is the lookups contain
 -- less information. All hashing is done inside `ConstraintsM`, see
 -- `processLookupsAndConstraints`.
@@ -184,8 +184,8 @@ newtype ScriptLookups (a :: Type) = ScriptLookups
       Array MintingPolicy -- Minting policies that the script interacts with
   , txOutputs ::
       Map TxOutRef TransactionOutput -- Unspent outputs that the script may want to spend. This may need tweaking to `TransactionOutput`
-  , otherScripts ::
-      Array Validator -- Validators of scripts other than "our script"
+  , scripts ::
+      Array Validator -- Script validators
   , otherData :: Map DatumHash Datum --  Datums that we might need
   , paymentPubKeyHashes ::
       Map PaymentPubKeyHash PaymentPubKey -- Public keys that we might need
@@ -218,7 +218,7 @@ instance Semigroup (ScriptLookups a) where
     ScriptLookups
       { mps: l.mps `Array.union` r.mps
       , txOutputs: l.txOutputs `union` r.txOutputs
-      , otherScripts: l.otherScripts `Array.union` r.otherScripts
+      , scripts: l.scripts `Array.union` r.scripts
       , otherData: l.otherData `union` r.otherData
       , paymentPubKeyHashes: l.paymentPubKeyHashes `union` r.paymentPubKeyHashes
       -- 'First' to match the semigroup instance of Map (left-biased)
@@ -231,7 +231,7 @@ instance Monoid (ScriptLookups a) where
   mempty = ScriptLookups
     { mps: mempty
     , txOutputs: empty
-    , otherScripts: mempty
+    , scripts: mempty
     , otherData: empty
     , paymentPubKeyHashes: empty
     , typedValidator: Nothing
@@ -295,14 +295,14 @@ mintingPolicyM :: forall (a :: Type). MintingPolicy -> Maybe (ScriptLookups a)
 mintingPolicyM = pure <<< mintingPolicy
 
 -- | A script lookups value with a validator script.
-otherScript :: forall (a :: Type). Validator -> ScriptLookups a
-otherScript vl =
-  over ScriptLookups _ { otherScripts = Array.singleton vl } mempty
+validator :: forall (a :: Type). Validator -> ScriptLookups a
+validator vl =
+  over ScriptLookups _ { scripts = Array.singleton vl } mempty
 
--- | Same as `otherScript` but in `Maybe` context for convenience. This
+-- | Same as `validator` but in `Maybe` context for convenience. This
 -- | should not fail.
-otherScriptM :: forall (a :: Type). Validator -> Maybe (ScriptLookups a)
-otherScriptM = pure <<< otherScript
+validatorM :: forall (a :: Type). Validator -> Maybe (ScriptLookups a)
+validatorM = pure <<< validator
 
 -- | A script lookups value with a datum. This can fail because we invoke
 -- | `datumHash` using a server.
@@ -491,14 +491,14 @@ processLookupsAndConstraints
   lookups <- use _lookups <#> unwrap
   let
     mps = lookups.mps
-    otherScripts = lookups.otherScripts
+    scripts = lookups.scripts
   mpsHashes <-
     ExceptT $ hashScripts mintingPolicyHash CannotHashMintingPolicy mps
-  otherScriptHashes <-
-    ExceptT $ hashScripts validatorHash CannotHashValidator otherScripts
+  validatorHashes <-
+    ExceptT $ hashScripts validatorHash CannotHashValidator scripts
   let
     mpsMap = fromFoldable $ zip mpsHashes mps
-    osMap = fromFoldable $ zip otherScriptHashes otherScripts
+    osMap = fromFoldable $ zip validatorHashes scripts
   ExceptT $ foldConstraints (processConstraint mpsMap osMap) constraints
   ExceptT $ foldConstraints addOwnInput ownInputs
   ExceptT $ foldConstraints addOwnOutput ownOutputs
