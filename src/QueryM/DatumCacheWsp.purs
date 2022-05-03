@@ -13,7 +13,6 @@ module QueryM.DatumCacheWsp
   ) where
 
 import Prelude
-import Undefined
 
 import Aeson
   ( Aeson

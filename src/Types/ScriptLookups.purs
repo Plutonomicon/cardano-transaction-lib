@@ -73,7 +73,7 @@ import Scripts
 import Serialization.Address (Address, NetworkId)
 import ToData (class ToData)
 import Types.Any (Any)
-import Types.Datum (Datum(Datum), DatumHash)
+import Types.Datum (Datum, DatumHash)
 import Types.Interval (POSIXTimeRange, posixTimeRangeToTransactionSlot)
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
 import Types.TokenName (TokenName)
