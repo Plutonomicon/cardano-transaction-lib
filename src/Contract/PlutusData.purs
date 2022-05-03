@@ -68,14 +68,14 @@ import Types.Transaction (DataHash(DataHash)) as Transaction
 getDatumByHash
   :: forall (r :: Row Type)
    . DatumHash
-  -> Contract r (Maybe PlutusData.PlutusData)
+  -> Contract r (Maybe Datum.Datum)
 getDatumByHash = wrapContract <<< QueryM.getDatumByHash
 
 -- | Get `PlutusData`s given a an `Array` of `DatumHash`.
 getDatumsByHashes
   :: forall (r :: Row Type)
    . Array DatumHash
-  -> Contract r (Map DatumHash PlutusData.PlutusData)
+  -> Contract r (Map DatumHash Datum.Datum)
 getDatumsByHashes = wrapContract <<< QueryM.getDatumsByHashes
 
 startFetchBlocksRequest

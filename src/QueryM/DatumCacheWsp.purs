@@ -49,8 +49,7 @@ import Data.TraversableWithIndex (forWithIndex)
 import Data.Tuple.Nested (type (/\), (/\))
 import Serialization.Address (BlockId, Slot)
 import Types.ByteArray (byteArrayToHex, hexToByteArray)
-import Types.Datum (DatumHash)
-import Types.PlutusData (PlutusData)
+import Types.Datum (Datum, DatumHash)
 import Types.Transaction (DataHash(DataHash))
 
 newtype WspFault = WspFault Json
@@ -124,8 +123,8 @@ data DatumCacheRequest
   | DatumFilterGetHashesRequest
 
 data DatumCacheResponse
-  = GetDatumByHashResponse (Maybe PlutusData)
-  | GetDatumsByHashesResponse (Map DatumHash PlutusData)
+  = GetDatumByHashResponse (Maybe Datum)
+  | GetDatumsByHashesResponse (Map DatumHash Datum)
   | StartFetchBlocksResponse
   | CancelFetchBlocksResponse
   | DatumFilterAddHashesResponse
@@ -198,12 +197,12 @@ parseJsonWspResponse resp@{ methodname, result, fault } =
     Just method -> case method of
       GetDatumByHash -> GetDatumByHashResponse <$>
         let
-          datumFound :: Either WspFault (Maybe PlutusData)
+          datumFound :: Either WspFault (Maybe Datum)
           datumFound =
             Just <$> liftErr
               (decodeAeson =<< getNestedAeson r [ "DatumFound", "value" ])
 
-          datumNotFound :: Either WspFault (Maybe PlutusData)
+          datumNotFound :: Either WspFault (Maybe Datum)
           datumNotFound =
             Nothing <$ liftErr (getNestedAeson r [ "DatumNotFound" ])
         in
@@ -211,13 +210,13 @@ parseJsonWspResponse resp@{ methodname, result, fault } =
       GetDatumsByHashes -> liftErr $
         let
           decodeDatumArray
-            :: Aeson -> Either JsonDecodeError (Map DatumHash PlutusData)
+            :: Aeson -> Either JsonDecodeError (Map DatumHash Datum)
           decodeDatumArray =
             caseAesonArray (Left $ TypeMismatch "expected array")
               $ (map Map.fromFoldable) <<< traverse decodeDatum
 
           decodeDatum
-            :: Aeson -> Either JsonDecodeError (DatumHash /\ PlutusData)
+            :: Aeson -> Either JsonDecodeError (DatumHash /\ Datum)
           decodeDatum = caseAesonObject (Left $ TypeMismatch "expected object")
             $ \o -> (/\) <$> map wrap (o .: "hash") <*>
                 (decodeAeson =<< o .: "value")

@@ -269,14 +269,14 @@ submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall _.submit { txCbor }
 -- DATUM CACHE QUERIES
 --------------------------------------------------------------------------------
 
-getDatumByHash :: DatumHash -> QueryM (Maybe PlutusData)
+getDatumByHash :: DatumHash -> QueryM (Maybe Datum)
 getDatumByHash hash = do
   queryDatumCache (GetDatumByHashRequest hash) >>= case _ of
     GetDatumByHashResponse mData -> pure mData
     _ -> liftEffect $ throw
       "Request-response type mismatch. Should not have happened"
 
-getDatumsByHashes :: Array DatumHash -> QueryM (Map DatumHash PlutusData)
+getDatumsByHashes :: Array DatumHash -> QueryM (Map DatumHash Datum)
 getDatumsByHashes hashes = do
   queryDatumCache (GetDatumsByHashesRequest hashes) >>= case _ of
     GetDatumsByHashesResponse plutusDatums -> pure $ plutusDatums
