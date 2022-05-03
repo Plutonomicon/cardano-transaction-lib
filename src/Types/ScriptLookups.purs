@@ -7,7 +7,7 @@ module Types.ScriptLookups
   , mintingPolicyM
   , mkUnbalancedTx
   , mkUnbalancedTx'
-  , otherData
+  , datum
   , validator
   , validatorM
   , ownPaymentPubKeyHash
@@ -186,7 +186,7 @@ newtype ScriptLookups (a :: Type) = ScriptLookups
       Map TxOutRef TransactionOutput -- Unspent outputs that the script may want to spend. This may need tweaking to `TransactionOutput`
   , scripts ::
       Array Validator -- Script validators
-  , otherData :: Map DatumHash Datum --  Datums that we might need
+  , datums :: Map DatumHash Datum --  Datums that we might need
   , paymentPubKeyHashes ::
       Map PaymentPubKeyHash PaymentPubKey -- Public keys that we might need
   , typedValidator ::
@@ -219,7 +219,7 @@ instance Semigroup (ScriptLookups a) where
       { mps: l.mps `Array.union` r.mps
       , txOutputs: l.txOutputs `union` r.txOutputs
       , scripts: l.scripts `Array.union` r.scripts
-      , otherData: l.otherData `union` r.otherData
+      , datums: l.datums `union` r.datums
       , paymentPubKeyHashes: l.paymentPubKeyHashes `union` r.paymentPubKeyHashes
       -- 'First' to match the semigroup instance of Map (left-biased)
       , typedValidator: l.typedValidator <\> r.typedValidator
@@ -232,7 +232,7 @@ instance Monoid (ScriptLookups a) where
     { mps: mempty
     , txOutputs: empty
     , scripts: mempty
-    , otherData: empty
+    , datums: empty
     , paymentPubKeyHashes: empty
     , typedValidator: Nothing
     , ownPaymentPubKeyHash: Nothing
@@ -242,7 +242,7 @@ instance Monoid (ScriptLookups a) where
 --------------------------------------------------------------------------------
 -- Create ScriptLookups helpers
 --------------------------------------------------------------------------------
--- | The lookup functions come in pairs with the exception of `otherData`.
+-- | The lookup functions come in pairs with the exception of `datum`.
 -- | If the function cannot fail, there is another version contained in a `Maybe`
 -- | context (that also does not fail).
 -- | This is to aid users who wish to utilise the underlying `ScriptLookups`
@@ -306,13 +306,11 @@ validatorM = pure <<< validator
 
 -- | A script lookups value with a datum. This can fail because we invoke
 -- | `datumHash` using a server.
-otherData :: forall (a :: Type). Datum -> QueryM (Maybe (ScriptLookups a))
-otherData dt = do
-  mDh <- datumHash dt
-  pure $ maybe
-    Nothing
-    (\dh -> Just $ over ScriptLookups _ { otherData = singleton dh dt } mempty)
-    mDh
+datum :: forall (a :: Type). Datum -> QueryM (Maybe (ScriptLookups a))
+datum dt = datumHash dt >>= case _ of
+  Nothing -> pure Nothing
+  Just dh -> pure $ Just $ over ScriptLookups _ { datums = singleton dh dt }
+    mempty
 
 -- -- | A script lookups value with a payment public key. This can fail because we
 -- -- | invoke `payPubKeyHash`.
@@ -790,7 +788,7 @@ lookupDatum
    . DatumHash
   -> ConstraintsM a (Either MkUnbalancedTxError Datum)
 lookupDatum dh = do
-  otherDt <- use _lookups <#> unwrap >>> _.otherData
+  otherDt <- use _lookups <#> unwrap >>> _.datums
   let err = pure $ throwError $ DatumNotFound dh
   maybe err (pure <<< Right) $ lookup dh otherDt
 
