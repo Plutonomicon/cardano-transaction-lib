@@ -13,6 +13,7 @@ module QueryM.DatumCacheWsp
   ) where
 
 import Prelude
+import Undefined
 
 import Aeson
   ( Aeson
@@ -39,10 +40,13 @@ import Data.Argonaut
   )
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left), note)
+import Data.Map (Map)
+import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Newtype (unwrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)
 import Data.TraversableWithIndex (forWithIndex)
+import Data.Tuple.Nested (type (/\), (/\))
 import Serialization.Address (BlockId, Slot)
 import Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Types.Datum (DatumHash)
@@ -121,7 +125,7 @@ data DatumCacheRequest
 
 data DatumCacheResponse
   = GetDatumByHashResponse (Maybe PlutusData)
-  | GetDatumsByHashesResponse (Array PlutusData)
+  | GetDatumsByHashesResponse (Map DatumHash PlutusData)
   | StartFetchBlocksResponse
   | CancelFetchBlocksResponse
   | DatumFilterAddHashesResponse
@@ -206,14 +210,17 @@ parseJsonWspResponse resp@{ methodname, result, fault } =
           datumFound <|> datumNotFound
       GetDatumsByHashes -> liftErr $
         let
-          decodeDatumArray :: Aeson -> Either JsonDecodeError (Array PlutusData)
+          decodeDatumArray
+            :: Aeson -> Either JsonDecodeError (Map DatumHash PlutusData)
           decodeDatumArray =
             caseAesonArray (Left $ TypeMismatch "expected array")
-              $ traverse decodeDatum
+              $ (map Map.fromFoldable) <<< traverse decodeDatum
 
-          decodeDatum :: Aeson -> Either JsonDecodeError PlutusData
+          decodeDatum
+            :: Aeson -> Either JsonDecodeError (DatumHash /\ PlutusData)
           decodeDatum = caseAesonObject (Left $ TypeMismatch "expected object")
-            $ decodeAeson <=< (_ .: "value")
+            $ \o -> (/\) <$> map wrap (o .: "hash") <*>
+                (decodeAeson =<< o .: "value")
         in
           map GetDatumsByHashesResponse <<< decodeDatumArray =<< getNestedAeson
             r

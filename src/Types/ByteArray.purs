@@ -11,6 +11,7 @@ module Types.ByteArray
   , hexToByteArrayUnsafe
   ) where
 
+import Aeson (class DecodeAeson, decodeAesonViaJson)
 import Data.Argonaut (class DecodeJson)
 import Data.Argonaut as Json
 import Data.ArrayBuffer.Types (Uint8Array)
@@ -51,9 +52,12 @@ instance Monoid ByteArray where
 
 instance DecodeJson ByteArray where
   decodeJson j = Json.caseJsonString
-    (Left (Json.TypeMismatch "expected a hex-encoded CBOR string"))
+    (Left (Json.TypeMismatch "expected a hex-encoded string"))
     (note (Json.UnexpectedValue j) <<< hexToByteArray)
     j
+
+instance DecodeAeson ByteArray where
+  decodeAeson = decodeAesonViaJson
 
 foreign import ord_ :: (Int -> Int -> Int) -> ByteArray -> ByteArray -> Int
 

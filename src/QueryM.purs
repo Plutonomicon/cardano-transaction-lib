@@ -276,7 +276,7 @@ getDatumByHash hash = do
     _ -> liftEffect $ throw
       "Request-response type mismatch. Should not have happened"
 
-getDatumsByHashes :: Array DatumHash -> QueryM (Array PlutusData)
+getDatumsByHashes :: Array DatumHash -> QueryM (Map DatumHash PlutusData)
 getDatumsByHashes hashes = do
   queryDatumCache (GetDatumsByHashesRequest hashes) >>= case _ of
     GetDatumsByHashesResponse plutusDatums -> pure $ plutusDatums
