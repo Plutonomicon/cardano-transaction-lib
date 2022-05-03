@@ -1,35 +1,24 @@
+-- | This module demonstrates how the `Contract` interface can be used to build,
+-- | balance, and submit a transaction. It creates a simple transaction that gets
+-- | UTxOs from the user's wallet and sends two Ada back to the same wallet address
+-- |
+-- | * Prerequisites
+-- |   - A Chromium-based browser (for Nami compatibility)
 --
--- This module demonstrates how the `QueryM` interface can be used to build a
--- transaction from scratch. It creates and balances an example transaction that
--- gets UTxOs from the user's wallet and sends two Ada back to the same wallet
--- address
+-- |   - A Nami wallet funded with test Ada ("tAda") and collateral set, If you need
+-- |     tAda, visit https://testnets.cardano.org/en/testnets/cardano/tools/faucet/
 --
--- * Prerequisites
---   - A Chromium-based browser
+-- | * How to run
 --
---   - A Nami wallet funded with test Ada ("tAda") and collateral set, If you need
---     tAda, visit https://testnets.cardano.org/en/testnets/cardano/tools/faucet/
+-- |   The `Contract` interface requires several external services to be running.
+-- |   From the repository root, run `nix run .#ctl-runtime` to launch all
+-- |   required services
 --
--- * How to run
+-- |   Once all of the services are *fully synced*, run:
 --
---   The `QueryM` interface requires several external services to be running. From
---   the repository root, run the following commands:
---
---   - `make run-testnet-node`
---      Starts a testnet Cardano node. May take some time to sync fully
---
---   - `make run-testnet-ogmios`
---      Starts the Ogmios service. Also needs to sync with the running node
---
---   - `make run-haskell-server`
---      Starts the external Haskell server that will perform the transaction
---      fee calculations (no sync required)
---
---   Once these services are *fully synced*, run:
---
---   - `npm run dev` and visit `localhost:4008`. You may be prompted to enable
---     access to your wallet if you have not run this example before. You will
---     also be prompted to sign the transaction using your Nami password
+-- |   - `make run-dev` and visit `localhost:4008`. You may be prompted to enable
+-- |     access to your wallet if you have not run this example before. You will
+-- |     also be prompted to sign the transaction using your Nami password
 
 module Examples.Pkh2Pkh (main) where
 
