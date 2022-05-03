@@ -4,7 +4,7 @@ module Examples.Datums (main) where
 
 import Contract.Prelude
 
-import Contract.Monad ( defaultContractConfig, launchAff_, logInfo, runContract_)
+import Contract.Monad (runContract_, launchAff_, logInfo, traceContractConfig)
 import Contract.PlutusData (DatumHash, getDatumByHash, getDatumsByHashes)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Data.Map as Map
@@ -12,7 +12,7 @@ import Data.Newtype (wrap)
 
 main :: Effect Unit
 main = launchAff_ $ do
-  cfg <- defaultContractConfig
+  cfg <- traceContractConfig
   runContract_ cfg $ do
     logInfo Map.empty <<< show =<< getDatumByHash
       ( mkDatumHash
