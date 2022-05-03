@@ -207,9 +207,9 @@ instance Show (ScriptLookups a) where
 generalise :: forall (a :: Type). ScriptLookups a -> ScriptLookups Any
 generalise (ScriptLookups sl) =
   let
-    validator = TV.generalise <$> sl.typedValidator
+    tv = TV.generalise <$> sl.typedValidator
   in
-    wrap sl { typedValidator = validator }
+    wrap sl { typedValidator = tv }
 
 -- Using `Data.Map.union`, we can replicate left-biased <> from Data.Map used
 -- in Plutus (*not* Plutus' internal Map that uses something like unionWith (<>))
@@ -725,13 +725,13 @@ addOwnOutput
   => ToData b
   => OutputConstraint b
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
-addOwnOutput (OutputConstraint { datum, value }) = do
+addOwnOutput (OutputConstraint { datum: d, value }) = do
   networkId <- getNetworkId
   runExceptT do
     ScriptLookups { typedValidator } <- use _lookups
     inst <- liftM TypedValidatorMissing typedValidator
     let value' = unwrap $ fromPlutusType value
-    typedTxOut <- ExceptT $ lift $ mkTypedTxOut networkId inst datum value'
+    typedTxOut <- ExceptT $ lift $ mkTypedTxOut networkId inst d value'
       <#> note MkTypedTxOutFailed
     let txOut = typedTxOutTxOut typedTxOut
     -- We are erroring if we don't have a datumhash given the polymorphic datum
@@ -821,7 +821,7 @@ processConstraint
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
 processConstraint mpsMap osMap = do
   case _ of
-    MustIncludeDatum datum -> addDatum datum
+    MustIncludeDatum dat -> addDatum dat
     MustValidateIn posixTimeRange -> runExceptT do
       sc <- asks _.slotConfig
       case posixTimeRangeToTransactionSlot sc posixTimeRange of
@@ -975,8 +975,8 @@ processConstraint mpsMap osMap = do
         -- `MustPayToPubKeyAddress`
         dataHash <- maybe
           (liftEither $ Right Nothing) -- Don't throw an error if Nothing.
-          ( \datum -> ExceptT $ lift $
-              liftDatumHash (CannotHashDatum datum) <$> datumHash datum
+          ( \dat -> ExceptT $ lift $
+              liftDatumHash (CannotHashDatum dat) <$> datumHash dat
           )
           mDatum
         let
@@ -990,20 +990,20 @@ processConstraint mpsMap osMap = do
             }
         _cpsToTxBody <<< _outputs <>= Array.singleton txOut
         _valueSpentBalancesOutputs <>= provide amount
-    MustPayToScript vlh datum plutusValue -> do
+    MustPayToScript vlh dat plutusValue -> do
       let amount = unwrap $ fromPlutusType plutusValue
       networkId <- getNetworkId
       runExceptT do
         -- Don't write `let dataHash = datumHash datum`, see [datumHash Note]
-        dataHash <- ExceptT $ lift $ note (CannotHashDatum datum)
-          <$> (map Just <<< datumHash) datum
+        dataHash <- ExceptT $ lift $ note (CannotHashDatum dat)
+          <$> (map Just <<< datumHash) dat
         let
           txOut = TransactionOutput
             { address: validatorHashEnterpriseAddress networkId vlh
             , amount
             , dataHash
             }
-        ExceptT $ addDatum datum
+        ExceptT $ addDatum dat
         _cpsToTxBody <<< _outputs <>= Array.singleton txOut
         _valueSpentBalancesOutputs <>= provide amount
     MustHashDatum dh dt -> do
@@ -1064,9 +1064,9 @@ addDatum
   :: forall (a :: Type)
    . Datum
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
-addDatum datum = runExceptT do
-  ExceptT $ attachToCps attachDatum datum
-  _datums <>= Array.singleton datum
+addDatum dat = runExceptT do
+  ExceptT $ attachToCps attachDatum dat
+  _datums <>= Array.singleton dat
 
 -- Helper to focus from `ConstraintProcessingState` down to `Transaction`.
 _cpsToTransaction
