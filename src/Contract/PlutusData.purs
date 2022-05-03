@@ -22,7 +22,9 @@ module Contract.PlutusData
   ) where
 
 import Prelude
+
 import Contract.Monad (Contract, wrapContract)
+import Data.Map (Map)
 import Data.Maybe (Maybe)
 import FromData (class FromData, fromData) as FromData
 import QueryM
@@ -66,14 +68,14 @@ import Types.Transaction (DataHash(DataHash)) as Transaction
 getDatumByHash
   :: forall (r :: Row Type)
    . DatumHash
-  -> Contract r (Maybe PlutusData.PlutusData)
+  -> Contract r (Maybe Datum.Datum)
 getDatumByHash = wrapContract <<< QueryM.getDatumByHash
 
 -- | Get `PlutusData`s given a an `Array` of `DatumHash`.
 getDatumsByHashes
   :: forall (r :: Row Type)
    . Array DatumHash
-  -> Contract r (Array PlutusData.PlutusData)
+  -> Contract r (Map DatumHash Datum.Datum)
 getDatumsByHashes = wrapContract <<< QueryM.getDatumsByHashes
 
 startFetchBlocksRequest

@@ -73,7 +73,7 @@ import Scripts
 import Serialization.Address (Address, NetworkId)
 import ToData (class ToData)
 import Types.Any (Any)
-import Types.Datum (Datum(Datum), DatumHash)
+import Types.Datum (Datum, DatumHash)
 import Types.Interval (POSIXTimeRange, posixTimeRangeToTransactionSlot)
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
 import Types.TokenName (TokenName)
@@ -742,7 +742,7 @@ addOwnOutput (OutputConstraint { datum, value }) = do
     dat <-
       ExceptT $ lift $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
     _cpsToTxBody <<< _outputs <>= Array.singleton txOut
-    ExceptT $ addDatum (wrap dat)
+    ExceptT $ addDatum dat
     _valueSpentBalancesOutputs <>= provide value'
 
 data MkUnbalancedTxError
@@ -877,8 +877,7 @@ processConstraint mpsMap osMap = do
           -- `Just`.
           dataValue <- ExceptT $ do
             queryD <- lift $
-              getDatumByHash dHash <#> note (CannotQueryDatum dHash) >>> map
-                Datum
+              getDatumByHash dHash <#> note (CannotQueryDatum dHash)
             lookupD <- lookupDatum dHash
             pure $ queryD <|> lookupD
           ExceptT $ attachToCps attachPlutusScript plutusScript
