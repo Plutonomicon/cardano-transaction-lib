@@ -998,8 +998,7 @@ processConstraint mpsMap osMap = do
       runExceptT do
         -- Don't write `let dataHash = datumHash datum`, see [datumHash Note]
         dataHash <- ExceptT $ lift $ note (CannotHashDatum datum)
-          <$> map Just
-          <$> datumHash datum
+          <$> (map Just <<< datumHash) datum
         let
           txOut = TransactionOutput
             { address: validatorHashEnterpriseAddress networkId vlh
