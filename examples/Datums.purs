@@ -1,5 +1,20 @@
 -- | An example of fetching datums from `ogmios-datum-cache`. Helpful to test
 -- | out the datum-cache integration
+-- |
+-- | To run this example:
+-- |
+-- |   * launch all required services with `nix run .#ctl-runtime`
+-- |   * let the node and Ogmios sync
+-- |   * start the block-fetcher for `ogmios-datum-cache`, e.g.
+-- |     ```
+-- |     curl localhost:9999/control/fetch_blocks -X POST -d \
+-- |       '{ "slot": 54066900 \
+-- |        , "id": "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d" \
+-- |        }' \
+-- |        -H 'Content-Type: application/json'
+-- |     ```
+-- |   * Change the `ps-entrypoint` variable in the Makefile to `Examples.Datums`
+-- |   * `make run-dev` and visit `localhost:4008` in your browser
 module Examples.Datums (main) where
 
 import Contract.Prelude
