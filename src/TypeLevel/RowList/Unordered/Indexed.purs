@@ -1,8 +1,8 @@
 module TypeLevel.RowList.Unordered.Indexed where
 
 import TypeLevel.Nat
-import Type.RowList as RL
-import TypeLevel.RowList.Unordered
+import Type.RowList
+import TypeLevel.RowList
 import Prim.TypeError (class Fail, Text)
 import Data.Symbol
 

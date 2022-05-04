@@ -25,6 +25,7 @@ module TypeLevel.DataSchema
 import TypeLevel.RowList.Unordered
 import TypeLevel.RowList.Unordered.Indexed
 import TypeLevel.Nat
+import Type.RowList
 import Data.Symbol
 import Type.Proxy
 import Data.Unit

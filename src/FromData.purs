@@ -95,10 +95,10 @@ class FromDataArgs t c a where
 
    The third argument to the class is an @RList@ - an *unordered* version of RowList. See TypeLevel.RList for details
 -}
-class FromDataArgsRL :: Type -> Symbol -> RowList Type -> Row Type -> Constraint
+class FromDataArgsRL :: Type -> Symbol -> RL.RowList Type -> Row Type -> Constraint
 class FromDataArgsRL t constr list row | t constr list -> row where
   fromDataArgsRec
-    :: forall (rlproxy :: RowList Type -> Type)
+    :: forall (rlproxy :: RL.RowList Type -> Type)
      . Proxy t
     -> Proxy constr
     -> rlproxy list
@@ -186,7 +186,7 @@ instance
 
 -- | FromDataArgsRL instances
 
-instance FromDataArgsRL t c Nil () where
+instance FromDataArgsRL t c RL.Nil () where
   fromDataArgsRec _ _ _ [] = Right { head: {}, tail: [] }
   fromDataArgsRec _ _ _ pdArgs = Left $ ArgsWantedButGot 0 pdArgs
 
@@ -197,7 +197,7 @@ instance
   , Row.Cons key a rowRest rowFull
   , IsSymbol key
   ) =>
-  FromDataArgsRL t constr (Cons key a rListRest) rowFull where
+  FromDataArgsRL t constr (RL.Cons key a rListRest) rowFull where
   fromDataArgsRec _ _ _ pdArgs = do
     let keyProxy = Proxy :: Proxy key
     { head: pdArg, tail: pdArgs' } <- note (ArgsWantedButGot 1 pdArgs) $ uncons
