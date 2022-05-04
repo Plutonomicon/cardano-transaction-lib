@@ -15,7 +15,8 @@ import Metadata.ToMetadata (class ToMetadata, toMetadata)
 import Type.Proxy (Proxy(Proxy))
 import Types.TransactionMetadata
   ( GeneralTransactionMetadata
-  , TransactionMetadatumLabel)
+  , TransactionMetadatumLabel
+  )
 
 class (FromMetadata a, ToMetadata a) <= MetadataType (a :: Type) where
   metadataLabel :: Proxy a -> TransactionMetadatumLabel

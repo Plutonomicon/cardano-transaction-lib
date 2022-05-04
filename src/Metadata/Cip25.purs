@@ -204,15 +204,16 @@ instance ToMetadata Cip25Metadata where
 
 instance FromMetadata Cip25Metadata where
   fromMetadata (MetadataMap mp1) = do
-    entries <- map concat $
-      for (Map.toUnfoldable mp1) $ \(policyId /\ assets) ->
-        case assets of
-          MetadataMap mp2 ->
-            for (Map.toUnfoldable mp2) $ \(assetName /\ contents) ->
-              metadataEntryFromMetadata <$> fromMetadata policyId
-                <*> fromMetadata assetName
-                <*> pure contents
-          _ -> Nothing
+    entries <- map concat
+      $ for (Map.toUnfoldable mp1)
+      $ \(policyId /\ assets) ->
+          case assets of
+            MetadataMap mp2 ->
+              for (Map.toUnfoldable mp2) $ \(assetName /\ contents) ->
+                metadataEntryFromMetadata <$> fromMetadata policyId
+                  <*> fromMetadata assetName
+                  <*> pure contents
+            _ -> Nothing
     wrap <$> sequence entries
   fromMetadata _ = Nothing
 
