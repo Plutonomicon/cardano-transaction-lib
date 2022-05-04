@@ -2,6 +2,8 @@
 
 module Types.CborBytes
   ( CborBytes(..)
+  , cborBytesToByteArray
+  , cborBytesFromByteArray
   , cborBytesToIntArray
   , cborBytesFromIntArray
   , cborBytesFromIntArrayUnsafe
@@ -21,6 +23,7 @@ import Aeson (class DecodeAeson, decodeAesonViaJson)
 import Data.Argonaut (class DecodeJson, decodeJson)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 
+-- | An array of Bytes containing CBOR data
 newtype CborBytes = CborBytes ByteArray
 
 instance Show CborBytes where
@@ -68,4 +71,8 @@ hexToCborBytes = map wrap <<< BA.hexToByteArray
 hexToCborBytesUnsafe :: String -> CborBytes
 hexToCborBytesUnsafe = wrap <<< BA.hexToByteArrayUnsafe
 
+cborBytesToByteArray :: CborBytes -> ByteArray
+cborBytesToByteArray = unwrap
 
+cborBytesFromByteArray :: ByteArray -> CborBytes
+cborBytesFromByteArray = wrap

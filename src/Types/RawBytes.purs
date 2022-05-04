@@ -2,6 +2,8 @@
 
 module Types.RawBytes
   ( RawBytes(..)
+  , rawBytesToByteArray
+  , rawBytesFromByteArray
   , rawBytesToIntArray
   , rawBytesFromIntArray
   , rawBytesFromIntArrayUnsafe
@@ -21,6 +23,7 @@ import Aeson (class DecodeAeson, decodeAesonViaJson)
 import Data.Argonaut (class DecodeJson, decodeJson)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 
+-- | An array of Bytes with no information about the content format
 newtype RawBytes = RawBytes ByteArray
 
 instance Show RawBytes where
@@ -68,4 +71,9 @@ hexToRawBytes = map wrap <<< BA.hexToByteArray
 hexToRawBytesUnsafe :: String -> RawBytes
 hexToRawBytesUnsafe = wrap <<< BA.hexToByteArrayUnsafe
 
+rawBytesToByteArray :: RawBytes -> ByteArray
+rawBytesToByteArray = unwrap
+
+rawBytesFromByteArray :: ByteArray -> RawBytes
+rawBytesFromByteArray = wrap
 
