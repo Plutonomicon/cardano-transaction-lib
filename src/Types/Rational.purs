@@ -11,11 +11,19 @@ module Types.Rational
 
 import Prelude
 
+import Contract.Prelude (class Newtype, note)
+import Data.Argonaut
+  ( class DecodeJson
+  , class EncodeJson
+  , JsonDecodeError(TypeMismatch)
+  , decodeJson
+  , encodeJson
+  )
 import Data.BigInt (BigInt)
-import Data.BigInt (fromInt) as BigInt
+import Data.BigInt (fromInt, toString, fromString) as BigInt
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Ratio (Ratio)
 import Data.Ratio ((%), numerator, denominator) as Ratio
+import Data.Ratio (Ratio)
 import FromData (class FromData)
 import ToData (class ToData)
 import Types.Natural (Natural)
@@ -33,6 +41,30 @@ derive newtype instance Ord Rational
 derive newtype instance Semiring Rational
 derive newtype instance Ring Rational
 derive newtype instance CommutativeRing Rational
+
+instance EncodeJson Rational where
+  encodeJson r = encodeJson
+    { "unRational":
+        { "numerator": encodeJson (StringifiedBigInt (numerator r))
+        , "denominator": encodeJson (StringifiedBigInt (denominator r))
+        }
+    }
+
+newtype StringifiedBigInt = StringifiedBigInt BigInt
+
+derive instance Eq StringifiedBigInt
+derive instance Newtype StringifiedBigInt _
+
+instance EncodeJson StringifiedBigInt where
+  encodeJson (StringifiedBigInt bi) = encodeJson $ BigInt.toString bi
+
+instance DecodeJson StringifiedBigInt where
+  decodeJson =
+    decodeJson >=>
+      BigInt.fromString
+        >>> note (TypeMismatch "expected stringified integer number")
+        >>>
+          map StringifiedBigInt
 
 instance EuclideanRing Rational where
   degree _ = one

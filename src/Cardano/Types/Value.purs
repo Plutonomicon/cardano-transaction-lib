@@ -47,12 +47,15 @@ module Cardano.Types.Value
 
 import Prelude hiding (join)
 
+import Contract.Prim.ByteArray (byteArrayToHex)
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Data.Argonaut
   ( class DecodeJson
+  , class EncodeJson
   , JsonDecodeError(TypeMismatch)
   , caseJsonObject
+  , encodeJson
   , getField
   )
 import Data.Array (cons, filter)
@@ -195,6 +198,10 @@ instance DecodeJson CurrencySymbol where
         <=< note (TypeMismatch "Invalid ByteArray") <<< hexToByteArray
         <=< flip getField "unCurrencySymbol"
     )
+
+instance EncodeJson CurrencySymbol where
+  encodeJson (CurrencySymbol ba) = encodeJson
+    { "unCurrencySymbol": byteArrayToHex ba }
 
 getCurrencySymbol :: CurrencySymbol -> ByteArray
 getCurrencySymbol (CurrencySymbol curSymbol) = curSymbol
