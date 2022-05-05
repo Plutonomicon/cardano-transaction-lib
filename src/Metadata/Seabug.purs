@@ -20,12 +20,13 @@ import FromData (class FromData, fromData)
 import Metadata.Helpers (unsafeMkKey, lookupKey, lookupMetadata)
 import Metadata.Seabug.Share (Share, mkShare)
 import Metadata.FromMetadata (class FromMetadata, fromMetadata)
-import Metadata.MetadataType (class MetadataType)
+import Metadata.MetadataType (class MetadataType, metadataLabel)
 import Metadata.ToMetadata (class ToMetadata, toMetadata)
 import Partial.Unsafe (unsafePartial)
 import Plutus.Types.AssocMap (Map(Map)) as AssocMap
 import ToData (class ToData, toData)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes)
+import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray
   ( ByteArray
   , hexToByteArray
@@ -238,6 +239,28 @@ derive instance Eq SeabugMetadataDelta
 instance Show SeabugMetadataDelta where
   show = genericShow
 
+instance MetadataType SeabugMetadataDelta where
+  metadataLabel _ = metadataLabel (Proxy :: Proxy SeabugMetadata)
+
+instance ToMetadata SeabugMetadataDelta where
+  toMetadata (SeabugMetadataDelta meta) = toMetadata
+    [ meta.policyId /\
+        [ "ownerPkh" /\ toMetadata meta.ownerPkh
+        , "ownerPrice" /\ toMetadata meta.ownerPrice
+        ]
+    ]
+
+instance FromMetadata SeabugMetadataDelta where
+  fromMetadata (MetadataMap mp) = do
+    policyId /\ contents <- case Map.toUnfoldable mp of
+      [ policyId /\ contents ] ->
+        Tuple <$> fromMetadata policyId <*> pure contents
+      _ -> Nothing
+    ownerPkh <- lookupMetadata "ownerPkh" contents >>= fromMetadata
+    ownerPrice <- lookupMetadata "ownerPrice" contents >>= fromMetadata
+    pure $ SeabugMetadataDelta { policyId, ownerPkh, ownerPrice }
+  fromMetadata _ = Nothing
+
 instance ToData SeabugMetadataDelta where
   toData (SeabugMetadataDelta meta) = unsafePartial $ toData $ AssocMap.Map
     [ unsafeMkKey "727" /\ AssocMap.Map
@@ -256,8 +279,4 @@ instance FromData SeabugMetadataDelta where
       _ -> Nothing
     ownerPkh <- lookupKey "ownerPkh" contents >>= fromData
     ownerPrice <- lookupKey "ownerPrice" contents >>= fromData
-    pure $ SeabugMetadataDelta
-      { policyId
-      , ownerPkh
-      , ownerPrice
-      }
+    pure $ SeabugMetadataDelta { policyId, ownerPkh, ownerPrice }

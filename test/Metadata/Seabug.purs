@@ -23,6 +23,9 @@ suite = do
       fromData (toData seabugMetadataFixture1) `shouldEqual` Just
         seabugMetadataFixture1
   group "Seabug Metadata delta" $ do
+    test "MetadataType instance" do
+      fromGeneralTxMetadata (toGeneralTxMetadata seabugMetadataDeltaFixture1)
+        `shouldEqual` Just seabugMetadataDeltaFixture1
     test "FromData / ToData instances" do
       fromData (toData seabugMetadataDeltaFixture1) `shouldEqual` Just
         seabugMetadataDeltaFixture1
