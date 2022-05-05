@@ -25,16 +25,28 @@ module Examples.AlwaysSucceeds (main) where
 import Contract.Prelude
 
 import Contract.Monad
+  ( ContractConfig(ContractConfig)
+  , launchAff_
+  , liftContractM
+  , liftedE
+  , liftedM
+  , logInfo'
+  , runContract_
+  , traceContractConfig
+  )
 import Contract.PlutusData (unitDatum)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts
+import Contract.Scripts (Validator, validatorHash)
 import Contract.Transaction
+  ( BalancedSignedTransaction(BalancedSignedTransaction)
+  , balanceAndSignTx
+  , submit
+  )
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.Argonaut (decodeJson, fromString)
 import Data.BigInt as BigInt
-import Data.Map as Map
 
 main :: Effect Unit
 main = launchAff_ $ do
