@@ -67,7 +67,7 @@ mkNamiWalletAff :: Aff Wallet
 mkNamiWalletAff = do
   nami <- enable
   -- Ensure the Nami wallet has collateral set up
-  whenM (isNothing <$> getWalletAddress nami)
+  whenM (isNothing <$> getCollateral nami)
     (liftEffect $ throw "Nami wallet missing collateral")
   connection <- liftEffect $ Ref.new nami
   pure $ Nami
