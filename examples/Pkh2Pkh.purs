@@ -35,7 +35,7 @@ import Contract.Monad
   , launchAff_
   , liftedE
   , liftedM
-  , logInfo
+  , logInfo'
   , mkContractConfig
   , runContract_
   )
@@ -49,7 +49,6 @@ import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
-import Data.Map as Map
 
 main :: Effect Unit
 main = launchAff_ $ do
@@ -81,4 +80,4 @@ main = launchAff_ $ do
     BalancedSignedTransaction bsTx <-
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx.signedTxCbor
-    logInfo Map.empty $ "Tx ID: " <> show txId
+    logInfo' $ "Tx ID: " <> show txId
