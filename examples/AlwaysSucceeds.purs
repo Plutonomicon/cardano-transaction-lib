@@ -34,7 +34,7 @@ import Contract.Monad
   , runContract_
   , traceContractConfig
   )
-import Contract.PlutusData (unitDatum)
+import Contract.PlutusData (PlutusData, unitDatum)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, validatorHash)
 import Contract.Transaction
@@ -62,12 +62,12 @@ main = launchAff_ $ do
       -- of a "current" script. Thus, we have the single constraint
       -- `mustPayToScript`, and all scripts must be explicitly provided to build
       -- the transaction (see the value for `lookups` below as well)
-      constraints :: Constraints.TxConstraints Void Void
+      constraints :: Constraints.TxConstraints Unit Unit
       constraints = Constraints.mustPayToScript vhash unitDatum
         $ Value.lovelaceValueOf
         $ BigInt.fromInt 2_000_000
 
-      lookups :: Lookups.ScriptLookups Void
+      lookups :: Lookups.ScriptLookups PlutusData
       lookups = Lookups.validator validator
 
     ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
