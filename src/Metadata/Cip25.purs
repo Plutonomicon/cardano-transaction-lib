@@ -1,8 +1,4 @@
-module Metadata.Cip25
-  ( Cip25Metadata(Cip25Metadata)
-  , Cip25MetadataEntry(Cip25MetadataEntry)
-  , Cip25MetadataFile(Cip25MetadataFile)
-  ) where
+module Metadata.Cip25 where
 
 import Prelude
 
@@ -130,7 +126,7 @@ metadataEntryFromMetadata
   -> Maybe Cip25MetadataEntry
 metadataEntryFromMetadata policyId assetName contents = do
   imageUris <- lookupMetadata "image" contents >>= fromMetadata
-  mediaType <- fromMetadata <$> lookupMetadata "mediaType" contents
+  let mediaType = lookupMetadata "mediaType" contents >>= fromMetadata
   description <- lookupMetadata "description" contents >>= fromMetadata
   files <- lookupMetadata "files" contents >>= fromMetadata
   pure $
