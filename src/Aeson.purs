@@ -39,6 +39,7 @@ module Aeson
   , decodeAeson
   , decodeAesonField
   , decodeJsonString
+  , decodeAesonViaJson
   , gDecodeAeson
   , getField
   , getFieldOptional

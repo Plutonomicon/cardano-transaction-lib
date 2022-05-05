@@ -2,6 +2,11 @@
   description = "cardano-transaction-lib";
 
   inputs = {
+    flake-compat = {
+      url = "github:edolstra/flake-compat";
+      flake = false;
+    };
+
     # for the purescript project
     ogmios.url = "github:mlabs-haskell/ogmios/c4f896bf32ad066be8edd8681ee11e4ab059be7f";
     ogmios-datum-cache = {
@@ -132,7 +137,12 @@
     , ...
     }@inputs:
     let
-      defaultSystems = [ "x86_64-linux" "x86_64-darwin" ];
+      defaultSystems = [
+        "x86_64-linux"
+        "x86_64-darwin"
+        "aarch64-linux"
+        "aarch64-darwin"
+      ];
       perSystem = nixpkgs.lib.genAttrs defaultSystems;
       overlay = system: with inputs; (prev: final: {
         easy-ps =

@@ -10,8 +10,17 @@ module Types.TokenName
 
 import Prelude
 
+import Data.Argonaut
+  ( getField
+  , class DecodeJson
+  , class EncodeJson
+  , JsonDecodeError(TypeMismatch)
+  , caseJsonObject
+  , encodeJson
+  )
 import Data.BigInt (BigInt)
 import Data.Bitraversable (ltraverse)
+import Data.Either (Either(Left), note)
 import Data.Map (Map)
 import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Nothing))
@@ -22,7 +31,7 @@ import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Serialization.Types (AssetName) as CSL
 import ToData (class ToData)
-import Types.ByteArray (ByteArray, byteLength)
+import Types.ByteArray (ByteArray, byteArrayToHex, byteLength, hexToByteArray)
 
 newtype TokenName = TokenName ByteArray
 
@@ -32,6 +41,18 @@ derive newtype instance FromMetadata TokenName
 derive newtype instance ToMetadata TokenName
 derive newtype instance Ord TokenName
 derive newtype instance ToData TokenName
+
+instance DecodeJson TokenName where
+  decodeJson = caseJsonObject
+    (Left $ TypeMismatch "Expected object")
+    ( note (TypeMismatch "Invalid TokenName") <<< mkTokenName
+        <=< note (TypeMismatch "Invalid ByteArray") <<< hexToByteArray
+        <=< flip getField "unTokenName"
+    )
+
+instance EncodeJson TokenName where
+  encodeJson (TokenName ba) = encodeJson
+    { "unTokenName": byteArrayToHex ba }
 
 instance Show TokenName where
   show (TokenName tn) = "(TokenName" <> show tn <> ")"

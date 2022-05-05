@@ -1,17 +1,32 @@
 /* global require exports WebSocket BROWSER_RUNTIME */
 
+const ReconnectingWebSocket = require('reconnecting-websocket');
+
+var OurWebSocket;
 if (typeof BROWSER_RUNTIME == 'undefined' || !BROWSER_RUNTIME) {
-    var OurWebSocket = require("ws");
+  OurWebSocket = require("ws");
+} else {
+  OurWebSocket = WebSocket;
 }
+
+class NoPerMessageDeflateWebSocket extends OurWebSocket {
+  constructor (url, protocols, options) {
+    options = options || {};
+    options.perMessageDeflate = false;
+    super(url, protocols, options);
+  }
+};
 
 // _mkWebsocket :: (String -> Effect Unit) -> String -> Effect WebSocket
 exports._mkWebSocket = logger => url => () => {
   logger("Starting websocket attempt")();
   var ws;
   if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
-    ws = new WebSocket(url);
+    ws = new ReconnectingWebSocket.default(url);
   } else {
-    ws = new OurWebSocket(url, { perMessageDeflate: false });
+    ws = new ReconnectingWebSocket(url, [], {
+      WebSocket: NoPerMessageDeflateWebSocket
+    });
   }
   logger("new websocket")();
   return ws;
@@ -57,9 +72,6 @@ exports._wsSend = ws => logger => str => () => {
 // _wsClose :: WebSocket -> Effect Unit
 exports._wsClose = ws => () => ws.close();
 
-// _stringify :: a -> Effect String
-exports._stringify = a => () => JSON.stringify(a);
-
 // Every 30 seconds if we haven't heard from the server, sever the connection.
 // heartbeat
 //   :: WebSocket
@@ -88,7 +100,7 @@ const heartbeat = ws => logger => id => onError => {
 exports._wsWatch = ws => logger => onError => () => {
   let counter = null;
   let heartbeatAndCount = () => {
-    counter = heartbeat(ws, loger, counter, onError);
+    counter = heartbeat(ws, logger, counter, onError);
   };
 
   ws.addEventListener('open', heartbeatAndCount);

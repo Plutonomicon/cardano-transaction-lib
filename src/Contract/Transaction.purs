@@ -10,12 +10,10 @@ module Contract.Transaction
   , finalizeTx
   , module BalanceTxError
   , module ExportQueryM
-  , module Ogmios
   , module ReindexRedeemersExport
   , module ScriptLookups
   , module Transaction
   , module TransactionMetadata
-  , module TxOutput
   , module UnbalancedTx
   , reindexSpentScriptRedeemers
   , signTransaction
@@ -52,19 +50,8 @@ import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import ReindexRedeemers
   ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
   ) as ReindexRedeemersExport
-import TxOutput -- Could potentially trim this down, -- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/200
-  ( ogmiosTxOutToScriptOutput
-  , ogmiosTxOutToTransactionOutput
-  , scriptOutputToOgmiosTxOut
-  , scriptOutputToTransactionOutput
-  , transactionInputToTxOutRef
-  , transactionOutputToOgmiosTxOut
-  , transactionOutputToScriptOutput
-  , txOutRefToTransactionInput
-  ) as TxOutput
 import Types.ByteArray (ByteArray)
 import Types.Datum (Datum)
-import QueryM.Ogmios (OgmiosTxOut, OgmiosTxOutRef) as Ogmios -- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/200
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
