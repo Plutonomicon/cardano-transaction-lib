@@ -7,15 +7,21 @@ import Prelude
 
 import Data.Argonaut (class DecodeJson)
 import Data.Argonaut as Json
+import Data.BigInt (fromInt) as BigInt
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
+import Data.Map (toUnfoldable) as Map
 import Data.Maybe (Maybe(Nothing), fromJust)
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested ((/\))
 import FromData (class FromData, fromData)
+import Metadata.Helpers (unsafeMkKey, lookupKey, lookupMetadata)
 import Metadata.Seabug.Share (Share, mkShare)
+import Metadata.FromMetadata (class FromMetadata, fromMetadata)
+import Metadata.MetadataType (class MetadataType)
+import Metadata.ToMetadata (class ToMetadata, toMetadata)
 import Partial.Unsafe (unsafePartial)
 import Plutus.Types.AssocMap (Map(Map)) as AssocMap
 import ToData (class ToData, toData)
@@ -31,7 +37,7 @@ import Types.PubKeyHash (PubKeyHash)
 import Types.Scripts (MintingPolicyHash, ValidatorHash)
 import Cardano.Types.Value (CurrencySymbol, mkCurrencySymbol)
 import Types.TokenName (TokenName, mkTokenName)
-import Metadata.Helpers (unsafeMkKey, lookupKey)
+import Types.TransactionMetadata (TransactionMetadatum(MetadataMap))
 
 newtype SeabugMetadata = SeabugMetadata
   { policyId :: MintingPolicyHash
@@ -53,6 +59,66 @@ derive instance Eq SeabugMetadata
 
 instance Show SeabugMetadata where
   show = genericShow
+
+instance MetadataType SeabugMetadata where
+  metadataLabel _ = wrap (BigInt.fromInt 727)
+
+instance ToMetadata SeabugMetadata where
+  toMetadata (SeabugMetadata meta) = toMetadata
+    [ meta.policyId /\
+        [ "mintPolicy" /\ toMetadata meta.mintPolicy
+        , "collectionNftCS" /\ toMetadata meta.collectionNftCS
+        , "collectionNftTN" /\ toMetadata meta.collectionNftTN
+        , "lockingScript" /\ toMetadata meta.lockingScript
+        , "authorPkh" /\ toMetadata meta.authorPkh
+        , "authorShare" /\ toMetadata meta.authorShare
+        , "marketplaceScript" /\ toMetadata meta.marketplaceScript
+        , "marketplaceShare" /\ toMetadata meta.marketplaceShare
+        , "ownerPkh" /\ toMetadata meta.ownerPkh
+        , "ownerPrice" /\ toMetadata meta.ownerPrice
+        ]
+    ]
+
+instance FromMetadata SeabugMetadata where
+  fromMetadata (MetadataMap mp) = do
+    policyId /\ contents <- case Map.toUnfoldable mp of
+      [ policyId /\ contents ] ->
+        Tuple <$> fromMetadata policyId <*> pure contents
+      _ -> Nothing
+    mintPolicy <-
+      lookupMetadata "mintPolicy" contents >>= fromMetadata
+    collectionNftCS <-
+      lookupMetadata "collectionNftCS" contents >>= fromMetadata
+    collectionNftTN <-
+      lookupMetadata "collectionNftTN" contents >>= fromMetadata
+    lockingScript <-
+      lookupMetadata "lockingScript" contents >>= fromMetadata
+    authorPkh <-
+      lookupMetadata "authorPkh" contents >>= fromMetadata
+    authorShare <-
+      lookupMetadata "authorShare" contents >>= fromMetadata
+    marketplaceScript <-
+      lookupMetadata "marketplaceScript" contents >>= fromMetadata
+    marketplaceShare <-
+      lookupMetadata "marketplaceShare" contents >>= fromMetadata
+    ownerPkh <-
+      lookupMetadata "ownerPkh" contents >>= fromMetadata
+    ownerPrice <-
+      lookupMetadata "ownerPrice" contents >>= fromMetadata
+    pure $ SeabugMetadata
+      { policyId
+      , mintPolicy
+      , collectionNftCS
+      , collectionNftTN
+      , lockingScript
+      , authorPkh
+      , authorShare
+      , marketplaceScript
+      , marketplaceShare
+      , ownerPkh
+      , ownerPrice
+      }
+  fromMetadata _ = Nothing
 
 instance ToData SeabugMetadata where
   toData (SeabugMetadata meta) = unsafePartial $ toData $ AssocMap.Map

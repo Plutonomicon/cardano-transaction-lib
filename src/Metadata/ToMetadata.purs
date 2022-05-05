@@ -9,20 +9,19 @@ module Metadata.ToMetadata
 import Prelude
 
 import Data.Array (fromFoldable) as Array
+import Data.BigInt (BigInt)
 import Data.Foldable (class Foldable)
 import Data.Map (Map)
-import Data.Map (catMaybes, fromFoldable, singleton, toUnfoldable) as Map
-import Data.Maybe (Maybe(Just))
-import Data.Newtype (wrap)
+import Data.Map (catMaybes, fromFoldable, toUnfoldable) as Map
+import Data.Maybe (Maybe(Just), fromJust)
 import Data.NonEmpty (NonEmpty)
 import Data.Profunctor.Strong ((***))
 import Data.Tuple.Nested (type (/\))
+import Partial.Unsafe (unsafePartial)
 import Types.ByteArray (ByteArray)
-import Types.Int (Int) as Int
+import Types.Int (Int, fromBigInt) as Int
 import Types.TransactionMetadata
-  ( GeneralTransactionMetadata
-  , TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
-  , TransactionMetadatumLabel
+  ( TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
   )
 
 --------------------------------------------------------------------------------
@@ -58,6 +57,11 @@ instance (Foldable f, ToMetadata a) => ToMetadata (NonEmpty f a) where
 
 instance ToMetadata Int.Int where
   toMetadata = Int
+
+-- FIXME: Come up with a type-safe error handling approach.
+instance ToMetadata BigInt where
+  toMetadata bi =
+    unsafePartial $ Int $ fromJust $ Int.fromBigInt bi
 
 instance ToMetadata ByteArray where
   toMetadata = Bytes

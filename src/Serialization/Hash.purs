@@ -56,6 +56,13 @@ instance FromData Ed25519KeyHash where
   fromData (Bytes kh) = ed25519KeyHashFromBytes kh
   fromData _ = Nothing
 
+instance ToMetadata Ed25519KeyHash where
+  toMetadata = toMetadata <<< ed25519KeyHashToBytes
+
+instance FromMetadata Ed25519KeyHash where
+  fromMetadata (Metadata.Bytes kh) = ed25519KeyHashFromBytes kh
+  fromMetadata _ = Nothing
+
 -- This is needed for `ApplyArgs`.
 instance DecodeJson Ed25519KeyHash where
   -- ed25519KeyHashFromBech32 goes from Bech32String directly although this

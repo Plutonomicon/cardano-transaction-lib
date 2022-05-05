@@ -98,7 +98,6 @@ instance Show MintingPolicyHash where
 
 derive newtype instance FromData MintingPolicyHash
 derive newtype instance ToData MintingPolicyHash
-
 derive newtype instance FromMetadata MintingPolicyHash
 derive newtype instance ToMetadata MintingPolicyHash
 
@@ -111,6 +110,8 @@ derive newtype instance Ord ValidatorHash
 derive newtype instance FromData ValidatorHash
 derive newtype instance ToData ValidatorHash
 derive newtype instance DecodeJson ValidatorHash
+derive newtype instance FromMetadata ValidatorHash
+derive newtype instance ToMetadata ValidatorHash
 
 instance Show ValidatorHash where
   show = genericShow

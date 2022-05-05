@@ -3,16 +3,15 @@ module Metadata.FromMetadata where
 import Prelude
 
 import Data.Array (toUnfoldable, uncons) as Array
+import Data.BigInt (BigInt)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.NonEmpty (NonEmpty, (:|))
 import Data.Traversable (traverse)
 import Data.Unfoldable (class Unfoldable)
 import Types.ByteArray (ByteArray)
-import Types.Int (Int) as Int
+import Types.Int (Int, toBigInt) as Int
 import Types.TransactionMetadata
-  ( GeneralTransactionMetadata
-  , TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
-  , TransactionMetadatumLabel
+  ( TransactionMetadatum(MetadataList, Int, Bytes, Text)
   )
 
 --------------------------------------------------------------------------------
@@ -35,6 +34,10 @@ instance FromMetadata a => FromMetadata (NonEmpty Array a) where
 
 instance FromMetadata Int.Int where
   fromMetadata (Int n) = Just n
+  fromMetadata _ = Nothing
+
+instance FromMetadata BigInt where
+  fromMetadata (Int n) = Int.toBigInt n
   fromMetadata _ = Nothing
 
 instance FromMetadata ByteArray where

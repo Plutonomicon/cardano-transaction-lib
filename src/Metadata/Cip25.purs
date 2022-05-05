@@ -1,4 +1,8 @@
-module Metadata.Cip25 where
+module Metadata.Cip25
+  ( Cip25Metadata(Cip25Metadata)
+  , Cip25MetadataEntry(Cip25MetadataEntry)
+  , Cip25MetadataFile(Cip25MetadataFile)
+  ) where
 
 import Prelude
 
@@ -7,7 +11,7 @@ import Data.Argonaut as Json
 import Data.Array (concat, groupBy, uncons)
 import Data.Array.NonEmpty (NonEmptyArray, toArray)
 import Data.Array.NonEmpty (head) as NonEmpty
-import Data.BigInt (fromInt)
+import Data.BigInt (fromInt) as BigInt
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Map (toUnfoldable) as Map
@@ -184,6 +188,9 @@ derive instance Eq Cip25Metadata
 instance Show Cip25Metadata where
   show = genericShow
 
+instance MetadataType Cip25Metadata where
+  metadataLabel _ = wrap (BigInt.fromInt 721)
+
 groupEntries
   :: Array Cip25MetadataEntry -> Array (NonEmptyArray Cip25MetadataEntry)
 groupEntries =
@@ -212,9 +219,6 @@ instance FromMetadata Cip25Metadata where
             _ -> Nothing
     wrap <$> sequence entries
   fromMetadata _ = Nothing
-
-instance MetadataType Cip25Metadata where
-  metadataLabel _ = wrap (fromInt 721)
 
 instance ToData Cip25Metadata where
   toData (Cip25Metadata entries) = toData
