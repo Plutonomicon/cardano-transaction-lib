@@ -10,7 +10,7 @@ import Prelude
 
 import Control.Promise (Promise)
 import Control.Promise as Promise
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (over)
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytesEffect)
@@ -19,6 +19,7 @@ import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
+import Effect.Exception (throw)
 import Effect.Ref as Ref
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Helpers ((<<>>))
@@ -65,6 +66,9 @@ type NamiWallet =
 mkNamiWalletAff :: Aff Wallet
 mkNamiWalletAff = do
   nami <- enable
+  -- Ensure the Nami wallet has collateral set up
+  whenM (isNothing <$> getWalletAddress nami)
+    (liftEffect $ throw "Nami wallet missing collateral")
   connection <- liftEffect $ Ref.new nami
   pure $ Nami
     { connection
