@@ -11,7 +11,6 @@ module Types.Rational
 
 import Prelude
 
-import Contract.Prelude (class Newtype, note)
 import Data.Argonaut
   ( class DecodeJson
   , class EncodeJson
@@ -21,9 +20,11 @@ import Data.Argonaut
   )
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString, fromString) as BigInt
+import Data.Either (note)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Ratio ((%), numerator, denominator) as Ratio
 import Data.Ratio (Ratio)
+import Data.Newtype (class Newtype)
 import FromData (class FromData)
 import ToData (class ToData)
 import Types.Natural (Natural)

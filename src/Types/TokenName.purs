@@ -10,8 +10,6 @@ module Types.TokenName
 
 import Prelude
 
-import Contract.Prelude (Either(Left), note)
-import Contract.Prim.ByteArray (byteArrayToHex, hexToByteArray)
 import Data.Argonaut
   ( getField
   , class DecodeJson
@@ -22,6 +20,7 @@ import Data.Argonaut
   )
 import Data.BigInt (BigInt)
 import Data.Bitraversable (ltraverse)
+import Data.Either (Either(Left), note)
 import Data.Map (Map)
 import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Nothing))
@@ -30,7 +29,7 @@ import Data.Tuple.Nested (type (/\))
 import FromData (class FromData)
 import Serialization.Types (AssetName) as CSL
 import ToData (class ToData)
-import Types.ByteArray (ByteArray, byteLength)
+import Types.ByteArray (ByteArray, byteArrayToHex, byteLength, hexToByteArray)
 
 newtype TokenName = TokenName ByteArray
 

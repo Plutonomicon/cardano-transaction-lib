@@ -47,7 +47,6 @@ module Cardano.Types.Value
 
 import Prelude hiding (join)
 
-import Contract.Prim.ByteArray (byteArrayToHex)
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Data.Argonaut
@@ -86,7 +85,7 @@ import Serialization.Hash
   , scriptHashToBytes
   )
 import ToData (class ToData)
-import Types.ByteArray (ByteArray, byteLength, hexToByteArray)
+import Types.ByteArray (ByteArray, byteArrayToHex, byteLength, hexToByteArray)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Types.TokenName
   ( TokenName
