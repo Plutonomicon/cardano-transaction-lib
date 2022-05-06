@@ -178,6 +178,7 @@ import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.UnbalancedTransaction (StakePubKeyHash, PaymentPubKeyHash)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
+import Types.Chain as Chain
 import Cardano.Types.Value (Coin(Coin))
 import Untagged.Union (asOneOf)
 import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
@@ -255,8 +256,13 @@ traceQueryConfig = do
 -- OGMIOS LOCAL STATE QUERY PROTOCOL
 --------------------------------------------------------------------------------
 
-getChainTip :: QueryM Ogmios.ChainTipQR
-getChainTip = mkOgmiosRequest Ogmios.queryChainTipCall _.chainTip unit
+getChainTip :: QueryM Chain.Tip
+getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall _.chainTip unit
+  where
+    ogmiosChainTipToTip :: Ogmios.ChainTipQR -> Chain.Tip
+    ogmiosChainTipToTip = case _ of
+      Ogmios.CtChainOrigin _ -> Chain.TipAtGenesis
+      Ogmios.CtChainPoint { slot, hash } -> Chain.Tip slot $ wrap $ unwrap hash
 
 --------------------------------------------------------------------------------
 -- OGMIOS LOCAL TX SUBMISSION PROTOCOL
