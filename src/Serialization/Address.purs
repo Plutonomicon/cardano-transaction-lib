@@ -95,7 +95,7 @@ import Data.Either (Either(Left))
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.UInt (UInt)
 import Data.UInt as UInt

@@ -85,7 +85,7 @@ import Serialization.Hash
   , scriptHashToBytes
   )
 import ToData (class ToData)
-import Types.ByteArray (ByteArray, byteLength)
+import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex, byteLength)
 import Types.CborBytes (CborBytes(CborBytes))
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Types.TokenName

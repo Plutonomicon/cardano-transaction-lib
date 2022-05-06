@@ -49,7 +49,6 @@ import Test.Spec.Assertions (shouldEqual)
 import Test.Utils (errMaybe)
 import TestM (TestPlanM)
 import Types.Aliases (Bech32String)
-import Types.ByteArray (hexToByteArrayUnsafe)
 import Types.CborBytes (hexToCborBytesUnsafe)
 import Test.Fixtures (ed25519KeyHashFixture1)
 

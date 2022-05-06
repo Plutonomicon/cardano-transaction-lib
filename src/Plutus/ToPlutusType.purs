@@ -10,7 +10,7 @@ import Data.Identity (Identity(Identity))
 import Data.Foldable (fold)
 import Data.Map (toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Newtype (class Newtype, wrap)
 import Data.Tuple (fst) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt, fromInt, (.&.), and, shl, zshr)
@@ -30,7 +30,7 @@ import Plutus.Types.Value (Value) as Plutus
 import Plutus.Types.Value (lovelaceValueOf, singleton') as Plutus.Value
 
 import Types.ByteArray (ByteArray, byteArrayFromIntArray, byteArrayToIntArray)
-import Types.CborBytes (CborBytes, cborBytesToIntArray)
+import Types.CborBytes (cborBytesToIntArray)
 import Types.TokenName (getTokenName)
 import Cardano.Types.Value (Value(Value)) as Types
 import Cardano.Types.Value
