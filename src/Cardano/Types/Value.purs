@@ -51,8 +51,10 @@ import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Data.Argonaut
   ( class DecodeJson
+  , class EncodeJson
   , JsonDecodeError(TypeMismatch)
   , caseJsonObject
+  , encodeJson
   , getField
   )
 import Data.Array (cons, filter)
@@ -83,7 +85,7 @@ import Serialization.Hash
   , scriptHashToBytes
   )
 import ToData (class ToData)
-import Types.ByteArray (ByteArray, byteLength, hexToByteArray)
+import Types.ByteArray (ByteArray, byteLength)
 import Types.CborBytes (CborBytes(CborBytes))
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Types.TokenName
@@ -196,6 +198,10 @@ instance DecodeJson CurrencySymbol where
         <=< note (TypeMismatch "Invalid ByteArray") <<< hexToByteArray
         <=< flip getField "unCurrencySymbol"
     )
+
+instance EncodeJson CurrencySymbol where
+  encodeJson (CurrencySymbol ba) = encodeJson
+    { "unCurrencySymbol": byteArrayToHex ba }
 
 getCurrencySymbol :: CurrencySymbol -> ByteArray
 getCurrencySymbol (CurrencySymbol curSymbol) = curSymbol
