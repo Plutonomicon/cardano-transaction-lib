@@ -11,9 +11,7 @@ class AllUniqueLabels :: forall (k :: Type). RowList k -> Constraint
 class AllUniqueLabels list
 
 instance AllUniqueLabels Nil
-
 instance AllUniqueLabels (Cons k a Nil)
-
 instance
   Fail (Text "Labels are not unique!") =>
   AllUniqueLabels (Cons k a (Cons k a' xs))
@@ -26,30 +24,29 @@ else instance
 -- | Poor man's type level tests
 tests ∷ Array String
 tests =
-  [ _testNil
-  , _testSingleton
-  , _testUniques
-  -- , _testDupsUnordered
-  -- , _testDups -- Should trigger 'Labels are not unique!'
+  [ testNil
+  , testSingleton
+  , testUniques
+  -- , testDupsUnordered
+  -- , testDups
   ]
   where
-  _testNil :: AllUniqueLabels Nil => String
-  _testNil = "Empty list has all unique labels"
+  testNil :: AllUniqueLabels Nil => String
+  testNil = "Empty list has all unique labels"
 
-  _testSingleton
+  testSingleton
     :: forall (a :: Type). AllUniqueLabels (Cons "A" a Nil) => String
-  _testSingleton = "Singleton list has all unique labels"
+  testSingleton = "Singleton list has all unique labels"
 
-  _testUniques
+  testUniques
     :: forall (a :: Type)
      . AllUniqueLabels
          ( Cons "A" a
              (Cons "B" a (Cons "C" a Nil))
          )
     => String
-  _testUniques = "[A, B, C] is all unique and should compile"
+  testUniques = "[A, B, C] is all unique and should compile"
 
-  -- TODO: Explain why the type checker triggers 'Labels are not unique'
   _testDupsUnordered
     :: forall (a :: Type)
      . AllUniqueLabels (Cons "A" a (Cons "B" a (Cons "A" a (Cons "B" a Nil))))
