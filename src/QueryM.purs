@@ -257,12 +257,14 @@ traceQueryConfig = do
 --------------------------------------------------------------------------------
 
 getChainTip :: QueryM Chain.Tip
-getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall _.chainTip unit
+getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
+  _.chainTip
+  unit
   where
-    ogmiosChainTipToTip :: Ogmios.ChainTipQR -> Chain.Tip
-    ogmiosChainTipToTip = case _ of
-      Ogmios.CtChainOrigin _ -> Chain.TipAtGenesis
-      Ogmios.CtChainPoint { slot, hash } -> Chain.Tip slot $ wrap $ unwrap hash
+  ogmiosChainTipToTip :: Ogmios.ChainTipQR -> Chain.Tip
+  ogmiosChainTipToTip = case _ of
+    Ogmios.CtChainOrigin _ -> Chain.TipAtGenesis
+    Ogmios.CtChainPoint { slot, hash } -> Chain.Tip slot $ wrap $ unwrap hash
 
 --------------------------------------------------------------------------------
 -- OGMIOS LOCAL TX SUBMISSION PROTOCOL

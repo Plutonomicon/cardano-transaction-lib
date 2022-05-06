@@ -1,8 +1,7 @@
 module Types.Chain
-  (Tip (..)
-  ,BlockHeaderHash (..)
-  )
-  where
+  ( Tip(..)
+  , BlockHeaderHash(..)
+  ) where
 
 import Prelude
 
