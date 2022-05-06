@@ -20,7 +20,7 @@
   - [Nix environment](#nix-environment)
   - [Launching services for development](#launching-services-for-development)
   - [Building/testing the PS project and running it in the browser](#buildingtesting-the-ps-project-and-running-it-in-the-browser)
-  - [Generating documentation](#generating-documentation)
+  - [Generating PS documentation](#generating-ps-documentation)
   - [Adding PS/JS dependencies](#adding-psjs-dependencies)
     - [Purescript](#purescript)
     - [JS](#js)
@@ -228,7 +228,7 @@ By default, Webpack will build a [small Purescript example](examples/Pkh2Pkh.pur
 
 **Note**: The `BROWSER_RUNTIME` environment variable must be set to `1` in order to build/bundle the project properly for the browser (e.g. `BROWSER_RUNTIME=1 webpack ...`). For Node environments, leave this variable unset or set it to `0`.
 
-### Generating documentation
+### Generating PS documentation
 
 - To build the documentation as HTML:
   - `spago docs`
