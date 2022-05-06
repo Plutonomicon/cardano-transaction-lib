@@ -1,22 +1,34 @@
-module TypeLevel.RowList.Unordered.Indexed where
+module TypeLevel.RowList.Unordered.Indexed
+  ( ConsI
+  , NilI
+  , RowListI
+  , class AllUniqueLabelsI
+  , class GetIndexWithLabel
+  , class GetLabelIndex
+  , class GetLabelWithIndex
+  , class GetWithLabel
+  , class IndexRowList
+  , class IndexRowListWithAcc
+  , class UniqueIndices
+  , uniqueIndicesTests
+  ) where
 
-import TypeLevel.Nat
-import Type.RowList
-import TypeLevel.RowList
+import TypeLevel.Nat (class KnownNat, Nat, S, Z)
+import Type.RowList (Cons, Nil, RowList)
 import Prim.TypeError (class Fail, Text)
 import Data.Symbol
 
-
 -- | A kind for unordered  RowLists which contain a Nat representation of their
 -- intended position in a  non-lexicographic order. Actual RowLists are automagically
--- ordered lexicographically, Plutus Data is not ordered lexicographically, so we need
--- this to encode the structure of Plutus Data.
+-- ordered lexicographically, Haskell records are not ordered lexicographically, so we need
+-- this to encode the structure of Haskell records precisely.
 data RowListI :: forall (k :: Type). k -> Type
 data RowListI k
 
 -- Data constructors for RowListI.
 foreign import data ConsI
-  :: forall (k :: Type). Symbol -> k -> Nat  -> RowListI k -> RowListI k
+  :: forall (k :: Type). Symbol -> k -> Nat -> RowListI k -> RowListI k
+
 foreign import data NilI :: forall (k :: Type). RowListI k
 
 -- | Uniqueness constraint on the Nat indices of a RowListI which asserts that all indices
@@ -25,27 +37,76 @@ foreign import data NilI :: forall (k :: Type). RowListI k
 class UniqueIndices :: forall (k :: Type). RowListI k -> Constraint
 class UniqueIndices list
 
+instance UniqueIndices NilI
+instance UniqueIndices (ConsI k a n NilI)
 instance
   Fail (Text "Indices are not unique!") =>
   UniqueIndices (ConsI k a n (ConsI k' a' n xs))
-else instance UniqueIndices NilI
-else instance UniqueIndices (ConsI k a n NilI)
 else instance
   ( UniqueIndices (ConsI k a n xs)
-  , UniqueIndices (ConsI k' a' n' xs)
+  , UniqueIndices
+      (ConsI k' a' n' xs)
   ) =>
   UniqueIndices (ConsI k a n (ConsI k' a' n' xs))
+
+uniqueIndicesTests ∷ Array String
+uniqueIndicesTests =
+  [ testNil
+  , testSingletonZ
+  , testSingletonSSZ
+  , testUniques
+  -- , _testDups
+  -- , _testDups2
+  ]
+  where
+  testNil :: UniqueIndices NilI => String
+  testNil = "Empty list has all unique indices"
+
+  testSingletonZ
+    :: forall (a :: Type). UniqueIndices (ConsI "A" a Z NilI) => String
+  testSingletonZ = "Singleton list has all unique indices"
+
+  testSingletonSSZ
+    :: forall (a :: Type). UniqueIndices (ConsI "A" a (S (S Z)) NilI) => String
+  testSingletonSSZ = "Singleton list has all unique indices"
+
+  testUniques
+    :: forall (a :: Type)
+     . UniqueIndices
+         ( ConsI "A" a Z
+             (ConsI "B" a (S Z) (ConsI "C" a (S (S Z)) NilI))
+         )
+    => String
+  testUniques = "[0, 1, 2] have all unique indices"
+
+  _testDups
+    :: forall (a :: Type)
+     . UniqueIndices
+         ( ConsI "A" a (S Z)
+             (ConsI "B" a (S Z) (ConsI "C" a (S (S Z)) NilI))
+         )
+    => String
+  _testDups = "[1, 1, 2] has dups and shouldn't compile"
+
+  _testDups2
+    :: forall (a :: Type)
+     . UniqueIndices
+         ( ConsI "A" a (S Z)
+             (ConsI "B" a Z (ConsI "C" a (S Z) NilI))
+         )
+    => String
+  _testDups2 = "[1, 0, 1] has dups and shouldn't compile"
 
 -- | Uniqueness constraint on the labels of a RowListI which asserts that all labels are unique.
 -- Again, this is needed so that the lookup functions perform in the expected manner.
 class AllUniqueLabelsI :: forall (k :: Type). RowListI k -> Constraint
 class AllUniqueLabelsI list
 
+instance AllUniqueLabelsI NilI
+instance AllUniqueLabelsI (ConsI k a n NilI)
 instance
   Fail (Text "Labels are not unique!") =>
   AllUniqueLabelsI (ConsI k a n (ConsI k a' n' xs))
-else instance AllUniqueLabelsI NilI
-else instance AllUniqueLabelsI (ConsI k a n NilI)
 else instance
   ( AllUniqueLabelsI (ConsI k a n xs)
   , AllUniqueLabelsI (ConsI k' a' n' xs)
@@ -80,7 +141,13 @@ else instance
 -- | Given a Nat which appears as an index in the given RowListI, get its corresponding Symbol label
 class GetLabelWithIndex
   :: forall (k :: Type). Nat -> RowListI k -> Symbol -> Constraint
-class (KnownNat ix, AllUniqueLabelsI list, UniqueIndices list) <= GetLabelWithIndex ix list label | ix list -> label
+class
+  ( KnownNat ix
+  , AllUniqueLabelsI list
+  , UniqueIndices list
+  ) <=
+  GetLabelWithIndex ix list label
+  | ix list -> label
 
 instance
   ( AllUniqueLabelsI (ConsI label a ix xs)
@@ -101,18 +168,23 @@ else instance
 -- | Given a Symbol which appears as a label in the given RowListI, get ahold of the type indexed by that symbol.
 -- Note that this does not "return" a *value* of that type, but the type itself, and is therefore only suitable
 -- for type class instance contexts (& other type level computational contexts if any exist)
-class GetWithLabel :: forall (k :: Type). Symbol -> RowListI k -> k -> Constraint
+class GetWithLabel
+  :: forall (k :: Type). Symbol -> RowListI k -> k -> Constraint
 class GetWithLabel label rlist result | label rlist -> result
 
 instance IsSymbol l => GetWithLabel l (ConsI l a n xs) a
 else instance (GetWithLabel l xs a) => GetWithLabel l (ConsI _l _a _n xs) a
 
 -- | Get the nat index at a symbol in a RowList (Note: Not a RowListI! Use GetIndexWithLabel for a RowListI)
-class GetLabelIndex :: forall (k :: Type). Symbol -> RowList k -> Nat -> Constraint
+class GetLabelIndex
+  :: forall (k :: Type). Symbol -> RowList k -> Nat -> Constraint
 class GetLabelIndex label list result | label list -> result
 
-instance (IndexRowList rowList rowListI,
-          GetIndexWithLabel label rowListI result) => GetLabelIndex label rowList result
+instance
+  ( IndexRowList rowList rowListI
+  , GetIndexWithLabel label rowListI result
+  ) =>
+  GetLabelIndex label rowList result
 
 -- | Helper class for GetLabelIndex. Converts a RowList into a RowListI using its natural order (beginning with Z)
 class IndexRowList :: forall (k :: Type). RowList k -> RowListI k -> Constraint
@@ -121,9 +193,12 @@ class IndexRowList list result | list -> result
 instance IndexRowListWithAcc Z list result => IndexRowList list result
 
 -- | Helper class for IndexRowListWithAcc.
-class IndexRowListWithAcc :: forall (k :: Type). Nat -> RowList k -> RowListI k -> Constraint
+class IndexRowListWithAcc
+  :: forall (k :: Type). Nat -> RowList k -> RowListI k -> Constraint
 class IndexRowListWithAcc acc list result | acc list -> result
 
 -- purescript sure is an ugly dialect of prolog
 instance IndexRowListWithAcc n Nil NilI
-else instance IndexRowListWithAcc (S n) xs xs' => IndexRowListWithAcc n (Cons l a xs) (ConsI l a n xs')
+else instance
+  IndexRowListWithAcc (S n) xs xs' =>
+  IndexRowListWithAcc n (Cons l a xs) (ConsI l a n xs')
