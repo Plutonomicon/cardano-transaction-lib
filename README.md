@@ -20,6 +20,7 @@
   - [Nix environment](#nix-environment)
   - [Launching services for development](#launching-services-for-development)
   - [Building/testing the PS project and running it in the browser](#buildingtesting-the-ps-project-and-running-it-in-the-browser)
+  - [Generating documentation](#generating-documentation)
   - [Adding PS/JS dependencies](#adding-psjs-dependencies)
     - [Purescript](#purescript)
     - [JS](#js)
@@ -226,6 +227,19 @@ To develop locally, you can use one the CTL flake to launch all required service
 By default, Webpack will build a [small Purescript example](examples/Pkh2Pkh.purs). Make sure to follow the [instructions for setting up Nami](#other-requirements) before running the examples. You can point Webpack to another Purescript entrypoint by changing the `ps-bundle` variable in the Makefile or in the `main` argument in the flake's `packages.ctl-examples-bundle-web`.
 
 **Note**: The `BROWSER_RUNTIME` environment variable must be set to `1` in order to build/bundle the project properly for the browser (e.g. `BROWSER_RUNTIME=1 webpack ...`). For Node environments, leave this variable unset or set it to `0`.
+
+### Generating documentation
+
+- To build the documentation as HTML:
+  - `spago docs`
+- To build and open the documentation in your browser:
+  - `spago docs --open`
+- To build the documentation as Markdown:
+  - `spago docs --format ctags`
+
+The documentation will be generated in the `./generated_docs` folder, which contains an `index.html` which lists all modules by default.
+
+At the index of the documentation is a checkbox to toggle viewing by package, and all the modules defined in our package will be available under `cardano-transaction-lib`.
 
 ### Adding PS/JS dependencies
 
