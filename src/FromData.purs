@@ -4,23 +4,17 @@ module FromData
   , class FromDataArgs
 
   , class FromDataArgsRL
-  -- , class FromDataArgsRL'
   , class FromDataWithSchema
   , fromData
   , fromDataArgs
   , fromDataArgsRec
-  -- , fromDataArgsRec'
   , fromDataWithSchema
   , genericFromData
   ) where
 
-import Prelude
-
-import Data.Show.Generic (genericShow)
 import Control.Alternative ((<|>), guard)
 import Data.Array (uncons, sortWith)
 import Data.Array as Array
-import Data.NonEmpty (NonEmpty(NonEmpty))
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), hush, note)
@@ -30,7 +24,9 @@ import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap)
+import Data.NonEmpty (NonEmpty(NonEmpty))
 import Data.Ratio (Ratio, reduce)
+import Data.Show.Generic (genericShow)
 import Data.Symbol (class IsSymbol, reflectSymbol)
 import Data.TextDecoder (decodeUtf8)
 import Data.Traversable (for, traverse)
@@ -39,30 +35,34 @@ import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.Unfoldable (class Unfoldable)
 import Helpers (bigIntToUInt)
-
-
+import Prelude (class EuclideanRing, class Ord, class Show, Unit, Void, bind, discard, one, pure, unit, zero, ($), (<$>), (<*>), (<<<), (=<<), (==))
 import Prim.Row as Row
 import Prim.RowList as RL
 import Prim.TypeError (class Fail, Text)
 import Record as Record
 import Type.Proxy (Proxy(Proxy))
+import TypeLevel.DataSchema (class HasPlutusSchema, class ValidPlutusSchema)
+import TypeLevel.Nat (class KnownNat, natVal)
+import TypeLevel.RowList.Unordered.Indexed (class GetIndexWithLabel, class GetWithLabel)
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Bytes, Constr, List, Map, Integer))
-
-import TypeLevel.Nat
-import TypeLevel.RowList.Unordered
-import TypeLevel.RowList.Unordered.Indexed
-import TypeLevel.DataSchema
 
 -- | Errors
 data FromDataError
   = ArgsWantedButGot Int (Array PlutusData)
   | FromDataFailed PlutusData
+  | BigIntToIntFailed BigInt
+  | IndexWantedButGot Int Int
+  | WantedConstrGot PlutusData
 
 derive instance G.Generic FromDataError _
 
 instance Show FromDataError where
   show = genericShow
+
+noteB :: forall (a :: Type). a -> Boolean -> Either a Unit
+noteB _ true = pure unit
+noteB n false = Left n
 
 -- | Classes
 
@@ -77,7 +77,7 @@ class FromData a where
 class FromDataWithSchema :: Type -> Type -> Constraint
 class FromDataWithSchema t a where
   fromDataWithSchema
-    :: Proxy t -> Proxy a -> PlutusData -> Maybe a
+    :: Proxy t -> Proxy a -> PlutusData -> Either FromDataError a
 
 -- NOTE: Using the 'parser' approach as in https://github.com/purescript-contrib/purescript-argonaut-generic/blob/3ae9622814fd3f3f06fa8e5e58fd58d2ef256b91/src/Data/Argonaut/Decode/Generic.purs
 class FromDataArgs :: Type -> Symbol -> Type -> Constraint
@@ -88,7 +88,7 @@ class FromDataArgs t c a where
     -> Array PlutusData
     -> Either FromDataError { head :: a, tail :: Array PlutusData }
 
-{- | A helper typeclass to implement `ToDataArgs` for records.
+{- | A helper typeclass to implement `FromDataArgs` for records.
    Adapted from https://github.com/purescript/purescript-quickcheck/blob/v7.1.0/src/Test/QuickCheck/Arbitrary.purs#L247
 
    The second argument is a symbol which represents the name of a record constructor.
@@ -105,7 +105,7 @@ class FromDataArgsRL t constr list row | t constr list -> row where
     -> Array PlutusData
     -> Either FromDataError { head :: Record row, tail :: Array PlutusData }
 
--- | FromDataWithIndex instances for Data.Generic.Rep
+-- | FromDataWithSchema instances for Data.Generic.Rep
 -- See https://purescript-simple-json.readthedocs.io/en/latest/generics-rep.html
 
 instance
@@ -127,15 +127,15 @@ else instance
   ) =>
   FromDataWithSchema t (G.Constructor constr args) where
   fromDataWithSchema _ _ (Constr i pdArgs) = do
-    ix <- BigInt.toInt i
-    -- TODO: Add err reporting to FromDataWithIndex
-    guard $ natVal (Proxy :: Proxy ix) == ix
-    { head: repArgs, tail: pdArgs' } <- hush $ fromDataArgs (Proxy :: Proxy t)
+    gotIx <- note (BigIntToIntFailed i) (BigInt.toInt i)
+    wantedIx <- pure $ natVal (Proxy :: Proxy ix)
+    noteB (IndexWantedButGot wantedIx gotIx) (wantedIx == gotIx)
+    { head: repArgs, tail: pdArgs' } <- fromDataArgs (Proxy :: Proxy t)
       (Proxy :: Proxy constr)
       pdArgs
-    guard $ pdArgs' == []
+    noteB (ArgsWantedButGot 0 pdArgs') (pdArgs' == [])
     pure $ G.Constructor repArgs
-  fromDataWithSchema _ _ _ = Nothing
+  fromDataWithSchema _ _ pd = Left $ WantedConstrGot pd
 
 else instance
   ( FromDataWithSchema t a
@@ -159,7 +159,7 @@ instance
   , GetWithLabel constr rrList rList
   ) =>
   FromDataArgs t constr (G.Argument (Record row)) where
-  fromDataArgs _ constr pdArgs = do
+  fromDataArgs _ _ pdArgs = do
     { head, tail } <- fromDataArgsRec (Proxy :: Proxy t) (Proxy :: Proxy constr)
       (Proxy :: Proxy rList)
       pdArgs
@@ -175,7 +175,7 @@ instance
   , FromDataArgs t c b
   ) =>
   FromDataArgs t c (G.Product a b) where
-  fromDataArgs _ constr pdArgs = do
+  fromDataArgs _ _ pdArgs = do
     { head: repFst, tail: pdArgs' } <- fromDataArgs (Proxy :: Proxy t)
       (Proxy :: Proxy c)
       pdArgs
@@ -212,15 +212,14 @@ instance
       , tail: pdArgs''
       }
 
+-- TODO: Unhush the errors in FromData 
 genericFromData
   :: forall (t :: Type) (rep :: Type)
    . G.Generic t rep
   => FromDataWithSchema t rep
   => PlutusData
   -> Maybe t
-genericFromData pd = G.to <$> fromDataWithSchema (Proxy :: Proxy t)
-  (Proxy :: Proxy rep)
-  pd
+genericFromData pd = G.to <$> hush (fromDataWithSchema (Proxy :: Proxy t) (Proxy :: Proxy rep) pd)
 
 -- | Base FromData instances
 
