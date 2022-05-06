@@ -892,8 +892,6 @@ newtype TransactionHash = TransactionHash ByteArray
 derive instance Generic TransactionHash _
 derive instance Newtype TransactionHash _
 derive newtype instance Eq TransactionHash
-derive newtype instance FromData TransactionHash
-derive newtype instance ToData TransactionHash
 
 -- This is not newtyped derived because it will be used for ordering a
 -- `TransactionInput`, we want lexicographical ordering on the hexstring.
@@ -903,6 +901,15 @@ instance Ord TransactionHash where
 
 instance Show TransactionHash where
   show = genericShow
+
+-- Plutus actually has this as a zero indexed record
+instance FromData TransactionHash where
+  fromData (Constr n [ bytes ]) | n == zero = TransactionHash <$> fromData bytes
+  fromData _ = Nothing
+
+-- Plutus actually has this as a zero indexed record
+instance ToData TransactionHash where
+  toData (TransactionHash bytes) = Constr zero [ toData bytes ]
 
 newtype DataHash = DataHash ByteArray
 
