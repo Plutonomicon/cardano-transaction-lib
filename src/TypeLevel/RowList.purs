@@ -1,8 +1,7 @@
 module TypeLevel.RowList
   ( class AllUniqueLabels
   , tests
-  )
-  where
+  ) where
 
 import Prim.TypeError (class Fail, Text)
 import Type.RowList (Cons, Nil, RowList)
