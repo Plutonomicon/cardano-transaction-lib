@@ -135,6 +135,24 @@ let
         '';
       });
 
+  buildPursDocs =
+    { name ? "${projectName}-docs"
+    , format ? "html"
+    , ...
+    }@args:
+    (buildPursProject args).overrideAttrs
+      (oas: {
+        inherit name;
+        buildInputs = oas.buildInputs;
+        buildPhase = ''
+          purs docs --format ${format} "./**/*.purs" ".spago/*/*/src/**/*.purs"
+        '';
+        installPhase = ''
+          mkdir $out
+          cp -r generated-docs $out
+        '';
+      });
+
   bundlePursProject =
     { name ? "${projectName}-bundle-" +
         (if browserRuntime then "web" else "nodejs")
@@ -170,7 +188,7 @@ let
 
 in
 {
-  inherit buildPursProject runPursTest bundlePursProject;
+  inherit buildPursProject runPursTest buildPursDocs bundlePursProject;
   inherit purs nodejs mkNodeModules;
   devShell = shellFor shell;
 }

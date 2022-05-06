@@ -237,9 +237,9 @@ By default, Webpack will build a [small Purescript example](examples/Pkh2Pkh.pur
 - To build the documentation as Markdown:
   - `spago docs --format markdown`
 
-The documentation will be generated in the `./generated_docs` folder, which contains an `index.html` which lists all modules by default.
+The documentation will be generated in the `./generated_docs` folder, which contains an `index.html` which lists all modules by default. At this index is a checkbox to toggle viewing by package, and all the modules defined in our package will be available under `cardano-transaction-lib`.
 
-At the index of the documentation is a checkbox to toggle viewing by package, and all the modules defined in our package will be available under `cardano-transaction-lib`.
+Alternatively, you can view the documentation with `nix run -L .#docs` and opening `localhost:8080` in your browser. `nix build -L .#docs` will produce a `result` folder containg the documentation. Note that using the flake to generate the documentation will not include search indexing or viewing modules by package.
 
 ### Adding PS/JS dependencies
 
