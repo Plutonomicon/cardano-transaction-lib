@@ -113,7 +113,7 @@ import Types.ByteArray
   )
 import Types.CborBytes
   ( cborBytesFromIntArrayUnsafe
-  , hexToCborBytesUnsafe    
+  , hexToCborBytesUnsafe
   )
 import Types.Int as Int
 import Types.Natural as Natural

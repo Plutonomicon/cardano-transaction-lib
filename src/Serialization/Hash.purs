@@ -16,7 +16,11 @@ module Serialization.Hash
 
 import Prelude
 
-import Data.Argonaut (class DecodeJson, caseJsonString, JsonDecodeError(TypeMismatch))
+import Data.Argonaut
+  ( class DecodeJson
+  , caseJsonString
+  , JsonDecodeError(TypeMismatch)
+  )
 import Data.Argonaut as Json
 import Data.Either (Either(Left), note)
 import Data.Function (on)

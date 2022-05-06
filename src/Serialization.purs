@@ -449,7 +449,9 @@ convertTransaction
       unwrap >>> transactionBodySetAuxiliaryDataHash txBody
     for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
     for_ body.scriptDataHash
-      (unwrap >>> wrap >>> newScriptDataHashFromBytes >=> setTxBodyScriptDataHash txBody)
+      ( unwrap >>> wrap >>> newScriptDataHashFromBytes >=>
+          setTxBodyScriptDataHash txBody
+      )
     for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
     for_ body.mint $ convertMint >=> setTxBodyMint txBody
     for_ body.certs $ convertCerts >=> setTxBodyCerts txBody

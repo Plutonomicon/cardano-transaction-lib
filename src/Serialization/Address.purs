@@ -85,7 +85,12 @@ import Prelude
 
 import Aeson (class DecodeAeson, caseAesonObject, getField, jsonToAeson)
 import Control.Alt ((<|>))
-import Data.Argonaut (class DecodeJson, class EncodeJson, JsonDecodeError(TypeMismatch), fromNumber)
+import Data.Argonaut
+  ( class DecodeJson
+  , class EncodeJson
+  , JsonDecodeError(TypeMismatch)
+  , fromNumber
+  )
 import Data.Either (Either(Left))
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)

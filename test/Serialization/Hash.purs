@@ -65,9 +65,10 @@ suite = do
   assertTrue "scriptHashFromBech32 returns Nothing on random string"
     (isNothing $ scriptHashFromBech32 invalidBech32)
 
-  scrh <- errMaybe "scriptHashFromBytes failed" $ scriptHashFromBytes $
-    wrap $ hexToByteArrayUnsafe
-      scriptHashHex
+  scrh <- errMaybe "scriptHashFromBytes failed" $ scriptHashFromBytes
+    $ wrap
+    $ hexToByteArrayUnsafe
+        scriptHashHex
   let
     scrhB32 = scriptHashToBech32Unsafe "stake_vkh" scrh
     mScrhB32 = scriptHashToBech32 "stake_vkh" scrh
