@@ -235,7 +235,7 @@ By default, Webpack will build a [small Purescript example](examples/Pkh2Pkh.pur
 - To build and open the documentation in your browser:
   - `spago docs --open`
 - To build the documentation as Markdown:
-  - `spago docs --format ctags`
+  - `spago docs --format markdown`
 
 The documentation will be generated in the `./generated_docs` folder, which contains an `index.html` which lists all modules by default.
 
