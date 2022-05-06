@@ -12,8 +12,8 @@ module FromData
   , genericFromData
   ) where
 
-import Control.Alternative ((<|>), guard)
-import Data.Array (uncons, sortWith)
+import Control.Alternative ((<|>))
+import Data.Array (uncons)
 import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -35,7 +35,25 @@ import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.Unfoldable (class Unfoldable)
 import Helpers (bigIntToUInt)
-import Prelude (class EuclideanRing, class Ord, class Show, Unit, Void, bind, discard, one, pure, unit, zero, ($), (<$>), (<*>), (<<<), (=<<), (==))
+import Prelude
+  ( class EuclideanRing
+  , class Ord
+  , class Show
+  , Unit
+  , Void
+  , bind
+  , discard
+  , one
+  , pure
+  , unit
+  , zero
+  , ($)
+  , (<$>)
+  , (<*>)
+  , (<<<)
+  , (=<<)
+  , (==)
+  )
 import Prim.Row as Row
 import Prim.RowList as RL
 import Prim.TypeError (class Fail, Text)
@@ -43,17 +61,20 @@ import Record as Record
 import Type.Proxy (Proxy(Proxy))
 import TypeLevel.DataSchema (class HasPlutusSchema, class ValidPlutusSchema)
 import TypeLevel.Nat (class KnownNat, natVal)
-import TypeLevel.RowList.Unordered.Indexed (class GetIndexWithLabel, class GetWithLabel)
+import TypeLevel.RowList.Unordered.Indexed
+  ( class GetIndexWithLabel
+  , class GetWithLabel
+  )
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Bytes, Constr, List, Map, Integer))
 
 -- | Errors
 data FromDataError
-  = ArgsWantedButGot Int (Array PlutusData)
-  | FromDataFailed PlutusData
-  | BigIntToIntFailed BigInt
-  | IndexWantedButGot Int Int
-  | WantedConstrGot PlutusData
+  = ArgsWantedButGot String Int (Array PlutusData)
+  | FromDataFailed String PlutusData
+  | BigIntToIntFailed String BigInt
+  | IndexWantedButGot String Int Int
+  | WantedConstrGot String PlutusData
 
 derive instance G.Generic FromDataError _
 
@@ -83,7 +104,8 @@ class FromDataWithSchema t a where
 class FromDataArgs :: Type -> Symbol -> Type -> Constraint
 class FromDataArgs t c a where
   fromDataArgs
-    :: Proxy t
+    :: IsSymbol c
+    => Proxy t
     -> Proxy c
     -> Array PlutusData
     -> Either FromDataError { head :: a, tail :: Array PlutusData }
@@ -95,11 +117,13 @@ class FromDataArgs t c a where
 
    The third argument to the class is an @RList@ - an *unordered* version of RowList. See TypeLevel.RList for details
 -}
-class FromDataArgsRL :: Type -> Symbol -> RL.RowList Type -> Row Type -> Constraint
+class FromDataArgsRL
+  :: Type -> Symbol -> RL.RowList Type -> Row Type -> Constraint
 class FromDataArgsRL t constr list row | t constr list -> row where
   fromDataArgsRec
     :: forall (rlproxy :: RL.RowList Type -> Type)
-     . Proxy t
+     . IsSymbol constr
+    => Proxy t
     -> Proxy constr
     -> rlproxy list
     -> Array PlutusData
@@ -113,7 +137,7 @@ instance
   , FromDataWithSchema t r
   ) =>
   FromDataWithSchema t (G.Sum l r) where
-  fromDataWithSchema _ pci pd =
+  fromDataWithSchema _ _ pd =
     G.Inl <$> fromDataWithSchema (Proxy :: Proxy t) (Proxy :: Proxy l) pd
       <|> G.Inr <$> fromDataWithSchema (Proxy :: Proxy t) (Proxy :: Proxy r) pd
 
@@ -127,16 +151,18 @@ else instance
   ) =>
   FromDataWithSchema t (G.Constructor constr args) where
   fromDataWithSchema _ _ (Constr i pdArgs) = do
-    gotIx <- note (BigIntToIntFailed i) (BigInt.toInt i)
+    let constrName = reflectSymbol (Proxy :: Proxy constr)
+    gotIx <- note (BigIntToIntFailed constrName i) (BigInt.toInt i)
     wantedIx <- pure $ natVal (Proxy :: Proxy ix)
-    noteB (IndexWantedButGot wantedIx gotIx) (wantedIx == gotIx)
+    noteB (IndexWantedButGot constrName wantedIx gotIx) (wantedIx == gotIx)
     { head: repArgs, tail: pdArgs' } <- fromDataArgs (Proxy :: Proxy t)
       (Proxy :: Proxy constr)
       pdArgs
-    noteB (ArgsWantedButGot 0 pdArgs') (pdArgs' == [])
+    noteB (ArgsWantedButGot constrName 0 pdArgs') (pdArgs' == [])
     pure $ G.Constructor repArgs
-  fromDataWithSchema _ _ pd = Left $ WantedConstrGot pd
-
+  fromDataWithSchema _ _ pd = Left $ WantedConstrGot
+    (reflectSymbol (Proxy :: Proxy constr))
+    pd
 else instance
   ( FromDataWithSchema t a
   ) =>
@@ -150,7 +176,7 @@ else instance
 
 instance FromDataArgs t c (G.NoArguments) where
   fromDataArgs _ _ [] = Right { head: G.NoArguments, tail: [] }
-  fromDataArgs _ _ pdArgs = Left $ ArgsWantedButGot 0 pdArgs
+  fromDataArgs _ c pdArgs = Left $ ArgsWantedButGot (reflectSymbol c) 0 pdArgs
 
 instance
   ( FromDataArgsRL t constr rList row
@@ -166,8 +192,10 @@ instance
     pure { head: G.Argument head, tail }
 else instance (FromData a) => FromDataArgs t constr (G.Argument a) where
   fromDataArgs _ _ pdArgs = do
-    { head: pd, tail: pds } <- note (ArgsWantedButGot 1 pdArgs) $ uncons pdArgs
-    repArg <- note (FromDataFailed pd) $ fromData pd
+    let constrName = reflectSymbol (Proxy :: Proxy constr)
+    { head: pd, tail: pds } <- note (ArgsWantedButGot constrName 1 pdArgs) $
+      uncons pdArgs
+    repArg <- note (FromDataFailed constrName pd) $ fromData pd
     pure $ { head: G.Argument repArg, tail: pds }
 
 instance
@@ -186,9 +214,10 @@ instance
 
 -- | FromDataArgsRL instances
 
-instance FromDataArgsRL t c RL.Nil () where
+instance FromDataArgsRL t constr RL.Nil () where
   fromDataArgsRec _ _ _ [] = Right { head: {}, tail: [] }
-  fromDataArgsRec _ _ _ pdArgs = Left $ ArgsWantedButGot 0 pdArgs
+  fromDataArgsRec _ c _ pdArgs = Left $ ArgsWantedButGot (reflectSymbol c) 0
+    pdArgs
 
 instance
   ( FromData a
@@ -198,11 +227,12 @@ instance
   , IsSymbol key
   ) =>
   FromDataArgsRL t constr (RL.Cons key a rListRest) rowFull where
-  fromDataArgsRec _ _ _ pdArgs = do
+  fromDataArgsRec _ c _ pdArgs = do
     let keyProxy = Proxy :: Proxy key
-    { head: pdArg, tail: pdArgs' } <- note (ArgsWantedButGot 1 pdArgs) $ uncons
-      pdArgs
-    field <- note (FromDataFailed pdArg) $ fromData pdArg
+    { head: pdArg, tail: pdArgs' } <-
+      note (ArgsWantedButGot (reflectSymbol c) 1 pdArgs) $ uncons
+        pdArgs
+    field <- note (FromDataFailed (reflectSymbol c) pdArg) $ fromData pdArg
     { head: rec, tail: pdArgs'' } <- fromDataArgsRec (Proxy :: Proxy t)
       (Proxy :: Proxy constr)
       (Proxy :: Proxy rListRest)
@@ -212,14 +242,15 @@ instance
       , tail: pdArgs''
       }
 
--- TODO: Unhush the errors in FromData 
+-- TODO: Unhush the errors in FromData
 genericFromData
   :: forall (t :: Type) (rep :: Type)
    . G.Generic t rep
   => FromDataWithSchema t rep
   => PlutusData
   -> Maybe t
-genericFromData pd = G.to <$> hush (fromDataWithSchema (Proxy :: Proxy t) (Proxy :: Proxy rep) pd)
+genericFromData pd = G.to <$> hush
+  (fromDataWithSchema (Proxy :: Proxy t) (Proxy :: Proxy rep) pd)
 
 -- | Base FromData instances
 
