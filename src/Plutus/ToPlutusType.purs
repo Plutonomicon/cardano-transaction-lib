@@ -10,7 +10,7 @@ import Data.Identity (Identity(Identity))
 import Data.Foldable (fold)
 import Data.Map (toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (class Newtype, wrap)
+import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Tuple (fst) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt, fromInt, (.&.), and, shl, zshr)
@@ -30,6 +30,7 @@ import Plutus.Types.Value (Value) as Plutus
 import Plutus.Types.Value (lovelaceValueOf, singleton') as Plutus.Value
 
 import Types.ByteArray (ByteArray, byteArrayFromIntArray, byteArrayToIntArray)
+import Types.CborBytes (CborBytes, cborBytesToIntArray)
 import Types.TokenName (getTokenName)
 import Cardano.Types.Value (Value(Value)) as Types
 import Cardano.Types.Value
@@ -113,7 +114,7 @@ instance ToPlutusType Maybe Serialization.Address Plutus.Address where
           buildAddress scriptCredential Nothing
     where
     addrBytes :: Array Int
-    addrBytes = byteArrayToIntArray $
+    addrBytes = cborBytesToIntArray $
       Serialization.Address.addressBytes addrForeign
 
     -- | Retrieves the address type by reading
@@ -133,11 +134,11 @@ instance ToPlutusType Maybe Serialization.Address Plutus.Address where
 
     pubKeyCredential :: ByteArray -> Maybe Credential
     pubKeyCredential =
-      map (PubKeyCredential <<< wrap) <<< ed25519KeyHashFromBytes
+      map (PubKeyCredential <<< wrap) <<< ed25519KeyHashFromBytes <<< wrap
 
     scriptCredential :: ByteArray -> Maybe Credential
     scriptCredential =
-      map (ScriptCredential <<< wrap) <<< scriptHashFromBytes
+      map (ScriptCredential <<< wrap) <<< scriptHashFromBytes <<< wrap
 
     buildAddress
       :: (ByteArray -> Maybe Credential)

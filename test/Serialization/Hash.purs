@@ -4,6 +4,7 @@ import Control.Bind (discard, bind)
 import Data.Eq ((==))
 import Data.Function (($))
 import Data.Maybe (Maybe(..), isNothing)
+import Data.Newtype (wrap)
 import Data.Unit (Unit)
 import Serialization.Hash
   ( ed25519KeyHashFromBech32
@@ -65,7 +66,7 @@ suite = do
     (isNothing $ scriptHashFromBech32 invalidBech32)
 
   scrh <- errMaybe "scriptHashFromBytes failed" $ scriptHashFromBytes $
-    hexToByteArrayUnsafe
+    wrap $ hexToByteArrayUnsafe
       scriptHashHex
   let
     scrhB32 = scriptHashToBech32Unsafe "stake_vkh" scrh

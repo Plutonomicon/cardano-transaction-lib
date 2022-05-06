@@ -34,6 +34,7 @@ import Plutus.Types.Value (Value) as Plutus
 import Plutus.Types.Value (getValue) as Plutus.Value
 
 import Types.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe)
+import Types.CborBytes (CborBytes, cborBytesFromIntArrayUnsafe)
 import Types.TokenName (adaToken)
 import Cardano.Types.Value (Value) as Types
 import Cardano.Types.Value (NonAdaAsset, mkValue, mkNonAdaAssetsFromTokenMap)
@@ -141,13 +142,13 @@ instance FromPlutusType Maybe Plutus.Address Serialization.Address where
 
     -- | Encodes the address type along with the network tag (%b0001 - Mainnet)
     -- | as a one-element byte array.
-    addrHeader :: AddressHeaderType -> ByteArray
+    addrHeader :: AddressHeaderType -> CborBytes
     addrHeader headerType =
-      byteArrayFromIntArrayUnsafe <<< singleton <<< toInt $
+      cborBytesFromIntArrayUnsafe <<< singleton <<< toInt $
         (addrHeaderTypeUInt headerType `shl` fromInt 4) + fromInt 1
 
-    pointerToBytes :: Serialization.Address.Pointer -> ByteArray
-    pointerToBytes ptr =
+    pointerToBytes :: Serialization.Address.Pointer -> CborBytes
+    pointerToBytes ptr = wrap $
       toVarLengthUInt ptr.slot <> toVarLengthUInt ptr.txIx <>
         toVarLengthUInt ptr.certIx
 

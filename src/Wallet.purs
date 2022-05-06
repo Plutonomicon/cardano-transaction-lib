@@ -25,6 +25,7 @@ import Helpers ((<<>>))
 import Serialization as Serialization
 import Serialization.Address (Address, addressFromBytes)
 import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex)
+import Types.CborBytes (CborBytes(..))
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , PublicKey(PublicKey)
@@ -81,7 +82,7 @@ mkNamiWalletAff = do
 
   getWalletAddress :: NamiConnection -> Aff (Maybe Address)
   getWalletAddress nami = fromNamiHexString _getNamiAddress nami <#>
-    (_ >>= addressFromBytes)
+    (_ >>= addressFromBytes <<< CborBytes)
 
   getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
   getCollateral nami = fromNamiMaybeHexString getNamiCollateral nami >>=

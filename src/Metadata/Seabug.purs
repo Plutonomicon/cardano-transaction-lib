@@ -23,7 +23,9 @@ import Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Types.ByteArray
   ( ByteArray
   , hexToByteArray
-  , hexToByteArrayUnsafe
+  )
+import Types.CborBytes
+  ( hexToCborBytesUnsafe
   )
 import Types.Natural (Natural)
 import Types.PlutusData (PlutusData(Map))
@@ -135,7 +137,7 @@ instance DecodeJson SeabugMetadata where
                 $ unsafePartial
                 $ fromJust
                 $ scriptHashFromBytes
-                $ hexToByteArrayUnsafe
+                $ hexToCborBytesUnsafe
                     "00000000000000000000000000000000000000000000000000000000"
             , mintPolicy: mempty
             , collectionNftCS
@@ -157,7 +159,7 @@ instance DecodeJson SeabugMetadata where
     decodeScriptHash =
       note
         (Json.TypeMismatch "Expected hex-encoded script hash")
-        <<< (scriptHashFromBytes <=< hexToByteArray)
+        <<< (scriptHashFromBytes <<< wrap <=< hexToByteArray)
 
 newtype SeabugMetadataDelta = SeabugMetadataDelta
   { policyId :: MintingPolicyHash

@@ -108,7 +108,7 @@
       flake = false;
     };
     # NOTE
-    # I don't we need anything from `plutus-apps`, so the following two are
+    # I don't think we need anything from `plutus-apps`, so the following two are
     # not necessary. They might be useful for communicating with the frontend
     # however in case this is needed
     purescript-bridge = {

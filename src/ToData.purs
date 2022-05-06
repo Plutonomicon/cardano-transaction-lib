@@ -36,6 +36,7 @@ import Prim.TypeError (class Fail, Text)
 import Record as Record
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray(ByteArray))
+import Types.CborBytes (CborBytes(CborBytes))
 import Types.PlutusData (PlutusData(Constr, Integer, List, Bytes))
 
 -- | Classes
@@ -199,6 +200,9 @@ instance ToData a => ToData (Ratio a) where
 
 instance ToData ByteArray where
   toData = Bytes
+
+instance ToData CborBytes where
+  toData (CborBytes bytes) = Bytes bytes
 
 instance ToData String where
   toData = toData <<< ByteArray <<< encodeUtf8

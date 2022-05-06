@@ -15,7 +15,7 @@ import Prelude
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.Map as Map
 import Data.Maybe (Maybe)
-import Data.Newtype (unwrap)
+import Data.Newtype (wrap, unwrap)
 import Data.Traversable (traverse_, for_, for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
@@ -658,7 +658,7 @@ convertMint (T.Mint (Value.NonAdaAsset m)) = do
   mint <- newMint
   forWithIndex_ m \scriptHashBytes' values -> do
     let
-      mScripthash = scriptHashFromBytes $ Value.getCurrencySymbol
+      mScripthash = scriptHashFromBytes $ wrap $ Value.getCurrencySymbol
         scriptHashBytes'
     scripthash <- fromJustEff
       "scriptHashFromBytes failed while converting value"
@@ -709,7 +709,7 @@ convertValue val = do
   multiasset <- newMultiAsset
   forWithIndex_ m \scriptHashBytes' values -> do
     let
-      mScripthash = scriptHashFromBytes $ Value.getCurrencySymbol
+      mScripthash = scriptHashFromBytes $ wrap $ Value.getCurrencySymbol
         scriptHashBytes'
     scripthash <- fromJustEff
       "scriptHashFromBytes failed while converting value"

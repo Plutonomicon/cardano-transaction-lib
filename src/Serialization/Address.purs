@@ -85,17 +85,12 @@ import Prelude
 
 import Aeson (class DecodeAeson, caseAesonObject, getField, jsonToAeson)
 import Control.Alt ((<|>))
-import Data.Argonaut
-  ( class DecodeJson
-  , class EncodeJson
-  , JsonDecodeError(TypeMismatch)
-  , fromNumber
-  )
+import Data.Argonaut (class DecodeJson, class EncodeJson, JsonDecodeError(TypeMismatch), fromNumber)
+import Data.Either (Either(Left))
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
-import Data.Either (Either(Left))
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -107,6 +102,7 @@ import Serialization.Types (Bip32PublicKey)
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String, Base58String)
 import Types.ByteArray (ByteArray)
+import Types.CborBytes (CborBytes(..))
 import Types.PlutusData (PlutusData(Bytes))
 
 newtype Slot = Slot UInt
@@ -203,11 +199,11 @@ instance Ord Address where
 -- record, I'm not sure if this will become an issue given our foreign
 -- representation.
 instance FromData Address where
-  fromData (Bytes res) = addressFromBytes res
+  fromData (Bytes res) = addressFromBytes (CborBytes res)
   fromData _ = Nothing
 
 instance ToData Address where
-  toData addr = toData (addressBytes addr)
+  toData addr = toData <<< unwrap <<< addressBytes $ addr
 
 foreign import data BaseAddress :: Type
 
@@ -218,7 +214,7 @@ instance Eq BaseAddress where
   eq = eq `on` baseAddressToAddress
 
 instance FromData BaseAddress where
-  fromData (Bytes res) = baseAddressFromBytes res
+  fromData (Bytes res) = baseAddressFromBytes (CborBytes res)
   fromData _ = Nothing
 
 instance ToData BaseAddress where
@@ -233,7 +229,7 @@ instance Show ByronAddress where
   show = showVia "ByronAddress" byronAddressToAddress
 
 instance FromData ByronAddress where
-  fromData (Bytes res) = byronAddressFromBytes res
+  fromData (Bytes res) = byronAddressFromBytes (CborBytes res)
   fromData _ = Nothing
 
 instance ToData ByronAddress where
@@ -248,7 +244,7 @@ instance Show EnterpriseAddress where
   show = showVia "EnterpriseAddress" enterpriseAddressToAddress
 
 instance FromData EnterpriseAddress where
-  fromData (Bytes res) = enterpriseAddressFromBytes res
+  fromData (Bytes res) = enterpriseAddressFromBytes (CborBytes res)
   fromData _ = Nothing
 
 instance ToData EnterpriseAddress where
@@ -263,7 +259,7 @@ instance Show PointerAddress where
   show = showVia "PointerAddress" pointerAddressToAddress
 
 instance FromData PointerAddress where
-  fromData (Bytes res) = pointerAddressFromBytes res
+  fromData (Bytes res) = pointerAddressFromBytes (CborBytes res)
   fromData _ = Nothing
 
 instance ToData PointerAddress where
@@ -281,7 +277,7 @@ instance Ord RewardAddress where
   compare = compare `on` rewardAddressBytes
 
 instance FromData RewardAddress where
-  fromData (Bytes res) = rewardAddressFromBytes res
+  fromData (Bytes res) = rewardAddressFromBytes (CborBytes res)
   fromData _ = Nothing
 
 instance ToData RewardAddress where
@@ -300,17 +296,17 @@ instance Show StakeCredential where
     { onKeyHash: show, onScriptHash: show }
 
 instance FromData StakeCredential where
-  fromData (Bytes res) = stakeCredentialFromBytes res
+  fromData (Bytes res) = stakeCredentialFromBytes $ CborBytes res
   fromData _ = Nothing
 
 instance ToData StakeCredential where
-  toData = toData <<< stakeCredentialToBytes
+  toData = toData <<< unwrap <<< stakeCredentialToBytes
 
 foreign import _addressFromBech32
   :: MaybeFfiHelper -> Bech32String -> Maybe Address
 
-foreign import _addressFromBytes :: MaybeFfiHelper -> ByteArray -> Maybe Address
-foreign import addressBytes :: Address -> ByteArray
+foreign import _addressFromBytes :: MaybeFfiHelper -> CborBytes -> Maybe Address
+foreign import addressBytes :: Address -> CborBytes
 foreign import addressBech32 :: Address -> Bech32String
 
 foreign import _addressNetworkId :: (Int -> NetworkId) -> Address -> NetworkId
@@ -332,9 +328,9 @@ foreign import withStakeCredential
   -> StakeCredential
   -> a
 
-foreign import stakeCredentialToBytes :: StakeCredential -> ByteArray
+foreign import stakeCredentialToBytes :: StakeCredential -> CborBytes
 foreign import _stakeCredentialFromBytes
-  :: MaybeFfiHelper -> ByteArray -> Maybe StakeCredential
+  :: MaybeFfiHelper -> CborBytes -> Maybe StakeCredential
 
 foreign import _baseAddress
   :: (NetworkId -> Int)
@@ -410,10 +406,10 @@ stakeCredentialToScriptHash = withStakeCredential
   , onScriptHash: Just
   }
 
-stakeCredentialFromBytes :: ByteArray -> Maybe StakeCredential
+stakeCredentialFromBytes :: CborBytes -> Maybe StakeCredential
 stakeCredentialFromBytes = _stakeCredentialFromBytes maybeFfiHelper
 
-addressFromBytes :: ByteArray -> Maybe Address
+addressFromBytes :: CborBytes -> Maybe Address
 addressFromBytes = _addressFromBytes maybeFfiHelper
 
 addressFromBech32 :: Bech32String -> Maybe Address
@@ -430,13 +426,13 @@ addressPaymentCred addr =
 baseAddressFromAddress :: Address -> Maybe BaseAddress
 baseAddressFromAddress = _baseAddressFromAddress maybeFfiHelper
 
-baseAddressBytes :: BaseAddress -> ByteArray
+baseAddressBytes :: BaseAddress -> CborBytes
 baseAddressBytes = baseAddressToAddress >>> addressBytes
 
 baseAddressBech32 :: BaseAddress -> Bech32String
 baseAddressBech32 = baseAddressToAddress >>> addressBech32
 
-baseAddressFromBytes :: ByteArray -> Maybe BaseAddress
+baseAddressFromBytes :: CborBytes -> Maybe BaseAddress
 baseAddressFromBytes = addressFromBytes >=> baseAddressFromAddress
 
 baseAddressFromBech32 :: Bech32String -> Maybe BaseAddress
@@ -453,12 +449,12 @@ byronAddressFromBase58 :: Base58String -> Maybe ByronAddress
 byronAddressFromBase58 = _byronAddressFromBase58 maybeFfiHelper
 
 foreign import _byronAddressFromBytes
-  :: MaybeFfiHelper -> ByteArray -> Maybe ByronAddress
+  :: MaybeFfiHelper -> CborBytes -> Maybe ByronAddress
 
-byronAddressFromBytes :: ByteArray -> Maybe ByronAddress
+byronAddressFromBytes :: CborBytes -> Maybe ByronAddress
 byronAddressFromBytes = _byronAddressFromBytes maybeFfiHelper
 
-foreign import byronAddressBytes :: ByronAddress -> ByteArray
+foreign import byronAddressBytes :: ByronAddress -> CborBytes
 
 foreign import byronProtocolMagic :: ByronAddress -> ByronProtocolMagic
 foreign import byronAddressAttributes :: ByronAddress -> ByteArray
@@ -502,13 +498,13 @@ foreign import enterpriseAddressToAddress :: EnterpriseAddress -> Address
 enterpriseAddressFromAddress :: Address -> Maybe EnterpriseAddress
 enterpriseAddressFromAddress = _enterpriseAddressFromAddress maybeFfiHelper
 
-enterpriseAddressBytes :: EnterpriseAddress -> ByteArray
+enterpriseAddressBytes :: EnterpriseAddress -> CborBytes
 enterpriseAddressBytes = enterpriseAddressToAddress >>> addressBytes
 
 enterpriseAddressBech32 :: EnterpriseAddress -> Bech32String
 enterpriseAddressBech32 = enterpriseAddressToAddress >>> addressBech32
 
-enterpriseAddressFromBytes :: ByteArray -> Maybe EnterpriseAddress
+enterpriseAddressFromBytes :: CborBytes -> Maybe EnterpriseAddress
 enterpriseAddressFromBytes = addressFromBytes >=> enterpriseAddressFromAddress
 
 enterpriseAddressFromBech32 :: Bech32String -> Maybe EnterpriseAddress
@@ -544,13 +540,13 @@ pointerAddressFromAddress = _pointerAddressFromAddress maybeFfiHelper
 
 foreign import pointerAddressStakePointer :: PointerAddress -> Pointer
 
-pointerAddressBytes :: PointerAddress -> ByteArray
+pointerAddressBytes :: PointerAddress -> CborBytes
 pointerAddressBytes = pointerAddressToAddress >>> addressBytes
 
 pointerAddressBech32 :: PointerAddress -> Bech32String
 pointerAddressBech32 = pointerAddressToAddress >>> addressBech32
 
-pointerAddressFromBytes :: ByteArray -> Maybe PointerAddress
+pointerAddressFromBytes :: CborBytes -> Maybe PointerAddress
 pointerAddressFromBytes = addressFromBytes >=> pointerAddressFromAddress
 
 pointerAddressFromBech32 :: Bech32String -> Maybe PointerAddress
@@ -577,13 +573,13 @@ foreign import rewardAddressToAddress :: RewardAddress -> Address
 rewardAddressFromAddress :: Address -> Maybe RewardAddress
 rewardAddressFromAddress = _rewardAddressFromAddress maybeFfiHelper
 
-rewardAddressBytes :: RewardAddress -> ByteArray
+rewardAddressBytes :: RewardAddress -> CborBytes
 rewardAddressBytes = rewardAddressToAddress >>> addressBytes
 
 rewardAddressBech32 :: RewardAddress -> Bech32String
 rewardAddressBech32 = rewardAddressToAddress >>> addressBech32
 
-rewardAddressFromBytes :: ByteArray -> Maybe RewardAddress
+rewardAddressFromBytes :: CborBytes -> Maybe RewardAddress
 rewardAddressFromBytes = addressFromBytes >=> rewardAddressFromAddress
 
 rewardAddressFromBech32 :: Bech32String -> Maybe RewardAddress
