@@ -2,6 +2,21 @@
 module Test.Data (suite) where
 
 import Prelude
+  ( class Eq
+  , class Show
+  , Unit
+  , bind
+  , discard
+  , map
+  , negate
+  , pure
+  , show
+  , unit
+  , ($)
+  , (<<<)
+  , (<>)
+  , (=<<)
+  )
 
 import Contract.PlutusData (PlutusData(Constr, Integer))
 import Contract.Prelude (fromJust, traverse_, uncurry)
@@ -28,11 +43,17 @@ import Deserialization.PlutusData as PDD
 import Serialization (toBytes)
 import Serialization.PlutusData as PDS
 import Types.ByteArray (hexToByteArrayUnsafe)
-import TypeLevel.Nat (Z, S, class KnownNat, natVal)
+import TypeLevel.Nat (Z, S)
 import Untagged.Union (asOneOf)
 
-import TypeLevel.RowList.Unordered
 import TypeLevel.DataSchema
+  ( class HasPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  , I
+  , PNil
+  )
 
 suite :: TestPlanM Unit
 suite = do
@@ -238,27 +259,34 @@ data FType
 
 instance
   HasPlutusSchema FType
-    ( "F0" :=
+    ( "F0"
+        :=
           ( "f0A" := I BigInt
-          :+ PNil)
-       @@ (S Z)
+              :+ PNil
+          )
+        @@ (S Z)
 
-    :+ "F1" :=
-          ( "f1A"  := I Boolean
-          :+ "f1B" := I Boolean
-          :+ "f1C" := I Boolean
-          :+ PNil
+        :+ "F1"
+        :=
+          ( "f1A" := I Boolean
+              :+ "f1B"
+              := I Boolean
+              :+ "f1C"
+              := I Boolean
+              :+ PNil
           )
         @@ Z
 
-    :+ "F2" :=
-          (  "f2A" := I BigInt
-          :+ "f2B" := I FType
-          :+ PNil
+        :+ "F2"
+        :=
+          ( "f2A" := I BigInt
+              :+ "f2B"
+              := I FType
+              :+ PNil
           )
         @@ (S (S Z))
 
-    :+ PNil
+        :+ PNil
     )
 
 data FType'
@@ -269,9 +297,13 @@ data FType'
 instance
   HasPlutusSchema FType'
     ( "F0'" := PNil @@ (S Z)
-    :+ "F1'" := PNil @@ (Z)
-    :+ "F2'" := PNil@@ (S (S Z))
-    :+ PNil
+        :+ "F1'"
+        := PNil
+        @@ (Z)
+        :+ "F2'"
+        := PNil
+        @@ (S (S Z))
+        :+ PNil
     )
 
 derive instance G.Generic CType _
@@ -349,14 +381,26 @@ derive instance G.Generic Day _
 
 instance
   HasPlutusSchema Day
-    (  "Mon"   := PNil @@ Z
-    :+ "Tue"   := PNil @@ (S Z)
-    :+ "Wed"   := PNil @@ (S (S Z))
-    :+ "Thurs" := PNil @@ (S (S (S Z)))
-    :+ "Fri"   := PNil @@ (S (S (S (S (S Z)))))
-    :+ "Sat"   := PNil @@ (S (S (S (S (S (S Z))))))
-    :+ "Sun"   := PNil @@ (S (S (S (S (S (S (S Z)))))))
-    :+ PNil
+    ( "Mon" := PNil @@ Z
+        :+ "Tue"
+        := PNil
+        @@ (S Z)
+        :+ "Wed"
+        := PNil
+        @@ (S (S Z))
+        :+ "Thurs"
+        := PNil
+        @@ (S (S (S Z)))
+        :+ "Fri"
+        := PNil
+        @@ (S (S (S (S (S Z)))))
+        :+ "Sat"
+        := PNil
+        @@ (S (S (S (S (S (S Z))))))
+        :+ "Sun"
+        := PNil
+        @@ (S (S (S (S (S (S (S Z)))))))
+        :+ PNil
     )
 
 instance ToData Day where
@@ -373,17 +417,23 @@ instance
   HasPlutusSchema AnotherDay
     ( "AMon" := PNil @@ Z
         :+ "ATue"
-        := PNil @@ (S Z)
+        := PNil
+        @@ (S Z)
         :+ "AWed"
-        := PNil @@ (S (S Z))
+        := PNil
+        @@ (S (S Z))
         :+ "AThurs"
-        := PNil @@ (S (S (S Z)))
+        := PNil
+        @@ (S (S (S Z)))
         :+ "AFri"
-        := PNil @@ (S (S (S (S (S Z)))))
+        := PNil
+        @@ (S (S (S (S (S Z)))))
         :+ "ASat"
-        := PNil @@ (S (S (S (S (S (S Z))))))
+        := PNil
+        @@ (S (S (S (S (S (S Z))))))
         :+ "ASun"
-        := PNil @@ (S (S (S (S (S (S (S Z)))))))
+        := PNil
+        @@ (S (S (S (S (S (S (S Z)))))))
         :+ PNil
     )
 
