@@ -14,7 +14,7 @@ module TypeLevel.DataSchema
   , Field
   , MkField
   , MkField_
- -- , NoRec
+  -- , NoRec
   , type (:=)
   , class SchemaToRowList
   , class PlutusSchemaToRowListI
@@ -74,7 +74,7 @@ foreign import data I :: forall (k :: Type). k -> Id k
 
 -- | A kind (never exists as a term). This is the kind of @PCons@ and @PNil@.
 
-data PSchema :: forall (k :: Type).  k -> Type
+data PSchema :: forall (k :: Type). k -> Type
 data PSchema k
 
 {- | A concrete Plutus Data schema. Morally equivalent to:  Row (Row Type). This is superfluous
@@ -125,7 +125,6 @@ data PSchema k
         )
 -}
 
-
 type PlutusSchema = PSchema (PSchema Type)
 
 {- | A class used to associate types with a Plutus Data Schema. The fundeps *should* guarantee
@@ -133,13 +132,13 @@ type PlutusSchema = PSchema (PSchema Type)
    schema associated with a particular type.
 -}
 class HasPlutusSchema
-  ::  Type -> PlutusSchema  -> Constraint
+  :: Type -> PlutusSchema -> Constraint
 class HasPlutusSchema t schema | t -> schema
 
 -- Listlike constructors for the PSchema kind.
 foreign import data PNil :: forall (k :: Type). PSchema k
 foreign import data PCons
-  :: forall (k :: Type). Field k  -> PSchema k -> PSchema k
+  :: forall (k :: Type). Field k -> PSchema k -> PSchema k
 
 -- | Type synonym which is used to provide syntatic sugar to PCons. You can think of :+ as a type level version of : for PSchema
 type ApPCons :: forall (k :: Type). Field k -> PSchema k -> PSchema k
@@ -148,14 +147,14 @@ type ApPCons x xs = PCons x xs
 infixr 0 type ApPCons as :+
 
 -- | Indexed kind. A kind representing a type @k@ indexed by a type level natural number @n@.
-data IxK :: forall (k :: Type).  k -> Type
-data IxK  k
+data IxK :: forall (k :: Type). k -> Type
+data IxK k
 
 -- | A data type of Kind (IxK k n) for some k and n
-foreign import data MkIxK :: forall (k :: Type).  Nat  -> k -> IxK k
+foreign import data MkIxK :: forall (k :: Type). Nat -> k -> IxK k
 
 -- | Syntactic sugar which allows us to represent MkIxK as a type operator
-type MkIxK_ k  n = MkIxK n k
+type MkIxK_ k n = MkIxK n k
 
 infixr 9 type MkIxK_ as @@
 
@@ -171,7 +170,6 @@ foreign import data MkField
 type MkField_ lbl ixty = MkField lbl ixty
 
 infixr 8 type MkField_ as :=
-
 
 {- <<< Constraints used to provide compile-time validation of a PSchema >>> -}
 
@@ -211,7 +209,8 @@ instance
   ValidPlutusSchema schema list
 
 -- Helper type classes used to convert a PlutusSchema to a RowListI (RowList k). Should not need to be used outside of this module.
-class SchemaToRowList :: forall (k :: Type). PSchema k -> RowList k -> Constraint
+class SchemaToRowList
+  :: forall (k :: Type). PSchema k -> RowList k -> Constraint
 class SchemaToRowList schema list | schema -> list
 
 instance SchemaToRowList PNil Nil
