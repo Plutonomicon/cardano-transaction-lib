@@ -46,7 +46,7 @@ import TypeLevel.DataSchema
   , PNil
   )
 import TypeLevel.Nat (Z, S, class KnownNat, natVal)
-import TypeLevel.RowList.Unordered
+import TypeLevel.RowList
 import TypeLevel.RowList.Unordered.Indexed
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray(ByteArray))
@@ -58,11 +58,12 @@ class ToData :: Type -> Constraint
 class ToData a where
   toData :: a -> PlutusData
 
--- | A class which converts a type to its PlutusData representation with the help of a
--- generated or user-defined Plutus Data Schema (see TypeLevel.DataSchema.purs).
--- We cannot express the constraint that the first type argument have an instance of
--- @HasPlutusSchema@ with a superclass, but in practice every instance of this class will have an instance of
--- that class as well.
+{- | A class which converts a type to its PlutusData representation with the help of a
+   generated or user-defined Plutus Data Schema (see TypeLevel.DataSchema.purs).
+   We cannot express the constraint that the first type argument have an instance of
+   @HasPlutusSchema@ with a superclass, but in practice every instance of this class will have an instance of
+   that class as well.
+-}
 class ToDataWithSchema :: Type -> Type -> Constraint
 class ToDataWithSchema t a where
   toDataWithSchema :: Proxy t -> a -> PlutusData
@@ -188,7 +189,7 @@ instance ToDataArgsRLHelper t symbol RL.Nil () where
 else instance
   ( -- The element of the Row we are inspecting must be convertible to Plutus Data
     ToData a
-  -- The tail of the RList we are inspecting must be convertible to Plutus Data (under the current constructor name)
+  -- The tail of the RowList we are inspecting must be convertible to Plutus Data (with the current constructor name)
   , ToDataArgsRLHelper t constr listRest rowRest
   -- Row.Lacks and Row.Cons are just the constraints required to use Record.Get
   , Row.Lacks label rowRest

@@ -22,7 +22,7 @@ module TypeLevel.DataSchema
   , class ValidPlutusSchema
   ) where
 
-import TypeLevel.RowList.Unordered
+import TypeLevel.RowList
 import TypeLevel.RowList.Unordered.Indexed
 import TypeLevel.Nat
 import Type.RowList
@@ -66,7 +66,7 @@ import Data.Unit
 
 {- <<< Plutus Data Schema + Associated types/kinds/data >>> -}
 
--- A type level Identity "functor kind". This is mainly used to overload the ':=' type operator.
+-- | A type level Identity "functor kind". This is mainly used to overload the ':=' type operator.
 data Id :: forall (k :: Type). k -> Type
 data Id k
 
@@ -78,10 +78,10 @@ data PSchema :: forall (k :: Type).  k -> Type
 data PSchema k
 
 {- | A concrete Plutus Data schema. Morally equivalent to:  Row (Row Type). This is superfluous
--- in the sense that we could simply do everything here with (RowListI (RowList Type)), which
--- @PlutusSchema@s are all translated to, but this facilitates a more comprehensible syntax.
--- (Conversely we could rewrite all of the RowList/RowListI machinery in terms of this, but it
---  would be much more difficult to read/debug/reason about).
+   in the sense that we could simply do everything here with (RowListI (RowList Type)), which
+   @PlutusSchema@s are all translated to, but this facilitates a more comprehensible syntax.
+   (Conversely we could rewrite all of the RowList/RowListI machinery in terms of this, but it
+   would be much more difficult to read/debug/reason about).
 
    Here's an example:
 
@@ -129,8 +129,8 @@ data PSchema k
 type PlutusSchema = PSchema (PSchema Type)
 
 {- | A class used to associate types with a Plutus Data Schema. The fundeps *should* guarantee
--- that only one schema can exist for each type. This allows us to make the compiler select the
--- schema associated with a particular type.
+   that only one schema can exist for each type. This allows us to make the compiler select the
+   schema associated with a particular type.
 -}
 class HasPlutusSchema
   ::  Type -> PlutusSchema  -> Constraint
@@ -176,10 +176,10 @@ infixr 8 type MkField_ as :=
 {- <<< Constraints used to provide compile-time validation of a PSchema >>> -}
 
 {- | A class which ensures that the Nat indices of the RowListI are unique & that the Symbol
--- labels of both the RowListI and RowList in a RowListI (RowList k) all contain unique labels
--- (relative to  their "level", i.e., two record arguments of *different* constructors can
--- have overlapping labels, but constructor names cannot overlap, nor can two labels or indices
--- of the *same* record)
+   labels of both the RowListI and RowList in a RowListI (RowList k) all contain unique labels
+   (relative to  their "level", i.e., two record arguments of *different* constructors can
+   have overlapping labels, but constructor names cannot overlap, nor can two labels or indices
+   of the *same* record)
 -}
 class AllUnique2 :: forall (k :: Type). RowListI (RowList k) -> Constraint
 class AllUnique2 rList
@@ -194,7 +194,7 @@ else instance
   AllUnique2 (ConsI l a n xs)
 
 {- | The class which combines all of the above constraints. To make use of genericFromData / genericToData,
--- a type must have an associated Plutus Data schema which satisfies this constraint.
+   a type must have an associated Plutus Data schema which satisfies this constraint.
 -}
 class ValidPlutusSchema :: PlutusSchema -> RowListI (RowList Type) -> Constraint
 class

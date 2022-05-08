@@ -115,7 +115,7 @@ class FromDataArgs t c a where
 
    The second argument is a symbol which represents the name of a record constructor.
 
-   The third argument to the class is an @RList@ - an *unordered* version of RowList. See TypeLevel.RList for details
+   The third argument to the class is a RowList.
 -}
 class FromDataArgsRL
   :: Type -> Symbol -> RL.RowList Type -> Row Type -> Constraint
@@ -129,8 +129,9 @@ class FromDataArgsRL t constr list row | t constr list -> row where
     -> Array PlutusData
     -> Either FromDataError { head :: Record row, tail :: Array PlutusData }
 
--- | FromDataWithSchema instances for Data.Generic.Rep
--- See https://purescript-simple-json.readthedocs.io/en/latest/generics-rep.html
+{- | FromDataWithSchema instances for Data.Generic.Rep
+   See https://purescript-simple-json.readthedocs.io/en/latest/generics-rep.html
+-}
 
 instance
   ( FromDataWithSchema t l
