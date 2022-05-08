@@ -22,13 +22,17 @@ module TypeLevel.DataSchema
   , class ValidPlutusSchema
   ) where
 
-import TypeLevel.RowList
+import Type.RowList (Cons, Nil, RowList)
+
+import TypeLevel.RowList (class AllUniqueLabels)
 import TypeLevel.RowList.Unordered.Indexed
-import TypeLevel.Nat
-import Type.RowList
-import Data.Symbol
-import Type.Proxy
-import Data.Unit
+  ( class AllUniqueLabelsI
+  , class UniqueIndices
+  , ConsI
+  , NilI
+  , RowListI
+  )
+import TypeLevel.Nat (Nat)
 
 {- This modules defines various data types (kinds) which are used to encode enough the *structure* of the Plutus Data that corresponds to a
    given data type at the type level.
@@ -167,6 +171,8 @@ foreign import data MkField
   :: forall (k :: Type) (f :: Type -> Type). Symbol -> f k -> Field k
 
 -- | Type synonym used to represent MkField as a type operator.
+type MkField_
+  :: forall (f :: Type -> Type) (k :: Type). Symbol -> f k -> Field k
 type MkField_ lbl ixty = MkField lbl ixty
 
 infixr 8 type MkField_ as :=

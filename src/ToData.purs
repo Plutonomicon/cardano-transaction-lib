@@ -13,7 +13,20 @@ module ToData
   ) where
 
 import Prelude
-import Data.Array (cons, sortWith, reverse, snoc)
+  ( Unit
+  , Void
+  , absurd
+  , identity
+  , map
+  , one
+  , zero
+  , (#)
+  , ($)
+  , (<<<)
+  , (<>)
+  , (>>>)
+  )
+import Data.Array (cons, sortWith)
 import Data.Array as Array
 import Data.NonEmpty (NonEmpty)
 import Data.BigInt (BigInt, fromInt)
@@ -34,20 +47,17 @@ import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Helpers (uIntToBigInt)
 import Prim.Row as Row
-import Type.RowList as RL
 import Prim.TypeError (class Fail, Text)
 import Record as Record
-import TypeLevel.DataSchema
-  ( class HasPlutusSchema
-  , class ValidPlutusSchema
-  , type (:+)
-  , type (:=)
-  , type (@@)
-  , PNil
-  )
-import TypeLevel.Nat (Z, S, class KnownNat, natVal)
-import TypeLevel.RowList
+import Type.RowList as RL
+
+import TypeLevel.DataSchema (class HasPlutusSchema, class ValidPlutusSchema)
+import TypeLevel.Nat (class KnownNat, natVal)
 import TypeLevel.RowList.Unordered.Indexed
+  ( class GetIndexWithLabel
+  , class GetLabelIndex
+  , class GetWithLabel
+  )
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray(ByteArray))
 import Types.PlutusData (PlutusData(Constr, Integer, List, Map, Bytes))
