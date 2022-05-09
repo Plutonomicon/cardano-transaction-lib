@@ -17,7 +17,6 @@ module BalanceTx
 
 import Prelude
 
-import Effect.Class.Console (log)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
@@ -30,7 +29,7 @@ import Data.Either (Either(Left, Right), hush, note)
 import Data.Foldable as Foldable
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
-import Data.Lens.Setter ((.~))
+import Data.Lens.Setter ((.~), (%~))
 import Data.List ((:), List(Nil), partition)
 import Data.Log.Tag (tag)
 import Data.Map as Map
@@ -40,7 +39,6 @@ import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
-import Debug (spy)
 import Effect.Class (class MonadEffect)
 import ProtocolParametersAlonzo
   ( adaOnlyWords
@@ -71,6 +69,7 @@ import Types.Transaction
   , TxBody(TxBody)
   , Utxo
   , _body
+  , _inputs
   , _networkId
   )
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
@@ -274,17 +273,14 @@ balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
     -- Logging Unbalanced Tx with collateral added:
     logTx' "Unbalanced Collaterised Tx " allUtxos unbalancedCollTx
 
-    log "prebalance Coll"
     -- Prebalance collaterised tx without fees:
     ubcTx <- except $
       prebalanceCollateral zero allUtxos ownAddr unbalancedCollTx
     -- Prebalance collaterised tx with fees:
-    log "prebalance Colls with fees"
     fees <- ExceptT $ calculateMinFee' ubcTx <#> lmap CalculateMinFeeError'
     ubcTx' <- except $
       prebalanceCollateral (fees + feeBuffer) allUtxos ownAddr ubcTx
 
-    log "start loop"
     -- Loop to balance non-Ada assets
     nonAdaBalancedCollTx <- ExceptT $ loop allUtxos ownAddr [] ubcTx'
     -- Return excess Ada change to wallet:
@@ -292,8 +288,10 @@ balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
       returnAdaChange ownAddr allUtxos nonAdaBalancedCollTx <#>
         lmap ReturnAdaChangeError'
 
+    -- Sort inputs at the very end so it behaves as a Set.
+    let completeTx = unsignedTx # _body <<< _inputs %~ Array.sort
     -- Logs final balanced tx and returns it
-    ExceptT $ logTx "Post-balancing Tx " allUtxos unsignedTx <#> Right
+    ExceptT $ logTx "Post-balancing Tx " allUtxos completeTx <#> Right
   where
   prebalanceCollateral
     :: BigInt
@@ -689,17 +687,17 @@ balanceTxIns' utxos fees (TxBody txBody) = do
   nonMintedValue <- note (BalanceTxInsCannotMinus $ CannotMinus $ wrap mintVal)
     $ Array.foldMap getAmount txOutputs `minus` mintVal
 
-  -- Useful spies for debugging:
-  let x = spy "nonMintedVal" nonMintedValue
-      y = spy "feees" fees
-      z = spy "changeMinUtxo" changeMinUtxo
-      a = spy "txBody" txBody
+  -- -- Useful spies for debugging:
+  -- let x = spy "nonMintedVal" nonMintedValue
+  --     y = spy "feees" fees
+  --     z = spy "changeMinUtxo" changeMinUtxo
+  --     a = spy "txBody" txBody
 
   let
     minSpending :: Value
     minSpending = lovelaceValueOf (fees + changeMinUtxo) <> nonMintedValue
 
-    a = spy "minSpending" minSpending
+  -- a = spy "minSpending" minSpending
 
   txIns :: Array TransactionInput <-
     lmap
@@ -710,6 +708,7 @@ balanceTxIns' utxos fees (TxBody txBody) = do
   -- Original code uses Set append which is union. Array unions behave
   -- a little differently as it removes duplicates in the second argument.
   -- but all inputs should be unique anyway so I think this is fine.
+  -- Note, this does not sort automatically unlike Data.Set
   pure $ wrap
     txBody
       { inputs = Array.union txIns txBody.inputs
@@ -733,16 +732,16 @@ collectTxIns originalTxIns utxos value =
   updatedInputs =
     Foldable.foldl
       ( \newTxIns txIn ->
-          if isSufficient newTxIns then newTxIns
-          else [ txIn ] `Array.union` newTxIns -- treat as a set.
+          if Array.elem txIn newTxIns || isSufficient newTxIns then newTxIns
+          else Array.insert txIn newTxIns -- treat as a set.
       )
       originalTxIns
       $ utxosToTransactionInput utxos
 
-  -- Useful spies for debugging:
-  x = spy "collectTxIns:value" value
-  y = spy "collectTxIns:txInsValueOG" (txInsValue utxos originalTxIns)
-  z = spy "collectTxIns:txInsValueNEW" (txInsValue utxos updatedInputs)
+  -- -- Useful spies for debugging:
+  -- x = spy "collectTxIns:value" value
+  -- y = spy "collectTxIns:txInsValueOG" (txInsValue utxos originalTxIns)
+  -- z = spy "collectTxIns:txInsValueNEW" (txInsValue utxos updatedInputs)
 
   isSufficient :: Array TransactionInput -> Boolean
   isSufficient txIns' =
@@ -808,11 +807,11 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
       $ filterNonAda inputValue `minus` nonMintedAdaOutputValue
 
   let
-    -- Useful spies for debugging:
-    a = spy "balanceNonAdaOuts'nonMintedOutputValue" nonMintedOutputValue
-    b = spy "balanceNonAdaOuts'nonMintedAdaOutputValue" nonMintedAdaOutputValue
-    c = spy "balanceNonAdaOuts'nonAdaChange" nonAdaChange
-    d = spy "balanceNonAdaOuts'inputValue" inputValue
+    -- -- Useful spies for debugging:
+    -- a = spy "balanceNonAdaOuts'nonMintedOutputValue" nonMintedOutputValue
+    -- b = spy "balanceNonAdaOuts'nonMintedAdaOutputValue" nonMintedAdaOutputValue
+    -- c = spy "balanceNonAdaOuts'nonAdaChange" nonAdaChange
+    -- d = spy "balanceNonAdaOuts'inputValue" inputValue
 
     outputs :: Array TransactionOutput
     outputs =
@@ -832,11 +831,8 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
           { no: txOuts'
           , yes: TransactionOutput txOut@{ amount: v } : txOuts
           } ->
-            let v' = spy "balanceNonAdaOuts'spy v before: " v
-                v'' = spy "balanceNonAdaOuts' combined amount " $ v <> nonAdaChange
-            in 
-              TransactionOutput
-                txOut { amount = v <> nonAdaChange } : txOuts <> txOuts'
+            TransactionOutput
+              txOut { amount = v <> nonAdaChange } : txOuts <> txOuts'
 
   -- Original code uses "isNat" because there is a guard against zero, see
   -- isPos for more detail.
