@@ -808,6 +808,7 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
     a = spy "balanceNonAdaOuts'nonMintedOutputValue" nonMintedOutputValue
     b = spy "balanceNonAdaOuts'nonMintedAdaOutputValue" nonMintedAdaOutputValue
     c = spy "balanceNonAdaOuts'nonAdaChange" nonAdaChange
+    d = spy "balanceNonAdaOuts'inputValue" inputValue
 
     outputs :: Array TransactionOutput
     outputs =
@@ -827,8 +828,10 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
           { no: txOuts'
           , yes: TransactionOutput txOut@{ amount: v } : txOuts
           } ->
-            TransactionOutput
-              txOut { amount = v <> nonAdaChange } : txOuts <> txOuts'
+            let v' = spy "balanceNonAdaOuts'spy v before: " v
+            in 
+              TransactionOutput
+                txOut { amount = v <> nonAdaChange } : txOuts <> txOuts'
 
   -- Original code uses "isNat" because there is a guard against zero, see
   -- isPos for more detail.
