@@ -188,7 +188,7 @@ let
       dontUnpack = true;
       buildInputs = [
         spagoPkgs.installSpagoStyle
-        ];
+      ];
       buildPhase = ''
         cp -r ${buildPursDocs { format = "html"; }}/{generated-docs,output} .
         install-spago-style
