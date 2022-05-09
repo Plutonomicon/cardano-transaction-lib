@@ -17,6 +17,7 @@ module BalanceTx
 
 import Prelude
 
+import Effect.Class.Console (log)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
@@ -273,14 +274,17 @@ balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
     -- Logging Unbalanced Tx with collateral added:
     logTx' "Unbalanced Collaterised Tx " allUtxos unbalancedCollTx
 
+    log "prebalance Coll"
     -- Prebalance collaterised tx without fees:
     ubcTx <- except $
       prebalanceCollateral zero allUtxos ownAddr unbalancedCollTx
     -- Prebalance collaterised tx with fees:
+    log "prebalance Colls with fees"
     fees <- ExceptT $ calculateMinFee' ubcTx <#> lmap CalculateMinFeeError'
     ubcTx' <- except $
       prebalanceCollateral (fees + feeBuffer) allUtxos ownAddr ubcTx
 
+    log "start loop"
     -- Loop to balance non-Ada assets
     nonAdaBalancedCollTx <- ExceptT $ loop allUtxos ownAddr [] ubcTx'
     -- Return excess Ada change to wallet:
@@ -829,6 +833,7 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
           , yes: TransactionOutput txOut@{ amount: v } : txOuts
           } ->
             let v' = spy "balanceNonAdaOuts'spy v before: " v
+                v'' = spy "balanceNonAdaOuts' combined amount " $ v <> nonAdaChange
             in 
               TransactionOutput
                 txOut { amount = v <> nonAdaChange } : txOuts <> txOuts'
