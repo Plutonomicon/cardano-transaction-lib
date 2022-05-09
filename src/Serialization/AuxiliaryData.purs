@@ -79,12 +79,12 @@ foreign import newMetadataBytes
 foreign import newMetadataText
   :: String -> Effect TransactionMetadatum
 
-foreign import auxiliaryDataHashBytes
+foreign import _hashAuxiliaryData
   :: AuxiliaryData -> ByteArray
 
 hashAuxiliaryData :: T.AuxiliaryData -> Effect T.AuxiliaryDataHash
 hashAuxiliaryData =
-  map (wrap <<< auxiliaryDataHashBytes) <<< convertAuxiliaryData
+  map (wrap <<< _hashAuxiliaryData) <<< convertAuxiliaryData
 
 convertAuxiliaryData :: T.AuxiliaryData -> Effect AuxiliaryData
 convertAuxiliaryData

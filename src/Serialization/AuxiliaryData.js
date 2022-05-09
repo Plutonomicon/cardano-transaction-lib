@@ -15,7 +15,7 @@ exports.setTxAuxiliaryData = setter('auxiliary_data');
 exports.newAuxiliaryData = () =>
     lib.AuxiliaryData.new();
 
-exports.auxiliaryDataHashBytes = auxiliaryData =>
+exports._hashAuxiliaryData = auxiliaryData =>
     lib.hash_auxiliary_data(auxiliaryData).to_bytes();
 
 exports.setAuxiliaryDataNativeScripts = setter('native_scripts');

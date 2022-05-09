@@ -73,6 +73,11 @@ instance ToMetadata String where
 -- AnyToMetadata
 --------------------------------------------------------------------------------
 
+-- | Existential wrapper over `ToMetadata` constrained types that enables
+-- | heterogeneous collections and is particularly useful when dealing with
+-- | `Maybe` values. `TransactionMetadatum` doesn't provide a way to
+-- | represent `Maybe` values, so the basic idea is to omit them when
+-- | converting (see `ToMetadata (Map k AnyToMetadata)` instance for reference).
 newtype AnyToMetadata = AnyToMetadata
   (forall (r :: Type). (forall (a :: Type). ToMetadata a => a -> r) -> Maybe r)
 
