@@ -734,7 +734,7 @@ collectTxIns originalTxIns utxos value =
     Foldable.foldl
       ( \newTxIns txIn ->
           if isSufficient newTxIns then newTxIns
-          else txIn `Array.insert` newTxIns -- treat as a set.
+          else [ txIn ] `Array.union` newTxIns -- treat as a set.
       )
       originalTxIns
       $ utxosToTransactionInput utxos
