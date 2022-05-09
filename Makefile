@@ -4,7 +4,7 @@ SHELL := bash
 .SHELLFLAGS := -eu -o pipefail -c
 
 ps-sources := $(shell fd -epurs)
-ps-entrypoint := Examples.Pkh2Pkh
+ps-entrypoint := Examples.AlwaysSucceeds
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 
 node-ipc = $(shell docker volume inspect cardano-transaction-lib_node-ipc | jq -r '.[0].Mountpoint')
