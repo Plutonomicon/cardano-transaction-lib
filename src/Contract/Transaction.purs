@@ -13,6 +13,7 @@ module Contract.Transaction
   , module ReindexRedeemersExport
   , module ScriptLookups
   , module Transaction
+  , module TransactionMetadata
   , module UnbalancedTx
   , reindexSpentScriptRedeemers
   , signTransaction
@@ -78,7 +79,6 @@ import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and ass
   , Epoch(Epoch)
   , ExUnitPrices
   , ExUnits
-  , GeneralTransactionMetadata(GeneralTransactionMetadata)
   , GenesisHash(GenesisHash)
   , Language(PlutusV1)
   , Mint(Mint)
@@ -102,14 +102,6 @@ import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and ass
   , Transaction(Transaction)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
-  , TransactionMetadatum
-      ( MetadataMap
-      , MetadataList
-      , Int
-      , Bytes
-      , Text
-      )
-  , TransactionMetadatumLabel(TransactionMetadatumLabel)
   , TransactionOutput(TransactionOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
@@ -144,6 +136,17 @@ import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and ass
   , _withdrawals
   , _witnessSet
   ) as Transaction
+import Types.TransactionMetadata
+  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
+  , TransactionMetadatumLabel(TransactionMetadatumLabel)
+  , TransactionMetadatum
+      ( MetadataMap
+      , MetadataList
+      , Int
+      , Bytes
+      , Text
+      )
+  ) as TransactionMetadata
 import Types.UnbalancedTransaction (UnbalancedTx)
 import Types.UnbalancedTransaction
   ( ScriptOutput(ScriptOutput) -- More up-to-date Plutus uses this, wonder if we can just use `TransactionOutput`

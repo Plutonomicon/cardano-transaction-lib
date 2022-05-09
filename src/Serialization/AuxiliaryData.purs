@@ -1,8 +1,13 @@
-module Serialization.AuxiliaryData where
+module Serialization.AuxiliaryData
+  ( convertAuxiliaryData
+  , hashAuxiliaryData
+  , setTxAuxiliaryData
+  ) where
 
 import Prelude
 
 import Data.Map as Map
+import Data.Newtype (wrap)
 import Data.Traversable (for, for_, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
@@ -29,7 +34,10 @@ import Types.ByteArray (ByteArray)
 import Types.Int as Int
 import Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
-  , GeneralTransactionMetadata(GeneralTransactionMetadata)
+  , AuxiliaryDataHash
+  ) as T
+import Types.TransactionMetadata
+  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
   , TransactionMetadatum(Text, Bytes, Int, MetadataList, MetadataMap)
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   ) as T
@@ -70,6 +78,13 @@ foreign import newMetadataBytes
 
 foreign import newMetadataText
   :: String -> Effect TransactionMetadatum
+
+foreign import _hashAuxiliaryData
+  :: AuxiliaryData -> ByteArray
+
+hashAuxiliaryData :: T.AuxiliaryData -> Effect T.AuxiliaryDataHash
+hashAuxiliaryData =
+  map (wrap <<< _hashAuxiliaryData) <<< convertAuxiliaryData
 
 convertAuxiliaryData :: T.AuxiliaryData -> Effect AuxiliaryData
 convertAuxiliaryData
