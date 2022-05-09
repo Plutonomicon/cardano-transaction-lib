@@ -39,6 +39,7 @@ import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
+import Debug (spy)
 import Effect.Class (class MonadEffect)
 import ProtocolParametersAlonzo
   ( adaOnlyWords
@@ -804,9 +805,9 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
 
   let
     -- Useful spies for debugging:
-    -- a = spy "balanceNonAdaOuts'nonMintedOutputValue" nonMintedOutputValue
-    -- b = spy "balanceNonAdaOuts'nonMintedAdaOutputValue" nonMintedAdaOutputValue
-    -- c = spy "balanceNonAdaOuts'nonAdaChange" nonAdaChange
+    a = spy "balanceNonAdaOuts'nonMintedOutputValue" nonMintedOutputValue
+    b = spy "balanceNonAdaOuts'nonMintedAdaOutputValue" nonMintedAdaOutputValue
+    c = spy "balanceNonAdaOuts'nonAdaChange" nonAdaChange
 
     outputs :: Array TransactionOutput
     outputs =
