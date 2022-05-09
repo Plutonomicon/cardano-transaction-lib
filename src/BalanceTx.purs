@@ -289,9 +289,9 @@ balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
         lmap ReturnAdaChangeError'
 
     -- Sort inputs at the very end so it behaves as a Set.
-    let completeTx = unsignedTx # _body <<< _inputs %~ Array.sort
+    let sortedUnsignedTx = unsignedTx # _body <<< _inputs %~ Array.sort
     -- Logs final balanced tx and returns it
-    ExceptT $ logTx "Post-balancing Tx " allUtxos completeTx <#> Right
+    ExceptT $ logTx "Post-balancing Tx " allUtxos sortedUnsignedTx <#> Right
   where
   prebalanceCollateral
     :: BigInt
