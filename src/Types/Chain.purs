@@ -13,7 +13,7 @@ import Data.Show.Generic (genericShow)
 
 data Tip
   = TipAtGenesis
-  | Tip Slot BlockHeaderHash
+  | Tip ChainTip
 
 derive instance Generic Tip _
 derive instance Eq Tip

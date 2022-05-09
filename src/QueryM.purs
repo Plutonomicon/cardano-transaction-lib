@@ -264,7 +264,8 @@ getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
   ogmiosChainTipToTip :: Ogmios.ChainTipQR -> Chain.Tip
   ogmiosChainTipToTip = case _ of
     Ogmios.CtChainOrigin _ -> Chain.TipAtGenesis
-    Ogmios.CtChainPoint { slot, hash } -> Chain.Tip slot $ wrap $ unwrap hash
+    Ogmios.CtChainPoint { slot, hash } -> Chain.Tip $ wrap
+      { slot, blockHeaderHash: wrap $ unwrap hash }
 
 --------------------------------------------------------------------------------
 -- OGMIOS LOCAL TX SUBMISSION PROTOCOL
