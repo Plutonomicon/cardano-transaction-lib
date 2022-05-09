@@ -377,13 +377,13 @@
               modules = [ (buildCtlRuntime system { }) ];
             };
 
-            docs = project.buildPursDocs { };
+            docs = project.buildSearchablePursDocs;
           };
 
           launchDocs =
             let
               binPath = "docs-server";
-              builtDocs = project.buildPursDocs { };
+              builtDocs = packages.docs;
               script = (pkgs.writeShellScriptBin "${binPath}"
                 ''
                   ${pkgs.nodePackages.http-server}/bin/http-server ${builtDocs}/generated-docs/html
