@@ -687,7 +687,7 @@ balanceTxIns' utxos fees (TxBody txBody) = do
   nonMintedValue <- note (BalanceTxInsCannotMinus $ CannotMinus $ wrap mintVal)
     $ Array.foldMap getAmount txOutputs `minus` mintVal
 
-  -- -- Useful spies for debugging:
+  -- Useful spies for debugging:
   -- let x = spy "nonMintedVal" nonMintedValue
   --     y = spy "feees" fees
   --     z = spy "changeMinUtxo" changeMinUtxo
@@ -738,7 +738,7 @@ collectTxIns originalTxIns utxos value =
       originalTxIns
       $ utxosToTransactionInput utxos
 
-  -- -- Useful spies for debugging:
+  -- Useful spies for debugging:
   -- x = spy "collectTxIns:value" value
   -- y = spy "collectTxIns:txInsValueOG" (txInsValue utxos originalTxIns)
   -- z = spy "collectTxIns:txInsValueNEW" (txInsValue utxos updatedInputs)
@@ -807,7 +807,7 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
       $ filterNonAda inputValue `minus` nonMintedAdaOutputValue
 
   let
-    -- -- Useful spies for debugging:
+    -- Useful spies for debugging:
     -- a = spy "balanceNonAdaOuts'nonMintedOutputValue" nonMintedOutputValue
     -- b = spy "balanceNonAdaOuts'nonMintedAdaOutputValue" nonMintedAdaOutputValue
     -- c = spy "balanceNonAdaOuts'nonAdaChange" nonAdaChange
