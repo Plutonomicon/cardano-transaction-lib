@@ -10,6 +10,7 @@ module Api (
 ) where
 
 import Api.Handlers qualified as Handlers
+import Cardano.Api qualified as C (displayError)
 import Control.Monad.Catch (try)
 import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (liftIO)
@@ -44,9 +45,15 @@ import Types (
   ApplyArgsRequest,
   Blake2bHash,
   BytesToHash,
+  CardanoError (
+    AcquireFailure,
+    EraMismatchError,
+    ScriptExecutionError,
+    TxValidityIntervalError
+  ),
   Cbor,
   CborDecodeError (InvalidCbor, InvalidHex, OtherDecodeError),
-  CtlServerError (CborDecode),
+  CtlServerError (CardanoError, CborDecode),
   Env,
   Fee,
   FinalizeRequest,
@@ -111,10 +118,22 @@ appServer env = hoistServer api appHandler server
         handleError ::
           CtlServerError ->
           Handler a
+        handleError (CardanoError ce) = case ce of
+          AcquireFailure str ->
+            throwError err400 {errBody = LC8.pack str}
+          ScriptExecutionError err ->
+            throwError err400 {errBody = LC8.pack (C.displayError err)}
+          TxValidityIntervalError str ->
+            throwError err400 {errBody = LC8.pack str}
+          EraMismatchError ->
+            throwError err400 {errBody = lbshow EraMismatchError}
         handleError (CborDecode de) = case de of
-          InvalidCbor ic -> throwError err400 {errBody = lbshow ic}
-          InvalidHex ih -> throwError err400 {errBody = LC8.pack ih}
-          OtherDecodeError str -> throwError err400 {errBody = LC8.pack str}
+          InvalidCbor ic ->
+            throwError err400 {errBody = lbshow ic}
+          InvalidHex ih ->
+            throwError err400 {errBody = LC8.pack ih}
+          OtherDecodeError str ->
+            throwError err400 {errBody = LC8.pack str}
 
 api :: Proxy Api
 api = Proxy

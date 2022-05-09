@@ -17,6 +17,7 @@ module Types (
   HashedData (..),
   HashScriptRequest (..),
   HashedScript (..),
+  CardanoError (..),
   CborDecodeError (..),
   CtlServerError (..),
   hashLedgerScript,
@@ -182,10 +183,21 @@ toCardanoApiScript =
     . LC8.toStrict
     . serialise
 
-newtype CtlServerError = CborDecode CborDecodeError
+data CtlServerError
+  = CardanoError CardanoError
+  | CborDecode CborDecodeError
   deriving stock (Show)
 
 instance Exception CtlServerError
+
+data CardanoError
+  = AcquireFailure String
+  | ScriptExecutionError C.ScriptExecutionError
+  | TxValidityIntervalError String
+  | EraMismatchError
+  deriving stock (Show)
+
+instance Exception CardanoError
 
 data CborDecodeError
   = InvalidCbor Cbor.DecoderError

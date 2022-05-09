@@ -23,6 +23,7 @@ import Cardano.Ledger.SafeHash qualified as SafeHash
 import Codec.CBOR.Read (deserialiseFromBytes)
 import Control.Lens
 import Control.Monad.Catch (throwM)
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (asks)
 import Data.Bifunctor (first)
 import Data.ByteString (ByteString)
@@ -33,6 +34,7 @@ import Data.Map qualified as Map
 import Data.Proxy (Proxy (Proxy))
 import Data.Set qualified as Set
 import Data.Text.Encoding qualified as Text.Encoding
+import Data.Traversable (for)
 import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
 import PlutusTx.Builtins qualified as PlutusTx
 import Types (
@@ -41,9 +43,15 @@ import Types (
   ApplyArgsRequest (ApplyArgsRequest, args, script),
   Blake2bHash (Blake2bHash),
   BytesToHash (BytesToHash),
+  CardanoError (
+    AcquireFailure,
+    EraMismatchError,
+    ScriptExecutionError,
+    TxValidityIntervalError
+  ),
   Cbor (Cbor),
   CborDecodeError (InvalidCbor, InvalidHex, OtherDecodeError),
-  CtlServerError (CborDecode),
+  CtlServerError (CardanoError, CborDecode),
   Env (protocolParams),
   Fee (Fee),
   FinalizeRequest (..),
@@ -63,6 +71,55 @@ estimateTxFees (WitnessCount numWits) cbor = do
       decodeCborTx cbor
   pparams <- asks protocolParams
   pure . Fee $ estimateFee pparams numWits decoded
+
+evaluateTxExecutionUnits ::
+  C.NetworkId ->
+  FilePath ->
+  Cbor ->
+  AppM (Map.Map C.ScriptWitnessIndex C.ExecutionUnits)
+evaluateTxExecutionUnits nodeNetworkId nodeSocketPath cbor =
+  case decodeCborTx cbor of
+    Left err ->
+      throwM (CborDecode err)
+    Right (C.Tx txBody@(C.TxBody txBodyContent) _) -> do
+      sysStart <- queryNode C.QuerySystemStart
+      eraHistory <- queryNode (C.QueryEraHistory C.CardanoModeIsMultiEra)
+      pparams <- asks protocolParams
+      let eraInMode = C.AlonzoEraInCardanoMode
+          txInputs = Set.fromList . fmap fst $ Shelley.txIns txBodyContent
+          eval = C.evaluateTransactionExecutionUnits
+      utxos <- queryUtxos txInputs
+      case (eval eraInMode sysStart eraHistory pparams utxos txBody) of
+        Left err ->
+          throwM (CardanoError . TxValidityIntervalError $ C.displayError err)
+        Right mp ->
+          for mp $
+            either (throwM . CardanoError . ScriptExecutionError) pure
+  where
+    queryUtxos :: Set.Set C.TxIn -> AppM (C.UTxO C.AlonzoEra)
+    queryUtxos txInputs =
+      either (\_ -> throwM $ CardanoError EraMismatchError) pure
+        =<< ( queryNode
+                . C.QueryInEra C.AlonzoEraInCardanoMode
+                . C.QueryInShelleyBasedEra C.ShelleyBasedEraAlonzo
+                $ C.QueryUTxO (C.QueryUTxOByTxIn txInputs)
+            )
+
+    queryNode :: forall r. C.QueryInMode C.CardanoMode r -> AppM r
+    queryNode query = do
+      response <- liftIO $ C.queryNodeLocalState nodeConnectInfo Nothing query
+      either (throwM . CardanoError . AcquireFailure . show) pure $
+        response
+
+    nodeConnectInfo :: C.LocalNodeConnectInfo C.CardanoMode
+    nodeConnectInfo =
+      C.LocalNodeConnectInfo
+        { localConsensusModeParams =
+            -- FIXME: Calc Byron epoch length based on Genesis params.
+            C.CardanoModeParams (C.EpochSlots 21600)
+        , localNodeNetworkId = nodeNetworkId
+        , localNodeSocketPath = nodeSocketPath
+        }
 
 applyArgs :: ApplyArgsRequest -> AppM AppliedScript
 applyArgs ApplyArgsRequest {script, args} =
