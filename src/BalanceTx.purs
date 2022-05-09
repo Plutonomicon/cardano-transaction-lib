@@ -690,16 +690,16 @@ balanceTxIns' utxos fees (TxBody txBody) = do
     $ Array.foldMap getAmount txOutputs `minus` mintVal
 
   -- Useful spies for debugging:
-  -- let x = spy "nonMintedVal" nonMintedValue
-  --     y = spy "feees" fees
-  --     z = spy "changeMinUtxo" changeMinUtxo
-  --     a = spy "txBody" txBody
+  let x = spy "nonMintedVal" nonMintedValue
+      y = spy "feees" fees
+      z = spy "changeMinUtxo" changeMinUtxo
+      a = spy "txBody" txBody
 
   let
     minSpending :: Value
     minSpending = lovelaceValueOf (fees + changeMinUtxo) <> nonMintedValue
 
-  -- a = spy "minSpending" minSpending
+    a = spy "minSpending" minSpending
 
   txIns :: Array TransactionInput <-
     lmap
@@ -740,9 +740,9 @@ collectTxIns originalTxIns utxos value =
       $ utxosToTransactionInput utxos
 
   -- Useful spies for debugging:
-  -- x = spy "collectTxInsValue" value
-  -- y = spy "txInsValueOG" (txInsValue originalTxIns)
-  -- z = spy "txInsValueNEW" (txInsValue updatedInputs)
+  x = spy "collectTxIns:value" value
+  y = spy "collectTxIns:txInsValueOG" (txInsValue utxos originalTxIns)
+  z = spy "collectTxIns:txInsValueNEW" (txInsValue utxos updatedInputs)
 
   isSufficient :: Array TransactionInput -> Boolean
   isSufficient txIns' =
