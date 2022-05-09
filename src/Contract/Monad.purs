@@ -19,10 +19,15 @@ module Contract.Monad
   , liftedE'
   , liftedM
   , logTrace
+  , logTrace'
   , logDebug
+  , logDebug'
   , logInfo
+  , logInfo'
   , logWarn
+  , logWarn'
   , logError
+  , logError'
   , mkContractConfig
   , runContract
   , runContract_
@@ -58,6 +63,7 @@ import Data.Log.Tag
   , jsDateTag
   , tagSetTag
   ) as Log.Tag
+import Data.Map as Map
 import Data.Maybe (Maybe(Just), maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Profunctor (dimap)
@@ -334,3 +340,23 @@ logWarn = Logger.warn
 logError
   :: forall (m :: Type -> Type). MonadLogger m => TagSet -> String -> m Unit
 logError = Logger.error
+
+logTrace'
+  :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
+logTrace' = Logger.trace Map.empty
+
+logDebug'
+  :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
+logDebug' = Logger.debug Map.empty
+
+logInfo'
+  :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
+logInfo' = Logger.info Map.empty
+
+logWarn'
+  :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
+logWarn' = Logger.warn Map.empty
+
+logError'
+  :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
+logError' = Logger.error Map.empty

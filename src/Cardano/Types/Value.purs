@@ -77,6 +77,8 @@ import Data.These (These(Both, That, This))
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested ((/\), type (/\))
 import FromData (class FromData)
+import Metadata.FromMetadata (class FromMetadata)
+import Metadata.ToMetadata (class ToMetadata)
 import Partial.Unsafe (unsafePartial)
 import Serialization.Hash
   ( ScriptHash
@@ -183,8 +185,10 @@ newtype CurrencySymbol = CurrencySymbol ByteArray
 
 derive newtype instance Eq CurrencySymbol
 derive newtype instance FromData CurrencySymbol
+derive newtype instance FromMetadata CurrencySymbol
 derive newtype instance Ord CurrencySymbol
 derive newtype instance ToData CurrencySymbol
+derive newtype instance ToMetadata CurrencySymbol
 
 instance Show CurrencySymbol where
   show (CurrencySymbol cs) = "(CurrencySymbol" <> show cs <> ")"

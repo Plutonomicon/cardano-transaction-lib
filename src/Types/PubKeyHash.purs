@@ -16,6 +16,8 @@ import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import FromData (class FromData)
+import Metadata.FromMetadata (class FromMetadata)
+import Metadata.ToMetadata (class ToMetadata)
 import Serialization.Hash (Ed25519KeyHash)
 import ToData (class ToData)
 
@@ -25,8 +27,10 @@ derive instance Generic PubKeyHash _
 derive instance Newtype PubKeyHash _
 derive newtype instance Eq PubKeyHash
 derive newtype instance FromData PubKeyHash
+derive newtype instance FromMetadata PubKeyHash
 derive newtype instance Ord PubKeyHash
 derive newtype instance ToData PubKeyHash
+derive newtype instance ToMetadata PubKeyHash
 
 instance Show PubKeyHash where
   show = genericShow
