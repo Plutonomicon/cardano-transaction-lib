@@ -29,7 +29,7 @@ newtype ByteArray = ByteArray Uint8Array
 derive instance Newtype ByteArray _
 
 instance Show ByteArray where
-  show arr = "(byteArrayToHex " <> show (byteArrayToHex arr)
+  show arr = "(hexToByteArrayUnsafe " <> show (byteArrayToHex arr)
     <> ")"
 
 instance Eq ByteArray where
