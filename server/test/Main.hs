@@ -45,7 +45,7 @@ import Types (
   HashScriptRequest (HashScriptRequest),
   HashedData (HashedData),
   HashedScript (HashedScript),
-  ServerOptions(ServerOptions, port, nodeSocket, networkId),
+  ServerOptions (ServerOptions, networkId, nodeSocket, port),
   WitnessCount (WitnessCount),
   newEnvIO,
   unsafeDecode,
@@ -171,11 +171,12 @@ setupClientEnv = do
 withTestApp :: ActionWith (Port -> IO ())
 withTestApp = Warp.testWithApplication $ app <$> newEnvIO'
   where
-    serverOptions = ServerOptions
-      { port = 8081
-      , nodeSocket = "./.node/socket/node.socket"
-      , networkId = C.Testnet (C.NetworkMagic 1097911063)
-      }
+    serverOptions =
+      ServerOptions
+        { port = 8081
+        , nodeSocket = "./.node/socket/node.socket"
+        , networkId = C.Testnet (C.NetworkMagic 1097911063)
+        }
     newEnvIO' :: IO Env
     newEnvIO' = either die pure =<< newEnvIO serverOptions
 
