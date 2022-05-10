@@ -121,6 +121,37 @@ evaluateTxExecutionUnits nodeNetworkId nodeSocketPath cbor =
         , localNodeSocketPath = nodeSocketPath
         }
 
+setExecutionUnits ::
+  TxWitness.Redeemers (Alonzo.AlonzoEra StandardCrypto) ->
+  Map.Map C.ScriptWitnessIndex C.ExecutionUnits ->
+  TxWitness.Redeemers (Alonzo.AlonzoEra StandardCrypto)
+setExecutionUnits redeemers exUnitsMap =
+  worker (Map.toList exUnitsMap) redeemers
+  where
+    worker ::
+      [(C.ScriptWitnessIndex, C.ExecutionUnits)] ->
+      TxWitness.Redeemers (Alonzo.AlonzoEra StandardCrypto) ->
+      TxWitness.Redeemers (Alonzo.AlonzoEra StandardCrypto)
+    worker [] rs = rs
+    worker ((widx, exUnits) : xs) (TxWitness.Redeemers' rs) =
+      let rdmrPtr = Shelley.toAlonzoRdmrPtr widx
+       in worker xs . TxWitness.Redeemers $
+            Map.adjust (_2 .~ Shelley.toAlonzoExUnits exUnits) rdmrPtr rs
+
+setValidatedTxExecutionUnits ::
+  Tx.ValidatedTx (Alonzo.AlonzoEra StandardCrypto) ->
+  Map.Map C.ScriptWitnessIndex C.ExecutionUnits ->
+  Tx.ValidatedTx (Alonzo.AlonzoEra StandardCrypto)
+setValidatedTxExecutionUnits validatedTx exUnitsMap =
+  validatedTx
+    { Tx.wits =
+        Tx.wits validatedTx & \witness ->
+          witness
+            { TxWitness.txrdmrs =
+                setExecutionUnits (TxWitness.txrdmrs witness) exUnitsMap
+            }
+    }
+
 applyArgs :: ApplyArgsRequest -> AppM AppliedScript
 applyArgs ApplyArgsRequest {script, args} =
   pure . AppliedScript $
