@@ -61,6 +61,7 @@ import Types (
   HashedData (HashedData),
   HashedScript (HashedScript),
   WitnessCount (WitnessCount),
+  getNodeConnectInfo,
   hashLedgerScript,
  )
 
@@ -73,11 +74,8 @@ estimateTxFees (WitnessCount numWits) cbor = do
   pure . Fee $ estimateFee pparams numWits decoded
 
 evaluateTxExecutionUnits ::
-  C.NetworkId ->
-  FilePath ->
-  Cbor ->
-  AppM (Map.Map C.ScriptWitnessIndex C.ExecutionUnits)
-evaluateTxExecutionUnits nodeNetworkId nodeSocketPath cbor =
+  Cbor -> AppM (Map.Map C.ScriptWitnessIndex C.ExecutionUnits)
+evaluateTxExecutionUnits cbor =
   case decodeCborTx cbor of
     Left err ->
       throwM (CborDecode err)
@@ -95,31 +93,6 @@ evaluateTxExecutionUnits nodeNetworkId nodeSocketPath cbor =
         Right mp ->
           for mp $
             either (throwM . CardanoError . ScriptExecutionError) pure
-  where
-    queryUtxos :: Set.Set C.TxIn -> AppM (C.UTxO C.AlonzoEra)
-    queryUtxos txInputs =
-      either (\_ -> throwM $ CardanoError EraMismatchError) pure
-        =<< ( queryNode
-                . C.QueryInEra C.AlonzoEraInCardanoMode
-                . C.QueryInShelleyBasedEra C.ShelleyBasedEraAlonzo
-                $ C.QueryUTxO (C.QueryUTxOByTxIn txInputs)
-            )
-
-    queryNode :: forall r. C.QueryInMode C.CardanoMode r -> AppM r
-    queryNode query = do
-      response <- liftIO $ C.queryNodeLocalState nodeConnectInfo Nothing query
-      either (throwM . CardanoError . AcquireFailure . show) pure $
-        response
-
-    nodeConnectInfo :: C.LocalNodeConnectInfo C.CardanoMode
-    nodeConnectInfo =
-      C.LocalNodeConnectInfo
-        { localConsensusModeParams =
-            -- FIXME: Calc Byron epoch length based on Genesis params.
-            C.CardanoModeParams (C.EpochSlots 21600)
-        , localNodeNetworkId = nodeNetworkId
-        , localNodeSocketPath = nodeSocketPath
-        }
 
 setExecutionUnits ::
   TxWitness.Redeemers (Alonzo.AlonzoEra StandardCrypto) ->
@@ -237,6 +210,22 @@ estimateFee pparams numWits (C.Tx txBody _) =
           -- 'evaluateTransactionFee' won't work with them anyway
           0
    in estimate
+
+queryNode :: forall r. C.QueryInMode C.CardanoMode r -> AppM r
+queryNode query = do
+  nodeConnectInfo <- getNodeConnectInfo
+  response <- liftIO $ C.queryNodeLocalState nodeConnectInfo Nothing query
+  either (throwM . CardanoError . AcquireFailure . show) pure $
+    response
+
+queryUtxos :: Set.Set C.TxIn -> AppM (C.UTxO C.AlonzoEra)
+queryUtxos txInputs =
+  either (\_ -> throwM $ CardanoError EraMismatchError) pure
+    =<< ( queryNode
+            . C.QueryInEra C.AlonzoEraInCardanoMode
+            . C.QueryInShelleyBasedEra C.ShelleyBasedEraAlonzo
+            $ C.QueryUTxO (C.QueryUTxOByTxIn txInputs)
+        )
 
 decodeCborText :: Cbor -> Either CborDecodeError ByteString
 decodeCborText (Cbor cborText) =

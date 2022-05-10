@@ -22,6 +22,7 @@ module Types (
   CtlServerError (..),
   hashLedgerScript,
   newEnvIO,
+  getNodeConnectInfo,
   unsafeDecode,
 ) where
 
@@ -86,6 +87,17 @@ newEnvIO serverOptions =
   getDataFileName "config/pparams.json"
     >>= Aeson.eitherDecodeFileStrict @Shelley.ProtocolParameters
     <&> second (Env serverOptions)
+
+getNodeConnectInfo :: AppM (C.LocalNodeConnectInfo C.CardanoNode)
+getNodeConnectInfo =
+  asks serverOptions >>= \opts ->
+    C.LocalNodeConnectInfo
+      { localConsensusModeParams =
+          -- FIXME: Calc Byron epoch length based on Genesis params.
+          C.CardanoModeParams (C.EpochSlots 21600)
+      , localNodeNetworkId = networkId opts
+      , localNodeSocketPath = nodeSocket opts
+      }
 
 newtype Cbor = Cbor Text
   deriving stock (Show)
