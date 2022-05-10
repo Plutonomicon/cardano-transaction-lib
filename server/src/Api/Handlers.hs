@@ -102,7 +102,11 @@ finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
   decodedDatums <-
     throwDecodeErrorWithMessage "Failed to decode datums" $
       traverse decodeCborDatum datums
-  let languages = Set.fromList [PlutusV1]
+  -- See https://github.com/input-output-hk/cardano-ledger/blob/master/eras/alonzo/test-suite/cddl-files/alonzo.cddl#L123
+  let languages =
+        if TxWitness.nullRedeemers decodedRedeemers
+          then mempty
+          else Set.fromList [PlutusV1]
       txDatums =
         TxWitness.TxDats . Map.fromList $
           decodedDatums <&> \datum -> (Data.hashData datum, datum)
