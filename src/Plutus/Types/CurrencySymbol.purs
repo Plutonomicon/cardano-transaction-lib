@@ -10,16 +10,15 @@ module Plutus.Types.CurrencySymbol
 
 import Prelude
 
-import Aeson (class DecodeAeson)
 import Data.Maybe (Maybe)
 import FromData (class FromData)
+import ToData (class ToData)
 import Serialization.Hash
   ( ScriptHash
   , scriptHashAsBytes
   , scriptHashFromBytes
   , scriptHashToBytes
   )
-import ToData (class ToData)
 import Types.ByteArray (ByteArray)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 
@@ -29,7 +28,6 @@ derive newtype instance Eq CurrencySymbol
 derive newtype instance Ord CurrencySymbol
 derive newtype instance FromData CurrencySymbol
 derive newtype instance ToData CurrencySymbol
-derive newtype instance DecodeAeson CurrencySymbol
 
 instance Show CurrencySymbol where
   show (CurrencySymbol cs) = "(CurrencySymbol" <> show cs <> ")"
