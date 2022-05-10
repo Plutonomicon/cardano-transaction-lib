@@ -31,7 +31,7 @@ import Control.Monad.Reader.Class (asks)
 import Control.Monad.Reader.Trans (ReaderT)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
-import Data.Array (singleton, union) as Array
+import Data.Array ((:), singleton, union) as Array
 import Data.Array (elemIndex, insert, toUnfoldable, zip)
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
@@ -678,7 +678,7 @@ addMissingValueSpent = do
         , amount: missing
         , dataHash: Nothing
         }
-    _cpsToTxBody <<< _outputs <>= Array.singleton txOut
+    _cpsToTxBody <<< _outputs %= Array.(:) txOut
 
 updateUtxoIndex
   :: forall (a :: Type)
@@ -739,7 +739,7 @@ addOwnOutput (OutputConstraint { datum: d, value }) = do
     dHash <- liftM TypedTxOutHasNoDatumHash (typedTxOutDatumHash typedTxOut)
     dat <-
       ExceptT $ lift $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
-    _cpsToTxBody <<< _outputs <>= Array.singleton txOut
+    _cpsToTxBody <<< _outputs %= Array.(:) txOut
     ExceptT $ addDatum dat
     _valueSpentBalancesOutputs <>= provide value'
 
@@ -988,7 +988,7 @@ processConstraint mpsMap osMap = do
             , amount
             , dataHash
             }
-        _cpsToTxBody <<< _outputs <>= Array.singleton txOut
+        _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provide amount
     MustPayToScript vlh dat plutusValue -> do
       let amount = unwrap $ fromPlutusType plutusValue
@@ -1003,8 +1003,9 @@ processConstraint mpsMap osMap = do
             , amount
             , dataHash
             }
-        ExceptT $ addDatum dat
-        _cpsToTxBody <<< _outputs <>= Array.singleton txOut
+        -- Note we don't `addDatum` as this included as part of `mustPayToScript`
+        -- constraint already.
+        _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provide amount
     MustHashDatum dh dt -> do
       mdh <- lift $ datumHash dt

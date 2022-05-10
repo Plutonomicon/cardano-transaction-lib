@@ -187,7 +187,8 @@ mkContractConfig
 mkContractConfig
   (ConfigParams params@{ slotConfig, logLevel, networkId, wallet }) = do
   ogmiosWs <- QueryM.mkOgmiosWebSocketAff logLevel params.ogmiosConfig
-  datumCacheWs <- QueryM.mkDatumCacheWebSocketAff logLevel params.ogmiosConfig
+  datumCacheWs <- QueryM.mkDatumCacheWebSocketAff logLevel
+    params.datumCacheConfig
   usedTxOuts <- newUsedTxOuts
   let
     queryConfig =
