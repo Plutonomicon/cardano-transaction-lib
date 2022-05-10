@@ -60,11 +60,6 @@ main = launchAff_ $ do
       =<< byteArrayFromAscii "TheToken"
 
     let
-      -- Note that CTL does not have explicit equivalents of Plutus'
-      -- `mustPayToTheScript` or `mustPayToOtherScript`, as we have no notion
-      -- of a "current" script. Thus, we have the single constraint
-      -- `mustPayToScript`, and all scripts must be explicitly provided to build
-      -- the transaction (see the value for `lookups` below as well)
       constraints :: Constraints.TxConstraints Void Void
       constraints = Constraints.mustMintValue
         $ Value.singleton cs tn
