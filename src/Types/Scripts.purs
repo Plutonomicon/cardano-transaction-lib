@@ -1,12 +1,13 @@
 module Types.Scripts
-  ( MintingPolicy(..)
+  ( MintingPolicy
   , MintingPolicyHash(..)
   , PlutusScript(..)
   , StakeValidator(..)
   , StakeValidatorHash(..)
   , Validator(..)
   , ValidatorHash(..)
-  ) where
+  )
+  where
 
 import Prelude
 
