@@ -228,7 +228,7 @@ mustPayToScript vh dt vl =
   singleton (MustPayToScript vh dt vl)
     <> singleton (MustIncludeDatum dt)
 
--- | Create the given value. FIX ME: Broken until unitRedeemer properly defined.
+-- | Mint the given `Value`
 mustMintValue :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
 mustMintValue = mustMintValueWithRedeemer unitRedeemer
 

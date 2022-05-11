@@ -28,6 +28,7 @@ main :: Effect Unit
 main = launchAff_ $ do
   cfg <- traceContractConfig
   runContract_ cfg $ do
+    logInfo' "Running Examples.Datums"
     logInfo' <<< show =<< getDatumByHash
       ( mkDatumHash
           "42be572a6d9a8a2ec0df04f14b0d4fcbe4a7517d74975dfff914514f12316252"

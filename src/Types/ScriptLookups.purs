@@ -1003,7 +1003,8 @@ processConstraint mpsMap osMap = do
             , amount
             , dataHash
             }
-        ExceptT $ addDatum dat
+        -- Note we don't `addDatum` as this included as part of `mustPayToScript`
+        -- constraint already.
         _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provide amount
     MustHashDatum dh dt -> do
