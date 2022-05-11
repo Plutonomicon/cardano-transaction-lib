@@ -181,7 +181,13 @@ import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Types.Chain as Chain
 import Cardano.Types.Value (Coin(Coin))
 import Untagged.Union (asOneOf)
-import Wallet (Wallet(Nami, Gero), NamiWallet, GeroWallet, NamiConnection, GeroConnection)
+import Wallet
+  ( Wallet(Nami, Gero)
+  , NamiWallet
+  , GeroWallet
+  , NamiConnection
+  , GeroConnection
+  )
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
