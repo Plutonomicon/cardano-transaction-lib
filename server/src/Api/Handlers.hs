@@ -90,7 +90,7 @@ evalTxExecutionUnits cbor =
           txInputs = Set.fromList . fmap fst $ Shelley.txIns txBodyContent
           eval = C.evaluateTransactionExecutionUnits
       utxos <- queryUtxos txInputs
-      case (eval eraInMode sysStart eraHistory pparams utxos txBody) of
+      case eval eraInMode sysStart eraHistory pparams utxos txBody of
         Left err ->
           throwM (CardanoError . TxValidityIntervalError $ C.displayError err)
         Right mp ->

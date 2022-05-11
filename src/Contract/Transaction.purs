@@ -244,7 +244,7 @@ instance Show BalancedSignedTransaction where
 -- | transaction (`finalizeTx`), and finally sign (`signTransactionBytes`).
 -- | The return type includes the balanced (but unsigned) transaction for
 -- | logging and more importantly, the `ByteArray` to be used with `Submit` to
--- | submit  the transaction.
+-- | submit the transaction.
 balanceAndSignTx
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx

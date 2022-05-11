@@ -31,16 +31,19 @@ import Control.Monad.Reader.Class (asks)
 import Control.Monad.Reader.Trans (ReaderT)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
-import Data.Array ((:), singleton, union) as Array
+import Data.Array ((:), findIndex, singleton, uncons, union) as Array
 import Data.Array (elemIndex, insert, toUnfoldable, zip)
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
+import Data.Bitraversable (bitraverse)
 import Data.Either (Either(Left, Right), either, note)
+import Data.Enum (fromEnum) as Enum
 import Data.Foldable (foldM)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
 import Data.Lens ((%=), (%~), (.=), (.~), (<>=))
-import Data.Lens.Getter (to, use)
+import Data.Lens.Getter (to, use, view)
+import Data.Lens.Index (ix) as Lens
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
@@ -62,7 +65,9 @@ import Plutus.FromPlutusType (fromPlutusType)
 import QueryM
   ( DefaultQueryConfig
   , QueryM
+  , RdmrPtrExUnits(RdmrPtrExUnits)
   , datumHash
+  , evalTxExecutionUnits
   , getDatumByHash
   )
 import Scripts
@@ -75,6 +80,7 @@ import ToData (class ToData)
 import Types.Any (Any)
 import Types.Datum (Datum, DatumHash)
 import Types.Interval (POSIXTimeRange, posixTimeRangeToTransactionSlot)
+import Types.Natural (toBigInt) as Natural
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
 import Types.TokenName (TokenName)
 import Types.Scripts
@@ -165,6 +171,7 @@ import Cardano.Types.Value
   , getNonAdaAsset
   )
 import TxOutput (transactionOutputToScriptOutput)
+import Data.Lens.Getter (view)
 
 -- Taken mainly from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-constraints/html/Ledger-Constraints-OffChain.html
 -- Plutus rev: cc72a56eafb02333c96f662581b57504f8f8992f via Plutus-apps (localhost): abe4785a4fc4a10ba0c4e6417f0ab9f1b4169b26
@@ -616,20 +623,48 @@ mkUnbalancedTx
   -> TxConstraints b b
   -> QueryM (Either MkUnbalancedTxError UnattachedUnbalancedTx)
 mkUnbalancedTx scriptLookups txConstraints =
-  runConstraintsM scriptLookups txConstraints <#> map
-    \{ unbalancedTx, datums, redeemers } ->
-      let
-        stripScriptDataHash :: UnbalancedTx -> UnbalancedTx
-        stripScriptDataHash uTx =
-          uTx # _transaction <<< _body <<< _scriptDataHash .~ Nothing
+  runConstraintsM scriptLookups txConstraints >>=
+    bitraverse pure \{ unbalancedTx, datums, redeemers } -> do
+      exUnitsMap <- evalTxExecutionUnits (view _transaction unbalancedTx)
+      pure $
+        let
+          redeemers' :: Array (T.Redeemer /\ Maybe TxOutRef)
+          redeemers' =
+            exUnitsMap # either (\_ -> redeemers) (setExecutionUnits redeemers)
 
-        stripDatumsRedeemers :: UnbalancedTx -> UnbalancedTx
-        stripDatumsRedeemers uTx = uTx # _transaction <<< _witnessSet %~
-          over TransactionWitnessSet
-            _ { plutusData = Nothing, redeemers = Nothing }
-        tx = stripDatumsRedeemers $ stripScriptDataHash unbalancedTx
+          stripScriptDataHash :: UnbalancedTx -> UnbalancedTx
+          stripScriptDataHash uTx =
+            uTx # _transaction <<< _body <<< _scriptDataHash .~ Nothing
+
+          stripDatumsRedeemers :: UnbalancedTx -> UnbalancedTx
+          stripDatumsRedeemers uTx = uTx # _transaction <<< _witnessSet %~
+            over TransactionWitnessSet
+              _ { plutusData = Nothing, redeemers = Nothing }
+          tx = stripDatumsRedeemers $ stripScriptDataHash unbalancedTx
+        in
+          wrap { unbalancedTx: tx, datums, redeemersTxIns: redeemers' }
+
+setExecutionUnits
+  :: Array (T.Redeemer /\ Maybe TxOutRef)
+  -> Array RdmrPtrExUnits
+  -> Array (T.Redeemer /\ Maybe TxOutRef)
+setExecutionUnits rs xxs =
+  case Array.uncons xxs of
+    Nothing -> rs
+    Just { head: RdmrPtrExUnits x, tail: xs } ->
+      let
+        ixMaybe = flip Array.findIndex rs $ \(T.Redeemer r /\ _) ->
+          Enum.fromEnum r.tag == x.rdmrPtrTag &&
+            r.index == Natural.toBigInt x.rdmrPtrIdx
       in
-        wrap { unbalancedTx: tx, datums, redeemersTxIns: redeemers }
+        ixMaybe # maybe (setExecutionUnits rs xs) \ix ->
+          flip setExecutionUnits xs $
+            rs # Lens.ix ix %~ \(T.Redeemer rec /\ txOutRef) ->
+              let
+                mem = Natural.toBigInt x.exUnitsMem
+                steps = Natural.toBigInt x.exUnitsSteps
+              in
+                T.Redeemer rec { exUnits = { mem, steps } } /\ txOutRef
 
 addScriptDataHash
   :: forall (a :: Type)
