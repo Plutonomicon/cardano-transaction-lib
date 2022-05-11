@@ -182,7 +182,8 @@ mkJsonWspRequest req = do
   toArgs = case _ of
     GetDatumByHashRequest dh -> encodeJson { hash: byteArrayToHex $ unwrap dh }
     GetDatumsByHashesRequest dhs -> encodeHashes dhs
-    StartFetchBlocksRequest slotnblock -> encodeJson slotnblock
+    StartFetchBlocksRequest { slot, id } ->
+      encodeJson { slot, id, datumFilter: { "const": true } }
     CancelFetchBlocksRequest -> jsonNull
     DatumFilterAddHashesRequest dhs -> encodeHashes dhs
     DatumFilterRemoveHashesRequest dhs -> encodeHashes dhs
