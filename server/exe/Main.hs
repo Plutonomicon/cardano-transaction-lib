@@ -44,11 +44,13 @@ opts =
         "CBTx server. See the README for routes and request/response types"
 
 networkIdReader :: Options.ReadM C.NetworkId
-networkIdReader = Options.eitherReader $ \arg -> case arg of
-  "mainnet" -> return C.Mainnet
-  networkMagicStr -> case readMaybe networkMagicStr of
-    Just word32 -> return $ C.Testnet (C.NetworkMagic word32)
-    Nothing -> Left "Failed to parse network ID"
+networkIdReader = Options.eitherReader $ \case
+  "mainnet" -> pure C.Mainnet
+  networkMagicStr ->
+    maybe
+      (Left "Failed to parse network ID")
+      (pure . C.Testnet . C.NetworkMagic)
+      $ readMaybe networkMagicStr
 
 serverOptionsParser :: Options.Parser ServerOptions
 serverOptionsParser =
