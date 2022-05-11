@@ -5,6 +5,7 @@ module Types (
   ServerOptions (..),
   Env (..),
   Cbor (..),
+  ExecutionUnitsMap (..),
   Fee (..),
   WitnessCount (..),
   ApplyArgsRequest (..),
@@ -33,7 +34,7 @@ import Codec.Serialise (serialise)
 import Control.Exception (Exception)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.Reader (MonadReader, ReaderT)
+import Control.Monad.Reader (MonadReader, ReaderT, asks)
 import Data.Aeson (FromJSON, ToJSON (toJSON))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Encoding qualified as Aeson.Encoding
@@ -88,9 +89,9 @@ newEnvIO serverOptions =
     >>= Aeson.eitherDecodeFileStrict @Shelley.ProtocolParameters
     <&> second (Env serverOptions)
 
-getNodeConnectInfo :: AppM (C.LocalNodeConnectInfo C.CardanoNode)
+getNodeConnectInfo :: AppM (C.LocalNodeConnectInfo C.CardanoMode)
 getNodeConnectInfo =
-  asks serverOptions >>= \opts ->
+  asks serverOptions <&> \opts ->
     C.LocalNodeConnectInfo
       { localConsensusModeParams =
           -- FIXME: Calc Byron epoch length based on Genesis params.
@@ -102,6 +103,10 @@ getNodeConnectInfo =
 newtype Cbor = Cbor Text
   deriving stock (Show)
   deriving newtype (Eq, FromHttpApiData, ToHttpApiData, FromJSON, ToJSON)
+
+newtype ExecutionUnitsMap = ExecutionUnitsMap ([(Cbor, Cbor)])
+  deriving stock (Show, Generic)
+  deriving newtype (FromJSON, ToJSON)
 
 newtype Fee = Fee Integer
   deriving stock (Show, Generic)
@@ -150,6 +155,7 @@ data FinalizeRequest = FinalizeRequest
   { tx :: Cbor
   , datums :: [Cbor]
   , redeemers :: Cbor
+  , exUnitsMap :: [(Cbor, Cbor)]
   }
   deriving stock (Show, Generic, Eq)
   deriving anyclass (FromJSON, ToJSON)
@@ -250,6 +256,9 @@ instance Docs.ToParam (QueryParam' '[Required] "count" WitnessCount) where
       \for the transaction"
       Docs.Normal
 
+instance Docs.ToSample ExecutionUnitsMap where
+  toSamples _ = [] -- TODO:
+
 instance Docs.ToSample Fee where
   toSamples _ =
     [
@@ -326,8 +335,13 @@ instance Docs.ToSample FinalizeRequest where
   toSamples _ =
     [
       ( "The input should contain CBOR of tx, redeemers, individual Plutus\
-        \datums, and Plutus script hashes"
-      , FinalizeRequest (Cbor "00") [Cbor "00"] (Cbor "00")
+        \datums, Plutus script hashes, and redeemer pointers with the \
+        \corresponding execution units"
+      , FinalizeRequest
+          (Cbor "00")
+          [Cbor "00"]
+          (Cbor "00")
+          [(Cbor "00", Cbor "00")]
       )
     ]
 

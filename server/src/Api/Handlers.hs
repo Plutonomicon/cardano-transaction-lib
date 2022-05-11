@@ -6,6 +6,7 @@ module Api.Handlers (
   hashData,
   hashScript,
   blake2bHash,
+  evalTxExecutionUnits,
   finalizeTx,
 ) where
 
@@ -16,6 +17,7 @@ import Cardano.Binary qualified as Cbor
 import Cardano.Ledger.Alonzo qualified as Alonzo
 import Cardano.Ledger.Alonzo.Data qualified as Data
 import Cardano.Ledger.Alonzo.Language (Language (PlutusV1))
+import Cardano.Ledger.Alonzo.Scripts qualified as Scripts (ExUnits)
 import Cardano.Ledger.Alonzo.Tx qualified as Tx
 import Cardano.Ledger.Alonzo.TxWitness qualified as TxWitness
 import Cardano.Ledger.Crypto (StandardCrypto)
@@ -26,6 +28,7 @@ import Control.Monad.Catch (throwM)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (asks)
 import Data.Bifunctor (first)
+import Data.Bitraversable (bitraverse)
 import Data.ByteString (ByteString)
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Lazy qualified as BL
@@ -53,6 +56,7 @@ import Types (
   CborDecodeError (InvalidCbor, InvalidHex, OtherDecodeError),
   CtlServerError (CardanoError, CborDecode),
   Env (protocolParams),
+  ExecutionUnitsMap (..),
   Fee (Fee),
   FinalizeRequest (..),
   FinalizedTransaction (..),
@@ -73,9 +77,8 @@ estimateTxFees (WitnessCount numWits) cbor = do
   pparams <- asks protocolParams
   pure . Fee $ estimateFee pparams numWits decoded
 
-evaluateTxExecutionUnits ::
-  Cbor -> AppM (Map.Map C.ScriptWitnessIndex C.ExecutionUnits)
-evaluateTxExecutionUnits cbor =
+evalTxExecutionUnits :: Cbor -> AppM ExecutionUnitsMap
+evalTxExecutionUnits cbor =
   case decodeCborTx cbor of
     Left err ->
       throwM (CborDecode err)
@@ -91,39 +94,31 @@ evaluateTxExecutionUnits cbor =
         Left err ->
           throwM (CardanoError . TxValidityIntervalError $ C.displayError err)
         Right mp ->
-          for mp $
-            either (throwM . CardanoError . ScriptExecutionError) pure
+          asExecutionUnitsMap mp
+  where
+    asExecutionUnitsMap ::
+      Map.Map
+        C.ScriptWitnessIndex
+        (Either C.ScriptExecutionError C.ExecutionUnits) ->
+      AppM ExecutionUnitsMap
+    asExecutionUnitsMap mp = do
+      exUnitsMap <-
+        for mp $
+          either (throwM . CardanoError . ScriptExecutionError) pure
+      pure . ExecutionUnitsMap $
+        bimap
+          (toCborText . Shelley.toAlonzoRdmrPtr)
+          (toCborText . Shelley.toAlonzoExUnits)
+          <$> Map.toList exUnitsMap
 
 setExecutionUnits ::
+  [(TxWitness.RdmrPtr, Scripts.ExUnits)] ->
   TxWitness.Redeemers (Alonzo.AlonzoEra StandardCrypto) ->
-  Map.Map C.ScriptWitnessIndex C.ExecutionUnits ->
   TxWitness.Redeemers (Alonzo.AlonzoEra StandardCrypto)
-setExecutionUnits redeemers exUnitsMap =
-  worker (Map.toList exUnitsMap) redeemers
-  where
-    worker ::
-      [(C.ScriptWitnessIndex, C.ExecutionUnits)] ->
-      TxWitness.Redeemers (Alonzo.AlonzoEra StandardCrypto) ->
-      TxWitness.Redeemers (Alonzo.AlonzoEra StandardCrypto)
-    worker [] rs = rs
-    worker ((widx, exUnits) : xs) (TxWitness.Redeemers' rs) =
-      let rdmrPtr = Shelley.toAlonzoRdmrPtr widx
-       in worker xs . TxWitness.Redeemers $
-            Map.adjust (_2 .~ Shelley.toAlonzoExUnits exUnits) rdmrPtr rs
-
-setValidatedTxExecutionUnits ::
-  Tx.ValidatedTx (Alonzo.AlonzoEra StandardCrypto) ->
-  Map.Map C.ScriptWitnessIndex C.ExecutionUnits ->
-  Tx.ValidatedTx (Alonzo.AlonzoEra StandardCrypto)
-setValidatedTxExecutionUnits validatedTx exUnitsMap =
-  validatedTx
-    { Tx.wits =
-        Tx.wits validatedTx & \witness ->
-          witness
-            { TxWitness.txrdmrs =
-                setExecutionUnits (TxWitness.txrdmrs witness) exUnitsMap
-            }
-    }
+setExecutionUnits [] rs = rs
+setExecutionUnits ((rdmrPtr, exUnits) : xs) (TxWitness.Redeemers' rs) =
+  setExecutionUnits xs . TxWitness.Redeemers $
+    Map.adjust (_2 .~ exUnits) rdmrPtr rs
 
 applyArgs :: ApplyArgsRequest -> AppM AppliedScript
 applyArgs ApplyArgsRequest {script, args} =
@@ -152,14 +147,18 @@ blake2bHash (BytesToHash hs) =
     PlutusTx.toBuiltin hs
 
 finalizeTx :: FinalizeRequest -> AppM FinalizedTransaction
-finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
+finalizeTx (FinalizeRequest {tx, datums, redeemers, exUnitsMap}) = do
   pparams <- asks protocolParams
   decodedTx <-
     throwDecodeErrorWithMessage "Failed to decode tx" $
       decodeCborValidatedTx tx
+  decodedExUnitsMap <-
+    throwDecodeErrorWithMessage "Failed to decode ex units map" $
+      decodeCborExUnitsMap exUnitsMap
   decodedRedeemers <-
-    throwDecodeErrorWithMessage "Failed to decode redeemers" $
-      decodeCborRedeemers redeemers
+    fmap (setExecutionUnits decodedExUnitsMap) $
+      throwDecodeErrorWithMessage "Failed to decode redeemers" $
+        decodeCborRedeemers redeemers
   decodedDatums <-
     throwDecodeErrorWithMessage "Failed to decode datums" $
       traverse decodeCborDatum datums
@@ -211,7 +210,7 @@ estimateFee pparams numWits (C.Tx txBody _) =
           0
    in estimate
 
-queryNode :: forall r. C.QueryInMode C.CardanoMode r -> AppM r
+queryNode :: forall (r :: Type). C.QueryInMode C.CardanoMode r -> AppM r
 queryNode query = do
   nodeConnectInfo <- getNodeConnectInfo
   response <- liftIO $ C.queryNodeLocalState nodeConnectInfo Nothing query
@@ -235,6 +234,9 @@ decodeCborText (Cbor cborText) =
 encodeCborText :: BL.ByteString -> Cbor
 encodeCborText = Cbor . Text.Encoding.decodeUtf8 . Base16.encode . BL.toStrict
 
+toCborText :: forall (a :: Type). Cbor.ToCBOR a => a -> Cbor
+toCborText = encodeCborText . Cbor.serialize
+
 decodeCborTx :: Cbor -> Either CborDecodeError (C.Tx C.AlonzoEra)
 decodeCborTx cbor =
   first InvalidCbor
@@ -253,12 +255,25 @@ decodeCborDatum ::
   Cbor -> Maybe (Data.Data (Alonzo.AlonzoEra StandardCrypto))
 decodeCborDatum = decodeCborComponent
 
+decodeCborExUnitsMap ::
+  [(Cbor, Cbor)] -> Maybe [(TxWitness.RdmrPtr, Scripts.ExUnits)]
+decodeCborExUnitsMap [] = pure mempty
+decodeCborExUnitsMap (x : xs) =
+  (:) <$> bitraverse decodeCborFull decodeCborFull x
+    <*> decodeCborExUnitsMap xs
+
 decodeCborComponent ::
   forall (a :: Type). Cbor.FromCBOR (Cbor.Annotator a) => Cbor -> Maybe a
 decodeCborComponent cbor = do
   bs <- preview _Right $ decodeCborTextLazyBS cbor
   fmap (`runAnnotator` Full bs) . preview _Right . fmap snd $
     deserialiseFromBytes Cbor.fromCBOR bs
+
+decodeCborFull ::
+  forall (a :: Type). Cbor.FromCBOR a => Cbor -> Maybe a
+decodeCborFull cbor = do
+  bs <- preview _Right $ decodeCborTextLazyBS cbor
+  preview _Right $ Cbor.decodeFull bs
 
 decodeCborTextLazyBS :: Cbor -> Either CborDecodeError BL.ByteString
 decodeCborTextLazyBS (Cbor text) =
