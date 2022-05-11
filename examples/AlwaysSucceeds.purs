@@ -34,6 +34,7 @@ main = launchAff_ $ do
   wallet <- Just <$> mkNamiWalletAff
   cfg <- over ContractConfig _ { wallet = wallet } <$> traceContractConfig
   runContract_ cfg $ do
+    logInfo' "Running Examples.AlwaysSucceeds"
     validator <- liftContractM "Invalid script JSON" $ alwaysSucceedsScript
     vhash <- liftedM "Couldn't hash validator" $ validatorHash validator
 
