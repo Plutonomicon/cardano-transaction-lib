@@ -46,6 +46,7 @@ main = launchAff_ $ do
     }
 
   runContract_ cfg $ do
+    logInfo' "Running Examples.Pkh2Pkh"
     pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
 
     let

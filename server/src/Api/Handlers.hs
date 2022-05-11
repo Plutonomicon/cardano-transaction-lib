@@ -19,6 +19,7 @@ import Cardano.Ledger.Alonzo.Language (Language (PlutusV1))
 import Cardano.Ledger.Alonzo.Tx qualified as Tx
 import Cardano.Ledger.Alonzo.TxWitness qualified as TxWitness
 import Cardano.Ledger.Crypto (StandardCrypto)
+import Cardano.Ledger.Mary.Value qualified as Value
 import Cardano.Ledger.SafeHash qualified as SafeHash
 import Codec.CBOR.Read (deserialiseFromBytes)
 import Control.Lens
@@ -91,7 +92,7 @@ blake2bHash (BytesToHash hs) =
     PlutusTx.toBuiltin hs
 
 finalizeTx :: FinalizeRequest -> AppM FinalizedTransaction
-finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
+finalizeTx FinalizeRequest {tx, datums, redeemers} = do
   pparams <- asks protocolParams
   decodedTx <-
     throwDecodeErrorWithMessage "Failed to decode tx" $
@@ -102,11 +103,12 @@ finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
   decodedDatums <-
     throwDecodeErrorWithMessage "Failed to decode datums" $
       traverse decodeCborDatum datums
-  -- See https://github.com/input-output-hk/cardano-ledger/blob/master/eras/alonzo/test-suite/cddl-files/alonzo.cddl#L123
-  let languages =
-        if TxWitness.nullRedeemers decodedRedeemers
-          then mempty
-          else Set.fromList [PlutusV1]
+  let scripts = Tx.txscripts' $ Tx.wits decodedTx
+      Value.Value ada assets = Tx.mint $ Tx.body decodedTx
+      languages
+        | Map.null scripts && Map.null assets && ada == 0 = mempty
+        | TxWitness.nullRedeemers decodedRedeemers = mempty
+        | otherwise = Set.fromList [PlutusV1]
       txDatums =
         TxWitness.TxDats . Map.fromList $
           decodedDatums <&> \datum -> (Data.hashData datum, datum)
