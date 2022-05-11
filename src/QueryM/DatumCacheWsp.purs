@@ -82,10 +82,6 @@ data DatumCacheMethod
   | GetDatumsByHashes
   | StartFetchBlocks
   | CancelFetchBlocks
-  | DatumFilterAddHashes
-  | DatumFilterRemoveHashes
-  | DatumFilterSetHashes
-  | DatumFilterGetHashes
 
 derive instance Eq DatumCacheMethod
 
@@ -98,10 +94,6 @@ datumCacheMethodToString = case _ of
   GetDatumsByHashes -> "GetDatumsByHashes"
   StartFetchBlocks -> "StartFetchBlocks"
   CancelFetchBlocks -> "CancelFetchBlocks"
-  DatumFilterAddHashes -> "DatumFilterAddHashes"
-  DatumFilterRemoveHashes -> "DatumFilterRemoveHashes"
-  DatumFilterSetHashes -> "DatumFilterSetHashes"
-  DatumFilterGetHashes -> "DatumFilterGetHashes"
 
 datumCacheMethodFromString :: String -> Maybe DatumCacheMethod
 datumCacheMethodFromString = case _ of
@@ -109,10 +101,6 @@ datumCacheMethodFromString = case _ of
   "GetDatumsByHashes" -> Just GetDatumsByHashes
   "StartFetchBlocks" -> Just StartFetchBlocks
   "CancelFetchBlocks" -> Just CancelFetchBlocks
-  "DatumFilterAddHashes" -> Just DatumFilterAddHashes
-  "DatumFilterRemoveHashes" -> Just DatumFilterRemoveHashes
-  "DatumFilterSetHashes" -> Just DatumFilterSetHashes
-  "DatumFilterGetHashes" -> Just DatumFilterGetHashes
   _ -> Nothing
 
 data DatumCacheRequest
@@ -120,20 +108,12 @@ data DatumCacheRequest
   | GetDatumsByHashesRequest (Array DatumHash)
   | StartFetchBlocksRequest { slot :: Slot, id :: BlockId }
   | CancelFetchBlocksRequest
-  | DatumFilterAddHashesRequest (Array DatumHash)
-  | DatumFilterRemoveHashesRequest (Array DatumHash)
-  | DatumFilterSetHashesRequest (Array DatumHash)
-  | DatumFilterGetHashesRequest
 
 data DatumCacheResponse
   = GetDatumByHashResponse (Maybe Datum)
   | GetDatumsByHashesResponse (Map DatumHash Datum)
   | StartFetchBlocksResponse
   | CancelFetchBlocksResponse
-  | DatumFilterAddHashesResponse
-  | DatumFilterRemoveHashesResponse
-  | DatumFilterSetHashesResponse
-  | DatumFilterGetHashesResponse (Array DatumHash)
 
 requestMethod :: DatumCacheRequest -> DatumCacheMethod
 requestMethod = case _ of
@@ -141,10 +121,6 @@ requestMethod = case _ of
   GetDatumsByHashesRequest _ -> GetDatumsByHashes
   StartFetchBlocksRequest _ -> StartFetchBlocks
   CancelFetchBlocksRequest -> CancelFetchBlocks
-  DatumFilterAddHashesRequest _ -> DatumFilterAddHashes
-  DatumFilterRemoveHashesRequest _ -> DatumFilterRemoveHashes
-  DatumFilterSetHashesRequest _ -> DatumFilterSetHashes
-  DatumFilterGetHashesRequest -> DatumFilterGetHashes
 
 responseMethod :: DatumCacheResponse -> DatumCacheMethod
 responseMethod = case _ of
@@ -152,10 +128,6 @@ responseMethod = case _ of
   GetDatumsByHashesResponse _ -> GetDatumsByHashes
   StartFetchBlocksResponse -> StartFetchBlocks
   CancelFetchBlocksResponse -> CancelFetchBlocks
-  DatumFilterAddHashesResponse -> DatumFilterAddHashes
-  DatumFilterRemoveHashesResponse -> DatumFilterRemoveHashes
-  DatumFilterSetHashesResponse -> DatumFilterSetHashes
-  DatumFilterGetHashesResponse _ -> DatumFilterGetHashes
 
 requestMethodName :: DatumCacheRequest -> String
 requestMethodName = requestMethod >>> datumCacheMethodToString
@@ -185,10 +157,6 @@ mkJsonWspRequest req = do
     StartFetchBlocksRequest { slot, id } ->
       encodeJson { slot, id, datumFilter: { "const": true } }
     CancelFetchBlocksRequest -> jsonNull
-    DatumFilterAddHashesRequest dhs -> encodeHashes dhs
-    DatumFilterRemoveHashesRequest dhs -> encodeHashes dhs
-    DatumFilterSetHashesRequest dhs -> encodeHashes dhs
-    DatumFilterGetHashesRequest -> jsonNull
 
 parseJsonWspResponse :: JsonWspResponse -> Either WspFault DatumCacheResponse
 parseJsonWspResponse resp@{ methodname, result, fault } =
@@ -243,18 +211,6 @@ parseJsonWspResponse resp@{ methodname, result, fault } =
       CancelFetchBlocks -> CancelFetchBlocksResponse <$ decodeDoneFlag
         [ "StoppedBlockFetcher" ]
         r
-      DatumFilterAddHashes -> DatumFilterAddHashesResponse <$ decodeDoneFlag
-        [ "AddedHashes" ]
-        r
-      DatumFilterRemoveHashes -> DatumFilterRemoveHashesResponse <$
-        decodeDoneFlag
-          [ "RemovedHashes" ]
-          r
-      DatumFilterSetHashes -> DatumFilterSetHashesResponse <$ decodeDoneFlag
-        [ "SetHashes" ]
-        r
-      DatumFilterGetHashes -> DatumFilterGetHashesResponse <$>
-        liftErr (decodeHashes =<< getNestedAeson r [ "hashes" ])
 
   decodeHashes :: Aeson -> Either JsonDecodeError (Array DatumHash)
   decodeHashes j = do

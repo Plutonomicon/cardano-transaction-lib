@@ -23,10 +23,6 @@ module QueryM
   , applyArgs
   , calculateMinFee
   , cancelFetchBlocksRequest
-  , datumFilterAddHashesRequest
-  , datumFilterGetHashesRequest
-  , datumFilterRemoveHashesRequest
-  , datumFilterSetHashesRequest
   , datumHash
   , traceQueryConfig
   , finalizeTx
@@ -109,24 +105,16 @@ import QueryM.DatumCacheWsp
   ( DatumCacheMethod
       ( StartFetchBlocks
       , CancelFetchBlocks
-      , DatumFilterAddHashes
-      , DatumFilterRemoveHashes
-      , DatumFilterSetHashes
       )
   , DatumCacheRequest
       ( GetDatumByHashRequest
       , GetDatumsByHashesRequest
       , StartFetchBlocksRequest
       , CancelFetchBlocksRequest
-      , DatumFilterAddHashesRequest
-      , DatumFilterRemoveHashesRequest
-      , DatumFilterSetHashesRequest
-      , DatumFilterGetHashesRequest
       )
   , DatumCacheResponse
       ( GetDatumByHashResponse
       , GetDatumsByHashesResponse
-      , DatumFilterGetHashesResponse
       )
   )
 import QueryM.DatumCacheWsp as DcWsp
@@ -301,25 +289,6 @@ cancelFetchBlocksRequest :: QueryM Unit
 cancelFetchBlocksRequest = matchCacheQuery (const CancelFetchBlocksRequest)
   CancelFetchBlocks
   unit
-
-datumFilterAddHashesRequest :: Array DatumHash -> QueryM Unit
-datumFilterAddHashesRequest = matchCacheQuery DatumFilterAddHashesRequest
-  DatumFilterAddHashes
-
-datumFilterRemoveHashesRequest :: Array DatumHash -> QueryM Unit
-datumFilterRemoveHashesRequest = matchCacheQuery DatumFilterRemoveHashesRequest
-  DatumFilterRemoveHashes
-
-datumFilterSetHashesRequest :: Array DatumHash -> QueryM Unit
-datumFilterSetHashesRequest = matchCacheQuery DatumFilterSetHashesRequest
-  DatumFilterSetHashes
-
-datumFilterGetHashesRequest :: QueryM (Array DatumHash)
-datumFilterGetHashesRequest = do
-  queryDatumCache DatumFilterGetHashesRequest >>= case _ of
-    DatumFilterGetHashesResponse hashes -> pure $ hashes
-    _ -> liftEffect $ throw
-      "Request-response type mismatch. Should not have happened"
 
 matchCacheQuery
   :: forall (args :: Type)
