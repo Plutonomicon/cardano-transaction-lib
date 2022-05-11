@@ -64,6 +64,7 @@ import Types (
   HashScriptRequest (HashScriptRequest),
   HashedData (HashedData),
   HashedScript (HashedScript),
+  RdmrPtrExUnits (..),
   WitnessCount (WitnessCount),
   getNodeConnectInfo,
   hashLedgerScript,
@@ -106,10 +107,14 @@ evalTxExecutionUnits cbor =
         for mp $
           either (throwM . CardanoError . ScriptExecutionError) pure
       pure . ExecutionUnitsMap $
-        bimap
-          (toCborText . Shelley.toAlonzoRdmrPtr)
-          (toCborText . Shelley.toAlonzoExUnits)
-          <$> Map.toList exUnitsMap
+        (first Shelley.toAlonzoRdmrPtr <$> Map.toList exUnitsMap)
+          <&> \(TxWitness.RdmrPtr tag idx, exUnits) ->
+            RdmrPtrExUnits
+              { rdmrPtrTag = (toEnum . fromEnum) tag
+              , rdmrPtrIdx = idx
+              , exUnitsMem = C.executionMemory exUnits
+              , exUnitsSteps = C.executionSteps exUnits
+              }
 
 setExecutionUnits ::
   [(TxWitness.RdmrPtr, Scripts.ExUnits)] ->
@@ -147,18 +152,14 @@ blake2bHash (BytesToHash hs) =
     PlutusTx.toBuiltin hs
 
 finalizeTx :: FinalizeRequest -> AppM FinalizedTransaction
-finalizeTx (FinalizeRequest {tx, datums, redeemers, exUnitsMap}) = do
+finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
   pparams <- asks protocolParams
   decodedTx <-
     throwDecodeErrorWithMessage "Failed to decode tx" $
       decodeCborValidatedTx tx
-  decodedExUnitsMap <-
-    throwDecodeErrorWithMessage "Failed to decode ex units map" $
-      decodeCborExUnitsMap exUnitsMap
   decodedRedeemers <-
-    fmap (setExecutionUnits decodedExUnitsMap) $
-      throwDecodeErrorWithMessage "Failed to decode redeemers" $
-        decodeCborRedeemers redeemers
+    throwDecodeErrorWithMessage "Failed to decode redeemers" $
+      decodeCborRedeemers redeemers
   decodedDatums <-
     throwDecodeErrorWithMessage "Failed to decode datums" $
       traverse decodeCborDatum datums
@@ -234,9 +235,6 @@ decodeCborText (Cbor cborText) =
 encodeCborText :: BL.ByteString -> Cbor
 encodeCborText = Cbor . Text.Encoding.decodeUtf8 . Base16.encode . BL.toStrict
 
-toCborText :: forall (a :: Type). Cbor.ToCBOR a => a -> Cbor
-toCborText = encodeCborText . Cbor.serialize
-
 decodeCborTx :: Cbor -> Either CborDecodeError (C.Tx C.AlonzoEra)
 decodeCborTx cbor =
   first InvalidCbor
@@ -255,25 +253,12 @@ decodeCborDatum ::
   Cbor -> Maybe (Data.Data (Alonzo.AlonzoEra StandardCrypto))
 decodeCborDatum = decodeCborComponent
 
-decodeCborExUnitsMap ::
-  [(Cbor, Cbor)] -> Maybe [(TxWitness.RdmrPtr, Scripts.ExUnits)]
-decodeCborExUnitsMap [] = pure mempty
-decodeCborExUnitsMap (x : xs) =
-  (:) <$> bitraverse decodeCborFull decodeCborFull x
-    <*> decodeCborExUnitsMap xs
-
 decodeCborComponent ::
   forall (a :: Type). Cbor.FromCBOR (Cbor.Annotator a) => Cbor -> Maybe a
 decodeCborComponent cbor = do
   bs <- preview _Right $ decodeCborTextLazyBS cbor
   fmap (`runAnnotator` Full bs) . preview _Right . fmap snd $
     deserialiseFromBytes Cbor.fromCBOR bs
-
-decodeCborFull ::
-  forall (a :: Type). Cbor.FromCBOR a => Cbor -> Maybe a
-decodeCborFull cbor = do
-  bs <- preview _Right $ decodeCborTextLazyBS cbor
-  preview _Right $ Cbor.decodeFull bs
 
 decodeCborTextLazyBS :: Cbor -> Either CborDecodeError BL.ByteString
 decodeCborTextLazyBS (Cbor text) =

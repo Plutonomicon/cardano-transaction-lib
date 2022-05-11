@@ -101,7 +101,11 @@ The server executable can be built with `nix build .#cardano-trasaction-lib-serv
     - `application/json;charset=utf-8`
     - `application/json`
 
-- The `(RdmrPtr -> ExUnits)` map will be returned as a list of two-element lists with hex-encoded CBOR elements (`application/json;charset=utf-8`, `application/json`):
+- The `(RdmrPtr -> ExUnits)` map will be returned as a list of `RdmrPtrExUnits` objects with the following structure (`application/json;charset=utf-8`, `application/json`):
+
+```javascript
+[{"exUnitsSteps":0,"rdmrPtrTag":0,"exUnitsMem":0,"rdmrPtrIdx":0}]
+```
 
 ## GET /fees
 
@@ -141,10 +145,10 @@ The server executable can be built with `nix build .#cardano-trasaction-lib-serv
     - `application/json;charset=utf-8`
     - `application/json`
 
-- The input should contain CBOR of tx, redeemers, individual Plutusdatums, Plutus script hashes, and redeemer pointers with the corresponding execution units (`application/json;charset=utf-8`, `application/json`):
+- The input should contain CBOR of tx, redeemers, individual Plutusdatums, and Plutus script hashes (`application/json;charset=utf-8`, `application/json`):
 
 ```javascript
-{"tx":"00","exUnitsMap":[["00","00"]],"redeemers":"00","datums":["00"]}
+{"tx":"00","redeemers":"00","datums":["00"]}
 ```
 
 ### Response:

@@ -6,6 +6,7 @@ module Types (
   Env (..),
   Cbor (..),
   ExecutionUnitsMap (..),
+  RdmrPtrExUnits (..),
   Fee (..),
   WitnessCount (..),
   ApplyArgsRequest (..),
@@ -50,8 +51,10 @@ import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text.Encoding
+import Data.Word (Word64, Word8)
 import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (Port)
+import Numeric.Natural (Natural)
 import Paths_ctl_server (getDataFileName)
 import Plutus.V1.Ledger.Api qualified as Ledger
 import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
@@ -104,9 +107,18 @@ newtype Cbor = Cbor Text
   deriving stock (Show)
   deriving newtype (Eq, FromHttpApiData, ToHttpApiData, FromJSON, ToJSON)
 
-newtype ExecutionUnitsMap = ExecutionUnitsMap ([(Cbor, Cbor)])
-  deriving stock (Show, Generic)
+newtype ExecutionUnitsMap = ExecutionUnitsMap [RdmrPtrExUnits]
+  deriving stock (Show)
   deriving newtype (FromJSON, ToJSON)
+
+data RdmrPtrExUnits = RdmrPtrExUnits
+  { rdmrPtrTag :: Word8
+  , rdmrPtrIdx :: Word64
+  , exUnitsMem :: Natural
+  , exUnitsSteps :: Natural
+  }
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 newtype Fee = Fee Integer
   deriving stock (Show, Generic)
@@ -155,7 +167,6 @@ data FinalizeRequest = FinalizeRequest
   { tx :: Cbor
   , datums :: [Cbor]
   , redeemers :: Cbor
-  , exUnitsMap :: [(Cbor, Cbor)]
   }
   deriving stock (Show, Generic, Eq)
   deriving anyclass (FromJSON, ToJSON)
@@ -260,8 +271,8 @@ instance Docs.ToSample ExecutionUnitsMap where
   toSamples _ =
     [
       ( "The `(RdmrPtr -> ExUnits)` map will be returned as a list of \
-        \two-element lists with hex-encoded CBOR elements"
-      , ExecutionUnitsMap [(Cbor "00", Cbor "00")]
+        \`RdmrPtrExUnits` objects with the following structure"
+      , ExecutionUnitsMap [RdmrPtrExUnits 0 0 0 0]
       )
     ]
 
@@ -341,13 +352,8 @@ instance Docs.ToSample FinalizeRequest where
   toSamples _ =
     [
       ( "The input should contain CBOR of tx, redeemers, individual Plutus\
-        \datums, Plutus script hashes, and redeemer pointers with the \
-        \corresponding execution units"
-      , FinalizeRequest
-          (Cbor "00")
-          [Cbor "00"]
-          (Cbor "00")
-          [(Cbor "00", Cbor "00")]
+        \datums, and Plutus script hashes"
+      , FinalizeRequest (Cbor "00") [Cbor "00"] (Cbor "00")
       )
     ]
 
