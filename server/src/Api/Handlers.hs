@@ -103,14 +103,12 @@ finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
   decodedDatums <-
     throwDecodeErrorWithMessage "Failed to decode datums" $
       traverse decodeCborDatum datums
-  let witnessScripts = (Tx.txscripts' . Tx.wits) decodedTx
-      (Value.Value ada maps) = (Tx.mint . Tx.body) decodedTx
-      languages =
-        if Map.null witnessScripts
-          && Map.null maps
-          && ada == 0
-          then mempty
-          else Set.fromList [PlutusV1]
+  let scripts = Tx.txscripts' $ Tx.wits decodedTx
+      Value.Value _ assets = Tx.mint $ Tx.body decodedTx
+      languages
+        | Map.null scripts && Map.null assets = mempty
+        | TxWitness.nullRedeemers decodedRedeemers = mempty
+        | otherwise = Set.fromList [PlutusV1]
       txDatums =
         TxWitness.TxDats . Map.fromList $
           decodedDatums <&> \datum -> (Data.hashData datum, datum)
