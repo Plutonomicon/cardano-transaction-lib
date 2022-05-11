@@ -11,18 +11,19 @@ module Types.ByteArray
   , hexToByteArrayUnsafe
   ) where
 
+import Prelude
+
 import Aeson (class DecodeAeson, decodeAesonViaJson)
-import Data.Argonaut (class DecodeJson)
+import Data.Argonaut (class DecodeJson, class EncodeJson, fromString)
 import Data.Argonaut as Json
 import Data.ArrayBuffer.Types (Uint8Array)
+import Data.Char (toCharCode)
 import Data.Either (Either(Left), note)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap)
-import Prelude
-import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
-import Data.Char (toCharCode)
 import Data.String.CodeUnits (toCharArray)
 import Data.Traversable (for)
+import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 
 newtype ByteArray = ByteArray Uint8Array
 
@@ -55,6 +56,9 @@ instance DecodeJson ByteArray where
     (Left (Json.TypeMismatch "expected a hex-encoded string"))
     (note (Json.UnexpectedValue j) <<< hexToByteArray)
     j
+
+instance EncodeJson ByteArray where
+  encodeJson ba = fromString (byteArrayToHex ba)
 
 instance DecodeAeson ByteArray where
   decodeAeson = decodeAesonViaJson
