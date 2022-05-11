@@ -72,6 +72,7 @@ library
     , text
     , wai-cors
     , warp
+    , cardano-ledger-shelley-ma
 
   exposed-modules:
     Api

@@ -21,6 +21,7 @@ import Cardano.Ledger.Alonzo.Scripts qualified as Scripts (ExUnits)
 import Cardano.Ledger.Alonzo.Tx qualified as Tx
 import Cardano.Ledger.Alonzo.TxWitness qualified as TxWitness
 import Cardano.Ledger.Crypto (StandardCrypto)
+import Cardano.Ledger.Mary.Value qualified as Value
 import Cardano.Ledger.SafeHash qualified as SafeHash
 import Codec.CBOR.Read (deserialiseFromBytes)
 import Control.Lens
@@ -163,7 +164,12 @@ finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
   decodedDatums <-
     throwDecodeErrorWithMessage "Failed to decode datums" $
       traverse decodeCborDatum datums
-  let languages = Set.fromList [PlutusV1]
+  let scripts = Tx.txscripts' $ Tx.wits decodedTx
+      Value.Value ada assets = Tx.mint $ Tx.body decodedTx
+      languages
+        | Map.null scripts && Map.null assets && ada == 0 = mempty
+        | TxWitness.nullRedeemers decodedRedeemers = mempty
+        | otherwise = Set.fromList [PlutusV1]
       txDatums =
         TxWitness.TxDats . Map.fromList $
           decodedDatums <&> \datum -> (Data.hashData datum, datum)

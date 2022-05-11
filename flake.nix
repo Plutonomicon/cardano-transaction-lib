@@ -268,7 +268,10 @@
                   "${pkgs.bash}/bin/sh"
                   "-c"
                   ''
-                    ${server}/bin/ctl-server
+                    ${server}/bin/ctl-server \
+                      --port ${toString ctlServer.port} \
+                      --node-socket ${nodeSocketPath} \
+                      --network-id 1097911063
                   ''
                 ];
               };
