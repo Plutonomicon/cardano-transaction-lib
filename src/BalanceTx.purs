@@ -17,7 +17,7 @@ module BalanceTx
 
 import Prelude
 
-import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
+import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT, throwError)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
@@ -42,6 +42,8 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect)
 import Plutus.FromPlutusType (fromPlutusType)
 import Plutus.ToPlutusType (toPlutusType)
+import Plutus.Types.Value as PlutusValue
+import Plutus.Types.CurrencySymbol (adaSymbol)
 import ProtocolParametersAlonzo
   ( adaOnlyWords
   , coinSize
@@ -63,6 +65,7 @@ import Serialization.Address
   , addressPaymentCred
   , withStakeCredential
   )
+import Types.TokenName (adaToken)
 import Types.Transaction
   ( DataHash
   , Transaction(Transaction)
@@ -206,7 +209,8 @@ instance showActual :: Show Actual where
   show = genericShow
 
 data BalanceNonAdaOutsError
-  = InputsCannotBalanceNonAdaTokens
+  = BalanceNonAdaOutsError String
+  | InputsCannotBalanceNonAdaTokens
   | BalanceNonAdaOutsCannotMinus CannotMinusError
 
 derive instance genericBalanceNonAdaOutsError ::
@@ -257,12 +261,14 @@ balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
       note (GetWalletCollateralError' CouldNotGetNamiCollateral)
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
+    scriptUtxos <- ExceptT $ (pure $ utxoIndexToUtxo networkId utxoIndex) <#>
+      (note (UtxosAtError' CouldNotGetUtxos))
 
     let
       -- Combines utxos at the user address and those from any scripts
       -- involved with the contract in the unbalanced transaction.
       allUtxos :: Utxo
-      allUtxos = utxos `Map.union` utxoIndexToUtxo networkId utxoIndex
+      allUtxos = utxos `Map.union` scriptUtxos
 
       -- After adding collateral, we need to balance the inputs and
       -- non-Ada outputs before looping, i.e. we need to add input fees
@@ -459,7 +465,7 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
             "Not enough Input Ada to cover output and fees after prebalance."
             Impossible
       EQ -> except $ Right $ wrap tx { body = wrap txBody { fee = wrap fees } }
-      GT -> ExceptT do
+      GT -> do
         -- Short circuits and adds Ada to any output utxo of the owner. This saves
         -- on fees but does not create a separate utxo. Do we want this behaviour?
         -- I expect if there are any output utxos to the user, they are either Ada
@@ -474,10 +480,10 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
             findIndex ((==) (Just changeAddr) <<< fromPlutusType <<< _.address <<< unwrap) txOutputs
 
         case changeIndex of
-          Just idx -> pure do
+          Just idx -> do
             -- Add the Ada value to the first output utxo of the owner to not
             -- concur fees. This should be Ada only or non-Ada which has min Ada.
-            newOutputs <-
+            newOutputs <- ExceptT $ pure $
               note
                 ( ReturnAdaChangeError
                     "Couldn't modify utxo to return change."
@@ -498,9 +504,9 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
                   { body = wrap txBody { outputs = newOutputs, fee = wrap fees }
                   }
           Nothing -> do
-            changeAddress' <-
-              note (ReturnAdaChangeError "Unable to convert change address")
-              (toPlutusType changeAddr)
+            changeAddress' <- ExceptT $ pure $
+                note (ReturnAdaChangeError "Unable to convert change address") (toPlutusType changeAddr)
+
             -- Create a txBody with the extra output utxo then recalculate fees,
             -- then adjust as necessary if we have sufficient Ada in the input.
             let
@@ -526,38 +532,37 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
               tx' :: Transaction
               tx' = wrap tx { body = txBody' }
 
-            fees'' <- lmap ReturnAdaChangeCalculateMinFee <$> calculateMinFee'
-              tx'
-            -- fees should increase.
-            pure $ fees'' >>= \fees' -> do
-              -- New return Ada amount should decrease:
-              let returnAda' = returnAda + fees - fees'
+            fees'' <- ExceptT (lmap ReturnAdaChangeCalculateMinFee <$> calculateMinFee' tx')
 
-              if returnAda' >= changeMinUtxo then do
-                newOutputs <-
-                  note
-                    ( ReturnAdaChangeImpossibleError
-                        "Couldn't modify head utxo to add Ada"
-                        Impossible
+            -- New return Ada amount should decrease:
+            let returnAda' = returnAda + fees - fees''
+
+            when (returnAda' < changeMinUtxo)
+                $ throwError
+                $ ReturnAdaChangeError
+                  "ReturnAda' does not cover min. utxo requirement for \
+                  \single Ada-only output."
+
+            newOutputs <- ExceptT $ pure $
+              note
+                ( ReturnAdaChangeImpossibleError
+                    "Couldn't modify head utxo to add Ada"
+                    Impossible
+                )
+                $ modifyAt
+                    0
+                    ( \(TransactionOutput o) -> TransactionOutput
+                        o { amount = unwrap $ toPlutusType $ lovelaceValueOf returnAda' }
                     )
-                    $ modifyAt
-                        0
-                        ( \(TransactionOutput o) -> TransactionOutput
-                            o { amount = unwrap $ toPlutusType $ lovelaceValueOf returnAda' }
-                        )
-                    $ _.outputs <<< unwrap
-                    $ txBody'
-                pure $
-                  wrap
-                    tx
-                      { body = wrap txBody
-                          { outputs = newOutputs, fee = wrap fees' }
-                      }
-              else
-                Left $
-                  ReturnAdaChangeError
-                    "ReturnAda' does not cover min. utxo requirement for \
-                    \single Ada-only output."
+                $ _.outputs <<< unwrap
+                $ txBody'
+
+            pure $
+              wrap
+                tx
+                  { body = wrap txBody
+                      { outputs = newOutputs, fee = wrap fees'' }
+                  }
 
 calculateMinUtxos :: Array TransactionOutput -> MinUtxos
 calculateMinUtxos = map (\a -> a /\ calculateMinUtxo a)
@@ -811,6 +816,9 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
       )
       $ filterNonAda inputValue `minus` nonMintedAdaOutputValue
 
+  changeAddress' <-
+      note (BalanceNonAdaOutsError "Unable to convert change address") (toPlutusType changeAddr)
+
   let
     -- Useful spies for debugging:
     -- a = spy "balanceNonAdaOuts'nonMintedOutputValue" nonMintedOutputValue
@@ -822,21 +830,21 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
       Array.fromFoldable $
         case
           partition
-            ((==) changeAddr <<< _.address <<< unwrap) --  <<< txOutPaymentCredentials)
+            ((==) (Just changeAddr) <<< fromPlutusType <<< _.address <<< unwrap) --  <<< txOutPaymentCredentials)
 
             $ Array.toUnfoldable txOutputs
           of
           { no: txOuts, yes: Nil } ->
             TransactionOutput
-              { address: changeAddr
-              , amount: nonAdaChange
+              { address: changeAddress'
+              , amount: unwrap $ toPlutusType $ nonAdaChange
               , dataHash: Nothing
               } : txOuts
           { no: txOuts'
           , yes: TransactionOutput txOut@{ amount: v } : txOuts
           } ->
             TransactionOutput
-              txOut { amount = v <> nonAdaChange } : txOuts <> txOuts'
+              txOut { amount = v <> (unwrap $ toPlutusType $ nonAdaChange) } : txOuts <> txOuts'
 
   -- Original code uses "isNat" because there is a guard against zero, see
   -- isPos for more detail.
@@ -858,11 +866,11 @@ addLovelaces minLovelaces (TxBody txBody) =
             let
               txOut = unwrap txOut'
 
-              outValue :: Value
+              outValue :: PlutusValue.Value
               outValue = txOut.amount
 
               lovelaces :: BigInt
-              lovelaces = getLovelace $ valueToCoin outValue
+              lovelaces = PlutusValue.valueOf outValue adaSymbol adaToken
 
               minUtxo :: BigInt
               minUtxo = fromMaybe zero $ Foldable.lookup txOut' minLovelaces
@@ -871,7 +879,7 @@ addLovelaces minLovelaces (TxBody txBody) =
                 txOut
                   { amount =
                       outValue
-                        <> lovelaceValueOf (max zero $ minUtxo - lovelaces)
+                        <> unwrap (toPlutusType $ lovelaceValueOf $ max zero $ minUtxo - lovelaces)
                   }
         )
         txBody.outputs
