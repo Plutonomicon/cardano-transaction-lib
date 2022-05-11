@@ -1,25 +1,6 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that pays two Ada to the `AlwaysSucceeds` script address
--- |
--- | * Prerequisites
--- |   - A Chromium-based browser (for Nami compatibility)
---
--- |   - A Nami wallet funded with test Ada ("tAda") and collateral set, If you need
--- |     tAda, visit https://testnets.cardano.org/en/testnets/cardano/tools/faucet/
---
--- | * How to run
---
--- |   The `Contract` interface requires several external services to be running.
--- |   From the repository root, run `nix run .#ctl-runtime` to launch all
--- |   required services
---
--- |   Once all of the services are *fully synced*, run:
---
--- |   - `make run-dev` and visit `localhost:4008`. You may be prompted to enable
--- |     access to your wallet if you have not run this example before. You will
--- |     also be prompted to sign the transaction using your Nami password
-
 module Examples.AlwaysSucceeds (main) where
 
 import Contract.Prelude
