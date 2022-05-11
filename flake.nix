@@ -11,7 +11,7 @@
     ogmios.url = "github:mlabs-haskell/ogmios/c4f896bf32ad066be8edd8681ee11e4ab059be7f";
     ogmios-datum-cache = {
       url = "github:mlabs-haskell/ogmios-datum-cache";
-      flake = false;
+      flake = true;
     };
     # so named because we also need a different version of the repo below
     # in the server inputs and we use this one just for the `cardano-cli`
@@ -148,9 +148,7 @@
         easy-ps =
           import inputs.easy-purescript-nix { pkgs = prev; };
         ogmios-datum-cache =
-          nixpkgs.legacyPackages.${system}.haskellPackages.callPackage
-            ogmios-datum-cache
-            { };
+          inputs.ogmios-datum-cache.defaultPackage.${system};
         ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
         cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
         purescriptProject = import ./nix { inherit system; pkgs = prev; };
