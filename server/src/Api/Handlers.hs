@@ -17,7 +17,6 @@ import Cardano.Binary qualified as Cbor
 import Cardano.Ledger.Alonzo qualified as Alonzo
 import Cardano.Ledger.Alonzo.Data qualified as Data
 import Cardano.Ledger.Alonzo.Language (Language (PlutusV1))
-import Cardano.Ledger.Alonzo.Scripts qualified as Scripts (ExUnits)
 import Cardano.Ledger.Alonzo.Tx qualified as Tx
 import Cardano.Ledger.Alonzo.TxWitness qualified as TxWitness
 import Cardano.Ledger.Crypto (StandardCrypto)
@@ -29,7 +28,6 @@ import Control.Monad.Catch (throwM)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (asks)
 import Data.Bifunctor (first)
-import Data.Bitraversable (bitraverse)
 import Data.ByteString (ByteString)
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Lazy qualified as BL
@@ -116,15 +114,6 @@ evalTxExecutionUnits cbor =
               , exUnitsMem = C.executionMemory exUnits
               , exUnitsSteps = C.executionSteps exUnits
               }
-
-setExecutionUnits ::
-  [(TxWitness.RdmrPtr, Scripts.ExUnits)] ->
-  TxWitness.Redeemers (Alonzo.AlonzoEra StandardCrypto) ->
-  TxWitness.Redeemers (Alonzo.AlonzoEra StandardCrypto)
-setExecutionUnits [] rs = rs
-setExecutionUnits ((rdmrPtr, exUnits) : xs) (TxWitness.Redeemers' rs) =
-  setExecutionUnits xs . TxWitness.Redeemers $
-    Map.adjust (_2 .~ exUnits) rdmrPtr rs
 
 applyArgs :: ApplyArgsRequest -> AppM AppliedScript
 applyArgs ApplyArgsRequest {script, args} =

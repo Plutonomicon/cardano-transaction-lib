@@ -11,6 +11,7 @@ module QueryM
   , ListenerSet
   , PendingRequests
   , ListenerId
+  , RdmrPtrExUnits(..)
   , RequestBody
   , OgmiosListeners
   , OgmiosWebSocket
@@ -30,6 +31,7 @@ module QueryM
   , datumFilterSetHashesRequest
   , datumHash
   , traceQueryConfig
+  , evalTxExecutionUnits
   , finalizeTx
   , getDatumByHash
   , getDatumsByHashes
@@ -106,6 +108,7 @@ import JsWebSocket
   )
 import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
+import Types.Natural (Natural)
 import QueryM.DatumCacheWsp
   ( DatumCacheMethod
       ( StartFetchBlocks
@@ -468,14 +471,17 @@ instance Show ClientError where
       <> err
       <> ")"
 
+txToHex :: Transaction -> Effect String
+txToHex tx =
+  byteArrayToHex
+    <<< Serialization.toBytes
+    <<< asOneOf
+    <$> Serialization.convertTransaction tx
+
 -- Query the Haskell server for the minimum transaction fee
 calculateMinFee :: Transaction -> QueryM (Either ClientError Coin)
 calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
-  txHex <- liftEffect $
-    byteArrayToHex
-      <<< Serialization.toBytes
-      <<< asOneOf
-      <$> Serialization.convertTransaction tx
+  txHex <- liftEffect (txToHex tx)
   url <- mkServerEndpointUrl
     $ "fees?tx="
         <> txHex
@@ -513,6 +519,30 @@ calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   witCount :: UInt
   witCount = maybe one UInt.fromInt $ length <$> body.requiredSigners
 
+newtype RdmrPtrExUnits = RdmrPtrExUnits
+  { rdmrPtrTag :: Int
+  , rdmrPtrIdx :: Natural
+  , exUnitsMem :: Natural
+  , exUnitsSteps :: Natural
+  }
+
+derive instance Generic RdmrPtrExUnits _
+
+instance Show RdmrPtrExUnits where
+  show = genericShow
+
+derive newtype instance DecodeJson RdmrPtrExUnits
+
+evalTxExecutionUnits
+  :: Transaction -> QueryM (Either ClientError (Array RdmrPtrExUnits))
+evalTxExecutionUnits tx = do
+  txHex <- liftEffect (txToHex tx)
+  url <- mkServerEndpointUrl ("eval-ex-units?tx=" <> txHex)
+  liftAff (Affjax.get Affjax.ResponseFormat.json url)
+    <#> either
+      (Left <<< ClientHttpError)
+      (lmap ClientDecodeJsonError <<< Json.decodeJson <<< _.body)
+
 -- | CborHex-encoded tx
 newtype FinalizedTransaction = FinalizedTransaction ByteArray
 
@@ -535,11 +565,7 @@ finalizeTx
   -> QueryM (Maybe FinalizedTransaction)
 finalizeTx tx datums redeemers = do
   -- tx
-  txHex <- liftEffect $
-    byteArrayToHex
-      <<< Serialization.toBytes
-      <<< asOneOf
-      <$> Serialization.convertTransaction tx
+  txHex <- liftEffect (txToHex tx)
   -- datums
   encodedDatums <- liftEffect do
     for datums \datum -> do
