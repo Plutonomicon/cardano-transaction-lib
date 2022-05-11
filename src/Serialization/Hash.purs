@@ -18,8 +18,10 @@ import Prelude
 
 import Data.Argonaut
   ( class DecodeJson
-  , caseJsonString
+  , class EncodeJson
   , JsonDecodeError(TypeMismatch)
+  , caseJsonString
+  , encodeJson
   )
 import Data.Argonaut as Json
 import Data.Either (Either(Left), note)
@@ -144,6 +146,9 @@ instance DecodeJson ScriptHash where
       note (Json.TypeMismatch "Expected hex-encoded script hash")
         <<< (scriptHashFromBytes <=< hexToByteArray)
         <=< flip Json.getField "getScriptHash"
+
+instance EncodeJson ScriptHash where
+  encodeJson sh = encodeJson (scriptHashToBytes sh)
 
 foreign import _scriptHashFromBytesImpl
   :: MaybeFfiHelper
