@@ -10,7 +10,16 @@ module Types.Scripts
 
 import Prelude
 
-import Data.Argonaut (class DecodeJson, class EncodeJson)
+import Contract.Prelude (Either(..))
+import Data.Argonaut
+  ( class DecodeJson
+  , class EncodeJson
+  , JsonDecodeError(..)
+  , caseJsonObject
+  , decodeJson
+  , encodeJson
+  , getField
+  )
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
@@ -45,8 +54,15 @@ derive instance Generic MintingPolicy _
 derive instance Newtype MintingPolicy _
 derive newtype instance Eq MintingPolicy
 derive newtype instance Ord MintingPolicy
-derive newtype instance DecodeJson MintingPolicy
-derive newtype instance EncodeJson MintingPolicy
+
+instance DecodeJson MintingPolicy where
+  decodeJson = caseJsonObject
+    (Left $ TypeMismatch "Expected object")
+    (flip getField "getMintingPolicy" >=> decodeJson >>> map MintingPolicy)
+
+instance EncodeJson MintingPolicy where
+  encodeJson (MintingPolicy script) = encodeJson
+    { "getMintingPolicy": encodeJson script }
 
 instance Show MintingPolicy where
   show = genericShow
@@ -57,8 +73,15 @@ derive instance Generic Validator _
 derive instance Newtype Validator _
 derive newtype instance Eq Validator
 derive newtype instance Ord Validator
-derive newtype instance DecodeJson Validator
-derive newtype instance EncodeJson Validator
+
+instance DecodeJson Validator where
+  decodeJson = caseJsonObject
+    (Left $ TypeMismatch "Expected object")
+    (flip getField "getValidator" >=> decodeJson >>> map Validator)
+
+instance EncodeJson Validator where
+  encodeJson (Validator script) = encodeJson
+    { "getValidator": encodeJson script }
 
 instance Show Validator where
   show = genericShow
@@ -71,8 +94,15 @@ derive instance Generic StakeValidator _
 derive instance Newtype StakeValidator _
 derive newtype instance Eq StakeValidator
 derive newtype instance Ord StakeValidator
-derive newtype instance DecodeJson StakeValidator
-derive newtype instance EncodeJson StakeValidator
+
+instance DecodeJson StakeValidator where
+  decodeJson = caseJsonObject
+    (Left $ TypeMismatch "Expected object")
+    (flip getField "getStakeValidator" >=> decodeJson >>> map StakeValidator)
+
+instance EncodeJson StakeValidator where
+  encodeJson (StakeValidator script) = encodeJson
+    { "getStakeValidator": encodeJson script }
 
 instance Show StakeValidator where
   show = genericShow
