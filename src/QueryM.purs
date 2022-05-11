@@ -10,7 +10,6 @@ module QueryM
   , module ServerConfig
   , ListenerSet
   , PendingRequests
-  , ListenerId
   , RequestBody
   , OgmiosListeners
   , OgmiosWebSocket
@@ -153,6 +152,7 @@ import QueryM.ServerConfig
   , mkOgmiosDatumCacheWsUrl
   , mkWsUrl
   )
+import QueryM.UniqueId (ListenerId)
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address
   ( Address
@@ -337,12 +337,13 @@ matchCacheQuery query method args = do
 queryDatumCache :: DatumCacheRequest -> QueryM DatumCacheResponse
 queryDatumCache request = do
   config <- ask
+  req <- liftEffect $ DcWsp.mkJsonWspRequest request
   let
     sBody :: RequestBody
-    sBody = Json.stringify $ encodeJson $ DcWsp.jsonWspRequest request
+    sBody = Json.stringify $ encodeJson req
 
     id :: String
-    id = DcWsp.requestMethodName request
+    id = req.mirror
 
     affFunc
       :: (Either Error DcWsp.JsonWspResponse -> Effect Unit) -> Effect Canceler
@@ -867,9 +868,6 @@ mkOgmiosRequest jsonWspCall getLs inp = do
 type WebsocketDispatch =
   String -> Effect (Either Json.JsonDecodeError (Effect Unit))
 
--- | A unique request ID used for dispatching
-type ListenerId = String
-
 -- A mutable queue of requests
 type DispatchIdMap response = Ref
   (MultiMap ListenerId (response -> Effect Unit))
@@ -916,7 +914,7 @@ createPendingRequests = Ref.new Map.empty
 ogmiosQueryDispatch
   :: forall (response :: Type)
    . Aeson.DecodeAeson response
-  => Ref (MultiMap String (response -> Effect Unit))
+  => DispatchIdMap response
   -> String
   -> Effect (Either Json.JsonDecodeError (Effect Unit))
 ogmiosQueryDispatch ref str = do
@@ -946,7 +944,7 @@ ogmiosQueryDispatch ref str = do
       Just action -> pure $ Right $ action parsed.result
 
 datumCacheQueryDispatch
-  :: Ref (MultiMap String (DcWsp.JsonWspResponse -> Effect Unit))
+  :: DispatchIdMap DcWsp.JsonWspResponse
   -> String
   -> Effect (Either Json.JsonDecodeError (Effect Unit))
 datumCacheQueryDispatch dim str = either (pure <<< Left) afterParse $ parse str
@@ -959,7 +957,7 @@ datumCacheQueryDispatch dim str = either (pure <<< Left) afterParse $ parse str
     -> Effect (Either Json.JsonDecodeError (Effect Unit))
   afterParse parsed = do
     idMap <- Ref.read dim
-    let id = parsed.methodname
+    let id = parsed.reflection
     case MultiMap.lookup id idMap of
       Nothing -> pure $
         ( Left

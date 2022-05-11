@@ -36,11 +36,9 @@ import Data.Either (Either(Left, Right))
 import Data.UInt as UInt
 import Effect (Effect)
 import Foreign.Object (Object)
+import QueryM.UniqueId (uniqueId)
 import Record as Record
 import Type.Proxy (Proxy)
-
--- creates a unique id prefixed by its argument
-foreign import _uniqueId :: String -> Effect String
 
 -- | Structure of all json wsp websocket requests
 -- described in: https://ogmios.dev/getting-started/basics/
@@ -65,7 +63,7 @@ mkJsonWspRequest
      }
   -> Effect (JsonWspRequest a)
 mkJsonWspRequest service method = do
-  id <- _uniqueId $ method.methodname <> "-"
+  id <- uniqueId $ method.methodname <> "-"
   pure
     $ Record.merge { mirror: { step: "INIT", id } }
     $

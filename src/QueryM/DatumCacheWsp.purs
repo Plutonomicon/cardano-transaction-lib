@@ -6,7 +6,7 @@ module QueryM.DatumCacheWsp
   , JsonWspResponse
   , WspFault(WspFault)
   , faultToString
-  , jsonWspRequest
+  , mkJsonWspRequest
   , parseJsonWspResponse
   , responseMethod
   , requestMethodName
@@ -46,6 +46,8 @@ import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)
 import Data.TraversableWithIndex (forWithIndex)
 import Data.Tuple.Nested (type (/\), (/\))
+import Effect (Effect)
+import QueryM.UniqueId (ListenerId, uniqueId)
 import Serialization.Address (BlockId, Slot)
 import Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Types.Datum (Datum, DatumHash)
@@ -62,6 +64,7 @@ type JsonWspRequest =
   , servicename :: String
   , methodname :: String
   , args :: Json
+  , mirror :: ListenerId
   }
 
 type JsonWspResponse =
@@ -71,6 +74,7 @@ type JsonWspResponse =
   , methodname :: String
   , result :: Maybe Aeson
   , fault :: Maybe Aeson
+  , reflection :: ListenerId
   }
 
 data DatumCacheMethod
@@ -156,14 +160,20 @@ responseMethod = case _ of
 requestMethodName :: DatumCacheRequest -> String
 requestMethodName = requestMethod >>> datumCacheMethodToString
 
-jsonWspRequest :: DatumCacheRequest -> JsonWspRequest
-jsonWspRequest req =
-  { type: "jsonwsp/request"
-  , version: "1.0"
-  , servicename: "ogmios"
-  , methodname: requestMethodName req
-  , args: toArgs req
-  }
+mkJsonWspRequest
+  :: DatumCacheRequest
+  -> Effect JsonWspRequest
+mkJsonWspRequest req = do
+  let methodname = requestMethodName req
+  id <- uniqueId $ methodname <> "-"
+  pure
+    { type: "jsonwsp/request"
+    , version: "1.0"
+    , servicename: "ogmios"
+    , methodname
+    , args: toArgs req
+    , mirror: id
+    }
   where
   encodeHashes :: Array DatumHash -> Json
   encodeHashes dhs = encodeJson { hashes: (byteArrayToHex <<< unwrap) <$> dhs }
