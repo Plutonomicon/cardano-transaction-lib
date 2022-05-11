@@ -24,9 +24,13 @@ import Contract.PlutusData (DatumHash, getDatumByHash, getDatumsByHashes)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Data.Newtype (wrap)
 
+import Effect.Class (liftEffect)
+
+import Wallet (mkGeroWalletAff)
+
 main :: Effect Unit
 main = launchAff_ $ do
-  cfg <- traceContractConfig
+  cfg <- traceContractConfig mkGeroWalletAff
   runContract_ cfg $ do
     logInfo' <<< show =<< getDatumByHash
       ( mkDatumHash

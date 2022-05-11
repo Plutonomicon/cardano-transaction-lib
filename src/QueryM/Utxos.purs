@@ -27,7 +27,7 @@ import Types.Transaction (UtxoM(UtxoM))
 import Types.Transaction as Transaction
 import TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
 import Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
-import Wallet (Wallet(Nami))
+import Wallet (Wallet(Nami, Gero))
 import QueryM.Ogmios as Ogmios
 
 --------------------------------------------------------------------------------
@@ -45,7 +45,7 @@ utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
     :: Address -> Wallet -> QueryM (Maybe Transaction.UtxoM)
   utxosAtByWallet address (Nami _) = namiUtxosAt address
   -- Unreachable but helps build when we add wallets, most of them shouldn't
-  -- require any specific behaviour.
+  -- require any specific behaviour.m
   utxosAtByWallet address _ = allUtxosAt address
 
   -- Gets all utxos at an (internal) Address in terms of (internal)

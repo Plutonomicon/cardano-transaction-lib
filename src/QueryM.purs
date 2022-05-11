@@ -1,4 +1,4 @@
--- | TODO docstring
+-- | TODO docstrinn
 module QueryM
   ( ClientError(..)
   , DatumCacheListeners
@@ -181,7 +181,7 @@ import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Types.Chain as Chain
 import Cardano.Types.Value (Coin(Coin))
 import Untagged.Union (asOneOf)
-import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
+import Wallet (Wallet(Nami, Gero), NamiWallet, GeroWallet, NamiConnection, GeroConnection)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -377,25 +377,30 @@ allowError func = func <<< Right
 getWalletAddress :: QueryM (Maybe Address)
 getWalletAddress = withMWalletAff $ case _ of
   Nami nami -> callNami nami _.getWalletAddress
+  Gero gero -> callGero gero _.getWalletAddress
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
 getWalletCollateral = withMWalletAff $ case _ of
   Nami nami -> callNami nami _.getCollateral
+  Gero gero -> callGero gero _.getCollateral
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
 signTransaction tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.signTx tx
+  Gero gero -> callGero gero $ \gw -> flip gw.signTx tx
 
 signTransactionBytes
   :: ByteArray -> QueryM (Maybe ByteArray)
 signTransactionBytes tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.signTxBytes tx
+  Gero gero -> callGero gero $ \gw -> flip gw.signTxBytes tx
 
 submitTxWallet
   :: Transaction.Transaction -> QueryM (Maybe Transaction.TransactionHash)
 submitTxWallet tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.submitTx tx
+  Gero gero -> callGero gero $ \gw -> flip gw.submitTx tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do
@@ -427,6 +432,16 @@ callNami nami act = act nami =<< readNamiConnection nami
   where
   readNamiConnection :: NamiWallet -> Aff NamiConnection
   readNamiConnection = liftEffect <<< Ref.read <<< _.connection
+
+callGero
+  :: forall (a :: Type)
+   . GeroWallet
+  -> (GeroWallet -> (GeroConnection -> Aff a))
+  -> Aff a
+callGero gero act = act gero =<< readGeroConnection gero
+  where
+  readGeroConnection :: GeroWallet -> Aff GeroConnection
+  readGeroConnection = liftEffect <<< Ref.read <<< _.connection
 
 -- The server will respond with a stringified integer value for the fee estimate
 newtype FeeEstimate = FeeEstimate BigInt

@@ -41,6 +41,40 @@ exports._submitTxNami = txHex => nami => () => {
       });
 };
 
+// _enableGero :: Effect (Promise NamiConnection)
+exports._enableGero = () => window.cardano.gero.enable();
+
+// _getGeroAddress :: NamiConnection -> Effect (Promise String)
+exports._getGeroAddress = gero => () =>
+  gero.getUsedAddresses().then((addrs) => addrs[0]);
+
+// _getGeroCollateral
+//   :: MaybeFfiHelper
+//   -> NamiConnection
+//   -> Effect (Promise String)
+exports._getGeroCollateral = maybe => gero => () =>
+  gero.experimental.getCollateral().then((utxos) => {
+  return utxos.length ? maybe.just(utxos[0]) : maybe.nothing;
+});
+
+// _signTxGero :: String -> NamiConnection -> Effect (Promise String)
+exports._signTxGero = txHex => gero => () => {
+  return gero.signTx(txHex, true)
+      .catch(e => {
+          console.log("Error in signTxGero: ", e);
+          throw (JSON.stringify(e));
+      });
+}
+
+// _submitTxGero :: String -> NamiConnection -> Effect (Promise String)
+exports._submitTxGero = txHex => gero => () => {
+  return gero.submitTx(txHex)
+      .catch(e => {
+          console.log("Error in submitTxGero: ", e);
+          throw (JSON.stringify(e));
+      });
+};
+
 // foreign import _attachSignature
 //   :: ByteArray
 //   -> ByteArray
