@@ -257,7 +257,13 @@ instance Docs.ToParam (QueryParam' '[Required] "count" WitnessCount) where
       Docs.Normal
 
 instance Docs.ToSample ExecutionUnitsMap where
-  toSamples _ = [] -- TODO:
+  toSamples _ =
+    [
+      ( "The `(RdmrPtr -> ExUnits)` map will be returned as a list of \
+        \two-element lists with hex-encoded CBOR elements"
+      , ExecutionUnitsMap [(Cbor "00", Cbor "00")]
+      )
+    ]
 
 instance Docs.ToSample Fee where
   toSamples _ =
