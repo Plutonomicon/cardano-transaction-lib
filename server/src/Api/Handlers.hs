@@ -92,7 +92,7 @@ blake2bHash (BytesToHash hs) =
     PlutusTx.toBuiltin hs
 
 finalizeTx :: FinalizeRequest -> AppM FinalizedTransaction
-finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
+finalizeTx FinalizeRequest {tx, datums, redeemers} = do
   pparams <- asks protocolParams
   decodedTx <-
     throwDecodeErrorWithMessage "Failed to decode tx" $
@@ -104,9 +104,9 @@ finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
     throwDecodeErrorWithMessage "Failed to decode datums" $
       traverse decodeCborDatum datums
   let scripts = Tx.txscripts' $ Tx.wits decodedTx
-      Value.Value _ assets = Tx.mint $ Tx.body decodedTx
+      Value.Value ada assets = Tx.mint $ Tx.body decodedTx
       languages
-        | Map.null scripts && Map.null assets = mempty
+        | Map.null scripts && Map.null assets && ada == 0 = mempty
         | TxWitness.nullRedeemers decodedRedeemers = mempty
         | otherwise = Set.fromList [PlutusV1]
       txDatums =
