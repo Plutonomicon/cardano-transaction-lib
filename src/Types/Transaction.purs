@@ -1,6 +1,7 @@
 module Types.Transaction
   ( AuxiliaryData(..)
   , AuxiliaryDataHash(..)
+  , BlockId(..)
   , BootstrapWitness
   , Certificate(..)
   , CostModel(..)
@@ -874,6 +875,13 @@ instance Show DataHash where
 
 -- To help with people copying & pasting code from Haskell to Purescript
 type DatumHash = DataHash
+
+newtype BlockId = BlockId ByteArray
+
+derive instance Generic BlockId _
+derive instance Newtype BlockId _
+derive newtype instance Eq BlockId
+derive newtype instance Ord BlockId
 
 -- Option<Certificates>,
 -- these are the constructors, but this will generally be an Empty Option in our initial efforts

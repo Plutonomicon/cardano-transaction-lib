@@ -22,12 +22,13 @@ module QueryM
   , allowError
   , applyArgs
   , calculateMinFee
-  , cancelFetchBlocksRequest
   , datumHash
   , traceQueryConfig
   , finalizeTx
   , getDatumByHash
   , getDatumsByHashes
+  , startFetchBlocks
+  , cancelFetchBlocks
   , getWalletAddress
   , getChainTip
   , getWalletCollateral
@@ -40,11 +41,11 @@ module QueryM
   , ownPaymentPubKeyHash
   , ownPubKeyHash
   , ownStakePubKeyHash
-  , queryDatumCache
+--  , queryDatumCache
   , runQueryM
   , signTransaction
   , signTransactionBytes
-  , startFetchBlocksRequest
+--  , startFetchBlocks
   , submitTxWallet
   , submitTxOgmios
   , underlyingWebSocket
@@ -56,10 +57,11 @@ import Aeson as Aeson
 import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.ResponseFormat as Affjax.ResponseFormat
+import Cardano.Types.Value (Coin(Coin))
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT, ask, asks)
-import Data.Argonaut (class DecodeJson, JsonDecodeError)
+import Data.Argonaut (class DecodeJson)
 import Data.Argonaut as Json
 import Data.Argonaut.Encode.Class (encodeJson)
 import Data.Argonaut.Encode.Encoders (encodeString)
@@ -89,85 +91,33 @@ import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
 import Helpers (logString, logWithLevel)
-import JsWebSocket
-  ( JsWebSocket
-  , Url
-  , _mkWebSocket
-  , _onWsConnect
-  , _onWsError
-  , _onWsMessage
-  , _wsSend
-  , _wsWatch
-  )
-import Types.MultiMap (MultiMap)
-import Types.MultiMap as MultiMap
-import QueryM.DatumCacheWsp
-  ( DatumCacheMethod
-      ( StartFetchBlocks
-      , CancelFetchBlocks
-      )
-  , DatumCacheRequest
-      ( GetDatumByHashRequest
-      , GetDatumsByHashesRequest
-      , StartFetchBlocksRequest
-      , CancelFetchBlocksRequest
-      )
-  , DatumCacheResponse
-      ( GetDatumByHashResponse
-      , GetDatumsByHashesResponse
-      )
-  )
+import JsWebSocket (JsWebSocket, Url, _mkWebSocket, _onWsConnect, _onWsError, _onWsMessage, _wsSend, _wsWatch)
+import QueryM.DatumCacheWsp (CancelFetchBlocksR, GetDatumByHashR, GetDatumsByHashesR, StartFetchBlocksR)
 import QueryM.DatumCacheWsp as DcWsp
 import QueryM.JsonWsp as JsonWsp
 import QueryM.Ogmios as Ogmios
-import QueryM.ServerConfig
-  ( Host
-  , ServerConfig
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
-  , mkHttpUrl
-  , mkOgmiosDatumCacheWsUrl
-  , mkServerUrl
-  , mkWsUrl
-  ) as ServerConfig
-import QueryM.ServerConfig
-  ( ServerConfig
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
-  , mkHttpUrl
-  , mkOgmiosDatumCacheWsUrl
-  , mkWsUrl
-  )
+import QueryM.ServerConfig (Host, ServerConfig, defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkServerUrl, mkWsUrl) as ServerConfig
+import QueryM.ServerConfig (ServerConfig, defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkWsUrl)
 import QueryM.UniqueId (ListenerId)
 import Serialization (convertTransaction, toBytes) as Serialization
-import Serialization.Address
-  ( Address
-  , BlockId
-  , NetworkId(TestnetId)
-  , Slot
-  , baseAddressDelegationCred
-  , baseAddressFromAddress
-  , baseAddressPaymentCred
-  , stakeCredentialToKeyHash
-  )
+import Serialization.Address (Address, NetworkId(TestnetId), Slot, baseAddressDelegationCred, baseAddressFromAddress, baseAddressPaymentCred, stakeCredentialToKeyHash)
 import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
+import Types.Chain as Chain
 import Types.Datum (Datum, DatumHash)
 import Types.Interval (SlotConfig, defaultSlotConfig)
+import Types.MultiMap (MultiMap)
+import Types.MultiMap as MultiMap
 import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PubKeyHash)
 import Types.Scripts (PlutusScript)
-import Types.Transaction (Transaction(Transaction))
+import Types.Transaction (BlockId, Transaction(Transaction))
 import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.UnbalancedTransaction (StakePubKeyHash, PaymentPubKeyHash)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
-import Types.Chain as Chain
-import Cardano.Types.Value (Coin(Coin))
 import Untagged.Union (asOneOf)
 import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
 
@@ -267,74 +217,19 @@ submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall _.submit { txCbor }
 --------------------------------------------------------------------------------
 
 getDatumByHash :: DatumHash -> QueryM (Maybe Datum)
-getDatumByHash hash = do
-  queryDatumCache (GetDatumByHashRequest hash) >>= case _ of
-    GetDatumByHashResponse mData -> pure mData
-    _ -> liftEffect $ throw
-      "Request-response type mismatch. Should not have happened"
+getDatumByHash hash = unwrap <$> do
+  mkDatumCacheRequest DcWsp.getDatumByHashCall _.getDatumByHash hash
 
 getDatumsByHashes :: Array DatumHash -> QueryM (Map DatumHash Datum)
-getDatumsByHashes hashes = do
-  queryDatumCache (GetDatumsByHashesRequest hashes) >>= case _ of
-    GetDatumsByHashesResponse plutusDatums -> pure $ plutusDatums
-    _ -> liftEffect $ throw
-      "Request-response type mismatch. Should not have happened"
+getDatumsByHashes hashes = unwrap <$> do
+  mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
 
-startFetchBlocksRequest :: { slot :: Slot, id :: BlockId } -> QueryM Unit
-startFetchBlocksRequest = matchCacheQuery StartFetchBlocksRequest
-  StartFetchBlocks
+startFetchBlocks :: { slot :: Slot, id :: BlockId } -> QueryM Unit
+startFetchBlocks start = void $ mkDatumCacheRequest DcWsp.startFetchBlocksCall _.startFetchBlocks start
 
 -- | Cancels a running block fetcher job. Throws on no fetchers running
-cancelFetchBlocksRequest :: QueryM Unit
-cancelFetchBlocksRequest = matchCacheQuery (const CancelFetchBlocksRequest)
-  CancelFetchBlocks
-  unit
-
-matchCacheQuery
-  :: forall (args :: Type)
-   . (args -> DatumCacheRequest)
-  -> DatumCacheMethod
-  -> args
-  -> QueryM Unit
-matchCacheQuery query method args = do
-  resp <- queryDatumCache (query args)
-  unless (DcWsp.responseMethod resp == method) $ liftEffect $ throw
-    "Request-response type mismatch. Should not have happened"
-
--- TODO: To be unified with ogmios once reflection PR is merged in `ogmios-datum-cache`
--- https://github.com/Plutonomicon/cardano-transaction-lib/issues/363
-queryDatumCache :: DatumCacheRequest -> QueryM DatumCacheResponse
-queryDatumCache request = do
-  config <- ask
-  req <- liftEffect $ DcWsp.mkJsonWspRequest request
-  let
-    sBody :: RequestBody
-    sBody = Json.stringify $ encodeJson req
-
-    id :: String
-    id = req.mirror
-
-    affFunc
-      :: (Either Error DcWsp.JsonWspResponse -> Effect Unit) -> Effect Canceler
-    affFunc cont = do
-      let
-        ls = listeners config.datumCacheWs
-        ws = underlyingWebSocket config.datumCacheWs
-      ls.addMessageListener id
-        ( \result -> do
-            ls.removeMessageListener id
-            allowError cont $ result
-        )
-      ls.addRequest id sBody
-      _wsSend ws (logString config.logLevel Debug) sBody
-      pure $ Canceler $ \err -> do
-        liftEffect $ ls.removeMessageListener id
-        liftEffect $ throwError $ err
-  jsonwspresp <- liftAff $ makeAff $ affFunc
-  case DcWsp.parseJsonWspResponse jsonwspresp of
-    Right resp -> pure resp
-    Left fault -> liftEffect $ throw $ "Ogmios-datum-cache service call fault"
-      <> DcWsp.faultToString fault
+cancelFetchBlocks :: QueryM Unit
+cancelFetchBlocks = void $ mkDatumCacheRequest DcWsp.cancelFetchBlocksCall _.cancelFetchBlocks unit
 
 allowError
   :: forall (a :: Type). (Either Error a -> Effect Unit) -> a -> Effect Unit
@@ -715,20 +610,39 @@ mkDatumCacheWebSocket'
   -> (Either Error DatumCacheWebSocket -> Effect Unit)
   -> Effect Canceler
 mkDatumCacheWebSocket' lvl serverCfg cb = do
-  dispatchMap <- createMutableDispatch
-  pendingRequests <- createPendingRequests
-  let md = datumCacheMessageDispatch dispatchMap
+  getDatumByHashDispatchMap <- createMutableDispatch
+  getDatumsByHashesDispatchMap <- createMutableDispatch
+  startFetchBlocksDispatchMap <- createMutableDispatch
+  cancelFetchBlocksDispatchMap <- createMutableDispatch
+  getDatumByHashPendingRequests <- createPendingRequests
+  getDatumsByHashesPendingRequests <- createPendingRequests
+  startFetchBlocksPendingRequests <- createPendingRequests
+  cancelFetchBlocksPendingRequests <- createPendingRequests
+  let md = datumCacheMessageDispatch   { getDatumByHashDispatchMap
+                                       , getDatumsByHashesDispatchMap
+                                       , startFetchBlocksDispatchMap
+                                       , cancelFetchBlocksDispatchMap
+                                       }
   ws <- _mkWebSocket (logger Debug) $ mkOgmiosDatumCacheWsUrl serverCfg
   let
     sendRequest = _wsSend ws (logString lvl Debug)
     onError = do
       logString lvl Debug "Datum Cache: WS error occured, resending requests"
-      Ref.read pendingRequests >>= traverse_ sendRequest
+      Ref.read getDatumByHashPendingRequests >>= traverse_ sendRequest
+      Ref.read getDatumsByHashesPendingRequests >>= traverse_ sendRequest
+      Ref.read startFetchBlocksPendingRequests >>= traverse_ sendRequest
+      Ref.read cancelFetchBlocksPendingRequests >>= traverse_ sendRequest
   _onWsConnect ws $ do
     _wsWatch ws (logger Debug) onError
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
     _onWsError ws (logger Error) $ const onError
-    cb $ Right $ WebSocket ws (mkListenerSet dispatchMap pendingRequests)
+    cb $ Right $ WebSocket ws
+      { getDatumByHash: mkListenerSet getDatumByHashDispatchMap getDatumByHashPendingRequests
+      , getDatumsByHashes: (mkListenerSet getDatumsByHashesDispatchMap getDatumsByHashesPendingRequests :: ListenerSet (Array DatumHash) GetDatumsByHashesR)
+      , startFetchBlocks: mkListenerSet startFetchBlocksDispatchMap startFetchBlocksPendingRequests
+      , cancelFetchBlocks: mkListenerSet cancelFetchBlocksDispatchMap cancelFetchBlocksPendingRequests
+      }
+
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
   logger :: LogLevel -> String -> Effect Unit
@@ -748,10 +662,9 @@ underlyingWebSocket (WebSocket ws _) = ws
 listeners :: forall (listeners :: Type). WebSocket listeners -> listeners
 listeners (WebSocket _ ls) = ls
 
--- interface required for adding/removing listeners
-type DatumCacheListeners = ListenerSet DatumCacheRequest DcWsp.JsonWspResponse
-
 type PendingRequests (request :: Type) = Ref (Map ListenerId RequestBody)
+
+type RequestBody = String
 
 type OgmiosListeners =
   { utxo :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoQR
@@ -760,7 +673,12 @@ type OgmiosListeners =
   , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationResult
   }
 
-type RequestBody = String
+type DatumCacheListeners =
+  { getDatumByHash :: ListenerSet DatumHash GetDatumByHashR
+  , getDatumsByHashes :: ListenerSet (Array DatumHash) GetDatumsByHashesR
+  , startFetchBlocks :: ListenerSet { slot :: Slot, id :: BlockId } StartFetchBlocksR
+  , cancelFetchBlocks :: ListenerSet Unit CancelFetchBlocksR
+  }
 
 -- convenience type for adding additional query types later
 type ListenerSet (request :: Type) (response :: Type) =
@@ -827,6 +745,41 @@ mkOgmiosRequest jsonWspCall getLs inp = do
         liftEffect $ throwError $ err
   liftAff $ makeAff $ affFunc
 
+-- TODO after ogmios-datum-cache implements reflection this could be generalized to make request for the cache as well
+-- | Builds a Ogmios request action using QueryM
+mkDatumCacheRequest
+  :: forall (request :: Type) (response :: Type)
+   . JsonWsp.JsonWspCall request response
+  -> (DatumCacheListeners -> ListenerSet request response)
+  -> request
+  -> QueryM response
+mkDatumCacheRequest jsonWspCall getLs inp = do
+  { body, id } <- liftEffect $ JsonWsp.buildRequest jsonWspCall inp
+  config <- ask
+  let
+    datumCacheWS :: DatumCacheWebSocket
+    datumCacheWS = config.datumCacheWs
+
+    affFunc :: (Either Error response -> Effect Unit) -> Effect Canceler
+    affFunc cont = do
+      let
+        ws = underlyingWebSocket datumCacheWS
+        respLs = datumCacheWS # listeners # getLs
+
+        sBody :: RequestBody
+        sBody = Json.stringify $ Json.encodeJson body
+      _ <- respLs.addMessageListener id
+        ( \result -> do
+            respLs.removeMessageListener id
+            allowError cont result
+        )
+      respLs.addRequest id sBody
+      _wsSend ws (logString config.logLevel Debug) sBody
+      pure $ Canceler $ \err -> do
+        liftEffect $ respLs.removeMessageListener id
+        liftEffect $ throwError $ err
+  liftAff $ makeAff $ affFunc
+
 -------------------------------------------------------------------------------
 -- Dispatch Setup
 --------------------------------------------------------------------------------
@@ -855,16 +808,30 @@ ogmiosMessageDispatch
   , evaluateTxDispatchMap
   , submitDispatchMap
   } =
-  [ ogmiosQueryDispatch utxoDispatchMap
-  , ogmiosQueryDispatch chainTipDispatchMap
-  , ogmiosQueryDispatch evaluateTxDispatchMap
-  , ogmiosQueryDispatch submitDispatchMap
+  [ queryDispatch utxoDispatchMap
+  , queryDispatch chainTipDispatchMap
+  , queryDispatch evaluateTxDispatchMap
+  , queryDispatch submitDispatchMap
   ]
 
 datumCacheMessageDispatch
-  :: DispatchIdMap DcWsp.JsonWspResponse -> Array WebsocketDispatch
-datumCacheMessageDispatch dim =
-  [ datumCacheQueryDispatch dim ]
+  :: { getDatumByHashDispatchMap :: DispatchIdMap GetDatumByHashR
+     , getDatumsByHashesDispatchMap :: DispatchIdMap GetDatumsByHashesR
+     , startFetchBlocksDispatchMap :: DispatchIdMap StartFetchBlocksR
+     , cancelFetchBlocksDispatchMap :: DispatchIdMap CancelFetchBlocksR
+     }
+  -> Array WebsocketDispatch
+datumCacheMessageDispatch
+  { getDatumByHashDispatchMap
+  , getDatumsByHashesDispatchMap
+  , startFetchBlocksDispatchMap
+  , cancelFetchBlocksDispatchMap
+  } =
+  [ queryDispatch getDatumByHashDispatchMap
+  , queryDispatch getDatumsByHashesDispatchMap
+  , queryDispatch startFetchBlocksDispatchMap
+  , queryDispatch cancelFetchBlocksDispatchMap
+  ]
 
 -- each query type will have a corresponding ref that lives in ReaderT config or similar
 -- for utxoQueryDispatch, the `a` parameter will be `UtxoQR` or similar
@@ -880,13 +847,13 @@ createPendingRequests = Ref.new Map.empty
 -- we parse out the utxo query result, then check if we're expecting a result
 -- with the provided id, if we are then we dispatch to the effect that is
 -- waiting on this result
-ogmiosQueryDispatch
+queryDispatch
   :: forall (response :: Type)
    . Aeson.DecodeAeson response
   => DispatchIdMap response
   -> String
   -> Effect (Either Json.JsonDecodeError (Effect Unit))
-ogmiosQueryDispatch ref str = do
+queryDispatch ref str = do
   let
     parsed' = JsonWsp.parseJsonWspResponse =<< Aeson.parseJsonStringToAeson str
   case parsed' of
@@ -897,7 +864,7 @@ ogmiosQueryDispatch ref str = do
     :: JsonWsp.JsonWspResponse response
     -> Effect (Either Json.JsonDecodeError (Effect Unit))
   afterParse parsed = do
-    let (id :: String) = parsed.reflection.id
+    let (id :: String) = parsed.reflection
     idMap <- Ref.read ref
     let
       (mAction :: Maybe (response -> Effect Unit)) = (MultiMap.lookup id idMap)
@@ -911,32 +878,6 @@ ogmiosQueryDispatch ref str = do
             ) :: Either Json.JsonDecodeError (Effect Unit)
         )
       Just action -> pure $ Right $ action parsed.result
-
-datumCacheQueryDispatch
-  :: DispatchIdMap DcWsp.JsonWspResponse
-  -> String
-  -> Effect (Either Json.JsonDecodeError (Effect Unit))
-datumCacheQueryDispatch dim str = either (pure <<< Left) afterParse $ parse str
-  where
-  parse :: String -> Either JsonDecodeError DcWsp.JsonWspResponse
-  parse = Aeson.parseJsonStringToAeson >=> Aeson.decodeAeson
-
-  afterParse
-    :: DcWsp.JsonWspResponse
-    -> Effect (Either Json.JsonDecodeError (Effect Unit))
-  afterParse parsed = do
-    idMap <- Ref.read dim
-    let id = parsed.reflection
-    case MultiMap.lookup id idMap of
-      Nothing -> pure $
-        ( Left
-            ( Json.TypeMismatch
-                ( "Parse succeeded but Request Id: " <> id <>
-                    " has been cancelled"
-                )
-            ) :: Either Json.JsonDecodeError (Effect Unit)
-        )
-      Just action -> pure $ Right $ action parsed
 
 -- an empty error we can compare to, useful for ensuring we've not received any other kind of error
 defaultErr :: Json.JsonDecodeError
@@ -956,7 +897,7 @@ defaultMessageListener lvl dispatchArray msg = do
     -- we expect a lot of parse errors, some messages (could?) fall through completely
     ( \err ->
         unless (err == defaultErr) $ logString lvl Error $
-          "unexpected parse error on input:" <> msg
+          "unexpected parse error on input: " <> msg
     )
     identity
     eAction

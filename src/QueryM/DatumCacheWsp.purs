@@ -1,69 +1,55 @@
 module QueryM.DatumCacheWsp
-  ( DatumCacheResponse(..)
-  , DatumCacheRequest(..)
-  , DatumCacheMethod(..)
+  ( DatumCacheMethod(..)
+  , GetDatumByHashR(..)
+  , GetDatumsByHashesR(..)
+  , StartFetchBlocksR(..)
+  , CancelFetchBlocksR(..)
   , JsonWspRequest
   , JsonWspResponse
   , WspFault(WspFault)
   , faultToString
-  , mkJsonWspRequest
-  , parseJsonWspResponse
-  , responseMethod
-  , requestMethodName
+  , getDatumByHashCall
+  , getDatumsByHashesCall
+  , startFetchBlocksCall
+  , cancelFetchBlocksCall
   ) where
 
 import Prelude
 
-import Aeson
-  ( Aeson
-  , (.:)
-  , caseAesonArray
-  , caseAesonObject
-  , decodeAeson
-  , getNestedAeson
-  , toStringifiedNumbersJson
-  )
+import Aeson (class DecodeAeson, Aeson, caseAesonArray, caseAesonObject, decodeAeson, getNestedAeson, jsonToAeson, toStringifiedNumbersJson, (.:))
 import Control.Alt ((<|>))
-import Data.Argonaut
-  ( Json
-  , JsonDecodeError
-      ( AtIndex
-      , Named
-      , TypeMismatch
-      , UnexpectedValue
-      )
-  , decodeJson
-  , encodeJson
-  , jsonNull
-  , stringify
-  )
+import Data.Argonaut (Json, JsonDecodeError(..), decodeJson, encodeJson, jsonNull, stringify)
+import Data.Argonaut.Encode (class EncodeJson)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left), note)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (traverse)
 import Data.TraversableWithIndex (forWithIndex)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
+import QueryM.JsonWsp (JsonWspCall, mkCallType)
+import QueryM.Ogmios as Ogmios
 import QueryM.UniqueId (ListenerId, uniqueId)
-import Serialization.Address (BlockId, Slot)
+import Serialization.Address (Slot)
+import Type.Proxy (Proxy(..))
 import Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Types.Datum (Datum, DatumHash)
-import Types.Transaction (DataHash(DataHash))
+import Types.Transaction (DataHash(DataHash), BlockId)
 
 newtype WspFault = WspFault Json
 
 faultToString :: WspFault -> String
 faultToString (WspFault j) = stringify j
 
-type JsonWspRequest =
+type JsonWspRequest (a :: Type) =
   { type :: String
   , version :: String
   , servicename :: String
   , methodname :: String
-  , args :: Json
+  , args :: a
   , mirror :: ListenerId
   }
 
@@ -77,6 +63,64 @@ type JsonWspResponse =
   , reflection :: ListenerId
   }
 
+newtype GetDatumByHashR = GetDatumByHashR (Maybe Datum)
+
+derive instance Newtype GetDatumByHashR _
+
+instance DecodeAeson GetDatumByHashR where
+  decodeAeson r = GetDatumByHashR <$>
+        let
+          datumFound :: Either JsonDecodeError (Maybe Datum)
+          datumFound =
+            Just <$> (decodeAeson =<< getNestedAeson r [ "DatumFound", "value" ])
+
+          datumNotFound :: Either JsonDecodeError (Maybe Datum)
+          datumNotFound =
+            Nothing <$ getNestedAeson r [ "DatumNotFound" ]
+        in
+          datumFound <|> datumNotFound
+
+newtype GetDatumsByHashesR = GetDatumsByHashesR (Map DatumHash Datum)
+
+derive instance Newtype GetDatumsByHashesR _
+
+instance DecodeAeson GetDatumsByHashesR where
+  decodeAeson r =
+        let
+          decodeDatumArray
+            :: Aeson -> Either JsonDecodeError (Map DatumHash Datum)
+          decodeDatumArray =
+            caseAesonArray (Left $ TypeMismatch "expected array")
+              $ (map Map.fromFoldable) <<< traverse decodeDatum
+
+          decodeDatum
+            :: Aeson -> Either JsonDecodeError (DatumHash /\ Datum)
+          decodeDatum = caseAesonObject (Left $ TypeMismatch "expected object")
+            $ \o -> (/\) <$> map wrap (o .: "hash") <*>
+                (decodeAeson =<< o .: "value")
+        in
+          map GetDatumsByHashesR <<< decodeDatumArray =<< getNestedAeson
+            r
+            [ "DatumsFound", "value" ]
+
+data StartFetchBlocksR = StartFetchBlocksR
+
+instance DecodeAeson StartFetchBlocksR where
+  decodeAeson r = StartFetchBlocksR <$ decodeDoneFlag [ "StartedBlockFetcher" ] r
+
+data CancelFetchBlocksR = CancelFetchBlocksR
+
+instance DecodeAeson CancelFetchBlocksR where
+  decodeAeson r = CancelFetchBlocksR <$ decodeDoneFlag
+                  [ "StoppedBlockFetcher" ]
+                  r
+
+decodeDoneFlag :: Array String -> Aeson -> Either JsonDecodeError Unit
+decodeDoneFlag locator r =
+    unlessM ( (decodeAeson =<< getNestedAeson r locator))
+      $ Left (TypeMismatch "Expected done flag")
+
+-- TODO: delete
 data DatumCacheMethod
   = GetDatumByHash
   | GetDatumsByHashes
@@ -95,149 +139,35 @@ datumCacheMethodToString = case _ of
   StartFetchBlocks -> "StartFetchBlocks"
   CancelFetchBlocks -> "CancelFetchBlocks"
 
-datumCacheMethodFromString :: String -> Maybe DatumCacheMethod
-datumCacheMethodFromString = case _ of
-  "GetDatumByHash" -> Just GetDatumByHash
-  "GetDatumsByHashes" -> Just GetDatumsByHashes
-  "StartFetchBlocks" -> Just StartFetchBlocks
-  "CancelFetchBlocks" -> Just CancelFetchBlocks
-  _ -> Nothing
+getDatumByHashCall :: JsonWspCall DatumHash GetDatumByHashR
+getDatumByHashCall = mkDatumCacheCallType
+  GetDatumByHash ({ hash: _ } <<< byteArrayToHex <<< unwrap)
 
-data DatumCacheRequest
-  = GetDatumByHashRequest DatumHash
-  | GetDatumsByHashesRequest (Array DatumHash)
-  | StartFetchBlocksRequest { slot :: Slot, id :: BlockId }
-  | CancelFetchBlocksRequest
+getDatumsByHashesCall :: JsonWspCall (Array DatumHash) GetDatumsByHashesR
+getDatumsByHashesCall = mkDatumCacheCallType
+  GetDatumsByHashes ({ hashes: _ } <<< map (byteArrayToHex <<< unwrap))
 
-data DatumCacheResponse
-  = GetDatumByHashResponse (Maybe Datum)
-  | GetDatumsByHashesResponse (Map DatumHash Datum)
-  | StartFetchBlocksResponse
-  | CancelFetchBlocksResponse
 
-requestMethod :: DatumCacheRequest -> DatumCacheMethod
-requestMethod = case _ of
-  GetDatumByHashRequest _ -> GetDatumByHash
-  GetDatumsByHashesRequest _ -> GetDatumsByHashes
-  StartFetchBlocksRequest _ -> StartFetchBlocks
-  CancelFetchBlocksRequest -> CancelFetchBlocks
+startFetchBlocksCall :: JsonWspCall { slot :: Slot, id :: BlockId } StartFetchBlocksR
+startFetchBlocksCall = mkDatumCacheCallType
+  StartFetchBlocks
+  (\({slot, id}) -> { slot, id: encodeJson (byteArrayToHex $ unwrap id), datumFilter: { "const": true } })
 
-responseMethod :: DatumCacheResponse -> DatumCacheMethod
-responseMethod = case _ of
-  GetDatumByHashResponse _ -> GetDatumByHash
-  GetDatumsByHashesResponse _ -> GetDatumsByHashes
-  StartFetchBlocksResponse -> StartFetchBlocks
-  CancelFetchBlocksResponse -> CancelFetchBlocks
+cancelFetchBlocksCall :: JsonWspCall Unit CancelFetchBlocksR
+cancelFetchBlocksCall = mkDatumCacheCallType
+  CancelFetchBlocks (const {})
 
-requestMethodName :: DatumCacheRequest -> String
-requestMethodName = requestMethod >>> datumCacheMethodToString
-
-mkJsonWspRequest
-  :: DatumCacheRequest
-  -> Effect JsonWspRequest
-mkJsonWspRequest req = do
-  let methodname = requestMethodName req
-  id <- uniqueId $ methodname <> "-"
-  pure
-    { type: "jsonwsp/request"
-    , version: "1.0"
-    , servicename: "ogmios"
-    , methodname
-    , args: toArgs req
-    , mirror: id
-    }
-  where
-  encodeHashes :: Array DatumHash -> Json
-  encodeHashes dhs = encodeJson { hashes: (byteArrayToHex <<< unwrap) <$> dhs }
-
-  toArgs :: DatumCacheRequest -> Json
-  toArgs = case _ of
-    GetDatumByHashRequest dh -> encodeJson { hash: byteArrayToHex $ unwrap dh }
-    GetDatumsByHashesRequest dhs -> encodeHashes dhs
-    StartFetchBlocksRequest { slot, id } ->
-      encodeJson { slot, id, datumFilter: { "const": true } }
-    CancelFetchBlocksRequest -> jsonNull
-
-parseJsonWspResponse :: JsonWspResponse -> Either WspFault DatumCacheResponse
-parseJsonWspResponse resp@{ methodname, result, fault } =
-  maybe
-    (toLeftWspFault fault)
-    decodeResponse
-    result
-  where
-  toLeftWspFault :: Maybe Aeson -> Either WspFault DatumCacheResponse
-  toLeftWspFault = Left <<< maybe invalidResponseError WspFault <<< map
-    toStringifiedNumbersJson
-
-  decodeResponse :: Aeson -> Either WspFault DatumCacheResponse
-  decodeResponse r = case datumCacheMethodFromString methodname of
-    Nothing -> Left invalidResponseError
-    Just method -> case method of
-      GetDatumByHash -> GetDatumByHashResponse <$>
-        let
-          datumFound :: Either WspFault (Maybe Datum)
-          datumFound =
-            Just <$> liftErr
-              (decodeAeson =<< getNestedAeson r [ "DatumFound", "value" ])
-
-          datumNotFound :: Either WspFault (Maybe Datum)
-          datumNotFound =
-            Nothing <$ liftErr (getNestedAeson r [ "DatumNotFound" ])
-        in
-          datumFound <|> datumNotFound
-      GetDatumsByHashes -> liftErr $
-        let
-          decodeDatumArray
-            :: Aeson -> Either JsonDecodeError (Map DatumHash Datum)
-          decodeDatumArray =
-            caseAesonArray (Left $ TypeMismatch "expected array")
-              $ (map Map.fromFoldable) <<< traverse decodeDatum
-
-          decodeDatum
-            :: Aeson -> Either JsonDecodeError (DatumHash /\ Datum)
-          decodeDatum = caseAesonObject (Left $ TypeMismatch "expected object")
-            $ \o -> (/\) <$> map wrap (o .: "hash") <*>
-                (decodeAeson =<< o .: "value")
-        in
-          map GetDatumsByHashesResponse <<< decodeDatumArray =<< getNestedAeson
-            r
-            [ "DatumsFound", "value" ]
-
-      StartFetchBlocks -> StartFetchBlocksResponse <$ decodeDoneFlag
-        [ "StartedBlockFetcher" ]
-        r
-      -- fault version of the response should probably be implemented as one of
-      -- expected results of API call
-      CancelFetchBlocks -> CancelFetchBlocksResponse <$ decodeDoneFlag
-        [ "StoppedBlockFetcher" ]
-        r
-
-  decodeHashes :: Aeson -> Either JsonDecodeError (Array DatumHash)
-  decodeHashes j = do
-    { hashes } :: { hashes :: Array String } <- decodeJson jstr
-    forWithIndex hashes $ \idx h ->
-      note
-        ( AtIndex idx $ Named ("Cannot convert to ByteArray: " <> h) $
-            UnexpectedValue jstr
-        )
-        $ DataHash <$> hexToByteArray h
-    where
-    jstr :: Json
-    jstr = toStringifiedNumbersJson j
-
-  invalidResponseError :: WspFault
-  invalidResponseError = WspFault $ encodeJson
-    { error: "Invalid datum cache response"
-    , response: resp
-        { result = toStringifiedNumbersJson <$> resp.result
-        , fault = toStringifiedNumbersJson <$> resp.fault
-        }
-    }
-
-  liftErr :: forall (a :: Type). Either JsonDecodeError a -> Either WspFault a
-  liftErr = lmap $ const invalidResponseError
-
-  decodeDoneFlag :: Array String -> Aeson -> Either WspFault Unit
-  decodeDoneFlag locator r =
-    unlessM (liftErr (decodeAeson =<< getNestedAeson r locator))
-      $ Left invalidResponseError
+-- convenience helper
+mkDatumCacheCallType
+  :: forall (a :: Type) (i :: Type) (o :: Type)
+   . EncodeJson (JsonWspRequest a)
+  => DatumCacheMethod
+  -> (i -> a)
+  -> JsonWspCall i o
+mkDatumCacheCallType method args = mkCallType
+  { "type": "jsonwsp/request"
+  , version: "1.0"
+  , servicename: "ogmios"
+  }
+  { methodname: datumCacheMethodToString method, args }
+  Proxy
