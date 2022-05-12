@@ -52,6 +52,7 @@ You can edit this file as you like.
   , "rationals"
   , "record"
   , "refs"
+  , "sequences"
   , "spec"
   , "strings"
   , "tailrec"

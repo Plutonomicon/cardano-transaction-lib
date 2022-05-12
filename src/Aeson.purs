@@ -65,7 +65,6 @@ module Aeson
 
 import Prelude
 
-import Contract.Prelude (Tuple(..), length, sequence)
 import Control.Alt ((<|>))
 import Control.Lazy (fix)
 import Control.Monad.RWS (modify_)
@@ -87,18 +86,20 @@ import Data.Argonaut
   )
 import Data.Argonaut.Encode.Encoders (encodeBoolean, encodeString, encodeUnit)
 import Data.Argonaut.Parser (jsonParser)
-import Data.Array (concat, foldr)
-import Data.Array as Array
+import Data.Array (foldr, fromFoldable)
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Right, Left), fromRight, note)
-import Data.Foldable (foldM)
+import Data.Foldable (fold, foldM)
 import Data.Int (round, toNumber)
 import Data.Int as Int
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
+import Data.Sequence (Seq)
+import Data.Sequence as Seq
 import Data.Symbol (class IsSymbol, reflectSymbol)
-import Data.Traversable (class Traversable, for)
+import Data.Traversable (class Traversable, for, sequence)
+import Data.Tuple (Tuple(..))
 import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -125,7 +126,7 @@ instance Show Aeson where
   show = stringifyAeson
 
 -- | A list of numbers extracted from Json, as they appear in the payload.
-type NumberIndex = Array String
+type NumberIndex = Seq String
 
 class DecodeAeson (a :: Type) where
   decodeAeson :: Aeson -> Either JsonDecodeError a
@@ -134,22 +135,22 @@ class DecodeAeson (a :: Type) where
 
 foreign import parseJsonExtractingIntegers
   :: String
-  -> { patchedPayload :: String, numberIndex :: NumberIndex }
+  -> { patchedPayload :: String, numberIndex :: Array String }
 
 parseJsonStringToAeson :: String -> Either JsonDecodeError Aeson
 parseJsonStringToAeson payload = do
   let { patchedPayload, numberIndex } = parseJsonExtractingIntegers payload
   patchedJson <- lmap (const MissingValue) $ AesonPatchedJson <$> jsonParser
     patchedPayload
-  pure $ Aeson { numberIndex, patchedJson }
+  pure $ Aeson { numberIndex: Seq.fromFoldable numberIndex, patchedJson }
 
 -------- Stringifying: Aeson -> String
 
-foreign import stringifyAeson_ :: NumberIndex -> AesonPatchedJson -> String
+foreign import stringifyAeson_ :: Array String -> AesonPatchedJson -> String
 
 stringifyAeson :: Aeson -> String
 stringifyAeson (Aeson { patchedJson, numberIndex }) = stringifyAeson_
-  numberIndex
+  (fromFoldable numberIndex)
   patchedJson
 
 -------- Json <-> Aeson --------
@@ -299,7 +300,7 @@ caseAeson
   (Aeson { numberIndex, patchedJson: AesonPatchedJson pJson }) = caseJson
   caseNull
   caseBoolean
-  (coerceNumber >>> unsafeIndex numberIndex >>> caseNumber)
+  (coerceNumber >>> unsafeSeqIndex numberIndex >>> caseNumber)
   caseString
   (map mkAeson >>> caseArray)
   (map mkAeson >>> caseObject)
@@ -309,8 +310,8 @@ caseAeson
   mkAeson json = Aeson { patchedJson: AesonPatchedJson json, numberIndex }
 
   -- will never get index out of bounds
-  unsafeIndex :: forall (x :: Type). Array x -> Int -> x
-  unsafeIndex arr ix = unsafePartial $ Array.unsafeIndex arr ix
+  unsafeSeqIndex :: forall b. Seq b -> Int -> b
+  unsafeSeqIndex s ix = unsafePartial $ fromJust $ Seq.index ix s
 
   -- will never encounter non int number
   coerceNumber :: Number -> Int
@@ -385,7 +386,7 @@ decodeIntegral
 decodeIntegral parse aeson@(Aeson { numberIndex }) = do
   -- Numbers are replaced by their index in the array.
   ix <- decodeAesonViaJson aeson
-  numberStr <- note MissingValue (numberIndex Array.!! ix)
+  numberStr <- note MissingValue (Seq.index ix numberIndex)
   note (TypeMismatch $ "Couldn't parse to integral: " <> numberStr)
     (parse numberStr)
 
@@ -504,30 +505,32 @@ derive newtype instance Bind AesonEncoder
 derive newtype instance Monad AesonEncoder
 
 genNextNumberIndex :: AesonEncoder Int
-genNextNumberIndex = AesonEncoder (get <* modify_ (\s -> s + 1))
+genNextNumberIndex = AesonEncoder (get <* modify_ ((+) 1))
 
 getCurrentNumberIndex :: AesonEncoder Int
 getCurrentNumberIndex = AesonEncoder get
 
 bumpNumberIndexBy :: Int -> AesonEncoder Unit
-bumpNumberIndexBy i = AesonEncoder (modify_ (\s -> s + i))
+bumpNumberIndexBy i = AesonEncoder (modify_ ((+) i))
 
 encodeAesonViaJson :: forall a. EncodeJson a => a -> AesonEncoder Aeson
 encodeAesonViaJson v = pure $ Aeson
-  { patchedJson: AesonPatchedJson $ encodeJson v, numberIndex: [] }
+  { patchedJson: AesonPatchedJson $ encodeJson v, numberIndex: Seq.empty }
 
 instance EncodeAeson Int where
   encodeAeson' i = do
     ix <- genNextNumberIndex
     pure $ Aeson
-      { patchedJson: AesonPatchedJson $ encodeJson ix, numberIndex: [ show i ] }
+      { patchedJson: AesonPatchedJson $ encodeJson ix
+      , numberIndex: Seq.singleton (show i)
+      }
 
 instance EncodeAeson BigInt where
   encodeAeson' i = do
     ix <- genNextNumberIndex
     pure $ Aeson
       { patchedJson: AesonPatchedJson $ encodeJson ix
-      , numberIndex: [ BigInt.toString i ]
+      , numberIndex: Seq.singleton (BigInt.toString i)
       }
 
 instance EncodeAeson UInt where
@@ -535,14 +538,16 @@ instance EncodeAeson UInt where
     ix <- genNextNumberIndex
     pure $ Aeson
       { patchedJson: AesonPatchedJson $ encodeJson ix
-      , numberIndex: [ UInt.toString i ]
+      , numberIndex: Seq.singleton (UInt.toString i)
       }
 
 instance EncodeAeson Number where
   encodeAeson' i = do
     ix <- genNextNumberIndex
     pure $ Aeson
-      { patchedJson: AesonPatchedJson $ encodeJson ix, numberIndex: [ show i ] }
+      { patchedJson: AesonPatchedJson $ encodeJson ix
+      , numberIndex: Seq.singleton (show i)
+      }
 
 instance EncodeAeson String where
   encodeAeson' = encodeAesonViaJson
@@ -562,7 +567,7 @@ instance EncodeAeson Aeson where
         (fromArray <<< map bumpIndices)
         (fromObject <<< map bumpIndices)
       encodeNumber n = encodeJson $ toNumber ix + n
-    bumpNumberIndexBy (length numberIndex)
+    bumpNumberIndexBy (Seq.length numberIndex)
     pure $
       (Aeson { patchedJson: AesonPatchedJson (bumpIndices json), numberIndex })
 
@@ -572,37 +577,38 @@ instance
   ) =>
   EncodeAeson (Record row) where
   encodeAeson' rec = do
-    Tuple obj indices <- foldr step (Tuple FO.empty []) <<< FO.toUnfoldable <$>
-      (sequence $ gEncodeAeson rec (Proxy :: Proxy list))
+    Tuple obj indices <-
+      foldr step (Tuple FO.empty Seq.empty) <<< FO.toUnfoldable <$>
+        (sequence $ gEncodeAeson rec (Proxy :: Proxy list))
     pure $ Aeson
       { patchedJson: AesonPatchedJson (fromObject obj)
-      , numberIndex: concat indices
+      , numberIndex: fold indices
       }
     where
     step
       :: Tuple String Aeson
-      -> Tuple (Object Json) (Array (Array String))
-      -> Tuple (Object Json) (Array (Array String))
+      -> Tuple (Object Json) (Seq (Seq String))
+      -> Tuple (Object Json) (Seq (Seq String))
     step
       (Tuple k (Aeson { patchedJson: AesonPatchedJson json, numberIndex }))
       (Tuple obj indices) =
-      Tuple (FO.insert k json obj) (Array.cons numberIndex indices)
+      Tuple (FO.insert k json obj) (Seq.cons numberIndex indices)
 else instance (Traversable t, EncodeAeson a) => EncodeAeson (t a) where
   encodeAeson' arr = do
-    Tuple jsonArr indices <- foldM step (Tuple [] []) arr
+    Tuple jsonArr indices <- foldM step (Tuple Seq.empty Seq.empty) arr
     pure $ Aeson
-      { patchedJson: AesonPatchedJson (fromArray jsonArr)
-      , numberIndex: concat indices
+      { patchedJson: AesonPatchedJson (fromArray $ fromFoldable jsonArr)
+      , numberIndex: fold indices
       }
     where
     step
-      :: Tuple (Array Json) (Array (Array String))
+      :: Tuple (Seq Json) (Seq (Seq String))
       -> a
-      -> AesonEncoder (Tuple (Array Json) (Array (Array String)))
+      -> AesonEncoder (Tuple (Seq Json) (Seq (Seq String)))
     step (Tuple arrJson indices) a = do
       Aeson { patchedJson: AesonPatchedJson json, numberIndex } <- encodeAeson'
         a
-      pure $ Tuple (Array.snoc arrJson json) (Array.snoc indices numberIndex)
+      pure $ Tuple (Seq.snoc arrJson json) (Seq.snoc indices numberIndex)
 
 class GEncodeAeson (row :: Row Type) (list :: RL.RowList Type) where
   gEncodeAeson
@@ -624,4 +630,3 @@ instance gEncodeAesonCons ::
       (reflectSymbol _field)
       (encodeAeson' $ Record.get _field row)
       (gEncodeAeson row (Proxy :: Proxy tail))
-

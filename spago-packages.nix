@@ -1061,6 +1061,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "sequences" = pkgs.stdenv.mkDerivation {
+        name = "sequences";
+        version = "v3.0.2";
+        src = pkgs.fetchgit {
+          url = "https://github.com/hdgarrood/purescript-sequences";
+          rev = "1f1d828ef30070569c812d0af23eb7253bb1e990";
+          sha256 = "0mc0jjs1119c2nyd08yhdmliq3s47lhrdknhziga3lnbzja889k4";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "spec" = pkgs.stdenv.mkDerivation {
         name = "spec";
         version = "v5.0.1";

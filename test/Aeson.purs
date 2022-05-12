@@ -25,10 +25,11 @@ import Control.Apply (lift2)
 import Control.Monad.Cont (lift)
 import Data.Argonaut (encodeJson, parseJson)
 import Data.Argonaut as Json
-import Data.Array (head, length, (!!), zip)
+import Data.Array (head, zip, (!!))
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), hush)
 import Data.Maybe (Maybe(Nothing, Just), fromJust, fromMaybe, isJust)
+import Data.Sequence as Seq
 import Data.Traversable (for_, traverse)
 import Data.Tuple (Tuple(Tuple), uncurry)
 import Data.Tuple.Nested ((/\))
@@ -40,20 +41,12 @@ import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (FilePath)
 import Partial.Unsafe (unsafePartial)
 import Test.ArbitraryJson (stringifyArbJson)
-import Test.Spec.Assertions (shouldEqual)
 import Test.QuickCheck (quickCheck', (<?>))
+import Test.Spec.Assertions (shouldEqual)
 import Test.Utils (assertTrue)
 import TestM (TestPlanM)
 import Types.ByteArray (hexToByteArrayUnsafe)
-import Types.PlutusData
-  ( PlutusData
-      ( Integer
-      , Bytes
-      , List
-      , Map
-      , Constr
-      )
-  )
+import Types.PlutusData (PlutusData(Integer, Bytes, List, Map, Constr))
 
 suite :: TestPlanM Unit
 suite = do
@@ -193,9 +186,10 @@ fixtureTests = do
               case Json.decodeJson res :: Either _ (Array String) of
                 Left _ -> mkError "Unable to decode NumberIndex"
                 Right numberStrings ->
-                  if getNumberIndex aeson == numberStrings then Tuple
-                    "NumberIndex is correct"
-                    true -- success
+                  if getNumberIndex aeson == Seq.fromFoldable numberStrings then
+                    Tuple
+                      "NumberIndex is correct"
+                      true -- success
                   else mkError "NumberIndex does not match fixture"
         Left err /\ _ -> mkError $ "Failed to parse input JSON: " <> show err
         _ /\ Left err -> mkError $ "Failed to parse expected JSON: " <> show err
@@ -242,7 +236,7 @@ parseNumbersTests = do
   testNumber "20E+20"
   where
   testNumber s = testSimpleValue s $ \aeson -> do
-    if length (getNumberIndex aeson) == 0 then
+    if Seq.length (getNumberIndex aeson) == 0 then
       Tuple
         ( "parseJsonStringifyNumbers did not change number to string when parsing string: "
             <>
