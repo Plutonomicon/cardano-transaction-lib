@@ -67,21 +67,24 @@ newtype AppM (a :: Type) = AppM (ReaderT Env IO a)
     , MonadThrow
     )
 
-newtype Env = Env
-  { protocolParams :: Shelley.ProtocolParameters
+data Env = Env
+  { serverOptions :: ServerOptions
+  , protocolParams :: Shelley.ProtocolParameters
   }
   deriving stock (Generic)
 
-newtype ServerOptions = ServerOptions
+data ServerOptions = ServerOptions
   { port :: Port
+  , nodeSocket :: FilePath
+  , networkId :: C.NetworkId
   }
   deriving stock (Generic)
 
-newEnvIO :: IO (Either String Env)
-newEnvIO =
+newEnvIO :: ServerOptions -> IO (Either String Env)
+newEnvIO serverOptions =
   getDataFileName "config/pparams.json"
     >>= Aeson.eitherDecodeFileStrict @Shelley.ProtocolParameters
-    <&> second Env
+    <&> second (Env serverOptions)
 
 newtype Cbor = Cbor Text
   deriving stock (Show)

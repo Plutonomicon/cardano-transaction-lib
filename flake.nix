@@ -268,7 +268,10 @@
                   "${pkgs.bash}/bin/sh"
                   "-c"
                   ''
-                    ${server}/bin/ctl-server
+                    ${server}/bin/ctl-server \
+                      --port ${toString ctlServer.port} \
+                      --node-socket ${nodeSocketPath} \
+                      --network-id 1097911063
                   ''
                 ];
               };
@@ -376,7 +379,26 @@
               inherit pkgs;
               modules = [ (buildCtlRuntime system { }) ];
             };
+
+            docs = project.buildSearchablePursDocs;
           };
+
+          launchDocs =
+            let
+              binPath = "docs-server";
+              builtDocs = packages.docs;
+              script = (pkgs.writeShellScriptBin "${binPath}"
+                ''
+                  ${pkgs.nodePackages.http-server}/bin/http-server ${builtDocs}/generated-docs/html
+                ''
+              ).overrideAttrs (_: {
+                buildInputs = [ pkgs.nodejs-14_x pkgs.nodePackages.http-server ];
+              });
+            in
+            {
+              type = "app";
+              program = "${script}/bin/${binPath}";
+            };
 
           # FIXME
           # Once we have ogmios/node instances available, we should also include a
@@ -428,6 +450,7 @@
           inherit
             (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
           ctl-runtime = (nixpkgsFor system).launchCtlRuntime { };
+          docs = (psProjectFor system).launchDocs;
         });
 
       checks = perSystem (system:
