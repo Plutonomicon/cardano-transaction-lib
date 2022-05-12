@@ -264,6 +264,7 @@
               service = {
                 useHostStore = true;
                 ports = [ (bindPort ctlServer.port) ];
+                volumes = [ "${nodeIpcVol}:/ipc" ];
                 command = [
                   "${pkgs.bash}/bin/sh"
                   "-c"
