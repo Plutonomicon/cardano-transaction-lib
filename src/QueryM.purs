@@ -4,7 +4,7 @@ module QueryM
   , DatumCacheListeners
   , DatumCacheWebSocket
   , DispatchIdMap
-  , DispatchError(..)
+  , DispatchError(JsError, JsonError)
   , FeeEstimate(..)
   , FinalizedTransaction(..)
   , HashedData(..)

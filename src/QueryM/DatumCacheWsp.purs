@@ -1,9 +1,14 @@
 module QueryM.DatumCacheWsp
-  ( DatumCacheMethod(..)
-  , GetDatumByHashR(..)
-  , GetDatumsByHashesR(..)
-  , StartFetchBlocksR(..)
-  , CancelFetchBlocksR(..)
+  ( DatumCacheMethod
+      ( GetDatumByHash
+      , GetDatumsByHashes
+      , StartFetchBlocks
+      , CancelFetchBlocks
+      )
+  , GetDatumByHashR(GetDatumByHashR)
+  , GetDatumsByHashesR(GetDatumsByHashesR)
+  , StartFetchBlocksR(StartFetchBlocksR)
+  , CancelFetchBlocksR(CancelFetchBlocksR)
   , JsonWspRequest
   , JsonWspResponse
   , WspFault(WspFault)
@@ -23,38 +28,32 @@ import Aeson
   , caseAesonObject
   , decodeAeson
   , getNestedAeson
-  , jsonToAeson
-  , toStringifiedNumbersJson
   , (.:)
   )
 import Control.Alt ((<|>))
 import Data.Argonaut
   ( Json
-  , JsonDecodeError(..)
-  , decodeJson
+  , JsonDecodeError
+      ( TypeMismatch
+      )
   , encodeJson
-  , jsonNull
   , stringify
   )
 import Data.Argonaut.Encode (class EncodeJson)
-import Data.Bifunctor (lmap)
-import Data.Either (Either(..), either, note)
+import Data.Either (Either(Left))
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (traverse)
-import Data.TraversableWithIndex (forWithIndex)
 import Data.Tuple.Nested (type (/\), (/\))
-import Effect (Effect)
 import QueryM.JsonWsp (JsonWspCall, mkCallType)
-import QueryM.Ogmios as Ogmios
-import QueryM.UniqueId (ListenerId, uniqueId)
+import QueryM.UniqueId (ListenerId)
 import Serialization.Address (Slot)
-import Type.Proxy (Proxy(..))
-import Types.ByteArray (byteArrayToHex, hexToByteArray)
+import Type.Proxy (Proxy(Proxy))
+import Types.ByteArray (byteArrayToHex)
 import Types.Datum (Datum, DatumHash)
-import Types.Transaction (DataHash(DataHash), BlockId)
+import Types.Transaction (BlockId)
 
 newtype WspFault = WspFault Json
 
@@ -76,7 +75,7 @@ type JsonWspResponse =
   , servicename :: String
   , methodname :: String
   , result :: Maybe Aeson
-  , fault :: Maybe Aeson
+  , fault :: Maybe WspFault
   , reflection :: ListenerId
   }
 
