@@ -6,7 +6,7 @@ import Address (addressToOgmiosAddress, ogmiosAddressToAddress)
 import Contract.Address (Slot(..))
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.UInt as UInt
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, try)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (throw)
@@ -78,6 +78,7 @@ testOgmiosDatumCacheGetDatumsByHashes =
 testOgmiosDatumCacheFetcher :: Aff Unit
 testOgmiosDatumCacheFetcher =
   traceQueryConfig >>= flip runQueryM do
+    void $ try cancelFetchBlocks -- ignore error if the fetcher was not running
     startFetchBlocks { slot: Slot (UInt.fromInt 54066900), id: BlockId $ hexToByteArrayUnsafe "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d" }
     cancelFetchBlocks
 

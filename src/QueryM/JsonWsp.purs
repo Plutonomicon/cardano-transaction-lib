@@ -7,6 +7,7 @@ module QueryM.JsonWsp
   , mkCallType
   , buildRequest
   , parseJsonWspResponse
+  , parseJsonWspResponseId
   , parseFieldToString
   , parseFieldToUInt
   , parseFieldToBigInt
@@ -14,10 +15,12 @@ module QueryM.JsonWsp
 
 import Prelude
 
-import Aeson (class DecodeAeson, Aeson, caseAesonBigInt, caseAesonObject, caseAesonString, caseAesonUInt, decodeAeson, getField)
+import Aeson (class DecodeAeson, Aeson, caseAesonBigInt, caseAesonObject, caseAesonString, caseAesonUInt, decodeAeson, getField, getFieldOptional)
 import Data.Argonaut (class EncodeJson, Json, JsonDecodeError(TypeMismatch), encodeJson)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
+import Data.Maybe (Maybe)
+import Data.Traversable (traverse)
 import Data.UInt as UInt
 import Effect (Effect)
 import Foreign.Object (Object)
@@ -115,6 +118,13 @@ parseJsonWspResponse = aesonObject $ \o -> do
     , result
     , reflection
     }
+
+-- | Parse just ID from the response
+parseJsonWspResponseId
+  :: Aeson
+  -> Either JsonDecodeError ListenerId
+parseJsonWspResponseId = aesonObject $ \o -> do
+  parseMirror =<< getField o "reflection"
 
 -- | Helper for assuming we get an object
 aesonObject

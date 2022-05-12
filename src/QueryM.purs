@@ -53,6 +53,7 @@ module QueryM
 
 import Prelude
 
+import Aeson (Aeson)
 import Aeson as Aeson
 import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
@@ -86,7 +87,7 @@ import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Effect.Exception (Error, throw)
+import Effect.Exception (Error, error, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
@@ -94,6 +95,7 @@ import Helpers (logString, logWithLevel)
 import JsWebSocket (JsWebSocket, Url, _mkWebSocket, _onWsConnect, _onWsError, _onWsMessage, _wsSend, _wsWatch)
 import QueryM.DatumCacheWsp (CancelFetchBlocksR, GetDatumByHashR, GetDatumsByHashesR, StartFetchBlocksR)
 import QueryM.DatumCacheWsp as DcWsp
+import QueryM.JsonWsp (parseJsonWspResponseId)
 import QueryM.JsonWsp as JsonWsp
 import QueryM.Ogmios as Ogmios
 import QueryM.ServerConfig (Host, ServerConfig, defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkServerUrl, mkWsUrl) as ServerConfig
@@ -682,7 +684,7 @@ type DatumCacheListeners =
 
 -- convenience type for adding additional query types later
 type ListenerSet (request :: Type) (response :: Type) =
-  { addMessageListener :: ListenerId -> (response -> Effect Unit) -> Effect Unit
+  { addMessageListener :: ListenerId -> (Either Error response -> Effect Unit) -> Effect Unit
   , removeMessageListener :: ListenerId -> Effect Unit
   -- ^ Removes ID from dispatch map and pending requests queue.
   , addRequest :: ListenerId -> RequestBody -> Effect Unit
@@ -736,7 +738,7 @@ mkOgmiosRequest jsonWspCall getLs inp = do
       _ <- respLs.addMessageListener id
         ( \result -> do
             respLs.removeMessageListener id
-            allowError cont $ result
+            cont result
         )
       respLs.addRequest id sBody
       _wsSend ws (logString config.logLevel Debug) sBody
@@ -771,7 +773,7 @@ mkDatumCacheRequest jsonWspCall getLs inp = do
       _ <- respLs.addMessageListener id
         ( \result -> do
             respLs.removeMessageListener id
-            allowError cont result
+            cont result
         )
       respLs.addRequest id sBody
       _wsSend ws (logString config.logLevel Debug) sBody
@@ -784,15 +786,17 @@ mkDatumCacheRequest jsonWspCall getLs inp = do
 -- Dispatch Setup
 --------------------------------------------------------------------------------
 
+data DispatchError = JsError Error | JsonError Json.JsonDecodeError
+
 -- A function which accepts some unparsed Json, and checks it against one or
 -- more possible types to perform an appropriate effect (such as supplying the
 -- parsed result to an async fiber/Aff listener)
 type WebsocketDispatch =
-  String -> Effect (Either Json.JsonDecodeError (Effect Unit))
+  String -> Effect (Either DispatchError (Effect Unit))
 
 -- A mutable queue of requests
 type DispatchIdMap response = Ref
-  (MultiMap ListenerId (response -> Effect Unit))
+  (MultiMap ListenerId (Either Error response -> Effect Unit))
 
 -- an immutable queue of response type handlers
 ogmiosMessageDispatch
@@ -852,32 +856,54 @@ queryDispatch
    . Aeson.DecodeAeson response
   => DispatchIdMap response
   -> String
-  -> Effect (Either Json.JsonDecodeError (Effect Unit))
+  -> Effect (Either DispatchError (Effect Unit))
 queryDispatch ref str = do
   let
     parsed' = JsonWsp.parseJsonWspResponse =<< Aeson.parseJsonStringToAeson str
   case parsed' of
-    (Left err) -> pure $ Left err
+    Left err -> do
+      case parseJsonWspResponseId =<< Aeson.parseJsonStringToAeson str of
+        Left _ -> pure $
+                       ( Left $ JsonError
+                         ( Json.TypeMismatch
+                             " has been cancelled"
+                         )
+                       )
+        Right (id :: ListenerId) -> do
+          idMap <- Ref.read ref
+          let
+            (mAction :: Maybe (Either Error response -> Effect Unit)) = (MultiMap.lookup id idMap)
+          case mAction of
+            Nothing -> pure $
+                       ( Left $ JsonError
+                         ( Json.TypeMismatch
+                           ( "Parse succeeded but Request Id: " <> id <>
+                             " has been cancelled"
+                           )
+                         )
+                       )
+            Just action -> pure $ Right $ action $ Left $ error $ "Unable to parse: " <> show err
+
     (Right res) -> afterParse res
   where
   afterParse
     :: JsonWsp.JsonWspResponse response
-    -> Effect (Either Json.JsonDecodeError (Effect Unit))
+    -> Effect (Either DispatchError (Effect Unit))
   afterParse parsed = do
     let (id :: String) = parsed.reflection
     idMap <- Ref.read ref
     let
-      (mAction :: Maybe (response -> Effect Unit)) = (MultiMap.lookup id idMap)
+      (mAction :: Maybe (Either Error response -> Effect Unit)) = (MultiMap.lookup id idMap)
     case mAction of
       Nothing -> pure $
-        ( Left
+        ( Left $ JsonError
             ( Json.TypeMismatch
                 ( "Parse succeeded but Request Id: " <> id <>
                     " has been cancelled"
                 )
-            ) :: Either Json.JsonDecodeError (Effect Unit)
+            )
         )
-      Just action -> pure $ Right $ action parsed.result
+      Just action -> pure $ Right $ action $ Right parsed.result
 
 -- an empty error we can compare to, useful for ensuring we've not received any other kind of error
 defaultErr :: Json.JsonDecodeError
@@ -889,24 +915,28 @@ defaultMessageListener lvl dispatchArray msg = do
   -- here, we need to fold the input over the array of functions until we get
   -- a success, then execute the effect.
   -- using a fold instead of a traverse allows us to skip a bunch of execution
-  eAction :: Either Json.JsonDecodeError (Effect Unit) <- foldl
+  eAction :: Either DispatchError (Effect Unit) <- foldl
     (messageFoldF msg)
-    (pure $ Left defaultErr)
+    (pure $ Left $ JsonError defaultErr)
     dispatchArray
   either
     -- we expect a lot of parse errors, some messages (could?) fall through completely
     ( \err ->
-        unless (err == defaultErr) $ logString lvl Error $
-          "unexpected parse error on input: " <> msg
+        unless (case err of
+                   JsonError jsonErr -> jsonErr == defaultErr
+                   _ -> false) do
+          logString lvl Error $
+            "unexpected parse error on input: " <> msg
+
     )
     identity
     eAction
 
 messageFoldF
   :: String
-  -> Effect (Either Json.JsonDecodeError (Effect Unit))
-  -> (String -> (Effect (Either Json.JsonDecodeError (Effect Unit))))
-  -> Effect (Either Json.JsonDecodeError (Effect Unit))
+  -> Effect (Either DispatchError (Effect Unit))
+  -> (String -> (Effect (Either DispatchError (Effect Unit))))
+  -> Effect (Either DispatchError (Effect Unit))
 messageFoldF msg acc' func = do
   acc <- acc'
   if isRight acc then acc' else func msg

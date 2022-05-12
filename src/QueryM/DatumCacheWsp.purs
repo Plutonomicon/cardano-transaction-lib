@@ -21,7 +21,7 @@ import Control.Alt ((<|>))
 import Data.Argonaut (Json, JsonDecodeError(..), decodeJson, encodeJson, jsonNull, stringify)
 import Data.Argonaut.Encode (class EncodeJson)
 import Data.Bifunctor (lmap)
-import Data.Either (Either(Left), note)
+import Data.Either (Either(..), either, note)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
