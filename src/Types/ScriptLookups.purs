@@ -59,6 +59,7 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Helpers ((<\>), liftEither, liftM)
 import Plutus.FromPlutusType (fromPlutusType)
+import Plutus.ToPlutusType (toPlutusType)
 import QueryM
   ( DefaultQueryConfig
   , QueryM
@@ -70,7 +71,8 @@ import Scripts
   , validatorHash
   , validatorHashEnterpriseAddress
   )
-import Serialization.Address (Address, NetworkId)
+import Serialization.Address (Address, NetworkId) as Cardano
+import Plutus.Types.Address (Address) as Plutus
 import ToData (class ToData)
 import Types.Any (Any)
 import Types.Datum (Datum(Datum), DatumHash)
@@ -660,26 +662,34 @@ addMissingValueSpent = do
     -- Step 4 of the process described in [Balance of value spent]
     lookups <- use _lookups <#> unwrap
     let
+      toPlutusAddr a = ExceptT $ pure $ note (NotAValidPlutusAddress a) (toPlutusType a)
       pkh' = lookups.ownPaymentPubKeyHash
       skh' = lookups.ownStakePubKeyHash
+      amount = unwrap $ toPlutusType $ missing
     -- Potential fix me: This logic may be suspect:
     txOut <- case pkh', skh' of
       Nothing, Nothing -> throwError OwnPubKeyAndStakeKeyMissing
-      Just pkh, Just skh -> liftEither $ Right $ TransactionOutput
-        { address: payPubKeyHashBaseAddress networkId pkh skh
-        , amount: missing
-        , dataHash: Nothing
-        }
-      Just pkh, Nothing -> liftEither $ Right $ TransactionOutput
-        { address: payPubKeyHashEnterpriseAddress networkId pkh
-        , amount: missing
-        , dataHash: Nothing
-        }
-      Nothing, Just skh -> liftEither $ Right $ TransactionOutput
-        { address: stakePubKeyHashRewardAddress networkId skh
-        , amount: missing
-        , dataHash: Nothing
-        }
+      Just pkh, Just skh -> do
+        address <- toPlutusAddr $ payPubKeyHashBaseAddress networkId pkh skh
+        pure $ TransactionOutput
+          { address
+          , amount
+          , dataHash: Nothing
+          }
+      Just pkh, Nothing -> do
+        address <- toPlutusAddr $ payPubKeyHashEnterpriseAddress networkId pkh
+        pure $ TransactionOutput
+          { address
+          , amount
+          , dataHash: Nothing
+          }
+      Nothing, Just skh -> do
+        address <- toPlutusAddr $ stakePubKeyHashRewardAddress networkId skh
+        pure $ TransactionOutput
+          { address
+          , amount
+          , dataHash: Nothing
+          }
     _cpsToTxBody <<< _outputs <>= Array.singleton txOut
 
 updateUtxoIndex
@@ -714,7 +724,7 @@ addOwnInput (InputConstraint { txOutRef }) = do
     typedTxOutRef <- ExceptT $ lift $
       typeTxOutRef networkId (flip lookup txOutputs) inst txOutRef
         <#> lmap TypeCheckFailed
-    let value = typedTxOutRefValue typedTxOutRef
+    let value = unwrap $ fromPlutusType $ typedTxOutRefValue typedTxOutRef
     -- Must be inserted in order. Hopefully this matches the order under CSL
     _cpsToTxBody <<< _inputs %= insert txOutRef
     _valueSpentBalancesInputs <>= provide value
@@ -732,8 +742,7 @@ addOwnOutput (OutputConstraint { datum, value }) = do
   runExceptT do
     ScriptLookups { typedValidator } <- use _lookups
     inst <- liftM TypedValidatorMissing typedValidator
-    let value' = unwrap $ fromPlutusType value
-    typedTxOut <- ExceptT $ lift $ mkTypedTxOut networkId inst datum value'
+    typedTxOut <- ExceptT $ lift $ mkTypedTxOut networkId inst datum value
       <#> note MkTypedTxOutFailed
     let txOut = typedTxOutTxOut typedTxOut
     -- We are erroring if we don't have a datumhash given the polymorphic datum
@@ -743,6 +752,7 @@ addOwnOutput (OutputConstraint { datum, value }) = do
       ExceptT $ lift $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
     _cpsToTxBody <<< _outputs <>= Array.singleton txOut
     ExceptT $ addDatum (wrap dat)
+    let value' = unwrap $ fromPlutusType value
     _valueSpentBalancesOutputs <>= provide value'
 
 data MkUnbalancedTxError
@@ -762,13 +772,15 @@ data MkUnbalancedTxError
   | CannotHashDatum Datum
   | CannotConvertPOSIXTimeRange POSIXTimeRange
   | CannotGetMintingPolicyScriptIndex -- Should be impossible
-  | CannotGetValidatorHashFromAddress Address -- Get `ValidatorHash` from internal `Address`
+  | CannotGetValidatorHashFromAddress Cardano.Address -- Get `ValidatorHash` from internal `Address`
   | MkTypedTxOutFailed
   | TypedTxOutHasNoDatumHash
   | CannotHashMintingPolicy MintingPolicy
   | CannotHashValidator Validator
   | CannotConvertPaymentPubKeyHash PaymentPubKeyHash
   | CannotSatisfyAny
+  | NotAValidPlutusAddress Cardano.Address
+  | NotAValidCardanoAddress Plutus.Address
 
 derive instance Generic MkUnbalancedTxError _
 derive instance Eq MkUnbalancedTxError
@@ -858,7 +870,7 @@ processConstraint mpsMap osMap = do
           -- keeps track TxOutRef and TxInType (the input type, whether
           -- consuming script, public key or simple script)
           _cpsToTxBody <<< _inputs %= insert txo
-          _valueSpentBalancesInputs <>= provide amount
+          _valueSpentBalancesInputs <>= provide (unwrap $ fromPlutusType amount)
         _ -> liftEither $ throwError $ TxOutRefWrongType txo
     MustSpendScriptOutput txo red -> runExceptT do
       txOut <- ExceptT $ lookupTxOutRef txo
@@ -866,9 +878,10 @@ processConstraint mpsMap osMap = do
       -- wallet address and `Just` as script address.
       case txOut of
         TransactionOutput { address, amount, dataHash: Just dHash } -> do
+          addr' <- ExceptT $ pure (note (NotAValidCardanoAddress address) $ fromPlutusType address)
           vHash <- liftM
-            (CannotGetValidatorHashFromAddress address)
-            (enterpriseAddressValidatorHash address)
+            (CannotGetValidatorHashFromAddress addr')
+            (enterpriseAddressValidatorHash addr')
           plutusScript <- ExceptT $ lookupValidator vHash osMap <#> map unwrap
           -- Note: Plutus uses `TxIn` to attach a redeemer and datum.
           -- Use the datum hash inside the lookup
@@ -895,7 +908,7 @@ processConstraint mpsMap osMap = do
               , data: unwrap red
               , exUnits: scriptExUnits
               }
-          _valueSpentBalancesInputs <>= provide amount
+          _valueSpentBalancesInputs <>= provide (unwrap $ fromPlutusType amount)
           -- Append redeemer for spending to array.
           _redeemers <>= Array.singleton (redeemer /\ Just txo)
           -- Attach redeemer to witness set.
@@ -944,7 +957,8 @@ processConstraint mpsMap osMap = do
       -- Attach redeemer to witness set.
       ExceptT $ attachToCps attachRedeemer redeemer
     MustPayToPubKeyAddress pkh skh mDatum plutusValue -> do
-      let amount = unwrap $ fromPlutusType plutusValue
+      --let amount = unwrap $ fromPlutusType plutusValue
+      let amount = plutusValue
       networkId <- getNetworkId
       runExceptT do
         -- If datum is presented, add it to 'datumWitnesses' and Array of datums.
@@ -986,30 +1000,35 @@ processConstraint mpsMap osMap = do
           address = case skh of
             Just skh' -> payPubKeyHashBaseAddress networkId pkh skh'
             Nothing -> payPubKeyHashEnterpriseAddress networkId pkh
+
+        addr' <- ExceptT $ pure (note (NotAValidPlutusAddress address) $ toPlutusType address)
+        let
           txOut = TransactionOutput
-            { address
+            { address: addr'
             , amount
             , dataHash
             }
         _cpsToTxBody <<< _outputs <>= Array.singleton txOut
-        _valueSpentBalancesOutputs <>= provide amount
+        _valueSpentBalancesOutputs <>= provide (unwrap $ fromPlutusType $ amount)
     MustPayToOtherScript vlh datum plutusValue -> do
-      let amount = unwrap $ fromPlutusType plutusValue
+      let amount = plutusValue
       networkId <- getNetworkId
       runExceptT do
         -- Don't write `let dataHash = datumHash datum`, see [datumHash Note]
         dataHash <- ExceptT $ lift $ note (CannotHashDatum datum)
           <$> map Just
           <$> datumHash datum
+        let address = validatorHashEnterpriseAddress networkId vlh
+        addr' <- ExceptT $ pure (note (NotAValidPlutusAddress address) $ toPlutusType address )
         let
           txOut = TransactionOutput
-            { address: validatorHashEnterpriseAddress networkId vlh
+            { address: addr'
             , amount
             , dataHash
             }
         ExceptT $ addDatum datum
         _cpsToTxBody <<< _outputs <>= Array.singleton txOut
-        _valueSpentBalancesOutputs <>= provide amount
+        _valueSpentBalancesOutputs <>= provide (unwrap $ fromPlutusType amount)
     MustHashDatum dh dt -> do
       mdh <- lift $ datumHash dt
       if mdh == Just dh then addDatum dt
@@ -1083,6 +1102,6 @@ _cpsToTxBody = _cpsToTransaction <<< _body
 
 getNetworkId
   :: forall (a :: Type)
-   . ConstraintsM a NetworkId
+   . ConstraintsM a Cardano.NetworkId
 getNetworkId = use (_cpsToTxBody <<< _networkId)
   >>= maybe (lift $ asks _.networkId) pure

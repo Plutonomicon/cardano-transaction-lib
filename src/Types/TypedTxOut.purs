@@ -27,14 +27,15 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Data.Either (Either, note)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import FromData (class FromData, fromData)
 import Helpers (liftM)
 import QueryM (QueryM, getDatumByHash, datumHash)
 import Scripts (typedValidatorEnterpriseAddress)
-import Serialization.Address (Address, NetworkId)
+import Serialization.Address (NetworkId)
+import Serialization.Address (Address) as Cardano
 import ToData (class ToData, toData)
 import Types.Datum (Datum(Datum), DatumHash)
 import Types.PlutusData (PlutusData)
@@ -46,7 +47,9 @@ import Types.TypedValidator
   ( class DatumType
   , TypedValidator
   )
-import Cardano.Types.Value (Value)
+import Plutus.ToPlutusType (toPlutusType)
+import Plutus.Types.Value (Value)
+import Plutus.Types.Address (Address)
 
 -- | A `TxOutRef` ~ `TransactionInput` tagged by a phantom type: and the
 -- | connection type of the output.
@@ -173,12 +176,10 @@ mkTypedTxOut networkId typedVal dt amount = do
   mDHash <- datumHash $ Datum $ toData dt
   -- FIX ME: This is hardcoded to enterprise address, it seems like Plutus'
   -- "validatorAddress" also currently doesn't account for staking.
-  let address = typedValidatorEnterpriseAddress networkId typedVal
-  pure $ maybe Nothing
-    ( \dHash ->
-        Just $ mkTypedTxOut' (wrap { address, amount, dataHash: pure dHash }) dt
-    )
-    mDHash
+  pure do
+    address <- toPlutusType $ typedValidatorEnterpriseAddress networkId typedVal
+    dHash <- mDHash
+    pure $ mkTypedTxOut' (wrap { address, amount, dataHash: pure dHash }) dt
   where
   mkTypedTxOut'
     :: TransactionOutput
@@ -189,6 +190,7 @@ mkTypedTxOut networkId typedVal dt amount = do
 -- | An error we can get while trying to type an existing transaction part.
 data TypeCheckError
   = WrongValidatorAddress Address Address
+  | ExpectedScriptAddressNotAddress Cardano.Address
   | ExpectedScriptGotPubkey
   | WrongRedeemerType PlutusData
   | WrongDatumType PlutusData
@@ -212,10 +214,13 @@ checkValidatorAddress
   -> Address
   -> m (Either TypeCheckError Unit)
 checkValidatorAddress networkId typedVal actualAddr = runExceptT do
-  let expectedAddr = typedValidatorEnterpriseAddress networkId typedVal
-  unless (expectedAddr == actualAddr)
-    $ throwError
-    $ WrongValidatorAddress expectedAddr actualAddr
+  let expectedCardanoAddr = typedValidatorEnterpriseAddress networkId typedVal
+  case toPlutusType expectedCardanoAddr of
+    Just expectedAddr ->
+      unless (expectedAddr == actualAddr)
+        $ throwError
+        $ WrongValidatorAddress expectedAddr actualAddr
+    Nothing -> throwError $ ExpectedScriptAddressNotAddress expectedCardanoAddr
 
 -- -- | Checks that the given redeemer script has the right type.
 -- checkRedeemer

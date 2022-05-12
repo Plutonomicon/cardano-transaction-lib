@@ -70,6 +70,7 @@ import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.NonEmpty ((:|))
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
+import Data.Newtype (unwrap)
 import Deserialization.FromBytes (fromBytes)
 import Metadata.Seabug
   ( SeabugMetadata(SeabugMetadata)
@@ -114,6 +115,7 @@ import Types.ByteArray
 import Types.Int as Int
 import Types.Natural as Natural
 import Types.PlutusData as PD
+import Plutus.ToPlutusType (toPlutusType)
 import Types.PubKeyHash (PubKeyHash(PubKeyHash))
 import Types.RedeemerTag (RedeemerTag(Spend))
 import Types.TokenName (TokenName, mkTokenName)
@@ -182,7 +184,7 @@ import Cardano.Types.Value
 txOutputFixture1 :: TransactionOutput
 txOutputFixture1 =
   TransactionOutput
-    { address: baseAddressToAddress $ baseAddress
+    { address: unsafePartial $ fromJust $ toPlutusType $ baseAddressToAddress $ baseAddress
         { network: TestnetId
         , delegationCred:
             keyHashCredential $ unsafePartial $ fromJust
@@ -197,18 +199,18 @@ txOutputFixture1 =
               $ hexToByteArrayUnsafe
                   "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
         }
-    , amount: Value (Coin $ BigInt.fromInt 0) mempty
+    , amount: unwrap $ toPlutusType $ Value (Coin $ BigInt.fromInt 0) mempty
     , dataHash: Nothing
     }
 
 txOutputFixture2 :: TransactionOutput
 txOutputFixture2 =
   TransactionOutput
-    { address: keyHashBaseAddress
+    { address: unsafePartial $ fromJust $ toPlutusType $ keyHashBaseAddress
         { stake: "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
         , payment: "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
         }
-    , amount: Value (Coin $ BigInt.fromInt 0) $
+    , amount: unwrap $ toPlutusType $ Value (Coin $ BigInt.fromInt 0) $
         mkSingletonNonAdaAsset currencySymbol1 tokenName1
           (BigInt.fromInt 1000000)
     , dataHash: Nothing
@@ -366,25 +368,25 @@ txFixture3 =
         { inputs: [ txInputFixture1 ]
         , outputs:
             [ TransactionOutput
-                { address: keyHashBaseAddress
+                { address: unsafePartial $ fromJust $ toPlutusType $ keyHashBaseAddress
                     { stake:
                         "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
                     -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
                     , payment:
                         "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                     }
-                , amount: Value (Coin $ BigInt.fromInt 2353402) mempty
+                , amount: unwrap $ toPlutusType $ Value (Coin $ BigInt.fromInt 2353402) mempty
                 , dataHash: Nothing
                 }
             , TransactionOutput
-                { address: keyHashBaseAddress
+                { address: unsafePartial $ fromJust $ toPlutusType $ keyHashBaseAddress
                     { stake:
                         "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
                     -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
                     , payment:
                         "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                     }
-                , amount: Value (Coin $ BigInt.fromInt 1000000) mempty
+                , amount: unwrap $ toPlutusType $ Value (Coin $ BigInt.fromInt 1000000) mempty
                 , dataHash: Nothing
                 }
             ]
@@ -476,25 +478,25 @@ txFixture4 =
         { inputs: [ txInputFixture1 ]
         , outputs:
             [ TransactionOutput
-                { address: keyHashBaseAddress
+                { address: unsafePartial $ fromJust $ toPlutusType $ keyHashBaseAddress
                     { stake:
                         "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
                     -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
                     , payment:
                         "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                     }
-                , amount: Value (Coin $ BigInt.fromInt 2353402) mempty
+                , amount: unwrap $ toPlutusType $ Value (Coin $ BigInt.fromInt 2353402) mempty
                 , dataHash: Nothing
                 }
             , TransactionOutput
-                { address: keyHashBaseAddress
+                { address: unsafePartial $ fromJust $ toPlutusType $ keyHashBaseAddress
                     { stake:
                         "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
                     -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
                     , payment:
                         "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                     }
-                , amount: Value (Coin $ BigInt.fromInt 1000000) mempty
+                , amount: unwrap $ toPlutusType $ Value (Coin $ BigInt.fromInt 1000000) mempty
                 , dataHash: Nothing
                 }
             ]
@@ -669,7 +671,7 @@ utxoFixture1' =
         )
     , output:
         ( TransactionOutput
-            { address: baseAddressToAddress $ baseAddress
+            { address: unsafePartial $ fromJust $ toPlutusType $ baseAddressToAddress $ baseAddress
                 { network: TestnetId
                 , paymentCred: keyHashCredential $ unsafePartial $ fromJust
                     $ ed25519KeyHashFromBytes
@@ -739,7 +741,7 @@ utxoFixture1' =
                           ]
                       )
                 }
-            , amount: Value (Coin (BigInt.fromInt 5000000)) mempty
+            , amount: unwrap $ toPlutusType $ Value (Coin (BigInt.fromInt 5000000)) mempty
             , dataHash: Nothing
             }
         )
