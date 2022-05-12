@@ -10,11 +10,10 @@ module Contract.Transaction
   , finalizeTx
   , module BalanceTxError
   , module ExportQueryM
-  , module Ogmios
   , module ReindexRedeemersExport
   , module ScriptLookups
   , module Transaction
-  , module TxOutput
+  , module TransactionMetadata
   , module UnbalancedTx
   , reindexSpentScriptRedeemers
   , signTransaction
@@ -51,19 +50,8 @@ import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import ReindexRedeemers
   ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
   ) as ReindexRedeemersExport
-import TxOutput -- Could potentially trim this down, -- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/200
-  ( ogmiosTxOutToScriptOutput
-  , ogmiosTxOutToTransactionOutput
-  , scriptOutputToOgmiosTxOut
-  , scriptOutputToTransactionOutput
-  , transactionInputToTxOutRef
-  , transactionOutputToOgmiosTxOut
-  , transactionOutputToScriptOutput
-  , txOutRefToTransactionInput
-  ) as TxOutput
 import Types.ByteArray (ByteArray)
 import Types.Datum (Datum)
-import QueryM.Ogmios (OgmiosTxOut, OgmiosTxOutRef) as Ogmios -- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/200
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
@@ -91,7 +79,6 @@ import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and ass
   , Epoch(Epoch)
   , ExUnitPrices
   , ExUnits
-  , GeneralTransactionMetadata(GeneralTransactionMetadata)
   , GenesisHash(GenesisHash)
   , Language(PlutusV1)
   , Mint(Mint)
@@ -115,14 +102,6 @@ import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and ass
   , Transaction(Transaction)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
-  , TransactionMetadatum
-      ( MetadataMap
-      , MetadataList
-      , Int
-      , Bytes
-      , Text
-      )
-  , TransactionMetadatumLabel(TransactionMetadatumLabel)
   , TransactionOutput(TransactionOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
@@ -157,6 +136,17 @@ import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and ass
   , _withdrawals
   , _witnessSet
   ) as Transaction
+import Types.TransactionMetadata
+  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
+  , TransactionMetadatumLabel(TransactionMetadatumLabel)
+  , TransactionMetadatum
+      ( MetadataMap
+      , MetadataList
+      , Int
+      , Bytes
+      , Text
+      )
+  ) as TransactionMetadata
 import Types.UnbalancedTransaction (UnbalancedTx)
 import Types.UnbalancedTransaction
   ( ScriptOutput(ScriptOutput) -- More up-to-date Plutus uses this, wonder if we can just use `TransactionOutput`

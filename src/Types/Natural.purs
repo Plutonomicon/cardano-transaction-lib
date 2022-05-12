@@ -25,6 +25,8 @@ import Data.Either (Either(Left), note)
 import Data.Function (on)
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe)
 import FromData (class FromData)
+import Metadata.FromMetadata (class FromMetadata)
+import Metadata.ToMetadata (class ToMetadata)
 import ToData (class ToData, toData)
 import Types.PlutusData (PlutusData(Integer))
 
@@ -33,6 +35,8 @@ newtype Natural = Natural BigInt
 derive newtype instance Eq Natural
 derive newtype instance Ord Natural
 derive newtype instance Semiring Natural
+derive newtype instance FromMetadata Natural
+derive newtype instance ToMetadata Natural
 
 instance Show Natural where
   show (Natural n) = "(fromBigInt' (BigInt." <> show n <> "))"

@@ -7,9 +7,9 @@ module Types.ScriptLookups
   , mintingPolicyM
   , mkUnbalancedTx
   , mkUnbalancedTx'
-  , otherData
-  , otherScript
-  , otherScriptM
+  , datum
+  , validator
+  , validatorM
   , ownPaymentPubKeyHash
   , ownPaymentPubKeyHashM
   , ownStakePubKeyHash
@@ -31,7 +31,7 @@ import Control.Monad.Reader.Class (asks)
 import Control.Monad.Reader.Trans (ReaderT)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
-import Data.Array (singleton, union) as Array
+import Data.Array ((:), singleton, union) as Array
 import Data.Array (elemIndex, insert, toUnfoldable, zip)
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
@@ -75,7 +75,7 @@ import Serialization.Address (Address, NetworkId) as Cardano
 import Plutus.Types.Address (Address) as Plutus
 import ToData (class ToData)
 import Types.Any (Any)
-import Types.Datum (Datum(Datum), DatumHash)
+import Types.Datum (Datum, DatumHash)
 import Types.Interval (POSIXTimeRange, posixTimeRangeToTransactionSlot)
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
 import Types.TokenName (TokenName)
@@ -117,7 +117,7 @@ import Types.TxConstraints
       , MustHashDatum
       , MustIncludeDatum
       , MustMintValue
-      , MustPayToOtherScript
+      , MustPayToScript
       , MustPayToPubKeyAddress
       , MustProduceAtLeast
       , MustSatisfyAnyOf
@@ -176,8 +176,8 @@ import TxOutput (transactionOutputToScriptOutput)
 --------------------------------------------------------------------------------
 -- ScriptLookups type
 --------------------------------------------------------------------------------
--- We write `mps` and `otherScripts` as an `Array` instead of `Map`, meaning
--- our lookup helpers aren't required to hash (`mintingPolicy`, `otherScript`)
+-- We write `mps` and `scripts` as an `Array` instead of `Map`, meaning
+-- our lookup helpers aren't required to hash (`mintingPolicy`, `validator`)
 -- and therefore not lifted to `QueryM`. The downside is the lookups contain
 -- less information. All hashing is done inside `ConstraintsM`, see
 -- `processLookupsAndConstraints`.
@@ -186,9 +186,9 @@ newtype ScriptLookups (a :: Type) = ScriptLookups
       Array MintingPolicy -- Minting policies that the script interacts with
   , txOutputs ::
       Map TxOutRef TransactionOutput -- Unspent outputs that the script may want to spend. This may need tweaking to `TransactionOutput`
-  , otherScripts ::
-      Array Validator -- Validators of scripts other than "our script"
-  , otherData :: Map DatumHash Datum --  Datums that we might need
+  , scripts ::
+      Array Validator -- Script validators
+  , datums :: Map DatumHash Datum --  Datums that we might need
   , paymentPubKeyHashes ::
       Map PaymentPubKeyHash PaymentPubKey -- Public keys that we might need
   , typedValidator ::
@@ -209,9 +209,9 @@ instance Show (ScriptLookups a) where
 generalise :: forall (a :: Type). ScriptLookups a -> ScriptLookups Any
 generalise (ScriptLookups sl) =
   let
-    validator = TV.generalise <$> sl.typedValidator
+    tv = TV.generalise <$> sl.typedValidator
   in
-    wrap sl { typedValidator = validator }
+    wrap sl { typedValidator = tv }
 
 -- Using `Data.Map.union`, we can replicate left-biased <> from Data.Map used
 -- in Plutus (*not* Plutus' internal Map that uses something like unionWith (<>))
@@ -220,8 +220,8 @@ instance Semigroup (ScriptLookups a) where
     ScriptLookups
       { mps: l.mps `Array.union` r.mps
       , txOutputs: l.txOutputs `union` r.txOutputs
-      , otherScripts: l.otherScripts `Array.union` r.otherScripts
-      , otherData: l.otherData `union` r.otherData
+      , scripts: l.scripts `Array.union` r.scripts
+      , datums: l.datums `union` r.datums
       , paymentPubKeyHashes: l.paymentPubKeyHashes `union` r.paymentPubKeyHashes
       -- 'First' to match the semigroup instance of Map (left-biased)
       , typedValidator: l.typedValidator <\> r.typedValidator
@@ -233,8 +233,8 @@ instance Monoid (ScriptLookups a) where
   mempty = ScriptLookups
     { mps: mempty
     , txOutputs: empty
-    , otherScripts: mempty
-    , otherData: empty
+    , scripts: mempty
+    , datums: empty
     , paymentPubKeyHashes: empty
     , typedValidator: Nothing
     , ownPaymentPubKeyHash: Nothing
@@ -244,7 +244,7 @@ instance Monoid (ScriptLookups a) where
 --------------------------------------------------------------------------------
 -- Create ScriptLookups helpers
 --------------------------------------------------------------------------------
--- | The lookup functions come in pairs with the exception of `otherData`.
+-- | The lookup functions come in pairs with the exception of `datum`.
 -- | If the function cannot fail, there is another version contained in a `Maybe`
 -- | context (that also does not fail).
 -- | This is to aid users who wish to utilise the underlying `ScriptLookups`
@@ -297,24 +297,22 @@ mintingPolicyM :: forall (a :: Type). MintingPolicy -> Maybe (ScriptLookups a)
 mintingPolicyM = pure <<< mintingPolicy
 
 -- | A script lookups value with a validator script.
-otherScript :: forall (a :: Type). Validator -> ScriptLookups a
-otherScript vl =
-  over ScriptLookups _ { otherScripts = Array.singleton vl } mempty
+validator :: forall (a :: Type). Validator -> ScriptLookups a
+validator vl =
+  over ScriptLookups _ { scripts = Array.singleton vl } mempty
 
--- | Same as `otherScript` but in `Maybe` context for convenience. This
+-- | Same as `validator` but in `Maybe` context for convenience. This
 -- | should not fail.
-otherScriptM :: forall (a :: Type). Validator -> Maybe (ScriptLookups a)
-otherScriptM = pure <<< otherScript
+validatorM :: forall (a :: Type). Validator -> Maybe (ScriptLookups a)
+validatorM = pure <<< validator
 
 -- | A script lookups value with a datum. This can fail because we invoke
 -- | `datumHash` using a server.
-otherData :: forall (a :: Type). Datum -> QueryM (Maybe (ScriptLookups a))
-otherData dt = do
-  mDh <- datumHash dt
-  pure $ maybe
-    Nothing
-    (\dh -> Just $ over ScriptLookups _ { otherData = singleton dh dt } mempty)
-    mDh
+datum :: forall (a :: Type). Datum -> QueryM (Maybe (ScriptLookups a))
+datum dt = datumHash dt >>= case _ of
+  Nothing -> pure Nothing
+  Just dh -> pure $ Just $ over ScriptLookups _ { datums = singleton dh dt }
+    mempty
 
 -- -- | A script lookups value with a payment public key. This can fail because we
 -- -- | invoke `payPubKeyHash`.
@@ -493,14 +491,14 @@ processLookupsAndConstraints
   lookups <- use _lookups <#> unwrap
   let
     mps = lookups.mps
-    otherScripts = lookups.otherScripts
+    scripts = lookups.scripts
   mpsHashes <-
     ExceptT $ hashScripts mintingPolicyHash CannotHashMintingPolicy mps
-  otherScriptHashes <-
-    ExceptT $ hashScripts validatorHash CannotHashValidator otherScripts
+  validatorHashes <-
+    ExceptT $ hashScripts validatorHash CannotHashValidator scripts
   let
     mpsMap = fromFoldable $ zip mpsHashes mps
-    osMap = fromFoldable $ zip otherScriptHashes otherScripts
+    osMap = fromFoldable $ zip validatorHashes scripts
   ExceptT $ foldConstraints (processConstraint mpsMap osMap) constraints
   ExceptT $ foldConstraints addOwnInput ownInputs
   ExceptT $ foldConstraints addOwnOutput ownOutputs
@@ -690,7 +688,7 @@ addMissingValueSpent = do
           , amount
           , dataHash: Nothing
           }
-    _cpsToTxBody <<< _outputs <>= Array.singleton txOut
+    _cpsToTxBody <<< _outputs %= Array.(:) txOut
 
 updateUtxoIndex
   :: forall (a :: Type)
@@ -737,12 +735,13 @@ addOwnOutput
   => ToData b
   => OutputConstraint b
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
-addOwnOutput (OutputConstraint { datum, value }) = do
+addOwnOutput (OutputConstraint { datum: d, value }) = do
   networkId <- getNetworkId
   runExceptT do
     ScriptLookups { typedValidator } <- use _lookups
     inst <- liftM TypedValidatorMissing typedValidator
-    typedTxOut <- ExceptT $ lift $ mkTypedTxOut networkId inst datum value
+    let value' = unwrap $ fromPlutusType value
+    typedTxOut <- ExceptT $ lift $ mkTypedTxOut networkId inst d value
       <#> note MkTypedTxOutFailed
     let txOut = typedTxOutTxOut typedTxOut
     -- We are erroring if we don't have a datumhash given the polymorphic datum
@@ -750,9 +749,8 @@ addOwnOutput (OutputConstraint { datum, value }) = do
     dHash <- liftM TypedTxOutHasNoDatumHash (typedTxOutDatumHash typedTxOut)
     dat <-
       ExceptT $ lift $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
-    _cpsToTxBody <<< _outputs <>= Array.singleton txOut
-    ExceptT $ addDatum (wrap dat)
-    let value' = unwrap $ fromPlutusType value
+    _cpsToTxBody <<< _outputs %= Array.(:) txOut
+    ExceptT $ addDatum dat
     _valueSpentBalancesOutputs <>= provide value'
 
 data MkUnbalancedTxError
@@ -802,7 +800,7 @@ lookupDatum
    . DatumHash
   -> ConstraintsM a (Either MkUnbalancedTxError Datum)
 lookupDatum dh = do
-  otherDt <- use _lookups <#> unwrap >>> _.otherData
+  otherDt <- use _lookups <#> unwrap >>> _.datums
   let err = pure $ throwError $ DatumNotFound dh
   maybe err (pure <<< Right) $ lookup dh otherDt
 
@@ -835,7 +833,7 @@ processConstraint
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
 processConstraint mpsMap osMap = do
   case _ of
-    MustIncludeDatum datum -> addDatum datum
+    MustIncludeDatum dat -> addDatum dat
     MustValidateIn posixTimeRange -> runExceptT do
       sc <- asks _.slotConfig
       case posixTimeRangeToTransactionSlot sc posixTimeRange of
@@ -890,8 +888,7 @@ processConstraint mpsMap osMap = do
           -- `Just`.
           dataValue <- ExceptT $ do
             queryD <- lift $
-              getDatumByHash dHash <#> note (CannotQueryDatum dHash) >>> map
-                Datum
+              getDatumByHash dHash <#> note (CannotQueryDatum dHash)
             lookupD <- lookupDatum dHash
             pure $ queryD <|> lookupD
           ExceptT $ attachToCps attachPlutusScript plutusScript
@@ -981,7 +978,7 @@ processConstraint mpsMap osMap = do
         -- failure in the output. It's possible that this is okay for
         -- `MustPayToPubKeyAddress` because datums are essentially redundant
         -- for wallet addresses, but let's fail for now. It is important to
-        -- capture failure for `MustPayToOtherScript` however, because datums
+        -- capture failure for `MustPayToScript` however, because datums
         -- at script addresses matter.
         -- e.g. in psuedo code:
         -- If mDatum = Nothing -> dataHash = Nothing (don't fail)
@@ -992,8 +989,8 @@ processConstraint mpsMap osMap = do
         -- `MustPayToPubKeyAddress`
         dataHash <- maybe
           (liftEither $ Right Nothing) -- Don't throw an error if Nothing.
-          ( \datum -> ExceptT $ lift $
-              liftDatumHash (CannotHashDatum datum) <$> datumHash datum
+          ( \dat -> ExceptT $ lift $
+              liftDatumHash (CannotHashDatum dat) <$> datumHash dat
           )
           mDatum
         let
@@ -1008,16 +1005,15 @@ processConstraint mpsMap osMap = do
             , amount
             , dataHash
             }
-        _cpsToTxBody <<< _outputs <>= Array.singleton txOut
+        _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provide (unwrap $ fromPlutusType $ amount)
-    MustPayToOtherScript vlh datum plutusValue -> do
+    MustPayToScript vlh da plutusValue -> do
       let amount = plutusValue
       networkId <- getNetworkId
       runExceptT do
         -- Don't write `let dataHash = datumHash datum`, see [datumHash Note]
-        dataHash <- ExceptT $ lift $ note (CannotHashDatum datum)
-          <$> map Just
-          <$> datumHash datum
+        dataHash <- ExceptT $ lift $ note (CannotHashDatum da)
+          <$> (map Just <<< datumHash) da
         let address = validatorHashEnterpriseAddress networkId vlh
         addr' <- ExceptT $ pure (note (NotAValidPlutusAddress address) $ toPlutusType address )
         let
@@ -1026,8 +1022,9 @@ processConstraint mpsMap osMap = do
             , amount
             , dataHash
             }
-        ExceptT $ addDatum datum
-        _cpsToTxBody <<< _outputs <>= Array.singleton txOut
+        -- Note we don't `addDatum` as this included as part of `mustPayToScript`
+        -- constraint already.
+        _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provide (unwrap $ fromPlutusType amount)
     MustHashDatum dh dt -> do
       mdh <- lift $ datumHash dt
@@ -1087,9 +1084,9 @@ addDatum
   :: forall (a :: Type)
    . Datum
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
-addDatum datum = runExceptT do
-  ExceptT $ attachToCps attachDatum datum
-  _datums <>= Array.singleton datum
+addDatum dat = runExceptT do
+  ExceptT $ attachToCps attachDatum dat
+  _datums <>= Array.singleton dat
 
 -- Helper to focus from `ConstraintProcessingState` down to `Transaction`.
 _cpsToTransaction

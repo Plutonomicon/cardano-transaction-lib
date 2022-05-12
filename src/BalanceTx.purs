@@ -29,7 +29,7 @@ import Data.Either (Either(Left, Right), hush, note)
 import Data.Foldable as Foldable
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
-import Data.Lens.Setter ((.~))
+import Data.Lens.Setter ((.~), (%~))
 import Data.List ((:), List(Nil), partition)
 import Data.Log.Tag (tag)
 import Data.Map as Map
@@ -74,6 +74,7 @@ import Types.Transaction
   , TxBody(TxBody)
   , Utxo
   , _body
+  , _inputs
   , _networkId
   )
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
@@ -295,8 +296,10 @@ balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
       returnAdaChange ownAddr allUtxos nonAdaBalancedCollTx <#>
         lmap ReturnAdaChangeError'
 
+    -- Sort inputs at the very end so it behaves as a Set.
+    let sortedUnsignedTx = unsignedTx # _body <<< _inputs %~ Array.sort
     -- Logs final balanced tx and returns it
-    ExceptT $ logTx "Post-balancing Tx " allUtxos unsignedTx <#> Right
+    ExceptT $ logTx "Post-balancing Tx " allUtxos sortedUnsignedTx <#> Right
   where
   prebalanceCollateral
     :: BigInt
@@ -719,6 +722,7 @@ balanceTxIns' utxos fees (TxBody txBody) = do
   -- Original code uses Set append which is union. Array unions behave
   -- a little differently as it removes duplicates in the second argument.
   -- but all inputs should be unique anyway so I think this is fine.
+  -- Note, this does not sort automatically unlike Data.Set
   pure $ wrap
     txBody
       { inputs = Array.union txIns txBody.inputs
@@ -742,16 +746,16 @@ collectTxIns originalTxIns utxos value =
   updatedInputs =
     Foldable.foldl
       ( \newTxIns txIn ->
-          if isSufficient newTxIns then newTxIns
-          else txIn `Array.insert` newTxIns -- treat as a set.
+          if Array.elem txIn newTxIns || isSufficient newTxIns then newTxIns
+          else Array.insert txIn newTxIns -- treat as a set.
       )
       originalTxIns
       $ utxosToTransactionInput utxos
 
   -- Useful spies for debugging:
-  -- x = spy "collectTxInsValue" value
-  -- y = spy "txInsValueOG" (txInsValue originalTxIns)
-  -- z = spy "txInsValueNEW" (txInsValue updatedInputs)
+  -- x = spy "collectTxIns:value" value
+  -- y = spy "collectTxIns:txInsValueOG" (txInsValue utxos originalTxIns)
+  -- z = spy "collectTxIns:txInsValueNEW" (txInsValue utxos updatedInputs)
 
   isSufficient :: Array TransactionInput -> Boolean
   isSufficient txIns' =
@@ -824,6 +828,7 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
     -- a = spy "balanceNonAdaOuts'nonMintedOutputValue" nonMintedOutputValue
     -- b = spy "balanceNonAdaOuts'nonMintedAdaOutputValue" nonMintedAdaOutputValue
     -- c = spy "balanceNonAdaOuts'nonAdaChange" nonAdaChange
+    -- d = spy "balanceNonAdaOuts'inputValue" inputValue
 
     outputs :: Array TransactionOutput
     outputs =

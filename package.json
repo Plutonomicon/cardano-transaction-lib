@@ -20,6 +20,7 @@
     "bufferutil": "4.0.5",
     "node-polyfill-webpack-plugin": "1.1.4",
     "uniqid": "5.4.0",
+    "reconnecting-websocket": "4.4.0",
     "ws": "8.4.0",
     "xhr2": "0.2.1"
   },

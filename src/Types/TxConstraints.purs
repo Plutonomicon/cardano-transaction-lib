@@ -13,10 +13,9 @@ module Types.TxConstraints
   , mustMintCurrencyWithRedeemer
   , mustMintValue
   , mustMintValueWithRedeemer
-  , mustPayToOtherScript
+  , mustPayToScript
   , mustPayToPubKey
   , mustPayToPubKeyAddress
-  , mustPayToTheScript
   , mustPayWithDatumToPubKey
   , mustPayWithDatumToPubKeyAddress
   , mustProduceAtLeast
@@ -50,11 +49,10 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested ((/\), type (/\))
 import Plutus.Types.CurrencySymbol (CurrencySymbol, currencyMPSHash)
 import Plutus.Types.Value (Value, isZero, flattenNonAdaAssets)
-import ToData (class ToData, toData)
 import Types.Redeemer (Redeemer, unitRedeemer)
 import Types.Interval (POSIXTimeRange, always, intersection, isEmpty)
 import Types.Scripts (MintingPolicyHash, ValidatorHash)
-import Types.Datum (Datum(Datum))
+import Types.Datum (Datum)
 import Types.Transaction (DatumHash)
 import Types.TokenName (TokenName)
 import Types.UnbalancedTransaction
@@ -82,7 +80,7 @@ data TxConstraint
   | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash)
       (Maybe Datum)
       Value
-  | MustPayToOtherScript ValidatorHash Datum Value
+  | MustPayToScript ValidatorHash Datum Value
   | MustHashDatum DatumHash Datum
   | MustSatisfyAnyOf (Array (Array TxConstraint))
 
@@ -178,24 +176,6 @@ mustBeSignedBy = singleton <<< MustBeSignedBy
 mustIncludeDatum :: forall (i :: Type) (o :: Type). Datum -> TxConstraints i o
 mustIncludeDatum = singleton <<< MustIncludeDatum
 
--- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/200
--- | Lock the value to the script currently being validated
-mustPayToTheScript
-  :: forall (i :: Type) (o :: Type)
-   . ToData o
-  => o
-  -> Value
-  -> TxConstraints i o
-mustPayToTheScript dt value =
-  TxConstraints
-    { constraints: Array.singleton $ MustIncludeDatum (Datum $ toData dt)
-    , ownInputs: []
-    , ownOutputs: Array.singleton $ OutputConstraint
-        { datum: dt
-        , value: value
-        }
-    }
-
 -- | Lock the value with a public key
 mustPayToPubKey
   :: forall (i :: Type) (o :: Type)
@@ -238,17 +218,17 @@ mustPayWithDatumToPubKeyAddress pkh skh datum =
   singleton <<< MustPayToPubKeyAddress pkh (Just skh) (Just datum)
 
 -- | Lock the value to any arbitrary script
-mustPayToOtherScript
+mustPayToScript
   :: forall (i :: Type) (o :: Type)
    . ValidatorHash
   -> Datum
   -> Value
   -> TxConstraints i o
-mustPayToOtherScript vh dt vl =
-  singleton (MustPayToOtherScript vh dt vl)
+mustPayToScript vh dt vl =
+  singleton (MustPayToScript vh dt vl)
     <> singleton (MustIncludeDatum dt)
 
--- | Create the given value. FIX ME: Broken until unitRedeemer properly defined.
+-- | Mint the given `Value`
 mustMintValue :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
 mustMintValue = mustMintValueWithRedeemer unitRedeemer
 
@@ -405,7 +385,7 @@ modifiesUtxoSet (TxConstraints { constraints, ownInputs, ownOutputs }) =
       MustSpendScriptOutput _ _ -> true
       MustMintValue _ _ _ _ -> true
       MustPayToPubKeyAddress _ _ _ vl -> not (isZero vl)
-      MustPayToOtherScript _ _ vl -> not (isZero vl)
+      MustPayToScript _ _ vl -> not (isZero vl)
       MustSatisfyAnyOf xs -> any requiresInputOutput $ concat xs
       _ -> false
   in

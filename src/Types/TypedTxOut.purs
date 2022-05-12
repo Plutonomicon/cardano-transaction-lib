@@ -263,7 +263,7 @@ typeTxOut networkId typedVal (TransactionOutput { address, amount, dataHash }) =
     dHash <- liftM ExpectedScriptGotPubkey dataHash
     void $ checkValidatorAddress networkId typedVal address
     pd <- ExceptT $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
-    dtOut <- ExceptT $ checkDatum typedVal (wrap pd)
+    dtOut <- ExceptT $ checkDatum typedVal pd
     ExceptT $
       note CannotMakeTypedTxOut <$> mkTypedTxOut networkId typedVal dtOut amount
 

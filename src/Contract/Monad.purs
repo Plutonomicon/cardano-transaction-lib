@@ -19,22 +19,24 @@ module Contract.Monad
   , liftedE'
   , liftedM
   , logTrace
+  , logTrace'
   , logDebug
+  , logDebug'
   , logInfo
+  , logInfo'
   , logWarn
+  , logWarn'
   , logError
+  , logError'
   , mkContractConfig
   , runContract
   , runContract_
   , throwContractError
+  , traceContractConfig
   ) where
 
 import Prelude
 
-import Data.Either (Either, either, hush)
-import Data.Log.Level (LogLevel(Error))
-import Data.Log.Message (Message)
-import Data.Maybe (Maybe(Just), maybe)
 import Control.Monad.Error.Class (class MonadError, class MonadThrow)
 import Control.Monad.Logger.Trans (runLoggerT)
 import Control.Monad.Logger.Class (class MonadLogger)
@@ -47,8 +49,11 @@ import Control.Monad.Reader.Class
   )
 import Control.Monad.Reader.Trans (runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
-import Data.Log.Tag (TagSet)
+import Data.Either (Either, either, hush)
+import Data.Log.Level (LogLevel(Error, Trace))
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error)) as Log.Level
+import Data.Log.Message (Message)
+import Data.Log.Tag (TagSet)
 import Data.Log.Tag
   ( TagSet
   , tag
@@ -58,6 +63,8 @@ import Data.Log.Tag
   , jsDateTag
   , tagSetTag
   ) as Log.Tag
+import Data.Map as Map
+import Data.Maybe (Maybe(Just), maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Profunctor (dimap)
 import Effect.Aff (Aff)
@@ -72,7 +79,6 @@ import QueryM
   , DatumCacheWebSocket
   , DispatchIdMap
   , Host
-  , JsWebSocket
   , ListenerSet
   , OgmiosListeners
   , OgmiosWebSocket
@@ -181,7 +187,8 @@ mkContractConfig
 mkContractConfig
   (ConfigParams params@{ slotConfig, logLevel, networkId, wallet }) = do
   ogmiosWs <- QueryM.mkOgmiosWebSocketAff logLevel params.ogmiosConfig
-  datumCacheWs <- QueryM.mkDatumCacheWebSocketAff logLevel params.ogmiosConfig
+  datumCacheWs <- QueryM.mkDatumCacheWebSocketAff logLevel
+    params.datumCacheConfig
   usedTxOuts <- newUsedTxOuts
   let
     queryConfig =
@@ -285,7 +292,13 @@ runContract_ config = void <<< runContract config
 -- | Creates a default `ContractConfig` with a Nami wallet inside `Aff` as
 -- | required by the websockets.
 defaultContractConfig :: Aff DefaultContractConfig
-defaultContractConfig = do
+defaultContractConfig = configWithLogLevel Error
+
+traceContractConfig :: Aff DefaultContractConfig
+traceContractConfig = configWithLogLevel Trace
+
+configWithLogLevel :: LogLevel -> Aff DefaultContractConfig
+configWithLogLevel logLevel = do
   wallet <- Just <$> mkNamiWalletAff
   ogmiosWs <- QueryM.mkOgmiosWebSocketAff logLevel QueryM.defaultOgmiosWsConfig
   datumCacheWs <-
@@ -301,9 +314,6 @@ defaultContractConfig = do
     , slotConfig: Interval.defaultSlotConfig
     , logLevel
     }
-  where
-  logLevel :: LogLevel
-  logLevel = Error
 
 -- | Same as `defaultContractConfig` but lifted into `Contract`.
 defaultContractConfigLifted
@@ -331,3 +341,23 @@ logWarn = Logger.warn
 logError
   :: forall (m :: Type -> Type). MonadLogger m => TagSet -> String -> m Unit
 logError = Logger.error
+
+logTrace'
+  :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
+logTrace' = Logger.trace Map.empty
+
+logDebug'
+  :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
+logDebug' = Logger.debug Map.empty
+
+logInfo'
+  :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
+logInfo' = Logger.info Map.empty
+
+logWarn'
+  :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
+logWarn' = Logger.warn Map.empty
+
+logError'
+  :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
+logError' = Logger.error Map.empty

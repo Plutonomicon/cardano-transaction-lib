@@ -1,6 +1,7 @@
 module Main (main) where
 
 import Api (app, applyArgs, blake2bHash, estimateTxFees, hashData, hashScript)
+import Cardano.Api qualified as C
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.Kind (Type)
 import Network.HTTP.Client (defaultManagerSettings, newManager)
@@ -44,6 +45,7 @@ import Types (
   HashScriptRequest (HashScriptRequest),
   HashedData (HashedData),
   HashedScript (HashedScript),
+  ServerOptions (ServerOptions, networkId, nodeSocket, port),
   WitnessCount (WitnessCount),
   newEnvIO,
   unsafeDecode,
@@ -169,8 +171,14 @@ setupClientEnv = do
 withTestApp :: ActionWith (Port -> IO ())
 withTestApp = Warp.testWithApplication $ app <$> newEnvIO'
   where
+    serverOptions =
+      ServerOptions
+        { port = 8081
+        , nodeSocket = "./.node/socket/node.socket"
+        , networkId = C.Testnet (C.NetworkMagic 1097911063)
+        }
     newEnvIO' :: IO Env
-    newEnvIO' = either die pure =<< newEnvIO
+    newEnvIO' = either die pure =<< newEnvIO serverOptions
 
 runClientM' ::
   forall (a :: Type).
