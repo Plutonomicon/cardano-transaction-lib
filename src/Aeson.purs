@@ -88,6 +88,7 @@ import Data.Argonaut.Encode.Encoders (encodeBoolean, encodeString, encodeUnit)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array (foldr, fromFoldable)
 import Data.Bifunctor (lmap)
+import Data.Number as Number
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Right, Left), fromRight, note)
@@ -381,9 +382,9 @@ decodeJsonString = parseJsonStringToAeson >=> decodeAeson
 
 -------- DecodeAeson instances --------
 
-decodeIntegral
+decodeNumber
   :: forall a. (String -> Maybe a) -> Aeson -> Either JsonDecodeError a
-decodeIntegral parse aeson@(Aeson { numberIndex }) = do
+decodeNumber parse aeson@(Aeson { numberIndex }) = do
   -- Numbers are replaced by their index in the array.
   ix <- decodeAesonViaJson aeson
   numberStr <- note MissingValue (Seq.index ix numberIndex)
@@ -391,13 +392,13 @@ decodeIntegral parse aeson@(Aeson { numberIndex }) = do
     (parse numberStr)
 
 instance DecodeAeson UInt where
-  decodeAeson = decodeIntegral UInt.fromString
+  decodeAeson = decodeNumber UInt.fromString
 
 instance DecodeAeson Int where
-  decodeAeson = decodeIntegral Int.fromString
+  decodeAeson = decodeNumber Int.fromString
 
 instance DecodeAeson BigInt where
-  decodeAeson = decodeIntegral BigInt.fromString
+  decodeAeson = decodeNumber BigInt.fromString
 
 instance DecodeAeson Boolean where
   decodeAeson = decodeAesonViaJson
@@ -406,10 +407,7 @@ instance DecodeAeson String where
   decodeAeson = decodeAesonViaJson
 
 instance DecodeAeson Number where
-  decodeAeson = decodeAesonViaJson
-
-instance DecodeAeson Json where
-  decodeAeson = Right <<< toStringifiedNumbersJson
+  decodeAeson = decodeNumber Number.fromString
 
 instance DecodeAeson Aeson where
   decodeAeson = pure
@@ -554,9 +552,6 @@ instance EncodeAeson String where
 
 instance EncodeAeson Boolean where
   encodeAeson' = encodeAesonViaJson
-
-instance EncodeAeson Json where
-  encodeAeson' = jsonToAeson >>> encodeAeson'
 
 instance EncodeAeson Aeson where
   encodeAeson' (Aeson { patchedJson: AesonPatchedJson json, numberIndex }) = do

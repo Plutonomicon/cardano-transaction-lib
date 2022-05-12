@@ -6,20 +6,21 @@ import Aeson
   ( Aeson
   , AesonCases
   , caseAeson
-  , constAesonCases
-  , caseAesonString
-  , caseAesonNull
   , caseAesonBoolean
+  , caseAesonNull
+  , caseAesonString
+  , constAesonCases
   , decodeAeson
   , decodeJsonString
+  , encodeAeson
   , getField
   , getNestedAeson
+  , getNumberIndex
   , jsonToAeson
   , parseJsonStringToAeson
+  , stringifyAeson
   , toObject
   , toStringifiedNumbersJson
-  , stringifyAeson
-  , getNumberIndex
   )
 import Control.Apply (lift2)
 import Control.Monad.Cont (lift)
@@ -27,8 +28,9 @@ import Data.Argonaut (encodeJson, parseJson)
 import Data.Argonaut as Json
 import Data.Array (head, zip, (!!))
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), hush)
+import Data.Either (Either(Right, Left), hush)
 import Data.Maybe (Maybe(Nothing, Just), fromJust, fromMaybe, isJust)
+import Data.Newtype (unwrap)
 import Data.Sequence as Seq
 import Data.Traversable (for_, traverse)
 import Data.Tuple (Tuple(Tuple), uncurry)
@@ -40,7 +42,12 @@ import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (FilePath)
 import Partial.Unsafe (unsafePartial)
-import Test.ArbitraryJson (stringifyArbJson)
+import Test.ArbitraryJson
+  ( ArbBigInt(..)
+  , ArbJson
+  , ArbUInt(..)
+  , stringifyArbJson
+  )
 import Test.QuickCheck (quickCheck', (<?>))
 import Test.Spec.Assertions (shouldEqual)
 import Test.Utils (assertTrue)
@@ -50,6 +57,14 @@ import Types.PlutusData (PlutusData(Integer, Bytes, List, Map, Constr))
 
 suite :: TestPlanM Unit
 suite = do
+  group "Aeson encode" do
+    test "Integer" $ liftEffect do
+      let
+        expected =
+          Integer $ unsafePartial $ fromJust $ BigInt.fromString
+            "999999999999999999999999"
+      decodeJsonString "999999999999999999999999" `shouldEqual` Right expected
+
   group "Aeson decoder" do
     test "Integer" $ liftEffect do
       let
@@ -161,7 +176,10 @@ suite = do
     fixtureTests
 
   group "Arbitrary Aeson" do
-    testArbitraryAeson
+    testStringifyArbitraryAeson
+
+  group "EncodeAeson >>> DecodeAeson == identity" do
+    testEncodeDecodeAesonIdentity
 
 -- | This function reads from `./fixtures/` folder.
 -- | `expected/*` contains JSONs corresponding to `Aeson` type (with number
@@ -292,8 +310,8 @@ testSimpleValue s jsonCb = uncurry assertTrue $
         false
       Right json -> jsonCb json
 
-testArbitraryAeson :: TestPlanM Unit
-testArbitraryAeson = liftEffect $ quickCheck' 3000 \arbJson ->
+testStringifyArbitraryAeson :: TestPlanM Unit
+testStringifyArbitraryAeson = liftEffect $ quickCheck' 3000 \arbJson ->
   let
     jsonString = stringifyArbJson arbJson
     res = do
@@ -303,3 +321,35 @@ testArbitraryAeson = liftEffect $ quickCheck' 3000 \arbJson ->
   in
     fromMaybe false (res <#> uncurry eq) <?>
       "Test failed for input " <> show (isJust res) <> " - " <> jsonString
+
+testEncodeDecodeAesonIdentity :: TestPlanM Unit
+testEncodeDecodeAesonIdentity = do
+  test "Int" $ liftEffect $ quickCheck' 30 \(i :: Int) ->
+    (i # encodeAeson # decodeAeson) ==
+      Right i
+  test "BigInt" $ liftEffect $ quickCheck' 30 \(ArbBigInt i) ->
+    (i # encodeAeson # decodeAeson)
+      == Right i
+  test "UInt" $ liftEffect $ quickCheck' 30 \(ArbUInt i) ->
+    (i # encodeAeson # decodeAeson) ==
+      Right i
+  test "Boolean" $ liftEffect $ quickCheck' 3 \(i :: Boolean) ->
+    (i # encodeAeson # decodeAeson)
+      == Right i
+  test "String" $ liftEffect $ quickCheck' 30 \(i :: String) ->
+    (i # encodeAeson # decodeAeson)
+      == Right i
+  test "Array" $ liftEffect $ quickCheck' 30 \(i :: Array ArbBigInt) ->
+    (i # map unwrap # encodeAeson # decodeAeson) == Right (map unwrap i)
+  test "Record" $ liftEffect $ quickCheck' 30
+    \( i
+         :: { a :: { b :: Int, c :: Number, d :: Array Int }
+            , e :: { f :: String, g :: Boolean }
+            }
+     ) ->
+      (i # encodeAeson # decodeAeson) == Right i
+  test "Aeson" $ liftEffect $ quickCheck' 100 \(i :: ArbJson) ->
+    let j = i # arbAeson in (j # encodeAeson # decodeAeson) == Right j
+  where
+  arbAeson aj = unsafePartial $ fromJust $ hush $ parseJsonStringToAeson $
+    stringifyArbJson aj
