@@ -11,7 +11,15 @@ import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (throw)
 import Mote (group, test)
-import QueryM (cancelFetchBlocks, getChainTip, getDatumByHash, getDatumsByHashes, runQueryM, startFetchBlocks, traceQueryConfig)
+import QueryM
+  ( cancelFetchBlocks
+  , getChainTip
+  , getDatumByHash
+  , getDatumsByHashes
+  , runQueryM
+  , startFetchBlocks
+  , traceQueryConfig
+  )
 import QueryM.Ogmios (OgmiosAddress)
 import QueryM.Utxos (utxosAt)
 import Test.Spec.Assertions (shouldEqual)
@@ -79,7 +87,11 @@ testOgmiosDatumCacheFetcher :: Aff Unit
 testOgmiosDatumCacheFetcher =
   traceQueryConfig >>= flip runQueryM do
     void $ try cancelFetchBlocks -- ignore error if the fetcher was not running
-    startFetchBlocks { slot: Slot (UInt.fromInt 54066900), id: BlockId $ hexToByteArrayUnsafe "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d" }
+    startFetchBlocks
+      { slot: Slot (UInt.fromInt 54066900)
+      , id: BlockId $ hexToByteArrayUnsafe
+          "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d"
+      }
     cancelFetchBlocks
 
 testUtxosAt :: OgmiosAddress -> Aff Unit

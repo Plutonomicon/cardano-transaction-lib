@@ -15,8 +15,23 @@ module QueryM.JsonWsp
 
 import Prelude
 
-import Aeson (class DecodeAeson, Aeson, caseAesonBigInt, caseAesonObject, caseAesonString, caseAesonUInt, decodeAeson, getField, getFieldOptional)
-import Data.Argonaut (class EncodeJson, Json, JsonDecodeError(TypeMismatch), encodeJson)
+import Aeson
+  ( class DecodeAeson
+  , Aeson
+  , caseAesonBigInt
+  , caseAesonObject
+  , caseAesonString
+  , caseAesonUInt
+  , decodeAeson
+  , getField
+  , getFieldOptional
+  )
+import Data.Argonaut
+  ( class EncodeJson
+  , Json
+  , JsonDecodeError(TypeMismatch)
+  , encodeJson
+  )
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Maybe (Maybe)

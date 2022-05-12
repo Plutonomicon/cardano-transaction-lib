@@ -16,9 +16,26 @@ module QueryM.DatumCacheWsp
 
 import Prelude
 
-import Aeson (class DecodeAeson, Aeson, caseAesonArray, caseAesonObject, decodeAeson, getNestedAeson, jsonToAeson, toStringifiedNumbersJson, (.:))
+import Aeson
+  ( class DecodeAeson
+  , Aeson
+  , caseAesonArray
+  , caseAesonObject
+  , decodeAeson
+  , getNestedAeson
+  , jsonToAeson
+  , toStringifiedNumbersJson
+  , (.:)
+  )
 import Control.Alt ((<|>))
-import Data.Argonaut (Json, JsonDecodeError(..), decodeJson, encodeJson, jsonNull, stringify)
+import Data.Argonaut
+  ( Json
+  , JsonDecodeError(..)
+  , decodeJson
+  , encodeJson
+  , jsonNull
+  , stringify
+  )
 import Data.Argonaut.Encode (class EncodeJson)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..), either, note)
@@ -69,16 +86,16 @@ derive instance Newtype GetDatumByHashR _
 
 instance DecodeAeson GetDatumByHashR where
   decodeAeson r = GetDatumByHashR <$>
-        let
-          datumFound :: Either JsonDecodeError (Maybe Datum)
-          datumFound =
-            Just <$> (decodeAeson =<< getNestedAeson r [ "DatumFound", "value" ])
+    let
+      datumFound :: Either JsonDecodeError (Maybe Datum)
+      datumFound =
+        Just <$> (decodeAeson =<< getNestedAeson r [ "DatumFound", "value" ])
 
-          datumNotFound :: Either JsonDecodeError (Maybe Datum)
-          datumNotFound =
-            Nothing <$ getNestedAeson r [ "DatumNotFound" ]
-        in
-          datumFound <|> datumNotFound
+      datumNotFound :: Either JsonDecodeError (Maybe Datum)
+      datumNotFound =
+        Nothing <$ getNestedAeson r [ "DatumNotFound" ]
+    in
+      datumFound <|> datumNotFound
 
 newtype GetDatumsByHashesR = GetDatumsByHashesR (Map DatumHash Datum)
 
@@ -86,39 +103,40 @@ derive instance Newtype GetDatumsByHashesR _
 
 instance DecodeAeson GetDatumsByHashesR where
   decodeAeson r =
-        let
-          decodeDatumArray
-            :: Aeson -> Either JsonDecodeError (Map DatumHash Datum)
-          decodeDatumArray =
-            caseAesonArray (Left $ TypeMismatch "expected array")
-              $ (map Map.fromFoldable) <<< traverse decodeDatum
+    let
+      decodeDatumArray
+        :: Aeson -> Either JsonDecodeError (Map DatumHash Datum)
+      decodeDatumArray =
+        caseAesonArray (Left $ TypeMismatch "expected array")
+          $ (map Map.fromFoldable) <<< traverse decodeDatum
 
-          decodeDatum
-            :: Aeson -> Either JsonDecodeError (DatumHash /\ Datum)
-          decodeDatum = caseAesonObject (Left $ TypeMismatch "expected object")
-            $ \o -> (/\) <$> map wrap (o .: "hash") <*>
-                (decodeAeson =<< o .: "value")
-        in
-          map GetDatumsByHashesR <<< decodeDatumArray =<< getNestedAeson
-            r
-            [ "DatumsFound", "value" ]
+      decodeDatum
+        :: Aeson -> Either JsonDecodeError (DatumHash /\ Datum)
+      decodeDatum = caseAesonObject (Left $ TypeMismatch "expected object")
+        $ \o -> (/\) <$> map wrap (o .: "hash") <*>
+            (decodeAeson =<< o .: "value")
+    in
+      map GetDatumsByHashesR <<< decodeDatumArray =<< getNestedAeson
+        r
+        [ "DatumsFound", "value" ]
 
 data StartFetchBlocksR = StartFetchBlocksR
 
 instance DecodeAeson StartFetchBlocksR where
-  decodeAeson r = StartFetchBlocksR <$ decodeDoneFlag [ "StartedBlockFetcher" ] r
+  decodeAeson r = StartFetchBlocksR <$ decodeDoneFlag [ "StartedBlockFetcher" ]
+    r
 
 data CancelFetchBlocksR = CancelFetchBlocksR
 
 instance DecodeAeson CancelFetchBlocksR where
   decodeAeson r = CancelFetchBlocksR <$ decodeDoneFlag
-                  [ "StoppedBlockFetcher" ]
-                  r
+    [ "StoppedBlockFetcher" ]
+    r
 
 decodeDoneFlag :: Array String -> Aeson -> Either JsonDecodeError Unit
 decodeDoneFlag locator r =
-    unlessM ( (decodeAeson =<< getNestedAeson r locator))
-      $ Left (TypeMismatch "Expected done flag")
+  unlessM ((decodeAeson =<< getNestedAeson r locator))
+    $ Left (TypeMismatch "Expected done flag")
 
 -- TODO: delete
 data DatumCacheMethod
@@ -141,21 +159,29 @@ datumCacheMethodToString = case _ of
 
 getDatumByHashCall :: JsonWspCall DatumHash GetDatumByHashR
 getDatumByHashCall = mkDatumCacheCallType
-  GetDatumByHash ({ hash: _ } <<< byteArrayToHex <<< unwrap)
+  GetDatumByHash
+  ({ hash: _ } <<< byteArrayToHex <<< unwrap)
 
 getDatumsByHashesCall :: JsonWspCall (Array DatumHash) GetDatumsByHashesR
 getDatumsByHashesCall = mkDatumCacheCallType
-  GetDatumsByHashes ({ hashes: _ } <<< map (byteArrayToHex <<< unwrap))
+  GetDatumsByHashes
+  ({ hashes: _ } <<< map (byteArrayToHex <<< unwrap))
 
-
-startFetchBlocksCall :: JsonWspCall { slot :: Slot, id :: BlockId } StartFetchBlocksR
+startFetchBlocksCall
+  :: JsonWspCall { slot :: Slot, id :: BlockId } StartFetchBlocksR
 startFetchBlocksCall = mkDatumCacheCallType
   StartFetchBlocks
-  (\({slot, id}) -> { slot, id: encodeJson (byteArrayToHex $ unwrap id), datumFilter: { "const": true } })
+  ( \({ slot, id }) ->
+      { slot
+      , id: encodeJson (byteArrayToHex $ unwrap id)
+      , datumFilter: { "const": true }
+      }
+  )
 
 cancelFetchBlocksCall :: JsonWspCall Unit CancelFetchBlocksR
 cancelFetchBlocksCall = mkDatumCacheCallType
-  CancelFetchBlocks (const {})
+  CancelFetchBlocks
+  (const {})
 
 -- convenience helper
 mkDatumCacheCallType

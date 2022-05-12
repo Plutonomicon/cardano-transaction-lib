@@ -23,13 +23,29 @@ import Contract.Monad (Contract, wrapContract)
 import Data.Map (Map)
 import Data.Maybe (Maybe)
 import FromData (class FromData, fromData) as FromData
-import QueryM (DatumCacheListeners, DatumCacheWebSocket, defaultDatumCacheWsConfig, mkDatumCacheWebSocketAff) as ExportQueryM
-import QueryM (cancelFetchBlocks, datumHash, getDatumByHash, getDatumsByHashes, startFetchBlocks) as QueryM
+import QueryM
+  ( DatumCacheListeners
+  , DatumCacheWebSocket
+  , defaultDatumCacheWsConfig
+  , mkDatumCacheWebSocketAff
+  ) as ExportQueryM
+import QueryM
+  ( cancelFetchBlocks
+  , datumHash
+  , getDatumByHash
+  , getDatumsByHashes
+  , startFetchBlocks
+  ) as QueryM
 import Serialization.Address (Slot)
 import ToData (class ToData, toData) as ToData
 import Types.Datum (Datum(Datum), DatumHash, unitDatum) as Datum
 import Types.PlutusData (PlutusData(Constr, Map, List, Integer, Bytes)) as PlutusData
-import Types.Redeemer (Redeemer(Redeemer), RedeemerHash(RedeemerHash), redeemerHash, unitRedeemer) as Redeemer
+import Types.Redeemer
+  ( Redeemer(Redeemer)
+  , RedeemerHash(RedeemerHash)
+  , redeemerHash
+  , unitRedeemer
+  ) as Redeemer
 import Types.Transaction (BlockId, DatumHash)
 import Types.Transaction (DataHash(DataHash)) as Transaction
 

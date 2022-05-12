@@ -4,6 +4,7 @@ module QueryM
   , DatumCacheListeners
   , DatumCacheWebSocket
   , DispatchIdMap
+  , DispatchError(..)
   , FeeEstimate(..)
   , FinalizedTransaction(..)
   , HashedData(..)
@@ -25,10 +26,6 @@ module QueryM
   , datumHash
   , traceQueryConfig
   , finalizeTx
-  , getDatumByHash
-  , getDatumsByHashes
-  , startFetchBlocks
-  , cancelFetchBlocks
   , getWalletAddress
   , getChainTip
   , getWalletCollateral
@@ -41,19 +38,20 @@ module QueryM
   , ownPaymentPubKeyHash
   , ownPubKeyHash
   , ownStakePubKeyHash
---  , queryDatumCache
   , runQueryM
   , signTransaction
   , signTransactionBytes
---  , startFetchBlocks
   , submitTxWallet
   , submitTxOgmios
   , underlyingWebSocket
+  , getDatumByHash
+  , getDatumsByHashes
+  , startFetchBlocks
+  , cancelFetchBlocks
   ) where
 
 import Prelude
 
-import Aeson (Aeson)
 import Aeson as Aeson
 import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
@@ -92,17 +90,57 @@ import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
 import Helpers (logString, logWithLevel)
-import JsWebSocket (JsWebSocket, Url, _mkWebSocket, _onWsConnect, _onWsError, _onWsMessage, _wsSend, _wsWatch)
-import QueryM.DatumCacheWsp (CancelFetchBlocksR, GetDatumByHashR, GetDatumsByHashesR, StartFetchBlocksR)
+import JsWebSocket
+  ( JsWebSocket
+  , Url
+  , _mkWebSocket
+  , _onWsConnect
+  , _onWsError
+  , _onWsMessage
+  , _wsSend
+  , _wsWatch
+  )
+import QueryM.DatumCacheWsp
+  ( CancelFetchBlocksR
+  , GetDatumByHashR
+  , GetDatumsByHashesR
+  , StartFetchBlocksR
+  )
 import QueryM.DatumCacheWsp as DcWsp
 import QueryM.JsonWsp (parseJsonWspResponseId)
 import QueryM.JsonWsp as JsonWsp
 import QueryM.Ogmios as Ogmios
-import QueryM.ServerConfig (Host, ServerConfig, defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkServerUrl, mkWsUrl) as ServerConfig
-import QueryM.ServerConfig (ServerConfig, defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkWsUrl)
+import QueryM.ServerConfig
+  ( Host
+  , ServerConfig
+  , defaultDatumCacheWsConfig
+  , defaultOgmiosWsConfig
+  , defaultServerConfig
+  , mkHttpUrl
+  , mkOgmiosDatumCacheWsUrl
+  , mkServerUrl
+  , mkWsUrl
+  ) as ServerConfig
+import QueryM.ServerConfig
+  ( ServerConfig
+  , defaultDatumCacheWsConfig
+  , defaultOgmiosWsConfig
+  , defaultServerConfig
+  , mkHttpUrl
+  , mkOgmiosDatumCacheWsUrl
+  , mkWsUrl
+  )
 import QueryM.UniqueId (ListenerId)
 import Serialization (convertTransaction, toBytes) as Serialization
-import Serialization.Address (Address, NetworkId(TestnetId), Slot, baseAddressDelegationCred, baseAddressFromAddress, baseAddressPaymentCred, stakeCredentialToKeyHash)
+import Serialization.Address
+  ( Address
+  , NetworkId(TestnetId)
+  , Slot
+  , baseAddressDelegationCred
+  , baseAddressFromAddress
+  , baseAddressPaymentCred
+  , stakeCredentialToKeyHash
+  )
 import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
@@ -227,11 +265,15 @@ getDatumsByHashes hashes = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
 
 startFetchBlocks :: { slot :: Slot, id :: BlockId } -> QueryM Unit
-startFetchBlocks start = void $ mkDatumCacheRequest DcWsp.startFetchBlocksCall _.startFetchBlocks start
+startFetchBlocks start = void $ mkDatumCacheRequest DcWsp.startFetchBlocksCall
+  _.startFetchBlocks
+  start
 
 -- | Cancels a running block fetcher job. Throws on no fetchers running
 cancelFetchBlocks :: QueryM Unit
-cancelFetchBlocks = void $ mkDatumCacheRequest DcWsp.cancelFetchBlocksCall _.cancelFetchBlocks unit
+cancelFetchBlocks = void $ mkDatumCacheRequest DcWsp.cancelFetchBlocksCall
+  _.cancelFetchBlocks
+  unit
 
 allowError
   :: forall (a :: Type). (Either Error a -> Effect Unit) -> a -> Effect Unit
@@ -620,11 +662,13 @@ mkDatumCacheWebSocket' lvl serverCfg cb = do
   getDatumsByHashesPendingRequests <- createPendingRequests
   startFetchBlocksPendingRequests <- createPendingRequests
   cancelFetchBlocksPendingRequests <- createPendingRequests
-  let md = datumCacheMessageDispatch   { getDatumByHashDispatchMap
-                                       , getDatumsByHashesDispatchMap
-                                       , startFetchBlocksDispatchMap
-                                       , cancelFetchBlocksDispatchMap
-                                       }
+  let
+    md = datumCacheMessageDispatch
+      { getDatumByHashDispatchMap
+      , getDatumsByHashesDispatchMap
+      , startFetchBlocksDispatchMap
+      , cancelFetchBlocksDispatchMap
+      }
   ws <- _mkWebSocket (logger Debug) $ mkOgmiosDatumCacheWsUrl serverCfg
   let
     sendRequest = _wsSend ws (logString lvl Debug)
@@ -639,12 +683,15 @@ mkDatumCacheWebSocket' lvl serverCfg cb = do
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
     _onWsError ws (logger Error) $ const onError
     cb $ Right $ WebSocket ws
-      { getDatumByHash: mkListenerSet getDatumByHashDispatchMap getDatumByHashPendingRequests
-      , getDatumsByHashes: (mkListenerSet getDatumsByHashesDispatchMap getDatumsByHashesPendingRequests :: ListenerSet (Array DatumHash) GetDatumsByHashesR)
-      , startFetchBlocks: mkListenerSet startFetchBlocksDispatchMap startFetchBlocksPendingRequests
-      , cancelFetchBlocks: mkListenerSet cancelFetchBlocksDispatchMap cancelFetchBlocksPendingRequests
+      { getDatumByHash: mkListenerSet getDatumByHashDispatchMap
+          getDatumByHashPendingRequests
+      , getDatumsByHashes: mkListenerSet getDatumsByHashesDispatchMap
+          getDatumsByHashesPendingRequests
+      , startFetchBlocks: mkListenerSet startFetchBlocksDispatchMap
+          startFetchBlocksPendingRequests
+      , cancelFetchBlocks: mkListenerSet cancelFetchBlocksDispatchMap
+          cancelFetchBlocksPendingRequests
       }
-
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
   logger :: LogLevel -> String -> Effect Unit
@@ -678,13 +725,17 @@ type OgmiosListeners =
 type DatumCacheListeners =
   { getDatumByHash :: ListenerSet DatumHash GetDatumByHashR
   , getDatumsByHashes :: ListenerSet (Array DatumHash) GetDatumsByHashesR
-  , startFetchBlocks :: ListenerSet { slot :: Slot, id :: BlockId } StartFetchBlocksR
+  , startFetchBlocks ::
+      ListenerSet { slot :: Slot, id :: BlockId } StartFetchBlocksR
   , cancelFetchBlocks :: ListenerSet Unit CancelFetchBlocksR
   }
 
 -- convenience type for adding additional query types later
 type ListenerSet (request :: Type) (response :: Type) =
-  { addMessageListener :: ListenerId -> (Either Error response -> Effect Unit) -> Effect Unit
+  { addMessageListener ::
+      ListenerId
+      -> (Either DispatchError response -> Effect Unit)
+      -> Effect Unit
   , removeMessageListener :: ListenerId -> Effect Unit
   -- ^ Removes ID from dispatch map and pending requests queue.
   , addRequest :: ListenerId -> RequestBody -> Effect Unit
@@ -738,7 +789,7 @@ mkOgmiosRequest jsonWspCall getLs inp = do
       _ <- respLs.addMessageListener id
         ( \result -> do
             respLs.removeMessageListener id
-            cont result
+            cont $ lmap dispatchErrorToError result
         )
       respLs.addRequest id sBody
       _wsSend ws (logString config.logLevel Debug) sBody
@@ -773,7 +824,7 @@ mkDatumCacheRequest jsonWspCall getLs inp = do
       _ <- respLs.addMessageListener id
         ( \result -> do
             respLs.removeMessageListener id
-            cont result
+            cont (lmap dispatchErrorToError result)
         )
       respLs.addRequest id sBody
       _wsSend ws (logString config.logLevel Debug) sBody
@@ -788,6 +839,10 @@ mkDatumCacheRequest jsonWspCall getLs inp = do
 
 data DispatchError = JsError Error | JsonError Json.JsonDecodeError
 
+dispatchErrorToError :: DispatchError -> Error
+dispatchErrorToError (JsError err) = err
+dispatchErrorToError (JsonError err) = error $ show err
+
 -- A function which accepts some unparsed Json, and checks it against one or
 -- more possible types to perform an appropriate effect (such as supplying the
 -- parsed result to an async fiber/Aff listener)
@@ -796,7 +851,7 @@ type WebsocketDispatch =
 
 -- A mutable queue of requests
 type DispatchIdMap response = Ref
-  (MultiMap ListenerId (Either Error response -> Effect Unit))
+  (MultiMap ListenerId (Either DispatchError response -> Effect Unit))
 
 -- an immutable queue of response type handlers
 ogmiosMessageDispatch
@@ -858,52 +913,32 @@ queryDispatch
   -> String
   -> Effect (Either DispatchError (Effect Unit))
 queryDispatch ref str = do
-  let
-    parsed' = JsonWsp.parseJsonWspResponse =<< Aeson.parseJsonStringToAeson str
-  case parsed' of
-    Left err -> do
+  -- Parse response
+  case JsonWsp.parseJsonWspResponse =<< Aeson.parseJsonStringToAeson str of
+    Left parseError -> do
+      -- Try to at least parse ID  to dispatch the error to
       case parseJsonWspResponseId =<< Aeson.parseJsonStringToAeson str of
-        Left _ -> pure $
-                       ( Left $ JsonError
-                         ( Json.TypeMismatch
-                             " has been cancelled"
-                         )
-                       )
+        -- We still return original error because ID parse error is useless
+        Left _idParseError -> pure $ Left $ JsonError parseError
         Right (id :: ListenerId) -> do
           idMap <- Ref.read ref
           let
-            (mAction :: Maybe (Either Error response -> Effect Unit)) = (MultiMap.lookup id idMap)
+            (mAction :: Maybe (Either DispatchError response -> Effect Unit)) =
+              MultiMap.lookup id idMap
           case mAction of
-            Nothing -> pure $
-                       ( Left $ JsonError
-                         ( Json.TypeMismatch
-                           ( "Parse succeeded but Request Id: " <> id <>
-                             " has been cancelled"
-                           )
-                         )
-                       )
-            Just action -> pure $ Right $ action $ Left $ error $ "Unable to parse: " <> show err
-
-    (Right res) -> afterParse res
-  where
-  afterParse
-    :: JsonWsp.JsonWspResponse response
-    -> Effect (Either DispatchError (Effect Unit))
-  afterParse parsed = do
-    let (id :: String) = parsed.reflection
-    idMap <- Ref.read ref
-    let
-      (mAction :: Maybe (Either Error response -> Effect Unit)) = (MultiMap.lookup id idMap)
-    case mAction of
-      Nothing -> pure $
-        ( Left $ JsonError
-            ( Json.TypeMismatch
-                ( "Parse succeeded but Request Id: " <> id <>
-                    " has been cancelled"
-                )
-            )
-        )
-      Just action -> pure $ Right $ action $ Right parsed.result
+            Nothing -> pure $ Left $ JsError $ error $
+              "Parse failed and Request Id: " <> id <> " has been cancelled"
+            Just action -> pure $ Right $ action $ Left $ JsonError parseError
+    Right parsed -> do
+      let (id :: ListenerId) = parsed.reflection
+      idMap <- Ref.read ref
+      let
+        (mAction :: Maybe (Either DispatchError response -> Effect Unit)) =
+          MultiMap.lookup id idMap
+      case mAction of
+        Nothing -> pure $ Left $ JsError $ error $
+          "Parse succeeded but Request Id: " <> id <> " has been cancelled"
+        Just action -> pure $ Right $ action $ Right parsed.result
 
 -- an empty error we can compare to, useful for ensuring we've not received any other kind of error
 defaultErr :: Json.JsonDecodeError
@@ -922,11 +957,14 @@ defaultMessageListener lvl dispatchArray msg = do
   either
     -- we expect a lot of parse errors, some messages (could?) fall through completely
     ( \err ->
-        unless (case err of
-                   JsonError jsonErr -> jsonErr == defaultErr
-                   _ -> false) do
-          logString lvl Error $
-            "unexpected parse error on input: " <> msg
+        unless
+          ( case err of
+              JsonError jsonErr -> jsonErr == defaultErr
+              _ -> false
+          )
+          do
+            logString lvl Error $
+              "unexpected parse error on input: " <> msg
 
     )
     identity
