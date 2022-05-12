@@ -10,17 +10,17 @@ module Types.Scripts
 
 import Prelude
 
-import Contract.Prelude (Either(..))
 import Data.Argonaut
   ( class DecodeJson
   , class EncodeJson
-  , JsonDecodeError(..)
+  , JsonDecodeError(TypeMismatch)
   , caseJsonObject
   , decodeJson
   , encodeJson
   , getField
   , Json
   )
+import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)

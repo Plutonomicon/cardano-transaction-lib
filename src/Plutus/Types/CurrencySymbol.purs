@@ -10,16 +10,16 @@ module Plutus.Types.CurrencySymbol
 
 import Prelude
 
-import Contract.Prelude (Either(..))
 import Data.Argonaut
   ( class DecodeJson
   , class EncodeJson
-  , JsonDecodeError(..)
+  , JsonDecodeError(TypeMismatch)
   , caseJsonObject
   , decodeJson
   , encodeJson
   , getField
   )
+import Data.Either (Either(Left))
 import Data.Maybe (Maybe)
 import FromData (class FromData)
 import Serialization.Hash
