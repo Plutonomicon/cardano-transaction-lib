@@ -73,6 +73,8 @@ library
     , wai-cors
     , warp
     , cardano-ledger-shelley-ma
+    , network
+    , websockets
 
   exposed-modules:
     Api
@@ -80,6 +82,7 @@ library
     Paths_ctl_server
     Types
     Utils
+    Ogmios.Query
 
 executable ctl-server
   import:           common-language
