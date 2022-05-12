@@ -171,7 +171,6 @@ import Cardano.Types.Value
   , getNonAdaAsset
   )
 import TxOutput (transactionOutputToScriptOutput)
-import Data.Lens.Getter (view)
 
 -- Taken mainly from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-constraints/html/Ledger-Constraints-OffChain.html
 -- Plutus rev: cc72a56eafb02333c96f662581b57504f8f8992f via Plutus-apps (localhost): abe4785a4fc4a10ba0c4e6417f0ab9f1b4169b26
