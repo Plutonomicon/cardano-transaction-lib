@@ -27,7 +27,6 @@ import Network.WebSockets qualified as WebSockets
 import Cardano.Api (FromJSON)
 import Cardano.Api.Shelley (ProtocolParameters)
 import Cardano.Api.Shelley qualified as Shelley
-import Servant (ErrorFormatters (headerParseErrorFormatter))
 
 --------------------------------------------------------------------------------
 
@@ -62,22 +61,22 @@ instance FromJSON ProtocolParametersWrapper where
           <*> o .: "maxBlockBodySize"
           <*> o .: "maxTxSize"
           <*> o .: "minFeeConstant" -- I think minFeeConstant and minFeeCoefficient are swapped here
-          -- but this is consistent with the current format.
+          -- but this is consistent with the current config file.
           <*> o .: "minFeeCoefficient"
-          <*> o .: "minUTxOValue" -- Don't what's the corresponding value
+          <*> o .: "minUTxOValue" -- Don't know the corresponding value
           <*> o .: "stakeKeyDeposit"
           <*> o .: "poolDeposit"
           <*> o .: "minPoolCost"
           <*> o .: "poolRetirementEpochBound"
-          <*> o .: "stakePoolTargetNum" -- COntinue Here
-          <*> o .: "poolPledgeInfluence"
+          <*> o .: "stakePoolTargetNum" -- Don't know the corresponding Value
+          <*> o .: "poolInfluence"
           <*> o .: "monetaryExpansion"
-          <*> o .: "treasuryCut"
-          <*> o .:? "utxoCostPerWord"
-          <*> o .:? "costModels" .!= Map.empty
-          <*> o .:? "executionUnitPrices"
-          <*> o .:? "maxTxExecutionUnits"
-          <*> o .:? "maxBlockExecutionUnits"
+          <*> o .: "treasuryCut" --  Don't know the corresponding Value
+          <*> o .:? "coinsPerUTxOWord"
+          <*> o .:? "costModels" .!= Map.empty -- This parameter it's also different, so, it needs a wrapper
+          <*> o .:? "prices"
+          <*> o .:? "maxExecutionUnitsPerTransaction"
+          <*> o .:? "maxExecutionUnitsPerBlock"
           <*> o .:? "maxValueSize"
           <*> o .:? "collateralPercentage"
           <*> o .:? "maxCollateralInputs"
