@@ -189,8 +189,8 @@
               ];
             blockFetcher = {
               firstBlock = {
-                slot = 44366242;
-                id = "d2a4249fe3d0607535daa26caf12a38da2233586bc51e79ed0b3a36170471bf5";
+                slot = 54066900;
+                id = "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d";
               };
               autoStart = true;
               startFromLast = false;
