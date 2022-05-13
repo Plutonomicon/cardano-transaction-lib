@@ -1529,11 +1529,11 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1652145155,
-        "narHash": "sha256-WSXfGUzgcn+ELZrPfROQULRyBdtxPnvY4AdI/iHgCgk=",
+        "lastModified": 1652451460,
+        "narHash": "sha256-LB/8p7GdQ7i5j4npBmPe7wnNeXb46ejxQ0cVIxyC3Hs=",
         "owner": "mlabs-haskell",
         "repo": "ogmios-datum-cache",
-        "rev": "24884ede2dc0d553d968010fbcbb2a4390134e60",
+        "rev": "001770e88d1f62092c27401645028c9a33146dc5",
         "type": "github"
       },
       "original": {
