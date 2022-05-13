@@ -27,6 +27,9 @@ module Types (
 import Cardano.Api qualified as C
 import Cardano.Api.Shelley qualified as Shelley
 import Cardano.Binary qualified as Cbor
+import Plutus.V1.Ledger.Api qualified as Ledger
+import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
+
 import Codec.Serialise (serialise)
 import Control.Exception (Exception)
 import Control.Monad.Catch (MonadThrow)
@@ -49,13 +52,17 @@ import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text.Encoding
 import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (Port)
-import Paths_ctl_server (getDataFileName)
-import Plutus.V1.Ledger.Api qualified as Ledger
-import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
 import Servant (FromHttpApiData, QueryParam', Required, ToHttpApiData)
 import Servant.Docs qualified as Docs
 import Text.Read (readMaybe)
 import Utils (tshow)
+
+import Ogmios.Query (
+  decodeProtocolParameters,
+  queryCurrentProtocolParameters,
+  tryQueryUntilZero,
+ )
+import Paths_ctl_server (getDataFileName)
 
 newtype AppM (a :: Type) = AppM (ReaderT Env IO a)
   deriving newtype
@@ -82,9 +89,15 @@ data ServerOptions = ServerOptions
 
 newEnvIO :: ServerOptions -> IO (Either String Env)
 newEnvIO serverOptions =
-  getDataFileName "config/pparams.json"
-    >>= Aeson.eitherDecodeFileStrict @Shelley.ProtocolParameters
-    <&> second (Env serverOptions)
+  do
+    response <- queryCurrentProtocolParameters
+    case decodeProtocolParameters response of
+      Just params -> (return . Right . Env serverOptions) params
+      _ -> return $ Left "Can't get protocol parameters from Ogmios"
+
+--  getDataFileName "config/pparams.json"
+--    >>= Aeson.eitherDecodeFileStrict @Shelley.ProtocolParameters
+--    <&> second (Env serverOptions)
 
 newtype Cbor = Cbor Text
   deriving stock (Show)
