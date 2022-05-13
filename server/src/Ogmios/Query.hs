@@ -68,12 +68,14 @@ instance FromJSON ProtocolParametersWrapper where
           <*> o .: "poolDeposit"
           <*> o .: "minPoolCost"
           <*> o .: "poolRetirementEpochBound"
-          <*> o .: "stakePoolTargetNum" -- Don't know the corresponding Value
+          <*> o .: "desiredNumberOfPools"
           <*> o .: "poolInfluence"
           <*> o .: "monetaryExpansion"
-          <*> o .: "treasuryCut" --  Don't know the corresponding Value
+          <*> o .: "treasuryExpansion"
           <*> o .:? "coinsPerUTxOWord"
-          <*> o .:? "costModels" .!= Map.empty -- This parameter it's also different, so, it needs a wrapper
+          -- Ogmios use `plutus:v1` instead of the cardanos `PlutusScriptV1`
+          -- so, this must need further work.
+          <*> o .:? "costModels" .!= Map.empty
           <*> o .:? "prices"
           <*> o .:? "maxExecutionUnitsPerTransaction"
           <*> o .:? "maxExecutionUnitsPerBlock"
