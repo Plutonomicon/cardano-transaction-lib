@@ -764,7 +764,6 @@ mkListenerSet dim pr =
         Ref.modify_ (Map.insert id req) pr
   }
 
--- TODO after ogmios-datum-cache implements reflection this could be generalized to make request for the cache as well
 -- | Builds a Ogmios request action using QueryM
 mkOgmiosRequest
   :: forall (request :: Type) (response :: Type)
@@ -772,54 +771,38 @@ mkOgmiosRequest
   -> (OgmiosListeners -> ListenerSet request response)
   -> request
   -> QueryM response
-mkOgmiosRequest jsonWspCall getLs inp = do
-  { body, id } <- liftEffect $ JsonWsp.buildRequest jsonWspCall inp
-  config <- ask
-  let
-    ogmiosWs :: OgmiosWebSocket
-    ogmiosWs = config.ogmiosWs
+mkOgmiosRequest = mkRequest
+  (listeners <<< _.ogmiosWs <$> ask)
+  (underlyingWebSocket <<< _.ogmiosWs <$> ask)
 
-    affFunc :: (Either Error response -> Effect Unit) -> Effect Canceler
-    affFunc cont = do
-      let
-        ws = underlyingWebSocket ogmiosWs
-        respLs = ogmiosWs # listeners # getLs
-
-        sBody :: RequestBody
-        sBody = Json.stringify $ Json.encodeJson body
-      _ <- respLs.addMessageListener id
-        ( \result -> do
-            respLs.removeMessageListener id
-            cont $ lmap dispatchErrorToError result
-        )
-      respLs.addRequest id sBody
-      _wsSend ws (logString config.logLevel Debug) sBody
-      pure $ Canceler $ \err -> do
-        liftEffect $ respLs.removeMessageListener id
-        liftEffect $ throwError $ err
-  liftAff $ makeAff $ affFunc
-
--- TODO after ogmios-datum-cache implements reflection this could be generalized to make request for the cache as well
--- | Builds a Ogmios request action using QueryM
 mkDatumCacheRequest
   :: forall (request :: Type) (response :: Type)
    . JsonWsp.JsonWspCall request response
   -> (DatumCacheListeners -> ListenerSet request response)
   -> request
   -> QueryM response
-mkDatumCacheRequest jsonWspCall getLs inp = do
+mkDatumCacheRequest = mkRequest
+  (listeners <<< _.datumCacheWs <$> ask)
+  (underlyingWebSocket <<< _.datumCacheWs <$> ask)
+
+-- | Builds a Ogmios request action using QueryM
+mkRequest
+  :: forall (request :: Type) (response :: Type) (listeners :: Type)
+   . QueryM listeners
+  -> QueryM JsWebSocket
+  -> JsonWsp.JsonWspCall request response
+  -> (listeners -> ListenerSet request response)
+  -> request
+  -> QueryM response
+mkRequest getListeners getWebSocket jsonWspCall getLs inp = do
   { body, id } <- liftEffect $ JsonWsp.buildRequest jsonWspCall inp
   config <- ask
+  ws <- getWebSocket
+  respLs <- getLs <$> getListeners
   let
-    datumCacheWS :: DatumCacheWebSocket
-    datumCacheWS = config.datumCacheWs
-
     affFunc :: (Either Error response -> Effect Unit) -> Effect Canceler
     affFunc cont = do
       let
-        ws = underlyingWebSocket datumCacheWS
-        respLs = datumCacheWS # listeners # getLs
-
         sBody :: RequestBody
         sBody = Json.stringify $ Json.encodeJson body
       _ <- respLs.addMessageListener id
