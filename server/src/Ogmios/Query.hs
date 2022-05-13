@@ -5,6 +5,7 @@ module Ogmios.Query (
   makeRequest,
   tryQueryUntilZero,
   queryCurrentProtocolParameters,
+  decodeProtocolParameters,
 ) where
 
 --------------------------------------------------------------------------------
@@ -15,9 +16,10 @@ import Data.Typeable (tyConModule, tyConPackage, typeOf, typeRepTyCon)
 
 import Data.Aeson ((.!=), (.:), (.:?))
 import Data.Aeson qualified as Aeson
-import Data.Aeson.KeyMap qualified as KeyMap
+
 import Data.ByteString.Lazy (ByteString)
-import Data.Map.Strict qualified as Map
+import Data.HashMap.Strict qualified as HashMap
+import Data.Map qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Debug.Trace (trace)
@@ -45,8 +47,7 @@ data ServerParameters = ServerParameters
   , getPath :: String
   }
 
-newtype ProtocolParametersWrapper
-  = ProtocolParametersWrapper Shelley.ProtocolParameters
+newtype ProtocolParametersWrapper = ProtocolParametersWrapper {unwrapParams :: Shelley.ProtocolParameters}
 
 instance FromJSON ProtocolParametersWrapper where
   parseJSON =
@@ -74,8 +75,6 @@ instance FromJSON ProtocolParametersWrapper where
           <*> o .: "monetaryExpansion"
           <*> o .: "treasuryExpansion"
           <*> o .:? "coinsPerUTxOWord"
-          -- Ogmios use `plutus:v1` instead of the cardanos `PlutusScriptV1`
-          -- so, this must need further work.
           <*> o .:? "costModels" .!= Map.empty
           <*> o .:? "prices"
           <*> o .:? "maxExecutionUnitsPerTransaction"
@@ -85,22 +84,55 @@ instance FromJSON ProtocolParametersWrapper where
           <*> o .:? "maxCollateralInputs"
       return $ ProtocolParametersWrapper params
 
+-- Current Ogmios JSON has structure :
+-- {
+--  "result" : {
+--    "costModels" : {
+--      "plutus:v1" :
+--    }
+--  }
+-- }
+--
+-- But the already defined instance of fromJSON of cardano expect
+-- {
+--  "result" : {
+--    "costModels" : {
+--      "PlutusScriptV1" :
+--    }
+--  }
+-- }
+-- So, modifyPlutusName changes it to the right name.
 modifyPlutusName :: Aeson.Value -> Maybe Aeson.Value
-modifyPlutusName (Aeson.Object keyMap) =
+modifyPlutusName (Aeson.Object keyHashMap) =
   do
-    result <- unwrappObject <*> KeyMap.lookup "result" keyMap
-    costModels <- unwrappObject <*> KeyMap.lookup "costModels" result
-    plutus <- KeyMap.lookup "plutus:v1" costModelsMap
+    result <- HashMap.lookup "result" keyHashMap >>= unwrappObject
+    costModels <- HashMap.lookup "costModels" result >>= unwrappObject
+    plutus <- HashMap.lookup "plutus:v1" costModels
     let newCostModel =
-          KeyMap.insert "PlutusScriptV1" plutus (KeyMap.delete "plutus:v1" costModels)
+          HashMap.insert "PlutusScriptV1" plutus (HashMap.delete "plutus:v1" costModels)
         newResult =
-          KeyMap.insert "costModels" (Aeson.Object newCostModel) result
-
-    return $ KeyMap.insert "result" (Aeson.Object newResult) keyMap
+          HashMap.insert "costModels" (Aeson.Object newCostModel) result
+        newKeyHashMap =
+          HashMap.insert "result" (Aeson.Object newResult) keyHashMap
+    return $ Aeson.Object newKeyHashMap
   where
     unwrappObject :: Aeson.Value -> Maybe Aeson.Object
     unwrappObject (Aeson.Object obj) = Just obj
     unwrappObject _ = Nothing
+modifyPlutusName _ = Nothing
+
+decodeProtocolParameters :: ByteString -> Maybe Shelley.ProtocolParameters
+decodeProtocolParameters response =
+  let value :: Maybe Aeson.Value
+      value = Aeson.decode response >>= modifyPlutusName
+      wrapped :: Maybe ProtocolParametersWrapper
+      wrapped =
+        value
+          >>= ( Aeson.decode
+                  @ProtocolParametersWrapper
+                  . Aeson.encode
+              )
+   in unwrapParams <$> wrapped
 
 defaultServerParameters :: ServerParameters
 defaultServerParameters =
@@ -141,10 +173,10 @@ queryCurrentProtocolParameters :: IO ByteString
 queryCurrentProtocolParameters =
   makeRequest defaultServerParameters $ Query CurrentProtocolParameters
 
-tryQueryUntilZero :: IO ByteString -> Int -> IO (Either Text ByteString)
+tryQueryUntilZero :: IO ByteString -> Int -> IO (Either String ByteString)
 tryQueryUntilZero query remainAttempts =
   if remainAttempts <= 0
-    then return $ Left "Error connection to Ogmios"
+    then return $ Left "Error trying to connect to Ogmios"
     else do
       msgOrError <- (try query :: IO (Either IOException ByteString))
       case msgOrError of
