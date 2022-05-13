@@ -187,10 +187,14 @@
                 "dbname=${postgres.db}"
                 "password=${postgres.password}"
               ];
-            saveAllDatums = true;
-            firstFetchBlock = {
-              slot = 44366242;
-              id = "d2a4249fe3d0607535daa26caf12a38da2233586bc51e79ed0b3a36170471bf5";
+            blockFetcher = {
+              firstBlock = {
+                slot = 44366242;
+                id = "d2a4249fe3d0607535daa26caf12a38da2233586bc51e79ed0b3a36170471bf5";
+              };
+              autoStart = true;
+              startFromLast = false;
+              filter = "{ \"const\": true }";
             };
           }
         }:
@@ -285,12 +289,13 @@
               let
                 configFile = ''
                   dbConnectionString = "${datumCache.dbConnectionString}"
-                  saveAllDatums = ${pkgs.lib.boolToString datumCache.saveAllDatums}
                   server.port = ${toString datumCache.port}
                   ogmios.address = "ogmios"
                   ogmios.port = ${toString ogmios.port}
-                  firstFetchBlock.slot = ${toString datumCache.firstFetchBlock.slot}
-                  firstFetchBlock.id = "${datumCache.firstFetchBlock.id}"
+                  blockFetcher.autoStart = ${nixpkgs.lib.boolToString datumCache.blockFetcher.autoStart}
+                  blockFetcher.firstBlock.slot = ${toString datumCache.blockFetcher.firstBlock.slot}
+                  blockFetcher.firstBlock.id = "${datumCache.blockFetcher.firstBlock.id}"
+                  blockFetcher.filter = "${nixpkgs.lib.strings.replaceStrings ["\"" "\\"] ["\\\"" "\\\\"] datumCache.blockFetcher.filter}"
                 '';
               in
               {
