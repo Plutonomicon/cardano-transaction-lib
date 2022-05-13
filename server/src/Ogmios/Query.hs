@@ -15,6 +15,7 @@ import Data.Typeable (tyConModule, tyConPackage, typeOf, typeRepTyCon)
 
 import Data.Aeson ((.!=), (.:), (.:?))
 import Data.Aeson qualified as Aeson
+import Data.Aeson.KeyMap qualified as KeyMap
 import Data.ByteString.Lazy (ByteString)
 import Data.Map.Strict qualified as Map
 import Data.Text (Text)
@@ -83,6 +84,23 @@ instance FromJSON ProtocolParametersWrapper where
           <*> o .:? "collateralPercentage"
           <*> o .:? "maxCollateralInputs"
       return $ ProtocolParametersWrapper params
+
+modifyPlutusName :: Aeson.Value -> Maybe Aeson.Value
+modifyPlutusName (Aeson.Object keyMap) =
+  do
+    result <- unwrappObject <*> KeyMap.lookup "result" keyMap
+    costModels <- unwrappObject <*> KeyMap.lookup "costModels" result
+    plutus <- KeyMap.lookup "plutus:v1" costModelsMap
+    let newCostModel =
+          KeyMap.insert "PlutusScriptV1" plutus (KeyMap.delete "plutus:v1" costModels)
+        newResult =
+          KeyMap.insert "costModels" (Aeson.Object newCostModel) result
+
+    return $ KeyMap.insert "result" (Aeson.Object newResult) keyMap
+  where
+    unwrappObject :: Aeson.Value -> Maybe Aeson.Object
+    unwrappObject (Aeson.Object obj) = Just obj
+    unwrappObject _ = Nothing
 
 defaultServerParameters :: ServerParameters
 defaultServerParameters =
