@@ -53,7 +53,7 @@ import Serialization.Address (Slot)
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (byteArrayToHex)
 import Types.Datum (Datum, DatumHash)
-import Types.Transaction (BlockId)
+import Types.Chain (BlockHeaderHash)
 
 newtype WspFault = WspFault Json
 
@@ -167,12 +167,12 @@ getDatumsByHashesCall = mkDatumCacheCallType
   ({ hashes: _ } <<< map (byteArrayToHex <<< unwrap))
 
 startFetchBlocksCall
-  :: JsonWspCall { slot :: Slot, id :: BlockId } StartFetchBlocksR
+  :: JsonWspCall { slot :: Slot, id :: BlockHeaderHash } StartFetchBlocksR
 startFetchBlocksCall = mkDatumCacheCallType
   StartFetchBlocks
   ( \({ slot, id }) ->
       { slot
-      , id: encodeJson (byteArrayToHex $ unwrap id)
+      , id: encodeJson (unwrap id)
       , datumFilter: { "const": true }
       }
   )

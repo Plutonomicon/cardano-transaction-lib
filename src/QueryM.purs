@@ -153,7 +153,7 @@ import Types.MultiMap as MultiMap
 import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PubKeyHash)
 import Types.Scripts (PlutusScript)
-import Types.Transaction (BlockId, Transaction(Transaction))
+import Types.Transaction (Transaction(Transaction))
 import Types.Transaction as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.UnbalancedTransaction (StakePubKeyHash, PaymentPubKeyHash)
@@ -264,7 +264,7 @@ getDatumsByHashes :: Array DatumHash -> QueryM (Map DatumHash Datum)
 getDatumsByHashes hashes = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
 
-startFetchBlocks :: { slot :: Slot, id :: BlockId } -> QueryM Unit
+startFetchBlocks :: { slot :: Slot, id :: Chain.BlockHeaderHash } -> QueryM Unit
 startFetchBlocks start = void $ mkDatumCacheRequest DcWsp.startFetchBlocksCall
   _.startFetchBlocks
   start
@@ -726,7 +726,8 @@ type DatumCacheListeners =
   { getDatumByHash :: ListenerSet DatumHash GetDatumByHashR
   , getDatumsByHashes :: ListenerSet (Array DatumHash) GetDatumsByHashesR
   , startFetchBlocks ::
-      ListenerSet { slot :: Slot, id :: BlockId } StartFetchBlocksR
+      ListenerSet { slot :: Slot, id :: Chain.BlockHeaderHash }
+        StartFetchBlocksR
   , cancelFetchBlocks :: ListenerSet Unit CancelFetchBlocksR
   }
 

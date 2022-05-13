@@ -38,6 +38,7 @@ import QueryM
   ) as QueryM
 import Serialization.Address (Slot)
 import ToData (class ToData, toData) as ToData
+import Types.Chain (BlockHeaderHash)
 import Types.Datum (Datum(Datum), DatumHash, unitDatum) as Datum
 import Types.PlutusData (PlutusData(Constr, Map, List, Integer, Bytes)) as PlutusData
 import Types.Redeemer
@@ -46,7 +47,7 @@ import Types.Redeemer
   , redeemerHash
   , unitRedeemer
   ) as Redeemer
-import Types.Transaction (BlockId, DatumHash)
+import Types.Transaction (DatumHash)
 import Types.Transaction (DataHash(DataHash)) as Transaction
 
 -- | Get a `PlutusData` given a `DatumHash`.
@@ -65,7 +66,7 @@ getDatumsByHashes = wrapContract <<< QueryM.getDatumsByHashes
 
 startFetchBlocks
   :: forall (r :: Row Type)
-   . { slot :: Slot, id :: BlockId }
+   . { slot :: Slot, id :: BlockHeaderHash }
   -> Contract r Unit
 startFetchBlocks = wrapContract <<< QueryM.startFetchBlocks
 

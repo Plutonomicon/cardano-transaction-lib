@@ -24,7 +24,8 @@ import QueryM.Utxos (utxosAt)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.ByteArray (hexToByteArrayUnsafe)
-import Types.Transaction (BlockId(BlockId), DataHash(DataHash))
+import Types.Chain (BlockHeaderHash(BlockHeaderHash))
+import Types.Transaction (DataHash(DataHash))
 
 testnet_addr1 :: OgmiosAddress
 testnet_addr1 =
@@ -88,7 +89,7 @@ testOgmiosDatumCacheFetcher =
     void $ try cancelFetchBlocks -- ignore error if the fetcher was not running
     startFetchBlocks
       { slot: Slot (UInt.fromInt 54066900)
-      , id: BlockId $ hexToByteArrayUnsafe
+      , id: BlockHeaderHash
           "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d"
       }
     cancelFetchBlocks
