@@ -12,7 +12,7 @@ module ToData
   , toDataWithSchema
   ) where
 
-import Prelude (Unit, Void, absurd, identity, map, one, zero, ($), (<<<), (<>), (>>>))
+import Prelude
 import Data.Array (cons, sortWith)
 import Data.Array as Array
 import Data.NonEmpty (NonEmpty)
