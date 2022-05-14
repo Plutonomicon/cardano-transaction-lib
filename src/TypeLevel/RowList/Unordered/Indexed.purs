@@ -10,7 +10,6 @@ module TypeLevel.RowList.Unordered.Indexed
   , class IndexRowList
   , class IndexRowListWithAcc
   , class UniqueIndices
-  , uniqueIndicesTests
   ) where
 
 import TypeLevel.Nat (class KnownNat, Nat, S, Z)
@@ -48,54 +47,6 @@ else instance
       (ConsI k' a' n' xs)
   ) =>
   UniqueIndices (ConsI k a n (ConsI k' a' n' xs))
-
-uniqueIndicesTests ∷ Array String
-uniqueIndicesTests =
-  [ testNil
-  , testSingletonZ
-  , testSingletonSSZ
-  , testUniques
-  -- , _testDups
-  -- , _testDups2
-  ]
-  where
-  testNil :: UniqueIndices NilI => String
-  testNil = "Empty list has all unique indices"
-
-  testSingletonZ
-    :: forall (a :: Type). UniqueIndices (ConsI "A" a Z NilI) => String
-  testSingletonZ = "Singleton list has all unique indices"
-
-  testSingletonSSZ
-    :: forall (a :: Type). UniqueIndices (ConsI "A" a (S (S Z)) NilI) => String
-  testSingletonSSZ = "Singleton list has all unique indices"
-
-  testUniques
-    :: forall (a :: Type)
-     . UniqueIndices
-         ( ConsI "A" a Z
-             (ConsI "B" a (S Z) (ConsI "C" a (S (S Z)) NilI))
-         )
-    => String
-  testUniques = "[0, 1, 2] have all unique indices"
-
-  _testDups
-    :: forall (a :: Type)
-     . UniqueIndices
-         ( ConsI "A" a (S Z)
-             (ConsI "B" a (S Z) (ConsI "C" a (S (S Z)) NilI))
-         )
-    => String
-  _testDups = "[1, 1, 2] has dups and shouldn't compile"
-
-  _testDups2
-    :: forall (a :: Type)
-     . UniqueIndices
-         ( ConsI "A" a (S Z)
-             (ConsI "B" a Z (ConsI "C" a (S Z) NilI))
-         )
-    => String
-  _testDups2 = "[1, 0, 1] has dups and shouldn't compile"
 
 -- | Uniqueness constraint on the labels of a RowListI which asserts that all labels are unique.
 -- Again, this is needed so that the lookup functions perform in the expected manner.

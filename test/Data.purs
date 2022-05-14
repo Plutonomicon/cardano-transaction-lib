@@ -1,22 +1,7 @@
 -- | Tests for `ToData`/`FromData`
-module Test.Data (suite) where
+module Test.Data (suite, tests, uniqueIndicesTests) where
 
 import Prelude
-  ( class Eq
-  , class Show
-  , Unit
-  , bind
-  , discard
-  , map
-  , negate
-  , pure
-  , show
-  , unit
-  , ($)
-  , (<<<)
-  , (<>)
-  , (=<<)
-  )
 
 import Contract.PlutusData (PlutusData(Constr, Integer))
 import Control.Lazy (fix)
@@ -40,11 +25,12 @@ import Test.QuickCheck.Gen (Gen)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import ToData (class ToData, genericToData, toData)
+import Type.RowList (Cons,Nil)
 import Types.ByteArray (hexToByteArrayUnsafe)
 import TypeLevel.Nat (Z, S)
 import Untagged.Union (asOneOf)
 
-import TypeLevel.DataSchema
+import Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
   , type (:=)
@@ -52,6 +38,8 @@ import TypeLevel.DataSchema
   , I
   , PNil
   )
+import TypeLevel.RowList (class AllUniqueLabels)
+import TypeLevel.RowList.Unordered.Indexed (NilI, ConsI, class UniqueIndices)
 
 suite :: TestPlanM Unit
 suite = do
@@ -467,3 +455,56 @@ testBinaryFixture value binaryFixture = do
     map (toBytes <<< asOneOf) (PDS.convertPlutusData (toData value))
       `shouldEqual` Just
         (hexToByteArrayUnsafe binaryFixture)
+
+-- | Poor man's type level tests
+tests ∷ Array String
+tests =
+  [ testNil
+  , testSingleton
+  , testUniques
+  ]
+  where
+  testNil :: AllUniqueLabels Nil => String
+  testNil = "Empty list has all unique labels"
+
+  testSingleton
+    :: forall (a :: Type). AllUniqueLabels (Cons "A" a Nil) => String
+  testSingleton = "Singleton list has all unique labels"
+
+  testUniques
+    :: forall (a :: Type)
+     . AllUniqueLabels
+         ( Cons "A" a
+             (Cons "B" a (Cons "C" a Nil))
+         )
+    => String
+  testUniques = "[A, B, C] is all unique and should compile"
+
+
+uniqueIndicesTests ∷ Array String
+uniqueIndicesTests =
+  [ testNil
+  , testSingletonZ
+  , testSingletonSSZ
+  , testUniques
+  ]
+  where
+  testNil :: UniqueIndices NilI => String
+  testNil = "Empty list has all unique indices"
+
+  testSingletonZ
+    :: forall (a :: Type). UniqueIndices (ConsI "A" a Z NilI) => String
+  testSingletonZ = "Singleton list has all unique indices"
+
+  testSingletonSSZ
+    :: forall (a :: Type). UniqueIndices (ConsI "A" a (S (S Z)) NilI) => String
+  testSingletonSSZ = "Singleton list has all unique indices"
+
+  testUniques
+    :: forall (a :: Type)
+     . UniqueIndices
+         ( ConsI "A" a Z
+             (ConsI "B" a (S Z) (ConsI "C" a (S (S Z)) NilI))
+         )
+    => String
+  testUniques = "[0, 1, 2] have all unique indices"

@@ -12,7 +12,7 @@ module ToData
   , toDataWithSchema
   ) where
 
-import Prelude (Unit, Void, absurd, identity, map, one, zero, ($), (<<<), (<>), (>>>))
+import Prelude
 import Data.Array (cons, sortWith)
 import Data.Array as Array
 import Data.NonEmpty (NonEmpty)
@@ -34,7 +34,7 @@ import Prim.TypeError (class Fail, Text)
 import Record as Record
 import Type.RowList as RL
 
-import TypeLevel.DataSchema (class HasPlutusSchema, class ValidPlutusSchema)
+import Plutus.Types.DataSchema (class HasPlutusSchema, class ValidPlutusSchema)
 import TypeLevel.Nat (class KnownNat, natVal)
 import TypeLevel.RowList.Unordered.Indexed
   ( class GetIndexWithLabel

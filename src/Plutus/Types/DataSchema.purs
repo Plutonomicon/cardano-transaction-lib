@@ -1,4 +1,4 @@
-module TypeLevel.DataSchema
+module Plutus.Types.DataSchema
   ( PSchema
   , class HasPlutusSchema
   , PNil
@@ -14,7 +14,6 @@ module TypeLevel.DataSchema
   , Field
   , MkField
   , MkField_
-  -- , NoRec
   , type (:=)
   , class SchemaToRowList
   , class PlutusSchemaToRowListI
