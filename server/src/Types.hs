@@ -305,7 +305,7 @@ instance Docs.ToSample EvalTxExUnitsResponse where
       , EvalTxExUnitsResponse [RdmrPtrExUnits 0 0 0 0] 0
       )
     ]
-  
+
 instance Docs.ToSample Fee where
   toSamples _ =
     [
