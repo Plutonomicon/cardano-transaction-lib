@@ -59,7 +59,7 @@ import Helpers (uIntToBigInt, bigIntToUInt)
 import Partial.Unsafe (unsafePartial)
 import Prelude
 import Serialization.Address (Slot(Slot))
-import TypeLevel.DataSchema (class HasPlutusSchema, type (:+), type (:=), type (@@), I, PNil)
+import Plutus.Types.DataSchema (class HasPlutusSchema, type (:+), type (:=), type (@@), I, PNil)
 import TypeLevel.Nat (S, Z)
 import ToData (class ToData, genericToData)
 import FromData (class FromData, genericFromData)

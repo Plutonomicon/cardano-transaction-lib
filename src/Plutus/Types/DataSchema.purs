@@ -1,4 +1,4 @@
-module TypeLevel.DataSchema
+module Plutus.Types.DataSchema
   ( PSchema
   , class HasPlutusSchema
   , PNil

@@ -30,7 +30,7 @@ import Types.ByteArray (hexToByteArrayUnsafe)
 import TypeLevel.Nat (Z, S)
 import Untagged.Union (asOneOf)
 
-import TypeLevel.DataSchema
+import Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
   , type (:=)

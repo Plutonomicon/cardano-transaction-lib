@@ -34,7 +34,7 @@ import Prim.TypeError (class Fail, Text)
 import Record as Record
 import Type.RowList as RL
 
-import TypeLevel.DataSchema (class HasPlutusSchema, class ValidPlutusSchema)
+import Plutus.Types.DataSchema (class HasPlutusSchema, class ValidPlutusSchema)
 import TypeLevel.Nat (class KnownNat, natVal)
 import TypeLevel.RowList.Unordered.Indexed
   ( class GetIndexWithLabel
