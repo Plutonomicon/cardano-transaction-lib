@@ -14,7 +14,6 @@ module TypeLevel.DataSchema
   , Field
   , MkField
   , MkField_
-  -- , NoRec
   , type (:=)
   , class SchemaToRowList
   , class PlutusSchemaToRowListI
