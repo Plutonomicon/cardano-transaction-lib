@@ -33,24 +33,6 @@ import Data.UInt (UInt)
 import Data.Unfoldable (class Unfoldable)
 import Helpers (bigIntToUInt)
 import Prelude
-  ( class EuclideanRing
-  , class Ord
-  , class Show
-  , Unit
-  , Void
-  , bind
-  , discard
-  , one
-  , pure
-  , unit
-  , zero
-  , ($)
-  , (<$>)
-  , (<*>)
-  , (<<<)
-  , (=<<)
-  , (==)
-  )
 import Prim.Row as Row
 import Prim.RowList as RL
 import Prim.TypeError (class Fail, Text)
