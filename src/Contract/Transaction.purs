@@ -23,6 +23,7 @@ module Contract.Transaction
 
 import Prelude
 
+import BalanceTx (UnattachedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
 import BalanceTx (BalanceTxError) as BalanceTxError
 import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
@@ -32,7 +33,7 @@ import Data.Lens.Getter ((^.))
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Tuple.Nested (type (/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import QueryM
   ( FeeEstimate(FeeEstimate)
   , ClientError(..) -- implicit as this error list will likely increase.
@@ -147,7 +148,6 @@ import Types.TransactionMetadata
       , Text
       )
   ) as TransactionMetadata
-import Types.UnbalancedTransaction (UnbalancedTx)
 import Types.UnbalancedTransaction
   ( ScriptOutput(ScriptOutput) -- More up-to-date Plutus uses this, wonder if we can just use `TransactionOutput`
   , TxOutRef
@@ -190,16 +190,18 @@ calculateMinFeeM
   :: forall (r :: Row Type). Transaction -> Contract r (Maybe Coin)
 calculateMinFeeM = map hush <<< calculateMinFee
 
--- | Attempts to balance an `UnbalancedTx`.
+-- | Attempts to balance an `UnattachedUnbalancedTx`.
 balanceTx
   :: forall (r :: Row Type)
-   . UnbalancedTx
-  -> Contract r (Either BalanceTxError.BalanceTxError Transaction)
+   . UnattachedUnbalancedTx
+  -> Contract r (Either BalanceTxError.BalanceTxError UnattachedTransaction)
 balanceTx = wrapContract <<< BalanceTx.balanceTx
 
--- | Attempts to balance an `UnbalancedTx` hushing the error.
+-- | Attempts to balance an `UnattachedUnbalancedTx` hushing the error.
 balanceTxM
-  :: forall (r :: Row Type). UnbalancedTx -> Contract r (Maybe Transaction)
+  :: forall (r :: Row Type)
+   . UnattachedUnbalancedTx
+  -> Contract r (Maybe UnattachedTransaction)
 balanceTxM = map hush <<< balanceTx
 
 finalizeTx
@@ -249,10 +251,9 @@ balanceAndSignTx
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx
   -> Contract r (Maybe BalancedSignedTransaction)
-balanceAndSignTx
-  (UnattachedUnbalancedTx { unbalancedTx, datums, redeemersTxIns }) = do
+balanceAndSignTx uaubTx@(UnattachedUnbalancedTx { datums }) = do
   -- Balance unbalanced tx:
-  balancedTx <- liftedE $ balanceTx unbalancedTx
+  balancedTx /\ redeemersTxIns <- liftedE $ balanceTx uaubTx
   let inputs = balancedTx ^. _body <<< _inputs
   redeemers <- liftedE $ reindexSpentScriptRedeemers inputs redeemersTxIns
   -- Reattach datums and redeemer:

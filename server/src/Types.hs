@@ -1,12 +1,13 @@
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Types (
   AppM (AppM),
   ServerOptions (..),
   Env (..),
   Cbor (..),
-  ExecutionUnitsMap (..),
   RdmrPtrExUnits (..),
+  EvalTxExUnitsResponse (..),
   Fee (..),
   WitnessCount (..),
   ApplyArgsRequest (..),
@@ -36,10 +37,10 @@ import Control.Exception (Exception)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (MonadReader, ReaderT, asks)
-import Data.Aeson (FromJSON, ToJSON (toJSON))
+import Data.Aeson (FromJSON, ToJSON (toJSON), (.:), (.=))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Encoding qualified as Aeson.Encoding
-import Data.Aeson.Types (withText)
+import Data.Aeson.Types (prependFailure, typeMismatch, withText)
 import Data.Bifunctor (second)
 import Data.ByteString (ByteString)
 import Data.ByteString.Base16 qualified as Base16
@@ -107,10 +108,6 @@ newtype Cbor = Cbor Text
   deriving stock (Show)
   deriving newtype (Eq, FromHttpApiData, ToHttpApiData, FromJSON, ToJSON)
 
-newtype ExecutionUnitsMap = ExecutionUnitsMap [RdmrPtrExUnits]
-  deriving stock (Show)
-  deriving newtype (FromJSON, ToJSON)
-
 data RdmrPtrExUnits = RdmrPtrExUnits
   { rdmrPtrTag :: Word8
   , rdmrPtrIdx :: Word64
@@ -119,6 +116,36 @@ data RdmrPtrExUnits = RdmrPtrExUnits
   }
   deriving stock (Show, Generic)
   deriving anyclass (FromJSON, ToJSON)
+
+data EvalTxExUnitsResponse = EvalTxExUnitsResponse
+  { rdmrPtrExUnitsList :: [RdmrPtrExUnits]
+  , txScriptsFee :: Word64
+  }
+  deriving stock (Show)
+
+instance ToJSON EvalTxExUnitsResponse where
+  toJSON EvalTxExUnitsResponse {rdmrPtrExUnitsList, txScriptsFee} =
+    Aeson.object
+      [ "rdmrPtrExUnitsList" .= rdmrPtrExUnitsList
+      , -- to avoid issues with integer parsing in PS, we should probably
+        -- return a JSON string, and not a number
+        "txScriptsFee" .= tshow txScriptsFee
+      ]
+
+instance FromJSON EvalTxExUnitsResponse where
+  parseJSON (Aeson.Object obj) = do
+    rdmrPtrExUnitsList <- obj .: "rdmrPtrExUnitsList"
+    txScriptsFee <-
+      obj .: "txScriptsFee"
+        >>= maybe (fail "Expected quoted integer") pure
+          . readMaybe @Word64
+          . Text.unpack
+    pure $
+      EvalTxExUnitsResponse rdmrPtrExUnitsList txScriptsFee
+  parseJSON invalid =
+    prependFailure
+      "parsing EvalTxExUnitsResponse failed, "
+      (typeMismatch "Object" invalid)
 
 newtype Fee = Fee Integer
   deriving stock (Show, Generic)
@@ -267,15 +294,18 @@ instance Docs.ToParam (QueryParam' '[Required] "count" WitnessCount) where
       \for the transaction"
       Docs.Normal
 
-instance Docs.ToSample ExecutionUnitsMap where
+instance Docs.ToSample EvalTxExUnitsResponse where
   toSamples _ =
     [
-      ( "The `(RdmrPtr -> ExUnits)` map will be returned as a list of \
-        \`RdmrPtrExUnits` objects with the following structure"
-      , ExecutionUnitsMap [RdmrPtrExUnits 0 0 0 0]
+      ( "The `(RdmrPtr -> ExUnits)` map as well as the scripts execution fee \
+        \will be returned as a JSON object with a `rdmrPtrExUnitsList` field \
+        \(containing execution units with corresponding redeemer pointers) and \
+        \a `txScriptsFee` field (containing the fee that a transaction must pay \
+        \for script execution)"
+      , EvalTxExUnitsResponse [RdmrPtrExUnits 0 0 0 0] 0
       )
     ]
-
+  
 instance Docs.ToSample Fee where
   toSamples _ =
     [

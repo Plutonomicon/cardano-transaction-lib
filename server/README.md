@@ -101,10 +101,10 @@ The server executable can be built with `nix build .#cardano-trasaction-lib-serv
     - `application/json;charset=utf-8`
     - `application/json`
 
-- The `(RdmrPtr -> ExUnits)` map will be returned as a list of `RdmrPtrExUnits` objects with the following structure (`application/json;charset=utf-8`, `application/json`):
+- The `(RdmrPtr -> ExUnits)` map as well as the scripts execution fee will be returned as a JSON object with a `rdmrPtrExUnitsList` field (containing execution units with corresponding redeemer pointers) and a `txScriptsFee` field (containing the fee that a transaction must pay for script execution) (`application/json;charset=utf-8`, `application/json`):
 
 ```javascript
-[{"exUnitsSteps":0,"rdmrPtrTag":0,"exUnitsMem":0,"rdmrPtrIdx":0}]
+{"rdmrPtrExUnitsList":[{"exUnitsSteps":0,"rdmrPtrTag":0,"exUnitsMem":0,"rdmrPtrIdx":0}],"txScriptsFee":"0"}
 ```
 
 ## GET /fees

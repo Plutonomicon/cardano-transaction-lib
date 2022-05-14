@@ -56,7 +56,7 @@ import Types (
   CborDecodeError (InvalidCbor, InvalidHex, OtherDecodeError),
   CtlServerError (CardanoError, CborDecode),
   Env,
-  ExecutionUnitsMap,
+  EvalTxExUnitsResponse,
   Fee,
   FinalizeRequest,
   FinalizedTransaction,
@@ -88,7 +88,7 @@ type Api =
       :> Post '[JSON] Blake2bHash
     :<|> "eval-ex-units"
       :> QueryParam' '[Required] "tx" Cbor
-      :> Get '[JSON] ExecutionUnitsMap
+      :> Get '[JSON] EvalTxExUnitsResponse
     :<|> "finalize"
       :> ReqBody '[JSON] FinalizeRequest
       :> Post '[JSON] FinalizedTransaction
@@ -160,7 +160,7 @@ estimateTxFees :: WitnessCount -> Cbor -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
 hashScript :: HashScriptRequest -> ClientM HashedScript
 blake2bHash :: BytesToHash -> ClientM Blake2bHash
-evalTxExecutionUnits :: Cbor -> ClientM ExecutionUnitsMap
+evalTxExecutionUnits :: Cbor -> ClientM EvalTxExUnitsResponse
 finalizeTx :: FinalizeRequest -> ClientM FinalizedTransaction
 hashData :: HashDataRequest -> ClientM HashedData
 estimateTxFees

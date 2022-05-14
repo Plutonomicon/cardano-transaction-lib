@@ -4,6 +4,7 @@ module QueryM
   , DatumCacheListeners
   , DatumCacheWebSocket
   , DispatchIdMap
+  , EvalTxExUnitsResponse(..)
   , FeeEstimate(..)
   , FinalizedTransaction(..)
   , HashedData(..)
@@ -66,7 +67,7 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT, ask, asks)
-import Data.Argonaut (class DecodeJson, JsonDecodeError)
+import Data.Argonaut (class DecodeJson, JsonDecodeError, (.:))
 import Data.Argonaut as Json
 import Data.Argonaut.Encode.Class (encodeJson)
 import Data.Argonaut.Encode.Encoders (encodeString)
@@ -500,7 +501,7 @@ calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   -- The server is calculating fees that are too low
   -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/123
   coinFromEstimate :: FeeEstimate -> Coin
-  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 700000)) <<< unwrap
+  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 10000)) <<< unwrap
 
   -- Fee estimation occurs before balancing the transaction, so we need to know
   -- the expected number of witnesses to use the cardano-api fee estimation
@@ -533,8 +534,28 @@ instance Show RdmrPtrExUnits where
 
 derive newtype instance DecodeJson RdmrPtrExUnits
 
+newtype EvalTxExUnitsResponse = EvalTxExUnitsResponse
+  { rdmrPtrExUnitsList :: Array RdmrPtrExUnits
+  , txScriptsFee :: BigInt
+  }
+
+derive instance Generic EvalTxExUnitsResponse _
+
+instance Json.DecodeJson EvalTxExUnitsResponse where
+  decodeJson =
+    Json.caseJsonObject (Left $ Json.TypeMismatch "Expected object")
+      \obj -> do
+        rdmrPtrExUnitsList <- obj .: "rdmrPtrExUnitsList"
+        txScriptsFee <- obj .: "txScriptsFee"
+          >>= Json.caseJsonString
+            (Left $ Json.TypeMismatch "Expected a stringified `BigInt`")
+            (Right <<< BigInt.fromString)
+          >>= note (Json.TypeMismatch "Expected a `BigInt`")
+        pure $
+          EvalTxExUnitsResponse { rdmrPtrExUnitsList, txScriptsFee }
+
 evalTxExecutionUnits
-  :: Transaction -> QueryM (Either ClientError (Array RdmrPtrExUnits))
+  :: Transaction -> QueryM (Either ClientError EvalTxExUnitsResponse)
 evalTxExecutionUnits tx = do
   txHex <- liftEffect (txToHex tx)
   url <- mkServerEndpointUrl ("eval-ex-units?tx=" <> txHex)
