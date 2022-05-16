@@ -34,7 +34,7 @@ import Aeson
   , encodeAesonViaJson
   , gDecodeAeson
   , gEncodeAeson
-  , genNextNumberIndex
+  , useNextIndexIndex
   , getCurrentNumberIndex
   , getField
   , getFieldOptional

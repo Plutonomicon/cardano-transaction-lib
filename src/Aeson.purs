@@ -49,7 +49,7 @@ module Aeson
   , encodeAesonViaJson
   , gDecodeAeson
   , gEncodeAeson
-  , genNextNumberIndex
+  , useNextIndexIndex
   , getCurrentNumberIndex
   , getField
   , getFieldOptional
@@ -100,7 +100,7 @@ import Data.Sequence (Seq)
 import Data.Sequence as Seq
 import Data.Symbol (class IsSymbol, reflectSymbol)
 import Data.Traversable (class Traversable, for, sequence)
-import Data.Tuple (Tuple(..))
+import Data.Tuple (Tuple(Tuple))
 import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -502,8 +502,8 @@ derive newtype instance Applicative AesonEncoder
 derive newtype instance Bind AesonEncoder
 derive newtype instance Monad AesonEncoder
 
-genNextNumberIndex :: AesonEncoder Int
-genNextNumberIndex = AesonEncoder (get <* modify_ ((+) 1))
+useNextIndexIndex :: AesonEncoder Int
+useNextIndexIndex = AesonEncoder (get <* modify_ ((+) 1))
 
 getCurrentNumberIndex :: AesonEncoder Int
 getCurrentNumberIndex = AesonEncoder get
@@ -517,7 +517,7 @@ encodeAesonViaJson v = pure $ Aeson
 
 instance EncodeAeson Int where
   encodeAeson' i = do
-    ix <- genNextNumberIndex
+    ix <- useNextIndexIndex
     pure $ Aeson
       { patchedJson: AesonPatchedJson $ encodeJson ix
       , numberIndex: Seq.singleton (show i)
@@ -525,7 +525,7 @@ instance EncodeAeson Int where
 
 instance EncodeAeson BigInt where
   encodeAeson' i = do
-    ix <- genNextNumberIndex
+    ix <- useNextIndexIndex
     pure $ Aeson
       { patchedJson: AesonPatchedJson $ encodeJson ix
       , numberIndex: Seq.singleton (BigInt.toString i)
@@ -533,7 +533,7 @@ instance EncodeAeson BigInt where
 
 instance EncodeAeson UInt where
   encodeAeson' i = do
-    ix <- genNextNumberIndex
+    ix <- useNextIndexIndex
     pure $ Aeson
       { patchedJson: AesonPatchedJson $ encodeJson ix
       , numberIndex: Seq.singleton (UInt.toString i)
@@ -541,7 +541,7 @@ instance EncodeAeson UInt where
 
 instance EncodeAeson Number where
   encodeAeson' i = do
-    ix <- genNextNumberIndex
+    ix <- useNextIndexIndex
     pure $ Aeson
       { patchedJson: AesonPatchedJson $ encodeJson ix
       , numberIndex: Seq.singleton (show i)
