@@ -77,18 +77,25 @@ estimateTxFees (WitnessCount numWits) cbor = do
   pparams <- asks protocolParams
   pure . Fee $ estimateFee pparams numWits decoded
 
+{- | Computes the execution units needed for each script in the transaction.
+ https://input-output-hk.github.io/cardano-node/cardano-api/src/Cardano.Api.Fees.html#evaluateTransactionExecutionUnits
+-}
 evalTxExecutionUnits :: Cbor -> AppM ExecutionUnitsMap
 evalTxExecutionUnits cbor =
   case decodeCborTx cbor of
     Left err ->
       throwM (CborDecode err)
     Right (C.Tx txBody@(C.TxBody txBodyContent) _) -> do
+      -- performing the necessary node queries to obtain the parameters
+      -- required by the Cardano API `evaluateTransactionExecutionUnits`
       sysStart <- queryNode C.QuerySystemStart
       eraHistory <- queryNode (C.QueryEraHistory C.CardanoModeIsMultiEra)
       pparams <- asks protocolParams
       let eraInMode = C.AlonzoEraInCardanoMode
           txInputs = Set.fromList . fmap fst $ Shelley.txIns txBodyContent
           eval = C.evaluateTransactionExecutionUnits
+      -- utxos must cover all the inputs referenced by the transaction,
+      -- otherwise `ScriptErrorMissingTxIn` will be thrown
       utxos <- queryUtxos txInputs
       case eval eraInMode sysStart eraHistory pparams utxos txBody of
         Left err ->
@@ -192,6 +199,10 @@ finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
 
 -- Helpers
 
+{- | Calculates the transaction fee for the proposed Alonzo era transaction,
+ including the script fees.
+ https://input-output-hk.github.io/cardano-node/cardano-api/src/Cardano.Api.Fees.html#evaluateTransactionFee
+-}
 estimateFee ::
   Shelley.ProtocolParameters -> Word -> C.Tx C.AlonzoEra -> Integer
 estimateFee pparams numWits (C.Tx txBody _) =

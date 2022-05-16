@@ -253,6 +253,10 @@ type UnattachedTransaction = Transaction /\ Array (Redeemer /\ Maybe TxOutRef)
 -- Evaluation of fees and execution units, Updating redeemers
 --------------------------------------------------------------------------------
 
+-- | Calculates the execution units needed for each script in the transaction
+-- | and the minimum fee, including the script fees.
+-- | Returns a tuple consisting of updated `UnattachedUnbalancedTx` and
+-- | the minimum fee.
 evalExUnitsAndMinFee
   :: UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError (UnattachedUnbalancedTx /\ BigInt))
@@ -273,6 +277,8 @@ evalExUnitsAndMinFee unattachedTx =
       <#> bimap CalculateMinFeeError' unwrap
     pure $ unattachedTxWithExUnits /\ minFee
 
+-- | Reattaches datums and redeemers to the transaction,
+-- | reindexing the redeemers.
 reattachDatumsAndRedeemers
   :: UnattachedUnbalancedTx
   -> QueryM (Either ReindexErrors Transaction)
