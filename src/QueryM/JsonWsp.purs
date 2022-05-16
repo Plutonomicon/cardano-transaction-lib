@@ -24,7 +24,6 @@ import Aeson
   , caseAesonUInt
   , decodeAeson
   , getField
-  , getFieldOptional
   )
 import Data.Argonaut
   ( class EncodeJson
@@ -34,8 +33,6 @@ import Data.Argonaut
   )
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
-import Data.Maybe (Maybe)
-import Data.Traversable (traverse)
 import Data.UInt as UInt
 import Effect (Effect)
 import Foreign.Object (Object)
