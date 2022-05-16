@@ -9,9 +9,7 @@
 
     # for the purescript project
     ogmios.url = "github:mlabs-haskell/ogmios/c4f896bf32ad066be8edd8681ee11e4ab059be7f";
-    ogmios-datum-cache = {
-      url = "github:mlabs-haskell/ogmios-datum-cache";
-    };
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache";
     # so named because we also need a different version of the repo below
     # in the server inputs and we use this one just for the `cardano-cli`
     # executables
@@ -194,7 +192,7 @@
               };
               autoStart = true;
               startFromLast = false;
-              filter = "{ \"const\": true }";
+              filter = builtins.toJSON { const = true; };
             };
           }
         }:
@@ -303,7 +301,7 @@
                   useHostStore = true;
                   ports = [ (bindPort datumCache.port) ];
                   restart = "on-failure";
-                  depends_on = [ "postgres" ];
+                  depends_on = [ "postgres" "ogmios" ];
                   command = [
                     "${pkgs.bash}/bin/sh"
                     "-c"
