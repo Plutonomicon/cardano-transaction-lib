@@ -26,6 +26,7 @@ import Debug.Trace (trace)
 import Network.Socket (withSocketsDo)
 import Network.WebSockets (ClientApp, ConnectionException)
 import Network.WebSockets qualified as WebSockets
+import System.Time.Extra qualified as Time.Extra
 
 import Cardano.Api (FromJSON)
 import Cardano.Api.Shelley (ProtocolParameters)
@@ -156,6 +157,7 @@ buildRequestJSON _ = error "Unsuported Ogmios request"
 mkApp :: RequestOption -> ClientApp ByteString
 mkApp option conn = do
   let requestJSON = buildRequestJSON option
+  print ("Sending request : " <> requestJSON)
   WebSockets.sendTextData
     conn
     requestJSON
@@ -176,12 +178,20 @@ queryCurrentProtocolParameters =
 tryQueryUntilZero :: IO ByteString -> Int -> IO (Either String ByteString)
 tryQueryUntilZero query remainAttempts =
   if remainAttempts <= 0
-    then return $ Left "Error trying to connect to Ogmios"
+    then do
+      print "Error trying to connect to Ogmios"
+      return $ Left "Error trying to connect to Ogmios"
     else do
       msgOrError <- (try query :: IO (Either IOException ByteString))
       case msgOrError of
         Right msg -> return $ Right msg
-        _ -> tryQueryUntilZero query (remainAttempts - 1)
+        Left e ->
+          do
+            print $ "Error : " <> show e
+            print "Waiting for ogmios conection attempt"
+            Time.Extra.sleep 0.5
+            print ("Attempts remain : " <> show (remainAttempts -1))
+            tryQueryUntilZero query (remainAttempts - 1)
 
 test :: IO ByteString -> IO ()
 test query = do

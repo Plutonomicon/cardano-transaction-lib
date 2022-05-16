@@ -90,10 +90,15 @@ data ServerOptions = ServerOptions
 newEnvIO :: ServerOptions -> IO (Either String Env)
 newEnvIO serverOptions =
   do
-    response <- queryCurrentProtocolParameters
-    case decodeProtocolParameters response of
-      Just params -> (return . Right . Env serverOptions) params
-      _ -> return $ Left "Can't get protocol parameters from Ogmios"
+    eitherResponse <- tryQueryUntilZero queryCurrentProtocolParameters 300
+    case eitherResponse of
+      Right response ->
+        case decodeProtocolParameters response of
+          Just params -> (return . Right . Env serverOptions) params
+          _ -> errorMsg
+      _ -> errorMsg
+  where
+    errorMsg = return $ Left "Can't get protocol parameters from Ogmios"
 
 --  getDataFileName "config/pparams.json"
 --    >>= Aeson.eitherDecodeFileStrict @Shelley.ProtocolParameters
