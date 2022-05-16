@@ -54,7 +54,6 @@ import ProtocolParametersAlonzo
   )
 import QueryM
   ( ClientError
-  , EvalTxExUnitsResponse(EvalTxExUnitsResponse)
   , QueryM
   , RdmrPtrExUnits(RdmrPtrExUnits)
   , calculateMinFee
@@ -257,18 +256,22 @@ type UnattachedTransaction = Transaction /\ Array (Redeemer /\ Maybe TxOutRef)
 evalExUnitsAndMinFee
   :: UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError (UnattachedUnbalancedTx /\ BigInt))
-evalExUnitsAndMinFee uaubTx =
+evalExUnitsAndMinFee unattachedTx =
   runExceptT do
-    let tx = uaubTx ^. _unbalancedTx <<< _transaction
-    basicFee <- ExceptT $ calculateMinFee tx
-      <#> bimap CalculateMinFeeError' unwrap
-    tx' <- ExceptT $ reattachDatumsAndRedeemers uaubTx
+    let tx = unattachedTx ^. _unbalancedTx <<< _transaction
+    attachedTx <- ExceptT $ reattachDatumsAndRedeemers unattachedTx
       <#> lmap ReindexErrors'
-    ExceptT $ evalTxExecutionUnits tx'
-      <#> bimap EvalTxExUnitsError'
-        \(EvalTxExUnitsResponse { rdmrPtrExUnitsList, txScriptsFee }) ->
-          updateTxExecutionUnits uaubTx rdmrPtrExUnitsList
-            /\ (basicFee + txScriptsFee)
+    rdmrPtrExUnitsList <- ExceptT $ evalTxExecutionUnits attachedTx
+      <#> lmap EvalTxExUnitsError'
+    let
+      unattachedTxWithExUnits =
+        updateTxExecutionUnits unattachedTx rdmrPtrExUnitsList
+    attachedTxWithExUnits <- ExceptT $
+      reattachDatumsAndRedeemers unattachedTxWithExUnits
+        <#> lmap ReindexErrors'
+    minFee <- ExceptT $ calculateMinFee attachedTxWithExUnits
+      <#> bimap CalculateMinFeeError' unwrap
+    pure $ unattachedTxWithExUnits /\ minFee
 
 reattachDatumsAndRedeemers
   :: UnattachedUnbalancedTx

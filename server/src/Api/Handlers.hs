@@ -1,4 +1,3 @@
-{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
 module Api.Handlers (
@@ -38,8 +37,6 @@ import Data.Proxy (Proxy (Proxy))
 import Data.Set qualified as Set
 import Data.Text.Encoding qualified as Text.Encoding
 import Data.Traversable (for)
-import Data.Word (Word64)
-import Debug.Trace qualified as Debug (traceShowId)
 import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
 import PlutusTx.Builtins qualified as PlutusTx
 import Types (
@@ -58,7 +55,7 @@ import Types (
   CborDecodeError (InvalidCbor, InvalidHex, OtherDecodeError),
   CtlServerError (CardanoError, CborDecode),
   Env (protocolParams),
-  EvalTxExUnitsResponse (..),
+  ExecutionUnitsMap (..),
   Fee (Fee),
   FinalizeRequest (..),
   FinalizedTransaction (..),
@@ -80,7 +77,7 @@ estimateTxFees (WitnessCount numWits) cbor = do
   pparams <- asks protocolParams
   pure . Fee $ estimateFee pparams numWits decoded
 
-evalTxExecutionUnits :: Cbor -> AppM EvalTxExUnitsResponse
+evalTxExecutionUnits :: Cbor -> AppM ExecutionUnitsMap
 evalTxExecutionUnits cbor =
   case decodeCborTx cbor of
     Left err ->
@@ -96,36 +93,19 @@ evalTxExecutionUnits cbor =
       case eval eraInMode sysStart eraHistory pparams utxos txBody of
         Left err ->
           throwM (CardanoError . TxValidityIntervalError $ C.displayError err)
-        Right mp -> do
-          rdmrPtrExUnitsList <- asRdmrPtrExUnitsList mp
-          txScriptsFee <- evalTxScriptsFee rdmrPtrExUnitsList
-          pure . Debug.traceShowId $
-            EvalTxExUnitsResponse rdmrPtrExUnitsList txScriptsFee
+        Right mp ->
+          asExecutionUnitsMap mp
   where
-    evalTxScriptsFee :: [RdmrPtrExUnits] -> AppM Word64
-    evalTxScriptsFee exUnitsList =
-      fmap Shelley.protocolParamPrices (asks protocolParams)
-        <&> maybe 0 \prices ->
-          let f = \exUnits acc -> txScriptFee exUnits prices + acc
-           in ceiling (foldr f 0 exUnitsList)
-      where
-        txScriptFee :: RdmrPtrExUnits -> C.ExecutionUnitPrices -> Rational
-        txScriptFee
-          RdmrPtrExUnits {exUnitsMem, exUnitsSteps}
-          C.ExecutionUnitPrices {priceExecutionMemory, priceExecutionSteps} =
-            priceExecutionMemory * fromIntegral exUnitsMem
-              + priceExecutionSteps * fromIntegral exUnitsSteps
-
-    asRdmrPtrExUnitsList ::
+    asExecutionUnitsMap ::
       Map.Map
         C.ScriptWitnessIndex
         (Either C.ScriptExecutionError C.ExecutionUnits) ->
-      AppM [RdmrPtrExUnits]
-    asRdmrPtrExUnitsList mp = do
+      AppM ExecutionUnitsMap
+    asExecutionUnitsMap mp = do
       exUnitsMap <-
         for mp $
           either (throwM . CardanoError . ScriptExecutionError) pure
-      pure $
+      pure . ExecutionUnitsMap $
         (first Shelley.toAlonzoRdmrPtr <$> Map.toList exUnitsMap)
           <&> \(TxWitness.RdmrPtr tag idx, exUnits) ->
             RdmrPtrExUnits
