@@ -9,10 +9,7 @@
 
     # for the purescript project
     ogmios.url = "github:mlabs-haskell/ogmios/c4f896bf32ad066be8edd8681ee11e4ab059be7f";
-    ogmios-datum-cache = {
-      url = "github:mlabs-haskell/ogmios-datum-cache";
-      flake = false;
-    };
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache";
     # so named because we also need a different version of the repo below
     # in the server inputs and we use this one just for the `cardano-cli`
     # executables
@@ -148,9 +145,7 @@
         easy-ps =
           import inputs.easy-purescript-nix { pkgs = prev; };
         ogmios-datum-cache =
-          nixpkgs.legacyPackages.${system}.haskellPackages.callPackage
-            ogmios-datum-cache
-            { };
+          inputs.ogmios-datum-cache.defaultPackage.${system};
         ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
         cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
         purescriptProject = import ./nix { inherit system; pkgs = prev; };
@@ -190,10 +185,14 @@
                 "dbname=${postgres.db}"
                 "password=${postgres.password}"
               ];
-            saveAllDatums = true;
-            firstFetchBlock = {
-              slot = 44366242;
-              id = "d2a4249fe3d0607535daa26caf12a38da2233586bc51e79ed0b3a36170471bf5";
+            blockFetcher = {
+              firstBlock = {
+                slot = 54066900;
+                id = "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d";
+              };
+              autoStart = true;
+              startFromLast = false;
+              filter = builtins.toJSON { const = true; };
             };
           }
         }:
@@ -291,12 +290,13 @@
               let
                 configFile = ''
                   dbConnectionString = "${datumCache.dbConnectionString}"
-                  saveAllDatums = ${pkgs.lib.boolToString datumCache.saveAllDatums}
                   server.port = ${toString datumCache.port}
                   ogmios.address = "ogmios"
                   ogmios.port = ${toString ogmios.port}
-                  firstFetchBlock.slot = ${toString datumCache.firstFetchBlock.slot}
-                  firstFetchBlock.id = "${datumCache.firstFetchBlock.id}"
+                  blockFetcher.autoStart = ${nixpkgs.lib.boolToString datumCache.blockFetcher.autoStart}
+                  blockFetcher.firstBlock.slot = ${toString datumCache.blockFetcher.firstBlock.slot}
+                  blockFetcher.firstBlock.id = "${datumCache.blockFetcher.firstBlock.id}"
+                  blockFetcher.filter = "${nixpkgs.lib.strings.replaceStrings ["\"" "\\"] ["\\\"" "\\\\"] datumCache.blockFetcher.filter}"
                 '';
               in
               {
@@ -304,7 +304,7 @@
                   useHostStore = true;
                   ports = [ (bindPort datumCache.port) ];
                   restart = "on-failure";
-                  depends_on = [ "postgres" ];
+                  depends_on = [ "postgres" "ogmios" ];
                   command = [
                     "${pkgs.bash}/bin/sh"
                     "-c"
