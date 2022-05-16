@@ -3,28 +3,39 @@
 module Contract.Aeson (module Aeson) where
 
 import Aeson
-  ( NumberIndex
+  ( (.:)
+  , (.:?)
+  , Aeson
+  , AesonCases
+  , AesonEncoder
+  , NumberIndex
+  , class EncodeAeson
+  , class GEncodeAeson
   , class DecodeAeson
   , class DecodeAesonField
   , class GDecodeAeson
-  , Aeson
-  , (.:)
-  , (.:?)
-  , AesonCases
+  , bumpNumberIndexBy
   , caseAeson
   , caseAesonArray
+  , caseAesonBigInt
   , caseAesonBoolean
   , caseAesonNull
+  , caseAesonNumber
   , caseAesonObject
   , caseAesonString
-  , caseAesonNumber
   , caseAesonUInt
-  , caseAesonBigInt
   , constAesonCases
   , decodeAeson
   , decodeAesonField
+  , decodeAesonViaJson
   , decodeJsonString
+  , encodeAeson
+  , encodeAeson'
+  , encodeAesonViaJson
   , gDecodeAeson
+  , gEncodeAeson
+  , useNextIndexIndex
+  , getCurrentNumberIndex
   , getField
   , getFieldOptional
   , getFieldOptional'

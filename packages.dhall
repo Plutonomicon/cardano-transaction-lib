@@ -109,6 +109,11 @@ let upstream =
 
 let additions =
       {
+      , sequences =
+          { dependencies = ["arrays" , "assert" , "console" , "effect" , "lazy" , "maybe" , "newtype" , "nonempty" , "partial" , "prelude" , "profunctor" , "psci-support" , "quickcheck" , "quickcheck-laws" , "tuples" , "unfoldable" , "unsafe-coerce"]
+          , repo = "https://github.com/hdgarrood/purescript-sequences"
+          , version = "v3.0.2"
+      }
       , properties =
           { dependencies = ["prelude", "console"]
           , repo = "https://github.com/Risto-Stevcev/purescript-properties.git"
