@@ -17,6 +17,7 @@ import Data.Text (Text)
 import Network.Socket (withSocketsDo)
 import Network.WebSockets (ClientApp)
 import Network.WebSockets qualified as WebSockets
+import System.IO (hFlush, stdout)
 import System.Time.Extra qualified as Time.Extra
 
 --------------------------------------------------------------------------------
@@ -38,7 +39,7 @@ data ServerParameters = ServerParameters
 defaultServerParameters :: ServerParameters
 defaultServerParameters =
   ServerParameters
-    { getHost = "localhost"
+    { getHost = "ogmios"
     , getPort = 1337
     , getPath = "/"
     }
@@ -85,8 +86,9 @@ tryQueryUntilZero query remainAttempts =
         Right msg -> return $ Right msg
         Left e ->
           do
-            print $ "Error : " <> show e
-            print "Waiting for ogmios conection attempt"
+            putStrLn $ "Error : " <> show e
+            putStrLn "Waiting for ogmios conection attempt"
+            putStrLn $ "Attempts remain : " <> show (remainAttempts -1)
             Time.Extra.sleep 0.5
-            print ("Attempts remain : " <> show (remainAttempts -1))
+            hFlush stdout
             tryQueryUntilZero query (remainAttempts - 1)
