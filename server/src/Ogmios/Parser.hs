@@ -1,26 +1,37 @@
 module Ogmios.Parser (decodeProtocolParameters) where
 
-import Cardano.Api (AnyPlutusScriptVersion (AnyPlutusScriptVersion), CostModel (CostModel), ExecutionUnitPrices (ExecutionUnitPrices), ExecutionUnits (ExecutionUnits), FromJSON, Lovelace (Lovelace), PlutusScriptVersion (PlutusScriptV1))
-import Cardano.Api.Shelley (ProtocolParameters (ProtocolParameters), makePraosNonce)
+import Cardano.Api (
+  AnyPlutusScriptVersion (AnyPlutusScriptVersion),
+  CostModel,
+  ExecutionUnitPrices (ExecutionUnitPrices),
+  ExecutionUnits,
+  Lovelace (Lovelace),
+  PlutusScriptVersion (PlutusScriptV1),
+ )
+import Cardano.Api.Shelley (ProtocolParameters (ProtocolParameters))
 
-import Data.ByteString.Lazy (ByteString)
-import Data.HashMap.Strict qualified as HashMap
-import Data.Map qualified as Map
-import GHC.Natural (Natural, naturalFromInteger)
-
-import Data.Char (isDigit)
-import Data.Ratio ((%))
-
+import Data.Text qualified as Text
 import Text.Parsec qualified as Parsec
 import Text.Parsec.Char qualified as Parsec.Char
 import Text.ParserCombinators.Parsec.Combinator (many1)
 
-import Data.Aeson (Object, (.!=), (.:), (.:?))
 import Data.Aeson qualified as Aeson
-import Data.Aeson.BetterErrors
-
-import Data.Text qualified as Text
-import Data.Void (Void)
+import Data.Aeson.BetterErrors (
+  Parse,
+  asIntegral,
+  displayError,
+  fromAesonParser,
+  key,
+  parseValue,
+  perhaps,
+  withString,
+  (<|>),
+ )
+import Data.ByteString.Lazy (ByteString)
+import Data.Char (isDigit)
+import Data.Map qualified as Map
+import Data.Ratio ((%))
+import GHC.Natural (Natural, naturalFromInteger)
 
 parseVersion :: Parse e (Natural, Natural)
 parseVersion =
@@ -29,12 +40,12 @@ parseVersion =
 
 parseNatural :: Text.Text -> Parse e Natural
 parseNatural strKey =
-  naturalFromInteger . toInteger <$> key strKey asIntegral
+  naturalFromInteger <$> key strKey (asIntegral :: Parse e Integer)
 
 parseLovelace :: Text.Text -> Parse e Lovelace
 parseLovelace strKey =
   key strKey $
-    Lovelace . toInteger <$> asIntegral
+    Lovelace <$> (asIntegral :: Parse e Integer)
 
 parseRational :: Text.Text -> Parse Text.Text Rational
 parseRational strKey =
@@ -109,9 +120,9 @@ nonZeroDigit = Parsec.Char.satisfy (\c -> (c /= '0') && isDigit c)
 
 nonZeroInteger :: LocalParser Integer
 nonZeroInteger = do
-  head <- nonZeroDigit
+  headDigit <- nonZeroDigit
   remains <- Parsec.many Parsec.Char.digit
-  return $ read (head : remains)
+  return $ read (headDigit : remains)
 
 zeroInteger :: LocalParser Integer
 zeroInteger = read <$> many1 (Parsec.Char.satisfy (== '0'))
@@ -124,9 +135,7 @@ rational =
   do
     Parsec.Char.spaces
     numerator <- haskellInteger
-    Parsec.Char.spaces
-    Parsec.Char.char '/'
-    Parsec.Char.spaces
+    Parsec.Char.spaces >> Parsec.Char.char '/' >> Parsec.Char.spaces
     denominator <- haskellInteger
     return $ numerator % denominator
 
