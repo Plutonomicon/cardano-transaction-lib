@@ -4,10 +4,10 @@ module QueryM.JsonWsp
   ( JsonWspRequest
   , JsonWspResponse
   , JsonWspCall
-  , Mirror
   , mkCallType
   , buildRequest
   , parseJsonWspResponse
+  , parseJsonWspResponseId
   , parseFieldToString
   , parseFieldToUInt
   , parseFieldToBigInt
@@ -36,11 +36,9 @@ import Data.Either (Either(Left, Right))
 import Data.UInt as UInt
 import Effect (Effect)
 import Foreign.Object (Object)
+import QueryM.UniqueId (ListenerId, uniqueId)
 import Record as Record
 import Type.Proxy (Proxy)
-
--- creates a unique id prefixed by its argument
-foreign import _uniqueId :: String -> Effect String
 
 -- | Structure of all json wsp websocket requests
 -- described in: https://ogmios.dev/getting-started/basics/
@@ -50,7 +48,7 @@ type JsonWspRequest (a :: Type) =
   , servicename :: String
   , methodname :: String
   , args :: a
-  , mirror :: Mirror
+  , mirror :: ListenerId
   }
 
 -- | Convenience helper function for creating `JsonWspRequest a` objects
@@ -65,9 +63,9 @@ mkJsonWspRequest
      }
   -> Effect (JsonWspRequest a)
 mkJsonWspRequest service method = do
-  id <- _uniqueId $ method.methodname <> "-"
+  id <- uniqueId $ method.methodname <> "-"
   pure
-    $ Record.merge { mirror: { step: "INIT", id } }
+    $ Record.merge { mirror: id }
     $
       Record.merge service method
 
@@ -79,13 +77,8 @@ type JsonWspResponse (a :: Type) =
   , servicename :: String
   , methodname :: String
   , result :: a
-  , reflection :: Mirror
+  , reflection :: ListenerId
   }
-
--- this is fully determined by us - we can adjust this type as we have more complex
--- needs, it always just gets echoed back, so it is useful for req/res pairing
--- | A type we use to reflect jsonwsp request ids.
-type Mirror = { step :: String, id :: String }
 
 -- | A wrapper for tying arguments and response types to request building.
 newtype JsonWspCall :: Type -> Type -> Type
@@ -106,7 +99,7 @@ mkCallType
   -> JsonWspCall i o
 mkCallType service { methodname, args } _ = JsonWspCall $ \i -> do
   req <- mkJsonWspRequest service { methodname, args: args i }
-  pure { body: encodeJson req, id: req.mirror.id }
+  pure { body: encodeJson req, id: req.mirror }
 
 -- | Create a JsonWsp request body and id
 buildRequest
@@ -137,6 +130,13 @@ parseJsonWspResponse = aesonObject $ \o -> do
     , result
     , reflection
     }
+
+-- | Parse just ID from the response
+parseJsonWspResponseId
+  :: Aeson
+  -> Either JsonDecodeError ListenerId
+parseJsonWspResponseId = aesonObject $ \o -> do
+  parseMirror =<< getField o "reflection"
 
 -- | Helper for assuming we get an object
 aesonObject
@@ -183,8 +183,5 @@ parseFieldToBigInt o str = do
   err = TypeMismatch $ "expected field: '" <> str <> "' as a BigInt"
 
 -- | A parser for the `Mirror` type.
-parseMirror :: Aeson -> Either JsonDecodeError Mirror
-parseMirror = caseAesonObject (Left (TypeMismatch "expected object")) $ \o -> do
-  step <- parseFieldToString o "step"
-  id <- parseFieldToString o "id"
-  pure { step, id }
+parseMirror :: Aeson -> Either JsonDecodeError ListenerId
+parseMirror = caseAesonString (Left (TypeMismatch "expected string")) pure
