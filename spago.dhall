@@ -4,7 +4,8 @@ You can edit this file as you like.
 -}
 { name = "cardano-transaction-lib"
 , dependencies =
-  [ "aff"
+  [ "aeson"
+  , "aff"
   , "aff-promise"
   , "affjax"
   , "argonaut"
