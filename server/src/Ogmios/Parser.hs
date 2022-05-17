@@ -9,6 +9,13 @@ import Data.ByteString.Lazy (ByteString)
 import Data.HashMap.Strict qualified as HashMap
 import Data.Map qualified as Map
 
+import Data.Char (isDigit)
+import Data.Ratio ((%))
+
+import Text.Parsec qualified as Parsec
+import Text.Parsec.Char qualified as Parsec.Char
+import Text.ParserCombinators.Parsec.Combinator (many1)
+
 newtype ProtocolParametersWrapper = ProtocolParametersWrapper
   { unwrapParams :: ProtocolParameters
   }
@@ -98,3 +105,28 @@ decodeProtocolParameters response =
         encoded
           >>= Aeson.decode @ProtocolParametersWrapper
    in unwrapParams <$> wrapped
+
+type LocalParser a = Parsec.Parsec String () a
+
+nonZeroDigit :: LocalParser Char
+nonZeroDigit = Parsec.Char.satisfy (\c -> (c /= '0') && isDigit c)
+
+nonZeroInteger :: LocalParser Integer
+nonZeroInteger = do
+  head <- nonZeroDigit
+  remains <- Parsec.many Parsec.Char.digit
+  return $ read (head : remains)
+
+zeroInteger :: LocalParser Integer
+zeroInteger = read <$> many1 (Parsec.Char.satisfy (== '0'))
+
+haskellInteger :: LocalParser Integer
+haskellInteger = nonZeroInteger Parsec.<|> zeroInteger
+
+rational :: LocalParser Rational
+rational =
+  do
+    numerator <- haskellInteger
+    Parsec.Char.char '/'
+    denominator <- haskellInteger
+    return $ numerator % denominator
