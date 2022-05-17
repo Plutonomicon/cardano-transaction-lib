@@ -10,6 +10,12 @@ module Types.TokenName
 
 import Prelude
 
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , decodeAesonViaJson
+  , encodeAesonViaJson
+  )
 import Data.Argonaut
   ( getField
   , class DecodeJson
@@ -53,6 +59,12 @@ instance DecodeJson TokenName where
 instance EncodeJson TokenName where
   encodeJson (TokenName ba) = encodeJson
     { "unTokenName": byteArrayToHex ba }
+
+instance DecodeAeson TokenName where
+  decodeAeson = decodeAesonViaJson
+
+instance EncodeAeson TokenName where
+  encodeAeson' = encodeAesonViaJson
 
 instance Show TokenName where
   show (TokenName tn) = "(TokenName" <> show tn <> ")"
