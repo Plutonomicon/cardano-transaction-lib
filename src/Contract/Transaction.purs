@@ -185,7 +185,9 @@ calculateMinFee
   :: forall (r :: Row Type)
    . Transaction
   -> Contract r (Either ExportQueryM.ClientError Value)
-calculateMinFee = (map <<< map) (unwrap <<< toPlutusType <<< coinToValue) <<< wrapContract <<< QueryM.calculateMinFee
+calculateMinFee = (map <<< map) (unwrap <<< toPlutusType <<< coinToValue)
+  <<< wrapContract
+  <<< QueryM.calculateMinFee
 
 -- | Same as `calculateMinFee` hushing the error.
 calculateMinFeeM
