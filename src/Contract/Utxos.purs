@@ -7,7 +7,7 @@ module Contract.Utxos
   ) where
 
 import Prelude
-import Contract.Monad (Contract, wrapContract, liftedM)
+import Contract.Monad (Contract, wrapContract, liftContractM)
 import Data.Maybe (Maybe)
 import QueryM.Utxos (utxosAt) as Utxos
 import Plutus.Types.Address (Address)
@@ -22,5 +22,5 @@ import Types.Transaction (Utxo, UtxoM(UtxoM)) as Transaction
 utxosAt
   :: forall (r :: Row Type). Address -> Contract r (Maybe Transaction.UtxoM)
 utxosAt address =
-  liftedM "utxosAt: unable to serialize address" (pure $ fromPlutusType address)
+  liftContractM "utxosAt: unable to serialize address" (fromPlutusType address)
     >>= wrapContract <<< Utxos.utxosAt
