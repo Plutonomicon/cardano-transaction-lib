@@ -87,7 +87,10 @@ serverOptionsParser =
       ( Options.long "ogmios-host"
           <> Options.help "The hostname for ogmios"
           <> Options.showDefault
-          <> Options.value "ogmios"
+          <> Options.value
+            ( Ogmios.Query.getHost
+                Ogmios.Query.defaultServerParameters
+            )
           <> Options.metavar "IPV4"
       )
     <*> Options.option
