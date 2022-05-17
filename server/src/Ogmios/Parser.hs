@@ -126,7 +126,10 @@ haskellInteger = nonZeroInteger Parsec.<|> zeroInteger
 rational :: LocalParser Rational
 rational =
   do
+    Parsec.Char.spaces
     numerator <- haskellInteger
+    Parsec.Char.spaces
     Parsec.Char.char '/'
+    Parsec.Char.spaces
     denominator <- haskellInteger
     return $ numerator % denominator
