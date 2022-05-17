@@ -157,7 +157,8 @@ data IxK k
 foreign import data MkIxK :: forall (k :: Type). Nat -> k -> IxK k
 
 -- | Syntactic sugar which allows us to represent MkIxK as a type operator
-type MkIxK_ :: forall k1. k1 -> Nat -> IxK k1 -- FIXME(@gnumonik): s/k1/k it complains
+type MkIxK_
+  :: forall k1. k1 -> Nat -> IxK k1 -- FIXME(@gnumonik): s/k1/k it complains
 type MkIxK_ k n = MkIxK n k
 
 infixr 9 type MkIxK_ as @@

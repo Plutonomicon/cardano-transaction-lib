@@ -25,7 +25,7 @@ import Test.QuickCheck.Gen (Gen)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import ToData (class ToData, genericToData, toData)
-import Type.RowList (Cons,Nil)
+import Type.RowList (Cons, Nil)
 import Types.ByteArray (hexToByteArrayUnsafe)
 import TypeLevel.Nat (Z, S)
 import Untagged.Union (asOneOf)
@@ -479,7 +479,6 @@ tests =
          )
     => String
   testUniques = "[A, B, C] is all unique and should compile"
-
 
 uniqueIndicesTests ∷ Array String
 uniqueIndicesTests =

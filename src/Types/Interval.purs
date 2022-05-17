@@ -59,10 +59,18 @@ import Helpers (uIntToBigInt, bigIntToUInt)
 import Partial.Unsafe (unsafePartial)
 import Prelude
 import Serialization.Address (Slot(Slot))
-import Plutus.Types.DataSchema (class HasPlutusSchema, type (:+), type (:=), type (@@), I, PNil)
+import Plutus.Types.DataSchema
+  ( class HasPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  , I
+  , PNil
+  )
 import TypeLevel.Nat (S, Z)
 import ToData (class ToData, genericToData)
 import FromData (class FromData, genericFromData)
+
 --------------------------------------------------------------------------------
 -- Interval Type and related
 --------------------------------------------------------------------------------
@@ -77,10 +85,15 @@ data Extended a = NegInf | Finite a | PosInf
 instance
   HasPlutusSchema
     (Extended a)
-    ("NegInf" := PNil @@ Z
-    :+ "Finite" := PNil @@ (S Z)
-    :+ "PosInf" := PNil @@ (S (S Z))
-    :+ PNil)
+    ( "NegInf" := PNil @@ Z
+        :+ "Finite"
+        := PNil
+        @@ (S Z)
+        :+ "PosInf"
+        := PNil
+        @@ (S (S Z))
+        :+ PNil
+    )
 
 instance ToData a => ToData (Extended a) where
   toData e = genericToData e
@@ -100,8 +113,11 @@ instance Show a => Show (Extended a) where
 -- | The lower bound of an interval.
 data LowerBound a = LowerBound (Extended a) Closure
 
-instance HasPlutusSchema (LowerBound a) ("LowerBound" := PNil @@ Z
-                                         :+ PNil)
+instance
+  HasPlutusSchema (LowerBound a)
+    ( "LowerBound" := PNil @@ Z
+        :+ PNil
+    )
 
 instance ToData a => ToData (LowerBound a) where
   toData lb = genericToData lb
@@ -130,8 +146,11 @@ instance Ord a => Ord (LowerBound a) where
 data UpperBound :: Type -> Type
 data UpperBound a = UpperBound (Extended a) Closure
 
-instance HasPlutusSchema (UpperBound a) ("UpperBound" := PNil @@ Z
-                                        :+ PNil)
+instance
+  HasPlutusSchema (UpperBound a)
+    ( "UpperBound" := PNil @@ Z
+        :+ PNil
+    )
 
 instance ToData a => ToData (UpperBound a) where
   toData ub = genericToData ub
@@ -159,13 +178,16 @@ newtype Interval a = Interval { from :: LowerBound a, to :: UpperBound a }
 
 instance
   HasPlutusSchema (Interval a)
-    ("Interval" :=
-      ("from" := I (LowerBound a)
-      :+ "to" := I (UpperBound a)
-      :+ PNil)
-     @@ Z
-    :+ PNil)
-
+    ( "Interval"
+        :=
+          ( "from" := I (LowerBound a)
+              :+ "to"
+              := I (UpperBound a)
+              :+ PNil
+          )
+        @@ Z
+        :+ PNil
+    )
 
 derive instance Generic (Interval a) _
 derive newtype instance Eq a => Eq (Interval a)
@@ -191,6 +213,7 @@ instance ToData a => ToData (Interval a) where
 
 instance FromData a => FromData (Interval a) where
   fromData i = genericFromData i
+
 --------------------------------------------------------------------------------
 -- POSIXTIME Type and related
 --------------------------------------------------------------------------------
