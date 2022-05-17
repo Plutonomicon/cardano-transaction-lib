@@ -57,7 +57,6 @@ buildRequestJSON _ = error "Unsuported Ogmios request"
 makeApp :: RequestOption -> ClientApp ByteString
 makeApp option conn = do
   let requestJSON = buildRequestJSON option
-  print ("Sending request : " <> requestJSON)
   WebSockets.sendTextData
     conn
     requestJSON
@@ -79,7 +78,6 @@ tryQueryUntilZero :: IO ByteString -> Int -> IO (Either String ByteString)
 tryQueryUntilZero query remainAttempts =
   if remainAttempts <= 0
     then do
-      print "Error trying to connect to Ogmios"
       return $ Left "Error trying to connect to Ogmios"
     else do
       msgOrError <- (try query :: IO (Either IOException ByteString))
