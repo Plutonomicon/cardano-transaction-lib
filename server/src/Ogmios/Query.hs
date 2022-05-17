@@ -5,6 +5,7 @@ module Ogmios.Query (
   makeRequest,
   tryQueryUntilZero,
   queryCurrentProtocolParameters,
+  RequestOption (Query, Acquire),
 ) where
 
 --------------------------------------------------------------------------------

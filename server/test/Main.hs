@@ -11,7 +11,7 @@ import Cardano.Api.Shelley (
   ExecutionUnits (ExecutionUnits, executionMemory, executionSteps),
   Lovelace (Lovelace),
   ProtocolParameters (..),
-  makePraosNonce,
+  --  makePraosNonce,
  )
 import Data.ByteString.Lazy qualified as ByteString
 import Data.ByteString.Lazy.Char8 qualified as LC8
@@ -322,6 +322,7 @@ fullyAppliedScript =
     \010010091326353008009498cd4015d680119a802bae00112001200112001120011220021\
     \2200120014c01021820004c010544746573740001\""
 
+fixedProtocolParameters :: ProtocolParameters
 fixedProtocolParameters =
   ProtocolParameters
     { protocolParamProtocolVersion = (6, 0)
@@ -359,7 +360,7 @@ fixedProtocolParameters =
         Just $
           ExecutionUnits
             { executionSteps = 40000000000
-            , executionMemory = 80000000 
+            , executionMemory = 80000000
             }
     , protocolParamMaxValueSize = Just 5000
     , protocolParamCollateralPercent = Just 150

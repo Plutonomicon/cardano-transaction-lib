@@ -39,12 +39,10 @@ import Data.Aeson (FromJSON, ToJSON (toJSON))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Encoding qualified as Aeson.Encoding
 import Data.Aeson.Types (withText)
-import Data.Bifunctor (second)
 import Data.ByteString (ByteString)
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.ByteString.Short qualified as SBS
-import Data.Functor ((<&>))
 import Data.Kind (Type)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
@@ -62,7 +60,8 @@ import Ogmios.Query (
   queryCurrentProtocolParameters,
   tryQueryUntilZero,
  )
-import Paths_ctl_server (getDataFileName)
+
+-- import Paths_ctl_server (getDataFileName)
 
 newtype AppM (a :: Type) = AppM (ReaderT Env IO a)
   deriving newtype
@@ -99,10 +98,6 @@ newEnvIO serverOptions =
       _ -> errorMsg
   where
     errorMsg = return $ Left "Can't get protocol parameters from Ogmios"
-
---  getDataFileName "config/pparams.json"
---    >>= Aeson.eitherDecodeFileStrict @Shelley.ProtocolParameters
---    <&> second (Env serverOptions)
 
 newtype Cbor = Cbor Text
   deriving stock (Show)
