@@ -2,7 +2,17 @@ module Main (main) where
 
 import Api (app, applyArgs, blake2bHash, estimateTxFees, hashData, hashScript)
 import Cardano.Api qualified as C
-import Cardano.Api.Shelley (ExecutionUnitPrices (ExecutionUnitPrices, priceExecutionMemory, priceExecutionSteps), ExecutionUnits (ExecutionUnits, executionMemory, executionSteps), Lovelace (Lovelace), ProtocolParameters (..), makePraosNonce)
+import Cardano.Api.Shelley (
+  ExecutionUnitPrices (
+    ExecutionUnitPrices,
+    priceExecutionMemory,
+    priceExecutionSteps
+  ),
+  ExecutionUnits (ExecutionUnits, executionMemory, executionSteps),
+  Lovelace (Lovelace),
+  ProtocolParameters (..),
+  makePraosNonce,
+ )
 import Data.ByteString.Lazy qualified as ByteString
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.Kind (Type)
@@ -64,7 +74,7 @@ serverSpec = do
   describe "Api.Handlers.hashScript" hashScriptSpec
   describe "Api.Handlers.blake2bHash" blake2bHashSpec
   describe "Api.Handlers.hashData" hashDataSpec
-  describe "Parser : " testParser
+  describe "Ogmios.Parser " testParser
 
 applyArgsSpec :: Spec
 applyArgsSpec = around withTestApp $ do
@@ -362,6 +372,6 @@ loadFile =
 
 testParser :: Spec
 testParser =
-  it "Hi" $ do
+  it "Testing parser of ogmios parameters" $ do
     value <- loadFile
     shouldBe value (Just fixedProtocolParameters)
