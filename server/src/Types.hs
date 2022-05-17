@@ -57,8 +57,8 @@ import Servant.Docs qualified as Docs
 import Text.Read (readMaybe)
 import Utils (tshow)
 
+import Ogmios.Parser (decodeProtocolParameters)
 import Ogmios.Query (
-  decodeProtocolParameters,
   queryCurrentProtocolParameters,
   tryQueryUntilZero,
  )
@@ -90,7 +90,7 @@ data ServerOptions = ServerOptions
 newEnvIO :: ServerOptions -> IO (Either String Env)
 newEnvIO serverOptions =
   do
-    eitherResponse <- tryQueryUntilZero queryCurrentProtocolParameters 300
+    eitherResponse <- tryQueryUntilZero queryCurrentProtocolParameters 1
     case eitherResponse of
       Right response ->
         case decodeProtocolParameters response of

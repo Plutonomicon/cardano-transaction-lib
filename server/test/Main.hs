@@ -20,7 +20,6 @@ import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Network.HTTP.Types (Status (Status))
 import Network.Wai.Handler.Warp (Port)
 import Network.Wai.Handler.Warp qualified as Warp
-import Ogmios.Query (decodeProtocolParameters)
 import Plutus.V1.Ledger.Api qualified as Ledger
 import Servant.Client (
   BaseUrl (baseUrlPort),
@@ -63,6 +62,8 @@ import Types (
   newEnvIO,
   unsafeDecode,
  )
+
+import Ogmios.Parser (decodeProtocolParameters)
 
 main :: IO ()
 main = hspec serverSpec

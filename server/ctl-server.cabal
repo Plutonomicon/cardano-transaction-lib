@@ -84,6 +84,7 @@ library
     Types
     Utils
     Ogmios.Query
+    Ogmios.Parser
 
 executable ctl-server
   import:           common-language
