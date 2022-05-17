@@ -63,6 +63,7 @@ import Types (
   unsafeDecode,
  )
 
+import Data.Text qualified as Text
 import Ogmios.Parser (decodeProtocolParameters)
 
 main :: IO ()
@@ -325,7 +326,7 @@ fixedProtocolParameters =
   ProtocolParameters
     { protocolParamProtocolVersion = (6, 0)
     , protocolParamDecentralization = 0 / 1
-    , protocolParamExtraPraosEntropy = Just $ makePraosNonce "neutral"
+    , protocolParamExtraPraosEntropy = Nothing -- Just $ makePraosNonce "neutral"
     , protocolParamMaxBlockHeaderSize = 1100
     , protocolParamMaxBlockBodySize = 98304
     , protocolParamMaxTxSize = 16384
@@ -357,15 +358,15 @@ fixedProtocolParameters =
     , protocolParamMaxBlockExUnits =
         Just $
           ExecutionUnits
-            { executionSteps = 80000000
-            , executionMemory = 40000000000
+            { executionSteps = 40000000000
+            , executionMemory = 80000000 
             }
     , protocolParamMaxValueSize = Just 5000
     , protocolParamCollateralPercent = Just 150
     , protocolParamMaxCollateralInputs = Just 3
     }
 
-loadFile :: IO (Maybe ProtocolParameters)
+loadFile :: IO (Either [Text.Text] ProtocolParameters)
 loadFile =
   do
     contents <- ByteString.readFile "test/ogmios.json"
@@ -375,4 +376,4 @@ testParser :: Spec
 testParser =
   it "Testing parser of ogmios parameters" $ do
     value <- loadFile
-    shouldBe value (Just fixedProtocolParameters)
+    shouldBe value (Right fixedProtocolParameters)

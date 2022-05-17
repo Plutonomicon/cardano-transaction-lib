@@ -77,6 +77,8 @@ library
     , websockets
     , unordered-containers
     , parsec
+    , aeson-better-errors
+    , utf8-string
 
   exposed-modules:
     Api
@@ -126,3 +128,4 @@ test-suite test
     , servant-client
     , servant-server
     , warp
+    , text

@@ -90,12 +90,12 @@ data ServerOptions = ServerOptions
 newEnvIO :: ServerOptions -> IO (Either String Env)
 newEnvIO serverOptions =
   do
-    eitherResponse <- tryQueryUntilZero queryCurrentProtocolParameters 1
+    eitherResponse <- tryQueryUntilZero queryCurrentProtocolParameters 300
     case eitherResponse of
       Right response ->
         case decodeProtocolParameters response of
-          Just params -> (return . Right . Env serverOptions) params
-          _ -> errorMsg
+          Right params -> (return . Right . Env serverOptions) params
+          Left errors -> return $ Left $ Text.unpack $ Text.intercalate "\n" errors
       _ -> errorMsg
   where
     errorMsg = return $ Left "Can't get protocol parameters from Ogmios"
