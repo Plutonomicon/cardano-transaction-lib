@@ -22,7 +22,14 @@ import FromData (class FromData, fromData, genericFromData)
 import Mote (group, skip, test)
 import Partial.Unsafe (unsafePartial)
 import Plutus.Types.AssocMap (Map(..))
-import Plutus.Types.DataSchema (class HasPlutusSchema, type (:+), type (:=), type (@@), I, PNil)
+import Plutus.Types.DataSchema
+  ( class HasPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  , I
+  , PNil
+  )
 import Serialization (toBytes)
 import Serialization.PlutusData as PDS
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary, genericArbitrary)
@@ -37,7 +44,8 @@ import TypeLevel.RowList.Unordered.Indexed (NilI, ConsI, class UniqueIndices)
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Untagged.Union (asOneOf)
 
-plutusDataAesonRoundTrip ∷ ∀ (a ∷ Type). ToData a ⇒ FromData a ⇒ a → Either JsonDecodeError a
+plutusDataAesonRoundTrip
+  ∷ ∀ (a ∷ Type). ToData a ⇒ FromData a ⇒ a → Either JsonDecodeError a
 plutusDataAesonRoundTrip x = do
   pd <- encodeAeson (toData x) # decodeAeson
   maybe (Left $ TypeMismatch "") (pure) $ fromData pd
@@ -78,21 +86,23 @@ suite = do
         plutusDataAesonRoundTrip input `shouldEqual` Right input
       test "Map" do
         let
-          input = Map [
-            BigInt.fromInt 13 /\ [
-               Map [
-                  BigInt.fromInt 17 /\ false
-                  ]
-               ]
+          input = Map
+            [ BigInt.fromInt 13 /\
+                [ Map
+                    [ BigInt.fromInt 17 /\ false
+                    ]
+                ]
             ]
         plutusDataAesonRoundTrip input `shouldEqual` Right input
     group "Generic" do
       -- TODO: Quickcheckify
       test "CType: from . to == id" do
         let
-          input = C4 (Map [
-                          BigInt.fromInt 13 /\ [Map [BigInt.fromInt 17 /\ false]]
-                   ])
+          input = C4
+            ( Map
+                [ BigInt.fromInt 13 /\ [ Map [ BigInt.fromInt 17 /\ false ] ]
+                ]
+            )
         plutusDataAesonRoundTrip input `shouldEqual` Right input
   group "PlutusData representation tests: ToData/FromData" $ do
     group "Primitives" do
@@ -128,12 +138,12 @@ suite = do
         fromData (toData input) `shouldEqual` Just input
       test "Map" do
         let
-          input = Map [
-            BigInt.fromInt 13 /\ [
-               Map [
-                  BigInt.fromInt 17 /\ false
-                  ]
-               ]
+          input = Map
+            [ BigInt.fromInt 13 /\
+                [ Map
+                    [ BigInt.fromInt 17 /\ false
+                    ]
+                ]
             ]
         fromData (toData input) `shouldEqual` Just input
     group "Generic" do
@@ -252,10 +262,18 @@ data CType
 instance
   HasPlutusSchema CType
     ( "C0" := PNil @@ Z
-        :+ "C1" := PNil @@ (S Z)
-        :+ "C2" := PNil @@ (S (S Z))
-        :+ "C3" := PNil @@ (S (S (S Z)))
-        :+ "C4" := PNil @@ (S (S (S (S Z))))
+        :+ "C1"
+        := PNil
+        @@ (S Z)
+        :+ "C2"
+        := PNil
+        @@ (S (S Z))
+        :+ "C3"
+        := PNil
+        @@ (S (S (S Z)))
+        :+ "C4"
+        := PNil
+        @@ (S (S (S (S Z))))
         :+ PNil
     )
 
