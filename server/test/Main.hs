@@ -2,12 +2,15 @@ module Main (main) where
 
 import Api (app, applyArgs, blake2bHash, estimateTxFees, hashData, hashScript)
 import Cardano.Api qualified as C
+import Cardano.Api.Shelley (ExecutionUnitPrices (ExecutionUnitPrices, priceExecutionMemory, priceExecutionSteps), ExecutionUnits (ExecutionUnits, executionMemory, executionSteps), Lovelace (Lovelace), ProtocolParameters (..), makePraosNonce)
+import Data.ByteString.Lazy qualified as ByteString
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.Kind (Type)
 import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Network.HTTP.Types (Status (Status))
 import Network.Wai.Handler.Warp (Port)
 import Network.Wai.Handler.Warp qualified as Warp
+import Ogmios.Query (decodeProtocolParameters)
 import Plutus.V1.Ledger.Api qualified as Ledger
 import Servant.Client (
   BaseUrl (baseUrlPort),
@@ -61,6 +64,7 @@ serverSpec = do
   describe "Api.Handlers.hashScript" hashScriptSpec
   describe "Api.Handlers.blake2bHash" blake2bHashSpec
   describe "Api.Handlers.hashData" hashDataSpec
+  describe "Parser : " testParser
 
 applyArgsSpec :: Spec
 applyArgsSpec = around withTestApp $ do
@@ -305,3 +309,59 @@ fullyAppliedScript =
     \0b22333573466e1c00800404003c0152002333500b22333573466e3c00800404003c01122\
     \010010091326353008009498cd4015d680119a802bae00112001200112001120011220021\
     \2200120014c01021820004c010544746573740001\""
+
+fixedProtocolParameters =
+  ProtocolParameters
+    { protocolParamProtocolVersion = (6, 0)
+    , protocolParamDecentralization = 0 / 1
+    , protocolParamExtraPraosEntropy = Just $ makePraosNonce "neutral"
+    , protocolParamMaxBlockHeaderSize = 1100
+    , protocolParamMaxBlockBodySize = 98304
+    , protocolParamMaxTxSize = 16384
+    , protocolParamTxFeeFixed = 155381
+    , protocolParamTxFeePerByte = 44
+    , protocolParamMinUTxOValue = Nothing
+    , protocolParamStakeAddressDeposit = 2000000
+    , protocolParamStakePoolDeposit = 500000000
+    , protocolParamMinPoolCost = 340000000
+    , protocolParamPoolRetireMaxEpoch = 18
+    , protocolParamStakePoolTargetNum = 500
+    , protocolParamPoolPledgeInfluence = 3 / 10
+    , protocolParamMonetaryExpansion = 3 / 1000
+    , protocolParamTreasuryCut = 1 / 5
+    , protocolParamUTxOCostPerWord = Just $ Lovelace 34482
+    , protocolParamCostModels = mempty
+    , protocolParamPrices =
+        Just $
+          ExecutionUnitPrices
+            { priceExecutionSteps = 721 / 10000000
+            , priceExecutionMemory = 577 / 10000
+            }
+    , protocolParamMaxTxExUnits =
+        Just $
+          ExecutionUnits
+            { executionSteps = 10000000000
+            , executionMemory = 16000000
+            }
+    , protocolParamMaxBlockExUnits =
+        Just $
+          ExecutionUnits
+            { executionSteps = 80000000
+            , executionMemory = 40000000000
+            }
+    , protocolParamMaxValueSize = Just 5000
+    , protocolParamCollateralPercent = Just 150
+    , protocolParamMaxCollateralInputs = Just 3
+    }
+
+loadFile :: IO (Maybe ProtocolParameters)
+loadFile =
+  do
+    contents <- ByteString.readFile "test/ogmios.json"
+    return $ decodeProtocolParameters contents
+
+testParser :: Spec
+testParser =
+  it "Hi" $ do
+    value <- loadFile
+    shouldBe value (Just fixedProtocolParameters)
