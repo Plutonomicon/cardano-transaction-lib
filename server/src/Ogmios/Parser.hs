@@ -1,6 +1,6 @@
 module Ogmios.Parser (decodeProtocolParameters) where
 
-import Cardano.Api (ExecutionUnitPrices (ExecutionUnitPrices), ExecutionUnits (ExecutionUnits), FromJSON, Lovelace (Lovelace))
+import Cardano.Api (AnyPlutusScriptVersion (AnyPlutusScriptVersion), CostModel (CostModel), ExecutionUnitPrices (ExecutionUnitPrices), ExecutionUnits (ExecutionUnits), FromJSON, Lovelace (Lovelace), PlutusScriptVersion (PlutusScriptV1))
 import Cardano.Api.Shelley (ProtocolParameters (ProtocolParameters), makePraosNonce)
 
 import Data.ByteString.Lazy (ByteString)
@@ -22,48 +22,6 @@ import Data.Aeson.BetterErrors
 import Data.Text qualified as Text
 import Data.Void (Void)
 
-newtype ProtocolParametersWrapper = ProtocolParametersWrapper
-  { unwrapParams :: ProtocolParameters
-  }
-
-instance FromJSON ProtocolParametersWrapper where
-  parseJSON =
-    Aeson.withObject "ProtocolParametersWrapper" $ \top -> do
-      o :: Aeson.Object <- top .: "result"
-      v <- o .: "protocolVersion"
-      params <-
-        ProtocolParameters
-          <$> ((,) <$> v .: "major" <*> v .: "minor")
-          <*> o .: "decentralizationParameter"
-          <*> o .: "extraEntropy"
-          <*> o .: "maxBlockHeaderSize"
-          <*> o .: "maxBlockBodySize"
-          <*> o .: "maxTxSize"
-          <*> o .: "minFeeConstant" -- I think minFeeConstant and minFeeCoefficient are swapped here
-          -- but this is consistent with the current config file.
-          <*> o .: "minFeeCoefficient"
-          <*> o .:? "minUTxOValue"
-          <*> o .: "stakeKeyDeposit"
-          <*> o .: "poolDeposit"
-          <*> o .: "minPoolCost"
-          <*> o .: "poolRetirementEpochBound"
-          <*> o .: "desiredNumberOfPools"
-          <*> o .: "poolInfluence"
-          <*> o .: "monetaryExpansion"
-          <*> o .: "treasuryExpansion"
-          <*> o .:? "coinsPerUtxoWord"
-          <*> o .:? "costModels" .!= Map.empty
-          <*> o .:? "prices"
-          <*> o .:? "maxExecutionUnitsPerTransaction"
-          <*> o .:? "maxExecutionUnitsPerBlock"
-          <*> o .:? "maxValueSize"
-          <*> o .:? "collateralPercentage"
-          <*> o .:? "maxCollateralInputs"
-      return $ ProtocolParametersWrapper params
-
-getResultObject :: Parse e Object
-getResultObject = key "result" asObject
-
 parseVersion :: Parse e (Natural, Natural)
 parseVersion =
   key "protocolVersion" $
@@ -75,13 +33,12 @@ parseNatural strKey =
 
 parseLovelace :: Text.Text -> Parse e Lovelace
 parseLovelace strKey =
-  key strKey $ 
+  key strKey $
     Lovelace . toInteger <$> asIntegral
 
 parseRational :: Text.Text -> Parse Text.Text Rational
 parseRational strKey =
   key strKey (withString rationalParser)
-
 
 parseExecutionPrices :: Parse Text.Text (Maybe ExecutionUnitPrices)
 parseExecutionPrices =
@@ -93,17 +50,18 @@ parseExecutionPrices =
 parseExecutionUnits :: Parse e (Maybe ExecutionUnits)
 parseExecutionUnits = fromAesonParser
 
---  perhaps $ ExecutionUnits
---    <$> parseRational "steps"
---    <*> parseRational "memory"
---
+parseCostModels :: Parse e (Map.Map AnyPlutusScriptVersion CostModel)
+parseCostModels =
+  Map.singleton (AnyPlutusScriptVersion PlutusScriptV1)
+    <$> key "plutus:v1" fromAesonParser
+
 parseResult :: Parse Text.Text ProtocolParameters
 parseResult =
   key "result" $
     ProtocolParameters
       <$> parseVersion
       <*> parseRational "decentralizationParameter"
-      -- TODO : How to parse the value `neutral` from ogmios? 
+      -- TODO : How to parse the value `neutral` from ogmios?
       <*> pure Nothing -- key "extraEntropy" (perhaps (makePraosNonce . BLU.fromString <$>asString))
       <*> parseNatural "maxBlockHeaderSize"
       <*> parseNatural "maxBlockBodySize"
@@ -121,9 +79,7 @@ parseResult =
       <*> parseRational "monetaryExpansion"
       <*> parseRational "treasuryExpansion"
       <*> perhaps (parseLovelace "coinsPerUtxoWord")
-      -- TODO : Ogmios uses a scriptname different than cardano 
-      -- to plutus, this would make this parameter to fail.
-      <*> (key "costModels" fromAesonParser <|> pure Map.empty)
+      <*> (key "costModels" parseCostModels <|> pure Map.empty)
       <*> key "prices" parseExecutionPrices
       <*> key "maxExecutionUnitsPerTransaction" parseExecutionUnits
       <*> key "maxExecutionUnitsPerBlock" parseExecutionUnits
