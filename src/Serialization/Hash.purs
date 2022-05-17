@@ -18,8 +18,10 @@ import Prelude
 
 import Data.Argonaut
   ( class DecodeJson
-  , caseJsonString
+  , class EncodeJson
   , JsonDecodeError(TypeMismatch)
+  , caseJsonString
+  , encodeJson
   )
 import Data.Argonaut as Json
 import Data.Either (Either(Left), note)
@@ -27,10 +29,13 @@ import Data.Function (on)
 import Data.Maybe (Maybe(Nothing))
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import FromData (class FromData)
+import Metadata.FromMetadata (class FromMetadata)
+import Metadata.ToMetadata (class ToMetadata, toMetadata)
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.PlutusData (PlutusData(Bytes))
+import Types.TransactionMetadata (TransactionMetadatum(Bytes)) as Metadata
 
 -- | PubKeyHash and StakeKeyHash refers to blake2b-224 hash digests of Ed25519
 -- | verification keys
@@ -52,6 +57,13 @@ instance ToData Ed25519KeyHash where
 instance FromData Ed25519KeyHash where
   fromData (Bytes kh) = ed25519KeyHashFromBytes kh
   fromData _ = Nothing
+
+instance ToMetadata Ed25519KeyHash where
+  toMetadata = toMetadata <<< ed25519KeyHashToBytes
+
+instance FromMetadata Ed25519KeyHash where
+  fromMetadata (Metadata.Bytes kh) = ed25519KeyHashFromBytes kh
+  fromMetadata _ = Nothing
 
 -- This is needed for `ApplyArgs`.
 instance DecodeJson Ed25519KeyHash where
@@ -120,6 +132,13 @@ instance FromData ScriptHash where
   fromData (Bytes bytes) = scriptHashFromBytes bytes
   fromData _ = Nothing
 
+instance ToMetadata ScriptHash where
+  toMetadata = toMetadata <<< scriptHashToBytes
+
+instance FromMetadata ScriptHash where
+  fromMetadata (Metadata.Bytes bytes) = scriptHashFromBytes bytes
+  fromMetadata _ = Nothing
+
 -- Corresponds to Plutus' `Plutus.V1.Ledger.Api.Script` Aeson instances
 instance DecodeJson ScriptHash where
   decodeJson =
@@ -127,6 +146,9 @@ instance DecodeJson ScriptHash where
       note (Json.TypeMismatch "Expected hex-encoded script hash")
         <<< (scriptHashFromBytes <=< hexToByteArray)
         <=< flip Json.getField "getScriptHash"
+
+instance EncodeJson ScriptHash where
+  encodeJson sh = encodeJson (scriptHashToBytes sh)
 
 foreign import _scriptHashFromBytesImpl
   :: MaybeFfiHelper

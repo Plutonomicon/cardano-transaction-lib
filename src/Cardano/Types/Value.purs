@@ -51,8 +51,10 @@ import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Data.Argonaut
   ( class DecodeJson
+  , class EncodeJson
   , JsonDecodeError(TypeMismatch)
   , caseJsonObject
+  , encodeJson
   , getField
   )
 import Data.Array (cons, filter)
@@ -75,6 +77,8 @@ import Data.These (These(Both, That, This))
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested ((/\), type (/\))
 import FromData (class FromData)
+import Metadata.FromMetadata (class FromMetadata)
+import Metadata.ToMetadata (class ToMetadata)
 import Partial.Unsafe (unsafePartial)
 import Serialization.Hash
   ( ScriptHash
@@ -83,7 +87,7 @@ import Serialization.Hash
   , scriptHashToBytes
   )
 import ToData (class ToData)
-import Types.ByteArray (ByteArray, byteLength, hexToByteArray)
+import Types.ByteArray (ByteArray, byteArrayToHex, byteLength, hexToByteArray)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Types.TokenName
   ( TokenName
@@ -181,8 +185,10 @@ newtype CurrencySymbol = CurrencySymbol ByteArray
 
 derive newtype instance Eq CurrencySymbol
 derive newtype instance FromData CurrencySymbol
+derive newtype instance FromMetadata CurrencySymbol
 derive newtype instance Ord CurrencySymbol
 derive newtype instance ToData CurrencySymbol
+derive newtype instance ToMetadata CurrencySymbol
 
 instance Show CurrencySymbol where
   show (CurrencySymbol cs) = "(CurrencySymbol" <> show cs <> ")"
@@ -195,6 +201,10 @@ instance DecodeJson CurrencySymbol where
         <=< note (TypeMismatch "Invalid ByteArray") <<< hexToByteArray
         <=< flip getField "unCurrencySymbol"
     )
+
+instance EncodeJson CurrencySymbol where
+  encodeJson (CurrencySymbol ba) = encodeJson
+    { "unCurrencySymbol": byteArrayToHex ba }
 
 getCurrencySymbol :: CurrencySymbol -> ByteArray
 getCurrencySymbol (CurrencySymbol curSymbol) = curSymbol

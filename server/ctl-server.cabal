@@ -72,6 +72,7 @@ library
     , text
     , wai-cors
     , warp
+    , cardano-ledger-shelley-ma
 
   exposed-modules:
     Api
@@ -89,6 +90,7 @@ executable ctl-server
   main-is:          Main.hs
   build-depends:
     , base
+    , cardano-api
     , ctl-server
     , http-types
     , optparse-applicative
@@ -106,6 +108,7 @@ test-suite test
   build-depends:
     , base
     , bytestring
+    , cardano-api
     , ctl-server
     , hspec
     , hspec-core

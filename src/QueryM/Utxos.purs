@@ -14,10 +14,12 @@ import Data.Bifunctor (bimap)
 import Data.Bitraversable (bisequence)
 import Data.Map as Map
 import Data.Maybe (Maybe, maybe)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (unwrap, wrap, over)
 import Data.Traversable (sequence)
 import Data.Tuple.Nested (type (/\))
 import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
+import Effect.Exception (throw)
 import Helpers as Helpers
 import QueryM (QueryM, getWalletCollateral, mkOgmiosRequest)
 import Serialization.Address (Address)
@@ -89,13 +91,12 @@ utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
   -- by searching "// exclude collateral input from overall utxo set"
   -- or functions getUtxos and checkCollateral.
   namiUtxosAt :: Address -> QueryM (Maybe Transaction.UtxoM)
-  namiUtxosAt address = do
-    utxos' <- allUtxosAt address
-    collateral' <- getWalletCollateral
-    pure do
-      utxos <- unwrap <$> utxos'
-      collateral <- unwrap <$> collateral'
-      pure $ wrap $ Map.delete collateral.input utxos
+  namiUtxosAt address = getWalletCollateral >>= maybe
+    (liftEffect $ throw "Nami wallet missing collateral")
+    \collateral' -> do
+      let collateral = unwrap collateral'
+      utxos' <- allUtxosAt address
+      pure (over UtxoM (Map.delete collateral.input) <$> utxos')
 
 --------------------------------------------------------------------------------
 -- Used Utxos helpers

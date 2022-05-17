@@ -4,6 +4,7 @@ module Types.Int
   , newPositive
   , newNegative
   , fromBigInt
+  , toBigInt
   ) where
 
 import Prelude
@@ -29,7 +30,7 @@ instance Eq Int where
 instance Ord Int where
   compare = compare `on` \number ->
     -- Assuming every Int can be represented as BigInt
-    unsafePartial $ fromJust $ BigInt.fromString $ _intToStr number
+    unsafePartial $ fromJust $ toBigInt number
 
 instance Show Int where
   show = _intToStr
@@ -38,3 +39,6 @@ fromBigInt :: BigInt.BigInt -> Maybe Int
 fromBigInt bi =
   (newPositive <$> bigNumFromBigInt bi) <|>
     (newNegative <$> bigNumFromBigInt (negate bi))
+
+toBigInt :: Int -> Maybe BigInt.BigInt
+toBigInt = BigInt.fromString <<< _intToStr
