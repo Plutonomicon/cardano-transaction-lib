@@ -10,15 +10,15 @@ module Plutus.Types.CurrencySymbol
 
 import Prelude
 
-import Data.Argonaut
-  ( class DecodeJson
-  , class EncodeJson
-  , JsonDecodeError(TypeMismatch)
-  , caseJsonObject
-  , decodeJson
-  , encodeJson
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , caseAesonObject
+  , decodeAeson
+  , encodeAeson
   , getField
   )
+import Data.Argonaut (JsonDecodeError(..))
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe)
 import FromData (class FromData)
@@ -39,14 +39,14 @@ derive newtype instance Ord CurrencySymbol
 derive newtype instance FromData CurrencySymbol
 derive newtype instance ToData CurrencySymbol
 
-instance DecodeJson CurrencySymbol where
-  decodeJson = caseJsonObject
+instance DecodeAeson CurrencySymbol where
+  decodeAeson = caseAesonObject
     (Left $ TypeMismatch "Expected object")
-    (flip getField "unCurrencySymbol" >=> decodeJson >>> map CurrencySymbol)
+    (flip getField "unCurrencySymbol" >=> decodeAeson >>> map CurrencySymbol)
 
-instance EncodeJson CurrencySymbol where
-  encodeJson (CurrencySymbol mph) = encodeJson
-    { "unCurrencySymbol": encodeJson mph }
+instance EncodeAeson CurrencySymbol where
+  encodeAeson' (CurrencySymbol mph) = pure $ encodeAeson
+    { "unCurrencySymbol": encodeAeson mph }
 
 instance Show CurrencySymbol where
   show (CurrencySymbol cs) = "(CurrencySymbol" <> show cs <> ")"

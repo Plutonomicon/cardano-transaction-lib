@@ -13,7 +13,12 @@ module Types.ByteArray
 
 import Prelude
 
-import Aeson (class DecodeAeson, decodeAesonViaJson)
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , decodeAesonViaJson
+  , encodeAesonViaJson
+  )
 import Data.Argonaut (class DecodeJson, class EncodeJson, fromString)
 import Data.Argonaut as Json
 import Data.ArrayBuffer.Types (Uint8Array)
@@ -62,6 +67,9 @@ instance EncodeJson ByteArray where
 
 instance DecodeAeson ByteArray where
   decodeAeson = decodeAesonViaJson
+
+instance EncodeAeson ByteArray where
+  encodeAeson' = encodeAesonViaJson
 
 foreign import ord_ :: (Int -> Int -> Int) -> ByteArray -> ByteArray -> Int
 
