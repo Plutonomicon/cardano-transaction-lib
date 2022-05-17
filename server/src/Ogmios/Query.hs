@@ -4,8 +4,10 @@
 module Ogmios.Query (
   makeRequest,
   tryQueryUntilZero,
-  queryCurrentProtocolParameters,
   RequestOption (Query, Acquire),
+  defaultServerParameters,
+  ServerParameters (..),
+  QueryOption (..),
 ) where
 
 --------------------------------------------------------------------------------
@@ -71,10 +73,6 @@ makeRequest ServerParameters {..} option =
   withSocketsDo $
     WebSockets.runClient getHost getPort getPath $
       makeApp option
-
-queryCurrentProtocolParameters :: IO ByteString
-queryCurrentProtocolParameters =
-  makeRequest defaultServerParameters $ Query CurrentProtocolParameters
 
 tryQueryUntilZero :: IO ByteString -> Int -> IO (Either String ByteString)
 tryQueryUntilZero query remainAttempts =

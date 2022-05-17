@@ -17,6 +17,7 @@ import Network.Wai.Handler.Warp (
   setPort,
  )
 import Network.Wai.Logger (withStdoutLogger)
+import Ogmios.Query qualified
 import Options.Applicative qualified as Options
 import System.Exit (die)
 import Text.Read (readMaybe)
@@ -80,4 +81,23 @@ serverOptionsParser =
           <> Options.showDefault
           <> Options.value C.Mainnet
           <> Options.metavar "NETWORKID"
+      )
+    <*> Options.option
+      Options.str
+      ( Options.long "ogmios-host"
+          <> Options.help "The hostname for ogmios"
+          <> Options.showDefault
+          <> Options.value "ogmios"
+          <> Options.metavar "IPV4"
+      )
+    <*> Options.option
+      Options.auto
+      ( Options.long "ogmios-port"
+          <> Options.help "The port for ogmios"
+          <> Options.showDefault
+          <> Options.value
+            ( Ogmios.Query.getPort
+                Ogmios.Query.defaultServerParameters
+            )
+          <> Options.metavar "INT"
       )

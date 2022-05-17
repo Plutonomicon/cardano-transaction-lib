@@ -56,10 +56,7 @@ import Text.Read (readMaybe)
 import Utils (tshow)
 
 import Ogmios.Parser (decodeProtocolParameters)
-import Ogmios.Query (
-  queryCurrentProtocolParameters,
-  tryQueryUntilZero,
- )
+import Ogmios.Query qualified
 
 -- import Paths_ctl_server (getDataFileName)
 
@@ -83,22 +80,39 @@ data ServerOptions = ServerOptions
   { port :: Port
   , nodeSocket :: FilePath
   , networkId :: C.NetworkId
+  , ogmiosHost :: String
+  , ogmiosPort :: Int
   }
   deriving stock (Generic)
 
 newEnvIO :: ServerOptions -> IO (Either String Env)
-newEnvIO serverOptions =
-  do
-    eitherResponse <- tryQueryUntilZero queryCurrentProtocolParameters 300
-    case eitherResponse of
-      Right response ->
-        case decodeProtocolParameters response of
-          Right params -> (return . Right . Env serverOptions) params
-          Left errors -> return $ Left $ Text.unpack $ Text.intercalate "\n" errors
-      Left msg ->
-        return . Left $
-          "Can't get protocol parameters from Ogmios: \n"
-            <> msg
+newEnvIO serverOptions@ServerOptions {..} =
+  let ogmiosServerParams =
+        Ogmios.Query.defaultServerParameters
+          { Ogmios.Query.getPort = ogmiosPort
+          , Ogmios.Query.getHost = ogmiosHost
+          }
+      queryProtocolParams :: IO LC8.ByteString
+      queryProtocolParams =
+        Ogmios.Query.makeRequest
+          ogmiosServerParams
+          $ Ogmios.Query.Query
+            Ogmios.Query.CurrentProtocolParameters
+      maxConnectionAttempts = 300
+   in do
+        eitherResponse <-
+          Ogmios.Query.tryQueryUntilZero
+            queryProtocolParams
+            maxConnectionAttempts
+        case eitherResponse of
+          Right response ->
+            case decodeProtocolParameters response of
+              Right params -> (return . Right . Env serverOptions) params
+              Left errors -> return $ Left $ Text.unpack $ Text.intercalate "\n" errors
+          Left msg ->
+            return . Left $
+              "Can't get protocol parameters from Ogmios: \n"
+                <> msg
 
 newtype Cbor = Cbor Text
   deriving stock (Show)

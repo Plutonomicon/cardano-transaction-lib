@@ -57,7 +57,14 @@ import Types (
   HashScriptRequest (HashScriptRequest),
   HashedData (HashedData),
   HashedScript (HashedScript),
-  ServerOptions (ServerOptions, networkId, nodeSocket, port),
+  ServerOptions (
+    ServerOptions, 
+    networkId, 
+    nodeSocket, 
+    port, 
+    ogmiosPort, 
+    ogmiosHost
+  ),
   WitnessCount (WitnessCount),
   newEnvIO,
   unsafeDecode,
@@ -192,6 +199,8 @@ withTestApp = Warp.testWithApplication $ app <$> newEnvIO'
         { port = 8081
         , nodeSocket = "./.node/socket/node.socket"
         , networkId = C.Testnet (C.NetworkMagic 1097911063)
+        , ogmiosHost = "ogmios"
+        , ogmiosPort = 1337
         }
     newEnvIO' :: IO Env
     newEnvIO' = either die pure =<< newEnvIO serverOptions
