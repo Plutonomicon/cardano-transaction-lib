@@ -50,7 +50,6 @@ module QueryM
   , signTransaction
   , signTransactionBytes
   , startFetchBlocksRequest
-  , submitTxWallet
   , submitTxOgmios
   , underlyingWebSocket
   ) where
@@ -401,12 +400,6 @@ signTransactionBytes
 signTransactionBytes tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.signTxBytes tx
   Gero gero -> callGero gero $ \gw -> flip gw.signTxBytes tx
-
-submitTxWallet
-  :: Transaction.Transaction -> QueryM (Maybe Transaction.TransactionHash)
-submitTxWallet tx = withMWalletAff $ case _ of
-  Nami nami -> callNami nami $ \nw -> flip nw.submitTx tx
-  Gero gero -> callGero gero $ \gw -> flip gw.submitTx tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do

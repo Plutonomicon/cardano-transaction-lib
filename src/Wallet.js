@@ -32,32 +32,23 @@ exports._signTxNami = txHex => nami => () => {
       });
 }
 
-// _submitTxNami :: String -> NamiConnection -> Effect (Promise String)
-exports._submitTxNami = txHex => nami => () => {
-  return nami.submitTx(txHex)
-      .catch(e => {
-          console.log("Error in submitTxNami: ", e);
-          throw (JSON.stringify(e));
-      });
-};
+// _enableGero :: Effect (Promise GeroConnection)
+exports._enableGero = () => window.cardano.gerowallet.enable();
 
-// _enableGero :: Effect (Promise NamiConnection)
-exports._enableGero = () => window.cardano.gero.enable();
-
-// _getGeroAddress :: NamiConnection -> Effect (Promise String)
+// _getGeroAddress :: GeroConnection -> Effect (Promise String)
 exports._getGeroAddress = gero => () =>
   gero.getUsedAddresses().then((addrs) => addrs[0]);
 
 // _getGeroCollateral
 //   :: MaybeFfiHelper
-//   -> NamiConnection
+//   -> GeroConnection
 //   -> Effect (Promise String)
 exports._getGeroCollateral = maybe => gero => () =>
   gero.experimental.getCollateral().then((utxos) => {
   return utxos.length ? maybe.just(utxos[0]) : maybe.nothing;
 });
 
-// _signTxGero :: String -> NamiConnection -> Effect (Promise String)
+// _signTxGero :: String -> GeroConnection -> Effect (Promise String)
 exports._signTxGero = txHex => gero => () => {
   return gero.signTx(txHex, true)
       .catch(e => {
@@ -65,15 +56,6 @@ exports._signTxGero = txHex => gero => () => {
           throw (JSON.stringify(e));
       });
 }
-
-// _submitTxGero :: String -> NamiConnection -> Effect (Promise String)
-exports._submitTxGero = txHex => gero => () => {
-  return gero.submitTx(txHex)
-      .catch(e => {
-          console.log("Error in submitTxGero: ", e);
-          throw (JSON.stringify(e));
-      });
-};
 
 // foreign import _attachSignature
 //   :: ByteArray

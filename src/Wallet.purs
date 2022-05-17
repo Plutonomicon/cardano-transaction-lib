@@ -62,8 +62,6 @@ type NamiWallet =
   , signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
   -- Sign a transaction with the current wallet
   , signTxBytes :: NamiConnection -> ByteArray -> Aff (Maybe ByteArray)
-  -- Submit a (balanced) transaction
-  , submitTx :: NamiConnection -> Transaction -> Aff (Maybe TransactionHash)
   }
 
 mkNamiWalletAff :: Aff Wallet
@@ -79,7 +77,6 @@ mkNamiWalletAff = do
     , getCollateral
     , signTx
     , signTxBytes
-    , submitTx
     }
 
   where
@@ -120,11 +117,6 @@ mkNamiWalletAff = do
     fromNamiHexString (_signTxNami (byteArrayToHex txBytes)) nami >>= case _ of
       Nothing -> pure Nothing
       Just witBytes -> Just <$> liftEffect (_attachSignature txBytes witBytes)
-
-  submitTx :: NamiConnection -> Transaction -> Aff (Maybe TransactionHash)
-  submitTx nami tx = do
-    txHex <- txToHex tx
-    map TransactionHash <$> fromNamiHexString (_submitTxNami txHex) nami
 
   txToHex :: Transaction -> Aff String
   txToHex =
@@ -179,7 +171,6 @@ type GeroWallet =
   , getCollateral :: GeroConnection -> Aff (Maybe TransactionUnspentOutput)
   , signTx :: GeroConnection -> Transaction -> Aff (Maybe Transaction)
   , signTxBytes :: GeroConnection -> ByteArray -> Aff (Maybe ByteArray)
-  , submitTx :: GeroConnection -> Transaction -> Aff (Maybe TransactionHash)
   }
 
 mkGeroWalletAff :: Aff Wallet
@@ -195,7 +186,6 @@ mkGeroWalletAff = do
     , getCollateral
     , signTx
     , signTxBytes
-    , submitTx
     }
 
   where
@@ -233,15 +223,10 @@ mkGeroWalletAff = do
 
   signTxBytes :: GeroConnection -> ByteArray -> Aff (Maybe ByteArray)
   signTxBytes gero txBytes = do
-    fromGeroHexString (_submitTxGero (byteArrayToHex txBytes)) gero >>=
+    fromGeroHexString (_signTxGero (byteArrayToHex txBytes)) gero >>=
       case _ of
         Nothing -> pure Nothing
         Just witBytes -> Just <$> liftEffect (_attachSignature txBytes witBytes)
-
-  submitTx :: GeroConnection -> Transaction -> Aff (Maybe TransactionHash)
-  submitTx gero tx = do
-    txHex <- txToHex tx
-    map TransactionHash <$> fromGeroHexString (_submitTxGero txHex) gero
 
   txToHex :: Transaction -> Aff String
   txToHex =
@@ -282,11 +267,6 @@ foreign import _signTxNami
   -> NamiConnection
   -> Effect (Promise String)
 
-foreign import _submitTxNami
-  :: String -- Hex-encoded cbor of tx
-  -> NamiConnection
-  -> Effect (Promise String) -- Submitted tx hash
-
 foreign import _attachSignature
   :: ByteArray -- CBOR bytes of tx
   -> ByteArray -- CBOR bytes of witness set
@@ -311,8 +291,3 @@ foreign import _signTxGero
   :: String -- Hex-encoded cbor of tx
   -> GeroConnection
   -> Effect (Promise String)
-
-foreign import _submitTxGero
-  :: String -- Hex-encoded cbor of tx
-  -> GeroConnection
-  -> Effect (Promise String) -- Submitted tx hash
