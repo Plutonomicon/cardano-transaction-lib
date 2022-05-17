@@ -4,7 +4,7 @@ module Types.PlutusData
 
 import Prelude
 
-import Aeson (class DecodeAeson, decodeAeson, (.:))
+import Aeson (class DecodeAeson, class EncodeAeson, decodeAeson, encodeAeson, encodeAeson', (.:))
 import Control.Alt ((<|>))
 import Data.Argonaut (encodeJson)
 import Data.Argonaut.Decode (JsonDecodeError(UnexpectedValue))
@@ -71,3 +71,19 @@ instance DecodeAeson PlutusData where
       case hexToByteArray bytesHex of
         Nothing -> Left $ UnexpectedValue $ encodeJson bytesHex
         Just res -> pure $ Bytes res
+
+
+instance EncodeAeson PlutusData where
+  encodeAeson' (Constr constr fields) = encodeAeson'
+    { "constr": encodeAeson constr,
+      "fields": encodeAeson fields
+    }
+  encodeAeson' (Map elems) = encodeAeson' {
+      "map": encodeAeson $ map (\(k /\ v) -> {
+         "key": encodeAeson k,
+         "value": encodeAeson v
+         }) elems
+      }
+  encodeAeson' (List elems) = encodeAeson' elems
+  encodeAeson' (Integer bi) = encodeAeson' bi
+  encodeAeson' (Bytes ba) = encodeAeson' ba
