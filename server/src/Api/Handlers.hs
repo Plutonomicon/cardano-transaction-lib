@@ -55,15 +55,21 @@ import Types (
   CborDecodeError (InvalidCbor, InvalidHex, OtherDecodeError),
   CtlServerError (CardanoError, CborDecode),
   Env (protocolParams),
-  ExecutionUnitsMap (..),
+  ExecutionUnitsMap (ExecutionUnitsMap),
   Fee (Fee),
-  FinalizeRequest (..),
-  FinalizedTransaction (..),
+  FinalizeRequest (FinalizeRequest, datums, redeemers, tx),
+  FinalizedTransaction (FinalizedTransaction),
   HashDataRequest (HashDataRequest),
   HashScriptRequest (HashScriptRequest),
   HashedData (HashedData),
   HashedScript (HashedScript),
-  RdmrPtrExUnits (..),
+  RdmrPtrExUnits (
+    RdmrPtrExUnits,
+    exUnitsMem,
+    exUnitsSteps,
+    rdmrPtrIdx,
+    rdmrPtrTag
+  ),
   WitnessCount (WitnessCount),
   getNodeConnectInfo,
   hashLedgerScript,
@@ -149,7 +155,7 @@ blake2bHash (BytesToHash hs) =
     PlutusTx.toBuiltin hs
 
 finalizeTx :: FinalizeRequest -> AppM FinalizedTransaction
-finalizeTx (FinalizeRequest {tx, datums, redeemers}) = do
+finalizeTx FinalizeRequest {tx, datums, redeemers} = do
   pparams <- asks protocolParams
   decodedTx <-
     throwDecodeErrorWithMessage "Failed to decode tx" $
