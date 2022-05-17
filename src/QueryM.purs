@@ -1,4 +1,4 @@
--- | TODO docstrinn
+-- | TODO docstring
 module QueryM
   ( ClientError(..)
   , DatumCacheListeners

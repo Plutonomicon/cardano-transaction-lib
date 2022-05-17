@@ -48,12 +48,9 @@ import Contract.Wallet (mkNamiWalletAff)
 import Data.Argonaut (decodeJson, fromString)
 import Data.BigInt as BigInt
 
-import Effect.Aff (launchAff_)
-
 main :: Effect Unit
 main = launchAff_ $ do
-  let wallet = mkNamiWalletAff
-  cfg <- traceContractConfig wallet
+  cfg <- traceContractConfig mkNamiWalletAff
   runContract_ cfg $ do
     validator <- liftContractM "Invalid script JSON" $ alwaysSucceedsScript
     vhash <- liftedM "Couldn't hash validator" $ validatorHash validator
