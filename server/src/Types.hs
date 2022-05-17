@@ -95,9 +95,10 @@ newEnvIO serverOptions =
         case decodeProtocolParameters response of
           Right params -> (return . Right . Env serverOptions) params
           Left errors -> return $ Left $ Text.unpack $ Text.intercalate "\n" errors
-      _ -> errorMsg
-  where
-    errorMsg = return $ Left "Can't get protocol parameters from Ogmios"
+      Left msg ->
+        return . Left $
+          "Can't get protocol parameters from Ogmios: \n"
+            <> msg
 
 newtype Cbor = Cbor Text
   deriving stock (Show)
