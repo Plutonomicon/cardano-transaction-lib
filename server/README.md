@@ -51,7 +51,7 @@ The server executable can be built with `nix build .#cardano-trasaction-lib-serv
 "4d01000033222220051200120011"
 ```
 
-## POST /blake2b
+## POST /plutusHash
 
 ### Request:
 
@@ -61,9 +61,13 @@ The server executable can be built with `nix build .#cardano-trasaction-lib-serv
     - `application/json`
 
 - Bytes to hash as hexadecimal string (`application/json;charset=utf-8`, `application/json`):
+- Hashing method from PlutusTx to hash with; one of `Sha2_256`, `Sha3_256`, `Blake2b_256`
 
 ```javascript
-"666f6f"
+{
+  "bytesToHash" : "68656C6C6F20776F726C64"
+  "methodToUse" : "Sha3_256", 
+}
 ```
 
 ### Response:
@@ -77,9 +81,13 @@ The server executable can be built with `nix build .#cardano-trasaction-lib-serv
     - `application/json`
 
 - Hash bytes are returned as hexidecimal string (`application/json;charset=utf-8`, `application/json`):
+- Hashing Method used; one of `Sha2_256`, `Sha3_256`, `Blake2b_256`
 
 ```javascript
-"b8fe9f7f6255a6fa08f668ab632a8d081ad87983c77cd274e48ce450f0b349fd"
+{
+  "hash":"644bcc7e564373040999aac89e7622f3ca71fba1d972fd94a31c3bfbf24e3938",
+  "methodUsed":"Sha3_256"
+}
 ```
 
 ## GET /eval-ex-units
