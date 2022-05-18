@@ -33,7 +33,7 @@ import Data.Lens.Getter ((^.))
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Tuple.Nested (type (/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import Plutus.ToPlutusType (toPlutusType)
 import Plutus.Types.Value (Value)
 import QueryM
