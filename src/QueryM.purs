@@ -11,6 +11,7 @@ module QueryM
   , module ServerConfig
   , ListenerSet
   , PendingRequests
+  , RdmrPtrExUnits(..)
   , RequestBody
   , OgmiosListeners
   , OgmiosWebSocket
@@ -25,6 +26,7 @@ module QueryM
   , calculateMinFee
   , datumHash
   , traceQueryConfig
+  , evalTxExecutionUnits
   , finalizeTx
   , getWalletAddress
   , getChainTip
@@ -150,6 +152,7 @@ import Types.Datum (Datum, DatumHash)
 import Types.Interval (SlotConfig, defaultSlotConfig)
 import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
+import Types.Natural (Natural)
 import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PubKeyHash)
 import Types.Scripts (PlutusScript)
@@ -377,14 +380,17 @@ instance Show ClientError where
       <> err
       <> ")"
 
+txToHex :: Transaction -> Effect String
+txToHex tx =
+  byteArrayToHex
+    <<< Serialization.toBytes
+    <<< asOneOf
+    <$> Serialization.convertTransaction tx
+
 -- Query the Haskell server for the minimum transaction fee
 calculateMinFee :: Transaction -> QueryM (Either ClientError Coin)
 calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
-  txHex <- liftEffect $
-    byteArrayToHex
-      <<< Serialization.toBytes
-      <<< asOneOf
-      <$> Serialization.convertTransaction tx
+  txHex <- liftEffect (txToHex tx)
   url <- mkServerEndpointUrl
     $ "fees?tx="
         <> txHex
@@ -403,7 +409,7 @@ calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   -- The server is calculating fees that are too low
   -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/123
   coinFromEstimate :: FeeEstimate -> Coin
-  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 700000)) <<< unwrap
+  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 10000)) <<< unwrap
 
   -- Fee estimation occurs before balancing the transaction, so we need to know
   -- the expected number of witnesses to use the cardano-api fee estimation
@@ -421,6 +427,30 @@ calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   --     required signers
   witCount :: UInt
   witCount = maybe one UInt.fromInt $ length <$> body.requiredSigners
+
+newtype RdmrPtrExUnits = RdmrPtrExUnits
+  { rdmrPtrTag :: Int
+  , rdmrPtrIdx :: Natural
+  , exUnitsMem :: Natural
+  , exUnitsSteps :: Natural
+  }
+
+derive instance Generic RdmrPtrExUnits _
+
+instance Show RdmrPtrExUnits where
+  show = genericShow
+
+derive newtype instance DecodeJson RdmrPtrExUnits
+
+evalTxExecutionUnits
+  :: Transaction -> QueryM (Either ClientError (Array RdmrPtrExUnits))
+evalTxExecutionUnits tx = do
+  txHex <- liftEffect (txToHex tx)
+  url <- mkServerEndpointUrl ("eval-ex-units?tx=" <> txHex)
+  liftAff (Affjax.get Affjax.ResponseFormat.json url)
+    <#> either
+      (Left <<< ClientHttpError)
+      (lmap ClientDecodeJsonError <<< Json.decodeJson <<< _.body)
 
 -- | CborHex-encoded tx
 newtype FinalizedTransaction = FinalizedTransaction ByteArray
@@ -444,11 +474,7 @@ finalizeTx
   -> QueryM (Maybe FinalizedTransaction)
 finalizeTx tx datums redeemers = do
   -- tx
-  txHex <- liftEffect $
-    byteArrayToHex
-      <<< Serialization.toBytes
-      <<< asOneOf
-      <$> Serialization.convertTransaction tx
+  txHex <- liftEffect (txToHex tx)
   -- datums
   encodedDatums <- liftEffect do
     for datums \datum -> do

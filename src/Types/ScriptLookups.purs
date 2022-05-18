@@ -1036,14 +1036,16 @@ processConstraint mpsMap osMap = do
             ys
       tryNext (toUnfoldable $ map toUnfoldable xs)
   where
-  -- The follow hardcoded before calling Ogmios to calculate execution
-  -- unit. Calling Ogmios is an outstanding issue:
+  -- Set ex units to zero. They will be calculated by the server after calling
+  -- the `eval-ex-units` endpoint
+  --
+  -- In the future we are planning on using Ogmios' facilitie for this:
   -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/174
   scriptExUnits :: ExUnits
-  scriptExUnits = { mem: fromInt 3000000, steps: fromInt 1500000000 }
+  scriptExUnits = { mem: fromInt 0, steps: fromInt 0 }
 
   mintExUnits :: ExUnits
-  mintExUnits = { mem: fromInt 3000000, steps: fromInt 1500000000 }
+  mintExUnits = { mem: fromInt 0, steps: fromInt 0 }
 
 -- Attach a Datum, Redeemer, or PlutusScript depending on the handler. They
 -- share error type anyway.
