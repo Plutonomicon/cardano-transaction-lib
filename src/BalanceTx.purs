@@ -413,21 +413,21 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     _ /\ fees <- ExceptT $ evalExUnitsAndMinFee unattachedTx'
     ubcTx' <- except $
       prebalanceCollateral (fees + feeBuffer) allUtxos ownAddr ubcTx
-    let unattachedTx'' = unattachedTx' # _transaction' .~ ubcTx'
     -- Loop to balance non-Ada assets
-    nonAdaBalancedCollTx <- ExceptT $ loop allUtxos ownAddr [] unattachedTx''
+    nonAdaBalancedCollTx <- ExceptT $ loop allUtxos ownAddr [] $ unattachedTx' #
+      _transaction' .~ ubcTx'
     -- Return excess Ada change to wallet:
     unsignedTx <- ExceptT $
       returnAdaChange ownAddr allUtxos nonAdaBalancedCollTx <#>
         lmap ReturnAdaChangeError'
     let
-      unattachedTx = unsignedTx ^. _transaction'
+      unattachedTx'' = unsignedTx ^. _transaction'
         /\ unsignedTx ^. _redeemersTxIns
       -- Sort inputs at the very end so it behaves as a Set.
-      sortedUnsignedTx = fst unattachedTx # _body <<< _inputs %~ Array.sort
+      sortedUnsignedTx = fst unattachedTx'' # _body <<< _inputs %~ Array.sort
     -- Logs final balanced tx and returns it
     logTx "Post-balancing Tx " allUtxos sortedUnsignedTx
-    except $ Right (unattachedTx # _1 .~ sortedUnsignedTx)
+    except $ Right (unattachedTx'' # _1 .~ sortedUnsignedTx)
   where
   prebalanceCollateral
     :: BigInt
