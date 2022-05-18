@@ -10,11 +10,9 @@ module Ogmios.Query (
   QueryOption (..),
 ) where
 
---------------------------------------------------------------------------------
+import Control.Exception.Base (SomeException, try)
 
-import Control.Exception (IOException)
-import Control.Exception.Base (try)
-
+import Data.Bifunctor (first)
 import Data.ByteString.Lazy (ByteString)
 import Data.Text (Text)
 import Network.Socket (withSocketsDo)
@@ -80,7 +78,7 @@ tryQueryUntilZero query remainAttempts =
     then do
       return $ Left "Error trying to connect to Ogmios"
     else do
-      msgOrError <- (try query :: IO (Either IOException ByteString))
+      msgOrError <- first show <$> try @SomeException query
       case msgOrError of
         Right msg -> return $ Right msg
         Left e ->
