@@ -7,12 +7,12 @@ module Contract.Utxos
   ) where
 
 import Prelude
+import Cardano.Types.Transaction (UtxoM(UtxoM)) as Transaction
 import Contract.Monad (Contract, wrapContract, liftContractM)
 import Data.Maybe (Maybe)
 import QueryM.Utxos (utxosAt) as Utxos
 import Plutus.Types.Address (Address)
 import Plutus.FromPlutusType (fromPlutusType)
-import Types.Transaction (Utxo, UtxoM(UtxoM)) as Transaction
 
 -- | This module defines query functionality via Ogmios to get utxos.
 

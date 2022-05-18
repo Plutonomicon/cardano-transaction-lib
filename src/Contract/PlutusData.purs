@@ -14,7 +14,6 @@ module Contract.PlutusData
   , module Redeemer
   , module FromData
   , module ToData
-  , module Transaction
   ) where
 
 import Prelude
@@ -39,29 +38,30 @@ import QueryM
 import Serialization.Address (Slot)
 import ToData (class ToData, toData) as ToData
 import Types.Chain (BlockHeaderHash)
-import Types.Datum (Datum(Datum), DatumHash, unitDatum) as Datum
-import Types.PlutusData (PlutusData(Constr, Map, List, Integer, Bytes)) as PlutusData
+import Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as Datum
+import Types.Datum (DataHash)
+import Types.PlutusData
+  ( PlutusData(Constr, Map, List, Integer, Bytes)
+  ) as PlutusData
 import Types.Redeemer
   ( Redeemer(Redeemer)
   , RedeemerHash(RedeemerHash)
   , redeemerHash
   , unitRedeemer
   ) as Redeemer
-import Types.Transaction (DatumHash)
-import Types.Transaction (DataHash(DataHash)) as Transaction
 
 -- | Get a `PlutusData` given a `DatumHash`.
 getDatumByHash
   :: forall (r :: Row Type)
-   . DatumHash
+   . DataHash
   -> Contract r (Maybe Datum.Datum)
 getDatumByHash = wrapContract <<< QueryM.getDatumByHash
 
--- | Get `PlutusData`s given a an `Array` of `DatumHash`.
+-- | Get `PlutusData`s given a an `Array` of `DataHash`.
 getDatumsByHashes
   :: forall (r :: Row Type)
-   . Array DatumHash
-  -> Contract r (Map DatumHash Datum.Datum)
+   . Array DataHash
+  -> Contract r (Map DataHash Datum.Datum)
 getDatumsByHashes = wrapContract <<< QueryM.getDatumsByHashes
 
 startFetchBlocks
@@ -75,5 +75,5 @@ cancelFetchBlocks :: forall (r :: Row Type). Contract r Unit
 cancelFetchBlocks = wrapContract QueryM.cancelFetchBlocks
 
 -- | Hashes a Plutus-style Datum
-datumHash :: forall (r :: Row Type). Datum.Datum -> Contract r (Maybe DatumHash)
+datumHash :: forall (r :: Row Type). Datum.Datum -> Contract r (Maybe DataHash)
 datumHash = wrapContract <<< QueryM.datumHash

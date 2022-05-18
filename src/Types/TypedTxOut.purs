@@ -23,6 +23,7 @@ module Types.TypedTxOut
 -- | https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger/html/src/Ledger.Typed.Tx.html
 
 import Prelude
+import Cardano.Types.Transaction (TransactionOutput(TransactionOutput))
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Data.Either (Either, note)
@@ -36,12 +37,9 @@ import QueryM (QueryM, getDatumByHash, datumHash)
 import Scripts (typedValidatorEnterpriseAddress)
 import Serialization.Address (Address, NetworkId)
 import ToData (class ToData, toData)
-import Types.Datum (Datum(Datum), DatumHash)
+import Types.Datum (DataHash, Datum(Datum))
 import Types.PlutusData (PlutusData)
-import Types.Transaction
-  ( TransactionInput
-  , TransactionOutput(TransactionOutput)
-  )
+import Types.Transaction (TransactionInput)
 import Types.TypedValidator
   ( class DatumType
   , TypedValidator
@@ -72,14 +70,14 @@ typedTxOutRefAddress
 typedTxOutRefAddress (TypedTxOutRef { typedTxOut }) =
   typedTxOutAddress typedTxOut
 
--- | Extract the `DatumHash` of a `TypedTxOutRef`
+-- | Extract the `DataHash` of a `TypedTxOutRef`
 typedTxOutRefDatumHash
   :: forall (a :: Type) (b :: Type)
    . DatumType a b
   => FromData b
   => ToData b
   => TypedTxOutRef a b
-  -> Maybe DatumHash
+  -> Maybe DataHash
 typedTxOutRefDatumHash (TypedTxOutRef { typedTxOut }) =
   typedTxOutDatumHash typedTxOut
 
@@ -123,14 +121,14 @@ typedTxOutAddress
   -> Address
 typedTxOutAddress (TypedTxOut { txOut }) = (unwrap txOut).address
 
--- | Extract the `DatumHash` of a `TypedTxOut`
+-- | Extract the `DataHash` of a `TypedTxOut`
 typedTxOutDatumHash
   :: forall (a :: Type) (b :: Type)
    . DatumType a b
   => FromData b
   => ToData b
   => TypedTxOut a b
-  -> Maybe DatumHash
+  -> Maybe DataHash
 typedTxOutDatumHash (TypedTxOut { txOut }) = (unwrap txOut).dataHash
 
 -- | Extract the `Value` of a `TypedTxOut`
@@ -192,7 +190,7 @@ data TypeCheckError
   | ExpectedScriptGotPubkey
   | WrongRedeemerType PlutusData
   | WrongDatumType PlutusData
-  | CannotQueryDatum DatumHash
+  | CannotQueryDatum DataHash
   | CannotMakeTypedTxOut
   | UnknownRef
 

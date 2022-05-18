@@ -13,6 +13,7 @@ module Types.UsedTxOuts
   , unlockTransactionInputs
   ) where
 
+import Cardano.Types.Transaction (Transaction)
 import Control.Alt ((<$>))
 import Control.Alternative (guard, pure)
 import Control.Bind (bind, (=<<), (>>=))
@@ -39,10 +40,7 @@ import Effect.Class
   )
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
-import Types.Transaction
-  ( Transaction
-  , TransactionHash
-  )
+import Types.Transaction (TransactionHash)
 
 type TxOutRefCache = Map TransactionHash (Set UInt)
 

@@ -8,6 +8,7 @@ module Deserialization.UnspentOutput
 
 import Prelude
 
+import Cardano.Types.Transaction (TransactionOutput(TransactionOutput)) as T
 import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Map (Map)
 import Data.Map as Map
@@ -38,7 +39,6 @@ import Types.Transaction
   ( DataHash(DataHash)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
-  , TransactionOutput(TransactionOutput)
   ) as T
 import Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)

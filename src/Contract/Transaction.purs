@@ -26,6 +26,81 @@ import Prelude
 import BalanceTx (UnattachedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
 import BalanceTx (BalanceTxError) as BalanceTxError
+import Cardano.Types.Transaction (Transaction, _body, _inputs)
+import Cardano.Types.Transaction -- Most re-exported, don't re-export `Redeemer` and associated lens.
+  ( AuxiliaryData(AuxiliaryData)
+  , AuxiliaryDataHash(AuxiliaryDataHash)
+  , BootstrapWitness
+  , Certificate
+      ( StakeRegistration
+      , StakeDeregistration
+      , StakeDelegation
+      , PoolRegistration
+      , PoolRetirement
+      , GenesisKeyDelegation
+      , MoveInstantaneousRewardsCert
+      )
+  , CostModel(CostModel)
+  , Costmdls(Costmdls)
+  , Ed25519Signature(Ed25519Signature)
+  , Epoch(Epoch)
+  , ExUnitPrices
+  , ExUnits
+  , GenesisHash(GenesisHash)
+  , Language(PlutusV1)
+  , Mint(Mint)
+  , NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
+  , Nonce(IdentityNonce, HashNonce)
+  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
+  , ProtocolParamUpdate
+  , ProtocolVersion
+  , PublicKey(PublicKey)
+  , Redeemer
+  , RequiredSigner(RequiredSigner)
+  , ScriptDataHash(ScriptDataHash)
+  , SubCoin
+  , Transaction(Transaction)
+  , TransactionOutput(TransactionOutput)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , TxBody(TxBody)
+  , TxOut
+  , UnitInterval
+  , Update
+  , Utxo
+  , UtxoM(UtxoM)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
+  , _auxiliaryData
+  , _auxiliaryDataHash
+  , _body
+  , _bootstraps
+  , _certs
+  , _collateral
+  , _fee
+  , _inputs
+  , _isValid
+  , _mint
+  , _nativeScripts
+  , _networkId
+  , _outputs
+  , _plutusData
+  , _plutusScripts
+  , _requiredSigners
+  , _scriptDataHash
+  , _ttl
+  , _update
+  , _validityStartInterval
+  , _vkeys
+  , _withdrawals
+  , _witnessSet
+  ) as Transaction
 import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
 import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
@@ -60,84 +135,11 @@ import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
   , mkUnbalancedTx
   ) as ScriptLookups
-import Types.Transaction (Transaction, TransactionHash, _body, _inputs)
-import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and associated lens.
-  ( AuxiliaryData(AuxiliaryData)
-  , AuxiliaryDataHash(AuxiliaryDataHash)
-  , BootstrapWitness
-  , Certificate
-      ( StakeRegistration
-      , StakeDeregistration
-      , StakeDelegation
-      , PoolRegistration
-      , PoolRetirement
-      , GenesisKeyDelegation
-      , MoveInstantaneousRewardsCert
-      )
-  , CostModel(CostModel)
-  , Costmdls(Costmdls)
-  , DataHash(DataHash)
-  , DatumHash
-  , Ed25519Signature(Ed25519Signature)
-  , Epoch(Epoch)
-  , ExUnitPrices
-  , ExUnits
-  , GenesisHash(GenesisHash)
-  , Language(PlutusV1)
-  , Mint(Mint)
-  , NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
-  , Nonce(IdentityNonce, HashNonce)
-  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
-  , ProtocolParamUpdate
-  , ProtocolVersion
-  , PublicKey(PublicKey)
-  , Redeemer
-  , RequiredSigner(RequiredSigner)
-  , ScriptDataHash(ScriptDataHash)
-  , SubCoin
-  , Transaction(Transaction)
+import Types.Transaction (TransactionHash)
+import Types.Transaction
+  ( DataHash(DataHash)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
-  , TransactionOutput(TransactionOutput)
-  , TransactionWitnessSet(TransactionWitnessSet)
-  , TxBody(TxBody)
-  , TxOut
-  , UnitInterval
-  , Update
-  , Utxo
-  , UtxoM(UtxoM)
-  , Vkey(Vkey)
-  , Vkeywitness(Vkeywitness)
-  , _auxiliaryData
-  , _auxiliaryDataHash
-  , _body
-  , _bootstraps
-  , _certs
-  , _collateral
-  , _fee
-  , _inputs
-  , _isValid
-  , _mint
-  , _nativeScripts
-  , _networkId
-  , _outputs
-  , _plutusData
-  , _plutusScripts
-  , _requiredSigners
-  , _scriptDataHash
-  , _ttl
-  , _update
-  , _validityStartInterval
-  , _vkeys
-  , _withdrawals
-  , _witnessSet
   ) as Transaction
 import Types.TransactionMetadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)

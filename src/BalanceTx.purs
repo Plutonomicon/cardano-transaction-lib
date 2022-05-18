@@ -19,6 +19,19 @@ module BalanceTx
 
 import Prelude
 
+import Cardano.Types.Transaction
+  ( Redeemer(Redeemer)
+  , Transaction(Transaction)
+  , TransactionOutput(TransactionOutput)
+  , TxBody(TxBody)
+  , Utxo
+  , _body
+  , _inputs
+  , _networkId
+  , _plutusData
+  , _redeemers
+  , _witnessSet
+  )
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
@@ -71,21 +84,7 @@ import Serialization.Address
   )
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
-import Types.Transaction
-  ( DataHash
-  , Redeemer(Redeemer)
-  , Transaction(Transaction)
-  , TransactionInput
-  , TransactionOutput(TransactionOutput)
-  , TxBody(TxBody)
-  , Utxo
-  , _body
-  , _inputs
-  , _networkId
-  , _plutusData
-  , _redeemers
-  , _witnessSet
-  )
+import Types.Transaction (DataHash, TransactionInput)
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.UnbalancedTransaction
   ( TxOutRef

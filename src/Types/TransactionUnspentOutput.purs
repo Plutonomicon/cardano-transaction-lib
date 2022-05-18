@@ -1,10 +1,12 @@
 module Types.TransactionUnspentOutput where
 
-import Types.Transaction (TransactionInput, TransactionOutput)
-import Data.Show.Generic (genericShow)
 import Prelude
+
+import Cardano.Types.Transaction (TransactionOutput)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
+import Data.Show.Generic (genericShow)
+import Types.Transaction (TransactionInput)
 
 newtype TransactionUnspentOutput = TransactionUnspentOutput
   { input :: TransactionInput

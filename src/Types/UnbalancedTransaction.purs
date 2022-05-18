@@ -21,6 +21,12 @@ module Types.UnbalancedTransaction
 
 import Prelude
 
+import Cardano.Types.Transaction
+  ( Transaction
+  , PublicKey(PublicKey)
+  , Vkey(Vkey)
+  , RequiredSigner(RequiredSigner)
+  )
 import Data.Argonaut
   ( class DecodeJson
   , caseJsonObject
@@ -59,15 +65,9 @@ import Serialization.Hash
   ( Ed25519KeyHash
   )
 import ToData (class ToData)
-import Types.Datum (DatumHash)
+import Types.Datum (DataHash)
 import Types.PubKeyHash (PubKeyHash)
-import Types.Transaction
-  ( Transaction
-  , TransactionInput
-  , PublicKey(PublicKey)
-  , Vkey(Vkey)
-  , RequiredSigner(RequiredSigner)
-  )
+import Types.Transaction (TransactionInput)
 import Types.Scripts (ValidatorHash)
 import Cardano.Types.Value (Value)
 
@@ -86,7 +86,7 @@ instance Show PaymentPubKey where
 newtype ScriptOutput = ScriptOutput
   { validatorHash :: ValidatorHash
   , value :: Value
-  , datumHash :: DatumHash
+  , datumHash :: DataHash
   }
 
 derive instance Newtype ScriptOutput _

@@ -25,6 +25,13 @@ import Address
   , enterpriseAddressValidatorHash
   ) as ExportAddress
 import Address (getNetworkId) as Address
+import Cardano.Types.Transaction
+  ( Ed25519Signature(Ed25519Signature)
+  , PublicKey(PublicKey)
+  , RequiredSigner(RequiredSigner)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
+  ) as Transaction
 import Contract.Monad (Contract, wrapContract, liftedM)
 import Data.Maybe (Maybe)
 import Data.Traversable (for)
@@ -72,13 +79,6 @@ import Types.UnbalancedTransaction
   , pubKeyHashEnterpriseAddress
   , stakePubKeyHashRewardAddress
   ) as UnbalancedTransaction
-import Types.Transaction
-  ( Ed25519Signature(Ed25519Signature)
-  , PublicKey(PublicKey)
-  , RequiredSigner(RequiredSigner)
-  , Vkey(Vkey)
-  , Vkeywitness(Vkeywitness)
-  ) as Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 
 -- | Get the `Address` of the browser wallet.

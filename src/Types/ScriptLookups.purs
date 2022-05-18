@@ -23,6 +23,22 @@ module Types.ScriptLookups
 import Prelude hiding (join)
 
 import Address (enterpriseAddressValidatorHash)
+import Cardano.Types.Transaction (Redeemer(Redeemer)) as T
+import Cardano.Types.Transaction
+  ( ExUnits
+  , Transaction
+  , TransactionOutput(TransactionOutput)
+  , TxBody
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , _body
+  , _inputs
+  , _mint
+  , _networkId
+  , _outputs
+  , _requiredSigners
+  , _scriptDataHash
+  , _witnessSet
+  )
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
@@ -73,7 +89,7 @@ import Scripts
 import Serialization.Address (Address, NetworkId)
 import ToData (class ToData)
 import Types.Any (Any)
-import Types.Datum (Datum, DatumHash)
+import Types.Datum (DataHash, Datum)
 import Types.Interval (POSIXTimeRange, posixTimeRangeToTransactionSlot)
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
 import Types.TokenName (TokenName)
@@ -90,22 +106,6 @@ import Transaction
   , attachPlutusScript
   , attachRedeemer
   , setScriptDataHash
-  )
-import Types.Transaction (Redeemer(Redeemer)) as T
-import Types.Transaction
-  ( ExUnits
-  , Transaction
-  , TransactionOutput(TransactionOutput)
-  , TxBody
-  , TransactionWitnessSet(TransactionWitnessSet)
-  , _body
-  , _inputs
-  , _mint
-  , _networkId
-  , _outputs
-  , _requiredSigners
-  , _scriptDataHash
-  , _witnessSet
   )
 import Types.TxConstraints
   ( InputConstraint(InputConstraint)
@@ -186,7 +186,7 @@ newtype ScriptLookups (a :: Type) = ScriptLookups
       Map TxOutRef TransactionOutput -- Unspent outputs that the script may want to spend. This may need tweaking to `TransactionOutput`
   , scripts ::
       Array Validator -- Script validators
-  , datums :: Map DatumHash Datum --  Datums that we might need
+  , datums :: Map DataHash Datum --  Datums that we might need
   , paymentPubKeyHashes ::
       Map PaymentPubKeyHash PaymentPubKey -- Public keys that we might need
   , typedValidator ::
@@ -748,15 +748,15 @@ data MkUnbalancedTxError
   | ModifyTx ModifyTxError
   | TxOutRefNotFound TxOutRef
   | TxOutRefWrongType TxOutRef
-  | DatumNotFound DatumHash
+  | DatumNotFound DataHash
   | MintingPolicyNotFound MintingPolicyHash
   | MintingPolicyHashNotCurrencySymbol MintingPolicyHash
   | CannotMakeValue CurrencySymbol TokenName BigInt
   | ValidatorHashNotFound ValidatorHash
   | OwnPubKeyAndStakeKeyMissing
   | TypedValidatorMissing
-  | DatumWrongHash DatumHash Datum
-  | CannotQueryDatum DatumHash
+  | DatumWrongHash DataHash Datum
+  | CannotQueryDatum DataHash
   | CannotHashDatum Datum
   | CannotConvertPOSIXTimeRange POSIXTimeRange
   | CannotGetMintingPolicyScriptIndex -- Should be impossible
@@ -785,7 +785,7 @@ lookupTxOutRef outRef = do
 
 lookupDatum
   :: forall (a :: Type)
-   . DatumHash
+   . DataHash
   -> ConstraintsM a (Either MkUnbalancedTxError Datum)
 lookupDatum dh = do
   otherDt <- use _lookups <#> unwrap >>> _.datums
@@ -955,12 +955,12 @@ processConstraint mpsMap osMap = do
             -> Either e (Maybe dh)
           liftDatumHash e Nothing = Left e
           liftDatumHash _ (Just x) = Right (Just x)
-        -- [DatumHash Note]
+        -- [DataHash Note]
         -- The behaviour below is subtle because of `datumHash`'s `Maybe` context.
         -- In particular, if `mDatum` is `Nothing`, then return nothing (note: we
         -- don't want to fail). However, if we have a datum value, we attempt to
         -- hash, which may fail. We want to capture this failure.
-        -- Given `dataHash` ~ `Maybe DatumHash`, we don't want return this
+        -- Given `dataHash` ~ `Maybe DataHash`, we don't want return this
         -- failure in the output. It's possible that this is okay for
         -- `MustPayToPubKeyAddress` because datums are essentially redundant
         -- for wallet addresses, but let's fail for now. It is important to

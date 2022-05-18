@@ -58,6 +58,8 @@ import Aeson as Aeson
 import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.ResponseFormat as Affjax.ResponseFormat
+import Cardano.Types.Transaction (Transaction(Transaction))
+import Cardano.Types.Transaction as Transaction
 import Cardano.Types.Value (Coin(Coin))
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
@@ -148,7 +150,7 @@ import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.Chain as Chain
-import Types.Datum (Datum, DatumHash)
+import Types.Datum (DataHash(DataHash), Datum)
 import Types.Interval (SlotConfig, defaultSlotConfig)
 import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
@@ -156,8 +158,7 @@ import Types.Natural (Natural)
 import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PubKeyHash)
 import Types.Scripts (PlutusScript)
-import Types.Transaction (Transaction(Transaction))
-import Types.Transaction as Transaction
+import Types.Transaction (TransactionHash)
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.UnbalancedTransaction (StakePubKeyHash, PaymentPubKeyHash)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
@@ -259,11 +260,11 @@ submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall _.submit { txCbor }
 -- DATUM CACHE QUERIES
 --------------------------------------------------------------------------------
 
-getDatumByHash :: DatumHash -> QueryM (Maybe Datum)
+getDatumByHash :: DataHash -> QueryM (Maybe Datum)
 getDatumByHash hash = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumByHashCall _.getDatumByHash hash
 
-getDatumsByHashes :: Array DatumHash -> QueryM (Map DatumHash Datum)
+getDatumsByHashes :: Array DataHash -> QueryM (Map DataHash Datum)
 getDatumsByHashes hashes = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
 
@@ -305,7 +306,7 @@ signTransactionBytes tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.signTxBytes tx
 
 submitTxWallet
-  :: Transaction.Transaction -> QueryM (Maybe Transaction.TransactionHash)
+  :: Transaction.Transaction -> QueryM (Maybe TransactionHash)
 submitTxWallet tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.submitTx tx
 
@@ -543,8 +544,8 @@ hashData datum = do
   pure $ hush <<< Json.decodeJson =<< hush jsonBody
 
 -- | Hashes an Plutus-style Datum
-datumHash :: Datum -> QueryM (Maybe DatumHash)
-datumHash = map (map (Transaction.DataHash <<< unwrap)) <<< hashData
+datumHash :: Datum -> QueryM (Maybe DataHash)
+datumHash = map (map (DataHash <<< unwrap)) <<< hashData
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
@@ -749,8 +750,8 @@ type OgmiosListeners =
   }
 
 type DatumCacheListeners =
-  { getDatumByHash :: ListenerSet DatumHash GetDatumByHashR
-  , getDatumsByHashes :: ListenerSet (Array DatumHash) GetDatumsByHashesR
+  { getDatumByHash :: ListenerSet DataHash GetDatumByHashR
+  , getDatumsByHashes :: ListenerSet (Array DataHash) GetDatumsByHashesR
   , startFetchBlocks ::
       ListenerSet { slot :: Slot, id :: Chain.BlockHeaderHash }
         StartFetchBlocksR

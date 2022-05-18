@@ -53,7 +53,7 @@ import Types.Redeemer (Redeemer, unitRedeemer)
 import Types.Interval (POSIXTimeRange, always, intersection, isEmpty)
 import Types.Scripts (MintingPolicyHash, ValidatorHash)
 import Types.Datum (Datum)
-import Types.Transaction (DatumHash)
+import Types.Transaction (DataHash)
 import Types.TokenName (TokenName)
 import Types.UnbalancedTransaction
   ( PaymentPubKeyHash
@@ -81,7 +81,7 @@ data TxConstraint
       (Maybe Datum)
       Value
   | MustPayToScript ValidatorHash Datum Value
-  | MustHashDatum DatumHash Datum
+  | MustHashDatum DataHash Datum
   | MustSatisfyAnyOf (Array (Array TxConstraint))
 
 derive instance Eq TxConstraint
@@ -283,7 +283,7 @@ mustSpendScriptOutput
 mustSpendScriptOutput txOutRef = singleton <<< MustSpendScriptOutput txOutRef
 
 mustHashDatum
-  :: forall (i :: Type) (o :: Type). DatumHash -> Datum -> TxConstraints i o
+  :: forall (i :: Type) (o :: Type). DataHash -> Datum -> TxConstraints i o
 mustHashDatum dhsh = singleton <<< MustHashDatum dhsh
 
 mustSatisfyAnyOf
