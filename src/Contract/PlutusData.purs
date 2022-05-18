@@ -4,7 +4,6 @@
 -- | `ToData`.
 module Contract.PlutusData
   ( cancelFetchBlocks
-  , datumHash
   , getDatumByHash
   , getDatumsByHashes
   , startFetchBlocks
@@ -31,7 +30,6 @@ import QueryM
   ) as ExportQueryM
 import QueryM
   ( cancelFetchBlocks
-  , datumHash
   , getDatumByHash
   , getDatumsByHashes
   , startFetchBlocks
@@ -73,7 +71,3 @@ startFetchBlocks = wrapContract <<< QueryM.startFetchBlocks
 -- | Cancels a running block fetcher job. Throws on no fetchers running
 cancelFetchBlocks :: forall (r :: Row Type). Contract r Unit
 cancelFetchBlocks = wrapContract QueryM.cancelFetchBlocks
-
--- | Hashes a Plutus-style Datum
-datumHash :: forall (r :: Row Type). Datum.Datum -> Contract r (Maybe DatumHash)
-datumHash = wrapContract <<< QueryM.datumHash

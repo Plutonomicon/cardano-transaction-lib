@@ -62,9 +62,9 @@ import Plutus.FromPlutusType (fromPlutusType)
 import QueryM
   ( DefaultQueryConfig
   , QueryM
-  , datumHash
   , getDatumByHash
   )
+import QueryM.Crypto (datumHash)
 import Scripts
   ( mintingPolicyHash
   , validatorHash

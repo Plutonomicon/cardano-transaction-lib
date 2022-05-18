@@ -7,16 +7,22 @@ module QueryM.Crypto
   , HashMethod(..)
   ) where
 
-import Data.Argonaut.Encode.Combinators
 import Prelude
 
 import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.ResponseFormat as Affjax.ResponseFormat
-import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT, ask, asks)
-import Data.Argonaut as Json
-import Data.Argonaut (Json, encodeJson, class EncodeJson)
-import Data.Argonaut.Encode.Encoders (encodeString)
+import Control.Monad.Reader.Trans (asks)
+import Data.Argonaut
+  ( class DecodeJson
+  , Json
+  , JsonDecodeError(..)
+  , decodeJson
+  , caseJsonString
+  , (:=)
+  , (~>)
+  , encodeJson
+  )
 import Data.Bifunctor (bimap)
 import Data.Either (Either(..), hush, note, either)
 import Data.Generic.Rep (class Generic)
@@ -27,17 +33,7 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import QueryM (ClientError(..), QueryM, mkServerEndpointUrl, scriptToJson)
-import QueryM.ServerConfig
-  ( Host
-  , ServerConfig
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
-  , mkHttpUrl
-  , mkOgmiosDatumCacheWsUrl
-  , mkServerUrl
-  , mkWsUrl
-  )
+import QueryM.ServerConfig (mkHttpUrl)
 import Serialization (toBytes) as Serialization
 import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
@@ -58,28 +54,28 @@ instance Show HashMethod where
   show = genericShow
 
 plutusHash
-  :: forall (r :: Row Type). HashMethod -> ByteArray -> QueryM (Maybe ByteArray)
+  :: HashMethod -> ByteArray -> QueryM (Maybe ByteArray)
 plutusHash meth bytes = do
-  url <- asks $ (_ <> "/" <> "blake2b") <<< mkHttpUrl <<< _.serverConfig
+  url <- asks $ (_ <> "/" <> "plutus-hash") <<< mkHttpUrl <<< _.serverConfig
   let
     methJson :: Json
     methJson = case meth of
-      Blake2b_256 -> encodeString "Blake2b_256"
-      Sha2_256 -> encodeString "Sha2_256"
-      Sha3_256 -> encodeString "Sha3_256"
+      Blake2b_256 -> encodeJson "Blake2b_256"
+      Sha2_256 -> encodeJson "Sha2_256"
+      Sha3_256 -> encodeJson "Sha3_256"
 
     bytesJson :: Json
-    bytesJson = encodeString $ byteArrayToHex bytes
+    bytesJson = encodeJson $ byteArrayToHex bytes
 
     requestJson :: Json
     requestJson = "bytesToHash" := bytesJson
       ~> "methodToUse" := methJson
 
-    reqBody :: Maybe Affjax.RequestBody.RequestBody
-    reqBody = Just
-      $ Affjax.RequestBody.Json requestJson
-  liftAff (Affjax.post Affjax.ResponseFormat.json url reqBody)
-    <#> either (const Nothing) (hush <<< Json.decodeJson <<< _.body)
+    reqBody :: Affjax.RequestBody.RequestBody
+    reqBody = Affjax.RequestBody.Json requestJson
+  response <- liftAff
+    (Affjax.post Affjax.ResponseFormat.json url (pure reqBody))
+  pure $ hush response >>= _.body >>> decodeJson >>> hush
 
 hashData :: Datum -> QueryM (Maybe HashedData)
 hashData datum = do
@@ -93,10 +89,10 @@ hashData datum = do
   jsonBody <-
     liftAff
       ( Affjax.post Affjax.ResponseFormat.json url
-          (Just $ Affjax.RequestBody.Json $ encodeString body)
+          (Just $ Affjax.RequestBody.Json $ encodeJson body)
       ) <#> map \x -> x.body
   -- decode
-  pure $ hush <<< Json.decodeJson =<< hush jsonBody
+  pure $ hush <<< decodeJson =<< hush jsonBody
 
 -- | Hashes an Plutus-style Datum
 datumHash :: Datum -> QueryM (Maybe DatumHash)
@@ -110,13 +106,13 @@ derive instance Generic HashedData _
 instance Show HashedData where
   show = genericShow
 
-instance Json.DecodeJson HashedData where
+instance DecodeJson HashedData where
   decodeJson =
     map HashedData <<<
-      Json.caseJsonString (Left err) (note err <<< hexToByteArray)
+      caseJsonString (Left err) (note err <<< hexToByteArray)
     where
-    err :: Json.JsonDecodeError
-    err = Json.TypeMismatch "Expected hex bytes (raw) of hashed data"
+    err :: JsonDecodeError
+    err = TypeMismatch "Expected hex bytes (raw) of hashed data"
 
 hashScript
   :: forall (a :: Type) (b :: Type)
@@ -135,5 +131,5 @@ hashScript script = do
   liftAff (Affjax.post Affjax.ResponseFormat.json url reqBody)
     <#> either
       (Left <<< ClientHttpError)
-      (bimap ClientDecodeJsonError wrap <<< Json.decodeJson <<< _.body)
+      (bimap ClientDecodeJsonError wrap <<< decodeJson <<< _.body)
 

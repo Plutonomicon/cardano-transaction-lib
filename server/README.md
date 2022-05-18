@@ -51,7 +51,7 @@ The server executable can be built with `nix build .#cardano-trasaction-lib-serv
 "4d01000033222220051200120011"
 ```
 
-## POST /plutusHash
+## POST /plutus-hash
 
 ### Request:
 
