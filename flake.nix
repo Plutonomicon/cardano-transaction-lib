@@ -264,6 +264,7 @@
                 useHostStore = true;
                 ports = [ (bindPort ctlServer.port) ];
                 depends_on = [ "ogmios" ];
+                volumes = [ "${nodeIpcVol}:/ipc" ];
                 command = [
                   "${pkgs.bash}/bin/sh"
                   "-c"
