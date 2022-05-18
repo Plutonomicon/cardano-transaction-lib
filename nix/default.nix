@@ -226,7 +226,7 @@ let
           cp $src/${htmlTemplate} .
           cp $src/${webpackConfig} .
           mkdir ./dist
-          webpack --mode=production -c ${webpackConfig} -o ./dist
+          webpack --mode=production -c ${webpackConfig} -o ./dist --entry ${entrypoint}
         '';
         installPhase = ''
           mkdir $out
