@@ -107,8 +107,11 @@ newEnvIO serverOptions@ServerOptions {..} =
         case eitherResponse of
           Right response ->
             case decodeProtocolParameters response of
-              Right params -> (return . Right . Env serverOptions) params
-              Left errors -> return $ Left $ Text.unpack $ Text.intercalate "\n" errors
+              Right params ->
+                (return . Right . Env serverOptions) params
+              Left errors ->
+                return . Left . Text.unpack $
+                  Text.intercalate "\n" errors
           Left msg ->
             return . Left $
               "Can't get protocol parameters from Ogmios: \n"
