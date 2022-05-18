@@ -7,7 +7,6 @@ module QueryM
   , DispatchError(JsError, JsonError)
   , FeeEstimate(..)
   , FinalizedTransaction(..)
-  , HashedData(..)
   , module ServerConfig
   , ListenerSet
   , PendingRequests
@@ -24,18 +23,16 @@ module QueryM
   , allowError
   , applyArgs
   , calculateMinFee
-  , datumHash
   , traceQueryConfig
   , evalTxExecutionUnits
   , finalizeTx
   , getWalletAddress
   , getChainTip
   , getWalletCollateral
-  , hashData
-  , hashScript
   , listeners
   , mkDatumCacheWebSocketAff
   , mkOgmiosRequest
+  , mkServerEndpointUrl
   , mkOgmiosWebSocketAff
   , ownPaymentPubKeyHash
   , ownPubKeyHash
@@ -49,6 +46,7 @@ module QueryM
   , getDatumByHash
   , getDatumsByHashes
   , startFetchBlocks
+  , scriptToJson
   , cancelFetchBlocks
   ) where
 
@@ -143,7 +141,6 @@ import Serialization.Address
   , baseAddressPaymentCred
   , stakeCredentialToKeyHash
   )
-import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
@@ -509,43 +506,6 @@ finalizeTx tx datums redeemers = do
   -- decode
   pure $ hush <<< Json.decodeJson =<< hush jsonBody
 
-newtype HashedData = HashedData ByteArray
-
-derive instance Newtype HashedData _
-derive instance Generic HashedData _
-
-instance Show HashedData where
-  show = genericShow
-
-instance Json.DecodeJson HashedData where
-  decodeJson =
-    map HashedData <<<
-      Json.caseJsonString (Left err) (note err <<< hexToByteArray)
-    where
-    err :: Json.JsonDecodeError
-    err = Json.TypeMismatch "Expected hex bytes (raw) of hashed data"
-
-hashData :: Datum -> QueryM (Maybe HashedData)
-hashData datum = do
-  body <-
-    liftEffect $ byteArrayToHex <<< Serialization.toBytes <<< asOneOf
-      <$> maybe' (\_ -> throw $ "Failed to convert plutus data: " <> show datum)
-        pure
-        (Serialization.convertPlutusData $ unwrap datum)
-  url <- mkServerEndpointUrl "hash-data"
-  -- get response json
-  jsonBody <-
-    liftAff
-      ( Affjax.post Affjax.ResponseFormat.json url
-          (Just $ Affjax.RequestBody.Json $ encodeString body)
-      ) <#> map \x -> x.body
-  -- decode
-  pure $ hush <<< Json.decodeJson =<< hush jsonBody
-
--- | Hashes an Plutus-style Datum
-datumHash :: Datum -> QueryM (Maybe DatumHash)
-datumHash = map (map (Transaction.DataHash <<< unwrap)) <<< hashData
-
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
 applyArgs
@@ -585,25 +545,6 @@ applyArgs script args = case traverse plutusDataToJson args of
           <<< asOneOf
       )
       <<< Serialization.convertPlutusData
-
-hashScript
-  :: forall (a :: Type) (b :: Type)
-   . Newtype a PlutusScript
-  => Newtype b ScriptHash
-  => a
-  -> QueryM (Either ClientError b)
-hashScript script = do
-  url <- mkServerEndpointUrl "hash-script"
-  let
-    reqBody :: Maybe Affjax.RequestBody.RequestBody
-    reqBody = Just
-      $ Affjax.RequestBody.Json
-      $ scriptToJson
-      $ unwrap script
-  liftAff (Affjax.post Affjax.ResponseFormat.json url reqBody)
-    <#> either
-      (Left <<< ClientHttpError)
-      (bimap ClientDecodeJsonError wrap <<< Json.decodeJson <<< _.body)
 
 -- It's easier to just write the encoder here than provide an `EncodeJson`
 -- instance (there are some brutal cyclical dependency issues trying to
