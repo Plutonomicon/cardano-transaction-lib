@@ -7,20 +7,28 @@ module Contract.Utxos
   ) where
 
 import Prelude
-import Cardano.Types.Transaction (UtxoM(UtxoM)) as Transaction
 import Contract.Monad (Contract, wrapContract, liftContractM)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import QueryM.Utxos (utxosAt) as Utxos
+import Plutus.ToPlutusType (toPlutusType)
 import Plutus.Types.Address (Address)
+import Plutus.Types.Transaction (UtxoM(UtxoM)) as Transaction
 import Plutus.FromPlutusType (fromPlutusType)
 
 -- | This module defines query functionality via Ogmios to get utxos.
 
--- | Gets utxos at an (internal) `Address` in terms of (internal) `Transaction.Types`.
+-- | Gets utxos at an (internal) `Address` in terms of a Plutus Address`.
 -- | Results may vary depending on `Wallet` type. See `QueryM` for more details
 -- | on wallet variance.
 utxosAt
   :: forall (r :: Row Type). Address -> Contract r (Maybe Transaction.UtxoM)
-utxosAt address =
-  liftContractM "utxosAt: unable to serialize address" (fromPlutusType address)
-    >>= wrapContract <<< Utxos.utxosAt
+utxosAt address = do
+  plutusAddr <- liftContractM "utxosAt: unable to serialize address"
+    (fromPlutusType address)
+  -- Don't error if we get `Nothing` as the Cardano utxos
+  mCardanoUtxos <- wrapContract $ Utxos.utxosAt plutusAddr
+  maybe (pure Nothing)
+    ( map Just <<< liftContractM "utxosAt: unable to deserialize utxos" <<<
+        toPlutusType
+    )
+    mCardanoUtxos

@@ -76,7 +76,7 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
-import Data.Traversable (for, sequence)
+import Data.Traversable (for, sequence, traverse)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import FromData (class FromData)
@@ -85,6 +85,7 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Helpers ((<\>), liftEither, liftM)
 import Plutus.FromPlutusType (fromPlutusType)
+import Plutus.Types.Transaction (TransactionOutput) as Plutus
 import QueryM
   ( DefaultQueryConfig
   , QueryM
@@ -179,11 +180,13 @@ import TxOutput (transactionOutputToScriptOutput)
 -- and therefore not lifted to `QueryM`. The downside is the lookups contain
 -- less information. All hashing is done inside `ConstraintsM`, see
 -- `processLookupsAndConstraints`.
+-- The lookups uses the Plutus type `TransactionOutput` and does internal
+-- conversions to the Serialization/Cardano to append to the `TxBody` as needed.
 newtype ScriptLookups (a :: Type) = ScriptLookups
   { mps ::
       Array MintingPolicy -- Minting policies that the script interacts with
   , txOutputs ::
-      Map TransactionInput TransactionOutput -- Unspent outputs that the script may want to spend. This may need tweaking to `TransactionOutput`
+      Map TransactionInput Plutus.TransactionOutput -- Unspent outputs that the script may want to spend. This may need tweaking to `TransactionOutput`
   , scripts ::
       Array Validator -- Script validators
   , datums :: Map DataHash Datum --  Datums that we might need
@@ -274,7 +277,7 @@ typedValidatorLookupsM = pure <<< typedValidatorLookups
 -- | input constraints.
 unspentOutputs
   :: forall (a :: Type)
-   . Map TransactionInput TransactionOutput
+   . Map TransactionInput Plutus.TransactionOutput
   -> ScriptLookups a
 unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 
@@ -283,7 +286,7 @@ unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 -- | should not fail.
 unspentOutputsM
   :: forall (a :: Type)
-   . Map TransactionInput TransactionOutput
+   . Map TransactionInput Plutus.TransactionOutput
   -> Maybe (ScriptLookups a)
 unspentOutputsM = pure <<< unspentOutputs
 
@@ -689,7 +692,9 @@ updateUtxoIndex
    . ConstraintsM a (Either MkUnbalancedTxError Unit)
 updateUtxoIndex = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
-  let txOutsMap = mapMaybe transactionOutputToScriptOutput txOutputs
+  cTxOutputs <- liftM CannotConvertFromPlutusType
+    (traverse fromPlutusType txOutputs)
+  let txOutsMap = mapMaybe transactionOutputToScriptOutput cTxOutputs
   -- Left bias towards original map, hence `flip`:
   _unbalancedTx <<< _utxoIndex %= flip union txOutsMap
 
@@ -709,12 +714,15 @@ addOwnInput (InputConstraint { txOutRef }) = do
   networkId <- getNetworkId
   runExceptT do
     ScriptLookups { txOutputs, typedValidator } <- use _lookups
+    -- Convert to Cardano type
+    cTxOutputs <- liftM CannotConvertFromPlutusType
+      (traverse fromPlutusType txOutputs)
     inst <- liftM TypedValidatorMissing typedValidator
     -- This line is to type check the `TransactionInput`. Plutus actually creates a `TxIn`
     -- but we don't have such a datatype for our `TxBody`. Therefore, if we pass
     -- this line, we just insert `TransactionInput` into the body.
     typedTxOutRef <- ExceptT $ lift $
-      typeTxOutRef networkId (flip lookup txOutputs) inst txOutRef
+      typeTxOutRef networkId (flip lookup cTxOutputs) inst txOutRef
         <#> lmap TypeCheckFailed
     let value = typedTxOutRefValue typedTxOutRef
     -- Must be inserted in order. Hopefully this matches the order under CSL
@@ -771,6 +779,7 @@ data MkUnbalancedTxError
   | CannotHashValidator Validator
   | CannotConvertPaymentPubKeyHash PaymentPubKeyHash
   | CannotSatisfyAny
+  | CannotConvertFromPlutusType
 
 derive instance Generic MkUnbalancedTxError _
 derive instance Eq MkUnbalancedTxError
@@ -782,10 +791,10 @@ lookupTxOutRef
   :: forall (a :: Type)
    . TransactionInput
   -> ConstraintsM a (Either MkUnbalancedTxError TransactionOutput)
-lookupTxOutRef outRef = do
+lookupTxOutRef outRef = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
-  let err = pure $ throwError $ TxOutRefNotFound outRef
-  maybe err (pure <<< Right) $ lookup outRef txOutputs
+  txOut <- liftM (TxOutRefNotFound outRef) (lookup outRef txOutputs)
+  liftM CannotConvertFromPlutusType $ fromPlutusType txOut
 
 lookupDatum
   :: forall (a :: Type)
