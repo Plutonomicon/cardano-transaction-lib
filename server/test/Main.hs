@@ -10,7 +10,34 @@ import Cardano.Api.Shelley (
   ),
   ExecutionUnits (ExecutionUnits, executionMemory, executionSteps),
   Lovelace (Lovelace),
-  ProtocolParameters (..),
+  ProtocolParameters (
+    ProtocolParameters,
+    protocolParamCollateralPercent,
+    protocolParamCostModels,
+    protocolParamDecentralization,
+    protocolParamExtraPraosEntropy,
+    protocolParamMaxBlockBodySize,
+    protocolParamMaxBlockExUnits,
+    protocolParamMaxBlockHeaderSize,
+    protocolParamMaxCollateralInputs,
+    protocolParamMaxTxExUnits,
+    protocolParamMaxTxSize,
+    protocolParamMaxValueSize,
+    protocolParamMinPoolCost,
+    protocolParamMinUTxOValue,
+    protocolParamMonetaryExpansion,
+    protocolParamPoolPledgeInfluence,
+    protocolParamPoolRetireMaxEpoch,
+    protocolParamPrices,
+    protocolParamProtocolVersion,
+    protocolParamStakeAddressDeposit,
+    protocolParamStakePoolDeposit,
+    protocolParamStakePoolTargetNum,
+    protocolParamTreasuryCut,
+    protocolParamTxFeeFixed,
+    protocolParamTxFeePerByte,
+    protocolParamUTxOCostPerWord
+  ),
   --  makePraosNonce,
  )
 import Data.ByteString.Lazy qualified as ByteString
@@ -88,19 +115,19 @@ applyArgsSpec = around withTestApp $ do
   clientEnv <- setupClientEnv
 
   context "POST apply-args" $ do
-    it "returns the same script when called without args" $ \port -> do
+    it "pures the same script when called without args" $ \port -> do
       result <-
         runClientM' (clientEnv port) $
           applyArgs unappliedRequestFixture
       result `shouldBe` Right (AppliedScript unappliedScript)
 
-    it "returns the correct partially applied Plutus script" $ \port -> do
+    it "pures the correct partially applied Plutus script" $ \port -> do
       result <-
         runClientM' (clientEnv port) $
           applyArgs partiallyAppliedRequestFixture
       result `shouldBe` Right (AppliedScript partiallyAppliedScript)
 
-    it "returns the correct fully applied Plutus script" $ \port -> do
+    it "pures the correct fully applied Plutus script" $ \port -> do
       result <-
         runClientM' (clientEnv port) $
           applyArgs fullyAppliedRequestFixture
@@ -375,14 +402,14 @@ fixedProtocolParameters =
     , protocolParamMaxCollateralInputs = Just 3
     }
 
-loadFile :: IO (Either [Text.Text] ProtocolParameters)
-loadFile =
+loadParametersFile :: IO (Either [Text.Text] ProtocolParameters)
+loadParametersFile =
   do
     contents <- ByteString.readFile "test/ogmios.json"
-    return $ decodeProtocolParameters contents
+    pure $ decodeProtocolParameters contents
 
 testParser :: Spec
 testParser =
   it "Testing parser of ogmios parameters" $ do
-    value <- loadFile
-    shouldBe value (Right fixedProtocolParameters)
+    value <- loadParametersFile
+    value `shouldBe` Right fixedProtocolParameters

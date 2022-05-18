@@ -27,6 +27,7 @@ import Data.Aeson.BetterErrors (
   withString,
   (<|>),
  )
+import Data.Bifunctor (first)
 import Data.ByteString.Lazy (ByteString)
 import Data.Char (isDigit)
 import Data.Map qualified as Map
@@ -40,12 +41,12 @@ parseVersion =
 
 parseNatural :: Text.Text -> Parse e Natural
 parseNatural strKey =
-  naturalFromInteger <$> key strKey (asIntegral :: Parse e Integer)
+  naturalFromInteger <$> key strKey asIntegral
 
 parseLovelace :: Text.Text -> Parse e Lovelace
 parseLovelace strKey =
   key strKey $
-    Lovelace <$> (asIntegral :: Parse e Integer)
+    Lovelace <$> asIntegral
 
 parseRational :: Text.Text -> Parse Text.Text Rational
 parseRational strKey =
@@ -107,12 +108,6 @@ decodeProtocolParameters response =
         Just (Left e) -> Left $ displayError id e
         _ -> Left ["Fail at converting ogmios response to cardano format"]
 
---      wrapped :: Maybe ProtocolParametersWrapper
---      wrapped =
---        encoded
---          >>= Aeson.decode @ProtocolParametersWrapper
---   in unwrapParams <$> wrapped
-
 type LocalParser a = Parsec.Parsec String () a
 
 nonZeroDigit :: LocalParser Char
@@ -122,7 +117,7 @@ nonZeroInteger :: LocalParser Integer
 nonZeroInteger = do
   headDigit <- nonZeroDigit
   remains <- Parsec.many Parsec.Char.digit
-  return $ read (headDigit : remains)
+  pure $ read (headDigit : remains)
 
 zeroInteger :: LocalParser Integer
 zeroInteger = read <$> many1 (Parsec.Char.satisfy (== '0'))
@@ -137,10 +132,10 @@ rational =
     numerator <- haskellInteger
     Parsec.Char.spaces >> Parsec.Char.char '/' >> Parsec.Char.spaces
     denominator <- haskellInteger
-    return $ numerator % denominator
+    pure $ numerator % denominator
 
 rationalParser :: String -> Either Text.Text Rational
 rationalParser s =
-  case Parsec.runParser rational () "ogmios.json" s of
-    Right value -> Right value
-    Left _ -> Left "can't parse Rational"
+  first
+    (const "can't parse Rational")
+    $ Parsec.runParser rational () "ogmios.json" s

@@ -88,7 +88,7 @@ serverOptionsParser =
           <> Options.help "The hostname for ogmios"
           <> Options.showDefault
           <> Options.value
-            ( Ogmios.Query.getHost
+            ( Ogmios.Query.host
                 Ogmios.Query.defaultServerParameters
             )
           <> Options.metavar "IPV4"
@@ -99,7 +99,7 @@ serverOptionsParser =
           <> Options.help "The port for ogmios"
           <> Options.showDefault
           <> Options.value
-            ( Ogmios.Query.getPort
+            ( Ogmios.Query.port
                 Ogmios.Query.defaultServerParameters
             )
           <> Options.metavar "INT"

@@ -58,8 +58,6 @@ import Utils (tshow)
 import Ogmios.Parser (decodeProtocolParameters)
 import Ogmios.Query qualified
 
--- import Paths_ctl_server (getDataFileName)
-
 newtype AppM (a :: Type) = AppM (ReaderT Env IO a)
   deriving newtype
     ( Functor
@@ -89,15 +87,13 @@ newEnvIO :: ServerOptions -> IO (Either String Env)
 newEnvIO serverOptions@ServerOptions {..} =
   let ogmiosServerParams =
         Ogmios.Query.defaultServerParameters
-          { Ogmios.Query.getPort = ogmiosPort
-          , Ogmios.Query.getHost = ogmiosHost
+          { Ogmios.Query.port = ogmiosPort
+          , Ogmios.Query.host = ogmiosHost
           }
       queryProtocolParams :: IO LC8.ByteString
       queryProtocolParams =
         Ogmios.Query.makeRequest
           ogmiosServerParams
-          $ Ogmios.Query.Query
-            Ogmios.Query.CurrentProtocolParameters
       maxConnectionAttempts = 300
    in do
         eitherResponse <-
@@ -108,7 +104,7 @@ newEnvIO serverOptions@ServerOptions {..} =
           Right response ->
             case decodeProtocolParameters response of
               Right params ->
-                (return . Right . Env serverOptions) params
+                return . Right . Env serverOptions $ params
               Left errors ->
                 return . Left . Text.unpack $
                   Text.intercalate "\n" errors
