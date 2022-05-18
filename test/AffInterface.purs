@@ -3,16 +3,29 @@ module Test.AffInterface (suite) where
 import Prelude
 
 import Address (addressToOgmiosAddress, ogmiosAddressToAddress)
+import Contract.Address (Slot(Slot))
 import Data.Maybe (Maybe(Just, Nothing))
-import Effect.Aff (Aff)
+import Data.UInt as UInt
+import Effect.Aff (Aff, try)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
-import QueryM (getChainTip, runQueryM, traceQueryConfig)
+import QueryM
+  ( cancelFetchBlocks
+  , getChainTip
+  , getDatumByHash
+  , getDatumsByHashes
+  , runQueryM
+  , startFetchBlocks
+  , traceQueryConfig
+  )
 import QueryM.Ogmios (OgmiosAddress)
 import QueryM.Utxos (utxosAt)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
+import Types.ByteArray (hexToByteArrayUnsafe)
+import Types.Chain (BlockHeaderHash(BlockHeaderHash))
+import Types.Transaction (DataHash(DataHash))
 
 testnet_addr1 :: OgmiosAddress
 testnet_addr1 =
@@ -40,6 +53,46 @@ suite = do
       $ testFromOgmiosAddress testnet_addr1
     test "Ogmios Address to Address & back non-Testnet"
       $ testFromOgmiosAddress addr1
+  group "Ogmios datum cache" do
+    test "Can process GetDatumByHash" do
+      testOgmiosDatumCacheGetDatumByHash
+    test "Can process GetDatumsByHashes" do
+      testOgmiosDatumCacheGetDatumsByHashes
+    test "Fetcher works" do
+      testOgmiosDatumCacheFetcher
+
+testOgmiosDatumCacheGetDatumByHash :: Aff Unit
+testOgmiosDatumCacheGetDatumByHash =
+  traceQueryConfig >>= flip runQueryM do
+    -- Use this to trigger block fetching in order to actually get the datum:
+    -- ```
+    -- curl localhost:9999/control/fetch_blocks -X POST -d '{"slot": 54066900, "id": "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d", "datumFilter": {"address": "addr_xyz"}}' -H 'Content-Type: application/json'
+    -- ```
+    _datum <- getDatumByHash $ DataHash $ hexToByteArrayUnsafe
+      "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
+    pure unit
+
+testOgmiosDatumCacheGetDatumsByHashes :: Aff Unit
+testOgmiosDatumCacheGetDatumsByHashes =
+  traceQueryConfig >>= flip runQueryM do
+    -- Use this to trigger block fetching in order to actually get the datum:
+    -- ```
+    -- curl localhost:9999/control/fetch_blocks -X POST -d '{"slot": 54066900, "id": "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d", "datumFilter": {"address": "addr_xyz"}}' -H 'Content-Type: application/json'
+    -- ```
+    _datums <- getDatumsByHashes $ pure $ DataHash $ hexToByteArrayUnsafe
+      "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
+    pure unit
+
+testOgmiosDatumCacheFetcher :: Aff Unit
+testOgmiosDatumCacheFetcher =
+  traceQueryConfig >>= flip runQueryM do
+    void $ try cancelFetchBlocks -- ignore error if the fetcher was not running
+    startFetchBlocks
+      { slot: Slot (UInt.fromInt 54066900)
+      , id: BlockHeaderHash
+          "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d"
+      }
+    cancelFetchBlocks
 
 testUtxosAt :: OgmiosAddress -> Aff Unit
 testUtxosAt testAddr = case ogmiosAddressToAddress testAddr of

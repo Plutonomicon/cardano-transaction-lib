@@ -41,18 +41,7 @@ $schema methodType
 
 $schema mirrorType
     $type
-        $object
-    $properties
-        $property-name "step"
-        $property-schema stepType
-        $property-name "id"
-        $property-schema $string
-
-$schema stepType
-    $type
         $string
-    $string-values
-        "INIT"
 
 $schema result
     $type
