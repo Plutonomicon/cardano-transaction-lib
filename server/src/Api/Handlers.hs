@@ -6,6 +6,7 @@ module Api.Handlers (
   hashData,
   hashScript,
   plutusHash,
+  evalTxExecutionUnits,
   finalizeTx,
 ) where
 
@@ -24,6 +25,7 @@ import Cardano.Ledger.SafeHash qualified as SafeHash
 import Codec.CBOR.Read (deserialiseFromBytes)
 import Control.Lens
 import Control.Monad.Catch (throwM)
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (asks)
 import Data.Bifunctor (first)
 import Data.ByteString (ByteString)
@@ -34,6 +36,7 @@ import Data.Map qualified as Map
 import Data.Proxy (Proxy (Proxy))
 import Data.Set qualified as Set
 import Data.Text.Encoding qualified as Text.Encoding
+import Data.Traversable (for)
 import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
 import PlutusTx.Builtins qualified as PlutusTx
 import Types (
@@ -42,13 +45,20 @@ import Types (
   ApplyArgsRequest (ApplyArgsRequest, args, script),
   ByteStringHash (ByteStringHash),
   BytesToHash (BytesToHash),
+  CardanoError (
+    AcquireFailure,
+    EraMismatchError,
+    ScriptExecutionError,
+    TxValidityIntervalError
+  ),
   Cbor (Cbor),
   CborDecodeError (InvalidCbor, InvalidHex, OtherDecodeError),
-  CtlServerError (CborDecode),
+  CtlServerError (CardanoError, CborDecode),
   Env (protocolParams),
+  ExecutionUnitsMap (ExecutionUnitsMap),
   Fee (Fee),
-  FinalizeRequest (..),
-  FinalizedTransaction (..),
+  FinalizeRequest (FinalizeRequest, datums, redeemers, tx),
+  FinalizedTransaction (FinalizedTransaction),
   HashDataRequest (HashDataRequest),
   HashScriptRequest (HashScriptRequest),
   HashedData (HashedData),
@@ -56,7 +66,15 @@ import Types (
   HashBytesRequest (HashBytesRequest),
   HashedScript (HashedScript), 
   HashMethod (Blake2b_256, Sha2_256, Sha3_256),
+  RdmrPtrExUnits (
+    RdmrPtrExUnits,
+    exUnitsMem,
+    exUnitsSteps,
+    rdmrPtrIdx,
+    rdmrPtrTag
+  ),
   WitnessCount (WitnessCount),
+  getNodeConnectInfo,
   hashLedgerScript,
  )
 
@@ -67,6 +85,51 @@ estimateTxFees (WitnessCount numWits) cbor = do
       decodeCborTx cbor
   pparams <- asks protocolParams
   pure . Fee $ estimateFee pparams numWits decoded
+
+{- | Computes the execution units needed for each script in the transaction.
+ https://input-output-hk.github.io/cardano-node/cardano-api/src/Cardano.Api.Fees.html#evaluateTransactionExecutionUnits
+-}
+evalTxExecutionUnits :: Cbor -> AppM ExecutionUnitsMap
+evalTxExecutionUnits cbor =
+  case decodeCborTx cbor of
+    Left err ->
+      throwM (CborDecode err)
+    Right (C.Tx txBody@(C.TxBody txBodyContent) _) -> do
+      -- performing the necessary node queries to obtain the parameters
+      -- required by the Cardano API `evaluateTransactionExecutionUnits`
+      sysStart <- queryNode C.QuerySystemStart
+      eraHistory <- queryNode (C.QueryEraHistory C.CardanoModeIsMultiEra)
+      pparams <- asks protocolParams
+      let eraInMode = C.AlonzoEraInCardanoMode
+          txInputs = Set.fromList . fmap fst $ Shelley.txIns txBodyContent
+          eval = C.evaluateTransactionExecutionUnits
+      -- utxos must cover all the inputs referenced by the transaction,
+      -- otherwise `ScriptErrorMissingTxIn` will be thrown
+      utxos <- queryUtxos txInputs
+      case eval eraInMode sysStart eraHistory pparams utxos txBody of
+        Left err ->
+          throwM (CardanoError . TxValidityIntervalError $ C.displayError err)
+        Right mp ->
+          asExecutionUnitsMap mp
+  where
+    asExecutionUnitsMap ::
+      Map.Map
+        C.ScriptWitnessIndex
+        (Either C.ScriptExecutionError C.ExecutionUnits) ->
+      AppM ExecutionUnitsMap
+    asExecutionUnitsMap mp = do
+      exUnitsMap <-
+        for mp $
+          either (throwM . CardanoError . ScriptExecutionError) pure
+      pure . ExecutionUnitsMap $
+        (first Shelley.toAlonzoRdmrPtr <$> Map.toList exUnitsMap)
+          <&> \(TxWitness.RdmrPtr tag idx, exUnits) ->
+            RdmrPtrExUnits
+              { rdmrPtrTag = (toEnum . fromEnum) tag
+              , rdmrPtrIdx = idx
+              , exUnitsMem = C.executionMemory exUnits
+              , exUnitsSteps = C.executionSteps exUnits
+              }
 
 applyArgs :: ApplyArgsRequest -> AppM AppliedScript
 applyArgs ApplyArgsRequest {script, args} =
@@ -148,6 +211,10 @@ finalizeTx FinalizeRequest {tx, datums, redeemers} = do
 
 -- Helpers
 
+{- | Calculates the transaction fee for the proposed Alonzo era transaction,
+ including the script fees.
+ https://input-output-hk.github.io/cardano-node/cardano-api/src/Cardano.Api.Fees.html#evaluateTransactionFee
+-}
 estimateFee ::
   Shelley.ProtocolParameters -> Word -> C.Tx C.AlonzoEra -> Integer
 estimateFee pparams numWits (C.Tx txBody _) =
@@ -161,6 +228,22 @@ estimateFee pparams numWits (C.Tx txBody _) =
           -- 'evaluateTransactionFee' won't work with them anyway
           0
    in estimate
+
+queryNode :: forall (r :: Type). C.QueryInMode C.CardanoMode r -> AppM r
+queryNode query = do
+  nodeConnectInfo <- getNodeConnectInfo
+  response <- liftIO $ C.queryNodeLocalState nodeConnectInfo Nothing query
+  either (throwM . CardanoError . AcquireFailure . show) pure $
+    response
+
+queryUtxos :: Set.Set C.TxIn -> AppM (C.UTxO C.AlonzoEra)
+queryUtxos txInputs =
+  either (\_ -> throwM $ CardanoError EraMismatchError) pure
+    =<< ( queryNode
+            . C.QueryInEra C.AlonzoEraInCardanoMode
+            . C.QueryInShelleyBasedEra C.ShelleyBasedEraAlonzo
+            $ C.QueryUTxO (C.QueryUTxOByTxIn txInputs)
+        )
 
 decodeCborText :: Cbor -> Either CborDecodeError ByteString
 decodeCborText (Cbor cborText) =

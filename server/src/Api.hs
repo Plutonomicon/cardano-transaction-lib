@@ -6,10 +6,12 @@ module Api (
   hashData,
   hashScript,
   plutusHash,
+  evalTxExecutionUnits,
   apiDocs,
 ) where
 
 import Api.Handlers qualified as Handlers
+import Cardano.Api qualified as C (displayError)
 import Control.Monad.Catch (try)
 import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (liftIO)
@@ -43,10 +45,17 @@ import Types (
   AppliedScript,
   ApplyArgsRequest,
   ByteStringHash,
+  CardanoError (
+    AcquireFailure,
+    EraMismatchError,
+    ScriptExecutionError,
+    TxValidityIntervalError
+  ),
   Cbor,
   CborDecodeError (InvalidCbor, InvalidHex, OtherDecodeError),
-  CtlServerError (CborDecode),
+  CtlServerError (CardanoError, CborDecode),
   Env,
+  ExecutionUnitsMap,
   Fee,
   FinalizeRequest,
   FinalizedTransaction,
@@ -77,6 +86,9 @@ type Api =
     :<|> "plutus-hash"
       :> ReqBody '[JSON] HashBytesRequest
       :> Post '[JSON] ByteStringHash
+    :<|> "eval-ex-units"
+      :> QueryParam' '[Required] "tx" Cbor
+      :> Get '[JSON] ExecutionUnitsMap
     :<|> "finalize"
       :> ReqBody '[JSON] FinalizeRequest
       :> Post '[JSON] FinalizedTransaction
@@ -111,10 +123,22 @@ appServer env = hoistServer api appHandler server
         handleError ::
           CtlServerError ->
           Handler a
+        handleError (CardanoError ce) = case ce of
+          AcquireFailure str ->
+            throwError err400 {errBody = LC8.pack str}
+          ScriptExecutionError err ->
+            throwError err400 {errBody = LC8.pack (C.displayError err)}
+          TxValidityIntervalError str ->
+            throwError err400 {errBody = LC8.pack str}
+          EraMismatchError ->
+            throwError err400 {errBody = lbshow EraMismatchError}
         handleError (CborDecode de) = case de of
-          InvalidCbor ic -> throwError err400 {errBody = lbshow ic}
-          InvalidHex ih -> throwError err400 {errBody = LC8.pack ih}
-          OtherDecodeError str -> throwError err400 {errBody = LC8.pack str}
+          InvalidCbor ic ->
+            throwError err400 {errBody = lbshow ic}
+          InvalidHex ih ->
+            throwError err400 {errBody = LC8.pack ih}
+          OtherDecodeError str ->
+            throwError err400 {errBody = LC8.pack str}
 
 api :: Proxy Api
 api = Proxy
@@ -125,6 +149,7 @@ server =
     :<|> Handlers.applyArgs
     :<|> Handlers.hashScript
     :<|> Handlers.plutusHash
+    :<|> Handlers.evalTxExecutionUnits
     :<|> Handlers.finalizeTx
     :<|> Handlers.hashData
 
@@ -135,12 +160,14 @@ estimateTxFees :: WitnessCount -> Cbor -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
 hashScript :: HashScriptRequest -> ClientM HashedScript
 plutusHash :: HashBytesRequest  -> ClientM ByteStringHash
+evalTxExecutionUnits :: Cbor -> ClientM ExecutionUnitsMap
 finalizeTx :: FinalizeRequest -> ClientM FinalizedTransaction
 hashData :: HashDataRequest -> ClientM HashedData
 estimateTxFees
   :<|> applyArgs
   :<|> hashScript
   :<|> plutusHash
+  :<|> evalTxExecutionUnits
   :<|> finalizeTx
   :<|> hashData =
     client api
