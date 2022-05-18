@@ -5,7 +5,6 @@ module Serialization.PlutusData
 
 import Prelude
 
-import Data.Array (reverse)
 import Data.BigInt as BigInt
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
@@ -32,7 +31,7 @@ import Types.PlutusData as T
 convertPlutusData :: T.PlutusData -> Maybe PlutusData
 convertPlutusData = case _ of
   T.Constr alt list -> convertConstr alt list
-  T.Map mp -> convertPlutusMap (reverse mp)
+  T.Map mp -> convertPlutusMap mp
   T.List lst -> convertPlutusList lst
   T.Integer n -> convertPlutusInteger n
   T.Bytes b -> pure $ _mkPlutusData_bytes b
