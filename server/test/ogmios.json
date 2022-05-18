@@ -18,6 +18,9 @@
     "treasuryExpansion": "1/5",
     "decentralizationParameter": "0/1",
     "_extraEntropy": "neutral",
+    "costModels": {
+      "plutus:v1":null
+    },
     "protocolVersion": {
       "major": 6,
       "minor": 0

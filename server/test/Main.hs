@@ -31,7 +31,6 @@ import Servant.Client (
   parseBaseUrl,
   runClientM,
  )
-import System.Exit (die)
 import Test.Hspec (
   ActionWith,
   Spec,
@@ -51,22 +50,21 @@ import Types (
   Blake2bHash (Blake2bHash),
   BytesToHash (BytesToHash),
   Cbor (Cbor),
-  Env,
+  Env (Env),
   Fee (Fee),
   HashDataRequest (HashDataRequest),
   HashScriptRequest (HashScriptRequest),
   HashedData (HashedData),
   HashedScript (HashedScript),
   ServerOptions (
-    ServerOptions, 
-    networkId, 
-    nodeSocket, 
-    port, 
-    ogmiosPort, 
-    ogmiosHost
+    ServerOptions,
+    networkId,
+    nodeSocket,
+    ogmiosHost,
+    ogmiosPort,
+    port
   ),
   WitnessCount (WitnessCount),
-  newEnvIO,
   unsafeDecode,
  )
 
@@ -192,18 +190,19 @@ setupClientEnv = do
      in clientEnv
 
 withTestApp :: ActionWith (Port -> IO ())
-withTestApp = Warp.testWithApplication $ app <$> newEnvIO'
+withTestApp =
+  Warp.testWithApplication $
+    pure . app $
+      Env serverOptions fixedProtocolParameters
   where
     serverOptions =
       ServerOptions
         { port = 8081
         , nodeSocket = "./.node/socket/node.socket"
         , networkId = C.Testnet (C.NetworkMagic 1097911063)
-        , ogmiosHost = "ogmios"
+        , ogmiosHost = "localhost"
         , ogmiosPort = 1337
         }
-    newEnvIO' :: IO Env
-    newEnvIO' = either die pure =<< newEnvIO serverOptions
 
 runClientM' ::
   forall (a :: Type).
