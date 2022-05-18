@@ -5,6 +5,7 @@ module Deserialization.PlutusData
 import Prelude
 
 import Control.Alt ((<|>))
+import Data.Array (reverse)
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
@@ -45,6 +46,9 @@ convertPlutusConstr pd = do
   alt <- bigNumToBigInt $ _ConstrPlutusData_alternative constr
   pure $ T.Constr alt data'
 
+-- Similar to PLutusTx.AssocMap plutus-core seems to revere the order
+-- of elements which breaks the purescript-bridge roundtrip tests.
+-- See https://github.com/input-output-hk/plutus/blob/5112dff90536f10992ba953e4a74ef375e3f7bfa/plutus-core/plutus-core/src/PlutusCore/Data.hs#L245
 convertPlutusMap :: PlutusData -> Maybe T.PlutusData
 convertPlutusMap pd = do
   entries <- _PlutusData_map maybeFfiHelper pd >>=
@@ -53,7 +57,7 @@ convertPlutusMap pd = do
         k' <- convertPlutusData k
         v' <- convertPlutusData v
         pure (k' /\ v')
-  pure $ T.Map entries
+  pure $ T.Map (reverse entries) -- NOTE: Reversing entires
 
 convertPlutusList :: PlutusData -> Maybe T.PlutusData
 convertPlutusList pd = T.List <$> do

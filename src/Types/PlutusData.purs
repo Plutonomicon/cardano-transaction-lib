@@ -18,6 +18,7 @@ import Data.Argonaut.Decode (JsonDecodeError(UnexpectedValue))
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
+import Data.Map (fromFoldable)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for)
@@ -33,9 +34,18 @@ data PlutusData
   | Integer BigInt
   | Bytes ByteArray
 
-derive instance Eq PlutusData
 derive instance Ord PlutusData
 derive instance Generic PlutusData _
+
+-- Explicity specifying the Eq instance to capture
+-- the Data.Map equality on `Map` values.
+instance Eq PlutusData where
+  eq (Constr li lfs) (Constr ri rfs) = eq li ri && eq lfs rfs
+  eq (Map ls) (Map rs) = eq (fromFoldable ls) (fromFoldable rs)
+  eq (List ls) (List rs) = eq ls rs
+  eq (Integer l) (Integer r) = eq l r
+  eq (Bytes l) (Bytes r) = eq l r
+  eq _ _ = false
 
 instance Show PlutusData where
   show x = genericShow x
