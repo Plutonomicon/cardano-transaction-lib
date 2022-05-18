@@ -59,5 +59,5 @@ main = launchAff_ $ do
     logInfo' $ "Tx ID: " <> show txId
 
 alwaysSucceedsScript :: Maybe Validator
-alwaysSucceedsScript = hush $ decodeJson $ fromString
+alwaysSucceedsScript = map wrap $ hush $ decodeJson $ fromString
   "4d01000033222220051200120011"

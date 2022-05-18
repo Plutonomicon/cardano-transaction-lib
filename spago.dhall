@@ -2,9 +2,10 @@
 Welcome to a Spago project!
 You can edit this file as you like.
 -}
-{ name = "my-project"
+{ name = "cardano-transaction-lib"
 , dependencies =
-  [ "aff"
+  [ "aeson"
+  , "aff"
   , "aff-promise"
   , "affjax"
   , "argonaut"
@@ -42,6 +43,7 @@ You can edit this file as you like.
   , "node-fs-aff"
   , "node-path"
   , "nonempty"
+  , "numbers"
   , "ordered-collections"
   , "partial"
   , "prelude"
@@ -52,6 +54,7 @@ You can edit this file as you like.
   , "rationals"
   , "record"
   , "refs"
+  , "sequences"
   , "spec"
   , "strings"
   , "tailrec"
