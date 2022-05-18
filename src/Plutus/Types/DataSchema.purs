@@ -80,7 +80,7 @@ foreign import data I :: forall (k :: Type). k -> Id k
 data PSchema :: forall (k :: Type). k -> Type
 data PSchema k
 
-{- | A concrete Plutus Data schema. Morally equivalent to:  Row (Row Type). This is superfluous
+{-  A concrete Plutus Data schema. Morally equivalent to:  Row (Row Type). This is superfluous
    in the sense that we could simply do everything here with (RowListI (RowList Type)), which
    @PlutusSchema@s are all translated to, but this facilitates a more comprehensible syntax.
    (Conversely we could rewrite all of the RowList/RowListI machinery in terms of this, but it
@@ -126,19 +126,44 @@ data PSchema k
 
         :+ PNil
         )
--}
 
+Note that a PSchema encodes two pieces of information:
+
+1) The index of each *constructor* of a data type. This information is encoded in the "outer" RowListI.
+   In the above example, these are "F0" (Z), "F1" (S Z), and "F2" (S (S Z))
+
+2) The correct on-chain ordering of each record field. This is encoded implicitly by the ordering of the fields in each inner list (i.e. we do not provide a specific index for record fields).
+   If a constructor does not have a Record argument, we do not need to encode any information about that argument. For example, the type:
+
+    data GType
+      = G0 BigInt
+      | G1 Boolean Boolean Boolean
+      | G2 BigInt GType
+
+   would have a much simpler Schema:
+
+   instance
+     HasPlutusSchema GType
+       ( "G0" := PNil @@ Z
+       :+ "G1" := PNil @@ (S Z)
+       :+ "G2" :+ PNil @@ (S (S Z))
+       :+ PNil)
+
+   The sole purpose of the inner list is to ensure correct translation to and from Plutus Data for record types
+   when using the generic functions in ToData/FromData. Since GType's constructors do not have record arguments,
+   no additional information is needed in the inner lists.
+-}
+-- | See the source (DataSchema.purs) for a detailed explanation of how this works / what it is for / examples
 type PlutusSchema = PSchema (PSchema Type)
 
-{- | A class used to associate types with a Plutus Data Schema. The fundeps *should* guarantee
-   that only one schema can exist for each type. This allows us to make the compiler select the
-   schema associated with a particular type.
--}
+-- | A class used to associate types with a Plutus Data Schema. The fundeps *should* guarantee
+-- | that only one schema can exist for each type. This allows us to make the compiler select the
+-- | schema associated with a particular type.
 class HasPlutusSchema
   :: Type -> PlutusSchema -> Constraint
 class HasPlutusSchema t schema | t -> schema
 
--- Listlike constructors for the PSchema kind.
+-- | Listlike constructors for the PSchema kind.
 foreign import data PNil :: forall (k :: Type). PSchema k
 foreign import data PCons
   :: forall (k :: Type). Field k -> PSchema k -> PSchema k
@@ -180,12 +205,12 @@ infixr 8 type MkField_ as :=
 
 {- <<< Constraints used to provide compile-time validation of a PSchema >>> -}
 
-{- | A class which ensures that the Nat indices of the RowListI are unique & that the Symbol
-   labels of both the RowListI and RowList in a RowListI (RowList k) all contain unique labels
-   (relative to  their "level", i.e., two record arguments of *different* constructors can
-   have overlapping labels, but constructor names cannot overlap, nor can two labels or indices
-   of the *same* record)
--}
+-- TODO: See if we can optimize this. Slows down compilation considerably for complex types.
+-- | A class which ensures that the Nat indices of the RowListI are unique & that the Symbol
+-- | labels of both the RowListI and RowList in a RowListI (RowList k) all contain unique labels
+-- | (relative to  their "level", i.e., two record arguments of *different* constructors can
+-- | have overlapping labels, but constructor names cannot overlap, nor can two labels or indices
+-- | of the *same* record)
 class AllUnique2 :: forall (k :: Type). RowListI (RowList k) -> Constraint
 class AllUnique2 rList
 
@@ -198,9 +223,8 @@ else instance
   ) =>
   AllUnique2 (ConsI l a n xs)
 
-{- | The class which combines all of the above constraints. To make use of genericFromData / genericToData,
-   a type must have an associated Plutus Data schema which satisfies this constraint.
--}
+-- | The class which validates a Plutus Schema. To make use of genericFromData / genericToData,
+-- | a type must have an associated Plutus Data schema which satisfies this constraint.
 class ValidPlutusSchema :: PlutusSchema -> RowListI (RowList Type) -> Constraint
 class
   ( PlutusSchemaToRowListI schema list
@@ -215,7 +239,7 @@ instance
   ) =>
   ValidPlutusSchema schema list
 
--- Helper type classes used to convert a PlutusSchema to a RowListI (RowList k). Should not need to be used outside of this module.
+-- | Helper type classes used to convert a PlutusSchema to a RowListI (RowList k). Should not need to be used outside of this module.
 class SchemaToRowList
   :: forall (k :: Type). PSchema k -> RowList k -> Constraint
 class SchemaToRowList schema list | schema -> list
