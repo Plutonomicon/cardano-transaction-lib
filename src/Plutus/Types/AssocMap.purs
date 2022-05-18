@@ -20,21 +20,9 @@ module Plutus.Types.AssocMap
 
 import Prelude
 
-import Data.Array ((:))
-import Data.Array
-  ( any
-  , deleteAt
-  , filter
-  , findIndex
-  , mapMaybe
-  , null
-  , singleton
-  ) as Array
+import Data.Array (any, deleteAt, filter, findIndex, mapMaybe, null, singleton) as Array
+import Data.Array (reverse, (:))
 import Data.Bifunctor (bimap)
-import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(Just, Nothing), isJust)
-import Data.Newtype (class Newtype, unwrap)
-import Data.Foldable (lookup) as Foldable
 import Data.Foldable
   ( class Foldable
   , foldlDefault
@@ -42,6 +30,10 @@ import Data.Foldable
   , foldr
   , foldrDefault
   )
+import Data.Foldable (lookup) as Foldable
+import Data.Generic.Rep (class Generic)
+import Data.Maybe (Maybe(Just, Nothing), isJust)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This), these)
 import Data.Traversable (class Traversable, for, sequence, traverse)
@@ -50,6 +42,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import FromData (class FromData, fromData)
 import ToData (class ToData, toData)
 import Types.PlutusData (PlutusData(Map)) as PD
+import Data.Map (fromFoldable)
 
 -- Taken from local Hoogle server for the Haskell server which uses
 -- `plutus` rev: 1efbb276ef1a10ca6961d0fd32e6141e9798bd11
@@ -65,8 +58,14 @@ newtype Map (k :: Type) (v :: Type) = Map (Array (Tuple k v))
 
 derive instance Generic (Map k v) _
 derive instance Newtype (Map k v) _
-derive newtype instance (Eq k, Eq v) => Eq (Map k v)
-derive newtype instance (Ord k, Ord v) => Ord (Map k v)
+
+-- We implement Ord/Eq instances to match that of Data.Map
+-- and effectively ignore the element ordering.
+instance (Ord k, Ord v) => Ord (Map k v) where
+  compare (Map ls) (Map rs) = compare (fromFoldable ls) (fromFoldable rs)
+
+instance (Ord k, Eq v) => Eq (Map k v) where
+  eq (Map ls) (Map rs) = eq (fromFoldable ls) (fromFoldable rs)
 
 instance (Show k, Show v) => Show (Map k v) where
   show = genericShow
@@ -74,12 +73,18 @@ instance (Show k, Show v) => Show (Map k v) where
 instance (ToData k, ToData v) => ToData (Map k v) where
   toData (Map xs) = PD.Map (bimap toData toData <$> xs)
 
+-- The plutus-tx AssocMap FromData instance reverses the element order.
+-- This makes the purescript-brige compatiblity tests fail as the
+-- Haskell Eq instance is simply derived and sensitive to element
+-- ordering.
+-- We reverse the order as well to keep the round trip encodings equal.
+-- See https://github.com/input-output-hk/plutus/blob/650a0659cbaacec2166e0153d2393c779cedc4c0/plutus-tx/src/PlutusTx/AssocMap.hs#L86
 instance (FromData k, FromData v) => FromData (Map k v) where
   fromData (PD.Map mp) = do
-    Map <$>
-      ( for mp \(k /\ v) ->
-          Tuple <$> fromData k <*> fromData v
-      )
+    Map <$> do
+      xs <- for mp \(k /\ v) ->
+        Tuple <$> fromData k <*> fromData v
+      pure $ reverse xs -- NOTE: Explanation is above
   fromData _ = Nothing
 
 instance Functor (Map k) where

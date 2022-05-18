@@ -43,6 +43,7 @@ import TypeLevel.RowList (class AllUniqueLabels)
 import TypeLevel.RowList.Unordered.Indexed (NilI, ConsI, class UniqueIndices)
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Untagged.Union (asOneOf)
+import Plutus.Types.AssocMap as AssocMap
 
 plutusDataAesonRoundTrip
   ∷ ∀ (a ∷ Type). ToData a ⇒ FromData a ⇒ a → Either JsonDecodeError a
@@ -84,16 +85,29 @@ suite = do
         let
           input = [ Just true, Just false, Nothing ]
         plutusDataAesonRoundTrip input `shouldEqual` Right input
-      test "Map" do
+      group "Map" do
         let
-          input = Map
-            [ BigInt.fromInt 13 /\
-                [ Map
-                    [ BigInt.fromInt 17 /\ false
+          inputs =
+            [ Map
+                [ BigInt.fromInt 1 /\
+                    [ Map
+                        [ BigInt.fromInt 11 /\ false
+                        , BigInt.fromInt 12 /\ true
+                        ]
                     ]
+                , BigInt.fromInt 2 /\
+                    [ Map
+                        [ BigInt.fromInt 21 /\ false
+                        , BigInt.fromInt 22 /\ false
+                        , BigInt.fromInt 23 /\ true
+                        ]
+                    ]
+                , BigInt.fromInt 3 /\ []
                 ]
             ]
-        plutusDataAesonRoundTrip input `shouldEqual` Right input
+        for_ inputs \input -> do
+          test (show input) do
+            plutusDataAesonRoundTrip input `shouldEqual` Right input
     group "Generic" do
       -- TODO: Quickcheckify
       test "CType: from . to == id" do
@@ -136,14 +150,39 @@ suite = do
         let
           input = [ Just true, Just false, Nothing ]
         fromData (toData input) `shouldEqual` Just input
-      test "Map" do
+      test "AssocMap" do
         let
-          input = Map
-            [ BigInt.fromInt 13 /\
-                [ Map
-                    [ BigInt.fromInt 17 /\ false
-                    ]
+          input = AssocMap.Map
+            [ BigInt.fromInt 1 /\
+                [ ( AssocMap.Map
+                      [ BigInt.fromInt 17 /\ false, BigInt.fromInt 13 /\ true ]
+                  )
                 ]
+            , BigInt.fromInt 3 /\ []
+            ]
+        fromData (toData input) `shouldEqual` Just input
+      test "AssocMap #2" do
+        let
+          input = AssocMap.Map
+            [ BigInt.fromInt 1 /\ [ true, false, false ]
+            , BigInt.fromInt 3 /\ [ false, true, true ]
+            , BigInt.fromInt 7 /\ [ true, false, true ]
+            ]
+        fromData (toData input) `shouldEqual` Just input
+      test "AssocMap #3" do
+        let
+          input =
+            [ AssocMap.Map
+                [ BigInt.fromInt 17 /\ false
+                , BigInt.fromInt 13 /\ true
+                ]
+            ]
+        fromData (toData input) `shouldEqual` Just input
+      test "AssocMap #4" do
+        let
+          input = AssocMap.Map
+            [ BigInt.fromInt 1 /\ (AssocMap.Map [ true /\ false ])
+            , BigInt.fromInt 3 /\ (AssocMap.Map [ false /\ false ])
             ]
         fromData (toData input) `shouldEqual` Just input
     group "Generic" do
@@ -257,7 +296,7 @@ data CType
   | C1 (Maybe MyBigInt)
   | C2 MyBigInt Boolean
   | C3 MyBigInt Boolean Boolean
-  | C4 (Map BigInt (Array (Map BigInt Boolean)))
+  | C4 (AssocMap.Map BigInt (Array (AssocMap.Map BigInt Boolean)))
 
 instance
   HasPlutusSchema CType
