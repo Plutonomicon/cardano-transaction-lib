@@ -5,12 +5,12 @@ module Serialization.PlutusData
 
 import Prelude
 
+import Data.Array (reverse)
 import Data.BigInt as BigInt
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple, fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
-
 import FfiHelpers
   ( ContainerHelper
   , MaybeFfiHelper
@@ -32,7 +32,7 @@ import Types.PlutusData as T
 convertPlutusData :: T.PlutusData -> Maybe PlutusData
 convertPlutusData = case _ of
   T.Constr alt list -> convertConstr alt list
-  T.Map mp -> convertPlutusMap mp
+  T.Map mp -> convertPlutusMap (reverse mp)
   T.List lst -> convertPlutusList lst
   T.Integer n -> convertPlutusInteger n
   T.Bytes b -> pure $ _mkPlutusData_bytes b
