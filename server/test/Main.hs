@@ -1,6 +1,6 @@
 module Main (main) where
 
-import Api (app, applyArgs, blake2bHash, estimateTxFees, hashData, hashScript)
+import Api (app, applyArgs, plutusHash, estimateTxFees, hashData, hashScript)
 import Cardano.Api qualified as C
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.Kind (Type)
@@ -36,7 +36,10 @@ import Test.Hspec.Core.Spec (SpecM)
 import Types (
   AppliedScript (AppliedScript),
   ApplyArgsRequest (ApplyArgsRequest, args, script),
-  Blake2bHash (Blake2bHash),
+  ByteStringHash (ByteStringHash),
+  HashBytesRequest (HashBytesRequest),
+  HashedBytes (HashedBytes),
+  HashMethod (Blake2b_256),
   BytesToHash (BytesToHash),
   Cbor (Cbor),
   Env,
@@ -151,13 +154,12 @@ blake2bHashSpec = around withTestApp $ do
     it "gets the blake2b_256 hash" $ \port -> do
       result <-
         runClientM' (clientEnv port) $
-          blake2bHash (BytesToHash "foo")
+          plutusHash (HashBytesRequest Blake2b_256 $ BytesToHash "foo")
       result `shouldBe` Right blake2bRes
   where
     -- obtained from `fromBuiltin . blake2b_256 $ toBuiltin @ByteString "foo"`
-    blake2bRes :: Blake2bHash
-    blake2bRes =
-      Blake2bHash
+    blake2bRes :: ByteStringHash
+    blake2bRes = ByteStringHash Blake2b_256 $ HashedBytes
         "\184\254\159\DELbU\166\250\b\246h\171c*\141\b\SUB\216y\131\199|\210t\228\140\228P\240\179I\253"
 
 setupClientEnv :: SpecM Port (Port -> ClientEnv)

@@ -5,7 +5,7 @@ module Api.Handlers (
   applyArgs,
   hashData,
   hashScript,
-  blake2bHash,
+  plutusHash,
   finalizeTx,
 ) where
 
@@ -40,7 +40,7 @@ import Types (
   AppM,
   AppliedScript (AppliedScript),
   ApplyArgsRequest (ApplyArgsRequest, args, script),
-  Blake2bHash (Blake2bHash),
+  ByteStringHash (ByteStringHash),
   BytesToHash (BytesToHash),
   Cbor (Cbor),
   CborDecodeError (InvalidCbor, InvalidHex, OtherDecodeError),
@@ -52,7 +52,10 @@ import Types (
   HashDataRequest (HashDataRequest),
   HashScriptRequest (HashScriptRequest),
   HashedData (HashedData),
-  HashedScript (HashedScript),
+  HashedBytes (HashedBytes),
+  HashBytesRequest (HashBytesRequest),
+  HashedScript (HashedScript), 
+  HashMethod (Blake2b_256, Sha2_256, Sha3_256),
   WitnessCount (WitnessCount),
   hashLedgerScript,
  )
@@ -86,10 +89,13 @@ throwDecodeErrorWithMessage :: forall (a :: Type). String -> Maybe a -> AppM a
 throwDecodeErrorWithMessage msg =
   maybe (throwM . CborDecode $ OtherDecodeError msg) pure
 
-blake2bHash :: BytesToHash -> AppM Blake2bHash
-blake2bHash (BytesToHash hs) =
-  pure . Blake2bHash . PlutusTx.fromBuiltin . PlutusTx.blake2b_256 $
-    PlutusTx.toBuiltin hs
+plutusHash :: HashBytesRequest -> AppM ByteStringHash
+plutusHash (HashBytesRequest meth (BytesToHash hs)) = 
+  let hf = case meth of 
+             Sha3_256 -> PlutusTx.sha3_256
+             Sha2_256 -> PlutusTx.sha2_256
+             Blake2b_256 -> PlutusTx.blake2b_256
+   in pure . ByteStringHash meth . HashedBytes . PlutusTx.fromBuiltin . hf $ PlutusTx.toBuiltin hs
 
 finalizeTx :: FinalizeRequest -> AppM FinalizedTransaction
 finalizeTx FinalizeRequest {tx, datums, redeemers} = do
