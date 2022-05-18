@@ -33,13 +33,9 @@ import Data.Lens.Getter ((^.))
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-<<<<<<< HEAD
 import Data.Tuple.Nested (type (/\))
 import Plutus.ToPlutusType (toPlutusType)
 import Plutus.Types.Value (Value)
-=======
-import Data.Tuple.Nested (type (/\), (/\))
->>>>>>> master
 import QueryM
   ( FeeEstimate(FeeEstimate)
   , ClientError(..) -- implicit as this error list will likely increase.
