@@ -5,6 +5,7 @@ module Deserialization.PlutusData
 import Prelude
 
 import Control.Alt ((<|>))
+import Data.Array (reverse)
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
@@ -56,7 +57,7 @@ convertPlutusMap pd = do
         k' <- convertPlutusData k
         v' <- convertPlutusData v
         pure (k' /\ v')
-  pure $ T.Map entries
+  pure $ T.Map (reverse entries) -- NOTE: Reversing entires
 
 convertPlutusList :: PlutusData -> Maybe T.PlutusData
 convertPlutusList pd = T.List <$> do
