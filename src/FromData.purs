@@ -110,7 +110,6 @@ class FromDataArgsRL t constr list row | t constr list -> row where
 -- | FromDataWithSchema instances for Data.Generic.Rep
 -- | See https://purescript-simple-json.readthedocs.io/en/latest/generics-rep.html
 
-
 instance
   ( FromDataWithSchema t l
   , FromDataWithSchema t r
