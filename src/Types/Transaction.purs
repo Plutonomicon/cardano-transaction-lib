@@ -52,11 +52,20 @@ instance ToData TransactionInput where
   toData (TransactionInput { transactionId, index }) =
     Constr zero [ toData transactionId, toData index ]
 
+-- | Newtype for all `TransactionOutput` types, this wraps the separate `Cardano`
+-- | and `Plutus` types
 newtype TxOutput address value = TxOutput
   { address :: address
   , amount :: value
   , dataHash :: Maybe DataHash
   }
+
+derive instance Generic (TxOutput a v) _
+derive instance Newtype (TxOutput a v) _
+derive newtype instance (Eq a, Eq v) => Eq (TxOutput a v)
+
+instance (Show a, Show v) => Show (TxOutput a v) where
+  show = genericShow
 
 -- | 32-bytes blake2b256 hash of a tx body.
 -- | NOTE. Plutus docs might incorrectly state that it uses

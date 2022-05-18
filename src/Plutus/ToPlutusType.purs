@@ -10,7 +10,8 @@ import Data.Identity (Identity(Identity))
 import Data.Foldable (fold)
 import Data.Map (toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (class Newtype, wrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Traversable (traverse)
 import Data.Tuple (fst) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt, fromInt, (.&.), and, shl, zshr)
@@ -26,11 +27,20 @@ import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
   )
+import Plutus.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  , UtxoM(UtxoM)
+  ) as Plutus
 import Plutus.Types.Value (Value) as Plutus
 import Plutus.Types.Value (lovelaceValueOf, singleton') as Plutus.Value
 
 import Types.ByteArray (ByteArray, byteArrayFromIntArray, byteArrayToIntArray)
 import Types.TokenName (getTokenName)
+import Types.Transaction (TxOutput(TxOutput))
+import Cardano.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  , UtxoM(UtxoM)
+  ) as Cardano
 import Cardano.Types.Value (Value(Value)) as Types
 import Cardano.Types.Value
   ( Coin(Coin)
@@ -196,3 +206,25 @@ fromVarLengthUInt bytes acc = do
       in
         Just $ wrap uintValue /\ xs
     _ -> fromVarLengthUInt xs (snoc acc x)
+
+--------------------------------------------------------------------------------
+-- Cardano.Types.Transaction.TransactionOutput ->
+-- Maybe Plutus.Types.Transaction.TransactionOutput
+--------------------------------------------------------------------------------
+
+instance ToPlutusType Maybe Cardano.TransactionOutput Plutus.TransactionOutput
+  where
+  toPlutusType
+    (Cardano.TransactionOutput (TxOutput { address, amount, dataHash })) = do
+    addr <- toPlutusType address
+    pure $ Plutus.TransactionOutput $ TxOutput
+      { address: addr, amount: unwrap $ toPlutusType amount, dataHash }
+
+--------------------------------------------------------------------------------
+-- Cardano.Types.Transaction.UtxoM ->
+-- Maybe Plutus.Types.Transaction.UtxoM
+--------------------------------------------------------------------------------
+
+instance ToPlutusType Maybe Cardano.UtxoM Plutus.UtxoM where
+  toPlutusType (Cardano.UtxoM utxos) =
+    Plutus.UtxoM <$> traverse toPlutusType utxos

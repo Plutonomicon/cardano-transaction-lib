@@ -10,6 +10,7 @@ import Data.Identity (Identity(Identity))
 import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, fromJust)
 import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Traversable (traverse)
 import Data.Tuple (snd) as Tuple
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt, fromInt, toInt, (.&.), (.|.), shl, zshr)
@@ -30,11 +31,20 @@ import Plutus.Types.Credential
   )
 import Plutus.Types.AssocMap (lookup) as Plutus.AssocMap
 import Plutus.Types.CurrencySymbol (adaSymbol, getCurrencySymbol) as Plutus
+import Plutus.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  , UtxoM(UtxoM)
+  ) as Plutus
 import Plutus.Types.Value (Value) as Plutus
 import Plutus.Types.Value (getValue) as Plutus.Value
 
 import Types.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe)
 import Types.TokenName (adaToken)
+import Types.Transaction (TxOutput(TxOutput))
+import Cardano.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  , UtxoM(UtxoM)
+  ) as Cardano
 import Cardano.Types.Value (Value) as Types
 import Cardano.Types.Value (NonAdaAsset, mkValue, mkNonAdaAssetsFromTokenMap)
 
@@ -176,3 +186,25 @@ toVarLengthUInt t = worker (unwrap t) false
             $ byteArrayFromIntArrayUnsafe <<< singleton <<< toInt
             -- Turn off the signal bit for the last 7-bit component in the array.
             $ if setSignalBit then uint7 .|. fromInt 128 else uint7
+
+--------------------------------------------------------------------------------
+-- Plutus.Types.Transaction.TransactionOutput  ->
+-- Maybe Cardano.Types.Transaction.TransactionOutput
+--------------------------------------------------------------------------------
+
+instance FromPlutusType Maybe Plutus.TransactionOutput Cardano.TransactionOutput
+  where
+  fromPlutusType
+    (Plutus.TransactionOutput (TxOutput { address, amount, dataHash })) = do
+    addr <- fromPlutusType address
+    pure $ Cardano.TransactionOutput $ TxOutput
+      { address: addr, amount: unwrap $ fromPlutusType amount, dataHash }
+
+--------------------------------------------------------------------------------
+-- Plutus.Types.Transaction.UtxoM ->
+-- Maybe Cardano.Types.Transaction.UtxoM
+--------------------------------------------------------------------------------
+
+instance FromPlutusType Maybe Plutus.UtxoM Cardano.UtxoM where
+  fromPlutusType (Plutus.UtxoM utxos) =
+    Cardano.UtxoM <$> traverse fromPlutusType utxos

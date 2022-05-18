@@ -70,7 +70,6 @@ import Cardano.Types.Transaction -- Most re-exported, don't re-export `Redeemer`
   , TransactionOutput(TransactionOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
-  , TxOut
   , UnitInterval
   , Update
   , Utxo
@@ -154,7 +153,6 @@ import Types.TransactionMetadata
   ) as TransactionMetadata
 import Types.UnbalancedTransaction
   ( ScriptOutput(ScriptOutput) -- More up-to-date Plutus uses this, wonder if we can just use `TransactionOutput`
-  , TxOutRef
   , UnbalancedTx(UnbalancedTx)
   , _transaction
   , _utxoIndex

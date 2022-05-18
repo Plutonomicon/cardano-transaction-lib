@@ -39,14 +39,14 @@ import Serialization.Address (Address, NetworkId)
 import ToData (class ToData, toData)
 import Types.Datum (DataHash, Datum(Datum))
 import Types.PlutusData (PlutusData)
-import Types.Transaction (TransactionInput)
+import Types.Transaction (TransactionInput, TxOutput(TxOutput))
 import Types.TypedValidator
   ( class DatumType
   , TypedValidator
   )
 import Cardano.Types.Value (Value)
 
--- | A `TxOutRef` ~ `TransactionInput` tagged by a phantom type: and the
+-- | A `TransactionInput` tagged by a phantom type: and the
 -- | connection type of the output.
 -- | Plutus uses wraps this type with a `TxIn` data type instead with optionally
 -- | carries the address type. We don't include such a type in our setup.
@@ -91,7 +91,7 @@ typedTxOutRefValue
   -> Value
 typedTxOutRefValue (TypedTxOutRef { typedTxOut }) = typedTxOutValue typedTxOut
 
--- | Extract the `TxOutRef` ~ `TransactionInput` of a `TypedTxOutRef`
+-- | Extract the `TransactionInput` of a `TypedTxOutRef`
 typedTxOutRefInput
   :: forall (a :: Type) (b :: Type)
    . DatumType a b
@@ -119,7 +119,7 @@ typedTxOutAddress
   => ToData b
   => TypedTxOut a b
   -> Address
-typedTxOutAddress (TypedTxOut { txOut }) = (unwrap txOut).address
+typedTxOutAddress (TypedTxOut { txOut }) = (unwrap $ unwrap txOut).address
 
 -- | Extract the `DataHash` of a `TypedTxOut`
 typedTxOutDatumHash
@@ -129,7 +129,7 @@ typedTxOutDatumHash
   => ToData b
   => TypedTxOut a b
   -> Maybe DataHash
-typedTxOutDatumHash (TypedTxOut { txOut }) = (unwrap txOut).dataHash
+typedTxOutDatumHash (TypedTxOut { txOut }) = (unwrap $ unwrap txOut).dataHash
 
 -- | Extract the `Value` of a `TypedTxOut`
 typedTxOutValue
@@ -139,7 +139,7 @@ typedTxOutValue
   => ToData b
   => TypedTxOut a b
   -> Value
-typedTxOutValue (TypedTxOut { txOut }) = (unwrap txOut).amount
+typedTxOutValue (TypedTxOut { txOut }) = (unwrap $ unwrap txOut).amount
 
 -- | Extract the `TxOut` ~ `TransactionOutput` of a `TypedTxOut`
 typedTxOutTxOut
@@ -174,7 +174,9 @@ mkTypedTxOut networkId typedVal dt amount = do
   let address = typedValidatorEnterpriseAddress networkId typedVal
   pure $ maybe Nothing
     ( \dHash ->
-        Just $ mkTypedTxOut' (wrap { address, amount, dataHash: pure dHash }) dt
+        Just $ mkTypedTxOut'
+          (wrap $ wrap { address, amount, dataHash: pure dHash })
+          dt
     )
     mDHash
   where
@@ -239,7 +241,7 @@ checkDatum
 checkDatum _ (Datum pd) =
   runExceptT $ liftM (WrongDatumType pd) (fromData pd :: Maybe b)
 
--- | Create a `TypedTxOut` from an existing `TxOutRef` ~ `TransactionInput` by
+-- | Create a `TypedTxOut` from an existing `TransactionInput` by
 -- | checking the types of its parts.
 typeTxOut
   :: forall (a :: Type) (b :: Type) (m :: Type -> Type)
@@ -250,7 +252,10 @@ typeTxOut
   -> TypedValidator a
   -> TransactionOutput
   -> QueryM (Either TypeCheckError (TypedTxOut a b))
-typeTxOut networkId typedVal (TransactionOutput { address, amount, dataHash }) =
+typeTxOut
+  networkId
+  typedVal
+  (TransactionOutput (TxOutput { address, amount, dataHash })) =
   runExceptT do
     -- Assume `Nothing` is a public key.
     dHash <- liftM ExpectedScriptGotPubkey dataHash
@@ -260,9 +265,9 @@ typeTxOut networkId typedVal (TransactionOutput { address, amount, dataHash }) =
     ExceptT $
       note CannotMakeTypedTxOut <$> mkTypedTxOut networkId typedVal dtOut amount
 
--- | Create a `TypedTxOutRef` from an existing `TxOutRef` ~ `TransactionInput`
+-- | Create a `TypedTxOutRef` from an existing `TransactionInput`
 -- | by checking the types of its parts. To do this we need to cross-reference
--- | against the validator script and be able to look up the `TxOutRef` to
+-- | against the validator script and be able to look up the `TransactionInput` to
 -- | which this reference points.
 typeTxOutRef
   :: forall (a :: Type) (b :: Type) (m :: Type -> Type)

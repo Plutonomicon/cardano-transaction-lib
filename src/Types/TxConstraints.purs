@@ -53,12 +53,11 @@ import Types.Redeemer (Redeemer, unitRedeemer)
 import Types.Interval (POSIXTimeRange, always, intersection, isEmpty)
 import Types.Scripts (MintingPolicyHash, ValidatorHash)
 import Types.Datum (Datum)
-import Types.Transaction (DataHash)
+import Types.Transaction (DataHash, TransactionInput)
 import Types.TokenName (TokenName)
 import Types.UnbalancedTransaction
   ( PaymentPubKeyHash
   , StakePubKeyHash
-  , TxOutRef
   )
 
 --------------------------------------------------------------------------------
@@ -74,8 +73,8 @@ data TxConstraint
   | MustBeSignedBy PaymentPubKeyHash
   | MustSpendAtLeast Value
   | MustProduceAtLeast Value
-  | MustSpendPubKeyOutput TxOutRef
-  | MustSpendScriptOutput TxOutRef Redeemer
+  | MustSpendPubKeyOutput TransactionInput
+  | MustSpendScriptOutput TransactionInput Redeemer
   | MustMintValue MintingPolicyHash Redeemer TokenName BigInt
   | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash)
       (Maybe Datum)
@@ -92,7 +91,7 @@ instance Show TxConstraint where
 
 newtype InputConstraint (i :: Type) = InputConstraint
   { redeemer :: i
-  , txOutRef :: TxOutRef
+  , txOutRef :: TransactionInput
   }
 
 derive instance Generic (InputConstraint i) _
@@ -147,7 +146,7 @@ instance Bifunctor TxConstraints where
 -- | redeemer.
 addTxIn
   :: forall (i :: Type) (o :: Type)
-   . TxOutRef
+   . TransactionInput
   -> i
   -> TxConstraints i o
   -> TxConstraints i o
@@ -275,11 +274,14 @@ mustProduceAtLeast :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
 mustProduceAtLeast = singleton <<< MustProduceAtLeast
 
 mustSpendPubKeyOutput
-  :: forall (i :: Type) (o :: Type). TxOutRef -> TxConstraints i o
+  :: forall (i :: Type) (o :: Type). TransactionInput -> TxConstraints i o
 mustSpendPubKeyOutput = singleton <<< MustSpendPubKeyOutput
 
 mustSpendScriptOutput
-  :: forall (i :: Type) (o :: Type). TxOutRef -> Redeemer -> TxConstraints i o
+  :: forall (i :: Type) (o :: Type)
+   . TransactionInput
+  -> Redeemer
+  -> TxConstraints i o
 mustSpendScriptOutput txOutRef = singleton <<< MustSpendScriptOutput txOutRef
 
 mustHashDatum

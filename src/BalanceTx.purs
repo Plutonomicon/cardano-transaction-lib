@@ -32,6 +32,23 @@ import Cardano.Types.Transaction
   , _redeemers
   , _witnessSet
   )
+import Cardano.Types.Value
+  ( filterNonAda
+  , geq
+  , getLovelace
+  , lovelaceValueOf
+  , isAdaOnly
+  , isPos
+  , isZero
+  , minus
+  , mkCoin
+  , mkValue
+  , numCurrencySymbols
+  , numTokenNames
+  , sumTokenNameLengths
+  , valueToCoin
+  , Value
+  )
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
@@ -84,29 +101,11 @@ import Serialization.Address
   )
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
-import Types.Transaction (DataHash, TransactionInput)
+import Types.Transaction (DataHash, TransactionInput, TxOutput(TxOutput))
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.UnbalancedTransaction
-  ( TxOutRef
-  , UnbalancedTx(UnbalancedTx)
+  ( UnbalancedTx(UnbalancedTx)
   , _transaction
-  )
-import Cardano.Types.Value
-  ( filterNonAda
-  , geq
-  , getLovelace
-  , lovelaceValueOf
-  , isAdaOnly
-  , isPos
-  , isZero
-  , minus
-  , mkCoin
-  , mkValue
-  , numCurrencySymbols
-  , numTokenNames
-  , sumTokenNameLengths
-  , valueToCoin
-  , Value
   )
 import TxOutput (utxoIndexToUtxo)
 
@@ -256,7 +255,8 @@ instance showImpossibleError :: Show ImpossibleError where
 -- Output utxos with the amount of lovelaces required.
 type MinUtxos = Array (TransactionOutput /\ BigInt)
 
-type UnattachedTransaction = Transaction /\ Array (Redeemer /\ Maybe TxOutRef)
+type UnattachedTransaction = Transaction /\ Array
+  (Redeemer /\ Maybe TransactionInput)
 
 --------------------------------------------------------------------------------
 -- Evaluation of fees and execution units, Updating redeemers
@@ -315,9 +315,9 @@ updateTxExecutionUnits unattachedTx rdmrPtrExUnits =
     _redeemersTxIns %~ flip setRdmrsExecutionUnits rdmrPtrExUnits
 
 setRdmrsExecutionUnits
-  :: Array (Redeemer /\ Maybe TxOutRef)
+  :: Array (Redeemer /\ Maybe TransactionInput)
   -> Array RdmrPtrExUnits
-  -> Array (Redeemer /\ Maybe TxOutRef)
+  -> Array (Redeemer /\ Maybe TransactionInput)
 setRdmrsExecutionUnits rs xxs =
   case Array.uncons xxs of
     Nothing -> rs
@@ -356,7 +356,7 @@ _body' = lens' \unattachedTx ->
     \txBody -> unattachedTx # _transaction' %~ (_body .~ txBody)
 
 _redeemersTxIns
-  :: Lens' UnattachedUnbalancedTx (Array (Redeemer /\ Maybe TxOutRef))
+  :: Lens' UnattachedUnbalancedTx (Array (Redeemer /\ Maybe TransactionInput))
 _redeemersTxIns = lens' \(UnattachedUnbalancedTx rec@{ redeemersTxIns }) ->
   redeemersTxIns /\
     \rdmrs -> UnattachedUnbalancedTx rec { redeemersTxIns = rdmrs }
@@ -595,7 +595,8 @@ returnAdaChange changeAddr utxos unattachedTx =
         let
           changeIndex :: Maybe Int
           changeIndex =
-            findIndex ((==) changeAddr <<< _.address <<< unwrap) txOutputs
+            findIndex ((==) changeAddr <<< _.address <<< unwrap <<< unwrap)
+              txOutputs
 
         case changeIndex of
           Just idx -> pure do
@@ -608,8 +609,9 @@ returnAdaChange changeAddr utxos unattachedTx =
                 ) $
                 modifyAt
                   idx
-                  ( \(TransactionOutput o@{ amount }) -> TransactionOutput
-                      o { amount = amount <> lovelaceValueOf returnAda }
+                  ( \(TransactionOutput (TxOutput o@{ amount })) ->
+                      TransactionOutput $ TxOutput
+                        o { amount = amount <> lovelaceValueOf returnAda }
                   )
                   txOutputs
             -- Fees unchanged because we aren't adding a new utxo.
@@ -634,10 +636,12 @@ returnAdaChange changeAddr utxos unattachedTx =
                   txBody
                     { outputs =
                         wrap
-                          { address: changeAddr
-                          , amount: lovelaceValueOf returnAda
-                          , dataHash: Nothing
-                          }
+                          ( wrap
+                              { address: changeAddr
+                              , amount: lovelaceValueOf returnAda
+                              , dataHash: Nothing
+                              }
+                          )
                           `Array.cons` txBody.outputs
                     }
 
@@ -663,8 +667,9 @@ returnAdaChange changeAddr utxos unattachedTx =
                     )
                     $ modifyAt
                         0
-                        ( \(TransactionOutput o) -> TransactionOutput
-                            o { amount = lovelaceValueOf returnAda' }
+                        ( \(TransactionOutput (TxOutput o)) -> TransactionOutput
+                            $ TxOutput
+                                o { amount = lovelaceValueOf returnAda' }
                         )
                     $ _.outputs <<< unwrap
                     $ txBody'
@@ -693,7 +698,7 @@ calculateMinUtxo txOut = unwrap lovelacePerUTxOWord * utxoEntrySize txOut
   -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
   -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
   utxoEntrySize :: TransactionOutput -> BigInt
-  utxoEntrySize (TransactionOutput txOut') =
+  utxoEntrySize (TransactionOutput (TxOutput txOut')) =
     let
       outputValue :: Value
       outputValue = txOut'.amount
@@ -777,7 +782,7 @@ getPublicKeyTransactionInput
   -> Either GetPublicKeyTransactionInputError TransactionInput
 getPublicKeyTransactionInput (txOutRef /\ txOut) =
   note CannotConvertScriptOutputToTxInput $ do
-    paymentCred <- unwrap txOut # (_.address >>> addressPaymentCred)
+    paymentCred <- unwrap txOut # unwrap # (_.address >>> addressPaymentCred)
     -- TEST ME: using StakeCredential to determine whether wallet or script
     paymentCred # withStakeCredential
       { onKeyHash: const $ pure txOutRef
@@ -943,21 +948,25 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
       Array.fromFoldable $
         case
           partition
-            ((==) changeAddr <<< _.address <<< unwrap) --  <<< txOutPaymentCredentials)
+            ((==) changeAddr <<< _.address <<< unwrap <<< unwrap) --  <<< txOutPaymentCredentials)
 
             $ Array.toUnfoldable txOutputs
           of
           { no: txOuts, yes: Nil } ->
             TransactionOutput
-              { address: changeAddr
-              , amount: nonAdaChange
-              , dataHash: Nothing
-              } : txOuts
+              ( TxOutput
+                  { address: changeAddr
+                  , amount: nonAdaChange
+                  , dataHash: Nothing
+                  }
+              ) : txOuts
           { no: txOuts'
-          , yes: TransactionOutput txOut@{ amount: v } : txOuts
+          , yes: TransactionOutput (TxOutput txOut@{ amount: v }) : txOuts
           } ->
             TransactionOutput
-              txOut { amount = v <> nonAdaChange } : txOuts <> txOuts'
+              ( TxOutput
+                  txOut { amount = v <> nonAdaChange }
+              ) : txOuts <> txOuts'
 
   -- Original code uses "isNat" because there is a guard against zero, see
   -- isPos for more detail.
@@ -966,7 +975,7 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
   else Left InputsCannotBalanceNonAdaTokens
 
 getAmount :: TransactionOutput -> Value
-getAmount = _.amount <<< unwrap
+getAmount = _.amount <<< unwrap <<< unwrap
 
 -- | Add min lovelaces to each tx output
 addLovelaces :: MinUtxos -> TxBody -> TxBody
@@ -977,7 +986,7 @@ addLovelaces minLovelaces (TxBody txBody) =
       map
         ( \txOut' ->
             let
-              txOut = unwrap txOut'
+              txOut = unwrap $ unwrap txOut'
 
               outValue :: Value
               outValue = txOut.amount
@@ -988,7 +997,7 @@ addLovelaces minLovelaces (TxBody txBody) =
               minUtxo :: BigInt
               minUtxo = fromMaybe zero $ Foldable.lookup txOut' minLovelaces
             in
-              wrap
+              wrap $ wrap
                 txOut
                   { amount =
                       outValue

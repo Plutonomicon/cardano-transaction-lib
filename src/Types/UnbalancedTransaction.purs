@@ -3,7 +3,6 @@ module Types.UnbalancedTransaction
   , PaymentPubKeyHash(..)
   , ScriptOutput(..)
   , StakePubKeyHash(..)
-  , TxOutRef
   , UnbalancedTx(..)
   , _transaction
   , _utxoIndex
@@ -189,16 +188,12 @@ stakePubKeyHashRewardAddress :: NetworkId -> StakePubKeyHash -> Address
 stakePubKeyHashRewardAddress networkId =
   rewardAddressToAddress <<< ed25519RewardAddress networkId
 
--- Use Plutus' name to assist with copy & paste from Haskell to Purescript.
--- | Transaction inputs reference some other transaction's outputs.
-type TxOutRef = TransactionInput
-
 -- | An unbalanced transaction. It needs to be balanced and signed before it
 -- | can be submitted to the ledger.
 -- | Resembles `UnbalancedTx` from `plutus-apps`.
 newtype UnbalancedTx = UnbalancedTx
   { transaction :: Transaction
-  , utxoIndex :: Map TxOutRef ScriptOutput
+  , utxoIndex :: Map TransactionInput ScriptOutput
   }
 
 derive instance Newtype UnbalancedTx _
@@ -215,7 +210,7 @@ _transaction = lens'
       transaction
       \tx -> UnbalancedTx rec { transaction = tx }
 
-_utxoIndex :: Lens' UnbalancedTx (Map TxOutRef ScriptOutput)
+_utxoIndex :: Lens' UnbalancedTx (Map TransactionInput ScriptOutput)
 _utxoIndex = lens'
   \(UnbalancedTx rec@{ utxoIndex }) ->
     Tuple

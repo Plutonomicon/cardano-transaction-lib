@@ -109,7 +109,7 @@ unlockTxOutRefs txOutRefs' =
   in
     ask >>= (unwrap >>> Ref.modify_ updateCache >>> liftEffect)
 
--- | Query if TxOutRef is marked as used.
+-- | Query if TransactionInput is marked as used.
 isTxOutRefUsed
   :: forall (m :: Type -> Type) (a :: Type)
    . MonadAsk UsedTxOuts m

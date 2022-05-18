@@ -34,7 +34,6 @@ module Cardano.Types.Transaction
   , TransactionOutput(..)
   , TransactionWitnessSet(..)
   , TxBody(..)
-  , TxOut
   , UnitInterval
   , Update
   , Utxo
@@ -81,17 +80,13 @@ import Data.Lens.Types (Lens')
 import Data.Map (Map)
 import Data.Maybe (Maybe(Nothing))
 import Data.Monoid (guard)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
-import FromData (class FromData, fromData)
 import Helpers ((</>), (<<>>), appendMap)
-import Plutus.FromPlutusType (fromPlutusType)
-import Plutus.ToPlutusType (toPlutusType)
-import Plutus.Types.Value (Value) as Plutus
 import Serialization.Address
   ( Address
   , NetworkId
@@ -101,16 +96,15 @@ import Serialization.Address
   )
 import Serialization.Hash (Ed25519KeyHash)
 import Serialization.Types (BigNum, VRFKeyHash)
-import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
 import Types.Int as Int
-import Types.PlutusData (PlutusData(Constr))
+import Types.PlutusData (PlutusData)
 import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
 import Types.Transaction
-  ( DataHash
-  , TransactionInput
+  ( TransactionInput
+  , TxOutput(TxOutput)
   )
 import Types.TransactionMetadata (GeneralTransactionMetadata)
 import Cardano.Types.Value (Coin, NonAdaAsset, Value)
@@ -752,11 +746,7 @@ derive instance Generic NativeScript _
 instance Show NativeScript where
   show x = genericShow x
 
-newtype TransactionOutput = TransactionOutput
-  { address :: Address
-  , amount :: Value
-  , dataHash :: Maybe DataHash
-  }
+newtype TransactionOutput = TransactionOutput (TxOutput Address Value)
 
 derive instance Generic TransactionOutput _
 derive instance Newtype TransactionOutput _
@@ -765,36 +755,14 @@ derive newtype instance Eq TransactionOutput
 instance Show TransactionOutput where
   show = genericShow
 
--- `Constr` is used for indexing, and `TransactionOutput` is always zero-indexed
-instance FromData TransactionOutput where
-  fromData (Constr n [ addr, amt, dh ]) | n == zero =
-    TransactionOutput <$>
-      ( { address: _, amount: _, dataHash: _ }
-          <$> fromData addr
-          <*> amount
-          <*> fromData dh
-      )
-    where
-    amount :: Maybe Value
-    amount = unwrap <<< fromPlutusType <$>
-      (fromData :: PlutusData -> Maybe Plutus.Value) amt
-  fromData _ = Nothing
-
--- `Constr` is used for indexing, and `TransactionOutput` is always zero-indexed
-instance ToData TransactionOutput where
-  toData (TransactionOutput { address, amount, dataHash }) =
-    Constr zero [ toData address, valueData, toData dataHash ]
-    where
-    valueData :: PlutusData
-    valueData = toData $ unwrap $ toPlutusType amount
-
--- For convenience of Haskell code:
-type TxOut = TransactionOutput
-
 newtype UtxoM = UtxoM Utxo
 
+derive instance Generic UtxoM _
 derive instance Newtype UtxoM _
-derive newtype instance Show UtxoM
+derive newtype instance Eq UtxoM
+
+instance Show UtxoM where
+  show = genericShow
 
 type Utxo = Map TransactionInput TransactionOutput
 

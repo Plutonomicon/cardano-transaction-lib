@@ -9,6 +9,14 @@ module Deserialization.UnspentOutput
 import Prelude
 
 import Cardano.Types.Transaction (TransactionOutput(TransactionOutput)) as T
+import Cardano.Types.Value
+  ( Coin(Coin)
+  , CurrencySymbol
+  , Value
+  , mkCurrencySymbol
+  , mkNonAdaAsset
+  , mkValue
+  ) as T
 import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Map (Map)
 import Data.Map as Map
@@ -39,17 +47,10 @@ import Types.Transaction
   ( DataHash(DataHash)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
+  , TxOutput(TxOutput)
   ) as T
 import Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
-  ) as T
-import Cardano.Types.Value
-  ( Coin(Coin)
-  , CurrencySymbol
-  , Value
-  , mkCurrencySymbol
-  , mkNonAdaAsset
-  , mkValue
   ) as T
 import Types.TokenName (TokenName, assetNameName, mkTokenName) as T
 import Untagged.Union (asOneOf)
@@ -78,7 +79,7 @@ convertOutput output = do
     dataHash =
       getDataHash maybeFfiHelper output <#>
         asOneOf >>> toBytes >>> T.DataHash
-  pure $ T.TransactionOutput { address, amount, dataHash }
+  pure $ T.TransactionOutput $ T.TxOutput { address, amount, dataHash }
 
 convertValue :: Value -> Maybe T.Value
 convertValue value = do
