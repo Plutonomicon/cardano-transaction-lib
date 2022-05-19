@@ -15,11 +15,15 @@ module Contract.Scripts
   , module TypesScripts
   ) where
 
-import Address
+import Contract.Address
   ( enterpriseAddressMintingPolicyHash
   , enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
+  , typedValidatorBaseAddress
+  , typedValidatorEnterpriseAddress
+  , validatorHashBaseAddress
+  , validatorHashEnterpriseAddress
   ) as Address
 import QueryM
   ( ClientError
@@ -29,13 +33,7 @@ import QueryM
       )
   ) as ExportQueryM
 import QueryM (applyArgs) as QueryM
-import Scripts
-  ( typedValidatorBaseAddress
-  , typedValidatorEnterpriseAddress
-  , validatorHashBaseAddress
-  , validatorHashEnterpriseAddress
-  , scriptHash
-  ) as ExportScripts
+import Scripts (scriptHash) as ExportScripts
 import Scripts
   ( mintingPolicyHash
   , stakeValidatorHash

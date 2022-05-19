@@ -10,6 +10,7 @@ module Contract.Transaction
   , finalizeTx
   , module BalanceTxError
   , module ExportQueryM
+  , module PTransaction
   , module ReindexRedeemersExport
   , module ScriptLookups
   , module Transaction
@@ -68,15 +69,16 @@ import Cardano.Types.Transaction -- Most re-exported, don't re-export `Redeemer`
   , ScriptDataHash(ScriptDataHash)
   , SubCoin
   , Transaction(Transaction)
-  , TransactionOutput(TransactionOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
   , UnitInterval
   , Update
-  , Utxo
-  , UtxoM(UtxoM)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
+  -- Use these lenses with care since some will involved Cardano datatypes, not
+  -- Plutus ones. e.g. _fee, _collateral, _outputs. In the unlikely scenario that
+  -- you need to tweak Cardano `TransactionOutput`s directly, `fromPlutusType`
+  -- then `toPlutusType` should be used.
   , _auxiliaryData
   , _auxiliaryDataHash
   , _body
@@ -105,12 +107,15 @@ import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
 import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
+import Data.Lens.Setter (over)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
 import Plutus.ToPlutusType (toPlutusType)
-import Plutus.Types.Transaction (TransactionOutput) as PTransaction
+import Plutus.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  ) as PTransaction
 import Plutus.Types.Value (Coin)
 import QueryM
   ( FeeEstimate(FeeEstimate)
@@ -220,6 +225,8 @@ finalizeTx
 finalizeTx tx datums redeemers = wrapContract
   $ QueryM.finalizeTx tx datums redeemers
 
+-- We export this because we need the redeemers as Cardano Redeemers to be used
+-- in `finalizeTx`
 -- | Reindex the `Spend` redeemers. Since we insert to an ordered array, we must
 -- | reindex the redeemers with such inputs. This must be crucially called after
 -- | balancing when all inputs are in place so they cannot be reordered.
