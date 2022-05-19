@@ -16,9 +16,13 @@ import Plutus.Types.Address (Address)
 import Plutus.Types.Value (Value)
 import ToData (class ToData, toData)
 import Types.PlutusData (PlutusData(Constr))
-import Types.Transaction (TransactionInput, TxOutput(TxOutput))
+import Types.Transaction (DataHash, TransactionInput)
 
-newtype TransactionOutput = TransactionOutput (TxOutput Address Value)
+newtype TransactionOutput = TransactionOutput
+  { address :: Address
+  , amount :: Value
+  , dataHash :: Maybe DataHash
+  }
 
 derive instance Generic TransactionOutput _
 derive instance Newtype TransactionOutput _
@@ -29,7 +33,7 @@ instance Show TransactionOutput where
 
 instance FromData TransactionOutput where
   fromData (Constr n [ addr, amt, dh ]) | n == zero =
-    TransactionOutput <<< TxOutput <$>
+    TransactionOutput <$>
       ( { address: _, amount: _, dataHash: _ }
           <$> fromData addr
           <*> fromData amt
@@ -38,7 +42,7 @@ instance FromData TransactionOutput where
   fromData _ = Nothing
 
 instance ToData TransactionOutput where
-  toData (TransactionOutput (TxOutput { address, amount, dataHash })) =
+  toData (TransactionOutput { address, amount, dataHash }) =
     Constr zero [ toData address, toData amount, toData dataHash ]
 
 newtype UtxoM = UtxoM Utxo

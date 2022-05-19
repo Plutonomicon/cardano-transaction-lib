@@ -31,10 +31,7 @@ import Serialization.Address (NetworkId)
 import Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Types.Datum (DataHash)
 import QueryM.Ogmios as Ogmios
-import Types.Transaction
-  ( TransactionInput(TransactionInput)
-  , TxOutput(TxOutput)
-  ) as Transaction
+import Types.Transaction (TransactionInput(TransactionInput)) as Transaction
 import Types.UnbalancedTransaction as UTx
 
 -- | A module for helpers of the various transaction output types.
@@ -74,7 +71,7 @@ ogmiosTxOutToTransactionOutput { address, value, datum } = do
   -- and capture failure if we can't hash.
   dataHash <-
     maybe (Just Nothing) (map Just <<< ogmiosDatumHashToDatumHash) datum
-  pure $ wrap $ Transaction.TxOutput
+  pure $ wrap
     { address: address'
     , amount: value
     , dataHash
@@ -84,9 +81,7 @@ ogmiosTxOutToTransactionOutput { address, value, datum } = do
 transactionOutputToOgmiosTxOut
   :: Transaction.TransactionOutput -> Ogmios.OgmiosTxOut
 transactionOutputToOgmiosTxOut
-  ( Transaction.TransactionOutput
-      (Transaction.TxOutput { address, amount: value, dataHash })
-  ) =
+  (Transaction.TransactionOutput { address, amount: value, dataHash }) =
   { address: addressToOgmiosAddress address
   , value
   , datum: datumHashToOgmiosDatumHash <$> dataHash
@@ -123,9 +118,7 @@ transactionOutputToScriptOutput
   :: Transaction.TransactionOutput -> Maybe UTx.ScriptOutput
 transactionOutputToScriptOutput
   ( Transaction.TransactionOutput
-      ( Transaction.TxOutput
-          { address, amount: value, dataHash: Just datumHash }
-      )
+      { address, amount: value, dataHash: Just datumHash }
   ) = do
   validatorHash <- enterpriseAddressValidatorHash address
   pure $ UTx.ScriptOutput
@@ -134,7 +127,7 @@ transactionOutputToScriptOutput
     , datumHash
     }
 transactionOutputToScriptOutput
-  (Transaction.TransactionOutput (Transaction.TxOutput { dataHash: Nothing })) =
+  (Transaction.TransactionOutput { dataHash: Nothing }) =
   Nothing
 
 -- | Converts `ScriptOutput` to an internal transaction output.
@@ -143,7 +136,7 @@ scriptOutputToTransactionOutput
 scriptOutputToTransactionOutput
   networkId
   (UTx.ScriptOutput { validatorHash, value, datumHash }) =
-  Transaction.TransactionOutput $ Transaction.TxOutput
+  Transaction.TransactionOutput
     { address: validatorHashEnterpriseAddress networkId validatorHash
     , amount: value
     , dataHash: Just datumHash

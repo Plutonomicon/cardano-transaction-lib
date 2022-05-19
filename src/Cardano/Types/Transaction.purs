@@ -14,8 +14,8 @@ module Cardano.Types.Transaction
   , Ipv4(..)
   , Ipv6(..)
   , Language(..)
-  , Mint(..)
   , MIRToStakeCredentials(..)
+  , Mint(..)
   , MoveInstantaneousReward(..)
   , NativeScript(..)
   , Nonce(..)
@@ -34,10 +34,10 @@ module Cardano.Types.Transaction
   , TransactionOutput(..)
   , TransactionWitnessSet(..)
   , TxBody(..)
+  , URL(..)
   , UnitInterval
   , Update
   , Utxo
-  , URL(..)
   , UtxoM(..)
   , Vkey(..)
   , Vkeywitness(..)
@@ -102,10 +102,7 @@ import Types.Int as Int
 import Types.PlutusData (PlutusData)
 import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
-import Types.Transaction
-  ( TransactionInput
-  , TxOutput(TxOutput)
-  )
+import Types.Transaction (DataHash, TransactionInput)
 import Types.TransactionMetadata (GeneralTransactionMetadata)
 import Cardano.Types.Value (Coin, NonAdaAsset, Value)
 
@@ -746,7 +743,11 @@ derive instance Generic NativeScript _
 instance Show NativeScript where
   show x = genericShow x
 
-newtype TransactionOutput = TransactionOutput (TxOutput Address Value)
+newtype TransactionOutput = TransactionOutput
+  { address :: Address
+  , amount :: Value
+  , dataHash :: Maybe DataHash
+  }
 
 derive instance Generic TransactionOutput _
 derive instance Newtype TransactionOutput _

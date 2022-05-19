@@ -102,7 +102,7 @@ import Serialization.Address
   )
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
-import Types.Transaction (DataHash, TransactionInput, TxOutput(TxOutput))
+import Types.Transaction (DataHash, TransactionInput)
 import Types.UnbalancedTransaction
   ( UnbalancedTx(UnbalancedTx)
   , _transaction
@@ -595,7 +595,7 @@ returnAdaChange changeAddr utxos unattachedTx =
         let
           changeIndex :: Maybe Int
           changeIndex =
-            findIndex ((==) changeAddr <<< _.address <<< unwrap <<< unwrap)
+            findIndex ((==) changeAddr <<< _.address <<< unwrap)
               txOutputs
 
         case changeIndex of
@@ -609,8 +609,8 @@ returnAdaChange changeAddr utxos unattachedTx =
                 ) $
                 modifyAt
                   idx
-                  ( \(TransactionOutput (TxOutput o@{ amount })) ->
-                      TransactionOutput $ TxOutput
+                  ( \(TransactionOutput o@{ amount }) ->
+                      TransactionOutput
                         o { amount = amount <> lovelaceValueOf returnAda }
                   )
                   txOutputs
@@ -636,12 +636,10 @@ returnAdaChange changeAddr utxos unattachedTx =
                   txBody
                     { outputs =
                         wrap
-                          ( wrap
-                              { address: changeAddr
-                              , amount: lovelaceValueOf returnAda
-                              , dataHash: Nothing
-                              }
-                          )
+                          { address: changeAddr
+                          , amount: lovelaceValueOf returnAda
+                          , dataHash: Nothing
+                          }
                           `Array.cons` txBody.outputs
                     }
 
@@ -667,9 +665,8 @@ returnAdaChange changeAddr utxos unattachedTx =
                     )
                     $ modifyAt
                         0
-                        ( \(TransactionOutput (TxOutput o)) -> TransactionOutput
-                            $ TxOutput
-                                o { amount = lovelaceValueOf returnAda' }
+                        ( \(TransactionOutput o) -> TransactionOutput
+                            o { amount = lovelaceValueOf returnAda' }
                         )
                     $ _.outputs <<< unwrap
                     $ txBody'
@@ -698,7 +695,7 @@ calculateMinUtxo txOut = unwrap lovelacePerUTxOWord * utxoEntrySize txOut
   -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
   -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
   utxoEntrySize :: TransactionOutput -> BigInt
-  utxoEntrySize (TransactionOutput (TxOutput txOut')) =
+  utxoEntrySize (TransactionOutput txOut') =
     let
       outputValue :: Value
       outputValue = txOut'.amount
@@ -782,7 +779,7 @@ getPublicKeyTransactionInput
   -> Either GetPublicKeyTransactionInputError TransactionInput
 getPublicKeyTransactionInput (txOutRef /\ txOut) =
   note CannotConvertScriptOutputToTxInput $ do
-    paymentCred <- unwrap txOut # unwrap # (_.address >>> addressPaymentCred)
+    paymentCred <- unwrap txOut # (_.address >>> addressPaymentCred)
     -- TEST ME: using StakeCredential to determine whether wallet or script
     paymentCred # withStakeCredential
       { onKeyHash: const $ pure txOutRef
@@ -948,25 +945,21 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
       Array.fromFoldable $
         case
           partition
-            ((==) changeAddr <<< _.address <<< unwrap <<< unwrap) --  <<< txOutPaymentCredentials)
+            ((==) changeAddr <<< _.address <<< unwrap) --  <<< txOutPaymentCredentials)
 
             $ Array.toUnfoldable txOutputs
           of
           { no: txOuts, yes: Nil } ->
             TransactionOutput
-              ( TxOutput
-                  { address: changeAddr
-                  , amount: nonAdaChange
-                  , dataHash: Nothing
-                  }
-              ) : txOuts
+              { address: changeAddr
+              , amount: nonAdaChange
+              , dataHash: Nothing
+              } : txOuts
           { no: txOuts'
-          , yes: TransactionOutput (TxOutput txOut@{ amount: v }) : txOuts
+          , yes: TransactionOutput txOut@{ amount: v } : txOuts
           } ->
-            TransactionOutput
-              ( TxOutput
-                  txOut { amount = v <> nonAdaChange }
-              ) : txOuts <> txOuts'
+            TransactionOutput txOut { amount = v <> nonAdaChange }
+              : txOuts <> txOuts'
 
   -- Original code uses "isNat" because there is a guard against zero, see
   -- isPos for more detail.
@@ -975,7 +968,7 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
   else Left InputsCannotBalanceNonAdaTokens
 
 getAmount :: TransactionOutput -> Value
-getAmount = _.amount <<< unwrap <<< unwrap
+getAmount = _.amount <<< unwrap
 
 -- | Add min lovelaces to each tx output
 addLovelaces :: MinUtxos -> TxBody -> TxBody
@@ -986,7 +979,7 @@ addLovelaces minLovelaces (TxBody txBody) =
       map
         ( \txOut' ->
             let
-              txOut = unwrap $ unwrap txOut'
+              txOut = unwrap txOut'
 
               outValue :: Value
               outValue = txOut.amount
@@ -997,7 +990,7 @@ addLovelaces minLovelaces (TxBody txBody) =
               minUtxo :: BigInt
               minUtxo = fromMaybe zero $ Foldable.lookup txOut' minLovelaces
             in
-              wrap $ wrap
+              wrap
                 txOut
                   { amount =
                       outValue

@@ -179,12 +179,11 @@ import Types.Scripts
 import Types.Transaction
   ( TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
-  , TxOutput(TxOutput)
   )
 
 txOutputFixture1 :: TransactionOutput
 txOutputFixture1 =
-  TransactionOutput $ TxOutput
+  TransactionOutput
     { address: baseAddressToAddress $ baseAddress
         { network: TestnetId
         , delegationCred:
@@ -206,7 +205,7 @@ txOutputFixture1 =
 
 txOutputFixture2 :: TransactionOutput
 txOutputFixture2 =
-  TransactionOutput $ TxOutput
+  TransactionOutput
     { address: keyHashBaseAddress
         { stake: "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
         , payment: "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
@@ -368,7 +367,7 @@ txFixture3 =
     { body: TxBody
         { inputs: [ txInputFixture1 ]
         , outputs:
-            [ TransactionOutput $ TxOutput
+            [ TransactionOutput
                 { address: keyHashBaseAddress
                     { stake:
                         "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
@@ -379,7 +378,7 @@ txFixture3 =
                 , amount: Value (Coin $ BigInt.fromInt 2353402) mempty
                 , dataHash: Nothing
                 }
-            , TransactionOutput $ TxOutput
+            , TransactionOutput
                 { address: keyHashBaseAddress
                     { stake:
                         "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
@@ -478,7 +477,7 @@ txFixture4 =
     { body: TxBody
         { inputs: [ txInputFixture1 ]
         , outputs:
-            [ TransactionOutput $ TxOutput
+            [ TransactionOutput
                 { address: keyHashBaseAddress
                     { stake:
                         "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
@@ -489,7 +488,7 @@ txFixture4 =
                 , amount: Value (Coin $ BigInt.fromInt 2353402) mempty
                 , dataHash: Nothing
                 }
-            , TransactionOutput $ TxOutput
+            , TransactionOutput
                 { address: keyHashBaseAddress
                     { stake:
                         "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
@@ -671,7 +670,7 @@ utxoFixture1' =
             }
         )
     , output:
-        ( TransactionOutput $ TxOutput
+        ( TransactionOutput
             { address: baseAddressToAddress $ baseAddress
                 { network: TestnetId
                 , paymentCred: keyHashCredential $ unsafePartial $ fromJust

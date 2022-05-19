@@ -50,7 +50,6 @@ import Types.Transaction
   ( DataHash(DataHash)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
-  , TxOutput(TxOutput)
   ) as T
 import Types.TokenName (TokenName, assetNameName, mkTokenName) as T
 import Untagged.Union (asOneOf)
@@ -79,7 +78,7 @@ convertOutput output = do
     dataHash =
       getDataHash maybeFfiHelper output <#>
         asOneOf >>> toBytes >>> T.DataHash
-  pure $ T.TransactionOutput $ T.TxOutput { address, amount, dataHash }
+  pure $ T.TransactionOutput { address, amount, dataHash }
 
 convertValue :: Value -> Maybe T.Value
 convertValue value = do

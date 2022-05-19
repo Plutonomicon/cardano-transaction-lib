@@ -136,10 +136,7 @@ import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
 import Types.Int as Int
 import Types.PlutusData as PlutusData
-import Types.Transaction
-  ( TransactionInput(TransactionInput)
-  , TxOutput(TxOutput)
-  ) as T
+import Types.Transaction (TransactionInput(TransactionInput)) as T
 import Types.TokenName (getTokenName) as TokenName
 import Untagged.Union (type (|+|), UndefinedOr, maybeToUor)
 
@@ -696,8 +693,7 @@ convertTxOutputs arrOutputs = do
   pure outputs
 
 convertTxOutput :: T.TransactionOutput -> Effect TransactionOutput
-convertTxOutput
-  (T.TransactionOutput (T.TxOutput { address, amount, dataHash })) = do
+convertTxOutput (T.TransactionOutput { address, amount, dataHash }) = do
   value <- convertValue amount
   txo <- newTransactionOutput address value
   for_ (unwrap <$> dataHash) \bytes -> do

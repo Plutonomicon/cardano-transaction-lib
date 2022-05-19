@@ -39,7 +39,7 @@ import Serialization.Address (Address, NetworkId)
 import ToData (class ToData, toData)
 import Types.Datum (DataHash, Datum(Datum))
 import Types.PlutusData (PlutusData)
-import Types.Transaction (TransactionInput, TxOutput(TxOutput))
+import Types.Transaction (TransactionInput)
 import Types.TypedValidator
   ( class DatumType
   , TypedValidator
@@ -119,7 +119,7 @@ typedTxOutAddress
   => ToData b
   => TypedTxOut a b
   -> Address
-typedTxOutAddress (TypedTxOut { txOut }) = (unwrap $ unwrap txOut).address
+typedTxOutAddress (TypedTxOut { txOut }) = (unwrap txOut).address
 
 -- | Extract the `DataHash` of a `TypedTxOut`
 typedTxOutDatumHash
@@ -129,7 +129,7 @@ typedTxOutDatumHash
   => ToData b
   => TypedTxOut a b
   -> Maybe DataHash
-typedTxOutDatumHash (TypedTxOut { txOut }) = (unwrap $ unwrap txOut).dataHash
+typedTxOutDatumHash (TypedTxOut { txOut }) = (unwrap txOut).dataHash
 
 -- | Extract the `Value` of a `TypedTxOut`
 typedTxOutValue
@@ -139,7 +139,7 @@ typedTxOutValue
   => ToData b
   => TypedTxOut a b
   -> Value
-typedTxOutValue (TypedTxOut { txOut }) = (unwrap $ unwrap txOut).amount
+typedTxOutValue (TypedTxOut { txOut }) = (unwrap txOut).amount
 
 -- | Extract the `TxOut` ~ `TransactionOutput` of a `TypedTxOut`
 typedTxOutTxOut
@@ -175,7 +175,7 @@ mkTypedTxOut networkId typedVal dt amount = do
   pure $ maybe Nothing
     ( \dHash ->
         Just $ mkTypedTxOut'
-          (wrap $ wrap { address, amount, dataHash: pure dHash })
+          (wrap { address, amount, dataHash: pure dHash })
           dt
     )
     mDHash
@@ -255,7 +255,7 @@ typeTxOut
 typeTxOut
   networkId
   typedVal
-  (TransactionOutput (TxOutput { address, amount, dataHash })) =
+  (TransactionOutput { address, amount, dataHash }) =
   runExceptT do
     -- Assume `Nothing` is a public key.
     dHash <- liftM ExpectedScriptGotPubkey dataHash

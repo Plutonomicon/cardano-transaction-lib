@@ -39,7 +39,6 @@ import Plutus.Types.Value (lovelaceValueOf, singleton') as Plutus.Value
 
 import Types.ByteArray (ByteArray, byteArrayFromIntArray, byteArrayToIntArray)
 import Types.TokenName (getTokenName)
-import Types.Transaction (TxOutput(TxOutput))
 import Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , UtxoM(UtxoM)
@@ -227,9 +226,9 @@ fromVarLengthUInt bytes acc = do
 instance ToPlutusType Maybe Cardano.TransactionOutput Plutus.TransactionOutput
   where
   toPlutusType
-    (Cardano.TransactionOutput (TxOutput { address, amount, dataHash })) = do
+    (Cardano.TransactionOutput { address, amount, dataHash }) = do
     addr <- toPlutusType address
-    pure $ Plutus.TransactionOutput $ TxOutput
+    pure $ Plutus.TransactionOutput
       { address: addr, amount: unwrap $ toPlutusType amount, dataHash }
 
 --------------------------------------------------------------------------------

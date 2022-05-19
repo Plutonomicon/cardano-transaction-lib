@@ -118,7 +118,7 @@ import Types.Scripts
   , ValidatorHash
   )
 import Types.TypedValidator (generalise) as TV
-import Types.Transaction (TransactionInput, TxOutput(TxOutput))
+import Types.Transaction (TransactionInput)
 import Types.TxConstraints
   ( InputConstraint(InputConstraint)
   , OutputConstraint(OutputConstraint)
@@ -670,17 +670,17 @@ addMissingValueSpent = do
     -- Potential fix me: This logic may be suspect:
     txOut <- case pkh', skh' of
       Nothing, Nothing -> throwError OwnPubKeyAndStakeKeyMissing
-      Just pkh, Just skh -> liftEither $ Right $ TransactionOutput $ TxOutput
+      Just pkh, Just skh -> liftEither $ Right $ TransactionOutput
         { address: payPubKeyHashBaseAddress networkId pkh skh
         , amount: missing
         , dataHash: Nothing
         }
-      Just pkh, Nothing -> liftEither $ Right $ TransactionOutput $ TxOutput
+      Just pkh, Nothing -> liftEither $ Right $ TransactionOutput
         { address: payPubKeyHashEnterpriseAddress networkId pkh
         , amount: missing
         , dataHash: Nothing
         }
-      Nothing, Just skh -> liftEither $ Right $ TransactionOutput $ TxOutput
+      Nothing, Just skh -> liftEither $ Right $ TransactionOutput
         { address: stakePubKeyHashRewardAddress networkId skh
         , amount: missing
         , dataHash: Nothing
@@ -864,7 +864,7 @@ processConstraint mpsMap osMap = do
       -- Recall an Ogmios datum is a `Maybe String` where `Nothing` implies a
       -- wallet address and `Just` as script address.
       case txOut of
-        TransactionOutput (TxOutput { amount, dataHash: Nothing }) -> do
+        TransactionOutput { amount, dataHash: Nothing } -> do
           -- POTENTIAL FIX ME: Plutus has Tx.TxIn and Tx.PubKeyTxIn -- TxIn
           -- keeps track TransactionInput and TxInType (the input type, whether
           -- consuming script, public key or simple script)
@@ -876,7 +876,7 @@ processConstraint mpsMap osMap = do
       -- Recall an Ogmios datum is a `Maybe String` where `Nothing` implies a
       -- wallet address and `Just` as script address.
       case txOut of
-        TransactionOutput (TxOutput { address, amount, dataHash: Just dHash }) ->
+        TransactionOutput { address, amount, dataHash: Just dHash } ->
           do
             vHash <- liftM
               (CannotGetValidatorHashFromAddress address)
@@ -997,7 +997,7 @@ processConstraint mpsMap osMap = do
           address = case skh of
             Just skh' -> payPubKeyHashBaseAddress networkId pkh skh'
             Nothing -> payPubKeyHashEnterpriseAddress networkId pkh
-          txOut = TransactionOutput $ TxOutput
+          txOut = TransactionOutput
             { address
             , amount
             , dataHash
@@ -1012,7 +1012,7 @@ processConstraint mpsMap osMap = do
         dataHash <- ExceptT $ lift $ note (CannotHashDatum dat)
           <$> (map Just <<< datumHash) dat
         let
-          txOut = TransactionOutput $ TxOutput
+          txOut = TransactionOutput
             { address: validatorHashEnterpriseAddress networkId vlh
             , amount
             , dataHash

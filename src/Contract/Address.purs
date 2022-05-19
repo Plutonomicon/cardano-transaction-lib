@@ -43,8 +43,8 @@ import Plutus.FromPlutusType (fromPlutusType)
 import Plutus.ToPlutusType (toPlutusType)
 import Plutus.Types.Address (Address)
 -- The helpers under Plutus.Type.Address deconstruct/construct the Plutus
--- `Address` directly, instead of those defined in this module, which uses
--- the CSL helpers and redefines using Plutus-style types.
+-- `Address` directly, instead of those defined in this module use CSL helpers,
+-- redefining function domain/range to be Plutus-style types.
 import Plutus.Types.Address
   ( Address
   , pubKeyHashAddress
