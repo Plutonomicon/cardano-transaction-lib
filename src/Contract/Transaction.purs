@@ -50,7 +50,6 @@ import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import ReindexRedeemers
   ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
   ) as ReindexRedeemersExport
-import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
 import Types.Datum (Datum)
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
