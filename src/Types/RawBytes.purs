@@ -31,24 +31,13 @@ instance Show RawBytes where
 
 derive instance Newtype RawBytes _
 
-derive instance Eq RawBytes
-
-derive instance Ord RawBytes
-
-instance Semigroup RawBytes where
-  append r1 r2 = wrap $ unwrap r1 `append` unwrap r2
-
-instance Monoid RawBytes where
-  mempty = rawBytesFromIntArrayUnsafe []
-
-instance DecodeJson RawBytes where
-  decodeJson = map wrap <<< decodeJson
-
-instance DecodeAeson RawBytes where
-  decodeAeson = decodeAesonViaJson
-
-instance Arbitrary RawBytes where
-  arbitrary = wrap <$> arbitrary
+derive newtype instance Eq RawBytes
+derive newtype instance Ord RawBytes
+derive newtype instance Semigroup RawBytes
+derive newtype instance Monoid RawBytes
+derive newtype instance DecodeJson RawBytes
+derive newtype instance DecodeAeson RawBytes
+derive newtype instance Arbitrary RawBytes
 
 rawBytesToIntArray :: RawBytes -> Array Int
 rawBytesToIntArray = BA.byteArrayToIntArray <<< unwrap

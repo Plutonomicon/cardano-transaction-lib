@@ -32,24 +32,13 @@ instance Show CborBytes where
 
 derive instance Newtype CborBytes _
 
-derive instance Eq CborBytes
-
-derive instance Ord CborBytes
-
-instance Semigroup CborBytes where
-  append r1 r2 = wrap $ unwrap r1 `append` unwrap r2
-
-instance Monoid CborBytes where
-  mempty = cborBytesFromIntArrayUnsafe []
-
-instance DecodeJson CborBytes where
-  decodeJson = map wrap <<< decodeJson
-
-instance DecodeAeson CborBytes where
-  decodeAeson = decodeAesonViaJson
-
-instance Arbitrary CborBytes where
-  arbitrary = wrap <$> arbitrary
+derive newtype instance Eq CborBytes
+derive newtype instance Ord CborBytes
+derive newtype instance Semigroup CborBytes
+derive newtype instance Monoid CborBytes
+derive newtype instance DecodeJson CborBytes
+derive newtype instance DecodeAeson CborBytes
+derive newtype instance Arbitrary CborBytes
 
 cborBytesToIntArray :: CborBytes -> Array Int
 cborBytesToIntArray = BA.byteArrayToIntArray <<< unwrap
