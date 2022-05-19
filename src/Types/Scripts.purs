@@ -72,7 +72,7 @@ instance DecodeJson MintingPolicy where
 
 instance EncodeJson MintingPolicy where
   encodeJson (MintingPolicy script) = encodeJson
-    { "getValidator": encodeJson script }
+    { "getMintingPolicy": encodeJson script }
 
 instance Show MintingPolicy where
   show = genericShow
