@@ -80,6 +80,7 @@ library
     , parsec
     , aeson-better-errors
     , utf8-string
+    , attoparsec
 
   exposed-modules:
     Api

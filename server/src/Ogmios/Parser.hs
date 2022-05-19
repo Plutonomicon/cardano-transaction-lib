@@ -20,18 +20,63 @@ import Data.Aeson.BetterErrors (
   parseValue,
   perhaps,
   withString,
-  (<|>),
  )
 import Data.Bifunctor (first)
-import Data.ByteString.Lazy (ByteString)
+import Data.ByteString.Lazy (ByteString, pack, unpack)
+import Data.ByteString.Lazy.UTF8 qualified as UTF8
 import Data.Char (isDigit)
 import Data.Map qualified as Map
 import Data.Ratio ((%))
 import Data.Text qualified as Text
 import GHC.Natural (Natural, naturalFromInteger)
-import Text.Parsec qualified as Parsec
-import Text.Parsec.Char qualified as Parsec.Char
-import Text.ParserCombinators.Parsec.Combinator (many1)
+import GHC.Word (Word8)
+
+import Data.Aeson ((.!=), (.:), (.:?))
+import Data.Aeson qualified as Aeson
+import Data.Aeson.Types qualified as Aeson.Types
+import Data.HashMap.Strict qualified as HashMap
+
+import Control.Applicative ((<|>))
+import Data.Attoparsec.ByteString (Parser, inClass, many', many1, satisfy, string)
+
+newtype ProtocolParametersWrapper = ProtocolParametersWrapper
+  { unwrapParams :: ProtocolParameters
+  }
+
+instance Aeson.FromJSON ProtocolParametersWrapper where
+  parseJSON =
+    Aeson.withObject "ProtocolParametersWrapper" $ \top -> do
+      o :: Aeson.Object <- top .: "result"
+      v <- o .: "protocolVersion"
+      params <-
+        ProtocolParameters
+          <$> ((,) <$> v .: "major" <*> v .: "minor")
+          <*> Aeson.Types.explicitParseField (const rationalParser) o "decentralizationParameter"
+          <*> o .: "extraEntropy"
+          <*> o .: "maxBlockHeaderSize"
+          <*> o .: "maxBlockBodySize"
+          <*> o .: "maxTxSize"
+          <*> o .: "minFeeConstant" -- I think minFeeConstant and minFeeCoefficient are swapped here
+          -- but this is consistent with the current config file.
+          <*> o .: "minFeeCoefficient"
+          <*> o .:? "minUTxOValue"
+          <*> o .: "stakeKeyDeposit"
+          <*> o .: "poolDeposit"
+          <*> o .: "minPoolCost"
+          <*> o .: "poolRetirementEpochBound"
+          <*> o .: "desiredNumberOfPools"
+          <*> o .: "poolInfluence"
+          <*> o .: "monetaryExpansion"
+          <*> o .: "treasuryExpansion"
+          <*> o .:? "coinsPerUtxoWord"
+          <*> o .:? "costModels" .!= Map.empty
+          <*> o .:? "prices"
+          <*> o .:? "maxExecutionUnitsPerTransaction"
+          <*> o .:? "maxExecutionUnitsPerBlock"
+          <*> o .:? "maxValueSize"
+          <*> o .:? "collateralPercentage"
+          <*> o .:? "maxCollateralInputs"
+      return $ ProtocolParametersWrapper params
 
 parseVersion :: Parse e (Natural, Natural)
 parseVersion =
@@ -120,43 +165,31 @@ decodeProtocolParameters response =
         Just (Left e) -> Left $ displayError id e
         _ -> Left ["Fail at converting ogmios response to cardano format"]
 
-type LocalParser a = Parsec.Parsec String () a
+nonZeroDigit :: Parser Word8
+nonZeroDigit = satisfy $ inClass "123456789"
 
-nonZeroDigit :: LocalParser Char
-nonZeroDigit = Parsec.Char.satisfy (\c -> (c /= '0') && isDigit c)
+digit :: Parser Word8
+digit = satisfy $ inClass "0123456789"
 
-nonZeroInteger :: LocalParser Integer
+nonZeroInteger :: Parser Integer
 nonZeroInteger = do
   headDigit <- nonZeroDigit
-  remains <- Parsec.many Parsec.Char.digit
-  pure $ read (headDigit : remains)
+  remains <- many' digit
+  pure . read . UTF8.toString $ pack (headDigit : remains)
 
-zeroInteger :: LocalParser Integer
-zeroInteger = read <$> many1 (Parsec.Char.satisfy (== '0'))
+zeroInteger :: Parser Integer
+zeroInteger = read . UTF8.toString . pack <$> many1 (satisfy $ inClass "0")
 
-haskellInteger :: LocalParser Integer
-haskellInteger = nonZeroInteger Parsec.<|> zeroInteger
+haskellInteger :: Parser Integer
+haskellInteger = nonZeroInteger <|> zeroInteger
 
-rational :: LocalParser Rational
-rational = do
-  Parsec.Char.spaces
+rationalParser :: Parser Rational
+rationalParser = do
   numerator <- haskellInteger
-  Parsec.Char.spaces >> Parsec.Char.char '/' >> Parsec.Char.spaces
+  _ <- satisfy $ inClass "/"
   denominator <- haskellInteger
   pure $ numerator % denominator
 
-rationalParser :: String -> Either Text.Text Rational
-rationalParser s =
-  first
-    (const "can't parse Rational")
-    $ Parsec.runParser rational () "ogmios.json" s
-
-neutralNonceParser :: String -> Either Text.Text (Maybe PraosNonce)
-neutralNonceParser s =
-  first
-    (const "can't parse ExtraEntropyNonce")
-    $ Parsec.runParser
-      (Parsec.Char.string "neutral" >> pure Nothing)
-      ()
-      "ogmios.json"
-      s
+neutralNonceParser :: Parser (Maybe PraosNonce)
+neutralNonceParser =
+  string "neutral" >> pure Nothing
