@@ -4,6 +4,7 @@ module Types.CborBytes
   ( CborBytes(..)
   , cborBytesToByteArray
   , cborBytesFromByteArray
+  , cborBytesFromAscii
   , cborBytesToIntArray
   , cborBytesFromIntArray
   , cborBytesFromIntArrayUnsafe
@@ -66,3 +67,6 @@ cborBytesToByteArray = unwrap
 
 cborBytesFromByteArray :: ByteArray -> CborBytes
 cborBytesFromByteArray = wrap
+
+cborBytesFromAscii :: String -> Maybe CborBytes
+cborBytesFromAscii = map wrap <<< BytesArray.byteArrayFromAscii

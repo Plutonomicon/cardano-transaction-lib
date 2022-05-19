@@ -7,6 +7,7 @@ module Types.RawBytes
   , rawBytesToIntArray
   , rawBytesFromIntArray
   , rawBytesFromIntArrayUnsafe
+  , rawBytesFromAscii
   , rawBytesToHex
   , byteLength
   , hexToRawBytes
@@ -65,3 +66,6 @@ rawBytesToByteArray = unwrap
 
 rawBytesFromByteArray :: ByteArray -> RawBytes
 rawBytesFromByteArray = wrap
+
+rawBytesFromAscii :: String -> Maybe RawBytes
+rawBytesFromAscii = map wrap <<< BytesArray.byteArrayFromAscii
