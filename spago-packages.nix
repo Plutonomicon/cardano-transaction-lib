@@ -17,6 +17,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "aeson-helpers" = pkgs.stdenv.mkDerivation {
+        name = "aeson-helpers";
+        version = "44d0dae060cf78babd4534320192b58c16a6f45b";
+        src = pkgs.fetchgit {
+          url = "https://github.com/mlabs-haskell/purescript-bridge-aeson-helpers.git";
+          rev = "44d0dae060cf78babd4534320192b58c16a6f45b";
+          sha256 = "1fgvaqvd9145zz5xw3fsa5vm75kp6bxcwa2nzq1dx2367h3a0zl0";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "aff" = pkgs.stdenv.mkDerivation {
         name = "aff";
         version = "v6.0.0";
@@ -1092,6 +1104,18 @@ let
           url = "https://github.com/purescript-spec/purescript-spec.git";
           rev = "2cfa11573dbb695c117efce0a8f76a3daba12e87";
           sha256 = "0hpca1sa738029ww74zpw31br5x339q35kzb10iqd55lp6611k80";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "spec-quickcheck" = pkgs.stdenv.mkDerivation {
+        name = "spec-quickcheck";
+        version = "v4.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-spec/purescript-spec-quickcheck.git";
+          rev = "c2991f475b8fa11de8b68bcb5895b36be04d1e82";
+          sha256 = "01xcbfyqzax9c5najbfy12q0nvfklfm37llj2vkmi3wgkskg4prz";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
