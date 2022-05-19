@@ -10,6 +10,12 @@ module Types.Scripts
 
 import Prelude
 
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , decodeAesonViaJson
+  , encodeAesonViaJson
+  )
 import Data.Argonaut
   ( class DecodeJson
   , class EncodeJson
@@ -43,6 +49,8 @@ derive newtype instance Eq PlutusScript
 derive newtype instance Ord PlutusScript
 derive newtype instance DecodeJson PlutusScript
 derive newtype instance EncodeJson PlutusScript
+derive newtype instance DecodeAeson PlutusScript
+derive newtype instance EncodeAeson PlutusScript
 
 instance Show PlutusScript where
   show = genericShow
@@ -72,7 +80,13 @@ instance DecodeJson MintingPolicy where
 
 instance EncodeJson MintingPolicy where
   encodeJson (MintingPolicy script) = encodeJson
-    { "getValidator": encodeJson script }
+    { "getMintingPolicy": encodeJson script }
+
+instance DecodeAeson MintingPolicy where
+  decodeAeson = decodeAesonViaJson
+
+instance EncodeAeson MintingPolicy where
+  encodeAeson' = encodeAesonViaJson
 
 instance Show MintingPolicy where
   show = genericShow
@@ -90,6 +104,12 @@ instance DecodeJson Validator where
 instance EncodeJson Validator where
   encodeJson (Validator script) = encodeJson
     { "getValidator": encodeJson script }
+
+instance DecodeAeson Validator where
+  decodeAeson = decodeAesonViaJson
+
+instance EncodeAeson Validator where
+  encodeAeson' = encodeAesonViaJson
 
 instance Show Validator where
   show = genericShow
@@ -109,6 +129,12 @@ instance DecodeJson StakeValidator where
 instance EncodeJson StakeValidator where
   encodeJson (StakeValidator script) = encodeJson
     { "getStakeValidator": encodeJson script }
+
+instance DecodeAeson StakeValidator where
+  decodeAeson = decodeAesonViaJson
+
+instance EncodeAeson StakeValidator where
+  encodeAeson' = encodeAesonViaJson
 
 instance Show StakeValidator where
   show = genericShow
@@ -134,6 +160,12 @@ instance EncodeJson MintingPolicyHash where
   encodeJson (MintingPolicyHash hash) = encodeJson
     { "getMintingPolicyHash": encodeJson hash }
 
+instance DecodeAeson MintingPolicyHash where
+  decodeAeson = decodeAesonViaJson
+
+instance EncodeAeson MintingPolicyHash where
+  encodeAeson' = encodeAesonViaJson
+
 instance Show MintingPolicyHash where
   show = genericShow
 
@@ -155,6 +187,12 @@ instance EncodeJson ValidatorHash where
   encodeJson (ValidatorHash hash) = encodeJson
     { "getValidatorHash": encodeJson hash }
 
+instance DecodeAeson ValidatorHash where
+  decodeAeson = decodeAesonViaJson
+
+instance EncodeAeson ValidatorHash where
+  encodeAeson' = encodeAesonViaJson
+
 instance Show ValidatorHash where
   show = genericShow
 
@@ -171,6 +209,12 @@ instance DecodeJson StakeValidatorHash where
 instance EncodeJson StakeValidatorHash where
   encodeJson (StakeValidatorHash hash) = encodeJson
     { "getStakeValidatorHash": encodeJson hash }
+
+instance DecodeAeson StakeValidatorHash where
+  decodeAeson = decodeAesonViaJson
+
+instance EncodeAeson StakeValidatorHash where
+  encodeAeson' = encodeAesonViaJson
 
 instance Show StakeValidatorHash where
   show = genericShow

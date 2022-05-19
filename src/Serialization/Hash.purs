@@ -16,6 +16,12 @@ module Serialization.Hash
 
 import Prelude
 
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , decodeAesonViaJson
+  , encodeAeson'
+  )
 import Data.Argonaut
   ( class DecodeJson
   , class EncodeJson
@@ -74,6 +80,12 @@ instance DecodeJson Ed25519KeyHash where
     ( note (TypeMismatch "Invalid Ed25519KeyHash") <<< ed25519KeyHashFromBytes
         <=< note (TypeMismatch "Invalid ByteArray") <<< hexToByteArray
     )
+
+instance DecodeAeson Ed25519KeyHash where
+  decodeAeson = decodeAesonViaJson
+
+instance EncodeAeson Ed25519KeyHash where
+  encodeAeson' = encodeAeson' <<< byteArrayToHex <<< ed25519KeyHashToBytes
 
 foreign import _ed25519KeyHashFromBytesImpl
   :: MaybeFfiHelper

@@ -5,13 +5,13 @@ module Plutus.Types.Credential
 
 import Prelude
 
-import Serialization.Address
-  ( CertificateIndex
-  , Slot
-  , TransactionIndex
-  )
+import Aeson (class DecodeAeson, class EncodeAeson)
+import Aeson.Decode ((</$\>), (</*\>))
+import Aeson.Encode ((>/\<))
+import Control.Lazy (defer)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
+import Data.Tuple.Nested ((/\))
 import FromData (class FromData, genericFromData)
 import Plutus.Types.DataSchema
   ( class HasPlutusSchema
@@ -23,6 +23,10 @@ import Plutus.Types.DataSchema
   )
 import ToData (class ToData, genericToData)
 import TypeLevel.Nat (S, Z)
+import Aeson.Decode as D
+import Aeson.Encode as E
+import Data.Map as Map
+import Serialization.Address (CertificateIndex, Slot, TransactionIndex)
 import Types.PubKeyHash (PubKeyHash)
 import Types.Scripts (ValidatorHash)
 
@@ -57,6 +61,22 @@ instance
         @@ (S Z)
         :+ PNil
     )
+
+-- NOTE: mlabs-haskell/purescript-bridge generated and applied here
+instance EncodeAeson Credential where
+  encodeAeson' x = pure $
+    ( defer \_ -> case _ of
+        PubKeyCredential a -> E.encodeTagged "PubKeyCredential" a E.value
+        ScriptCredential a -> E.encodeTagged "ScriptCredential" a E.value
+    ) x
+
+instance DecodeAeson Credential where
+  decodeAeson = defer \_ -> D.decode
+    $ D.sumType "Credential"
+    $ Map.fromFoldable
+        [ "PubKeyCredential" /\ D.content (PubKeyCredential <$> D.value)
+        , "ScriptCredential" /\ D.content (ScriptCredential <$> D.value)
+        ]
 
 instance ToData Credential where
   toData = genericToData
@@ -105,3 +125,24 @@ instance ToData StakingCredential where
 
 instance FromData StakingCredential where
   fromData = genericFromData
+
+-- NOTE: mlabs-haskell/purescript-bridge generated and applied here
+instance EncodeAeson StakingCredential where
+  encodeAeson' x = pure $
+    ( defer \_ -> case _ of
+        StakingHash a -> E.encodeTagged "StakingHash" a E.value
+        StakingPtr ptr -> E.encodeTagged "StakingPtr"
+          (ptr.slot /\ ptr.txIx /\ ptr.certIx)
+          (E.tuple (E.value >/\< E.value >/\< E.value))
+    ) x
+
+instance DecodeAeson StakingCredential where
+  decodeAeson = defer \_ -> D.decode
+    $ D.sumType "StakingCredential"
+    $ Map.fromFoldable
+        [ "StakingHash" /\ D.content (StakingHash <$> D.value)
+        , "StakingPtr" /\ D.content
+            (D.tuple $ toStakingPtr </$\> D.value </*\> D.value </*\> D.value)
+        ]
+    where
+    toStakingPtr slot txIx certIx = StakingPtr { slot, txIx, certIx }

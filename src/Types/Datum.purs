@@ -6,7 +6,7 @@ module Types.Datum
 
 import Prelude
 
-import Aeson (class DecodeAeson)
+import Aeson (class DecodeAeson, class EncodeAeson)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
@@ -29,6 +29,7 @@ derive newtype instance FromData Datum
 derive newtype instance Ord Datum
 derive newtype instance ToData Datum
 derive newtype instance DecodeAeson Datum
+derive newtype instance EncodeAeson Datum
 
 instance Show Datum where
   show = genericShow

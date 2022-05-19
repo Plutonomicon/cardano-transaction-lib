@@ -9,14 +9,20 @@ module Plutus.Types.Address
 
 import Prelude
 
-import Data.Maybe (Maybe(Just, Nothing))
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , caseAesonObject
+  , encodeAeson'
+  , (.:)
+  )
+import Contract.Prelude (Either(Left))
+import Data.Argonaut (JsonDecodeError(..))
 import Data.Generic.Rep (class Generic)
-import Data.Show.Generic (genericShow)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Show.Generic (genericShow)
 import FromData (class FromData, genericFromData)
-import ToData (class ToData, genericToData)
-import Types.Scripts (ValidatorHash)
-import Types.PubKeyHash (PubKeyHash)
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential
@@ -29,7 +35,10 @@ import Plutus.Types.DataSchema
   , I
   , PNil
   )
+import ToData (class ToData, genericToData)
 import TypeLevel.Nat (Z)
+import Types.PubKeyHash (PubKeyHash)
+import Types.Scripts (ValidatorHash)
 
 --------------------------------------------------------------------------------
 -- Address
@@ -69,6 +78,18 @@ instance ToData Address where
 
 instance FromData Address where
   fromData = genericFromData
+
+instance DecodeAeson Address where
+  decodeAeson = caseAesonObject
+    (Left $ TypeMismatch "Expected object")
+    ( \obj -> do
+        addressCredential <- obj .: "addressCredential"
+        addressStakingCredential <- obj .: "addressStakingCredential"
+        pure $ Address { addressCredential, addressStakingCredential }
+    )
+
+instance EncodeAeson Address where
+  encodeAeson' (Address addr) = encodeAeson' addr
 
 --------------------------------------------------------------------------------
 -- Useful functions

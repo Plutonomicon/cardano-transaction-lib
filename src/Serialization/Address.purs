@@ -83,7 +83,13 @@ module Serialization.Address
 
 import Prelude
 
-import Aeson (class DecodeAeson, caseAesonObject, getField, jsonToAeson)
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , caseAesonObject
+  , getField
+  , jsonToAeson
+  )
 import Control.Alt ((<|>))
 import Data.Argonaut
   ( class DecodeJson
@@ -91,9 +97,9 @@ import Data.Argonaut
   , JsonDecodeError(TypeMismatch)
   , fromNumber
   )
+import Data.Either (Either(Left))
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
-import Data.Either (Either(Left))
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
@@ -116,6 +122,7 @@ derive instance Generic Slot _
 derive newtype instance Eq Slot
 derive newtype instance Ord Slot
 derive newtype instance DecodeAeson Slot
+derive newtype instance EncodeAeson Slot
 derive newtype instance FromData Slot
 derive newtype instance ToData Slot
 
@@ -159,6 +166,8 @@ derive instance Eq TransactionIndex
 derive instance Ord TransactionIndex
 derive instance Newtype TransactionIndex _
 derive instance Generic TransactionIndex _
+derive newtype instance DecodeAeson TransactionIndex
+derive newtype instance EncodeAeson TransactionIndex
 derive newtype instance ToData TransactionIndex
 derive newtype instance FromData TransactionIndex
 
@@ -171,6 +180,8 @@ derive instance Eq CertificateIndex
 derive instance Ord CertificateIndex
 derive instance Newtype CertificateIndex _
 derive instance Generic CertificateIndex _
+derive newtype instance DecodeAeson CertificateIndex
+derive newtype instance EncodeAeson CertificateIndex
 derive newtype instance ToData CertificateIndex
 derive newtype instance FromData CertificateIndex
 

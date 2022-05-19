@@ -13,13 +13,18 @@ import Data.Argonaut
   )
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import FromData (class FromData)
 import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Serialization.Hash (Ed25519KeyHash)
 import ToData (class ToData)
+import Aeson (class DecodeAeson, class EncodeAeson)
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Record (get)
+import Type.Proxy (Proxy(Proxy))
+import Aeson.Decode as D
+import Aeson.Encode as E
 
 newtype PubKeyHash = PubKeyHash Ed25519KeyHash
 
@@ -41,3 +46,14 @@ instance DecodeJson PubKeyHash where
   decodeJson = caseJsonObject
     (Left $ TypeMismatch "Expected object")
     (flip getField "getPubKeyHash" >=> decodeJson >>> map PubKeyHash)
+
+-- NOTE: mlabs-haskell/purescript-bridge generated and applied here
+instance EncodeAeson PubKeyHash where
+  encodeAeson' x = pure $ E.encode
+    (E.record { getPubKeyHash: E.value :: _ (Ed25519KeyHash) })
+    { getPubKeyHash: unwrap x }
+
+instance DecodeAeson PubKeyHash where
+  decodeAeson x = wrap <<< get (Proxy :: Proxy "getPubKeyHash") <$> D.decode
+    (D.record "getPubKeyHash " { getPubKeyHash: D.value :: _ (Ed25519KeyHash) })
+    x

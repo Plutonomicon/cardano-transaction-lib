@@ -41,6 +41,20 @@ module Types.Interval
   , upperBound
   ) where
 
+import Prelude
+
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , decodeAeson
+  , encodeAeson
+  , encodeAeson'
+  )
+import Aeson.Decode ((</$\>), (</*\>))
+import Aeson.Decode as D
+import Aeson.Encode ((>$<), (>/\<))
+import Aeson.Encode as E
+import Control.Lazy (defer)
 import Data.BigInt (BigInt, quot)
 import Data.BigInt (fromString, fromInt) as BigInt
 import Data.Enum (class Enum, succ)
@@ -51,14 +65,15 @@ import Data.Lattice
   , class JoinSemilattice
   , class MeetSemilattice
   )
+import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
+import Data.Tuple.Nested ((/\))
 import Data.UInt (fromString) as UInt
+import FromData (class FromData, genericFromData)
 import Helpers (uIntToBigInt, bigIntToUInt)
 import Partial.Unsafe (unsafePartial)
-import Prelude
-import Serialization.Address (Slot(Slot))
 import Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
@@ -67,9 +82,9 @@ import Plutus.Types.DataSchema
   , I
   , PNil
   )
-import TypeLevel.Nat (S, Z)
+import Serialization.Address (Slot(Slot))
 import ToData (class ToData, genericToData)
-import FromData (class FromData, genericFromData)
+import TypeLevel.Nat (S, Z)
 
 --------------------------------------------------------------------------------
 -- Interval Type and related
@@ -176,6 +191,11 @@ instance Show a => Show (UpperBound a) where
 newtype Interval :: Type -> Type
 newtype Interval a = Interval { from :: LowerBound a, to :: UpperBound a }
 
+derive instance Generic (Interval a) _
+derive newtype instance Eq a => Eq (Interval a)
+derive instance Functor Interval
+derive instance Newtype (Interval a) _
+
 instance
   HasPlutusSchema (Interval a)
     ( "Interval"
@@ -188,10 +208,6 @@ instance
         @@ Z
         :+ PNil
     )
-
-derive instance Generic (Interval a) _
-derive newtype instance Eq a => Eq (Interval a)
-derive instance Functor Interval
 
 instance Show a => Show (Interval a) where
   show = genericShow
@@ -213,6 +229,15 @@ instance ToData a => ToData (Interval a) where
 
 instance FromData a => FromData (Interval a) where
   fromData i = genericFromData i
+
+instance EncodeAeson a => EncodeAeson (Interval a) where
+  encodeAeson' (Interval i) = encodeAeson' $ HaskInterval
+    { ivFrom: i.from, ivTo: i.to }
+
+instance DecodeAeson a => DecodeAeson (Interval a) where
+  decodeAeson a = do
+    (HaskInterval i) <- decodeAeson a
+    pure $ Interval { from: i.ivFrom, to: i.ivTo }
 
 --------------------------------------------------------------------------------
 -- POSIXTIME Type and related
@@ -538,3 +563,68 @@ posixTimeToEnclosingSlot (SlotConfig { slotLength, slotZeroTime }) (POSIXTime t)
 -- TO DO: https://github.com/Plutonomicon/cardano-transaction-lib/issues/169
 -- -- | Get the current slot number
 -- currentSlot :: SlotConfig -> Effect Slot
+
+-- NOTE: mlabs-haskell/purescript-bridge generated and applied here
+
+newtype HaskInterval a = HaskInterval
+  { ivFrom :: LowerBound a, ivTo :: UpperBound a }
+
+derive instance Generic (HaskInterval a) _
+derive newtype instance Eq a => Eq (HaskInterval a)
+derive instance Functor HaskInterval
+derive instance Newtype (HaskInterval a) _
+
+instance (EncodeAeson a) => EncodeAeson (HaskInterval a) where
+  encodeAeson' x = pure $
+    ( defer \_ -> E.encode $ unwrap >$<
+        ( E.record
+            { ivFrom: E.value :: _ (LowerBound a)
+            , ivTo: E.value :: _ (UpperBound a)
+            }
+        )
+    ) x
+
+instance (DecodeAeson a) => DecodeAeson (HaskInterval a) where
+  decodeAeson = defer \_ -> D.decode $
+    ( HaskInterval <$> D.record "Interval"
+        { ivFrom: D.value :: _ (LowerBound a)
+        , ivTo: D.value :: _ (UpperBound a)
+        }
+    )
+
+instance (EncodeAeson a) => EncodeAeson (LowerBound a) where
+  encodeAeson' x = pure $
+    ( defer \_ -> E.encode $ (case _ of LowerBound a b -> (a /\ b)) >$<
+        (E.tuple (E.value >/\< E.value))
+    ) x
+
+instance (DecodeAeson a) => DecodeAeson (LowerBound a) where
+  decodeAeson = defer \_ -> D.decode $
+    (D.tuple $ LowerBound </$\> D.value </*\> D.value)
+
+instance (EncodeAeson a) => EncodeAeson (UpperBound a) where
+  encodeAeson' x = pure $
+    ( defer \_ -> E.encode $ (case _ of UpperBound a b -> (a /\ b)) >$<
+        (E.tuple (E.value >/\< E.value))
+    ) x
+
+instance (DecodeAeson a) => DecodeAeson (UpperBound a) where
+  decodeAeson = defer \_ -> D.decode $
+    (D.tuple $ UpperBound </$\> D.value </*\> D.value)
+
+instance (EncodeAeson a) => EncodeAeson (Extended a) where
+  encodeAeson' x = pure $
+    ( defer \_ -> case _ of
+        NegInf -> encodeAeson { tag: "NegInf" }
+        Finite a -> E.encodeTagged "Finite" a E.value
+        PosInf -> encodeAeson { tag: "PosInf" }
+    ) x
+
+instance (DecodeAeson a) => DecodeAeson (Extended a) where
+  decodeAeson = defer \_ -> D.decode
+    $ D.sumType "Extended"
+    $ Map.fromFoldable
+        [ "NegInf" /\ pure NegInf
+        , "Finite" /\ D.content (Finite <$> D.value)
+        , "PosInf" /\ pure PosInf
+        ]
