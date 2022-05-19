@@ -3,16 +3,15 @@ module Test.Crypto (suite) where
 import Prelude
 
 import Contract.Prim.ByteArray (byteArrayToHex)
-import Control.Monad.Error.Class (class MonadThrow, throwError)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe)
 import Data.Traversable (traverse_)
 import Data.Tuple (Tuple(Tuple))
 import Effect.Aff.Class (liftAff)
-import Effect.Exception (error)
 import Mote (group, test)
 import QueryM (QueryM, runQueryM, traceQueryConfig)
 import QueryM.Crypto (plutusHash, HashMethod(..))
 import Test.Spec.Assertions (shouldEqual)
+import Test.Utils (errMaybe)
 import TestM (TestPlanM)
 import Types.ByteArray (ByteArray, hexToByteArray)
 
@@ -32,17 +31,13 @@ suite = do
     ( \(Tuple origBS hashtups) ->
         traverse_
           ( \(Tuple meth goal) -> do
-              qbs <- throwMaybe (error "bytestring is not hex format") origBS
-              res <- throwMaybe (error "hashing method was not successfull") =<<
+              qbs <- errMaybe "bytestring is not hex format" origBS
+              res <- errMaybe "hashing method was not successfull" =<<
                 plutusHash meth qbs
               shouldEqual goal $ byteArrayToHex res
           )
           hashtups
     )
-
-throwMaybe :: forall a m e. MonadThrow e m => e -> Maybe a -> m a
-throwMaybe _ (Just a) = pure a
-throwMaybe e Nothing = throwError e
 
 sourceHashPairs
   :: Array (Tuple (Maybe ByteArray) (Array (Tuple HashMethod String)))

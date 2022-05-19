@@ -16,7 +16,7 @@ import Control.Monad.Reader.Trans (asks)
 import Data.Argonaut
   ( class DecodeJson
   , Json
-  , JsonDecodeError(..)
+  , JsonDecodeError(TypeMismatch)
   , decodeJson
   , caseJsonString
   , (:=)
@@ -24,15 +24,20 @@ import Data.Argonaut
   , encodeJson
   )
 import Data.Bifunctor (bimap)
-import Data.Either (Either(..), hush, note, either)
+import Data.Either (Either(Left), hush, note, either)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(..), maybe')
+import Data.Maybe (Maybe(Just), maybe')
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import QueryM (ClientError(..), QueryM, mkServerEndpointUrl, scriptToJson)
+import QueryM
+  ( ClientError(ClientHttpError, ClientDecodeJsonError)
+  , QueryM
+  , mkServerEndpointUrl
+  , scriptToJson
+  )
 import QueryM.ServerConfig (mkHttpUrl)
 import Serialization (toBytes) as Serialization
 import Serialization.Hash (ScriptHash)
@@ -60,9 +65,9 @@ plutusHash meth bytes = do
   let
     methJson :: Json
     methJson = case meth of
-      Blake2b_256 -> encodeJson "Blake2b_256"
-      Sha2_256 -> encodeJson "Sha2_256"
-      Sha3_256 -> encodeJson "Sha3_256"
+      Blake2b_256 -> encodeJson "blake2b_256"
+      Sha2_256 -> encodeJson "sha2_256"
+      Sha3_256 -> encodeJson "sha3_256"
 
     bytesJson :: Json
     bytesJson = encodeJson $ byteArrayToHex bytes

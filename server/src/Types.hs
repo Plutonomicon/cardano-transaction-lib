@@ -39,8 +39,9 @@ import Control.Exception (Exception)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (MonadReader, ReaderT, asks)
-import Data.Aeson (FromJSON, ToJSON (toJSON))
+import Data.Aeson (FromJSON (parseJSON), ToJSON (toJSON))
 import Data.Aeson qualified as Aeson
+import Data.Char (toLower)
 import Data.Aeson.Encoding qualified as Aeson.Encoding
 import Data.Aeson.Types (withText)
 import Data.Bifunctor (second)
@@ -177,7 +178,18 @@ data HashMethod = Blake2b_256
                 | Sha2_256
                 | Sha3_256
   deriving stock (Show, Eq, Generic)
-  deriving anyclass (FromJSON, ToJSON)
+
+instance FromJSON HashMethod where 
+  parseJSON = 
+    Aeson.genericParseJSON 
+      Aeson.defaultOptions 
+        { Aeson.constructorTagModifier = fmap toLower }
+
+instance ToJSON HashMethod where 
+  toJSON = 
+    Aeson.genericToJSON 
+      Aeson.defaultOptions 
+        { Aeson.constructorTagModifier = fmap toLower }
 
 
 data ByteStringHash = ByteStringHash 

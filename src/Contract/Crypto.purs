@@ -7,30 +7,31 @@ module Contract.Crypto
   , HashMethod(..)
   ) where
 
+import Prelude
+
 import Contract.Monad (Contract, wrapContract)
 import Data.Either (Either)
 import Data.Maybe (Maybe)
-import Prelude ((<<<))
 import QueryM (ClientError)
-import QueryM.Crypto as Crypt
+import QueryM.Crypto as Crypto
 import Serialization.Hash (ScriptHash)
 import Types.ByteArray (ByteArray)
 import Types.Datum (Datum, DatumHash)
 import Types.Scripts (PlutusScript)
 import Data.Newtype (class Newtype)
 
-type HashMethod = Crypt.HashMethod
-type HashedData = Crypt.HashedData
+type HashMethod = Crypto.HashMethod
+type HashedData = Crypto.HashedData
 
 plutusHash
   :: forall (r :: Row Type)
    . HashMethod
   -> ByteArray
   -> Contract r (Maybe ByteArray)
-plutusHash meth = wrapContract <<< Crypt.plutusHash meth
+plutusHash meth = wrapContract <<< Crypto.plutusHash meth
 
 hashData :: forall (r :: Row Type). Datum -> Contract r (Maybe HashedData)
-hashData = wrapContract <<< Crypt.hashData
+hashData = wrapContract <<< Crypto.hashData
 
 hashScript
   :: forall (a :: Type) (b :: Type) (r :: Row Type)
@@ -38,7 +39,7 @@ hashScript
   => Newtype b ScriptHash
   => a
   -> Contract r (Either ClientError b)
-hashScript = wrapContract <<< Crypt.hashScript
+hashScript = wrapContract <<< Crypto.hashScript
 
 datumHash :: forall (r :: Row Type). Datum -> Contract r (Maybe DatumHash)
-datumHash = wrapContract <<< Crypt.datumHash
+datumHash = wrapContract <<< Crypto.datumHash
