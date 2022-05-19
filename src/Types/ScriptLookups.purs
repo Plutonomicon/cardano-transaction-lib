@@ -75,6 +75,13 @@ import ToData (class ToData)
 import Types.Any (Any)
 import Types.Datum (Datum, DatumHash)
 import Types.Interval (POSIXTimeRange, posixTimeRangeToTransactionSlot)
+import Types.PubKeyHash
+  ( PaymentPubKeyHash
+  , StakePubKeyHash
+  , payPubKeyHashBaseAddress
+  , payPubKeyHashEnterpriseAddress
+  , stakePubKeyHashRewardAddress
+  )
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
 import Types.TokenName (TokenName)
 import Types.Scripts
@@ -142,17 +149,12 @@ import Types.TypedValidator
 import Types.UnbalancedTransaction
   ( TxOutRef
   , PaymentPubKey
-  , PaymentPubKeyHash
-  , StakePubKeyHash
   , UnbalancedTx
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
   -- , payPubKeyHash
-  , payPubKeyHashBaseAddress
-  , payPubKeyHashEnterpriseAddress
   , payPubKeyRequiredSigner
-  , stakePubKeyHashRewardAddress
   )
 import Cardano.Types.Value
   ( CurrencySymbol

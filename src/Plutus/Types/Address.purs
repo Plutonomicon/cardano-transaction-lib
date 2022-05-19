@@ -17,10 +17,14 @@ import FromData (class FromData, fromData)
 import ToData (class ToData, toData)
 import Types.Scripts (ValidatorHash)
 import Types.PlutusData (PlutusData(Constr))
-import Types.PubKeyHash (PubKeyHash)
+import Types.PubKeyHash
+  ( PaymentPubKeyHash(PaymentPubKeyHash)
+  , PubKeyHash
+  , StakePubKeyHash
+  )
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
-  , StakingCredential
+  , StakingCredential(StakingHash)
   )
 
 --------------------------------------------------------------------------------
@@ -62,10 +66,11 @@ instance FromData Address where
 
 -- | The address that should be targeted by a transaction output locked
 -- | by the public key with the given hash.
-pubKeyHashAddress :: PubKeyHash -> Address
-pubKeyHashAddress pkh = wrap $
+pubKeyHashAddress :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> Address
+pubKeyHashAddress (PaymentPubKeyHash pkh) skh = wrap
   { addressCredential: PubKeyCredential pkh
-  , addressStakingCredential: Nothing
+  , addressStakingCredential:
+      map (StakingHash <<< PubKeyCredential <<< unwrap) skh
   }
 
 -- | The address that should be used by a transaction output locked

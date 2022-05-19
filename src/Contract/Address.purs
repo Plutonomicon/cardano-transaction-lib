@@ -57,23 +57,24 @@ import Serialization.Address -- There are a lot of helpers we have ignored here,
   ) as SerializationAddress
 import Types.Aliases (Bech32String) as Bech32
 import Types.ByteArray (ByteArray) as ByteArray
-import Types.PubKeyHash (PubKeyHash)
-import Types.PubKeyHash (PubKeyHash(PubKeyHash)) as PubKeyHash
-import Types.UnbalancedTransaction (StakePubKeyHash, PaymentPubKeyHash)
-import Types.UnbalancedTransaction
-  ( PaymentPubKey(PaymentPubKey)
-  , PaymentPubKeyHash(PaymentPubKeyHash)
-  , ScriptOutput(ScriptOutput)
+import Types.PubKeyHash (PubKeyHash, PaymentPubKeyHash, StakePubKeyHash)
+import Types.PubKeyHash
+  ( PaymentPubKeyHash(PaymentPubKeyHash)
+  , PubKeyHash(PubKeyHash)
   , StakePubKeyHash(StakePubKeyHash)
   , payPubKeyHashBaseAddress
   , payPubKeyHashRewardAddress
   , payPubKeyHashEnterpriseAddress
-  , payPubKeyRequiredSigner
-  , payPubKeyVkey
-  -- , pubKeyHash
   , pubKeyHashBaseAddress
   , pubKeyHashEnterpriseAddress
   , stakePubKeyHashRewardAddress
+  ) as PubKeyHash
+import Types.UnbalancedTransaction
+  ( PaymentPubKey(PaymentPubKey)
+  , ScriptOutput(ScriptOutput)
+  , payPubKeyRequiredSigner
+  , payPubKeyVkey
+  -- , pubKeyHash
   ) as UnbalancedTransaction
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
