@@ -155,8 +155,10 @@ import Cardano.Types.Value
 import Untagged.Union (asOneOf)
 
 -- | Deserializes CBOR encoded transaction to a CTL's native type.
-deserializeTransaction :: forall (r :: Row Type). CborBytes -> Err r T.Transaction
-deserializeTransaction txCbor = fromBytes' (unwrap txCbor) >>= convertTransaction
+deserializeTransaction
+  :: forall (r :: Row Type). CborBytes -> Err r T.Transaction
+deserializeTransaction txCbor = fromBytes' (unwrap txCbor) >>=
+  convertTransaction
 
 -- | Converts transaction from foreign CSL representation to CTL's one.
 convertTransaction
