@@ -16,6 +16,7 @@ module Contract.Transaction
   , module TransactionMetadata
   , module UnbalancedTx
   , reindexSpentScriptRedeemers
+  , scriptOutputToTransactionOutput
   , signTransaction
   , signTransactionBytes
   , submit
@@ -109,6 +110,7 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
 import Plutus.ToPlutusType (toPlutusType)
+import Plutus.Types.Transaction (TransactionOutput) as PTransaction
 import Plutus.Types.Value (Coin)
 import QueryM
   ( FeeEstimate(FeeEstimate)
@@ -123,10 +125,12 @@ import QueryM
   , finalizeTx
   , submitTxOgmios
   ) as QueryM
+import Serialization.Address (NetworkId)
 import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import ReindexRedeemers
   ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
   ) as ReindexRedeemersExport
+import TxOutput (scriptOutputToTransactionOutput) as TxOutput
 import Types.ByteArray (ByteArray)
 import Types.Datum (Datum)
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
@@ -268,3 +272,10 @@ balanceAndSignTx uaubTx@(UnattachedUnbalancedTx { datums }) = do
     signTransactionBytes txCbor
   pure $ pure $ BalancedSignedTransaction
     { transaction: balancedTx, signedTxCbor }
+
+scriptOutputToTransactionOutput
+  :: NetworkId
+  -> UnbalancedTx.ScriptOutput
+  -> Maybe PTransaction.TransactionOutput
+scriptOutputToTransactionOutput networkId =
+  toPlutusType <<< TxOutput.scriptOutputToTransactionOutput networkId

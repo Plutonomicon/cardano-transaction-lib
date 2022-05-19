@@ -41,10 +41,7 @@ import Scripts
   , stakeValidatorHash
   , validatorHash
   ) as Scripts
-import Serialization.Hash
-  ( Ed25519KeyHash
-  , ScriptHash
-  ) as Hash
+import Serialization.Hash (ScriptHash) as Hash
 import Types.Scripts
   ( MintingPolicy(MintingPolicy)
   , MintingPolicyHash(MintingPolicyHash)

@@ -1,3 +1,5 @@
+-- | A module for shared types across Cardano.Types.Transaction and
+-- | Plutus.Types.Transaction.
 module Types.Transaction
   ( DataHash(..)
   , TransactionHash(..)
