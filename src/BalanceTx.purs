@@ -609,9 +609,8 @@ returnAdaChange changeAddr utxos unattachedTx =
                 ) $
                 modifyAt
                   idx
-                  ( \(TransactionOutput o@{ amount }) ->
-                      TransactionOutput
-                        o { amount = amount <> lovelaceValueOf returnAda }
+                  ( \(TransactionOutput o@{ amount }) -> TransactionOutput
+                      o { amount = amount <> lovelaceValueOf returnAda }
                   )
                   txOutputs
             -- Fees unchanged because we aren't adding a new utxo.
@@ -958,8 +957,8 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
           { no: txOuts'
           , yes: TransactionOutput txOut@{ amount: v } : txOuts
           } ->
-            TransactionOutput txOut { amount = v <> nonAdaChange }
-              : txOuts <> txOuts'
+            TransactionOutput
+              txOut { amount = v <> nonAdaChange } : txOuts <> txOuts'
 
   -- Original code uses "isNat" because there is a guard against zero, see
   -- isPos for more detail.

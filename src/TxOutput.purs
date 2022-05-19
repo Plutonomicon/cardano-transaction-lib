@@ -127,8 +127,7 @@ transactionOutputToScriptOutput
     , datumHash
     }
 transactionOutputToScriptOutput
-  (Transaction.TransactionOutput { dataHash: Nothing }) =
-  Nothing
+  (Transaction.TransactionOutput { dataHash: Nothing }) = Nothing
 
 -- | Converts `ScriptOutput` to an internal transaction output.
 scriptOutputToTransactionOutput

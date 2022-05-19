@@ -8,6 +8,7 @@ module Contract.PlutusData
   , getDatumByHash
   , getDatumsByHashes
   , startFetchBlocks
+  , module ConstrIndices
   , module Datum
   , module ExportQueryM
   , module PlutusData
@@ -18,10 +19,29 @@ module Contract.PlutusData
 
 import Prelude
 
+import ConstrIndices
+  ( class HasConstrIndices
+  , class HasCountedConstrIndices
+  , constrIndices
+  , countedConstrIndices
+  , defaultConstrIndices
+  , fromConstr2Index
+  ) as ConstrIndices
 import Contract.Monad (Contract, wrapContract)
 import Data.Map (Map)
 import Data.Maybe (Maybe)
-import FromData (class FromData, fromData) as FromData
+import FromData
+  ( FromDataError(ArgsWantedButGot, FromDataFailed)
+  , class FromData
+  , class FromDataArgs
+  , class FromDataArgsRL
+  , class FromDataWithIndex
+  , fromData
+  , fromDataArgs
+  , fromDataArgsRec
+  , fromDataWithIndex
+  , genericFromData
+  ) as FromData
 import QueryM
   ( DatumCacheListeners
   , DatumCacheWebSocket
@@ -36,7 +56,17 @@ import QueryM
   , startFetchBlocks
   ) as QueryM
 import Serialization.Address (Slot)
-import ToData (class ToData, toData) as ToData
+import ToData
+  ( class ToData
+  , class ToDataArgs
+  , class ToDataWithIndex
+  , class ToDataArgsRL
+  , genericToData
+  , toDataArgsRec
+  , toData
+  , toDataArgs
+  , toDataWithIndex
+  ) as ToData
 import Types.Chain (BlockHeaderHash)
 import Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as Datum
 import Types.Datum (DataHash)
