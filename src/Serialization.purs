@@ -1,13 +1,16 @@
 module Serialization
   ( convertTransaction
+  , convertTxBody
   , convertTxInput
   , convertTxOutput
   , toBytes
   , newTransactionUnspentOutputFromBytes
   , newTransactionWitnessSetFromBytes
   , hashScriptData
+  , hashTransaction
   , publicKeyHash
   , publicKeyFromBech32
+  , makeVkeywitness
   ) where
 
 import Prelude
@@ -72,6 +75,7 @@ import Serialization.Types
   , ProtocolParamUpdate
   , ProtocolVersion
   , PublicKey
+  , PrivateKey
   , Redeemer
   , Redeemers
   , Relay
@@ -140,6 +144,8 @@ import Cardano.Types.Value as Value
 import Types.TokenName (getTokenName) as TokenName
 import Untagged.Union (type (|+|), UndefinedOr, maybeToUor)
 
+foreign import hashTransaction :: TransactionBody -> Effect TransactionHash
+
 foreign import newBigNum :: MaybeFfiHelper -> String -> Maybe BigNum
 foreign import newValue :: BigNum -> Effect Value
 foreign import valueSetCoin :: Value -> BigNum -> Effect Unit
@@ -192,6 +198,9 @@ foreign import transactionOutputSetDataHash
   :: TransactionOutput -> DataHash -> Effect Unit
 
 foreign import newVkeywitnesses :: Effect Vkeywitnesses
+foreign import makeVkeywitness
+  :: TransactionHash -> PrivateKey -> Effect Vkeywitness
+
 foreign import newVkeywitness :: Vkey -> Ed25519Signature -> Effect Vkeywitness
 foreign import addVkeywitness :: Vkeywitnesses -> Vkeywitness -> Effect Unit
 foreign import newVkeyFromPublicKey :: PublicKey -> Effect Vkey
@@ -428,32 +437,37 @@ foreign import toBytes
      )
   -> ByteArray
 
+convertTxBody :: T.TxBody -> Effect TransactionBody
+convertTxBody (T.TxBody body) = do
+  inputs <- convertTxInputs body.inputs
+  outputs <- convertTxOutputs body.outputs
+  fee <- fromJustEff "Failed to convert fee" $ bigNumFromBigInt
+    (unwrap body.fee)
+  let ttl = body.ttl <#> unwrap >>> UInt.toInt
+  txBody <- newTransactionBody inputs outputs fee (maybeToUor ttl)
+  for_ body.validityStartInterval $
+    unwrap >>> UInt.toInt >>> transactionBodySetValidityStartInterval txBody
+  for_ body.requiredSigners $
+    map unwrap >>> transactionBodySetRequiredSigners containerHelper txBody
+  for_ body.auxiliaryDataHash $
+    unwrap >>> transactionBodySetAuxiliaryDataHash txBody
+  for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
+  for_ body.scriptDataHash
+    (unwrap >>> newScriptDataHashFromBytes >=> setTxBodyScriptDataHash txBody)
+  for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
+  for_ body.mint $ convertMint >=> setTxBodyMint txBody
+  for_ body.certs $ convertCerts >=> setTxBodyCerts txBody
+  for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
+  for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
+  pure txBody
+
 convertTransaction :: T.Transaction -> Effect Transaction
 convertTransaction
   ( T.Transaction
-      { body: T.TxBody body, witnessSet, isValid, auxiliaryData }
+      { body, witnessSet, isValid, auxiliaryData }
   ) =
   do
-    inputs <- convertTxInputs body.inputs
-    outputs <- convertTxOutputs body.outputs
-    fee <- fromJustEff "Failed to convert fee" $ bigNumFromBigInt
-      (unwrap body.fee)
-    let ttl = body.ttl <#> unwrap >>> UInt.toInt
-    txBody <- newTransactionBody inputs outputs fee (maybeToUor ttl)
-    for_ body.validityStartInterval $
-      unwrap >>> UInt.toInt >>> transactionBodySetValidityStartInterval txBody
-    for_ body.requiredSigners $
-      map unwrap >>> transactionBodySetRequiredSigners containerHelper txBody
-    for_ body.auxiliaryDataHash $
-      unwrap >>> transactionBodySetAuxiliaryDataHash txBody
-    for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
-    for_ body.scriptDataHash
-      (unwrap >>> newScriptDataHashFromBytes >=> setTxBodyScriptDataHash txBody)
-    for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
-    for_ body.mint $ convertMint >=> setTxBodyMint txBody
-    for_ body.certs $ convertCerts >=> setTxBodyCerts txBody
-    for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
-    for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
+    txBody <- convertTxBody body
     ws <- convertWitnessSet witnessSet
     tx <- newTransaction txBody ws
     setTxIsValid tx isValid

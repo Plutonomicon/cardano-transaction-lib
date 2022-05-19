@@ -1,8 +1,10 @@
 module Wallet
   ( NamiConnection
   , NamiWallet
+  , KeyWallet'
   , Wallet(..)
   , mkNamiWalletAff
+  , mkKeyWallet
   , dummySign
   ) where
 
@@ -13,6 +15,7 @@ import Control.Promise as Promise
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (over)
 import Data.Tuple.Nested ((/\))
+import Data.Lens (set)
 import Deserialization.FromBytes (fromBytesEffect)
 import Deserialization.UnspentOutput as Deserialization.UnspentOuput
 import Deserialization.WitnessSet as Deserialization.WitnessSet
@@ -25,6 +28,7 @@ import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Helpers ((<<>>))
 import Serialization as Serialization
 import Serialization.Address (Address, addressFromBytes)
+import Serialization.Types (PrivateKey)
 import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex)
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
@@ -34,13 +38,39 @@ import Types.Transaction
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
+  , _vkeys
   )
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Untagged.Union (asOneOf)
 
 -- At the moment, we only support Nami's wallet. In the future we will expand
 -- this with more constructors to represent out-of-browser wallets (e.g. WBE)
-data Wallet = Nami NamiWallet
+data Wallet
+  = Nami NamiWallet
+  | KeyWallet KeyWallet'
+
+type KeyWallet' =
+  { address :: Address
+  , collateral :: TransactionUnspentOutput
+  , signTx :: Transaction -> Aff Transaction
+  }
+
+mkKeyWallet :: Address -> TransactionUnspentOutput -> PrivateKey -> Wallet
+mkKeyWallet address collateral key =
+  KeyWallet
+    { address
+    , collateral
+    , signTx
+    }
+  where
+  signTx :: Transaction -> Aff Transaction
+  signTx (Transaction tx) = liftEffect do
+    txBody <- Serialization.convertTxBody tx.body
+    hash <- Serialization.hashTransaction txBody
+    wit <- Deserialization.WitnessSet.convertVkeyWitness <$>
+      Serialization.makeVkeywitness hash key
+    let witnessSet' = set _vkeys (pure $ pure wit) mempty
+    pure $ Transaction $ tx { witnessSet = witnessSet' <> tx.witnessSet }
 
 -------------------------------------------------------------------------------
 -- Nami backend

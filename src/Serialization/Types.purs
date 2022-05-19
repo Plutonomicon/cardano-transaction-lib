@@ -47,6 +47,7 @@ module Serialization.Types
   , ProtocolVersion
   , ProtocolVersions
   , PublicKey
+  , PrivateKey
   , Redeemer
   , RedeemerTag
   , Redeemers
@@ -131,6 +132,7 @@ foreign import data ProtocolParamUpdate :: Type
 foreign import data ProtocolVersion :: Type
 foreign import data ProtocolVersions :: Type
 foreign import data PublicKey :: Type
+foreign import data PrivateKey :: Type
 foreign import data Redeemer :: Type
 foreign import data RedeemerTag :: Type
 foreign import data Redeemers :: Type

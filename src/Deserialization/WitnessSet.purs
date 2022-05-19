@@ -2,6 +2,7 @@ module Deserialization.WitnessSet
   ( convertNativeScripts
   , convertPlutusScripts
   , convertVkeyWitnesses
+  , convertVkeyWitness
   , convertWitnessSet
   , deserializeWitnessSet
   , plutusScriptBytes
@@ -72,7 +73,10 @@ convertWitnessSet ws = do
     }
 
 convertVkeyWitnesses :: Vkeywitnesses -> Array T.Vkeywitness
-convertVkeyWitnesses = extractWitnesses >>> map \witness ->
+convertVkeyWitnesses = extractWitnesses >>> map convertVkeyWitness
+
+convertVkeyWitness :: Vkeywitness -> T.Vkeywitness
+convertVkeyWitness witness =
   let
     vkey = getVkey witness
     publicKey = convertVkey vkey

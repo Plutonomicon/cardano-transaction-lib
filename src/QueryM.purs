@@ -133,6 +133,8 @@ import QueryM.ServerConfig
   , mkWsUrl
   )
 import QueryM.UniqueId (ListenerId)
+import Deserialization.FromBytes (fromBytes) as Deserialization
+import Deserialization.Transaction (convertTransaction) as Deserialization
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address
   ( Address
@@ -162,7 +164,7 @@ import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.UnbalancedTransaction (StakePubKeyHash, PaymentPubKeyHash)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
-import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
+import Wallet (Wallet(Nami, KeyWallet), NamiWallet, NamiConnection)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -289,25 +291,40 @@ allowError func = func <<< Right
 getWalletAddress :: QueryM (Maybe Address)
 getWalletAddress = withMWalletAff $ case _ of
   Nami nami -> callNami nami _.getWalletAddress
+  KeyWallet kw -> pure $ pure kw.address
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
 getWalletCollateral = withMWalletAff $ case _ of
   Nami nami -> callNami nami _.getCollateral
+  KeyWallet kw -> pure $ pure kw.collateral
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
 signTransaction tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.signTx tx
+  KeyWallet kw -> Just <$> kw.signTx tx
 
 signTransactionBytes
   :: ByteArray -> QueryM (Maybe ByteArray)
 signTransactionBytes tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.signTxBytes tx
+  KeyWallet kw ->
+    for
+      ( Deserialization.fromBytes tx
+          >>= Deserialization.convertTransaction
+          >>> hush
+      )
+      ( kw.signTx
+          >=> Serialization.convertTransaction
+          >>> map (asOneOf >>> Serialization.toBytes)
+          >>> liftEffect
+      )
 
 submitTxWallet
   :: Transaction.Transaction -> QueryM (Maybe Transaction.TransactionHash)
 submitTxWallet tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.submitTx tx
+  KeyWallet _ -> liftEffect $ throw "Not implemented"
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do

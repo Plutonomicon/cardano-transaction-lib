@@ -10,6 +10,9 @@ if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
 const setter = prop => obj => value => () =>
       obj['set_' + prop](value);
 
+exports.hashTransaction = body => () =>
+    lib.hash_transaction(body);
+
 exports.newBigNum = maybe => string => {
     try {
         return maybe.just(lib.BigNum.from_str(string));
@@ -84,6 +87,9 @@ exports.transactionOutputSetDataHash = setter('data_hash');
 
 exports.newVkeywitnesses = () =>
     lib.Vkeywitnesses.new();
+
+exports.makeVkeywitness = hash => key => () =>
+    lib.make_vkey_witness(hash, key);
 
 exports.newVkeywitness = vkey => signature => () =>
     lib.Vkeywitness.new(vkey, signature);
