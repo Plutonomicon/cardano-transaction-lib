@@ -42,7 +42,6 @@ import Cardano.Api.Shelley (
 import Data.ByteString.Lazy qualified as ByteString
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.Kind (Type)
-import Data.Text qualified as Text
 import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Network.HTTP.Types (Status (Status))
 import Network.Wai.Handler.Warp (Port)
@@ -398,11 +397,10 @@ fixedProtocolParameters =
     , protocolParamMaxCollateralInputs = Just 3
     }
 
-loadParametersFile :: IO (Either [Text.Text] ProtocolParameters)
+loadParametersFile :: IO (Either String ProtocolParameters)
 loadParametersFile =
-  do
-    contents <- ByteString.readFile "test/ogmios.json"
-    pure $ decodeProtocolParameters contents
+  ByteString.readFile "test/ogmios.json"
+    >>= pure . decodeProtocolParameters
 
 testParser :: Spec
 testParser =

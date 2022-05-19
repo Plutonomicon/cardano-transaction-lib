@@ -113,8 +113,7 @@ newEnvIO serverOptions@ServerOptions {..} =
               Right params ->
                 return . Right . Env serverOptions $ params
               Left errors ->
-                return . Left . Text.unpack $
-                  Text.intercalate "\n" errors
+                return $ Left errors
           Left msg ->
             return . Left $
               "Can't get protocol parameters from Ogmios: \n"

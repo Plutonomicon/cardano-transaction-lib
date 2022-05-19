@@ -1,43 +1,19 @@
 module Ogmios.Parser (decodeProtocolParameters) where
 
 import Cardano.Api (
-  AnyPlutusScriptVersion (AnyPlutusScriptVersion),
-  CostModel,
   ExecutionUnitPrices (ExecutionUnitPrices),
-  ExecutionUnits,
-  Lovelace (Lovelace),
-  PlutusScriptVersion (PlutusScriptV1),
   PraosNonce,
  )
 import Cardano.Api.Shelley (ProtocolParameters (ProtocolParameters))
+import Control.Applicative ((<|>))
+import Data.Aeson ((.:), (.:?))
 import Data.Aeson qualified as Aeson
-import Data.Aeson.BetterErrors (
-  Parse,
-  asIntegral,
-  displayError,
-  fromAesonParser,
-  key,
-  parseValue,
-  perhaps,
-  withString,
- )
-import Data.Bifunctor (first)
-import Data.ByteString.Lazy (ByteString, pack, unpack)
-import Data.ByteString.Lazy.UTF8 qualified as UTF8
-import Data.Char (isDigit)
+import Data.Aeson.Types qualified as Aeson.Types
+import Data.Attoparsec.Text (Parser, inClass, many', many1, parseOnly, satisfy, string)
+import Data.ByteString.Lazy (ByteString)
 import Data.Map qualified as Map
 import Data.Ratio ((%))
 import Data.Text qualified as Text
-import GHC.Natural (Natural, naturalFromInteger)
-import GHC.Word (Word8)
-
-import Data.Aeson ((.!=), (.:), (.:?))
-import Data.Aeson qualified as Aeson
-import Data.Aeson.Types qualified as Aeson.Types
-import Data.HashMap.Strict qualified as HashMap
-
-import Control.Applicative ((<|>))
-import Data.Attoparsec.ByteString (Parser, inClass, many', many1, satisfy, string)
 
 newtype ProtocolParametersWrapper = ProtocolParametersWrapper
   { unwrapParams :: ProtocolParameters
@@ -51,26 +27,26 @@ instance Aeson.FromJSON ProtocolParametersWrapper where
       params <-
         ProtocolParameters
           <$> ((,) <$> v .: "major" <*> v .: "minor")
-          <*> Aeson.Types.explicitParseField (const rationalParser) o "decentralizationParameter"
-          <*> o .: "extraEntropy"
+          <*> parseRational o "decentralizationParameter"
+          <*> (o .: "extraEntropy" <|> parsePraosNonceNeutral o "extraEntropy")
           <*> o .: "maxBlockHeaderSize"
           <*> o .: "maxBlockBodySize"
           <*> o .: "maxTxSize"
-          <*> o .: "minFeeConstant" -- I think minFeeConstant and minFeeCoefficient are swapped here
-          -- but this is consistent with the current config file.
+          <*> o .: "minFeeConstant"
           <*> o .: "minFeeCoefficient"
-          <*> o .:? "minUTxOValue"
+          -- "minUtxO is deprecated"
+          <*> pure Nothing
           <*> o .: "stakeKeyDeposit"
           <*> o .: "poolDeposit"
           <*> o .: "minPoolCost"
           <*> o .: "poolRetirementEpochBound"
           <*> o .: "desiredNumberOfPools"
-          <*> o .: "poolInfluence"
-          <*> o .: "monetaryExpansion"
-          <*> o .: "treasuryExpansion"
+          <*> parseRational o "poolInfluence"
+          <*> parseRational o "monetaryExpansion"
+          <*> parseRational o "treasuryExpansion"
           <*> o .:? "coinsPerUtxoWord"
-          <*> o .:? "costModels" .!= Map.empty
-          <*> o .:? "prices"
+          <*> pure Map.empty -- o .:? "costModels" .!= Map.empty
+          <*> parseExecutionPrices o
           <*> o .:? "maxExecutionUnitsPerTransaction"
           <*> o .:? "maxExecutionUnitsPerBlock"
           <*> o .:? "maxValueSize"
@@ -78,38 +54,32 @@ instance Aeson.FromJSON ProtocolParametersWrapper where
           <*> o .:? "maxCollateralInputs"
       return $ ProtocolParametersWrapper params
 
-parseVersion :: Parse e (Natural, Natural)
-parseVersion =
-  key "protocolVersion" $
-    (,) <$> parseNatural "major" <*> parseNatural "minor"
+attoparsec2Aeson :: Parser a -> Aeson.Value -> Aeson.Types.Parser a
+attoparsec2Aeson p (Aeson.String str) =
+  case parseOnly p str of
+    Left e -> fail e
+    Right x -> pure x
+attoparsec2Aeson _ x = Aeson.Types.typeMismatch "Attoparsec" x
 
-parseNatural :: Text.Text -> Parse e Natural
-parseNatural strKey =
-  naturalFromInteger <$> key strKey asIntegral
+parseRational :: Aeson.Object -> Text.Text -> Aeson.Types.Parser Rational
+parseRational =
+  Aeson.Types.explicitParseField $
+    attoparsec2Aeson rationalParser
 
-parseLovelace :: Text.Text -> Parse e Lovelace
-parseLovelace strKey =
-  key strKey $
-    Lovelace <$> asIntegral
+parseExecutionPrices :: Aeson.Object -> Aeson.Types.Parser (Maybe ExecutionUnitPrices)
+parseExecutionPrices obj =
+  do
+    maybeValue <- obj .:? "prices"
+    case maybeValue of
+      Just v ->
+        Just
+          <$> ( ExecutionUnitPrices
+                  <$> parseRational v "steps"
+                  <*> parseRational v "memory"
+              )
+      _ -> pure Nothing
 
-parseRational :: Text.Text -> Parse Text.Text Rational
-parseRational strKey =
-  key strKey (withString rationalParser)
-
-parseExecutionPrices :: Parse Text.Text (Maybe ExecutionUnitPrices)
-parseExecutionPrices =
-  perhaps $
-    ExecutionUnitPrices
-      <$> parseRational "steps"
-      <*> parseRational "memory"
-
-parseExecutionUnits :: Parse e (Maybe ExecutionUnits)
-parseExecutionUnits = fromAesonParser
-
-parseCostModels :: Parse e (Map.Map AnyPlutusScriptVersion CostModel)
-parseCostModels =
-  Map.singleton (AnyPlutusScriptVersion PlutusScriptV1)
-    <$> key "plutus:v1" fromAesonParser
+--
 
 {- | `extraEntropy` has been added as part of the
  cardano decentralization
@@ -121,64 +91,29 @@ parseCostModels =
  From code we can see that currently a Nothing value
  is translated to `Ledger.NeutralNonce`
 -}
-parsePraosNonce :: Text.Text -> Parse Text.Text (Maybe PraosNonce)
-parsePraosNonce strKey =
-  perhaps (key strKey fromAesonParser)
-    <|> key strKey (withString neutralNonceParser)
+parsePraosNonceNeutral :: Aeson.Object -> Text.Text -> Aeson.Types.Parser (Maybe PraosNonce)
+parsePraosNonceNeutral =
+  Aeson.Types.explicitParseField $
+    attoparsec2Aeson neutralNonceParser
 
-parseResult :: Parse Text.Text ProtocolParameters
-parseResult =
-  key "result" $
-    ProtocolParameters
-      <$> parseVersion
-      <*> parseRational "decentralizationParameter"
-      <*> parsePraosNonce "extraEntropy"
-      <*> parseNatural "maxBlockHeaderSize"
-      <*> parseNatural "maxBlockBodySize"
-      <*> parseNatural "maxTxSize"
-      <*> parseNatural "minFeeConstant"
-      <*> parseNatural "minFeeCoefficient"
-      <*> pure Nothing
-      <*> parseLovelace "stakeKeyDeposit"
-      <*> parseLovelace "poolDeposit"
-      <*> parseLovelace "minPoolCost"
-      <*> key "poolRetirementEpochBound" fromAesonParser
-      <*> parseNatural "desiredNumberOfPools"
-      <*> parseRational "poolInfluence"
-      <*> parseRational "monetaryExpansion"
-      <*> parseRational "treasuryExpansion"
-      <*> perhaps (parseLovelace "coinsPerUtxoWord")
-      <*> (key "costModels" parseCostModels <|> pure Map.empty)
-      <*> key "prices" parseExecutionPrices
-      <*> key "maxExecutionUnitsPerTransaction" parseExecutionUnits
-      <*> key "maxExecutionUnitsPerBlock" parseExecutionUnits
-      <*> perhaps (parseNatural "maxValueSize")
-      <*> perhaps (parseNatural "collateralPercentage")
-      <*> perhaps (parseNatural "maxCollateralInputs")
-
-decodeProtocolParameters :: ByteString -> Either [Text.Text] ProtocolParameters
+decodeProtocolParameters :: ByteString -> Either String ProtocolParameters
 decodeProtocolParameters response =
-  let value :: Maybe Aeson.Value
-      value = Aeson.decode response
-   in case parseValue parseResult <$> value of
-        Just (Right params) -> Right params
-        Just (Left e) -> Left $ displayError id e
-        _ -> Left ["Fail at converting ogmios response to cardano format"]
+  unwrapParams <$> Aeson.eitherDecode @ProtocolParametersWrapper response
 
-nonZeroDigit :: Parser Word8
+nonZeroDigit :: Parser Char
 nonZeroDigit = satisfy $ inClass "123456789"
 
-digit :: Parser Word8
+digit :: Parser Char
 digit = satisfy $ inClass "0123456789"
 
 nonZeroInteger :: Parser Integer
 nonZeroInteger = do
   headDigit <- nonZeroDigit
   remains <- many' digit
-  pure . read . UTF8.toString $ pack (headDigit : remains)
+  pure . read $ (headDigit : remains)
 
 zeroInteger :: Parser Integer
-zeroInteger = read . UTF8.toString . pack <$> many1 (satisfy $ inClass "0")
+zeroInteger = read <$> many1 (satisfy $ inClass "0")
 
 haskellInteger :: Parser Integer
 haskellInteger = nonZeroInteger <|> zeroInteger
