@@ -31,6 +31,9 @@ import Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , UtxoM(UtxoM)
   ) as Plutus
+import Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as Plutus
 import Plutus.Types.Value (Coin, Value) as Plutus
 import Plutus.Types.Value (lovelaceValueOf, singleton') as Plutus.Value
 
@@ -40,6 +43,9 @@ import Types.Transaction (TxOutput(TxOutput))
 import Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , UtxoM(UtxoM)
+  ) as Cardano
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as Cardano
 import Cardano.Types.Value (Coin(Coin), Value(Value)) as Types
 import Cardano.Types.Value
@@ -227,10 +233,22 @@ instance ToPlutusType Maybe Cardano.TransactionOutput Plutus.TransactionOutput
       { address: addr, amount: unwrap $ toPlutusType amount, dataHash }
 
 --------------------------------------------------------------------------------
--- Cardano.Types.Transaction.UtxoM ->
--- Maybe Plutus.Types.Transaction.UtxoM
+-- Cardano.Types.Transaction.UtxoM -> Maybe Plutus.Types.Transaction.UtxoM
 --------------------------------------------------------------------------------
 
 instance ToPlutusType Maybe Cardano.UtxoM Plutus.UtxoM where
   toPlutusType (Cardano.UtxoM utxos) =
     Plutus.UtxoM <$> traverse toPlutusType utxos
+
+--------------------------------------------------------------------------------
+-- Cardano.Types.Transaction.TransactionUnspentOutput ->
+-- Maybe Plutus.Types.Transaction.TransactionUnspentOutput
+--------------------------------------------------------------------------------
+
+instance
+  ToPlutusType Maybe
+    Cardano.TransactionUnspentOutput
+    Plutus.TransactionUnspentOutput where
+  toPlutusType (Cardano.TransactionUnspentOutput { input, output }) = do
+    pOutput <- toPlutusType output
+    pure $ Plutus.TransactionUnspentOutput { input, output: pOutput }

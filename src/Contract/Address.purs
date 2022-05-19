@@ -32,10 +32,12 @@ import Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   ) as Transaction
-import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Contract.Monad (Contract, wrapContract, liftedM)
 import Data.Maybe (Maybe)
 import Data.Traversable (for)
+import Plutus.ToPlutusType (toPlutusType)
+import Plutus.Types.Address (Address)
+import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import QueryM
   ( getWalletAddress
   , getWalletCollateral
@@ -49,8 +51,6 @@ import Scripts
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Scripts
-import Plutus.Types.Address (Address)
-import Plutus.ToPlutusType (toPlutusType)
 import Serialization.Address
   ( Slot(Slot)
   , BlockId(BlockId)
@@ -96,7 +96,14 @@ getWalletAddress = do
 -- | E.g. Nami creates a hardcoded 5 Ada collateral.
 getWalletCollateral
   :: forall (r :: Row Type). Contract r (Maybe TransactionUnspentOutput)
-getWalletCollateral = wrapContract QueryM.getWalletCollateral
+getWalletCollateral = do
+  mtxUnspentOutput <- wrapContract QueryM.getWalletCollateral
+  for mtxUnspentOutput $
+    liftedM
+      "getWalletCollateral: failed to deserialize TransactionUnspentOutput"
+      <<< wrapContract
+      <<< pure
+      <<< toPlutusType
 
 -- | Gets the wallet `PaymentPubKeyHash` via `getWalletAddress`.
 ownPaymentPubKeyHash
