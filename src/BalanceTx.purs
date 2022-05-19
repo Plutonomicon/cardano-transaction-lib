@@ -5,12 +5,14 @@ module BalanceTx
   , BalanceTxError(..)
   , BalanceTxInsError(..)
   , CannotMinusError(..)
+  , EvalExUnitsAndMinFeeError(..)
   , Expected(..)
   , GetPublicKeyTransactionInputError(..)
   , GetWalletAddressError(..)
   , GetWalletCollateralError(..)
   , ImpossibleError(..)
   , ReturnAdaChangeError(..)
+  , UnattachedTransaction
   , UtxosAtError(..)
   , balanceTx
   ) where
@@ -23,13 +25,16 @@ import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
 import Data.Array ((\\), findIndex, modifyAt)
 import Data.Array as Array
-import Data.Bifunctor (lmap, rmap)
+import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt, fromInt, quot)
 import Data.Either (Either(Left, Right), hush, note)
+import Data.Enum (fromEnum) as Enum
 import Data.Foldable as Foldable
 import Data.Generic.Rep (class Generic)
+import Data.Lens (Lens', lens', _1)
 import Data.Lens.Getter ((^.))
-import Data.Lens.Setter ((.~), (%~))
+import Data.Lens.Index (ix) as Lens
+import Data.Lens.Setter ((.~), set, (?~), (%~))
 import Data.List ((:), List(Nil), partition)
 import Data.Log.Tag (tag)
 import Data.Map as Map
@@ -51,29 +56,45 @@ import ProtocolParametersAlonzo
 import QueryM
   ( ClientError
   , QueryM
+  , RdmrPtrExUnits(RdmrPtrExUnits)
   , calculateMinFee
   , getWalletAddress
   , getWalletCollateral
+  , evalTxExecutionUnits
   )
 import QueryM.Utxos (utxosAt)
+import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers)
 import Serialization.Address
   ( Address
   , addressPaymentCred
   , withStakeCredential
   )
+import Types.Natural (toBigInt) as Natural
+import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction
   ( DataHash
+  , Redeemer(Redeemer)
   , Transaction(Transaction)
   , TransactionInput
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
   , Utxo
   , _body
+  , _collateral
   , _inputs
   , _networkId
+  , _plutusData
+  , _redeemers
+  , _witnessSet
   )
-import Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx))
+import Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  )
+import Types.UnbalancedTransaction
+  ( TxOutRef
+  , UnbalancedTx(UnbalancedTx)
+  , _transaction
+  )
 import Cardano.Types.Value
   ( filterNonAda
   , geq
@@ -110,7 +131,7 @@ data BalanceTxError
   | GetPublicKeyTransactionInputError' GetPublicKeyTransactionInputError
   | BalanceTxInsError' BalanceTxInsError
   | BalanceNonAdaOutsError' BalanceNonAdaOutsError
-  | CalculateMinFeeError' ClientError
+  | EvalExUnitsAndMinFeeError' EvalExUnitsAndMinFeeError
 
 derive instance genericBalanceTxError :: Generic BalanceTxError _
 
@@ -139,10 +160,21 @@ derive instance genericUtxosAtError :: Generic UtxosAtError _
 instance showUtxosAtError :: Show UtxosAtError where
   show = genericShow
 
+data EvalExUnitsAndMinFeeError
+  = EvalExUnitsError ClientError
+  | EvalMinFeeError ClientError
+  | ReindexRedeemersError ReindexErrors
+
+derive instance genericEvalExUnitsAndMinFeeError ::
+  Generic EvalExUnitsAndMinFeeError _
+
+instance showEvalExUnitsAndMinFeeError :: Show EvalExUnitsAndMinFeeError where
+  show = genericShow
+
 data ReturnAdaChangeError
   = ReturnAdaChangeError String
   | ReturnAdaChangeImpossibleError String ImpossibleError
-  | ReturnAdaChangeCalculateMinFee ClientError
+  | ReturnAdaChangeCalculateMinFee EvalExUnitsAndMinFeeError
 
 derive instance genericReturnAdaChangeError :: Generic ReturnAdaChangeError _
 
@@ -223,15 +255,116 @@ instance showImpossibleError :: Show ImpossibleError where
   show = genericShow
 
 --------------------------------------------------------------------------------
--- Type aliases, temporary placeholder types and functions
+-- Type aliases, temporary placeholder types
 --------------------------------------------------------------------------------
+
 -- Output utxos with the amount of lovelaces required.
 type MinUtxos = Array (TransactionOutput /\ BigInt)
 
-calculateMinFee'
-  :: Transaction
-  -> QueryM (Either ClientError BigInt)
-calculateMinFee' = calculateMinFee >>> map (rmap unwrap)
+type UnattachedTransaction = Transaction /\ Array (Redeemer /\ Maybe TxOutRef)
+
+--------------------------------------------------------------------------------
+-- Evaluation of fees and execution units, Updating redeemers
+--------------------------------------------------------------------------------
+
+-- | Calculates the execution units needed for each script in the transaction
+-- | and the minimum fee, including the script fees.
+-- | Returns a tuple consisting of updated `UnattachedUnbalancedTx` and
+-- | the minimum fee.
+evalExUnitsAndMinFee'
+  :: UnattachedUnbalancedTx
+  -> QueryM
+       (Either EvalExUnitsAndMinFeeError (UnattachedUnbalancedTx /\ BigInt))
+evalExUnitsAndMinFee' unattachedTx =
+  runExceptT do
+    attachedTx <- ExceptT $ reattachDatumsAndRedeemers unattachedTx
+      <#> lmap ReindexRedeemersError
+    rdmrPtrExUnitsList <- ExceptT $ evalTxExecutionUnits attachedTx
+      <#> lmap EvalExUnitsError
+    let
+      unattachedTxWithExUnits =
+        updateTxExecutionUnits unattachedTx rdmrPtrExUnitsList
+    attachedTxWithExUnits <- ExceptT $
+      reattachDatumsAndRedeemers unattachedTxWithExUnits
+        <#> lmap ReindexRedeemersError
+    minFee <- ExceptT $ calculateMinFee attachedTxWithExUnits
+      <#> bimap EvalMinFeeError unwrap
+    pure $ unattachedTxWithExUnits /\ minFee
+
+evalExUnitsAndMinFee
+  :: UnattachedUnbalancedTx
+  -> QueryM (Either BalanceTxError (UnattachedUnbalancedTx /\ BigInt))
+evalExUnitsAndMinFee =
+  map (lmap EvalExUnitsAndMinFeeError') <<< evalExUnitsAndMinFee'
+
+-- | Reattaches datums and redeemers to the transaction,
+-- | reindexing the redeemers.
+reattachDatumsAndRedeemers
+  :: UnattachedUnbalancedTx
+  -> QueryM (Either ReindexErrors Transaction)
+reattachDatumsAndRedeemers
+  (UnattachedUnbalancedTx { unbalancedTx, datums, redeemersTxIns }) =
+  let
+    transaction = unbalancedTx ^. _transaction
+    inputs = transaction ^. _body <<< _inputs
+  in
+    reindexSpentScriptRedeemers inputs redeemersTxIns <#>
+      map \reindexedRedeemers ->
+        transaction # _witnessSet <<< _plutusData ?~ map unwrap datums
+          # _witnessSet <<< _redeemers ?~ reindexedRedeemers
+
+updateTxExecutionUnits
+  :: UnattachedUnbalancedTx -> Array RdmrPtrExUnits -> UnattachedUnbalancedTx
+updateTxExecutionUnits unattachedTx rdmrPtrExUnits =
+  unattachedTx #
+    _redeemersTxIns %~ flip setRdmrsExecutionUnits rdmrPtrExUnits
+
+setRdmrsExecutionUnits
+  :: Array (Redeemer /\ Maybe TxOutRef)
+  -> Array RdmrPtrExUnits
+  -> Array (Redeemer /\ Maybe TxOutRef)
+setRdmrsExecutionUnits rs xxs =
+  case Array.uncons xxs of
+    Nothing -> rs
+    Just { head: RdmrPtrExUnits x, tail: xs } ->
+      let
+        ixMaybe = flip Array.findIndex rs $ \(Redeemer rdmr /\ _) ->
+          Enum.fromEnum rdmr.tag == x.rdmrPtrTag
+            && rdmr.index == Natural.toBigInt x.rdmrPtrIdx
+      in
+        ixMaybe # maybe (setRdmrsExecutionUnits rs xs) \ix ->
+          flip setRdmrsExecutionUnits xs $
+            rs # Lens.ix ix %~ \(Redeemer rec /\ txOutRef) ->
+              let
+                mem = Natural.toBigInt x.exUnitsMem
+                steps = Natural.toBigInt x.exUnitsSteps
+              in
+                Redeemer rec { exUnits = { mem, steps } } /\ txOutRef
+
+--------------------------------------------------------------------------------
+-- `UnattachedUnbalancedTx` Lenses
+--------------------------------------------------------------------------------
+
+_unbalancedTx :: Lens' UnattachedUnbalancedTx UnbalancedTx
+_unbalancedTx = lens' \(UnattachedUnbalancedTx rec@{ unbalancedTx }) ->
+  unbalancedTx /\
+    \ubTx -> UnattachedUnbalancedTx rec { unbalancedTx = ubTx }
+
+_transaction' :: Lens' UnattachedUnbalancedTx Transaction
+_transaction' = lens' \unattachedTx ->
+  unattachedTx ^. _unbalancedTx <<< _transaction /\
+    \tx -> unattachedTx # _unbalancedTx %~ (_transaction .~ tx)
+
+_body' :: Lens' UnattachedUnbalancedTx TxBody
+_body' = lens' \unattachedTx ->
+  unattachedTx ^. _transaction' <<< _body /\
+    \txBody -> unattachedTx # _transaction' %~ (_body .~ txBody)
+
+_redeemersTxIns
+  :: Lens' UnattachedUnbalancedTx (Array (Redeemer /\ Maybe TxOutRef))
+_redeemersTxIns = lens' \(UnattachedUnbalancedTx rec@{ redeemersTxIns }) ->
+  redeemersTxIns /\
+    \rdmrs -> UnattachedUnbalancedTx rec { redeemersTxIns = rdmrs }
 
 --------------------------------------------------------------------------------
 -- Balancing functions and helpers
@@ -241,13 +374,16 @@ calculateMinFee' = calculateMinFee >>> map (rmap unwrap)
 -- multisig but we don't have such functionality ATM.
 
 -- | Balances an unbalanced transaction. For submitting a tx via Nami, the
--- utxo set shouldn't include the collateral which is vital for balancing.
--- In particular, the transaction inputs must not include the collateral.
-balanceTx :: UnbalancedTx -> QueryM (Either BalanceTxError Transaction)
-balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
+-- | utxo set shouldn't include the collateral which is vital for balancing.
+-- | In particular, the transaction inputs must not include the collateral.
+balanceTx
+  :: UnattachedUnbalancedTx
+  -> QueryM (Either BalanceTxError UnattachedTransaction)
+balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
+  let (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = t
   networkId <- (unbalancedTx ^. _body <<< _networkId) #
     maybe (asks _.networkId) pure
-  let unbalancedTx' = unbalancedTx # _body <<< _networkId .~ Just networkId
+  let unbalancedTx' = unbalancedTx # _body <<< _networkId ?~ networkId
   runExceptT do
     -- Get own wallet address, collateral and utxo set:
     ownAddr <- ExceptT $ getWalletAddress <#>
@@ -271,27 +407,31 @@ balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
       unbalancedCollTx = addTxCollateral unbalancedTx' collateral
 
     -- Logging Unbalanced Tx with collateral added:
-    logTx' "Unbalanced Collaterised Tx " allUtxos unbalancedCollTx
+    logTx "Unbalanced Collaterised Tx " allUtxos unbalancedCollTx
 
     -- Prebalance collaterised tx without fees:
     ubcTx <- except $
       prebalanceCollateral zero allUtxos ownAddr unbalancedCollTx
     -- Prebalance collaterised tx with fees:
-    fees <- ExceptT $ calculateMinFee' ubcTx <#> lmap CalculateMinFeeError'
+    let unattachedTx' = unattachedTx # _transaction' .~ ubcTx
+    _ /\ fees <- ExceptT $ evalExUnitsAndMinFee unattachedTx'
     ubcTx' <- except $
       prebalanceCollateral (fees + feeBuffer) allUtxos ownAddr ubcTx
-
     -- Loop to balance non-Ada assets
-    nonAdaBalancedCollTx <- ExceptT $ loop allUtxos ownAddr [] ubcTx'
+    nonAdaBalancedCollTx <- ExceptT $ loop allUtxos ownAddr [] $ unattachedTx' #
+      _transaction' .~ ubcTx'
     -- Return excess Ada change to wallet:
     unsignedTx <- ExceptT $
       returnAdaChange ownAddr allUtxos nonAdaBalancedCollTx <#>
         lmap ReturnAdaChangeError'
-
-    -- Sort inputs at the very end so it behaves as a Set.
-    let sortedUnsignedTx = unsignedTx # _body <<< _inputs %~ Array.sort
+    let
+      unattachedTx'' = unsignedTx ^. _transaction'
+        /\ unsignedTx ^. _redeemersTxIns
+      -- Sort inputs at the very end so it behaves as a Set.
+      sortedUnsignedTx = fst unattachedTx'' # _body <<< _inputs %~ Array.sort
     -- Logs final balanced tx and returns it
-    ExceptT $ logTx "Post-balancing Tx " allUtxos sortedUnsignedTx <#> Right
+    logTx "Post-balancing Tx " allUtxos sortedUnsignedTx
+    except $ Right (unattachedTx'' # _1 .~ sortedUnsignedTx)
   where
   prebalanceCollateral
     :: BigInt
@@ -299,27 +439,22 @@ balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
     -> Address
     -> Transaction
     -> Either BalanceTxError Transaction
-  prebalanceCollateral
-    fees'
-    utxoIndex'
-    ownAddr'
-    oldTx'@(Transaction { body: txBody }) =
-    balanceTxIns utxoIndex' fees' txBody
-      >>= balanceNonAdaOuts ownAddr' utxoIndex'
-      >>= \txBody' -> pure $ wrap (unwrap oldTx') { body = txBody' }
+  prebalanceCollateral fees utxos ownAddr tx =
+    balanceTxIns utxos fees (tx ^. _body)
+      >>= balanceNonAdaOuts ownAddr utxos
+      <#> flip (set _body) tx
 
   loop
     :: Utxo
     -> Address
     -> MinUtxos
-    -> Transaction
-    -> QueryM (Either BalanceTxError Transaction)
-  loop
-    utxoIndex'
-    ownAddr'
-    prevMinUtxos'
-    tx''@(Transaction tx'@{ body: txBody'@(TxBody txB) }) = do
+    -> UnattachedUnbalancedTx
+    -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
+  loop utxoIndex' ownAddr' prevMinUtxos' unattachedTx' = do
     let
+      Transaction { body: txBody'@(TxBody txB) } =
+        unattachedTx' ^. _transaction'
+
       nextMinUtxos' :: MinUtxos
       nextMinUtxos' =
         calculateMinUtxos $ txB.outputs \\ map fst prevMinUtxos'
@@ -327,46 +462,41 @@ balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
       minUtxos' :: MinUtxos
       minUtxos' = prevMinUtxos' <> nextMinUtxos'
 
-    balancedTxBody' <- chainedBalancer minUtxos' utxoIndex' ownAddr' tx''
+    unattachedTxWithBalancedBody <- chainedBalancer minUtxos' utxoIndex'
+      ownAddr'
+      unattachedTx'
 
-    case balancedTxBody' of
+    case unattachedTxWithBalancedBody of
       Left err -> pure $ Left err
-      Right balancedTxBody'' ->
-        if txBody' == balancedTxBody'' then
-          pure $ Right $ wrap tx' { body = balancedTxBody'' }
-        else
-          loop
-            utxoIndex'
-            ownAddr'
-            minUtxos'
-            $ wrap tx' { body = balancedTxBody'' }
+      Right unattachedTxWithBalancedBody' ->
+        let
+          balancedTxBody = unattachedTxWithBalancedBody' ^. _body'
+        in
+          if txBody' == balancedTxBody then
+            pure $ Right unattachedTxWithBalancedBody'
+          else
+            loop utxoIndex' ownAddr' minUtxos' unattachedTxWithBalancedBody'
 
   chainedBalancer
     :: MinUtxos
     -> Utxo
     -> Address
-    -> Transaction
-    -> QueryM (Either BalanceTxError TxBody)
-  chainedBalancer
-    minUtxos'
-    utxoIndex'
-    ownAddr'
-    (Transaction tx'@{ body: txBody' }) =
+    -> UnattachedUnbalancedTx
+    -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
+  chainedBalancer minUtxos' utxoIndex' ownAddr' unattachedTx' =
     runExceptT do
-      txBodyWithoutFees' <- except $ preBalanceTxBody
-        minUtxos'
-        zero
-        utxoIndex'
-        ownAddr'
-        txBody'
-      let tx'' = wrap tx' { body = txBodyWithoutFees' }
-      fees' <- ExceptT $ calculateMinFee' tx'' <#> lmap CalculateMinFeeError'
-      except $ preBalanceTxBody
-        minUtxos'
-        (fees' + feeBuffer) -- FIX ME: Add 0.5 Ada to ensure enough input for later on in final balancing.
-        utxoIndex'
-        ownAddr'
-        txBody'
+      let Transaction tx@{ body: txBody' } = unattachedTx' ^. _transaction'
+      txBodyWithoutFees' <- except $
+        preBalanceTxBody minUtxos' zero utxoIndex' ownAddr' txBody'
+      let
+        tx' = wrap tx { body = txBodyWithoutFees' }
+        unattachedTx'' = unattachedTx' # _unbalancedTx <<< _transaction .~ tx'
+      unattachedTx''' /\ fees' <- ExceptT $
+        evalExUnitsAndMinFee unattachedTx''
+
+      except <<< map (\body -> unattachedTx''' # _body' .~ body) $
+        preBalanceTxBody minUtxos' (fees' + feeBuffer) utxoIndex' ownAddr'
+          txBody'
 
   -- We expect the user has a minimum amount of Ada (this buffer) on top of
   -- their transaction, so by the time the prebalancer finishes, should it
@@ -387,22 +517,6 @@ balanceTx (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = do
   feeBuffer = fromInt 500000
 
 -- Logging for Transaction type without returning Transaction
-logTx'
-  :: forall (m :: Type -> Type)
-   . MonadEffect m
-  => MonadLogger m
-  => String
-  -> Utxo
-  -> Transaction
-  -> m Unit
-logTx' msg utxos (Transaction { body: body'@(TxBody body) }) =
-  traverse_ (Logger.trace (tag msg mempty))
-    [ "Input Value: " <> show (getInputValue utxos body')
-    , "Output Value: " <> show (Array.foldMap getAmount body.outputs)
-    , "Fees: " <> show body.fee
-    ]
-
--- Logging for Transaction type returning Transaction
 logTx
   :: forall (m :: Type -> Type)
    . MonadEffect m
@@ -410,16 +524,19 @@ logTx
   => String
   -> Utxo
   -> Transaction
-  -> m Transaction
-logTx msg utxo tx = logTx' msg utxo tx *> pure tx
+  -> m Unit
+logTx msg utxos (Transaction { body: body'@(TxBody body) }) =
+  traverse_ (Logger.trace (tag msg mempty))
+    [ "Input Value: " <> show (getInputValue utxos body')
+    , "Output Value: " <> show (Array.foldMap getAmount body.outputs)
+    , "Fees: " <> show body.fee
+    ]
 
--- Nami provides a 5 Ada collateral that we should add the tx before balancing
+-- Nami provides a 5 Ada collateral that we should add the tx before balancing.
 addTxCollateral :: Transaction -> TransactionUnspentOutput -> Transaction
-addTxCollateral (Transaction tx@{ body: TxBody txBody }) txUnspentOutput =
-  wrap tx
-    { body = wrap txBody
-        { collateral = pure $ Array.singleton $ (unwrap txUnspentOutput).input }
-    }
+addTxCollateral transaction (TransactionUnspentOutput { input }) =
+  transaction # _body <<< _collateral ?~
+    Array.singleton input
 
 -- Transaction should be prebalanced at this point with all excess with Ada
 -- where the Ada value of inputs is greater or equal to value of outputs.
@@ -428,13 +545,15 @@ addTxCollateral (Transaction tx@{ body: TxBody txBody }) txUnspentOutput =
 returnAdaChange
   :: Address
   -> Utxo
-  -> Transaction
-  -> QueryM (Either ReturnAdaChangeError Transaction)
-returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
+  -> UnattachedUnbalancedTx
+  -> QueryM (Either ReturnAdaChangeError UnattachedUnbalancedTx)
+returnAdaChange changeAddr utxos unattachedTx =
   runExceptT do
-    fees <- ExceptT $ calculateMinFee' (wrap tx) <#>
-      lmap ReturnAdaChangeCalculateMinFee
+    unattachedTx' /\ fees <- ExceptT $ evalExUnitsAndMinFee' unattachedTx
+      <#> lmap ReturnAdaChangeCalculateMinFee
     let
+      TxBody txBody = unattachedTx' ^. _body'
+
       txOutputs :: Array TransactionOutput
       txOutputs = txBody.outputs
 
@@ -459,7 +578,9 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
           ReturnAdaChangeImpossibleError
             "Not enough Input Ada to cover output and fees after prebalance."
             Impossible
-      EQ -> except $ Right $ wrap tx { body = wrap txBody { fee = wrap fees } }
+      EQ -> do
+        except $ Right $ unattachedTx' # _body' .~
+          wrap txBody { fee = wrap fees }
       GT -> ExceptT do
         -- Short circuits and adds Ada to any output utxo of the owner. This saves
         -- on fees but does not create a separate utxo. Do we want this behaviour?
@@ -490,11 +611,8 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
                   )
                   txOutputs
             -- Fees unchanged because we aren't adding a new utxo.
-            pure $
-              wrap
-                tx
-                  { body = wrap txBody { outputs = newOutputs, fee = wrap fees }
-                  }
+            pure $ unattachedTx' # _body' .~
+              wrap txBody { outputs = newOutputs, fee = wrap fees }
           Nothing -> do
             -- Create a txBody with the extra output utxo then recalculate fees,
             -- then adjust as necessary if we have sufficient Ada in the input.
@@ -518,13 +636,14 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
                           `Array.cons` txBody.outputs
                     }
 
-              tx' :: Transaction
-              tx' = wrap tx { body = txBody' }
+              unattachedTx'' :: UnattachedUnbalancedTx
+              unattachedTx'' =
+                unattachedTx' # _body' .~ txBody'
 
-            fees'' <- lmap ReturnAdaChangeCalculateMinFee <$> calculateMinFee'
-              tx'
+            unattachedTxWithFees <- evalExUnitsAndMinFee' unattachedTx''
+              <#> lmap ReturnAdaChangeCalculateMinFee
             -- fees should increase.
-            pure $ fees'' >>= \fees' -> do
+            pure $ unattachedTxWithFees >>= \(unattachedTx''' /\ fees') -> do
               -- New return Ada amount should decrease:
               let returnAda' = returnAda + fees - fees'
 
@@ -542,12 +661,8 @@ returnAdaChange changeAddr utxos (Transaction tx@{ body: TxBody txBody }) =
                         )
                     $ _.outputs <<< unwrap
                     $ txBody'
-                pure $
-                  wrap
-                    tx
-                      { body = wrap txBody
-                          { outputs = newOutputs, fee = wrap fees' }
-                      }
+                pure $ unattachedTx''' # _body' .~
+                  wrap txBody { outputs = newOutputs, fee = wrap fees' }
               else
                 Left $
                   ReturnAdaChangeError
@@ -659,17 +774,17 @@ getPublicKeyTransactionInput (txOutRef /\ txOut) =
       , onScriptHash: const Nothing
       }
 
+--------------------------------------------------------------------------------
+-- Balance transaction inputs
+--------------------------------------------------------------------------------
+
 balanceTxIns :: Utxo -> BigInt -> TxBody -> Either BalanceTxError TxBody
 balanceTxIns utxos fees txbody =
   balanceTxIns' utxos fees txbody # lmap BalanceTxInsError'
 
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- Notice we aren't using protocol parameters for utxo cost per word.
-balanceTxIns'
-  :: Utxo
-  -> BigInt
-  -> TxBody
-  -> Either BalanceTxInsError TxBody
+balanceTxIns' :: Utxo -> BigInt -> TxBody -> Either BalanceTxInsError TxBody
 balanceTxIns' utxos fees (TxBody txBody) = do
   let
     utxoCost :: BigInt
