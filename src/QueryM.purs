@@ -145,11 +145,8 @@ import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
-<<<<<<< HEAD
 import Types.CborBytes (CborBytes)
-=======
 import Types.Chain as Chain
->>>>>>> master
 import Types.Datum (Datum, DatumHash)
 import Types.Interval (SlotConfig, defaultSlotConfig)
 import Types.MultiMap (MultiMap)
