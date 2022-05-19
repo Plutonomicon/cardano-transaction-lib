@@ -109,7 +109,7 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
 import Plutus.ToPlutusType (toPlutusType)
-import Plutus.Types.Value (Value)
+import Plutus.Types.Value (Coin)
 import QueryM
   ( FeeEstimate(FeeEstimate)
   , ClientError(..) -- implicit as this error list will likely increase.
@@ -158,7 +158,6 @@ import Types.UnbalancedTransaction
   , _utxoIndex
   , emptyUnbalancedTx
   ) as UnbalancedTx
-import Cardano.Types.Value (coinToValue)
 
 -- | This module defines transaction-related requests. Currently signing and
 -- | submission is done with Nami.
@@ -184,14 +183,14 @@ submit = wrapContract <<< map (wrap <<< unwrap) <<< QueryM.submitTxOgmios
 calculateMinFee
   :: forall (r :: Row Type)
    . Transaction
-  -> Contract r (Either ExportQueryM.ClientError Value)
-calculateMinFee = (map <<< map) (unwrap <<< toPlutusType <<< coinToValue)
+  -> Contract r (Either ExportQueryM.ClientError Coin)
+calculateMinFee = (map <<< map) (unwrap <<< toPlutusType)
   <<< wrapContract
   <<< QueryM.calculateMinFee
 
 -- | Same as `calculateMinFee` hushing the error.
 calculateMinFeeM
-  :: forall (r :: Row Type). Transaction -> Contract r (Maybe Value)
+  :: forall (r :: Row Type). Transaction -> Contract r (Maybe Coin)
 calculateMinFeeM = map hush <<< calculateMinFee
 
 -- | Attempts to balance an `UnattachedUnbalancedTx`.

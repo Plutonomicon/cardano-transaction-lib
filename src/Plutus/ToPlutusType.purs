@@ -31,7 +31,7 @@ import Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , UtxoM(UtxoM)
   ) as Plutus
-import Plutus.Types.Value (Value) as Plutus
+import Plutus.Types.Value (Coin, Value) as Plutus
 import Plutus.Types.Value (lovelaceValueOf, singleton') as Plutus.Value
 
 import Types.ByteArray (ByteArray, byteArrayFromIntArray, byteArrayToIntArray)
@@ -41,10 +41,9 @@ import Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , UtxoM(UtxoM)
   ) as Cardano
-import Cardano.Types.Value (Value(Value)) as Types
+import Cardano.Types.Value (Coin(Coin), Value(Value)) as Types
 import Cardano.Types.Value
-  ( Coin(Coin)
-  , NonAdaAsset(NonAdaAsset)
+  ( NonAdaAsset(NonAdaAsset)
   , getCurrencySymbol
   )
 
@@ -53,7 +52,7 @@ class ToPlutusType f t pt | t -> pt, t pt -> f where
   toPlutusType :: t -> f pt
 
 --------------------------------------------------------------------------------
--- Types.Value -> Plutus.Types.Value
+-- Cardano.Types.Value -> Plutus.Types.Value
 --------------------------------------------------------------------------------
 
 -- The underlying `Plutus.Types.AssocMap` of `Plutus.Types.Value` doesn't
@@ -61,7 +60,7 @@ class ToPlutusType f t pt | t -> pt, t pt -> f where
 -- performing conversions between `Value`s, since the ordering of components
 -- can't be guaranteed.
 instance ToPlutusType Identity Types.Value Plutus.Value where
-  toPlutusType (Types.Value (Coin adaAmount) (NonAdaAsset nonAdaAssets)) =
+  toPlutusType (Types.Value (Types.Coin adaAmount) (NonAdaAsset nonAdaAssets)) =
     Identity (adaValue <> fold nonAdaValues)
     where
     adaValue :: Plutus.Value
@@ -75,6 +74,13 @@ instance ToPlutusType Identity Types.Value Plutus.Value where
         Map.toUnfoldable tokens <#> \(tn /\ val) ->
           unsafePartial $ fromJust $
             Plutus.Value.singleton' (getCurrencySymbol cs) (getTokenName tn) val
+
+--------------------------------------------------------------------------------
+-- Cardano.Types.Value.Coin -> Plutus.Types.Value.UtxoM
+--------------------------------------------------------------------------------
+
+instance ToPlutusType Identity Types.Coin Plutus.Coin where
+  toPlutusType = pure <<< wrap <<< unwrap
 
 --------------------------------------------------------------------------------
 -- Serialization.Address -> Maybe Plutus.Types.Address

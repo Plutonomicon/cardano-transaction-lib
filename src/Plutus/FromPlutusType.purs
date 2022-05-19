@@ -35,7 +35,7 @@ import Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , UtxoM(UtxoM)
   ) as Plutus
-import Plutus.Types.Value (Value) as Plutus
+import Plutus.Types.Value (Coin, Value) as Plutus
 import Plutus.Types.Value (getValue) as Plutus.Value
 
 import Types.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe)
@@ -45,7 +45,7 @@ import Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , UtxoM(UtxoM)
   ) as Cardano
-import Cardano.Types.Value (Value) as Types
+import Cardano.Types.Value (Coin, Value) as Types
 import Cardano.Types.Value (NonAdaAsset, mkValue, mkNonAdaAssetsFromTokenMap)
 
 class FromPlutusType :: (Type -> Type) -> Type -> Type -> Constraint
@@ -79,6 +79,13 @@ instance FromPlutusType Identity Plutus.Value Types.Value where
       $ mkNonAdaAssetsFromTokenMap
       $ nonAdaTokenMap <#> \(cs /\ tokens) ->
           Plutus.getCurrencySymbol cs /\ Map.fromFoldable (unwrap tokens)
+
+--------------------------------------------------------------------------------
+-- Plutus.Types.Value.UtxoM -> Cardano.Types.Value.Coin
+--------------------------------------------------------------------------------
+
+instance FromPlutusType Identity Plutus.Coin Types.Coin where
+  fromPlutusType = pure <<< wrap <<< unwrap
 
 --------------------------------------------------------------------------------
 -- Plutus.Types.Address -> Maybe Serialization.Address
