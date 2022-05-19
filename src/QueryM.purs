@@ -250,8 +250,8 @@ getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
 -- OGMIOS LOCAL TX SUBMISSION PROTOCOL
 --------------------------------------------------------------------------------
 
-submitTxOgmios :: ByteArray -> QueryM Ogmios.SubmitTxR
-submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall _.submit { txCbor }
+submitTxOgmios :: CborBytes -> QueryM Ogmios.SubmitTxR
+submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall _.submit txCbor
 
 --------------------------------------------------------------------------------
 -- DATUM CACHE QUERIES

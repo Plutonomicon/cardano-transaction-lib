@@ -176,8 +176,7 @@ signTransactionBytes = wrapContract <<< QueryM.signTransactionBytes
 -- | Submits a Cbor-hex encoded transaction, which is the output of
 -- | `signTransactionBytes` or `balanceAndSignTx`
 submit :: forall (r :: Row Type). CborBytes -> Contract r TransactionHash
-submit = wrapContract <<< map (wrap <<< unwrap) <<< QueryM.submitTxOgmios <<<
-  unwrap
+submit = wrapContract <<< map (wrap <<< unwrap) <<< QueryM.submitTxOgmios
 
 -- | Query the Haskell server for the minimum transaction fee
 calculateMinFee
