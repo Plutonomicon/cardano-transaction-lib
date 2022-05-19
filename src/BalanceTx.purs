@@ -34,7 +34,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Lens (Lens', lens', _1)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Index (ix) as Lens
-import Data.Lens.Setter ((.~), (?~), (%~))
+import Data.Lens.Setter ((.~), set, (?~), (%~))
 import Data.List ((:), List(Nil), partition)
 import Data.Log.Tag (tag)
 import Data.Map as Map
@@ -80,13 +80,16 @@ import Types.Transaction
   , TxBody(TxBody)
   , Utxo
   , _body
+  , _collateral
   , _inputs
   , _networkId
   , _plutusData
   , _redeemers
   , _witnessSet
   )
-import Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  )
 import Types.UnbalancedTransaction
   ( TxOutRef
   , UnbalancedTx(UnbalancedTx)
@@ -254,6 +257,7 @@ instance showImpossibleError :: Show ImpossibleError where
 --------------------------------------------------------------------------------
 -- Type aliases, temporary placeholder types
 --------------------------------------------------------------------------------
+
 -- Output utxos with the amount of lovelaces required.
 type MinUtxos = Array (TransactionOutput /\ BigInt)
 
@@ -435,14 +439,10 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     -> Address
     -> Transaction
     -> Either BalanceTxError Transaction
-  prebalanceCollateral
-    fees'
-    utxoIndex'
-    ownAddr'
-    oldTx'@(Transaction { body: txBody }) =
-    balanceTxIns utxoIndex' fees' txBody
-      >>= balanceNonAdaOuts ownAddr' utxoIndex'
-      >>= \txBody' -> pure $ wrap (unwrap oldTx') { body = txBody' }
+  prebalanceCollateral fees utxos ownAddr tx =
+    balanceTxIns utxos fees (tx ^. _body)
+      >>= balanceNonAdaOuts ownAddr utxos
+      <#> flip (set _body) tx
 
   loop
     :: Utxo
@@ -532,13 +532,11 @@ logTx msg utxos (Transaction { body: body'@(TxBody body) }) =
     , "Fees: " <> show body.fee
     ]
 
--- Nami provides a 5 Ada collateral that we should add the tx before balancing
+-- Nami provides a 5 Ada collateral that we should add the tx before balancing.
 addTxCollateral :: Transaction -> TransactionUnspentOutput -> Transaction
-addTxCollateral (Transaction tx@{ body: TxBody txBody }) txUnspentOutput =
-  wrap tx
-    { body = wrap txBody
-        { collateral = pure $ Array.singleton $ (unwrap txUnspentOutput).input }
-    }
+addTxCollateral transaction (TransactionUnspentOutput { input }) =
+  transaction # _body <<< _collateral ?~
+    Array.singleton input
 
 -- Transaction should be prebalanced at this point with all excess with Ada
 -- where the Ada value of inputs is greater or equal to value of outputs.
@@ -551,12 +549,11 @@ returnAdaChange
   -> QueryM (Either ReturnAdaChangeError UnattachedUnbalancedTx)
 returnAdaChange changeAddr utxos unattachedTx =
   runExceptT do
-    let
-      t = unattachedTx ^. _unbalancedTx <<< _transaction
-      Transaction tx@{ body: TxBody txBody } = t
     unattachedTx' /\ fees <- ExceptT $ evalExUnitsAndMinFee' unattachedTx
       <#> lmap ReturnAdaChangeCalculateMinFee
     let
+      TxBody txBody = unattachedTx' ^. _body'
+
       txOutputs :: Array TransactionOutput
       txOutputs = txBody.outputs
 
@@ -581,9 +578,9 @@ returnAdaChange changeAddr utxos unattachedTx =
           ReturnAdaChangeImpossibleError
             "Not enough Input Ada to cover output and fees after prebalance."
             Impossible
-      EQ ->
-        except $ Right $ unattachedTx' # _transaction' .~
-          wrap tx { body = wrap txBody { fee = wrap fees } }
+      EQ -> do
+        except $ Right $ unattachedTx' # _body' .~
+          wrap txBody { fee = wrap fees }
       GT -> ExceptT do
         -- Short circuits and adds Ada to any output utxo of the owner. This saves
         -- on fees but does not create a separate utxo. Do we want this behaviour?
@@ -614,11 +611,8 @@ returnAdaChange changeAddr utxos unattachedTx =
                   )
                   txOutputs
             -- Fees unchanged because we aren't adding a new utxo.
-            pure $ unattachedTx' # _transaction' .~
-              wrap tx
-                { body = wrap txBody
-                    { outputs = newOutputs, fee = wrap fees }
-                }
+            pure $ unattachedTx' # _body' .~
+              wrap txBody { outputs = newOutputs, fee = wrap fees }
           Nothing -> do
             -- Create a txBody with the extra output utxo then recalculate fees,
             -- then adjust as necessary if we have sufficient Ada in the input.
@@ -642,12 +636,10 @@ returnAdaChange changeAddr utxos unattachedTx =
                           `Array.cons` txBody.outputs
                     }
 
-              tx' :: Transaction
-              tx' = wrap tx { body = txBody' }
+              unattachedTx'' :: UnattachedUnbalancedTx
+              unattachedTx'' =
+                unattachedTx' # _body' .~ txBody'
 
-            let
-              unattachedTx'' = unattachedTx' #
-                _unbalancedTx <<< _transaction .~ tx'
             unattachedTxWithFees <- evalExUnitsAndMinFee' unattachedTx''
               <#> lmap ReturnAdaChangeCalculateMinFee
             -- fees should increase.
@@ -669,11 +661,8 @@ returnAdaChange changeAddr utxos unattachedTx =
                         )
                     $ _.outputs <<< unwrap
                     $ txBody'
-                pure $ unattachedTx''' # _transaction' .~
-                  wrap tx
-                    { body = wrap txBody
-                        { outputs = newOutputs, fee = wrap fees' }
-                    }
+                pure $ unattachedTx''' # _body' .~
+                  wrap txBody { outputs = newOutputs, fee = wrap fees' }
               else
                 Left $
                   ReturnAdaChangeError
@@ -785,17 +774,17 @@ getPublicKeyTransactionInput (txOutRef /\ txOut) =
       , onScriptHash: const Nothing
       }
 
+--------------------------------------------------------------------------------
+-- Balance transaction inputs
+--------------------------------------------------------------------------------
+
 balanceTxIns :: Utxo -> BigInt -> TxBody -> Either BalanceTxError TxBody
 balanceTxIns utxos fees txbody =
   balanceTxIns' utxos fees txbody # lmap BalanceTxInsError'
 
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- Notice we aren't using protocol parameters for utxo cost per word.
-balanceTxIns'
-  :: Utxo
-  -> BigInt
-  -> TxBody
-  -> Either BalanceTxInsError TxBody
+balanceTxIns' :: Utxo -> BigInt -> TxBody -> Either BalanceTxInsError TxBody
 balanceTxIns' utxos fees (TxBody txBody) = do
   let
     utxoCost :: BigInt

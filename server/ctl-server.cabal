@@ -59,6 +59,7 @@ library
     , containers
     , exceptions
     , extra
+    , integer-logarithms
     , lens
     , mtl
     , plutus-ledger-api
@@ -68,6 +69,7 @@ library
     , servant-client
     , servant-docs
     , servant-server
+    , strict-containers
     , text
     , wai-cors
     , warp
