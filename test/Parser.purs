@@ -2,11 +2,10 @@ module Test.Parser where
 
 import Prelude
 
-import Aeson (Aeson, caseAesonArray, parseJsonStringToAeson, stringifyAeson)
+import Aeson (Aeson, JsonDecodeError, caseAesonArray, parseJsonStringToAeson, stringifyAeson)
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Error.Class (throwError)
-import Data.Argonaut as Json
 import Data.Array as Array
 import Data.Either (Either, either, isRight)
 import Data.Medea (validate)
@@ -52,7 +51,7 @@ suite = do
         traverseJsonWsps jsonStrArray `shouldSatisfy` isRight
 
 traverseJsonWsps
-  :: Array Aeson -> Either Json.JsonDecodeError (Array (JsonWspResponse UtxoQR))
+  :: Array Aeson -> Either JsonDecodeError (Array (JsonWspResponse UtxoQR))
 traverseJsonWsps arr = traverse parseJsonWspResponse arr
 
 convertJsonArray :: Array Aeson -> Array String
