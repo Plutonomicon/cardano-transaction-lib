@@ -86,8 +86,7 @@ import Types (
 
 estimateTxFees :: WitnessCount -> Cbor -> AppM Fee
 estimateTxFees (WitnessCount numWits) cbor = do
-  tx <- decodeCborTx cbor & either (throwM . CborDecode) pure
-  case tx of
+  decodeCborTx cbor & either (throwM . CborDecode) pure >>= \case
     C.Tx txBody' keyWits -> do
       pparams <- asks protocolParams
       -- calculate and set script integrity hash before estimating fees
@@ -116,7 +115,7 @@ estimateTxFees (WitnessCount numWits) cbor = do
         -- when CBOR encoded.
         bytesNeeded :: Integer -> Integer
         bytesNeeded n =
-          let predicate = (>= (succ $ Math.integerLog2 n `div` 8))
+          let predicate = (>= succ (Math.integerLog2 n `div` 8))
            in fromIntegral . fromJust $ -- using `fromJust` here is safe
                 List.find predicate [2 ^ x | x <- [(0 :: Int) ..]]
 
@@ -259,8 +258,7 @@ queryNode :: forall (r :: Type). C.QueryInMode C.CardanoMode r -> AppM r
 queryNode query = do
   nodeConnectInfo <- getNodeConnectInfo
   response <- liftIO $ C.queryNodeLocalState nodeConnectInfo Nothing query
-  either (throwM . CardanoError . AcquireFailure . show) pure $
-    response
+  either (throwM . CardanoError . AcquireFailure . show) pure response
 
 queryUtxos :: Set.Set C.TxIn -> AppM (C.UTxO C.AlonzoEra)
 queryUtxos txInputs =
@@ -281,7 +279,7 @@ setScriptIntegrityHash ::
   Shelley.TxBody C.AlonzoEra
 setScriptIntegrityHash pparams txBodyAlonzo =
   case txBodyAlonzo of
-    Shelley.ShelleyTxBody _e txBody scripts scriptData _a _v ->
+    Shelley.ShelleyTxBody e txBody scripts scriptData a v ->
       case scriptData of
         Shelley.TxBodyScriptData _ datums redeemers ->
           let noScripts = null scripts
@@ -289,7 +287,7 @@ setScriptIntegrityHash pparams txBodyAlonzo =
                 hashScriptIntegrity pparams txBody redeemers datums noScripts
               newTxBody =
                 txBody {Tx.scriptIntegrityHash = mbIntegrityHash}
-           in Shelley.ShelleyTxBody _e newTxBody scripts scriptData _a _v
+           in Shelley.ShelleyTxBody e newTxBody scripts scriptData a v
         _ -> txBodyAlonzo
 
 hashScriptIntegrity ::
