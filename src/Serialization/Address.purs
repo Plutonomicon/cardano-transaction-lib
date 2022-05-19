@@ -111,6 +111,7 @@ derive newtype instance Eq Slot
 derive newtype instance Ord Slot
 derive newtype instance FromData Slot
 derive newtype instance ToData Slot
+derive newtype instance DecodeAeson Slot
 
 instance Show Slot where
   show = genericShow
@@ -120,13 +121,6 @@ instance Semigroup Slot where
 
 instance Monoid Slot where
   mempty = Slot zero
-
--- Needed for Haskell server. Slot is given by `getSlot` field.
-instance DecodeAeson Slot where
-  decodeAeson =
-    caseAesonObject
-      (Left $ TypeMismatch "Expected object")
-      (flip getField "getSlot" >=> Slot >>> pure)
 
 instance EncodeAeson Slot where
   encodeAeson' (Slot uint) = encodeAeson' (UInt.toNumber uint)
