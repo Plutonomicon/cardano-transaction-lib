@@ -86,7 +86,6 @@ import Serialization.Hash
   )
 import ToData (class ToData)
 import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex, byteLength)
-import Types.CborBytes (CborBytes(CborBytes))
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Types.TokenName
   ( TokenName
@@ -215,7 +214,7 @@ unsafeAdaSymbol = CurrencySymbol mempty
 -- | constructor is not exported
 mkCurrencySymbol :: ByteArray -> Maybe CurrencySymbol
 mkCurrencySymbol byteArr =
-  scriptHashFromBytes (CborBytes byteArr) *> pure (CurrencySymbol byteArr)
+  scriptHashFromBytes (wrap byteArr) *> pure (CurrencySymbol byteArr)
 
 -- Do not export. Create an Ada `CurrencySymbol` from a `ByteArray`
 mkUnsafeAdaSymbol :: ByteArray -> Maybe CurrencySymbol
@@ -646,10 +645,10 @@ filterNonAda (Value _ nonAda) = Value mempty nonAda
 -- already know is a valid CurrencySymbol
 currencyScriptHash :: CurrencySymbol -> ScriptHash
 currencyScriptHash (CurrencySymbol byteArray) =
-  unsafePartial fromJust $ scriptHashFromBytes (CborBytes byteArray)
+  unsafePartial fromJust $ scriptHashFromBytes (wrap byteArray)
 
 scriptHashAsCurrencySymbol :: ScriptHash -> CurrencySymbol
-scriptHashAsCurrencySymbol = CurrencySymbol <<< scriptHashAsBytes
+scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< scriptHashAsBytes
 
 -- | The minting policy hash of a currency symbol
 currencyMPSHash :: CurrencySymbol -> MintingPolicyHash

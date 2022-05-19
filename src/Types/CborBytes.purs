@@ -12,17 +12,19 @@ module Types.CborBytes
   , byteLength
   , hexToCborBytes
   , hexToCborBytesUnsafe
+  , rawBytesAsCborBytes
   ) where
 
 import Data.Newtype (class Newtype, wrap, unwrap)
 
 import Types.ByteArray (ByteArray)
 import Types.ByteArray as BytesArray
+import Types.RawBytes (RawBytes)
 import Data.Maybe (Maybe)
 import Prelude
-import Aeson (class DecodeAeson, decodeAesonViaJson)
-import Data.Argonaut (class DecodeJson, decodeJson)
-import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
+import Aeson (class DecodeAeson)
+import Data.Argonaut (class DecodeJson)
+import Test.QuickCheck.Arbitrary (class Arbitrary)
 
 -- | An array of Bytes containing CBOR data
 newtype CborBytes = CborBytes ByteArray
@@ -70,3 +72,6 @@ cborBytesFromByteArray = wrap
 
 cborBytesFromAscii :: String -> Maybe CborBytes
 cborBytesFromAscii = map wrap <<< BytesArray.byteArrayFromAscii
+
+rawBytesAsCborBytes :: RawBytes -> CborBytes
+rawBytesAsCborBytes = wrap <<< unwrap

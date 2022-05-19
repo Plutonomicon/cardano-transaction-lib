@@ -14,15 +14,14 @@ module Types.RawBytes
   , hexToRawBytesUnsafe
   ) where
 
-import Data.Newtype (class Newtype, wrap, unwrap)
-
 import Types.ByteArray (ByteArray)
 import Types.ByteArray as BytesArray
 import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype, wrap, unwrap)
 import Prelude
-import Aeson (class DecodeAeson, decodeAesonViaJson)
-import Data.Argonaut (class DecodeJson, decodeJson)
-import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
+import Aeson (class DecodeAeson)
+import Data.Argonaut (class DecodeJson)
+import Test.QuickCheck.Arbitrary (class Arbitrary)
 
 -- | An array of Bytes with no information about the content format
 newtype RawBytes = RawBytes ByteArray

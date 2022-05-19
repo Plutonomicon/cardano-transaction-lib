@@ -27,7 +27,7 @@ import FromData (class FromData, fromData)
 import ToData (class ToData, toData)
 import Serialization.Hash (scriptHashFromBytes)
 import Types.Scripts (MintingPolicyHash)
-import Types.CborBytes (hexToCborBytes)
+import Types.RawBytes (hexToRawBytes)
 import Types.PlutusData (PlutusData(Map))
 import Types.TokenName (TokenName, mkTokenName)
 import Metadata.Helpers (lookupKey)
@@ -204,7 +204,7 @@ instance DecodeJson Cip25Metadata where
     decodePolicyId =
       note (Json.TypeMismatch "Expected hex-encoded policy id")
         <<< map wrap
-        <<< (scriptHashFromBytes <=< hexToCborBytes)
+        <<< (scriptHashFromBytes <=< hexToRawBytes)
 
     decodeAssetName :: String -> Either Json.JsonDecodeError TokenName
     decodeAssetName =

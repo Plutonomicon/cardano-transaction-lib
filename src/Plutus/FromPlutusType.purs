@@ -34,7 +34,11 @@ import Plutus.Types.Value (Value) as Plutus
 import Plutus.Types.Value (getValue) as Plutus.Value
 
 import Types.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe)
-import Types.CborBytes (CborBytes, cborBytesFromIntArrayUnsafe)
+import Types.CborBytes
+  ( CborBytes
+  , cborBytesFromIntArrayUnsafe
+  , rawBytesAsCborBytes
+  )
 import Types.TokenName (adaToken)
 import Cardano.Types.Value (Value) as Types
 import Cardano.Types.Value (NonAdaAsset, mkValue, mkNonAdaAssetsFromTokenMap)
@@ -84,55 +88,55 @@ instance FromPlutusType Maybe Plutus.Address Serialization.Address where
       PubKeyCredential pkh, Just (StakingHash (PubKeyCredential skh)) ->
         Serialization.Address.addressFromBytes $
           addrHeader PaymentKeyHashStakeKeyHash
-            <> ed25519KeyHashToBytes (unwrap pkh)
-            <> ed25519KeyHashToBytes (unwrap skh)
+            <> rawBytesAsCborBytes (ed25519KeyHashToBytes (unwrap pkh))
+            <> rawBytesAsCborBytes (ed25519KeyHashToBytes (unwrap skh))
 
       -- %b0001 | network tag | script hash | key hash
       ScriptCredential sh, Just (StakingHash (PubKeyCredential skh)) ->
         Serialization.Address.addressFromBytes $
           addrHeader ScriptHashStakeKeyHash
-            <> scriptHashToBytes (unwrap sh)
-            <> ed25519KeyHashToBytes (unwrap skh)
+            <> rawBytesAsCborBytes (scriptHashToBytes (unwrap sh))
+            <> rawBytesAsCborBytes (ed25519KeyHashToBytes (unwrap skh))
 
       -- %b0010 | network tag | key hash | script hash
       PubKeyCredential pkh, Just (StakingHash (ScriptCredential sh)) ->
         Serialization.Address.addressFromBytes $
           addrHeader PaymentKeyHashScriptHash
-            <> ed25519KeyHashToBytes (unwrap pkh)
-            <> scriptHashToBytes (unwrap sh)
+            <> rawBytesAsCborBytes (ed25519KeyHashToBytes (unwrap pkh))
+            <> rawBytesAsCborBytes (scriptHashToBytes (unwrap sh))
 
       -- %b0011 | network tag | script hash | script hash
       ScriptCredential sh, Just (StakingHash (ScriptCredential sh')) ->
         Serialization.Address.addressFromBytes $
           addrHeader ScriptHashScriptHash
-            <> scriptHashToBytes (unwrap sh)
-            <> scriptHashToBytes (unwrap sh')
+            <> rawBytesAsCborBytes (scriptHashToBytes (unwrap sh))
+            <> rawBytesAsCborBytes (scriptHashToBytes (unwrap sh'))
 
       -- %b0100 | network tag | key hash | pointer
       PubKeyCredential pkh, Just (StakingPtr ptr) ->
         Serialization.Address.addressFromBytes $
           addrHeader PaymentKeyHashPointer
-            <> ed25519KeyHashToBytes (unwrap pkh)
+            <> rawBytesAsCborBytes (ed25519KeyHashToBytes (unwrap pkh))
             <> pointerToBytes ptr
 
       -- %b0101 | network tag | script hash | pointer
       ScriptCredential sh, Just (StakingPtr ptr) ->
         Serialization.Address.addressFromBytes $
           addrHeader ScriptHashPointer
-            <> scriptHashToBytes (unwrap sh)
+            <> rawBytesAsCborBytes (scriptHashToBytes (unwrap sh))
             <> pointerToBytes ptr
 
       -- %b0110 | network tag | key hash
       PubKeyCredential pkh, Nothing ->
         Serialization.Address.addressFromBytes $
           addrHeader PaymentKeyHash
-            <> ed25519KeyHashToBytes (unwrap pkh)
+            <> rawBytesAsCborBytes (ed25519KeyHashToBytes (unwrap pkh))
 
       -- %b0111 | network tag | script hash
       ScriptCredential sh, Nothing ->
         Serialization.Address.addressFromBytes $
           addrHeader ScriptHash
-            <> scriptHashToBytes (unwrap sh)
+            <> rawBytesAsCborBytes (scriptHashToBytes (unwrap sh))
     where
     rec
       :: { addressCredential :: Credential

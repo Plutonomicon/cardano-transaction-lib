@@ -111,9 +111,9 @@ import Types.ByteArray
   , byteArrayFromIntArrayUnsafe
   , hexToByteArrayUnsafe
   )
-import Types.CborBytes
-  ( cborBytesFromIntArrayUnsafe
-  , hexToCborBytesUnsafe
+import Types.RawBytes
+  ( rawBytesFromIntArrayUnsafe
+  , hexToRawBytesUnsafe
   )
 import Types.Int as Int
 import Types.Natural as Natural
@@ -192,13 +192,13 @@ txOutputFixture1 =
             keyHashCredential $ unsafePartial $ fromJust
               $ ed25519KeyHashFromBytes
               -- $ T.Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
-              $ hexToCborBytesUnsafe
+              $ hexToRawBytesUnsafe
                   "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
         , paymentCred:
             keyHashCredential $ unsafePartial $ fromJust
               $ ed25519KeyHashFromBytes
               -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-              $ hexToCborBytesUnsafe
+              $ hexToRawBytesUnsafe
                   "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
         }
     , amount: Value (Coin $ BigInt.fromInt 0) mempty
@@ -678,7 +678,7 @@ utxoFixture1' =
                 , paymentCred: keyHashCredential $ unsafePartial $ fromJust
                     $ ed25519KeyHashFromBytes
                     $
-                      cborBytesFromIntArrayUnsafe
+                      rawBytesFromIntArrayUnsafe
                         [ 243
                         , 63
                         , 250
@@ -711,7 +711,7 @@ utxoFixture1' =
                 , delegationCred: keyHashCredential $ unsafePartial $ fromJust
                     $ ed25519KeyHashFromBytes
                     $
-                      ( cborBytesFromIntArrayUnsafe
+                      ( rawBytesFromIntArrayUnsafe
                           [ 57
                           , 3
                           , 16
@@ -871,7 +871,7 @@ ed25519KeyHashFixture1 =
   -- $ Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
   unsafePartial $ fromJust
     $ ed25519KeyHashFromBytes
-    $ hexToCborBytesUnsafe
+    $ hexToRawBytesUnsafe
         "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
 
 ed25519KeyHashFixture2 :: Ed25519KeyHash
@@ -879,7 +879,7 @@ ed25519KeyHashFixture2 =
   -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
   unsafePartial $ fromJust
     $ ed25519KeyHashFromBytes
-    $ hexToCborBytesUnsafe
+    $ hexToRawBytesUnsafe
         "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
 
 nativeScriptFixture1 :: NativeScript
@@ -910,11 +910,11 @@ keyHashBaseAddress { payment, stake } = baseAddressToAddress $ baseAddress
   , delegationCred:
       keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
         -- $ T.Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
-        $ hexToCborBytesUnsafe stake
+        $ hexToRawBytesUnsafe stake
   , paymentCred:
       keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
         -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-        $ hexToCborBytesUnsafe payment
+        $ hexToRawBytesUnsafe payment
   }
 
 plutusDataFixture1 :: PD.PlutusData
@@ -954,12 +954,12 @@ plutusDataFixture7 = PD.List
 
 scriptHash1 :: ScriptHash
 scriptHash1 = unsafePartial $ fromJust $ scriptHashFromBytes $
-  hexToCborBytesUnsafe
+  hexToRawBytesUnsafe
     "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
 
 scriptHash2 :: ScriptHash
 scriptHash2 = unsafePartial $ fromJust $ scriptHashFromBytes $
-  hexToCborBytesUnsafe
+  hexToRawBytesUnsafe
     "00000000005bb21ce6d8c7502aca70b9316d10e958611f3c6b758f60"
 
 policyId :: MintingPolicyHash

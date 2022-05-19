@@ -30,8 +30,7 @@ import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import FromData (class FromData)
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
-import Types.ByteArray (ByteArray, hexToByteArray)
-import Types.CborBytes (CborBytes, cborBytesToHex, hexToCborBytes)
+import Types.RawBytes (RawBytes, rawBytesToHex, hexToRawBytes)
 import Types.PlutusData (PlutusData(Bytes))
 
 -- | PubKeyHash and StakeKeyHash refers to blake2b-224 hash digests of Ed25519
@@ -45,7 +44,7 @@ instance Ord Ed25519KeyHash where
   compare = compare `on` ed25519KeyHashToBytes
 
 instance Show Ed25519KeyHash where
-  show edkh = "(Ed25519KeyHash " <> cborBytesToHex (ed25519KeyHashToBytes edkh)
+  show edkh = "(Ed25519KeyHash " <> rawBytesToHex (ed25519KeyHashToBytes edkh)
     <> ")"
 
 instance ToData Ed25519KeyHash where
@@ -62,12 +61,12 @@ instance DecodeJson Ed25519KeyHash where
   decodeJson = caseJsonString
     (Left $ TypeMismatch "Expected Plutus BuiltinByteString")
     ( note (TypeMismatch "Invalid Ed25519KeyHash") <<< ed25519KeyHashFromBytes
-        <=< note (TypeMismatch "Invalid ByteArray") <<< hexToCborBytes
+        <=< note (TypeMismatch "Invalid ByteArray") <<< hexToRawBytes
     )
 
 foreign import _ed25519KeyHashFromBytesImpl
   :: MaybeFfiHelper
-  -> CborBytes
+  -> RawBytes
   -> Maybe Ed25519KeyHash
 
 foreign import _ed25519KeyHashFromBech32Impl
@@ -75,7 +74,7 @@ foreign import _ed25519KeyHashFromBech32Impl
   -> Bech32String
   -> Maybe Ed25519KeyHash
 
-foreign import ed25519KeyHashToBytes :: Ed25519KeyHash -> CborBytes
+foreign import ed25519KeyHashToBytes :: Ed25519KeyHash -> RawBytes
 
 -- | Convert ed25519KeyHash to Bech32 representation with given prefix.
 -- | Will crash if prefix is invalid (length, mixed-case, etc)
@@ -91,7 +90,7 @@ foreign import _ed25519KeyHashToBech32Impl
   -> Ed25519KeyHash
   -> Maybe Bech32String
 
-ed25519KeyHashFromBytes :: CborBytes -> Maybe Ed25519KeyHash
+ed25519KeyHashFromBytes :: RawBytes -> Maybe Ed25519KeyHash
 ed25519KeyHashFromBytes = _ed25519KeyHashFromBytesImpl maybeFfiHelper
 
 ed25519KeyHashFromBech32 :: Bech32String -> Maybe Ed25519KeyHash
@@ -113,7 +112,7 @@ instance Ord ScriptHash where
   compare = compare `on` scriptHashToBytes
 
 instance Show ScriptHash where
-  show edkh = "(ScriptHash " <> cborBytesToHex (scriptHashToBytes edkh) <> ")"
+  show edkh = "(ScriptHash " <> rawBytesToHex (scriptHashToBytes edkh) <> ")"
 
 instance ToData ScriptHash where
   toData = toData <<< unwrap <<< scriptHashToBytes
@@ -127,12 +126,12 @@ instance DecodeJson ScriptHash where
   decodeJson =
     Json.caseJsonObject (Left (Json.TypeMismatch "Expected object")) $
       note (Json.TypeMismatch "Expected hex-encoded script hash")
-        <<< (scriptHashFromBytes <<< wrap <=< hexToByteArray)
+        <<< (scriptHashFromBytes <=< hexToRawBytes)
         <=< flip Json.getField "getScriptHash"
 
 foreign import _scriptHashFromBytesImpl
   :: MaybeFfiHelper
-  -> CborBytes
+  -> RawBytes
   -> Maybe ScriptHash
 
 foreign import _scriptHashFromBech32Impl
@@ -141,10 +140,10 @@ foreign import _scriptHashFromBech32Impl
   -> Maybe ScriptHash
 
 -- | Drops the type and returns the hash as a generic bytearray
-foreign import scriptHashAsBytes :: ScriptHash -> ByteArray
+foreign import scriptHashAsBytes :: ScriptHash -> RawBytes
 
 -- | Encodes the hash to Cbor bytes
-foreign import scriptHashToBytes :: ScriptHash -> CborBytes
+foreign import scriptHashToBytes :: ScriptHash -> RawBytes
 
 -- | Convert scriptHash to Bech32 representation with given prefix.
 -- | Will crash if prefix is invalid (length, mixed-case, etc)
@@ -162,7 +161,7 @@ foreign import _scriptHashToBech32Impl
 
 -- | Decodes a script hash from its CBOR bytes encoding
 -- | NOTE. It does _not_ compute hash of given bytes.
-scriptHashFromBytes :: CborBytes -> Maybe ScriptHash
+scriptHashFromBytes :: RawBytes -> Maybe ScriptHash
 scriptHashFromBytes = _scriptHashFromBytesImpl maybeFfiHelper
 
 -- | Decodes a script hash from its Bech32 representation

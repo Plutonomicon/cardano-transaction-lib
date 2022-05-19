@@ -24,8 +24,8 @@ import Types.ByteArray
   ( ByteArray
   , hexToByteArray
   )
-import Types.CborBytes
-  ( hexToCborBytesUnsafe
+import Types.RawBytes
+  ( hexToRawBytesUnsafe
   )
 import Types.Natural (Natural)
 import Types.PlutusData (PlutusData(Map))
@@ -137,7 +137,7 @@ instance DecodeJson SeabugMetadata where
                 $ unsafePartial
                 $ fromJust
                 $ scriptHashFromBytes
-                $ hexToCborBytesUnsafe
+                $ hexToRawBytesUnsafe
                     "00000000000000000000000000000000000000000000000000000000"
             , mintPolicy: mempty
             , collectionNftCS
