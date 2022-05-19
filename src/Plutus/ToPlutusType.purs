@@ -10,7 +10,7 @@ import Data.Identity (Identity(Identity))
 import Data.Foldable (fold)
 import Data.Map (toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (class Newtype, wrap)
+import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Tuple (fst) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt, fromInt, (.&.), and, shl, zshr)
@@ -65,7 +65,9 @@ instance ToPlutusType Identity Types.Value Plutus.Value where
       flip concatMap (Map.toUnfoldable nonAdaAssets) $ \(cs /\ tokens) ->
         Map.toUnfoldable tokens <#> \(tn /\ val) ->
           unsafePartial $ fromJust $
-            Plutus.Value.singleton' (getCurrencySymbol cs) (getTokenName tn) val
+            Plutus.Value.singleton' (getCurrencySymbol cs)
+              (unwrap $ getTokenName tn)
+              val
 
 --------------------------------------------------------------------------------
 -- Serialization.Address -> Maybe Plutus.Types.Address

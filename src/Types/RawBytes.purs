@@ -23,6 +23,7 @@ import Aeson (class DecodeAeson)
 import Data.Argonaut (class DecodeJson, class EncodeJson)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 import Metadata.ToMetadata (class ToMetadata)
+import Metadata.FromMetadata (class FromMetadata)
 
 -- | An array of Bytes with no information about the content format
 newtype RawBytes = RawBytes ByteArray
@@ -41,6 +42,7 @@ derive newtype instance DecodeJson RawBytes
 derive newtype instance DecodeAeson RawBytes
 derive newtype instance Arbitrary RawBytes
 derive newtype instance ToMetadata RawBytes
+derive newtype instance FromMetadata RawBytes
 
 rawBytesToIntArray :: RawBytes -> Array Int
 rawBytesToIntArray = BytesArray.byteArrayToIntArray <<< unwrap

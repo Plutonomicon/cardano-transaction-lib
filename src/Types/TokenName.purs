@@ -24,6 +24,7 @@ import Data.Either (Either(Left), note)
 import Data.Map (Map)
 import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Nothing))
+import Data.Newtype (wrap)
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested (type (/\))
 import FromData (class FromData)
@@ -31,9 +32,10 @@ import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Serialization.Types (AssetName) as CSL
 import ToData (class ToData)
-import Types.ByteArray (ByteArray, byteArrayToHex, byteLength, hexToByteArray)
+import Types.ByteArray (ByteArray, byteLength, hexToByteArray)
+import Types.CborBytes (CborBytes, cborBytesToHex)
 
-newtype TokenName = TokenName ByteArray
+newtype TokenName = TokenName CborBytes
 
 derive newtype instance Eq TokenName
 derive newtype instance FromData TokenName
@@ -52,12 +54,12 @@ instance DecodeJson TokenName where
 
 instance EncodeJson TokenName where
   encodeJson (TokenName ba) = encodeJson
-    { "unTokenName": byteArrayToHex ba }
+    { "unTokenName": cborBytesToHex ba }
 
 instance Show TokenName where
   show (TokenName tn) = "(TokenName" <> show tn <> ")"
 
-getTokenName :: TokenName -> ByteArray
+getTokenName :: TokenName -> CborBytes
 getTokenName (TokenName tokenName) = tokenName
 
 -- | The empty token name.
@@ -68,12 +70,12 @@ adaToken = TokenName mempty
 -- | not exported
 mkTokenName :: ByteArray -> Maybe TokenName
 mkTokenName byteArr =
-  if byteLength byteArr <= 32 then pure $ TokenName byteArr else Nothing
+  if byteLength byteArr <= 32 then pure $ TokenName (wrap byteArr) else Nothing
 
 foreign import assetNameName :: CSL.AssetName -> ByteArray
 
 tokenNameFromAssetName :: CSL.AssetName -> TokenName
-tokenNameFromAssetName = TokenName <<< assetNameName
+tokenNameFromAssetName = TokenName <<< wrap <<< assetNameName
 
 -- | Creates a Map of `TokenName` and Big Integers from a `Traversable` of 2-tuple
 -- | `ByteArray` and Big Integers with the possibility of failure

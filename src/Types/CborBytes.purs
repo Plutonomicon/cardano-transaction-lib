@@ -26,6 +26,7 @@ import Aeson (class DecodeAeson)
 import Data.Argonaut (class DecodeJson, class EncodeJson)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 import Metadata.ToMetadata (class ToMetadata)
+import Metadata.FromMetadata (class FromMetadata)
 
 -- | An array of Bytes containing CBOR data
 newtype CborBytes = CborBytes ByteArray
@@ -45,6 +46,7 @@ derive newtype instance DecodeJson CborBytes
 derive newtype instance DecodeAeson CborBytes
 derive newtype instance Arbitrary CborBytes
 derive newtype instance ToMetadata CborBytes
+derive newtype instance FromMetadata CborBytes
 
 cborBytesToIntArray :: CborBytes -> Array Int
 cborBytesToIntArray = BytesArray.byteArrayToIntArray <<< unwrap

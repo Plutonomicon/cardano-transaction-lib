@@ -37,6 +37,7 @@ import Prim.TypeError (class Fail, Text)
 import Record as Record
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray(ByteArray))
+import Types.RawBytes (RawBytes)
 import Types.CborBytes (CborBytes)
 import Types.RawBytes (RawBytes)
 import Types.PlutusData (PlutusData(Constr, Integer, List, Bytes))

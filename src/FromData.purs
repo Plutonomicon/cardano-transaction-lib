@@ -26,7 +26,7 @@ import Data.Generic.Rep as G
 import Data.List (List)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe)
-import Data.Newtype (unwrap)
+import Data.Newtype (wrap, unwrap)
 import Data.Ratio (Ratio, reduce)
 import Data.Symbol (class IsSymbol, reflectSymbol)
 import Data.TextDecoder (decodeUtf8)
@@ -41,6 +41,8 @@ import Prim.TypeError (class Fail, Text)
 import Record as Record
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray)
+import Types.RawBytes (RawBytes)
+import Types.CborBytes (CborBytes)
 import Types.PlutusData (PlutusData(Bytes, Constr, List, Integer))
 
 -- | Errors
@@ -248,6 +250,12 @@ instance (FromData a, FromData b) => FromData (Tuple a b) where
 instance FromData ByteArray where
   fromData (Bytes res) = Just res
   fromData _ = Nothing
+
+instance FromData CborBytes where
+  fromData = map wrap <<< fromData
+
+instance FromData RawBytes where
+  fromData = map wrap <<< fromData
 
 instance FromData String where
   fromData (Bytes bytes) = hush $ decodeUtf8 $ unwrap bytes

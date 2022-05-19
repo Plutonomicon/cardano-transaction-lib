@@ -11,7 +11,7 @@ import Prelude
 import Control.Promise (Promise)
 import Control.Promise as Promise
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
-import Data.Newtype (over, wrap, unwrap)
+import Data.Newtype (over, unwrap)
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytesEffect)
 import Deserialization.UnspentOutput as Deserialization.UnspentOuput
@@ -32,7 +32,7 @@ import Types.CborBytes
   , cborBytesToHex
   , rawBytesAsCborBytes
   )
-import Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
+import Types.RawBytes (RawBytes, hexToRawBytes)
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , PublicKey(PublicKey)
