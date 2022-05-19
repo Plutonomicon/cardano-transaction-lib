@@ -21,12 +21,12 @@ module Types.UnbalancedTransaction
 
 import Prelude
 
-import Data.Argonaut
-  ( class DecodeJson
-  , caseJsonObject
-  , decodeJson
+import Aeson
+  ( class DecodeAeson
+  , JsonDecodeError(..)
+  , caseAesonObject
+  , decodeAeson
   , getField
-  , JsonDecodeError(TypeMismatch)
   )
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
@@ -153,11 +153,11 @@ instance Show PaymentPubKeyHash where
 
 -- This is needed for `ApplyArgs`. Plutus has an `unPaymentPubKeyHash` field so
 -- don't newtype derive.
-instance DecodeJson PaymentPubKeyHash where
-  decodeJson = caseJsonObject
+instance DecodeAeson PaymentPubKeyHash where
+  decodeAeson = caseAesonObject
     (Left $ TypeMismatch "Expected object")
     ( flip getField "unPaymentPubKeyHash" >=>
-        decodeJson >>> map PaymentPubKeyHash
+        decodeAeson >>> map PaymentPubKeyHash
     )
 
 newtype StakePubKeyHash = StakePubKeyHash Ed25519KeyHash

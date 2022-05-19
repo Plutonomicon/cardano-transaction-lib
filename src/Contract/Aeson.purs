@@ -3,17 +3,17 @@
 module Contract.Aeson (module Aeson) where
 
 import Aeson
-  ( (.:)
-  , (.:?)
+  ( class DecodeAeson
+  , class DecodeAesonField
+  , class EncodeAeson
+  , class GDecodeAeson
+  , class GEncodeAeson
   , Aeson
   , AesonCases
   , AesonEncoder
+  , JsonDecodeError(..)
   , NumberIndex
-  , class EncodeAeson
-  , class GEncodeAeson
-  , class DecodeAeson
-  , class DecodeAesonField
-  , class GDecodeAeson
+  , aesonNull
   , bumpNumberIndexBy
   , caseAeson
   , caseAesonArray
@@ -29,21 +29,37 @@ import Aeson
   , decodeAesonField
   , decodeAesonViaJson
   , decodeJsonString
+  , decodeTraversable
   , encodeAeson
   , encodeAeson'
   , encodeAesonViaJson
+  , encodeTraversable
+  , fromString
   , gDecodeAeson
   , gEncodeAeson
-  , useNextIndexIndex
   , getCurrentNumberIndex
   , getField
   , getFieldOptional
   , getFieldOptional'
   , getNestedAeson
   , getNumberIndex
+  , isArray
+  , isBoolean
+  , isNull
+  , isNumber
+  , isObject
+  , isString
   , jsonToAeson
   , parseJsonStringToAeson
   , stringifyAeson
+  , toArray
+  , toBoolean
+  , toNull
+  , toNumber
   , toObject
+  , toString
   , toStringifiedNumbersJson
+  , useNextIndexIndex
+  , (.:)
+  , (.:?)
   ) as Aeson

@@ -22,17 +22,8 @@ module QueryM.Ogmios
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , Aeson
-  , caseAesonArray
-  , caseAesonObject
-  , decodeAeson
-  , getField
-  , getFieldOptional
-  )
+import Aeson (class DecodeAeson, class EncodeAeson, Aeson, JsonDecodeError(..), caseAesonArray, caseAesonObject, decodeAeson, getField, getFieldOptional)
 import Control.Alt ((<|>))
-import Data.Argonaut (class EncodeJson, JsonDecodeError(TypeMismatch))
 import Data.Array (index, singleton)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), either, hush, note)
@@ -123,7 +114,7 @@ evaluateTxCall = mkOgmiosCallType
 -- convenience helper
 mkOgmiosCallType
   :: forall (a :: Type) (i :: Type) (o :: Type)
-   . EncodeJson (JsonWspRequest a)
+   . EncodeAeson (JsonWspRequest a)
   => { methodname :: String, args :: i -> a }
   -> Proxy o
   -> JsonWspCall i o

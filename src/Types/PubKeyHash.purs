@@ -4,12 +4,12 @@ module Types.PubKeyHash
 
 import Prelude
 
-import Data.Argonaut
-  ( class DecodeJson
-  , caseJsonObject
-  , decodeJson
+import Aeson
+  ( class DecodeAeson
+  , JsonDecodeError(..)
+  , caseAesonObject
+  , decodeAeson
   , getField
-  , JsonDecodeError(TypeMismatch)
   )
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
@@ -37,7 +37,7 @@ instance Show PubKeyHash where
 
 -- This is needed for `ApplyArgs`. Plutus has an `getPubKeyHash` field so don't
 -- newtype derive.
-instance DecodeJson PubKeyHash where
-  decodeJson = caseJsonObject
+instance DecodeAeson PubKeyHash where
+  decodeAeson = caseAesonObject
     (Left $ TypeMismatch "Expected object")
-    (flip getField "getPubKeyHash" >=> decodeJson >>> map PubKeyHash)
+    (flip getField "getPubKeyHash" >=> decodeAeson >>> map PubKeyHash)

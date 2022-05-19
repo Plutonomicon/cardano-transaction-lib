@@ -11,13 +11,7 @@ module Types.Rational
 
 import Prelude
 
-import Data.Argonaut
-  ( class DecodeJson
-  , class EncodeJson
-  , JsonDecodeError(TypeMismatch)
-  , decodeJson
-  , encodeJson
-  )
+import Aeson (class DecodeAeson, class EncodeAeson, JsonDecodeError(..), decodeAeson, encodeAeson')
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString, fromString) as BigInt
 import Data.Either (note)
@@ -43,11 +37,11 @@ derive newtype instance Semiring Rational
 derive newtype instance Ring Rational
 derive newtype instance CommutativeRing Rational
 
-instance EncodeJson Rational where
-  encodeJson r = encodeJson
+instance EncodeAeson Rational where
+  encodeAeson' r = encodeAeson'
     { "unRational":
-        { "numerator": encodeJson (StringifiedBigInt (numerator r))
-        , "denominator": encodeJson (StringifiedBigInt (denominator r))
+        { "numerator": StringifiedBigInt (numerator r)
+        , "denominator": StringifiedBigInt (denominator r)
         }
     }
 
@@ -56,12 +50,12 @@ newtype StringifiedBigInt = StringifiedBigInt BigInt
 derive instance Eq StringifiedBigInt
 derive instance Newtype StringifiedBigInt _
 
-instance EncodeJson StringifiedBigInt where
-  encodeJson (StringifiedBigInt bi) = encodeJson $ BigInt.toString bi
+instance EncodeAeson StringifiedBigInt where
+  encodeAeson' (StringifiedBigInt bi) = encodeAeson' $ BigInt.toString bi
 
-instance DecodeJson StringifiedBigInt where
-  decodeJson =
-    decodeJson >=>
+instance DecodeAeson StringifiedBigInt where
+  decodeAeson =
+    decodeAeson >=>
       BigInt.fromString
         >>> note (TypeMismatch "expected stringified integer number")
         >>>
