@@ -21,7 +21,19 @@ module QueryM.DatumCacheWsp
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, Aeson, JsonDecodeError(..), caseAesonArray, caseAesonObject, decodeAeson, encodeAeson, getNestedAeson, stringifyAeson, (.:))
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , Aeson
+  , JsonDecodeError(..)
+  , caseAesonArray
+  , caseAesonObject
+  , decodeAeson
+  , encodeAeson
+  , getNestedAeson
+  , stringifyAeson
+  , (.:)
+  )
 import Control.Alt ((<|>))
 import Data.Either (Either(Left))
 import Data.Map (Map)

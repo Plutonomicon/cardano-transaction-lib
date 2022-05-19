@@ -47,7 +47,14 @@ module Cardano.Types.Value
 
 import Prelude hiding (join)
 
-import Aeson (class DecodeAeson, class EncodeAeson, JsonDecodeError(..), caseAesonObject, encodeAeson', getField)
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , JsonDecodeError(..)
+  , caseAesonObject
+  , encodeAeson'
+  , getField
+  )
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Data.Array (cons, filter)

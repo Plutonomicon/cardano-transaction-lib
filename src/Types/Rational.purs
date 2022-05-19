@@ -11,7 +11,13 @@ module Types.Rational
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, JsonDecodeError(..), decodeAeson, encodeAeson')
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , JsonDecodeError(..)
+  , decodeAeson
+  , encodeAeson'
+  )
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString, fromString) as BigInt
 import Data.Either (note)

@@ -10,7 +10,14 @@ module Types.TokenName
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, JsonDecodeError(..), caseAesonObject, encodeAeson', getField)
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , JsonDecodeError(..)
+  , caseAesonObject
+  , encodeAeson'
+  , getField
+  )
 import Data.BigInt (BigInt)
 import Data.Bitraversable (ltraverse)
 import Data.Either (Either(Left), note)

@@ -83,11 +83,10 @@ module Serialization.Address
 
 import Prelude
 
-import Aeson
+import Aeson (class DecodeAeson, class EncodeAeson, encodeAeson')
 import Control.Alt ((<|>))
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
-import Data.Either (Either(Left))
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)

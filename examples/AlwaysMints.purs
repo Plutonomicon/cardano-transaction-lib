@@ -5,7 +5,7 @@ module Examples.AlwaysMints (main) where
 
 import Contract.Prelude
 
-import Contract.Aeson
+import Contract.Aeson (decodeAeson, fromString)
 import Contract.Monad
   ( ContractConfig(ContractConfig)
   , launchAff_

@@ -55,6 +55,15 @@ module QueryM
 import Prelude
 
 import Aeson
+  ( class DecodeAeson
+  , Aeson
+  , JsonDecodeError(..)
+  , caseAesonString
+  , decodeAeson
+  , encodeAeson
+  , parseJsonStringToAeson
+  , stringifyAeson
+  )
 import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.ResponseFormat as Affjax.ResponseFormat

@@ -6,7 +6,19 @@ module Metadata.Cip25
 
 import Prelude
 
-import Aeson (class DecodeAeson, Aeson, JsonDecodeError(..), caseAesonArray, caseAesonObject, decodeAeson, encodeAeson, isString, toString, (.:), (.:?))
+import Aeson
+  ( class DecodeAeson
+  , Aeson
+  , JsonDecodeError(..)
+  , caseAesonArray
+  , caseAesonObject
+  , decodeAeson
+  , encodeAeson
+  , isString
+  , toString
+  , (.:)
+  , (.:?)
+  )
 import Aeson as Aeson
 import Data.Array (concat, groupBy, uncons)
 import Data.Array.NonEmpty (NonEmptyArray, toArray)

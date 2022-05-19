@@ -2,7 +2,13 @@ module Test.Parser where
 
 import Prelude
 
-import Aeson (Aeson, JsonDecodeError, caseAesonArray, parseJsonStringToAeson, stringifyAeson)
+import Aeson
+  ( Aeson
+  , JsonDecodeError
+  , caseAesonArray
+  , parseJsonStringToAeson
+  , stringifyAeson
+  )
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Error.Class (throwError)

@@ -22,7 +22,17 @@ module QueryM.Ogmios
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, Aeson, JsonDecodeError(..), caseAesonArray, caseAesonObject, decodeAeson, getField, getFieldOptional)
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , Aeson
+  , JsonDecodeError(..)
+  , caseAesonArray
+  , caseAesonObject
+  , decodeAeson
+  , getField
+  , getFieldOptional
+  )
 import Control.Alt ((<|>))
 import Data.Array (index, singleton)
 import Data.BigInt (BigInt)

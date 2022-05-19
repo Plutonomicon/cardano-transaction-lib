@@ -15,7 +15,7 @@ module Contract.Scripts
   , module TypesScripts
   ) where
 
-import Aeson
+import Aeson (class DecodeAeson)
 import Address
   ( enterpriseAddressMintingPolicyHash
   , enterpriseAddressScriptHash

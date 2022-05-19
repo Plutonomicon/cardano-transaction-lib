@@ -4,7 +4,14 @@ module Types.PlutusData
 
 import Prelude
 
-import Aeson (class DecodeAeson, JsonDecodeError(..), decodeAeson, encodeAeson, toStringifiedNumbersJson, (.:))
+import Aeson
+  ( class DecodeAeson
+  , JsonDecodeError(..)
+  , decodeAeson
+  , encodeAeson
+  , toStringifiedNumbersJson
+  , (.:)
+  )
 import Control.Alt ((<|>))
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left))
@@ -67,5 +74,6 @@ instance DecodeAeson PlutusData where
     decodeBytes = do
       bytesHex <- decodeAeson aeson
       case hexToByteArray bytesHex of
-        Nothing -> Left $ UnexpectedValue $ toStringifiedNumbersJson $ encodeAeson bytesHex
+        Nothing -> Left $ UnexpectedValue $ toStringifiedNumbersJson $
+          encodeAeson bytesHex
         Just res -> pure $ Bytes res
