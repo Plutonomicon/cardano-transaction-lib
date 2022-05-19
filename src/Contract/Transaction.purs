@@ -50,6 +50,7 @@ import ReindexRedeemers
   ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
   ) as ReindexRedeemersExport
 import Types.ByteArray (ByteArray)
+import Types.CborBytes (CborBytes)
 import Types.Datum (Datum)
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.ScriptLookups
@@ -166,14 +167,15 @@ signTransaction = wrapContract <<< QueryM.signTransaction
 -- | Signs a `Transaction` with potential failure
 signTransactionBytes
   :: forall (r :: Row Type)
-   . ByteArray
-  -> Contract r (Maybe ByteArray)
+   . CborBytes
+  -> Contract r (Maybe CborBytes)
 signTransactionBytes = wrapContract <<< QueryM.signTransactionBytes
 
 -- | Submits a Cbor-hex encoded transaction, which is the output of
 -- | `signTransactionBytes` or `balanceAndSignTx`
-submit :: forall (r :: Row Type). ByteArray -> Contract r TransactionHash
-submit = wrapContract <<< map (wrap <<< unwrap) <<< QueryM.submitTxOgmios
+submit :: forall (r :: Row Type). CborBytes -> Contract r TransactionHash
+submit = wrapContract <<< map (wrap <<< unwrap) <<< QueryM.submitTxOgmios <<<
+  unwrap
 
 -- | Query the Haskell server for the minimum transaction fee
 calculateMinFee
@@ -225,7 +227,7 @@ reindexSpentScriptRedeemers balancedTx =
 
 newtype BalancedSignedTransaction = BalancedSignedTransaction
   { transaction :: Transaction.Transaction -- the balanced and unsigned transaction to help with logging
-  , signedTxCbor :: ByteArray -- the balanced and signed cbor ByteArray representation used in `submit`
+  , signedTxCbor :: CborBytes -- the balanced and signed cbor ByteArray representation used in `submit`
   }
 
 derive instance Generic BalancedSignedTransaction _
@@ -258,6 +260,6 @@ balanceAndSignTx
       (finalizeTx balancedTx datums redeemers)
   -- Sign the transaction returned as Cbor-hex encoded:
   signedTxCbor <- liftedM "balanceAndSignTx: Failed to sign transaction" $
-    signTransactionBytes txCbor
+    signTransactionBytes (wrap txCbor)
   pure $ pure $ BalancedSignedTransaction
     { transaction: balancedTx, signedTxCbor }

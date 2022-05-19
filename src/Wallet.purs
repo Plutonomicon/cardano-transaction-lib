@@ -11,7 +11,7 @@ import Prelude
 import Control.Promise (Promise)
 import Control.Promise as Promise
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
-import Data.Newtype (over, wrap)
+import Data.Newtype (over, wrap, unwrap)
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytesEffect)
 import Deserialization.UnspentOutput as Deserialization.UnspentOuput
@@ -25,8 +25,14 @@ import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Helpers ((<<>>))
 import Serialization as Serialization
 import Serialization.Address (Address, addressFromBytes)
-import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex)
-import Types.CborBytes (CborBytes)
+import Types.ByteArray (byteArrayToHex)
+import Types.CborBytes
+  ( CborBytes
+  , hexToCborBytes
+  , cborBytesToHex
+  , rawBytesAsCborBytes
+  )
+import Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , PublicKey(PublicKey)
@@ -59,7 +65,7 @@ type NamiWallet =
   -- Sign a transaction with the current wallet
   , signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
   -- Sign a transaction with the current wallet
-  , signTxBytes :: NamiConnection -> ByteArray -> Aff (Maybe ByteArray)
+  , signTxBytes :: NamiConnection -> CborBytes -> Aff (Maybe CborBytes)
   -- Submit a (balanced) transaction
   , submitTx :: NamiConnection -> Transaction -> Aff (Maybe TransactionHash)
   }
@@ -86,7 +92,7 @@ mkNamiWalletAff = do
 
   getWalletAddress :: NamiConnection -> Aff (Maybe Address)
   getWalletAddress nami = fromNamiHexString _getNamiAddress nami <#>
-    (_ >>= addressFromBytes <<< wrap)
+    (_ >>= addressFromBytes <<< rawBytesAsCborBytes)
 
   getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
   getCollateral nami = fromNamiMaybeHexString getNamiCollateral nami >>=
@@ -95,7 +101,7 @@ mkNamiWalletAff = do
       Just bytes -> do
         liftEffect $
           Deserialization.UnspentOuput.convertUnspentOutput
-            <$> fromBytesEffect bytes
+            <$> fromBytesEffect (unwrap bytes)
 
   signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
   signTx nami tx = do
@@ -104,7 +110,7 @@ mkNamiWalletAff = do
       Nothing -> pure Nothing
       Just bytes -> map (combineWitnessSet tx) <$> liftEffect
         ( Deserialization.WitnessSet.convertWitnessSet
-            <$> fromBytesEffect bytes
+            <$> fromBytesEffect (unwrap bytes)
         )
     where
     -- We have to combine the newly returned witness set with the existing one
@@ -113,16 +119,18 @@ mkNamiWalletAff = do
     combineWitnessSet (Transaction tx'@{ witnessSet: oldWits }) newWits =
       Transaction $ tx' { witnessSet = oldWits <> newWits }
 
-  signTxBytes :: NamiConnection -> ByteArray -> Aff (Maybe ByteArray)
+  signTxBytes :: NamiConnection -> CborBytes -> Aff (Maybe CborBytes)
   signTxBytes nami txBytes = do
-    fromNamiHexString (_signTxNami (byteArrayToHex txBytes)) nami >>= case _ of
+    fromNamiHexString (_signTxNami (cborBytesToHex txBytes)) nami >>= case _ of
       Nothing -> pure Nothing
-      Just witBytes -> Just <$> liftEffect (_attachSignature txBytes witBytes)
+      Just witBytes -> Just <$> liftEffect
+        (_attachSignature txBytes (rawBytesAsCborBytes witBytes))
 
   submitTx :: NamiConnection -> Transaction -> Aff (Maybe TransactionHash)
   submitTx nami tx = do
     txHex <- txToHex tx
-    map TransactionHash <$> fromNamiHexString (_submitTxNami txHex) nami
+    map (TransactionHash <<< unwrap) <$> fromNamiHexString (_submitTxNami txHex)
+      nami
 
   txToHex :: Transaction -> Aff String
   txToHex =
@@ -133,15 +141,15 @@ mkNamiWalletAff = do
   fromNamiHexString
     :: (NamiConnection -> Effect (Promise String))
     -> NamiConnection
-    -> Aff (Maybe ByteArray)
-  fromNamiHexString act = map hexToByteArray <<< Promise.toAffE <<< act
+    -> Aff (Maybe RawBytes)
+  fromNamiHexString act = map hexToRawBytes <<< Promise.toAffE <<< act
 
   fromNamiMaybeHexString
     :: (NamiConnection -> Effect (Promise (Maybe String)))
     -> NamiConnection
-    -> Aff (Maybe ByteArray)
+    -> Aff (Maybe RawBytes)
   fromNamiMaybeHexString act =
-    map (flip bind hexToByteArray) <<< Promise.toAffE <<< act
+    map (flip bind hexToRawBytes) <<< Promise.toAffE <<< act
 
 -- Attach a dummy vkey witness to a transaction. Helpful for when we need to
 -- know the number of witnesses (e.g. fee calculation) but the wallet hasn't
@@ -193,6 +201,6 @@ foreign import _submitTxNami
   -> Effect (Promise String) -- Submitted tx hash
 
 foreign import _attachSignature
-  :: ByteArray -- CBOR bytes of tx
-  -> ByteArray -- CBOR bytes of witness set
-  -> Effect (ByteArray)
+  :: CborBytes -- CBOR bytes of tx
+  -> CborBytes -- CBOR bytes of witness set
+  -> Effect (CborBytes)

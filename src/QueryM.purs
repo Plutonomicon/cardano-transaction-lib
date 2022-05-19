@@ -168,6 +168,7 @@ import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
+import Types.CborBytes (CborBytes)
 import Types.Datum (Datum, DatumHash)
 import Types.Interval (SlotConfig, defaultSlotConfig)
 import Types.PlutusData (PlutusData)
@@ -379,7 +380,7 @@ signTransaction tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.signTx tx
 
 signTransactionBytes
-  :: ByteArray -> QueryM (Maybe ByteArray)
+  :: CborBytes -> QueryM (Maybe CborBytes)
 signTransactionBytes tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.signTxBytes tx
 
