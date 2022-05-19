@@ -1,7 +1,6 @@
 -- | A module for Address-related functionality and querying own wallet.
 module Contract.Address
-  ( enterpriseAddressMintingPolicyHash
-  , enterpriseAddressScriptHash
+  ( enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
   , getNetworkId
@@ -32,8 +31,7 @@ module Contract.Address
 import Prelude
 
 import Address
-  ( enterpriseAddressMintingPolicyHash
-  , enterpriseAddressScriptHash
+  ( enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
   , getNetworkId
@@ -44,7 +42,17 @@ import Data.Traversable (for)
 import Plutus.FromPlutusType (fromPlutusType)
 import Plutus.ToPlutusType (toPlutusType)
 import Plutus.Types.Address (Address)
-import Plutus.Types.Address (Address) as ExportAddress
+-- The helpers under Plutus.Type.Address deconstruct/construct the Plutus
+-- `Address` directly, instead of those defined in this module, which uses
+-- the CSL helpers and redefines using Plutus-style types.
+import Plutus.Types.Address
+  ( Address
+  , pubKeyHashAddress
+  , scriptHashAddress
+  , toPubKeyHash
+  , toValidatorHash
+  , toStakingCredential
+  ) as ExportAddress
 import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import QueryM
   ( getWalletAddress
@@ -75,8 +83,7 @@ import Types.ByteArray (ByteArray) as ByteArray
 import Types.PubKeyHash (PubKeyHash)
 import Types.PubKeyHash (PubKeyHash(PubKeyHash)) as PubKeyHash
 import Types.Scripts
-  ( MintingPolicyHash
-  , StakeValidatorHash
+  ( StakeValidatorHash
   , ValidatorHash
   )
 import Types.TypedValidator (TypedValidator)
@@ -138,10 +145,12 @@ getNetworkId
   :: forall (r :: Row Type). Contract r NetworkId
 getNetworkId = wrapContract Address.getNetworkId
 
--- | Get the `MintingPolicyHash` with an Plutus `Address`
-enterpriseAddressMintingPolicyHash :: Address -> Maybe MintingPolicyHash
-enterpriseAddressMintingPolicyHash =
-  Address.enterpriseAddressMintingPolicyHash <=< fromPlutusType
+--------------------------------------------------------------------------------
+-- Helpers via Cardano helpers, these are helpers from the CSL equivalent
+-- that converts either input or output to a Plutus Address.
+-- Helpers by deconstructing/constructing the Plutus Address are exported under
+-- `module Address`
+--------------------------------------------------------------------------------
 
 -- | Get the `ValidatorHash` with an Plutus `Address`
 enterpriseAddressValidatorHash :: Address -> Maybe ValidatorHash

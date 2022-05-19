@@ -15,11 +15,15 @@ module Contract.Scripts
   , module TypesScripts
   ) where
 
+-- See Contract.Address for documentation on the various helpers, some are
+-- constructive/deconstructive on the Plutus `Address` type, others are from
+-- the CSL API and converted to use Plutus types.
 import Contract.Address
-  ( enterpriseAddressMintingPolicyHash
-  , enterpriseAddressScriptHash
+  ( enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
+  , scriptHashAddress -- Directly uses Plutus `Address`
+  , toValidatorHash -- Directly uses Plutus `Address`
   , typedValidatorBaseAddress
   , typedValidatorEnterpriseAddress
   , validatorHashBaseAddress
