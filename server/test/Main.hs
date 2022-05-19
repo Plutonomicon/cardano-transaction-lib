@@ -39,9 +39,11 @@ import Cardano.Api.Shelley (
     protocolParamUTxOCostPerWord
   ),
  )
+import Data.Bifunctor (second)
 import Data.ByteString.Lazy qualified as ByteString
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.Kind (Type)
+import Data.Map.Strict qualified as Map.Strict
 import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Network.HTTP.Types (Status (Status))
 import Network.Wai.Handler.Warp (Port)
@@ -406,4 +408,17 @@ testParser :: Spec
 testParser =
   it "Testing parser of ogmios parameters" $ do
     value <- loadParametersFile
-    value `shouldBe` Right fixedProtocolParameters
+    makeNullCostModels value `shouldBe` Right fixedProtocolParameters
+    value `shouldSatisfy` isNotNullCostModels
+  where
+    makeNullCostModels ::
+      Either String ProtocolParameters -> Either String ProtocolParameters
+    makeNullCostModels =
+      second
+        (\v -> v {protocolParamCostModels = mempty})
+
+    isNotNullCostModels ::
+      Either String ProtocolParameters -> Bool
+    isNotNullCostModels (Right parameters) =
+      not . Map.Strict.null . protocolParamCostModels $ parameters
+    isNotNullCostModels _ = False

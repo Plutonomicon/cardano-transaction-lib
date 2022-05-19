@@ -128,3 +128,4 @@ test-suite test
     , servant-server
     , warp
     , text
+    , containers

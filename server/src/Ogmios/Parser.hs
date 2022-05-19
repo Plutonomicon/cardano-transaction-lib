@@ -6,12 +6,22 @@ import Cardano.Api (
  )
 import Cardano.Api.Shelley (ProtocolParameters (ProtocolParameters))
 import Control.Applicative ((<|>))
-import Data.Aeson ((.:), (.:?))
+import Data.Aeson ((.!=), (.:), (.:?))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Types qualified as Aeson.Types
-import Data.Attoparsec.Text (Parser, inClass, many', many1, parseOnly, satisfy, string)
+import Data.Attoparsec.Text (
+  Parser,
+  inClass,
+  many',
+  many1,
+  parseOnly,
+  satisfy,
+  string,
+ )
 import Data.ByteString.Lazy (ByteString)
+import Data.HashMap.Strict qualified as HashMap
 import Data.Map qualified as Map
+import Data.Maybe (fromMaybe)
 import Data.Ratio ((%))
 import Data.Text qualified as Text
 
@@ -45,7 +55,7 @@ instance Aeson.FromJSON ProtocolParametersWrapper where
           <*> parseRational o "monetaryExpansion"
           <*> parseRational o "treasuryExpansion"
           <*> o .:? "coinsPerUtxoWord"
-          <*> pure Map.empty -- o .:? "costModels" .!= Map.empty
+          <*> (o .:? "costModels" .!= Map.empty)
           <*> parseExecutionPrices o
           <*> o .:? "maxExecutionUnitsPerTransaction"
           <*> o .:? "maxExecutionUnitsPerBlock"
@@ -53,6 +63,28 @@ instance Aeson.FromJSON ProtocolParametersWrapper where
           <*> o .:? "collateralPercentage"
           <*> o .:? "maxCollateralInputs"
       return $ ProtocolParametersWrapper params
+
+modifyPlutusName :: Aeson.Value -> Aeson.Value
+modifyPlutusName originalValue@(Aeson.Object keyHashMap) =
+  fromMaybe originalValue fixedName
+  where
+    fixedName =
+      do
+        result <- HashMap.lookup "result" keyHashMap >>= unwrappObject
+        costModels <- HashMap.lookup "costModels" result >>= unwrappObject
+        plutus <- HashMap.lookup "plutus:v1" costModels
+        let newCostModel =
+              HashMap.insert "PlutusScriptV1" plutus (HashMap.delete "plutus:v1" costModels)
+            newResult =
+              HashMap.insert "costModels" (Aeson.Object newCostModel) result
+            newKeyHashMap =
+              HashMap.insert "result" (Aeson.Object newResult) keyHashMap
+        return $ Aeson.Object newKeyHashMap
+
+    unwrappObject :: Aeson.Value -> Maybe Aeson.Object
+    unwrappObject (Aeson.Object obj) = Just obj
+    unwrappObject _ = Nothing
+modifyPlutusName x = x
 
 attoparsec2Aeson :: Parser a -> Aeson.Value -> Aeson.Types.Parser a
 attoparsec2Aeson p (Aeson.String str) =
@@ -98,7 +130,12 @@ parsePraosNonceNeutral =
 
 decodeProtocolParameters :: ByteString -> Either String ProtocolParameters
 decodeProtocolParameters response =
-  unwrapParams <$> Aeson.eitherDecode @ProtocolParametersWrapper response
+  case modifyPlutusName <$> Aeson.decode response of
+    Just modifiedResponse ->
+      unwrapParams
+        <$> Aeson.eitherDecode @ProtocolParametersWrapper
+          (Aeson.encode modifiedResponse)
+    _ -> Left "Can't modify costModels name in response"
 
 nonZeroDigit :: Parser Char
 nonZeroDigit = satisfy $ inClass "123456789"
