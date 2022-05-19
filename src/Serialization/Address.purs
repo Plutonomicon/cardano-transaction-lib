@@ -95,7 +95,7 @@ import Data.Either (Either(Left))
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -107,7 +107,7 @@ import Serialization.Types (Bip32PublicKey)
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String, Base58String)
 import Types.ByteArray (ByteArray)
-import Types.CborBytes (CborBytes(..))
+import Types.CborBytes (CborBytes)
 import Types.PlutusData (PlutusData(Bytes))
 
 newtype Slot = Slot UInt
@@ -204,7 +204,7 @@ instance Ord Address where
 -- record, I'm not sure if this will become an issue given our foreign
 -- representation.
 instance FromData Address where
-  fromData (Bytes res) = addressFromBytes (CborBytes res)
+  fromData (Bytes res) = addressFromBytes (wrap res)
   fromData _ = Nothing
 
 instance ToData Address where
@@ -219,7 +219,7 @@ instance Eq BaseAddress where
   eq = eq `on` baseAddressToAddress
 
 instance FromData BaseAddress where
-  fromData (Bytes res) = baseAddressFromBytes (CborBytes res)
+  fromData (Bytes res) = baseAddressFromBytes (wrap res)
   fromData _ = Nothing
 
 instance ToData BaseAddress where
@@ -234,7 +234,7 @@ instance Show ByronAddress where
   show = showVia "ByronAddress" byronAddressToAddress
 
 instance FromData ByronAddress where
-  fromData (Bytes res) = byronAddressFromBytes (CborBytes res)
+  fromData (Bytes res) = byronAddressFromBytes (wrap res)
   fromData _ = Nothing
 
 instance ToData ByronAddress where
@@ -249,7 +249,7 @@ instance Show EnterpriseAddress where
   show = showVia "EnterpriseAddress" enterpriseAddressToAddress
 
 instance FromData EnterpriseAddress where
-  fromData (Bytes res) = enterpriseAddressFromBytes (CborBytes res)
+  fromData (Bytes res) = enterpriseAddressFromBytes (wrap res)
   fromData _ = Nothing
 
 instance ToData EnterpriseAddress where
@@ -264,7 +264,7 @@ instance Show PointerAddress where
   show = showVia "PointerAddress" pointerAddressToAddress
 
 instance FromData PointerAddress where
-  fromData (Bytes res) = pointerAddressFromBytes (CborBytes res)
+  fromData (Bytes res) = pointerAddressFromBytes (wrap res)
   fromData _ = Nothing
 
 instance ToData PointerAddress where
@@ -282,7 +282,7 @@ instance Ord RewardAddress where
   compare = compare `on` rewardAddressBytes
 
 instance FromData RewardAddress where
-  fromData (Bytes res) = rewardAddressFromBytes (CborBytes res)
+  fromData (Bytes res) = rewardAddressFromBytes (wrap res)
   fromData _ = Nothing
 
 instance ToData RewardAddress where
@@ -301,7 +301,7 @@ instance Show StakeCredential where
     { onKeyHash: show, onScriptHash: show }
 
 instance FromData StakeCredential where
-  fromData (Bytes res) = stakeCredentialFromBytes $ CborBytes res
+  fromData (Bytes res) = stakeCredentialFromBytes $ wrap res
   fromData _ = Nothing
 
 instance ToData StakeCredential where

@@ -11,7 +11,7 @@ import Prelude
 import Control.Promise (Promise)
 import Control.Promise as Promise
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
-import Data.Newtype (over)
+import Data.Newtype (over, wrap)
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytesEffect)
 import Deserialization.UnspentOutput as Deserialization.UnspentOuput
@@ -26,7 +26,7 @@ import Helpers ((<<>>))
 import Serialization as Serialization
 import Serialization.Address (Address, addressFromBytes)
 import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex)
-import Types.CborBytes (CborBytes(..))
+import Types.CborBytes (CborBytes)
 import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , PublicKey(PublicKey)
@@ -86,7 +86,7 @@ mkNamiWalletAff = do
 
   getWalletAddress :: NamiConnection -> Aff (Maybe Address)
   getWalletAddress nami = fromNamiHexString _getNamiAddress nami <#>
-    (_ >>= addressFromBytes <<< CborBytes)
+    (_ >>= addressFromBytes <<< wrap)
 
   getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
   getCollateral nami = fromNamiMaybeHexString getNamiCollateral nami >>=

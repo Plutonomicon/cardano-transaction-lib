@@ -20,8 +20,7 @@ import Serialization.Hash
   , scriptHashToBytes
   )
 import Types.ByteArray (ByteArray)
-import Types.CborBytes (CborBytes(CborBytes))
-import Data.Newtype (unwrap)
+import Data.Newtype (unwrap, wrap)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 
 newtype CurrencySymbol = CurrencySymbol ByteArray
@@ -57,11 +56,11 @@ mkCurrencySymbol byteArr
   | byteArr == mempty =
       pure adaSymbol
   | otherwise =
-      scriptHashFromBytes (CborBytes byteArr) $> CurrencySymbol byteArr
+      scriptHashFromBytes (wrap byteArr) $> CurrencySymbol byteArr
 
 --------------------------------------------------------------------------------
 -- Internal
 --------------------------------------------------------------------------------
 
 currencyScriptHash :: CurrencySymbol -> Maybe ScriptHash
-currencyScriptHash = scriptHashFromBytes <<< CborBytes <<< getCurrencySymbol
+currencyScriptHash = scriptHashFromBytes <<< wrap <<< getCurrencySymbol
