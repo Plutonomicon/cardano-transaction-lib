@@ -27,7 +27,7 @@ import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 newtype CborBytes = CborBytes ByteArray
 
 instance Show CborBytes where
-  show rb = "(cborBytesFromIntArrayUnsafe" <> show (cborBytesToIntArray rb) <>
+  show rb = "(hexToCborBytesUnsafe " <> show (cborBytesToHex rb) <>
     ")"
 
 derive instance Newtype CborBytes _

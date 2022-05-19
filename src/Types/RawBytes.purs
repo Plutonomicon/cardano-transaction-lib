@@ -27,7 +27,7 @@ import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 newtype RawBytes = RawBytes ByteArray
 
 instance Show RawBytes where
-  show rb = "(rawBytesFromIntArrayUnsafe" <> show (rawBytesToIntArray rb) <> ")"
+  show rb = "(hexToRawBytesUnsafe " <> show (rawBytesToHex rb) <> ")"
 
 derive instance Newtype RawBytes _
 
