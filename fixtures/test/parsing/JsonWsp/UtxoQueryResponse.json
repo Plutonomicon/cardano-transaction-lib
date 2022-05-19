@@ -27,9 +27,6 @@
         }
       ]
     ],
-    "reflection": {
-      "step": "INIT",
-      "id": "Hello123"
-    }
+    "reflection": "Hello123"
   }
 ]

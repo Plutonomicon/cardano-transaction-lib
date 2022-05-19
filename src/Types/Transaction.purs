@@ -11,7 +11,6 @@ module Types.Transaction
   , Epoch(..)
   , ExUnitPrices
   , ExUnits
-  , GeneralTransactionMetadata(..)
   , GenesisDelegateHash(..)
   , GenesisHash(..)
   , Ipv4(..)
@@ -36,8 +35,6 @@ module Types.Transaction
   , Transaction(..)
   , TransactionHash(..)
   , TransactionInput(..)
-  , TransactionMetadatum(..)
-  , TransactionMetadatumLabel(..)
   , TransactionOutput(..)
   , TransactionWitnessSet(..)
   , TxBody(..)
@@ -86,7 +83,6 @@ import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.Map (Map)
-import Data.Map as Map
 import Data.Maybe (Maybe(Nothing))
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype, unwrap)
@@ -96,7 +92,7 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import FromData (class FromData, fromData)
-import Helpers ((</>), (<<>>), appendMap, appendRightMap)
+import Helpers ((</>), (<<>>), appendMap)
 import Plutus.FromPlutusType (fromPlutusType)
 import Plutus.ToPlutusType (toPlutusType)
 import Plutus.Types.Value (Value) as Plutus
@@ -116,6 +112,7 @@ import Types.Int as Int
 import Types.PlutusData (PlutusData(Constr))
 import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
+import Types.TransactionMetadata (GeneralTransactionMetadata)
 import Cardano.Types.Value (Coin, NonAdaAsset, Value)
 
 --------------------------------------------------------------------------------
@@ -740,54 +737,6 @@ instance Monoid AuxiliaryData where
     , nativeScripts: Nothing
     , plutusScripts: Nothing
     }
-
-newtype GeneralTransactionMetadata =
-  GeneralTransactionMetadata
-    (Map TransactionMetadatumLabel TransactionMetadatum)
-
-derive instance Newtype GeneralTransactionMetadata _
-
-derive newtype instance Eq GeneralTransactionMetadata
-derive instance Generic GeneralTransactionMetadata _
-
-instance Show GeneralTransactionMetadata where
-  show = genericShow
-
--- This Semigroup instance simply takes the Last value for duplicate keys
--- to avoid a Semigroup instance for TransactionMetadatum.
--- Do we want to avoid a Semigroup instance for TransactionMetadatum? Recursion
--- is fine but how to combine Text with Bytes for example? One would have to take
--- precedence and replace the other.
-instance Semigroup GeneralTransactionMetadata where
-  append (GeneralTransactionMetadata hm) (GeneralTransactionMetadata hm') =
-    GeneralTransactionMetadata $ hm `appendRightMap` hm'
-
-instance Monoid GeneralTransactionMetadata where
-  mempty = GeneralTransactionMetadata Map.empty
-
-newtype TransactionMetadatumLabel = TransactionMetadatumLabel BigInt
-
-derive instance Newtype TransactionMetadatumLabel _
-derive newtype instance Eq TransactionMetadatumLabel
-derive newtype instance Ord TransactionMetadatumLabel
-derive instance Generic TransactionMetadatumLabel _
-
-instance Show TransactionMetadatumLabel where
-  show = genericShow
-
-data TransactionMetadatum
-  = MetadataMap (Map TransactionMetadatum TransactionMetadatum)
-  | MetadataList (Array TransactionMetadatum)
-  | Int Int.Int
-  | Bytes ByteArray
-  | Text String
-
-derive instance Eq TransactionMetadatum
-derive instance Ord TransactionMetadatum
-derive instance Generic TransactionMetadatum _
-
-instance Show TransactionMetadatum where
-  show x = genericShow x
 
 data NativeScript
   = ScriptPubkey Ed25519KeyHash

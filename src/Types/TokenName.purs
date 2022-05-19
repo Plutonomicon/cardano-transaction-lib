@@ -27,6 +27,8 @@ import Data.Maybe (Maybe(Nothing))
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested (type (/\))
 import FromData (class FromData)
+import Metadata.FromMetadata (class FromMetadata)
+import Metadata.ToMetadata (class ToMetadata)
 import Serialization.Types (AssetName) as CSL
 import ToData (class ToData)
 import Types.ByteArray (ByteArray, byteArrayToHex, byteLength, hexToByteArray)
@@ -35,6 +37,8 @@ newtype TokenName = TokenName ByteArray
 
 derive newtype instance Eq TokenName
 derive newtype instance FromData TokenName
+derive newtype instance FromMetadata TokenName
+derive newtype instance ToMetadata TokenName
 derive newtype instance Ord TokenName
 derive newtype instance ToData TokenName
 

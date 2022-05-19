@@ -127,7 +127,6 @@ import Types.Transaction
   , Epoch(Epoch)
   , ExUnitPrices
   , ExUnits
-  , GeneralTransactionMetadata
   , GenesisHash
   , Language(PlutusV1)
   , Mint(Mint)
@@ -137,12 +136,15 @@ import Types.Transaction
   , ProtocolVersion
   , RequiredSigner(RequiredSigner)
   , ScriptDataHash(ScriptDataHash)
-  , TransactionMetadatum(MetadataList, MetadataMap, Bytes, Int, Text)
-  , TransactionMetadatumLabel(TransactionMetadatumLabel)
   , TxBody(TxBody)
   , Update
   )
 import Types.Transaction as T
+import Types.TransactionMetadata
+  ( GeneralTransactionMetadata
+  , TransactionMetadatum(MetadataList, MetadataMap, Bytes, Int, Text)
+  , TransactionMetadatumLabel(TransactionMetadatumLabel)
+  )
 import Types.TokenName (TokenName, tokenNameFromAssetName)
 import Cardano.Types.Value
   ( Coin(Coin)

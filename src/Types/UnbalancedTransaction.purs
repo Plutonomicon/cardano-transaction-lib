@@ -194,7 +194,7 @@ stakePubKeyHashRewardAddress networkId =
 type TxOutRef = TransactionInput
 
 -- | An unbalanced transaction. It needs to be balanced and signed before it
--- | can be submitted to the ledeger.
+-- | can be submitted to the ledger.
 -- | Resembles `UnbalancedTx` from `plutus-apps`.
 newtype UnbalancedTx = UnbalancedTx
   { transaction :: Transaction

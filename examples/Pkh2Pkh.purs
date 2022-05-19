@@ -1,25 +1,6 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a transaction. It creates a simple transaction that gets
 -- | UTxOs from the user's wallet and sends two Ada back to the same wallet address
--- |
--- | * Prerequisites
--- |   - A Chromium-based browser (for Nami compatibility)
---
--- |   - A Nami wallet funded with test Ada ("tAda") and collateral set, If you need
--- |     tAda, visit https://testnets.cardano.org/en/testnets/cardano/tools/faucet/
---
--- | * How to run
---
--- |   The `Contract` interface requires several external services to be running.
--- |   From the repository root, run `nix run .#ctl-runtime` to launch all
--- |   required services
---
--- |   Once all of the services are *fully synced*, run:
---
--- |   - `make run-dev` and visit `localhost:4008`. You may be prompted to enable
--- |     access to your wallet if you have not run this example before. You will
--- |     also be prompted to sign the transaction using your Nami password
-
 module Examples.Pkh2Pkh (main) where
 
 import Contract.Prelude
@@ -35,7 +16,7 @@ import Contract.Monad
   , launchAff_
   , liftedE
   , liftedM
-  , logInfo
+  , logInfo'
   , mkContractConfig
   , runContract_
   )
@@ -49,7 +30,6 @@ import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
-import Data.Map as Map
 
 main :: Effect Unit
 main = launchAff_ $ do
@@ -66,6 +46,7 @@ main = launchAff_ $ do
     }
 
   runContract_ cfg $ do
+    logInfo' "Running Examples.Pkh2Pkh"
     pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
 
     let
@@ -81,4 +62,4 @@ main = launchAff_ $ do
     BalancedSignedTransaction bsTx <-
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx.signedTxCbor
-    logInfo Map.empty $ "Tx ID: " <> show txId
+    logInfo' $ "Tx ID: " <> show txId

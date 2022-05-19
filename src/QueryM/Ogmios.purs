@@ -186,6 +186,7 @@ newtype OgmiosBlockHeaderHash = OgmiosBlockHeaderHash String
 derive instance Eq OgmiosBlockHeaderHash
 derive newtype instance DecodeAeson OgmiosBlockHeaderHash
 derive instance Generic OgmiosBlockHeaderHash _
+derive instance Newtype OgmiosBlockHeaderHash _
 
 instance Show OgmiosBlockHeaderHash where
   show = genericShow

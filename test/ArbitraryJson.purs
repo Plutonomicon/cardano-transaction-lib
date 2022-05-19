@@ -18,18 +18,24 @@ import Data.Function (($))
 import Data.Maybe (Maybe(..))
 import Data.Monoid ((<>))
 import Data.NonEmpty ((:|))
+import Data.Ord (abs)
 import Data.Ring (negate, (-))
 import Data.Semiring ((+), (*))
 import Data.String (joinWith)
 import Data.String.CodeUnits (fromCharArray)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
+import Data.UInt (UInt)
+import Data.UInt as UInt
 import Foreign.Object as Object
 import Test.QuickCheck (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (Gen, arrayOf, chooseInt, elements)
+import Data.Newtype (class Newtype)
 
 -- | Newtype wrapper to avoid an orphan instance
 newtype ArbBigInt = ArbBigInt BigInt
+
+derive instance Newtype ArbBigInt _
 
 instance Arbitrary ArbBigInt where
   arbitrary = do
@@ -37,6 +43,14 @@ instance Arbitrary ArbBigInt where
     b <- BigInt.fromInt <$> arbitrary
     c <- BigInt.fromInt <$> elements (cons' (-1) [ 1 ])
     pure $ ArbBigInt $ c * (a * a * a * a + b)
+
+-- | Newtype wrapper to avoid an orphan instance
+newtype ArbUInt = ArbUInt UInt
+
+derive instance Newtype ArbUInt _
+
+instance Arbitrary ArbUInt where
+  arbitrary = ArbUInt <<< UInt.fromInt <<< abs <$> arbitrary
 
 -- | JSON representation that supports BigInts
 data ArbJson
