@@ -38,7 +38,6 @@ import Cardano.Api.Shelley (
     protocolParamTxFeePerByte,
     protocolParamUTxOCostPerWord
   ),
-  --  makePraosNonce,
  )
 import Data.ByteString.Lazy qualified as ByteString
 import Data.ByteString.Lazy.Char8 qualified as LC8
@@ -362,7 +361,7 @@ fixedProtocolParameters =
   ProtocolParameters
     { protocolParamProtocolVersion = (6, 0)
     , protocolParamDecentralization = 0 / 1
-    , protocolParamExtraPraosEntropy = Nothing -- Just $ makePraosNonce "neutral"
+    , protocolParamExtraPraosEntropy = Nothing
     , protocolParamMaxBlockHeaderSize = 1100
     , protocolParamMaxBlockBodySize = 98304
     , protocolParamMaxTxSize = 16384

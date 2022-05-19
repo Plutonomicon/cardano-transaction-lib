@@ -7,6 +7,7 @@ import Cardano.Api (
   ExecutionUnits,
   Lovelace (Lovelace),
   PlutusScriptVersion (PlutusScriptV1),
+  PraosNonce,
  )
 import Cardano.Api.Shelley (ProtocolParameters (ProtocolParameters))
 
@@ -67,19 +68,32 @@ parseCostModels =
   Map.singleton (AnyPlutusScriptVersion PlutusScriptV1)
     <$> key "plutus:v1" fromAesonParser
 
+{- | `extraEntropy` has been added as part of the
+ cardano decentralization
+ https://iohk.io/en/blog/posts/2021/03/29/the-secure-transition-to-decentralization/
+ (more details on cip 9)
+ It must be a Hex encoded string, but currently is
+ set as "neutralNonce" (ogmios : "neutral) making the hex parser from
+ Aeson to fail.
+ From code we can see that currently a Nothing value
+ is translated to `Ledger.NeutralNonce`
+-}
+parsePraosNonce :: Text.Text -> Parse Text.Text (Maybe PraosNonce)
+parsePraosNonce strKey =
+  perhaps (key strKey fromAesonParser)
+    <|> key strKey (withString neutralNonceParser)
+
 parseResult :: Parse Text.Text ProtocolParameters
 parseResult =
   key "result" $
     ProtocolParameters
       <$> parseVersion
       <*> parseRational "decentralizationParameter"
-      -- TODO : How to parse the value `neutral` from ogmios?
-      <*> pure Nothing -- key "extraEntropy" (perhaps (makePraosNonce . BLU.fromString <$>asString))
+      <*> parsePraosNonce "extraEntropy"
       <*> parseNatural "maxBlockHeaderSize"
       <*> parseNatural "maxBlockBodySize"
       <*> parseNatural "maxTxSize"
-      <*> parseNatural "minFeeConstant" -- I think minFeeConstant and minFeeCoefficient are swapped here
-      -- but this is consistent with the current config file.
+      <*> parseNatural "minFeeConstant"
       <*> parseNatural "minFeeCoefficient"
       <*> pure Nothing
       <*> parseLovelace "stakeKeyDeposit"
@@ -139,3 +153,13 @@ rationalParser s =
   first
     (const "can't parse Rational")
     $ Parsec.runParser rational () "ogmios.json" s
+
+neutralNonceParser :: String -> Either Text.Text (Maybe PraosNonce)
+neutralNonceParser s =
+  first
+    (const "can't parse ExtraEntropyNonce")
+    $ Parsec.runParser
+      (Parsec.Char.string "neutral" >> pure Nothing)
+      ()
+      "ogmios.json"
+      s
