@@ -9,6 +9,9 @@ module Deserialization.UnspentOutput
 import Prelude
 
 import Cardano.Types.Transaction (TransactionOutput(TransactionOutput)) as T
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as T
 import Cardano.Types.Value
   ( Coin(Coin)
   , CurrencySymbol
@@ -48,9 +51,6 @@ import Types.Transaction
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   , TxOutput(TxOutput)
-  ) as T
-import Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
 import Types.TokenName (TokenName, assetNameName, mkTokenName) as T
 import Untagged.Union (asOneOf)

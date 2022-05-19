@@ -2,6 +2,9 @@ module Test.Deserialization (suite) where
 
 import Prelude
 
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as T
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Maybe (isJust, isNothing)
@@ -63,9 +66,6 @@ import Test.Fixtures
   )
 import Test.Utils (errMaybe)
 import Types.Transaction (TransactionInput) as T
-import Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  ) as T
 
 suite :: TestPlanM Unit
 suite = do

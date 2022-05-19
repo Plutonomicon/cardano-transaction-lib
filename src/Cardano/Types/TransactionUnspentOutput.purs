@@ -1,4 +1,6 @@
-module Types.TransactionUnspentOutput where
+module Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(..)
+  ) where
 
 import Prelude
 

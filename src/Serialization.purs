@@ -43,6 +43,7 @@ import Cardano.Types.Transaction
   , URL(URL)
   , Update
   ) as T
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value as Value
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.Map as Map
@@ -139,7 +140,6 @@ import Types.Transaction
   ( TransactionInput(TransactionInput)
   , TxOutput(TxOutput)
   ) as T
-import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.TokenName (getTokenName) as TokenName
 import Untagged.Union (type (|+|), UndefinedOr, maybeToUor)
 

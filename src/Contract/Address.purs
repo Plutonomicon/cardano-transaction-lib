@@ -32,6 +32,7 @@ import Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   ) as Transaction
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Contract.Monad (Contract, wrapContract, liftedM)
 import Data.Maybe (Maybe)
 import Data.Traversable (for)
@@ -79,7 +80,6 @@ import Types.UnbalancedTransaction
   , pubKeyHashEnterpriseAddress
   , stakePubKeyHashRewardAddress
   ) as UnbalancedTransaction
-import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 
 -- | Get the `Address` of the browser wallet.
 getWalletAddress :: forall (r :: Row Type). Contract r (Maybe Address)

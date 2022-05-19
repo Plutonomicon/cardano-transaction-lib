@@ -60,6 +60,7 @@ import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Cardano.Types.Transaction (Transaction(Transaction))
 import Cardano.Types.Transaction as Transaction
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value (Coin(Coin))
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
@@ -159,7 +160,6 @@ import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PubKeyHash)
 import Types.Scripts (PlutusScript)
 import Types.Transaction (TransactionHash)
-import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.UnbalancedTransaction (StakePubKeyHash, PaymentPubKeyHash)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)

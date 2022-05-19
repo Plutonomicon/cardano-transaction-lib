@@ -32,6 +32,7 @@ import Cardano.Types.Transaction
   , _redeemers
   , _witnessSet
   )
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value
   ( filterNonAda
   , geq
@@ -102,7 +103,6 @@ import Serialization.Address
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (DataHash, TransactionInput, TxOutput(TxOutput))
-import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Types.UnbalancedTransaction
   ( UnbalancedTx(UnbalancedTx)
   , _transaction

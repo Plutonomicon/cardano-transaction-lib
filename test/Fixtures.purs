@@ -104,6 +104,17 @@ import Cardano.Types.Transaction
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , Nonce(HashNonce)
   )
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  )
+import Cardano.Types.Value
+  ( Coin(Coin)
+  , CurrencySymbol
+  , Value(Value)
+  , mkCurrencySymbol
+  , mkNonAdaAsset
+  , mkSingletonNonAdaAsset
+  )
 import Effect (Effect)
 import Data.Argonaut as Json
 import Data.Array as Array
@@ -169,17 +180,6 @@ import Types.Transaction
   ( TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   , TxOutput(TxOutput)
-  )
-import Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  )
-import Cardano.Types.Value
-  ( Coin(Coin)
-  , CurrencySymbol
-  , Value(Value)
-  , mkCurrencySymbol
-  , mkNonAdaAsset
-  , mkSingletonNonAdaAsset
   )
 
 txOutputFixture1 :: TransactionOutput
