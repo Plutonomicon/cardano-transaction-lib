@@ -11,7 +11,7 @@ import Mote (group, test)
 import QueryM (QueryM, runQueryM, traceQueryConfig)
 import QueryM.Crypto (plutusHash, HashMethod(..))
 import Test.Spec.Assertions (shouldEqual)
-import Test.Utils (errMaybe)
+import Test.Utils (errMaybe, errEither)
 import TestM (TestPlanM)
 import Types.ByteArray (ByteArray, hexToByteArray)
 
@@ -32,7 +32,7 @@ suite = do
         traverse_
           ( \(Tuple meth goal) -> do
               qbs <- errMaybe "bytestring is not hex format" origBS
-              res <- errMaybe "hashing method was not successfull" =<<
+              res <- errEither =<<
                 plutusHash meth qbs
               shouldEqual goal $ byteArrayToHex res
           )

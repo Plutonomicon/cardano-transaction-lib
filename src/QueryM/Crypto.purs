@@ -22,11 +22,13 @@ import Data.Argonaut
   , (:=)
   , (~>)
   , encodeJson
+  , jsonEmptyObject
   )
-import Data.Bifunctor (bimap)
+import Data.Bifunctor (bimap, lmap)
 import Data.Either (Either(Left), hush, note, either)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just), maybe')
+import Data.Argonaut.Decode.Error (printJsonDecodeError)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Effect.Aff.Class (liftAff)
@@ -45,6 +47,7 @@ import Serialization.PlutusData (convertPlutusData) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.Datum (Datum, DatumHash)
 import Types.Scripts (PlutusScript)
+import Test.Utils (guardNote)
 import Types.Transaction as Transaction
 import Untagged.Union (asOneOf)
 
@@ -59,7 +62,7 @@ instance Show HashMethod where
   show = genericShow
 
 plutusHash
-  :: HashMethod -> ByteArray -> QueryM (Maybe ByteArray)
+  :: HashMethod -> ByteArray -> QueryM (Either String ByteArray)
 plutusHash meth bytes = do
   url <- asks $ (_ <> "/" <> "plutus-hash") <<< mkHttpUrl <<< _.serverConfig
   let
@@ -75,12 +78,20 @@ plutusHash meth bytes = do
     requestJson :: Json
     requestJson = "bytesToHash" := bytesJson
       ~> "methodToUse" := methJson
+      ~> jsonEmptyObject
 
     reqBody :: Affjax.RequestBody.RequestBody
     reqBody = Affjax.RequestBody.Json requestJson
   response <- liftAff
     (Affjax.post Affjax.ResponseFormat.json url (pure reqBody))
-  pure $ hush response >>= _.body >>> decodeJson >>> hush
+  pure $ do
+    responseJson :: ({ methodUsed :: String, hash :: ByteArray }) <-
+      lmap Affjax.printError response >>= _.body >>> decodeJson >>> lmap
+        printJsonDecodeError
+    goal <- lmap printJsonDecodeError $ decodeJson methJson
+    guardNote "responseJson wasn't hashed with the method requested" $
+      responseJson.methodUsed == goal
+    pure responseJson.hash
 
 hashData :: Datum -> QueryM (Maybe HashedData)
 hashData datum = do

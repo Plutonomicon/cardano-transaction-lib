@@ -3,7 +3,9 @@ module Test.Utils
   , unsafeCall
   , assertTrue
   , assertTrue_
+  , errEither
   , errMaybe
+  , guardNote
   ) where
 
 import Prelude
@@ -11,6 +13,8 @@ import Prelude
 import Data.Const (Const)
 import Data.Foldable (sequence_)
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Either (Either(Left, Right))
+import Control.Monad.Error.Class (class MonadThrow, throwError)
 import Effect.Aff (Aff, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -57,6 +61,24 @@ assertTrue_
   => Boolean
   -> m Unit
 assertTrue_ = assertTrue "Boolean test failed"
+
+errEither
+  :: forall (m :: Type -> Type) (a :: Type) (e :: Type)
+   . MonadEffect m
+  => Either String a
+  -> m a
+errEither = case _ of
+  Left msg -> liftEffect $ throw msg
+  Right res -> pure res
+
+guardNote
+  :: forall (m :: Type -> Type) (e :: Type)
+   . MonadThrow e m
+  => e
+  -> Boolean
+  -> m Unit
+guardNote msg false = throwError msg
+guardNote _ true = pure unit
 
 errMaybe
   :: forall (m :: Type -> Type) (a :: Type)

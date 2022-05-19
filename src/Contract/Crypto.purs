@@ -27,7 +27,7 @@ plutusHash
   :: forall (r :: Row Type)
    . HashMethod
   -> ByteArray
-  -> Contract r (Maybe ByteArray)
+  -> Contract r (Either String ByteArray)
 plutusHash meth = wrapContract <<< Crypto.plutusHash meth
 
 hashData :: forall (r :: Row Type). Datum -> Contract r (Maybe HashedData)
