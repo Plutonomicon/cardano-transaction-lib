@@ -98,7 +98,7 @@ Here is an example that uses the overlay to launch runtime services:
       # The configuration for the CTL runtime, which will be passed to the
       # expression that builds the JSON file used by Arion. This value can be
       # shared between `buildCtlRuntime` and `launchCtlRuntime`, as shown below
-      runtimeConfig = {
+      runtimeConfig = final: with final; {
         # *All* of these values are optional, and shown with their default
         # values. If you need even more customization, you can use `overideAttrs`
         # to change the values after calling `buildCtlRuntime` (e.g. a secrets
@@ -115,8 +115,8 @@ Here is an example that uses the overlay to launch runtime services:
         # These values will generate the `config.toml` required by ogmios-datum-cache
         datumCache = {
           port = 9999;
-          # If you override some part of `postgres` above, you may also need to
-          # modify the `dbConnectionString`
+          # If you override some part of `postgres` above, `dbConnectionString`
+          # is automatically updated
           dbConnectionString = nixpkgs.lib.concatStringsSep
             " "
             [
@@ -126,10 +126,14 @@ Here is an example that uses the overlay to launch runtime services:
               "dbname=${postgres.db}"
               "password=${postgres.password}"
             ];
-          saveAllDatums = true;
-          firstFetchBlock = {
-            slot = 44366242;
-            id = "d2a4249fe3d0607535daa26caf12a38da2233586bc51e79ed0b3a36170471bf5";
+          blockFetcher = {
+            firstBlock = {
+              slot = 54066900;
+              id = "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d";
+            };
+            autoStart = true;
+            startFromLast = false;
+            filter = builtins.toJSON { const = true; };
           };
         };
       };
