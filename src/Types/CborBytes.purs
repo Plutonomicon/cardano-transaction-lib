@@ -16,7 +16,7 @@ module Types.CborBytes
 import Data.Newtype (class Newtype, wrap, unwrap)
 
 import Types.ByteArray (ByteArray)
-import Types.ByteArray as BA
+import Types.ByteArray as BytesArray
 import Data.Maybe (Maybe)
 import Prelude
 import Aeson (class DecodeAeson, decodeAesonViaJson)
@@ -41,25 +41,25 @@ derive newtype instance DecodeAeson CborBytes
 derive newtype instance Arbitrary CborBytes
 
 cborBytesToIntArray :: CborBytes -> Array Int
-cborBytesToIntArray = BA.byteArrayToIntArray <<< unwrap
+cborBytesToIntArray = BytesArray.byteArrayToIntArray <<< unwrap
 
 cborBytesFromIntArray :: Array Int -> Maybe CborBytes
-cborBytesFromIntArray = map wrap <<< BA.byteArrayFromIntArray
+cborBytesFromIntArray = map wrap <<< BytesArray.byteArrayFromIntArray
 
 cborBytesFromIntArrayUnsafe :: Array Int -> CborBytes
-cborBytesFromIntArrayUnsafe = wrap <<< BA.byteArrayFromIntArrayUnsafe
+cborBytesFromIntArrayUnsafe = wrap <<< BytesArray.byteArrayFromIntArrayUnsafe
 
 cborBytesToHex :: CborBytes -> String
-cborBytesToHex = BA.byteArrayToHex <<< unwrap
+cborBytesToHex = BytesArray.byteArrayToHex <<< unwrap
 
 byteLength :: CborBytes -> Int
-byteLength = BA.byteLength <<< unwrap
+byteLength = BytesArray.byteLength <<< unwrap
 
 hexToCborBytes :: String -> Maybe CborBytes
-hexToCborBytes = map wrap <<< BA.hexToByteArray
+hexToCborBytes = map wrap <<< BytesArray.hexToByteArray
 
 hexToCborBytesUnsafe :: String -> CborBytes
-hexToCborBytesUnsafe = wrap <<< BA.hexToByteArrayUnsafe
+hexToCborBytesUnsafe = wrap <<< BytesArray.hexToByteArrayUnsafe
 
 cborBytesToByteArray :: CborBytes -> ByteArray
 cborBytesToByteArray = unwrap

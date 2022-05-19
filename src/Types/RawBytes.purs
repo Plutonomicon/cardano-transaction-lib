@@ -16,7 +16,7 @@ module Types.RawBytes
 import Data.Newtype (class Newtype, wrap, unwrap)
 
 import Types.ByteArray (ByteArray)
-import Types.ByteArray as BA
+import Types.ByteArray as BytesArray
 import Data.Maybe (Maybe)
 import Prelude
 import Aeson (class DecodeAeson, decodeAesonViaJson)
@@ -40,29 +40,28 @@ derive newtype instance DecodeAeson RawBytes
 derive newtype instance Arbitrary RawBytes
 
 rawBytesToIntArray :: RawBytes -> Array Int
-rawBytesToIntArray = BA.byteArrayToIntArray <<< unwrap
+rawBytesToIntArray = BytesArray.byteArrayToIntArray <<< unwrap
 
 rawBytesFromIntArray :: Array Int -> Maybe RawBytes
-rawBytesFromIntArray = map wrap <<< BA.byteArrayFromIntArray
+rawBytesFromIntArray = map wrap <<< BytesArray.byteArrayFromIntArray
 
 rawBytesFromIntArrayUnsafe :: Array Int -> RawBytes
-rawBytesFromIntArrayUnsafe = wrap <<< BA.byteArrayFromIntArrayUnsafe
+rawBytesFromIntArrayUnsafe = wrap <<< BytesArray.byteArrayFromIntArrayUnsafe
 
 rawBytesToHex :: RawBytes -> String
-rawBytesToHex = BA.byteArrayToHex <<< unwrap
+rawBytesToHex = BytesArray.byteArrayToHex <<< unwrap
 
 byteLength :: RawBytes -> Int
-byteLength = BA.byteLength <<< unwrap
+byteLength = BytesArray.byteLength <<< unwrap
 
 hexToRawBytes :: String -> Maybe RawBytes
-hexToRawBytes = map wrap <<< BA.hexToByteArray
+hexToRawBytes = map wrap <<< BytesArray.hexToByteArray
 
 hexToRawBytesUnsafe :: String -> RawBytes
-hexToRawBytesUnsafe = wrap <<< BA.hexToByteArrayUnsafe
+hexToRawBytesUnsafe = wrap <<< BytesArray.hexToByteArrayUnsafe
 
 rawBytesToByteArray :: RawBytes -> ByteArray
 rawBytesToByteArray = unwrap
 
 rawBytesFromByteArray :: ByteArray -> RawBytes
 rawBytesFromByteArray = wrap
-
