@@ -13,15 +13,23 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Data.Newtype (class Newtype, wrap, unwrap)
-import FromData (class FromData, fromData)
-import ToData (class ToData, toData)
+import FromData (class FromData, genericFromData)
+import ToData (class ToData, genericToData)
 import Types.Scripts (ValidatorHash)
-import Types.PlutusData (PlutusData(Constr))
 import Types.PubKeyHash (PubKeyHash)
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential
   )
+import Plutus.Types.DataSchema
+  ( class HasPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  , I
+  , PNil
+  )
+import TypeLevel.Nat (Z)
 
 --------------------------------------------------------------------------------
 -- Address
@@ -43,18 +51,24 @@ derive instance Generic Address _
 instance Show Address where
   show = genericShow
 
+instance
+  HasPlutusSchema
+    Address
+    ( "Address"
+        :=
+          ( "addressCredential" := I Credential :+ "addressStakingCredential"
+              := I (Maybe StakingCredential)
+              :+ PNil
+          )
+        @@ Z
+        :+ PNil
+    )
+
 instance ToData Address where
-  toData (Address a) = Constr zero $
-    [ toData a.addressCredential, toData a.addressStakingCredential ]
+  toData = genericToData
 
 instance FromData Address where
-  fromData (Constr n [ credD, stakingCredD ]) | n == zero =
-    Address <$>
-      ( { addressCredential: _, addressStakingCredential: _ }
-          <$> fromData credD
-          <*> fromData stakingCredD
-      )
-  fromData _ = Nothing
+  fromData = genericFromData
 
 --------------------------------------------------------------------------------
 -- Useful functions
