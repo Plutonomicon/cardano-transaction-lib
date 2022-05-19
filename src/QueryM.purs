@@ -56,7 +56,7 @@ import Aeson as Aeson
 import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.ResponseFormat as Affjax.ResponseFormat
-import Cardano.Types.Value (Coin(Coin))
+import Cardano.Types.Value (Coin)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT, ask, asks)
@@ -396,18 +396,11 @@ calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   liftAff (Affjax.get Affjax.ResponseFormat.json url)
     <#> either
       (Left <<< ClientHttpError)
-      ( bimap ClientDecodeJsonError coinFromEstimate
+      ( bimap ClientDecodeJsonError (wrap <<< unwrap :: FeeEstimate -> Coin)
           <<< Json.decodeJson
           <<< _.body
       )
   where
-  -- FIXME
-  -- Add some "padding" to the fees so the transaction will submit
-  -- The server is calculating fees that are too low
-  -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/123
-  coinFromEstimate :: FeeEstimate -> Coin
-  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 10000)) <<< unwrap
-
   -- Fee estimation occurs before balancing the transaction, so we need to know
   -- the expected number of witnesses to use the cardano-api fee estimation
   -- functions

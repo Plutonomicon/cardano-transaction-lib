@@ -97,9 +97,7 @@ feeEstimateSpec = around withTestApp $ do
       result <-
         runClientM' (clientEnv port) $
           estimateTxFees (WitnessCount 1) cborTxFixture
-      -- This is probably incorrect. See:
-      -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/123
-      result `shouldBe` Right (Fee 168449)
+      result `shouldBe` Right (Fee 168625)
 
     it "catches invalid hex strings" $ \port -> do
       result <-
