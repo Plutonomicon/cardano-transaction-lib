@@ -42,10 +42,12 @@ import Cardano.Api.Shelley (
 import Data.ByteString.Lazy qualified as ByteString
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.Kind (Type)
+import Data.Text qualified as Text
 import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Network.HTTP.Types (Status (Status))
 import Network.Wai.Handler.Warp (Port)
 import Network.Wai.Handler.Warp qualified as Warp
+import Ogmios.Parser (decodeProtocolParameters)
 import Plutus.V1.Ledger.Api qualified as Ledger
 import Servant.Client (
   BaseUrl (baseUrlPort),
@@ -93,9 +95,6 @@ import Types (
   WitnessCount (WitnessCount),
   unsafeDecode,
  )
-
-import Data.Text qualified as Text
-import Ogmios.Parser (decodeProtocolParameters)
 
 main :: IO ()
 main = hspec serverSpec

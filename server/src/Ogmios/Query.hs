@@ -9,18 +9,15 @@ module Ogmios.Query (
 ) where
 
 import Control.Exception.Base (SomeException, try)
-
+import Data.Aeson qualified as Aeson
 import Data.Bifunctor (first)
 import Data.ByteString.Lazy (ByteString)
 import Data.Text (Text)
+import GHC.Generics
 import Network.WebSockets (ClientApp)
 import Network.WebSockets qualified as WebSockets
 import System.IO (hFlush, stdout)
 import System.Time.Extra qualified as Time.Extra
-
-import Data.Aeson qualified as Aeson
-
-import GHC.Generics
 
 --------------------------------------------------------------------------------
 
@@ -97,7 +94,7 @@ tryQueryUntilZero query remainAttempts =
       case msgOrError of
         Right msg -> pure $ Right msg
         Left e -> do
-          putStrLn $ "Error : " <> show e
+          putStrLn $ "Error : " <> e
           putStrLn "Waiting for ogmios conection attempt"
           putStrLn $ "Attempts remain : " <> show (remainAttempts -1)
           Time.Extra.sleep 0.5

@@ -10,12 +10,6 @@ import Cardano.Api (
   PraosNonce,
  )
 import Cardano.Api.Shelley (ProtocolParameters (ProtocolParameters))
-
-import Data.Text qualified as Text
-import Text.Parsec qualified as Parsec
-import Text.Parsec.Char qualified as Parsec.Char
-import Text.ParserCombinators.Parsec.Combinator (many1)
-
 import Data.Aeson qualified as Aeson
 import Data.Aeson.BetterErrors (
   Parse,
@@ -33,7 +27,11 @@ import Data.ByteString.Lazy (ByteString)
 import Data.Char (isDigit)
 import Data.Map qualified as Map
 import Data.Ratio ((%))
+import Data.Text qualified as Text
 import GHC.Natural (Natural, naturalFromInteger)
+import Text.Parsec qualified as Parsec
+import Text.Parsec.Char qualified as Parsec.Char
+import Text.ParserCombinators.Parsec.Combinator (many1)
 
 parseVersion :: Parse e (Natural, Natural)
 parseVersion =
