@@ -6,15 +6,13 @@ module Plutus.Types.Credential
 import Prelude
 
 import Serialization.Address
-  ( CertificateIndex(..)
-  , Slot(..)
-  , TransactionIndex(..)
+  ( CertificateIndex
+  , Slot
+  , TransactionIndex
   )
-import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(Nothing))
 import Data.Show.Generic (genericShow)
-import FromData (class FromData, fromData, genericFromData)
+import FromData (class FromData, genericFromData)
 import Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
@@ -23,10 +21,8 @@ import Plutus.Types.DataSchema
   , I
   , PNil
   )
-import Serialization.Address (Pointer)
-import ToData (class ToData, genericToData, toData)
+import ToData (class ToData, genericToData)
 import TypeLevel.Nat (S, Z)
-import Types.PlutusData (PlutusData(Constr))
 import Types.PubKeyHash (PubKeyHash)
 import Types.Scripts (ValidatorHash)
 
