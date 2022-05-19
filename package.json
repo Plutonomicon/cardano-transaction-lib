@@ -7,7 +7,9 @@
     "test": "test"
   },
   "scripts": {
-    "test": "spago run --main Test.Main",
+    "test": "npm run unit-test && npm run integration-test",
+    "integration-test": "spago run --main Test.Integration",
+    "unit-test": "spago run --main Test.Main",
     "dev": "make run-dev",
     "build": "make run-build"
   },
