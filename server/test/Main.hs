@@ -114,19 +114,19 @@ applyArgsSpec = around withTestApp $ do
   clientEnv <- setupClientEnv
 
   context "POST apply-args" $ do
-    it "pures the same script when called without args" $ \port -> do
+    it "returns the same script when called without args" $ \port -> do
       result <-
         runClientM' (clientEnv port) $
           applyArgs unappliedRequestFixture
       result `shouldBe` Right (AppliedScript unappliedScript)
 
-    it "pures the correct partially applied Plutus script" $ \port -> do
+    it "returns the correct partially applied Plutus script" $ \port -> do
       result <-
         runClientM' (clientEnv port) $
           applyArgs partiallyAppliedRequestFixture
       result `shouldBe` Right (AppliedScript partiallyAppliedScript)
 
-    it "pures the correct fully applied Plutus script" $ \port -> do
+    it "returns the correct fully applied Plutus script" $ \port -> do
       result <-
         runClientM' (clientEnv port) $
           applyArgs fullyAppliedRequestFixture
