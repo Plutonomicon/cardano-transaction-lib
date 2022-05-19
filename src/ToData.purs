@@ -24,6 +24,7 @@ import Data.Generic.Rep as G
 import Data.List (List)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (unwrap)
 import Data.Ratio (Ratio, denominator, numerator)
 import Data.Symbol (class IsSymbol, SProxy(SProxy), reflectSymbol)
 import Data.TextEncoder (encodeUtf8)
@@ -36,7 +37,8 @@ import Prim.TypeError (class Fail, Text)
 import Record as Record
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray(ByteArray))
-import Types.CborBytes (CborBytes(CborBytes))
+import Types.CborBytes (CborBytes)
+import Types.RawBytes (RawBytes)
 import Types.PlutusData (PlutusData(Constr, Integer, List, Bytes))
 
 -- | Classes
@@ -202,7 +204,10 @@ instance ToData ByteArray where
   toData = Bytes
 
 instance ToData CborBytes where
-  toData (CborBytes bytes) = Bytes bytes
+  toData = Bytes <<< unwrap
+
+instance ToData RawBytes where
+  toData = Bytes <<< unwrap
 
 instance ToData String where
   toData = toData <<< ByteArray <<< encodeUtf8
