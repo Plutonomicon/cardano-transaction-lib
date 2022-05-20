@@ -8,7 +8,7 @@ module Contract.PlutusData
   , getDatumByHash
   , getDatumsByHashes
   , startFetchBlocks
-  , module ConstrIndices
+  , module DataSchema
   , module Datum
   , module ExportQueryM
   , module PlutusData
@@ -19,29 +19,49 @@ module Contract.PlutusData
 
 import Prelude
 
-import ConstrIndices
-  ( class HasConstrIndices
-  , class HasCountedConstrIndices
-  , constrIndices
-  , countedConstrIndices
-  , defaultConstrIndices
-  , fromConstr2Index
-  ) as ConstrIndices
 import Contract.Monad (Contract, wrapContract)
 import Data.Map (Map)
 import Data.Maybe (Maybe)
 import FromData
-  ( FromDataError(ArgsWantedButGot, FromDataFailed)
+  ( FromDataError
+    ( ArgsWantedButGot
+    , FromDataFailed
+    , BigIntToIntFailed
+    , IndexWantedButGot
+    , WantedConstrGot
+    )
   , class FromData
   , class FromDataArgs
   , class FromDataArgsRL
-  , class FromDataWithIndex
+  , class FromDataWithSchema
   , fromData
   , fromDataArgs
   , fromDataArgsRec
-  , fromDataWithIndex
+  , fromDataWithSchema
   , genericFromData
   ) as FromData
+import Plutus.Types.DataSchema
+  ( ApPCons
+  , Field
+  , I
+  , Id
+  , IxK
+  , MkField
+  , MkField_
+  , MkIxK
+  , MkIxK_
+  , PCons
+  , PNil
+  , PSchema
+  , class AllUnique2
+  , class HasPlutusSchema
+  , class PlutusSchemaToRowListI
+  , class SchemaToRowList
+  , class ValidPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  ) as DataSchema
 import QueryM
   ( DatumCacheListeners
   , DatumCacheWebSocket
@@ -59,13 +79,15 @@ import Serialization.Address (Slot)
 import ToData
   ( class ToData
   , class ToDataArgs
-  , class ToDataWithIndex
+  , class ToDataWithSchema
   , class ToDataArgsRL
+  , class ToDataArgsRLHelper
   , genericToData
   , toDataArgsRec
+  , toDataArgsRec'
   , toData
   , toDataArgs
-  , toDataWithIndex
+  , toDataWithSchema
   ) as ToData
 import Types.Chain (BlockHeaderHash)
 import Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as Datum
