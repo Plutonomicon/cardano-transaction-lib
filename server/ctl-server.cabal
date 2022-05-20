@@ -39,7 +39,7 @@ common common-language
 
 common common-options
   ghc-options:
-    -Werror -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
+    -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
     -Wmissing-export-lists -Wmissing-deriving-strategies
 
 library
