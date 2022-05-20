@@ -47,16 +47,18 @@ module Cardano.Types.Value
 
 import Prelude hiding (join)
 
-import Control.Alt ((<|>))
-import Control.Alternative (guard)
-import Data.Argonaut
-  ( class DecodeJson
-  , class EncodeJson
-  , JsonDecodeError(TypeMismatch)
-  , caseJsonObject
-  , encodeJson
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , JsonDecodeError
+      ( TypeMismatch
+      )
+  , caseAesonObject
+  , encodeAeson'
   , getField
   )
+import Control.Alt ((<|>))
+import Control.Alternative (guard)
 import Data.Array (cons, filter)
 import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt, fromInt)
@@ -195,16 +197,16 @@ instance Show CurrencySymbol where
   show (CurrencySymbol cs) = "(CurrencySymbol" <> show cs <> ")"
 
 -- This is needed for `ApplyArgs`. Plutus has an `unCurrencySymbol` field.
-instance DecodeJson CurrencySymbol where
-  decodeJson = caseJsonObject
+instance DecodeAeson CurrencySymbol where
+  decodeAeson = caseAesonObject
     (Left $ TypeMismatch "Expected object")
     ( note (TypeMismatch "Invalid CurrencySymbol") <<< mkCurrencySymbol
         <=< note (TypeMismatch "Invalid ByteArray") <<< hexToByteArray
         <=< flip getField "unCurrencySymbol"
     )
 
-instance EncodeJson CurrencySymbol where
-  encodeJson (CurrencySymbol ba) = encodeJson
+instance EncodeAeson CurrencySymbol where
+  encodeAeson' (CurrencySymbol ba) = encodeAeson'
     { "unCurrencySymbol": byteArrayToHex ba }
 
 getCurrencySymbol :: CurrencySymbol -> ByteArray

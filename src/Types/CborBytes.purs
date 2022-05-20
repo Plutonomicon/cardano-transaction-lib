@@ -22,8 +22,7 @@ import Types.ByteArray as BytesArray
 import Types.RawBytes (RawBytes)
 import Data.Maybe (Maybe)
 import Prelude
-import Aeson (class DecodeAeson)
-import Data.Argonaut (class DecodeJson, class EncodeJson)
+import Aeson (class EncodeAeson, class DecodeAeson)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 import Metadata.ToMetadata (class ToMetadata)
 import Metadata.FromMetadata (class FromMetadata)
@@ -41,8 +40,7 @@ derive newtype instance Eq CborBytes
 derive newtype instance Ord CborBytes
 derive newtype instance Semigroup CborBytes
 derive newtype instance Monoid CborBytes
-derive newtype instance EncodeJson CborBytes
-derive newtype instance DecodeJson CborBytes
+derive newtype instance EncodeAeson CborBytes
 derive newtype instance DecodeAeson CborBytes
 derive newtype instance Arbitrary CborBytes
 derive newtype instance ToMetadata CborBytes

@@ -60,6 +60,7 @@ module Test.Fixtures
 
 import Prelude
 
+import Aeson (Aeson, aesonNull, parseJsonStringToAeson)
 import Cardano.Types.Transaction
   ( AuxiliaryDataHash(AuxiliaryDataHash)
   , Ed25519Signature(Ed25519Signature)
@@ -116,7 +117,6 @@ import Cardano.Types.Value
   , mkSingletonNonAdaAsset
   )
 import Effect (Effect)
-import Data.Argonaut as Json
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (fromRight)
@@ -1036,10 +1036,10 @@ cip25MetadataFixture1 :: Cip25Metadata
 cip25MetadataFixture1 = Cip25Metadata
   [ cip25MetadataEntryFixture1, cip25MetadataEntryFixture2 ]
 
-cip25MetadataJsonFixture1 :: Effect Json.Json
+cip25MetadataJsonFixture1 :: Effect Aeson
 cip25MetadataJsonFixture1 =
   readTextFile UTF8 "test/Fixtures/cip25MetadataJsonFixture1.json" >>=
-    pure <<< fromRight Json.jsonNull <<< Json.parseJson
+    pure <<< fromRight aesonNull <<< parseJsonStringToAeson
 
 redeemerFixture1 :: Redeemer
 redeemerFixture1 = Redeemer

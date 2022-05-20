@@ -15,6 +15,7 @@ module Contract.Scripts
   , module TypesScripts
   ) where
 
+import Aeson (class DecodeAeson)
 -- See Contract.Address for documentation on the various helpers, some are
 -- constructive/deconstructive on the Plutus `Address` type, others are from
 -- the CSL API and converted to use Plutus types.
@@ -68,7 +69,6 @@ import Types.TypedValidator
 
 import Prelude
 import Contract.Monad (Contract, wrapContract)
-import Data.Argonaut (class DecodeJson)
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
@@ -88,7 +88,7 @@ import Types.Scripts
 applyArgs
   :: forall (r :: Row Type) (a :: Type)
    . Newtype a PlutusScript
-  => DecodeJson a
+  => DecodeAeson a
   => a
   -> Array PlutusData
   -> Contract r (Either ExportQueryM.ClientError a)
@@ -98,7 +98,7 @@ applyArgs a = wrapContract <<< QueryM.applyArgs a
 applyArgsM
   :: forall (r :: Row Type) (a :: Type)
    . Newtype a PlutusScript
-  => DecodeJson a
+  => DecodeAeson a
   => a
   -> Array PlutusData
   -> Contract r (Maybe a)

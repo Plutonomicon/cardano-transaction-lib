@@ -13,12 +13,12 @@ module Types.PubKeyHash
 
 import Prelude
 
-import Data.Argonaut
-  ( class DecodeJson
-  , caseJsonObject
-  , decodeJson
-  , getField
+import Aeson
+  ( class DecodeAeson
   , JsonDecodeError(TypeMismatch)
+  , caseAesonObject
+  , decodeAeson
+  , getField
   )
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
@@ -59,10 +59,10 @@ instance Show PubKeyHash where
 
 -- This is needed for `ApplyArgs`. Plutus has an `getPubKeyHash` field so don't
 -- newtype derive.
-instance DecodeJson PubKeyHash where
-  decodeJson = caseJsonObject
+instance DecodeAeson PubKeyHash where
+  decodeAeson = caseAesonObject
     (Left $ TypeMismatch "Expected object")
-    (flip getField "getPubKeyHash" >=> decodeJson >>> map PubKeyHash)
+    (flip getField "getPubKeyHash" >=> decodeAeson >>> map PubKeyHash)
 
 ed25519EnterpriseAddress
   :: forall (n :: Type)
@@ -115,11 +115,11 @@ instance Show PaymentPubKeyHash where
 
 -- This is needed for `ApplyArgs`. Plutus has an `unPaymentPubKeyHash` field so
 -- don't newtype derive.
-instance DecodeJson PaymentPubKeyHash where
-  decodeJson = caseJsonObject
+instance DecodeAeson PaymentPubKeyHash where
+  decodeAeson = caseAesonObject
     (Left $ TypeMismatch "Expected object")
     ( flip getField "unPaymentPubKeyHash" >=>
-        decodeJson >>> map PaymentPubKeyHash
+        decodeAeson >>> map PaymentPubKeyHash
     )
 
 newtype StakePubKeyHash = StakePubKeyHash PubKeyHash
