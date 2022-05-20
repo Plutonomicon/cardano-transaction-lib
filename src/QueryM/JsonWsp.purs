@@ -19,7 +19,7 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError(..)
+  , JsonDecodeError(TypeMismatch)
   , caseAesonBigInt
   , caseAesonObject
   , caseAesonString

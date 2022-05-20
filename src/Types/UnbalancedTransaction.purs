@@ -11,13 +11,6 @@ module Types.UnbalancedTransaction
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , JsonDecodeError(TypeMismatch)
-  , caseAesonObject
-  , decodeAeson
-  , getField
-  )
 import Cardano.Types.Transaction
   ( Transaction
   , PublicKey(PublicKey)

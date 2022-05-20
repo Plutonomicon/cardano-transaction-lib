@@ -70,7 +70,7 @@ pubKeyHashAddress :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> Address
 pubKeyHashAddress (PaymentPubKeyHash pkh) skh = wrap
   { addressCredential: PubKeyCredential pkh
   , addressStakingCredential:
-      map (StakingHash <<< PubKeyCredential <<< wrap <<< unwrap) skh
+      map (StakingHash <<< PubKeyCredential <<< unwrap) skh
   }
 
 -- | The address that should be used by a transaction output locked

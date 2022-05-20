@@ -90,7 +90,8 @@ ed25519RewardAddress network skh =
 
 pubKeyHashBaseAddress :: NetworkId -> PubKeyHash -> StakePubKeyHash -> Address
 pubKeyHashBaseAddress networkId pkh skh =
-  baseAddressToAddress $ pubKeyAddress networkId (unwrap pkh) (unwrap skh)
+  baseAddressToAddress $ pubKeyAddress networkId (unwrap pkh)
+    (unwrap $ unwrap skh)
 
 pubKeyHashRewardAddress :: NetworkId -> PubKeyHash -> Address
 pubKeyHashRewardAddress networkId =
@@ -121,7 +122,7 @@ instance DecodeAeson PaymentPubKeyHash where
         decodeAeson >>> map PaymentPubKeyHash
     )
 
-newtype StakePubKeyHash = StakePubKeyHash Ed25519KeyHash
+newtype StakePubKeyHash = StakePubKeyHash PubKeyHash
 
 derive instance Generic StakePubKeyHash _
 derive instance Newtype StakePubKeyHash _
@@ -148,4 +149,4 @@ payPubKeyHashEnterpriseAddress networkId (PaymentPubKeyHash pkh) =
 
 stakePubKeyHashRewardAddress :: NetworkId -> StakePubKeyHash -> Address
 stakePubKeyHashRewardAddress networkId =
-  rewardAddressToAddress <<< ed25519RewardAddress networkId
+  rewardAddressToAddress <<< ed25519RewardAddress networkId <<< unwrap

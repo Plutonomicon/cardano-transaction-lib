@@ -331,7 +331,7 @@ ownStakePubKeyHash = do
   mbAddress <- getWalletAddress
   pure do
     baseAddress <- mbAddress >>= baseAddressFromAddress
-    wrap <$> stakeCredentialToKeyHash
+    wrap <<< wrap <$> stakeCredentialToKeyHash
       (baseAddressDelegationCred baseAddress)
 
 withMWalletAff

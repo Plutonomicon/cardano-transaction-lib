@@ -16,10 +16,6 @@ module Contract.Scripts
   ) where
 
 import Aeson (class DecodeAeson)
-import Address
-  ( enterpriseAddressMintingPolicyHash
-  , enterpriseAddressScriptHash
-  )
 -- See Contract.Address for documentation on the various helpers, some are
 -- constructive/deconstructive on the Plutus `Address` type, others are from
 -- the CSL API and converted to use Plutus types.
