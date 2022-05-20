@@ -17,8 +17,12 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , encodeAeson'
-  , JsonDecodeError(TypeMismatch)
+  , JsonDecodeError
+      ( TypeMismatch
+      , UnexpectedValue
+      )
   , caseAesonString
+  , toStringifiedNumbersJson
   )
 import Data.ArrayBuffer.Types (Uint8Array)
 import Data.Char (toCharCode)
@@ -56,10 +60,12 @@ instance Monoid ByteArray where
   mempty = byteArrayFromIntArrayUnsafe []
 
 instance DecodeAeson ByteArray where
-  decodeAeson = caseAesonString (Left err)
-    (note err <<< hexToByteArray)
+  decodeAeson j = caseAesonString (Left typeMismatchError)
+    (note unexpectedValueError <<< hexToByteArray)
+    j
     where
-    err = TypeMismatch "expected a hex-encoded string"
+    typeMismatchError = TypeMismatch "expected a hex-encoded string"
+    unexpectedValueError = UnexpectedValue $ toStringifiedNumbersJson j
 
 instance EncodeAeson ByteArray where
   encodeAeson' ba = encodeAeson' (byteArrayToHex ba)

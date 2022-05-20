@@ -15,11 +15,6 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError
       ( TypeMismatch
-      , UnexpectedValue
-      , AtIndex
-      , AtKey
-      , Named
-      , MissingValue
       )
   , caseAesonObject
   , encodeAeson'
