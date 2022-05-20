@@ -70,7 +70,7 @@ CTL's overlay (contained in its flake `outputs`) provides some mechanisms for co
 
 Here is an example that uses the overlay to launch runtime services:
 
-``` nix
+```nix
 {
 
   inputs = {
@@ -98,6 +98,10 @@ Here is an example that uses the overlay to launch runtime services:
       # The configuration for the CTL runtime, which will be passed to the
       # expression that builds the JSON file used by Arion. This value can be
       # shared between `buildCtlRuntime` and `launchCtlRuntime`, as shown below
+      #
+      # You can refer to the final configuration value by passing a function
+      # that takes a single arugment. Alternately, you can pass an attrset
+      # directly
       runtimeConfig = final: with final; {
         # *All* of these values are optional, and shown with their default
         # values. If you need even more customization, you can use `overideAttrs`

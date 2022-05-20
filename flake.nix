@@ -296,6 +296,9 @@
             };
             ogmios-datum-cache =
               let
+                filter = nixpkgs.lib.strings.replaceStrings
+                  [ "\"" "\\" ] [ "\\\"" "\\\\" ]
+                  datumCache.blockFetcher.filter;
                 configFile = ''
                   dbConnectionString = "${datumCache.dbConnectionString}"
                   server.port = ${toString datumCache.port}
@@ -304,7 +307,7 @@
                   blockFetcher.autoStart = ${nixpkgs.lib.boolToString datumCache.blockFetcher.autoStart}
                   blockFetcher.firstBlock.slot = ${toString datumCache.blockFetcher.firstBlock.slot}
                   blockFetcher.firstBlock.id = "${datumCache.blockFetcher.firstBlock.id}"
-                  blockFetcher.filter = "${nixpkgs.lib.strings.replaceStrings ["\"" "\\"] ["\\\"" "\\\\"] datumCache.blockFetcher.filter}"
+                  blockFetcher.filter = "${filter}"
                 '';
               in
               {
