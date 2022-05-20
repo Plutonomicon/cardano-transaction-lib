@@ -1,4 +1,4 @@
-module Test.Integration where
+module Test.Integration (main, testPlan) where
 
 import Prelude
 
@@ -9,8 +9,9 @@ import Test.FinalizeTx as FinalizeTx
 import Test.Utils as Utils
 import TestM (TestPlanM)
 
+-- Run with `spago test --main Test.Integration`
 main :: Effect Unit
-main = launchAff_ $ do
+main = launchAff_ do
   Utils.interpret testPlan
 
 -- Requires external services listed in README.md
