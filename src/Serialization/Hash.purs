@@ -19,17 +19,12 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
-  , decodeAesonViaJson
-  , encodeAeson'
-  )
-import Data.Argonaut
-  ( class DecodeJson
-  , class EncodeJson
   , JsonDecodeError(TypeMismatch)
-  , caseJsonString
-  , encodeJson
+  , caseAesonObject
+  , caseAesonString
+  , encodeAeson'
+  , getField
   )
-import Data.Argonaut as Json
 import Data.Either (Either(Left), note)
 import Data.Function (on)
 import Data.Maybe (Maybe(Nothing))
@@ -72,17 +67,14 @@ instance FromMetadata Ed25519KeyHash where
   fromMetadata _ = Nothing
 
 -- This is needed for `ApplyArgs`.
-instance DecodeJson Ed25519KeyHash where
+instance DecodeAeson Ed25519KeyHash where
   -- ed25519KeyHashFromBech32 goes from Bech32String directly although this
   -- feels unsafe.
-  decodeJson = caseJsonString
+  decodeAeson = caseAesonString
     (Left $ TypeMismatch "Expected Plutus BuiltinByteString")
     ( note (TypeMismatch "Invalid Ed25519KeyHash") <<< ed25519KeyHashFromBytes
         <=< note (TypeMismatch "Invalid ByteArray") <<< hexToByteArray
     )
-
-instance DecodeAeson Ed25519KeyHash where
-  decodeAeson = decodeAesonViaJson
 
 instance EncodeAeson Ed25519KeyHash where
   encodeAeson' = encodeAeson' <<< byteArrayToHex <<< ed25519KeyHashToBytes
@@ -152,15 +144,15 @@ instance FromMetadata ScriptHash where
   fromMetadata _ = Nothing
 
 -- Corresponds to Plutus' `Plutus.V1.Ledger.Api.Script` Aeson instances
-instance DecodeJson ScriptHash where
-  decodeJson =
-    Json.caseJsonObject (Left (Json.TypeMismatch "Expected object")) $
-      note (Json.TypeMismatch "Expected hex-encoded script hash")
+instance DecodeAeson ScriptHash where
+  decodeAeson =
+    caseAesonObject (Left (TypeMismatch "Expected object")) $
+      note (TypeMismatch "Expected hex-encoded script hash")
         <<< (scriptHashFromBytes <=< hexToByteArray)
-        <=< flip Json.getField "getScriptHash"
+        <=< flip getField "getScriptHash"
 
-instance EncodeJson ScriptHash where
-  encodeJson sh = encodeJson (scriptHashToBytes sh)
+instance EncodeAeson ScriptHash where
+  encodeAeson' sh = encodeAeson' (scriptHashToBytes sh)
 
 foreign import _scriptHashFromBytesImpl
   :: MaybeFfiHelper

@@ -54,7 +54,16 @@ module QueryM
 
 import Prelude
 
-import Aeson as Aeson
+import Aeson
+  ( class DecodeAeson
+  , Aeson
+  , JsonDecodeError(..)
+  , caseAesonString
+  , decodeAeson
+  , encodeAeson
+  , parseJsonStringToAeson
+  , stringifyAeson
+  )
 import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.ResponseFormat as Affjax.ResponseFormat
@@ -62,10 +71,6 @@ import Cardano.Types.Value (Coin)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT, ask, asks)
-import Data.Argonaut (class DecodeJson)
-import Data.Argonaut as Json
-import Data.Argonaut.Encode.Class (encodeJson)
-import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Array (length)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
@@ -345,19 +350,19 @@ newtype FeeEstimate = FeeEstimate BigInt
 
 derive instance Newtype FeeEstimate _
 
-instance Json.DecodeJson FeeEstimate where
-  decodeJson str =
+instance DecodeAeson FeeEstimate where
+  decodeAeson str =
     map FeeEstimate
-      <<< note (Json.TypeMismatch "Expected a `BigInt`")
+      <<< note (TypeMismatch "Expected a `BigInt`")
       <<< BigInt.fromString
-      =<< Json.caseJsonString
-        (Left $ Json.TypeMismatch "Expected a stringified `BigInt`")
+      =<< caseAesonString
+        (Left $ TypeMismatch "Expected a stringified `BigInt`")
         Right
         str
 
 data ClientError
   = ClientHttpError Affjax.Error
-  | ClientDecodeJsonError Json.JsonDecodeError
+  | ClientDecodeJsonError JsonDecodeError
   | ClientEncodingError String
   | ClientOtherError String
 
@@ -396,11 +401,11 @@ calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
         <> txHex
         <> "&count="
         <> UInt.toString witCount
-  liftAff (Affjax.get Affjax.ResponseFormat.json url)
+  liftAff (Affjax.get Affjax.ResponseFormat.string url)
     <#> either
       (Left <<< ClientHttpError)
       ( bimap ClientDecodeJsonError (wrap <<< unwrap :: FeeEstimate -> Coin)
-          <<< Json.decodeJson
+          <<< (decodeAeson <=< parseJsonStringToAeson)
           <<< _.body
       )
   where
@@ -433,17 +438,19 @@ derive instance Generic RdmrPtrExUnits _
 instance Show RdmrPtrExUnits where
   show = genericShow
 
-derive newtype instance DecodeJson RdmrPtrExUnits
+derive newtype instance DecodeAeson RdmrPtrExUnits
 
 evalTxExecutionUnits
   :: Transaction -> QueryM (Either ClientError (Array RdmrPtrExUnits))
 evalTxExecutionUnits tx = do
   txHex <- liftEffect (txToHex tx)
   url <- mkServerEndpointUrl ("eval-ex-units?tx=" <> txHex)
-  liftAff (Affjax.get Affjax.ResponseFormat.json url)
+  liftAff (Affjax.get Affjax.ResponseFormat.string url)
     <#> either
       (Left <<< ClientHttpError)
-      (lmap ClientDecodeJsonError <<< Json.decodeJson <<< _.body)
+      ( lmap ClientDecodeJsonError <<< (decodeAeson <=< parseJsonStringToAeson)
+          <<< _.body
+      )
 
 -- | CborHex-encoded tx
 newtype FinalizedTransaction = FinalizedTransaction ByteArray
@@ -453,12 +460,12 @@ derive instance Generic FinalizedTransaction _
 instance Show FinalizedTransaction where
   show = genericShow
 
-instance Json.DecodeJson FinalizedTransaction where
-  decodeJson =
+instance DecodeAeson FinalizedTransaction where
+  decodeAeson =
     map FinalizedTransaction <<<
-      Json.caseJsonString (Left err) (note err <<< hexToByteArray)
+      caseAesonString (Left err) (note err <<< hexToByteArray)
     where
-    err = Json.TypeMismatch "Expected CborHex of Tx"
+    err = TypeMismatch "Expected CborHex of Tx"
 
 finalizeTx
   :: Transaction.Transaction
@@ -496,11 +503,11 @@ finalizeTx tx datums redeemers = do
   -- get response json
   jsonBody <-
     liftAff
-      ( Affjax.post Affjax.ResponseFormat.json url
-          (Just $ Affjax.RequestBody.Json $ encodeJson body)
+      ( Affjax.post Affjax.ResponseFormat.string url
+          (Just $ Affjax.RequestBody.String $ stringifyAeson $ encodeAeson body)
       ) <#> map \x -> x.body
   -- decode
-  pure $ hush <<< Json.decodeJson =<< hush jsonBody
+  pure $ hush <<< (decodeAeson <=< parseJsonStringToAeson) =<< hush jsonBody
 
 newtype HashedData = HashedData ByteArray
 
@@ -510,13 +517,13 @@ derive instance Generic HashedData _
 instance Show HashedData where
   show = genericShow
 
-instance Json.DecodeJson HashedData where
-  decodeJson =
+instance DecodeAeson HashedData where
+  decodeAeson =
     map HashedData <<<
-      Json.caseJsonString (Left err) (note err <<< hexToByteArray)
+      caseAesonString (Left err) (note err <<< hexToByteArray)
     where
-    err :: Json.JsonDecodeError
-    err = Json.TypeMismatch "Expected hex bytes (raw) of hashed data"
+    err :: JsonDecodeError
+    err = TypeMismatch "Expected hex bytes (raw) of hashed data"
 
 hashData :: Datum -> QueryM (Maybe HashedData)
 hashData datum = do
@@ -529,11 +536,11 @@ hashData datum = do
   -- get response json
   jsonBody <-
     liftAff
-      ( Affjax.post Affjax.ResponseFormat.json url
-          (Just $ Affjax.RequestBody.Json $ encodeString body)
+      ( Affjax.post Affjax.ResponseFormat.string url
+          (Just $ Affjax.RequestBody.String $ stringifyAeson $ encodeAeson body)
       ) <#> map \x -> x.body
   -- decode
-  pure $ hush <<< Json.decodeJson =<< hush jsonBody
+  pure $ hush <<< (decodeAeson <=< parseJsonStringToAeson) =<< hush jsonBody
 
 -- | Hashes an Plutus-style Datum
 datumHash :: Datum -> QueryM (Maybe DatumHash)
@@ -544,35 +551,39 @@ datumHash = map (map (Transaction.DataHash <<< unwrap)) <<< hashData
 applyArgs
   :: forall (a :: Type)
    . Newtype a PlutusScript
-  => DecodeJson a
+  => DecodeAeson a
   => a
   -> Array PlutusData
   -> QueryM (Either ClientError a)
-applyArgs script args = case traverse plutusDataToJson args of
+applyArgs script args = case traverse plutusDataToAeson args of
   Nothing -> pure $ Left $ ClientEncodingError "Failed to convert script args"
   Just ps -> do
     let
-      argsJson :: Json.Json
-      argsJson = Json.encodeJson ps
+      argsJson :: Aeson
+      argsJson = encodeAeson ps
 
       reqBody :: Maybe Affjax.RequestBody.RequestBody
       reqBody = Just
-        $ Affjax.RequestBody.Json
-        $ Json.fromObject
+        $ Affjax.RequestBody.String
+        $ stringifyAeson
+        $ encodeAeson
         $ Object.fromFoldable
-            [ "script" /\ scriptToJson (unwrap script)
+            [ "script" /\ scriptToAeson (unwrap script)
             , "args" /\ argsJson
             ]
     url <- mkServerEndpointUrl "apply-args"
-    liftAff (Affjax.post Affjax.ResponseFormat.json url reqBody)
+    liftAff (Affjax.post Affjax.ResponseFormat.string url reqBody)
       <#> either
         (Left <<< ClientHttpError)
-        (lmap ClientDecodeJsonError <<< Json.decodeJson <<< _.body)
+        ( lmap ClientDecodeJsonError
+            <<< (decodeAeson <=< parseJsonStringToAeson)
+            <<< _.body
+        )
   where
-  plutusDataToJson :: PlutusData -> Maybe Json.Json
-  plutusDataToJson =
+  plutusDataToAeson :: PlutusData -> Maybe Aeson
+  plutusDataToAeson =
     map
-      ( encodeString
+      ( encodeAeson
           <<< byteArrayToHex
           <<< Serialization.toBytes
           <<< asOneOf
@@ -590,19 +601,23 @@ hashScript script = do
   let
     reqBody :: Maybe Affjax.RequestBody.RequestBody
     reqBody = Just
-      $ Affjax.RequestBody.Json
-      $ scriptToJson
+      $ Affjax.RequestBody.String
+      $ stringifyAeson
+      $ scriptToAeson
       $ unwrap script
-  liftAff (Affjax.post Affjax.ResponseFormat.json url reqBody)
+  liftAff (Affjax.post Affjax.ResponseFormat.string url reqBody)
     <#> either
       (Left <<< ClientHttpError)
-      (bimap ClientDecodeJsonError wrap <<< Json.decodeJson <<< _.body)
+      ( bimap ClientDecodeJsonError wrap
+          <<< (decodeAeson <=< parseJsonStringToAeson)
+          <<< _.body
+      )
 
 -- It's easier to just write the encoder here than provide an `EncodeJson`
 -- instance (there are some brutal cyclical dependency issues trying to
 -- write an instance in the `Types.*` modules)
-scriptToJson :: PlutusScript -> Json.Json
-scriptToJson = encodeString <<< byteArrayToHex <<< unwrap
+scriptToAeson :: PlutusScript -> Aeson
+scriptToAeson = encodeAeson <<< byteArrayToHex <<< unwrap
 
 mkServerEndpointUrl :: String -> QueryM Url
 mkServerEndpointUrl path = asks $ (_ <> "/" <> path)
@@ -823,7 +838,7 @@ mkRequest getListeners getWebSocket jsonWspCall getLs inp = do
     affFunc cont = do
       let
         sBody :: RequestBody
-        sBody = Json.stringify $ Json.encodeJson body
+        sBody = stringifyAeson $ encodeAeson body
       _ <- respLs.addMessageListener id
         ( \result -> do
             respLs.removeMessageListener id
@@ -840,7 +855,7 @@ mkRequest getListeners getWebSocket jsonWspCall getLs inp = do
 -- Dispatch Setup
 --------------------------------------------------------------------------------
 
-data DispatchError = JsError Error | JsonError Json.JsonDecodeError
+data DispatchError = JsError Error | JsonError JsonDecodeError
 
 dispatchErrorToError :: DispatchError -> Error
 dispatchErrorToError (JsError err) = err
@@ -911,16 +926,16 @@ createPendingRequests = Ref.new Map.empty
 -- waiting on this result
 queryDispatch
   :: forall (response :: Type)
-   . Aeson.DecodeAeson response
+   . DecodeAeson response
   => DispatchIdMap response
   -> String
   -> Effect (Either DispatchError (Effect Unit))
 queryDispatch ref str = do
   -- Parse response
-  case JsonWsp.parseJsonWspResponse =<< Aeson.parseJsonStringToAeson str of
+  case JsonWsp.parseJsonWspResponse =<< parseJsonStringToAeson str of
     Left parseError -> do
       -- Try to at least parse ID  to dispatch the error to
-      case parseJsonWspResponseId =<< Aeson.parseJsonStringToAeson str of
+      case parseJsonWspResponseId =<< parseJsonStringToAeson str of
         -- We still return original error because ID parse error is useless
         Left _idParseError -> pure $ Left $ JsonError parseError
         Right (id :: ListenerId) -> do
@@ -944,8 +959,8 @@ queryDispatch ref str = do
         Just action -> pure $ Right $ action $ Right parsed.result
 
 -- an empty error we can compare to, useful for ensuring we've not received any other kind of error
-defaultErr :: Json.JsonDecodeError
-defaultErr = Json.TypeMismatch "default error"
+defaultErr :: JsonDecodeError
+defaultErr = TypeMismatch "default error"
 
 defaultMessageListener
   :: LogLevel -> Array WebsocketDispatch -> String -> Effect Unit

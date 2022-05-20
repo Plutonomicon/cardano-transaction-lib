@@ -5,8 +5,13 @@ module Metadata.Seabug
 
 import Prelude
 
-import Data.Argonaut (class DecodeJson)
-import Data.Argonaut as Json
+import Aeson
+  ( class DecodeAeson
+  , JsonDecodeError(..)
+  , caseAesonObject
+  , decodeAeson
+  , getField
+  )
 import Data.BigInt (fromInt) as BigInt
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
@@ -169,32 +174,32 @@ instance FromData SeabugMetadata where
       , ownerPrice
       }
 
-instance DecodeJson SeabugMetadata where
-  decodeJson =
-    Json.caseJsonObject
-      (Left (Json.TypeMismatch "Expected object"))
+instance DecodeAeson SeabugMetadata where
+  decodeAeson =
+    caseAesonObject
+      (Left (TypeMismatch "Expected object"))
       $ \o -> do
           collectionNftCS <-
-            note (Json.TypeMismatch "Invalid ByteArray")
+            note (TypeMismatch "Invalid ByteArray")
               <<< (mkCurrencySymbol <=< hexToByteArray)
-              =<< Json.getField o "collectionNftCS"
+              =<< getField o "collectionNftCS"
           collectionNftTN <-
-            note (Json.TypeMismatch "expected ASCII-encoded `TokenName`")
+            note (TypeMismatch "expected ASCII-encoded `TokenName`")
               <<< (mkTokenName <=< hexToByteArray)
-              =<< Json.getField o "collectionNftTN"
+              =<< getField o "collectionNftTN"
           lockingScript <-
             map wrap
-              <<< decodeScriptHash =<< Json.getField o "lockingScript"
+              <<< decodeScriptHash =<< getField o "lockingScript"
           authorPkh <-
             map wrap
-              <<< Json.decodeJson =<< Json.getField o "authorPkh"
-          authorShare <- decodeShare =<< Json.getField o "authorShare"
+              <<< decodeAeson =<< getField o "authorPkh"
+          authorShare <- decodeShare =<< getField o "authorShare"
           marketplaceScript <- map wrap <<< decodeScriptHash
-            =<< Json.getField o "marketplaceScript"
-          marketplaceShare <- decodeShare =<< Json.getField o "marketplaceShare"
-          ownerPkh <- map wrap <<< Json.decodeJson =<< Json.getField o
+            =<< getField o "marketplaceScript"
+          marketplaceShare <- decodeShare =<< getField o "marketplaceShare"
+          ownerPkh <- map wrap <<< decodeAeson =<< getField o
             "ownerPkh"
-          ownerPrice <- Json.getField o "ownerPrice"
+          ownerPrice <- getField o "ownerPrice"
           pure $ SeabugMetadata
             { -- Not used in the endpoints where we parse the metadata, so we
               -- can set a dummy value
@@ -216,14 +221,14 @@ instance DecodeJson SeabugMetadata where
             , ownerPrice
             }
     where
-    decodeShare :: Int -> Either Json.JsonDecodeError Share
-    decodeShare = note (Json.TypeMismatch "Expected int between 0 and 10000")
+    decodeShare :: Int -> Either JsonDecodeError Share
+    decodeShare = note (TypeMismatch "Expected int between 0 and 10000")
       <<< mkShare
 
-    decodeScriptHash :: String -> Either Json.JsonDecodeError ScriptHash
+    decodeScriptHash :: String -> Either JsonDecodeError ScriptHash
     decodeScriptHash =
       note
-        (Json.TypeMismatch "Expected hex-encoded script hash")
+        (TypeMismatch "Expected hex-encoded script hash")
         <<< (scriptHashFromBytes <=< hexToByteArray)
 
 newtype SeabugMetadataDelta = SeabugMetadataDelta

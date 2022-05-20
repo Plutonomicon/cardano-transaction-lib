@@ -28,10 +28,10 @@ import Aeson
   , decodeAeson
   , encodeAeson
   , getField
+  , JsonDecodeError(..)
   )
 import Contract.Prelude (Either(..))
 import Control.Apply (lift3)
-import Data.Argonaut (JsonDecodeError(..))
 import Data.Array (concatMap, filter)
 import Data.BigInt (BigInt)
 import Data.Foldable (all)

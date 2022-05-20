@@ -17,19 +17,16 @@ import Prelude
 
 import Aeson
   ( class DecodeAeson
+  , class EncodeAeson
   , Aeson
+  , JsonDecodeError(..)
   , caseAesonBigInt
   , caseAesonObject
   , caseAesonString
   , caseAesonUInt
   , decodeAeson
+  , encodeAeson
   , getField
-  )
-import Data.Argonaut
-  ( class EncodeJson
-  , Json
-  , JsonDecodeError(TypeMismatch)
-  , encodeJson
   )
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
@@ -83,13 +80,13 @@ type JsonWspResponse (a :: Type) =
 -- | A wrapper for tying arguments and response types to request building.
 newtype JsonWspCall :: Type -> Type -> Type
 newtype JsonWspCall (i :: Type) (o :: Type) = JsonWspCall
-  (i -> Effect { body :: Json, id :: String })
+  (i -> Effect { body :: Aeson, id :: String })
 
 -- | Creates a "jsonwsp call" which ties together request input and response output types
 -- | along with a way to create a request object.
 mkCallType
   :: forall (a :: Type) (i :: Type) (o :: Type)
-   . EncodeJson (JsonWspRequest a)
+   . EncodeAeson (JsonWspRequest a)
   => { type :: String
      , version :: String
      , servicename :: String
@@ -99,14 +96,14 @@ mkCallType
   -> JsonWspCall i o
 mkCallType service { methodname, args } _ = JsonWspCall $ \i -> do
   req <- mkJsonWspRequest service { methodname, args: args i }
-  pure { body: encodeJson req, id: req.mirror }
+  pure { body: encodeAeson req, id: req.mirror }
 
 -- | Create a JsonWsp request body and id
 buildRequest
   :: forall (i :: Type) (o :: Type)
    . JsonWspCall i o
   -> i
-  -> Effect { body :: Json, id :: String }
+  -> Effect { body :: Aeson, id :: String }
 buildRequest (JsonWspCall c) = c
 
 -- | Polymorphic response parser

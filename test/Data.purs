@@ -3,11 +3,10 @@ module Test.Data (suite, tests, uniqueIndicesTests) where
 
 import Prelude
 
-import Aeson (decodeAeson, encodeAeson)
+import Aeson (decodeAeson, encodeAeson, JsonDecodeError(TypeMismatch))
 import Contract.PlutusData (PlutusData(Constr, Integer))
-import Contract.Prelude (Either(..))
+import Contract.Prelude (Either(Left, Right))
 import Control.Lazy (fix)
-import Data.Argonaut (JsonDecodeError(..))
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Generic.Rep as G

@@ -12,12 +12,12 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
+  , JsonDecodeError(TypeMismatch)
   , caseAesonObject
   , encodeAeson'
   , (.:)
   )
 import Contract.Prelude (Either(Left))
-import Data.Argonaut (JsonDecodeError(..))
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, wrap, unwrap)

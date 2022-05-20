@@ -13,12 +13,7 @@ module Types.TypedValidator
 
 import Prelude
 
-import Data.Argonaut
-  ( class DecodeJson
-  , JsonDecodeError(TypeMismatch)
-  , (.:)
-  , caseJsonObject
-  )
+import Aeson (class DecodeAeson, JsonDecodeError(..), caseAesonObject, (.:))
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap)
@@ -111,8 +106,8 @@ derive newtype instance Eq (TypedValidator a)
 instance Show (TypedValidator a) where
   show = genericShow
 
-instance DecodeJson (TypedValidator a) where
-  decodeJson = caseJsonObject
+instance DecodeAeson (TypedValidator a) where
+  decodeAeson = caseAesonObject
     (Left $ TypeMismatch "Expected Object")
     ( \o -> do
         validator <- o .: "validator"

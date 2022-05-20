@@ -5,6 +5,7 @@ module Examples.AlwaysSucceeds (main) where
 
 import Contract.Prelude
 
+import Contract.Aeson (decodeAeson, fromString)
 import Contract.Monad
   ( ContractConfig(ContractConfig)
   , launchAff_
@@ -26,7 +27,6 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
-import Data.Argonaut (decodeJson, fromString)
 import Data.BigInt as BigInt
 
 main :: Effect Unit
@@ -59,5 +59,5 @@ main = launchAff_ $ do
     logInfo' $ "Tx ID: " <> show txId
 
 alwaysSucceedsScript :: Maybe Validator
-alwaysSucceedsScript = map wrap $ hush $ decodeJson $ fromString
+alwaysSucceedsScript = map wrap $ hush $ decodeAeson $ fromString
   "4d01000033222220051200120011"

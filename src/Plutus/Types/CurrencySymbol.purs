@@ -13,12 +13,12 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
+  , JsonDecodeError(TypeMismatch)
   , caseAesonObject
   , decodeAeson
-  , encodeAeson
+  , encodeAeson'
   , getField
   )
-import Data.Argonaut (JsonDecodeError(..))
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe)
 import FromData (class FromData)
@@ -45,8 +45,10 @@ instance DecodeAeson CurrencySymbol where
     (flip getField "unCurrencySymbol" >=> decodeAeson >>> map CurrencySymbol)
 
 instance EncodeAeson CurrencySymbol where
-  encodeAeson' (CurrencySymbol mph) = pure $ encodeAeson
-    { "unCurrencySymbol": encodeAeson mph }
+  encodeAeson' (CurrencySymbol mph) = do
+    mph' <- encodeAeson' mph
+    encodeAeson'
+      { "unCurrencySymbol": mph' }
 
 instance Show CurrencySymbol where
   show (CurrencySymbol cs) = "(CurrencySymbol" <> show cs <> ")"

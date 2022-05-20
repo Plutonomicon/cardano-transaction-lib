@@ -15,6 +15,7 @@ module Contract.Scripts
   , module TypesScripts
   ) where
 
+import Aeson (class DecodeAeson)
 import Address
   ( enterpriseAddressMintingPolicyHash
   , enterpriseAddressScriptHash
@@ -79,7 +80,6 @@ import Types.TypedValidator
 
 import Prelude
 import Contract.Monad (Contract, wrapContract)
-import Data.Argonaut (class DecodeJson)
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
@@ -99,7 +99,7 @@ import Types.Scripts
 applyArgs
   :: forall (r :: Row Type) (a :: Type)
    . Newtype a PlutusScript
-  => DecodeJson a
+  => DecodeAeson a
   => a
   -> Array PlutusData
   -> Contract r (Either ExportQueryM.ClientError a)
@@ -109,7 +109,7 @@ applyArgs a = wrapContract <<< QueryM.applyArgs a
 applyArgsM
   :: forall (r :: Row Type) (a :: Type)
    . Newtype a PlutusScript
-  => DecodeJson a
+  => DecodeAeson a
   => a
   -> Array PlutusData
   -> Contract r (Maybe a)

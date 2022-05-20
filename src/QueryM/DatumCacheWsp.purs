@@ -23,23 +23,18 @@ import Prelude
 
 import Aeson
   ( class DecodeAeson
+  , class EncodeAeson
   , Aeson
+  , JsonDecodeError(..)
   , caseAesonArray
   , caseAesonObject
   , decodeAeson
+  , encodeAeson
   , getNestedAeson
+  , stringifyAeson
   , (.:)
   )
 import Control.Alt ((<|>))
-import Data.Argonaut
-  ( Json
-  , JsonDecodeError
-      ( TypeMismatch
-      )
-  , encodeJson
-  , stringify
-  )
-import Data.Argonaut.Encode (class EncodeJson)
 import Data.Either (Either(Left))
 import Data.Map (Map)
 import Data.Map as Map
@@ -55,10 +50,10 @@ import Types.ByteArray (byteArrayToHex)
 import Types.Datum (Datum, DatumHash)
 import Types.Chain (BlockHeaderHash)
 
-newtype WspFault = WspFault Json
+newtype WspFault = WspFault Aeson
 
 faultToString :: WspFault -> String
-faultToString (WspFault j) = stringify j
+faultToString (WspFault j) = stringifyAeson j
 
 type JsonWspRequest (a :: Type) =
   { type :: String
@@ -172,7 +167,7 @@ startFetchBlocksCall = mkDatumCacheCallType
   StartFetchBlocks
   ( \({ slot, id }) ->
       { slot
-      , id: encodeJson (unwrap id)
+      , id: encodeAeson (unwrap id)
       , datumFilter: { "const": true }
       }
   )
@@ -185,7 +180,7 @@ cancelFetchBlocksCall = mkDatumCacheCallType
 -- convenience helper
 mkDatumCacheCallType
   :: forall (a :: Type) (i :: Type) (o :: Type)
-   . EncodeJson (JsonWspRequest a)
+   . EncodeAeson (JsonWspRequest a)
   => DatumCacheMethod
   -> (i -> a)
   -> JsonWspCall i o
