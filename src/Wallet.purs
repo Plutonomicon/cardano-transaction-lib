@@ -28,7 +28,6 @@ import Serialization.Address (Address, addressFromBytes)
 import Types.ByteArray (byteArrayToHex)
 import Types.CborBytes
   ( CborBytes
-  , hexToCborBytes
   , cborBytesToHex
   , rawBytesAsCborBytes
   )

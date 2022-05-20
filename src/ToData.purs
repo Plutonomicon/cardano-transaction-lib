@@ -39,7 +39,6 @@ import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray(ByteArray))
 import Types.RawBytes (RawBytes)
 import Types.CborBytes (CborBytes)
-import Types.RawBytes (RawBytes)
 import Types.PlutusData (PlutusData(Constr, Integer, List, Bytes))
 
 -- | Classes

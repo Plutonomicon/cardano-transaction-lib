@@ -56,14 +56,14 @@ instance ToData Ed25519KeyHash where
   toData = toData <<< unwrap <<< ed25519KeyHashToBytes
 
 instance FromData Ed25519KeyHash where
-  fromData (Bytes kh) = ed25519KeyHashFromBytes <<< wrap $ kh
+  fromData (Bytes kh) = ed25519KeyHashFromBytes $ wrap kh
   fromData _ = Nothing
 
 instance ToMetadata Ed25519KeyHash where
   toMetadata = toMetadata <<< ed25519KeyHashToBytes
 
 instance FromMetadata Ed25519KeyHash where
-  fromMetadata (Metadata.Bytes kh) = ed25519KeyHashFromBytes (wrap kh)
+  fromMetadata (Metadata.Bytes kh) = ed25519KeyHashFromBytes $ wrap kh
   fromMetadata _ = Nothing
 
 -- This is needed for `ApplyArgs`.
@@ -130,14 +130,14 @@ instance ToData ScriptHash where
   toData = toData <<< unwrap <<< scriptHashToBytes
 
 instance FromData ScriptHash where
-  fromData (Bytes bytes) = scriptHashFromBytes (wrap bytes)
+  fromData (Bytes bytes) = scriptHashFromBytes $ wrap bytes
   fromData _ = Nothing
 
 instance ToMetadata ScriptHash where
   toMetadata = toMetadata <<< scriptHashToBytes
 
 instance FromMetadata ScriptHash where
-  fromMetadata (Metadata.Bytes bytes) = scriptHashFromBytes (wrap bytes)
+  fromMetadata (Metadata.Bytes bytes) = scriptHashFromBytes $ wrap bytes
   fromMetadata _ = Nothing
 
 -- Corresponds to Plutus' `Plutus.V1.Ledger.Api.Script` Aeson instances
