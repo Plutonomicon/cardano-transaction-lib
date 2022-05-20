@@ -15,11 +15,19 @@ module Contract.Scripts
   , module TypesScripts
   ) where
 
-import Address
-  ( enterpriseAddressMintingPolicyHash
-  , enterpriseAddressScriptHash
+-- See Contract.Address for documentation on the various helpers, some are
+-- constructive/deconstructive on the Plutus `Address` type, others are from
+-- the CSL API and converted to use Plutus types.
+import Contract.Address
+  ( enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
+  , scriptHashAddress -- Directly uses Plutus `Address`
+  , toValidatorHash -- Directly uses Plutus `Address`
+  , typedValidatorBaseAddress
+  , typedValidatorEnterpriseAddress
+  , validatorHashBaseAddress
+  , validatorHashEnterpriseAddress
   ) as Address
 import QueryM
   ( ClientError
@@ -29,32 +37,13 @@ import QueryM
       )
   ) as ExportQueryM
 import QueryM (applyArgs) as QueryM
-import Scripts
-  ( typedValidatorBaseAddress
-  , typedValidatorEnterpriseAddress
-  , validatorHashBaseAddress
-  , validatorHashEnterpriseAddress
-  , scriptHash
-  ) as ExportScripts
+import Scripts (scriptHash) as ExportScripts
 import Scripts
   ( mintingPolicyHash
   , stakeValidatorHash
   , validatorHash
   ) as Scripts
-import Serialization.Hash -- Includes low level helpers. Do we want these?
-  ( Ed25519KeyHash
-  , ScriptHash
-  , ed25519KeyHashToBytes
-  , ed25519KeyHashFromBytes
-  , ed25519KeyHashFromBech32
-  , ed25519KeyHashToBech32
-  , ed25519KeyHashToBech32Unsafe
-  , scriptHashToBytes
-  , scriptHashToBech32Unsafe
-  , scriptHashFromBytes
-  , scriptHashFromBech32
-  , scriptHashToBech32
-  ) as Hash
+import Serialization.Hash (ScriptHash) as Hash
 import Types.Scripts
   ( MintingPolicy(MintingPolicy)
   , MintingPolicyHash(MintingPolicyHash)

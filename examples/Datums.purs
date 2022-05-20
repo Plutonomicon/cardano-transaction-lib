@@ -20,7 +20,7 @@ module Examples.Datums (main) where
 import Contract.Prelude
 
 import Contract.Monad (runContract_, launchAff_, logInfo', traceContractConfig)
-import Contract.PlutusData (DatumHash, getDatumByHash, getDatumsByHashes)
+import Contract.PlutusData (DataHash, getDatumByHash, getDatumsByHashes)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Data.Newtype (wrap)
 
@@ -40,5 +40,5 @@ main = launchAff_ $ do
           "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
       ]
   where
-  mkDatumHash :: String -> DatumHash
+  mkDatumHash :: String -> DataHash
   mkDatumHash = wrap <<< hexToByteArrayUnsafe

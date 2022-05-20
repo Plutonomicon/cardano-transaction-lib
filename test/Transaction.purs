@@ -2,6 +2,17 @@ module Test.Transaction (suite) where
 
 import Prelude
 
+import Cardano.Types.Transaction
+  ( Ed25519Signature(Ed25519Signature)
+  , PublicKey(PublicKey)
+  , Redeemer(Redeemer)
+  , ScriptDataHash(ScriptDataHash)
+  , Transaction(Transaction)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , TxBody(TxBody)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
+  )
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Maybe (Maybe(Just, Nothing))
@@ -28,17 +39,6 @@ import Types.PlutusData (PlutusData(Integer))
 import Types.Datum (Datum(Datum))
 import Types.Scripts (PlutusScript(PlutusScript))
 import Types.RedeemerTag (RedeemerTag(Spend))
-import Types.Transaction
-  ( Ed25519Signature(Ed25519Signature)
-  , PublicKey(PublicKey)
-  , Redeemer(Redeemer)
-  , ScriptDataHash(ScriptDataHash)
-  , Transaction(Transaction)
-  , TransactionWitnessSet(TransactionWitnessSet)
-  , TxBody(TxBody)
-  , Vkey(Vkey)
-  , Vkeywitness(Vkeywitness)
-  )
 
 suite :: TestPlanM Unit
 suite = group "attach datums to tx" $ do

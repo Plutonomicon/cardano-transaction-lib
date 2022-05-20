@@ -13,7 +13,7 @@ import Data.Show.Generic (genericShow)
 import FromData (class FromData)
 import ToData (class ToData, toData)
 import Types.PlutusData (PlutusData)
-import Types.Transaction (DatumHash) as X
+import Types.Transaction (DataHash(DataHash)) as X
 
 -- | Define data types mirroring Plutus `Datum`, like `Datum` itself and
 -- | `Redeemer` where the latter is not to be confused with the CSL-stype

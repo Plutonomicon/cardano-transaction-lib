@@ -13,6 +13,7 @@ module Types.TypedValidator
 
 import Prelude
 
+import Cardano.Types.Transaction (Transaction)
 import Data.Argonaut
   ( class DecodeJson
   , JsonDecodeError(TypeMismatch)
@@ -32,7 +33,6 @@ import Types.Scripts
   , Validator
   , ValidatorHash
   )
-import Types.Transaction (Transaction)
 
 -- We don't need c, d because a determines the same type b for `DatumType` and
 -- `RedeemerType`. Plutus uses associated typed families, but we don't have

@@ -2,6 +2,7 @@ module Test.UsedTxOuts (suite) where
 
 import Prelude
 
+import Cardano.Types.Transaction (Transaction)
 import Control.Monad.Reader (runReaderT)
 import Data.Array (any, singleton, uncons)
 import Data.Foldable (all)
@@ -18,7 +19,7 @@ import Test.Fixtures
   )
 import Test.Spec.Assertions (shouldReturn)
 import TestM (TestPlanM)
-import Types.Transaction (Transaction, TransactionHash)
+import Types.Transaction (TransactionHash)
 import Types.UsedTxOuts
   ( isTxOutRefUsed
   , lockTransactionInputs
