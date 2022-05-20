@@ -11,10 +11,16 @@ import Aeson
   , Aeson
   , AesonCases
   , AesonEncoder
-  , JsonDecodeError(..)
+  , JsonDecodeError
+      ( TypeMismatch
+      , UnexpectedValue
+      , AtIndex
+      , AtKey
+      , Named
+      , MissingValue
+      )
   , NumberIndex
   , aesonNull
-  , bumpNumberIndexBy
   , caseAeson
   , caseAesonArray
   , caseAesonBigInt
@@ -59,7 +65,6 @@ import Aeson
   , toObject
   , toString
   , toStringifiedNumbersJson
-  , useNextIndexIndex
   , (.:)
   , (.:?)
   ) as Aeson

@@ -25,7 +25,7 @@ import Data.Show.Generic (genericShow)
 import FromData (class FromData, genericFromData)
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
-  , StakingCredential
+  , StakingCredential(StakingHash)
   )
 import Plutus.Types.DataSchema
   ( class HasPlutusSchema
@@ -37,7 +37,7 @@ import Plutus.Types.DataSchema
   )
 import ToData (class ToData, genericToData)
 import TypeLevel.Nat (Z)
-import Types.PubKeyHash (PubKeyHash)
+import Types.PubKeyHash (PaymentPubKeyHash(..), StakePubKeyHash, PubKeyHash)
 import Types.Scripts (ValidatorHash)
 
 --------------------------------------------------------------------------------
@@ -97,16 +97,17 @@ instance EncodeAeson Address where
 
 -- | The address that should be targeted by a transaction output locked
 -- | by the public key with the given hash.
-pubKeyHashAddress :: PubKeyHash -> Address
-pubKeyHashAddress pkh = wrap $
+pubKeyHashAddress :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> Address
+pubKeyHashAddress (PaymentPubKeyHash pkh) skh = wrap
   { addressCredential: PubKeyCredential pkh
-  , addressStakingCredential: Nothing
+  , addressStakingCredential:
+      map (StakingHash <<< PubKeyCredential <<< unwrap) skh
   }
 
 -- | The address that should be used by a transaction output locked
 -- | by the given validator script hash.
 scriptHashAddress :: ValidatorHash -> Address
-scriptHashAddress vh = wrap $
+scriptHashAddress vh = wrap
   { addressCredential: ScriptCredential vh
   , addressStakingCredential: Nothing
   }
@@ -114,14 +115,14 @@ scriptHashAddress vh = wrap $
 -- | The PubKeyHash of the address (if any).
 toPubKeyHash :: Address -> Maybe PubKeyHash
 toPubKeyHash addr =
-  case _.addressCredential (unwrap addr) of
+  case (unwrap addr).addressCredential of
     PubKeyCredential k -> Just k
     _ -> Nothing
 
 -- | The validator hash of the address (if any).
 toValidatorHash :: Address -> Maybe ValidatorHash
 toValidatorHash addr =
-  case _.addressCredential (unwrap addr) of
+  case (unwrap addr).addressCredential of
     ScriptCredential k -> Just k
     _ -> Nothing
 

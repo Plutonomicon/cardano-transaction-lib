@@ -9,6 +9,16 @@ import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
 import Data.UInt as UInt
 
+import Cardano.Types.Transaction
+  ( NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
+  ) as T
 import FfiHelpers (ContainerHelper, containerHelper)
 import Serialization.Address (Slot(Slot)) as T
 import Serialization.Hash (Ed25519KeyHash) as T
@@ -22,16 +32,6 @@ import Serialization.Types
   , TimelockExpiry
   , TimelockStart
   )
-import Types.Transaction
-  ( NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
-  ) as T
 
 convertNativeScripts :: Array T.NativeScript -> Maybe NativeScripts
 convertNativeScripts = map packNativeScripts <<< traverse convertNativeScript

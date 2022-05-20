@@ -2,7 +2,6 @@ module FromData
   ( FromDataError(..)
   , class FromData
   , class FromDataArgs
-
   , class FromDataArgsRL
   , class FromDataWithSchema
   , fromData
@@ -70,10 +69,9 @@ class FromData :: Type -> Constraint
 class FromData a where
   fromData :: PlutusData -> Maybe a
 
-{- | Replacement for 'FromDataWithIndex'. This converts a type into its Plutus Data representation with the help of a Plutus Data Schema (see TypeLevel.DataSchema)
-   We cannot require that the first type argument 't' is an instance of 'HasPlutusSchema' but in practice instances of this class must have a 't' with a
-   'HasPlutusSchema' instance as well.
--}
+-- | Replacement for 'FromDataWithIndex'. This converts a type into its Plutus Data representation with the help of a Plutus Data Schema (see TypeLevel.DataSchema)
+-- | We cannot require that the first type argument 't' is an instance of 'HasPlutusSchema' but in practice instances of this class must have a 't' with a
+-- | 'HasPlutusSchema' instance as well.
 class FromDataWithSchema :: Type -> Type -> Constraint
 class FromDataWithSchema t a where
   fromDataWithSchema
@@ -89,13 +87,13 @@ class FromDataArgs t c a where
     -> Array PlutusData
     -> Either FromDataError { head :: a, tail :: Array PlutusData }
 
-{- | A helper typeclass to implement `FromDataArgs` for records.
-   Adapted from https://github.com/purescript/purescript-quickcheck/blob/v7.1.0/src/Test/QuickCheck/Arbitrary.purs#L247
+-- | A helper typeclass to implement `FromDataArgs` for records.
+-- | Adapted from https://github.com/purescript/purescript-quickcheck/blob/v7.1.0/src/Test/QuickCheck/Arbitrary.purs#L247
+-- |
+-- | The second argument is a symbol which represents the name of a record constructor.
+-- |
+-- | The third argument to the class is a RowList.
 
-   The second argument is a symbol which represents the name of a record constructor.
-
-   The third argument to the class is a RowList.
--}
 class FromDataArgsRL
   :: Type -> Symbol -> RL.RowList Type -> Row Type -> Constraint
 class FromDataArgsRL t constr list row | t constr list -> row where
@@ -108,9 +106,8 @@ class FromDataArgsRL t constr list row | t constr list -> row where
     -> Array PlutusData
     -> Either FromDataError { head :: Record row, tail :: Array PlutusData }
 
-{- | FromDataWithSchema instances for Data.Generic.Rep
-   See https://purescript-simple-json.readthedocs.io/en/latest/generics-rep.html
--}
+-- | FromDataWithSchema instances for Data.Generic.Rep
+-- | See https://purescript-simple-json.readthedocs.io/en/latest/generics-rep.html
 
 instance
   ( FromDataWithSchema t l
@@ -153,7 +150,6 @@ else instance
     pd
 
 -- | FromDataArgs instance for Data.Generic.Rep
-
 instance FromDataArgs t c (G.NoArguments) where
   fromDataArgs _ _ [] = Right { head: G.NoArguments, tail: [] }
   fromDataArgs _ c pdArgs = Left $ ArgsWantedButGot (reflectSymbol c) 0 pdArgs

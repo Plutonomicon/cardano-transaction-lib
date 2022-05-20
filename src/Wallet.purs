@@ -8,6 +8,15 @@ module Wallet
 
 import Prelude
 
+import Cardano.Types.Transaction
+  ( Ed25519Signature(Ed25519Signature)
+  , PublicKey(PublicKey)
+  , Transaction(Transaction)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
+  )
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Control.Promise (Promise)
 import Control.Promise as Promise
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
@@ -26,16 +35,7 @@ import Helpers ((<<>>))
 import Serialization as Serialization
 import Serialization.Address (Address, addressFromBytes)
 import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex)
-import Types.Transaction
-  ( Ed25519Signature(Ed25519Signature)
-  , PublicKey(PublicKey)
-  , Transaction(Transaction)
-  , TransactionHash(TransactionHash)
-  , TransactionWitnessSet(TransactionWitnessSet)
-  , Vkey(Vkey)
-  , Vkeywitness(Vkeywitness)
-  )
-import Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Types.Transaction (TransactionHash(TransactionHash))
 import Untagged.Union (asOneOf)
 
 -- At the moment, we only support Nami's wallet. In the future we will expand

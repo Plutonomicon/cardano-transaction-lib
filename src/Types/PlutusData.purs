@@ -7,7 +7,7 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
-  , JsonDecodeError(..)
+  , JsonDecodeError(UnexpectedValue)
   , decodeAeson
   , encodeAeson
   , encodeAeson'

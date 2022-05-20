@@ -51,29 +51,27 @@ class ToData :: Type -> Constraint
 class ToData a where
   toData :: a -> PlutusData
 
-{- | A class which converts a type to its PlutusData representation with the help of a
-   generated or user-defined Plutus Data Schema (see TypeLevel.DataSchema.purs).
-   We cannot express the constraint that the first type argument have an instance of
-   @HasPlutusSchema@ with a superclass, but in practice every instance of this class will have an instance of
-   that class as well.
--}
+-- | A class which converts a type to its PlutusData representation with the help of a
+-- |generated or user-defined Plutus Data Schema (see TypeLevel.DataSchema.purs).
+-- |We cannot express the constraint that the first type argument have an instance of
+-- |@HasPlutusSchema@ with a superclass, but in practice every instance of this class will have an instance of
+-- |that class as well.
 class ToDataWithSchema :: Type -> Type -> Constraint
 class ToDataWithSchema t a where
   toDataWithSchema :: Proxy t -> a -> PlutusData
 
--- As explained in https://harry.garrood.me/blog/write-your-own-generics/ this
--- is just a neat pattern that flattens a skewed Product of Products
+-- | As explained in https://harry.garrood.me/blog/write-your-own-generics/ this
+-- | is just a neat pattern that flattens a skewed Product of Products
 class ToDataArgs :: Type -> Symbol -> Type -> Constraint
 class IsSymbol constr <= ToDataArgs t constr a where
   toDataArgs :: Proxy t -> Proxy constr -> a -> Array (PlutusData)
 
-{- | A helper typeclass to implement `ToDataArgs` for records.
-   Adapted from https://github.com/purescript/purescript-quickcheck/blob/v7.1.0/src/Test/QuickCheck/Arbitrary.purs#L247
-
-   The Symbol argument represents the name of a constructor. To account for Sum types where multiple variants of the sum have
-   records with the same name, we have to know the name of the constructor (at the type level). See TypeLevel.DataSchema for a
-   more in depth explanation.
--}
+-- | A helper typeclass to implement `ToDataArgs` for records.
+-- | Adapted from https://github.com/purescript/purescript-quickcheck/blob/v7.1.0/src/Test/QuickCheck/Arbitrary.purs#L247
+-- |
+-- | The Symbol argument represents the name of a constructor. To account for Sum types where multiple variants of the sum have
+-- | records with the same name, we have to know the name of the constructor (at the type level). See TypeLevel.DataSchema for a
+-- | more in depth explanation.
 class ToDataArgsRL
   :: forall (k :: Type)
    . Type
@@ -96,10 +94,9 @@ instance ToDataArgsRLHelper t constr list row => ToDataArgsRL t constr list row 
   toDataArgsRec proxy constr list rec = map snd <<< sortWith fst $
     toDataArgsRec' proxy constr list rec
 
-{- | A helper class used to implement ToDataArgsRL. This mainly exists for performance / ergonomic reasons;
-   specifically, it allows us to only sort once (and not have to worry about maintaing the correct order as we go,
-   which reduces the potential for errors)
--}
+-- | A helper class used to implement ToDataArgsRL. This mainly exists for performance / ergonomic reasons;
+-- | specifically, it allows us to only sort once (and not have to worry about maintaing the correct order as we go,
+-- | which reduces the potential for errors)
 class ToDataArgsRLHelper
   :: forall (k :: Type)
    . Type

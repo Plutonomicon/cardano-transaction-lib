@@ -7,6 +7,7 @@ module ReindexRedeemers
 
 import Prelude
 
+import Cardano.Types.Transaction (Redeemer(Redeemer)) as T
 import Control.Monad.Except.Trans (runExceptT)
 import Data.Array (elemIndex)
 import Data.BigInt (fromInt)
@@ -19,7 +20,6 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Helpers (liftEither)
 import QueryM (QueryM)
 import Types.RedeemerTag (RedeemerTag(Spend))
-import Types.Transaction (Redeemer(Redeemer)) as T
 import Types.Transaction (TransactionInput)
 
 -- | The only error should be impossible but we keep this here in case the user

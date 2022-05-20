@@ -18,9 +18,9 @@ import Prim.TypeError (class Fail, Text)
 import Data.Symbol
 
 -- | A kind for unordered  RowLists which contain a Nat representation of their
--- intended position in a  non-lexicographic order. Actual RowLists are automagically
--- ordered lexicographically, Haskell records are not ordered lexicographically, so we need
--- this to encode the structure of Haskell records precisely.
+-- | intended position in a  non-lexicographic order. Actual RowLists are automagically
+-- | ordered lexicographically, Haskell records are not ordered lexicographically, so we need
+-- | this to encode the structure of Haskell records precisely.
 data RowListI :: forall (k :: Type). k -> Type
 data RowListI k
 
@@ -30,9 +30,11 @@ foreign import data ConsI
 
 foreign import data NilI :: forall (k :: Type). RowListI k
 
+-- TODO: See if we can optimize this. Slows down compilation time considerably for complex types
+-- GH Issue: https://github.com/Plutonomicon/cardano-transaction-lib/issues/433
 -- | Uniqueness constraint on the Nat indices of a RowListI which asserts that all indices
--- are unique. This is needed to ensure that the various "lookup" classes return the
--- "values" (types) that we expect.
+-- | are unique. This is needed to ensure that the various "lookup" classes return the
+-- | "values" (types) that we expect.
 class UniqueIndices :: forall (k :: Type). RowListI k -> Constraint
 class UniqueIndices list
 
@@ -48,8 +50,10 @@ else instance
   ) =>
   UniqueIndices (ConsI k a n (ConsI k' a' n' xs))
 
+-- TODO: See if we can optimize this. Slows down compilation considerably for complex types.
+-- GH Issue: https://github.com/Plutonomicon/cardano-transaction-lib/issues/433
 -- | Uniqueness constraint on the labels of a RowListI which asserts that all labels are unique.
--- Again, this is needed so that the lookup functions perform in the expected manner.
+-- | Again, this is needed so that the lookup functions perform in the expected manner.
 class AllUniqueLabelsI :: forall (k :: Type). RowListI k -> Constraint
 class AllUniqueLabelsI list
 
@@ -65,9 +69,9 @@ else instance
   AllUniqueLabelsI (ConsI k a n (ConsI k' a' n' xs))
 
 -- | Get the Nat index corresponding to a given symbol index in a RowListI.
--- This is meant to be used primarily in the context of an instance declaration for some
--- other class  (see examples in ToData.purs), and is probably not particularly useful
--- outside of those instance contexts.
+-- | This is meant to be used primarily in the context of an instance declaration for some
+-- | other class  (see examples in ToData.purs), and is probably not particularly useful
+-- | outside of those instance contexts.
 class GetIndexWithLabel
   :: forall (k :: Type). Symbol -> RowListI k -> Nat -> Constraint
 class IsSymbol label <= GetIndexWithLabel label list n | label list -> n
@@ -117,8 +121,8 @@ else instance
   GetLabelWithIndex ix (ConsI label' a' n' xs) label
 
 -- | Given a Symbol which appears as a label in the given RowListI, get ahold of the type indexed by that symbol.
--- Note that this does not "return" a *value* of that type, but the type itself, and is therefore only suitable
--- for type class instance contexts (& other type level computational contexts if any exist)
+-- | Note that this does not "return" a *value* of that type, but the type itself, and is therefore only suitable
+-- | for type class instance contexts (& other type level computational contexts if any exist)
 class GetWithLabel
   :: forall (k :: Type). Symbol -> RowListI k -> k -> Constraint
 class GetWithLabel label rlist result | label rlist -> result

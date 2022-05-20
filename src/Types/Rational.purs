@@ -14,17 +14,18 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
-  , JsonDecodeError(..)
+  , JsonDecodeError(TypeMismatch, UnexpectedValue)
   , decodeAeson
   , encodeAeson'
+  , toStringifiedNumbersJson
   )
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString, fromString) as BigInt
-import Data.Either (note)
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Either (Either(Left), note)
+import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Newtype (class Newtype)
 import Data.Ratio ((%), numerator, denominator) as Ratio
 import Data.Ratio (Ratio)
-import Data.Newtype (class Newtype)
 import FromData (class FromData)
 import ToData (class ToData)
 import Types.Natural (Natural)
@@ -43,13 +44,31 @@ derive newtype instance Semiring Rational
 derive newtype instance Ring Rational
 derive newtype instance CommutativeRing Rational
 
+-- Representation of Rational in Aeson, used internally
+type RationalRep =
+  { unRational ::
+      { numerator :: StringifiedBigInt
+      , denominator :: StringifiedBigInt
+      }
+  }
+
 instance EncodeAeson Rational where
   encodeAeson' r = encodeAeson'
-    { "unRational":
-        { "numerator": StringifiedBigInt (numerator r)
-        , "denominator": StringifiedBigInt (denominator r)
+    ( { "unRational":
+          { "numerator": StringifiedBigInt (numerator r)
+          , "denominator": StringifiedBigInt (denominator r)
+          }
+      } :: RationalRep
+    )
+
+instance DecodeAeson Rational where
+  decodeAeson r = do
+    { unRational:
+        { numerator: (StringifiedBigInt n :: StringifiedBigInt)
+        , denominator: (StringifiedBigInt d :: StringifiedBigInt)
         }
-    }
+    } :: RationalRep <- decodeAeson r
+    maybe (Left $ UnexpectedValue $ toStringifiedNumbersJson r) pure $ n % d
 
 newtype StringifiedBigInt = StringifiedBigInt BigInt
 

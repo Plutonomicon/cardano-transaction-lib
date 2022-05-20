@@ -9,6 +9,8 @@ module TypeLevel.Nat
 import Type.Proxy (Proxy(Proxy))
 import Prelude ((+))
 
+-- | The kind of type level natural number. This is not strictly needed, but improves the
+-- | legibility of type errors and facilitates more comprehensible type signatures
 data Nat :: Type
 data Nat
 
