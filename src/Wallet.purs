@@ -202,4 +202,4 @@ foreign import _submitTxNami
 foreign import _attachSignature
   :: CborBytes -- CBOR bytes of tx
   -> CborBytes -- CBOR bytes of witness set
-  -> Effect (CborBytes)
+  -> Effect CborBytes
