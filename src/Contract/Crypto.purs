@@ -16,7 +16,7 @@ import QueryM (ClientError)
 import QueryM.Crypto as Crypto
 import Serialization.Hash (ScriptHash)
 import Types.ByteArray (ByteArray)
-import Types.Datum (Datum, DatumHash)
+import Types.Datum (Datum, DataHash)
 import Types.Scripts (PlutusScript)
 import Data.Newtype (class Newtype)
 
@@ -41,5 +41,5 @@ hashScript
   -> Contract r (Either ClientError b)
 hashScript = wrapContract <<< Crypto.hashScript
 
-datumHash :: forall (r :: Row Type). Datum -> Contract r (Maybe DatumHash)
+datumHash :: forall (r :: Row Type). Datum -> Contract r (Maybe DataHash)
 datumHash = wrapContract <<< Crypto.datumHash

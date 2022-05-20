@@ -3,7 +3,6 @@ name:          ctl-server
 version:       0.1.0.0
 author:        mlabs
 build-type:    Simple
-data-files:    config/pparams.json
 
 common common-language
   default-extensions:
@@ -28,7 +27,7 @@ common common-language
     OverloadedStrings
     QuasiQuotes
     RankNTypes
-    RecordWildCards
+    NamedFieldPuns
     ScopedTypeVariables
     StandaloneDeriving
     TemplateHaskell
@@ -75,6 +74,10 @@ library
     , wai-cors
     , warp
     , cardano-ledger-shelley-ma
+    , network
+    , websockets
+    , unordered-containers
+    , attoparsec
 
   exposed-modules:
     Api
@@ -82,6 +85,8 @@ library
     Paths_ctl_server
     Types
     Utils
+    Ogmios.Query
+    Ogmios.Parser
 
 executable ctl-server
   import:           common-language
@@ -122,3 +127,5 @@ test-suite test
     , servant-client
     , servant-server
     , warp
+    , text
+    , containers

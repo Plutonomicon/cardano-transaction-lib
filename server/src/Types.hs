@@ -43,7 +43,6 @@ import Data.Aeson (FromJSON (parseJSON), ToJSON (toJSON))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Encoding qualified as Aeson.Encoding
 import Data.Aeson.Types (withText)
-import Data.Bifunctor (second)
 import Data.ByteString (ByteString)
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Lazy.Char8 qualified as LC8
@@ -59,7 +58,8 @@ import Data.Word (Word64, Word8)
 import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (Port)
 import Numeric.Natural (Natural)
-import Paths_ctl_server (getDataFileName)
+import Ogmios.Parser (decodeProtocolParameters)
+import Ogmios.Query qualified
 import Plutus.V1.Ledger.Api qualified as Ledger
 import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
 import Servant (FromHttpApiData, QueryParam', Required, ToHttpApiData)
@@ -87,24 +87,37 @@ data ServerOptions = ServerOptions
   { port :: Port
   , nodeSocket :: FilePath
   , networkId :: C.NetworkId
+  , ogmiosHost :: String
+  , ogmiosPort :: Int
   }
   deriving stock (Generic)
 
 newEnvIO :: ServerOptions -> IO (Either String Env)
-newEnvIO serverOptions =
-  getDataFileName "config/pparams.json"
-    >>= Aeson.eitherDecodeFileStrict @Shelley.ProtocolParameters
-    <&> second (Env serverOptions)
+newEnvIO serverOptions@ServerOptions {ogmiosHost, ogmiosPort} =
+  let ogmiosServerParams =
+        Ogmios.Query.defaultServerParameters
+          { Ogmios.Query.port = ogmiosPort
+          , Ogmios.Query.host = ogmiosHost
+          }
+      queryProtocolParams = Ogmios.Query.makeRequest ogmiosServerParams
+      maxConnectionAttempts = 300
+   in Ogmios.Query.tryQueryUntilZero queryProtocolParams maxConnectionAttempts
+        >>= \case
+          Right response ->
+            pure $
+              Env serverOptions <$> decodeProtocolParameters response
+          Left msg ->
+            pure . Left $ "Can't get protocol parameters from Ogmios: \n" <> msg
 
 getNodeConnectInfo :: AppM (C.LocalNodeConnectInfo C.CardanoMode)
 getNodeConnectInfo =
   asks serverOptions <&> \opts ->
     C.LocalNodeConnectInfo
-      { localConsensusModeParams =
+      { Shelley.localConsensusModeParams =
           -- FIXME: Calc Byron epoch length based on Genesis params.
           C.CardanoModeParams (C.EpochSlots 21600)
-      , localNodeNetworkId = networkId opts
-      , localNodeSocketPath = nodeSocket opts
+      , Shelley.localNodeNetworkId = networkId opts
+      , Shelley.localNodeSocketPath = nodeSocket opts
       }
 
 newtype Cbor = Cbor Text

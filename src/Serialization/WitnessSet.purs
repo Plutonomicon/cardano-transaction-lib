@@ -2,6 +2,16 @@ module Serialization.WitnessSet where
 
 import Prelude
 
+import Cardano.Types.Transaction
+  ( BootstrapWitness
+  , Ed25519Signature(Ed25519Signature)
+  , ExUnits
+  , PublicKey(PublicKey)
+  , Redeemer(Redeemer)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
+  ) as T
 import Data.Newtype (unwrap)
 import Data.Array as Array
 import Data.Maybe (Maybe, maybe)
@@ -41,16 +51,6 @@ import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData) as PD
 import Types.RedeemerTag as Tag
 import Types.Scripts (PlutusScript(PlutusScript)) as S
-import Types.Transaction
-  ( BootstrapWitness
-  , Ed25519Signature(Ed25519Signature)
-  , ExUnits
-  , PublicKey(PublicKey)
-  , Redeemer(Redeemer)
-  , TransactionWitnessSet(TransactionWitnessSet)
-  , Vkey(Vkey)
-  , Vkeywitness(Vkeywitness)
-  ) as T
 
 setPlutusData :: PDS.PlutusData -> TransactionWitnessSet -> Effect Unit
 setPlutusData pd ws = setWitness _wsSetPlutusData ws pd

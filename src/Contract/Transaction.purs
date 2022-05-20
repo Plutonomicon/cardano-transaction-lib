@@ -10,12 +10,14 @@ module Contract.Transaction
   , finalizeTx
   , module BalanceTxError
   , module ExportQueryM
+  , module PTransaction
   , module ReindexRedeemersExport
   , module ScriptLookups
   , module Transaction
   , module TransactionMetadata
   , module UnbalancedTx
   , reindexSpentScriptRedeemers
+  , scriptOutputToTransactionOutput
   , signTransaction
   , signTransactionBytes
   , submit
@@ -26,40 +28,8 @@ import Prelude
 import BalanceTx (UnattachedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
 import BalanceTx (BalanceTxError) as BalanceTxError
-import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
-import Data.Either (Either, hush)
-import Data.Generic.Rep (class Generic)
-import Data.Lens.Getter ((^.))
-import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Show.Generic (genericShow)
-import Data.Tuple.Nested (type (/\), (/\))
-import QueryM
-  ( FeeEstimate(FeeEstimate)
-  , ClientError(..) -- implicit as this error list will likely increase.
-  , FinalizedTransaction(FinalizedTransaction)
-  ) as ExportQueryM
-import QueryM
-  ( FinalizedTransaction(FinalizedTransaction)
-  , calculateMinFee
-  , signTransaction
-  , signTransactionBytes
-  , finalizeTx
-  , submitTxOgmios
-  ) as QueryM
-import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
-import ReindexRedeemers
-  ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
-  ) as ReindexRedeemersExport
-import Types.ByteArray (ByteArray)
-import Types.Datum (Datum)
-import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
-import Types.ScriptLookups
-  ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
-  , mkUnbalancedTx
-  ) as ScriptLookups
-import Types.Transaction (Transaction, TransactionHash, _body, _inputs)
-import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and associated lens.
+import Cardano.Types.Transaction (Transaction, _body, _inputs)
+import Cardano.Types.Transaction -- Most re-exported, don't re-export `Redeemer` and associated lens.
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
   , BootstrapWitness
@@ -74,8 +44,6 @@ import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and ass
       )
   , CostModel(CostModel)
   , Costmdls(Costmdls)
-  , DataHash(DataHash)
-  , DatumHash
   , Ed25519Signature(Ed25519Signature)
   , Epoch(Epoch)
   , ExUnitPrices
@@ -101,18 +69,16 @@ import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and ass
   , ScriptDataHash(ScriptDataHash)
   , SubCoin
   , Transaction(Transaction)
-  , TransactionHash(TransactionHash)
-  , TransactionInput(TransactionInput)
-  , TransactionOutput(TransactionOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
-  , TxOut
   , UnitInterval
   , Update
-  , Utxo
-  , UtxoM(UtxoM)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
+  -- Use these lenses with care since some will involved Cardano datatypes, not
+  -- Plutus ones. e.g. _fee, _collateral, _outputs. In the unlikely scenario that
+  -- you need to tweak Cardano `TransactionOutput`s directly, `fromPlutusType`
+  -- then `toPlutusType` should be used.
   , _auxiliaryData
   , _auxiliaryDataHash
   , _body
@@ -137,6 +103,51 @@ import Types.Transaction -- Most re-exported, don't re-export `Redeemer` and ass
   , _withdrawals
   , _witnessSet
   ) as Transaction
+import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
+import Data.Either (Either, hush)
+import Data.Generic.Rep (class Generic)
+import Data.Lens.Getter ((^.))
+import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Show.Generic (genericShow)
+import Data.Tuple.Nested (type (/\), (/\))
+import Plutus.ToPlutusType (toPlutusType)
+import Plutus.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  ) as PTransaction
+import Plutus.Types.Value (Coin)
+import QueryM
+  ( FeeEstimate(FeeEstimate)
+  , ClientError(..) -- implicit as this error list will likely increase.
+  , FinalizedTransaction(FinalizedTransaction)
+  ) as ExportQueryM
+import QueryM
+  ( FinalizedTransaction(FinalizedTransaction)
+  , calculateMinFee
+  , signTransaction
+  , signTransactionBytes
+  , finalizeTx
+  , submitTxOgmios
+  ) as QueryM
+import Serialization.Address (NetworkId)
+import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
+import ReindexRedeemers
+  ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
+  ) as ReindexRedeemersExport
+import TxOutput (scriptOutputToTransactionOutput) as TxOutput
+import Types.ByteArray (ByteArray)
+import Types.Datum (Datum)
+import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
+import Types.ScriptLookups
+  ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
+  , mkUnbalancedTx
+  ) as ScriptLookups
+import Types.Transaction (TransactionHash)
+import Types.Transaction
+  ( DataHash(DataHash)
+  , TransactionHash(TransactionHash)
+  , TransactionInput(TransactionInput)
+  ) as Transaction
 import Types.TransactionMetadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
@@ -150,13 +161,11 @@ import Types.TransactionMetadata
   ) as TransactionMetadata
 import Types.UnbalancedTransaction
   ( ScriptOutput(ScriptOutput) -- More up-to-date Plutus uses this, wonder if we can just use `TransactionOutput`
-  , TxOutRef
   , UnbalancedTx(UnbalancedTx)
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
   ) as UnbalancedTx
-import Cardano.Types.Value (Coin)
 
 -- | This module defines transaction-related requests. Currently signing and
 -- | submission is done with Nami.
@@ -183,7 +192,9 @@ calculateMinFee
   :: forall (r :: Row Type)
    . Transaction
   -> Contract r (Either ExportQueryM.ClientError Coin)
-calculateMinFee = wrapContract <<< QueryM.calculateMinFee
+calculateMinFee = (map <<< map) (unwrap <<< toPlutusType)
+  <<< wrapContract
+  <<< QueryM.calculateMinFee
 
 -- | Same as `calculateMinFee` hushing the error.
 calculateMinFeeM
@@ -213,6 +224,8 @@ finalizeTx
 finalizeTx tx datums redeemers = wrapContract
   $ QueryM.finalizeTx tx datums redeemers
 
+-- We export this because we need the redeemers as Cardano Redeemers to be used
+-- in `finalizeTx`
 -- | Reindex the `Spend` redeemers. Since we insert to an ordered array, we must
 -- | reindex the redeemers with such inputs. This must be crucially called after
 -- | balancing when all inputs are in place so they cannot be reordered.
@@ -265,3 +278,10 @@ balanceAndSignTx uaubTx@(UnattachedUnbalancedTx { datums }) = do
     signTransactionBytes txCbor
   pure $ pure $ BalancedSignedTransaction
     { transaction: balancedTx, signedTxCbor }
+
+scriptOutputToTransactionOutput
+  :: NetworkId
+  -> UnbalancedTx.ScriptOutput
+  -> Maybe PTransaction.TransactionOutput
+scriptOutputToTransactionOutput networkId =
+  toPlutusType <<< TxOutput.scriptOutputToTransactionOutput networkId

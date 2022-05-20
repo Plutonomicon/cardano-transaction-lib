@@ -45,7 +45,7 @@ import Serialization (toBytes) as Serialization
 import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
-import Types.Datum (Datum, DatumHash)
+import Types.Datum (Datum, DataHash)
 import Types.Scripts (PlutusScript)
 import Test.Utils (guardNote)
 import Types.Transaction as Transaction
@@ -111,7 +111,7 @@ hashData datum = do
   pure $ hush <<< decodeJson =<< hush jsonBody
 
 -- | Hashes an Plutus-style Datum
-datumHash :: Datum -> QueryM (Maybe DatumHash)
+datumHash :: Datum -> QueryM (Maybe DataHash)
 datumHash = map (map (Transaction.DataHash <<< unwrap)) <<< hashData
 
 newtype HashedData = HashedData ByteArray
