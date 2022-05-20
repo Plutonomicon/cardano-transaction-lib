@@ -21,7 +21,6 @@ import Aeson
       )
   , NumberIndex
   , aesonNull
-  , bumpNumberIndexBy
   , caseAeson
   , caseAesonArray
   , caseAesonBigInt
@@ -66,7 +65,6 @@ import Aeson
   , toObject
   , toString
   , toStringifiedNumbersJson
-  , useNextIndexIndex
   , (.:)
   , (.:?)
   ) as Aeson
