@@ -41,7 +41,6 @@ import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (MonadReader, ReaderT, asks)
 import Data.Aeson (FromJSON (parseJSON), ToJSON (toJSON))
 import Data.Aeson qualified as Aeson
-import Data.Char (toLower)
 import Data.Aeson.Encoding qualified as Aeson.Encoding
 import Data.Aeson.Types (withText)
 import Data.Bifunctor (second)
@@ -49,6 +48,7 @@ import Data.ByteString (ByteString)
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.ByteString.Short qualified as SBS
+import Data.Char (toLower)
 import Data.Functor ((<&>))
 import Data.Kind (Type)
 import Data.Maybe (fromMaybe)
@@ -157,8 +157,8 @@ newtype AppliedScript = AppliedScript Ledger.Script
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
 
-data HashBytesRequest = HashBytesRequest 
-  { methodToUse :: HashMethod 
+data HashBytesRequest = HashBytesRequest
+  { methodToUse :: HashMethod
   , bytesToHash :: BytesToHash
   }
   deriving stock (Show, Eq, Generic)
@@ -174,25 +174,27 @@ newtype HashedBytes = HashedBytes ByteString
   deriving newtype (Eq)
   deriving (FromJSON, ToJSON) via JsonHexString
 
-data HashMethod = Blake2b_256
-                | Sha2_256
-                | Sha3_256
+data HashMethod
+  = Blake2b_256
+  | Sha2_256
+  | Sha3_256
   deriving stock (Show, Eq, Generic)
 
-instance FromJSON HashMethod where 
-  parseJSON = 
-    Aeson.genericParseJSON 
-      Aeson.defaultOptions 
-        { Aeson.constructorTagModifier = fmap toLower }
+instance FromJSON HashMethod where
+  parseJSON =
+    Aeson.genericParseJSON
+      Aeson.defaultOptions
+        { Aeson.constructorTagModifier = fmap toLower
+        }
 
-instance ToJSON HashMethod where 
-  toJSON = 
-    Aeson.genericToJSON 
-      Aeson.defaultOptions 
-        { Aeson.constructorTagModifier = fmap toLower }
+instance ToJSON HashMethod where
+  toJSON =
+    Aeson.genericToJSON
+      Aeson.defaultOptions
+        { Aeson.constructorTagModifier = fmap toLower
+        }
 
-
-data ByteStringHash = ByteStringHash 
+data ByteStringHash = ByteStringHash
   { methodUsed :: HashMethod
   , hash :: HashedBytes
   }
@@ -416,28 +418,28 @@ instance Docs.ToSample ByteStringHash where
   toSamples _ =
     [
       ( "Hash bytes are returned as hexidecimal string"
-      , ByteStringHash Blake2b_256 $ HashedBytes
-          "\184\254\159\DELbU\166\250\b\246h\171c*\
-          \\141\b\SUB\216y\131\199|\210t\228\140\228P\240\179I\253"
+      , ByteStringHash Blake2b_256 $
+          HashedBytes
+            "\184\254\159\DELbU\166\250\b\246h\171c*\
+            \\141\b\SUB\216y\131\199|\210t\228\140\228P\240\179I\253"
       )
     ]
 
-instance Docs.ToSample HashMethod where 
-  toSamples _ = 
+instance Docs.ToSample HashMethod where
+  toSamples _ =
     [
-      ( "Method to use for hashing as defined in PlutusTx" 
+      ( "Method to use for hashing as defined in PlutusTx"
       , Sha2_256
       )
     ]
 
-instance Docs.ToSample HashBytesRequest where 
-  toSamples _ = 
+instance Docs.ToSample HashBytesRequest where
+  toSamples _ =
     [
-      ( "Request consisting of a HashMethod and the bytestring to be hashed" 
+      ( "Request consisting of a HashMethod and the bytestring to be hashed"
       , HashBytesRequest Blake2b_256 $ BytesToHash "foo"
       )
     ]
-  
 
 -- For decoding test fixtures, samples, etc...
 unsafeDecode :: forall (a :: Type). FromJSON a => String -> LC8.ByteString -> a

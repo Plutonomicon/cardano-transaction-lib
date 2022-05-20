@@ -64,13 +64,13 @@ import Types (
   Fee (Fee),
   FinalizeRequest (FinalizeRequest, datums, redeemers, tx),
   FinalizedTransaction (FinalizedTransaction),
-  HashDataRequest (HashDataRequest),
-  HashScriptRequest (HashScriptRequest),
-  HashedData (HashedData),
-  HashedBytes (HashedBytes),
   HashBytesRequest (HashBytesRequest),
-  HashedScript (HashedScript), 
+  HashDataRequest (HashDataRequest),
   HashMethod (Blake2b_256, Sha2_256, Sha3_256),
+  HashScriptRequest (HashScriptRequest),
+  HashedBytes (HashedBytes),
+  HashedData (HashedData),
+  HashedScript (HashedScript),
   RdmrPtrExUnits (
     RdmrPtrExUnits,
     exUnitsMem,
@@ -177,11 +177,11 @@ evalTxExecutionUnits cbor =
               }
 
 plutusHash :: HashBytesRequest -> AppM ByteStringHash
-plutusHash (HashBytesRequest meth (BytesToHash hs)) = 
-  let hf = case meth of 
-             Sha3_256 -> PlutusTx.sha3_256
-             Sha2_256 -> PlutusTx.sha2_256
-             Blake2b_256 -> PlutusTx.blake2b_256
+plutusHash (HashBytesRequest meth (BytesToHash hs)) =
+  let hf = case meth of
+        Sha3_256 -> PlutusTx.sha3_256
+        Sha2_256 -> PlutusTx.sha2_256
+        Blake2b_256 -> PlutusTx.blake2b_256
    in pure . ByteStringHash meth . HashedBytes . PlutusTx.fromBuiltin . hf $ PlutusTx.toBuiltin hs
 
 finalizeTx :: FinalizeRequest -> AppM FinalizedTransaction

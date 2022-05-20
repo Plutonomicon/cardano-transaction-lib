@@ -59,9 +59,9 @@ import Types (
   Fee,
   FinalizeRequest,
   FinalizedTransaction,
+  HashBytesRequest,
   HashDataRequest,
   HashScriptRequest,
-  HashBytesRequest,
   HashedData,
   HashedScript,
   WitnessCount,
@@ -159,7 +159,7 @@ apiDocs = Docs.docs api
 estimateTxFees :: WitnessCount -> Cbor -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
 hashScript :: HashScriptRequest -> ClientM HashedScript
-plutusHash :: HashBytesRequest  -> ClientM ByteStringHash
+plutusHash :: HashBytesRequest -> ClientM ByteStringHash
 evalTxExecutionUnits :: Cbor -> ClientM ExecutionUnitsMap
 finalizeTx :: FinalizeRequest -> ClientM FinalizedTransaction
 hashData :: HashDataRequest -> ClientM HashedData
