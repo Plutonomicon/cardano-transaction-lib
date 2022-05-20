@@ -76,8 +76,8 @@ plutusHash meth bytes = do
     bytesJson = encodeJson $ byteArrayToHex bytes
 
     requestJson :: Json
-    requestJson = "bytesToHash" := bytesJson
-      ~> "methodToUse" := methJson
+    requestJson = "bytes" := bytesJson
+      ~> "method" := methJson
       ~> jsonEmptyObject
 
     reqBody :: Affjax.RequestBody.RequestBody
@@ -85,11 +85,11 @@ plutusHash meth bytes = do
   response <- liftAff
     (Affjax.post Affjax.ResponseFormat.json url (pure reqBody))
   pure $ do
-    responseJson :: ({ methodUsed :: String, hash :: ByteArray }) <-
+    responseJson :: ({ method :: String, hash :: ByteArray }) <-
       lmap Affjax.printError response >>= _.body >>> decodeJson >>> lmap
         printJsonDecodeError
     goal <- lmap printJsonDecodeError $ decodeJson methJson
-    unless (responseJson.methodUsed == goal) $
+    unless (responseJson.method == goal) $
       throwError "responseJson wasn't hashed with the method requested"
     pure responseJson.hash
 

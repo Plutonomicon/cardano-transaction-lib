@@ -1,5 +1,3 @@
-{-# LANGUAGE DerivingVia #-}
-
 module Types (
   AppM (AppM),
   ServerOptions (..),
@@ -171,8 +169,8 @@ newtype AppliedScript = AppliedScript Ledger.Script
   deriving newtype (Eq, FromJSON, ToJSON)
 
 data HashBytesRequest = HashBytesRequest
-  { methodToUse :: HashMethod
-  , bytesToHash :: BytesToHash
+  { method :: HashMethod
+  , bytes :: BytesToHash
   }
   deriving stock (Show, Eq, Generic)
   deriving anyclass (FromJSON, ToJSON)
@@ -208,7 +206,7 @@ instance ToJSON HashMethod where
         }
 
 data ByteStringHash = ByteStringHash
-  { methodUsed :: HashMethod
+  { method :: HashMethod
   , hash :: HashedBytes
   }
   deriving stock (Show, Eq, Generic)
