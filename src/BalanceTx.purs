@@ -19,6 +19,40 @@ module BalanceTx
 
 import Prelude
 
+import Cardano.Types.Transaction
+  ( Redeemer(Redeemer)
+  , Transaction(Transaction)
+  , TransactionOutput(TransactionOutput)
+  , TxBody(TxBody)
+  , Utxo
+  , _body
+  , _collateral
+  , _inputs
+  , _networkId
+  , _plutusData
+  , _redeemers
+  , _witnessSet
+  )
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  )
+import Cardano.Types.Value
+  ( filterNonAda
+  , geq
+  , getLovelace
+  , lovelaceValueOf
+  , isAdaOnly
+  , isPos
+  , isZero
+  , minus
+  , mkCoin
+  , mkValue
+  , numCurrencySymbols
+  , numTokenNames
+  , sumTokenNameLengths
+  , valueToCoin
+  , Value
+  )
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
@@ -71,46 +105,10 @@ import Serialization.Address
   )
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
-import Types.Transaction
-  ( DataHash
-  , Redeemer(Redeemer)
-  , Transaction(Transaction)
-  , TransactionInput
-  , TransactionOutput(TransactionOutput)
-  , TxBody(TxBody)
-  , Utxo
-  , _body
-  , _collateral
-  , _inputs
-  , _networkId
-  , _plutusData
-  , _redeemers
-  , _witnessSet
-  )
-import Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  )
+import Types.Transaction (DataHash, TransactionInput)
 import Types.UnbalancedTransaction
-  ( TxOutRef
-  , UnbalancedTx(UnbalancedTx)
+  ( UnbalancedTx(UnbalancedTx)
   , _transaction
-  )
-import Cardano.Types.Value
-  ( filterNonAda
-  , geq
-  , getLovelace
-  , lovelaceValueOf
-  , isAdaOnly
-  , isPos
-  , isZero
-  , minus
-  , mkCoin
-  , mkValue
-  , numCurrencySymbols
-  , numTokenNames
-  , sumTokenNameLengths
-  , valueToCoin
-  , Value
   )
 import TxOutput (utxoIndexToUtxo)
 
@@ -261,7 +259,8 @@ instance showImpossibleError :: Show ImpossibleError where
 -- Output utxos with the amount of lovelaces required.
 type MinUtxos = Array (TransactionOutput /\ BigInt)
 
-type UnattachedTransaction = Transaction /\ Array (Redeemer /\ Maybe TxOutRef)
+type UnattachedTransaction = Transaction /\ Array
+  (Redeemer /\ Maybe TransactionInput)
 
 --------------------------------------------------------------------------------
 -- Evaluation of fees and execution units, Updating redeemers
@@ -320,9 +319,9 @@ updateTxExecutionUnits unattachedTx rdmrPtrExUnits =
     _redeemersTxIns %~ flip setRdmrsExecutionUnits rdmrPtrExUnits
 
 setRdmrsExecutionUnits
-  :: Array (Redeemer /\ Maybe TxOutRef)
+  :: Array (Redeemer /\ Maybe TransactionInput)
   -> Array RdmrPtrExUnits
-  -> Array (Redeemer /\ Maybe TxOutRef)
+  -> Array (Redeemer /\ Maybe TransactionInput)
 setRdmrsExecutionUnits rs xxs =
   case Array.uncons xxs of
     Nothing -> rs
@@ -361,7 +360,7 @@ _body' = lens' \unattachedTx ->
     \txBody -> unattachedTx # _transaction' %~ (_body .~ txBody)
 
 _redeemersTxIns
-  :: Lens' UnattachedUnbalancedTx (Array (Redeemer /\ Maybe TxOutRef))
+  :: Lens' UnattachedUnbalancedTx (Array (Redeemer /\ Maybe TransactionInput))
 _redeemersTxIns = lens' \(UnattachedUnbalancedTx rec@{ redeemersTxIns }) ->
   redeemersTxIns /\
     \rdmrs -> UnattachedUnbalancedTx rec { redeemersTxIns = rdmrs }
@@ -593,7 +592,8 @@ returnAdaChange changeAddr utxos unattachedTx =
         let
           changeIndex :: Maybe Int
           changeIndex =
-            findIndex ((==) changeAddr <<< _.address <<< unwrap) txOutputs
+            findIndex ((==) changeAddr <<< _.address <<< unwrap)
+              txOutputs
 
         case changeIndex of
           Just idx -> pure do

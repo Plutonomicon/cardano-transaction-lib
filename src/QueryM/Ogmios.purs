@@ -227,7 +227,7 @@ instance DecodeAeson UtxoQR where
 -- the inner type for Utxo Queries
 type UtxoQueryResult = Map.Map OgmiosTxOutRef OgmiosTxOut
 
--- Ogmios TxOutRef
+-- Ogmios tx input
 type OgmiosTxOutRef =
   { txId :: String
   , index :: UInt.UInt

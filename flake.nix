@@ -164,42 +164,48 @@
         inherit system;
       };
 
-      buildCtlRuntime = system:
-        { node ? { port = 3001; }
-        , ogmios ? { port = 1337; }
-        , ctlServer ? { port = 8081; }
-        , postgres ? {
-            port = 5432;
-            user = "ctxlib";
-            password = "ctxlib";
-            db = "ctxlib";
-          }
-        , datumCache ? {
-            port = 9999;
-            dbConnectionString = nixpkgs.lib.concatStringsSep
-              " "
-              [
-                "host=postgres"
-                "port=${toString postgres.port}"
-                "user=${postgres.user}"
-                "dbname=${postgres.db}"
-                "password=${postgres.password}"
-              ];
-            blockFetcher = {
-              firstBlock = {
-                slot = 54066900;
-                id = "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d";
-              };
-              autoStart = true;
-              startFromLast = false;
-              filter = builtins.toJSON { const = true; };
+      defaultConfig = final: with final; {
+        node = { port = 3001; };
+        ogmios = { port = 1337; };
+        ctlServer = { port = 8081; };
+        postgres = {
+          port = 5432;
+          user = "ctxlib";
+          password = "ctxlib";
+          db = "ctxlib";
+        };
+        datumCache = {
+          port = 9999;
+          dbConnectionString = nixpkgs.lib.concatStringsSep
+            " "
+            [
+              "host=postgres"
+              "port=${toString postgres.port}"
+              "user=${postgres.user}"
+              "dbname=${postgres.db}"
+              "password=${postgres.password}"
+            ];
+          blockFetcher = {
+            firstBlock = {
+              slot = 54066900;
+              id = "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d";
             };
-          }
-        }:
+            autoStart = true;
+            startFromLast = false;
+            filter = builtins.toJSON { const = true; };
+          };
+        };
+      };
+
+      buildCtlRuntime = system: extraConfig:
         { ... }:
         let
           inherit (builtins) toString;
           pkgs = nixpkgsFor system;
+          config = with pkgs.lib;
+            fix (final: recursiveUpdate
+              (defaultConfig final)
+              (if isFunction extraConfig then extraConfig final else extraConfig));
           nodeDbVol = "node-db";
           nodeIpcVol = "node-ipc";
           nodeSocketPath = "/ipc/node.socket";
@@ -207,6 +213,7 @@
           server = self.packages.${system}."${serverName}";
           bindPort = port: "${toString port}:${toString port}";
         in
+        with config;
         {
           docker-compose.raw = {
             volumes = {
@@ -251,7 +258,7 @@
                   "-c"
                   ''
                     ${pkgs.ogmios}/bin/ogmios \
-                      --host 0.0.0.0 \
+                      --host ogmios \
                       --port ${toString ogmios.port} \
                       --node-socket /ipc/node.socket \
                       --node-config /config/cardano-node/config.json
@@ -263,6 +270,7 @@
               service = {
                 useHostStore = true;
                 ports = [ (bindPort ctlServer.port) ];
+                depends_on = [ "ogmios" ];
                 volumes = [ "${nodeIpcVol}:/ipc" ];
                 command = [
                   "${pkgs.bash}/bin/sh"
@@ -289,6 +297,9 @@
             };
             ogmios-datum-cache =
               let
+                filter = nixpkgs.lib.strings.replaceStrings
+                  [ "\"" "\\" ] [ "\\\"" "\\\\" ]
+                  datumCache.blockFetcher.filter;
                 configFile = ''
                   dbConnectionString = "${datumCache.dbConnectionString}"
                   server.port = ${toString datumCache.port}
@@ -297,7 +308,7 @@
                   blockFetcher.autoStart = ${nixpkgs.lib.boolToString datumCache.blockFetcher.autoStart}
                   blockFetcher.firstBlock.slot = ${toString datumCache.blockFetcher.firstBlock.slot}
                   blockFetcher.firstBlock.id = "${datumCache.blockFetcher.firstBlock.id}"
-                  blockFetcher.filter = "${nixpkgs.lib.strings.replaceStrings ["\"" "\\"] ["\\\"" "\\\\"] datumCache.blockFetcher.filter}"
+                  blockFetcher.filter = "${filter}"
                 '';
               in
               {

@@ -49,7 +49,7 @@ import QueryM.UniqueId (ListenerId)
 import Serialization.Address (Slot)
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (byteArrayToHex)
-import Types.Datum (Datum, DatumHash)
+import Types.Datum (Datum, DataHash)
 import Types.Chain (BlockHeaderHash)
 
 newtype WspFault = WspFault Aeson
@@ -93,7 +93,7 @@ instance DecodeAeson GetDatumByHashR where
     in
       datumFound <|> datumNotFound
 
-newtype GetDatumsByHashesR = GetDatumsByHashesR (Map DatumHash Datum)
+newtype GetDatumsByHashesR = GetDatumsByHashesR (Map DataHash Datum)
 
 derive instance Newtype GetDatumsByHashesR _
 
@@ -101,13 +101,13 @@ instance DecodeAeson GetDatumsByHashesR where
   decodeAeson r =
     let
       decodeDatumArray
-        :: Aeson -> Either JsonDecodeError (Map DatumHash Datum)
+        :: Aeson -> Either JsonDecodeError (Map DataHash Datum)
       decodeDatumArray =
         caseAesonArray (Left $ TypeMismatch "expected array")
           $ (map Map.fromFoldable) <<< traverse decodeDatum
 
       decodeDatum
-        :: Aeson -> Either JsonDecodeError (DatumHash /\ Datum)
+        :: Aeson -> Either JsonDecodeError (DataHash /\ Datum)
       decodeDatum = caseAesonObject (Left $ TypeMismatch "expected object")
         $ \o -> (/\) <$> map wrap (o .: "hash") <*>
             (decodeAeson =<< o .: "value")
@@ -153,12 +153,12 @@ datumCacheMethodToString = case _ of
   StartFetchBlocks -> "StartFetchBlocks"
   CancelFetchBlocks -> "CancelFetchBlocks"
 
-getDatumByHashCall :: JsonWspCall DatumHash GetDatumByHashR
+getDatumByHashCall :: JsonWspCall DataHash GetDatumByHashR
 getDatumByHashCall = mkDatumCacheCallType
   GetDatumByHash
   ({ hash: _ } <<< byteArrayToHex <<< unwrap)
 
-getDatumsByHashesCall :: JsonWspCall (Array DatumHash) GetDatumsByHashesR
+getDatumsByHashesCall :: JsonWspCall (Array DataHash) GetDatumsByHashesR
 getDatumsByHashesCall = mkDatumCacheCallType
   GetDatumsByHashes
   ({ hashes: _ } <<< map (byteArrayToHex <<< unwrap))
