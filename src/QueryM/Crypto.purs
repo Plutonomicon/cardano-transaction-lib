@@ -12,6 +12,7 @@ import Prelude
 import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.ResponseFormat as Affjax.ResponseFormat
+import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (asks)
 import Data.Argonaut
   ( class DecodeJson
@@ -47,7 +48,6 @@ import Serialization.PlutusData (convertPlutusData) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.Datum (Datum, DataHash)
 import Types.Scripts (PlutusScript)
-import Test.Utils (guardNote)
 import Types.Transaction as Transaction
 import Untagged.Union (asOneOf)
 
@@ -89,8 +89,8 @@ plutusHash meth bytes = do
       lmap Affjax.printError response >>= _.body >>> decodeJson >>> lmap
         printJsonDecodeError
     goal <- lmap printJsonDecodeError $ decodeJson methJson
-    guardNote "responseJson wasn't hashed with the method requested" $
-      responseJson.methodUsed == goal
+    unless (responseJson.methodUsed == goal) $
+      throwError "responseJson wasn't hashed with the method requested"
     pure responseJson.hash
 
 hashData :: Datum -> QueryM (Maybe HashedData)
