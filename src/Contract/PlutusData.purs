@@ -24,12 +24,12 @@ import Data.Map (Map)
 import Data.Maybe (Maybe)
 import FromData
   ( FromDataError
-    ( ArgsWantedButGot
-    , FromDataFailed
-    , BigIntToIntFailed
-    , IndexWantedButGot
-    , WantedConstrGot
-    )
+      ( ArgsWantedButGot
+      , FromDataFailed
+      , BigIntToIntFailed
+      , IndexWantedButGot
+      , WantedConstrGot
+      )
   , class FromData
   , class FromDataArgs
   , class FromDataArgsRL

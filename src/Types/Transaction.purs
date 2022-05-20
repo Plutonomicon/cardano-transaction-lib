@@ -91,34 +91,3 @@ derive newtype instance ToData DataHash
 
 instance Show DataHash where
   show = genericShow
-
--- Option<Certificates>,
--- these are the constructors, but this will generally be an Empty Option in our initial efforts
--- StakeRegistration(StakeRegistration),
--- StakeDeregistration(StakeDeregistration),
--- StakeDelegation(StakeDelegation),
--- PoolRegistration(PoolRegistration),
--- PoolRetirement(PoolRetirement),
--- GenesisKeyDelegation(GenesisKeyDelegation),
--- MoveInstantaneousRewardsCert(MoveInstantaneousRewardsCert),
-
--- Option<Withdrawals>,
--- also mainly empty to start
--- pub struct RewardAddress {
--- network: u8,
--- payment: StakeCredential,
--- Option<Update>,
--- again this will be empty
--- pub struct Update {
--- proposed_protocol_parameter_updates: ProposedProtocolParameterUpdates,
--- epoch: Epoch,
--- }
--- Option<AuxiliaryDataHash> -- String
--- Option<Slot> -- Intege
--- Option<Mint> -- BTreeMap PolicyId MintAssets
--- MintAssets :: BTreeMap AssetName Int32
--- Option<ScriptDataHash> -- String
--- Option<TransactionInputs> -- for collateral
--- Option<RequiredSigners> -- Array String (Ed25519 signatures)
--- Option<NetworkId>
---  { networkIdKind :: Testnet | Mainnet }
