@@ -31,9 +31,6 @@ module Types (
 import Cardano.Api qualified as C
 import Cardano.Api.Shelley qualified as Shelley
 import Cardano.Binary qualified as Cbor
-import Plutus.V1.Ledger.Api qualified as Ledger
-import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
-
 import Codec.Serialise (serialise)
 import Control.Exception (Exception)
 import Control.Monad.Catch (MonadThrow)
@@ -57,13 +54,14 @@ import Data.Word (Word64, Word8)
 import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (Port)
 import Numeric.Natural (Natural)
+import Ogmios.Parser (decodeProtocolParameters)
+import Ogmios.Query qualified
+import Plutus.V1.Ledger.Api qualified as Ledger
+import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
 import Servant (FromHttpApiData, QueryParam', Required, ToHttpApiData)
 import Servant.Docs qualified as Docs
 import Text.Read (readMaybe)
 import Utils (tshow)
-
-import Ogmios.Parser (decodeProtocolParameters)
-import Ogmios.Query qualified
 
 newtype AppM (a :: Type) = AppM (ReaderT Env IO a)
   deriving newtype
@@ -91,43 +89,31 @@ data ServerOptions = ServerOptions
   deriving stock (Generic)
 
 newEnvIO :: ServerOptions -> IO (Either String Env)
-newEnvIO serverOptions@ServerOptions {..} =
+newEnvIO serverOptions@ServerOptions {ogmiosHost, ogmiosPort} =
   let ogmiosServerParams =
         Ogmios.Query.defaultServerParameters
           { Ogmios.Query.port = ogmiosPort
           , Ogmios.Query.host = ogmiosHost
           }
-      queryProtocolParams :: IO LC8.ByteString
-      queryProtocolParams =
-        Ogmios.Query.makeRequest
-          ogmiosServerParams
+      queryProtocolParams = Ogmios.Query.makeRequest ogmiosServerParams
       maxConnectionAttempts = 300
-   in do
-        eitherResponse <-
-          Ogmios.Query.tryQueryUntilZero
-            queryProtocolParams
-            maxConnectionAttempts
-        case eitherResponse of
+   in Ogmios.Query.tryQueryUntilZero queryProtocolParams maxConnectionAttempts
+        >>= \case
           Right response ->
-            case decodeProtocolParameters response of
-              Right params ->
-                return . Right . Env serverOptions $ params
-              Left errors ->
-                return $ Left errors
+            pure $
+              Env serverOptions <$> decodeProtocolParameters response
           Left msg ->
-            return . Left $
-              "Can't get protocol parameters from Ogmios: \n"
-                <> msg
+            pure . Left $ "Can't get protocol parameters from Ogmios: \n" <> msg
 
 getNodeConnectInfo :: AppM (C.LocalNodeConnectInfo C.CardanoMode)
 getNodeConnectInfo =
   asks serverOptions <&> \opts ->
     C.LocalNodeConnectInfo
-      { localConsensusModeParams =
+      { Shelley.localConsensusModeParams =
           -- FIXME: Calc Byron epoch length based on Genesis params.
           C.CardanoModeParams (C.EpochSlots 21600)
-      , localNodeNetworkId = networkId opts
-      , localNodeSocketPath = nodeSocket opts
+      , Shelley.localNodeNetworkId = networkId opts
+      , Shelley.localNodeSocketPath = nodeSocket opts
       }
 
 newtype Cbor = Cbor Text

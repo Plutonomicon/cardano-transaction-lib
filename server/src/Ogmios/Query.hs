@@ -1,6 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
-
 module Ogmios.Query (
   makeRequest,
   tryQueryUntilZero,
@@ -10,16 +7,13 @@ module Ogmios.Query (
 
 import Control.Exception.Base (SomeException, try)
 import Data.Aeson qualified as Aeson
-import Data.Bifunctor (first)
 import Data.ByteString.Lazy (ByteString)
 import Data.Text (Text)
-import GHC.Generics
+import GHC.Generics (Generic)
 import Network.WebSockets (ClientApp)
 import Network.WebSockets qualified as WebSockets
 import System.IO (hFlush, stdout)
 import System.Time.Extra qualified as Time.Extra
-
---------------------------------------------------------------------------------
 
 data ServerParameters = ServerParameters
   { host :: String
@@ -49,8 +43,9 @@ instance Aeson.ToJSON Request where
   toEncoding =
     Aeson.genericToEncoding
       Aeson.defaultOptions
-        { Aeson.fieldLabelModifier = \s ->
-            if s == "requestType" then "type" else s
+        { Aeson.fieldLabelModifier = \case
+            "requestType" -> "type"
+            s -> s
         }
 
 defaultRequest :: Request
@@ -73,30 +68,25 @@ defaultServerParameters =
 
 app :: ClientApp ByteString
 app conn = do
-  WebSockets.sendTextData
-    conn
-    $ Aeson.encode defaultRequest
+  WebSockets.sendTextData conn $ Aeson.encode defaultRequest
   msg <- WebSockets.receiveData conn
-  WebSockets.sendClose conn ("" :: Text)
+  WebSockets.sendClose @Text conn mempty
   pure msg
 
 makeRequest :: ServerParameters -> IO ByteString
-makeRequest ServerParameters {..} =
+makeRequest ServerParameters {host, port, path} =
   WebSockets.runClient host port path app
 
 tryQueryUntilZero :: IO ByteString -> Int -> IO (Either String ByteString)
-tryQueryUntilZero query remainAttempts =
-  if remainAttempts <= 0
-    then do
-      pure $ Left "Error trying to connect to Ogmios"
-    else do
-      msgOrError <- first show <$> try @SomeException query
-      case msgOrError of
-        Right msg -> pure $ Right msg
-        Left e -> do
-          putStrLn $ "Error : " <> e
-          putStrLn "Waiting for ogmios conection attempt"
-          putStrLn $ "Attempts remain : " <> show (remainAttempts -1)
-          Time.Extra.sleep 0.5
-          hFlush stdout
-          tryQueryUntilZero query (remainAttempts - 1)
+tryQueryUntilZero query remainAttempts
+  | remainAttempts <= 0 = pure $ Left "Error trying to connect to Ogmios"
+  | otherwise =
+    try @SomeException query >>= \case
+      Right msg -> pure $ Right msg
+      Left e -> do
+        putStrLn $ "Error : " <> show e
+        putStrLn "Waiting for ogmios conection attempt"
+        putStrLn $ "Attempts remain : " <> show (remainAttempts -1)
+        Time.Extra.sleep 0.5
+        hFlush stdout
+        tryQueryUntilZero query (remainAttempts - 1)

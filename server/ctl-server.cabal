@@ -27,7 +27,7 @@ common common-language
     OverloadedStrings
     QuasiQuotes
     RankNTypes
-    RecordWildCards
+    NamedFieldPuns
     ScopedTypeVariables
     StandaloneDeriving
     TemplateHaskell
