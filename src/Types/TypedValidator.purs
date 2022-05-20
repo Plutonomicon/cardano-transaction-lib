@@ -13,7 +13,12 @@ module Types.TypedValidator
 
 import Prelude
 
-import Aeson (class DecodeAeson, JsonDecodeError(..), caseAesonObject, (.:))
+import Aeson
+  ( class DecodeAeson
+  , JsonDecodeError(TypeMismatch)
+  , caseAesonObject
+  , (.:)
+  )
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap)

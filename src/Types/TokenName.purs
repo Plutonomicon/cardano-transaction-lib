@@ -13,7 +13,14 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
-  , JsonDecodeError(..)
+  , JsonDecodeError
+      ( TypeMismatch
+      , UnexpectedValue
+      , AtIndex
+      , AtKey
+      , Named
+      , MissingValue
+      )
   , caseAesonObject
   , encodeAeson'
   , getField

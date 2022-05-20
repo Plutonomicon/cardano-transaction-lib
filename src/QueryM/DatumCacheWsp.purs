@@ -25,7 +25,9 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError(..)
+  , JsonDecodeError
+      ( TypeMismatch
+      )
   , caseAesonArray
   , caseAesonObject
   , decodeAeson

@@ -14,7 +14,7 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
-  , JsonDecodeError(..)
+  , JsonDecodeError(TypeMismatch)
   , decodeAeson
   , encodeAeson'
   )

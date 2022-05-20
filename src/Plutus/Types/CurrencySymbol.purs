@@ -17,7 +17,7 @@ import Aeson
   , decodeAeson
   , encodeAeson'
   , getField
-  , JsonDecodeError(..)
+  , JsonDecodeError(TypeMismatch)
   )
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe)

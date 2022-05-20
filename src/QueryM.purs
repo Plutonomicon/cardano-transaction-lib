@@ -57,7 +57,9 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , Aeson
-  , JsonDecodeError(..)
+  , JsonDecodeError
+      ( TypeMismatch
+      )
   , caseAesonString
   , decodeAeson
   , encodeAeson

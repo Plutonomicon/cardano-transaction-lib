@@ -50,7 +50,9 @@ import Prelude hiding (join)
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
-  , JsonDecodeError(..)
+  , JsonDecodeError
+      ( TypeMismatch
+      )
   , caseAesonObject
   , encodeAeson'
   , getField

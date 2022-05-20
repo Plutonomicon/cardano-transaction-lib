@@ -11,7 +11,14 @@ import Aeson
   , Aeson
   , AesonCases
   , AesonEncoder
-  , JsonDecodeError(..)
+  , JsonDecodeError
+      ( TypeMismatch
+      , UnexpectedValue
+      , AtIndex
+      , AtKey
+      , Named
+      , MissingValue
+      )
   , NumberIndex
   , aesonNull
   , bumpNumberIndexBy

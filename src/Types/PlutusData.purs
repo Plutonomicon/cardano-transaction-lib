@@ -6,7 +6,7 @@ import Prelude
 
 import Aeson
   ( class DecodeAeson
-  , JsonDecodeError(..)
+  , JsonDecodeError(UnexpectedValue)
   , decodeAeson
   , encodeAeson
   , toStringifiedNumbersJson
