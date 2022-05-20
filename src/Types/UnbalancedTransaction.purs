@@ -1,7 +1,6 @@
 module Types.UnbalancedTransaction
   ( PaymentPubKey(..)
   , ScriptOutput(..)
-  , TxOutRef
   , UnbalancedTx(..)
   , _transaction
   , _utxoIndex
@@ -12,6 +11,12 @@ module Types.UnbalancedTransaction
 
 import Prelude
 
+import Cardano.Types.Transaction
+  ( Transaction
+  , PublicKey(PublicKey)
+  , Vkey(Vkey)
+  , RequiredSigner(RequiredSigner)
+  )
 import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
 import Data.Lens.Types (Lens')
@@ -24,14 +29,8 @@ import Serialization
   ( publicKeyFromBech32
   , publicKeyHash
   )
-import Types.Datum (DatumHash)
-import Types.Transaction
-  ( Transaction
-  , TransactionInput
-  , PublicKey(PublicKey)
-  , Vkey(Vkey)
-  , RequiredSigner(RequiredSigner)
-  )
+import Types.Datum (DataHash)
+import Types.Transaction (TransactionInput)
 import Types.Scripts (ValidatorHash)
 import Cardano.Types.Value (Value)
 
@@ -50,7 +49,7 @@ instance Show PaymentPubKey where
 newtype ScriptOutput = ScriptOutput
   { validatorHash :: ValidatorHash
   , value :: Value
-  , datumHash :: DatumHash
+  , datumHash :: DataHash
   }
 
 derive instance Newtype ScriptOutput _
@@ -67,16 +66,12 @@ payPubKeyRequiredSigner :: PaymentPubKey -> Maybe RequiredSigner
 payPubKeyRequiredSigner (PaymentPubKey (PublicKey bech32)) =
   RequiredSigner <<< publicKeyHash <$> publicKeyFromBech32 bech32
 
--- Use Plutus' name to assist with copy & paste from Haskell to Purescript.
--- | Transaction inputs reference some other transaction's outputs.
-type TxOutRef = TransactionInput
-
 -- | An unbalanced transaction. It needs to be balanced and signed before it
 -- | can be submitted to the ledger.
 -- | Resembles `UnbalancedTx` from `plutus-apps`.
 newtype UnbalancedTx = UnbalancedTx
   { transaction :: Transaction
-  , utxoIndex :: Map TxOutRef ScriptOutput
+  , utxoIndex :: Map TransactionInput ScriptOutput
   }
 
 derive instance Newtype UnbalancedTx _
@@ -93,7 +88,7 @@ _transaction = lens'
       transaction
       \tx -> UnbalancedTx rec { transaction = tx }
 
-_utxoIndex :: Lens' UnbalancedTx (Map TxOutRef ScriptOutput)
+_utxoIndex :: Lens' UnbalancedTx (Map TransactionInput ScriptOutput)
 _utxoIndex = lens'
   \(UnbalancedTx rec@{ utxoIndex }) ->
     Tuple

@@ -28,24 +28,29 @@ import Plutus.Types.CurrencySymbol
   , scriptHashAsCurrencySymbol
   ) as CurrencySymbol
 import Plutus.Types.Value
-  ( Value
+  ( Coin(Coin)
+  , Value
+  , coinToValue
+  , flattenNonAdaAssets
+  , flattenValue
+  , geq
+  , getLovelace
   , getValue
+  , gt
+  , isCoinZero
+  , isZero
+  , leq
+  , lovelaceValueOf
+  , lt
+  , negation
+  , scale
   , singleton
   , singleton'
-  , valueOf
-  , lovelaceValueOf
-  , scale
-  , symbols
-  , isZero
-  , negation
   , split
+  , symbols
   , unionWith
-  , flattenValue
-  , flattenNonAdaAssets
-  , geq
-  , gt
-  , leq
-  , lt
+  , valueOf
+  , valueToCoin
   ) as Value
 
 scriptCurrencySymbol
