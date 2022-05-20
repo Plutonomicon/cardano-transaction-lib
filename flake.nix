@@ -251,7 +251,7 @@
                   "-c"
                   ''
                     ${pkgs.ogmios}/bin/ogmios \
-                      --host 0.0.0.0 \
+                      --host ogmios \
                       --port ${toString ogmios.port} \
                       --node-socket /ipc/node.socket \
                       --node-config /config/cardano-node/config.json
@@ -263,6 +263,7 @@
               service = {
                 useHostStore = true;
                 ports = [ (bindPort ctlServer.port) ];
+                depends_on = [ "ogmios" ];
                 volumes = [ "${nodeIpcVol}:/ipc" ];
                 command = [
                   "${pkgs.bash}/bin/sh"
