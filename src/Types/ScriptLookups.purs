@@ -109,6 +109,13 @@ import Transaction
 import Types.Any (Any)
 import Types.Datum (DataHash, Datum)
 import Types.Interval (POSIXTimeRange, posixTimeRangeToTransactionSlot)
+import Types.PubKeyHash
+  ( PaymentPubKeyHash
+  , StakePubKeyHash
+  , payPubKeyHashBaseAddress
+  , payPubKeyHashEnterpriseAddress
+  , stakePubKeyHashRewardAddress
+  )
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
 import Types.TokenName (TokenName)
 import Types.Scripts
@@ -153,17 +160,12 @@ import Types.TypedValidator
   )
 import Types.UnbalancedTransaction
   ( PaymentPubKey
-  , PaymentPubKeyHash
-  , StakePubKeyHash
   , UnbalancedTx
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
   -- , payPubKeyHash
-  , payPubKeyHashBaseAddress
-  , payPubKeyHashEnterpriseAddress
   , payPubKeyRequiredSigner
-  , stakePubKeyHashRewardAddress
   )
 import TxOutput (transactionOutputToScriptOutput)
 

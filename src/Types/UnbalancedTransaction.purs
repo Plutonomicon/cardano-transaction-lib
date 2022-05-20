@@ -1,21 +1,12 @@
 module Types.UnbalancedTransaction
   ( PaymentPubKey(..)
-  , PaymentPubKeyHash(..)
   , ScriptOutput(..)
-  , StakePubKeyHash(..)
   , UnbalancedTx(..)
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
-  , payPubKeyHashBaseAddress
-  , payPubKeyHashRewardAddress
-  , payPubKeyHashEnterpriseAddress
   , payPubKeyRequiredSigner
   , payPubKeyVkey
-  , pubKeyHashBaseAddress
-  , pubKeyHashEnterpriseAddress
-  , pubKeyHashRewardAddress
-  , stakePubKeyHashRewardAddress
   ) where
 
 import Prelude
@@ -26,46 +17,19 @@ import Cardano.Types.Transaction
   , Vkey(Vkey)
   , RequiredSigner(RequiredSigner)
   )
-import Data.Argonaut
-  ( class DecodeJson
-  , caseJsonObject
-  , decodeJson
-  , getField
-  , JsonDecodeError(TypeMismatch)
-  )
-import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
 import Data.Lens.Types (Lens')
 import Data.Map (Map, empty)
 import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))
-import FromData (class FromData)
 import Serialization
   ( publicKeyFromBech32
   , publicKeyHash
   )
-import Serialization.Address
-  ( Address
-  , EnterpriseAddress
-  , RewardAddress
-  , NetworkId
-  , baseAddressToAddress
-  , enterpriseAddress
-  , enterpriseAddressToAddress
-  , keyHashCredential
-  , pubKeyAddress
-  , rewardAddress
-  , rewardAddressToAddress
-  )
-import Serialization.Hash
-  ( Ed25519KeyHash
-  )
-import ToData (class ToData)
 import Types.Datum (DataHash)
-import Types.PubKeyHash (PubKeyHash)
 import Types.Transaction (TransactionInput)
 import Types.Scripts (ValidatorHash)
 import Cardano.Types.Value (Value)
@@ -101,92 +65,6 @@ payPubKeyVkey (PaymentPubKey pk) = Vkey pk
 payPubKeyRequiredSigner :: PaymentPubKey -> Maybe RequiredSigner
 payPubKeyRequiredSigner (PaymentPubKey (PublicKey bech32)) =
   RequiredSigner <<< publicKeyHash <$> publicKeyFromBech32 bech32
-
-ed25519EnterpriseAddress
-  :: forall (n :: Type)
-   . Newtype n Ed25519KeyHash
-  => NetworkId
-  -> n
-  -> EnterpriseAddress
-ed25519EnterpriseAddress network pkh =
-  enterpriseAddress
-    { network
-    , paymentCred: keyHashCredential (unwrap pkh)
-    }
-
-ed25519RewardAddress
-  :: forall (n :: Type)
-   . Newtype n Ed25519KeyHash
-  => NetworkId
-  -> n
-  -> RewardAddress
-ed25519RewardAddress network skh =
-  rewardAddress
-    { network
-    , paymentCred: keyHashCredential (unwrap skh)
-    }
-
-pubKeyHashBaseAddress :: NetworkId -> PubKeyHash -> StakePubKeyHash -> Address
-pubKeyHashBaseAddress networkId pkh skh =
-  baseAddressToAddress $ pubKeyAddress networkId (unwrap pkh) (unwrap skh)
-
-pubKeyHashRewardAddress :: NetworkId -> PubKeyHash -> Address
-pubKeyHashRewardAddress networkId =
-  rewardAddressToAddress <<< ed25519RewardAddress networkId
-
-pubKeyHashEnterpriseAddress :: NetworkId -> PubKeyHash -> Address
-pubKeyHashEnterpriseAddress networkId =
-  enterpriseAddressToAddress <<< ed25519EnterpriseAddress networkId
-
-newtype PaymentPubKeyHash = PaymentPubKeyHash PubKeyHash
-
-derive instance Generic PaymentPubKeyHash _
-derive instance Newtype PaymentPubKeyHash _
-derive newtype instance Eq PaymentPubKeyHash
-derive newtype instance FromData PaymentPubKeyHash
-derive newtype instance Ord PaymentPubKeyHash
-derive newtype instance ToData PaymentPubKeyHash
-
-instance Show PaymentPubKeyHash where
-  show = genericShow
-
--- This is needed for `ApplyArgs`. Plutus has an `unPaymentPubKeyHash` field so
--- don't newtype derive.
-instance DecodeJson PaymentPubKeyHash where
-  decodeJson = caseJsonObject
-    (Left $ TypeMismatch "Expected object")
-    ( flip getField "unPaymentPubKeyHash" >=>
-        decodeJson >>> map PaymentPubKeyHash
-    )
-
-newtype StakePubKeyHash = StakePubKeyHash Ed25519KeyHash
-
-derive instance Generic StakePubKeyHash _
-derive instance Newtype StakePubKeyHash _
-derive newtype instance Eq StakePubKeyHash
-derive newtype instance FromData StakePubKeyHash
-derive newtype instance Ord StakePubKeyHash
-derive newtype instance ToData StakePubKeyHash
-
-instance Show StakePubKeyHash where
-  show = genericShow
-
-payPubKeyHashRewardAddress :: NetworkId -> PaymentPubKeyHash -> Address
-payPubKeyHashRewardAddress networkId (PaymentPubKeyHash pkh) =
-  pubKeyHashRewardAddress networkId pkh
-
-payPubKeyHashBaseAddress
-  :: NetworkId -> PaymentPubKeyHash -> StakePubKeyHash -> Address
-payPubKeyHashBaseAddress networkId (PaymentPubKeyHash pkh) skh =
-  pubKeyHashBaseAddress networkId pkh skh
-
-payPubKeyHashEnterpriseAddress :: NetworkId -> PaymentPubKeyHash -> Address
-payPubKeyHashEnterpriseAddress networkId (PaymentPubKeyHash pkh) =
-  pubKeyHashEnterpriseAddress networkId pkh
-
-stakePubKeyHashRewardAddress :: NetworkId -> StakePubKeyHash -> Address
-stakePubKeyHashRewardAddress networkId =
-  rewardAddressToAddress <<< ed25519RewardAddress networkId
 
 -- | An unbalanced transaction. It needs to be balanced and signed before it
 -- | can be submitted to the ledger.

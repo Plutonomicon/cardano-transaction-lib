@@ -8,9 +8,9 @@ module Contract.Address
   , getWalletCollateral
   , module ByteArray
   , module ExportAddress
+  , module ExportPubKeyHash
   , module ExportUnbalancedTransaction
   , module Hash
-  , module PubKeyHash
   , module SerializationAddress
   , ownPaymentPubKeyHash
   , ownPubKeyHash
@@ -80,21 +80,8 @@ import Serialization.Address (NetworkId)
 import Serialization.Hash (Ed25519KeyHash) as Hash
 import Serialization.Hash (ScriptHash)
 import Types.ByteArray (ByteArray) as ByteArray
-import Types.PubKeyHash (PubKeyHash)
-import Types.PubKeyHash (PubKeyHash(PubKeyHash)) as PubKeyHash
-import Types.Scripts
-  ( StakeValidatorHash
-  , ValidatorHash
-  )
-import Types.TypedValidator (TypedValidator)
-import Types.UnbalancedTransaction (StakePubKeyHash, PaymentPubKeyHash)
-import Types.UnbalancedTransaction
-  ( PaymentPubKey(PaymentPubKey)
-  , PaymentPubKeyHash(PaymentPubKeyHash)
-  , ScriptOutput(ScriptOutput)
-  , StakePubKeyHash(StakePubKeyHash)
-  ) as ExportUnbalancedTransaction
-import Types.UnbalancedTransaction
+import Types.PubKeyHash (PubKeyHash, PaymentPubKeyHash, StakePubKeyHash)
+import Types.PubKeyHash
   ( payPubKeyHashBaseAddress
   , payPubKeyHashRewardAddress
   , payPubKeyHashEnterpriseAddress
@@ -102,7 +89,21 @@ import Types.UnbalancedTransaction
   , pubKeyHashEnterpriseAddress
   , pubKeyHashRewardAddress
   , stakePubKeyHashRewardAddress
-  ) as UnbalancedTransaction
+  ) as PubKeyHash
+import Types.PubKeyHash
+  ( PaymentPubKeyHash(PaymentPubKeyHash)
+  , PubKeyHash(PubKeyHash)
+  , StakePubKeyHash(StakePubKeyHash)
+  ) as ExportPubKeyHash
+import Types.Scripts
+  ( StakeValidatorHash
+  , ValidatorHash
+  )
+import Types.TypedValidator (TypedValidator)
+import Types.UnbalancedTransaction
+  ( PaymentPubKey(PaymentPubKey)
+  , ScriptOutput(ScriptOutput)
+  ) as ExportUnbalancedTransaction
 
 -- | Get the `Address` of the browser wallet.
 getWalletAddress :: forall (r :: Row Type). Contract r (Maybe Address)
@@ -205,31 +206,31 @@ validatorHashEnterpriseAddress networkId =
 pubKeyHashBaseAddress
   :: NetworkId -> PubKeyHash -> StakePubKeyHash -> Maybe Address
 pubKeyHashBaseAddress networkId pkh =
-  toPlutusType <<< UnbalancedTransaction.pubKeyHashBaseAddress networkId pkh
+  toPlutusType <<< PubKeyHash.pubKeyHashBaseAddress networkId pkh
 
 pubKeyHashRewardAddress :: NetworkId -> PubKeyHash -> Maybe Address
 pubKeyHashRewardAddress networkId =
-  toPlutusType <<< UnbalancedTransaction.pubKeyHashRewardAddress networkId
+  toPlutusType <<< PubKeyHash.pubKeyHashRewardAddress networkId
 
 pubKeyHashEnterpriseAddress :: NetworkId -> PubKeyHash -> Maybe Address
 pubKeyHashEnterpriseAddress networkId =
-  toPlutusType <<< UnbalancedTransaction.pubKeyHashEnterpriseAddress networkId
+  toPlutusType <<< PubKeyHash.pubKeyHashEnterpriseAddress networkId
 
 payPubKeyHashRewardAddress :: NetworkId -> PaymentPubKeyHash -> Maybe Address
 payPubKeyHashRewardAddress networkId =
-  toPlutusType <<< UnbalancedTransaction.payPubKeyHashRewardAddress networkId
+  toPlutusType <<< PubKeyHash.payPubKeyHashRewardAddress networkId
 
 payPubKeyHashBaseAddress
   :: NetworkId -> PaymentPubKeyHash -> StakePubKeyHash -> Maybe Address
 payPubKeyHashBaseAddress networkId pkh =
-  toPlutusType <<< UnbalancedTransaction.payPubKeyHashBaseAddress networkId pkh
+  toPlutusType <<< PubKeyHash.payPubKeyHashBaseAddress networkId pkh
 
 payPubKeyHashEnterpriseAddress
   :: NetworkId -> PaymentPubKeyHash -> Maybe Address
 payPubKeyHashEnterpriseAddress networkId =
-  toPlutusType <<< UnbalancedTransaction.payPubKeyHashEnterpriseAddress
+  toPlutusType <<< PubKeyHash.payPubKeyHashEnterpriseAddress
     networkId
 
 stakePubKeyHashRewardAddress :: NetworkId -> StakePubKeyHash -> Maybe Address
 stakePubKeyHashRewardAddress networkId =
-  toPlutusType <<< UnbalancedTransaction.stakePubKeyHashRewardAddress networkId
+  toPlutusType <<< PubKeyHash.stakePubKeyHashRewardAddress networkId

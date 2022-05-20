@@ -157,10 +157,9 @@ import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
 import Types.Natural (Natural)
 import Types.PlutusData (PlutusData)
-import Types.PubKeyHash (PubKeyHash)
+import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
 import Types.Scripts (PlutusScript)
 import Types.Transaction (TransactionHash)
-import Types.UnbalancedTransaction (StakePubKeyHash, PaymentPubKeyHash)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
 import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
@@ -325,7 +324,8 @@ ownStakePubKeyHash = do
   mbAddress <- getWalletAddress
   pure do
     baseAddress <- mbAddress >>= baseAddressFromAddress
-    wrap <$> stakeCredentialToKeyHash (baseAddressDelegationCred baseAddress)
+    wrap <<< wrap <$> stakeCredentialToKeyHash
+      (baseAddressDelegationCred baseAddress)
 
 withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)

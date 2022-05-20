@@ -51,14 +51,11 @@ import Plutus.Types.CurrencySymbol (CurrencySymbol, currencyMPSHash)
 import Plutus.Types.Value (Value, isZero, flattenNonAdaAssets)
 import Types.Redeemer (Redeemer, unitRedeemer)
 import Types.Interval (POSIXTimeRange, always, intersection, isEmpty)
+import Types.PubKeyHash (PaymentPubKeyHash, StakePubKeyHash)
 import Types.Scripts (MintingPolicyHash, ValidatorHash)
 import Types.Datum (Datum)
 import Types.Transaction (DataHash, TransactionInput)
 import Types.TokenName (TokenName)
-import Types.UnbalancedTransaction
-  ( PaymentPubKeyHash
-  , StakePubKeyHash
-  )
 
 --------------------------------------------------------------------------------
 -- TxConstraints Type and related
