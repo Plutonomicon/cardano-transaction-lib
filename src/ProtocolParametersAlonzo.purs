@@ -11,16 +11,16 @@ module ProtocolParametersAlonzo
 
 import Prelude
 
-import Data.BigInt (BigInt, fromInt)
-import Data.Map as Map
-import Data.Tuple.Nested ((/\))
-import Data.UInt as UInt
-import Types.Transaction
+import Cardano.Types.Transaction
   ( Costmdls(Costmdls)
   , CostModel(CostModel)
   , Language(PlutusV1)
   )
 import Cardano.Types.Value (Coin(Coin))
+import Data.BigInt (BigInt, fromInt)
+import Data.Map as Map
+import Data.Tuple.Nested ((/\))
+import Data.UInt as UInt
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-pab/html/src/Cardano.Api.ProtocolParameters.html
 -- Shelley params, is this unchanged?

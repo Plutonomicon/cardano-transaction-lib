@@ -12,6 +12,39 @@ module Serialization
 
 import Prelude
 
+import Cardano.Types.Transaction
+  ( Certificate
+      ( StakeRegistration
+      , StakeDeregistration
+      , StakeDelegation
+      , PoolRegistration
+      , PoolRetirement
+      , GenesisKeyDelegation
+      , MoveInstantaneousRewardsCert
+      )
+  , Costmdls(Costmdls)
+  , GenesisDelegateHash(GenesisDelegateHash)
+  , GenesisHash(GenesisHash)
+  , Language(PlutusV1)
+  , MIRToStakeCredentials(MIRToStakeCredentials)
+  , Mint(Mint)
+  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
+  , Nonce(IdentityNonce, HashNonce)
+  , PoolMetadata(PoolMetadata)
+  , PoolMetadataHash(PoolMetadataHash)
+  , ProposedProtocolParameterUpdates
+  , ProtocolParamUpdate
+  , Redeemer
+  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
+  , Transaction(Transaction)
+  , TransactionOutput(TransactionOutput)
+  , TxBody(TxBody)
+  , UnitInterval
+  , URL(URL)
+  , Update
+  ) as T
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Cardano.Types.Value as Value
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.Map as Map
 import Data.Maybe (Maybe)
@@ -104,40 +137,7 @@ import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
 import Types.Int as Int
 import Types.PlutusData as PlutusData
-import Types.Transaction
-  ( Certificate
-      ( StakeRegistration
-      , StakeDeregistration
-      , StakeDelegation
-      , PoolRegistration
-      , PoolRetirement
-      , GenesisKeyDelegation
-      , MoveInstantaneousRewardsCert
-      )
-  , Costmdls(Costmdls)
-  , GenesisDelegateHash(GenesisDelegateHash)
-  , GenesisHash(GenesisHash)
-  , Language(PlutusV1)
-  , MIRToStakeCredentials(MIRToStakeCredentials)
-  , Mint(Mint)
-  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
-  , Nonce(IdentityNonce, HashNonce)
-  , PoolMetadata(PoolMetadata)
-  , PoolMetadataHash(PoolMetadataHash)
-  , ProposedProtocolParameterUpdates
-  , ProtocolParamUpdate
-  , Redeemer
-  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
-  , Transaction(Transaction)
-  , TransactionInput(TransactionInput)
-  , TransactionOutput(TransactionOutput)
-  , TxBody(TxBody)
-  , UnitInterval
-  , URL(URL)
-  , Update
-  ) as T
-import Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Cardano.Types.Value as Value
+import Types.Transaction (TransactionInput(TransactionInput)) as T
 import Types.TokenName (getTokenName) as TokenName
 import Untagged.Union (type (|+|), UndefinedOr, maybeToUor)
 

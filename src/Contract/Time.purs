@@ -1,7 +1,7 @@
 -- | A module containing time-related datatypes and helpers.
 module Contract.Time (module SerializationAddress, module Interval) where
 
-import Serialization.Address -- Do we want to export all the helpers from Address?
+import Serialization.Address
   ( Slot(Slot)
   , BlockId(BlockId)
   ) as SerializationAddress

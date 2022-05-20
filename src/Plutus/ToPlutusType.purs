@@ -11,6 +11,7 @@ import Data.Foldable (fold)
 import Data.Map (toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Traversable (traverse)
 import Data.Tuple (fst) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt, fromInt, (.&.), and, shl, zshr)
@@ -26,16 +27,29 @@ import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
   )
-import Plutus.Types.Value (Value) as Plutus
+import Plutus.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  , UtxoM(UtxoM)
+  ) as Plutus
+import Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as Plutus
+import Plutus.Types.Value (Coin, Value) as Plutus
 import Plutus.Types.Value (lovelaceValueOf, singleton') as Plutus.Value
 
 import Types.ByteArray (ByteArray, byteArrayFromIntArray, byteArrayToIntArray)
 import Types.CborBytes (cborBytesToIntArray)
 import Types.TokenName (getTokenName)
-import Cardano.Types.Value (Value(Value)) as Types
+import Cardano.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  , UtxoM(UtxoM)
+  ) as Cardano
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as Cardano
+import Cardano.Types.Value (Coin(Coin), Value(Value)) as Types
 import Cardano.Types.Value
-  ( Coin(Coin)
-  , NonAdaAsset(NonAdaAsset)
+  ( NonAdaAsset(NonAdaAsset)
   , getCurrencySymbol
   )
 
@@ -44,7 +58,7 @@ class ToPlutusType f t pt | t -> pt, t pt -> f where
   toPlutusType :: t -> f pt
 
 --------------------------------------------------------------------------------
--- Types.Value -> Plutus.Types.Value
+-- Cardano.Types.Value -> Plutus.Types.Value
 --------------------------------------------------------------------------------
 
 -- The underlying `Plutus.Types.AssocMap` of `Plutus.Types.Value` doesn't
@@ -52,7 +66,7 @@ class ToPlutusType f t pt | t -> pt, t pt -> f where
 -- performing conversions between `Value`s, since the ordering of components
 -- can't be guaranteed.
 instance ToPlutusType Identity Types.Value Plutus.Value where
-  toPlutusType (Types.Value (Coin adaAmount) (NonAdaAsset nonAdaAssets)) =
+  toPlutusType (Types.Value (Types.Coin adaAmount) (NonAdaAsset nonAdaAssets)) =
     Identity (adaValue <> fold nonAdaValues)
     where
     adaValue :: Plutus.Value
@@ -68,6 +82,13 @@ instance ToPlutusType Identity Types.Value Plutus.Value where
             Plutus.Value.singleton' (getCurrencySymbol cs)
               (unwrap $ getTokenName tn)
               val
+
+--------------------------------------------------------------------------------
+-- Cardano.Types.Value.Coin -> Plutus.Types.Value.UtxoM
+--------------------------------------------------------------------------------
+
+instance ToPlutusType Identity Types.Coin Plutus.Coin where
+  toPlutusType = pure <<< wrap <<< unwrap
 
 --------------------------------------------------------------------------------
 -- Serialization.Address -> Maybe Plutus.Types.Address
@@ -199,3 +220,37 @@ fromVarLengthUInt bytes acc = do
       in
         Just $ wrap uintValue /\ xs
     _ -> fromVarLengthUInt xs (snoc acc x)
+
+--------------------------------------------------------------------------------
+-- Cardano.Types.Transaction.TransactionOutput ->
+-- Maybe Plutus.Types.Transaction.TransactionOutput
+--------------------------------------------------------------------------------
+
+instance ToPlutusType Maybe Cardano.TransactionOutput Plutus.TransactionOutput
+  where
+  toPlutusType
+    (Cardano.TransactionOutput { address, amount, dataHash }) = do
+    addr <- toPlutusType address
+    pure $ Plutus.TransactionOutput
+      { address: addr, amount: unwrap $ toPlutusType amount, dataHash }
+
+--------------------------------------------------------------------------------
+-- Cardano.Types.Transaction.UtxoM -> Maybe Plutus.Types.Transaction.UtxoM
+--------------------------------------------------------------------------------
+
+instance ToPlutusType Maybe Cardano.UtxoM Plutus.UtxoM where
+  toPlutusType (Cardano.UtxoM utxos) =
+    Plutus.UtxoM <$> traverse toPlutusType utxos
+
+--------------------------------------------------------------------------------
+-- Cardano.Types.Transaction.TransactionUnspentOutput ->
+-- Maybe Plutus.Types.Transaction.TransactionUnspentOutput
+--------------------------------------------------------------------------------
+
+instance
+  ToPlutusType Maybe
+    Cardano.TransactionUnspentOutput
+    Plutus.TransactionUnspentOutput where
+  toPlutusType (Cardano.TransactionUnspentOutput { input, output }) = do
+    pOutput <- toPlutusType output
+    pure $ Plutus.TransactionUnspentOutput { input, output: pOutput }

@@ -4,12 +4,12 @@ You can edit this file as you like.
 -}
 { name = "cardano-transaction-lib"
 , dependencies =
-  [ "aff"
+  [ "aeson"
+  , "aff"
   , "aff-promise"
   , "affjax"
   , "argonaut"
   , "argonaut-codecs"
-  , "argonaut-core"
   , "arraybuffer-types"
   , "arrays"
   , "bifunctors"
@@ -42,7 +42,6 @@ You can edit this file as you like.
   , "node-fs-aff"
   , "node-path"
   , "nonempty"
-  , "numbers"
   , "ordered-collections"
   , "partial"
   , "prelude"

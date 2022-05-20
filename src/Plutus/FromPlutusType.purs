@@ -10,6 +10,7 @@ import Data.Identity (Identity(Identity))
 import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, fromJust)
 import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Traversable (traverse)
 import Data.Tuple (snd) as Tuple
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt, fromInt, toInt, (.&.), (.|.), shl, zshr)
@@ -30,7 +31,14 @@ import Plutus.Types.Credential
   )
 import Plutus.Types.AssocMap (lookup) as Plutus.AssocMap
 import Plutus.Types.CurrencySymbol (adaSymbol, getCurrencySymbol) as Plutus
-import Plutus.Types.Value (Value) as Plutus
+import Plutus.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  , UtxoM(UtxoM)
+  ) as Plutus
+import Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as Plutus
+import Plutus.Types.Value (Coin, Value) as Plutus
 import Plutus.Types.Value (getValue) as Plutus.Value
 
 import Types.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe)
@@ -40,7 +48,14 @@ import Types.CborBytes
   , rawBytesAsCborBytes
   )
 import Types.TokenName (adaToken)
-import Cardano.Types.Value (Value) as Types
+import Cardano.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  , UtxoM(UtxoM)
+  ) as Cardano
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as Cardano
+import Cardano.Types.Value (Coin, Value) as Types
 import Cardano.Types.Value (NonAdaAsset, mkValue, mkNonAdaAssetsFromTokenMap)
 
 class FromPlutusType :: (Type -> Type) -> Type -> Type -> Constraint
@@ -74,6 +89,13 @@ instance FromPlutusType Identity Plutus.Value Types.Value where
       $ mkNonAdaAssetsFromTokenMap
       $ nonAdaTokenMap <#> \(cs /\ tokens) ->
           Plutus.getCurrencySymbol cs /\ Map.fromFoldable (unwrap tokens)
+
+--------------------------------------------------------------------------------
+-- Plutus.Types.Value.UtxoM -> Cardano.Types.Value.Coin
+--------------------------------------------------------------------------------
+
+instance FromPlutusType Identity Plutus.Coin Types.Coin where
+  fromPlutusType = pure <<< wrap <<< unwrap
 
 --------------------------------------------------------------------------------
 -- Plutus.Types.Address -> Maybe Serialization.Address
@@ -181,3 +203,37 @@ toVarLengthUInt t = worker (unwrap t) false
             $ byteArrayFromIntArrayUnsafe <<< singleton <<< toInt
             -- Turn off the signal bit for the last 7-bit component in the array.
             $ if setSignalBit then uint7 .|. fromInt 128 else uint7
+
+--------------------------------------------------------------------------------
+-- Plutus.Types.Transaction.TransactionOutput  ->
+-- Maybe Cardano.Types.Transaction.TransactionOutput
+--------------------------------------------------------------------------------
+
+instance FromPlutusType Maybe Plutus.TransactionOutput Cardano.TransactionOutput
+  where
+  fromPlutusType
+    (Plutus.TransactionOutput { address, amount, dataHash }) = do
+    addr <- fromPlutusType address
+    pure $ Cardano.TransactionOutput
+      { address: addr, amount: unwrap $ fromPlutusType amount, dataHash }
+
+--------------------------------------------------------------------------------
+-- Plutus.Types.Transaction.UtxoM -> Maybe Cardano.Types.Transaction.UtxoM
+--------------------------------------------------------------------------------
+
+instance FromPlutusType Maybe Plutus.UtxoM Cardano.UtxoM where
+  fromPlutusType (Plutus.UtxoM utxos) =
+    Cardano.UtxoM <$> traverse fromPlutusType utxos
+
+--------------------------------------------------------------------------------
+-- Plutus.Types.Transaction.TransactionUnspentOutput ->
+-- Maybe Cardano.Types.Transaction.TransactionUnspentOutput
+--------------------------------------------------------------------------------
+
+instance
+  FromPlutusType Maybe
+    Plutus.TransactionUnspentOutput
+    Cardano.TransactionUnspentOutput where
+  fromPlutusType (Plutus.TransactionUnspentOutput { input, output }) = do
+    pOutput <- fromPlutusType output
+    pure $ Cardano.TransactionUnspentOutput { input, output: pOutput }

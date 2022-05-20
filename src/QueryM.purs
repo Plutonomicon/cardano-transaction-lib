@@ -11,6 +11,7 @@ module QueryM
   , module ServerConfig
   , ListenerSet
   , PendingRequests
+  , RdmrPtrExUnits(..)
   , RequestBody
   , OgmiosListeners
   , OgmiosWebSocket
@@ -25,6 +26,7 @@ module QueryM
   , calculateMinFee
   , datumHash
   , traceQueryConfig
+  , evalTxExecutionUnits
   , finalizeTx
   , getWalletAddress
   , getChainTip
@@ -56,7 +58,10 @@ import Aeson as Aeson
 import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.ResponseFormat as Affjax.ResponseFormat
-import Cardano.Types.Value (Coin(Coin))
+import Cardano.Types.Transaction (Transaction(Transaction))
+import Cardano.Types.Transaction as Transaction
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Cardano.Types.Value (Coin)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT, ask, asks)
@@ -147,17 +152,15 @@ import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.CborBytes (CborBytes)
 import Types.Chain as Chain
-import Types.Datum (Datum, DatumHash)
+import Types.Datum (DataHash(DataHash), Datum)
 import Types.Interval (SlotConfig, defaultSlotConfig)
 import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
+import Types.Natural (Natural)
 import Types.PlutusData (PlutusData)
-import Types.PubKeyHash (PubKeyHash)
+import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
 import Types.Scripts (PlutusScript)
-import Types.Transaction (Transaction(Transaction))
-import Types.Transaction as Transaction
-import Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Types.UnbalancedTransaction (StakePubKeyHash, PaymentPubKeyHash)
+import Types.Transaction (TransactionHash)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
 import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
@@ -257,11 +260,11 @@ submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall _.submit txCbor
 -- DATUM CACHE QUERIES
 --------------------------------------------------------------------------------
 
-getDatumByHash :: DatumHash -> QueryM (Maybe Datum)
+getDatumByHash :: DataHash -> QueryM (Maybe Datum)
 getDatumByHash hash = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumByHashCall _.getDatumByHash hash
 
-getDatumsByHashes :: Array DatumHash -> QueryM (Map DatumHash Datum)
+getDatumsByHashes :: Array DataHash -> QueryM (Map DataHash Datum)
 getDatumsByHashes hashes = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
 
@@ -303,7 +306,7 @@ signTransactionBytes tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.signTxBytes tx
 
 submitTxWallet
-  :: Transaction.Transaction -> QueryM (Maybe Transaction.TransactionHash)
+  :: Transaction.Transaction -> QueryM (Maybe TransactionHash)
 submitTxWallet tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.submitTx tx
 
@@ -322,7 +325,8 @@ ownStakePubKeyHash = do
   mbAddress <- getWalletAddress
   pure do
     baseAddress <- mbAddress >>= baseAddressFromAddress
-    wrap <$> stakeCredentialToKeyHash (baseAddressDelegationCred baseAddress)
+    wrap <<< wrap <$> stakeCredentialToKeyHash
+      (baseAddressDelegationCred baseAddress)
 
 withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
@@ -378,14 +382,17 @@ instance Show ClientError where
       <> err
       <> ")"
 
+txToHex :: Transaction -> Effect String
+txToHex tx =
+  byteArrayToHex
+    <<< Serialization.toBytes
+    <<< asOneOf
+    <$> Serialization.convertTransaction tx
+
 -- Query the Haskell server for the minimum transaction fee
 calculateMinFee :: Transaction -> QueryM (Either ClientError Coin)
 calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
-  txHex <- liftEffect $
-    byteArrayToHex
-      <<< Serialization.toBytes
-      <<< asOneOf
-      <$> Serialization.convertTransaction tx
+  txHex <- liftEffect (txToHex tx)
   url <- mkServerEndpointUrl
     $ "fees?tx="
         <> txHex
@@ -394,18 +401,11 @@ calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   liftAff (Affjax.get Affjax.ResponseFormat.json url)
     <#> either
       (Left <<< ClientHttpError)
-      ( bimap ClientDecodeJsonError coinFromEstimate
+      ( bimap ClientDecodeJsonError (wrap <<< unwrap :: FeeEstimate -> Coin)
           <<< Json.decodeJson
           <<< _.body
       )
   where
-  -- FIXME
-  -- Add some "padding" to the fees so the transaction will submit
-  -- The server is calculating fees that are too low
-  -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/123
-  coinFromEstimate :: FeeEstimate -> Coin
-  coinFromEstimate = Coin <<< ((+) (BigInt.fromInt 700000)) <<< unwrap
-
   -- Fee estimation occurs before balancing the transaction, so we need to know
   -- the expected number of witnesses to use the cardano-api fee estimation
   -- functions
@@ -422,6 +422,30 @@ calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   --     required signers
   witCount :: UInt
   witCount = maybe one UInt.fromInt $ length <$> body.requiredSigners
+
+newtype RdmrPtrExUnits = RdmrPtrExUnits
+  { rdmrPtrTag :: Int
+  , rdmrPtrIdx :: Natural
+  , exUnitsMem :: Natural
+  , exUnitsSteps :: Natural
+  }
+
+derive instance Generic RdmrPtrExUnits _
+
+instance Show RdmrPtrExUnits where
+  show = genericShow
+
+derive newtype instance DecodeJson RdmrPtrExUnits
+
+evalTxExecutionUnits
+  :: Transaction -> QueryM (Either ClientError (Array RdmrPtrExUnits))
+evalTxExecutionUnits tx = do
+  txHex <- liftEffect (txToHex tx)
+  url <- mkServerEndpointUrl ("eval-ex-units?tx=" <> txHex)
+  liftAff (Affjax.get Affjax.ResponseFormat.json url)
+    <#> either
+      (Left <<< ClientHttpError)
+      (lmap ClientDecodeJsonError <<< Json.decodeJson <<< _.body)
 
 -- | CborHex-encoded tx
 newtype FinalizedTransaction = FinalizedTransaction ByteArray
@@ -445,11 +469,7 @@ finalizeTx
   -> QueryM (Maybe FinalizedTransaction)
 finalizeTx tx datums redeemers = do
   -- tx
-  txHex <- liftEffect $
-    byteArrayToHex
-      <<< Serialization.toBytes
-      <<< asOneOf
-      <$> Serialization.convertTransaction tx
+  txHex <- liftEffect (txToHex tx)
   -- datums
   encodedDatums <- liftEffect do
     for datums \datum -> do
@@ -518,8 +538,8 @@ hashData datum = do
   pure $ hush <<< Json.decodeJson =<< hush jsonBody
 
 -- | Hashes an Plutus-style Datum
-datumHash :: Datum -> QueryM (Maybe DatumHash)
-datumHash = map (map (Transaction.DataHash <<< unwrap)) <<< hashData
+datumHash :: Datum -> QueryM (Maybe DataHash)
+datumHash = map (map (DataHash <<< unwrap)) <<< hashData
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
@@ -724,8 +744,8 @@ type OgmiosListeners =
   }
 
 type DatumCacheListeners =
-  { getDatumByHash :: ListenerSet DatumHash GetDatumByHashR
-  , getDatumsByHashes :: ListenerSet (Array DatumHash) GetDatumsByHashesR
+  { getDatumByHash :: ListenerSet DataHash GetDatumByHashR
+  , getDatumsByHashes :: ListenerSet (Array DataHash) GetDatumsByHashesR
   , startFetchBlocks ::
       ListenerSet { slot :: Slot, id :: Chain.BlockHeaderHash }
         StartFetchBlocksR

@@ -8,6 +8,13 @@ module Transaction
 
 import Prelude
 
+import Cardano.Types.Transaction
+  ( Transaction(Transaction)
+  , Redeemer
+  , ScriptDataHash(ScriptDataHash)
+  , TransactionWitnessSet
+  , TxBody(TxBody)
+  )
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Data.Either (Either(Right), note)
 import Data.Generic.Rep (class Generic)
@@ -25,13 +32,6 @@ import Serialization.Types as Serialization
 import Serialization.WitnessSet as Serialization.WitnessSet
 import Types.Datum (Datum(Datum))
 import Types.Scripts (PlutusScript)
-import Types.Transaction
-  ( Transaction(Transaction)
-  , Redeemer
-  , ScriptDataHash(ScriptDataHash)
-  , TransactionWitnessSet
-  , TxBody(TxBody)
-  )
 import Untagged.Union (asOneOf)
 
 data ModifyTxError

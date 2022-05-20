@@ -5,6 +5,18 @@
 let
   inputs = {
 
+    "aeson" = pkgs.stdenv.mkDerivation {
+        name = "aeson";
+        version = "d4600c3a6bc21fcd94c11e72b65328e4509b6fc7";
+        src = pkgs.fetchgit {
+          url = "https://github.com/mlabs-haskell/purescript-aeson.git";
+          rev = "d4600c3a6bc21fcd94c11e72b65328e4509b6fc7";
+          sha256 = "0vb13nfxy8hnhydmy2bbv15s715m1s3h905md1h84v02lvmr26vn";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "aff" = pkgs.stdenv.mkDerivation {
         name = "aff";
         version = "v6.0.0";

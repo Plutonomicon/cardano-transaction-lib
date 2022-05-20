@@ -5,6 +5,8 @@ module Types (
   ServerOptions (..),
   Env (..),
   Cbor (..),
+  ExecutionUnitsMap (..),
+  RdmrPtrExUnits (..),
   Fee (..),
   WitnessCount (..),
   ApplyArgsRequest (..),
@@ -17,10 +19,12 @@ module Types (
   HashedData (..),
   HashScriptRequest (..),
   HashedScript (..),
+  CardanoError (..),
   CborDecodeError (..),
   CtlServerError (..),
   hashLedgerScript,
   newEnvIO,
+  getNodeConnectInfo,
   unsafeDecode,
 ) where
 
@@ -31,12 +35,11 @@ import Codec.Serialise (serialise)
 import Control.Exception (Exception)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.Reader (MonadReader, ReaderT)
+import Control.Monad.Reader (MonadReader, ReaderT, asks)
 import Data.Aeson (FromJSON, ToJSON (toJSON))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Encoding qualified as Aeson.Encoding
 import Data.Aeson.Types (withText)
-import Data.Bifunctor (second)
 import Data.ByteString (ByteString)
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Lazy.Char8 qualified as LC8
@@ -47,9 +50,12 @@ import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text.Encoding
+import Data.Word (Word64, Word8)
 import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (Port)
-import Paths_ctl_server (getDataFileName)
+import Numeric.Natural (Natural)
+import Ogmios.Parser (decodeProtocolParameters)
+import Ogmios.Query qualified
 import Plutus.V1.Ledger.Api qualified as Ledger
 import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
 import Servant (FromHttpApiData, QueryParam', Required, ToHttpApiData)
@@ -77,18 +83,55 @@ data ServerOptions = ServerOptions
   { port :: Port
   , nodeSocket :: FilePath
   , networkId :: C.NetworkId
+  , ogmiosHost :: String
+  , ogmiosPort :: Int
   }
   deriving stock (Generic)
 
 newEnvIO :: ServerOptions -> IO (Either String Env)
-newEnvIO serverOptions =
-  getDataFileName "config/pparams.json"
-    >>= Aeson.eitherDecodeFileStrict @Shelley.ProtocolParameters
-    <&> second (Env serverOptions)
+newEnvIO serverOptions@ServerOptions {ogmiosHost, ogmiosPort} =
+  let ogmiosServerParams =
+        Ogmios.Query.defaultServerParameters
+          { Ogmios.Query.port = ogmiosPort
+          , Ogmios.Query.host = ogmiosHost
+          }
+      queryProtocolParams = Ogmios.Query.makeRequest ogmiosServerParams
+      maxConnectionAttempts = 300
+   in Ogmios.Query.tryQueryUntilZero queryProtocolParams maxConnectionAttempts
+        >>= \case
+          Right response ->
+            pure $
+              Env serverOptions <$> decodeProtocolParameters response
+          Left msg ->
+            pure . Left $ "Can't get protocol parameters from Ogmios: \n" <> msg
+
+getNodeConnectInfo :: AppM (C.LocalNodeConnectInfo C.CardanoMode)
+getNodeConnectInfo =
+  asks serverOptions <&> \opts ->
+    C.LocalNodeConnectInfo
+      { Shelley.localConsensusModeParams =
+          -- FIXME: Calc Byron epoch length based on Genesis params.
+          C.CardanoModeParams (C.EpochSlots 21600)
+      , Shelley.localNodeNetworkId = networkId opts
+      , Shelley.localNodeSocketPath = nodeSocket opts
+      }
 
 newtype Cbor = Cbor Text
   deriving stock (Show)
   deriving newtype (Eq, FromHttpApiData, ToHttpApiData, FromJSON, ToJSON)
+
+newtype ExecutionUnitsMap = ExecutionUnitsMap [RdmrPtrExUnits]
+  deriving stock (Show)
+  deriving newtype (FromJSON, ToJSON)
+
+data RdmrPtrExUnits = RdmrPtrExUnits
+  { rdmrPtrTag :: Word8
+  , rdmrPtrIdx :: Word64
+  , exUnitsMem :: Natural
+  , exUnitsSteps :: Natural
+  }
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 newtype Fee = Fee Integer
   deriving stock (Show, Generic)
@@ -185,10 +228,21 @@ toCardanoApiScript =
     . LC8.toStrict
     . serialise
 
-newtype CtlServerError = CborDecode CborDecodeError
+data CtlServerError
+  = CardanoError CardanoError
+  | CborDecode CborDecodeError
   deriving stock (Show)
 
 instance Exception CtlServerError
+
+data CardanoError
+  = AcquireFailure String
+  | ScriptExecutionError C.ScriptExecutionError
+  | TxValidityIntervalError String
+  | EraMismatchError
+  deriving stock (Show)
+
+instance Exception CardanoError
 
 data CborDecodeError
   = InvalidCbor Cbor.DecoderError
@@ -225,6 +279,15 @@ instance Docs.ToParam (QueryParam' '[Required] "count" WitnessCount) where
       "A natural number representing the intended number of key witnesses\
       \for the transaction"
       Docs.Normal
+
+instance Docs.ToSample ExecutionUnitsMap where
+  toSamples _ =
+    [
+      ( "The `(RdmrPtr -> ExUnits)` map will be returned as a list of \
+        \`RdmrPtrExUnits` objects with the following structure"
+      , ExecutionUnitsMap [RdmrPtrExUnits 0 0 0 0]
+      )
+    ]
 
 instance Docs.ToSample Fee where
   toSamples _ =

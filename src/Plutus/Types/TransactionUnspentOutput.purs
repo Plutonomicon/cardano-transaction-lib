@@ -1,10 +1,14 @@
-module Types.TransactionUnspentOutput where
+module Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(..)
+  ) where
 
-import Types.Transaction (TransactionInput, TransactionOutput)
-import Data.Show.Generic (genericShow)
 import Prelude
+
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
+import Data.Show.Generic (genericShow)
+import Plutus.Types.Transaction (TransactionOutput)
+import Types.Transaction (TransactionInput)
 
 newtype TransactionUnspentOutput = TransactionUnspentOutput
   { input :: TransactionInput

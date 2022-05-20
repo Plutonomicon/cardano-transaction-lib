@@ -1,4 +1,4 @@
-module Test.Unit (main) where
+module Test.Unit (main, testPlan) where
 
 import Prelude
 
@@ -21,8 +21,10 @@ import Test.UsedTxOuts as UsedTxOuts
 import Test.Utils as Utils
 import TestM (TestPlanM)
 
+-- Run with `spago test --main Test.Unit`
 main :: Effect Unit
-main = launchAff_ $ Utils.interpret testPlan
+main = launchAff_ do
+  Utils.interpret testPlan
 
 testPlan :: TestPlanM Unit
 testPlan = do

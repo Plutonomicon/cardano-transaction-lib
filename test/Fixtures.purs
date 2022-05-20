@@ -60,6 +60,61 @@ module Test.Fixtures
 
 import Prelude
 
+import Cardano.Types.Transaction
+  ( AuxiliaryDataHash(AuxiliaryDataHash)
+  , Ed25519Signature(Ed25519Signature)
+  , Epoch(Epoch)
+  , Certificate
+      ( StakeRegistration
+      , StakeDeregistration
+      , StakeDelegation
+      , PoolRegistration
+      , PoolRetirement
+      , GenesisKeyDelegation
+      , MoveInstantaneousRewardsCert
+      )
+  , GenesisHash(GenesisHash)
+  , GenesisDelegateHash(GenesisDelegateHash)
+  , Mint(Mint)
+  , NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
+  , PublicKey(PublicKey)
+  , Redeemer(Redeemer)
+  , RequiredSigner(RequiredSigner)
+  , Transaction(Transaction)
+  , TransactionOutput(TransactionOutput)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , TxBody(TxBody)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
+  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
+  , Ipv4(Ipv4)
+  , Ipv6(Ipv6)
+  , PoolMetadata(PoolMetadata)
+  , PoolMetadataHash(PoolMetadataHash)
+  , URL(URL)
+  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
+  , MIRToStakeCredentials(MIRToStakeCredentials)
+  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
+  , Nonce(HashNonce)
+  )
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  )
+import Cardano.Types.Value
+  ( Coin(Coin)
+  , CurrencySymbol
+  , Value(Value)
+  , mkCurrencySymbol
+  , mkNonAdaAsset
+  , mkSingletonNonAdaAsset
+  )
 import Effect (Effect)
 import Data.Argonaut as Json
 import Data.Array as Array
@@ -126,61 +181,8 @@ import Types.Scripts
   , ValidatorHash(ValidatorHash)
   )
 import Types.Transaction
-  ( AuxiliaryDataHash(AuxiliaryDataHash)
-  , Ed25519Signature(Ed25519Signature)
-  , Epoch(Epoch)
-  , Certificate
-      ( StakeRegistration
-      , StakeDeregistration
-      , StakeDelegation
-      , PoolRegistration
-      , PoolRetirement
-      , GenesisKeyDelegation
-      , MoveInstantaneousRewardsCert
-      )
-  , GenesisHash(GenesisHash)
-  , GenesisDelegateHash(GenesisDelegateHash)
-  , Mint(Mint)
-  , NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
-  , PublicKey(PublicKey)
-  , Redeemer(Redeemer)
-  , RequiredSigner(RequiredSigner)
-  , Transaction(Transaction)
-  , TransactionHash(TransactionHash)
+  ( TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
-  , TransactionOutput(TransactionOutput)
-  , TransactionWitnessSet(TransactionWitnessSet)
-  , TxBody(TxBody)
-  , Vkey(Vkey)
-  , Vkeywitness(Vkeywitness)
-  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
-  , Ipv4(Ipv4)
-  , Ipv6(Ipv6)
-  , PoolMetadata(PoolMetadata)
-  , PoolMetadataHash(PoolMetadataHash)
-  , URL(URL)
-  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
-  , MIRToStakeCredentials(MIRToStakeCredentials)
-  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
-  , Nonce(HashNonce)
-  )
-import Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  )
-import Cardano.Types.Value
-  ( Coin(Coin)
-  , CurrencySymbol
-  , Value(Value)
-  , mkCurrencySymbol
-  , mkNonAdaAsset
-  , mkSingletonNonAdaAsset
   )
 
 txOutputFixture1 :: TransactionOutput
