@@ -31,6 +31,7 @@ foreign import data ConsI
 foreign import data NilI :: forall (k :: Type). RowListI k
 
 -- TODO: See if we can optimize this. Slows down compilation time considerably for complex types
+-- GH Issue: https://github.com/Plutonomicon/cardano-transaction-lib/issues/433
 -- | Uniqueness constraint on the Nat indices of a RowListI which asserts that all indices
 -- | are unique. This is needed to ensure that the various "lookup" classes return the
 -- | "values" (types) that we expect.
@@ -50,6 +51,7 @@ else instance
   UniqueIndices (ConsI k a n (ConsI k' a' n' xs))
 
 -- TODO: See if we can optimize this. Slows down compilation considerably for complex types.
+-- GH Issue: https://github.com/Plutonomicon/cardano-transaction-lib/issues/433
 -- | Uniqueness constraint on the labels of a RowListI which asserts that all labels are unique.
 -- | Again, this is needed so that the lookup functions perform in the expected manner.
 class AllUniqueLabelsI :: forall (k :: Type). RowListI k -> Constraint

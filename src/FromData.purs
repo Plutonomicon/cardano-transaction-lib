@@ -2,7 +2,6 @@ module FromData
   ( FromDataError(..)
   , class FromData
   , class FromDataArgs
-
   , class FromDataArgsRL
   , class FromDataWithSchema
   , fromData

@@ -76,7 +76,6 @@ data Id k
 foreign import data I :: forall (k :: Type). k -> Id k
 
 -- | A kind (never exists as a term). This is the kind of @PCons@ and @PNil@.
-
 data PSchema :: forall (k :: Type). k -> Type
 data PSchema k
 
@@ -153,7 +152,7 @@ Note that a PSchema encodes two pieces of information:
    when using the generic functions in ToData/FromData. Since GType's constructors do not have record arguments,
    no additional information is needed in the inner lists.
 -}
--- | See the source (DataSchema.purs) for a detailed explanation of how this works / what it is for / examples
+
 type PlutusSchema = PSchema (PSchema Type)
 
 -- | A class used to associate types with a Plutus Data Schema. The fundeps *should* guarantee
@@ -206,6 +205,7 @@ infixr 8 type MkField_ as :=
 {- <<< Constraints used to provide compile-time validation of a PSchema >>> -}
 
 -- TODO: See if we can optimize this. Slows down compilation considerably for complex types.
+-- GH Issue: https://github.com/Plutonomicon/cardano-transaction-lib/issues/433
 -- | A class which ensures that the Nat indices of the RowListI are unique & that the Symbol
 -- | labels of both the RowListI and RowList in a RowListI (RowList k) all contain unique labels
 -- | (relative to  their "level", i.e., two record arguments of *different* constructors can
