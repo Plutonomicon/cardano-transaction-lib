@@ -9,23 +9,36 @@ module Plutus.Types.Address
 
 import Prelude
 
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Generic.Rep (class Generic)
-import Data.Show.Generic (genericShow)
-import Data.Newtype (class Newtype, wrap, unwrap)
-import FromData (class FromData, fromData)
-import ToData (class ToData, toData)
-import Types.Scripts (ValidatorHash)
-import Types.PlutusData (PlutusData(Constr))
-import Types.PubKeyHash
-  ( PaymentPubKeyHash(PaymentPubKeyHash)
-  , PubKeyHash
-  , StakePubKeyHash
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , JsonDecodeError(TypeMismatch)
+  , caseAesonObject
+  , encodeAeson'
+  , (.:)
   )
+import Contract.Prelude (Either(Left))
+import Data.Generic.Rep (class Generic)
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Show.Generic (genericShow)
+import FromData (class FromData, genericFromData)
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash)
   )
+import Plutus.Types.DataSchema
+  ( class HasPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  , I
+  , PNil
+  )
+import ToData (class ToData, genericToData)
+import TypeLevel.Nat (Z)
+import Types.PubKeyHash (PaymentPubKeyHash(..), StakePubKeyHash, PubKeyHash)
+import Types.Scripts (ValidatorHash)
 
 --------------------------------------------------------------------------------
 -- Address
@@ -47,18 +60,36 @@ derive instance Generic Address _
 instance Show Address where
   show = genericShow
 
+instance
+  HasPlutusSchema
+    Address
+    ( "Address"
+        :=
+          ( "addressCredential" := I Credential :+ "addressStakingCredential"
+              := I (Maybe StakingCredential)
+              :+ PNil
+          )
+        @@ Z
+        :+ PNil
+    )
+
 instance ToData Address where
-  toData (Address a) = Constr zero $
-    [ toData a.addressCredential, toData a.addressStakingCredential ]
+  toData = genericToData
 
 instance FromData Address where
-  fromData (Constr n [ credD, stakingCredD ]) | n == zero =
-    Address <$>
-      ( { addressCredential: _, addressStakingCredential: _ }
-          <$> fromData credD
-          <*> fromData stakingCredD
-      )
-  fromData _ = Nothing
+  fromData = genericFromData
+
+instance DecodeAeson Address where
+  decodeAeson = caseAesonObject
+    (Left $ TypeMismatch "Expected object")
+    ( \obj -> do
+        addressCredential <- obj .: "addressCredential"
+        addressStakingCredential <- obj .: "addressStakingCredential"
+        pure $ Address { addressCredential, addressStakingCredential }
+    )
+
+instance EncodeAeson Address where
+  encodeAeson' (Address addr) = encodeAeson' addr
 
 --------------------------------------------------------------------------------
 -- Useful functions

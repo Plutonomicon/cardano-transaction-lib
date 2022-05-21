@@ -150,8 +150,41 @@ let additions =
           , "untagged-union"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-aeson.git"
-        , version = "d4600c3a6bc21fcd94c11e72b65328e4509b6fc7"
+        , version = "5054e03ee14376768071c24d63889bfab8db2667"
+        },
+        aeson-helpers =
+        { dependencies =
+        [ "aff"
+        , "argonaut-codecs"
+        , "argonaut-core"
+        , "arrays"
+        , "bifunctors"
+        , "contravariant"
+        , "control"
+        , "effect"
+        , "either"
+        , "enums"
+        , "foldable-traversable"
+        , "foreign-object"
+        , "maybe"
+        , "newtype"
+        , "ordered-collections"
+        , "prelude"
+        , "profunctor"
+        , "psci-support"
+        , "quickcheck"
+        , "record"
+        , "spec"
+        , "spec-quickcheck"
+        , "transformers"
+        , "tuples"
+        , "typelevel-prelude"
+        ]
+        , repo =
+        "https://github.com/mlabs-haskell/purescript-bridge-aeson-helpers.git"
+        , version = "44d0dae060cf78babd4534320192b58c16a6f45b"
         }
+
       , sequences =
         { dependencies =
           [ "arrays"

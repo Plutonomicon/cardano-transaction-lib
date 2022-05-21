@@ -83,17 +83,10 @@ module Serialization.Address
 
 import Prelude
 
-import Aeson (class DecodeAeson, caseAesonObject, getField, jsonToAeson)
+import Aeson (class DecodeAeson, class EncodeAeson, encodeAeson')
 import Control.Alt ((<|>))
-import Data.Argonaut
-  ( class DecodeJson
-  , class EncodeJson
-  , JsonDecodeError(TypeMismatch)
-  , fromNumber
-  )
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
-import Data.Either (Either(Left))
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
@@ -116,6 +109,7 @@ derive instance Generic Slot _
 derive newtype instance Eq Slot
 derive newtype instance Ord Slot
 derive newtype instance DecodeAeson Slot
+derive newtype instance EncodeAeson Slot
 derive newtype instance FromData Slot
 derive newtype instance ToData Slot
 
@@ -128,16 +122,6 @@ instance Semigroup Slot where
 instance Monoid Slot where
   mempty = Slot zero
 
--- Needed for Haskell server. Slot is given by `getSlot` field.
-instance DecodeJson Slot where
-  decodeJson = jsonToAeson >>>
-    caseAesonObject
-      (Left $ TypeMismatch "Expected object")
-      (flip getField "getSlot" >=> Slot >>> pure)
-
-instance EncodeJson Slot where
-  encodeJson (Slot uint) = fromNumber (UInt.toNumber uint)
-
 -- it is an integer in ogmios
 -- bytestring in plutus
 -- uint32 in csl
@@ -147,8 +131,8 @@ derive newtype instance Eq BlockId
 derive instance Newtype BlockId _
 derive instance Generic BlockId _
 
-instance EncodeJson BlockId where
-  encodeJson (BlockId id) = fromNumber (UInt.toNumber id)
+instance EncodeAeson BlockId where
+  encodeAeson' (BlockId id) = encodeAeson' (UInt.toNumber id)
 
 instance Show BlockId where
   show = genericShow
@@ -159,6 +143,8 @@ derive instance Eq TransactionIndex
 derive instance Ord TransactionIndex
 derive instance Newtype TransactionIndex _
 derive instance Generic TransactionIndex _
+derive newtype instance DecodeAeson TransactionIndex
+derive newtype instance EncodeAeson TransactionIndex
 derive newtype instance ToData TransactionIndex
 derive newtype instance FromData TransactionIndex
 
@@ -171,6 +157,8 @@ derive instance Eq CertificateIndex
 derive instance Ord CertificateIndex
 derive instance Newtype CertificateIndex _
 derive instance Generic CertificateIndex _
+derive newtype instance DecodeAeson CertificateIndex
+derive newtype instance EncodeAeson CertificateIndex
 derive newtype instance ToData CertificateIndex
 derive newtype instance FromData CertificateIndex
 

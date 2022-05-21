@@ -9,27 +9,26 @@ module QueryM.Crypto
 
 import Prelude
 
+import Aeson
+  ( class DecodeAeson
+  , Aeson
+  , JsonDecodeError(TypeMismatch)
+  , caseAesonString
+  , decodeAeson
+  , encodeAeson
+  , parseJsonStringToAeson
+  , stringifyAeson
+  , toStringifiedNumbersJson
+  )
 import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (asks)
-import Data.Argonaut
-  ( class DecodeJson
-  , Json
-  , JsonDecodeError(TypeMismatch)
-  , decodeJson
-  , caseJsonString
-  , (:=)
-  , (~>)
-  , encodeJson
-  , jsonEmptyObject
-  )
 import Data.Bifunctor (bimap, lmap)
 import Data.Either (Either(Left), hush, note, either)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just), maybe')
-import Data.Argonaut.Decode.Error (printJsonDecodeError)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Effect.Aff.Class (liftAff)
@@ -39,7 +38,7 @@ import QueryM
   ( ClientError(ClientHttpError, ClientDecodeJsonError)
   , QueryM
   , mkServerEndpointUrl
-  , scriptToJson
+  , scriptToAeson
   )
 import QueryM.ServerConfig (mkHttpUrl)
 import Serialization (toBytes) as Serialization
@@ -66,30 +65,30 @@ plutusHash
 plutusHash meth bytes = do
   url <- asks $ (_ <> "/" <> "plutus-hash") <<< mkHttpUrl <<< _.serverConfig
   let
-    methJson :: Json
+    methJson :: String
     methJson = case meth of
-      Blake2b_256 -> encodeJson "blake2b_256"
-      Sha2_256 -> encodeJson "sha2_256"
-      Sha3_256 -> encodeJson "sha3_256"
+      Blake2b_256 -> "blake2b_256"
+      Sha2_256 -> "sha2_256"
+      Sha3_256 -> "sha3_256"
 
-    bytesJson :: Json
-    bytesJson = encodeJson $ byteArrayToHex bytes
-
-    requestJson :: Json
-    requestJson = "bytes" := bytesJson
-      ~> "method" := methJson
-      ~> jsonEmptyObject
+    requestJson :: Aeson
+    requestJson = encodeAeson
+      { bytes: byteArrayToHex bytes
+      , method: methJson
+      }
 
     reqBody :: Affjax.RequestBody.RequestBody
-    reqBody = Affjax.RequestBody.Json requestJson
+    reqBody = Affjax.RequestBody.Json $ toStringifiedNumbersJson $ encodeAeson
+      requestJson
   response <- liftAff
-    (Affjax.post Affjax.ResponseFormat.json url (pure reqBody))
+    (Affjax.post Affjax.ResponseFormat.string url (pure reqBody))
   pure $ do
     responseJson :: ({ method :: String, hash :: ByteArray }) <-
-      lmap Affjax.printError response >>= _.body >>> decodeJson >>> lmap
-        printJsonDecodeError
-    goal <- lmap printJsonDecodeError $ decodeJson methJson
-    unless (responseJson.method == goal) $
+      lmap Affjax.printError response >>= _.body
+        >>> (parseJsonStringToAeson >=> decodeAeson)
+        >>> lmap
+          show
+    unless (responseJson.method == methJson) $
       throwError "responseJson wasn't hashed with the method requested"
     pure responseJson.hash
 
@@ -104,11 +103,11 @@ hashData datum = do
   -- get response json
   jsonBody <-
     liftAff
-      ( Affjax.post Affjax.ResponseFormat.json url
-          (Just $ Affjax.RequestBody.Json $ encodeJson body)
+      ( Affjax.post Affjax.ResponseFormat.string url
+          (Just $ Affjax.RequestBody.String $ stringifyAeson $ encodeAeson body)
       ) <#> map \x -> x.body
   -- decode
-  pure $ hush <<< decodeJson =<< hush jsonBody
+  pure $ hush <<< (decodeAeson <=< parseJsonStringToAeson) =<< hush jsonBody
 
 -- | Hashes an Plutus-style Datum
 datumHash :: Datum -> QueryM (Maybe DataHash)
@@ -122,10 +121,10 @@ derive instance Generic HashedData _
 instance Show HashedData where
   show = genericShow
 
-instance DecodeJson HashedData where
-  decodeJson =
+instance DecodeAeson HashedData where
+  decodeAeson =
     map HashedData <<<
-      caseJsonString (Left err) (note err <<< hexToByteArray)
+      caseAesonString (Left err) (note err <<< hexToByteArray)
     where
     err :: JsonDecodeError
     err = TypeMismatch "Expected hex bytes (raw) of hashed data"
@@ -141,11 +140,15 @@ hashScript script = do
   let
     reqBody :: Maybe Affjax.RequestBody.RequestBody
     reqBody = Just
-      $ Affjax.RequestBody.Json
-      $ scriptToJson
+      $ Affjax.RequestBody.String
+      $ stringifyAeson
+      $ scriptToAeson
       $ unwrap script
-  liftAff (Affjax.post Affjax.ResponseFormat.json url reqBody)
+  liftAff (Affjax.post Affjax.ResponseFormat.string url reqBody)
     <#> either
       (Left <<< ClientHttpError)
-      (bimap ClientDecodeJsonError wrap <<< decodeJson <<< _.body)
+      ( bimap ClientDecodeJsonError wrap
+          <<< (decodeAeson <=< parseJsonStringToAeson)
+          <<< _.body
+      )
 

@@ -145,7 +145,7 @@
         easy-ps =
           import inputs.easy-purescript-nix { pkgs = prev; };
         ogmios-datum-cache =
-          inputs.ogmios-datum-cache.defaultPackage.${system};
+          inputs.ogmios-datum-cache.packages.${system}.ogmios-datum-cache;
         ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
         cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
         purescriptProject = import ./nix { inherit system; pkgs = prev; };

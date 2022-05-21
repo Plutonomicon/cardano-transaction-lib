@@ -26,6 +26,16 @@ module Plutus.Types.Value
 
 import Prelude hiding (eq)
 
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , caseAesonObject
+  , decodeAeson
+  , encodeAeson
+  , getField
+  , JsonDecodeError(TypeMismatch)
+  )
+import Contract.Prelude (Either(..))
 import Control.Apply (lift3)
 import Data.Array (concatMap, filter)
 import Data.BigInt (BigInt)
@@ -38,10 +48,7 @@ import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This), these)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
-import FromData (class FromData, fromData)
-import ToData (class ToData, toData)
-import Types.ByteArray (ByteArray)
-import Types.TokenName (TokenName, adaToken, mkTokenName)
+import FromData (class FromData)
 import Plutus.Types.AssocMap (Map(Map)) as Plutus
 import Plutus.Types.AssocMap
   ( singleton
@@ -51,8 +58,23 @@ import Plutus.Types.AssocMap
   , mapThese
   ) as Plutus.Map
 import Plutus.Types.CurrencySymbol (CurrencySymbol, mkCurrencySymbol, adaSymbol)
+import ToData (class ToData)
+import Types.ByteArray (ByteArray)
+import Types.TokenName (TokenName, adaToken, mkTokenName)
 
 newtype Value = Value (Plutus.Map CurrencySymbol (Plutus.Map TokenName BigInt))
+
+derive newtype instance ToData Value
+derive newtype instance FromData Value
+
+instance DecodeAeson Value where
+  decodeAeson = caseAesonObject
+    (Left $ TypeMismatch "Expected object")
+    (flip getField "getValue" >=> decodeAeson >>> map Value)
+
+instance EncodeAeson Value where
+  encodeAeson' (Value mph) = pure $ encodeAeson
+    { "getValue": encodeAeson mph }
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#eq
 instance Eq Value where
@@ -112,16 +134,6 @@ valueToCoin v = Coin $ valueOf v adaSymbol adaToken
 -- | Check whether an 'Ada' value is zero.
 isCoinZero :: Coin -> Boolean
 isCoinZero (Coin i) = i == zero
-
---------------------------------------------------------------------------------
--- ToData / FromData
---------------------------------------------------------------------------------
-
-instance ToData Value where
-  toData (Value mp) = toData mp
-
-instance FromData Value where
-  fromData = map Value <<< fromData
 
 --------------------------------------------------------------------------------
 -- Public

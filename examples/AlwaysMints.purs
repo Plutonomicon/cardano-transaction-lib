@@ -5,6 +5,7 @@ module Examples.AlwaysMints (main) where
 
 import Contract.Prelude
 
+import Contract.Aeson (decodeAeson, fromString)
 import Contract.Monad
   ( ContractConfig(ContractConfig)
   , launchAff_
@@ -26,7 +27,6 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
-import Data.Argonaut (decodeJson, fromString)
 import Data.BigInt as BigInt
 
 main :: Effect Unit
@@ -57,7 +57,7 @@ main = launchAff_ $ do
     logInfo' $ "Tx ID: " <> show txId
 
 alwaysMintsPolicy :: Maybe MintingPolicy
-alwaysMintsPolicy = map wrap $ hush $ decodeJson $ fromString
+alwaysMintsPolicy = map wrap $ hush $ decodeAeson $ fromString
   "59094c0100003232323322332233322232333222333222333333332222222233223333322222\
   \3333222233322233223322332233322233223322332233223322323232323232323232323232\
   \3232323232323232323232323233500101122031122223005330033004002300600125335302\

@@ -10,13 +10,13 @@ module Types.TokenName
 
 import Prelude
 
-import Data.Argonaut
-  ( getField
-  , class DecodeJson
-  , class EncodeJson
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
-  , caseJsonObject
-  , encodeJson
+  , caseAesonObject
+  , encodeAeson'
+  , getField
   )
 import Data.BigInt (BigInt)
 import Data.Bitraversable (ltraverse)
@@ -42,16 +42,16 @@ derive newtype instance ToMetadata TokenName
 derive newtype instance Ord TokenName
 derive newtype instance ToData TokenName
 
-instance DecodeJson TokenName where
-  decodeJson = caseJsonObject
+instance DecodeAeson TokenName where
+  decodeAeson = caseAesonObject
     (Left $ TypeMismatch "Expected object")
     ( note (TypeMismatch "Invalid TokenName") <<< mkTokenName
         <=< note (TypeMismatch "Invalid ByteArray") <<< hexToByteArray
         <=< flip getField "unTokenName"
     )
 
-instance EncodeJson TokenName where
-  encodeJson (TokenName ba) = encodeJson
+instance EncodeAeson TokenName where
+  encodeAeson' (TokenName ba) = encodeAeson'
     { "unTokenName": byteArrayToHex ba }
 
 instance Show TokenName where

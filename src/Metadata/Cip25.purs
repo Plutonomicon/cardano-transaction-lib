@@ -6,8 +6,22 @@ module Metadata.Cip25
 
 import Prelude
 
-import Data.Argonaut (class DecodeJson, Json, (.:), (.:?))
-import Data.Argonaut as Json
+import Aeson
+  ( class DecodeAeson
+  , Aeson
+  , JsonDecodeError
+      ( TypeMismatch
+      )
+  , caseAesonArray
+  , caseAesonObject
+  , decodeAeson
+  , encodeAeson
+  , isString
+  , toString
+  , (.:)
+  , (.:?)
+  )
+import Aeson as Aeson
 import Data.Array (concat, groupBy, uncons)
 import Data.Array.NonEmpty (NonEmptyArray, toArray)
 import Data.Array.NonEmpty (head) as NonEmpty
@@ -86,9 +100,9 @@ instance FromData Cip25MetadataFile where
     uris <- lookupKey "src" contents >>= fromData
     pure $ wrap { name, mediaType, uris }
 
-instance DecodeJson Cip25MetadataFile where
-  decodeJson =
-    Json.caseJsonObject errExpectedObject $ \obj -> do
+instance DecodeAeson Cip25MetadataFile where
+  decodeAeson =
+    caseAesonObject errExpectedObject $ \obj -> do
       name <- obj .: "name"
       mediaType <- obj .: "mediaType"
       uris <- decodeNonEmptyStringArray =<< obj .: "src"
@@ -158,20 +172,20 @@ metadataEntryFromData policyId assetName contents = do
   pure $
     wrap { policyId, assetName, imageUris, mediaType, description, files }
 
-metadataEntryDecodeJson
+metadataEntryDecodeAeson
   :: MintingPolicyHash
   -> TokenName
-  -> Json
-  -> Either Json.JsonDecodeError Cip25MetadataEntry
-metadataEntryDecodeJson policyId assetName =
-  Json.caseJsonObject errExpectedObject $ \obj -> do
+  -> Aeson
+  -> Either JsonDecodeError Cip25MetadataEntry
+metadataEntryDecodeAeson policyId assetName =
+  caseAesonObject errExpectedObject $ \obj -> do
     imageUris <- obj .: "image" >>=
       decodeNonEmptyStringArray
     mediaType <- obj .:? "mediaType"
     description <- obj .:? "description" >>=
       maybe (pure mempty) decodeStringArray
     files <- obj .:? "files" >>= \arr ->
-      maybe (pure mempty) (traverse Json.decodeJson) (Json.toArray =<< arr)
+      maybe (pure mempty) (traverse decodeAeson) (Aeson.toArray =<< arr)
     pure $
       wrap { policyId, assetName, imageUris, mediaType, description, files }
 
@@ -246,9 +260,9 @@ instance FromData Cip25Metadata where
       _ -> Nothing
     wrap <$> sequence entries
 
-instance DecodeJson Cip25Metadata where
-  decodeJson =
-    Json.caseJsonObject errExpectedObject $ \obj -> do
+instance DecodeAeson Cip25Metadata where
+  decodeAeson =
+    caseAesonObject errExpectedObject $ \obj -> do
       policies <- obj .: nftMetadataLabel
       withJsonObject policies $ \objPolicies ->
         map (wrap <<< concat)
@@ -258,27 +272,27 @@ instance DecodeJson Cip25Metadata where
                 for (objToArray objAssets) $ \(assetName /\ contents) -> do
                   policyId_ <- decodePolicyId policyId
                   assetName_ <- decodeAssetName assetName
-                  metadataEntryDecodeJson policyId_ assetName_ contents
+                  metadataEntryDecodeAeson policyId_ assetName_ contents
     where
     objToArray :: forall a. FO.Object a -> Array (Tuple String a)
     objToArray = FO.toUnfoldable
 
     withJsonObject
       :: forall a
-       . Json
-      -> (FO.Object Json -> Either Json.JsonDecodeError a)
-      -> Either Json.JsonDecodeError a
-    withJsonObject = flip (Json.caseJsonObject errExpectedObject)
+       . Aeson
+      -> (FO.Object Aeson -> Either JsonDecodeError a)
+      -> Either JsonDecodeError a
+    withJsonObject = flip (caseAesonObject errExpectedObject)
 
-    decodePolicyId :: String -> Either Json.JsonDecodeError MintingPolicyHash
+    decodePolicyId :: String -> Either JsonDecodeError MintingPolicyHash
     decodePolicyId =
-      note (Json.TypeMismatch "Expected hex-encoded policy id")
+      note (TypeMismatch "Expected hex-encoded policy id")
         <<< map wrap
         <<< (scriptHashFromBytes <=< hexToByteArray)
 
-    decodeAssetName :: String -> Either Json.JsonDecodeError TokenName
+    decodeAssetName :: String -> Either JsonDecodeError TokenName
     decodeAssetName =
-      note (Json.TypeMismatch "Expected UTF-8 encoded asset name")
+      note (TypeMismatch "Expected UTF-8 encoded asset name")
         <<< mkTokenName
         <<< wrap
         <<< encodeUtf8
@@ -287,30 +301,30 @@ instance DecodeJson Cip25Metadata where
 -- Helpers
 --------------------------------------------------------------------------------
 
-errExpectedObject :: forall a. Either Json.JsonDecodeError a
+errExpectedObject :: forall a. Either JsonDecodeError a
 errExpectedObject =
-  Left (Json.TypeMismatch "Expected object")
+  Left (TypeMismatch "Expected object")
 
-errExpectedArray :: forall a. Either Json.JsonDecodeError a
+errExpectedArray :: forall a. Either JsonDecodeError a
 errExpectedArray =
-  Left (Json.TypeMismatch "Expected array")
+  Left (TypeMismatch "Expected array")
 
-errExpectedNonEmptyArray :: forall a. Either Json.JsonDecodeError a
+errExpectedNonEmptyArray :: forall a. Either JsonDecodeError a
 errExpectedNonEmptyArray =
-  Left (Json.TypeMismatch "Expected non-empty array")
+  Left (TypeMismatch "Expected non-empty array")
 
 decodeStringArray
-  :: Json -> Either Json.JsonDecodeError (Array String)
-decodeStringArray json
-  | Json.isString json =
-      decodeStringArray (Json.jsonSingletonArray json)
+  :: Aeson -> Either JsonDecodeError (Array String)
+decodeStringArray aeson
+  | isString aeson =
+      decodeStringArray (encodeAeson [ aeson ])
   | otherwise =
-      flip (Json.caseJsonArray errExpectedArray) json $
-        note (Json.TypeMismatch "Expected UTF-8 encoded string")
-          <<< traverse Json.toString
+      flip (caseAesonArray errExpectedArray) aeson $
+        note (TypeMismatch "Expected UTF-8 encoded string")
+          <<< traverse toString
 
 decodeNonEmptyStringArray
-  :: Json -> Either Json.JsonDecodeError (NonEmpty Array String)
+  :: Aeson -> Either JsonDecodeError (NonEmpty Array String)
 decodeNonEmptyStringArray json =
   decodeStringArray json >>= \arr ->
     case uncons arr of

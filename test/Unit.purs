@@ -4,7 +4,6 @@ import Prelude
 
 import Effect (Effect)
 import Effect.Aff (launchAff_)
-import Test.Aeson as Aeson
 import Test.ByteArray as ByteArray
 import Test.Data as Data
 import Test.Deserialization as Deserialization
@@ -28,7 +27,6 @@ main = launchAff_ do
 
 testPlan :: TestPlanM Unit
 testPlan = do
-  Aeson.suite
   ByteArray.suite
   Cip25.suite
   Data.suite

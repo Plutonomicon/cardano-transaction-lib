@@ -13,20 +13,24 @@ module Types.PubKeyHash
 
 import Prelude
 
-import Data.Argonaut
-  ( class DecodeJson
-  , caseJsonObject
-  , decodeJson
-  , getField
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
+  , caseAesonObject
+  , decodeAeson
+  , getField
   )
+import Aeson.Decode as D
+import Aeson.Encode as E
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import FromData (class FromData)
 import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
+import Record (get)
 import Serialization.Address
   ( Address
   , EnterpriseAddress
@@ -42,6 +46,7 @@ import Serialization.Address
   )
 import Serialization.Hash (Ed25519KeyHash)
 import ToData (class ToData)
+import Type.Proxy (Proxy(Proxy))
 
 newtype PubKeyHash = PubKeyHash Ed25519KeyHash
 
@@ -57,12 +62,16 @@ derive newtype instance ToMetadata PubKeyHash
 instance Show PubKeyHash where
   show = genericShow
 
--- This is needed for `ApplyArgs`. Plutus has an `getPubKeyHash` field so don't
--- newtype derive.
-instance DecodeJson PubKeyHash where
-  decodeJson = caseJsonObject
-    (Left $ TypeMismatch "Expected object")
-    (flip getField "getPubKeyHash" >=> decodeJson >>> map PubKeyHash)
+-- NOTE: mlabs-haskell/purescript-bridge generated and applied here
+instance EncodeAeson PubKeyHash where
+  encodeAeson' x = pure $ E.encode
+    (E.record { getPubKeyHash: E.value :: _ (Ed25519KeyHash) })
+    { getPubKeyHash: unwrap x }
+
+instance DecodeAeson PubKeyHash where
+  decodeAeson x = wrap <<< get (Proxy :: Proxy "getPubKeyHash") <$> D.decode
+    (D.record "getPubKeyHash " { getPubKeyHash: D.value :: _ (Ed25519KeyHash) })
+    x
 
 ed25519EnterpriseAddress
   :: forall (n :: Type)
@@ -115,11 +124,11 @@ instance Show PaymentPubKeyHash where
 
 -- This is needed for `ApplyArgs`. Plutus has an `unPaymentPubKeyHash` field so
 -- don't newtype derive.
-instance DecodeJson PaymentPubKeyHash where
-  decodeJson = caseJsonObject
+instance DecodeAeson PaymentPubKeyHash where
+  decodeAeson = caseAesonObject
     (Left $ TypeMismatch "Expected object")
     ( flip getField "unPaymentPubKeyHash" >=>
-        decodeJson >>> map PaymentPubKeyHash
+        decodeAeson >>> map PaymentPubKeyHash
     )
 
 newtype StakePubKeyHash = StakePubKeyHash PubKeyHash
