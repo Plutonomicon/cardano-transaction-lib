@@ -63,7 +63,8 @@ import QueryM.JsonWsp
   )
 import Serialization.Address (Slot)
 import Type.Proxy (Proxy(Proxy))
-import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
+import Types.ByteArray (ByteArray, hexToByteArray)
+import Types.CborBytes (CborBytes, cborBytesToHex)
 import Types.Natural (Natural)
 import Types.RedeemerTag as Tag
 import Cardano.Types.Value (CurrencySymbol, Value, mkCurrencySymbol, mkValue)
@@ -107,19 +108,19 @@ type OgmiosAddress = String
 
 -- | Sends a serialized signed transaction with its full witness through the
 -- | Cardano network via Ogmios.
-submitTxCall :: JsonWspCall { txCbor :: ByteArray } SubmitTxR
+submitTxCall :: JsonWspCall CborBytes SubmitTxR
 submitTxCall = mkOgmiosCallType
   { methodname: "SubmitTx"
-  , args: { submit: _ } <<< byteArrayToHex <<< _.txCbor
+  , args: { submit: _ } <<< cborBytesToHex
   }
   Proxy
 
 -- | Evaluates the execution units of scripts present in a given transaction,
 -- | without actually submitting the transaction.
-evaluateTxCall :: JsonWspCall { txCbor :: ByteArray } TxEvaluationResult
+evaluateTxCall :: JsonWspCall CborBytes TxEvaluationResult
 evaluateTxCall = mkOgmiosCallType
   { methodname: "EvaluateTx"
-  , args: { evaluate: _ } <<< byteArrayToHex <<< _.txCbor
+  , args: { evaluate: _ } <<< cborBytesToHex
   }
   Proxy
 

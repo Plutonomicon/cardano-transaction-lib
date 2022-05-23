@@ -47,7 +47,7 @@ import Metadata.ToMetadata (class ToMetadata, toMetadata, anyToMetadata)
 import Metadata.MetadataType (class MetadataType)
 import Serialization.Hash (scriptHashFromBytes)
 import Types.Scripts (MintingPolicyHash)
-import Types.ByteArray (hexToByteArray)
+import Types.RawBytes (hexToRawBytes)
 import Types.PlutusData (PlutusData(Map))
 import Types.TokenName (TokenName, mkTokenName)
 import Types.TransactionMetadata (TransactionMetadatum(MetadataMap))
@@ -288,7 +288,7 @@ instance DecodeAeson Cip25Metadata where
     decodePolicyId =
       note (TypeMismatch "Expected hex-encoded policy id")
         <<< map wrap
-        <<< (scriptHashFromBytes <=< hexToByteArray)
+        <<< (scriptHashFromBytes <=< hexToRawBytes)
 
     decodeAssetName :: String -> Either JsonDecodeError TokenName
     decodeAssetName =

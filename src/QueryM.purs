@@ -154,6 +154,7 @@ import Serialization.Address
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
+import Types.CborBytes (CborBytes)
 import Types.Chain as Chain
 import Types.Datum (DataHash(DataHash), Datum)
 import Types.Interval (SlotConfig, defaultSlotConfig)
@@ -256,8 +257,8 @@ getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
 -- OGMIOS LOCAL TX SUBMISSION PROTOCOL
 --------------------------------------------------------------------------------
 
-submitTxOgmios :: ByteArray -> QueryM Ogmios.SubmitTxR
-submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall _.submit { txCbor }
+submitTxOgmios :: CborBytes -> QueryM Ogmios.SubmitTxR
+submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall _.submit txCbor
 
 --------------------------------------------------------------------------------
 -- DATUM CACHE QUERIES
@@ -304,7 +305,7 @@ signTransaction tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.signTx tx
 
 signTransactionBytes
-  :: ByteArray -> QueryM (Maybe ByteArray)
+  :: CborBytes -> QueryM (Maybe CborBytes)
 signTransactionBytes tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.signTxBytes tx
 

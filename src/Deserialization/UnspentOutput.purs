@@ -24,6 +24,7 @@ import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe, fromMaybe)
+import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
@@ -98,7 +99,7 @@ convertValue value = do
         ( traverse
             ( bitraverse
                 -- scripthash to currency symbol
-                (scriptHashToBytes >>> T.mkCurrencySymbol)
+                (scriptHashToBytes >>> unwrap >>> T.mkCurrencySymbol)
                 -- nested assetname to tokenname
                 (traverse (ltraverse (T.assetNameName >>> T.mkTokenName)))
             )

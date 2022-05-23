@@ -95,7 +95,7 @@ import Data.Bitraversable (bitraverse)
 import Data.Either (Either)
 import Data.Map as M
 import Data.Maybe (Maybe)
-import Data.Newtype (wrap)
+import Data.Newtype (wrap, unwrap)
 import Data.Ratio (Ratio, reduce)
 import Data.Traversable (traverse, for)
 import Data.Tuple (Tuple)
@@ -139,6 +139,7 @@ import Serialization.Types (NativeScripts, PlutusScripts)
 import Serialization.Types as Csl
 import Type.Row (type (+))
 import Types.ByteArray (ByteArray)
+import Types.CborBytes (CborBytes)
 import Types.Int as Int
 import Types.TransactionMetadata
   ( GeneralTransactionMetadata
@@ -154,10 +155,10 @@ import Cardano.Types.Value
 import Untagged.Union (asOneOf)
 
 -- | Deserializes CBOR encoded transaction to a CTL's native type.
--- NOTE: wrt ByteArray type and cbor keyword https://github.com/Plutonomicon/cardano-transaction-lib/issues/234
 deserializeTransaction
-  :: forall (r :: Row Type). { txCbor :: ByteArray } -> Err r T.Transaction
-deserializeTransaction { txCbor } = fromBytes' txCbor >>= convertTransaction
+  :: forall (r :: Row Type). CborBytes -> Err r T.Transaction
+deserializeTransaction txCbor = fromBytes' (unwrap txCbor) >>=
+  convertTransaction
 
 -- | Converts transaction from foreign CSL representation to CTL's one.
 convertTransaction

@@ -23,6 +23,7 @@ import Data.Foldable (class Foldable)
 import Data.Generic.Rep as G
 import Data.List (List)
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (unwrap)
 import Data.Ratio (Ratio, denominator, numerator)
 import Data.Symbol (class IsSymbol)
 import Data.TextEncoder (encodeUtf8)
@@ -43,6 +44,8 @@ import TypeLevel.RowList.Unordered.Indexed
   )
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray(ByteArray))
+import Types.RawBytes (RawBytes)
+import Types.CborBytes (CborBytes)
 import Types.PlutusData (PlutusData(Constr, Integer, List, Bytes))
 
 -- | Classes
@@ -272,6 +275,12 @@ instance ToData a => ToData (Ratio a) where
 
 instance ToData ByteArray where
   toData = Bytes
+
+instance ToData CborBytes where
+  toData = Bytes <<< unwrap
+
+instance ToData RawBytes where
+  toData = Bytes <<< unwrap
 
 instance ToData String where
   toData = toData <<< ByteArray <<< encodeUtf8

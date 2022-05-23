@@ -87,7 +87,8 @@ import Serialization.Hash
   , scriptHashToBytes
   )
 import ToData (class ToData)
-import Types.ByteArray (ByteArray, byteArrayToHex, byteLength, hexToByteArray)
+import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex)
+import Types.CborBytes (byteLength)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Types.TokenName
   ( TokenName
@@ -218,7 +219,7 @@ unsafeAdaSymbol = CurrencySymbol mempty
 -- | constructor is not exported
 mkCurrencySymbol :: ByteArray -> Maybe CurrencySymbol
 mkCurrencySymbol byteArr =
-  scriptHashFromBytes byteArr *> pure (CurrencySymbol byteArr)
+  scriptHashFromBytes (wrap byteArr) *> pure (CurrencySymbol byteArr)
 
 -- Do not export. Create an Ada `CurrencySymbol` from a `ByteArray`
 mkUnsafeAdaSymbol :: ByteArray -> Maybe CurrencySymbol
@@ -649,10 +650,10 @@ filterNonAda (Value _ nonAda) = Value mempty nonAda
 -- already know is a valid CurrencySymbol
 currencyScriptHash :: CurrencySymbol -> ScriptHash
 currencyScriptHash (CurrencySymbol byteArray) =
-  unsafePartial fromJust $ scriptHashFromBytes byteArray
+  unsafePartial fromJust $ scriptHashFromBytes (wrap byteArray)
 
 scriptHashAsCurrencySymbol :: ScriptHash -> CurrencySymbol
-scriptHashAsCurrencySymbol = CurrencySymbol <<< scriptHashAsBytes
+scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< scriptHashAsBytes
 
 -- | The minting policy hash of a currency symbol
 currencyMPSHash :: CurrencySymbol -> MintingPolicyHash
@@ -663,7 +664,8 @@ currencyMPSHash = MintingPolicyHash <<< currencyScriptHash
 -- Plutus doesn't use Maybe here.
 -- | The currency symbol of a monetary policy hash
 mpsSymbol :: MintingPolicyHash -> Maybe CurrencySymbol
-mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol $ scriptHashToBytes h
+mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol <<< unwrap $
+  scriptHashToBytes h
 
 -- Like `mapEither` that works with 'These'.
 mapThese

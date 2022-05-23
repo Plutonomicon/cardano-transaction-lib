@@ -22,7 +22,7 @@ import Data.Identity (Identity(Identity))
 import Data.Foldable (fold)
 import Data.Map (toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Traversable (traverse)
 import Data.Tuple (fst) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
@@ -60,6 +60,7 @@ import Serialization.Address (Address) as Serialization
 import Serialization.Address (addressBytes) as Serialization.Address
 import Serialization.Hash (ed25519KeyHashFromBytes, scriptHashFromBytes)
 import Types.ByteArray (ByteArray, byteArrayFromIntArray, byteArrayToIntArray)
+import Types.CborBytes (cborBytesToIntArray)
 import Types.TokenName (getTokenName)
 
 class ToPlutusType :: (Type -> Type) -> Type -> Type -> Constraint
@@ -89,7 +90,9 @@ instance ToPlutusType Identity Cardano.Value Plutus.Value where
       flip concatMap (Map.toUnfoldable nonAdaAssets) $ \(cs /\ tokens) ->
         Map.toUnfoldable tokens <#> \(tn /\ val) ->
           unsafePartial $ fromJust $
-            Plutus.Value.singleton' (getCurrencySymbol cs) (getTokenName tn) val
+            Plutus.Value.singleton' (getCurrencySymbol cs)
+              (unwrap $ getTokenName tn)
+              val
 
 --------------------------------------------------------------------------------
 -- Cardano.Types.Value.Coin -> Plutus.Types.Value.UtxoM
@@ -145,7 +148,7 @@ instance ToPlutusType Maybe Serialization.Address Plutus.Address where
           buildAddress scriptCredential Nothing
     where
     addrBytes :: Array Int
-    addrBytes = byteArrayToIntArray $
+    addrBytes = cborBytesToIntArray $
       Serialization.Address.addressBytes addrForeign
 
     -- | Retrieves the address type by reading
@@ -165,11 +168,11 @@ instance ToPlutusType Maybe Serialization.Address Plutus.Address where
 
     pubKeyCredential :: ByteArray -> Maybe Credential
     pubKeyCredential =
-      map (PubKeyCredential <<< wrap) <<< ed25519KeyHashFromBytes
+      map (PubKeyCredential <<< wrap) <<< ed25519KeyHashFromBytes <<< wrap
 
     scriptCredential :: ByteArray -> Maybe Credential
     scriptCredential =
-      map (ScriptCredential <<< wrap) <<< scriptHashFromBytes
+      map (ScriptCredential <<< wrap) <<< scriptHashFromBytes <<< wrap
 
     buildAddress
       :: (ByteArray -> Maybe Credential)
