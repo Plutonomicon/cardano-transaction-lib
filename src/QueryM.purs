@@ -763,7 +763,7 @@ type OgmiosListeners =
   { utxo :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoR
   , chainTip :: ListenerSet Unit Ogmios.ChainTipR
   , submit :: ListenerSet { txCbor :: ByteArray } Ogmios.SubmitTxR
-  , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationResult
+  , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationR
   , eraSummaries :: ListenerSet Unit Ogmios.EraSummariesR
   }
 
@@ -886,7 +886,7 @@ type DispatchIdMap response = Ref
 ogmiosMessageDispatch
   :: { utxoDispatchMap :: DispatchIdMap Ogmios.UtxoR
      , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipR
-     , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationResult
+     , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationR
      , submitDispatchMap :: DispatchIdMap Ogmios.SubmitTxR
      , eraSummariesDispatchMap :: DispatchIdMap Ogmios.EraSummariesR
      }

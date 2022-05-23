@@ -13,7 +13,7 @@ module QueryM.Ogmios
   , OgmiosTxOut(..)
   , OgmiosTxOutRef(..)
   , SubmitTxR(..)
-  , TxEvaluationResult(..)
+  , TxEvaluationR(..)
   , TxHash
   , UtxoQueryResult(..)
   , UtxoR(..)
@@ -131,7 +131,7 @@ submitTxCall = mkOgmiosCallType
 
 -- | Evaluates the execution units of scripts present in a given transaction,
 -- | without actually submitting the transaction.
-evaluateTxCall :: JsonWspCall CborBytes TxEvaluationResult
+evaluateTxCall :: JsonWspCall CborBytes TxEvaluationR
 evaluateTxCall = mkOgmiosCallType
   { methodname: "EvaluateTx"
   , args: { evaluate: _ } <<< cborBytesToHex
@@ -251,16 +251,16 @@ instance DecodeAeson EraSummaryParameters where
 
 ---------------- TX EVALUATION QUERY RESPONSE & PARSING
 
-newtype TxEvaluationResult = TxEvaluationResult
+newtype TxEvaluationR = TxEvaluationR
   { "EvaluationResult" ::
       Map
         { entityRedeemerTag :: Tag.RedeemerTag, entityIndex :: Natural }
         { memory :: Natural, steps :: Natural }
   }
 
-instance DecodeAeson TxEvaluationResult where
+instance DecodeAeson TxEvaluationR where
   decodeAeson _ = Left
-    (TypeMismatch "DecodeAeson TxEvaluationResult is not implemented")
+    (TypeMismatch "DecodeAeson TxEvaluationR is not implemented")
 
 ---------------- CHAIN TIP QUERY RESPONSE & PARSING
 
