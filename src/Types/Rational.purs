@@ -41,26 +41,23 @@ derive newtype instance Show Rational
 derive newtype instance Eq Rational
 derive newtype instance Ord Rational
 derive newtype instance Semiring Rational
-derive newtype instance Ring Rational
-derive newtype instance CommutativeRing Rational
 
--- Representation of Rational in Aeson, used internally
 type RationalRep =
-     { numerator :: StringifiedBigInt
-      , denominator :: StringifiedBigInt
+     { numerator :: BigInt
+      , denominator :: BigInt
       }
 
 instance EncodeAeson Rational where
   encodeAeson' r = encodeAeson'
-    (  { "numerator": StringifiedBigInt (numerator r)
-       , "denominator": StringifiedBigInt (denominator r)
+    (  { "numerator":  (numerator r)
+       , "denominator": (denominator r)
        } :: RationalRep
     )
 
 instance DecodeAeson Rational where
   decodeAeson r = do
-   { numerator: (StringifiedBigInt n :: StringifiedBigInt)
-   , denominator: (StringifiedBigInt d :: StringifiedBigInt)
+   { numerator:  (n :: BigInt)
+   , denominator: (d :: BigInt)
    } :: RationalRep <- decodeAeson r
    maybe (Left $ UnexpectedValue $ toStringifiedNumbersJson r) pure $ n % d
 
@@ -79,7 +76,7 @@ instance DecodeAeson StringifiedBigInt where
         >>> note (TypeMismatch "expected stringified integer number")
         >>>
           map StringifiedBigInt
-
+{-
 instance EuclideanRing Rational where
   degree _ = one
   mod _ _ = zero
@@ -87,7 +84,7 @@ instance EuclideanRing Rational where
     | numerator b == zero = zero
     | otherwise = Rational $
         (numerator a * denominator b) Ratio.% (denominator a * numerator b)
-
+-}
 -- | Gives the reciprocal of a `Rational`.
 -- | Returns `Nothing` if applied to `zero` since the reciprocal of zero
 -- | is mathematically undefined.
