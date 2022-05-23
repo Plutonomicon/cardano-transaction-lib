@@ -167,6 +167,11 @@
       };
 
       defaultConfig = final: with final; {
+        inherit (inputs) cardano-configurations;
+        network = {
+          name = "testnet";
+          magic = 1097911063;
+        };
         node = { port = 3001; };
         ogmios = { port = 1337; };
         ctlServer = { port = 8081; };
@@ -208,10 +213,8 @@
             fix (final: recursiveUpdate
               (defaultConfig final)
               (if isFunction extraConfig then extraConfig final else extraConfig));
-          # Network subdirectory in cardano-configurations repo provided above
-          network = "testnet";
-          nodeDbVol = "node-${network}-db";
-          nodeIpcVol = "node-${network}-ipc";
+          nodeDbVol = "node-${config.network.name}-db";
+          nodeIpcVol = "node-${config.network.name}-ipc";
           nodeSocketPath = "/ipc/node.socket";
           serverName = "ctl-server:exe:ctl-server";
           server = self.packages.${system}."${serverName}";
@@ -231,8 +234,8 @@
                 image = "inputoutput/cardano-node:1.34.1";
                 ports = [ (bindPort node.port) ];
                 volumes = [
-                  "${cardano-configurations}/network/${network}/cardano-node:/config"
-                  "${cardano-configurations}/network/${network}/genesis:/genesis"
+                  "${config.cardano-configurations}/network/${config.network.name}/cardano-node:/config"
+                  "${config.cardano-configurations}/network/${config.network.name}/genesis:/genesis"
                   "${nodeDbVol}:/data"
                   "${nodeIpcVol}:/ipc"
                 ];
@@ -254,7 +257,7 @@
                 useHostStore = true;
                 ports = [ (bindPort ogmios.port) ];
                 volumes = [
-                  "${cardano-configurations}/network/${network}:/config"
+                  "${config.cardano-configurations}/network/${config.network.name}:/config"
                   "${nodeIpcVol}:/ipc"
                 ];
                 command = [
@@ -283,7 +286,7 @@
                     ${server}/bin/ctl-server \
                       --port ${toString ctlServer.port} \
                       --node-socket ${nodeSocketPath} \
-                      --network-id 1097911063
+                      --network-id ${toString config.network.magic}
                   ''
                 ];
               };

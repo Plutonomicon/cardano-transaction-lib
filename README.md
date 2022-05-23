@@ -103,6 +103,10 @@ Here is an example that uses the overlay to launch runtime services:
       # that takes a single arugment. Alternately, you can pass an attrset
       # directly
       runtimeConfig = final: with final; {
+        network = {
+          name = "testnet";
+          magic = 1097911063;
+        };
         # *All* of these values are optional, and shown with their default
         # values. If you need even more customization, you can use `overideAttrs`
         # to change the values after calling `buildCtlRuntime` (e.g. a secrets
@@ -429,11 +433,17 @@ We have recenly set up a small scaffolding repository for projects wishing to ad
 
 CTL supports using networks other than testnet to provide development environment.
 
-First you need to specify alternative way of getting the network configuration.
+First you need to specify an alternative way of getting the network configuration.
 
-[cardano-configurations](https://github.com/input-output-hk/cardano-configurations) repo provides configs for `mainnet`, `staging` and a few other networks. If you want one of these, simply replace `network` parameter in `buildCtlRuntime`.
+[cardano-configurations](https://github.com/input-output-hk/cardano-configurations) repo provides configs for `mainnet`, `staging` and a few other networks.
 
-Providing custom repo with similar structure is also possible: edit `flake.nix` and change `inputs.cardano-configurations` providing the URL of your fork. You can use `path:/path/to/repo` as URL as well. After that, edit `network` parameter (it should point to a subdirectory of `./network/` in your fork).
+Which of the network config directories is chosen is determined by `network.name` parameter of `buildCtlRuntime`
+
+You can specify your own fork of `cardano-configurations` like this:
+
+```nix
+inputs.cardano-transaction-lib.inputs.cardano-configurations.follows = "...";
+```
 
 ## Architecture
 
