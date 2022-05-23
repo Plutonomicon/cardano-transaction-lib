@@ -15,10 +15,43 @@ module Serialization
 
 import Prelude
 
+import Cardano.Types.Transaction
+  ( Certificate
+      ( StakeRegistration
+      , StakeDeregistration
+      , StakeDelegation
+      , PoolRegistration
+      , PoolRetirement
+      , GenesisKeyDelegation
+      , MoveInstantaneousRewardsCert
+      )
+  , Costmdls(Costmdls)
+  , GenesisDelegateHash(GenesisDelegateHash)
+  , GenesisHash(GenesisHash)
+  , Language(PlutusV1)
+  , MIRToStakeCredentials(MIRToStakeCredentials)
+  , Mint(Mint)
+  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
+  , Nonce(IdentityNonce, HashNonce)
+  , PoolMetadata(PoolMetadata)
+  , PoolMetadataHash(PoolMetadataHash)
+  , ProposedProtocolParameterUpdates
+  , ProtocolParamUpdate
+  , Redeemer
+  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
+  , Transaction(Transaction)
+  , TransactionOutput(TransactionOutput)
+  , TxBody(TxBody)
+  , UnitInterval
+  , URL(URL)
+  , Update
+  ) as T
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Cardano.Types.Value as Value
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.Map as Map
 import Data.Maybe (Maybe)
-import Data.Newtype (unwrap)
+import Data.Newtype (wrap, unwrap)
 import Data.Traversable (traverse_, for_, for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
@@ -105,42 +138,10 @@ import Serialization.WitnessSet
   )
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
+import Types.CborBytes (CborBytes)
 import Types.Int as Int
 import Types.PlutusData as PlutusData
-import Types.Transaction
-  ( Certificate
-      ( StakeRegistration
-      , StakeDeregistration
-      , StakeDelegation
-      , PoolRegistration
-      , PoolRetirement
-      , GenesisKeyDelegation
-      , MoveInstantaneousRewardsCert
-      )
-  , Costmdls(Costmdls)
-  , GenesisDelegateHash(GenesisDelegateHash)
-  , GenesisHash(GenesisHash)
-  , Language(PlutusV1)
-  , MIRToStakeCredentials(MIRToStakeCredentials)
-  , Mint(Mint)
-  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
-  , Nonce(IdentityNonce, HashNonce)
-  , PoolMetadata(PoolMetadata)
-  , PoolMetadataHash(PoolMetadataHash)
-  , ProposedProtocolParameterUpdates
-  , ProtocolParamUpdate
-  , Redeemer
-  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
-  , Transaction(Transaction)
-  , TransactionInput(TransactionInput)
-  , TransactionOutput(TransactionOutput)
-  , TxBody(TxBody)
-  , UnitInterval
-  , URL(URL)
-  , Update
-  ) as T
-import Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Cardano.Types.Value as Value
+import Types.Transaction (TransactionInput(TransactionInput)) as T
 import Types.TokenName (getTokenName) as TokenName
 import Untagged.Union (type (|+|), UndefinedOr, maybeToUor)
 
@@ -182,10 +183,10 @@ foreign import newTransaction_
 
 foreign import newTransactionWitnessSet :: Effect TransactionWitnessSet
 foreign import newTransactionWitnessSetFromBytes
-  :: ByteArray -> Effect TransactionWitnessSet
+  :: CborBytes -> Effect TransactionWitnessSet
 
 foreign import newTransactionUnspentOutputFromBytes
-  :: ByteArray -> Effect TransactionUnspentOutput
+  :: CborBytes -> Effect TransactionUnspentOutput
 
 foreign import newMultiAsset :: Effect MultiAsset
 foreign import insertMultiAsset
@@ -193,7 +194,7 @@ foreign import insertMultiAsset
 
 foreign import newAssets :: Effect Assets
 foreign import insertAssets :: Assets -> AssetName -> BigNum -> Effect Unit
-foreign import newAssetName :: ByteArray -> Effect AssetName
+foreign import newAssetName :: CborBytes -> Effect AssetName
 foreign import transactionOutputSetDataHash
   :: TransactionOutput -> DataHash -> Effect Unit
 
@@ -225,7 +226,7 @@ foreign import _hashScriptData
 
 foreign import newRedeemers :: Effect Redeemers
 foreign import addRedeemer :: Redeemers -> Redeemer -> Effect Unit
-foreign import newScriptDataHashFromBytes :: ByteArray -> Effect ScriptDataHash
+foreign import newScriptDataHashFromBytes :: CborBytes -> Effect ScriptDataHash
 foreign import setTxBodyScriptDataHash
   :: TransactionBody -> ScriptDataHash -> Effect Unit
 
@@ -453,7 +454,9 @@ convertTxBody (T.TxBody body) = do
     unwrap >>> transactionBodySetAuxiliaryDataHash txBody
   for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
   for_ body.scriptDataHash
-    (unwrap >>> newScriptDataHashFromBytes >=> setTxBodyScriptDataHash txBody)
+    ( unwrap >>> wrap >>> newScriptDataHashFromBytes >=>
+        setTxBodyScriptDataHash txBody
+    )
   for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
   for_ body.mint $ convertMint >=> setTxBodyMint txBody
   for_ body.certs $ convertCerts >=> setTxBodyCerts txBody
@@ -672,7 +675,7 @@ convertMint (T.Mint (Value.NonAdaAsset m)) = do
   mint <- newMint
   forWithIndex_ m \scriptHashBytes' values -> do
     let
-      mScripthash = scriptHashFromBytes $ Value.getCurrencySymbol
+      mScripthash = scriptHashFromBytes $ wrap $ Value.getCurrencySymbol
         scriptHashBytes'
     scripthash <- fromJustEff
       "scriptHashFromBytes failed while converting value"
@@ -723,7 +726,7 @@ convertValue val = do
   multiasset <- newMultiAsset
   forWithIndex_ m \scriptHashBytes' values -> do
     let
-      mScripthash = scriptHashFromBytes $ Value.getCurrencySymbol
+      mScripthash = scriptHashFromBytes $ wrap $ Value.getCurrencySymbol
         scriptHashBytes'
     scripthash <- fromJustEff
       "scriptHashFromBytes failed while converting value"

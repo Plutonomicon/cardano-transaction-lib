@@ -10,6 +10,7 @@ import Data.Identity (Identity(Identity))
 import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, fromJust)
 import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Traversable (traverse)
 import Data.Tuple (snd) as Tuple
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt, fromInt, toInt, (.&.), (.|.), shl, zshr)
@@ -30,12 +31,31 @@ import Plutus.Types.Credential
   )
 import Plutus.Types.AssocMap (lookup) as Plutus.AssocMap
 import Plutus.Types.CurrencySymbol (adaSymbol, getCurrencySymbol) as Plutus
-import Plutus.Types.Value (Value) as Plutus
+import Plutus.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  , UtxoM(UtxoM)
+  ) as Plutus
+import Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as Plutus
+import Plutus.Types.Value (Coin, Value) as Plutus
 import Plutus.Types.Value (getValue) as Plutus.Value
 
 import Types.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe)
+import Types.CborBytes
+  ( CborBytes
+  , cborBytesFromIntArrayUnsafe
+  , rawBytesAsCborBytes
+  )
 import Types.TokenName (adaToken)
-import Cardano.Types.Value (Value) as Types
+import Cardano.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  , UtxoM(UtxoM)
+  ) as Cardano
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as Cardano
+import Cardano.Types.Value (Coin, Value) as Types
 import Cardano.Types.Value (NonAdaAsset, mkValue, mkNonAdaAssetsFromTokenMap)
 
 class FromPlutusType :: (Type -> Type) -> Type -> Type -> Constraint
@@ -71,6 +91,13 @@ instance FromPlutusType Identity Plutus.Value Types.Value where
           Plutus.getCurrencySymbol cs /\ Map.fromFoldable (unwrap tokens)
 
 --------------------------------------------------------------------------------
+-- Plutus.Types.Value.UtxoM -> Cardano.Types.Value.Coin
+--------------------------------------------------------------------------------
+
+instance FromPlutusType Identity Plutus.Coin Types.Coin where
+  fromPlutusType = pure <<< wrap <<< unwrap
+
+--------------------------------------------------------------------------------
 -- Plutus.Types.Address -> Maybe Serialization.Address
 --------------------------------------------------------------------------------
 
@@ -83,55 +110,55 @@ instance FromPlutusType Maybe Plutus.Address Serialization.Address where
       PubKeyCredential pkh, Just (StakingHash (PubKeyCredential skh)) ->
         Serialization.Address.addressFromBytes $
           addrHeader PaymentKeyHashStakeKeyHash
-            <> ed25519KeyHashToBytes (unwrap pkh)
-            <> ed25519KeyHashToBytes (unwrap skh)
+            <> rawBytesAsCborBytes (ed25519KeyHashToBytes (unwrap pkh))
+            <> rawBytesAsCborBytes (ed25519KeyHashToBytes (unwrap skh))
 
       -- %b0001 | network tag | script hash | key hash
       ScriptCredential sh, Just (StakingHash (PubKeyCredential skh)) ->
         Serialization.Address.addressFromBytes $
           addrHeader ScriptHashStakeKeyHash
-            <> scriptHashToBytes (unwrap sh)
-            <> ed25519KeyHashToBytes (unwrap skh)
+            <> rawBytesAsCborBytes (scriptHashToBytes (unwrap sh))
+            <> rawBytesAsCborBytes (ed25519KeyHashToBytes (unwrap skh))
 
       -- %b0010 | network tag | key hash | script hash
       PubKeyCredential pkh, Just (StakingHash (ScriptCredential sh)) ->
         Serialization.Address.addressFromBytes $
           addrHeader PaymentKeyHashScriptHash
-            <> ed25519KeyHashToBytes (unwrap pkh)
-            <> scriptHashToBytes (unwrap sh)
+            <> rawBytesAsCborBytes (ed25519KeyHashToBytes (unwrap pkh))
+            <> rawBytesAsCborBytes (scriptHashToBytes (unwrap sh))
 
       -- %b0011 | network tag | script hash | script hash
       ScriptCredential sh, Just (StakingHash (ScriptCredential sh')) ->
         Serialization.Address.addressFromBytes $
           addrHeader ScriptHashScriptHash
-            <> scriptHashToBytes (unwrap sh)
-            <> scriptHashToBytes (unwrap sh')
+            <> rawBytesAsCborBytes (scriptHashToBytes (unwrap sh))
+            <> rawBytesAsCborBytes (scriptHashToBytes (unwrap sh'))
 
       -- %b0100 | network tag | key hash | pointer
       PubKeyCredential pkh, Just (StakingPtr ptr) ->
         Serialization.Address.addressFromBytes $
           addrHeader PaymentKeyHashPointer
-            <> ed25519KeyHashToBytes (unwrap pkh)
+            <> rawBytesAsCborBytes (ed25519KeyHashToBytes (unwrap pkh))
             <> pointerToBytes ptr
 
       -- %b0101 | network tag | script hash | pointer
       ScriptCredential sh, Just (StakingPtr ptr) ->
         Serialization.Address.addressFromBytes $
           addrHeader ScriptHashPointer
-            <> scriptHashToBytes (unwrap sh)
+            <> rawBytesAsCborBytes (scriptHashToBytes (unwrap sh))
             <> pointerToBytes ptr
 
       -- %b0110 | network tag | key hash
       PubKeyCredential pkh, Nothing ->
         Serialization.Address.addressFromBytes $
           addrHeader PaymentKeyHash
-            <> ed25519KeyHashToBytes (unwrap pkh)
+            <> rawBytesAsCborBytes (ed25519KeyHashToBytes (unwrap pkh))
 
       -- %b0111 | network tag | script hash
       ScriptCredential sh, Nothing ->
         Serialization.Address.addressFromBytes $
           addrHeader ScriptHash
-            <> scriptHashToBytes (unwrap sh)
+            <> rawBytesAsCborBytes (scriptHashToBytes (unwrap sh))
     where
     rec
       :: { addressCredential :: Credential
@@ -141,13 +168,13 @@ instance FromPlutusType Maybe Plutus.Address Serialization.Address where
 
     -- | Encodes the address type along with the network tag (%b0001 - Mainnet)
     -- | as a one-element byte array.
-    addrHeader :: AddressHeaderType -> ByteArray
+    addrHeader :: AddressHeaderType -> CborBytes
     addrHeader headerType =
-      byteArrayFromIntArrayUnsafe <<< singleton <<< toInt $
+      cborBytesFromIntArrayUnsafe <<< singleton <<< toInt $
         (addrHeaderTypeUInt headerType `shl` fromInt 4) + fromInt 1
 
-    pointerToBytes :: Serialization.Address.Pointer -> ByteArray
-    pointerToBytes ptr =
+    pointerToBytes :: Serialization.Address.Pointer -> CborBytes
+    pointerToBytes ptr = wrap $
       toVarLengthUInt ptr.slot <> toVarLengthUInt ptr.txIx <>
         toVarLengthUInt ptr.certIx
 
@@ -176,3 +203,37 @@ toVarLengthUInt t = worker (unwrap t) false
             $ byteArrayFromIntArrayUnsafe <<< singleton <<< toInt
             -- Turn off the signal bit for the last 7-bit component in the array.
             $ if setSignalBit then uint7 .|. fromInt 128 else uint7
+
+--------------------------------------------------------------------------------
+-- Plutus.Types.Transaction.TransactionOutput  ->
+-- Maybe Cardano.Types.Transaction.TransactionOutput
+--------------------------------------------------------------------------------
+
+instance FromPlutusType Maybe Plutus.TransactionOutput Cardano.TransactionOutput
+  where
+  fromPlutusType
+    (Plutus.TransactionOutput { address, amount, dataHash }) = do
+    addr <- fromPlutusType address
+    pure $ Cardano.TransactionOutput
+      { address: addr, amount: unwrap $ fromPlutusType amount, dataHash }
+
+--------------------------------------------------------------------------------
+-- Plutus.Types.Transaction.UtxoM -> Maybe Cardano.Types.Transaction.UtxoM
+--------------------------------------------------------------------------------
+
+instance FromPlutusType Maybe Plutus.UtxoM Cardano.UtxoM where
+  fromPlutusType (Plutus.UtxoM utxos) =
+    Cardano.UtxoM <$> traverse fromPlutusType utxos
+
+--------------------------------------------------------------------------------
+-- Plutus.Types.Transaction.TransactionUnspentOutput ->
+-- Maybe Cardano.Types.Transaction.TransactionUnspentOutput
+--------------------------------------------------------------------------------
+
+instance
+  FromPlutusType Maybe
+    Plutus.TransactionUnspentOutput
+    Cardano.TransactionUnspentOutput where
+  fromPlutusType (Plutus.TransactionUnspentOutput { input, output }) = do
+    pOutput <- fromPlutusType output
+    pure $ Cardano.TransactionUnspentOutput { input, output: pOutput }

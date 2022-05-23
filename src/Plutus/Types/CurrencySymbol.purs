@@ -10,14 +10,14 @@ module Plutus.Types.CurrencySymbol
 
 import Prelude
 
-import Data.Argonaut
-  ( class DecodeJson
-  , class EncodeJson
-  , JsonDecodeError(TypeMismatch)
-  , caseJsonObject
-  , decodeJson
-  , encodeJson
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , caseAesonObject
+  , decodeAeson
+  , encodeAeson'
   , getField
+  , JsonDecodeError(TypeMismatch)
   )
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe)
@@ -30,6 +30,7 @@ import Serialization.Hash
   )
 import ToData (class ToData)
 import Types.ByteArray (ByteArray)
+import Data.Newtype (unwrap, wrap)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 
 newtype CurrencySymbol = CurrencySymbol ByteArray
@@ -39,14 +40,16 @@ derive newtype instance Ord CurrencySymbol
 derive newtype instance FromData CurrencySymbol
 derive newtype instance ToData CurrencySymbol
 
-instance DecodeJson CurrencySymbol where
-  decodeJson = caseJsonObject
+instance DecodeAeson CurrencySymbol where
+  decodeAeson = caseAesonObject
     (Left $ TypeMismatch "Expected object")
-    (flip getField "unCurrencySymbol" >=> decodeJson >>> map CurrencySymbol)
+    (flip getField "unCurrencySymbol" >=> decodeAeson >>> map CurrencySymbol)
 
-instance EncodeJson CurrencySymbol where
-  encodeJson (CurrencySymbol mph) = encodeJson
-    { "unCurrencySymbol": encodeJson mph }
+instance EncodeAeson CurrencySymbol where
+  encodeAeson' (CurrencySymbol mph) = do
+    mph' <- encodeAeson' mph
+    encodeAeson'
+      { "unCurrencySymbol": mph' }
 
 instance Show CurrencySymbol where
   show (CurrencySymbol cs) = "(CurrencySymbol" <> show cs <> ")"
@@ -55,7 +58,7 @@ adaSymbol :: CurrencySymbol
 adaSymbol = CurrencySymbol mempty
 
 scriptHashAsCurrencySymbol :: ScriptHash -> CurrencySymbol
-scriptHashAsCurrencySymbol = CurrencySymbol <<< scriptHashAsBytes
+scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< scriptHashAsBytes
 
 -- | The minting policy hash of a currency symbol.
 currencyMPSHash :: CurrencySymbol -> Maybe MintingPolicyHash
@@ -63,7 +66,8 @@ currencyMPSHash = map MintingPolicyHash <<< currencyScriptHash
 
 -- | The currency symbol of a monetary policy hash.
 mpsSymbol :: MintingPolicyHash -> Maybe CurrencySymbol
-mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol $ scriptHashToBytes h
+mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol <<< unwrap $
+  scriptHashToBytes h
 
 getCurrencySymbol :: CurrencySymbol -> ByteArray
 getCurrencySymbol (CurrencySymbol curSymbol) = curSymbol
@@ -73,11 +77,11 @@ mkCurrencySymbol byteArr
   | byteArr == mempty =
       pure adaSymbol
   | otherwise =
-      scriptHashFromBytes byteArr $> CurrencySymbol byteArr
+      scriptHashFromBytes (wrap byteArr) $> CurrencySymbol byteArr
 
 --------------------------------------------------------------------------------
 -- Internal
 --------------------------------------------------------------------------------
 
 currencyScriptHash :: CurrencySymbol -> Maybe ScriptHash
-currencyScriptHash = scriptHashFromBytes <<< getCurrencySymbol
+currencyScriptHash = scriptHashFromBytes <<< wrap <<< getCurrencySymbol
