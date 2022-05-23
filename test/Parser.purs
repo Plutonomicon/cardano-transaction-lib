@@ -27,7 +27,7 @@ import Test.Spec.Assertions (shouldSatisfy, shouldNotSatisfy)
 import TestM (TestPlanM, ValidationM, runValidationM)
 import Mote (group, test)
 import QueryM.JsonWsp (JsonWspResponse, parseJsonWspResponse)
-import QueryM.Ogmios (UtxoQR)
+import QueryM.Ogmios (UtxoR)
 
 suite :: TestPlanM Unit
 suite = do
@@ -57,7 +57,7 @@ suite = do
         traverseJsonWsps jsonStrArray `shouldSatisfy` isRight
 
 traverseJsonWsps
-  :: Array Aeson -> Either JsonDecodeError (Array (JsonWspResponse UtxoQR))
+  :: Array Aeson -> Either JsonDecodeError (Array (JsonWspResponse UtxoR))
 traverseJsonWsps arr = traverse parseJsonWspResponse arr
 
 convertJsonArray :: Array Aeson -> Array String
