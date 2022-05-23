@@ -43,21 +43,21 @@ derive newtype instance Ord Rational
 derive newtype instance Semiring Rational
 
 type RationalRep =
-     { numerator :: BigInt
-      , denominator :: BigInt
+     { numerator :: StringifiedBigInt
+      , denominator :: StringifiedBigInt
       }
 
 instance EncodeAeson Rational where
   encodeAeson' r = encodeAeson'
-    (  { "numerator":  (numerator r)
-       , "denominator": (denominator r)
+    (  { "numerator":  StringifiedBigInt (numerator r)
+       , "denominator": StringifiedBigInt (denominator r)
        } :: RationalRep
     )
 
 instance DecodeAeson Rational where
   decodeAeson r = do
-   { numerator:  (n :: BigInt)
-   , denominator: (d :: BigInt)
+   { numerator:  (StringifiedBigInt n :: StringifiedBigInt)
+   , denominator: (StringifiedBigInt d :: StringifiedBigInt)
    } :: RationalRep <- decodeAeson r
    maybe (Left $ UnexpectedValue $ toStringifiedNumbersJson r) pure $ n % d
 
@@ -67,7 +67,7 @@ derive instance Eq StringifiedBigInt
 derive instance Newtype StringifiedBigInt _
 
 instance EncodeAeson StringifiedBigInt where
-  encodeAeson' (StringifiedBigInt bi) = encodeAeson' $ BigInt.toString bi
+  encodeAeson' (StringifiedBigInt bi) = encodeAeson' bi
 
 instance DecodeAeson StringifiedBigInt where
   decodeAeson =
