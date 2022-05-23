@@ -3,7 +3,7 @@
 module QueryM.Ogmios
   ( ChainOrigin(..)
   , ChainPoint(..)
-  , ChainTipQR(..)
+  , ChainTipR(..)
   , EraSummariesR(..)
   , EraSummary(..)
   , EraSummaryParameters(..)
@@ -15,8 +15,8 @@ module QueryM.Ogmios
   , SubmitTxR(..)
   , TxEvaluationResult(..)
   , TxHash
-  , UtxoQR(..)
   , UtxoQueryResult(..)
+  , UtxoR(..)
   , evaluateTxCall
   , queryChainTipCall
   , queryEraSummariesCall
@@ -39,6 +39,7 @@ import Aeson
   , decodeAeson
   , getField
   , getFieldOptional
+  , isNull
   )
 import Control.Alt ((<|>))
 import Data.Array (index, singleton)
@@ -89,7 +90,7 @@ queryEraSummariesCall = mkOgmiosCallType
   Proxy
 
 -- | Queries Ogmios for the chain’s current tip.
-queryChainTipCall :: JsonWspCall Unit ChainTipQR
+queryChainTipCall :: JsonWspCall Unit ChainTipR
 queryChainTipCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "chainTip" }
@@ -98,7 +99,7 @@ queryChainTipCall = mkOgmiosCallType
 
 -- | Queries Ogmios for utxos at given addresses.
 -- NOTE. querying for utxos by address is deprecated, should use output reference instead
-queryUtxosCall :: JsonWspCall { utxo :: Array OgmiosAddress } UtxoQR
+queryUtxosCall :: JsonWspCall { utxo :: Array OgmiosAddress } UtxoR
 queryUtxosCall = mkOgmiosCallType
   { methodname: "Query"
   , args: { query: _ }
@@ -107,7 +108,7 @@ queryUtxosCall = mkOgmiosCallType
 
 -- | Queries Ogmios for utxos at given address.
 -- NOTE. querying for utxos by address is deprecated, should use output reference instead
-queryUtxosAtCall :: JsonWspCall OgmiosAddress UtxoQR
+queryUtxosAtCall :: JsonWspCall OgmiosAddress UtxoR
 queryUtxosAtCall = mkOgmiosCallType
   { methodname: "Query"
   , args: { query: _ } <<< { utxo: _ } <<< singleton
@@ -195,7 +196,12 @@ instance Show EraSummary where
 instance DecodeAeson EraSummary where
   decodeAeson = aesonObject $ \o -> do
     start <- getField o "start"
-    end <- getField o "end"
+    -- The field "end" is required by Ogmios API, but it can optionally return
+    -- Null, so we want to fail if the field is absent but make Null value
+    -- acceptable in presence of the field (hence why "end" is wrapped in
+    -- `Maybe`).
+    end' <- getField o "end"
+    end <- if isNull end' then pure Nothing else Just <$> decodeAeson end'
     parameters <- getField o "parameters"
     pure $ wrap { start, end, parameters }
 
@@ -258,16 +264,16 @@ instance DecodeAeson TxEvaluationResult where
 
 ---------------- CHAIN TIP QUERY RESPONSE & PARSING
 
-data ChainTipQR
+data ChainTipR
   = CtChainOrigin ChainOrigin
   | CtChainPoint ChainPoint
 
-derive instance Generic ChainTipQR _
+derive instance Generic ChainTipR _
 
-instance Show ChainTipQR where
+instance Show ChainTipR where
   show = genericShow
 
-instance DecodeAeson ChainTipQR where
+instance DecodeAeson ChainTipR where
   decodeAeson j = do
     r :: (ChainOrigin |+| ChainPoint) <- decodeAeson j
     pure $ either CtChainOrigin CtChainPoint $ toEither1 r
@@ -307,12 +313,12 @@ type ChainPoint =
 -- the outer result type for Utxo queries, newtyped so that it can have
 -- appropriate instances to work with `parseJsonWspResponse`
 -- | Ogmios response for Utxo Query
-newtype UtxoQR = UtxoQR UtxoQueryResult
+newtype UtxoR = UtxoR UtxoQueryResult
 
-derive newtype instance Show UtxoQR
+derive newtype instance Show UtxoR
 
-instance DecodeAeson UtxoQR where
-  decodeAeson j = UtxoQR <$> parseUtxoQueryResult j
+instance DecodeAeson UtxoR where
+  decodeAeson j = UtxoR <$> parseUtxoQueryResult j
 
 -- the inner type for Utxo Queries
 type UtxoQueryResult = Map.Map OgmiosTxOutRef OgmiosTxOut

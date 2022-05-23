@@ -56,14 +56,14 @@ utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
   allUtxosAt :: Address -> QueryM (Maybe UtxoM)
   allUtxosAt = addressToOgmiosAddress >>> getUtxos
     where
-    utxosAt' :: Ogmios.OgmiosAddress -> QueryM Ogmios.UtxoQR
+    utxosAt' :: Ogmios.OgmiosAddress -> QueryM Ogmios.UtxoR
     utxosAt' addr' = mkOgmiosRequest Ogmios.queryUtxosAtCall _.utxo addr'
 
     getUtxos :: Ogmios.OgmiosAddress -> QueryM (Maybe UtxoM)
     getUtxos address = convertUtxos <$> utxosAt' address
 
-    convertUtxos :: Ogmios.UtxoQR -> Maybe UtxoM
-    convertUtxos (Ogmios.UtxoQR utxoQueryResult) =
+    convertUtxos :: Ogmios.UtxoR -> Maybe UtxoM
+    convertUtxos (Ogmios.UtxoR utxoQueryResult) =
       let
         out'
           :: Array

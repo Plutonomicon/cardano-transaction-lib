@@ -250,7 +250,7 @@ getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
   _.chainTip
   unit
   where
-  ogmiosChainTipToTip :: Ogmios.ChainTipQR -> Chain.Tip
+  ogmiosChainTipToTip :: Ogmios.ChainTipR -> Chain.Tip
   ogmiosChainTipToTip = case _ of
     Ogmios.CtChainOrigin _ -> Chain.TipAtGenesis
     Ogmios.CtChainPoint { slot, hash } -> Chain.Tip $ wrap
@@ -663,6 +663,7 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       , chainTipDispatchMap
       , evaluateTxDispatchMap
       , submitDispatchMap
+      , eraSummariesDispatchMap
       }
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   let
@@ -673,6 +674,7 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       Ref.read chainTipPendingRequests >>= traverse_ sendRequest
       Ref.read evaluateTxPendingRequests >>= traverse_ sendRequest
       Ref.read submitPendingRequests >>= traverse_ sendRequest
+      Ref.read eraSummariesPendingRequests >>= traverse_ sendRequest
   _onWsConnect ws do
     _wsWatch ws (logger Debug) onError
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
@@ -758,8 +760,8 @@ type PendingRequests (request :: Type) = Ref (Map ListenerId RequestBody)
 type RequestBody = String
 
 type OgmiosListeners =
-  { utxo :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoQR
-  , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
+  { utxo :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoR
+  , chainTip :: ListenerSet Unit Ogmios.ChainTipR
   , submit :: ListenerSet { txCbor :: ByteArray } Ogmios.SubmitTxR
   , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationResult
   , eraSummaries :: ListenerSet Unit Ogmios.EraSummariesR
@@ -882,10 +884,11 @@ type DispatchIdMap response = Ref
 
 -- an immutable queue of response type handlers
 ogmiosMessageDispatch
-  :: { utxoDispatchMap :: DispatchIdMap Ogmios.UtxoQR
-     , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipQR
+  :: { utxoDispatchMap :: DispatchIdMap Ogmios.UtxoR
+     , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipR
      , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationResult
      , submitDispatchMap :: DispatchIdMap Ogmios.SubmitTxR
+     , eraSummariesDispatchMap :: DispatchIdMap Ogmios.EraSummariesR
      }
   -> Array WebsocketDispatch
 ogmiosMessageDispatch
@@ -893,11 +896,13 @@ ogmiosMessageDispatch
   , chainTipDispatchMap
   , evaluateTxDispatchMap
   , submitDispatchMap
+  , eraSummariesDispatchMap
   } =
   [ queryDispatch utxoDispatchMap
   , queryDispatch chainTipDispatchMap
   , queryDispatch evaluateTxDispatchMap
   , queryDispatch submitDispatchMap
+  , queryDispatch eraSummariesDispatchMap
   ]
 
 datumCacheMessageDispatch
@@ -920,7 +925,7 @@ datumCacheMessageDispatch
   ]
 
 -- each query type will have a corresponding ref that lives in ReaderT config or similar
--- for utxoQueryDispatch, the `a` parameter will be `UtxoQR` or similar
+-- for utxoQueryDispatch, the `a` parameter will be `UtxoR` or similar
 -- the add and remove listener functions will know to grab the correct mutable dispatch, if one exists.
 createMutableDispatch
   :: forall (response :: Type). Effect (DispatchIdMap response)
