@@ -40,6 +40,7 @@ import FromData
   , fromDataWithSchema
   , genericFromData
   ) as FromData
+import Hashing (hashDatum) as Hashing
 import Plutus.Types.DataSchema
   ( ApPCons
   , Field
@@ -70,7 +71,6 @@ import QueryM
   ) as ExportQueryM
 import QueryM
   ( cancelFetchBlocks
-  , datumHash
   , getDatumByHash
   , getDatumsByHashes
   , startFetchBlocks
@@ -128,4 +128,4 @@ cancelFetchBlocks = wrapContract QueryM.cancelFetchBlocks
 
 -- | Hashes a Plutus-style Datum
 datumHash :: forall (r :: Row Type). Datum.Datum -> Contract r (Maybe DataHash)
-datumHash = wrapContract <<< QueryM.datumHash
+datumHash = pure <<< Hashing.hashDatum

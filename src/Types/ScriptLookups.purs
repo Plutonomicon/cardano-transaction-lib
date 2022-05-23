@@ -51,7 +51,7 @@ import Cardano.Types.Value
   )
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, throwError)
-import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
+import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Trans (LoggerT)
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Reader.Trans (ReaderT)
@@ -76,22 +76,18 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
-import Data.Traversable (for, sequence, traverse)
+import Data.Traversable (for, traverse)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import FromData (class FromData)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
+import Hashing (hashDatum) as Hashing
 import Helpers ((<\>), liftEither, liftM)
 import Plutus.FromPlutusType (fromPlutusType)
 import Plutus.Types.Transaction (TransactionOutput) as Plutus
-import QueryM
-  ( DefaultQueryConfig
-  , QueryM
-  , datumHash
-  , getDatumByHash
-  )
+import QueryM (DefaultQueryConfig, QueryM, getDatumByHash)
 import Scripts
   ( mintingPolicyHash
   , validatorHash
@@ -311,10 +307,9 @@ validator vl =
 validatorM :: forall (a :: Type). Validator -> Maybe (ScriptLookups a)
 validatorM = pure <<< validator
 
--- | A script lookups value with a datum. This can fail because we invoke
--- | `datumHash` using a server.
+-- | A script lookups value with a datum.
 datum :: forall (a :: Type). Datum -> QueryM (Maybe (ScriptLookups a))
-datum dt = datumHash dt >>= case _ of
+datum dt = case Hashing.hashDatum dt of
   Nothing -> pure Nothing
   Just dh -> pure $ Just $ over ScriptLookups _ { datums = singleton dh dt }
     mempty
@@ -498,10 +493,8 @@ processLookupsAndConstraints
   let
     mps = lookups.mps
     scripts = lookups.scripts
-  mpsHashes <-
-    ExceptT $ hashScripts mintingPolicyHash CannotHashMintingPolicy mps
-  validatorHashes <-
-    ExceptT $ hashScripts validatorHash CannotHashValidator scripts
+    mpsHashes = map mintingPolicyHash mps
+    validatorHashes = map validatorHash scripts
   let
     mpsMap = fromFoldable $ zip mpsHashes mps
     osMap = fromFoldable $ zip validatorHashes scripts
@@ -512,22 +505,6 @@ processLookupsAndConstraints
   ExceptT addMissingValueSpent
   ExceptT updateUtxoIndex
   where
-  -- Polymorphic helper to hash an Array of `Validator`s or `MintingPolicy`s
-  -- with a way to error.
-  hashScripts
-    :: forall (script :: Type) (scriptHash :: Type) (c :: Type)
-     . (script -> QueryM (Maybe scriptHash))
-    -> (script -> MkUnbalancedTxError)
-    -> Array script
-    -> ConstraintsM c (Either MkUnbalancedTxError (Array scriptHash))
-  hashScripts hasher error scripts =
-    lift $
-      for scripts
-        ( \s -> do
-            sh <- hasher s
-            pure $ note (error s) sh
-        ) <#> sequence
-
   -- Don't write the output in terms of ExceptT because we can't write a
   -- partially applied `ConstraintsM` meaning this is more readable.
   foldConstraints
@@ -745,8 +722,8 @@ addOwnOutput (OutputConstraint { datum: d, value }) = do
     ScriptLookups { typedValidator } <- use _lookups
     inst <- liftM TypedValidatorMissing typedValidator
     let value' = unwrap $ fromPlutusType value
-    typedTxOut <- ExceptT $ lift $ mkTypedTxOut networkId inst d value'
-      <#> note MkTypedTxOutFailed
+    typedTxOut <- except $ mkTypedTxOut networkId inst d value'
+      # note MkTypedTxOutFailed
     let txOut = typedTxOutTxOut typedTxOut
     -- We are erroring if we don't have a datumhash given the polymorphic datum
     -- in the `OutputConstraint`:
@@ -991,8 +968,8 @@ processConstraint mpsMap osMap = do
         -- `MustPayToPubKeyAddress`
         dataHash <- maybe
           (liftEither $ Right Nothing) -- Don't throw an error if Nothing.
-          ( \dat -> ExceptT $ lift $
-              liftDatumHash (CannotHashDatum dat) <$> datumHash dat
+          ( \dat -> except $
+              liftDatumHash (CannotHashDatum dat) (Hashing.hashDatum dat)
           )
           mDatum
         let
@@ -1011,8 +988,8 @@ processConstraint mpsMap osMap = do
       networkId <- getNetworkId
       runExceptT do
         -- Don't write `let dataHash = datumHash datum`, see [datumHash Note]
-        dataHash <- ExceptT $ lift $ note (CannotHashDatum dat)
-          <$> (map Just <<< datumHash) dat
+        dataHash <- except $ note (CannotHashDatum dat)
+          $ (map Just <<< Hashing.hashDatum) dat
         let
           txOut = TransactionOutput
             { address: validatorHashEnterpriseAddress networkId vlh
@@ -1024,7 +1001,7 @@ processConstraint mpsMap osMap = do
         _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provide amount
     MustHashDatum dh dt -> do
-      mdh <- lift $ datumHash dt
+      let mdh = Hashing.hashDatum dt
       if mdh == Just dh then addDatum dt
       else pure $ throwError $ DatumWrongHash dh dt
     MustSatisfyAnyOf xs -> do

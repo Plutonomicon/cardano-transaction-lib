@@ -7,7 +7,7 @@ module Contract.Value
   ) where
 
 import Prelude
-import Contract.Monad (Contract, wrapContract)
+import Contract.Monad (Contract)
 import Data.Maybe (Maybe)
 import Scripts (scriptCurrencySymbol) as Scripts
 import Types.Scripts (MintingPolicy)
@@ -57,4 +57,4 @@ scriptCurrencySymbol
   :: forall (r :: Row Type)
    . MintingPolicy
   -> Contract r (Maybe CurrencySymbol.CurrencySymbol)
-scriptCurrencySymbol = wrapContract <<< Scripts.scriptCurrencySymbol
+scriptCurrencySymbol = pure <<< Scripts.scriptCurrencySymbol
