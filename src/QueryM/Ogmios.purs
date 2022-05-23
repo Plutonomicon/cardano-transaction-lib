@@ -3,8 +3,8 @@
 module QueryM.Ogmios
   ( ChainOrigin(..)
   , ChainPoint(..)
-  , ChainTipR(..)
-  , EraSummariesR(..)
+  , ChainTipQR(..)
+  , EraSummariesQR(..)
   , EraSummary(..)
   , EraSummaryParameters(..)
   , EraSummaryTime(..)
@@ -16,7 +16,7 @@ module QueryM.Ogmios
   , TxEvaluationR(..)
   , TxHash
   , UtxoQueryResult(..)
-  , UtxoR(..)
+  , UtxoQR(..)
   , evaluateTxCall
   , queryChainTipCall
   , queryEraSummariesCall
@@ -81,7 +81,7 @@ import Untagged.Union (type (|+|), toEither1)
 -- https://ogmios.dev/mini-protocols/local-state-query/
 
 -- | Queries Ogmios for an array of era summaries, used for Slot arithmetic.
-queryEraSummariesCall :: JsonWspCall Unit EraSummariesR
+queryEraSummariesCall :: JsonWspCall Unit EraSummariesQR
 queryEraSummariesCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "eraSummaries" }
@@ -89,7 +89,7 @@ queryEraSummariesCall = mkOgmiosCallType
   Proxy
 
 -- | Queries Ogmios for the chain’s current tip.
-queryChainTipCall :: JsonWspCall Unit ChainTipR
+queryChainTipCall :: JsonWspCall Unit ChainTipQR
 queryChainTipCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "chainTip" }
@@ -98,7 +98,7 @@ queryChainTipCall = mkOgmiosCallType
 
 -- | Queries Ogmios for utxos at given addresses.
 -- NOTE. querying for utxos by address is deprecated, should use output reference instead
-queryUtxosCall :: JsonWspCall { utxo :: Array OgmiosAddress } UtxoR
+queryUtxosCall :: JsonWspCall { utxo :: Array OgmiosAddress } UtxoQR
 queryUtxosCall = mkOgmiosCallType
   { methodname: "Query"
   , args: { query: _ }
@@ -107,7 +107,7 @@ queryUtxosCall = mkOgmiosCallType
 
 -- | Queries Ogmios for utxos at given address.
 -- NOTE. querying for utxos by address is deprecated, should use output reference instead
-queryUtxosAtCall :: JsonWspCall OgmiosAddress UtxoR
+queryUtxosAtCall :: JsonWspCall OgmiosAddress UtxoQR
 queryUtxosAtCall = mkOgmiosCallType
   { methodname: "Query"
   , args: { query: _ } <<< { utxo: _ } <<< singleton
@@ -169,15 +169,15 @@ instance DecodeAeson SubmitTxR where
 
 ---------------- ERA SUMMARY QUERY RESPONSE & PARSING
 
-newtype EraSummariesR = EraSummariesR (Array EraSummary)
+newtype EraSummariesQR = EraSummariesQR (Array EraSummary)
 
-derive instance Generic EraSummariesR _
-derive instance Newtype EraSummariesR _
+derive instance Generic EraSummariesQR _
+derive instance Newtype EraSummariesQR _
 
-instance Show EraSummariesR where
+instance Show EraSummariesQR where
   show = genericShow
 
-instance DecodeAeson EraSummariesR where
+instance DecodeAeson EraSummariesQR where
   decodeAeson = aesonArray (map wrap <<< traverse decodeAeson)
 
 newtype EraSummary = EraSummary
@@ -263,16 +263,16 @@ instance DecodeAeson TxEvaluationR where
 
 ---------------- CHAIN TIP QUERY RESPONSE & PARSING
 
-data ChainTipR
+data ChainTipQR
   = CtChainOrigin ChainOrigin
   | CtChainPoint ChainPoint
 
-derive instance Generic ChainTipR _
+derive instance Generic ChainTipQR _
 
-instance Show ChainTipR where
+instance Show ChainTipQR where
   show = genericShow
 
-instance DecodeAeson ChainTipR where
+instance DecodeAeson ChainTipQR where
   decodeAeson j = do
     r :: (ChainOrigin |+| ChainPoint) <- decodeAeson j
     pure $ either CtChainOrigin CtChainPoint $ toEither1 r
@@ -313,12 +313,12 @@ type ChainPoint =
 -- the outer result type for Utxo queries, newtyped so that it can have
 -- appropriate instances to work with `parseJsonWspResponse`
 -- | Ogmios response for Utxo Query
-newtype UtxoR = UtxoR UtxoQueryResult
+newtype UtxoQR = UtxoQR UtxoQueryResult
 
-derive newtype instance Show UtxoR
+derive newtype instance Show UtxoQR
 
-instance DecodeAeson UtxoR where
-  decodeAeson = map UtxoR <<< parseUtxoQueryResult
+instance DecodeAeson UtxoQR where
+  decodeAeson = map UtxoQR <<< parseUtxoQueryResult
 
 -- the inner type for Utxo Queries
 type UtxoQueryResult = Map.Map OgmiosTxOutRef OgmiosTxOut

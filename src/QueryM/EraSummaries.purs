@@ -5,8 +5,8 @@ module QueryM.EraSummaries
 
 import Prelude
 import QueryM (QueryM, mkOgmiosRequest)
-import QueryM.Ogmios (EraSummariesR, queryEraSummariesCall) as Ogmios
+import QueryM.Ogmios (EraSummariesQR, queryEraSummariesCall) as Ogmios
 
-getEraSummaries :: QueryM Ogmios.EraSummariesR
+getEraSummaries :: QueryM Ogmios.EraSummariesQR
 getEraSummaries =
   mkOgmiosRequest Ogmios.queryEraSummariesCall _.eraSummaries unit

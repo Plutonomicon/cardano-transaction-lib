@@ -250,7 +250,7 @@ getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
   _.chainTip
   unit
   where
-  ogmiosChainTipToTip :: Ogmios.ChainTipR -> Chain.Tip
+  ogmiosChainTipToTip :: Ogmios.ChainTipQR -> Chain.Tip
   ogmiosChainTipToTip = case _ of
     Ogmios.CtChainOrigin _ -> Chain.TipAtGenesis
     Ogmios.CtChainPoint { slot, hash } -> Chain.Tip $ wrap
@@ -760,11 +760,11 @@ type PendingRequests (request :: Type) = Ref (Map ListenerId RequestBody)
 type RequestBody = String
 
 type OgmiosListeners =
-  { utxo :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoR
-  , chainTip :: ListenerSet Unit Ogmios.ChainTipR
+  { utxo :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoQR
+  , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
   , submit :: ListenerSet { txCbor :: ByteArray } Ogmios.SubmitTxR
   , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationR
-  , eraSummaries :: ListenerSet Unit Ogmios.EraSummariesR
+  , eraSummaries :: ListenerSet Unit Ogmios.EraSummariesQR
   }
 
 type DatumCacheListeners =
@@ -884,11 +884,11 @@ type DispatchIdMap response = Ref
 
 -- an immutable queue of response type handlers
 ogmiosMessageDispatch
-  :: { utxoDispatchMap :: DispatchIdMap Ogmios.UtxoR
-     , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipR
+  :: { utxoDispatchMap :: DispatchIdMap Ogmios.UtxoQR
+     , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipQR
      , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationR
      , submitDispatchMap :: DispatchIdMap Ogmios.SubmitTxR
-     , eraSummariesDispatchMap :: DispatchIdMap Ogmios.EraSummariesR
+     , eraSummariesDispatchMap :: DispatchIdMap Ogmios.EraSummariesQR
      }
   -> Array WebsocketDispatch
 ogmiosMessageDispatch
@@ -925,7 +925,7 @@ datumCacheMessageDispatch
   ]
 
 -- each query type will have a corresponding ref that lives in ReaderT config or similar
--- for utxoQueryDispatch, the `a` parameter will be `UtxoR` or similar
+-- for utxoQueryDispatch, the `a` parameter will be `UtxoQR` or similar
 -- the add and remove listener functions will know to grab the correct mutable dispatch, if one exists.
 createMutableDispatch
   :: forall (response :: Type). Effect (DispatchIdMap response)
