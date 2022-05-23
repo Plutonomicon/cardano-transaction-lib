@@ -853,7 +853,7 @@ processConstraint mpsMap osMap = do
       sigs <- for (lookup pkh ppkh) $
         payPubKeyRequiredSigner >>> liftEffect >=>
           maybe (throwError (CannotConvertPaymentPubKeyHash pkh))
-            (pure <<< Array.singleton)
+          (pure <<< Array.singleton)
       _cpsToTxBody <<< _requiredSigners <>= sigs
     MustSpendAtLeast plutusValue -> do
       let value = unwrap $ fromPlutusType plutusValue
