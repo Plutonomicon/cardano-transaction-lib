@@ -14,11 +14,9 @@ import Prelude
 
 import Aeson
   ( class DecodeAeson
+  , JsonDecodeError(TypeMismatch)
   , caseAesonBigInt
-  , decodeAeson
-  , jsonToAeson
   )
-import Data.Argonaut (class DecodeJson, JsonDecodeError(TypeMismatch))
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left), note)
@@ -55,10 +53,6 @@ instance DecodeAeson Natural where
       ( \bi -> note (TypeMismatch $ "Invalid Natural number: " <> show bi) $
           fromBigInt bi
       )
-
--- This is needed for `ApplyArgs`.
-instance DecodeJson Natural where
-  decodeJson = decodeAeson <<< jsonToAeson
 
 -- | Fails with `Nothing` on negative input.
 fromBigInt :: BigInt -> Maybe Natural

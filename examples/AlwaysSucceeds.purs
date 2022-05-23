@@ -5,7 +5,18 @@ module Examples.AlwaysSucceeds (main) where
 
 import Contract.Prelude
 
-import Contract.Monad (ContractConfig(ContractConfig), launchAff_, liftContractM, liftedE, liftedM, logInfo', runContract_, traceContractConfig, Contract)
+import Contract.Aeson (decodeAeson, fromString)
+import Contract.Monad
+  ( ContractConfig(ContractConfig)
+  , launchAff_
+  , liftContractM
+  , liftedE
+  , liftedM
+  , logInfo'
+  , runContract_
+  , traceContractConfig
+  ,Contract
+  )
 import Contract.PlutusData (PlutusData, unitDatum)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, validatorHash)
@@ -15,7 +26,6 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
-import Data.Argonaut (decodeJson, fromString)
 import Data.BigInt as BigInt
 import Plutus.Types.Address (scriptHashAddress)
 import Plutus.Types.Credential (Credential(..))
@@ -68,5 +78,5 @@ spendFromAlwaysSucceeds vhash validator= do
   undefined
 
 alwaysSucceedsScript :: Maybe Validator
-alwaysSucceedsScript = map wrap $ hush $ decodeJson $ fromString
+alwaysSucceedsScript = map wrap $ hush $ decodeAeson $ fromString
   "4d01000033222220051200120011"

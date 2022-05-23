@@ -11,20 +11,21 @@ module Types.Rational
 
 import Prelude
 
-import Data.Argonaut
-  ( class DecodeJson
-  , class EncodeJson
-  , JsonDecodeError(TypeMismatch)
-  , decodeJson
-  , encodeJson
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , JsonDecodeError(TypeMismatch, UnexpectedValue)
+  , decodeAeson
+  , encodeAeson'
+  , toStringifiedNumbersJson
   )
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString, fromString) as BigInt
-import Data.Either (note)
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Either (Either(Left), note)
+import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Newtype (class Newtype)
 import Data.Ratio ((%), numerator, denominator) as Ratio
 import Data.Ratio (Ratio)
-import Data.Newtype (class Newtype)
 import FromData (class FromData)
 import ToData (class ToData)
 import Types.Natural (Natural)
@@ -43,25 +44,43 @@ derive newtype instance Semiring Rational
 derive newtype instance Ring Rational
 derive newtype instance CommutativeRing Rational
 
-instance EncodeJson Rational where
-  encodeJson r = encodeJson
-    { "unRational":
-        { "numerator": encodeJson (StringifiedBigInt (numerator r))
-        , "denominator": encodeJson (StringifiedBigInt (denominator r))
+-- Representation of Rational in Aeson, used internally
+type RationalRep =
+  { unRational ::
+      { numerator :: StringifiedBigInt
+      , denominator :: StringifiedBigInt
+      }
+  }
+
+instance EncodeAeson Rational where
+  encodeAeson' r = encodeAeson'
+    ( { "unRational":
+          { "numerator": StringifiedBigInt (numerator r)
+          , "denominator": StringifiedBigInt (denominator r)
+          }
+      } :: RationalRep
+    )
+
+instance DecodeAeson Rational where
+  decodeAeson r = do
+    { unRational:
+        { numerator: (StringifiedBigInt n :: StringifiedBigInt)
+        , denominator: (StringifiedBigInt d :: StringifiedBigInt)
         }
-    }
+    } :: RationalRep <- decodeAeson r
+    maybe (Left $ UnexpectedValue $ toStringifiedNumbersJson r) pure $ n % d
 
 newtype StringifiedBigInt = StringifiedBigInt BigInt
 
 derive instance Eq StringifiedBigInt
 derive instance Newtype StringifiedBigInt _
 
-instance EncodeJson StringifiedBigInt where
-  encodeJson (StringifiedBigInt bi) = encodeJson $ BigInt.toString bi
+instance EncodeAeson StringifiedBigInt where
+  encodeAeson' (StringifiedBigInt bi) = encodeAeson' $ BigInt.toString bi
 
-instance DecodeJson StringifiedBigInt where
-  decodeJson =
-    decodeJson >=>
+instance DecodeAeson StringifiedBigInt where
+  decodeAeson =
+    decodeAeson >=>
       BigInt.fromString
         >>> note (TypeMismatch "expected stringified integer number")
         >>>

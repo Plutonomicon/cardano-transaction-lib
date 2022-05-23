@@ -9,6 +9,17 @@ module Deserialization.WitnessSet
 
 import Prelude
 
+import Cardano.Types.Transaction
+  ( BootstrapWitness
+  , Ed25519Signature(Ed25519Signature)
+  , ExUnits
+  , NativeScript
+  , PublicKey(PublicKey)
+  , Redeemer(Redeemer)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
+  ) as T
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (for, traverse)
 import Data.Tuple.Nested ((/\))
@@ -38,17 +49,6 @@ import Serialization.Types
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData) as T
 import Types.RedeemerTag as Tag
-import Types.Transaction
-  ( BootstrapWitness
-  , Ed25519Signature(Ed25519Signature)
-  , ExUnits
-  , NativeScript
-  , PublicKey(PublicKey)
-  , Redeemer(Redeemer)
-  , TransactionWitnessSet(TransactionWitnessSet)
-  , Vkey(Vkey)
-  , Vkeywitness(Vkeywitness)
-  ) as T
 import Types.Scripts (PlutusScript(PlutusScript)) as S
 import Deserialization.NativeScript (convertNativeScript)
 import Deserialization.PlutusData (convertPlutusData)

@@ -60,8 +60,63 @@ module Test.Fixtures
 
 import Prelude
 
+import Aeson (Aeson, aesonNull, parseJsonStringToAeson)
+import Cardano.Types.Transaction
+  ( AuxiliaryDataHash(AuxiliaryDataHash)
+  , Ed25519Signature(Ed25519Signature)
+  , Epoch(Epoch)
+  , Certificate
+      ( StakeRegistration
+      , StakeDeregistration
+      , StakeDelegation
+      , PoolRegistration
+      , PoolRetirement
+      , GenesisKeyDelegation
+      , MoveInstantaneousRewardsCert
+      )
+  , GenesisHash(GenesisHash)
+  , GenesisDelegateHash(GenesisDelegateHash)
+  , Mint(Mint)
+  , NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
+  , PublicKey(PublicKey)
+  , Redeemer(Redeemer)
+  , RequiredSigner(RequiredSigner)
+  , Transaction(Transaction)
+  , TransactionOutput(TransactionOutput)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , TxBody(TxBody)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
+  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
+  , Ipv4(Ipv4)
+  , Ipv6(Ipv6)
+  , PoolMetadata(PoolMetadata)
+  , PoolMetadataHash(PoolMetadataHash)
+  , URL(URL)
+  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
+  , MIRToStakeCredentials(MIRToStakeCredentials)
+  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
+  , Nonce(HashNonce)
+  )
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  )
+import Cardano.Types.Value
+  ( Coin(Coin)
+  , CurrencySymbol
+  , Value(Value)
+  , mkCurrencySymbol
+  , mkNonAdaAsset
+  , mkSingletonNonAdaAsset
+  )
 import Effect (Effect)
-import Data.Argonaut as Json
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (fromRight)
@@ -111,6 +166,10 @@ import Types.ByteArray
   , byteArrayFromIntArrayUnsafe
   , hexToByteArrayUnsafe
   )
+import Types.RawBytes
+  ( rawBytesFromIntArrayUnsafe
+  , hexToRawBytesUnsafe
+  )
 import Types.Int as Int
 import Types.Natural as Natural
 import Types.PlutusData as PD
@@ -122,61 +181,8 @@ import Types.Scripts
   , ValidatorHash(ValidatorHash)
   )
 import Types.Transaction
-  ( AuxiliaryDataHash(AuxiliaryDataHash)
-  , Ed25519Signature(Ed25519Signature)
-  , Epoch(Epoch)
-  , Certificate
-      ( StakeRegistration
-      , StakeDeregistration
-      , StakeDelegation
-      , PoolRegistration
-      , PoolRetirement
-      , GenesisKeyDelegation
-      , MoveInstantaneousRewardsCert
-      )
-  , GenesisHash(GenesisHash)
-  , GenesisDelegateHash(GenesisDelegateHash)
-  , Mint(Mint)
-  , NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
-  , PublicKey(PublicKey)
-  , Redeemer(Redeemer)
-  , RequiredSigner(RequiredSigner)
-  , Transaction(Transaction)
-  , TransactionHash(TransactionHash)
+  ( TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
-  , TransactionOutput(TransactionOutput)
-  , TransactionWitnessSet(TransactionWitnessSet)
-  , TxBody(TxBody)
-  , Vkey(Vkey)
-  , Vkeywitness(Vkeywitness)
-  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
-  , Ipv4(Ipv4)
-  , Ipv6(Ipv6)
-  , PoolMetadata(PoolMetadata)
-  , PoolMetadataHash(PoolMetadataHash)
-  , URL(URL)
-  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
-  , MIRToStakeCredentials(MIRToStakeCredentials)
-  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
-  , Nonce(HashNonce)
-  )
-import Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  )
-import Cardano.Types.Value
-  ( Coin(Coin)
-  , CurrencySymbol
-  , Value(Value)
-  , mkCurrencySymbol
-  , mkNonAdaAsset
-  , mkSingletonNonAdaAsset
   )
 
 txOutputFixture1 :: TransactionOutput
@@ -188,13 +194,13 @@ txOutputFixture1 =
             keyHashCredential $ unsafePartial $ fromJust
               $ ed25519KeyHashFromBytes
               -- $ T.Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
-              $ hexToByteArrayUnsafe
+              $ hexToRawBytesUnsafe
                   "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
         , paymentCred:
             keyHashCredential $ unsafePartial $ fromJust
               $ ed25519KeyHashFromBytes
               -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-              $ hexToByteArrayUnsafe
+              $ hexToRawBytesUnsafe
                   "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
         }
     , amount: Value (Coin $ BigInt.fromInt 0) mempty
@@ -674,7 +680,7 @@ utxoFixture1' =
                 , paymentCred: keyHashCredential $ unsafePartial $ fromJust
                     $ ed25519KeyHashFromBytes
                     $
-                      byteArrayFromIntArrayUnsafe
+                      rawBytesFromIntArrayUnsafe
                         [ 243
                         , 63
                         , 250
@@ -707,7 +713,7 @@ utxoFixture1' =
                 , delegationCred: keyHashCredential $ unsafePartial $ fromJust
                     $ ed25519KeyHashFromBytes
                     $
-                      ( byteArrayFromIntArrayUnsafe
+                      ( rawBytesFromIntArrayUnsafe
                           [ 57
                           , 3
                           , 16
@@ -867,7 +873,7 @@ ed25519KeyHashFixture1 =
   -- $ Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
   unsafePartial $ fromJust
     $ ed25519KeyHashFromBytes
-    $ hexToByteArrayUnsafe
+    $ hexToRawBytesUnsafe
         "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
 
 ed25519KeyHashFixture2 :: Ed25519KeyHash
@@ -875,7 +881,7 @@ ed25519KeyHashFixture2 =
   -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
   unsafePartial $ fromJust
     $ ed25519KeyHashFromBytes
-    $ hexToByteArrayUnsafe
+    $ hexToRawBytesUnsafe
         "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
 
 nativeScriptFixture1 :: NativeScript
@@ -906,11 +912,11 @@ keyHashBaseAddress { payment, stake } = baseAddressToAddress $ baseAddress
   , delegationCred:
       keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
         -- $ T.Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
-        $ hexToByteArrayUnsafe stake
+        $ hexToRawBytesUnsafe stake
   , paymentCred:
       keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
         -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-        $ hexToByteArrayUnsafe payment
+        $ hexToRawBytesUnsafe payment
   }
 
 plutusDataFixture1 :: PD.PlutusData
@@ -950,12 +956,12 @@ plutusDataFixture7 = PD.List
 
 scriptHash1 :: ScriptHash
 scriptHash1 = unsafePartial $ fromJust $ scriptHashFromBytes $
-  hexToByteArrayUnsafe
+  hexToRawBytesUnsafe
     "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
 
 scriptHash2 :: ScriptHash
 scriptHash2 = unsafePartial $ fromJust $ scriptHashFromBytes $
-  hexToByteArrayUnsafe
+  hexToRawBytesUnsafe
     "00000000005bb21ce6d8c7502aca70b9316d10e958611f3c6b758f60"
 
 policyId :: MintingPolicyHash
@@ -1030,10 +1036,10 @@ cip25MetadataFixture1 :: Cip25Metadata
 cip25MetadataFixture1 = Cip25Metadata
   [ cip25MetadataEntryFixture1, cip25MetadataEntryFixture2 ]
 
-cip25MetadataJsonFixture1 :: Effect Json.Json
+cip25MetadataJsonFixture1 :: Effect Aeson
 cip25MetadataJsonFixture1 =
   readTextFile UTF8 "test/Fixtures/cip25MetadataJsonFixture1.json" >>=
-    pure <<< fromRight Json.jsonNull <<< Json.parseJson
+    pure <<< fromRight aesonNull <<< parseJsonStringToAeson
 
 redeemerFixture1 :: Redeemer
 redeemerFixture1 = Redeemer

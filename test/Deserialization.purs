@@ -2,6 +2,9 @@ module Test.Deserialization (suite) where
 
 import Prelude
 
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as T
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Maybe (isJust, isNothing)
@@ -13,6 +16,10 @@ import Test.Spec.Assertions (shouldEqual, shouldSatisfy, expectError)
 import TestM (TestPlanM)
 import Untagged.Union (asOneOf)
 
+import Cardano.Types.Transaction
+  ( NativeScript(ScriptAny)
+  , TransactionOutput
+  ) as T
 import Deserialization.BigNum (bigNumToBigInt)
 import Deserialization.BigInt as DB
 import Deserialization.FromBytes (fromBytes)
@@ -58,14 +65,7 @@ import Test.Fixtures
   , witnessSetFixture4
   )
 import Test.Utils (errMaybe)
-import Types.Transaction
-  ( NativeScript(ScriptAny)
-  , TransactionInput
-  , TransactionOutput
-  ) as T
-import Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  ) as T
+import Types.Transaction (TransactionInput) as T
 
 suite :: TestPlanM Unit
 suite = do

@@ -23,23 +23,20 @@ import Prelude
 
 import Aeson
   ( class DecodeAeson
+  , class EncodeAeson
   , Aeson
-  , caseAesonArray
-  , caseAesonObject
-  , decodeAeson
-  , getNestedAeson
-  , (.:)
-  )
-import Control.Alt ((<|>))
-import Data.Argonaut
-  ( Json
   , JsonDecodeError
       ( TypeMismatch
       )
-  , encodeJson
-  , stringify
+  , caseAesonArray
+  , caseAesonObject
+  , decodeAeson
+  , encodeAeson
+  , getNestedAeson
+  , stringifyAeson
+  , (.:)
   )
-import Data.Argonaut.Encode (class EncodeJson)
+import Control.Alt ((<|>))
 import Data.Either (Either(Left))
 import Data.Map (Map)
 import Data.Map as Map
@@ -52,13 +49,13 @@ import QueryM.UniqueId (ListenerId)
 import Serialization.Address (Slot)
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (byteArrayToHex)
-import Types.Datum (Datum, DatumHash)
+import Types.Datum (Datum, DataHash)
 import Types.Chain (BlockHeaderHash)
 
-newtype WspFault = WspFault Json
+newtype WspFault = WspFault Aeson
 
 faultToString :: WspFault -> String
-faultToString (WspFault j) = stringify j
+faultToString (WspFault j) = stringifyAeson j
 
 type JsonWspRequest (a :: Type) =
   { type :: String
@@ -96,7 +93,7 @@ instance DecodeAeson GetDatumByHashR where
     in
       datumFound <|> datumNotFound
 
-newtype GetDatumsByHashesR = GetDatumsByHashesR (Map DatumHash Datum)
+newtype GetDatumsByHashesR = GetDatumsByHashesR (Map DataHash Datum)
 
 derive instance Newtype GetDatumsByHashesR _
 
@@ -104,13 +101,13 @@ instance DecodeAeson GetDatumsByHashesR where
   decodeAeson r =
     let
       decodeDatumArray
-        :: Aeson -> Either JsonDecodeError (Map DatumHash Datum)
+        :: Aeson -> Either JsonDecodeError (Map DataHash Datum)
       decodeDatumArray =
         caseAesonArray (Left $ TypeMismatch "expected array")
           $ (map Map.fromFoldable) <<< traverse decodeDatum
 
       decodeDatum
-        :: Aeson -> Either JsonDecodeError (DatumHash /\ Datum)
+        :: Aeson -> Either JsonDecodeError (DataHash /\ Datum)
       decodeDatum = caseAesonObject (Left $ TypeMismatch "expected object")
         $ \o -> (/\) <$> map wrap (o .: "hash") <*>
             (decodeAeson =<< o .: "value")
@@ -156,12 +153,12 @@ datumCacheMethodToString = case _ of
   StartFetchBlocks -> "StartFetchBlocks"
   CancelFetchBlocks -> "CancelFetchBlocks"
 
-getDatumByHashCall :: JsonWspCall DatumHash GetDatumByHashR
+getDatumByHashCall :: JsonWspCall DataHash GetDatumByHashR
 getDatumByHashCall = mkDatumCacheCallType
   GetDatumByHash
   ({ hash: _ } <<< byteArrayToHex <<< unwrap)
 
-getDatumsByHashesCall :: JsonWspCall (Array DatumHash) GetDatumsByHashesR
+getDatumsByHashesCall :: JsonWspCall (Array DataHash) GetDatumsByHashesR
 getDatumsByHashesCall = mkDatumCacheCallType
   GetDatumsByHashes
   ({ hashes: _ } <<< map (byteArrayToHex <<< unwrap))
@@ -172,7 +169,7 @@ startFetchBlocksCall = mkDatumCacheCallType
   StartFetchBlocks
   ( \({ slot, id }) ->
       { slot
-      , id: encodeJson (unwrap id)
+      , id: encodeAeson (unwrap id)
       , datumFilter: { "const": true }
       }
   )
@@ -185,7 +182,7 @@ cancelFetchBlocksCall = mkDatumCacheCallType
 -- convenience helper
 mkDatumCacheCallType
   :: forall (a :: Type) (i :: Type) (o :: Type)
-   . EncodeJson (JsonWspRequest a)
+   . EncodeAeson (JsonWspRequest a)
   => DatumCacheMethod
   -> (i -> a)
   -> JsonWspCall i o
