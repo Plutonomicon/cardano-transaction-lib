@@ -2,6 +2,7 @@
 -- | Plutus.Types.Transaction.
 module Types.Transaction
   ( DataHash(..)
+  , ScriptHash(..)
   , TransactionHash(..)
   , TransactionInput(..)
   ) where
@@ -90,4 +91,16 @@ derive newtype instance Ord DataHash
 derive newtype instance ToData DataHash
 
 instance Show DataHash where
+  show = genericShow
+
+newtype ScriptHash = ScriptHash ByteArray
+
+derive instance Generic ScriptHash _
+derive instance Newtype ScriptHash _
+derive newtype instance Eq ScriptHash
+derive newtype instance FromData ScriptHash
+derive newtype instance Ord ScriptHash
+derive newtype instance ToData ScriptHash
+
+instance Show ScriptHash where
   show = genericShow
