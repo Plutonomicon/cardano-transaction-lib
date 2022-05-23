@@ -67,7 +67,6 @@ import QueryM.JsonWsp
   , parseFieldToString
   , parseFieldToUInt
   )
-import Serialization.Address (Slot)
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray, hexToByteArray)
 import Types.CborBytes (CborBytes, cborBytesToHex)
@@ -304,7 +303,8 @@ instance Show ChainOrigin where
 
 -- | A point on the chain, identified by a slot and a block header hash
 type ChainPoint =
-  { slot :: Slot -- I think we need to use `BigInt` here, 18446744073709552000 is outside of `Slot` range.
+  { slot :: BigInt -- I think we need to use `BigInt` here, 18446744073709552000
+  -- is outside of `Slot` range.
   , hash :: OgmiosBlockHeaderHash
   }
 
