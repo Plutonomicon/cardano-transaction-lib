@@ -1,5 +1,5 @@
 module Types.Rational
-  ( Rational
+  ( Rational(Rational)
   , class RationalComponent
   , reduce
   , (%)
