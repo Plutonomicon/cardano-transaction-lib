@@ -18,6 +18,8 @@ import Aeson
   , decodeAeson
   , encodeAeson'
   , toStringifiedNumbersJson
+  , getField
+  , toObject
   )
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString, fromString) as BigInt
@@ -56,10 +58,15 @@ instance EncodeAeson Rational where
 
 instance DecodeAeson Rational where
   decodeAeson r = do
-   { numerator:  (n :: BigInt)
-   , denominator: (d :: BigInt)
-   } :: RationalRep BigInt <- decodeAeson r
-   maybe (Left $ UnexpectedValue $ toStringifiedNumbersJson r) pure $ n % d
+   case toObject r of
+     Nothing -> Left $ UnexpectedValue $ toStringifiedNumbersJson r
+     Just r' -> do
+        {- { numerator:  (n :: BigInt)
+        , denominator: (d :: BigInt)
+        } :: RationalRep BigInt <- decodeAeson r -}
+        n :: BigInt <- getField r' "numerator"
+        d :: BigInt <- getField r' "denominator"
+        maybe (Left $ UnexpectedValue $ toStringifiedNumbersJson r) pure $ n % d
 
 newtype StringifiedBigInt = StringifiedBigInt BigInt
 
