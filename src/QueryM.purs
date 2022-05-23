@@ -3,53 +3,53 @@ module QueryM
   ( ClientError(..)
   , DatumCacheListeners
   , DatumCacheWebSocket
+  , DefaultQueryConfig
+  , DispatchError(..)
   , DispatchIdMap
-  , DispatchError(JsError, JsonError)
   , FeeEstimate(..)
   , FinalizedTransaction(..)
   , HashedData(..)
-  , module ServerConfig
   , ListenerSet
-  , PendingRequests
-  , RdmrPtrExUnits(..)
-  , RequestBody
   , OgmiosListeners
   , OgmiosWebSocket
+  , PendingRequests
   , QueryConfig
-  , DefaultQueryConfig
   , QueryM
   , QueryMExtended
+  , RdmrPtrExUnits(..)
+  , RequestBody
   , WebSocket
-  , liftQueryM
   , allowError
   , applyArgs
   , calculateMinFee
+  , cancelFetchBlocks
   , datumHash
-  , traceQueryConfig
   , evalTxExecutionUnits
   , finalizeTx
-  , getWalletAddress
   , getChainTip
+  , getDatumByHash
+  , getDatumsByHashes
+  , getWalletAddress
   , getWalletCollateral
   , hashData
   , hashScript
+  , liftQueryM
   , listeners
   , mkDatumCacheWebSocketAff
   , mkOgmiosRequest
   , mkOgmiosWebSocketAff
+  , module ServerConfig
   , ownPaymentPubKeyHash
   , ownPubKeyHash
   , ownStakePubKeyHash
   , runQueryM
   , signTransaction
   , signTransactionBytes
-  , submitTxWallet
-  , submitTxOgmios
-  , underlyingWebSocket
-  , getDatumByHash
-  , getDatumsByHashes
   , startFetchBlocks
-  , cancelFetchBlocks
+  , submitTxOgmios
+  , submitTxWallet
+  , traceQueryConfig
+  , underlyingWebSocket
   ) where
 
 import Prelude
@@ -651,10 +651,12 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
   chainTipDispatchMap <- createMutableDispatch
   evaluateTxDispatchMap <- createMutableDispatch
   submitDispatchMap <- createMutableDispatch
+  eraSummariesDispatchMap <- createMutableDispatch
   utxoPendingRequests <- createPendingRequests
   chainTipPendingRequests <- createPendingRequests
   evaluateTxPendingRequests <- createPendingRequests
   submitPendingRequests <- createPendingRequests
+  eraSummariesPendingRequests <- createPendingRequests
   let
     md = ogmiosMessageDispatch
       { utxoDispatchMap
@@ -680,6 +682,8 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       , chainTip: mkListenerSet chainTipDispatchMap chainTipPendingRequests
       , evaluate: mkListenerSet evaluateTxDispatchMap evaluateTxPendingRequests
       , submit: mkListenerSet submitDispatchMap submitPendingRequests
+      , eraSummaries: mkListenerSet eraSummariesDispatchMap
+          eraSummariesPendingRequests
       }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
@@ -758,6 +762,7 @@ type OgmiosListeners =
   , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
   , submit :: ListenerSet { txCbor :: ByteArray } Ogmios.SubmitTxR
   , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationResult
+  , eraSummaries :: ListenerSet Unit Ogmios.EraSummariesR
   }
 
 type DatumCacheListeners =

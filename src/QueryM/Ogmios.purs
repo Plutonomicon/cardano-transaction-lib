@@ -4,6 +4,10 @@ module QueryM.Ogmios
   ( ChainOrigin(..)
   , ChainPoint(..)
   , ChainTipQR(..)
+  , EraSummariesR(..)
+  , EraSummary(..)
+  , EraSummaryParameters(..)
+  , EraSummaryTime(..)
   , OgmiosAddress
   , OgmiosBlockHeaderHash(..)
   , OgmiosTxOut(..)
@@ -11,13 +15,14 @@ module QueryM.Ogmios
   , SubmitTxR(..)
   , TxEvaluationResult(..)
   , TxHash
-  , UtxoQueryResult(..)
   , UtxoQR(..)
-  , queryChainTipCall
-  , queryUtxosCall
-  , queryUtxosAtCall
-  , submitTxCall
+  , UtxoQueryResult(..)
   , evaluateTxCall
+  , queryChainTipCall
+  , queryEraSummariesCall
+  , queryUtxosAtCall
+  , queryUtxosCall
+  , submitTxCall
   ) where
 
 import Prelude
@@ -47,7 +52,7 @@ import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern), indexOf, splitAt, uncons)
-import Data.Traversable (sequence)
+import Data.Traversable (sequence, traverse)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt as UInt
@@ -74,6 +79,14 @@ import Untagged.Union (type (|+|), toEither1)
 
 -- LOCAL STATE QUERY PROTOCOL
 -- https://ogmios.dev/mini-protocols/local-state-query/
+
+-- | Queries Ogmios for an array of era summaries, used for Slot arithmetic.
+queryEraSummariesCall :: JsonWspCall Unit EraSummariesR
+queryEraSummariesCall = mkOgmiosCallType
+  { methodname: "Query"
+  , args: const { query: "eraSummaries" }
+  }
+  Proxy
 
 -- | Queries Ogmios for the chain’s current tip.
 queryChainTipCall :: JsonWspCall Unit ChainTipQR
@@ -154,6 +167,82 @@ instance DecodeAeson SubmitTxR where
     \o -> getField o "SubmitSuccess" >>= flip getField "txId" >>= hexToByteArray
       >>> maybe (Left (TypeMismatch "Expected hexstring")) (pure <<< wrap)
 
+---------------- ERA SUMMARY QUERY RESPONSE & PARSING
+
+newtype EraSummariesR = EraSummariesR (Array EraSummary)
+
+derive instance Generic EraSummariesR _
+derive instance Newtype EraSummariesR _
+
+instance Show EraSummariesR where
+  show = genericShow
+
+instance DecodeAeson EraSummariesR where
+  decodeAeson = aesonArray (map wrap <<< traverse decodeAeson)
+
+newtype EraSummary = EraSummary
+  { start :: EraSummaryTime
+  , end :: Maybe EraSummaryTime
+  , parameters :: EraSummaryParameters
+  }
+
+derive instance Generic EraSummary _
+derive instance Newtype EraSummary _
+
+instance Show EraSummary where
+  show = genericShow
+
+instance DecodeAeson EraSummary where
+  decodeAeson = aesonObject $ \o -> do
+    start <- getField o "start"
+    end <- getField o "end"
+    parameters <- getField o "parameters"
+    pure $ wrap { start, end, parameters }
+
+newtype EraSummaryTime = EraSummaryTime
+  { time :: BigInt -- 0-18446744073709552000, A time in seconds relative to
+  -- another one (typically, system start or era start).
+  , slot :: BigInt -- 0-18446744073709552000, An absolute slot number. don't
+  -- use `Slot` because Slot is bounded by UInt ~ 0-4294967295
+  , epoch :: BigInt -- 0-18446744073709552000, an epoch number or length, don't
+  -- use `Epoch` because Epoch is bounded by UInt also.
+  }
+
+derive instance Generic EraSummaryTime _
+derive instance Newtype EraSummaryTime _
+
+instance Show EraSummaryTime where
+  show = genericShow
+
+instance DecodeAeson EraSummaryTime where
+  decodeAeson = aesonObject $ \o -> do
+    time <- parseFieldToBigInt o "time"
+    slot <- parseFieldToBigInt o "slot"
+    epoch <- parseFieldToBigInt o "epoch"
+    pure $ wrap { time, slot, epoch }
+
+newtype EraSummaryParameters = EraSummaryParameters
+  { epochLength :: BigInt -- 0-18446744073709552000 An epoch number or length.
+  , slotLength :: BigInt -- <= 18446744073709552000 A slot length, in seconds.
+  , safeZone :: BigInt -- 0-18446744073709552000 Number of slots from the tip of
+  -- the ledger in which it is guaranteed that no hard fork can take place.
+  -- This should be (at least) the number of slots in which we are guaranteed
+  -- to have k blocks.
+  }
+
+derive instance Generic EraSummaryParameters _
+derive instance Newtype EraSummaryParameters _
+
+instance Show EraSummaryParameters where
+  show = genericShow
+
+instance DecodeAeson EraSummaryParameters where
+  decodeAeson = aesonObject $ \o -> do
+    epochLength <- parseFieldToBigInt o "epochLength"
+    slotLength <- parseFieldToBigInt o "slotLength"
+    safeZone <- parseFieldToBigInt o "safeZone"
+    pure $ wrap { epochLength, slotLength, safeZone }
+
 ---------------- TX EVALUATION QUERY RESPONSE & PARSING
 
 newtype TxEvaluationResult = TxEvaluationResult
@@ -209,7 +298,7 @@ instance Show ChainOrigin where
 
 -- | A point on the chain, identified by a slot and a block header hash
 type ChainPoint =
-  { slot :: Slot
+  { slot :: Slot -- I think we need to use `BigInt` here, 18446744073709552000 is outside of `Slot` range.
   , hash :: OgmiosBlockHeaderHash
   }
 
@@ -235,14 +324,13 @@ type OgmiosTxOutRef =
   }
 
 parseUtxoQueryResult :: Aeson -> Either JsonDecodeError UtxoQueryResult
-parseUtxoQueryResult = caseAesonArray (Left (TypeMismatch "Expected Array")) $
-  foldl insertFunc (Right Map.empty)
+parseUtxoQueryResult = aesonArray $ foldl insertFunc (Right Map.empty)
   where
   insertFunc
     :: Either JsonDecodeError UtxoQueryResult
     -> Aeson
     -> Either JsonDecodeError UtxoQueryResult
-  insertFunc acc = caseAesonArray (Left (TypeMismatch "Expected Array")) $ inner
+  insertFunc acc = aesonArray inner
     where
     inner :: Array Aeson -> Either JsonDecodeError UtxoQueryResult
     inner innerArray = do
@@ -261,7 +349,15 @@ aesonObject
    . (Object Aeson -> Either JsonDecodeError a)
   -> Aeson
   -> Either JsonDecodeError a
-aesonObject = caseAesonObject (Left (TypeMismatch "expected object"))
+aesonObject = caseAesonObject (Left (TypeMismatch "Expected Object"))
+
+-- helper for assumming we get an array
+aesonArray
+  :: forall (a :: Type)
+   . (Array Aeson -> Either JsonDecodeError a)
+  -> Aeson
+  -> Either JsonDecodeError a
+aesonArray = caseAesonArray (Left (TypeMismatch "Expected Array"))
 
 -- parser for txOutRef
 parseTxOutRef :: Aeson -> Either JsonDecodeError OgmiosTxOutRef

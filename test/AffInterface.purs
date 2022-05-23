@@ -19,6 +19,7 @@ import QueryM
   , startFetchBlocks
   , traceQueryConfig
   )
+import QueryM.EraSummaries (getEraSummaries)
 import QueryM.Ogmios (OgmiosAddress)
 import QueryM.Utxos (utxosAt)
 import Test.Spec.Assertions (shouldEqual)
@@ -46,7 +47,8 @@ suite = do
   group "Aff Int" do
     test "UtxosAt Testnet" $ testUtxosAt testnet_addr1
     test "UtxosAt non-Testnet" $ testUtxosAt addr1
-    test "Get ChainTip" $ testGetChainTip
+    test "Get ChainTip" testGetChainTip
+    test "Get EraSummaries" testGetEraSummaries
   -- Test inverse in one direction.
   group "Address loop" do
     test "Ogmios Address to Address & back Testnet"
@@ -97,14 +99,18 @@ testOgmiosDatumCacheFetcher =
 testUtxosAt :: OgmiosAddress -> Aff Unit
 testUtxosAt testAddr = case ogmiosAddressToAddress testAddr of
   Nothing -> liftEffect $ throw "Failed UtxosAt"
-  Just addr -> flip runQueryM (utxosAt addr *> pure unit) =<< traceQueryConfig
+  Just addr -> flip runQueryM (utxosAt addr $> unit) =<< traceQueryConfig
 
 testGetChainTip :: Aff Unit
 testGetChainTip = do
-  flip runQueryM (getChainTip *> pure unit) =<< traceQueryConfig
+  flip runQueryM (getChainTip $> unit) =<< traceQueryConfig
 
 testFromOgmiosAddress :: OgmiosAddress -> Aff Unit
 testFromOgmiosAddress testAddr = do
   liftEffect $ case ogmiosAddressToAddress testAddr of
     Nothing -> throw "Failed Address loop"
     Just addr -> addressToOgmiosAddress addr `shouldEqual` testAddr
+
+testGetEraSummaries :: Aff Unit
+testGetEraSummaries = do
+  flip runQueryM (getEraSummaries $> unit) =<< traceQueryConfig
