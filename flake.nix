@@ -16,7 +16,9 @@
     cardano-node-exe = {
       url = "github:input-output-hk/cardano-node/ea8b632820db5546b22430bbb5ed8db4a2fef7dd";
     };
+    # Repository with network parameters
     cardano-configurations = {
+      # Override with "path:/path/to/cardano-configurations";
       url = "github:input-output-hk/cardano-configurations";
       flake = false;
     };
@@ -206,8 +208,10 @@
             fix (final: recursiveUpdate
               (defaultConfig final)
               (if isFunction extraConfig then extraConfig final else extraConfig));
-          nodeDbVol = "node-db";
-          nodeIpcVol = "node-ipc";
+          # Network subdirectory in cardano-configurations repo provided above
+          network = "testnet";
+          nodeDbVol = "node-${network}-db";
+          nodeIpcVol = "node-${network}-ipc";
           nodeSocketPath = "/ipc/node.socket";
           serverName = "ctl-server:exe:ctl-server";
           server = self.packages.${system}."${serverName}";
@@ -227,8 +231,8 @@
                 image = "inputoutput/cardano-node:1.34.1";
                 ports = [ (bindPort node.port) ];
                 volumes = [
-                  "${cardano-configurations}/network/testnet/cardano-node:/config"
-                  "${cardano-configurations}/network/testnet/genesis:/genesis"
+                  "${cardano-configurations}/network/${network}/cardano-node:/config"
+                  "${cardano-configurations}/network/${network}/genesis:/genesis"
                   "${nodeDbVol}:/data"
                   "${nodeIpcVol}:/ipc"
                 ];
@@ -250,7 +254,7 @@
                 useHostStore = true;
                 ports = [ (bindPort ogmios.port) ];
                 volumes = [
-                  "${cardano-configurations}/network/testnet:/config"
+                  "${cardano-configurations}/network/${network}:/config"
                   "${nodeIpcVol}:/ipc"
                 ];
                 command = [

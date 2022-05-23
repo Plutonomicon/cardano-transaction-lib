@@ -425,6 +425,16 @@ Furthermore, CTL exposes an `overlay` from its flake. You can use this in the Ni
 
 We have recenly set up a small scaffolding repository for projects wishing to adopt CTL: https://github.com/mlabs-haskell/ctl-scaffold. More documentation and resources will be added soon to the repo
 
+### Changing network configurations.
+
+CTL supports using networks other than testnet to provide development environment.
+
+First you need to specify alternative way of getting the network configuration.
+
+[cardano-configurations](https://github.com/input-output-hk/cardano-configurations) repo provides configs for `mainnet`, `staging` and a few other networks. If you want one of these, simply replace `network` parameter in `buildCtlRuntime`.
+
+Providing custom repo with similar structure is also possible: edit `flake.nix` and change `inputs.cardano-configurations` providing the URL of your fork. You can use `path:/path/to/repo` as URL as well. After that, edit `network` parameter (it should point to a subdirectory of `./network/` in your fork).
+
 ## Architecture
 
 CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, however, CTL is a library and not a standalone process. Over the course of CTL's development, several questions have been raised as to how best create PAB-as-a-library:
