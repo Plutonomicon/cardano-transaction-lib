@@ -445,6 +445,8 @@ You can specify your own fork of `cardano-configurations` like this:
 inputs.cardano-transaction-lib.inputs.cardano-configurations.follows = "...";
 ```
 
+When changing networks, make sure that `network.magic` is correctly synchronized with value in config (see `protocolConsts.protocolMagic` in `byron.json`).
+
 ## Architecture
 
 CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, however, CTL is a library and not a standalone process. Over the course of CTL's development, several questions have been raised as to how best create PAB-as-a-library:
