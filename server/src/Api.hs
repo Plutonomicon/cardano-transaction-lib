@@ -5,7 +5,7 @@ module Api (
   finalizeTx,
   hashData,
   hashScript,
-  blake2bHash,
+  plutusHash,
   evalTxExecutionUnits,
   apiDocs,
 ) where
@@ -44,8 +44,7 @@ import Types (
   AppM (AppM),
   AppliedScript,
   ApplyArgsRequest,
-  Blake2bHash,
-  BytesToHash,
+  ByteStringHash,
   CardanoError (
     AcquireFailure,
     EraMismatchError,
@@ -60,6 +59,7 @@ import Types (
   Fee,
   FinalizeRequest,
   FinalizedTransaction,
+  HashBytesRequest,
   HashDataRequest,
   HashScriptRequest,
   HashedData,
@@ -83,9 +83,9 @@ type Api =
       :> Post '[JSON] HashedScript
     -- Making this a POST request so we can just use the @From/ToJSON@
     -- instances instead of decoding in the handler
-    :<|> "blake2b"
-      :> ReqBody '[JSON] BytesToHash
-      :> Post '[JSON] Blake2bHash
+    :<|> "plutus-hash"
+      :> ReqBody '[JSON] HashBytesRequest
+      :> Post '[JSON] ByteStringHash
     :<|> "eval-ex-units"
       :> QueryParam' '[Required] "tx" Cbor
       :> Get '[JSON] ExecutionUnitsMap
@@ -148,7 +148,7 @@ server =
   Handlers.estimateTxFees
     :<|> Handlers.applyArgs
     :<|> Handlers.hashScript
-    :<|> Handlers.blake2bHash
+    :<|> Handlers.plutusHash
     :<|> Handlers.evalTxExecutionUnits
     :<|> Handlers.finalizeTx
     :<|> Handlers.hashData
@@ -159,14 +159,14 @@ apiDocs = Docs.docs api
 estimateTxFees :: WitnessCount -> Cbor -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
 hashScript :: HashScriptRequest -> ClientM HashedScript
-blake2bHash :: BytesToHash -> ClientM Blake2bHash
+plutusHash :: HashBytesRequest -> ClientM ByteStringHash
 evalTxExecutionUnits :: Cbor -> ClientM ExecutionUnitsMap
 finalizeTx :: FinalizeRequest -> ClientM FinalizedTransaction
 hashData :: HashDataRequest -> ClientM HashedData
 estimateTxFees
   :<|> applyArgs
   :<|> hashScript
-  :<|> blake2bHash
+  :<|> plutusHash
   :<|> evalTxExecutionUnits
   :<|> finalizeTx
   :<|> hashData =

@@ -89,9 +89,9 @@ import Plutus.Types.Transaction (TransactionOutput) as Plutus
 import QueryM
   ( DefaultQueryConfig
   , QueryM
-  , datumHash
   , getDatumByHash
   )
+import QueryM.Crypto (datumHash)
 import Scripts
   ( mintingPolicyHash
   , validatorHash

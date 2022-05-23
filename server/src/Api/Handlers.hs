@@ -5,7 +5,7 @@ module Api.Handlers (
   applyArgs,
   hashData,
   hashScript,
-  blake2bHash,
+  plutusHash,
   evalTxExecutionUnits,
   finalizeTx,
 ) where
@@ -48,7 +48,7 @@ import Types (
   AppM,
   AppliedScript (AppliedScript),
   ApplyArgsRequest (ApplyArgsRequest, args, script),
-  Blake2bHash (Blake2bHash),
+  ByteStringHash (ByteStringHash),
   BytesToHash (BytesToHash),
   CardanoError (
     AcquireFailure,
@@ -64,8 +64,11 @@ import Types (
   Fee (Fee),
   FinalizeRequest (FinalizeRequest, datums, redeemers, tx),
   FinalizedTransaction (FinalizedTransaction),
+  HashBytesRequest (HashBytesRequest),
   HashDataRequest (HashDataRequest),
+  HashMethod (Blake2b_256, Sha2_256, Sha3_256),
   HashScriptRequest (HashScriptRequest),
+  HashedBytes (HashedBytes),
   HashedData (HashedData),
   HashedScript (HashedScript),
   RdmrPtrExUnits (
@@ -128,11 +131,6 @@ hashScript :: HashScriptRequest -> AppM HashedScript
 hashScript (HashScriptRequest script) =
   pure . HashedScript $ hashLedgerScript script
 
-blake2bHash :: BytesToHash -> AppM Blake2bHash
-blake2bHash (BytesToHash hs) =
-  pure . Blake2bHash . PlutusTx.fromBuiltin . PlutusTx.blake2b_256 $
-    PlutusTx.toBuiltin hs
-
 {- | Computes the execution units needed for each script in the transaction.
  https://input-output-hk.github.io/cardano-node/cardano-api/src/Cardano.Api.Fees.html#evaluateTransactionExecutionUnits
 -}
@@ -177,6 +175,14 @@ evalTxExecutionUnits cbor =
               , exUnitsMem = C.executionMemory exUnits
               , exUnitsSteps = C.executionSteps exUnits
               }
+
+plutusHash :: HashBytesRequest -> AppM ByteStringHash
+plutusHash (HashBytesRequest meth (BytesToHash hs)) =
+  let hf = case meth of
+        Sha3_256 -> PlutusTx.sha3_256
+        Sha2_256 -> PlutusTx.sha2_256
+        Blake2b_256 -> PlutusTx.blake2b_256
+   in pure . ByteStringHash meth . HashedBytes . PlutusTx.fromBuiltin . hf $ PlutusTx.toBuiltin hs
 
 finalizeTx :: FinalizeRequest -> AppM FinalizedTransaction
 finalizeTx FinalizeRequest {tx, datums, redeemers} = do

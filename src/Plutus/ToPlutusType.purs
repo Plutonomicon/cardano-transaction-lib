@@ -5,6 +5,18 @@ module Plutus.ToPlutusType
 
 import Prelude
 
+import Cardano.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  , UtxoM(UtxoM)
+  ) as Cardano
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as Cardano
+import Cardano.Types.Value (Coin(Coin), Value(Value)) as Cardano
+import Cardano.Types.Value
+  ( NonAdaAsset(NonAdaAsset)
+  , getCurrencySymbol
+  )
 import Data.Array (head, uncons, snoc, concatMap, take, drop, foldr)
 import Data.Identity (Identity(Identity))
 import Data.Foldable (fold)
@@ -16,13 +28,21 @@ import Data.Tuple (fst) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt, fromInt, (.&.), and, shl, zshr)
 import Partial.Unsafe (unsafePartial)
-
-import Serialization.Address (Address) as Serialization
-import Serialization.Address (addressBytes) as Serialization.Address
-import Serialization.Hash (ed25519KeyHashFromBytes, scriptHashFromBytes)
-
 import Plutus.Types.Address (Address) as Plutus
-import Plutus.Types.AddressHeaderType (AddressHeaderType(..), addrHeaderType)
+import Plutus.Types.AddressHeaderType
+  ( AddressHeaderType
+      ( PaymentKeyHashStakeKeyHash
+      , ScriptHashStakeKeyHash
+      , PaymentKeyHashScriptHash
+      , ScriptHashScriptHash
+      , PaymentKeyHashPointer
+      , ScriptHashPointer
+      , PaymentKeyHash
+      , ScriptHash
+      )
+
+  , addrHeaderType
+  )
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
@@ -36,21 +56,11 @@ import Plutus.Types.TransactionUnspentOutput
   ) as Plutus
 import Plutus.Types.Value (Coin, Value) as Plutus
 import Plutus.Types.Value (lovelaceValueOf, singleton') as Plutus.Value
-
+import Serialization.Address (Address) as Serialization
+import Serialization.Address (addressBytes) as Serialization.Address
+import Serialization.Hash (ed25519KeyHashFromBytes, scriptHashFromBytes)
 import Types.ByteArray (ByteArray, byteArrayFromIntArray, byteArrayToIntArray)
 import Types.TokenName (getTokenName)
-import Cardano.Types.Transaction
-  ( TransactionOutput(TransactionOutput)
-  , UtxoM(UtxoM)
-  ) as Cardano
-import Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  ) as Cardano
-import Cardano.Types.Value (Coin(Coin), Value(Value)) as Types
-import Cardano.Types.Value
-  ( NonAdaAsset(NonAdaAsset)
-  , getCurrencySymbol
-  )
 
 class ToPlutusType :: (Type -> Type) -> Type -> Type -> Constraint
 class ToPlutusType f t pt | t -> pt, t pt -> f where
@@ -64,8 +74,9 @@ class ToPlutusType f t pt | t -> pt, t pt -> f where
 -- have the `Ord` constraint on the keys. Therefore, one should be careful when
 -- performing conversions between `Value`s, since the ordering of components
 -- can't be guaranteed.
-instance ToPlutusType Identity Types.Value Plutus.Value where
-  toPlutusType (Types.Value (Types.Coin adaAmount) (NonAdaAsset nonAdaAssets)) =
+instance ToPlutusType Identity Cardano.Value Plutus.Value where
+  toPlutusType
+    (Cardano.Value (Cardano.Coin adaAmount) (NonAdaAsset nonAdaAssets)) =
     Identity (adaValue <> fold nonAdaValues)
     where
     adaValue :: Plutus.Value
@@ -84,7 +95,7 @@ instance ToPlutusType Identity Types.Value Plutus.Value where
 -- Cardano.Types.Value.Coin -> Plutus.Types.Value.UtxoM
 --------------------------------------------------------------------------------
 
-instance ToPlutusType Identity Types.Coin Plutus.Coin where
+instance ToPlutusType Identity Cardano.Coin Plutus.Coin where
   toPlutusType = pure <<< wrap <<< unwrap
 
 --------------------------------------------------------------------------------
