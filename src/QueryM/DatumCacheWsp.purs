@@ -1,10 +1,15 @@
 module QueryM.DatumCacheWsp
-  ( CancelFetchBlocksR(..)
-  , DatumCacheMethod(..)
-  , GetDatumByHashR(..)
-  , GetDatumsByHashesR(..)
-  , StartFetchBlocksR(..)
-  , WspFault(..)
+  ( CancelFetchBlocksR(CancelFetchBlocksR)
+  , DatumCacheMethod
+      ( GetDatumByHash
+      , GetDatumsByHashes
+      , StartFetchBlocks
+      , CancelFetchBlocks
+      )
+  , GetDatumByHashR(GetDatumByHashR)
+  , GetDatumsByHashesR(GetDatumsByHashesR)
+  , StartFetchBlocksR(StartFetchBlocksR)
+  , WspFault(WspFault)
   , cancelFetchBlocksCall
   , faultToString
   , getDatumByHashCall

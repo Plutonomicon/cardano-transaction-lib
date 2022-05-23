@@ -318,7 +318,7 @@ newtype UtxoR = UtxoR UtxoQueryResult
 derive newtype instance Show UtxoR
 
 instance DecodeAeson UtxoR where
-  decodeAeson j = UtxoR <$> parseUtxoQueryResult j
+  decodeAeson = map UtxoR <<< parseUtxoQueryResult
 
 -- the inner type for Utxo Queries
 type UtxoQueryResult = Map.Map OgmiosTxOutRef OgmiosTxOut
