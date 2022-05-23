@@ -206,7 +206,7 @@ foreign import newVkeywitness :: Vkey -> Ed25519Signature -> Effect Vkeywitness
 foreign import addVkeywitness :: Vkeywitnesses -> Vkeywitness -> Effect Unit
 foreign import newVkeyFromPublicKey :: PublicKey -> Effect Vkey
 foreign import _publicKeyFromBech32
-  :: MaybeFfiHelper -> Bech32String -> Maybe PublicKey
+  :: MaybeFfiHelper -> Bech32String -> Effect (Maybe PublicKey)
 
 foreign import publicKeyHash :: PublicKey -> Ed25519KeyHash
 foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
@@ -582,7 +582,7 @@ convertWithdrawals mp =
       Tuple k <$> fromJustEff "convertWithdrawals: Failed to convert BigNum"
         (bigNumFromBigInt v)
 
-publicKeyFromBech32 :: Bech32String -> Maybe PublicKey
+publicKeyFromBech32 :: Bech32String -> Effect (Maybe PublicKey)
 publicKeyFromBech32 = _publicKeyFromBech32 maybeFfiHelper
 
 convertCerts :: Array T.Certificate -> Effect Certificates

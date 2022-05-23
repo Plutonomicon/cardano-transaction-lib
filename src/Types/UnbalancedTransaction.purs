@@ -25,6 +25,7 @@ import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))
+import Effect (Effect)
 import Serialization
   ( publicKeyFromBech32
   , publicKeyHash
@@ -62,9 +63,9 @@ instance Show ScriptOutput where
 payPubKeyVkey :: PaymentPubKey -> Vkey
 payPubKeyVkey (PaymentPubKey pk) = Vkey pk
 
-payPubKeyRequiredSigner :: PaymentPubKey -> Maybe RequiredSigner
+payPubKeyRequiredSigner :: PaymentPubKey -> Effect (Maybe RequiredSigner)
 payPubKeyRequiredSigner (PaymentPubKey (PublicKey bech32)) =
-  RequiredSigner <<< publicKeyHash <$> publicKeyFromBech32 bech32
+  map (RequiredSigner <<< publicKeyHash) <$> publicKeyFromBech32 bech32
 
 -- | An unbalanced transaction. It needs to be balanced and signed before it
 -- | can be submitted to the ledger.

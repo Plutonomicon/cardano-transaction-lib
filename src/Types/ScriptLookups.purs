@@ -851,7 +851,7 @@ processConstraint mpsMap osMap = do
     MustBeSignedBy pkh -> runExceptT do
       ppkh <- use _lookups <#> unwrap >>> _.paymentPubKeyHashes
       sigs <- for (lookup pkh ppkh) $
-        payPubKeyRequiredSigner >>>
+        payPubKeyRequiredSigner >>> liftEffect >=>
           maybe (throwError (CannotConvertPaymentPubKeyHash pkh))
             (pure <<< Array.singleton)
       _cpsToTxBody <<< _requiredSigners <>= sigs
