@@ -78,7 +78,7 @@ instance DecodeAeson Ed25519KeyHash where
     )
 
 instance EncodeAeson Ed25519KeyHash where
-  encodeAeson' = encodeAeson' <<< byteArrayToHex <<< ed25519KeyHashToBytes
+  encodeAeson' = encodeAeson' <<< rawBytesToHex <<< ed25519KeyHashToBytes
 
 foreign import _ed25519KeyHashFromBytesImpl
   :: MaybeFfiHelper

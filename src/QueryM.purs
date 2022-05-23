@@ -156,7 +156,7 @@ import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.CborBytes (CborBytes)
 import Types.Chain as Chain
-import Types.Datum (DataHash(DataHash), Datum)
+import Types.Datum (DataHash, Datum)
 import Types.Interval (SlotConfig, defaultSlotConfig)
 import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
