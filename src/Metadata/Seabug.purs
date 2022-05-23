@@ -37,7 +37,9 @@ import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray
   ( ByteArray
   , hexToByteArray
-  , hexToByteArrayUnsafe
+  )
+import Types.RawBytes
+  ( hexToRawBytesUnsafe
   )
 import Types.Natural (Natural)
 import Types.PlutusData (PlutusData(Map))
@@ -209,7 +211,7 @@ instance DecodeAeson SeabugMetadata where
                 $ unsafePartial
                 $ fromJust
                 $ scriptHashFromBytes
-                $ hexToByteArrayUnsafe
+                $ hexToRawBytesUnsafe
                     "00000000000000000000000000000000000000000000000000000000"
             , mintPolicy: mempty
             , collectionNftCS
@@ -231,7 +233,7 @@ instance DecodeAeson SeabugMetadata where
     decodeScriptHash =
       note
         (TypeMismatch "Expected hex-encoded script hash")
-        <<< (scriptHashFromBytes <=< hexToByteArray)
+        <<< (scriptHashFromBytes <<< wrap <=< hexToByteArray)
 
 newtype SeabugMetadataDelta = SeabugMetadataDelta
   { policyId :: MintingPolicyHash

@@ -28,6 +28,38 @@ import Prelude
 import BalanceTx (UnattachedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
 import BalanceTx (BalanceTxError) as BalanceTxError
+import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
+import Data.Either (Either, hush)
+import Data.Generic.Rep (class Generic)
+import Data.Lens.Getter ((^.))
+import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Show.Generic (genericShow)
+import Data.Tuple.Nested (type (/\), (/\))
+import QueryM
+  ( FeeEstimate(FeeEstimate)
+  , ClientError(..) -- implicit as this error list will likely increase.
+  , FinalizedTransaction(FinalizedTransaction)
+  ) as ExportQueryM
+import QueryM
+  ( FinalizedTransaction(FinalizedTransaction)
+  , calculateMinFee
+  , signTransaction
+  , signTransactionBytes
+  , finalizeTx
+  , submitTxOgmios
+  ) as QueryM
+import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
+import ReindexRedeemers
+  ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
+  ) as ReindexRedeemersExport
+import Types.CborBytes (CborBytes)
+import Types.Datum (Datum)
+import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
+import Types.ScriptLookups
+  ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
+  , mkUnbalancedTx
+  ) as ScriptLookups
 import Cardano.Types.Transaction (Transaction, _body, _inputs)
 import Cardano.Types.Transaction -- Most re-exported, don't re-export `Redeemer` and associated lens.
   ( AuxiliaryData(AuxiliaryData)
@@ -103,45 +135,13 @@ import Cardano.Types.Transaction -- Most re-exported, don't re-export `Redeemer`
   , _withdrawals
   , _witnessSet
   ) as Transaction
-import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
-import Data.Either (Either, hush)
-import Data.Generic.Rep (class Generic)
-import Data.Lens.Getter ((^.))
-import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Show.Generic (genericShow)
-import Data.Tuple.Nested (type (/\), (/\))
 import Plutus.ToPlutusType (toPlutusType)
 import Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   ) as PTransaction
 import Plutus.Types.Value (Coin)
-import QueryM
-  ( FeeEstimate(FeeEstimate)
-  , ClientError(..) -- implicit as this error list will likely increase.
-  , FinalizedTransaction(FinalizedTransaction)
-  ) as ExportQueryM
-import QueryM
-  ( FinalizedTransaction(FinalizedTransaction)
-  , calculateMinFee
-  , signTransaction
-  , signTransactionBytes
-  , finalizeTx
-  , submitTxOgmios
-  ) as QueryM
 import Serialization.Address (NetworkId)
-import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
-import ReindexRedeemers
-  ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
-  ) as ReindexRedeemersExport
 import TxOutput (scriptOutputToTransactionOutput) as TxOutput
-import Types.ByteArray (ByteArray)
-import Types.Datum (Datum)
-import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
-import Types.ScriptLookups
-  ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
-  , mkUnbalancedTx
-  ) as ScriptLookups
 import Types.Transaction (TransactionHash)
 import Types.Transaction
   ( DataHash(DataHash)
@@ -178,13 +178,13 @@ signTransaction = wrapContract <<< QueryM.signTransaction
 -- | Signs a `Transaction` with potential failure
 signTransactionBytes
   :: forall (r :: Row Type)
-   . ByteArray
-  -> Contract r (Maybe ByteArray)
+   . CborBytes
+  -> Contract r (Maybe CborBytes)
 signTransactionBytes = wrapContract <<< QueryM.signTransactionBytes
 
 -- | Submits a Cbor-hex encoded transaction, which is the output of
 -- | `signTransactionBytes` or `balanceAndSignTx`
-submit :: forall (r :: Row Type). ByteArray -> Contract r TransactionHash
+submit :: forall (r :: Row Type). CborBytes -> Contract r TransactionHash
 submit = wrapContract <<< map (wrap <<< unwrap) <<< QueryM.submitTxOgmios
 
 -- | Query the Haskell server for the minimum transaction fee
@@ -243,7 +243,7 @@ reindexSpentScriptRedeemers balancedTx =
 
 newtype BalancedSignedTransaction = BalancedSignedTransaction
   { transaction :: Transaction.Transaction -- the balanced and unsigned transaction to help with logging
-  , signedTxCbor :: ByteArray -- the balanced and signed cbor ByteArray representation used in `submit`
+  , signedTxCbor :: CborBytes -- the balanced and signed cbor ByteArray representation used in `submit`
   }
 
 derive instance Generic BalancedSignedTransaction _
@@ -275,7 +275,7 @@ balanceAndSignTx uaubTx@(UnattachedUnbalancedTx { datums }) = do
       (finalizeTx balancedTx datums redeemers)
   -- Sign the transaction returned as Cbor-hex encoded:
   signedTxCbor <- liftedM "balanceAndSignTx: Failed to sign transaction" $
-    signTransactionBytes txCbor
+    signTransactionBytes (wrap txCbor)
   pure $ pure $ BalancedSignedTransaction
     { transaction: balancedTx, signedTxCbor }
 

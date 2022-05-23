@@ -30,6 +30,7 @@ import Serialization.Hash
   )
 import ToData (class ToData)
 import Types.ByteArray (ByteArray)
+import Data.Newtype (unwrap, wrap)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 
 newtype CurrencySymbol = CurrencySymbol ByteArray
@@ -57,7 +58,7 @@ adaSymbol :: CurrencySymbol
 adaSymbol = CurrencySymbol mempty
 
 scriptHashAsCurrencySymbol :: ScriptHash -> CurrencySymbol
-scriptHashAsCurrencySymbol = CurrencySymbol <<< scriptHashAsBytes
+scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< scriptHashAsBytes
 
 -- | The minting policy hash of a currency symbol.
 currencyMPSHash :: CurrencySymbol -> Maybe MintingPolicyHash
@@ -65,7 +66,8 @@ currencyMPSHash = map MintingPolicyHash <<< currencyScriptHash
 
 -- | The currency symbol of a monetary policy hash.
 mpsSymbol :: MintingPolicyHash -> Maybe CurrencySymbol
-mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol $ scriptHashToBytes h
+mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol <<< unwrap $
+  scriptHashToBytes h
 
 getCurrencySymbol :: CurrencySymbol -> ByteArray
 getCurrencySymbol (CurrencySymbol curSymbol) = curSymbol
@@ -75,11 +77,11 @@ mkCurrencySymbol byteArr
   | byteArr == mempty =
       pure adaSymbol
   | otherwise =
-      scriptHashFromBytes byteArr $> CurrencySymbol byteArr
+      scriptHashFromBytes (wrap byteArr) $> CurrencySymbol byteArr
 
 --------------------------------------------------------------------------------
 -- Internal
 --------------------------------------------------------------------------------
 
 currencyScriptHash :: CurrencySymbol -> Maybe ScriptHash
-currencyScriptHash = scriptHashFromBytes <<< getCurrencySymbol
+currencyScriptHash = scriptHashFromBytes <<< wrap <<< getCurrencySymbol
