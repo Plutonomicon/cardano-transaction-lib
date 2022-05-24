@@ -34,6 +34,7 @@ import Serialization.Types (AssetName) as CSL
 import ToData (class ToData)
 import Types.ByteArray (ByteArray, byteLength, hexToByteArray)
 import Types.CborBytes (CborBytes, cborBytesToHex)
+import Types.RawBytes (rawBytesToHex)
 
 newtype TokenName = TokenName CborBytes
 
@@ -48,7 +49,7 @@ instance DecodeAeson TokenName where
   decodeAeson = caseAesonObject
     (Left $ TypeMismatch "Expected object")
     ( note (TypeMismatch "Invalid TokenName") <<< mkTokenName
-        <=< note (TypeMismatch "Invalid ByteArray") <<< hexToByteArray
+        <=< note (TypeMismatch "Invalid ByteArray") <<< (hexToByteArray <<< rawBytesToHex)
         <=< flip getField "unTokenName"
     )
 
