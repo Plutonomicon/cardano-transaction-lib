@@ -7,6 +7,7 @@ module QueryM
   , DispatchError(JsError, JsonError)
   , FeeEstimate(..)
   , FinalizedTransaction(..)
+  , HashedData(..)
   , module ServerConfig
   , ListenerSet
   , PendingRequests
@@ -23,23 +24,24 @@ module QueryM
   , allowError
   , applyArgs
   , calculateMinFee
+  , datumHash
   , traceQueryConfig
   , evalTxExecutionUnits
   , finalizeTx
   , getWalletAddress
   , getChainTip
   , getWalletCollateral
+  , hashData
+  , hashScript
   , listeners
   , mkDatumCacheWebSocketAff
   , mkOgmiosRequest
-  , mkServerEndpointUrl
   , mkOgmiosWebSocketAff
   , ownPaymentPubKeyHash
   , ownPubKeyHash
   , ownStakePubKeyHash
   , runQueryM
   , signTransaction
-  , scriptToAeson
   , signTransactionBytes
   , submitTxWallet
   , submitTxOgmios
@@ -66,6 +68,7 @@ import Aeson
   )
 import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
+import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Cardano.Types.Transaction (Transaction(Transaction))
 import Cardano.Types.Transaction as Transaction
@@ -81,10 +84,12 @@ import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, isRight, note, hush)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
+import Data.HTTP.Method (Method(POST))
 import Data.Log.Level (LogLevel(Trace, Debug, Error))
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe, maybe')
+import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse, traverse_, for)
@@ -151,12 +156,13 @@ import Serialization.Address
   , baseAddressPaymentCred
   , stakeCredentialToKeyHash
   )
+import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.CborBytes (CborBytes)
 import Types.Chain as Chain
-import Types.Datum (DataHash, Datum)
+import Types.Datum (DataHash(DataHash), Datum)
 import Types.Interval (SlotConfig, defaultSlotConfig)
 import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
@@ -502,13 +508,43 @@ finalizeTx tx datums redeemers = do
       }
   url <- mkServerEndpointUrl "finalize"
   -- get response json
-  jsonBody <-
-    liftAff
-      ( Affjax.post Affjax.ResponseFormat.string url
-          (Just $ Affjax.RequestBody.String $ stringifyAeson $ encodeAeson body)
-      ) <#> map \x -> x.body
+  jsonBody <- liftAff (postAeson url (encodeAeson body)) <#> map _.body
   -- decode
   pure $ hush <<< (decodeAeson <=< parseJsonStringToAeson) =<< hush jsonBody
+
+newtype HashedData = HashedData ByteArray
+
+derive instance Newtype HashedData _
+derive instance Generic HashedData _
+
+instance Show HashedData where
+  show = genericShow
+
+instance DecodeAeson HashedData where
+  decodeAeson =
+    map HashedData <<<
+      caseAesonString (Left err) (note err <<< hexToByteArray)
+    where
+    err :: JsonDecodeError
+    err = TypeMismatch "Expected hex bytes (raw) of hashed data"
+
+hashData :: Datum -> QueryM (Maybe HashedData)
+hashData datum = do
+  body <-
+    liftEffect $ byteArrayToHex <<< Serialization.toBytes <<< asOneOf
+      <$> maybe'
+        (const $ throw $ "Failed to convert plutus data: " <> show datum)
+        pure
+        (Serialization.convertPlutusData $ unwrap datum)
+  url <- mkServerEndpointUrl "hash-data"
+  -- get response json
+  jsonBody <- liftAff (postAeson url (encodeAeson body)) <#> map _.body
+  -- decode
+  pure $ hush <<< (decodeAeson <=< parseJsonStringToAeson) =<< hush jsonBody
+
+-- | Hashes an Plutus-style Datum
+datumHash :: Datum -> QueryM (Maybe DataHash)
+datumHash = map (map (DataHash <<< unwrap)) <<< hashData
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
@@ -523,20 +559,14 @@ applyArgs script args = case traverse plutusDataToAeson args of
   Nothing -> pure $ Left $ ClientEncodingError "Failed to convert script args"
   Just ps -> do
     let
-      argsJson :: Aeson
-      argsJson = encodeAeson ps
-
-      reqBody :: Maybe Affjax.RequestBody.RequestBody
-      reqBody = Just
-        $ Affjax.RequestBody.String
-        $ stringifyAeson
-        $ encodeAeson
+      reqBody :: Aeson
+      reqBody = encodeAeson
         $ Object.fromFoldable
             [ "script" /\ scriptToAeson (unwrap script)
-            , "args" /\ argsJson
+            , "args" /\ encodeAeson ps
             ]
     url <- mkServerEndpointUrl "apply-args"
-    liftAff (Affjax.post Affjax.ResponseFormat.string url reqBody)
+    liftAff (postAeson url reqBody)
       <#> either
         (Left <<< ClientHttpError)
         ( lmap ClientDecodeJsonError
@@ -553,6 +583,37 @@ applyArgs script args = case traverse plutusDataToAeson args of
           <<< asOneOf
       )
       <<< Serialization.convertPlutusData
+
+hashScript
+  :: forall (a :: Type) (b :: Type)
+   . Newtype a PlutusScript
+  => Newtype b ScriptHash
+  => a
+  -> QueryM (Either ClientError b)
+hashScript script = do
+  url <- mkServerEndpointUrl "hash-script"
+  let
+    reqBody :: Aeson
+    reqBody = scriptToAeson $ unwrap script
+
+  liftAff (postAeson url reqBody)
+    <#> either
+      (Left <<< ClientHttpError)
+      ( bimap ClientDecodeJsonError wrap
+          <<< (decodeAeson <=< parseJsonStringToAeson)
+          <<< _.body
+      )
+
+-- We can't use Affjax's typical `post`, since there will be a mismatch between
+-- the media type header and the request body
+postAeson :: Url -> Aeson -> Aff (Either Affjax.Error (Affjax.Response String))
+postAeson url body = Affjax.request $ Affjax.defaultRequest
+  { method = Left POST
+  , content = Just $ Affjax.RequestBody.String $ stringifyAeson body
+  , url = url
+  , responseFormat = Affjax.ResponseFormat.string
+  , headers = [ Affjax.RequestHeader.ContentType applicationJSON ]
+  }
 
 -- It's easier to just write the encoder here than provide an `EncodeJson`
 -- instance (there are some brutal cyclical dependency issues trying to
