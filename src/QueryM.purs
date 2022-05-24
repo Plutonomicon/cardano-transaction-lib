@@ -37,11 +37,13 @@ module QueryM
   , mkDatumCacheWebSocketAff
   , mkOgmiosRequest
   , mkOgmiosWebSocketAff
+  , mkServerEndpointUrl
   , ownPaymentPubKeyHash
   , ownPubKeyHash
   , ownStakePubKeyHash
   , runQueryM
   , signTransaction
+  , scriptToAeson
   , signTransactionBytes
   , submitTxWallet
   , submitTxOgmios
