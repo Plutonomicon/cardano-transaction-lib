@@ -652,11 +652,13 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
   evaluateTxDispatchMap <- createMutableDispatch
   submitDispatchMap <- createMutableDispatch
   eraSummariesDispatchMap <- createMutableDispatch
+  currentEpochDispatchMap <- createMutableDispatch
   utxoPendingRequests <- createPendingRequests
   chainTipPendingRequests <- createPendingRequests
   evaluateTxPendingRequests <- createPendingRequests
   submitPendingRequests <- createPendingRequests
   eraSummariesPendingRequests <- createPendingRequests
+  currentEpochPendingRequests <- createPendingRequests
   let
     md = ogmiosMessageDispatch
       { utxoDispatchMap
@@ -664,6 +666,7 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       , evaluateTxDispatchMap
       , submitDispatchMap
       , eraSummariesDispatchMap
+      , currentEpochDispatchMap
       }
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   let
@@ -675,6 +678,7 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       Ref.read evaluateTxPendingRequests >>= traverse_ sendRequest
       Ref.read submitPendingRequests >>= traverse_ sendRequest
       Ref.read eraSummariesPendingRequests >>= traverse_ sendRequest
+      Ref.read currentEpochPendingRequests >>= traverse_ sendRequest
   _onWsConnect ws do
     _wsWatch ws (logger Debug) onError
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
@@ -684,8 +688,10 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       , chainTip: mkListenerSet chainTipDispatchMap chainTipPendingRequests
       , evaluate: mkListenerSet evaluateTxDispatchMap evaluateTxPendingRequests
       , submit: mkListenerSet submitDispatchMap submitPendingRequests
-      , eraSummaries: mkListenerSet eraSummariesDispatchMap
-          eraSummariesPendingRequests
+      , eraSummaries:
+          mkListenerSet eraSummariesDispatchMap eraSummariesPendingRequests
+      , currentEpoch:
+          mkListenerSet currentEpochDispatchMap currentEpochPendingRequests
       }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
@@ -765,6 +771,7 @@ type OgmiosListeners =
   , submit :: ListenerSet { txCbor :: ByteArray } Ogmios.SubmitTxR
   , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationR
   , eraSummaries :: ListenerSet Unit Ogmios.EraSummariesQR
+  , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpochQR
   }
 
 type DatumCacheListeners =
@@ -889,6 +896,7 @@ ogmiosMessageDispatch
      , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationR
      , submitDispatchMap :: DispatchIdMap Ogmios.SubmitTxR
      , eraSummariesDispatchMap :: DispatchIdMap Ogmios.EraSummariesQR
+     , currentEpochDispatchMap :: DispatchIdMap Ogmios.CurrentEpochQR
      }
   -> Array WebsocketDispatch
 ogmiosMessageDispatch
@@ -897,12 +905,14 @@ ogmiosMessageDispatch
   , evaluateTxDispatchMap
   , submitDispatchMap
   , eraSummariesDispatchMap
+  , currentEpochDispatchMap
   } =
   [ queryDispatch utxoDispatchMap
   , queryDispatch chainTipDispatchMap
   , queryDispatch evaluateTxDispatchMap
   , queryDispatch submitDispatchMap
   , queryDispatch eraSummariesDispatchMap
+  , queryDispatch currentEpochDispatchMap
   ]
 
 datumCacheMessageDispatch

@@ -5,6 +5,7 @@ module QueryM.Ogmios
   , ChainOrigin(..)
   , ChainPoint(..)
   , ChainTipQR(..)
+  , CurrentEpochQR(..)
   , Epoch(..)
   , EpochLength(..)
   , EraSummariesQR(..)
@@ -25,6 +26,7 @@ module QueryM.Ogmios
   , UtxoQueryResult(..)
   , evaluateTxCall
   , queryChainTipCall
+  , queryCurrentEpochCall
   , queryEraSummariesCall
   , queryUtxosAtCall
   , queryUtxosCall
@@ -85,6 +87,14 @@ import Untagged.Union (type (|+|), toEither1)
 
 -- LOCAL STATE QUERY PROTOCOL
 -- https://ogmios.dev/mini-protocols/local-state-query/
+
+-- | Queries Ogmios for the current epoch
+queryCurrentEpochCall :: JsonWspCall Unit CurrentEpochQR
+queryCurrentEpochCall = mkOgmiosCallType
+  { methodname: "Query"
+  , args: const { query: "currentEpoch" }
+  }
+  Proxy
 
 -- | Queries Ogmios for an array of era summaries, used for Slot arithmetic.
 queryEraSummariesCall :: JsonWspCall Unit EraSummariesQR
@@ -172,6 +182,16 @@ instance DecodeAeson SubmitTxR where
   decodeAeson = aesonObject $
     \o -> getField o "SubmitSuccess" >>= flip getField "txId" >>= hexToByteArray
       >>> maybe (Left (TypeMismatch "Expected hexstring")) (pure <<< wrap)
+
+---------------- CURRENT EPOCH QUERY RESPONSE & PARSING
+newtype CurrentEpochQR = CurrentEpochQR BigInt
+
+derive instance Generic CurrentEpochQR _
+derive instance Newtype CurrentEpochQR _
+derive newtype instance DecodeAeson CurrentEpochQR
+
+instance Show CurrentEpochQR where
+  show = genericShow
 
 ---------------- ERA SUMMARY QUERY RESPONSE & PARSING
 

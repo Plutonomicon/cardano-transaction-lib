@@ -19,6 +19,7 @@ import QueryM
   , startFetchBlocks
   , traceQueryConfig
   )
+import QueryM.CurrentEpoch (getCurrentEpoch)
 import QueryM.EraSummaries (getEraSummaries)
 import QueryM.Ogmios (OgmiosAddress)
 import QueryM.Utxos (utxosAt)
@@ -49,6 +50,7 @@ suite = do
     test "UtxosAt non-Testnet" $ testUtxosAt addr1
     test "Get ChainTip" testGetChainTip
     test "Get EraSummaries" testGetEraSummaries
+    test "Get CurentEpoch" testGetCurrentEpoch
   -- Test inverse in one direction.
   group "Address loop" do
     test "Ogmios Address to Address & back Testnet"
@@ -114,3 +116,7 @@ testFromOgmiosAddress testAddr = do
 testGetEraSummaries :: Aff Unit
 testGetEraSummaries = do
   flip runQueryM (getEraSummaries $> unit) =<< traceQueryConfig
+
+testGetCurrentEpoch :: Aff Unit
+testGetCurrentEpoch = do
+  flip runQueryM (getCurrentEpoch $> unit) =<< traceQueryConfig
