@@ -11,7 +11,15 @@ module Types.Rational
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, JsonDecodeError(UnexpectedValue), caseAesonObject, encodeAeson', toStringifiedNumbersJson, (.:))
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , JsonDecodeError(UnexpectedValue)
+  , caseAesonObject
+  , encodeAeson'
+  , toStringifiedNumbersJson
+  , (.:)
+  )
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt) as BigInt
 import Data.Either (Either(Left))
@@ -34,26 +42,29 @@ derive newtype instance Eq Rational
 derive newtype instance Ord Rational
 derive newtype instance Semiring Rational
 
-type RationalRep a  =
-     { numerator :: a
-      , denominator :: a
-      }
+type RationalRep a =
+  { numerator :: a
+  , denominator :: a
+  }
 
 instance EncodeAeson Rational where
   encodeAeson' r = encodeAeson'
-    (  { "numerator":  numerator r
-       , "denominator": denominator r
-       }
+    ( { "numerator": numerator r
+      , "denominator": denominator r
+      }
     )
 
 instance DecodeAeson Rational where
   decodeAeson aes = caseAesonObject
     (Left <<< UnexpectedValue <<< toStringifiedNumbersJson $ aes)
-    (\obj -> do
+    ( \obj -> do
         (n :: BigInt) <- obj .: "numerator"
         d <- obj .: "denominator"
-        maybe (Left <<< UnexpectedValue <<< toStringifiedNumbersJson $ aes) pure $ n % d
-    ) aes
+        maybe (Left <<< UnexpectedValue <<< toStringifiedNumbersJson $ aes) pure
+          $ n % d
+    )
+    aes
+
 {-
 instance EuclideanRing Rational where
   degree _ = one
