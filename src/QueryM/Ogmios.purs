@@ -1,9 +1,11 @@
 -- | Provides types and instances to create Ogmios requests and decode
 -- | its responses.
 module QueryM.Ogmios
-  ( ChainOrigin(..)
+  ( AbsSlot(..)
+  , ChainOrigin(..)
   , ChainPoint(..)
   , ChainTipQR(..)
+  , Epoch(..)
   , EraSummariesQR(..)
   , EraSummary(..)
   , EraSummaryParameters(..)
@@ -12,11 +14,12 @@ module QueryM.Ogmios
   , OgmiosBlockHeaderHash(..)
   , OgmiosTxOut(..)
   , OgmiosTxOutRef(..)
+  , RelativeTime(..)
   , SubmitTxR(..)
   , TxEvaluationR(..)
   , TxHash
-  , UtxoQueryResult(..)
   , UtxoQR(..)
+  , UtxoQueryResult(..)
   , evaluateTxCall
   , queryChainTipCall
   , queryEraSummariesCall
@@ -205,11 +208,11 @@ instance DecodeAeson EraSummary where
     pure $ wrap { start, end, parameters }
 
 newtype EraSummaryTime = EraSummaryTime
-  { time :: BigInt -- 0-18446744073709552000, A time in seconds relative to
+  { time :: RelativeTime -- 0-18446744073709552000, A time in seconds relative to
   -- another one (typically, system start or era start).
-  , slot :: BigInt -- 0-18446744073709552000, An absolute slot number. don't
-  -- use `Slot` because Slot is bounded by UInt ~ 0-4294967295
-  , epoch :: BigInt -- 0-18446744073709552000, an epoch number or length, don't
+  , slot :: AbsSlot -- 0-18446744073709552000, An absolute slot number. don't
+  -- use `Slot` because Slot is bounded by UInt ~ 0-4294967295 (~136 years)
+  , epoch :: Epoch -- 0-18446744073709552000, an epoch number or length, don't
   -- use `Epoch` because Epoch is bounded by UInt also.
   }
 
@@ -221,10 +224,37 @@ instance Show EraSummaryTime where
 
 instance DecodeAeson EraSummaryTime where
   decodeAeson = aesonObject $ \o -> do
-    time <- parseFieldToBigInt o "time"
-    slot <- parseFieldToBigInt o "slot"
-    epoch <- parseFieldToBigInt o "epoch"
+    time <- getField o "time"
+    slot <- getField o "slot"
+    epoch <- getField o "epoch"
     pure $ wrap { time, slot, epoch }
+
+newtype RelativeTime = RelativeTime BigInt
+
+derive instance Generic RelativeTime _
+derive instance Newtype RelativeTime _
+derive newtype instance DecodeAeson RelativeTime
+
+instance Show RelativeTime where
+  show = genericShow
+
+newtype AbsSlot = AbsSlot BigInt
+
+derive instance Generic AbsSlot _
+derive instance Newtype AbsSlot _
+derive newtype instance DecodeAeson AbsSlot
+
+instance Show AbsSlot where
+  show = genericShow
+
+newtype Epoch = Epoch BigInt
+
+derive instance Generic Epoch _
+derive instance Newtype Epoch _
+derive newtype instance DecodeAeson Epoch
+
+instance Show Epoch where
+  show = genericShow
 
 newtype EraSummaryParameters = EraSummaryParameters
   { epochLength :: BigInt -- 0-18446744073709552000 An epoch number or length.
@@ -243,9 +273,9 @@ instance Show EraSummaryParameters where
 
 instance DecodeAeson EraSummaryParameters where
   decodeAeson = aesonObject $ \o -> do
-    epochLength <- parseFieldToBigInt o "epochLength"
-    slotLength <- parseFieldToBigInt o "slotLength"
-    safeZone <- parseFieldToBigInt o "safeZone"
+    epochLength <- getField o "epochLength"
+    slotLength <- getField o "slotLength"
+    safeZone <- getField o "safeZone"
     pure $ wrap { epochLength, slotLength, safeZone }
 
 ---------------- TX EVALUATION QUERY RESPONSE & PARSING
@@ -303,7 +333,7 @@ instance Show ChainOrigin where
 
 -- | A point on the chain, identified by a slot and a block header hash
 type ChainPoint =
-  { slot :: BigInt -- I think we need to use `BigInt` here, 18446744073709552000
+  { slot :: AbsSlot -- I think we need to use `AbsSlot` here, 18446744073709552000
   -- is outside of `Slot` range.
   , hash :: OgmiosBlockHeaderHash
   }
