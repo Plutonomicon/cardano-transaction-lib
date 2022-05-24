@@ -199,6 +199,7 @@ newtype SystemStartQR = SystemStartQR String
 derive instance Generic SystemStartQR _
 derive instance Newtype SystemStartQR _
 derive newtype instance DecodeAeson SystemStartQR
+derive newtype instance Eq SystemStartQR
 
 instance Show SystemStartQR where
   show = genericShow
@@ -209,6 +210,8 @@ newtype CurrentEpochQR = CurrentEpochQR BigInt
 derive instance Generic CurrentEpochQR _
 derive instance Newtype CurrentEpochQR _
 derive newtype instance DecodeAeson CurrentEpochQR
+derive newtype instance Eq CurrentEpochQR
+derive newtype instance Ord CurrentEpochQR
 
 instance Show CurrentEpochQR where
   show = genericShow
@@ -276,6 +279,8 @@ newtype RelativeTime = RelativeTime BigInt
 
 derive instance Generic RelativeTime _
 derive instance Newtype RelativeTime _
+derive newtype instance Eq RelativeTime
+derive newtype instance Ord RelativeTime
 derive newtype instance DecodeAeson RelativeTime
 
 instance Show RelativeTime where
@@ -286,6 +291,8 @@ newtype AbsSlot = AbsSlot BigInt
 
 derive instance Generic AbsSlot _
 derive instance Newtype AbsSlot _
+derive newtype instance Eq AbsSlot
+derive newtype instance Ord AbsSlot
 derive newtype instance DecodeAeson AbsSlot
 
 instance Show AbsSlot where
@@ -295,6 +302,8 @@ newtype Epoch = Epoch BigInt
 
 derive instance Generic Epoch _
 derive instance Newtype Epoch _
+derive newtype instance Eq Epoch
+derive newtype instance Ord Epoch
 derive newtype instance DecodeAeson Epoch
 
 instance Show Epoch where

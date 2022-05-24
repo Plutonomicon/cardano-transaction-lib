@@ -14,11 +14,12 @@ module Helpers
   , liftEither
   , liftM
   , liftMWith
-  , maybeArrayMerge
-  , uIntToBigInt
-  , notImplemented
-  , logWithLevel
+  , liftedM
   , logString
+  , logWithLevel
+  , maybeArrayMerge
+  , notImplemented
+  , uIntToBigInt
   ) where
 
 import Prelude
@@ -65,6 +66,15 @@ liftEither = either throwError pure
 
 fromRightEff :: forall (a :: Type) (e :: Type). Show e => Either e a -> Effect a
 fromRightEff = either (throw <<< show) pure
+
+-- | Given an error and a lifted `Maybe` value.
+liftedM
+  :: forall (e :: Type) (m :: Type -> Type) (a :: Type)
+   . MonadError e m
+  => e
+  -> m (Maybe a)
+  -> m a
+liftedM err mma = mma >>= maybe (throwError err) Right >>> liftEither
 
 -- | Given an error and a `Maybe` value, lift the context via `liftEither`.
 liftM
