@@ -57,15 +57,15 @@ data Wallet
 
 type KeyWallet' =
   { address :: Address
-  , collateral :: TransactionUnspentOutput
+  --, collateral :: TransactionUnspentOutput
   , signTx :: Transaction -> Aff Transaction
   }
 
-mkKeyWallet :: Address -> TransactionUnspentOutput -> PrivateKey -> Wallet
-mkKeyWallet address collateral key =
+mkKeyWallet :: Address -> {-TransactionUnspentOutput ->-} PrivateKey -> Wallet
+mkKeyWallet address {-collateral-} key =
   KeyWallet
     { address
-    , collateral
+    --, collateral
     , signTx
     }
   where

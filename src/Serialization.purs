@@ -10,6 +10,7 @@ module Serialization
   , hashTransaction
   , publicKeyHash
   , publicKeyFromBech32
+  , privateKeyFromBytes
   , makeVkeywitness
   ) where
 
@@ -207,6 +208,8 @@ foreign import addVkeywitness :: Vkeywitnesses -> Vkeywitness -> Effect Unit
 foreign import newVkeyFromPublicKey :: PublicKey -> Effect Vkey
 foreign import _publicKeyFromBech32
   :: MaybeFfiHelper -> Bech32String -> Effect (Maybe PublicKey)
+foreign import _privateKeyFromBytes
+  :: MaybeFfiHelper -> ByteArray -> Effect (Maybe PrivateKey)
 
 foreign import publicKeyHash :: PublicKey -> Ed25519KeyHash
 foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
@@ -584,6 +587,9 @@ convertWithdrawals mp =
 
 publicKeyFromBech32 :: Bech32String -> Effect (Maybe PublicKey)
 publicKeyFromBech32 = _publicKeyFromBech32 maybeFfiHelper
+
+privateKeyFromBytes :: ByteArray -> Effect (Maybe PrivateKey)
+privateKeyFromBytes = _privateKeyFromBytes maybeFfiHelper
 
 convertCerts :: Array T.Certificate -> Effect Certificates
 convertCerts certs = do

@@ -28,12 +28,19 @@ import Contract.Transaction
   )
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
-import Contract.Wallet (mkNamiWalletAff)
+--import Contract.Wallet (mkNamiWalletAff)
+import Serialization.Address (addressFromBech32)
+import Serialization (privateKeyFromBytes)
+import Types.ByteArray (hexToByteArray)
+import Wallet (mkKeyWallet)
 import Data.BigInt as BigInt
 
 main :: Effect Unit
 main = launchAff_ $ do
-  wallet <- Just <$> mkNamiWalletAff
+  -- wallet <- Just <$> mkNamiWalletAff
+  priv <- liftEffect $ map join $ traverse privateKeyFromBytes $ hexToByteArray "8f093aa4103fb26121148fd2ece4dd1d775be9113dfa374bcb4817b36356180b"
+  let pub = addressFromBech32 "addr_test1vrh5y2r5f8mhhjtjvl02y7um25kgwcsl7wfaeu7h53erhcg0uzan9"
+      wallet = mkKeyWallet <$> pub <*> priv
   cfg <- mkContractConfig $ ConfigParams
     { ogmiosConfig: defaultOgmiosWsConfig
     , datumCacheConfig: defaultDatumCacheWsConfig
@@ -53,7 +60,7 @@ main = launchAff_ $ do
       constraints :: Constraints.TxConstraints Void Void
       constraints = Constraints.mustPayToPubKey pkh
         $ Value.lovelaceValueOf
-        $ BigInt.fromInt 2_000_000
+        $ BigInt.fromInt 5 -- 2_000_000
 
       lookups :: Lookups.ScriptLookups Void
       lookups = mempty

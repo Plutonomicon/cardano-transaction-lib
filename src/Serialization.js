@@ -108,6 +108,14 @@ exports._publicKeyFromBech32 = maybe => bech32 => () => {
     }
 };
 
+exports._privateKeyFromBytes = maybe => bytes => () => {
+    try {
+        return maybe.just(lib.PrivateKey.from_normal_bytes(bytes));
+    } catch (_) {
+        return maybe.nothing;
+    }
+};
+
 exports.publicKeyHash = pk => pk.hash();
 
 exports.newEd25519Signature = bech32 => () =>

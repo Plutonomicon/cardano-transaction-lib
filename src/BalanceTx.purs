@@ -19,6 +19,7 @@ module BalanceTx
 
 import Prelude
 
+import Wallet (Wallet(Nami))
 import Cardano.Types.Transaction
   ( Redeemer(Redeemer)
   , Transaction(Transaction)
@@ -53,7 +54,7 @@ import Cardano.Types.Value
   , valueToCoin
   , Value
   )
-import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
+import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT, throwError)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
@@ -387,11 +388,15 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     -- Get own wallet address, collateral and utxo set:
     ownAddr <- ExceptT $ getWalletAddress <#>
       note (GetWalletAddressError' CouldNotGetNamiWalletAddress)
-    collateral <- ExceptT $ getWalletCollateral <#>
-      note (GetWalletCollateralError' CouldNotGetNamiCollateral)
+    wallet <- asks _.wallet
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
-
+    collateral <- case wallet of
+      Just (Nami _) -> ExceptT $ getWalletCollateral <#>
+          note (GetWalletCollateralError' CouldNotGetNamiCollateral)
+      _ | [input /\ output] <- Map.toUnfoldable utxos -> pure $ TransactionUnspentOutput { input, output }
+      -- TODO Better error
+      _ -> throwError (GetWalletAddressError' CouldNotGetNamiWalletAddress)
     let
       -- Combines utxos at the user address and those from any scripts
       -- involved with the contract in the unbalanced transaction.
