@@ -4,6 +4,7 @@ module Contract.Transaction
   ( BalancedSignedTransaction(..)
   , balanceAndSignTx
   , balanceTx
+  , balanceTxs      
   , balanceTxM
   , calculateMinFee
   , calculateMinFeeM
@@ -29,15 +30,19 @@ import BalanceTx (UnattachedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
 import BalanceTx (BalanceTxError) as BalanceTxError
 import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
+import Control.Monad.Reader (class MonadAsk, ReaderT, withReaderT)
+import Control.Monad.Trans.Class (lift)
 import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
+import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested (type (/\), (/\))
 import QueryM
-  ( FeeEstimate(FeeEstimate)
+  ( QueryConfig
+  , FeeEstimate(FeeEstimate)
   , ClientError(..) -- implicit as this error list will likely increase.
   , FinalizedTransaction(FinalizedTransaction)
   ) as ExportQueryM
@@ -60,6 +65,7 @@ import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
   , mkUnbalancedTx
   ) as ScriptLookups
+import Types.UsedTxOuts (lockTransactionInputs)
 import Cardano.Types.Transaction (Transaction, _body, _inputs)
 import Cardano.Types.Transaction -- Most re-exported, don't re-export `Redeemer` and associated lens.
   ( AuxiliaryData(AuxiliaryData)
@@ -200,6 +206,27 @@ calculateMinFee = (map <<< map) (unwrap <<< toPlutusType)
 calculateMinFeeM
   :: forall (r :: Row Type). Transaction -> Contract r (Maybe Coin)
 calculateMinFeeM = map hush <<< calculateMinFee
+
+balanceTxs
+  :: forall
+       (t :: Type -> Type)
+       (r :: Row Type)
+   . (Traversable t)
+  => t UnattachedUnbalancedTx
+  -> Contract r (t (Either BalanceTxError.BalanceTxError UnattachedTransaction))
+balanceTxs = do
+  _ <- traverse lock
+  ts' <- traverse balanceTx
+  _ <- traverse lock
+  pure ts'
+  where
+--  lock :: . Transaction -> Contract r Unit
+  lock tx = lift $ withReaderT _.usedTxOuts (lockTransactionInputs
+                                             $ _.transaction
+                                             $ unwrap
+                                             $ _.unbalancedTx
+                                             $ unwrap
+                                             $ tx)
 
 -- | Attempts to balance an `UnattachedUnbalancedTx`.
 balanceTx
