@@ -17,7 +17,6 @@ import Aeson
   , decodeAeson
   , encodeAeson
   , parseJsonStringToAeson
-  , stringifyAeson
   , toStringifiedNumbersJson
   )
 import Affjax as Affjax
@@ -28,7 +27,7 @@ import Control.Monad.Reader.Trans (asks)
 import Data.Bifunctor (bimap, lmap)
 import Data.Either (Either(Left), hush, note, either)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(Just), maybe')
+import Data.Maybe (Maybe, maybe')
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Effect.Aff.Class (liftAff)
@@ -38,6 +37,7 @@ import QueryM
   ( ClientError(ClientHttpError, ClientDecodeJsonError)
   , QueryM
   , mkServerEndpointUrl
+  , postAeson
   , scriptToAeson
   )
 import QueryM.ServerConfig (mkHttpUrl)
@@ -45,9 +45,8 @@ import Serialization (toBytes) as Serialization
 import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
-import Types.Datum (Datum, DataHash)
+import Types.Datum (Datum, DataHash(DataHash))
 import Types.Scripts (PlutusScript)
-import Types.Transaction as Transaction
 import Untagged.Union (asOneOf)
 
 data HashMethod
@@ -79,6 +78,7 @@ plutusHash meth bytes = do
 
     reqBody :: Affjax.RequestBody.RequestBody
     reqBody = Affjax.RequestBody.Json $ toStringifiedNumbersJson $ encodeAeson
+      -- FIXME: if this breaks something it might be because the numbers are put in quotes? 
       requestJson
   response <- liftAff
     (Affjax.post Affjax.ResponseFormat.string url (pure reqBody))
@@ -96,22 +96,19 @@ hashData :: Datum -> QueryM (Maybe HashedData)
 hashData datum = do
   body <-
     liftEffect $ byteArrayToHex <<< Serialization.toBytes <<< asOneOf
-      <$> maybe' (\_ -> throw $ "Failed to convert plutus data: " <> show datum)
+      <$> maybe'
+        (const $ throw $ "Failed to convert plutus data: " <> show datum)
         pure
         (Serialization.convertPlutusData $ unwrap datum)
   url <- mkServerEndpointUrl "hash-data"
   -- get response json
-  jsonBody <-
-    liftAff
-      ( Affjax.post Affjax.ResponseFormat.string url
-          (Just $ Affjax.RequestBody.String $ stringifyAeson $ encodeAeson body)
-      ) <#> map \x -> x.body
+  jsonBody <- liftAff (postAeson url (encodeAeson body)) <#> map _.body
   -- decode
   pure $ hush <<< (decodeAeson <=< parseJsonStringToAeson) =<< hush jsonBody
 
 -- | Hashes an Plutus-style Datum
 datumHash :: Datum -> QueryM (Maybe DataHash)
-datumHash = map (map (Transaction.DataHash <<< unwrap)) <<< hashData
+datumHash = map (map (DataHash <<< unwrap)) <<< hashData
 
 newtype HashedData = HashedData ByteArray
 
@@ -138,17 +135,13 @@ hashScript
 hashScript script = do
   url <- mkServerEndpointUrl "hash-script"
   let
-    reqBody :: Maybe Affjax.RequestBody.RequestBody
-    reqBody = Just
-      $ Affjax.RequestBody.String
-      $ stringifyAeson
-      $ scriptToAeson
-      $ unwrap script
-  liftAff (Affjax.post Affjax.ResponseFormat.string url reqBody)
+    reqBody :: Aeson
+    reqBody = scriptToAeson $ unwrap script
+
+  liftAff (postAeson url reqBody)
     <#> either
       (Left <<< ClientHttpError)
       ( bimap ClientDecodeJsonError wrap
           <<< (decodeAeson <=< parseJsonStringToAeson)
           <<< _.body
       )
-

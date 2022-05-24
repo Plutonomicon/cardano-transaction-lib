@@ -24,7 +24,7 @@ import Data.Char (toCharCode)
 import Data.Either (Either(Left), note)
 import Data.Map (Map)
 import Data.Map (fromFoldable) as Map
-import Data.Maybe (Maybe(Nothing,Just))
+import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (wrap)
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested (type (/\))
@@ -33,7 +33,14 @@ import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Serialization.Types (AssetName) as CSL
 import ToData (class ToData)
-import Types.ByteArray (ByteArray, byteLength, byteArrayToUTF16le, hexToByteArray, byteArrayFromAscii, byteArrayFromInt16ArrayUnsafe)
+import Types.ByteArray
+  ( ByteArray
+  , byteLength
+  , byteArrayToUTF16le
+  , hexToByteArray
+  , byteArrayFromAscii
+  , byteArrayFromInt16ArrayUnsafe
+  )
 import Types.CborBytes (CborBytes, cborBytesToHex, cborBytesToByteArray)
 import Data.String.CodeUnits (toCharArray)
 
@@ -49,15 +56,21 @@ derive newtype instance ToData TokenName
 instance DecodeAeson TokenName where
   decodeAeson = caseAesonObject
     (Left $ TypeMismatch "Expected object")
-    (\aes -> do
+    ( \aes -> do
         tkstr <- getField aes "unTokenName"
-        case (mkTokenName <<<  (byteArrayFromInt16ArrayUnsafe <<< map toCharCode <<< toCharArray)) tkstr of
+        case
+          ( mkTokenName <<<
+              (byteArrayFromInt16ArrayUnsafe <<< map toCharCode <<< toCharArray)
+          ) tkstr
+          of
           Nothing -> Left $ TypeMismatch "Invalid TokenName"
-          Just tknm -> pure tknm)
-      --  note (TypeMismatch "Invalid TokenName") <<< mkTokenName
-      --  <=< note (TypeMismatch "Invalid ByteArray") <<< (hexToByteArray <<< )
-      --  <=< flip getField "unTokenName"
-      --  )
+          Just tknm -> pure tknm
+    )
+
+--  note (TypeMismatch "Invalid TokenName") <<< mkTokenName
+--  <=< note (TypeMismatch "Invalid ByteArray") <<< (hexToByteArray <<< )
+--  <=< flip getField "unTokenName"
+--  )
 
 instance EncodeAeson TokenName where
   encodeAeson' (TokenName ba) = encodeAeson'

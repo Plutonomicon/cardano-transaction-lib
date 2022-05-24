@@ -26,7 +26,7 @@ import Aeson
   , caseAesonString
   , toStringifiedNumbersJson
   )
-import Data.ArrayBuffer.Types (Uint8Array,Uint16Array)
+import Data.ArrayBuffer.Types (Uint8Array, Uint16Array)
 import Data.Char (toCharCode)
 import Data.Either (Either(Left), note)
 import Data.Maybe (Maybe(Just, Nothing))

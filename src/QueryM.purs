@@ -7,7 +7,6 @@ module QueryM
   , DispatchError(JsError, JsonError)
   , FeeEstimate(..)
   , FinalizedTransaction(..)
-  , HashedData(..)
   , module ServerConfig
   , ListenerSet
   , PendingRequests
@@ -24,16 +23,14 @@ module QueryM
   , allowError
   , applyArgs
   , calculateMinFee
-  , datumHash
   , traceQueryConfig
   , evalTxExecutionUnits
   , finalizeTx
   , getWalletAddress
   , getChainTip
   , getWalletCollateral
-  , hashData
-  , hashScript
   , listeners
+  , postAeson
   , mkDatumCacheWebSocketAff
   , mkOgmiosRequest
   , mkOgmiosWebSocketAff
@@ -158,13 +155,12 @@ import Serialization.Address
   , baseAddressPaymentCred
   , stakeCredentialToKeyHash
   )
-import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.CborBytes (CborBytes)
 import Types.Chain as Chain
-import Types.Datum (DataHash(DataHash), Datum)
+import Types.Datum (DataHash, Datum)
 import Types.Interval (SlotConfig, defaultSlotConfig)
 import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
@@ -514,40 +510,6 @@ finalizeTx tx datums redeemers = do
   -- decode
   pure $ hush <<< (decodeAeson <=< parseJsonStringToAeson) =<< hush jsonBody
 
-newtype HashedData = HashedData ByteArray
-
-derive instance Newtype HashedData _
-derive instance Generic HashedData _
-
-instance Show HashedData where
-  show = genericShow
-
-instance DecodeAeson HashedData where
-  decodeAeson =
-    map HashedData <<<
-      caseAesonString (Left err) (note err <<< hexToByteArray)
-    where
-    err :: JsonDecodeError
-    err = TypeMismatch "Expected hex bytes (raw) of hashed data"
-
-hashData :: Datum -> QueryM (Maybe HashedData)
-hashData datum = do
-  body <-
-    liftEffect $ byteArrayToHex <<< Serialization.toBytes <<< asOneOf
-      <$> maybe'
-        (const $ throw $ "Failed to convert plutus data: " <> show datum)
-        pure
-        (Serialization.convertPlutusData $ unwrap datum)
-  url <- mkServerEndpointUrl "hash-data"
-  -- get response json
-  jsonBody <- liftAff (postAeson url (encodeAeson body)) <#> map _.body
-  -- decode
-  pure $ hush <<< (decodeAeson <=< parseJsonStringToAeson) =<< hush jsonBody
-
--- | Hashes an Plutus-style Datum
-datumHash :: Datum -> QueryM (Maybe DataHash)
-datumHash = map (map (DataHash <<< unwrap)) <<< hashData
-
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
 applyArgs
@@ -585,26 +547,6 @@ applyArgs script args = case traverse plutusDataToAeson args of
           <<< asOneOf
       )
       <<< Serialization.convertPlutusData
-
-hashScript
-  :: forall (a :: Type) (b :: Type)
-   . Newtype a PlutusScript
-  => Newtype b ScriptHash
-  => a
-  -> QueryM (Either ClientError b)
-hashScript script = do
-  url <- mkServerEndpointUrl "hash-script"
-  let
-    reqBody :: Aeson
-    reqBody = scriptToAeson $ unwrap script
-
-  liftAff (postAeson url reqBody)
-    <#> either
-      (Left <<< ClientHttpError)
-      ( bimap ClientDecodeJsonError wrap
-          <<< (decodeAeson <=< parseJsonStringToAeson)
-          <<< _.body
-      )
 
 -- We can't use Affjax's typical `post`, since there will be a mismatch between
 -- the media type header and the request body
