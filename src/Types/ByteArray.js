@@ -53,6 +53,8 @@ exports.hexToByteArrayUnsafe = hex => {
 
 exports.byteArrayFromIntArrayUnsafe = ints => new Uint8Array(ints);
 
+exports.byteArrayFromInt16ArrayUnsafe = ints => new Uint8Array(ints.buffer, ints.byteOffset, ints.byteLength);
+
 exports.byteArrayFromIntArray_ = nothing => just => ints => {
     if (ints.every(i => i < 256 && i >= 0)) {
         return just(new Uint8Array(ints));
