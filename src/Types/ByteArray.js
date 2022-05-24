@@ -33,8 +33,27 @@ exports.concat_ = xs => ys => {
 exports.byteArrayToHex = arr =>
     Buffer.from(arr).toString('hex');
 
-exports.byteArrayToUTF16le = arr =>
-    Buffer.from(arr).toString('utf16le');
+/* adapted from https://github.com/WebReflection/uint8-to-utf16/blob/master/esm/index.js
+ * (someone who knows javascript should like import that or something)
+ */
+const {ceil} = Math;
+const {fromCharCode} = String;
+
+exports.byteArrayToUTF16le = uint8array => {
+  let extra = 0;
+  const output = [];
+  const {length} = uint8array;
+  const len = ceil(length / 2);
+  for (let j = 0, i = 0; i < len; i++)
+    output.push(
+      fromCharCode(
+        (uint8array[j++] << 8) +
+        (j < length ? uint8array[j++] : extra++)
+      )
+    );
+  output.push(fromCharCode(extra));
+  return output.join('');
+};
 
 exports.hexToByteArray_ = nothing => just => hex => {
     for (var bytes = [], c = 0; c < hex.length; c += 2) {
