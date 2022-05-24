@@ -22,7 +22,7 @@ exports.blake2b256HashHex = bytesToHash =>
 exports.hashPlutusData = plutusData =>
     lib.hash_plutus_data(plutusData).to_bytes();
 
-exports.hashPlutusScript = plutusScriptBytes => {
+exports._hashPlutusScript = plutusScriptBytes => {
     // set Plutus language namespace byte
     let bytes = new Uint8Array([0x1, ...plutusScriptBytes]);
     return Blake2.blake2b(bytes, null, DIGEST_LENGTH_224);

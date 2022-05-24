@@ -108,17 +108,17 @@ applyArgsM a = map hush <<< applyArgs a
 mintingPolicyHash
   :: forall (r :: Row Type)
    . MintingPolicy
-  -> Contract r MintingPolicyHash
+  -> Contract r (Maybe MintingPolicyHash)
 mintingPolicyHash = pure <<< Scripts.mintingPolicyHash
 
 -- | Converts a Plutus-style `StakeValidator` to an `StakeValidatorHash`
 stakeValidatorHash
   :: forall (r :: Row Type)
    . StakeValidator
-  -> Contract r StakeValidatorHash
+  -> Contract r (Maybe StakeValidatorHash)
 stakeValidatorHash = pure <<< Scripts.stakeValidatorHash
 
 -- | Converts a Plutus-style `Validator` to a `ValidatorHash`
 validatorHash
-  :: forall (r :: Row Type). Validator -> Contract r ValidatorHash
+  :: forall (r :: Row Type). Validator -> Contract r (Maybe ValidatorHash)
 validatorHash = pure <<< Scripts.validatorHash

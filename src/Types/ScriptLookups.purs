@@ -76,7 +76,7 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
-import Data.Traversable (for, traverse)
+import Data.Traversable (for, sequence, traverse)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import FromData (class FromData)
@@ -493,8 +493,10 @@ processLookupsAndConstraints
   let
     mps = lookups.mps
     scripts = lookups.scripts
-    mpsHashes = map mintingPolicyHash mps
-    validatorHashes = map validatorHash scripts
+  mpsHashes <-
+    except $ hashScripts mintingPolicyHash CannotHashMintingPolicy mps
+  validatorHashes <-
+    except $ hashScripts validatorHash CannotHashValidator scripts
   let
     mpsMap = fromFoldable $ zip mpsHashes mps
     osMap = fromFoldable $ zip validatorHashes scripts
@@ -505,6 +507,17 @@ processLookupsAndConstraints
   ExceptT addMissingValueSpent
   ExceptT updateUtxoIndex
   where
+  -- Polymorphic helper to hash an Array of `Validator`s or `MintingPolicy`s
+  -- with a way to error.
+  hashScripts
+    :: forall (script :: Type) (scriptHash :: Type) (c :: Type)
+     . (script -> Maybe scriptHash)
+    -> (script -> MkUnbalancedTxError)
+    -> Array script
+    -> Either MkUnbalancedTxError (Array scriptHash)
+  hashScripts hasher error =
+    traverse (\s -> note (error s) (hasher s))
+
   -- Don't write the output in terms of ExceptT because we can't write a
   -- partially applied `ConstraintsM` meaning this is more readable.
   foldConstraints

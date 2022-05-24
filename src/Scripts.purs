@@ -55,11 +55,11 @@ typedValidatorEnterpriseAddress network (TypedValidator typedVal) =
   validatorHashEnterpriseAddress network typedVal.validatorHash
 
 -- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
-mintingPolicyHash :: MintingPolicy -> MintingPolicyHash
+mintingPolicyHash :: MintingPolicy -> Maybe MintingPolicyHash
 mintingPolicyHash = scriptHash
 
 -- | Converts a Plutus-style `Validator` to an `ValidatorHash`
-validatorHash :: Validator -> ValidatorHash
+validatorHash :: Validator -> Maybe ValidatorHash
 validatorHash = scriptHash
 
 -- | Converts a Plutus-style `ValidatorHash` to a `Address` as a `BaseAddress`
@@ -80,7 +80,7 @@ validatorHashEnterpriseAddress network valHash =
       }
 
 -- | Converts a Plutus-style `StakeValidator` to an `StakeValidatorHash`
-stakeValidatorHash :: StakeValidator -> StakeValidatorHash
+stakeValidatorHash :: StakeValidator -> Maybe StakeValidatorHash
 stakeValidatorHash = scriptHash
 
 -- | Converts any newtype wrapper of `PlutusScript` to a newtype wrapper
@@ -90,9 +90,9 @@ scriptHash
    . Newtype m PlutusScript
   => Newtype n ScriptHash
   => m
-  -> n
-scriptHash = wrap <<< hashPlutusScript <<< unwrap
+  -> Maybe n
+scriptHash = map wrap <<< hashPlutusScript <<< unwrap
 
 -- | Converts a `MintingPolicy` to a `CurrencySymbol`.
 scriptCurrencySymbol :: MintingPolicy -> Maybe CurrencySymbol
-scriptCurrencySymbol = mpsSymbol <<< mintingPolicyHash
+scriptCurrencySymbol = mpsSymbol <=< mintingPolicyHash
