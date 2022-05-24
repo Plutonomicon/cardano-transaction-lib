@@ -23,7 +23,7 @@ import Data.Bitraversable (ltraverse)
 import Data.Either (Either(Left), note)
 import Data.Map (Map)
 import Data.Map (fromFoldable) as Map
-import Data.Maybe (Maybe(Nothing))
+import Data.Maybe (Maybe(Nothing,Just))
 import Data.Newtype (wrap)
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested (type (/\))
@@ -32,9 +32,9 @@ import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Serialization.Types (AssetName) as CSL
 import ToData (class ToData)
-import Types.ByteArray (ByteArray, byteLength, hexToByteArray)
+import Types.ByteArray (ByteArray, byteLength, hexToByteArray, byteArrayFromAscii)
 import Types.CborBytes (CborBytes, cborBytesToHex)
-import Types.RawBytes (rawBytesToHex)
+import Types.RawBytes (hexToRawBytesUnsafe)
 
 newtype TokenName = TokenName CborBytes
 
@@ -48,10 +48,15 @@ derive newtype instance ToData TokenName
 instance DecodeAeson TokenName where
   decodeAeson = caseAesonObject
     (Left $ TypeMismatch "Expected object")
-    ( note (TypeMismatch "Invalid TokenName") <<< mkTokenName
-        <=< note (TypeMismatch "Invalid ByteArray") <<< (hexToByteArray <<< rawBytesToHex)
-        <=< flip getField "unTokenName"
-    )
+    (\aes -> do
+        tkstr <- getField aes "unTokenName"
+        case (mkTokenName <=< byteArrayFromAscii) tkstr of
+          Nothing -> Left $ TypeMismatch "Invalid TokenName"
+          Just tknm -> pure tknm)
+      --  note (TypeMismatch "Invalid TokenName") <<< mkTokenName
+      --  <=< note (TypeMismatch "Invalid ByteArray") <<< (hexToByteArray <<< )
+      --  <=< flip getField "unTokenName"
+      --  )
 
 instance EncodeAeson TokenName where
   encodeAeson' (TokenName ba) = encodeAeson'
