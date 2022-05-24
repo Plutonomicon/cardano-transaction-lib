@@ -10,6 +10,7 @@ module Types.ByteArray
   , byteLength
   , hexToByteArray
   , hexToByteArrayUnsafe
+  , byteArrayToUTF16le
   ) where
 
 import Prelude
@@ -124,3 +125,5 @@ byteArrayFromAscii str = do
     else Nothing
 
 foreign import byteArrayFromInt16ArrayUnsafe :: Array Int -> ByteArray
+
+foreign import byteArrayToUTF16le :: ByteArray -> String

@@ -33,6 +33,9 @@ exports.concat_ = xs => ys => {
 exports.byteArrayToHex = arr =>
     Buffer.from(arr).toString('hex');
 
+exports.byteArrayToUTF16le = arr =>
+    Buffer.from(arr).toString('utf16le');
+
 exports.hexToByteArray_ = nothing => just => hex => {
     for (var bytes = [], c = 0; c < hex.length; c += 2) {
         const chunk = hex.substr(c, 2);

@@ -33,7 +33,7 @@ import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Serialization.Types (AssetName) as CSL
 import ToData (class ToData)
-import Types.ByteArray (ByteArray, byteLength, hexToByteArray, byteArrayFromAscii, byteArrayFromInt16ArrayUnsafe)
+import Types.ByteArray (ByteArray, byteLength, byteArrayToUTF16le, hexToByteArray, byteArrayFromAscii, byteArrayFromInt16ArrayUnsafe)
 import Types.CborBytes (CborBytes, cborBytesToHex)
 import Data.String.CodeUnits (toCharArray)
 
@@ -61,7 +61,7 @@ instance DecodeAeson TokenName where
 
 instance EncodeAeson TokenName where
   encodeAeson' (TokenName ba) = encodeAeson'
-    { "unTokenName": cborBytesToHex ba }
+    { "unTokenName": byteArrayToUTF16le ba }
 
 instance Show TokenName where
   show (TokenName tn) = "(TokenName" <> show tn <> ")"
