@@ -20,6 +20,7 @@ import Aeson
   )
 import Data.BigInt (BigInt)
 import Data.Bitraversable (ltraverse)
+import Data.Char (toCharCode)
 import Data.Either (Either(Left), note)
 import Data.Map (Map)
 import Data.Map (fromFoldable) as Map
@@ -32,9 +33,9 @@ import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Serialization.Types (AssetName) as CSL
 import ToData (class ToData)
-import Types.ByteArray (ByteArray, byteLength, hexToByteArray, byteArrayFromAscii)
+import Types.ByteArray (ByteArray, byteLength, hexToByteArray, byteArrayFromAscii, byteArrayFromInt16ArrayUnsafe)
 import Types.CborBytes (CborBytes, cborBytesToHex)
-import Types.RawBytes (hexToRawBytesUnsafe)
+import Data.String.CodeUnits (toCharArray)
 
 newtype TokenName = TokenName CborBytes
 
@@ -50,7 +51,7 @@ instance DecodeAeson TokenName where
     (Left $ TypeMismatch "Expected object")
     (\aes -> do
         tkstr <- getField aes "unTokenName"
-        case (mkTokenName <=< byteArrayFromAscii) tkstr of
+        case (mkTokenName <<<  (byteArrayFromInt16ArrayUnsafe <<< map toCharCode <<< toCharArray)) tkstr of
           Nothing -> Left $ TypeMismatch "Invalid TokenName"
           Just tknm -> pure tknm)
       --  note (TypeMismatch "Invalid TokenName") <<< mkTokenName
