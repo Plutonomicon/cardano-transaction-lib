@@ -20,6 +20,7 @@ module QueryM.Ogmios
   , SafeZone(..)
   , SlotLength(..)
   , SubmitTxR(..)
+  , SystemStartQR(..)
   , TxEvaluationR(..)
   , TxHash
   , UtxoQR(..)
@@ -28,6 +29,7 @@ module QueryM.Ogmios
   , queryChainTipCall
   , queryCurrentEpochCall
   , queryEraSummariesCall
+  , querySystemStartCall
   , queryUtxosAtCall
   , queryUtxosCall
   , submitTxCall
@@ -87,6 +89,14 @@ import Untagged.Union (type (|+|), toEither1)
 
 -- LOCAL STATE QUERY PROTOCOL
 -- https://ogmios.dev/mini-protocols/local-state-query/
+
+-- | Queries Ogmios for the system start Datetime
+querySystemStartCall :: JsonWspCall Unit SystemStartQR
+querySystemStartCall = mkOgmiosCallType
+  { methodname: "Query"
+  , args: const { query: "systemStart" }
+  }
+  Proxy
 
 -- | Queries Ogmios for the current epoch
 queryCurrentEpochCall :: JsonWspCall Unit CurrentEpochQR
@@ -183,6 +193,16 @@ instance DecodeAeson SubmitTxR where
     \o -> getField o "SubmitSuccess" >>= flip getField "txId" >>= hexToByteArray
       >>> maybe (Left (TypeMismatch "Expected hexstring")) (pure <<< wrap)
 
+---------------- SYSTEM START QUERY RESPONSE & PARSING
+newtype SystemStartQR = SystemStartQR String
+
+derive instance Generic SystemStartQR _
+derive instance Newtype SystemStartQR _
+derive newtype instance DecodeAeson SystemStartQR
+
+instance Show SystemStartQR where
+  show = genericShow
+
 ---------------- CURRENT EPOCH QUERY RESPONSE & PARSING
 newtype CurrentEpochQR = CurrentEpochQR BigInt
 
@@ -261,6 +281,7 @@ derive newtype instance DecodeAeson RelativeTime
 instance Show RelativeTime where
   show = genericShow
 
+-- Absolute slot relative to SystemStartQR
 newtype AbsSlot = AbsSlot BigInt
 
 derive instance Generic AbsSlot _

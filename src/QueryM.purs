@@ -653,12 +653,14 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
   submitDispatchMap <- createMutableDispatch
   eraSummariesDispatchMap <- createMutableDispatch
   currentEpochDispatchMap <- createMutableDispatch
+  systemStartDispatchMap <- createMutableDispatch
   utxoPendingRequests <- createPendingRequests
   chainTipPendingRequests <- createPendingRequests
   evaluateTxPendingRequests <- createPendingRequests
   submitPendingRequests <- createPendingRequests
   eraSummariesPendingRequests <- createPendingRequests
   currentEpochPendingRequests <- createPendingRequests
+  systemStartPendingRequests <- createPendingRequests
   let
     md = ogmiosMessageDispatch
       { utxoDispatchMap
@@ -667,6 +669,7 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       , submitDispatchMap
       , eraSummariesDispatchMap
       , currentEpochDispatchMap
+      , systemStartDispatchMap
       }
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   let
@@ -679,6 +682,7 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       Ref.read submitPendingRequests >>= traverse_ sendRequest
       Ref.read eraSummariesPendingRequests >>= traverse_ sendRequest
       Ref.read currentEpochPendingRequests >>= traverse_ sendRequest
+      Ref.read systemStartPendingRequests >>= traverse_ sendRequest
   _onWsConnect ws do
     _wsWatch ws (logger Debug) onError
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
@@ -692,6 +696,9 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
           mkListenerSet eraSummariesDispatchMap eraSummariesPendingRequests
       , currentEpoch:
           mkListenerSet currentEpochDispatchMap currentEpochPendingRequests
+      , systemStart:
+          mkListenerSet systemStartDispatchMap systemStartPendingRequests
+
       }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
@@ -772,6 +779,7 @@ type OgmiosListeners =
   , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationR
   , eraSummaries :: ListenerSet Unit Ogmios.EraSummariesQR
   , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpochQR
+  , systemStart :: ListenerSet Unit Ogmios.SystemStartQR
   }
 
 type DatumCacheListeners =
@@ -897,6 +905,7 @@ ogmiosMessageDispatch
      , submitDispatchMap :: DispatchIdMap Ogmios.SubmitTxR
      , eraSummariesDispatchMap :: DispatchIdMap Ogmios.EraSummariesQR
      , currentEpochDispatchMap :: DispatchIdMap Ogmios.CurrentEpochQR
+     , systemStartDispatchMap :: DispatchIdMap Ogmios.SystemStartQR
      }
   -> Array WebsocketDispatch
 ogmiosMessageDispatch
@@ -906,6 +915,7 @@ ogmiosMessageDispatch
   , submitDispatchMap
   , eraSummariesDispatchMap
   , currentEpochDispatchMap
+  , systemStartDispatchMap
   } =
   [ queryDispatch utxoDispatchMap
   , queryDispatch chainTipDispatchMap
@@ -913,6 +923,7 @@ ogmiosMessageDispatch
   , queryDispatch submitDispatchMap
   , queryDispatch eraSummariesDispatchMap
   , queryDispatch currentEpochDispatchMap
+  , queryDispatch systemStartDispatchMap
   ]
 
 datumCacheMessageDispatch

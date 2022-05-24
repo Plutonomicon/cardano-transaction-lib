@@ -22,6 +22,7 @@ import QueryM
 import QueryM.CurrentEpoch (getCurrentEpoch)
 import QueryM.EraSummaries (getEraSummaries)
 import QueryM.Ogmios (OgmiosAddress)
+import QueryM.SystemStart (getSystemStart)
 import QueryM.Utxos (utxosAt)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
@@ -51,6 +52,7 @@ suite = do
     test "Get ChainTip" testGetChainTip
     test "Get EraSummaries" testGetEraSummaries
     test "Get CurrentEpoch" testGetCurrentEpoch
+    test "Get SystemStart" testGetSystemStart
   -- Test inverse in one direction.
   group "Address loop" do
     test "Ogmios Address to Address & back Testnet"
@@ -120,3 +122,7 @@ testGetEraSummaries = do
 testGetCurrentEpoch :: Aff Unit
 testGetCurrentEpoch = do
   flip runQueryM (getCurrentEpoch $> unit) =<< traceQueryConfig
+
+testGetSystemStart :: Aff Unit
+testGetSystemStart = do
+  flip runQueryM (getSystemStart $> unit) =<< traceQueryConfig
