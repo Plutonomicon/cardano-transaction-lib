@@ -50,7 +50,7 @@ suite = do
     test "UtxosAt non-Testnet" $ testUtxosAt addr1
     test "Get ChainTip" testGetChainTip
     test "Get EraSummaries" testGetEraSummaries
-    test "Get CurentEpoch" testGetCurrentEpoch
+    test "Get CurrentEpoch" testGetCurrentEpoch
   -- Test inverse in one direction.
   group "Address loop" do
     test "Ogmios Address to Address & back Testnet"
