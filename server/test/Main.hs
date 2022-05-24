@@ -158,44 +158,6 @@ feeEstimateSpec = around withTestApp $ do
         | scode == code && sbody == body -> True
       _ -> False
 
---hashDataSpec :: Spec
---hashDataSpec = around withTestApp $ do
---  clientEnv <- setupClientEnv
---  context "POST hash-data" $ do
---    it "hashes the data" $ \port -> do
---      result <-
---        runClientM' (clientEnv port) $
---          hashData cborDatumFixture
---      result `shouldBe` Right hashedDatumFixture
---
---hashScriptSpec :: Spec
---hashScriptSpec = around withTestApp $ do
---  clientEnv <- setupClientEnv
---
---  context "POST hash-script" $ do
---    it "hashes the script" $ \port -> do
---      result <-
---        runClientM' (clientEnv port) $
---          hashScript hashScriptRequestFixture
---      result `shouldBe` Right hashedScriptFixture
---
---blake2bHashSpec :: Spec
---blake2bHashSpec = around withTestApp $ do
---  clientEnv <- setupClientEnv
---
---  context "POST blake2b" $ do
---    it "gets the blake2b_256 hash" $ \port -> do
---      result <-
---        runClientM' (clientEnv port) $
---          blake2bHash (BytesToHash "foo")
---      result `shouldBe` Right blake2bRes
---  where
---    -- obtained from `fromBuiltin . blake2b_256 $ toBuiltin @ByteString "foo"`
---    blake2bRes :: Blake2bHash
---    blake2bRes =
---      Blake2bHash
---        "\184\254\159\DELbU\166\250\b\246h\171c*\141\b\SUB\216y\131\199|\210t\228\140\228P\240\179I\253"
-
 setupClientEnv :: SpecM Port (Port -> ClientEnv)
 setupClientEnv = do
   baseUrl <- runIO $ parseBaseUrl "http://localhost"
@@ -226,20 +188,6 @@ runClientM' ::
   IO (Either ClientError a)
 runClientM' = flip runClientM
 
---cborDatumFixture :: HashDataRequest
---cborDatumFixture =
---  HashDataRequest $
---    Cbor $
---      mconcat
---        [ "d8799f581c7040636730e73aea054c0b2dd0b734bec3ecaaca1e3cbe48b482ca145820d"
---        , "850d7a70fd5ff97ab104b127d4c9630c64d8ac158a14cdcc4f65157b79af0baff"
---        ]
---
---hashedDatumFixture :: HashedData
---hashedDatumFixture =
---  HashedData
---    "\150\GS~\189\&8;\239\DC1n\249\188\181'\241\188\SUBE\135\248\EM\212\236\SOr?\239Z\178(\173\GS\143"
-
 -- This is a known-good 'Tx AlonzoEra'
 cborTxFixture :: Cbor
 cborTxFixture =
@@ -255,19 +203,6 @@ cborTxFixture =
       , "767366ecf6709b8354e02e2df6c35d78453adb04ec76f8a3d1287468b8c244ff051dcd0"
       , "f29dbcac1f7baf3e2d06ce06f5f6"
       ]
-
---hashScriptRequestFixture :: HashScriptRequest
---hashScriptRequestFixture =
---  HashScriptRequest $
---    unsafeDecode "Script" "\"4d01000033222220051200120011\""
-
---hashedScriptFixture :: HashedScript
---hashedScriptFixture =
---  HashedScript $
---    unsafeDecode
---      "ScriptHash"
---      "{\"getScriptHash\":\
---      \\"67f33146617a5e61936081db3b2117cbf59bd2123748f58ac9678656\"}"
 
 unappliedRequestFixture :: ApplyArgsRequest
 unappliedRequestFixture =
