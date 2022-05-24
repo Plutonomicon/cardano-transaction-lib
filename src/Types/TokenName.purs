@@ -49,7 +49,8 @@ instance DecodeAeson TokenName where
   decodeAeson = caseAesonObject
     (Left $ TypeMismatch "Expected object")
     ( note (TypeMismatch "Invalid TokenName") <<< mkTokenName
-        <=< note (TypeMismatch "Invalid ByteArray") <<< (hexToByteArray <<< rawBytesToHex)
+        <=< note (TypeMismatch "Invalid ByteArray") <<<
+          (hexToByteArray <<< rawBytesToHex)
         <=< flip getField "unTokenName"
     )
 

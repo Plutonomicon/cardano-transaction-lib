@@ -41,6 +41,8 @@ derive newtype instance Show Rational
 derive newtype instance Eq Rational
 derive newtype instance Ord Rational
 derive newtype instance Semiring Rational
+derive newtype instance Ring Rational
+derive newtype instance CommutativeRing Rational
 
 type RationalRep a =
   { numerator :: a
@@ -65,7 +67,6 @@ instance DecodeAeson Rational where
     )
     aes
 
-{-
 instance EuclideanRing Rational where
   degree _ = one
   mod _ _ = zero
@@ -73,7 +74,7 @@ instance EuclideanRing Rational where
     | numerator b == zero = zero
     | otherwise = Rational $
         (numerator a * denominator b) Ratio.% (denominator a * numerator b)
--}
+
 -- | Gives the reciprocal of a `Rational`.
 -- | Returns `Nothing` if applied to `zero` since the reciprocal of zero
 -- | is mathematically undefined.
