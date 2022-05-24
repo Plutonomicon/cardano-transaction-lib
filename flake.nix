@@ -170,7 +170,7 @@
         inherit (inputs) cardano-configurations;
         network = {
           name = "testnet";
-          magic = 1097911063;
+          magic = 1097911063; # use `null` for mainnet
         };
         node = { port = 3001; };
         ogmios = { port = 1337; };
@@ -286,7 +286,9 @@
                     ${server}/bin/ctl-server \
                       --port ${toString ctlServer.port} \
                       --node-socket ${nodeSocketPath} \
-                      --network-id ${toString config.network.magic}
+                      --network-id ${if config.network.magic == null
+                                     then "mainnet"
+                                     else toString config.network.magic}
                   ''
                 ];
               };

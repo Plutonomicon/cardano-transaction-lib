@@ -100,7 +100,7 @@ Here is an example that uses the overlay to launch runtime services:
       # shared between `buildCtlRuntime` and `launchCtlRuntime`, as shown below
       #
       # You can refer to the final configuration value by passing a function
-      # that takes a single arugment. Alternately, you can pass an attrset
+      # that takes a single arugment. Alternatively, you can pass an attrset
       # directly
       runtimeConfig = final: with final; {
         network = {
@@ -441,7 +441,7 @@ Which of the network config directories is chosen is determined by `network.name
 
 You can specify your own fork of `cardano-configurations` like this:
 
-```nix
+```
 inputs.cardano-transaction-lib.inputs.cardano-configurations.follows = "...";
 ```
 
