@@ -6,6 +6,7 @@ module Examples.AlwaysSucceeds (main) where
 import Contract.Prelude
 
 import Contract.Aeson (decodeAeson, fromString)
+import Contract.Address (scriptHashAddress)
 import Contract.Monad
   ( ContractConfig(ContractConfig)
   , launchAff_
@@ -15,23 +16,27 @@ import Contract.Monad
   , logInfo'
   , runContract_
   , traceContractConfig
-  ,Contract
+  , Contract
   )
-import Contract.PlutusData (PlutusData, unitDatum)
+import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, validatorHash)
-import Contract.Transaction (BalancedSignedTransaction(BalancedSignedTransaction), balanceAndSignTx, submit)
-import Contract.TxConstraints (mustSpendScriptOutput)
+import Contract.Transaction
+  ( BalancedSignedTransaction(BalancedSignedTransaction)
+  , balanceAndSignTx
+  , submit
+  )
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
-import Plutus.Types.Address (scriptHashAddress)
-import Plutus.Types.Credential (Credential(..))
-import Types.PlutusData (PlutusData(Integer))
+import Data.List (List)
+import Data.Map as Map
+import Plutus.Types.Transaction (UtxoM(UtxoM))
 import Types.Scripts (ValidatorHash)
-import Serialization.Address(Address)
+import Types.Transaction as Transaction
+import Types.TxConstraints (TxConstraints)
 
 main :: Effect Unit
 main = launchAff_ $ do
@@ -41,41 +46,60 @@ main = launchAff_ $ do
     logInfo' "Running Examples.AlwaysSucceeds"
     validator <- liftContractM "Invalid script JSON" $ alwaysSucceedsScript
     vhash <- liftedM "Couldn't hash validator" $ validatorHash validator
+    logInfo' $ "Attempt to lock testada"
     payToAlwaysSucceeds vhash validator
-
+    logInfo' $ "Try to spend locked values"
+    spendFromAlwaysSucceeds vhash validator
 
 payToAlwaysSucceeds :: ValidatorHash -> Validator -> Contract () Unit
 payToAlwaysSucceeds vhash validator = do
-    let
-      -- Note that CTL does not have explicit equivalents of Plutus'
-      -- `mustPayToTheScript` or `mustPayToOtherScript`, as we have no notion
-      -- of a "current" script. Thus, we have the single constraint
-      -- `mustPayToScript`, and all scripts must be explicitly provided to build
-      -- the transaction (see the value for `lookups` below as well)
-      constraints :: Constraints.TxConstraints Unit Unit
-      constraints = Constraints.mustPayToScript vhash unitDatum
-        $ Value.lovelaceValueOf
-        $ BigInt.fromInt 2_000_000
+  let
+    -- Note that CTL does not have explicit equivalents of Plutus'
+    -- `mustPayToTheScript` or `mustPayToOtherScript`, as we have no notion
+    -- of a "current" script. Thus, we have the single constraint
+    -- `mustPayToScript`, and all scripts must be explicitly provided to build
+    -- the transaction (see the value for `lookups` below as well)
+    constraints :: Constraints.TxConstraints Unit Unit
+    constraints = Constraints.mustPayToScript vhash unitDatum
+      $ Value.lovelaceValueOf
+      $ BigInt.fromInt 2_000_000
 
-      lookups :: Lookups.ScriptLookups PlutusData
-      lookups = Lookups.validator validator
+    lookups :: Lookups.ScriptLookups PlutusData
+    lookups = Lookups.validator validator
 
-    ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    BalancedSignedTransaction bsTx <-
-      liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-    txId <- submit bsTx.signedTxCbor
-    logInfo' $ "Tx ID: " <> show txId
+  ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  BalancedSignedTransaction bsTx <-
+    liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+  txId <- submit bsTx.signedTxCbor
+  logInfo' $ "Tx ID: " <> show txId
 
 spendFromAlwaysSucceeds :: ValidatorHash -> Validator -> Contract () Unit
-spendFromAlwaysSucceeds vhash validator= do
-  let 
-    -- scriptAddress = scriptHashAddress vhash
-    scriptAddress = Addres (ScriptCredential vhash) Nothing
-  utxos <- utxosAt scriptAddress
+spendFromAlwaysSucceeds vhash validator = do
   let
-    constraints = 
-      Constraints.mustSpendScriptOutput 2 (Integer 1)
-  undefined
+    arbitraryRedeemer = unitRedeemer
+    scriptAddress = scriptHashAddress vhash
+  (UtxoM utxos) <-
+    fromMaybe (UtxoM Map.empty) <$> utxosAt scriptAddress
+  let
+    lookups :: Lookups.ScriptLookups PlutusData
+    lookups = Lookups.validator validator
+      <> Lookups.unspentOutputs utxos
+
+    orefs :: List Transaction.TransactionInput
+    orefs = fst <$> Map.toUnfoldable utxos
+
+    constraints :: TxConstraints Unit Unit
+    constraints =
+      fold
+        ( do
+            oref <- orefs
+            pure $ Constraints.mustSpendScriptOutput oref arbitraryRedeemer
+        )
+  ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  BalancedSignedTransaction bsTx <-
+    liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+  txId <- submit bsTx.signedTxCbor
+  logInfo' $ "Tx ID: " <> show txId
 
 alwaysSucceedsScript :: Maybe Validator
 alwaysSucceedsScript = map wrap $ hush $ decodeAeson $ fromString
