@@ -6,6 +6,7 @@ module QueryM.Ogmios
   , ChainPoint(..)
   , ChainTipQR(..)
   , Epoch(..)
+  , EpochLength(..)
   , EraSummariesQR(..)
   , EraSummary(..)
   , EraSummaryParameters(..)
@@ -15,6 +16,8 @@ module QueryM.Ogmios
   , OgmiosTxOut(..)
   , OgmiosTxOutRef(..)
   , RelativeTime(..)
+  , SafeZone(..)
+  , SlotLength(..)
   , SubmitTxR(..)
   , TxEvaluationR(..)
   , TxHash
@@ -257,9 +260,9 @@ instance Show Epoch where
   show = genericShow
 
 newtype EraSummaryParameters = EraSummaryParameters
-  { epochLength :: BigInt -- 0-18446744073709552000 An epoch number or length.
-  , slotLength :: BigInt -- <= 18446744073709552000 A slot length, in seconds.
-  , safeZone :: BigInt -- 0-18446744073709552000 Number of slots from the tip of
+  { epochLength :: EpochLength -- 0-18446744073709552000 An epoch number or length.
+  , slotLength :: SlotLength -- <= 18446744073709552000 A slot length, in seconds.
+  , safeZone :: SafeZone -- 0-18446744073709552000 Number of slots from the tip of
   -- the ledger in which it is guaranteed that no hard fork can take place.
   -- This should be (at least) the number of slots in which we are guaranteed
   -- to have k blocks.
@@ -277,6 +280,33 @@ instance DecodeAeson EraSummaryParameters where
     slotLength <- getField o "slotLength"
     safeZone <- getField o "safeZone"
     pure $ wrap { epochLength, slotLength, safeZone }
+
+newtype EpochLength = EpochLength BigInt
+
+derive instance Generic EpochLength _
+derive instance Newtype EpochLength _
+derive newtype instance DecodeAeson EpochLength
+
+instance Show EpochLength where
+  show = genericShow
+
+newtype SlotLength = SlotLength BigInt
+
+derive instance Generic SlotLength _
+derive instance Newtype SlotLength _
+derive newtype instance DecodeAeson SlotLength
+
+instance Show SlotLength where
+  show = genericShow
+
+newtype SafeZone = SafeZone BigInt
+
+derive instance Generic SafeZone _
+derive instance Newtype SafeZone _
+derive newtype instance DecodeAeson SafeZone
+
+instance Show SafeZone where
+  show = genericShow
 
 ---------------- TX EVALUATION QUERY RESPONSE & PARSING
 
