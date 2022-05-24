@@ -11,12 +11,10 @@ module Scripts
   ) where
 
 import Prelude
-import Data.Either (hush)
-import Data.Maybe (Maybe(Nothing), maybe)
+import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Hashing (hashPlutusScript)
 import Plutus.Types.CurrencySymbol (CurrencySymbol, mpsSymbol)
-import QueryM (QueryM)
 import Serialization.Address
   ( Address
   , NetworkId

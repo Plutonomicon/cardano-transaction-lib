@@ -64,6 +64,7 @@ import Aeson
   )
 import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
+import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Cardano.Types.Transaction (Transaction(Transaction))
 import Cardano.Types.Transaction as Transaction
@@ -79,10 +80,12 @@ import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, isRight, note, hush)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
+import Data.HTTP.Method (Method(POST))
 import Data.Log.Level (LogLevel(Trace, Debug, Error))
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe, maybe')
+import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse, traverse_, for)
@@ -149,13 +152,12 @@ import Serialization.Address
   , baseAddressPaymentCred
   , stakeCredentialToKeyHash
   )
-import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.CborBytes (CborBytes)
 import Types.Chain as Chain
-import Types.Datum (DataHash(DataHash), Datum)
+import Types.Datum (DataHash, Datum)
 import Types.Interval (SlotConfig, defaultSlotConfig)
 import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
@@ -501,11 +503,7 @@ finalizeTx tx datums redeemers = do
       }
   url <- mkServerEndpointUrl "finalize"
   -- get response json
-  jsonBody <-
-    liftAff
-      ( Affjax.post Affjax.ResponseFormat.string url
-          (Just $ Affjax.RequestBody.String $ stringifyAeson $ encodeAeson body)
-      ) <#> map \x -> x.body
+  jsonBody <- liftAff (postAeson url (encodeAeson body)) <#> map _.body
   -- decode
   pure $ hush <<< (decodeAeson <=< parseJsonStringToAeson) =<< hush jsonBody
 
@@ -522,20 +520,14 @@ applyArgs script args = case traverse plutusDataToAeson args of
   Nothing -> pure $ Left $ ClientEncodingError "Failed to convert script args"
   Just ps -> do
     let
-      argsJson :: Aeson
-      argsJson = encodeAeson ps
-
-      reqBody :: Maybe Affjax.RequestBody.RequestBody
-      reqBody = Just
-        $ Affjax.RequestBody.String
-        $ stringifyAeson
-        $ encodeAeson
+      reqBody :: Aeson
+      reqBody = encodeAeson
         $ Object.fromFoldable
             [ "script" /\ scriptToAeson (unwrap script)
-            , "args" /\ argsJson
+            , "args" /\ encodeAeson ps
             ]
     url <- mkServerEndpointUrl "apply-args"
-    liftAff (Affjax.post Affjax.ResponseFormat.string url reqBody)
+    liftAff (postAeson url reqBody)
       <#> either
         (Left <<< ClientHttpError)
         ( lmap ClientDecodeJsonError
@@ -552,6 +544,17 @@ applyArgs script args = case traverse plutusDataToAeson args of
           <<< asOneOf
       )
       <<< Serialization.convertPlutusData
+
+-- We can't use Affjax's typical `post`, since there will be a mismatch between
+-- the media type header and the request body
+postAeson :: Url -> Aeson -> Aff (Either Affjax.Error (Affjax.Response String))
+postAeson url body = Affjax.request $ Affjax.defaultRequest
+  { method = Left POST
+  , content = Just $ Affjax.RequestBody.String $ stringifyAeson body
+  , url = url
+  , responseFormat = Affjax.ResponseFormat.string
+  , headers = [ Affjax.RequestHeader.ContentType applicationJSON ]
+  }
 
 -- It's easier to just write the encoder here than provide an `EncodeJson`
 -- instance (there are some brutal cyclical dependency issues trying to
