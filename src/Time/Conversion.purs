@@ -9,7 +9,6 @@ import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, fromNumber) as BigInt
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (runExceptT)
-import Control.Monad.Trans.Class (lift)
 import Data.Array (find)
 import Data.Generic.Rep (class Generic)
 import Data.JSDate (getTime, parse)
@@ -20,19 +19,17 @@ import Data.Show.Generic (genericShow)
 import Effect.Class (liftEffect)
 import Helpers (liftEither, liftM, uIntToBigInt)
 import QueryM (QueryM)
-import QueryM.EraSummaries (getEraSummaries)
 import QueryM.Ogmios
   ( AbsSlot(AbsSlot)
   , EraSummariesQR(EraSummariesQR)
   , EraSummary(EraSummary)
   , SystemStartQR
   )
-import QueryM.SystemStart (getSystemStart)
 import Serialization.Address (Slot)
 import Types.Interval (POSIXTime)
 
 --------------------------------------------------------------------------------
--- Slot (absolute from System Start- see QueryM.SystemStart.getSystemStart)
+-- Slot (absolute from System Start - see QueryM.SystemStart.getSystemStart)
 -- to POSIXTime (milliseconds)
 --------------------------------------------------------------------------------
 data SlotToPosixTimeError
@@ -61,15 +58,15 @@ instance Show SlotToPosixTimeError where
 -- | By converting `Slot` to `AbsTime` which is time relative to some System
 -- | Start, then add any excess for a UNIX Epoch time. Recall that POSIXTime
 -- | is in milliseconds for Protocol Version >= 6.
-slotToPosixTime :: Slot -> QueryM (Either SlotToPosixTimeError POSIXTime)
-slotToPosixTime slot = runExceptT do
+slotToPosixTime
+  :: EraSummariesQR
+  -> SystemStartQR
+  -> Slot
+  -> QueryM (Either SlotToPosixTimeError POSIXTime)
+slotToPosixTime eraSummaries sysStart slot = runExceptT do
   let ogmiosSlot = absSlotFromSlot slot
-  -- Get system start and parse into `DateTime`:
-  sysStart <- lift getSystemStart
   -- Get JSDate:
   sysStartD <- liftEffect $ parse $ unwrap sysStart
-  -- Get era summaries:
-  eraSummaries <- lift getEraSummaries
   -- Find current era:
   currentEra <- liftEither $ findEraSummary eraSummaries ogmiosSlot
   -- Convert absolute slot (relative to System start) to relative slot of era
@@ -184,3 +181,8 @@ absTimeFromRelTime (EraSummary { start, end }) (RelTime relTime) = do
   unless (absTime <= endTime) (throwError $ EndTimeLessThanTime $ wrap absTime)
   pure $ wrap absTime
 
+--------------------------------------------------------------------------------
+-- POSIXTime (milliseconds) to
+-- Slot (absolute from System Start - see QueryM.SystemStart.getSystemStart)
+--
+--------------------------------------------------------------------------------
