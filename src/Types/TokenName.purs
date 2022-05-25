@@ -42,6 +42,7 @@ import ToData (class ToData)
 import Types.ByteArray
   ( ByteArray
   , byteArrayFromAscii
+  , byteArrayToHex
   , byteArrayFromInt16ArrayUnsafe
   , byteArrayFromIntArray
   , byteArrayFromIntArrayUnsafe
@@ -65,6 +66,9 @@ derive newtype instance FromMetadata TokenName
 derive newtype instance ToMetadata TokenName
 derive newtype instance Ord TokenName
 derive newtype instance ToData TokenName
+
+asBase16 :: ByteArray -> String
+asBase16 ba = "0x" <> byteArrayToHex ba
 
 fromTokenName :: forall r. (ByteArray -> r) -> (String -> r) -> TokenName -> r
 fromTokenName arrayHandler stringHandler (TokenName cba) = either
@@ -146,7 +150,15 @@ instance FromJSON TokenName where
                 "\NUL\NUL\NUL" -> Haskell.pure . fromText . Text.drop 2 $ t
                 _              -> Haskell.pure . fromText $ t
   -}
-  encodeAeson' (TokenName ba) =
+  encodeAeson' tk = encodeAeson'
+                  $ fromTokenName
+                      (\ba -> """\NUL""" <> asBase16 ba)
+                      (\t  -> case take 1 t of
+                                """\NUL""" -> """\NUL\NUL""" <> t
+                                _          -> t)
+                      tk
+
+    {-
     let
       finalBs :: ByteArray
       finalBs = byteArrayFromIntArrayUnsafe [ 0, 48, 120 ] <>
@@ -154,7 +166,7 @@ instance FromJSON TokenName where
     -- FIXME: what if the tokenname starts with \0 => put another two \0 in front of that
     in
       encodeAeson' { "unTokenName": finalBs }
-
+    -}
 instance Show TokenName where
   show (TokenName tn) = "(TokenName" <> show tn <> ")"
 
