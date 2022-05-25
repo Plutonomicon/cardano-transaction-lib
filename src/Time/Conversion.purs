@@ -26,7 +26,8 @@ import QueryM.Ogmios
   , SystemStartQR
   )
 import Serialization.Address (Slot)
-import Types.Interval (POSIXTime)
+import Types.Interval (POSIXTime(POSIXTime))
+import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- Slot (absolute from System Start - see QueryM.SystemStart.getSystemStart)
@@ -68,7 +69,7 @@ slotToPosixTime eraSummaries sysStart slot = runExceptT do
   -- Get JSDate:
   sysStartD <- liftEffect $ parse $ unwrap sysStart
   -- Find current era:
-  currentEra <- liftEither $ findEraSummary eraSummaries ogmiosSlot
+  currentEra <- liftEither $ findSlotEraSummary eraSummaries ogmiosSlot
   -- Convert absolute slot (relative to System start) to relative slot of era
   relSlot <- liftEither $ relSlotFromAbsSlot currentEra ogmiosSlot
   -- Convert relative slot to relative time for that era
@@ -99,11 +100,11 @@ absSlotFromSlot = wrap <<< uIntToBigInt <<< unwrap
 -- slotFromAbsSlot = map wrap <<< bigIntToUInt <<< unwrap
 
 -- | Finds the `EraSummary` an `AbsSlot` lies inside (if any).
-findEraSummary
+findSlotEraSummary
   :: EraSummariesQR
   -> AbsSlot -- Slot we are testing and trying to find inside `EraSummariesQR`
   -> Either SlotToPosixTimeError EraSummary
-findEraSummary (EraSummariesQR eraSummaries) os =
+findSlotEraSummary (EraSummariesQR eraSummaries) os =
   note (CannotFindSlotInEraSummaries os) $ find pred eraSummaries
   where
   -- Potential FIXME: In the case of `Just`, do we want to use `safeZone` from
@@ -150,7 +151,7 @@ instance Show AbsTime where
 
 -- | Find the relative slot provided we know the `AbsSlot` for an absolute slot
 -- | given an `EraSummary`. We could relax the `Maybe` monad if we use this
--- | in conjunction with `findEraSummary`. However, we choose to make the
+-- | in conjunction with `findSlotEraSummary`. However, we choose to make the
 -- | function more general, guarding against a larger `start`ing slot
 relSlotFromAbsSlot
   :: EraSummary -> AbsSlot -> Either SlotToPosixTimeError RelSlot
@@ -185,3 +186,70 @@ absTimeFromRelTime (EraSummary { start, end }) (RelTime relTime) = do
 -- POSIXTime (milliseconds) to
 -- Slot (absolute from System Start - see QueryM.SystemStart.getSystemStart)
 --------------------------------------------------------------------------------
+data PosixTimeToSlotError
+  = CannotFindTimeInEraSummaries AbsTime
+  | PosixTimeBeforeSystemStart POSIXTime
+  | CannotGetBigIntFromNumber' -- refactor?
+
+derive instance Generic PosixTimeToSlotError _
+derive instance Eq PosixTimeToSlotError
+
+instance Show PosixTimeToSlotError where
+  show = genericShow
+
+posixTimeToSlot
+  :: EraSummariesQR
+  -> SystemStartQR
+  -> POSIXTime
+  -> QueryM (Either PosixTimeToSlotError Unit)
+posixTimeToSlot eraSummaries sysStart pt@(POSIXTime pt') = runExceptT do
+  -- Convert to seconds, precision issues?
+  let posixTime = transTime pt'
+  -- Get JSDate:
+  sysStartD <- liftEffect $ parse $ unwrap sysStart
+  -- Get POSIX time for system start
+  sysStartPosix <- liftM CannotGetBigIntFromNumber'
+    $ BigInt.fromNumber
+    $ getTime sysStartD
+  -- Ensure the time we are converting is after the system start, otherwise
+  -- we have negative slots.
+  unless (sysStartPosix <= posixTime)
+    $ throwError
+    $ PosixTimeBeforeSystemStart pt
+  let absTime = wrap $ posixTime - sysStartPosix
+  -- Find current era:
+  currentEra <- liftEither $ findTimeEraSummary eraSummaries absTime
+  liftEither $ pure unit
+  where
+  -- TODO: See https://github.com/input-output-hk/cardano-ledger/blob/master/eras/shelley/impl/src/Cardano/Ledger/Shelley/HardForks.hs#L57
+  -- translateTimeForPlutusScripts and ensure protocol version > 5 which would
+  -- mean converting to milliseconds
+  -- FIXME: ADD TRUNCATE?
+  transTime :: BigInt -> BigInt
+  transTime = flip (/) $ BigInt.fromInt 1000 -- to milliseconds
+
+-- | Finds the `EraSummary` an `AbsTime` lies inside (if any).
+findTimeEraSummary
+  :: EraSummariesQR
+  -> AbsTime -- Time we are testing and trying to find inside `EraSummariesQR`
+  -> Either PosixTimeToSlotError EraSummary
+findTimeEraSummary (EraSummariesQR eraSummaries) absTime@(AbsTime at) =
+  note (CannotFindTimeInEraSummaries absTime) $ find pred eraSummaries
+  where
+  pred :: EraSummary -> Boolean
+  pred (EraSummary { start, end }) =
+    unwrap (unwrap start).time <= at
+      && maybe true ((<) at <<< unwrap <<< _.time <<< unwrap) end
+
+relTimeFromAbsTime
+  :: EraSummary -> AbsTime -> Either SlotToPosixTimeError AbsTime
+relTimeFromAbsTime (EraSummary { start, end }) (AbsTime absTime) = do
+  undefined
+-- let
+--   startTime = unwrap (unwrap start).time
+--   absTime = startTime + absTime -- relative to System Start, not UNIX Epoch.
+--   -- If `EraSummary` doesn't have an end, the condition is automatically
+--   -- satisfied. We use `<=` as justified by the source code.
+--   endTime = maybe (absTime + one) (unwrap <<< _.slot <<< unwrap) end
+-- unless (absTime <= endTime) (throwError $ EndTimeLessThanTime $ wrap absTime)
+-- pure $ wrap absTime
