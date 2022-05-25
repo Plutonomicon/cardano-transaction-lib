@@ -47,6 +47,7 @@ import Types.ByteArray
   , byteArrayToUTF16le
   , byteLength
   , hexToByteArray
+  , hexToByteArrayUnsafe
   )
 import Types.CborBytes
   ( CborBytes
@@ -81,7 +82,7 @@ instance DecodeAeson TokenName where
 
           cleanedTkstr :: Either String ByteArray
           cleanedTkstr =
-            note "could not convert from hex to bytestring" <<< hexToByteArray
+            note "could not convert from hex to bytestring" <<< pure <<< hexToByteArrayUnsafe
               <<< fromCharArray
               =<< note "could not convetr from charcode"
                 ( traverse fromCharCode
@@ -128,7 +129,7 @@ instance FromJSON TokenName where
         (cborBytesToByteArray ba)
     -- FIXME: what if the tokenname starts with \0 => put another two \0 in front of that
     in
-      encodeAeson' { "unTokenName": finalBs }
+      encodeAeson' "fuck!" -- { "unTokenName": finalBs }
 
 instance Show TokenName where
   show (TokenName tn) = "(TokenName" <> show tn <> ")"
