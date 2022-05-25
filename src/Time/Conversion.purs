@@ -2,8 +2,7 @@ module Time.Conversion
   ( AbsTime(..)
   , SlotToPosixTimeError(..)
   , slotToPosixTime
-  )
-  where
+  ) where
 
 import Prelude
 import Data.BigInt (BigInt)
@@ -42,7 +41,8 @@ data SlotToPosixTimeError
   | StartingSlotGreaterThanSlot AbsSlot
   | EndTimeLessThanTime AbsTime
   | CannotGetBigIntFromNumber
-  -- | SlotFromAbsSlot AbsSlot -- perhaps remove
+
+-- | SlotFromAbsSlot AbsSlot -- perhaps remove
 
 derive instance Generic SlotToPosixTimeError _
 derive instance Eq SlotToPosixTimeError
@@ -164,8 +164,10 @@ relSlotFromAbsSlot (EraSummary { start }) os@(AbsSlot ogmiosSlot) = do
 
 relTimeFromRelSlot :: EraSummary -> RelSlot -> RelTime
 relTimeFromRelSlot (EraSummary { parameters }) (RelSlot ogmiosSlot) =
-  let slotLength = unwrap (unwrap parameters).slotLength
-  in wrap $ ogmiosSlot * slotLength
+  let
+    slotLength = unwrap (unwrap parameters).slotLength
+  in
+    wrap $ ogmiosSlot * slotLength
 
 -- As justified in https://github.com/input-output-hk/ouroboros-network/blob/bd9e5653647c3489567e02789b0ec5b75c726db2/ouroboros-consensus/src/Ouroboros/Consensus/HardFork/History/Qry.hs#L461-L481
 -- Treat the upperbound as inclusive.
