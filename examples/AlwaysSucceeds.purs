@@ -7,12 +7,26 @@ import Contract.Prelude
 
 import Contract.Address (scriptHashAddress)
 import Contract.Aeson (decodeAeson, fromString)
-import Contract.Monad (ContractConfig(ContractConfig), launchAff_, liftContractM, liftedE, liftedM, logInfo', runContract_, traceContractConfig, Contract)
+import Contract.Monad
+  ( ContractConfig(ContractConfig)
+  , launchAff_
+  , liftContractM
+  , liftedE
+  , liftedM
+  , logInfo'
+  , runContract_
+  , traceContractConfig
+  , Contract
+  )
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups (UnattachedUnbalancedTx)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, validatorHash)
-import Contract.Transaction (BalancedSignedTransaction(BalancedSignedTransaction), balanceAndSignTx, submit)
+import Contract.Transaction
+  ( BalancedSignedTransaction(BalancedSignedTransaction)
+  , balanceAndSignTx
+  , submit
+  )
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
@@ -53,7 +67,7 @@ payToAlwaysSucceeds vhash validator = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = Lookups.validator validator
 
-  balanceSingnAndSubmitTx <<< liftedE 
+  balanceSingnAndSubmitTx <<< liftedE
     $ Lookups.mkUnbalancedTx lookups constraints
 
 spendFromAlwaysSucceeds :: ValidatorHash -> Validator -> Contract () Unit
@@ -64,32 +78,31 @@ spendFromAlwaysSucceeds vhash validator = do
   UtxoM utxos <-
     fromMaybe (UtxoM Map.empty) <$> utxosAt scriptAddress
 
-  case fst <$> (head <<< Map.toUnfoldable) utxos of 
-    Just oref-> 
-      let 
+  case fst <$> (head <<< Map.toUnfoldable) utxos of
+    Just oref ->
+      let
         lookups :: Lookups.ScriptLookups PlutusData
         lookups = Lookups.validator validator
           <> Lookups.unspentOutputs utxos
+
         constraints :: TxConstraints Unit Unit
-        constraints = 
+        constraints =
           Constraints.mustSpendScriptOutput oref arbitraryRedeemer
       in
-        balanceSingnAndSubmitTx <<< liftedE 
+        balanceSingnAndSubmitTx <<< liftedE
           $ Lookups.mkUnbalancedTx lookups constraints
-    _ -> 
+    _ ->
       logInfo' $ "No founds locked at : " <> show scriptAddress
 
-balanceSingnAndSubmitTx :: 
-  Contract () UnattachedUnbalancedTx 
-  ->  Contract () Unit 
-balanceSingnAndSubmitTx ubTxContract = 
-    do
-      ubTx <- ubTxContract
-      BalancedSignedTransaction bsTx <-
-        liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-      txId <- submit bsTx.signedTxCbor
-      logInfo' $ "Tx ID: " <> show txId
-
+balanceSingnAndSubmitTx
+  :: Contract () UnattachedUnbalancedTx
+  -> Contract () Unit
+balanceSingnAndSubmitTx ubTxContract = do
+    ubTx <- ubTxContract
+    BalancedSignedTransaction bsTx <-
+      liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+    txId <- submit bsTx.signedTxCbor
+    logInfo' $ "Tx ID: " <> show txId
 
 alwaysSucceedsScript :: Maybe Validator
 alwaysSucceedsScript = map wrap $ hush $ decodeAeson $ fromString
