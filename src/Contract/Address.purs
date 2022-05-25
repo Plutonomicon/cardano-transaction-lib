@@ -37,11 +37,11 @@ import Address
   , getNetworkId
   ) as Address
 import Contract.Monad (Contract, wrapContract, liftedM)
-import Data.Maybe (Maybe(Nothing))
+import Data.Maybe (Maybe)
 import Data.Traversable (for)
+import Data.Tuple (Tuple(..))
 import Plutus.FromPlutusType (fromPlutusType)
 import Plutus.ToPlutusType (toPlutusType)
-import Plutus.Types.Address (Address, AddressWithNetworkTag)
 -- The helpers under Plutus.Type.Address deconstruct/construct the Plutus
 -- `Address` directly, instead of those defined in this module use CSL helpers,
 -- redefining function domain/range to be Plutus-style types.
@@ -54,6 +54,7 @@ import Plutus.Types.Address
   , toValidatorHash
   , toStakingCredential
   ) as ExportAddress
+import Plutus.Types.Address (Address, AddressWithNetworkTag)
 import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import QueryM
   ( getWalletAddress
@@ -68,6 +69,7 @@ import Scripts
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Scripts
+import Serialization.Address (NetworkId(..))
 import Serialization.Address
   ( Slot(Slot)
   , BlockId(BlockId)
@@ -77,10 +79,14 @@ import Serialization.Address
   , ByronProtocolMagic(ByronProtocolMagic)
   , NetworkId(TestnetId, MainnetId)
   ) as SerializationAddress
-import Serialization.Address (NetworkId)
 import Serialization.Hash (Ed25519KeyHash) as Hash
 import Serialization.Hash (ScriptHash)
 import Types.ByteArray (ByteArray) as ByteArray
+import Types.PubKeyHash
+  ( PaymentPubKeyHash(PaymentPubKeyHash)
+  , PubKeyHash(PubKeyHash)
+  , StakePubKeyHash(StakePubKeyHash)
+  ) as ExportPubKeyHash
 import Types.PubKeyHash (PubKeyHash, PaymentPubKeyHash, StakePubKeyHash)
 import Types.PubKeyHash
   ( payPubKeyHashBaseAddress
@@ -91,15 +97,7 @@ import Types.PubKeyHash
   , pubKeyHashRewardAddress
   , stakePubKeyHashRewardAddress
   ) as PubKeyHash
-import Types.PubKeyHash
-  ( PaymentPubKeyHash(PaymentPubKeyHash)
-  , PubKeyHash(PubKeyHash)
-  , StakePubKeyHash(StakePubKeyHash)
-  ) as ExportPubKeyHash
-import Types.Scripts
-  ( StakeValidatorHash
-  , ValidatorHash
-  )
+import Types.Scripts (StakeValidatorHash, ValidatorHash)
 import Types.TypedValidator (TypedValidator)
 import Types.UnbalancedTransaction
   ( PaymentPubKey(PaymentPubKey)
@@ -158,17 +156,18 @@ getNetworkId = wrapContract Address.getNetworkId
 -- | Get the `ValidatorHash` with an Plutus `Address`
 enterpriseAddressValidatorHash :: Address -> Maybe ValidatorHash
 enterpriseAddressValidatorHash =
-  Address.enterpriseAddressValidatorHash <=< fromPlutusType Nothing
+  Address.enterpriseAddressValidatorHash <=< fromPlutusType <<< Tuple MainnetId
 
 -- | Get the `StakeValidatorHash` with an Plutus `Address`
 enterpriseAddressStakeValidatorHash :: Address -> Maybe StakeValidatorHash
 enterpriseAddressStakeValidatorHash =
-  Address.enterpriseAddressStakeValidatorHash <=< fromPlutusType Nothing
+  Address.enterpriseAddressStakeValidatorHash <=< fromPlutusType <<< Tuple
+    MainnetId
 
 -- | Get the `ScriptHash` with an Plutus `Address`
 enterpriseAddressScriptHash :: Address -> Maybe ScriptHash
 enterpriseAddressScriptHash =
-  Address.enterpriseAddressScriptHash <=< fromPlutusType Nothing
+  Address.enterpriseAddressScriptHash <=< fromPlutusType <<< Tuple MainnetId
 
 -- | Converts a Plutus `TypedValidator` to a Plutus (`BaseAddress`) `Address`
 typedValidatorBaseAddress

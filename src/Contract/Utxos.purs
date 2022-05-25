@@ -8,11 +8,11 @@ module Contract.Utxos
 
 import Prelude
 
-import Contract.Address (NetworkId)
 import Contract.Monad (Contract, wrapContract, liftContractM)
 import Control.Monad.Reader.Class (asks)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)
+import Data.Tuple.Nested ((/\))
 import QueryM.Utxos (utxosAt) as Utxos
 import Plutus.ToPlutusType (toPlutusType)
 import Plutus.Types.Address (Address)
@@ -29,7 +29,7 @@ utxosAt
 utxosAt address = do
   networkId <- asks (_.networkId <<< unwrap)
   cardanoAddr <- liftContractM "utxosAt: unable to serialize address"
-    (fromPlutusType (Just networkId) address)
+    (fromPlutusType (networkId /\ address))
   -- Don't error if we get `Nothing` as the Cardano utxos
   mCardanoUtxos <- wrapContract $ Utxos.utxosAt cardanoAddr
   maybe (pure Nothing)
