@@ -98,11 +98,11 @@ balanceSingnAndSubmitTx
   :: Contract () UnattachedUnbalancedTx
   -> Contract () Unit
 balanceSingnAndSubmitTx ubTxContract = do
-    ubTx <- ubTxContract
-    BalancedSignedTransaction bsTx <-
-      liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-    txId <- submit bsTx.signedTxCbor
-    logInfo' $ "Tx ID: " <> show txId
+  ubTx <- ubTxContract
+  BalancedSignedTransaction bsTx <-
+    liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+  txId <- submit bsTx.signedTxCbor
+  logInfo' $ "Tx ID: " <> show txId
 
 alwaysSucceedsScript :: Maybe Validator
 alwaysSucceedsScript = map wrap $ hush $ decodeAeson $ fromString
