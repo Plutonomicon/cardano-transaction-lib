@@ -5,14 +5,14 @@ module Time.Conversion
   ) where
 
 import Prelude
-import Data.BigInt (BigInt)
-import Data.BigInt (fromInt, fromNumber) as BigInt
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (runExceptT)
 import Data.Array (find)
+import Data.BigInt (BigInt)
+import Data.BigInt (fromInt, fromNumber) as BigInt
+import Data.Either (Either, note)
 import Data.Generic.Rep (class Generic)
 import Data.JSDate (getTime, parse)
-import Data.Either (Either, note)
 import Data.Maybe (maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
