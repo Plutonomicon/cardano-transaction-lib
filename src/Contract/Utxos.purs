@@ -7,8 +7,11 @@ module Contract.Utxos
   ) where
 
 import Prelude
+
 import Contract.Monad (Contract, wrapContract, liftContractM)
+import Control.Monad.Reader.Class (asks)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Newtype (unwrap)
 import QueryM.Utxos (utxosAt) as Utxos
 import Plutus.ToPlutusType (toPlutusType)
 import Plutus.Types.Address (Address)
@@ -23,10 +26,11 @@ import Plutus.FromPlutusType (fromPlutusType)
 utxosAt
   :: forall (r :: Row Type). Address -> Contract r (Maybe Transaction.UtxoM)
 utxosAt address = do
-  plutusAddr <- liftContractM "utxosAt: unable to serialize address"
-    (fromPlutusType address)
+  networkId <- asks (_.networkId <<< unwrap)
+  cardanoAddr <- liftContractM "utxosAt: unable to serialize address"
+    (fromPlutusType (Just networkId) address)
   -- Don't error if we get `Nothing` as the Cardano utxos
-  mCardanoUtxos <- wrapContract $ Utxos.utxosAt plutusAddr
+  mCardanoUtxos <- wrapContract $ Utxos.utxosAt cardanoAddr
   maybe (pure Nothing)
     ( map Just <<< liftContractM "utxosAt: unable to deserialize utxos" <<<
         toPlutusType
