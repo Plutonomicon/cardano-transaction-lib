@@ -47,6 +47,7 @@ import Plutus.Types.Address (Address, AddressExtended)
 -- redefining function domain/range to be Plutus-style types.
 import Plutus.Types.Address
   ( Address
+  , AddressExtended(AddressExtended)
   , pubKeyHashAddress
   , scriptHashAddress
   , toPubKeyHash
