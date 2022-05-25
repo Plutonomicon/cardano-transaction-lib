@@ -14,14 +14,15 @@ import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Traversable (traverse)
 import Data.Tuple (fst) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
-import Data.UInt (UInt, fromInt, (.&.), and, shl, zshr)
+import Data.UInt (UInt, fromInt, toInt, (.&.), and, shl, zshr)
 import Partial.Unsafe (unsafePartial)
 
 import Serialization.Address (Address) as Serialization
 import Serialization.Address (addressBytes) as Serialization.Address
+import Serialization.Address (NetworkId, unsafeIntToNetId)
 import Serialization.Hash (ed25519KeyHashFromBytes, scriptHashFromBytes)
 
-import Plutus.Types.Address (Address) as Plutus
+import Plutus.Types.Address (Address, AddressExtended(AddressExtended)) as Plutus
 import Plutus.Types.AddressHeaderType (AddressHeaderType(..), addrHeaderType)
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
@@ -94,11 +95,14 @@ instance ToPlutusType Identity Types.Coin Plutus.Coin where
 -- Serialization.Address -> Maybe Plutus.Types.Address
 --------------------------------------------------------------------------------
 
-instance ToPlutusType Maybe Serialization.Address Plutus.Address where
+instance ToPlutusType Maybe Serialization.Address Plutus.AddressExtended where
   -- | Attempts to build a Plutus address from a CSL-level address
   -- | represented by a sequence of bytes based on the CIP-0019.
-  toPlutusType addrForeign =
-    addrType >>= addrHeaderType >>= \addrType' ->
+  toPlutusType addrForeign = do
+    headerByte <- head addrBytes
+    addrType' <- addrHeaderType (addrType headerByte)
+    let networkId = networkTag headerByte
+    Plutus.AddressExtended <<< { address: _, networkId: networkId } <$>
       case addrType' of
         -- %b0000 | network tag | key hash | key hash
         PaymentKeyHashStakeKeyHash ->
@@ -142,8 +146,11 @@ instance ToPlutusType Maybe Serialization.Address Plutus.Address where
 
     -- | Retrieves the address type by reading
     -- | the first 4 bits (from the left) of the header-byte.
-    addrType :: Maybe UInt
-    addrType = head addrBytes >>= (pure <<< flip zshr (fromInt 4) <<< fromInt)
+    addrType :: Int -> UInt
+    addrType = flip zshr (fromInt 4) <<< fromInt
+
+    networkTag :: Int -> NetworkId
+    networkTag = unsafeIntToNetId <<< toInt <<< and one <<< fromInt
 
     -- | Retrieves the payment part of the address by reading
     -- | the first 28 bytes following the address header.
@@ -230,7 +237,7 @@ instance ToPlutusType Maybe Cardano.TransactionOutput Plutus.TransactionOutput
   where
   toPlutusType
     (Cardano.TransactionOutput { address, amount, dataHash }) = do
-    addr <- toPlutusType address
+    Plutus.AddressExtended { address: addr } <- toPlutusType address
     pure $ Plutus.TransactionOutput
       { address: addr, amount: unwrap $ toPlutusType amount, dataHash }
 
