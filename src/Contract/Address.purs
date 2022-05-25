@@ -39,20 +39,22 @@ import Address
 import Contract.Monad (Contract, wrapContract, liftedM)
 import Data.Maybe (Maybe)
 import Data.Traversable (for)
+import Data.Tuple (Tuple(..))
 import Plutus.FromPlutusType (fromPlutusType)
 import Plutus.ToPlutusType (toPlutusType)
-import Plutus.Types.Address (Address)
 -- The helpers under Plutus.Type.Address deconstruct/construct the Plutus
 -- `Address` directly, instead of those defined in this module use CSL helpers,
 -- redefining function domain/range to be Plutus-style types.
 import Plutus.Types.Address
   ( Address
+  , AddressWithNetworkTag(AddressWithNetworkTag)
   , pubKeyHashAddress
   , scriptHashAddress
   , toPubKeyHash
   , toValidatorHash
   , toStakingCredential
   ) as ExportAddress
+import Plutus.Types.Address (Address, AddressWithNetworkTag)
 import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import QueryM
   ( getWalletAddress
@@ -67,6 +69,7 @@ import Scripts
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Scripts
+import Serialization.Address (NetworkId(..))
 import Serialization.Address
   ( Slot(Slot)
   , BlockId(BlockId)
@@ -76,10 +79,14 @@ import Serialization.Address
   , ByronProtocolMagic(ByronProtocolMagic)
   , NetworkId(TestnetId, MainnetId)
   ) as SerializationAddress
-import Serialization.Address (NetworkId)
 import Serialization.Hash (Ed25519KeyHash) as Hash
 import Serialization.Hash (ScriptHash)
 import Types.ByteArray (ByteArray) as ByteArray
+import Types.PubKeyHash
+  ( PaymentPubKeyHash(PaymentPubKeyHash)
+  , PubKeyHash(PubKeyHash)
+  , StakePubKeyHash(StakePubKeyHash)
+  ) as ExportPubKeyHash
 import Types.PubKeyHash (PubKeyHash, PaymentPubKeyHash, StakePubKeyHash)
 import Types.PubKeyHash
   ( payPubKeyHashBaseAddress
@@ -90,15 +97,7 @@ import Types.PubKeyHash
   , pubKeyHashRewardAddress
   , stakePubKeyHashRewardAddress
   ) as PubKeyHash
-import Types.PubKeyHash
-  ( PaymentPubKeyHash(PaymentPubKeyHash)
-  , PubKeyHash(PubKeyHash)
-  , StakePubKeyHash(StakePubKeyHash)
-  ) as ExportPubKeyHash
-import Types.Scripts
-  ( StakeValidatorHash
-  , ValidatorHash
-  )
+import Types.Scripts (StakeValidatorHash, ValidatorHash)
 import Types.TypedValidator (TypedValidator)
 import Types.UnbalancedTransaction
   ( PaymentPubKey(PaymentPubKey)
@@ -106,7 +105,8 @@ import Types.UnbalancedTransaction
   ) as ExportUnbalancedTransaction
 
 -- | Get the `Address` of the browser wallet.
-getWalletAddress :: forall (r :: Row Type). Contract r (Maybe Address)
+getWalletAddress
+  :: forall (r :: Row Type). Contract r (Maybe AddressWithNetworkTag)
 getWalletAddress = do
   mbAddr <- wrapContract $ QueryM.getWalletAddress
   for mbAddr $
@@ -156,24 +156,25 @@ getNetworkId = wrapContract Address.getNetworkId
 -- | Get the `ValidatorHash` with an Plutus `Address`
 enterpriseAddressValidatorHash :: Address -> Maybe ValidatorHash
 enterpriseAddressValidatorHash =
-  Address.enterpriseAddressValidatorHash <=< fromPlutusType
+  Address.enterpriseAddressValidatorHash <=< fromPlutusType <<< Tuple MainnetId
 
 -- | Get the `StakeValidatorHash` with an Plutus `Address`
 enterpriseAddressStakeValidatorHash :: Address -> Maybe StakeValidatorHash
 enterpriseAddressStakeValidatorHash =
-  Address.enterpriseAddressStakeValidatorHash <=< fromPlutusType
+  Address.enterpriseAddressStakeValidatorHash <=< fromPlutusType <<< Tuple
+    MainnetId
 
 -- | Get the `ScriptHash` with an Plutus `Address`
 enterpriseAddressScriptHash :: Address -> Maybe ScriptHash
 enterpriseAddressScriptHash =
-  Address.enterpriseAddressScriptHash <=< fromPlutusType
+  Address.enterpriseAddressScriptHash <=< fromPlutusType <<< Tuple MainnetId
 
 -- | Converts a Plutus `TypedValidator` to a Plutus (`BaseAddress`) `Address`
 typedValidatorBaseAddress
   :: forall (a :: Type)
    . NetworkId
   -> TypedValidator a
-  -> Maybe Address
+  -> Maybe AddressWithNetworkTag
 typedValidatorBaseAddress networkId =
   toPlutusType <<< Scripts.typedValidatorBaseAddress networkId
 
@@ -185,13 +186,14 @@ typedValidatorEnterpriseAddress
   :: forall (a :: Type)
    . NetworkId
   -> TypedValidator a
-  -> Maybe Address
+  -> Maybe AddressWithNetworkTag
 typedValidatorEnterpriseAddress networkId =
   toPlutusType <<< Scripts.typedValidatorEnterpriseAddress networkId
 
 -- | Converts a Plutus `ValidatorHash` to a `Address` as a Plutus (`BaseAddress`)
 -- | `Address`
-validatorHashBaseAddress :: NetworkId -> ValidatorHash -> Maybe Address
+validatorHashBaseAddress
+  :: NetworkId -> ValidatorHash -> Maybe AddressWithNetworkTag
 validatorHashBaseAddress networkId =
   toPlutusType <<< Scripts.validatorHashBaseAddress networkId
 
@@ -199,38 +201,46 @@ validatorHashBaseAddress networkId =
 -- | `EnterpriseAddress`. This is likely what you will use since Plutus
 -- | currently uses `scriptHashAddress` on non-staking addresses which is
 -- | invoked in `validatorAddress`
-validatorHashEnterpriseAddress :: NetworkId -> ValidatorHash -> Maybe Address
+validatorHashEnterpriseAddress
+  :: NetworkId -> ValidatorHash -> Maybe AddressWithNetworkTag
 validatorHashEnterpriseAddress networkId =
   toPlutusType <<< Scripts.validatorHashEnterpriseAddress networkId
 
 pubKeyHashBaseAddress
-  :: NetworkId -> PubKeyHash -> StakePubKeyHash -> Maybe Address
+  :: NetworkId -> PubKeyHash -> StakePubKeyHash -> Maybe AddressWithNetworkTag
 pubKeyHashBaseAddress networkId pkh =
   toPlutusType <<< PubKeyHash.pubKeyHashBaseAddress networkId pkh
 
-pubKeyHashRewardAddress :: NetworkId -> PubKeyHash -> Maybe Address
+pubKeyHashRewardAddress
+  :: NetworkId -> PubKeyHash -> Maybe AddressWithNetworkTag
 pubKeyHashRewardAddress networkId =
   toPlutusType <<< PubKeyHash.pubKeyHashRewardAddress networkId
 
-pubKeyHashEnterpriseAddress :: NetworkId -> PubKeyHash -> Maybe Address
+pubKeyHashEnterpriseAddress
+  :: NetworkId -> PubKeyHash -> Maybe AddressWithNetworkTag
 pubKeyHashEnterpriseAddress networkId =
   toPlutusType <<< PubKeyHash.pubKeyHashEnterpriseAddress networkId
 
-payPubKeyHashRewardAddress :: NetworkId -> PaymentPubKeyHash -> Maybe Address
+payPubKeyHashRewardAddress
+  :: NetworkId -> PaymentPubKeyHash -> Maybe AddressWithNetworkTag
 payPubKeyHashRewardAddress networkId =
   toPlutusType <<< PubKeyHash.payPubKeyHashRewardAddress networkId
 
 payPubKeyHashBaseAddress
-  :: NetworkId -> PaymentPubKeyHash -> StakePubKeyHash -> Maybe Address
+  :: NetworkId
+  -> PaymentPubKeyHash
+  -> StakePubKeyHash
+  -> Maybe AddressWithNetworkTag
 payPubKeyHashBaseAddress networkId pkh =
   toPlutusType <<< PubKeyHash.payPubKeyHashBaseAddress networkId pkh
 
 payPubKeyHashEnterpriseAddress
-  :: NetworkId -> PaymentPubKeyHash -> Maybe Address
+  :: NetworkId -> PaymentPubKeyHash -> Maybe AddressWithNetworkTag
 payPubKeyHashEnterpriseAddress networkId =
   toPlutusType <<< PubKeyHash.payPubKeyHashEnterpriseAddress
     networkId
 
-stakePubKeyHashRewardAddress :: NetworkId -> StakePubKeyHash -> Maybe Address
+stakePubKeyHashRewardAddress
+  :: NetworkId -> StakePubKeyHash -> Maybe AddressWithNetworkTag
 stakePubKeyHashRewardAddress networkId =
   toPlutusType <<< PubKeyHash.stakePubKeyHashRewardAddress networkId

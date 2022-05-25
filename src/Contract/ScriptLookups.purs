@@ -20,7 +20,6 @@ import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
 import FromData (class FromData)
 import ToData (class ToData)
-import Types.Datum (Datum)
 import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
   , ScriptLookups(ScriptLookups)
@@ -42,7 +41,7 @@ import Types.ScriptLookups
   , unspentOutputs
   , unspentOutputsM
   ) as ScriptLookups
-import Types.ScriptLookups (datum, mkUnbalancedTx) as SL
+import Types.ScriptLookups (mkUnbalancedTx) as SL
 import Types.TxConstraints (TxConstraints)
 import Types.TypedValidator
   ( class DatumType
