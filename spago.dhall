@@ -54,6 +54,7 @@ You can edit this file as you like.
   , "spec"
   , "strings"
   , "tailrec"
+  , "text-encoding"
   , "these"
   , "transformers"
   , "tuples"
