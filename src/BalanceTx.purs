@@ -385,7 +385,7 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
       note (GetWalletCollateralError' CouldNotGetNamiCollateral)
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
-
+    wallet <- asks _.wallet
     let
       -- Combines utxos at the user address and those from any scripts
       -- involved with the contract in the unbalanced transaction.
@@ -394,10 +394,12 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
 
       -- After adding collateral, we need to balance the inputs and
       -- non-Ada outputs before looping, i.e. we need to add input fees
-      -- for the Ada only collateral. No MinUtxos required. In fact perhaps
-      -- this step can be skipped and we can go straight to prebalancer.
+      -- for the Ada only collateral.
+      -- This step only matters for Nami.
       unbalancedCollTx :: Transaction
-      unbalancedCollTx = addTxCollateral unbalancedTx' collateral
+      unbalancedCollTx = case wallet of
+        Just (Nami _) -> addTxCollateral unbalancedTx' collateral
+        _ -> unbalancedTx'
 
     -- Logging Unbalanced Tx with collateral added:
     logTx "Unbalanced Collaterised Tx " allUtxos unbalancedCollTx
