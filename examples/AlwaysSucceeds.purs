@@ -45,7 +45,7 @@ main = launchAff_ $ do
   runContract_ cfg $ do
     logInfo' "Running Examples.AlwaysSucceeds"
     validator <- liftContractM "Invalid script JSON" $ alwaysSucceedsScript
-    vhash <- liftedM "Couldn't hash validator" $ validatorHash validator
+    vhash <- liftContractM "Couldn't hash validator" $ validatorHash validator
     logInfo' "Attempt to lock testada"
     payToAlwaysSucceeds vhash validator
     logInfo' "Try to spend locked values"
