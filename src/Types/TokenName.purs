@@ -23,12 +23,12 @@ import Control.Monad.Error.Class (throwError)
 import Data.BigInt (BigInt)
 import Data.Bitraversable (ltraverse)
 import Data.Char (toCharCode, fromCharCode)
-import Data.Either (Either(Left,Right), note, either)
+import Data.Either (Either(Left, Right), note, either)
 import Data.Map (Map)
 import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Nothing, Just))
-import Data.Newtype (wrap,unwrap)
-import Data.String.CodePoints (length,take,drop)
+import Data.Newtype (wrap, unwrap)
+import Data.String.CodePoints (length, take, drop)
 import Data.String.CodeUnits (fromCharArray, toCharArray)
 import Data.Traversable (class Traversable, traverse)
 import Data.TextDecoding (decodeUtf8)
@@ -67,11 +67,10 @@ derive newtype instance Ord TokenName
 derive newtype instance ToData TokenName
 
 fromTokenName :: forall r. (ByteArray -> r) -> (String -> r) -> TokenName -> r
-fromTokenName arrayHandler stringHandler (TokenName cba)
-  = either
-      (\_ -> arrayHandler $ cborBytesToByteArray cba)
-      stringHandler
-      (decodeUtf8 <<< unwrap <<< cborBytesToByteArray $ cba)
+fromTokenName arrayHandler stringHandler (TokenName cba) = either
+  (\_ -> arrayHandler $ cborBytesToByteArray cba)
+  stringHandler
+  (decodeUtf8 <<< unwrap <<< cborBytesToByteArray $ cba)
 
 instance DecodeAeson TokenName where
   {-
@@ -88,40 +87,43 @@ instance DecodeAeson TokenName where
         case take 3 tkstr of
           """\NUL0x""" -> case tkFromStr (drop 3 tkstr) of
             Nothing -> Left $ TypeMismatch ("Invalid TokenName E1: " <> tkstr)
-            Just tk  -> Right tk
+            Just tk -> Right tk
 
-          """\NUL\NUL\NUL""" -> note (TypeMismatch $ "Invalid TokenName E2: " <> tkstr)
-                                $ tkFromStr (drop 2 tkstr)
+          """\NUL\NUL\NUL""" ->
+            note (TypeMismatch $ "Invalid TokenName E2: " <> tkstr)
+              $ tkFromStr (drop 2 tkstr)
 
-          _              -> note (TypeMismatch $ "Invalid TokenName E3: " <> tkstr)
-                            $ tkFromStr tkstr)
-   where
-     tkFromStr :: String -> Maybe TokenName
-     tkFromStr str = (TokenName <<< wrap) <$> (byteArrayFromIntArray <<< map toCharCode <<< toCharArray $ str)
+          _ -> note (TypeMismatch $ "Invalid TokenName E3: " <> tkstr)
+            $ tkFromStr tkstr
+    )
+    where
+    tkFromStr :: String -> Maybe TokenName
+    tkFromStr str = (TokenName <<< wrap) <$>
+      (byteArrayFromIntArray <<< map toCharCode <<< toCharArray $ str)
 
-       {- let
-          t = map toCharCode $ toCharArray tkstr
+{- let
+      t = map toCharCode $ toCharArray tkstr
 
-          cleanedTkstr :: Either String ByteArray
-          cleanedTkstr =
-            note "could not convert from hex to bytestring" <<< pure <<< hexToByteArrayUnsafe
-              <<< fromCharArray
-              =<< note "could not convetr from charcode"
-                ( traverse fromCharCode
-                    case t of
-                      [ 0, 48, 120 ] -> drop 3 t
-                      [ 0, 0, 0 ] -> drop 2 t
-                      _ -> t
-                )
-        -- FIXME: what if the tokenname is actually \0\0\0? haskell will break this assuming it 
-        -- comes from purescript side
-        -- also we will break assuming it comes from haskell
-        -- this issue has to be fixed on the haskell side
-        -- ~= \NUL\NUL\NUL
-        -- see https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#line-170
-        lmap TypeMismatch
-          (note "failed to make tokenname" <<< mkTokenName =<< cleanedTkstr)
-    ) -}
+      cleanedTkstr :: Either String ByteArray
+      cleanedTkstr =
+        note "could not convert from hex to bytestring" <<< pure <<< hexToByteArrayUnsafe
+          <<< fromCharArray
+          =<< note "could not convetr from charcode"
+            ( traverse fromCharCode
+                case t of
+                  [ 0, 48, 120 ] -> drop 3 t
+                  [ 0, 0, 0 ] -> drop 2 t
+                  _ -> t
+            )
+    -- FIXME: what if the tokenname is actually \0\0\0? haskell will break this assuming it 
+    -- comes from purescript side
+    -- also we will break assuming it comes from haskell
+    -- this issue has to be fixed on the haskell side
+    -- ~= \NUL\NUL\NUL
+    -- see https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#line-170
+    lmap TypeMismatch
+      (note "failed to make tokenname" <<< mkTokenName =<< cleanedTkstr)
+) -}
 
 --  note (TypeMismatch "Invalid TokenName") <<< mkTokenName
 --  <=< note (TypeMismatch "Invalid ByteArray") <<< (hexToByteArray <<< )

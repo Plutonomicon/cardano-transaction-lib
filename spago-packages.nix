@@ -1157,6 +1157,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "text-encoding" = pkgs.stdenv.mkDerivation {
+        name = "text-encoding";
+        version = "v1.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/AlexaDeWit/purescript-text-encoding.git";
+          rev = "609ea0916f6817971d4a6c11b991b59715aaa096";
+          sha256 = "1r6ihj6m6ahp1cjf4i25pq9a00r2mvgrd8794xiapzsaigljz42c";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "these" = pkgs.stdenv.mkDerivation {
         name = "these";
         version = "v5.0.0";
