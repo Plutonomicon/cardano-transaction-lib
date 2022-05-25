@@ -182,7 +182,8 @@ instance namiConnection :: Connection NamiConnection where
   signTxBytes nami txBytes = do
     fromHexString (_signTxNami (cborBytesToHex txBytes)) nami >>= case _ of
       Nothing -> pure Nothing
-      Just witBytes -> Just <$> liftEffect (_attachSignature txBytes (rawBytesAsCborBytes witBytes))
+      Just witBytes -> Just <$> liftEffect
+        (_attachSignature txBytes (rawBytesAsCborBytes witBytes))
 
   fromHexString act = map hexToRawBytes <<< Promise.toAffE <<< act
 
@@ -222,7 +223,8 @@ instance geroConnection :: Connection GeroConnection where
     fromHexString (_signTxGero (cborBytesToHex txBytes)) gero >>=
       case _ of
         Nothing -> pure Nothing
-        Just witBytes -> Just <$> liftEffect (_attachSignature txBytes (rawBytesAsCborBytes witBytes))
+        Just witBytes -> Just <$> liftEffect
+          (_attachSignature txBytes (rawBytesAsCborBytes witBytes))
 
   fromHexString act = map hexToRawBytes <<< Promise.toAffE <<< act
 
