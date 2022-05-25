@@ -184,5 +184,4 @@ absTimeFromRelTime (EraSummary { start, end }) (RelTime relTime) = do
 --------------------------------------------------------------------------------
 -- POSIXTime (milliseconds) to
 -- Slot (absolute from System Start - see QueryM.SystemStart.getSystemStart)
---
 --------------------------------------------------------------------------------
