@@ -36,7 +36,7 @@ main = launchAff_ $ do
   runContract_ cfg $ do
     logInfo' "Running Examples.AlwaysSucceeds"
     validator <- liftContractM "Invalid script JSON" $ alwaysSucceedsScript
-    vhash <- liftedM "Couldn't hash validator" $ validatorHash validator
+    vhash <- liftContractM "Couldn't hash validator" $ validatorHash validator
     let
       -- Note that CTL does not have explicit equivalents of Plutus'
       -- `mustPayToTheScript` or `mustPayToOtherScript`, as we have no notion

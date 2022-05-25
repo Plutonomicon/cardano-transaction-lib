@@ -13,7 +13,7 @@ module Scripts
 import Prelude
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, wrap, unwrap)
-import Hashing (hashPlutusScript)
+import Hashing (plutusScriptHash)
 import Plutus.Types.CurrencySymbol (CurrencySymbol, mpsSymbol)
 import Serialization.Address
   ( Address
@@ -91,7 +91,7 @@ scriptHash
   => Newtype n ScriptHash
   => m
   -> Maybe n
-scriptHash = map wrap <<< hashPlutusScript <<< unwrap
+scriptHash = map wrap <<< plutusScriptHash <<< unwrap
 
 -- | Converts a `MintingPolicy` to a `CurrencySymbol`.
 scriptCurrencySymbol :: MintingPolicy -> Maybe CurrencySymbol

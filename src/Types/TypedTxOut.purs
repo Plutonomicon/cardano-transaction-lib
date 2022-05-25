@@ -32,7 +32,7 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import FromData (class FromData, fromData)
-import Hashing (hashDatum) as Hashing
+import Hashing (datumHash) as Hashing
 import Helpers (liftM)
 import QueryM (QueryM, getDatumByHash)
 import Scripts (typedValidatorEnterpriseAddress)
@@ -170,7 +170,7 @@ mkTypedTxOut
   -> Maybe (TypedTxOut a b)
 mkTypedTxOut networkId typedVal dt amount =
   let
-    mDHash = Hashing.hashDatum $ Datum $ toData dt
+    mDHash = Hashing.datumHash $ Datum $ toData dt
     -- FIX ME: This is hardcoded to enterprise address, it seems like Plutus'
     -- "validatorAddress" also currently doesn't account for staking.
     address = typedValidatorEnterpriseAddress networkId typedVal

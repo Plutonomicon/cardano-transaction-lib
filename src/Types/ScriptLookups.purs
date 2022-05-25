@@ -83,7 +83,7 @@ import FromData (class FromData)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
-import Hashing (hashDatum) as Hashing
+import Hashing (datumHash) as Hashing
 import Helpers ((<\>), liftEither, liftM)
 import Plutus.FromPlutusType (fromPlutusType)
 import Plutus.Types.Transaction (TransactionOutput) as Plutus
@@ -308,11 +308,10 @@ validatorM :: forall (a :: Type). Validator -> Maybe (ScriptLookups a)
 validatorM = pure <<< validator
 
 -- | A script lookups value with a datum.
-datum :: forall (a :: Type). Datum -> QueryM (Maybe (ScriptLookups a))
-datum dt = case Hashing.hashDatum dt of
-  Nothing -> pure Nothing
-  Just dh -> pure $ Just $ over ScriptLookups _ { datums = singleton dh dt }
-    mempty
+datum :: forall (a :: Type). Datum -> Maybe (ScriptLookups a)
+datum dt =
+  Hashing.datumHash dt
+    <#> \dh -> over ScriptLookups _ { datums = singleton dh dt } mempty
 
 -- -- | A script lookups value with a payment public key. This can fail because we
 -- -- | invoke `payPubKeyHash`.
@@ -982,7 +981,7 @@ processConstraint mpsMap osMap = do
         dataHash <- maybe
           (liftEither $ Right Nothing) -- Don't throw an error if Nothing.
           ( \dat -> except $
-              liftDatumHash (CannotHashDatum dat) (Hashing.hashDatum dat)
+              liftDatumHash (CannotHashDatum dat) (Hashing.datumHash dat)
           )
           mDatum
         let
@@ -1002,7 +1001,7 @@ processConstraint mpsMap osMap = do
       runExceptT do
         -- Don't write `let dataHash = datumHash datum`, see [datumHash Note]
         dataHash <- except $ note (CannotHashDatum dat)
-          $ (map Just <<< Hashing.hashDatum) dat
+          $ (map Just <<< Hashing.datumHash) dat
         let
           txOut = TransactionOutput
             { address: validatorHashEnterpriseAddress networkId vlh
@@ -1014,7 +1013,7 @@ processConstraint mpsMap osMap = do
         _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provide amount
     MustHashDatum dh dt -> do
-      let mdh = Hashing.hashDatum dt
+      let mdh = Hashing.datumHash dt
       if mdh == Just dh then addDatum dt
       else pure $ throwError $ DatumWrongHash dh dt
     MustSatisfyAnyOf xs -> do

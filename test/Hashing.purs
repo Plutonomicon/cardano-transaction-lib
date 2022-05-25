@@ -7,8 +7,8 @@ import Data.Newtype (wrap)
 import Hashing
   ( blake2b256Hash
   , blake2b256HashHex
-  , hashDatum
-  , hashPlutusScript
+  , datumHash
+  , plutusScriptHash
   ) as Hashing
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
@@ -33,11 +33,11 @@ suite = do
         `shouldEqual` arbitraryDataHashHexStringFixture
 
     test "blake2b256 hash of Plutus data" do
-      Hashing.hashDatum (wrap plutusDataFixture7)
+      Hashing.datumHash (wrap plutusDataFixture7)
         `shouldEqual` Just datumHashFixture
 
     test "blake2b224 hash of a Plutus script" do
-      Hashing.hashPlutusScript plutusScriptFixture
+      Hashing.plutusScriptHash plutusScriptFixture
         `shouldEqual` Just plutusScriptHashFixture
 
 arbitraryDataFixture :: ByteArray

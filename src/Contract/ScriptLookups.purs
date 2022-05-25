@@ -12,7 +12,6 @@ module Contract.ScriptLookups
   ( mkUnbalancedTx
   , mkUnbalancedTxM
   , module ScriptLookups
-  , datum
   ) where
 
 import Prelude
@@ -26,6 +25,7 @@ import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
   , ScriptLookups(ScriptLookups)
   , UnattachedUnbalancedTx(UnattachedUnbalancedTx)
+  , datum
   , generalise
   , mintingPolicy
   , mintingPolicyM
@@ -80,9 +80,3 @@ mkUnbalancedTxM
   -> TxConstraints b b
   -> Contract r (Maybe ScriptLookups.UnattachedUnbalancedTx)
 mkUnbalancedTxM lookups = map hush <<< mkUnbalancedTx lookups
-
-datum
-  :: forall (r :: Row Type) (a :: Type)
-   . Datum
-  -> Contract r (Maybe (ScriptLookups.ScriptLookups a))
-datum = wrapContract <<< SL.datum

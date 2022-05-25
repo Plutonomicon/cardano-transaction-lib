@@ -4,13 +4,13 @@
 -- | `ToData`.
 module Contract.PlutusData
   ( cancelFetchBlocks
-  , datumHash
   , getDatumByHash
   , getDatumsByHashes
   , startFetchBlocks
   , module DataSchema
   , module Datum
   , module ExportQueryM
+  , module Hashing
   , module PlutusData
   , module Redeemer
   , module FromData
@@ -40,7 +40,7 @@ import FromData
   , fromDataWithSchema
   , genericFromData
   ) as FromData
-import Hashing (hashDatum) as Hashing
+import Hashing (datumHash) as Hashing
 import Plutus.Types.DataSchema
   ( ApPCons
   , Field
@@ -125,7 +125,3 @@ startFetchBlocks = wrapContract <<< QueryM.startFetchBlocks
 -- | Cancels a running block fetcher job. Throws on no fetchers running
 cancelFetchBlocks :: forall (r :: Row Type). Contract r Unit
 cancelFetchBlocks = wrapContract QueryM.cancelFetchBlocks
-
--- | Hashes a Plutus-style Datum
-datumHash :: forall (r :: Row Type). Datum.Datum -> Contract r (Maybe DataHash)
-datumHash = pure <<< Hashing.hashDatum
