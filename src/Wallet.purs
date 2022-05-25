@@ -3,6 +3,7 @@ module Wallet
   , GeroConnection
   , NamiWallet
   , GeroWallet
+  , Cip30Wallet(..)
   , Wallet(..)
   , mkNamiWalletAff
   , mkGeroWalletAff
@@ -33,7 +34,6 @@ import Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , PublicKey(PublicKey)
   , Transaction(Transaction)
-  , TransactionHash(TransactionHash)
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
@@ -41,8 +41,20 @@ import Types.Transaction
 import Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Untagged.Union (asOneOf)
 
--- At the moment, we only support Nami's wallet. In the future we will expand
--- this with more constructors to represent out-of-browser wallets (e.g. WBE)
+type Cip30Wallet a =
+  { -- A reference to a connection with the wallet, i.e. `window.cardano.nami`
+    connection :: Ref.Ref a
+  -- Get the address associated with the wallet (Nami does not support
+  -- multiple addresses)
+  , getWalletAddress :: a -> Aff (Maybe Address)
+  -- Get the collateral UTxO associated with the Nami wallet
+  , getCollateral :: a -> Aff (Maybe TransactionUnspentOutput)
+  -- Sign a transaction with the current wallet
+  , signTx :: a -> Transaction -> Aff (Maybe Transaction)
+  -- Sign a transaction with the current wallet
+  , signTxBytes :: a -> ByteArray -> Aff (Maybe ByteArray)
+  }
+
 data Wallet = Nami NamiWallet | Gero GeroWallet
 
 -------------------------------------------------------------------------------
@@ -50,19 +62,7 @@ data Wallet = Nami NamiWallet | Gero GeroWallet
 -------------------------------------------------------------------------------
 -- Record-of-functions for real or mocked Nami wallet, includes `Ref` to
 -- connection (e.g. with `window.cardano.nami` as a `NamiConnection`)
-type NamiWallet =
-  { -- A reference to a connection with Nami, i.e. `window.cardano.nami`
-    connection :: Ref.Ref NamiConnection
-  -- Get the address associated with the wallet (Nami does not support
-  -- multiple addresses)
-  , getWalletAddress :: NamiConnection -> Aff (Maybe Address)
-  -- Get the collateral UTxO associated with the Nami wallet
-  , getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
-  -- Sign a transaction with the current wallet
-  , signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
-  -- Sign a transaction with the current wallet
-  , signTxBytes :: NamiConnection -> ByteArray -> Aff (Maybe ByteArray)
-  }
+type NamiWallet = Cip30Wallet NamiConnection
 
 mkNamiWalletAff :: Aff Wallet
 mkNamiWalletAff = do
@@ -78,64 +78,6 @@ mkNamiWalletAff = do
     , signTx
     , signTxBytes
     }
-
-  where
-  enable :: Aff NamiConnection
-  enable = Promise.toAffE $ _enableNami
-
-  getWalletAddress :: NamiConnection -> Aff (Maybe Address)
-  getWalletAddress nami = fromNamiHexString _getNamiAddress nami <#>
-    (_ >>= addressFromBytes)
-
-  getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
-  getCollateral nami = fromNamiMaybeHexString getNamiCollateral nami >>=
-    case _ of
-      Nothing -> pure Nothing
-      Just bytes -> do
-        liftEffect $
-          Deserialization.UnspentOuput.convertUnspentOutput
-            <$> fromBytesEffect bytes
-
-  signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
-  signTx nami tx = do
-    txHex <- txToHex tx
-    fromNamiHexString (_signTxNami txHex) nami >>= case _ of
-      Nothing -> pure Nothing
-      Just bytes -> map (combineWitnessSet tx) <$> liftEffect
-        ( Deserialization.WitnessSet.convertWitnessSet
-            <$> fromBytesEffect bytes
-        )
-    where
-    -- We have to combine the newly returned witness set with the existing one
-    -- Otherwise, any datums, etc... won't be retained
-    combineWitnessSet :: Transaction -> TransactionWitnessSet -> Transaction
-    combineWitnessSet (Transaction tx'@{ witnessSet: oldWits }) newWits =
-      Transaction $ tx' { witnessSet = oldWits <> newWits }
-
-  signTxBytes :: NamiConnection -> ByteArray -> Aff (Maybe ByteArray)
-  signTxBytes nami txBytes = do
-    fromNamiHexString (_signTxNami (byteArrayToHex txBytes)) nami >>= case _ of
-      Nothing -> pure Nothing
-      Just witBytes -> Just <$> liftEffect (_attachSignature txBytes witBytes)
-
-  txToHex :: Transaction -> Aff String
-  txToHex =
-    liftEffect
-      <<< map (byteArrayToHex <<< Serialization.toBytes <<< asOneOf)
-      <<< Serialization.convertTransaction
-
-  fromNamiHexString
-    :: (NamiConnection -> Effect (Promise String))
-    -> NamiConnection
-    -> Aff (Maybe ByteArray)
-  fromNamiHexString act = map hexToByteArray <<< Promise.toAffE <<< act
-
-  fromNamiMaybeHexString
-    :: (NamiConnection -> Effect (Promise (Maybe String)))
-    -> NamiConnection
-    -> Aff (Maybe ByteArray)
-  fromNamiMaybeHexString act =
-    map (flip bind hexToByteArray) <<< Promise.toAffE <<< act
 
 -- Attach a dummy vkey witness to a transaction. Helpful for when we need to
 -- know the number of witnesses (e.g. fee calculation) but the wallet hasn't
@@ -164,14 +106,7 @@ dummySign tx@(Transaction { witnessSet: tws@(TransactionWitnessSet ws) }) =
 -------------------------------------------------------------------------------
 -- Gero backend
 -------------------------------------------------------------------------------
--- Mirror of NamiWallet backend for Gero
-type GeroWallet =
-  { connection :: Ref.Ref GeroConnection
-  , getWalletAddress :: GeroConnection -> Aff (Maybe Address)
-  , getCollateral :: GeroConnection -> Aff (Maybe TransactionUnspentOutput)
-  , signTx :: GeroConnection -> Transaction -> Aff (Maybe Transaction)
-  , signTxBytes :: GeroConnection -> ByteArray -> Aff (Maybe ByteArray)
-  }
+type GeroWallet = Cip30Wallet GeroConnection
 
 mkGeroWalletAff :: Aff Wallet
 mkGeroWalletAff = do
@@ -188,16 +123,33 @@ mkGeroWalletAff = do
     , signTxBytes
     }
 
-  where
-  enable :: Aff GeroConnection
-  enable = Promise.toAffE $ _enableGero
+-------------------------------------------------------------------------------
+-- Generics stuff
+-------------------------------------------------------------------------------
 
-  getWalletAddress :: GeroConnection -> Aff (Maybe Address)
-  getWalletAddress gero = fromGeroHexString _getGeroAddress gero <#>
+txToHex :: Transaction -> Aff String
+txToHex =
+  liftEffect
+    <<< map (byteArrayToHex <<< Serialization.toBytes <<< asOneOf)
+    <<< Serialization.convertTransaction
+
+class Connection a where
+  enable :: Aff a
+  getWalletAddress :: a -> Aff (Maybe Address)
+  getCollateral :: a -> Aff (Maybe TransactionUnspentOutput)
+  signTx :: a -> Transaction -> Aff (Maybe Transaction)
+  signTxBytes :: a -> ByteArray -> Aff (Maybe ByteArray)
+  fromHexString :: (a -> Effect (Promise String)) -> a -> Aff (Maybe ByteArray)
+  fromMaybeHexString
+    :: (a -> Effect (Promise (Maybe String))) -> a -> Aff (Maybe ByteArray)
+
+instance namiConnection :: Connection NamiConnection where
+  enable = Promise.toAffE $ _enableNami
+
+  getWalletAddress nami = fromHexString _getNamiAddress nami <#>
     (_ >>= addressFromBytes)
 
-  getCollateral :: GeroConnection -> Aff (Maybe TransactionUnspentOutput)
-  getCollateral gero = fromGeroMaybeHexString getGeroCollateral gero >>=
+  getCollateral nami = fromMaybeHexString getNamiCollateral nami >>=
     case _ of
       Nothing -> pure Nothing
       Just bytes -> do
@@ -205,10 +157,10 @@ mkGeroWalletAff = do
           Deserialization.UnspentOuput.convertUnspentOutput
             <$> fromBytesEffect bytes
 
-  signTx :: GeroConnection -> Transaction -> Aff (Maybe Transaction)
-  signTx gero tx = do
+  signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
+  signTx nami tx = do
     txHex <- txToHex tx
-    fromGeroHexString (_signTxGero txHex) gero >>= case _ of
+    fromHexString (_signTxNami txHex) nami >>= case _ of
       Nothing -> pure Nothing
       Just bytes -> map (combineWitnessSet tx) <$> liftEffect
         ( Deserialization.WitnessSet.convertWitnessSet
@@ -221,30 +173,55 @@ mkGeroWalletAff = do
     combineWitnessSet (Transaction tx'@{ witnessSet: oldWits }) newWits =
       Transaction $ tx' { witnessSet = oldWits <> newWits }
 
-  signTxBytes :: GeroConnection -> ByteArray -> Aff (Maybe ByteArray)
+  signTxBytes :: NamiConnection -> ByteArray -> Aff (Maybe ByteArray)
+  signTxBytes nami txBytes = do
+    fromHexString (_signTxNami (byteArrayToHex txBytes)) nami >>= case _ of
+      Nothing -> pure Nothing
+      Just witBytes -> Just <$> liftEffect (_attachSignature txBytes witBytes)
+
+  fromHexString act = map hexToByteArray <<< Promise.toAffE <<< act
+
+  fromMaybeHexString act =
+    map (flip bind hexToByteArray) <<< Promise.toAffE <<< act
+
+instance geroConnection :: Connection GeroConnection where
+  enable = Promise.toAffE $ _enableGero
+
+  getWalletAddress gero = fromHexString _getGeroAddress gero <#>
+    (_ >>= addressFromBytes)
+
+  getCollateral gero = fromMaybeHexString getGeroCollateral gero >>=
+    case _ of
+      Nothing -> pure Nothing
+      Just bytes -> do
+        liftEffect $
+          Deserialization.UnspentOuput.convertUnspentOutput
+            <$> fromBytesEffect bytes
+
+  signTx gero tx = do
+    txHex <- txToHex tx
+    fromHexString (_signTxGero txHex) gero >>= case _ of
+      Nothing -> pure Nothing
+      Just bytes -> map (combineWitnessSet tx) <$> liftEffect
+        ( Deserialization.WitnessSet.convertWitnessSet
+            <$> fromBytesEffect bytes
+        )
+    where
+    -- We have to combine the newly returned witness set with the existing one
+    -- Otherwise, any datums, etc... won't be retained
+    combineWitnessSet :: Transaction -> TransactionWitnessSet -> Transaction
+    combineWitnessSet (Transaction tx'@{ witnessSet: oldWits }) newWits =
+      Transaction $ tx' { witnessSet = oldWits <> newWits }
+
   signTxBytes gero txBytes = do
-    fromGeroHexString (_signTxGero (byteArrayToHex txBytes)) gero >>=
+    fromHexString (_signTxGero (byteArrayToHex txBytes)) gero >>=
       case _ of
         Nothing -> pure Nothing
         Just witBytes -> Just <$> liftEffect (_attachSignature txBytes witBytes)
 
-  txToHex :: Transaction -> Aff String
-  txToHex =
-    liftEffect
-      <<< map (byteArrayToHex <<< Serialization.toBytes <<< asOneOf)
-      <<< Serialization.convertTransaction
+  fromHexString act = map hexToByteArray <<< Promise.toAffE <<< act
 
-  fromGeroHexString
-    :: (GeroConnection -> Effect (Promise String))
-    -> GeroConnection
-    -> Aff (Maybe ByteArray)
-  fromGeroHexString act = map hexToByteArray <<< Promise.toAffE <<< act
-
-  fromGeroMaybeHexString
-    :: (GeroConnection -> Effect (Promise (Maybe String)))
-    -> GeroConnection
-    -> Aff (Maybe ByteArray)
-  fromGeroMaybeHexString act =
+  fromMaybeHexString act =
     map (flip bind hexToByteArray) <<< Promise.toAffE <<< act
 
 -------------------------------------------------------------------------------

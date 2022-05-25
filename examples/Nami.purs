@@ -13,10 +13,10 @@ import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Monad
   ( Contract
   , defaultContractConfig
-  , launchAff_
   , runContract_
   )
 
+import Effect.Aff (launchAff_)
 import Wallet (mkNamiWalletAff)
 
 main :: Effect Unit

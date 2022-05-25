@@ -25,9 +25,7 @@ module Examples.AlwaysSucceeds (main) where
 import Contract.Prelude
 
 import Contract.Monad
-  ( ContractConfig(ContractConfig)
-  , launchAff_
-  , liftContractM
+  ( liftContractM
   , liftedE
   , liftedM
   , logInfo'
@@ -47,6 +45,8 @@ import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.Argonaut (decodeJson, fromString)
 import Data.BigInt as BigInt
+
+import Effect.Aff (launchAff_)
 
 main :: Effect Unit
 main = launchAff_ $ do

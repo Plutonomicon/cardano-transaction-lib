@@ -1,8 +1,8 @@
 -- | A module defining the `Contract` monad.
 module Contract.Monad
   ( Contract(..)
-  , ContractConfig(..)
   , ConfigParams(..)
+  , ContractConfig(..)
   , DefaultContractConfig
   , module Aff
   , module Interval
@@ -64,11 +64,11 @@ import Data.Log.Tag
   , tagSetTag
   ) as Log.Tag
 import Data.Map as Map
-import Data.Maybe (Maybe(Just), maybe)
+import Data.Maybe (Maybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Profunctor (dimap)
 import Effect.Aff (Aff)
-import Effect.Aff (Aff, launchAff_) as Aff
+import Effect.Aff (Aff) as Aff
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)

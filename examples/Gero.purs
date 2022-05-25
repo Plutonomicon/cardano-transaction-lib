@@ -13,11 +13,10 @@ import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Monad
   ( Contract
   , defaultContractConfig
-  , launchAff_
   , runContract_
   )
 
-import Effect.Class (liftEffect)
+import Effect.Aff (launchAff_)
 import Wallet (mkGeroWalletAff)
 
 main :: Effect Unit

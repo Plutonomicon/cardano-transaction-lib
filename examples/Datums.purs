@@ -19,13 +19,12 @@ module Examples.Datums (main) where
 
 import Contract.Prelude
 
-import Contract.Monad (runContract_, launchAff_, logInfo', traceContractConfig)
+import Contract.Monad (runContract_, logInfo', traceContractConfig)
 import Contract.PlutusData (DatumHash, getDatumByHash, getDatumsByHashes)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Data.Newtype (wrap)
 
-import Effect.Class (liftEffect)
-
+import Effect.Aff (launchAff_)
 import Wallet (mkGeroWalletAff)
 
 main :: Effect Unit

@@ -27,7 +27,7 @@ import Types.Transaction (UtxoM(UtxoM))
 import Types.Transaction as Transaction
 import TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
 import Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
-import Wallet (Wallet(Nami, Gero))
+import Wallet (Wallet(Nami))
 import QueryM.Ogmios as Ogmios
 
 --------------------------------------------------------------------------------
