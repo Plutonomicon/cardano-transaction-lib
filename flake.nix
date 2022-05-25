@@ -8,11 +8,8 @@
     };
 
     # for the purescript project
-    ogmios.url = "github:mlabs-haskell/ogmios/c4f896bf32ad066be8edd8681ee11e4ab059be7f";
-    ogmios-datum-cache = {
-      url = "github:mlabs-haskell/ogmios-datum-cache";
-      flake = false;
-    };
+    ogmios.url = "github:mlabs-haskell/ogmios";
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache";
     # so named because we also need a different version of the repo below
     # in the server inputs and we use this one just for the `cardano-cli`
     # executables
@@ -108,7 +105,7 @@
       flake = false;
     };
     # NOTE
-    # I don't we need anything from `plutus-apps`, so the following two are
+    # I don't think we need anything from `plutus-apps`, so the following two are
     # not necessary. They might be useful for communicating with the frontend
     # however in case this is needed
     purescript-bridge = {
@@ -148,9 +145,7 @@
         easy-ps =
           import inputs.easy-purescript-nix { pkgs = prev; };
         ogmios-datum-cache =
-          nixpkgs.legacyPackages.${system}.haskellPackages.callPackage
-            ogmios-datum-cache
-            { };
+          inputs.ogmios-datum-cache.defaultPackage.${system};
         ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
         cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
         purescriptProject = import ./nix { inherit system; pkgs = prev; };
@@ -169,38 +164,48 @@
         inherit system;
       };
 
-      buildCtlRuntime = system:
-        { node ? { port = 3001; }
-        , ogmios ? { port = 1337; }
-        , ctlServer ? { port = 8081; }
-        , postgres ? {
-            port = 5432;
-            user = "ctxlib";
-            password = "ctxlib";
-            db = "ctxlib";
-          }
-        , datumCache ? {
-            port = 9999;
-            dbConnectionString = nixpkgs.lib.concatStringsSep
-              " "
-              [
-                "host=postgres"
-                "port=${toString postgres.port}"
-                "user=${postgres.user}"
-                "dbname=${postgres.db}"
-                "password=${postgres.password}"
-              ];
-            saveAllDatums = true;
-            firstFetchBlock = {
-              slot = 44366242;
-              id = "d2a4249fe3d0607535daa26caf12a38da2233586bc51e79ed0b3a36170471bf5";
+      defaultConfig = final: with final; {
+        node = { port = 3001; };
+        ogmios = { port = 1337; };
+        ctlServer = { port = 8081; };
+        postgres = {
+          port = 5432;
+          user = "ctxlib";
+          password = "ctxlib";
+          db = "ctxlib";
+        };
+        datumCache = {
+          port = 9999;
+          dbConnectionString = nixpkgs.lib.concatStringsSep
+            " "
+            [
+              "host=postgres"
+              "port=${toString postgres.port}"
+              "user=${postgres.user}"
+              "dbname=${postgres.db}"
+              "password=${postgres.password}"
+            ];
+          blockFetcher = {
+            firstBlock = {
+              slot = 54066900;
+              id = "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d";
             };
-          }
-        }:
+            autoStart = true;
+            startFromLast = false;
+            filter = builtins.toJSON { const = true; };
+          };
+        };
+      };
+
+      buildCtlRuntime = system: extraConfig:
         { ... }:
         let
           inherit (builtins) toString;
           pkgs = nixpkgsFor system;
+          config = with pkgs.lib;
+            fix (final: recursiveUpdate
+              (defaultConfig final)
+              (if isFunction extraConfig then extraConfig final else extraConfig));
           nodeDbVol = "node-db";
           nodeIpcVol = "node-ipc";
           nodeSocketPath = "/ipc/node.socket";
@@ -208,6 +213,7 @@
           server = self.packages.${system}."${serverName}";
           bindPort = port: "${toString port}:${toString port}";
         in
+        with config;
         {
           docker-compose.raw = {
             volumes = {
@@ -252,7 +258,7 @@
                   "-c"
                   ''
                     ${pkgs.ogmios}/bin/ogmios \
-                      --host 0.0.0.0 \
+                      --host ogmios \
                       --port ${toString ogmios.port} \
                       --node-socket /ipc/node.socket \
                       --node-config /config/cardano-node/config.json
@@ -264,11 +270,16 @@
               service = {
                 useHostStore = true;
                 ports = [ (bindPort ctlServer.port) ];
+                depends_on = [ "ogmios" ];
+                volumes = [ "${nodeIpcVol}:/ipc" ];
                 command = [
                   "${pkgs.bash}/bin/sh"
                   "-c"
                   ''
-                    ${server}/bin/ctl-server
+                    ${server}/bin/ctl-server \
+                      --port ${toString ctlServer.port} \
+                      --node-socket ${nodeSocketPath} \
+                      --network-id 1097911063
                   ''
                 ];
               };
@@ -286,14 +297,18 @@
             };
             ogmios-datum-cache =
               let
+                filter = nixpkgs.lib.strings.replaceStrings
+                  [ "\"" "\\" ] [ "\\\"" "\\\\" ]
+                  datumCache.blockFetcher.filter;
                 configFile = ''
                   dbConnectionString = "${datumCache.dbConnectionString}"
-                  saveAllDatums = ${pkgs.lib.boolToString datumCache.saveAllDatums}
                   server.port = ${toString datumCache.port}
                   ogmios.address = "ogmios"
                   ogmios.port = ${toString ogmios.port}
-                  firstFetchBlock.slot = ${toString datumCache.firstFetchBlock.slot}
-                  firstFetchBlock.id = "${datumCache.firstFetchBlock.id}"
+                  blockFetcher.autoStart = ${nixpkgs.lib.boolToString datumCache.blockFetcher.autoStart}
+                  blockFetcher.firstBlock.slot = ${toString datumCache.blockFetcher.firstBlock.slot}
+                  blockFetcher.firstBlock.id = "${datumCache.blockFetcher.firstBlock.id}"
+                  blockFetcher.filter = "${filter}"
                 '';
               in
               {
@@ -301,7 +316,7 @@
                   useHostStore = true;
                   ports = [ (bindPort datumCache.port) ];
                   restart = "on-failure";
-                  depends_on = [ "postgres" ];
+                  depends_on = [ "postgres" "ogmios" ];
                   command = [
                     "${pkgs.bash}/bin/sh"
                     "-c"
@@ -376,7 +391,26 @@
               inherit pkgs;
               modules = [ (buildCtlRuntime system { }) ];
             };
+
+            docs = project.buildSearchablePursDocs;
           };
+
+          launchDocs =
+            let
+              binPath = "docs-server";
+              builtDocs = packages.docs;
+              script = (pkgs.writeShellScriptBin "${binPath}"
+                ''
+                  ${pkgs.nodePackages.http-server}/bin/http-server ${builtDocs}/generated-docs/html
+                ''
+              ).overrideAttrs (_: {
+                buildInputs = [ pkgs.nodejs-14_x pkgs.nodePackages.http-server ];
+              });
+            in
+            {
+              type = "app";
+              program = "${script}/bin/${binPath}";
+            };
 
           # FIXME
           # Once we have ogmios/node instances available, we should also include a
@@ -428,6 +462,7 @@
           inherit
             (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
           ctl-runtime = (nixpkgsFor system).launchCtlRuntime { };
+          docs = (psProjectFor system).launchDocs;
         });
 
       checks = perSystem (system:

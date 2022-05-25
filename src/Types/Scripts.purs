@@ -10,18 +10,26 @@ module Types.Scripts
 
 import Prelude
 
-import Data.Argonaut (class DecodeJson)
-import Data.Argonaut as Json
-import Data.Either (Either(Left), note)
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , Aeson
+  , JsonDecodeError(TypeMismatch)
+  , caseAesonObject
+  , decodeAeson
+  , encodeAeson'
+  , getField
+  )
+import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype, wrap)
+import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import FromData (class FromData)
 import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Serialization.Hash (ScriptHash)
 import ToData (class ToData)
-import Types.ByteArray (ByteArray, hexToByteArray)
+import Types.ByteArray (ByteArray)
 
 --------------------------------------------------------------------------------
 -- `PlutusScript` newtypes and `TypedValidator`
@@ -33,17 +41,22 @@ derive instance Generic PlutusScript _
 derive instance Newtype PlutusScript _
 derive newtype instance Eq PlutusScript
 derive newtype instance Ord PlutusScript
+derive newtype instance DecodeAeson PlutusScript
+derive newtype instance EncodeAeson PlutusScript
 
 instance Show PlutusScript where
   show = genericShow
 
--- This instance is needed as the server will return a hex-encoded CBOR string
--- when `applyArgs` is called
-instance DecodeJson PlutusScript where
-  decodeJson j = Json.caseJsonString
-    (Left (Json.TypeMismatch "expected a hex-encoded CBOR string"))
-    (map wrap <<< note (Json.UnexpectedValue j) <<< hexToByteArray)
-    j
+decodeAesonHelper
+  ∷ ∀ (a ∷ Type) (b :: Type)
+   . DecodeAeson a
+  => String
+  → (a -> b)
+  → Aeson
+  → Either JsonDecodeError b
+decodeAesonHelper constrName constr = caseAesonObject
+  (Left $ TypeMismatch "Expected object")
+  (flip getField constrName >=> decodeAeson >>> map constr)
 
 -- | `MintingPolicy` is a wrapper around `PlutusScript`s which are used as
 -- | validators for minting constraints.
@@ -53,7 +66,13 @@ derive instance Generic MintingPolicy _
 derive instance Newtype MintingPolicy _
 derive newtype instance Eq MintingPolicy
 derive newtype instance Ord MintingPolicy
-derive newtype instance DecodeJson MintingPolicy
+
+instance DecodeAeson MintingPolicy where
+  decodeAeson = decodeAesonHelper "getMintingPolicy" MintingPolicy
+
+instance EncodeAeson MintingPolicy where
+  encodeAeson' (MintingPolicy script) = do
+    encodeAeson' { "getMintingPolicy": script }
 
 instance Show MintingPolicy where
   show = genericShow
@@ -64,7 +83,13 @@ derive instance Generic Validator _
 derive instance Newtype Validator _
 derive newtype instance Eq Validator
 derive newtype instance Ord Validator
-derive newtype instance DecodeJson Validator
+
+instance DecodeAeson Validator where
+  decodeAeson = decodeAesonHelper "getValidator" Validator
+
+instance EncodeAeson Validator where
+  encodeAeson' (Validator script) =
+    encodeAeson' { "getValidator": script }
 
 instance Show Validator where
   show = genericShow
@@ -77,7 +102,13 @@ derive instance Generic StakeValidator _
 derive instance Newtype StakeValidator _
 derive newtype instance Eq StakeValidator
 derive newtype instance Ord StakeValidator
-derive newtype instance DecodeJson StakeValidator
+
+instance DecodeAeson StakeValidator where
+  decodeAeson = decodeAesonHelper "getStakeValidator" StakeValidator
+
+instance EncodeAeson StakeValidator where
+  encodeAeson' (StakeValidator script) =
+    encodeAeson' { "getStakeValidator": script }
 
 instance Show StakeValidator where
   show = genericShow
@@ -91,15 +122,20 @@ derive instance Generic MintingPolicyHash _
 derive instance Newtype MintingPolicyHash _
 derive newtype instance Eq MintingPolicyHash
 derive newtype instance Ord MintingPolicyHash
-derive newtype instance DecodeJson MintingPolicyHash
-
-instance Show MintingPolicyHash where
-  show = genericShow
-
 derive newtype instance FromData MintingPolicyHash
 derive newtype instance ToData MintingPolicyHash
 derive newtype instance FromMetadata MintingPolicyHash
 derive newtype instance ToMetadata MintingPolicyHash
+
+instance DecodeAeson MintingPolicyHash where
+  decodeAeson = decodeAesonHelper "getMintingPolicyHash" MintingPolicyHash
+
+instance EncodeAeson MintingPolicyHash where
+  encodeAeson' (MintingPolicyHash hash) =
+    encodeAeson' { "getMintingPolicyHash": hash }
+
+instance Show MintingPolicyHash where
+  show = genericShow
 
 newtype ValidatorHash = ValidatorHash ScriptHash
 
@@ -109,9 +145,15 @@ derive newtype instance Eq ValidatorHash
 derive newtype instance Ord ValidatorHash
 derive newtype instance FromData ValidatorHash
 derive newtype instance ToData ValidatorHash
-derive newtype instance DecodeJson ValidatorHash
 derive newtype instance FromMetadata ValidatorHash
 derive newtype instance ToMetadata ValidatorHash
+
+instance DecodeAeson ValidatorHash where
+  decodeAeson = decodeAesonHelper "getValidatorHash" ValidatorHash
+
+instance EncodeAeson ValidatorHash where
+  encodeAeson' (ValidatorHash hash) =
+    encodeAeson' { "getValidatorHash": hash }
 
 instance Show ValidatorHash where
   show = genericShow
@@ -122,7 +164,13 @@ derive instance Generic StakeValidatorHash _
 derive instance Newtype StakeValidatorHash _
 derive newtype instance Eq StakeValidatorHash
 derive newtype instance Ord StakeValidatorHash
-derive newtype instance DecodeJson StakeValidatorHash
+
+instance DecodeAeson StakeValidatorHash where
+  decodeAeson = decodeAesonHelper "getStakeValidatorHash" StakeValidatorHash
+
+instance EncodeAeson StakeValidatorHash where
+  encodeAeson' (StakeValidatorHash hash) =
+    encodeAeson' { "getStakeValidatorHash": hash }
 
 instance Show StakeValidatorHash where
   show = genericShow

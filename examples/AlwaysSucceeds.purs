@@ -1,29 +1,11 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that pays two Ada to the `AlwaysSucceeds` script address
--- |
--- | * Prerequisites
--- |   - A Chromium-based browser (for Nami compatibility)
---
--- |   - A Nami wallet funded with test Ada ("tAda") and collateral set, If you need
--- |     tAda, visit https://testnets.cardano.org/en/testnets/cardano/tools/faucet/
---
--- | * How to run
---
--- |   The `Contract` interface requires several external services to be running.
--- |   From the repository root, run `nix run .#ctl-runtime` to launch all
--- |   required services
---
--- |   Once all of the services are *fully synced*, run:
---
--- |   - `make run-dev` and visit `localhost:4008`. You may be prompted to enable
--- |     access to your wallet if you have not run this example before. You will
--- |     also be prompted to sign the transaction using your Nami password
-
 module Examples.AlwaysSucceeds (main) where
 
 import Contract.Prelude
 
+import Contract.Aeson (decodeAeson, fromString)
 import Contract.Monad
   ( liftContractM
   , liftedE
@@ -42,19 +24,17 @@ import Contract.Transaction
   )
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
-import Contract.Wallet (mkNamiWalletAff)
-import Data.Argonaut (decodeJson, fromString)
 import Data.BigInt as BigInt
 
 import Effect.Aff (launchAff_)
 
 main :: Effect Unit
 main = launchAff_ $ do
-  cfg <- traceContractConfig mkNamiWalletAff
+  cfg <- traceContractConfig
   runContract_ cfg $ do
+    logInfo' "Running Examples.AlwaysSucceeds"
     validator <- liftContractM "Invalid script JSON" $ alwaysSucceedsScript
-    vhash <- liftedM "Couldn't hash validator" $ validatorHash validator
-
+    vhash <- liftContractM "Couldn't hash validator" $ validatorHash validator
     let
       -- Note that CTL does not have explicit equivalents of Plutus'
       -- `mustPayToTheScript` or `mustPayToOtherScript`, as we have no notion
@@ -76,5 +56,5 @@ main = launchAff_ $ do
     logInfo' $ "Tx ID: " <> show txId
 
 alwaysSucceedsScript :: Maybe Validator
-alwaysSucceedsScript = hush $ decodeJson $ fromString
+alwaysSucceedsScript = map wrap $ hush $ decodeAeson $ fromString
   "4d01000033222220051200120011"

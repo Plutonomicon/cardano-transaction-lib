@@ -24,7 +24,11 @@ import Prelude
 
 import Aeson
   ( class DecodeAeson
+  , class EncodeAeson
   , Aeson
+  , JsonDecodeError
+      ( TypeMismatch
+      )
   , caseAesonArray
   , caseAesonObject
   , decodeAeson
@@ -32,7 +36,6 @@ import Aeson
   , getFieldOptional
   )
 import Control.Alt ((<|>))
-import Data.Argonaut (class EncodeJson, JsonDecodeError(TypeMismatch))
 import Data.Array (index, singleton)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), either, hush, note)
@@ -60,7 +63,8 @@ import QueryM.JsonWsp
   )
 import Serialization.Address (Slot)
 import Type.Proxy (Proxy(Proxy))
-import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
+import Types.ByteArray (ByteArray, hexToByteArray)
+import Types.CborBytes (CborBytes, cborBytesToHex)
 import Types.Natural (Natural)
 import Types.RedeemerTag as Tag
 import Cardano.Types.Value (CurrencySymbol, Value, mkCurrencySymbol, mkValue)
@@ -104,26 +108,26 @@ type OgmiosAddress = String
 
 -- | Sends a serialized signed transaction with its full witness through the
 -- | Cardano network via Ogmios.
-submitTxCall :: JsonWspCall { txCbor :: ByteArray } SubmitTxR
+submitTxCall :: JsonWspCall CborBytes SubmitTxR
 submitTxCall = mkOgmiosCallType
   { methodname: "SubmitTx"
-  , args: { submit: _ } <<< byteArrayToHex <<< _.txCbor
+  , args: { submit: _ } <<< cborBytesToHex
   }
   Proxy
 
 -- | Evaluates the execution units of scripts present in a given transaction,
 -- | without actually submitting the transaction.
-evaluateTxCall :: JsonWspCall { txCbor :: ByteArray } TxEvaluationResult
+evaluateTxCall :: JsonWspCall CborBytes TxEvaluationResult
 evaluateTxCall = mkOgmiosCallType
   { methodname: "EvaluateTx"
-  , args: { evaluate: _ } <<< byteArrayToHex <<< _.txCbor
+  , args: { evaluate: _ } <<< cborBytesToHex
   }
   Proxy
 
 -- convenience helper
 mkOgmiosCallType
   :: forall (a :: Type) (i :: Type) (o :: Type)
-   . EncodeJson (JsonWspRequest a)
+   . EncodeAeson (JsonWspRequest a)
   => { methodname :: String, args :: i -> a }
   -> Proxy o
   -> JsonWspCall i o
@@ -224,7 +228,7 @@ instance DecodeAeson UtxoQR where
 -- the inner type for Utxo Queries
 type UtxoQueryResult = Map.Map OgmiosTxOutRef OgmiosTxOut
 
--- Ogmios TxOutRef
+-- Ogmios tx input
 type OgmiosTxOutRef =
   { txId :: String
   , index :: UInt.UInt

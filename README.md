@@ -20,6 +20,7 @@
   - [Nix environment](#nix-environment)
   - [Launching services for development](#launching-services-for-development)
   - [Building/testing the PS project and running it in the browser](#buildingtesting-the-ps-project-and-running-it-in-the-browser)
+  - [Generating PS documentation](#generating-ps-documentation)
   - [Adding PS/JS dependencies](#adding-psjs-dependencies)
     - [Purescript](#purescript)
     - [JS](#js)
@@ -69,7 +70,7 @@ CTL's overlay (contained in its flake `outputs`) provides some mechanisms for co
 
 Here is an example that uses the overlay to launch runtime services:
 
-``` nix
+```nix
 {
 
   inputs = {
@@ -97,7 +98,11 @@ Here is an example that uses the overlay to launch runtime services:
       # The configuration for the CTL runtime, which will be passed to the
       # expression that builds the JSON file used by Arion. This value can be
       # shared between `buildCtlRuntime` and `launchCtlRuntime`, as shown below
-      runtimeConfig = {
+      #
+      # You can refer to the final configuration value by passing a function
+      # that takes a single arugment. Alternately, you can pass an attrset
+      # directly
+      runtimeConfig = final: with final; {
         # *All* of these values are optional, and shown with their default
         # values. If you need even more customization, you can use `overideAttrs`
         # to change the values after calling `buildCtlRuntime` (e.g. a secrets
@@ -114,8 +119,8 @@ Here is an example that uses the overlay to launch runtime services:
         # These values will generate the `config.toml` required by ogmios-datum-cache
         datumCache = {
           port = 9999;
-          # If you override some part of `postgres` above, you may also need to
-          # modify the `dbConnectionString`
+          # If you override some part of `postgres` above, `dbConnectionString`
+          # is automatically updated
           dbConnectionString = nixpkgs.lib.concatStringsSep
             " "
             [
@@ -125,10 +130,14 @@ Here is an example that uses the overlay to launch runtime services:
               "dbname=${postgres.db}"
               "password=${postgres.password}"
             ];
-          saveAllDatums = true;
-          firstFetchBlock = {
-            slot = 44366242;
-            id = "d2a4249fe3d0607535daa26caf12a38da2233586bc51e79ed0b3a36170471bf5";
+          blockFetcher = {
+            firstBlock = {
+              slot = 54066900;
+              id = "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d";
+            };
+            autoStart = true;
+            startFromLast = false;
+            filter = builtins.toJSON { const = true; };
           };
         };
       };
@@ -216,7 +225,7 @@ To develop locally, you can use one the CTL flake to launch all required service
   - `nix build` _or_
   - `spago build`
 - To test the project, currently only supported when running in a NodeJS environment:
-  - `spago test` _or_ `npm run test` will run both the integration and unit tests
+  - `npm run unit-test` for unit tests, `npm run integration-test` for integration tests, or `npm run test` for both.
   - `nix build .#checks.<SYSTEM>.ctl-unit-test` will build and run the unit tests (useful for CI)
 - To run or build/bundle the project for the browser:
   - `make run-dev` _or_ `npm run dev` will start a Webpack development server at `localhost:4008`
@@ -226,6 +235,19 @@ To develop locally, you can use one the CTL flake to launch all required service
 By default, Webpack will build a [small Purescript example](examples/Pkh2Pkh.purs). Make sure to follow the [instructions for setting up Nami](#other-requirements) before running the examples. You can point Webpack to another Purescript entrypoint by changing the `ps-bundle` variable in the Makefile or in the `main` argument in the flake's `packages.ctl-examples-bundle-web`.
 
 **Note**: The `BROWSER_RUNTIME` environment variable must be set to `1` in order to build/bundle the project properly for the browser (e.g. `BROWSER_RUNTIME=1 webpack ...`). For Node environments, leave this variable unset or set it to `0`.
+
+### Generating PS documentation
+
+- To build the documentation as HTML:
+  - `spago docs`
+- To build and open the documentation in your browser:
+  - `spago docs --open`
+- To build the documentation as Markdown:
+  - `spago docs --format markdown`
+
+The documentation will be generated in the `./generated_docs` folder, which contains an `index.html` which lists all modules by default. At this index is a checkbox to toggle viewing by package, and all the modules defined in our package will be available under `cardano-transaction-lib`.
+
+Alternatively, you can view the documentation with `nix run -L .#docs` and opening `localhost:8080` in your browser. `nix build -L .#docs` will produce a `result` folder containing the documentation.
 
 ### Adding PS/JS dependencies
 

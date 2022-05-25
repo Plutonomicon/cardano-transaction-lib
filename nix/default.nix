@@ -70,6 +70,35 @@ let
           + shellHook;
       };
 
+  buildPursDocsSearch =
+    { name ? "purescript-docs-search"
+    , ...
+    }:
+    pkgs.stdenv.mkDerivation {
+      inherit name;
+      srcs = [
+        (pkgs.fetchurl {
+          url = "https://github.com/purescript/purescript-docs-search/releases/download/v0.0.11/docs-search-app.js";
+          sha256 = "17qngsdxfg96cka1cgrl3zdrpal8ll6vyhhnazqm4hwj16ywjm02";
+        })
+        (pkgs.fetchurl {
+          url = "https://github.com/purescript/purescript-docs-search/releases/download/v0.0.11/purescript-docs-search";
+          sha256 = "1hjdprm990vyxz86fgq14ajn0lkams7i00h8k2i2g1a0hjdwppq6";
+        })
+      ];
+      buildInputs = [ nodejs ];
+      unpackPhase = ''
+        for srcFile in $srcs; do
+          cp $srcFile $(stripHash $srcFile)
+        done
+      '';
+      installPhase = ''
+        chmod +x purescript-docs-search
+        mkdir -p $out/bin
+        mv docs-search-app.js purescript-docs-search $out/bin
+      '';
+    };
+
   buildPursProject =
     { sources ? [ "src" ]
     , withDevDeps ? false
@@ -135,6 +164,43 @@ let
         '';
       });
 
+  buildPursDocs =
+    { name ? "${projectName}-docs"
+    , format ? "html"
+    , ...
+    }@args:
+    (buildPursProject args).overrideAttrs
+      (oas: {
+        inherit name;
+        buildPhase = ''
+          purs docs --format ${format} "./**/*.purs" ".spago/*/*/src/**/*.purs"
+        '';
+        installPhase = ''
+          mkdir $out
+          cp -r generated-docs $out
+          cp -r output $out
+        '';
+      });
+
+  buildSearchablePursDocs =
+    pkgs.stdenv.mkDerivation {
+      name = "${projectName}-searchable-docs";
+      dontUnpack = true;
+      buildInputs = [
+        spagoPkgs.installSpagoStyle
+      ];
+      buildPhase = ''
+        cp -r ${buildPursDocs { format = "html"; }}/{generated-docs,output} .
+        install-spago-style
+        chmod -R +rwx .
+        ${buildPursDocsSearch { }}/bin/purescript-docs-search build-index --package-name cardano-transaction-lib
+      '';
+      installPhase = ''
+        mkdir $out
+        cp -r generated-docs $out
+      '';
+    };
+
   bundlePursProject =
     { name ? "${projectName}-bundle-" +
         (if browserRuntime then "web" else "nodejs")
@@ -160,7 +226,7 @@ let
           cp $src/${htmlTemplate} .
           cp $src/${webpackConfig} .
           mkdir ./dist
-          webpack --mode=production -c ${webpackConfig} -o ./dist
+          webpack --mode=production -c ${webpackConfig} -o ./dist --entry ./${entrypoint}
         '';
         installPhase = ''
           mkdir $out
@@ -170,7 +236,7 @@ let
 
 in
 {
-  inherit buildPursProject runPursTest bundlePursProject;
+  inherit buildPursProject runPursTest buildPursDocs buildSearchablePursDocs buildPursDocsSearch bundlePursProject;
   inherit purs nodejs mkNodeModules;
   devShell = shellFor shell;
 }

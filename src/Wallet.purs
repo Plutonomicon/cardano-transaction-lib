@@ -12,10 +12,19 @@ module Wallet
 
 import Prelude
 
+import Cardano.Types.Transaction
+  ( Ed25519Signature(Ed25519Signature)
+  , PublicKey(PublicKey)
+  , Transaction(Transaction)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
+  )
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Control.Promise (Promise)
 import Control.Promise as Promise
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
-import Data.Newtype (over)
+import Data.Newtype (over, unwrap)
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytesEffect)
 import Deserialization.UnspentOutput as Deserialization.UnspentOuput
@@ -29,16 +38,13 @@ import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Helpers ((<<>>))
 import Serialization as Serialization
 import Serialization.Address (Address, addressFromBytes)
-import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex)
-import Types.Transaction
-  ( Ed25519Signature(Ed25519Signature)
-  , PublicKey(PublicKey)
-  , Transaction(Transaction)
-  , TransactionWitnessSet(TransactionWitnessSet)
-  , Vkey(Vkey)
-  , Vkeywitness(Vkeywitness)
+import Types.ByteArray (byteArrayToHex)
+import Types.CborBytes
+  ( CborBytes
+  , cborBytesToHex
+  , rawBytesAsCborBytes
   )
-import Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Types.RawBytes (RawBytes, hexToRawBytes)
 import Untagged.Union (asOneOf)
 
 type Cip30Wallet a =
@@ -52,7 +58,7 @@ type Cip30Wallet a =
   -- Sign a transaction with the current wallet
   , signTx :: a -> Transaction -> Aff (Maybe Transaction)
   -- Sign a transaction with the current wallet
-  , signTxBytes :: a -> ByteArray -> Aff (Maybe ByteArray)
+  , signTxBytes :: a -> CborBytes -> Aff (Maybe CborBytes)
   }
 
 data Wallet = Nami NamiWallet | Gero GeroWallet
@@ -138,16 +144,16 @@ class Connection a where
   getWalletAddress :: a -> Aff (Maybe Address)
   getCollateral :: a -> Aff (Maybe TransactionUnspentOutput)
   signTx :: a -> Transaction -> Aff (Maybe Transaction)
-  signTxBytes :: a -> ByteArray -> Aff (Maybe ByteArray)
-  fromHexString :: (a -> Effect (Promise String)) -> a -> Aff (Maybe ByteArray)
+  signTxBytes :: a -> CborBytes -> Aff (Maybe CborBytes)
+  fromHexString :: (a -> Effect (Promise String)) -> a -> Aff (Maybe RawBytes)
   fromMaybeHexString
-    :: (a -> Effect (Promise (Maybe String))) -> a -> Aff (Maybe ByteArray)
+    :: (a -> Effect (Promise (Maybe String))) -> a -> Aff (Maybe RawBytes)
 
 instance namiConnection :: Connection NamiConnection where
   enable = Promise.toAffE $ _enableNami
 
   getWalletAddress nami = fromHexString _getNamiAddress nami <#>
-    (_ >>= addressFromBytes)
+    (_ >>= addressFromBytes <<< rawBytesAsCborBytes)
 
   getCollateral nami = fromMaybeHexString getNamiCollateral nami >>=
     case _ of
@@ -155,7 +161,7 @@ instance namiConnection :: Connection NamiConnection where
       Just bytes -> do
         liftEffect $
           Deserialization.UnspentOuput.convertUnspentOutput
-            <$> fromBytesEffect bytes
+            <$> fromBytesEffect (unwrap bytes)
 
   signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
   signTx nami tx = do
@@ -164,7 +170,7 @@ instance namiConnection :: Connection NamiConnection where
       Nothing -> pure Nothing
       Just bytes -> map (combineWitnessSet tx) <$> liftEffect
         ( Deserialization.WitnessSet.convertWitnessSet
-            <$> fromBytesEffect bytes
+            <$> fromBytesEffect (unwrap bytes)
         )
     where
     -- We have to combine the newly returned witness set with the existing one
@@ -173,22 +179,21 @@ instance namiConnection :: Connection NamiConnection where
     combineWitnessSet (Transaction tx'@{ witnessSet: oldWits }) newWits =
       Transaction $ tx' { witnessSet = oldWits <> newWits }
 
-  signTxBytes :: NamiConnection -> ByteArray -> Aff (Maybe ByteArray)
   signTxBytes nami txBytes = do
-    fromHexString (_signTxNami (byteArrayToHex txBytes)) nami >>= case _ of
+    fromHexString (_signTxNami (cborBytesToHex txBytes)) nami >>= case _ of
       Nothing -> pure Nothing
-      Just witBytes -> Just <$> liftEffect (_attachSignature txBytes witBytes)
+      Just witBytes -> Just <$> liftEffect (_attachSignature txBytes (rawBytesAsCborBytes witBytes))
 
-  fromHexString act = map hexToByteArray <<< Promise.toAffE <<< act
+  fromHexString act = map hexToRawBytes <<< Promise.toAffE <<< act
 
   fromMaybeHexString act =
-    map (flip bind hexToByteArray) <<< Promise.toAffE <<< act
+    map (flip bind hexToRawBytes) <<< Promise.toAffE <<< act
 
 instance geroConnection :: Connection GeroConnection where
   enable = Promise.toAffE $ _enableGero
 
   getWalletAddress gero = fromHexString _getGeroAddress gero <#>
-    (_ >>= addressFromBytes)
+    (_ >>= addressFromBytes <<< rawBytesAsCborBytes)
 
   getCollateral gero = fromMaybeHexString getGeroCollateral gero >>=
     case _ of
@@ -196,7 +201,7 @@ instance geroConnection :: Connection GeroConnection where
       Just bytes -> do
         liftEffect $
           Deserialization.UnspentOuput.convertUnspentOutput
-            <$> fromBytesEffect bytes
+            <$> fromBytesEffect (unwrap bytes)
 
   signTx gero tx = do
     txHex <- txToHex tx
@@ -204,7 +209,7 @@ instance geroConnection :: Connection GeroConnection where
       Nothing -> pure Nothing
       Just bytes -> map (combineWitnessSet tx) <$> liftEffect
         ( Deserialization.WitnessSet.convertWitnessSet
-            <$> fromBytesEffect bytes
+            <$> fromBytesEffect (unwrap bytes)
         )
     where
     -- We have to combine the newly returned witness set with the existing one
@@ -214,15 +219,15 @@ instance geroConnection :: Connection GeroConnection where
       Transaction $ tx' { witnessSet = oldWits <> newWits }
 
   signTxBytes gero txBytes = do
-    fromHexString (_signTxGero (byteArrayToHex txBytes)) gero >>=
+    fromHexString (_signTxGero (cborBytesToHex txBytes)) gero >>=
       case _ of
         Nothing -> pure Nothing
-        Just witBytes -> Just <$> liftEffect (_attachSignature txBytes witBytes)
+        Just witBytes -> Just <$> liftEffect (_attachSignature txBytes (rawBytesAsCborBytes witBytes))
 
-  fromHexString act = map hexToByteArray <<< Promise.toAffE <<< act
+  fromHexString act = map hexToRawBytes <<< Promise.toAffE <<< act
 
   fromMaybeHexString act =
-    map (flip bind hexToByteArray) <<< Promise.toAffE <<< act
+    map (flip bind hexToRawBytes) <<< Promise.toAffE <<< act
 
 -------------------------------------------------------------------------------
 -- Nami FFI stuff
@@ -245,9 +250,9 @@ foreign import _signTxNami
   -> Effect (Promise String)
 
 foreign import _attachSignature
-  :: ByteArray -- CBOR bytes of tx
-  -> ByteArray -- CBOR bytes of witness set
-  -> Effect (ByteArray)
+  :: CborBytes -- CBOR bytes of tx
+  -> CborBytes -- CBOR bytes of witness set
+  -> Effect CborBytes
 
 -------------------------------------------------------------------------------
 -- Gero FFI stuff

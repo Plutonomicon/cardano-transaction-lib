@@ -11,18 +11,27 @@ module Types.ByteArray
   , hexToByteArrayUnsafe
   ) where
 
-import Aeson (class DecodeAeson, decodeAesonViaJson)
-import Data.Argonaut (class DecodeJson)
-import Data.Argonaut as Json
+import Prelude
+
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , encodeAeson'
+  , JsonDecodeError
+      ( TypeMismatch
+      , UnexpectedValue
+      )
+  , caseAesonString
+  , toStringifiedNumbersJson
+  )
 import Data.ArrayBuffer.Types (Uint8Array)
+import Data.Char (toCharCode)
 import Data.Either (Either(Left), note)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap)
-import Prelude
-import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
-import Data.Char (toCharCode)
 import Data.String.CodeUnits (toCharArray)
 import Data.Traversable (for)
+import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 
 newtype ByteArray = ByteArray Uint8Array
 
@@ -50,14 +59,16 @@ instance Semigroup ByteArray where
 instance Monoid ByteArray where
   mempty = byteArrayFromIntArrayUnsafe []
 
-instance DecodeJson ByteArray where
-  decodeJson j = Json.caseJsonString
-    (Left (Json.TypeMismatch "expected a hex-encoded string"))
-    (note (Json.UnexpectedValue j) <<< hexToByteArray)
-    j
-
 instance DecodeAeson ByteArray where
-  decodeAeson = decodeAesonViaJson
+  decodeAeson j = caseAesonString (Left typeMismatchError)
+    (note unexpectedValueError <<< hexToByteArray)
+    j
+    where
+    typeMismatchError = TypeMismatch "expected a hex-encoded string"
+    unexpectedValueError = UnexpectedValue $ toStringifiedNumbersJson j
+
+instance EncodeAeson ByteArray where
+  encodeAeson' ba = encodeAeson' (byteArrayToHex ba)
 
 foreign import ord_ :: (Int -> Int -> Int) -> ByteArray -> ByteArray -> Int
 

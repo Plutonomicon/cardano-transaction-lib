@@ -2,8 +2,8 @@ module Test.Metadata.Cip25 (suite) where
 
 import Prelude
 
+import Aeson (decodeAeson)
 import Effect.Class (liftEffect)
-import Data.Argonaut (decodeJson)
 import Data.Either (Either(Right))
 import Data.Maybe (Maybe(Just))
 import Metadata.MetadataType (fromGeneralTxMetadata, toGeneralTxMetadata)
@@ -25,5 +25,5 @@ suite = do
         Just cip25MetadataFixture1
     test "DecodeJson instance" do
       jsonFixture <- liftEffect cip25MetadataJsonFixture1
-      decodeJson jsonFixture `shouldEqual`
+      decodeAeson jsonFixture `shouldEqual`
         Right cip25MetadataFixture1

@@ -4,6 +4,7 @@ module Deserialization.NativeScript
 
 import Prelude
 
+import Cardano.Types.Transaction as T
 import Control.Alt ((<|>))
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
@@ -26,7 +27,6 @@ import Serialization.Types
   , TimelockExpiry
   , TimelockStart
   )
-import Types.Transaction as T
 
 convertNativeScript :: NativeScript -> Maybe T.NativeScript
 convertNativeScript ns =

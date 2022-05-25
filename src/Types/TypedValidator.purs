@@ -13,12 +13,13 @@ module Types.TypedValidator
 
 import Prelude
 
-import Data.Argonaut
-  ( class DecodeJson
+import Aeson
+  ( class DecodeAeson
   , JsonDecodeError(TypeMismatch)
+  , caseAesonObject
   , (.:)
-  , caseJsonObject
   )
+import Cardano.Types.Transaction (Transaction)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap)
@@ -32,7 +33,6 @@ import Types.Scripts
   , Validator
   , ValidatorHash
   )
-import Types.Transaction (Transaction)
 
 -- We don't need c, d because a determines the same type b for `DatumType` and
 -- `RedeemerType`. Plutus uses associated typed families, but we don't have
@@ -111,8 +111,8 @@ derive newtype instance Eq (TypedValidator a)
 instance Show (TypedValidator a) where
   show = genericShow
 
-instance DecodeJson (TypedValidator a) where
-  decodeJson = caseJsonObject
+instance DecodeAeson (TypedValidator a) where
+  decodeAeson = caseAesonObject
     (Left $ TypeMismatch "Expected Object")
     ( \o -> do
         validator <- o .: "validator"
