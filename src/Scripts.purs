@@ -11,11 +11,10 @@ module Scripts
   ) where
 
 import Prelude
-import Data.Either (hush)
-import Data.Maybe (Maybe(Nothing), maybe)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype, wrap, unwrap)
+import Hashing (plutusScriptHash)
 import Plutus.Types.CurrencySymbol (CurrencySymbol, mpsSymbol)
-import QueryM (QueryM, hashScript)
 import Serialization.Address
   ( Address
   , NetworkId
@@ -56,11 +55,11 @@ typedValidatorEnterpriseAddress network (TypedValidator typedVal) =
   validatorHashEnterpriseAddress network typedVal.validatorHash
 
 -- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
-mintingPolicyHash :: MintingPolicy -> QueryM (Maybe MintingPolicyHash)
+mintingPolicyHash :: MintingPolicy -> Maybe MintingPolicyHash
 mintingPolicyHash = scriptHash
 
 -- | Converts a Plutus-style `Validator` to an `ValidatorHash`
-validatorHash :: Validator -> QueryM (Maybe ValidatorHash)
+validatorHash :: Validator -> Maybe ValidatorHash
 validatorHash = scriptHash
 
 -- | Converts a Plutus-style `ValidatorHash` to a `Address` as a `BaseAddress`
@@ -81,7 +80,7 @@ validatorHashEnterpriseAddress network valHash =
       }
 
 -- | Converts a Plutus-style `StakeValidator` to an `StakeValidatorHash`
-stakeValidatorHash :: StakeValidator -> QueryM (Maybe StakeValidatorHash)
+stakeValidatorHash :: StakeValidator -> Maybe StakeValidatorHash
 stakeValidatorHash = scriptHash
 
 -- | Converts any newtype wrapper of `PlutusScript` to a newtype wrapper
@@ -91,10 +90,9 @@ scriptHash
    . Newtype m PlutusScript
   => Newtype n ScriptHash
   => m
-  -> QueryM (Maybe n)
-scriptHash = map hush <<< hashScript
+  -> Maybe n
+scriptHash = map wrap <<< plutusScriptHash <<< unwrap
 
 -- | Converts a `MintingPolicy` to a `CurrencySymbol`.
-scriptCurrencySymbol :: MintingPolicy -> QueryM (Maybe CurrencySymbol)
-scriptCurrencySymbol mp =
-  mintingPolicyHash mp >>= maybe Nothing mpsSymbol >>> pure
+scriptCurrencySymbol :: MintingPolicy -> Maybe CurrencySymbol
+scriptCurrencySymbol = mpsSymbol <=< mintingPolicyHash

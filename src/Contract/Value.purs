@@ -1,13 +1,13 @@
 -- | A module that defines tokens in Cardano and helpers.
 module Contract.Value
   ( module CurrencySymbol
+  , module Scripts
   , module TokenName
   , module Value
-  , scriptCurrencySymbol
   ) where
 
 import Prelude
-import Contract.Monad (Contract, wrapContract)
+import Contract.Monad (Contract)
 import Data.Maybe (Maybe)
 import Scripts (scriptCurrencySymbol) as Scripts
 import Types.Scripts (MintingPolicy)
@@ -28,28 +28,27 @@ import Plutus.Types.CurrencySymbol
   , scriptHashAsCurrencySymbol
   ) as CurrencySymbol
 import Plutus.Types.Value
-  ( Value
+  ( Coin(Coin)
+  , Value
+  , coinToValue
+  , flattenNonAdaAssets
+  , flattenValue
+  , geq
+  , getLovelace
   , getValue
+  , gt
+  , isCoinZero
+  , isZero
+  , leq
+  , lovelaceValueOf
+  , lt
+  , negation
+  , scale
   , singleton
   , singleton'
-  , valueOf
-  , lovelaceValueOf
-  , scale
-  , symbols
-  , isZero
-  , negation
   , split
+  , symbols
   , unionWith
-  , flattenValue
-  , flattenNonAdaAssets
-  , geq
-  , gt
-  , leq
-  , lt
+  , valueOf
+  , valueToCoin
   ) as Value
-
-scriptCurrencySymbol
-  :: forall (r :: Row Type)
-   . MintingPolicy
-  -> Contract r (Maybe CurrencySymbol.CurrencySymbol)
-scriptCurrencySymbol = wrapContract <<< Scripts.scriptCurrencySymbol

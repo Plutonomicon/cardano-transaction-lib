@@ -20,7 +20,7 @@ module Examples.Datums (main) where
 import Contract.Prelude
 
 import Contract.Monad (runContract_, launchAff_, logInfo', traceContractConfig)
-import Contract.PlutusData (DatumHash, getDatumByHash, getDatumsByHashes)
+import Contract.PlutusData (DataHash, getDatumByHash, getDatumsByHashes)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Data.Newtype (wrap)
 
@@ -32,6 +32,7 @@ main :: Effect Unit
 main = launchAff_ $ do
   cfg <- traceContractConfig mkGeroWalletAff
   runContract_ cfg $ do
+    logInfo' "Running Examples.Datums"
     logInfo' <<< show =<< getDatumByHash
       ( mkDatumHash
           "42be572a6d9a8a2ec0df04f14b0d4fcbe4a7517d74975dfff914514f12316252"
@@ -43,5 +44,5 @@ main = launchAff_ $ do
           "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
       ]
   where
-  mkDatumHash :: String -> DatumHash
+  mkDatumHash :: String -> DataHash
   mkDatumHash = wrap <<< hexToByteArrayUnsafe

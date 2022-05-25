@@ -32,6 +32,11 @@ exports._signTxNami = txHex => nami => () => {
       });
 }
 
+// _submitTxNami :: String -> NamiConnection -> Effect (Promise String)
+exports._submitTxNami = txHex => nami => () => {
+    return nami.submitTx(txHex);
+};
+
 // _enableGero :: Effect (Promise GeroConnection)
 exports._enableGero = () => window.cardano.gerowallet.enable();
 
@@ -64,8 +69,22 @@ exports._signTxGero = txHex => gero => () => {
 exports._attachSignature = txBytes => witBytes => () => {
   const tx = lib.Transaction.from_bytes(txBytes);
   const newWits = lib.TransactionWitnessSet.from_bytes(witBytes);
-  const newvkeyWits = newWits.vkeys();
+  // .vkeys() may return undefined
+  const oldvkeyWits = tx.witness_set().vkeys() || lib.Vkeywitnesses.new();
+  const newvkeyWits = newWits.vkeys() || lib.Vkeywitnesses.new();
+
+  // Add old vkeyWits into the new set as well to make multi-sign possible
+  for (let i = 0; i < oldvkeyWits.len(); i++) {
+    newvkeyWits.add(oldvkeyWits.get(i));
+  }
+
   const wits = tx.witness_set();
-  wits.set_vkeys(newvkeyWits);
+  // If there are no vkeys in either witness set, we don't want to attach
+  // empty vkeys to tx witnesses
+  // (So in this case oldvkeyWits remain untouched).
+  if (newvkeyWits.len() != 0) {
+    wits.set_vkeys(newvkeyWits);
+  }
+
   return lib.Transaction.new(tx.body(), wits, tx.auxiliary_data()).to_bytes();
 };

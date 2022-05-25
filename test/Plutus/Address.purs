@@ -5,20 +5,24 @@ import Prelude
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Tuple (Tuple(Tuple))
 import Data.Array ((..), length, zip)
-import Data.Newtype (class Newtype, wrap)
+import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.UInt (UInt, fromInt)
 import Data.Traversable (for_)
+import Data.Tuple.Nested ((/\))
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Plutus.FromPlutusType (fromPlutusType)
 import Plutus.ToPlutusType (toPlutusType)
-import Plutus.Types.Address (Address) as Plutus
+import Plutus.Types.Address (Address, AddressWithNetworkTag) as Plutus
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
   )
 import Serialization.Hash (ed25519KeyHashFromBech32, scriptHashFromBech32)
-import Serialization.Address (addressFromBech32)
+import Serialization.Address
+  ( NetworkId(MainnetId, TestnetId)
+  , addressFromBech32
+  )
 import Test.Spec.Assertions (shouldEqual)
 import Test.Utils (errMaybe)
 import TestM (TestPlanM)
@@ -28,15 +32,19 @@ suite :: TestPlanM Unit
 suite = do
   group "Plutus.Types.Address" $ do
     group "FromPlutusType & ToPlutusType" $ do
-      group "Shelley addresses" $ do
-        let indices = 0 .. (length addresses - 1)
-        let testData = zip (zip addressesBech32 addresses) indices
+      let indices = 0 .. (length addresses - 1)
+      group "Shelley mainnet addresses" $ do
+        let testData = zip (zip addressesBech32Mainnet addresses) indices
         for_ testData $ \(Tuple (Tuple addrBech32 addr) addrType) ->
-          toFromPlutusTypeTest addrType addrBech32 addr
+          toFromPlutusTypeTest MainnetId addrType addrBech32 addr
+      group "Shelley testnet addresses" $ do
+        let testData = zip (zip addressesBech32Testnet addresses) indices
+        for_ testData $ \(Tuple (Tuple addrBech32 addr) addrType) ->
+          toFromPlutusTypeTest TestnetId addrType addrBech32 addr
 
 toFromPlutusTypeTest
-  :: Int -> Bech32String -> Plutus.Address -> TestPlanM Unit
-toFromPlutusTypeTest addrType addrBech32 addrPlutus =
+  :: NetworkId -> Int -> Bech32String -> Plutus.Address -> TestPlanM Unit
+toFromPlutusTypeTest networkId addrType addrBech32 addrPlutus =
   test ("Converts between addresses of type " <> show addrType) $ do
     addrForeign <-
       errMaybe "addressFromBech32 failed on valid bech32" $
@@ -44,16 +52,21 @@ toFromPlutusTypeTest addrType addrBech32 addrPlutus =
     resAddrPlutus <-
       errMaybe "toPlutusType failed on valid foreign address" $
         toPlutusType addrForeign
-    resAddrPlutus `shouldEqual` addrPlutus
+    resAddrPlutus `shouldEqual` plutusAddrWithNetworkTag
     resAddrForeign <-
       errMaybe "fromPlutusType failed on valid native address" $
-        fromPlutusType resAddrPlutus
+        fromPlutusType (networkId /\ (_.address <<< unwrap $ resAddrPlutus))
     resAddrForeign `shouldEqual` addrForeign
+  where
+  plutusAddrWithNetworkTag :: Plutus.AddressWithNetworkTag
+  plutusAddrWithNetworkTag =
+    wrap { address: addrPlutus, networkId }
 
+-- Mainnet addresses.
 -- Test vectors are taken from the CIP-0019 specification.
 -- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0019#test-vectors
-addressesBech32 :: Array Bech32String
-addressesBech32 =
+addressesBech32Mainnet :: Array Bech32String
+addressesBech32Mainnet =
   [ "addr1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8"
       <> "cc3sq835lu7drv2xwl2wywfgse35a3x"
 
@@ -73,6 +86,32 @@ addressesBech32 =
   , "addr1vx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers66hrl8"
 
   , "addr1w8phkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gtcyjy7wx"
+  ]
+
+-- Testnet addresses.
+-- Test vectors are taken from the CIP-0019 specification.
+-- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0019#test-vectors
+addressesBech32Testnet :: Array Bech32String
+addressesBech32Testnet =
+  [ "addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5w"
+      <> "ktcd8cc3sq835lu7drv2xwl2wywfgs68faae"
+
+  , "addr_test1zrphkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gten0d3vllmyqwsx5w"
+      <> "ktcd8cc3sq835lu7drv2xwl2wywfgsxj90mg"
+
+  , "addr_test1yz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerkr0vd4msrxnuwncc"
+      <> "dxlhdjar77j6lg0wypcc9uar5d2shsf5r8qx"
+
+  , "addr_test1xrphkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gt7r0vd4msrxnuwncc"
+      <> "dxlhdjar77j6lg0wypcc9uar5d2shs4p04xh"
+
+  , "addr_test1gz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer5pnz75xxcrdw5vky"
+
+  , "addr_test12rphkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gtupnz75xxcryqrvmw"
+
+  , "addr_test1vz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerspjrlsz"
+
+  , "addr_test1wrphkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gtcl6szpr"
   ]
 
 addresses :: Array Plutus.Address
