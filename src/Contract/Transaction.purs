@@ -4,7 +4,7 @@ module Contract.Transaction
   ( BalancedSignedTransaction(..)
   , balanceAndSignTx
   , balanceTx
-  , balanceTxs      
+  --  , balanceTxs      
   , balanceTxM
   , calculateMinFee
   , calculateMinFeeM
@@ -30,7 +30,7 @@ import BalanceTx (UnattachedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
 import BalanceTx (BalanceTxError) as BalanceTxError
 import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
-import Control.Monad.Reader (class MonadAsk, ReaderT, withReaderT)
+import Control.Monad.Reader (class MonadAsk, ReaderT, asks, runReaderT)
 import Control.Monad.Trans.Class (lift)
 import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
@@ -215,18 +215,21 @@ balanceTxs
   => t UnattachedUnbalancedTx
   -> Contract r (t (Either BalanceTxError.BalanceTxError UnattachedTransaction))
 balanceTxs = do
-  _ <- traverse lock
+  _ <- traverse lockUUTx
   ts' <- traverse balanceTx
-  _ <- traverse lock
+  _ <- traverse lockUUTx
   pure ts'
-  where
---  lock :: . Transaction -> Contract r Unit
-  lock tx = lift $ withReaderT _.usedTxOuts (lockTransactionInputs
-                                             $ _.transaction
-                                             $ unwrap
-                                             $ _.unbalancedTx
-                                             $ unwrap
-                                             $ tx)
+
+lockUUTx :: forall (r :: Row Type). UnattachedUnbalancedTx -> Contract r Unit
+lockUUTx tx = asks (_.usedTxOuts <<< unwrap) >>=
+  runReaderT
+    ( lockTransactionInputs
+        $ _.transaction
+        $ unwrap
+        $ _.unbalancedTx
+        $ unwrap
+        $ tx
+    )
 
 -- | Attempts to balance an `UnattachedUnbalancedTx`.
 balanceTx
