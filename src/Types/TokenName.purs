@@ -21,7 +21,7 @@ import Aeson
 import Data.BigInt (BigInt)
 import Data.Bitraversable (ltraverse)
 import Data.Char (toCharCode)
-import Data.Either (Either(Left), note)
+import Data.Either (Either(Left))
 import Data.Map (Map)
 import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Nothing, Just))
@@ -35,13 +35,11 @@ import Serialization.Types (AssetName) as CSL
 import ToData (class ToData)
 import Types.ByteArray
   ( ByteArray
-  , byteLength
-  , byteArrayToUTF16le
-  , hexToByteArray
-  , byteArrayFromAscii
   , byteArrayFromInt16ArrayUnsafe
+  , byteArrayToUTF16le
+  , byteLength
   )
-import Types.CborBytes (CborBytes, cborBytesToHex, cborBytesToByteArray)
+import Types.CborBytes (CborBytes, cborBytesToByteArray)
 import Data.String.CodeUnits (toCharArray)
 
 newtype TokenName = TokenName CborBytes

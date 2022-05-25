@@ -5,18 +5,6 @@ module Plutus.ToPlutusType
 
 import Prelude
 
-import Cardano.Types.Transaction
-  ( TransactionOutput(TransactionOutput)
-  , UtxoM(UtxoM)
-  ) as Cardano
-import Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  ) as Cardano
-import Cardano.Types.Value (Coin(Coin), Value(Value)) as Cardano
-import Cardano.Types.Value
-  ( NonAdaAsset(NonAdaAsset)
-  , getCurrencySymbol
-  )
 import Data.Array (head, uncons, snoc, concatMap, take, drop, foldr)
 import Data.Identity (Identity(Identity))
 import Data.Foldable (fold)
@@ -26,23 +14,19 @@ import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Traversable (traverse)
 import Data.Tuple (fst) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
-import Data.UInt (UInt, fromInt, (.&.), and, shl, zshr)
+import Data.UInt (UInt, fromInt, toInt, (.&.), and, shl, zshr)
 import Partial.Unsafe (unsafePartial)
-import Plutus.Types.Address (Address) as Plutus
-import Plutus.Types.AddressHeaderType
-  ( AddressHeaderType
-      ( PaymentKeyHashStakeKeyHash
-      , ScriptHashStakeKeyHash
-      , PaymentKeyHashScriptHash
-      , ScriptHashScriptHash
-      , PaymentKeyHashPointer
-      , ScriptHashPointer
-      , PaymentKeyHash
-      , ScriptHash
-      )
 
-  , addrHeaderType
-  )
+import Serialization.Address (Address) as Serialization
+import Serialization.Address (addressBytes) as Serialization.Address
+import Serialization.Address (NetworkId, unsafeIntToNetId)
+import Serialization.Hash (ed25519KeyHashFromBytes, scriptHashFromBytes)
+
+import Plutus.Types.Address
+  ( Address
+  , AddressWithNetworkTag(AddressWithNetworkTag)
+  ) as Plutus
+import Plutus.Types.AddressHeaderType (AddressHeaderType(..), addrHeaderType)
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
@@ -56,12 +40,22 @@ import Plutus.Types.TransactionUnspentOutput
   ) as Plutus
 import Plutus.Types.Value (Coin, Value) as Plutus
 import Plutus.Types.Value (lovelaceValueOf, singleton') as Plutus.Value
-import Serialization.Address (Address) as Serialization
-import Serialization.Address (addressBytes) as Serialization.Address
-import Serialization.Hash (ed25519KeyHashFromBytes, scriptHashFromBytes)
+
 import Types.ByteArray (ByteArray, byteArrayFromIntArray, byteArrayToIntArray)
 import Types.CborBytes (cborBytesToIntArray)
 import Types.TokenName (getTokenName)
+import Cardano.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  , UtxoM(UtxoM)
+  ) as Cardano
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as Cardano
+import Cardano.Types.Value (Coin(Coin), Value(Value)) as Types
+import Cardano.Types.Value
+  ( NonAdaAsset(NonAdaAsset)
+  , getCurrencySymbol
+  )
 
 class ToPlutusType :: (Type -> Type) -> Type -> Type -> Constraint
 class ToPlutusType f t pt | t -> pt, t pt -> f where
@@ -75,9 +69,8 @@ class ToPlutusType f t pt | t -> pt, t pt -> f where
 -- have the `Ord` constraint on the keys. Therefore, one should be careful when
 -- performing conversions between `Value`s, since the ordering of components
 -- can't be guaranteed.
-instance ToPlutusType Identity Cardano.Value Plutus.Value where
-  toPlutusType
-    (Cardano.Value (Cardano.Coin adaAmount) (NonAdaAsset nonAdaAssets)) =
+instance ToPlutusType Identity Types.Value Plutus.Value where
+  toPlutusType (Types.Value (Types.Coin adaAmount) (NonAdaAsset nonAdaAssets)) =
     Identity (adaValue <> fold nonAdaValues)
     where
     adaValue :: Plutus.Value
@@ -98,18 +91,22 @@ instance ToPlutusType Identity Cardano.Value Plutus.Value where
 -- Cardano.Types.Value.Coin -> Plutus.Types.Value.UtxoM
 --------------------------------------------------------------------------------
 
-instance ToPlutusType Identity Cardano.Coin Plutus.Coin where
+instance ToPlutusType Identity Types.Coin Plutus.Coin where
   toPlutusType = pure <<< wrap <<< unwrap
 
 --------------------------------------------------------------------------------
 -- Serialization.Address -> Maybe Plutus.Types.Address
 --------------------------------------------------------------------------------
 
-instance ToPlutusType Maybe Serialization.Address Plutus.Address where
+instance ToPlutusType Maybe Serialization.Address Plutus.AddressWithNetworkTag
+  where
   -- | Attempts to build a Plutus address from a CSL-level address
   -- | represented by a sequence of bytes based on the CIP-0019.
-  toPlutusType addrForeign =
-    addrType >>= addrHeaderType >>= \addrType' ->
+  toPlutusType addrForeign = do
+    headerByte <- head addrBytes
+    addrType' <- addrHeaderType (addrType headerByte)
+    let networkId = networkTag headerByte
+    Plutus.AddressWithNetworkTag <<< { address: _, networkId: networkId } <$>
       case addrType' of
         -- %b0000 | network tag | key hash | key hash
         PaymentKeyHashStakeKeyHash ->
@@ -153,8 +150,11 @@ instance ToPlutusType Maybe Serialization.Address Plutus.Address where
 
     -- | Retrieves the address type by reading
     -- | the first 4 bits (from the left) of the header-byte.
-    addrType :: Maybe UInt
-    addrType = head addrBytes >>= (pure <<< flip zshr (fromInt 4) <<< fromInt)
+    addrType :: Int -> UInt
+    addrType = flip zshr (fromInt 4) <<< fromInt
+
+    networkTag :: Int -> NetworkId
+    networkTag = unsafeIntToNetId <<< toInt <<< and one <<< fromInt
 
     -- | Retrieves the payment part of the address by reading
     -- | the first 28 bytes following the address header.
@@ -241,7 +241,7 @@ instance ToPlutusType Maybe Cardano.TransactionOutput Plutus.TransactionOutput
   where
   toPlutusType
     (Cardano.TransactionOutput { address, amount, dataHash }) = do
-    addr <- toPlutusType address
+    Plutus.AddressWithNetworkTag { address: addr } <- toPlutusType address
     pure $ Plutus.TransactionOutput
       { address: addr, amount: unwrap $ toPlutusType amount, dataHash }
 

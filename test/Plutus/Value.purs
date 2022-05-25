@@ -4,7 +4,7 @@ import Prelude
 
 import Data.Array ((..), length, zip)
 import Data.BigInt (fromInt)
-import Data.Maybe (fromJust)
+import Data.Maybe (Maybe(Nothing), fromJust)
 import Data.Newtype (unwrap)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -35,7 +35,7 @@ toFromPlutusTypeTest
   :: Int -> Plutus.Value -> Types.Value -> TestPlanM Unit
 toFromPlutusTypeTest i valuePlutus value =
   test (show i <> ": Plutus.Types.Value <-> Types.Value") $ do
-    let resValue = unwrap (fromPlutusType valuePlutus)
+    let resValue = unwrap (fromPlutusType Nothing valuePlutus)
     resValue `shouldEqual` value
     let resValuePlutus = unwrap (toPlutusType resValue)
     resValuePlutus `shouldEqual` valuePlutus

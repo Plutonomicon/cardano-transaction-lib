@@ -1,5 +1,6 @@
 module Plutus.Types.Address
   ( Address(Address)
+  , AddressWithNetworkTag(AddressWithNetworkTag)
   , pubKeyHashAddress
   , scriptHashAddress
   , toPubKeyHash
@@ -9,40 +10,40 @@ module Plutus.Types.Address
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , class EncodeAeson
-  , JsonDecodeError(TypeMismatch)
-  , caseAesonObject
-  , encodeAeson'
-  , (.:)
-  )
-import Contract.Prelude (Either(Left))
-import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
-import FromData (class FromData, genericFromData)
+import Data.Newtype (class Newtype, wrap, unwrap)
+import FromData (class FromData, fromData)
+import Serialization.Address (NetworkId)
+import ToData (class ToData, toData)
+import Types.Scripts (ValidatorHash)
+import Types.PlutusData (PlutusData(Constr))
+import Types.PubKeyHash
+  ( PaymentPubKeyHash(PaymentPubKeyHash)
+  , PubKeyHash
+  , StakePubKeyHash
+  )
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash)
   )
-import Plutus.Types.DataSchema
-  ( class HasPlutusSchema
-  , type (:+)
-  , type (:=)
-  , type (@@)
-  , I
-  , PNil
-  )
-import ToData (class ToData, genericToData)
-import TypeLevel.Nat (Z)
-import Types.PubKeyHash (PaymentPubKeyHash(..), StakePubKeyHash, PubKeyHash)
-import Types.Scripts (ValidatorHash)
 
 --------------------------------------------------------------------------------
 -- Address
 --------------------------------------------------------------------------------
+
+newtype AddressWithNetworkTag = AddressWithNetworkTag
+  { address :: Address
+  , networkId :: NetworkId
+  }
+
+derive instance Eq AddressWithNetworkTag
+derive instance Newtype AddressWithNetworkTag _
+derive instance Generic AddressWithNetworkTag _
+
+instance Show AddressWithNetworkTag where
+  show = genericShow
 
 -- Taken from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/Plutus-V1-Ledger-Tx.html#t:Address
 -- Plutus rev: dbefda30be6490c758aa88b600f5874f12712b3a
@@ -60,36 +61,18 @@ derive instance Generic Address _
 instance Show Address where
   show = genericShow
 
-instance
-  HasPlutusSchema
-    Address
-    ( "Address"
-        :=
-          ( "addressCredential" := I Credential :+ "addressStakingCredential"
-              := I (Maybe StakingCredential)
-              :+ PNil
-          )
-        @@ Z
-        :+ PNil
-    )
-
 instance ToData Address where
-  toData = genericToData
+  toData (Address a) = Constr zero $
+    [ toData a.addressCredential, toData a.addressStakingCredential ]
 
 instance FromData Address where
-  fromData = genericFromData
-
-instance DecodeAeson Address where
-  decodeAeson = caseAesonObject
-    (Left $ TypeMismatch "Expected object")
-    ( \obj -> do
-        addressCredential <- obj .: "addressCredential"
-        addressStakingCredential <- obj .: "addressStakingCredential"
-        pure $ Address { addressCredential, addressStakingCredential }
-    )
-
-instance EncodeAeson Address where
-  encodeAeson' (Address addr) = encodeAeson' addr
+  fromData (Constr n [ credD, stakingCredD ]) | n == zero =
+    Address <$>
+      ( { addressCredential: _, addressStakingCredential: _ }
+          <$> fromData credD
+          <*> fromData stakingCredD
+      )
+  fromData _ = Nothing
 
 --------------------------------------------------------------------------------
 -- Useful functions

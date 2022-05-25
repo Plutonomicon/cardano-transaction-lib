@@ -694,8 +694,9 @@ updateUtxoIndex
    . ConstraintsM a (Either MkUnbalancedTxError Unit)
 updateUtxoIndex = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
+  networkId <- lift getNetworkId
   cTxOutputs <- liftM CannotConvertFromPlutusType
-    (traverse fromPlutusType txOutputs)
+    (traverse (fromPlutusType (Just networkId)) txOutputs)
   let txOutsMap = mapMaybe transactionOutputToScriptOutput cTxOutputs
   -- Left bias towards original map, hence `flip`:
   _unbalancedTx <<< _utxoIndex %= flip union txOutsMap
@@ -718,7 +719,7 @@ addOwnInput (InputConstraint { txOutRef }) = do
     ScriptLookups { txOutputs, typedValidator } <- use _lookups
     -- Convert to Cardano type
     cTxOutputs <- liftM CannotConvertFromPlutusType
-      (traverse fromPlutusType txOutputs)
+      (traverse (fromPlutusType (Just networkId)) txOutputs)
     inst <- liftM TypedValidatorMissing typedValidator
     -- This line is to type check the `TransactionInput`. Plutus actually creates a `TxIn`
     -- but we don't have such a datatype for our `TxBody`. Therefore, if we pass
@@ -744,7 +745,7 @@ addOwnOutput (OutputConstraint { datum: d, value }) = do
   runExceptT do
     ScriptLookups { typedValidator } <- use _lookups
     inst <- liftM TypedValidatorMissing typedValidator
-    let value' = unwrap $ fromPlutusType value
+    let value' = unwrap $ fromPlutusType (Just networkId) value
     typedTxOut <- ExceptT $ lift $ mkTypedTxOut networkId inst d value'
       <#> note MkTypedTxOutFailed
     let txOut = typedTxOutTxOut typedTxOut
@@ -796,7 +797,9 @@ lookupTxOutRef
 lookupTxOutRef outRef = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
   txOut <- liftM (TxOutRefNotFound outRef) (lookup outRef txOutputs)
-  liftM CannotConvertFromPlutusType $ fromPlutusType txOut
+  networkId <- lift getNetworkId
+  liftM CannotConvertFromPlutusType $
+    fromPlutusType (Just networkId) txOut
 
 lookupDatum
   :: forall (a :: Type)
@@ -856,10 +859,12 @@ processConstraint mpsMap osMap = do
             (pure <<< Array.singleton)
       _cpsToTxBody <<< _requiredSigners <>= sigs
     MustSpendAtLeast plutusValue -> do
-      let value = unwrap $ fromPlutusType plutusValue
+      networkId <- getNetworkId
+      let value = unwrap $ fromPlutusType (Just networkId) plutusValue
       runExceptT $ _valueSpentBalancesInputs <>= require value
     MustProduceAtLeast plutusValue -> do
-      let value = unwrap $ fromPlutusType plutusValue
+      networkId <- getNetworkId
+      let value = unwrap $ fromPlutusType (Just networkId) plutusValue
       runExceptT $ _valueSpentBalancesOutputs <>= require value
     MustSpendPubKeyOutput txo -> runExceptT do
       txOut <- ExceptT $ lookupTxOutRef txo
@@ -957,8 +962,8 @@ processConstraint mpsMap osMap = do
       -- Attach redeemer to witness set.
       ExceptT $ attachToCps attachRedeemer redeemer
     MustPayToPubKeyAddress pkh skh mDatum plutusValue -> do
-      let amount = unwrap $ fromPlutusType plutusValue
       networkId <- getNetworkId
+      let amount = unwrap $ fromPlutusType (Just networkId) plutusValue
       runExceptT do
         -- If datum is presented, add it to 'datumWitnesses' and Array of datums.
         -- Otherwise continue, hence `liftEither $ Right unit`.
@@ -1007,8 +1012,8 @@ processConstraint mpsMap osMap = do
         _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provide amount
     MustPayToScript vlh dat plutusValue -> do
-      let amount = unwrap $ fromPlutusType plutusValue
       networkId <- getNetworkId
+      let amount = unwrap $ fromPlutusType (Just networkId) plutusValue
       runExceptT do
         -- Don't write `let dataHash = datumHash datum`, see [datumHash Note]
         dataHash <- ExceptT $ lift $ note (CannotHashDatum dat)
