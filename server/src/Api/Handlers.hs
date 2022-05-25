@@ -3,9 +3,6 @@
 module Api.Handlers (
   estimateTxFees,
   applyArgs,
-  hashData,
-  hashScript,
-  blake2bHash,
   evalTxExecutionUnits,
   finalizeTx,
 ) where
@@ -22,7 +19,6 @@ import Cardano.Ledger.Alonzo.TxWitness qualified as TxWitness
 import Cardano.Ledger.Core qualified as Ledger (TxBody)
 import Cardano.Ledger.Crypto (StandardCrypto)
 import Cardano.Ledger.Mary.Value qualified as Value
-import Cardano.Ledger.SafeHash qualified as SafeHash
 import Codec.CBOR.Read (deserialiseFromBytes)
 import Control.Lens
 import Control.Monad.Catch (throwM)
@@ -43,13 +39,10 @@ import Data.Text.Encoding qualified as Text.Encoding
 import Data.Traversable (for)
 import Math.NumberTheory.Logarithms qualified as Math (integerLog2)
 import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
-import PlutusTx.Builtins qualified as PlutusTx
 import Types (
   AppM,
   AppliedScript (AppliedScript),
   ApplyArgsRequest (ApplyArgsRequest, args, script),
-  Blake2bHash (Blake2bHash),
-  BytesToHash (BytesToHash),
   CardanoError (
     AcquireFailure,
     EraMismatchError,
@@ -64,10 +57,6 @@ import Types (
   Fee (Fee),
   FinalizeRequest (FinalizeRequest, datums, redeemers, tx),
   FinalizedTransaction (FinalizedTransaction),
-  HashDataRequest (HashDataRequest),
-  HashScriptRequest (HashScriptRequest),
-  HashedData (HashedData),
-  HashedScript (HashedScript),
   RdmrPtrExUnits (
     RdmrPtrExUnits,
     exUnitsMem,
@@ -77,7 +66,6 @@ import Types (
   ),
   WitnessCount (WitnessCount),
   getNodeConnectInfo,
-  hashLedgerScript,
  )
 
 --------------------------------------------------------------------------------
@@ -123,15 +111,6 @@ applyArgs :: ApplyArgsRequest -> AppM AppliedScript
 applyArgs ApplyArgsRequest {script, args} =
   pure . AppliedScript $
     Ledger.Scripts.applyArguments script args
-
-hashScript :: HashScriptRequest -> AppM HashedScript
-hashScript (HashScriptRequest script) =
-  pure . HashedScript $ hashLedgerScript script
-
-blake2bHash :: BytesToHash -> AppM Blake2bHash
-blake2bHash (BytesToHash hs) =
-  pure . Blake2bHash . PlutusTx.fromBuiltin . PlutusTx.blake2b_256 $
-    PlutusTx.toBuiltin hs
 
 {- | Computes the execution units needed for each script in the transaction.
  https://input-output-hk.github.io/cardano-node/cardano-api/src/Cardano.Api.Fees.html#evaluateTransactionExecutionUnits
@@ -219,14 +198,6 @@ finalizeTx FinalizeRequest {tx, datums, redeemers} = do
         FinalizedTransaction . encodeCborText . Cbor.serializeEncoding $
           Tx.toCBORForMempoolSubmission finalizedTx
   pure response
-
-hashData :: HashDataRequest -> AppM HashedData
-hashData (HashDataRequest datum) = do
-  decodedDatum <-
-    throwDecodeErrorWithMessage "Failed to decode Datum" $
-      decodeCborDatum datum
-  pure . HashedData . SafeHash.originalBytes $
-    Data.hashData decodedDatum
 
 --------------------------------------------------------------------------------
 -- Estimate fee
