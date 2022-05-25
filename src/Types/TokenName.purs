@@ -19,18 +19,19 @@ import Aeson
   , getField
   )
 import Control.Monad.Error.Class (throwError)
-import Data.Array (drop)
+--import Data.Array (drop)
 import Data.BigInt (BigInt)
 import Data.Bitraversable (ltraverse)
 import Data.Char (toCharCode, fromCharCode)
-import Data.Either (Either(Left), note)
+import Data.Either (Either(Left,Right), note, either)
 import Data.Map (Map)
 import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Nothing, Just))
-import Data.Newtype (wrap)
-import Data.String.CodePoints (length)
+import Data.Newtype (wrap,unwrap)
+import Data.String.CodePoints (length,take,drop)
 import Data.String.CodeUnits (fromCharArray, toCharArray)
 import Data.Traversable (class Traversable, traverse)
+import Data.TextDecoding (decodeUtf8)
 import Data.Bifunctor (lmap)
 import Data.Tuple.Nested (type (/\))
 import FromData (class FromData)
@@ -65,6 +66,13 @@ derive newtype instance ToMetadata TokenName
 derive newtype instance Ord TokenName
 derive newtype instance ToData TokenName
 
+fromTokenName :: forall r. (ByteArray -> r) -> (String -> r) -> TokenName -> r
+fromTokenName arrayHandler stringHandler (TokenName cba)
+  = either
+      (\_ -> arrayHandler $ cborBytesToByteArray cba)
+      stringHandler
+      (decodeUtf8 <<< unwrap <<< cborBytesToByteArray $ cba)
+
 instance DecodeAeson TokenName where
   {-
       toJSON = JSON.object . Haskell.pure . (,) "unTokenName" . JSON.toJSON .
@@ -77,12 +85,26 @@ instance DecodeAeson TokenName where
     (Left $ TypeMismatch "Expected object")
     ( \aes -> do
         tkstr :: String <- getField aes "unTokenName"
-        let
+        case take 3 tkstr of
+          """\NUL0x""" -> case tkFromStr (drop 3 tkstr) of
+            Nothing -> Left $ TypeMismatch ("Invalid TokenName E1: " <> tkstr)
+            Just tk  -> Right tk
+
+          """\NUL\NUL\NUL""" -> note (TypeMismatch $ "Invalid TokenName E2: " <> tkstr)
+                                $ tkFromStr (drop 2 tkstr)
+
+          _              -> note (TypeMismatch $ "Invalid TokenName E3: " <> tkstr)
+                            $ tkFromStr tkstr)
+   where
+     tkFromStr :: String -> Maybe TokenName
+     tkFromStr str = (TokenName <<< wrap) <$> (byteArrayFromIntArray <<< map toCharCode <<< toCharArray $ str)
+
+       {- let
           t = map toCharCode $ toCharArray tkstr
 
           cleanedTkstr :: Either String ByteArray
           cleanedTkstr =
-            note "could not convert from hex to bytestring" <<< hexToByteArrayUnsafe
+            note "could not convert from hex to bytestring" <<< pure <<< hexToByteArrayUnsafe
               <<< fromCharArray
               =<< note "could not convetr from charcode"
                 ( traverse fromCharCode
@@ -99,7 +121,7 @@ instance DecodeAeson TokenName where
         -- see https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#line-170
         lmap TypeMismatch
           (note "failed to make tokenname" <<< mkTokenName =<< cleanedTkstr)
-    )
+    ) -}
 
 --  note (TypeMismatch "Invalid TokenName") <<< mkTokenName
 --  <=< note (TypeMismatch "Invalid ByteArray") <<< (hexToByteArray <<< )
