@@ -163,11 +163,11 @@ relSlotFromAbsSlot (EraSummary { start }) os@(AbsSlot ogmiosSlot) = do
   pure $ wrap $ ogmiosSlot - startSlot
 
 relTimeFromRelSlot :: EraSummary -> RelSlot -> RelTime
-relTimeFromRelSlot (EraSummary { parameters }) (RelSlot ogmiosSlot) =
+relTimeFromRelSlot (EraSummary { parameters }) (RelSlot relSlot) =
   let
     slotLength = unwrap (unwrap parameters).slotLength
   in
-    wrap $ ogmiosSlot * slotLength
+    wrap $ relSlot * slotLength
 
 -- As justified in https://github.com/input-output-hk/ouroboros-network/blob/bd9e5653647c3489567e02789b0ec5b75c726db2/ouroboros-consensus/src/Ouroboros/Consensus/HardFork/History/Qry.hs#L461-L481
 -- Treat the upperbound as inclusive.
