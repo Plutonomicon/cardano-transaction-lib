@@ -22,7 +22,10 @@ import Serialization.Address (addressBytes) as Serialization.Address
 import Serialization.Address (NetworkId, unsafeIntToNetId)
 import Serialization.Hash (ed25519KeyHashFromBytes, scriptHashFromBytes)
 
-import Plutus.Types.Address (Address, AddressExtended(AddressExtended)) as Plutus
+import Plutus.Types.Address
+  ( Address
+  , AddressWithNetworkTag(AddressWithNetworkTag)
+  ) as Plutus
 import Plutus.Types.AddressHeaderType (AddressHeaderType(..), addrHeaderType)
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
@@ -95,14 +98,15 @@ instance ToPlutusType Identity Types.Coin Plutus.Coin where
 -- Serialization.Address -> Maybe Plutus.Types.Address
 --------------------------------------------------------------------------------
 
-instance ToPlutusType Maybe Serialization.Address Plutus.AddressExtended where
+instance ToPlutusType Maybe Serialization.Address Plutus.AddressWithNetworkTag
+  where
   -- | Attempts to build a Plutus address from a CSL-level address
   -- | represented by a sequence of bytes based on the CIP-0019.
   toPlutusType addrForeign = do
     headerByte <- head addrBytes
     addrType' <- addrHeaderType (addrType headerByte)
     let networkId = networkTag headerByte
-    Plutus.AddressExtended <<< { address: _, networkId: networkId } <$>
+    Plutus.AddressWithNetworkTag <<< { address: _, networkId: networkId } <$>
       case addrType' of
         -- %b0000 | network tag | key hash | key hash
         PaymentKeyHashStakeKeyHash ->
@@ -237,7 +241,7 @@ instance ToPlutusType Maybe Cardano.TransactionOutput Plutus.TransactionOutput
   where
   toPlutusType
     (Cardano.TransactionOutput { address, amount, dataHash }) = do
-    Plutus.AddressExtended { address: addr } <- toPlutusType address
+    Plutus.AddressWithNetworkTag { address: addr } <- toPlutusType address
     pure $ Plutus.TransactionOutput
       { address: addr, amount: unwrap $ toPlutusType amount, dataHash }
 

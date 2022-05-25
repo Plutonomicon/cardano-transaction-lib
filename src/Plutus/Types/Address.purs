@@ -1,6 +1,6 @@
 module Plutus.Types.Address
   ( Address(Address)
-  , AddressExtended(AddressExtended)
+  , AddressWithNetworkTag(AddressWithNetworkTag)
   , pubKeyHashAddress
   , scriptHashAddress
   , toPubKeyHash
@@ -33,16 +33,16 @@ import Plutus.Types.Credential
 -- Address
 --------------------------------------------------------------------------------
 
-newtype AddressExtended = AddressExtended
+newtype AddressWithNetworkTag = AddressWithNetworkTag
   { address :: Address
   , networkId :: NetworkId
   }
 
-derive instance Eq AddressExtended
-derive instance Newtype AddressExtended _
-derive instance Generic AddressExtended _
+derive instance Eq AddressWithNetworkTag
+derive instance Newtype AddressWithNetworkTag _
+derive instance Generic AddressWithNetworkTag _
 
-instance Show AddressExtended where
+instance Show AddressWithNetworkTag where
   show = genericShow
 
 -- Taken from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/Plutus-V1-Ledger-Tx.html#t:Address

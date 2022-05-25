@@ -12,7 +12,7 @@ import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Plutus.FromPlutusType (fromPlutusType)
 import Plutus.ToPlutusType (toPlutusType)
-import Plutus.Types.Address (Address, AddressExtended) as Plutus
+import Plutus.Types.Address (Address, AddressWithNetworkTag) as Plutus
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
@@ -51,14 +51,14 @@ toFromPlutusTypeTest networkId addrType addrBech32 addrPlutus =
     resAddrPlutus <-
       errMaybe "toPlutusType failed on valid foreign address" $
         toPlutusType addrForeign
-    resAddrPlutus `shouldEqual` addrPlutusExtended
+    resAddrPlutus `shouldEqual` plutusAddrWithNetworkTag
     resAddrForeign <-
       errMaybe "fromPlutusType failed on valid native address" $
         fromPlutusType (Just networkId) (_.address <<< unwrap $ resAddrPlutus)
     resAddrForeign `shouldEqual` addrForeign
   where
-  addrPlutusExtended :: Plutus.AddressExtended
-  addrPlutusExtended =
+  plutusAddrWithNetworkTag :: Plutus.AddressWithNetworkTag
+  plutusAddrWithNetworkTag =
     wrap { address: addrPlutus, networkId }
 
 -- Mainnet addresses.
