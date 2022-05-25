@@ -150,13 +150,13 @@ instance FromJSON TokenName where
                 "\NUL\NUL\NUL" -> Haskell.pure . fromText . Text.drop 2 $ t
                 _              -> Haskell.pure . fromText $ t
   -}
-  encodeAeson' tk = encodeAeson'
-                  $ fromTokenName
-                      (\ba -> """\NUL""" <> asBase16 ba)
-                      (\t  -> case take 1 t of
-                                """\NUL""" -> """\NUL\NUL""" <> t
-                                _          -> t)
-                      tk
+  encodeAeson' tk = let tkstr = fromTokenName
+                          (\ba -> """\NUL""" <> asBase16 ba)
+                          (\t  -> case take 1 t of
+                                    """\NUL""" -> """\NUL\NUL""" <> t
+                                    _          -> t)
+                          tk
+                    in encodeAeson' {"unTokenName": tkstr}
 
     {-
     let
