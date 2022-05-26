@@ -29,6 +29,7 @@ You can edit this file as you like.
   , "integers"
   , "js-date"
   , "lattice"
+  , "datetime"
   , "lists"
   , "maybe"
   , "medea"
