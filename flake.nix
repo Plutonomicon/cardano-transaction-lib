@@ -300,9 +300,10 @@
             postgres = {
               service = {
                 image = "postgres:13";
-                ports = if postgres.port == null
-                        then []
-                        else [ "${toString postgres.port}:5432" ];
+                ports =
+                  if postgres.port == null
+                  then [ ]
+                  else [ "${toString postgres.port}:5432" ];
                 environment = {
                   POSTGRES_USER = "${postgres.user}";
                   POSTGRES_PASSWORD = "${postgres.password}";
