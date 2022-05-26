@@ -153,7 +153,9 @@ instance DecodeAeson ScriptHash where
         <=< flip getField "getScriptHash"
 
 instance EncodeAeson ScriptHash where
-  encodeAeson' sh = encodeAeson' (scriptHashToBytes sh)
+  encodeAeson' sh = encodeAeson'
+    { getScriptHash: scriptHashToBytes sh
+    }
 
 foreign import _scriptHashFromBytesImpl
   :: MaybeFfiHelper

@@ -20,6 +20,10 @@ import Aeson
   , encodeAeson'
   , getField
   )
+import Aeson.Decode as D
+import Aeson.Encode as E
+import Contract.Prelude (unwrap, wrap)
+import Record (get)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
@@ -29,6 +33,7 @@ import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Serialization.Hash (ScriptHash)
 import ToData (class ToData)
+import Type.Prelude (Proxy(..))
 import Types.ByteArray (ByteArray)
 
 --------------------------------------------------------------------------------
@@ -148,12 +153,18 @@ derive newtype instance ToData ValidatorHash
 derive newtype instance FromMetadata ValidatorHash
 derive newtype instance ToMetadata ValidatorHash
 
-instance DecodeAeson ValidatorHash where
-  decodeAeson = decodeAesonHelper "getValidatorHash" ValidatorHash
-
+-- NOTE: mlabs-haskell/purescript-bridge generated and applied here
 instance EncodeAeson ValidatorHash where
-  encodeAeson' (ValidatorHash hash) =
-    encodeAeson' { "getValidatorHash": hash }
+  encodeAeson' x = pure $ E.encode
+    (E.record { getValidatorHash: E.value :: _ (ScriptHash) })
+    { getValidatorHash: unwrap x }
+
+instance DecodeAeson ValidatorHash where
+  decodeAeson x = wrap <<< get (Proxy :: Proxy "getValidatorHash") <$> D.decode
+    ( D.record "getValidatorHash "
+        { getValidatorHash: D.value :: _ (ScriptHash) }
+    )
+    x
 
 instance Show ValidatorHash where
   show = genericShow

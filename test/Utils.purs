@@ -1,24 +1,34 @@
 module Test.Utils
-  ( interpret
-  , unsafeCall
+  ( aesonRoundTrip
   , assertTrue
   , assertTrue_
   , errEither
   , errMaybe
+  , interpret
+  , toFromAesonTest
+  , unsafeCall
   ) where
 
 import Prelude
 
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , JsonDecodeError
+  , decodeAeson
+  , encodeAeson
+  )
 import Data.Const (Const)
+import Data.Either (Either(Left, Right))
 import Data.Foldable (sequence_)
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Either (Either(Left, Right))
 import Effect.Aff (Aff, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (throwException, throw)
-import Mote (Plan, foldPlan, planT)
+import Mote (Plan, foldPlan, planT, test)
 import Test.Spec (Spec, describe, it)
+import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter (consoleReporter)
 import Test.Spec.Runner (runSpec)
 import TestM (TestPlanM)
@@ -78,3 +88,27 @@ errMaybe
 errMaybe msg = case _ of
   Nothing -> liftEffect $ throw msg
   Just res -> pure res
+
+toFromAesonTest
+  :: forall (a :: Type)
+   . Eq a
+  => Show a
+  => DecodeAeson a
+  => EncodeAeson a
+  => a
+  -> TestPlanM Unit
+toFromAesonTest x = test (show x) $ do
+  let
+    (xOrErr :: Either JsonDecodeError a) =
+      aesonRoundTrip x
+  xOrErr `shouldEqual` Right x
+
+aesonRoundTrip
+  :: forall (a :: Type)
+   . Eq a
+  => Show a
+  => DecodeAeson a
+  => EncodeAeson a
+  => a
+  -> Either JsonDecodeError a
+aesonRoundTrip = decodeAeson <<< encodeAeson

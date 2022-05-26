@@ -71,13 +71,7 @@ import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
 import Types.PlutusData (PlutusData)
 import Types.Scripts
-  ( MintingPolicy
-  , MintingPolicyHash
-  , PlutusScript
-  , StakeValidator
-  , StakeValidatorHash
-  , Validator
-  , ValidatorHash
+  ( PlutusScript
   )
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
