@@ -4,9 +4,12 @@ module Time.Conversion
   , PosixTimeToSlotError(..)
   , RelTime(..)
   , SlotToPosixTimeError(..)
+  , posixTimeRangeToSlotRange
   , posixTimeToSlot
+  , slotRangeToPosixTimeRange
   , slotToPosixTime
-  ) where
+  )
+  where
 
 import Prelude
 import Control.Monad.Error.Class (throwError)
@@ -335,6 +338,68 @@ posixTimeRangeToSlotRange
     <#> rmap Finite
   convertBounds NegInf = pure $ Right NegInf
   convertBounds PosInf = pure $ Right PosInf
+
+-- | Converts a `SlotRange` to `POSIXTimeRange` given an `EraSummariesQR` and
+-- | `SystemStartQR` queried from Ogmios.
+slotRangeToPosixTimeRange
+  :: EraSummariesQR
+  -> SystemStartQR
+  -> SlotRange
+  -> QueryM (Either SlotToPosixTimeError POSIXTimeRange)
+slotRangeToPosixTimeRange
+  eraSummaries
+  sysStart
+  (Interval { from: LowerBound s sInc, to: UpperBound e endInc }) = runExceptT
+  do
+    s' <- ExceptT $ convertBounds s
+    e' <- ExceptT $ convertBounds e
+    liftEither $ Right
+      $ Interval { from: LowerBound s' sInc, to: UpperBound e' endInc }
+  where
+  convertBounds
+    :: Extended Slot
+    -> QueryM (Either SlotToPosixTimeError (Extended POSIXTime))
+  convertBounds (Finite pt) = slotToPosixTime eraSummaries sysStart pt
+    <#> rmap Finite
+  convertBounds NegInf = pure $ Right NegInf
+  convertBounds PosInf = pure $ Right PosInf
+
+type TransactionValiditySlot =
+  { validityStartInterval :: Maybe Slot, timeToLive :: Maybe Slot }
+
+-- -- | Converts a SlotRange to two separate slots used in building Types.Transaction.
+-- -- | Note that we lose information regarding whether the bounds are included
+-- -- | or not at `NegInf` and `PosInf`.
+-- -- | `Nothing` for `validityStartInterval` represents `Slot zero`.
+-- -- | `Nothing` for `timeToLive` represents `maxSlot`.
+-- -- | For `Finite` values exclusive of bounds, we add and subtract one slot for
+-- -- | `validityStartInterval` and `timeToLive`, respectively.
+-- slotRangeToTransactionSlot
+--   :: SlotRange
+--   -> TransactionValiditySlot
+-- slotRangeToTransactionSlot
+--   (Interval { from: LowerBound start startIncl, to: UpperBound end endIncl }) =
+--   { validityStartInterval, timeToLive }
+--   where
+--   validityStartInterval :: Maybe Slot
+--   validityStartInterval = case start, startIncl of
+--     Finite s, true -> pure s
+--     Finite s, false -> pure $ s <> Slot one
+--     NegInf, _ -> Nothing
+--     PosInf, _ -> pure maxSlot
+
+--   timeToLive :: Maybe Slot
+--   timeToLive = case end, endIncl of
+--     Finite s, true -> pure s
+--     Finite s, false -> pure $ s <> Slot (negate one)
+--     NegInf, _ -> pure $ Slot zero
+--     PosInf, _ -> Nothing
+
+-- posixTimeRangeToTransactionSlot
+--   :: SlotConfig -> POSIXTimeRange -> Maybe TransactionValiditySlot
+-- posixTimeRangeToTransactionSlot sc =
+--   map slotRangeToTransactionSlot <<< posixTimeRangeToContainedSlotRange sc
+
 
 -- -- | Convert a `SlotRange` to a `POSIXTimeRange` given a `SlotConfig`. The
 -- -- | resulting `POSIXTimeRange` refers to the starting time of the lower bound of
