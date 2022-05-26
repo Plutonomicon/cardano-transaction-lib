@@ -2,8 +2,7 @@ module Time.Types.POSIXTime
   ( OnchainPOSIXTimeRange(..)
   , POSIXTime(..)
   , POSIXTimeRange
-  )
-  where
+  ) where
 
 import Prelude
 import Data.BigInt (BigInt)
@@ -50,6 +49,8 @@ type POSIXTimeRange = Interval POSIXTime
 -- | 1) `POSIXTimeRange` -> `SlotRange`
 -- | 2) `SlotRange` -> `TransactionValidity`
 -- | 3) `TransactionValidity` -> `OnchainPOSIXTimeRange`
+-- | `OnchainPOSIXTimeRange` is intended to equal the validity range found in
+-- | the on-chain `ScriptContext`
 newtype OnchainPOSIXTimeRange = OnchainPOSIXTimeRange POSIXTimeRange
 
 derive instance Generic OnchainPOSIXTimeRange _
@@ -58,5 +59,6 @@ derive newtype instance Eq OnchainPOSIXTimeRange
 derive newtype instance JoinSemilattice OnchainPOSIXTimeRange
 derive newtype instance BoundedJoinSemilattice OnchainPOSIXTimeRange
 derive newtype instance MeetSemilattice OnchainPOSIXTimeRange
+derive newtype instance BoundedMeetSemilattice OnchainPOSIXTimeRange
 derive newtype instance FromData OnchainPOSIXTimeRange
 derive newtype instance ToData OnchainPOSIXTimeRange
