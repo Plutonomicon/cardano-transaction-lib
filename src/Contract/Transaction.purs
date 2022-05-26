@@ -4,7 +4,7 @@ module Contract.Transaction
   ( BalancedSignedTransaction(..)
   , balanceAndSignTx
   , balanceTx
-  --  , balanceTxs      
+  , balanceTxs
   , balanceTxM
   , calculateMinFee
   , calculateMinFeeM
@@ -30,8 +30,7 @@ import BalanceTx (UnattachedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
 import BalanceTx (BalanceTxError) as BalanceTxError
 import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
-import Control.Monad.Reader (class MonadAsk, ReaderT, asks, runReaderT)
-import Control.Monad.Trans.Class (lift)
+import Control.Monad.Reader (asks, runReaderT)
 import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
