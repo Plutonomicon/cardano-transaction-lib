@@ -40,7 +40,7 @@ derive newtype instance ToData POSIXTime
 instance Show POSIXTime where
   show = genericShow
 
--- | An `Interval` of `POSIXTime`s.
+-- | An `Interval` of `POSIXTime`s. To be used in off-chain CTL contracts
 type POSIXTimeRange = Interval POSIXTime
 
 -- | A newtype wrapper over `POSIXTimeRange` to represent the on-chain version
