@@ -420,6 +420,12 @@ data ToOnChainPosixTimeRangeError
   = PosixTimeToSlotError' PosixTimeToSlotError
   | SlotToPosixTimeError' SlotToPosixTimeError
 
+derive instance Generic ToOnChainPosixTimeRangeError _
+derive instance Eq ToOnChainPosixTimeRangeError
+
+instance Show ToOnChainPosixTimeRangeError where
+  show = genericShow
+
 -- https://github.com/input-output-hk/cardano-ledger/blob/2acff66e84d63a81de904e1c0de70208ff1819ea/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L206-L226
 -- | Create an `OnchainPOSIXTimeRange` to do a round trip from an off-chain
 -- | POSIXTimeRange as follows:
