@@ -25,15 +25,16 @@ module Types.TypedTxOut
 import Prelude
 import Cardano.Types.Transaction (TransactionOutput(TransactionOutput))
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
+import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Data.Either (Either, note)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import FromData (class FromData, fromData)
+import Hashing (datumHash) as Hashing
 import Helpers (liftM)
-import QueryM (QueryM, getDatumByHash, datumHash)
+import QueryM (QueryM, getDatumByHash)
 import Scripts (typedValidatorEnterpriseAddress)
 import Serialization.Address (Address, NetworkId)
 import ToData (class ToData, toData)
@@ -166,25 +167,25 @@ mkTypedTxOut
   -> TypedValidator a
   -> b
   -> Value
-  -> QueryM (Maybe (TypedTxOut a b))
-mkTypedTxOut networkId typedVal dt amount = do
-  mDHash <- datumHash $ Datum $ toData dt
-  -- FIX ME: This is hardcoded to enterprise address, it seems like Plutus'
-  -- "validatorAddress" also currently doesn't account for staking.
-  let address = typedValidatorEnterpriseAddress networkId typedVal
-  pure $ maybe Nothing
-    ( \dHash ->
-        Just $ mkTypedTxOut'
-          (wrap { address, amount, dataHash: pure dHash })
-          dt
-    )
-    mDHash
+  -> Maybe (TypedTxOut a b)
+mkTypedTxOut networkId typedVal dt amount =
+  let
+    mDHash = Hashing.datumHash $ Datum $ toData dt
+    -- FIX ME: This is hardcoded to enterprise address, it seems like Plutus'
+    -- "validatorAddress" also currently doesn't account for staking.
+    address = typedValidatorEnterpriseAddress networkId typedVal
+  in
+    case mDHash of
+      Nothing -> Nothing
+      Just dHash ->
+        Just <<< mkTypedTxOut' dt $
+          wrap { address, amount, dataHash: pure dHash }
   where
   mkTypedTxOut'
-    :: TransactionOutput
-    -> b -- Data
+    :: b -- Data
+    -> TransactionOutput
     -> TypedTxOut a b
-  mkTypedTxOut' txOut dat = TypedTxOut { txOut, data: dat }
+  mkTypedTxOut' dat txOut = TypedTxOut { txOut, data: dat }
 
 -- | An error we can get while trying to type an existing transaction part.
 data TypeCheckError
@@ -262,8 +263,8 @@ typeTxOut
     void $ checkValidatorAddress networkId typedVal address
     pd <- ExceptT $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
     dtOut <- ExceptT $ checkDatum typedVal pd
-    ExceptT $
-      note CannotMakeTypedTxOut <$> mkTypedTxOut networkId typedVal dtOut amount
+    except $
+      note CannotMakeTypedTxOut (mkTypedTxOut networkId typedVal dtOut amount)
 
 -- | Create a `TypedTxOutRef` from an existing `TransactionInput`
 -- | by checking the types of its parts. To do this we need to cross-reference

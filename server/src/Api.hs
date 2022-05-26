@@ -3,9 +3,6 @@ module Api (
   estimateTxFees,
   applyArgs,
   finalizeTx,
-  hashData,
-  hashScript,
-  blake2bHash,
   evalTxExecutionUnits,
   apiDocs,
 ) where
@@ -44,8 +41,6 @@ import Types (
   AppM (AppM),
   AppliedScript,
   ApplyArgsRequest,
-  Blake2bHash,
-  BytesToHash,
   CardanoError (
     AcquireFailure,
     EraMismatchError,
@@ -60,10 +55,6 @@ import Types (
   Fee,
   FinalizeRequest,
   FinalizedTransaction,
-  HashDataRequest,
-  HashScriptRequest,
-  HashedData,
-  HashedScript,
   WitnessCount,
  )
 import Utils (lbshow)
@@ -78,23 +69,12 @@ type Api =
     :<|> "apply-args"
       :> ReqBody '[JSON] ApplyArgsRequest
       :> Post '[JSON] AppliedScript
-    :<|> "hash-script"
-      :> ReqBody '[JSON] HashScriptRequest
-      :> Post '[JSON] HashedScript
-    -- Making this a POST request so we can just use the @From/ToJSON@
-    -- instances instead of decoding in the handler
-    :<|> "blake2b"
-      :> ReqBody '[JSON] BytesToHash
-      :> Post '[JSON] Blake2bHash
     :<|> "eval-ex-units"
       :> QueryParam' '[Required] "tx" Cbor
       :> Get '[JSON] ExecutionUnitsMap
     :<|> "finalize"
       :> ReqBody '[JSON] FinalizeRequest
       :> Post '[JSON] FinalizedTransaction
-    :<|> "hash-data"
-      :> ReqBody '[JSON] HashDataRequest
-      :> Post '[JSON] HashedData
 
 app :: Env -> Application
 app = Cors.cors (const $ Just policy) . serve api . appServer
@@ -147,27 +127,18 @@ server :: ServerT Api AppM
 server =
   Handlers.estimateTxFees
     :<|> Handlers.applyArgs
-    :<|> Handlers.hashScript
-    :<|> Handlers.blake2bHash
     :<|> Handlers.evalTxExecutionUnits
     :<|> Handlers.finalizeTx
-    :<|> Handlers.hashData
 
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
 
 estimateTxFees :: WitnessCount -> Cbor -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
-hashScript :: HashScriptRequest -> ClientM HashedScript
-blake2bHash :: BytesToHash -> ClientM Blake2bHash
 evalTxExecutionUnits :: Cbor -> ClientM ExecutionUnitsMap
 finalizeTx :: FinalizeRequest -> ClientM FinalizedTransaction
-hashData :: HashDataRequest -> ClientM HashedData
 estimateTxFees
   :<|> applyArgs
-  :<|> hashScript
-  :<|> blake2bHash
   :<|> evalTxExecutionUnits
-  :<|> finalizeTx
-  :<|> hashData =
+  :<|> finalizeTx =
     client api
