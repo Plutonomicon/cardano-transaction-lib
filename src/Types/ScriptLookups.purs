@@ -23,7 +23,6 @@ module Types.ScriptLookups
 import Prelude hiding (join)
 
 import Address (enterpriseAddressValidatorHash)
-import Cardano.Types.Transaction (Redeemer(Redeemer)) as T
 import Cardano.Types.Transaction
   ( ExUnits
   , Transaction
@@ -39,6 +38,7 @@ import Cardano.Types.Transaction
   , _scriptDataHash
   , _witnessSet
   )
+import Cardano.Types.Transaction (Redeemer(Redeemer)) as T
 import Cardano.Types.Value
   ( CurrencySymbol
   , Value
@@ -76,13 +76,13 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
-import Data.Traversable (for, sequence, traverse)
-import Data.Tuple (fst)
+import Data.Traversable (for, traverse)
+import Data.Tuple (Tuple(..), fst)
 import Data.Tuple.Nested (type (/\), (/\))
-import FromData (class FromData)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
+import FromData (class FromData)
 import Hashing (datumHash) as Hashing
 import Helpers ((<\>), liftEither, liftM)
 import Plutus.FromPlutusType (fromPlutusType)
@@ -102,6 +102,7 @@ import Transaction
   , attachRedeemer
   , setScriptDataHash
   )
+import TxOutput (transactionOutputToScriptOutput)
 import Types.Any (Any)
 import Types.Datum (DataHash, Datum)
 import Types.Interval (POSIXTimeRange, posixTimeRangeToTransactionSlot)
@@ -113,14 +114,13 @@ import Types.PubKeyHash
   , stakePubKeyHashRewardAddress
   )
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
-import Types.TokenName (TokenName)
 import Types.Scripts
   ( MintingPolicy
   , MintingPolicyHash
   , Validator
   , ValidatorHash
   )
-import Types.TypedValidator (generalise) as TV
+import Types.TokenName (TokenName)
 import Types.Transaction (TransactionInput)
 import Types.TxConstraints
   ( InputConstraint(InputConstraint)
@@ -154,16 +154,15 @@ import Types.TypedValidator
   , class RedeemerType
   , TypedValidator(TypedValidator)
   )
+import Types.TypedValidator (generalise) as TV
 import Types.UnbalancedTransaction
   ( PaymentPubKey
   , UnbalancedTx
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
-  -- , payPubKeyHash
   , payPubKeyRequiredSigner
   )
-import TxOutput (transactionOutputToScriptOutput)
 
 -- Taken mainly from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-constraints/html/Ledger-Constraints-OffChain.html
 -- Plutus rev: cc72a56eafb02333c96f662581b57504f8f8992f via Plutus-apps (localhost): abe4785a4fc4a10ba0c4e6417f0ab9f1b4169b26
@@ -683,8 +682,9 @@ updateUtxoIndex
    . ConstraintsM a (Either MkUnbalancedTxError Unit)
 updateUtxoIndex = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
+  networkId <- lift getNetworkId
   cTxOutputs <- liftM CannotConvertFromPlutusType
-    (traverse fromPlutusType txOutputs)
+    (traverse (fromPlutusType <<< Tuple networkId) txOutputs)
   let txOutsMap = mapMaybe transactionOutputToScriptOutput cTxOutputs
   -- Left bias towards original map, hence `flip`:
   _unbalancedTx <<< _utxoIndex %= flip union txOutsMap
@@ -707,7 +707,7 @@ addOwnInput (InputConstraint { txOutRef }) = do
     ScriptLookups { txOutputs, typedValidator } <- use _lookups
     -- Convert to Cardano type
     cTxOutputs <- liftM CannotConvertFromPlutusType
-      (traverse fromPlutusType txOutputs)
+      (traverse (fromPlutusType <<< Tuple networkId) txOutputs)
     inst <- liftM TypedValidatorMissing typedValidator
     -- This line is to type check the `TransactionInput`. Plutus actually creates a `TxIn`
     -- but we don't have such a datatype for our `TxBody`. Therefore, if we pass
@@ -785,7 +785,9 @@ lookupTxOutRef
 lookupTxOutRef outRef = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
   txOut <- liftM (TxOutRefNotFound outRef) (lookup outRef txOutputs)
-  liftM CannotConvertFromPlutusType $ fromPlutusType txOut
+  networkId <- lift getNetworkId
+  liftM CannotConvertFromPlutusType $
+    fromPlutusType (networkId /\ txOut)
 
 lookupDatum
   :: forall (a :: Type)
@@ -946,8 +948,8 @@ processConstraint mpsMap osMap = do
       -- Attach redeemer to witness set.
       ExceptT $ attachToCps attachRedeemer redeemer
     MustPayToPubKeyAddress pkh skh mDatum plutusValue -> do
-      let amount = unwrap $ fromPlutusType plutusValue
       networkId <- getNetworkId
+      let amount = unwrap $ fromPlutusType plutusValue
       runExceptT do
         -- If datum is presented, add it to 'datumWitnesses' and Array of datums.
         -- Otherwise continue, hence `liftEither $ Right unit`.
@@ -996,8 +998,8 @@ processConstraint mpsMap osMap = do
         _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provide amount
     MustPayToScript vlh dat plutusValue -> do
-      let amount = unwrap $ fromPlutusType plutusValue
       networkId <- getNetworkId
+      let amount = unwrap $ fromPlutusType plutusValue
       runExceptT do
         -- Don't write `let dataHash = datumHash datum`, see [datumHash Note]
         dataHash <- except $ note (CannotHashDatum dat)

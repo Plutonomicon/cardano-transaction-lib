@@ -1,5 +1,6 @@
 module Plutus.Types.Address
   ( Address(Address)
+  , AddressWithNetworkTag(AddressWithNetworkTag)
   , pubKeyHashAddress
   , scriptHashAddress
   , toPubKeyHash
@@ -14,6 +15,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import FromData (class FromData, fromData)
+import Serialization.Address (NetworkId)
 import ToData (class ToData, toData)
 import Types.Scripts (ValidatorHash)
 import Types.PlutusData (PlutusData(Constr))
@@ -30,6 +32,18 @@ import Plutus.Types.Credential
 --------------------------------------------------------------------------------
 -- Address
 --------------------------------------------------------------------------------
+
+newtype AddressWithNetworkTag = AddressWithNetworkTag
+  { address :: Address
+  , networkId :: NetworkId
+  }
+
+derive instance Eq AddressWithNetworkTag
+derive instance Newtype AddressWithNetworkTag _
+derive instance Generic AddressWithNetworkTag _
+
+instance Show AddressWithNetworkTag where
+  show = genericShow
 
 -- Taken from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/Plutus-V1-Ledger-Tx.html#t:Address
 -- Plutus rev: dbefda30be6490c758aa88b600f5874f12712b3a
