@@ -270,10 +270,10 @@ relTimeFromAbsTime
 relTimeFromAbsTime (EraSummary { start }) at@(AbsTime absTime) = do
   let startTime = unwrap (unwrap start).time
   unless (startTime <= absTime) (throwError $ StartTimeGreaterThanTime at)
-  let relTime = absTime - startTime -- relative to System Start, not UNIX Epoch.
+  let relTime = absTime - startTime -- relative to era start, not UNIX Epoch.
   pure $ wrap relTime
 
--- | Converts Relative time to relative slot (using Euclidean division) and
+-- | Converts relative time to relative slot (using Euclidean division) and
 -- | modulus for any leftover.
 relSlotFromRelTime
   :: EraSummary -> RelTime -> RelSlot /\ ModTime
@@ -290,11 +290,12 @@ absSlotFromRelSlot
   (RelSlot relSlot /\ mt@(ModTime modTime)) = do
   let
     startSlot = unwrap (unwrap start).slot
-    absSlot = startSlot + relSlot
+    absSlot = startSlot + relSlot -- relative to system start
     -- If `EraSummary` doesn't have an end, the condition is automatically
     -- satisfied. We use `<=` as justified by the source code.
     endSlot = maybe (absSlot + one) (unwrap <<< _.slot <<< unwrap) end
   unless (absSlot <= endSlot) (throwError $ EndSlotLessThanSlot $ wrap absSlot)
+  -- Check for no remainder:
   unless (modTime == zero) (throwError $ RelModNonZero mt)
   -- Potential FIXME: Do we want to use `safeZone` from `parameters`.
   pure $ wrap absSlot
