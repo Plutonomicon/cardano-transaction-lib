@@ -1,0 +1,48 @@
+module Test.Plutus.Credential
+  ( suite
+  , creds
+  ) where
+
+import Prelude
+
+import Data.Maybe (fromJust)
+import Data.Newtype (wrap)
+import Data.Traversable (for_)
+import Mote (group)
+import Partial.Unsafe (unsafePartial)
+import Plutus.Types.Credential (Credential(ScriptCredential, PubKeyCredential))
+import Serialization.Hash (ed25519KeyHashFromBech32, scriptHashFromBech32)
+import Test.Utils (toFromAesonTest)
+import TestM (TestPlanM)
+import Types.Aliases (Bech32String)
+
+suite :: TestPlanM Unit
+suite = do
+  group "Plutus.Types.Credential" $ do
+    group "Aeson tests" $ do
+      group "Roundtrip tests" $ do
+        for_ creds toFromAesonTest
+
+creds ∷ Array Credential
+creds =
+  [ pubKeyCredential
+  , scriptCredential
+  ]
+
+paymentKeyBech32 :: Bech32String
+paymentKeyBech32 =
+  "addr_vkh1jjfnzhxe966a33psfenm0ct2udkkr569qf55v4uprgkgu8zsvmg"
+
+pubKeyCredential :: Credential
+pubKeyCredential =
+  PubKeyCredential <<< wrap <<< unsafePartial fromJust $
+    ed25519KeyHashFromBech32 paymentKeyBech32
+
+scriptBech32 :: Bech32String
+scriptBech32 =
+  "script1cda3khwqv60360rp5m7akt50m6ttapacs8rqhn5w342z7r35m37"
+
+scriptCredential :: Credential
+scriptCredential =
+  ScriptCredential <<< wrap <<< unsafePartial fromJust $
+    scriptHashFromBech32 scriptBech32
