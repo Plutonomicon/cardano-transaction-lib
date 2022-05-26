@@ -236,9 +236,13 @@ posixTimeToSlot eraSummaries sysStart pt@(POSIXTime pt') = runExceptT do
   let absTime = wrap $ posixTime - sysStartPosix
   -- Find current era:
   currentEra <- liftEither $ findTimeEraSummary eraSummaries absTime
+  -- Get relative time from absolute time w.r.t. current era
   relTime <- liftEither $ relTimeFromAbsTime currentEra absTime
+  -- Convert to relative slot
   let relSlotMod = relSlotFromRelTime currentEra relTime
+  -- Get absolute slot relative to system start
   absSlot <- liftEither $ absSlotFromRelSlot currentEra relSlotMod
+  -- Convert back to UInt `Slot`
   liftM (CannotConvertAbsSlotToSlot absSlot) $ slotFromAbsSlot absSlot
   where
   -- TODO: See https://github.com/input-output-hk/cardano-ledger/blob/master/eras/shelley/impl/src/Cardano/Ledger/Shelley/HardForks.hs#L57
