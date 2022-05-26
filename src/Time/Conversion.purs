@@ -6,8 +6,7 @@ module Time.Conversion
   , SlotToPosixTimeError(..)
   , posixTimeToSlot
   , slotToPosixTime
-  )
-  where
+  ) where
 
 import Prelude
 import Control.Monad.Error.Class (throwError)
@@ -45,8 +44,6 @@ data SlotToPosixTimeError
   | EndTimeLessThanTime AbsTime
   | CannotGetBigIntFromNumber
 
--- | SlotFromAbsSlot AbsSlot -- perhaps remove
-
 derive instance Generic SlotToPosixTimeError _
 derive instance Eq SlotToPosixTimeError
 
@@ -70,13 +67,13 @@ slotToPosixTime
   -> Slot
   -> QueryM (Either SlotToPosixTimeError POSIXTime)
 slotToPosixTime eraSummaries sysStart slot = runExceptT do
-  let ogmiosSlot = absSlotFromSlot slot
+  let absSlot = absSlotFromSlot slot
   -- Get JSDate:
   sysStartD <- liftEffect $ parse $ unwrap sysStart
   -- Find current era:
-  currentEra <- liftEither $ findSlotEraSummary eraSummaries ogmiosSlot
+  currentEra <- liftEither $ findSlotEraSummary eraSummaries absSlot
   -- Convert absolute slot (relative to System start) to relative slot of era
-  relSlot <- liftEither $ relSlotFromAbsSlot currentEra ogmiosSlot
+  relSlot <- liftEither $ relSlotFromAbsSlot currentEra absSlot
   -- Convert relative slot to relative time for that era
   let relTime = relTimeFromRelSlot currentEra relSlot
   absTime <- liftEither $ absTimeFromRelTime currentEra relTime
@@ -171,10 +168,10 @@ instance Show AbsTime where
 -- | function more general, guarding against a larger `start`ing slot
 relSlotFromAbsSlot
   :: EraSummary -> AbsSlot -> Either SlotToPosixTimeError RelSlot
-relSlotFromAbsSlot (EraSummary { start }) os@(AbsSlot ogmiosSlot) = do
+relSlotFromAbsSlot (EraSummary { start }) as@(AbsSlot absSlot) = do
   let startSlot = unwrap (unwrap start).slot
-  unless (startSlot <= ogmiosSlot) (throwError $ StartingSlotGreaterThanSlot os)
-  pure $ wrap $ ogmiosSlot - startSlot
+  unless (startSlot <= absSlot) (throwError $ StartingSlotGreaterThanSlot as)
+  pure $ wrap $ absSlot - startSlot
 
 relTimeFromRelSlot :: EraSummary -> RelSlot -> RelTime
 relTimeFromRelSlot (EraSummary { parameters }) (RelSlot relSlot) =
@@ -247,7 +244,7 @@ posixTimeToSlot eraSummaries sysStart pt@(POSIXTime pt') = runExceptT do
   -- TODO: See https://github.com/input-output-hk/cardano-ledger/blob/master/eras/shelley/impl/src/Cardano/Ledger/Shelley/HardForks.hs#L57
   -- translateTimeForPlutusScripts and ensure protocol version > 5 which would
   -- mean converting to milliseconds
-  -- FIXME: ADD TRUNCATE?
+  -- POTENTIAL FIXME: ADD TRUNCATE?
   transTime :: BigInt -> BigInt
   transTime = flip (/) $ BigInt.fromInt 1000 -- to milliseconds
 
