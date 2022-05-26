@@ -125,5 +125,5 @@ foreign import _fromBytesMint
 foreign import _fromBytesVRFKeyHash
   :: forall r. ErrorFfiHelper r -> ByteArray -> E r VRFKeyHash
 
-foreign import _fromBytesValue 
+foreign import _fromBytesValue
   :: forall r. ErrorFfiHelper r -> ByteArray -> E r Value

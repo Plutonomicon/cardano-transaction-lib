@@ -107,7 +107,7 @@ mkNamiWalletAff = do
             <$> fromBytesEffect (unwrap bytes)
 
   getBalance :: NamiConnection -> Aff (Maybe Value)
-  getBalance nami = fromNamiHexString _getNamiBalance nami >>= 
+  getBalance nami = fromNamiHexString _getNamiBalance nami >>=
     (_ >>= unwrap >>> fromBytes) >>> pure
 
   signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
