@@ -25,9 +25,10 @@ import Aeson
   , encodeAeson'
   , getField
   )
+import Contract.Prelude (Either(..))
 import Data.Either (Either(Left), note)
 import Data.Function (on)
-import Data.Maybe (Maybe(Nothing))
+import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import FromData (class FromData)
@@ -35,8 +36,8 @@ import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata, toMetadata)
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
-import Types.RawBytes (RawBytes, rawBytesToHex, hexToRawBytes)
 import Types.PlutusData (PlutusData(Bytes))
+import Types.RawBytes (RawBytes, rawBytesToHex, hexToRawBytes)
 import Types.TransactionMetadata (TransactionMetadatum(Bytes)) as Metadata
 
 -- | PubKeyHash and StakeKeyHash refers to blake2b-224 hash digests of Ed25519
@@ -146,16 +147,15 @@ instance FromMetadata ScriptHash where
 
 -- Corresponds to Plutus' `Plutus.V1.Ledger.Api.Script` Aeson instances
 instance DecodeAeson ScriptHash where
-  decodeAeson =
-    caseAesonObject (Left (TypeMismatch "Expected object")) $
-      note (TypeMismatch "Expected hex-encoded script hash")
-        <<< (scriptHashFromBytes <=< hexToRawBytes)
-        <=< flip getField "getScriptHash"
+  decodeAeson aes = do
+    let
+      mayHash = caseAesonString Nothing
+        (Just <=< scriptHashFromBytes <=< hexToRawBytes)
+        aes
+    maybe (Left $ TypeMismatch "Expected hex-encoded script hash") Right mayHash
 
 instance EncodeAeson ScriptHash where
-  encodeAeson' sh = encodeAeson'
-    { getScriptHash: scriptHashToBytes sh
-    }
+  encodeAeson' sh = encodeAeson' $ scriptHashToBytes sh
 
 foreign import _scriptHashFromBytesImpl
   :: MaybeFfiHelper
