@@ -14,6 +14,9 @@ exports._enableNami = () => window.cardano.nami.enable();
 exports._getNamiAddress = nami => () =>
   nami.getUsedAddresses().then((addrs) => addrs[0]);
 
+// _getNamiBalance :: NamiConnection -> Effect (Promise string)
+exports._getNamiBalance = nami => () => nami.getBalance();
+
 // _getNamiCollateral
 //   :: MaybeFfiHelper
 //   -> NamiConnection

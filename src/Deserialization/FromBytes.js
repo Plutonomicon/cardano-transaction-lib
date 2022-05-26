@@ -24,3 +24,4 @@ exports._fromBytesTransactionWitnessSet = fromBytes('TransactionWitnessSet');
 exports._fromBytesNativeScript = fromBytes('NativeScript');
 exports._fromBytesMint = fromBytes('Mint');
 exports._fromBytesVRFKeyHash = fromBytes('VRFKeyHash');
+exports._fromBytesValue = fromBytes('Value');

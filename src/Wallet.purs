@@ -22,7 +22,7 @@ import Control.Promise as Promise
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (over, unwrap)
 import Data.Tuple.Nested ((/\))
-import Deserialization.FromBytes (fromBytesEffect)
+import Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Deserialization.UnspentOutput as Deserialization.UnspentOuput
 import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
@@ -34,6 +34,7 @@ import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Helpers ((<<>>))
 import Serialization as Serialization
 import Serialization.Address (Address, addressFromBytes)
+import Serialization.Types (Value)
 import Types.ByteArray (byteArrayToHex)
 import Types.CborBytes
   ( CborBytes
@@ -59,6 +60,8 @@ type NamiWallet =
   -- Get the address associated with the wallet (Nami does not support
   -- multiple addresses)
   , getWalletAddress :: NamiConnection -> Aff (Maybe Address)
+  -- Get the wallet's balance
+  , getBalance :: NamiConnection -> Aff (Maybe Value)
   -- Get the collateral UTxO associated with the Nami wallet
   , getCollateral :: NamiConnection -> Aff (Maybe TransactionUnspentOutput)
   -- Sign a transaction with the current wallet
@@ -80,6 +83,7 @@ mkNamiWalletAff = do
     { connection
     , getWalletAddress
     , getCollateral
+    , getBalance
     , signTx
     , signTxBytes
     , submitTx
@@ -101,6 +105,10 @@ mkNamiWalletAff = do
         liftEffect $
           Deserialization.UnspentOuput.convertUnspentOutput
             <$> fromBytesEffect (unwrap bytes)
+
+  getBalance :: NamiConnection -> Aff (Maybe Value)
+  getBalance nami = fromNamiHexString _getNamiBalance nami >>= 
+    (_ >>= unwrap >>> fromBytes) >>> pure
 
   signTx :: NamiConnection -> Transaction -> Aff (Maybe Transaction)
   signTx nami tx = do
@@ -182,6 +190,8 @@ foreign import data NamiConnection :: Type
 foreign import _enableNami :: Effect (Promise NamiConnection)
 
 foreign import _getNamiAddress :: NamiConnection -> Effect (Promise String)
+
+foreign import _getNamiBalance :: NamiConnection -> Effect (Promise String)
 
 foreign import _getNamiCollateral
   :: MaybeFfiHelper -> NamiConnection -> Effect (Promise (Maybe String))
