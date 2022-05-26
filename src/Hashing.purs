@@ -3,6 +3,10 @@ module Hashing
   , blake2b256HashHex
   , datumHash
   , plutusScriptHash
+  , sha256Hash
+  , sha256HashHex
+  , sha3_256Hash
+  , sha3_256HashHex
   ) where
 
 import Prelude
@@ -26,6 +30,14 @@ foreign import blake2b256HashHex :: ByteArray -> String
 foreign import hashPlutusData :: Serialization.PlutusData -> ByteArray
 
 foreign import hashPlutusScript :: PlutusScript -> ByteArray
+
+foreign import sha256Hash :: ByteArray -> ByteArray
+
+foreign import sha256HashHex :: ByteArray -> String
+
+foreign import sha3_256Hash :: ByteArray -> ByteArray
+
+foreign import sha3_256HashHex :: ByteArray -> String
 
 datumHash :: Datum -> Maybe DataHash
 datumHash =
