@@ -199,32 +199,16 @@ calculateMinFeeM
   :: forall (r :: Row Type). Transaction -> Contract r (Maybe Coin)
 calculateMinFeeM = map hush <<< calculateMinFee
 
-lockUtx
-  :: forall (r :: Row Type) (a :: Type) (e :: Type)
-   . (a -> Transaction)
-  -> a
-  -> Contract r a
-lockUtx f tx = do
-  usedTxos <- asks (_.usedTxOuts <<< unwrap)
-  runReaderT (lockTransactionInputs $ f $ tx) usedTxos
-  pure tx
-
 lockMany
   :: forall (r :: Row Type) (t :: Type -> Type) (a :: Type)
    . (Traversable t)
   => (a -> Transaction)
   -> (t a)
   -> Contract r (t a)
-lockMany f = traverse (lockUtx f)
-
-balanceMany
-  :: forall
-       (t :: Type -> Type)
-       (r :: Row Type)
-   . (Traversable t)
-  => t UnattachedUnbalancedTx
-  -> Contract r (t (Either BalanceTxError.BalanceTxError UnattachedTransaction))
-balanceMany = traverse balanceTx
+lockMany f = traverse $ \tx -> do
+  usedTxos <- asks (_.usedTxOuts <<< unwrap)
+  runReaderT (lockTransactionInputs $ f $ tx) usedTxos
+  pure tx
 
 balanceTxs
   :: forall
@@ -235,11 +219,8 @@ balanceTxs
   -> Contract r (Either BalanceTxError.BalanceTxError (t UnattachedTransaction))
 balanceTxs uts = do
   _ <- lockMany (_.transaction <<< unwrap <<< _.unbalancedTx <<< unwrap) uts
-  uts' <- balanceMany uts
-  let
-    uts'' :: Either BalanceTxError.BalanceTxError (t UnattachedTransaction)
-    uts'' = sequence uts'
-  case uts'' of
+  uts' <- sequence <$> balanceMany uts
+  case uts' of
     e@(Left _) -> pure e
     Right uts''' -> do
       _ <- lockMany get1 uts'''
@@ -251,6 +232,15 @@ balanceTx
    . UnattachedUnbalancedTx
   -> Contract r (Either BalanceTxError.BalanceTxError UnattachedTransaction)
 balanceTx = wrapContract <<< BalanceTx.balanceTx
+
+balanceMany
+  :: forall
+       (t :: Type -> Type)
+       (r :: Row Type)
+   . (Traversable t)
+  => t UnattachedUnbalancedTx
+  -> Contract r (t (Either BalanceTxError.BalanceTxError UnattachedTransaction))
+balanceMany = traverse balanceTx
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` hushing the error.
 balanceTxM
