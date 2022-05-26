@@ -296,5 +296,6 @@ absSlotFromRelSlot
     endSlot = maybe (absSlot + one) (unwrap <<< _.slot <<< unwrap) end
   unless (absSlot <= endSlot) (throwError $ EndSlotLessThanSlot $ wrap absSlot)
   unless (modTime == zero) (throwError $ RelModNonZero mt)
+  -- Potential FIXME: Do we want to use `safeZone` from `parameters`.
   pure $ wrap absSlot
 
