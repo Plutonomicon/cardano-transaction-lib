@@ -1,14 +1,24 @@
 module Time.Types.POSIXTime
-  ( POSIXTime(..)
+  ( OnchainPOSIXTimeRange(..)
+  , POSIXTime(..)
   , POSIXTimeRange
-  ) where
+  )
+  where
 
 import Prelude
 import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
+import Data.Lattice
+  ( class BoundedJoinSemilattice
+  , class BoundedMeetSemilattice
+  , class JoinSemilattice
+  , class MeetSemilattice
+  )
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
+import FromData (class FromData)
 import Time.Types.Interval (Interval)
+import ToData (class ToData)
 
 --------------------------------------------------------------------------------
 -- POSIXTIME Type and related
@@ -25,9 +35,28 @@ derive newtype instance Ord POSIXTime
 -- has consequences on how isEmpty and overlaps are defined in
 -- Types.POSIXTimeRange (Interval API).
 derive newtype instance Semiring POSIXTime
+derive newtype instance FromData POSIXTime
+derive newtype instance ToData POSIXTime
 
 instance Show POSIXTime where
   show = genericShow
 
 -- | An `Interval` of `POSIXTime`s.
 type POSIXTimeRange = Interval POSIXTime
+
+-- | A newtype wrapper over `POSIXTimeRange` to represent the on-chain version
+-- | of an off-chain `POSIXTimeRange`. In particular, there are a few steps
+-- | in conversion:
+-- | 1) `POSIXTimeRange` -> `SlotRange`
+-- | 2) `SlotRange` -> `TransactionValidity`
+-- | 3) `TransactionValidity` -> `OnchainPOSIXTimeRange`
+newtype OnchainPOSIXTimeRange = OnchainPOSIXTimeRange POSIXTimeRange
+
+derive instance Generic OnchainPOSIXTimeRange _
+derive instance Newtype OnchainPOSIXTimeRange _
+derive newtype instance Eq OnchainPOSIXTimeRange
+derive newtype instance JoinSemilattice OnchainPOSIXTimeRange
+derive newtype instance BoundedJoinSemilattice OnchainPOSIXTimeRange
+derive newtype instance MeetSemilattice OnchainPOSIXTimeRange
+derive newtype instance FromData OnchainPOSIXTimeRange
+derive newtype instance ToData OnchainPOSIXTimeRange

@@ -5,8 +5,10 @@ module Time.Conversion
   , RelTime(..)
   , SlotToPosixTimeError(..)
   , posixTimeRangeToSlotRange
+  , posixTimeRangeToTransactionValidity
   , posixTimeToSlot
   , slotRangeToPosixTimeRange
+  , slotRangeToTransactionValidity
   , slotToPosixTime
   )
   where
@@ -21,7 +23,7 @@ import Data.BigInt (fromInt, fromNumber) as BigInt
 import Data.Either (Either(Right), note)
 import Data.Generic.Rep (class Generic)
 import Data.JSDate (getTime, parse)
-import Data.Maybe (Maybe, maybe)
+import Data.Maybe (Maybe(Nothing), maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -34,15 +36,15 @@ import QueryM.Ogmios
   , EraSummary(EraSummary)
   , SystemStartQR
   )
-import Serialization.Address (Slot)
+import Serialization.Address (Slot(Slot))
 import Time.Types.Interval
   ( Extended(Finite, PosInf, NegInf)
   , Interval(Interval)
   , LowerBound(LowerBound)
   , UpperBound(UpperBound)
   )
-import Time.Types.POSIXTime (POSIXTime(POSIXTime), POSIXTimeRange)
-import Time.Types.Slot (SlotRange)
+import Time.Types.POSIXTime (OnchainPOSIXTimeRange, POSIXTime(POSIXTime), POSIXTimeRange)
+import Time.Types.Slot (SlotRange, maxSlot)
 import Undefined (undefined)
 
 --------------------------------------------------------------------------------
@@ -367,38 +369,53 @@ slotRangeToPosixTimeRange
 type TransactionValiditySlot =
   { validityStartInterval :: Maybe Slot, timeToLive :: Maybe Slot }
 
--- -- | Converts a SlotRange to two separate slots used in building Types.Transaction.
--- -- | Note that we lose information regarding whether the bounds are included
--- -- | or not at `NegInf` and `PosInf`.
--- -- | `Nothing` for `validityStartInterval` represents `Slot zero`.
--- -- | `Nothing` for `timeToLive` represents `maxSlot`.
--- -- | For `Finite` values exclusive of bounds, we add and subtract one slot for
--- -- | `validityStartInterval` and `timeToLive`, respectively.
--- slotRangeToTransactionSlot
---   :: SlotRange
---   -> TransactionValiditySlot
--- slotRangeToTransactionSlot
---   (Interval { from: LowerBound start startIncl, to: UpperBound end endIncl }) =
---   { validityStartInterval, timeToLive }
---   where
---   validityStartInterval :: Maybe Slot
---   validityStartInterval = case start, startIncl of
---     Finite s, true -> pure s
---     Finite s, false -> pure $ s <> Slot one
---     NegInf, _ -> Nothing
---     PosInf, _ -> pure maxSlot
+-- | Converts a `SlotRange` to two separate slots used in building
+-- | Cardano.Types.Transaction.
+-- | Note that we lose information regarding whether the bounds are included
+-- | or not at `NegInf` and `PosInf`.
+-- | `Nothing` for `validityStartInterval` represents `Slot zero`.
+-- | `Nothing` for `timeToLive` represents `maxSlot`.
+-- | For `Finite` values exclusive of bounds, we add and subtract one slot for
+-- | `validityStartInterval` and `timeToLive`, respectively
+slotRangeToTransactionValidity
+  :: SlotRange
+  -> TransactionValiditySlot
+slotRangeToTransactionValidity
+  (Interval { from: LowerBound start startInc, to: UpperBound end endInc }) =
+  { validityStartInterval, timeToLive }
+  where
+  validityStartInterval :: Maybe Slot
+  validityStartInterval = case start, startInc of
+    Finite s, true -> pure s
+    Finite s, false -> pure $ s <> Slot one -- This could be suspect
+    NegInf, _ -> Nothing
+    PosInf, _ -> pure maxSlot
 
---   timeToLive :: Maybe Slot
---   timeToLive = case end, endIncl of
---     Finite s, true -> pure s
---     Finite s, false -> pure $ s <> Slot (negate one)
---     NegInf, _ -> pure $ Slot zero
---     PosInf, _ -> Nothing
+  timeToLive :: Maybe Slot
+  timeToLive = case end, endInc of
+    Finite s, true -> pure s
+    Finite s, false -> pure $ s <> Slot (negate one) -- This could be suspect
+    NegInf, _ -> pure $ Slot zero
+    PosInf, _ -> Nothing
 
--- posixTimeRangeToTransactionSlot
---   :: SlotConfig -> POSIXTimeRange -> Maybe TransactionValiditySlot
--- posixTimeRangeToTransactionSlot sc =
---   map slotRangeToTransactionSlot <<< posixTimeRangeToContainedSlotRange sc
+-- | Converts a `POSIXTimeRange` to a transaction validity interval via a
+-- | `SlotRange` to be used when building a CSL transaction body
+posixTimeRangeToTransactionValidity
+  :: EraSummariesQR
+  -> SystemStartQR
+  -> POSIXTimeRange
+  -> QueryM (Either PosixTimeToSlotError TransactionValiditySlot)
+posixTimeRangeToTransactionValidity es ss =
+  map (map slotRangeToTransactionValidity) <<< posixTimeRangeToSlotRange es ss
+
+-- https://github.com/input-output-hk/cardano-ledger/blob/2acff66e84d63a81de904e1c0de70208ff1819ea/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L206-L226
+toOnchainPosixTimeRange
+  :: EraSummariesQR
+  -> SystemStartQR
+  -> POSIXTimeRange
+  -> QueryM (Either PosixTimeToSlotError OnchainPOSIXTimeRange)
+toOnchainPosixTimeRange eraSummaries sysStart posixTimeRange =
+  undefined
 
 
 -- -- | Convert a `SlotRange` to a `POSIXTimeRange` given a `SlotConfig`. The

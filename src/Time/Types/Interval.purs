@@ -76,10 +76,10 @@ instance
     )
 
 instance ToData a => ToData (Extended a) where
-  toData e = genericToData e
+  toData = genericToData
 
 instance FromData a => FromData (Extended a) where
-  fromData e = genericFromData e
+  fromData = genericFromData
 
 derive instance Generic (Extended a) _
 derive instance Eq a => Eq (Extended a)
@@ -100,10 +100,10 @@ instance
     )
 
 instance ToData a => ToData (LowerBound a) where
-  toData lb = genericToData lb
+  toData = genericToData
 
 instance FromData a => FromData (LowerBound a) where
-  fromData lb = genericFromData lb
+  fromData = genericFromData
 
 derive instance Generic (LowerBound a) _
 derive instance Eq a => Eq (LowerBound a)
@@ -133,10 +133,10 @@ instance
     )
 
 instance ToData a => ToData (UpperBound a) where
-  toData ub = genericToData ub
+  toData = genericToData
 
 instance FromData a => FromData (UpperBound a) where
-  fromData ub = genericFromData ub
+  fromData = genericFromData
 
 derive instance Generic (UpperBound a) _
 derive instance Eq a => Eq (UpperBound a)
@@ -189,10 +189,10 @@ instance Ord a => BoundedMeetSemilattice (Interval a) where
   top = always
 
 instance ToData a => ToData (Interval a) where
-  toData i = genericToData i
+  toData = genericToData
 
 instance FromData a => FromData (Interval a) where
-  fromData i = genericFromData i
+  fromData = genericFromData
 
 --------------------------------------------------------------------------------
 -- Helpers
