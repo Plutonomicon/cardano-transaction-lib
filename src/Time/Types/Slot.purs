@@ -3,6 +3,7 @@ module Time.Types.Slot
   , SlotRange
   , beginningOfTime
   , defaultSlotConfig
+  , maxSlot
   , module Slot
   ) where
 
@@ -11,6 +12,7 @@ import Data.BigInt (fromString, fromInt) as BigInt
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (fromJust)
 import Data.Show.Generic (genericShow)
+import Data.UInt as UInt
 import Partial.Unsafe (unsafePartial)
 import Prelude
 import Serialization.Address (Slot(Slot)) as Slot
@@ -48,3 +50,7 @@ defaultSlotConfig = SlotConfig
   { slotLength: BigInt.fromInt 1000 -- One second = 1 slot currently.
   , slotZeroTime: POSIXTime beginningOfTime
   }
+
+-- | Maximum slot under `Data.UInt`
+maxSlot :: Slot.Slot
+maxSlot = Slot.Slot $ unsafePartial fromJust $ UInt.fromString "4294967295"

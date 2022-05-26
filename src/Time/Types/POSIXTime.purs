@@ -6,7 +6,7 @@ module Time.Types.POSIXTime
 import Prelude
 import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Time.Types.Interval (Interval)
 

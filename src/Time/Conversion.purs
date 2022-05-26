@@ -10,11 +10,12 @@ module Time.Conversion
 
 import Prelude
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Except.Trans (runExceptT)
+import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Data.Array (find)
+import Data.Bifunctor (rmap)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, fromNumber) as BigInt
-import Data.Either (Either, note)
+import Data.Either (Either(Right), note)
 import Data.Generic.Rep (class Generic)
 import Data.JSDate (getTime, parse)
 import Data.Maybe (Maybe, maybe)
@@ -31,7 +32,15 @@ import QueryM.Ogmios
   , SystemStartQR
   )
 import Serialization.Address (Slot)
-import Time.Types.POSIXTime (POSIXTime(POSIXTime))
+import Time.Types.Interval
+  ( Extended(Finite, PosInf, NegInf)
+  , Interval(Interval)
+  , LowerBound(LowerBound)
+  , UpperBound(UpperBound)
+  )
+import Time.Types.POSIXTime (POSIXTime(POSIXTime), POSIXTimeRange)
+import Time.Types.Slot (SlotRange)
+import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- Slot (absolute from System Start - see QueryM.SystemStart.getSystemStart)
@@ -302,6 +311,31 @@ absSlotFromRelSlot
 
 --------------------------------------------------------------------------------
 
+-- | Converts a `POSIXTimeRange` to `SlotRange` given an `EraSummariesQR` and
+-- | `SystemStartQR` queried from Ogmios.
+posixTimeRangeToSlotRange
+  :: EraSummariesQR
+  -> SystemStartQR
+  -> POSIXTimeRange
+  -> QueryM (Either PosixTimeToSlotError SlotRange)
+posixTimeRangeToSlotRange
+  eraSummaries
+  sysStart
+  (Interval { from: LowerBound s sInc, to: UpperBound e endInc }) = runExceptT
+  do
+    s' <- ExceptT $ convertBounds s
+    e' <- ExceptT $ convertBounds e
+    liftEither $ Right
+      $ Interval { from: LowerBound s' sInc, to: UpperBound e' endInc }
+  where
+  convertBounds
+    :: Extended POSIXTime
+    -> QueryM (Either PosixTimeToSlotError (Extended Slot))
+  convertBounds (Finite pt) = posixTimeToSlot eraSummaries sysStart pt
+    <#> rmap Finite
+  convertBounds NegInf = pure $ Right NegInf
+  convertBounds PosInf = pure $ Right PosInf
+
 -- -- | Convert a `SlotRange` to a `POSIXTimeRange` given a `SlotConfig`. The
 -- -- | resulting `POSIXTimeRange` refers to the starting time of the lower bound of
 -- -- | the `SlotRange` and the ending time of the upper bound of the `SlotRange`.
@@ -412,10 +446,6 @@ absSlotFromRelSlot
 --     Finite s, false -> pure $ s <> Slot (negate one)
 --     NegInf, _ -> pure $ Slot zero
 --     PosInf, _ -> Nothing
-
--- -- | Maximum slot under `Data.UInt`
--- maxSlot :: Slot
--- maxSlot = Slot $ unsafePartial fromJust $ UInt.fromString "4294967295"
 
 -- posixTimeRangeToTransactionSlot
 --   :: SlotConfig -> POSIXTimeRange -> Maybe TransactionValiditySlot
