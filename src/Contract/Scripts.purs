@@ -4,9 +4,6 @@
 module Contract.Scripts
   ( applyArgs
   , applyArgsM
-  , mintingPolicyHash
-  , stakeValidatorHash
-  , validatorHash
   , module Address
   , module ExportQueryM
   , module ExportScripts
@@ -38,12 +35,12 @@ import QueryM
       )
   ) as ExportQueryM
 import QueryM (applyArgs) as QueryM
-import Scripts (scriptHash) as ExportScripts
 import Scripts
   ( mintingPolicyHash
+  , scriptHash
   , stakeValidatorHash
   , validatorHash
-  ) as Scripts
+  ) as ExportScripts
 import Serialization.Hash (ScriptHash) as Hash
 import Types.Scripts
   ( MintingPolicy(MintingPolicy)
@@ -103,22 +100,3 @@ applyArgsM
   -> Array PlutusData
   -> Contract r (Maybe a)
 applyArgsM a = map hush <<< applyArgs a
-
--- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
-mintingPolicyHash
-  :: forall (r :: Row Type)
-   . MintingPolicy
-  -> Contract r (Maybe MintingPolicyHash)
-mintingPolicyHash = wrapContract <<< Scripts.mintingPolicyHash
-
--- | Converts a Plutus-style `StakeValidator` to an `StakeValidatorHash`
-stakeValidatorHash
-  :: forall (r :: Row Type)
-   . StakeValidator
-  -> Contract r (Maybe StakeValidatorHash)
-stakeValidatorHash = wrapContract <<< Scripts.stakeValidatorHash
-
--- | Converts a Plutus-style `Validator` to a `ValidatorHash`
-validatorHash
-  :: forall (r :: Row Type). Validator -> Contract r (Maybe ValidatorHash)
-validatorHash = wrapContract <<< Scripts.validatorHash

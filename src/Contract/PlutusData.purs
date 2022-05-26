@@ -10,6 +10,7 @@ module Contract.PlutusData
   , module DataSchema
   , module Datum
   , module ExportQueryM
+  , module Hashing
   , module PlutusData
   , module Redeemer
   , module FromData
@@ -39,6 +40,7 @@ import FromData
   , fromDataWithSchema
   , genericFromData
   ) as FromData
+import Hashing (datumHash) as Hashing
 import Plutus.Types.DataSchema
   ( ApPCons
   , Field

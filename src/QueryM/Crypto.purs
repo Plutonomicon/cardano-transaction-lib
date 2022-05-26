@@ -1,19 +1,12 @@
 module QueryM.Crypto
-  ( hashData
-  , hashScript
-  , datumHash
-  , plutusHash
-  , HashedData(..)
+  ( plutusHash
   , HashMethod(..)
   ) where
 
 import Prelude
 
 import Aeson
-  ( class DecodeAeson
-  , Aeson
-  , JsonDecodeError(TypeMismatch)
-  , caseAesonString
+  ( Aeson
   , decodeAeson
   , encodeAeson
   , parseJsonStringToAeson
@@ -24,30 +17,16 @@ import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans (asks)
-import Data.Bifunctor (bimap, lmap)
-import Data.Either (Either(Left), hush, note, either)
+import Data.Bifunctor (lmap)
+import Data.Either (Either)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe, maybe')
-import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Effect.Aff.Class (liftAff)
-import Effect.Class (liftEffect)
-import Effect.Exception (throw)
 import QueryM
-  ( ClientError(ClientHttpError, ClientDecodeJsonError)
-  , QueryM
-  , mkServerEndpointUrl
-  , postAeson
-  , scriptToAeson
+  ( QueryM
   )
 import QueryM.ServerConfig (mkHttpUrl)
-import Serialization (toBytes) as Serialization
-import Serialization.Hash (ScriptHash)
-import Serialization.PlutusData (convertPlutusData) as Serialization
-import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
-import Types.Datum (Datum, DataHash(DataHash))
-import Types.Scripts (PlutusScript)
-import Untagged.Union (asOneOf)
+import Types.ByteArray (ByteArray, byteArrayToHex)
 
 data HashMethod
   = Blake2b_256
@@ -91,57 +70,3 @@ plutusHash meth bytes = do
     unless (responseJson.method == methJson) $
       throwError "responseJson wasn't hashed with the method requested"
     pure responseJson.hash
-
-hashData :: Datum -> QueryM (Maybe HashedData)
-hashData datum = do
-  body <-
-    liftEffect $ byteArrayToHex <<< Serialization.toBytes <<< asOneOf
-      <$> maybe'
-        (const $ throw $ "Failed to convert plutus data: " <> show datum)
-        pure
-        (Serialization.convertPlutusData $ unwrap datum)
-  url <- mkServerEndpointUrl "hash-data"
-  -- get response json
-  jsonBody <- liftAff (postAeson url (encodeAeson body)) <#> map _.body
-  -- decode
-  pure $ hush <<< (decodeAeson <=< parseJsonStringToAeson) =<< hush jsonBody
-
--- | Hashes an Plutus-style Datum
-datumHash :: Datum -> QueryM (Maybe DataHash)
-datumHash = map (map (DataHash <<< unwrap)) <<< hashData
-
-newtype HashedData = HashedData ByteArray
-
-derive instance Newtype HashedData _
-derive instance Generic HashedData _
-
-instance Show HashedData where
-  show = genericShow
-
-instance DecodeAeson HashedData where
-  decodeAeson =
-    map HashedData <<<
-      caseAesonString (Left err) (note err <<< hexToByteArray)
-    where
-    err :: JsonDecodeError
-    err = TypeMismatch "Expected hex bytes (raw) of hashed data"
-
-hashScript
-  :: forall (a :: Type) (b :: Type)
-   . Newtype a PlutusScript
-  => Newtype b ScriptHash
-  => a
-  -> QueryM (Either ClientError b)
-hashScript script = do
-  url <- mkServerEndpointUrl "hash-script"
-  let
-    reqBody :: Aeson
-    reqBody = scriptToAeson $ unwrap script
-
-  liftAff (postAeson url reqBody)
-    <#> either
-      (Left <<< ClientHttpError)
-      ( bimap ClientDecodeJsonError wrap
-          <<< (decodeAeson <=< parseJsonStringToAeson)
-          <<< _.body
-      )

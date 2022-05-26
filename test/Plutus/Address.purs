@@ -8,8 +8,9 @@ import Data.Array ((..), length, zip)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Traversable (for_)
-import Data.Tuple (Tuple(Tuple))
+import Data.Tuple (Tuple (Tuple))
 import Data.UInt (UInt, fromInt)
+import Data.Tuple.Nested ((/\))
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Plutus.FromPlutusType (fromPlutusType)
@@ -66,7 +67,7 @@ toFromPlutusTypeTest networkId addrType addrBech32 addrPlutus =
     resAddrPlutus `shouldEqual` plutusAddrWithNetworkTag
     resAddrForeign <-
       errMaybe "fromPlutusType failed on valid native address" $
-        fromPlutusType (Just networkId) (_.address <<< unwrap $ resAddrPlutus)
+        fromPlutusType (networkId /\ (_.address <<< unwrap $ resAddrPlutus))
     resAddrForeign `shouldEqual` addrForeign
   where
   plutusAddrWithNetworkTag :: Plutus.AddressWithNetworkTag

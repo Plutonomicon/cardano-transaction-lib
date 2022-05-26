@@ -16,9 +16,10 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@ngua/cardano-serialization-lib-browser": "9.1.2",
+    "@ngua/cardano-serialization-lib-browser": "^9.1.2",
     "@ngua/cardano-serialization-lib-nodejs": "^9.1.2",
-    "big-integer": "^1.6.51",
+    "big-integer": "1.6.51",
+    "blakejs": "1.2.1",
     "bufferutil": "4.0.5",
     "node-polyfill-webpack-plugin": "1.1.4",
     "reconnecting-websocket": "4.4.0",

@@ -3,8 +3,6 @@
 module Api.Handlers (
   estimateTxFees,
   applyArgs,
-  hashData,
-  hashScript,
   plutusHash,
   evalTxExecutionUnits,
   finalizeTx,
@@ -22,7 +20,6 @@ import Cardano.Ledger.Alonzo.TxWitness qualified as TxWitness
 import Cardano.Ledger.Core qualified as Ledger (TxBody)
 import Cardano.Ledger.Crypto (StandardCrypto)
 import Cardano.Ledger.Mary.Value qualified as Value
-import Cardano.Ledger.SafeHash qualified as SafeHash
 import Codec.CBOR.Read (deserialiseFromBytes)
 import Control.Lens
 import Control.Monad.Catch (throwM)
@@ -65,12 +62,8 @@ import Types (
   FinalizeRequest (FinalizeRequest, datums, redeemers, tx),
   FinalizedTransaction (FinalizedTransaction),
   HashBytesRequest (HashBytesRequest),
-  HashDataRequest (HashDataRequest),
   HashMethod (Blake2b_256, Sha2_256, Sha3_256),
-  HashScriptRequest (HashScriptRequest),
   HashedBytes (HashedBytes),
-  HashedData (HashedData),
-  HashedScript (HashedScript),
   RdmrPtrExUnits (
     RdmrPtrExUnits,
     exUnitsMem,
@@ -80,7 +73,6 @@ import Types (
   ),
   WitnessCount (WitnessCount),
   getNodeConnectInfo,
-  hashLedgerScript,
  )
 
 --------------------------------------------------------------------------------
@@ -126,10 +118,6 @@ applyArgs :: ApplyArgsRequest -> AppM AppliedScript
 applyArgs ApplyArgsRequest {script, args} =
   pure . AppliedScript $
     Ledger.Scripts.applyArguments script args
-
-hashScript :: HashScriptRequest -> AppM HashedScript
-hashScript (HashScriptRequest script) =
-  pure . HashedScript $ hashLedgerScript script
 
 {- | Computes the execution units needed for each script in the transaction.
  https://input-output-hk.github.io/cardano-node/cardano-api/src/Cardano.Api.Fees.html#evaluateTransactionExecutionUnits
@@ -225,14 +213,6 @@ finalizeTx FinalizeRequest {tx, datums, redeemers} = do
         FinalizedTransaction . encodeCborText . Cbor.serializeEncoding $
           Tx.toCBORForMempoolSubmission finalizedTx
   pure response
-
-hashData :: HashDataRequest -> AppM HashedData
-hashData (HashDataRequest datum) = do
-  decodedDatum <-
-    throwDecodeErrorWithMessage "Failed to decode Datum" $
-      decodeCborDatum datum
-  pure . HashedData . SafeHash.originalBytes $
-    Data.hashData decodedDatum
 
 --------------------------------------------------------------------------------
 -- Estimate fee

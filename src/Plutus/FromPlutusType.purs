@@ -11,14 +11,14 @@ import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, fromJust)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Traversable (traverse)
-import Data.Tuple (snd) as Tuple
-import Data.Tuple.Nested ((/\))
+import Data.Tuple (Tuple(Tuple), snd)
+import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt, fromInt, toInt, (.&.), (.|.), shl, zshr)
 import Partial.Unsafe (unsafePartial)
 
 import Serialization.Address (Address) as Serialization
 import Serialization.Address (Pointer, addressFromBytes) as Serialization.Address
-import Serialization.Address (NetworkId(MainnetId), networkIdtoInt)
+import Serialization.Address (NetworkId, networkIdtoInt)
 import Serialization.Hash (ed25519KeyHashToBytes, scriptHashToBytes)
 
 import Plutus.Types.Address (Address) as Plutus
@@ -61,7 +61,7 @@ import Cardano.Types.Value (NonAdaAsset, mkValue, mkNonAdaAssetsFromTokenMap)
 
 class FromPlutusType :: (Type -> Type) -> Type -> Type -> Constraint
 class FromPlutusType f pt t | pt -> t, t pt -> f where
-  fromPlutusType :: Maybe NetworkId -> pt -> f t
+  fromPlutusType :: pt -> f t
 
 --------------------------------------------------------------------------------
 -- Plutus.Types.Value -> Types.Value
@@ -72,7 +72,7 @@ class FromPlutusType f pt t | pt -> t, t pt -> f where
 -- performing conversions between `Value`s, since the ordering of components
 -- can't be guaranteed.
 instance FromPlutusType Identity Plutus.Value Types.Value where
-  fromPlutusType _ plutusValue =
+  fromPlutusType plutusValue =
     Identity (adaValue <> mkValue mempty nonAdaAssets)
     where
     { adaTokenMap, nonAdaTokenMap } =
@@ -82,7 +82,7 @@ instance FromPlutusType Identity Plutus.Value Types.Value where
 
     adaValue :: Types.Value
     adaValue = flip mkValue mempty <<< wrap <<< fromMaybe zero $ do
-      adaTokens <- Tuple.snd <$> head adaTokenMap
+      adaTokens <- snd <$> head adaTokenMap
       Plutus.AssocMap.lookup adaToken adaTokens
 
     nonAdaAssets :: NonAdaAsset
@@ -96,18 +96,17 @@ instance FromPlutusType Identity Plutus.Value Types.Value where
 --------------------------------------------------------------------------------
 
 instance FromPlutusType Identity Plutus.Coin Types.Coin where
-  fromPlutusType _ = pure <<< wrap <<< unwrap
+  fromPlutusType = pure <<< wrap <<< unwrap
 
 --------------------------------------------------------------------------------
 -- Plutus.Types.Address -> Maybe Serialization.Address
 --------------------------------------------------------------------------------
 
-instance FromPlutusType Maybe Plutus.Address Serialization.Address where
+instance
+  FromPlutusType Maybe (NetworkId /\ Plutus.Address) Serialization.Address where
   -- | Attempts to build a CSL-level address from a Plutus address
   -- | based on the CIP-0019.
-  fromPlutusType Nothing addrPlutus =
-    fromPlutusType (Just MainnetId) addrPlutus
-  fromPlutusType (Just networkId) addrPlutus = do
+  fromPlutusType (networkId /\ addrPlutus) = do
     case rec.addressCredential, rec.addressStakingCredential of
       -- %b0000 | network tag | key hash | key hash
       PubKeyCredential pkh, Just (StakingHash (PubKeyCredential skh)) ->
@@ -215,13 +214,12 @@ toVarLengthUInt t = worker (unwrap t) false
 
 instance
   FromPlutusType Maybe
-    Plutus.TransactionOutput
+    (NetworkId /\ Plutus.TransactionOutput)
     Cardano.TransactionOutput where
   fromPlutusType
-    networkId
-    (Plutus.TransactionOutput { address, amount, dataHash }) = do
-    address' <- fromPlutusType networkId address
-    let amount' = unwrap (fromPlutusType networkId amount)
+    (networkId /\ Plutus.TransactionOutput { address, amount, dataHash }) = do
+    address' <- fromPlutusType (networkId /\ address)
+    let amount' = unwrap (fromPlutusType amount)
     pure $ Cardano.TransactionOutput
       { address: address', amount: amount', dataHash }
 
@@ -229,9 +227,9 @@ instance
 -- Plutus.Types.Transaction.UtxoM -> Maybe Cardano.Types.Transaction.UtxoM
 --------------------------------------------------------------------------------
 
-instance FromPlutusType Maybe Plutus.UtxoM Cardano.UtxoM where
-  fromPlutusType networkId (Plutus.UtxoM utxos) =
-    Cardano.UtxoM <$> traverse (fromPlutusType networkId) utxos
+instance FromPlutusType Maybe (NetworkId /\ Plutus.UtxoM) Cardano.UtxoM where
+  fromPlutusType (networkId /\ Plutus.UtxoM utxos) =
+    Cardano.UtxoM <$> traverse (fromPlutusType <<< (Tuple networkId)) utxos
 
 --------------------------------------------------------------------------------
 -- Plutus.Types.Transaction.TransactionUnspentOutput ->
@@ -240,10 +238,9 @@ instance FromPlutusType Maybe Plutus.UtxoM Cardano.UtxoM where
 
 instance
   FromPlutusType Maybe
-    Plutus.TransactionUnspentOutput
+    (NetworkId /\ Plutus.TransactionUnspentOutput)
     Cardano.TransactionUnspentOutput where
   fromPlutusType
-    networkId
-    (Plutus.TransactionUnspentOutput { input, output }) = do
-    pOutput <- fromPlutusType networkId output
+    (networkId /\ Plutus.TransactionUnspentOutput { input, output }) = do
+    pOutput <- fromPlutusType (networkId /\ output)
     pure $ Cardano.TransactionUnspentOutput { input, output: pOutput }
