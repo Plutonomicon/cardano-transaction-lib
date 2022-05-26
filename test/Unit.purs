@@ -7,6 +7,7 @@ import Effect.Aff (launchAff_)
 import Test.ByteArray as ByteArray
 import Test.Data as Data
 import Test.Deserialization as Deserialization
+import Test.Hashing as Hashing
 import Test.Metadata.Seabug as Seabug
 import Test.Metadata.Cip25 as Cip25
 import Test.Parser as Parser
@@ -31,6 +32,7 @@ testPlan = do
   Cip25.suite
   Data.suite
   Deserialization.suite
+  Hashing.suite
   Parser.suite
   Plutus.Address.suite
   Plutus.Value.suite
