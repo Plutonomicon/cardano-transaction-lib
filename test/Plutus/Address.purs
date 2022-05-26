@@ -11,9 +11,8 @@ import Data.Traversable (for_)
 import Data.Tuple.Nested ((/\))
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Plutus.FromPlutusType (fromPlutusType)
-import Plutus.ToPlutusType (toPlutusType)
-import Plutus.Types.Address (Address, AddressWithNetworkTag) as Plutus
+import Plutus.Conversion (fromPlutusAddress, toPlutusAddress)
+import Plutus.Types.Address (Address) as Plutus
 import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
@@ -51,16 +50,12 @@ toFromPlutusTypeTest networkId addrType addrBech32 addrPlutus =
         addressFromBech32 addrBech32
     resAddrPlutus <-
       errMaybe "toPlutusType failed on valid foreign address" $
-        toPlutusType addrForeign
-    resAddrPlutus `shouldEqual` plutusAddrWithNetworkTag
+        toPlutusAddress addrForeign
+    resAddrPlutus `shouldEqual` addrPlutus
     resAddrForeign <-
       errMaybe "fromPlutusType failed on valid native address" $
-        fromPlutusType (networkId /\ (_.address <<< unwrap $ resAddrPlutus))
+        fromPlutusAddress networkId resAddrPlutus
     resAddrForeign `shouldEqual` addrForeign
-  where
-  plutusAddrWithNetworkTag :: Plutus.AddressWithNetworkTag
-  plutusAddrWithNetworkTag =
-    wrap { address: addrPlutus, networkId }
 
 -- Mainnet addresses.
 -- Test vectors are taken from the CIP-0019 specification.

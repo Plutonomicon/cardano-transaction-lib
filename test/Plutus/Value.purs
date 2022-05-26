@@ -5,18 +5,16 @@ import Prelude
 import Data.Array ((..), length, zip)
 import Data.BigInt (fromInt)
 import Data.Maybe (fromJust)
-import Data.Newtype (unwrap)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.Traversable (for_)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
+import Plutus.Conversion (fromPlutusValue, toPlutusValue)
 import Plutus.Types.CurrencySymbol (CurrencySymbol) as Plutus
 import Plutus.Types.CurrencySymbol as Plutus.CurrencySymbol
 import Plutus.Types.Value (Value) as Plutus
 import Plutus.Types.Value as Plutus.Value
-import Plutus.FromPlutusType (fromPlutusType)
-import Plutus.ToPlutusType (toPlutusType)
 import Test.Fixtures (currencySymbol1, tokenName1, tokenName2)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
@@ -35,9 +33,9 @@ toFromPlutusTypeTest
   :: Int -> Plutus.Value -> Types.Value -> TestPlanM Unit
 toFromPlutusTypeTest i valuePlutus value =
   test (show i <> ": Plutus.Types.Value <-> Types.Value") $ do
-    let resValue = unwrap (fromPlutusType valuePlutus)
+    let resValue = fromPlutusValue valuePlutus
     resValue `shouldEqual` value
-    let resValuePlutus = unwrap (toPlutusType resValue)
+    let resValuePlutus = toPlutusValue resValue
     resValuePlutus `shouldEqual` valuePlutus
 
 testData :: Array (Plutus.Value /\ Types.Value)
