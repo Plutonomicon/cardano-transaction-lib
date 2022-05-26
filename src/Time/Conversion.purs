@@ -1,11 +1,13 @@
 module Time.Conversion
   ( AbsTime(..)
+  , ModTime(..)
   , PosixTimeToSlotError(..)
   , RelTime(..)
   , SlotToPosixTimeError(..)
   , posixTimeToSlot
   , slotToPosixTime
-  ) where
+  )
+  where
 
 import Prelude
 import Control.Monad.Error.Class (throwError)
@@ -130,7 +132,7 @@ derive newtype instance Ord RelSlot
 instance Show RelSlot where
   show = genericShow
 
--- | Relative time to the start of an `EraSummary`
+-- | Relative time to the start of an `EraSummary
 newtype RelTime = RelTime BigInt
 
 derive instance Generic RelTime _
@@ -139,6 +141,17 @@ derive newtype instance Eq RelTime
 derive newtype instance Ord RelTime
 
 instance Show RelTime where
+  show = genericShow
+
+-- | Any leftover time from using `mod` when dividing my slot length.
+newtype ModTime = ModTime BigInt
+
+derive instance Generic ModTime _
+derive instance Newtype ModTime _
+derive newtype instance Eq ModTime
+derive newtype instance Ord ModTime
+
+instance Show ModTime where
   show = genericShow
 
 -- | Absolute time relative to System Start, not UNIX epoch.
@@ -194,7 +207,7 @@ data PosixTimeToSlotError
   | PosixTimeBeforeSystemStart POSIXTime
   | StartTimeGreaterThanTime AbsTime
   | EndSlotLessThanSlot AbsSlot
-  | RelModNonZero RelTime
+  | RelModNonZero ModTime
   | CannotConvertAbsSlotToSlot AbsSlot
   | CannotGetBigIntFromNumber' -- refactor?
 
@@ -262,7 +275,7 @@ relTimeFromAbsTime (EraSummary { start }) at@(AbsTime absTime) = do
 -- | Converts Relative time to relative slot (using Euclidean division) and
 -- | modulus for any leftover.
 relSlotFromRelTime
-  :: EraSummary -> RelTime -> RelSlot /\ RelTime
+  :: EraSummary -> RelTime -> RelSlot /\ ModTime
 relSlotFromRelTime (EraSummary { parameters }) (RelTime relTime) =
   let
     slotLength = unwrap (unwrap parameters).slotLength
@@ -270,10 +283,10 @@ relSlotFromRelTime (EraSummary { parameters }) (RelTime relTime) =
     wrap (relTime `div` slotLength) /\ wrap (relTime `mod` slotLength) -- Euclidean division okay as everything is non-negative
 
 absSlotFromRelSlot
-  :: EraSummary -> RelSlot /\ RelTime -> Either PosixTimeToSlotError AbsSlot
+  :: EraSummary -> RelSlot /\ ModTime -> Either PosixTimeToSlotError AbsSlot
 absSlotFromRelSlot
   (EraSummary { start, end })
-  (RelSlot relSlot /\ rm@(RelTime relMod)) = do
+  (RelSlot relSlot /\ mt@(ModTime modTime)) = do
   let
     startSlot = unwrap (unwrap start).slot
     absSlot = startSlot + relSlot
@@ -281,6 +294,6 @@ absSlotFromRelSlot
     -- satisfied. We use `<=` as justified by the source code.
     endSlot = maybe (absSlot + one) (unwrap <<< _.slot <<< unwrap) end
   unless (absSlot <= endSlot) (throwError $ EndSlotLessThanSlot $ wrap absSlot)
-  unless (relMod == zero) (throwError $ RelModNonZero rm)
+  unless (modTime == zero) (throwError $ RelModNonZero mt)
   pure $ wrap absSlot
 
