@@ -341,6 +341,16 @@ balanceAndSignTx tx = do
       :: Contract r (Maybe (NonEmptyArray BalancedSignedTransaction))
   pure (map NonEmptyArray.head tx')
 
+{-
+withBalancedAndSignedTxs :: forall (r :: Row Type)
+   . NonEmptyArray UnattachedUnbalancedTx                            
+  -> (NonEmptyArray BalancedSignedTransaction -> Contract r a)
+  -> Contract r (Maybe a)
+withBalancedAndSignedTxs txs f = do
+  txs' <- balanceAndSignTxs txs
+  result <- f txs'
+  -}
+
 scriptOutputToTransactionOutput
   :: NetworkId
   -> UnbalancedTx.ScriptOutput
