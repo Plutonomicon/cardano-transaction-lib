@@ -7,7 +7,6 @@ import Effect.Aff (launchAff_)
 import Test.AffInterface as AffInterface
 import Test.FinalizeTx as FinalizeTx
 import Test.Utils as Utils
-import Test.Crypto as Crypto
 import TestM (TestPlanM)
 
 -- Run with `spago test --main Test.Integration`
@@ -19,5 +18,4 @@ main = launchAff_ do
 testPlan :: TestPlanM Unit
 testPlan = do
   FinalizeTx.suite
-  Crypto.suite
   AffInterface.suite

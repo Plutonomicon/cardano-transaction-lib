@@ -9,13 +9,8 @@ module Types (
   WitnessCount (..),
   ApplyArgsRequest (..),
   AppliedScript (..),
-  BytesToHash (..),
-  ByteStringHash (..),
   FinalizeRequest (..),
   FinalizedTransaction (..),
-  HashBytesRequest (..),
-  HashedBytes (..),
-  HashMethod (..),
   CardanoError (..),
   CborDecodeError (..),
   CtlServerError (..),
@@ -38,7 +33,6 @@ import Data.Aeson.Types (withText)
 import Data.ByteString (ByteString)
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Lazy.Char8 qualified as LC8
-import Data.Char (toLower)
 import Data.Functor ((<&>))
 import Data.Kind (Type)
 import Data.Maybe (fromMaybe)
@@ -160,50 +154,6 @@ data ApplyArgsRequest = ApplyArgsRequest
 newtype AppliedScript = AppliedScript Ledger.Script
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
-
-data HashBytesRequest = HashBytesRequest
-  { method :: HashMethod
-  , bytes :: BytesToHash
-  }
-  deriving stock (Show, Eq, Generic)
-  deriving anyclass (FromJSON, ToJSON)
-
-newtype BytesToHash = BytesToHash ByteString
-  deriving stock (Show, Generic)
-  deriving newtype (Eq)
-  deriving (FromJSON, ToJSON) via JsonHexString
-
-newtype HashedBytes = HashedBytes ByteString
-  deriving stock (Show, Generic)
-  deriving newtype (Eq)
-  deriving (FromJSON, ToJSON) via JsonHexString
-
-data HashMethod
-  = Blake2b_256
-  | Sha2_256
-  | Sha3_256
-  deriving stock (Show, Eq, Generic)
-
-instance FromJSON HashMethod where
-  parseJSON =
-    Aeson.genericParseJSON
-      Aeson.defaultOptions
-        { Aeson.constructorTagModifier = fmap toLower
-        }
-
-instance ToJSON HashMethod where
-  toJSON =
-    Aeson.genericToJSON
-      Aeson.defaultOptions
-        { Aeson.constructorTagModifier = fmap toLower
-        }
-
-data ByteStringHash = ByteStringHash
-  { method :: HashMethod
-  , hash :: HashedBytes
-  }
-  deriving stock (Show, Eq, Generic)
-  deriving anyclass (FromJSON, ToJSON)
 
 data FinalizeRequest = FinalizeRequest
   { tx :: Cbor
@@ -334,36 +284,6 @@ instance Docs.ToSample FinalizedTransaction where
             , "baea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba"
             , "3e96550504d5336100021a0002b569a0f5f6"
             ]
-
-instance Docs.ToSample BytesToHash where
-  toSamples _ = [("Bytes to hash as hexadecimal string", BytesToHash "68656C6C6F20776F726C64")]
-
-instance Docs.ToSample ByteStringHash where
-  toSamples _ =
-    [
-      ( "Hash bytes are returned as hexidecimal string"
-      , ByteStringHash Blake2b_256 $
-          HashedBytes
-            "\184\254\159\DELbU\166\250\b\246h\171c*\
-            \\141\b\SUB\216y\131\199|\210t\228\140\228P\240\179I\253"
-      )
-    ]
-
-instance Docs.ToSample HashMethod where
-  toSamples _ =
-    [
-      ( "Method to use for hashing as defined in PlutusTx"
-      , Sha2_256
-      )
-    ]
-
-instance Docs.ToSample HashBytesRequest where
-  toSamples _ =
-    [
-      ( "Request consisting of a HashMethod and the bytestring to be hashed"
-      , HashBytesRequest Blake2b_256 $ BytesToHash "foo"
-      )
-    ]
 
 -- For decoding test fixtures, samples, etc...
 unsafeDecode :: forall (a :: Type). FromJSON a => String -> LC8.ByteString -> a

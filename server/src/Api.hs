@@ -4,7 +4,6 @@ module Api (
   applyArgs,
   finalizeTx,
   evalTxExecutionUnits,
-  plutusHash,
   apiDocs,
 ) where
 
@@ -42,7 +41,6 @@ import Types (
   AppM (AppM),
   AppliedScript,
   ApplyArgsRequest,
-  ByteStringHash,
   CardanoError (
     AcquireFailure,
     EraMismatchError,
@@ -57,7 +55,6 @@ import Types (
   Fee,
   FinalizeRequest,
   FinalizedTransaction,
-  HashBytesRequest,
   WitnessCount,
  )
 import Utils (lbshow)
@@ -74,9 +71,6 @@ type Api =
       :> Post '[JSON] AppliedScript
     -- Making this a POST request so we can just use the @From/ToJSON@
     -- instances instead of decoding in the handler
-    :<|> "plutus-hash"
-      :> ReqBody '[JSON] HashBytesRequest
-      :> Post '[JSON] ByteStringHash
     :<|> "eval-ex-units"
       :> QueryParam' '[Required] "tx" Cbor
       :> Get '[JSON] ExecutionUnitsMap
@@ -135,7 +129,6 @@ server :: ServerT Api AppM
 server =
   Handlers.estimateTxFees
     :<|> Handlers.applyArgs
-    :<|> Handlers.plutusHash
     :<|> Handlers.evalTxExecutionUnits
     :<|> Handlers.finalizeTx
 
@@ -144,12 +137,10 @@ apiDocs = Docs.docs api
 
 estimateTxFees :: WitnessCount -> Cbor -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
-plutusHash :: HashBytesRequest -> ClientM ByteStringHash
 evalTxExecutionUnits :: Cbor -> ClientM ExecutionUnitsMap
 finalizeTx :: FinalizeRequest -> ClientM FinalizedTransaction
 estimateTxFees
   :<|> applyArgs
-  :<|> plutusHash
   :<|> evalTxExecutionUnits
   :<|> finalizeTx =
     client api

@@ -3,7 +3,6 @@
 module Api.Handlers (
   estimateTxFees,
   applyArgs,
-  plutusHash,
   evalTxExecutionUnits,
   finalizeTx,
 ) where
@@ -40,13 +39,10 @@ import Data.Text.Encoding qualified as Text.Encoding
 import Data.Traversable (for)
 import Math.NumberTheory.Logarithms qualified as Math (integerLog2)
 import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
-import PlutusTx.Builtins qualified as PlutusTx
 import Types (
   AppM,
   AppliedScript (AppliedScript),
   ApplyArgsRequest (ApplyArgsRequest, args, script),
-  ByteStringHash (ByteStringHash),
-  BytesToHash (BytesToHash),
   CardanoError (
     AcquireFailure,
     EraMismatchError,
@@ -61,9 +57,6 @@ import Types (
   Fee (Fee),
   FinalizeRequest (FinalizeRequest, datums, redeemers, tx),
   FinalizedTransaction (FinalizedTransaction),
-  HashBytesRequest (HashBytesRequest),
-  HashMethod (Blake2b_256, Sha2_256, Sha3_256),
-  HashedBytes (HashedBytes),
   RdmrPtrExUnits (
     RdmrPtrExUnits,
     exUnitsMem,
@@ -163,14 +156,6 @@ evalTxExecutionUnits cbor =
               , exUnitsMem = C.executionMemory exUnits
               , exUnitsSteps = C.executionSteps exUnits
               }
-
-plutusHash :: HashBytesRequest -> AppM ByteStringHash
-plutusHash (HashBytesRequest meth (BytesToHash hs)) =
-  let hf = case meth of
-        Sha3_256 -> PlutusTx.sha3_256
-        Sha2_256 -> PlutusTx.sha2_256
-        Blake2b_256 -> PlutusTx.blake2b_256
-   in pure . ByteStringHash meth . HashedBytes . PlutusTx.fromBuiltin . hf $ PlutusTx.toBuiltin hs
 
 finalizeTx :: FinalizeRequest -> AppM FinalizedTransaction
 finalizeTx FinalizeRequest {tx, datums, redeemers} = do

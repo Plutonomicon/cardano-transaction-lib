@@ -8,7 +8,7 @@ import Data.Array ((..), length, zip)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Traversable (for_)
-import Data.Tuple (Tuple (Tuple))
+import Data.Tuple (Tuple(Tuple))
 import Data.UInt (UInt, fromInt)
 import Data.Tuple.Nested ((/\))
 import Mote (group, test)
@@ -129,7 +129,7 @@ addressesBech32Testnet =
 addresses :: Array Plutus.Address
 addresses = wrap <$>
   [ { addressCredential: pubKeyCredential
-    , addressStakingCredential: Nothing -- Just stakingHash
+    , addressStakingCredential: Just stakingHash
     }
   , { addressCredential: scriptCredential
     , addressStakingCredential: Just stakingHash

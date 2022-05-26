@@ -1,6 +1,6 @@
 module Main (main) where
 
-import Api (app, applyArgs, estimateTxFees, plutusHash)
+import Api (app, applyArgs, estimateTxFees)
 import Cardano.Api qualified as C
 import Cardano.Api.Shelley (
   ExecutionUnitPrices (
@@ -76,14 +76,9 @@ import Test.Hspec.Core.Spec (SpecM)
 import Types (
   AppliedScript (AppliedScript),
   ApplyArgsRequest (ApplyArgsRequest, args, script),
-  ByteStringHash (ByteStringHash),
-  BytesToHash (BytesToHash),
   Cbor (Cbor),
   Env (Env),
   Fee (Fee),
-  HashBytesRequest (HashBytesRequest),
-  HashMethod (Blake2b_256),
-  HashedBytes (HashedBytes),
   ServerOptions (
     ServerOptions,
     networkId,
@@ -103,7 +98,6 @@ serverSpec :: Spec
 serverSpec = do
   describe "Api.Handlers.applyArgs" applyArgsSpec
   describe "Api.Handlers.estimateTxFees" feeEstimateSpec
-  describe "Api.Handlers.plutusHash" plutusHashSpec
   describe "Ogmios.Parser " testParser
 
 applyArgsSpec :: Spec
@@ -163,24 +157,6 @@ feeEstimateSpec = around withTestApp $ do
       Left (FailureResponse _ (Response (Status scode _) _ _ sbody))
         | scode == code && sbody == body -> True
       _ -> False
-
-plutusHashSpec :: Spec
-plutusHashSpec = around withTestApp $ do
-  clientEnv <- setupClientEnv
-
-  context "POST blake2b" $ do
-    it "gets the blake2b_256 hash" $ \port -> do
-      result <-
-        runClientM' (clientEnv port) $
-          plutusHash (HashBytesRequest Blake2b_256 $ BytesToHash "foo")
-      result `shouldBe` Right blake2bRes
-  where
-    -- obtained from `fromBuiltin . blake2b_256 $ toBuiltin @ByteString "foo"`
-    blake2bRes :: ByteStringHash
-    blake2bRes =
-      ByteStringHash Blake2b_256 $
-        HashedBytes
-          "\184\254\159\DELbU\166\250\b\246h\171c*\141\b\SUB\216y\131\199|\210t\228\140\228P\240\179I\253"
 
 setupClientEnv :: SpecM Port (Port -> ClientEnv)
 setupClientEnv = do

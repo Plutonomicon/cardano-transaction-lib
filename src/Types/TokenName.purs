@@ -150,23 +150,27 @@ instance FromJSON TokenName where
                 "\NUL\NUL\NUL" -> Haskell.pure . fromText . Text.drop 2 $ t
                 _              -> Haskell.pure . fromText $ t
   -}
-  encodeAeson' tk = let tkstr = fromTokenName
-                          (\ba -> """\NUL""" <> asBase16 ba)
-                          (\t  -> case take 1 t of
-                                    """\NUL""" -> """\NUL\NUL""" <> t
-                                    _          -> t)
-                          tk
-                    in encodeAeson' {"unTokenName": tkstr}
-
-    {-
+  encodeAeson' tk =
     let
-      finalBs :: ByteArray
-      finalBs = byteArrayFromIntArrayUnsafe [ 0, 48, 120 ] <>
-        (cborBytesToByteArray ba)
-    -- FIXME: what if the tokenname starts with \0 => put another two \0 in front of that
+      tkstr = fromTokenName
+        (\ba -> """\NUL""" <> asBase16 ba)
+        ( \t -> case take 1 t of
+            """\NUL""" -> """\NUL\NUL""" <> t
+            _ -> t
+        )
+        tk
     in
-      encodeAeson' { "unTokenName": finalBs }
-    -}
+      encodeAeson' { "unTokenName": tkstr }
+
+{-
+let
+  finalBs :: ByteArray
+  finalBs = byteArrayFromIntArrayUnsafe [ 0, 48, 120 ] <>
+    (cborBytesToByteArray ba)
+-- FIXME: what if the tokenname starts with \0 => put another two \0 in front of that
+in
+  encodeAeson' { "unTokenName": finalBs }
+-}
 instance Show TokenName where
   show (TokenName tn) = "(TokenName" <> show tn <> ")"
 
