@@ -1,6 +1,9 @@
 module Time.Conversion
   ( AbsTime(..)
+  , PosixTimeToSlotError(..)
+  , RelTime(..)
   , SlotToPosixTimeError(..)
+  , posixTimeToSlot
   , slotToPosixTime
   ) where
 
@@ -13,11 +16,12 @@ import Data.BigInt (fromInt, fromNumber) as BigInt
 import Data.Either (Either, note)
 import Data.Generic.Rep (class Generic)
 import Data.JSDate (getTime, parse)
-import Data.Maybe (maybe)
+import Data.Maybe (Maybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
+import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
-import Helpers (liftEither, liftM, uIntToBigInt)
+import Helpers (bigIntToUInt, liftEither, liftM, uIntToBigInt)
 import QueryM (QueryM)
 import QueryM.Ogmios
   ( AbsSlot(AbsSlot)
@@ -27,7 +31,6 @@ import QueryM.Ogmios
   )
 import Serialization.Address (Slot)
 import Types.Interval (POSIXTime(POSIXTime))
-import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- Slot (absolute from System Start - see QueryM.SystemStart.getSystemStart)
@@ -94,10 +97,10 @@ slotToPosixTime eraSummaries sysStart slot = runExceptT do
 absSlotFromSlot :: Slot -> AbsSlot
 absSlotFromSlot = wrap <<< uIntToBigInt <<< unwrap
 
--- -- | Convert an Ogmios absolute slot (`BigInt`) to a CSL (Absolute) `Slot`
--- -- | (`UInt`)
--- slotFromAbsSlot :: AbsSlot -> Maybe Slot
--- slotFromAbsSlot = map wrap <<< bigIntToUInt <<< unwrap
+-- | Convert an Ogmios absolute slot (`BigInt`) to a CSL (Absolute) `Slot`
+-- | (`UInt`)
+slotFromAbsSlot :: AbsSlot -> Maybe Slot
+slotFromAbsSlot = map wrap <<< bigIntToUInt <<< unwrap
 
 -- | Finds the `EraSummary` an `AbsSlot` lies inside (if any).
 findSlotEraSummary
@@ -150,7 +153,7 @@ instance Show AbsTime where
   show = genericShow
 
 -- | Find the relative slot provided we know the `AbsSlot` for an absolute slot
--- | given an `EraSummary`. We could relax the `Maybe` monad if we use this
+-- | given an `EraSummary`. We could relax the `Either` monad if we use this
 -- | in conjunction with `findSlotEraSummary`. However, we choose to make the
 -- | function more general, guarding against a larger `start`ing slot
 relSlotFromAbsSlot
@@ -189,6 +192,10 @@ absTimeFromRelTime (EraSummary { start, end }) (RelTime relTime) = do
 data PosixTimeToSlotError
   = CannotFindTimeInEraSummaries AbsTime
   | PosixTimeBeforeSystemStart POSIXTime
+  | StartTimeGreaterThanTime AbsTime
+  | EndSlotLessThanSlot AbsSlot
+  | RelModNonZero RelTime
+  | CannotConvertAbsSlotToSlot AbsSlot
   | CannotGetBigIntFromNumber' -- refactor?
 
 derive instance Generic PosixTimeToSlotError _
@@ -201,7 +208,7 @@ posixTimeToSlot
   :: EraSummariesQR
   -> SystemStartQR
   -> POSIXTime
-  -> QueryM (Either PosixTimeToSlotError Unit)
+  -> QueryM (Either PosixTimeToSlotError Slot)
 posixTimeToSlot eraSummaries sysStart pt@(POSIXTime pt') = runExceptT do
   -- Convert to seconds, precision issues?
   let posixTime = transTime pt'
@@ -219,7 +226,10 @@ posixTimeToSlot eraSummaries sysStart pt@(POSIXTime pt') = runExceptT do
   let absTime = wrap $ posixTime - sysStartPosix
   -- Find current era:
   currentEra <- liftEither $ findTimeEraSummary eraSummaries absTime
-  liftEither $ pure unit
+  relTime <- liftEither $ relTimeFromAbsTime currentEra absTime
+  let relSlotMod = relSlotFromRelTime currentEra relTime
+  absSlot <- liftEither $ absSlotFromRelSlot currentEra relSlotMod
+  liftM (CannotConvertAbsSlotToSlot absSlot) $ slotFromAbsSlot absSlot
   where
   -- TODO: See https://github.com/input-output-hk/cardano-ledger/blob/master/eras/shelley/impl/src/Cardano/Ledger/Shelley/HardForks.hs#L57
   -- translateTimeForPlutusScripts and ensure protocol version > 5 which would
@@ -242,14 +252,35 @@ findTimeEraSummary (EraSummariesQR eraSummaries) absTime@(AbsTime at) =
       && maybe true ((<) at <<< unwrap <<< _.time <<< unwrap) end
 
 relTimeFromAbsTime
-  :: EraSummary -> AbsTime -> Either SlotToPosixTimeError AbsTime
-relTimeFromAbsTime (EraSummary { start, end }) (AbsTime absTime) = do
-  undefined
--- let
---   startTime = unwrap (unwrap start).time
---   absTime = startTime + absTime -- relative to System Start, not UNIX Epoch.
---   -- If `EraSummary` doesn't have an end, the condition is automatically
---   -- satisfied. We use `<=` as justified by the source code.
---   endTime = maybe (absTime + one) (unwrap <<< _.slot <<< unwrap) end
--- unless (absTime <= endTime) (throwError $ EndTimeLessThanTime $ wrap absTime)
--- pure $ wrap absTime
+  :: EraSummary -> AbsTime -> Either PosixTimeToSlotError RelTime
+relTimeFromAbsTime (EraSummary { start }) at@(AbsTime absTime) = do
+  let startTime = unwrap (unwrap start).time
+  unless (startTime <= absTime) (throwError $ StartTimeGreaterThanTime at)
+  let relTime = absTime - startTime -- relative to System Start, not UNIX Epoch.
+  pure $ wrap relTime
+
+-- | Converts Relative time to relative slot (using Euclidean division) and
+-- | modulus for any leftover.
+relSlotFromRelTime
+  :: EraSummary -> RelTime -> RelSlot /\ RelTime
+relSlotFromRelTime (EraSummary { parameters }) (RelTime relTime) =
+  let
+    slotLength = unwrap (unwrap parameters).slotLength
+  in
+    wrap (relTime `div` slotLength) /\ wrap (relTime `mod` slotLength) -- Euclidean division okay as everything is non-negative
+
+absSlotFromRelSlot
+  :: EraSummary -> RelSlot /\ RelTime -> Either PosixTimeToSlotError AbsSlot
+absSlotFromRelSlot
+  (EraSummary { start, end })
+  (RelSlot relSlot /\ rm@(RelTime relMod)) = do
+  let
+    startSlot = unwrap (unwrap start).slot
+    absSlot = startSlot + relSlot
+    -- If `EraSummary` doesn't have an end, the condition is automatically
+    -- satisfied. We use `<=` as justified by the source code.
+    endSlot = maybe (absSlot + one) (unwrap <<< _.slot <<< unwrap) end
+  unless (absSlot <= endSlot) (throwError $ EndSlotLessThanSlot $ wrap absSlot)
+  unless (relMod == zero) (throwError $ RelModNonZero rm)
+  pure $ wrap absSlot
+
