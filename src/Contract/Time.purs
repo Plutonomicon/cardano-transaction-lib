@@ -12,7 +12,6 @@ import Types.Interval
   , LowerBound(LowerBound)
   , POSIXTime(POSIXTime)
   , POSIXTimeRange
-  , SlotConfig(SlotConfig)
   , SlotRange
   , UpperBound(UpperBound)
   , after

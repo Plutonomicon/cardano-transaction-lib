@@ -158,7 +158,6 @@ import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.CborBytes (CborBytes)
 import Types.Chain as Chain
 import Types.Datum (DataHash, Datum)
-import Types.Interval (SlotConfig, defaultSlotConfig)
 import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
 import Types.Natural (Natural)
@@ -187,7 +186,6 @@ type QueryConfig (r :: Row Type) =
   -- should probably be more tightly coupled with a wallet
   , usedTxOuts :: UsedTxOuts
   , networkId :: NetworkId
-  , slotConfig :: SlotConfig
   , logLevel :: LogLevel
   | r
   }
@@ -211,7 +209,6 @@ liftQueryM = withReaderT toDefaultQueryConfig
     , wallet: c.wallet
     , usedTxOuts: c.usedTxOuts
     , networkId: c.networkId
-    , slotConfig: c.slotConfig
     , logLevel: c.logLevel
     }
 
@@ -232,7 +229,6 @@ traceQueryConfig = do
     , wallet: Nothing
     , usedTxOuts
     , networkId: TestnetId
-    , slotConfig: defaultSlotConfig
     , logLevel
     }
   where
