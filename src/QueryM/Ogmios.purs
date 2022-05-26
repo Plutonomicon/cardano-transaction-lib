@@ -229,6 +229,14 @@ instance Show EraSummariesQR where
 instance DecodeAeson EraSummariesQR where
   decodeAeson = aesonArray (map wrap <<< traverse decodeAeson)
 
+-- | From Ogmios:
+-- | start: An era bound which captures the time, slot and epoch at which the
+-- | era start. The time is relative to the start time of the network.
+-- |
+-- | end: An era bound which captures the time, slot and epoch at which the
+-- | era start. The time is relative to the start time of the network.
+-- |
+-- | parameters: Parameters that can vary across hard forks.
 newtype EraSummary = EraSummary
   { start :: EraSummaryTime
   , end :: Maybe EraSummaryTime
@@ -257,9 +265,9 @@ newtype EraSummaryTime = EraSummaryTime
   { time :: RelativeTime -- 0-18446744073709552000, A time in seconds relative to
   -- another one (typically, system start or era start).
   , slot :: AbsSlot -- 0-18446744073709552000, An absolute slot number. don't
-  -- use `Slot` because Slot is bounded by UInt ~ 0-4294967295 (~136 years)
+  -- use `Slot` because Slot is bounded by UInt ~ 0-4294967295.
   , epoch :: Epoch -- 0-18446744073709552000, an epoch number or length, don't
-  -- use `Epoch` because Epoch is bounded by UInt also.
+  -- use `Cardano.Types.Epoch` because Epoch is bounded by UInt also.
   }
 
 derive instance Generic EraSummaryTime _
@@ -275,6 +283,8 @@ instance DecodeAeson EraSummaryTime where
     epoch <- getField o "epoch"
     pure $ wrap { time, slot, epoch }
 
+-- | A time in seconds relative to another one (typically, system start or era
+-- | start). [ 0 .. 18446744073709552000 ]
 newtype RelativeTime = RelativeTime BigInt
 
 derive instance Generic RelativeTime _
@@ -286,7 +296,7 @@ derive newtype instance DecodeAeson RelativeTime
 instance Show RelativeTime where
   show = genericShow
 
--- Absolute slot relative to SystemStartQR
+-- | Absolute slot relative to SystemStartQR. [ 0 .. 18446744073709552000 ]
 newtype AbsSlot = AbsSlot BigInt
 
 derive instance Generic AbsSlot _
@@ -298,6 +308,8 @@ derive newtype instance DecodeAeson AbsSlot
 instance Show AbsSlot where
   show = genericShow
 
+-- | An epoch number or length with greater precision for Ogmios than
+-- | `Cardano.Types.Epoch`. [ 0 .. 18446744073709552000 ]
 newtype Epoch = Epoch BigInt
 
 derive instance Generic Epoch _
@@ -331,6 +343,7 @@ instance DecodeAeson EraSummaryParameters where
     safeZone <- getField o "safeZone"
     pure $ wrap { epochLength, slotLength, safeZone }
 
+-- | An epoch number or length. [ 0 .. 18446744073709552000 ]
 newtype EpochLength = EpochLength BigInt
 
 derive instance Generic EpochLength _
@@ -340,6 +353,7 @@ derive newtype instance DecodeAeson EpochLength
 instance Show EpochLength where
   show = genericShow
 
+-- | A slot length, in seconds <= 18446744073709552000
 newtype SlotLength = SlotLength BigInt
 
 derive instance Generic SlotLength _
@@ -349,6 +363,9 @@ derive newtype instance DecodeAeson SlotLength
 instance Show SlotLength where
   show = genericShow
 
+-- | Number of slots from the tip of the ledger in which it is guaranteed that
+-- | no hard fork can take place. This should be (at least) the number of slots
+-- | in which we are guaranteed to have k blocks.
 newtype SafeZone = SafeZone BigInt
 
 derive instance Generic SafeZone _

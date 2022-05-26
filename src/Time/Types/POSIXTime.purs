@@ -62,3 +62,6 @@ derive newtype instance MeetSemilattice OnchainPOSIXTimeRange
 derive newtype instance BoundedMeetSemilattice OnchainPOSIXTimeRange
 derive newtype instance FromData OnchainPOSIXTimeRange
 derive newtype instance ToData OnchainPOSIXTimeRange
+
+instance Show OnchainPOSIXTimeRange where
+  show = genericShow

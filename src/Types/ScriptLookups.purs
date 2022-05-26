@@ -835,6 +835,8 @@ processConstraint mpsMap osMap = do
   case _ of
     MustIncludeDatum dat -> addDatum dat
     MustValidateIn posixTimeRange -> do
+      -- Potential improvement: bring these out so we have one source of truth
+      -- although they should be static in a single contract call
       es <- lift getEraSummaries
       ss <- lift getSystemStart
       runExceptT do

@@ -5,9 +5,13 @@ module Time.Conversion
   , RelTime(..)
   , SlotToPosixTimeError(..)
   , ToOnChainPosixTimeRangeError(..)
+  , absSlotFromSlot
+  , findSlotEraSummary
+  , findTimeEraSummary
   , posixTimeRangeToSlotRange
   , posixTimeRangeToTransactionValidity
   , posixTimeToSlot
+  , slotFromAbsSlot
   , slotRangeToPosixTimeRange
   , slotRangeToTransactionValidity
   , slotToPosixTime
@@ -15,6 +19,7 @@ module Time.Conversion
   ) where
 
 import Prelude
+
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Data.Array (find)
@@ -151,7 +156,8 @@ derive newtype instance Ord RelSlot
 instance Show RelSlot where
   show = genericShow
 
--- | Relative time to the start of an `EraSummary
+-- | Relative time to the start of an `EraSummary`. Contract this to
+-- | `Ogmios.QueryM.RelativeTime` which is usually relative to system start.
 newtype RelTime = RelTime BigInt
 
 derive instance Generic RelTime _
@@ -228,7 +234,7 @@ data PosixTimeToSlotError
   | EndSlotLessThanSlot AbsSlot
   | RelModNonZero ModTime
   | CannotConvertAbsSlotToSlot AbsSlot
-  | CannotGetBigIntFromNumber' -- refactor?
+  | CannotGetBigIntFromNumber'
 
 derive instance Generic PosixTimeToSlotError _
 derive instance Eq PosixTimeToSlotError
@@ -236,6 +242,8 @@ derive instance Eq PosixTimeToSlotError
 instance Show PosixTimeToSlotError where
   show = genericShow
 
+-- | Converts a `POSIXTime` to `Slot` given an `EraSummariesQR` and
+-- | `SystemStartQR` queried from Ogmios.
 posixTimeToSlot
   :: EraSummariesQR
   -> SystemStartQR
