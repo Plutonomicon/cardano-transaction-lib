@@ -157,8 +157,8 @@ testPosixTimeToSlot = do
         , "1753645721000"
         ]
     traverse_ (idTest eraSummaries sysStart identity) posixTimes
-    -- With Milliseconds, we generall round down, provided the aren't at the end
-    -- with non-zero excess:
+    -- With Milliseconds, we generally round down, provided the aren't at the
+    -- end  with non-zero excess:
     idTest eraSummaries sysStart
       (const $ mkPosixTime "1613636754000")
       (mkPosixTime "1613636754999")
