@@ -170,7 +170,7 @@ withTestApp :: ActionWith (Port -> IO ())
 withTestApp =
   Warp.testWithApplication $
     pure . app $
-      Env serverOptions fixedProtocolParameters
+      Env serverOptions fixedProtocolParametersV1
   where
     serverOptions =
       ServerOptions
@@ -280,8 +280,8 @@ fullyAppliedScript =
     \010010091326353008009498cd4015d680119a802bae00112001200112001120011220021\
     \2200120014c01021820004c010544746573740001\""
 
-fixedProtocolParameters :: ProtocolParameters
-fixedProtocolParameters =
+fixedProtocolParametersV1 :: ProtocolParameters
+fixedProtocolParametersV1 =
   ProtocolParameters
     { protocolParamProtocolVersion = (6, 0)
     , protocolParamDecentralization = 0 / 1
@@ -325,17 +325,51 @@ fixedProtocolParameters =
     , protocolParamMaxCollateralInputs = Just 3
     }
 
-loadParametersFile :: IO (Either String ProtocolParameters)
-loadParametersFile =
-  ByteString.readFile "test/ogmios.json"
+fixedProtocolParametersV2 :: ProtocolParameters
+fixedProtocolParametersV2 =
+  ProtocolParameters
+    { protocolParamProtocolVersion = (3, 0)
+    , protocolParamDecentralization = 1 / 4
+    , protocolParamExtraPraosEntropy = Nothing
+    , protocolParamMaxBlockHeaderSize = 1100
+    , protocolParamMaxBlockBodySize = 65536
+    , protocolParamMaxTxSize = 16384
+    , protocolParamTxFeeFixed = 155381
+    , protocolParamTxFeePerByte = 44
+    , protocolParamMinUTxOValue = Just (Lovelace 1000000)
+    , protocolParamStakeAddressDeposit = 2000000
+    , protocolParamStakePoolDeposit = 500000000
+    , protocolParamMinPoolCost = 340000000
+    , protocolParamPoolRetireMaxEpoch = 18
+    , protocolParamStakePoolTargetNum = 500
+    , protocolParamPoolPledgeInfluence = 3 / 10
+    , protocolParamMonetaryExpansion = 3 / 1000
+    , protocolParamTreasuryCut = 1 / 5
+    , protocolParamUTxOCostPerWord = Nothing
+    , protocolParamCostModels = mempty
+    , protocolParamPrices = Nothing
+    , protocolParamMaxTxExUnits = Nothing
+    , protocolParamMaxBlockExUnits = Nothing
+    , protocolParamMaxValueSize = Nothing
+    , protocolParamCollateralPercent = Nothing
+    , protocolParamMaxCollateralInputs = Nothing
+    }
+
+loadParametersFile :: String -> IO (Either String ProtocolParameters)
+loadParametersFile name =
+  ByteString.readFile ("test/" <> name)
     >>= pure . decodeProtocolParameters
 
 testParser :: Spec
 testParser =
-  it "Testing parser of ogmios parameters" $ do
-    value <- loadParametersFile
-    makeNullCostModels value `shouldBe` Right fixedProtocolParameters
-    value `shouldSatisfy` isNotNullCostModels
+  do
+    it "Testing parser of ogmios parameters version 1" $ do
+      value <- loadParametersFile "ogmios1.json"
+      makeNullCostModels value `shouldBe` Right fixedProtocolParametersV1
+      value `shouldSatisfy` isNotNullCostModels
+    it "Testing parser of ogmios parameters version 2" $ do
+      value2 <- loadParametersFile "ogmios2.json"
+      makeNullCostModels value2 `shouldBe` Right fixedProtocolParametersV2
   where
     makeNullCostModels ::
       Either String ProtocolParameters -> Either String ProtocolParameters

@@ -36,8 +36,7 @@ instance Aeson.FromJSON ProtocolParametersWrapper where
           <*> o .: "maxTxSize"
           <*> o .: "minFeeConstant"
           <*> o .: "minFeeCoefficient"
-          -- "minUtxO is deprecated"
-          <*> pure Nothing
+          <*> o .:? "minUtxoValue"
           <*> o .: "stakeKeyDeposit"
           <*> o .: "poolDeposit"
           <*> o .: "minPoolCost"
@@ -97,7 +96,7 @@ https://iohk.io/en/blog/posts/2021/03/29/the-secure-transition-to-decentralizati
 (more details on cip 9)
 
 It must be a Hex encoded string, but currently is set as "neutralNonce"
-(ogmios : "neutral) making the hex parser from Aeson to fail. From code we can
+(ogmios : "neutral") making the hex parser from Aeson to fail. From code we can
 see that currently a @Nothing@ value is translated to @Ledger.NeutralNonce@
 -}
 rationalP :: Aeson.Value -> Aeson.Types.Parser Rational

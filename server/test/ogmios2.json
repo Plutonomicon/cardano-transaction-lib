@@ -1,0 +1,30 @@
+{
+  "type": "jsonwsp/response",
+  "version": "1.0",
+  "servicename": "ogmios",
+  "methodname": "Query",
+  "result": {
+    "minFeeCoefficient": 44,
+    "minFeeConstant": 155381,
+    "maxBlockBodySize": 65536,
+    "maxBlockHeaderSize": 1100,
+    "maxTxSize": 16384,
+    "stakeKeyDeposit": 2000000,
+    "poolDeposit": 500000000,
+    "poolRetirementEpochBound": 18,
+    "desiredNumberOfPools": 500,
+    "poolInfluence": "3/10",
+    "monetaryExpansion": "3/1000",
+    "treasuryExpansion": "1/5",
+    "decentralizationParameter": "1/4",
+    "extraEntropy": "neutral",
+    "protocolVersion": {
+      "major": 3,
+      "minor": 0
+    },
+    "minUtxoValue": 1000000,
+    "minPoolCost": 340000000
+  },
+  "reflection": null
+}
+
