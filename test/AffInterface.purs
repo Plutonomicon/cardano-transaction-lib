@@ -154,15 +154,35 @@ testPosixTimeToSlot = do
         , "1613636755000"
         , "1753645721000"
         ]
-    traverse_ (id eraSummaries sysStart) posixTimes
+    traverse_ (idTest eraSummaries sysStart identity) posixTimes
+    -- With Milliseconds:
+    -- Round up
+    idTest eraSummaries sysStart
+      (const $ mkPosixTime "1613636755000")
+      (mkPosixTime "1613636754999")
+    idTest eraSummaries sysStart
+      (const $ mkPosixTime "1613636755000")
+      (mkPosixTime "1613636754500")
+    -- Round down
+    idTest eraSummaries sysStart
+      (const $ mkPosixTime "1613636754000")
+      (mkPosixTime "1613636754499")
+    idTest eraSummaries sysStart
+      (const $ mkPosixTime "1613636754000")
+      (mkPosixTime "1613636754001")
   where
-  id :: EraSummariesQR -> SystemStartQR -> POSIXTime -> QueryM Unit
-  id es ss posixTime = liftEffect do
+  idTest
+    :: EraSummariesQR
+    -> SystemStartQR
+    -> (POSIXTime -> POSIXTime)
+    -> POSIXTime
+    -> QueryM Unit
+  idTest es ss transf posixTime = liftEffect do
     posixTimeToSlot es ss posixTime >>= case _ of
       Left err -> throw $ show err
       Right slot -> do
         ePosixTime <- slotToPosixTime es ss slot
-        either (throw <<< show) (shouldEqual posixTime) ePosixTime
+        either (throw <<< show) (shouldEqual $ transf posixTime) ePosixTime
 
   mkPosixTime :: String -> POSIXTime
   mkPosixTime = POSIXTime <<< unsafePartial fromJust <<< BigInt.fromString
@@ -184,10 +204,10 @@ testSlotToPosixTime = do
         , 232
         , 1
         ]
-    traverse_ (id eraSummaries sysStart) slots
+    traverse_ (idTest eraSummaries sysStart) slots
   where
-  id :: EraSummariesQR -> SystemStartQR -> Slot -> QueryM Unit
-  id es ss slot = liftEffect do
+  idTest :: EraSummariesQR -> SystemStartQR -> Slot -> QueryM Unit
+  idTest es ss slot = liftEffect do
     slotToPosixTime es ss slot >>= case _ of
       Left err -> throw $ show err
       Right posixTime -> do

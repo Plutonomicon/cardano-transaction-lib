@@ -110,14 +110,14 @@ slotToPosixTime eraSummaries sysStart slot = runExceptT do
     $ BigInt.fromNumber
     $ getTime sysStartD
   -- Add the system start time to the absolute time relative to system start
-  -- to get overall POSIXTime, then convert to milliseconds
-  pure $ wrap $ sysStartPosix + transTime (unwrap absTime)
+  -- to get overall POSIXTime
+  pure $ wrap $ sysStartPosix + unwrap absTime
   where
   -- TODO: See https://github.com/input-output-hk/cardano-ledger/blob/master/eras/shelley/impl/src/Cardano/Ledger/Shelley/HardForks.hs#L57
   -- translateTimeForPlutusScripts and ensure protocol version > 5 which would
   -- mean converting to milliseconds
-  transTime :: BigInt -> BigInt
-  transTime = (*) $ BigInt.fromInt 1000 -- to milliseconds
+  _transTime :: BigInt -> BigInt
+  _transTime = (*) $ BigInt.fromInt 1000
 
 -- | Convert a CSL (Absolute) `Slot` (`UInt`) to an Ogmios absolute slot
 -- | (`BigInt`)
@@ -156,6 +156,7 @@ instance Show RelSlot where
 
 -- | Relative time to the start of an `EraSummary`. Contract this to
 -- | `Ogmios.QueryM.RelativeTime` which is usually relative to system start.
+-- | Treat as Milliseconds
 newtype RelTime = RelTime BigInt
 
 derive instance Generic RelTime _
@@ -167,6 +168,7 @@ instance Show RelTime where
   show = genericShow
 
 -- | Any leftover time from using `mod` when dividing my slot length.
+-- | Treat as Milliseconds
 newtype ModTime = ModTime BigInt
 
 derive instance Generic ModTime _
@@ -178,6 +180,7 @@ instance Show ModTime where
   show = genericShow
 
 -- | Absolute time relative to System Start, not UNIX epoch.
+-- | Treat as Milliseconds
 newtype AbsTime = AbsTime BigInt
 
 derive instance Generic AbsTime _
@@ -200,9 +203,9 @@ relSlotFromAbsSlot (EraSummary { start }) as@(AbsSlot absSlot) = do
   pure $ wrap $ absSlot - startSlot
 
 relTimeFromRelSlot :: EraSummary -> RelSlot -> RelTime
-relTimeFromRelSlot (EraSummary { parameters }) (RelSlot relSlot) =
+relTimeFromRelSlot eraSummary (RelSlot relSlot) =
   let
-    slotLength = unwrap (unwrap parameters).slotLength
+    slotLength = getSlotLength eraSummary
   in
     wrap $ relSlot * slotLength
 
@@ -213,11 +216,13 @@ absTimeFromRelTime
   :: EraSummary -> RelTime -> Either SlotToPosixTimeError AbsTime
 absTimeFromRelTime (EraSummary { start, end }) (RelTime relTime) = do
   let
-    startTime = unwrap (unwrap start).time
+    startTime = unwrap (unwrap start).time * factor
     absTime = startTime + relTime -- relative to System Start, not UNIX Epoch.
     -- If `EraSummary` doesn't have an end, the condition is automatically
     -- satisfied. We use `<=` as justified by the source code.
-    endTime = maybe (absTime + one) (unwrap <<< _.time <<< unwrap) end
+    endTime = maybe (absTime + one)
+      ((*) factor <<< unwrap <<< _.time <<< unwrap)
+      end
   unless (absTime <= endTime) (throwError $ EndTimeLessThanTime $ wrap absTime)
   pure $ wrap absTime
 
@@ -259,8 +264,8 @@ posixTimeToSlot eraSummaries sysStart pt'@(POSIXTime pt) = runExceptT do
   unless (sysStartPosix <= pt)
     $ throwError
     $ PosixTimeBeforeSystemStart pt'
-  -- Convert to seconds, precision issues?
-  let absTime = wrap $ transTime $ pt - sysStartPosix
+  -- Keep as milliseconds:
+  let absTime = wrap $ pt - sysStartPosix
   -- Find current era:
   currentEra <- liftEither $ findTimeEraSummary eraSummaries absTime
   -- Get relative time from absolute time w.r.t. current era
@@ -271,13 +276,6 @@ posixTimeToSlot eraSummaries sysStart pt'@(POSIXTime pt) = runExceptT do
   absSlot <- liftEither $ absSlotFromRelSlot currentEra relSlotMod
   -- Convert back to UInt `Slot`
   liftM (CannotConvertAbsSlotToSlot absSlot) $ slotFromAbsSlot absSlot
-  where
-  -- TODO: See https://github.com/input-output-hk/cardano-ledger/blob/master/eras/shelley/impl/src/Cardano/Ledger/Shelley/HardForks.hs#L57
-  -- translateTimeForPlutusScripts and ensure protocol version > 5 which would
-  -- mean converting to milliseconds
-  -- Potential FIXME: Add Truncate?
-  transTime :: BigInt -> BigInt
-  transTime = flip (/) $ BigInt.fromInt 1000 -- to seconds
 
 -- | Finds the `EraSummary` an `AbsTime` lies inside (if any).
 findTimeEraSummary
@@ -289,13 +287,19 @@ findTimeEraSummary (EraSummariesQR eraSummaries) absTime@(AbsTime at) =
   where
   pred :: EraSummary -> Boolean
   pred (EraSummary { start, end }) =
-    unwrap (unwrap start).time <= at
-      && maybe true ((<) at <<< unwrap <<< _.time <<< unwrap) end
+    unwrap (unwrap start).time * factor <= at
+      && maybe true ((<) at <<< (*) factor <<< unwrap <<< _.time <<< unwrap) end
+
+-- Use this factor to convert Ogmios seconds to Milliseconds for example, I
+-- think this is safe e.g. see https://cardano.stackexchange.com/questions/7034/how-to-convert-posixtime-to-slot-number-on-cardano-testnet/7035#7035
+-- that indeed, start of eras should be exact to the second.
+factor :: BigInt
+factor = BigInt.fromInt 1000
 
 relTimeFromAbsTime
   :: EraSummary -> AbsTime -> Either PosixTimeToSlotError RelTime
 relTimeFromAbsTime (EraSummary { start }) at@(AbsTime absTime) = do
-  let startTime = unwrap (unwrap start).time
+  let startTime = unwrap (unwrap start).time * factor
   unless (startTime <= absTime) (throwError $ StartTimeGreaterThanTime at)
   let relTime = absTime - startTime -- relative to era start, not UNIX Epoch.
   pure $ wrap relTime
@@ -304,28 +308,40 @@ relTimeFromAbsTime (EraSummary { start }) at@(AbsTime absTime) = do
 -- | modulus for any leftover.
 relSlotFromRelTime
   :: EraSummary -> RelTime -> RelSlot /\ ModTime
-relSlotFromRelTime (EraSummary { parameters }) (RelTime relTime) =
+relSlotFromRelTime eraSummary (RelTime relTime) =
   let
-    slotLength = unwrap (unwrap parameters).slotLength
+    slotLength = getSlotLength eraSummary
   in
     wrap (relTime `div` slotLength) /\ wrap (relTime `mod` slotLength) -- Euclidean division okay as everything is non-negative
 
 absSlotFromRelSlot
   :: EraSummary -> RelSlot /\ ModTime -> Either PosixTimeToSlotError AbsSlot
 absSlotFromRelSlot
-  (EraSummary { start, end })
-  (RelSlot relSlot /\ mt@(ModTime modTime)) = do
+  es@(EraSummary { start, end })
+  (RelSlot relSlot /\ (ModTime modTime)) = do
   let
     startSlot = unwrap (unwrap start).slot
-    absSlot = startSlot + relSlot -- relative to system start
+    slotLength = getSlotLength es
+    -- Round to the nearest Slot to accept Milliseconds as input.
+    -- Potential FIXME: perhaps we always need to round down.
+    roundedModSlot =
+      if modTime >= slotLength / BigInt.fromInt 2 then one else zero
+    absSlot = startSlot + relSlot + roundedModSlot -- relative to system start
     -- If `EraSummary` doesn't have an end, the condition is automatically
     -- satisfied. We use `<=` as justified by the source code.
     endSlot = maybe (absSlot + one) (unwrap <<< _.slot <<< unwrap) end
   unless (absSlot <= endSlot) (throwError $ EndSlotLessThanSlot $ wrap absSlot)
+  -- Potential FIXME: drop this constraint and round down to the nearest slot
+  -- see roundedModTime.
   -- Check for no remainder:
-  unless (modTime == zero) (throwError $ RelModNonZero mt)
+  -- unless (modTime == zero) (throwError $ RelModNonZero mt)
   -- Potential FIXME: Do we want to use `safeZone` from `parameters`.
   pure $ wrap absSlot
+
+-- | Get SlotLength in Milliseconds
+getSlotLength :: EraSummary -> BigInt
+getSlotLength (EraSummary { parameters }) =
+  unwrap (unwrap parameters).slotLength * factor
 
 --------------------------------------------------------------------------------
 
