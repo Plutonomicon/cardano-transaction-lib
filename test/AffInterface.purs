@@ -143,8 +143,12 @@ testPosixTimeToSlot = do
     sysStart <- getSystemStart
     let
       -- Tests currently pass for seconds precision, I *think* this is okay
-      -- since the on-chain POSIXTimeRange is restricted to seconds. This just
-      -- we round to seconds off chain too.
+      -- since the on-chain POSIXTimeRange is restricted to seconds. This means
+      -- we round to seconds off chain too. We can probably allow for
+      -- Millseconds precision as input if we assume the seconds provided by
+      -- Ogmios are exact, which seems to to be the case here https://cardano.stackexchange.com/questions/7034/how-to-convert-posixtime-to-slot-number-on-cardano-testnet/7035#7035
+      -- `timeWhenSlotChangedTo1Sec = POSIXTime 1595967616000` - exactly
+      -- divisible by 1 second.
       posixTimes = mkPosixTime <$>
         [ "1603636353000"
         , "1613636755000"
