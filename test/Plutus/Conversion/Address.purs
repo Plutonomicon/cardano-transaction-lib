@@ -1,11 +1,10 @@
-module Test.Plutus.Address (suite) where
+module Test.Plutus.Conversion.Address (suite) where
 
 import Prelude
 
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Tuple (Tuple(Tuple))
 import Data.Array ((..), length, zip)
-import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Newtype (class Newtype, wrap)
 import Data.UInt (UInt, fromInt)
 import Data.Traversable (for_)
 import Data.Tuple.Nested ((/\))
@@ -29,31 +28,39 @@ import Types.Aliases (Bech32String)
 
 suite :: TestPlanM Unit
 suite = do
-  group "Plutus.Types.Address" $ do
-    group "FromPlutusType & ToPlutusType" $ do
-      let indices = 0 .. (length addresses - 1)
-      group "Shelley mainnet addresses" $ do
-        let testData = zip (zip addressesBech32Mainnet addresses) indices
-        for_ testData $ \(Tuple (Tuple addrBech32 addr) addrType) ->
-          toFromPlutusTypeTest MainnetId addrType addrBech32 addr
-      group "Shelley testnet addresses" $ do
-        let testData = zip (zip addressesBech32Testnet addresses) indices
-        for_ testData $ \(Tuple (Tuple addrBech32 addr) addrType) ->
-          toFromPlutusTypeTest TestnetId addrType addrBech32 addr
+  group "Conversion: Plutus Address <-> CSL Address" do
+    group "Shelley mainnet addresses" do
+      addressConversionTests MainnetId
+    group "Shelley testnet addresses" do
+      addressConversionTests TestnetId
 
-toFromPlutusTypeTest
+addressConversionTests :: NetworkId -> TestPlanM Unit
+addressConversionTests networkId =
+  let
+    addressesBech32 =
+      case networkId of
+        MainnetId -> addressesBech32Mainnet
+        TestnetId -> addressesBech32Testnet
+    indices = 0 .. (length addresses - 1)
+    testData = zip (zip addressesBech32 addresses) indices
+  in
+    for_ testData $ \((addrBech32 /\ addr) /\ addrType) ->
+      toFromPlutusAddressTest networkId addrType addrBech32 addr
+
+toFromPlutusAddressTest
   :: NetworkId -> Int -> Bech32String -> Plutus.Address -> TestPlanM Unit
-toFromPlutusTypeTest networkId addrType addrBech32 addrPlutus =
-  test ("Converts between addresses of type " <> show addrType) $ do
+toFromPlutusAddressTest networkId addrType addrBech32 addrPlutus = do
+  let testLabel = "Performs conversion between addresses of type "
+  test (testLabel <> show addrType) $ do
     addrForeign <-
       errMaybe "addressFromBech32 failed on valid bech32" $
         addressFromBech32 addrBech32
     resAddrPlutus <-
-      errMaybe "toPlutusType failed on valid foreign address" $
+      errMaybe "toPlutusAddress failed on valid foreign address" $
         toPlutusAddress addrForeign
     resAddrPlutus `shouldEqual` addrPlutus
     resAddrForeign <-
-      errMaybe "fromPlutusType failed on valid native address" $
+      errMaybe "fromPlutusAddress failed on valid native address" $
         fromPlutusAddress networkId resAddrPlutus
     resAddrForeign `shouldEqual` addrForeign
 
@@ -165,11 +172,10 @@ stakingHash =
     (ed25519KeyHashFromBech32 stakeKeyBech32)
 
 stakingPtr :: StakingCredential
-stakingPtr = StakingPtr $
-  { slot: wrapUInt 2498243
-  , txIx: wrapUInt 27
-  , certIx: wrapUInt 3
-  }
-
-wrapUInt :: forall (t :: Type). Newtype t UInt => Int -> t
-wrapUInt = wrap <<< fromInt
+stakingPtr =
+  let
+    wrapUInt :: forall (t :: Type). Newtype t UInt => Int -> t
+    wrapUInt = wrap <<< fromInt
+  in
+    StakingPtr $
+      { slot: wrapUInt 2498243, txIx: wrapUInt 27, certIx: wrapUInt 3 }

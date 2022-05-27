@@ -1,4 +1,4 @@
-module Test.Plutus.Value (suite) where
+module Test.Plutus.Conversion.Value (suite) where
 
 import Prelude
 
@@ -23,16 +23,15 @@ import Cardano.Types.Value as Value
 
 suite :: TestPlanM Unit
 suite = do
-  group "Plutus.Types.Value" $ do
-    group "FromPlutusType & ToPlutusType" $ do
-      let indices = 0 .. (length testData - 1)
-      for_ (zip testData indices) $ \((valuePlutus /\ value) /\ i) ->
-        toFromPlutusTypeTest i valuePlutus value
+  group "Conversion: Plutus Value <-> Types.Value" $ do
+    let indices = 0 .. (length testData - 1)
+    for_ (zip testData indices) $ \((valuePlutus /\ value) /\ i) ->
+      toFromPlutusValueTest i valuePlutus value
 
-toFromPlutusTypeTest
+toFromPlutusValueTest
   :: Int -> Plutus.Value -> Types.Value -> TestPlanM Unit
-toFromPlutusTypeTest i valuePlutus value =
-  test (show i <> ": Plutus.Types.Value <-> Types.Value") $ do
+toFromPlutusValueTest i valuePlutus value = do
+  test (show i <> ": Performs conversion between `Value`s") $ do
     let resValue = fromPlutusValue valuePlutus
     resValue `shouldEqual` value
     let resValuePlutus = toPlutusValue resValue
