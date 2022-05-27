@@ -277,7 +277,7 @@ posixTimeToSlot eraSummaries sysStart pt'@(POSIXTime pt) = runExceptT do
   -- mean converting to milliseconds
   -- Potential FIXME: Add Truncate?
   transTime :: BigInt -> BigInt
-  transTime = flip (/) $ BigInt.fromInt 1000 -- to milliseconds
+  transTime = flip (/) $ BigInt.fromInt 1000 -- to seconds
 
 -- | Finds the `EraSummary` an `AbsTime` lies inside (if any).
 findTimeEraSummary

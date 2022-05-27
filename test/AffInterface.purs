@@ -3,15 +3,18 @@ module Test.AffInterface (suite) where
 import Prelude
 
 import Address (addressToOgmiosAddress, ogmiosAddressToAddress)
-import Contract.Address (Slot(Slot))
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.BigInt as BigInt
+import Data.Either (Either(Left, Right), either)
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Traversable (traverse_)
 import Data.UInt as UInt
 import Effect.Aff (Aff, try)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
 import QueryM
-  ( cancelFetchBlocks
+  ( QueryM
+  , cancelFetchBlocks
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
@@ -21,14 +24,18 @@ import QueryM
   )
 import QueryM.CurrentEpoch (getCurrentEpoch)
 import QueryM.EraSummaries (getEraSummaries)
-import QueryM.Ogmios (OgmiosAddress)
+import QueryM.Ogmios (EraSummariesQR, OgmiosAddress, SystemStartQR)
 import QueryM.SystemStart (getSystemStart)
 import QueryM.Utxos (utxosAt)
+import Serialization.Address (Slot(Slot))
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
+import Time.Conversion (posixTimeToSlot, slotToPosixTime)
+import Time.Types.POSIXTime (POSIXTime(POSIXTime))
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Types.Chain (BlockHeaderHash(BlockHeaderHash))
 import Types.Transaction (DataHash(DataHash))
+import Partial.Unsafe (unsafePartial)
 
 testnet_addr1 :: OgmiosAddress
 testnet_addr1 =
@@ -53,6 +60,7 @@ suite = do
     test "Get EraSummaries" testGetEraSummaries
     test "Get CurrentEpoch" testGetCurrentEpoch
     test "Get SystemStart" testGetSystemStart
+    test "Inverse posixTimeToSlot >>> slotToPosixTime " testPosixTimeToSlot
   -- Test inverse in one direction.
   group "Address loop" do
     test "Ogmios Address to Address & back Testnet"
@@ -103,26 +111,52 @@ testOgmiosDatumCacheFetcher =
 testUtxosAt :: OgmiosAddress -> Aff Unit
 testUtxosAt testAddr = case ogmiosAddressToAddress testAddr of
   Nothing -> liftEffect $ throw "Failed UtxosAt"
-  Just addr -> flip runQueryM (utxosAt addr $> unit) =<< traceQueryConfig
+  Just addr -> flip runQueryM (void $ utxosAt addr) =<< traceQueryConfig
 
 testGetChainTip :: Aff Unit
 testGetChainTip = do
-  flip runQueryM (getChainTip $> unit) =<< traceQueryConfig
+  flip runQueryM (void getChainTip) =<< traceQueryConfig
 
 testFromOgmiosAddress :: OgmiosAddress -> Aff Unit
 testFromOgmiosAddress testAddr = do
-  liftEffect $ case ogmiosAddressToAddress testAddr of
+  liftEffect case ogmiosAddressToAddress testAddr of
     Nothing -> throw "Failed Address loop"
     Just addr -> addressToOgmiosAddress addr `shouldEqual` testAddr
 
 testGetEraSummaries :: Aff Unit
 testGetEraSummaries = do
-  flip runQueryM (getEraSummaries $> unit) =<< traceQueryConfig
+  flip runQueryM (void getEraSummaries) =<< traceQueryConfig
 
 testGetCurrentEpoch :: Aff Unit
 testGetCurrentEpoch = do
-  flip runQueryM (getCurrentEpoch $> unit) =<< traceQueryConfig
+  flip runQueryM (void getCurrentEpoch) =<< traceQueryConfig
 
 testGetSystemStart :: Aff Unit
 testGetSystemStart = do
-  flip runQueryM (getSystemStart $> unit) =<< traceQueryConfig
+  flip runQueryM (void getSystemStart) =<< traceQueryConfig
+
+testPosixTimeToSlot :: Aff Unit
+testPosixTimeToSlot = do
+  traceQueryConfig >>= flip runQueryM do
+    eraSummaries <- getEraSummaries
+    sysStart <- getSystemStart
+    let
+      -- Tests currently pass for precision seconds
+      posixTimes = mkPosixTime <$>
+        [ "1603636353000"
+        , "1613636755000"
+        , "1753645721000"
+        ]
+    traverse_ (id eraSummaries sysStart) posixTimes
+  where
+  id :: EraSummariesQR -> SystemStartQR -> POSIXTime -> QueryM Unit
+  id es ss posixTime = liftEffect do
+    eSlot <- posixTimeToSlot es ss posixTime
+    case eSlot of
+      Left err -> throw $ show err
+      Right slot -> do
+        ePosixTime <- slotToPosixTime es ss slot
+        either (throw <<< show) (shouldEqual posixTime) ePosixTime
+
+  mkPosixTime :: String -> POSIXTime
+  mkPosixTime = POSIXTime <<< unsafePartial fromJust <<< BigInt.fromString
