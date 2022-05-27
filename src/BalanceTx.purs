@@ -10,6 +10,7 @@ module BalanceTx
   , GetPublicKeyTransactionInputError(..)
   , GetWalletAddressError(..)
   , GetWalletCollateralError(..)
+  , TxInputLockedError(..)
   , ImpossibleError(..)
   , ReturnAdaChangeError(..)
   , UnattachedTransaction
@@ -57,7 +58,6 @@ import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
-import Control.Monad.Reader.Trans (withReaderT)
 import Control.Monad.Trans.Class (lift)
 import Data.Array ((\\), findIndex, modifyAt)
 import Data.Array as Array
@@ -112,7 +112,6 @@ import Types.UnbalancedTransaction
   ( UnbalancedTx(UnbalancedTx)
   , _transaction
   )
-import Types.UsedTxOuts (lockTransactionInputs)
 import TxOutput (utxoIndexToUtxo)
 
 -- This module replicates functionality from
@@ -133,6 +132,7 @@ data BalanceTxError
   | BalanceTxInsError' BalanceTxInsError
   | BalanceNonAdaOutsError' BalanceNonAdaOutsError
   | EvalExUnitsAndMinFeeError' EvalExUnitsAndMinFeeError
+  | TxInputLockedError' TxInputLockedError
 
 derive instance genericBalanceTxError :: Generic BalanceTxError _
 
@@ -245,6 +245,13 @@ derive instance genericBalanceNonAdaOutsError ::
   Generic BalanceNonAdaOutsError _
 
 instance showBalanceNonAdaOutsError :: Show BalanceNonAdaOutsError where
+  show = genericShow
+
+data TxInputLockedError = TxInputLockedError
+
+derive instance genericTxInputLockedError :: Generic TxInputLockedError _
+
+instance showTxInputLockedError :: Show TxInputLockedError where
   show = genericShow
 
 -- | Represents that an error reason should be impossible
