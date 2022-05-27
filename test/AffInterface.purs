@@ -142,11 +142,11 @@ testPosixTimeToSlot = do
     eraSummaries <- getEraSummaries
     sysStart <- getSystemStart
     let
-      -- Tests currently pass for seconds precision, which makes sense given
-      -- converting to a Slot will round to the near slot length (mostly 1s).
-      -- We can probably allow for Millseconds as (off chain) input if we assume
-      -- the seconds provided by Ogmios are exact, which seems to to be the
-      -- case here https://cardano.stackexchange.com/questions/7034/how-to-convert-posixtime-to-slot-number-on-cardano-testnet/7035#7035
+      -- Tests currently pass "exactly" for seconds precision, which makes sense
+      -- given converting to a Slot will round to the near slot length (mostly 1s).
+      -- We can allow for Millseconds as (off chain) input if we assume
+      -- the seconds provided by Ogmios are exact, which seems to be the case
+      -- here https://cardano.stackexchange.com/questions/7034/how-to-convert-posixtime-to-slot-number-on-cardano-testnet/7035#7035
       -- `timeWhenSlotChangedTo1Sec = POSIXTime 1595967616000` - exactly
       -- divisible by 1 second.
       posixTimes = mkPosixTime <$>
