@@ -45,7 +45,7 @@ import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
-import Prelude (class Ord, map, not, discard, otherwise)
+import Prelude (map, not, discard, otherwise)
 import Types.Transaction (TransactionHash)
 
 type TxOutRefCache = Map TransactionHash (Set UInt)

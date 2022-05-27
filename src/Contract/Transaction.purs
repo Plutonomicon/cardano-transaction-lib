@@ -106,7 +106,7 @@ import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT, withExceptT)
 import Control.Monad.Reader (asks, runReaderT)
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NonEmptyArray
-import Data.Either (Either(Left, Right), hush)
+import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
 import Data.Maybe (Maybe(Just, Nothing))
@@ -160,7 +160,7 @@ import Types.UnbalancedTransaction
   , emptyUnbalancedTx
   ) as UnbalancedTx
 import Types.UsedTxOuts
-  ( TxOutRefUnlockKeys(..)
+  ( TxOutRefUnlockKeys
   , lockRemainingTransactionInputs
   , unlockTxOutKeys
   )
