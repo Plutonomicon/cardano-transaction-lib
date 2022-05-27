@@ -66,7 +66,8 @@ import Types.Transaction (DataHash(DataHash), TransactionHash(TransactionHash), 
 import Types.Transaction (TransactionHash)
 import Types.TransactionMetadata (GeneralTransactionMetadata(GeneralTransactionMetadata), TransactionMetadatumLabel(TransactionMetadatumLabel), TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)) as TransactionMetadata
 import Types.UnbalancedTransaction (ScriptOutput(ScriptOutput), UnbalancedTx(UnbalancedTx), _transaction, _utxoIndex, emptyUnbalancedTx) as UnbalancedTx
-import Types.UsedTxOuts (LockTransactionError(..), UsedTxOuts(..), lockTransactionInputs, unlockTxOutRefs)
+import Types.UsedTxOuts (LockTransactionError(..), UsedTxOuts(..), TxOutRefUnlockKeys,
+                         lockTransactionInputs, unlockTxOutRefs)
 
 -- | This module defines transaction-related requests. Currently signing and
 -- | submission is done with Nami.
@@ -107,13 +108,14 @@ lockMany
    . (Traversable t)
   => (a -> Transaction)
   -> (t a)
-  -> Contract r (Effect Unit)
+  -> Contract r TxOutRefUnlockKeys
+     
 lockMany f ts = do
   usedTxos <- (asks (_.usedTxOuts <<< unwrap))
   unlocks <- (traverse (\tx -> runReaderT (lockTransactionInputs $ f $ tx) usedTxos) ts)
   pure (fold unlocks)
   
-balanceTxs
+balanceTxs 
   :: forall
        (t :: Type -> Type)
        (r :: Row Type)
