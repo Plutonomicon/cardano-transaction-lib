@@ -840,7 +840,7 @@ processConstraint mpsMap osMap = do
       es <- lift getEraSummaries
       ss <- lift getSystemStart
       runExceptT do
-        { timeToLive, validityStartInterval } <- ExceptT $ lift $
+        { timeToLive, validityStartInterval } <- ExceptT $ liftEffect $
           posixTimeRangeToTransactionValidity es ss posixTimeRange
             <#> lmap (CannotConvertPOSIXTimeRange posixTimeRange)
         _cpsToTxBody <<< _Newtype %=

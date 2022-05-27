@@ -33,9 +33,9 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
+import Effect (Effect)
 import Effect.Class (liftEffect)
 import Helpers (bigIntToUInt, liftEither, liftM, uIntToBigInt)
-import QueryM (QueryM)
 import QueryM.Ogmios
   ( AbsSlot(AbsSlot)
   , EraSummariesQR(EraSummariesQR)
@@ -83,6 +83,7 @@ instance Show SlotToPosixTimeError where
 -- https://github.com/input-output-hk/cardano-base/blob/8fe904d629194b1fbaaf2d0a4e0ccd17052e9103/slotting/src/Cardano/Slotting/EpochInfo/API.hs#L80
 -- https://input-output-hk.github.io/ouroboros-network/ouroboros-consensus/src/Ouroboros.Consensus.HardFork.History.EpochInfo.html
 -- https://github.com/input-output-hk/ouroboros-network/blob/bd9e5653647c3489567e02789b0ec5b75c726db2/ouroboros-consensus/src/Ouroboros/Consensus/HardFork/History/Qry.hs#L461-L481
+-- Could convert all errors to Strings and have Effect POSIXTime too:
 -- | Converts a CSL (Absolute) `Slot` (Unsigned Integer) to `POSIXTime` which
 -- | is time elapsed from January 1, 1970 (midnight UTC/GMT). We obtain this
 -- | By converting `Slot` to `AbsTime` which is time relative to some System
@@ -92,7 +93,7 @@ slotToPosixTime
   :: EraSummariesQR
   -> SystemStartQR
   -> Slot
-  -> QueryM (Either SlotToPosixTimeError POSIXTime)
+  -> Effect (Either SlotToPosixTimeError POSIXTime)
 slotToPosixTime eraSummaries sysStart slot = runExceptT do
   let absSlot = absSlotFromSlot slot
   -- Get JSDate:
@@ -219,7 +220,7 @@ absTimeFromRelTime (EraSummary { start, end }) (RelTime relTime) = do
     absTime = startTime + relTime -- relative to System Start, not UNIX Epoch.
     -- If `EraSummary` doesn't have an end, the condition is automatically
     -- satisfied. We use `<=` as justified by the source code.
-    endTime = maybe (absTime + one) (unwrap <<< _.slot <<< unwrap) end
+    endTime = maybe (absTime + one) (unwrap <<< _.time <<< unwrap) end
   unless (absTime <= endTime) (throwError $ EndTimeLessThanTime $ wrap absTime)
   pure $ wrap absTime
 
@@ -248,10 +249,8 @@ posixTimeToSlot
   :: EraSummariesQR
   -> SystemStartQR
   -> POSIXTime
-  -> QueryM (Either PosixTimeToSlotError Slot)
-posixTimeToSlot eraSummaries sysStart pt@(POSIXTime pt') = runExceptT do
-  -- Convert to seconds, precision issues?
-  let posixTime = transTime pt'
+  -> Effect (Either PosixTimeToSlotError Slot)
+posixTimeToSlot eraSummaries sysStart pt'@(POSIXTime pt) = runExceptT do
   -- Get JSDate:
   sysStartD <- liftEffect $ parse $ unwrap sysStart
   -- Get POSIX time for system start
@@ -260,10 +259,11 @@ posixTimeToSlot eraSummaries sysStart pt@(POSIXTime pt') = runExceptT do
     $ getTime sysStartD
   -- Ensure the time we are converting is after the system start, otherwise
   -- we have negative slots.
-  unless (sysStartPosix <= posixTime)
+  unless (sysStartPosix <= pt)
     $ throwError
-    $ PosixTimeBeforeSystemStart pt
-  let absTime = wrap $ posixTime - sysStartPosix
+    $ PosixTimeBeforeSystemStart pt'
+  -- Convert to seconds, precision issues?
+  let absTime = wrap $ transTime $ pt - sysStartPosix
   -- Find current era:
   currentEra <- liftEither $ findTimeEraSummary eraSummaries absTime
   -- Get relative time from absolute time w.r.t. current era
@@ -338,7 +338,7 @@ posixTimeRangeToSlotRange
   :: EraSummariesQR
   -> SystemStartQR
   -> POSIXTimeRange
-  -> QueryM (Either PosixTimeToSlotError SlotRange)
+  -> Effect (Either PosixTimeToSlotError SlotRange)
 posixTimeRangeToSlotRange
   eraSummaries
   sysStart
@@ -351,7 +351,7 @@ posixTimeRangeToSlotRange
   where
   convertBounds
     :: Extended POSIXTime
-    -> QueryM (Either PosixTimeToSlotError (Extended Slot))
+    -> Effect (Either PosixTimeToSlotError (Extended Slot))
   convertBounds (Finite pt) = posixTimeToSlot eraSummaries sysStart pt
     <#> map Finite
   convertBounds NegInf = pure $ Right NegInf
@@ -363,7 +363,7 @@ slotRangeToPosixTimeRange
   :: EraSummariesQR
   -> SystemStartQR
   -> SlotRange
-  -> QueryM (Either SlotToPosixTimeError POSIXTimeRange)
+  -> Effect (Either SlotToPosixTimeError POSIXTimeRange)
 slotRangeToPosixTimeRange
   eraSummaries
   sysStart
@@ -376,7 +376,7 @@ slotRangeToPosixTimeRange
   where
   convertBounds
     :: Extended Slot
-    -> QueryM (Either SlotToPosixTimeError (Extended POSIXTime))
+    -> Effect (Either SlotToPosixTimeError (Extended POSIXTime))
   convertBounds (Finite pt) = slotToPosixTime eraSummaries sysStart pt
     <#> map Finite
   convertBounds NegInf = pure $ Right NegInf
@@ -420,7 +420,7 @@ posixTimeRangeToTransactionValidity
   :: EraSummariesQR
   -> SystemStartQR
   -> POSIXTimeRange
-  -> QueryM (Either PosixTimeToSlotError TransactionValiditySlot)
+  -> Effect (Either PosixTimeToSlotError TransactionValiditySlot)
 posixTimeRangeToTransactionValidity es ss =
   map (map slotRangeToTransactionValidity) <<< posixTimeRangeToSlotRange es ss
 
@@ -446,7 +446,7 @@ toOnchainPosixTimeRange
   :: EraSummariesQR
   -> SystemStartQR
   -> POSIXTimeRange
-  -> QueryM (Either ToOnChainPosixTimeRangeError OnchainPOSIXTimeRange)
+  -> Effect (Either ToOnChainPosixTimeRangeError OnchainPOSIXTimeRange)
 toOnchainPosixTimeRange es ss ptr = runExceptT do
   { validityStartInterval, timeToLive } <-
     ExceptT $ posixTimeRangeToTransactionValidity es ss ptr
