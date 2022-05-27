@@ -61,6 +61,7 @@ suite = do
     test "Get CurrentEpoch" testGetCurrentEpoch
     test "Get SystemStart" testGetSystemStart
     test "Inverse posixTimeToSlot >>> slotToPosixTime " testPosixTimeToSlot
+    test "Inverse slotToPosixTime >>> posixTimeToSlot " testSlotToPosixTime
   -- Test inverse in one direction.
   group "Address loop" do
     test "Ogmios Address to Address & back Testnet"
@@ -141,7 +142,9 @@ testPosixTimeToSlot = do
     eraSummaries <- getEraSummaries
     sysStart <- getSystemStart
     let
-      -- Tests currently pass for precision seconds
+      -- Tests currently pass for seconds precision, I *think* this is okay
+      -- since the on-chain POSIXTimeRange is restricted to seconds. This just
+      -- we round to seconds off chain too.
       posixTimes = mkPosixTime <$>
         [ "1603636353000"
         , "1613636755000"
@@ -151,8 +154,7 @@ testPosixTimeToSlot = do
   where
   id :: EraSummariesQR -> SystemStartQR -> POSIXTime -> QueryM Unit
   id es ss posixTime = liftEffect do
-    eSlot <- posixTimeToSlot es ss posixTime
-    case eSlot of
+    posixTimeToSlot es ss posixTime >>= case _ of
       Left err -> throw $ show err
       Right slot -> do
         ePosixTime <- slotToPosixTime es ss slot
@@ -160,3 +162,33 @@ testPosixTimeToSlot = do
 
   mkPosixTime :: String -> POSIXTime
   mkPosixTime = POSIXTime <<< unsafePartial fromJust <<< BigInt.fromString
+
+testSlotToPosixTime :: Aff Unit
+testSlotToPosixTime = do
+  traceQueryConfig >>= flip runQueryM do
+    eraSummaries <- getEraSummaries
+    sysStart <- getSystemStart
+    let
+      slots = mkSlot <$>
+        [ 395930213
+        , 58278567
+        , 48272312
+        , 39270783
+        , 957323
+        , 34952
+        , 7532
+        , 232
+        , 1
+        ]
+    traverse_ (id eraSummaries sysStart) slots
+  where
+  id :: EraSummariesQR -> SystemStartQR -> Slot -> QueryM Unit
+  id es ss slot = liftEffect do
+    slotToPosixTime es ss slot >>= case _ of
+      Left err -> throw $ show err
+      Right posixTime -> do
+        eSlot <- posixTimeToSlot es ss posixTime
+        either (throw <<< show) (shouldEqual slot) eSlot
+
+  mkSlot :: Int -> Slot
+  mkSlot = Slot <<< UInt.fromInt
