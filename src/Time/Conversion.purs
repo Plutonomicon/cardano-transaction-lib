@@ -111,7 +111,7 @@ slotToPosixTime eraSummaries sysStart slot = runExceptT do
     $ getTime sysStartD
   -- Add the system start time to the absolute time relative to system start
   -- to get overall POSIXTime, then convert to milliseconds
-  pure $ wrap $ transTime $ sysStartPosix + unwrap absTime
+  pure $ wrap $ sysStartPosix + transTime (unwrap absTime)
   where
   -- TODO: See https://github.com/input-output-hk/cardano-ledger/blob/master/eras/shelley/impl/src/Cardano/Ledger/Shelley/HardForks.hs#L57
   -- translateTimeForPlutusScripts and ensure protocol version > 5 which would
@@ -142,9 +142,6 @@ findSlotEraSummary (EraSummariesQR eraSummaries) os =
   pred :: EraSummary -> Boolean
   pred (EraSummary { start, end }) =
     (unwrap start).slot <= os && maybe true ((<) os <<< _.slot <<< unwrap) end
-
--- getEstAbsSlot :: EraSummaryTime -> AbsSlot
--- getEstAbsSlot (EraSummaryTime es) = es.slot
 
 -- | Relative slot of an `AbsSlot` within an `EraSummary`
 newtype RelSlot = RelSlot BigInt
