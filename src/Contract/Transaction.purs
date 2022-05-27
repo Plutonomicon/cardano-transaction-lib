@@ -29,114 +29,31 @@ import Prelude
 import BalanceTx (BalanceTxError) as BalanceTxError
 import BalanceTx (UnattachedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
-import Cardano.Types.Transaction
-  ( AuxiliaryData(AuxiliaryData)
-  , AuxiliaryDataHash(AuxiliaryDataHash)
-  , BootstrapWitness
-  , Certificate
-      ( StakeRegistration
-      , StakeDeregistration
-      , StakeDelegation
-      , PoolRegistration
-      , PoolRetirement
-      , GenesisKeyDelegation
-      , MoveInstantaneousRewardsCert
-      )
-  , CostModel(CostModel)
-  , Costmdls(Costmdls)
-  , Ed25519Signature(Ed25519Signature)
-  , Epoch(Epoch)
-  , ExUnitPrices
-  , ExUnits
-  , GenesisHash(GenesisHash)
-  , Language(PlutusV1)
-  , Mint(Mint)
-  , NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
-  , Nonce(IdentityNonce, HashNonce)
-  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
-  , ProtocolParamUpdate
-  , ProtocolVersion
-  , PublicKey(PublicKey)
-  , Redeemer
-  , RequiredSigner(RequiredSigner)
-  , ScriptDataHash(ScriptDataHash)
-  , SubCoin
-  , Transaction(Transaction)
-  , TransactionWitnessSet(TransactionWitnessSet)
-  , TxBody(TxBody)
-  , UnitInterval
-  , Update
-  , Vkey(Vkey)
-  , Vkeywitness(Vkeywitness)
-  , _auxiliaryData
-  , _auxiliaryDataHash
-  , _body
-  , _bootstraps
-  , _certs
-  , _collateral
-  , _fee
-  , _inputs
-  , _isValid
-  , _mint
-  , _nativeScripts
-  , _networkId
-  , _outputs
-  , _plutusData
-  , _plutusScripts
-  , _requiredSigners
-  , _scriptDataHash
-  , _ttl
-  , _update
-  , _validityStartInterval
-  , _vkeys
-  , _withdrawals
-  , _witnessSet
-  ) as Transaction
+import Cardano.Types.Transaction (AuxiliaryData(AuxiliaryData), AuxiliaryDataHash(AuxiliaryDataHash), BootstrapWitness, Certificate(StakeRegistration, StakeDeregistration, StakeDelegation, PoolRegistration, PoolRetirement, GenesisKeyDelegation, MoveInstantaneousRewardsCert), CostModel(CostModel), Costmdls(Costmdls), Ed25519Signature(Ed25519Signature), Epoch(Epoch), ExUnitPrices, ExUnits, GenesisHash(GenesisHash), Language(PlutusV1), Mint(Mint), NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry), Nonce(IdentityNonce, HashNonce), ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates), ProtocolParamUpdate, ProtocolVersion, PublicKey(PublicKey), Redeemer, RequiredSigner(RequiredSigner), ScriptDataHash(ScriptDataHash), SubCoin, Transaction(Transaction), TransactionWitnessSet(TransactionWitnessSet), TxBody(TxBody), UnitInterval, Update, Vkey(Vkey), Vkeywitness(Vkeywitness), _auxiliaryData, _auxiliaryDataHash, _body, _bootstraps, _certs, _collateral, _fee, _inputs, _isValid, _mint, _nativeScripts, _networkId, _outputs, _plutusData, _plutusScripts, _requiredSigners, _scriptDataHash, _ttl, _update, _validityStartInterval, _vkeys, _withdrawals, _witnessSet) as Transaction
 import Cardano.Types.Transaction (Transaction, _body, _inputs)
 import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
+import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (runExceptT)
-import Control.Monad.Reader (asks, runReaderT)
+import Control.Monad.Reader (asks, runReaderT, ReaderT)
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Either (Either(Left, Right), hush)
+import Data.Foldable (foldM)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Traversable
-  ( class Foldable
-  , class Traversable
-  , fold
-  , sequence
-  , traverse
-  )
+import Data.Traversable (class Foldable, class Traversable, fold, sequence, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\), get1)
+import Effect (Effect)
+import Effect.Class (liftEffect)
 import Plutus.ToPlutusType (toPlutusType)
 import Plutus.Types.Transaction (TransactionOutput(TransactionOutput)) as PTransaction
 import Plutus.Types.Value (Coin)
-import QueryM
-  ( FinalizedTransaction(FinalizedTransaction)
-  , calculateMinFee
-  , signTransaction
-  , signTransactionBytes
-  , finalizeTx
-  , submitTxOgmios
-  ) as QueryM
-import QueryM
-  ( QueryConfig
-  , FeeEstimate(FeeEstimate)
-  , ClientError(..)
-  , FinalizedTransaction(FinalizedTransaction)
-  ) as ExportQueryM
+import QueryM (FinalizedTransaction(FinalizedTransaction), calculateMinFee, signTransaction, signTransactionBytes, finalizeTx, submitTxOgmios) as QueryM
+import QueryM (QueryConfig, FeeEstimate(FeeEstimate), ClientError(..), FinalizedTransaction(FinalizedTransaction)) as ExportQueryM
 import ReindexRedeemers (ReindexErrors(CannotGetTxOutRefIndexForRedeemer)) as ReindexRedeemersExport
 import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import Serialization.Address (NetworkId)
@@ -145,25 +62,11 @@ import Types.CborBytes (CborBytes)
 import Types.Datum (Datum)
 import Types.ScriptLookups (MkUnbalancedTxError(..), mkUnbalancedTx) as ScriptLookups
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
-import Types.Transaction
-  ( DataHash(DataHash)
-  , TransactionHash(TransactionHash)
-  , TransactionInput(TransactionInput)
-  ) as Transaction
+import Types.Transaction (DataHash(DataHash), TransactionHash(TransactionHash), TransactionInput(TransactionInput)) as Transaction
 import Types.Transaction (TransactionHash)
-import Types.TransactionMetadata
-  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
-  , TransactionMetadatumLabel(TransactionMetadatumLabel)
-  , TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
-  ) as TransactionMetadata
-import Types.UnbalancedTransaction
-  ( ScriptOutput(ScriptOutput)
-  , UnbalancedTx(UnbalancedTx)
-  , _transaction
-  , _utxoIndex
-  , emptyUnbalancedTx
-  ) as UnbalancedTx
-import Types.UsedTxOuts (lockTransactionInputs)
+import Types.TransactionMetadata (GeneralTransactionMetadata(GeneralTransactionMetadata), TransactionMetadatumLabel(TransactionMetadatumLabel), TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)) as TransactionMetadata
+import Types.UnbalancedTransaction (ScriptOutput(ScriptOutput), UnbalancedTx(UnbalancedTx), _transaction, _utxoIndex, emptyUnbalancedTx) as UnbalancedTx
+import Types.UsedTxOuts (LockTransactionError(..), UsedTxOuts(..), lockTransactionInputs, unlockTxOutRefs)
 
 -- | This module defines transaction-related requests. Currently signing and
 -- | submission is done with Nami.
@@ -204,12 +107,12 @@ lockMany
    . (Traversable t)
   => (a -> Transaction)
   -> (t a)
-  -> Contract r (t a)
-lockMany f = traverse $ \tx -> do
-  usedTxos <- asks (_.usedTxOuts <<< unwrap)
-  runReaderT (lockTransactionInputs $ f $ tx) usedTxos
-  pure tx
-
+  -> Contract r (Effect Unit)
+lockMany f ts = do
+  usedTxos <- (asks (_.usedTxOuts <<< unwrap))
+  unlocks <- (traverse (\tx -> runReaderT (lockTransactionInputs $ f $ tx) usedTxos) ts)
+  pure (fold unlocks)
+  
 balanceTxs
   :: forall
        (t :: Type -> Type)

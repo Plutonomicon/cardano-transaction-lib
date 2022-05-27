@@ -106,7 +106,7 @@ suite =
         -- starts empty
         anyTxOutsLocked (usedTxOutRefs <> unusedTxOutRefs) `shouldReturn` false
         -- lock
-        lockTransactionInputs tx
+        _ <- lockTransactionInputs tx
         allTxOutsLocked usedTxOutRefs `shouldReturn` true
         anyTxOutsLocked unusedTxOutRefs `shouldReturn` false
 
@@ -120,7 +120,7 @@ suite =
         anyTxOutsLocked (usedTxOutRefs <> unusedTxOutRefs) `shouldReturn` false
 
         -- lock
-        lockTransactionInputs tx
+        _ <- lockTransactionInputs tx
         allTxOutsLocked usedTxOutRefs `shouldReturn` true
         anyTxOutsLocked unusedTxOutRefs `shouldReturn` false
 
@@ -134,7 +134,7 @@ suite =
         anyTxOutsLocked (usedTxOutRefs <> unusedTxOutRefs) `shouldReturn` false
 
         -- lock
-        lockTransactionInputs tx
+        _ <- lockTransactionInputs tx
         allTxOutsLocked usedTxOutRefs `shouldReturn` true
 
         -- unlock 'head'

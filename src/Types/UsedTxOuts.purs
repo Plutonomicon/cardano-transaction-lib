@@ -12,38 +12,35 @@ module Types.UsedTxOuts
   , newUsedTxOuts
   , unlockTxOutRefs
   , unlockTransactionInputs
+  , withLockedTransactionInputs    
   ) where
 
-import Cardano.Types.Transaction (Transaction)
+import Cardano.Types.Transaction (Transaction(..))
 import Control.Alt ((<$>))
 import Control.Alternative (guard, pure)
+import Control.Applicative (when)
 import Control.Bind (bind, (=<<), (>>=))
 import Control.Category ((<<<), (>>>))
-import Control.Monad.Error.Class (class MonadError, throwError, try)
+import Control.Monad.Error.Class (class MonadError, catchError, throwError, try)
 import Control.Monad.RWS (ask)
-import Control.Monad.Reader (class MonadAsk)
+import Control.Monad.Reader (class MonadAsk, runReaderT)
+import Data.Either (Either(Left))
 import Data.Foldable (class Foldable, foldr, foldM, all)
 import Data.Function (($))
-import Data.Either (Either(Left))
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe
-  ( Maybe(Just, Nothing)
-  , fromMaybe
-  , isJust
-  )
-import Data.Newtype (class Newtype, unwrap)
-import Prelude (class Ord, otherwise)
+import Data.Maybe (Maybe(Just, Nothing), maybe, fromMaybe, isJust)
+import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.UInt (UInt)
 import Data.Unit (Unit, unit)
-import Effect.Class
-  ( class MonadEffect
-  , liftEffect
-  )
+import Effect (Effect)
+import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Exception (Error, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
+import Prelude (class Ord, not, discard, otherwise)
 import Types.Transaction (TransactionHash)
 
 type TxOutRefCache = Map TransactionHash (Set UInt)
@@ -67,16 +64,17 @@ newUsedTxOuts = UsedTxOuts <$> liftEffect (Ref.new Map.empty)
 lockTransactionInputs
   :: forall (m :: Type -> Type)
    . MonadAsk UsedTxOuts m
+  => MonadError Error m
   => MonadEffect m
   => Transaction
-  -> m (Either LockTransactionError (m Unit))
+  -> m (Effect Unit)
 lockTransactionInputs tx =
   let
     outRefs = txOutRefs tx
 
     updateCache :: TxOutRefCache -> { state :: TxOutRefCache, value :: Boolean }
     updateCache cache
-      | all isUnlocked outRefs = { state: updateCache' cache, value: true }
+      | all (isUnlocked cache) outRefs = { state: updateCache' cache, value: true }
       | otherwise = { state: cache, value: false }
 
     updateCache' cache = foldr
@@ -87,19 +85,32 @@ lockTransactionInputs tx =
       cache
       outRefs
 
-    {- FIXME -}
-    isUnlocked _ = true
+    isUnlocked cache { transactionId, index } = maybe true (not $ Set.member index) (Map.lookup transactionId cache)
 
-    {- FIXME -}
-    releaseAll _ = pure unit
+    releaseAll :: UsedTxOuts -> Effect Unit
+    releaseAll cache = runReaderT (unlockTransactionInputs tx) cache
 
   in
     do
       cache <- unwrap <$> ask
       success <- liftEffect $ Ref.modify' updateCache cache
-      pure $
-        if success then pure (releaseAll outRefs)
-        else Left LockTransactionError
+      when (not success) $ liftEffect $ throw "Transaction inputs locked"
+      pure (releaseAll (wrap cache))
+
+withLockedTransactionInputs
+  :: forall (m :: Type -> Type) (a :: Type)
+     . MonadAsk UsedTxOuts m
+     => MonadError Error m
+     => MonadEffect m
+     => Transaction
+     -> m a
+     -> m a
+withLockedTransactionInputs t f = do
+  release <- lockTransactionInputs t
+  res <- catchError f (\e -> do
+                          liftEffect release
+                          throwError e)
+  pure res
 
 insertUnique
   :: forall (e :: Type) (a :: Type) (m :: Type -> Type)
