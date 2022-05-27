@@ -51,8 +51,7 @@ import Time.Conversion
       ( CannotFindTimeInEraSummaries
       , PosixTimeBeforeSystemStart
       , StartTimeGreaterThanTime
-      , EndSlotLessThanSlot
-      , RelModNonZero
+      , EndSlotLessThanSlotOrModNonZero
       , CannotConvertAbsSlotToSlot
       , CannotGetBigIntFromNumber'
       )

@@ -143,7 +143,9 @@ testPosixTimeToSlot = do
     sysStart <- getSystemStart
     let
       -- Tests currently pass "exactly" for seconds precision, which makes sense
-      -- given converting to a Slot will round to the near slot length (mostly 1s).
+      -- given converting to a Slot will round down to the near slot length
+      -- (mostly 1s). If it rounds down and is the end slot, then a check is in
+      -- place that any "extra" time is zero.
       -- We can allow for Millseconds as (off chain) input if we assume
       -- the seconds provided by Ogmios are exact, which seems to be the case
       -- here https://cardano.stackexchange.com/questions/7034/how-to-convert-posixtime-to-slot-number-on-cardano-testnet/7035#7035
@@ -155,21 +157,17 @@ testPosixTimeToSlot = do
         , "1753645721000"
         ]
     traverse_ (idTest eraSummaries sysStart identity) posixTimes
-    -- With Milliseconds:
-    -- Round up
+    -- With Milliseconds, we generall round down, provided the aren't at the end
+    -- with non-zero excess:
     idTest eraSummaries sysStart
-      (const $ mkPosixTime "1613636755000")
+      (const $ mkPosixTime "1613636754000")
       (mkPosixTime "1613636754999")
     idTest eraSummaries sysStart
-      (const $ mkPosixTime "1613636755000")
+      (const $ mkPosixTime "1613636754000")
       (mkPosixTime "1613636754500")
-    -- Round down
     idTest eraSummaries sysStart
       (const $ mkPosixTime "1613636754000")
       (mkPosixTime "1613636754499")
-    idTest eraSummaries sysStart
-      (const $ mkPosixTime "1613636754000")
-      (mkPosixTime "1613636754001")
   where
   idTest
     :: EraSummariesQR

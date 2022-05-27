@@ -220,6 +220,9 @@ absTimeFromRelTime (EraSummary { start, end }) (RelTime relTime) = do
     absTime = startTime + relTime -- relative to System Start, not UNIX Epoch.
     -- If `EraSummary` doesn't have an end, the condition is automatically
     -- satisfied. We use `<=` as justified by the source code.
+    -- Potential FIXME: note the hack that we don't have `end` for the current
+    -- era, if we did not do this, there could be issues going far into the
+    -- future?
     endTime = maybe (absTime + one)
       ((*) factor <<< unwrap <<< _.time <<< unwrap)
       end
@@ -234,8 +237,7 @@ data PosixTimeToSlotError
   = CannotFindTimeInEraSummaries AbsTime
   | PosixTimeBeforeSystemStart POSIXTime
   | StartTimeGreaterThanTime AbsTime
-  | EndSlotLessThanSlot AbsSlot
-  | RelModNonZero ModTime
+  | EndSlotLessThanSlotOrModNonZero AbsSlot ModTime
   | CannotConvertAbsSlotToSlot AbsSlot
   | CannotGetBigIntFromNumber'
 
@@ -317,25 +319,22 @@ relSlotFromRelTime eraSummary (RelTime relTime) =
 absSlotFromRelSlot
   :: EraSummary -> RelSlot /\ ModTime -> Either PosixTimeToSlotError AbsSlot
 absSlotFromRelSlot
-  es@(EraSummary { start, end })
-  (RelSlot relSlot /\ (ModTime modTime)) = do
+  (EraSummary { start, end })
+  (RelSlot relSlot /\ mt@(ModTime modTime)) = do
   let
     startSlot = unwrap (unwrap start).slot
-    slotLength = getSlotLength es
-    -- Round to the nearest Slot to accept Milliseconds as input.
-    -- Potential FIXME: perhaps we always need to round down.
-    roundedModSlot =
-      if modTime >= slotLength / BigInt.fromInt 2 then one else zero
-    absSlot = startSlot + relSlot + roundedModSlot -- relative to system start
+    -- Round down to the nearest Slot to accept Milliseconds as input.
+    absSlot = startSlot + relSlot -- relative to system start
     -- If `EraSummary` doesn't have an end, the condition is automatically
     -- satisfied. We use `<=` as justified by the source code.
+    -- Potential FIXME: note the hack that we don't have `end` for the current
+    -- era, if we did not do this, there could be issues going far into the
+    -- future?
     endSlot = maybe (absSlot + one) (unwrap <<< _.slot <<< unwrap) end
-  unless (absSlot <= endSlot) (throwError $ EndSlotLessThanSlot $ wrap absSlot)
-  -- Potential FIXME: drop this constraint and round down to the nearest slot
-  -- see roundedModTime.
-  -- Check for no remainder:
-  -- unless (modTime == zero) (throwError $ RelModNonZero mt)
-  -- Potential FIXME: Do we want to use `safeZone` from `parameters`.
+  -- Check we are less than the end slot, or if equal, there is no excess:
+  unless (absSlot < endSlot || absSlot == endSlot && modTime == zero)
+    (throwError $ EndSlotLessThanSlotOrModNonZero (wrap absSlot) mt)
+  -- Potential FIXME: Do we want to use `safeZone` from `parameters`?
   pure $ wrap absSlot
 
 -- | Get SlotLength in Milliseconds
