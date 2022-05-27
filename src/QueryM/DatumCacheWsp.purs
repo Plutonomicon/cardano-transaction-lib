@@ -14,6 +14,8 @@ module QueryM.DatumCacheWsp
   , faultToString
   , getDatumByHashCall
   , getDatumsByHashesCall
+  , JsonWspRequest
+  , JsonWspResponse
   , startFetchBlocksCall
   ) where
 
@@ -42,7 +44,8 @@ import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (traverse)
 import Data.Tuple.Nested (type (/\), (/\))
-import QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
+import QueryM.JsonWsp (JsonWspCall, mkCallType)
+import QueryM.UniqueId (ListenerId)
 import Serialization.Address (Slot)
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (byteArrayToHex)
@@ -53,6 +56,25 @@ newtype WspFault = WspFault Aeson
 
 faultToString :: WspFault -> String
 faultToString (WspFault j) = stringifyAeson j
+
+type JsonWspRequest (a :: Type) =
+  { type :: String
+  , version :: String
+  , servicename :: String
+  , methodname :: String
+  , args :: a
+  , mirror :: ListenerId
+  }
+
+type JsonWspResponse =
+  { type :: String
+  , version :: String
+  , servicename :: String
+  , methodname :: String
+  , result :: Maybe Aeson
+  , fault :: Maybe WspFault
+  , reflection :: ListenerId
+  }
 
 newtype GetDatumByHashR = GetDatumByHashR (Maybe Datum)
 
