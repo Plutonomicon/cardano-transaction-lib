@@ -168,7 +168,7 @@ import Types.Transaction (TransactionHash)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
 import Wallet
-  ( Wallet(Nami, Gero)
+  ( Wallet(..)
   , Cip30Connection
   , Cip30Wallet(..)
   )
@@ -297,25 +297,21 @@ allowError func = func <<< Right
 
 getWalletAddress :: QueryM (Maybe Address)
 getWalletAddress = withMWalletAff $ case _ of
-  Nami nami -> callWallet nami _.getWalletAddress
-  Gero gero -> callWallet gero _.getWalletAddress
+  Wallet nami -> callWallet nami _.getWalletAddress
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
 getWalletCollateral = withMWalletAff $ case _ of
-  Nami nami -> callWallet nami _.getCollateral
-  Gero gero -> callWallet gero _.getCollateral
+  Wallet nami -> callWallet nami _.getCollateral
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
 signTransaction tx = withMWalletAff $ case _ of
-  Nami nami -> callWallet nami $ \nw -> flip nw.signTx tx
-  Gero gero -> callWallet gero $ \gw -> flip gw.signTx tx
+  Wallet nami -> callWallet nami $ \nw -> flip nw.signTx tx
 
 signTransactionBytes
   :: CborBytes -> QueryM (Maybe CborBytes)
 signTransactionBytes tx = withMWalletAff $ case _ of
-  Nami nami -> callWallet nami $ \nw -> flip nw.signTxBytes tx
-  Gero gero -> callWallet gero $ \gw -> flip gw.signTxBytes tx
+  Wallet nami -> callWallet nami $ \nw -> flip nw.signTxBytes tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do

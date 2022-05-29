@@ -58,7 +58,7 @@ type Cip30Wallet =
   , signTxBytes :: Cip30Connection -> CborBytes -> Aff (Maybe CborBytes)
   }
 
-data Wallet = Nami Cip30Wallet | Gero Cip30Wallet
+newtype Wallet = Wallet Cip30Wallet
 
 -------------------------------------------------------------------------------
 -- Nami backend
@@ -73,7 +73,7 @@ mkNamiWalletAff = do
   whenM (isNothing <$> getCollateral nami)
     (liftEffect $ throw "Nami wallet missing collateral")
   connection <- liftEffect $ Ref.new nami
-  pure $ Nami
+  pure $ Wallet
     { connection
     , getWalletAddress
     , getCollateral
@@ -116,7 +116,7 @@ mkGeroWalletAff = do
   whenM (isNothing <$> getCollateral gero)
     (liftEffect $ throw "Gero wallet missing collateral")
   connection <- liftEffect $ Ref.new gero
-  pure $ Gero
+  pure $ Wallet
     { connection
     , getWalletAddress
     , getCollateral
