@@ -9,11 +9,9 @@ module Contract.Wallet
 import Contract.Monad (Contract)
 import Effect.Aff.Class (liftAff)
 import Wallet
-  ( NamiConnection
-  , GeroConnection
-  , NamiWallet
-  , GeroWallet
-  , Wallet(Nami, Gero)
+  ( Cip30Connection
+  , Cip30Wallet
+  , Wallet(..)
   , mkNamiWalletAff
   , mkGeroWalletAff
   ) as Wallet
