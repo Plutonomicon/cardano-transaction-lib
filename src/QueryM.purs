@@ -164,13 +164,12 @@ import Types.Natural (Natural)
 import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
 import Types.Scripts (PlutusScript)
-import Types.Transaction (TransactionHash)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
 import Wallet
   ( Wallet(..)
   , Cip30Connection
-  , Cip30Wallet(..)
+  , Cip30Wallet
   )
 
 -- This module defines an Aff interface for Ogmios Websocket Queries

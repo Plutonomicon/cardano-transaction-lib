@@ -16,7 +16,7 @@ import Contract.Monad
   )
 import Contract.PlutusData (PlutusData, unitDatum)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator, validatorHash)
+import Contract.Scripts (validatorHash)
 import Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
   , balanceAndSignTx
@@ -27,6 +27,8 @@ import Contract.Value as Value
 import Data.BigInt as BigInt
 
 import Effect.Aff (launchAff_)
+
+import Types.Scripts (Validator)
 
 main :: Effect Unit
 main = launchAff_ $ do

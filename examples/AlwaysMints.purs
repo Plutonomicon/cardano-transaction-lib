@@ -17,7 +17,6 @@ import Contract.Monad
   )
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (MintingPolicy)
 import Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
   , balanceAndSignTx
@@ -29,6 +28,8 @@ import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
 
 import Effect.Aff (launchAff_)
+
+import Types.Scripts (MintingPolicy)
 
 main :: Effect Unit
 main = launchAff_ $ do

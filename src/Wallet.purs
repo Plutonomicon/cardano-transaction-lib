@@ -36,11 +36,7 @@ import Helpers ((<<>>))
 import Serialization as Serialization
 import Serialization.Address (Address, addressFromBytes)
 import Types.ByteArray (byteArrayToHex)
-import Types.CborBytes
-  ( CborBytes
-  , cborBytesToHex
-  , rawBytesAsCborBytes
-  )
+import Types.CborBytes (CborBytes, cborBytesToHex, rawBytesAsCborBytes)
 import Types.RawBytes (RawBytes, hexToRawBytes)
 import Untagged.Union (asOneOf)
 
@@ -64,7 +60,6 @@ newtype Wallet = Wallet Cip30Wallet
 -- Nami backend
 -------------------------------------------------------------------------------
 -- Record-of-functions for real or mocked Nami wallet, includes `Ref` to
--- connection (e.g., with `window.cardano.nami` as a `Cip30Connection`)
 
 mkNamiWalletAff :: Aff Wallet
 mkNamiWalletAff = do
@@ -173,8 +168,10 @@ signTxBytes nami txBytes = do
     Just witBytes -> Just <$> liftEffect
       (_attachSignature txBytes (rawBytesAsCborBytes witBytes))
 
+fromHexString :: (Cip30Connection -> Effect (Promise String)) -> Cip30Connection -> Aff (Maybe RawBytes)
 fromHexString act = map hexToRawBytes <<< Promise.toAffE <<< act
 
+fromMaybeHexString :: (Cip30Connection -> Effect (Promise (Maybe String))) -> Cip30Connection -> Aff (Maybe RawBytes)
 fromMaybeHexString act =
   map (flip bind hexToRawBytes) <<< Promise.toAffE <<< act
 

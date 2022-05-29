@@ -42,15 +42,7 @@ import Scripts
   , validatorHash
   ) as ExportScripts
 import Serialization.Hash (ScriptHash) as Hash
-import Types.Scripts
-  ( MintingPolicy(MintingPolicy)
-  , MintingPolicyHash(MintingPolicyHash)
-  , PlutusScript(PlutusScript)
-  , StakeValidator(StakeValidator)
-  , StakeValidatorHash(StakeValidatorHash)
-  , Validator(Validator)
-  , ValidatorHash(ValidatorHash)
-  ) as TypesScripts
+import Types.Scripts (PlutusScript) as TypesScripts
 import Types.TypedValidator
   ( TypedValidator(TypedValidator)
   , ValidatorType
