@@ -13,7 +13,7 @@ import Data.Array (elemIndex)
 import Data.BigInt (fromInt)
 import Data.Either (Either(Right), note)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(Just))
+import Data.Maybe (Maybe)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -25,7 +25,9 @@ import Types.Transaction (TransactionInput)
 -- | The only error should be impossible but we keep this here in case the user
 -- | decides to call this function at some point where inputs have been
 -- | accidentally deleted and/or not after balancing
-data ReindexErrors = CannotGetTxOutRefIndexForRedeemer T.Redeemer
+data ReindexErrors
+  = CannotGetTxOutRefIndexForRedeemer T.Redeemer
+  | NoTxOutRefForRedeemer T.Redeemer
 
 derive instance Generic ReindexErrors _
 
@@ -47,7 +49,8 @@ reindexSpentScriptRedeemers inputs redeemersTxIns = runExceptT do
     -> T.Redeemer /\ Maybe TransactionInput
     -> Either ReindexErrors T.Redeemer
   reindex ipts = case _ of
-    red@(T.Redeemer red'@{ tag: Spend }) /\ Just txOutRef -> do
+    red@(T.Redeemer red'@{ tag: Spend }) /\ mtxOutRef -> do
+      txOutRef <- note (NoTxOutRefForRedeemer red) mtxOutRef
       index <- note (CannotGetTxOutRefIndexForRedeemer red)
         (fromInt <$> elemIndex txOutRef ipts)
       Right $ T.Redeemer red' { index = index }
