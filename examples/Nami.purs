@@ -13,15 +13,14 @@ import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Monad
   ( Contract
   , defaultContractConfig
-  , launchAff_
   , runContract_
   )
 
-import Wallet (mkNamiWalletAff)
+import Effect.Aff (launchAff_)
 
 main :: Effect Unit
 main = launchAff_ $ do
-  cfg <- defaultContractConfig mkNamiWalletAff
+  cfg <- defaultContractConfig
   runContract_ cfg $ do
     logAction getWalletAddress
     logAction getWalletCollateral

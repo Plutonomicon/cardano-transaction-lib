@@ -39,7 +39,6 @@ module QueryM
   , runQueryM
   , signTransaction
   , signTransactionBytes
-  , submitTxWallet
   , submitTxOgmios
   , underlyingWebSocket
   , getDatumByHash
@@ -169,11 +168,9 @@ import Types.Transaction (TransactionHash)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
 import Wallet
-  ( Wallet(Nami, Gero)
-  , NamiWallet
-  , GeroWallet
-  , NamiConnection
-  , GeroConnection
+  ( Wallet(..)
+  , Cip30Connection
+  , Cip30Wallet(..)
   )
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
@@ -300,31 +297,21 @@ allowError func = func <<< Right
 
 getWalletAddress :: QueryM (Maybe Address)
 getWalletAddress = withMWalletAff $ case _ of
-  Nami nami -> callNami nami _.getWalletAddress
-  Gero gero -> callGero gero _.getWalletAddress
+  Wallet nami -> callWallet nami _.getWalletAddress
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
 getWalletCollateral = withMWalletAff $ case _ of
-  Nami nami -> callNami nami _.getCollateral
-  Gero gero -> callGero gero _.getCollateral
+  Wallet nami -> callWallet nami _.getCollateral
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
 signTransaction tx = withMWalletAff $ case _ of
-  Nami nami -> callNami nami $ \nw -> flip nw.signTx tx
-  Gero gero -> callGero gero $ \gw -> flip gw.signTx tx
+  Wallet nami -> callWallet nami $ \nw -> flip nw.signTx tx
 
 signTransactionBytes
   :: CborBytes -> QueryM (Maybe CborBytes)
 signTransactionBytes tx = withMWalletAff $ case _ of
-  Nami nami -> callNami nami $ \nw -> flip nw.signTxBytes tx
-  Gero gero -> callGero gero $ \gw -> flip gw.signTxBytes tx
-
-submitTxWallet
-  :: Transaction.Transaction -> QueryM (Maybe TransactionHash)
-submitTxWallet tx = withMWalletAff $ case _ of
-  Nami nami -> callNami nami $ \nw -> flip nw.submitTx tx
-  _ -> pure Nothing
+  Wallet nami -> callWallet nami $ \nw -> flip nw.signTxBytes tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do
@@ -348,25 +335,15 @@ withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
 withMWalletAff act = asks _.wallet >>= maybe (pure Nothing) (liftAff <<< act)
 
-callNami
+callWallet
   :: forall (a :: Type)
-   . NamiWallet
-  -> (NamiWallet -> (NamiConnection -> Aff a))
+   . Cip30Wallet
+  -> (Cip30Wallet -> (Cip30Connection -> Aff a))
   -> Aff a
-callNami nami act = act nami =<< readNamiConnection nami
+callWallet nami act = act nami =<< readConnection nami
   where
-  readNamiConnection :: NamiWallet -> Aff NamiConnection
-  readNamiConnection = liftEffect <<< Ref.read <<< _.connection
-
-callGero
-  :: forall (a :: Type)
-   . GeroWallet
-  -> (GeroWallet -> (GeroConnection -> Aff a))
-  -> Aff a
-callGero gero act = act gero =<< readGeroConnection gero
-  where
-  readGeroConnection :: GeroWallet -> Aff GeroConnection
-  readGeroConnection = liftEffect <<< Ref.read <<< _.connection
+  readConnection :: Cip30Wallet -> Aff Cip30Connection
+  readConnection = liftEffect <<< Ref.read <<< _.connection
 
 -- The server will respond with a stringified integer value for the fee estimate
 newtype FeeEstimate = FeeEstimate BigInt

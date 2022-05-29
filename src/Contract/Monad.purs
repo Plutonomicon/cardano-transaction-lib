@@ -98,7 +98,7 @@ import Serialization.Address (NetworkId(TestnetId))
 import Types.Interval (SlotConfig)
 import Types.Interval (defaultSlotConfig) as Interval
 import Types.UsedTxOuts (newUsedTxOuts)
-import Wallet (Wallet)
+import Wallet (Wallet, mkNamiWalletAff)
 
 -- | The `Contract` monad is a newtype wrapper over `QueryM` which is `ReaderT`
 -- | on `QueryConfig` over asynchronous effects, `Aff`. Throwing and catching
@@ -291,14 +291,15 @@ runContract_ config = void <<< runContract config
 
 -- | Creates a default `ContractConfig` with a Nami wallet inside `Aff` as
 -- | required by the websockets.
-defaultContractConfig :: Aff Wallet -> Aff DefaultContractConfig
-defaultContractConfig = (_ >>= configWithLogLevel Error)
+defaultContractConfig :: Aff DefaultContractConfig
+defaultContractConfig = configWithLogLevel Error
 
-traceContractConfig :: Aff Wallet -> Aff DefaultContractConfig
-traceContractConfig = (_ >>= configWithLogLevel Trace)
+traceContractConfig :: Aff DefaultContractConfig
+traceContractConfig = configWithLogLevel Trace
 
-configWithLogLevel :: LogLevel -> Wallet -> Aff DefaultContractConfig
-configWithLogLevel logLevel w = do
+configWithLogLevel :: LogLevel -> Aff DefaultContractConfig
+configWithLogLevel logLevel = do
+  wallet <- Just <$> mkNamiWalletAff
   ogmiosWs <- QueryM.mkOgmiosWebSocketAff logLevel QueryM.defaultOgmiosWsConfig
   datumCacheWs <-
     QueryM.mkDatumCacheWebSocketAff logLevel QueryM.defaultDatumCacheWsConfig
@@ -306,7 +307,7 @@ configWithLogLevel logLevel w = do
   pure $ ContractConfig
     { ogmiosWs
     , datumCacheWs
-    , wallet: pure w
+    , wallet
     , usedTxOuts
     , serverConfig: QueryM.defaultServerConfig
     , networkId: TestnetId
@@ -316,8 +317,8 @@ configWithLogLevel logLevel w = do
 
 -- | Same as `defaultContractConfig` but lifted into `Contract`.
 defaultContractConfigLifted
-  :: forall (r :: Row Type). Aff Wallet -> Contract r DefaultContractConfig
-defaultContractConfigLifted = liftAff <<< defaultContractConfig
+  :: forall (r :: Row Type). Contract r DefaultContractConfig
+defaultContractConfigLifted = liftAff defaultContractConfig
 
 -- Logging effects
 

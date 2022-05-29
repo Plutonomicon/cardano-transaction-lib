@@ -7,9 +7,7 @@ import Contract.Prelude
 
 import Contract.Aeson (decodeAeson, fromString)
 import Contract.Monad
-  ( ContractConfig(ContractConfig)
-  , launchAff_
-  , liftContractM
+  ( liftContractM
   , liftedE
   , liftedM
   , logInfo'
@@ -26,12 +24,13 @@ import Contract.Transaction
   )
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
-import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
+
+import Effect.Aff (launchAff_)
 
 main :: Effect Unit
 main = launchAff_ $ do
-  cfg <- traceContractConfig mkNamiWalletAff
+  cfg <- traceContractConfig
   runContract_ cfg $ do
     logInfo' "Running Examples.AlwaysSucceeds"
     validator <- liftContractM "Invalid script JSON" $ alwaysSucceedsScript

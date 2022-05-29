@@ -13,7 +13,6 @@ import Contract.Monad
   , defaultOgmiosWsConfig
   , defaultServerConfig
   , defaultSlotConfig
-  , launchAff_
   , liftedE
   , liftedM
   , logInfo'
@@ -30,6 +29,7 @@ import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
+import Effect.Aff (launchAff_)
 
 main :: Effect Unit
 main = launchAff_ $ do

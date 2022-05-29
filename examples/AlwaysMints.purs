@@ -8,7 +8,6 @@ import Contract.Prelude
 import Contract.Aeson (decodeAeson, fromString)
 import Contract.Monad
   ( ContractConfig(ContractConfig)
-  , launchAff_
   , liftContractM
   , liftedE
   , liftedM
@@ -28,13 +27,13 @@ import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
-import Effect.Exception (throw)
+
+import Effect.Aff (launchAff_)
 
 main :: Effect Unit
 main = launchAff_ $ do
   wallet <- Just <$> mkNamiWalletAff
   cfg <- over ContractConfig _ { wallet = wallet } <$> traceContractConfig
-    (maybe (liftEffect $ throw "No wallet available") pure wallet)
   runContract_ cfg $ do
     logInfo' "Running Examples.AlwaysMints"
     mp <- liftContractM "Invalid script JSON" $ alwaysMintsPolicy

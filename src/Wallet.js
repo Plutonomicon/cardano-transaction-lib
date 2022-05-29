@@ -7,57 +7,30 @@ if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
     lib = require('@ngua/cardano-serialization-lib-nodejs');
 }
 
-// _enableNami :: Effect (Promise NamiConnection)
-exports._enableNami = () => window.cardano.nami.enable();
+ALLOWED_APIS = new Set([ "nami", "gerowallet" ]);
 
-// _getNamiAddress :: NamiConnection -> Effect (Promise String)
-exports._getNamiAddress = nami => () =>
+// _enable :: String -> Effect (Promise Cip30Connection)Q
+exports._enable = api => () =>
+  ALLOWED_API.has(api) ? eval(`window.cardano.${api}.enable()`) : undefined;
+
+// _getAddress :: Cip30Connection -> Effect (Promise String)
+exports._getAddress = nami => () =>
   nami.getUsedAddresses().then((addrs) => addrs[0]);
 
-// _getNamiCollateral
+// _getCollateral
 //   :: MaybeFfiHelper
-//   -> NamiConnection
+//   -> Cip30Connection
 //   -> Effect (Promise String)
-exports._getNamiCollateral = maybe => nami => () =>
+exports._getCollateral = maybe => nami => () =>
   nami.experimental.getCollateral().then((utxos) => {
   return utxos.length ? maybe.just(utxos[0]) : maybe.nothing;
 });
 
-// _signTxNami :: String -> NamiConnection -> Effect (Promise String)
-exports._signTxNami = txHex => nami => () => {
+// _signTx :: String -> Cip30Connection -> Effect (Promise String)
+exports._signTx = txHex => nami => () => {
   return nami.signTx(txHex, true)
       .catch(e => {
           console.log("Error in signTxNami: ", e);
-          throw (JSON.stringify(e));
-      });
-}
-
-// _submitTxNami :: String -> NamiConnection -> Effect (Promise String)
-exports._submitTxNami = txHex => nami => () => {
-    return nami.submitTx(txHex);
-};
-
-// _enableGero :: Effect (Promise GeroConnection)
-exports._enableGero = () => window.cardano.gerowallet.enable();
-
-// _getGeroAddress :: GeroConnection -> Effect (Promise String)
-exports._getGeroAddress = gero => () =>
-  gero.getUsedAddresses().then((addrs) => addrs[0]);
-
-// _getGeroCollateral
-//   :: MaybeFfiHelper
-//   -> GeroConnection
-//   -> Effect (Promise String)
-exports._getGeroCollateral = maybe => gero => () =>
-  gero.experimental.getCollateral().then((utxos) => {
-  return utxos.length ? maybe.just(utxos[0]) : maybe.nothing;
-});
-
-// _signTxGero :: String -> GeroConnection -> Effect (Promise String)
-exports._signTxGero = txHex => gero => () => {
-  return gero.signTx(txHex, true)
-      .catch(e => {
-          console.log("Error in signTxGero: ", e);
           throw (JSON.stringify(e));
       });
 }

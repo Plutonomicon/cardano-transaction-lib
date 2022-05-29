@@ -19,18 +19,16 @@ module Examples.Datums (main) where
 
 import Contract.Prelude
 
-import Contract.Monad (runContract_, launchAff_, logInfo', traceContractConfig)
+import Contract.Monad (runContract_, logInfo', traceContractConfig)
 import Contract.PlutusData (DataHash, getDatumByHash, getDatumsByHashes)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Data.Newtype (wrap)
 
-import Effect.Class (liftEffect)
-
-import Wallet (mkGeroWalletAff)
+import Effect.Aff (launchAff_)
 
 main :: Effect Unit
 main = launchAff_ $ do
-  cfg <- traceContractConfig mkGeroWalletAff
+  cfg <- traceContractConfig
   runContract_ cfg $ do
     logInfo' "Running Examples.Datums"
     logInfo' <<< show =<< getDatumByHash
