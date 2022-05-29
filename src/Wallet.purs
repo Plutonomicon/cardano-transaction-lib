@@ -168,10 +168,16 @@ signTxBytes nami txBytes = do
     Just witBytes -> Just <$> liftEffect
       (_attachSignature txBytes (rawBytesAsCborBytes witBytes))
 
-fromHexString :: (Cip30Connection -> Effect (Promise String)) -> Cip30Connection -> Aff (Maybe RawBytes)
+fromHexString
+  :: (Cip30Connection -> Effect (Promise String))
+  -> Cip30Connection
+  -> Aff (Maybe RawBytes)
 fromHexString act = map hexToRawBytes <<< Promise.toAffE <<< act
 
-fromMaybeHexString :: (Cip30Connection -> Effect (Promise (Maybe String))) -> Cip30Connection -> Aff (Maybe RawBytes)
+fromMaybeHexString
+  :: (Cip30Connection -> Effect (Promise (Maybe String)))
+  -> Cip30Connection
+  -> Aff (Maybe RawBytes)
 fromMaybeHexString act =
   map (flip bind hexToRawBytes) <<< Promise.toAffE <<< act
 
