@@ -62,8 +62,7 @@ import Types.Interval
   , RelTime(RelTime)
   , SlotRange
   , SlotToPosixTimeError
-      ( ParseToDataTime
-      , CannotFindSlotInEraSummaries
+      ( CannotFindSlotInEraSummaries
       , StartingSlotGreaterThanSlot
       , EndTimeLessThanTime
       , CannotGetBigIntFromNumber
