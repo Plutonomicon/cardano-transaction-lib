@@ -105,13 +105,13 @@ import Transaction
   , setScriptDataHash
   )
 import TxOutput (transactionOutputToScriptOutput)
-import Time.Conversion
-  ( PosixTimeToSlotError
-  , posixTimeRangeToTransactionValidity
-  )
-import Time.Types.POSIXTime (POSIXTimeRange)
 import Types.Any (Any)
 import Types.Datum (DataHash, Datum)
+import Types.Interval
+  ( PosixTimeToSlotError
+  , POSIXTimeRange
+  , posixTimeRangeToTransactionValidity
+  )
 import Types.PubKeyHash
   ( PaymentPubKeyHash
   , StakePubKeyHash

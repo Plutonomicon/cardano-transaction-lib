@@ -4,11 +4,8 @@ module Contract.Time
   , getEraSummaries
   , getSystemStart
   , module Chain
-  , module ExportConversion
   , module ExportOgmios
-  , module ExportSlot
   , module Interval
-  , module POSIXTime
   , module SerializationAddress
   ) where
 
@@ -44,9 +41,16 @@ import Serialization.Address
   ( Slot(Slot)
   , BlockId(BlockId)
   ) as SerializationAddress
-import Time.Conversion
+import Types.Interval
   ( AbsTime(AbsTime)
+  , Closure
+  , Extended(NegInf, Finite, PosInf)
+  , Interval(Interval)
+  , LowerBound(LowerBound)
   , ModTime(ModTime)
+  , OnchainPOSIXTimeRange(OnchainPOSIXTimeRange)
+  , POSIXTime(POSIXTime)
+  , POSIXTimeRange
   , PosixTimeToSlotError
       ( CannotFindTimeInEraSummaries
       , PosixTimeBeforeSystemStart
@@ -56,6 +60,7 @@ import Time.Conversion
       , CannotGetBigIntFromNumber'
       )
   , RelTime(RelTime)
+  , SlotRange
   , SlotToPosixTimeError
       ( ParseToDataTime
       , CannotFindSlotInEraSummaries
@@ -64,26 +69,15 @@ import Time.Conversion
       , CannotGetBigIntFromNumber
       )
   , ToOnChainPosixTimeRangeError(PosixTimeToSlotError', SlotToPosixTimeError')
-  , absSlotFromSlot
-  , findSlotEraSummary
-  , findTimeEraSummary
-  , posixTimeRangeToSlotRange
-  , posixTimeToSlot
-  , slotFromAbsSlot
-  , slotRangeToPosixTimeRange
-  , slotToPosixTime
-  , toOnchainPosixTimeRange
-  ) as ExportConversion
-import Time.Types.Interval
-  ( Closure
-  , Extended(NegInf, Finite, PosInf)
-  , Interval(Interval)
-  , LowerBound(LowerBound)
   , UpperBound(UpperBound)
+  , absSlotFromSlot
   , after
   , always
   , before
+  , beginningOfTime
   , contains
+  , findSlotEraSummary
+  , findTimeEraSummary
   , from
   , hull
   , intersection
@@ -91,27 +85,24 @@ import Time.Types.Interval
   , isEmpty
   -- , isEmpty'
   , lowerBound
+  , maxSlot
   , member
   , mkInterval
   , never
   , overlaps
   -- , overlaps'
+  , posixTimeRangeToSlotRange
+  , posixTimeToSlot
   , singleton
+  , slotFromAbsSlot
+  , slotRangeToPosixTimeRange
+  , slotToPosixTime
   , strictLowerBound
   , strictUpperBound
   , to
+  , toOnchainPosixTimeRange
   , upperBound
   ) as Interval
-import Time.Types.POSIXTime
-  ( OnchainPOSIXTimeRange(OnchainPOSIXTimeRange)
-  , POSIXTime(POSIXTime)
-  , POSIXTimeRange
-  ) as POSIXTime
-import Time.Types.Slot
-  ( SlotRange
-  , beginningOfTime
-  , maxSlot
-  ) as ExportSlot
 
 -- | Get the current Epoch. Details can be found https://ogmios.dev/api/ under
 -- | "currentEpoch" query

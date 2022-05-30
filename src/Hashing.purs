@@ -7,10 +7,8 @@ module Hashing
 
 import Prelude
 
-import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, wrap, unwrap)
-import Data.Show.Generic (genericShow)
+import Data.Newtype (wrap, unwrap)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Serialization.PlutusData (convertPlutusData)
 import Serialization.Types (PlutusData) as Serialization
