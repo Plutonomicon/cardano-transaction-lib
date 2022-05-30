@@ -5,10 +5,10 @@ module QueryM.SystemStart
 
 import Prelude
 import QueryM (QueryM, mkOgmiosRequest)
-import QueryM.Ogmios (SystemStartQR, querySystemStartCall) as Ogmios
+import QueryM.Ogmios (SystemStart, querySystemStartCall) as Ogmios
 
 -- | Get the current system start time. Details can be found
 -- | https://ogmios.dev/api/ under "systemStart" query
-getSystemStart :: QueryM Ogmios.SystemStartQR
+getSystemStart :: QueryM Ogmios.SystemStart
 getSystemStart =
   mkOgmiosRequest Ogmios.querySystemStartCall _.systemStart unit

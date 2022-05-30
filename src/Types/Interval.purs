@@ -85,9 +85,9 @@ import Plutus.Types.DataSchema
   )
 import QueryM.Ogmios
   ( AbsSlot(AbsSlot)
-  , EraSummariesQR(EraSummariesQR)
+  , EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
-  , SystemStartQR
+  , SystemStart
   )
 import TypeLevel.Nat (S, Z)
 import ToData (class ToData, genericToData)
@@ -448,7 +448,7 @@ maxSlot = Slot $ unsafePartial fromJust $ UInt.fromString "4294967295"
 -- to POSIXTime (milliseconds)
 --------------------------------------------------------------------------------
 data SlotToPosixTimeError
-  = ParseToDataTime SystemStartQR
+  = ParseToDataTime SystemStart
   | CannotFindSlotInEraSummaries AbsSlot
   | StartingSlotGreaterThanSlot AbsSlot
   | EndTimeLessThanTime AbsTime
@@ -473,8 +473,8 @@ instance Show SlotToPosixTimeError where
 -- | Start, then add any excess for a UNIX Epoch time. Recall that POSIXTime
 -- | is in milliseconds for Protocol Version >= 6.
 slotToPosixTime
-  :: EraSummariesQR
-  -> SystemStartQR
+  :: EraSummaries
+  -> SystemStart
   -> Slot
   -> Effect (Either SlotToPosixTimeError POSIXTime)
 slotToPosixTime eraSummaries sysStart slot = runExceptT do
@@ -514,10 +514,10 @@ slotFromAbsSlot = map wrap <<< bigIntToUInt <<< unwrap
 
 -- | Finds the `EraSummary` an `AbsSlot` lies inside (if any).
 findSlotEraSummary
-  :: EraSummariesQR
-  -> AbsSlot -- Slot we are testing and trying to find inside `EraSummariesQR`
+  :: EraSummaries
+  -> AbsSlot -- Slot we are testing and trying to find inside `EraSummaries`
   -> Either SlotToPosixTimeError EraSummary
-findSlotEraSummary (EraSummariesQR eraSummaries) os =
+findSlotEraSummary (EraSummaries eraSummaries) os =
   note (CannotFindSlotInEraSummaries os) $ find pred eraSummaries
   where
   -- Potential FIXME: In the case of `Just`, do we want to use `safeZone` from
@@ -630,11 +630,11 @@ derive instance Eq PosixTimeToSlotError
 instance Show PosixTimeToSlotError where
   show = genericShow
 
--- | Converts a `POSIXTime` to `Slot` given an `EraSummariesQR` and
--- | `SystemStartQR` queried from Ogmios.
+-- | Converts a `POSIXTime` to `Slot` given an `EraSummaries` and
+-- | `SystemStart` queried from Ogmios.
 posixTimeToSlot
-  :: EraSummariesQR
-  -> SystemStartQR
+  :: EraSummaries
+  -> SystemStart
   -> POSIXTime
   -> Effect (Either PosixTimeToSlotError Slot)
 posixTimeToSlot eraSummaries sysStart pt'@(POSIXTime pt) = runExceptT do
@@ -664,10 +664,10 @@ posixTimeToSlot eraSummaries sysStart pt'@(POSIXTime pt) = runExceptT do
 
 -- | Finds the `EraSummary` an `AbsTime` lies inside (if any).
 findTimeEraSummary
-  :: EraSummariesQR
-  -> AbsTime -- Time we are testing and trying to find inside `EraSummariesQR`
+  :: EraSummaries
+  -> AbsTime -- Time we are testing and trying to find inside `EraSummaries`
   -> Either PosixTimeToSlotError EraSummary
-findTimeEraSummary (EraSummariesQR eraSummaries) absTime@(AbsTime at) =
+findTimeEraSummary (EraSummaries eraSummaries) absTime@(AbsTime at) =
   note (CannotFindTimeInEraSummaries absTime) $ find pred eraSummaries
   where
   pred :: EraSummary -> Boolean
@@ -727,11 +727,11 @@ getSlotLength (EraSummary { parameters }) =
 
 --------------------------------------------------------------------------------
 
--- | Converts a `POSIXTimeRange` to `SlotRange` given an `EraSummariesQR` and
--- | `SystemStartQR` queried from Ogmios.
+-- | Converts a `POSIXTimeRange` to `SlotRange` given an `EraSummaries` and
+-- | `SystemStart` queried from Ogmios.
 posixTimeRangeToSlotRange
-  :: EraSummariesQR
-  -> SystemStartQR
+  :: EraSummaries
+  -> SystemStart
   -> POSIXTimeRange
   -> Effect (Either PosixTimeToSlotError SlotRange)
 posixTimeRangeToSlotRange
@@ -752,11 +752,11 @@ posixTimeRangeToSlotRange
   convertBounds NegInf = pure $ Right NegInf
   convertBounds PosInf = pure $ Right PosInf
 
--- | Converts a `SlotRange` to `POSIXTimeRange` given an `EraSummariesQR` and
--- | `SystemStartQR` queried from Ogmios.
+-- | Converts a `SlotRange` to `POSIXTimeRange` given an `EraSummaries` and
+-- | `SystemStart` queried from Ogmios.
 slotRangeToPosixTimeRange
-  :: EraSummariesQR
-  -> SystemStartQR
+  :: EraSummaries
+  -> SystemStart
   -> SlotRange
   -> Effect (Either SlotToPosixTimeError POSIXTimeRange)
 slotRangeToPosixTimeRange
@@ -817,8 +817,8 @@ slotRangeToTransactionValidity
 -- | Converts a `POSIXTimeRange` to a transaction validity interval via a
 -- | `SlotRange` to be used when building a CSL transaction body
 posixTimeRangeToTransactionValidity
-  :: EraSummariesQR
-  -> SystemStartQR
+  :: EraSummaries
+  -> SystemStart
   -> POSIXTimeRange
   -> Effect (Either PosixTimeToSlotError TransactionValiditySlot)
 posixTimeRangeToTransactionValidity es ss =
@@ -843,8 +843,8 @@ instance Show ToOnChainPosixTimeRangeError where
 -- | `OnchainPOSIXTimeRange` is intended to equal the validity range found in
 -- | the on-chain `ScriptContext`
 toOnchainPosixTimeRange
-  :: EraSummariesQR
-  -> SystemStartQR
+  :: EraSummaries
+  -> SystemStart
   -> POSIXTimeRange
   -> Effect (Either ToOnChainPosixTimeRangeError OnchainPOSIXTimeRange)
 toOnchainPosixTimeRange es ss ptr = runExceptT do

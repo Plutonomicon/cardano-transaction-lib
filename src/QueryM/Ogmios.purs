@@ -5,10 +5,10 @@ module QueryM.Ogmios
   , ChainOrigin(..)
   , ChainPoint(..)
   , ChainTipQR(..)
-  , CurrentEpochQR(..)
+  , CurrentEpoch(..)
   , Epoch(..)
   , EpochLength(..)
-  , EraSummariesQR(..)
+  , EraSummaries(..)
   , EraSummary(..)
   , EraSummaryParameters(..)
   , EraSummaryTime(..)
@@ -20,7 +20,7 @@ module QueryM.Ogmios
   , SafeZone(..)
   , SlotLength(..)
   , SubmitTxR(..)
-  , SystemStartQR(..)
+  , SystemStart(..)
   , TxEvaluationR(..)
   , TxHash
   , UtxoQR(..)
@@ -91,7 +91,7 @@ import Untagged.Union (type (|+|), toEither1)
 -- https://ogmios.dev/mini-protocols/local-state-query/
 
 -- | Queries Ogmios for the system start Datetime
-querySystemStartCall :: JsonWspCall Unit SystemStartQR
+querySystemStartCall :: JsonWspCall Unit SystemStart
 querySystemStartCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "systemStart" }
@@ -99,7 +99,7 @@ querySystemStartCall = mkOgmiosCallType
   Proxy
 
 -- | Queries Ogmios for the current epoch
-queryCurrentEpochCall :: JsonWspCall Unit CurrentEpochQR
+queryCurrentEpochCall :: JsonWspCall Unit CurrentEpoch
 queryCurrentEpochCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "currentEpoch" }
@@ -107,7 +107,7 @@ queryCurrentEpochCall = mkOgmiosCallType
   Proxy
 
 -- | Queries Ogmios for an array of era summaries, used for Slot arithmetic.
-queryEraSummariesCall :: JsonWspCall Unit EraSummariesQR
+queryEraSummariesCall :: JsonWspCall Unit EraSummaries
 queryEraSummariesCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "eraSummaries" }
@@ -194,39 +194,39 @@ instance DecodeAeson SubmitTxR where
       >>> maybe (Left (TypeMismatch "Expected hexstring")) (pure <<< wrap)
 
 ---------------- SYSTEM START QUERY RESPONSE & PARSING
-newtype SystemStartQR = SystemStartQR String
+newtype SystemStart = SystemStart String
 
-derive instance Generic SystemStartQR _
-derive instance Newtype SystemStartQR _
-derive newtype instance DecodeAeson SystemStartQR
-derive newtype instance Eq SystemStartQR
+derive instance Generic SystemStart _
+derive instance Newtype SystemStart _
+derive newtype instance DecodeAeson SystemStart
+derive newtype instance Eq SystemStart
 
-instance Show SystemStartQR where
+instance Show SystemStart where
   show = genericShow
 
 ---------------- CURRENT EPOCH QUERY RESPONSE & PARSING
-newtype CurrentEpochQR = CurrentEpochQR BigInt
+newtype CurrentEpoch = CurrentEpoch BigInt
 
-derive instance Generic CurrentEpochQR _
-derive instance Newtype CurrentEpochQR _
-derive newtype instance DecodeAeson CurrentEpochQR
-derive newtype instance Eq CurrentEpochQR
-derive newtype instance Ord CurrentEpochQR
+derive instance Generic CurrentEpoch _
+derive instance Newtype CurrentEpoch _
+derive newtype instance DecodeAeson CurrentEpoch
+derive newtype instance Eq CurrentEpoch
+derive newtype instance Ord CurrentEpoch
 
-instance Show CurrentEpochQR where
+instance Show CurrentEpoch where
   show = genericShow
 
 ---------------- ERA SUMMARY QUERY RESPONSE & PARSING
 
-newtype EraSummariesQR = EraSummariesQR (Array EraSummary)
+newtype EraSummaries = EraSummaries (Array EraSummary)
 
-derive instance Generic EraSummariesQR _
-derive instance Newtype EraSummariesQR _
+derive instance Generic EraSummaries _
+derive instance Newtype EraSummaries _
 
-instance Show EraSummariesQR where
+instance Show EraSummaries where
   show = genericShow
 
-instance DecodeAeson EraSummariesQR where
+instance DecodeAeson EraSummaries where
   decodeAeson = aesonArray (map wrap <<< traverse decodeAeson)
 
 -- | From Ogmios:
@@ -296,7 +296,7 @@ derive newtype instance DecodeAeson RelativeTime
 instance Show RelativeTime where
   show = genericShow
 
--- | Absolute slot relative to SystemStartQR. [ 0 .. 18446744073709552000 ]
+-- | Absolute slot relative to SystemStart. [ 0 .. 18446744073709552000 ]
 newtype AbsSlot = AbsSlot BigInt
 
 derive instance Generic AbsSlot _

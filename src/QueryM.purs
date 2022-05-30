@@ -712,9 +712,9 @@ type OgmiosListeners =
   , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
   , submit :: ListenerSet { txCbor :: ByteArray } Ogmios.SubmitTxR
   , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationR
-  , eraSummaries :: ListenerSet Unit Ogmios.EraSummariesQR
-  , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpochQR
-  , systemStart :: ListenerSet Unit Ogmios.SystemStartQR
+  , eraSummaries :: ListenerSet Unit Ogmios.EraSummaries
+  , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
+  , systemStart :: ListenerSet Unit Ogmios.SystemStart
   }
 
 type DatumCacheListeners =
@@ -838,9 +838,9 @@ ogmiosMessageDispatch
      , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipQR
      , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationR
      , submitDispatchMap :: DispatchIdMap Ogmios.SubmitTxR
-     , eraSummariesDispatchMap :: DispatchIdMap Ogmios.EraSummariesQR
-     , currentEpochDispatchMap :: DispatchIdMap Ogmios.CurrentEpochQR
-     , systemStartDispatchMap :: DispatchIdMap Ogmios.SystemStartQR
+     , eraSummariesDispatchMap :: DispatchIdMap Ogmios.EraSummaries
+     , currentEpochDispatchMap :: DispatchIdMap Ogmios.CurrentEpoch
+     , systemStartDispatchMap :: DispatchIdMap Ogmios.SystemStart
      }
   -> Array WebsocketDispatch
 ogmiosMessageDispatch

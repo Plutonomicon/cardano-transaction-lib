@@ -19,22 +19,22 @@ import Contract.Monad (Contract, wrapContract)
 import QueryM.CurrentEpoch (getCurrentEpoch) as CurrentEpoch
 import QueryM.EraSummaries (getEraSummaries) as EraSummaries
 import QueryM.Ogmios
-  ( CurrentEpochQR
-  , EraSummariesQR
-  , SystemStartQR
+  ( CurrentEpoch
+  , EraSummaries
+  , SystemStart
   )
 import QueryM.Ogmios
   ( AbsSlot(AbsSlot)
-  , CurrentEpochQR(CurrentEpochQR)
+  , CurrentEpoch(CurrentEpoch)
   , Epoch(Epoch)
   , EpochLength(EpochLength)
-  , EraSummariesQR(EraSummariesQR)
+  , EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
   , EraSummaryParameters(EraSummaryParameters)
   , RelativeTime(RelativeTime)
   , SafeZone(SafeZone)
   , SlotLength(SlotLength)
-  , SystemStartQR(SystemStartQR)
+  , SystemStart(SystemStart)
   ) as ExportOgmios
 import QueryM.SystemStart (getSystemStart) as SystemStart
 import Serialization.Address
@@ -106,16 +106,16 @@ import Types.Interval
 
 -- | Get the current Epoch. Details can be found https://ogmios.dev/api/ under
 -- | "currentEpoch" query
-getCurrentEpoch :: forall (r :: Row Type). Contract r CurrentEpochQR
+getCurrentEpoch :: forall (r :: Row Type). Contract r CurrentEpoch
 getCurrentEpoch = wrapContract CurrentEpoch.getCurrentEpoch
 
 -- | Get `EraSummaries` as used for Slot arithemetic. Details can be found
 -- | https://ogmios.dev/api/ under "eraSummaries" query
-getEraSummaries :: forall (r :: Row Type). Contract r EraSummariesQR
+getEraSummaries :: forall (r :: Row Type). Contract r EraSummaries
 getEraSummaries = wrapContract EraSummaries.getEraSummaries
 
 -- | Get the current system start time. Details can be found
 -- | https://ogmios.dev/api/ under "systemStart" query
-getSystemStart :: forall (r :: Row Type). Contract r SystemStartQR
+getSystemStart :: forall (r :: Row Type). Contract r SystemStart
 getSystemStart = wrapContract SystemStart.getSystemStart
 

@@ -24,7 +24,7 @@ import QueryM
   )
 import QueryM.CurrentEpoch (getCurrentEpoch)
 import QueryM.EraSummaries (getEraSummaries)
-import QueryM.Ogmios (EraSummariesQR, OgmiosAddress, SystemStartQR)
+import QueryM.Ogmios (EraSummaries, OgmiosAddress, SystemStart)
 import QueryM.SystemStart (getSystemStart)
 import QueryM.Utxos (utxosAt)
 import Serialization.Address (Slot(Slot))
@@ -169,8 +169,8 @@ testPosixTimeToSlot = do
       (mkPosixTime "1613636754499")
   where
   idTest
-    :: EraSummariesQR
-    -> SystemStartQR
+    :: EraSummaries
+    -> SystemStart
     -> (POSIXTime -> POSIXTime)
     -> POSIXTime
     -> QueryM Unit
@@ -203,7 +203,7 @@ testSlotToPosixTime = do
         ]
     traverse_ (idTest eraSummaries sysStart) slots
   where
-  idTest :: EraSummariesQR -> SystemStartQR -> Slot -> QueryM Unit
+  idTest :: EraSummaries -> SystemStart -> Slot -> QueryM Unit
   idTest es ss slot = liftEffect do
     slotToPosixTime es ss slot >>= case _ of
       Left err -> throw $ show err
