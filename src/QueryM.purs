@@ -156,6 +156,7 @@ import Serialization.Address
   , baseAddressDelegationCred
   , baseAddressFromAddress
   , baseAddressPaymentCred
+  , addressPaymentCred
   , stakeCredentialToKeyHash
   )
 import Serialization.Hash (ScriptHash)
@@ -341,9 +342,8 @@ submitTxWallet tx = withMWalletAff $ case _ of
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do
   mbAddress <- getWalletAddress
-  pure do
-    baseAddress <- mbAddress >>= baseAddressFromAddress
-    wrap <$> stakeCredentialToKeyHash (baseAddressPaymentCred baseAddress)
+  pure $
+    wrap <$> (mbAddress >>= (addressPaymentCred >=> stakeCredentialToKeyHash))
 
 ownPaymentPubKeyHash :: QueryM (Maybe PaymentPubKeyHash)
 ownPaymentPubKeyHash = map wrap <$> ownPubKeyHash
