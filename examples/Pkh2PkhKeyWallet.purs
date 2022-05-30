@@ -104,8 +104,7 @@ main = do
         pub <- liftMaybe (error "Failed to parse Public Key") $
           addressFromBech32 input.public_key
         pkh <- liftMaybe (error "Failed to parse Public key Hash") $
-          ed25519KeyHashFromBech32
-            "addr_vkh14lk6mlsm50ewtn9p5zgd7lkfdalsycdcxjpl5s979st9xjdmdc4"
+          ed25519KeyHashFromBech32 input.to_pkh
         let wallet = mkKeyWallet pub priv
         cfg <- mkContractConfig $ ConfigParams
           { ogmiosConfig: defaultOgmiosWsConfig
