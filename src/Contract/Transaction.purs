@@ -231,7 +231,7 @@ balanceTxs
   -> Contract r (Either BalanceTxError.BalanceTxError (t UnattachedTransaction))
 balanceTxs uts = runExceptT $ do
   unlockKeys <- lock mempty uutxToTx uts
-  uts' <- ExceptT $ sequence <$> balanceMany uts
+  uts' <- ExceptT $ sequence <$> traverse balanceTx uts
   _ <- catchError (lock unlockKeys utxToTx uts')
     ( \e -> do
         unlock unlockKeys
@@ -258,15 +258,6 @@ balanceTxs uts = runExceptT $ do
   unlock keys = do
     cache <- asks (_.usedTxOuts <<< unwrap)
     runReaderT (unlockTxOutKeys keys) cache
-
-balanceMany
-  :: forall
-       (t :: Type -> Type)
-       (r :: Row Type)
-   . (Traversable t)
-  => t UnattachedUnbalancedTx
-  -> Contract r (t (Either BalanceTxError.BalanceTxError UnattachedTransaction))
-balanceMany = traverse balanceTx
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` hushing the error.
 balanceTxM
@@ -330,13 +321,6 @@ signOne (Tuple (balancedTx /\ redeemersTxIns) datums) = do
   pure $ pure $ BalancedSignedTransaction
     { transaction: balancedTx, signedTxCbor }
 
--- | A helper that wraps a few steps into: balance an unbalanced transaction
--- | (`balanceTx`), reindex script spend redeemers (not minting redeemers)
--- | (`reindexSpentScriptRedeemers`), attach datums and redeemers to the
--- | transaction (`finalizeTx`), and finally sign (`signTransactionBytes`).
--- | The return type includes the balanced (but unsigned) transaction for
--- | logging and more importantly, the `ByteArray` to be used with `Submit` to
--- | submit the transaction.
 balanceAndSignTxs
   :: forall (r :: Row Type)
    . NonEmptyArray UnattachedUnbalancedTx
@@ -357,6 +341,14 @@ balanceAndSignTxs txs = do
               :: Contract r (NonEmptyArray (Maybe BalancedSignedTransaction))
           pure $ sequence results
 
+
+-- | A helper that wraps a few steps into: balance an unbalanced transaction
+-- | (`balanceTx`), reindex script spend redeemers (not minting redeemers)
+-- | (`reindexSpentScriptRedeemers`), attach datums and redeemers to the
+-- | transaction (`finalizeTx`), and finally sign (`signTransactionBytes`).
+-- | The return type includes the balanced (but unsigned) transaction for
+-- | logging and more importantly, the `ByteArray` to be used with `Submit` to
+-- | submit the transaction.
 balanceAndSignTx
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx
