@@ -54,7 +54,12 @@ import Cardano.Types.Value
   , valueToCoin
   , Value
   )
-import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT, throwError)
+import Control.Monad.Except.Trans
+  ( ExceptT(ExceptT)
+  , except
+  , runExceptT
+  , throwError
+  )
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
@@ -393,8 +398,9 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
     collateral <- case wallet of
       Just (Nami _) -> ExceptT $ getWalletCollateral <#>
-          note (GetWalletCollateralError' CouldNotGetNamiCollateral)
-      _ | [input /\ output] <- Map.toUnfoldable utxos -> pure $ TransactionUnspentOutput { input, output }
+        note (GetWalletCollateralError' CouldNotGetNamiCollateral)
+      _ | [ input /\ output ] <- Map.toUnfoldable utxos -> pure $
+        TransactionUnspentOutput { input, output }
       -- TODO Better error
       _ -> throwError (GetWalletAddressError' CouldNotGetNamiWalletAddress)
     let

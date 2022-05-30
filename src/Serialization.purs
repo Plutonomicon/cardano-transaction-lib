@@ -208,6 +208,7 @@ foreign import addVkeywitness :: Vkeywitnesses -> Vkeywitness -> Effect Unit
 foreign import newVkeyFromPublicKey :: PublicKey -> Effect Vkey
 foreign import _publicKeyFromBech32
   :: MaybeFfiHelper -> Bech32String -> Effect (Maybe PublicKey)
+
 foreign import _privateKeyFromBytes
   :: MaybeFfiHelper -> ByteArray -> Effect (Maybe PrivateKey)
 

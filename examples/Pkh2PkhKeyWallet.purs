@@ -6,9 +6,26 @@ module Examples.Pkh2PkhKeyWallet (main) where
 import Contract.Prelude
 
 import Contract.Address (NetworkId(TestnetId))
-import Contract.Monad (ConfigParams(ConfigParams), Contract, ContractConfig, defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, defaultSlotConfig, launchAff_, liftedE, liftedM, logInfo', mkContractConfig)
+import Contract.Monad
+  ( ConfigParams(ConfigParams)
+  , Contract
+  , ContractConfig
+  , defaultDatumCacheWsConfig
+  , defaultOgmiosWsConfig
+  , defaultServerConfig
+  , defaultSlotConfig
+  , launchAff_
+  , liftedE
+  , liftedM
+  , logInfo'
+  , mkContractConfig
+  )
 import Contract.ScriptLookups as Lookups
-import Contract.Transaction (BalancedSignedTransaction(BalancedSignedTransaction), balanceAndSignTx, submit)
+import Contract.Transaction
+  ( BalancedSignedTransaction(BalancedSignedTransaction)
+  , balanceAndSignTx
+  , submit
+  )
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Control.Monad.Error.Class (catchError, liftMaybe)
@@ -32,7 +49,9 @@ type Form =
   , to_pkh :: String
   }
 
-foreign import mkForm :: (Form -> (String -> String -> Effect Unit) -> (Effect Unit) -> Effect Unit) -> Effect Unit
+foreign import mkForm
+  :: (Form -> (String -> String -> Effect Unit) -> (Effect Unit) -> Effect Unit)
+  -> Effect Unit
 
 levelName :: LogLevel -> String
 levelName Trace = "TRACE"
@@ -49,60 +68,71 @@ levelColor _ = "black"
 main :: Effect Unit
 main = do
   mkForm \input log' unlock -> do
-    let runContract
-          :: forall (r :: Row Type) (a :: Type)
-           . ContractConfig r
-          -> Contract r a
-          -> Aff a
-        runContract config = flip runLoggerT printLog <<< flip runReaderT cfg <<< unwrap
-          where
-          printLog :: Message -> Aff Unit
-          printLog m = liftEffect $ when (m.level >= cfg.logLevel) $ do
-            prettyFormatter m >>= log
-            log' (levelColor m.level) ("[" <> levelName m.level <> "] " <> m.message)
+    let
+      runContract
+        :: forall (r :: Row Type) (a :: Type)
+         . ContractConfig r
+        -> Contract r a
+        -> Aff a
+      runContract config = flip runLoggerT printLog <<< flip runReaderT cfg <<<
+        unwrap
+        where
+        printLog :: Message -> Aff Unit
+        printLog m = liftEffect $ when (m.level >= cfg.logLevel) $ do
+          prettyFormatter m >>= log
+          log' (levelColor m.level)
+            ("[" <> levelName m.level <> "] " <> m.message)
 
-          cfg :: QueryConfig r
-          cfg = unwrap config
+        cfg :: QueryConfig r
+        cfg = unwrap config
 
-        -- | Same as `runContract` discarding output.
-        runContract_
-          :: forall (r :: Row Type) (a :: Type)
-           . ContractConfig r
-          -> Contract r a
-          -> Aff Unit
-        runContract_ config = void <<< runContract config
+      -- | Same as `runContract` discarding output.
+      runContract_
+        :: forall (r :: Row Type) (a :: Type)
+         . ContractConfig r
+        -> Contract r a
+        -> Aff Unit
+      runContract_ config = void <<< runContract config
 
-    launchAff_ $ flip catchError (\e -> liftEffect $ log' "crimson" ("[ERROR] " <> message e) *> unlock) do
-          priv <- (liftMaybe (error "Failed to parse Private Key")) =<< (liftEffect $ map join $ traverse privateKeyFromBytes $ hexToByteArray input.private_key)
-          pub <- liftMaybe (error "Failed to parse Public Key") $ addressFromBech32 input.public_key
-          pkh <- liftMaybe (error "Failed to parse Public key Hash") $ ed25519KeyHashFromBech32 "addr_vkh14lk6mlsm50ewtn9p5zgd7lkfdalsycdcxjpl5s979st9xjdmdc4"
-          let wallet = mkKeyWallet pub priv
-          cfg <- mkContractConfig $ ConfigParams
-            { ogmiosConfig: defaultOgmiosWsConfig
-            , datumCacheConfig: defaultDatumCacheWsConfig
-            , ctlServerConfig: defaultServerConfig
-            , networkId: TestnetId
-            , slotConfig: defaultSlotConfig
-            , logLevel: Trace
-            , extraConfig: {}
-            , wallet: Just wallet
-            }
+    launchAff_ $ flip catchError
+      (\e -> liftEffect $ log' "crimson" ("[ERROR] " <> message e) *> unlock)
+      do
+        priv <- (liftMaybe (error "Failed to parse Private Key")) =<<
+          ( liftEffect $ map join $ traverse privateKeyFromBytes $
+              hexToByteArray input.private_key
+          )
+        pub <- liftMaybe (error "Failed to parse Public Key") $
+          addressFromBech32 input.public_key
+        pkh <- liftMaybe (error "Failed to parse Public key Hash") $
+          ed25519KeyHashFromBech32
+            "addr_vkh14lk6mlsm50ewtn9p5zgd7lkfdalsycdcxjpl5s979st9xjdmdc4"
+        let wallet = mkKeyWallet pub priv
+        cfg <- mkContractConfig $ ConfigParams
+          { ogmiosConfig: defaultOgmiosWsConfig
+          , datumCacheConfig: defaultDatumCacheWsConfig
+          , ctlServerConfig: defaultServerConfig
+          , networkId: TestnetId
+          , slotConfig: defaultSlotConfig
+          , logLevel: Trace
+          , extraConfig: {}
+          , wallet: Just wallet
+          }
 
-          runContract_ cfg do
-            logInfo' "Running Examples.Pkh2PkhKeyWallet"
-          
-            let
-              constraints :: Constraints.TxConstraints Void Void
-              constraints = Constraints.mustPayToPubKey (wrap (wrap pkh))
-                $ Value.lovelaceValueOf
-                $ BigInt.fromInt 2_000_000
-          
-              lookups :: Lookups.ScriptLookups Void
-              lookups = mempty
-          
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            BalancedSignedTransaction bsTx <-
-              liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-            txId <- submit bsTx.signedTxCbor
-            logInfo' $ "Tx ID: " <> show txId
-            liftEffect unlock
+        runContract_ cfg do
+          logInfo' "Running Examples.Pkh2PkhKeyWallet"
+
+          let
+            constraints :: Constraints.TxConstraints Void Void
+            constraints = Constraints.mustPayToPubKey (wrap (wrap pkh))
+              $ Value.lovelaceValueOf
+              $ BigInt.fromInt 2_000_000
+
+            lookups :: Lookups.ScriptLookups Void
+            lookups = mempty
+
+          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+          BalancedSignedTransaction bsTx <-
+            liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+          txId <- submit bsTx.signedTxCbor
+          logInfo' $ "Tx ID: " <> show txId
+          liftEffect unlock
