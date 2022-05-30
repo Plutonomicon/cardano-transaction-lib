@@ -25,6 +25,8 @@ module QueryM.Ogmios
   , TxHash
   , UtxoQR(..)
   , UtxoQueryResult(..)
+  , aesonArray
+  , aesonObject
   , evaluateTxCall
   , queryChainTipCall
   , queryCurrentEpochCall
@@ -266,14 +268,11 @@ instance DecodeAeson EraSummary where
     pure $ wrap { start, end, parameters }
 
 instance EncodeAeson EraSummary where
-  encodeAeson' (EraSummary { start, end, parameters }) = do
-    s <- encodeAeson' start
-    e <- encodeAeson' end
-    p <- encodeAeson' parameters
+  encodeAeson' (EraSummary { start, end, parameters }) =
     encodeAeson'
-      { "start": s
-      , "end": e
-      , "parameters": p
+      { "start": start
+      , "end": end
+      , "parameters": parameters
       }
 
 newtype EraSummaryTime = EraSummaryTime
@@ -299,14 +298,11 @@ instance DecodeAeson EraSummaryTime where
     pure $ wrap { time, slot, epoch }
 
 instance EncodeAeson EraSummaryTime where
-  encodeAeson' (EraSummaryTime { time, slot, epoch }) = do
-    t <- encodeAeson' time
-    s <- encodeAeson' slot
-    e <- encodeAeson' epoch
+  encodeAeson' (EraSummaryTime { time, slot, epoch }) =
     encodeAeson'
-      { "time": t
-      , "slot": s
-      , "epoch": e
+      { "time": time
+      , "slot": slot
+      , "epoch": epoch
       }
 
 -- | A time in seconds relative to another one (typically, system start or era
@@ -373,14 +369,11 @@ instance DecodeAeson EraSummaryParameters where
     pure $ wrap { epochLength, slotLength, safeZone }
 
 instance EncodeAeson EraSummaryParameters where
-  encodeAeson' (EraSummaryParameters { epochLength, slotLength, safeZone }) = do
-    el <- encodeAeson' epochLength
-    sl <- encodeAeson' slotLength
-    sz <- encodeAeson' safeZone
+  encodeAeson' (EraSummaryParameters { epochLength, slotLength, safeZone }) =
     encodeAeson'
-      { "epochLength": el
-      , "slotLength": sl
-      , "safeZone": sz
+      { "epochLength": epochLength
+      , "slotLength": slotLength
+      , "safeZone": safeZone
       }
 
 -- | An epoch number or length. [ 0 .. 18446744073709552000 ]

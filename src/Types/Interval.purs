@@ -58,17 +58,16 @@ import Aeson
   , JsonDecodeError
       ( TypeMismatch
       )
-  , caseAesonArray
-  , caseAesonObject
+  , aesonNull
   , decodeAeson
+  , encodeAeson
   , encodeAeson'
   , getField
-  , getFieldOptional
   , isNull
   )
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
-import Data.Array (find)
+import Data.Array (find, head, index, length)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, fromNumber, fromString) as BigInt
@@ -89,7 +88,8 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Class (liftEffect)
-import Helpers (bigIntToUInt, liftEither, liftM, uIntToBigInt)
+import Foreign.Object (Object)
+import Helpers (bigIntToUInt, mkErrorRecord, liftEither, liftM, uIntToBigInt)
 import Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
@@ -103,6 +103,7 @@ import QueryM.Ogmios
   , EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
   , SystemStart
+  , aesonObject
   )
 import TypeLevel.Nat (S, Z)
 import ToData (class ToData, genericToData)
@@ -476,8 +477,63 @@ derive instance Eq SlotToPosixTimeError
 instance Show SlotToPosixTimeError where
   show = genericShow
 
+slotToPosixTimeErrorStr :: String
+slotToPosixTimeErrorStr = "slotToPosixTimeError"
+
 instance EncodeAeson SlotToPosixTimeError where
-  encodeAeson' (ParseToDataTime sysStart) = "Parse to Data" 
+  encodeAeson' (CannotFindSlotInEraSummaries absSlot) =
+    encodeAeson' $ mkErrorRecord
+      slotToPosixTimeErrorStr
+      "cannotFindSlotInEraSummaries"
+      [ absSlot ]
+  encodeAeson' (StartingSlotGreaterThanSlot absSlot) = do
+    encodeAeson' $ mkErrorRecord
+      slotToPosixTimeErrorStr
+      "startingSlotGreaterThanSlot"
+      [ absSlot ]
+  encodeAeson' (EndTimeLessThanTime absTime) = do
+    encodeAeson' $ mkErrorRecord
+      slotToPosixTimeErrorStr
+      "endTimeLessThanTime"
+      [ absTime ]
+  encodeAeson' CannotGetBigIntFromNumber = do
+    encodeAeson' $ mkErrorRecord
+      slotToPosixTimeErrorStr
+      "cannotGetBigIntFromNumber"
+      aesonNull
+
+instance DecodeAeson SlotToPosixTimeError where
+  decodeAeson = aesonObject $ \o -> do
+    errorType <- getField o "errorType"
+    unless (errorType == slotToPosixTimeErrorStr)
+      $ throwError
+      $ TypeMismatch "Expected SlotToPosixTimeError"
+    getField o "error" >>= case _ of
+      "cannotFindSlotInEraSummaries" -> do
+        arg <- extractArg o
+        pure $ CannotFindSlotInEraSummaries arg
+      "startingSlotGreaterThanSlot" -> do
+        arg <- extractArg o
+        pure $ StartingSlotGreaterThanSlot arg
+      "endTimeLessThanTime" -> do
+        arg <- extractArg o
+        pure $ EndTimeLessThanTime arg
+      "cannotGetBigIntFromNumber" -> do
+        args <- getField o "args"
+        unless (isNull args) (throwError $ TypeMismatch "Non-empty args")
+        pure CannotGetBigIntFromNumber
+      _ -> throwError $ TypeMismatch "Unknown error message"
+
+-- Extracts a singleton array from an object for "args"
+extractArg
+  :: forall (a :: Type)
+   . DecodeAeson a
+  => Object Aeson
+  -> Either JsonDecodeError a
+extractArg o = do
+  args <- getField o "args"
+  when (length args /= one) (throwError $ TypeMismatch "Incorrect args")
+  note (TypeMismatch "Could not extract head") (head args)
 
 -- Based on:
 -- https://github.com/input-output-hk/cardano-ledger/blob/2acff66e84d63a81de904e1c0de70208ff1819ea/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L186
@@ -552,6 +608,8 @@ derive instance Generic RelSlot _
 derive instance Newtype RelSlot _
 derive newtype instance Eq RelSlot
 derive newtype instance Ord RelSlot
+derive newtype instance DecodeAeson RelSlot
+derive newtype instance EncodeAeson RelSlot
 
 instance Show RelSlot where
   show = genericShow
@@ -565,6 +623,8 @@ derive instance Generic RelTime _
 derive instance Newtype RelTime _
 derive newtype instance Eq RelTime
 derive newtype instance Ord RelTime
+derive newtype instance DecodeAeson RelTime
+derive newtype instance EncodeAeson RelTime
 
 instance Show RelTime where
   show = genericShow
@@ -577,6 +637,8 @@ derive instance Generic ModTime _
 derive instance Newtype ModTime _
 derive newtype instance Eq ModTime
 derive newtype instance Ord ModTime
+derive newtype instance DecodeAeson ModTime
+derive newtype instance EncodeAeson ModTime
 
 instance Show ModTime where
   show = genericShow
@@ -589,6 +651,8 @@ derive instance Generic AbsTime _
 derive instance Newtype AbsTime _
 derive newtype instance Eq AbsTime
 derive newtype instance Ord AbsTime
+derive newtype instance DecodeAeson AbsTime
+derive newtype instance EncodeAeson AbsTime
 
 instance Show AbsTime where
   show = genericShow
@@ -648,6 +712,77 @@ derive instance Eq PosixTimeToSlotError
 
 instance Show PosixTimeToSlotError where
   show = genericShow
+
+posixTimeToSlotErrorStr :: String
+posixTimeToSlotErrorStr = "posixTimeToSlotError"
+
+instance EncodeAeson PosixTimeToSlotError where
+  encodeAeson' (CannotFindTimeInEraSummaries absTime) =
+    encodeAeson' $ mkErrorRecord
+      posixTimeToSlotErrorStr
+      "cannotFindTimeInEraSummaries"
+      [ absTime ]
+  encodeAeson' (PosixTimeBeforeSystemStart posixTime) =
+    encodeAeson' $ mkErrorRecord
+      posixTimeToSlotErrorStr
+      "posixTimeBeforeSystemStart"
+      [ posixTime ]
+  encodeAeson' (StartTimeGreaterThanTime absTime) =
+    encodeAeson' $ mkErrorRecord
+      posixTimeToSlotErrorStr
+      "startTimeGreaterThanTime"
+      [ absTime ]
+  encodeAeson' (EndSlotLessThanSlotOrModNonZero absSlot modTime) =
+    encodeAeson' $ mkErrorRecord
+      posixTimeToSlotErrorStr
+      "endSlotLessThanSlotOrModNonZero"
+      [ encodeAeson absSlot, encodeAeson modTime ]
+  encodeAeson' (CannotConvertAbsSlotToSlot absSlot) =
+    encodeAeson' $ mkErrorRecord
+      posixTimeToSlotErrorStr
+      "cannotConvertAbsSlotToSlot"
+      [ absSlot ]
+  encodeAeson' CannotGetBigIntFromNumber' =
+    encodeAeson' $ mkErrorRecord
+      posixTimeToSlotErrorStr
+      "cannotGetBigIntFromNumber"
+      aesonNull
+
+instance DecodeAeson PosixTimeToSlotError where
+  decodeAeson = aesonObject $ \o -> do
+    errorType <- getField o "errorType"
+    unless (errorType == posixTimeToSlotErrorStr)
+      $ throwError
+      $ TypeMismatch "Expected PosixTimeToSlotError"
+    getField o "error" >>= case _ of
+      "cannotFindTimeInEraSummaries" -> do
+        arg <- extractArg o
+        pure $ CannotFindTimeInEraSummaries arg
+      "posixTimeBeforeSystemStart" -> do
+        arg <- extractArg o
+        pure $ PosixTimeBeforeSystemStart arg
+      "startTimeGreaterThanTime" -> do
+        arg <- extractArg o
+        pure $ StartTimeGreaterThanTime arg
+      "endSlotLessThanSlotOrModNonZero" -> do
+        args <- getField o "args"
+        when (length args /= 2)
+          (throwError $ TypeMismatch "Incorrect args")
+        as <- decodeAeson =<< note
+          (TypeMismatch "Could not extract first element")
+          (index args 0)
+        mt <- decodeAeson =<< note
+          (TypeMismatch "Could not extract second element")
+          (index args 1)
+        pure $ EndSlotLessThanSlotOrModNonZero as mt
+      "cannotConvertAbsSlotToSlot" -> do
+        arg <- extractArg o
+        pure $ CannotConvertAbsSlotToSlot arg
+      "cannotGetBigIntFromNumber'" -> do
+        args <- getField o "args"
+        unless (isNull args) (throwError $ TypeMismatch "Non-empty args")
+        pure CannotGetBigIntFromNumber'
+      _ -> throwError $ TypeMismatch "Unknown error message"
 
 -- | Converts a `POSIXTime` to `Slot` given an `EraSummaries` and
 -- | `SystemStart` queried from Ogmios.
