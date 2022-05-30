@@ -262,8 +262,8 @@ instance DecodeAeson EraSummary where
     pure $ wrap { start, end, parameters }
 
 newtype EraSummaryTime = EraSummaryTime
-  { time :: RelativeTime -- 0-18446744073709552000, A time in seconds relative to
-  -- another one (typically, system start or era start).
+  { time :: RelativeTime -- 0-18446744073709552000, The time is relative to the
+  -- start time of the network.
   , slot :: AbsSlot -- 0-18446744073709552000, An absolute slot number. don't
   -- use `Slot` because Slot is bounded by UInt ~ 0-4294967295.
   , epoch :: Epoch -- 0-18446744073709552000, an epoch number or length, don't
