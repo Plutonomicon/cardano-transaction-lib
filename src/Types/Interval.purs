@@ -795,17 +795,22 @@ slotRangeToTransactionValidity
   (Interval { from: LowerBound start startInc, to: UpperBound end endInc }) =
   { validityStartInterval, timeToLive }
   where
+  -- https://github.com/input-output-hk/cardano-ledger/blob/94b1ae3d6b66f4232f34060d89c2f12628998ef2/eras/shelley-ma/impl/src/Cardano/Ledger/ShelleyMA/Timelocks.hs#L100-L106
+  -- The lower bound should be closed, so we add one for open bounds.
   validityStartInterval :: Maybe Slot
   validityStartInterval = case start, startInc of
     Finite s, true -> pure s
-    Finite s, false -> pure $ s <> Slot one -- This could be suspect
+    Finite s, false -> pure $ s <> Slot one
     NegInf, _ -> Nothing
     PosInf, _ -> pure maxSlot
 
+  -- https://github.com/input-output-hk/cardano-ledger/blob/94b1ae3d6b66f4232f34060d89c2f12628998ef2/eras/shelley-ma/impl/src/Cardano/Ledger/ShelleyMA/Timelocks.hs#L100-L106
+  -- in accordance to the above, the upper bound is open. So we should add one
+  -- for closed upper bounds.
   timeToLive :: Maybe Slot
   timeToLive = case end, endInc of
-    Finite s, true -> pure s
-    Finite s, false -> pure $ s <> Slot (negate one) -- This could be suspect
+    Finite s, true -> pure $ s <> Slot one
+    Finite s, false -> pure s
     NegInf, _ -> pure $ Slot zero
     PosInf, _ -> Nothing
 
