@@ -47,6 +47,7 @@ import Aeson
   , caseAesonArray
   , caseAesonObject
   , decodeAeson
+  , encodeAeson'
   , getField
   , getFieldOptional
   , isNull
@@ -199,6 +200,7 @@ newtype SystemStart = SystemStart String
 derive instance Generic SystemStart _
 derive instance Newtype SystemStart _
 derive newtype instance DecodeAeson SystemStart
+derive newtype instance EncodeAeson SystemStart
 derive newtype instance Eq SystemStart
 
 instance Show SystemStart where
@@ -210,6 +212,7 @@ newtype CurrentEpoch = CurrentEpoch BigInt
 derive instance Generic CurrentEpoch _
 derive instance Newtype CurrentEpoch _
 derive newtype instance DecodeAeson CurrentEpoch
+derive newtype instance EncodeAeson CurrentEpoch
 derive newtype instance Eq CurrentEpoch
 derive newtype instance Ord CurrentEpoch
 
@@ -222,6 +225,7 @@ newtype EraSummaries = EraSummaries (Array EraSummary)
 
 derive instance Generic EraSummaries _
 derive instance Newtype EraSummaries _
+derive newtype instance EncodeAeson EraSummaries
 
 instance Show EraSummaries where
   show = genericShow
@@ -261,6 +265,17 @@ instance DecodeAeson EraSummary where
     parameters <- getField o "parameters"
     pure $ wrap { start, end, parameters }
 
+instance EncodeAeson EraSummary where
+  encodeAeson' (EraSummary { start, end, parameters }) = do
+    s <- encodeAeson' start
+    e <- encodeAeson' end
+    p <- encodeAeson' parameters
+    encodeAeson'
+      { "start": s
+      , "end": e
+      , "parameters": p
+      }
+
 newtype EraSummaryTime = EraSummaryTime
   { time :: RelativeTime -- 0-18446744073709552000, The time is relative to the
   -- start time of the network.
@@ -283,6 +298,17 @@ instance DecodeAeson EraSummaryTime where
     epoch <- getField o "epoch"
     pure $ wrap { time, slot, epoch }
 
+instance EncodeAeson EraSummaryTime where
+  encodeAeson' (EraSummaryTime { time, slot, epoch }) = do
+    t <- encodeAeson' time
+    s <- encodeAeson' slot
+    e <- encodeAeson' epoch
+    encodeAeson'
+      { "time": t
+      , "slot": s
+      , "epoch": e
+      }
+
 -- | A time in seconds relative to another one (typically, system start or era
 -- | start). [ 0 .. 18446744073709552000 ]
 newtype RelativeTime = RelativeTime BigInt
@@ -292,6 +318,7 @@ derive instance Newtype RelativeTime _
 derive newtype instance Eq RelativeTime
 derive newtype instance Ord RelativeTime
 derive newtype instance DecodeAeson RelativeTime
+derive newtype instance EncodeAeson RelativeTime
 
 instance Show RelativeTime where
   show = genericShow
@@ -304,6 +331,7 @@ derive instance Newtype AbsSlot _
 derive newtype instance Eq AbsSlot
 derive newtype instance Ord AbsSlot
 derive newtype instance DecodeAeson AbsSlot
+derive newtype instance EncodeAeson AbsSlot
 
 instance Show AbsSlot where
   show = genericShow
@@ -317,6 +345,7 @@ derive instance Newtype Epoch _
 derive newtype instance Eq Epoch
 derive newtype instance Ord Epoch
 derive newtype instance DecodeAeson Epoch
+derive newtype instance EncodeAeson Epoch
 
 instance Show Epoch where
   show = genericShow
@@ -343,12 +372,24 @@ instance DecodeAeson EraSummaryParameters where
     safeZone <- getField o "safeZone"
     pure $ wrap { epochLength, slotLength, safeZone }
 
+instance EncodeAeson EraSummaryParameters where
+  encodeAeson' (EraSummaryParameters { epochLength, slotLength, safeZone }) = do
+    el <- encodeAeson' epochLength
+    sl <- encodeAeson' slotLength
+    sz <- encodeAeson' safeZone
+    encodeAeson'
+      { "epochLength": el
+      , "slotLength": sl
+      , "safeZone": sz
+      }
+
 -- | An epoch number or length. [ 0 .. 18446744073709552000 ]
 newtype EpochLength = EpochLength BigInt
 
 derive instance Generic EpochLength _
 derive instance Newtype EpochLength _
 derive newtype instance DecodeAeson EpochLength
+derive newtype instance EncodeAeson EpochLength
 
 instance Show EpochLength where
   show = genericShow
@@ -359,6 +400,7 @@ newtype SlotLength = SlotLength BigInt
 derive instance Generic SlotLength _
 derive instance Newtype SlotLength _
 derive newtype instance DecodeAeson SlotLength
+derive newtype instance EncodeAeson SlotLength
 
 instance Show SlotLength where
   show = genericShow
@@ -371,6 +413,7 @@ newtype SafeZone = SafeZone BigInt
 derive instance Generic SafeZone _
 derive instance Newtype SafeZone _
 derive newtype instance DecodeAeson SafeZone
+derive newtype instance EncodeAeson SafeZone
 
 instance Show SafeZone where
   show = genericShow

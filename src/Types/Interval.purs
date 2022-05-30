@@ -51,6 +51,21 @@ module Types.Interval
 
 import Prelude
 
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , Aeson
+  , JsonDecodeError
+      ( TypeMismatch
+      )
+  , caseAesonArray
+  , caseAesonObject
+  , decodeAeson
+  , encodeAeson'
+  , getField
+  , getFieldOptional
+  , isNull
+  )
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Data.Array (find)
@@ -391,6 +406,8 @@ derive newtype instance Ord POSIXTime
 derive newtype instance Semiring POSIXTime
 derive newtype instance FromData POSIXTime
 derive newtype instance ToData POSIXTime
+derive newtype instance DecodeAeson POSIXTime
+derive newtype instance EncodeAeson POSIXTime
 
 instance Show POSIXTime where
   show = genericShow
@@ -459,6 +476,9 @@ derive instance Eq SlotToPosixTimeError
 
 instance Show SlotToPosixTimeError where
   show = genericShow
+
+instance EncodeAeson SlotToPosixTimeError where
+  encodeAeson' (ParseToDataTime sysStart) = "Parse to Data" 
 
 -- Based on:
 -- https://github.com/input-output-hk/cardano-ledger/blob/2acff66e84d63a81de904e1c0de70208ff1819ea/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L186
