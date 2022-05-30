@@ -14,7 +14,7 @@ import Data.Array (elemIndex)
 import Data.BigInt (fromInt)
 import Data.Either (Either(Right), note)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(Just))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
 import Data.Tuple (fst)
@@ -65,4 +65,5 @@ reindexSpentScriptRedeemers' inputs redeemersTxIns = runExceptT do
       index <- note (CannotGetTxOutRefIndexForRedeemer red)
         (fromInt <$> elemIndex txOutRef ipts)
       Right $ T.Redeemer red' { index = index } /\ Just txOutRef
+    red@(T.Redeemer { tag: Spend }) /\ Nothing -> Right $ red /\ Nothing
     mintRed /\ txOutRef -> Right $ mintRed /\ txOutRef
