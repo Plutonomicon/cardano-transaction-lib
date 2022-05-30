@@ -100,9 +100,13 @@ Here is an example that uses the overlay to launch runtime services:
       # shared between `buildCtlRuntime` and `launchCtlRuntime`, as shown below
       #
       # You can refer to the final configuration value by passing a function
-      # that takes a single arugment. Alternately, you can pass an attrset
+      # that takes a single arugment. Alternatively, you can pass an attrset
       # directly
       runtimeConfig = final: with final; {
+        network = {
+          name = "testnet";
+          magic = 1097911063;
+        };
         # *All* of these values are optional, and shown with their default
         # values. If you need even more customization, you can use `overideAttrs`
         # to change the values after calling `buildCtlRuntime` (e.g. a secrets
@@ -424,6 +428,24 @@ Furthermore, CTL exposes an `overlay` from its flake. You can use this in the Ni
 ```
 
 We have recenly set up a small scaffolding repository for projects wishing to adopt CTL: https://github.com/mlabs-haskell/ctl-scaffold. More documentation and resources will be added soon to the repo
+
+### Changing network configurations.
+
+CTL supports using networks other than testnet to provide development environment.
+
+First you need to specify an alternative way of getting the network configuration.
+
+[cardano-configurations](https://github.com/input-output-hk/cardano-configurations) repo provides configs for `mainnet`, `staging` and a few other networks.
+
+Which of the network config directories is chosen is determined by `network.name` parameter of `buildCtlRuntime`
+
+You can specify your own fork of `cardano-configurations` like this:
+
+```
+inputs.cardano-transaction-lib.inputs.cardano-configurations.follows = "...";
+```
+
+When changing networks, make sure that `network.magic` is correctly synchronized with value in config (see `protocolConsts.protocolMagic` in `byron.json`).
 
 ## Architecture
 
