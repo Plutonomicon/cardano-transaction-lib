@@ -465,8 +465,7 @@ maxSlot = Slot $ unsafePartial fromJust $ UInt.fromString "4294967295"
 -- to POSIXTime (milliseconds)
 --------------------------------------------------------------------------------
 data SlotToPosixTimeError
-  = ParseToDataTime SystemStart
-  | CannotFindSlotInEraSummaries AbsSlot
+  = CannotFindSlotInEraSummaries AbsSlot
   | StartingSlotGreaterThanSlot AbsSlot
   | EndTimeLessThanTime AbsTime
   | CannotGetBigIntFromNumber
