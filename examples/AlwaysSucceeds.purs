@@ -7,11 +7,25 @@ import Contract.Prelude
 
 import Contract.Address (scriptHashAddress)
 import Contract.Aeson (decodeAeson, fromString)
-import Contract.Monad (ContractConfig(ContractConfig), launchAff_, liftContractM, liftedE, liftedM, logInfo', runContract_, traceContractConfig, Contract)
+import Contract.Monad
+  ( ContractConfig(ContractConfig)
+  , launchAff_
+  , liftContractM
+  , liftedE
+  , liftedM
+  , logInfo'
+  , runContract_
+  , traceContractConfig
+  , Contract
+  )
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, validatorHash)
-import Contract.Transaction (BalancedSignedTransaction(BalancedSignedTransaction), balanceAndSignTx, submit)
+import Contract.Transaction
+  ( BalancedSignedTransaction(BalancedSignedTransaction)
+  , balanceAndSignTx
+  , submit
+  )
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
@@ -40,7 +54,7 @@ main = launchAff_ $ do
 
 countToZero :: Int -> Contract () Unit
 countToZero n =
-  unless (n <= 0)  do
+  unless (n <= 0) do
     logInfo' $ "Waiting before we try to unlock: " <> show n
     (liftAff <<< delay <<< wrap) 1000.0
     countToZero (n - 1)
@@ -69,7 +83,9 @@ spendFromAlwaysSucceeds
 spendFromAlwaysSucceeds vhash validator txId = do
   let scriptAddress = scriptHashAddress vhash
   UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt scriptAddress
-  case fst<$>find hasTransactionId (Map.toUnfoldable utxos :: Array (_ /\ _)) of
+  case
+    fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array (_ /\ _))
+    of
     Just txInput ->
       let
         lookups :: Lookups.ScriptLookups PlutusData
@@ -88,7 +104,7 @@ spendFromAlwaysSucceeds vhash validator txId = do
         <> show scriptAddress
   where
   hasTransactionId :: TransactionInput /\ _ -> Boolean
-  hasTransactionId (TransactionInput tx /\ _ )=
+  hasTransactionId (TransactionInput tx /\ _) =
     tx.transactionId == txId
 
 buildBalanceSignAndSubmitTx
