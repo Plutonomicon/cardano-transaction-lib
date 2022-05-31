@@ -225,8 +225,8 @@ testSlotToPosixTime = do
         eSlot <- posixTimeToSlot es ss posixTime
         either (throw <<< show) (shouldEqual slot) eSlot
 
-mkSlot :: Int -> Slot
-mkSlot = Slot <<< UInt.fromInt
+  mkSlot :: Int -> Slot
+  mkSlot = Slot <<< UInt.fromInt
 
 testPosixTimeToSlotError :: Aff Unit
 testPosixTimeToSlotError = do

@@ -49,7 +49,7 @@ import Types.Interval
   )
 
 absSlotFixture :: AbsSlot
-absSlotFixture = AbsSlot $ BigInt.fromInt 34892625
+absSlotFixture = mkAbsSlot 34892625
 
 absTimeFixture :: AbsTime
 absTimeFixture = AbsTime $ BigInt.fromInt 321541237
@@ -78,6 +78,24 @@ currentEpochFixture = CurrentEpoch $ BigInt.fromInt 58326646
 systemStartFixture :: SystemStart
 systemStartFixture = SystemStart "2019-07-24T20:20:16Z"
 
+mkRelativeTime :: Int -> RelativeTime
+mkRelativeTime = RelativeTime <<< BigInt.fromInt
+
+mkAbsSlot :: Int -> AbsSlot
+mkAbsSlot = AbsSlot <<< BigInt.fromInt
+
+mkEpoch :: Int -> Epoch
+mkEpoch = Epoch <<< BigInt.fromInt
+
+mkEpochLength :: Int -> EpochLength
+mkEpochLength = EpochLength <<< BigInt.fromInt
+
+mkSlotLength :: Int -> SlotLength
+mkSlotLength = SlotLength <<< BigInt.fromInt
+
+mkSafeZone :: Int -> SafeZone
+mkSafeZone = SafeZone <<< BigInt.fromInt
+
 eraSummariesFixture :: EraSummaries
 eraSummariesFixture = EraSummaries
   [ EraSummary
@@ -87,78 +105,78 @@ eraSummariesFixture = EraSummaries
           , "epoch": Epoch zero
           }
       , "end": Just $ EraSummaryTime
-          { "time": RelativeTime $ BigInt.fromInt 31968000
-          , "slot": AbsSlot $ BigInt.fromInt 1598400
-          , "epoch": Epoch $ BigInt.fromInt 74
+          { "time": mkRelativeTime 31968000
+          , "slot": mkAbsSlot 1598400
+          , "epoch": mkEpoch 74
           }
       , "parameters": EraSummaryParameters
-          { "epochLength": EpochLength $ BigInt.fromInt 21600
-          , "slotLength": SlotLength $ BigInt.fromInt 20
-          , "safeZone": SafeZone $ BigInt.fromInt 129600
+          { "epochLength": mkEpochLength 21600
+          , "slotLength": mkSlotLength 20
+          , "safeZone": mkSafeZone 129600
           }
       }
   , EraSummary
       { "start": EraSummaryTime
-          { "time": RelativeTime $ BigInt.fromInt 31968000
-          , "slot": AbsSlot $ BigInt.fromInt 1598400
-          , "epoch": Epoch $ BigInt.fromInt 74
+          { "time": mkRelativeTime 31968000
+          , "slot": mkAbsSlot 1598400
+          , "epoch": mkEpoch 74
           }
       , "end": Just $ EraSummaryTime
-          { "time": RelativeTime $ BigInt.fromInt 44064000
-          , "slot": AbsSlot $ BigInt.fromInt 13694400
-          , "epoch": Epoch $ BigInt.fromInt 102
+          { "time": mkRelativeTime 44064000
+          , "slot": mkAbsSlot 13694400
+          , "epoch": mkEpoch 102
           }
       , "parameters": EraSummaryParameters
-          { "epochLength": EpochLength $ BigInt.fromInt 432000
+          { "epochLength": mkEpochLength 432000
           , "slotLength": SlotLength one
-          , "safeZone": SafeZone $ BigInt.fromInt 129600
+          , "safeZone": mkSafeZone 129600
           }
       }
   , EraSummary
       { "start": EraSummaryTime
-          { "time": RelativeTime $ BigInt.fromInt 44064000
-          , "slot": AbsSlot $ BigInt.fromInt 13694400
-          , "epoch": Epoch $ BigInt.fromInt 102
+          { "time": mkRelativeTime 44064000
+          , "slot": mkAbsSlot 13694400
+          , "epoch": mkEpoch 102
           }
       , "end": Just $ EraSummaryTime
-          { "time": RelativeTime $ BigInt.fromInt 48384000
-          , "slot": AbsSlot $ BigInt.fromInt 18014400
-          , "epoch": Epoch $ BigInt.fromInt 112
+          { "time": mkRelativeTime 48384000
+          , "slot": mkAbsSlot 18014400
+          , "epoch": mkEpoch 112
           }
       , "parameters": EraSummaryParameters
-          { "epochLength": EpochLength $ BigInt.fromInt 432000
+          { "epochLength": mkEpochLength 432000
           , "slotLength": SlotLength one
-          , "safeZone": SafeZone $ BigInt.fromInt 129600
+          , "safeZone": mkSafeZone 129600
           }
       }
   , EraSummary
       { "start": EraSummaryTime
-          { "time": RelativeTime $ BigInt.fromInt 48384000
-          , "slot": AbsSlot $ BigInt.fromInt 18014400
-          , "epoch": Epoch $ BigInt.fromInt 112
+          { "time": mkRelativeTime 48384000
+          , "slot": mkAbsSlot 18014400
+          , "epoch": mkEpoch 112
           }
       , "end": Just $ EraSummaryTime
-          { "time": RelativeTime $ BigInt.fromInt 66528000
-          , "slot": AbsSlot $ BigInt.fromInt 36158400
-          , "epoch": Epoch $ BigInt.fromInt 154
+          { "time": mkRelativeTime 66528000
+          , "slot": mkAbsSlot 36158400
+          , "epoch": mkEpoch 154
           }
       , "parameters": EraSummaryParameters
-          { "epochLength": EpochLength $ BigInt.fromInt 432000
+          { "epochLength": mkEpochLength 432000
           , "slotLength": SlotLength one
-          , "safeZone": SafeZone $ BigInt.fromInt 129600
+          , "safeZone": mkSafeZone 129600
           }
       }
   , EraSummary
       { "start": EraSummaryTime
-          { "time": RelativeTime $ BigInt.fromInt 66528000
-          , "slot": AbsSlot $ BigInt.fromInt 36158400
-          , "epoch": Epoch $ BigInt.fromInt 154
+          { "time": mkRelativeTime 66528000
+          , "slot": mkAbsSlot 36158400
+          , "epoch": mkEpoch 154
           }
       , "end": Nothing
       , "parameters": EraSummaryParameters
-          { "epochLength": EpochLength $ BigInt.fromInt 432000
+          { "epochLength": mkEpochLength 432000
           , "slotLength": SlotLength one
-          , "safeZone": SafeZone $ BigInt.fromInt 129600
+          , "safeZone": mkSafeZone 129600
           }
       }
   ]
