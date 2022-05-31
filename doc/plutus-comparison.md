@@ -95,10 +95,15 @@ Using JSON is probably the simplest way of providing scripts to your CTL contrac
 - Embedding the scripts into a Purescript module directly, using the JS FFI. For example:
   ```purescript
   mintingPolicy :: Either JsonDecodeError MintingPolicy
-  mintingPolicy = caseAesonObject (Left $ TypeMismatch "Expected Object") $
-    ...
+  mintingPolicy = wrap <$> decodeAeson _mintingPolicy
 
   foreign import _mintingPolicy :: Aeson
+  ```
+
+  The corresponding FFI module would contain:
+
+  ```js
+  exports._mintingPolicy = "deadbeef";
   ```
 
   As shown above, such embedded scripts can be decoded as JSON for greater type safety, rather than attempting to pass types directly across the FFI boundary (which performs no validity checks)
