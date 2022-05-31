@@ -227,6 +227,7 @@ newtype EraSummaries = EraSummaries (Array EraSummary)
 
 derive instance Generic EraSummaries _
 derive instance Newtype EraSummaries _
+derive newtype instance Eq EraSummaries
 derive newtype instance EncodeAeson EraSummaries
 
 instance Show EraSummaries where
@@ -251,6 +252,7 @@ newtype EraSummary = EraSummary
 
 derive instance Generic EraSummary _
 derive instance Newtype EraSummary _
+derive newtype instance Eq EraSummary
 
 instance Show EraSummary where
   show = genericShow
@@ -286,6 +288,7 @@ newtype EraSummaryTime = EraSummaryTime
 
 derive instance Generic EraSummaryTime _
 derive instance Newtype EraSummaryTime _
+derive newtype instance Eq EraSummaryTime
 
 instance Show EraSummaryTime where
   show = genericShow
@@ -357,6 +360,7 @@ newtype EraSummaryParameters = EraSummaryParameters
 
 derive instance Generic EraSummaryParameters _
 derive instance Newtype EraSummaryParameters _
+derive newtype instance Eq EraSummaryParameters
 
 instance Show EraSummaryParameters where
   show = genericShow
@@ -381,6 +385,7 @@ newtype EpochLength = EpochLength BigInt
 
 derive instance Generic EpochLength _
 derive instance Newtype EpochLength _
+derive newtype instance Eq EpochLength
 derive newtype instance DecodeAeson EpochLength
 derive newtype instance EncodeAeson EpochLength
 
@@ -392,6 +397,7 @@ newtype SlotLength = SlotLength BigInt
 
 derive instance Generic SlotLength _
 derive instance Newtype SlotLength _
+derive newtype instance Eq SlotLength
 derive newtype instance DecodeAeson SlotLength
 derive newtype instance EncodeAeson SlotLength
 
@@ -405,6 +411,7 @@ newtype SafeZone = SafeZone BigInt
 
 derive instance Generic SafeZone _
 derive instance Newtype SafeZone _
+derive newtype instance Eq SafeZone
 derive newtype instance DecodeAeson SafeZone
 derive newtype instance EncodeAeson SafeZone
 

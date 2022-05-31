@@ -9,6 +9,7 @@ module Types.Interval
   , POSIXTime(..)
   , POSIXTimeRange
   , PosixTimeToSlotError(..)
+  , RelSlot(..)
   , RelTime(..)
   , SlotRange
   , SlotToPosixTimeError(..)
@@ -391,7 +392,7 @@ after :: forall (a :: Type). Ord a => a -> Interval a -> Boolean
 after h (Interval { to: to' }) = upperBound h > to'
 
 --------------------------------------------------------------------------------
--- POSIXTIME Type and related
+-- POSIXTime Type and related
 --------------------------------------------------------------------------------
 -- Taken from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/Plutus-V1-Ledger-Time.html#t:POSIXTimeRange
 -- Plutus rev: cc72a56eafb02333c96f662581b57504f8f8992f via Plutus-apps (localhost): abe4785a4fc4a10ba0c4e6417f0ab9f1b4169b26
@@ -601,6 +602,7 @@ findSlotEraSummary (EraSummaries eraSummaries) os =
   pred (EraSummary { start, end }) =
     (unwrap start).slot <= os && maybe true ((<) os <<< _.slot <<< unwrap) end
 
+-- This doesn't need to be exported but we can do it for tests.
 -- | Relative slot of an `AbsSlot` within an `EraSummary`
 newtype RelSlot = RelSlot BigInt
 
@@ -745,7 +747,7 @@ instance EncodeAeson PosixTimeToSlotError where
   encodeAeson' CannotGetBigIntFromNumber' =
     encodeAeson' $ mkErrorRecord
       posixTimeToSlotErrorStr
-      "cannotGetBigIntFromNumber"
+      "cannotGetBigIntFromNumber'"
       aesonNull
 
 instance DecodeAeson PosixTimeToSlotError where
@@ -987,6 +989,36 @@ derive instance Eq ToOnChainPosixTimeRangeError
 
 instance Show ToOnChainPosixTimeRangeError where
   show = genericShow
+
+toOnChainPosixTimeRangeErrorStr :: String
+toOnChainPosixTimeRangeErrorStr = "ToOnChainPosixTimeRangeError"
+
+instance EncodeAeson ToOnChainPosixTimeRangeError where
+  encodeAeson' (PosixTimeToSlotError' err) =
+    encodeAeson' $ mkErrorRecord
+      toOnChainPosixTimeRangeErrorStr
+      "posixTimeToSlotError'"
+      [ err ]
+  encodeAeson' (SlotToPosixTimeError' err) =
+    encodeAeson' $ mkErrorRecord
+      toOnChainPosixTimeRangeErrorStr
+      "slotToPosixTimeError'"
+      [ err ]
+
+instance DecodeAeson ToOnChainPosixTimeRangeError where
+  decodeAeson = aesonObject $ \o -> do
+    errorType <- getField o "errorType"
+    unless (errorType == toOnChainPosixTimeRangeErrorStr)
+      $ throwError
+      $ TypeMismatch "Expected ToOnChainPosixTimeRangeError"
+    getField o "error" >>= case _ of
+      "posixTimeToSlotError'" -> do
+        arg <- extractArg o
+        pure $ PosixTimeToSlotError' arg
+      "slotToPosixTimeError'" -> do
+        arg <- extractArg o
+        pure $ SlotToPosixTimeError' arg
+      _ -> throwError $ TypeMismatch "Unknown error message"
 
 -- https://github.com/input-output-hk/cardano-ledger/blob/2acff66e84d63a81de904e1c0de70208ff1819ea/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L206-L226
 -- | Create an `OnchainPOSIXTimeRange` to do a round trip from an off-chain
