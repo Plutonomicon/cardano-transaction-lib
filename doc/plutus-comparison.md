@@ -4,7 +4,15 @@ This document outlines the core differences between the APIs of CTL and Plutus c
 
 Note that differences between Haskell and Purescript, while also relevant to such a comparison, is beyond the scope of this document unless such differences have a direct bearing on divergences between the two APIs.
 
-## The `Contract` type
+## Core conceptual differences
+
+### Library vs. process
+
+Unlike contracts written for PAB, which are compiled to a single process, CTL is a library. CTL itself can be imported as a Purescript library (see the [readme](../README.md) for more details) and contracts written in CTL compile to Javascript that can be run in the browser or NodeJS. Accordingly, there is no need to activate endpoints in CTL -- contracts are executed by calling effectful functions written using the library. This distinction has influenced our adaption of Plutus' `Contract` type, as outlined [below](#the-contract-type).
+
+Note, however, that CTL still requires a number of runtime dependencies. In some respects, this is similar to PAB, which also needs to communicate with plutus-chain-index and a running node. Please see the [readme](../README.md) for more details on CTL's runtime.
+
+### The `Contract` type
 
 Both CTL and Plutus define `Contract` monads for constructing, balancing, and submitting transactions. There are considerable differences between the two, however:
 
