@@ -93,6 +93,7 @@ Using JSON is probably the simplest way of providing scripts to your CTL contrac
 
 - Storing the script JSON as part of your build configuration, to be read from disk upon application startup
 - Embedding the scripts into a Purescript module directly, using the JS FFI. For example:
+
   ```purescript
   mintingPolicy :: Either JsonDecodeError MintingPolicy
   mintingPolicy = wrap <$> decodeAeson _mintingPolicy
@@ -110,4 +111,49 @@ Using JSON is probably the simplest way of providing scripts to your CTL contrac
 
 ### Applying arguments to parameterized scripts
 
-TODO
+CTL is currently unable to build full UPLC ASTs on the frontend (although support for this may be added in the future). This means that Plutus' `applyCode`, which is the default method for applying arguments to parameterized scripts, has no direct equivalent in CTL. We do, however, support a workaround for applying arguments to parameterized scripts. `Contract.Scripts.applyArgs` allows you to apply a list of `PlutusData` arguments to any type isomorphic to a `PlutusScript`. Using this allows you to dynamically apply arguments during contract execution, but also implies the following:
+
+- `applyArgs` must be effectful, as we use our Haskell server to do the actual script application
+- All of your domain types must have `Contract.PlutusData.ToData` instances (or some other way of converting them to `PlutusData`)
+- You must employ a workaround, illustrated by the following examples, in your off-chain code to ensure that the applied scripts are valid for both on- and off-chain code. This essentially consists of creating an wrapper which accepts `Data` arguments for your parameterized scripts:
+
+  - PlutusTx:
+
+    ```haskell
+    mkTestValidator :: Integer -> BuiltinData -> BuiltinData -> BuiltinData -> ()
+    mkTestValidator _ _ _ _ = ()
+
+    -- This is the wrapper function
+    mkTestValidatorUntyped :: BuiltinData -> BuiltinData -> BuiltinData -> BuiltinData -> ()
+    mkTestValidatorUntyped p =
+      mkTestValidator
+        (unsafeFromBuiltinData p)
+
+    testScript :: Script
+    testScript =
+      fromCompiledCode
+      $$(PlutusTx.compile [|| mkTestValidatorUntyped ||])
+
+    testValidator :: Integer -> Validator
+    testValidator params =
+      mkValidatorScript
+      -- `toBuiltinData` is redundant here but it makes the signature match
+      ($$(PlutusTx.compile [|| mkTestValidatorUntyped ||]) `PlutusTx.applyCode` PlutusTx.liftCode (PlutusTx.toBuiltinData params))
+    ```
+
+  - Plutarch:
+
+    ```haskell
+    mkTestValidator :: Term s (PInteger :--> PData :--> PData :--> PScriptContext :--> POpaque)
+    mkTestValidator = plam $ \_i _datm _redm _ctx -> popaque $ pconstant ()
+
+    mkTestValidatorUntyped :: Term s (PData :--> PData :--> PData :--> PScriptContext :--> POpaque)
+    mkTestValidatorUntyped = plam $ \iData -> ptryFrom @(PAsData PInteger) iData $ \(_, i) -> mkTestValidator # i
+
+    testScript :: Script
+    testScript = compile mkTestValidatorUntyped
+
+    testValidator :: Integer -> Validator
+    testValidator i = mkValidator $ mkTestValidator # pconstant i
+
+    ```
