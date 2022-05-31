@@ -237,7 +237,7 @@ derive instance Newtype NonAdaAsset _
 derive newtype instance Eq NonAdaAsset
 
 instance Show NonAdaAsset where
-  show (NonAdaAsset nonAdaAsset) = "(NonAdaAsset" <> show nonAdaAsset <> ")"
+  show (NonAdaAsset nonAdaAsset) = "(NonAdaAsset " <> show nonAdaAsset <> ")"
 
 instance Semigroup NonAdaAsset where
   append = unionWithNonAda (+)

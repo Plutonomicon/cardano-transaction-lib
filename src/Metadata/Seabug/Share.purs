@@ -32,7 +32,7 @@ instance ToMetadata Share where
 
 instance FromMetadata Share where
   fromMetadata (Metadata.Int n) =
-    Int.toBigInt n >>= BigInt.toInt >>= mkShare
+    BigInt.toInt (Int.toBigInt n) >>= mkShare
   fromMetadata _ = Nothing
 
 instance Show Share where
