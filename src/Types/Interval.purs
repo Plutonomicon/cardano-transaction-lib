@@ -393,7 +393,7 @@ derive newtype instance FromData POSIXTime
 derive newtype instance ToData POSIXTime
 
 instance Show POSIXTime where
-  show = genericShow
+  show (POSIXTime pt) = "(POSIXTime (" <> show pt <> "))"
 
 -- | An `Interval` of `POSIXTime`s. To be used in off-chain CTL contracts
 type POSIXTimeRange = Interval POSIXTime
@@ -534,7 +534,7 @@ derive newtype instance Eq RelSlot
 derive newtype instance Ord RelSlot
 
 instance Show RelSlot where
-  show = genericShow
+  show (RelSlot rs) = "(RelSlot (" <> show rs <> "))"
 
 -- | Relative time to the start of an `EraSummary`. Contract this to
 -- | `Ogmios.QueryM.RelativeTime` which is usually relative to system start.
@@ -547,7 +547,7 @@ derive newtype instance Eq RelTime
 derive newtype instance Ord RelTime
 
 instance Show RelTime where
-  show = genericShow
+  show (RelTime rt) = "(RelTime (" <> show rt <> "))"
 
 -- | Any leftover time from using `mod` when dividing my slot length.
 -- | Treat as Milliseconds
@@ -559,7 +559,7 @@ derive newtype instance Eq ModTime
 derive newtype instance Ord ModTime
 
 instance Show ModTime where
-  show = genericShow
+  show (ModTime mt) = "(ModTime (" <> show mt <> "))"
 
 -- | Absolute time relative to System Start, not UNIX epoch.
 -- | Treat as Milliseconds
@@ -571,7 +571,7 @@ derive newtype instance Eq AbsTime
 derive newtype instance Ord AbsTime
 
 instance Show AbsTime where
-  show = genericShow
+  show (AbsTime at) = "(AbsTime (" <> show at <> "))"
 
 -- | Find the relative slot provided we know the `AbsSlot` for an absolute slot
 -- | given an `EraSummary`. We could relax the `Either` monad if we use this

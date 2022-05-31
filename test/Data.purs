@@ -168,7 +168,9 @@ newtype MyBigInt = MyBigInt BigInt
 derive newtype instance ToData MyBigInt
 derive newtype instance FromData MyBigInt
 derive newtype instance Eq MyBigInt
-derive newtype instance Show MyBigInt
+
+instance Show MyBigInt where
+  show (MyBigInt bi) = "(MyBigInt (" <> show bi <> "))"
 
 instance Arbitrary MyBigInt where
   arbitrary = do

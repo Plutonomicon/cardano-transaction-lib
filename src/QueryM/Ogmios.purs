@@ -214,7 +214,7 @@ derive newtype instance Eq CurrentEpoch
 derive newtype instance Ord CurrentEpoch
 
 instance Show CurrentEpoch where
-  show = genericShow
+  show (CurrentEpoch ce) = "(CurrentEpoch (" <> show ce <> "))"
 
 ---------------- ERA SUMMARY QUERY RESPONSE & PARSING
 
@@ -294,7 +294,7 @@ derive newtype instance Ord RelativeTime
 derive newtype instance DecodeAeson RelativeTime
 
 instance Show RelativeTime where
-  show = genericShow
+  show (RelativeTime rt) = "(RelativeTime (" <> show rt <> "))"
 
 -- | Absolute slot relative to SystemStart. [ 0 .. 18446744073709552000 ]
 newtype AbsSlot = AbsSlot BigInt
@@ -306,7 +306,7 @@ derive newtype instance Ord AbsSlot
 derive newtype instance DecodeAeson AbsSlot
 
 instance Show AbsSlot where
-  show = genericShow
+  show (AbsSlot as) = "(AbsSlot (" <> show as <> "))"
 
 -- | An epoch number or length with greater precision for Ogmios than
 -- | `Cardano.Types.Epoch`. [ 0 .. 18446744073709552000 ]
@@ -319,7 +319,7 @@ derive newtype instance Ord Epoch
 derive newtype instance DecodeAeson Epoch
 
 instance Show Epoch where
-  show = genericShow
+  show (Epoch e) = "(Epoch (" <> show e <> "))"
 
 newtype EraSummaryParameters = EraSummaryParameters
   { epochLength :: EpochLength -- 0-18446744073709552000 An epoch number or length.
@@ -351,7 +351,7 @@ derive instance Newtype EpochLength _
 derive newtype instance DecodeAeson EpochLength
 
 instance Show EpochLength where
-  show = genericShow
+  show (EpochLength el) = "(EpochLength (" <> show el <> "))"
 
 -- | A slot length, in seconds <= 18446744073709552000
 newtype SlotLength = SlotLength BigInt
@@ -361,7 +361,7 @@ derive instance Newtype SlotLength _
 derive newtype instance DecodeAeson SlotLength
 
 instance Show SlotLength where
-  show = genericShow
+  show (SlotLength sl) = "(SlotLength (" <> show sl <> "))"
 
 -- | Number of slots from the tip of the ledger in which it is guaranteed that
 -- | no hard fork can take place. This should be (at least) the number of slots
@@ -373,7 +373,7 @@ derive instance Newtype SafeZone _
 derive newtype instance DecodeAeson SafeZone
 
 instance Show SafeZone where
-  show = genericShow
+  show (SafeZone sz) = "(SafeZone (" <> show sz <> "))"
 
 ---------------- TX EVALUATION QUERY RESPONSE & PARSING
 

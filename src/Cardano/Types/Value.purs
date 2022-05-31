@@ -132,7 +132,7 @@ derive instance Newtype Coin _
 derive newtype instance Eq Coin
 
 instance Show Coin where
-  show = genericShow
+  show (Coin c) = "(Coin (" <> show c <> "))"
 
 instance Semigroup Coin where
   append (Coin c1) (Coin c2) = Coin (c1 + c2)
