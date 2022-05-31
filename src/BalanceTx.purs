@@ -104,7 +104,7 @@ import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (DataHash, TransactionInput)
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), _transaction)
-import Wallet (Wallet(Nami))
+import Wallet (Wallet(Gero, Nami))
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
@@ -396,10 +396,12 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
 
       -- After adding collateral, we need to balance the inputs and
       -- non-Ada outputs before looping, i.e. we need to add input fees
-      -- for the Ada only collateral. No MinUtxos required. In fact perhaps
-      -- this step can be skipped and we can go straight to prebalancer.
+      -- for the Ada only collateral. No MinUtxos required. Perhaps
+      -- for some wallets this step can be skipped and we can go straight
+      -- to prebalancer.
       unbalancedCollTx = case wallet of
         Just (Nami _) -> addTxCollateral unbalancedTx' collateral
+        Just (Gero _) -> addTxCollateral unbalancedTx' collateral
         _ -> unbalancedTx'
 
     -- Logging Unbalanced Tx with collateral added:

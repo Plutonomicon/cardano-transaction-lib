@@ -6,14 +6,16 @@
 module Examples.Gero (main) where
 
 import Contract.Prelude
-import Contract.Address (getWalletAddress, getWalletCollateral)
-import Contract.Monad (defaultContractConfig, runContract_)
 
+import Contract.Address (getWalletAddress, getWalletCollateral)
+import Contract.Monad (ContractConfig(..), runContract_, traceContractConfig)
+import Contract.Wallet (mkGeroWalletAff)
 import Effect.Aff (launchAff_)
 
 main :: Effect Unit
 main = launchAff_ $ do
-  cfg <- defaultContractConfig
+  wallet <- Just <$> mkGeroWalletAff
+  cfg <- over ContractConfig _ { wallet = wallet } <$> traceContractConfig
   runContract_ cfg $ do
     log <<< show =<< getWalletAddress
     log <<< show =<< getWalletCollateral
