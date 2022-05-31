@@ -4,6 +4,18 @@ This document outlines the core differences between the APIs of CTL and Plutus c
 
 Note that differences between Haskell and Purescript, while also relevant to such a comparison, is beyond the scope of this document unless such differences have a direct bearing on divergences between the two APIs.
 
+**Table of Contents**
+
+- [Core conceptual differences](#core-conceptual-differences)
+  - [Library vs. process](#library-vs-process)
+  - [The `Contract` type](#the-contract-type)
+- [API differences](#api-differences)
+  - [Constraints and lookups](#constraints-and-lookups)
+  - [Typed scripts](#typed-scripts)
+  - [Working with scripts](#working-with-scripts)
+    - [Using scripts from the frontend](#using-scripts-from-the-frontend)
+    - [Applying arguments to parameterized scripts](#applying-arguments-to-parameterized-scripts)
+
 ## Core conceptual differences
 
 ### Library vs. process
@@ -91,9 +103,9 @@ class DatumType (a :: Type) (b :: Type) | a -> b
 class RedeemerType (a :: Type) (b :: Type) | a -> b
 ```
 
-## Working with scripts
+### Working with scripts
 
-### Using scripts from the frontend
+#### Using scripts from the frontend
 
 As noted above, all scripts and various script newtypes (`Validator`, `MintingPolicy`, etc...) must be explicitly passed to CTL. Unlike Plutus, where on- and off-chain code can freely share Haskell values, scripts must be provided to CTL in a serialized format. The easiest way to do this is via `Contract.Scripts.PlutusScript`'s `DecodeAeson`, instance which decodes the script as JSON. Note that this method is offered solely for convenience; it merely converts a hexadecimal string into `CborBytes` (a `ByteArray` that represents a value encoded as CBOR), which could also be achieved manually.
 
@@ -117,7 +129,7 @@ Using JSON is probably the simplest way of providing scripts to your CTL contrac
 
   As shown above, such embedded scripts can be decoded as JSON for greater type safety, rather than attempting to pass types directly across the FFI boundary (which performs no validity checks)
 
-### Applying arguments to parameterized scripts
+#### Applying arguments to parameterized scripts
 
 CTL is currently unable to build full UPLC ASTs on the frontend (although support for this may be added in the future). This means that Plutus' `applyCode`, which is the default method for applying arguments to parameterized scripts, has no direct equivalent in CTL. We do, however, support a workaround for applying arguments to parameterized scripts. `Contract.Scripts.applyArgs` allows you to apply a list of `PlutusData` arguments to any type isomorphic to a `PlutusScript`. Using this allows you to dynamically apply arguments during contract execution, but also implies the following:
 
