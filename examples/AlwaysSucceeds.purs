@@ -28,9 +28,15 @@ import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
+import Examples.MultipleRedeemers as MultipleRedeemers
 
 main :: Effect Unit
 main = launchAff_ $ do
+  -- alwaysSucceedsContract
+  MultipleRedeemers.threeRedeemerContract
+
+alwaysSucceedsContract :: Aff Unit
+alwaysSucceedsContract = do
   wallet <- Just <$> mkNamiWalletAff
   cfg <- over ContractConfig _ { wallet = wallet } <$> traceContractConfig
   runContract_ cfg $ do
