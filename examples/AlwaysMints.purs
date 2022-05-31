@@ -26,9 +26,7 @@ import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
-
 import Effect.Aff (launchAff_)
-
 import Types.Scripts (MintingPolicy)
 
 main :: Effect Unit

@@ -167,7 +167,7 @@ import Types.Scripts (PlutusScript)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
 import Wallet
-  ( Wallet(..)
+  ( Wallet(Gero, Nami)
   , Cip30Connection
   , Cip30Wallet
   )
@@ -296,21 +296,25 @@ allowError func = func <<< Right
 
 getWalletAddress :: QueryM (Maybe Address)
 getWalletAddress = withMWalletAff $ case _ of
-  Wallet nami -> callWallet nami _.getWalletAddress
+  Nami nami -> callWallet nami _.getWalletAddress
+  Gero gero -> callWallet gero _.getWalletAddress
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
 getWalletCollateral = withMWalletAff $ case _ of
-  Wallet nami -> callWallet nami _.getCollateral
+  Nami nami -> callWallet nami _.getCollateral
+  Gero gero -> callWallet gero _.getCollateral
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
 signTransaction tx = withMWalletAff $ case _ of
-  Wallet nami -> callWallet nami $ \nw -> flip nw.signTx tx
+  Nami nami -> callWallet nami \nw -> flip nw.signTx tx
+  Gero gero -> callWallet gero \nw -> flip nw.signTx tx
 
 signTransactionBytes
   :: CborBytes -> QueryM (Maybe CborBytes)
 signTransactionBytes tx = withMWalletAff $ case _ of
-  Wallet nami -> callWallet nami $ \nw -> flip nw.signTxBytes tx
+  Nami nami -> callWallet nami \nw -> flip nw.signTxBytes tx
+  Gero gero -> callWallet gero \nw -> flip nw.signTxBytes tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do
@@ -339,10 +343,7 @@ callWallet
    . Cip30Wallet
   -> (Cip30Wallet -> (Cip30Connection -> Aff a))
   -> Aff a
-callWallet nami act = act nami =<< readConnection nami
-  where
-  readConnection :: Cip30Wallet -> Aff Cip30Connection
-  readConnection = liftEffect <<< Ref.read <<< _.connection
+callWallet wallet act = act wallet wallet.connection
 
 -- The server will respond with a stringified integer value for the fee estimate
 newtype FeeEstimate = FeeEstimate BigInt

@@ -104,6 +104,7 @@ import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (DataHash, TransactionInput)
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), _transaction)
+import Wallet (Wallet(..))
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
@@ -172,7 +173,9 @@ derive instance genericReturnAdaChangeError :: Generic ReturnAdaChangeError _
 instance showReturnAdaChangeError :: Show ReturnAdaChangeError where
   show = genericShow
 
-data AddTxCollateralsError = CollateralUtxosUnavailable
+data AddTxCollateralsError
+  = CollateralUtxosUnavailable
+  | AddTxCollateralsError
 
 derive instance genericAddTxCollateralsError :: Generic AddTxCollateralsError _
 
@@ -382,18 +385,29 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
       note (GetWalletAddressError' CouldNotGetNamiWalletAddress)
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
+    collateral <- ExceptT $ getWalletCollateral <#>
+      note (GetWalletCollateralError' CouldNotGetNamiCollateral)
+    wallet <- asks _.wallet
     let
       -- Combines utxos at the user address and those from any scripts
       -- involved with the contract in the unbalanced transaction.
       allUtxos :: Utxo
       allUtxos = utxos `Map.union` utxoIndexToUtxo networkId utxoIndex
 
+      -- After adding collateral, we need to balance the inputs and
+      -- non-Ada outputs before looping, i.e. we need to add input fees
+      -- for the Ada only collateral. No MinUtxos required. In fact perhaps
+      -- this step can be skipped and we can go straight to prebalancer.
+      unbalancedCollTx = case wallet of
+        Just (Nami _) -> addTxCollateral unbalancedTx' collateral
+        _ -> unbalancedTx'
+
     -- Logging Unbalanced Tx with collateral added:
-    logTx "Unbalanced Collaterised Tx " allUtxos unbalancedTx'
+    logTx "Unbalanced Collaterised Tx " allUtxos unbalancedCollTx
 
     -- Prebalance collaterised tx without fees:
     ubcTx <- except $
-      prebalanceCollateral zero allUtxos ownAddr unbalancedTx'
+      prebalanceCollateral zero allUtxos ownAddr unbalancedCollTx
     -- Prebalance collaterised tx with fees:
     let unattachedTx' = unattachedTx # _transaction' .~ ubcTx
     _ /\ fees <- ExceptT $ evalExUnitsAndMinFee unattachedTx'
@@ -497,6 +511,12 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   -- top of their transaction as input.
   feeBuffer :: BigInt
   feeBuffer = fromInt 500000
+
+-- Nami provides a 5 Ada collateral that we should add the tx before balancing.
+addTxCollateral :: Transaction -> TransactionUnspentOutput -> Transaction
+addTxCollateral transaction (TransactionUnspentOutput { input }) =
+  transaction # _body <<< _collateral ?~
+    Array.singleton input
 
 -- Logging for Transaction type without returning Transaction
 logTx

@@ -1,7 +1,7 @@
 module Wallet
-  ( Cip30Connection(..)
-  , Cip30Wallet(..)
-  , Wallet(..)
+  ( Cip30Connection
+  , Cip30Wallet
+  , Wallet(Gero, Nami)
   , mkNamiWalletAff
   , mkGeroWalletAff
   , dummySign
@@ -18,7 +18,7 @@ import Cardano.Types.Transaction
   , Vkeywitness(Vkeywitness)
   )
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Control.Promise (Promise)
+import Control.Promise (Promise, toAffE)
 import Control.Promise as Promise
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (over, unwrap)
@@ -30,7 +30,6 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Effect.Ref as Ref
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Helpers ((<<>>))
 import Serialization as Serialization
@@ -42,7 +41,7 @@ import Untagged.Union (asOneOf)
 
 type Cip30Wallet =
   { -- A reference to a connection with the wallet, i.e. `window.cardano.nami`
-    connection :: Ref.Ref Cip30Connection
+    connection :: Cip30Connection
   -- Get the address associated with the wallet (Nami does not support
   -- multiple addresses)
   , getWalletAddress :: Cip30Connection -> Aff (Maybe Address)
@@ -54,22 +53,22 @@ type Cip30Wallet =
   , signTxBytes :: Cip30Connection -> CborBytes -> Aff (Maybe CborBytes)
   }
 
-newtype Wallet = Wallet Cip30Wallet
+data Wallet
+  = Nami Cip30Wallet
+  | Gero Cip30Wallet
 
 -------------------------------------------------------------------------------
 -- Nami backend
 -------------------------------------------------------------------------------
--- Record-of-functions for real or mocked Nami wallet, includes `Ref` to
 
 mkNamiWalletAff :: Aff Wallet
 mkNamiWalletAff = do
-  nami <- enable "nami"
+  nami <- toAffE _enableNami
   -- Ensure the Nami wallet has collateral set up
   whenM (isNothing <$> getCollateral nami)
     (liftEffect $ throw "Nami wallet missing collateral")
-  connection <- liftEffect $ Ref.new nami
-  pure $ Wallet
-    { connection
+  pure $ Nami
+    { connection: nami
     , getWalletAddress
     , getCollateral
     , signTx
@@ -106,13 +105,12 @@ dummySign tx@(Transaction { witnessSet: tws@(TransactionWitnessSet ws) }) =
 
 mkGeroWalletAff :: Aff Wallet
 mkGeroWalletAff = do
-  gero <- enable "gerowallet"
+  gero <- toAffE _enableGero
   -- Ensure the Gero wallet has collateral set up
   whenM (isNothing <$> getCollateral gero)
     (liftEffect $ throw "Gero wallet missing collateral")
-  connection <- liftEffect $ Ref.new gero
-  pure $ Wallet
-    { connection
+  pure $ Gero
+    { connection: gero
     , getWalletAddress
     , getCollateral
     , signTx
@@ -123,9 +121,6 @@ mkGeroWalletAff = do
 -- Helper functions
 -------------------------------------------------------------------------------
 
-enable :: String -> Aff Cip30Connection
-enable = Promise.toAffE <<< _enable
-
 txToHex :: Transaction -> Aff String
 txToHex =
   liftEffect
@@ -133,11 +128,11 @@ txToHex =
     <<< Serialization.convertTransaction
 
 getWalletAddress :: Cip30Connection -> Aff (Maybe Address)
-getWalletAddress nami = fromHexString _getAddress nami <#>
+getWalletAddress conn = fromHexString _getAddress conn <#>
   (_ >>= addressFromBytes <<< rawBytesAsCborBytes)
 
 getCollateral :: Cip30Connection -> Aff (Maybe TransactionUnspentOutput)
-getCollateral nami = fromMaybeHexString getCip30Collateral nami >>=
+getCollateral conn = fromMaybeHexString getCip30Collateral conn >>=
   case _ of
     Nothing -> pure Nothing
     Just bytes -> do
@@ -146,9 +141,9 @@ getCollateral nami = fromMaybeHexString getCip30Collateral nami >>=
           <$> fromBytesEffect (unwrap bytes)
 
 signTx :: Cip30Connection -> Transaction -> Aff (Maybe Transaction)
-signTx nami tx = do
+signTx conn tx = do
   txHex <- txToHex tx
-  fromHexString (_signTx txHex) nami >>= case _ of
+  fromHexString (_signTx txHex) conn >>= case _ of
     Nothing -> pure Nothing
     Just bytes -> map (combineWitnessSet tx) <$> liftEffect
       ( Deserialization.WitnessSet.convertWitnessSet
@@ -162,8 +157,8 @@ signTx nami tx = do
     Transaction $ tx' { witnessSet = oldWits <> newWits }
 
 signTxBytes :: Cip30Connection -> CborBytes -> Aff (Maybe CborBytes)
-signTxBytes nami txBytes = do
-  fromHexString (_signTx (cborBytesToHex txBytes)) nami >>= case _ of
+signTxBytes conn txBytes = do
+  fromHexString (_signTx (cborBytesToHex txBytes)) conn >>= case _ of
     Nothing -> pure Nothing
     Just witBytes -> Just <$> liftEffect
       (_attachSignature txBytes (rawBytesAsCborBytes witBytes))
@@ -190,7 +185,8 @@ newtype NamiConnection = NamiConnection Cip30Connection
 
 newtype GeroConnection = GeroConnection Cip30Connection
 
-foreign import _enable :: String -> Effect (Promise Cip30Connection)
+foreign import _enableNami :: Effect (Promise Cip30Connection)
+foreign import _enableGero :: Effect (Promise Cip30Connection)
 
 foreign import _getAddress :: Cip30Connection -> Effect (Promise String)
 

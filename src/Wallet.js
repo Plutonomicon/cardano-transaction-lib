@@ -7,33 +7,37 @@ if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
     lib = require('@ngua/cardano-serialization-lib-nodejs');
 }
 
-ALLOWED_APIS = new Set([ "nami", "gerowallet" ]);
+const ALLOWED_APIS = new Set([ "nami", "gerowallet" ]);
 
-// _enable :: String -> Effect (Promise Cip30Connection)Q
-exports._enable = api => () =>
-  ALLOWED_API.has(api) ? eval(`window.cardano.${api}.enable()`) : undefined;
+// _enableNami :: Effect (Promise Cip30Connection)
+exports._enableNami = () =>
+    window.cardano.nami.enable();
+
+// _enableGero :: Effect (Promise Cip30Connection)
+exports._enableGero = () =>
+    window.cardano.gerowallet.enable();
 
 // _getAddress :: Cip30Connection -> Effect (Promise String)
-exports._getAddress = nami => () =>
-  nami.getUsedAddresses().then((addrs) => addrs[0]);
+exports._getAddress = conn => () =>
+  conn.getUsedAddresses().then((addrs) => addrs[0]);
 
 // _getCollateral
 //   :: MaybeFfiHelper
 //   -> Cip30Connection
 //   -> Effect (Promise String)
-exports._getCollateral = maybe => nami => () =>
-  nami.experimental.getCollateral().then((utxos) => {
+exports._getCollateral = maybe => conn => () =>
+  conn.experimental.getCollateral().then((utxos) => {
   return utxos.length ? maybe.just(utxos[0]) : maybe.nothing;
 });
 
 // _signTx :: String -> Cip30Connection -> Effect (Promise String)
-exports._signTx = txHex => nami => () => {
-  return nami.signTx(txHex, true)
+exports._signTx = txHex => conn => () => {
+  return conn.signTx(txHex, true)
       .catch(e => {
-          console.log("Error in signTxNami: ", e);
+          console.log("Error in signTx: ", e);
           throw (JSON.stringify(e));
       });
-}
+};
 
 // foreign import _attachSignature
 //   :: ByteArray
