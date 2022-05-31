@@ -47,6 +47,8 @@ Please explore our documentation to discover how to use CTL, how to set up its r
 - [CTL's runtime dependencies](./doc/runtime.md)
 - [Developing on CTL](./doc/development.md)
 
+You can also [generate Purescript documentation for CTL and its dependencies](./doc/development.md#generating-ps-documentation).
+
 ## Architecture
 
 CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, however, CTL is a library and not a standalone process. Over the course of CTL's development, several questions have been raised as to how best create PAB-as-a-library:
