@@ -7,8 +7,6 @@ if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
     lib = require('@ngua/cardano-serialization-lib-nodejs');
 }
 
-const ALLOWED_APIS = new Set([ "nami", "gerowallet" ]);
-
 // _enableNami :: Effect (Promise Cip30Connection)
 exports._enableNami = () =>
     window.cardano.nami.enable();
