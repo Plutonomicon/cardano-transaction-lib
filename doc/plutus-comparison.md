@@ -41,6 +41,44 @@ In contrast to the free-monad approach used by Plutus, CTL's `Contract` has uses
 
 Finally, CTL's `Contract` is not parameterized by an error type as in Plutus. `Contract` actions defined by the library signal failure in various ways (e.g. returning `Either`s, `Maybe`s, or in the case of unrecoverable errors, throwing exceptions). Standardizing our error-handling approach is on our roadmap for future releases, however, most likely with a standardized error type containing polymorphic variants so that users may freely extend existing errors in the `Contract` interface.
 
-## Constraints and lookups
+## API differences
 
-CTL has adapted Plutus' constraints/lookups interface fairly closely.
+### Constraints and lookups
+
+CTL has adapted Plutus' constraints/lookups interface fairly closely and it functions largely the same. One key difference is that CTL does not, and cannot, have the notion of a "current" script. All scripts must be explicitly provided to CTL (serialized as CBOR, see below). This has led us to depart from Plutus' naming conventions for certain constraints/lookups:
+
+| Plutus                 | CTL               |
+| ---------------------- | ----------------- |
+| `mustPayToTheScript`   | _removed_         |
+| `mustPayToOtherScript` | `mustPayToScript` |
+| `otherScript`          | `validator`       |
+| `otherData`            | `datum`           |
+|                        |                   |
+
+### Typed scripts
+
+Another difference between Plutus and CTL is our implementation of typed scripts. Recall that Plutus' `ValidatorTypes` class:
+
+```haskell
+class ValidatorTypes (a :: Type) where
+    type RedeemerType a :: Type
+    type DatumType a :: Type
+
+    type instance RedeemerType a = ()
+    type instance DatumType  a = ()
+```
+
+Purescript lacks most of Haskell's more advanced type-level faculties, including type/data families. Purescript does, however, support functional dependencies, allowing us to encode `ValidatorTypes` as follows:
+
+```purescript
+class
+  ( DatumType a b
+  , RedeemerType a b
+  ) <=
+  ValidatorTypes (a :: Type) (b :: Type)
+  | a -> b
+
+class DatumType (a :: Type) (b :: Type) | a -> b
+
+class RedeemerType (a :: Type) (b :: Type) | a -> b
+```
