@@ -194,7 +194,7 @@ derive newtype instance ToData CurrencySymbol
 derive newtype instance ToMetadata CurrencySymbol
 
 instance Show CurrencySymbol where
-  show (CurrencySymbol cs) = "(CurrencySymbol" <> show cs <> ")"
+  show (CurrencySymbol cs) = "(CurrencySymbol " <> show cs <> ")"
 
 -- This is needed for `ApplyArgs`. Plutus has an `unCurrencySymbol` field.
 instance DecodeAeson CurrencySymbol where

@@ -52,7 +52,7 @@ instance EncodeAeson CurrencySymbol where
       { "unCurrencySymbol": mph' }
 
 instance Show CurrencySymbol where
-  show (CurrencySymbol cs) = "(CurrencySymbol" <> show cs <> ")"
+  show (CurrencySymbol cs) = "(CurrencySymbol " <> show cs <> ")"
 
 adaSymbol :: CurrencySymbol
 adaSymbol = CurrencySymbol mempty
