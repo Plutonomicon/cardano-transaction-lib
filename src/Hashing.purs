@@ -12,7 +12,7 @@ module Hashing
 import Prelude
 
 import Data.Maybe (Maybe)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (wrap, unwrap)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Serialization.PlutusData (convertPlutusData)
 import Serialization.Types (PlutusData) as Serialization

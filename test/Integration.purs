@@ -5,7 +5,6 @@ import Prelude
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Test.AffInterface as AffInterface
-import Test.MultipleRedeemers as MultipleRedeemers
 import Test.FinalizeTx as FinalizeTx
 import Test.Utils as Utils
 import TestM (TestPlanM)
@@ -20,4 +19,4 @@ testPlan :: TestPlanM Unit
 testPlan = do
   AffInterface.suite
   FinalizeTx.suite
-  MultipleRedeemers.suite
+-- FIXME: MultipleRedeemers.suite
