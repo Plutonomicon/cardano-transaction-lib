@@ -2,6 +2,7 @@ module Examples.MultipleRedeemers (threeRedeemerContract) where
 
 import Prelude
 
+import Cardano.Types.Transaction (TransactionOutput)
 import Cardano.Types.Value
   ( CurrencySymbol
   , NonAdaAsset(..)
@@ -19,11 +20,12 @@ import Contract.Monad
   , liftContractM
   , liftedE
   , liftedM
+  , logInfo'
   , runContract
   , traceContractConfig
   )
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
-import Contract.Prelude (log, mconcat, uncurry, unwrap, wrap)
+import Contract.Prelude (fromJustEff, log, mconcat, uncurry, unwrap, wrap)
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator(Validator), validatorHash, MintingPolicy)
@@ -37,9 +39,7 @@ import Contract.Utxos (utxosAt)
 import Contract.Value (mkTokenName, scriptCurrencySymbol)
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
-import Control.Monad.Error.Class (throwError)
-import Data.Array (zip, (..))
-import Data.Bifunctor (bimap)
+import Data.Array (take)
 import Data.BigInt (BigInt, fromInt)
 import Data.Bitraversable (bitraverse)
 import Data.Either (hush)
@@ -47,12 +47,13 @@ import Data.Int (toNumber)
 import Data.Map as Map
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
-import Data.Tuple (Tuple(Tuple))
+import Data.Tuple (Tuple(Tuple), fst)
 import Effect.Aff (Aff, delay, Milliseconds(Milliseconds))
 import Effect.Aff.Class (liftAff)
-import Plutus.ToPlutusType (toPlutusType, scriptCrende)
+import Plutus.ToPlutusType (toPlutusType)
 import Plutus.Types.Address (Address)
 import Plutus.Types.CurrencySymbol (getCurrencySymbol)
+import Serialization.Address (scriptAddress)
 import Types.Scripts (ValidatorHash)
 import Types.TokenName (TokenName)
 import Types.Transaction (TransactionHash, TransactionInput)
@@ -69,7 +70,12 @@ threeRedeemerContract = do
     cfg :: ContractConfig ()
     cfg = ContractConfig $ defaults { wallet = pure wallet }
 
-  utxos :: Tuple TransactionHash (Array (Tuple TokenName BigInt)) <-
+  validator :: Validator <- fromJustEff "Invalid script JSON"
+    alwaysSucceedsScript
+  vhash :: ValidatorHash <- fromJustEff "could not hash validator" $
+    validatorHash validator
+
+  utxos :: Tuple (Array TransactionOutput) (Array (Tuple TokenName BigInt)) <-
     runContract cfg $ do
 
       let
@@ -77,10 +83,6 @@ threeRedeemerContract = do
         amountsntokennames =
           [ Tuple "please" 3, Tuple "dont" 3, Tuple "spendthis" 3 ]
 
-      validator :: Validator <- liftContractM "Invalid script JSON"
-        alwaysSucceedsScript
-      vhash :: ValidatorHash <- liftContractM "could not hash validator" $
-        validatorHash validator
       mp :: MintingPolicy <- liftContractM
         "could not decode MintingPolicy from Json"
         alwaysMintsPolicy
@@ -95,12 +97,13 @@ threeRedeemerContract = do
             (bitraverse (mkTokenName <=< byteArrayFromAscii) (pure <<< fromInt))
             amountsntokennames
 
+      logInfo' $ "trying to create" <> show bss
+
       let
-        values :: Array Value.Value
+        values :: Value.Value
         values =
           unwrap <<< toPlutusType <<< Value mempty <<< NonAdaAsset
-            <<< Map.singleton cs
-            <<< (uncurry Map.singleton) <$> bss
+            <<< Map.singleton cs $ Map.fromFoldable bss
 
         lookups :: Lookups.ScriptLookups PlutusData
         lookups = mconcat
@@ -110,15 +113,19 @@ threeRedeemerContract = do
 
         constraints :: Constraints.TxConstraints Unit Unit
         constraints = mconcat
-          [ mconcat $ Constraints.mustMintValue <$> values
-          , mconcat $ Constraints.mustPayToScript vhash unitDatum <$> values
+          [ Constraints.mustMintValue values
+          , Constraints.mustPayToScript vhash unitDatum values
           ]
       ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
       BalancedSignedTransaction bsTx <-
         liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
 
+      logInfo' $ "balanced and signed tx is " <> show bsTx
+
       -- return transaction outputs here (TxBody -> outputs)
-      Tuple <$> (submit bsTx.signedTxCbor) <*> (pure bss)
+      hash <- submit bsTx.signedTxCbor
+      logInfo' $ "transactionHash is " <> show hash
+      pure $ Tuple (unwrap (unwrap bsTx.transaction).body).outputs bss
 
   log $ "created utxos with transactionhash and tokens" <> show utxos <>
     ", waiting 20 seconds"
@@ -127,24 +134,25 @@ threeRedeemerContract = do
 
   log "going on with spending scriptoutputs from previous transaction"
 
-  {-
   runContract cfg $ do
-    AddressWithNetworkTag ownAddress <- liftContractM "cannot get own address" =<< getWalletAddress
-    ownUTXOs <- utxosAt ownAddress.address
+    AddressWithNetworkTag ownAddress <- liftContractM "cannot get own address"
+      =<< getWalletAddress
+    alwaysSucceedsUtxos <- utxosAt $ scriptAddress TestnetId (unwrap vhash)
     let
       constraints :: Constraints.TxConstraints Unit Unit
-      constraints = mconcat $ flip Constraints.mustSpendScriptOutput unitRedeemer <$> utxos
+      constraints = mconcat $
+        flip Constraints.mustSpendScriptOutput unitRedeemer <<< fst <$> utxos
+
       lookups :: Lookups.ScriptLookups PlutusData
       lookups = undefined
     ubTx <- liftedE $ Lookups.mkUnbalancedTx mempty constraints
     BalancedSignedTransaction bsTx <-
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     submit bsTx.signedTxCbor *> pure unit
-   -}
   pure unit
 
 alwaysSucceedsScript :: Maybe Validator
-alwaysSucceedsScript = map Validator $ hush $ decodeAeson $ fromString
+alwaysSucceedsScript = map wrap $ hush $ decodeAeson $ fromString
   "4d01000033222220051200120011"
 
 alwaysMintsPolicy :: Maybe MintingPolicy
