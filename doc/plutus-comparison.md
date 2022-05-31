@@ -1,8 +1,8 @@
 # Comparing CTL and Plutus
 
-This document outlines the core differences between the APIs of CTL and Plutus code (particularly in the context of the Plutus Application Backend [PAB]). CTL is of course directly inspired by Plutus and PAB and we have attempted to preserve a high degree of similarity between the two APIs. In many cases, it should be possible to copy-paste existing code written for PAB deployments and adjust it for CTL fairly easily (accounting of course for syntactic differences between Haskell and Purescript). Nevertheless, CTL and Plutus differ in several important ways, as outlined below.
+This document outlines the core differences between CTL and Plutus (particularly in the context of the Plutus Application Backend [PAB]). CTL is of course directly inspired by Plutus and PAB and we have attempted to preserve a high degree of similarity between the two APIs. In many cases, it should be possible to copy-paste existing code written for PAB deployments and adjust it for CTL fairly easily (accounting of course for existing differences between Haskell and Purescript). Nevertheless, CTL and Plutus differ in several important ways, as outlined below.
 
-Note that differences between Haskell and Purescript, while also relevant to such a comparison, is beyond the scope of this document unless such differences have a direct bearing on divergences between the two APIs.
+Note that differences between Haskell and Purescript, while also relevant to such a comparison, is beyond the scope of this document unless such differences have a direct bearing on divergences between the two CTL and Plutus.
 
 **Table of Contents**
 
@@ -53,7 +53,7 @@ where
 
 As this direct comparison illustrates, CTL's `Contract` is significantly simpler than Plutus'. Importantly, CTL's `Contract` **allows for arbitrary effects**. This makes `Writer` capabilities redundant in CTL, for instance, as all communication between `Contract`s can be done in a more direct manner (e.g. logging or HTTP calls).
 
-CTL also has no concept of a "schema" for `Contract`s as there is no equivalent of an endpoint as in PAB. That is, effects written in `Contract` are not activated in some way and can instead be called normally from Purescript code. Note that despite the similar appearance of the kind signatures above, where `Row Type` appears in the signature of both `Contract`s, they are practically and conceptually unrelated.
+CTL also has no concept of a "schema" for `Contract`s as there is no equivalent of an endpoint as in PAB. That is, effects written in `Contract` are not activated in some way and can instead be called normally from Purescript code. Note that despite the similar appearance of the kind signatures above, where `Row Type` appears in the signature of both `Contract`s, they are practically and conceptually unrelated. The extensible record contained in CTL's `Contract` allows users to easily extend the reader environment in which their contracts execute. For instance, you may wish to expose some global state across all of your contracts, perhaps a unique `CurrencySymbol` that will be created in one contract and read by several others. Instead of threading this state throughout as parameters, you could use a `Ref (Maybe CurrencySymbol)` (`Ref`s are analogous to Haskell's `IORef`) and write your contracts with types signatures similar to `forall (r :: Row Type). Contract (cs :: Ref (Maybe CurrencySymbol) | r) Unit`. `cs` would then be accessible from your contracts using normal `MonadReader` methods (or more precisely those of `MonadAsk` in the case of Purescript).
 
 For library users, CTL's `Contract` is less opaque than Plutus'. The `Contract` newtype can be unwrapped to expose the inner monad transformer stack, whose internal structure will be immediately recognizable to developers familiar `transformers`-style stacks. `Contract` also has instances for various typeclasses, making it possible to write `mtl`-style effects.
 
