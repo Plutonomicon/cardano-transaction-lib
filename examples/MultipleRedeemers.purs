@@ -2,21 +2,16 @@ module Examples.MultipleRedeemers (threeRedeemerContract) where
 
 import Prelude
 
-import Cardano.Types.Transaction (TransactionOutput)
 import Cardano.Types.Value
   ( CurrencySymbol
   , NonAdaAsset(..)
   , Value(Value)
   , mkCurrencySymbol
   )
-import Contract.Address
-  ( AddressWithNetworkTag(..)
-  , NetworkId(..)
-  , getWalletAddress
-  )
 import Contract.Aeson (decodeAeson, fromString)
 import Contract.Monad
   ( ContractConfig(ContractConfig)
+  , Contract
   , liftContractM
   , liftedE
   , liftedM
@@ -25,10 +20,10 @@ import Contract.Monad
   , traceContractConfig
   )
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
-import Contract.Prelude (fromJustEff, log, mconcat, uncurry, unwrap, wrap)
+import Contract.Prelude (liftM, log, mconcat, unwrap, wrap)
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator(Validator), validatorHash, MintingPolicy)
+import Contract.Scripts (Validator, validatorHash, MintingPolicy)
 import Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
   , balanceAndSignTx
@@ -39,49 +34,51 @@ import Contract.Utxos (utxosAt)
 import Contract.Value (mkTokenName, scriptCurrencySymbol)
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
-import Data.Array (take)
-import Data.BigInt (BigInt, fromInt)
+import Data.Array (replicate)
+import Data.BigInt (fromInt)
+import Data.Foldable (length, sum)
 import Data.Bitraversable (bitraverse)
 import Data.Either (hush)
 import Data.Int (toNumber)
 import Data.Map as Map
+import Data.Set as Set
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
-import Data.Tuple (Tuple(Tuple), fst)
-import Effect.Aff (Aff, delay, Milliseconds(Milliseconds))
+import Data.Tuple (Tuple(Tuple), fst, snd)
+import Effect.Aff (Aff, delay, Milliseconds(Milliseconds), error)
 import Effect.Aff.Class (liftAff)
 import Plutus.ToPlutusType (toPlutusType)
-import Plutus.Types.Address (Address)
+import Plutus.Types.Address (scriptHashAddress)
+import Plutus.Types.Transaction (UtxoM, Utxo)
 import Plutus.Types.CurrencySymbol (getCurrencySymbol)
-import Serialization.Address (scriptAddress)
 import Types.Scripts (ValidatorHash)
 import Types.TokenName (TokenName)
 import Types.Transaction (TransactionHash, TransactionInput)
-import Undefined (undefined)
 
 -- FIXME: this doesn't work without a browser
 threeRedeemerContract :: Aff Unit
 threeRedeemerContract = do
   log "creating utxos"
   ContractConfig defaults <- traceContractConfig
-  -- how do we get a wallet?
   wallet <- mkNamiWalletAff
   let
     cfg :: ContractConfig ()
     cfg = ContractConfig $ defaults { wallet = pure wallet }
 
-  validator :: Validator <- fromJustEff "Invalid script JSON"
+  validator :: Validator <- liftM (error "Invalid script JSON")
     alwaysSucceedsScript
-  vhash :: ValidatorHash <- fromJustEff "could not hash validator" $
+  vhash :: ValidatorHash <- liftM (error "could not hash validator") $
     validatorHash validator
 
-  utxos :: Tuple (Array TransactionOutput) (Array (Tuple TokenName BigInt)) <-
+  Tuple hash numTokens :: Tuple TransactionHash Int <-
     runContract cfg $ do
 
       let
-        amountsntokennames :: (Array (Tuple String Int))
-        amountsntokennames =
-          [ Tuple "please" 3, Tuple "dont" 3, Tuple "spendthis" 3 ]
+        -- FIXME: Try to mint 3 tokens
+        tokens :: Array (Tuple String Int)
+        tokens =
+          [ Tuple "pleasedontspent" 3
+          ]
 
       mp :: MintingPolicy <- liftContractM
         "could not decode MintingPolicy from Json"
@@ -89,21 +86,26 @@ threeRedeemerContract = do
       cs :: CurrencySymbol <-
         liftContractM "could not get curencysymbol from mintingpolicy" $
           mkCurrencySymbol <<< getCurrencySymbol =<< scriptCurrencySymbol mp
-      -- TODO: It would probably make sense to incorporate an actual Script instead of the alwayssucceeds one as someone could always just spend our tokens
-      --       while we wait between the transactions
-      bss :: Array (Tuple TokenName BigInt) <-
-        liftContractM "could not make tokennames with values" $
-          traverse
-            (bitraverse (mkTokenName <=< byteArrayFromAscii) (pure <<< fromInt))
-            amountsntokennames
+      -- TODO: It would probably make sense to incorporate an actual Script instead of the alwayssucceeds 
+      --       one as someone could always just spend our tokens while we wait between the transactions
+      tok :: Array (Tuple TokenName Int) <-
+        liftContractM "could not make tokennames with values" $ traverse
+          (bitraverse (mkTokenName <=< byteArrayFromAscii) pure)
+          tokens
 
-      logInfo' $ "trying to create" <> show bss
+      logInfo' $ "trying to create" <> show tok
 
       let
-        values :: Value.Value
-        values =
+        toCsValue :: Array (Tuple TokenName Int) -> Value.Value
+        toCsValue t =
           unwrap <<< toPlutusType <<< Value mempty <<< NonAdaAsset
-            <<< Map.singleton cs $ Map.fromFoldable bss
+            <<< Map.singleton cs $ Map.fromFoldable $ map fromInt <$> t
+
+        tokenCount :: Int
+        tokenCount = sum $ snd <$> tokens
+
+        values :: Value.Value
+        values = toCsValue tok
 
         lookups :: Lookups.ScriptLookups PlutusData
         lookups = mconcat
@@ -114,41 +116,72 @@ threeRedeemerContract = do
         constraints :: Constraints.TxConstraints Unit Unit
         constraints = mconcat
           [ Constraints.mustMintValue values
-          , Constraints.mustPayToScript vhash unitDatum values
+          -- create all the tokens in one utxo each
+          , mconcat $
+              ( \x -> replicate tokenCount
+                  $ Constraints.mustPayToScript vhash unitDatum
+                  $ toCsValue
+                  $ pure
+                  $ Tuple (fst x) 1
+              ) =<< tok
           ]
+
       ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
       BalancedSignedTransaction bsTx <-
         liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
 
-      logInfo' $ "balanced and signed tx is " <> show bsTx
+      logInfo' $ "Balanced and signed tx is " <> show bsTx
+      logInfo' $ "Created utxos " <> show values
 
       -- return transaction outputs here (TxBody -> outputs)
-      hash <- submit bsTx.signedTxCbor
-      logInfo' $ "transactionHash is " <> show hash
-      pure $ Tuple (unwrap (unwrap bsTx.transaction).body).outputs bss
+      Tuple <$> submit bsTx.signedTxCbor <*> pure tokenCount
 
-  log $ "created utxos with transactionhash and tokens" <> show utxos <>
-    ", waiting 20 seconds"
+  log $ "Created utxos with transactionhash " <> show hash
+  log "Going on with spending scriptoutputs from previous transaction"
 
-  liftAff $ delay $ Milliseconds $ toNumber 20_000
+  let
+    getAlwaysSucceedsUtxos
+      :: forall (r :: Row Type)
+       . Contract r (Tuple Utxo (Array TransactionInput))
+    getAlwaysSucceedsUtxos = do
+      utxos :: UtxoM <-
+        liftContractM "could not get utxos at alwaysSucceedsScript" =<< utxosAt
+          (scriptHashAddress vhash)
+      liftAff $ delay $ Milliseconds $ toNumber 3_000
+      let
+        orefs :: Array TransactionInput
+        orefs = Set.toUnfoldable
+          $ Set.filter ((_ == hash) <<< _.transactionId <<< unwrap)
+          $ Map.keys
+          $ unwrap utxos
 
-  log "going on with spending scriptoutputs from previous transaction"
+      if (length orefs == numTokens) then
+        pure $ Tuple (unwrap utxos) orefs
+      else do
+        logInfo' "Could not find utxos, trying again"
+        getAlwaysSucceedsUtxos
 
   runContract cfg $ do
-    AddressWithNetworkTag ownAddress <- liftContractM "cannot get own address"
-      =<< getWalletAddress
-    alwaysSucceedsUtxos <- utxosAt $ scriptAddress TestnetId (unwrap vhash)
+    Tuple utxo orefs <- getAlwaysSucceedsUtxos
     let
       constraints :: Constraints.TxConstraints Unit Unit
       constraints = mconcat $
-        flip Constraints.mustSpendScriptOutput unitRedeemer <<< fst <$> utxos
+        flip Constraints.mustSpendScriptOutput unitRedeemer <$> orefs
 
       lookups :: Lookups.ScriptLookups PlutusData
-      lookups = undefined
-    ubTx <- liftedE $ Lookups.mkUnbalancedTx mempty constraints
+      lookups = mconcat
+        [ Lookups.unspentOutputs utxo
+        , Lookups.validator validator
+        ]
+
+    logInfo' $ "Found " <> show orefs <> " at alwaysSucceeeds address"
+
+    ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     BalancedSignedTransaction bsTx <-
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-    submit bsTx.signedTxCbor *> pure unit
+    hash2 <- submit bsTx.signedTxCbor
+    logInfo' $ "Hash of second transaction " <> show hash2
+    pure unit
   pure unit
 
 alwaysSucceedsScript :: Maybe Validator
