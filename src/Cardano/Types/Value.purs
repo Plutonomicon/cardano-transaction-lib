@@ -84,7 +84,6 @@ import Metadata.ToMetadata (class ToMetadata)
 import Partial.Unsafe (unsafePartial)
 import Serialization.Hash
   ( ScriptHash
-  , scriptHashAsBytes
   , scriptHashFromBytes
   , scriptHashToBytes
   )
@@ -655,7 +654,7 @@ currencyScriptHash (CurrencySymbol byteArray) =
   unsafePartial fromJust $ scriptHashFromBytes (wrap byteArray)
 
 scriptHashAsCurrencySymbol :: ScriptHash -> CurrencySymbol
-scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< scriptHashAsBytes
+scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< scriptHashToBytes
 
 -- | The minting policy hash of a currency symbol
 currencyMPSHash :: CurrencySymbol -> MintingPolicyHash
