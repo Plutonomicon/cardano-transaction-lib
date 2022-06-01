@@ -90,7 +90,14 @@ import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Class (liftEffect)
 import Foreign.Object (Object)
-import Helpers (bigIntToUInt, mkErrorRecord, liftEither, liftM, uIntToBigInt)
+import Helpers
+  ( bigIntToUInt
+  , liftEither
+  , liftM
+  , mkErrorRecord
+  , showWithParens
+  , uIntToBigInt
+  )
 import Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
@@ -412,7 +419,7 @@ derive newtype instance DecodeAeson POSIXTime
 derive newtype instance EncodeAeson POSIXTime
 
 instance Show POSIXTime where
-  show = genericShow
+  show (POSIXTime pt) = showWithParens "POSIXTime" pt
 
 -- | An `Interval` of `POSIXTime`s. To be used in off-chain CTL contracts
 type POSIXTimeRange = Interval POSIXTime
@@ -614,7 +621,7 @@ derive newtype instance DecodeAeson RelSlot
 derive newtype instance EncodeAeson RelSlot
 
 instance Show RelSlot where
-  show = genericShow
+  show (RelSlot rs) = showWithParens "RelSlot" rs
 
 -- | Relative time to the start of an `EraSummary`. Contract this to
 -- | `Ogmios.QueryM.RelativeTime` which is usually relative to system start.
@@ -629,7 +636,7 @@ derive newtype instance DecodeAeson RelTime
 derive newtype instance EncodeAeson RelTime
 
 instance Show RelTime where
-  show = genericShow
+  show (RelTime rt) = showWithParens "RelTime" rt
 
 -- | Any leftover time from using `mod` when dividing my slot length.
 -- | Treat as Milliseconds
@@ -643,7 +650,7 @@ derive newtype instance DecodeAeson ModTime
 derive newtype instance EncodeAeson ModTime
 
 instance Show ModTime where
-  show = genericShow
+  show (ModTime mt) = showWithParens "ModTime" mt
 
 -- | Absolute time relative to System Start, not UNIX epoch.
 -- | Treat as Milliseconds
@@ -657,7 +664,7 @@ derive newtype instance DecodeAeson AbsTime
 derive newtype instance EncodeAeson AbsTime
 
 instance Show AbsTime where
-  show = genericShow
+  show (AbsTime at) = showWithParens "AbsTime" at
 
 -- | Find the relative slot provided we know the `AbsSlot` for an absolute slot
 -- | given an `EraSummary`. We could relax the `Either` monad if we use this

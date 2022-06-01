@@ -20,6 +20,7 @@ module Helpers
   , maybeArrayMerge
   , mkErrorRecord
   , notImplemented
+  , showWithParens
   , uIntToBigInt
   ) where
 
@@ -207,3 +208,14 @@ mkErrorRecord
      }
 mkErrorRecord errorType error a =
   { "errorType": errorType, "error": error, "args": a }
+
+-- | Provides `Show` instances for Newtypes that do not have inner parenthesis,
+-- | e.g. `BigInt`. We could optionally use a `Newtype` constraint for
+-- | unwrapping, but we don't constrain ourselves by deconstructing the wrapper.
+showWithParens
+  :: forall (a :: Type)
+   . Show a
+  => String
+  -> a -- the inner type.
+  -> String
+showWithParens ctorName x = "(" <> ctorName <> " (" <> show x <> "))"

@@ -72,6 +72,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt as UInt
 import Foreign.Object (Object)
 import Foreign.Object as FO
+import Helpers (showWithParens)
 import QueryM.JsonWsp
   ( JsonWspCall
   , JsonWspRequest
@@ -219,7 +220,7 @@ derive newtype instance Eq CurrentEpoch
 derive newtype instance Ord CurrentEpoch
 
 instance Show CurrentEpoch where
-  show = genericShow
+  show (CurrentEpoch ce) = showWithParens "CurrentEpoch" ce
 
 ---------------- ERA SUMMARY QUERY RESPONSE & PARSING
 
@@ -320,7 +321,7 @@ derive newtype instance DecodeAeson RelativeTime
 derive newtype instance EncodeAeson RelativeTime
 
 instance Show RelativeTime where
-  show = genericShow
+  show (RelativeTime rt) = showWithParens "RelativeTime" rt
 
 -- | Absolute slot relative to SystemStart. [ 0 .. 18446744073709552000 ]
 newtype AbsSlot = AbsSlot BigInt
@@ -333,7 +334,7 @@ derive newtype instance DecodeAeson AbsSlot
 derive newtype instance EncodeAeson AbsSlot
 
 instance Show AbsSlot where
-  show = genericShow
+  show (AbsSlot as) = showWithParens "AbsSlot" as
 
 -- | An epoch number or length with greater precision for Ogmios than
 -- | `Cardano.Types.Epoch`. [ 0 .. 18446744073709552000 ]
@@ -347,7 +348,7 @@ derive newtype instance DecodeAeson Epoch
 derive newtype instance EncodeAeson Epoch
 
 instance Show Epoch where
-  show = genericShow
+  show (Epoch e) = showWithParens "Epoch" e
 
 newtype EraSummaryParameters = EraSummaryParameters
   { epochLength :: EpochLength -- 0-18446744073709552000 An epoch number or length.
@@ -390,7 +391,7 @@ derive newtype instance DecodeAeson EpochLength
 derive newtype instance EncodeAeson EpochLength
 
 instance Show EpochLength where
-  show = genericShow
+  show (EpochLength el) = showWithParens "EpochLength" el
 
 -- | A slot length, in seconds <= 18446744073709552000
 newtype SlotLength = SlotLength BigInt
@@ -402,7 +403,7 @@ derive newtype instance DecodeAeson SlotLength
 derive newtype instance EncodeAeson SlotLength
 
 instance Show SlotLength where
-  show = genericShow
+  show (SlotLength sl) = showWithParens "SlotLength" sl
 
 -- | Number of slots from the tip of the ledger in which it is guaranteed that
 -- | no hard fork can take place. This should be (at least) the number of slots
@@ -416,7 +417,7 @@ derive newtype instance DecodeAeson SafeZone
 derive newtype instance EncodeAeson SafeZone
 
 instance Show SafeZone where
-  show = genericShow
+  show (SafeZone sz) = showWithParens "SafeZone" sz
 
 ---------------- TX EVALUATION QUERY RESPONSE & PARSING
 
