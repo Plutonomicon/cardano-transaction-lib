@@ -48,7 +48,8 @@ derive newtype instance Ord TransactionMetadatumLabel
 derive instance Generic TransactionMetadatumLabel _
 
 instance Show TransactionMetadatumLabel where
-  show = showWithParens "TransactionMetadatumLabel"
+  show (TransactionMetadatumLabel tml) =
+    showWithParens "TransactionMetadatumLabel" tml
 
 data TransactionMetadatum
   = MetadataMap (Map TransactionMetadatum TransactionMetadatum)

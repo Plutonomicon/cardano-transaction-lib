@@ -9,7 +9,6 @@ import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Generic.Rep as G
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for_, traverse_)
 import Data.Tuple (Tuple, uncurry)
@@ -167,13 +166,12 @@ suite = do
 -- | Newtype wrapper to avoid an orphan instance
 newtype MyBigInt = MyBigInt BigInt
 
-derive instance Newtype MyBigInt _
 derive newtype instance ToData MyBigInt
 derive newtype instance FromData MyBigInt
 derive newtype instance Eq MyBigInt
 
 instance Show MyBigInt where
-  show = showWithParens "MyBigInt"
+  show (MyBigInt bi) = showWithParens "MyBigInt" bi
 
 instance Arbitrary MyBigInt where
   arbitrary = do

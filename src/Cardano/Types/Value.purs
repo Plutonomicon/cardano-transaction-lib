@@ -132,7 +132,7 @@ derive instance Newtype Coin _
 derive newtype instance Eq Coin
 
 instance Show Coin where
-  show = showWithParens "Coin"
+  show (Coin c) = showWithParens "Coin" c
 
 instance Semigroup Coin where
   append (Coin c1) (Coin c2) = Coin (c1 + c2)
