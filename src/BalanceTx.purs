@@ -108,6 +108,7 @@ import Serialization.Address
   , withStakeCredential
   )
 import Types.Natural (toBigInt) as Natural
+import Types.RedeemerTag (RedeemerTag(Mint))
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (DataHash, TransactionInput)
 import Types.UnbalancedTransaction
@@ -356,6 +357,13 @@ setRdmrsExecutionUnits rs xxs =
               in
                 Redeemer rec { exUnits = { mem, steps } } /\ txOutRef
 
+removeMintRedeemerDuplicates
+  :: UnattachedUnbalancedTx -> UnattachedUnbalancedTx
+removeMintRedeemerDuplicates unattachedTx =
+  unattachedTx # _redeemersTxIns %~
+    Array.nubByEq
+      (\a@(Redeemer { tag } /\ _) b -> a == b && tag == Mint)
+
 --------------------------------------------------------------------------------
 -- `UnattachedUnbalancedTx` Lenses
 --------------------------------------------------------------------------------
@@ -394,8 +402,10 @@ _redeemersTxIns = lens' \(UnattachedUnbalancedTx rec@{ redeemersTxIns }) ->
 balanceTx
   :: UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError UnattachedTransaction)
-balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
-  let (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = t
+balanceTx unattachedTxInit@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
+  let
+    unattachedTx = removeMintRedeemerDuplicates unattachedTxInit
+    (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = t
   networkId <- (unbalancedTx ^. _body <<< _networkId) #
     maybe (asks _.networkId) pure
   let unbalancedTx' = unbalancedTx # _body <<< _networkId ?~ networkId
