@@ -85,7 +85,6 @@ import Metadata.ToMetadata (class ToMetadata)
 import Partial.Unsafe (unsafePartial)
 import Serialization.Hash
   ( ScriptHash
-  , scriptHashAsBytes
   , scriptHashFromBytes
   , scriptHashToBytes
   )
@@ -238,7 +237,7 @@ derive instance Newtype NonAdaAsset _
 derive newtype instance Eq NonAdaAsset
 
 instance Show NonAdaAsset where
-  show (NonAdaAsset nonAdaAsset) = "(NonAdaAsset" <> show nonAdaAsset <> ")"
+  show (NonAdaAsset nonAdaAsset) = "(NonAdaAsset " <> show nonAdaAsset <> ")"
 
 instance Semigroup NonAdaAsset where
   append = unionWithNonAda (+)
@@ -656,7 +655,7 @@ currencyScriptHash (CurrencySymbol byteArray) =
   unsafePartial fromJust $ scriptHashFromBytes (wrap byteArray)
 
 scriptHashAsCurrencySymbol :: ScriptHash -> CurrencySymbol
-scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< scriptHashAsBytes
+scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< scriptHashToBytes
 
 -- | The minting policy hash of a currency symbol
 currencyMPSHash :: CurrencySymbol -> MintingPolicyHash

@@ -18,6 +18,7 @@ module Helpers
   , logString
   , logWithLevel
   , maybeArrayMerge
+  , mkErrorRecord
   , notImplemented
   , showWithParens
   , uIntToBigInt
@@ -195,6 +196,19 @@ logString :: LogLevel -> LogLevel -> String -> Effect Unit
 logString cfgLevel level message = do
   timestamp <- now
   logWithLevel cfgLevel $ { timestamp, message, level, tags: Map.empty }
+
+-- | Used for `EncodeAeson` for datatype errors
+mkErrorRecord
+  :: forall (a :: Type)
+   . String -- Error type
+  -> String -- Error
+  -> a
+  -> { "errorType" :: String
+     , "error" :: String
+     , "args" :: a
+     }
+mkErrorRecord errorType error a =
+  { "errorType": errorType, "error": error, "args": a }
 
 -- | Provides `Show` instances for Newtypes that do not have inner parenthesis,
 -- | e.g. `BigInt`. This uses an extra `Newtype` constraint, which is usually

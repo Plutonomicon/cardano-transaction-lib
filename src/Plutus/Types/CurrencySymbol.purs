@@ -24,7 +24,6 @@ import Data.Maybe (Maybe)
 import FromData (class FromData)
 import Serialization.Hash
   ( ScriptHash
-  , scriptHashAsBytes
   , scriptHashFromBytes
   , scriptHashToBytes
   )
@@ -58,7 +57,7 @@ adaSymbol :: CurrencySymbol
 adaSymbol = CurrencySymbol mempty
 
 scriptHashAsCurrencySymbol :: ScriptHash -> CurrencySymbol
-scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< scriptHashAsBytes
+scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< scriptHashToBytes
 
 -- | The minting policy hash of a currency symbol.
 currencyMPSHash :: CurrencySymbol -> Maybe MintingPolicyHash
