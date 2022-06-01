@@ -21,6 +21,7 @@ module QueryM
   , allowError
   , applyArgs
   , calculateMinFee
+  , callNami
   , cancelFetchBlocks
   , evalTxExecutionUnits
   , finalizeTx
