@@ -4,7 +4,7 @@ import Prelude
 
 import Cardano.Types.Value
   ( CurrencySymbol
-  , NonAdaAsset(..)
+  , NonAdaAsset(NonAdaAsset)
   , Value(Value)
   , mkCurrencySymbol
   )
@@ -133,7 +133,6 @@ threeRedeemerContract = do
       logInfo' $ "Balanced and signed tx is " <> show bsTx
       logInfo' $ "Created utxos " <> show values
 
-      -- return transaction outputs here (TxBody -> outputs)
       Tuple <$> submit bsTx.signedTxCbor <*> pure tokenCount
 
   log $ "Created utxos with transactionhash " <> show hash
