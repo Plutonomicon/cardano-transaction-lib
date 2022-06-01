@@ -24,11 +24,10 @@ module Contract.Transaction
   , submit
   ) where
 
-import Data.Either
 import Prelude
 
 import BalanceTx (BalanceTxError(..)) as BalanceTxError
-import BalanceTx (UnattachedTransaction, TxInputLockedError(..))
+import BalanceTx (UnattachedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
 import Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
@@ -101,16 +100,16 @@ import Cardano.Types.Transaction
   , _witnessSet
   ) as Transaction
 import Cardano.Types.Transaction (Transaction, _body, _inputs)
-import Contract.Monad (Contract, liftedE, liftedE', liftedM, wrapContract)
+import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
 import Control.Monad.Error.Class (throwError, catchError, try)
-import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT, withExceptT)
+import Control.Monad.Except.Trans (runExceptT)
 import Control.Monad.Reader (asks, runReaderT)
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (class Traversable, fold, for, sequence, traverse)
