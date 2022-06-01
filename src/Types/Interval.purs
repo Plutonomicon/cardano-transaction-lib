@@ -74,7 +74,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Class (liftEffect)
-import Helpers (bigIntToUInt, liftEither, liftM, uIntToBigInt)
+import Helpers (bigIntToUInt, liftEither, liftM, showWithParens, uIntToBigInt)
 import Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
@@ -393,7 +393,7 @@ derive newtype instance FromData POSIXTime
 derive newtype instance ToData POSIXTime
 
 instance Show POSIXTime where
-  show (POSIXTime pt) = "(POSIXTime (" <> show pt <> "))"
+  show = showWithParens "POSIXTime"
 
 -- | An `Interval` of `POSIXTime`s. To be used in off-chain CTL contracts
 type POSIXTimeRange = Interval POSIXTime
@@ -534,7 +534,7 @@ derive newtype instance Eq RelSlot
 derive newtype instance Ord RelSlot
 
 instance Show RelSlot where
-  show (RelSlot rs) = "(RelSlot (" <> show rs <> "))"
+  show = showWithParens "RelSlot"
 
 -- | Relative time to the start of an `EraSummary`. Contract this to
 -- | `Ogmios.QueryM.RelativeTime` which is usually relative to system start.
@@ -547,7 +547,7 @@ derive newtype instance Eq RelTime
 derive newtype instance Ord RelTime
 
 instance Show RelTime where
-  show (RelTime rt) = "(RelTime (" <> show rt <> "))"
+  show = showWithParens "RelTime"
 
 -- | Any leftover time from using `mod` when dividing my slot length.
 -- | Treat as Milliseconds
@@ -559,7 +559,7 @@ derive newtype instance Eq ModTime
 derive newtype instance Ord ModTime
 
 instance Show ModTime where
-  show (ModTime mt) = "(ModTime (" <> show mt <> "))"
+  show = showWithParens "ModTime"
 
 -- | Absolute time relative to System Start, not UNIX epoch.
 -- | Treat as Milliseconds
@@ -571,7 +571,7 @@ derive newtype instance Eq AbsTime
 derive newtype instance Ord AbsTime
 
 instance Show AbsTime where
-  show (AbsTime at) = "(AbsTime (" <> show at <> "))"
+  show = showWithParens "AbsTime"
 
 -- | Find the relative slot provided we know the `AbsSlot` for an absolute slot
 -- | given an `EraSummary`. We could relax the `Either` monad if we use this

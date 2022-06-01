@@ -9,6 +9,7 @@ import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Generic.Rep as G
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for_, traverse_)
 import Data.Tuple (Tuple, uncurry)
@@ -16,6 +17,7 @@ import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytes)
 import Deserialization.PlutusData as PDD
 import FromData (class FromData, fromData, genericFromData)
+import Helpers (showWithParens)
 import Mote (group, skip, test)
 import Partial.Unsafe (unsafePartial)
 import Serialization (toBytes)
@@ -165,12 +167,13 @@ suite = do
 -- | Newtype wrapper to avoid an orphan instance
 newtype MyBigInt = MyBigInt BigInt
 
+derive instance Newtype MyBigInt _
 derive newtype instance ToData MyBigInt
 derive newtype instance FromData MyBigInt
 derive newtype instance Eq MyBigInt
 
 instance Show MyBigInt where
-  show (MyBigInt bi) = "(MyBigInt (" <> show bi <> "))"
+  show = showWithParens "MyBigInt"
 
 instance Arbitrary MyBigInt where
   arbitrary = do

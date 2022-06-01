@@ -19,6 +19,7 @@ module Helpers
   , logWithLevel
   , maybeArrayMerge
   , notImplemented
+  , showWithParens
   , uIntToBigInt
   ) where
 
@@ -40,6 +41,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Maybe.First (First(First))
 import Data.Maybe.Last (Last(Last))
+import Data.Newtype (class Newtype, unwrap)
 import Data.Tuple (snd, uncurry)
 import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
@@ -194,3 +196,15 @@ logString cfgLevel level message = do
   timestamp <- now
   logWithLevel cfgLevel $ { timestamp, message, level, tags: Map.empty }
 
+-- | Provides `Show` instances for Newtypes that do not have inner parenthesis,
+-- | e.g. `BigInt`. This uses an extra `Newtype` constraint, which is usually
+-- | unnecessary if defining manually by deconstructing the wrapper, but most
+-- | of our `Newtype`s will have a `Newtype` instance anyway.
+showWithParens
+  :: forall (t :: Type) (a :: Type)
+   . Newtype t a
+  => Show a
+  => String
+  -> t
+  -> String
+showWithParens ctorName x = "(" <> ctorName <> " (" <> show (unwrap x) <> "))"

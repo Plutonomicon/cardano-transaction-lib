@@ -79,6 +79,7 @@ import Data.These (These(Both, That, This))
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested ((/\), type (/\))
 import FromData (class FromData)
+import Helpers (showWithParens)
 import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Partial.Unsafe (unsafePartial)
@@ -132,7 +133,7 @@ derive instance Newtype Coin _
 derive newtype instance Eq Coin
 
 instance Show Coin where
-  show (Coin c) = "(Coin (" <> show c <> "))"
+  show = showWithParens "Coin"
 
 instance Semigroup Coin where
   append (Coin c1) (Coin c2) = Coin (c1 + c2)
