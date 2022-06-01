@@ -3,50 +3,52 @@ module QueryM
   ( ClientError(..)
   , DatumCacheListeners
   , DatumCacheWebSocket
+  , DefaultQueryConfig
+  , DispatchError(..)
   , DispatchIdMap
-  , DispatchError(JsError, JsonError)
   , FeeEstimate(..)
   , FinalizedTransaction(..)
-  , module ServerConfig
   , ListenerSet
-  , PendingRequests
-  , RdmrPtrExUnits(..)
-  , RequestBody
   , OgmiosListeners
   , OgmiosWebSocket
+  , PendingRequests
   , QueryConfig
-  , DefaultQueryConfig
   , QueryM
   , QueryMExtended
+  , RdmrPtrExUnits(..)
+  , RequestBody
   , WebSocket
-  , liftQueryM
   , allowError
   , applyArgs
   , calculateMinFee
-  , traceQueryConfig
+  , cancelFetchBlocks
   , evalTxExecutionUnits
   , finalizeTx
-  , getWalletAddress
   , getChainTip
+  , getDatumByHash
+  , getDatumsByHashes
+  , getWalletAddress
+  , getWalletBalance
   , getWalletCollateral
+  , liftQueryM
   , listeners
   , mkDatumCacheWebSocketAff
   , mkOgmiosRequest
   , mkOgmiosWebSocketAff
+  , module ServerConfig
   , ownPaymentPubKeyHash
   , ownPubKeyHash
   , ownStakePubKeyHash
   , runQueryM
   , signTransaction
   , signTransactionBytes
-  , submitTxWallet
-  , submitTxOgmios
-  , underlyingWebSocket
-  , getDatumByHash
-  , getDatumsByHashes
   , startFetchBlocks
-  , cancelFetchBlocks
-  ) where
+  , submitTxOgmios
+  , submitTxWallet
+  , traceQueryConfig
+  , underlyingWebSocket
+  )
+  where
 
 import Prelude
 
@@ -153,6 +155,7 @@ import Serialization.Address
   , stakeCredentialToKeyHash
   )
 import Serialization.PlutusData (convertPlutusData) as Serialization
+import Serialization.Types (Value)
 import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.CborBytes (CborBytes)
@@ -295,6 +298,10 @@ allowError func = func <<< Right
 getWalletAddress :: QueryM (Maybe Address)
 getWalletAddress = withMWalletAff $ case _ of
   Nami nami -> callNami nami _.getWalletAddress
+
+getWalletBalance :: QueryM (Maybe Value)
+getWalletBalance = withMWalletAff $ case _ of
+  Nami nami -> callNami nami _.getBalance
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
 getWalletCollateral = withMWalletAff $ case _ of
