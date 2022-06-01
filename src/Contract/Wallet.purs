@@ -11,7 +11,7 @@ import Effect.Aff.Class (liftAff)
 import Wallet
   ( Cip30Connection
   , Cip30Wallet
-  , Wallet(..)
+  , Wallet(Gero, Nami)
   , mkNamiWalletAff
   , mkGeroWalletAff
   ) as Wallet
