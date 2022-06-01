@@ -32,7 +32,7 @@ import Examples.MultipleRedeemers as MultipleRedeemers
 
 main :: Effect Unit
 main = launchAff_ $ do
-  -- alwaysSucceedsContract
+  alwaysSucceedsContract
   MultipleRedeemers.threeRedeemerContract
 
 alwaysSucceedsContract :: Aff Unit
