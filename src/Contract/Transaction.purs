@@ -24,6 +24,7 @@ module Contract.Transaction
   , submit
   ) where
 
+import Data.Either
 import Prelude
 
 import BalanceTx (BalanceTxError(..)) as BalanceTxError
@@ -100,8 +101,8 @@ import Cardano.Types.Transaction
   , _witnessSet
   ) as Transaction
 import Cardano.Types.Transaction (Transaction, _body, _inputs)
-import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
-import Control.Monad.Error.Class (throwError, catchError)
+import Contract.Monad (Contract, liftedE, liftedE', liftedM, wrapContract)
+import Control.Monad.Error.Class (throwError, catchError, try)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT, withExceptT)
 import Control.Monad.Reader (asks, runReaderT)
 import Data.Array.NonEmpty (NonEmptyArray)
@@ -228,10 +229,10 @@ balanceTxs
        (r :: Row Type)
    . (Traversable t)
   => t UnattachedUnbalancedTx
-  -> Contract r (Either BalanceTxError.BalanceTxError (t UnattachedTransaction))
-balanceTxs uts = runExceptT $ do
+  -> Contract r (t UnattachedTransaction)
+balanceTxs uts = do
   unlockKeys <- lock mempty uutxToTx uts
-  uts' <- ExceptT $ sequence <$> traverse balanceTx uts
+  uts' <- liftedE $ sequence <$> traverse balanceTx uts
   _ <- catchError (lock unlockKeys utxToTx uts')
     ( \e -> do
         unlock unlockKeys
@@ -242,19 +243,18 @@ balanceTxs uts = runExceptT $ do
   where
   uutxToTx = _.transaction <<< unwrap <<< _.unbalancedTx <<< unwrap
   utxToTx = get1
-  mapError = const (BalanceTxError.TxInputLockedError' TxInputLockedError)
 
   lock
     :: forall (a :: Type)
      . TxOutRefUnlockKeys
     -> (a -> Transaction)
     -> t a
-    -> ExceptT BalanceTxError.BalanceTxError (Contract r) TxOutRefUnlockKeys
-  lock keys f ts = withExceptT mapError $ ExceptT (lockMany keys f ts)
+    -> Contract r TxOutRefUnlockKeys
+  lock keys f ts = liftedE $ lockMany keys f ts
 
   unlock
     :: TxOutRefUnlockKeys
-    -> ExceptT BalanceTxError.BalanceTxError (Contract r) Unit
+    -> Contract r Unit
   unlock keys = do
     cache <- asks (_.usedTxOuts <<< unwrap)
     runReaderT (unlockTxOutKeys keys) cache
@@ -305,9 +305,9 @@ instance Show BalancedSignedTransaction where
   show = genericShow
 
 signOne
-  :: forall (r :: Row Type)
+  :: forall (r :: Row Type) (e :: Type)
    . Tuple UnattachedTransaction (Array Datum)
-  -> Contract r (Maybe BalancedSignedTransaction)
+  -> Contract r BalancedSignedTransaction
 signOne (Tuple (balancedTx /\ redeemersTxIns) datums) = do
   let inputs = balancedTx ^. _body <<< _inputs
   redeemers <- liftedE $ reindexSpentScriptRedeemers inputs redeemersTxIns
@@ -318,29 +318,16 @@ signOne (Tuple (balancedTx /\ redeemersTxIns) datums) = do
   -- Sign the transaction returned as Cbor-hex encoded:
   signedTxCbor <- liftedM "balanceAndSignTx: Failed to sign transaction" $
     signTransactionBytes (wrap txCbor)
-  pure $ pure $ BalancedSignedTransaction
-    { transaction: balancedTx, signedTxCbor }
+  pure $ BalancedSignedTransaction { transaction: balancedTx, signedTxCbor }
 
 balanceAndSignTxs
   :: forall (r :: Row Type)
    . NonEmptyArray UnattachedUnbalancedTx
-  -> Contract r (Maybe (NonEmptyArray BalancedSignedTransaction))
+  -> Contract r (NonEmptyArray BalancedSignedTransaction)
 balanceAndSignTxs txs = do
-
-  -- Balance unbalanced txs: 
-  balancedTxs <- hush <$> balanceTxs txs
-  case balancedTxs of
-    Nothing -> pure Nothing
-    Just txs' ->
-      let
-        datumss = map (_.datums <<< unwrap) txs
-      in
-        do
-          results <-
-            traverse signOne (NonEmptyArray.zip txs' datumss)
-              :: Contract r (NonEmptyArray (Maybe BalancedSignedTransaction))
-          pure $ sequence results
-
+  txs' <- balanceTxs txs
+  let datumss = map (_.datums <<< unwrap) txs
+  traverse signOne (NonEmptyArray.zip txs' datumss)
 
 -- | A helper that wraps a few steps into: balance an unbalanced transaction
 -- | (`balanceTx`), reindex script spend redeemers (not minting redeemers)
@@ -354,20 +341,8 @@ balanceAndSignTx
    . UnattachedUnbalancedTx
   -> Contract r (Maybe BalancedSignedTransaction)
 balanceAndSignTx tx = do
-  tx' <-
-    balanceAndSignTxs (NonEmptyArray.singleton tx)
-      :: Contract r (Maybe (NonEmptyArray BalancedSignedTransaction))
+  tx' <- map hush <$> try $ balanceAndSignTxs (NonEmptyArray.singleton tx)
   pure (map NonEmptyArray.head tx')
-
-{-
-withBalancedAndSignedTxs :: forall (r :: Row Type)
-   . NonEmptyArray UnattachedUnbalancedTx                            
-  -> (NonEmptyArray BalancedSignedTransaction -> Contract r a)
-  -> Contract r (Maybe a)
-withBalancedAndSignedTxs txs f = do
-  txs' <- balanceAndSignTxs txs
-  result <- f txs'
-  -}
 
 scriptOutputToTransactionOutput
   :: NetworkId
