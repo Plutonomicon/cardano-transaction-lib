@@ -7,10 +7,10 @@ form {
 }
 
 fieldset {
-	display: grid;
+  display: grid;
   padding: 10px;
-	grid-row-gap: 10px;
-	grid-template-columns: 25% 75%;
+  grid-row-gap: 10px;
+  grid-template-columns: 25% 75%;
 }
 
 button {
