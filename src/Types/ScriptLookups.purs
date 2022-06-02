@@ -58,7 +58,7 @@ import Control.Monad.Reader.Trans (ReaderT)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Data.Array ((:), singleton, union) as Array
-import Data.Array (elemIndex, insert, toUnfoldable, zip)
+import Data.Array (elemIndex, filter, insert, mapWithIndex, toUnfoldable, zip)
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
 import Data.Either (Either(Left, Right), either, note)
@@ -72,12 +72,13 @@ import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.List (List(Nil, Cons))
 import Data.Map (Map, empty, fromFoldable, lookup, mapMaybe, singleton, union)
+import Data.Map (insert, toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
-import Data.Traversable (for, traverse)
-import Data.Tuple (Tuple(..), fst)
+import Data.Traversable (for, traverse, traverse_)
+import Data.Tuple (Tuple(..), fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff (Aff)
@@ -391,9 +392,10 @@ type ConstraintProcessingState (a :: Type) =
   -- Ordered accumulation of redeemers so we can use to `setScriptDataHash` and
   -- add execution units via Ogmios. Note: this mixes script and minting
   -- redeemers.
-  , mintingPolicies :: Array MintingPolicy
-  -- An array of minting policies, we need to keep track of the index for
-  -- minting redeemers
+  , mintRedeemers :: Map MintingPolicyHash T.Redeemer
+  -- Mint redeemers with the corresponding minting policy hashes.
+  -- We need to reindex mint redeemers every time we add a new one, since
+  -- indexing relies on policy id ordering.
   , lookups :: ScriptLookups a
   -- ScriptLookups for resolving constraints. Should be treated as an immutable
   -- value despite living inside the processing state
@@ -423,10 +425,10 @@ _redeemers
        (Array (T.Redeemer /\ Maybe TransactionInput))
 _redeemers = prop (SProxy :: SProxy "redeemers")
 
-_mintingPolicies
+_mintRedeemers
   :: forall (a :: Type)
-   . Lens' (ConstraintProcessingState a) (Array MintingPolicy)
-_mintingPolicies = prop (SProxy :: SProxy "mintingPolicies")
+   . Lens' (ConstraintProcessingState a) (Map MintingPolicyHash T.Redeemer)
+_mintRedeemers = prop (SProxy :: SProxy "mintRedeemers")
 
 _lookups
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) (ScriptLookups a)
@@ -499,6 +501,11 @@ processLookupsAndConstraints
     mpsMap = fromFoldable $ zip mpsHashes mps
     osMap = fromFoldable $ zip validatorHashes scripts
   ExceptT $ foldConstraints (processConstraint mpsMap osMap) constraints
+
+  -- Attach mint redeemers to witness set.
+  mintRedeemers :: Array _ <- use _mintRedeemers <#> Map.toUnfoldable
+  lift $ traverse_ (attachToCps attachRedeemer <<< snd) mintRedeemers
+
   ExceptT $ foldConstraints addOwnInput ownInputs
   ExceptT $ foldConstraints addOwnOutput ownOutputs
   ExceptT addScriptDataHash
@@ -549,7 +556,7 @@ runConstraintsM lookups txConstraints =
           ValueSpentBalances { required: mempty, provided: mempty }
       , datums: mempty
       , redeemers: mempty
-      , mintingPolicies: mempty
+      , mintRedeemers: empty
       , lookups
       }
 
@@ -816,6 +823,18 @@ lookupValidator vh osMap = do
   let err = pure $ throwError $ ValidatorHashNotFound vh
   maybe err (pure <<< Right) $ lookup vh osMap
 
+reindexMintRedeemers
+  :: forall (a :: Type)
+   . MintingPolicyHash
+  -> T.Redeemer
+  -> ConstraintsM a (Array T.Redeemer)
+reindexMintRedeemers mpsHash redeemer = do
+  _mintRedeemers %= Map.insert mpsHash redeemer
+  mintRedeemers :: Array _ <- use _mintRedeemers <#> Map.toUnfoldable
+  pure $
+    mintRedeemers # mapWithIndex \ix (_ /\ T.Redeemer red) ->
+      T.Redeemer red { index = fromInt ix }
+
 -- | Modify the `UnbalancedTx` so that it satisfies the constraints, if
 -- | possible. Fails if a hash is missing from the lookups, or if an output
 -- | of the wrong type is spent.
@@ -925,28 +944,24 @@ processConstraint mpsMap osMap = do
           _valueSpentBalancesOutputs <>= provide v
           liftEither $ Right $ map getNonAdaAsset $ value i
       ExceptT $ attachToCps attachPlutusScript plutusScript
-      -- Use a separate redeeming order on minting policies.
-      _mintingPolicies <>= Array.singleton (wrap plutusScript)
-      mIndex <-
-        use
-          ( _mintingPolicies <<< to
-              (elemIndex (wrap plutusScript) >>> map fromInt)
-          )
-      index <- liftM CannotGetMintingPolicyScriptIndex mIndex
       let
         -- Create a redeemer with zero execution units then call Ogmios to
         -- add the units in at the very end.
+        -- Hardcode minting policy index, then reindex with
+        -- `reindexMintRedeemers`.
         redeemer = T.Redeemer
           { tag: Mint
-          , index
+          , index: zero
           , data: unwrap red
           , exUnits: mintExUnits
           }
+      -- Remove mint redeemers from array before reindexing.
+      _redeemers %= filter \(T.Redeemer { tag } /\ _) -> tag /= Mint
+      -- Reindex mint redeemers.
+      mintRedeemers <- lift $ reindexMintRedeemers mpsHash redeemer
+      -- Append reindexed mint redeemers to array.
+      _redeemers <>= map (\red -> red /\ Nothing) mintRedeemers
       _cpsToTxBody <<< _mint <>= map wrap mintVal
-      -- Append redeemer for minting to array.
-      _redeemers <>= Array.singleton (redeemer /\ Nothing)
-      -- Attach redeemer to witness set.
-      ExceptT $ attachToCps attachRedeemer redeemer
     MustPayToPubKeyAddress pkh skh mDatum plutusValue -> do
       networkId <- getNetworkId
       let amount = unwrap $ fromPlutusType plutusValue
