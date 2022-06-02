@@ -13,6 +13,7 @@ import Aeson
   , class EncodeAeson
   , decodeAeson
   , encodeAeson
+  , encodeAeson'
   )
 import Aeson.Decode ((</$\>), (</*\>), (</\>), decode, null)
 import Aeson.Encode ((>$<), (>/\<), encode, null)
@@ -40,8 +41,9 @@ derive newtype instance Eq Datum
 derive newtype instance FromData Datum
 derive newtype instance Ord Datum
 derive newtype instance ToData Datum
+
 instance EncodeAeson Datum where
-  encodeAeson' x = pure $ (defer \_ -> E.encode $ unwrap >$< E.value) x
+  encodeAeson' x = encodeAeson' $ (defer \_ -> E.encode $ unwrap >$< E.value) x
 
 instance DecodeAeson Datum where
   decodeAeson = defer \_ -> D.decode $ (Datum <$> D.value)
