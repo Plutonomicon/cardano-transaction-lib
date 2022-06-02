@@ -97,19 +97,9 @@ import QueryM
   , evalTxExecutionUnits
   )
 import QueryM.Utxos (utxosAt)
-import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers)
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import TxOutput (utxoIndexToUtxo)
-import ReindexRedeemers
-  ( ReindexErrors
-  , reindexSpentScriptRedeemers
-  , reindexSpentScriptRedeemers'
-  )
-import Serialization.Address
-  ( Address
-  , addressPaymentCred
-  , withStakeCredential
-  )
+import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (DataHash, TransactionInput)
