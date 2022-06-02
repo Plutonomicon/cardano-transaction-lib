@@ -31,9 +31,7 @@ import Data.BigInt as BigInt
 import Examples.MultipleRedeemers as MultipleRedeemers
 
 main :: Effect Unit
-main = launchAff_ $ do
-  alwaysSucceedsContract
-  MultipleRedeemers.threeRedeemerContract
+main = launchAff_ alwaysSucceedsContract
 
 alwaysSucceedsContract :: Aff Unit
 alwaysSucceedsContract = do

@@ -1,6 +1,6 @@
-module Examples.MultipleRedeemers (threeRedeemerContract) where
+module Examples.MultipleRedeemers (threeRedeemerContract, main) where
 
-import Prelude
+import Contract.Prelude
 
 import Cardano.Types.Value
   ( CurrencySymbol
@@ -17,43 +17,51 @@ import Contract.Monad
   , liftedM
   , logInfo'
   , runContract
+  , runContract_
   , traceContractConfig
+  , launchAff_
   )
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
-import Contract.Prelude (liftM, log, mconcat, unwrap, wrap)
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator, validatorHash, MintingPolicy)
+import Contract.Scripts
+  ( Validator
+  , validatorHash
+  , MintingPolicy
+  , ValidatorHash
+  , scriptHashAddress
+  )
 import Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
   , balanceAndSignTx
   , submit
+  , TransactionHash
+  , TransactionInput
   )
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (utxosAt)
-import Contract.Value (mkTokenName, scriptCurrencySymbol)
+import Contract.Utxos (utxosAt, UtxoM)
+import Contract.Value
+  ( mkTokenName
+  , scriptCurrencySymbol
+  , TokenName
+  , getCurrencySymbol
+  )
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.Array (replicate)
 import Data.BigInt (fromInt)
 import Data.Foldable (length, sum)
 import Data.Bitraversable (bitraverse)
-import Data.Either (hush)
 import Data.Int (toNumber)
 import Data.Map as Map
 import Data.Set as Set
-import Data.Maybe (Maybe)
-import Data.Traversable (traverse)
-import Data.Tuple (Tuple(Tuple), fst, snd)
 import Effect.Aff (Aff, delay, Milliseconds(Milliseconds), error)
-import Effect.Aff.Class (liftAff)
 import Plutus.ToPlutusType (toPlutusType)
-import Plutus.Types.Address (scriptHashAddress)
-import Plutus.Types.Transaction (UtxoM, Utxo)
-import Plutus.Types.CurrencySymbol (getCurrencySymbol)
-import Types.Scripts (ValidatorHash)
-import Types.TokenName (TokenName)
-import Types.Transaction (TransactionHash, TransactionInput)
+import Plutus.Types.Transaction (Utxo)
+
+-- | to run this, edit `ps-entrypoint` in the MakeFile
+main :: Effect Unit
+main = launchAff_ threeRedeemerContract
 
 -- FIXME: this doesn't work without a browser
 threeRedeemerContract :: Aff Unit
@@ -71,117 +79,135 @@ threeRedeemerContract = do
     validatorHash validator
 
   Tuple hash numTokens :: Tuple TransactionHash Int <-
-    runContract cfg $ do
+    runContract cfg $ createTokens validator vhash
 
-      let
-        -- FIXME: Try to mint 3 tokens
-        tokens :: Array (Tuple String Int)
-        tokens =
-          [ Tuple "pleasedontspent" 3
-          ]
-
-      mp :: MintingPolicy <- liftContractM
-        "could not decode MintingPolicy from Json"
-        alwaysMintsPolicy
-      cs :: CurrencySymbol <-
-        liftContractM "could not get curencysymbol from mintingpolicy" $
-          mkCurrencySymbol <<< getCurrencySymbol =<< scriptCurrencySymbol mp
-      -- TODO: It would probably make sense to incorporate an actual Script instead of the alwayssucceeds 
-      --       one as someone could always just spend our tokens while we wait between the transactions
-      tok :: Array (Tuple TokenName Int) <-
-        liftContractM "could not make tokennames with values" $ traverse
-          (bitraverse (mkTokenName <=< byteArrayFromAscii) pure)
-          tokens
-
-      logInfo' $ "trying to create" <> show tok
-
-      let
-        toCsValue :: Array (Tuple TokenName Int) -> Value.Value
-        toCsValue t =
-          unwrap <<< toPlutusType <<< Value mempty <<< NonAdaAsset
-            <<< Map.singleton cs $ Map.fromFoldable $ map fromInt <$> t
-
-        tokenCount :: Int
-        tokenCount = sum $ snd <$> tokens
-
-        values :: Value.Value
-        values = toCsValue tok
-
-        lookups :: Lookups.ScriptLookups PlutusData
-        lookups = mconcat
-          [ Lookups.validator validator
-          , Lookups.mintingPolicy mp
-          ]
-
-        constraints :: Constraints.TxConstraints Unit Unit
-        constraints = mconcat
-          [ Constraints.mustMintValue values
-          -- create all the tokens in one utxo each
-          , mconcat $
-              ( \x -> replicate tokenCount
-                  $ Constraints.mustPayToScript vhash unitDatum
-                  $ toCsValue
-                  $ pure
-                  $ Tuple (fst x) 1
-              ) =<< tok
-          ]
-
-      ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-      BalancedSignedTransaction bsTx <-
-        liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-
-      logInfo' $ "Balanced and signed tx is " <> show bsTx
-      logInfo' $ "Created utxos " <> show values
-
-      Tuple <$> submit bsTx.signedTxCbor <*> pure tokenCount
-
-  log $ "Created utxos with transactionhash " <> show hash
+  log ("Created utxos with transactionhash " <> show hash)
   log "Going on with spending scriptoutputs from previous transaction"
 
+  runContract_ cfg $ spendTokens validator vhash hash numTokens
+
+spendTokens
+  :: Validator -> ValidatorHash -> TransactionHash -> Int -> Contract () Unit
+spendTokens validator vhash hash numTokens = do
+  Tuple utxo orefs <- getAlwaysSucceedsUtxos vhash hash numTokens
   let
-    getAlwaysSucceedsUtxos
-      :: forall (r :: Row Type)
-       . Contract r (Tuple Utxo (Array TransactionInput))
-    getAlwaysSucceedsUtxos = do
-      utxos :: UtxoM <-
-        liftContractM "could not get utxos at alwaysSucceedsScript" =<< utxosAt
-          (scriptHashAddress vhash)
-      liftAff $ delay $ Milliseconds $ toNumber 3_000
-      let
-        orefs :: Array TransactionInput
-        orefs = Set.toUnfoldable
-          $ Set.filter ((_ == hash) <<< _.transactionId <<< unwrap)
-          $ Map.keys
-          $ unwrap utxos
+    constraints :: Constraints.TxConstraints Unit Unit
+    constraints = mconcat
+      $ flip Constraints.mustSpendScriptOutput unitRedeemer
+      <$> orefs
 
-      if (length orefs == numTokens) then
-        pure $ Tuple (unwrap utxos) orefs
-      else do
-        logInfo' "Could not find utxos, trying again"
-        getAlwaysSucceedsUtxos
+    lookups :: Lookups.ScriptLookups PlutusData
+    lookups = mconcat
+      [ Lookups.unspentOutputs utxo
+      , Lookups.validator validator
+      ]
 
-  runContract cfg $ do
-    Tuple utxo orefs <- getAlwaysSucceedsUtxos
-    let
-      constraints :: Constraints.TxConstraints Unit Unit
-      constraints = mconcat $
-        flip Constraints.mustSpendScriptOutput unitRedeemer <$> orefs
+  logInfo' $ "Found " <> show orefs <> " at alwaysSucceeeds address"
 
-      lookups :: Lookups.ScriptLookups PlutusData
-      lookups = mconcat
-        [ Lookups.unspentOutputs utxo
-        , Lookups.validator validator
-        ]
-
-    logInfo' $ "Found " <> show orefs <> " at alwaysSucceeeds address"
-
-    ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    BalancedSignedTransaction bsTx <-
-      liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-    hash2 <- submit bsTx.signedTxCbor
-    logInfo' $ "Hash of second transaction " <> show hash2
-    pure unit
+  ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  BalancedSignedTransaction bsTx <-
+    liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+  hash2 <- submit bsTx.signedTxCbor
+  logInfo' $ "Hash of second transaction " <> show hash2
   pure unit
+
+getAlwaysSucceedsUtxos
+  :: forall (r :: Row Type)
+   . ValidatorHash
+  -> TransactionHash
+  -> Int
+  -> Contract r (Tuple Utxo (Array TransactionInput))
+getAlwaysSucceedsUtxos vhash hash numTokens = go
+  where
+  go = do
+    utxos :: UtxoM <-
+      liftContractM "could not get utxos at alwaysSucceedsScript" =<< utxosAt
+        (scriptHashAddress vhash)
+    liftAff $ delay $ Milliseconds $ toNumber 3_000
+    let
+      orefs :: Array TransactionInput
+      orefs = Set.toUnfoldable
+        $ Set.filter ((_ == hash) <<< _.transactionId <<< unwrap)
+        $ Map.keys
+        $ unwrap utxos
+
+    if (length orefs == numTokens) then
+      pure $ Tuple (unwrap utxos) orefs
+    else do
+      logInfo' "Could not find utxos, trying again"
+      go
+
+createTokens
+  :: Validator -> ValidatorHash -> Contract () (TransactionHash /\ Int)
+createTokens validator vhash = do
+  let
+    -- FIXME: Try to mint 3 tokens
+    tokens :: Array (Tuple String Int)
+    tokens =
+      [ Tuple "pleasedontspent" 3
+      ]
+
+  mp :: MintingPolicy <- liftContractM
+    "could not decode MintingPolicy from Json"
+    alwaysMintsPolicy
+  cs :: CurrencySymbol <-
+    liftContractM "could not get curencysymbol from mintingpolicy"
+      $ mkCurrencySymbol
+      <<< getCurrencySymbol
+      =<< scriptCurrencySymbol mp
+  -- TODO: It would probably make sense to incorporate an actual Script instead of the alwayssucceeds 
+  --       one as someone could always just spend our tokens while we wait between the transactions
+  tok :: Array (Tuple TokenName Int) <-
+    liftContractM "could not make tokennames with values" $ traverse
+      (bitraverse (mkTokenName <=< byteArrayFromAscii) pure)
+      tokens
+
+  logInfo' $ "trying to create" <> show tok
+
+  let
+    toCsValue :: Array (Tuple TokenName Int) -> Value.Value
+    toCsValue t =
+      unwrap <<< toPlutusType <<< Value mempty <<< NonAdaAsset
+        <<< Map.singleton cs
+        $ Map.fromFoldable
+        $ map fromInt
+        <$> t
+
+    tokenCount :: Int
+    tokenCount = sum $ snd <$> tokens
+
+    values :: Value.Value
+    values = toCsValue tok
+
+    lookups :: Lookups.ScriptLookups PlutusData
+    lookups = mconcat
+      [ Lookups.validator validator
+      , Lookups.mintingPolicy mp
+      ]
+
+    constraints :: Constraints.TxConstraints Unit Unit
+    constraints = mconcat
+      [ Constraints.mustMintValue values
+      -- create all the tokens in one utxo each
+      , mconcat
+          $
+            ( \x -> replicate tokenCount
+                $ Constraints.mustPayToScript vhash unitDatum
+                $ toCsValue
+                $ pure
+                $ Tuple (fst x) 1
+            )
+          =<< tok
+      ]
+
+  ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  BalancedSignedTransaction bsTx <-
+    liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+
+  logInfo' $ "Balanced and signed tx is " <> show bsTx
+  logInfo' $ "Created utxos " <> show values
+
+  Tuple <$> submit bsTx.signedTxCbor <*> pure tokenCount
 
 alwaysSucceedsScript :: Maybe Validator
 alwaysSucceedsScript = map wrap $ hush $ decodeAeson $ fromString
