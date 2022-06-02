@@ -5,7 +5,7 @@ module Plutus.Types.Credential
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson)
+import Aeson (class DecodeAeson, class EncodeAeson, encodeAeson')
 import Aeson.Decode ((</$\>), (</*\>))
 import Aeson.Encode ((>/\<))
 import Control.Lazy (defer)
@@ -64,7 +64,7 @@ instance
 
 -- NOTE: mlabs-haskell/purescript-bridge generated and applied here
 instance EncodeAeson Credential where
-  encodeAeson' x = pure $
+  encodeAeson' x = encodeAeson' $
     ( defer \_ -> case _ of
         PubKeyCredential a -> E.encodeTagged "PubKeyCredential" a E.value
         ScriptCredential a -> E.encodeTagged "ScriptCredential" a E.value
@@ -128,7 +128,7 @@ instance FromData StakingCredential where
 
 -- NOTE: mlabs-haskell/purescript-bridge generated and applied here
 instance EncodeAeson StakingCredential where
-  encodeAeson' x = pure $
+  encodeAeson' x = encodeAeson' $
     ( defer \_ -> case _ of
         StakingHash a -> E.encodeTagged "StakingHash" a E.value
         StakingPtr ptr -> E.encodeTagged "StakingPtr"
