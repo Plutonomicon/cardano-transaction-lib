@@ -93,7 +93,10 @@ main = do
         cfg = unwrap config
 
     launchAff_ $ flip catchError
-      (\e -> liftEffect $ logError e *> log' "crimson" ("[ERROR] " <> message e) *> unlock)
+      ( \e -> liftEffect $ logError e
+          *> log' "crimson" ("[ERROR] " <> message e)
+          *> unlock
+      )
       do
         priv <- (liftMaybe $ error "Failed to parse private key") =<<
           ( liftEffect $ map join $ traverse privateKeyFromBytes $
