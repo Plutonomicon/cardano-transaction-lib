@@ -211,22 +211,6 @@ calculateMinFeeM
   :: forall (r :: Row Type). Transaction -> Contract r (Maybe Coin)
 calculateMinFeeM = map hush <<< calculateMinFee
 
-lockMany
-  :: forall (r :: Row Type) (t :: Type -> Type) (a :: Type)
-   . (Traversable t)
-  => TxOutRefUnlockKeys
-  -> (a -> Transaction)
-  -> (t a)
-  -> Contract r (Either Error TxOutRefUnlockKeys)
-lockMany unlockKeys extract ts = do
-  usedTxos <- (asks (_.usedTxOuts <<< unwrap))
-  flip runReaderT usedTxos
-    ( runExceptT $
-        ( fold <$> for ts
-            (lockRemainingTransactionInputs unlockKeys <<< extract)
-        )
-    )
-
 -- | Attempts to balance an `UnattachedUnbalancedTx`.
 balanceTx
   :: forall (r :: Row Type)
@@ -252,7 +236,10 @@ balanceTxs uts = do
   pure uts'
 
   where
+  uutxToTx :: UnattachedUnbalancedTx -> Transaction
   uutxToTx = _.transaction <<< unwrap <<< _.unbalancedTx <<< unwrap
+
+  utxToTx :: UnattachedTransaction -> Transaction
   utxToTx = get1
 
   lock
@@ -269,6 +256,21 @@ balanceTxs uts = do
   unlock keys = do
     cache <- asks (_.usedTxOuts <<< unwrap)
     runReaderT (unlockTxOutKeys keys) cache
+
+  lockMany
+    :: forall (a :: Type)
+     . TxOutRefUnlockKeys
+    -> (a -> Transaction)
+    -> (t a)
+    -> Contract r (Either Error TxOutRefUnlockKeys)
+  lockMany unlockKeys extract ts = do
+    usedTxos <- (asks (_.usedTxOuts <<< unwrap))
+    flip runReaderT usedTxos
+      ( runExceptT $
+          ( fold <$> for ts
+              (lockRemainingTransactionInputs unlockKeys <<< extract)
+          )
+      )
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` hushing the error.
 balanceTxM
@@ -315,22 +317,11 @@ derive newtype instance Eq BalancedSignedTransaction
 instance Show BalancedSignedTransaction where
   show = genericShow
 
-signOne
-  :: forall (r :: Row Type) (e :: Type)
-   . Tuple UnattachedTransaction (Array Datum)
-  -> Contract r BalancedSignedTransaction
-signOne (Tuple (balancedTx /\ redeemersTxIns) datums) = do
-  let inputs = balancedTx ^. _body <<< _inputs
-  redeemers <- liftedE $ reindexSpentScriptRedeemers inputs redeemersTxIns
-  -- Reattach datums and redeemer:
-  QueryM.FinalizedTransaction txCbor <-
-    liftedM "balanceAndSignTx: Cannot attach datums and redeemer"
-      (finalizeTx balancedTx datums redeemers)
-  -- Sign the transaction returned as Cbor-hex encoded:
-  signedTxCbor <- liftedM "balanceAndSignTx: Failed to sign transaction" $
-    signTransactionBytes (wrap txCbor)
-  pure $ BalancedSignedTransaction { transaction: balancedTx, signedTxCbor }
-
+-- |Like 'balanceAndSignTx, but for more than one transaction.
+-- This function may throw errors through the contract Monad.
+-- If successful, transaction inputs will be locked afterwards.
+-- If you want to re-use them in the same 'QueryM' context, call
+-- 'unlockTransactionInputs'.
 balanceAndSignTxs
   :: forall (r :: Row Type)
    . NonEmptyArray UnattachedUnbalancedTx
@@ -340,6 +331,22 @@ balanceAndSignTxs txs = do
   let datumss = map (_.datums <<< unwrap) txs
   traverse signOne (NonEmptyArray.zip txs' datumss)
 
+  where
+  signOne
+    :: Tuple UnattachedTransaction (Array Datum)
+    -> Contract r BalancedSignedTransaction
+  signOne (Tuple (balancedTx /\ redeemersTxIns) datums) = do
+    let inputs = balancedTx ^. _body <<< _inputs
+    redeemers <- liftedE $ reindexSpentScriptRedeemers inputs redeemersTxIns
+    -- Reattach datums and redeemer:
+    QueryM.FinalizedTransaction txCbor <-
+      liftedM "balanceAndSignTx: Cannot attach datums and redeemer"
+        (finalizeTx balancedTx datums redeemers)
+    -- Sign the transaction returned as Cbor-hex encoded:
+    signedTxCbor <- liftedM "balanceAndSignTx: Failed to sign transaction" $
+      signTransactionBytes (wrap txCbor)
+    pure $ BalancedSignedTransaction { transaction: balancedTx, signedTxCbor }
+
 -- | A helper that wraps a few steps into: balance an unbalanced transaction
 -- | (`balanceTx`), reindex script spend redeemers (not minting redeemers)
 -- | (`reindexSpentScriptRedeemers`), attach datums and redeemers to the
@@ -347,6 +354,9 @@ balanceAndSignTxs txs = do
 -- | The return type includes the balanced (but unsigned) transaction for
 -- | logging and more importantly, the `ByteArray` to be used with `Submit` to
 -- | submit the transaction.
+-- | If successful, transaction inputs will be locked afterwards.
+-- | If you want to re-use them in the same 'QueryM' context, call
+-- | 'unlockTransactionInputs'.
 balanceAndSignTx
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx
