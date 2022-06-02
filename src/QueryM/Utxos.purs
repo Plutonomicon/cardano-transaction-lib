@@ -68,7 +68,7 @@ utxosAt = addressToOgmiosAddress >>> getUtxos
              )
       out = out' <#> bisequence # sequence
     in
-      (wrap <<< Map.fromFoldable) <$> out
+      wrap <<< Map.fromFoldable <$> out
 
 --------------------------------------------------------------------------------
 -- Used Utxos helpers

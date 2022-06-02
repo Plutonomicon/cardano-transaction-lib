@@ -1,5 +1,6 @@
 module QueryM.DatumCacheWsp
-  ( DatumCacheMethod
+  ( CancelFetchBlocksR(CancelFetchBlocksR)
+  , DatumCacheMethod
       ( GetDatumByHash
       , GetDatumsByHashes
       , StartFetchBlocks
@@ -8,15 +9,14 @@ module QueryM.DatumCacheWsp
   , GetDatumByHashR(GetDatumByHashR)
   , GetDatumsByHashesR(GetDatumsByHashesR)
   , StartFetchBlocksR(StartFetchBlocksR)
-  , CancelFetchBlocksR(CancelFetchBlocksR)
-  , JsonWspRequest
-  , JsonWspResponse
   , WspFault(WspFault)
+  , cancelFetchBlocksCall
   , faultToString
   , getDatumByHashCall
   , getDatumsByHashesCall
+  , JsonWspRequest
+  , JsonWspResponse
   , startFetchBlocksCall
-  , cancelFetchBlocksCall
   ) where
 
 import Prelude

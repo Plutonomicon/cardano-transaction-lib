@@ -100,6 +100,16 @@ import QueryM.Utxos (utxosAt)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers)
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import TxOutput (utxoIndexToUtxo)
+import ReindexRedeemers
+  ( ReindexErrors
+  , reindexSpentScriptRedeemers
+  , reindexSpentScriptRedeemers'
+  )
+import Serialization.Address
+  ( Address
+  , addressPaymentCred
+  , withStakeCredential
+  )
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (DataHash, TransactionInput)
@@ -272,16 +282,22 @@ evalExUnitsAndMinFee'
        (Either EvalExUnitsAndMinFeeError (UnattachedUnbalancedTx /\ BigInt))
 evalExUnitsAndMinFee' unattachedTx =
   runExceptT do
-    attachedTx <- ExceptT $ reattachDatumsAndRedeemers unattachedTx
+    -- Reindex `Spent` script redeemers:
+    unattachedReindexedTx <- ExceptT $ reindexRedeemers unattachedTx
       <#> lmap ReindexRedeemersError
+    -- Reattach datums and redeemers before evaluating ex units:
+    let attachedTx = reattachDatumsAndRedeemers unattachedReindexedTx
+    -- Evaluate transaction ex units:
     rdmrPtrExUnitsList <- ExceptT $ evalTxExecutionUnits attachedTx
       <#> lmap EvalExUnitsError
     let
+      -- Set execution units received from the server:
       unattachedTxWithExUnits =
-        updateTxExecutionUnits unattachedTx rdmrPtrExUnitsList
-    attachedTxWithExUnits <- ExceptT $
-      reattachDatumsAndRedeemers unattachedTxWithExUnits
-        <#> lmap ReindexRedeemersError
+        updateTxExecutionUnits unattachedReindexedTx rdmrPtrExUnitsList
+      -- Reattach datums and redeemers before calculating fees:
+      attachedTxWithExUnits =
+        reattachDatumsAndRedeemers unattachedTxWithExUnits
+    -- Calculate the minimum fee for a transaction:
     minFee <- ExceptT $ calculateMinFee attachedTxWithExUnits
       <#> bimap EvalMinFeeError unwrap
     pure $ unattachedTxWithExUnits /\ minFee
@@ -292,21 +308,27 @@ evalExUnitsAndMinFee
 evalExUnitsAndMinFee =
   map (lmap EvalExUnitsAndMinFeeError') <<< evalExUnitsAndMinFee'
 
--- | Reattaches datums and redeemers to the transaction,
--- | reindexing the redeemers.
-reattachDatumsAndRedeemers
+reindexRedeemers
   :: UnattachedUnbalancedTx
-  -> QueryM (Either ReindexErrors Transaction)
+  -> QueryM (Either ReindexErrors UnattachedUnbalancedTx)
+reindexRedeemers
+  unattachedTx@(UnattachedUnbalancedTx { redeemersTxIns }) =
+  let
+    inputs = unattachedTx ^. _body' <<< _inputs
+  in
+    reindexSpentScriptRedeemers' inputs redeemersTxIns <#>
+      map \redeemersTxInsReindexed ->
+        unattachedTx # _redeemersTxIns .~ redeemersTxInsReindexed
+
+-- | Reattaches datums and redeemers to the transaction.
+reattachDatumsAndRedeemers :: UnattachedUnbalancedTx -> Transaction
 reattachDatumsAndRedeemers
   (UnattachedUnbalancedTx { unbalancedTx, datums, redeemersTxIns }) =
   let
     transaction = unbalancedTx ^. _transaction
-    inputs = transaction ^. _body <<< _inputs
   in
-    reindexSpentScriptRedeemers inputs redeemersTxIns <#>
-      map \reindexedRedeemers ->
-        transaction # _witnessSet <<< _plutusData ?~ map unwrap datums
-          # _witnessSet <<< _redeemers ?~ reindexedRedeemers
+    transaction # _witnessSet <<< _plutusData ?~ map unwrap datums
+      # _witnessSet <<< _redeemers ?~ map fst redeemersTxIns
 
 updateTxExecutionUnits
   :: UnattachedUnbalancedTx -> Array RdmrPtrExUnits -> UnattachedUnbalancedTx
