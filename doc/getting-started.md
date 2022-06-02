@@ -1,10 +1,22 @@
 # Getting Started with CTL
 
-This guide will help you get started for writing contracts with CTL. Please also see our guide [comparing CTL with Plutus/PAB](./plutus-comparison.md) which offers a more abstract overview of the project.
+This guide will help you get started writing contracts with CTL. Please also see our guide [comparing CTL with Plutus/PAB](./plutus-comparison.md) which offers a more abstract overview of the project.
+
+**Table of Contents**
+
+- [Prerequisites](#prerequisites)
+- [Importing CTL modules](#importing-ctl-modules)
+  - [The `Contract` interface](#the-contract-interface)
+  - [Our `Prelude`](#our-prelude)
+- [Executing contracts and the `ContractConfig`](#executing-contracts-and-the-contractconfig)
+  - [Making the `ContractConfig`](#making-the-contractconfig)
+- [Building and submitting transactions](#building-and-submitting-transactions)
+  - [Awaiting tx confirmation](#awaiting-tx-confirmation)
+- [Testing](#testing)
 
 ## Prerequisites
 
-Please see the guide on [adding CTL as a dependency](./ctl-as-dependency.md) to a Purescript project. You will also need to become familiar with [CTL's runtime](./runtime.md) as its runtime services are required for executing most contracts.
+You need to have set up a Purescript project using CTL as a dependency ([more details here](./ctl-as-dependency.md)). You will also need to become familiar with [CTL's runtime](./runtime.md) as its runtime services are required for executing virtually all contracts.
 
 ## Importing CTL modules
 
@@ -16,7 +28,7 @@ For example, avoid the following:
 
 ```purescript
 
--- Anything not in in the `Contract` namespace should be considered an 
+-- Anything not in in the `Contract` namespace should be considered an
 -- **internal** CTL module
 
 import Types.TokenName (TokenName)
@@ -26,7 +38,7 @@ import Types.Scripts (MintingPolicy)
 
 Instead, prefer:
 
-```purescript 
+```purescript
 
 import Contract.Value (TokenName)
 import Contract.Scripts (MintingPolicy)
@@ -35,7 +47,7 @@ import Contract.Scripts (MintingPolicy)
 
 ### Our `Prelude`
 
-Unlike Haskell, Purescript's `Prelude` is not imported implicitly in every module and is much smaller in scope (for example, common non-primitive types like `Maybe` are contained in their own packages, rather than in the `Prelude`). Rather than require users to import Purescript's `Prelude` and other common modules directly, we offer a `Contract.Prelude` that re-exports Purescript's `Prelude`, several common modules (e.g. `Data.Maybe`, `Data.Either`, etc...), and CTL-specific functionality. **We recommend using `Contract.Prelude` as a replacement for `Prelude` in projects using CTL**, particularly for developers who are less familiar with Purescript and its divergences from Haskell. 
+Unlike Haskell, Purescript's `Prelude` is not imported implicitly in every module and is much smaller in scope (for example, common non-primitive types like `Maybe` are contained in their own packages, rather than in the `Prelude`). Rather than require users to import Purescript's `Prelude` and other common modules directly, we offer a `Contract.Prelude` that re-exports Purescript's `Prelude`, several common modules (e.g. `Data.Maybe`, `Data.Either`, etc...), and CTL-specific functionality. **We recommend using `Contract.Prelude` as a replacement for `Prelude` in projects using CTL**, particularly for developers who are less familiar with Purescript and its divergences from Haskell.
 
 ## Executing contracts and the `ContractConfig`
 
@@ -60,8 +72,8 @@ Within this `Aff` action, you should create a wallet type and initialize your `C
 
 ```purescript
 main :: Effect Unit
-main = Contract.Monad.launchAff_ $ do -- we re-export this for you
-  wallet <- Contract.Wallet.mkNamiWalletAff -- for the Nami backend
+main = Contract.Monad.launchAff_ $ do
+  wallet <- Contract.Wallet.mkNamiWalletAff
   cfg <- undefined -- see the next section for more details on this part
  ...
 ```
@@ -70,10 +82,10 @@ Then use the eliminator `Contract.Monad.runContract` (or `runContract_` to disca
 
 ```purescript
 main :: Effect Unit
-main = Contract.Monad.launchAff_ $ do -- we re-export this for you
-  wallet <- Contract.Wallet.mkNamiWalletAff -- for the Nami backend
-  cfg <- undefined -- see the next section for more details on this part
-  runContract_ cfg $ do 
+main = Contract.Monad.launchAff_ $ do
+  wallet <- Contract.Wallet.mkNamiWalletAff
+  cfg <- undefined
+  runContract_ cfg $ do
     ...
 ```
 
@@ -81,9 +93,9 @@ main = Contract.Monad.launchAff_ $ do -- we re-export this for you
 
 The `ContractConfig` contains the configuration values and websocket connections that are required to execute contracts written in CTL. For local development and testing, we provide `Contract.Monad.traceContractConfig` where all service hosts are set to `localhost` and the `logLevel` is set to `Trace`. Needless to say, this is not viable for production or staging environments.
 
-To contstruct a `ContractConfig`, it is **not recommended to directly construct or manipulate a `ContractConfig` yourself** as the process of making a new config initializes websockets. Instead, use `Contract.Monad.ConfigParams` with `Contract.Monad.mkContractConfig`. 
+It is **not recommended to directly construct or manipulate a `ContractConfig` yourself** as the process of making a new config initializes websockets. Instead, use `Contract.Monad.ConfigParams` with `Contract.Monad.mkContractConfig`.
 
-As explained in the [Plutus/PAB comparison](plutus-comparison.md#the-contract-type), the `ContractConfig` environment using Purescript's extensible records. This can also be done via `ConfigParams`, which holds an `extraConfig` field corresponding to the `Row Type` argument to `ContractConfig` (and by extension, `Contract`). 
+As explained in the [Plutus/PAB comparison](plutus-comparison.md#the-contract-type), the `ContractConfig` environment using Purescript's extensible records. This can also be done via `ConfigParams`, which holds an `extraConfig` field corresponding to the `Row Type` argument to `ContractConfig` (and by extension, `Contract`).
 
 An example of building a `ContractConfig` via `ConfigParams` is as follows:
 
@@ -92,7 +104,7 @@ main :: Effect Unit
 main = Contract.Monad.launchAff_ $ do -- we re-export this for you
   wallet <- Contract.Wallet.mkNamiWalletAff -- for the Nami backend
   cfg <- mkContractConfig $ ConfigParams
-    -- The server defaults below are also exported from 
+    -- The server defaults below are also exported from
     -- `Contract.Monad`
     { ogmiosConfig: defaultOgmiosWsConfig
     , datumCacheConfig: defaultDatumCacheWsConfig
@@ -105,20 +117,20 @@ main = Contract.Monad.launchAff_ $ do -- we re-export this for you
   runContract_ cfg someContractWithApiKeyInEnv
 
 -- As we provided `(apiKey :: String)` to the `extraConfig` above, we can now
--- access it in the reader environment of any `Contract` actions call using 
+-- access it in the reader environment of any `Contract` actions call using
 -- the `ContractConfig` we created above. We can also retain polymorphism
 -- by adding `| r` to the row type
-someContractWithApiKeyInEnv 
+someContractWithApiKeyInEnv
   :: forall (r :: Row Type). Contract (apiKey :: String | r) Unit
 someContractWithApiKeyInEnv = ...
 ```
-
 
 ## Building and submitting transactions
 
 Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for transactions and most of the steps are called individually. The general workflow in CTL is similar to the following:
 
 - Build a transaction using `Contract.ScriptLookups` and `Contract.TxConstraints` (it is also possible to directly build a `Transaction` if you require even greater low-level control over the process, although we recommend the constraints/lookups approach for most users):
+
   ```purescript
   contract = do
     let
@@ -129,13 +141,14 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
 
       lookups :: ScriptLookups PlutusData
       lookups = ScriptLookups.validator validator
-    
+
     -- `liftedE` will throw a runtime exception on `Left`s
     ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     ...
   ```
 
 - Sign it and balance it using `Contract.Transaction.balanceAndSignTx`:
+
   ```purescript
   contract = do
     ...
