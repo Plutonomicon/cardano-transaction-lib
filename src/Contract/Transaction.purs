@@ -175,7 +175,11 @@ import Types.UnbalancedTransaction
   , _utxoIndex
   , emptyUnbalancedTx
   ) as UnbalancedTx
-import Types.UsedTxOuts (TxOutRefUnlockKeys, unlockTxOutKeys, lockRemainingTransactionInputs)
+import Types.UsedTxOuts
+  ( TxOutRefUnlockKeys
+  , unlockTxOutKeys
+  , lockRemainingTransactionInputs
+  )
 
 -- | This module defines transaction-related requests. Currently signing and
 -- | submission is done with Nami.
