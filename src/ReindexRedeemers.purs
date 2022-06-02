@@ -27,9 +27,7 @@ import Types.Transaction (TransactionInput)
 -- | The only error should be impossible but we keep this here in case the user
 -- | decides to call this function at some point where inputs have been
 -- | accidentally deleted and/or not after balancing
-data ReindexErrors
-  = CannotGetTxOutRefIndexForRedeemer T.Redeemer
-  | NoTxOutRefForRedeemer T.Redeemer
+data ReindexErrors = CannotGetTxOutRefIndexForRedeemer T.Redeemer
 
 derive instance Generic ReindexErrors _
 
@@ -63,8 +61,7 @@ reindexSpentScriptRedeemers' inputs redeemersTxIns = runExceptT do
     -> RedeemersTxIn
     -> Either ReindexErrors RedeemersTxIn
   reindex ipts = case _ of
-    red@(T.Redeemer red'@{ tag: Spend }) /\ mtxOutRef -> do
-      txOutRef <- note (NoTxOutRefForRedeemer red) mtxOutRef
+    red@(T.Redeemer red'@{ tag: Spend }) /\ Just txOutRef -> do
       index <- note (CannotGetTxOutRefIndexForRedeemer red)
         (fromInt <$> elemIndex txOutRef ipts)
       Right $ T.Redeemer red' { index = index } /\ Just txOutRef
