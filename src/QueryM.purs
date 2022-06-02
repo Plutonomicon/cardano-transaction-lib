@@ -296,25 +296,25 @@ allowError func = func <<< Right
 
 getWalletAddress :: QueryM (Maybe Address)
 getWalletAddress = withMWalletAff $ case _ of
-  Nami nami -> callWallet nami _.getWalletAddress
-  Gero gero -> callWallet gero _.getWalletAddress
+  Nami nami -> callCip30Wallet nami _.getWalletAddress
+  Gero gero -> callCip30Wallet gero _.getWalletAddress
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
 getWalletCollateral = withMWalletAff $ case _ of
-  Nami nami -> callWallet nami _.getCollateral
-  Gero gero -> callWallet gero _.getCollateral
+  Nami nami -> callCip30Wallet nami _.getCollateral
+  Gero gero -> callCip30Wallet gero _.getCollateral
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
 signTransaction tx = withMWalletAff $ case _ of
-  Nami nami -> callWallet nami \nw -> flip nw.signTx tx
-  Gero gero -> callWallet gero \nw -> flip nw.signTx tx
+  Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
+  Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
 
 signTransactionBytes
   :: CborBytes -> QueryM (Maybe CborBytes)
 signTransactionBytes tx = withMWalletAff $ case _ of
-  Nami nami -> callWallet nami \nw -> flip nw.signTxBytes tx
-  Gero gero -> callWallet gero \nw -> flip nw.signTxBytes tx
+  Nami nami -> callCip30Wallet nami \nw -> flip nw.signTxBytes tx
+  Gero gero -> callCip30Wallet gero \nw -> flip nw.signTxBytes tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do
@@ -338,12 +338,12 @@ withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
 withMWalletAff act = asks _.wallet >>= maybe (pure Nothing) (liftAff <<< act)
 
-callWallet
+callCip30Wallet
   :: forall (a :: Type)
    . Cip30Wallet
   -> (Cip30Wallet -> (Cip30Connection -> Aff a))
   -> Aff a
-callWallet wallet act = act wallet wallet.connection
+callCip30Wallet wallet act = act wallet wallet.connection
 
 -- The server will respond with a stringified integer value for the fee estimate
 newtype FeeEstimate = FeeEstimate BigInt

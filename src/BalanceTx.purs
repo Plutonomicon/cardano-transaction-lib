@@ -130,14 +130,14 @@ derive instance genericBalanceTxError :: Generic BalanceTxError _
 instance showBalanceTxError :: Show BalanceTxError where
   show = genericShow
 
-data GetWalletAddressError = CouldNotGetNamiWalletAddress
+data GetWalletAddressError = CouldNotGetWalletAddress
 
 derive instance genericGetWalletAddressError :: Generic GetWalletAddressError _
 
 instance showGetWalletAddressError :: Show GetWalletAddressError where
   show = genericShow
 
-data GetWalletCollateralError = CouldNotGetNamiCollateral
+data GetWalletCollateralError = CouldNotGetCollateral
 
 derive instance genericGetWalletCollateralError ::
   Generic GetWalletCollateralError _
@@ -382,11 +382,11 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   runExceptT do
     -- Get own wallet address, collateral and utxo set:
     ownAddr <- ExceptT $ getWalletAddress <#>
-      note (GetWalletAddressError' CouldNotGetNamiWalletAddress)
+      note (GetWalletAddressError' CouldNotGetWalletAddress)
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
     collateral <- ExceptT $ getWalletCollateral <#>
-      note (GetWalletCollateralError' CouldNotGetNamiCollateral)
+      note (GetWalletCollateralError' CouldNotGetCollateral)
     wallet <- asks _.wallet
     let
       -- Combines utxos at the user address and those from any scripts
