@@ -182,11 +182,11 @@ Unfortunately, the process of upgrading CTL is fairly involved. This is in part 
 
 Make sure to perform **all** of the following steps, otherwise you will probably encounter difficult-to-debug issues:
 
-1. Update the `rev` you're using for CTL in your flake `inputs`
+- Update the `rev` you're using for CTL in your flake `inputs`
   - **Note**: Nix might throw an error about CTL following a "non-existent input" after doing this. The best way to solve this is to upgrade the version of Nix that you're using. Otherwise, `nix flake lock --update-input <NAME>`, where `NAME` is the one you're using for CTL in your `inputs`, should solve this
-2. Update the CTL `version` in your `packages.dhall`. Make sure that this is the exact same revision as in your flake inputs
-3. Possibly update the `dependencies` section for CTL in your `packages.dhall`
+- Update the CTL `version` in your `packages.dhall`. Make sure that this is the exact same revision as in your flake inputs
+- Possibly update the `dependencies` section for CTL in your `packages.dhall`
   - You can find a list of CTL's dependencies in our own `spago.dhall` (but make sure to check at the correct revision)
   - You might also need to add new transitive git dependencies if CTL has added any to its own direct dependencies (i.e. you need to copy the matching stanzas from CTL's `packages.dhall` to your own; these are under the `additions` record in CTL's `packages.dhall`)
-4. Run `spago2nix generate` and make sure to stage and commit the resulting `spago-packages.nix` if it has changed
-5. If CTL has added any JS dependencies, these will also need to be added to your own `package.json`
+- Run `spago2nix generate` and make sure to stage and commit the resulting `spago-packages.nix` if it has changed
+- If CTL has added any JS dependencies, these will also need to be added to your own `package.json`
