@@ -20,7 +20,7 @@ Note that differences between Haskell and Purescript, while also relevant to suc
 
 ### Library vs. process
 
-Unlike contracts written for PAB, which are compiled to a single process, CTL is a library. CTL itself can be [imported as a Purescript library](./using-ctl.md) and contracts written in CTL compile to Javascript that can be run in the browser or NodeJS. Accordingly, there is no need to activate endpoints in CTL -- contracts are executed by calling effectful functions written using the library. This distinction has influenced our adaption of Plutus' `Contract` type, as outlined [below](#the-contract-type).
+Unlike contracts written for PAB, which are compiled to a single process, CTL is a library. CTL itself can be [imported as a Purescript library](./ctl-as-dependency.md) and contracts written in CTL compile to Javascript that can be run in the browser or NodeJS. Accordingly, there is no need to activate endpoints in CTL -- contracts are executed by calling effectful functions written using the library. This distinction has influenced our adaption of Plutus' `Contract` type, as outlined [below](#the-contract-type).
 
 Note, however, that CTL still requires a number of runtime dependencies. In some respects, this is similar to PAB, which also needs to communicate with plutus-chain-index and a running node. Please see the [documentation](./runtime.md) for more details on CTL's runtime.
 
