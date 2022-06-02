@@ -1,6 +1,7 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a transaction. It creates a simple transaction that gets
--- | UTxOs from the user's wallet and sends two Ada back to the same wallet address
+-- | UTxOs from the user's wallet and sends the selected amount to the specified
+-- | address
 module Examples.Pkh2PkhKeyWallet (main) where
 
 import Contract.Prelude

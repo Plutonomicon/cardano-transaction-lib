@@ -300,7 +300,6 @@ getWalletAddress = do
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
 getWalletCollateral = withMWalletAff $ case _ of
   Nami nami -> callNami nami _.getCollateral
-  -- KeyWallet kw -> pure $ pure kw.collateral
   KeyWallet _ -> liftEffect $ throw "Not implemented"
 
 signTransaction
