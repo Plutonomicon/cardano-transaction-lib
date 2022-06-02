@@ -1,4 +1,4 @@
-# Using CTL as a Dependency
+# Adding CTL as a Dependency
 
 CTL can be imported as an additional dependency into a Purescript project built with Spago (i.e. by listing the project in your `packages.dhall`). Running CTL contracts requires several [runtime dependencies](./runtime.md) as well.
 

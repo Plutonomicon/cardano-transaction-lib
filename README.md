@@ -43,7 +43,8 @@ Support is planned for the following light wallets, roughly in order of implemen
 Please explore our documentation to discover how to use CTL, how to set up its runtime, and how it compares to Plutus/PAB:
 
 - [Migrating from Plutus to CTL](./doc/plutus-comparison.md)
-- [Using CTL as a dependency](./doc/using-ctl.md)
+- [Adding CTL as a dependency](./doc/ctl-as-dependency.md)
+- [Getting started writing CTL contracts](./doc/getting-started.md)
 - [CTL's runtime dependencies](./doc/runtime.md)
 - [Developing on CTL](./doc/development.md)
 

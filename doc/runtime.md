@@ -26,7 +26,7 @@ The services that are currently required are:
 
 ### Using the CTL overlay
 
-CTL's overlay (contained in its flake `outputs`) provides some mechanisms for conveniently launching all runtime services using [Arion](https://docs.hercules-ci.com/arion)(itself a wrapper around `docker-compose`). To use this, you must have a setup based on Nix flakes (recommended as well for [using CTL as a dependency for Purescript projects](#using-ctl-as-a-dependency)).
+CTL's overlay (contained in its flake `outputs`) provides some mechanisms for conveniently launching all runtime services using [Arion](https://docs.hercules-ci.com/arion)(itself a wrapper around `docker-compose`). To use this, you must have a setup based on Nix flakes (recommended as well for [using CTL as a dependency for Purescript projects](./ctl-as-dependency.md)).
 
 Here is an example that uses the overlay to launch runtime services:
 
