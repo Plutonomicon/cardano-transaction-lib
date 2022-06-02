@@ -26,10 +26,51 @@ module Contract.Transaction
 
 import Prelude
 
-import BalanceTx (BalanceTxError(..)) as BalanceTxError
 import BalanceTx (UnattachedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
-import Cardano.Types.Transaction
+import BalanceTx (BalanceTxError) as BalanceTxError
+import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
+import Control.Monad.Error.Class (try, catchError, throwError)
+import Control.Monad.Except.Trans (runExceptT)
+import Control.Monad.Reader (asks, runReaderT)
+import Data.Either (Either, hush)
+import Data.Generic.Rep (class Generic)
+import Data.Lens.Getter ((^.))
+import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Array.NonEmpty (NonEmptyArray)
+import Data.Array.NonEmpty as NonEmptyArray
+import Data.Show.Generic (genericShow)
+import Data.Traversable (class Traversable, fold, for, sequence, traverse)
+import Data.Tuple (Tuple(Tuple))
+import Data.Tuple.Nested (type (/\), (/\), get1)
+import Effect.Exception (Error)
+import QueryM
+  ( FeeEstimate(FeeEstimate)
+  , ClientError(..) -- implicit as this error list will likely increase.
+  , FinalizedTransaction(FinalizedTransaction)
+  ) as ExportQueryM
+import QueryM
+  ( FinalizedTransaction(FinalizedTransaction)
+  , calculateMinFee
+  , signTransaction
+  , signTransactionBytes
+  , finalizeTx
+  , submitTxOgmios
+  ) as QueryM
+import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
+import ReindexRedeemers
+  ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
+  ) as ReindexRedeemersExport
+import Types.CborBytes (CborBytes)
+import Types.Datum (Datum)
+import Types.ScriptLookups (UnattachedUnbalancedTx)
+import Types.ScriptLookups
+  ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
+  , mkUnbalancedTx
+  ) as ScriptLookups
+import Cardano.Types.Transaction (Transaction, _body, _inputs)
+import Cardano.Types.Transaction -- Most re-exported, don't re-export `Redeemer` and associated lens.
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
   , BootstrapWitness
@@ -75,6 +116,10 @@ import Cardano.Types.Transaction
   , Update
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
+  -- Use these lenses with care since some will involved Cardano datatypes, not
+  -- Plutus ones. e.g. _fee, _collateral, _outputs. In the unlikely scenario that
+  -- you need to tweak Cardano `TransactionOutput`s directly, `fromPlutusType`
+  -- then `toPlutusType` should be used.
   , _auxiliaryData
   , _auxiliaryDataHash
   , _body
@@ -99,71 +144,38 @@ import Cardano.Types.Transaction
   , _withdrawals
   , _witnessSet
   ) as Transaction
-import Cardano.Types.Transaction (Transaction, _body, _inputs)
-import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
-import Control.Monad.Error.Class (throwError, catchError, try)
-import Control.Monad.Except.Trans (runExceptT)
-import Control.Monad.Reader (asks, runReaderT)
-import Data.Array.NonEmpty (NonEmptyArray)
-import Data.Array.NonEmpty as NonEmptyArray
-import Data.Either (Either, hush)
-import Data.Generic.Rep (class Generic)
-import Data.Lens.Getter ((^.))
-import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Show.Generic (genericShow)
-import Data.Traversable (class Traversable, fold, for, sequence, traverse)
-import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested (type (/\), (/\), get1)
-import Effect.Exception (Error)
 import Plutus.ToPlutusType (toPlutusType)
-import Plutus.Types.Transaction (TransactionOutput(TransactionOutput)) as PTransaction
+import Plutus.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  ) as PTransaction
 import Plutus.Types.Value (Coin)
-import QueryM
-  ( FinalizedTransaction(FinalizedTransaction)
-  , calculateMinFee
-  , signTransaction
-  , signTransactionBytes
-  , finalizeTx
-  , submitTxOgmios
-  ) as QueryM
-import QueryM
-  ( QueryConfig
-  , FeeEstimate(FeeEstimate)
-  , ClientError(..)
-  , FinalizedTransaction(FinalizedTransaction)
-  ) as ExportQueryM
-import ReindexRedeemers (ReindexErrors(CannotGetTxOutRefIndexForRedeemer)) as ReindexRedeemersExport
-import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import Serialization.Address (NetworkId)
 import TxOutput (scriptOutputToTransactionOutput) as TxOutput
-import Types.CborBytes (CborBytes)
-import Types.Datum (Datum)
-import Types.ScriptLookups (MkUnbalancedTxError(..), mkUnbalancedTx) as ScriptLookups
-import Types.ScriptLookups (UnattachedUnbalancedTx)
+import Types.Transaction (TransactionHash)
 import Types.Transaction
   ( DataHash(DataHash)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   ) as Transaction
-import Types.Transaction (TransactionHash)
 import Types.TransactionMetadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
-  , TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
+  , TransactionMetadatum
+      ( MetadataMap
+      , MetadataList
+      , Int
+      , Bytes
+      , Text
+      )
   ) as TransactionMetadata
 import Types.UnbalancedTransaction
-  ( ScriptOutput(ScriptOutput)
+  ( ScriptOutput(ScriptOutput) -- More up-to-date Plutus uses this, wonder if we can just use `TransactionOutput`
   , UnbalancedTx(UnbalancedTx)
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
   ) as UnbalancedTx
-import Types.UsedTxOuts
-  ( TxOutRefUnlockKeys
-  , lockRemainingTransactionInputs
-  , unlockTxOutKeys
-  )
+import Types.UsedTxOuts (TxOutRefUnlockKeys, unlockTxOutKeys, lockRemainingTransactionInputs)
 
 -- | This module defines transaction-related requests. Currently signing and
 -- | submission is done with Nami.
