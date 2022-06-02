@@ -79,12 +79,12 @@ import Data.These (These(Both, That, This))
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested ((/\), type (/\))
 import FromData (class FromData)
+import Helpers (showWithParens)
 import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Partial.Unsafe (unsafePartial)
 import Serialization.Hash
   ( ScriptHash
-  , scriptHashAsBytes
   , scriptHashFromBytes
   , scriptHashToBytes
   )
@@ -133,7 +133,7 @@ derive newtype instance Eq Coin
 derive newtype instance Ord Coin
 
 instance Show Coin where
-  show = genericShow
+  show (Coin c) = showWithParens "Coin" c
 
 instance Semigroup Coin where
   append (Coin c1) (Coin c2) = Coin (c1 + c2)
@@ -195,7 +195,7 @@ derive newtype instance ToData CurrencySymbol
 derive newtype instance ToMetadata CurrencySymbol
 
 instance Show CurrencySymbol where
-  show (CurrencySymbol cs) = "(CurrencySymbol" <> show cs <> ")"
+  show (CurrencySymbol cs) = "(CurrencySymbol " <> show cs <> ")"
 
 -- This is needed for `ApplyArgs`. Plutus has an `unCurrencySymbol` field.
 instance DecodeAeson CurrencySymbol where
@@ -238,7 +238,7 @@ derive instance Newtype NonAdaAsset _
 derive newtype instance Eq NonAdaAsset
 
 instance Show NonAdaAsset where
-  show (NonAdaAsset nonAdaAsset) = "(NonAdaAsset" <> show nonAdaAsset <> ")"
+  show (NonAdaAsset nonAdaAsset) = "(NonAdaAsset " <> show nonAdaAsset <> ")"
 
 instance Semigroup NonAdaAsset where
   append = unionWithNonAda (+)
@@ -656,7 +656,7 @@ currencyScriptHash (CurrencySymbol byteArray) =
   unsafePartial fromJust $ scriptHashFromBytes (wrap byteArray)
 
 scriptHashAsCurrencySymbol :: ScriptHash -> CurrencySymbol
-scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< scriptHashAsBytes
+scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< scriptHashToBytes
 
 -- | The minting policy hash of a currency symbol
 currencyMPSHash :: CurrencySymbol -> MintingPolicyHash

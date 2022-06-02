@@ -3,53 +3,49 @@ module QueryM
   ( ClientError(..)
   , DatumCacheListeners
   , DatumCacheWebSocket
+  , DefaultQueryConfig
+  , DispatchError(..)
   , DispatchIdMap
-  , DispatchError(JsError, JsonError)
   , FeeEstimate(..)
   , FinalizedTransaction(..)
-  , HashedData(..)
-  , module ServerConfig
   , ListenerSet
-  , PendingRequests
-  , RdmrPtrExUnits(..)
-  , RequestBody
   , OgmiosListeners
   , OgmiosWebSocket
+  , PendingRequests
   , QueryConfig
-  , DefaultQueryConfig
   , QueryM
   , QueryMExtended
+  , RdmrPtrExUnits(..)
+  , RequestBody
   , WebSocket
-  , liftQueryM
   , allowError
   , applyArgs
   , calculateMinFee
-  , datumHash
-  , traceQueryConfig
+  , cancelFetchBlocks
   , evalTxExecutionUnits
   , finalizeTx
-  , getWalletAddress
   , getChainTip
+  , getDatumByHash
+  , getDatumsByHashes
+  , getWalletAddress
   , getWalletCollateral
-  , hashData
-  , hashScript
+  , liftQueryM
   , listeners
   , mkDatumCacheWebSocketAff
   , mkOgmiosRequest
   , mkOgmiosWebSocketAff
+  , module ServerConfig
   , ownPaymentPubKeyHash
   , ownPubKeyHash
   , ownStakePubKeyHash
   , runQueryM
   , signTransaction
   , signTransactionBytes
-  , submitTxWallet
-  , submitTxOgmios
-  , underlyingWebSocket
-  , getDatumByHash
-  , getDatumsByHashes
   , startFetchBlocks
-  , cancelFetchBlocks
+  , submitTxOgmios
+  , submitTxWallet
+  , traceQueryConfig
+  , underlyingWebSocket
   ) where
 
 import Prelude
@@ -158,14 +154,12 @@ import Serialization.Address
   , addressPaymentCred
   , stakeCredentialToKeyHash
   )
-import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.CborBytes (CborBytes)
 import Types.Chain as Chain
-import Types.Datum (DataHash(DataHash), Datum)
-import Types.Interval (SlotConfig, defaultSlotConfig)
+import Types.Datum (DataHash, Datum)
 import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
 import Types.Natural (Natural)
@@ -194,7 +188,6 @@ type QueryConfig (r :: Row Type) =
   -- should probably be more tightly coupled with a wallet
   , usedTxOuts :: UsedTxOuts
   , networkId :: NetworkId
-  , slotConfig :: SlotConfig
   , logLevel :: LogLevel
   | r
   }
@@ -218,7 +211,6 @@ liftQueryM = withReaderT toDefaultQueryConfig
     , wallet: c.wallet
     , usedTxOuts: c.usedTxOuts
     , networkId: c.networkId
-    , slotConfig: c.slotConfig
     , logLevel: c.logLevel
     }
 
@@ -239,7 +231,6 @@ traceQueryConfig = do
     , wallet: Nothing
     , usedTxOuts
     , networkId: TestnetId
-    , slotConfig: defaultSlotConfig
     , logLevel
     }
   where
@@ -531,40 +522,6 @@ finalizeTx tx datums redeemers = do
   -- decode
   pure $ hush <<< (decodeAeson <=< parseJsonStringToAeson) =<< hush jsonBody
 
-newtype HashedData = HashedData ByteArray
-
-derive instance Newtype HashedData _
-derive instance Generic HashedData _
-
-instance Show HashedData where
-  show = genericShow
-
-instance DecodeAeson HashedData where
-  decodeAeson =
-    map HashedData <<<
-      caseAesonString (Left err) (note err <<< hexToByteArray)
-    where
-    err :: JsonDecodeError
-    err = TypeMismatch "Expected hex bytes (raw) of hashed data"
-
-hashData :: Datum -> QueryM (Maybe HashedData)
-hashData datum = do
-  body <-
-    liftEffect $ byteArrayToHex <<< Serialization.toBytes <<< asOneOf
-      <$> maybe'
-        (const $ throw $ "Failed to convert plutus data: " <> show datum)
-        pure
-        (Serialization.convertPlutusData $ unwrap datum)
-  url <- mkServerEndpointUrl "hash-data"
-  -- get response json
-  jsonBody <- liftAff (postAeson url (encodeAeson body)) <#> map _.body
-  -- decode
-  pure $ hush <<< (decodeAeson <=< parseJsonStringToAeson) =<< hush jsonBody
-
--- | Hashes an Plutus-style Datum
-datumHash :: Datum -> QueryM (Maybe DataHash)
-datumHash = map (map (DataHash <<< unwrap)) <<< hashData
-
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
 applyArgs
@@ -602,26 +559,6 @@ applyArgs script args = case traverse plutusDataToAeson args of
           <<< asOneOf
       )
       <<< Serialization.convertPlutusData
-
-hashScript
-  :: forall (a :: Type) (b :: Type)
-   . Newtype a PlutusScript
-  => Newtype b ScriptHash
-  => a
-  -> QueryM (Either ClientError b)
-hashScript script = do
-  url <- mkServerEndpointUrl "hash-script"
-  let
-    reqBody :: Aeson
-    reqBody = scriptToAeson $ unwrap script
-
-  liftAff (postAeson url reqBody)
-    <#> either
-      (Left <<< ClientHttpError)
-      ( bimap ClientDecodeJsonError wrap
-          <<< (decodeAeson <=< parseJsonStringToAeson)
-          <<< _.body
-      )
 
 -- We can't use Affjax's typical `post`, since there will be a mismatch between
 -- the media type header and the request body
@@ -668,16 +605,25 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
   chainTipDispatchMap <- createMutableDispatch
   evaluateTxDispatchMap <- createMutableDispatch
   submitDispatchMap <- createMutableDispatch
+  eraSummariesDispatchMap <- createMutableDispatch
+  currentEpochDispatchMap <- createMutableDispatch
+  systemStartDispatchMap <- createMutableDispatch
   utxoPendingRequests <- createPendingRequests
   chainTipPendingRequests <- createPendingRequests
   evaluateTxPendingRequests <- createPendingRequests
   submitPendingRequests <- createPendingRequests
+  eraSummariesPendingRequests <- createPendingRequests
+  currentEpochPendingRequests <- createPendingRequests
+  systemStartPendingRequests <- createPendingRequests
   let
     md = ogmiosMessageDispatch
       { utxoDispatchMap
       , chainTipDispatchMap
       , evaluateTxDispatchMap
       , submitDispatchMap
+      , eraSummariesDispatchMap
+      , currentEpochDispatchMap
+      , systemStartDispatchMap
       }
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   let
@@ -688,6 +634,9 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       Ref.read chainTipPendingRequests >>= traverse_ sendRequest
       Ref.read evaluateTxPendingRequests >>= traverse_ sendRequest
       Ref.read submitPendingRequests >>= traverse_ sendRequest
+      Ref.read eraSummariesPendingRequests >>= traverse_ sendRequest
+      Ref.read currentEpochPendingRequests >>= traverse_ sendRequest
+      Ref.read systemStartPendingRequests >>= traverse_ sendRequest
   _onWsConnect ws do
     _wsWatch ws (logger Debug) onError
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
@@ -697,6 +646,13 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       , chainTip: mkListenerSet chainTipDispatchMap chainTipPendingRequests
       , evaluate: mkListenerSet evaluateTxDispatchMap evaluateTxPendingRequests
       , submit: mkListenerSet submitDispatchMap submitPendingRequests
+      , eraSummaries:
+          mkListenerSet eraSummariesDispatchMap eraSummariesPendingRequests
+      , currentEpoch:
+          mkListenerSet currentEpochDispatchMap currentEpochPendingRequests
+      , systemStart:
+          mkListenerSet systemStartDispatchMap systemStartPendingRequests
+
       }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
@@ -774,7 +730,10 @@ type OgmiosListeners =
   { utxo :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoQR
   , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
   , submit :: ListenerSet { txCbor :: ByteArray } Ogmios.SubmitTxR
-  , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationResult
+  , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationR
+  , eraSummaries :: ListenerSet Unit Ogmios.EraSummaries
+  , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
+  , systemStart :: ListenerSet Unit Ogmios.SystemStart
   }
 
 type DatumCacheListeners =
@@ -896,8 +855,11 @@ type DispatchIdMap response = Ref
 ogmiosMessageDispatch
   :: { utxoDispatchMap :: DispatchIdMap Ogmios.UtxoQR
      , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipQR
-     , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationResult
+     , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationR
      , submitDispatchMap :: DispatchIdMap Ogmios.SubmitTxR
+     , eraSummariesDispatchMap :: DispatchIdMap Ogmios.EraSummaries
+     , currentEpochDispatchMap :: DispatchIdMap Ogmios.CurrentEpoch
+     , systemStartDispatchMap :: DispatchIdMap Ogmios.SystemStart
      }
   -> Array WebsocketDispatch
 ogmiosMessageDispatch
@@ -905,11 +867,17 @@ ogmiosMessageDispatch
   , chainTipDispatchMap
   , evaluateTxDispatchMap
   , submitDispatchMap
+  , eraSummariesDispatchMap
+  , currentEpochDispatchMap
+  , systemStartDispatchMap
   } =
   [ queryDispatch utxoDispatchMap
   , queryDispatch chainTipDispatchMap
   , queryDispatch evaluateTxDispatchMap
   , queryDispatch submitDispatchMap
+  , queryDispatch eraSummariesDispatchMap
+  , queryDispatch currentEpochDispatchMap
+  , queryDispatch systemStartDispatchMap
   ]
 
 datumCacheMessageDispatch

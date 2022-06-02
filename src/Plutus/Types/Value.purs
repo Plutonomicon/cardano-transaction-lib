@@ -34,11 +34,11 @@ import Data.Generic.Rep (class Generic)
 import Data.Lattice (class JoinSemilattice, class MeetSemilattice)
 import Data.Maybe (Maybe(Nothing), fromMaybe)
 import Data.Newtype (class Newtype)
-import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This), these)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import FromData (class FromData, fromData)
+import Helpers (showWithParens)
 import ToData (class ToData, toData)
 import Types.ByteArray (ByteArray)
 import Types.TokenName (TokenName, adaToken, mkTokenName)
@@ -83,7 +83,7 @@ derive instance Newtype Coin _
 derive newtype instance Eq Coin
 
 instance Show Coin where
-  show = genericShow
+  show (Coin c) = showWithParens "Coin" c
 
 instance Semigroup Coin where
   append (Coin c1) (Coin c2) = Coin (c1 + c2)

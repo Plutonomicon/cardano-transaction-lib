@@ -13,7 +13,6 @@ import Contract.Monad
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
-  , defaultSlotConfig
   , launchAff_
   , liftedE
   , liftedM
@@ -112,7 +111,6 @@ main = do
           , datumCacheConfig: defaultDatumCacheWsConfig
           , ctlServerConfig: defaultServerConfig
           , networkId: TestnetId
-          , slotConfig: defaultSlotConfig
           , logLevel: Trace
           , extraConfig: {}
           , wallet: Just wallet

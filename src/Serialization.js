@@ -100,7 +100,7 @@ exports.addVkeywitness = witnesses => witness => () =>
 exports.newVkeyFromPublicKey = public_key => () =>
     lib.Vkey.new(public_key);
 
-exports._publicKeyFromBech32 = maybe => bech32 => () => {
+exports._publicKeyFromBech32 = maybe => bech32 => {
     try {
         return maybe.just(lib.PublicKey.from_bech32(bech32));
     } catch (_) {
