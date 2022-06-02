@@ -73,14 +73,11 @@ newUsedTxOuts
   => m UsedTxOuts
 newUsedTxOuts = UsedTxOuts <$> liftEffect (Ref.new Map.empty)
 
-insertCache
-  :: { transactionId :: TransactionHash, index :: UInt }
-  -> TxOutRefCache
-  -> TxOutRefCache
-insertCache { transactionId, index } = Map.alter
-  (fromMaybe Set.empty >>> Set.insert index >>> Just)
-  transactionId
-
+-- | 'lockRemainingTransactionInputs alreadyLocked tx'
+-- |
+-- | Mark 'tx's inputs as used, except for those which
+-- | are contained in 'alreadylocked' (which have been
+-- | locked in a previous step).
 lockRemainingTransactionInputs
   :: forall (m :: Type -> Type)
    . MonadAsk UsedTxOuts m
@@ -107,6 +104,19 @@ lockRemainingTransactionInputs alreadyLocked tx =
       (not $ Set.member index)
       (Map.lookup transactionId cache)
 
+    refsToTxOut
+      :: Array { transactionId :: TransactionHash, index :: UInt }
+      -> TxOutRefCache
+    refsToTxOut = foldr insertCache Map.empty
+
+    insertCache
+      :: { transactionId :: TransactionHash, index :: UInt }
+      -> TxOutRefCache
+      -> TxOutRefCache
+    insertCache { transactionId, index } = Map.alter
+      (fromMaybe Set.empty >>> Set.insert index >>> Just)
+      transactionId
+
   in
     do
       cache <- unwrap <$> ask
@@ -126,6 +136,9 @@ lockTransactionInputs
   -> m TxOutRefUnlockKeys
 lockTransactionInputs = lockRemainingTransactionInputs mempty
 
+-- | Lock the inputs of a transaction and then run a monadic action.
+-- | Will throw `Error` if any of the inputs are already locked.
+-- | In case of any error, locks will be released.
 withLockedTransactionInputs
   :: forall (m :: Type -> Type) (a :: Type)
    . MonadAsk UsedTxOuts m
@@ -176,6 +189,8 @@ unlockTxOutRefs txOutRefs' =
   in
     ask >>= (unwrap >>> Ref.modify_ updateCache >>> liftEffect)
 
+-- | Remove used marks from all inputs that are saved in a `TxOutRefUnlockKeys`.
+-- Use this on the result of a previous lockTransactionInputs
 unlockTxOutKeys
   :: forall (m :: Type -> Type) (a :: Type)
    . MonadAsk UsedTxOuts m
@@ -183,6 +198,14 @@ unlockTxOutKeys
   => TxOutRefUnlockKeys
   -> m Unit
 unlockTxOutKeys = unlockTxOutRefs <<< cacheToRefs <<< unwrap
+  where
+  cacheToRefs
+    :: TxOutRefCache
+    -> Array { transactionId :: TransactionHash, index :: UInt }
+  cacheToRefs cache = concatMap flatten $ Map.toUnfoldable cache
+    where
+    flatten (Tuple tid indexes) = map (\ix -> { transactionId: tid, index: ix })
+      (Set.toUnfoldable indexes)
 
 cacheContains
   :: TxOutRefCache
@@ -207,13 +230,3 @@ txOutRefs
   :: Transaction -> Array { transactionId :: TransactionHash, index :: UInt }
 txOutRefs tx = unwrap <$> (unwrap (unwrap tx).body).inputs
 
-refsToTxOut
-  :: Array { transactionId :: TransactionHash, index :: UInt } -> TxOutRefCache
-refsToTxOut = foldr insertCache Map.empty
-
-cacheToRefs
-  :: TxOutRefCache -> Array { transactionId :: TransactionHash, index :: UInt }
-cacheToRefs cache = concatMap flatten $ Map.toUnfoldable cache
-  where
-  flatten (Tuple tid indexes) = map (\ix -> { transactionId: tid, index: ix })
-    (Set.toUnfoldable indexes)
