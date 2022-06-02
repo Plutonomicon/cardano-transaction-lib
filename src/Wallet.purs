@@ -64,6 +64,9 @@ data Wallet
   = Nami NamiWallet
   | KeyWallet KeyWallet'
 
+-------------------------------------------------------------------------------
+-- Key backend
+-------------------------------------------------------------------------------
 type KeyWallet' =
   { address :: NetworkId -> Aff Address
   , selectCollateral :: Utxo -> Maybe TransactionUnspentOutput
