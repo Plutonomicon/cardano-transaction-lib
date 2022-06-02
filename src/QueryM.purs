@@ -155,7 +155,6 @@ import Serialization.Address
   , Slot
   , baseAddressDelegationCred
   , baseAddressFromAddress
-  , baseAddressPaymentCred
   , addressPaymentCred
   , stakeCredentialToKeyHash
   )
@@ -301,9 +300,11 @@ allowError func = func <<< Right
 --------------------------------------------------------------------------------
 
 getWalletAddress :: QueryM (Maybe Address)
-getWalletAddress = withMWalletAff $ case _ of
-  Nami nami -> callNami nami _.getWalletAddress
-  KeyWallet kw -> pure $ pure kw.address
+getWalletAddress = do
+  networkId <- asks _.networkId
+  withMWalletAff $ case _ of
+    Nami nami -> callNami nami _.getWalletAddress
+    KeyWallet kw -> Just <$> kw.address networkId
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
 getWalletCollateral = withMWalletAff $ case _ of

@@ -27,11 +27,11 @@ code {
 <form>
  <fieldset>
     <label for="private_key">Private key (hex):</label>
-    <input type="text" id="private_key" name="private_key" placeholder="8f093aa4103fb26121148fd2ece4dd1d775be9113dfa374bcb4817b36356180b">
-    <label for="public_key">Public key (bech32):</label>
-    <input type="text" id="public_key" name="public_key" placeholder="addr_test1vrh5y2r5f8mhhjtjvl02y7um25kgwcsl7wfaeu7h53erhcg0uzan9">
+    <input type="password" id="private_key" name="private_key" placeholder="8f093aa4103fb26121148fd2ece4dd1d775be9113dfa374bcb4817b36356180b">
     <label for="to_pkh">Destination PKH (bech32):</label>
     <input type="text" id="to_pkh" name="to_pkh" placeholder="addr_vkh14lk6mlsm50ewtn9p5zgd7lkfdalsycdcxjpl5s979st9xjdmdc4">
+    <label for="lovelace">Amount (lovelace):</label>
+    <input type="number" min="0" id="lovelace" name="lovelace" placeholder="2000000" value="2000000">
     <div style="grid-column: 2;">
       <button type="submit">Submit</button>
     </div>
@@ -39,6 +39,10 @@ code {
 </form>
 <code></code>
 `;
+
+exports.logError = (error) => () => {
+  console.log(error);
+};
 
 exports.mkForm = (handler) => () => {
   window.document.body.insertAdjacentHTML("beforeend", form);

@@ -19,7 +19,6 @@ module BalanceTx
 
 import Prelude
 
-import Wallet (Wallet(Nami))
 import Cardano.Types.Transaction
   ( Redeemer(Redeemer)
   , Transaction(Transaction)
@@ -58,7 +57,6 @@ import Control.Monad.Except.Trans
   ( ExceptT(ExceptT)
   , except
   , runExceptT
-  , throwError
   )
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
@@ -104,19 +102,13 @@ import QueryM
   )
 import QueryM.Utxos (utxosAt)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers)
-import Serialization.Address
-  ( Address
-  , addressPaymentCred
-  , withStakeCredential
-  )
+import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
+import TxOutput (utxoIndexToUtxo)
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (DataHash, TransactionInput)
-import Types.UnbalancedTransaction
-  ( UnbalancedTx(UnbalancedTx)
-  , _transaction
-  )
-import TxOutput (utxoIndexToUtxo)
+import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), _transaction)
+import Wallet (Wallet(..))
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
@@ -397,12 +389,14 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
     collateral <- case wallet of
-      Just (Nami _) -> ExceptT $ getWalletCollateral <#>
-        note (GetWalletCollateralError' CouldNotGetNamiCollateral)
-      _ | [ input /\ output ] <- Map.toUnfoldable utxos -> pure $
-        TransactionUnspentOutput { input, output }
-      -- TODO Better error
-      _ -> throwError (GetWalletAddressError' CouldNotGetNamiWalletAddress)
+      Just (Nami _) -> Just <$>
+        ( ExceptT $ getWalletCollateral <#>
+            note (GetWalletCollateralError' CouldNotGetNamiCollateral)
+        )
+      -- TODO(jy14898) Supply with fee estimate?
+      -- TODO(jy14898) Combine with getWalletCollateral?
+      Just (KeyWallet kw) -> pure $ kw.selectCollateral utxos
+      _ -> pure Nothing
     let
       -- Combines utxos at the user address and those from any scripts
       -- involved with the contract in the unbalanced transaction.
@@ -414,7 +408,7 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
       -- for the Ada only collateral. No MinUtxos required. In fact perhaps
       -- this step can be skipped and we can go straight to prebalancer.
       unbalancedCollTx :: Transaction
-      unbalancedCollTx = addTxCollateral unbalancedTx' collateral
+      unbalancedCollTx = maybe identity addTxCollateral collateral unbalancedTx'
 
     -- Logging Unbalanced Tx with collateral added:
     logTx "Unbalanced Collaterised Tx " allUtxos unbalancedCollTx
@@ -543,8 +537,8 @@ logTx msg utxos (Transaction { body: body'@(TxBody body) }) =
     ]
 
 -- Nami provides a 5 Ada collateral that we should add the tx before balancing.
-addTxCollateral :: Transaction -> TransactionUnspentOutput -> Transaction
-addTxCollateral transaction (TransactionUnspentOutput { input }) =
+addTxCollateral :: TransactionUnspentOutput -> Transaction -> Transaction
+addTxCollateral (TransactionUnspentOutput { input }) transaction =
   transaction # _body <<< _collateral ?~
     Array.singleton input
 

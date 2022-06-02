@@ -41,6 +41,7 @@ You can edit this file as you like.
   , "node-fs-aff"
   , "nonempty"
   , "ordered-collections"
+  , "orders"
   , "partial"
   , "prelude"
   , "profunctor"

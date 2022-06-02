@@ -130,6 +130,7 @@ newtype Coin = Coin BigInt
 derive instance Generic Coin _
 derive instance Newtype Coin _
 derive newtype instance Eq Coin
+derive newtype instance Ord Coin
 
 instance Show Coin where
   show = genericShow

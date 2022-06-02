@@ -17,15 +17,22 @@ import Cardano.Types.Transaction
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
+  , Utxo
   , _vkeys
+  , TransactionOutput(..)
   )
-import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput(..))
+import Cardano.Types.Value (NonAdaAsset(..), Value(..), mkCoin)
+import Contract.Prelude (class Newtype)
 import Control.Promise (Promise)
 import Control.Promise as Promise
+import Data.FoldableWithIndex (foldMapWithIndex)
+import Data.Lens (set)
+import Data.List (all)
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (over, unwrap)
+import Data.Ord.Min (Min(Min))
 import Data.Tuple.Nested ((/\))
-import Data.Lens (set)
 import Deserialization.FromBytes (fromBytesEffect)
 import Deserialization.UnspentOutput as Deserialization.UnspentOuput
 import Deserialization.WitnessSet as Deserialization.WitnessSet
@@ -36,39 +43,64 @@ import Effect.Exception (throw)
 import Effect.Ref as Ref
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Helpers ((<<>>))
+import Serialization (publicKeyFromPrivateKey, publicKeyHash)
 import Serialization as Serialization
-import Serialization.Address (Address, addressFromBytes)
+import Serialization.Address
+  ( Address
+  , NetworkId
+  , addressFromBytes
+  , enterpriseAddress
+  , enterpriseAddressToAddress
+  , keyHashCredential
+  )
 import Serialization.Types (PrivateKey)
 import Types.ByteArray (byteArrayToHex)
-import Types.CborBytes
-  ( CborBytes
-  , cborBytesToHex
-  , rawBytesAsCborBytes
-  )
+import Types.CborBytes (CborBytes, cborBytesToHex, rawBytesAsCborBytes)
 import Types.RawBytes (RawBytes, hexToRawBytes)
 import Types.Transaction (TransactionHash(TransactionHash))
 import Untagged.Union (asOneOf)
 
--- At the moment, we only support Nami's wallet. In the future we will expand
--- this with more constructors to represent out-of-browser wallets (e.g. WBE)
 data Wallet
   = Nami NamiWallet
   | KeyWallet KeyWallet'
 
 type KeyWallet' =
-  { address :: Address
-  --, collateral :: TransactionUnspentOutput
+  { address :: NetworkId -> Aff Address
+  , selectCollateral :: Utxo -> Maybe TransactionUnspentOutput
   , signTx :: Transaction -> Aff Transaction
   }
 
-mkKeyWallet :: Address -> {-TransactionUnspentOutput ->-} PrivateKey -> Wallet
-mkKeyWallet address {-collateral-} key =
+mkKeyWallet :: PrivateKey -> Wallet
+mkKeyWallet key =
   KeyWallet
     { address
-    --, collateral
+    , selectCollateral
     , signTx
     }
   where
+  address :: NetworkId -> Aff Address
+  address network = publicKeyFromPrivateKey key
+    # liftEffect
+    <#> publicKeyHash
+      >>> keyHashCredential
+      >>> { network, paymentCred: _ }
+      >>> enterpriseAddress
+      >>> enterpriseAddressToAddress
+
+  selectCollateral :: Utxo -> Maybe TransactionUnspentOutput
+  selectCollateral utxos = unwrap <<< unwrap <$> flip
+    foldMapWithIndex
+    utxos
+    \input output ->
+      let
+        txuo = AdaOut $ TransactionUnspentOutput { input, output }
+        Value ada (NonAdaAsset naa) = _value txuo
+        onlyAda = all (all ((==) zero)) naa
+        bigAda = ada >= mkCoin 5_000_000
+      in
+        if onlyAda && bigAda then Just $ Min txuo
+        else Nothing
+
   signTx :: Transaction -> Aff Transaction
   signTx (Transaction tx) = liftEffect do
     txBody <- Serialization.convertTxBody tx.body
@@ -77,6 +109,26 @@ mkKeyWallet address {-collateral-} key =
       Serialization.makeVkeywitness hash key
     let witnessSet' = set _vkeys (pure $ pure wit) mempty
     pure $ Transaction $ tx { witnessSet = witnessSet' <> tx.witnessSet }
+
+_value :: AdaOut -> Value
+_value
+  (AdaOut (TransactionUnspentOutput { output: TransactionOutput { amount } })) =
+  amount
+
+-- A wrapper around a UTxO, ordered by ada value
+newtype AdaOut = AdaOut TransactionUnspentOutput
+
+derive instance Newtype AdaOut _
+
+instance Eq AdaOut where
+  eq a b
+    | Value a' _ <- _value a
+    , Value b' _ <- _value b = eq a' b'
+
+instance Ord AdaOut where
+  compare a b
+    | Value a' _ <- _value a
+    , Value b' _ <- _value b = compare a' b'
 
 -------------------------------------------------------------------------------
 -- Nami backend

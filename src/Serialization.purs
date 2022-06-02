@@ -10,6 +10,7 @@ module Serialization
   , hashTransaction
   , publicKeyHash
   , publicKeyFromBech32
+  , publicKeyFromPrivateKey
   , privateKeyFromBytes
   , makeVkeywitness
   ) where
@@ -208,6 +209,9 @@ foreign import addVkeywitness :: Vkeywitnesses -> Vkeywitness -> Effect Unit
 foreign import newVkeyFromPublicKey :: PublicKey -> Effect Vkey
 foreign import _publicKeyFromBech32
   :: MaybeFfiHelper -> Bech32String -> Effect (Maybe PublicKey)
+
+foreign import publicKeyFromPrivateKey
+  :: PrivateKey -> Effect PublicKey
 
 foreign import _privateKeyFromBytes
   :: MaybeFfiHelper -> ByteArray -> Effect (Maybe PrivateKey)

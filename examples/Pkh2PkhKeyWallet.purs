@@ -35,23 +35,29 @@ import Data.BigInt as BigInt
 import Data.Log.Formatter.Pretty (prettyFormatter)
 import Data.Log.Level (LogLevel(..))
 import Data.Log.Message (Message)
-import Effect.Exception (error, message)
+import Effect.Exception (Error, error, message)
 import QueryM (QueryConfig)
 import Serialization (privateKeyFromBytes)
-import Serialization.Address (addressFromBech32)
 import Serialization.Hash (ed25519KeyHashFromBech32)
 import Types.ByteArray (hexToByteArray)
 import Wallet (mkKeyWallet)
 
 type Form =
   { private_key :: String
-  , public_key :: String
   , to_pkh :: String
+  , lovelace :: String
   }
 
+type Log = String -> String -> Effect Unit
+
+type Unlock = Effect Unit
+
 foreign import mkForm
-  :: (Form -> (String -> String -> Effect Unit) -> (Effect Unit) -> Effect Unit)
+  :: (Form -> Log -> Unlock -> Effect Unit)
   -> Effect Unit
+
+foreign import logError
+  :: Error -> Effect Unit
 
 levelName :: LogLevel -> String
 levelName Trace = "TRACE"
@@ -69,12 +75,12 @@ main :: Effect Unit
 main = do
   mkForm \input log' unlock -> do
     let
-      runContract
-        :: forall (r :: Row Type) (a :: Type)
+      runContract_
+        :: forall r
          . ContractConfig r
-        -> Contract r a
-        -> Aff a
-      runContract config = flip runLoggerT printLog <<< flip runReaderT cfg <<<
+        -> Contract r Unit
+        -> Aff Unit
+      runContract_ config = flip runLoggerT printLog <<< flip runReaderT cfg <<<
         unwrap
         where
         printLog :: Message -> Aff Unit
@@ -86,26 +92,18 @@ main = do
         cfg :: QueryConfig r
         cfg = unwrap config
 
-      -- | Same as `runContract` discarding output.
-      runContract_
-        :: forall (r :: Row Type) (a :: Type)
-         . ContractConfig r
-        -> Contract r a
-        -> Aff Unit
-      runContract_ config = void <<< runContract config
-
     launchAff_ $ flip catchError
-      (\e -> liftEffect $ log' "crimson" ("[ERROR] " <> message e) *> unlock)
+      (\e -> liftEffect $ logError e *> log' "crimson" ("[ERROR] " <> message e) *> unlock)
       do
-        priv <- (liftMaybe (error "Failed to parse Private Key")) =<<
+        priv <- (liftMaybe $ error "Failed to parse private key") =<<
           ( liftEffect $ map join $ traverse privateKeyFromBytes $
               hexToByteArray input.private_key
           )
-        pub <- liftMaybe (error "Failed to parse Public Key") $
-          addressFromBech32 input.public_key
-        pkh <- liftMaybe (error "Failed to parse Public key Hash") $
+        pkh <- liftMaybe (error "Failed to parse public key hash") $
           ed25519KeyHashFromBech32 input.to_pkh
-        let wallet = mkKeyWallet pub priv
+        lovelace <- liftMaybe (error "Failed to parse lovelace amount") $
+          BigInt.fromString input.lovelace
+        let wallet = mkKeyWallet priv
         cfg <- mkContractConfig $ ConfigParams
           { ogmiosConfig: defaultOgmiosWsConfig
           , datumCacheConfig: defaultDatumCacheWsConfig
@@ -123,8 +121,7 @@ main = do
           let
             constraints :: Constraints.TxConstraints Void Void
             constraints = Constraints.mustPayToPubKey (wrap (wrap pkh))
-              $ Value.lovelaceValueOf
-              $ BigInt.fromInt 2_000_000
+              $ Value.lovelaceValueOf lovelace
 
             lookups :: Lookups.ScriptLookups Void
             lookups = mempty

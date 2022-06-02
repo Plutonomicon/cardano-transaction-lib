@@ -108,6 +108,10 @@ exports._publicKeyFromBech32 = maybe => bech32 => () => {
     }
 };
 
+exports.publicKeyFromPrivateKey = private_key => () => {
+    return private_key.to_public();
+};
+
 exports._privateKeyFromBytes = maybe => bytes => () => {
     try {
         return maybe.just(lib.PrivateKey.from_normal_bytes(bytes));
