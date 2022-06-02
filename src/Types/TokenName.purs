@@ -105,51 +105,11 @@ instance DecodeAeson TokenName where
     tkFromStr str = (TokenName <<< wrap) <$>
       (byteArrayFromIntArray <<< map toCharCode <<< toCharArray $ str)
 
-{- let
-      t = map toCharCode $ toCharArray tkstr
-
-      cleanedTkstr :: Either String ByteArray
-      cleanedTkstr =
-        note "could not convert from hex to bytestring" <<< pure <<< hexToByteArrayUnsafe
-          <<< fromCharArray
-          =<< note "could not convetr from charcode"
-            ( traverse fromCharCode
-                case t of
-                  [ 0, 48, 120 ] -> drop 3 t
-                  [ 0, 0, 0 ] -> drop 2 t
-                  _ -> t
-            )
-    -- FIXME: what if the tokenname is actually \0\0\0? haskell will break this assuming it 
-    -- comes from purescript side
-    -- also we will break assuming it comes from haskell
-    -- this issue has to be fixed on the haskell side
-    -- ~= \NUL\NUL\NUL
-    -- see https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#line-170
-    lmap TypeMismatch
-      (note "failed to make tokenname" <<< mkTokenName =<< cleanedTkstr)
-) -}
-
---  note (TypeMismatch "Invalid TokenName") <<< mkTokenName
---  <=< note (TypeMismatch "Invalid ByteArray") <<< (hexToByteArray <<< )
---  <=< flip getField "unTokenName"
---  )
-
+-- FIXME: what if the tokenname is actually \0\0\0? haskell will break this assuming it
+-- comes from purescript side
+-- also we will break assuming it comes from haskell
+-- this issue has to be fixed on the haskell side
 instance EncodeAeson TokenName where
-  {- 
-instance FromJSON TokenName where
-    parseJSON =
-        JSON.withObject "TokenName" $ \object -> do
-        raw <- object .: "unTokenName"
-        fromJSONText raw
-        where
-            fromJSONText t = case Text.take 3 t of
-                -- in case we get something prefixed with \0 *and* it also starts with "0x" (it's hexencoded) THEN
-                -- => encodes in utf8 and then converts from base16 to whatever
-                -- then 
-                "\NUL0x"       -> either Haskell.fail (Haskell.pure . tokenName) . JSON.tryDecode . Text.drop 3 $ t
-                "\NUL\NUL\NUL" -> Haskell.pure . fromText . Text.drop 2 $ t
-                _              -> Haskell.pure . fromText $ t
-  -}
   encodeAeson' tk =
     let
       tkstr = fromTokenName
@@ -162,15 +122,6 @@ instance FromJSON TokenName where
     in
       encodeAeson' { "unTokenName": tkstr }
 
-{-
-let
-  finalBs :: ByteArray
-  finalBs = byteArrayFromIntArrayUnsafe [ 0, 48, 120 ] <>
-    (cborBytesToByteArray ba)
--- FIXME: what if the tokenname starts with \0 => put another two \0 in front of that
-in
-  encodeAeson' { "unTokenName": finalBs }
--}
 instance Show TokenName where
   show (TokenName tn) = "(TokenName" <> show tn <> ")"
 

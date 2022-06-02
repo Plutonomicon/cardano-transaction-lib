@@ -32,6 +32,7 @@ import Aeson
   , caseAesonObject
   , decodeAeson
   , encodeAeson
+  , encodeAeson'
   , getField
   , JsonDecodeError(TypeMismatch)
   )
@@ -73,7 +74,7 @@ instance DecodeAeson Value where
     (flip getField "getValue" >=> decodeAeson >>> map Value)
 
 instance EncodeAeson Value where
-  encodeAeson' (Value mph) = pure $ encodeAeson
+  encodeAeson' (Value mph) = encodeAeson' $ encodeAeson
     { "getValue": encodeAeson mph }
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#eq

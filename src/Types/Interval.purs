@@ -871,7 +871,7 @@ derive instance Functor HaskInterval
 derive instance Newtype (HaskInterval a) _
 
 instance (EncodeAeson a) => EncodeAeson (HaskInterval a) where
-  encodeAeson' x = pure $
+  encodeAeson' x = encodeAeson' $
     ( defer \_ -> E.encode $ unwrap >$<
         ( E.record
             { ivFrom: E.value :: _ (LowerBound a)
@@ -889,7 +889,7 @@ instance (DecodeAeson a) => DecodeAeson (HaskInterval a) where
     )
 
 instance (EncodeAeson a) => EncodeAeson (LowerBound a) where
-  encodeAeson' x = pure $
+  encodeAeson' x = encodeAeson' $
     ( defer \_ -> E.encode $ (case _ of LowerBound a b -> (a /\ b)) >$<
         (E.tuple (E.value >/\< E.value))
     ) x
@@ -899,7 +899,7 @@ instance (DecodeAeson a) => DecodeAeson (LowerBound a) where
     (D.tuple $ LowerBound </$\> D.value </*\> D.value)
 
 instance (EncodeAeson a) => EncodeAeson (UpperBound a) where
-  encodeAeson' x = pure $
+  encodeAeson' x = encodeAeson' $
     ( defer \_ -> E.encode $ (case _ of UpperBound a b -> (a /\ b)) >$<
         (E.tuple (E.value >/\< E.value))
     ) x
@@ -909,7 +909,7 @@ instance (DecodeAeson a) => DecodeAeson (UpperBound a) where
     (D.tuple $ UpperBound </$\> D.value </*\> D.value)
 
 instance (EncodeAeson a) => EncodeAeson (Extended a) where
-  encodeAeson' x = pure $
+  encodeAeson' x = encodeAeson' $
     ( defer \_ -> case _ of
         NegInf -> encodeAeson { tag: "NegInf" }
         Finite a -> E.encodeTagged "Finite" a E.value

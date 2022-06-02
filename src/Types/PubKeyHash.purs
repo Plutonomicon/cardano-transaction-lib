@@ -19,6 +19,7 @@ import Aeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonObject
   , decodeAeson
+  , encodeAeson'
   , getField
   )
 import Aeson.Decode as D
@@ -64,7 +65,7 @@ instance Show PubKeyHash where
 
 -- NOTE: mlabs-haskell/purescript-bridge generated and applied here
 instance EncodeAeson PubKeyHash where
-  encodeAeson' x = pure $ E.encode
+  encodeAeson' x = encodeAeson' $ E.encode
     (E.record { getPubKeyHash: E.value :: _ (Ed25519KeyHash) })
     { getPubKeyHash: unwrap x }
 
