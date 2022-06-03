@@ -339,8 +339,8 @@ grab vhash validator txId = do
 
 Notice the explicit signature in:
 
-```
-  fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array (_ /\ _))
+```PureScript
+  fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _)
 ```
 
 Since PureScript has JS as the backend, `Array` is the most used container 
