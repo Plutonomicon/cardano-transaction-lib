@@ -25,6 +25,8 @@ module QueryM.Ogmios
   , TxHash
   , UtxoQR(..)
   , UtxoQueryResult(..)
+  , aesonArray
+  , aesonObject
   , evaluateTxCall
   , queryChainTipCall
   , queryCurrentEpochCall
@@ -47,6 +49,7 @@ import Aeson
   , caseAesonArray
   , caseAesonObject
   , decodeAeson
+  , encodeAeson'
   , getField
   , getFieldOptional
   , isNull
@@ -69,6 +72,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt as UInt
 import Foreign.Object (Object)
 import Foreign.Object as FO
+import Helpers (showWithParens)
 import QueryM.JsonWsp
   ( JsonWspCall
   , JsonWspRequest
@@ -199,6 +203,7 @@ newtype SystemStart = SystemStart String
 derive instance Generic SystemStart _
 derive instance Newtype SystemStart _
 derive newtype instance DecodeAeson SystemStart
+derive newtype instance EncodeAeson SystemStart
 derive newtype instance Eq SystemStart
 
 instance Show SystemStart where
@@ -210,11 +215,12 @@ newtype CurrentEpoch = CurrentEpoch BigInt
 derive instance Generic CurrentEpoch _
 derive instance Newtype CurrentEpoch _
 derive newtype instance DecodeAeson CurrentEpoch
+derive newtype instance EncodeAeson CurrentEpoch
 derive newtype instance Eq CurrentEpoch
 derive newtype instance Ord CurrentEpoch
 
 instance Show CurrentEpoch where
-  show = genericShow
+  show (CurrentEpoch ce) = showWithParens "CurrentEpoch" ce
 
 ---------------- ERA SUMMARY QUERY RESPONSE & PARSING
 
@@ -222,6 +228,8 @@ newtype EraSummaries = EraSummaries (Array EraSummary)
 
 derive instance Generic EraSummaries _
 derive instance Newtype EraSummaries _
+derive newtype instance Eq EraSummaries
+derive newtype instance EncodeAeson EraSummaries
 
 instance Show EraSummaries where
   show = genericShow
@@ -245,6 +253,7 @@ newtype EraSummary = EraSummary
 
 derive instance Generic EraSummary _
 derive instance Newtype EraSummary _
+derive newtype instance Eq EraSummary
 
 instance Show EraSummary where
   show = genericShow
@@ -261,6 +270,14 @@ instance DecodeAeson EraSummary where
     parameters <- getField o "parameters"
     pure $ wrap { start, end, parameters }
 
+instance EncodeAeson EraSummary where
+  encodeAeson' (EraSummary { start, end, parameters }) =
+    encodeAeson'
+      { "start": start
+      , "end": end
+      , "parameters": parameters
+      }
+
 newtype EraSummaryTime = EraSummaryTime
   { time :: RelativeTime -- 0-18446744073709552000, The time is relative to the
   -- start time of the network.
@@ -272,6 +289,7 @@ newtype EraSummaryTime = EraSummaryTime
 
 derive instance Generic EraSummaryTime _
 derive instance Newtype EraSummaryTime _
+derive newtype instance Eq EraSummaryTime
 
 instance Show EraSummaryTime where
   show = genericShow
@@ -283,6 +301,14 @@ instance DecodeAeson EraSummaryTime where
     epoch <- getField o "epoch"
     pure $ wrap { time, slot, epoch }
 
+instance EncodeAeson EraSummaryTime where
+  encodeAeson' (EraSummaryTime { time, slot, epoch }) =
+    encodeAeson'
+      { "time": time
+      , "slot": slot
+      , "epoch": epoch
+      }
+
 -- | A time in seconds relative to another one (typically, system start or era
 -- | start). [ 0 .. 18446744073709552000 ]
 newtype RelativeTime = RelativeTime BigInt
@@ -292,9 +318,10 @@ derive instance Newtype RelativeTime _
 derive newtype instance Eq RelativeTime
 derive newtype instance Ord RelativeTime
 derive newtype instance DecodeAeson RelativeTime
+derive newtype instance EncodeAeson RelativeTime
 
 instance Show RelativeTime where
-  show = genericShow
+  show (RelativeTime rt) = showWithParens "RelativeTime" rt
 
 -- | Absolute slot relative to SystemStart. [ 0 .. 18446744073709552000 ]
 newtype AbsSlot = AbsSlot BigInt
@@ -304,9 +331,10 @@ derive instance Newtype AbsSlot _
 derive newtype instance Eq AbsSlot
 derive newtype instance Ord AbsSlot
 derive newtype instance DecodeAeson AbsSlot
+derive newtype instance EncodeAeson AbsSlot
 
 instance Show AbsSlot where
-  show = genericShow
+  show (AbsSlot as) = showWithParens "AbsSlot" as
 
 -- | An epoch number or length with greater precision for Ogmios than
 -- | `Cardano.Types.Epoch`. [ 0 .. 18446744073709552000 ]
@@ -317,9 +345,10 @@ derive instance Newtype Epoch _
 derive newtype instance Eq Epoch
 derive newtype instance Ord Epoch
 derive newtype instance DecodeAeson Epoch
+derive newtype instance EncodeAeson Epoch
 
 instance Show Epoch where
-  show = genericShow
+  show (Epoch e) = showWithParens "Epoch" e
 
 newtype EraSummaryParameters = EraSummaryParameters
   { epochLength :: EpochLength -- 0-18446744073709552000 An epoch number or length.
@@ -332,6 +361,7 @@ newtype EraSummaryParameters = EraSummaryParameters
 
 derive instance Generic EraSummaryParameters _
 derive instance Newtype EraSummaryParameters _
+derive newtype instance Eq EraSummaryParameters
 
 instance Show EraSummaryParameters where
   show = genericShow
@@ -343,25 +373,37 @@ instance DecodeAeson EraSummaryParameters where
     safeZone <- getField o "safeZone"
     pure $ wrap { epochLength, slotLength, safeZone }
 
+instance EncodeAeson EraSummaryParameters where
+  encodeAeson' (EraSummaryParameters { epochLength, slotLength, safeZone }) =
+    encodeAeson'
+      { "epochLength": epochLength
+      , "slotLength": slotLength
+      , "safeZone": safeZone
+      }
+
 -- | An epoch number or length. [ 0 .. 18446744073709552000 ]
 newtype EpochLength = EpochLength BigInt
 
 derive instance Generic EpochLength _
 derive instance Newtype EpochLength _
+derive newtype instance Eq EpochLength
 derive newtype instance DecodeAeson EpochLength
+derive newtype instance EncodeAeson EpochLength
 
 instance Show EpochLength where
-  show = genericShow
+  show (EpochLength el) = showWithParens "EpochLength" el
 
 -- | A slot length, in seconds <= 18446744073709552000
 newtype SlotLength = SlotLength BigInt
 
 derive instance Generic SlotLength _
 derive instance Newtype SlotLength _
+derive newtype instance Eq SlotLength
 derive newtype instance DecodeAeson SlotLength
+derive newtype instance EncodeAeson SlotLength
 
 instance Show SlotLength where
-  show = genericShow
+  show (SlotLength sl) = showWithParens "SlotLength" sl
 
 -- | Number of slots from the tip of the ledger in which it is guaranteed that
 -- | no hard fork can take place. This should be (at least) the number of slots
@@ -370,10 +412,12 @@ newtype SafeZone = SafeZone BigInt
 
 derive instance Generic SafeZone _
 derive instance Newtype SafeZone _
+derive newtype instance Eq SafeZone
 derive newtype instance DecodeAeson SafeZone
+derive newtype instance EncodeAeson SafeZone
 
 instance Show SafeZone where
-  show = genericShow
+  show (SafeZone sz) = showWithParens "SafeZone" sz
 
 ---------------- TX EVALUATION QUERY RESPONSE & PARSING
 

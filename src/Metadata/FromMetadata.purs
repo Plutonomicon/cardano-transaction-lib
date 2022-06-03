@@ -37,7 +37,7 @@ instance FromMetadata Int.Int where
   fromMetadata _ = Nothing
 
 instance FromMetadata BigInt where
-  fromMetadata (Int n) = Int.toBigInt n
+  fromMetadata (Int n) = pure $ Int.toBigInt n
   fromMetadata _ = Nothing
 
 instance FromMetadata ByteArray where

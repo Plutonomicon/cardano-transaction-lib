@@ -11,7 +11,6 @@ module Serialization.Hash
   , scriptHashFromBytes
   , scriptHashFromBech32
   , scriptHashToBech32
-  , scriptHashAsBytes
   ) where
 
 import Prelude
@@ -166,9 +165,6 @@ foreign import _scriptHashFromBech32Impl
   :: MaybeFfiHelper
   -> Bech32String
   -> Maybe ScriptHash
-
--- | Drops the type and returns the hash as a generic bytearray
-foreign import scriptHashAsBytes :: ScriptHash -> RawBytes
 
 -- | Encodes the hash to Cbor bytes
 foreign import scriptHashToBytes :: ScriptHash -> RawBytes

@@ -18,6 +18,7 @@ import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytes)
 import Deserialization.PlutusData as PDD
 import FromData (class FromData, fromData, genericFromData)
+import Helpers (showWithParens)
 import Mote (group, skip, test)
 import Partial.Unsafe (unsafePartial)
 import Plutus.Types.AssocMap (Map(..))
@@ -242,7 +243,9 @@ newtype MyBigInt = MyBigInt BigInt
 derive newtype instance ToData MyBigInt
 derive newtype instance FromData MyBigInt
 derive newtype instance Eq MyBigInt
-derive newtype instance Show MyBigInt
+
+instance Show MyBigInt where
+  show (MyBigInt bi) = showWithParens "MyBigInt" bi
 
 instance Arbitrary MyBigInt where
   arbitrary = do

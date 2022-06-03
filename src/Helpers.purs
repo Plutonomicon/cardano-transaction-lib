@@ -18,7 +18,9 @@ module Helpers
   , logString
   , logWithLevel
   , maybeArrayMerge
+  , mkErrorRecord
   , notImplemented
+  , showWithParens
   , uIntToBigInt
   ) where
 
@@ -194,3 +196,26 @@ logString cfgLevel level message = do
   timestamp <- now
   logWithLevel cfgLevel $ { timestamp, message, level, tags: Map.empty }
 
+-- | Used for `EncodeAeson` for datatype errors
+mkErrorRecord
+  :: forall (a :: Type)
+   . String -- Error type
+  -> String -- Error
+  -> a
+  -> { "errorType" :: String
+     , "error" :: String
+     , "args" :: a
+     }
+mkErrorRecord errorType error a =
+  { "errorType": errorType, "error": error, "args": a }
+
+-- | Provides `Show` instances for Newtypes that do not have inner parenthesis,
+-- | e.g. `BigInt`. We could optionally use a `Newtype` constraint for
+-- | unwrapping, but we don't constrain ourselves by deconstructing the wrapper.
+showWithParens
+  :: forall (a :: Type)
+   . Show a
+  => String
+  -> a -- the inner type.
+  -> String
+showWithParens ctorName x = "(" <> ctorName <> " (" <> show x <> "))"

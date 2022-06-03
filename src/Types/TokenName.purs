@@ -123,7 +123,7 @@ instance EncodeAeson TokenName where
       encodeAeson' { "unTokenName": tkstr }
 
 instance Show TokenName where
-  show (TokenName tn) = "(TokenName" <> show tn <> ")"
+  show (TokenName tn) = "(TokenName " <> show tn <> ")"
 
 getTokenName :: TokenName -> CborBytes
 getTokenName (TokenName tokenName) = tokenName
