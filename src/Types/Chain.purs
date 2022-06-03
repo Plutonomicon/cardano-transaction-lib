@@ -6,10 +6,10 @@ module Types.Chain
 
 import Prelude
 
-import Serialization.Address (Slot)
 import Data.Newtype (class Newtype)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
+import QueryM.Ogmios (AbsSlot)
 
 data Tip
   = TipAtGenesis
@@ -23,7 +23,8 @@ instance Show Tip where
 
 newtype ChainTip = ChainTip
   { blockHeaderHash :: BlockHeaderHash
-  , slot :: Slot
+  , slot :: AbsSlot -- Querying from Ogmios returns slots outside of UInt range
+  -- so don't use `Slot` then converting.
   }
 
 derive instance Newtype ChainTip _

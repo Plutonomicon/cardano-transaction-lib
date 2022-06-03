@@ -89,6 +89,8 @@ import Helpers ((<\>), liftEither, liftM)
 import Plutus.FromPlutusType (fromPlutusType)
 import Plutus.Types.Transaction (TransactionOutput) as Plutus
 import QueryM (DefaultQueryConfig, QueryM, getDatumByHash)
+import QueryM.EraSummaries (getEraSummaries)
+import QueryM.SystemStart (getSystemStart)
 import Scripts
   ( mintingPolicyHash
   , validatorHash
@@ -106,7 +108,11 @@ import Transaction
 import TxOutput (transactionOutputToScriptOutput)
 import Types.Any (Any)
 import Types.Datum (DataHash, Datum)
-import Types.Interval (POSIXTimeRange, posixTimeRangeToTransactionSlot)
+import Types.Interval
+  ( PosixTimeToSlotError
+  , POSIXTimeRange
+  , posixTimeRangeToTransactionValidity
+  )
 import Types.PubKeyHash
   ( PaymentPubKeyHash
   , StakePubKeyHash
@@ -768,7 +774,7 @@ data MkUnbalancedTxError
   | DatumWrongHash DataHash Datum
   | CannotQueryDatum DataHash
   | CannotHashDatum Datum
-  | CannotConvertPOSIXTimeRange POSIXTimeRange
+  | CannotConvertPOSIXTimeRange POSIXTimeRange PosixTimeToSlotError
   | CannotGetMintingPolicyScriptIndex -- Should be impossible
   | CannotGetValidatorHashFromAddress Address -- Get `ValidatorHash` from internal `Address`
   | MkTypedTxOutFailed
@@ -847,17 +853,20 @@ processConstraint
 processConstraint mpsMap osMap = do
   case _ of
     MustIncludeDatum dat -> addDatum dat
-    MustValidateIn posixTimeRange -> runExceptT do
-      sc <- asks _.slotConfig
-      case posixTimeRangeToTransactionSlot sc posixTimeRange of
-        Nothing ->
-          liftEither $ throwError $ CannotConvertPOSIXTimeRange posixTimeRange
-        Just { timeToLive, validityStartInterval } ->
-          _cpsToTxBody <<< _Newtype %=
-            _
-              { ttl = timeToLive
-              , validityStartInterval = validityStartInterval
-              }
+    MustValidateIn posixTimeRange -> do
+      -- Potential improvement: bring these out so we have one source of truth
+      -- although they should be static in a single contract call
+      es <- lift getEraSummaries
+      ss <- lift getSystemStart
+      runExceptT do
+        { timeToLive, validityStartInterval } <- ExceptT $ liftEffect $
+          posixTimeRangeToTransactionValidity es ss posixTimeRange
+            <#> lmap (CannotConvertPOSIXTimeRange posixTimeRange)
+        _cpsToTxBody <<< _Newtype %=
+          _
+            { ttl = timeToLive
+            , validityStartInterval = validityStartInterval
+            }
     MustBeSignedBy pkh -> runExceptT do
       ppkh <- use _lookups <#> unwrap >>> _.paymentPubKeyHashes
       sigs <- for (lookup pkh ppkh) $

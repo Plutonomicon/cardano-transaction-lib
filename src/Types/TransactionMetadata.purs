@@ -12,7 +12,7 @@ import Data.Map (Map)
 import Data.Map (empty) as Map
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
-import Helpers (appendRightMap)
+import Helpers (appendRightMap, showWithParens)
 import Types.ByteArray (ByteArray)
 import Types.Int (Int) as Int
 
@@ -48,7 +48,8 @@ derive newtype instance Ord TransactionMetadatumLabel
 derive instance Generic TransactionMetadatumLabel _
 
 instance Show TransactionMetadatumLabel where
-  show = genericShow
+  show (TransactionMetadatumLabel tml) =
+    showWithParens "TransactionMetadatumLabel" tml
 
 data TransactionMetadatum
   = MetadataMap (Map TransactionMetadatum TransactionMetadatum)
