@@ -1,4 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 
 module Api.Handlers (
   estimateTxFees,
@@ -54,6 +55,7 @@ import Types (
   CtlServerError (CardanoError, CborDecode),
   Env (protocolParams),
   ExecutionUnitsMap (ExecutionUnitsMap),
+  EvalExUnitsRequest (EvalExUnitsRequest, tx),
   Fee (Fee),
   FinalizeRequest (FinalizeRequest, datums, redeemers, tx),
   FinalizedTransaction (FinalizedTransaction),
@@ -115,9 +117,9 @@ applyArgs ApplyArgsRequest {script, args} =
 {- | Computes the execution units needed for each script in the transaction.
  https://input-output-hk.github.io/cardano-node/cardano-api/src/Cardano.Api.Fees.html#evaluateTransactionExecutionUnits
 -}
-evalTxExecutionUnits :: Cbor -> AppM ExecutionUnitsMap
-evalTxExecutionUnits cbor =
-  case decodeCborTx cbor of
+evalTxExecutionUnits :: EvalExUnitsRequest -> AppM ExecutionUnitsMap
+evalTxExecutionUnits EvalExUnitsRequest {tx} =
+  case decodeCborTx tx of
     Left err ->
       throwM (CborDecode err)
     Right (C.Tx txBody@(C.TxBody txBodyContent) _) -> do
