@@ -48,9 +48,9 @@ import Data.Newtype (class Newtype)
 import Data.These (These(Both, That, This), these)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
-import FromData (class FromData, fromData)
+import FromData (class FromData)
 import Helpers (showWithParens)
-import ToData (class ToData, toData)
+import ToData (class ToData)
 import Types.ByteArray (ByteArray)
 import Types.TokenName (TokenName, adaToken, mkTokenName)
 import Plutus.Types.AssocMap (Map(Map)) as Plutus
@@ -62,9 +62,6 @@ import Plutus.Types.AssocMap
   , mapThese
   ) as Plutus.Map
 import Plutus.Types.CurrencySymbol (CurrencySymbol, mkCurrencySymbol, adaSymbol)
-import ToData (class ToData)
-import Types.ByteArray (ByteArray)
-import Types.TokenName (TokenName, adaToken, mkTokenName)
 
 newtype Value = Value (Plutus.Map CurrencySymbol (Plutus.Map TokenName BigInt))
 

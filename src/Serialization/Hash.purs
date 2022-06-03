@@ -19,10 +19,8 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
-  , caseAesonObject
   , caseAesonString
   , encodeAeson'
-  , getField
   )
 import Contract.Prelude (Either(..))
 import Data.Either (Either(Left), note)
