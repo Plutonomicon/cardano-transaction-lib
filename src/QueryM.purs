@@ -442,8 +442,8 @@ evalTxExecutionUnits
   :: Transaction -> QueryM (Either ClientError (Array RdmrPtrExUnits))
 evalTxExecutionUnits tx = do
   txHex <- liftEffect (txToHex tx)
-  url <- mkServerEndpointUrl ("eval-ex-units?tx=" <> txHex)
-  liftAff (Affjax.get Affjax.ResponseFormat.string url)
+  url <- mkServerEndpointUrl "eval-ex-units"
+  liftAff (postAeson url (encodeAeson { tx: txHex }))
     <#> either
       (Left <<< ClientHttpError)
       ( lmap ClientDecodeJsonError <<< (decodeAeson <=< parseJsonStringToAeson)

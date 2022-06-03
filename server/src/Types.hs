@@ -1,4 +1,5 @@
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 
 module Types (
   AppM (AppM),
@@ -11,6 +12,7 @@ module Types (
   WitnessCount (..),
   ApplyArgsRequest (..),
   AppliedScript (..),
+  EvalExUnitsRequest (..),
   FinalizeRequest (..),
   FinalizedTransaction (..),
   CardanoError (..),
@@ -157,6 +159,12 @@ newtype AppliedScript = AppliedScript Ledger.Script
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
 
+data EvalExUnitsRequest = EvalExUnitsRequest
+  { tx :: Cbor
+  }
+  deriving stock (Show, Generic, Eq)
+  deriving anyclass (FromJSON, ToJSON)
+
 data FinalizeRequest = FinalizeRequest
   { tx :: Cbor
   , datums :: [Cbor]
@@ -222,6 +230,14 @@ instance Docs.ToParam (QueryParam' '[Required] "count" WitnessCount) where
       \for the transaction"
       Docs.Normal
 
+instance Docs.ToSample EvalExUnitsRequest where
+  toSamples _ =
+    [
+      ( "The input should contain the CBOR of the tx"
+      , EvalExUnitsRequest (Cbor "00")
+      )
+    ]
+
 instance Docs.ToSample ExecutionUnitsMap where
   toSamples _ =
     [
@@ -261,6 +277,8 @@ instance Docs.ToSample AppliedScript where
       , AppliedScript exampleScript
       )
     ]
+
+
 
 instance Docs.ToSample FinalizeRequest where
   toSamples _ =

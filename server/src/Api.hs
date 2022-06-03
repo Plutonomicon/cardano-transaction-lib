@@ -41,6 +41,7 @@ import Types (
   AppM (AppM),
   AppliedScript,
   ApplyArgsRequest,
+  EvalExUnitsRequest,
   CardanoError (
     AcquireFailure,
     EraMismatchError,
@@ -70,8 +71,8 @@ type Api =
       :> ReqBody '[JSON] ApplyArgsRequest
       :> Post '[JSON] AppliedScript
     :<|> "eval-ex-units"
-      :> QueryParam' '[Required] "tx" Cbor
-      :> Get '[JSON] ExecutionUnitsMap
+      :> ReqBody '[JSON] EvalExUnitsRequest
+      :> Post '[JSON] ExecutionUnitsMap
     :<|> "finalize"
       :> ReqBody '[JSON] FinalizeRequest
       :> Post '[JSON] FinalizedTransaction
@@ -135,7 +136,7 @@ apiDocs = Docs.docs api
 
 estimateTxFees :: WitnessCount -> Cbor -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
-evalTxExecutionUnits :: Cbor -> ClientM ExecutionUnitsMap
+evalTxExecutionUnits :: EvalExUnitsRequest -> ClientM ExecutionUnitsMap
 finalizeTx :: FinalizeRequest -> ClientM FinalizedTransaction
 estimateTxFees
   :<|> applyArgs
