@@ -49,7 +49,7 @@ import Test.Spec.Assertions (shouldEqual)
 import Test.Utils (errMaybe)
 import TestM (TestPlanM)
 import Types.Aliases (Bech32String)
-import Types.ByteArray (hexToByteArrayUnsafe)
+import Types.RawBytes (hexToRawBytesUnsafe)
 import Test.Fixtures (ed25519KeyHashFixture1)
 
 doesNotThrow
@@ -66,7 +66,7 @@ mPkh :: Maybe Ed25519KeyHash
 mPkh = ed25519KeyHashFromBech32 pkhBech32
 
 mScriptHash :: Maybe ScriptHash
-mScriptHash = scriptHashFromBytes $ hexToByteArrayUnsafe scriptHashHex
+mScriptHash = scriptHashFromBytes $ hexToRawBytesUnsafe scriptHashHex
 
 addressFunctionsTest :: TestPlanM Unit
 addressFunctionsTest = test "Address tests" $ do

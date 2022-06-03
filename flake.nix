@@ -16,7 +16,9 @@
     cardano-node-exe = {
       url = "github:input-output-hk/cardano-node/ea8b632820db5546b22430bbb5ed8db4a2fef7dd";
     };
+    # Repository with network parameters
     cardano-configurations = {
+      # Override with "path:/path/to/cardano-configurations";
       url = "github:input-output-hk/cardano-configurations";
       flake = false;
     };
@@ -105,7 +107,7 @@
       flake = false;
     };
     # NOTE
-    # I don't we need anything from `plutus-apps`, so the following two are
+    # I don't think we need anything from `plutus-apps`, so the following two are
     # not necessary. They might be useful for communicating with the frontend
     # however in case this is needed
     purescript-bridge = {
@@ -164,49 +166,65 @@
         inherit system;
       };
 
-      buildCtlRuntime = system:
-        { node ? { port = 3001; }
-        , ogmios ? { port = 1337; }
-        , ctlServer ? { port = 8081; }
-        , postgres ? {
-            port = 5432;
-            user = "ctxlib";
-            password = "ctxlib";
-            db = "ctxlib";
-          }
-        , datumCache ? {
-            port = 9999;
-            dbConnectionString = nixpkgs.lib.concatStringsSep
-              " "
-              [
-                "host=postgres"
-                "port=${toString postgres.port}"
-                "user=${postgres.user}"
-                "dbname=${postgres.db}"
-                "password=${postgres.password}"
-              ];
-            blockFetcher = {
-              firstBlock = {
-                slot = 54066900;
-                id = "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d";
-              };
-              autoStart = true;
-              startFromLast = false;
-              filter = builtins.toJSON { const = true; };
+      defaultConfig = final: with final; {
+        inherit (inputs) cardano-configurations;
+        network = {
+          name = "testnet";
+          magic = 1097911063; # use `null` for mainnet
+        };
+        node = { port = 3001; };
+        ogmios = { port = 1337; };
+        ctlServer = { port = 8081; };
+        postgres = {
+          # User-facing port on host machine.
+          # Can be set to null in order to not bind postgres port to host.
+          # Postgres will always be accessible via `postgres:5432` from
+          # containers.
+          port = 5432;
+          user = "ctxlib";
+          password = "ctxlib";
+          db = "ctxlib";
+        };
+        datumCache = {
+          port = 9999;
+          dbConnectionString = nixpkgs.lib.concatStringsSep
+            " "
+            [
+              "host=postgres"
+              "port=5432"
+              "user=${postgres.user}"
+              "dbname=${postgres.db}"
+              "password=${postgres.password}"
+            ];
+          blockFetcher = {
+            firstBlock = {
+              slot = 54066900;
+              id = "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d";
             };
-          }
-        }:
+            autoStart = true;
+            startFromLast = false;
+            filter = builtins.toJSON { const = true; };
+          };
+        };
+      };
+
+      buildCtlRuntime = system: extraConfig:
         { ... }:
         let
           inherit (builtins) toString;
           pkgs = nixpkgsFor system;
-          nodeDbVol = "node-db";
-          nodeIpcVol = "node-ipc";
+          config = with pkgs.lib;
+            fix (final: recursiveUpdate
+              (defaultConfig final)
+              (if isFunction extraConfig then extraConfig final else extraConfig));
+          nodeDbVol = "node-${config.network.name}-db";
+          nodeIpcVol = "node-${config.network.name}-ipc";
           nodeSocketPath = "/ipc/node.socket";
           serverName = "ctl-server:exe:ctl-server";
           server = self.packages.${system}."${serverName}";
           bindPort = port: "${toString port}:${toString port}";
         in
+        with config;
         {
           docker-compose.raw = {
             volumes = {
@@ -220,8 +238,8 @@
                 image = "inputoutput/cardano-node:1.34.1";
                 ports = [ (bindPort node.port) ];
                 volumes = [
-                  "${cardano-configurations}/network/testnet/cardano-node:/config"
-                  "${cardano-configurations}/network/testnet/genesis:/genesis"
+                  "${config.cardano-configurations}/network/${config.network.name}/cardano-node:/config"
+                  "${config.cardano-configurations}/network/${config.network.name}/genesis:/genesis"
                   "${nodeDbVol}:/data"
                   "${nodeIpcVol}:/ipc"
                 ];
@@ -243,7 +261,7 @@
                 useHostStore = true;
                 ports = [ (bindPort ogmios.port) ];
                 volumes = [
-                  "${cardano-configurations}/network/testnet:/config"
+                  "${config.cardano-configurations}/network/${config.network.name}:/config"
                   "${nodeIpcVol}:/ipc"
                 ];
                 command = [
@@ -251,7 +269,7 @@
                   "-c"
                   ''
                     ${pkgs.ogmios}/bin/ogmios \
-                      --host 0.0.0.0 \
+                      --host ogmios \
                       --port ${toString ogmios.port} \
                       --node-socket /ipc/node.socket \
                       --node-config /config/cardano-node/config.json
@@ -263,6 +281,7 @@
               service = {
                 useHostStore = true;
                 ports = [ (bindPort ctlServer.port) ];
+                depends_on = [ "ogmios" ];
                 volumes = [ "${nodeIpcVol}:/ipc" ];
                 command = [
                   "${pkgs.bash}/bin/sh"
@@ -271,7 +290,9 @@
                     ${server}/bin/ctl-server \
                       --port ${toString ctlServer.port} \
                       --node-socket ${nodeSocketPath} \
-                      --network-id 1097911063
+                      --network-id ${if config.network.magic == null
+                                     then "mainnet"
+                                     else toString config.network.magic}
                   ''
                 ];
               };
@@ -279,7 +300,10 @@
             postgres = {
               service = {
                 image = "postgres:13";
-                ports = [ (bindPort postgres.port) ];
+                ports =
+                  if postgres.port == null
+                  then [ ]
+                  else [ "${toString postgres.port}:5432" ];
                 environment = {
                   POSTGRES_USER = "${postgres.user}";
                   POSTGRES_PASSWORD = "${postgres.password}";
@@ -289,6 +313,9 @@
             };
             ogmios-datum-cache =
               let
+                filter = nixpkgs.lib.strings.replaceStrings
+                  [ "\"" "\\" ] [ "\\\"" "\\\\" ]
+                  datumCache.blockFetcher.filter;
                 configFile = ''
                   dbConnectionString = "${datumCache.dbConnectionString}"
                   server.port = ${toString datumCache.port}
@@ -297,7 +324,7 @@
                   blockFetcher.autoStart = ${nixpkgs.lib.boolToString datumCache.blockFetcher.autoStart}
                   blockFetcher.firstBlock.slot = ${toString datumCache.blockFetcher.firstBlock.slot}
                   blockFetcher.firstBlock.id = "${datumCache.blockFetcher.firstBlock.id}"
-                  blockFetcher.filter = "${nixpkgs.lib.strings.replaceStrings ["\"" "\\"] ["\\\"" "\\\\"] datumCache.blockFetcher.filter}"
+                  blockFetcher.filter = "${filter}"
                 '';
               in
               {

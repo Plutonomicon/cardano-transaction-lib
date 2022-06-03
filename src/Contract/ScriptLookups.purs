@@ -12,7 +12,6 @@ module Contract.ScriptLookups
   ( mkUnbalancedTx
   , mkUnbalancedTxM
   , module ScriptLookups
-  , datum
   ) where
 
 import Prelude
@@ -21,11 +20,11 @@ import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
 import FromData (class FromData)
 import ToData (class ToData)
-import Types.Datum (Datum)
 import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
   , ScriptLookups(ScriptLookups)
   , UnattachedUnbalancedTx(UnattachedUnbalancedTx)
+  , datum
   , generalise
   , mintingPolicy
   , mintingPolicyM
@@ -42,7 +41,7 @@ import Types.ScriptLookups
   , unspentOutputs
   , unspentOutputsM
   ) as ScriptLookups
-import Types.ScriptLookups (datum, mkUnbalancedTx) as SL
+import Types.ScriptLookups (mkUnbalancedTx) as SL
 import Types.TxConstraints (TxConstraints)
 import Types.TypedValidator
   ( class DatumType
@@ -80,9 +79,3 @@ mkUnbalancedTxM
   -> TxConstraints b b
   -> Contract r (Maybe ScriptLookups.UnattachedUnbalancedTx)
 mkUnbalancedTxM lookups = map hush <<< mkUnbalancedTx lookups
-
-datum
-  :: forall (r :: Row Type) (a :: Type)
-   . Datum
-  -> Contract r (Maybe (ScriptLookups.ScriptLookups a))
-datum = wrapContract <<< SL.datum

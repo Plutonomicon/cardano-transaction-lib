@@ -1,22 +1,27 @@
 module Plutus.Types.Value
-  ( Value
+  ( Coin(..)
+  , Value
+  , coinToValue
+  , flattenNonAdaAssets
+  , flattenValue
+  , geq
+  , getLovelace
   , getValue
+  , gt
+  , isCoinZero
+  , isZero
+  , leq
+  , lovelaceValueOf
+  , lt
+  , negation
+  , scale
   , singleton
   , singleton'
-  , valueOf
-  , lovelaceValueOf
-  , scale
-  , symbols
-  , isZero
-  , negation
   , split
+  , symbols
   , unionWith
-  , flattenValue
-  , flattenNonAdaAssets
-  , geq
-  , gt
-  , leq
-  , lt
+  , valueOf
+  , valueToCoin
   ) where
 
 import Prelude hiding (eq)
@@ -25,17 +30,26 @@ import Control.Apply (lift3)
 import Data.Array (concatMap, filter)
 import Data.BigInt (BigInt)
 import Data.Foldable (all)
+import Data.Generic.Rep (class Generic)
 import Data.Lattice (class JoinSemilattice, class MeetSemilattice)
 import Data.Maybe (Maybe(Nothing), fromMaybe)
+import Data.Newtype (class Newtype)
 import Data.These (These(Both, That, This), these)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import FromData (class FromData, fromData)
+import Helpers (showWithParens)
 import ToData (class ToData, toData)
 import Types.ByteArray (ByteArray)
 import Types.TokenName (TokenName, adaToken, mkTokenName)
 import Plutus.Types.AssocMap (Map(Map)) as Plutus
-import Plutus.Types.AssocMap (singleton, lookup, keys, union, mapThese) as Plutus.Map
+import Plutus.Types.AssocMap
+  ( singleton
+  , lookup
+  , keys
+  , union
+  , mapThese
+  ) as Plutus.Map
 import Plutus.Types.CurrencySymbol (CurrencySymbol, mkCurrencySymbol, adaSymbol)
 
 newtype Value = Value (Plutus.Map CurrencySymbol (Plutus.Map TokenName BigInt))
@@ -58,6 +72,46 @@ instance JoinSemilattice Value where
 
 instance MeetSemilattice Value where
   meet = unionWith min
+
+--------------------------------------------------------------------------------
+-- Coin (Ada Lovelaces)
+--------------------------------------------------------------------------------
+newtype Coin = Coin BigInt
+
+derive instance Generic Coin _
+derive instance Newtype Coin _
+derive newtype instance Eq Coin
+
+instance Show Coin where
+  show (Coin c) = showWithParens "Coin" c
+
+instance Semigroup Coin where
+  append (Coin c1) (Coin c2) = Coin (c1 + c2)
+
+instance Monoid Coin where
+  mempty = Coin zero
+
+instance JoinSemilattice Coin where
+  join (Coin c1) (Coin c2) = Coin (max c1 c2)
+
+instance MeetSemilattice Coin where
+  meet (Coin c1) (Coin c2) = Coin (min c1 c2)
+
+-- | Get the amount of lovelaces in Ada `Coin`.
+getLovelace :: Coin -> BigInt
+getLovelace (Coin l) = l
+
+-- | Create a `Value` containing only the given `Coin`.
+coinToValue :: Coin -> Value
+coinToValue (Coin i) = lovelaceValueOf i
+
+-- | Get the `Coin` in the given `Value`.
+valueToCoin :: Value -> Coin
+valueToCoin v = Coin $ valueOf v adaSymbol adaToken
+
+-- | Check whether an 'Ada' value is zero.
+isCoinZero :: Coin -> Boolean
+isCoinZero (Coin i) = i == zero
 
 --------------------------------------------------------------------------------
 -- ToData / FromData

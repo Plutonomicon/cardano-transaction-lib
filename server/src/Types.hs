@@ -11,18 +11,11 @@ module Types (
   WitnessCount (..),
   ApplyArgsRequest (..),
   AppliedScript (..),
-  BytesToHash (..),
-  Blake2bHash (..),
   FinalizeRequest (..),
   FinalizedTransaction (..),
-  HashDataRequest (..),
-  HashedData (..),
-  HashScriptRequest (..),
-  HashedScript (..),
   CardanoError (..),
   CborDecodeError (..),
   CtlServerError (..),
-  hashLedgerScript,
   newEnvIO,
   getNodeConnectInfo,
   unsafeDecode,
@@ -31,7 +24,6 @@ module Types (
 import Cardano.Api qualified as C
 import Cardano.Api.Shelley qualified as Shelley
 import Cardano.Binary qualified as Cbor
-import Codec.Serialise (serialise)
 import Control.Exception (Exception)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO)
@@ -40,11 +32,9 @@ import Data.Aeson (FromJSON, ToJSON (toJSON))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Encoding qualified as Aeson.Encoding
 import Data.Aeson.Types (withText)
-import Data.Bifunctor (second)
 import Data.ByteString (ByteString)
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Lazy.Char8 qualified as LC8
-import Data.ByteString.Short qualified as SBS
 import Data.Functor ((<&>))
 import Data.Kind (Type)
 import Data.Maybe (fromMaybe)
@@ -55,7 +45,8 @@ import Data.Word (Word64, Word8)
 import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (Port)
 import Numeric.Natural (Natural)
-import Paths_ctl_server (getDataFileName)
+import Ogmios.Parser (decodeProtocolParameters)
+import Ogmios.Query qualified
 import Plutus.V1.Ledger.Api qualified as Ledger
 import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
 import Servant (FromHttpApiData, QueryParam', Required, ToHttpApiData)
@@ -83,24 +74,37 @@ data ServerOptions = ServerOptions
   { port :: Port
   , nodeSocket :: FilePath
   , networkId :: C.NetworkId
+  , ogmiosHost :: String
+  , ogmiosPort :: Int
   }
   deriving stock (Generic)
 
 newEnvIO :: ServerOptions -> IO (Either String Env)
-newEnvIO serverOptions =
-  getDataFileName "config/pparams.json"
-    >>= Aeson.eitherDecodeFileStrict @Shelley.ProtocolParameters
-    <&> second (Env serverOptions)
+newEnvIO serverOptions@ServerOptions {ogmiosHost, ogmiosPort} =
+  let ogmiosServerParams =
+        Ogmios.Query.defaultServerParameters
+          { Ogmios.Query.port = ogmiosPort
+          , Ogmios.Query.host = ogmiosHost
+          }
+      queryProtocolParams = Ogmios.Query.makeRequest ogmiosServerParams
+      maxConnectionAttempts = 300
+   in Ogmios.Query.tryQueryUntilZero queryProtocolParams maxConnectionAttempts
+        >>= \case
+          Right response ->
+            pure $
+              Env serverOptions <$> decodeProtocolParameters response
+          Left msg ->
+            pure . Left $ "Can't get protocol parameters from Ogmios: \n" <> msg
 
 getNodeConnectInfo :: AppM (C.LocalNodeConnectInfo C.CardanoMode)
 getNodeConnectInfo =
   asks serverOptions <&> \opts ->
     C.LocalNodeConnectInfo
-      { localConsensusModeParams =
+      { Shelley.localConsensusModeParams =
           -- FIXME: Calc Byron epoch length based on Genesis params.
           C.CardanoModeParams (C.EpochSlots 21600)
-      , localNodeNetworkId = networkId opts
-      , localNodeSocketPath = nodeSocket opts
+      , Shelley.localNodeNetworkId = networkId opts
+      , Shelley.localNodeSocketPath = nodeSocket opts
       }
 
 newtype Cbor = Cbor Text
@@ -153,16 +157,6 @@ newtype AppliedScript = AppliedScript Ledger.Script
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
 
-newtype BytesToHash = BytesToHash ByteString
-  deriving stock (Show, Generic)
-  deriving newtype (Eq)
-  deriving (FromJSON, ToJSON) via JsonHexString
-
-newtype Blake2bHash = Blake2bHash ByteString
-  deriving stock (Show, Generic)
-  deriving newtype (Eq)
-  deriving (FromJSON, ToJSON) via JsonHexString
-
 data FinalizeRequest = FinalizeRequest
   { tx :: Cbor
   , datums :: [Cbor]
@@ -175,45 +169,6 @@ data FinalizeRequest = FinalizeRequest
 newtype FinalizedTransaction = FinalizedTransaction Cbor
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
-
--- This is only to avoid an orphan instance for @ToDocs@
-newtype HashScriptRequest = HashScriptRequest Ledger.Script
-  deriving stock (Show, Generic)
-  deriving newtype (Eq, FromJSON, ToJSON)
-
--- This is a newtype to avoid the orphan instance
-newtype HashedScript = HashedScript Ledger.Scripts.ScriptHash
-  deriving stock (Show, Generic)
-  deriving newtype (Eq, FromJSON, ToJSON)
-
-newtype HashDataRequest = HashDataRequest Cbor
-  deriving stock (Show, Generic)
-  deriving newtype (Eq, FromJSON, ToJSON)
-
-newtype HashedData = HashedData ByteString
-  deriving stock (Show, Generic)
-  deriving newtype (Eq)
-  deriving (FromJSON, ToJSON) via JsonHexString
-
--- Adapted from `plutus-apps` implementation
--- rev. d637b1916522e4ec20b719487a8a2e066937aceb
-hashLedgerScript :: Ledger.Script -> Ledger.Scripts.ScriptHash
-hashLedgerScript =
-  Ledger.Scripts.ScriptHash
-    . Ledger.toBuiltin
-    . C.serialiseToRawBytes
-    . C.hashScript
-    . toCardanoApiScript
-
--- Adapted from `plutus-apps` implementation
--- rev. d637b1916522e4ec20b719487a8a2e066937aceb
-toCardanoApiScript :: Ledger.Script -> C.Script C.PlutusScriptV1
-toCardanoApiScript =
-  C.PlutusScript C.PlutusScriptV1
-    . Shelley.PlutusScriptSerialised
-    . SBS.toShort
-    . LC8.toStrict
-    . serialise
 
 data CtlServerError
   = CardanoError CardanoError
@@ -307,47 +262,6 @@ instance Docs.ToSample AppliedScript where
       )
     ]
 
-instance Docs.ToSample HashDataRequest where
-  toSamples _ =
-    [
-      ( "The input should contain CBOR of a single datum"
-      , HashDataRequest (Cbor "00")
-      )
-    ]
-
-instance Docs.ToSample HashedData where
-  toSamples _ =
-    [ ("The data will be returned as hex-encoded CBOR", HashedData exampleData)
-    ]
-    where
-      -- Fix this with an actual hash
-      exampleData :: ByteString
-      exampleData =
-        mconcat
-          [ "84a300818258205d677265fa5bb21ce6d8c7502aca70b93"
-          , "16d10e958611f3c6b758f65ad9599960001818258390030"
-          , "fb3b8539951e26f034910a5a37f22cb99d94d1d409f69dd"
-          , "baea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba"
-          , "3e96550504d5336100021a0002b569a0f5f6"
-          ]
-
-instance Docs.ToSample HashScriptRequest where
-  toSamples _ =
-    [ ("The script should be CBOR-encoded hex", HashScriptRequest exampleScript)
-    ]
-
-instance Docs.ToSample HashedScript where
-  toSamples _ =
-    [
-      ( "The hashed script will be returned as a JSON object with a \
-        \`getScriptHash` field containing the script hash"
-      , unsafeDecode
-          "HashedScript"
-          "{\"getScriptHash\":\
-          \\"67f33146617a5e61936081db3b2117cbf59bd2123748f58ac9678656\"}"
-      )
-    ]
-
 instance Docs.ToSample FinalizeRequest where
   toSamples _ =
     [
@@ -372,19 +286,6 @@ instance Docs.ToSample FinalizedTransaction where
             , "baea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba"
             , "3e96550504d5336100021a0002b569a0f5f6"
             ]
-
-instance Docs.ToSample BytesToHash where
-  toSamples _ = [("Bytes to hash as hexadecimal string", BytesToHash "foo")]
-
-instance Docs.ToSample Blake2bHash where
-  toSamples _ =
-    [
-      ( "Hash bytes are returned as hexidecimal string"
-      , Blake2bHash
-          "\184\254\159\DELbU\166\250\b\246h\171c*\
-          \\141\b\SUB\216y\131\199|\210t\228\140\228P\240\179I\253"
-      )
-    ]
 
 -- For decoding test fixtures, samples, etc...
 unsafeDecode :: forall (a :: Type). FromJSON a => String -> LC8.ByteString -> a

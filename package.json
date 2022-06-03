@@ -7,7 +7,9 @@
     "test": "test"
   },
   "scripts": {
-    "test": "spago run --main Test.Main",
+    "test": "npm run unit-test && npm run integration-test",
+    "integration-test": "spago run --main Test.Integration",
+    "unit-test": "spago run --main Test.Unit",
     "dev": "make run-dev",
     "build": "make run-build"
   },
@@ -17,18 +19,20 @@
     "@emurgo/cardano-serialization-lib-browser": "10.1.0",
     "@emurgo/cardano-serialization-lib-nodejs": "10.1.0",
     "big-integer": "1.6.51",
+    "blakejs": "1.2.1",
     "bufferutil": "4.0.5",
+    "jssha": "3.2.0",
     "node-polyfill-webpack-plugin": "1.1.4",
-    "uniqid": "5.4.0",
     "reconnecting-websocket": "4.4.0",
+    "uniqid": "5.4.0",
     "ws": "8.4.0",
     "xhr2": "0.2.1"
   },
   "devDependencies": {
     "buffer": "6.0.3",
+    "html-webpack-plugin": "5.5.0",
     "webpack": "5.67.0",
     "webpack-cli": "4.9.2",
-    "html-webpack-plugin": "5.5.0",
     "webpack-dev-server": "4.7.4"
   }
 }

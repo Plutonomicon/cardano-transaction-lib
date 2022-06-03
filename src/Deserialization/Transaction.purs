@@ -65,6 +65,33 @@ module Deserialization.Transaction
 
 import Prelude
 
+import Cardano.Types.Transaction
+  ( AuxiliaryData(AuxiliaryData)
+  , AuxiliaryDataHash
+  , Certificate(StakeDeregistration, StakeRegistration, StakeDelegation)
+  , CostModel(CostModel)
+  , Costmdls(Costmdls)
+  , Epoch(Epoch)
+  , ExUnitPrices
+  , ExUnits
+  , GenesisHash
+  , Language(PlutusV1)
+  , Mint(Mint)
+  , Nonce(HashNonce, IdentityNonce)
+  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
+  , ProtocolParamUpdate
+  , ProtocolVersion
+  , RequiredSigner(RequiredSigner)
+  , ScriptDataHash(ScriptDataHash)
+  , TxBody(TxBody)
+  , Update
+  )
+import Cardano.Types.Transaction as T
+import Cardano.Types.Value
+  ( Coin(Coin)
+  , NonAdaAsset(NonAdaAsset)
+  , scriptHashAsCurrencySymbol
+  )
 import Control.Lazy (fix)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
@@ -73,7 +100,7 @@ import Data.Bitraversable (bitraverse)
 import Data.Either (Either)
 import Data.Map as M
 import Data.Maybe (Maybe)
-import Data.Newtype (wrap)
+import Data.Newtype (wrap, unwrap)
 import Data.Ratio (Ratio, reduce)
 import Data.Traversable (traverse, for)
 import Data.Tuple (Tuple)
@@ -114,50 +141,53 @@ import Serialization.Address
   )
 import Serialization.Hash (Ed25519KeyHash, ScriptHash)
 import Serialization.Types (NativeScripts, PlutusScripts)
-import Serialization.Types as Csl
-import Type.Row (type (+))
-import Types.ByteArray (ByteArray)
-import Types.Int as Int
-import Types.Transaction
-  ( AuxiliaryData(AuxiliaryData)
-  , AuxiliaryDataHash
-  , Certificate(StakeDeregistration, StakeRegistration, StakeDelegation)
-  , CostModel(CostModel)
-  , Costmdls(Costmdls)
-  , Epoch(Epoch)
+import Serialization.Types
+  ( AssetName
+  , AuxiliaryData
+  , BigNum
+  , Certificate
+  , CostModel
+  , Costmdls
   , ExUnitPrices
   , ExUnits
-  , GenesisHash
-  , Language(PlutusV1)
-  , Mint(Mint)
-  , Nonce(HashNonce, IdentityNonce)
-  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
+  , GeneralTransactionMetadata
+  , Language
+  , MetadataList
+  , MetadataMap
+  , Mint
+  , MintAssets
+  , Nonce
   , ProtocolParamUpdate
-  , ProtocolVersion
-  , RequiredSigner(RequiredSigner)
-  , ScriptDataHash(ScriptDataHash)
-  , TxBody(TxBody)
+  , ProtocolVersions
+  , ScriptDataHash
+  , Transaction
+  , TransactionBody
+  , TransactionInput
+  , TransactionMetadatum
+  , TransactionOutput
+  , TransactionWitnessSet
+  , UnitInterval
   , Update
-  )
-import Types.Transaction as T
+  , Withdrawals
+  ) as Csl
+import Type.Row (type (+))
+import Types.ByteArray (ByteArray)
+import Types.CborBytes (CborBytes)
+import Types.Int (Int) as Csl
+import Types.Int as Int
+import Types.TokenName (TokenName, tokenNameFromAssetName)
 import Types.TransactionMetadata
   ( GeneralTransactionMetadata
   , TransactionMetadatum(MetadataList, MetadataMap, Bytes, Int, Text)
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   )
-import Types.TokenName (TokenName, tokenNameFromAssetName)
-import Cardano.Types.Value
-  ( Coin(Coin)
-  , NonAdaAsset(NonAdaAsset)
-  , scriptHashAsCurrencySymbol
-  )
 import Untagged.Union (asOneOf)
 
 -- | Deserializes CBOR encoded transaction to a CTL's native type.
--- NOTE: wrt ByteArray type and cbor keyword https://github.com/Plutonomicon/cardano-transaction-lib/issues/234
 deserializeTransaction
-  :: forall (r :: Row Type). { txCbor :: ByteArray } -> Err r T.Transaction
-deserializeTransaction { txCbor } = fromBytes' txCbor >>= convertTransaction
+  :: forall (r :: Row Type). CborBytes -> Err r T.Transaction
+deserializeTransaction txCbor = fromBytes' (unwrap txCbor) >>=
+  convertTransaction
 
 -- | Converts transaction from foreign CSL representation to CTL's one.
 convertTransaction
@@ -282,8 +312,8 @@ convertMint mint = Mint $ NonAdaAsset
   $ _unpackMint containerHelper mint
 
   where
-  convAssetName :: Tuple Csl.AssetName Int -> Tuple TokenName BigInt
-  convAssetName = bimap tokenNameFromAssetName BigInt.fromInt
+  convAssetName :: Tuple Csl.AssetName Int.Int -> Tuple TokenName BigInt
+  convAssetName = bimap tokenNameFromAssetName Int.toBigInt
 
 convertProtocolParamUpdate
   :: forall (r :: Row Type)
@@ -692,7 +722,7 @@ foreign import _unpackMint
   :: ContainerHelper -> Csl.Mint -> Array (Tuple ScriptHash Csl.MintAssets)
 
 foreign import _unpackMintAssets
-  :: ContainerHelper -> Csl.MintAssets -> Array (Tuple Csl.AssetName Int)
+  :: ContainerHelper -> Csl.MintAssets -> Array (Tuple Csl.AssetName Csl.Int)
 
 type CertConvHelper (r :: Row Type) =
   { stakeDeregistration :: StakeCredential -> Err r Certificate

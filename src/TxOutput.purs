@@ -19,15 +19,19 @@ import Address
   , enterpriseAddressValidatorHash
   , ogmiosAddressToAddress
   )
+import Cardano.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  , Utxo
+  ) as Transaction
 import Data.Map (Map)
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap)
 import Scripts (validatorHashEnterpriseAddress)
 import Serialization.Address (NetworkId)
 import Types.ByteArray (byteArrayToHex, hexToByteArray)
-import Types.Datum (DatumHash)
+import Types.Datum (DataHash)
 import QueryM.Ogmios as Ogmios
-import Types.Transaction as Transaction
+import Types.Transaction (TransactionInput(TransactionInput)) as Transaction
 import Types.UnbalancedTransaction as UTx
 
 -- | A module for helpers of the various transaction output types.
@@ -140,12 +144,12 @@ scriptOutputToTransactionOutput
 --------------------------------------------------------------------------------
 -- Conversion between transaction datum hash types
 --------------------------------------------------------------------------------
--- | Converts an Ogmios datum hash `String` to an internal `DatumHash`
-ogmiosDatumHashToDatumHash :: String -> Maybe DatumHash
+-- | Converts an Ogmios datum hash `String` to an internal `DataHash`
+ogmiosDatumHashToDatumHash :: String -> Maybe DataHash
 ogmiosDatumHashToDatumHash str = hexToByteArray str <#> wrap
 
--- | Converts an internal `DatumHash` to an Ogmios datumhash `String`
-datumHashToOgmiosDatumHash :: DatumHash -> String
+-- | Converts an internal `DataHash` to an Ogmios datumhash `String`
+datumHashToOgmiosDatumHash :: DataHash -> String
 datumHashToOgmiosDatumHash = byteArrayToHex <<< unwrap
 
 --------------------------------------------------------------------------------

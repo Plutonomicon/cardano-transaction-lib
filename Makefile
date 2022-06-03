@@ -4,6 +4,7 @@ SHELL := bash
 .SHELLFLAGS := -eu -o pipefail -c
 
 ps-sources := $(shell fd -epurs)
+nix-sources := $(shell fd -enix --exclude='spago*')
 ps-entrypoint := Examples.AlwaysSucceeds
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 
@@ -16,7 +17,7 @@ run-build:
 	@${ps-bundle} && BROWSER_RUNTIME=1 webpack --mode=production
 
 check-format:
-	@purs-tidy check ${ps-sources}
+	@purs-tidy check ${ps-sources} && nixpkgs-fmt --check ${nix-sources}
 
 format:
 	@purs-tidy format-in-place ${ps-sources}

@@ -150,7 +150,7 @@ let additions =
           , "untagged-union"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-aeson.git"
-        , version = "d4600c3a6bc21fcd94c11e72b65328e4509b6fc7"
+        , version = "69bd18c4a9cffdebc45c55d2448740721a91854c"
         }
       , sequences =
         { dependencies =

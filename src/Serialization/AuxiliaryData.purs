@@ -6,6 +6,10 @@ module Serialization.AuxiliaryData
 
 import Prelude
 
+import Cardano.Types.Transaction
+  ( AuxiliaryData(AuxiliaryData)
+  , AuxiliaryDataHash
+  ) as T
 import Data.Map as Map
 import Data.Newtype (wrap)
 import Data.Traversable (for, for_, traverse)
@@ -32,10 +36,6 @@ import Serialization.WitnessSet
   )
 import Types.ByteArray (ByteArray)
 import Types.Int as Int
-import Types.Transaction
-  ( AuxiliaryData(AuxiliaryData)
-  , AuxiliaryDataHash
-  ) as T
 import Types.TransactionMetadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
   , TransactionMetadatum(Text, Bytes, Int, MetadataList, MetadataMap)

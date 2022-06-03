@@ -3,69 +3,76 @@ module QueryM
   ( ClientError(..)
   , DatumCacheListeners
   , DatumCacheWebSocket
+  , DefaultQueryConfig
+  , DispatchError(..)
   , DispatchIdMap
-  , DispatchError(JsError, JsonError)
   , FeeEstimate(..)
   , FinalizedTransaction(..)
-  , HashedData(..)
-  , module ServerConfig
   , ListenerSet
-  , PendingRequests
-  , RdmrPtrExUnits(..)
-  , RequestBody
   , OgmiosListeners
   , OgmiosWebSocket
+  , PendingRequests
   , QueryConfig
-  , DefaultQueryConfig
   , QueryM
   , QueryMExtended
+  , RdmrPtrExUnits(..)
+  , RequestBody
   , WebSocket
-  , liftQueryM
   , allowError
   , applyArgs
   , calculateMinFee
-  , datumHash
-  , traceQueryConfig
+  , cancelFetchBlocks
   , evalTxExecutionUnits
   , finalizeTx
-  , getWalletAddress
   , getChainTip
+  , getDatumByHash
+  , getDatumsByHashes
+  , getWalletAddress
   , getWalletCollateral
-  , hashData
-  , hashScript
+  , liftQueryM
   , listeners
   , mkDatumCacheWebSocketAff
   , mkOgmiosRequest
   , mkOgmiosWebSocketAff
+  , module ServerConfig
   , ownPaymentPubKeyHash
   , ownPubKeyHash
   , ownStakePubKeyHash
   , runQueryM
   , signTransaction
   , signTransactionBytes
-  , submitTxWallet
-  , submitTxOgmios
-  , underlyingWebSocket
-  , getDatumByHash
-  , getDatumsByHashes
   , startFetchBlocks
-  , cancelFetchBlocks
+  , submitTxOgmios
+  , submitTxWallet
+  , traceQueryConfig
+  , underlyingWebSocket
   ) where
 
 import Prelude
 
-import Aeson as Aeson
+import Aeson
+  ( class DecodeAeson
+  , Aeson
+  , JsonDecodeError
+      ( TypeMismatch
+      )
+  , caseAesonString
+  , decodeAeson
+  , encodeAeson
+  , parseJsonStringToAeson
+  , stringifyAeson
+  )
 import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
+import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
+import Cardano.Types.Transaction (Transaction(Transaction))
+import Cardano.Types.Transaction as Transaction
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value (Coin)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT, ask, asks)
-import Data.Argonaut (class DecodeJson)
-import Data.Argonaut as Json
-import Data.Argonaut.Encode.Class (encodeJson)
-import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Array (length)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
@@ -73,10 +80,12 @@ import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, isRight, note, hush)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
+import Data.HTTP.Method (Method(POST))
 import Data.Log.Level (LogLevel(Trace, Debug, Error))
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe, maybe')
+import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse, traverse_, for)
@@ -143,23 +152,19 @@ import Serialization.Address
   , baseAddressPaymentCred
   , stakeCredentialToKeyHash
   )
-import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
+import Types.CborBytes (CborBytes)
 import Types.Chain as Chain
-import Types.Datum (Datum, DatumHash)
-import Types.Interval (SlotConfig, defaultSlotConfig)
+import Types.Datum (DataHash, Datum)
 import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
 import Types.Natural (Natural)
 import Types.PlutusData (PlutusData)
-import Types.PubKeyHash (PubKeyHash)
+import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
 import Types.Scripts (PlutusScript)
-import Types.Transaction (Transaction(Transaction))
-import Types.Transaction as Transaction
-import Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Types.UnbalancedTransaction (StakePubKeyHash, PaymentPubKeyHash)
+import Types.Transaction (TransactionHash)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
 import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
@@ -181,7 +186,6 @@ type QueryConfig (r :: Row Type) =
   -- should probably be more tightly coupled with a wallet
   , usedTxOuts :: UsedTxOuts
   , networkId :: NetworkId
-  , slotConfig :: SlotConfig
   , logLevel :: LogLevel
   | r
   }
@@ -205,7 +209,6 @@ liftQueryM = withReaderT toDefaultQueryConfig
     , wallet: c.wallet
     , usedTxOuts: c.usedTxOuts
     , networkId: c.networkId
-    , slotConfig: c.slotConfig
     , logLevel: c.logLevel
     }
 
@@ -226,7 +229,6 @@ traceQueryConfig = do
     , wallet: Nothing
     , usedTxOuts
     , networkId: TestnetId
-    , slotConfig: defaultSlotConfig
     , logLevel
     }
   where
@@ -252,18 +254,18 @@ getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
 -- OGMIOS LOCAL TX SUBMISSION PROTOCOL
 --------------------------------------------------------------------------------
 
-submitTxOgmios :: ByteArray -> QueryM Ogmios.SubmitTxR
-submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall _.submit { txCbor }
+submitTxOgmios :: CborBytes -> QueryM Ogmios.SubmitTxR
+submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall _.submit txCbor
 
 --------------------------------------------------------------------------------
 -- DATUM CACHE QUERIES
 --------------------------------------------------------------------------------
 
-getDatumByHash :: DatumHash -> QueryM (Maybe Datum)
+getDatumByHash :: DataHash -> QueryM (Maybe Datum)
 getDatumByHash hash = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumByHashCall _.getDatumByHash hash
 
-getDatumsByHashes :: Array DatumHash -> QueryM (Map DatumHash Datum)
+getDatumsByHashes :: Array DataHash -> QueryM (Map DataHash Datum)
 getDatumsByHashes hashes = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
 
@@ -300,12 +302,12 @@ signTransaction tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.signTx tx
 
 signTransactionBytes
-  :: ByteArray -> QueryM (Maybe ByteArray)
+  :: CborBytes -> QueryM (Maybe CborBytes)
 signTransactionBytes tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.signTxBytes tx
 
 submitTxWallet
-  :: Transaction.Transaction -> QueryM (Maybe Transaction.TransactionHash)
+  :: Transaction.Transaction -> QueryM (Maybe TransactionHash)
 submitTxWallet tx = withMWalletAff $ case _ of
   Nami nami -> callNami nami $ \nw -> flip nw.submitTx tx
 
@@ -324,7 +326,8 @@ ownStakePubKeyHash = do
   mbAddress <- getWalletAddress
   pure do
     baseAddress <- mbAddress >>= baseAddressFromAddress
-    wrap <$> stakeCredentialToKeyHash (baseAddressDelegationCred baseAddress)
+    wrap <<< wrap <$> stakeCredentialToKeyHash
+      (baseAddressDelegationCred baseAddress)
 
 withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
@@ -345,19 +348,19 @@ newtype FeeEstimate = FeeEstimate BigInt
 
 derive instance Newtype FeeEstimate _
 
-instance Json.DecodeJson FeeEstimate where
-  decodeJson str =
+instance DecodeAeson FeeEstimate where
+  decodeAeson str =
     map FeeEstimate
-      <<< note (Json.TypeMismatch "Expected a `BigInt`")
+      <<< note (TypeMismatch "Expected a `BigInt`")
       <<< BigInt.fromString
-      =<< Json.caseJsonString
-        (Left $ Json.TypeMismatch "Expected a stringified `BigInt`")
+      =<< caseAesonString
+        (Left $ TypeMismatch "Expected a stringified `BigInt`")
         Right
         str
 
 data ClientError
   = ClientHttpError Affjax.Error
-  | ClientDecodeJsonError Json.JsonDecodeError
+  | ClientDecodeJsonError JsonDecodeError
   | ClientEncodingError String
   | ClientOtherError String
 
@@ -396,11 +399,11 @@ calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
         <> txHex
         <> "&count="
         <> UInt.toString witCount
-  liftAff (Affjax.get Affjax.ResponseFormat.json url)
+  liftAff (Affjax.get Affjax.ResponseFormat.string url)
     <#> either
       (Left <<< ClientHttpError)
       ( bimap ClientDecodeJsonError (wrap <<< unwrap :: FeeEstimate -> Coin)
-          <<< Json.decodeJson
+          <<< (decodeAeson <=< parseJsonStringToAeson)
           <<< _.body
       )
   where
@@ -433,17 +436,19 @@ derive instance Generic RdmrPtrExUnits _
 instance Show RdmrPtrExUnits where
   show = genericShow
 
-derive newtype instance DecodeJson RdmrPtrExUnits
+derive newtype instance DecodeAeson RdmrPtrExUnits
 
 evalTxExecutionUnits
   :: Transaction -> QueryM (Either ClientError (Array RdmrPtrExUnits))
 evalTxExecutionUnits tx = do
   txHex <- liftEffect (txToHex tx)
   url <- mkServerEndpointUrl ("eval-ex-units?tx=" <> txHex)
-  liftAff (Affjax.get Affjax.ResponseFormat.json url)
+  liftAff (Affjax.get Affjax.ResponseFormat.string url)
     <#> either
       (Left <<< ClientHttpError)
-      (lmap ClientDecodeJsonError <<< Json.decodeJson <<< _.body)
+      ( lmap ClientDecodeJsonError <<< (decodeAeson <=< parseJsonStringToAeson)
+          <<< _.body
+      )
 
 -- | CborHex-encoded tx
 newtype FinalizedTransaction = FinalizedTransaction ByteArray
@@ -453,12 +458,12 @@ derive instance Generic FinalizedTransaction _
 instance Show FinalizedTransaction where
   show = genericShow
 
-instance Json.DecodeJson FinalizedTransaction where
-  decodeJson =
+instance DecodeAeson FinalizedTransaction where
+  decodeAeson =
     map FinalizedTransaction <<<
-      Json.caseJsonString (Left err) (note err <<< hexToByteArray)
+      caseAesonString (Left err) (note err <<< hexToByteArray)
     where
-    err = Json.TypeMismatch "Expected CborHex of Tx"
+    err = TypeMismatch "Expected CborHex of Tx"
 
 finalizeTx
   :: Transaction.Transaction
@@ -494,115 +499,64 @@ finalizeTx tx datums redeemers = do
       }
   url <- mkServerEndpointUrl "finalize"
   -- get response json
-  jsonBody <-
-    liftAff
-      ( Affjax.post Affjax.ResponseFormat.json url
-          (Just $ Affjax.RequestBody.Json $ encodeJson body)
-      ) <#> map \x -> x.body
+  jsonBody <- liftAff (postAeson url (encodeAeson body)) <#> map _.body
   -- decode
-  pure $ hush <<< Json.decodeJson =<< hush jsonBody
-
-newtype HashedData = HashedData ByteArray
-
-derive instance Newtype HashedData _
-derive instance Generic HashedData _
-
-instance Show HashedData where
-  show = genericShow
-
-instance Json.DecodeJson HashedData where
-  decodeJson =
-    map HashedData <<<
-      Json.caseJsonString (Left err) (note err <<< hexToByteArray)
-    where
-    err :: Json.JsonDecodeError
-    err = Json.TypeMismatch "Expected hex bytes (raw) of hashed data"
-
-hashData :: Datum -> QueryM (Maybe HashedData)
-hashData datum = do
-  body <-
-    liftEffect $ byteArrayToHex <<< Serialization.toBytes <<< asOneOf
-      <$> maybe' (\_ -> throw $ "Failed to convert plutus data: " <> show datum)
-        pure
-        (Serialization.convertPlutusData $ unwrap datum)
-  url <- mkServerEndpointUrl "hash-data"
-  -- get response json
-  jsonBody <-
-    liftAff
-      ( Affjax.post Affjax.ResponseFormat.json url
-          (Just $ Affjax.RequestBody.Json $ encodeString body)
-      ) <#> map \x -> x.body
-  -- decode
-  pure $ hush <<< Json.decodeJson =<< hush jsonBody
-
--- | Hashes an Plutus-style Datum
-datumHash :: Datum -> QueryM (Maybe DatumHash)
-datumHash = map (map (Transaction.DataHash <<< unwrap)) <<< hashData
+  pure $ hush <<< (decodeAeson <=< parseJsonStringToAeson) =<< hush jsonBody
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
 applyArgs
   :: forall (a :: Type)
    . Newtype a PlutusScript
-  => DecodeJson a
+  => DecodeAeson a
   => a
   -> Array PlutusData
   -> QueryM (Either ClientError a)
-applyArgs script args = case traverse plutusDataToJson args of
+applyArgs script args = case traverse plutusDataToAeson args of
   Nothing -> pure $ Left $ ClientEncodingError "Failed to convert script args"
   Just ps -> do
     let
-      argsJson :: Json.Json
-      argsJson = Json.encodeJson ps
-
-      reqBody :: Maybe Affjax.RequestBody.RequestBody
-      reqBody = Just
-        $ Affjax.RequestBody.Json
-        $ Json.fromObject
+      reqBody :: Aeson
+      reqBody = encodeAeson
         $ Object.fromFoldable
-            [ "script" /\ scriptToJson (unwrap script)
-            , "args" /\ argsJson
+            [ "script" /\ scriptToAeson (unwrap script)
+            , "args" /\ encodeAeson ps
             ]
     url <- mkServerEndpointUrl "apply-args"
-    liftAff (Affjax.post Affjax.ResponseFormat.json url reqBody)
+    liftAff (postAeson url reqBody)
       <#> either
         (Left <<< ClientHttpError)
-        (lmap ClientDecodeJsonError <<< Json.decodeJson <<< _.body)
+        ( bimap ClientDecodeJsonError wrap
+            <<< (decodeAeson <=< parseJsonStringToAeson)
+            <<< _.body
+        )
   where
-  plutusDataToJson :: PlutusData -> Maybe Json.Json
-  plutusDataToJson =
+  plutusDataToAeson :: PlutusData -> Maybe Aeson
+  plutusDataToAeson =
     map
-      ( encodeString
+      ( encodeAeson
           <<< byteArrayToHex
           <<< Serialization.toBytes
           <<< asOneOf
       )
       <<< Serialization.convertPlutusData
 
-hashScript
-  :: forall (a :: Type) (b :: Type)
-   . Newtype a PlutusScript
-  => Newtype b ScriptHash
-  => a
-  -> QueryM (Either ClientError b)
-hashScript script = do
-  url <- mkServerEndpointUrl "hash-script"
-  let
-    reqBody :: Maybe Affjax.RequestBody.RequestBody
-    reqBody = Just
-      $ Affjax.RequestBody.Json
-      $ scriptToJson
-      $ unwrap script
-  liftAff (Affjax.post Affjax.ResponseFormat.json url reqBody)
-    <#> either
-      (Left <<< ClientHttpError)
-      (bimap ClientDecodeJsonError wrap <<< Json.decodeJson <<< _.body)
+-- We can't use Affjax's typical `post`, since there will be a mismatch between
+-- the media type header and the request body
+postAeson :: Url -> Aeson -> Aff (Either Affjax.Error (Affjax.Response String))
+postAeson url body = Affjax.request $ Affjax.defaultRequest
+  { method = Left POST
+  , content = Just $ Affjax.RequestBody.String $ stringifyAeson body
+  , url = url
+  , responseFormat = Affjax.ResponseFormat.string
+  , headers = [ Affjax.RequestHeader.ContentType applicationJSON ]
+  }
 
 -- It's easier to just write the encoder here than provide an `EncodeJson`
 -- instance (there are some brutal cyclical dependency issues trying to
 -- write an instance in the `Types.*` modules)
-scriptToJson :: PlutusScript -> Json.Json
-scriptToJson = encodeString <<< byteArrayToHex <<< unwrap
+scriptToAeson :: PlutusScript -> Aeson
+scriptToAeson = encodeAeson <<< byteArrayToHex <<< unwrap
 
 mkServerEndpointUrl :: String -> QueryM Url
 mkServerEndpointUrl path = asks $ (_ <> "/" <> path)
@@ -632,16 +586,25 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
   chainTipDispatchMap <- createMutableDispatch
   evaluateTxDispatchMap <- createMutableDispatch
   submitDispatchMap <- createMutableDispatch
+  eraSummariesDispatchMap <- createMutableDispatch
+  currentEpochDispatchMap <- createMutableDispatch
+  systemStartDispatchMap <- createMutableDispatch
   utxoPendingRequests <- createPendingRequests
   chainTipPendingRequests <- createPendingRequests
   evaluateTxPendingRequests <- createPendingRequests
   submitPendingRequests <- createPendingRequests
+  eraSummariesPendingRequests <- createPendingRequests
+  currentEpochPendingRequests <- createPendingRequests
+  systemStartPendingRequests <- createPendingRequests
   let
     md = ogmiosMessageDispatch
       { utxoDispatchMap
       , chainTipDispatchMap
       , evaluateTxDispatchMap
       , submitDispatchMap
+      , eraSummariesDispatchMap
+      , currentEpochDispatchMap
+      , systemStartDispatchMap
       }
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   let
@@ -652,6 +615,9 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       Ref.read chainTipPendingRequests >>= traverse_ sendRequest
       Ref.read evaluateTxPendingRequests >>= traverse_ sendRequest
       Ref.read submitPendingRequests >>= traverse_ sendRequest
+      Ref.read eraSummariesPendingRequests >>= traverse_ sendRequest
+      Ref.read currentEpochPendingRequests >>= traverse_ sendRequest
+      Ref.read systemStartPendingRequests >>= traverse_ sendRequest
   _onWsConnect ws do
     _wsWatch ws (logger Debug) onError
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
@@ -661,6 +627,13 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       , chainTip: mkListenerSet chainTipDispatchMap chainTipPendingRequests
       , evaluate: mkListenerSet evaluateTxDispatchMap evaluateTxPendingRequests
       , submit: mkListenerSet submitDispatchMap submitPendingRequests
+      , eraSummaries:
+          mkListenerSet eraSummariesDispatchMap eraSummariesPendingRequests
+      , currentEpoch:
+          mkListenerSet currentEpochDispatchMap currentEpochPendingRequests
+      , systemStart:
+          mkListenerSet systemStartDispatchMap systemStartPendingRequests
+
       }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
@@ -738,12 +711,15 @@ type OgmiosListeners =
   { utxo :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoQR
   , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
   , submit :: ListenerSet { txCbor :: ByteArray } Ogmios.SubmitTxR
-  , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationResult
+  , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationR
+  , eraSummaries :: ListenerSet Unit Ogmios.EraSummaries
+  , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
+  , systemStart :: ListenerSet Unit Ogmios.SystemStart
   }
 
 type DatumCacheListeners =
-  { getDatumByHash :: ListenerSet DatumHash GetDatumByHashR
-  , getDatumsByHashes :: ListenerSet (Array DatumHash) GetDatumsByHashesR
+  { getDatumByHash :: ListenerSet DataHash GetDatumByHashR
+  , getDatumsByHashes :: ListenerSet (Array DataHash) GetDatumsByHashesR
   , startFetchBlocks ::
       ListenerSet { slot :: Slot, id :: Chain.BlockHeaderHash }
         StartFetchBlocksR
@@ -823,7 +799,7 @@ mkRequest getListeners getWebSocket jsonWspCall getLs inp = do
     affFunc cont = do
       let
         sBody :: RequestBody
-        sBody = Json.stringify $ Json.encodeJson body
+        sBody = stringifyAeson $ encodeAeson body
       _ <- respLs.addMessageListener id
         ( \result -> do
             respLs.removeMessageListener id
@@ -840,7 +816,7 @@ mkRequest getListeners getWebSocket jsonWspCall getLs inp = do
 -- Dispatch Setup
 --------------------------------------------------------------------------------
 
-data DispatchError = JsError Error | JsonError Json.JsonDecodeError
+data DispatchError = JsError Error | JsonError JsonDecodeError
 
 dispatchErrorToError :: DispatchError -> Error
 dispatchErrorToError (JsError err) = err
@@ -860,8 +836,11 @@ type DispatchIdMap response = Ref
 ogmiosMessageDispatch
   :: { utxoDispatchMap :: DispatchIdMap Ogmios.UtxoQR
      , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipQR
-     , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationResult
+     , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationR
      , submitDispatchMap :: DispatchIdMap Ogmios.SubmitTxR
+     , eraSummariesDispatchMap :: DispatchIdMap Ogmios.EraSummaries
+     , currentEpochDispatchMap :: DispatchIdMap Ogmios.CurrentEpoch
+     , systemStartDispatchMap :: DispatchIdMap Ogmios.SystemStart
      }
   -> Array WebsocketDispatch
 ogmiosMessageDispatch
@@ -869,11 +848,17 @@ ogmiosMessageDispatch
   , chainTipDispatchMap
   , evaluateTxDispatchMap
   , submitDispatchMap
+  , eraSummariesDispatchMap
+  , currentEpochDispatchMap
+  , systemStartDispatchMap
   } =
   [ queryDispatch utxoDispatchMap
   , queryDispatch chainTipDispatchMap
   , queryDispatch evaluateTxDispatchMap
   , queryDispatch submitDispatchMap
+  , queryDispatch eraSummariesDispatchMap
+  , queryDispatch currentEpochDispatchMap
+  , queryDispatch systemStartDispatchMap
   ]
 
 datumCacheMessageDispatch
@@ -911,16 +896,16 @@ createPendingRequests = Ref.new Map.empty
 -- waiting on this result
 queryDispatch
   :: forall (response :: Type)
-   . Aeson.DecodeAeson response
+   . DecodeAeson response
   => DispatchIdMap response
   -> String
   -> Effect (Either DispatchError (Effect Unit))
 queryDispatch ref str = do
   -- Parse response
-  case JsonWsp.parseJsonWspResponse =<< Aeson.parseJsonStringToAeson str of
+  case JsonWsp.parseJsonWspResponse =<< parseJsonStringToAeson str of
     Left parseError -> do
       -- Try to at least parse ID  to dispatch the error to
-      case parseJsonWspResponseId =<< Aeson.parseJsonStringToAeson str of
+      case parseJsonWspResponseId =<< parseJsonStringToAeson str of
         -- We still return original error because ID parse error is useless
         Left _idParseError -> pure $ Left $ JsonError parseError
         Right (id :: ListenerId) -> do
@@ -944,8 +929,8 @@ queryDispatch ref str = do
         Just action -> pure $ Right $ action $ Right parsed.result
 
 -- an empty error we can compare to, useful for ensuring we've not received any other kind of error
-defaultErr :: Json.JsonDecodeError
-defaultErr = Json.TypeMismatch "default error"
+defaultErr :: JsonDecodeError
+defaultErr = TypeMismatch "default error"
 
 defaultMessageListener
   :: LogLevel -> Array WebsocketDispatch -> String -> Effect Unit

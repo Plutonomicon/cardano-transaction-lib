@@ -23,32 +23,31 @@ module Types.TypedTxOut
 -- | https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger/html/src/Ledger.Typed.Tx.html
 
 import Prelude
+import Cardano.Types.Transaction (TransactionOutput(TransactionOutput))
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
+import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Data.Either (Either, note)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import FromData (class FromData, fromData)
+import Hashing (datumHash) as Hashing
 import Helpers (liftM)
-import QueryM (QueryM, getDatumByHash, datumHash)
+import QueryM (QueryM, getDatumByHash)
 import Scripts (typedValidatorEnterpriseAddress)
 import Serialization.Address (Address, NetworkId)
 import ToData (class ToData, toData)
-import Types.Datum (Datum(Datum), DatumHash)
+import Types.Datum (DataHash, Datum(Datum))
 import Types.PlutusData (PlutusData)
-import Types.Transaction
-  ( TransactionInput
-  , TransactionOutput(TransactionOutput)
-  )
+import Types.Transaction (TransactionInput)
 import Types.TypedValidator
   ( class DatumType
   , TypedValidator
   )
 import Cardano.Types.Value (Value)
 
--- | A `TxOutRef` ~ `TransactionInput` tagged by a phantom type: and the
+-- | A `TransactionInput` tagged by a phantom type: and the
 -- | connection type of the output.
 -- | Plutus uses wraps this type with a `TxIn` data type instead with optionally
 -- | carries the address type. We don't include such a type in our setup.
@@ -72,14 +71,14 @@ typedTxOutRefAddress
 typedTxOutRefAddress (TypedTxOutRef { typedTxOut }) =
   typedTxOutAddress typedTxOut
 
--- | Extract the `DatumHash` of a `TypedTxOutRef`
+-- | Extract the `DataHash` of a `TypedTxOutRef`
 typedTxOutRefDatumHash
   :: forall (a :: Type) (b :: Type)
    . DatumType a b
   => FromData b
   => ToData b
   => TypedTxOutRef a b
-  -> Maybe DatumHash
+  -> Maybe DataHash
 typedTxOutRefDatumHash (TypedTxOutRef { typedTxOut }) =
   typedTxOutDatumHash typedTxOut
 
@@ -93,7 +92,7 @@ typedTxOutRefValue
   -> Value
 typedTxOutRefValue (TypedTxOutRef { typedTxOut }) = typedTxOutValue typedTxOut
 
--- | Extract the `TxOutRef` ~ `TransactionInput` of a `TypedTxOutRef`
+-- | Extract the `TransactionInput` of a `TypedTxOutRef`
 typedTxOutRefInput
   :: forall (a :: Type) (b :: Type)
    . DatumType a b
@@ -123,14 +122,14 @@ typedTxOutAddress
   -> Address
 typedTxOutAddress (TypedTxOut { txOut }) = (unwrap txOut).address
 
--- | Extract the `DatumHash` of a `TypedTxOut`
+-- | Extract the `DataHash` of a `TypedTxOut`
 typedTxOutDatumHash
   :: forall (a :: Type) (b :: Type)
    . DatumType a b
   => FromData b
   => ToData b
   => TypedTxOut a b
-  -> Maybe DatumHash
+  -> Maybe DataHash
 typedTxOutDatumHash (TypedTxOut { txOut }) = (unwrap txOut).dataHash
 
 -- | Extract the `Value` of a `TypedTxOut`
@@ -168,23 +167,25 @@ mkTypedTxOut
   -> TypedValidator a
   -> b
   -> Value
-  -> QueryM (Maybe (TypedTxOut a b))
-mkTypedTxOut networkId typedVal dt amount = do
-  mDHash <- datumHash $ Datum $ toData dt
-  -- FIX ME: This is hardcoded to enterprise address, it seems like Plutus'
-  -- "validatorAddress" also currently doesn't account for staking.
-  let address = typedValidatorEnterpriseAddress networkId typedVal
-  pure $ maybe Nothing
-    ( \dHash ->
-        Just $ mkTypedTxOut' (wrap { address, amount, dataHash: pure dHash }) dt
-    )
-    mDHash
+  -> Maybe (TypedTxOut a b)
+mkTypedTxOut networkId typedVal dt amount =
+  let
+    mDHash = Hashing.datumHash $ Datum $ toData dt
+    -- FIX ME: This is hardcoded to enterprise address, it seems like Plutus'
+    -- "validatorAddress" also currently doesn't account for staking.
+    address = typedValidatorEnterpriseAddress networkId typedVal
+  in
+    case mDHash of
+      Nothing -> Nothing
+      Just dHash ->
+        Just <<< mkTypedTxOut' dt $
+          wrap { address, amount, dataHash: pure dHash }
   where
   mkTypedTxOut'
-    :: TransactionOutput
-    -> b -- Data
+    :: b -- Data
+    -> TransactionOutput
     -> TypedTxOut a b
-  mkTypedTxOut' txOut dat = TypedTxOut { txOut, data: dat }
+  mkTypedTxOut' dat txOut = TypedTxOut { txOut, data: dat }
 
 -- | An error we can get while trying to type an existing transaction part.
 data TypeCheckError
@@ -192,7 +193,7 @@ data TypeCheckError
   | ExpectedScriptGotPubkey
   | WrongRedeemerType PlutusData
   | WrongDatumType PlutusData
-  | CannotQueryDatum DatumHash
+  | CannotQueryDatum DataHash
   | CannotMakeTypedTxOut
   | UnknownRef
 
@@ -241,7 +242,7 @@ checkDatum
 checkDatum _ (Datum pd) =
   runExceptT $ liftM (WrongDatumType pd) (fromData pd :: Maybe b)
 
--- | Create a `TypedTxOut` from an existing `TxOutRef` ~ `TransactionInput` by
+-- | Create a `TypedTxOut` from an existing `TransactionInput` by
 -- | checking the types of its parts.
 typeTxOut
   :: forall (a :: Type) (b :: Type) (m :: Type -> Type)
@@ -252,19 +253,22 @@ typeTxOut
   -> TypedValidator a
   -> TransactionOutput
   -> QueryM (Either TypeCheckError (TypedTxOut a b))
-typeTxOut networkId typedVal (TransactionOutput { address, amount, dataHash }) =
+typeTxOut
+  networkId
+  typedVal
+  (TransactionOutput { address, amount, dataHash }) =
   runExceptT do
     -- Assume `Nothing` is a public key.
     dHash <- liftM ExpectedScriptGotPubkey dataHash
     void $ checkValidatorAddress networkId typedVal address
     pd <- ExceptT $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
     dtOut <- ExceptT $ checkDatum typedVal pd
-    ExceptT $
-      note CannotMakeTypedTxOut <$> mkTypedTxOut networkId typedVal dtOut amount
+    except $
+      note CannotMakeTypedTxOut (mkTypedTxOut networkId typedVal dtOut amount)
 
--- | Create a `TypedTxOutRef` from an existing `TxOutRef` ~ `TransactionInput`
+-- | Create a `TypedTxOutRef` from an existing `TransactionInput`
 -- | by checking the types of its parts. To do this we need to cross-reference
--- | against the validator script and be able to look up the `TxOutRef` to
+-- | against the validator script and be able to look up the `TransactionInput` to
 -- | which this reference points.
 typeTxOutRef
   :: forall (a :: Type) (b :: Type) (m :: Type -> Type)

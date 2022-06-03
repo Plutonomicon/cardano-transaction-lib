@@ -47,16 +47,18 @@ module Cardano.Types.Value
 
 import Prelude hiding (join)
 
-import Control.Alt ((<|>))
-import Control.Alternative (guard)
-import Data.Argonaut
-  ( class DecodeJson
-  , class EncodeJson
-  , JsonDecodeError(TypeMismatch)
-  , caseJsonObject
-  , encodeJson
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , JsonDecodeError
+      ( TypeMismatch
+      )
+  , caseAesonObject
+  , encodeAeson'
   , getField
   )
+import Control.Alt ((<|>))
+import Control.Alternative (guard)
 import Data.Array (cons, filter)
 import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt, fromInt)
@@ -77,17 +79,18 @@ import Data.These (These(Both, That, This))
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested ((/\), type (/\))
 import FromData (class FromData)
+import Helpers (showWithParens)
 import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Partial.Unsafe (unsafePartial)
 import Serialization.Hash
   ( ScriptHash
-  , scriptHashAsBytes
   , scriptHashFromBytes
   , scriptHashToBytes
   )
 import ToData (class ToData)
-import Types.ByteArray (ByteArray, byteArrayToHex, byteLength, hexToByteArray)
+import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex)
+import Types.CborBytes (byteLength)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Types.TokenName
   ( TokenName
@@ -129,7 +132,7 @@ derive instance Newtype Coin _
 derive newtype instance Eq Coin
 
 instance Show Coin where
-  show = genericShow
+  show (Coin c) = showWithParens "Coin" c
 
 instance Semigroup Coin where
   append (Coin c1) (Coin c2) = Coin (c1 + c2)
@@ -191,19 +194,19 @@ derive newtype instance ToData CurrencySymbol
 derive newtype instance ToMetadata CurrencySymbol
 
 instance Show CurrencySymbol where
-  show (CurrencySymbol cs) = "(CurrencySymbol" <> show cs <> ")"
+  show (CurrencySymbol cs) = "(CurrencySymbol " <> show cs <> ")"
 
 -- This is needed for `ApplyArgs`. Plutus has an `unCurrencySymbol` field.
-instance DecodeJson CurrencySymbol where
-  decodeJson = caseJsonObject
+instance DecodeAeson CurrencySymbol where
+  decodeAeson = caseAesonObject
     (Left $ TypeMismatch "Expected object")
     ( note (TypeMismatch "Invalid CurrencySymbol") <<< mkCurrencySymbol
         <=< note (TypeMismatch "Invalid ByteArray") <<< hexToByteArray
         <=< flip getField "unCurrencySymbol"
     )
 
-instance EncodeJson CurrencySymbol where
-  encodeJson (CurrencySymbol ba) = encodeJson
+instance EncodeAeson CurrencySymbol where
+  encodeAeson' (CurrencySymbol ba) = encodeAeson'
     { "unCurrencySymbol": byteArrayToHex ba }
 
 getCurrencySymbol :: CurrencySymbol -> ByteArray
@@ -218,7 +221,7 @@ unsafeAdaSymbol = CurrencySymbol mempty
 -- | constructor is not exported
 mkCurrencySymbol :: ByteArray -> Maybe CurrencySymbol
 mkCurrencySymbol byteArr =
-  scriptHashFromBytes byteArr *> pure (CurrencySymbol byteArr)
+  scriptHashFromBytes (wrap byteArr) *> pure (CurrencySymbol byteArr)
 
 -- Do not export. Create an Ada `CurrencySymbol` from a `ByteArray`
 mkUnsafeAdaSymbol :: ByteArray -> Maybe CurrencySymbol
@@ -234,7 +237,7 @@ derive instance Newtype NonAdaAsset _
 derive newtype instance Eq NonAdaAsset
 
 instance Show NonAdaAsset where
-  show (NonAdaAsset nonAdaAsset) = "(NonAdaAsset" <> show nonAdaAsset <> ")"
+  show (NonAdaAsset nonAdaAsset) = "(NonAdaAsset " <> show nonAdaAsset <> ")"
 
 instance Semigroup NonAdaAsset where
   append = unionWithNonAda (+)
@@ -649,10 +652,10 @@ filterNonAda (Value _ nonAda) = Value mempty nonAda
 -- already know is a valid CurrencySymbol
 currencyScriptHash :: CurrencySymbol -> ScriptHash
 currencyScriptHash (CurrencySymbol byteArray) =
-  unsafePartial fromJust $ scriptHashFromBytes byteArray
+  unsafePartial fromJust $ scriptHashFromBytes (wrap byteArray)
 
 scriptHashAsCurrencySymbol :: ScriptHash -> CurrencySymbol
-scriptHashAsCurrencySymbol = CurrencySymbol <<< scriptHashAsBytes
+scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< scriptHashToBytes
 
 -- | The minting policy hash of a currency symbol
 currencyMPSHash :: CurrencySymbol -> MintingPolicyHash
@@ -663,7 +666,8 @@ currencyMPSHash = MintingPolicyHash <<< currencyScriptHash
 -- Plutus doesn't use Maybe here.
 -- | The currency symbol of a monetary policy hash
 mpsSymbol :: MintingPolicyHash -> Maybe CurrencySymbol
-mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol $ scriptHashToBytes h
+mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol <<< unwrap $
+  scriptHashToBytes h
 
 -- Like `mapEither` that works with 'These'.
 mapThese

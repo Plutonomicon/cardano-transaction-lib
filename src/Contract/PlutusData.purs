@@ -4,17 +4,17 @@
 -- | `ToData`.
 module Contract.PlutusData
   ( cancelFetchBlocks
-  , datumHash
   , getDatumByHash
   , getDatumsByHashes
   , startFetchBlocks
+  , module DataSchema
   , module Datum
   , module ExportQueryM
+  , module Hashing
   , module PlutusData
   , module Redeemer
   , module FromData
   , module ToData
-  , module Transaction
   ) where
 
 import Prelude
@@ -22,7 +22,47 @@ import Prelude
 import Contract.Monad (Contract, wrapContract)
 import Data.Map (Map)
 import Data.Maybe (Maybe)
-import FromData (class FromData, fromData) as FromData
+import FromData
+  ( FromDataError
+      ( ArgsWantedButGot
+      , FromDataFailed
+      , BigIntToIntFailed
+      , IndexWantedButGot
+      , WantedConstrGot
+      )
+  , class FromData
+  , class FromDataArgs
+  , class FromDataArgsRL
+  , class FromDataWithSchema
+  , fromData
+  , fromDataArgs
+  , fromDataArgsRec
+  , fromDataWithSchema
+  , genericFromData
+  ) as FromData
+import Hashing (datumHash) as Hashing
+import Plutus.Types.DataSchema
+  ( ApPCons
+  , Field
+  , I
+  , Id
+  , IxK
+  , MkField
+  , MkField_
+  , MkIxK
+  , MkIxK_
+  , PCons
+  , PNil
+  , PSchema
+  , class AllUnique2
+  , class HasPlutusSchema
+  , class PlutusSchemaToRowListI
+  , class SchemaToRowList
+  , class ValidPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  ) as DataSchema
 import QueryM
   ( DatumCacheListeners
   , DatumCacheWebSocket
@@ -31,37 +71,49 @@ import QueryM
   ) as ExportQueryM
 import QueryM
   ( cancelFetchBlocks
-  , datumHash
   , getDatumByHash
   , getDatumsByHashes
   , startFetchBlocks
   ) as QueryM
 import Serialization.Address (Slot)
-import ToData (class ToData, toData) as ToData
+import ToData
+  ( class ToData
+  , class ToDataArgs
+  , class ToDataWithSchema
+  , class ToDataArgsRL
+  , class ToDataArgsRLHelper
+  , genericToData
+  , toDataArgsRec
+  , toDataArgsRec'
+  , toData
+  , toDataArgs
+  , toDataWithSchema
+  ) as ToData
 import Types.Chain (BlockHeaderHash)
-import Types.Datum (Datum(Datum), DatumHash, unitDatum) as Datum
-import Types.PlutusData (PlutusData(Constr, Map, List, Integer, Bytes)) as PlutusData
+import Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as Datum
+import Types.Datum (DataHash)
+import Types.PlutusData
+  ( PlutusData(Constr, Map, List, Integer, Bytes)
+  ) as PlutusData
 import Types.Redeemer
   ( Redeemer(Redeemer)
   , RedeemerHash(RedeemerHash)
   , redeemerHash
   , unitRedeemer
   ) as Redeemer
-import Types.Transaction (DatumHash)
-import Types.Transaction (DataHash(DataHash)) as Transaction
 
 -- | Get a `PlutusData` given a `DatumHash`.
 getDatumByHash
   :: forall (r :: Row Type)
-   . DatumHash
+   . DataHash
   -> Contract r (Maybe Datum.Datum)
 getDatumByHash = wrapContract <<< QueryM.getDatumByHash
 
--- | Get `PlutusData`s given a an `Array` of `DatumHash`.
+-- | Get `PlutusData`s given a an `Array` of `DataHash`.
 getDatumsByHashes
   :: forall (r :: Row Type)
-   . Array DatumHash
-  -> Contract r (Map DatumHash Datum.Datum)
+   . Array DataHash
+  -> Contract r (Map DataHash Datum.Datum)
 getDatumsByHashes = wrapContract <<< QueryM.getDatumsByHashes
 
 startFetchBlocks
@@ -73,7 +125,3 @@ startFetchBlocks = wrapContract <<< QueryM.startFetchBlocks
 -- | Cancels a running block fetcher job. Throws on no fetchers running
 cancelFetchBlocks :: forall (r :: Row Type). Contract r Unit
 cancelFetchBlocks = wrapContract QueryM.cancelFetchBlocks
-
--- | Hashes a Plutus-style Datum
-datumHash :: forall (r :: Row Type). Datum.Datum -> Contract r (Maybe DatumHash)
-datumHash = wrapContract <<< QueryM.datumHash

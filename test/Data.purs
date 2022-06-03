@@ -1,16 +1,10 @@
 -- | Tests for `ToData`/`FromData`
-module Test.Data (suite) where
+module Test.Data (suite, tests, uniqueIndicesTests) where
 
 import Prelude
 
-import ConstrIndices
-  ( class HasConstrIndices
-  , defaultConstrIndices
-  , fromConstr2Index
-  )
 import Contract.PlutusData (PlutusData(Constr, Integer))
 import Control.Lazy (fix)
-import Data.Array (zip, (..))
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Generic.Rep as G
@@ -22,6 +16,7 @@ import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytes)
 import Deserialization.PlutusData as PDD
 import FromData (class FromData, fromData, genericFromData)
+import Helpers (showWithParens)
 import Mote (group, skip, test)
 import Partial.Unsafe (unsafePartial)
 import Serialization (toBytes)
@@ -31,8 +26,21 @@ import Test.QuickCheck.Gen (Gen)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import ToData (class ToData, genericToData, toData)
+import Type.RowList (Cons, Nil)
 import Types.ByteArray (hexToByteArrayUnsafe)
+import TypeLevel.Nat (Z, S)
 import Untagged.Union (asOneOf)
+
+import Plutus.Types.DataSchema
+  ( class HasPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  , I
+  , PNil
+  )
+import TypeLevel.RowList (class AllUniqueLabels)
+import TypeLevel.RowList.Unordered.Indexed (NilI, ConsI, class UniqueIndices)
 
 suite :: TestPlanM Unit
 suite = do
@@ -92,8 +100,8 @@ suite = do
         fromData (toData f0') `shouldEqual` Just f0
       test "FType and FType' toData/fromData the same: F1 == F1'" do
         let
-          f1 = F1 { f1A: true, f1B: false, f1C: true }
-          f1' = F1' true false true
+          f1 = F1 { f1A: false, f1B: false, f1C: true }
+          f1' = F1' false false true
         fromData (toData f1) `shouldEqual` Just f1'
         fromData (toData f1') `shouldEqual` Just f1
       test "FType and FType' toData/fromData the same: F2 == F2'" do
@@ -161,7 +169,9 @@ newtype MyBigInt = MyBigInt BigInt
 derive newtype instance ToData MyBigInt
 derive newtype instance FromData MyBigInt
 derive newtype instance Eq MyBigInt
-derive newtype instance Show MyBigInt
+
+instance Show MyBigInt where
+  show (MyBigInt bi) = showWithParens "MyBigInt" bi
 
 instance Arbitrary MyBigInt where
   arbitrary = do
@@ -176,8 +186,39 @@ data CType
   | C2 MyBigInt Boolean
   | C3 MyBigInt Boolean Boolean
 
+instance
+  HasPlutusSchema CType
+    ( "C0" := PNil @@ Z
+        :+ "C1"
+        := PNil
+        @@ (S Z)
+        :+ "C2"
+        := PNil
+        @@ (S (S Z))
+        :+ "C3"
+        := PNil
+        @@ (S (S (S Z)))
+        :+ PNil
+    )
+
 data DType = D0 CType MyBigInt (Maybe Boolean) | D1 DType | D2 CType
+
+instance
+  HasPlutusSchema DType
+    ( "D0" := PNil @@ Z
+        :+ "D1"
+        := PNil
+        @@ (S Z)
+        :+ "D2"
+        := PNil
+        @@ (S (S Z))
+        :+ PNil
+    )
+
 data EType = E0 DType Boolean CType
+
+instance HasPlutusSchema EType ("E0" := PNil @@ Z :+ PNil)
+
 data FType
   = F0
       { f0A :: BigInt
@@ -192,10 +233,54 @@ data FType
       , f2B :: FType
       }
 
+instance
+  HasPlutusSchema FType
+    ( "F0"
+        :=
+          ( "f0A" := I BigInt
+              :+ PNil
+          )
+        @@ (S Z)
+
+        :+ "F1"
+        :=
+          ( "f1A" := I Boolean
+              :+ "f1B"
+              := I Boolean
+              :+ "f1C"
+              := I Boolean
+              :+ PNil
+          )
+        @@ Z
+
+        :+ "F2"
+        :=
+          ( "f2A" := I BigInt
+              :+ "f2B"
+              := I FType
+              :+ PNil
+          )
+        @@ (S (S Z))
+
+        :+ PNil
+    )
+
 data FType'
   = F0' BigInt
   | F1' Boolean Boolean Boolean
   | F2' BigInt FType'
+
+instance
+  HasPlutusSchema FType'
+    ( "F0'" := PNil @@ (S Z)
+        :+ "F1'"
+        := PNil
+        @@ (Z)
+        :+ "F2'"
+        := PNil
+        @@ (S (S Z))
+        :+ PNil
+    )
 
 derive instance G.Generic CType _
 derive instance G.Generic DType _
@@ -208,21 +293,6 @@ derive instance Eq DType
 derive instance Eq EType
 derive instance Eq FType
 derive instance Eq FType'
-
-instance HasConstrIndices CType where
-  constrIndices = defaultConstrIndices
-
-instance HasConstrIndices DType where
-  constrIndices = defaultConstrIndices
-
-instance HasConstrIndices EType where
-  constrIndices = defaultConstrIndices
-
-instance HasConstrIndices FType where
-  constrIndices = defaultConstrIndices
-
-instance HasConstrIndices FType' where
-  constrIndices = defaultConstrIndices
 
 instance FromData DType where
   fromData x = genericFromData x
@@ -285,9 +355,29 @@ data Day = Mon | Tue | Wed | Thurs | Fri | Sat | Sun
 
 derive instance G.Generic Day _
 
-instance HasConstrIndices Day where
-  constrIndices _ = fromConstr2Index
-    (zip [ "Mon", "Tue", "Wed", "Thurs", "Fri", "Sat", "Sun" ] (0 .. 7))
+instance
+  HasPlutusSchema Day
+    ( "Mon" := PNil @@ Z
+        :+ "Tue"
+        := PNil
+        @@ (S Z)
+        :+ "Wed"
+        := PNil
+        @@ (S (S Z))
+        :+ "Thurs"
+        := PNil
+        @@ (S (S (S Z)))
+        :+ "Fri"
+        := PNil
+        @@ (S (S (S (S (S Z)))))
+        :+ "Sat"
+        := PNil
+        @@ (S (S (S (S (S (S Z))))))
+        :+ "Sun"
+        := PNil
+        @@ (S (S (S (S (S (S (S Z)))))))
+        :+ PNil
+    )
 
 instance ToData Day where
   toData = genericToData
@@ -299,8 +389,29 @@ data AnotherDay = AMon | ATue | AWed | AThurs | AFri | ASat | ASun
 
 derive instance G.Generic AnotherDay _
 
-instance HasConstrIndices AnotherDay where
-  constrIndices = defaultConstrIndices
+instance
+  HasPlutusSchema AnotherDay
+    ( "AMon" := PNil @@ Z
+        :+ "ATue"
+        := PNil
+        @@ (S Z)
+        :+ "AWed"
+        := PNil
+        @@ (S (S Z))
+        :+ "AThurs"
+        := PNil
+        @@ (S (S (S Z)))
+        :+ "AFri"
+        := PNil
+        @@ (S (S (S (S (S Z)))))
+        :+ "ASat"
+        := PNil
+        @@ (S (S (S (S (S (S Z))))))
+        :+ "ASun"
+        := PNil
+        @@ (S (S (S (S (S (S (S Z)))))))
+        :+ PNil
+    )
 
 instance ToData AnotherDay where
   toData = genericToData
@@ -312,8 +423,14 @@ data Tree a = Node a (Tuple (Tree a) (Tree a)) | Leaf a
 
 derive instance G.Generic (Tree a) _
 
-instance HasConstrIndices (Tree a) where
-  constrIndices = defaultConstrIndices
+instance
+  HasPlutusSchema (Tree a)
+    ( "Node" := PNil @@ Z
+        :+ "Leaf"
+        := PNil
+        @@ (S Z)
+        :+ PNil
+    )
 
 instance (ToData a) => ToData (Tree a) where
   toData x = genericToData x -- https://github.com/purescript/documentation/blob/master/guides/Type-Class-Deriving.md#avoiding-stack-overflow-errors-with-recursive-types
@@ -341,3 +458,55 @@ testBinaryFixture value binaryFixture = do
     map (toBytes <<< asOneOf) (PDS.convertPlutusData (toData value))
       `shouldEqual` Just
         (hexToByteArrayUnsafe binaryFixture)
+
+-- | Poor man's type level tests
+tests ∷ Array String
+tests =
+  [ testNil
+  , testSingleton
+  , testUniques
+  ]
+  where
+  testNil :: AllUniqueLabels Nil => String
+  testNil = "Empty list has all unique labels"
+
+  testSingleton
+    :: forall (a :: Type). AllUniqueLabels (Cons "A" a Nil) => String
+  testSingleton = "Singleton list has all unique labels"
+
+  testUniques
+    :: forall (a :: Type)
+     . AllUniqueLabels
+         ( Cons "A" a
+             (Cons "B" a (Cons "C" a Nil))
+         )
+    => String
+  testUniques = "[A, B, C] is all unique and should compile"
+
+uniqueIndicesTests ∷ Array String
+uniqueIndicesTests =
+  [ testNil
+  , testSingletonZ
+  , testSingletonSSZ
+  , testUniques
+  ]
+  where
+  testNil :: UniqueIndices NilI => String
+  testNil = "Empty list has all unique indices"
+
+  testSingletonZ
+    :: forall (a :: Type). UniqueIndices (ConsI "A" a Z NilI) => String
+  testSingletonZ = "Singleton list has all unique indices"
+
+  testSingletonSSZ
+    :: forall (a :: Type). UniqueIndices (ConsI "A" a (S (S Z)) NilI) => String
+  testSingletonSSZ = "Singleton list has all unique indices"
+
+  testUniques
+    :: forall (a :: Type)
+     . UniqueIndices
+         ( ConsI "A" a Z
+             (ConsI "B" a (S Z) (ConsI "C" a (S (S Z)) NilI))
+         )
+    => String
+  testUniques = "[0, 1, 2] have all unique indices"

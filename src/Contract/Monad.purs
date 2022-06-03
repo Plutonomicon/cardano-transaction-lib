@@ -5,7 +5,6 @@ module Contract.Monad
   , ConfigParams(..)
   , DefaultContractConfig
   , module Aff
-  , module Interval
   , module QueryM
   , module Log.Level
   , module Log.Tag
@@ -95,8 +94,6 @@ import QueryM
   ) as QueryM
 import Record as Record
 import Serialization.Address (NetworkId(TestnetId))
-import Types.Interval (SlotConfig)
-import Types.Interval (defaultSlotConfig) as Interval
 import Types.UsedTxOuts (newUsedTxOuts)
 import Wallet (Wallet, mkNamiWalletAff)
 
@@ -171,7 +168,6 @@ newtype ConfigParams (r :: Row Type) = ConfigParams
   , datumCacheConfig :: QueryM.ServerConfig
   , ctlServerConfig :: QueryM.ServerConfig
   , networkId :: NetworkId
-  , slotConfig :: SlotConfig
   , logLevel :: LogLevel
   , wallet :: Maybe Wallet
   -- | Additional config options to extend the `ContractConfig`
@@ -185,15 +181,14 @@ derive instance Newtype (ConfigParams r) _
 mkContractConfig
   :: forall (r :: Row Type). ConfigParams r -> Aff (ContractConfig r)
 mkContractConfig
-  (ConfigParams params@{ slotConfig, logLevel, networkId, wallet }) = do
+  (ConfigParams params@{ logLevel, networkId, wallet }) = do
   ogmiosWs <- QueryM.mkOgmiosWebSocketAff logLevel params.ogmiosConfig
   datumCacheWs <- QueryM.mkDatumCacheWebSocketAff logLevel
     params.datumCacheConfig
   usedTxOuts <- newUsedTxOuts
   let
     queryConfig =
-      { slotConfig
-      , logLevel
+      { logLevel
       , networkId
       , ogmiosWs
       , usedTxOuts
@@ -311,7 +306,6 @@ configWithLogLevel logLevel = do
     , usedTxOuts
     , serverConfig: QueryM.defaultServerConfig
     , networkId: TestnetId
-    , slotConfig: Interval.defaultSlotConfig
     , logLevel
     }
 

@@ -11,29 +11,30 @@ module Serialization.Hash
   , scriptHashFromBytes
   , scriptHashFromBech32
   , scriptHashToBech32
-  , scriptHashAsBytes
   ) where
 
 import Prelude
 
-import Data.Argonaut
-  ( class DecodeJson
-  , class EncodeJson
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
-  , caseJsonString
-  , encodeJson
+  , caseAesonObject
+  , caseAesonString
+  , encodeAeson'
+  , getField
   )
-import Data.Argonaut as Json
 import Data.Either (Either(Left), note)
 import Data.Function (on)
 import Data.Maybe (Maybe(Nothing))
+import Data.Newtype (unwrap, wrap)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import FromData (class FromData)
 import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata, toMetadata)
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
-import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
+import Types.RawBytes (RawBytes, rawBytesToHex, hexToRawBytes)
 import Types.PlutusData (PlutusData(Bytes))
 import Types.TransactionMetadata (TransactionMetadatum(Bytes)) as Metadata
 
@@ -48,36 +49,36 @@ instance Ord Ed25519KeyHash where
   compare = compare `on` ed25519KeyHashToBytes
 
 instance Show Ed25519KeyHash where
-  show edkh = "(Ed25519KeyHash " <> byteArrayToHex (ed25519KeyHashToBytes edkh)
+  show edkh = "(Ed25519KeyHash " <> rawBytesToHex (ed25519KeyHashToBytes edkh)
     <> ")"
 
 instance ToData Ed25519KeyHash where
-  toData = toData <<< ed25519KeyHashToBytes
+  toData = toData <<< unwrap <<< ed25519KeyHashToBytes
 
 instance FromData Ed25519KeyHash where
-  fromData (Bytes kh) = ed25519KeyHashFromBytes kh
+  fromData (Bytes kh) = ed25519KeyHashFromBytes $ wrap kh
   fromData _ = Nothing
 
 instance ToMetadata Ed25519KeyHash where
   toMetadata = toMetadata <<< ed25519KeyHashToBytes
 
 instance FromMetadata Ed25519KeyHash where
-  fromMetadata (Metadata.Bytes kh) = ed25519KeyHashFromBytes kh
+  fromMetadata (Metadata.Bytes kh) = ed25519KeyHashFromBytes $ wrap kh
   fromMetadata _ = Nothing
 
 -- This is needed for `ApplyArgs`.
-instance DecodeJson Ed25519KeyHash where
+instance DecodeAeson Ed25519KeyHash where
   -- ed25519KeyHashFromBech32 goes from Bech32String directly although this
   -- feels unsafe.
-  decodeJson = caseJsonString
+  decodeAeson = caseAesonString
     (Left $ TypeMismatch "Expected Plutus BuiltinByteString")
     ( note (TypeMismatch "Invalid Ed25519KeyHash") <<< ed25519KeyHashFromBytes
-        <=< note (TypeMismatch "Invalid ByteArray") <<< hexToByteArray
+        <=< note (TypeMismatch "Invalid ByteArray") <<< hexToRawBytes
     )
 
 foreign import _ed25519KeyHashFromBytesImpl
   :: MaybeFfiHelper
-  -> ByteArray
+  -> RawBytes
   -> Maybe Ed25519KeyHash
 
 foreign import _ed25519KeyHashFromBech32Impl
@@ -85,7 +86,7 @@ foreign import _ed25519KeyHashFromBech32Impl
   -> Bech32String
   -> Maybe Ed25519KeyHash
 
-foreign import ed25519KeyHashToBytes :: Ed25519KeyHash -> ByteArray
+foreign import ed25519KeyHashToBytes :: Ed25519KeyHash -> RawBytes
 
 -- | Convert ed25519KeyHash to Bech32 representation with given prefix.
 -- | Will crash if prefix is invalid (length, mixed-case, etc)
@@ -101,7 +102,7 @@ foreign import _ed25519KeyHashToBech32Impl
   -> Ed25519KeyHash
   -> Maybe Bech32String
 
-ed25519KeyHashFromBytes :: ByteArray -> Maybe Ed25519KeyHash
+ed25519KeyHashFromBytes :: RawBytes -> Maybe Ed25519KeyHash
 ed25519KeyHashFromBytes = _ed25519KeyHashFromBytesImpl maybeFfiHelper
 
 ed25519KeyHashFromBech32 :: Bech32String -> Maybe Ed25519KeyHash
@@ -123,36 +124,36 @@ instance Ord ScriptHash where
   compare = compare `on` scriptHashToBytes
 
 instance Show ScriptHash where
-  show edkh = "(ScriptHash " <> byteArrayToHex (scriptHashToBytes edkh) <> ")"
+  show edkh = "(ScriptHash " <> rawBytesToHex (scriptHashToBytes edkh) <> ")"
 
 instance ToData ScriptHash where
-  toData = toData <<< scriptHashToBytes
+  toData = toData <<< unwrap <<< scriptHashToBytes
 
 instance FromData ScriptHash where
-  fromData (Bytes bytes) = scriptHashFromBytes bytes
+  fromData (Bytes bytes) = scriptHashFromBytes $ wrap bytes
   fromData _ = Nothing
 
 instance ToMetadata ScriptHash where
   toMetadata = toMetadata <<< scriptHashToBytes
 
 instance FromMetadata ScriptHash where
-  fromMetadata (Metadata.Bytes bytes) = scriptHashFromBytes bytes
+  fromMetadata (Metadata.Bytes bytes) = scriptHashFromBytes $ wrap bytes
   fromMetadata _ = Nothing
 
 -- Corresponds to Plutus' `Plutus.V1.Ledger.Api.Script` Aeson instances
-instance DecodeJson ScriptHash where
-  decodeJson =
-    Json.caseJsonObject (Left (Json.TypeMismatch "Expected object")) $
-      note (Json.TypeMismatch "Expected hex-encoded script hash")
-        <<< (scriptHashFromBytes <=< hexToByteArray)
-        <=< flip Json.getField "getScriptHash"
+instance DecodeAeson ScriptHash where
+  decodeAeson =
+    caseAesonObject (Left (TypeMismatch "Expected object")) $
+      note (TypeMismatch "Expected hex-encoded script hash")
+        <<< (scriptHashFromBytes <=< hexToRawBytes)
+        <=< flip getField "getScriptHash"
 
-instance EncodeJson ScriptHash where
-  encodeJson sh = encodeJson (scriptHashToBytes sh)
+instance EncodeAeson ScriptHash where
+  encodeAeson' sh = encodeAeson' (scriptHashToBytes sh)
 
 foreign import _scriptHashFromBytesImpl
   :: MaybeFfiHelper
-  -> ByteArray
+  -> RawBytes
   -> Maybe ScriptHash
 
 foreign import _scriptHashFromBech32Impl
@@ -160,11 +161,8 @@ foreign import _scriptHashFromBech32Impl
   -> Bech32String
   -> Maybe ScriptHash
 
--- | Drops the type and returns the hash as a generic bytearray
-foreign import scriptHashAsBytes :: ScriptHash -> ByteArray
-
 -- | Encodes the hash to Cbor bytes
-foreign import scriptHashToBytes :: ScriptHash -> ByteArray
+foreign import scriptHashToBytes :: ScriptHash -> RawBytes
 
 -- | Convert scriptHash to Bech32 representation with given prefix.
 -- | Will crash if prefix is invalid (length, mixed-case, etc)
@@ -182,7 +180,7 @@ foreign import _scriptHashToBech32Impl
 
 -- | Decodes a script hash from its CBOR bytes encoding
 -- | NOTE. It does _not_ compute hash of given bytes.
-scriptHashFromBytes :: ByteArray -> Maybe ScriptHash
+scriptHashFromBytes :: RawBytes -> Maybe ScriptHash
 scriptHashFromBytes = _scriptHashFromBytesImpl maybeFfiHelper
 
 -- | Decodes a script hash from its Bech32 representation

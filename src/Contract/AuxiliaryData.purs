@@ -6,6 +6,15 @@ module Contract.AuxiliaryData
 
 import Prelude
 
+import Cardano.Types.Transaction
+  ( AuxiliaryData(AuxiliaryData)
+  , AuxiliaryDataHash
+  )
+import Cardano.Types.Transaction
+  ( _body
+  , _auxiliaryData
+  , _auxiliaryDataHash
+  ) as Tx
 import Data.Maybe (Maybe, fromMaybe)
 import Data.Lens (lens', (?~))
 import Data.Lens.Getter (view)
@@ -16,10 +25,16 @@ import Contract.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Effect.Class (liftEffect)
 import Metadata.MetadataType (class MetadataType, toGeneralTxMetadata)
 import Serialization.AuxiliaryData (hashAuxiliaryData)
-import Types.Transaction (AuxiliaryData(AuxiliaryData), AuxiliaryDataHash)
-import Types.Transaction (_body, _auxiliaryData, _auxiliaryDataHash) as Tx
 import Types.TransactionMetadata (GeneralTransactionMetadata)
 import Types.UnbalancedTransaction (UnbalancedTx, _transaction)
+
+-- These functions involve `UnattachedUnbalancedTx` which in turns involve
+-- `UnbalancedTx`, these involve `ScriptOutput` which is what is currently
+-- being used in more up-to-date Plutus code (as opposed to `TransactionOutput`).
+-- Therefore, we won't provide any conversion. It is worth noting
+-- `UnattachedUnbalancedTx` also includes Cardano-style Redeemers, although
+-- I don't think there's a way around this because they need to be reattached
+-- later on - see Types.ScriptLookups for more detail.
 
 setAuxiliaryData
   :: forall (r :: Row Type)

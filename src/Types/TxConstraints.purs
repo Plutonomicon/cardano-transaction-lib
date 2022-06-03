@@ -49,17 +49,13 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested ((/\), type (/\))
 import Plutus.Types.CurrencySymbol (CurrencySymbol, currencyMPSHash)
 import Plutus.Types.Value (Value, isZero, flattenNonAdaAssets)
-import Types.Redeemer (Redeemer, unitRedeemer)
 import Types.Interval (POSIXTimeRange, always, intersection, isEmpty)
+import Types.Redeemer (Redeemer, unitRedeemer)
+import Types.PubKeyHash (PaymentPubKeyHash, StakePubKeyHash)
 import Types.Scripts (MintingPolicyHash, ValidatorHash)
 import Types.Datum (Datum)
-import Types.Transaction (DatumHash)
+import Types.Transaction (DataHash, TransactionInput)
 import Types.TokenName (TokenName)
-import Types.UnbalancedTransaction
-  ( PaymentPubKeyHash
-  , StakePubKeyHash
-  , TxOutRef
-  )
 
 --------------------------------------------------------------------------------
 -- TxConstraints Type and related
@@ -74,14 +70,14 @@ data TxConstraint
   | MustBeSignedBy PaymentPubKeyHash
   | MustSpendAtLeast Value
   | MustProduceAtLeast Value
-  | MustSpendPubKeyOutput TxOutRef
-  | MustSpendScriptOutput TxOutRef Redeemer
+  | MustSpendPubKeyOutput TransactionInput
+  | MustSpendScriptOutput TransactionInput Redeemer
   | MustMintValue MintingPolicyHash Redeemer TokenName BigInt
   | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash)
       (Maybe Datum)
       Value
   | MustPayToScript ValidatorHash Datum Value
-  | MustHashDatum DatumHash Datum
+  | MustHashDatum DataHash Datum
   | MustSatisfyAnyOf (Array (Array TxConstraint))
 
 derive instance Eq TxConstraint
@@ -92,7 +88,7 @@ instance Show TxConstraint where
 
 newtype InputConstraint (i :: Type) = InputConstraint
   { redeemer :: i
-  , txOutRef :: TxOutRef
+  , txOutRef :: TransactionInput
   }
 
 derive instance Generic (InputConstraint i) _
@@ -147,7 +143,7 @@ instance Bifunctor TxConstraints where
 -- | redeemer.
 addTxIn
   :: forall (i :: Type) (o :: Type)
-   . TxOutRef
+   . TransactionInput
   -> i
   -> TxConstraints i o
   -> TxConstraints i o
@@ -217,7 +213,11 @@ mustPayWithDatumToPubKeyAddress
 mustPayWithDatumToPubKeyAddress pkh skh datum =
   singleton <<< MustPayToPubKeyAddress pkh (Just skh) (Just datum)
 
--- | Lock the value to any arbitrary script
+-- | Note that CTL does not have explicit equivalents of Plutus'
+-- | `mustPayToTheScript` or `mustPayToOtherScript`, as we have no notion
+-- | of a "current" script. Thus, we have the single constraint
+-- | `mustPayToScript`, and all scripts must be explicitly provided to build
+-- | the transaction. 
 mustPayToScript
   :: forall (i :: Type) (o :: Type)
    . ValidatorHash
@@ -275,15 +275,18 @@ mustProduceAtLeast :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
 mustProduceAtLeast = singleton <<< MustProduceAtLeast
 
 mustSpendPubKeyOutput
-  :: forall (i :: Type) (o :: Type). TxOutRef -> TxConstraints i o
+  :: forall (i :: Type) (o :: Type). TransactionInput -> TxConstraints i o
 mustSpendPubKeyOutput = singleton <<< MustSpendPubKeyOutput
 
 mustSpendScriptOutput
-  :: forall (i :: Type) (o :: Type). TxOutRef -> Redeemer -> TxConstraints i o
+  :: forall (i :: Type) (o :: Type)
+   . TransactionInput
+  -> Redeemer
+  -> TxConstraints i o
 mustSpendScriptOutput txOutRef = singleton <<< MustSpendScriptOutput txOutRef
 
 mustHashDatum
-  :: forall (i :: Type) (o :: Type). DatumHash -> Datum -> TxConstraints i o
+  :: forall (i :: Type) (o :: Type). DataHash -> Datum -> TxConstraints i o
 mustHashDatum dhsh = singleton <<< MustHashDatum dhsh
 
 mustSatisfyAnyOf

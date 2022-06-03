@@ -1,38 +1,60 @@
 -- | Provides types and instances to create Ogmios requests and decode
 -- | its responses.
 module QueryM.Ogmios
-  ( ChainOrigin(..)
+  ( AbsSlot(..)
+  , ChainOrigin(..)
   , ChainPoint(..)
   , ChainTipQR(..)
+  , CurrentEpoch(..)
+  , Epoch(..)
+  , EpochLength(..)
+  , EraSummaries(..)
+  , EraSummary(..)
+  , EraSummaryParameters(..)
+  , EraSummaryTime(..)
   , OgmiosAddress
   , OgmiosBlockHeaderHash(..)
   , OgmiosTxOut(..)
   , OgmiosTxOutRef(..)
+  , RelativeTime(..)
+  , SafeZone(..)
+  , SlotLength(..)
   , SubmitTxR(..)
-  , TxEvaluationResult(..)
+  , SystemStart(..)
+  , TxEvaluationR(..)
   , TxHash
-  , UtxoQueryResult(..)
   , UtxoQR(..)
-  , queryChainTipCall
-  , queryUtxosCall
-  , queryUtxosAtCall
-  , submitTxCall
+  , UtxoQueryResult(..)
+  , aesonArray
+  , aesonObject
   , evaluateTxCall
+  , queryChainTipCall
+  , queryCurrentEpochCall
+  , queryEraSummariesCall
+  , querySystemStartCall
+  , queryUtxosAtCall
+  , queryUtxosCall
+  , submitTxCall
   ) where
 
 import Prelude
 
 import Aeson
   ( class DecodeAeson
+  , class EncodeAeson
   , Aeson
+  , JsonDecodeError
+      ( TypeMismatch
+      )
   , caseAesonArray
   , caseAesonObject
   , decodeAeson
+  , encodeAeson'
   , getField
   , getFieldOptional
+  , isNull
   )
 import Control.Alt ((<|>))
-import Data.Argonaut (class EncodeJson, JsonDecodeError(TypeMismatch))
 import Data.Array (index, singleton)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), either, hush, note)
@@ -44,12 +66,13 @@ import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern), indexOf, splitAt, uncons)
-import Data.Traversable (sequence)
+import Data.Traversable (sequence, traverse)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt as UInt
 import Foreign.Object (Object)
 import Foreign.Object as FO
+import Helpers (showWithParens)
 import QueryM.JsonWsp
   ( JsonWspCall
   , JsonWspRequest
@@ -58,9 +81,9 @@ import QueryM.JsonWsp
   , parseFieldToString
   , parseFieldToUInt
   )
-import Serialization.Address (Slot)
 import Type.Proxy (Proxy(Proxy))
-import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
+import Types.ByteArray (ByteArray, hexToByteArray)
+import Types.CborBytes (CborBytes, cborBytesToHex)
 import Types.Natural (Natural)
 import Types.RedeemerTag as Tag
 import Cardano.Types.Value (CurrencySymbol, Value, mkCurrencySymbol, mkValue)
@@ -70,6 +93,30 @@ import Untagged.Union (type (|+|), toEither1)
 
 -- LOCAL STATE QUERY PROTOCOL
 -- https://ogmios.dev/mini-protocols/local-state-query/
+
+-- | Queries Ogmios for the system start Datetime
+querySystemStartCall :: JsonWspCall Unit SystemStart
+querySystemStartCall = mkOgmiosCallType
+  { methodname: "Query"
+  , args: const { query: "systemStart" }
+  }
+  Proxy
+
+-- | Queries Ogmios for the current epoch
+queryCurrentEpochCall :: JsonWspCall Unit CurrentEpoch
+queryCurrentEpochCall = mkOgmiosCallType
+  { methodname: "Query"
+  , args: const { query: "currentEpoch" }
+  }
+  Proxy
+
+-- | Queries Ogmios for an array of era summaries, used for Slot arithmetic.
+queryEraSummariesCall :: JsonWspCall Unit EraSummaries
+queryEraSummariesCall = mkOgmiosCallType
+  { methodname: "Query"
+  , args: const { query: "eraSummaries" }
+  }
+  Proxy
 
 -- | Queries Ogmios for the chain’s current tip.
 queryChainTipCall :: JsonWspCall Unit ChainTipQR
@@ -104,26 +151,26 @@ type OgmiosAddress = String
 
 -- | Sends a serialized signed transaction with its full witness through the
 -- | Cardano network via Ogmios.
-submitTxCall :: JsonWspCall { txCbor :: ByteArray } SubmitTxR
+submitTxCall :: JsonWspCall CborBytes SubmitTxR
 submitTxCall = mkOgmiosCallType
   { methodname: "SubmitTx"
-  , args: { submit: _ } <<< byteArrayToHex <<< _.txCbor
+  , args: { submit: _ } <<< cborBytesToHex
   }
   Proxy
 
 -- | Evaluates the execution units of scripts present in a given transaction,
 -- | without actually submitting the transaction.
-evaluateTxCall :: JsonWspCall { txCbor :: ByteArray } TxEvaluationResult
+evaluateTxCall :: JsonWspCall CborBytes TxEvaluationR
 evaluateTxCall = mkOgmiosCallType
   { methodname: "EvaluateTx"
-  , args: { evaluate: _ } <<< byteArrayToHex <<< _.txCbor
+  , args: { evaluate: _ } <<< cborBytesToHex
   }
   Proxy
 
 -- convenience helper
 mkOgmiosCallType
   :: forall (a :: Type) (i :: Type) (o :: Type)
-   . EncodeJson (JsonWspRequest a)
+   . EncodeAeson (JsonWspRequest a)
   => { methodname :: String, args :: i -> a }
   -> Proxy o
   -> JsonWspCall i o
@@ -150,18 +197,240 @@ instance DecodeAeson SubmitTxR where
     \o -> getField o "SubmitSuccess" >>= flip getField "txId" >>= hexToByteArray
       >>> maybe (Left (TypeMismatch "Expected hexstring")) (pure <<< wrap)
 
+---------------- SYSTEM START QUERY RESPONSE & PARSING
+newtype SystemStart = SystemStart String
+
+derive instance Generic SystemStart _
+derive instance Newtype SystemStart _
+derive newtype instance DecodeAeson SystemStart
+derive newtype instance EncodeAeson SystemStart
+derive newtype instance Eq SystemStart
+
+instance Show SystemStart where
+  show = genericShow
+
+---------------- CURRENT EPOCH QUERY RESPONSE & PARSING
+newtype CurrentEpoch = CurrentEpoch BigInt
+
+derive instance Generic CurrentEpoch _
+derive instance Newtype CurrentEpoch _
+derive newtype instance DecodeAeson CurrentEpoch
+derive newtype instance EncodeAeson CurrentEpoch
+derive newtype instance Eq CurrentEpoch
+derive newtype instance Ord CurrentEpoch
+
+instance Show CurrentEpoch where
+  show (CurrentEpoch ce) = showWithParens "CurrentEpoch" ce
+
+---------------- ERA SUMMARY QUERY RESPONSE & PARSING
+
+newtype EraSummaries = EraSummaries (Array EraSummary)
+
+derive instance Generic EraSummaries _
+derive instance Newtype EraSummaries _
+derive newtype instance Eq EraSummaries
+derive newtype instance EncodeAeson EraSummaries
+
+instance Show EraSummaries where
+  show = genericShow
+
+instance DecodeAeson EraSummaries where
+  decodeAeson = aesonArray (map wrap <<< traverse decodeAeson)
+
+-- | From Ogmios:
+-- | start: An era bound which captures the time, slot and epoch at which the
+-- | era start. The time is relative to the start time of the network.
+-- |
+-- | end: An era bound which captures the time, slot and epoch at which the
+-- | era start. The time is relative to the start time of the network.
+-- |
+-- | parameters: Parameters that can vary across hard forks.
+newtype EraSummary = EraSummary
+  { start :: EraSummaryTime
+  , end :: Maybe EraSummaryTime
+  , parameters :: EraSummaryParameters
+  }
+
+derive instance Generic EraSummary _
+derive instance Newtype EraSummary _
+derive newtype instance Eq EraSummary
+
+instance Show EraSummary where
+  show = genericShow
+
+instance DecodeAeson EraSummary where
+  decodeAeson = aesonObject $ \o -> do
+    start <- getField o "start"
+    -- The field "end" is required by Ogmios API, but it can optionally return
+    -- Null, so we want to fail if the field is absent but make Null value
+    -- acceptable in presence of the field (hence why "end" is wrapped in
+    -- `Maybe`).
+    end' <- getField o "end"
+    end <- if isNull end' then pure Nothing else Just <$> decodeAeson end'
+    parameters <- getField o "parameters"
+    pure $ wrap { start, end, parameters }
+
+instance EncodeAeson EraSummary where
+  encodeAeson' (EraSummary { start, end, parameters }) =
+    encodeAeson'
+      { "start": start
+      , "end": end
+      , "parameters": parameters
+      }
+
+newtype EraSummaryTime = EraSummaryTime
+  { time :: RelativeTime -- 0-18446744073709552000, The time is relative to the
+  -- start time of the network.
+  , slot :: AbsSlot -- 0-18446744073709552000, An absolute slot number. don't
+  -- use `Slot` because Slot is bounded by UInt ~ 0-4294967295.
+  , epoch :: Epoch -- 0-18446744073709552000, an epoch number or length, don't
+  -- use `Cardano.Types.Epoch` because Epoch is bounded by UInt also.
+  }
+
+derive instance Generic EraSummaryTime _
+derive instance Newtype EraSummaryTime _
+derive newtype instance Eq EraSummaryTime
+
+instance Show EraSummaryTime where
+  show = genericShow
+
+instance DecodeAeson EraSummaryTime where
+  decodeAeson = aesonObject $ \o -> do
+    time <- getField o "time"
+    slot <- getField o "slot"
+    epoch <- getField o "epoch"
+    pure $ wrap { time, slot, epoch }
+
+instance EncodeAeson EraSummaryTime where
+  encodeAeson' (EraSummaryTime { time, slot, epoch }) =
+    encodeAeson'
+      { "time": time
+      , "slot": slot
+      , "epoch": epoch
+      }
+
+-- | A time in seconds relative to another one (typically, system start or era
+-- | start). [ 0 .. 18446744073709552000 ]
+newtype RelativeTime = RelativeTime BigInt
+
+derive instance Generic RelativeTime _
+derive instance Newtype RelativeTime _
+derive newtype instance Eq RelativeTime
+derive newtype instance Ord RelativeTime
+derive newtype instance DecodeAeson RelativeTime
+derive newtype instance EncodeAeson RelativeTime
+
+instance Show RelativeTime where
+  show (RelativeTime rt) = showWithParens "RelativeTime" rt
+
+-- | Absolute slot relative to SystemStart. [ 0 .. 18446744073709552000 ]
+newtype AbsSlot = AbsSlot BigInt
+
+derive instance Generic AbsSlot _
+derive instance Newtype AbsSlot _
+derive newtype instance Eq AbsSlot
+derive newtype instance Ord AbsSlot
+derive newtype instance DecodeAeson AbsSlot
+derive newtype instance EncodeAeson AbsSlot
+
+instance Show AbsSlot where
+  show (AbsSlot as) = showWithParens "AbsSlot" as
+
+-- | An epoch number or length with greater precision for Ogmios than
+-- | `Cardano.Types.Epoch`. [ 0 .. 18446744073709552000 ]
+newtype Epoch = Epoch BigInt
+
+derive instance Generic Epoch _
+derive instance Newtype Epoch _
+derive newtype instance Eq Epoch
+derive newtype instance Ord Epoch
+derive newtype instance DecodeAeson Epoch
+derive newtype instance EncodeAeson Epoch
+
+instance Show Epoch where
+  show (Epoch e) = showWithParens "Epoch" e
+
+newtype EraSummaryParameters = EraSummaryParameters
+  { epochLength :: EpochLength -- 0-18446744073709552000 An epoch number or length.
+  , slotLength :: SlotLength -- <= 18446744073709552000 A slot length, in seconds.
+  , safeZone :: SafeZone -- 0-18446744073709552000 Number of slots from the tip of
+  -- the ledger in which it is guaranteed that no hard fork can take place.
+  -- This should be (at least) the number of slots in which we are guaranteed
+  -- to have k blocks.
+  }
+
+derive instance Generic EraSummaryParameters _
+derive instance Newtype EraSummaryParameters _
+derive newtype instance Eq EraSummaryParameters
+
+instance Show EraSummaryParameters where
+  show = genericShow
+
+instance DecodeAeson EraSummaryParameters where
+  decodeAeson = aesonObject $ \o -> do
+    epochLength <- getField o "epochLength"
+    slotLength <- getField o "slotLength"
+    safeZone <- getField o "safeZone"
+    pure $ wrap { epochLength, slotLength, safeZone }
+
+instance EncodeAeson EraSummaryParameters where
+  encodeAeson' (EraSummaryParameters { epochLength, slotLength, safeZone }) =
+    encodeAeson'
+      { "epochLength": epochLength
+      , "slotLength": slotLength
+      , "safeZone": safeZone
+      }
+
+-- | An epoch number or length. [ 0 .. 18446744073709552000 ]
+newtype EpochLength = EpochLength BigInt
+
+derive instance Generic EpochLength _
+derive instance Newtype EpochLength _
+derive newtype instance Eq EpochLength
+derive newtype instance DecodeAeson EpochLength
+derive newtype instance EncodeAeson EpochLength
+
+instance Show EpochLength where
+  show (EpochLength el) = showWithParens "EpochLength" el
+
+-- | A slot length, in seconds <= 18446744073709552000
+newtype SlotLength = SlotLength BigInt
+
+derive instance Generic SlotLength _
+derive instance Newtype SlotLength _
+derive newtype instance Eq SlotLength
+derive newtype instance DecodeAeson SlotLength
+derive newtype instance EncodeAeson SlotLength
+
+instance Show SlotLength where
+  show (SlotLength sl) = showWithParens "SlotLength" sl
+
+-- | Number of slots from the tip of the ledger in which it is guaranteed that
+-- | no hard fork can take place. This should be (at least) the number of slots
+-- | in which we are guaranteed to have k blocks.
+newtype SafeZone = SafeZone BigInt
+
+derive instance Generic SafeZone _
+derive instance Newtype SafeZone _
+derive newtype instance Eq SafeZone
+derive newtype instance DecodeAeson SafeZone
+derive newtype instance EncodeAeson SafeZone
+
+instance Show SafeZone where
+  show (SafeZone sz) = showWithParens "SafeZone" sz
+
 ---------------- TX EVALUATION QUERY RESPONSE & PARSING
 
-newtype TxEvaluationResult = TxEvaluationResult
+newtype TxEvaluationR = TxEvaluationR
   { "EvaluationResult" ::
       Map
         { entityRedeemerTag :: Tag.RedeemerTag, entityIndex :: Natural }
         { memory :: Natural, steps :: Natural }
   }
 
-instance DecodeAeson TxEvaluationResult where
+instance DecodeAeson TxEvaluationR where
   decodeAeson _ = Left
-    (TypeMismatch "DecodeAeson TxEvaluationResult is not implemented")
+    (TypeMismatch "DecodeAeson TxEvaluationR is not implemented")
 
 ---------------- CHAIN TIP QUERY RESPONSE & PARSING
 
@@ -205,7 +474,8 @@ instance Show ChainOrigin where
 
 -- | A point on the chain, identified by a slot and a block header hash
 type ChainPoint =
-  { slot :: Slot
+  { slot :: AbsSlot -- I think we need to use `AbsSlot` here, 18446744073709552000
+  -- is outside of `Slot` range.
   , hash :: OgmiosBlockHeaderHash
   }
 
@@ -219,26 +489,25 @@ newtype UtxoQR = UtxoQR UtxoQueryResult
 derive newtype instance Show UtxoQR
 
 instance DecodeAeson UtxoQR where
-  decodeAeson j = UtxoQR <$> parseUtxoQueryResult j
+  decodeAeson = map UtxoQR <<< parseUtxoQueryResult
 
 -- the inner type for Utxo Queries
 type UtxoQueryResult = Map.Map OgmiosTxOutRef OgmiosTxOut
 
--- Ogmios TxOutRef
+-- Ogmios tx input
 type OgmiosTxOutRef =
   { txId :: String
   , index :: UInt.UInt
   }
 
 parseUtxoQueryResult :: Aeson -> Either JsonDecodeError UtxoQueryResult
-parseUtxoQueryResult = caseAesonArray (Left (TypeMismatch "Expected Array")) $
-  foldl insertFunc (Right Map.empty)
+parseUtxoQueryResult = aesonArray $ foldl insertFunc (Right Map.empty)
   where
   insertFunc
     :: Either JsonDecodeError UtxoQueryResult
     -> Aeson
     -> Either JsonDecodeError UtxoQueryResult
-  insertFunc acc = caseAesonArray (Left (TypeMismatch "Expected Array")) $ inner
+  insertFunc acc = aesonArray inner
     where
     inner :: Array Aeson -> Either JsonDecodeError UtxoQueryResult
     inner innerArray = do
@@ -257,7 +526,15 @@ aesonObject
    . (Object Aeson -> Either JsonDecodeError a)
   -> Aeson
   -> Either JsonDecodeError a
-aesonObject = caseAesonObject (Left (TypeMismatch "expected object"))
+aesonObject = caseAesonObject (Left (TypeMismatch "Expected Object"))
+
+-- helper for assumming we get an array
+aesonArray
+  :: forall (a :: Type)
+   . (Array Aeson -> Either JsonDecodeError a)
+  -> Aeson
+  -> Either JsonDecodeError a
+aesonArray = caseAesonArray (Left (TypeMismatch "Expected Array"))
 
 -- parser for txOutRef
 parseTxOutRef :: Aeson -> Either JsonDecodeError OgmiosTxOutRef
