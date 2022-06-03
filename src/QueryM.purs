@@ -526,7 +526,7 @@ applyArgs script args = case traverse plutusDataToAeson args of
     liftAff (postAeson url reqBody)
       <#> either
         (Left <<< ClientHttpError)
-        ( lmap ClientDecodeJsonError
+        ( bimap ClientDecodeJsonError wrap
             <<< (decodeAeson <=< parseJsonStringToAeson)
             <<< _.body
         )
