@@ -9,14 +9,14 @@ module Types.Int
 
 import Prelude
 
-import Prim as Prim
-import Serialization.Types (BigNum)
-import Data.Function (on)
-import Data.BigInt as BigInt
-import Partial.Unsafe (unsafePartial)
-import Data.Maybe (Maybe, fromJust)
 import Control.Alternative ((<|>))
+import Data.BigInt as BigInt
+import Data.Function (on)
+import Data.Maybe (Maybe, fromJust)
+import Partial.Unsafe (unsafePartial)
+import Prim as Prim
 import Serialization.BigNum (bigNumFromBigInt)
+import Serialization.Types (BigNum)
 
 foreign import data Int :: Prim.Type
 
@@ -28,9 +28,7 @@ instance Eq Int where
   eq = eq `on` _intToStr
 
 instance Ord Int where
-  compare = compare `on` \number ->
-    -- Assuming every Int can be represented as BigInt
-    unsafePartial $ fromJust $ toBigInt number
+  compare = compare `on` toBigInt
 
 instance Show Int where
   show = _intToStr
@@ -40,5 +38,7 @@ fromBigInt bi =
   (newPositive <$> bigNumFromBigInt bi) <|>
     (newNegative <$> bigNumFromBigInt (negate bi))
 
-toBigInt :: Int -> Maybe BigInt.BigInt
-toBigInt = BigInt.fromString <<< _intToStr
+toBigInt :: Int -> BigInt.BigInt
+toBigInt int =
+  -- Assuming every Int can be represented as BigInt
+  unsafePartial $ fromJust $ BigInt.fromString $ _intToStr int

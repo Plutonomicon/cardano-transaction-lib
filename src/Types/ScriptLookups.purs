@@ -58,7 +58,7 @@ import Control.Monad.Reader.Trans (ReaderT)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Data.Array ((:), singleton, union) as Array
-import Data.Array (elemIndex, filter, insert, mapWithIndex, toUnfoldable, zip)
+import Data.Array (filter, insert, mapWithIndex, toUnfoldable, zip)
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
 import Data.Either (Either(Left, Right), either, note)

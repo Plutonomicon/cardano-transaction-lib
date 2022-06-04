@@ -6,20 +6,11 @@ module Types.Datum
 
 import Prelude
 
-import Aeson
-  ( Aeson
-  , aesonNull
-  , class DecodeAeson
-  , class EncodeAeson
-  , decodeAeson
-  , encodeAeson
-  , encodeAeson'
-  )
-import Aeson.Decode ((</$\>), (</*\>), (</\>), decode, null)
-import Aeson.Encode ((>$<), (>/\<), encode, null)
+import Aeson (class DecodeAeson, class EncodeAeson, encodeAeson')
+import Aeson.Encode ((>$<))
 import Control.Lazy (defer)
 import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import FromData (class FromData)
 import ToData (class ToData, toData)

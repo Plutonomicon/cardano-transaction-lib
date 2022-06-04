@@ -24,7 +24,12 @@ import QueryM
   )
 import QueryM.CurrentEpoch (getCurrentEpoch)
 import QueryM.EraSummaries (getEraSummaries)
-import QueryM.Ogmios (EraSummaries, OgmiosAddress, SystemStart)
+import QueryM.Ogmios
+  ( AbsSlot(AbsSlot)
+  , EraSummaries
+  , OgmiosAddress
+  , SystemStart
+  )
 import QueryM.SystemStart (getSystemStart)
 import QueryM.Utxos (utxosAt)
 import Serialization.Address (Slot(Slot))
@@ -32,7 +37,15 @@ import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Types.Chain (BlockHeaderHash(BlockHeaderHash))
-import Types.Interval (POSIXTime(POSIXTime), posixTimeToSlot, slotToPosixTime)
+import Types.Interval
+  ( PosixTimeToSlotError
+      ( CannotConvertAbsSlotToSlot
+      , PosixTimeBeforeSystemStart
+      )
+  , POSIXTime(POSIXTime)
+  , posixTimeToSlot
+  , slotToPosixTime
+  )
 import Types.Transaction (DataHash(DataHash))
 import Partial.Unsafe (unsafePartial)
 
@@ -61,6 +74,7 @@ suite = do
     test "Get SystemStart" testGetSystemStart
     test "Inverse posixTimeToSlot >>> slotToPosixTime " testPosixTimeToSlot
     test "Inverse slotToPosixTime >>> posixTimeToSlot " testSlotToPosixTime
+    test "PosixTimeToSlot errors" testPosixTimeToSlotError
   -- Test inverse in one direction.
   group "Address loop" do
     test "Ogmios Address to Address & back Testnet"
@@ -181,8 +195,8 @@ testPosixTimeToSlot = do
         ePosixTime <- slotToPosixTime es ss slot
         either (throw <<< show) (shouldEqual $ transf posixTime) ePosixTime
 
-  mkPosixTime :: String -> POSIXTime
-  mkPosixTime = POSIXTime <<< unsafePartial fromJust <<< BigInt.fromString
+mkPosixTime :: String -> POSIXTime
+mkPosixTime = POSIXTime <<< unsafePartial fromJust <<< BigInt.fromString
 
 testSlotToPosixTime :: Aff Unit
 testSlotToPosixTime = do
@@ -213,3 +227,35 @@ testSlotToPosixTime = do
 
   mkSlot :: Int -> Slot
   mkSlot = Slot <<< UInt.fromInt
+
+testPosixTimeToSlotError :: Aff Unit
+testPosixTimeToSlotError = do
+  traceQueryConfig >>= flip runQueryM do
+    eraSummaries <- getEraSummaries
+    sysStart <- getSystemStart
+    let
+      posixTime = mkPosixTime "1000"
+      badPosixTime = mkPosixTime "99999999999999999999999999999999999999"
+      badAbsSlot = AbsSlot
+        $ unsafePartial fromJust
+        $ BigInt.fromString "99999999999999999999999998405630783"
+    -- Some difficulty reproducing all the errors
+    errTest eraSummaries sysStart
+      posixTime
+      (PosixTimeBeforeSystemStart posixTime)
+    errTest eraSummaries sysStart
+      badPosixTime
+      (CannotConvertAbsSlotToSlot badAbsSlot)
+  where
+  errTest
+    :: forall (err :: Type)
+     . EraSummaries
+    -> SystemStart
+    -> POSIXTime
+    -> PosixTimeToSlotError
+    -> QueryM Unit
+  errTest es ss posixTime expectedErr = liftEffect do
+    posixTimeToSlot es ss posixTime >>= case _ of
+      Left err -> err `shouldEqual` expectedErr
+      Right _ ->
+        throw $ "Test should have failed giving: " <> show expectedErr

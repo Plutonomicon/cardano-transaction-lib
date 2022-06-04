@@ -18,21 +18,18 @@ import Aeson
   , encodeAeson'
   , getField
   )
-import Control.Monad.Error.Class (throwError)
---import Data.Array (drop)
 import Data.BigInt (BigInt)
 import Data.Bitraversable (ltraverse)
-import Data.Char (toCharCode, fromCharCode)
+import Data.Char (toCharCode)
 import Data.Either (Either(Left, Right), note, either)
 import Data.Map (Map)
 import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (wrap, unwrap)
-import Data.String.CodePoints (length, take, drop)
-import Data.String.CodeUnits (fromCharArray, toCharArray)
+import Data.String.CodePoints (drop, take)
+import Data.String.CodeUnits (toCharArray)
 import Data.Traversable (class Traversable, traverse)
 import Data.TextDecoding (decodeUtf8)
-import Data.Bifunctor (lmap)
 import Data.Tuple.Nested (type (/\))
 import FromData (class FromData)
 import Metadata.FromMetadata (class FromMetadata)
@@ -41,22 +38,11 @@ import Serialization.Types (AssetName) as CSL
 import ToData (class ToData)
 import Types.ByteArray
   ( ByteArray
-  , byteArrayFromAscii
-  , byteArrayToHex
-  , byteArrayFromInt16ArrayUnsafe
   , byteArrayFromIntArray
-  , byteArrayFromIntArrayUnsafe
-  , byteArrayToUTF16le
+  , byteArrayToHex
   , byteLength
-  , hexToByteArray
-  , hexToByteArrayUnsafe
   )
-import Types.CborBytes
-  ( CborBytes
-  , cborBytesFromByteArray
-  , cborBytesToByteArray
-  , cborBytesToHex
-  )
+import Types.CborBytes (CborBytes, cborBytesToByteArray)
 
 newtype TokenName = TokenName CborBytes
 
@@ -123,7 +109,7 @@ instance EncodeAeson TokenName where
       encodeAeson' { "unTokenName": tkstr }
 
 instance Show TokenName where
-  show (TokenName tn) = "(TokenName" <> show tn <> ")"
+  show (TokenName tn) = "(TokenName " <> show tn <> ")"
 
 getTokenName :: TokenName -> CborBytes
 getTokenName (TokenName tokenName) = tokenName

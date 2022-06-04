@@ -213,7 +213,11 @@ mustPayWithDatumToPubKeyAddress
 mustPayWithDatumToPubKeyAddress pkh skh datum =
   singleton <<< MustPayToPubKeyAddress pkh (Just skh) (Just datum)
 
--- | Lock the value to any arbitrary script
+-- | Note that CTL does not have explicit equivalents of Plutus'
+-- | `mustPayToTheScript` or `mustPayToOtherScript`, as we have no notion
+-- | of a "current" script. Thus, we have the single constraint
+-- | `mustPayToScript`, and all scripts must be explicitly provided to build
+-- | the transaction.
 mustPayToScript
   :: forall (i :: Type) (o :: Type)
    . ValidatorHash
