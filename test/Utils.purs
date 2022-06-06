@@ -7,17 +7,11 @@ module Test.Utils
   , interpret
   , toFromAesonTest
   , unsafeCall
+  , readAeson
   ) where
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , class EncodeAeson
-  , JsonDecodeError
-  , decodeAeson
-  , encodeAeson
-  )
 import Data.Const (Const)
 import Data.Either (Either(Left, Right))
 import Data.Foldable (sequence_)
@@ -27,12 +21,24 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (throwException, throw)
 import Mote (Plan, foldPlan, planT, test)
+import Node.Path (FilePath)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter (consoleReporter)
 import Test.Spec.Runner (runSpec)
 import TestM (TestPlanM)
 import Type.Proxy (Proxy)
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , Aeson
+  , JsonDecodeError
+  , decodeAeson
+  , encodeAeson
+  , parseJsonStringToAeson
+  )
+import Node.Encoding (Encoding(UTF8))
+import Node.FS.Sync (readTextFile)
 
 foreign import unsafeCall :: forall a b. Proxy b -> String -> a -> b
 
@@ -73,10 +79,11 @@ assertTrue_ = assertTrue "Boolean test failed"
 errEither
   :: forall (m :: Type -> Type) (a :: Type) (e :: Type)
    . MonadEffect m
-  => Either String a
+  => Show e
+  => Either e a
   -> m a
 errEither = case _ of
-  Left msg -> liftEffect $ throw msg
+  Left msg -> liftEffect <<< throw <<< show $ msg
   Right res -> pure res
 
 errMaybe
@@ -112,3 +119,8 @@ aesonRoundTrip
   => a
   -> Either JsonDecodeError a
 aesonRoundTrip = decodeAeson <<< encodeAeson
+
+readAeson :: forall (m :: Type -> Type). MonadEffect m => FilePath -> m Aeson
+readAeson fp = do
+  str <- liftEffect <<< readTextFile UTF8 $ fp
+  errEither <<< parseJsonStringToAeson $ str
