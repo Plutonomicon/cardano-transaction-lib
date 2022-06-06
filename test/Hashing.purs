@@ -2,6 +2,8 @@ module Test.Hashing (suite) where
 
 import Prelude
 
+import Contract.PlutusData (PlutusData(..))
+import Data.BigInt (fromInt)
 import Data.Maybe (Maybe(Just), fromJust)
 import Data.Newtype (wrap)
 import Hashing
@@ -17,9 +19,9 @@ import Hashing
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes)
-import TestM (TestPlanM)
 import Test.Fixtures (plutusDataFixture7)
 import Test.Spec.Assertions (shouldEqual)
+import TestM (TestPlanM)
 import Types.ByteArray (ByteArray, byteArrayFromAscii, hexToByteArrayUnsafe)
 import Types.RawBytes (hexToRawBytesUnsafe)
 import Types.Scripts (PlutusScript)
@@ -39,6 +41,12 @@ suite = do
     test "blake2b256 hash of Plutus data" do
       Hashing.datumHash (wrap plutusDataFixture7)
         `shouldEqual` Just datumHashFixture
+
+    test
+      "blake2b256 hash of Plutus data - Integer 0 (regression to https://github.com/Plutonomicon/cardano-transaction-lib/issues/488 ?)"
+      do
+        Hashing.datumHash (wrap $ Integer (fromInt 0))
+          `shouldEqual` Just zeroIntDatumHashFixture
 
     test "blake2b224 hash of a Plutus script" do
       Hashing.plutusScriptHash plutusScriptFixture
@@ -75,6 +83,13 @@ sha256HexDigestFixture =
 sha3_256HexDigestFixture :: String
 sha3_256HexDigestFixture =
   "832978c1119fe706ddfe32de31f1986ba3654198b3b7656b050e2ab3b1fe3de3"
+
+-- Checked that it corresponds to blake2b256(\00) ie. Integer 0
+zeroIntDatumHashFixture :: DataHash
+zeroIntDatumHashFixture =
+  wrap $
+    hexToByteArrayUnsafe
+      "03170a2e7597b7b7e3d84c05391d139a62b157e78786d8c082f29dcf4c111314"
 
 datumHashFixture :: DataHash
 datumHashFixture =
