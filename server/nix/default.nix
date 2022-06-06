@@ -98,6 +98,8 @@ pkgs.haskell-nix.cabalProject {
       subdirs = [
         "eras/alonzo/impl"
         "eras/alonzo/test-suite"
+        "eras/babbage/impl"
+        "eras/babbage/test-suite"
         "eras/byron/chain/executable-spec"
         "eras/byron/crypto"
         "eras/byron/crypto/test"
@@ -112,11 +114,11 @@ pkgs.haskell-nix.cabalProject {
         "libs/cardano-ledger-pretty"
         "libs/cardano-protocol-tpraos"
         "libs/cardano-data"
-        "libs/compact-map"
         "libs/set-algebra"
         "libs/small-steps"
         "libs/small-steps-test"
         "libs/non-integral"
+        "libs/vector-map"
       ];
     }
     {
@@ -127,6 +129,7 @@ pkgs.haskell-nix.cabalProject {
         "cardano-node"
         "cardano-node-capi"
         "cardano-node-chairman"
+        "cardano-git-rev"
         "cardano-submit-api"
         "bench/cardano-topology"
         "bench/locli"
@@ -193,8 +196,6 @@ pkgs.haskell-nix.cabalProject {
     {
       src = inputs.ouroboros-network;
       subdirs = [
-        "io-sim"
-        "io-classes"
         "monoidal-synchronisation"
         "network-mux"
         "ntp-client"
@@ -206,10 +207,22 @@ pkgs.haskell-nix.cabalProject {
         "ouroboros-network"
         "ouroboros-network-framework"
         "ouroboros-network-testing"
-        "strict-stm"
+      ];
+    }
+    {
+      src = inputs.typed-protocols;
+      subdirs = [
         "typed-protocols"
         "typed-protocols-cborg"
         "typed-protocols-examples"
+      ];
+    }
+    {
+      src = inputs.io-sim;
+      subdirs = [
+        "io-sim"
+        "io-classes"
+        "strict-stm"
       ];
     }
     {
