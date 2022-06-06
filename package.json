@@ -2,7 +2,10 @@
   "name": "cardano-transaction-lib",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Plutonomicon/cardano-transaction-lib.git"
+  },
   "directories": {
     "test": "test"
   },
