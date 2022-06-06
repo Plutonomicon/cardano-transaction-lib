@@ -8,13 +8,14 @@ import Contract.Prelude
 import Contract.Address (scriptHashAddress)
 import Contract.Aeson (decodeAeson, fromString)
 import Contract.Monad
-  ( liftContractM
+  ( Contract
+  , ContractConfig(..)
+  , liftContractM
   , liftedE
   , liftedM
   , logInfo'
   , runContract_
   , traceContractConfig
-  , Contract
   )
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
@@ -29,19 +30,17 @@ import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Data.BigInt as BigInt
 import Data.Map as Map
-import Effect.Aff (delay)
+import Effect.Aff (delay, launchAff_)
 import Plutus.Types.Transaction (UtxoM(UtxoM))
-import Types.Scripts (ValidatorHash)
+import Types.Scripts (Validator, ValidatorHash)
 import Types.Transaction (TransactionInput(TransactionInput), TransactionHash)
 import Types.TxConstraints (TxConstraints)
-
-import Effect.Aff (launchAff_)
-
-import Types.Scripts (Validator)
+import Wallet (mkGeroWalletAff)
 
 main :: Effect Unit
 main = launchAff_ $ do
-  cfg <- traceContractConfig
+  wallet <- Just <$> mkGeroWalletAff
+  cfg <- over ContractConfig _ { wallet = wallet } <$> traceContractConfig
   runContract_ cfg $ do
     logInfo' "Running Examples.AlwaysSucceeds"
     validator <- liftContractM "Invalid script JSON" alwaysSucceedsScript
