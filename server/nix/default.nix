@@ -157,6 +157,12 @@ pkgs.haskell-nix.cabalProject {
       ];
     }
     {
+      src = inputs.ekg-json;
+      subdirs = [
+        "."
+      ];
+    }
+    {
       src = inputs.ekg-forward;
       subdirs = [
         "."

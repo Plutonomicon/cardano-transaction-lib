@@ -1,4 +1,4 @@
-index-state:                 2021-12-07T00:00:00Z
+index-state:                 2022-04-17T00:00:00Z
 packages:                    ./.
 write-ghc-environment-files: never
 
@@ -9,7 +9,7 @@ benchmarks:                  true
 -- The only sensible test display option
 test-show-details:           direct
 allow-newer:
-  *:aeson
+  ekg:aeson
   -- Pins to an old version of Template Haskell, unclear if/when it will be updated
   , size-based:template-haskell
   , ouroboros-consensus-byron:formatting

@@ -569,8 +569,25 @@
       },
       "original": {
         "owner": "input-output-hk",
+        "ref": "master",
         "repo": "ekg-forward",
-        "rev": "297cd9db5074339a2fb2e5ae7d0780debb670c63",
+        "type": "github"
+      }
+    },
+    "ekg-json": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1651069445,
+        "narHash": "sha256-KuemhfIPO4soLf9wI+Z4wEfwpTHW2cA3LnmNrbbzCow=",
+        "owner": "coderfromhere",
+        "repo": "ekg-json",
+        "rev": "dcf5fe9ae7e9959e58d377a77cb036eea8d38c9b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "coderfromhere",
+        "repo": "ekg-json",
+        "rev": "dcf5fe9ae7e9959e58d377a77cb036eea8d38c9b",
         "type": "github"
       }
     },
@@ -1090,17 +1107,17 @@
     "iohk-monitoring-framework": {
       "flake": false,
       "locked": {
-        "lastModified": 1618904084,
-        "narHash": "sha256-v0L0pcyO2rP7/HCoGwFgHEMUOPBGwaRV0r+/JOhtKAk=",
+        "lastModified": 1653619339,
+        "narHash": "sha256-0ia5UflYEmBYepj2gkJy9msknklI0UPtUavMEGwk3Wg=",
         "owner": "input-output-hk",
         "repo": "iohk-monitoring-framework",
-        "rev": "808724ff8a19a33d0ed06f9ef59fbd900b08553c",
+        "rev": "066f7002aac5a0efc20e49643fea45454f226caa",
         "type": "github"
       },
       "original": {
         "owner": "input-output-hk",
+        "ref": "master",
         "repo": "iohk-monitoring-framework",
-        "rev": "808724ff8a19a33d0ed06f9ef59fbd900b08553c",
         "type": "github"
       }
     },
@@ -1722,6 +1739,7 @@
         "cardano-wallet": "cardano-wallet",
         "easy-purescript-nix": "easy-purescript-nix",
         "ekg-forward": "ekg-forward",
+        "ekg-json": "ekg-json",
         "flake-compat": "flake-compat",
         "flat": "flat",
         "goblins": "goblins",
