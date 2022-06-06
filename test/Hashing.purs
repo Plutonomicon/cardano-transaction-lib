@@ -41,12 +41,18 @@ suite = do
     test "blake2b256 hash of Plutus data" do
       Hashing.datumHash (wrap plutusDataFixture7)
         `shouldEqual` Just datumHashFixture
-
     test
       "blake2b256 hash of Plutus data - Integer 0 (regression to https://github.com/Plutonomicon/cardano-transaction-lib/issues/488 ?)"
       do
         Hashing.datumHash (wrap $ Integer (fromInt 0))
           `shouldEqual` Just zeroIntDatumHashFixture
+
+    test
+      "blake2b256 hash of Plutus data - Integer 500000000 (regression to https://github.com/Plutonomicon/cardano-transaction-lib/issues/488 ?)"
+      do
+        Hashing.datumHash (wrap $ Integer (fromInt 500000000))
+          `shouldEqual` (Just <<< wrap <<< hexToByteArrayUnsafe)
+            "ede8a602462c661897b8a7e842fbaaf0f80b29a6d9682106e590d67a40b27fbd"
 
     test "blake2b224 hash of a Plutus script" do
       Hashing.plutusScriptHash plutusScriptFixture

@@ -56,5 +56,4 @@ plutusDataHashingTest = do
   let elems = plutusDataSamples
   for_ elems \{ hash, plutusData } -> do
     hash' <- errMaybe "Couldn't hash the datum" <<< datumHash $ Datum plutusData
-    log $ show plutusData
     hash `shouldEqual` unwrap hash'
