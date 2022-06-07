@@ -159,6 +159,7 @@ getNetworkId = wrapContract Address.getNetworkId
 -- | Get the `ValidatorHash` with an Plutus `Address`
 enterpriseAddressValidatorHash :: Address -> Maybe ValidatorHash
 enterpriseAddressValidatorHash =
+  -- Network id does not matter here (#484)
   Address.enterpriseAddressValidatorHash
     <=< fromPlutusAddress MainnetId
 
@@ -171,6 +172,7 @@ enterpriseAddressStakeValidatorHash =
 -- | Get the `ScriptHash` with an Plutus `Address`
 enterpriseAddressScriptHash :: Address -> Maybe ScriptHash
 enterpriseAddressScriptHash =
+  -- Network id does not matter here (#484)
   Address.enterpriseAddressScriptHash
     <=< fromPlutusAddress MainnetId
 
