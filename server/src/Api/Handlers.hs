@@ -57,6 +57,7 @@ import Types (
   ExecutionUnitsMap (ExecutionUnitsMap),
   EvalExUnitsRequest (EvalExUnitsRequest, tx),
   Fee (Fee),
+  FeesRequest (FeesRequest, count, tx),
   FinalizeRequest (FinalizeRequest, datums, redeemers, tx),
   FinalizedTransaction (FinalizedTransaction),
   RdmrPtrExUnits (
@@ -74,14 +75,15 @@ import Types (
 -- Handlers
 --------------------------------------------------------------------------------
 
-estimateTxFees :: WitnessCount -> Cbor -> AppM Fee
-estimateTxFees (WitnessCount numWits) cbor = do
-  decodeCborTx cbor & either (throwM . CborDecode) pure >>= \case
+estimateTxFees :: FeesRequest -> AppM Fee
+estimateTxFees FeesRequest { count, tx } = do
+  decodeCborTx tx & either (throwM . CborDecode) pure >>= \case
     C.Tx txBody' keyWits -> do
       pparams <- asks protocolParams
       -- calculate and set script integrity hash before estimating fees
-      let txBody = setScriptIntegrityHash pparams txBody'
-          fee = estimateFee pparams numWits (C.Tx txBody keyWits)
+      let WitnessCount witCount = count
+          txBody = setScriptIntegrityHash pparams txBody'
+          fee = estimateFee pparams witCount (C.Tx txBody keyWits)
       Fee <$> finalizeTxFee fee
   where
     -- `txfee` value must also be taken into account when calculating fees,

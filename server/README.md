@@ -86,18 +86,20 @@ The server executable can be built with `nix build .#ctl-server:exe:ctl-server` 
 [{"exUnitsSteps":0,"rdmrPtrTag":0,"exUnitsMem":0,"rdmrPtrIdx":0}]
 ```
 
-## GET /fees
+## POST /fees
 
-### GET Parameters:
+### Request:
 
-- wit-count
-    - **Values**: *1*
-    - **Description**: A natural number representing the intended number of key witnessesfor the transaction
+- Supported content types are:
 
-- tx
-    - **Values**: *84a300818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001818258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d5336100021a0002b569a0f5f6*
-    - **Description**: A CBOR-encoded `Tx AlonzoEra`; should be sent as a hexadecimal string
+    - `application/json;charset=utf-8`
+    - `application/json`
 
+- The input should contain the intended witness count and CBOR of the tx (`application/json;charset=utf-8`, `application/json`):
+
+```javascript
+{"count": 1, "tx":"00"}
+```
 
 ### Response:
 
