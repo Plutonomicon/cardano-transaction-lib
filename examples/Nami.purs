@@ -13,10 +13,9 @@ import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Monad
   ( Contract
   , defaultContractConfig
+  , launchAff_
   , runContract_
   )
-
-import Effect.Aff (launchAff_)
 
 main :: Effect Unit
 main = launchAff_ $ do

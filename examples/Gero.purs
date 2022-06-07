@@ -8,9 +8,13 @@ module Examples.Gero (main) where
 import Contract.Prelude
 
 import Contract.Address (getWalletAddress, getWalletCollateral)
-import Contract.Monad (ContractConfig(..), runContract_, traceContractConfig)
+import Contract.Monad
+  ( ContractConfig(ContractConfig)
+  , launchAff_
+  , runContract_
+  , traceContractConfig
+  )
 import Contract.Wallet (mkGeroWalletAff)
-import Effect.Aff (launchAff_)
 
 main :: Effect Unit
 main = launchAff_ $ do

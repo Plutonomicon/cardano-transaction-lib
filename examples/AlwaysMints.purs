@@ -8,6 +8,7 @@ import Contract.Prelude
 import Contract.Aeson (decodeAeson, fromString)
 import Contract.Monad
   ( ContractConfig(ContractConfig)
+  , launchAff_
   , liftContractM
   , liftedE
   , liftedM
@@ -26,8 +27,7 @@ import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
-import Effect.Aff (launchAff_)
-import Types.Scripts (MintingPolicy)
+import Contract.Scripts (MintingPolicy)
 
 main :: Effect Unit
 main = launchAff_ $ do

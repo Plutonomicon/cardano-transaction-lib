@@ -9,7 +9,8 @@ import Contract.Address (scriptHashAddress)
 import Contract.Aeson (decodeAeson, fromString)
 import Contract.Monad
   ( Contract
-  , ContractConfig(..)
+  , ContractConfig(ContractConfig)
+  , launchAff_
   , liftContractM
   , liftedE
   , liftedM
@@ -19,27 +20,26 @@ import Contract.Monad
   )
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (validatorHash)
+import Contract.Scripts (Validator, ValidatorHash, validatorHash)
 import Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
+  , TransactionHash
+  , TransactionInput(TransactionInput)
   , balanceAndSignTx
   , submit
   )
+import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (utxosAt)
+import Contract.Utxos (UtxoM(UtxoM), utxosAt)
 import Contract.Value as Value
+import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
 import Data.Map as Map
-import Effect.Aff (delay, launchAff_)
-import Plutus.Types.Transaction (UtxoM(UtxoM))
-import Types.Scripts (Validator, ValidatorHash)
-import Types.Transaction (TransactionInput(TransactionInput), TransactionHash)
-import Types.TxConstraints (TxConstraints)
-import Wallet (mkGeroWalletAff)
+import Effect.Aff (delay)
 
 main :: Effect Unit
 main = launchAff_ $ do
-  wallet <- Just <$> mkGeroWalletAff
+  wallet <- Just <$> mkNamiWalletAff
   cfg <- over ContractConfig _ { wallet = wallet } <$> traceContractConfig
   runContract_ cfg $ do
     logInfo' "Running Examples.AlwaysSucceeds"
@@ -47,7 +47,7 @@ main = launchAff_ $ do
     vhash <- liftContractM "Couldn't hash validator" $ validatorHash validator
     logInfo' "Attempt to lock value"
     txId <- payToAlwaysSucceeds vhash
-    -- If the wallet is cold, you need a high parameter here. 
+    -- If the wallet is cold, you need a high parameter here.
     countToZero 60
     logInfo' "Try to spend locked values"
     spendFromAlwaysSucceeds vhash validator txId
@@ -62,7 +62,7 @@ countToZero n =
 payToAlwaysSucceeds :: ValidatorHash -> Contract () TransactionHash
 payToAlwaysSucceeds vhash = do
   let
-    constraints :: Constraints.TxConstraints Unit Unit
+    constraints :: TxConstraints Unit Unit
     constraints = Constraints.mustPayToScript vhash unitDatum
       $ Value.lovelaceValueOf
       $ BigInt.fromInt 2_000_000

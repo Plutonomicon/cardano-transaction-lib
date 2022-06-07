@@ -47,9 +47,9 @@ type Cip30Wallet =
   , getWalletAddress :: Cip30Connection -> Aff (Maybe Address)
   -- Get the collateral UTxO associated with the Nami wallet
   , getCollateral :: Cip30Connection -> Aff (Maybe TransactionUnspentOutput)
-  -- Sign a transaction with the current wallet
+  -- Sign a transaction with the given wallet
   , signTx :: Cip30Connection -> Transaction -> Aff (Maybe Transaction)
-  -- Sign a transaction with the current wallet
+  -- Sign transaction bytes with the given wallet
   , signTxBytes :: Cip30Connection -> CborBytes -> Aff (Maybe CborBytes)
   }
 

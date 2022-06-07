@@ -84,14 +84,6 @@ utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
       in
         wrap <<< Map.fromFoldable <$> out
 
-  -- cip30 wallets appear to remove collateral from the utxo set, so we shall do
-  -- the same.
-  -- This is crucial if we are submitting via Nami/Gero. If we decide to submit
-  -- with Ogmios, we can remove this.
-  -- More detail can be found here
-  -- https://github.com/Berry-Pool/nami-wallet/blob/ecb32e39173b28d4a7a85b279a748184d4759f6f/src/api/extension/index.js
-  -- by searching "// exclude collateral input from overall utxo set"
-  -- or functions getUtxos and checkCollateral.
   cip30UtxosAt :: Address -> QueryM (Maybe UtxoM)
   cip30UtxosAt address = getWalletCollateral >>= maybe
     (liftEffect $ throw "Nami wallet missing collateral")

@@ -526,7 +526,8 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   feeBuffer :: BigInt
   feeBuffer = fromInt 500000
 
--- Nami provides a 5 Ada collateral that we should add the tx before balancing.
+-- CIP-30 wallets provide a 5 Ada collateral that we should add the tx before
+-- balancing.
 addTxCollateral :: Transaction -> TransactionUnspentOutput -> Transaction
 addTxCollateral transaction (TransactionUnspentOutput { input }) =
   transaction # _body <<< _collateral ?~
