@@ -15,7 +15,7 @@
 -- |     ```
 -- |   * change the `ps-entrypoint` variable in the Makefile to `Examples.Datums`
 -- |   * `make run-dev` and visit `localhost:4008` in your browser
-module Examples.Datums (main) where
+module Examples.Datums (main, contract) where
 
 import Contract.Prelude
 
@@ -25,7 +25,10 @@ import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Data.Newtype (wrap)
 
 main :: Effect Unit
-main = launchAff_ $ do
+main = launchAff_ contract
+
+contract :: Aff Unit
+contract = do
   cfg <- traceContractConfig
   runContract_ cfg $ do
     logInfo' "Running Examples.Datums"

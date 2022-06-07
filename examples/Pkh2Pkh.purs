@@ -1,7 +1,7 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a transaction. It creates a simple transaction that gets
 -- | UTxOs from the user's wallet and sends two Ada back to the same wallet address
-module Examples.Pkh2Pkh (main) where
+module Examples.Pkh2Pkh (main, contract) where
 
 import Contract.Prelude
 
@@ -31,7 +31,10 @@ import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
 
 main :: Effect Unit
-main = launchAff_ $ do
+main = launchAff_ contract
+
+contract :: Aff Unit
+contract = do
   wallet <- Just <$> mkNamiWalletAff
   cfg <- mkContractConfig $ ConfigParams
     { ogmiosConfig: defaultOgmiosWsConfig
