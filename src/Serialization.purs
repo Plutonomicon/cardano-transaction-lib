@@ -141,6 +141,7 @@ import Serialization.WitnessSet
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
+import Types.RawBytes (RawBytes)
 import Types.Int as Int
 import Types.PlutusData as PlutusData
 import Types.Transaction (TransactionInput(TransactionInput)) as T
@@ -214,7 +215,7 @@ foreign import publicKeyFromPrivateKey
   :: PrivateKey -> Effect PublicKey
 
 foreign import _privateKeyFromBytes
-  :: MaybeFfiHelper -> ByteArray -> Effect (Maybe PrivateKey)
+  :: MaybeFfiHelper -> RawBytes -> Effect (Maybe PrivateKey)
 
 foreign import publicKeyHash :: PublicKey -> Ed25519KeyHash
 foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
@@ -593,7 +594,7 @@ convertWithdrawals mp =
 publicKeyFromBech32 :: Bech32String -> Maybe PublicKey
 publicKeyFromBech32 = _publicKeyFromBech32 maybeFfiHelper
 
-privateKeyFromBytes :: ByteArray -> Effect (Maybe PrivateKey)
+privateKeyFromBytes :: RawBytes -> Effect (Maybe PrivateKey)
 privateKeyFromBytes = _privateKeyFromBytes maybeFfiHelper
 
 convertCerts :: Array T.Certificate -> Effect Certificates

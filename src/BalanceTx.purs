@@ -116,7 +116,7 @@ import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (DataHash, TransactionInput)
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), _transaction)
-import Wallet (Wallet(..))
+import Wallet (Wallet(Nami,KeyWallet))
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
@@ -413,8 +413,8 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
         ( ExceptT $ getWalletCollateral <#>
             note (GetWalletCollateralError' CouldNotGetNamiCollateral)
         )
-      -- TODO(jy14898) Supply with fee estimate?
-      -- TODO(jy14898) Combine with getWalletCollateral?
+      -- TODO: Combine with getWalletCollateral, and supply with fee estimate
+      --       https://github.com/Plutonomicon/cardano-transaction-lib/issues/510
       Just (KeyWallet kw) -> pure $ kw.selectCollateral utxos
       _ -> pure Nothing
     let

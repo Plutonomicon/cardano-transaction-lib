@@ -26,10 +26,10 @@ code {
 </style>
 <form>
  <fieldset>
-    <label for="private_key">Private key (hex):</label>
-    <input type="password" id="private_key" name="private_key" placeholder="8f093aa4103fb26121148fd2ece4dd1d775be9113dfa374bcb4817b36356180b">
-    <label for="to_pkh">Destination PKH (bech32):</label>
-    <input type="text" id="to_pkh" name="to_pkh" placeholder="addr_vkh14lk6mlsm50ewtn9p5zgd7lkfdalsycdcxjpl5s979st9xjdmdc4">
+    <label for="privateKey">Private key (hex):</label>
+    <input type="password" id="private_key" name="privateKey" placeholder="8f093aa4103fb26121148fd2ece4dd1d775be9113dfa374bcb4817b36356180b">
+    <label for="toPkh">Destination PKH (bech32):</label>
+    <input type="text" id="to_pkh" name="toPkh" placeholder="addr_vkh14lk6mlsm50ewtn9p5zgd7lkfdalsycdcxjpl5s979st9xjdmdc4">
     <label for="lovelace">Amount (lovelace):</label>
     <input type="number" min="0" id="lovelace" name="lovelace" placeholder="2000000" value="2000000">
     <div style="grid-column: 2;">

@@ -33,18 +33,18 @@ import Control.Monad.Logger.Trans (runLoggerT)
 import Control.Monad.Reader (runReaderT)
 import Data.BigInt as BigInt
 import Data.Log.Formatter.Pretty (prettyFormatter)
-import Data.Log.Level (LogLevel(..))
+import Data.Log.Level (LogLevel(Trace,Debug,Warn,Info,Error))
 import Data.Log.Message (Message)
 import Effect.Exception (Error, error, message)
 import QueryM (QueryConfig)
 import Serialization (privateKeyFromBytes)
 import Serialization.Hash (ed25519KeyHashFromBech32)
-import Types.ByteArray (hexToByteArray)
+import Types.RawBytes (hexToRawBytes)
 import Wallet (mkKeyWallet)
 
 type Form =
-  { private_key :: String
-  , to_pkh :: String
+  { privateKey :: String
+  , toPkh :: String
   , lovelace :: String
   }
 
@@ -100,10 +100,10 @@ main = do
       do
         priv <- (liftMaybe $ error "Failed to parse private key") =<<
           ( liftEffect $ map join $ traverse privateKeyFromBytes $
-              hexToByteArray input.private_key
+              hexToRawBytes input.privateKey
           )
         pkh <- liftMaybe (error "Failed to parse public key hash") $
-          ed25519KeyHashFromBech32 input.to_pkh
+          ed25519KeyHashFromBech32 input.toPkh
         lovelace <- liftMaybe (error "Failed to parse lovelace amount") $
           BigInt.fromString input.lovelace
         let wallet = mkKeyWallet priv
