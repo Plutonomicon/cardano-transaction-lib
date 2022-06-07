@@ -1,3 +1,9 @@
+-- | A module for performing conversions between various types and
+-- | their Plutus representations.
+-- |
+-- | Conversion functions come in pairs and must be named as follows:
+-- | `fromPlutusType` and `toPlutusType`, where `Type` is to
+-- | be replaced by the name of the actual type.
 module Plutus.Conversion
   (
     -- Plutus Address <-> CSL Address
