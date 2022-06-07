@@ -57,23 +57,31 @@ data Wallet
   = Nami Cip30Wallet
   | Gero Cip30Wallet
 
--------------------------------------------------------------------------------
--- Nami backend
--------------------------------------------------------------------------------
-
-mkNamiWalletAff :: Aff Wallet
-mkNamiWalletAff = do
-  nami <- toAffE _enableNami
+mkCip30WalletAff
+  :: String
+  -- ^ Name of the wallet for error messages
+  -> Effect (Promise Cip30Connection)
+  -- ^ A function to get wallet connection
+  -> Aff Wallet
+mkCip30WalletAff walletName enableWallet = do
+  wallet <- toAffE enableWallet
   -- Ensure the Nami wallet has collateral set up
-  whenM (isNothing <$> getCollateral nami)
-    (liftEffect $ throw "Nami wallet missing collateral")
+  whenM (isNothing <$> getCollateral wallet) do
+    liftEffect $ throw $ walletName <> " wallet missing collateral"
   pure $ Nami
-    { connection: nami
+    { connection: wallet
     , getWalletAddress
     , getCollateral
     , signTx
     , signTxBytes
     }
+
+-------------------------------------------------------------------------------
+-- Nami backend
+-------------------------------------------------------------------------------
+
+mkNamiWalletAff :: Aff Wallet
+mkNamiWalletAff = mkCip30WalletAff "Nami" _enableNami
 
 -- Attach a dummy vkey witness to a transaction. Helpful for when we need to
 -- know the number of witnesses (e.g. fee calculation) but the wallet hasn't
@@ -104,18 +112,7 @@ dummySign tx@(Transaction { witnessSet: tws@(TransactionWitnessSet ws) }) =
 -------------------------------------------------------------------------------
 
 mkGeroWalletAff :: Aff Wallet
-mkGeroWalletAff = do
-  gero <- toAffE _enableGero
-  -- Ensure the Gero wallet has collateral set up
-  whenM (isNothing <$> getCollateral gero)
-    (liftEffect $ throw "Gero wallet missing collateral")
-  pure $ Gero
-    { connection: gero
-    , getWalletAddress
-    , getCollateral
-    , signTx
-    , signTxBytes
-    }
+mkGeroWalletAff = mkCip30WalletAff "Gero" _enableGero
 
 -------------------------------------------------------------------------------
 -- Helper functions
