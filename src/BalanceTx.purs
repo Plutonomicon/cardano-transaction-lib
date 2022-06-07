@@ -99,7 +99,6 @@ import QueryM
 import QueryM.Utxos (utxosAt)
 import ReindexRedeemers
   ( ReindexErrors
-  , reindexSpentScriptRedeemers
   , reindexSpentScriptRedeemers'
   )
 import Serialization.Address
