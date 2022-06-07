@@ -401,12 +401,8 @@ txToHex tx =
 calculateMinFee :: Transaction -> QueryM (Either ClientError Coin)
 calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   txHex <- liftEffect (txToHex tx)
-  url <- mkServerEndpointUrl
-    $ "fees?tx="
-        <> txHex
-        <> "&count="
-        <> UInt.toString witCount
-  liftAff (Affjax.get Affjax.ResponseFormat.string url)
+  url <- mkServerEndpointUrl "fees"
+  liftAff (postAeson url (encodeAeson { count: witCount, tx: txHex }))
     <#> either
       (Left <<< ClientHttpError)
       ( bimap ClientDecodeJsonError (wrap <<< unwrap :: FeeEstimate -> Coin)

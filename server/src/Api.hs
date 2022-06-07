@@ -54,6 +54,7 @@ import Types (
   Env,
   ExecutionUnitsMap,
   Fee,
+  FeesRequest,
   FinalizeRequest,
   FinalizedTransaction,
   WitnessCount,
@@ -62,9 +63,8 @@ import Utils (lbshow)
 
 type Api =
   "fees"
-    :> QueryParam' '[Required] "count" WitnessCount
-    :> QueryParam' '[Required] "tx" Cbor
-    :> Get '[JSON] Fee
+    :> ReqBody '[JSON] FeesRequest
+    :> Post '[JSON] Fee
     -- Since @Script@ and @Data@ have @From/ToJSON@ instances, we can just
     -- accept them in the body of a POST request
     :<|> "apply-args"
@@ -134,7 +134,7 @@ server =
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
 
-estimateTxFees :: WitnessCount -> Cbor -> ClientM Fee
+estimateTxFees :: FeesRequest -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
 evalTxExecutionUnits :: EvalExUnitsRequest -> ClientM ExecutionUnitsMap
 finalizeTx :: FinalizeRequest -> ClientM FinalizedTransaction
