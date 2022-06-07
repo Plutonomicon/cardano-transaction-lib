@@ -33,7 +33,7 @@ import Control.Monad.Logger.Trans (runLoggerT)
 import Control.Monad.Reader (runReaderT)
 import Data.BigInt as BigInt
 import Data.Log.Formatter.Pretty (prettyFormatter)
-import Data.Log.Level (LogLevel(Trace,Debug,Warn,Info,Error))
+import Data.Log.Level (LogLevel(Trace, Debug, Warn, Info, Error))
 import Data.Log.Message (Message)
 import Effect.Exception (Error, error, message)
 import QueryM (QueryConfig)
