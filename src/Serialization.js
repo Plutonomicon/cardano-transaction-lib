@@ -47,14 +47,14 @@ exports.addTransactionOutput = outputs => output => () =>
 exports.newTransactionBody = inputs => outputs => fee => ttl => () =>
     lib.TransactionBody.new(inputs, outputs, fee, ttl);
 
-exports.newTransaction = body => witness_set => () =>
-    lib.Transaction.new(body, witness_set);
-
 exports.setTxIsValid = tx => isValid => () =>
     tx.set_is_valid(isValid);
 
-exports.newTransaction_ = body => witness_set => auxiliary_data => () =>
+exports.newTransaction = body => witness_set => auxiliary_data => () =>
     lib.Transaction.new(body, witness_set, auxiliary_data);
+
+exports.newTransaction_ = body => witness_set => () =>
+    lib.Transaction.new(body, witness_set);
 
 exports.newTransactionWitnessSet = () =>
     lib.TransactionWitnessSet.new();
