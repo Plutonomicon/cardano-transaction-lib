@@ -5,7 +5,11 @@ module Examples.Pkh2Pkh (main, contract) where
 
 import Contract.Prelude
 
-import Contract.Address (NetworkId(TestnetId), ownPaymentPubKeyHash)
+import Contract.Address
+  ( NetworkId(TestnetId)
+  , ownPaymentPubKeyHash
+  , ownStakePubKeyHash
+  )
 import Contract.Monad
   ( ConfigParams(ConfigParams)
   , LogLevel(Trace)
@@ -49,10 +53,11 @@ contract = do
   runContract_ cfg $ do
     logInfo' "Running Examples.Pkh2Pkh"
     pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
+    skh <- liftedM "Failed to get own SKH" ownStakePubKeyHash
 
     let
       constraints :: Constraints.TxConstraints Void Void
-      constraints = Constraints.mustPayToPubKey pkh
+      constraints = Constraints.mustPayToPubKeyAddress pkh skh
         $ Value.lovelaceValueOf
         $ BigInt.fromInt 2_000_000
 
