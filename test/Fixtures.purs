@@ -10,11 +10,13 @@
 -- console.log(byteArrayToHex(something.to_bytes()))
 -- ```
 module Test.Fixtures
-  ( txOutputFixture1
-  , txOutputFixture2
+  ( addressString1
+  , cip25MetadataFixture1
+  , cip25MetadataJsonFixture1
   , currencySymbol1
-  , mkTxInput
+  , ed25519KeyHashFixture1
   , mkSampleTx
+  , mkTxInput
   , nativeScriptFixture1
   , nativeScriptFixture2
   , nativeScriptFixture3
@@ -29,33 +31,34 @@ module Test.Fixtures
   , plutusDataFixture5
   , plutusDataFixture6
   , plutusDataFixture7
+  , plutusDataFixture8
+  , plutusDataFixture8Bytes
+  , plutusDataFixture8Bytes'
+  , redeemerFixture1
+  , seabugMetadataDeltaFixture1
+  , seabugMetadataFixture1
   , tokenName1
   , tokenName2
-  , txOutputBinaryFixture1
-  , txFixture1
-  , txFixture2
-  , txFixture3
-  , txFixture4
   , txBinaryFixture1
   , txBinaryFixture2
   , txBinaryFixture3
   , txBinaryFixture4
+  , txFixture1
+  , txFixture2
+  , txFixture3
+  , txFixture4
+  , txInputFixture1
+  , txOutputBinaryFixture1
+  , txOutputFixture1
+  , txOutputFixture2
   , utxoFixture1
   , utxoFixture1'
   , witnessSetFixture1
   , witnessSetFixture2
-  , witnessSetFixture3
-  , witnessSetFixture4
   , witnessSetFixture2Value
+  , witnessSetFixture3
   , witnessSetFixture3Value
-  , addressString1
-  , txInputFixture1
-  , seabugMetadataFixture1
-  , seabugMetadataDeltaFixture1
-  , cip25MetadataFixture1
-  , cip25MetadataJsonFixture1
-  , redeemerFixture1
-  , ed25519KeyHashFixture1
+  , witnessSetFixture4
   ) where
 
 import Prelude
@@ -116,7 +119,6 @@ import Cardano.Types.Value
   , mkNonAdaAsset
   , mkSingletonNonAdaAsset
   )
-import Effect (Effect)
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (fromRight)
@@ -126,18 +128,19 @@ import Data.NonEmpty ((:|))
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Deserialization.FromBytes (fromBytes)
-import Metadata.Seabug
-  ( SeabugMetadata(SeabugMetadata)
-  , SeabugMetadataDelta(SeabugMetadataDelta)
-  )
-import Metadata.Seabug.Share (Share, mkShare)
+import Effect (Effect)
 import Metadata.Cip25
   ( Cip25Metadata(Cip25Metadata)
   , Cip25MetadataEntry(Cip25MetadataEntry)
   , Cip25MetadataFile(Cip25MetadataFile)
   )
-import Node.FS.Sync (readTextFile)
+import Metadata.Seabug
+  ( SeabugMetadata(SeabugMetadata)
+  , SeabugMetadataDelta(SeabugMetadataDelta)
+  )
+import Metadata.Seabug.Share (Share, mkShare)
 import Node.Encoding (Encoding(UTF8))
+import Node.FS.Sync (readTextFile)
 import Partial.Unsafe (unsafePartial)
 import ProtocolParametersAlonzo (costModels)
 import Serialization.Address
@@ -166,20 +169,17 @@ import Types.ByteArray
   , byteArrayFromIntArrayUnsafe
   , hexToByteArrayUnsafe
   )
-import Types.RawBytes
-  ( rawBytesFromIntArrayUnsafe
-  , hexToRawBytesUnsafe
-  )
 import Types.Int as Int
 import Types.Natural as Natural
 import Types.PlutusData as PD
 import Types.PubKeyHash (PubKeyHash(PubKeyHash))
+import Types.RawBytes (rawBytesFromIntArrayUnsafe, hexToRawBytesUnsafe)
 import Types.RedeemerTag (RedeemerTag(Spend))
-import Types.TokenName (TokenName, mkTokenName)
 import Types.Scripts
   ( MintingPolicyHash(MintingPolicyHash)
   , ValidatorHash(ValidatorHash)
   )
+import Types.TokenName (TokenName, mkTokenName)
 import Types.Transaction
   ( TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
@@ -953,6 +953,33 @@ plutusDataFixture7 = PD.List
   , plutusDataFixture5
   , plutusDataFixture6
   ]
+
+plutusDataFixture8 ∷ PD.PlutusData
+plutusDataFixture8 = PD.Constr (BigInt.fromInt 0)
+  [ PD.Bytes
+      ( hexToByteArrayUnsafe
+          "da13ed22b9294f1d86bbd530e99b1456884c7364bf16c90edc1ae41e"
+      )
+  , PD.Integer (BigInt.fromInt 500000000)
+  , PD.Bytes
+      ( hexToByteArrayUnsafe
+          "82325cbfc20b85bd1ca12e5d12b44b83f68662d8395167b45f1ff7fa"
+      )
+  , PD.Bytes (hexToByteArrayUnsafe "746f6e6573206f6620736b7920")
+  , PD.Bytes
+      ( hexToByteArrayUnsafe
+          "da13ed22b9294f1d86bbd530e99b1456884c7364bf16c90edc1ae41e"
+      )
+  , PD.Integer (BigInt.fromInt 45)
+  ]
+
+plutusDataFixture8Bytes ∷ ByteArray
+plutusDataFixture8Bytes = hexToByteArrayUnsafe
+  "d8799f581cda13ed22b9294f1d86bbd530e99b1456884c7364bf16c90edc1ae41e1a1dcd6500581c82325cbfc20b85bd1ca12e5d12b44b83f68662d8395167b45f1ff7fa4d746f6e6573206f6620736b7920581cda13ed22b9294f1d86bbd530e99b1456884c7364bf16c90edc1ae41e182dff"
+
+plutusDataFixture8Bytes' ∷ ByteArray
+plutusDataFixture8Bytes' = hexToByteArrayUnsafe
+  "d866820086581cda13ed22b9294f1d86bbd530e99b1456884c7364bf16c90edc1ae41e1a1dcd6500581c82325cbfc20b85bd1ca12e5d12b44b83f68662d8395167b45f1ff7fa4d746f6e6573206f6620736b7920581cda13ed22b9294f1d86bbd530e99b1456884c7364bf16c90edc1ae41e182d"
 
 scriptHash1 :: ScriptHash
 scriptHash1 = unsafePartial $ fromJust $ scriptHashFromBytes $

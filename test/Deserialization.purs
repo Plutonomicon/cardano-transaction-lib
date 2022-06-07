@@ -2,6 +2,7 @@ module Test.Deserialization (suite) where
 
 import Prelude
 
+import Cardano.Types.Transaction (NativeScript(ScriptAny), TransactionOutput) as T
 import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
@@ -9,19 +10,8 @@ import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Maybe (isJust, isNothing)
 import Data.Newtype (unwrap)
-import Effect (Effect)
-import Effect.Class (liftEffect)
-import Mote (group, test)
-import Test.Spec.Assertions (shouldEqual, shouldSatisfy, expectError)
-import TestM (TestPlanM)
-import Untagged.Union (asOneOf)
-
-import Cardano.Types.Transaction
-  ( NativeScript(ScriptAny)
-  , TransactionOutput
-  ) as T
-import Deserialization.BigNum (bigNumToBigInt)
 import Deserialization.BigInt as DB
+import Deserialization.BigNum (bigNumToBigInt)
 import Deserialization.FromBytes (fromBytes)
 import Deserialization.NativeScript as NSD
 import Deserialization.PlutusData as DPD
@@ -31,9 +21,13 @@ import Deserialization.UnspentOutput
   , newTransactionUnspentOutputFromBytes
   )
 import Deserialization.WitnessSet (deserializeWitnessSet, convertWitnessSet)
+import Effect (Effect)
+import Effect.Class (liftEffect)
+import Mote (group, test)
+import Serialization (toBytes)
 import Serialization as Serialization
-import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.BigInt as SB
+import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.NativeScript (convertNativeScript) as NSS
 import Serialization.PlutusData as SPD
 import Serialization.Types (TransactionUnspentOutput)
@@ -53,6 +47,9 @@ import Test.Fixtures
   , plutusDataFixture5
   , plutusDataFixture6
   , plutusDataFixture7
+  , plutusDataFixture8
+  , plutusDataFixture8Bytes
+  , plutusDataFixture8Bytes'
   , txInputFixture1
   , txOutputFixture1
   , utxoFixture1
@@ -64,8 +61,11 @@ import Test.Fixtures
   , witnessSetFixture3Value
   , witnessSetFixture4
   )
+import Test.Spec.Assertions (shouldEqual, shouldSatisfy, expectError)
 import Test.Utils (errMaybe)
+import TestM (TestPlanM)
 import Types.Transaction (TransactionInput) as T
+import Untagged.Union (asOneOf)
 
 suite :: TestPlanM Unit
 suite = do
@@ -82,47 +82,40 @@ suite = do
         res <- errMaybe "Failed to serialize BigInt" $ bigNumFromBigInt bigInt
           >>= bigNumToBigInt
         res `shouldEqual` bigInt
-    group "PlutusData: deserialization is inverse to serialization" do
-      test "fixture #1" do
-        let input = plutusDataFixture1
-        res <- errMaybe "Failed to convert PlutusData" $
-          SPD.convertPlutusData input >>= DPD.convertPlutusData
-        res `shouldEqual` input
-      test "fixture #2" do
-        let input = plutusDataFixture2
-        res <- errMaybe "Failed to convert PlutusData" $
-          SPD.convertPlutusData input >>= DPD.convertPlutusData
-        res `shouldEqual` input
-      test "fixture #3" do
-        let input = plutusDataFixture3
-        res <- errMaybe "Failed to convert PlutusData" $
-          SPD.convertPlutusData input >>= DPD.convertPlutusData
-        res `shouldEqual` input
-      test "fixture #4" do
-        let input = plutusDataFixture4
-        res <- errMaybe "Failed to convert PlutusData" $
-          SPD.convertPlutusData input >>= DPD.convertPlutusData
-        res `shouldEqual` input
-      test "fixture #5" do
-        let input = plutusDataFixture5
-        res <- errMaybe "Failed to convert PlutusData" $
-          SPD.convertPlutusData input >>= DPD.convertPlutusData
-        res `shouldEqual` input
-      test "fixture #6" do
-        let input = plutusDataFixture6
-        res <- errMaybe "Failed to convert PlutusData" $
-          SPD.convertPlutusData input >>= DPD.convertPlutusData
-        res `shouldEqual` input
-      test "fixture #7" do
-        let input = plutusDataFixture7
-        res <- errMaybe "Failed to convert PlutusData" $
-          SPD.convertPlutusData input >>= DPD.convertPlutusData
-        res `shouldEqual` input
-      test "fixture #1" do
-        let input = plutusDataFixture1
-        res <- errMaybe "Failed to convert PlutusData" $
-          SPD.convertPlutusData input >>= DPD.convertPlutusData
-        res `shouldEqual` input
+    group "CSL <-> CTL PlutusData roundtrip tests" do
+      let
+        pdRoundTripTest ctlPd = do
+          cslPd <-
+            errMaybe "Failed to convert from CTL PlutusData to CSL PlutusData" $
+              SPD.convertPlutusData ctlPd
+          let pdBytes = toBytes (asOneOf cslPd)
+          cslPd' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
+            pdBytes
+          ctlPd' <-
+            errMaybe "Failed to convert from CSL PlutusData to CTL PlutusData" $
+              DPD.convertPlutusData cslPd'
+          ctlPd' `shouldEqual` ctlPd
+      test "fixture #1" $ pdRoundTripTest plutusDataFixture1
+      test "fixture #2" $ pdRoundTripTest plutusDataFixture2
+      test "fixture #3" $ pdRoundTripTest plutusDataFixture3
+      test "fixture #4" $ pdRoundTripTest plutusDataFixture4
+      test "fixture #5" $ pdRoundTripTest plutusDataFixture5
+      test "fixture #6" $ pdRoundTripTest plutusDataFixture6
+      test "fixture #7" $ pdRoundTripTest plutusDataFixture7
+      test "fixture #8" $ pdRoundTripTest plutusDataFixture8
+      test "fixture #8 different Cbor bytes encodings" $ do
+        cslPd' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
+          plutusDataFixture8Bytes
+        ctlPd' <-
+          errMaybe "Failed to convert from CSL PlutusData to CTL PlutusData" $
+            DPD.convertPlutusData cslPd'
+        ctlPd' `shouldEqual` plutusDataFixture8
+        cslPdWp' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
+          plutusDataFixture8Bytes'
+        ctlPdWp' <-
+          errMaybe "Failed to convert from CSL PlutusData to CTL PlutusData" $
+            DPD.convertPlutusData cslPdWp'
+        ctlPdWp' `shouldEqual` plutusDataFixture8
     group "UnspentTransactionOutput" do
       test "deserialization is inverse to serialization" do
         unspentOutput <- liftEffect $ createUnspentOutput txInputFixture1
