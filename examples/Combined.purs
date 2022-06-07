@@ -2,6 +2,15 @@
 -- | in between each. This is helpful to ensure that changes you introduce
 -- | don't break existing functionality. If an example fails, you can run it
 -- | individually afterwards to diagnose the problem
+-- |
+-- | To run an individual example, either edit the `ps-entrypoint` variable
+-- | in the Makefile and run `make run-dev`, or issue the following commands:
+-- |
+-- | ```
+-- | > spago bundle-module -m <ENTRYPOINT> --to output.js
+-- | > BROWSER_RUNTIME=1 webpack-dev-server --progress
+-- | ```
+-- |
 module Examples.Combined (main) where
 
 import Contract.Prelude
