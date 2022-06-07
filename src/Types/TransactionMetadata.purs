@@ -6,13 +6,14 @@ module Types.TransactionMetadata
 
 import Prelude
 
-import Data.BigInt (BigInt)
+import Data.BigInt (BigInt, fromInt)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map (empty) as Map
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Helpers (appendRightMap)
+import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Types.ByteArray (ByteArray)
 import Types.Int (Int) as Int
 
@@ -50,6 +51,9 @@ derive instance Generic TransactionMetadatumLabel _
 instance Show TransactionMetadatumLabel where
   show = genericShow
 
+instance Arbitrary TransactionMetadatumLabel where
+  arbitrary = TransactionMetadatumLabel <<< fromInt <$> arbitrary
+
 data TransactionMetadatum
   = MetadataMap (Map TransactionMetadatum TransactionMetadatum)
   | MetadataList (Array TransactionMetadatum)
@@ -63,3 +67,4 @@ derive instance Generic TransactionMetadatum _
 
 instance Show TransactionMetadatum where
   show x = genericShow x
+

@@ -27,6 +27,7 @@ import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import ToData (class ToData, toData)
 import Types.PlutusData (PlutusData(Integer))
+import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 
 newtype Natural = Natural BigInt
 
@@ -53,6 +54,9 @@ instance DecodeAeson Natural where
       ( \bi -> note (TypeMismatch $ "Invalid Natural number: " <> show bi) $
           fromBigInt bi
       )
+
+instance Arbitrary Natural where
+  arbitrary = fromBigInt' <<< BigInt.fromInt <$> arbitrary
 
 -- | Fails with `Nothing` on negative input.
 fromBigInt :: BigInt -> Maybe Natural

@@ -91,13 +91,14 @@ import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.UInt (UInt)
+import Data.UInt (UInt, fromInt)
 import Data.UInt as UInt
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import FromData (class FromData)
 import Partial.Unsafe (unsafePartial)
 import Serialization.Hash (Ed25519KeyHash, ScriptHash)
 import Serialization.Types (Bip32PublicKey)
+import Test.QuickCheck (class Arbitrary, arbitrary)
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String, Base58String)
 import Types.ByteArray (ByteArray)
@@ -126,6 +127,9 @@ instance Monoid Slot where
 instance EncodeAeson Slot where
   encodeAeson' (Slot uint) = encodeAeson' (UInt.toNumber uint)
 
+instance Arbitrary Slot where
+  arbitrary = Slot <<< fromInt <$> arbitrary
+
 -- it is an integer in ogmios
 -- bytestring in plutus
 -- uint32 in csl
@@ -141,6 +145,9 @@ instance EncodeAeson BlockId where
 instance Show BlockId where
   show = genericShow
 
+instance Arbitrary BlockId where
+  arbitrary = BlockId <<< fromInt <$> arbitrary
+
 newtype TransactionIndex = TransactionIndex UInt
 
 derive instance Eq TransactionIndex
@@ -153,6 +160,9 @@ derive newtype instance FromData TransactionIndex
 instance Show TransactionIndex where
   show = genericShow
 
+instance Arbitrary TransactionIndex where
+  arbitrary = TransactionIndex <<< fromInt <$> arbitrary
+
 newtype CertificateIndex = CertificateIndex UInt
 
 derive instance Eq CertificateIndex
@@ -164,6 +174,9 @@ derive newtype instance FromData CertificateIndex
 
 instance Show CertificateIndex where
   show = genericShow
+
+instance Arbitrary CertificateIndex where
+  arbitrary = CertificateIndex <<< fromInt <$> arbitrary
 
 type Pointer =
   { slot :: Slot

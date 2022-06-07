@@ -19,14 +19,16 @@ import Aeson
   , encodeAeson'
   , toStringifiedNumbersJson
   )
+import Control.Monad.Gen (suchThat)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString, fromString) as BigInt
 import Data.Either (Either(Left), note)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype)
-import Data.Ratio ((%), numerator, denominator) as Ratio
+import Data.Ratio ((%), numerator, denominator, reduce) as Ratio
 import Data.Ratio (Ratio)
 import FromData (class FromData)
+import Test.QuickCheck (class Arbitrary, arbitrary)
 import ToData (class ToData)
 import Types.Natural (Natural)
 import Types.Natural (fromBigInt', toBigInt) as Nat
@@ -94,6 +96,13 @@ instance EuclideanRing Rational where
     | otherwise = Rational $
         (numerator a * denominator b) Ratio.% (denominator a * numerator b)
 
+instance Arbitrary Rational where
+  arbitrary = Rational <$>
+    ( Ratio.reduce
+        <$> (BigInt.fromInt <$> arbitrary)
+        <*> (BigInt.fromInt <$> suchThat arbitrary \n -> n /= 0)
+    )
+
 -- | Gives the reciprocal of a `Rational`.
 -- | Returns `Nothing` if applied to `zero` since the reciprocal of zero
 -- | is mathematically undefined.
@@ -152,3 +161,4 @@ instance RationalComponent Int where
 
 instance RationalComponent Natural where
   reduce n d = reduce (Nat.toBigInt n) (Nat.toBigInt d)
+

@@ -13,12 +13,14 @@ module Types.NatRatio
   ) where
 
 import Prelude
+
 import Data.BigInt (BigInt)
 import Data.Maybe (Maybe(Nothing))
+import Test.QuickCheck (class Arbitrary)
 import Types.Natural (Natural)
 import Types.Natural (fromBigInt', toBigInt) as Nat
-import Types.Rational (Rational)
 import Types.Rational ((%), numerator, denominator, denominatorAsNat) as Rational
+import Types.Rational (Rational)
 
 -- | `NatRatio` is a newtype over `Rational` with smart constructors to create a
 -- | `NatRatio` safely. Therefore, the data constructor is not exported.
@@ -29,6 +31,7 @@ derive newtype instance Ord NatRatio
 -- If `NatRatio`s are safely constructed, then the underlying `Rational`s
 -- should obey Semiring laws.
 derive newtype instance Semiring NatRatio
+derive newtype instance Arbitrary NatRatio
 
 instance Show NatRatio where
   show (NatRatio r) = "(NatRatio " <> show r <> ")"

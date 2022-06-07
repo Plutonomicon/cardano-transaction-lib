@@ -12,8 +12,9 @@ import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
-import Data.UInt (UInt)
+import Data.UInt (UInt, fromInt)
 import FromData (class FromData, fromData)
+import Test.QuickCheck (class Arbitrary, arbitrary)
 import ToData (class ToData, toData)
 import Types.ByteArray (ByteArray, byteArrayToHex)
 import Types.PlutusData (PlutusData(Constr))
@@ -53,6 +54,12 @@ instance ToData TransactionInput where
   toData (TransactionInput { transactionId, index }) =
     Constr zero [ toData transactionId, toData index ]
 
+instance Arbitrary TransactionInput where
+  arbitrary = TransactionInput <$>
+    ( { transactionId: _, index: _ } <$> arbitrary <*>
+        (fromInt <$> arbitrary)
+    )
+
 -- | 32-bytes blake2b256 hash of a tx body.
 -- | NOTE. Plutus docs might incorrectly state that it uses
 -- |       SHA256 for this purposes.
@@ -61,6 +68,7 @@ newtype TransactionHash = TransactionHash ByteArray
 derive instance Generic TransactionHash _
 derive instance Newtype TransactionHash _
 derive newtype instance Eq TransactionHash
+derive newtype instance Arbitrary TransactionHash
 
 -- This is not newtyped derived because it will be used for ordering a
 -- `TransactionInput`, we want lexicographical ordering on the hexstring.
@@ -88,6 +96,7 @@ derive newtype instance Eq DataHash
 derive newtype instance FromData DataHash
 derive newtype instance Ord DataHash
 derive newtype instance ToData DataHash
+derive newtype instance Arbitrary DataHash
 
 instance Show DataHash where
   show = genericShow

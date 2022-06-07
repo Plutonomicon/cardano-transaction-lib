@@ -35,8 +35,8 @@ module Types.TxConstraints
 
 import Prelude hiding (join)
 
-import Data.Array as Array
 import Data.Array ((:), concat)
+import Data.Array as Array
 import Data.Bifunctor (class Bifunctor)
 import Data.BigInt (BigInt)
 import Data.Foldable (class Foldable, any, foldl, foldMap, foldr, null)
@@ -49,13 +49,14 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested ((/\), type (/\))
 import Plutus.Types.CurrencySymbol (CurrencySymbol, currencyMPSHash)
 import Plutus.Types.Value (Value, isZero, flattenNonAdaAssets)
-import Types.Redeemer (Redeemer, unitRedeemer)
+import Test.QuickCheck (class Arbitrary, arbitrary)
+import Types.Datum (Datum)
 import Types.Interval (POSIXTimeRange, always, intersection, isEmpty)
 import Types.PubKeyHash (PaymentPubKeyHash, StakePubKeyHash)
+import Types.Redeemer (Redeemer, unitRedeemer)
 import Types.Scripts (MintingPolicyHash, ValidatorHash)
-import Types.Datum (Datum)
-import Types.Transaction (DataHash, TransactionInput)
 import Types.TokenName (TokenName)
+import Types.Transaction (DataHash, TransactionInput)
 
 --------------------------------------------------------------------------------
 -- TxConstraints Type and related
@@ -98,6 +99,10 @@ derive newtype instance Eq i => Eq (InputConstraint i)
 
 instance showInputConstraint :: Show i => Show (InputConstraint i) where
   show = genericShow
+
+instance Arbitrary i => Arbitrary (InputConstraint i) where
+  arbitrary = InputConstraint <$>
+    ({ redeemer: _, txOutRef: _ } <$> arbitrary <*> arbitrary)
 
 newtype OutputConstraint (o :: Type) = OutputConstraint
   { datum :: o

@@ -82,6 +82,7 @@ import FromData (class FromData)
 import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Partial.Unsafe (unsafePartial)
+import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Serialization.Hash
   ( ScriptHash
   , scriptHashAsBytes
@@ -152,6 +153,9 @@ instance Negate Coin where
 instance Split Coin where
   split (Coin c) =
     if c <= zero then Coin (negate c) /\ Coin zero else Coin zero /\ Coin c
+
+instance Arbitrary Coin where
+  arbitrary = Coin <<< fromInt <$> arbitrary
 
 -- This module rewrites functionality from:
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs

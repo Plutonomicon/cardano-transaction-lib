@@ -13,9 +13,7 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
-  , JsonDecodeError
-      ( TypeMismatch
-      )
+  , JsonDecodeError(TypeMismatch)
   , caseAesonObject
   , encodeAeson'
   , getField
@@ -33,6 +31,7 @@ import FromData (class FromData)
 import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Serialization.Types (AssetName) as CSL
+import Test.QuickCheck (class Arbitrary)
 import ToData (class ToData)
 import Types.ByteArray (ByteArray, byteLength, hexToByteArray)
 import Types.CborBytes (CborBytes, cborBytesToHex)
@@ -45,6 +44,7 @@ derive newtype instance FromMetadata TokenName
 derive newtype instance ToMetadata TokenName
 derive newtype instance Ord TokenName
 derive newtype instance ToData TokenName
+derive newtype instance Arbitrary TokenName
 
 instance DecodeAeson TokenName where
   decodeAeson = caseAesonObject

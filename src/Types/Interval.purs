@@ -41,6 +41,8 @@ module Types.Interval
   , upperBound
   ) where
 
+import Prelude
+
 import Data.BigInt (BigInt, quot)
 import Data.BigInt (fromString, fromInt) as BigInt
 import Data.Enum (class Enum, succ)
@@ -51,14 +53,16 @@ import Data.Lattice
   , class JoinSemilattice
   , class MeetSemilattice
   )
+import Data.List (List(Nil), (:))
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.NonEmpty ((:|))
 import Data.Show.Generic (genericShow)
+import Data.Tuple.Nested ((/\))
 import Data.UInt (fromString) as UInt
+import FromData (class FromData, genericFromData)
 import Helpers (uIntToBigInt, bigIntToUInt)
 import Partial.Unsafe (unsafePartial)
-import Prelude
-import Serialization.Address (Slot(Slot))
 import Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
@@ -67,9 +71,11 @@ import Plutus.Types.DataSchema
   , I
   , PNil
   )
-import TypeLevel.Nat (S, Z)
+import Serialization.Address (Slot(Slot))
+import Test.QuickCheck (class Arbitrary, arbitrary)
+import Test.QuickCheck.Gen (frequency)
 import ToData (class ToData, genericToData)
-import FromData (class FromData, genericFromData)
+import TypeLevel.Nat (S, Z)
 
 --------------------------------------------------------------------------------
 -- Interval Type and related
@@ -110,6 +116,15 @@ derive instance Functor Extended
 instance Show a => Show (Extended a) where
   show = genericShow
 
+instance Arbitrary a => Arbitrary (Extended a) where
+  arbitrary =
+    (frequency <<< wrap) $
+      (0.1 /\ pure PosInf) :|
+        (0.1 /\ pure NegInf)
+          : (0.8 /\ (Finite <$> arbitrary))
+          :
+            Nil
+
 -- | The lower bound of an interval.
 data LowerBound a = LowerBound (Extended a) Closure
 
@@ -142,6 +157,9 @@ instance Ord a => Ord (LowerBound a) where
     -- to the *reverse* of the normal order on Boolean.
     EQ -> in2 `compare` in1
 
+instance Arbitrary a => Arbitrary (LowerBound a) where
+  arbitrary = LowerBound <$> arbitrary <*> arbitrary
+
 -- | The upper bound of an interval.
 data UpperBound :: Type -> Type
 data UpperBound a = UpperBound (Extended a) Closure
@@ -166,6 +184,9 @@ derive instance Ord a => Ord (UpperBound a)
 derive instance Functor UpperBound
 instance Show a => Show (UpperBound a) where
   show = genericShow
+
+instance Arbitrary a => Arbitrary (UpperBound a) where
+  arbitrary = UpperBound <$> arbitrary <*> arbitrary
 
 -- | An interval of `a`s.
 -- |
@@ -214,6 +235,14 @@ instance ToData a => ToData (Interval a) where
 instance FromData a => FromData (Interval a) where
   fromData i = genericFromData i
 
+instance (Arbitrary a, Ord a) => Arbitrary (Interval a) where
+  arbitrary = do
+    extended1 <- arbitrary
+    extended2 <- arbitrary
+    lower <- LowerBound (min extended1 extended2) <$> arbitrary
+    upper <- UpperBound (max extended1 extended2) <$> arbitrary
+    pure $ Interval { from: lower, to: upper }
+
 --------------------------------------------------------------------------------
 -- POSIXTIME Type and related
 --------------------------------------------------------------------------------
@@ -231,6 +260,9 @@ derive newtype instance Ord POSIXTime
 derive newtype instance Semiring POSIXTime
 instance Show POSIXTime where
   show = genericShow
+
+instance Arbitrary POSIXTime where
+  arbitrary = POSIXTime <<< BigInt.fromInt <$> arbitrary
 
 -- | An `Interval` of `POSIXTime`s.
 type POSIXTimeRange = Interval POSIXTime
@@ -390,6 +422,13 @@ derive newtype instance Eq SlotConfig
 
 instance Show SlotConfig where
   show = genericShow
+
+instance Arbitrary SlotConfig where
+  arbitrary = SlotConfig <$>
+    ( { slotLength: _, slotZeroTime: _ } <<< BigInt.fromInt
+        <$> arbitrary
+        <*> arbitrary
+    )
 
 -- | 'beginningOfTime' corresponds to the Shelley launch date
 -- | (2020-07-29T21:44:51Z) which is 1596059091000 in POSIX time

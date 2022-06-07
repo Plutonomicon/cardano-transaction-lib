@@ -16,10 +16,18 @@ import Data.Function (($))
 import Data.Map as Map
 import Data.Maybe (Maybe)
 import Data.Monoid ((<>))
+import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
+import Test.QuickCheck.Gen (Gen)
+import Data.Functor ((<$>))
+import Control.Semigroupoid ((<<<))
 
 -- | A specific-use MultiMap where values for the same key are stored in FIFO container
 --   implemented via Array
 newtype MultiMap (k :: Type) (v :: Type) = MultiMap (Map.Map k (Array v))
+
+instance (Arbitrary k, Ord k, Arbitrary v) => Arbitrary (MultiMap k v) where
+  arbitrary =
+    MultiMap <<< Map.fromFoldable <$> (arbitrary :: Gen (Array _))
 
 -- | Constructs an empty `MultiMap`
 empty :: forall (k :: Type) (v :: Type). MultiMap k v
