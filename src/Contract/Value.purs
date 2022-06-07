@@ -6,11 +6,7 @@ module Contract.Value
   , module Value
   ) where
 
-import Prelude
-import Contract.Monad (Contract)
-import Data.Maybe (Maybe)
 import Scripts (scriptCurrencySymbol) as Scripts
-import Types.Scripts (MintingPolicy)
 import Types.TokenName
   ( TokenName
   , adaToken

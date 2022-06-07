@@ -59,7 +59,7 @@ instance EncodeAeson TokenName where
     { "unTokenName": cborBytesToHex ba }
 
 instance Show TokenName where
-  show (TokenName tn) = "(TokenName" <> show tn <> ")"
+  show (TokenName tn) = "(TokenName " <> show tn <> ")"
 
 getTokenName :: TokenName -> CborBytes
 getTokenName (TokenName tokenName) = tokenName

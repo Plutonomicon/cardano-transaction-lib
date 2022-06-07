@@ -49,7 +49,8 @@ derive newtype instance Ord TransactionMetadatumLabel
 derive instance Generic TransactionMetadatumLabel _
 
 instance Show TransactionMetadatumLabel where
-  show = genericShow
+  show (TransactionMetadatumLabel tml) =
+    showWithParens "TransactionMetadatumLabel" tml
 
 instance Arbitrary TransactionMetadatumLabel where
   arbitrary = TransactionMetadatumLabel <<< fromInt <$> arbitrary
