@@ -151,15 +151,8 @@ import FfiHelpers
   , maybeFfiHelper
   )
 import Serialization (toBytes)
-import Serialization.Address
-  ( intToNetworkId
-  , Slot(Slot)
-  )
-import Serialization.Address
-  ( RewardAddress
-  , StakeCredential
-  ) as Csl
-
+import Serialization.Address (RewardAddress, StakeCredential) as Csl
+import Serialization.Address (intToNetworkId, Slot(Slot))
 import Serialization.Hash (Ed25519KeyHash, ScriptHash)
 import Serialization.Types
   ( AssetName

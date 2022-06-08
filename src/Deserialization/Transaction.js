@@ -91,13 +91,40 @@ exports._convertCert = certConvHelper => cert => {
     // StakeRegistration,
     var r = cert.as_stake_registration();
     if (r) return certConvHelper.stakeRegistration(r.stake_credential());
-    //     StakeDeregistration,
+    // StakeDeregistration,
     r = cert.as_stake_deregistration();
     if (r) return certConvHelper.stakeDeregistration(r.stake_credential());
-    //     StakeDeregistration,
+    // StakeDelegation,
     r = cert.as_stake_delegation();
     if (r) return certConvHelper.stakeDelegation(r.stake_credential())(r.pool_keyhash());
-    certConvHelper.notImplementedError("Cert conversion not implemented for kind: ", cert.kind());
+    // PoolRegistration
+    r = cert.as_pool_registration();
+    if (r) return certConvHelper.poolRegistration(r.pool_params());
+    // PoolRetirement
+    r = cert.as_pool_retirement();
+    if (r) return certConvHelper.poolRetirement(r.pool_keyhash())(r.epoch());
+    // GenesisKeyDelegation
+    r = cert.as_genesis_key_delegation();
+    if (r) return certConvHelper.genesisKeyDelegation(
+        r.genesishash()
+    )(
+        r.genesis_delegate_hash()
+    )(
+        r.vrf_keyhash()
+    );
+    // MoveInstantaneoursRewardsToOtherPot
+    r = cert.as_move_instantaneous_rewards_cert();
+    if (r) {
+        let s;
+        r = r.move_instantaneous_reward();
+        s = r.as_to_other_pot();
+        if (s) return certConvHelper.moveInstantaneousRewardsToOtherPotCert(r.pot())(s);
+        s = r.as_to_stake_creds();
+        if (s) return certConvHelper.moveInstantaneousRewardsToStakeCreds(r.pot())(s);
+        throw ("MoveInstantaneousReward convertion failed for kind" + r.kind());
+    }
+
+    throw ("Cert conversion failed for kind: ", cert.kind());
 };
 
 
@@ -135,7 +162,7 @@ exports._unpackProtocolParamUpdate = maybe => ppu => {
     return {
         minfeeA: optional(ppu.minfee_a()),
         minfeeB: optional(ppu.minfee_b()),
-        maxBlockHeaderSize: optional(ppu.max_block_body_size()),
+        maxBlockBodySize: optional(ppu.max_block_body_size()),
         maxTxSize: optional(ppu.max_tx_size()),
         maxBlockHeaderSize: optional(ppu.max_block_header_size()),
         keyDeposit: optional(ppu.key_deposit()),
@@ -174,6 +201,7 @@ exports._unpackCostModel = cm => {
         catch(_){
             err=true;
         }
+        op++;
     }
     return res;
 };
@@ -373,7 +401,7 @@ exports.convertGenesisKeyDelegation_ = cont => genesisKeyDelegation =>
     );
 
 exports.unpackMIRToStakeCredentials_ = containerHelper => mirToStakeCredentials =>
-    containerHelper.unpackKeyIndexed(MIRToStakeCredentials);
+    containerHelper.unpackKeyIndexed(mirToStakeCredentials);
 
 exports.convertPoolMetadata_ = cont => poolMetadata =>
     cont(poolMetadata.url().url())(poolMetadata.pool_metadata_hash());
