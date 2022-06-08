@@ -19,10 +19,8 @@ import Contract.Monad
   , liftedE
   , liftedM
   , logInfo'
-  , mkContractConfig
   , runContract
   , runContract_
-  , traceContractConfig
   , launchAff_
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
@@ -33,8 +31,6 @@ import Contract.PlutusData
   ( PlutusData(..)
   , toData
   , unitDatum
-  , unitRedeemer
-  , Datum(Datum)
   )
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
@@ -64,7 +60,6 @@ import Contract.Value as Value
 import Control.Monad.Reader.Trans (ask)
 import Contract.Wallet (mkNamiWalletAff)
 import Data.Array (replicate)
-import Data.Bifunctor (bimap)
 import Data.BigInt (fromInt)
 import Data.Bitraversable (bitraverse)
 import Data.Foldable (length, sum)
@@ -190,15 +185,15 @@ createTokens = do
           val <- values
           pure $ Constraints.mustMintValueWithRedeemer red val
       -- create all the tokens in one utxo each
-      {-, mconcat $ do 
-      vhash <- vhashes
-      cs <- css
-      tok <- toks
-      replicate tokenCount 
-        $ Constraints.mustPayToScript vhash unitDatum
-        $ flip toCsValue cs 
-        $ pure 
-        $ Tuple (fst tok) 1-}
+      , mconcat $ do
+          vhash <- vhashes
+          cs <- css
+          tok <- toks
+          replicate tokenCount
+            $ Constraints.mustPayToScript vhash unitDatum
+            $ flip toCsValue cs
+            $ pure
+            $ Tuple (fst tok) 1
       ]
 
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
@@ -217,9 +212,7 @@ spendTokens
   :: TransactionHash -> Contract Configuration Unit
 spendTokens hash = do
   ContractConfig
-    { tokens
-    , policies
-    , validators
+    { validators
     } <- ask
 
   utxosnreds :: Array (Utxo /\ Redeemer) <- getUtxos hash
@@ -260,7 +253,6 @@ getUtxos hash = go
   go = do
     ContractConfig
       { tokens
-      , policies
       , validators
       } <- ask
 
@@ -292,10 +284,6 @@ getUtxos hash = go
     else do
       logInfo' "Could not find utxos, trying again"
       go
-
-alwaysSucceedsScript :: Maybe Validator
-alwaysSucceedsScript = map wrap $ hush $ decodeAeson $ fromString
-  "4d01000033222220051200120011"
 
 isRedeemedBy1Script :: Maybe Validator
 isRedeemedBy1Script = map wrap $ hush $ decodeAeson $ fromString

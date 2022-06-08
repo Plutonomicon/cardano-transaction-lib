@@ -12,7 +12,6 @@ result
 result-*
 .envrc
 .direnv
-locals.dhall
 /node_modules
 /node_modules/
 .node
