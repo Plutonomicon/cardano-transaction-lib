@@ -1,6 +1,8 @@
 /* global require exports BROWSER_RUNTIME */
 
-const Blake2 = require('blakejs');
+const Blake2bPureJs = require('blakejs');
+const Blake2bWasm = require('blake2b-wasm');
+
 const SHA256 = require('jssha/dist/sha256');
 const SHA3 = require('jssha/dist/sha3');
 
@@ -14,11 +16,43 @@ if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
 const DIGEST_LENGTH_256 = 32;
 const DIGEST_LENGTH_224 = 28;
 
-exports.blake2b256Hash = bytesToHash =>
-    Blake2.blake2b(bytesToHash, null, DIGEST_LENGTH_256);
+const blake2b256HashPureJs = bytesToHash => {
+  return Blake2bPureJs.blake2b(bytesToHash, null, DIGEST_LENGTH_256);
+};
 
-exports.blake2b256HashHex = bytesToHash =>
-    Blake2.blake2bHex(bytesToHash, null, DIGEST_LENGTH_256);
+const blake2b256HashHexPureJs = bytesToHash => {
+  return Blake2bPureJs.blake2bHex(bytesToHash, null, DIGEST_LENGTH_256);
+};
+
+const withBlake2bWasmObject = bytesToHash => {
+  let obj = Blake2bWasm(DIGEST_LENGTH_256);
+  obj.update(Buffer.from(bytesToHash));
+  return obj;
+};
+
+exports._blake2b256Hash = bytesToHash => () => {
+  return new Promise(resolve => {
+    Blake2bWasm.ready(error => {
+      if (error || !Blake2bWasm.SUPPORTED) {
+        resolve(blake2b256HashPureJs(bytesToHash));
+      } else {
+        resolve(withBlake2bWasmObject(bytesToHash).digest());
+      }
+    })
+  })
+};
+
+exports._blake2b256HashHex = bytesToHash => () => {
+  return new Promise(resolve => {
+    Blake2bWasm.ready(error => {
+      if (error || !Blake2bWasm.SUPPORTED) {
+        resolve(blake2b256HashHexPureJs(bytesToHash));
+      } else {
+        resolve(withBlake2bWasmObject(bytesToHash).digest('hex'));
+      }
+    })
+  })
+};
 
 exports.hashPlutusData = plutusData =>
     lib.hash_plutus_data(plutusData).to_bytes();
@@ -26,7 +60,7 @@ exports.hashPlutusData = plutusData =>
 exports.hashPlutusScript = plutusScriptBytes => {
     // set Plutus language namespace byte
     let bytes = new Uint8Array([0x1, ...plutusScriptBytes]);
-    return Blake2.blake2b(bytes, null, DIGEST_LENGTH_224);
+    return Blake2bPureJs.blake2b(bytes, null, DIGEST_LENGTH_224);
 };
 
 const SHA256_HASH_VARIANT = 'SHA-256';

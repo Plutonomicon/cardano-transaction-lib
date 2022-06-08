@@ -2,6 +2,7 @@ module Test.Hashing (suite) where
 
 import Prelude
 
+import Control.Monad.Trans.Class (lift)
 import Data.Maybe (Maybe(Just), fromJust)
 import Data.Newtype (wrap)
 import Hashing
@@ -26,15 +27,15 @@ import Types.Scripts (PlutusScript)
 import Types.Transaction (DataHash)
 
 suite :: TestPlanM Unit
-suite = do
+suite =
   group "Hashing" do
     test "blake2b256 hash of an arbitrary byte array" do
-      Hashing.blake2b256Hash inputDataFixture
-        `shouldEqual` (hexToByteArrayUnsafe blake2b256HexDigestFixture)
+      Hashing.blake2b256Hash inputDataFixture >>=
+        shouldEqual (hexToByteArrayUnsafe blake2b256HexDigestFixture)
 
     test "blake2b256 hash of an arbitrary byte array as a hex string" do
-      Hashing.blake2b256HashHex inputDataFixture
-        `shouldEqual` blake2b256HexDigestFixture
+      Hashing.blake2b256HashHex inputDataFixture >>=
+        shouldEqual blake2b256HexDigestFixture
 
     test "blake2b256 hash of Plutus data" do
       Hashing.datumHash (wrap plutusDataFixture7)
