@@ -1,7 +1,6 @@
 module Serialization.AuxiliaryData
   ( convertAuxiliaryData
   , hashAuxiliaryData
-  , setTxAuxiliaryData
   ) where
 
 import Prelude
@@ -41,8 +40,6 @@ import Types.TransactionMetadata
   , TransactionMetadatum(Text, Bytes, Int, MetadataList, MetadataMap)
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   ) as T
-
-foreign import setTxAuxiliaryData :: Transaction -> AuxiliaryData -> Effect Unit
 
 foreign import newAuxiliaryData :: Effect AuxiliaryData
 

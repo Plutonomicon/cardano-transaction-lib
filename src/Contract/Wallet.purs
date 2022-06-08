@@ -1,6 +1,7 @@
 -- | A module with Wallet-related functionality.
 module Contract.Wallet
   ( mkNamiWallet
+  , mkGeroWallet
   , module ContractAddress
   , module Wallet
   ) where
@@ -8,10 +9,11 @@ module Contract.Wallet
 import Contract.Monad (Contract)
 import Effect.Aff.Class (liftAff)
 import Wallet
-  ( NamiConnection
-  , NamiWallet
-  , Wallet(Nami)
+  ( Cip30Connection
+  , Cip30Wallet
+  , Wallet(Gero, Nami)
   , mkNamiWalletAff
+  , mkGeroWalletAff
   ) as Wallet
 import Contract.Address
   ( getWalletAddress
@@ -21,3 +23,6 @@ import Contract.Address
 -- | Make a wallet lifted into `Contract` from `Aff`.
 mkNamiWallet :: forall (r :: Row Type). Contract r Wallet.Wallet
 mkNamiWallet = liftAff Wallet.mkNamiWalletAff
+
+mkGeroWallet :: forall (r :: Row Type). Contract r Wallet.Wallet
+mkGeroWallet = liftAff Wallet.mkGeroWalletAff
