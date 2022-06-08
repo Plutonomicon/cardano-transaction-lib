@@ -13,8 +13,8 @@ import Contract.Address (NetworkId(TestnetId))
 import Contract.Monad
   ( ContractConfig(ContractConfig)
   , Contract
-  , ConfigParams (ConfigParams)
-  , LogLevel (Trace)
+  , ConfigParams(ConfigParams)
+  , LogLevel(Trace)
   , liftContractM
   , liftedE
   , liftedM
@@ -29,7 +29,13 @@ import Contract.Monad
   , defaultServerConfig
   , mkContractConfig
   )
-import Contract.PlutusData (PlutusData(..), toData, unitDatum, unitRedeemer, Datum (Datum))
+import Contract.PlutusData
+  ( PlutusData(..)
+  , toData
+  , unitDatum
+  , unitRedeemer
+  , Datum(Datum)
+  )
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts
@@ -47,7 +53,7 @@ import Contract.Transaction
   , TransactionInput
   )
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (utxosAt, UtxoM)
+import Contract.Utxos (utxosAt, UtxoM(UtxoM))
 import Contract.Value
   ( mkTokenName
   , scriptCurrencySymbol
@@ -68,20 +74,19 @@ import Data.Set as Set
 import Effect.Aff (Aff, delay, Milliseconds(Milliseconds), error)
 import Plutus.ToPlutusType (toPlutusType)
 import Plutus.Types.Transaction (Utxo)
-import Types.Redeemer (Redeemer (Redeemer))
-import Undefined (undefined)
+import Safe.Coerce (coerce)
+import Types.Redeemer (Redeemer(Redeemer))
 
 -- | to run this, edit `ps-entrypoint` in the MakeFile
 main :: Effect Unit
 main = launchAff_ threeRedeemerContract
 
-
-type Configuration = 
+type Configuration =
   ( -- | the scripts we're going to lock the utxos at 
     validators :: Array (Validator /\ Redeemer)
-    -- | the Tokennames and the amounts we're going to luck
+  -- | the Tokennames and the amounts we're going to luck
   , tokens :: Array (String /\ Int)
-    -- | the CurrencySymbols wee're gonig to look the tokens at 
+  -- | the CurrencySymbols wee're gonig to look the tokens at 
   , policies :: Array MintingPolicy
   )
 
@@ -91,30 +96,36 @@ threeRedeemerContract = do
   log "ThreeRedeemerContract"
 
   wallet <- mkNamiWalletAff
-  mps <- liftM (error "Could not obtain MintingPolicies") $ sequence [ mp1, mp2, mp3 ]
+  mps <- liftM (error "Could not obtain MintingPolicies") $ sequence
+    [ mp1, mp2, mp3 ]
+  (red1 /\ red2 /\ red3) <- do
+    r1 <- liftM (error "Could not obtain Validator for 1") isRedeemedBy1Script
+    r2 <- liftM (error "Could not obtain Validator for 2") isRedeemedBy2Script
+    r3 <- liftM (error "Could not obtain Validator for 3") isRedeemedBy3Script
+    pure $ r1 /\ r2 /\ r3
 
   let
     configuration :: Record Configuration
-    configuration = {
-      validators : 
-      [ undefined /\ Redeemer (toData $ Integer $ fromInt 1)
-      , undefined /\ Redeemer (toData $ Integer $ fromInt 2)
-      , undefined /\ Redeemer (toData $ Integer $ fromInt 3)
-      ] 
-    , tokens : 
-      [ Tuple "pleasedontspent" 3
-      ]
-    , policies : mps
-    }
+    configuration =
+      { validators:
+          [ red1 /\ Redeemer (toData $ Integer $ fromInt 1)
+          , red2 /\ Redeemer (toData $ Integer $ fromInt 2)
+          , red3 /\ Redeemer (toData $ Integer $ fromInt 3)
+          ]
+      , tokens:
+          [ Tuple "pleasedontspent" 3
+          ]
+      , policies: mps
+      }
 
-  cfg :: ContractConfig Configuration <- mkContractConfig $ ConfigParams $ 
-    { wallet : pure wallet 
-    , datumCacheConfig : defaultDatumCacheWsConfig
-    , ogmiosConfig : defaultOgmiosWsConfig
-    , ctlServerConfig : defaultServerConfig
-    , networkId : TestnetId
-    , logLevel : Trace
-    , extraConfig : configuration
+  cfg :: ContractConfig Configuration <- mkContractConfig $ ConfigParams $
+    { wallet: pure wallet
+    , datumCacheConfig: defaultDatumCacheWsConfig
+    , ogmiosConfig: defaultOgmiosWsConfig
+    , ctlServerConfig: defaultServerConfig
+    , networkId: TestnetId
+    , logLevel: Trace
+    , extraConfig: configuration
     }
 
   hash <- runContract cfg createTokens
@@ -129,15 +140,20 @@ threeRedeemerContract = do
 createTokens
   :: Contract Configuration TransactionHash
 createTokens = do
-  ContractConfig 
+  ContractConfig
     { tokens
     , policies
     , validators
-    } <- ask 
+    } <- ask
 
-  css :: Array CurrencySymbol <- liftContractM "Could not get CurrencySymbols" $ for policies mkCurSym
-  toks :: Array (Tuple TokenName Int) <- for tokens $ 
-    bitraverse (liftContractM "could not make tokennames with amounts" <<< (mkTokenName <=< byteArrayFromAscii)) pure
+  css :: Array CurrencySymbol <- liftContractM "Could not get CurrencySymbols" $
+    for policies mkCurSym
+  toks :: Array (Tuple TokenName Int) <- for tokens $
+    bitraverse
+      ( liftContractM "could not make tokennames with amounts" <<<
+          (mkTokenName <=< byteArrayFromAscii)
+      )
+      pure
 
   logInfo' $ "Trying to create " <> show toks
 
@@ -156,7 +172,9 @@ createTokens = do
     values :: Array Value.Value
     values = toCsValue toks <$> css
 
-  vhashes :: Array ValidatorHash <- traverse (liftContractM "could not hash validator" <<< validatorHash <<< fst) validators
+  vhashes :: Array ValidatorHash <- traverse
+    (liftContractM "could not hash validator" <<< validatorHash <<< fst)
+    validators
 
   let
     lookups :: Lookups.ScriptLookups PlutusData
@@ -167,20 +185,20 @@ createTokens = do
 
     constraints :: Constraints.TxConstraints Unit Unit
     constraints = mconcat
-      [ mconcat $ do 
+      [ mconcat $ do
           Tuple _ red <- validators
-          val <- values 
+          val <- values
           pure $ Constraints.mustMintValueWithRedeemer red val
       -- create all the tokens in one utxo each
-      , mconcat $ do 
-          vhash <- vhashes
-          cs <- css
-          tok <- toks
-          replicate tokenCount 
-            $ Constraints.mustPayToScript vhash unitDatum
-            $ flip toCsValue cs 
-            $ pure 
-            $ Tuple (fst tok) 1
+      {-, mconcat $ do 
+      vhash <- vhashes
+      cs <- css
+      tok <- toks
+      replicate tokenCount 
+        $ Constraints.mustPayToScript vhash unitDatum
+        $ flip toCsValue cs 
+        $ pure 
+        $ Tuple (fst tok) 1-}
       ]
 
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
@@ -190,7 +208,7 @@ createTokens = do
   logInfo' $ "Balanced and signed tx is " <> show bsTx
   logInfo' $ "Created utxos " <> show values
 
-  submit bsTx.signedTxCbor 
+  submit bsTx.signedTxCbor
 
 -- | for each Script we have one redeemer that we're goig to supply
 -- | for each MintingPolicy we spend the specified count of tokens with the names specified
@@ -198,31 +216,33 @@ createTokens = do
 spendTokens
   :: TransactionHash -> Contract Configuration Unit
 spendTokens hash = do
-  ContractConfig 
+  ContractConfig
     { tokens
     , policies
     , validators
-    } <- ask 
+    } <- ask
 
-  Tuple utxo reds <- getUtxosForScript hash 
+  utxosnreds :: Array (Utxo /\ Redeemer) <- getUtxos hash
   let
-    orefs :: Array TransactionInput
-    orefs = Set.toUnfoldable
-      $ Set.filter ((_ == hash) <<< _.transactionId <<< unwrap)
-      $ Map.keys utxo
+    getOrefs :: Utxo -> Array TransactionInput
+    getOrefs = Set.toUnfoldable
+      <<< Set.filter ((_ == hash) <<< _.transactionId <<< unwrap)
+      <<< Map.keys
 
     constraints :: Constraints.TxConstraints Unit Unit
-    constraints = mconcat
-      $ flip Constraints.mustSpendScriptOutput unitRedeemer
-      <$> orefs
+    constraints = mconcat $ do
+      (utxo /\ red) <- utxosnreds
+      pure $ mconcat $
+        (flip Constraints.mustSpendScriptOutput red <$> getOrefs utxo)
 
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mconcat
-      [ Lookups.unspentOutputs utxo
+      [ mconcat $ Lookups.unspentOutputs <<< fst <$> utxosnreds
       , mconcat $ Lookups.validator <<< fst <$> validators
       ]
 
-  logInfo' $ "Found " <> show orefs <> " at alwaysSucceeeds address"
+  logInfo' $ "Found " <> show (getOrefs <<< fst <$> utxosnreds) <>
+    " at alwaysSucceeeds address"
 
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
   BalancedSignedTransaction bsTx <-
@@ -231,26 +251,27 @@ spendTokens hash = do
   logInfo' $ "Hash of second transaction " <> show hash2
   pure unit
 
-
-
-getUtxosForScript
+getUtxos
   :: forall (r :: Row Type)
-  . TransactionHash
-  -> Contract Configuration (Tuple Utxo Redeemer)
-getUtxosForScript hash = go
+   . TransactionHash
+  -> Contract Configuration (Array (Utxo /\ Redeemer))
+getUtxos hash = go
   where
   go = do
-    ContractConfig 
+    ContractConfig
       { tokens
       , policies
       , validators
-      } <- ask 
+      } <- ask
 
-    utxos :: Array UtxoM <- for validators $ \(Tuple val _) -> do 
-      vhash <- liftContractM "could not hash validator" $ validatorHash val
+    utxos :: Array (UtxoM /\ Redeemer) <- for validators $ \(Tuple val red) ->
+      do
+        vhash <- liftContractM "could not hash validator" $ validatorHash val
 
-      liftContractM ("could not get utxos at " <> show vhash) =<< utxosAt
-        (scriptHashAddress vhash)
+        utxo <- liftContractM ("could not get utxos at " <> show vhash) =<<
+          utxosAt
+            (scriptHashAddress vhash)
+        pure $ utxo /\ red
 
     liftAff $ delay $ Milliseconds $ toNumber 3_000
     let
@@ -261,13 +282,13 @@ getUtxosForScript hash = go
         $ unwrap utxo
 
       orefs :: Array (Array TransactionInput)
-      orefs = getorefs <$> utxos
+      orefs = getorefs <<< fst <$> utxos
 
       tokenCount :: Int
       tokenCount = sum $ snd <$> tokens
 
     if (sum (length <$> orefs) == tokenCount) then
-      pure $ Tuple (unwrap utxos) orefs
+      pure $ coerce utxos
     else do
       logInfo' "Could not find utxos, trying again"
       go
@@ -276,18 +297,23 @@ alwaysSucceedsScript :: Maybe Validator
 alwaysSucceedsScript = map wrap $ hush $ decodeAeson $ fromString
   "4d01000033222220051200120011"
 
+isRedeemedBy1Script :: Maybe Validator
+isRedeemedBy1Script = map wrap $ hush $ decodeAeson $ fromString
+  "56010000222325333573466e1c0052002149858dd68011"
+
+isRedeemedBy2Script :: Maybe Validator
+isRedeemedBy2Script = map wrap $ hush $ decodeAeson $ fromString
+  "56010000222325333573466e1c0052004149858dd68011"
+
+isRedeemedBy3Script :: Maybe Validator
+isRedeemedBy3Script = map wrap $ hush $ decodeAeson $ fromString
+  "56010000222325333573466e1c0052006149858dd68011"
+
 mkMintingPolicy :: String -> Maybe MintingPolicy
 mkMintingPolicy = map wrap <<< hush <<< decodeAeson <<< fromString
 
 mkCurSym :: MintingPolicy -> Maybe CurrencySymbol
-mkCurSym mp = mkCurrencySymbol  <<< getCurrencySymbol =<< scriptCurrencySymbol mp
-
-policyValidatornRedeemer :: Array (Maybe MintingPolicy /\ Maybe Validator /\ PlutusData)
-policyValidatornRedeemer =
-  [ mp1 /\ undefined /\ toData (Integer $ fromInt 1) 
-  , mp2 /\ undefined /\  toData (Integer $ fromInt 2) 
-  , mp3 /\ undefined /\ toData (Integer $ fromInt 3)
-  ]
+mkCurSym mp = mkCurrencySymbol <<< getCurrencySymbol =<< scriptCurrencySymbol mp
 
 mp1 :: Maybe MintingPolicy
 mp1 = mkMintingPolicy
@@ -354,7 +380,7 @@ mp1 = mkMintingPolicy
   \222466a0044246600246a00644600400646a00644600200600224646460020024466006600400400\
   \244246a6008246a60080066a0060020021"
 
-mp2 :: Maybe MintingPolicy 
+mp2 :: Maybe MintingPolicy
 mp2 = mkMintingPolicy
   "59099601000032323233223322333222323233322232323232333222333222333333332222222233\
   \22333332222233332222332233223322333222332233223322332233223232323232323232323232\
@@ -419,7 +445,7 @@ mp2 = mkMintingPolicy
   \222466a0044246600246a00644600400646a00644600200600224646460020024466006600400400\
   \244246a6008246a60080066a0060020021"
 
-mp3 :: Maybe MintingPolicy 
+mp3 :: Maybe MintingPolicy
 mp3 = mkMintingPolicy
   "59099601000032323233223322333222323233322232323232333222333222333333332222222233\
   \22333332222233332222332233223322333222332233223322332233223232323232323232323232\
