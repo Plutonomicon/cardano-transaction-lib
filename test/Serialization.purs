@@ -2,12 +2,11 @@ module Test.Serialization (suite) where
 
 import Prelude
 
-import Data.BigInt as BigInt
 import Data.Maybe (isJust)
+import Data.BigInt as BigInt
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytesEffect)
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
 import Mote (group, test)
 import Serialization (convertTransaction, convertTxOutput, toBytes)
 import Serialization.PlutusData (convertPlutusData)
@@ -73,15 +72,6 @@ suite = do
         $ do
             let
               datum = PD.Integer (BigInt.fromInt 0)
-            datum' <- errMaybe "Cannot convertPlutusData" $ convertPlutusData
-              datum
-            let bytes = toBytes (asOneOf datum')
-            byteArrayToHex bytes `shouldEqual` "00"
-      test
-        "PlutusData #7 - Integer 500000000 (regression to https://github.com/Plutonomicon/cardano-transaction-lib/issues/488 ?)"
-        $ do
-            let
-              datum = PD.Integer (BigInt.fromInt 500000000)
             datum' <- errMaybe "Cannot convertPlutusData" $ convertPlutusData
               datum
             let bytes = toBytes (asOneOf datum')

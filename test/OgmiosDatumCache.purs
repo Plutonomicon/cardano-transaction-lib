@@ -1,6 +1,5 @@
 module Test.OgmiosDatumCache
-  ( plutusDataToFromAesonTest
-  , suite
+  ( suite
   ) where
 
 import Prelude
@@ -8,7 +7,6 @@ import Prelude
 import Aeson (caseAesonArray, decodeAeson, encodeAeson)
 import Contract.Address (ByteArray)
 import Contract.PlutusData (Datum(..))
-import Contract.Prelude (log)
 import Control.Monad.Error.Class (class MonadThrow)
 import Data.Either (Either(Right, Left))
 import Data.Newtype (unwrap)
@@ -16,7 +14,7 @@ import Data.Traversable (for_)
 import Effect.Class (class MonadEffect)
 import Effect.Exception (Error)
 import Hashing (datumHash)
-import Mote (group, test)
+import Mote (group, skip, test)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Utils (errEither, errMaybe, readAeson)
 import TestM (TestPlanM)
@@ -24,7 +22,8 @@ import Types.PlutusData (PlutusData)
 
 suite :: TestPlanM Unit
 suite = group "Ogmios Datum Cache tests" $ do
-  test "Plutus data samples should satisfy the Aeson roundtrip test"
+  skip $ test
+    "Plutus data samples should satisfy the Aeson roundtrip test (FIXME: https://github.com/mlabs-haskell/purescript-aeson/issues/7)"
     plutusDataToFromAesonTest
   test "Plutus data samples should have a compatible hash" plutusDataHashingTest
 
@@ -57,3 +56,4 @@ plutusDataHashingTest = do
   for_ elems \{ hash, plutusData } -> do
     hash' <- errMaybe "Couldn't hash the datum" <<< datumHash $ Datum plutusData
     hash `shouldEqual` unwrap hash'
+

@@ -12,22 +12,6 @@ module Test.Utils
 
 import Prelude
 
-import Data.Const (Const)
-import Data.Either (Either(Left, Right))
-import Data.Foldable (sequence_)
-import Data.Maybe (Maybe(Just, Nothing))
-import Effect.Aff (Aff, error)
-import Effect.Aff.Class (liftAff)
-import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (throwException, throw)
-import Mote (Plan, foldPlan, planT, test)
-import Node.Path (FilePath)
-import Test.Spec (Spec, describe, it)
-import Test.Spec.Assertions (shouldEqual)
-import Test.Spec.Reporter (consoleReporter)
-import Test.Spec.Runner (runSpec)
-import TestM (TestPlanM)
-import Type.Proxy (Proxy)
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
@@ -37,8 +21,24 @@ import Aeson
   , encodeAeson
   , parseJsonStringToAeson
   )
+import Data.Const (Const)
+import Data.Either (Either(Left, Right))
+import Data.Foldable (sequence_)
+import Data.Maybe (Maybe(Just, Nothing))
+import Effect.Aff (Aff, error)
+import Effect.Aff.Class (liftAff)
+import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Exception (throwException, throw)
+import Mote (Plan, foldPlan, planT, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
+import Node.Path (FilePath)
+import Test.Spec (Spec, describe, it, pending)
+import Test.Spec.Assertions (shouldEqual)
+import Test.Spec.Reporter (consoleReporter)
+import Test.Spec.Runner (runSpec)
+import TestM (TestPlanM)
+import Type.Proxy (Proxy)
 
 foreign import unsafeCall :: forall a b. Proxy b -> String -> a -> b
 
@@ -54,7 +54,7 @@ interpret spif = do
   go =
     foldPlan
       (\x -> it x.label $ liftAff x.value)
-      (const $ pure unit)
+      (\label -> pending label)
       (\x -> describe x.label $ go x.value)
       sequence_
 

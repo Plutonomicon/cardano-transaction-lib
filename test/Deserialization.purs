@@ -103,19 +103,23 @@ suite = do
       test "fixture #6" $ pdRoundTripTest plutusDataFixture6
       test "fixture #7" $ pdRoundTripTest plutusDataFixture7
       test "fixture #8" $ pdRoundTripTest plutusDataFixture8
-      test "fixture #8 different Cbor bytes encodings" $ do
-        cslPd' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
-          plutusDataFixture8Bytes
-        ctlPd' <-
-          errMaybe "Failed to convert from CSL PlutusData to CTL PlutusData" $
-            DPD.convertPlutusData cslPd'
-        ctlPd' `shouldEqual` plutusDataFixture8
-        cslPdWp' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
-          plutusDataFixture8Bytes'
-        ctlPdWp' <-
-          errMaybe "Failed to convert from CSL PlutusData to CTL PlutusData" $
-            DPD.convertPlutusData cslPdWp'
-        ctlPdWp' `shouldEqual` plutusDataFixture8
+      test
+        "fixture #8 different Cbor bytes encodings (compact vs general Constr tag encodings)"
+        $ do
+            cslPd' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
+              plutusDataFixture8Bytes
+            ctlPd' <-
+              errMaybe "Failed to convert from CSL PlutusData to CTL PlutusData"
+                $
+                  DPD.convertPlutusData cslPd'
+            ctlPd' `shouldEqual` plutusDataFixture8
+            cslPdWp' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
+              plutusDataFixture8Bytes'
+            ctlPdWp' <-
+              errMaybe "Failed to convert from CSL PlutusData to CTL PlutusData"
+                $
+                  DPD.convertPlutusData cslPdWp'
+            ctlPdWp' `shouldEqual` plutusDataFixture8
     group "UnspentTransactionOutput" do
       test "deserialization is inverse to serialization" do
         unspentOutput <- liftEffect $ createUnspentOutput txInputFixture1
