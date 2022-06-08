@@ -21,7 +21,7 @@ import Plutus.FromPlutusType (fromPlutusType)
 
 -- | This module defines query functionality via Ogmios to get utxos.
 
--- | Gets utxos at an (internal) `Address` in terms of a Plutus Address`.
+-- | Gets utxos at an (internal) `Address` in terms of a Plutus `Address`.
 -- | Results may vary depending on `Wallet` type. See `QueryM` for more details
 -- | on wallet variance.
 utxosAt

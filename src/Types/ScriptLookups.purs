@@ -78,7 +78,7 @@ import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
 import Data.Traversable (for, traverse, traverse_)
-import Data.Tuple (Tuple(..), fst, snd)
+import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff (Aff)
@@ -969,7 +969,7 @@ processConstraint mpsMap osMap = do
       -- Reindex mint redeemers.
       mintRedeemers <- lift $ reindexMintRedeemers mpsHash redeemer
       -- Append reindexed mint redeemers to array.
-      _redeemers <>= map (\red -> red /\ Nothing) mintRedeemers
+      _redeemers <>= map (_ /\ Nothing) mintRedeemers
       _cpsToTxBody <<< _mint <>= map wrap mintVal
     MustPayToPubKeyAddress pkh skh mDatum plutusValue -> do
       networkId <- getNetworkId

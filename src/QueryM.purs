@@ -45,7 +45,6 @@ module QueryM
   , signTransactionBytes
   , startFetchBlocks
   , submitTxOgmios
-  , submitTxWallet
   , traceQueryConfig
   , underlyingWebSocket
   ) where
@@ -166,10 +165,13 @@ import Types.Natural (Natural)
 import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
 import Types.Scripts (PlutusScript)
-import Types.Transaction (TransactionHash)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
-import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
+import Wallet
+  ( Wallet(Gero, Nami)
+  , Cip30Connection
+  , Cip30Wallet
+  )
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -292,26 +294,25 @@ allowError func = func <<< Right
 
 getWalletAddress :: QueryM (Maybe Address)
 getWalletAddress = withMWalletAff $ case _ of
-  Nami nami -> callNami nami _.getWalletAddress
+  Nami nami -> callCip30Wallet nami _.getWalletAddress
+  Gero gero -> callCip30Wallet gero _.getWalletAddress
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
 getWalletCollateral = withMWalletAff $ case _ of
-  Nami nami -> callNami nami _.getCollateral
+  Nami nami -> callCip30Wallet nami _.getCollateral
+  Gero gero -> callCip30Wallet gero _.getCollateral
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
 signTransaction tx = withMWalletAff $ case _ of
-  Nami nami -> callNami nami $ \nw -> flip nw.signTx tx
+  Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
+  Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
 
 signTransactionBytes
   :: CborBytes -> QueryM (Maybe CborBytes)
 signTransactionBytes tx = withMWalletAff $ case _ of
-  Nami nami -> callNami nami $ \nw -> flip nw.signTxBytes tx
-
-submitTxWallet
-  :: Transaction.Transaction -> QueryM (Maybe TransactionHash)
-submitTxWallet tx = withMWalletAff $ case _ of
-  Nami nami -> callNami nami $ \nw -> flip nw.submitTx tx
+  Nami nami -> callCip30Wallet nami \nw -> flip nw.signTxBytes tx
+  Gero gero -> callCip30Wallet gero \nw -> flip nw.signTxBytes tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do
@@ -335,15 +336,12 @@ withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
 withMWalletAff act = asks _.wallet >>= maybe (pure Nothing) (liftAff <<< act)
 
-callNami
+callCip30Wallet
   :: forall (a :: Type)
-   . NamiWallet
-  -> (NamiWallet -> (NamiConnection -> Aff a))
+   . Cip30Wallet
+  -> (Cip30Wallet -> (Cip30Connection -> Aff a))
   -> Aff a
-callNami nami act = act nami =<< readNamiConnection nami
-  where
-  readNamiConnection :: NamiWallet -> Aff NamiConnection
-  readNamiConnection = liftEffect <<< Ref.read <<< _.connection
+callCip30Wallet wallet act = act wallet wallet.connection
 
 -- The server will respond with a stringified integer value for the fee estimate
 newtype FeeEstimate = FeeEstimate BigInt
@@ -396,12 +394,8 @@ txToHex tx =
 calculateMinFee :: Transaction -> QueryM (Either ClientError Coin)
 calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   txHex <- liftEffect (txToHex tx)
-  url <- mkServerEndpointUrl
-    $ "fees?tx="
-        <> txHex
-        <> "&count="
-        <> UInt.toString witCount
-  liftAff (Affjax.get Affjax.ResponseFormat.string url)
+  url <- mkServerEndpointUrl "fees"
+  liftAff (postAeson url (encodeAeson { count: witCount, tx: txHex }))
     <#> either
       (Left <<< ClientHttpError)
       ( bimap ClientDecodeJsonError (wrap <<< unwrap :: FeeEstimate -> Coin)
@@ -444,8 +438,8 @@ evalTxExecutionUnits
   :: Transaction -> QueryM (Either ClientError (Array RdmrPtrExUnits))
 evalTxExecutionUnits tx = do
   txHex <- liftEffect (txToHex tx)
-  url <- mkServerEndpointUrl ("eval-ex-units?tx=" <> txHex)
-  liftAff (Affjax.get Affjax.ResponseFormat.string url)
+  url <- mkServerEndpointUrl "eval-ex-units"
+  liftAff (postAeson url (encodeAeson { tx: txHex }))
     <#> either
       (Left <<< ClientHttpError)
       ( lmap ClientDecodeJsonError <<< (decodeAeson <=< parseJsonStringToAeson)

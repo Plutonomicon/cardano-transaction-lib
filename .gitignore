@@ -19,6 +19,7 @@ locals.dhall
 .node-cfg
 /server/dist-newstyle
 /server/dist-newstyle/
+/server/dist/
 .projectile
 /dist/
 output.js

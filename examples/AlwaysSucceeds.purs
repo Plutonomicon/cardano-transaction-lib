@@ -8,7 +8,8 @@ import Contract.Prelude
 import Contract.Address (scriptHashAddress)
 import Contract.Aeson (decodeAeson, fromString)
 import Contract.Monad
-  ( ContractConfig(ContractConfig)
+  ( Contract
+  , ContractConfig(ContractConfig)
   , launchAff_
   , liftContractM
   , liftedE
@@ -16,27 +17,25 @@ import Contract.Monad
   , logInfo'
   , runContract_
   , traceContractConfig
-  , Contract
   )
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator, validatorHash)
+import Contract.Scripts (Validator, ValidatorHash, validatorHash)
 import Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
+  , TransactionHash
+  , TransactionInput(TransactionInput)
   , balanceAndSignTx
   , submit
   )
+import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (utxosAt)
+import Contract.Utxos (UtxoM(UtxoM), utxosAt)
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Effect.Aff (delay)
-import Plutus.Types.Transaction (UtxoM(UtxoM))
-import Types.Scripts (ValidatorHash)
-import Types.Transaction (TransactionInput(TransactionInput), TransactionHash)
-import Types.TxConstraints (TxConstraints)
 
 main :: Effect Unit
 main = launchAff_ alwaysSucceedsContract
@@ -50,8 +49,9 @@ alwaysSucceedsContract = do
     validator <- liftContractM "Invalid script JSON" alwaysSucceedsScript
     vhash <- liftContractM "Couldn't hash validator" $ validatorHash validator
     logInfo' "Attempt to lock value"
-    txId <- payToAlwaysSucceeds vhash validator
-    countToZero 20
+    txId <- payToAlwaysSucceeds vhash
+    -- If the wallet is cold, you need a high parameter here.
+    countToZero 60
     logInfo' "Try to spend locked values"
     spendFromAlwaysSucceeds vhash validator txId
 
@@ -62,19 +62,16 @@ countToZero n =
     (liftAff <<< delay <<< wrap) 1000.0
     countToZero (n - 1)
 
-payToAlwaysSucceeds
-  :: ValidatorHash
-  -> Validator
-  -> Contract () TransactionHash
-payToAlwaysSucceeds vhash validator = do
+payToAlwaysSucceeds :: ValidatorHash -> Contract () TransactionHash
+payToAlwaysSucceeds vhash = do
   let
-    constraints :: Constraints.TxConstraints Unit Unit
+    constraints :: TxConstraints Unit Unit
     constraints = Constraints.mustPayToScript vhash unitDatum
       $ Value.lovelaceValueOf
       $ BigInt.fromInt 2_000_000
 
     lookups :: Lookups.ScriptLookups PlutusData
-    lookups = Lookups.validator validator
+    lookups = mempty
 
   buildBalanceSignAndSubmitTx lookups constraints
 
@@ -86,9 +83,7 @@ spendFromAlwaysSucceeds
 spendFromAlwaysSucceeds vhash validator txId = do
   let scriptAddress = scriptHashAddress vhash
   UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt scriptAddress
-  case
-    fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array (_ /\ _))
-    of
+  case fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
     Just txInput ->
       let
         lookups :: Lookups.ScriptLookups PlutusData

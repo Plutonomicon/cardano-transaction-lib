@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name:          ctl-server
-version:       0.1.0.0
+version:       1.0.0
 author:        mlabs
 build-type:    Simple
 
@@ -15,7 +15,6 @@ common common-language
     DeriveLift
     DeriveTraversable
     DerivingStrategies
-    DerivingVia
     DuplicateRecordFields
     ExplicitForAll
     FlexibleContexts
@@ -25,6 +24,7 @@ common common-language
     LambdaCase
     MonoLocalBinds
     MultiParamTypeClasses
+    NamedFieldPuns
     NumericUnderscores
     OverloadedStrings
     QuasiQuotes
