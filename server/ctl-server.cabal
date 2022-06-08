@@ -15,6 +15,7 @@ common common-language
     DeriveLift
     DeriveTraversable
     DerivingStrategies
+    DuplicateRecordFields
     ExplicitForAll
     FlexibleContexts
     FlexibleInstances
@@ -23,6 +24,7 @@ common common-language
     LambdaCase
     MonoLocalBinds
     MultiParamTypeClasses
+    NamedFieldPuns
     NumericUnderscores
     OverloadedStrings
     QuasiQuotes

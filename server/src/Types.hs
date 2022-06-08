@@ -1,4 +1,5 @@
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 
 module Types (
   AppM (AppM),
@@ -9,8 +10,10 @@ module Types (
   RdmrPtrExUnits (..),
   Fee (..),
   WitnessCount (..),
+  FeesRequest (..),
   ApplyArgsRequest (..),
   AppliedScript (..),
+  EvalExUnitsRequest (..),
   FinalizeRequest (..),
   FinalizedTransaction (..),
   CardanoError (..),
@@ -124,13 +127,20 @@ data RdmrPtrExUnits = RdmrPtrExUnits
   deriving stock (Show, Generic)
   deriving anyclass (FromJSON, ToJSON)
 
+data FeesRequest = FeesRequest
+  { count :: WitnessCount
+  , tx :: Cbor
+  }
+  deriving stock (Show, Eq, Generic)
+  deriving anyclass (FromJSON, ToJSON)
+
 newtype Fee = Fee Integer
   deriving stock (Show, Generic)
   deriving newtype (Eq)
 
 newtype WitnessCount = WitnessCount Word
   deriving stock (Show, Generic)
-  deriving newtype (Eq, FromHttpApiData, ToHttpApiData)
+  deriving newtype (Eq, FromJSON, ToJSON)
 
 instance ToJSON Fee where
   -- to avoid issues with integer parsing in PS, we should probably return
@@ -156,6 +166,12 @@ data ApplyArgsRequest = ApplyArgsRequest
 newtype AppliedScript = AppliedScript Ledger.Script
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
+
+newtype EvalExUnitsRequest = EvalExUnitsRequest
+  { tx :: Cbor
+  }
+  deriving stock (Show, Generic, Eq)
+  deriving anyclass (FromJSON, ToJSON)
 
 data FinalizeRequest = FinalizeRequest
   { tx :: Cbor
@@ -213,14 +229,22 @@ instance Docs.ToParam (QueryParam' '[Required] "tx" Cbor) where
           , "3e96550504d5336100021a0002b569a0f5f6"
           ]
 
-instance Docs.ToParam (QueryParam' '[Required] "count" WitnessCount) where
-  toParam _ =
-    Docs.DocQueryParam
-      "wit-count"
-      ["1"]
-      "A natural number representing the intended number of key witnesses\
-      \for the transaction"
-      Docs.Normal
+instance Docs.ToSample FeesRequest where
+  toSamples _ =
+    [
+      ( "The input should contain the intended number of witnesses and the\
+        \CBOR of the tx"
+      , FeesRequest (WitnessCount 1) (Cbor "00")
+      )
+    ]
+
+instance Docs.ToSample EvalExUnitsRequest where
+  toSamples _ =
+    [
+      ( "The input should contain the CBOR of the tx"
+      , EvalExUnitsRequest (Cbor "00")
+      )
+    ]
 
 instance Docs.ToSample ExecutionUnitsMap where
   toSamples _ =

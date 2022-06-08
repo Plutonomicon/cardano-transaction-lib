@@ -392,12 +392,8 @@ txToHex tx =
 calculateMinFee :: Transaction -> QueryM (Either ClientError Coin)
 calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   txHex <- liftEffect (txToHex tx)
-  url <- mkServerEndpointUrl
-    $ "fees?tx="
-        <> txHex
-        <> "&count="
-        <> UInt.toString witCount
-  liftAff (Affjax.get Affjax.ResponseFormat.string url)
+  url <- mkServerEndpointUrl "fees"
+  liftAff (postAeson url (encodeAeson { count: witCount, tx: txHex }))
     <#> either
       (Left <<< ClientHttpError)
       ( bimap ClientDecodeJsonError (wrap <<< unwrap :: FeeEstimate -> Coin)
@@ -440,8 +436,8 @@ evalTxExecutionUnits
   :: Transaction -> QueryM (Either ClientError (Array RdmrPtrExUnits))
 evalTxExecutionUnits tx = do
   txHex <- liftEffect (txToHex tx)
-  url <- mkServerEndpointUrl ("eval-ex-units?tx=" <> txHex)
-  liftAff (Affjax.get Affjax.ResponseFormat.string url)
+  url <- mkServerEndpointUrl "eval-ex-units"
+  liftAff (postAeson url (encodeAeson { tx: txHex }))
     <#> either
       (Left <<< ClientHttpError)
       ( lmap ClientDecodeJsonError <<< (decodeAeson <=< parseJsonStringToAeson)
