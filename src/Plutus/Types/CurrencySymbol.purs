@@ -31,6 +31,7 @@ import ToData (class ToData)
 import Types.ByteArray (ByteArray)
 import Data.Newtype (unwrap, wrap)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
+import Types.RawBytes (RawBytes)
 
 newtype CurrencySymbol = CurrencySymbol ByteArray
 
@@ -60,8 +61,8 @@ scriptHashAsCurrencySymbol :: ScriptHash -> CurrencySymbol
 scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< scriptHashToBytes
 
 -- | The minting policy hash of a currency symbol.
-currencyMPSHash :: CurrencySymbol -> Maybe MintingPolicyHash
-currencyMPSHash = map MintingPolicyHash <<< currencyScriptHash
+currencyMPSHash :: CurrencySymbol -> MintingPolicyHash
+currencyMPSHash = MintingPolicyHash <<< currencyScriptHash
 
 -- | The currency symbol of a monetary policy hash.
 mpsSymbol :: MintingPolicyHash -> Maybe CurrencySymbol
@@ -82,5 +83,9 @@ mkCurrencySymbol byteArr
 -- Internal
 --------------------------------------------------------------------------------
 
-currencyScriptHash :: CurrencySymbol -> Maybe ScriptHash
-currencyScriptHash = scriptHashFromBytes <<< wrap <<< getCurrencySymbol
+-- | Same as `Serializtion.Hash.scriptHashFromBytes` but it won't catch the 
+-- | javascript exceptions, do not export.
+foreign import _unsafeScriptHashFromBytes :: RawBytes -> ScriptHash
+
+currencyScriptHash :: CurrencySymbol -> ScriptHash
+currencyScriptHash = _unsafeScriptHashFromBytes <<< wrap <<< getCurrencySymbol
