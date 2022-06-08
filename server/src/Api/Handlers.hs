@@ -1,6 +1,3 @@
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE NamedFieldPuns #-}
-
 module Api.Handlers (
   estimateTxFees,
   applyArgs,
