@@ -24,6 +24,7 @@ You can edit this file as you like.
   , "exceptions"
   , "foldable-traversable"
   , "foreign-object"
+  , "gen"
   , "http-methods"
   , "identity"
   , "integers"
