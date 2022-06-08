@@ -2,38 +2,34 @@ module Test.Deserialization (suite) where
 
 import Prelude
 
+import Cardano.Types.Transaction (NativeScript(ScriptAny), TransactionOutput) as T
 import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
 import Data.Array as Array
 import Data.BigInt as BigInt
+import Data.Either (hush)
 import Data.Maybe (isJust, isNothing)
 import Data.Newtype (unwrap)
-import Effect (Effect)
-import Effect.Class (liftEffect)
-import Mote (group, test)
-import Test.Spec.Assertions (shouldEqual, shouldSatisfy, expectError)
-import TestM (TestPlanM)
-import Untagged.Union (asOneOf)
-
-import Cardano.Types.Transaction
-  ( NativeScript(ScriptAny)
-  , TransactionOutput
-  ) as T
-import Deserialization.BigNum (bigNumToBigInt)
 import Deserialization.BigInt as DB
+import Deserialization.BigNum (bigNumToBigInt)
 import Deserialization.FromBytes (fromBytes)
 import Deserialization.NativeScript as NSD
 import Deserialization.PlutusData as DPD
+import Deserialization.Transaction (convertTransaction) as TD
 import Deserialization.UnspentOutput
   ( convertUnspentOutput
   , mkTransactionUnspentOutput
   , newTransactionUnspentOutputFromBytes
   )
 import Deserialization.WitnessSet (deserializeWitnessSet, convertWitnessSet)
+import Effect (Effect)
+import Effect.Class (liftEffect)
+import Mote (group, test)
+import Serialization (convertTransaction) as TS
 import Serialization as Serialization
-import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.BigInt as SB
+import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.NativeScript (convertNativeScript) as NSS
 import Serialization.PlutusData as SPD
 import Serialization.Types (TransactionUnspentOutput)
@@ -53,6 +49,7 @@ import Test.Fixtures
   , plutusDataFixture5
   , plutusDataFixture6
   , plutusDataFixture7
+  , txFixture4
   , txInputFixture1
   , txOutputFixture1
   , utxoFixture1
@@ -64,8 +61,11 @@ import Test.Fixtures
   , witnessSetFixture3Value
   , witnessSetFixture4
   )
+import Test.Spec.Assertions (shouldEqual, shouldSatisfy, expectError)
 import Test.Utils (errMaybe)
+import TestM (TestPlanM)
 import Types.Transaction (TransactionInput) as T
+import Untagged.Union (asOneOf)
 
 suite :: TestPlanM Unit
 suite = do
@@ -137,6 +137,12 @@ suite = do
           newTransactionUnspentOutputFromBytes utxoFixture1 >>=
             convertUnspentOutput
         res `shouldEqual` utxoFixture1'
+    group "Transaction" do
+      test "deserialization is inverse to serialization" do
+        let input = txFixture4
+        serialized <- liftEffect $ TS.convertTransaction input
+        let expected = TD.convertTransaction serialized
+        pure input `shouldEqual` hush expected
     group "WitnessSet - deserialization" do
       group "fixture #1" do
         res <- errMaybe "Failed deserialization 5" do

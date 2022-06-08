@@ -74,6 +74,7 @@ import Serialization.Types
   ( AssetName
   , Assets
   , AuxiliaryData
+  , AuxiliaryDataHash
   , BigInt
   , BigNum
   , Certificate
@@ -425,6 +426,9 @@ foreign import toBytes
          |+| NativeScript
          |+| ScriptDataHash
          |+| Redeemers
+         |+| GenesisHash
+         |+| GenesisDelegateHash
+         |+| AuxiliaryDataHash
      -- Add more as needed.
      )
   -> ByteArray

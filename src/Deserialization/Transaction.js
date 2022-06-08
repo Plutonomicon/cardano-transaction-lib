@@ -1,3 +1,10 @@
+/* global exports */
+
+const call = property => object => object[property]();
+const callMaybe = property => maybe => object => {
+    const res = object[property]();
+    return res != null ? maybe.just(res) : maybe.nothing;
+};
 
 exports._txIsValid = tx => tx.is_valid();
 exports._txWitnessSet = tx => tx.witness_set();
@@ -294,3 +301,79 @@ exports._unpackExUnitsPrices = cslEup => {
         stepPrice: cslEup.step_price(),
     };
 };
+
+exports.poolParamsOperator = call('operator');
+exports.poolParamsVrfKeyhash = call('vrf_keyhash');
+exports.poolParamsPledge = call('pledge');
+exports.poolParamsCost = call('cost');
+exports.poolParamsMargin = call('margin');
+exports.poolParamsRewardAccount = call('reward_account');
+exports.poolParamsPoolOwners = containerHelper => poolParams =>
+    containerHelper.unpack(poolParams.pool_owners());
+exports.poolParamsRelays = containerHelper => poolParams =>
+    containerHelper.unpack(poolParams.relays());
+exports.poolParamsPoolMetadata = callMaybe('pool_metadata');
+
+exports.convertRelay_ = helper => relay => {
+    let res = relay.as_single_host_addr();
+    if (res) {
+        return helper.asSingleHostAddr(res);
+    }
+
+    res = relay.as_single_host_name();
+    if (res) {
+        return helper.asSingleHostName(res);
+    }
+
+    res = relay.as_multi_host_name();
+    if (res) {
+        return helper.asMultiHostName(res);
+    }
+
+    throw "convertRelay_: impossible happened: invalid Relay";
+};
+
+exports.convertIpv6_ = ipv6 => ipv6.ip();
+
+exports.convertIpv4_ = ipv6 => ipv6.ip();
+
+exports.convertSingleHostAddr_ = maybe => cont => singleHostAddr => {
+    const port = singleHostAddr.port();
+    const ipv4 = singleHostAddr.ipv4();
+    const ipv6 = singleHostAddr.ipv6();
+
+    return cont(
+        port ? maybe.just(port) : maybe.nothing
+    )(
+        ipv4 ? maybe.just(ipv4) : maybe.nothing
+    )(
+        ipv6 ? maybe.just(ipv6) : maybe.nothing
+    );
+};
+
+exports.convertSingleHostName_ = maybe => cont => singleHostName => {
+    const port = singleHostName.port();
+    return cont(
+        port ? maybe.just(port) : maybe.nothing
+    )(
+        singleHostName.dns_name().record()
+    );
+};
+
+exports.convertMultiHostName_ = multiHostName =>
+    multiHostName.dns_name().record();
+
+exports.convertGenesisKeyDelegation_ = cont => genesisKeyDelegation =>
+    cont(
+        genesisKeyDelegation.genesishash()
+    )(
+        genesisKeyDelegation.genesis_delegate_hash()
+    )(
+        genesisKeyDelegation.vrf_keyhash()
+    );
+
+exports.unpackMIRToStakeCredentials_ = containerHelper => mirToStakeCredentials =>
+    containerHelper.unpackKeyIndexed(MIRToStakeCredentials);
+
+exports.convertPoolMetadata_ = cont => poolMetadata =>
+    cont(poolMetadata.url().url())(poolMetadata.pool_metadata_hash());
