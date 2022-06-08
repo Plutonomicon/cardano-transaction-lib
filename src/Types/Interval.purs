@@ -289,7 +289,6 @@ instance (Arbitrary a, Ord a) => Arbitrary (Interval a) where
     upper <- UpperBound (max extended1 extended2) <$> arbitrary
     pure $ Interval { from: lower, to: upper }
 
-
 --------------------------------------------------------------------------------
 -- Helpers
 --------------------------------------------------------------------------------
@@ -655,7 +654,7 @@ derive newtype instance EncodeAeson RelSlot
 instance Show RelSlot where
   show (RelSlot rs) = showWithParens "RelSlot" rs
 
-instance Arbitrary RelSlot where 
+instance Arbitrary RelSlot where
   arbitrary = RelSlot <<< BigInt.fromInt <$> arbitrary
 
 -- | Relative time to the start of an `EraSummary`. Contract this to
@@ -673,7 +672,7 @@ derive newtype instance EncodeAeson RelTime
 instance Show RelTime where
   show (RelTime rt) = showWithParens "RelTime" rt
 
-instance Arbitrary RelTime where 
+instance Arbitrary RelTime where
   arbitrary = RelTime <<< BigInt.fromInt <$> arbitrary
 
 -- | Any leftover time from using `mod` when dividing my slot length.
@@ -690,7 +689,7 @@ derive newtype instance EncodeAeson ModTime
 instance Show ModTime where
   show (ModTime mt) = showWithParens "ModTime" mt
 
-instance Arbitrary ModTime where 
+instance Arbitrary ModTime where
   arbitrary = ModTime <<< BigInt.fromInt <$> arbitrary
 
 -- | Absolute time relative to System Start, not UNIX epoch.
@@ -707,7 +706,7 @@ derive newtype instance EncodeAeson AbsTime
 instance Show AbsTime where
   show (AbsTime at) = showWithParens "AbsTime" at
 
-instance Arbitrary AbsTime where 
+instance Arbitrary AbsTime where
   arbitrary = AbsTime <<< BigInt.fromInt <$> arbitrary
 
 -- | Find the relative slot provided we know the `AbsSlot` for an absolute slot
