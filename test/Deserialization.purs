@@ -6,6 +6,8 @@ import Cardano.Types.Transaction (NativeScript(ScriptAny), TransactionOutput) as
 import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
+import Contract.Address (ByteArray)
+import Control.Monad.Error.Class (class MonadThrow)
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Maybe (isJust, isNothing)
@@ -20,9 +22,10 @@ import Deserialization.UnspentOutput
   , mkTransactionUnspentOutput
   , newTransactionUnspentOutputFromBytes
   )
-import Deserialization.WitnessSet (deserializeWitnessSet, convertWitnessSet)
+import Deserialization.WitnessSet (convertWitnessSet, deserializeWitnessSet)
 import Effect (Effect)
-import Effect.Class (liftEffect)
+import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Exception (Error)
 import Mote (group, test)
 import Serialization (toBytes)
 import Serialization as Serialization
@@ -189,39 +192,26 @@ suite = do
                 Array.range 0 5000
           liftEffect $ testNativeScript longNativeScript
     group "WitnessSet - deserialization is inverse to serialization" do
-      test "fixture #1" do
-        ws0 <- errMaybe "Failed deserialization" $
-          deserializeWitnessSet witnessSetFixture1 >>= convertWitnessSet
-        ws1 <- liftEffect $ SW.convertWitnessSet ws0
-        ws2 <- errMaybe "Failed deserialization" $ convertWitnessSet ws1
-        ws0 `shouldEqual` ws2 -- value representation
-        let wsBytes = Serialization.toBytes (asOneOf ws1)
-        wsBytes `shouldEqual` witnessSetFixture1 -- byte representation
-      test "fixture #2" do
-        ws0 <- errMaybe "Failed deserialization" $
-          deserializeWitnessSet witnessSetFixture2 >>= convertWitnessSet
-        ws1 <- liftEffect $ SW.convertWitnessSet ws0
-        ws2 <- errMaybe "Failed deserialization" $ convertWitnessSet ws1
-        ws0 `shouldEqual` ws2 -- value representation
-        let wsBytes = Serialization.toBytes (asOneOf ws1)
-        wsBytes `shouldEqual` witnessSetFixture2 -- byte representation
-      test "fixture #3" do
-        ws0 <- errMaybe "Failed deserialization" $
-          deserializeWitnessSet witnessSetFixture3 >>= convertWitnessSet
-        ws1 <- liftEffect $ SW.convertWitnessSet ws0
-        ws2 <- errMaybe "Failed deserialization" $ convertWitnessSet ws1
-        ws0 `shouldEqual` ws2 -- value representation
-        let wsBytes = Serialization.toBytes (asOneOf ws1)
-        wsBytes `shouldEqual` witnessSetFixture3 -- byte representation
+      let
+        witnessSetRoundTrip
+          ∷ ∀ (m ∷ Type -> Type)
+           . MonadEffect m
+          => MonadThrow Error m
+          ⇒ ByteArray
+          -> m Unit
+        witnessSetRoundTrip fixture = do
+          ws0 <- errMaybe "Failed deserialization" $
+            deserializeWitnessSet fixture >>= convertWitnessSet
+          ws1 <- liftEffect $ SW.convertWitnessSet ws0
+          ws2 <- errMaybe "Failed deserialization" $ convertWitnessSet ws1
+          ws0 `shouldEqual` ws2 -- value representation
+          let wsBytes = Serialization.toBytes (asOneOf ws1)
+          wsBytes `shouldEqual` fixture -- byte representation
+      test "fixture #1" $ witnessSetRoundTrip witnessSetFixture1
+      test "fixture #2" $ witnessSetRoundTrip witnessSetFixture2
+      test "fixture #3" $ witnessSetRoundTrip witnessSetFixture3
       -- TODO: enable when nativeScripts are implemented
-      test "fixture #4" do
-        ws0 <- errMaybe "Failed deserialization" $
-          deserializeWitnessSet witnessSetFixture4 >>= convertWitnessSet
-        ws1 <- liftEffect $ SW.convertWitnessSet ws0
-        ws2 <- errMaybe "Failed deserialization" $ convertWitnessSet ws1
-        ws0 `shouldEqual` ws2 -- value representation
-        let wsBytes = Serialization.toBytes (asOneOf ws1)
-        wsBytes `shouldEqual` witnessSetFixture4 -- byte representation
+      test "fixture #4" $ witnessSetRoundTrip witnessSetFixture4
 
 createUnspentOutput
   :: T.TransactionInput
