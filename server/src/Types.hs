@@ -233,7 +233,7 @@ instance Docs.ToSample FeesRequest where
   toSamples _ =
     [
       ( "The input should contain the intended number of witnesses and the\
-         \CBOR of the tx"
+        \CBOR of the tx"
       , FeesRequest (WitnessCount 1) (Cbor "00")
       )
     ]
@@ -285,8 +285,6 @@ instance Docs.ToSample AppliedScript where
       , AppliedScript exampleScript
       )
     ]
-
-
 
 instance Docs.ToSample FinalizeRequest where
   toSamples _ =

@@ -41,7 +41,6 @@ import Types (
   AppM (AppM),
   AppliedScript,
   ApplyArgsRequest,
-  EvalExUnitsRequest,
   CardanoError (
     AcquireFailure,
     EraMismatchError,
@@ -52,6 +51,7 @@ import Types (
   CborDecodeError (InvalidCbor, InvalidHex, OtherDecodeError),
   CtlServerError (CardanoError, CborDecode),
   Env,
+  EvalExUnitsRequest,
   ExecutionUnitsMap,
   Fee,
   FeesRequest,

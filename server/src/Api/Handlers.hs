@@ -1,5 +1,5 @@
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Api.Handlers (
   estimateTxFees,
@@ -54,8 +54,8 @@ import Types (
   CborDecodeError (InvalidCbor, InvalidHex, OtherDecodeError),
   CtlServerError (CardanoError, CborDecode),
   Env (protocolParams),
-  ExecutionUnitsMap (ExecutionUnitsMap),
   EvalExUnitsRequest (EvalExUnitsRequest, tx),
+  ExecutionUnitsMap (ExecutionUnitsMap),
   Fee (Fee),
   FeesRequest (FeesRequest, count, tx),
   FinalizeRequest (FinalizeRequest, datums, redeemers, tx),
@@ -76,7 +76,7 @@ import Types (
 --------------------------------------------------------------------------------
 
 estimateTxFees :: FeesRequest -> AppM Fee
-estimateTxFees FeesRequest { count, tx } = do
+estimateTxFees FeesRequest {count, tx} = do
   decodeCborTx tx & either (throwM . CborDecode) pure >>= \case
     C.Tx txBody' keyWits -> do
       pparams <- asks protocolParams
