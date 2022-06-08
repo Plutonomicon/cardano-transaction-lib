@@ -28,7 +28,7 @@ import Serialization.Address (Address)
 import TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
 import Types.Transaction (TransactionInput)
 import Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
-import Wallet (Wallet(..))
+import Wallet (Wallet(Gero, Nami))
 
 --------------------------------------------------------------------------------
 -- UtxosAt
