@@ -167,7 +167,7 @@ newtype AppliedScript = AppliedScript Ledger.Script
   deriving stock (Show, Generic)
   deriving newtype (Eq, FromJSON, ToJSON)
 
-data EvalExUnitsRequest = EvalExUnitsRequest
+newtype EvalExUnitsRequest = EvalExUnitsRequest
   { tx :: Cbor
   }
   deriving stock (Show, Generic, Eq)
