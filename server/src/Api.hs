@@ -19,14 +19,11 @@ import Data.Proxy (Proxy (Proxy))
 import Network.Wai.Middleware.Cors qualified as Cors
 import Servant (
   Application,
-  Get,
   Handler,
   HasServer (ServerT),
   JSON,
   Post,
-  QueryParam',
   ReqBody,
-  Required,
   Server,
   ServerError (errBody),
   err400,
@@ -47,7 +44,6 @@ import Types (
     ScriptExecutionError,
     TxValidityIntervalError
   ),
-  Cbor,
   CborDecodeError (InvalidCbor, InvalidHex, OtherDecodeError),
   CtlServerError (CardanoError, CborDecode),
   Env,
@@ -57,7 +53,6 @@ import Types (
   FeesRequest,
   FinalizeRequest,
   FinalizedTransaction,
-  WitnessCount,
  )
 import Utils (lbshow)
 
