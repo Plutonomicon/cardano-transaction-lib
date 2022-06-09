@@ -73,14 +73,9 @@
         "github:input-output-hk/cardano-wallet/ae7569293e94241ef6829139ec02bd91abd069df";
       flake = false;
     };
-    ekg-json = {
-      url =
-        "github:coderfromhere/ekg-json/dcf5fe9ae7e9959e58d377a77cb036eea8d38c9b";
-      flake = false;
-    };
     ekg-forward = {
       url =
-        "github:input-output-hk/ekg-forward?ref=master";
+        "github:input-output-hk/ekg-forward/297cd9db5074339a2fb2e5ae7d0780debb670c63";
       flake = false;
     };
     flat = {
@@ -95,7 +90,7 @@
     };
     iohk-monitoring-framework = {
       url =
-        "github:input-output-hk/iohk-monitoring-framework?ref=master";
+        "github:input-output-hk/iohk-monitoring-framework/808724ff8a19a33d0ed06f9ef59fbd900b08553c";
       flake = false;
     };
     optparse-applicative = {
