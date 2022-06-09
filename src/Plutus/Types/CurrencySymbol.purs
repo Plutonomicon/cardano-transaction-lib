@@ -10,28 +10,17 @@ module Plutus.Types.CurrencySymbol
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , class EncodeAeson
-  , caseAesonObject
-  , decodeAeson
-  , encodeAeson'
-  , getField
-  , JsonDecodeError(TypeMismatch)
-  )
+import Aeson (class DecodeAeson, class EncodeAeson, caseAesonObject, decodeAeson, encodeAeson', getField, JsonDecodeError(TypeMismatch))
 import Data.Either (Either(Left))
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe, fromJust)
+import Data.Newtype (unwrap, wrap)
 import FromData (class FromData)
-import Serialization.Hash
-  ( ScriptHash
-  , scriptHashFromBytes
-  , scriptHashToBytes
-  )
+import Partial.Unsafe (unsafePartial)
+import Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
 import ToData (class ToData)
 import Types.ByteArray (ByteArray)
-import Data.Newtype (unwrap, wrap)
-import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Types.RawBytes (RawBytes)
+import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 
 newtype CurrencySymbol = CurrencySymbol ByteArray
 
@@ -83,9 +72,7 @@ mkCurrencySymbol byteArr
 -- Internal
 --------------------------------------------------------------------------------
 
--- | Same as `Serializtion.Hash.scriptHashFromBytes` but it won't catch the 
--- | javascript exceptions, do not export.
-foreign import _unsafeScriptHashFromBytes :: RawBytes -> ScriptHash
-
+-- This must be safe to use as long as we always construct a
+-- `CurrencySymbol` with the smart-constructors. 
 currencyScriptHash :: CurrencySymbol -> ScriptHash
-currencyScriptHash = _unsafeScriptHashFromBytes <<< wrap <<< getCurrencySymbol
+currencyScriptHash = unsafePartial $ fromJust <<< scriptHashFromBytes <<< wrap <<< getCurrencySymbol
