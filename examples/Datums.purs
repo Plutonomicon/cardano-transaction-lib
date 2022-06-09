@@ -22,7 +22,6 @@ import Contract.Prelude
 import Contract.Monad (runContract_, launchAff_, logInfo', traceContractConfig)
 import Contract.PlutusData (DataHash, getDatumByHash, getDatumsByHashes)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
-import Data.Newtype (wrap)
 
 main :: Effect Unit
 main = launchAff_ $ do

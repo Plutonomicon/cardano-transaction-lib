@@ -1,5 +1,3 @@
-{-# LANGUAGE NamedFieldPuns #-}
-
 module Api.Handlers (
   estimateTxFees,
   applyArgs,
@@ -53,8 +51,10 @@ import Types (
   CborDecodeError (InvalidCbor, InvalidHex, OtherDecodeError),
   CtlServerError (CardanoError, CborDecode),
   Env (protocolParams),
+  EvalExUnitsRequest (EvalExUnitsRequest, tx),
   ExecutionUnitsMap (ExecutionUnitsMap),
   Fee (Fee),
+  FeesRequest (FeesRequest, count, tx),
   FinalizeRequest (FinalizeRequest, datums, redeemers, tx),
   FinalizedTransaction (FinalizedTransaction),
   RdmrPtrExUnits (
@@ -72,14 +72,15 @@ import Types (
 -- Handlers
 --------------------------------------------------------------------------------
 
-estimateTxFees :: WitnessCount -> Cbor -> AppM Fee
-estimateTxFees (WitnessCount numWits) cbor = do
-  decodeCborTx cbor & either (throwM . CborDecode) pure >>= \case
+estimateTxFees :: FeesRequest -> AppM Fee
+estimateTxFees FeesRequest {count, tx} = do
+  decodeCborTx tx & either (throwM . CborDecode) pure >>= \case
     C.Tx txBody' keyWits -> do
       pparams <- asks protocolParams
       -- calculate and set script integrity hash before estimating fees
-      let txBody = setScriptIntegrityHash pparams txBody'
-          fee = estimateFee pparams numWits (C.Tx txBody keyWits)
+      let WitnessCount witCount = count
+          txBody = setScriptIntegrityHash pparams txBody'
+          fee = estimateFee pparams witCount (C.Tx txBody keyWits)
       Fee <$> finalizeTxFee fee
   where
     -- `txfee` value must also be taken into account when calculating fees,
@@ -115,9 +116,9 @@ applyArgs ApplyArgsRequest {script, args} =
 {- | Computes the execution units needed for each script in the transaction.
  https://input-output-hk.github.io/cardano-node/cardano-api/src/Cardano.Api.Fees.html#evaluateTransactionExecutionUnits
 -}
-evalTxExecutionUnits :: Cbor -> AppM ExecutionUnitsMap
-evalTxExecutionUnits cbor =
-  case decodeCborTx cbor of
+evalTxExecutionUnits :: EvalExUnitsRequest -> AppM ExecutionUnitsMap
+evalTxExecutionUnits EvalExUnitsRequest {tx} =
+  case decodeCborTx tx of
     Left err ->
       throwM (CborDecode err)
     Right (C.Tx txBody@(C.TxBody txBodyContent) _) -> do

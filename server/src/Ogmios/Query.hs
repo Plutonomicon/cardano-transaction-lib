@@ -87,6 +87,6 @@ tryQueryUntilZero query remainAttempts
         putStrLn $ "Error : " <> show e
         putStrLn "Waiting for ogmios conection attempt"
         putStrLn $ "Attempts remain : " <> show (remainAttempts -1)
-        Time.Extra.sleep 0.5
+        Time.Extra.sleep 3
         hFlush stdout
-        tryQueryUntilZero query (remainAttempts - 1)
+        tryQueryUntilZero query $ remainAttempts - 1
