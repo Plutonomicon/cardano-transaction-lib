@@ -290,8 +290,9 @@ convertTxBody txBody = do
         txBody
     , collateral: _txBodyCollateral containerHelper maybeFfiHelper txBody >>=
         traverse convertInput
-    , requiredSigners: _txBodyRequiredSigners maybeFfiHelper txBody #
-        (map <<< map) T.RequiredSigner
+    , requiredSigners:
+        _txBodyRequiredSigners containerHelper maybeFfiHelper txBody #
+          (map <<< map) T.RequiredSigner
     , networkId
     }
 
@@ -842,7 +843,10 @@ foreign import _txBodyCollateral
 
 -- required_signers(): Ed25519KeyHashes | void
 foreign import _txBodyRequiredSigners
-  :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe (Array Ed25519KeyHash)
+  :: ContainerHelper
+  -> MaybeFfiHelper
+  -> Csl.TransactionBody
+  -> Maybe (Array Ed25519KeyHash)
 
 -- network_id(): NetworkId | void
 foreign import _txBodyNetworkId
