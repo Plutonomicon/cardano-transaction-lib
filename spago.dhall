@@ -51,6 +51,7 @@ You can edit this file as you like.
   , "rationals"
   , "record"
   , "refs"
+  , "safe-coerce"
   , "spec"
   , "strings"
   , "tailrec"
