@@ -39,6 +39,7 @@ You can edit this file as you like.
   , "node-buffer"
   , "node-fs"
   , "node-fs-aff"
+  , "node-path"
   , "nonempty"
   , "ordered-collections"
   , "partial"
