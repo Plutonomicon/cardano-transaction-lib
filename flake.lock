@@ -373,16 +373,16 @@
     "cardano-node": {
       "flake": false,
       "locked": {
-        "lastModified": 1653292662,
-        "narHash": "sha256-yiXbgTJArFT0QBsnqmV7Z/06jGqmYXDCHerNTDtukSc=",
+        "lastModified": 1653097473,
+        "narHash": "sha256-e3oGTITOdPjg3q5invFVSUWKv2QqpnH5/3KqKiVAkTY=",
         "owner": "input-output-hk",
         "repo": "cardano-node",
-        "rev": "82067b797c3f53a9d8adb982622ac58f9d675d24",
+        "rev": "d0b0fa10ac83dc1d0d40aaf294cfded1b455a0a4",
         "type": "github"
       },
       "original": {
         "owner": "input-output-hk",
-        "ref": "1.35.0-rc1",
+        "ref": "vasil-testnet-v1",
         "repo": "cardano-node",
         "type": "github"
       }
@@ -1646,17 +1646,17 @@
     "ouroboros-network_2": {
       "flake": false,
       "locked": {
-        "lastModified": 1653060427,
-        "narHash": "sha256-GN7s+sZVj4VU+8oxQNpkYXpAd31U8g+Ppl/qYBboPS4=",
+        "lastModified": 1654356166,
+        "narHash": "sha256-V7D5R7ouqih57R+VQSTUJkeH7UkmmZ8wb4EQeBhl7i0=",
         "owner": "input-output-hk",
         "repo": "ouroboros-network",
-        "rev": "ea202b7b21983140d1944ccfde8750b891b59699",
+        "rev": "04245dbd69387da98d3a37de9f400965e922bb0e",
         "type": "github"
       },
       "original": {
         "owner": "input-output-hk",
         "repo": "ouroboros-network",
-        "rev": "ea202b7b21983140d1944ccfde8750b891b59699",
+        "rev": "04245dbd69387da98d3a37de9f400965e922bb0e",
         "type": "github"
       }
     },

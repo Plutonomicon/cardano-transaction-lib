@@ -60,7 +60,7 @@
     };
     cardano-node = {
       url =
-        "github:input-output-hk/cardano-node?ref=1.35.0-rc1";
+        "github:input-output-hk/cardano-node?ref=vasil-testnet-v1";
       flake = false;
     };
     cardano-prelude = {
@@ -100,7 +100,7 @@
     };
     ouroboros-network = {
       url =
-        "github:input-output-hk/ouroboros-network/ea202b7b21983140d1944ccfde8750b891b59699";
+        "github:input-output-hk/ouroboros-network/04245dbd69387da98d3a37de9f400965e922bb0e";
         # "github:input-output-hk/ouroboros-network/d2d219a86cda42787325bb8c20539a75c2667132";
         # "github:input-output-hk/ouroboros-network/540861f42800c4ed845d99b01f486c2eb1d1a6dc";
       flake = false;
@@ -249,7 +249,7 @@
           services = {
             cardano-node = {
               service = {
-                image = "inputoutput/cardano-node:1.35.0-rc1";
+                image = "inputoutput/cardano-node:vasil-testnet-v1";
                 ports = [ (bindPort node.port) ];
                 volumes = [
                   "${config.cardano-configurations}/network/${config.network.name}/cardano-node:/config"
