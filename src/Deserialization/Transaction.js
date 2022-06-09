@@ -304,8 +304,8 @@ exports._unpackExUnits = exunits => {
 // Csl.UnitInterval -> { numerator :: Csl.BigNum, denominator :: Csl.BigNum}
 exports._unpackUnitInterval = ui => {
     return {
-        mem: ui.numerator(),
-        steps: ui.denominator()
+        numerator: ui.numerator(),
+        denominator: ui.denominator()
     };
 };
 
