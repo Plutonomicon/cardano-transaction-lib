@@ -9,9 +9,8 @@ benchmarks:                  true
 -- The only sensible test display option
 test-show-details:           direct
 allow-newer:
-  *:aeson
   -- Pins to an old version of Template Haskell, unclear if/when it will be updated
-  , size-based:template-haskell
+  size-based:template-haskell
   , ouroboros-consensus-byron:formatting
   , beam-core:aeson
   , beam-sqlite:aeson
@@ -20,15 +19,14 @@ allow-newer:
 
 constraints:
   -- big breaking change here, inline-r doens't have an upper bound
-  , singletons < 3.0
+  singletons < 3.0
   -- bizarre issue: in earlier versions they define their own 'GEq', in newer
   -- ones they reuse the one from 'some', but there isn't e.g. a proper version
   -- constraint from dependent-sum-template (which is the library we actually use).
   , dependent-sum > 0.6.2.0
-  -- TODO Find a solution to this
-  -- -- Newer Hashable have instances for Set, which breaks beam-migrate
-  -- -- which declares its own instances of Hashable Set
-  -- , hashable < 1.3.4.0
+  -- Newer Hashable have instances for Set, which breaks beam-migrate
+  -- which declares its own instances of Hashable Set
+  , hashable < 1.3.4.0
 
 -- These packages appear in our dependency tree and are very slow to build.
 -- Empirically, turning off optimization shaves off ~50% build time.

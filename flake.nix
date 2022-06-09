@@ -35,12 +35,12 @@
     nixpkgs.follows = "haskell-nix/nixpkgs-unstable";
     cardano-addresses = {
       url =
-        "github:input-output-hk/cardano-addresses/ba8390504b6613957b73bf8d0d2aab1a989f104d";
+        "github:input-output-hk/cardano-addresses/d2f86caa085402a953920c6714a0de6a50b655ec";
       flake = false;
     };
     cardano-base = {
       url =
-        "github:input-output-hk/cardano-base/631cb6cf1fa01ab346233b610a38b3b4cba6e6ab";
+        "github:input-output-hk/cardano-base/41545ba3ac6b3095966316a99883d678b5ab8da8";
       flake = false;
     };
     cardano-config = {
@@ -55,12 +55,12 @@
     };
     cardano-ledger = {
       url =
-        "github:input-output-hk/cardano-ledger/c415253fff9a5ce9d7575230fc9098bcfee97653";
+        "github:input-output-hk/cardano-ledger/1a9ec4ae9e0b09d54e49b2a40c4ead37edadcce5";
       flake = false;
     };
     cardano-node = {
       url =
-        "github:input-output-hk/cardano-node?ref=vasil-testnet-v1";
+        "github:input-output-hk/cardano-node/8909dea9b3996b8288f15f0e4f31fb0f63964197";
       flake = false;
     };
     cardano-prelude = {
@@ -100,24 +100,12 @@
     };
     ouroboros-network = {
       url =
-        "github:input-output-hk/ouroboros-network/04245dbd69387da98d3a37de9f400965e922bb0e";
-        # "github:input-output-hk/ouroboros-network/d2d219a86cda42787325bb8c20539a75c2667132";
-        # "github:input-output-hk/ouroboros-network/540861f42800c4ed845d99b01f486c2eb1d1a6dc";
-      flake = false;
-    };
-    typed-protocols = {
-      url =
-        "github:input-output-hk/typed-protocols/b00ba45ed0c81284378ddea9a42c96e8ccb855e0";
-      flake = false;
-    };
-    io-sim = {
-      url =
-        "github:input-output-hk/io-sim/57e888b1894829056cb00b7b5785fdf6a74c3271";
+        "github:input-output-hk/ouroboros-network/d2d219a86cda42787325bb8c20539a75c2667132";
       flake = false;
     };
     plutus = {
       url =
-        "github:input-output-hk/plutus/fec94223a985e34d3b270460c8f150002f41b85b";
+        "github:input-output-hk/plutus/1efbb276ef1a10ca6961d0fd32e6141e9798bd11";
       flake = false;
     };
     # NOTE
@@ -183,8 +171,8 @@
       defaultConfig = final: with final; {
         inherit (inputs) cardano-configurations;
         network = {
-          name = "vasil-qa";
-          magic = 9; # use `null` for mainnet
+          name = "testnet";
+          magic = 1097911063; # use `null` for mainnet
         };
         node = { port = 3001; };
         ogmios = { port = 1337; };
@@ -249,7 +237,7 @@
           services = {
             cardano-node = {
               service = {
-                image = "inputoutput/cardano-node:vasil-testnet-v1";
+                image = "inputoutput/cardano-node:1.34.1";
                 ports = [ (bindPort node.port) ];
                 volumes = [
                   "${config.cardano-configurations}/network/${config.network.name}/cardano-node:/config"
