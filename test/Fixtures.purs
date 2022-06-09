@@ -970,8 +970,8 @@ witnessSetFixture3Value =
               ) /\
                 ( Ed25519Signature
                     "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08\
-                     \qrz0mgdxv5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq\
-                     \6faxl6"
+                    \qrz0mgdxv5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq\
+                    \6faxl6"
                 )
             )
         ]
