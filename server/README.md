@@ -14,7 +14,7 @@ We plan on supporting at least the following features:
 
 Run `nix develop .#hsDevShell` (or equivalently `nix develop .#package.x86_64-{linux|darwin}`; NB: not currently tested on macOS) in the repository root (i.e. up one level from `server`). This will place you in a development shell with `cabal`, `hoogle`, `haskell-language-server`, etc...
 
-The server executable can be built with `nix build .#cardano-trasaction-lib-server:exe:cardano-trasaction-lib-server` and run with `./result/bin/cardano-trasaction-lib-server`. `cabal` can also be used once in the development shell. The server will run on port 8081. You can optionally pass the `--port`/`-p` flag to explicitly choose a port to run on
+The server executable can be built with `nix build .#ctl-server:exe:ctl-server` and run with `./result/bin/ctl-server`. `cabal` can also be used once in the development shell. The server will run on port 8081. You can optionally pass the `--port`/`-p` flag to explicitly choose a port to run on
 
 ---
 
@@ -51,14 +51,20 @@ The server executable can be built with `nix build .#cardano-trasaction-lib-serv
 "4d01000033222220051200120011"
 ```
 
-## GET /eval-ex-units
+## POST /eval-ex-units
 
-### GET Parameters:
+### Request:
 
-- tx
-    - **Values**: *84a300818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001818258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d5336100021a0002b569a0f5f6*
-    - **Description**: A CBOR-encoded `Tx AlonzoEra`; should be sent as a hexadecimal string
+- Supported content types are:
 
+    - `application/json;charset=utf-8`
+    - `application/json`
+
+- The input should contain the CBOR of the tx (`application/json;charset=utf-8`, `application/json`):
+
+```javascript
+{"tx":"00"}
+```
 
 ### Response:
 
@@ -76,18 +82,20 @@ The server executable can be built with `nix build .#cardano-trasaction-lib-serv
 [{"exUnitsSteps":0,"rdmrPtrTag":0,"exUnitsMem":0,"rdmrPtrIdx":0}]
 ```
 
-## GET /fees
+## POST /fees
 
-### GET Parameters:
+### Request:
 
-- wit-count
-    - **Values**: *1*
-    - **Description**: A natural number representing the intended number of key witnessesfor the transaction
+- Supported content types are:
 
-- tx
-    - **Values**: *84a300818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001818258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d5336100021a0002b569a0f5f6*
-    - **Description**: A CBOR-encoded `Tx AlonzoEra`; should be sent as a hexadecimal string
+    - `application/json;charset=utf-8`
+    - `application/json`
 
+- The input should contain the intended number of witnesses and theCBOR of the tx (`application/json;charset=utf-8`, `application/json`):
+
+```javascript
+{"tx":"00","count":1}
+```
 
 ### Response:
 
