@@ -171,8 +171,8 @@
       defaultConfig = final: with final; {
         inherit (inputs) cardano-configurations;
         network = {
-          name = "testnet";
-          magic = 1097911063; # use `null` for mainnet
+          name = "vasil-qa";
+          magic = 9; # use `null` for mainnet
         };
         node = { port = 3001; };
         ogmios = { port = 1337; };
@@ -237,7 +237,7 @@
           services = {
             cardano-node = {
               service = {
-                image = "inputoutput/cardano-node:1.34.1";
+                image = "inputoutput/cardano-node:1.35.0-rc1";
                 ports = [ (bindPort node.port) ];
                 volumes = [
                   "${config.cardano-configurations}/network/${config.network.name}/cardano-node:/config"
