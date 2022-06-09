@@ -99,20 +99,15 @@ import QueryM
   , evalTxExecutionUnits
   )
 import QueryM.Utxos (utxosAt, filterUnusedUtxos)
-import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers)
-import Serialization.Address
-  ( Address
-  , addressPaymentCred
-  , withStakeCredential
-  )
+import QueryM.Utxos (utxosAt)
+import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
+import TxOutput (utxoIndexToUtxo)
+import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (DataHash, TransactionInput)
-import Types.UnbalancedTransaction
-  ( UnbalancedTx(UnbalancedTx)
-  , _transaction
-  )
-import TxOutput (utxoIndexToUtxo)
+import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), _transaction)
+import Wallet (Wallet(Gero, Nami))
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
@@ -139,14 +134,14 @@ derive instance genericBalanceTxError :: Generic BalanceTxError _
 instance showBalanceTxError :: Show BalanceTxError where
   show = genericShow
 
-data GetWalletAddressError = CouldNotGetNamiWalletAddress
+data GetWalletAddressError = CouldNotGetWalletAddress
 
 derive instance genericGetWalletAddressError :: Generic GetWalletAddressError _
 
 instance showGetWalletAddressError :: Show GetWalletAddressError where
   show = genericShow
 
-data GetWalletCollateralError = CouldNotGetNamiCollateral
+data GetWalletCollateralError = CouldNotGetCollateral
 
 derive instance genericGetWalletCollateralError ::
   Generic GetWalletCollateralError _
@@ -182,7 +177,9 @@ derive instance genericReturnAdaChangeError :: Generic ReturnAdaChangeError _
 instance showReturnAdaChangeError :: Show ReturnAdaChangeError where
   show = genericShow
 
-data AddTxCollateralsError = CollateralUtxosUnavailable
+data AddTxCollateralsError
+  = CollateralUtxosUnavailable
+  | AddTxCollateralsError
 
 derive instance genericAddTxCollateralsError :: Generic AddTxCollateralsError _
 
@@ -286,16 +283,22 @@ evalExUnitsAndMinFee'
        (Either EvalExUnitsAndMinFeeError (UnattachedUnbalancedTx /\ BigInt))
 evalExUnitsAndMinFee' unattachedTx =
   runExceptT do
-    attachedTx <- ExceptT $ reattachDatumsAndRedeemers unattachedTx
+    -- Reindex `Spent` script redeemers:
+    unattachedReindexedTx <- ExceptT $ reindexRedeemers unattachedTx
       <#> lmap ReindexRedeemersError
+    -- Reattach datums and redeemers before evaluating ex units:
+    let attachedTx = reattachDatumsAndRedeemers unattachedReindexedTx
+    -- Evaluate transaction ex units:
     rdmrPtrExUnitsList <- ExceptT $ evalTxExecutionUnits attachedTx
       <#> lmap EvalExUnitsError
     let
+      -- Set execution units received from the server:
       unattachedTxWithExUnits =
-        updateTxExecutionUnits unattachedTx rdmrPtrExUnitsList
-    attachedTxWithExUnits <- ExceptT $
-      reattachDatumsAndRedeemers unattachedTxWithExUnits
-        <#> lmap ReindexRedeemersError
+        updateTxExecutionUnits unattachedReindexedTx rdmrPtrExUnitsList
+      -- Reattach datums and redeemers before calculating fees:
+      attachedTxWithExUnits =
+        reattachDatumsAndRedeemers unattachedTxWithExUnits
+    -- Calculate the minimum fee for a transaction:
     minFee <- ExceptT $ calculateMinFee attachedTxWithExUnits
       <#> bimap EvalMinFeeError unwrap
     pure $ unattachedTxWithExUnits /\ minFee
@@ -306,21 +309,27 @@ evalExUnitsAndMinFee
 evalExUnitsAndMinFee =
   map (lmap EvalExUnitsAndMinFeeError') <<< evalExUnitsAndMinFee'
 
--- | Reattaches datums and redeemers to the transaction,
--- | reindexing the redeemers.
-reattachDatumsAndRedeemers
+reindexRedeemers
   :: UnattachedUnbalancedTx
-  -> QueryM (Either ReindexErrors Transaction)
+  -> QueryM (Either ReindexErrors UnattachedUnbalancedTx)
+reindexRedeemers
+  unattachedTx@(UnattachedUnbalancedTx { redeemersTxIns }) =
+  let
+    inputs = unattachedTx ^. _body' <<< _inputs
+  in
+    reindexSpentScriptRedeemers' inputs redeemersTxIns <#>
+      map \redeemersTxInsReindexed ->
+        unattachedTx # _redeemersTxIns .~ redeemersTxInsReindexed
+
+-- | Reattaches datums and redeemers to the transaction.
+reattachDatumsAndRedeemers :: UnattachedUnbalancedTx -> Transaction
 reattachDatumsAndRedeemers
   (UnattachedUnbalancedTx { unbalancedTx, datums, redeemersTxIns }) =
   let
     transaction = unbalancedTx ^. _transaction
-    inputs = transaction ^. _body <<< _inputs
   in
-    reindexSpentScriptRedeemers inputs redeemersTxIns <#>
-      map \reindexedRedeemers ->
-        transaction # _witnessSet <<< _plutusData ?~ map unwrap datums
-          # _witnessSet <<< _redeemers ?~ reindexedRedeemers
+    transaction # _witnessSet <<< _plutusData ?~ map unwrap datums
+      # _witnessSet <<< _redeemers ?~ map fst redeemersTxIns
 
 updateTxExecutionUnits
   :: UnattachedUnbalancedTx -> Array RdmrPtrExUnits -> UnattachedUnbalancedTx
@@ -396,12 +405,12 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   runExceptT do
     -- Get own wallet address, collateral and utxo set:
     ownAddr <- ExceptT $ getWalletAddress <#>
-      note (GetWalletAddressError' CouldNotGetNamiWalletAddress)
-    collateral <- ExceptT $ getWalletCollateral <#>
-      note (GetWalletCollateralError' CouldNotGetNamiCollateral)
+      note (GetWalletAddressError' CouldNotGetWalletAddress)
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
-
+    collateral <- ExceptT $ getWalletCollateral <#>
+      note (GetWalletCollateralError' CouldNotGetCollateral)
+    wallet <- asks _.wallet
     let
       -- Combines utxos at the user address and those from any scripts
       -- involved with the contract in the unbalanced transaction.
@@ -410,10 +419,13 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
 
       -- After adding collateral, we need to balance the inputs and
       -- non-Ada outputs before looping, i.e. we need to add input fees
-      -- for the Ada only collateral. No MinUtxos required. In fact perhaps
-      -- this step can be skipped and we can go straight to prebalancer.
-      unbalancedCollTx :: Transaction
-      unbalancedCollTx = addTxCollateral unbalancedTx' collateral
+      -- for the Ada only collateral. No MinUtxos required. Perhaps
+      -- for some wallets this step can be skipped and we can go straight
+      -- to prebalancer.
+      unbalancedCollTx = case wallet of
+        Just (Nami _) -> addTxCollateral unbalancedTx' collateral
+        Just (Gero _) -> addTxCollateral unbalancedTx' collateral
+        _ -> unbalancedTx'
 
     availableUtxos <- lift $ map unwrap $ filterUnusedUtxos (wrap allUtxos)
 
@@ -529,6 +541,13 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   feeBuffer :: BigInt
   feeBuffer = fromInt 500000
 
+-- CIP-30 wallets provide a 5 Ada collateral that we should add the tx before
+-- balancing.
+addTxCollateral :: Transaction -> TransactionUnspentOutput -> Transaction
+addTxCollateral transaction (TransactionUnspentOutput { input }) =
+  transaction # _body <<< _collateral ?~
+    Array.singleton input
+
 -- Logging for Transaction type without returning Transaction
 logTx
   :: forall (m :: Type -> Type)
@@ -544,12 +563,6 @@ logTx msg utxos (Transaction { body: body'@(TxBody body) }) =
     , "Output Value: " <> show (Array.foldMap getAmount body.outputs)
     , "Fees: " <> show body.fee
     ]
-
--- Nami provides a 5 Ada collateral that we should add the tx before balancing.
-addTxCollateral :: Transaction -> TransactionUnspentOutput -> Transaction
-addTxCollateral transaction (TransactionUnspentOutput { input }) =
-  transaction # _body <<< _collateral ?~
-    Array.singleton input
 
 -- Transaction should be prebalanced at this point with all excess with Ada
 -- where the Ada value of inputs is greater or equal to value of outputs.

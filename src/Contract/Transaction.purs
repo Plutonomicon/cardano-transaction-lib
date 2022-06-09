@@ -45,12 +45,110 @@ import Data.Lens.Getter ((^.))
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Traversable (class Traversable, fold, for, sequence, traverse, traverse_)
-import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested (type (/\), (/\), get1)
-import Effect.Exception (Error)
-import Plutus.ToPlutusType (toPlutusType)
-import Plutus.Types.Transaction (TransactionOutput(TransactionOutput)) as PTransaction
+import Data.Tuple.Nested (type (/\), (/\))
+import QueryM
+  ( FeeEstimate(FeeEstimate)
+  , ClientError(..) -- implicit as this error list will likely increase.
+  , FinalizedTransaction(FinalizedTransaction)
+  ) as ExportQueryM
+import QueryM
+  ( FinalizedTransaction(FinalizedTransaction)
+  , calculateMinFee
+  , signTransaction
+  , signTransactionBytes
+  , finalizeTx
+  , submitTxOgmios
+  ) as QueryM
+import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
+import ReindexRedeemers
+  ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
+  ) as ReindexRedeemersExport
+import Types.CborBytes (CborBytes)
+import Types.Datum (Datum)
+import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
+import Types.ScriptLookups
+  ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
+  , mkUnbalancedTx
+  ) as ScriptLookups
+import Cardano.Types.Transaction (Transaction, _body, _inputs)
+import Cardano.Types.Transaction -- Most re-exported, don't re-export `Redeemer` and associated lens.
+  ( AuxiliaryData(AuxiliaryData)
+  , AuxiliaryDataHash(AuxiliaryDataHash)
+  , BootstrapWitness
+  , Certificate
+      ( StakeRegistration
+      , StakeDeregistration
+      , StakeDelegation
+      , PoolRegistration
+      , PoolRetirement
+      , GenesisKeyDelegation
+      , MoveInstantaneousRewardsCert
+      )
+  , CostModel(CostModel)
+  , Costmdls(Costmdls)
+  , Ed25519Signature(Ed25519Signature)
+  , Epoch(Epoch)
+  , ExUnitPrices
+  , ExUnits
+  , GenesisHash(GenesisHash)
+  , Language(PlutusV1)
+  , Mint(Mint)
+  , NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
+  , Nonce(IdentityNonce, HashNonce)
+  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
+  , ProtocolParamUpdate
+  , ProtocolVersion
+  , PublicKey(PublicKey)
+  , Redeemer
+  , RequiredSigner(RequiredSigner)
+  , ScriptDataHash(ScriptDataHash)
+  , SubCoin
+  , Transaction(Transaction)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , TxBody(TxBody)
+  , UnitInterval
+  , Update
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
+  -- Use these lenses with care since some will involved Cardano datatypes, not
+  -- Plutus ones. e.g. _fee, _collateral, _outputs. In the unlikely scenario that
+  -- you need to tweak Cardano `TransactionOutput`s directly, `fromPlutusType`
+  -- then `toPlutusType` should be used.
+  , _auxiliaryData
+  , _auxiliaryDataHash
+  , _body
+  , _bootstraps
+  , _certs
+  , _collateral
+  , _fee
+  , _inputs
+  , _isValid
+  , _mint
+  , _nativeScripts
+  , _networkId
+  , _outputs
+  , _plutusData
+  , _plutusScripts
+  , _requiredSigners
+  , _scriptDataHash
+  , _ttl
+  , _update
+  , _validityStartInterval
+  , _vkeys
+  , _withdrawals
+  , _witnessSet
+  ) as Transaction
+import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
+import Plutus.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  ) as PTransaction
 import Plutus.Types.Value (Coin)
 import QueryM (FeeEstimate(FeeEstimate), ClientError(..), FinalizedTransaction(FinalizedTransaction)) as ExportQueryM
 import QueryM (FinalizedTransaction(FinalizedTransaction), calculateMinFee, signTransaction, signTransactionBytes, finalizeTx, submitTxOgmios) as QueryM
@@ -93,7 +191,7 @@ calculateMinFee
   :: forall (r :: Row Type)
    . Transaction
   -> Contract r (Either ExportQueryM.ClientError Coin)
-calculateMinFee = (map <<< map) (unwrap <<< toPlutusType)
+calculateMinFee = (map <<< map) toPlutusCoin
   <<< wrapContract
   <<< QueryM.calculateMinFee
 
@@ -271,5 +369,5 @@ scriptOutputToTransactionOutput
   -> UnbalancedTx.ScriptOutput
   -> Maybe PTransaction.TransactionOutput
 scriptOutputToTransactionOutput networkId =
-  toPlutusType <<< TxOutput.scriptOutputToTransactionOutput networkId
-
+  toPlutusTxOutput
+    <<< TxOutput.scriptOutputToTransactionOutput networkId

@@ -176,6 +176,10 @@
         ogmios = { port = 1337; };
         ctlServer = { port = 8081; };
         postgres = {
+          # User-facing port on host machine.
+          # Can be set to null in order to not bind postgres port to host.
+          # Postgres will always be accessible via `postgres:5432` from
+          # containers.
           port = 5432;
           user = "ctxlib";
           password = "ctxlib";
@@ -187,7 +191,7 @@
             " "
             [
               "host=postgres"
-              "port=${toString postgres.port}"
+              "port=5432"
               "user=${postgres.user}"
               "dbname=${postgres.db}"
               "password=${postgres.password}"
@@ -296,7 +300,10 @@
             postgres = {
               service = {
                 image = "postgres:13";
-                ports = [ (bindPort postgres.port) ];
+                ports =
+                  if postgres.port == null
+                  then [ ]
+                  else [ "${toString postgres.port}:5432" ];
                 environment = {
                   POSTGRES_USER = "${postgres.user}";
                   POSTGRES_PASSWORD = "${postgres.password}";
