@@ -19,7 +19,8 @@
     # Repository with network parameters
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
-      # TODO: Switch to official when it's updated
+      # TODO: https://github.com/Plutonomicon/cardano-transaction-lib/issues/525
+      #       Switch to official when it's updated
       # url = "github:input-output-hk/cardano-configurations/chore/vasil-qa";
       url = "github:jy14898/cardano-configurations";
       flake = false;
