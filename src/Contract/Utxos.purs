@@ -14,14 +14,13 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)
 import Data.Tuple.Nested ((/\))
 import QueryM.Utxos (utxosAt) as Utxos
-import Plutus.ToPlutusType (toPlutusType)
+import Plutus.Conversion (fromPlutusAddress, toPlutusUtxoM)
 import Plutus.Types.Address (Address)
 import Plutus.Types.Transaction (UtxoM(UtxoM)) as Transaction
-import Plutus.FromPlutusType (fromPlutusType)
 
 -- | This module defines query functionality via Ogmios to get utxos.
 
--- | Gets utxos at an (internal) `Address` in terms of a Plutus Address`.
+-- | Gets utxos at an (internal) `Address` in terms of a Plutus `Address`.
 -- | Results may vary depending on `Wallet` type. See `QueryM` for more details
 -- | on wallet variance.
 utxosAt
@@ -29,11 +28,11 @@ utxosAt
 utxosAt address = do
   networkId <- asks (_.networkId <<< unwrap)
   cardanoAddr <- liftContractM "utxosAt: unable to serialize address"
-    (fromPlutusType (networkId /\ address))
+    (fromPlutusAddress networkId address)
   -- Don't error if we get `Nothing` as the Cardano utxos
   mCardanoUtxos <- wrapContract $ Utxos.utxosAt cardanoAddr
   maybe (pure Nothing)
     ( map Just <<< liftContractM "utxosAt: unable to deserialize utxos" <<<
-        toPlutusType
+        toPlutusUtxoM
     )
     mCardanoUtxos

@@ -76,7 +76,7 @@ import Data.Lens.Setter ((.~), set, (?~), (%~))
 import Data.List ((:), List(Nil), partition)
 import Data.Log.Tag (tag)
 import Data.Map as Map
-import Data.Maybe (fromMaybe, maybe, Maybe(Just, Nothing))
+import Data.Maybe (fromMaybe, maybe, isJust, Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse_)
@@ -101,22 +101,14 @@ import QueryM
   , evalTxExecutionUnits
   )
 import QueryM.Utxos (utxosAt)
-import ReindexRedeemers
-  ( ReindexErrors
-  , reindexSpentScriptRedeemers
-  , reindexSpentScriptRedeemers'
-  )
-import Serialization.Address
-  ( Address
-  , addressPaymentCred
-  , withStakeCredential
-  )
+import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
+import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import TxOutput (utxoIndexToUtxo)
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (DataHash, TransactionInput)
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), _transaction)
-import Wallet (Wallet(Nami, KeyWallet))
+import Wallet (Wallet(KeyWallet), cip30Wallet)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
@@ -142,14 +134,14 @@ derive instance genericBalanceTxError :: Generic BalanceTxError _
 instance showBalanceTxError :: Show BalanceTxError where
   show = genericShow
 
-data GetWalletAddressError = CouldNotGetNamiWalletAddress
+data GetWalletAddressError = CouldNotGetWalletAddress
 
 derive instance genericGetWalletAddressError :: Generic GetWalletAddressError _
 
 instance showGetWalletAddressError :: Show GetWalletAddressError where
   show = genericShow
 
-data GetWalletCollateralError = CouldNotGetNamiCollateral
+data GetWalletCollateralError = CouldNotGetCollateral
 
 derive instance genericGetWalletCollateralError ::
   Generic GetWalletCollateralError _
@@ -185,7 +177,9 @@ derive instance genericReturnAdaChangeError :: Generic ReturnAdaChangeError _
 instance showReturnAdaChangeError :: Show ReturnAdaChangeError where
   show = genericShow
 
-data AddTxCollateralsError = CollateralUtxosUnavailable
+data AddTxCollateralsError
+  = CollateralUtxosUnavailable
+  | AddTxCollateralsError
 
 derive instance genericAddTxCollateralsError :: Generic AddTxCollateralsError _
 
@@ -404,15 +398,14 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   runExceptT do
     -- Get own wallet address, collateral and utxo set:
     ownAddr <- ExceptT $ getWalletAddress <#>
-      note (GetWalletAddressError' CouldNotGetNamiWalletAddress)
+      note (GetWalletAddressError' CouldNotGetWalletAddress)
     wallet <- asks _.wallet
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
     collateral <- case wallet of
-      Just (Nami _) -> Just <$>
-        ( ExceptT $ getWalletCollateral <#>
-            note (GetWalletCollateralError' CouldNotGetNamiCollateral)
-        )
+      Just w | isJust (cip30Wallet w) ->
+         map Just $ ExceptT $ getWalletCollateral <#>
+            note (GetWalletCollateralError' CouldNotGetCollateral)
       -- TODO: Combine with getWalletCollateral, and supply with fee estimate
       --       https://github.com/Plutonomicon/cardano-transaction-lib/issues/510
       Just (KeyWallet kw) -> pure $ kw.selectCollateral utxos
@@ -425,8 +418,9 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
 
       -- After adding collateral, we need to balance the inputs and
       -- non-Ada outputs before looping, i.e. we need to add input fees
-      -- for the Ada only collateral. No MinUtxos required. In fact perhaps
-      -- this step can be skipped and we can go straight to prebalancer.
+      -- for the Ada only collateral. No MinUtxos required. Perhaps
+      -- for some wallets this step can be skipped and we can go straight
+      -- to prebalancer.
       unbalancedCollTx :: Transaction
       unbalancedCollTx = maybe identity addTxCollateral collateral unbalancedTx'
 
@@ -540,6 +534,11 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   feeBuffer :: BigInt
   feeBuffer = fromInt 500000
 
+addTxCollateral :: TransactionUnspentOutput -> Transaction -> Transaction
+addTxCollateral (TransactionUnspentOutput { input }) transaction =
+  transaction # _body <<< _collateral ?~
+    Array.singleton input
+
 -- Logging for Transaction type without returning Transaction
 logTx
   :: forall (m :: Type -> Type)
@@ -555,12 +554,6 @@ logTx msg utxos (Transaction { body: body'@(TxBody body) }) =
     , "Output Value: " <> show (Array.foldMap getAmount body.outputs)
     , "Fees: " <> show body.fee
     ]
-
--- Nami provides a 5 Ada collateral that we should add the tx before balancing.
-addTxCollateral :: TransactionUnspentOutput -> Transaction -> Transaction
-addTxCollateral (TransactionUnspentOutput { input }) transaction =
-  transaction # _body <<< _collateral ?~
-    Array.singleton input
 
 -- Transaction should be prebalanced at this point with all excess with Ada
 -- where the Ada value of inputs is greater or equal to value of outputs.
