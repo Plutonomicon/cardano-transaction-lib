@@ -84,9 +84,6 @@ suite = do
         tx <- convertTransaction txFixture3
         let bytes = toBytes (asOneOf tx)
         byteArrayToHex bytes `shouldEqual` txBinaryFixture3
-      -- FIXME
-      -- see https://github.com/Plutonomicon/cardano-transaction-lib/issues/329
-      --
       test "Transaction serialization #4 - ada + mint + certificates" $
         liftEffect do
           tx <- convertTransaction txFixture4
