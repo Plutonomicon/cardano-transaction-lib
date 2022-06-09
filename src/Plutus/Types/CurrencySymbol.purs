@@ -10,7 +10,15 @@ module Plutus.Types.CurrencySymbol
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, caseAesonObject, decodeAeson, encodeAeson', getField, JsonDecodeError(TypeMismatch))
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , caseAesonObject
+  , decodeAeson
+  , encodeAeson'
+  , getField
+  , JsonDecodeError(TypeMismatch)
+  )
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe, fromJust)
 import Data.Newtype (unwrap, wrap)
@@ -75,4 +83,5 @@ mkCurrencySymbol byteArr
 -- This must be safe to use as long as we always construct a
 -- `CurrencySymbol` with the smart-constructors. 
 currencyScriptHash :: CurrencySymbol -> ScriptHash
-currencyScriptHash = unsafePartial $ fromJust <<< scriptHashFromBytes <<< wrap <<< getCurrencySymbol
+currencyScriptHash = unsafePartial $ fromJust <<< scriptHashFromBytes <<< wrap
+  <<< getCurrencySymbol
