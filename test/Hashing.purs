@@ -37,13 +37,13 @@ suite =
       Hashing.blake2b256HashHex inputDataFixture >>=
         shouldEqual blake2b256HexDigestFixture
 
+    test "blake2b224 hash of a Plutus script" do
+      Hashing.plutusScriptHash plutusScriptFixture >>=
+        shouldEqual (Just plutusScriptHashFixture)
+
     test "blake2b256 hash of Plutus data" do
       Hashing.datumHash (wrap plutusDataFixture7)
         `shouldEqual` Just datumHashFixture
-
-    test "blake2b224 hash of a Plutus script" do
-      Hashing.plutusScriptHash plutusScriptFixture
-        `shouldEqual` Just plutusScriptHashFixture
 
     test "sha256 hash of an arbitrary byte array" do
       Hashing.sha256Hash inputDataFixture

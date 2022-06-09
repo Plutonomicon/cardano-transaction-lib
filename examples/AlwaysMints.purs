@@ -9,6 +9,7 @@ import Contract.Aeson (decodeAeson, fromString)
 import Contract.Monad
   ( ContractConfig(ContractConfig)
   , launchAff_
+  , liftContractAffM
   , liftContractM
   , liftedE
   , liftedM
@@ -36,7 +37,7 @@ main = launchAff_ $ do
   runContract_ cfg $ do
     logInfo' "Running Examples.AlwaysMints"
     mp <- liftContractM "Invalid script JSON" $ alwaysMintsPolicy
-    cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+    cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
     tn <- liftContractM "Cannot make token name"
       $ Value.mkTokenName
       =<< byteArrayFromAscii "TheToken"

@@ -11,6 +11,7 @@ module Contract.Monad
   , wrapContract
   , defaultContractConfig
   , defaultContractConfigLifted
+  , liftContractAffM
   , liftContractE
   , liftContractE'
   , liftContractM
@@ -224,6 +225,14 @@ liftedM
   -> Contract r (Maybe a)
   -> Contract r a
 liftedM str cm = cm >>= liftContractM str
+
+-- | Same as `liftContractM` but the `Maybe` value is in the `Aff` context.
+liftContractAffM
+  :: forall (r :: Row Type) (a :: Type)
+   . String
+  -> Aff (Maybe a)
+  -> Contract r a
+liftContractAffM str = liftedM str <<< liftAff
 
 -- | Similar to `liftContractE` except it directly throws the showable error
 -- | via `throwContractError` instead of an arbitrary string.

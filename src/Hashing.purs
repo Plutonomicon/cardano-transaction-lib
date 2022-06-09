@@ -31,7 +31,7 @@ foreign import _blake2b256HashHex :: ByteArray -> Effect (Promise String)
 
 foreign import hashPlutusData :: Serialization.PlutusData -> ByteArray
 
-foreign import hashPlutusScript :: PlutusScript -> ByteArray
+foreign import hashPlutusScript :: PlutusScript -> Effect (Promise ByteArray)
 
 foreign import sha256Hash :: ByteArray -> ByteArray
 
@@ -51,6 +51,6 @@ datumHash :: Datum -> Maybe DataHash
 datumHash =
   map (wrap <<< hashPlutusData) <<< convertPlutusData <<< unwrap
 
-plutusScriptHash :: PlutusScript -> Maybe ScriptHash
+plutusScriptHash :: PlutusScript -> Aff (Maybe ScriptHash)
 plutusScriptHash =
-  scriptHashFromBytes <<< wrap <<< hashPlutusScript
+  map (scriptHashFromBytes <<< wrap) <<< Promise.toAffE <<< hashPlutusScript
