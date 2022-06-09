@@ -404,8 +404,8 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
     collateral <- case wallet of
       Just w | isJust (cip30Wallet w) ->
-         map Just $ ExceptT $ getWalletCollateral <#>
-            note (GetWalletCollateralError' CouldNotGetCollateral)
+        map Just $ ExceptT $ getWalletCollateral <#>
+          note (GetWalletCollateralError' CouldNotGetCollateral)
       -- TODO: Combine with getWalletCollateral, and supply with fee estimate
       --       https://github.com/Plutonomicon/cardano-transaction-lib/issues/510
       Just (KeyWallet kw) -> pure $ kw.selectCollateral utxos
