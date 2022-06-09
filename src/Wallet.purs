@@ -19,10 +19,10 @@ import Cardano.Types.Transaction
   , Vkeywitness(Vkeywitness)
   , Utxo
   , _vkeys
-  , TransactionOutput(..)
+  , TransactionOutput(TransactionOutput)
   )
-import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput(..))
-import Cardano.Types.Value (NonAdaAsset(..), Value(..), mkCoin)
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput))
+import Cardano.Types.Value (NonAdaAsset(NonAdaAsset), Value(Value), mkCoin)
 import Contract.Prelude (class Newtype)
 import Control.Promise (Promise)
 import Control.Promise as Promise
