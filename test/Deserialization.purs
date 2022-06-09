@@ -49,6 +49,9 @@ import Test.Fixtures
   , plutusDataFixture5
   , plutusDataFixture6
   , plutusDataFixture7
+  , txFixture1
+  , txFixture2
+  , txFixture3
   , txFixture4
   , txInputFixture1
   , txOutputFixture1
@@ -138,7 +141,22 @@ suite = do
             convertUnspentOutput
         res `shouldEqual` utxoFixture1'
     group "Transaction" do
-      test "deserialization is inverse to serialization" do
+      test "deserialization is inverse to serialization #1" do
+        let input = txFixture1
+        serialized <- liftEffect $ TS.convertTransaction input
+        let expected = TD.convertTransaction serialized
+        pure input `shouldEqual` hush expected
+      test "deserialization is inverse to serialization #2" do
+        let input = txFixture2
+        serialized <- liftEffect $ TS.convertTransaction input
+        let expected = TD.convertTransaction serialized
+        pure input `shouldEqual` hush expected
+      test "deserialization is inverse to serialization #3" do
+        let input = txFixture3
+        serialized <- liftEffect $ TS.convertTransaction input
+        let expected = TD.convertTransaction serialized
+        pure input `shouldEqual` hush expected
+      test "deserialization is inverse to serialization #4" do
         let input = txFixture4
         serialized <- liftEffect $ TS.convertTransaction input
         let expected = TD.convertTransaction serialized

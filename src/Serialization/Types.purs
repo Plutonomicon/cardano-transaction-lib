@@ -87,6 +87,7 @@ module Serialization.Types
 import Prelude
 
 import Data.Function (on)
+import Types.ByteArray (ByteArray, byteArrayToHex)
 
 foreign import data AssetName :: Type
 foreign import data Assets :: Type
@@ -179,10 +180,10 @@ instance Eq BigNum where
   eq = eq `on` show
 
 instance Show VRFKeyHash where
-  show = _to_bech32
+  show = _vrfKeyHashShow byteArrayToHex
 
 instance Eq VRFKeyHash where
   eq = eq `on` show
 
 foreign import _to_str :: forall a. a -> String
-foreign import _to_bech32 :: forall a. a -> String
+foreign import _vrfKeyHashShow :: (ByteArray -> String) -> VRFKeyHash -> String
