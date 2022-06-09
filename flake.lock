@@ -289,13 +289,17 @@
     "cardano-configurations": {
       "flake": false,
       "locked": {
-        "narHash": "sha256-3IWi1o9eCABWNmOsAqcQ2fEiI/wCesCsEyCW13dEaGs=",
-        "path": "/home/joseph/mlabs/cardano-transaction-lib/cardano-configurations",
-        "type": "path"
+        "lastModified": 1654780718,
+        "narHash": "sha256-r/PkeY5SeboTdYkFWK85orefwvycM1BletOxENkisFc=",
+        "owner": "jy14898",
+        "repo": "cardano-configurations",
+        "rev": "865cdc6f245b603da21f137d2582a5b89f570e66",
+        "type": "github"
       },
       "original": {
-        "path": "/home/joseph/mlabs/cardano-transaction-lib/cardano-configurations",
-        "type": "path"
+        "owner": "jy14898",
+        "repo": "cardano-configurations",
+        "type": "github"
       }
     },
     "cardano-crypto": {

@@ -19,8 +19,9 @@
     # Repository with network parameters
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
-      # url = "git+file:cardano-configurations";
-      url = "path:/home/joseph/mlabs/cardano-transaction-lib/cardano-configurations";
+      # TODO: Switch to official when it's updated
+      # url = "github:input-output-hk/cardano-configurations/chore/vasil-qa";
+      url = "github:jy14898/cardano-configurations";
       flake = false;
     };
     easy-purescript-nix = {
