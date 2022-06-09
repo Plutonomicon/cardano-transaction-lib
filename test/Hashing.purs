@@ -2,7 +2,6 @@ module Test.Hashing (suite) where
 
 import Prelude
 
-import Contract.PlutusData (PlutusData(..))
 import Data.BigInt (fromInt)
 import Data.Maybe (Maybe(Just), fromJust)
 import Data.Newtype (wrap)
@@ -23,6 +22,7 @@ import Test.Fixtures (plutusDataFixture7)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.ByteArray (ByteArray, byteArrayFromAscii, hexToByteArrayUnsafe)
+import Types.PlutusData (PlutusData(Integer))
 import Types.RawBytes (hexToRawBytesUnsafe)
 import Types.Scripts (PlutusScript)
 import Types.Transaction (DataHash)
@@ -42,7 +42,8 @@ suite = do
       Hashing.datumHash (wrap plutusDataFixture7)
         `shouldEqual` Just datumHashFixture
     test
-      "blake2b256 hash of Plutus data - Integer 0 (regression to https://github.com/Plutonomicon/cardano-transaction-lib/issues/488 ?)"
+      "blake2b256 hash of Plutus data - Integer 0 (regression to \
+      \https://github.com/Plutonomicon/cardano-transaction-lib/issues/488 ?)"
       do
         Hashing.datumHash (wrap $ Integer (fromInt 0))
           `shouldEqual` Just zeroIntDatumHashFixture
