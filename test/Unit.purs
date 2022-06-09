@@ -19,6 +19,7 @@ import Test.Serialization.Address as Serialization.Address
 import Test.Serialization.Hash as Serialization.Hash
 import Test.Transaction as Transaction
 import Test.UsedTxOuts as UsedTxOuts
+import Test.OgmiosDatumCache as OgmiosDatumCache
 import Test.Utils as Utils
 import TestM (TestPlanM)
 
@@ -44,3 +45,4 @@ testPlan = do
   Serialization.Hash.suite
   Transaction.suite
   UsedTxOuts.suite
+  OgmiosDatumCache.suite

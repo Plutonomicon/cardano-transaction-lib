@@ -47,7 +47,7 @@ import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value as Value
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.Map as Map
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (wrap, unwrap)
 import Data.Traversable (traverse_, for_, for, traverse)
 import Data.Tuple (Tuple(Tuple))
@@ -65,7 +65,7 @@ import FfiHelpers
 import Helpers (fromJustEff)
 import Serialization.Address (Address, StakeCredential, RewardAddress)
 import Serialization.Address (NetworkId(TestnetId, MainnetId)) as T
-import Serialization.AuxiliaryData (convertAuxiliaryData, setTxAuxiliaryData)
+import Serialization.AuxiliaryData (convertAuxiliaryData)
 import Serialization.BigInt as Serialization
 import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.Hash (ScriptHash, Ed25519KeyHash, scriptHashFromBytes)
@@ -138,8 +138,8 @@ import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
 import Types.Int as Int
 import Types.PlutusData as PlutusData
-import Types.Transaction (TransactionInput(TransactionInput)) as T
 import Types.TokenName (getTokenName) as TokenName
+import Types.Transaction (TransactionInput(TransactionInput)) as T
 import Untagged.Union (type (|+|), UndefinedOr, maybeToUor)
 
 foreign import newBigNum :: MaybeFfiHelper -> String -> Maybe BigNum
@@ -168,12 +168,14 @@ foreign import newTransactionBody
   -> Effect TransactionBody
 
 foreign import newTransaction
-  :: TransactionBody -> TransactionWitnessSet -> Effect Transaction
+  :: TransactionBody
+  -> TransactionWitnessSet
+  -> AuxiliaryData
+  -> Effect Transaction
 
 foreign import newTransaction_
   :: TransactionBody
   -> TransactionWitnessSet
-  -> AuxiliaryData
   -> Effect Transaction
 
 foreign import newTransactionWitnessSet :: Effect TransactionWitnessSet
@@ -462,9 +464,11 @@ convertTransaction
     for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
     for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
     ws <- convertWitnessSet witnessSet
-    tx <- newTransaction txBody ws
+    mbAuxiliaryData <- for auxiliaryData convertAuxiliaryData
+    tx <- case mbAuxiliaryData of
+      Nothing -> newTransaction_ txBody ws
+      Just ad -> newTransaction txBody ws ad
     setTxIsValid tx isValid
-    for_ auxiliaryData $ convertAuxiliaryData >=> setTxAuxiliaryData tx
     pure tx
 
 convertUpdate :: T.Update -> Effect Update
