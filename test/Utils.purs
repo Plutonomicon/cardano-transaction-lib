@@ -96,12 +96,13 @@ errMaybe msg = maybe (liftEffect $ throw msg) pure
 toFromAesonTest
   :: forall (a :: Type)
    . Eq a
-  => Show a
   => DecodeAeson a
   => EncodeAeson a
-  => a
+  => Show a
+  => String
+  -> a
   -> TestPlanM Unit
-toFromAesonTest x = test (show x) $ aesonRoundTrip x `shouldEqual` Right x
+toFromAesonTest desc x = test desc $ aesonRoundTrip x `shouldEqual` Right x
 
 aesonRoundTrip
   :: forall (a :: Type)
