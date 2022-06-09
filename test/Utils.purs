@@ -22,9 +22,9 @@ import Aeson
   , parseJsonStringToAeson
   )
 import Data.Const (Const)
-import Data.Either (Either(Left, Right), either)
+import Data.Either (Either(Right), either)
 import Data.Foldable (sequence_)
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe, maybe)
 import Effect.Aff (Aff, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -115,5 +115,5 @@ aesonRoundTrip
 aesonRoundTrip = decodeAeson <<< encodeAeson
 
 readAeson :: forall (m :: Type -> Type). MonadEffect m => FilePath -> m Aeson
-readAeson fp =
-  errEither <<< parseJsonStringToAeson =<< liftEffect (readTextFile UTF8 fp)
+readAeson = errEither <<< parseJsonStringToAeson
+  <=< liftEffect <<< readTextFile UTF8
