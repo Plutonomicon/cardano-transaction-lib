@@ -3,6 +3,8 @@
 module Contract.Transaction
   ( BalancedSignedTransaction(..)
   , balanceAndSignTx
+  , balanceAndSignTxs
+  , balanceAndSignTxE
   , balanceTx
   , balanceTxs
   , balanceTxM
@@ -26,160 +28,45 @@ module Contract.Transaction
 
 import Prelude
 
+import BalanceTx (BalanceTxError) as BalanceTxError
 import BalanceTx (UnattachedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
-import BalanceTx (BalanceTxError) as BalanceTxError
+import Cardano.Types.Transaction (AuxiliaryData(AuxiliaryData), AuxiliaryDataHash(AuxiliaryDataHash), BootstrapWitness, Certificate(StakeRegistration, StakeDeregistration, StakeDelegation, PoolRegistration, PoolRetirement, GenesisKeyDelegation, MoveInstantaneousRewardsCert), CostModel(CostModel), Costmdls(Costmdls), Ed25519Signature(Ed25519Signature), Epoch(Epoch), ExUnitPrices, ExUnits, GenesisHash(GenesisHash), Language(PlutusV1), Mint(Mint), NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry), Nonce(IdentityNonce, HashNonce), ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates), ProtocolParamUpdate, ProtocolVersion, PublicKey(PublicKey), Redeemer, RequiredSigner(RequiredSigner), ScriptDataHash(ScriptDataHash), SubCoin, Transaction(Transaction), TransactionWitnessSet(TransactionWitnessSet), TxBody(TxBody), UnitInterval, Update, Vkey(Vkey), Vkeywitness(Vkeywitness), _auxiliaryData, _auxiliaryDataHash, _body, _bootstraps, _certs, _collateral, _fee, _inputs, _isValid, _mint, _nativeScripts, _networkId, _outputs, _plutusData, _plutusScripts, _requiredSigners, _scriptDataHash, _ttl, _update, _validityStartInterval, _vkeys, _withdrawals, _witnessSet) as Transaction
+import Cardano.Types.Transaction (Transaction, _body, _inputs)
 import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
 import Control.Monad.Error.Class (try, catchError, throwError)
 import Control.Monad.Except.Trans (runExceptT)
-import Control.Monad.Reader (asks, runReaderT)
+import Control.Monad.Reader (asks, runReaderT, ReaderT)
+import Data.Array.NonEmpty (NonEmptyArray)
+import Data.Array.NonEmpty as NonEmptyArray
 import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Array.NonEmpty (NonEmptyArray)
-import Data.Array.NonEmpty as NonEmptyArray
 import Data.Show.Generic (genericShow)
-import Data.Traversable (class Traversable, fold, for, sequence, traverse)
+import Data.Traversable (class Traversable, fold, for, sequence, traverse, traverse_)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\), get1)
 import Effect.Exception (Error)
-import QueryM
-  ( FeeEstimate(FeeEstimate)
-  , ClientError(..) -- implicit as this error list will likely increase.
-  , FinalizedTransaction(FinalizedTransaction)
-  ) as ExportQueryM
-import QueryM
-  ( FinalizedTransaction(FinalizedTransaction)
-  , calculateMinFee
-  , signTransaction
-  , signTransactionBytes
-  , finalizeTx
-  , submitTxOgmios
-  ) as QueryM
-import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
-import ReindexRedeemers
-  ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
-  ) as ReindexRedeemersExport
-import Types.CborBytes (CborBytes)
-import Types.Datum (Datum)
-import Types.ScriptLookups (UnattachedUnbalancedTx)
-import Types.ScriptLookups
-  ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
-  , mkUnbalancedTx
-  ) as ScriptLookups
-import Cardano.Types.Transaction (Transaction, _body, _inputs)
-import Cardano.Types.Transaction -- Most re-exported, don't re-export `Redeemer` and associated lens.
-  ( AuxiliaryData(AuxiliaryData)
-  , AuxiliaryDataHash(AuxiliaryDataHash)
-  , BootstrapWitness
-  , Certificate
-      ( StakeRegistration
-      , StakeDeregistration
-      , StakeDelegation
-      , PoolRegistration
-      , PoolRetirement
-      , GenesisKeyDelegation
-      , MoveInstantaneousRewardsCert
-      )
-  , CostModel(CostModel)
-  , Costmdls(Costmdls)
-  , Ed25519Signature(Ed25519Signature)
-  , Epoch(Epoch)
-  , ExUnitPrices
-  , ExUnits
-  , GenesisHash(GenesisHash)
-  , Language(PlutusV1)
-  , Mint(Mint)
-  , NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
-  , Nonce(IdentityNonce, HashNonce)
-  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
-  , ProtocolParamUpdate
-  , ProtocolVersion
-  , PublicKey(PublicKey)
-  , Redeemer
-  , RequiredSigner(RequiredSigner)
-  , ScriptDataHash(ScriptDataHash)
-  , SubCoin
-  , Transaction(Transaction)
-  , TransactionWitnessSet(TransactionWitnessSet)
-  , TxBody(TxBody)
-  , UnitInterval
-  , Update
-  , Vkey(Vkey)
-  , Vkeywitness(Vkeywitness)
-  -- Use these lenses with care since some will involved Cardano datatypes, not
-  -- Plutus ones. e.g. _fee, _collateral, _outputs. In the unlikely scenario that
-  -- you need to tweak Cardano `TransactionOutput`s directly, `fromPlutusType`
-  -- then `toPlutusType` should be used.
-  , _auxiliaryData
-  , _auxiliaryDataHash
-  , _body
-  , _bootstraps
-  , _certs
-  , _collateral
-  , _fee
-  , _inputs
-  , _isValid
-  , _mint
-  , _nativeScripts
-  , _networkId
-  , _outputs
-  , _plutusData
-  , _plutusScripts
-  , _requiredSigners
-  , _scriptDataHash
-  , _ttl
-  , _update
-  , _validityStartInterval
-  , _vkeys
-  , _withdrawals
-  , _witnessSet
-  ) as Transaction
 import Plutus.ToPlutusType (toPlutusType)
-import Plutus.Types.Transaction
-  ( TransactionOutput(TransactionOutput)
-  ) as PTransaction
+import Plutus.Types.Transaction (TransactionOutput(TransactionOutput)) as PTransaction
 import Plutus.Types.Value (Coin)
+import QueryM (FeeEstimate(FeeEstimate), ClientError(..), FinalizedTransaction(FinalizedTransaction)) as ExportQueryM
+import QueryM (FinalizedTransaction(FinalizedTransaction), calculateMinFee, signTransaction, signTransactionBytes, finalizeTx, submitTxOgmios) as QueryM
+import ReindexRedeemers (ReindexErrors(CannotGetTxOutRefIndexForRedeemer)) as ReindexRedeemersExport
+import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import Serialization.Address (NetworkId)
 import TxOutput (scriptOutputToTransactionOutput) as TxOutput
+import Types.CborBytes (CborBytes)
+import Types.Datum (Datum)
+import Types.ScriptLookups (MkUnbalancedTxError(..), mkUnbalancedTx) as ScriptLookups
+import Types.ScriptLookups (UnattachedUnbalancedTx)
+import Types.Transaction (DataHash(DataHash), TransactionHash(TransactionHash), TransactionInput(TransactionInput)) as Transaction
 import Types.Transaction (TransactionHash)
-import Types.Transaction
-  ( DataHash(DataHash)
-  , TransactionHash(TransactionHash)
-  , TransactionInput(TransactionInput)
-  ) as Transaction
-import Types.TransactionMetadata
-  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
-  , TransactionMetadatumLabel(TransactionMetadatumLabel)
-  , TransactionMetadatum
-      ( MetadataMap
-      , MetadataList
-      , Int
-      , Bytes
-      , Text
-      )
-  ) as TransactionMetadata
-import Types.UnbalancedTransaction
-  ( ScriptOutput(ScriptOutput) -- More up-to-date Plutus uses this, wonder if we can just use `TransactionOutput`
-  , UnbalancedTx(UnbalancedTx)
-  , _transaction
-  , _utxoIndex
-  , emptyUnbalancedTx
-  ) as UnbalancedTx
-import Types.UsedTxOuts
-  ( TxOutRefUnlockKeys
-  , unlockTxOutKeys
-  , lockRemainingTransactionInputs
-  )
+import Types.TransactionMetadata (GeneralTransactionMetadata(GeneralTransactionMetadata), TransactionMetadatumLabel(TransactionMetadatumLabel), TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)) as TransactionMetadata
+import Types.UnbalancedTransaction (ScriptOutput(ScriptOutput), UnbalancedTx(UnbalancedTx), _transaction, _utxoIndex, emptyUnbalancedTx) as UnbalancedTx
+import Types.UsedTxOuts (TxOutRefUnlockKeys(..), UsedTxOuts(..), lockRemainingTransactionInputs, lockTransactionInputs, unlockTransactionInputs)
 
 -- | This module defines transaction-related requests. Currently signing and
 -- | submission is done with Nami.
@@ -230,51 +117,45 @@ balanceTxs
   => t UnattachedUnbalancedTx
   -> Contract r (t UnattachedTransaction)
 balanceTxs uts = do
-  unlockKeys <- lock mempty uutxToTx uts
-  uts' <- liftedE $ sequence <$> traverse balanceTx uts
-  _ <- catchError (lock unlockKeys utxToTx uts')
-    ( \e -> do
-        unlock unlockKeys
-        throwError e
-    )
-  pure uts'
+  -- First, lock all the already fixated inputs on all the unbalanced transactions.
+  -- That prevents any inputs of any of those to be used to balance any of the
+  -- other transactions
+  unlockKeys <- unlockAllOnError
+                $ liftedE
+                $ withUsedTxouts
+                $ runExceptT
+                $ (fold <$> for uts (lockTransactionInputs <<< uutxToTx))
+                
+  -- Then, balance each transaction and lock the used inputs immediately.
+  unlockAllOnError $ traverse (balanceAndLock unlockKeys) uts
 
   where
+
+  unlockAllOnError :: forall (a :: Type) . Contract r a -> Contract r a
+  unlockAllOnError f = catchError f $ \e -> do
+    traverse_
+      (withUsedTxouts <<< unlockTransactionInputs <<< uutxToTx)
+      uts
+    throwError e
+    
   uutxToTx :: UnattachedUnbalancedTx -> Transaction
   uutxToTx = _.transaction <<< unwrap <<< _.unbalancedTx <<< unwrap
 
-  utxToTx :: UnattachedTransaction -> Transaction
-  utxToTx = get1
-
-  lock
-    :: forall (a :: Type)
-     . TxOutRefUnlockKeys
-    -> (a -> Transaction)
-    -> t a
-    -> Contract r TxOutRefUnlockKeys
-  lock keys f ts = liftedE $ lockMany keys f ts
-
-  unlock
+  balanceAndLock
     :: TxOutRefUnlockKeys
-    -> Contract r Unit
-  unlock keys = do
-    cache <- asks (_.usedTxOuts <<< unwrap)
-    runReaderT (unlockTxOutKeys keys) cache
+    -> UnattachedUnbalancedTx
+    -> Contract r UnattachedTransaction
+  balanceAndLock alreadyLocked uutx = do
+    bt <- liftedE $ balanceTx uutx
+    _ <- withUsedTxouts $ lockRemainingTransactionInputs alreadyLocked
+      (uutxToTx uutx)
+    pure bt
 
-  lockMany
+  withUsedTxouts
     :: forall (a :: Type)
-     . TxOutRefUnlockKeys
-    -> (a -> Transaction)
-    -> (t a)
-    -> Contract r (Either Error TxOutRefUnlockKeys)
-  lockMany unlockKeys extract ts = do
-    usedTxos <- (asks (_.usedTxOuts <<< unwrap))
-    flip runReaderT usedTxos
-      ( runExceptT $
-          ( fold <$> for ts
-              (lockRemainingTransactionInputs unlockKeys <<< extract)
-          )
-      )
+     . ReaderT UsedTxOuts (Contract r) a
+    -> Contract r a
+  withUsedTxouts f = asks (_.usedTxOuts <<< unwrap) >>= runReaderT f
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` hushing the error.
 balanceTxM
@@ -361,13 +242,29 @@ balanceAndSignTxs txs = do
 -- | If successful, transaction inputs will be locked afterwards.
 -- | If you want to re-use them in the same 'QueryM' context, call
 -- | 'unlockTransactionInputs'.
+balanceAndSignTxE
+  :: forall (r :: Row Type)
+   . UnattachedUnbalancedTx
+  -> Contract r (Either Error BalancedSignedTransaction)
+balanceAndSignTxE tx = do
+  tx' <- try $ balanceAndSignTxs (NonEmptyArray.singleton tx)
+  pure (map NonEmptyArray.head tx')
+
+-- | A helper that wraps a few steps into: balance an unbalanced transaction
+-- | (`balanceTx`), reindex script spend redeemers (not minting redeemers)
+-- | (`reindexSpentScriptRedeemers`), attach datums and redeemers to the
+-- | transaction (`finalizeTx`), and finally sign (`signTransactionBytes`).
+-- | The return type includes the balanced (but unsigned) transaction for
+-- | logging and more importantly, the `ByteArray` to be used with `Submit` to
+-- | submit the transaction.
+-- | If successful, transaction inputs will be locked afterwards.
+-- | If you want to re-use them in the same 'QueryM' context, call
+-- | 'unlockTransactionInputs'.
 balanceAndSignTx
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx
   -> Contract r (Maybe BalancedSignedTransaction)
-balanceAndSignTx tx = do
-  tx' <- map hush <$> try $ balanceAndSignTxs (NonEmptyArray.singleton tx)
-  pure (map NonEmptyArray.head tx')
+balanceAndSignTx = map hush <<< balanceAndSignTxE
 
 scriptOutputToTransactionOutput
   :: NetworkId
