@@ -1,0 +1,16 @@
+name: Add issues to CTL project
+
+on:
+  issues:
+    types:
+      - opened
+
+jobs:
+  add-to-project:
+    name: Add issue to project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/add-to-project@8d66869b6c4b9b217ec079b4cfbd4cde3fce35f3
+        with:
+          project-url: https://github.com/orgs/Plutonomicon/projects/3
+          github-token: ${{ secrets.ADD_TO_PROJECT }}

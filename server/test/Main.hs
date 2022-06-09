@@ -40,8 +40,9 @@ import Cardano.Api.Shelley (
   ),
  )
 import Data.Bifunctor (second)
-import Data.ByteString.Lazy qualified as ByteString
+import Data.ByteString.Lazy qualified as LBS
 import Data.ByteString.Lazy.Char8 qualified as LC8
+import Data.Functor ((<&>))
 import Data.Kind (Type)
 import Data.Map.Strict qualified as Map.Strict
 import Network.HTTP.Client (defaultManagerSettings, newManager)
@@ -79,6 +80,7 @@ import Types (
   Cbor (Cbor),
   Env (Env),
   Fee (Fee),
+  FeesRequest (FeesRequest),
   ServerOptions (
     ServerOptions,
     networkId,
@@ -130,21 +132,23 @@ feeEstimateSpec = around withTestApp $ do
   context "GET fees" $ do
     it "estimates the correct fee" $ \port -> do
       result <-
-        runClientM' (clientEnv port) $
-          estimateTxFees (WitnessCount 1) cborTxFixture
+        runClientM' (clientEnv port) . estimateTxFees $
+          FeesRequest (WitnessCount 1) cborTxFixture
       result `shouldBe` Right (Fee 168625)
 
     it "catches invalid hex strings" $ \port -> do
       result <-
         runClientM' (clientEnv port)
-          . estimateTxFees (WitnessCount 1)
+          . estimateTxFees
+          . FeesRequest (WitnessCount 1)
           $ Cbor "deadbeefq"
       result `shouldSatisfy` expectError 400 "invalid bytestring size"
 
     it "catches invalid CBOR-encoded transactions" $ \port -> do
       result <-
         runClientM' (clientEnv port)
-          . estimateTxFees (WitnessCount 1)
+          . estimateTxFees
+          . FeesRequest (WitnessCount 1)
           $ Cbor "deadbeef"
       result
         `shouldSatisfy` expectError
@@ -284,7 +288,7 @@ fixedProtocolParameters :: ProtocolParameters
 fixedProtocolParameters =
   ProtocolParameters
     { protocolParamProtocolVersion = (6, 0)
-    , protocolParamDecentralization = 0 / 1
+    , protocolParamDecentralization = 0
     , protocolParamExtraPraosEntropy = Nothing
     , protocolParamMaxBlockHeaderSize = 1100
     , protocolParamMaxBlockBodySize = 98304
@@ -327,8 +331,8 @@ fixedProtocolParameters =
 
 loadParametersFile :: IO (Either String ProtocolParameters)
 loadParametersFile =
-  ByteString.readFile "test/ogmios.json"
-    >>= pure . decodeProtocolParameters
+  LBS.readFile "test/ogmios.json"
+    <&> decodeProtocolParameters
 
 testParser :: Spec
 testParser =
