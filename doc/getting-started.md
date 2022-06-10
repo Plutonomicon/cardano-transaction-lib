@@ -13,6 +13,8 @@ This guide will help you get started writing contracts with CTL. Please also see
 - [Building and submitting transactions](#building-and-submitting-transactions)
   - [Awaiting tx confirmation](#awaiting-tx-confirmation)
 - [Testing](#testing)
+  - [With a light wallet](#with-a-light-wallet)
+  - [Without a light wallet](#without-a-light-wallet)
 
 ## Prerequisites
 
@@ -172,6 +174,40 @@ One major caveat to using CTL in its current state is that we have no equivalent
 
 ## Testing
 
-Unfortunately, CTL does not currently offer robust testing strategies out-of-the-box. We are currently working on a keypair-based wallet that will work outside of a browser environment as well as integration with the [`plutip` testing tool](https://github.com/mlabs-haskell/plutip). These will be included in an upcoming release of CTL.
+### Without light wallet
+
+We provide `KeyWallet` to enable testing outside of the browser, or in-browser without a light wallet installed. To generate a key, you can use `cardano-cli` as follows:
+
+```bash
+# cardano-cli address key-gen --normal-key --signing-key-file payment.skey --verification-key-file payment.vkey
+```
+
+To extract the key from `payment.skey`, `jq '.cborHex' payment.skey | cut -c 5-69` if you have `jq` installed, or manually take the value from the cborHex field and remove the first 4 characters (5820):
+
+```json
+{
+    "type": "PaymentSigningKeyShelley_ed25519",
+    "description": "Payment Signing Key",
+    "cborHex": "582085f8d4382c92c17efcef0f20f9397abcedcd5fd9e576a6dcc99e582eb275b79d"
+}
+```
+into
+```
+85f8d4382c92c17efcef0f20f9397abcedcd5fd9e576a6dcc99e582eb275b79d
+```
+
+This text can then be built into a wallet as follows:
+```purescript
+main :: Effect Unit
+main = Contract.Monad.launchAff_ $ do
+  privateKey <- liftEffect $ map join $ traverse privateKeyFromBytes $ hexToRawBytes "85f8d4382c92c17efcef0f20f9397abcedcd5fd9e576a6dcc99e582eb275b79d"
+  let wallet = mkKeyWallet <$> privateKey
+  ...
+```
+The above was adapted from `examples/Pkh2PkhKeyWallet.purs`.
+
+From here you can submit transactions that will be signed with your private key, or perhaps export transactions to be tested with external tools such as [`plutip` testing tool](https://github.com/mlabs-haskell/plutip). We are currently working on integration with the plutip. These will be included in an upcoming release of CTL.
+
+### With a light wallet
 
 For full testing with browser-based light wallets, tools such as [`puppeteer`](https://github.com/puppeteer/puppeteer) or its [Purescript bindings](https://pursuit.purescript.org/packages/purescript-toppokki) might be useful.
