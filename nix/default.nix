@@ -53,6 +53,7 @@ let
           pkgs.easy-ps.spago
           pkgs.easy-ps."${formatter}"
           pkgs.easy-ps.pscid
+          pkgs.easy-ps.psa
           pkgs.easy-ps.spago2nix
           pkgs.nodePackages.node2nix
         ] ++ pkgs.lib.lists.optional
@@ -107,25 +108,30 @@ let
     }:
     let
       nodeModules = mkNodeModules { inherit withDevDeps; };
+      srcs = builtins.concatStringsSep "," sources;
+      # for e.g. `cp -r {a,b,c}` vs `cp -r a`
+      srcsStr =
+        if builtins.length sources > 1
+        then ("{" + srcs + "}")
+        else srcs;
+      # This is what spago2nix does
+      spagoGlob = pkg:
+        ''".spago/${pkg.name}/${pkg.version}/src/**/*.purs"'';
+      spagoGlobs = builtins.toString (
+        builtins.map spagoGlob (builtins.attrValues spagoPkgs.inputs)
+      );
     in
     pkgs.stdenv.mkDerivation {
       inherit name src;
       buildInputs = [
         spagoPkgs.installSpagoStyle
-        spagoPkgs.buildSpagoStyle
+        pkgs.easy-ps.psa
       ];
       nativeBuildInputs = [
         purs
         pkgs.easy-ps.spago
       ];
       unpackPhase =
-        let
-          srcs = builtins.concatStringsSep "," sources;
-          # for e.g. `cp -r {a,b,c}` vs `cp -r a`
-          srcsStr =
-            if builtins.length sources > 1
-            then ("{" + srcs + "}") else srcs;
-        in
         ''
           export HOME="$TMP"
           export NODE_PATH="${nodeModules}/lib/node_modules"
@@ -134,7 +140,8 @@ let
           install-spago-style
         '';
       buildPhase = ''
-        build-spago-style "./**/*.purs"
+        psa --strict --censor-lib --is-lib=.spago ${spagoGlobs} \
+          --censor-codes=UserDefinedWarning "./**/*.purs"
       '';
       installPhase = ''
         mkdir $out
@@ -161,6 +168,38 @@ let
         '';
         installPhase = ''
           touch $out
+        '';
+      });
+
+  bundlePursProject =
+    { name ? "${projectName}-bundle-" +
+        (if browserRuntime then "web" else "nodejs")
+    , entrypoint ? "index.js"
+    , htmlTemplate ? "index.html"
+    , main ? "Main"
+    , browserRuntime ? true
+    , webpackConfig ? "webpack.config.js"
+    , bundledModuleName ? "output.js"
+    , ...
+    }@args:
+    (buildPursProject (args // { withDevDeps = true; })).overrideAttrs
+      (oas: {
+        inherit name;
+        buildInputs = oas.buildInputs ++ [ nodejs ];
+        buildPhase = oas.buildPhase + ''
+          ${pkgs.lib.optionalString browserRuntime "export BROWSER_RUNTIME=1"}
+          chmod -R +rwx .
+          spago bundle-module --no-install --no-build -m "${main}" \
+            --to ${bundledModuleName}
+          cp $src/${entrypoint} .
+          cp $src/${htmlTemplate} .
+          cp $src/${webpackConfig} .
+          mkdir ./dist
+          webpack --mode=production -c ${webpackConfig} -o ./dist --entry ./${entrypoint}
+        '';
+        installPhase = ''
+          mkdir $out
+          mv dist $out
         '';
       });
 
@@ -200,39 +239,6 @@ let
         cp -r generated-docs $out
       '';
     };
-
-  bundlePursProject =
-    { name ? "${projectName}-bundle-" +
-        (if browserRuntime then "web" else "nodejs")
-    , entrypoint ? "index.js"
-    , htmlTemplate ? "index.html"
-    , main ? "Main"
-    , browserRuntime ? true
-    , webpackConfig ? "webpack.config.js"
-    , bundledModuleName ? "output.js"
-    , ...
-    }@args:
-    (buildPursProject (args // { withDevDeps = true; })).overrideAttrs
-      (oas: {
-        inherit name;
-        buildInputs = oas.buildInputs ++ [ nodejs ];
-        buildPhase = ''
-          ${pkgs.lib.optionalString browserRuntime "export BROWSER_RUNTIME=1"}
-          build-spago-style "./**/*.purs"
-          chmod -R +rwx .
-          spago bundle-module --no-install --no-build -m "${main}" \
-            --to ${bundledModuleName}
-          cp $src/${entrypoint} .
-          cp $src/${htmlTemplate} .
-          cp $src/${webpackConfig} .
-          mkdir ./dist
-          webpack --mode=production -c ${webpackConfig} -o ./dist --entry ./${entrypoint}
-        '';
-        installPhase = ''
-          mkdir $out
-          mv dist $out
-        '';
-      });
 
 in
 {

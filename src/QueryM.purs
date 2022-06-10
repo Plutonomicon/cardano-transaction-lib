@@ -65,7 +65,7 @@ import Affjax as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
-import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
+import Affjax.StatusCode as Affjax.StatusCode
 import Cardano.Types.Transaction (Transaction(Transaction))
 import Cardano.Types.Transaction as Transaction
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
@@ -74,7 +74,7 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT, ask, asks)
 import Data.Array (length)
-import Data.Bifunctor (bimap, lmap)
+import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, isRight, note, hush)
@@ -540,7 +540,8 @@ handleAffjaxResponse
   -> Either ClientError result
 handleAffjaxResponse (Left affjaxError) =
   Left (ClientHttpError affjaxError)
-handleAffjaxResponse (Right { status: Affjax.StatusCode statusCode, body })
+handleAffjaxResponse
+  (Right { status: Affjax.StatusCode.StatusCode statusCode, body })
   | statusCode < 200 || statusCode > 299 =
       Left (ClientHttpResponseError body)
   | otherwise =
