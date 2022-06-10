@@ -21,7 +21,6 @@ module QueryM
   , allowError
   , applyArgs
   , calculateMinFee
-  , cancelFetchBlocks
   , evalTxExecutionUnits
   , finalizeTx
   , getChainTip
@@ -43,7 +42,6 @@ module QueryM
   , signTransaction
   , scriptToAeson
   , signTransactionBytes
-  , startFetchBlocks
   , submitTxOgmios
   , traceQueryConfig
   , underlyingWebSocket
@@ -63,11 +61,11 @@ import Aeson
   , parseJsonStringToAeson
   , stringifyAeson
   )
-import Affjax as Affjax
+import Affjax (Error, Response, defaultRequest, printError, request) as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
-import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
+import Affjax.StatusCode as Affjax.StatusCode
 import Cardano.Types.Transaction (Transaction(Transaction))
 import Cardano.Types.Transaction as Transaction
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
@@ -76,7 +74,7 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT, ask, asks)
 import Data.Array (length)
-import Data.Bifunctor (bimap, lmap)
+import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, isRight, note, hush)
@@ -114,10 +112,8 @@ import JsWebSocket
   , _wsWatch
   )
 import QueryM.DatumCacheWsp
-  ( CancelFetchBlocksR
-  , GetDatumByHashR
+  ( GetDatumByHashR
   , GetDatumsByHashesR
-  , StartFetchBlocksR
   )
 import QueryM.DatumCacheWsp as DcWsp
 import QueryM.JsonWsp (parseJsonWspResponseId)
@@ -148,7 +144,6 @@ import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address
   ( Address
   , NetworkId(TestnetId)
-  , Slot
   , baseAddressDelegationCred
   , baseAddressFromAddress
   , baseAddressPaymentCred
@@ -273,17 +268,6 @@ getDatumByHash hash = unwrap <$> do
 getDatumsByHashes :: Array DataHash -> QueryM (Map DataHash Datum)
 getDatumsByHashes hashes = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
-
-startFetchBlocks :: { slot :: Slot, id :: Chain.BlockHeaderHash } -> QueryM Unit
-startFetchBlocks start = void $ mkDatumCacheRequest DcWsp.startFetchBlocksCall
-  _.startFetchBlocks
-  start
-
--- | Cancels a running block fetcher job. Throws on no fetchers running
-cancelFetchBlocks :: QueryM Unit
-cancelFetchBlocks = void $ mkDatumCacheRequest DcWsp.cancelFetchBlocksCall
-  _.cancelFetchBlocks
-  unit
 
 allowError
   :: forall (a :: Type). (Either Error a -> Effect Unit) -> a -> Effect Unit
@@ -542,7 +526,8 @@ handleAffjaxResponse
   -> Either ClientError result
 handleAffjaxResponse (Left affjaxError) =
   Left (ClientHttpError affjaxError)
-handleAffjaxResponse (Right { status: Affjax.StatusCode statusCode, body })
+handleAffjaxResponse
+  (Right { status: Affjax.StatusCode.StatusCode statusCode, body })
   | statusCode < 200 || statusCode > 299 =
       Left (ClientHttpResponseError body)
   | otherwise =
@@ -656,18 +641,12 @@ mkDatumCacheWebSocket'
 mkDatumCacheWebSocket' lvl serverCfg cb = do
   getDatumByHashDispatchMap <- createMutableDispatch
   getDatumsByHashesDispatchMap <- createMutableDispatch
-  startFetchBlocksDispatchMap <- createMutableDispatch
-  cancelFetchBlocksDispatchMap <- createMutableDispatch
   getDatumByHashPendingRequests <- createPendingRequests
   getDatumsByHashesPendingRequests <- createPendingRequests
-  startFetchBlocksPendingRequests <- createPendingRequests
-  cancelFetchBlocksPendingRequests <- createPendingRequests
   let
     md = datumCacheMessageDispatch
       { getDatumByHashDispatchMap
       , getDatumsByHashesDispatchMap
-      , startFetchBlocksDispatchMap
-      , cancelFetchBlocksDispatchMap
       }
   ws <- _mkWebSocket (logger Debug) $ mkOgmiosDatumCacheWsUrl serverCfg
   let
@@ -676,8 +655,6 @@ mkDatumCacheWebSocket' lvl serverCfg cb = do
       logString lvl Debug "Datum Cache: WS error occured, resending requests"
       Ref.read getDatumByHashPendingRequests >>= traverse_ sendRequest
       Ref.read getDatumsByHashesPendingRequests >>= traverse_ sendRequest
-      Ref.read startFetchBlocksPendingRequests >>= traverse_ sendRequest
-      Ref.read cancelFetchBlocksPendingRequests >>= traverse_ sendRequest
   _onWsConnect ws $ do
     _wsWatch ws (logger Debug) onError
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
@@ -687,10 +664,6 @@ mkDatumCacheWebSocket' lvl serverCfg cb = do
           getDatumByHashPendingRequests
       , getDatumsByHashes: mkListenerSet getDatumsByHashesDispatchMap
           getDatumsByHashesPendingRequests
-      , startFetchBlocks: mkListenerSet startFetchBlocksDispatchMap
-          startFetchBlocksPendingRequests
-      , cancelFetchBlocks: mkListenerSet cancelFetchBlocksDispatchMap
-          cancelFetchBlocksPendingRequests
       }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
@@ -728,10 +701,6 @@ type OgmiosListeners =
 type DatumCacheListeners =
   { getDatumByHash :: ListenerSet DataHash GetDatumByHashR
   , getDatumsByHashes :: ListenerSet (Array DataHash) GetDatumsByHashesR
-  , startFetchBlocks ::
-      ListenerSet { slot :: Slot, id :: Chain.BlockHeaderHash }
-        StartFetchBlocksR
-  , cancelFetchBlocks :: ListenerSet Unit CancelFetchBlocksR
   }
 
 -- convenience type for adding additional query types later
@@ -872,20 +841,14 @@ ogmiosMessageDispatch
 datumCacheMessageDispatch
   :: { getDatumByHashDispatchMap :: DispatchIdMap GetDatumByHashR
      , getDatumsByHashesDispatchMap :: DispatchIdMap GetDatumsByHashesR
-     , startFetchBlocksDispatchMap :: DispatchIdMap StartFetchBlocksR
-     , cancelFetchBlocksDispatchMap :: DispatchIdMap CancelFetchBlocksR
      }
   -> Array WebsocketDispatch
 datumCacheMessageDispatch
   { getDatumByHashDispatchMap
   , getDatumsByHashesDispatchMap
-  , startFetchBlocksDispatchMap
-  , cancelFetchBlocksDispatchMap
   } =
   [ queryDispatch getDatumByHashDispatchMap
   , queryDispatch getDatumsByHashesDispatchMap
-  , queryDispatch startFetchBlocksDispatchMap
-  , queryDispatch cancelFetchBlocksDispatchMap
   ]
 
 -- each query type will have a corresponding ref that lives in ReaderT config or similar
