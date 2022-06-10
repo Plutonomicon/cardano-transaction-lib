@@ -17,6 +17,5 @@ main = launchAff_ do
 -- Requires external services listed in README.md
 testPlan :: TestPlanM Unit
 testPlan = do
-  AffInterface.suite
   FinalizeTx.suite
--- FIXME: MultipleRedeemers.suite
+  AffInterface.suite

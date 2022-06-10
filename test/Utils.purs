@@ -2,8 +2,8 @@ module Test.Utils
   ( aesonRoundTrip
   , assertTrue
   , assertTrue_
-  , errEither
   , errMaybe
+  , errEither
   , interpret
   , toFromAesonTest
   , unsafeCall
@@ -12,22 +12,6 @@ module Test.Utils
 
 import Prelude
 
-import Data.Const (Const)
-import Data.Either (Either(Left, Right))
-import Data.Foldable (sequence_)
-import Data.Maybe (Maybe(Just, Nothing))
-import Effect.Aff (Aff, error)
-import Effect.Aff.Class (liftAff)
-import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (throwException, throw)
-import Mote (Plan, foldPlan, planT, test)
-import Node.Path (FilePath)
-import Test.Spec (Spec, describe, it)
-import Test.Spec.Assertions (shouldEqual)
-import Test.Spec.Reporter (consoleReporter)
-import Test.Spec.Runner (runSpec)
-import TestM (TestPlanM)
-import Type.Proxy (Proxy)
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
@@ -37,10 +21,27 @@ import Aeson
   , encodeAeson
   , parseJsonStringToAeson
   )
+import Data.Const (Const)
+import Data.Either (Either(Right), either)
+import Data.Foldable (sequence_)
+import Data.Maybe (Maybe, maybe)
+import Effect.Aff (Aff, error)
+import Effect.Aff.Class (liftAff)
+import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Exception (throwException, throw)
+import Mote (Plan, foldPlan, planT, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
+import Node.Path (FilePath)
+import Test.Spec (Spec, describe, it, pending)
+import Test.Spec.Assertions (shouldEqual)
+import Test.Spec.Reporter (consoleReporter)
+import Test.Spec.Runner (runSpec)
+import TestM (TestPlanM)
+import Type.Proxy (Proxy)
 
-foreign import unsafeCall :: forall a b. Proxy b -> String -> a -> b
+foreign import unsafeCall
+  :: forall (a :: Type) (b :: Type). Proxy b -> String -> a -> b
 
 -- | We use `mote` here so that we can use effects to build up a test tree, which
 -- | is then interpreted here in a pure context, mainly due to some painful types
@@ -54,7 +55,7 @@ interpret spif = do
   go =
     foldPlan
       (\x -> it x.label $ liftAff x.value)
-      (const $ pure unit)
+      pending
       (\x -> describe x.label $ go x.value)
       sequence_
 
@@ -82,9 +83,7 @@ errEither
   => Show e
   => Either e a
   -> m a
-errEither = case _ of
-  Left msg -> liftEffect <<< throw <<< show $ msg
-  Right res -> pure res
+errEither = either (liftEffect <<< throw <<< show) pure
 
 errMaybe
   :: forall (m :: Type -> Type) (a :: Type)
@@ -92,23 +91,18 @@ errMaybe
   => String
   -> Maybe a
   -> m a
-errMaybe msg = case _ of
-  Nothing -> liftEffect $ throw msg
-  Just res -> pure res
+errMaybe msg = maybe (liftEffect $ throw msg) pure
 
 toFromAesonTest
   :: forall (a :: Type)
    . Eq a
-  => Show a
   => DecodeAeson a
   => EncodeAeson a
-  => a
+  => Show a
+  => String
+  -> a
   -> TestPlanM Unit
-toFromAesonTest x = test (show x) $ do
-  let
-    (xOrErr :: Either JsonDecodeError a) =
-      aesonRoundTrip x
-  xOrErr `shouldEqual` Right x
+toFromAesonTest desc x = test desc $ aesonRoundTrip x `shouldEqual` Right x
 
 aesonRoundTrip
   :: forall (a :: Type)
@@ -121,6 +115,5 @@ aesonRoundTrip
 aesonRoundTrip = decodeAeson <<< encodeAeson
 
 readAeson :: forall (m :: Type -> Type). MonadEffect m => FilePath -> m Aeson
-readAeson fp = do
-  str <- liftEffect <<< readTextFile UTF8 $ fp
-  errEither <<< parseJsonStringToAeson $ str
+readAeson = errEither <<< parseJsonStringToAeson
+  <=< liftEffect <<< readTextFile UTF8

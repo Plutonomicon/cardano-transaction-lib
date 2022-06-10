@@ -19,14 +19,11 @@ import Data.Proxy (Proxy (Proxy))
 import Network.Wai.Middleware.Cors qualified as Cors
 import Servant (
   Application,
-  Get,
   Handler,
   HasServer (ServerT),
   JSON,
   Post,
-  QueryParam',
   ReqBody,
-  Required,
   Server,
   ServerError (errBody),
   err400,
@@ -47,33 +44,30 @@ import Types (
     ScriptExecutionError,
     TxValidityIntervalError
   ),
-  Cbor,
   CborDecodeError (InvalidCbor, InvalidHex, OtherDecodeError),
   CtlServerError (CardanoError, CborDecode),
   Env,
+  EvalExUnitsRequest,
   ExecutionUnitsMap,
   Fee,
+  FeesRequest,
   FinalizeRequest,
   FinalizedTransaction,
-  WitnessCount,
  )
 import Utils (lbshow)
 
 type Api =
   "fees"
-    :> QueryParam' '[Required] "count" WitnessCount
-    :> QueryParam' '[Required] "tx" Cbor
-    :> Get '[JSON] Fee
+    :> ReqBody '[JSON] FeesRequest
+    :> Post '[JSON] Fee
     -- Since @Script@ and @Data@ have @From/ToJSON@ instances, we can just
     -- accept them in the body of a POST request
     :<|> "apply-args"
       :> ReqBody '[JSON] ApplyArgsRequest
       :> Post '[JSON] AppliedScript
-    -- Making this a POST request so we can just use the @From/ToJSON@
-    -- instances instead of decoding in the handler
     :<|> "eval-ex-units"
-      :> QueryParam' '[Required] "tx" Cbor
-      :> Get '[JSON] ExecutionUnitsMap
+      :> ReqBody '[JSON] EvalExUnitsRequest
+      :> Post '[JSON] ExecutionUnitsMap
     :<|> "finalize"
       :> ReqBody '[JSON] FinalizeRequest
       :> Post '[JSON] FinalizedTransaction
@@ -135,9 +129,9 @@ server =
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
 
-estimateTxFees :: WitnessCount -> Cbor -> ClientM Fee
+estimateTxFees :: FeesRequest -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
-evalTxExecutionUnits :: Cbor -> ClientM ExecutionUnitsMap
+evalTxExecutionUnits :: EvalExUnitsRequest -> ClientM ExecutionUnitsMap
 finalizeTx :: FinalizeRequest -> ClientM FinalizedTransaction
 estimateTxFees
   :<|> applyArgs
