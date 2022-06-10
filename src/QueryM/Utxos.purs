@@ -41,13 +41,10 @@ utxosAt :: Address -> QueryM (Maybe UtxoM)
 utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
   where
   -- Add more wallet types here:
-  utxosAtByWallet
-    :: Address -> Wallet -> QueryM (Maybe UtxoM)
-  utxosAtByWallet address (Nami _) = cip30UtxosAt address
-  utxosAtByWallet address (Gero _) = cip30UtxosAt address
-  -- Unreachable but helps build when we add wallets, most of them shouldn't
-  -- require any specific behaviour.
-  utxosAtByWallet address _ = allUtxosAt address
+  utxosAtByWallet :: Address -> Wallet -> QueryM (Maybe UtxoM)
+  utxosAtByWallet address = case _ of
+    Nami _ -> cip30UtxosAt address
+    Gero _ -> cip30UtxosAt address
 
   -- Gets all utxos at an (internal) Address in terms of (internal)
   -- Cardano.Transaction.Types.
