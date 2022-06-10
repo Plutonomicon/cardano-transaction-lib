@@ -151,7 +151,11 @@ import FfiHelpers
   , maybeFfiHelper
   )
 import Serialization (toBytes)
-import Serialization.Address (RewardAddress, StakeCredential) as Csl
+import Serialization.Address
+  ( RewardAddress
+  , StakeCredential
+  , NetworkId(TestnetId, MainnetId)
+  ) as Csl
 import Serialization.Address (intToNetworkId, Slot(Slot))
 import Serialization.Hash (Ed25519KeyHash, ScriptHash)
 import Serialization.Types
@@ -244,10 +248,10 @@ convertTxBody txBody = do
       # traverse (convertOutput >>> cslErr "TransactionOutput")
   fee <-
     Coin <$> (_txBodyFee txBody # bigNumToBigInt' "Tx fee")
-  networkId <-
-    _txBodyNetworkId maybeFfiHelper txBody
-      # traverse (intToNetworkId >>> cslErr "NetworkId")
   let
+    networkId =
+      _txBodyNetworkId Csl.TestnetId Csl.MainnetId maybeFfiHelper txBody
+
     ws :: Maybe (Array (Csl.RewardAddress /\ Csl.BigNum))
     ws = _unpackWithdrawals containerHelper <$> _txBodyWithdrawals
       maybeFfiHelper
@@ -849,7 +853,11 @@ foreign import _txBodyRequiredSigners
 
 -- network_id(): NetworkId | void
 foreign import _txBodyNetworkId
-  :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Int
+  :: Csl.NetworkId
+  -> Csl.NetworkId
+  -> MaybeFfiHelper
+  -> Csl.TransactionBody
+  -> Maybe Csl.NetworkId
 
 foreign import _unpackWithdrawals
   :: ContainerHelper

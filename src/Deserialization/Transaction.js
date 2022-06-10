@@ -66,7 +66,18 @@ exports._txBodyCollateral = maybeGetterMulti("collateral");
 // required_signers(): Ed25519KeyHashes | void;
 exports._txBodyRequiredSigners = maybeGetterMulti("required_signers");
 // network_id(): number | void;
-exports._txBodyNetworkId = maybeGetter_(o => o.kind())("network_id");
+exports._txBodyNetworkId = testnet => mainnet => maybeGetter_(
+    o => {
+        switch (o.kind()) {
+        case lib.NetworkIdKind.Testnet:
+            return testnet;
+        case lib.NetworkIdKind.Mainnet:
+            return mainnet;
+        default:
+            throw ("Unknown NetworkIdKind: " + o.kind());
+        }
+    }
+)("network_id");
 
 // foreign import _unpackWithdrawals :: ContainerHelper -> CSL.Withdrawals -> Array(Tuple CSL.RewardAddress CSL.BigNum)
 exports._unpackWithdrawals = containerhelper => containerhelper.unpackKeyIndexed;
