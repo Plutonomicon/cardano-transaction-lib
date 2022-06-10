@@ -29,7 +29,7 @@ import Serialization.Hash
   )
 
 import Plutus.Types.Address
-  ( Address(Address)
+  ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
   ) as Plutus
 import Plutus.Types.AddressHeaderType
