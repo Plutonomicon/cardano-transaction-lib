@@ -1,4 +1,12 @@
-/* global exports */
+/* global require exports BROWSER_RUNTIME */
+
+var lib;
+if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
+    lib = require('@emurgo/cardano-serialization-lib-browser');
+} else {
+    lib = require('@emurgo/cardano-serialization-lib-nodejs');
+}
+
 
 const call = property => object => object[property]();
 const callMaybe = property => maybe => object => {
@@ -94,43 +102,61 @@ exports._unpackMintAssets = containerhelper => containerhelper.unpackKeyIndexed;
 //   }
 // foreign import _convertCert :: forall r.CertConvHelper r -> CSL.Certificate -> Err r Certificate
 exports._convertCert = certConvHelper => cert => {
-    // StakeRegistration,
-    var r = cert.as_stake_registration();
-    if (r) return certConvHelper.stakeRegistration(r.stake_credential());
-    // StakeDeregistration,
-    r = cert.as_stake_deregistration();
-    if (r) return certConvHelper.stakeDeregistration(r.stake_credential());
-    // StakeDelegation,
-    r = cert.as_stake_delegation();
-    if (r) return certConvHelper.stakeDelegation(r.stake_credential())(r.pool_keyhash());
-    // PoolRegistration
-    r = cert.as_pool_registration();
-    if (r) return certConvHelper.poolRegistration(r.pool_params());
-    // PoolRetirement
-    r = cert.as_pool_retirement();
-    if (r) return certConvHelper.poolRetirement(r.pool_keyhash())(r.epoch());
-    // GenesisKeyDelegation
-    r = cert.as_genesis_key_delegation();
-    if (r) return certConvHelper.genesisKeyDelegation(
-        r.genesishash()
-    )(
-        r.genesis_delegate_hash()
-    )(
-        r.vrf_keyhash()
-    );
-    // MoveInstantaneoursRewardsToOtherPot, MoveInstantaneoursRewardsToStakeCreds
-    r = cert.as_move_instantaneous_rewards_cert();
-    if (r) {
-        let s;
-        r = r.move_instantaneous_reward();
-        s = r.as_to_other_pot();
-        if (s) return certConvHelper.moveInstantaneousRewardsToOtherPotCert(r.pot())(s);
-        s = r.as_to_stake_creds();
-        if (s) return certConvHelper.moveInstantaneousRewardsToStakeCreds(r.pot())(s);
-        throw ("MoveInstantaneousReward convertion failed for kind" + r.kind());
-    }
-
-    throw ("Cert conversion failed for kind: ", cert.kind());
+    switch (cert.kind()) {
+    case lib.CertificateKind.StakeRegistration:
+        return certConvHelper.stakeRegistration(
+            cert.as_stake_registration().stake_credential()
+        );
+    case lib.CertificateKind.StakeDeregistration:
+        return certConvHelper.stakeDeregistration(
+            cert.as_stake_deregistration().stake_credential()
+        );
+    case lib.CertificateKind.StakeDelegation:
+        return certConvHelper.stakeDelegation(
+            cert.as_stake_delegation().stake_credential()
+        )(
+            cert.as_stake_delegation().pool_keyhash()
+        );
+    case lib.CertificateKind.PoolRegistration:
+        return certConvHelper.poolRegistration(
+            cert.as_pool_registration().pool_params()
+        );
+    case lib.CertificateKind.PoolRetirement:
+        return certConvHelper.poolRetirement(
+            cert.as_pool_retirement().pool_keyhash()
+        )(
+            cert.as_pool_retirement().epoch()
+        );
+    case lib.CertificateKind.GenesisKeyDelegation:
+        return certConvHelper.genesisKeyDelegation(
+            cert.as_genesis_key_delegation().genesishash()
+        )(
+            cert.as_genesis_key_delegation().genesis_delegate_hash()
+        )(
+            cert.as_genesis_key_delegation().vrf_keyhash()
+        );
+    case lib.CertificateKind.MoveInstantaneousRewardsCert:
+        const mirCert = cert.as_move_instantaneous_rewards_cert();
+        const mir = mirCert.move_instantaneous_reward();
+        switch (mir.kind()) {
+        case lib.MIRKind.ToOtherPot:
+            return certConvHelper.moveInstantaneousRewardsToOtherPotCert(
+                mir.pot()
+            )(
+                mir.as_to_other_pot()
+            );
+        case lib.MIRKind.ToStakeCredentials:
+            return certConvHelper.moveInstantaneousRewardsToStakeCreds(
+                mir.pot()
+            )(
+                mir.as_to_stake_creds()
+            );
+        default:
+            throw ("MoveInstantaneousReward convertion failed for kind" + mir.kind());
+        };
+    default:
+        throw ("Cert conversion failed for kind: ", cert.kind());
+    };
 };
 
 
@@ -211,7 +237,7 @@ exports._unpackCostModel = cm => {
 //   :: forall r.ErrorFfiHelper r -> { plutusV1:: Language } -> CSL.Language -> E r Language
 exports._convertLanguage = errorHelper => langCtors => cslLang => {
     try{
-        if(cslLang.kind()==0){
+        if(cslLang.kind()==lib.LanguageKind.PlutusV1){
             return errorHelper.valid(langCtors.plutusV1);
         }
         else{
