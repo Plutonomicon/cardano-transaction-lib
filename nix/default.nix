@@ -71,35 +71,6 @@ let
           + shellHook;
       };
 
-  buildPursDocsSearch =
-    { name ? "purescript-docs-search"
-    , ...
-    }:
-    pkgs.stdenv.mkDerivation {
-      inherit name;
-      srcs = [
-        (pkgs.fetchurl {
-          url = "https://github.com/purescript/purescript-docs-search/releases/download/v0.0.11/docs-search-app.js";
-          sha256 = "17qngsdxfg96cka1cgrl3zdrpal8ll6vyhhnazqm4hwj16ywjm02";
-        })
-        (pkgs.fetchurl {
-          url = "https://github.com/purescript/purescript-docs-search/releases/download/v0.0.11/purescript-docs-search";
-          sha256 = "1hjdprm990vyxz86fgq14ajn0lkams7i00h8k2i2g1a0hjdwppq6";
-        })
-      ];
-      buildInputs = [ nodejs ];
-      unpackPhase = ''
-        for srcFile in $srcs; do
-          cp $srcFile $(stripHash $srcFile)
-        done
-      '';
-      installPhase = ''
-        chmod +x purescript-docs-search
-        mkdir -p $out/bin
-        mv docs-search-app.js purescript-docs-search $out/bin
-      '';
-    };
-
   buildPursProject =
     { sources ? [ "src" ]
     , withDevDeps ? false
@@ -195,13 +166,48 @@ let
           cp $src/${htmlTemplate} .
           cp $src/${webpackConfig} .
           mkdir ./dist
-          webpack --mode=production -c ${webpackConfig} -o ./dist --entry ./${entrypoint}
+          webpack --mode=production -c ${webpackConfig} -o ./dist \
+            --entry ./${entrypoint}
         '';
         installPhase = ''
           mkdir $out
           mv dist $out
         '';
       });
+
+  buildPursDocsSearch =
+    { name ? "purescript-docs-search"
+    , ...
+    }:
+    let
+      docsUrl =
+        "https://github.com/purescript/purescript-docs-search/releases/download";
+      docsVersion = "v0.0.11";
+    in
+    pkgs.stdenv.mkDerivation {
+      inherit name;
+      srcs = [
+        (pkgs.fetchurl {
+          url = "${docsUrl}/${docsVersion}/docs-search-app.js";
+          sha256 = "17qngsdxfg96cka1cgrl3zdrpal8ll6vyhhnazqm4hwj16ywjm02";
+        })
+        (pkgs.fetchurl {
+          url = "${docsUrl}/${docsVersion}/purescript-docs-search";
+          sha256 = "1hjdprm990vyxz86fgq14ajn0lkams7i00h8k2i2g1a0hjdwppq6";
+        })
+      ];
+      buildInputs = [ nodejs ];
+      unpackPhase = ''
+        for srcFile in $srcs; do
+          cp $srcFile $(stripHash $srcFile)
+        done
+      '';
+      installPhase = ''
+        chmod +x purescript-docs-search
+        mkdir -p $out/bin
+        mv docs-search-app.js purescript-docs-search $out/bin
+      '';
+    };
 
   buildPursDocs =
     { name ? "${projectName}-docs"
@@ -229,10 +235,11 @@ let
         spagoPkgs.installSpagoStyle
       ];
       buildPhase = ''
-        cp -r ${buildPursDocs { format = "html"; }}/{generated-docs,output} .
+        cp -r ${buildPursDocs { }}/{generated-docs,output} .
         install-spago-style
         chmod -R +rwx .
-        ${buildPursDocsSearch { }}/bin/purescript-docs-search build-index --package-name cardano-transaction-lib
+        ${buildPursDocsSearch { }}/bin/purescript-docs-search build-index \
+          --package-name cardano-transaction-lib
       '';
       installPhase = ''
         mkdir $out
@@ -242,7 +249,8 @@ let
 
 in
 {
-  inherit buildPursProject runPursTest buildPursDocs buildSearchablePursDocs buildPursDocsSearch bundlePursProject;
+  inherit buildPursProject runPursTest buildPursDocs bundlePursProject;
+  inherit buildSearchablePursDocs buildPursDocsSearch;
   inherit purs nodejs mkNodeModules;
   devShell = shellFor shell;
 }
