@@ -6,9 +6,11 @@ import Prelude
 
 import Aeson
   ( class DecodeAeson
+  , class EncodeAeson
   , JsonDecodeError(UnexpectedValue)
   , decodeAeson
   , encodeAeson
+  , encodeAeson'
   , toStringifiedNumbersJson
   , (.:)
   )
@@ -38,6 +40,7 @@ derive instance Generic PlutusData _
 instance Show PlutusData where
   show x = genericShow x
 
+-- Ogmios Datum Cache Json format
 instance DecodeAeson PlutusData where
   decodeAeson aeson = decodeConstr
     <|> decodeMap
@@ -77,3 +80,21 @@ instance DecodeAeson PlutusData where
         Nothing -> Left $ UnexpectedValue $ toStringifiedNumbersJson $
           encodeAeson bytesHex
         Just res -> pure $ Bytes res
+
+instance EncodeAeson PlutusData where
+  encodeAeson' (Constr constr fields) = encodeAeson'
+    { "constr": encodeAeson constr
+    , "fields": encodeAeson fields
+    }
+  encodeAeson' (Map elems) = encodeAeson'
+    { "map": encodeAeson $ map
+        ( \(k /\ v) ->
+            { "key": encodeAeson k
+            , "value": encodeAeson v
+            }
+        )
+        elems
+    }
+  encodeAeson' (List elems) = encodeAeson' elems
+  encodeAeson' (Integer bi) = encodeAeson' bi
+  encodeAeson' (Bytes ba) = encodeAeson' ba

@@ -13,11 +13,11 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
+  , JsonDecodeError(TypeMismatch)
   , caseAesonObject
   , decodeAeson
   , encodeAeson'
   , getField
-  , JsonDecodeError(TypeMismatch)
   )
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe)

@@ -48,12 +48,12 @@ instance Show PlutusScript where
   show = genericShow
 
 decodeAesonHelper
-  ∷ ∀ (a ∷ Type) (b :: Type)
+  :: ∀ (a :: Type) (b :: Type)
    . DecodeAeson a
   => String
-  → (a -> b)
-  → Aeson
-  → Either JsonDecodeError b
+  -> (a -> b)
+  -> Aeson
+  -> Either JsonDecodeError b
 decodeAesonHelper constrName constr = caseAesonObject
   (Left $ TypeMismatch "Expected object")
   (flip getField constrName >=> decodeAeson >>> map constr)
@@ -147,13 +147,8 @@ derive newtype instance FromData ValidatorHash
 derive newtype instance ToData ValidatorHash
 derive newtype instance FromMetadata ValidatorHash
 derive newtype instance ToMetadata ValidatorHash
-
-instance DecodeAeson ValidatorHash where
-  decodeAeson = decodeAesonHelper "getValidatorHash" ValidatorHash
-
-instance EncodeAeson ValidatorHash where
-  encodeAeson' (ValidatorHash hash) =
-    encodeAeson' { "getValidatorHash": hash }
+derive newtype instance EncodeAeson ValidatorHash
+derive newtype instance DecodeAeson ValidatorHash
 
 instance Show ValidatorHash where
   show = genericShow
