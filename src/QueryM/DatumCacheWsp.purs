@@ -1,22 +1,16 @@
 module QueryM.DatumCacheWsp
-  ( CancelFetchBlocksR(CancelFetchBlocksR)
-  , DatumCacheMethod
+  ( DatumCacheMethod
       ( GetDatumByHash
       , GetDatumsByHashes
-      , StartFetchBlocks
-      , CancelFetchBlocks
       )
   , GetDatumByHashR(GetDatumByHashR)
   , GetDatumsByHashesR(GetDatumsByHashesR)
-  , StartFetchBlocksR(StartFetchBlocksR)
   , WspFault(WspFault)
-  , cancelFetchBlocksCall
   , faultToString
   , getDatumByHashCall
   , getDatumsByHashesCall
   , JsonWspRequest
   , JsonWspResponse
-  , startFetchBlocksCall
   ) where
 
 import Prelude
@@ -25,13 +19,10 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError
-      ( TypeMismatch
-      )
+  , JsonDecodeError(TypeMismatch)
   , caseAesonArray
   , caseAesonObject
   , decodeAeson
-  , encodeAeson
   , getNestedAeson
   , stringifyAeson
   , (.:)
@@ -46,11 +37,9 @@ import Data.Traversable (traverse)
 import Data.Tuple.Nested (type (/\), (/\))
 import QueryM.JsonWsp (JsonWspCall, mkCallType)
 import QueryM.UniqueId (ListenerId)
-import Serialization.Address (Slot)
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (byteArrayToHex)
 import Types.Datum (Datum, DataHash)
-import Types.Chain (BlockHeaderHash)
 
 newtype WspFault = WspFault Aeson
 
@@ -116,30 +105,10 @@ instance DecodeAeson GetDatumsByHashesR where
         r
         [ "DatumsFound", "value" ]
 
-data StartFetchBlocksR = StartFetchBlocksR
-
-instance DecodeAeson StartFetchBlocksR where
-  decodeAeson r = StartFetchBlocksR <$ decodeDoneFlag [ "StartedBlockFetcher" ]
-    r
-
-data CancelFetchBlocksR = CancelFetchBlocksR
-
-instance DecodeAeson CancelFetchBlocksR where
-  decodeAeson r = CancelFetchBlocksR <$ decodeDoneFlag
-    [ "StoppedBlockFetcher" ]
-    r
-
-decodeDoneFlag :: Array String -> Aeson -> Either JsonDecodeError Unit
-decodeDoneFlag locator r =
-  unlessM ((decodeAeson =<< getNestedAeson r locator))
-    $ Left (TypeMismatch "Expected done flag")
-
 -- TODO: delete
 data DatumCacheMethod
   = GetDatumByHash
   | GetDatumsByHashes
-  | StartFetchBlocks
-  | CancelFetchBlocks
 
 derive instance Eq DatumCacheMethod
 
@@ -150,8 +119,6 @@ datumCacheMethodToString :: DatumCacheMethod -> String
 datumCacheMethodToString = case _ of
   GetDatumByHash -> "GetDatumByHash"
   GetDatumsByHashes -> "GetDatumsByHashes"
-  StartFetchBlocks -> "StartFetchBlocks"
-  CancelFetchBlocks -> "CancelFetchBlocks"
 
 getDatumByHashCall :: JsonWspCall DataHash GetDatumByHashR
 getDatumByHashCall = mkDatumCacheCallType
@@ -162,22 +129,6 @@ getDatumsByHashesCall :: JsonWspCall (Array DataHash) GetDatumsByHashesR
 getDatumsByHashesCall = mkDatumCacheCallType
   GetDatumsByHashes
   ({ hashes: _ } <<< map (byteArrayToHex <<< unwrap))
-
-startFetchBlocksCall
-  :: JsonWspCall { slot :: Slot, id :: BlockHeaderHash } StartFetchBlocksR
-startFetchBlocksCall = mkDatumCacheCallType
-  StartFetchBlocks
-  ( \({ slot, id }) ->
-      { slot
-      , id: encodeAeson (unwrap id)
-      , datumFilter: { "const": true }
-      }
-  )
-
-cancelFetchBlocksCall :: JsonWspCall Unit CancelFetchBlocksR
-cancelFetchBlocksCall = mkDatumCacheCallType
-  CancelFetchBlocks
-  (const {})
 
 -- convenience helper
 mkDatumCacheCallType
