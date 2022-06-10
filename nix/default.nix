@@ -75,16 +75,20 @@ let
     { sources ? [ "src" ]
     , withDevDeps ? false
     , name ? projectName
+    , censorCodes ? [ "UserDefinedWarning" ]
     , ...
     }:
     let
       nodeModules = mkNodeModules { inherit withDevDeps; };
-      srcs = builtins.concatStringsSep "," sources;
+      sepWithComma = builtins.concatStringsSep ",";
       # for e.g. `cp -r {a,b,c}` vs `cp -r a`
       srcsStr =
+        let
+          withCommas = sepWithComma sources;
+        in
         if builtins.length sources > 1
-        then ("{" + srcs + "}")
-        else srcs;
+        then ("{" + withCommas + "}")
+        else withCommas;
       # This is what spago2nix does
       spagoGlob = pkg:
         ''".spago/${pkg.name}/${pkg.version}/src/**/*.purs"'';
@@ -112,7 +116,7 @@ let
         '';
       buildPhase = ''
         psa --strict --censor-lib --is-lib=.spago ${spagoGlobs} \
-          --censor-codes=UserDefinedWarning "./**/*.purs"
+          --censor-codes=${sepWithComma censorCodes} "./**/*.purs"
       '';
       installPhase = ''
         mkdir $out
