@@ -45,6 +45,7 @@ You can edit this file as you like.
   , "prelude"
   , "profunctor"
   , "profunctor-lenses"
+  , "purescript-toppokki"
   , "quickcheck"
   , "quickcheck-laws"
   , "rationals"

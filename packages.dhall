@@ -235,6 +235,19 @@ let additions =
         , repo = "https://github.com/juspay/medea-ps.git"
         , version = "8b215851959aa8bbf33e6708df6bd683c89d1a5a"
         }
+      , purescript-toppokki =
+        { dependencies =
+          [ "prelude"
+          , "record"
+          , "functions"
+          , "node-http"
+          , "aff-promise"
+          , "node-buffer"
+          , "node-fs-aff"
+          ]
+        , repo = "https://github.com/justinwoo/purescript-toppokki"
+        , version = "v3.0.0"
+        }
       }
 
 in  upstream // additions
