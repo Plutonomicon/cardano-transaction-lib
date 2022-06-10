@@ -47,8 +47,8 @@ import Untagged.Union (asOneOf)
 plutusDataAesonRoundTrip
   :: forall (a :: Type). ToData a => FromData a => a -> Either JsonDecodeError a
 plutusDataAesonRoundTrip x = do
-  pd <- encodeAeson (toData x) # decodeAeson
-  maybe (Left $ TypeMismatch "") (pure) $ fromData pd
+  maybe (Left $ TypeMismatch "") pure <<< fromData =<<
+    (encodeAeson (toData x) # decodeAeson)
 
 suite :: TestPlanM Unit
 suite = do

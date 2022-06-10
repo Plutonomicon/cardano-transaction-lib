@@ -58,7 +58,7 @@ asBase16 ba = "0x" <> byteArrayToHex ba
 
 fromTokenName :: forall r. (ByteArray -> r) -> (String -> r) -> TokenName -> r
 fromTokenName arrayHandler stringHandler (TokenName cba) = either
-  (\_ -> arrayHandler $ cborBytesToByteArray cba)
+  (const $ arrayHandler $ cborBytesToByteArray cba)
   stringHandler
   (decodeUtf8 <<< unwrap <<< cborBytesToByteArray $ cba)
 
