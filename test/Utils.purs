@@ -11,6 +11,7 @@ import Prelude
 import Data.Const (Const)
 import Data.Foldable (sequence_)
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (wrap)
 import Effect.Aff (Aff, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -18,7 +19,7 @@ import Effect.Exception (throwException, throw)
 import Mote (Plan, foldPlan, planT)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Reporter (consoleReporter)
-import Test.Spec.Runner (runSpec)
+import Test.Spec.Runner (runSpec', defaultConfig)
 import TestM (TestPlanM)
 import Type.Proxy (Proxy)
 
@@ -30,7 +31,8 @@ foreign import unsafeCall :: forall a b. Proxy b -> String -> a -> b
 interpret :: TestPlanM Unit -> Aff Unit
 interpret spif = do
   plan <- planT spif
-  runSpec [ consoleReporter ] $ go plan
+  runSpec' defaultConfig { timeout = Just $ wrap 10000.0 } [ consoleReporter ] $
+    go plan
   where
   go :: Plan (Const Void) (Aff Unit) -> Spec Unit
   go =

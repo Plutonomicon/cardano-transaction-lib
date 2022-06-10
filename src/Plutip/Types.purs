@@ -7,6 +7,7 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(..)
   , decodeAeson
+  , encodeAeson'
   , toStringifiedNumbersJson
   , (.:)
   )
@@ -15,7 +16,6 @@ import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel)
 import Data.Show.Generic (genericShow)
-import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import QueryM.ServerConfig (ServerConfig)
 
@@ -40,7 +40,7 @@ type KeyId = Int
 
 type UtxoAmount = BigInt
 
-type InitialUTXOs = Array (KeyId /\ Array UtxoAmount)
+type InitialUTXOs = Array (Array UtxoAmount)
 
 newtype ClusterStartupRequest = ClusterStartupRequest
   { keysToGenerate :: InitialUTXOs }
@@ -48,7 +48,7 @@ newtype ClusterStartupRequest = ClusterStartupRequest
 derive newtype instance EncodeAeson ClusterStartupRequest
 
 type ClusterStartupParameters =
-  { privateKeys :: Array (Int /\ PrivateKey {- Cbor -} )
+  { privateKeys :: Array PrivateKey
   , nodeSocketPath :: FilePath
   , nodeConfigPath :: FilePath
   , keysDirectory :: FilePath
@@ -56,7 +56,7 @@ type ClusterStartupParameters =
 
 data ClusterStartupFailureReason
   = ClusterIsRunningAlready
-  | NegativeLovelaces { keyId :: Int }
+  | NegativeLovelaces
   | NodeConfigNotFound
 
 derive instance Generic ClusterStartupFailureReason _
@@ -66,12 +66,11 @@ instance Show ClusterStartupFailureReason where
 
 instance DecodeAeson ClusterStartupFailureReason where
   decodeAeson aeson = do
-    obj <- decodeAeson aeson
-    tag <- obj .: "tag"
+    tag <- decodeAeson aeson
     case tag of
       "ClusterIsRunningAlready" -> do
         pure ClusterIsRunningAlready
-      "NegativeLovelaces" -> NegativeLovelaces <$> decodeAeson aeson
+      "NegativeLovelaces" -> pure NegativeLovelaces
       "NodeConfigNotFound" -> pure NodeConfigNotFound
       _ -> do
         Left (UnexpectedValue (toStringifiedNumbersJson aeson))
@@ -93,10 +92,36 @@ instance DecodeAeson StartClusterResponse where
       "ClusterStartupSuccess" -> do
         ClusterStartupSuccess <$> decodeAeson aeson
       "ClusterStartupFailure" -> do
-        ClusterStartupFailure <$> decodeAeson aeson
+        failure <- obj .: "contents"
+        ClusterStartupFailure <$> decodeAeson failure
       _ -> do
         Left (UnexpectedValue (toStringifiedNumbersJson aeson))
 
--- {"nodeSocketPath":"/tmp/nix-shell.BOlzhm/test-cluster921708/node/node.socket","keysDirectory":"/tmp/nix-shell.BOlzhm/test-cluster921708/bot-plutus-interface/signing-keys","tag":"ClusterStartupSuccess","privateKeys":[[1,"58202968654b73b625a598addc6cc7894fcf31e7e00f99e9e87d7788bb362fcb565a"]]}%
+data StopClusterRequest = StopClusterRequest
+
+derive instance Generic StopClusterRequest _
+
+instance Show StopClusterRequest where
+  show = genericShow
+
+instance EncodeAeson StopClusterRequest where
+  encodeAeson' _ = encodeAeson' ([] :: Array Int)
 
 data StopClusterResponse = StopClusterSuccess | StopClusterFailure ErrorMessage
+
+derive instance Generic StopClusterResponse _
+
+instance Show StopClusterResponse where
+  show = genericShow
+
+instance DecodeAeson StopClusterResponse where
+  decodeAeson aeson = do
+    obj <- decodeAeson aeson
+    tag <- obj .: "tag"
+    case tag of
+      "StopClusterSuccess" -> pure StopClusterSuccess
+      "StopClusterFailure" -> do
+        failure <- obj .: "contents"
+        StopClusterFailure <$> decodeAeson failure
+      _ -> do
+        Left (UnexpectedValue (toStringifiedNumbersJson aeson))

@@ -1,8 +1,11 @@
 module Plutip.Server where
 
+import Prelude
+
 import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
 import Affjax as Affjax
 import Affjax.RequestBody as RequestBody
+import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Monad
   ( ConfigParams(..)
@@ -18,8 +21,9 @@ import Control.Monad.Reader (ReaderT, runReaderT)
 import Data.Array (fold)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..), either)
+import Data.HTTP.Method as Method
 import Data.Maybe (Maybe(..))
-import Data.Newtype (over)
+import Data.Newtype (over, wrap)
 import Data.Posix.Signal (Signal(..))
 import Data.UInt as UInt
 import Effect.Aff (Aff)
@@ -35,11 +39,11 @@ import Plutip.Types
   , ClusterStartupRequest(..)
   , FilePath
   , PlutipConfig
-  , StartClusterResponse(..)
+  , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
+  , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
   )
 import Plutip.Utils (tmpdir)
-import Prelude
 import QueryM (ClientError(..))
 import Undefined (undefined)
 
@@ -58,8 +62,7 @@ runPlutipM
 runPlutipM plutipCfg enrich action = do
   withResource
     do
-      startPlutipCluster plutipCfg $ ClusterStartupRequest
-        { keysToGenerate: plutipCfg.distribution }
+      startPlutipCluster plutipCfg
     (\_ -> void $ stopPlutipCluster plutipCfg)
     \startupResponse -> do
       response <- case startupResponse of
@@ -87,25 +90,57 @@ runPlutipM plutipCfg enrich action = do
             liftAff $ runContract contractCfg contract
 
 startPlutipCluster
-  :: PlutipConfig -> ClusterStartupRequest -> Aff StartClusterResponse
-startPlutipCluster cfg startupRequest = do
+  :: PlutipConfig -> Aff StartClusterResponse
+startPlutipCluster cfg = do
   let url = mkServerEndpointUrl cfg "start"
-  res <-
-    liftAff
-      ( Affjax.post Affjax.ResponseFormat.string url $ Just $ RequestBody.String
-          $ stringifyAeson
-          $ encodeAeson startupRequest
+  res <- do
+    response <- liftAff
+      ( Affjax.request
+          Affjax.defaultRequest
+            { content = Just
+                $ RequestBody.String
+                $ stringifyAeson
+                $ encodeAeson
+                $ ClusterStartupRequest { keysToGenerate: cfg.distribution }
+            , responseFormat = Affjax.ResponseFormat.string
+            , headers = [ Header.ContentType (wrap "application/json") ]
+            , url = url
+            , method = Left Method.POST
+            }
       )
-      <#> either
-        (Left <<< ClientHttpError)
-        ( lmap ClientDecodeJsonError
-            <<< (decodeAeson <=< parseJsonStringToAeson)
-            <<< _.body
-        )
+    pure $ response # either
+      (Left <<< ClientHttpError)
+      ( lmap ClientDecodeJsonError
+          <<< (decodeAeson <=< parseJsonStringToAeson)
+          <<< _.body
+      )
   either (liftEffect <<< throw <<< show) pure res
 
 stopPlutipCluster :: PlutipConfig -> Aff StopClusterResponse
-stopPlutipCluster = undefined
+stopPlutipCluster cfg = do
+  let url = mkServerEndpointUrl cfg "stop"
+  res <- do
+    response <- liftAff
+      ( Affjax.request
+          Affjax.defaultRequest
+            { content = Just
+                $ RequestBody.String
+                $ stringifyAeson
+                $ encodeAeson
+                $ StopClusterRequest
+            , responseFormat = Affjax.ResponseFormat.string
+            , headers = [ Header.ContentType (wrap "application/json") ]
+            , url = url
+            , method = Left Method.POST
+            }
+      )
+    pure $ response # either
+      (Left <<< ClientHttpError)
+      ( lmap ClientDecodeJsonError
+          <<< (decodeAeson <=< parseJsonStringToAeson)
+          <<< _.body
+      )
+  either (liftEffect <<< throw <<< show) pure res
 
 startOgmios :: PlutipConfig -> ClusterStartupParameters -> Aff ChildProcess
 startOgmios cfg params = liftEffect $ spawn "ogmios" ogmiosArgs
