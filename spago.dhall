@@ -23,6 +23,7 @@ You can edit this file as you like.
   , "enums"
   , "exceptions"
   , "foldable-traversable"
+  , "foreign"
   , "foreign-object"
   , "http-methods"
   , "identity"
