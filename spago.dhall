@@ -5,6 +5,7 @@ You can edit this file as you like.
 { name = "cardano-transaction-lib"
 , dependencies =
   [ "aeson"
+  , "aeson-helpers"
   , "aff"
   , "aff-promise"
   , "affjax"
@@ -54,6 +55,7 @@ You can edit this file as you like.
   , "spec"
   , "strings"
   , "tailrec"
+  , "text-encoding"
   , "these"
   , "transformers"
   , "tuples"

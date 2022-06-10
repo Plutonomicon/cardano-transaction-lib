@@ -30,6 +30,7 @@ module QueryM
   , getWalletCollateral
   , liftQueryM
   , listeners
+  , postAeson
   , mkDatumCacheWebSocketAff
   , mkOgmiosRequest
   , mkOgmiosWebSocketAff
@@ -39,6 +40,7 @@ module QueryM
   , ownStakePubKeyHash
   , runQueryM
   , signTransaction
+  , scriptToAeson
   , signTransactionBytes
   , submitTxOgmios
   , traceQueryConfig

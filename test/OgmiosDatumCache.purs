@@ -37,7 +37,7 @@ readPlutusDataSamples = do
     "./fixtures/test/ogmios-datum-cache/plutus-data-samples.json"
 
 plutusDataToFromAesonTest
-  ∷ forall (m ∷ Type -> Type). MonadEffect m => MonadThrow Error m => m Unit
+  :: forall (m :: Type -> Type). MonadEffect m => MonadThrow Error m => m Unit
 plutusDataToFromAesonTest = do
   pdsAes <- readAeson
     "./fixtures/test/ogmios-datum-cache/plutus-data-samples.json"
@@ -50,7 +50,7 @@ plutusDataToFromAesonTest = do
     aes `shouldEqual` aes'
 
 plutusDataHashingTest
-  ∷ forall (m ∷ Type -> Type). MonadEffect m => MonadThrow Error m => m Unit
+  :: forall (m :: Type -> Type). MonadEffect m => MonadThrow Error m => m Unit
 plutusDataHashingTest = do
   plutusDataSamples <- readPlutusDataSamples
   let elems = plutusDataSamples

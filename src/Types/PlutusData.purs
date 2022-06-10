@@ -5,8 +5,8 @@ module Types.PlutusData
 import Prelude
 
 import Aeson
-  ( class EncodeAeson
-  , class DecodeAeson
+  ( class DecodeAeson
+  , class EncodeAeson
   , JsonDecodeError(UnexpectedValue)
   , decodeAeson
   , encodeAeson

@@ -1088,7 +1088,7 @@ plutusDataFixture7 = PD.List
   , plutusDataFixture6
   ]
 
-plutusDataFixture8 ∷ PD.PlutusData
+plutusDataFixture8 :: PD.PlutusData
 plutusDataFixture8 = PD.Constr (BigInt.fromInt 0)
   [ PD.Bytes
       ( hexToByteArrayUnsafe
@@ -1107,14 +1107,14 @@ plutusDataFixture8 = PD.Constr (BigInt.fromInt 0)
   , PD.Integer (BigInt.fromInt 45)
   ]
 
-plutusDataFixture8Bytes ∷ ByteArray
+plutusDataFixture8Bytes :: ByteArray
 plutusDataFixture8Bytes = hexToByteArrayUnsafe
   "d8799f581cda13ed22b9294f1d86bbd530e99b1456884c7364bf16c90edc1ae41e1a1dcd6500\
   \581c82325cbfc20b85bd1ca12e5d12b44b83f68662d8395167b45f1ff7fa4d746f6e6573206f\
   \6620736b7920581cda13ed22b9294f1d86bbd530e99b1456884c7364bf16c90edc1ae41e\
   \182dff"
 
-plutusDataFixture8Bytes' ∷ ByteArray
+plutusDataFixture8Bytes' :: ByteArray
 plutusDataFixture8Bytes' = hexToByteArrayUnsafe
   "d866820086581cda13ed22b9294f1d86bbd530e99b1456884c7364bf16c90edc1ae41e1a1dcd\
   \6500581c82325cbfc20b85bd1ca12e5d12b44b83f68662d8395167b45f1ff7fa4d746f6e6573\

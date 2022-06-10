@@ -110,9 +110,10 @@ derive instance Newtype Slot _
 derive instance Generic Slot _
 derive newtype instance Eq Slot
 derive newtype instance Ord Slot
+derive newtype instance DecodeAeson Slot
+derive newtype instance EncodeAeson Slot
 derive newtype instance FromData Slot
 derive newtype instance ToData Slot
-derive newtype instance DecodeAeson Slot
 
 instance Show Slot where
   show = genericShow
@@ -122,9 +123,6 @@ instance Semigroup Slot where
 
 instance Monoid Slot where
   mempty = Slot zero
-
-instance EncodeAeson Slot where
-  encodeAeson' (Slot uint) = encodeAeson' (UInt.toNumber uint)
 
 -- it is an integer in ogmios
 -- bytestring in plutus
@@ -147,6 +145,8 @@ derive instance Eq TransactionIndex
 derive instance Ord TransactionIndex
 derive instance Newtype TransactionIndex _
 derive instance Generic TransactionIndex _
+derive newtype instance DecodeAeson TransactionIndex
+derive newtype instance EncodeAeson TransactionIndex
 derive newtype instance ToData TransactionIndex
 derive newtype instance FromData TransactionIndex
 
@@ -159,6 +159,8 @@ derive instance Eq CertificateIndex
 derive instance Ord CertificateIndex
 derive instance Newtype CertificateIndex _
 derive instance Generic CertificateIndex _
+derive newtype instance DecodeAeson CertificateIndex
+derive newtype instance EncodeAeson CertificateIndex
 derive newtype instance ToData CertificateIndex
 derive newtype instance FromData CertificateIndex
 
