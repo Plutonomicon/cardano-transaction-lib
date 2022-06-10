@@ -22,8 +22,8 @@ import Aeson
   , encodeAeson'
   , getField
   )
-import Aeson.Decode as D
-import Aeson.Encode as E
+import Aeson.Decode as Decode
+import Aeson.Encode as Encode
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap, wrap)
@@ -65,14 +65,16 @@ instance Show PubKeyHash where
 
 -- NOTE: mlabs-haskell/purescript-bridge generated and applied here
 instance EncodeAeson PubKeyHash where
-  encodeAeson' x = encodeAeson' $ E.encode
-    (E.record { getPubKeyHash: E.value :: _ (Ed25519KeyHash) })
+  encodeAeson' x = encodeAeson' $ Encode.encode
+    (Encode.record { getPubKeyHash: Encode.value :: _ (Ed25519KeyHash) })
     { getPubKeyHash: unwrap x }
 
 instance DecodeAeson PubKeyHash where
-  decodeAeson x = wrap <<< get (Proxy :: Proxy "getPubKeyHash") <$> D.decode
-    (D.record "getPubKeyHash " { getPubKeyHash: D.value :: _ (Ed25519KeyHash) })
-    x
+  decodeAeson = map (wrap <<< get (Proxy :: Proxy "getPubKeyHash")) <<<
+    Decode.decode
+      ( Decode.record "getPubKeyHash "
+          { getPubKeyHash: Decode.value :: _ (Ed25519KeyHash) }
+      )
 
 ed25519EnterpriseAddress
   :: forall (n :: Type)
@@ -126,11 +128,9 @@ instance Show PaymentPubKeyHash where
 -- This is needed for `ApplyArgs`. Plutus has an `unPaymentPubKeyHash` field so
 -- don't newtype derive.
 instance DecodeAeson PaymentPubKeyHash where
-  decodeAeson = caseAesonObject
-    (Left $ TypeMismatch "Expected object")
-    ( flip getField "unPaymentPubKeyHash" >=>
-        decodeAeson >>> map PaymentPubKeyHash
-    )
+  decodeAeson = caseAesonObject (Left $ TypeMismatch "Expected object")
+    $ flip getField "unPaymentPubKeyHash" >=> decodeAeson >>> map
+        PaymentPubKeyHash
 
 newtype StakePubKeyHash = StakePubKeyHash PubKeyHash
 

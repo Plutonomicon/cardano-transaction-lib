@@ -36,10 +36,10 @@ import Aeson
   , getField
   , JsonDecodeError(TypeMismatch)
   )
-import Contract.Prelude (Either(..))
 import Control.Apply (lift3)
 import Data.Array (concatMap, filter)
 import Data.BigInt (BigInt)
+import Data.Either (Either(Left))
 import Data.Foldable (all)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (class JoinSemilattice, class MeetSemilattice)

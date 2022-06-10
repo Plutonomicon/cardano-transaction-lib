@@ -16,8 +16,8 @@ import FromData (class FromData)
 import ToData (class ToData, toData)
 import Types.PlutusData (PlutusData)
 import Types.Transaction (DataHash(DataHash)) as X
-import Aeson.Decode as D
-import Aeson.Encode as E
+import Aeson.Decode as Decode
+import Aeson.Encode as Encode
 
 -- | Define data types mirroring Plutus `Datum`, like `Datum` itself and
 -- | `Redeemer` where the latter is not to be confused with the CSL-stype
@@ -34,13 +34,14 @@ derive newtype instance Ord Datum
 derive newtype instance ToData Datum
 
 instance EncodeAeson Datum where
-  encodeAeson' x = encodeAeson' $ (defer \_ -> E.encode $ unwrap >$< E.value) x
+  encodeAeson' = encodeAeson' <<<
+    defer (const $ Encode.encode $ unwrap >$< Encode.value)
 
 instance DecodeAeson Datum where
-  decodeAeson = defer \_ -> D.decode $ (Datum <$> D.value)
+  decodeAeson = defer $ const $ Decode.decode $ Datum <$> Decode.value
 
 instance Show Datum where
   show = genericShow
 
 unitDatum :: Datum
-unitDatum = Datum (toData unit)
+unitDatum = Datum $ toData unit

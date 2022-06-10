@@ -194,10 +194,10 @@ suite = do
     group "WitnessSet - deserialization is inverse to serialization" do
       let
         witnessSetRoundTrip
-          ∷ ∀ (m ∷ Type -> Type)
+          :: ∀ (m :: Type -> Type)
            . MonadEffect m
           => MonadThrow Error m
-          ⇒ ByteArray
+          => ByteArray
           -> m Unit
         witnessSetRoundTrip fixture = do
           ws0 <- errMaybe "Failed deserialization" $

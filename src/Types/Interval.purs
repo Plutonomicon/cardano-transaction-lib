@@ -65,9 +65,9 @@ import Aeson
   , isNull
   )
 import Aeson.Decode ((</$\>), (</*\>))
-import Aeson.Decode as D
+import Aeson.Decode as Decode
 import Aeson.Encode ((>$<), (>/\<))
-import Aeson.Encode as E
+import Aeson.Encode as Encode
 import Control.Lazy (defer)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
@@ -132,6 +132,7 @@ import TypeLevel.Nat (S, Z)
 type Closure = Boolean
 
 -- | A set extended with a positive and negative infinity.
+data Extended :: Type -> Type
 data Extended a = NegInf | Finite a | PosInf
 
 instance
@@ -273,7 +274,7 @@ instance EncodeAeson a => EncodeAeson (Interval a) where
 
 instance DecodeAeson a => DecodeAeson (Interval a) where
   decodeAeson a = do
-    (HaskInterval i) <- decodeAeson a
+    HaskInterval i <- decodeAeson a
     pure $ Interval { from: i.ivFrom, to: i.ivTo }
 
 --------------------------------------------------------------------------------
@@ -1026,57 +1027,62 @@ derive instance Functor HaskInterval
 derive instance Newtype (HaskInterval a) _
 
 instance (EncodeAeson a) => EncodeAeson (HaskInterval a) where
-  encodeAeson' x = encodeAeson' $
-    ( defer \_ -> E.encode $ unwrap >$<
-        ( E.record
-            { ivFrom: E.value :: _ (LowerBound a)
-            , ivTo: E.value :: _ (UpperBound a)
-            }
-        )
-    ) x
+  encodeAeson' = encodeAeson' <<<
+    defer
+      ( const $ Encode.encode $ unwrap >$<
+          ( Encode.record
+              { ivFrom: Encode.value :: _ (LowerBound a)
+              , ivTo: Encode.value :: _ (UpperBound a)
+              }
+          )
+      )
 
 instance (DecodeAeson a) => DecodeAeson (HaskInterval a) where
-  decodeAeson = defer \_ -> D.decode $
-    ( HaskInterval <$> D.record "Interval"
-        { ivFrom: D.value :: _ (LowerBound a)
-        , ivTo: D.value :: _ (UpperBound a)
-        }
-    )
+  decodeAeson = defer $ const $ Decode.decode $
+    HaskInterval <$> Decode.record "Interval"
+      { ivFrom: Decode.value :: _ (LowerBound a)
+      , ivTo: Decode.value :: _ (UpperBound a)
+      }
 
 instance (EncodeAeson a) => EncodeAeson (LowerBound a) where
-  encodeAeson' x = encodeAeson' $
-    ( defer \_ -> E.encode $ (case _ of LowerBound a b -> (a /\ b)) >$<
-        (E.tuple (E.value >/\< E.value))
-    ) x
+  encodeAeson' = encodeAeson' <<<
+    defer
+      ( const $ Encode.encode $ (case _ of LowerBound a b -> (a /\ b)) >$<
+          (Encode.tuple (Encode.value >/\< Encode.value))
+      )
 
 instance (DecodeAeson a) => DecodeAeson (LowerBound a) where
-  decodeAeson = defer \_ -> D.decode $
-    (D.tuple $ LowerBound </$\> D.value </*\> D.value)
+  decodeAeson = defer $ const $ Decode.decode
+    $ Decode.tuple
+    $ LowerBound </$\> Decode.value </*\> Decode.value
 
 instance (EncodeAeson a) => EncodeAeson (UpperBound a) where
-  encodeAeson' x = encodeAeson' $
-    ( defer \_ -> E.encode $ (case _ of UpperBound a b -> (a /\ b)) >$<
-        (E.tuple (E.value >/\< E.value))
-    ) x
+  encodeAeson' = encodeAeson' <<<
+    defer
+      ( const $ Encode.encode $ (case _ of UpperBound a b -> (a /\ b)) >$<
+          (Encode.tuple (Encode.value >/\< Encode.value))
+      )
 
 instance (DecodeAeson a) => DecodeAeson (UpperBound a) where
-  decodeAeson = defer \_ -> D.decode $
-    (D.tuple $ UpperBound </$\> D.value </*\> D.value)
+  decodeAeson = defer $ const $ Decode.decode
+    $ Decode.tuple
+    $ UpperBound </$\> Decode.value </*\> Decode.value
 
 instance (EncodeAeson a) => EncodeAeson (Extended a) where
-  encodeAeson' x = encodeAeson' $
-    ( defer \_ -> case _ of
-        NegInf -> encodeAeson { tag: "NegInf" }
-        Finite a -> E.encodeTagged "Finite" a E.value
-        PosInf -> encodeAeson { tag: "PosInf" }
-    ) x
+  encodeAeson' = encodeAeson' <<<
+    defer
+      ( const $ case _ of
+          NegInf -> encodeAeson { tag: "NegInf" }
+          Finite a -> Encode.encodeTagged "Finite" a Encode.value
+          PosInf -> encodeAeson { tag: "PosInf" }
+      )
 
 instance (DecodeAeson a) => DecodeAeson (Extended a) where
-  decodeAeson = defer \_ -> D.decode
-    $ D.sumType "Extended"
+  decodeAeson = defer $ const $ Decode.decode
+    $ Decode.sumType "Extended"
     $ Map.fromFoldable
         [ "NegInf" /\ pure NegInf
-        , "Finite" /\ D.content (Finite <$> D.value)
+        , "Finite" /\ Decode.content (Finite <$> Decode.value)
         , "PosInf" /\ pure PosInf
         ]
 

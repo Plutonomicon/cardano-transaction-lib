@@ -4,11 +4,10 @@ module Test.Data (suite, tests, uniqueIndicesTests) where
 import Prelude
 
 import Aeson (decodeAeson, encodeAeson, JsonDecodeError(TypeMismatch))
-import Contract.PlutusData (PlutusData(Constr, Integer))
-import Contract.Prelude (Either(Left, Right))
 import Control.Lazy (fix)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
+import Data.Either (Either(Left, Right))
 import Data.Generic.Rep as G
 import Data.Maybe (maybe, Maybe(Just, Nothing), fromJust)
 import Data.Show.Generic (genericShow)
@@ -21,7 +20,7 @@ import FromData (class FromData, fromData, genericFromData)
 import Helpers (showWithParens)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Plutus.Types.AssocMap (Map(..))
+import Plutus.Types.AssocMap (Map(Map))
 import Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
@@ -37,6 +36,7 @@ import Test.QuickCheck.Gen (Gen)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import ToData (class ToData, genericToData, toData)
+import Types.PlutusData (PlutusData(Constr, Integer))
 import Type.RowList (Cons, Nil)
 import TypeLevel.Nat (Z, S)
 import TypeLevel.RowList (class AllUniqueLabels)
@@ -45,7 +45,7 @@ import Types.ByteArray (hexToByteArrayUnsafe)
 import Untagged.Union (asOneOf)
 
 plutusDataAesonRoundTrip
-  ∷ ∀ (a ∷ Type). ToData a ⇒ FromData a ⇒ a → Either JsonDecodeError a
+  :: forall (a :: Type). ToData a => FromData a => a -> Either JsonDecodeError a
 plutusDataAesonRoundTrip x = do
   pd <- encodeAeson (toData x) # decodeAeson
   maybe (Left $ TypeMismatch "") (pure) $ fromData pd
@@ -534,7 +534,7 @@ testBinaryFixture value binaryFixture = do
         (hexToByteArrayUnsafe binaryFixture)
 
 -- | Poor man's type level tests
-tests ∷ Array String
+tests :: Array String
 tests =
   [ testNil
   , testSingleton
@@ -557,7 +557,7 @@ tests =
     => String
   testUniques = "[A, B, C] is all unique and should compile"
 
-uniqueIndicesTests ∷ Array String
+uniqueIndicesTests :: Array String
 uniqueIndicesTests =
   [ testNil
   , testSingletonZ

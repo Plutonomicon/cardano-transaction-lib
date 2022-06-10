@@ -20,10 +20,9 @@ suite :: TestPlanM Unit
 suite = do
   group "Plutus.Types.Credential" $ do
     group "Aeson tests" $ do
-      group "Roundtrip tests" $ do
-        for_ creds toFromAesonTest
+      group "Roundtrip tests" $ for_ creds $ toFromAesonTest "Credential"
 
-creds ∷ Array Credential
+creds :: Array Credential
 creds =
   [ pubKeyCredential
   , scriptCredential

@@ -18,7 +18,7 @@ import Aeson
   , encodeAeson'
   , (.:)
   )
-import Contract.Prelude (Either(Left))
+import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, wrap, unwrap)
@@ -39,7 +39,11 @@ import Plutus.Types.DataSchema
 import Serialization.Address (NetworkId)
 import ToData (class ToData, genericToData)
 import TypeLevel.Nat (Z)
-import Types.PubKeyHash (PaymentPubKeyHash(..), StakePubKeyHash, PubKeyHash)
+import Types.PubKeyHash
+  ( PaymentPubKeyHash(PaymentPubKeyHash)
+  , StakePubKeyHash
+  , PubKeyHash
+  )
 import Types.Scripts (ValidatorHash)
 
 --------------------------------------------------------------------------------
@@ -94,14 +98,11 @@ instance FromData Address where
   fromData = genericFromData
 
 instance DecodeAeson Address where
-  decodeAeson aes = caseAesonObject
-    (Left $ TypeMismatch "Expected object")
-    ( \obj -> do
-        addressCredential <- obj .: "addressCredential"
-        addressStakingCredential <- obj .: "addressStakingCredential"
-        pure $ Address { addressCredential, addressStakingCredential }
-    )
-    aes
+  decodeAeson = caseAesonObject (Left $ TypeMismatch "Expected object") $
+    \obj -> do
+      addressCredential <- obj .: "addressCredential"
+      addressStakingCredential <- obj .: "addressStakingCredential"
+      pure $ Address { addressCredential, addressStakingCredential }
 
 instance EncodeAeson Address where
   encodeAeson' (Address addr) = encodeAeson' addr

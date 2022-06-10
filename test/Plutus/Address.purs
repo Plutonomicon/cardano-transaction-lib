@@ -42,8 +42,9 @@ suite = do
         for_ testData $ \(Tuple (Tuple addrBech32 addr) addrType) ->
           toFromPlutusTypeTest TestnetId addrType addrBech32 addr
     group "Aeson tests" $ do
-      group "Roundtrip tests" $ do
-        for_ addresses toFromAesonTest
+      group "Roundtrip tests"
+        $ for_ addresses
+        $ toFromAesonTest "Address"
 
 toFromPlutusTypeTest
   :: NetworkId -> Int -> Bech32String -> Plutus.Address -> TestPlanM Unit

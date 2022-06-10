@@ -62,51 +62,47 @@ fromTokenName arrayHandler stringHandler (TokenName cba) = either
   stringHandler
   (decodeUtf8 <<< unwrap <<< cborBytesToByteArray $ cba)
 
+-- | Corresponds to following Haskell instance:
+-- |
+-- | ```
+-- | toJSON = JSON.object . Haskell.pure . (,) "unTokenName" . JSON.toJSON .
+-- |   fromTokenName
+-- |       (\bs -> Text.cons '\NUL' (asBase16 bs))
+
+-- |       (\t -> case Text.take 1 t of "\NUL" -> Text.concat ["\NUL\NUL", t]; _ -> t)
+-- | ```
 instance DecodeAeson TokenName where
-  {-
-      toJSON = JSON.object . Haskell.pure . (,) "unTokenName" . JSON.toJSON .
-        fromTokenName
-            (\bs -> Text.cons '\NUL' (asBase16 bs))
+  decodeAeson = caseAesonObject (Left $ TypeMismatch "Expected object") $
+    \aes -> do
+      tkstr <- getField aes "unTokenName"
+      case take 3 tkstr of
+        """\NUL0x""" -> case tkFromStr (drop 3 tkstr) of
+          Nothing -> Left $ TypeMismatch ("Invalid TokenName E1: " <> tkstr)
+          Just tk -> Right tk
 
-            (\t -> case Text.take 1 t of "\NUL" -> Text.concat ["\NUL\NUL", t]; _ -> t)
-  -}
-  decodeAeson = caseAesonObject
-    (Left $ TypeMismatch "Expected object")
-    ( \aes -> do
-        tkstr :: String <- getField aes "unTokenName"
-        case take 3 tkstr of
-          """\NUL0x""" -> case tkFromStr (drop 3 tkstr) of
-            Nothing -> Left $ TypeMismatch ("Invalid TokenName E1: " <> tkstr)
-            Just tk -> Right tk
+        """\NUL\NUL\NUL""" ->
+          note (TypeMismatch $ "Invalid TokenName E2: " <> tkstr)
+            $ tkFromStr (drop 2 tkstr)
 
-          """\NUL\NUL\NUL""" ->
-            note (TypeMismatch $ "Invalid TokenName E2: " <> tkstr)
-              $ tkFromStr (drop 2 tkstr)
-
-          _ -> note (TypeMismatch $ "Invalid TokenName E3: " <> tkstr)
-            $ tkFromStr tkstr
-    )
+        _ -> note (TypeMismatch $ "Invalid TokenName E3: " <> tkstr)
+          $ tkFromStr tkstr
     where
     tkFromStr :: String -> Maybe TokenName
-    tkFromStr str = (TokenName <<< wrap) <$>
-      (byteArrayFromIntArray <<< map toCharCode <<< toCharArray $ str)
+    tkFromStr = map (TokenName <<< wrap) <<< byteArrayFromIntArray
+      <<< map toCharCode
+      <<< toCharArray
 
 -- FIXME: what if the tokenname is actually \0\0\0? haskell will break this assuming it
 -- comes from purescript side
 -- also we will break assuming it comes from haskell
 -- this issue has to be fixed on the haskell side
 instance EncodeAeson TokenName where
-  encodeAeson' tk =
-    let
-      tkstr = fromTokenName
-        (\ba -> """\NUL""" <> asBase16 ba)
-        ( \t -> case take 1 t of
-            """\NUL""" -> """\NUL\NUL""" <> t
-            _ -> t
-        )
-        tk
-    in
-      encodeAeson' { "unTokenName": tkstr }
+  encodeAeson' = encodeAeson' <<< { "unTokenName": _ } <<< fromTokenName
+    (("""\NUL""" <> _) <<< asBase16)
+    ( \t -> case take 1 t of
+        """\NUL""" -> """\NUL\NUL""" <> t
+        _ -> t
+    )
 
 instance Show TokenName where
   show (TokenName tn) = "(TokenName " <> show tn <> ")"
@@ -121,8 +117,9 @@ adaToken = TokenName mempty
 -- | Create a `TokenName` from a `ByteArray` since TokenName data constructor is
 -- | not exported
 mkTokenName :: ByteArray -> Maybe TokenName
-mkTokenName byteArr =
-  if byteLength byteArr <= 32 then pure $ TokenName (wrap byteArr) else Nothing
+mkTokenName byteArr
+  | byteLength byteArr <= 32 = pure $ TokenName $ wrap byteArr
+  | otherwise = Nothing
 
 foreign import assetNameName :: CSL.AssetName -> ByteArray
 

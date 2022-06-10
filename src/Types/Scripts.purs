@@ -48,12 +48,12 @@ instance Show PlutusScript where
   show = genericShow
 
 decodeAesonHelper
-  ∷ ∀ (a ∷ Type) (b :: Type)
+  :: ∀ (a :: Type) (b :: Type)
    . DecodeAeson a
   => String
-  → (a -> b)
-  → Aeson
-  → Either JsonDecodeError b
+  -> (a -> b)
+  -> Aeson
+  -> Either JsonDecodeError b
 decodeAesonHelper constrName constr = caseAesonObject
   (Left $ TypeMismatch "Expected object")
   (flip getField constrName >=> decodeAeson >>> map constr)

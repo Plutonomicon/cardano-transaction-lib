@@ -22,8 +22,7 @@ import Aeson
   , caseAesonString
   , encodeAeson'
   )
-import Contract.Prelude (Either(..))
-import Data.Either (Either(Left), note)
+import Data.Either (Either(Left, Right), note)
 import Data.Function (on)
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap)
@@ -144,12 +143,9 @@ instance FromMetadata ScriptHash where
 
 -- Corresponds to Plutus' `Plutus.V1.Ledger.Api.Script` Aeson instances
 instance DecodeAeson ScriptHash where
-  decodeAeson aes = do
-    let
-      mayHash = caseAesonString Nothing
-        (Just <=< scriptHashFromBytes <=< hexToRawBytes)
-        aes
-    maybe (Left $ TypeMismatch "Expected hex-encoded script hash") Right mayHash
+  decodeAeson = do
+    maybe (Left $ TypeMismatch "Expected hex-encoded script hash") Right <<<
+      caseAesonString Nothing (Just <=< scriptHashFromBytes <=< hexToRawBytes)
 
 instance EncodeAeson ScriptHash where
   encodeAeson' sh = encodeAeson' $ scriptHashToBytes sh
