@@ -74,6 +74,7 @@ import Serialization.Types
   ( AssetName
   , Assets
   , AuxiliaryData
+  , AuxiliaryDataHash
   , BigInt
   , BigNum
   , Certificate
@@ -427,6 +428,9 @@ foreign import toBytes
          |+| NativeScript
          |+| ScriptDataHash
          |+| Redeemers
+         |+| GenesisHash
+         |+| GenesisDelegateHash
+         |+| AuxiliaryDataHash
      -- Add more as needed.
      )
   -> ByteArray
@@ -595,7 +599,7 @@ convertCert = case _ of
     , pledge
     , cost
     , margin
-    , reward_account
+    , rewardAccount
     , poolOwners
     , relays
     , poolMetadata
@@ -605,7 +609,7 @@ convertCert = case _ of
     relays' <- convertRelays relays
     poolMetadata' <- for poolMetadata convertPoolMetadata
     newPoolRegistrationCertificate operator vrfKeyhash pledge cost margin'
-      reward_account
+      rewardAccount
       poolOwners'
       relays'
       (maybeToUor poolMetadata')

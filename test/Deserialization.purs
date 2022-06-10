@@ -10,6 +10,7 @@ import Contract.Address (ByteArray)
 import Control.Monad.Error.Class (class MonadThrow)
 import Data.Array as Array
 import Data.BigInt as BigInt
+import Data.Either (hush)
 import Data.Maybe (isJust, isNothing)
 import Data.Newtype (unwrap)
 import Deserialization.BigInt as DB
@@ -17,11 +18,13 @@ import Deserialization.BigNum (bigNumToBigInt)
 import Deserialization.FromBytes (fromBytes)
 import Deserialization.NativeScript as NSD
 import Deserialization.PlutusData as DPD
+import Deserialization.Transaction (convertTransaction) as TD
 import Deserialization.UnspentOutput
   ( convertUnspentOutput
   , mkTransactionUnspentOutput
   , newTransactionUnspentOutputFromBytes
   )
+import Serialization (convertTransaction) as TS
 import Deserialization.WitnessSet (convertWitnessSet, deserializeWitnessSet)
 import Effect (Effect)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -53,6 +56,10 @@ import Test.Fixtures
   , plutusDataFixture8
   , plutusDataFixture8Bytes
   , plutusDataFixture8Bytes'
+  , txFixture1
+  , txFixture2
+  , txFixture3
+  , txFixture4
   , txInputFixture1
   , txOutputFixture1
   , utxoFixture1
@@ -137,6 +144,27 @@ suite = do
           newTransactionUnspentOutputFromBytes utxoFixture1 >>=
             convertUnspentOutput
         res `shouldEqual` utxoFixture1'
+    group "Transaction" do
+      test "deserialization is inverse to serialization #1" do
+        let input = txFixture1
+        serialized <- liftEffect $ TS.convertTransaction input
+        let expected = TD.convertTransaction serialized
+        pure input `shouldEqual` hush expected
+      test "deserialization is inverse to serialization #2" do
+        let input = txFixture2
+        serialized <- liftEffect $ TS.convertTransaction input
+        let expected = TD.convertTransaction serialized
+        pure input `shouldEqual` hush expected
+      test "deserialization is inverse to serialization #3" do
+        let input = txFixture3
+        serialized <- liftEffect $ TS.convertTransaction input
+        let expected = TD.convertTransaction serialized
+        pure input `shouldEqual` hush expected
+      test "deserialization is inverse to serialization #4" do
+        let input = txFixture4
+        serialized <- liftEffect $ TS.convertTransaction input
+        let expected = TD.convertTransaction serialized
+        pure input `shouldEqual` hush expected
     group "WitnessSet - deserialization" do
       group "fixture #1" do
         res <- errMaybe "Failed deserialization 5" do
@@ -194,10 +222,10 @@ suite = do
     group "WitnessSet - deserialization is inverse to serialization" do
       let
         witnessSetRoundTrip
-          ∷ ∀ (m ∷ Type -> Type)
+          :: ∀ (m :: Type -> Type)
            . MonadEffect m
           => MonadThrow Error m
-          ⇒ ByteArray
+          => ByteArray
           -> m Unit
         witnessSetRoundTrip fixture = do
           ws0 <- errMaybe "Failed deserialization" $

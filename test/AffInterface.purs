@@ -8,18 +8,16 @@ import Data.Either (Either(Left, Right), either)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Traversable (traverse_)
 import Data.UInt as UInt
-import Effect.Aff (Aff, try)
+import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
 import QueryM
   ( QueryM
-  , cancelFetchBlocks
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
   , runQueryM
-  , startFetchBlocks
   , traceQueryConfig
   )
 import QueryM.CurrentEpoch (getCurrentEpoch)
@@ -36,7 +34,6 @@ import Serialization.Address (Slot(Slot))
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.ByteArray (hexToByteArrayUnsafe)
-import Types.Chain (BlockHeaderHash(BlockHeaderHash))
 import Types.Interval
   ( PosixTimeToSlotError
       ( CannotConvertAbsSlotToSlot
@@ -86,8 +83,6 @@ suite = do
       testOgmiosDatumCacheGetDatumByHash
     test "Can process GetDatumsByHashes" do
       testOgmiosDatumCacheGetDatumsByHashes
-    test "Fetcher works" do
-      testOgmiosDatumCacheFetcher
 
 testOgmiosDatumCacheGetDatumByHash :: Aff Unit
 testOgmiosDatumCacheGetDatumByHash =
@@ -110,17 +105,6 @@ testOgmiosDatumCacheGetDatumsByHashes =
     _datums <- getDatumsByHashes $ pure $ DataHash $ hexToByteArrayUnsafe
       "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
     pure unit
-
-testOgmiosDatumCacheFetcher :: Aff Unit
-testOgmiosDatumCacheFetcher =
-  traceQueryConfig >>= flip runQueryM do
-    void $ try cancelFetchBlocks -- ignore error if the fetcher was not running
-    startFetchBlocks
-      { slot: Slot (UInt.fromInt 54066900)
-      , id: BlockHeaderHash
-          "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d"
-      }
-    cancelFetchBlocks
 
 testUtxosAt :: OgmiosAddress -> Aff Unit
 testUtxosAt testAddr = case ogmiosAddressToAddress testAddr of

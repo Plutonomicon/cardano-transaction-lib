@@ -1,3 +1,18 @@
+/* global require exports BROWSER_RUNTIME */
+
+var lib;
+if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
+    lib = require('@emurgo/cardano-serialization-lib-browser');
+} else {
+    lib = require('@emurgo/cardano-serialization-lib-nodejs');
+}
+
+
+const call = property => object => object[property]();
+const callMaybe = property => maybe => object => {
+    const res = object[property]();
+    return res != null ? maybe.just(res) : maybe.nothing;
+};
 
 exports._txIsValid = tx => tx.is_valid();
 exports._txWitnessSet = tx => tx.witness_set();
@@ -51,9 +66,18 @@ exports._txBodyCollateral = maybeGetterMulti("collateral");
 // required_signers(): Ed25519KeyHashes | void;
 exports._txBodyRequiredSigners = maybeGetterMulti("required_signers");
 // network_id(): number | void;
-exports._txBodyNetworkId = maybeGetter_(o => o.kind())("network_id");
-
-
+exports._txBodyNetworkId = testnet => mainnet => maybeGetter_(
+    o => {
+        switch (o.kind()) {
+        case lib.NetworkIdKind.Testnet:
+            return testnet;
+        case lib.NetworkIdKind.Mainnet:
+            return mainnet;
+        default:
+            throw ("Unknown NetworkIdKind: " + o.kind());
+        }
+    }
+)("network_id");
 
 // foreign import _unpackWithdrawals :: ContainerHelper -> CSL.Withdrawals -> Array(Tuple CSL.RewardAddress CSL.BigNum)
 exports._unpackWithdrawals = containerhelper => containerhelper.unpackKeyIndexed;
@@ -70,27 +94,80 @@ exports._unpackMint = containerhelper => containerhelper.unpackKeyIndexed;
 // foreign import _unpackMintAssets :: ContainerHelper -> CSL.MintAssets -> Array (Tuple CSL.AssetName Int)
 exports._unpackMintAssets = containerhelper => containerhelper.unpackKeyIndexed;
 
-
-// type CertConvHelper r =
-// {
-//     stakeDeregistration:: StakeCredential -> Err r Certificate
-//         , stakeRegistration :: StakeCredential -> Err r Certificate
-//             , stakeDelegation ::
-//     StakeCredential -> Ed25519KeyHash -> Err r Certificate
-//         , notImplementedError :: String -> Err r Certificate
-// }
+// type CertConvHelper (r :: Row Type) =
+//   { stakeDeregistration :: Csl.StakeCredential -> Err r T.Certificate
+//   , stakeRegistration :: Csl.StakeCredential -> Err r T.Certificate
+//   , stakeDelegation ::
+//       Csl.StakeCredential -> Ed25519KeyHash -> Err r T.Certificate
+//   , poolRegistration :: Csl.PoolParams -> Err r T.Certificate
+//   , poolRetirement :: Ed25519KeyHash -> Int -> Err r T.Certificate
+//   , genesisKeyDelegation ::
+//       Csl.GenesisHash
+//       -> Csl.GenesisDelegateHash
+//       -> Csl.VRFKeyHash
+//       -> Err r T.Certificate
+//   , moveInstantaneousRewardsToOtherPotCert ::
+//       Number -> Csl.BigNum -> Err r T.Certificate
+//   , moveInstantaneousRewardsToStakeCreds ::
+//       Number -> Csl.MIRToStakeCredentials -> Err r T.Certificate
+//   }
 // foreign import _convertCert :: forall r.CertConvHelper r -> CSL.Certificate -> Err r Certificate
 exports._convertCert = certConvHelper => cert => {
-    // StakeRegistration,
-    var r = cert.as_stake_registration();
-    if (r) return certConvHelper.stakeRegistration(r.stake_credential());
-    //     StakeDeregistration,
-    r = cert.as_stake_deregistration();
-    if (r) return certConvHelper.stakeDeregistration(r.stake_credential());
-    //     StakeDeregistration,
-    r = cert.as_stake_delegation();
-    if (r) return certConvHelper.stakeDelegation(r.stake_credential())(r.pool_keyhash());
-    certConvHelper.notImplementedError("Cert conversion not implemented for kind: ", cert.kind());
+    switch (cert.kind()) {
+    case lib.CertificateKind.StakeRegistration:
+        return certConvHelper.stakeRegistration(
+            cert.as_stake_registration().stake_credential()
+        );
+    case lib.CertificateKind.StakeDeregistration:
+        return certConvHelper.stakeDeregistration(
+            cert.as_stake_deregistration().stake_credential()
+        );
+    case lib.CertificateKind.StakeDelegation:
+        return certConvHelper.stakeDelegation(
+            cert.as_stake_delegation().stake_credential()
+        )(
+            cert.as_stake_delegation().pool_keyhash()
+        );
+    case lib.CertificateKind.PoolRegistration:
+        return certConvHelper.poolRegistration(
+            cert.as_pool_registration().pool_params()
+        );
+    case lib.CertificateKind.PoolRetirement:
+        return certConvHelper.poolRetirement(
+            cert.as_pool_retirement().pool_keyhash()
+        )(
+            cert.as_pool_retirement().epoch()
+        );
+    case lib.CertificateKind.GenesisKeyDelegation:
+        return certConvHelper.genesisKeyDelegation(
+            cert.as_genesis_key_delegation().genesishash()
+        )(
+            cert.as_genesis_key_delegation().genesis_delegate_hash()
+        )(
+            cert.as_genesis_key_delegation().vrf_keyhash()
+        );
+    case lib.CertificateKind.MoveInstantaneousRewardsCert:
+        const mirCert = cert.as_move_instantaneous_rewards_cert();
+        const mir = mirCert.move_instantaneous_reward();
+        switch (mir.kind()) {
+        case lib.MIRKind.ToOtherPot:
+            return certConvHelper.moveInstantaneousRewardsToOtherPotCert(
+                mir.pot()
+            )(
+                mir.as_to_other_pot()
+            );
+        case lib.MIRKind.ToStakeCredentials:
+            return certConvHelper.moveInstantaneousRewardsToStakeCreds(
+                mir.pot()
+            )(
+                mir.as_to_stake_creds()
+            );
+        default:
+            throw ("MoveInstantaneousReward convertion failed for kind" + mir.kind());
+        };
+    default:
+        throw ("Cert conversion failed for kind: ", cert.kind());
+    };
 };
 
 
@@ -128,7 +205,7 @@ exports._unpackProtocolParamUpdate = maybe => ppu => {
     return {
         minfeeA: optional(ppu.minfee_a()),
         minfeeB: optional(ppu.minfee_b()),
-        maxBlockHeaderSize: optional(ppu.max_block_body_size()),
+        maxBlockBodySize: optional(ppu.max_block_body_size()),
         maxTxSize: optional(ppu.max_tx_size()),
         maxBlockHeaderSize: optional(ppu.max_block_header_size()),
         keyDeposit: optional(ppu.key_deposit()),
@@ -157,17 +234,13 @@ exports._unpackCostModels = containerhelper => containerhelper.unpackKeyIndexed;
 // foreign import unpackCostModel :: CSL.CostModel -> Array String
 exports._unpackCostModel = cm => {
     // XXX should OP_COUNT be used instead?
-    var op = 0;
     var err = false;
     const res = [];
-    while(!err){
-        try{
-            res.push(cm.get(op).to_str());
-        }
-        catch(_){
-            err=true;
-        }
-    }
+    try {
+      for(var op = 0;; op++) {
+        res.push(cm.get(op).to_str());
+      }
+    } catch (_) { }
     return res;
 };
 
@@ -175,7 +248,7 @@ exports._unpackCostModel = cm => {
 //   :: forall r.ErrorFfiHelper r -> { plutusV1:: Language } -> CSL.Language -> E r Language
 exports._convertLanguage = errorHelper => langCtors => cslLang => {
     try{
-        if(cslLang.kind()==0){
+        if(cslLang.kind()==lib.LanguageKind.PlutusV1){
             return errorHelper.valid(langCtors.plutusV1);
         }
         else{
@@ -269,8 +342,8 @@ exports._unpackExUnits = exunits => {
 // Csl.UnitInterval -> { numerator :: Csl.BigNum, denominator :: Csl.BigNum}
 exports._unpackUnitInterval = ui => {
     return {
-        mem: ui.numerator(),
-        steps: ui.denominator()
+        numerator: ui.numerator(),
+        denominator: ui.denominator()
     };
 };
 
@@ -294,3 +367,70 @@ exports._unpackExUnitsPrices = cslEup => {
         stepPrice: cslEup.step_price(),
     };
 };
+
+exports.poolParamsOperator = call('operator');
+exports.poolParamsVrfKeyhash = call('vrf_keyhash');
+exports.poolParamsPledge = call('pledge');
+exports.poolParamsCost = call('cost');
+exports.poolParamsMargin = call('margin');
+exports.poolParamsRewardAccount = call('reward_account');
+exports.poolParamsPoolOwners = containerHelper => poolParams =>
+    containerHelper.unpack(poolParams.pool_owners());
+exports.poolParamsRelays = containerHelper => poolParams =>
+    containerHelper.unpack(poolParams.relays());
+exports.poolParamsPoolMetadata = callMaybe('pool_metadata');
+
+exports.convertRelay_ = helper => relay => {
+    let res = relay.as_single_host_addr();
+    if (res) {
+        return helper.asSingleHostAddr(res);
+    }
+
+    res = relay.as_single_host_name();
+    if (res) {
+        return helper.asSingleHostName(res);
+    }
+
+    res = relay.as_multi_host_name();
+    if (res) {
+        return helper.asMultiHostName(res);
+    }
+
+    throw "convertRelay_: impossible happened: invalid Relay";
+};
+
+exports.convertIpv6_ = ipv6 => ipv6.ip();
+
+exports.convertIpv4_ = ipv6 => ipv6.ip();
+
+exports.convertSingleHostAddr_ = maybe => cont => singleHostAddr => {
+    const port = singleHostAddr.port();
+    const ipv4 = singleHostAddr.ipv4();
+    const ipv6 = singleHostAddr.ipv6();
+
+    return cont(
+        port ? maybe.just(port) : maybe.nothing
+    )(
+        ipv4 ? maybe.just(ipv4) : maybe.nothing
+    )(
+        ipv6 ? maybe.just(ipv6) : maybe.nothing
+    );
+};
+
+exports.convertSingleHostName_ = maybe => cont => singleHostName => {
+    const port = singleHostName.port();
+    return cont(
+        port ? maybe.just(port) : maybe.nothing
+    )(
+        singleHostName.dns_name().record()
+    );
+};
+
+exports.convertMultiHostName_ = multiHostName =>
+    multiHostName.dns_name().record();
+
+exports.unpackMIRToStakeCredentials_ = containerHelper => mirToStakeCredentials =>
+    containerHelper.unpackKeyIndexed(mirToStakeCredentials);
+
+exports.convertPoolMetadata_ = cont => poolMetadata =>
+    cont(poolMetadata.url().url())(poolMetadata.pool_metadata_hash().to_bytes());
