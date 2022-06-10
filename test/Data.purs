@@ -19,7 +19,7 @@ import Deserialization.FromBytes (fromBytes)
 import Deserialization.PlutusData as PDD
 import FromData (class FromData, fromData, genericFromData)
 import Helpers (showWithParens)
-import Mote (group, skip, test)
+import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Plutus.Types.AssocMap (Map(..))
 import Plutus.Types.DataSchema
@@ -231,10 +231,6 @@ suite = do
                 "999999999999999999999999999999999999999"
             )
             /\ "c25102f050fe938943acc45f65567fffffffff"
-        ]
-    skip $ group "BigInt - failing (problem with encoding of 0)" do
-      traverse_ (uncurry testBinaryFixture)
-        [ BigInt.fromInt 0 /\ "00"
         ]
 
 -- | Newtype wrapper to avoid an orphan instance

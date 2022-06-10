@@ -51,6 +51,7 @@ import Types.Scripts
   , Validator(Validator)
   , ValidatorHash(ValidatorHash)
   ) as TypesScripts
+import Types.Scripts (PlutusScript)
 import Types.TypedValidator
   ( TypedValidator(TypedValidator)
   , ValidatorType
@@ -70,9 +71,6 @@ import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
 import Types.PlutusData (PlutusData)
-import Types.Scripts
-  ( PlutusScript
-  )
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied

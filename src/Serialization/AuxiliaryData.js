@@ -10,8 +10,6 @@ if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
 const setter = prop => obj => value => () =>
       obj['set_' + prop](value);
 
-exports.setTxAuxiliaryData = setter('auxiliary_data');
-
 exports.newAuxiliaryData = () =>
     lib.AuxiliaryData.new();
 

@@ -33,7 +33,7 @@
 Support is planned for the following light wallets, roughly in order of implementation:
 
 - [x] [Nami](https://namiwallet.io/)
-- [ ] [Gero](https://gerowallet.io/)
+- [x] [Gero](https://gerowallet.io/)
 - [ ] [Typhon](https://typhonwallet.io/)
 - [ ] [Yoroi](https://yoroi-wallet.com/)
 - [ ] [Eternl (formerly CCvault)](https://eternl.io/)
