@@ -179,7 +179,7 @@ One major caveat to using CTL in its current state is that we have no equivalent
 We provide `KeyWallet` to enable testing outside of the browser, or in-browser without a light wallet installed. To generate a key, you can use `cardano-cli` as follows:
 
 ```bash
-# cardano-cli address key-gen --normal-key --signing-key-file payment.skey --verification-key-file payment.vkey
+$ cardano-cli address key-gen --normal-key --signing-key-file payment.skey --verification-key-file payment.vkey
 ```
 
 To extract the key from `payment.skey`, `jq '.cborHex' payment.skey | cut -c 5-69` if you have `jq` installed, or manually take the value from the cborHex field and remove the first 4 characters (5820):
