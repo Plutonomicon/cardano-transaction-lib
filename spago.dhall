@@ -44,6 +44,7 @@ You can edit this file as you like.
   , "nonempty"
   , "ordered-collections"
   , "partial"
+  , "posix-types"
   , "prelude"
   , "profunctor"
   , "profunctor-lenses"

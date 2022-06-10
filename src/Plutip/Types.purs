@@ -1,6 +1,5 @@
 module Plutip.Types where
 
-import Data.Tuple.Nested
 import Prelude
 
 import Aeson
@@ -16,6 +15,7 @@ import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel)
 import Data.Show.Generic (genericShow)
+import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import QueryM.ServerConfig (ServerConfig)
 

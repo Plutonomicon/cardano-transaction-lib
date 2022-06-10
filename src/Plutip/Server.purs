@@ -1,70 +1,53 @@
 module Plutip.Server where
 
-import Contract.Monad
-import Data.Tuple.Nested
-import Effect.Aff
-import Node.ChildProcess
-import Node.FS.Aff
-import Plutip.Monad
-import Plutip.Types
-import Prelude
-import Undefined
-
-import Aeson
-  ( class DecodeAeson
-  , JsonDecodeError(..)
-  , decodeAeson
-  , encodeAeson
-  , parseJsonStringToAeson
-  , stringifyAeson
-  , toStringifiedNumbersJson
-  , (.:)
-  )
+import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
 import Affjax as Affjax
-import Affjax.RequestBody (RequestBody)
 import Affjax.RequestBody as RequestBody
 import Affjax.ResponseFormat as Affjax.ResponseFormat
-import Contract.Address (NetworkId(..))
+import Contract.Monad
+  ( ConfigParams(..)
+  , Contract
+  , ContractConfig(..)
+  , LogLevel(..)
+  , defaultSlotConfig
+  , mkContractConfig
+  , runContract
+  )
 import Control.Monad.Error.Class (withResource)
-import Control.Monad.Logger.Class (error)
-import Control.Monad.Logger.Trans (LoggerT(..), runLoggerT)
-import Control.Monad.Reader (ReaderT(..), asks, runReaderT)
-import Control.MonadZero (empty)
+import Control.Monad.Reader (ReaderT, runReaderT)
 import Data.Array (fold)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..), either)
-import Data.Generic.Rep (class Generic)
-import Data.Log.Message (Message)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (over)
 import Data.Posix.Signal (Signal(..))
-import Data.Show.Generic (genericShow)
-import Data.UInt (UInt)
 import Data.UInt as UInt
-import Effect (Effect)
+import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Effect.Console (log)
 import Effect.Exception (throw)
-import Helpers (logWithLevel)
+import Node.ChildProcess (ChildProcess, defaultSpawnOptions, kill, spawn)
 import Node.Encoding as Encoding
-import Node.Path (concat, dirname, sep)
+import Node.FS.Aff (writeTextFile)
+import Node.Path (concat, dirname)
+import Plutip.Types
+  ( ClusterStartupParameters
+  , ClusterStartupRequest(..)
+  , FilePath
+  , PlutipConfig
+  , StartClusterResponse(..)
+  , StopClusterResponse
+  )
+import Plutip.Utils (tmpdir)
+import Prelude
 import QueryM (ClientError(..))
-import Plutip.Utils
+import Undefined (undefined)
 
 type PlutipM (r :: Row Type) (a :: Type) = ReaderT PlutipConfig (Contract r) a
 
 mkServerEndpointUrl :: PlutipConfig -> String -> String
 mkServerEndpointUrl cfg path = do
   "http://" <> cfg.host <> ":" <> UInt.toString cfg.port <> "/" <> path
-
--- main :: Effect Unit
--- main = launchAff_ do
---   runPlutipM { host: "localhost"
---              , port: UInt.fromInt 8081
---              , logLevel: Trace
---              } do
---     startPlutipCluster >>= liftEffect <<< log <<< show
 
 runPlutipM
   :: forall (r :: Row Type) (a :: Type)
@@ -95,7 +78,7 @@ runPlutipM plutipCfg enrich action = do
               { ogmiosConfig: plutipCfg.ogmiosConfig
               , datumCacheConfig: plutipCfg.ogmiosDatumCacheConfig
               , ctlServerConfig: plutipCfg.ctlServerConfig
-              , networkId: undefined
+              , networkId: undefined -- TODO
               , slotConfig: defaultSlotConfig
               , logLevel: Trace
               , extraConfig: {}
@@ -198,13 +181,3 @@ mkOgmiosConfig ogmiosCfg { nodeSocketPath } = ogmiosCfg
 
 runOgmios :: OgmiosConfig -> Aff Unit
 runOgmios = undefined
-
--- { ogmiosWs :: OgmiosWebSocket
--- , datumCacheWs :: DatumCacheWebSocket
--- , serverConfig :: ServerConfig
--- , wallet :: Maybe Wallet
--- -- should probably be more tightly coupled with a wallet
--- , usedTxOuts :: UsedTxOuts
--- , networkId :: NetworkId
--- , slotConfig :: SlotConfig
--- , logLevel :: LogLevel
