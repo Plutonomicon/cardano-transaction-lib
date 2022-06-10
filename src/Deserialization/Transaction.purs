@@ -156,7 +156,7 @@ import Serialization.Address
   , StakeCredential
   , NetworkId(TestnetId, MainnetId)
   ) as Csl
-import Serialization.Address (intToNetworkId, Slot(Slot))
+import Serialization.Address (Slot(Slot))
 import Serialization.Hash (Ed25519KeyHash, ScriptHash)
 import Serialization.Types
   ( AssetName
