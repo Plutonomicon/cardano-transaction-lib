@@ -599,7 +599,7 @@ convertCert = case _ of
     , pledge
     , cost
     , margin
-    , reward_account
+    , rewardAccount
     , poolOwners
     , relays
     , poolMetadata
@@ -609,7 +609,7 @@ convertCert = case _ of
     relays' <- convertRelays relays
     poolMetadata' <- for poolMetadata convertPoolMetadata
     newPoolRegistrationCertificate operator vrfKeyhash pledge cost margin'
-      reward_account
+      rewardAccount
       poolOwners'
       relays'
       (maybeToUor poolMetadata')

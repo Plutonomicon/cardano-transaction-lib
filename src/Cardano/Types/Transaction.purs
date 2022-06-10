@@ -496,7 +496,7 @@ data Certificate
       , pledge :: BigNum
       , cost :: BigNum
       , margin :: UnitInterval
-      , reward_account :: RewardAddress
+      , rewardAccount :: RewardAddress
       , poolOwners :: Array Ed25519KeyHash
       , relays :: Array Relay
       , poolMetadata :: Maybe PoolMetadata

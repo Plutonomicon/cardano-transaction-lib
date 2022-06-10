@@ -60,8 +60,6 @@ exports._txBodyRequiredSigners = maybeGetterMulti("required_signers");
 // network_id(): number | void;
 exports._txBodyNetworkId = maybeGetter_(o => o.kind())("network_id");
 
-
-
 // foreign import _unpackWithdrawals :: ContainerHelper -> CSL.Withdrawals -> Array(Tuple CSL.RewardAddress CSL.BigNum)
 exports._unpackWithdrawals = containerhelper => containerhelper.unpackKeyIndexed;
 
@@ -77,15 +75,23 @@ exports._unpackMint = containerhelper => containerhelper.unpackKeyIndexed;
 // foreign import _unpackMintAssets :: ContainerHelper -> CSL.MintAssets -> Array (Tuple CSL.AssetName Int)
 exports._unpackMintAssets = containerhelper => containerhelper.unpackKeyIndexed;
 
-
-// type CertConvHelper r =
-// {
-//     stakeDeregistration:: StakeCredential -> Err r Certificate
-//         , stakeRegistration :: StakeCredential -> Err r Certificate
-//             , stakeDelegation ::
-//     StakeCredential -> Ed25519KeyHash -> Err r Certificate
-//         , notImplementedError :: String -> Err r Certificate
-// }
+// type CertConvHelper (r :: Row Type) =
+//   { stakeDeregistration :: Csl.StakeCredential -> Err r T.Certificate
+//   , stakeRegistration :: Csl.StakeCredential -> Err r T.Certificate
+//   , stakeDelegation ::
+//       Csl.StakeCredential -> Ed25519KeyHash -> Err r T.Certificate
+//   , poolRegistration :: Csl.PoolParams -> Err r T.Certificate
+//   , poolRetirement :: Ed25519KeyHash -> Int -> Err r T.Certificate
+//   , genesisKeyDelegation ::
+//       Csl.GenesisHash
+//       -> Csl.GenesisDelegateHash
+//       -> Csl.VRFKeyHash
+//       -> Err r T.Certificate
+//   , moveInstantaneousRewardsToOtherPotCert ::
+//       Number -> Csl.BigNum -> Err r T.Certificate
+//   , moveInstantaneousRewardsToStakeCreds ::
+//       Number -> Csl.MIRToStakeCredentials -> Err r T.Certificate
+//   }
 // foreign import _convertCert :: forall r.CertConvHelper r -> CSL.Certificate -> Err r Certificate
 exports._convertCert = certConvHelper => cert => {
     // StakeRegistration,
@@ -112,7 +118,7 @@ exports._convertCert = certConvHelper => cert => {
     )(
         r.vrf_keyhash()
     );
-    // MoveInstantaneoursRewardsToOtherPot
+    // MoveInstantaneoursRewardsToOtherPot, MoveInstantaneoursRewardsToStakeCreds
     r = cert.as_move_instantaneous_rewards_cert();
     if (r) {
         let s;
@@ -191,18 +197,13 @@ exports._unpackCostModels = containerhelper => containerhelper.unpackKeyIndexed;
 // foreign import unpackCostModel :: CSL.CostModel -> Array String
 exports._unpackCostModel = cm => {
     // XXX should OP_COUNT be used instead?
-    var op = 0;
     var err = false;
     const res = [];
-    while(!err){
-        try{
-            res.push(cm.get(op).to_str());
-        }
-        catch(_){
-            err=true;
-        }
-        op++;
-    }
+    try {
+      for(var op = 0;; op++) {
+        res.push(cm.get(op).to_str());
+      }
+    } catch (_) { }
     return res;
 };
 
@@ -390,15 +391,6 @@ exports.convertSingleHostName_ = maybe => cont => singleHostName => {
 
 exports.convertMultiHostName_ = multiHostName =>
     multiHostName.dns_name().record();
-
-exports.convertGenesisKeyDelegation_ = cont => genesisKeyDelegation =>
-    cont(
-        genesisKeyDelegation.genesishash()
-    )(
-        genesisKeyDelegation.genesis_delegate_hash()
-    )(
-        genesisKeyDelegation.vrf_keyhash()
-    );
 
 exports.unpackMIRToStakeCredentials_ = containerHelper => mirToStakeCredentials =>
     containerHelper.unpackKeyIndexed(mirToStakeCredentials);

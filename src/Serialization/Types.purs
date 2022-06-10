@@ -180,10 +180,11 @@ instance Eq BigNum where
   eq = eq `on` show
 
 instance Show VRFKeyHash where
-  show = _vrfKeyHashShow byteArrayToHex
+  show = _vrfKeyHashBytes >>> byteArrayToHex
 
 instance Eq VRFKeyHash where
   eq = eq `on` show
 
 foreign import _to_str :: forall a. a -> String
-foreign import _vrfKeyHashShow :: (ByteArray -> String) -> VRFKeyHash -> String
+-- We can't use ToBytes class here, because of cyclic dependencies
+foreign import _vrfKeyHashBytes :: VRFKeyHash -> ByteArray

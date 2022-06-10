@@ -519,7 +519,7 @@ txFixture4 =
                 , pledge: bigNumOne
                 , cost: bigNumOne
                 , margin: { numerator: bigNumOne, denominator: bigNumOne }
-                , reward_account: rewardAddress
+                , rewardAccount: rewardAddress
                     { network: MainnetId, paymentCred: stake1 }
                 , poolOwners: [ ed25519KeyHash1 ]
                 , relays:

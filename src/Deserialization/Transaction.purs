@@ -322,12 +322,11 @@ convertUpdate u = do
         M.fromFoldable ppus
     }
 
--- | TODO partially implemented
 convertCertificate
   :: forall (r :: Row Type). Csl.Certificate -> Err r T.Certificate
 convertCertificate = _convertCert certConvHelper
   where
-  certConvHelper :: CertConvHelper r
+  certConvHelper :: CertConvHelper (Err r T.Certificate)
   certConvHelper =
     { stakeDeregistration: pure <<< T.StakeDeregistration
     , stakeRegistration: pure <<< T.StakeRegistration
@@ -367,7 +366,7 @@ convertPoolRegistration params = do
     , pledge: poolParamsPledge params
     , cost: poolParamsCost params
     , margin: _unpackUnitInterval $ poolParamsMargin params
-    , reward_account: poolParamsRewardAccount params
+    , rewardAccount: poolParamsRewardAccount params
     , poolOwners: poolParamsPoolOwners containerHelper params
     , relays
     , poolMetadata: poolParamsPoolMetadata maybeFfiHelper params <#>
@@ -870,27 +869,27 @@ foreign import _unpackMint
 foreign import _unpackMintAssets
   :: ContainerHelper -> Csl.MintAssets -> Array (Csl.AssetName /\ Csl.Int)
 
-type CertConvHelper (r :: Row Type) =
-  { stakeDeregistration :: Csl.StakeCredential -> Err r T.Certificate
-  , stakeRegistration :: Csl.StakeCredential -> Err r T.Certificate
+type CertConvHelper (r :: Type) =
+  { stakeDeregistration :: Csl.StakeCredential -> r
+  , stakeRegistration :: Csl.StakeCredential -> r
   , stakeDelegation ::
-      Csl.StakeCredential -> Ed25519KeyHash -> Err r T.Certificate
-  , poolRegistration :: Csl.PoolParams -> Err r T.Certificate
-  , poolRetirement :: Ed25519KeyHash -> Int -> Err r T.Certificate
+      Csl.StakeCredential -> Ed25519KeyHash -> r
+  , poolRegistration :: Csl.PoolParams -> r
+  , poolRetirement :: Ed25519KeyHash -> Int -> r
   , genesisKeyDelegation ::
       Csl.GenesisHash
       -> Csl.GenesisDelegateHash
       -> Csl.VRFKeyHash
-      -> Err r T.Certificate
+      -> r
   , moveInstantaneousRewardsToOtherPotCert ::
-      Number -> Csl.BigNum -> Err r T.Certificate
+      Number -> Csl.BigNum -> r
   , moveInstantaneousRewardsToStakeCreds ::
-      Number -> Csl.MIRToStakeCredentials -> Err r T.Certificate
+      Number -> Csl.MIRToStakeCredentials -> r
   }
 
 foreign import _convertCert
   :: forall (r :: Row Type)
-   . CertConvHelper r
+   . CertConvHelper (Err r T.Certificate)
   -> Csl.Certificate
   -> Err r T.Certificate
 
