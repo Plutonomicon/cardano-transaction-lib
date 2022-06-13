@@ -299,7 +299,7 @@ balanceTxs
   => t UnattachedUnbalancedTx
   -> Contract r (t UnattachedTransaction)
 balanceTxs uts = do
-  -- First, lock all the already fixated inputs on all the unbalanced transactions.
+  -- First, lock all the already fixed inputs on all the unbalanced transactions.
   -- That prevents any inputs of any of those to be used to balance any of the
   -- other transactions
   unlockKeys <- unlockAllOnError
