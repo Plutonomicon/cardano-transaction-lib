@@ -551,6 +551,10 @@ logTx msg utxos (Transaction { body: body'@(TxBody body) }) =
     , "Fees: " <> show body.fee
     ]
 
+-- Transaction should be prebalanced at this point with all excess with Ada
+-- where the Ada value of inputs is greater or equal to value of outputs.
+-- This should be called with a Tx with min Ada in each output utxo,
+-- namely, after "loop".
 returnAdaChangeAndFinalizeFees
   :: Address
   -> Utxo
@@ -558,15 +562,19 @@ returnAdaChangeAndFinalizeFees
   -> QueryM (Either ReturnAdaChangeError UnattachedUnbalancedTx)
 returnAdaChangeAndFinalizeFees changeAddr utxos unattachedTx =
   runExceptT do
+    -- Calculate min fee before returning ada change to the owner's address:
     unattachedTxAndFees@(_ /\ fees) <-
       ExceptT $ evalExUnitsAndMinFee' unattachedTx
         <#> lmap ReturnAdaChangeCalculateMinFee
+    -- If required, create an extra output to return the change:
     unattachedTxWithChangeTxOut /\ { recalculateFees } <-
       except $ returnAdaChange changeAddr utxos unattachedTxAndFees
     case recalculateFees of
       false -> except <<< Right $
+        -- Set min fee and return tx without recalculating fees:
         unattachedTxSetFees unattachedTxWithChangeTxOut fees
       true -> do
+        -- Recalculate min fee, then adjust the change output:
         unattachedTx' /\ fees' <-
           ExceptT $ evalExUnitsAndMinFee' unattachedTxWithChangeTxOut
             <#> lmap ReturnAdaChangeCalculateMinFee
@@ -625,10 +633,6 @@ returnAdaChangeAndFinalizeFees changeAddr utxos unattachedTx =
         \(TransactionOutput rec) -> TransactionOutput
           rec { amount = lovelaceValueOf returnAda }
 
--- Transaction should be prebalanced at this point with all excess with Ada
--- where the Ada value of inputs is greater or equal to value of outputs.
--- This should be called with a Tx with min Ada in each output utxo,
--- namely, after "loop".
 returnAdaChange
   :: Address
   -> Utxo
