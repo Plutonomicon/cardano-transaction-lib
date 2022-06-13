@@ -184,67 +184,34 @@ eraSummariesFixture = EraSummaries
 suite :: TestPlanM Unit
 suite = do
   group "Time-related Aeson representation tests" do
-    group "POSIXTime" do
-      let input = posixTimeFixture
-      toFromAesonTest input
+    toFromAesonTest "POSIXTime" posixTimeFixture
     group "SlotToPosixTimeError" do
-      group "CannotFindSlotInEraSummaries" do
-        let err = slotToPosixTimeErrFixture
-        toFromAesonTest err
-      group "StartingSlotGreaterThanSlot" do
-        let err = StartingSlotGreaterThanSlot absSlotFixture
-        toFromAesonTest err
-      group "EndTimeLessThanTime" do
-        let err = EndTimeLessThanTime absTimeFixture
-        toFromAesonTest err
-      group "CannotGetBigIntFromNumber" do
-        let err = CannotGetBigIntFromNumber
-        toFromAesonTest err
+      toFromAesonTest "CannotFindSlotInEraSummaries" slotToPosixTimeErrFixture
+      toFromAesonTest "StartingSlotGreaterThanSlot" $
+        StartingSlotGreaterThanSlot absSlotFixture
+      toFromAesonTest "EndTimeLessThanTime" $ EndTimeLessThanTime absTimeFixture
+      toFromAesonTest "CannotGetBigIntFromNumber" CannotGetBigIntFromNumber
     group "PosixTimeToSlotError" do
-      group "CannotConvertAbsSlotToSlot" do
-        let err = posixTimeToSlotErrFixture
-        toFromAesonTest err
-      group "PosixTimeBeforeSystemStart" do
-        let err = PosixTimeBeforeSystemStart posixTimeFixture
-        toFromAesonTest err
-      group "StartTimeGreaterThanTime" do
-        let err = StartTimeGreaterThanTime absTimeFixture
-        toFromAesonTest err
-      group "EndSlotLessThanSlotOrModNonZero" do
-        let err = EndSlotLessThanSlotOrModNonZero absSlotFixture modTimeFixture
-        toFromAesonTest err
-      group "CannotConvertAbsSlotToSlot" do
-        let err = CannotConvertAbsSlotToSlot absSlotFixture
-        toFromAesonTest err
-      group "CannotGetBigIntFromNumber'" do
-        let err = CannotGetBigIntFromNumber'
-        toFromAesonTest err
+      toFromAesonTest "CannotConvertAbsSlotToSlot" posixTimeToSlotErrFixture
+      toFromAesonTest "PosixTimeBeforeSystemStart" $ PosixTimeBeforeSystemStart
+        posixTimeFixture
+      toFromAesonTest "StartTimeGreaterThanTime" $ StartTimeGreaterThanTime
+        absTimeFixture
+      toFromAesonTest "EndSlotLessThanSlotOrModNonZero" $
+        EndSlotLessThanSlotOrModNonZero absSlotFixture modTimeFixture
+      toFromAesonTest "CannotConvertAbsSlotToSlot" $ CannotConvertAbsSlotToSlot
+        absSlotFixture
+      toFromAesonTest "CannotGetBigIntFromNumber'" $ CannotGetBigIntFromNumber'
     group "ToOnChainPosixTimeRangeError" do
-      group "PosixTimeToSlotError'" do
-        let err = PosixTimeToSlotError' posixTimeToSlotErrFixture
-        toFromAesonTest err
-      group "SlotToPosixTimeError'" do
-        let err = SlotToPosixTimeError' slotToPosixTimeErrFixture
-        toFromAesonTest err
+      toFromAesonTest "PosixTimeToSlotError'" $ PosixTimeToSlotError'
+        posixTimeToSlotErrFixture
+      toFromAesonTest "SlotToPosixTimeError'" $ SlotToPosixTimeError'
+        slotToPosixTimeErrFixture
     group "Misc. Types" do
-      group "AbsSlot" do
-        let input = absSlotFixture
-        toFromAesonTest input
-      group "AbsTime" do
-        let input = absTimeFixture
-        toFromAesonTest input
-      group "RelSlot" do
-        let input = relSlotFixture
-        toFromAesonTest input
-      group "RelTime" do
-        let input = relTimeFixture
-        toFromAesonTest input
-      group "EraSummaries" do
-        let input = eraSummariesFixture
-        toFromAesonTest input
-      group "SystemStart" do
-        let input = systemStartFixture
-        toFromAesonTest input
-      group "CurrentEpoch" do
-        let input = currentEpochFixture
-        toFromAesonTest input
+      toFromAesonTest "AbsSlot" absSlotFixture
+      toFromAesonTest "AbsTime" absTimeFixture
+      toFromAesonTest "RelSlot" relSlotFixture
+      toFromAesonTest "RelTime" relTimeFixture
+      toFromAesonTest "EraSummaries" eraSummariesFixture
+      toFromAesonTest "SystemStart" systemStartFixture
+      toFromAesonTest "CurrentEpoch" currentEpochFixture

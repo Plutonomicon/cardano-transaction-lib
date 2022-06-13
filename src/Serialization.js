@@ -2,9 +2,9 @@
 
 var lib;
 if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
-    lib = require('@ngua/cardano-serialization-lib-browser');
+    lib = require('@emurgo/cardano-serialization-lib-browser');
 } else {
-    lib = require('@ngua/cardano-serialization-lib-nodejs');
+    lib = require('@emurgo/cardano-serialization-lib-nodejs');
 }
 
 const setter = prop => obj => value => () =>

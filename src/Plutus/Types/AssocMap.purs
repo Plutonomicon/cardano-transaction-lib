@@ -20,21 +20,10 @@ module Plutus.Types.AssocMap
 
 import Prelude
 
+import Aeson (class DecodeAeson, class EncodeAeson)
 import Data.Array ((:))
-import Data.Array
-  ( any
-  , deleteAt
-  , filter
-  , findIndex
-  , mapMaybe
-  , null
-  , singleton
-  ) as Array
+import Data.Array (any, deleteAt, filter, findIndex, mapMaybe, null, singleton) as Array
 import Data.Bifunctor (bimap)
-import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(Just, Nothing), isJust)
-import Data.Newtype (class Newtype, unwrap)
-import Data.Foldable (lookup) as Foldable
 import Data.Foldable
   ( class Foldable
   , foldlDefault
@@ -42,6 +31,10 @@ import Data.Foldable
   , foldr
   , foldrDefault
   )
+import Data.Foldable (lookup) as Foldable
+import Data.Generic.Rep (class Generic)
+import Data.Maybe (Maybe(Just, Nothing), isJust)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This), these)
 import Data.Traversable (class Traversable, for, sequence, traverse)
@@ -67,6 +60,8 @@ derive instance Generic (Map k v) _
 derive instance Newtype (Map k v) _
 derive newtype instance (Eq k, Eq v) => Eq (Map k v)
 derive newtype instance (Ord k, Ord v) => Ord (Map k v)
+derive newtype instance (EncodeAeson k, EncodeAeson v) => EncodeAeson (Map k v)
+derive newtype instance (DecodeAeson k, DecodeAeson v) => DecodeAeson (Map k v)
 
 instance (Show k, Show v) => Show (Map k v) where
   show = genericShow

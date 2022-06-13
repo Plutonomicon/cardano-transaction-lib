@@ -25,7 +25,6 @@ import Serialization.Types
   , GeneralTransactionMetadata
   , NativeScripts
   , PlutusScripts
-  , Transaction
   , TransactionMetadatum
   )
 import Serialization.WitnessSet
