@@ -3,12 +3,14 @@ module Types.ByteArray
   ( ByteArray(..)
   , byteArrayFromIntArray
   , byteArrayFromIntArrayUnsafe
+  , byteArrayFromInt16ArrayUnsafe
   , byteArrayFromAscii
   , byteArrayToHex
   , byteArrayToIntArray
   , byteLength
   , hexToByteArray
   , hexToByteArrayUnsafe
+  , byteArrayToUTF16le
   ) where
 
 import Prelude
@@ -121,3 +123,7 @@ byteArrayFromAscii str = do
     let charCode = toCharCode cp
     if charCode <= 255 && charCode >= 0 then pure charCode
     else Nothing
+
+foreign import byteArrayFromInt16ArrayUnsafe :: Array Int -> ByteArray
+
+foreign import byteArrayToUTF16le :: ByteArray -> String

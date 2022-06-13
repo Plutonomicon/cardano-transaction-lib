@@ -1,8 +1,11 @@
 {
   "name": "cardano-transaction-lib",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Plutonomicon/cardano-transaction-lib.git"
+  },
   "directories": {
     "test": "test"
   },
@@ -16,11 +19,12 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@ngua/cardano-serialization-lib-browser": "^9.1.2",
-    "@ngua/cardano-serialization-lib-nodejs": "^9.1.2",
+    "@emurgo/cardano-serialization-lib-browser": "10.1.0",
+    "@emurgo/cardano-serialization-lib-nodejs": "10.1.0",
     "big-integer": "1.6.51",
     "blakejs": "1.2.1",
     "bufferutil": "4.0.5",
+    "jssha": "3.2.0",
     "node-polyfill-webpack-plugin": "1.1.4",
     "reconnecting-websocket": "4.4.0",
     "uniqid": "5.4.0",

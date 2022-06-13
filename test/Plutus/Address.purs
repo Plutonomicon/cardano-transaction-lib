@@ -1,13 +1,13 @@
-module Test.Plutus.Address (suite) where
+module Test.Plutus.Address (suite, addresses) where
 
 import Prelude
 
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Tuple (Tuple(Tuple))
 import Data.Array ((..), length, zip)
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, wrap, unwrap)
-import Data.UInt (UInt, fromInt)
 import Data.Traversable (for_)
+import Data.Tuple (Tuple(Tuple))
+import Data.UInt (UInt, fromInt)
 import Data.Tuple.Nested ((/\))
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
@@ -18,13 +18,13 @@ import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
   )
-import Serialization.Hash (ed25519KeyHashFromBech32, scriptHashFromBech32)
 import Serialization.Address
   ( NetworkId(MainnetId, TestnetId)
   , addressFromBech32
   )
+import Serialization.Hash (ed25519KeyHashFromBech32, scriptHashFromBech32)
 import Test.Spec.Assertions (shouldEqual)
-import Test.Utils (errMaybe)
+import Test.Utils (errMaybe, toFromAesonTest)
 import TestM (TestPlanM)
 import Types.Aliases (Bech32String)
 
@@ -41,6 +41,10 @@ suite = do
         let testData = zip (zip addressesBech32Testnet addresses) indices
         for_ testData $ \(Tuple (Tuple addrBech32 addr) addrType) ->
           toFromPlutusTypeTest TestnetId addrType addrBech32 addr
+    group "Aeson tests" $ do
+      group "Roundtrip tests"
+        $ for_ addresses
+        $ toFromAesonTest "Address"
 
 toFromPlutusTypeTest
   :: NetworkId -> Int -> Bech32String -> Plutus.Address -> TestPlanM Unit

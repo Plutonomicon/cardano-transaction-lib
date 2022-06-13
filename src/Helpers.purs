@@ -14,11 +14,14 @@ module Helpers
   , liftEither
   , liftM
   , liftMWith
-  , maybeArrayMerge
-  , uIntToBigInt
-  , notImplemented
-  , logWithLevel
+  , liftedM
   , logString
+  , logWithLevel
+  , maybeArrayMerge
+  , mkErrorRecord
+  , notImplemented
+  , showWithParens
+  , uIntToBigInt
   ) where
 
 import Prelude
@@ -65,6 +68,15 @@ liftEither = either throwError pure
 
 fromRightEff :: forall (a :: Type) (e :: Type). Show e => Either e a -> Effect a
 fromRightEff = either (throw <<< show) pure
+
+-- | Given an error and a lifted `Maybe` value.
+liftedM
+  :: forall (e :: Type) (m :: Type -> Type) (a :: Type)
+   . MonadError e m
+  => e
+  -> m (Maybe a)
+  -> m a
+liftedM err mma = mma >>= maybe (throwError err) Right >>> liftEither
 
 -- | Given an error and a `Maybe` value, lift the context via `liftEither`.
 liftM
@@ -184,3 +196,26 @@ logString cfgLevel level message = do
   timestamp <- now
   logWithLevel cfgLevel $ { timestamp, message, level, tags: Map.empty }
 
+-- | Used for `EncodeAeson` for datatype errors
+mkErrorRecord
+  :: forall (a :: Type)
+   . String -- Error type
+  -> String -- Error
+  -> a
+  -> { "errorType" :: String
+     , "error" :: String
+     , "args" :: a
+     }
+mkErrorRecord errorType error a =
+  { "errorType": errorType, "error": error, "args": a }
+
+-- | Provides `Show` instances for Newtypes that do not have inner parenthesis,
+-- | e.g. `BigInt`. We could optionally use a `Newtype` constraint for
+-- | unwrapping, but we don't constrain ourselves by deconstructing the wrapper.
+showWithParens
+  :: forall (a :: Type)
+   . Show a
+  => String
+  -> a -- the inner type.
+  -> String
+showWithParens ctorName x = "(" <> ctorName <> " (" <> show x <> "))"

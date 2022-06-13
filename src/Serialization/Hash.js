@@ -2,9 +2,9 @@
 
 var CardanoWasm;
 if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
-    CardanoWasm = require('@ngua/cardano-serialization-lib-browser');
+    CardanoWasm = require('@emurgo/cardano-serialization-lib-browser');
 } else {
-    CardanoWasm = require('@ngua/cardano-serialization-lib-nodejs');
+    CardanoWasm = require('@emurgo/cardano-serialization-lib-nodejs');
 }
 
 const hashFromImpl = hashClassFrom => maybe => input => {
@@ -63,7 +63,6 @@ exports.ed25519KeyHashToBytes = hashToBytes;
 exports.ed25519KeyHashToBech32Unsafe = hashToBech32Unsafe;
 exports._ed25519KeyHashToBech32Impl = hashToBech32Impl;
 
-exports.scriptHashAsBytes = h => h;
 exports.scriptHashToBytes = hashToBytes;
 exports.scriptHashToBech32Unsafe = hashToBech32Unsafe;
 exports._scriptHashToBech32Impl = hashToBech32Impl;

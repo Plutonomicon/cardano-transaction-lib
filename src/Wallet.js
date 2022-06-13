@@ -2,41 +2,37 @@
 
 var lib;
 if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
-    lib = require('@ngua/cardano-serialization-lib-browser');
+    lib = require('@emurgo/cardano-serialization-lib-browser');
 } else {
-    lib = require('@ngua/cardano-serialization-lib-nodejs');
+    lib = require('@emurgo/cardano-serialization-lib-nodejs');
 }
 
-// _enableNami :: Effect (Promise NamiConnection)
-exports._enableNami = () => window.cardano.nami.enable();
+// _enableNami :: Effect (Promise Cip30Connection)
+exports._enableNami = () =>
+    window.cardano.nami.enable();
 
-// _getNamiAddress :: NamiConnection -> Effect (Promise String)
-exports._getNamiAddress = nami => () =>
-  nami.getUsedAddresses().then((addrs) => addrs[0]);
+// _enableGero :: Effect (Promise Cip30Connection)
+exports._enableGero = () =>
+    window.cardano.gerowallet.enable();
 
-// _getNamiCollateral
+// _getAddress :: Cip30Connection -> Effect (Promise String)
+exports._getAddress = conn => () =>
+  conn.getUsedAddresses().then((addrs) => addrs[0]);
+
+// _getCollateral
 //   :: MaybeFfiHelper
-//   -> NamiConnection
+//   -> Cip30Connection
 //   -> Effect (Promise String)
-exports._getNamiCollateral = maybe => nami => () =>
-  nami.experimental.getCollateral().then((utxos) => {
+exports._getCollateral = maybe => conn => () =>
+  conn.experimental.getCollateral().then((utxos) => {
   return utxos.length ? maybe.just(utxos[0]) : maybe.nothing;
 });
 
-// _signTxNami :: String -> NamiConnection -> Effect (Promise String)
-exports._signTxNami = txHex => nami => () => {
-  return nami.signTx(txHex, true)
+// _signTx :: String -> Cip30Connection -> Effect (Promise String)
+exports._signTx = txHex => conn => () => {
+  return conn.signTx(txHex, true)
       .catch(e => {
-          console.log("Error in signTxNami: ", e);
-          throw (JSON.stringify(e));
-      });
-}
-
-// _submitTxNami :: String -> NamiConnection -> Effect (Promise String)
-exports._submitTxNami = txHex => nami => () => {
-  return nami.submitTx(txHex)
-      .catch(e => {
-          console.log("Error in submitTxNami: ", e);
+          console.log("Error in signTx: ", e);
           throw (JSON.stringify(e));
       });
 };

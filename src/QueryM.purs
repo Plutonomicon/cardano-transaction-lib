@@ -3,49 +3,48 @@ module QueryM
   ( ClientError(..)
   , DatumCacheListeners
   , DatumCacheWebSocket
+  , DefaultQueryConfig
+  , DispatchError(..)
   , DispatchIdMap
-  , DispatchError(JsError, JsonError)
   , FeeEstimate(..)
   , FinalizedTransaction(..)
-  , module ServerConfig
   , ListenerSet
-  , PendingRequests
-  , RdmrPtrExUnits(..)
-  , RequestBody
   , OgmiosListeners
   , OgmiosWebSocket
+  , PendingRequests
   , QueryConfig
-  , DefaultQueryConfig
   , QueryM
   , QueryMExtended
+  , RdmrPtrExUnits(..)
+  , RequestBody
   , WebSocket
-  , liftQueryM
   , allowError
   , applyArgs
   , calculateMinFee
-  , traceQueryConfig
   , evalTxExecutionUnits
   , finalizeTx
-  , getWalletAddress
   , getChainTip
+  , getDatumByHash
+  , getDatumsByHashes
+  , getWalletAddress
   , getWalletCollateral
+  , liftQueryM
   , listeners
+  , postAeson
   , mkDatumCacheWebSocketAff
   , mkOgmiosRequest
   , mkOgmiosWebSocketAff
+  , module ServerConfig
   , ownPaymentPubKeyHash
   , ownPubKeyHash
   , ownStakePubKeyHash
   , runQueryM
   , signTransaction
+  , scriptToAeson
   , signTransactionBytes
-  , submitTxWallet
   , submitTxOgmios
+  , traceQueryConfig
   , underlyingWebSocket
-  , getDatumByHash
-  , getDatumsByHashes
-  , startFetchBlocks
-  , cancelFetchBlocks
   ) where
 
 import Prelude
@@ -62,10 +61,11 @@ import Aeson
   , parseJsonStringToAeson
   , stringifyAeson
   )
-import Affjax as Affjax
+import Affjax (Error, Response, defaultRequest, printError, request) as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
+import Affjax.StatusCode as Affjax.StatusCode
 import Cardano.Types.Transaction (Transaction(Transaction))
 import Cardano.Types.Transaction as Transaction
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
@@ -74,7 +74,7 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT, ask, asks)
 import Data.Array (length)
-import Data.Bifunctor (bimap, lmap)
+import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, isRight, note, hush)
@@ -112,10 +112,8 @@ import JsWebSocket
   , _wsWatch
   )
 import QueryM.DatumCacheWsp
-  ( CancelFetchBlocksR
-  , GetDatumByHashR
+  ( GetDatumByHashR
   , GetDatumsByHashesR
-  , StartFetchBlocksR
   )
 import QueryM.DatumCacheWsp as DcWsp
 import QueryM.JsonWsp (parseJsonWspResponseId)
@@ -146,7 +144,6 @@ import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address
   ( Address
   , NetworkId(TestnetId)
-  , Slot
   , baseAddressDelegationCred
   , baseAddressFromAddress
   , baseAddressPaymentCred
@@ -158,17 +155,19 @@ import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Types.CborBytes (CborBytes)
 import Types.Chain as Chain
 import Types.Datum (DataHash, Datum)
-import Types.Interval (SlotConfig, defaultSlotConfig)
 import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
 import Types.Natural (Natural)
 import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
 import Types.Scripts (PlutusScript)
-import Types.Transaction (TransactionHash)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
-import Wallet (Wallet(Nami), NamiWallet, NamiConnection)
+import Wallet
+  ( Wallet(Gero, Nami)
+  , Cip30Connection
+  , Cip30Wallet
+  )
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -187,7 +186,6 @@ type QueryConfig (r :: Row Type) =
   -- should probably be more tightly coupled with a wallet
   , usedTxOuts :: UsedTxOuts
   , networkId :: NetworkId
-  , slotConfig :: SlotConfig
   , logLevel :: LogLevel
   | r
   }
@@ -211,7 +209,6 @@ liftQueryM = withReaderT toDefaultQueryConfig
     , wallet: c.wallet
     , usedTxOuts: c.usedTxOuts
     , networkId: c.networkId
-    , slotConfig: c.slotConfig
     , logLevel: c.logLevel
     }
 
@@ -232,7 +229,6 @@ traceQueryConfig = do
     , wallet: Nothing
     , usedTxOuts
     , networkId: TestnetId
-    , slotConfig: defaultSlotConfig
     , logLevel
     }
   where
@@ -273,17 +269,6 @@ getDatumsByHashes :: Array DataHash -> QueryM (Map DataHash Datum)
 getDatumsByHashes hashes = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
 
-startFetchBlocks :: { slot :: Slot, id :: Chain.BlockHeaderHash } -> QueryM Unit
-startFetchBlocks start = void $ mkDatumCacheRequest DcWsp.startFetchBlocksCall
-  _.startFetchBlocks
-  start
-
--- | Cancels a running block fetcher job. Throws on no fetchers running
-cancelFetchBlocks :: QueryM Unit
-cancelFetchBlocks = void $ mkDatumCacheRequest DcWsp.cancelFetchBlocksCall
-  _.cancelFetchBlocks
-  unit
-
 allowError
   :: forall (a :: Type). (Either Error a -> Effect Unit) -> a -> Effect Unit
 allowError func = func <<< Right
@@ -294,26 +279,25 @@ allowError func = func <<< Right
 
 getWalletAddress :: QueryM (Maybe Address)
 getWalletAddress = withMWalletAff $ case _ of
-  Nami nami -> callNami nami _.getWalletAddress
+  Nami nami -> callCip30Wallet nami _.getWalletAddress
+  Gero gero -> callCip30Wallet gero _.getWalletAddress
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
 getWalletCollateral = withMWalletAff $ case _ of
-  Nami nami -> callNami nami _.getCollateral
+  Nami nami -> callCip30Wallet nami _.getCollateral
+  Gero gero -> callCip30Wallet gero _.getCollateral
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
 signTransaction tx = withMWalletAff $ case _ of
-  Nami nami -> callNami nami $ \nw -> flip nw.signTx tx
+  Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
+  Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
 
 signTransactionBytes
   :: CborBytes -> QueryM (Maybe CborBytes)
 signTransactionBytes tx = withMWalletAff $ case _ of
-  Nami nami -> callNami nami $ \nw -> flip nw.signTxBytes tx
-
-submitTxWallet
-  :: Transaction.Transaction -> QueryM (Maybe TransactionHash)
-submitTxWallet tx = withMWalletAff $ case _ of
-  Nami nami -> callNami nami $ \nw -> flip nw.submitTx tx
+  Nami nami -> callCip30Wallet nami \nw -> flip nw.signTxBytes tx
+  Gero gero -> callCip30Wallet gero \nw -> flip nw.signTxBytes tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do
@@ -337,15 +321,12 @@ withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
 withMWalletAff act = asks _.wallet >>= maybe (pure Nothing) (liftAff <<< act)
 
-callNami
+callCip30Wallet
   :: forall (a :: Type)
-   . NamiWallet
-  -> (NamiWallet -> (NamiConnection -> Aff a))
+   . Cip30Wallet
+  -> (Cip30Wallet -> (Cip30Connection -> Aff a))
   -> Aff a
-callNami nami act = act nami =<< readNamiConnection nami
-  where
-  readNamiConnection :: NamiWallet -> Aff NamiConnection
-  readNamiConnection = liftEffect <<< Ref.read <<< _.connection
+callCip30Wallet wallet act = act wallet wallet.connection
 
 -- The server will respond with a stringified integer value for the fee estimate
 newtype FeeEstimate = FeeEstimate BigInt
@@ -364,6 +345,7 @@ instance DecodeAeson FeeEstimate where
 
 data ClientError
   = ClientHttpError Affjax.Error
+  | ClientHttpResponseError String
   | ClientDecodeJsonError JsonDecodeError
   | ClientEncodingError String
   | ClientOtherError String
@@ -373,6 +355,10 @@ instance Show ClientError where
   show (ClientHttpError err) =
     "(ClientHttpError "
       <> Affjax.printError err
+      <> ")"
+  show (ClientHttpResponseError err) =
+    "(ClientHttpResponseError "
+      <> show err
       <> ")"
   show (ClientDecodeJsonError err) =
     "(ClientDecodeJsonError "
@@ -398,18 +384,10 @@ txToHex tx =
 calculateMinFee :: Transaction -> QueryM (Either ClientError Coin)
 calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   txHex <- liftEffect (txToHex tx)
-  url <- mkServerEndpointUrl
-    $ "fees?tx="
-        <> txHex
-        <> "&count="
-        <> UInt.toString witCount
-  liftAff (Affjax.get Affjax.ResponseFormat.string url)
-    <#> either
-      (Left <<< ClientHttpError)
-      ( bimap ClientDecodeJsonError (wrap <<< unwrap :: FeeEstimate -> Coin)
-          <<< (decodeAeson <=< parseJsonStringToAeson)
-          <<< _.body
-      )
+  url <- mkServerEndpointUrl "fees"
+  liftAff (postAeson url (encodeAeson { count: witCount, tx: txHex }))
+    <#> map (wrap <<< unwrap :: FeeEstimate -> Coin)
+      <<< handleAffjaxResponse
   where
   -- Fee estimation occurs before balancing the transaction, so we need to know
   -- the expected number of witnesses to use the cardano-api fee estimation
@@ -446,13 +424,9 @@ evalTxExecutionUnits
   :: Transaction -> QueryM (Either ClientError (Array RdmrPtrExUnits))
 evalTxExecutionUnits tx = do
   txHex <- liftEffect (txToHex tx)
-  url <- mkServerEndpointUrl ("eval-ex-units?tx=" <> txHex)
-  liftAff (Affjax.get Affjax.ResponseFormat.string url)
-    <#> either
-      (Left <<< ClientHttpError)
-      ( lmap ClientDecodeJsonError <<< (decodeAeson <=< parseJsonStringToAeson)
-          <<< _.body
-      )
+  url <- mkServerEndpointUrl "eval-ex-units"
+  liftAff $ postAeson url (encodeAeson { tx: txHex })
+    <#> handleAffjaxResponse
 
 -- | CborHex-encoded tx
 newtype FinalizedTransaction = FinalizedTransaction ByteArray
@@ -528,12 +502,7 @@ applyArgs script args = case traverse plutusDataToAeson args of
             ]
     url <- mkServerEndpointUrl "apply-args"
     liftAff (postAeson url reqBody)
-      <#> either
-        (Left <<< ClientHttpError)
-        ( lmap ClientDecodeJsonError
-            <<< (decodeAeson <=< parseJsonStringToAeson)
-            <<< _.body
-        )
+      <#> map wrap <<< handleAffjaxResponse
   where
   plutusDataToAeson :: PlutusData -> Maybe Aeson
   plutusDataToAeson =
@@ -544,6 +513,26 @@ applyArgs script args = case traverse plutusDataToAeson args of
           <<< asOneOf
       )
       <<< Serialization.convertPlutusData
+
+-- Checks response status code and returns `ClientError` in case of failure,
+-- otherwise attempts to decode the result.
+--
+-- This function solves the problem described there:
+-- https://github.com/eviefp/purescript-affjax-errors
+handleAffjaxResponse
+  :: forall (result :: Type)
+   . DecodeAeson result
+  => Either Affjax.Error (Affjax.Response String)
+  -> Either ClientError result
+handleAffjaxResponse (Left affjaxError) =
+  Left (ClientHttpError affjaxError)
+handleAffjaxResponse
+  (Right { status: Affjax.StatusCode.StatusCode statusCode, body })
+  | statusCode < 200 || statusCode > 299 =
+      Left (ClientHttpResponseError body)
+  | otherwise =
+      body # lmap ClientDecodeJsonError
+        <<< (decodeAeson <=< parseJsonStringToAeson)
 
 -- We can't use Affjax's typical `post`, since there will be a mismatch between
 -- the media type header and the request body
@@ -590,16 +579,25 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
   chainTipDispatchMap <- createMutableDispatch
   evaluateTxDispatchMap <- createMutableDispatch
   submitDispatchMap <- createMutableDispatch
+  eraSummariesDispatchMap <- createMutableDispatch
+  currentEpochDispatchMap <- createMutableDispatch
+  systemStartDispatchMap <- createMutableDispatch
   utxoPendingRequests <- createPendingRequests
   chainTipPendingRequests <- createPendingRequests
   evaluateTxPendingRequests <- createPendingRequests
   submitPendingRequests <- createPendingRequests
+  eraSummariesPendingRequests <- createPendingRequests
+  currentEpochPendingRequests <- createPendingRequests
+  systemStartPendingRequests <- createPendingRequests
   let
     md = ogmiosMessageDispatch
       { utxoDispatchMap
       , chainTipDispatchMap
       , evaluateTxDispatchMap
       , submitDispatchMap
+      , eraSummariesDispatchMap
+      , currentEpochDispatchMap
+      , systemStartDispatchMap
       }
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   let
@@ -610,6 +608,9 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       Ref.read chainTipPendingRequests >>= traverse_ sendRequest
       Ref.read evaluateTxPendingRequests >>= traverse_ sendRequest
       Ref.read submitPendingRequests >>= traverse_ sendRequest
+      Ref.read eraSummariesPendingRequests >>= traverse_ sendRequest
+      Ref.read currentEpochPendingRequests >>= traverse_ sendRequest
+      Ref.read systemStartPendingRequests >>= traverse_ sendRequest
   _onWsConnect ws do
     _wsWatch ws (logger Debug) onError
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
@@ -619,6 +620,13 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       , chainTip: mkListenerSet chainTipDispatchMap chainTipPendingRequests
       , evaluate: mkListenerSet evaluateTxDispatchMap evaluateTxPendingRequests
       , submit: mkListenerSet submitDispatchMap submitPendingRequests
+      , eraSummaries:
+          mkListenerSet eraSummariesDispatchMap eraSummariesPendingRequests
+      , currentEpoch:
+          mkListenerSet currentEpochDispatchMap currentEpochPendingRequests
+      , systemStart:
+          mkListenerSet systemStartDispatchMap systemStartPendingRequests
+
       }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
@@ -633,18 +641,12 @@ mkDatumCacheWebSocket'
 mkDatumCacheWebSocket' lvl serverCfg cb = do
   getDatumByHashDispatchMap <- createMutableDispatch
   getDatumsByHashesDispatchMap <- createMutableDispatch
-  startFetchBlocksDispatchMap <- createMutableDispatch
-  cancelFetchBlocksDispatchMap <- createMutableDispatch
   getDatumByHashPendingRequests <- createPendingRequests
   getDatumsByHashesPendingRequests <- createPendingRequests
-  startFetchBlocksPendingRequests <- createPendingRequests
-  cancelFetchBlocksPendingRequests <- createPendingRequests
   let
     md = datumCacheMessageDispatch
       { getDatumByHashDispatchMap
       , getDatumsByHashesDispatchMap
-      , startFetchBlocksDispatchMap
-      , cancelFetchBlocksDispatchMap
       }
   ws <- _mkWebSocket (logger Debug) $ mkOgmiosDatumCacheWsUrl serverCfg
   let
@@ -653,8 +655,6 @@ mkDatumCacheWebSocket' lvl serverCfg cb = do
       logString lvl Debug "Datum Cache: WS error occured, resending requests"
       Ref.read getDatumByHashPendingRequests >>= traverse_ sendRequest
       Ref.read getDatumsByHashesPendingRequests >>= traverse_ sendRequest
-      Ref.read startFetchBlocksPendingRequests >>= traverse_ sendRequest
-      Ref.read cancelFetchBlocksPendingRequests >>= traverse_ sendRequest
   _onWsConnect ws $ do
     _wsWatch ws (logger Debug) onError
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
@@ -664,10 +664,6 @@ mkDatumCacheWebSocket' lvl serverCfg cb = do
           getDatumByHashPendingRequests
       , getDatumsByHashes: mkListenerSet getDatumsByHashesDispatchMap
           getDatumsByHashesPendingRequests
-      , startFetchBlocks: mkListenerSet startFetchBlocksDispatchMap
-          startFetchBlocksPendingRequests
-      , cancelFetchBlocks: mkListenerSet cancelFetchBlocksDispatchMap
-          cancelFetchBlocksPendingRequests
       }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
@@ -696,16 +692,15 @@ type OgmiosListeners =
   { utxo :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoQR
   , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
   , submit :: ListenerSet { txCbor :: ByteArray } Ogmios.SubmitTxR
-  , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationResult
+  , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationR
+  , eraSummaries :: ListenerSet Unit Ogmios.EraSummaries
+  , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
+  , systemStart :: ListenerSet Unit Ogmios.SystemStart
   }
 
 type DatumCacheListeners =
   { getDatumByHash :: ListenerSet DataHash GetDatumByHashR
   , getDatumsByHashes :: ListenerSet (Array DataHash) GetDatumsByHashesR
-  , startFetchBlocks ::
-      ListenerSet { slot :: Slot, id :: Chain.BlockHeaderHash }
-        StartFetchBlocksR
-  , cancelFetchBlocks :: ListenerSet Unit CancelFetchBlocksR
   }
 
 -- convenience type for adding additional query types later
@@ -818,8 +813,11 @@ type DispatchIdMap response = Ref
 ogmiosMessageDispatch
   :: { utxoDispatchMap :: DispatchIdMap Ogmios.UtxoQR
      , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipQR
-     , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationResult
+     , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationR
      , submitDispatchMap :: DispatchIdMap Ogmios.SubmitTxR
+     , eraSummariesDispatchMap :: DispatchIdMap Ogmios.EraSummaries
+     , currentEpochDispatchMap :: DispatchIdMap Ogmios.CurrentEpoch
+     , systemStartDispatchMap :: DispatchIdMap Ogmios.SystemStart
      }
   -> Array WebsocketDispatch
 ogmiosMessageDispatch
@@ -827,30 +825,30 @@ ogmiosMessageDispatch
   , chainTipDispatchMap
   , evaluateTxDispatchMap
   , submitDispatchMap
+  , eraSummariesDispatchMap
+  , currentEpochDispatchMap
+  , systemStartDispatchMap
   } =
   [ queryDispatch utxoDispatchMap
   , queryDispatch chainTipDispatchMap
   , queryDispatch evaluateTxDispatchMap
   , queryDispatch submitDispatchMap
+  , queryDispatch eraSummariesDispatchMap
+  , queryDispatch currentEpochDispatchMap
+  , queryDispatch systemStartDispatchMap
   ]
 
 datumCacheMessageDispatch
   :: { getDatumByHashDispatchMap :: DispatchIdMap GetDatumByHashR
      , getDatumsByHashesDispatchMap :: DispatchIdMap GetDatumsByHashesR
-     , startFetchBlocksDispatchMap :: DispatchIdMap StartFetchBlocksR
-     , cancelFetchBlocksDispatchMap :: DispatchIdMap CancelFetchBlocksR
      }
   -> Array WebsocketDispatch
 datumCacheMessageDispatch
   { getDatumByHashDispatchMap
   , getDatumsByHashesDispatchMap
-  , startFetchBlocksDispatchMap
-  , cancelFetchBlocksDispatchMap
   } =
   [ queryDispatch getDatumByHashDispatchMap
   , queryDispatch getDatumsByHashesDispatchMap
-  , queryDispatch startFetchBlocksDispatchMap
-  , queryDispatch cancelFetchBlocksDispatchMap
   ]
 
 -- each query type will have a corresponding ref that lives in ReaderT config or similar

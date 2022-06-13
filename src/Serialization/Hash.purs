@@ -11,7 +11,6 @@ module Serialization.Hash
   , scriptHashFromBytes
   , scriptHashFromBech32
   , scriptHashToBech32
-  , scriptHashAsBytes
   ) where
 
 import Prelude
@@ -20,14 +19,12 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
-  , caseAesonObject
   , caseAesonString
   , encodeAeson'
-  , getField
   )
-import Data.Either (Either(Left), note)
+import Data.Either (Either(Left, Right), note)
 import Data.Function (on)
-import Data.Maybe (Maybe(Nothing))
+import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import FromData (class FromData)
@@ -35,8 +32,8 @@ import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata, toMetadata)
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
-import Types.RawBytes (RawBytes, rawBytesToHex, hexToRawBytes)
 import Types.PlutusData (PlutusData(Bytes))
+import Types.RawBytes (RawBytes, rawBytesToHex, hexToRawBytes)
 import Types.TransactionMetadata (TransactionMetadatum(Bytes)) as Metadata
 
 -- | PubKeyHash and StakeKeyHash refers to blake2b-224 hash digests of Ed25519
@@ -76,6 +73,9 @@ instance DecodeAeson Ed25519KeyHash where
     ( note (TypeMismatch "Invalid Ed25519KeyHash") <<< ed25519KeyHashFromBytes
         <=< note (TypeMismatch "Invalid ByteArray") <<< hexToRawBytes
     )
+
+instance EncodeAeson Ed25519KeyHash where
+  encodeAeson' = encodeAeson' <<< rawBytesToHex <<< ed25519KeyHashToBytes
 
 foreign import _ed25519KeyHashFromBytesImpl
   :: MaybeFfiHelper
@@ -143,14 +143,12 @@ instance FromMetadata ScriptHash where
 
 -- Corresponds to Plutus' `Plutus.V1.Ledger.Api.Script` Aeson instances
 instance DecodeAeson ScriptHash where
-  decodeAeson =
-    caseAesonObject (Left (TypeMismatch "Expected object")) $
-      note (TypeMismatch "Expected hex-encoded script hash")
-        <<< (scriptHashFromBytes <=< hexToRawBytes)
-        <=< flip getField "getScriptHash"
+  decodeAeson = do
+    maybe (Left $ TypeMismatch "Expected hex-encoded script hash") Right <<<
+      caseAesonString Nothing (Just <=< scriptHashFromBytes <=< hexToRawBytes)
 
 instance EncodeAeson ScriptHash where
-  encodeAeson' sh = encodeAeson' (scriptHashToBytes sh)
+  encodeAeson' sh = encodeAeson' $ scriptHashToBytes sh
 
 foreign import _scriptHashFromBytesImpl
   :: MaybeFfiHelper
@@ -161,9 +159,6 @@ foreign import _scriptHashFromBech32Impl
   :: MaybeFfiHelper
   -> Bech32String
   -> Maybe ScriptHash
-
--- | Drops the type and returns the hash as a generic bytearray
-foreign import scriptHashAsBytes :: ScriptHash -> RawBytes
 
 -- | Encodes the hash to Cbor bytes
 foreign import scriptHashToBytes :: ScriptHash -> RawBytes

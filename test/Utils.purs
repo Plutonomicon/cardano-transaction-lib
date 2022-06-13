@@ -1,29 +1,48 @@
 module Test.Utils
-  ( interpret
-  , unsafeCall
+  ( aesonRoundTrip
   , assertTrue
   , assertTrue_
   , errMaybe
+  , errEither
+  , interpret
+  , toFromAesonTest
+  , unsafeCall
+  , readAeson
   ) where
 
 import Prelude
 
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , Aeson
+  , JsonDecodeError
+  , decodeAeson
+  , encodeAeson
+  , parseJsonStringToAeson
+  )
 import Data.Const (Const)
+import Data.Either (Either(Right), either)
 import Data.Foldable (sequence_)
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just), maybe)
 import Data.Newtype (wrap)
 import Effect.Aff (Aff, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (throwException, throw)
-import Mote (Plan, foldPlan, planT)
-import Test.Spec (Spec, describe, it)
+import Mote (Plan, foldPlan, planT, test)
+import Node.Encoding (Encoding(UTF8))
+import Node.FS.Sync (readTextFile)
+import Node.Path (FilePath)
+import Test.Spec (Spec, describe, it, pending)
+import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter (consoleReporter)
 import Test.Spec.Runner (runSpec', defaultConfig)
 import TestM (TestPlanM)
 import Type.Proxy (Proxy)
 
-foreign import unsafeCall :: forall a b. Proxy b -> String -> a -> b
+foreign import unsafeCall
+  :: forall (a :: Type) (b :: Type). Proxy b -> String -> a -> b
 
 -- | We use `mote` here so that we can use effects to build up a test tree, which
 -- | is then interpreted here in a pure context, mainly due to some painful types
@@ -38,7 +57,7 @@ interpret spif = do
   go =
     foldPlan
       (\x -> it x.label $ liftAff x.value)
-      (const $ pure unit)
+      pending
       (\x -> describe x.label $ go x.value)
       sequence_
 
@@ -60,12 +79,43 @@ assertTrue_
   -> m Unit
 assertTrue_ = assertTrue "Boolean test failed"
 
+errEither
+  :: forall (m :: Type -> Type) (a :: Type) (e :: Type)
+   . MonadEffect m
+  => Show e
+  => Either e a
+  -> m a
+errEither = either (liftEffect <<< throw <<< show) pure
+
 errMaybe
   :: forall (m :: Type -> Type) (a :: Type)
    . MonadEffect m
   => String
   -> Maybe a
   -> m a
-errMaybe msg = case _ of
-  Nothing -> liftEffect $ throw msg
-  Just res -> pure res
+errMaybe msg = maybe (liftEffect $ throw msg) pure
+
+toFromAesonTest
+  :: forall (a :: Type)
+   . Eq a
+  => DecodeAeson a
+  => EncodeAeson a
+  => Show a
+  => String
+  -> a
+  -> TestPlanM Unit
+toFromAesonTest desc x = test desc $ aesonRoundTrip x `shouldEqual` Right x
+
+aesonRoundTrip
+  :: forall (a :: Type)
+   . Eq a
+  => Show a
+  => DecodeAeson a
+  => EncodeAeson a
+  => a
+  -> Either JsonDecodeError a
+aesonRoundTrip = decodeAeson <<< encodeAeson
+
+readAeson :: forall (m :: Type -> Type). MonadEffect m => FilePath -> m Aeson
+readAeson = errEither <<< parseJsonStringToAeson
+  <=< liftEffect <<< readTextFile UTF8
