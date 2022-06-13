@@ -27,6 +27,7 @@ import Cardano.Types.Transaction
   , Utxo
   , _body
   , _collateral
+  , _fee
   , _inputs
   , _networkId
   , _outputs
@@ -59,7 +60,7 @@ import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
-import Data.Array ((\\), findIndex, modifyAt, (!!))
+import Data.Array ((\\), modifyAt)
 import Data.Array as Array
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt, fromInt, quot)
@@ -560,13 +561,17 @@ returnAdaChangeAndFinalizeFees changeAddr utxos unattachedTx =
     unattachedTxAndFees@(_ /\ fees) <-
       ExceptT $ evalExUnitsAndMinFee' unattachedTx
         <#> lmap ReturnAdaChangeCalculateMinFee
-    unattachedTxWithChangeReturned <-
+    unattachedTxWithChangeTxOut /\ { recalculateFees } <-
       except $ returnAdaChange changeAddr utxos unattachedTxAndFees
-    unattachedTx' /\ fees' <-
-      ExceptT $ evalExUnitsAndMinFee' unattachedTxWithChangeReturned
-        <#> lmap ReturnAdaChangeCalculateMinFee
-    except $
-      worker unattachedTx' fees' (fees' - fees)
+    case recalculateFees of
+      false -> except <<< Right $
+        unattachedTxSetFees unattachedTxWithChangeTxOut fees
+      true -> do
+        unattachedTx' /\ fees' <-
+          ExceptT $ evalExUnitsAndMinFee' unattachedTxWithChangeTxOut
+            <#> lmap ReturnAdaChangeCalculateMinFee
+        except $
+          worker unattachedTx' fees' (fees' - fees)
   where
   worker
     :: UnattachedUnbalancedTx
@@ -574,10 +579,8 @@ returnAdaChangeAndFinalizeFees changeAddr utxos unattachedTx =
     -> BigInt
     -> Either ReturnAdaChangeError UnattachedUnbalancedTx
   worker unattachedTx' fees feesDelta
-    | feesDelta == zero =
-        Right $
-          unattachedTx' # _body' %~ \(TxBody txBody) ->
-            wrap txBody { fee = wrap fees }
+    | feesDelta <= zero = Right $
+        unattachedTxSetFees unattachedTx' fees
     | otherwise =
         let
           txOutputs :: Array TransactionOutput
@@ -606,6 +609,12 @@ returnAdaChangeAndFinalizeFees changeAddr utxos unattachedTx =
                   "returnAda does not cover min utxo requirement for \
                   \single Ada-only output."
 
+  unattachedTxSetFees
+    :: UnattachedUnbalancedTx -> BigInt -> UnattachedUnbalancedTx
+  unattachedTxSetFees unattachedTx' fees =
+    unattachedTx' #
+      _body' <<< _fee .~ wrap fees
+
   updateChangeTxOutputValue
     :: BigInt
     -> Array TransactionOutput
@@ -624,7 +633,8 @@ returnAdaChange
   :: Address
   -> Utxo
   -> UnattachedUnbalancedTx /\ BigInt
-  -> Either ReturnAdaChangeError UnattachedUnbalancedTx
+  -> Either ReturnAdaChangeError
+       (UnattachedUnbalancedTx /\ { recalculateFees :: Boolean })
 returnAdaChange changeAddr utxos (unattachedTx /\ fees) =
   let
     TxBody txBody = unattachedTx ^. _body'
@@ -650,7 +660,8 @@ returnAdaChange changeAddr utxos (unattachedTx /\ fees) =
   in
     case compare returnAda zero of
       EQ ->
-        Right unattachedTx
+        Right $
+          unattachedTx /\ { recalculateFees: false }
       LT ->
         Left $
           ReturnAdaChangeImpossibleError
@@ -664,10 +675,14 @@ returnAdaChange changeAddr utxos (unattachedTx /\ fees) =
             , amount: lovelaceValueOf returnAda
             , dataHash: Nothing
             }
-        in
-          Right $
+
+          unattachedTxWithChangeTxOut :: UnattachedUnbalancedTx
+          unattachedTxWithChangeTxOut =
             unattachedTx # _body' <<< _outputs %~
               Array.cons changeTxOutput
+        in
+          Right $
+            unattachedTxWithChangeTxOut /\ { recalculateFees: true }
 
 calculateMinUtxos :: Array TransactionOutput -> MinUtxos
 calculateMinUtxos = map (\a -> a /\ calculateMinUtxo a)
