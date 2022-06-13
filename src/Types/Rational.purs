@@ -14,16 +14,16 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
-  , JsonDecodeError(TypeMismatch, UnexpectedValue)
-  , decodeAeson
+  , JsonDecodeError(UnexpectedValue)
+  , caseAesonObject
   , encodeAeson'
   , toStringifiedNumbersJson
+  , (.:)
   )
 import Data.BigInt (BigInt)
-import Data.BigInt (fromInt, toString, fromString) as BigInt
-import Data.Either (Either(Left), note)
+import Data.BigInt (fromInt) as BigInt
+import Data.Either (Either(Left))
 import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Newtype (class Newtype)
 import Data.Ratio ((%), numerator, denominator) as Ratio
 import Data.Ratio (Ratio)
 import FromData (class FromData)
@@ -44,47 +44,28 @@ derive newtype instance Semiring Rational
 derive newtype instance Ring Rational
 derive newtype instance CommutativeRing Rational
 
--- Representation of Rational in Aeson, used internally
-type RationalRep =
-  { unRational ::
-      { numerator :: StringifiedBigInt
-      , denominator :: StringifiedBigInt
-      }
+type RationalRep a =
+  { numerator :: a
+  , denominator :: a
   }
 
 instance EncodeAeson Rational where
   encodeAeson' r = encodeAeson'
-    ( { "unRational":
-          { "numerator": StringifiedBigInt (numerator r)
-          , "denominator": StringifiedBigInt (denominator r)
-          }
-      } :: RationalRep
+    ( { "numerator": numerator r
+      , "denominator": denominator r
+      }
     )
 
 instance DecodeAeson Rational where
-  decodeAeson r = do
-    { unRational:
-        { numerator: (StringifiedBigInt n :: StringifiedBigInt)
-        , denominator: (StringifiedBigInt d :: StringifiedBigInt)
-        }
-    } :: RationalRep <- decodeAeson r
-    maybe (Left $ UnexpectedValue $ toStringifiedNumbersJson r) pure $ n % d
-
-newtype StringifiedBigInt = StringifiedBigInt BigInt
-
-derive instance Eq StringifiedBigInt
-derive instance Newtype StringifiedBigInt _
-
-instance EncodeAeson StringifiedBigInt where
-  encodeAeson' (StringifiedBigInt bi) = encodeAeson' $ BigInt.toString bi
-
-instance DecodeAeson StringifiedBigInt where
-  decodeAeson =
-    decodeAeson >=>
-      BigInt.fromString
-        >>> note (TypeMismatch "expected stringified integer number")
-        >>>
-          map StringifiedBigInt
+  decodeAeson aes = caseAesonObject
+    (Left <<< UnexpectedValue <<< toStringifiedNumbersJson $ aes)
+    ( \obj -> do
+        (n :: BigInt) <- obj .: "numerator"
+        d <- obj .: "denominator"
+        maybe (Left <<< UnexpectedValue <<< toStringifiedNumbersJson $ aes) pure
+          $ n % d
+    )
+    aes
 
 instance EuclideanRing Rational where
   degree _ = one

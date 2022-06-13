@@ -217,7 +217,7 @@ mustPayWithDatumToPubKeyAddress pkh skh datum =
 -- | `mustPayToTheScript` or `mustPayToOtherScript`, as we have no notion
 -- | of a "current" script. Thus, we have the single constraint
 -- | `mustPayToScript`, and all scripts must be explicitly provided to build
--- | the transaction. 
+-- | the transaction.
 mustPayToScript
   :: forall (i :: Type) (o :: Type)
    . ValidatorHash
