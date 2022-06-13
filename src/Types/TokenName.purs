@@ -6,6 +6,7 @@ module Types.TokenName
   , mkTokenNames
   , tokenNameFromAssetName
   , assetNameName
+  , fromTokenName
   ) where
 
 import Prelude
@@ -18,17 +19,17 @@ import Aeson
   , encodeAeson'
   , getField
   )
+import Contract.Prim.ByteArray (ByteArray(..))
 import Data.BigInt (BigInt)
 import Data.Bitraversable (ltraverse)
-import Data.Char (toCharCode)
-import Data.Either (Either(Left, Right), note, either)
+import Data.Either (Either(Right, Left), either)
 import Data.Map (Map)
 import Data.Map (fromFoldable) as Map
-import Data.Maybe (Maybe(Nothing, Just))
+import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (unwrap)
 import Data.String.CodePoints (drop, take)
-import Data.String.CodeUnits (toCharArray)
 import Data.TextDecoding (decodeUtf8)
+import Data.TextEncoding (encodeUtf8)
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested (type (/\))
 import FromData (class FromData)
@@ -36,12 +37,7 @@ import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Serialization.Types (AssetName) as CSL
 import ToData (class ToData)
-import Types.ByteArray
-  ( ByteArray
-  , byteArrayFromIntArray
-  , byteArrayToHex
-  , byteLength
-  )
+import Types.ByteArray (ByteArray, byteArrayToHex, byteLength)
 
 newtype TokenName = TokenName ByteArray
 
@@ -75,21 +71,12 @@ instance DecodeAeson TokenName where
     \aes -> do
       tkstr <- getField aes "unTokenName"
       case take 3 tkstr of
-        """\NUL0x""" -> case tkFromStr (drop 3 tkstr) of
-          Nothing -> Left $ TypeMismatch ("Invalid TokenName E1: " <> tkstr)
-          Just tk -> Right tk
-
-        """\NUL\NUL\NUL""" ->
-          note (TypeMismatch $ "Invalid TokenName E2: " <> tkstr)
-            $ tkFromStr (drop 2 tkstr)
-
-        _ -> note (TypeMismatch $ "Invalid TokenName E3: " <> tkstr)
-          $ tkFromStr tkstr
+        """\NUL0x""" -> Right $ tkFromStr (drop 3 tkstr)
+        """\NUL\NUL\NUL""" -> Right $ tkFromStr (drop 2 tkstr)
+        _ -> Right $ tkFromStr tkstr
     where
-    tkFromStr :: String -> Maybe TokenName
-    tkFromStr = map TokenName <<< byteArrayFromIntArray
-      <<< map toCharCode
-      <<< toCharArray
+    tkFromStr :: String -> TokenName
+    tkFromStr = TokenName <<< ByteArray <<< encodeUtf8
 
 -- FIXME: what if the tokenname is actually \0\0\0? haskell will break this assuming it
 -- comes from purescript side
