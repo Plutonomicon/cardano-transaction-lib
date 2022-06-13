@@ -28,7 +28,7 @@ import Serialization.Types
   , TransactionWitnessSet
   , VRFKeyHash
   )
-import Type.Prelude (Proxy(..))
+import Type.Prelude (Proxy(Proxy))
 import Type.Row (type (+))
 import Types.ByteArray (ByteArray)
 

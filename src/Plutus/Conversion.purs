@@ -43,10 +43,8 @@ import Cardano.Types.Value (Coin) as Cardano
 
 import Plutus.Conversion.Address (fromPlutusAddress, toPlutusAddress)
 import Plutus.Conversion.Value (fromPlutusValue, toPlutusValue)
-import Plutus.Types.Transaction (TransactionOutput, UtxoM(UtxoM)) as Plutus
-import Plutus.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  ) as Plutus
+import Plutus.Types.Transaction (TransactionOutput, UtxoM) as Plutus
+import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput) as Plutus
 import Plutus.Types.Value (Coin) as Plutus
 
 import Serialization.Address (NetworkId)

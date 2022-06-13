@@ -39,7 +39,6 @@ import Address
 import Contract.Monad (Contract, wrapContract, liftedM)
 import Data.Maybe (Maybe)
 import Data.Traversable (for)
-import Data.Tuple (Tuple(..))
 import Plutus.Conversion
   ( fromPlutusAddress
   , toPlutusAddress
