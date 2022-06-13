@@ -43,6 +43,7 @@ You can edit this file as you like.
   , "node-path"
   , "nonempty"
   , "ordered-collections"
+  , "orders"
   , "partial"
   , "prelude"
   , "profunctor"

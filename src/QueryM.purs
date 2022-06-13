@@ -140,13 +140,15 @@ import QueryM.ServerConfig
   , mkWsUrl
   )
 import QueryM.UniqueId (ListenerId)
+import Deserialization.FromBytes (fromBytes) as Deserialization
+import Deserialization.Transaction (convertTransaction) as Deserialization
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address
   ( Address
   , NetworkId(TestnetId)
   , baseAddressDelegationCred
   , baseAddressFromAddress
-  , baseAddressPaymentCred
+  , addressPaymentCred
   , stakeCredentialToKeyHash
   )
 import Serialization.PlutusData (convertPlutusData) as Serialization
@@ -164,7 +166,7 @@ import Types.Scripts (PlutusScript)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
 import Wallet
-  ( Wallet(Gero, Nami)
+  ( Wallet(Gero, Nami, KeyWallet)
   , Cip30Connection
   , Cip30Wallet
   )
@@ -278,33 +280,48 @@ allowError func = func <<< Right
 --------------------------------------------------------------------------------
 
 getWalletAddress :: QueryM (Maybe Address)
-getWalletAddress = withMWalletAff $ case _ of
-  Nami nami -> callCip30Wallet nami _.getWalletAddress
-  Gero gero -> callCip30Wallet gero _.getWalletAddress
+getWalletAddress = do
+  networkId <- asks _.networkId
+  withMWalletAff case _ of
+    Nami nami -> callCip30Wallet nami _.getWalletAddress
+    Gero gero -> callCip30Wallet gero _.getWalletAddress
+    KeyWallet kw -> Just <$> kw.address networkId
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
-getWalletCollateral = withMWalletAff $ case _ of
+getWalletCollateral = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami _.getCollateral
   Gero gero -> callCip30Wallet gero _.getCollateral
+  KeyWallet _ -> liftEffect $ throw "Not implemented"
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
-signTransaction tx = withMWalletAff $ case _ of
+signTransaction tx = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
+  KeyWallet kw -> Just <$> kw.signTx tx
 
 signTransactionBytes
   :: CborBytes -> QueryM (Maybe CborBytes)
-signTransactionBytes tx = withMWalletAff $ case _ of
+signTransactionBytes tx = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami \nw -> flip nw.signTxBytes tx
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTxBytes tx
+  KeyWallet kw ->
+    for
+      ( Deserialization.fromBytes (unwrap tx)
+          >>= Deserialization.convertTransaction
+            >>> hush
+      )
+      ( kw.signTx
+          >=> Serialization.convertTransaction
+            >>> map (asOneOf >>> Serialization.toBytes >>> wrap)
+            >>> liftEffect
+      )
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do
   mbAddress <- getWalletAddress
-  pure do
-    baseAddress <- mbAddress >>= baseAddressFromAddress
-    wrap <$> stakeCredentialToKeyHash (baseAddressPaymentCred baseAddress)
+  pure $
+    wrap <$> (mbAddress >>= (addressPaymentCred >=> stakeCredentialToKeyHash))
 
 ownPaymentPubKeyHash :: QueryM (Maybe PaymentPubKeyHash)
 ownPaymentPubKeyHash = map wrap <$> ownPubKeyHash
