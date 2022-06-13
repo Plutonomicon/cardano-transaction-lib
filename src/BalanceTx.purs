@@ -99,7 +99,6 @@ import QueryM
   , evalTxExecutionUnits
   )
 import QueryM.Utxos (utxosAt, filterUnusedUtxos)
-import QueryM.Utxos (utxosAt)
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import TxOutput (utxoIndexToUtxo)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
@@ -427,7 +426,7 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
         Just (Gero _) -> addTxCollateral unbalancedTx' collateral
         _ -> unbalancedTx'
 
-    availableUtxos <- lift $ map unwrap $ filterUnusedUtxos (wrap allUtxos)
+    availableUtxos <- lift $ map unwrap $ filterUnusedUtxos $ wrap allUtxos
 
     -- Logging Unbalanced Tx with collateral added:
     logTx "Unbalanced Collaterised Tx " availableUtxos unbalancedCollTx
