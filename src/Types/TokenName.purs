@@ -25,11 +25,11 @@ import Data.Either (Either(Left, Right), note, either)
 import Data.Map (Map)
 import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Nothing, Just))
-import Data.Newtype (wrap, unwrap)
+import Data.Newtype (unwrap)
 import Data.String.CodePoints (drop, take)
 import Data.String.CodeUnits (toCharArray)
-import Data.Traversable (class Traversable, traverse)
 import Data.TextDecoding (decodeUtf8)
+import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested (type (/\))
 import FromData (class FromData)
 import Metadata.FromMetadata (class FromMetadata)
@@ -42,9 +42,8 @@ import Types.ByteArray
   , byteArrayToHex
   , byteLength
   )
-import Types.CborBytes (CborBytes, cborBytesToByteArray)
 
-newtype TokenName = TokenName CborBytes
+newtype TokenName = TokenName ByteArray
 
 derive newtype instance Eq TokenName
 derive newtype instance FromData TokenName
@@ -57,10 +56,10 @@ asBase16 :: ByteArray -> String
 asBase16 ba = "0x" <> byteArrayToHex ba
 
 fromTokenName :: forall r. (ByteArray -> r) -> (String -> r) -> TokenName -> r
-fromTokenName arrayHandler stringHandler (TokenName cba) = either
-  (const $ arrayHandler $ cborBytesToByteArray cba)
+fromTokenName arrayHandler stringHandler (TokenName ba) = either
+  (const $ arrayHandler $ ba)
   stringHandler
-  (decodeUtf8 <<< unwrap <<< cborBytesToByteArray $ cba)
+  (decodeUtf8 (unwrap ba))
 
 -- | Corresponds to following Haskell instance:
 -- |
@@ -88,7 +87,7 @@ instance DecodeAeson TokenName where
           $ tkFromStr tkstr
     where
     tkFromStr :: String -> Maybe TokenName
-    tkFromStr = map (TokenName <<< wrap) <<< byteArrayFromIntArray
+    tkFromStr = map TokenName <<< byteArrayFromIntArray
       <<< map toCharCode
       <<< toCharArray
 
@@ -107,7 +106,7 @@ instance EncodeAeson TokenName where
 instance Show TokenName where
   show (TokenName tn) = "(TokenName " <> show tn <> ")"
 
-getTokenName :: TokenName -> CborBytes
+getTokenName :: TokenName -> ByteArray
 getTokenName (TokenName tokenName) = tokenName
 
 -- | The empty token name.
@@ -118,13 +117,13 @@ adaToken = TokenName mempty
 -- | not exported
 mkTokenName :: ByteArray -> Maybe TokenName
 mkTokenName byteArr
-  | byteLength byteArr <= 32 = pure $ TokenName $ wrap byteArr
+  | byteLength byteArr <= 32 = pure $ TokenName $ byteArr
   | otherwise = Nothing
 
 foreign import assetNameName :: CSL.AssetName -> ByteArray
 
 tokenNameFromAssetName :: CSL.AssetName -> TokenName
-tokenNameFromAssetName = TokenName <<< wrap <<< assetNameName
+tokenNameFromAssetName = TokenName <<< assetNameName
 
 -- | Creates a Map of `TokenName` and Big Integers from a `Traversable` of 2-tuple
 -- | `ByteArray` and Big Integers with the possibility of failure

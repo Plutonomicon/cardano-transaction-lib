@@ -84,7 +84,7 @@ instance ToPlutusType Identity Types.Value Plutus.Value where
         Map.toUnfoldable tokens <#> \(tn /\ val) ->
           unsafePartial $ fromJust $
             Plutus.Value.singleton' (getCurrencySymbol cs)
-              (unwrap $ getTokenName tn)
+              (getTokenName tn)
               val
 
 --------------------------------------------------------------------------------

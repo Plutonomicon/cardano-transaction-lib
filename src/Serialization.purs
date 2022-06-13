@@ -191,7 +191,7 @@ foreign import insertMultiAsset
 
 foreign import newAssets :: Effect Assets
 foreign import insertAssets :: Assets -> AssetName -> BigNum -> Effect Unit
-foreign import newAssetName :: CborBytes -> Effect AssetName
+foreign import newAssetName :: ByteArray -> Effect AssetName
 foreign import transactionOutputSetDataHash
   :: TransactionOutput -> DataHash -> Effect Unit
 
