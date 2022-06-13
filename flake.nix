@@ -386,6 +386,7 @@
                 pkgs.nixpkgs-fmt
                 pkgs.fd
                 pkgs.arion
+                # pkgs.ungoogled-chromium
               ];
             };
           };

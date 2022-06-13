@@ -8,8 +8,10 @@ async function test() {
 
     const otherPage = 'chrome-extension://lpfcbjknijpeeillifnkikgncikgfhdo/mainPopup.bundle.js';
     const jsPage = 'chrome-extension://lpfcbjknijpeeillifnkikgncikgfhdo/injected.bundle.js';
-    const normalPage = "http://www.orf.at/"
-    const example = "http://localhost:4008/"
+    const normalPage = "http://www.orf.at/";
+    const example = "http://localhost:4008/";
+
+    const namiStorePage = "https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo?hl=en";
     
     const puppeteer = require('puppeteer');
 
@@ -17,13 +19,13 @@ async function test() {
 	console.log('A');
 	console.log(extensionPath);
 	let browser = await puppeteer.launch(
-	    { headless: true
-	      , executablePath: '/usr/bin/google-chrome'	    
+	    { headless: false
+	      , executablePath: '/usr/bin/google-chrome'
 	      ,args:
 	      [ `--disable-extensions-except=${extensionPath}`
 		, `--load-extension=${extensionPath}`
-		//		, '--user-data-dir="/tmp/ChromeProfile"'
-		,	`--headless=chrome`
+		, '--user-data-dir="/tmp/ChromeProfile"'
+//		, `--headless=chrome`
 	      ]
 	    }
 	);
@@ -78,9 +80,15 @@ async function test() {
 
 	
 	console.log('C');
-//	await page.goto(jsPage);
+	await page.goto(example);
+
+	console.log('D');
 	
+//	button = await page.$x("//div[contains(., 'Add to Chrome')]");
+
+//	console.log(button);
 	
+/*	
 	await page.evaluate(() => {
 	    const jsPage = 'chrome-extension://lpfcbjknijpeeillifnkikgncikgfhdo/injected.bundle.js';	    
 	    document.write(`
@@ -99,9 +107,9 @@ async function test() {
 	    console.log("Z");	    
 	    //cardano.nami.enable()
 	});
-	
 	console.log('E');
 	await browser.close();
+*/
 
     }
     catch(err) {
