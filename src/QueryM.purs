@@ -651,14 +651,15 @@ mkDatumCacheWebSocket' lvl serverCfg cb = do
   ws <- _mkWebSocket (logger Debug) $ mkOgmiosDatumCacheWsUrl serverCfg
   let
     sendRequest = _wsSend ws (logString lvl Debug)
-    onError = do
-      logString lvl Debug "Datum Cache: WS error occured, resending requests"
+    onError err = do
+      logString lvl Debug $
+        "Datum Cache: WS error occured (resending requests): " <> err
       Ref.read getDatumByHashPendingRequests >>= traverse_ sendRequest
       Ref.read getDatumsByHashesPendingRequests >>= traverse_ sendRequest
+  _onWsError ws (logger Error) onError
   _onWsConnect ws $ do
-    _wsWatch ws (logger Debug) onError
+    _wsWatch ws (logger Debug) (onError "<empty>")
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
-    _onWsError ws (logger Error) $ const onError
     cb $ Right $ WebSocket ws
       { getDatumByHash: mkListenerSet getDatumByHashDispatchMap
           getDatumByHashPendingRequests

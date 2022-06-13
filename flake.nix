@@ -152,7 +152,9 @@
         cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
         purescriptProject = import ./nix { inherit system; pkgs = prev; };
         buildCtlRuntime = buildCtlRuntime system;
+        buildPlutipRuntime = buildPlutipRuntime system;
         launchCtlRuntime = launchCtlRuntime system;
+        launchPlutipRuntime = launchPlutipRuntime system;
         inherit cardano-configurations;
       });
 
@@ -207,6 +209,37 @@
           };
         };
       };
+
+      buildPlutipRuntime = system: extraConfig:
+        { ... }:
+        let
+          inherit (builtins) toString;
+          pkgs = nixpkgsFor system;
+          config = with pkgs.lib;
+            fix (final: recursiveUpdate
+              (defaultConfig final)
+              (if isFunction extraConfig then extraConfig final else extraConfig));
+          bindPort = port: "${toString port}:${toString port}";
+        in
+        with config;
+        {
+          services = {
+            postgres = {
+              service = {
+                image = "postgres:13";
+                ports =
+                  if postgres.port == null
+                  then [ ]
+                  else [ "${toString postgres.port}:5432" ];
+                environment = {
+                  POSTGRES_USER = "${postgres.user}";
+                  POSTGRES_PASSWORD = "${postgres.password}";
+                  POSTGRES_DB = "${postgres.db}";
+                };
+              };
+            };
+          };
+        };
 
       buildCtlRuntime = system: extraConfig:
         { ... }:
@@ -371,6 +404,28 @@
           program = "${script}/bin/${binPath}";
         };
 
+      # Makes a set compatible with flake `apps` to launch all runtime services
+      launchPlutipRuntime = system: config:
+        let
+          pkgs = nixpkgsFor system;
+          binPath = "plutip-runtime";
+          prebuilt = (pkgs.arion.build {
+            inherit pkgs;
+            modules = [ (buildPlutipRuntime system config) ];
+          }).outPath;
+          script = (pkgs.writeShellScriptBin "${binPath}"
+            ''
+              ${pkgs.arion}/bin/arion --prebuilt-file ${prebuilt} up
+            ''
+          ).overrideAttrs (_: {
+            buildInputs = [ pkgs.arion pkgs.docker ];
+          });
+        in
+        {
+          type = "app";
+          program = "${script}/bin/${binPath}";
+        };
+
       psProjectFor = system:
         let
           pkgs = nixpkgsFor system;
@@ -478,6 +533,7 @@
           inherit
             (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
           ctl-runtime = (nixpkgsFor system).launchCtlRuntime { };
+          plutip-runtime = (nixpkgsFor system).launchPlutipRuntime { };
           docs = (psProjectFor system).launchDocs;
         });
 

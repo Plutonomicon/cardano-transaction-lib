@@ -5,6 +5,7 @@ module Test.Utils
   , errMaybe
   , errEither
   , interpret
+  , interpretWithTimeout
   , toFromAesonTest
   , unsafeCall
   , readAeson
@@ -26,6 +27,7 @@ import Data.Either (Either(Right), either)
 import Data.Foldable (sequence_)
 import Data.Maybe (Maybe(Just), maybe)
 import Data.Newtype (wrap)
+import Data.Time.Duration (Milliseconds)
 import Effect.Aff (Aff, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -48,9 +50,12 @@ foreign import unsafeCall
 -- | is then interpreted here in a pure context, mainly due to some painful types
 -- | in Test.Spec which prohibit effects.
 interpret :: TestPlanM Unit -> Aff Unit
-interpret spif = do
+interpret = interpretWithTimeout (Just $ wrap $ 10000.0)
+
+interpretWithTimeout :: Maybe Milliseconds -> TestPlanM Unit -> Aff Unit
+interpretWithTimeout timeout spif = do
   plan <- planT spif
-  runSpec' defaultConfig { timeout = Just $ wrap 10000.0 } [ consoleReporter ] $
+  runSpec' defaultConfig { timeout = timeout } [ consoleReporter ] $
     go plan
   where
   go :: Plan (Const Void) (Aff Unit) -> Spec Unit
