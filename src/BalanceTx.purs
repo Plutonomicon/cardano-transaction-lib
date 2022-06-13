@@ -551,8 +551,8 @@ logTx msg utxos (Transaction { body: body'@(TxBody body) }) =
     , "Fees: " <> show body.fee
     ]
 
--- Transaction should be prebalanced at this point with all excess with Ada
--- where the Ada value of inputs is greater or equal to value of outputs.
+-- Transaction should be pre-balanced at this point, and the Ada value of the
+-- inputs should be greater than or equal to the value of the outputs.
 -- This should be called with a Tx with min Ada in each output utxo,
 -- namely, after "loop".
 returnAdaChangeAndFinalizeFees
