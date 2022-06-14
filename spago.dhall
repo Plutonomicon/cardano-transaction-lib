@@ -17,6 +17,7 @@ You can edit this file as you like.
   , "console"
   , "const"
   , "control"
+  , "datetime"
   , "debug"
   , "effect"
   , "either"
