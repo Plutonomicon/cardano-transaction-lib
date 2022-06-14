@@ -6,7 +6,6 @@ module Types.TokenName
   , mkTokenNames
   , tokenNameFromAssetName
   , assetNameName
-  , fromTokenName
   ) where
 
 import Prelude
@@ -19,16 +18,16 @@ import Aeson
   , encodeAeson'
   , getField
   )
-import Contract.Prim.ByteArray (ByteArray(..))
+import Contract.Prim.ByteArray (hexToByteArray)
+import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt (BigInt)
 import Data.Bitraversable (ltraverse)
-import Data.Either (Either(Right, Left), either)
+import Data.Either (Either(Right, Left), either, note)
 import Data.Map (Map)
 import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Nothing))
-import Data.Newtype (unwrap)
+import Data.Newtype (unwrap, wrap)
 import Data.String.CodePoints (drop, take)
-import Data.TextDecoding (decodeUtf8)
 import Data.TextEncoding (encodeUtf8)
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested (type (/\))
@@ -48,14 +47,15 @@ derive newtype instance ToMetadata TokenName
 derive newtype instance Ord TokenName
 derive newtype instance ToData TokenName
 
-asBase16 :: ByteArray -> String
-asBase16 ba = "0x" <> byteArrayToHex ba
+foreign import _decodeUtf8
+  :: forall (r :: Type). Uint8Array -> (String -> r) -> (String -> r) -> r
 
-fromTokenName :: forall r. (ByteArray -> r) -> (String -> r) -> TokenName -> r
+fromTokenName
+  :: forall (r :: Type). (ByteArray -> r) -> (String -> r) -> TokenName -> r
 fromTokenName arrayHandler stringHandler (TokenName ba) = either
   (const $ arrayHandler $ ba)
   stringHandler
-  (decodeUtf8 (unwrap ba))
+  (_decodeUtf8 (unwrap ba) Left Right)
 
 -- | Corresponds to following Haskell instance:
 -- |
@@ -71,12 +71,18 @@ instance DecodeAeson TokenName where
     \aes -> do
       tkstr <- getField aes "unTokenName"
       case take 3 tkstr of
-        """\NUL0x""" -> Right $ tkFromStr (drop 3 tkstr)
-        """\NUL\NUL\NUL""" -> Right $ tkFromStr (drop 2 tkstr)
+        ("\x0000000x") -> do
+          let stripped = drop 3 tkstr
+          ba <-
+            note
+              (TypeMismatch $ "Expected base16 encoded string got " <> stripped)
+              $ hexToByteArray stripped
+          pure $ TokenName ba
+        "\x0\x0\x0" -> Right $ tkFromStr (drop 2 tkstr)
         _ -> Right $ tkFromStr tkstr
     where
     tkFromStr :: String -> TokenName
-    tkFromStr = TokenName <<< ByteArray <<< encodeUtf8
+    tkFromStr = TokenName <<< wrap <<< encodeUtf8
 
 -- FIXME: what if the tokenname is actually \0\0\0? haskell will break this assuming it
 -- comes from purescript side
@@ -84,10 +90,10 @@ instance DecodeAeson TokenName where
 -- this issue has to be fixed on the haskell side
 instance EncodeAeson TokenName where
   encodeAeson' = encodeAeson' <<< { "unTokenName": _ } <<< fromTokenName
-    (("""\NUL""" <> _) <<< asBase16)
-    ( \t -> case take 1 t of
-        """\NUL""" -> """\NUL\NUL""" <> t
-        _ -> t
+    (\ba -> "\x0" <> "0x" <> byteArrayToHex ba)
+    ( \s -> case take 1 s of
+        "\x0" -> "\x0\x0" <> s
+        _ -> s
     )
 
 instance Show TokenName where
