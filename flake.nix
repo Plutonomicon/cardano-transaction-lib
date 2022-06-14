@@ -196,6 +196,7 @@
               "dbname=${postgres.db}"
               "password=${postgres.password}"
             ];
+          controlApiToken = "";
           blockFetcher = {
             firstBlock = {
               slot = 54066900;
@@ -318,6 +319,7 @@
                   datumCache.blockFetcher.filter;
                 configFile = ''
                   dbConnectionString = "${datumCache.dbConnectionString}"
+                  server.controlApiToken = "${toString datumCache.controlApiToken}"
                   server.port = ${toString datumCache.port}
                   ogmios.address = "ogmios"
                   ogmios.port = ${toString ogmios.port}
