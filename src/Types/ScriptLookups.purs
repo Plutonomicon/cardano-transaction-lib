@@ -394,10 +394,9 @@ type ConstraintProcessingState (a :: Type) =
   -- Balance of the values produced and required for the transaction's outputs
   , datums :: Array Datum
   -- Ordered accumulation of datums so we can use to `setScriptDataHash`
-  , redeemers :: Array (T.Redeemer /\ Maybe TransactionInput)
+  , redeemersTxIns :: Array (T.Redeemer /\ Maybe TransactionInput)
   -- Ordered accumulation of redeemers so we can use to `setScriptDataHash` and
-  -- add execution units via Ogmios. Note: this mixes script and minting
-  -- redeemers.
+  -- add execution units via Ogmios
   , mintRedeemers :: Map MintingPolicyHash T.Redeemer
   -- Mint redeemers with the corresponding minting policy hashes.
   -- We need to reindex mint redeemers every time we add a new one, since
@@ -425,11 +424,11 @@ _datums
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) (Array Datum)
 _datums = prop (SProxy :: SProxy "datums")
 
-_redeemers
+_redeemersTxIns
   :: forall (a :: Type)
    . Lens' (ConstraintProcessingState a)
        (Array (T.Redeemer /\ Maybe TransactionInput))
-_redeemers = prop (SProxy :: SProxy "redeemers")
+_redeemersTxIns = prop (SProxy :: SProxy "redeemersTxIns")
 
 _mintRedeemers
   :: forall (a :: Type)
@@ -561,7 +560,7 @@ runConstraintsM lookups txConstraints =
       , valueSpentBalancesOutputs:
           ValueSpentBalances { required: mempty, provided: mempty }
       , datums: mempty
-      , redeemers: mempty
+      , redeemersTxIns: mempty
       , mintRedeemers: empty
       , lookups
       }
@@ -627,7 +626,8 @@ mkUnbalancedTx
   -> QueryM (Either MkUnbalancedTxError UnattachedUnbalancedTx)
 mkUnbalancedTx scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map
-    \{ unbalancedTx, datums, redeemers } -> wrap { unbalancedTx, datums, redeemersTxIns: redeemers }
+    \{ unbalancedTx, datums, redeemersTxIns } -> wrap
+      { unbalancedTx, datums, redeemersTxIns }
 
 addScriptDataHash
   :: forall (a :: Type)
@@ -635,7 +635,7 @@ addScriptDataHash
 addScriptDataHash = runExceptT do
   dats <- use _datums
   -- Use both script and minting redeemers in the order they were appended.
-  reds <- use (_redeemers <<< to (map fst))
+  reds <- use (_redeemersTxIns <<< to (map fst))
   tx <- use (_unbalancedTx <<< _transaction)
   tx' <- ExceptT $ liftEffect $ setScriptDataHash reds dats tx <#> Right
   _cpsToTransaction .= tx'
@@ -917,7 +917,7 @@ processConstraint mpsMap osMap = do
                 }
             _valueSpentBalancesInputs <>= provide amount
             -- Append redeemer for spending to array.
-            _redeemers <>= Array.singleton (redeemer /\ Just txo)
+            _redeemersTxIns <>= Array.singleton (redeemer /\ Just txo)
             -- Attach redeemer to witness set.
             ExceptT $ attachToCps attachRedeemer redeemer
         _ -> liftEither $ throwError $ TxOutRefWrongType txo
@@ -953,11 +953,11 @@ processConstraint mpsMap osMap = do
           , exUnits: mintExUnits
           }
       -- Remove mint redeemers from array before reindexing.
-      _redeemers %= filter \(T.Redeemer { tag } /\ _) -> tag /= Mint
+      _redeemersTxIns %= filter \(T.Redeemer { tag } /\ _) -> tag /= Mint
       -- Reindex mint redeemers.
       mintRedeemers <- lift $ reindexMintRedeemers mpsHash redeemer
       -- Append reindexed mint redeemers to array.
-      _redeemers <>= map (_ /\ Nothing) mintRedeemers
+      _redeemersTxIns <>= map (_ /\ Nothing) mintRedeemers
       _cpsToTxBody <<< _mint <>= map wrap mintVal
     MustPayToPubKeyAddress pkh skh mDatum plutusValue -> do
       networkId <- getNetworkId
