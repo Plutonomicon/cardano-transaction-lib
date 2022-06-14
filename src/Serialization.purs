@@ -225,6 +225,7 @@ foreign import transactionWitnessSetSetVkeys
   :: TransactionWitnessSet -> Vkeywitnesses -> Effect Unit
 
 foreign import newCostmdls :: Effect Costmdls
+foreign import defaultCostmdls :: Effect Costmdls
 foreign import costmdlsSetCostModel
   :: Costmdls -> Language -> CostModel -> Effect Unit
 
@@ -778,12 +779,11 @@ convertCostmdls (T.Costmdls cs) = do
 
 hashScriptData
   :: Array T.Redeemer
-  -> T.Costmdls
   -> Array PlutusData.PlutusData
   -> Effect ScriptDataHash
-hashScriptData rs cms ps = do
+hashScriptData rs ps = do
   plist <- fromJustEff "failed to convert datums" $ packPlutusList ps
   rs' <- newRedeemers
-  cms' <- convertCostmdls cms
+  cms <- defaultCostmdls
   traverse_ (addRedeemer rs' <=< convertRedeemer) rs
-  _hashScriptData rs' cms' plist
+  _hashScriptData rs' cms plist

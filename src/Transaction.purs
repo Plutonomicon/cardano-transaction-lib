@@ -68,13 +68,13 @@ setScriptDataHash
   :: Array Redeemer -> Array Datum -> Transaction -> Effect Transaction
 setScriptDataHash rs ds tx@(Transaction { body, witnessSet })
   -- No hash should be set if there are no scripts (incl. minting policies)
-  | Just (Mint (NonAdaAsset assets)) <- (unwrap body).mint
-  , null assets && null (unwrap witnessSet).plutusScripts = pure tx
+  | Nothing <- (unwrap body).mint
+  , null (unwrap witnessSet).plutusScripts = pure tx
   -- No hash should be set if there are no redeemers
   | null rs = pure tx
   | otherwise = do
       scriptDataHash <- ScriptDataHash <<< toBytes <<< asOneOf
-        <$> hashScriptData rs costModels (unwrap <$> ds)
+        <$> hashScriptData rs (unwrap <$> ds)
       pure $ over Transaction
         _
           { body = over TxBody _ { scriptDataHash = Just scriptDataHash } body
