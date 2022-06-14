@@ -239,13 +239,15 @@ mustMintValueWithRedeemer
   -> Value
   -> TxConstraints i o
 mustMintValueWithRedeemer redeemer =
-  Array.fold <<< Array.mapMaybe tokenConstraint <<< flattenNonAdaAssets
+  Array.fold <<< map tokenConstraint <<< flattenNonAdaAssets
   where
   tokenConstraint
-    :: CurrencySymbol /\ TokenName /\ BigInt -> Maybe (TxConstraints i o)
-  tokenConstraint (cs /\ tn /\ amount) = do
-    mintingPolicyHash <- currencyMPSHash cs
-    pure $ mustMintCurrencyWithRedeemer mintingPolicyHash redeemer tn amount
+    :: CurrencySymbol /\ TokenName /\ BigInt -> TxConstraints i o
+  tokenConstraint (cs /\ tn /\ amount) =
+    let
+      mintingPolicyHash = currencyMPSHash cs
+    in
+      mustMintCurrencyWithRedeemer mintingPolicyHash redeemer tn amount
 
 -- | Create the given amount of the currency.
 mustMintCurrency
