@@ -4,11 +4,14 @@ module Test.Data (suite, tests, uniqueIndicesTests) where
 import Prelude
 
 import Contract.PlutusData (PlutusData(Constr, Integer))
-import Control.Lazy (fix)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
+import Data.Either (Either(Left, Right))
 import Data.Generic.Rep as G
+import Data.List as List
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Newtype (wrap)
+import Data.NonEmpty ((:|))
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for_, traverse_)
 import Data.Tuple (Tuple, uncurry)
@@ -19,18 +22,6 @@ import FromData (class FromData, fromData, genericFromData)
 import Helpers (showWithParens)
 import Mote (group, skip, test)
 import Partial.Unsafe (unsafePartial)
-import Serialization (toBytes)
-import Serialization.PlutusData as PDS
-import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary, genericArbitrary)
-import Test.QuickCheck.Gen (Gen)
-import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
-import ToData (class ToData, genericToData, toData)
-import Type.RowList (Cons, Nil)
-import Types.ByteArray (hexToByteArrayUnsafe)
-import TypeLevel.Nat (Z, S)
-import Untagged.Union (asOneOf)
-
 import Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
@@ -39,8 +30,21 @@ import Plutus.Types.DataSchema
   , I
   , PNil
   )
+import Serialization (toBytes)
+import Serialization.PlutusData as PDS
+import Test.QuickCheck (Result(..), (===))
+import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary, genericArbitrary)
+import Test.QuickCheck.Gen (chooseInt, frequency)
+import Test.Spec.Assertions (shouldEqual)
+import Test.Spec.QuickCheck (quickCheck)
+import TestM (TestPlanM)
+import ToData (class ToData, genericToData, toData)
+import Type.RowList (Cons, Nil)
+import TypeLevel.Nat (Z, S)
 import TypeLevel.RowList (class AllUniqueLabels)
 import TypeLevel.RowList.Unordered.Indexed (NilI, ConsI, class UniqueIndices)
+import Types.ByteArray (hexToByteArrayUnsafe)
+import Untagged.Union (asOneOf)
 
 suite :: TestPlanM Unit
 suite = do
@@ -63,22 +67,14 @@ suite = do
           test (show input) do
             fromData (toData input) `shouldEqual` Just input
       group "BigInt" do
-        let
-          inputs =
-            [ BigInt.fromInt 0
-            , BigInt.fromInt 10000
-            , BigInt.fromInt (-10000)
-            ]
-        for_ inputs \input -> do
-          test (show input) do
-            fromData (toData input) `shouldEqual` Just input
+        test "property test" $ quickCheck \(n :: Int) ->
+          let
+            input = BigInt.fromInt n
+          in
+            fromData (toData input) === Just input
     group "Generic" do
-      -- TODO: Quickcheckify
-      test "EType: from . to == id" do
-        let
-          input = E0 (D1 (D2 (C1 Nothing))) true
-            (C2 (MyBigInt (BigInt.fromInt 123)) false)
-        fromData (toData input) `shouldEqual` Just input
+      test "EType: from . to == id" $ quickCheck \(input :: EType) ->
+        fromData (toData input) === Just input
       test "CType: C1 constructor shouldn't accept empty arguments" do
         let
           pd = Constr (BigInt.fromInt 1) []
@@ -92,27 +88,12 @@ suite = do
         let
           pd = Constr (BigInt.fromInt 0) [ (Constr (BigInt.fromInt 1) []) ]
         fromData pd `shouldEqual` (Nothing :: Maybe CType)
-      test "FType and FType' toData/fromData the same: F0 == F0'" do
-        let
-          f0 = F0 { f0A: BigInt.fromInt 1337 }
-          f0' = F0' (BigInt.fromInt 1337)
-        fromData (toData f0) `shouldEqual` Just f0'
-        fromData (toData f0') `shouldEqual` Just f0
-      test "FType and FType' toData/fromData the same: F1 == F1'" do
-        let
-          f1 = F1 { f1A: false, f1B: false, f1C: true }
-          f1' = F1' false false true
-        fromData (toData f1) `shouldEqual` Just f1'
-        fromData (toData f1') `shouldEqual` Just f1
-      test "FType and FType' toData/fromData the same: F2 == F2'" do
-        let
-          f2 = F2
-            { f2A: BigInt.fromInt 1337
-            , f2B: F1 { f1A: true, f1B: false, f1C: true }
-            }
-          f2' = F2' (BigInt.fromInt 1337) (F1' true false true)
-        fromData (toData f2) `shouldEqual` Just f2'
-        fromData (toData f2') `shouldEqual` Just f2
+      test "FType and FType' toData/fromData are the same" $
+        quickCheck \(input :: FType) -> do
+          let
+            input' = fType2Ftype' input
+          andResult (fromData (toData input) === Just input')
+            $ fromData (toData input') === Just input
   group "ToData and serialization - binary fixtures" do
     -- How to get binary fixtures:
     --
@@ -163,6 +144,13 @@ suite = do
         [ BigInt.fromInt 0 /\ "00"
         ]
 
+-- | Concatenate two QuickCheck tests
+andResult :: Result -> Result -> Result
+andResult a b =
+  case a of
+    Success -> b
+    Failed s -> Failed s
+
 -- | Newtype wrapper to avoid an orphan instance
 newtype MyBigInt = MyBigInt BigInt
 
@@ -174,10 +162,7 @@ instance Show MyBigInt where
   show (MyBigInt bi) = showWithParens "MyBigInt" bi
 
 instance Arbitrary MyBigInt where
-  arbitrary = do
-    i <- arbitrary :: Gen Int
-    let bi = BigInt.fromInt i
-    pure $ MyBigInt bi
+  arbitrary = MyBigInt <<< BigInt.fromInt <$> arbitrary
 
 -- | Types used to test generic fromData and toData
 data CType
@@ -328,13 +313,52 @@ instance ToData FType' where
 -- https://github.com/purescript/purescript/issues/2975
 -- https://github.com/purescript/documentation/blob/master/errors/CycleInDeclaration.md
 instance Arbitrary CType where
-  arbitrary = fix $ \arb -> arb
+  arbitrary =
+    (frequency <<< wrap) $
+      (0.25 /\ pure C0)
+        :| (0.25 /\ (C1 <$> arbitrary))
+          List.: (0.25 /\ (C2 <$> arbitrary <*> arbitrary))
+          List.: (0.25 /\ (C3 <$> arbitrary <*> arbitrary <*> arbitrary))
+          List.: List.Nil
 
 instance Arbitrary EType where
   arbitrary = genericArbitrary
 
 instance Arbitrary DType where
-  arbitrary = fix $ \arb -> arb
+  arbitrary = toDType <$> arbitrary <*> chooseInt 0 15
+
+-- DType ~ (CType /\ MyBigInt /\ (Maybe Boolean)) + CType + Dtype
+toDType
+  :: Either (Tuple CType (Tuple MyBigInt (Maybe Boolean))) CType -> Int -> DType
+toDType lastValue n =
+  if n <= 0 then
+    case lastValue of
+      (Left (ct /\ it /\ mb)) -> D0 ct it mb
+      (Right ct) -> D2 ct
+  else
+    D1 (toDType lastValue (n - 1))
+
+instance Arbitrary FType where
+  arbitrary = toFType <$> arbitrary <*> arbitrary <*> chooseInt 0 15
+
+-- FType ~ BigInt + (Boolean /\ Boolean /\ Boolean) + (BigInt /\ FType)
+toFType
+  :: Either Int (Tuple Boolean (Tuple Boolean Boolean)) -> Int -> Int -> FType
+toFType lastValue j k =
+  if k <= 0 then
+    f0AndF1Converter lastValue
+  else
+    F2 { f2A: BigInt.fromInt j, f2B: toFType lastValue (j - 1) (k - 1) }
+  where
+  f0AndF1Converter
+    :: Either Int (Tuple Boolean (Tuple Boolean Boolean)) -> FType
+  f0AndF1Converter (Left x) = F0 { f0A: BigInt.fromInt x }
+  f0AndF1Converter (Right (v1 /\ v2 /\ v3)) = F1 { f1A: v1, f1B: v2, f1C: v3 }
+
+fType2Ftype' :: FType -> FType'
+fType2Ftype' (F0 { f0A: i }) = F0' i
+fType2Ftype' (F1 { f1A: b1, f1B: b2, f1C: b3 }) = F1' b1 b2 b3
+fType2Ftype' (F2 { f2A: i, f2B: f }) = F2' i $ fType2Ftype' f
 
 instance Show CType where
   show x = genericShow x
