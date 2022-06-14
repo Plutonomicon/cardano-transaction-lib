@@ -60,7 +60,7 @@ runPlutipM
   -> Aff a
 runPlutipM plutipCfg action = do
   withResource (startPlutipCluster plutipCfg)
-    (\_ -> void $ stopPlutipCluster plutipCfg)
+    (const $ void $ stopPlutipCluster plutipCfg)
     \startupResponse -> do
       response <- case startupResponse of
         ClusterStartupFailure _ -> do
@@ -70,12 +70,11 @@ runPlutipM plutipCfg action = do
       let
         contract =
           flip runReaderT plutipCfg action
-      withResource (startOgmios plutipCfg response) stopOgmios \_ -> do
+      withResource (startOgmios plutipCfg response) stopOgmios $ const do
         withResource (startOgmiosDatumCache plutipCfg response)
-          stopOgmiosDatumCache
-          \_ -> do
-            contractCfg <- mkClusterContractCfg plutipCfg response
-            liftAff $ runContract contractCfg contract
+          stopOgmiosDatumCache $ const do
+          contractCfg <- mkClusterContractCfg plutipCfg response
+          liftAff $ runContract contractCfg contract
 
 startPlutipCluster
   :: PlutipConfig -> Aff StartClusterResponse
@@ -134,6 +133,7 @@ startOgmios :: PlutipConfig -> ClusterStartupParameters -> Aff ChildProcess
 startOgmios cfg params = liftEffect $ spawn "ogmios" ogmiosArgs
   defaultSpawnOptions
   where
+  ogmiosArgs :: Array String
   ogmiosArgs =
     [ "--host"
     , "localhost"
@@ -154,6 +154,7 @@ startOgmiosDatumCache
 startOgmiosDatumCache cfg _params = do
   dir <- liftEffect tmpdir
   let
+    dbString :: String
     dbString = intercalate " "
       [ "host=localhost"
       , "port=" <> UInt.toString cfg.ogmiosDatumCachePostgresConfig.port
@@ -161,6 +162,8 @@ startOgmiosDatumCache cfg _params = do
       , "dbname=" <> cfg.ogmiosDatumCachePostgresConfig.dbname
       , "password=" <> cfg.ogmiosDatumCachePostgresConfig.password
       ]
+
+    configContents :: String
     configContents = intercalate "\n"
       [ "dbConnectionString = \"" <> dbString <> "\""
       , "server.port = " <> UInt.toString cfg.ogmiosDatumCacheConfig.port

@@ -5,14 +5,14 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
-  , JsonDecodeError(..)
+  , JsonDecodeError(UnexpectedValue)
   , decodeAeson
   , encodeAeson'
   , toStringifiedNumbersJson
   , (.:)
   )
 import Data.BigInt (BigInt)
-import Data.Either (Either(..))
+import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel)
 import Data.Show.Generic (genericShow)
@@ -29,10 +29,10 @@ type PlutipConfig =
   , ogmiosDatumCacheConfig :: ServerConfig
   , ctlServerConfig :: ServerConfig
   -- Should be synchronized with `defaultConfig.postgres` in `flake.nix`
-  , ogmiosDatumCachePostgresConfig :: ODCPostgresConfig
+  , ogmiosDatumCachePostgresConfig :: OdcPostgresConfig
   }
 
-type ODCPostgresConfig =
+type OdcPostgresConfig =
   { port :: UInt
   , user :: String
   , password :: String

@@ -168,6 +168,14 @@
         inherit system;
       };
 
+      configFor = pkgs: extraConfig:
+        with pkgs.lib;
+        fix (final: recursiveUpdate
+          (defaultConfig final)
+          (if isFunction extraConfig then extraConfig final else extraConfig));
+
+      bindPort = port: "${toString port}:${toString port}";
+
       defaultConfig = final: with final; {
         inherit (inputs) cardano-configurations;
         network = {
@@ -215,11 +223,7 @@
         let
           inherit (builtins) toString;
           pkgs = nixpkgsFor system;
-          config = with pkgs.lib;
-            fix (final: recursiveUpdate
-              (defaultConfig final)
-              (if isFunction extraConfig then extraConfig final else extraConfig));
-          bindPort = port: "${toString port}:${toString port}";
+          config = configFor pkgs extraConfig;
         in
         with config;
         {
@@ -246,16 +250,12 @@
         let
           inherit (builtins) toString;
           pkgs = nixpkgsFor system;
-          config = with pkgs.lib;
-            fix (final: recursiveUpdate
-              (defaultConfig final)
-              (if isFunction extraConfig then extraConfig final else extraConfig));
+          config = configFor pkgs extraConfig;
           nodeDbVol = "node-${config.network.name}-db";
           nodeIpcVol = "node-${config.network.name}-ipc";
           nodeSocketPath = "/ipc/node.socket";
           serverName = "ctl-server:exe:ctl-server";
           server = self.packages.${system}."${serverName}";
-          bindPort = port: "${toString port}:${toString port}";
         in
         with config;
         {
@@ -383,13 +383,13 @@
         };
 
       # Makes a set compatible with flake `apps` to launch all runtime services
-      launchCtlRuntime = system: config:
+      launchRuntime = name: buildRuntime: system: config:
         let
           pkgs = nixpkgsFor system;
-          binPath = "ctl-runtime";
+          binPath = "${name}-runtime";
           prebuilt = (pkgs.arion.build {
             inherit pkgs;
-            modules = [ (buildCtlRuntime system config) ];
+            modules = [ (buildRuntime system config) ];
           }).outPath;
           script = (pkgs.writeShellScriptBin "${binPath}"
             ''
@@ -404,27 +404,9 @@
           program = "${script}/bin/${binPath}";
         };
 
-      # Makes a set compatible with flake `apps` to launch all runtime services
-      launchPlutipRuntime = system: config:
-        let
-          pkgs = nixpkgsFor system;
-          binPath = "plutip-runtime";
-          prebuilt = (pkgs.arion.build {
-            inherit pkgs;
-            modules = [ (buildPlutipRuntime system config) ];
-          }).outPath;
-          script = (pkgs.writeShellScriptBin "${binPath}"
-            ''
-              ${pkgs.arion}/bin/arion --prebuilt-file ${prebuilt} up
-            ''
-          ).overrideAttrs (_: {
-            buildInputs = [ pkgs.arion pkgs.docker ];
-          });
-        in
-        {
-          type = "app";
-          program = "${script}/bin/${binPath}";
-        };
+      launchCtlRuntime = launchRuntime "ctl" buildCtlRuntime;
+
+      launchPlutipRuntime = launchRuntime "plutip" buildPlutipRuntime;
 
       psProjectFor = system:
         let
