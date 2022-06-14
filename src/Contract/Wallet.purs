@@ -11,7 +11,6 @@ import Prelude
 import Contract.Address (getWalletAddress, getWalletCollateral) as ContractAddress
 import Data.Maybe (Maybe)
 import Effect.Aff (Aff)
-
 import Node.Path (FilePath)
 import Serialization.Types (PrivateKey)
 import Wallet
