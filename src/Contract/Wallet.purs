@@ -1,13 +1,19 @@
 -- | A module with Wallet-related functionality.
 module Contract.Wallet
-  ( mkNamiWallet
-  , mkGeroWallet
+  ( mkKeyWalletFromFile
+  , mkKeyWalletFromPrivateKey
   , module ContractAddress
   , module Wallet
   ) where
 
-import Contract.Monad (Contract)
-import Effect.Aff.Class (liftAff)
+import Prelude
+
+import Contract.Address (getWalletAddress, getWalletCollateral) as ContractAddress
+import Data.Maybe (Maybe)
+import Effect.Aff (Aff)
+
+import Node.Path (FilePath)
+import Serialization.Types (PrivateKey)
 import Wallet
   ( Cip30Connection
   , Cip30Wallet
@@ -15,14 +21,17 @@ import Wallet
   , mkNamiWalletAff
   , mkGeroWalletAff
   ) as Wallet
-import Contract.Address
-  ( getWalletAddress
-  , getWalletCollateral
-  ) as ContractAddress
+import Wallet (mkKeyWallet)
+import Wallet.Key (privateKeyFromFile)
+import Wallet.Key (privateKeyFromNormalBytes, privateKeyToKeyWallet) as Wallet
 
--- | Make a wallet lifted into `Contract` from `Aff`.
-mkNamiWallet :: forall (r :: Row Type). Contract r Wallet.Wallet
-mkNamiWallet = liftAff Wallet.mkNamiWalletAff
+-- | Load PrivateKey from a skey file (the file should be in JSON format as
+-- | accepted by cardano-cli. The JSON should have
+-- | `"type": "PaymentSigningKeyShelley_ed25519"` field)
+mkKeyWalletFromFile
+  :: FilePath -> Aff (Maybe Wallet.Wallet)
+mkKeyWalletFromFile filePath = do
+  map mkKeyWallet <$> privateKeyFromFile filePath
 
-mkGeroWallet :: forall (r :: Row Type). Contract r Wallet.Wallet
-mkGeroWallet = liftAff Wallet.mkGeroWalletAff
+mkKeyWalletFromPrivateKey :: PrivateKey -> Wallet.Wallet
+mkKeyWalletFromPrivateKey = mkKeyWallet
