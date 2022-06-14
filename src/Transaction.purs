@@ -59,12 +59,8 @@ finalizeTransaction
   -> Array Datum
   -> Transaction
   -> Effect (Either ModifyTxError Transaction)
-finalizeTransaction rs ds tx = runExceptT $ do
-  tx' <- attachRedeemers rs $
-    -- Strip the existing redeemers from the transaction, which have since been
-    -- re-indexed
-    tx # _witnessSet %~ over TransactionWitnessSet _ { redeemers = Nothing }
-  liftEffect $ setScriptDataHash rs ds tx'
+finalizeTransaction rs ds tx = runExceptT $
+  liftEffect <<< setScriptDataHash rs ds =<< attachRedeemers rs tx
 
 -- | Set the `Transaction` body's script data hash. NOTE: Must include all of
 -- | the datums and redeemers for the given transaction

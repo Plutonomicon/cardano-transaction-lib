@@ -27,6 +27,7 @@ import Cardano.Types.Transaction
   ( ExUnits
   , Transaction
   , TransactionOutput(TransactionOutput)
+  , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody
   , _body
   , _inputs
@@ -34,6 +35,8 @@ import Cardano.Types.Transaction
   , _networkId
   , _outputs
   , _requiredSigners
+  , _scriptDataHash
+  , _witnessSet
   )
 import Cardano.Types.Transaction (Redeemer(Redeemer)) as T
 import Cardano.Types.Value
@@ -62,7 +65,7 @@ import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (foldM)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
-import Data.Lens ((%=), (.=), (<>=))
+import Data.Lens ((%=), (.=), (<>=), (.~), (%~))
 import Data.Lens.Getter (to, use)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
@@ -623,8 +626,19 @@ mkUnbalancedTx
   -> QueryM (Either MkUnbalancedTxError UnattachedUnbalancedTx)
 mkUnbalancedTx scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map
-    \{ unbalancedTx, datums, redeemersTxIns } -> wrap
-      { unbalancedTx, datums, redeemersTxIns }
+    \{ unbalancedTx, datums, redeemersTxIns } ->
+      let
+        stripScriptDataHash :: UnbalancedTx -> UnbalancedTx
+        stripScriptDataHash uTx =
+          uTx # _transaction <<< _body <<< _scriptDataHash .~ Nothing
+
+        stripDatumsRedeemers :: UnbalancedTx -> UnbalancedTx
+        stripDatumsRedeemers uTx = uTx # _transaction <<< _witnessSet %~
+          over TransactionWitnessSet
+            _ { plutusData = Nothing, redeemers = Nothing }
+        tx = stripDatumsRedeemers $ stripScriptDataHash unbalancedTx
+      in
+        wrap { unbalancedTx: tx, datums, redeemersTxIns }
 
 addScriptDataHash
   :: forall (a :: Type)
