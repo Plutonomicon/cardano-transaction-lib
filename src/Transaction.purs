@@ -60,7 +60,9 @@ finalizeTransaction
   -> Transaction
   -> Effect (Either ModifyTxError Transaction)
 finalizeTransaction rs ds tx = runExceptT $
-  liftEffect <<< setScriptDataHash rs ds =<< attachRedeemers rs tx
+  liftEffect <<< setScriptDataHash rs ds
+    =<< attachRedeemers rs
+    =<< attachDatums ds tx
 
 -- | Set the `Transaction` body's script data hash. NOTE: Must include all of
 -- | the datums and redeemers for the given transaction
@@ -89,6 +91,7 @@ attachDatum d = runExceptT <<< attachDatums (Array.singleton d)
 
 attachDatums
   :: Array Datum -> Transaction -> ExceptT ModifyTxError Effect Transaction
+attachDatums [] tx = liftEither $ Right tx
 attachDatums datums tx@(Transaction { witnessSet: ws }) = do
   ds <- traverse
     ( liftEither

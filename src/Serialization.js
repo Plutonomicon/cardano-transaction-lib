@@ -150,6 +150,9 @@ exports.newInt32 = x => () =>
 exports._hashScriptData = rs => cms => ds => () =>
     lib.hash_script_data(rs, cms, ds);
 
+exports._hashScriptDataNoDatums = rs => cms => () =>
+    lib.hash_script_data(rs, cms);
+
 exports.newRedeemers = () =>
     lib.Redeemers.new();
 

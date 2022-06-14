@@ -235,6 +235,8 @@ foreign import newPlutusV1 :: Effect Language
 foreign import newInt32 :: Int -> Effect Int32
 foreign import _hashScriptData
   :: Redeemers -> Costmdls -> PlutusList -> Effect ScriptDataHash
+foreign import _hashScriptDataNoDatums
+  :: Redeemers -> Costmdls -> Effect ScriptDataHash
 
 foreign import newRedeemers :: Effect Redeemers
 foreign import addRedeemer :: Redeemers -> Redeemer -> Effect Unit
@@ -782,8 +784,10 @@ hashScriptData
   -> Array PlutusData.PlutusData
   -> Effect ScriptDataHash
 hashScriptData rs ps = do
-  plist <- fromJustEff "failed to convert datums" $ packPlutusList ps
   rs' <- newRedeemers
   cms <- defaultCostmdls
   traverse_ (addRedeemer rs' <=< convertRedeemer) rs
-  _hashScriptData rs' cms plist
+  case ps of
+    [] -> _hashScriptDataNoDatums rs' cms
+    ps' -> _hashScriptData rs' cms =<< fromJustEff "failed to convert datums"
+      (packPlutusList ps)
