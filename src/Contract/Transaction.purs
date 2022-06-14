@@ -139,6 +139,7 @@ import Plutus.Types.Transaction
 import Plutus.Types.Value (Coin)
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (NetworkId)
+import Transaction (finalizeTransaction)
 import TxOutput (scriptOutputToTransactionOutput) as TxOutput
 import Types.Transaction (TransactionHash)
 import Types.Transaction
@@ -254,11 +255,9 @@ balanceAndSignTx
 balanceAndSignTx uaubTx@(UnattachedUnbalancedTx { datums }) = do
   -- Balance unbalanced tx:
   balancedTx /\ redeemersTxIns <- liftedE $ balanceTx uaubTx
-  let inputs = balancedTx ^. _body <<< _inputs
-
-  -- FIXME
-  -- redeemers <- liftedE $ reindexSpentScriptRedeemers inputs redeemersTxIns
-
+  redeemers <- liftedE $ flip reindexSpentScriptRedeemers redeemersTxIns $
+    balancedTx ^. _body <<< _inputs
+  finalizedTx <- liftEffect $ finalizeTransaction redeemers datums balancedTx
   -- FIXME remove this after fixing signing
   -- Convert the tx to CBOR
   txCbor <- liftEffect $
