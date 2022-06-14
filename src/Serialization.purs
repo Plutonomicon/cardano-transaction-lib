@@ -1,13 +1,18 @@
 module Serialization
   ( convertTransaction
+  , convertTxBody
   , convertTxInput
   , convertTxOutput
   , toBytes
   , newTransactionUnspentOutputFromBytes
   , newTransactionWitnessSetFromBytes
   , hashScriptData
+  , hashTransaction
   , publicKeyHash
   , publicKeyFromBech32
+  , publicKeyFromPrivateKey
+  , privateKeyFromBytes
+  , makeVkeywitness
   ) where
 
 import Prelude
@@ -74,6 +79,7 @@ import Serialization.Types
   ( AssetName
   , Assets
   , AuxiliaryData
+  , AuxiliaryDataHash
   , BigInt
   , BigNum
   , Certificate
@@ -105,6 +111,7 @@ import Serialization.Types
   , ProtocolParamUpdate
   , ProtocolVersion
   , PublicKey
+  , PrivateKey
   , Redeemer
   , Redeemers
   , Relay
@@ -135,11 +142,14 @@ import Serialization.WitnessSet
 import Types.Aliases (Bech32String)
 import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
+import Types.RawBytes (RawBytes)
 import Types.Int as Int
 import Types.PlutusData as PlutusData
 import Types.TokenName (getTokenName) as TokenName
 import Types.Transaction (TransactionInput(TransactionInput)) as T
 import Untagged.Union (type (|+|), UndefinedOr, maybeToUor)
+
+foreign import hashTransaction :: TransactionBody -> Effect TransactionHash
 
 foreign import newBigNum :: MaybeFfiHelper -> String -> Maybe BigNum
 foreign import newValue :: BigNum -> Effect Value
@@ -195,11 +205,20 @@ foreign import transactionOutputSetDataHash
   :: TransactionOutput -> DataHash -> Effect Unit
 
 foreign import newVkeywitnesses :: Effect Vkeywitnesses
+foreign import makeVkeywitness
+  :: TransactionHash -> PrivateKey -> Effect Vkeywitness
+
 foreign import newVkeywitness :: Vkey -> Ed25519Signature -> Effect Vkeywitness
 foreign import addVkeywitness :: Vkeywitnesses -> Vkeywitness -> Effect Unit
 foreign import newVkeyFromPublicKey :: PublicKey -> Effect Vkey
 foreign import _publicKeyFromBech32
   :: MaybeFfiHelper -> Bech32String -> Maybe PublicKey
+
+foreign import publicKeyFromPrivateKey
+  :: PrivateKey -> Effect PublicKey
+
+foreign import _privateKeyFromBytes
+  :: MaybeFfiHelper -> RawBytes -> Effect (Maybe PrivateKey)
 
 foreign import publicKeyHash :: PublicKey -> Ed25519KeyHash
 foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
@@ -427,38 +446,46 @@ foreign import toBytes
          |+| NativeScript
          |+| ScriptDataHash
          |+| Redeemers
+         |+| GenesisHash
+         |+| GenesisDelegateHash
+         |+| AuxiliaryDataHash
      -- Add more as needed.
      )
   -> ByteArray
 
+convertTxBody :: T.TxBody -> Effect TransactionBody
+convertTxBody (T.TxBody body) = do
+  inputs <- convertTxInputs body.inputs
+  outputs <- convertTxOutputs body.outputs
+  fee <- fromJustEff "Failed to convert fee" $ bigNumFromBigInt
+    (unwrap body.fee)
+  let ttl = body.ttl <#> unwrap >>> UInt.toInt
+  txBody <- newTransactionBody inputs outputs fee (maybeToUor ttl)
+  for_ body.validityStartInterval $
+    unwrap >>> UInt.toInt >>> transactionBodySetValidityStartInterval txBody
+  for_ body.requiredSigners $
+    map unwrap >>> transactionBodySetRequiredSigners containerHelper txBody
+  for_ body.auxiliaryDataHash $
+    unwrap >>> transactionBodySetAuxiliaryDataHash txBody
+  for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
+  for_ body.scriptDataHash
+    ( unwrap >>> wrap >>> newScriptDataHashFromBytes >=>
+        setTxBodyScriptDataHash txBody
+    )
+  for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
+  for_ body.mint $ convertMint >=> setTxBodyMint txBody
+  for_ body.certs $ convertCerts >=> setTxBodyCerts txBody
+  for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
+  for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
+  pure txBody
+
 convertTransaction :: T.Transaction -> Effect Transaction
 convertTransaction
   ( T.Transaction
-      { body: T.TxBody body, witnessSet, isValid, auxiliaryData }
+      { body, witnessSet, isValid, auxiliaryData }
   ) =
   do
-    inputs <- convertTxInputs body.inputs
-    outputs <- convertTxOutputs body.outputs
-    fee <- fromJustEff "Failed to convert fee" $ bigNumFromBigInt
-      (unwrap body.fee)
-    let ttl = body.ttl <#> unwrap >>> UInt.toInt
-    txBody <- newTransactionBody inputs outputs fee (maybeToUor ttl)
-    for_ body.validityStartInterval $
-      unwrap >>> UInt.toInt >>> transactionBodySetValidityStartInterval txBody
-    for_ body.requiredSigners $
-      map unwrap >>> transactionBodySetRequiredSigners containerHelper txBody
-    for_ body.auxiliaryDataHash $
-      unwrap >>> transactionBodySetAuxiliaryDataHash txBody
-    for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
-    for_ body.scriptDataHash
-      ( unwrap >>> wrap >>> newScriptDataHashFromBytes >=>
-          setTxBodyScriptDataHash txBody
-      )
-    for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
-    for_ body.mint $ convertMint >=> setTxBodyMint txBody
-    for_ body.certs $ convertCerts >=> setTxBodyCerts txBody
-    for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
-    for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
+    txBody <- convertTxBody body
     ws <- convertWitnessSet witnessSet
     mbAuxiliaryData <- for auxiliaryData convertAuxiliaryData
     tx <- case mbAuxiliaryData of
@@ -575,6 +602,9 @@ convertWithdrawals mp =
 publicKeyFromBech32 :: Bech32String -> Maybe PublicKey
 publicKeyFromBech32 = _publicKeyFromBech32 maybeFfiHelper
 
+privateKeyFromBytes :: RawBytes -> Effect (Maybe PrivateKey)
+privateKeyFromBytes = _privateKeyFromBytes maybeFfiHelper
+
 convertCerts :: Array T.Certificate -> Effect Certificates
 convertCerts certs = do
   certificates <- newCertificates
@@ -595,7 +625,7 @@ convertCert = case _ of
     , pledge
     , cost
     , margin
-    , reward_account
+    , rewardAccount
     , poolOwners
     , relays
     , poolMetadata
@@ -605,7 +635,7 @@ convertCert = case _ of
     relays' <- convertRelays relays
     poolMetadata' <- for poolMetadata convertPoolMetadata
     newPoolRegistrationCertificate operator vrfKeyhash pledge cost margin'
-      reward_account
+      rewardAccount
       poolOwners'
       relays'
       (maybeToUor poolMetadata')

@@ -21,6 +21,7 @@ module Serialization.Types
   , GeneralTransactionMetadata
   , GenesisDelegateHash
   , GenesisHash
+  , GenesisKeyDelegation
   , Int32
   , Ipv4
   , Ipv6
@@ -32,6 +33,7 @@ module Serialization.Types
   , MintAssets
   , MoveInstantaneousReward
   , MultiAsset
+  , MultiHostName
   , NativeScript
   , NativeScripts
   , NetworkId
@@ -42,11 +44,13 @@ module Serialization.Types
   , PlutusScript
   , PlutusScripts
   , PoolMetadata
+  , PoolParams
   , ProposedProtocolParameterUpdates
   , ProtocolParamUpdate
   , ProtocolVersion
   , ProtocolVersions
   , PublicKey
+  , PrivateKey
   , Redeemer
   , RedeemerTag
   , Redeemers
@@ -57,6 +61,8 @@ module Serialization.Types
   , ScriptDataHash
   , ScriptNOfK
   , ScriptPubkey
+  , SingleHostAddr
+  , SingleHostName
   , TimelockExpiry
   , TimelockStart
   , Transaction
@@ -82,6 +88,7 @@ module Serialization.Types
 import Prelude
 
 import Data.Function (on)
+import Types.ByteArray (ByteArray, byteArrayToHex)
 
 foreign import data AssetName :: Type
 foreign import data Assets :: Type
@@ -105,6 +112,7 @@ foreign import data ExUnits :: Type
 foreign import data GeneralTransactionMetadata :: Type
 foreign import data GenesisDelegateHash :: Type
 foreign import data GenesisHash :: Type
+foreign import data GenesisKeyDelegation :: Type
 foreign import data Int32 :: Type
 foreign import data Ipv4 :: Type
 foreign import data Ipv6 :: Type
@@ -116,6 +124,7 @@ foreign import data Mint :: Type
 foreign import data MintAssets :: Type
 foreign import data MoveInstantaneousReward :: Type
 foreign import data MultiAsset :: Type
+foreign import data MultiHostName :: Type
 foreign import data NativeScript :: Type
 foreign import data NativeScripts :: Type
 foreign import data NetworkId :: Type
@@ -126,11 +135,13 @@ foreign import data PlutusMap :: Type
 foreign import data PlutusScript :: Type
 foreign import data PlutusScripts :: Type
 foreign import data PoolMetadata :: Type
+foreign import data PoolParams :: Type
 foreign import data ProposedProtocolParameterUpdates :: Type
 foreign import data ProtocolParamUpdate :: Type
 foreign import data ProtocolVersion :: Type
 foreign import data ProtocolVersions :: Type
 foreign import data PublicKey :: Type
+foreign import data PrivateKey :: Type
 foreign import data Redeemer :: Type
 foreign import data RedeemerTag :: Type
 foreign import data Redeemers :: Type
@@ -141,6 +152,8 @@ foreign import data ScriptAny :: Type
 foreign import data ScriptDataHash :: Type
 foreign import data ScriptNOfK :: Type
 foreign import data ScriptPubkey :: Type
+foreign import data SingleHostAddr :: Type
+foreign import data SingleHostName :: Type
 foreign import data TimelockExpiry :: Type
 foreign import data TimelockStart :: Type
 foreign import data Transaction :: Type
@@ -169,10 +182,11 @@ instance Eq BigNum where
   eq = eq `on` show
 
 instance Show VRFKeyHash where
-  show = _to_bech32
+  show = _vrfKeyHashBytes >>> byteArrayToHex
 
 instance Eq VRFKeyHash where
   eq = eq `on` show
 
 foreign import _to_str :: forall a. a -> String
-foreign import _to_bech32 :: forall a. a -> String
+-- We can't use ToBytes class here, because of cyclic dependencies
+foreign import _vrfKeyHashBytes :: VRFKeyHash -> ByteArray

@@ -53,6 +53,7 @@ let
           pkgs.easy-ps.spago
           pkgs.easy-ps."${formatter}"
           pkgs.easy-ps.pscid
+          pkgs.easy-ps.psa
           pkgs.easy-ps.spago2nix
           pkgs.nodePackages.node2nix
         ] ++ pkgs.lib.lists.optional
@@ -70,62 +71,42 @@ let
           + shellHook;
       };
 
-  buildPursDocsSearch =
-    { name ? "purescript-docs-search"
-    , ...
-    }:
-    pkgs.stdenv.mkDerivation {
-      inherit name;
-      srcs = [
-        (pkgs.fetchurl {
-          url = "https://github.com/purescript/purescript-docs-search/releases/download/v0.0.11/docs-search-app.js";
-          sha256 = "17qngsdxfg96cka1cgrl3zdrpal8ll6vyhhnazqm4hwj16ywjm02";
-        })
-        (pkgs.fetchurl {
-          url = "https://github.com/purescript/purescript-docs-search/releases/download/v0.0.11/purescript-docs-search";
-          sha256 = "1hjdprm990vyxz86fgq14ajn0lkams7i00h8k2i2g1a0hjdwppq6";
-        })
-      ];
-      buildInputs = [ nodejs ];
-      unpackPhase = ''
-        for srcFile in $srcs; do
-          cp $srcFile $(stripHash $srcFile)
-        done
-      '';
-      installPhase = ''
-        chmod +x purescript-docs-search
-        mkdir -p $out/bin
-        mv docs-search-app.js purescript-docs-search $out/bin
-      '';
-    };
-
   buildPursProject =
     { sources ? [ "src" ]
     , withDevDeps ? false
     , name ? projectName
+    , censorCodes ? [ "UserDefinedWarning" ]
     , ...
     }:
     let
       nodeModules = mkNodeModules { inherit withDevDeps; };
+      sepWithComma = builtins.concatStringsSep ",";
+      # for e.g. `cp -r {a,b,c}` vs `cp -r a`
+      srcsStr =
+        let
+          withCommas = sepWithComma sources;
+        in
+        if builtins.length sources > 1
+        then ("{" + withCommas + "}")
+        else withCommas;
+      # This is what spago2nix does
+      spagoGlob = pkg:
+        ''".spago/${pkg.name}/${pkg.version}/src/**/*.purs"'';
+      spagoGlobs = builtins.toString (
+        builtins.map spagoGlob (builtins.attrValues spagoPkgs.inputs)
+      );
     in
     pkgs.stdenv.mkDerivation {
       inherit name src;
       buildInputs = [
         spagoPkgs.installSpagoStyle
-        spagoPkgs.buildSpagoStyle
+        pkgs.easy-ps.psa
       ];
       nativeBuildInputs = [
         purs
         pkgs.easy-ps.spago
       ];
       unpackPhase =
-        let
-          srcs = builtins.concatStringsSep "," sources;
-          # for e.g. `cp -r {a,b,c}` vs `cp -r a`
-          srcsStr =
-            if builtins.length sources > 1
-            then ("{" + srcs + "}") else srcs;
-        in
         ''
           export HOME="$TMP"
           export NODE_PATH="${nodeModules}/lib/node_modules"
@@ -134,7 +115,8 @@ let
           install-spago-style
         '';
       buildPhase = ''
-        build-spago-style "./**/*.purs"
+        psa --strict --censor-lib --is-lib=.spago ${spagoGlobs} \
+          --censor-codes=${sepWithComma censorCodes} "./**/*.purs"
       '';
       installPhase = ''
         mkdir $out
@@ -164,6 +146,73 @@ let
         '';
       });
 
+  bundlePursProject =
+    { name ? "${projectName}-bundle-" +
+        (if browserRuntime then "web" else "nodejs")
+    , entrypoint ? "index.js"
+    , htmlTemplate ? "index.html"
+    , main ? "Main"
+    , browserRuntime ? true
+    , webpackConfig ? "webpack.config.js"
+    , bundledModuleName ? "output.js"
+    , ...
+    }@args:
+    (buildPursProject (args // { withDevDeps = true; })).overrideAttrs
+      (oas: {
+        inherit name;
+        buildInputs = oas.buildInputs ++ [ nodejs ];
+        buildPhase = oas.buildPhase + ''
+          ${pkgs.lib.optionalString browserRuntime "export BROWSER_RUNTIME=1"}
+          chmod -R +rwx .
+          spago bundle-module --no-install --no-build -m "${main}" \
+            --to ${bundledModuleName}
+          cp $src/${entrypoint} .
+          cp $src/${htmlTemplate} .
+          cp $src/${webpackConfig} .
+          mkdir ./dist
+          webpack --mode=production -c ${webpackConfig} -o ./dist \
+            --entry ./${entrypoint}
+        '';
+        installPhase = ''
+          mkdir $out
+          mv dist $out
+        '';
+      });
+
+  buildPursDocsSearch =
+    { name ? "purescript-docs-search"
+    , ...
+    }:
+    let
+      docsUrl =
+        "https://github.com/purescript/purescript-docs-search/releases/download";
+      docsVersion = "v0.0.11";
+    in
+    pkgs.stdenv.mkDerivation {
+      inherit name;
+      srcs = [
+        (pkgs.fetchurl {
+          url = "${docsUrl}/${docsVersion}/docs-search-app.js";
+          sha256 = "17qngsdxfg96cka1cgrl3zdrpal8ll6vyhhnazqm4hwj16ywjm02";
+        })
+        (pkgs.fetchurl {
+          url = "${docsUrl}/${docsVersion}/purescript-docs-search";
+          sha256 = "1hjdprm990vyxz86fgq14ajn0lkams7i00h8k2i2g1a0hjdwppq6";
+        })
+      ];
+      buildInputs = [ nodejs ];
+      unpackPhase = ''
+        for srcFile in $srcs; do
+          cp $srcFile $(stripHash $srcFile)
+        done
+      '';
+      installPhase = ''
+        chmod +x purescript-docs-search
+        mkdir -p $out/bin
+        mv docs-search-app.js purescript-docs-search $out/bin
+      '';
+    };
+
   buildPursDocs =
     { name ? "${projectName}-docs"
     , format ? "html"
@@ -190,10 +239,11 @@ let
         spagoPkgs.installSpagoStyle
       ];
       buildPhase = ''
-        cp -r ${buildPursDocs { format = "html"; }}/{generated-docs,output} .
+        cp -r ${buildPursDocs { }}/{generated-docs,output} .
         install-spago-style
         chmod -R +rwx .
-        ${buildPursDocsSearch { }}/bin/purescript-docs-search build-index --package-name cardano-transaction-lib
+        ${buildPursDocsSearch { }}/bin/purescript-docs-search build-index \
+          --package-name cardano-transaction-lib
       '';
       installPhase = ''
         mkdir $out
@@ -201,42 +251,10 @@ let
       '';
     };
 
-  bundlePursProject =
-    { name ? "${projectName}-bundle-" +
-        (if browserRuntime then "web" else "nodejs")
-    , entrypoint ? "index.js"
-    , htmlTemplate ? "index.html"
-    , main ? "Main"
-    , browserRuntime ? true
-    , webpackConfig ? "webpack.config.js"
-    , bundledModuleName ? "output.js"
-    , ...
-    }@args:
-    (buildPursProject (args // { withDevDeps = true; })).overrideAttrs
-      (oas: {
-        inherit name;
-        buildInputs = oas.buildInputs ++ [ nodejs ];
-        buildPhase = ''
-          ${pkgs.lib.optionalString browserRuntime "export BROWSER_RUNTIME=1"}
-          build-spago-style "./**/*.purs"
-          chmod -R +rwx .
-          spago bundle-module --no-install --no-build -m "${main}" \
-            --to ${bundledModuleName}
-          cp $src/${entrypoint} .
-          cp $src/${htmlTemplate} .
-          cp $src/${webpackConfig} .
-          mkdir ./dist
-          webpack --mode=production -c ${webpackConfig} -o ./dist --entry ./${entrypoint}
-        '';
-        installPhase = ''
-          mkdir $out
-          mv dist $out
-        '';
-      });
-
 in
 {
-  inherit buildPursProject runPursTest buildPursDocs buildSearchablePursDocs buildPursDocsSearch bundlePursProject;
+  inherit buildPursProject runPursTest buildPursDocs bundlePursProject;
+  inherit buildSearchablePursDocs buildPursDocsSearch;
   inherit purs nodejs mkNodeModules;
   devShell = shellFor shell;
 }

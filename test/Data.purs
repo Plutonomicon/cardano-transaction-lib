@@ -3,13 +3,13 @@ module Test.Data (suite, tests, uniqueIndicesTests) where
 
 import Prelude
 
-import Contract.PlutusData (PlutusData(Constr, Integer))
+import Aeson (decodeAeson, encodeAeson, JsonDecodeError(TypeMismatch))
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Generic.Rep as G
 import Data.List as List
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Maybe (maybe, Maybe(Just, Nothing), fromJust)
 import Data.Newtype (wrap)
 import Data.NonEmpty ((:|))
 import Data.Show.Generic (genericShow)
@@ -20,8 +20,9 @@ import Deserialization.FromBytes (fromBytes)
 import Deserialization.PlutusData as PDD
 import FromData (class FromData, fromData, genericFromData)
 import Helpers (showWithParens)
-import Mote (group, skip, test)
+import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
+import Plutus.Types.AssocMap (Map(Map))
 import Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
@@ -39,6 +40,7 @@ import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.QuickCheck (quickCheck)
 import TestM (TestPlanM)
 import ToData (class ToData, genericToData, toData)
+import Types.PlutusData (PlutusData(Constr, Integer))
 import Type.RowList (Cons, Nil)
 import TypeLevel.Nat (Z, S)
 import TypeLevel.RowList (class AllUniqueLabels)
@@ -46,8 +48,66 @@ import TypeLevel.RowList.Unordered.Indexed (NilI, ConsI, class UniqueIndices)
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Untagged.Union (asOneOf)
 
+plutusDataAesonRoundTrip
+  :: forall (a :: Type). ToData a => FromData a => a -> Either JsonDecodeError a
+plutusDataAesonRoundTrip x = do
+  maybe (Left $ TypeMismatch "") pure <<< fromData =<<
+    (encodeAeson (toData x) # decodeAeson)
+
 suite :: TestPlanM Unit
 suite = do
+  group "PlutusData Aeson representation tests" $ do
+    group "Primitives" do
+      test "Unit" do
+        let
+          input = unit
+        plutusDataAesonRoundTrip input `shouldEqual` Right input
+      group "Boolean" do
+        let
+          inputs = [ true, false ]
+        for_ inputs \input -> do
+          test (show input) do
+            plutusDataAesonRoundTrip input `shouldEqual` Right input
+      group "Maybe" do
+        let
+          inputs = [ Just true, Just false, Nothing ]
+        for_ inputs \input -> do
+          test (show input) do
+            plutusDataAesonRoundTrip input `shouldEqual` Right input
+      group "BigInt" do
+        let
+          inputs =
+            [ BigInt.fromInt 0
+            , BigInt.fromInt 10000
+            , BigInt.fromInt (-10000)
+            ]
+        for_ inputs \input -> do
+          test (show input) do
+            plutusDataAesonRoundTrip input `shouldEqual` Right input
+      test "Array" do
+        let
+          input = [ Just true, Just false, Nothing ]
+        plutusDataAesonRoundTrip input `shouldEqual` Right input
+      test "Map" do
+        let
+          input = Map
+            [ BigInt.fromInt 13 /\
+                [ Map
+                    [ BigInt.fromInt 17 /\ false
+                    ]
+                ]
+            ]
+        plutusDataAesonRoundTrip input `shouldEqual` Right input
+    group "Generic" do
+      -- TODO: Quickcheckify
+      test "CType: from . to == id" do
+        let
+          input = C4
+            ( Map
+                [ BigInt.fromInt 13 /\ [ Map [ BigInt.fromInt 17 /\ false ] ]
+                ]
+            )
+        plutusDataAesonRoundTrip input `shouldEqual` Right input
   group "PlutusData representation tests: ToData/FromData" $ do
     group "Primitives" do
       test "Unit" do
@@ -72,6 +132,20 @@ suite = do
             input = BigInt.fromInt n
           in
             fromData (toData input) === Just input
+        test "Array" do
+          let
+            input = [ Just true, Just false, Nothing ]
+          fromData (toData input) `shouldEqual` Just input
+        test "Map" do
+          let
+            input = Map
+              [ BigInt.fromInt 13 /\
+                  [ Map
+                      [ BigInt.fromInt 17 /\ false
+                      ]
+                  ]
+              ]
+          fromData (toData input) `shouldEqual` Just input
     group "Generic" do
       test "EType: from . to == id" $ quickCheck \(input :: EType) ->
         fromData (toData input) === Just input
@@ -139,10 +213,6 @@ suite = do
             )
             /\ "c25102f050fe938943acc45f65567fffffffff"
         ]
-    skip $ group "BigInt - failing (problem with encoding of 0)" do
-      traverse_ (uncurry testBinaryFixture)
-        [ BigInt.fromInt 0 /\ "00"
-        ]
 
 -- | Concatenate two QuickCheck tests
 andResult :: Result -> Result -> Result
@@ -170,6 +240,7 @@ data CType
   | C1 (Maybe MyBigInt)
   | C2 MyBigInt Boolean
   | C3 MyBigInt Boolean Boolean
+  | C4 (Map BigInt (Array (Map BigInt Boolean)))
 
 instance
   HasPlutusSchema CType
@@ -183,6 +254,9 @@ instance
         :+ "C3"
         := PNil
         @@ (S (S (S Z)))
+        :+ "C4"
+        := PNil
+        @@ (S (S (S (S Z))))
         :+ PNil
     )
 
@@ -484,7 +558,7 @@ testBinaryFixture value binaryFixture = do
         (hexToByteArrayUnsafe binaryFixture)
 
 -- | Poor man's type level tests
-tests ∷ Array String
+tests :: Array String
 tests =
   [ testNil
   , testSingleton
@@ -507,7 +581,7 @@ tests =
     => String
   testUniques = "[A, B, C] is all unique and should compile"
 
-uniqueIndicesTests ∷ Array String
+uniqueIndicesTests :: Array String
 uniqueIndicesTests =
   [ testNil
   , testSingletonZ

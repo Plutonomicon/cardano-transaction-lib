@@ -53,7 +53,11 @@ import Cardano.Types.Value
   , valueToCoin
   , Value
   )
-import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
+import Control.Monad.Except.Trans
+  ( ExceptT(ExceptT)
+  , except
+  , runExceptT
+  )
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
@@ -72,7 +76,7 @@ import Data.Lens.Setter ((.~), set, (?~), (%~))
 import Data.List ((:), List(Nil), partition)
 import Data.Log.Tag (tag)
 import Data.Map as Map
-import Data.Maybe (fromMaybe, maybe, Maybe(Just, Nothing))
+import Data.Maybe (fromMaybe, maybe, isJust, Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse_)
@@ -97,14 +101,14 @@ import QueryM
   , evalTxExecutionUnits
   )
 import QueryM.Utxos (utxosAt)
+import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import TxOutput (utxoIndexToUtxo)
-import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (DataHash, TransactionInput)
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), _transaction)
-import Wallet (Wallet(Gero, Nami))
+import Wallet (Wallet(KeyWallet), cip30Wallet)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
@@ -395,11 +399,17 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     -- Get own wallet address, collateral and utxo set:
     ownAddr <- ExceptT $ getWalletAddress <#>
       note (GetWalletAddressError' CouldNotGetWalletAddress)
+    wallet <- asks _.wallet
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
-    collateral <- ExceptT $ getWalletCollateral <#>
-      note (GetWalletCollateralError' CouldNotGetCollateral)
-    wallet <- asks _.wallet
+    collateral <- case wallet of
+      Just w | isJust (cip30Wallet w) ->
+        map Just $ ExceptT $ getWalletCollateral <#>
+          note (GetWalletCollateralError' CouldNotGetCollateral)
+      -- TODO: Combine with getWalletCollateral, and supply with fee estimate
+      --       https://github.com/Plutonomicon/cardano-transaction-lib/issues/510
+      Just (KeyWallet kw) -> pure $ kw.selectCollateral utxos
+      _ -> pure Nothing
     let
       -- Combines utxos at the user address and those from any scripts
       -- involved with the contract in the unbalanced transaction.
@@ -411,10 +421,8 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
       -- for the Ada only collateral. No MinUtxos required. Perhaps
       -- for some wallets this step can be skipped and we can go straight
       -- to prebalancer.
-      unbalancedCollTx = case wallet of
-        Just (Nami _) -> addTxCollateral unbalancedTx' collateral
-        Just (Gero _) -> addTxCollateral unbalancedTx' collateral
-        _ -> unbalancedTx'
+      unbalancedCollTx :: Transaction
+      unbalancedCollTx = maybe identity addTxCollateral collateral unbalancedTx'
 
     -- Logging Unbalanced Tx with collateral added:
     logTx "Unbalanced Collaterised Tx " allUtxos unbalancedCollTx
@@ -526,10 +534,8 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   feeBuffer :: BigInt
   feeBuffer = fromInt 500000
 
--- CIP-30 wallets provide a 5 Ada collateral that we should add the tx before
--- balancing.
-addTxCollateral :: Transaction -> TransactionUnspentOutput -> Transaction
-addTxCollateral transaction (TransactionUnspentOutput { input }) =
+addTxCollateral :: TransactionUnspentOutput -> Transaction -> Transaction
+addTxCollateral (TransactionUnspentOutput { input }) transaction =
   transaction # _body <<< _collateral ?~
     Array.singleton input
 

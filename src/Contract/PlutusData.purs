@@ -3,10 +3,8 @@
 -- | `Datum` and `Redeemer`. It also contains typeclasses like `FromData` and
 -- | `ToData`.
 module Contract.PlutusData
-  ( cancelFetchBlocks
-  , getDatumByHash
+  ( getDatumByHash
   , getDatumsByHashes
-  , startFetchBlocks
   , module DataSchema
   , module Datum
   , module ExportQueryM
@@ -70,12 +68,9 @@ import QueryM
   , mkDatumCacheWebSocketAff
   ) as ExportQueryM
 import QueryM
-  ( cancelFetchBlocks
-  , getDatumByHash
+  ( getDatumByHash
   , getDatumsByHashes
-  , startFetchBlocks
   ) as QueryM
-import Serialization.Address (Slot)
 import ToData
   ( class ToData
   , class ToDataArgs
@@ -89,7 +84,6 @@ import ToData
   , toDataArgs
   , toDataWithSchema
   ) as ToData
-import Types.Chain (BlockHeaderHash)
 import Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as Datum
 import Types.Datum (DataHash)
 import Types.PlutusData
@@ -115,13 +109,3 @@ getDatumsByHashes
    . Array DataHash
   -> Contract r (Map DataHash Datum.Datum)
 getDatumsByHashes = wrapContract <<< QueryM.getDatumsByHashes
-
-startFetchBlocks
-  :: forall (r :: Row Type)
-   . { slot :: Slot, id :: BlockHeaderHash }
-  -> Contract r Unit
-startFetchBlocks = wrapContract <<< QueryM.startFetchBlocks
-
--- | Cancels a running block fetcher job. Throws on no fetchers running
-cancelFetchBlocks :: forall (r :: Row Type). Contract r Unit
-cancelFetchBlocks = wrapContract QueryM.cancelFetchBlocks
