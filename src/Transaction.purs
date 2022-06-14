@@ -8,7 +8,6 @@ module Transaction
   ) where
 
 import Prelude
-import Undefined
 
 import Cardano.Types.Transaction
   ( Transaction(Transaction)
@@ -26,7 +25,7 @@ import Data.Lens ((%~))
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (over, unwrap)
 import Data.Show.Generic (genericShow)
-import Data.Traversable (traverse, for)
+import Data.Traversable (traverse)
 import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
 import Effect.Class (liftEffect)
@@ -36,7 +35,7 @@ import Serialization (hashScriptData, toBytes)
 import Serialization.PlutusData as Serialization.PlutusData
 import Serialization.Types as Serialization
 import Serialization.WitnessSet as Serialization.WitnessSet
-import Types.Datum (Datum(Datum))
+import Types.Datum (Datum)
 import Types.Scripts (PlutusScript)
 import Untagged.Union (asOneOf)
 

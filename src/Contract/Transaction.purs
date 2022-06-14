@@ -51,7 +51,6 @@ import ReindexRedeemers
   ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
   ) as ReindexRedeemersExport
 import Types.CborBytes (CborBytes)
-import Types.Datum (Datum)
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
@@ -242,11 +241,13 @@ derive newtype instance Eq BalancedSignedTransaction
 instance Show BalancedSignedTransaction where
   show = genericShow
 
--- | A helper that wraps a few steps into: balance an unbalanced transaction
--- | (`balanceTx`), reindex script spend redeemers (not minting redeemers)
--- | (`reindexSpentScriptRedeemers`), and finally sign (`signTransactionBytes`).
+-- | A helper that wraps a few steps into: balancing an unbalanced transaction
+-- | (`balanceTx`), reindexing script `Spend` redeemers (not minting redeemers)
+-- | (`reindexSpentScriptRedeemers`), adding the final redeemers and
+-- | `ScriptDataHash`, and finally signing the tx (`signTransactionBytes`).
+-- |
 -- | The return type includes the balanced (but unsigned) transaction for
--- | logging and more importantly, the `ByteArray` to be used with `Submit` to
+-- | logging and more importantly, the `ByteArray` to be used with `submit` to
 -- | submit the transaction.
 balanceAndSignTx
   :: forall (r :: Row Type)
@@ -257,13 +258,14 @@ balanceAndSignTx uaubTx@(UnattachedUnbalancedTx { datums }) = do
   balancedTx /\ redeemersTxIns <- liftedE $ balanceTx uaubTx
   redeemers <- liftedE $ flip reindexSpentScriptRedeemers redeemersTxIns $
     balancedTx ^. _body <<< _inputs
-  finalizedTx <- liftEffect $ finalizeTransaction redeemers datums balancedTx
+  finalizedTx <- liftedE $ liftEffect $ finalizeTransaction redeemers datums
+    balancedTx
   -- FIXME remove this after fixing signing
   -- Convert the tx to CBOR
   txCbor <- liftEffect $
     Serialization.toBytes
       <<< asOneOf
-      <$> Serialization.convertTransaction balancedTx
+      <$> Serialization.convertTransaction finalizedTx
 
   -- Sign the transaction returned as Cbor-hex encoded:
   signedTxCbor <- liftedM "balanceAndSignTx: Failed to sign transaction"

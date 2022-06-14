@@ -82,7 +82,7 @@ import Data.HTTP.Method (Method(POST))
 import Data.Log.Level (LogLevel(Trace, Debug, Error))
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), maybe, maybe')
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -150,8 +150,7 @@ import Serialization.Address
   , stakeCredentialToKeyHash
   )
 import Serialization.PlutusData (convertPlutusData) as Serialization
-import Serialization.WitnessSet (convertRedeemers) as Serialization
-import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
+import Types.ByteArray (ByteArray, byteArrayToHex)
 import Types.CborBytes (CborBytes)
 import Types.Chain as Chain
 import Types.Datum (DataHash, Datum)

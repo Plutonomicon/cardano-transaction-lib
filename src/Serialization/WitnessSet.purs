@@ -50,19 +50,12 @@ import Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   ) as T
-import Data.Newtype (unwrap)
-import Data.Array as Array
-import Data.Maybe (Maybe, maybe)
+import Data.Maybe (maybe)
 import Data.Traversable (for_, traverse, traverse_)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Exception (throw)
-import FfiHelpers
-  ( ContainerHelper
-  , MaybeFfiHelper
-  , containerHelper
-  , maybeFfiHelper
-  )
+import FfiHelpers (ContainerHelper, containerHelper)
 import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.NativeScript (convertNativeScripts)
 import Serialization.PlutusData (convertPlutusData)

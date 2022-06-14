@@ -28,15 +28,12 @@ import Cardano.Types.Transaction
   , Transaction
   , TransactionOutput(TransactionOutput)
   , TxBody
-  , TransactionWitnessSet(TransactionWitnessSet)
   , _body
   , _inputs
   , _mint
   , _networkId
   , _outputs
   , _requiredSigners
-  , _scriptDataHash
-  , _witnessSet
   )
 import Cardano.Types.Transaction (Redeemer(Redeemer)) as T
 import Cardano.Types.Value
@@ -65,7 +62,7 @@ import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (foldM)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
-import Data.Lens ((%=), (%~), (.=), (.~), (<>=))
+import Data.Lens ((%=), (.=), (<>=))
 import Data.Lens.Getter (to, use)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
