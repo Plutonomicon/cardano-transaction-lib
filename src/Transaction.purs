@@ -10,16 +10,19 @@ module Transaction
 import Prelude
 
 import Cardano.Types.Transaction
-  ( Transaction(Transaction)
+  ( Mint(Mint)
+  , Transaction(Transaction)
   , Redeemer
   , ScriptDataHash(ScriptDataHash)
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
   , _witnessSet
   )
+import Cardano.Types.Value (NonAdaAsset(NonAdaAsset))
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Data.Array as Array
 import Data.Either (Either(Right), note)
+import Data.Foldable (null)
 import Data.Generic.Rep (class Generic)
 import Data.Lens ((%~))
 import Data.Maybe (Maybe(Just, Nothing))
@@ -67,14 +70,20 @@ finalizeTransaction rs ds tx = runExceptT $ do
 -- | the datums and redeemers for the given transaction
 setScriptDataHash
   :: Array Redeemer -> Array Datum -> Transaction -> Effect Transaction
-setScriptDataHash rs ds tx@(Transaction { body }) = do
-  scriptDataHash <- ScriptDataHash <<< toBytes <<< asOneOf
-    <$> hashScriptData rs costModels (unwrap <$> ds)
-  pure $ over Transaction
-    _
-      { body = over TxBody _ { scriptDataHash = Just scriptDataHash } body
-      }
-    tx
+setScriptDataHash rs ds tx@(Transaction { body, witnessSet })
+  -- No hash should be set if there are no scripts (incl. minting policies)
+  | Just (Mint (NonAdaAsset assets)) <- (unwrap body).mint
+  , null assets && null (unwrap witnessSet).plutusScripts = pure tx
+  -- No hash should be set if there are no redeemers
+  | null rs = pure tx
+  | otherwise = do
+      scriptDataHash <- ScriptDataHash <<< toBytes <<< asOneOf
+        <$> hashScriptData rs costModels (unwrap <$> ds)
+      pure $ over Transaction
+        _
+          { body = over TxBody _ { scriptDataHash = Just scriptDataHash } body
+          }
+        tx
 
 -- | Attach a `Datum` to a transaction by modifying its existing witness set.
 -- | Fails if either the datum or updated witness set cannot be converted during
