@@ -66,7 +66,7 @@ attachDatum (Datum pd) tx@(Transaction { witnessSet: ws }) = runExceptT $ do
     $ note ConvertDatumError
     $ Serialization.PlutusData.convertPlutusData pd
   updateTxWithWitnesses tx
-    =<< convertWitnessesWith ws (Serialization.WitnessSet.setPlutusData pd')
+    =<< convertWitnessesWith ws (Serialization.WitnessSet.setPlutusDatum pd')
 
 -- | Attach a `Redeemer` to a transaction by modifying its existing witness set.
 -- | Note that this is the `Types.Transaction` representation of a redeemer and

@@ -1,4 +1,45 @@
-module Serialization.WitnessSet where
+module Serialization.WitnessSet
+  ( setPlutusDatum
+  , setPlutusData
+  , setRedeemer
+  , setRedeemers
+  , setPlutusScript
+  , setPlutusScripts
+  , convertWitnessSet
+  , convertRedeemers
+  , convertRedeemer
+  , convertPlutusDataEffect
+  , convertRedeemerTag
+  , convertExUnits
+  , convertBootstrap
+  , convertPlutusScript
+  , convertVkeywitnesses
+  , convertVkeywitness
+  , convertEd25519Signature
+  , convertVkey
+  , newTransactionWitnessSet
+  , newEd25519Signature
+  , newPublicKey
+  , newVkeyFromPublicKey
+  , newVkeywitnesses
+  , newVkeywitness
+  , addVkeywitness
+  , newPlutusScript
+  , newPlutusScripts
+  , addPlutusScript
+  , transactionWitnessSetSetVkeys
+  , txWitnessSetSetPlutusScripts
+  , transactionWitnessSetSetNativeScripts
+  , _wsSetBootstraps
+  , newBootstrapWitness
+  , _wsSetPlutusData
+  , newRedeemer
+  , _newRedeemerTag
+  , newExUnits
+  , _wsSetRedeemers
+  , _mkRedeemers
+  , _wsSetPlutusScripts
+  ) where
 
 import Prelude
 
@@ -52,14 +93,23 @@ import Types.PlutusData (PlutusData) as PD
 import Types.RedeemerTag as Tag
 import Types.Scripts (PlutusScript(PlutusScript)) as S
 
-setPlutusData :: PDS.PlutusData -> TransactionWitnessSet -> Effect Unit
-setPlutusData pd ws = setWitness _wsSetPlutusData ws pd
+setPlutusDatum :: PDS.PlutusData -> TransactionWitnessSet -> Effect Unit
+setPlutusDatum pd ws = setWitness _wsSetPlutusData ws pd
+
+setPlutusData :: Array PDS.PlutusData -> TransactionWitnessSet -> Effect Unit
+setPlutusData pd ws = setWitnesses _wsSetPlutusData ws pd
 
 setRedeemer :: Redeemer -> TransactionWitnessSet -> Effect Unit
 setRedeemer r ws = setWitness _wsSetRedeemers ws r
 
+setRedeemers :: Array Redeemer -> TransactionWitnessSet -> Effect Unit
+setRedeemers r ws = setWitnesses _wsSetRedeemers ws r
+
 setPlutusScript :: PlutusScript -> TransactionWitnessSet -> Effect Unit
 setPlutusScript ps ws = setWitness _wsSetPlutusScripts ws ps
+
+setPlutusScripts :: Array PlutusScript -> TransactionWitnessSet -> Effect Unit
+setPlutusScripts ps ws = setWitnesses _wsSetPlutusScripts ws ps
 
 setWitness
   :: forall (a :: Type)
@@ -67,7 +117,15 @@ setWitness
   -> TransactionWitnessSet
   -> a
   -> Effect Unit
-setWitness f ws = f containerHelper ws <<< Array.singleton
+setWitness f ws = setWitnesses f ws <<< Array.singleton
+
+setWitnesses
+  :: forall (a :: Type)
+   . (ContainerHelper -> TransactionWitnessSet -> Array a -> Effect Unit)
+  -> TransactionWitnessSet
+  -> Array a
+  -> Effect Unit
+setWitnesses f ws = f containerHelper ws
 
 convertWitnessSet :: T.TransactionWitnessSet -> Effect TransactionWitnessSet
 convertWitnessSet (T.TransactionWitnessSet tws) = do
@@ -127,13 +185,8 @@ convertBootstrap { vkey, signature, chainCode, attributes } = do
   signature' <- convertEd25519Signature signature
   newBootstrapWitness vkey' signature' chainCode attributes
 
--- | NOTE: Does JS new object allocation without the Effect monad.
-convertPlutusScriptMaybe :: S.PlutusScript -> Maybe PlutusScript
-convertPlutusScriptMaybe = newPlutusScriptMaybe <<< unwrap
-
 convertPlutusScript :: S.PlutusScript -> Effect PlutusScript
-convertPlutusScript (S.PlutusScript bytes) = do
-  newPlutusScript bytes
+convertPlutusScript (S.PlutusScript bytes) = newPlutusScript bytes
 
 convertVkeywitnesses :: Array T.Vkeywitness -> Effect Vkeywitnesses
 convertVkeywitnesses arr = do
@@ -163,12 +216,6 @@ foreign import newVkeywitnesses :: Effect Vkeywitnesses
 foreign import newVkeywitness :: Vkey -> Ed25519Signature -> Effect Vkeywitness
 foreign import addVkeywitness :: Vkeywitnesses -> Vkeywitness -> Effect Unit
 foreign import newPlutusScript :: ByteArray -> Effect PlutusScript
-foreign import _newPlutusScriptMaybe
-  :: MaybeFfiHelper -> ByteArray -> Maybe PlutusScript
-
-newPlutusScriptMaybe :: ByteArray -> Maybe PlutusScript
-newPlutusScriptMaybe = _newPlutusScriptMaybe maybeFfiHelper
-
 foreign import newPlutusScripts :: Effect PlutusScripts
 foreign import addPlutusScript :: PlutusScripts -> PlutusScript -> Effect Unit
 foreign import transactionWitnessSetSetVkeys

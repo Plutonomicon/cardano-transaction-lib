@@ -59,9 +59,6 @@ exports.newTransaction = body => witness_set => auxiliary_data => () =>
 exports.newTransaction_ = body => witness_set => () =>
     lib.Transaction.new(body, witness_set);
 
-exports.newTransactionWitnessSet = () =>
-    lib.TransactionWitnessSet.new();
-
 exports.newTransactionUnspentOutputFromBytes = bytes => () =>
     lib.TransactionUnspentOutput.from_bytes(bytes);
 

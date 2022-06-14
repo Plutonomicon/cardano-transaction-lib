@@ -187,7 +187,6 @@ foreign import newTransaction_
   -> TransactionWitnessSet
   -> Effect Transaction
 
-foreign import newTransactionWitnessSet :: Effect TransactionWitnessSet
 foreign import newTransactionWitnessSetFromBytes
   :: CborBytes -> Effect TransactionWitnessSet
 
