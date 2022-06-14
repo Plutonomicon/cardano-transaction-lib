@@ -1,5 +1,6 @@
 module Transaction
   ( ModifyTxError(..)
+  , finalizeTransaction
   , attachDatum
   , attachRedeemer
   , attachPlutusScript
@@ -7,20 +8,25 @@ module Transaction
   ) where
 
 import Prelude
+import Undefined
 
 import Cardano.Types.Transaction
   ( Transaction(Transaction)
   , Redeemer
   , ScriptDataHash(ScriptDataHash)
-  , TransactionWitnessSet
+  , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
+  , _witnessSet
   )
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
+import Data.Array as Array
 import Data.Either (Either(Right), note)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(Just))
+import Data.Lens ((%~))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (over, unwrap)
 import Data.Show.Generic (genericShow)
+import Data.Traversable (traverse, for)
 import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
 import Effect.Class (liftEffect)
@@ -44,6 +50,20 @@ derive instance Eq ModifyTxError
 instance Show ModifyTxError where
   show = genericShow
 
+-- | Sets the script integrity hash and attaches redeemers, for use after
+-- | reindexing
+finalizeTransaction
+  :: Array Redeemer
+  -> Array Datum
+  -> Transaction
+  -> Effect (Either ModifyTxError Transaction)
+finalizeTransaction rs ds tx = runExceptT $ do
+  tx' <- attachRedeemers rs $
+    -- Strip the existing redeemers from the transaction, which have since been
+    -- re-indexed
+    tx # _witnessSet %~ over TransactionWitnessSet _ { redeemers = Nothing }
+  liftEffect $ setScriptDataHash rs ds tx'
+
 -- | Set the `Transaction` body's script data hash. NOTE: Must include all of
 -- | the datums and redeemers for the given transaction
 setScriptDataHash
@@ -61,12 +81,20 @@ setScriptDataHash rs ds tx@(Transaction { body }) = do
 -- | Fails if either the datum or updated witness set cannot be converted during
 -- | (de-)serialization
 attachDatum :: Datum -> Transaction -> Effect (Either ModifyTxError Transaction)
-attachDatum (Datum pd) tx@(Transaction { witnessSet: ws }) = runExceptT $ do
-  pd' <- liftEither
-    $ note ConvertDatumError
-    $ Serialization.PlutusData.convertPlutusData pd
+attachDatum d = runExceptT <<< attachDatums (Array.singleton d)
+
+attachDatums
+  :: Array Datum -> Transaction -> ExceptT ModifyTxError Effect Transaction
+attachDatums datums tx@(Transaction { witnessSet: ws }) = do
+  ds <- traverse
+    ( liftEither
+        <<< note ConvertDatumError
+        <<< Serialization.PlutusData.convertPlutusData
+        <<< unwrap
+    )
+    datums
   updateTxWithWitnesses tx
-    =<< convertWitnessesWith ws (Serialization.WitnessSet.setPlutusDatum pd')
+    =<< convertWitnessesWith ws (Serialization.WitnessSet.setPlutusData ds)
 
 -- | Attach a `Redeemer` to a transaction by modifying its existing witness set.
 -- | Note that this is the `Types.Transaction` representation of a redeemer and
@@ -76,22 +104,33 @@ attachDatum (Datum pd) tx@(Transaction { witnessSet: ws }) = runExceptT $ do
 -- | during (de-)serialization
 attachRedeemer
   :: Redeemer -> Transaction -> Effect (Either ModifyTxError Transaction)
-attachRedeemer r tx@(Transaction { witnessSet: ws }) = runExceptT $ do
-  r' <- liftEffect $ Serialization.WitnessSet.convertRedeemer r
+attachRedeemer r = runExceptT <<< attachRedeemers (Array.singleton r)
+
+attachRedeemers
+  :: Array Redeemer -> Transaction -> ExceptT ModifyTxError Effect Transaction
+attachRedeemers rs tx@(Transaction { witnessSet: ws }) = do
+  rs' <- liftEffect $ traverse Serialization.WitnessSet.convertRedeemer rs
   updateTxWithWitnesses tx
-    =<< convertWitnessesWith ws (Serialization.WitnessSet.setRedeemer r')
+    =<< convertWitnessesWith ws (Serialization.WitnessSet.setRedeemers rs')
 
 -- | Attach a `PlutusScript` to a transaction by modifying its existing witness
 -- | set
---
+-- |
 -- | Fails if either the script or updated witness set cannot be converted
 -- | during (de-)serialization
 attachPlutusScript
   :: PlutusScript -> Transaction -> Effect (Either ModifyTxError Transaction)
-attachPlutusScript ps tx@(Transaction { witnessSet: ws }) = runExceptT $ do
-  ps' <- liftEffect $ Serialization.WitnessSet.convertPlutusScript ps
+attachPlutusScript ps = runExceptT <<< attachPlutusScripts (Array.singleton ps)
+
+attachPlutusScripts
+  :: Array PlutusScript
+  -> Transaction
+  -> ExceptT ModifyTxError Effect Transaction
+attachPlutusScripts ps tx@(Transaction { witnessSet: ws }) = do
+  ps' <- traverse (liftEffect <<< Serialization.WitnessSet.convertPlutusScript)
+    ps
   updateTxWithWitnesses tx
-    =<< convertWitnessesWith ws (Serialization.WitnessSet.setPlutusScript ps')
+    =<< convertWitnessesWith ws (Serialization.WitnessSet.setPlutusScripts ps')
 
 convertWitnessesWith
   :: TransactionWitnessSet

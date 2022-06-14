@@ -263,12 +263,13 @@ balanceAndSignTx uaubTx@(UnattachedUnbalancedTx { datums }) = do
   -- Convert the tx to CBOR
   txCbor <- liftEffect $
     Serialization.toBytes
-    <<< asOneOf
-    <$> Serialization.convertTransaction balancedTx
+      <<< asOneOf
+      <$> Serialization.convertTransaction balancedTx
 
   -- Sign the transaction returned as Cbor-hex encoded:
-  signedTxCbor <- liftedM "balanceAndSignTx: Failed to sign transaction" $
-    signTransactionBytes $ wrap txCbor
+  signedTxCbor <- liftedM "balanceAndSignTx: Failed to sign transaction"
+    $ signTransactionBytes
+    $ wrap txCbor
   pure $ pure $ BalancedSignedTransaction
     { transaction: balancedTx, signedTxCbor }
 

@@ -1,9 +1,6 @@
 module Serialization.WitnessSet
-  ( setPlutusDatum
-  , setPlutusData
-  , setRedeemer
+  ( setPlutusData
   , setRedeemers
-  , setPlutusScript
   , setPlutusScripts
   , convertWitnessSet
   , convertRedeemers
@@ -93,31 +90,14 @@ import Types.PlutusData (PlutusData) as PD
 import Types.RedeemerTag as Tag
 import Types.Scripts (PlutusScript(PlutusScript)) as S
 
-setPlutusDatum :: PDS.PlutusData -> TransactionWitnessSet -> Effect Unit
-setPlutusDatum pd ws = setWitness _wsSetPlutusData ws pd
-
 setPlutusData :: Array PDS.PlutusData -> TransactionWitnessSet -> Effect Unit
 setPlutusData pd ws = setWitnesses _wsSetPlutusData ws pd
 
-setRedeemer :: Redeemer -> TransactionWitnessSet -> Effect Unit
-setRedeemer r ws = setWitness _wsSetRedeemers ws r
-
 setRedeemers :: Array Redeemer -> TransactionWitnessSet -> Effect Unit
-setRedeemers r ws = setWitnesses _wsSetRedeemers ws r
-
-setPlutusScript :: PlutusScript -> TransactionWitnessSet -> Effect Unit
-setPlutusScript ps ws = setWitness _wsSetPlutusScripts ws ps
+setRedeemers rs ws = setWitnesses _wsSetRedeemers ws rs
 
 setPlutusScripts :: Array PlutusScript -> TransactionWitnessSet -> Effect Unit
 setPlutusScripts ps ws = setWitnesses _wsSetPlutusScripts ws ps
-
-setWitness
-  :: forall (a :: Type)
-   . (ContainerHelper -> TransactionWitnessSet -> Array a -> Effect Unit)
-  -> TransactionWitnessSet
-  -> a
-  -> Effect Unit
-setWitness f ws = setWitnesses f ws <<< Array.singleton
 
 setWitnesses
   :: forall (a :: Type)
