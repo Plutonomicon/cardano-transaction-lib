@@ -7,7 +7,6 @@ module Contract.Transaction
   , balanceTxM
   , calculateMinFee
   , calculateMinFeeM
-  , finalizeTx
   , module BalanceTxError
   , module ExportQueryM
   , module PTransaction
@@ -36,17 +35,15 @@ import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
+import Effect.Class (liftEffect)
 import QueryM
   ( FeeEstimate(FeeEstimate)
   , ClientError(..) -- implicit as this error list will likely increase.
-  , FinalizedTransaction(FinalizedTransaction)
   ) as ExportQueryM
 import QueryM
-  ( FinalizedTransaction(FinalizedTransaction)
-  , calculateMinFee
+  ( calculateMinFee
   , signTransaction
   , signTransactionBytes
-  , finalizeTx
   , submitTxOgmios
   ) as QueryM
 import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
@@ -140,6 +137,7 @@ import Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   ) as PTransaction
 import Plutus.Types.Value (Coin)
+import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (NetworkId)
 import TxOutput (scriptOutputToTransactionOutput) as TxOutput
 import Types.Transaction (TransactionHash)
@@ -166,6 +164,7 @@ import Types.UnbalancedTransaction
   , _utxoIndex
   , emptyUnbalancedTx
   ) as UnbalancedTx
+import Untagged.Union (asOneOf)
 
 -- | This module defines transaction-related requests. Currently signing and
 -- | submission is done with Nami.
@@ -215,17 +214,6 @@ balanceTxM
   -> Contract r (Maybe UnattachedTransaction)
 balanceTxM = map hush <<< balanceTx
 
-finalizeTx
-  :: forall (r :: Row Type)
-   . Transaction.Transaction
-  -> Array Datum
-  -> Array Transaction.Redeemer
-  -> Contract r (Maybe QueryM.FinalizedTransaction)
-finalizeTx tx datums redeemers = wrapContract
-  $ QueryM.finalizeTx tx datums redeemers
-
--- We export this because we need the redeemers as Cardano Redeemers to be used
--- in `finalizeTx`
 -- | Reindex the `Spend` redeemers. Since we insert to an ordered array, we must
 -- | reindex the redeemers with such inputs. This must be crucially called after
 -- | balancing when all inputs are in place so they cannot be reordered.
@@ -255,8 +243,7 @@ instance Show BalancedSignedTransaction where
 
 -- | A helper that wraps a few steps into: balance an unbalanced transaction
 -- | (`balanceTx`), reindex script spend redeemers (not minting redeemers)
--- | (`reindexSpentScriptRedeemers`), attach datums and redeemers to the
--- | transaction (`finalizeTx`), and finally sign (`signTransactionBytes`).
+-- | (`reindexSpentScriptRedeemers`), and finally sign (`signTransactionBytes`).
 -- | The return type includes the balanced (but unsigned) transaction for
 -- | logging and more importantly, the `ByteArray` to be used with `Submit` to
 -- | submit the transaction.
@@ -268,14 +255,20 @@ balanceAndSignTx uaubTx@(UnattachedUnbalancedTx { datums }) = do
   -- Balance unbalanced tx:
   balancedTx /\ redeemersTxIns <- liftedE $ balanceTx uaubTx
   let inputs = balancedTx ^. _body <<< _inputs
-  redeemers <- liftedE $ reindexSpentScriptRedeemers inputs redeemersTxIns
-  -- Reattach datums and redeemer:
-  QueryM.FinalizedTransaction txCbor <-
-    liftedM "balanceAndSignTx: Cannot attach datums and redeemer"
-      (finalizeTx balancedTx datums redeemers)
+
+  -- FIXME
+  -- redeemers <- liftedE $ reindexSpentScriptRedeemers inputs redeemersTxIns
+
+  -- FIXME remove this after fixing signing
+  -- Convert the tx to CBOR
+  txCbor <- liftEffect $
+    Serialization.toBytes
+    <<< asOneOf
+    <$> Serialization.convertTransaction balancedTx
+
   -- Sign the transaction returned as Cbor-hex encoded:
   signedTxCbor <- liftedM "balanceAndSignTx: Failed to sign transaction" $
-    signTransactionBytes (wrap txCbor)
+    signTransactionBytes $ wrap txCbor
   pure $ pure $ BalancedSignedTransaction
     { transaction: balancedTx, signedTxCbor }
 

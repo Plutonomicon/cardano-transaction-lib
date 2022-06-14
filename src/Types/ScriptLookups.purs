@@ -627,19 +627,7 @@ mkUnbalancedTx
   -> QueryM (Either MkUnbalancedTxError UnattachedUnbalancedTx)
 mkUnbalancedTx scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map
-    \{ unbalancedTx, datums, redeemers } ->
-      let
-        stripScriptDataHash :: UnbalancedTx -> UnbalancedTx
-        stripScriptDataHash uTx =
-          uTx # _transaction <<< _body <<< _scriptDataHash .~ Nothing
-
-        stripDatumsRedeemers :: UnbalancedTx -> UnbalancedTx
-        stripDatumsRedeemers uTx = uTx # _transaction <<< _witnessSet %~
-          over TransactionWitnessSet
-            _ { plutusData = Nothing, redeemers = Nothing }
-        tx = stripDatumsRedeemers $ stripScriptDataHash unbalancedTx
-      in
-        wrap { unbalancedTx: tx, datums, redeemersTxIns: redeemers }
+    \{ unbalancedTx, datums, redeemers } -> wrap { unbalancedTx, datums, redeemersTxIns: redeemers }
 
 addScriptDataHash
   :: forall (a :: Type)

@@ -5,7 +5,6 @@ import Prelude
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Test.AffInterface as AffInterface
-import Test.FinalizeTx as FinalizeTx
 import Test.Utils as Utils
 import TestM (TestPlanM)
 
@@ -17,5 +16,4 @@ main = launchAff_ do
 -- Requires external services listed in README.md
 testPlan :: TestPlanM Unit
 testPlan = do
-  FinalizeTx.suite
   AffInterface.suite

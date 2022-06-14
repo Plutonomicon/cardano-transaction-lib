@@ -7,7 +7,6 @@ module QueryM
   , DispatchError(..)
   , DispatchIdMap
   , FeeEstimate(..)
-  , FinalizedTransaction(..)
   , ListenerSet
   , OgmiosListeners
   , OgmiosWebSocket
@@ -22,7 +21,6 @@ module QueryM
   , applyArgs
   , calculateMinFee
   , evalTxExecutionUnits
-  , finalizeTx
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
@@ -444,59 +442,6 @@ evalTxExecutionUnits tx = do
   url <- mkServerEndpointUrl "eval-ex-units"
   liftAff $ postAeson url (encodeAeson { tx: txHex })
     <#> handleAffjaxResponse
-
--- | CborHex-encoded tx
-newtype FinalizedTransaction = FinalizedTransaction ByteArray
-
-derive instance Generic FinalizedTransaction _
-
-instance Show FinalizedTransaction where
-  show = genericShow
-
-instance DecodeAeson FinalizedTransaction where
-  decodeAeson =
-    map FinalizedTransaction <<<
-      caseAesonString (Left err) (note err <<< hexToByteArray)
-    where
-    err = TypeMismatch "Expected CborHex of Tx"
-
-finalizeTx
-  :: Transaction.Transaction
-  -> Array Datum
-  -> Array Transaction.Redeemer
-  -> QueryM (Maybe FinalizedTransaction)
-finalizeTx tx datums redeemers = do
-  -- tx
-  txHex <- liftEffect (txToHex tx)
-  -- datums
-  encodedDatums <- liftEffect do
-    for datums \datum -> do
-      byteArrayToHex <<< Serialization.toBytes <<< asOneOf
-        <$> maybe'
-          (\_ -> throw $ "Failed to convert plutus data: " <> show datum)
-          pure
-          (Serialization.convertPlutusData $ unwrap datum)
-  -- redeemers
-  encodedRedeemers <- liftEffect $
-    byteArrayToHex <<< Serialization.toBytes <<< asOneOf <$>
-      Serialization.convertRedeemers redeemers
-  -- construct payload
-  let
-    body
-      :: { tx :: String
-         , datums :: Array String
-         , redeemers :: String
-         }
-    body =
-      { tx: txHex
-      , datums: encodedDatums
-      , redeemers: encodedRedeemers
-      }
-  url <- mkServerEndpointUrl "finalize"
-  -- get response json
-  jsonBody <- liftAff (postAeson url (encodeAeson body)) <#> map _.body
-  -- decode
-  pure $ hush <<< (decodeAeson <=< parseJsonStringToAeson) =<< hush jsonBody
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
