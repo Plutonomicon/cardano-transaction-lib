@@ -34,6 +34,8 @@ module Cardano.Types.Value
   , mpsSymbol
   , negation
   , numCurrencySymbols
+  , numNonAdaAssets
+  , numNonAdaCurrencySymbols
   , numTokenNames
   , split
   , sumTokenNameLengths
@@ -69,6 +71,7 @@ import Data.FoldableWithIndex (foldrWithIndex)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (class JoinSemilattice, class MeetSemilattice, join, meet)
 import Data.List ((:), all, List(Nil))
+import Data.List (nubByEq) as List
 import Data.Map (keys, lookup, Map, toUnfoldable, unions, values)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
@@ -77,6 +80,7 @@ import Data.Set (Set)
 import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This))
 import Data.Traversable (class Traversable, traverse)
+import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import FromData (class FromData)
 import Helpers (showWithParens)
@@ -603,13 +607,26 @@ valueOf (Value (Coin lovelaces) (NonAdaAsset nonAdaAsset)) curSymbol tokenName =
           Just v -> v
     true -> lovelaces
 
+-- | The number of distinct non-Ada assets.
+numNonAdaAssets :: Value -> BigInt
+numNonAdaAssets (Value _ nonAdaAssets) =
+  length (flattenNonAdaValue nonAdaAssets)
+
+-- | The number of distinct non-Ada currency symbols, i.e. the number of policy
+-- | IDs not including Ada in `Coin`.
+numNonAdaCurrencySymbols :: Value -> BigInt
+numNonAdaCurrencySymbols (Value _ nonAdaAssets) =
+  fromInt <<< length <<< List.nubByEq (\a b -> fst a == fst b) $
+    flattenNonAdaValue nonAdaAssets
+
 -- | The number of distinct currency symbols, i.e. the number of policy IDs
 -- | including Ada in `Coin`.
 numCurrencySymbols :: Value -> BigInt
-numCurrencySymbols (Value coin (NonAdaAsset nonAdaAsset)) =
-  case coin == mempty of
-    false -> fromInt $ 1 + length nonAdaAsset
-    true -> fromInt $ length nonAdaAsset -- FIX ME: Should we count this regardless whether it's zero?
+numCurrencySymbols value@(Value coin _)
+  | coin == mempty =
+      numNonAdaCurrencySymbols value
+  | otherwise =
+      one + numNonAdaCurrencySymbols value
 
 -- Don't export this, we don't really care about the v in k,v.
 unsafeAllTokenNames' :: Value -> Map TokenName BigInt
