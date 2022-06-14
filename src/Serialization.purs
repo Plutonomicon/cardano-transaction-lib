@@ -225,7 +225,6 @@ foreign import transactionWitnessSetSetVkeys
   :: TransactionWitnessSet -> Vkeywitnesses -> Effect Unit
 
 foreign import newCostmdls :: Effect Costmdls
-foreign import defaultCostmdls :: Effect Costmdls
 foreign import costmdlsSetCostModel
   :: Costmdls -> Language -> CostModel -> Effect Unit
 
@@ -781,13 +780,16 @@ convertCostmdls (T.Costmdls cs) = do
 
 hashScriptData
   :: Array T.Redeemer
+  -> T.Costmdls
   -> Array PlutusData.PlutusData
   -> Effect ScriptDataHash
-hashScriptData rs ps = do
+hashScriptData rs cms ps = do
   rs' <- newRedeemers
-  cms <- defaultCostmdls
+  cms' <- convertCostmdls cms
   traverse_ (addRedeemer rs' <=< convertRedeemer) rs
+  -- If an empty `PlutusData` array is passed to CSL's script integrity hashing
+  -- function, the resulting hash will be wrong
   case ps of
-    [] -> _hashScriptDataNoDatums rs' cms
-    ps' -> _hashScriptData rs' cms =<< fromJustEff "failed to convert datums"
+    [] -> _hashScriptDataNoDatums rs' cms'
+    ps' -> _hashScriptData rs' cms' =<< fromJustEff "failed to convert datums"
       (packPlutusList ps)

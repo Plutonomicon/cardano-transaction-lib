@@ -129,9 +129,6 @@ exports.toBytes = sth => sth.to_bytes();
 exports.newCostmdls = () =>
     lib.Costmdls.new();
 
-exports.defaultCostmdls = () =>
-    lib.TxBuilderConstants.plutus_default_cost_models();
-
 exports.costmdlsSetCostModel = cms => lang => cm => () =>
     cms.insert(lang, cm);
 
