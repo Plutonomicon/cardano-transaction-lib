@@ -10,8 +10,8 @@ import Contract.Prelude
 import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Monad (configWithLogLevel, launchAff_, runContract_)
 import Contract.Wallet (mkGeroWalletAff)
-import Data.Log.Level (LogLevel(..))
-import Serialization.Address (NetworkId(..))
+import Data.Log.Level (LogLevel(Trace))
+import Serialization.Address (NetworkId(TestnetId))
 
 main :: Effect Unit
 main = launchAff_ $ do
