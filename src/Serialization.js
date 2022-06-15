@@ -144,8 +144,12 @@ exports.newPlutusV1 = () =>
 exports.newInt32 = x => () =>
     lib.Int.new_i32(x);
 
-exports._hashScriptData = rs => cms => ds => () =>
-    lib.hash_script_data(rs, cms, ds);
+exports._hashScriptData = rs => cms => ds => () => {
+    const list = lib.PlutusList.new();
+    ds.forEach(d => list.add(d));
+    return lib.hash_script_data(rs, cms, list);
+};
+
 
 exports._hashScriptDataNoDatums = rs => cms => () =>
     lib.hash_script_data(rs, cms);

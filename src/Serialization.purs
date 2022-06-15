@@ -74,7 +74,7 @@ import Serialization.AuxiliaryData (convertAuxiliaryData)
 import Serialization.BigInt as Serialization
 import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.Hash (ScriptHash, Ed25519KeyHash, scriptHashFromBytes)
-import Serialization.PlutusData (packPlutusList)
+import Serialization.PlutusData (convertPlutusData)
 import Serialization.Types
   ( AssetName
   , Assets
@@ -105,7 +105,6 @@ import Serialization.Types
   , NativeScript
   , NetworkId
   , PlutusData
-  , PlutusList
   , PoolMetadata
   , ProposedProtocolParameterUpdates
   , ProtocolParamUpdate
@@ -233,7 +232,7 @@ foreign import costModelSetCost :: CostModel -> Int -> Int32 -> Effect Unit
 foreign import newPlutusV1 :: Effect Language
 foreign import newInt32 :: Int -> Effect Int32
 foreign import _hashScriptData
-  :: Redeemers -> Costmdls -> PlutusList -> Effect ScriptDataHash
+  :: Redeemers -> Costmdls -> Array PlutusData -> Effect ScriptDataHash
 foreign import _hashScriptDataNoDatums
   :: Redeemers -> Costmdls -> Effect ScriptDataHash
 
@@ -575,7 +574,7 @@ convertProtocolParamUpdate
         (UInt.toInt pv.minor)
   for_ minPoolCost $ ppuSetMinPoolCost ppu
   for_ adaPerUtxoByte $ ppuSetAdaPerUtxoByte ppu
-  for_ costModels $ convertCostmdls >=> ppuSetCostModels ppu
+  for_ costModels $ convertCostmdls T.PlutusV1 >=> ppuSetCostModels ppu
   for_ executionCosts $ convertExUnitPrices >=> ppuSetExecutionCosts ppu
   for_ maxTxExUnits $ convertExUnits >=> ppuSetMaxTxExUnits ppu
   for_ maxBlockExUnits $ convertExUnits >=> ppuSetMaxBlockExUnits ppu
@@ -766,10 +765,10 @@ convertValue val = do
     (bigNumFromBigInt lovelace)
   pure value
 
-convertCostmdls :: T.Costmdls -> Effect Costmdls
-convertCostmdls (T.Costmdls cs) = do
-  costs <- map unwrap <<< fromJustEff "`PlutusV1` not found in `Costmdls`"
-    $ Map.lookup T.PlutusV1 cs
+convertCostmdls :: T.Language -> T.Costmdls -> Effect Costmdls
+convertCostmdls lang (T.Costmdls cs) = do
+  costs <- map unwrap <<< fromJustEff (show lang <> " not found in `Costmdls`")
+    $ Map.lookup lang cs
   costModel <- newCostModel
   forWithIndex_ costs $ \operation cost ->
     costModelSetCost costModel operation =<< newInt32 (UInt.toInt cost)
@@ -779,17 +778,18 @@ convertCostmdls (T.Costmdls cs) = do
   pure costmdls
 
 hashScriptData
-  :: Array T.Redeemer
+  :: T.Language
   -> T.Costmdls
+  -> Array T.Redeemer
   -> Array PlutusData.PlutusData
   -> Effect ScriptDataHash
-hashScriptData rs cms ps = do
+hashScriptData lang cms rs ps = do
   rs' <- newRedeemers
-  cms' <- convertCostmdls cms
+  cms' <- convertCostmdls lang cms
   traverse_ (addRedeemer rs' <=< convertRedeemer) rs
   -- If an empty `PlutusData` array is passed to CSL's script integrity hashing
   -- function, the resulting hash will be wrong
   case ps of
     [] -> _hashScriptDataNoDatums rs' cms'
-    ps' -> _hashScriptData rs' cms' =<< fromJustEff "failed to convert datums"
-      (packPlutusList ps)
+    _ -> _hashScriptData rs' cms' =<< fromJustEff "failed to convert datums"
+      (traverse convertPlutusData ps)

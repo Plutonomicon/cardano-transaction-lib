@@ -10,22 +10,19 @@ module Transaction
 import Prelude
 
 import Cardano.Types.Transaction
-  ( Mint(Mint)
+  ( Language(PlutusV1)
   , Transaction(Transaction)
   , Redeemer
   , ScriptDataHash(ScriptDataHash)
-  , TransactionWitnessSet(TransactionWitnessSet)
+  , TransactionWitnessSet
   , TxBody(TxBody)
-  , _witnessSet
   )
-import Cardano.Types.Value (NonAdaAsset(NonAdaAsset))
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Data.Array as Array
 import Data.Either (Either(Right), note)
 import Data.Foldable (null)
 import Data.Generic.Rep (class Generic)
-import Data.Lens ((%~))
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just))
 import Data.Newtype (over, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
@@ -64,19 +61,23 @@ finalizeTransaction rs ds tx = runExceptT $
     =<< attachRedeemers rs
     =<< attachDatums ds tx
 
--- | Set the `Transaction` body's script data hash. NOTE: Must include all of
+-- | Set the `Transaction` body's script data hash. NOTE: Must include *all* of
 -- | the datums and redeemers for the given transaction
 setScriptDataHash
   :: Array Redeemer -> Array Datum -> Transaction -> Effect Transaction
 setScriptDataHash rs ds tx@(Transaction { body, witnessSet })
-  -- No hash should be set if there are no scripts (incl. minting policies)
-  | Nothing <- (unwrap body).mint
-  , null (unwrap witnessSet).plutusScripts = pure tx
-  -- No hash should be set if there are no redeemers
-  | null rs = pure tx
+  -- No hash should be set if *all* of the following hold:
+  --
+  --   * there are no scripts
+  --   * there are no redeemers
+  --   * there are no datums
+  --
+  | null (unwrap witnessSet).plutusScripts
+  , null rs
+  , null ds = pure tx
   | otherwise = do
       scriptDataHash <- ScriptDataHash <<< toBytes <<< asOneOf
-        <$> hashScriptData rs costModels (unwrap <$> ds)
+        <$> hashScriptData PlutusV1 costModels rs (unwrap <$> ds)
       pure $ over Transaction
         _
           { body = over TxBody _ { scriptDataHash = Just scriptDataHash } body
