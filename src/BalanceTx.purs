@@ -49,8 +49,8 @@ import Cardano.Types.Value
   , minus
   , mkCoin
   , mkValue
-  , numCurrencySymbols
-  , numTokenNames
+  , numNonAdaAssets
+  , numNonAdaCurrencySymbols
   , sumTokenNameLengths
   , valueToCoin
   , valueToCoin'
@@ -726,9 +726,9 @@ size :: Value -> BigInt
 size v = fromInt 6 + roundupBytesToWords b
   where
   b :: BigInt
-  b = numTokenNames v * fromInt 12
+  b = numNonAdaAssets v * fromInt 12
     + sumTokenNameLengths v
-    + numCurrencySymbols v * pidSize
+    + numNonAdaCurrencySymbols v * pidSize
 
   -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
   -- Converts bytes to 8-byte long words, rounding up
