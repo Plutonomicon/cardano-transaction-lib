@@ -22,7 +22,6 @@ import Serialization.Types
   , Mint
   , NativeScript
   , PlutusData
-  , PrivateKey
   , Transaction
   , TransactionHash
   , TransactionUnspentOutput
