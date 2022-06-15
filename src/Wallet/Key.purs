@@ -1,19 +1,11 @@
 module Wallet.Key
   ( KeyWallet
   , privateKeyToKeyWallet
-  , privateKeyFromFile
   , privateKeyFromNormalBytes
   ) where
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , JsonDecodeError(TypeMismatch)
-  , decodeAeson
-  , parseJsonStringToAeson
-  , (.:)
-  )
 import Cardano.Types.Transaction
   ( Transaction(Transaction)
   , Utxo
@@ -25,23 +17,16 @@ import Cardano.Types.TransactionUnspentOutput
   )
 import Cardano.Types.Value (NonAdaAsset(NonAdaAsset), Value(Value), mkCoin)
 import Contract.Prelude (class Newtype)
-import Control.Monad.Except (throwError)
-import Data.Either (Either(Left, Right))
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.Lens (set)
 import Data.List (all)
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (unwrap)
 import Data.Ord.Min (Min(Min))
-import Data.String.CodeUnits as String
 import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import Node.Encoding as Encoding
-import Node.FS.Sync (readTextFile)
-import Node.Path (FilePath)
 import Serialization (publicKeyFromPrivateKey, publicKeyHash)
 import Serialization as Serialization
 import Serialization.Address
@@ -52,7 +37,6 @@ import Serialization.Address
   , keyHashCredential
   )
 import Serialization.Types (PrivateKey)
-import Types.ByteArray (hexToByteArray)
 import Types.RawBytes (RawBytes)
 
 -------------------------------------------------------------------------------
@@ -63,32 +47,6 @@ type KeyWallet =
   , selectCollateral :: Utxo -> Maybe TransactionUnspentOutput
   , signTx :: Transaction -> Aff Transaction
   }
-
--- | Byte representation of CSL PrivateKey, can be decoded from JSON.
--- | (`PaymentSigningKeyShelley_ed25519`).
-newtype PrivateKeyFile = PrivateKeyFile RawBytes
-
-instance DecodeAeson PrivateKeyFile where
-  decodeAeson aeson = do
-    obj <- decodeAeson aeson
-    typeStr <- obj .: "type"
-    unless (typeStr == "PaymentSigningKeyShelley_ed25519") do
-      throwError (TypeMismatch "PaymentSigningKeyShelley_ed25519")
-    cborHex <- obj .: "cborHex"
-    let splitted = String.splitAt 4 cborHex
-    unless (splitted.before == "5820") do
-      throwError (TypeMismatch "PrivateKeyFile CborHex")
-    case hexToByteArray splitted.after of
-      Nothing -> throwError (TypeMismatch "PrivateKey CborHex")
-      Just byteArray -> pure $ PrivateKeyFile $ wrap $ byteArray
-
-privateKeyFromFile :: FilePath -> Aff (Maybe PrivateKey)
-privateKeyFromFile filePath = do
-  fileContents <- liftEffect $ readTextFile Encoding.UTF8 filePath
-  case (decodeAeson <=< parseJsonStringToAeson) fileContents of
-    Left err -> liftEffect $ throw $ show err
-    Right (PrivateKeyFile bytes) -> do
-      pure $ privateKeyFromNormalBytes bytes
 
 foreign import _privateKeyFromNormalBytes
   :: MaybeFfiHelper -> RawBytes -> Maybe PrivateKey

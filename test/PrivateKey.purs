@@ -11,7 +11,7 @@ import Cardano.Types.Transaction
 import Contract.Address (NetworkId(TestnetId))
 import Contract.Monad (configWithLogLevel, runContract)
 import Contract.Transaction (signTransaction)
-import Contract.Wallet (mkKeyWalletFromFile)
+import Contract.Wallet.KeyFile (mkKeyWalletFromFile)
 import Data.Lens (_2, _Just, (^?))
 import Data.Lens.Index (ix)
 import Data.Lens.Iso.Newtype (unto)
