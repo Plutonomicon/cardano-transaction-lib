@@ -1,21 +1,17 @@
 // NOTE: Adopted from https://github.com/AlexaDeWit/purescript-text-encoding/blob/master/src/Data/TextDecoding.js
+// See https://github.com/Plutonomicon/cardano-transaction-lib/issues/544
 'use strict';
 
-function importTextEncoding() {
-    try {
-        return require('util').TextDecoder;
-    } catch (e) {
-        throw new Error('TextEncoder could not be imported from node environment: ' + e);
-    }
+// `TextDecoder` is not available in `node`, use polyfill in that case
+let OurTextDecoder;
+if (typeof BROWSER_RUNTIME == 'undefined' || !BROWSER_RUNTIME) {
+    OurTextDecoder = require('util').TextDecoder;
+} else {
+    OurTextDecoder = TextDecoder;
 };
 
-// `TextDecoder` is not available in `node`, use polyfill in that case
-var TextDecoder =
-    (typeof window === 'object' && window.TextDecoder) ||
-    (typeof require === 'function' && importTextEncoding());
-
 exports._decodeUtf8 = buffer => left => right => {
-    var decoder = new TextDecoder("utf-8", {fatal: true});
+    let decoder = new OurTextDecoder("utf-8", {fatal: true}); // Without fatal=true it never fails
 
     try {
         return right(decoder.decode(buffer));
@@ -24,6 +20,6 @@ exports._decodeUtf8 = buffer => left => right => {
     }
 };
 
-// FIXME: Move this to a better location
+// FIXME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/548
 const call = property => object => object[property]();
 exports.assetNameName = call('name');

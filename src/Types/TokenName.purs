@@ -57,37 +57,25 @@ fromTokenName arrayHandler stringHandler (TokenName ba) = either
   stringHandler
   (_decodeUtf8 (unwrap ba) Left Right)
 
--- | Corresponds to following Haskell instance:
--- |
--- | ```
--- | toJSON = JSON.object . Haskell.pure . (,) "unTokenName" . JSON.toJSON .
--- |   fromTokenName
--- |       (\bs -> Text.cons '\NUL' (asBase16 bs))
-
--- |       (\t -> case Text.take 1 t of "\NUL" -> Text.concat ["\NUL\NUL", t]; _ -> t)
--- | ```
+-- | Corresponds to the Haskell instance at https://github.com/input-output-hk/plutus/blob/4fd86930f1dc628a816adf5f5d854b3fec578312/plutus-ledger-api/src/Plutus/V1/Ledger/Value.hs#L155:
 instance DecodeAeson TokenName where
   decodeAeson = caseAesonObject (Left $ TypeMismatch "Expected object") $
     \aes -> do
       tkstr <- getField aes "unTokenName"
       case take 3 tkstr of
-        ("\x0000000x") -> do
-          let stripped = drop 3 tkstr
+        "\x0000000x" -> do -- this is 3 characters '\NUL' '0' 'x'
+          let stripped = drop 3 tkstr -- strip the \NUL followed by "0x"
           ba <-
             note
               (TypeMismatch $ "Expected base16 encoded string got " <> stripped)
               $ hexToByteArray stripped
           pure $ TokenName ba
-        "\x0\x0\x0" -> Right $ tkFromStr (drop 2 tkstr)
+        "\x0\x0\x0" -> Right $ tkFromStr (drop 2 tkstr) -- if the original started with \NUL, we prepended 2 additional \NULs
         _ -> Right $ tkFromStr tkstr
     where
     tkFromStr :: String -> TokenName
     tkFromStr = TokenName <<< wrap <<< encodeUtf8
 
--- FIXME: what if the tokenname is actually \0\0\0? haskell will break this assuming it
--- comes from purescript side
--- also we will break assuming it comes from haskell
--- this issue has to be fixed on the haskell side
 instance EncodeAeson TokenName where
   encodeAeson' = encodeAeson' <<< { "unTokenName": _ } <<< fromTokenName
     (\ba -> "\x0" <> "0x" <> byteArrayToHex ba)

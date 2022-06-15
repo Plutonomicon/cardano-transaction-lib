@@ -1,6 +1,6 @@
 SHELL := bash
 .ONESHELL:
-.PHONY: autogen-deps run-testnet-node run-testnet-ogmios clean
+.PHONY: run-dev run-build check-format format run-datum-cache-postgres-console query-testnet-tip clean
 .SHELLFLAGS := -eu -o pipefail -c
 
 ps-sources := $(shell fd -epurs)
@@ -31,7 +31,7 @@ query-testnet-tip:
 
 clean:
 	@ rm -rf dist-newstyle || true
-	@ rm -rf .psc-ide-port || true
+	@ rm -r .psc-ide-port || true
 	@ rm -rf .psci_modules || true
 	@ rm -rf .spago || true
 	@ rm -rf .spago2nix || true
