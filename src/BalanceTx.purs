@@ -82,7 +82,7 @@ import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
-import Effect.Class (class MonadEffect)
+import Effect.Class (class MonadEffect, liftEffect)
 import ProtocolParametersAlonzo
   ( adaOnlyWords
   , coinSize
@@ -103,6 +103,7 @@ import QueryM
 import QueryM.Utxos (utxosAt)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
+import Transaction (setScriptDataHash)
 import TxOutput (utxoIndexToUtxo)
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
@@ -280,7 +281,14 @@ evalExUnitsAndMinFee' unattachedTx =
     unattachedReindexedTx <- ExceptT $ reindexRedeemers unattachedTx
       <#> lmap ReindexRedeemersError
     -- Reattach datums and redeemers before evaluating ex units:
-    let attachedTx = reattachDatumsAndRedeemers unattachedReindexedTx
+    let
+      reattachedTx = reattachDatumsAndRedeemers unattachedReindexedTx
+      ws = reattachedTx ^. _witnessSet # unwrap
+    -- Set the script integrity hash as well
+    attachedTx <- liftEffect $ setScriptDataHash
+      (fromMaybe mempty ws.redeemers)
+      (wrap <$> fromMaybe mempty ws.plutusData)
+      reattachedTx
     -- Evaluate transaction ex units:
     rdmrPtrExUnitsList <- ExceptT $ evalTxExecutionUnits attachedTx
       <#> lmap EvalExUnitsError

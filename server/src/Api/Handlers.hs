@@ -6,13 +6,7 @@ module Api.Handlers (
 
 import Cardano.Api qualified as C
 import Cardano.Api.Shelley qualified as Shelley
-import Cardano.Ledger.Alonzo qualified as Alonzo
-import Cardano.Ledger.Alonzo.Language (Language (PlutusV1))
-import Cardano.Ledger.Alonzo.Tx qualified as Tx
 import Cardano.Ledger.Alonzo.TxWitness qualified as TxWitness
-import Cardano.Ledger.Core qualified as Ledger (TxBody)
-import Cardano.Ledger.Crypto (StandardCrypto)
-import Cardano.Ledger.Mary.Value qualified as Value
 import Control.Lens ((&), (<&>))
 import Control.Monad.Catch (throwM)
 import Control.Monad.IO.Class (liftIO)
@@ -24,7 +18,6 @@ import Data.Kind (Type)
 import Data.List qualified as List (find)
 import Data.Map qualified as Map
 import Data.Maybe (fromJust)
-import Data.Maybe.Strict (StrictMaybe)
 import Data.Proxy (Proxy (Proxy))
 import Data.Set qualified as Set
 import Data.Text.Encoding qualified as Text.Encoding
@@ -66,14 +59,15 @@ import Types (
 
 estimateTxFees :: FeesRequest -> AppM Fee
 estimateTxFees FeesRequest {count, tx} = do
-  decodeCborTx tx & either (throwM . CborDecode) pure >>= \case
-    C.Tx txBody' keyWits -> do
-      pparams <- asks protocolParams
-      -- calculate and set script integrity hash before estimating fees
-      let WitnessCount witCount = count
-          txBody = setScriptIntegrityHash pparams txBody'
-          fee = estimateFee pparams witCount (C.Tx txBody keyWits)
-      Fee <$> finalizeTxFee fee
+  tx' <- decodeCborTx tx & either (throwM . CborDecode) pure
+  pparams <- asks protocolParams
+
+  let witCount :: Word
+      WitnessCount witCount = count
+
+      fee :: Integer
+      fee = estimateFee pparams witCount tx'
+  Fee <$> finalizeTxFee fee
   where
     -- `txfee` value must also be taken into account when calculating fees,
     -- since it affects the final transaction size.
@@ -190,45 +184,6 @@ queryUtxos txInputs =
             . C.QueryInShelleyBasedEra C.ShelleyBasedEraAlonzo
             $ C.QueryUTxO (C.QueryUTxOByTxIn txInputs)
         )
-
---------------------------------------------------------------------------------
--- Set script integrity hash
---------------------------------------------------------------------------------
-
-setScriptIntegrityHash ::
-  Shelley.ProtocolParameters ->
-  Shelley.TxBody C.AlonzoEra ->
-  Shelley.TxBody C.AlonzoEra
-setScriptIntegrityHash pparams txBodyAlonzo =
-  case txBodyAlonzo of
-    Shelley.ShelleyTxBody e txBody scripts scriptData a v ->
-      case scriptData of
-        Shelley.TxBodyScriptData _ datums redeemers ->
-          let noScripts = null scripts
-              mbIntegrityHash =
-                hashScriptIntegrity pparams txBody redeemers datums noScripts
-              newTxBody =
-                txBody {Tx.scriptIntegrityHash = mbIntegrityHash}
-           in Shelley.ShelleyTxBody e newTxBody scripts scriptData a v
-        _ -> txBodyAlonzo
-
-hashScriptIntegrity ::
-  Shelley.ProtocolParameters ->
-  Ledger.TxBody (Alonzo.AlonzoEra StandardCrypto) ->
-  TxWitness.Redeemers (Alonzo.AlonzoEra StandardCrypto) ->
-  TxWitness.TxDats (Alonzo.AlonzoEra StandardCrypto) ->
-  Bool ->
-  StrictMaybe (Tx.ScriptIntegrityHash StandardCrypto)
-hashScriptIntegrity pparams' txBody redeemers datums noScripts =
-  let pparams =
-        C.toLedgerPParams C.ShelleyBasedEraAlonzo pparams'
-      Value.Value ada assets =
-        Tx.mint txBody
-      languages
-        | noScripts && Map.null assets && ada == 0 = mempty
-        | TxWitness.nullRedeemers redeemers = mempty
-        | otherwise = Set.fromList [PlutusV1]
-   in Tx.hashScriptIntegrity pparams languages redeemers datums
 
 --------------------------------------------------------------------------------
 -- Encoding / Decoding

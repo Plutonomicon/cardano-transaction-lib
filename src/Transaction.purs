@@ -10,9 +10,8 @@ module Transaction
 import Prelude
 
 import Cardano.Types.Transaction
-  ( Language(PlutusV1)
+  ( Redeemer
   , Transaction(Transaction)
-  , Redeemer
   , ScriptDataHash(ScriptDataHash)
   , TransactionWitnessSet
   , TxBody(TxBody)
@@ -77,7 +76,7 @@ setScriptDataHash rs ds tx@(Transaction { body, witnessSet })
   , null ds = pure tx
   | otherwise = do
       scriptDataHash <- ScriptDataHash <<< toBytes <<< asOneOf
-        <$> hashScriptData PlutusV1 costModels rs (unwrap <$> ds)
+        <$> hashScriptData costModels rs (unwrap <$> ds)
       pure $ over Transaction
         _
           { body = over TxBody _ { scriptDataHash = Just scriptDataHash } body

@@ -28,6 +28,7 @@ import Cardano.Types.Transaction
       , MoveInstantaneousRewardsCert
       )
   , Costmdls(Costmdls)
+  , CostModel(CostModel)
   , GenesisDelegateHash(GenesisDelegateHash)
   , GenesisHash(GenesisHash)
   , Language(PlutusV1)
@@ -233,6 +234,7 @@ foreign import newPlutusV1 :: Effect Language
 foreign import newInt32 :: Int -> Effect Int32
 foreign import _hashScriptData
   :: Redeemers -> Costmdls -> Array PlutusData -> Effect ScriptDataHash
+
 foreign import _hashScriptDataNoDatums
   :: Redeemers -> Costmdls -> Effect ScriptDataHash
 
@@ -574,7 +576,7 @@ convertProtocolParamUpdate
         (UInt.toInt pv.minor)
   for_ minPoolCost $ ppuSetMinPoolCost ppu
   for_ adaPerUtxoByte $ ppuSetAdaPerUtxoByte ppu
-  for_ costModels $ convertCostmdls T.PlutusV1 >=> ppuSetCostModels ppu
+  for_ costModels $ convertCostmdls >=> ppuSetCostModels ppu
   for_ executionCosts $ convertExUnitPrices >=> ppuSetExecutionCosts ppu
   for_ maxTxExUnits $ convertExUnits >=> ppuSetMaxTxExUnits ppu
   for_ maxBlockExUnits $ convertExUnits >=> ppuSetMaxBlockExUnits ppu
@@ -765,27 +767,26 @@ convertValue val = do
     (bigNumFromBigInt lovelace)
   pure value
 
-convertCostmdls :: T.Language -> T.Costmdls -> Effect Costmdls
-convertCostmdls lang (T.Costmdls cs) = do
-  costs <- map unwrap <<< fromJustEff (show lang <> " not found in `Costmdls`")
-    $ Map.lookup lang cs
-  costModel <- newCostModel
-  forWithIndex_ costs $ \operation cost ->
-    costModelSetCost costModel operation =<< newInt32 (UInt.toInt cost)
-  costmdls <- newCostmdls
-  plutusV1 <- newPlutusV1
-  costmdlsSetCostModel costmdls plutusV1 costModel
-  pure costmdls
+convertCostmdls :: T.Costmdls -> Effect Costmdls
+convertCostmdls (T.Costmdls cs) = case Map.lookup T.PlutusV1 cs of
+  Nothing -> newCostmdls
+  Just (T.CostModel costs) -> do
+    costModel <- newCostModel
+    forWithIndex_ costs $ \operation cost ->
+      costModelSetCost costModel operation =<< newInt32 (UInt.toInt cost)
+    costmdls <- newCostmdls
+    plutusV1 <- newPlutusV1
+    costmdlsSetCostModel costmdls plutusV1 costModel
+    pure costmdls
 
 hashScriptData
-  :: T.Language
-  -> T.Costmdls
+  :: T.Costmdls
   -> Array T.Redeemer
   -> Array PlutusData.PlutusData
   -> Effect ScriptDataHash
-hashScriptData lang cms rs ps = do
+hashScriptData cms rs ps = do
   rs' <- newRedeemers
-  cms' <- convertCostmdls lang cms
+  cms' <- convertCostmdls cms
   traverse_ (addRedeemer rs' <=< convertRedeemer) rs
   -- If an empty `PlutusData` array is passed to CSL's script integrity hashing
   -- function, the resulting hash will be wrong
