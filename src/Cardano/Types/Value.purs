@@ -68,6 +68,7 @@ import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Either (Either(Left), note)
 import Data.Foldable (any, fold, foldl, length)
 import Data.FoldableWithIndex (foldrWithIndex)
+import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (class JoinSemilattice, class MeetSemilattice, join, meet)
 import Data.List ((:), all, List(Nil))
@@ -616,7 +617,7 @@ numNonAdaAssets (Value _ nonAdaAssets) =
 -- | IDs not including Ada in `Coin`.
 numNonAdaCurrencySymbols :: Value -> BigInt
 numNonAdaCurrencySymbols (Value _ nonAdaAssets) =
-  fromInt <<< length <<< List.nubByEq (\a b -> fst a == fst b) $
+  fromInt <<< length <<< List.nubByEq ((==) `on` fst) $
     flattenNonAdaValue nonAdaAssets
 
 -- | The number of distinct currency symbols, i.e. the number of policy IDs
