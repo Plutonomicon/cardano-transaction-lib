@@ -37,8 +37,9 @@ import Metadata.ToMetadata (class ToMetadata)
 import Serialization.Types (AssetName) as CSL
 import ToData (class ToData)
 import Types.ByteArray (ByteArray, byteArrayToHex, byteLength)
+import Types.RawBytes (RawBytes(RawBytes))
 
-newtype TokenName = TokenName ByteArray
+newtype TokenName = TokenName RawBytes
 
 derive newtype instance Eq TokenName
 derive newtype instance FromData TokenName
@@ -52,7 +53,7 @@ foreign import _decodeUtf8
 
 fromTokenName
   :: forall (r :: Type). (ByteArray -> r) -> (String -> r) -> TokenName -> r
-fromTokenName arrayHandler stringHandler (TokenName ba) = either
+fromTokenName arrayHandler stringHandler (TokenName (RawBytes ba)) = either
   (const $ arrayHandler $ ba)
   stringHandler
   (_decodeUtf8 (unwrap ba) Left Right)
@@ -69,12 +70,12 @@ instance DecodeAeson TokenName where
             note
               (TypeMismatch $ "Expected base16 encoded string got " <> stripped)
               $ hexToByteArray stripped
-          pure $ TokenName ba
+          pure $ TokenName (wrap ba)
         "\x0\x0\x0" -> Right $ tkFromStr (drop 2 tkstr) -- if the original started with \NUL, we prepended 2 additional \NULs
         _ -> Right $ tkFromStr tkstr
     where
     tkFromStr :: String -> TokenName
-    tkFromStr = TokenName <<< wrap <<< encodeUtf8
+    tkFromStr = TokenName <<< wrap <<< wrap <<< encodeUtf8
 
 instance EncodeAeson TokenName where
   encodeAeson' = encodeAeson' <<< { "unTokenName": _ } <<< fromTokenName
@@ -88,7 +89,7 @@ instance Show TokenName where
   show (TokenName tn) = "(TokenName " <> show tn <> ")"
 
 getTokenName :: TokenName -> ByteArray
-getTokenName (TokenName tokenName) = tokenName
+getTokenName (TokenName tokenName) = unwrap tokenName
 
 -- | The empty token name.
 adaToken :: TokenName
@@ -98,13 +99,13 @@ adaToken = TokenName mempty
 -- | not exported
 mkTokenName :: ByteArray -> Maybe TokenName
 mkTokenName byteArr
-  | byteLength byteArr <= 32 = pure $ TokenName $ byteArr
+  | byteLength byteArr <= 32 = pure $ TokenName $ wrap byteArr
   | otherwise = Nothing
 
 foreign import assetNameName :: CSL.AssetName -> ByteArray
 
 tokenNameFromAssetName :: CSL.AssetName -> TokenName
-tokenNameFromAssetName = TokenName <<< assetNameName
+tokenNameFromAssetName = TokenName <<< wrap <<< assetNameName
 
 -- | Creates a Map of `TokenName` and Big Integers from a `Traversable` of 2-tuple
 -- | `ByteArray` and Big Integers with the possibility of failure
