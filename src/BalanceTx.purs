@@ -579,14 +579,14 @@ returnAdaChangeAndFinalizeFees changeAddr utxos unattachedTx =
           ExceptT $ evalExUnitsAndMinFee' unattachedTxWithChangeTxOut
             <#> lmap ReturnAdaChangeCalculateMinFee
         except $
-          worker unattachedTx' fees' (fees' - fees)
+          adjustAdaChangeAndSetFees unattachedTx' fees' (fees' - fees)
   where
-  worker
+  adjustAdaChangeAndSetFees
     :: UnattachedUnbalancedTx
     -> BigInt
     -> BigInt
     -> Either ReturnAdaChangeError UnattachedUnbalancedTx
-  worker unattachedTx' fees feesDelta
+  adjustAdaChangeAndSetFees unattachedTx' fees feesDelta
     | feesDelta <= zero = Right $
         unattachedTxSetFees unattachedTx' fees
     | otherwise =
@@ -652,7 +652,6 @@ returnAdaChange changeAddr utxos (unattachedTx /\ fees) =
     inputAda :: BigInt
     inputAda = getLovelace $ valueToCoin inputValue
 
-    -- FIX ME, ignore mint value?
     outputValue :: Value
     outputValue = Array.foldMap getAmount txOutputs
 

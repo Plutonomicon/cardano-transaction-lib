@@ -1,3 +1,6 @@
+-- | This module demonstrates how the `Contract` interface can be used to build,
+-- | balance, and submit a smart-contract transaction. It creates a transaction
+-- | that mints a value using three minting policies with different redeemers.
 module Examples.MintsMultipleTokens (main) where
 
 import Contract.Prelude
@@ -28,8 +31,6 @@ import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt (fromInt) as BigInt
-
-import Data.UInt (fromInt)
 
 main :: Effect Unit
 main = launchAff_ $ do
