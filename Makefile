@@ -1,6 +1,6 @@
 SHELL := bash
 .ONESHELL:
-.PHONY: autogen-deps run-testnet-node run-testnet-ogmios
+.PHONY: run-dev run-build check-format format run-datum-cache-postgres-console query-testnet-tip clean
 .SHELLFLAGS := -eu -o pipefail -c
 
 ps-sources := $(shell fd -epurs)
@@ -28,3 +28,12 @@ run-datum-cache-postgres-console:
 query-testnet-tip:
 	CARDANO_NODE_SOCKET_PATH=${node-ipc}/node.socket cardano-cli query tip \
 	  --testnet-magic 1097911063
+
+clean:
+	@ rm -rf dist-newstyle || true
+	@ rm -r .psc-ide-port || true
+	@ rm -rf .psci_modules || true
+	@ rm -rf .spago || true
+	@ rm -rf .spago2nix || true
+	@ rm -rf node_modules || true
+	@ rm -rf output || true

@@ -680,6 +680,7 @@ newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
 derive instance Generic Vkeywitness _
 derive newtype instance Eq Vkeywitness
+derive instance Newtype Vkeywitness _
 
 instance Show Vkeywitness where
   show = genericShow
