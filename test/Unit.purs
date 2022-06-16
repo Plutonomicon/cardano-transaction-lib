@@ -15,7 +15,6 @@ import Test.Parser as Parser
 import Test.Plutus.Conversion.Address as Plutus.Conversion.Address
 import Test.Plutus.Conversion.Value as Plutus.Conversion.Value
 import Test.Plutus.Time as Plutus.Time
-import Test.PrivateKey as PrivateKey
 import Test.Serialization as Serialization
 import Test.Serialization.Address as Serialization.Address
 import Test.Serialization.Hash as Serialization.Hash
@@ -47,4 +46,3 @@ testPlan = do
   Transaction.suite
   UsedTxOuts.suite
   OgmiosDatumCache.suite
-  PrivateKey.suite
