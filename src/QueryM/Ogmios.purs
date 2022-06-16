@@ -16,6 +16,9 @@ module QueryM.Ogmios
   , OgmiosBlockHeaderHash(..)
   , OgmiosTxOut(..)
   , OgmiosTxOutRef(..)
+  , PParamRational(..)
+  , ProtocolParametersR(..)
+  , ProtocolParameters
   , RelativeTime(..)
   , SafeZone(..)
   , SlotLength(..)
@@ -28,6 +31,7 @@ module QueryM.Ogmios
   , aesonArray
   , aesonObject
   , evaluateTxCall
+  , queryProtocolParametersCall
   , queryChainTipCall
   , queryCurrentEpochCall
   , queryEraSummariesCall
@@ -43,20 +47,22 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError
-      ( TypeMismatch
-      )
+  , JsonDecodeError(TypeMismatch)
   , caseAesonArray
   , caseAesonObject
+  , caseAesonString
   , decodeAeson
   , encodeAeson'
   , getField
   , getFieldOptional
   , isNull
   )
+import Cardano.Types.Transaction (Nonce)
+import Cardano.Types.Value (CurrencySymbol, Value, mkCurrencySymbol, mkValue)
 import Control.Alt ((<|>))
 import Data.Array (index, singleton)
 import Data.BigInt (BigInt)
+import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, hush, note)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
@@ -66,6 +72,7 @@ import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern), indexOf, splitAt, uncons)
+import Data.String.Common as String
 import Data.Traversable (sequence, traverse)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested ((/\), type (/\))
@@ -85,8 +92,8 @@ import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray, hexToByteArray)
 import Types.CborBytes (CborBytes, cborBytesToHex)
 import Types.Natural (Natural)
+import Types.Rational (Rational, (%))
 import Types.RedeemerTag as Tag
-import Cardano.Types.Value (CurrencySymbol, Value, mkCurrencySymbol, mkValue)
 import Types.TokenName (TokenName, mkTokenName)
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
@@ -115,6 +122,14 @@ queryEraSummariesCall :: JsonWspCall Unit EraSummaries
 queryEraSummariesCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "eraSummaries" }
+  }
+  Proxy
+
+-- | Queries Ogmios for the current protocol parameters
+queryProtocolParametersCall :: JsonWspCall Unit ProtocolParametersR
+queryProtocolParametersCall = mkOgmiosCallType
+  { methodname: "Query"
+  , args: const { query: "currentProtocolParameters" }
   }
   Proxy
 
@@ -431,6 +446,248 @@ newtype TxEvaluationR = TxEvaluationR
 instance DecodeAeson TxEvaluationR where
   decodeAeson _ = Left
     (TypeMismatch "DecodeAeson TxEvaluationR is not implemented")
+
+---------------- PROTOCOL PARAMETERS QUERY RESPONSE & PARSING
+
+-- | A version of `Rational` with Aeson instance that decodes from `x/y`
+-- | representation, instead of `{ numerator, denominator }`
+newtype PParamRational = PParamRational Rational
+
+derive instance Newtype PParamRational _
+derive instance Generic PParamRational _
+
+instance Show PParamRational where
+  show = genericShow
+
+instance DecodeAeson PParamRational where
+  decodeAeson =
+    caseAesonString (Left err)
+      \string -> do
+        case String.split (Pattern "/") string of
+          [ numeratorStr, denominatorStr ] -> note err do
+            numerator <- BigInt.fromString numeratorStr
+            denominator <- BigInt.fromString denominatorStr
+            PParamRational <$> numerator % denominator
+          _ -> Left err
+    where
+    err = TypeMismatch "PParamRaional"
+
+type ProtocolParameters =
+  { "minFeeCoefficient" :: BigInt
+  , "minFeeConstant" :: BigInt
+  , "maxBlockBodySize" :: BigInt
+  , "maxBlockHeaderSize" :: BigInt
+  , "maxTxSize" :: BigInt
+  , "stakeKeyDeposit" :: BigInt
+  , "poolDeposit" :: BigInt
+  , "poolRetirementEpochBound" :: BigInt
+  , "desiredNumberOfPools" :: BigInt
+  , "poolInfluence" :: PParamRational
+  , "monetaryExpansion" :: PParamRational
+  , "treasuryExpansion" :: PParamRational
+  , "decentralizationParameter" :: PParamRational
+  , "extraEntropy" :: Nonce
+  , "protocolVersion" ::
+      { "major" :: BigInt
+      , "minor" :: BigInt
+      }
+  , "minPoolCost" :: BigInt
+  , "coinsPerUtxoWord" :: BigInt
+  , "costModels" ::
+      { "plutus:v1" ::
+          { "addInteger-cpu-arguments-intercept" :: BigInt
+          , "addInteger-cpu-arguments-slope" :: BigInt
+          , "addInteger-memory-arguments-intercept" :: BigInt
+          , "addInteger-memory-arguments-slope" :: BigInt
+          , "appendByteString-cpu-arguments-intercept" :: BigInt
+          , "appendByteString-cpu-arguments-slope" :: BigInt
+          , "appendByteString-memory-arguments-intercept" :: BigInt
+          , "appendByteString-memory-arguments-slope" :: BigInt
+          , "appendString-cpu-arguments-intercept" :: BigInt
+          , "appendString-cpu-arguments-slope" :: BigInt
+          , "appendString-memory-arguments-intercept" :: BigInt
+          , "appendString-memory-arguments-slope" :: BigInt
+          , "bData-cpu-arguments" :: BigInt
+          , "bData-memory-arguments" :: BigInt
+          , "blake2b-cpu-arguments-intercept" :: BigInt
+          , "blake2b-cpu-arguments-slope" :: BigInt
+          , "blake2b-memory-arguments" :: BigInt
+          , "cekApplyCost-exBudgetCPU" :: BigInt
+          , "cekApplyCost-exBudgetMemory" :: BigInt
+          , "cekBuiltinCost-exBudgetCPU" :: BigInt
+          , "cekBuiltinCost-exBudgetMemory" :: BigInt
+          , "cekConstCost-exBudgetCPU" :: BigInt
+          , "cekConstCost-exBudgetMemory" :: BigInt
+          , "cekDelayCost-exBudgetCPU" :: BigInt
+          , "cekDelayCost-exBudgetMemory" :: BigInt
+          , "cekForceCost-exBudgetCPU" :: BigInt
+          , "cekForceCost-exBudgetMemory" :: BigInt
+          , "cekLamCost-exBudgetCPU" :: BigInt
+          , "cekLamCost-exBudgetMemory" :: BigInt
+          , "cekStartupCost-exBudgetCPU" :: BigInt
+          , "cekStartupCost-exBudgetMemory" :: BigInt
+          , "cekVarCost-exBudgetCPU" :: BigInt
+          , "cekVarCost-exBudgetMemory" :: BigInt
+          , "chooseData-cpu-arguments" :: BigInt
+          , "chooseData-memory-arguments" :: BigInt
+          , "chooseList-cpu-arguments" :: BigInt
+          , "chooseList-memory-arguments" :: BigInt
+          , "chooseUnit-cpu-arguments" :: BigInt
+          , "chooseUnit-memory-arguments" :: BigInt
+          , "consByteString-cpu-arguments-intercept" :: BigInt
+          , "consByteString-cpu-arguments-slope" :: BigInt
+          , "consByteString-memory-arguments-intercept" :: BigInt
+          , "consByteString-memory-arguments-slope" :: BigInt
+          , "constrData-cpu-arguments" :: BigInt
+          , "constrData-memory-arguments" :: BigInt
+          , "decodeUtf8-cpu-arguments-intercept" :: BigInt
+          , "decodeUtf8-cpu-arguments-slope" :: BigInt
+          , "decodeUtf8-memory-arguments-intercept" :: BigInt
+          , "decodeUtf8-memory-arguments-slope" :: BigInt
+          , "divideInteger-cpu-arguments-constant" :: BigInt
+          , "divideInteger-cpu-arguments-model-arguments-intercept" :: BigInt
+          , "divideInteger-cpu-arguments-model-arguments-slope" :: BigInt
+          , "divideInteger-memory-arguments-intercept" :: BigInt
+          , "divideInteger-memory-arguments-minimum" :: BigInt
+          , "divideInteger-memory-arguments-slope" :: BigInt
+          , "encodeUtf8-cpu-arguments-intercept" :: BigInt
+          , "encodeUtf8-cpu-arguments-slope" :: BigInt
+          , "encodeUtf8-memory-arguments-intercept" :: BigInt
+          , "encodeUtf8-memory-arguments-slope" :: BigInt
+          , "equalsByteString-cpu-arguments-constant" :: BigInt
+          , "equalsByteString-cpu-arguments-intercept" :: BigInt
+          , "equalsByteString-cpu-arguments-slope" :: BigInt
+          , "equalsByteString-memory-arguments" :: BigInt
+          , "equalsData-cpu-arguments-intercept" :: BigInt
+          , "equalsData-cpu-arguments-slope" :: BigInt
+          , "equalsData-memory-arguments" :: BigInt
+          , "equalsInteger-cpu-arguments-intercept" :: BigInt
+          , "equalsInteger-cpu-arguments-slope" :: BigInt
+          , "equalsInteger-memory-arguments" :: BigInt
+          , "equalsString-cpu-arguments-constant" :: BigInt
+          , "equalsString-cpu-arguments-intercept" :: BigInt
+          , "equalsString-cpu-arguments-slope" :: BigInt
+          , "equalsString-memory-arguments" :: BigInt
+          , "fstPair-cpu-arguments" :: BigInt
+          , "fstPair-memory-arguments" :: BigInt
+          , "headList-cpu-arguments" :: BigInt
+          , "headList-memory-arguments" :: BigInt
+          , "iData-cpu-arguments" :: BigInt
+          , "iData-memory-arguments" :: BigInt
+          , "ifThenElse-cpu-arguments" :: BigInt
+          , "ifThenElse-memory-arguments" :: BigInt
+          , "indexByteString-cpu-arguments" :: BigInt
+          , "indexByteString-memory-arguments" :: BigInt
+          , "lengthOfByteString-cpu-arguments" :: BigInt
+          , "lengthOfByteString-memory-arguments" :: BigInt
+          , "lessThanByteString-cpu-arguments-intercept" :: BigInt
+          , "lessThanByteString-cpu-arguments-slope" :: BigInt
+          , "lessThanByteString-memory-arguments" :: BigInt
+          , "lessThanEqualsByteString-cpu-arguments-intercept" :: BigInt
+          , "lessThanEqualsByteString-cpu-arguments-slope" :: BigInt
+          , "lessThanEqualsByteString-memory-arguments" :: BigInt
+          , "lessThanEqualsInteger-cpu-arguments-intercept" :: BigInt
+          , "lessThanEqualsInteger-cpu-arguments-slope" :: BigInt
+          , "lessThanEqualsInteger-memory-arguments" :: BigInt
+          , "lessThanInteger-cpu-arguments-intercept" :: BigInt
+          , "lessThanInteger-cpu-arguments-slope" :: BigInt
+          , "lessThanInteger-memory-arguments" :: BigInt
+          , "listData-cpu-arguments" :: BigInt
+          , "listData-memory-arguments" :: BigInt
+          , "mapData-cpu-arguments" :: BigInt
+          , "mapData-memory-arguments" :: BigInt
+          , "mkCons-cpu-arguments" :: BigInt
+          , "mkCons-memory-arguments" :: BigInt
+          , "mkNilData-cpu-arguments" :: BigInt
+          , "mkNilData-memory-arguments" :: BigInt
+          , "mkNilPairData-cpu-arguments" :: BigInt
+          , "mkNilPairData-memory-arguments" :: BigInt
+          , "mkPairData-cpu-arguments" :: BigInt
+          , "mkPairData-memory-arguments" :: BigInt
+          , "modInteger-cpu-arguments-constant" :: BigInt
+          , "modInteger-cpu-arguments-model-arguments-intercept" :: BigInt
+          , "modInteger-cpu-arguments-model-arguments-slope" :: BigInt
+          , "modInteger-memory-arguments-intercept" :: BigInt
+          , "modInteger-memory-arguments-minimum" :: BigInt
+          , "modInteger-memory-arguments-slope" :: BigInt
+          , "multiplyInteger-cpu-arguments-intercept" :: BigInt
+          , "multiplyInteger-cpu-arguments-slope" :: BigInt
+          , "multiplyInteger-memory-arguments-intercept" :: BigInt
+          , "multiplyInteger-memory-arguments-slope" :: BigInt
+          , "nullList-cpu-arguments" :: BigInt
+          , "nullList-memory-arguments" :: BigInt
+          , "quotientInteger-cpu-arguments-constant" :: BigInt
+          , "quotientInteger-cpu-arguments-model-arguments-intercept" :: BigInt
+          , "quotientInteger-cpu-arguments-model-arguments-slope" :: BigInt
+          , "quotientInteger-memory-arguments-intercept" :: BigInt
+          , "quotientInteger-memory-arguments-minimum" :: BigInt
+          , "quotientInteger-memory-arguments-slope" :: BigInt
+          , "remainderInteger-cpu-arguments-constant" :: BigInt
+          , "remainderInteger-cpu-arguments-model-arguments-intercept" :: BigInt
+          , "remainderInteger-cpu-arguments-model-arguments-slope" :: BigInt
+          , "remainderInteger-memory-arguments-intercept" :: BigInt
+          , "remainderInteger-memory-arguments-minimum" :: BigInt
+          , "remainderInteger-memory-arguments-slope" :: BigInt
+          , "sha2_256-cpu-arguments-intercept" :: BigInt
+          , "sha2_256-cpu-arguments-slope" :: BigInt
+          , "sha2_256-memory-arguments" :: BigInt
+          , "sha3_256-cpu-arguments-intercept" :: BigInt
+          , "sha3_256-cpu-arguments-slope" :: BigInt
+          , "sha3_256-memory-arguments" :: BigInt
+          , "sliceByteString-cpu-arguments-intercept" :: BigInt
+          , "sliceByteString-cpu-arguments-slope" :: BigInt
+          , "sliceByteString-memory-arguments-intercept" :: BigInt
+          , "sliceByteString-memory-arguments-slope" :: BigInt
+          , "sndPair-cpu-arguments" :: BigInt
+          , "sndPair-memory-arguments" :: BigInt
+          , "subtractInteger-cpu-arguments-intercept" :: BigInt
+          , "subtractInteger-cpu-arguments-slope" :: BigInt
+          , "subtractInteger-memory-arguments-intercept" :: BigInt
+          , "subtractInteger-memory-arguments-slope" :: BigInt
+          , "tailList-cpu-arguments" :: BigInt
+          , "tailList-memory-arguments" :: BigInt
+          , "trace-cpu-arguments" :: BigInt
+          , "trace-memory-arguments" :: BigInt
+          , "unBData-cpu-arguments" :: BigInt
+          , "unBData-memory-arguments" :: BigInt
+          , "unConstrData-cpu-arguments" :: BigInt
+          , "unConstrData-memory-arguments" :: BigInt
+          , "unIData-cpu-arguments" :: BigInt
+          , "unIData-memory-arguments" :: BigInt
+          , "unListData-cpu-arguments" :: BigInt
+          , "unListData-memory-arguments" :: BigInt
+          , "unMapData-cpu-arguments" :: BigInt
+          , "unMapData-memory-arguments" :: BigInt
+          , "verifySignature-cpu-arguments-intercept" :: BigInt
+          , "verifySignature-cpu-arguments-slope" :: BigInt
+          , "verifySignature-memory-arguments" :: BigInt
+          }
+      }
+  , "prices" ::
+      { "memory" :: PParamRational
+      , "steps" :: PParamRational
+      }
+  , "maxExecutionUnitsPerTransaction" ::
+      { "memory" :: BigInt
+      , "steps" :: BigInt
+      }
+  , "maxExecutionUnitsPerBlock" ::
+      { "memory" :: BigInt
+      , "steps" :: BigInt
+      }
+  , "maxValueSize" :: BigInt
+  , "collateralPercentage" :: BigInt
+  , "maxCollateralInputs" :: BigInt
+  }
+
+newtype ProtocolParametersR = ProtocolParametersR ProtocolParameters
+
+derive newtype instance DecodeAeson ProtocolParametersR
+derive instance Newtype ProtocolParametersR _
+derive instance Generic ProtocolParametersR _
+
+instance Show ProtocolParametersR where
+  show = genericShow
 
 ---------------- CHAIN TIP QUERY RESPONSE & PARSING
 
