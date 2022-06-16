@@ -284,14 +284,7 @@ evalExUnitsAndMinFee' unattachedTx =
     unattachedReindexedTx <- ExceptT $ reindexRedeemers unattachedTx
       <#> lmap ReindexRedeemersError
     -- Reattach datums and redeemers before evaluating ex units:
-    let
-      reattachedTx = reattachDatumsAndRedeemers unattachedReindexedTx
-      ws = reattachedTx ^. _witnessSet # unwrap
-    -- Set the script integrity hash as well
-    attachedTx <- liftEffect $ setScriptDataHash
-      (fromMaybe mempty ws.redeemers)
-      (wrap <$> fromMaybe mempty ws.plutusData)
-      reattachedTx
+    let attachedTx = reattachDatumsAndRedeemers unattachedReindexedTx
     -- Evaluate transaction ex units:
     rdmrPtrExUnitsList <- ExceptT $ evalTxExecutionUnits attachedTx
       <#> lmap EvalExUnitsError
@@ -302,8 +295,14 @@ evalExUnitsAndMinFee' unattachedTx =
       -- Reattach datums and redeemers before calculating fees:
       attachedTxWithExUnits =
         reattachDatumsAndRedeemers unattachedTxWithExUnits
+    -- Set the script integrity hash:
+    let ws = attachedTxWithExUnits ^. _witnessSet # unwrap
+    attachedTxWithExUnitsAndIntegrityHash <- liftEffect $ setScriptDataHash
+      (fromMaybe mempty ws.redeemers)
+      (wrap <$> fromMaybe mempty ws.plutusData)
+      attachedTxWithExUnits
     -- Calculate the minimum fee for a transaction:
-    minFee <- ExceptT $ calculateMinFee attachedTxWithExUnits
+    minFee <- ExceptT $ calculateMinFee attachedTxWithExUnitsAndIntegrityHash
       <#> bimap EvalMinFeeError unwrap
     pure $ unattachedTxWithExUnits /\ minFee
 

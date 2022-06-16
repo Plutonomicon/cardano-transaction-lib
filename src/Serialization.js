@@ -150,7 +150,6 @@ exports._hashScriptData = rs => cms => ds => () => {
     return lib.hash_script_data(rs, cms, list);
 };
 
-
 exports._hashScriptDataNoDatums = rs => cms => () =>
     lib.hash_script_data(rs, cms);
 
