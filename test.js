@@ -80,8 +80,25 @@ async function test() {
 
 	
 	console.log('C');
-	await page.goto(example);
 
+//	const newPagePromise = new Promise(x => page.once('popup', x));
+	console.log('C1');	
+	page.goto(example);
+	console.log('C2');
+
+	console.log(await browser.pages()[0]);
+	
+/*	const newPage = await newPagePromise;
+	console.log('C3');
+	newPage
+	    .on('console', message =>
+		console.log(`NP: ${message.type().substr(0, 3).toUpperCase()} ${message.text()}`))
+	    .on('pageerror', ({ message }) => console.log(message))
+	    .on('response', response =>
+		console.log(`${response.status()} ${response.url()}`))
+	    .on('requestfailed', request =>
+		console.log(`${request.failure().errorText} ${request.url()}`));
+*/	
 	console.log('D');
 	
 //	button = await page.$x("//div[contains(., 'Add to Chrome')]");

@@ -1013,18 +1013,6 @@ let
         installPhase = "ln -s $src $out";
       };
 
-    "purescript-toppokki" = pkgs.stdenv.mkDerivation {
-        name = "purescript-toppokki";
-        version = "v3.0.0";
-        src = pkgs.fetchgit {
-          url = "https://github.com/justinwoo/purescript-toppokki";
-          rev = "29e8d01988d110ca34b52fee099ede206611ed0a";
-          sha256 = "14079ck1n8ql9rxnwmiy8bd7qsf8rvacpi69chba1s8ph9lxzjkj";
-        };
-        phases = "installPhase";
-        installPhase = "ln -s $src $out";
-      };
-
     "quickcheck" = pkgs.stdenv.mkDerivation {
         name = "quickcheck";
         version = "v7.1.0";
