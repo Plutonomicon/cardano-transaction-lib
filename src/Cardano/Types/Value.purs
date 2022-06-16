@@ -81,14 +81,9 @@ import Helpers (showWithParens)
 import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Partial.Unsafe (unsafePartial)
-import Serialization.Hash
-  ( ScriptHash
-  , scriptHashFromBytes
-  , scriptHashToBytes
-  )
+import Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
 import ToData (class ToData)
-import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex)
-import Types.CborBytes (byteLength)
+import Types.ByteArray (ByteArray, byteArrayToHex, byteLength, hexToByteArray)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Types.TokenName
   ( TokenName
