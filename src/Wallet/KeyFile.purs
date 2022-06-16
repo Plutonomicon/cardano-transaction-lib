@@ -26,7 +26,7 @@ import Node.Path (FilePath)
 import Serialization.Types (PrivateKey)
 import Types.ByteArray (hexToByteArray)
 import Types.RawBytes (RawBytes)
-import Wallet.Key (privateKeyFromNormalBytes)
+import Serialization (privateKeyFromBytes)
 
 -- | Byte representation of CSL PrivateKey, can be decoded from JSON.
 -- | (`PaymentSigningKeyShelley_ed25519`).
@@ -52,4 +52,4 @@ privateKeyFromFile filePath = do
   case (decodeAeson <=< parseJsonStringToAeson) fileContents of
     Left err -> liftEffect $ throw $ show err
     Right (PrivateKeyFile bytes) -> do
-      pure $ privateKeyFromNormalBytes bytes
+      pure $ privateKeyFromBytes bytes

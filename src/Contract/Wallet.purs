@@ -3,6 +3,7 @@ module Contract.Wallet
   ( mkKeyWalletFromPrivateKey
   , module ContractAddress
   , module Wallet
+  , module Serialization
   ) where
 
 import Contract.Address (getWalletAddress, getWalletCollateral) as ContractAddress
@@ -15,7 +16,8 @@ import Wallet
   , mkGeroWalletAff
   ) as Wallet
 import Wallet (mkKeyWallet)
-import Wallet.Key (KeyWallet, privateKeyFromNormalBytes, privateKeyToKeyWallet) as Wallet
+import Wallet.Key (KeyWallet, privateKeyToKeyWallet) as Wallet
+import Serialization (privateKeyFromBytes) as Serialization
 
 mkKeyWalletFromPrivateKey :: PrivateKey -> Wallet.Wallet
 mkKeyWalletFromPrivateKey = mkKeyWallet

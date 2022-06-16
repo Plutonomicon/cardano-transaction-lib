@@ -112,7 +112,7 @@ exports.publicKeyFromPrivateKey = private_key => () => {
     return private_key.to_public();
 };
 
-exports._privateKeyFromBytes = maybe => bytes => () => {
+exports._privateKeyFromBytes = maybe => bytes => {
     try {
         return maybe.just(lib.PrivateKey.from_normal_bytes(bytes));
     } catch (_) {

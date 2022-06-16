@@ -98,10 +98,9 @@ main = do
           *> unlock
       )
       do
-        priv <- (liftMaybe $ error "Failed to parse private key") =<<
-          ( liftEffect $ map join $ traverse privateKeyFromBytes $
-              hexToRawBytes input.privateKey
-          )
+        priv <- liftMaybe (error "Failed to parse private key")
+          $ privateKeyFromBytes
+          =<< hexToRawBytes input.privateKey
         pkh <- liftMaybe (error "Failed to parse public key hash") $
           ed25519KeyHashFromBech32 input.toPkh
         lovelace <- liftMaybe (error "Failed to parse lovelace amount") $

@@ -1,7 +1,6 @@
 module Wallet.Key
   ( KeyWallet
   , privateKeyToKeyWallet
-  , privateKeyFromNormalBytes
   ) where
 
 import Prelude
@@ -26,7 +25,6 @@ import Data.Ord.Min (Min(Min))
 import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
-import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization (publicKeyFromPrivateKey, publicKeyHash)
 import Serialization as Serialization
 import Serialization.Address
@@ -37,7 +35,6 @@ import Serialization.Address
   , keyHashCredential
   )
 import Serialization.Types (PrivateKey)
-import Types.RawBytes (RawBytes)
 
 -------------------------------------------------------------------------------
 -- Key backend
@@ -47,12 +44,6 @@ type KeyWallet =
   , selectCollateral :: Utxo -> Maybe TransactionUnspentOutput
   , signTx :: Transaction -> Aff Transaction
   }
-
-foreign import _privateKeyFromNormalBytes
-  :: MaybeFfiHelper -> RawBytes -> Maybe PrivateKey
-
-privateKeyFromNormalBytes :: RawBytes -> Maybe PrivateKey
-privateKeyFromNormalBytes = _privateKeyFromNormalBytes maybeFfiHelper
 
 privateKeyToKeyWallet :: PrivateKey -> KeyWallet
 privateKeyToKeyWallet key =
