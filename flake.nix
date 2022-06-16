@@ -9,7 +9,7 @@
 
     # for the purescript project
     ogmios.url = "github:mlabs-haskell/ogmios";
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache";
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/54ad2964af07ea0370bf95c0fed71f60a778ead5";
     # so named because we also need a different version of the repo below
     # in the server inputs and we use this one just for the `cardano-cli`
     # executables
@@ -196,6 +196,7 @@
               "dbname=${postgres.db}"
               "password=${postgres.password}"
             ];
+          controlApiToken = "";
           blockFetcher = {
             firstBlock = {
               slot = 54066900;
@@ -318,6 +319,7 @@
                   datumCache.blockFetcher.filter;
                 configFile = ''
                   dbConnectionString = "${datumCache.dbConnectionString}"
+                  server.controlApiToken = "${toString datumCache.controlApiToken}"
                   server.port = ${toString datumCache.port}
                   ogmios.address = "ogmios"
                   ogmios.port = ${toString ogmios.port}
