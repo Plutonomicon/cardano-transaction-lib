@@ -8,8 +8,9 @@ import Test.ByteArray as ByteArray
 import Test.Data as Data
 import Test.Deserialization as Deserialization
 import Test.Hashing as Hashing
-import Test.Metadata.Seabug as Seabug
 import Test.Metadata.Cip25 as Cip25
+import Test.Metadata.Seabug as Seabug
+import Test.OgmiosDatumCache as OgmiosDatumCache
 import Test.Parser as Parser
 import Test.Plutus.Conversion.Address as Plutus.Conversion.Address
 import Test.Plutus.Conversion.Value as Plutus.Conversion.Value
@@ -20,7 +21,6 @@ import Test.Serialization.Hash as Serialization.Hash
 import Test.Types.TokenName as Types.TokenName
 import Test.Transaction as Transaction
 import Test.UsedTxOuts as UsedTxOuts
-import Test.OgmiosDatumCache as OgmiosDatumCache
 import Test.Utils as Utils
 import TestM (TestPlanM)
 

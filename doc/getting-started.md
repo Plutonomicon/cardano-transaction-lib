@@ -182,29 +182,7 @@ We provide `KeyWallet` to enable testing outside of the browser, or in-browser w
 $ cardano-cli address key-gen --normal-key --signing-key-file payment.skey --verification-key-file payment.vkey
 ```
 
-To extract the key from `payment.skey`, `jq '.cborHex' payment.skey | cut -c 5-69` if you have `jq` installed, or manually take the value from the cborHex field and remove the first 4 characters (5820):
-
-```json
-{
-    "type": "PaymentSigningKeyShelley_ed25519",
-    "description": "Payment Signing Key",
-    "cborHex": "582085f8d4382c92c17efcef0f20f9397abcedcd5fd9e576a6dcc99e582eb275b79d"
-}
-```
-into
-```
-85f8d4382c92c17efcef0f20f9397abcedcd5fd9e576a6dcc99e582eb275b79d
-```
-
-This text can then be built into a wallet as follows:
-```purescript
-main :: Effect Unit
-main = Contract.Monad.launchAff_ $ do
-  privateKey <- liftEffect $ map join $ traverse privateKeyFromBytes $ hexToRawBytes "85f8d4382c92c17efcef0f20f9397abcedcd5fd9e576a6dcc99e582eb275b79d"
-  let wallet = mkKeyWallet <$> privateKey
-  ...
-```
-The above was adapted from `examples/Pkh2PkhKeyWallet.purs`.
+The signing key can be loaded to CTL using `Contract.Wallet.KeyFile.mkKeyWalletFromFile` See also `examples/Pkh2PkhKeyWallet.purs`.
 
 From here you can submit transactions that will be signed with your private key, or perhaps export transactions to be tested with external tools such as [`plutip` testing tool](https://github.com/mlabs-haskell/plutip). We are currently working on integration with the plutip. These will be included in an upcoming release of CTL.
 
