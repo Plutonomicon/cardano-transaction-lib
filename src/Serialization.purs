@@ -768,16 +768,16 @@ convertValue val = do
   pure value
 
 convertCostmdls :: T.Costmdls -> Effect Costmdls
-convertCostmdls (T.Costmdls cs) = case Map.lookup T.PlutusV1 cs of
-  Nothing -> newCostmdls
-  Just (T.CostModel costs) -> do
-    costModel <- newCostModel
-    forWithIndex_ costs $ \operation cost ->
-      costModelSetCost costModel operation =<< newInt32 (UInt.toInt cost)
-    costmdls <- newCostmdls
-    plutusV1 <- newPlutusV1
-    costmdlsSetCostModel costmdls plutusV1 costModel
-    pure costmdls
+convertCostmdls (T.Costmdls cs) = do
+  costs <- map unwrap <<< fromJustEff "`PlutusV1` not found in `Costmdls`"
+    $ Map.lookup T.PlutusV1 cs
+  costModel <- newCostModel
+  forWithIndex_ costs $ \operation cost ->
+    costModelSetCost costModel operation =<< newInt32 (UInt.toInt cost)
+  costmdls <- newCostmdls
+  plutusV1 <- newPlutusV1
+  costmdlsSetCostModel costmdls plutusV1 costModel
+  pure costmdls
 
 hashScriptData
   :: T.Costmdls
