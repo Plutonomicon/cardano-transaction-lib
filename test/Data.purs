@@ -5,6 +5,7 @@ import Prelude hiding (conj)
 
 import Aeson (decodeAeson, encodeAeson, JsonDecodeError(TypeMismatch))
 import Contract.Monad (Aff)
+import Control.Lazy (fix)
 import Control.Monad.Error.Class (class MonadThrow)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -39,7 +40,7 @@ import Serialization.PlutusData as PDS
 import Test.QuickCheck ((===))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary, genericArbitrary)
 import Test.QuickCheck.Combinators (conj)
-import Test.QuickCheck.Gen (chooseInt, frequency)
+import Test.QuickCheck.Gen (frequency)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.QuickCheck (quickCheck)
 import TestM (TestPlanM)
@@ -401,9 +402,6 @@ instance ToData FType where
 instance ToData FType' where
   toData x = genericToData x
 
--- https://stackoverflow.com/questions/51215083/how-to-quickcheck-on-custom-adt-in-purescript
--- https://github.com/purescript/purescript/issues/2975
--- https://github.com/purescript/documentation/blob/master/errors/CycleInDeclaration.md
 instance Arbitrary CType where
   arbitrary =
     (frequency <<< wrap) $
@@ -418,35 +416,29 @@ instance Arbitrary EType where
   arbitrary = genericArbitrary
 
 instance Arbitrary DType where
-  arbitrary = toDType <$> arbitrary <*> chooseInt 0 15
-
--- DType ~ (CType /\ MyBigInt /\ (Maybe Boolean)) + CType + Dtype
-toDType
-  :: Either (Tuple CType (Tuple MyBigInt (Maybe Boolean))) CType -> Int -> DType
-toDType lastValue n =
-  if n <= 0 then
-    case lastValue of
-      Left (ct /\ it /\ mb) -> D0 ct it mb
-      Right ct -> D2 ct
-  else
-    D1 (toDType lastValue (n - 1))
+  arbitrary = fix \_ -> (frequency <<< wrap) $
+    0.4 /\ (D0 <$> arbitrary <*> arbitrary <*> arbitrary)
+      :| List.fromFoldable
+        [ 0.4 /\ (D2 <$> arbitrary)
+        , 0.2 /\ (D1 <$> arbitrary)
+        ]
 
 instance Arbitrary FType where
-  arbitrary = toFType <$> arbitrary <*> arbitrary <*> chooseInt 0 15
-
--- FType ~ BigInt + (Boolean /\ Boolean /\ Boolean) + (BigInt /\ FType)
-toFType
-  :: Either Int (Tuple Boolean (Tuple Boolean Boolean)) -> Int -> Int -> FType
-toFType lastValue j k =
-  if k <= 0 then
-    f0AndF1Converter lastValue
-  else
-    F2 { f2A: BigInt.fromInt j, f2B: toFType lastValue (j - 1) (k - 1) }
-  where
-  f0AndF1Converter
-    :: Either Int (Tuple Boolean (Tuple Boolean Boolean)) -> FType
-  f0AndF1Converter (Left x) = F0 { f0A: BigInt.fromInt x }
-  f0AndF1Converter (Right (v1 /\ v2 /\ v3)) = F1 { f1A: v1, f1B: v2, f1C: v3 }
+  arbitrary = fix \_ -> (frequency <<< wrap) $
+    0.4 /\ (F0 <$> ({ f0A: _ } <<< unwrap <$> arbitrary))
+      :| List.fromFoldable
+        [ 0.4 /\
+            ( F1 <$>
+                ( { f1A: _, f1B: _, f1C: _ } <$> arbitrary <*> arbitrary <*>
+                    arbitrary
+                )
+            )
+        , 0.2 /\
+            (F2 <$> ({ f2A: _, f2B: _ } <<< unwrap <$> arbitrary <*> arbitrary))
+        ]
+    where
+    unwrap :: MyBigInt -> BigInt
+    unwrap (MyBigInt x) = x
 
 fType2Ftype' :: FType -> FType'
 fType2Ftype' (F0 { f0A: i }) = F0' i
