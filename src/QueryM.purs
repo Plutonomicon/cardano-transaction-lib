@@ -39,7 +39,6 @@ module QueryM
   , runQueryM
   , signTransaction
   , scriptToAeson
-  , signTransactionBytes
   , submitTxOgmios
   , traceQueryConfig
   , underlyingWebSocket
@@ -296,23 +295,6 @@ signTransaction tx = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
   KeyWallet kw -> Just <$> kw.signTx tx
-
-signTransactionBytes
-  :: CborBytes -> QueryM (Maybe CborBytes)
-signTransactionBytes tx = withMWalletAff case _ of
-  Nami nami -> callCip30Wallet nami \nw -> flip nw.signTxBytes tx
-  Gero gero -> callCip30Wallet gero \nw -> flip nw.signTxBytes tx
-  KeyWallet kw ->
-    for
-      ( Deserialization.fromBytes (unwrap tx)
-          >>= Deserialization.convertTransaction
-            >>> hush
-      )
-      ( kw.signTx
-          >=> Serialization.convertTransaction
-            >>> map (asOneOf >>> Serialization.toBytes >>> wrap)
-            >>> liftEffect
-      )
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do

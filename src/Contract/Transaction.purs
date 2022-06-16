@@ -18,7 +18,6 @@ module Contract.Transaction
   , reindexSpentScriptRedeemers
   , scriptOutputToTransactionOutput
   , signTransaction
-  , signTransactionBytes
   , submit
   ) where
 
@@ -43,7 +42,6 @@ import QueryM
 import QueryM
   ( calculateMinFee
   , signTransaction
-  , signTransactionBytes
   , submitTxOgmios
   ) as QueryM
 import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
@@ -174,17 +172,17 @@ signTransaction
   :: forall (r :: Row Type). Transaction -> Contract r (Maybe Transaction)
 signTransaction = wrapContract <<< QueryM.signTransaction
 
--- | Signs a `Transaction` with potential failure
-signTransactionBytes
+-- | Submits a `BalancedSignedTransaction`, which is the output of
+-- | `signTransaction` or `balanceAndSignTx`
+submit
   :: forall (r :: Row Type)
-   . CborBytes
-  -> Contract r (Maybe CborBytes)
-signTransactionBytes = wrapContract <<< QueryM.signTransactionBytes
-
--- | Submits a Cbor-hex encoded transaction, which is the output of
--- | `signTransactionBytes` or `balanceAndSignTx`
-submit :: forall (r :: Row Type). CborBytes -> Contract r TransactionHash
-submit = wrapContract <<< map (wrap <<< unwrap) <<< QueryM.submitTxOgmios
+   . BalancedSignedTransaction
+  -> Contract r TransactionHash
+submit tx = wrapContract <<< map (wrap <<< unwrap) <<< QueryM.submitTxOgmios =<<
+  liftEffect
+    ( wrap <<< Serialization.toBytes <<< asOneOf <$>
+        Serialization.convertTransaction (unwrap tx)
+    )
 
 -- | Query the Haskell server for the minimum transaction fee
 calculateMinFee
@@ -229,10 +227,7 @@ reindexSpentScriptRedeemers
 reindexSpentScriptRedeemers balancedTx =
   wrapContract <<< ReindexRedeemers.reindexSpentScriptRedeemers balancedTx
 
-newtype BalancedSignedTransaction = BalancedSignedTransaction
-  { transaction :: Transaction.Transaction -- the balanced and unsigned transaction to help with logging
-  , signedTxCbor :: CborBytes -- the balanced and signed cbor ByteArray representation used in `submit`
-  }
+newtype BalancedSignedTransaction = BalancedSignedTransaction Transaction
 
 derive instance Generic BalancedSignedTransaction _
 derive instance Newtype BalancedSignedTransaction _
@@ -244,7 +239,7 @@ instance Show BalancedSignedTransaction where
 -- | A helper that wraps a few steps into: balancing an unbalanced transaction
 -- | (`balanceTx`), reindexing script `Spend` redeemers (not minting redeemers)
 -- | (`reindexSpentScriptRedeemers`), adding the final redeemers and
--- | `ScriptDataHash`, and finally signing the tx (`signTransactionBytes`).
+-- | `ScriptDataHash`, and finally signing the tx (`signTransaction`).
 -- |
 -- | The return type includes the balanced (but unsigned) transaction for
 -- | logging and more importantly, the `ByteArray` to be used with `submit` to
@@ -260,19 +255,7 @@ balanceAndSignTx uaubTx@(UnattachedUnbalancedTx { datums }) = do
     balancedTx ^. _body <<< _inputs
   finalizedTx <- liftedE $ liftEffect $ finalizeTransaction redeemers datums
     balancedTx
-  -- FIXME remove this after fixing signing
-  -- Convert the tx to CBOR
-  txCbor <- liftEffect $
-    Serialization.toBytes
-      <<< asOneOf
-      <$> Serialization.convertTransaction finalizedTx
-
-  -- Sign the transaction returned as Cbor-hex encoded:
-  signedTxCbor <- liftedM "balanceAndSignTx: Failed to sign transaction"
-    $ signTransactionBytes
-    $ wrap txCbor
-  pure $ pure $ BalancedSignedTransaction
-    { transaction: balancedTx, signedTxCbor }
+  map wrap <$> signTransaction finalizedTx
 
 scriptOutputToTransactionOutput
   :: NetworkId
