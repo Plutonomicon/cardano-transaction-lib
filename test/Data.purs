@@ -1,7 +1,7 @@
 -- | Tests for `ToData`/`FromData`
 module Test.Data (suite, tests, uniqueIndicesTests) where
 
-import Prelude
+import Prelude hiding (conj)
 
 import Aeson (decodeAeson, encodeAeson, JsonDecodeError(TypeMismatch))
 import Contract.Monad (Aff)
