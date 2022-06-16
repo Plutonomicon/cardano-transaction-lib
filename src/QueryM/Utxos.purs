@@ -84,7 +84,7 @@ utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
 
   cip30UtxosAt :: Address -> QueryM (Maybe UtxoM)
   cip30UtxosAt address = getWalletCollateral >>= maybe
-    (liftEffect $ throw "Nami wallet missing collateral")
+    (liftEffect $ throw "CIP-30 wallet missing collateral")
     \collateral' -> do
       let collateral = unwrap collateral'
       utxos' <- allUtxosAt address

@@ -17,6 +17,7 @@ import Test.Plutus.Time as Plutus.Time
 import Test.Serialization as Serialization
 import Test.Serialization.Address as Serialization.Address
 import Test.Serialization.Hash as Serialization.Hash
+import Test.Types.TokenName as Types.TokenName
 import Test.Transaction as Transaction
 import Test.UsedTxOuts as UsedTxOuts
 import Test.OgmiosDatumCache as OgmiosDatumCache
@@ -46,3 +47,4 @@ testPlan = do
   Transaction.suite
   UsedTxOuts.suite
   OgmiosDatumCache.suite
+  Types.TokenName.suite
