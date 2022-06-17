@@ -217,7 +217,7 @@ foreign import publicKeyFromPrivateKey
   :: PrivateKey -> Effect PublicKey
 
 foreign import _privateKeyFromBytes
-  :: MaybeFfiHelper -> RawBytes -> Effect (Maybe PrivateKey)
+  :: MaybeFfiHelper -> RawBytes -> Maybe PrivateKey
 
 foreign import publicKeyHash :: PublicKey -> Ed25519KeyHash
 foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
@@ -604,7 +604,7 @@ convertWithdrawals mp =
 publicKeyFromBech32 :: Bech32String -> Maybe PublicKey
 publicKeyFromBech32 = _publicKeyFromBech32 maybeFfiHelper
 
-privateKeyFromBytes :: RawBytes -> Effect (Maybe PrivateKey)
+privateKeyFromBytes :: RawBytes -> Maybe PrivateKey
 privateKeyFromBytes = _privateKeyFromBytes maybeFfiHelper
 
 convertCerts :: Array T.Certificate -> Effect Certificates
