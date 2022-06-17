@@ -77,7 +77,7 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
-import Data.Traversable (for, traverse, traverse_)
+import Data.Traversable (traverse, traverse_)
 import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
@@ -168,7 +168,6 @@ import Types.UnbalancedTransaction
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
-  , payPubKeyRequiredSigner
   )
 
 -- Taken mainly from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-constraints/html/Ledger-Constraints-OffChain.html
