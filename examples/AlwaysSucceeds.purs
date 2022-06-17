@@ -10,6 +10,7 @@ import Contract.Aeson (decodeAeson, fromString)
 import Contract.Monad
   ( Contract
   , launchAff_
+  , liftContractAffM
   , liftContractM
   , liftedE
   , liftedM
@@ -41,7 +42,8 @@ main = launchAff_ $ do
   runContract_ cfg $ do
     logInfo' "Running Examples.AlwaysSucceeds"
     validator <- liftContractM "Invalid script JSON" alwaysSucceedsScript
-    vhash <- liftContractM "Couldn't hash validator" $ validatorHash validator
+    vhash <- liftContractAffM "Couldn't hash validator"
+      $ validatorHash validator
     logInfo' "Attempt to lock value"
     txId <- payToAlwaysSucceeds vhash
     -- If the wallet is cold, you need a high parameter here.

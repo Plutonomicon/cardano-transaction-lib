@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Single `Plutus.Conversion` module exposing all `(Type <-> Plutus Type)` conversion functions.
 - Support for using a `PrivateKey` as a `Wallet`.
 - Upgraded `ogmios-datum-cache` to `54ad2964af07ea0370bf95c0fed71f60a778ead5` for more stable datum from datum hash (see [here](https://github.com/Plutonomicon/cardano-transaction-lib/issues/526) for more details).
+- Switch from `blakejs` to `blake2b-wasm` for better performance.
 
 ### Removed
 
