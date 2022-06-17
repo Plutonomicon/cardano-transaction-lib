@@ -65,9 +65,9 @@ main = launchAff_ $ do
           <> Lookups.mintingPolicy mp3
 
     ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    BalancedSignedTransaction bsTx <-
+    bsTx <-
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-    txId <- submit bsTx.signedTxCbor
+    txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
 
 mkTokenName :: forall (r :: Row Type). String -> Contract r TokenName

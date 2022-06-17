@@ -43,8 +43,6 @@ type Cip30Wallet =
   , getCollateral :: Cip30Connection -> Aff (Maybe TransactionUnspentOutput)
   -- Sign a transaction with the given wallet
   , signTx :: Cip30Connection -> Transaction -> Aff (Maybe Transaction)
-  -- Sign transaction bytes with the given wallet
-  , signTxBytes :: Cip30Connection -> CborBytes -> Aff (Maybe CborBytes)
   }
 
 mkCip30WalletAff
@@ -63,7 +61,6 @@ mkCip30WalletAff walletName enableWallet = do
     , getWalletAddress
     , getCollateral
     , signTx
-    , signTxBytes
     }
 
 -------------------------------------------------------------------------------
@@ -105,13 +102,6 @@ signTx conn tx = do
   combineWitnessSet (Transaction tx'@{ witnessSet: oldWits }) newWits =
     Transaction $ tx' { witnessSet = oldWits <> newWits }
 
-signTxBytes :: Cip30Connection -> CborBytes -> Aff (Maybe CborBytes)
-signTxBytes conn txBytes = do
-  fromHexString (_signTx (cborBytesToHex txBytes)) conn >>= case _ of
-    Nothing -> pure Nothing
-    Just witBytes -> Just <$> liftEffect
-      (_attachSignature txBytes (rawBytesAsCborBytes witBytes))
-
 fromHexString
   :: (Cip30Connection -> Effect (Promise String))
   -> Cip30Connection
@@ -142,8 +132,3 @@ foreign import _signTx
   :: String -- Hex-encoded cbor of tx
   -> Cip30Connection
   -> Effect (Promise String)
-
-foreign import _attachSignature
-  :: CborBytes -- CBOR bytes of tx
-  -> CborBytes -- CBOR bytes of witness set
-  -> Effect CborBytes
