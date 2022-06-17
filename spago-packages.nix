@@ -17,6 +17,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "aeson-helpers" = pkgs.stdenv.mkDerivation {
+        name = "aeson-helpers";
+        version = "44d0dae060cf78babd4534320192b58c16a6f45b";
+        src = pkgs.fetchgit {
+          url = "https://github.com/mlabs-haskell/purescript-bridge-aeson-helpers.git";
+          rev = "44d0dae060cf78babd4534320192b58c16a6f45b";
+          sha256 = "1fgvaqvd9145zz5xw3fsa5vm75kp6bxcwa2nzq1dx2367h3a0zl0";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "aff" = pkgs.stdenv.mkDerivation {
         name = "aff";
         version = "v6.0.0";
@@ -1097,6 +1109,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "spec-quickcheck" = pkgs.stdenv.mkDerivation {
+        name = "spec-quickcheck";
+        version = "v4.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-spec/purescript-spec-quickcheck.git";
+          rev = "c2991f475b8fa11de8b68bcb5895b36be04d1e82";
+          sha256 = "01xcbfyqzax9c5najbfy12q0nvfklfm37llj2vkmi3wgkskg4prz";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "st" = pkgs.stdenv.mkDerivation {
         name = "st";
         version = "v5.0.1";
@@ -1128,6 +1152,18 @@ let
           url = "https://github.com/purescript/purescript-tailrec.git";
           rev = "5fbf0ac05dc6ab1a228b2897630195eb7483b962";
           sha256 = "1jjl2q2hyhjcdxpamzr1cdlxhmq2bl170x5p3jajb9zgwkqx0x22";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "text-encoding" = pkgs.stdenv.mkDerivation {
+        name = "text-encoding";
+        version = "v1.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/AlexaDeWit/purescript-text-encoding.git";
+          rev = "609ea0916f6817971d4a6c11b991b59715aaa096";
+          sha256 = "1r6ihj6m6ahp1cjf4i25pq9a00r2mvgrd8794xiapzsaigljz42c";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

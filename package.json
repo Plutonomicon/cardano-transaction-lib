@@ -19,8 +19,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@ngua/cardano-serialization-lib-browser": "^9.1.2",
-    "@ngua/cardano-serialization-lib-nodejs": "^9.1.2",
+    "@emurgo/cardano-serialization-lib-browser": "10.1.0",
+    "@emurgo/cardano-serialization-lib-nodejs": "10.1.0",
     "big-integer": "1.6.51",
     "blakejs": "1.2.1",
     "blake2b-wasm": "2.4.0",

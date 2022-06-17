@@ -496,7 +496,7 @@ data Certificate
       , pledge :: BigNum
       , cost :: BigNum
       , margin :: UnitInterval
-      , reward_account :: RewardAddress
+      , rewardAccount :: RewardAddress
       , poolOwners :: Array Ed25519KeyHash
       , relays :: Array Relay
       , poolMetadata :: Maybe PoolMetadata
@@ -655,6 +655,7 @@ newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
 derive instance Generic Vkeywitness _
 derive newtype instance Eq Vkeywitness
+derive instance Newtype Vkeywitness _
 
 instance Show Vkeywitness where
   show = genericShow

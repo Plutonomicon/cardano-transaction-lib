@@ -12,11 +12,7 @@ module Types.Natural
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , JsonDecodeError(TypeMismatch)
-  , caseAesonBigInt
-  )
+import Aeson (class DecodeAeson, JsonDecodeError(TypeMismatch), caseAesonBigInt)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left), note)

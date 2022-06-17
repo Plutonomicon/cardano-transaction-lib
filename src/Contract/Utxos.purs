@@ -12,7 +12,6 @@ import Contract.Monad (Contract, wrapContract, liftContractM)
 import Control.Monad.Reader.Class (asks)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)
-import Data.Tuple.Nested ((/\))
 import QueryM.Utxos (utxosAt) as Utxos
 import Plutus.Conversion (fromPlutusAddress, toPlutusUtxoM)
 import Plutus.Types.Address (Address)

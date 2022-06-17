@@ -9,7 +9,6 @@ import Contract.Address (scriptHashAddress)
 import Contract.Aeson (decodeAeson, fromString)
 import Contract.Monad
   ( Contract
-  , ContractConfig(ContractConfig)
   , launchAff_
   , liftContractAffM
   , liftContractM
@@ -17,7 +16,7 @@ import Contract.Monad
   , liftedM
   , logInfo'
   , runContract_
-  , traceContractConfig
+  , traceTestnetContractConfig
   )
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
@@ -33,15 +32,13 @@ import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (UtxoM(UtxoM), utxosAt)
 import Contract.Value as Value
-import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Effect.Aff (delay)
 
 main :: Effect Unit
 main = launchAff_ $ do
-  wallet <- Just <$> mkNamiWalletAff
-  cfg <- over ContractConfig _ { wallet = wallet } <$> traceContractConfig
+  cfg <- traceTestnetContractConfig
   runContract_ cfg $ do
     logInfo' "Running Examples.AlwaysSucceeds"
     validator <- liftContractM "Invalid script JSON" alwaysSucceedsScript

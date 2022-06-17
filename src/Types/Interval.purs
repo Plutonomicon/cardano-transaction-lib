@@ -56,9 +56,7 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError
-      ( TypeMismatch
-      )
+  , JsonDecodeError(TypeMismatch)
   , aesonNull
   , decodeAeson
   , encodeAeson
@@ -66,6 +64,11 @@ import Aeson
   , getField
   , isNull
   )
+import Aeson.Decode ((</$\>), (</*\>))
+import Aeson.Decode as Decode
+import Aeson.Encode ((>$<), (>/\<))
+import Aeson.Encode as Encode
+import Control.Lazy (defer)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Data.Array (find, head, index, length)
@@ -82,14 +85,16 @@ import Data.Lattice
   , class JoinSemilattice
   , class MeetSemilattice
   )
+import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
-import Data.UInt as UInt
+import Data.UInt (fromString) as UInt
 import Effect (Effect)
 import Effect.Class (liftEffect)
 import Foreign.Object (Object)
+import FromData (class FromData, genericFromData)
 import Helpers
   ( bigIntToUInt
   , liftEither
@@ -98,6 +103,7 @@ import Helpers
   , showWithParens
   , uIntToBigInt
   )
+import Partial.Unsafe (unsafePartial)
 import Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
@@ -113,11 +119,9 @@ import QueryM.Ogmios
   , SystemStart
   , aesonObject
   )
-import TypeLevel.Nat (S, Z)
-import ToData (class ToData, genericToData)
-import FromData (class FromData, genericFromData)
-import Partial.Unsafe (unsafePartial)
 import Serialization.Address (Slot(Slot))
+import ToData (class ToData, genericToData)
+import TypeLevel.Nat (S, Z)
 
 --------------------------------------------------------------------------------
 -- Interval Type and related
@@ -128,6 +132,7 @@ import Serialization.Address (Slot(Slot))
 type Closure = Boolean
 
 -- | A set extended with a positive and negative infinity.
+data Extended :: Type -> Type
 data Extended a = NegInf | Finite a | PosInf
 
 instance
@@ -224,6 +229,11 @@ instance Show a => Show (UpperBound a) where
 newtype Interval :: Type -> Type
 newtype Interval a = Interval { from :: LowerBound a, to :: UpperBound a }
 
+derive instance Generic (Interval a) _
+derive newtype instance Eq a => Eq (Interval a)
+derive instance Functor Interval
+derive instance Newtype (Interval a) _
+
 instance
   HasPlutusSchema (Interval a)
     ( "Interval"
@@ -236,10 +246,6 @@ instance
         @@ Z
         :+ PNil
     )
-
-derive instance Generic (Interval a) _
-derive newtype instance Eq a => Eq (Interval a)
-derive instance Functor Interval
 
 instance Show a => Show (Interval a) where
   show = genericShow
@@ -260,7 +266,42 @@ instance ToData a => ToData (Interval a) where
   toData = genericToData
 
 instance FromData a => FromData (Interval a) where
-  fromData = genericFromData
+  fromData i = genericFromData i
+
+instance EncodeAeson a => EncodeAeson (Interval a) where
+  encodeAeson' (Interval i) = encodeAeson' $ HaskInterval
+    { ivFrom: i.from, ivTo: i.to }
+
+instance DecodeAeson a => DecodeAeson (Interval a) where
+  decodeAeson a = do
+    HaskInterval i <- decodeAeson a
+    pure $ Interval { from: i.ivFrom, to: i.ivTo }
+
+--------------------------------------------------------------------------------
+-- POSIXTIME Type and related
+--------------------------------------------------------------------------------
+-- Taken from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/Plutus-V1-Ledger-Time.html#t:POSIXTimeRange
+-- Plutus rev: cc72a56eafb02333c96f662581b57504f8f8992f via Plutus-apps (localhost): abe4785a4fc4a10ba0c4e6417f0ab9f1b4169b26
+newtype POSIXTime = POSIXTime BigInt
+
+derive instance Generic POSIXTime _
+derive instance Newtype POSIXTime _
+derive newtype instance Eq POSIXTime
+derive newtype instance Ord POSIXTime
+-- There isn't an Enum instance for BigInt so we derive Semiring instead which
+-- has consequences on how isEmpty and overlaps are defined in
+-- Types.POSIXTimeRange (Interval API).
+derive newtype instance Semiring POSIXTime
+derive newtype instance FromData POSIXTime
+derive newtype instance ToData POSIXTime
+derive newtype instance DecodeAeson POSIXTime
+derive newtype instance EncodeAeson POSIXTime
+
+instance Show POSIXTime where
+  show (POSIXTime pt) = showWithParens "POSIXTime" pt
+
+-- | An `Interval` of `POSIXTime`s.
+type POSIXTimeRange = Interval POSIXTime
 
 --------------------------------------------------------------------------------
 -- Helpers
@@ -397,32 +438,6 @@ before h (Interval { from: from' }) = lowerBound h < from'
 -- | Check if a value is later than the end of a `Interval`.
 after :: forall (a :: Type). Ord a => a -> Interval a -> Boolean
 after h (Interval { to: to' }) = upperBound h > to'
-
---------------------------------------------------------------------------------
--- POSIXTime Type and related
---------------------------------------------------------------------------------
--- Taken from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/Plutus-V1-Ledger-Time.html#t:POSIXTimeRange
--- Plutus rev: cc72a56eafb02333c96f662581b57504f8f8992f via Plutus-apps (localhost): abe4785a4fc4a10ba0c4e6417f0ab9f1b4169b26
-newtype POSIXTime = POSIXTime BigInt
-
-derive instance Generic POSIXTime _
-derive instance Newtype POSIXTime _
-derive newtype instance Eq POSIXTime
-derive newtype instance Ord POSIXTime
--- There isn't an Enum instance for BigInt so we derive Semiring instead which
--- has consequences on how isEmpty and overlaps are defined in
--- Types.POSIXTimeRange (Interval API).
-derive newtype instance Semiring POSIXTime
-derive newtype instance FromData POSIXTime
-derive newtype instance ToData POSIXTime
-derive newtype instance DecodeAeson POSIXTime
-derive newtype instance EncodeAeson POSIXTime
-
-instance Show POSIXTime where
-  show (POSIXTime pt) = showWithParens "POSIXTime" pt
-
--- | An `Interval` of `POSIXTime`s. To be used in off-chain CTL contracts
-type POSIXTimeRange = Interval POSIXTime
 
 -- | A newtype wrapper over `POSIXTimeRange` to represent the on-chain version
 -- | of an off-chain `POSIXTimeRange`. In particular, there are a few steps
@@ -996,6 +1011,80 @@ derive instance Eq ToOnChainPosixTimeRangeError
 
 instance Show ToOnChainPosixTimeRangeError where
   show = genericShow
+
+-- TO DO: https://github.com/Plutonomicon/cardano-transaction-lib/issues/169
+-- -- | Get the current slot number
+-- currentSlot :: SlotConfig -> Effect Slot
+
+-- NOTE: mlabs-haskell/purescript-bridge generated and applied here
+
+newtype HaskInterval a = HaskInterval
+  { ivFrom :: LowerBound a, ivTo :: UpperBound a }
+
+derive instance Generic (HaskInterval a) _
+derive newtype instance Eq a => Eq (HaskInterval a)
+derive instance Functor HaskInterval
+derive instance Newtype (HaskInterval a) _
+
+instance (EncodeAeson a) => EncodeAeson (HaskInterval a) where
+  encodeAeson' = encodeAeson' <<<
+    defer
+      ( const $ Encode.encode $ unwrap >$<
+          ( Encode.record
+              { ivFrom: Encode.value :: _ (LowerBound a)
+              , ivTo: Encode.value :: _ (UpperBound a)
+              }
+          )
+      )
+
+instance (DecodeAeson a) => DecodeAeson (HaskInterval a) where
+  decodeAeson = defer $ const $ Decode.decode $
+    HaskInterval <$> Decode.record "Interval"
+      { ivFrom: Decode.value :: _ (LowerBound a)
+      , ivTo: Decode.value :: _ (UpperBound a)
+      }
+
+instance (EncodeAeson a) => EncodeAeson (LowerBound a) where
+  encodeAeson' = encodeAeson' <<<
+    defer
+      ( const $ Encode.encode $ (case _ of LowerBound a b -> (a /\ b)) >$<
+          (Encode.tuple (Encode.value >/\< Encode.value))
+      )
+
+instance (DecodeAeson a) => DecodeAeson (LowerBound a) where
+  decodeAeson = defer $ const $ Decode.decode
+    $ Decode.tuple
+    $ LowerBound </$\> Decode.value </*\> Decode.value
+
+instance (EncodeAeson a) => EncodeAeson (UpperBound a) where
+  encodeAeson' = encodeAeson' <<<
+    defer
+      ( const $ Encode.encode $ (case _ of UpperBound a b -> (a /\ b)) >$<
+          (Encode.tuple (Encode.value >/\< Encode.value))
+      )
+
+instance (DecodeAeson a) => DecodeAeson (UpperBound a) where
+  decodeAeson = defer $ const $ Decode.decode
+    $ Decode.tuple
+    $ UpperBound </$\> Decode.value </*\> Decode.value
+
+instance (EncodeAeson a) => EncodeAeson (Extended a) where
+  encodeAeson' = encodeAeson' <<<
+    defer
+      ( const $ case _ of
+          NegInf -> encodeAeson { tag: "NegInf" }
+          Finite a -> Encode.encodeTagged "Finite" a Encode.value
+          PosInf -> encodeAeson { tag: "PosInf" }
+      )
+
+instance (DecodeAeson a) => DecodeAeson (Extended a) where
+  decodeAeson = defer $ const $ Decode.decode
+    $ Decode.sumType "Extended"
+    $ Map.fromFoldable
+        [ "NegInf" /\ pure NegInf
+        , "Finite" /\ Decode.content (Finite <$> Decode.value)
+        , "PosInf" /\ pure PosInf
+        ]
 
 toOnChainPosixTimeRangeErrorStr :: String
 toOnChainPosixTimeRangeErrorStr = "ToOnChainPosixTimeRangeError"

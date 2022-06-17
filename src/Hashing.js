@@ -8,9 +8,9 @@ const SHA3 = require('jssha/dist/sha3');
 
 let lib;
 if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
-  lib = require('@ngua/cardano-serialization-lib-browser');
+  lib = require('@emurgo/cardano-serialization-lib-browser');
 } else {
-  lib = require('@ngua/cardano-serialization-lib-nodejs');
+  lib = require('@emurgo/cardano-serialization-lib-nodejs');
 }
 
 const DIGEST_LENGTH_256 = 32;

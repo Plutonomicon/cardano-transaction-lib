@@ -4,9 +4,10 @@ import Prelude
 
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Array ((..), length, zip)
-import Data.Newtype (class Newtype, wrap)
 import Data.UInt (UInt, fromInt)
+import Data.Newtype (class Newtype, wrap)
 import Data.Traversable (for_)
+import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested ((/\))
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
@@ -16,13 +17,13 @@ import Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
   )
-import Serialization.Hash (ed25519KeyHashFromBech32, scriptHashFromBech32)
 import Serialization.Address
   ( NetworkId(MainnetId, TestnetId)
   , addressFromBech32
   )
+import Serialization.Hash (ed25519KeyHashFromBech32, scriptHashFromBech32)
 import Test.Spec.Assertions (shouldEqual)
-import Test.Utils (errMaybe)
+import Test.Utils (errMaybe, toFromAesonTest)
 import TestM (TestPlanM)
 import Types.Aliases (Bech32String)
 
@@ -33,6 +34,21 @@ suite = do
       addressConversionTests MainnetId
     group "Shelley testnet addresses" do
       addressConversionTests TestnetId
+  group "Plutus.Types.Address" $ do
+    group "FromPlutusType & ToPlutusType" $ do
+      let indices = 0 .. (length addresses - 1)
+      group "Shelley mainnet addresses" $ do
+        let testData = zip (zip addressesBech32Mainnet addresses) indices
+        for_ testData $ \(Tuple (Tuple addrBech32 addr) addrType) ->
+          toFromPlutusAddressTest MainnetId addrType addrBech32 addr
+      group "Shelley testnet addresses" $ do
+        let testData = zip (zip addressesBech32Testnet addresses) indices
+        for_ testData $ \(Tuple (Tuple addrBech32 addr) addrType) ->
+          toFromPlutusAddressTest TestnetId addrType addrBech32 addr
+    group "Aeson tests" $ do
+      group "Roundtrip tests"
+        $ for_ addresses
+        $ toFromAesonTest "Address"
 
 addressConversionTests :: NetworkId -> TestPlanM Unit
 addressConversionTests networkId =
