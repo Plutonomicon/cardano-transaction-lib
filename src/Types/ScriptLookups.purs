@@ -78,11 +78,12 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
-import Data.Traversable (for, traverse, traverse_)
+import Data.Traversable (for, sequence, traverse, traverse_)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff (Aff)
+import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import FromData (class FromData)
 import Hashing (datumHash) as Hashing
@@ -506,10 +507,10 @@ processLookupsAndConstraints
   let
     mps = lookups.mps
     scripts = lookups.scripts
-  mpsHashes <-
-    except $ hashScripts mintingPolicyHash CannotHashMintingPolicy mps
-  validatorHashes <-
-    except $ hashScripts validatorHash CannotHashValidator scripts
+  mpsHashes <- ExceptT $
+    hashScripts mintingPolicyHash CannotHashMintingPolicy mps
+  validatorHashes <- ExceptT $
+    hashScripts validatorHash CannotHashValidator scripts
   let
     mpsMap = fromFoldable $ zip mpsHashes mps
     osMap = fromFoldable $ zip validatorHashes scripts
@@ -529,12 +530,12 @@ processLookupsAndConstraints
   -- with a way to error.
   hashScripts
     :: forall (script :: Type) (scriptHash :: Type) (c :: Type)
-     . (script -> Maybe scriptHash)
+     . (script -> Aff (Maybe scriptHash))
     -> (script -> MkUnbalancedTxError)
     -> Array script
-    -> Either MkUnbalancedTxError (Array scriptHash)
+    -> ConstraintsM c (Either MkUnbalancedTxError (Array scriptHash))
   hashScripts hasher error =
-    traverse (\s -> note (error s) (hasher s))
+    liftAff <<< map sequence <<< traverse (\s -> note (error s) <$> hasher s)
 
   -- Don't write the output in terms of ExceptT because we can't write a
   -- partially applied `ConstraintsM` meaning this is more readable.

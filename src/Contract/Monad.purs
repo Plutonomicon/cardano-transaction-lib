@@ -8,9 +8,9 @@ module Contract.Monad
   , module QueryM
   , module Log.Level
   , module Log.Tag
-  , wrapContract
-  , defaultTestnetContractConfig
   , configWithLogLevel
+  , defaultTestnetContractConfig
+  , liftContractAffM
   , liftContractE
   , liftContractE'
   , liftContractM
@@ -32,6 +32,7 @@ module Contract.Monad
   , runContract_
   , throwContractError
   , traceTestnetContractConfig
+  , wrapContract
   ) where
 
 import Prelude
@@ -68,7 +69,7 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Profunctor (dimap)
 import Effect.Aff (Aff)
 import Effect.Aff (Aff, launchAff_) as Aff
-import Effect.Aff.Class (class MonadAff)
+import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
 import Helpers (logWithLevel)
@@ -224,6 +225,14 @@ liftedM
   -> Contract r (Maybe a)
   -> Contract r a
 liftedM str cm = cm >>= liftContractM str
+
+-- | Same as `liftContractM` but the `Maybe` value is in the `Aff` context.
+liftContractAffM
+  :: forall (r :: Row Type) (a :: Type)
+   . String
+  -> Aff (Maybe a)
+  -> Contract r a
+liftContractAffM str = liftedM str <<< liftAff
 
 -- | Similar to `liftContractE` except it directly throws the showable error
 -- | via `throwContractError` instead of an arbitrary string.
