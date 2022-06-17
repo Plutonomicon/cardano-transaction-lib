@@ -24,11 +24,7 @@ import Contract.Monad
   , runContract_
   )
 import Contract.ScriptLookups as Lookups
-import Contract.Transaction
-  ( BalancedSignedTransaction(BalancedSignedTransaction)
-  , balanceAndSignTx
-  , submit
-  )
+import Contract.Transaction (balanceAndSignTx, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)

@@ -6,6 +6,7 @@ module Api.Handlers (
 
 import Cardano.Api qualified as C
 import Cardano.Api.Shelley qualified as Shelley
+import Cardano.Ledger.Alonzo.Tx qualified as Tx
 import Cardano.Ledger.Alonzo.TxWitness qualified as TxWitness
 import Control.Lens ((&), (<&>))
 import Control.Monad.Catch (throwM)
@@ -18,6 +19,7 @@ import Data.Kind (Type)
 import Data.List qualified as List (find)
 import Data.Map qualified as Map
 import Data.Maybe (fromJust)
+import Data.Maybe.Strict (StrictMaybe (SNothing))
 import Data.Proxy (Proxy (Proxy))
 import Data.Set qualified as Set
 import Data.Text.Encoding qualified as Text.Encoding
@@ -66,7 +68,7 @@ estimateTxFees FeesRequest {count, tx} = do
       WitnessCount witCount = count
 
       fee :: Integer
-      fee = estimateFee pparams witCount tx'
+      fee = estimateFee pparams witCount (withScriptIntegrityHash tx')
   Fee <$> finalizeTxFee fee
   where
     -- `txfee` value must also be taken into account when calculating fees,
@@ -93,6 +95,18 @@ estimateTxFees FeesRequest {count, tx} = do
           let predicate = (>= succ (Math.integerLog2 n `div` 8))
            in fromIntegral . fromJust $ -- using `fromJust` here is safe
                 List.find predicate [2 ^ x | x <- [(0 :: Int) ..]]
+
+    -- FIXME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/570
+    withScriptIntegrityHash :: C.Tx C.AlonzoEra -> C.Tx C.AlonzoEra
+    withScriptIntegrityHash transaction@(C.Tx txBodyAlonzo keyWits) =
+      case txBodyAlonzo of
+        Shelley.ShelleyTxBody era txBody scr sData aux val ->
+          case Tx.scriptIntegrityHash txBody of
+            SNothing ->
+              let txBody' = txBody {Tx.scriptIntegrityHash = SNothing}
+                  shelleyB = Shelley.ShelleyTxBody era txBody' scr sData aux val
+               in C.Tx shelleyB keyWits
+            _ -> transaction
 
 applyArgs :: ApplyArgsRequest -> AppM AppliedScript
 applyArgs ApplyArgsRequest {script, args} =
