@@ -189,10 +189,12 @@ newtype ScriptLookups (a :: Type) = ScriptLookups
   { mps ::
       Array MintingPolicy -- Minting policies that the script interacts with
   , txOutputs ::
-      Map TransactionInput Plutus.TransactionOutput -- Unspent outputs that the script may want to spend. This may need tweaking to `TransactionOutput`
+      Map TransactionInput Plutus.TransactionOutput -- Unspent outputs that the script may want to spend
   , scripts ::
       Array Validator -- Script validators
   , datums :: Map DataHash Datum --  Datums that we might need
+    -- FIXME there's currently no way to set this field
+    -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/569
   , paymentPubKeyHashes ::
       Map PaymentPubKeyHash PaymentPubKey -- Public keys that we might need
   , typedValidator ::
@@ -317,20 +319,6 @@ datum :: forall (a :: Type). Datum -> Maybe (ScriptLookups a)
 datum dt =
   Hashing.datumHash dt
     <#> \dh -> over ScriptLookups _ { datums = singleton dh dt } mempty
-
--- -- | A script lookups value with a payment public key. This can fail because we
--- -- | invoke `payPubKeyHash`.
--- paymentPubKeyM :: forall (a :: Type). PaymentPubKey -> Maybe (ScriptLookups a)
--- paymentPubKeyM ppk = do
---   pkh <- payPubKeyHash ppk
---   pure $ over ScriptLookups
---     _ { paymentPubKeyHashes = singleton pkh ppk }
---     mempty
-
--- -- | A script lookups value with a payment public key. This is unsafe because
--- -- | the underlying function `paymentPubKeyM` can fail.
--- unsafePaymentPubKey :: forall (a :: Type). PaymentPubKey -> ScriptLookups a
--- unsafePaymentPubKey = unsafePartial fromJust <<< paymentPubKeyM
 
 -- | Add your own `PaymentPubKeyHash` to the lookup.
 ownPaymentPubKeyHash :: forall (a :: Type). PaymentPubKeyHash -> ScriptLookups a
@@ -867,6 +855,10 @@ processConstraint mpsMap osMap = do
             , validityStartInterval = validityStartInterval
             }
     MustBeSignedBy pkh -> runExceptT $
+      -- FIXME This is incompatible with Plutus' version, which requires
+      -- the corresponding `paymentPubKey` lookup. In the next major version,
+      -- we might wish to revise this
+      -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/569
       _cpsToTxBody <<< _requiredSigners <>= Just [ wrap $ unwrap $ unwrap pkh ]
     MustSpendAtLeast plutusValue -> do
       let value = unwrap $ fromPlutusType plutusValue
