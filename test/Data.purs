@@ -1,21 +1,27 @@
 -- | Tests for `ToData`/`FromData`
 module Test.Data (suite, tests, uniqueIndicesTests) where
 
-import Prelude
+import Prelude hiding (conj)
 
 import Aeson (decodeAeson, encodeAeson, JsonDecodeError(TypeMismatch))
+import Contract.Monad (Aff)
 import Control.Lazy (fix)
+import Control.Monad.Error.Class (class MonadThrow)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Generic.Rep as G
+import Data.List as List
 import Data.Maybe (maybe, Maybe(Just, Nothing), fromJust)
+import Data.Newtype (wrap)
+import Data.NonEmpty ((:|))
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for_, traverse_)
 import Data.Tuple (Tuple, uncurry)
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytes)
 import Deserialization.PlutusData as PDD
+import Effect.Exception (Error)
 import FromData (class FromData, fromData, genericFromData)
 import Helpers (showWithParens)
 import Mote (group, test)
@@ -31,17 +37,21 @@ import Plutus.Types.DataSchema
   )
 import Serialization (toBytes)
 import Serialization.PlutusData as PDS
+import Test.QuickCheck ((===))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary, genericArbitrary)
-import Test.QuickCheck.Gen (Gen)
+import Test.QuickCheck.Combinators (conj)
+import Test.QuickCheck.Gen (frequency)
 import Test.Spec.Assertions (shouldEqual)
+import Test.Spec.QuickCheck (quickCheck)
 import TestM (TestPlanM)
 import ToData (class ToData, genericToData, toData)
-import Types.PlutusData (PlutusData(Constr, Integer))
+import Type.Proxy (Proxy(Proxy))
 import Type.RowList (Cons, Nil)
 import TypeLevel.Nat (Z, S)
 import TypeLevel.RowList (class AllUniqueLabels)
 import TypeLevel.RowList.Unordered.Indexed (NilI, ConsI, class UniqueIndices)
 import Types.ByteArray (hexToByteArrayUnsafe)
+import Types.PlutusData (PlutusData(Constr, Integer))
 import Untagged.Union (asOneOf)
 
 plutusDataAesonRoundTrip
@@ -50,41 +60,62 @@ plutusDataAesonRoundTrip x = do
   maybe (Left $ TypeMismatch "") pure <<< fromData =<<
     (encodeAeson (toData x) # decodeAeson)
 
+shouldEqualWith
+  :: forall (a :: Type) (b :: Type) (m1 :: Type -> Type) (m2 :: Type -> Type)
+   . ToData a
+  => FromData a
+  => Show (m2 a)
+  => Eq (m2 a)
+  => MonadThrow Error m1
+  => (b -> m2 a)
+  -> (b -> m2 a)
+  -> b
+  -> m1 Unit
+shouldEqualWith functionToTest wrap value =
+  functionToTest value `shouldEqual` wrap value
+
+plutusDataRoundtripProperty
+  :: forall (a :: Type)
+   . FromData a
+  => ToData a
+  => Arbitrary a
+  => Eq a
+  => Show a
+  => Proxy a
+  -> Aff Unit
+plutusDataRoundtripProperty (_ :: Proxy a) =
+  quickCheck \(input :: a) -> fromData (toData input) === Just input
+
 suite :: TestPlanM Unit
 suite = do
   group "PlutusData Aeson representation tests" $ do
     group "Primitives" do
       test "Unit" do
-        let
-          input = unit
-        plutusDataAesonRoundTrip input `shouldEqual` Right input
+        shouldEqualWith plutusDataAesonRoundTrip Right unit
       group "Boolean" do
         let
           inputs = [ true, false ]
         for_ inputs \input -> do
           test (show input) do
-            plutusDataAesonRoundTrip input `shouldEqual` Right input
+            shouldEqualWith plutusDataAesonRoundTrip Right input
       group "Maybe" do
         let
           inputs = [ Just true, Just false, Nothing ]
         for_ inputs \input -> do
           test (show input) do
-            plutusDataAesonRoundTrip input `shouldEqual` Right input
-      group "BigInt" do
-        let
-          inputs =
-            [ BigInt.fromInt 0
-            , BigInt.fromInt 10000
-            , BigInt.fromInt (-10000)
-            ]
-        for_ inputs \input -> do
-          test (show input) do
-            plutusDataAesonRoundTrip input `shouldEqual` Right input
-      test "Array" do
+            shouldEqualWith plutusDataAesonRoundTrip Right input
+      test "BigInt" $
+        quickCheck \(n :: Int) ->
+          let
+            input = BigInt.fromInt n
+          in
+            plutusDataAesonRoundTrip input === Right input
+      test "Array" $
         let
           input = [ Just true, Just false, Nothing ]
-        plutusDataAesonRoundTrip input `shouldEqual` Right input
-      test "Map" do
+        in
+          shouldEqualWith plutusDataAesonRoundTrip Right input
+      test "Map" $
         let
           input = Map
             [ BigInt.fromInt 13 /\
@@ -93,50 +124,41 @@ suite = do
                     ]
                 ]
             ]
-        plutusDataAesonRoundTrip input `shouldEqual` Right input
+        in
+          shouldEqualWith plutusDataAesonRoundTrip Right input
     group "Generic" do
-      -- TODO: Quickcheckify
-      test "CType: from . to == id" do
+      test "CType: from . to == id" $
         let
           input = C4
             ( Map
                 [ BigInt.fromInt 13 /\ [ Map [ BigInt.fromInt 17 /\ false ] ]
                 ]
             )
-        plutusDataAesonRoundTrip input `shouldEqual` Right input
+        in
+          plutusDataAesonRoundTrip input `shouldEqual` Right input
   group "PlutusData representation tests: ToData/FromData" $ do
     group "Primitives" do
       test "Unit" do
-        let
-          input = unit
-        fromData (toData input) `shouldEqual` Just input
+        shouldEqualWith (fromData <<< toData) Just unit
       group "Boolean" do
         let
           inputs = [ true, false ]
         for_ inputs \input -> do
           test (show input) do
-            fromData (toData input) `shouldEqual` Just input
+            shouldEqualWith (fromData <<< toData) Just input
       group "Maybe" do
         let
           inputs = [ Just true, Just false, Nothing ]
         for_ inputs \input -> do
           test (show input) do
-            fromData (toData input) `shouldEqual` Just input
-      group "BigInt" do
-        let
-          inputs =
-            [ BigInt.fromInt 0
-            , BigInt.fromInt 10000
-            , BigInt.fromInt (-10000)
-            ]
-        for_ inputs \input -> do
-          test (show input) do
-            fromData (toData input) `shouldEqual` Just input
-      test "Array" do
-        let
-          input = [ Just true, Just false, Nothing ]
-        fromData (toData input) `shouldEqual` Just input
-      test "Map" do
+            shouldEqualWith (fromData <<< toData) Just input
+      test "BigInt" $ plutusDataRoundtripProperty (Proxy :: Proxy MyBigInt)
+      test "Array" $
+        shouldEqualWith
+          (fromData <<< toData)
+          Just
+          [ Just true, Just false, Nothing ]
+      test "Map" $
         let
           input = Map
             [ BigInt.fromInt 13 /\
@@ -145,48 +167,33 @@ suite = do
                     ]
                 ]
             ]
-        fromData (toData input) `shouldEqual` Just input
+        in
+          shouldEqualWith (fromData <<< toData) Just input
     group "Generic" do
-      -- TODO: Quickcheckify
-      test "EType: from . to == id" do
-        let
-          input = E0 (D1 (D2 (C1 Nothing))) true
-            (C2 (MyBigInt (BigInt.fromInt 123)) false)
-        fromData (toData input) `shouldEqual` Just input
-      test "CType: C1 constructor shouldn't accept empty arguments" do
+      test "EType: from . to == id" $
+        plutusDataRoundtripProperty (Proxy :: Proxy EType)
+      test "CType: C1 constructor shouldn't accept empty arguments" $
         let
           pd = Constr (BigInt.fromInt 1) []
-        fromData pd `shouldEqual` (Nothing :: Maybe CType)
-      test "CType: C1 constructor shouldn't accept more than one argument" do
+        in
+          shouldEqualWith fromData (const (Nothing :: Maybe CType)) pd
+      test "CType: C1 constructor shouldn't accept more than one argument" $
         let
           pd = Constr (BigInt.fromInt 1)
             [ (Constr (BigInt.fromInt 1) []), (Integer $ BigInt.fromInt 0) ]
-        fromData pd `shouldEqual` (Nothing :: Maybe CType)
-      test "CType: C0 constructor shouldn't accept any arguments" do
+        in
+          shouldEqualWith fromData (const (Nothing :: Maybe CType)) pd
+      test "CType: C0 constructor shouldn't accept any arguments" $
         let
           pd = Constr (BigInt.fromInt 0) [ (Constr (BigInt.fromInt 1) []) ]
-        fromData pd `shouldEqual` (Nothing :: Maybe CType)
-      test "FType and FType' toData/fromData the same: F0 == F0'" do
-        let
-          f0 = F0 { f0A: BigInt.fromInt 1337 }
-          f0' = F0' (BigInt.fromInt 1337)
-        fromData (toData f0) `shouldEqual` Just f0'
-        fromData (toData f0') `shouldEqual` Just f0
-      test "FType and FType' toData/fromData the same: F1 == F1'" do
-        let
-          f1 = F1 { f1A: false, f1B: false, f1C: true }
-          f1' = F1' false false true
-        fromData (toData f1) `shouldEqual` Just f1'
-        fromData (toData f1') `shouldEqual` Just f1
-      test "FType and FType' toData/fromData the same: F2 == F2'" do
-        let
-          f2 = F2
-            { f2A: BigInt.fromInt 1337
-            , f2B: F1 { f1A: true, f1B: false, f1C: true }
-            }
-          f2' = F2' (BigInt.fromInt 1337) (F1' true false true)
-        fromData (toData f2) `shouldEqual` Just f2'
-        fromData (toData f2') `shouldEqual` Just f2
+        in
+          shouldEqualWith fromData (const (Nothing :: Maybe CType)) pd
+      test "FType and FType' toData/fromData are the same" $
+        quickCheck \(input :: FType) -> do
+          let
+            input' = fType2Ftype' input
+          conj (fromData (toData input) === Just input')
+            $ fromData (toData input') === Just input
   group "ToData and serialization - binary fixtures" do
     -- How to get binary fixtures:
     --
@@ -244,10 +251,7 @@ instance Show MyBigInt where
   show (MyBigInt bi) = showWithParens "MyBigInt" bi
 
 instance Arbitrary MyBigInt where
-  arbitrary = do
-    i <- arbitrary :: Gen Int
-    let bi = BigInt.fromInt i
-    pure $ MyBigInt bi
+  arbitrary = MyBigInt <<< BigInt.fromInt <$> arbitrary
 
 -- | Types used to test generic fromData and toData
 data CType
@@ -398,17 +402,48 @@ instance ToData FType where
 instance ToData FType' where
   toData x = genericToData x
 
--- https://stackoverflow.com/questions/51215083/how-to-quickcheck-on-custom-adt-in-purescript
--- https://github.com/purescript/purescript/issues/2975
--- https://github.com/purescript/documentation/blob/master/errors/CycleInDeclaration.md
 instance Arbitrary CType where
-  arbitrary = fix $ \arb -> arb
+  arbitrary =
+    (frequency <<< wrap) $
+      (0.25 /\ pure C0)
+        :| List.fromFoldable
+          [ 0.25 /\ (C1 <$> arbitrary)
+          , 0.25 /\ (C2 <$> arbitrary <*> arbitrary)
+          , 0.25 /\ (C3 <$> arbitrary <*> arbitrary <*> arbitrary)
+          ]
 
 instance Arbitrary EType where
   arbitrary = genericArbitrary
 
 instance Arbitrary DType where
-  arbitrary = fix $ \arb -> arb
+  arbitrary = fix \_ -> (frequency <<< wrap) $
+    0.4 /\ (D0 <$> arbitrary <*> arbitrary <*> arbitrary)
+      :| List.fromFoldable
+        [ 0.4 /\ (D2 <$> arbitrary)
+        , 0.2 /\ (D1 <$> arbitrary)
+        ]
+
+instance Arbitrary FType where
+  arbitrary = fix \_ -> (frequency <<< wrap) $
+    0.4 /\ (F0 <$> ({ f0A: _ } <<< unwrap <$> arbitrary))
+      :| List.fromFoldable
+        [ 0.4 /\
+            ( F1 <$>
+                ( { f1A: _, f1B: _, f1C: _ } <$> arbitrary <*> arbitrary <*>
+                    arbitrary
+                )
+            )
+        , 0.2 /\
+            (F2 <$> ({ f2A: _, f2B: _ } <<< unwrap <$> arbitrary <*> arbitrary))
+        ]
+    where
+    unwrap :: MyBigInt -> BigInt
+    unwrap (MyBigInt x) = x
+
+fType2Ftype' :: FType -> FType'
+fType2Ftype' (F0 { f0A: i }) = F0' i
+fType2Ftype' (F1 { f1A: b1, f1B: b2, f1C: b3 }) = F1' b1 b2 b3
+fType2Ftype' (F2 { f2A: i, f2B: f }) = F2' i $ fType2Ftype' f
 
 instance Show CType where
   show x = genericShow x
