@@ -13,7 +13,7 @@ import Effect.Exception (throw)
 import Mote (group, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (readTextFile)
-import QueryM.Ogmios (ProtocolParametersR)
+import QueryM.Ogmios (ProtocolParameters)
 import Test.Spec.Assertions (shouldSatisfy)
 import TestM (TestPlanM)
 
@@ -27,5 +27,5 @@ suite = do
     eAeson
   group "ProtocolParameters parser" $ do
     test "is able to parse ogmios response fixture" $
-      (decodeAeson aeson :: Either _ ProtocolParametersR) `shouldSatisfy`
+      (decodeAeson aeson :: Either _ ProtocolParameters) `shouldSatisfy`
         isRight

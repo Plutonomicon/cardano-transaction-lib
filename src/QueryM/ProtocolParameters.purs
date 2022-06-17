@@ -5,10 +5,9 @@ module QueryM.ProtocolParameters
 
 import Prelude
 
-import Data.Newtype (unwrap)
 import QueryM (QueryM, mkOgmiosRequest)
 import QueryM.Ogmios (queryProtocolParametersCall, ProtocolParameters)
 
 getProtocolParameters :: QueryM ProtocolParameters
-getProtocolParameters = unwrap <$>
+getProtocolParameters =
   mkOgmiosRequest queryProtocolParametersCall _.getProtocolParameters unit

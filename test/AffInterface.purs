@@ -125,8 +125,9 @@ testGetEraSummaries = do
   flip runQueryM (void getEraSummaries) =<< traceQueryConfig
 
 testGetProtocolParameters :: Aff Unit
-testGetProtocolParameters = flip runQueryM (void getProtocolParameters) =<<
-  traceQueryConfig
+testGetProtocolParameters = do
+  flip runQueryM (void getProtocolParameters) =<<
+    traceQueryConfig
 
 testGetCurrentEpoch :: Aff Unit
 testGetCurrentEpoch = do

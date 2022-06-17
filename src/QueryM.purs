@@ -716,7 +716,7 @@ type OgmiosListeners =
   , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
   , submit :: ListenerSet { txCbor :: ByteArray } Ogmios.SubmitTxR
   , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationR
-  , getProtocolParameters :: ListenerSet Unit Ogmios.ProtocolParametersR
+  , getProtocolParameters :: ListenerSet Unit Ogmios.ProtocolParameters
   , eraSummaries :: ListenerSet Unit Ogmios.EraSummaries
   , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
   , systemStart :: ListenerSet Unit Ogmios.SystemStart
@@ -839,7 +839,7 @@ ogmiosMessageDispatch
      , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipQR
      , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationR
      , getProtocolParametersDispatchMap ::
-         DispatchIdMap Ogmios.ProtocolParametersR
+         DispatchIdMap Ogmios.ProtocolParameters
      , submitDispatchMap :: DispatchIdMap Ogmios.SubmitTxR
      , eraSummariesDispatchMap :: DispatchIdMap Ogmios.EraSummaries
      , currentEpochDispatchMap :: DispatchIdMap Ogmios.CurrentEpoch
