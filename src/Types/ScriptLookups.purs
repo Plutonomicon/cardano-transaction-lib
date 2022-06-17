@@ -193,8 +193,8 @@ newtype ScriptLookups (a :: Type) = ScriptLookups
   , scripts ::
       Array Validator -- Script validators
   , datums :: Map DataHash Datum --  Datums that we might need
-    -- FIXME there's currently no way to set this field
-    -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/569
+  -- FIXME there's currently no way to set this field
+  -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/569
   , paymentPubKeyHashes ::
       Map PaymentPubKeyHash PaymentPubKey -- Public keys that we might need
   , typedValidator ::
