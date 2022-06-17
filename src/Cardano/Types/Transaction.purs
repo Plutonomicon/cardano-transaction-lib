@@ -393,6 +393,7 @@ instance DecodeAeson Nonce where
       )
       aeson
     where
+    err :: Either JsonDecodeError Nonce
     err = Left (TypeMismatch "Nonce")
 
 instance EncodeAeson Nonce where

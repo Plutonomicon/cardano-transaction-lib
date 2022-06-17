@@ -487,6 +487,7 @@ instance DecodeAeson PParamRational where
             PParamRational <$> numerator % denominator
           _ -> Left err
     where
+    err :: JsonDecodeError
     err = TypeMismatch "PParamRaional"
 
 rationalToSubcoin :: PParamRational -> Maybe SubCoin
