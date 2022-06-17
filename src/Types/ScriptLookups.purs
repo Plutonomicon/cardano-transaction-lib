@@ -867,13 +867,8 @@ processConstraint mpsMap osMap = do
             { ttl = timeToLive
             , validityStartInterval = validityStartInterval
             }
-    MustBeSignedBy pkh -> runExceptT do
-      ppkh <- use _lookups <#> unwrap >>> _.paymentPubKeyHashes
-      sigs <- for (lookup pkh ppkh) $
-        payPubKeyRequiredSigner >>>
-          maybe (throwError (CannotConvertPaymentPubKeyHash pkh))
-            (pure <<< Array.singleton)
-      _cpsToTxBody <<< _requiredSigners <>= sigs
+    MustBeSignedBy pkh -> runExceptT $
+      _cpsToTxBody <<< _requiredSigners <>= Just [ wrap $ unwrap $ unwrap pkh ]
     MustSpendAtLeast plutusValue -> do
       let value = unwrap $ fromPlutusType plutusValue
       runExceptT $ _valueSpentBalancesInputs <>= require value
