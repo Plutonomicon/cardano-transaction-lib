@@ -4,6 +4,7 @@ module Test.Utils
   , assertTrue_
   , errMaybe
   , interpret
+  , interpret'    
   , toFromAesonTest
   , unsafeCall
   ) where
@@ -29,7 +30,8 @@ import Mote (Plan, foldPlan, planT, test)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter (consoleReporter)
-import Test.Spec.Runner (runSpec)
+import Test.Spec.Runner (runSpec')
+import Test.Spec.Runner as SpecRunner
 import TestM (TestPlanM)
 import Type.Proxy (Proxy)
 
@@ -38,10 +40,10 @@ foreign import unsafeCall :: forall a b. Proxy b -> String -> a -> b
 -- | We use `mote` here so that we can use effects to build up a test tree, which
 -- | is then interpreted here in a pure context, mainly due to some painful types
 -- | in Test.Spec which prohibit effects.
-interpret :: TestPlanM Unit -> Aff Unit
-interpret spif = do
+interpret' :: SpecRunner.Config -> TestPlanM Unit -> Aff Unit
+interpret' config spif = do
   plan <- planT spif
-  runSpec [ consoleReporter ] $ go plan
+  runSpec'  config [ consoleReporter ] $ go plan
   where
   go :: Plan (Const Void) (Aff Unit) -> Spec Unit
   go =
@@ -50,6 +52,12 @@ interpret spif = do
       (const $ pure unit)
       (\x -> describe x.label $ go x.value)
       sequence_
+
+-- | We use `mote` here so that we can use effects to build up a test tree, which
+-- | is then interpreted here in a pure context, mainly due to some painful types
+-- | in Test.Spec which prohibit effects.
+interpret :: TestPlanM Unit -> Aff Unit
+interpret = interpret' SpecRunner.defaultConfig
 
 -- | Test a boolean value, throwing the provided string as an error if `false`
 assertTrue

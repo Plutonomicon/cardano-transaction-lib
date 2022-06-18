@@ -24,3 +24,4 @@ result-*
 output.js
 .DS_Store
 .idea/
+chrome-data/
