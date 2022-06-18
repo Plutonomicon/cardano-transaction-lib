@@ -135,7 +135,7 @@ import Cardano.Types.Transaction -- Most re-exported, don't re-export `Redeemer`
   , _withdrawals
   , _witnessSet
   ) as Transaction
-import Plutus.ToPlutusType (toPlutusType)
+import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
 import Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   ) as PTransaction
@@ -192,7 +192,7 @@ calculateMinFee
   :: forall (r :: Row Type)
    . Transaction
   -> Contract r (Either ExportQueryM.ClientError Coin)
-calculateMinFee = (map <<< map) (unwrap <<< toPlutusType)
+calculateMinFee = (map <<< map) toPlutusCoin
   <<< wrapContract
   <<< QueryM.calculateMinFee
 
@@ -284,4 +284,5 @@ scriptOutputToTransactionOutput
   -> UnbalancedTx.ScriptOutput
   -> Maybe PTransaction.TransactionOutput
 scriptOutputToTransactionOutput networkId =
-  toPlutusType <<< TxOutput.scriptOutputToTransactionOutput networkId
+  toPlutusTxOutput
+    <<< TxOutput.scriptOutputToTransactionOutput networkId

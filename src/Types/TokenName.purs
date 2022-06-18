@@ -18,33 +18,28 @@ import Aeson
   , encodeAeson'
   , getField
   )
+import Contract.Prim.ByteArray (hexToByteArray)
+import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt (BigInt)
 import Data.Bitraversable (ltraverse)
-import Data.Char (toCharCode)
-import Data.Either (Either(Left, Right), note, either)
+import Data.Either (Either(Right, Left), either, note)
 import Data.Map (Map)
 import Data.Map (fromFoldable) as Map
-import Data.Maybe (Maybe(Nothing, Just))
-import Data.Newtype (wrap, unwrap)
+import Data.Maybe (Maybe(Nothing))
+import Data.Newtype (unwrap, wrap)
 import Data.String.CodePoints (drop, take)
-import Data.String.CodeUnits (toCharArray)
+import Data.TextEncoding (encodeUtf8)
 import Data.Traversable (class Traversable, traverse)
-import Data.TextDecoding (decodeUtf8)
 import Data.Tuple.Nested (type (/\))
 import FromData (class FromData)
 import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Serialization.Types (AssetName) as CSL
 import ToData (class ToData)
-import Types.ByteArray
-  ( ByteArray
-  , byteArrayFromIntArray
-  , byteArrayToHex
-  , byteLength
-  )
-import Types.CborBytes (CborBytes, cborBytesToByteArray)
+import Types.ByteArray (ByteArray, byteArrayToHex, byteLength)
+import Types.RawBytes (RawBytes(RawBytes))
 
-newtype TokenName = TokenName CborBytes
+newtype TokenName = TokenName RawBytes
 
 derive newtype instance Eq TokenName
 derive newtype instance FromData TokenName
@@ -53,62 +48,48 @@ derive newtype instance ToMetadata TokenName
 derive newtype instance Ord TokenName
 derive newtype instance ToData TokenName
 
-asBase16 :: ByteArray -> String
-asBase16 ba = "0x" <> byteArrayToHex ba
+foreign import _decodeUtf8
+  :: forall (r :: Type). Uint8Array -> (String -> r) -> (String -> r) -> r
 
-fromTokenName :: forall r. (ByteArray -> r) -> (String -> r) -> TokenName -> r
-fromTokenName arrayHandler stringHandler (TokenName cba) = either
-  (const $ arrayHandler $ cborBytesToByteArray cba)
+fromTokenName
+  :: forall (r :: Type). (ByteArray -> r) -> (String -> r) -> TokenName -> r
+fromTokenName arrayHandler stringHandler (TokenName (RawBytes ba)) = either
+  (const $ arrayHandler $ ba)
   stringHandler
-  (decodeUtf8 <<< unwrap <<< cborBytesToByteArray $ cba)
+  (_decodeUtf8 (unwrap ba) Left Right)
 
--- | Corresponds to following Haskell instance:
--- |
--- | ```
--- | toJSON = JSON.object . Haskell.pure . (,) "unTokenName" . JSON.toJSON .
--- |   fromTokenName
--- |       (\bs -> Text.cons '\NUL' (asBase16 bs))
-
--- |       (\t -> case Text.take 1 t of "\NUL" -> Text.concat ["\NUL\NUL", t]; _ -> t)
--- | ```
+-- | Corresponds to the Haskell instance at https://github.com/input-output-hk/plutus/blob/4fd86930f1dc628a816adf5f5d854b3fec578312/plutus-ledger-api/src/Plutus/V1/Ledger/Value.hs#L155:
 instance DecodeAeson TokenName where
   decodeAeson = caseAesonObject (Left $ TypeMismatch "Expected object") $
     \aes -> do
       tkstr <- getField aes "unTokenName"
       case take 3 tkstr of
-        """\NUL0x""" -> case tkFromStr (drop 3 tkstr) of
-          Nothing -> Left $ TypeMismatch ("Invalid TokenName E1: " <> tkstr)
-          Just tk -> Right tk
-
-        """\NUL\NUL\NUL""" ->
-          note (TypeMismatch $ "Invalid TokenName E2: " <> tkstr)
-            $ tkFromStr (drop 2 tkstr)
-
-        _ -> note (TypeMismatch $ "Invalid TokenName E3: " <> tkstr)
-          $ tkFromStr tkstr
+        "\x0000000x" -> do -- this is 3 characters '\NUL' '0' 'x'
+          let stripped = drop 3 tkstr -- strip the \NUL followed by "0x"
+          ba <-
+            note
+              (TypeMismatch $ "Expected base16 encoded string got " <> stripped)
+              $ hexToByteArray stripped
+          pure $ TokenName (wrap ba)
+        "\x0\x0\x0" -> Right $ tkFromStr (drop 2 tkstr) -- if the original started with \NUL, we prepended 2 additional \NULs
+        _ -> Right $ tkFromStr tkstr
     where
-    tkFromStr :: String -> Maybe TokenName
-    tkFromStr = map (TokenName <<< wrap) <<< byteArrayFromIntArray
-      <<< map toCharCode
-      <<< toCharArray
+    tkFromStr :: String -> TokenName
+    tkFromStr = TokenName <<< wrap <<< wrap <<< encodeUtf8
 
--- FIXME: what if the tokenname is actually \0\0\0? haskell will break this assuming it
--- comes from purescript side
--- also we will break assuming it comes from haskell
--- this issue has to be fixed on the haskell side
 instance EncodeAeson TokenName where
   encodeAeson' = encodeAeson' <<< { "unTokenName": _ } <<< fromTokenName
-    (("""\NUL""" <> _) <<< asBase16)
-    ( \t -> case take 1 t of
-        """\NUL""" -> """\NUL\NUL""" <> t
-        _ -> t
+    (\ba -> "\x0" <> "0x" <> byteArrayToHex ba)
+    ( \s -> case take 1 s of
+        "\x0" -> "\x0\x0" <> s
+        _ -> s
     )
 
 instance Show TokenName where
   show (TokenName tn) = "(TokenName " <> show tn <> ")"
 
-getTokenName :: TokenName -> CborBytes
-getTokenName (TokenName tokenName) = tokenName
+getTokenName :: TokenName -> ByteArray
+getTokenName (TokenName tokenName) = unwrap tokenName
 
 -- | The empty token name.
 adaToken :: TokenName

@@ -12,14 +12,14 @@ import Contract.Prelude
 import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Monad
   ( Contract
-  , defaultContractConfig
+  , defaultTestnetContractConfig
   , launchAff_
   , runContract_
   )
 
 main :: Effect Unit
 main = launchAff_ $ do
-  cfg <- defaultContractConfig
+  cfg <- defaultTestnetContractConfig
   runContract_ cfg $ do
     logAction getWalletAddress
     logAction getWalletCollateral

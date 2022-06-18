@@ -7,14 +7,14 @@ import Contract.Prelude
 
 import Contract.Aeson (decodeAeson, fromString)
 import Contract.Monad
-  ( ContractConfig(ContractConfig)
-  , launchAff_
+  ( launchAff_
+  , liftContractAffM
   , liftContractM
   , liftedE
   , liftedM
   , logInfo'
   , runContract_
-  , traceContractConfig
+  , traceTestnetContractConfig
   )
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
@@ -26,17 +26,15 @@ import Contract.Transaction
   )
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
-import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
 
 main :: Effect Unit
 main = launchAff_ $ do
-  wallet <- Just <$> mkNamiWalletAff
-  cfg <- over ContractConfig _ { wallet = wallet } <$> traceContractConfig
+  cfg <- traceTestnetContractConfig
   runContract_ cfg $ do
     logInfo' "Running Examples.AlwaysMints"
     mp <- liftContractM "Invalid script JSON" $ alwaysMintsPolicy
-    cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+    cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
     tn <- liftContractM "Cannot make token name"
       $ Value.mkTokenName
       =<< byteArrayFromAscii "TheToken"
