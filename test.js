@@ -1,4 +1,82 @@
+async function findAndClickButton (browser, text) {
 
+    console.log("Try to click " + text);
+    pages = await browser.pages();
+    console.log(pages.length + " pages:");
+   
+    for(i=0;i<pages.length;i++) {
+	j = i;
+
+	prefix = "P"+JSON.parse(JSON.stringify(j));
+	
+	pages[j]
+	    .on('console', message =>
+		console.log(`${prefix} ${message.type().substr(0, 3).toUpperCase()} ${message.text()}`))
+	    .on('pageerror', ({ message }) => console.log(message))
+	    .on('response', response =>
+		console.log(`${response.status()} ${response.url()}`))
+	    .on('requestfailed', request =>
+		console.log(`${request.failure().errorText} ${request.url()}`));
+	
+	console.log("eval in page " + j);
+	
+	await pages[i].evaluate((j, text) => {
+	    console.log("hello from page "+j);
+	    
+	    console.log("Body length " + document.body.children.length);
+	    console.log("Head length " + document.head.children.length);
+
+	    var walker = document.createTreeWalker(
+		document.body,
+		NodeFilter.SHOW_ELEMENT // only elements
+	    );
+	    while (walker.nextNode()) {
+		let current = walker.currentNode;
+		console.log(
+		    current.tagName,
+		    [...current.attributes].map(({value,name}) => `${name}=${value}`).join()
+		);
+	    }
+
+	    buttons = document.querySelectorAll("button");
+
+	    console.log("Number of buttons: " + buttons.length);
+
+	    for(g = 0; g<buttons.length; g++) {
+		console.log(g+" value "+buttons[g].value);
+		console.log(g+" innerText "+buttons[g].innerText);
+		if(buttons[g].innerText == text) {
+		    
+		    buttons[g].click()
+		}
+	    }
+	    
+	    /*
+	      let observer = new MutationObserver ((mutations) => {
+	      console.log("Mutations: " + mutations);
+	      });
+	      
+	      observer.observe(document.body, {
+	      childList : true
+	      , subTree : true
+	      , attributes: true
+	      , characterData: true
+	      });
+
+	      console.log("observing");*/
+	    /*	    
+		    buttons = document.querySelectorAll("button");
+		    while(buttons.length == 0) {
+		    buttons = document.querySelectorAll("button");
+		    }
+		    buttons.forEach(b => { 
+		    console.log(" " + b.nodeName);
+		    b.childNodes.forEach(c =>
+		    console.log(" " + c.nodeName))
+		    }); */
+	}, j, text);
+    }
+}
 
 async function test() {
 
@@ -24,7 +102,7 @@ async function test() {
 	      ,args:
 	      [ `--disable-extensions-except=${extensionPath}`
 		, `--load-extension=${extensionPath}`
-		, '--user-data-dir="/tmp/ChromeProfile"'
+		, `--user-data-dir=chrome-data`
 //		, `--headless=chrome`
 	      ]
 	    }
@@ -86,22 +164,26 @@ async function test() {
 	page.goto(example);
 	console.log('C2');
 
-	console.log(await browser.pages()[0]);
+	pages = await browser.pages();
 	
-/*	const newPage = await newPagePromise;
+
+	newPage = pages[0];
+	
 	console.log('C3');
-	newPage
-	    .on('console', message =>
-		console.log(`NP: ${message.type().substr(0, 3).toUpperCase()} ${message.text()}`))
-	    .on('pageerror', ({ message }) => console.log(message))
-	    .on('response', response =>
-		console.log(`${response.status()} ${response.url()}`))
-	    .on('requestfailed', request =>
-		console.log(`${request.failure().errorText} ${request.url()}`));
-*/	
 	console.log('D');
+
+//	await newPage.waitForSelector("button");
 	
-//	button = await page.$x("//div[contains(., 'Add to Chrome')]");
+	console.log('E');
+
+	try { await page.waitForNavigation({timeout:2000}); } catch (e) {}
+
+	findAndClickButton(browser, "Access");
+
+	try { await page.waitForNavigation({timeout:2000}); } catch (e) {}
+	
+	findAndClickButton(browser, "Sign");	
+	
 
 //	console.log(button);
 	
