@@ -9,6 +9,7 @@ module Helpers
   , bigIntToUInt
   , filterMapM
   , filterMapWithKeyM
+  , for2
   , fromJustEff
   , fromRightEff
   , liftEither
@@ -21,6 +22,7 @@ module Helpers
   , mkErrorRecord
   , notImplemented
   , showWithParens
+  , traverse2
   , uIntToBigInt
   ) where
 
@@ -43,6 +45,7 @@ import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Maybe.First (First(First))
 import Data.Maybe.Last (Last(Last))
 import Data.Tuple (snd, uncurry)
+import Data.Traversable (class Traversable, sequence, traverse)
 import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -219,3 +222,29 @@ showWithParens
   -> a -- the inner type.
   -> String
 showWithParens ctorName x = "(" <> ctorName <> " (" <> show x <> "))"
+
+-- | Makes it possible to traverse with a function of type `a -> Aff (Maybe b)` 
+-- | more conveniently
+traverse2
+  :: forall (f :: Type -> Type) (g :: Type -> Type) (t :: Type -> Type)
+       (a :: Type) (b :: Type)
+   . Traversable t
+  => Applicative f
+  => Applicative g
+  => (a -> f (g b))
+  -> t a
+  -> f (g (t b))
+traverse2 f t = sequence <$> (traverse f t)
+
+-- | Like `traverse2` but with arguments flipped
+for2
+  :: forall (f :: Type -> Type) (g :: Type -> Type) (t :: Type -> Type)
+       (a :: Type) (b :: Type)
+   . Traversable t
+  => Applicative f
+  => Applicative g
+  => t a
+  -> (a -> f (g b))
+  -> f (g (t b))
+for2 = flip traverse2
+

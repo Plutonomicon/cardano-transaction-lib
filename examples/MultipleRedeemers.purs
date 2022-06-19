@@ -9,12 +9,17 @@ import Cardano.Types.Value
   , mkCurrencySymbol
   )
 import Contract.Aeson (decodeAeson, fromString)
-import Contract.Address (NetworkId(TestnetId))
+import Contract.Address
+  ( NetworkId(TestnetId)
+  , ownPaymentPubKeyHash
+  , PaymentPubKeyHash
+  )
 import Contract.Monad
   ( ContractConfig(ContractConfig)
   , Contract
   , ConfigParams(ConfigParams)
   , LogLevel(Trace)
+  , liftContractAffM
   , liftContractM
   , liftedE
   , liftedM
@@ -50,7 +55,7 @@ import Contract.Transaction
   , TransactionInput
   )
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (utxosAt, UtxoM(UtxoM))
+import Contract.Utxos (utxosAt, UtxoM)
 import Contract.Value
   ( mkTokenName
   , scriptCurrencySymbol
@@ -63,15 +68,13 @@ import Contract.Wallet (mkNamiWalletAff)
 import Data.Array (replicate)
 import Data.BigInt (fromInt)
 import Data.Bifunctor (lmap)
-import Data.Bitraversable (bitraverse)
+import Data.Bitraversable (bitraverse, bisequence)
 import Data.Foldable (length, sum)
 import Data.Int (toNumber)
 import Data.Map as Map
 import Data.Set as Set
 import Effect.Aff (Aff, delay, Milliseconds(Milliseconds), error)
-import Plutus.ToPlutusType (toPlutusType)
-import Plutus.Types.Transaction (Utxo)
-import Safe.Coerce (coerce)
+import Plutus.Conversion.Value (toPlutusValue)
 import Types.Redeemer (Redeemer(Redeemer))
 
 -- | to run this, edit `ps-entrypoint` in the MakeFile
@@ -136,7 +139,7 @@ threeRedeemerContract = do
 
   hash <- runContract cfg createTokens
 
-  log ("Created utxos with transactionhash " <> show hash)
+  log $ "Created utxos with transactionhash " <> show hash
   log "Going on with spending scriptoutputs from previous transaction"
 
   runContract_ cfg $ spendTokens hash
@@ -153,10 +156,9 @@ createTokens = do
     } <- ask
 
   css :: Array (CurrencySymbol /\ Redeemer) <-
-    liftContractM "Could not get CurrencySymbols"
-      $ for policies
-      $ bitraverse mkCurSym pure
-
+    liftContractAffM "Could not get CurrencySymbols" $ traverse2
+      (map bisequence <<< bitraverse (mkCurSym) (pure <<< pure))
+      policies
   toks :: Array (Tuple TokenName Int) <- for tokens $
     bitraverse
       ( liftContractM "could not make tokennames with amounts" <<<
@@ -167,7 +169,7 @@ createTokens = do
   let
     toCsValue :: Array (Tuple TokenName Int) -> CurrencySymbol -> Value.Value
     toCsValue t cs =
-      unwrap <<< toPlutusType <<< Value mempty <<< NonAdaAsset
+      toPlutusValue <<< Value mempty <<< NonAdaAsset
         <<< Map.singleton cs
         $ Map.fromFoldable
         $ map fromInt
@@ -179,7 +181,7 @@ createTokens = do
   logInfo' $ "Trying to create " <> show values
 
   vhashes :: Array ValidatorHash <- for validators
-    $ liftContractM "could not hash validator"
+    $ liftContractAffM "could not hash validator"
     <<< validatorHash
     <<< fst
 
@@ -206,6 +208,7 @@ createTokens = do
             $ flip toCsValue cs
             $ pure
             $ Tuple tok 1
+      , Constraints.mustIncludeDatum unitDatum
       ]
 
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
@@ -224,28 +227,31 @@ spendTokens
 spendTokens hash = do
   ContractConfig
     { validators
+    , policies
     } <- ask
 
-  utxosnreds :: Array (Utxo /\ Redeemer) <- getUtxos hash
+  utxosnreds :: Array (UtxoM /\ Redeemer) <- getUtxos hash
 
-  let
-    getOrefs :: Utxo -> Array TransactionInput
-    getOrefs = Set.toUnfoldable <<< Map.keys
+  self :: PaymentPubKeyHash <- liftedM "Could not obtain own PaymentPubKeyHash"
+    ownPaymentPubKeyHash
 
-  logInfo' $ "Found " <> show (getOrefs <<< fst <$> utxosnreds) <>
+  logInfo' $ "Found " <> show (getorefs hash <<< fst <$> utxosnreds) <>
     " at alwaysSucceeeds address"
 
   let
-    constraints :: Constraints.TxConstraints Unit Unit
-    constraints = mconcat $ do
-      (utxo /\ red) <- utxosnreds
-      pure $ mconcat $
-        (flip Constraints.mustSpendScriptOutput red <$> getOrefs utxo)
-
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mconcat
-      [ mconcat $ Lookups.unspentOutputs <<< fst <$> utxosnreds
+      [ mconcat $ Lookups.unspentOutputs <<< unwrap <<< fst <$> utxosnreds
       , mconcat $ Lookups.validator <<< fst <$> validators
+      , mconcat $ Lookups.mintingPolicy <<< fst <$> policies
+      , Lookups.ownPaymentPubKeyHash self
+      ]
+
+    constraints :: Constraints.TxConstraints Unit Unit
+    constraints = mconcat $
+      [ mconcat $ do
+          (utxo /\ red) <- utxosnreds
+          flip Constraints.mustSpendScriptOutput red <$> getorefs hash utxo
       ]
 
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
@@ -258,7 +264,7 @@ spendTokens hash = do
 getUtxos
   :: forall (r :: Row Type)
    . TransactionHash
-  -> Contract Configuration (Array (Utxo /\ Redeemer))
+  -> Contract Configuration (Array (UtxoM /\ Redeemer))
 getUtxos hash = go
   where
   go = do
@@ -270,8 +276,7 @@ getUtxos hash = go
 
     utxos :: Array (UtxoM /\ Redeemer) <- for validators $ \(Tuple val red) ->
       do
-        vhash <- liftContractM "could not hash validator" $ validatorHash val
-
+        vhash <- liftContractAffM "could not hash validator" $ validatorHash val
         utxo <- liftContractM ("could not get utxos at " <> show vhash) =<<
           utxosAt
             (scriptHashAddress vhash)
@@ -279,26 +284,31 @@ getUtxos hash = go
 
     liftAff $ delay $ Milliseconds $ toNumber 3_000
     let
-      getorefs :: UtxoM -> Array TransactionInput
-      getorefs utxo = Set.toUnfoldable
-        $ Set.filter ((_ == hash) <<< _.transactionId <<< unwrap)
-        $ Map.keys
-        $ unwrap utxo
-
       orefs :: Array (Array TransactionInput)
-      orefs = getorefs <<< fst <$> utxos
+      orefs = getorefs hash <<< fst <$> utxos
 
       -- for each of the tokensets, for each of the validators, for each of the policies we get one token
       tokenCount :: Int
       tokenCount = (sum $ snd <$> tokens) * length validators * length policies
 
+      utxoCount :: Int
+      utxoCount = sum (length <$> orefs)
+
     logInfo' $ "Searching for " <> show tokenCount <> " tokens"
 
-    if (sum (length <$> orefs) == tokenCount) then
-      pure $ coerce utxos
+    if (utxoCount == tokenCount) then do
+      logInfo' $ "after filtering there are " <> show utxoCount <> " utxos"
+      pure utxos
     else do
       logInfo' "Could not find utxos, trying again"
+      logInfo' $ "after filtering there are " <> show utxoCount <> " utxos"
       go
+
+getorefs :: TransactionHash -> UtxoM -> Array TransactionInput
+getorefs hash utxo = Set.toUnfoldable
+  $ Set.filter ((_ == hash) <<< _.transactionId <<< unwrap)
+  $ Map.keys
+  $ unwrap utxo
 
 -- | checks whether redeemer is 1
 isRedeemedBy1Script :: Maybe Validator
@@ -318,8 +328,10 @@ isRedeemedBy3Script = mkScript
 mkScript :: forall b. Newtype b PlutusScript => String -> Maybe b
 mkScript = map wrap <<< hush <<< decodeAeson <<< fromString
 
-mkCurSym :: MintingPolicy -> Maybe CurrencySymbol
-mkCurSym mp = mkCurrencySymbol <<< getCurrencySymbol =<< scriptCurrencySymbol mp
+mkCurSym :: MintingPolicy -> Aff (Maybe CurrencySymbol)
+mkCurSym mp = do
+  scriptCurSym <- scriptCurrencySymbol mp
+  pure $ mkCurrencySymbol <<< getCurrencySymbol =<< scriptCurSym
 
 -- | checks whether redeemer is 1
 mp1 :: Maybe MintingPolicy
