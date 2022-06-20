@@ -22,8 +22,7 @@ import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
 import Contract.Transaction
-  ( BalancedSignedTransaction(BalancedSignedTransaction)
-  , TransactionHash
+  ( TransactionHash
   , TransactionInput(TransactionInput)
   , balanceAndSignTx
   , submit

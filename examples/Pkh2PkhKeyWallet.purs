@@ -21,11 +21,7 @@ import Contract.Monad
   , mkContractConfig
   )
 import Contract.ScriptLookups as Lookups
-import Contract.Transaction
-  ( BalancedSignedTransaction(BalancedSignedTransaction)
-  , balanceAndSignTx
-  , submit
-  )
+import Contract.Transaction (balanceAndSignTx, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Control.Monad.Error.Class (catchError, liftMaybe)

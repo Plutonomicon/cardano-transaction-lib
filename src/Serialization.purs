@@ -28,7 +28,6 @@ import Cardano.Types.Transaction
       , MoveInstantaneousRewardsCert
       )
   , Costmdls(Costmdls)
-  , CostModel(CostModel)
   , GenesisDelegateHash(GenesisDelegateHash)
   , GenesisHash(GenesisHash)
   , Language(PlutusV1)

@@ -26,7 +26,7 @@ import Prelude
 import BalanceTx (UnattachedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
 import BalanceTx (BalanceTxError) as BalanceTxError
-import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
+import Contract.Monad (Contract, liftedE, wrapContract)
 import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
@@ -48,7 +48,6 @@ import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import ReindexRedeemers
   ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
   ) as ReindexRedeemersExport
-import Types.CborBytes (CborBytes)
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
