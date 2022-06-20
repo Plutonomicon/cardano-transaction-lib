@@ -34,17 +34,6 @@ suite = do
       addressConversionTests MainnetId
     group "Shelley testnet addresses" do
       addressConversionTests TestnetId
-  group "Plutus.Types.Address" $ do
-    group "FromPlutusType & ToPlutusType" $ do
-      let indices = 0 .. (length addresses - 1)
-      group "Shelley mainnet addresses" $ do
-        let testData = zip (zip addressesBech32Mainnet addresses) indices
-        for_ testData $ \(Tuple (Tuple addrBech32 addr) addrType) ->
-          toFromPlutusAddressTest MainnetId addrType addrBech32 addr
-      group "Shelley testnet addresses" $ do
-        let testData = zip (zip addressesBech32Testnet addresses) indices
-        for_ testData $ \(Tuple (Tuple addrBech32 addr) addrType) ->
-          toFromPlutusAddressTest TestnetId addrType addrBech32 addr
     group "Aeson tests" $ do
       group "Roundtrip tests"
         $ for_ addresses
@@ -75,9 +64,7 @@ toFromPlutusAddressTest networkId addrType addrBech32 addrPlutus = do
       errMaybe "toPlutusAddress failed on valid foreign address" $
         toPlutusAddress addrForeign
     resAddrPlutus `shouldEqual` addrPlutus
-    resAddrForeign <-
-      errMaybe "fromPlutusAddress failed on valid native address" $
-        fromPlutusAddress networkId resAddrPlutus
+    let resAddrForeign = fromPlutusAddress networkId resAddrPlutus
     resAddrForeign `shouldEqual` addrForeign
 
 -- Mainnet addresses.

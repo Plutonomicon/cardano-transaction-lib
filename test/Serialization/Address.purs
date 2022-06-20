@@ -23,12 +23,12 @@ import Serialization.Address
   , enterpriseAddressPaymentCred
   , enterpriseAddressToAddress
   , keyHashCredential
+  , paymentKeyHashStakeKeyHashAddress
   , pointerAddress
   , pointerAddressFromAddress
   , pointerAddressPaymentCred
   , pointerAddressStakePointer
   , pointerAddressToAddress
-  , pubKeyAddress
   , rewardAddress
   , rewardAddressFromAddress
   , rewardAddressPaymentCred
@@ -113,7 +113,8 @@ stakeCredentialTests = test "StakeCredential tests" $ do
 baseAddressFunctionsTest :: TestPlanM Unit
 baseAddressFunctionsTest = test "BaseAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
-  baddr <- doesNotThrow $ pubKeyAddress MainnetId pkh ed25519KeyHashFixture1
+  baddr <- doesNotThrow $
+    paymentKeyHashStakeKeyHashAddress MainnetId pkh ed25519KeyHashFixture1
   addr <- doesNotThrow $ baseAddressToAddress baddr
   baddr2 <- errMaybe "baseAddressFromAddress failed on valid base address" $
     baseAddressFromAddress

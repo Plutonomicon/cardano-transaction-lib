@@ -23,10 +23,13 @@ module Serialization.Address
   , baseAddressPaymentCred
   , baseAddressDelegationCred
   , baseAddressToAddress
+  , paymentKeyHashStakeKeyHashAddress
+  , scriptHashStakeKeyHashAddress
+  , paymentKeyHashScriptHashAddress
+  , scriptHashScriptHashAddress
+  , scriptAddress
   , ByronProtocolMagic(ByronProtocolMagic)
   , NetworkId(..)
-  , pubKeyAddress
-  , scriptAddress
   , stakeCredentialToKeyHash
   , stakeCredentialToScriptHash
   , stakeCredentialFromBytes
@@ -59,6 +62,8 @@ module Serialization.Address
   , enterpriseAddressFromBytes
   , enterpriseAddressFromBech32
   , enterpriseAddressNetworkId
+  , paymentKeyHashEnterpriseAddress
+  , scriptHashEnterpriseAddress
   , networkIdtoInt
   , pointerAddress
   , pointerAddressPaymentCred
@@ -70,6 +75,8 @@ module Serialization.Address
   , pointerAddressFromBytes
   , pointerAddressFromBech32
   , pointerAddressNetworkId
+  , paymentKeyHashPointerAddress
+  , scriptHashPointerAddress
   , rewardAddress
   , rewardAddressPaymentCred
   , rewardAddressToAddress
@@ -86,6 +93,7 @@ import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson, encodeAeson')
 import Control.Alt ((<|>))
+import Data.BigInt (BigInt)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
@@ -366,27 +374,41 @@ derive instance Generic NetworkId _
 instance Show NetworkId where
   show = genericShow
 
-pubKeyAddress
-  :: NetworkId
-  -> Ed25519KeyHash
-  -- ^ Payment credential
-  -> Ed25519KeyHash
-  -- ^ Delegation credential
-  -> BaseAddress
-pubKeyAddress netId pkh skh = baseAddress
-  { network: netId
-  , paymentCred:
-      keyHashCredential pkh
+paymentKeyHashStakeKeyHashAddress
+  :: NetworkId -> Ed25519KeyHash -> Ed25519KeyHash -> BaseAddress
+paymentKeyHashStakeKeyHashAddress networkId pkh skh = baseAddress
+  { network: networkId
+  , paymentCred: keyHashCredential pkh
   , delegationCred: keyHashCredential skh
   }
 
-scriptAddress :: NetworkId -> ScriptHash -> BaseAddress
-scriptAddress netId skh = baseAddress
-  { network: netId
-  , paymentCred:
-      scriptHashCredential skh
-  , delegationCred: scriptHashCredential skh
+scriptHashStakeKeyHashAddress
+  :: NetworkId -> ScriptHash -> Ed25519KeyHash -> BaseAddress
+scriptHashStakeKeyHashAddress networkId sh skh = baseAddress
+  { network: networkId
+  , paymentCred: scriptHashCredential sh
+  , delegationCred: keyHashCredential skh
   }
+
+paymentKeyHashScriptHashAddress
+  :: NetworkId -> Ed25519KeyHash -> ScriptHash -> BaseAddress
+paymentKeyHashScriptHashAddress networkId pkh sh = baseAddress
+  { network: networkId
+  , paymentCred: keyHashCredential pkh
+  , delegationCred: scriptHashCredential sh
+  }
+
+scriptHashScriptHashAddress
+  :: NetworkId -> ScriptHash -> ScriptHash -> BaseAddress
+scriptHashScriptHashAddress networkId sh sh' = baseAddress
+  { network: networkId
+  , paymentCred: scriptHashCredential sh
+  , delegationCred: scriptHashCredential sh'
+  }
+
+scriptAddress :: NetworkId -> ScriptHash -> BaseAddress
+scriptAddress networkId sh =
+  scriptHashScriptHashAddress networkId sh sh
 
 stakeCredentialToKeyHash :: StakeCredential -> Maybe Ed25519KeyHash
 stakeCredentialToKeyHash = withStakeCredential
@@ -481,6 +503,20 @@ enterpriseAddress
   -> EnterpriseAddress
 enterpriseAddress = _enterpriseAddress networkIdtoInt
 
+paymentKeyHashEnterpriseAddress
+  :: NetworkId -> Ed25519KeyHash -> EnterpriseAddress
+paymentKeyHashEnterpriseAddress networkId pkh = enterpriseAddress
+  { network: networkId
+  , paymentCred: keyHashCredential pkh
+  }
+
+scriptHashEnterpriseAddress
+  :: NetworkId -> ScriptHash -> EnterpriseAddress
+scriptHashEnterpriseAddress networkId sh = enterpriseAddress
+  { network: networkId
+  , paymentCred: scriptHashCredential sh
+  }
+
 foreign import enterpriseAddressPaymentCred
   :: EnterpriseAddress -> StakeCredential
 
@@ -522,6 +558,22 @@ pointerAddress
      }
   -> PointerAddress
 pointerAddress = _pointerAddress networkIdtoInt
+
+paymentKeyHashPointerAddress
+  :: NetworkId -> Ed25519KeyHash -> Pointer -> PointerAddress
+paymentKeyHashPointerAddress networkId pkh ptr = pointerAddress
+  { network: networkId
+  , paymentCred: keyHashCredential pkh
+  , stakePointer: ptr
+  }
+
+scriptHashPointerAddress
+  :: NetworkId -> ScriptHash -> Pointer -> PointerAddress
+scriptHashPointerAddress networkId sh ptr = pointerAddress
+  { network: networkId
+  , paymentCred: scriptHashCredential sh
+  , stakePointer: ptr
+  }
 
 foreign import pointerAddressPaymentCred :: PointerAddress -> StakeCredential
 foreign import _pointerAddressFromAddress

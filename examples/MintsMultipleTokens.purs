@@ -21,11 +21,7 @@ import Contract.PlutusData (PlutusData(Integer), Redeemer(Redeemer))
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)
-import Contract.Transaction
-  ( BalancedSignedTransaction(BalancedSignedTransaction)
-  , balanceAndSignTx
-  , submit
-  )
+import Contract.Transaction (balanceAndSignTx, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value

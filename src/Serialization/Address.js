@@ -7,7 +7,6 @@ if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
     CardanoWasm = require('@emurgo/cardano-serialization-lib-nodejs');
 }
 
-
 const callClassStaticMaybe = (classname, functionname) => maybe => input => {
     var ret = null;
     try {
