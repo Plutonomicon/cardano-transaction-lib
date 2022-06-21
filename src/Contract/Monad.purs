@@ -27,6 +27,7 @@ module Contract.Monad
   , logWarn'
   , logError
   , logError'
+  , logAeson
   , mkContractConfig
   , runContract
   , runContract_
@@ -37,6 +38,11 @@ module Contract.Monad
 
 import Prelude
 
+import Aeson
+  ( class EncodeAeson
+  , encodeAeson
+  , stringifyAeson
+  )
 import Control.Monad.Error.Class (class MonadError, class MonadThrow)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
@@ -365,3 +371,15 @@ logWarn' = Logger.warn Map.empty
 logError'
   :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
 logError' = Logger.error Map.empty
+
+-- Log JSON representation of a data structure
+logAeson
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadLogger m
+  => EncodeAeson a
+  => (String -> m Unit)
+  -- ^ Logging function to use
+  -> a
+  -- ^ Data structure to output
+  -> m Unit
+logAeson logger a = logger (stringifyAeson (encodeAeson a))
