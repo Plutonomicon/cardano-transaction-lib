@@ -1,6 +1,6 @@
 module Wallet.Key
-  ( KeyWallet'
-  , mkKeyWallet'
+  ( KeyWallet
+  , privateKeyToKeyWallet
   ) where
 
 import Prelude
@@ -39,14 +39,14 @@ import Serialization.Types (PrivateKey)
 -------------------------------------------------------------------------------
 -- Key backend
 -------------------------------------------------------------------------------
-type KeyWallet' =
+type KeyWallet =
   { address :: NetworkId -> Aff Address
   , selectCollateral :: Utxo -> Maybe TransactionUnspentOutput
   , signTx :: Transaction -> Aff Transaction
   }
 
-mkKeyWallet' :: PrivateKey -> KeyWallet'
-mkKeyWallet' key =
+privateKeyToKeyWallet :: PrivateKey -> KeyWallet
+privateKeyToKeyWallet key =
   { address
   , selectCollateral
   , signTx

@@ -16,6 +16,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ## [Unreleased]
 
+- `mkKeyWalletFromFile` helper to use `cardano-cli`-style `skey`s.
+- Removed `Contract.Wallet.mkGeroWallet` and `Contract.Wallet.mkNamiWallet` - `Aff` versions should be used instead.
+- Added `getProtocolParameters` call to retrieve current protocol parameters from Ogmios (#541)
+
 ### Added
 
 - Single `Plutus.Conversion` module exposing all `(Type <-> Plutus Type)` conversion functions.

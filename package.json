@@ -22,7 +22,7 @@
     "@emurgo/cardano-serialization-lib-browser": "10.1.0",
     "@emurgo/cardano-serialization-lib-nodejs": "10.1.0",
     "big-integer": "1.6.51",
-    "blakejs": "1.2.1",
+    "blake2b-wasm": "2.4.0",
     "bufferutil": "4.0.5",
     "jssha": "3.2.0",
     "node-polyfill-webpack-plugin": "1.1.4",
