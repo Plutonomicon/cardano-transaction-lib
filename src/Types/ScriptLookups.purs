@@ -24,11 +24,12 @@ import Prelude hiding (join)
 
 import Address (enterpriseAddressValidatorHash)
 import Cardano.Types.Transaction
-  ( ExUnits
+  ( Costmdls
+  , ExUnits
   , Transaction
   , TransactionOutput(TransactionOutput)
-  , TxBody
   , TransactionWitnessSet(TransactionWitnessSet)
+  , TxBody
   , _body
   , _inputs
   , _mint
@@ -91,6 +92,7 @@ import Plutus.Conversion (fromPlutusTxOutput, fromPlutusValue)
 import Plutus.Types.Transaction (TransactionOutput) as Plutus
 import QueryM (DefaultQueryConfig, QueryM, getDatumByHash)
 import QueryM.EraSummaries (getEraSummaries)
+import QueryM.ProtocolParameters (getProtocolParameters)
 import QueryM.SystemStart (getSystemStart)
 import Scripts
   ( mintingPolicyHash
@@ -406,6 +408,7 @@ type ConstraintProcessingState (a :: Type) =
   , lookups :: ScriptLookups a
   -- ScriptLookups for resolving constraints. Should be treated as an immutable
   -- value despite living inside the processing state
+  , costModels :: Costmdls
   }
 
 -- We could make these signatures polymorphic but they're not exported so don't
@@ -425,6 +428,10 @@ _valueSpentBalancesOutputs = prop (SProxy :: SProxy "valueSpentBalancesOutputs")
 _datums
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) (Array Datum)
 _datums = prop (SProxy :: SProxy "datums")
+
+_costModels
+  :: forall (a :: Type). Lens' (ConstraintProcessingState a) Costmdls
+_costModels = prop (SProxy :: SProxy "costModels")
 
 _redeemers
   :: forall (a :: Type)
@@ -552,7 +559,8 @@ runConstraintsM
   => ScriptLookups a
   -> TxConstraints b b
   -> QueryM (Either MkUnbalancedTxError (ConstraintProcessingState a))
-runConstraintsM lookups txConstraints =
+runConstraintsM lookups txConstraints = do
+  costModels <- getProtocolParameters <#> unwrap >>> _.costModels
   let
     initCps :: ConstraintProcessingState a
     initCps =
@@ -565,6 +573,7 @@ runConstraintsM lookups txConstraints =
       , redeemers: mempty
       , mintRedeemers: empty
       , lookups
+      , costModels
       }
 
     unpackTuple
@@ -572,10 +581,8 @@ runConstraintsM lookups txConstraints =
       -> Either MkUnbalancedTxError (ConstraintProcessingState a)
     unpackTuple (Left err /\ _) = Left err
     unpackTuple (_ /\ cps) = Right cps
-  in
-    unpackTuple <$>
-      ( flip runStateT initCps $ processLookupsAndConstraints txConstraints
-      )
+  unpackTuple <$>
+    flip runStateT initCps (processLookupsAndConstraints txConstraints)
 
 -- See comments in `processLookupsAndConstraints` regarding constraints.
 -- | Create an `UnbalancedTx` given `ScriptLookups` and `TxConstraints`.
@@ -647,10 +654,12 @@ addScriptDataHash
    . ConstraintsM a (Either MkUnbalancedTxError Unit)
 addScriptDataHash = runExceptT do
   dats <- use _datums
+  costModels <- use _costModels
   -- Use both script and minting redeemers in the order they were appended.
   reds <- use (_redeemers <<< to (map fst))
   tx <- use (_unbalancedTx <<< _transaction)
-  tx' <- ExceptT $ liftEffect $ setScriptDataHash reds dats tx <#> Right
+  tx' <- ExceptT $ liftEffect $ setScriptDataHash costModels reds dats tx <#>
+    Right
   _cpsToTransaction .= tx'
 
 -- | Add the remaining balance of the total value that the tx must spend.
