@@ -69,7 +69,7 @@ import FfiHelpers
   , containerHelper
   )
 import Helpers (fromJustEff)
-import Serialization.Address (Address, StakeCredential, RewardAddress)
+import Serialization.Address (Address, Slot, StakeCredential, RewardAddress)
 import Serialization.Address (NetworkId(TestnetId, MainnetId)) as T
 import Serialization.AuxiliaryData (convertAuxiliaryData)
 import Serialization.BigInt as Serialization
@@ -173,7 +173,6 @@ foreign import newTransactionBody
   :: TransactionInputs
   -> TransactionOutputs
   -> BigNum
-  -> UndefinedOr Int
   -> Effect TransactionBody
 
 foreign import newTransaction
@@ -256,6 +255,8 @@ foreign import setTxBodyNetworkId :: TransactionBody -> NetworkId -> Effect Unit
 foreign import networkIdTestnet :: Effect NetworkId
 foreign import networkIdMainnet :: Effect NetworkId
 
+foreign import setTxBodyTtl :: TransactionBody -> BigNum -> Effect Unit
+
 foreign import setTxBodyCerts :: TransactionBody -> Certificates -> Effect Unit
 foreign import newCertificates :: Effect Certificates
 foreign import newStakeRegistrationCertificate
@@ -322,7 +323,7 @@ foreign import transactionBodySetRequiredSigners
   :: ContainerHelper -> TransactionBody -> Array Ed25519KeyHash -> Effect Unit
 
 foreign import transactionBodySetValidityStartInterval
-  :: TransactionBody -> Int -> Effect Unit
+  :: TransactionBody -> BigNum -> Effect Unit
 
 foreign import transactionBodySetAuxiliaryDataHash
   :: TransactionBody -> ByteArray -> Effect Unit
@@ -461,10 +462,10 @@ convertTxBody (T.TxBody body) = do
   outputs <- convertTxOutputs body.outputs
   fee <- fromJustEff "Failed to convert fee" $ bigNumFromBigInt
     (unwrap body.fee)
-  let ttl = body.ttl <#> unwrap >>> UInt.toInt
-  txBody <- newTransactionBody inputs outputs fee (maybeToUor ttl)
+  txBody <- newTransactionBody inputs outputs fee
+  for_ body.ttl $ convertSlot >=> setTxBodyTtl txBody
   for_ body.validityStartInterval $
-    unwrap >>> UInt.toInt >>> transactionBodySetValidityStartInterval txBody
+    convertSlot >=> transactionBodySetValidityStartInterval txBody
   for_ body.requiredSigners $
     map unwrap >>> transactionBodySetRequiredSigners containerHelper txBody
   for_ body.auxiliaryDataHash $
@@ -708,7 +709,7 @@ convertMint (T.Mint (Value.NonAdaAsset m)) = do
       assetName <- newAssetName tokenName
       bigInt <- fromJustEff "convertMint: failed to convert BigInt" $
         Serialization.convertBigInt bigIntValue
-      int <- fromJustEff "converMint: numeric overflow or underflow" $
+      int <- fromJustEff "convertMint: numeric overflow or underflow" $
         _bigIntToInt maybeFfiHelper bigInt
       insertMintAsset assets assetName int
     insertMintAssets mint scripthash assets
@@ -778,6 +779,10 @@ convertCostmdls (T.Costmdls cs) = do
   plutusV1 <- newPlutusV1
   costmdlsSetCostModel costmdls plutusV1 costModel
   pure costmdls
+
+convertSlot :: Slot -> Effect BigNum
+convertSlot =
+  fromJustEff "failed to convert slot" <<< bigNumFromBigInt <<< unwrap
 
 hashScriptData
   :: T.Costmdls

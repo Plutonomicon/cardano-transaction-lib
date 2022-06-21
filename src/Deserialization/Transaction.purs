@@ -273,14 +273,19 @@ convertTxBody txBody = do
         maybeFfiHelper
         txBody
 
+  ttl <-
+    traverse (map Slot <<< bigNumToBigInt' "ttl") $
+      _txBodyTtl maybeFfiHelper txBody
+
   validityStartInterval <-
-    traverse intToSlot $ _txBodyValidityStartInterval maybeFfiHelper txBody
+    traverse (map Slot <<< bigNumToBigInt' "validityStartInterval") $
+      _txBodyValidityStartInterval maybeFfiHelper txBody
 
   pure $ T.TxBody
     { inputs
     , outputs
     , fee
-    , ttl: map Slot <<< UInt.fromNumber' =<< _txBodyTtl maybeFfiHelper txBody
+    , ttl
     , certs
     , withdrawals
     , update
@@ -299,16 +304,6 @@ convertTxBody txBody = do
           (map <<< map) T.RequiredSigner
     , networkId
     }
-
-  where
-  intToSlot
-    :: forall (s :: Row Type)
-     . Int
-    -> Either (Variant (fromCslRepError :: String | s)) Slot
-  intToSlot x =
-    cslErr ("validityStartInterval UInt.fromInt': " <> show x)
-      <<< map Slot
-      <<< UInt.fromInt' $ x
 
 convertUpdate :: forall (r :: Row Type). Csl.Update -> Err r T.Update
 convertUpdate u = do
@@ -804,7 +799,7 @@ foreign import _txBodyOutputs
 foreign import _txBodyFee :: Csl.TransactionBody -> Csl.BigNum
 -- ttl(): number | void;
 foreign import _txBodyTtl
-  :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Number
+  :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Csl.BigNum
 
 -- certs(): Certificates | void;
 foreign import _txBodyCerts
@@ -827,7 +822,7 @@ foreign import _txBodyAuxiliaryDataHash
 
 -- validity_start_interval(): number | void
 foreign import _txBodyValidityStartInterval
-  :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Int
+  :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Csl.BigNum
 
 -- multiassets(): Mint | void
 foreign import _txBodyMultiAssets

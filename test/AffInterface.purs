@@ -3,7 +3,7 @@ module Test.AffInterface (suite) where
 import Prelude
 
 import Address (addressToOgmiosAddress, ogmiosAddressToAddress)
-import Data.BigInt as BigInt
+import Data.BigInt (fromInt, fromString) as BigInt
 import Data.Either (Either(Left, Right), either)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Traversable (traverse_)
@@ -35,10 +35,7 @@ import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Types.Interval
-  ( PosixTimeToSlotError
-      ( CannotConvertAbsSlotToSlot
-      , PosixTimeBeforeSystemStart
-      )
+  ( PosixTimeToSlotError(PosixTimeBeforeSystemStart)
   , POSIXTime(POSIXTime)
   , posixTimeToSlot
   , slotToPosixTime
@@ -210,7 +207,7 @@ testSlotToPosixTime = do
         either (throw <<< show) (shouldEqual slot) eSlot
 
   mkSlot :: Int -> Slot
-  mkSlot = Slot <<< UInt.fromInt
+  mkSlot = Slot <<< BigInt.fromInt
 
 testPosixTimeToSlotError :: Aff Unit
 testPosixTimeToSlotError = do
@@ -227,9 +224,9 @@ testPosixTimeToSlotError = do
     errTest eraSummaries sysStart
       posixTime
       (PosixTimeBeforeSystemStart posixTime)
-    errTest eraSummaries sysStart
-      badPosixTime
-      (CannotConvertAbsSlotToSlot badAbsSlot)
+  --    errTest eraSummaries sysStart
+  --      badPosixTime
+  --      (CannotConvertAbsSlotToSlot badAbsSlot)
   where
   errTest
     :: forall (err :: Type)

@@ -112,7 +112,7 @@ import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
 import Types.PlutusData (PlutusData(Bytes))
 
-newtype Slot = Slot UInt
+newtype Slot = Slot BigInt
 
 derive instance Newtype Slot _
 derive instance Generic Slot _

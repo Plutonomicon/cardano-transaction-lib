@@ -90,18 +90,15 @@ import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
-import Data.UInt (fromString) as UInt
 import Effect (Effect)
 import Effect.Class (liftEffect)
 import Foreign.Object (Object)
 import FromData (class FromData, genericFromData)
 import Helpers
-  ( bigIntToUInt
-  , liftEither
+  ( liftEither
   , liftM
   , mkErrorRecord
   , showWithParens
-  , uIntToBigInt
   )
 import Partial.Unsafe (unsafePartial)
 import Plutus.Types.DataSchema
@@ -475,11 +472,15 @@ type SlotRange = Interval Slot
 -- | (2020-07-29T21:44:51Z) which is 1596059091000 in POSIX time
 -- | (number of milliseconds since 1970-01-01T00:00:00Z).
 beginningOfTime :: BigInt
-beginningOfTime = unsafePartial fromJust $ BigInt.fromString "1596059091000"
+beginningOfTime =
+  unsafePartial fromJust $
+    BigInt.fromString "1596059091000"
 
--- | Maximum slot under `Data.UInt`
+-- | Maximum slot (u64)
 maxSlot :: Slot
-maxSlot = Slot $ unsafePartial fromJust $ UInt.fromString "4294967295"
+maxSlot =
+  Slot $ unsafePartial fromJust $
+    BigInt.fromString "18446744073709552000"
 
 --------------------------------------------------------------------------------
 -- Conversion functions
@@ -600,15 +601,13 @@ slotToPosixTime eraSummaries sysStart slot = runExceptT do
   _transTime :: BigInt -> BigInt
   _transTime = (*) $ BigInt.fromInt 1000
 
--- | Convert a CSL (Absolute) `Slot` (`UInt`) to an Ogmios absolute slot
--- | (`BigInt`)
+-- | Convert a CSL (Absolute) `Slot` to an Ogmios absolute slot.
 absSlotFromSlot :: Slot -> AbsSlot
-absSlotFromSlot = wrap <<< uIntToBigInt <<< unwrap
+absSlotFromSlot = wrap <<< unwrap
 
--- | Convert an Ogmios absolute slot (`BigInt`) to a CSL (Absolute) `Slot`
--- | (`UInt`)
-slotFromAbsSlot :: AbsSlot -> Maybe Slot
-slotFromAbsSlot = map wrap <<< bigIntToUInt <<< unwrap
+-- | Convert an Ogmios absolute slot to a CSL (Absolute) `Slot`.
+slotFromAbsSlot :: AbsSlot -> Slot
+slotFromAbsSlot = wrap <<< unwrap
 
 -- | Finds the `EraSummary` an `AbsSlot` lies inside (if any).
 findSlotEraSummary
@@ -728,7 +727,6 @@ data PosixTimeToSlotError
   | PosixTimeBeforeSystemStart POSIXTime
   | StartTimeGreaterThanTime AbsTime
   | EndSlotLessThanSlotOrModNonZero AbsSlot ModTime
-  | CannotConvertAbsSlotToSlot AbsSlot
   | CannotGetBigIntFromNumber'
 
 derive instance Generic PosixTimeToSlotError _
@@ -761,11 +759,6 @@ instance EncodeAeson PosixTimeToSlotError where
       posixTimeToSlotErrorStr
       "endSlotLessThanSlotOrModNonZero"
       [ encodeAeson absSlot, encodeAeson modTime ]
-  encodeAeson' (CannotConvertAbsSlotToSlot absSlot) =
-    encodeAeson' $ mkErrorRecord
-      posixTimeToSlotErrorStr
-      "cannotConvertAbsSlotToSlot"
-      [ absSlot ]
   encodeAeson' CannotGetBigIntFromNumber' =
     encodeAeson' $ mkErrorRecord
       posixTimeToSlotErrorStr
@@ -799,9 +792,6 @@ instance DecodeAeson PosixTimeToSlotError where
           (TypeMismatch "Could not extract second element")
           (index args 1)
         pure $ EndSlotLessThanSlotOrModNonZero as mt
-      "cannotConvertAbsSlotToSlot" -> do
-        arg <- extractArg o
-        pure $ CannotConvertAbsSlotToSlot arg
       "cannotGetBigIntFromNumber'" -> do
         args <- getField o "args"
         unless (isNull args) (throwError $ TypeMismatch "Non-empty args")
@@ -838,7 +828,7 @@ posixTimeToSlot eraSummaries sysStart pt'@(POSIXTime pt) = runExceptT do
   -- Get absolute slot relative to system start
   absSlot <- liftEither $ absSlotFromRelSlot currentEra relSlotMod
   -- Convert back to UInt `Slot`
-  liftM (CannotConvertAbsSlotToSlot absSlot) $ slotFromAbsSlot absSlot
+  pure $ slotFromAbsSlot absSlot
 
 -- | Finds the `EraSummary` an `AbsTime` lies inside (if any).
 findTimeEraSummary

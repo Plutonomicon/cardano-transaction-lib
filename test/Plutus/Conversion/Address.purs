@@ -2,13 +2,15 @@ module Test.Plutus.Conversion.Address (suite) where
 
 import Prelude
 
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Array ((..), length, zip)
-import Data.UInt (UInt, fromInt)
-import Data.Newtype (class Newtype, wrap)
+import Data.BigInt (fromInt) as BigInt
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Newtype (wrap)
 import Data.Traversable (for_)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested ((/\))
+import Data.UInt (UInt)
+import Data.UInt (fromInt) as UInt
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Plutus.Conversion (fromPlutusAddress, toPlutusAddress)
@@ -175,10 +177,8 @@ stakingHash =
     (ed25519KeyHashFromBech32 stakeKeyBech32)
 
 stakingPtr :: StakingCredential
-stakingPtr =
-  let
-    wrapUInt :: forall (t :: Type). Newtype t UInt => Int -> t
-    wrapUInt = wrap <<< fromInt
-  in
-    StakingPtr $
-      { slot: wrapUInt 2498243, txIx: wrapUInt 27, certIx: wrapUInt 3 }
+stakingPtr = StakingPtr
+  { slot: wrap (BigInt.fromInt 2498243)
+  , txIx: wrap (UInt.fromInt 27)
+  , certIx: wrap (UInt.fromInt 3)
+  }

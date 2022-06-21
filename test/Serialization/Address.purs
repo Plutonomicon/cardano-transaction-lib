@@ -2,9 +2,10 @@ module Test.Serialization.Address (suite) where
 
 import Prelude
 
+import Data.BigInt (fromString) as BigInt
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (wrap)
-import Data.UInt (fromInt)
+import Data.UInt (fromInt) as UInt
 import Effect.Class.Console (log)
 import Mote (group, test)
 import Serialization.Address
@@ -150,11 +151,12 @@ enterpriseAddressFunctionsTest = test "EnterpriseAddress tests" $ do
 pointerAddressFunctionsTest :: TestPlanM Unit
 pointerAddressFunctionsTest = test "PointerAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
+  slot' <- errMaybe "Error BigInt.fromString:" (BigInt.fromString "2147483648")
   let
     pointer =
-      { slot: wrap (fromInt (-2147483648))
-      , certIx: wrap (fromInt 20)
-      , txIx: wrap (fromInt 120)
+      { slot: wrap slot'
+      , certIx: wrap (UInt.fromInt 20)
+      , txIx: wrap (UInt.fromInt 120)
       }
   paddr <- doesNotThrow $ pointerAddress
     { network: MainnetId

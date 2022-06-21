@@ -506,7 +506,7 @@ txFixture4 =
                 }
             ]
         , fee: Coin $ BigInt.fromInt 177513
-        , ttl: Just $ Slot $ UInt.fromInt 123
+        , ttl: Just $ Slot $ BigInt.fromInt 123
         , certs: Just
             [ StakeRegistration stake1
             , StakeDeregistration stake1
@@ -578,7 +578,7 @@ txFixture4 =
         , auxiliaryDataHash: Just $ AuxiliaryDataHash
             $ byteArrayFromIntArrayUnsafe
             $ Array.replicate 32 0
-        , validityStartInterval: Just $ Slot $ UInt.fromInt 124
+        , validityStartInterval: Just $ Slot $ BigInt.fromInt 124
         , mint: Just $ Mint $ mkNonAdaAsset $ Map.fromFoldable
             [ currencySymbol1 /\ Map.fromFoldable [ tokenName1 /\ one ] ]
         , scriptDataHash: Nothing
@@ -1035,10 +1035,10 @@ nativeScriptFixture5 = ScriptNOfK 1
   [ nativeScriptFixture1, nativeScriptFixture2 ]
 
 nativeScriptFixture6 :: NativeScript
-nativeScriptFixture6 = TimelockStart $ Slot $ UInt.fromInt 1000
+nativeScriptFixture6 = TimelockStart $ Slot $ BigInt.fromInt 1000
 
 nativeScriptFixture7 :: NativeScript
-nativeScriptFixture7 = TimelockExpiry $ Slot $ UInt.fromInt 2000
+nativeScriptFixture7 = TimelockExpiry $ Slot $ BigInt.fromInt 2000
 
 keyHashBaseAddress :: { payment :: String, stake :: String } -> Address
 keyHashBaseAddress { payment, stake } = baseAddressToAddress $ baseAddress

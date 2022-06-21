@@ -8,8 +8,7 @@ import Cardano.Types.Transaction as T
 import Control.Alt ((<|>))
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
-import Data.UInt as UInt
-
+import Deserialization.BigNum (bigNumToBigInt)
 import FfiHelpers
   ( ContainerHelper
   , MaybeFfiHelper
@@ -19,7 +18,8 @@ import FfiHelpers
 import Serialization.Hash (Ed25519KeyHash)
 import Serialization.Address (Slot(Slot))
 import Serialization.Types
-  ( NativeScript
+  ( BigNum
+  , NativeScript
   , ScriptAll
   , ScriptAny
   , ScriptNOfK
@@ -62,14 +62,14 @@ convertScriptNOfK ns = do
   pure $ T.ScriptNOfK (scriptNOfK_n scriptNOfK) res
 
 convertTimelockStart :: NativeScript -> Maybe T.NativeScript
-convertTimelockStart ns =
-  T.TimelockStart <<< Slot <<< UInt.fromInt <<< timelockStart_slot <$>
-    getTimelockStart maybeFfiHelper ns
+convertTimelockStart =
+  map (T.TimelockStart <<< Slot) <<< (bigNumToBigInt <<< timelockStart_slot)
+    <=< getTimelockStart maybeFfiHelper
 
 convertTimelockExpiry :: NativeScript -> Maybe T.NativeScript
-convertTimelockExpiry ns = do
-  T.TimelockExpiry <<< Slot <<< UInt.fromInt <<< timelockExpiry_slot <$>
-    getTimelockExpiry maybeFfiHelper ns
+convertTimelockExpiry = do
+  map (T.TimelockExpiry <<< Slot) <<< (bigNumToBigInt <<< timelockExpiry_slot)
+    <=< getTimelockExpiry maybeFfiHelper
 
 foreign import getScriptPubkey
   :: MaybeFfiHelper -> NativeScript -> Maybe ScriptPubkey
@@ -96,5 +96,5 @@ foreign import scriptNOfKScripts
   :: ContainerHelper -> ScriptNOfK -> Array NativeScript
 
 foreign import scriptNOfK_n :: ScriptNOfK -> Int
-foreign import timelockStart_slot :: TimelockStart -> Int
-foreign import timelockExpiry_slot :: TimelockExpiry -> Int
+foreign import timelockStart_slot :: TimelockStart -> BigNum
+foreign import timelockExpiry_slot :: TimelockExpiry -> BigNum
