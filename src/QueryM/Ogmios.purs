@@ -100,7 +100,6 @@ import QueryM.JsonWsp
   , JsonWspRequest
   , mkCallType
   , parseFieldToBigInt
-  , parseFieldToString
   , parseFieldToUInt
   )
 import Serialization.BigNum as BigNum
@@ -1064,7 +1063,7 @@ aesonArray = caseAesonArray (Left (TypeMismatch "Expected Array"))
 -- parser for txOutRef
 parseTxOutRef :: Aeson -> Either JsonDecodeError OgmiosTxOutRef
 parseTxOutRef = aesonObject $ \o -> do
-  txId <- parseFieldToString o "txId"
+  txId <- getField o "txId"
   index <- parseFieldToUInt o "index"
   pure { txId, index }
 
@@ -1079,9 +1078,9 @@ type OgmiosTxOut =
 -- extracted.
 parseTxOut :: Aeson -> Either JsonDecodeError OgmiosTxOut
 parseTxOut = aesonObject $ \o -> do
-  address <- parseFieldToString o "address"
+  address <- getField o "address"
   value <- parseValue o
-  let datum = hush $ parseFieldToString o "datum"
+  let datum = hush $ getField o "datum"
   pure $ { address, value, datum }
 
 -- parses the `Value` type

@@ -8,7 +8,6 @@ module QueryM.JsonWsp
   , buildRequest
   , parseJsonWspResponse
   , parseJsonWspResponseId
-  , parseFieldToString
   , parseFieldToUInt
   , parseFieldToBigInt
   ) where
@@ -27,9 +26,12 @@ import Aeson
   , decodeAeson
   , encodeAeson
   , getField
+  , getFieldOptional
   )
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
+import Data.Maybe (Maybe)
+import Data.Traversable (traverse)
 import Data.UInt as UInt
 import Effect (Effect)
 import Foreign.Object (Object)
@@ -72,8 +74,10 @@ type JsonWspResponse (a :: Type) =
   { type :: String
   , version :: String
   , servicename :: String
-  , methodname :: String
-  , result :: a
+  -- methodname is not always present if `fault` is not empty
+  , methodname :: Maybe String
+  , result :: Maybe a
+  , fault :: Maybe Aeson
   , reflection :: ListenerId
   }
 
@@ -113,11 +117,12 @@ parseJsonWspResponse
   => Aeson
   -> Either JsonDecodeError (JsonWspResponse a)
 parseJsonWspResponse = aesonObject $ \o -> do
-  typeField <- parseFieldToString o "type"
-  version <- parseFieldToString o "version"
-  servicename <- parseFieldToString o "servicename"
-  methodname <- parseFieldToString o "methodname"
-  result <- decodeAeson =<< getField o "result"
+  typeField <- getField o "type"
+  version <- getField o "version"
+  servicename <- getField o "servicename"
+  methodname <- getFieldOptional o "methodname"
+  result <- traverse decodeAeson =<< getFieldOptional o "result"
+  fault <- traverse decodeAeson =<< getFieldOptional o "fault"
   reflection <- parseMirror =<< getField o "reflection"
   pure
     { "type": typeField
@@ -125,6 +130,7 @@ parseJsonWspResponse = aesonObject $ \o -> do
     , servicename
     , methodname
     , result
+    , fault
     , reflection
     }
 
@@ -144,13 +150,6 @@ aesonObject
 aesonObject = caseAesonObject (Left (TypeMismatch "expected object"))
 
 -- parsing json
-
--- | Parses json string at a given field to an ordinary string
-parseFieldToString :: Object Aeson -> String -> Either JsonDecodeError String
-parseFieldToString o str =
-  caseAesonString
-    (Left (TypeMismatch ("expected field: '" <> str <> "' as a String")))
-    Right =<< getField o str
 
 -- | Parses a string at the given field to a UInt
 parseFieldToUInt :: Object Aeson -> String -> Either JsonDecodeError UInt.UInt
