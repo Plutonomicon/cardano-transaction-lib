@@ -8,8 +8,6 @@ module QueryM.JsonWsp
   , buildRequest
   , parseJsonWspResponse
   , parseJsonWspResponseId
-  , parseFieldToUInt
-  , parseFieldToBigInt
   ) where
 
 import Prelude
@@ -19,20 +17,16 @@ import Aeson
   , class EncodeAeson
   , Aeson
   , JsonDecodeError(TypeMismatch)
-  , caseAesonBigInt
   , caseAesonObject
   , caseAesonString
-  , caseAesonUInt
   , decodeAeson
   , encodeAeson
   , getField
   , getFieldOptional
   )
-import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right))
+import Data.Either (Either(Left))
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
-import Data.UInt as UInt
 import Effect (Effect)
 import Foreign.Object (Object)
 import QueryM.UniqueId (ListenerId, uniqueId)
@@ -150,33 +144,6 @@ aesonObject
 aesonObject = caseAesonObject (Left (TypeMismatch "expected object"))
 
 -- parsing json
-
--- | Parses a string at the given field to a UInt
-parseFieldToUInt :: Object Aeson -> String -> Either JsonDecodeError UInt.UInt
-parseFieldToUInt o str = do
-  -- We use string parsing for Ogmios (AffInterface tests) but also change Medea
-  -- schema and UtxoQueryResponse.json to be a string to pass (local) parsing
-  -- tests. Notice "index" is a string in our local example.
-  caseAesonUInt (Left err) Right =<< getField o str
-  where
-  err :: JsonDecodeError
-  err = TypeMismatch $ "expected field: '" <> str <> "' as a UInt"
-
--- -- The below doesn't seem to work with Ogmios query test (AffInterface)
--- -- eventhough it seems more reasonable.
--- num <- decodeNumber =<< getField o str
--- note err $ UInt.fromNumber' num
--- | Parses a string at the given field to a BigInt
-parseFieldToBigInt
-  :: Object Aeson -> String -> Either JsonDecodeError BigInt.BigInt
-parseFieldToBigInt o str = do
-  -- We use string parsing for Ogmios (AffInterface tests) but also change Medea
-  -- schema and UtxoQueryResponse.json to be a string to pass (local) parsing
-  -- tests. Notice "coins" is a string in our local example.
-  caseAesonBigInt (Left err) Right =<< getField o str
-  where
-  err :: JsonDecodeError
-  err = TypeMismatch $ "expected field: '" <> str <> "' as a BigInt"
 
 -- | A parser for the `Mirror` type.
 parseMirror :: Aeson -> Either JsonDecodeError ListenerId

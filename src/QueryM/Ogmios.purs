@@ -99,8 +99,6 @@ import QueryM.JsonWsp
   ( JsonWspCall
   , JsonWspRequest
   , mkCallType
-  , parseFieldToBigInt
-  , parseFieldToUInt
   )
 import Serialization.BigNum as BigNum
 import Type.Proxy (Proxy(Proxy))
@@ -1064,7 +1062,7 @@ aesonArray = caseAesonArray (Left (TypeMismatch "Expected Array"))
 parseTxOutRef :: Aeson -> Either JsonDecodeError OgmiosTxOutRef
 parseTxOutRef = aesonObject $ \o -> do
   txId <- getField o "txId"
-  index <- parseFieldToUInt o "index"
+  index <- getField o "index"
   pure { txId, index }
 
 type OgmiosTxOut =
@@ -1087,7 +1085,7 @@ parseTxOut = aesonObject $ \o -> do
 parseValue :: Object Aeson -> Either JsonDecodeError Value
 parseValue outer = do
   o <- getField outer "value"
-  coins <- parseFieldToBigInt o "coins"
+  coins <- getField o "coins"
     <|> Left (TypeMismatch "Expected 'coins' to be an Int or a BigInt")
   Assets assetsMap <- fromMaybe (Assets Map.empty)
     <$> getFieldOptional o "assets"
