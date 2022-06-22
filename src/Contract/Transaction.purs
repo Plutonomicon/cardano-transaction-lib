@@ -111,17 +111,18 @@ import Control.Monad.Error.Class (try, catchError, throwError)
 import Control.Monad.Except.Trans (runExceptT)
 import Control.Monad.Reader (asks, runReaderT, ReaderT)
 import Data.Array as Array
-import Data.Either (Either(..), hush)
+import Data.Array.NonEmpty as NonEmptyArray
+import Data.Either (Either(..), hush, either)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Traversable (class Traversable, traverse, traverse_, for, fold)
+import Data.Traversable (class Traversable, fold, for, traverse, traverse_)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), get1, (/\))
 import Effect.Class (liftEffect)
-import Effect.Exception (Error, throw)
+import Effect.Exception (Error, error, throw)
 import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
 import Plutus.Types.Transaction (TransactionOutput(TransactionOutput)) as PTransaction
 import Plutus.Types.Value (Coin)
@@ -225,6 +226,39 @@ balanceTx
   -> Contract r (Either BalanceTxError.BalanceTxError UnattachedTransaction)
 balanceTx = wrapContract <<< BalanceTx.balanceTx
 
+-- Helper to avoid repetition
+withTransactions
+  :: forall (a :: Type)
+       (t :: Type -> Type)
+       (r :: Row Type)
+       (tx :: Type)
+   . Traversable t
+  => (t UnattachedUnbalancedTx -> Contract r (t tx))
+  -> (tx -> Transaction)
+  -> t UnattachedUnbalancedTx
+  -> (t tx -> Contract r a)
+  -> Contract r a
+withTransactions prepare extract utxs action = do
+  txs <- prepare utxs
+  res <- try $ action txs
+  _ <- traverse (\t -> withUsedTxouts $ unlockTransactionInputs t) $ map extract
+    $
+      txs
+  case res of
+    Left e -> throwError e
+    Right x -> pure x
+
+withSingleTransaction
+  :: forall (a :: Type) (tx :: Type) (r :: Row Type)
+   . (UnattachedUnbalancedTx -> Contract r tx)
+  -> (tx -> Transaction)
+  -> UnattachedUnbalancedTx
+  -> (tx -> Contract r a)
+  -> Contract r a
+withSingleTransaction prepare extract utx action =
+  withTransactions (traverse prepare) extract (NonEmptyArray.singleton utx)
+    (action <<< NonEmptyArray.head)
+
 withBalancedTxs
   :: forall (a :: Type)
        (t :: Type -> Type)
@@ -233,14 +267,7 @@ withBalancedTxs
   => t UnattachedUnbalancedTx
   -> (t UnattachedTransaction -> Contract r a)
   -> Contract r a
-withBalancedTxs utxs action = do
-  txs <- balanceTxs utxs
-  res <- try $ action txs
-  _ <- traverse (\t -> withUsedTxouts $ unlockTransactionInputs t) $ map get1 $
-    txs
-  case res of
-    Left e -> throwError e
-    Right x -> pure x
+withBalancedTxs = withTransactions balanceTxs get1
 
 withBalancedTx
   :: forall (a :: Type)
@@ -248,28 +275,21 @@ withBalancedTx
    . UnattachedUnbalancedTx
   -> (UnattachedTransaction -> Contract r a)
   -> Contract r a
-withBalancedTx utx action = withBalancedTxs [ utx ] helper
+withBalancedTx = withSingleTransaction balanceTx' get1
   where
-  helper :: Array UnattachedTransaction -> Contract r a
-  helper [ tx ] = action tx
-  -- Which error should we throw here?        
-  helper _ = liftEffect $ throw $
-    "Unexpected internal error during transaction signing"
+  balanceTx' uutx = do
+    tx <- balanceTx uutx
+    case tx of
+      Left e -> throwError $ error $ show $ e
+      Right tx' -> pure tx'
 
 withBalancedAndSignedTxs
   :: forall (r :: Row Type) (a :: Type)
    . Array UnattachedUnbalancedTx
   -> (Array BalancedSignedTransaction -> Contract r a)
   -> Contract r a
-withBalancedAndSignedTxs uutxs action = do
-  txs <- balanceAndSignTxs uutxs
-  res <- try $ action txs
-  _ <- traverse (\t -> withUsedTxouts $ unlockTransactionInputs t)
-    $ map (_.transaction <<< unwrap)
-    $ txs
-  case res of
-    Left e -> throwError e
-    Right x -> pure x
+withBalancedAndSignedTxs = withTransactions balanceAndSignTxs
+  (_.transaction <<< unwrap)
 
 withBalancedAndSignedTx
   :: forall (a :: Type)
@@ -277,13 +297,16 @@ withBalancedAndSignedTx
    . UnattachedUnbalancedTx
   -> (BalancedSignedTransaction -> Contract r a)
   -> Contract r a
-withBalancedAndSignedTx utx action = withBalancedAndSignedTxs [ utx ] helper
+withBalancedAndSignedTx = withSingleTransaction balanceAndSignTx'
+  (_.transaction <<< unwrap)
   where
-  helper :: Array BalancedSignedTransaction -> Contract r a
-  helper [ tx ] = action tx
-  -- Which error should we throw here?        
-  helper _ = liftEffect $ throw $
-    "Unexpected internal error during transaction signing"
+  balanceAndSignTx'
+    :: UnattachedUnbalancedTx -> Contract r BalancedSignedTransaction
+  balanceAndSignTx' uutx = do
+    tx <- balanceAndSignTxE uutx
+    case tx of
+      Left e -> throwError $ error $ show $ e
+      Right tx' -> pure tx'
 
 balanceTxs
   :: forall
