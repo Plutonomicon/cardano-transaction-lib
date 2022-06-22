@@ -421,7 +421,11 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
         Just (Gero _) -> addTxCollateral unbalancedTx' collateral
         _ -> unbalancedTx'
 
+    Logger.info (tag "utxos" mempty) $ "AllUtxos " <> show allUtxos
+
     availableUtxos <- lift $ map unwrap $ filterUnusedUtxos $ wrap allUtxos
+
+    Logger.info (tag "utxos" mempty) $ "AvailableUtxos " <> show allUtxos
 
     -- Logging Unbalanced Tx with collateral added:
     logTx "Unbalanced Collaterised Tx " availableUtxos unbalancedCollTx

@@ -5,7 +5,7 @@ SHELL := bash
 
 ps-sources := $(shell fd -epurs)
 nix-sources := $(shell fd -enix --exclude='spago*')
-ps-entrypoint := Examples.AlwaysSucceeds
+ps-entrypoint := Examples.Pkh2Pkh
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 
 node-ipc = $(shell docker volume inspect cardano-transaction-lib_node-ipc | jq -r '.[0].Mountpoint')
