@@ -375,14 +375,6 @@ foreign import ppuSetExpansionRate
 foreign import ppuSetTreasuryGrowthRate
   :: ProtocolParamUpdate -> UnitInterval -> Effect Unit
 
-foreign import ppuSetD :: ProtocolParamUpdate -> UnitInterval -> Effect Unit
-
-foreign import ppuSetExtraEntropyIdentity
-  :: ProtocolParamUpdate -> Effect Unit
-
-foreign import ppuSetExtraEntropyFromHash
-  :: ProtocolParamUpdate -> ByteArray -> Effect Unit
-
 foreign import newProtocolVersion :: Int -> Int -> Effect ProtocolVersion
 
 foreign import ppuSetProtocolVersion
@@ -566,11 +558,6 @@ convertProtocolParamUpdate
     mkUnitInterval >=> ppuSetExpansionRate ppu
   for_ treasuryGrowthRate $
     mkUnitInterval >=> ppuSetTreasuryGrowthRate ppu
-  for_ d $
-    mkUnitInterval >=> ppuSetD ppu
-  for_ extraEntropy $ case _ of
-    T.IdentityNonce -> ppuSetExtraEntropyIdentity ppu
-    T.HashNonce bytes -> ppuSetExtraEntropyFromHash ppu bytes
   for_ protocolVersion $
     ppuSetProtocolVersion containerHelper ppu <=<
       traverse \pv -> newProtocolVersion (UInt.toInt pv.major)

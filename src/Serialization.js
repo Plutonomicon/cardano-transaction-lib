@@ -335,14 +335,6 @@ exports.ppuSetExpansionRate = setter('expansion_rate');
 
 exports.ppuSetTreasuryGrowthRate = setter('treasury_growth_rate');
 
-exports.ppuSetD = setter('d');
-
-exports.ppuSetExtraEntropyIdentity = ppu => () =>
-    ppu.set_extra_entropy(lib.Nonce.new_identity());
-
-exports.ppuSetExtraEntropyFromHash = ppu => bytes => () =>
-    ppu.set_extra_entropy(lib.Nonce.new_from_hash(bytes));
-
 exports.newProtocolVersion = major => minor => () =>
     lib.ProtocolVersion.new(major, minor);
 
