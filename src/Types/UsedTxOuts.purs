@@ -21,7 +21,7 @@ module Types.UsedTxOuts
 import Cardano.Types.Transaction (Transaction)
 import Control.Alt ((<$>))
 import Control.Alternative (guard, pure)
-import Control.Applicative (when)
+import Control.Applicative (unless)
 import Control.Bind (bind, (=<<), (>>=))
 import Control.Category ((<<<), (>>>))
 import Control.Monad.Error.Class (class MonadError, catchError, throwError)
