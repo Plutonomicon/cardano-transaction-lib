@@ -2,7 +2,16 @@ module Plutip.Server where
 
 import Prelude
 
-import Aeson (decodeAeson, encodeAeson, getField, getNestedAeson, parseJsonStringToAeson, stringifyAeson, toNumber, toObject)
+import Aeson
+  ( decodeAeson
+  , encodeAeson
+  , getField
+  , getNestedAeson
+  , parseJsonStringToAeson
+  , stringifyAeson
+  , toNumber
+  , toObject
+  )
 import Affjax as Affjax
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
@@ -16,7 +25,7 @@ import Data.Either (Either(..), either, fromRight)
 import Data.Foldable (intercalate)
 import Data.HTTP.Method as Method
 import Data.Int as Int
-import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.UInt as UInt
@@ -31,7 +40,15 @@ import Node.FS.Aff (writeTextFile)
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat, dirname)
 import Partial.Unsafe (unsafePartial)
-import Plutip.Types (ClusterStartupRequest(ClusterStartupRequest), FilePath, PlutipConfig, StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure), StopClusterRequest(StopClusterRequest), StopClusterResponse, ClusterStartupParameters)
+import Plutip.Types
+  ( ClusterStartupRequest(ClusterStartupRequest)
+  , FilePath
+  , PlutipConfig
+  , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
+  , StopClusterRequest(StopClusterRequest)
+  , StopClusterResponse
+  , ClusterStartupParameters
+  )
 import Plutip.Utils (tmpdir)
 import QueryM (ClientError(..))
 import QueryM as QueryM
@@ -68,7 +85,8 @@ runPlutipM plutipCfg action = do
       withResource (startOgmios plutipCfg response) stopOgmios $ const do
         withResource (startOgmiosDatumCache plutipCfg response)
           stopOgmiosDatumCache $ const do
-            withResource (startCtlServer plutipCfg response) stopCtlServer $ const do
+          withResource (startCtlServer plutipCfg response) stopCtlServer $ const
+            do
               contractCfg <- mkClusterContractCfg plutipCfg response
               liftAff $ runContract contractCfg contract
 
@@ -214,44 +232,47 @@ type CtlServerConfig =
 
 startCtlServer :: PlutipConfig -> ClusterStartupParameters -> Aff ChildProcess
 startCtlServer cfg params = do
-  eitherNetworkInfo <- liftEffect $ getNetworkInfoFromNodeConfig ""
-  case eitherNetworkInfo of
-    Left e -> liftEffect $ throw e
-    Right networkInfo -> do
-      let
-        ctlServerArgs =
-          [ "--port", UInt.toString cfg.ctlServerConfig.port
-          , "--node-socket", params.nodeSocketPath
-          ] <> getNetworkInfoArgs networkInfo
-      liftEffect $ spawn "ctl-server" ctlServerArgs defaultSpawnOptions
+  networkInfo <- liftEffect $ getNetworkInfoFromNodeConfig ""
+  let
+    ctlServerArgs =
+      [ "--port"
+      , UInt.toString cfg.ctlServerConfig.port
+      , "--node-socket"
+      , params.nodeSocketPath
+      ] <> getNetworkInfoArgs networkInfo
+  liftEffect $ spawn "ctl-server" ctlServerArgs defaultSpawnOptions
   where
-    getNetworkInfoArgs :: NetworkInfo -> Array String
-    getNetworkInfoArgs Mainnet = []
-    getNetworkInfoArgs (Testnet networkId) = [ "--network-id", Int.toStringAs Int.decimal networkId ]
+  getNetworkInfoArgs :: NetworkInfo -> Array String
+  getNetworkInfoArgs Mainnet = []
+  getNetworkInfoArgs (Testnet networkId) =
+    [ "--network-id", Int.toStringAs Int.decimal networkId ]
 
 stopCtlServer :: ChildProcess -> Aff Unit
 stopCtlServer = liftEffect <<< kill SIGINT
 
-getNetworkInfoFromNodeConfig :: FilePath -> Effect (Either String NetworkInfo)
+-- eihter' :: (a -> c) -> Either a b -> (b -> c) -> c
+
+getNetworkInfoFromNodeConfig :: FilePath -> Effect NetworkInfo
 getNetworkInfoFromNodeConfig nodeConfigPath = do
-  eitherNodeConfigJson <- parseJsonStringToAeson <$> readTextFile Encoding.UTF8 nodeConfigPath
-  case eitherNodeConfigJson of
-    Left e -> pure $ Left $ show e
-    Right nodeConfigJson -> do
-      let byronGenesisFile = getField (unsafePartial $ fromJust $ toObject nodeConfigJson) "ByronGenesisFile"
-          requiresNetworkMagic = getField (unsafePartial $ fromJust $ toObject nodeConfigJson) "RequiresNetworkMagic"
-      case requiresNetworkMagic == Right "RequiresNoMagic" of
-        true -> pure $ Right Mainnet
-        false -> do
-          eitherByronGenesisJson <- parseJsonStringToAeson <$> readTextFile Encoding.UTF8 (fromRight "" byronGenesisFile)
-          case eitherByronGenesisJson of
-            Left e -> pure $ Left $ show e
-            Right byronGenesisJson -> do
-              let eitherNetworkMagic = getNestedAeson byronGenesisJson [ "protocolConsts", "protocolMagic" ]
-              case eitherNetworkMagic of
-                Left e -> pure $ Left $ show e
-                Right networkMagic -> do
-                  maybe (pure $ Left "error") (\i -> pure $ Right $ Testnet i) $ toNumber networkMagic >>= Int.fromString
+  nodeConfigJson <- either (\e -> throw $ show e) pure =<<
+    parseJsonStringToAeson <$> readTextFile Encoding.UTF8 nodeConfigPath
+  let
+    byronGenesisFile = getField
+      (unsafePartial $ fromJust $ toObject nodeConfigJson)
+      "ByronGenesisFile"
+    requiresNetworkMagic = getField
+      (unsafePartial $ fromJust $ toObject nodeConfigJson)
+      "RequiresNetworkMagic"
+  if requiresNetworkMagic == Right "RequiresNoMagic" then pure Mainnet
+  else do
+    byronGenesisJson <- either (\e -> throw $ show e) pure =<<
+      parseJsonStringToAeson <$> readTextFile Encoding.UTF8
+        (fromRight "" byronGenesisFile)
+    networkMagic <- either (\e -> throw $ show e) pure $ getNestedAeson
+      byronGenesisJson
+      [ "protocolConsts", "protocolMagic" ]
+    pure $ Testnet $ unsafePartial $ fromJust
+      (Int.fromString =<< toNumber networkMagic)
 
 type OgmiosConfig =
   { port :: Int
