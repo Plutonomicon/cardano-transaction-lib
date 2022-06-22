@@ -24,11 +24,12 @@ import Prelude hiding (join)
 
 import Address (enterpriseAddressValidatorHash)
 import Cardano.Types.Transaction
-  ( ExUnits
+  ( Costmdls
+  , ExUnits
   , Transaction
   , TransactionOutput(TransactionOutput)
-  , TxBody
   , TransactionWitnessSet(TransactionWitnessSet)
+  , TxBody
   , _body
   , _inputs
   , _mint
@@ -77,11 +78,12 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
-import Data.Traversable (for, traverse, traverse_)
+import Data.Traversable (sequence, traverse, traverse_)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff (Aff)
+import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import FromData (class FromData)
 import Hashing (datumHash) as Hashing
@@ -90,6 +92,7 @@ import Plutus.Conversion (fromPlutusTxOutput, fromPlutusValue)
 import Plutus.Types.Transaction (TransactionOutput) as Plutus
 import QueryM (DefaultQueryConfig, QueryM, getDatumByHash)
 import QueryM.EraSummaries (getEraSummaries)
+import QueryM.ProtocolParameters (getProtocolParameters)
 import QueryM.SystemStart (getSystemStart)
 import Scripts
   ( mintingPolicyHash
@@ -168,7 +171,6 @@ import Types.UnbalancedTransaction
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
-  , payPubKeyRequiredSigner
   )
 
 -- Taken mainly from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-constraints/html/Ledger-Constraints-OffChain.html
@@ -190,10 +192,12 @@ newtype ScriptLookups (a :: Type) = ScriptLookups
   { mps ::
       Array MintingPolicy -- Minting policies that the script interacts with
   , txOutputs ::
-      Map TransactionInput Plutus.TransactionOutput -- Unspent outputs that the script may want to spend. This may need tweaking to `TransactionOutput`
+      Map TransactionInput Plutus.TransactionOutput -- Unspent outputs that the script may want to spend
   , scripts ::
       Array Validator -- Script validators
   , datums :: Map DataHash Datum --  Datums that we might need
+  -- FIXME there's currently no way to set this field
+  -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/569
   , paymentPubKeyHashes ::
       Map PaymentPubKeyHash PaymentPubKey -- Public keys that we might need
   , typedValidator ::
@@ -319,20 +323,6 @@ datum dt =
   Hashing.datumHash dt
     <#> \dh -> over ScriptLookups _ { datums = singleton dh dt } mempty
 
--- -- | A script lookups value with a payment public key. This can fail because we
--- -- | invoke `payPubKeyHash`.
--- paymentPubKeyM :: forall (a :: Type). PaymentPubKey -> Maybe (ScriptLookups a)
--- paymentPubKeyM ppk = do
---   pkh <- payPubKeyHash ppk
---   pure $ over ScriptLookups
---     _ { paymentPubKeyHashes = singleton pkh ppk }
---     mempty
-
--- -- | A script lookups value with a payment public key. This is unsafe because
--- -- | the underlying function `paymentPubKeyM` can fail.
--- unsafePaymentPubKey :: forall (a :: Type). PaymentPubKey -> ScriptLookups a
--- unsafePaymentPubKey = unsafePartial fromJust <<< paymentPubKeyM
-
 -- | Add your own `PaymentPubKeyHash` to the lookup.
 ownPaymentPubKeyHash :: forall (a :: Type). PaymentPubKeyHash -> ScriptLookups a
 ownPaymentPubKeyHash pkh =
@@ -405,6 +395,7 @@ type ConstraintProcessingState (a :: Type) =
   , lookups :: ScriptLookups a
   -- ScriptLookups for resolving constraints. Should be treated as an immutable
   -- value despite living inside the processing state
+  , costModels :: Costmdls
   }
 
 -- We could make these signatures polymorphic but they're not exported so don't
@@ -424,6 +415,10 @@ _valueSpentBalancesOutputs = prop (SProxy :: SProxy "valueSpentBalancesOutputs")
 _datums
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) (Array Datum)
 _datums = prop (SProxy :: SProxy "datums")
+
+_costModels
+  :: forall (a :: Type). Lens' (ConstraintProcessingState a) Costmdls
+_costModels = prop (SProxy :: SProxy "costModels")
 
 _redeemers
   :: forall (a :: Type)
@@ -499,10 +494,10 @@ processLookupsAndConstraints
   let
     mps = lookups.mps
     scripts = lookups.scripts
-  mpsHashes <-
-    except $ hashScripts mintingPolicyHash CannotHashMintingPolicy mps
-  validatorHashes <-
-    except $ hashScripts validatorHash CannotHashValidator scripts
+  mpsHashes <- ExceptT $
+    hashScripts mintingPolicyHash CannotHashMintingPolicy mps
+  validatorHashes <- ExceptT $
+    hashScripts validatorHash CannotHashValidator scripts
   let
     mpsMap = fromFoldable $ zip mpsHashes mps
     osMap = fromFoldable $ zip validatorHashes scripts
@@ -522,12 +517,12 @@ processLookupsAndConstraints
   -- with a way to error.
   hashScripts
     :: forall (script :: Type) (scriptHash :: Type) (c :: Type)
-     . (script -> Maybe scriptHash)
+     . (script -> Aff (Maybe scriptHash))
     -> (script -> MkUnbalancedTxError)
     -> Array script
-    -> Either MkUnbalancedTxError (Array scriptHash)
+    -> ConstraintsM c (Either MkUnbalancedTxError (Array scriptHash))
   hashScripts hasher error =
-    traverse (\s -> note (error s) (hasher s))
+    liftAff <<< map sequence <<< traverse (\s -> note (error s) <$> hasher s)
 
   -- Don't write the output in terms of ExceptT because we can't write a
   -- partially applied `ConstraintsM` meaning this is more readable.
@@ -551,7 +546,8 @@ runConstraintsM
   => ScriptLookups a
   -> TxConstraints b b
   -> QueryM (Either MkUnbalancedTxError (ConstraintProcessingState a))
-runConstraintsM lookups txConstraints =
+runConstraintsM lookups txConstraints = do
+  costModels <- getProtocolParameters <#> unwrap >>> _.costModels
   let
     initCps :: ConstraintProcessingState a
     initCps =
@@ -564,6 +560,7 @@ runConstraintsM lookups txConstraints =
       , redeemers: mempty
       , mintRedeemers: empty
       , lookups
+      , costModels
       }
 
     unpackTuple
@@ -571,10 +568,8 @@ runConstraintsM lookups txConstraints =
       -> Either MkUnbalancedTxError (ConstraintProcessingState a)
     unpackTuple (Left err /\ _) = Left err
     unpackTuple (_ /\ cps) = Right cps
-  in
-    unpackTuple <$>
-      ( flip runStateT initCps $ processLookupsAndConstraints txConstraints
-      )
+  unpackTuple <$>
+    flip runStateT initCps (processLookupsAndConstraints txConstraints)
 
 -- See comments in `processLookupsAndConstraints` regarding constraints.
 -- | Create an `UnbalancedTx` given `ScriptLookups` and `TxConstraints`.
@@ -646,10 +641,12 @@ addScriptDataHash
    . ConstraintsM a (Either MkUnbalancedTxError Unit)
 addScriptDataHash = runExceptT do
   dats <- use _datums
+  costModels <- use _costModels
   -- Use both script and minting redeemers in the order they were appended.
   reds <- use (_redeemers <<< to (map fst))
   tx <- use (_unbalancedTx <<< _transaction)
-  tx' <- ExceptT $ liftEffect $ setScriptDataHash reds dats tx <#> Right
+  tx' <- ExceptT $ liftEffect $ setScriptDataHash costModels reds dats tx <#>
+    Right
   _cpsToTransaction .= tx'
 
 -- | Add the remaining balance of the total value that the tx must spend.
@@ -867,13 +864,12 @@ processConstraint mpsMap osMap = do
             { ttl = timeToLive
             , validityStartInterval = validityStartInterval
             }
-    MustBeSignedBy pkh -> runExceptT do
-      ppkh <- use _lookups <#> unwrap >>> _.paymentPubKeyHashes
-      sigs <- for (lookup pkh ppkh) $
-        payPubKeyRequiredSigner >>>
-          maybe (throwError (CannotConvertPaymentPubKeyHash pkh))
-            (pure <<< Array.singleton)
-      _cpsToTxBody <<< _requiredSigners <>= sigs
+    MustBeSignedBy pkh -> runExceptT $
+      -- FIXME This is incompatible with Plutus' version, which requires
+      -- the corresponding `paymentPubKey` lookup. In the next major version,
+      -- we might wish to revise this
+      -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/569
+      _cpsToTxBody <<< _requiredSigners <>= Just [ wrap $ unwrap $ unwrap pkh ]
     MustSpendAtLeast plutusValue -> do
       let value = fromPlutusValue plutusValue
       runExceptT $ _valueSpentBalancesInputs <>= require value

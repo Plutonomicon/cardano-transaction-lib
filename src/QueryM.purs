@@ -140,13 +140,15 @@ import QueryM.ServerConfig
   , mkWsUrl
   )
 import QueryM.UniqueId (ListenerId)
+import Deserialization.FromBytes (fromBytes) as Deserialization
+import Deserialization.Transaction (convertTransaction) as Deserialization
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address
   ( Address
   , NetworkId(TestnetId)
   , baseAddressDelegationCred
   , baseAddressFromAddress
-  , baseAddressPaymentCred
+  , addressPaymentCred
   , stakeCredentialToKeyHash
   )
 import Serialization.PlutusData (convertPlutusData) as Serialization
@@ -164,7 +166,7 @@ import Types.Scripts (PlutusScript)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
 import Wallet
-  ( Wallet(Gero, Nami)
+  ( Wallet(Gero, Nami, KeyWallet)
   , Cip30Connection
   , Cip30Wallet
   )
@@ -278,33 +280,48 @@ allowError func = func <<< Right
 --------------------------------------------------------------------------------
 
 getWalletAddress :: QueryM (Maybe Address)
-getWalletAddress = withMWalletAff $ case _ of
-  Nami nami -> callCip30Wallet nami _.getWalletAddress
-  Gero gero -> callCip30Wallet gero _.getWalletAddress
+getWalletAddress = do
+  networkId <- asks _.networkId
+  withMWalletAff case _ of
+    Nami nami -> callCip30Wallet nami _.getWalletAddress
+    Gero gero -> callCip30Wallet gero _.getWalletAddress
+    KeyWallet kw -> Just <$> kw.address networkId
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
-getWalletCollateral = withMWalletAff $ case _ of
+getWalletCollateral = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami _.getCollateral
   Gero gero -> callCip30Wallet gero _.getCollateral
+  KeyWallet _ -> liftEffect $ throw "Not implemented"
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
-signTransaction tx = withMWalletAff $ case _ of
+signTransaction tx = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
+  KeyWallet kw -> Just <$> kw.signTx tx
 
 signTransactionBytes
   :: CborBytes -> QueryM (Maybe CborBytes)
-signTransactionBytes tx = withMWalletAff $ case _ of
+signTransactionBytes tx = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami \nw -> flip nw.signTxBytes tx
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTxBytes tx
+  KeyWallet kw ->
+    for
+      ( Deserialization.fromBytes (unwrap tx)
+          >>= Deserialization.convertTransaction
+            >>> hush
+      )
+      ( kw.signTx
+          >=> Serialization.convertTransaction
+            >>> map (asOneOf >>> Serialization.toBytes >>> wrap)
+            >>> liftEffect
+      )
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do
   mbAddress <- getWalletAddress
-  pure do
-    baseAddress <- mbAddress >>= baseAddressFromAddress
-    wrap <$> stakeCredentialToKeyHash (baseAddressPaymentCred baseAddress)
+  pure $
+    wrap <$> (mbAddress >>= (addressPaymentCred >=> stakeCredentialToKeyHash))
 
 ownPaymentPubKeyHash :: QueryM (Maybe PaymentPubKeyHash)
 ownPaymentPubKeyHash = map wrap <$> ownPubKeyHash
@@ -578,6 +595,7 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
   utxoDispatchMap <- createMutableDispatch
   chainTipDispatchMap <- createMutableDispatch
   evaluateTxDispatchMap <- createMutableDispatch
+  getProtocolParametersDispatchMap <- createMutableDispatch
   submitDispatchMap <- createMutableDispatch
   eraSummariesDispatchMap <- createMutableDispatch
   currentEpochDispatchMap <- createMutableDispatch
@@ -585,6 +603,7 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
   utxoPendingRequests <- createPendingRequests
   chainTipPendingRequests <- createPendingRequests
   evaluateTxPendingRequests <- createPendingRequests
+  getProtocolParametersPendingRequests <- createPendingRequests
   submitPendingRequests <- createPendingRequests
   eraSummariesPendingRequests <- createPendingRequests
   currentEpochPendingRequests <- createPendingRequests
@@ -594,6 +613,7 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       { utxoDispatchMap
       , chainTipDispatchMap
       , evaluateTxDispatchMap
+      , getProtocolParametersDispatchMap
       , submitDispatchMap
       , eraSummariesDispatchMap
       , currentEpochDispatchMap
@@ -607,6 +627,7 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       Ref.read utxoPendingRequests >>= traverse_ sendRequest
       Ref.read chainTipPendingRequests >>= traverse_ sendRequest
       Ref.read evaluateTxPendingRequests >>= traverse_ sendRequest
+      Ref.read getProtocolParametersPendingRequests >>= traverse_ sendRequest
       Ref.read submitPendingRequests >>= traverse_ sendRequest
       Ref.read eraSummariesPendingRequests >>= traverse_ sendRequest
       Ref.read currentEpochPendingRequests >>= traverse_ sendRequest
@@ -619,6 +640,8 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       { utxo: mkListenerSet utxoDispatchMap utxoPendingRequests
       , chainTip: mkListenerSet chainTipDispatchMap chainTipPendingRequests
       , evaluate: mkListenerSet evaluateTxDispatchMap evaluateTxPendingRequests
+      , getProtocolParameters: mkListenerSet getProtocolParametersDispatchMap
+          getProtocolParametersPendingRequests
       , submit: mkListenerSet submitDispatchMap submitPendingRequests
       , eraSummaries:
           mkListenerSet eraSummariesDispatchMap eraSummariesPendingRequests
@@ -693,6 +716,7 @@ type OgmiosListeners =
   , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
   , submit :: ListenerSet { txCbor :: ByteArray } Ogmios.SubmitTxR
   , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationR
+  , getProtocolParameters :: ListenerSet Unit Ogmios.ProtocolParameters
   , eraSummaries :: ListenerSet Unit Ogmios.EraSummaries
   , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
   , systemStart :: ListenerSet Unit Ogmios.SystemStart
@@ -814,6 +838,8 @@ ogmiosMessageDispatch
   :: { utxoDispatchMap :: DispatchIdMap Ogmios.UtxoQR
      , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipQR
      , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationR
+     , getProtocolParametersDispatchMap ::
+         DispatchIdMap Ogmios.ProtocolParameters
      , submitDispatchMap :: DispatchIdMap Ogmios.SubmitTxR
      , eraSummariesDispatchMap :: DispatchIdMap Ogmios.EraSummaries
      , currentEpochDispatchMap :: DispatchIdMap Ogmios.CurrentEpoch
@@ -824,6 +850,7 @@ ogmiosMessageDispatch
   { utxoDispatchMap
   , chainTipDispatchMap
   , evaluateTxDispatchMap
+  , getProtocolParametersDispatchMap
   , submitDispatchMap
   , eraSummariesDispatchMap
   , currentEpochDispatchMap
@@ -832,6 +859,7 @@ ogmiosMessageDispatch
   [ queryDispatch utxoDispatchMap
   , queryDispatch chainTipDispatchMap
   , queryDispatch evaluateTxDispatchMap
+  , queryDispatch getProtocolParametersDispatchMap
   , queryDispatch submitDispatchMap
   , queryDispatch eraSummariesDispatchMap
   , queryDispatch currentEpochDispatchMap

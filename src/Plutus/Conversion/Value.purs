@@ -81,5 +81,5 @@ toPlutusValue (Types.Value (Types.Coin adaAmount) (NonAdaAsset nonAdaAssets)) =
       Map.toUnfoldable tokens <#> \(tn /\ val) ->
         unsafePartial $ fromJust $
           Plutus.Value.singleton' (getCurrencySymbol cs)
-            (unwrap $ getTokenName tn)
+            (getTokenName tn)
             val

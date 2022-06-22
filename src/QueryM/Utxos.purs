@@ -14,7 +14,7 @@ import Control.Monad.Reader.Trans (ReaderT, asks)
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (bisequence)
 import Data.Map as Map
-import Data.Maybe (Maybe, maybe)
+import Data.Maybe (Maybe(Nothing), maybe)
 import Data.Newtype (unwrap, wrap, over)
 import Data.Traversable (sequence)
 import Data.Tuple.Nested (type (/\))
@@ -28,7 +28,7 @@ import Serialization.Address (Address)
 import TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
 import Types.Transaction (TransactionInput)
 import Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
-import Wallet (Wallet(Gero, Nami))
+import Wallet (Wallet(Gero, Nami, KeyWallet))
 
 --------------------------------------------------------------------------------
 -- UtxosAt
@@ -45,6 +45,7 @@ utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
   utxosAtByWallet address = case _ of
     Nami _ -> cip30UtxosAt address
     Gero _ -> cip30UtxosAt address
+    KeyWallet _ -> pure Nothing
 
   -- Gets all utxos at an (internal) Address in terms of (internal)
   -- Cardano.Transaction.Types.
@@ -83,7 +84,7 @@ utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
 
   cip30UtxosAt :: Address -> QueryM (Maybe UtxoM)
   cip30UtxosAt address = getWalletCollateral >>= maybe
-    (liftEffect $ throw "Nami wallet missing collateral")
+    (liftEffect $ throw "CIP-30 wallet missing collateral")
     \collateral' -> do
       let collateral = unwrap collateral'
       utxos' <- allUtxosAt address
