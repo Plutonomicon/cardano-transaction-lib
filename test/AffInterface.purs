@@ -12,6 +12,7 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
+import Partial.Unsafe (unsafePartial)
 import QueryM
   ( QueryM
   , getChainTip
@@ -28,6 +29,7 @@ import QueryM.Ogmios
   , OgmiosAddress
   , SystemStart
   )
+import QueryM.ProtocolParameters (getProtocolParameters)
 import QueryM.SystemStart (getSystemStart)
 import QueryM.Utxos (utxosAt)
 import Serialization.Address (Slot(Slot))
@@ -35,16 +37,12 @@ import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Types.Interval
-  ( PosixTimeToSlotError
-      ( CannotConvertAbsSlotToSlot
-      , PosixTimeBeforeSystemStart
-      )
+  ( PosixTimeToSlotError(CannotConvertAbsSlotToSlot, PosixTimeBeforeSystemStart)
   , POSIXTime(POSIXTime)
   , posixTimeToSlot
   , slotToPosixTime
   )
 import Types.Transaction (DataHash(DataHash))
-import Partial.Unsafe (unsafePartial)
 
 testnet_addr1 :: OgmiosAddress
 testnet_addr1 =
@@ -67,6 +65,7 @@ suite = do
     test "UtxosAt non-Testnet" $ testUtxosAt addr1
     test "Get ChainTip" testGetChainTip
     test "Get EraSummaries" testGetEraSummaries
+    test "Get ProtocolParameters" testGetProtocolParameters
     test "Get CurrentEpoch" testGetCurrentEpoch
     test "Get SystemStart" testGetSystemStart
     test "Inverse posixTimeToSlot >>> slotToPosixTime " testPosixTimeToSlot
@@ -124,6 +123,11 @@ testFromOgmiosAddress testAddr = do
 testGetEraSummaries :: Aff Unit
 testGetEraSummaries = do
   flip runQueryM (void getEraSummaries) =<< traceQueryConfig
+
+testGetProtocolParameters :: Aff Unit
+testGetProtocolParameters = do
+  flip runQueryM (void getProtocolParameters) =<<
+    traceQueryConfig
 
 testGetCurrentEpoch :: Aff Unit
 testGetCurrentEpoch = do

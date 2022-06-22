@@ -27,7 +27,6 @@ import Partial.Unsafe (unsafePartial)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
 import ToData (class ToData)
 import Types.ByteArray (ByteArray)
-import Types.RawBytes (RawBytes)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 
 newtype CurrencySymbol = CurrencySymbol ByteArray
@@ -81,7 +80,7 @@ mkCurrencySymbol byteArr
 --------------------------------------------------------------------------------
 
 -- This must be safe to use as long as we always construct a
--- `CurrencySymbol` with the smart-constructors. 
+-- `CurrencySymbol` with the smart-constructors.
 currencyScriptHash :: CurrencySymbol -> ScriptHash
 currencyScriptHash = unsafePartial $ fromJust <<< scriptHashFromBytes <<< wrap
   <<< getCurrencySymbol

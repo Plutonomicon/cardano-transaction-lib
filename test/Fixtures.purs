@@ -66,8 +66,6 @@ import Prelude
 import Aeson (Aeson, aesonNull, parseJsonStringToAeson)
 import Cardano.Types.Transaction
   ( AuxiliaryDataHash(AuxiliaryDataHash)
-  , Ed25519Signature(Ed25519Signature)
-  , Epoch(Epoch)
   , Certificate
       ( StakeRegistration
       , StakeDeregistration
@@ -77,9 +75,15 @@ import Cardano.Types.Transaction
       , GenesisKeyDelegation
       , MoveInstantaneousRewardsCert
       )
-  , GenesisHash(GenesisHash)
+  , Ed25519Signature(Ed25519Signature)
+  , Epoch(Epoch)
   , GenesisDelegateHash(GenesisDelegateHash)
+  , GenesisHash(GenesisHash)
+  , Ipv4(Ipv4)
+  , Ipv6(Ipv6)
+  , MIRToStakeCredentials(MIRToStakeCredentials)
   , Mint(Mint)
+  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
   , NativeScript
       ( ScriptPubkey
       , ScriptAll
@@ -88,25 +92,21 @@ import Cardano.Types.Transaction
       , TimelockStart
       , TimelockExpiry
       )
+  , Nonce(HashNonce)
+  , PoolMetadata(PoolMetadata)
+  , PoolMetadataHash(PoolMetadataHash)
+  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , PublicKey(PublicKey)
   , Redeemer(Redeemer)
+  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
   , RequiredSigner(RequiredSigner)
   , Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
+  , URL(URL)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
-  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
-  , Ipv4(Ipv4)
-  , Ipv6(Ipv6)
-  , PoolMetadata(PoolMetadata)
-  , PoolMetadataHash(PoolMetadataHash)
-  , URL(URL)
-  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
-  , MIRToStakeCredentials(MIRToStakeCredentials)
-  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
-  , Nonce(HashNonce)
   )
 import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
@@ -142,7 +142,6 @@ import Metadata.Seabug.Share (Share, mkShare)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Partial.Unsafe (unsafePartial)
-import ProtocolParametersAlonzo (costModels)
 import Serialization.Address
   ( Address
   , NetworkId(MainnetId, TestnetId)
@@ -163,6 +162,7 @@ import Serialization.Hash
   , scriptHashFromBytes
   )
 import Serialization.Types (BigNum)
+import Test.Fixtures.CostModels (costModelsFixture1)
 import Types.Aliases (Bech32String)
 import Types.ByteArray
   ( ByteArray
@@ -464,7 +464,7 @@ proposedProtocolParameterUpdates1 = ProposedProtocolParameterUpdates $
             [ { major: UInt.fromInt 1, minor: UInt.fromInt 1 } ]
         , minPoolCost: Just bigNumOne
         , adaPerUtxoByte: Just bigNumOne
-        , costModels: Just costModels
+        , costModels: Just costModelsFixture1
         , executionCosts: Just
             { memPrice: { numerator: bigNumOne, denominator: bigNumOne }
             , stepPrice: { numerator: bigNumOne, denominator: bigNumOne }
