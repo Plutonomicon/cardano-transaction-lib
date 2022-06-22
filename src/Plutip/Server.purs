@@ -21,11 +21,11 @@ import Contract.Monad (Contract, ContractConfig(ContractConfig), runContract)
 import Control.Monad.Error.Class (withResource)
 import Control.Monad.Reader (ReaderT(ReaderT), runReaderT)
 import Data.Bifunctor (lmap)
-import Data.Either (Either(..), either, fromRight)
+import Data.Either (Either(Right, Left), either)
 import Data.Foldable (intercalate)
 import Data.HTTP.Method as Method
 import Data.Int as Int
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.UInt as UInt
@@ -39,7 +39,6 @@ import Node.Encoding as Encoding
 import Node.FS.Aff (writeTextFile)
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat, dirname)
-import Partial.Unsafe (unsafePartial)
 import Plutip.Types
   ( ClusterStartupRequest(ClusterStartupRequest)
   , FilePath
@@ -250,29 +249,25 @@ startCtlServer cfg params = do
 stopCtlServer :: ChildProcess -> Aff Unit
 stopCtlServer = liftEffect <<< kill SIGINT
 
--- eihter' :: (a -> c) -> Either a b -> (b -> c) -> c
-
 getNetworkInfoFromNodeConfig :: FilePath -> Effect NetworkInfo
 getNetworkInfoFromNodeConfig nodeConfigPath = do
-  nodeConfigJson <- either (\e -> throw $ show e) pure =<<
+  nodeConfigJson <- either (throw <<< show) pure =<<
     parseJsonStringToAeson <$> readTextFile Encoding.UTF8 nodeConfigPath
-  let
-    byronGenesisFile = getField
-      (unsafePartial $ fromJust $ toObject nodeConfigJson)
-      "ByronGenesisFile"
-    requiresNetworkMagic = getField
-      (unsafePartial $ fromJust $ toObject nodeConfigJson)
-      "RequiresNetworkMagic"
+  nodeConfigAeson <- maybe (throw "Not a json object") pure $ toObject
+    nodeConfigJson
+  byronGenesisFile <- either (throw <<< show) pure $ getField nodeConfigAeson
+    "ByronGenesisFile"
+  let requiresNetworkMagic = getField nodeConfigAeson "RequiresNetworkMagic"
   if requiresNetworkMagic == Right "RequiresNoMagic" then pure Mainnet
   else do
-    byronGenesisJson <- either (\e -> throw $ show e) pure =<<
-      parseJsonStringToAeson <$> readTextFile Encoding.UTF8
-        (fromRight "" byronGenesisFile)
-    networkMagic <- either (\e -> throw $ show e) pure $ getNestedAeson
+    byronGenesisJson <- either (throw <<< show) pure =<<
+      parseJsonStringToAeson <$> readTextFile Encoding.UTF8 byronGenesisFile
+    networkMagicString <- either (throw <<< show) pure $ getNestedAeson
       byronGenesisJson
       [ "protocolConsts", "protocolMagic" ]
-    pure $ Testnet $ unsafePartial $ fromJust
-      (Int.fromString =<< toNumber networkMagic)
+    maybe (throw "Couldn't convert 'protocolMagic' String to Int")
+      (pure <<< Testnet)
+      (Int.fromString =<< toNumber networkMagicString)
 
 type OgmiosConfig =
   { port :: Int
