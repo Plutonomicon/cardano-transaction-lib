@@ -242,7 +242,6 @@ balanceTxs uts = do
   unlockAllOnError $ traverse (balanceAndLock unlockKeys) uts
 
   where
-
   unlockAllOnError :: forall (a :: Type). Contract r a -> Contract r a
   unlockAllOnError f = catchError f $ \e -> do
     traverse_
@@ -314,11 +313,11 @@ derive newtype instance Eq BalancedSignedTransaction
 instance Show BalancedSignedTransaction where
   show = genericShow
 
--- |Like 'balanceAndSignTx, but for more than one transaction.
--- This function may throw errors through the contract Monad.
--- If successful, transaction inputs will be locked afterwards.
--- If you want to re-use them in the same 'QueryM' context, call
--- 'unlockTransactionInputs'.
+-- | Like 'balanceAndSignTx, but for more than one transaction.
+-- | This function may throw errors through the contract Monad.
+-- | If successful, transaction inputs will be locked afterwards.
+-- | If you want to re-use them in the same 'QueryM' context, call
+-- | 'unlockTransactionInputs'.
 balanceAndSignTxs
   :: forall (r :: Row Type)
    . NonEmptyArray UnattachedUnbalancedTx
