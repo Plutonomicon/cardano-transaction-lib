@@ -24,6 +24,10 @@ module Contract.Transaction
   , signTransaction
   , signTransactionBytes
   , submit
+  , withBalancedTxs
+  , withBalancedTx
+  , withBalancedAndSignedTxs
+  , withBalancedAndSignedTx
   ) where
 
 import Prelude
@@ -31,48 +35,7 @@ import Prelude
 import BalanceTx (BalanceTxError) as BalanceTxError
 import BalanceTx (UnattachedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
-import Cardano.Types.Transaction (Transaction, _body, _inputs)
-import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
-import Control.Monad.Error.Class (try, catchError, throwError)
-import Control.Monad.Except.Trans (runExceptT)
-import Control.Monad.Reader (asks, runReaderT, ReaderT)
-import Data.Array as Array
-import Data.Either (Either, hush)
-import Data.Generic.Rep (class Generic)
-import Data.Lens.Getter ((^.))
-import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Show.Generic (genericShow)
-import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested (type (/\), (/\))
-import Data.Traversable (class Traversable, traverse, traverse_, for, fold)
-import Effect.Exception (Error, throw)
-import Effect.Class (liftEffect)
-import QueryM
-  ( FeeEstimate(FeeEstimate)
-  , ClientError(..) -- implicit as this error list will likely increase.
-  , FinalizedTransaction(FinalizedTransaction)
-  ) as ExportQueryM
-import QueryM
-  ( FinalizedTransaction(FinalizedTransaction)
-  , calculateMinFee
-  , signTransaction
-  , signTransactionBytes
-  , finalizeTx
-  , submitTxOgmios
-  ) as QueryM
-import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
-import ReindexRedeemers
-  ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
-  ) as ReindexRedeemersExport
-import Types.CborBytes (CborBytes)
-import Types.Datum (Datum)
-import Types.ScriptLookups
-  ( UnattachedUnbalancedTx(UnattachedUnbalancedTx)
-  , MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
-  , mkUnbalancedTx
-  ) as ScriptLookups
-import Cardano.Types.Transaction -- Most re-exported, don't re-export `Redeemer` and associated lens.
+import Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
   , BootstrapWitness
@@ -118,10 +81,6 @@ import Cardano.Types.Transaction -- Most re-exported, don't re-export `Redeemer`
   , Update
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
-  -- Use these lenses with care since some will involved Cardano datatypes, not
-  -- Plutus ones. e.g. _fee, _collateral, _outputs. In the unlikely scenario that
-  -- you need to tweak Cardano `TransactionOutput`s directly, `fromPlutusType`
-  -- then `toPlutusType` should be used.
   , _auxiliaryData
   , _auxiliaryDataHash
   , _body
@@ -146,13 +105,50 @@ import Cardano.Types.Transaction -- Most re-exported, don't re-export `Redeemer`
   , _withdrawals
   , _witnessSet
   ) as Transaction
+import Cardano.Types.Transaction (Transaction, _body, _inputs)
+import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
+import Control.Monad.Error.Class (try, catchError, throwError)
+import Control.Monad.Except.Trans (runExceptT)
+import Control.Monad.Reader (asks, runReaderT, ReaderT)
+import Data.Array as Array
+import Data.Either (Either(..), hush)
+import Data.Generic.Rep (class Generic)
+import Data.Lens.Getter ((^.))
+import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Show.Generic (genericShow)
+import Data.Traversable (class Traversable, traverse, traverse_, for, fold)
+import Data.Tuple (Tuple(Tuple))
+import Data.Tuple.Nested (type (/\), get1, (/\))
+import Effect.Class (liftEffect)
+import Effect.Exception (Error, throw)
 import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
-import Plutus.Types.Transaction
-  ( TransactionOutput(TransactionOutput)
-  ) as PTransaction
+import Plutus.Types.Transaction (TransactionOutput(TransactionOutput)) as PTransaction
 import Plutus.Types.Value (Coin)
+import QueryM
+  ( FeeEstimate(FeeEstimate)
+  , ClientError(..)
+  , FinalizedTransaction(FinalizedTransaction)
+  ) as ExportQueryM
+import QueryM
+  ( FinalizedTransaction(FinalizedTransaction)
+  , calculateMinFee
+  , signTransaction
+  , signTransactionBytes
+  , finalizeTx
+  , submitTxOgmios
+  ) as QueryM
+import ReindexRedeemers (ReindexErrors(CannotGetTxOutRefIndexForRedeemer)) as ReindexRedeemersExport
+import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import Serialization.Address (NetworkId)
 import TxOutput (scriptOutputToTransactionOutput) as TxOutput
+import Types.CborBytes (CborBytes)
+import Types.Datum (Datum)
+import Types.ScriptLookups
+  ( UnattachedUnbalancedTx(UnattachedUnbalancedTx)
+  , MkUnbalancedTxError(..)
+  , mkUnbalancedTx
+  ) as ScriptLookups
 import Types.ScriptLookups (UnattachedUnbalancedTx)
 import Types.Transaction
   ( DataHash(DataHash)
@@ -173,11 +169,12 @@ import Types.UnbalancedTransaction
   , emptyUnbalancedTx
   ) as UnbalancedTx
 import Types.UsedTxOuts
-  ( UsedTxOuts
-  , TxOutRefUnlockKeys
-  , lockTransactionInputs
+  ( TxOutRefUnlockKeys
+  , UsedTxOuts
   , lockRemainingTransactionInputs
+  , lockTransactionInputs
   , unlockTransactionInputs
+  , withLockedTransactionInputs
   )
 
 -- | This module defines transaction-related requests. Currently signing and
@@ -214,12 +211,79 @@ calculateMinFeeM
   :: forall (r :: Row Type). Transaction -> Contract r (Maybe Coin)
 calculateMinFeeM = map hush <<< calculateMinFee
 
+-- | Helper to adapt to UsedTxOuts
+withUsedTxouts
+  :: forall (r :: Row Type) (a :: Type)
+   . ReaderT UsedTxOuts (Contract r) a
+  -> Contract r a
+withUsedTxouts f = asks (_.usedTxOuts <<< unwrap) >>= runReaderT f
+
 -- | Attempts to balance an `UnattachedUnbalancedTx`.
 balanceTx
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx
   -> Contract r (Either BalanceTxError.BalanceTxError UnattachedTransaction)
 balanceTx = wrapContract <<< BalanceTx.balanceTx
+
+withBalancedTxs
+  :: forall (a :: Type)
+       (t :: Type -> Type)
+       (r :: Row Type)
+   . Traversable t
+  => t UnattachedUnbalancedTx
+  -> (t UnattachedTransaction -> Contract r a)
+  -> Contract r a
+withBalancedTxs utxs action = do
+  txs <- balanceTxs utxs
+  res <- try $ action txs
+  _ <- traverse (\t -> withUsedTxouts $ unlockTransactionInputs t) $ map get1 $
+    txs
+  case res of
+    Left e -> throwError e
+    Right x -> pure x
+
+withBalancedTx
+  :: forall (a :: Type)
+       (r :: Row Type)
+   . UnattachedUnbalancedTx
+  -> (UnattachedTransaction -> Contract r a)
+  -> Contract r a
+withBalancedTx utx action = withBalancedTxs [ utx ] helper
+  where
+  helper :: Array UnattachedTransaction -> Contract r a
+  helper [ tx ] = action tx
+  -- Which error should we throw here?        
+  helper _ = liftEffect $ throw $
+    "Unexpected internal error during transaction signing"
+
+withBalancedAndSignedTxs
+  :: forall (r :: Row Type) (a :: Type)
+   . Array UnattachedUnbalancedTx
+  -> (Array BalancedSignedTransaction -> Contract r a)
+  -> Contract r a
+withBalancedAndSignedTxs uutxs action = do
+  txs <- balanceAndSignTxs uutxs
+  res <- try $ action txs
+  _ <- traverse (\t -> withUsedTxouts $ unlockTransactionInputs t)
+    $ map (_.transaction <<< unwrap)
+    $ txs
+  case res of
+    Left e -> throwError e
+    Right x -> pure x
+
+withBalancedAndSignedTx
+  :: forall (a :: Type)
+       (r :: Row Type)
+   . UnattachedUnbalancedTx
+  -> (BalancedSignedTransaction -> Contract r a)
+  -> Contract r a
+withBalancedAndSignedTx utx action = withBalancedAndSignedTxs [ utx ] helper
+  where
+  helper :: Array BalancedSignedTransaction -> Contract r a
+  helper [ tx ] = action tx
+  -- Which error should we throw here?        
+  helper _ = liftEffect $ throw $
+    "Unexpected internal error during transaction signing"
 
 balanceTxs
   :: forall
@@ -261,12 +325,6 @@ balanceTxs uts = do
     _ <- withUsedTxouts $ lockRemainingTransactionInputs alreadyLocked
       (uutxToTx uutx)
     pure bt
-
-  withUsedTxouts
-    :: forall (a :: Type)
-     . ReaderT UsedTxOuts (Contract r) a
-    -> Contract r a
-  withUsedTxouts f = asks (_.usedTxOuts <<< unwrap) >>= runReaderT f
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` hushing the error.
 balanceTxM
@@ -320,7 +378,7 @@ instance Show BalancedSignedTransaction where
 -- | 'unlockTransactionInputs'.
 balanceAndSignTxs
   :: forall (r :: Row Type)
-  . Array UnattachedUnbalancedTx
+   . Array UnattachedUnbalancedTx
   -> Contract r (Array BalancedSignedTransaction)
 balanceAndSignTxs txs = do
   txs' <- balanceTxs txs
@@ -358,16 +416,18 @@ balanceAndSignTxE
    . UnattachedUnbalancedTx
   -> Contract r (Either Error BalancedSignedTransaction)
 balanceAndSignTxE tx = try $ do
-  txs' <- balanceAndSignTxs [tx] :: Contract r (Array BalancedSignedTransaction)
+  txs' <-
+    balanceAndSignTxs [ tx ] :: Contract r (Array BalancedSignedTransaction)
   tx' <- headE txs'
   pure tx'
   where
   headE :: forall a. Array a -> Contract r a
   headE ar =
     case ar of
-      [x] -> pure x
+      [ x ] -> pure x
       -- Which error should we throw here?
-      _ -> liftEffect $ throw $ "Unexpected internal error during transaction signing"
+      _ -> liftEffect $ throw $
+        "Unexpected internal error during transaction signing"
 
 -- | A helper that wraps a few steps into: balance an unbalanced transaction
 -- | (`balanceTx`), reindex script spend redeemers (not minting redeemers)
