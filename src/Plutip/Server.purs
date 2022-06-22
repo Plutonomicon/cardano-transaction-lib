@@ -25,7 +25,7 @@ import Data.Either (Either(Right, Left), either)
 import Data.Foldable (intercalate)
 import Data.HTTP.Method as Method
 import Data.Int as Int
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.UInt as UInt
@@ -34,6 +34,7 @@ import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
+import Helpers (fromRightEff, fromJustEff)
 import Node.ChildProcess (ChildProcess, defaultSpawnOptions, kill, spawn)
 import Node.Encoding as Encoding
 import Node.FS.Aff (writeTextFile)
@@ -251,22 +252,21 @@ stopCtlServer = liftEffect <<< kill SIGINT
 
 getNetworkInfoFromNodeConfig :: FilePath -> Effect NetworkInfo
 getNetworkInfoFromNodeConfig nodeConfigPath = do
-  nodeConfigJson <- either (throw <<< show) pure =<<
-    parseJsonStringToAeson <$> readTextFile Encoding.UTF8 nodeConfigPath
-  nodeConfigAeson <- maybe (throw "Not a json object") pure $ toObject
-    nodeConfigJson
-  byronGenesisFile <- either (throw <<< show) pure $ getField nodeConfigAeson
+  nodeConfigJson <- fromRightEff =<< parseJsonStringToAeson <$> readTextFile
+    Encoding.UTF8
+    nodeConfigPath
+  nodeConfigAeson <- fromJustEff "Not a json object" $ toObject nodeConfigJson
+  byronGenesisFile <- fromRightEff $ getField nodeConfigAeson
     "ByronGenesisFile"
   let requiresNetworkMagic = getField nodeConfigAeson "RequiresNetworkMagic"
   if requiresNetworkMagic == Right "RequiresNoMagic" then pure Mainnet
   else do
-    byronGenesisJson <- either (throw <<< show) pure =<<
-      parseJsonStringToAeson <$> readTextFile Encoding.UTF8 byronGenesisFile
-    networkMagicString <- either (throw <<< show) pure $ getNestedAeson
-      byronGenesisJson
+    byronGenesisJson <- fromRightEff =<< parseJsonStringToAeson <$> readTextFile
+      Encoding.UTF8
+      byronGenesisFile
+    networkMagicString <- fromRightEff $ getNestedAeson byronGenesisJson
       [ "protocolConsts", "protocolMagic" ]
-    maybe (throw "Couldn't convert 'protocolMagic' String to Int")
-      (pure <<< Testnet)
+    Testnet <$> fromJustEff "Couldn't convert 'protocolMagic' String to Int"
       (Int.fromString =<< toNumber networkMagicString)
 
 type OgmiosConfig =
