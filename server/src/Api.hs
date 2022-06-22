@@ -93,7 +93,7 @@ appServer env = hoistServer api appHandler server
           Handler (Either CtlServerError a)
         tryServer ra =
           liftIO (try @_ @CtlServerError $ runReaderT ra env)
-            `catchAll` pure . Left . ErrorCall
+            `catchAll` (pure . Left . ErrorCall)
 
         handleError ::
           CtlServerError ->
