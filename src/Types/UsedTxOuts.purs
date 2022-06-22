@@ -121,7 +121,7 @@ lockRemainingTransactionInputs alreadyLocked tx =
     do
       cache <- unwrap <$> ask
       success <- liftEffect $ Ref.modify' updateCache cache
-      when (not success) $ liftEffect $ throw
+      unless success $ liftEffect $ throw
         "Transaction inputs locked by another transaction"
       pure (wrap $ refsToTxOut outRefs)
 
