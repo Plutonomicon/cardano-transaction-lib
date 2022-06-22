@@ -36,8 +36,7 @@ import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
 import Control.Monad.Error.Class (try, catchError, throwError)
 import Control.Monad.Except.Trans (runExceptT)
 import Control.Monad.Reader (asks, runReaderT, ReaderT)
-import Data.Array.NonEmpty (NonEmptyArray)
-import Data.Array.NonEmpty as NonEmptyArray
+import Data.Array as Array
 import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
@@ -47,7 +46,8 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.Traversable (class Traversable, traverse, traverse_, for, fold)
-import Effect.Exception (Error)
+import Effect.Exception (Error, throw)
+import Effect.Class (liftEffect)
 import QueryM
   ( FeeEstimate(FeeEstimate)
   , ClientError(..) -- implicit as this error list will likely increase.
@@ -320,12 +320,12 @@ instance Show BalancedSignedTransaction where
 -- | 'unlockTransactionInputs'.
 balanceAndSignTxs
   :: forall (r :: Row Type)
-   . NonEmptyArray UnattachedUnbalancedTx
-  -> Contract r (NonEmptyArray BalancedSignedTransaction)
+  . Array UnattachedUnbalancedTx
+  -> Contract r (Array BalancedSignedTransaction)
 balanceAndSignTxs txs = do
   txs' <- balanceTxs txs
   let datumss = map (_.datums <<< unwrap) txs
-  traverse signOne (NonEmptyArray.zip txs' datumss)
+  traverse signOne (Array.zip txs' datumss)
 
   where
   signOne
@@ -357,9 +357,17 @@ balanceAndSignTxE
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx
   -> Contract r (Either Error BalancedSignedTransaction)
-balanceAndSignTxE tx = do
-  tx' <- try $ balanceAndSignTxs (NonEmptyArray.singleton tx)
-  pure (map NonEmptyArray.head tx')
+balanceAndSignTxE tx = try $ do
+  txs' <- balanceAndSignTxs [tx] :: Contract r (Array BalancedSignedTransaction)
+  tx' <- headE txs'
+  pure tx'
+  where
+  headE :: forall a. Array a -> Contract r a
+  headE ar =
+    case ar of
+      [x] -> pure x
+      -- Which error should we throw here?
+      _ -> liftEffect $ throw $ "Unexpected internal error during transaction signing"
 
 -- | A helper that wraps a few steps into: balance an unbalanced transaction
 -- | (`balanceTx`), reindex script spend redeemers (not minting redeemers)
