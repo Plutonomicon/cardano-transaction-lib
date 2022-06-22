@@ -9,7 +9,7 @@ module Api (
 
 import Api.Handlers qualified as Handlers
 import Cardano.Api qualified as C (displayError)
-import Control.Monad.Catch (try, catchAll)
+import Control.Monad.Catch (catchAll, try)
 import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT, runReaderT)
@@ -91,9 +91,9 @@ appServer env = hoistServer api appHandler server
         tryServer ::
           ReaderT Env IO a ->
           Handler (Either CtlServerError a)
-        tryServer ra = catchAll
-          (liftIO $ try @_ @CtlServerError $ runReaderT ra env)
-          (pure . Left . ErrorCall)
+        tryServer ra =
+          liftIO (try @_ @CtlServerError $ runReaderT ra env)
+            `catchAll` pure . Left . ErrorCall
 
         handleError ::
           CtlServerError ->
