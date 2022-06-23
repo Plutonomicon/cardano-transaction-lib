@@ -7,6 +7,7 @@ import Aeson
   , encodeAeson
   , getField
   , getNestedAeson
+  , jsonToAeson
   , parseJsonStringToAeson
   , stringifyAeson
   , toNumber
@@ -19,6 +20,7 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(TestnetId))
 import Contract.Monad (Contract, ContractConfig(ContractConfig), runContract)
 import Control.Monad.Error.Class (withResource)
+import Control.Monad.Except (runExcept)
 import Control.Monad.Reader (ReaderT(ReaderT), runReaderT)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Right, Left), either)
@@ -29,12 +31,13 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.UInt as UInt
+import Data.YAML.Foreign.Decode (parseYAMLToJson)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Helpers (fromRightEff, fromJustEff)
+import Helpers (fromJustEff, fromRightEff)
 import Node.ChildProcess (ChildProcess, defaultSpawnOptions, kill, spawn)
 import Node.Encoding as Encoding
 import Node.FS.Aff (writeTextFile)
@@ -232,7 +235,7 @@ type CtlServerConfig =
 
 startCtlServer :: PlutipConfig -> ClusterStartupParameters -> Aff ChildProcess
 startCtlServer cfg params = do
-  networkInfo <- liftEffect $ getNetworkInfoFromNodeConfig ""
+  networkInfo <- liftEffect $ getNetworkInfoFromNodeConfig params.nodeConfigPath
   let
     ctlServerArgs =
       [ "--port"
@@ -252,10 +255,10 @@ stopCtlServer = liftEffect <<< kill SIGINT
 
 getNetworkInfoFromNodeConfig :: FilePath -> Effect NetworkInfo
 getNetworkInfoFromNodeConfig nodeConfigPath = do
-  nodeConfigJson <- fromRightEff =<< parseJsonStringToAeson <$> readTextFile
-    Encoding.UTF8
-    nodeConfigPath
-  nodeConfigAeson <- fromJustEff "Not a json object" $ toObject nodeConfigJson
+  nodeConfigYaml <- readTextFile Encoding.UTF8 nodeConfigPath
+  nodeConfigJson <- fromRightEff $ runExcept $ parseYAMLToJson nodeConfigYaml
+  nodeConfigAeson <- fromJustEff "Not a json object" $ toObject $ jsonToAeson
+    nodeConfigJson
   byronGenesisFile <- fromRightEff $ getField nodeConfigAeson
     "ByronGenesisFile"
   let requiresNetworkMagic = getField nodeConfigAeson "RequiresNetworkMagic"

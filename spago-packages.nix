@@ -1433,6 +1433,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "yaml-next" = pkgs.stdenv.mkDerivation {
+        name = "yaml-next";
+        version = "v3.0.1";
+        src = pkgs.fetchgit {
+          url = "https://github.com/archaeron/purescript-yaml-next.git";
+          rev = "904acc2f6f065b967e30a460f5b27f28ff950309";
+          sha256 = "1nhdqb33k185fz0011slm2f4fx9z083hx7naxvyqq714lnlpnk3q";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
   };
 
   cpPackage = pkg:
