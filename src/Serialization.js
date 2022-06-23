@@ -2,13 +2,16 @@
 
 var lib;
 if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
-    lib = require('@ngua/cardano-serialization-lib-browser');
+    lib = require('@emurgo/cardano-serialization-lib-browser');
 } else {
-    lib = require('@ngua/cardano-serialization-lib-nodejs');
+    lib = require('@emurgo/cardano-serialization-lib-nodejs');
 }
 
 const setter = prop => obj => value => () =>
       obj['set_' + prop](value);
+
+exports.hashTransaction = body => () =>
+    lib.hash_transaction(body);
 
 exports.newBigNum = maybe => string => {
     try {
@@ -85,6 +88,9 @@ exports.transactionOutputSetDataHash = setter('data_hash');
 exports.newVkeywitnesses = () =>
     lib.Vkeywitnesses.new();
 
+exports.makeVkeywitness = hash => key => () =>
+    lib.make_vkey_witness(hash, key);
+
 exports.newVkeywitness = vkey => signature => () =>
     lib.Vkeywitness.new(vkey, signature);
 
@@ -97,6 +103,18 @@ exports.newVkeyFromPublicKey = public_key => () =>
 exports._publicKeyFromBech32 = maybe => bech32 => {
     try {
         return maybe.just(lib.PublicKey.from_bech32(bech32));
+    } catch (_) {
+        return maybe.nothing;
+    }
+};
+
+exports.publicKeyFromPrivateKey = private_key => () => {
+    return private_key.to_public();
+};
+
+exports._privateKeyFromBytes = maybe => bytes => {
+    try {
+        return maybe.just(lib.PrivateKey.from_normal_bytes(bytes));
     } catch (_) {
         return maybe.nothing;
     }

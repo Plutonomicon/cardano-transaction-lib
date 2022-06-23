@@ -5,21 +5,24 @@ import Prelude
 import Address (addressToOgmiosAddress, ogmiosAddressToAddress)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either)
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust)
+import Data.Newtype (wrap)
+import Data.String.CodeUnits (indexOf)
+import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (traverse_)
 import Data.UInt as UInt
 import Effect.Aff (Aff, try)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
+import Partial.Unsafe (unsafePartial)
 import QueryM
   ( QueryM
-  , cancelFetchBlocks
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
   , runQueryM
-  , startFetchBlocks
+  , submitTxOgmios
   , traceQueryConfig
   )
 import QueryM.CurrentEpoch (getCurrentEpoch)
@@ -30,24 +33,20 @@ import QueryM.Ogmios
   , OgmiosAddress
   , SystemStart
   )
+import QueryM.ProtocolParameters (getProtocolParameters)
 import QueryM.SystemStart (getSystemStart)
 import QueryM.Utxos (utxosAt)
 import Serialization.Address (Slot(Slot))
-import Test.Spec.Assertions (shouldEqual)
+import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import TestM (TestPlanM)
 import Types.ByteArray (hexToByteArrayUnsafe)
-import Types.Chain (BlockHeaderHash(BlockHeaderHash))
 import Types.Interval
-  ( PosixTimeToSlotError
-      ( CannotConvertAbsSlotToSlot
-      , PosixTimeBeforeSystemStart
-      )
+  ( PosixTimeToSlotError(CannotConvertAbsSlotToSlot, PosixTimeBeforeSystemStart)
   , POSIXTime(POSIXTime)
   , posixTimeToSlot
   , slotToPosixTime
   )
 import Types.Transaction (DataHash(DataHash))
-import Partial.Unsafe (unsafePartial)
 
 testnet_addr1 :: OgmiosAddress
 testnet_addr1 =
@@ -70,6 +69,7 @@ suite = do
     test "UtxosAt non-Testnet" $ testUtxosAt addr1
     test "Get ChainTip" testGetChainTip
     test "Get EraSummaries" testGetEraSummaries
+    test "Get ProtocolParameters" testGetProtocolParameters
     test "Get CurrentEpoch" testGetCurrentEpoch
     test "Get SystemStart" testGetSystemStart
     test "Inverse posixTimeToSlot >>> slotToPosixTime " testPosixTimeToSlot
@@ -81,13 +81,20 @@ suite = do
       $ testFromOgmiosAddress testnet_addr1
     test "Ogmios Address to Address & back non-Testnet"
       $ testFromOgmiosAddress addr1
+  group "Ogmios error" do
+    test "Ogmios fails with user-freindly message" do
+      try testSubmitTxFailure >>= case _ of
+        Right _ -> do
+          void $ liftEffect $ throw $
+            "Unexpected success in testSubmitTxFailure"
+        Left error -> do
+          (Pattern "Server responded with `fault`" `indexOf` show error)
+            `shouldSatisfy` isJust
   group "Ogmios datum cache" do
     test "Can process GetDatumByHash" do
       testOgmiosDatumCacheGetDatumByHash
     test "Can process GetDatumsByHashes" do
       testOgmiosDatumCacheGetDatumsByHashes
-    test "Fetcher works" do
-      testOgmiosDatumCacheFetcher
 
 testOgmiosDatumCacheGetDatumByHash :: Aff Unit
 testOgmiosDatumCacheGetDatumByHash =
@@ -111,17 +118,6 @@ testOgmiosDatumCacheGetDatumsByHashes =
       "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
     pure unit
 
-testOgmiosDatumCacheFetcher :: Aff Unit
-testOgmiosDatumCacheFetcher =
-  traceQueryConfig >>= flip runQueryM do
-    void $ try cancelFetchBlocks -- ignore error if the fetcher was not running
-    startFetchBlocks
-      { slot: Slot (UInt.fromInt 54066900)
-      , id: BlockHeaderHash
-          "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d"
-      }
-    cancelFetchBlocks
-
 testUtxosAt :: OgmiosAddress -> Aff Unit
 testUtxosAt testAddr = case ogmiosAddressToAddress testAddr of
   Nothing -> liftEffect $ throw "Failed UtxosAt"
@@ -140,6 +136,16 @@ testFromOgmiosAddress testAddr = do
 testGetEraSummaries :: Aff Unit
 testGetEraSummaries = do
   flip runQueryM (void getEraSummaries) =<< traceQueryConfig
+
+testSubmitTxFailure :: Aff Unit
+testSubmitTxFailure = do
+  flip runQueryM (void $ submitTxOgmios (wrap $ hexToByteArrayUnsafe "00")) =<<
+    traceQueryConfig
+
+testGetProtocolParameters :: Aff Unit
+testGetProtocolParameters = do
+  flip runQueryM (void getProtocolParameters) =<<
+    traceQueryConfig
 
 testGetCurrentEpoch :: Aff Unit
 testGetCurrentEpoch = do

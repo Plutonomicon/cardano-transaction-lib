@@ -28,8 +28,10 @@ import Cardano.Types.Transaction
   , Utxo
   , _body
   , _collateral
+  , _fee
   , _inputs
   , _networkId
+  , _outputs
   , _plutusData
   , _redeemers
   , _witnessSet
@@ -38,28 +40,37 @@ import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
 import Cardano.Types.Value
-  ( filterNonAda
+  ( Coin
+  , Value
+  , filterNonAda
   , geq
   , getLovelace
-  , lovelaceValueOf
   , isAdaOnly
   , isPos
   , isZero
+  , lovelaceValueOf
   , minus
   , mkCoin
   , mkValue
-  , numCurrencySymbols
-  , numTokenNames
+  , numNonAdaAssets
+  , numNonAdaCurrencySymbols
   , sumTokenNameLengths
   , valueToCoin
-  , Value
+  , valueToCoin'
+  )
+import Constants.Alonzo
+  ( adaOnlyWords
+  , coinSize
+  , pidSize
+  , protocolParamUTxOCostPerWord
+  , utxoEntrySizeWithoutVal
   )
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Trans.Class (lift)
-import Data.Array ((\\), findIndex, modifyAt)
+import Data.Array ((\\), modifyAt)
 import Data.Array as Array
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt, fromInt, quot)
@@ -74,21 +85,13 @@ import Data.Lens.Setter ((.~), set, (?~), (%~))
 import Data.List ((:), List(Nil), partition)
 import Data.Log.Tag (tag)
 import Data.Map as Map
-import Data.Maybe (fromMaybe, maybe, Maybe(Just, Nothing))
+import Data.Maybe (fromMaybe, maybe, isJust, Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect)
-import ProtocolParametersAlonzo
-  ( adaOnlyWords
-  , coinSize
-  , lovelacePerUTxOWord
-  , pidSize
-  , protocolParamUTxOCostPerWord
-  , utxoEntrySizeWithoutVal
-  )
 import QueryM
   ( ClientError
   , QueryM
@@ -98,15 +101,16 @@ import QueryM
   , getWalletCollateral
   , evalTxExecutionUnits
   )
+import QueryM.ProtocolParameters (getProtocolParameters)
 import QueryM.Utxos (utxosAt, filterUnusedUtxos)
+import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import TxOutput (utxoIndexToUtxo)
-import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (DataHash, TransactionInput)
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), _transaction)
-import Wallet (Wallet(Gero, Nami))
+import Wallet (Wallet(KeyWallet), cip30Wallet)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
@@ -267,10 +271,10 @@ type UnattachedTransaction = Transaction /\ Array
 -- Evaluation of fees and execution units, Updating redeemers
 --------------------------------------------------------------------------------
 
--- | Calculates the execution units needed for each script in the transaction
--- | and the minimum fee, including the script fees.
--- | Returns a tuple consisting of updated `UnattachedUnbalancedTx` and
--- | the minimum fee.
+-- Calculates the execution units needed for each script in the transaction
+-- and the minimum fee, including the script fees.
+-- Returns a tuple consisting of updated `UnattachedUnbalancedTx` and
+-- the minimum fee.
 evalExUnitsAndMinFee'
   :: UnattachedUnbalancedTx
   -> QueryM
@@ -400,11 +404,17 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     -- Get own wallet address, collateral and utxo set:
     ownAddr <- ExceptT $ getWalletAddress <#>
       note (GetWalletAddressError' CouldNotGetWalletAddress)
+    wallet <- asks _.wallet
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
-    collateral <- ExceptT $ getWalletCollateral <#>
-      note (GetWalletCollateralError' CouldNotGetCollateral)
-    wallet <- asks _.wallet
+    collateral <- case wallet of
+      Just w | isJust (cip30Wallet w) ->
+        map Just $ ExceptT $ getWalletCollateral <#>
+          note (GetWalletCollateralError' CouldNotGetCollateral)
+      -- TODO: Combine with getWalletCollateral, and supply with fee estimate
+      --       https://github.com/Plutonomicon/cardano-transaction-lib/issues/510
+      Just (KeyWallet kw) -> pure $ kw.selectCollateral utxos
+      _ -> pure Nothing
     let
       -- Combines utxos at the user address and those from any scripts
       -- involved with the contract in the unbalanced transaction.
@@ -416,10 +426,8 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
       -- for the Ada only collateral. No MinUtxos required. Perhaps
       -- for some wallets this step can be skipped and we can go straight
       -- to prebalancer.
-      unbalancedCollTx = case wallet of
-        Just (Nami _) -> addTxCollateral unbalancedTx' collateral
-        Just (Gero _) -> addTxCollateral unbalancedTx' collateral
-        _ -> unbalancedTx'
+      unbalancedCollTx :: Transaction
+      unbalancedCollTx = maybe identity addTxCollateral collateral unbalancedTx'
 
     availableUtxos <- lift $ map unwrap $ filterUnusedUtxos $ wrap allUtxos
 
@@ -440,7 +448,8 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
         _transaction' .~ ubcTx'
     -- Return excess Ada change to wallet:
     unsignedTx <- ExceptT $
-      returnAdaChange ownAddr availableUtxos nonAdaBalancedCollTx <#>
+
+    returnAdaChangeAndFinalizeFees ownAddr availableUtxos nonAdaBalancedCollTx <#>
         lmap ReturnAdaChangeError'
     let
       unattachedTx'' = unsignedTx ^. _transaction'
@@ -470,13 +479,14 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     -> UnattachedUnbalancedTx
     -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
   loop utxoIndex' ownAddr' prevMinUtxos' unattachedTx' = do
+    uTxOCostPerWord <- getProtocolParameters <#> unwrap >>> _.uTxOCostPerWord
     let
       Transaction { body: txBody'@(TxBody txB) } =
         unattachedTx' ^. _transaction'
 
       nextMinUtxos' :: MinUtxos
       nextMinUtxos' =
-        calculateMinUtxos $ txB.outputs \\ map fst prevMinUtxos'
+        calculateMinUtxos uTxOCostPerWord $ txB.outputs \\ map fst prevMinUtxos'
 
       minUtxos' :: MinUtxos
       minUtxos' = prevMinUtxos' <> nextMinUtxos'
@@ -535,10 +545,8 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   feeBuffer :: BigInt
   feeBuffer = fromInt 500000
 
--- CIP-30 wallets provide a 5 Ada collateral that we should add the tx before
--- balancing.
-addTxCollateral :: Transaction -> TransactionUnspentOutput -> Transaction
-addTxCollateral transaction (TransactionUnspentOutput { input }) =
+addTxCollateral :: TransactionUnspentOutput -> Transaction -> Transaction
+addTxCollateral (TransactionUnspentOutput { input }) transaction =
   transaction # _body <<< _collateral ?~
     Array.singleton input
 
@@ -558,148 +566,154 @@ logTx msg utxos (Transaction { body: body'@(TxBody body) }) =
     , "Fees: " <> show body.fee
     ]
 
--- Transaction should be prebalanced at this point with all excess with Ada
--- where the Ada value of inputs is greater or equal to value of outputs.
--- Also add fees to txBody. This should be called with a Tx with min
--- Ada in each output utxo, namely, after "loop".
-returnAdaChange
+-- Transaction should be pre-balanced at this point, and the Ada value of the
+-- inputs should be greater than or equal to the value of the outputs.
+-- This should be called with a Tx with min Ada in each output utxo,
+-- namely, after "loop".
+returnAdaChangeAndFinalizeFees
   :: Address
   -> Utxo
   -> UnattachedUnbalancedTx
   -> QueryM (Either ReturnAdaChangeError UnattachedUnbalancedTx)
-returnAdaChange changeAddr utxos unattachedTx =
+returnAdaChangeAndFinalizeFees changeAddr utxos unattachedTx =
   runExceptT do
-    unattachedTx' /\ fees <- ExceptT $ evalExUnitsAndMinFee' unattachedTx
-      <#> lmap ReturnAdaChangeCalculateMinFee
-    let
-      TxBody txBody = unattachedTx' ^. _body'
+    -- Calculate min fee before returning ada change to the owner's address:
+    unattachedTxAndFees@(_ /\ fees) <-
+      ExceptT $ evalExUnitsAndMinFee' unattachedTx
+        <#> lmap ReturnAdaChangeCalculateMinFee
+    -- If required, create an extra output to return the change:
+    unattachedTxWithChangeTxOut /\ { recalculateFees } <-
+      except $ returnAdaChange changeAddr utxos unattachedTxAndFees
+    case recalculateFees of
+      false -> except <<< Right $
+        -- Set min fee and return tx without recalculating fees:
+        unattachedTxSetFees unattachedTxWithChangeTxOut fees
+      true -> do
+        -- Recalculate min fee, then adjust the change output:
+        unattachedTx' /\ fees' <-
+          ExceptT $ evalExUnitsAndMinFee' unattachedTxWithChangeTxOut
+            <#> lmap ReturnAdaChangeCalculateMinFee
+        except $
+          adjustAdaChangeAndSetFees unattachedTx' fees' (fees' - fees)
+  where
+  adjustAdaChangeAndSetFees
+    :: UnattachedUnbalancedTx
+    -> BigInt
+    -> BigInt
+    -> Either ReturnAdaChangeError UnattachedUnbalancedTx
+  adjustAdaChangeAndSetFees unattachedTx' fees feesDelta
+    | feesDelta <= zero = Right $
+        unattachedTxSetFees unattachedTx' fees
+    | otherwise =
+        let
+          txOutputs :: Array TransactionOutput
+          txOutputs = unattachedTx' ^. _body' <<< _outputs
 
-      txOutputs :: Array TransactionOutput
-      txOutputs = txBody.outputs
+          returnAda :: BigInt
+          returnAda = fromMaybe zero $
+            Array.head txOutputs <#> \(TransactionOutput rec) ->
+              (valueToCoin' rec.amount) - feesDelta
 
-      inputValue :: Value
-      inputValue = getInputValue utxos (wrap txBody)
+          utxoCost :: BigInt
+          utxoCost = getLovelace protocolParamUTxOCostPerWord
 
-      inputAda :: BigInt
-      inputAda = getLovelace $ valueToCoin inputValue
+          changeMinUtxo :: BigInt
+          changeMinUtxo = adaOnlyWords * utxoCost
+        in
+          case returnAda >= changeMinUtxo of
+            true -> do
+              newOutputs <- updateChangeTxOutputValue returnAda txOutputs
+              pure $
+                unattachedTx' # _body' %~ \(TxBody txBody) ->
+                  wrap txBody { outputs = newOutputs, fee = wrap fees }
+            false ->
+              Left $
+                ReturnAdaChangeError
+                  "returnAda does not cover min utxo requirement for \
+                  \single Ada-only output."
 
-      -- FIX ME, ignore mint value?
-      outputValue :: Value
-      outputValue = Array.foldMap getAmount txOutputs
+  unattachedTxSetFees
+    :: UnattachedUnbalancedTx -> BigInt -> UnattachedUnbalancedTx
+  unattachedTxSetFees unattachedTx' fees =
+    unattachedTx' #
+      _body' <<< _fee .~ wrap fees
 
-      outputAda :: BigInt
-      outputAda = getLovelace $ valueToCoin outputValue
+  updateChangeTxOutputValue
+    :: BigInt
+    -> Array TransactionOutput
+    -> Either ReturnAdaChangeError (Array TransactionOutput)
+  updateChangeTxOutputValue returnAda =
+    note (ReturnAdaChangeError "Couldn't modify utxo to return change.")
+      <<< modifyAt zero
+        \(TransactionOutput rec) -> TransactionOutput
+          rec { amount = lovelaceValueOf returnAda }
 
-      returnAda :: BigInt
-      returnAda = inputAda - outputAda - fees
+returnAdaChange
+  :: Address
+  -> Utxo
+  -> UnattachedUnbalancedTx /\ BigInt
+  -> Either ReturnAdaChangeError
+       (UnattachedUnbalancedTx /\ { recalculateFees :: Boolean })
+returnAdaChange changeAddr utxos (unattachedTx /\ fees) =
+  let
+    TxBody txBody = unattachedTx ^. _body'
+
+    txOutputs :: Array TransactionOutput
+    txOutputs = txBody.outputs
+
+    inputValue :: Value
+    inputValue = getInputValue utxos (wrap txBody)
+
+    inputAda :: BigInt
+    inputAda = getLovelace $ valueToCoin inputValue
+
+    outputValue :: Value
+    outputValue = Array.foldMap getAmount txOutputs
+
+    outputAda :: BigInt
+    outputAda = getLovelace $ valueToCoin outputValue
+
+    returnAda :: BigInt
+    returnAda = inputAda - outputAda - fees
+  in
     case compare returnAda zero of
+      EQ ->
+        Right $
+          unattachedTx /\ { recalculateFees: false }
       LT ->
-        except $ Left $
+        Left $
           ReturnAdaChangeImpossibleError
             "Not enough Input Ada to cover output and fees after prebalance."
             Impossible
-      EQ -> do
-        except $ Right $ unattachedTx' # _body' .~
-          wrap txBody { fee = wrap fees }
-      GT -> ExceptT do
-        -- Short circuits and adds Ada to any output utxo of the owner. This saves
-        -- on fees but does not create a separate utxo. Do we want this behaviour?
-        -- I expect if there are any output utxos to the user, they are either Ada
-        -- only or non-Ada with minimum Ada value. Either way, we can just add the
-        -- the value and it shouldn't incur extra fees.
-        -- If we do require a new utxo, then we must add fees, under the assumption
-        -- we have enough Ada in the input at this stage, otherwise we fail because
-        -- we don't want to loop again over the addition of one output utxo.
+      GT ->
         let
-          changeIndex :: Maybe Int
-          changeIndex =
-            findIndex ((==) changeAddr <<< _.address <<< unwrap)
-              txOutputs
+          changeTxOutput :: TransactionOutput
+          changeTxOutput = wrap
+            { address: changeAddr
+            , amount: lovelaceValueOf returnAda
+            , dataHash: Nothing
+            }
 
-        case changeIndex of
-          Just idx -> pure do
-            -- Add the Ada value to the first output utxo of the owner to not
-            -- concur fees. This should be Ada only or non-Ada which has min Ada.
-            newOutputs <-
-              note
-                ( ReturnAdaChangeError
-                    "Couldn't modify utxo to return change."
-                ) $
-                modifyAt
-                  idx
-                  ( \(TransactionOutput o@{ amount }) -> TransactionOutput
-                      o { amount = amount <> lovelaceValueOf returnAda }
-                  )
-                  txOutputs
-            -- Fees unchanged because we aren't adding a new utxo.
-            pure $ unattachedTx' # _body' .~
-              wrap txBody { outputs = newOutputs, fee = wrap fees }
-          Nothing -> do
-            -- Create a txBody with the extra output utxo then recalculate fees,
-            -- then adjust as necessary if we have sufficient Ada in the input.
-            let
-              utxoCost :: BigInt
-              utxoCost = getLovelace protocolParamUTxOCostPerWord
+          unattachedTxWithChangeTxOut :: UnattachedUnbalancedTx
+          unattachedTxWithChangeTxOut =
+            unattachedTx # _body' <<< _outputs %~
+              Array.cons changeTxOutput
+        in
+          Right $
+            unattachedTxWithChangeTxOut /\ { recalculateFees: true }
 
-              changeMinUtxo :: BigInt
-              changeMinUtxo = adaOnlyWords * utxoCost
-
-              txBody' :: TxBody
-              txBody' =
-                wrap
-                  txBody
-                    { outputs =
-                        wrap
-                          { address: changeAddr
-                          , amount: lovelaceValueOf returnAda
-                          , dataHash: Nothing
-                          }
-                          `Array.cons` txBody.outputs
-                    }
-
-              unattachedTx'' :: UnattachedUnbalancedTx
-              unattachedTx'' =
-                unattachedTx' # _body' .~ txBody'
-
-            unattachedTxWithFees <- evalExUnitsAndMinFee' unattachedTx''
-              <#> lmap ReturnAdaChangeCalculateMinFee
-            -- fees should increase.
-            pure $ unattachedTxWithFees >>= \(unattachedTx''' /\ fees') -> do
-              -- New return Ada amount should decrease:
-              let returnAda' = returnAda + fees - fees'
-
-              if returnAda' >= changeMinUtxo then do
-                newOutputs <-
-                  note
-                    ( ReturnAdaChangeImpossibleError
-                        "Couldn't modify head utxo to add Ada"
-                        Impossible
-                    )
-                    $ modifyAt
-                        0
-                        ( \(TransactionOutput o) -> TransactionOutput
-                            o { amount = lovelaceValueOf returnAda' }
-                        )
-                    $ _.outputs <<< unwrap
-                    $ txBody'
-                pure $ unattachedTx''' # _body' .~
-                  wrap txBody { outputs = newOutputs, fee = wrap fees' }
-              else
-                Left $
-                  ReturnAdaChangeError
-                    "ReturnAda' does not cover min. utxo requirement for \
-                    \single Ada-only output."
-
-calculateMinUtxos :: Array TransactionOutput -> MinUtxos
-calculateMinUtxos = map (\a -> a /\ calculateMinUtxo a)
+calculateMinUtxos :: Coin -> Array TransactionOutput -> MinUtxos
+calculateMinUtxos uTxOCostPerWord = map
+  (\a -> a /\ calculateMinUtxo uTxOCostPerWord a)
 
 -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
 -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
 -- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0028#rationale-for-parameter-choices
 -- | Given an array of transaction outputs, return the paired amount of lovelaces
 -- | required by each utxo.
-calculateMinUtxo :: TransactionOutput -> BigInt
-calculateMinUtxo txOut = unwrap lovelacePerUTxOWord * utxoEntrySize txOut
+calculateMinUtxo :: Coin -> TransactionOutput -> BigInt
+calculateMinUtxo uTxOCostPerWord txOut = unwrap uTxOCostPerWord * utxoEntrySize
+  txOut
   where
   -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
   -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
@@ -728,9 +742,9 @@ size :: Value -> BigInt
 size v = fromInt 6 + roundupBytesToWords b
   where
   b :: BigInt
-  b = numTokenNames v * fromInt 12
+  b = numNonAdaAssets v * fromInt 12
     + sumTokenNameLengths v
-    + numCurrencySymbols v * pidSize
+    + numNonAdaCurrencySymbols v * pidSize
 
   -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
   -- Converts bytes to 8-byte long words, rounding up

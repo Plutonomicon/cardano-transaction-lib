@@ -21,7 +21,6 @@ module QueryM
   , allowError
   , applyArgs
   , calculateMinFee
-  , cancelFetchBlocks
   , evalTxExecutionUnits
   , finalizeTx
   , getChainTip
@@ -31,6 +30,7 @@ module QueryM
   , getWalletCollateral
   , liftQueryM
   , listeners
+  , postAeson
   , mkDatumCacheWebSocketAff
   , mkOgmiosRequest
   , mkOgmiosWebSocketAff
@@ -40,8 +40,8 @@ module QueryM
   , ownStakePubKeyHash
   , runQueryM
   , signTransaction
+  , scriptToAeson
   , signTransactionBytes
-  , startFetchBlocks
   , submitTxOgmios
   , traceQueryConfig
   , underlyingWebSocket
@@ -61,10 +61,11 @@ import Aeson
   , parseJsonStringToAeson
   , stringifyAeson
   )
-import Affjax as Affjax
+import Affjax (Error, Response, defaultRequest, printError, request) as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
+import Affjax.StatusCode as Affjax.StatusCode
 import Cardano.Types.Transaction (Transaction(Transaction))
 import Cardano.Types.Transaction as Transaction
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
@@ -73,7 +74,7 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT, ask, asks)
 import Data.Array (length)
-import Data.Bifunctor (bimap, lmap)
+import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, isRight, note, hush)
@@ -91,6 +92,8 @@ import Data.Traversable (traverse, traverse_, for)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
+import Deserialization.FromBytes (fromBytes) as Deserialization
+import Deserialization.Transaction (convertTransaction) as Deserialization
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Aff.Class (liftAff)
@@ -111,10 +114,8 @@ import JsWebSocket
   , _wsWatch
   )
 import QueryM.DatumCacheWsp
-  ( CancelFetchBlocksR
-  , GetDatumByHashR
+  ( GetDatumByHashR
   , GetDatumsByHashesR
-  , StartFetchBlocksR
   )
 import QueryM.DatumCacheWsp as DcWsp
 import QueryM.JsonWsp (parseJsonWspResponseId)
@@ -145,10 +146,9 @@ import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address
   ( Address
   , NetworkId(TestnetId)
-  , Slot
   , baseAddressDelegationCred
   , baseAddressFromAddress
-  , baseAddressPaymentCred
+  , addressPaymentCred
   , stakeCredentialToKeyHash
   )
 import Serialization.PlutusData (convertPlutusData) as Serialization
@@ -166,7 +166,7 @@ import Types.Scripts (PlutusScript)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
 import Wallet
-  ( Wallet(Gero, Nami)
+  ( Wallet(Gero, Nami, KeyWallet)
   , Cip30Connection
   , Cip30Wallet
   )
@@ -271,17 +271,6 @@ getDatumsByHashes :: Array DataHash -> QueryM (Map DataHash Datum)
 getDatumsByHashes hashes = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
 
-startFetchBlocks :: { slot :: Slot, id :: Chain.BlockHeaderHash } -> QueryM Unit
-startFetchBlocks start = void $ mkDatumCacheRequest DcWsp.startFetchBlocksCall
-  _.startFetchBlocks
-  start
-
--- | Cancels a running block fetcher job. Throws on no fetchers running
-cancelFetchBlocks :: QueryM Unit
-cancelFetchBlocks = void $ mkDatumCacheRequest DcWsp.cancelFetchBlocksCall
-  _.cancelFetchBlocks
-  unit
-
 allowError
   :: forall (a :: Type). (Either Error a -> Effect Unit) -> a -> Effect Unit
 allowError func = func <<< Right
@@ -291,33 +280,48 @@ allowError func = func <<< Right
 --------------------------------------------------------------------------------
 
 getWalletAddress :: QueryM (Maybe Address)
-getWalletAddress = withMWalletAff $ case _ of
-  Nami nami -> callCip30Wallet nami _.getWalletAddress
-  Gero gero -> callCip30Wallet gero _.getWalletAddress
+getWalletAddress = do
+  networkId <- asks _.networkId
+  withMWalletAff case _ of
+    Nami nami -> callCip30Wallet nami _.getWalletAddress
+    Gero gero -> callCip30Wallet gero _.getWalletAddress
+    KeyWallet kw -> Just <$> kw.address networkId
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
-getWalletCollateral = withMWalletAff $ case _ of
+getWalletCollateral = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami _.getCollateral
   Gero gero -> callCip30Wallet gero _.getCollateral
+  KeyWallet _ -> liftEffect $ throw "Not implemented"
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
-signTransaction tx = withMWalletAff $ case _ of
+signTransaction tx = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
+  KeyWallet kw -> Just <$> kw.signTx tx
 
 signTransactionBytes
   :: CborBytes -> QueryM (Maybe CborBytes)
-signTransactionBytes tx = withMWalletAff $ case _ of
+signTransactionBytes tx = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami \nw -> flip nw.signTxBytes tx
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTxBytes tx
+  KeyWallet kw ->
+    for
+      ( Deserialization.fromBytes (unwrap tx)
+          >>= Deserialization.convertTransaction
+            >>> hush
+      )
+      ( kw.signTx
+          >=> Serialization.convertTransaction
+            >>> map (asOneOf >>> Serialization.toBytes >>> wrap)
+            >>> liftEffect
+      )
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do
   mbAddress <- getWalletAddress
-  pure do
-    baseAddress <- mbAddress >>= baseAddressFromAddress
-    wrap <$> stakeCredentialToKeyHash (baseAddressPaymentCred baseAddress)
+  pure $
+    wrap <$> (mbAddress >>= (addressPaymentCred >=> stakeCredentialToKeyHash))
 
 ownPaymentPubKeyHash :: QueryM (Maybe PaymentPubKeyHash)
 ownPaymentPubKeyHash = map wrap <$> ownPubKeyHash
@@ -358,6 +362,7 @@ instance DecodeAeson FeeEstimate where
 
 data ClientError
   = ClientHttpError Affjax.Error
+  | ClientHttpResponseError String
   | ClientDecodeJsonError JsonDecodeError
   | ClientEncodingError String
   | ClientOtherError String
@@ -367,6 +372,10 @@ instance Show ClientError where
   show (ClientHttpError err) =
     "(ClientHttpError "
       <> Affjax.printError err
+      <> ")"
+  show (ClientHttpResponseError err) =
+    "(ClientHttpResponseError "
+      <> show err
       <> ")"
   show (ClientDecodeJsonError err) =
     "(ClientDecodeJsonError "
@@ -394,12 +403,8 @@ calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   txHex <- liftEffect (txToHex tx)
   url <- mkServerEndpointUrl "fees"
   liftAff (postAeson url (encodeAeson { count: witCount, tx: txHex }))
-    <#> either
-      (Left <<< ClientHttpError)
-      ( bimap ClientDecodeJsonError (wrap <<< unwrap :: FeeEstimate -> Coin)
-          <<< (decodeAeson <=< parseJsonStringToAeson)
-          <<< _.body
-      )
+    <#> map (wrap <<< unwrap :: FeeEstimate -> Coin)
+      <<< handleAffjaxResponse
   where
   -- Fee estimation occurs before balancing the transaction, so we need to know
   -- the expected number of witnesses to use the cardano-api fee estimation
@@ -437,12 +442,8 @@ evalTxExecutionUnits
 evalTxExecutionUnits tx = do
   txHex <- liftEffect (txToHex tx)
   url <- mkServerEndpointUrl "eval-ex-units"
-  liftAff (postAeson url (encodeAeson { tx: txHex }))
-    <#> either
-      (Left <<< ClientHttpError)
-      ( lmap ClientDecodeJsonError <<< (decodeAeson <=< parseJsonStringToAeson)
-          <<< _.body
-      )
+  liftAff $ postAeson url (encodeAeson { tx: txHex })
+    <#> handleAffjaxResponse
 
 -- | CborHex-encoded tx
 newtype FinalizedTransaction = FinalizedTransaction ByteArray
@@ -518,12 +519,7 @@ applyArgs script args = case traverse plutusDataToAeson args of
             ]
     url <- mkServerEndpointUrl "apply-args"
     liftAff (postAeson url reqBody)
-      <#> either
-        (Left <<< ClientHttpError)
-        ( bimap ClientDecodeJsonError wrap
-            <<< (decodeAeson <=< parseJsonStringToAeson)
-            <<< _.body
-        )
+      <#> map wrap <<< handleAffjaxResponse
   where
   plutusDataToAeson :: PlutusData -> Maybe Aeson
   plutusDataToAeson =
@@ -534,6 +530,26 @@ applyArgs script args = case traverse plutusDataToAeson args of
           <<< asOneOf
       )
       <<< Serialization.convertPlutusData
+
+-- Checks response status code and returns `ClientError` in case of failure,
+-- otherwise attempts to decode the result.
+--
+-- This function solves the problem described there:
+-- https://github.com/eviefp/purescript-affjax-errors
+handleAffjaxResponse
+  :: forall (result :: Type)
+   . DecodeAeson result
+  => Either Affjax.Error (Affjax.Response String)
+  -> Either ClientError result
+handleAffjaxResponse (Left affjaxError) =
+  Left (ClientHttpError affjaxError)
+handleAffjaxResponse
+  (Right { status: Affjax.StatusCode.StatusCode statusCode, body })
+  | statusCode < 200 || statusCode > 299 =
+      Left (ClientHttpResponseError body)
+  | otherwise =
+      body # lmap ClientDecodeJsonError
+        <<< (decodeAeson <=< parseJsonStringToAeson)
 
 -- We can't use Affjax's typical `post`, since there will be a mismatch between
 -- the media type header and the request body
@@ -579,6 +595,7 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
   utxoDispatchMap <- createMutableDispatch
   chainTipDispatchMap <- createMutableDispatch
   evaluateTxDispatchMap <- createMutableDispatch
+  getProtocolParametersDispatchMap <- createMutableDispatch
   submitDispatchMap <- createMutableDispatch
   eraSummariesDispatchMap <- createMutableDispatch
   currentEpochDispatchMap <- createMutableDispatch
@@ -586,6 +603,7 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
   utxoPendingRequests <- createPendingRequests
   chainTipPendingRequests <- createPendingRequests
   evaluateTxPendingRequests <- createPendingRequests
+  getProtocolParametersPendingRequests <- createPendingRequests
   submitPendingRequests <- createPendingRequests
   eraSummariesPendingRequests <- createPendingRequests
   currentEpochPendingRequests <- createPendingRequests
@@ -595,6 +613,7 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       { utxoDispatchMap
       , chainTipDispatchMap
       , evaluateTxDispatchMap
+      , getProtocolParametersDispatchMap
       , submitDispatchMap
       , eraSummariesDispatchMap
       , currentEpochDispatchMap
@@ -608,6 +627,7 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       Ref.read utxoPendingRequests >>= traverse_ sendRequest
       Ref.read chainTipPendingRequests >>= traverse_ sendRequest
       Ref.read evaluateTxPendingRequests >>= traverse_ sendRequest
+      Ref.read getProtocolParametersPendingRequests >>= traverse_ sendRequest
       Ref.read submitPendingRequests >>= traverse_ sendRequest
       Ref.read eraSummariesPendingRequests >>= traverse_ sendRequest
       Ref.read currentEpochPendingRequests >>= traverse_ sendRequest
@@ -620,6 +640,8 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       { utxo: mkListenerSet utxoDispatchMap utxoPendingRequests
       , chainTip: mkListenerSet chainTipDispatchMap chainTipPendingRequests
       , evaluate: mkListenerSet evaluateTxDispatchMap evaluateTxPendingRequests
+      , getProtocolParameters: mkListenerSet getProtocolParametersDispatchMap
+          getProtocolParametersPendingRequests
       , submit: mkListenerSet submitDispatchMap submitPendingRequests
       , eraSummaries:
           mkListenerSet eraSummariesDispatchMap eraSummariesPendingRequests
@@ -627,7 +649,6 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
           mkListenerSet currentEpochDispatchMap currentEpochPendingRequests
       , systemStart:
           mkListenerSet systemStartDispatchMap systemStartPendingRequests
-
       }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
@@ -642,18 +663,12 @@ mkDatumCacheWebSocket'
 mkDatumCacheWebSocket' lvl serverCfg cb = do
   getDatumByHashDispatchMap <- createMutableDispatch
   getDatumsByHashesDispatchMap <- createMutableDispatch
-  startFetchBlocksDispatchMap <- createMutableDispatch
-  cancelFetchBlocksDispatchMap <- createMutableDispatch
   getDatumByHashPendingRequests <- createPendingRequests
   getDatumsByHashesPendingRequests <- createPendingRequests
-  startFetchBlocksPendingRequests <- createPendingRequests
-  cancelFetchBlocksPendingRequests <- createPendingRequests
   let
     md = datumCacheMessageDispatch
       { getDatumByHashDispatchMap
       , getDatumsByHashesDispatchMap
-      , startFetchBlocksDispatchMap
-      , cancelFetchBlocksDispatchMap
       }
   ws <- _mkWebSocket (logger Debug) $ mkOgmiosDatumCacheWsUrl serverCfg
   let
@@ -662,8 +677,6 @@ mkDatumCacheWebSocket' lvl serverCfg cb = do
       logString lvl Debug "Datum Cache: WS error occured, resending requests"
       Ref.read getDatumByHashPendingRequests >>= traverse_ sendRequest
       Ref.read getDatumsByHashesPendingRequests >>= traverse_ sendRequest
-      Ref.read startFetchBlocksPendingRequests >>= traverse_ sendRequest
-      Ref.read cancelFetchBlocksPendingRequests >>= traverse_ sendRequest
   _onWsConnect ws $ do
     _wsWatch ws (logger Debug) onError
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
@@ -673,10 +686,6 @@ mkDatumCacheWebSocket' lvl serverCfg cb = do
           getDatumByHashPendingRequests
       , getDatumsByHashes: mkListenerSet getDatumsByHashesDispatchMap
           getDatumsByHashesPendingRequests
-      , startFetchBlocks: mkListenerSet startFetchBlocksDispatchMap
-          startFetchBlocksPendingRequests
-      , cancelFetchBlocks: mkListenerSet cancelFetchBlocksDispatchMap
-          cancelFetchBlocksPendingRequests
       }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
@@ -706,6 +715,7 @@ type OgmiosListeners =
   , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
   , submit :: ListenerSet { txCbor :: ByteArray } Ogmios.SubmitTxR
   , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationR
+  , getProtocolParameters :: ListenerSet Unit Ogmios.ProtocolParameters
   , eraSummaries :: ListenerSet Unit Ogmios.EraSummaries
   , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
   , systemStart :: ListenerSet Unit Ogmios.SystemStart
@@ -714,10 +724,6 @@ type OgmiosListeners =
 type DatumCacheListeners =
   { getDatumByHash :: ListenerSet DataHash GetDatumByHashR
   , getDatumsByHashes :: ListenerSet (Array DataHash) GetDatumsByHashesR
-  , startFetchBlocks ::
-      ListenerSet { slot :: Slot, id :: Chain.BlockHeaderHash }
-        StartFetchBlocksR
-  , cancelFetchBlocks :: ListenerSet Unit CancelFetchBlocksR
   }
 
 -- convenience type for adding additional query types later
@@ -810,11 +816,18 @@ mkRequest getListeners getWebSocket jsonWspCall getLs inp = do
 -- Dispatch Setup
 --------------------------------------------------------------------------------
 
-data DispatchError = JsError Error | JsonError JsonDecodeError
+data DispatchError
+  = JsError Error
+  | JsonError JsonDecodeError
+  -- Server response has been parsed succesfully, but it contains error
+  -- message
+  | FaultError Aeson
 
 dispatchErrorToError :: DispatchError -> Error
 dispatchErrorToError (JsError err) = err
 dispatchErrorToError (JsonError err) = error $ show err
+dispatchErrorToError (FaultError err) =
+  error $ "Server responded with `fault`: " <> stringifyAeson err
 
 -- A function which accepts some unparsed Json, and checks it against one or
 -- more possible types to perform an appropriate effect (such as supplying the
@@ -831,6 +844,8 @@ ogmiosMessageDispatch
   :: { utxoDispatchMap :: DispatchIdMap Ogmios.UtxoQR
      , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipQR
      , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationR
+     , getProtocolParametersDispatchMap ::
+         DispatchIdMap Ogmios.ProtocolParameters
      , submitDispatchMap :: DispatchIdMap Ogmios.SubmitTxR
      , eraSummariesDispatchMap :: DispatchIdMap Ogmios.EraSummaries
      , currentEpochDispatchMap :: DispatchIdMap Ogmios.CurrentEpoch
@@ -841,6 +856,7 @@ ogmiosMessageDispatch
   { utxoDispatchMap
   , chainTipDispatchMap
   , evaluateTxDispatchMap
+  , getProtocolParametersDispatchMap
   , submitDispatchMap
   , eraSummariesDispatchMap
   , currentEpochDispatchMap
@@ -849,6 +865,7 @@ ogmiosMessageDispatch
   [ queryDispatch utxoDispatchMap
   , queryDispatch chainTipDispatchMap
   , queryDispatch evaluateTxDispatchMap
+  , queryDispatch getProtocolParametersDispatchMap
   , queryDispatch submitDispatchMap
   , queryDispatch eraSummariesDispatchMap
   , queryDispatch currentEpochDispatchMap
@@ -858,20 +875,14 @@ ogmiosMessageDispatch
 datumCacheMessageDispatch
   :: { getDatumByHashDispatchMap :: DispatchIdMap GetDatumByHashR
      , getDatumsByHashesDispatchMap :: DispatchIdMap GetDatumsByHashesR
-     , startFetchBlocksDispatchMap :: DispatchIdMap StartFetchBlocksR
-     , cancelFetchBlocksDispatchMap :: DispatchIdMap CancelFetchBlocksR
      }
   -> Array WebsocketDispatch
 datumCacheMessageDispatch
   { getDatumByHashDispatchMap
   , getDatumsByHashesDispatchMap
-  , startFetchBlocksDispatchMap
-  , cancelFetchBlocksDispatchMap
   } =
   [ queryDispatch getDatumByHashDispatchMap
   , queryDispatch getDatumsByHashesDispatchMap
-  , queryDispatch startFetchBlocksDispatchMap
-  , queryDispatch cancelFetchBlocksDispatchMap
   ]
 
 -- each query type will have a corresponding ref that lives in ReaderT config or similar
@@ -895,32 +906,60 @@ queryDispatch
   -> String
   -> Effect (Either DispatchError (Effect Unit))
 queryDispatch ref str = do
+  let eiAeson = parseJsonStringToAeson str
   -- Parse response
-  case JsonWsp.parseJsonWspResponse =<< parseJsonStringToAeson str of
+  case JsonWsp.parseJsonWspResponse =<< eiAeson of
     Left parseError -> do
       -- Try to at least parse ID  to dispatch the error to
-      case parseJsonWspResponseId =<< parseJsonStringToAeson str of
+      case parseJsonWspResponseId =<< eiAeson of
         -- We still return original error because ID parse error is useless
-        Left _idParseError -> pure $ Left $ JsonError parseError
-        Right (id :: ListenerId) -> do
-          idMap <- Ref.read ref
-          let
-            (mAction :: Maybe (Either DispatchError response -> Effect Unit)) =
-              MultiMap.lookup id idMap
-          case mAction of
+        Left _reflectionParseError -> pure $ Left $ JsonError parseError
+        Right reflection -> do
+          withAction reflection case _ of
             Nothing -> pure $ Left $ JsError $ error $
-              "Parse failed and Request Id: " <> id <> " has been cancelled"
+              "Parse failed and Request Id: " <> reflection <>
+                " has been cancelled"
             Just action -> pure $ Right $ action $ Left $ JsonError parseError
-    Right parsed -> do
-      let (id :: ListenerId) = parsed.reflection
-      idMap <- Ref.read ref
-      let
-        (mAction :: Maybe (Either DispatchError response -> Effect Unit)) =
-          MultiMap.lookup id idMap
-      case mAction of
+    Right { result: Just result, reflection } -> do
+      withAction reflection case _ of
+        -- This indicates an implementation error, thus we are not passing it
+        -- to `action`
         Nothing -> pure $ Left $ JsError $ error $
-          "Parse succeeded but Request Id: " <> id <> " has been cancelled"
-        Just action -> pure $ Right $ action $ Right parsed.result
+          "Parse succeeded but Request Id: " <> reflection <>
+            " has been cancelled"
+        Just action -> pure $ Right $ action $ Right result
+    -- If result is empty, then fault must be present
+    Right { result: Nothing, fault: Just fault, reflection } -> do
+      withAction reflection case _ of
+        Nothing -> pure $ Left $ FaultError fault
+        Just action -> do
+          pure $ Right $ action $ Left $ FaultError fault
+    -- Otherwise, our implementation is broken.
+    Right { result: Nothing, fault: Nothing, reflection } -> do
+      let
+        errMsg =
+          "Impossible happened: response does not contain neither `fault` "
+            <> "nor `result`, please report as bug. Response: "
+            <> str
+      withAction reflection case _ of
+        Nothing -> do
+          pure $ Left $ JsError $ error errMsg
+        Just action -> do
+          pure $ Right $ action $ Left $ JsError $ error errMsg
+  where
+  withAction
+    :: ListenerId
+    -> ( Maybe (Either DispatchError response -> Effect Unit)
+         -> Effect (Either DispatchError (Effect Unit))
+       )
+    -> Effect (Either DispatchError (Effect Unit))
+  withAction reflection cb = do
+    idMap <- Ref.read ref
+    let
+      mbAction =
+        MultiMap.lookup reflection idMap
+          :: Maybe (Either DispatchError response -> Effect Unit)
+    cb mbAction
 
 -- an empty error we can compare to, useful for ensuring we've not received any other kind of error
 defaultErr :: JsonDecodeError
@@ -947,7 +986,6 @@ defaultMessageListener lvl dispatchArray msg = do
           do
             logString lvl Error $
               "unexpected parse error on input: " <> msg
-
     )
     identity
     eAction

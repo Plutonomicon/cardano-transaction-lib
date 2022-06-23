@@ -9,9 +9,10 @@ module Transaction
 import Prelude
 
 import Cardano.Types.Transaction
-  ( Transaction(Transaction)
+  ( Costmdls
   , Redeemer
   , ScriptDataHash(ScriptDataHash)
+  , Transaction(Transaction)
   , TransactionWitnessSet
   , TxBody(TxBody)
   )
@@ -25,7 +26,6 @@ import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
 import Effect.Class (liftEffect)
 import Helpers (liftEither)
-import ProtocolParametersAlonzo (costModels)
 import Serialization (hashScriptData, toBytes)
 import Serialization.PlutusData as Serialization.PlutusData
 import Serialization.Types as Serialization
@@ -47,8 +47,12 @@ instance Show ModifyTxError where
 -- | Set the `Transaction` body's script data hash. NOTE: Must include all of
 -- | the datums and redeemers for the given transaction
 setScriptDataHash
-  :: Array Redeemer -> Array Datum -> Transaction -> Effect Transaction
-setScriptDataHash rs ds tx@(Transaction { body }) = do
+  :: Costmdls
+  -> Array Redeemer
+  -> Array Datum
+  -> Transaction
+  -> Effect Transaction
+setScriptDataHash costModels rs ds tx@(Transaction { body }) = do
   scriptDataHash <- ScriptDataHash <<< toBytes <<< asOneOf
     <$> hashScriptData rs costModels (unwrap <$> ds)
   pure $ over Transaction
