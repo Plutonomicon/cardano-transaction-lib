@@ -45,6 +45,7 @@ module QueryM
   , submitTxOgmios
   , traceQueryConfig
   , underlyingWebSocket
+  , waitUntilSlot
   ) where
 
 import Prelude
@@ -95,7 +96,7 @@ import Data.UInt as UInt
 import Deserialization.FromBytes (fromBytes) as Deserialization
 import Deserialization.Transaction (convertTransaction) as Deserialization
 import Effect (Effect)
-import Effect.Aff (Aff, Canceler(Canceler), makeAff)
+import Effect.Aff (Aff, Canceler(Canceler), delay, makeAff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, error, throw)
@@ -120,6 +121,7 @@ import QueryM.DatumCacheWsp
 import QueryM.DatumCacheWsp as DcWsp
 import QueryM.JsonWsp (parseJsonWspResponseId)
 import QueryM.JsonWsp as JsonWsp
+import QueryM.Ogmios (AbsSlot)
 import QueryM.Ogmios as Ogmios
 import QueryM.ServerConfig
   ( Host
@@ -251,6 +253,15 @@ getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
     Ogmios.CtChainOrigin _ -> Chain.TipAtGenesis
     Ogmios.CtChainPoint { slot, hash } -> Chain.Tip $ wrap
       { slot, blockHeaderHash: wrap $ unwrap hash }
+
+waitUntilSlot :: AbsSlot -> QueryM Chain.Tip
+waitUntilSlot requiredSlot =
+  getChainTip >>= case _ of
+    tip@(Chain.Tip (Chain.ChainTip { slot }))
+      | slot >= requiredSlot -> pure tip
+    _ -> do
+      liftAff $ delay (wrap 1000.0)
+      waitUntilSlot requiredSlot
 
 --------------------------------------------------------------------------------
 -- OGMIOS LOCAL TX SUBMISSION PROTOCOL

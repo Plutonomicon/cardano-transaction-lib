@@ -3,10 +3,11 @@ module Test.AffInterface (suite) where
 import Prelude
 
 import Address (addressToOgmiosAddress, ogmiosAddressToAddress)
+import Contract.Chain (ChainTip(ChainTip), Tip(Tip, TipAtGenesis))
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either)
 import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust)
-import Data.Newtype (wrap)
+import Data.Newtype (over, wrap)
 import Data.String.CodeUnits (indexOf)
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (traverse_)
@@ -24,6 +25,7 @@ import QueryM
   , runQueryM
   , submitTxOgmios
   , traceQueryConfig
+  , waitUntilSlot
   )
 import QueryM.CurrentEpoch (getCurrentEpoch)
 import QueryM.EraSummaries (getEraSummaries)
@@ -68,6 +70,7 @@ suite = do
     test "UtxosAt Testnet" $ testUtxosAt testnet_addr1
     test "UtxosAt non-Testnet" $ testUtxosAt addr1
     test "Get ChainTip" testGetChainTip
+    test "Get waitUntilSlot" testWaitUntilSlot
     test "Get EraSummaries" testGetEraSummaries
     test "Get ProtocolParameters" testGetProtocolParameters
     test "Get CurrentEpoch" testGetCurrentEpoch
@@ -126,6 +129,15 @@ testUtxosAt testAddr = case ogmiosAddressToAddress testAddr of
 testGetChainTip :: Aff Unit
 testGetChainTip = do
   flip runQueryM (void getChainTip) =<< traceQueryConfig
+
+testWaitUntilSlot :: Aff Unit
+testWaitUntilSlot = do
+  cfg <- traceQueryConfig
+  void $ runQueryM cfg do
+    getChainTip >>= case _ of
+      TipAtGenesis -> liftEffect $ throw "Tip is at genesis"
+      Tip (ChainTip { slot }) -> do
+        waitUntilSlot $ over AbsSlot (add (BigInt.fromInt 1)) slot
 
 testFromOgmiosAddress :: OgmiosAddress -> Aff Unit
 testFromOgmiosAddress testAddr = do
