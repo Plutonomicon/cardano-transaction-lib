@@ -19,6 +19,10 @@ run-build:
 check-format:
 	@purs-tidy check ${ps-sources} && nixpkgs-fmt --check ${nix-sources}
 
+e2e-test:
+	@rm -f chrome-data/SingletonLock && spago test --main Test.E2E
+
+
 format:
 	@purs-tidy format-in-place ${ps-sources}
 

@@ -17,10 +17,11 @@ import Test.Spec.Runner as SpecRunner
 -- Run with `spago test --main Test.E2E`
 main :: Effect Unit
 main = launchAff_ do
-  Utils.interpret' (SpecRunner.defaultConfig { timeout = pure $ wrap 60_000.0 }) testPlan
+  Utils.interpret' (SpecRunner.defaultConfig { timeout = pure $ wrap 60_000.0 })
+    testPlan
 
 -- Requires external services listed in README.md
 testPlan :: TestPlanM Unit
 testPlan = do
---  _ <- Wallet.suite
+  --  _ <- Wallet.suite
   testPkh2Pkh

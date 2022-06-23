@@ -246,10 +246,8 @@ let additions =
           , "node-fs-aff"
           ]
         , repo = "https://github.com/firefrorefiddle/purescript-toppokki"
-        , version = "develop"
+        , version = "mike/browserpages"
         }
       }
 
-let overrides = { purescript-toppokki = ../purescript-toppokki/spago.dhall as Location }
-
-in  upstream // additions // overrides
+in  upstream // additions

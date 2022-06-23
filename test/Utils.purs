@@ -4,7 +4,7 @@ module Test.Utils
   , assertTrue_
   , errMaybe
   , interpret
-  , interpret'    
+  , interpret'
   , toFromAesonTest
   , unsafeCall
   ) where
@@ -43,7 +43,7 @@ foreign import unsafeCall :: forall a b. Proxy b -> String -> a -> b
 interpret' :: SpecRunner.Config -> TestPlanM Unit -> Aff Unit
 interpret' config spif = do
   plan <- planT spif
-  runSpec'  config [ consoleReporter ] $ go plan
+  runSpec' config [ consoleReporter ] $ go plan
   where
   go :: Plan (Const Void) (Aff Unit) -> Spec Unit
   go =
