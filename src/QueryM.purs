@@ -95,7 +95,7 @@ import Data.UInt as UInt
 import Deserialization.FromBytes (fromBytes) as Deserialization
 import Deserialization.Transaction (convertTransaction) as Deserialization
 import Effect (Effect)
-import Effect.Aff (Aff, Canceler(Canceler), makeAff)
+import Effect.Aff (Aff, Canceler(Canceler), delay, launchAff_, makeAff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, error, throw)
@@ -110,6 +110,9 @@ import JsWebSocket
   , _onWsConnect
   , _onWsError
   , _onWsMessage
+  , _removeOnWsError
+  , _wsClose
+  , _wsReconnect
   , _wsSend
   , _wsWatch
   )
@@ -165,11 +168,7 @@ import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
 import Types.Scripts (PlutusScript)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
-import Wallet
-  ( Wallet(Gero, Nami, KeyWallet)
-  , Cip30Connection
-  , Cip30Wallet
-  )
+import Wallet (Wallet(Gero, Nami, KeyWallet), Cip30Connection, Cip30Wallet)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -624,18 +623,29 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
     sendRequest = _wsSend ws (logString lvl Debug)
     onError = do
       logString lvl Debug "WS error occured, resending requests"
-      Ref.read utxoPendingRequests >>= traverse_ sendRequest
-      Ref.read chainTipPendingRequests >>= traverse_ sendRequest
-      Ref.read evaluateTxPendingRequests >>= traverse_ sendRequest
-      Ref.read getProtocolParametersPendingRequests >>= traverse_ sendRequest
-      Ref.read submitPendingRequests >>= traverse_ sendRequest
-      Ref.read eraSummariesPendingRequests >>= traverse_ sendRequest
-      Ref.read currentEpochPendingRequests >>= traverse_ sendRequest
-      Ref.read systemStartPendingRequests >>= traverse_ sendRequest
+      launchAff_ $ delay (wrap 1000.0) *> liftEffect do
+        _wsReconnect ws
+        Ref.read utxoPendingRequests >>= traverse_ sendRequest
+        Ref.read chainTipPendingRequests >>= traverse_ sendRequest
+        Ref.read evaluateTxPendingRequests >>= traverse_ sendRequest
+        Ref.read getProtocolParametersPendingRequests >>= traverse_ sendRequest
+        Ref.read submitPendingRequests >>= traverse_ sendRequest
+        Ref.read eraSummariesPendingRequests >>= traverse_ sendRequest
+        Ref.read currentEpochPendingRequests >>= traverse_ sendRequest
+        Ref.read systemStartPendingRequests >>= traverse_ sendRequest
+        logString lvl Debug "Resent all resending requests"
+    -- We want to fail if the first connection attempt is not successful.
+    onFirstConnectionError err = do
+      _wsClose ws
+      logString lvl Error
+        "First connection to Ogmios WebSocket failed. Terminating"
+      cb $ Left $ error err
+  wsErrorRef <- _onWsError ws (logger Error) onFirstConnectionError
   _onWsConnect ws do
+    _removeOnWsError ws wsErrorRef
     _wsWatch ws (logger Debug) onError
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
-    _onWsError ws (logger Error) $ const onError
+    void $ _onWsError ws (logger Error) $ const onError
     cb $ Right $ WebSocket ws
       { utxo: mkListenerSet utxoDispatchMap utxoPendingRequests
       , chainTip: mkListenerSet chainTipDispatchMap chainTipPendingRequests
@@ -677,10 +687,16 @@ mkDatumCacheWebSocket' lvl serverCfg cb = do
       logString lvl Debug "Datum Cache: WS error occured, resending requests"
       Ref.read getDatumByHashPendingRequests >>= traverse_ sendRequest
       Ref.read getDatumsByHashesPendingRequests >>= traverse_ sendRequest
-  _onWsConnect ws $ do
+    -- We want to fail if the first connection attempt is not successful.
+    onFirstConnectionError err = do
+      _wsClose ws
+      cb $ Left $ error err
+  wsErrorRef <- _onWsError ws (logger Error) onFirstConnectionError
+  _onWsConnect ws do
+    _removeOnWsError ws wsErrorRef
     _wsWatch ws (logger Debug) onError
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
-    _onWsError ws (logger Error) $ const onError
+    void $ _onWsError ws (logger Error) $ const onError
     cb $ Right $ WebSocket ws
       { getDatumByHash: mkListenerSet getDatumByHashDispatchMap
           getDatumByHashPendingRequests

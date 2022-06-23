@@ -41,14 +41,24 @@ exports._onWsConnect = ws => fn => () => {
 //   :: WebSocket
 //   -> (String -> Effect Unit) -- logger
 //   -> (String -> Effect Unit) -- handler
-//   -> Effect Unit
+//   -> Effect Listener
 exports._onWsError = ws => logger => fn => () => {
-  ws.addEventListener('error', function func(event) {
+  const listener = function (event) {
     const str = event.toString();
-    logger(`error: ${str}`)();
+    logger(`error (${event.type}): ${str}`)();
     fn(str)();
-  });
+  };
+  ws.addEventListener('error', listener);
+  return listener;
 };
+
+// _removeOnWsError
+//  :: JsWebSocket
+//  -> ListenerRef
+//  -> Effect Unit
+exports._removeOnWsError = ws => listener => () =>
+  ws.removeEventListener(listener);
+
 
 // _onWsMessage
 //   :: WebSocket
@@ -69,6 +79,10 @@ exports._wsSend = ws => logger => str => () => {
   ws.send(str);
 };
 
+exports._wsReconnect = ws => () => {
+  ws.reconnect();
+};
+
 // _wsClose :: WebSocket -> Effect Unit
 exports._wsClose = ws => () => ws.close();
 
@@ -87,6 +101,7 @@ const heartbeat = ws => logger => id => onError => {
   }
   const cancelId = setTimeout(() => {
     ws.terminate();
+    logger("Terminating WS connection");
     onError();
   }, 30000);
   return cancelId;
