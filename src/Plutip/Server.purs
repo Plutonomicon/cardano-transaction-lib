@@ -153,7 +153,7 @@ startOgmios cfg params = liftEffect $ spawn "ogmios" ogmiosArgs
   ogmiosArgs :: Array String
   ogmiosArgs =
     [ "--host"
-    , "localhost"
+    , cfg.ogmiosConfig.host
     , "--port"
     , UInt.toString cfg.ogmiosConfig.port
     , "--node-socket"
@@ -173,7 +173,7 @@ startOgmiosDatumCache cfg _params = do
   let
     dbString :: String
     dbString = intercalate " "
-      [ "host=localhost"
+      [ "host=" <> cfg.ogmiosDatumCacheConfig.host
       , "port=" <> UInt.toString cfg.ogmiosDatumCachePostgresConfig.port
       , "user=" <> cfg.ogmiosDatumCachePostgresConfig.user
       , "dbname=" <> cfg.ogmiosDatumCachePostgresConfig.dbname
@@ -184,7 +184,7 @@ startOgmiosDatumCache cfg _params = do
     configContents = intercalate "\n"
       [ "dbConnectionString = \"" <> dbString <> "\""
       , "server.port = " <> UInt.toString cfg.ogmiosDatumCacheConfig.port
-      , "ogmios.address = \"localhost\""
+      , "ogmios.address = \"" <> cfg.ogmiosDatumCacheConfig.host <> "\""
       , "ogmios.port = " <> UInt.toString cfg.ogmiosConfig.port
       , "blockFetcher.autoStart = true"
       , "blockFetcher.firstBlock.slot = 0"
@@ -206,13 +206,13 @@ mkClusterContractCfg plutipCfg _clusterParams = do
   ogmiosWs <- QueryM.mkOgmiosWebSocketAff plutipCfg.logLevel
     QueryM.defaultOgmiosWsConfig
       { port = plutipCfg.ogmiosConfig.port
-      , host = "localhost"
+      , host = plutipCfg.ogmiosConfig.host
       }
   datumCacheWs <-
     QueryM.mkDatumCacheWebSocketAff plutipCfg.logLevel
       QueryM.defaultDatumCacheWsConfig
         { port = plutipCfg.ogmiosDatumCacheConfig.port
-        , host = "localhost"
+        , host = plutipCfg.ogmiosDatumCacheConfig.host
         }
   usedTxOuts <- newUsedTxOuts
   pure $ ContractConfig
