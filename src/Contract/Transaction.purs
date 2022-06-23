@@ -316,6 +316,7 @@ balanceTxs
   => t UnattachedUnbalancedTx
   -> Contract r (t UnattachedTransaction)
 balanceTxs uts = do
+
   -- First, lock all the already fixed inputs on all the unbalanced transactions.
   -- That prevents any inputs of any of those to be used to balance any of the
   -- other transactions
@@ -339,6 +340,9 @@ balanceTxs uts = do
   uutxToTx :: UnattachedUnbalancedTx -> Transaction
   uutxToTx = _.transaction <<< unwrap <<< _.unbalancedTx <<< unwrap
 
+  utxToTx :: UnattachedTransaction -> Transaction
+  utxToTx = get1
+
   balanceAndLock
     :: TxOutRefUnlockKeys
     -> UnattachedUnbalancedTx
@@ -346,7 +350,7 @@ balanceTxs uts = do
   balanceAndLock alreadyLocked uutx = do
     bt <- liftedE $ balanceTx uutx
     _ <- withUsedTxouts $ lockRemainingTransactionInputs alreadyLocked
-      (uutxToTx uutx)
+      (utxToTx bt)
     pure bt
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` hushing the error.

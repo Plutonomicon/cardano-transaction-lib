@@ -229,4 +229,3 @@ isTxOutRefUsed ref = do
 txOutRefs
   :: Transaction -> Array { transactionId :: TransactionHash, index :: UInt }
 txOutRefs tx = unwrap <$> (unwrap (unwrap tx).body).inputs
-
