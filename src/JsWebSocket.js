@@ -36,7 +36,7 @@ exports._mkWebSocket = logger => url => () => {
   };
 };
 
-// _onWsConnect :: WebSocket -> (Unit -> Effect Unit) -> Effect ListenerRef
+// _onWsConnect :: WebSocket -> (Unit -> Effect Unit) -> Effect Unit
 exports._onWsConnect = ws => fn => () =>
   ws.addEventListener('open', fn);
 
@@ -61,7 +61,6 @@ exports._onWsError = ws => logger => fn => () => {
 //  -> Effect Unit
 exports._removeOnWsError = ws => listener => () =>
   ws.removeEventListener('error', listener);
-
 
 // _onWsMessage
 //   :: WebSocket
