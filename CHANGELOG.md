@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Removed `Contract.Wallet.mkGeroWallet` and `Contract.Wallet.mkNamiWallet` - `Aff` versions should be used instead.
 - Added `getProtocolParameters` call to retrieve current protocol parameters from Ogmios (#541)
 - Improved error response handling for Ogmios
+- Added `Contract.Chain.waitUntilSlot`
 
 ### Added
 
