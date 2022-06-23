@@ -175,7 +175,6 @@ import Types.UsedTxOuts
   , lockRemainingTransactionInputs
   , lockTransactionInputs
   , unlockTransactionInputs
-  , withLockedTransactionInputs
   )
 
 -- | This module defines transaction-related requests. Currently signing and
