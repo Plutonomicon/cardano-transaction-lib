@@ -9,7 +9,6 @@ module JsWebSocket
   , _onWsMessage
   , _wsSend
   , _wsReconnect
-  , _removeOnWsConnect
   , _wsClose
   , _wsWatch
   ) where
@@ -34,9 +33,7 @@ foreign import _mkWebSocket
   -> Effect JsWebSocket
 
 foreign import _onWsConnect
-  :: JsWebSocket -> (Effect Unit) -> Effect ListenerRef
-
-foreign import _removeOnWsConnect :: JsWebSocket -> ListenerRef -> Effect Unit
+  :: JsWebSocket -> (Effect Unit) -> Effect Unit
 
 foreign import _onWsMessage
   :: JsWebSocket

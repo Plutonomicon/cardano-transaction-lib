@@ -19,28 +19,26 @@ class NoPerMessageDeflateWebSocket extends OurWebSocket {
 
 // _mkWebsocket :: (String -> Effect Unit) -> String -> Effect WebSocket
 exports._mkWebSocket = logger => url => () => {
-  logger("Starting websocket attempt")();
-  var ws;
-  if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
-    ws = new ReconnectingWebSocket.default(url);
-  } else {
-    ws = new ReconnectingWebSocket(url, [], {
-      WebSocket: NoPerMessageDeflateWebSocket
-    });
-  }
-  logger("new websocket")();
-  return ws;
+  try {
+    var ws;
+    if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
+      ws = new ReconnectingWebSocket.default(url);
+    } else {
+      ws = new ReconnectingWebSocket(url, [], {
+        WebSocket: NoPerMessageDeflateWebSocket
+      });
+    }
+    logger("Created a new WebSocket")();
+    return ws;
+  } catch (e) {
+    logger("Failed to create a new WebSocket");
+    throw e;
+  };
 };
 
 // _onWsConnect :: WebSocket -> (Unit -> Effect Unit) -> Effect ListenerRef
-exports._onWsConnect = ws => fn => () => {
+exports._onWsConnect = ws => fn => () =>
   ws.addEventListener('open', fn);
-  return fn;
-};
-
-// _removeOnWsConnect :: JsWebSocket -> ListenerRef -> Effect Unit
-exports._removeOnWsConnect = ws => listener => () =>
-  ws.removeEventListener('open', listener);
 
 // _onWsError
 //   :: WebSocket
@@ -50,7 +48,7 @@ exports._removeOnWsConnect = ws => listener => () =>
 exports._onWsError = ws => logger => fn => () => {
   const listener = function (event) {
     const str = event.toString();
-    logger(`error (${event.type}): ${str}`)();
+    logger(`WebSocket error: ${str}`)();
     fn(str)();
   };
   ws.addEventListener('error', listener);
@@ -106,7 +104,6 @@ const heartbeat = ws => logger => id => onError => {
   }
   const cancelId = setTimeout(() => {
     ws.terminate();
-    logger("Terminating WS connection");
     onError();
   }, 30000);
   return cancelId;
