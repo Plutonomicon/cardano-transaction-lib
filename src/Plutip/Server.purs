@@ -220,7 +220,7 @@ mkClusterContractCfg plutipCfg _clusterParams = do
     , datumCacheWs
     , wallet: Nothing -- TODO: use KeyWallet when it's ready
     , usedTxOuts
-    , serverConfig: QueryM.defaultServerConfig
+    , serverConfig: plutipCfg.ctlServerConfig
     , networkId: TestnetId
     , logLevel: plutipCfg.logLevel
     }
