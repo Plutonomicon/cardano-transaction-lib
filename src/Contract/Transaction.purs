@@ -112,7 +112,7 @@ import Control.Monad.Except.Trans (runExceptT)
 import Control.Monad.Reader (asks, runReaderT, ReaderT)
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
-import Data.Either (Either(..), hush, either)
+import Data.Either (Either(..), hush)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
 import Data.Maybe (Maybe)

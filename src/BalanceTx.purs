@@ -448,9 +448,8 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
         _transaction' .~ ubcTx'
     -- Return excess Ada change to wallet:
     unsignedTx <- ExceptT $
-
-    returnAdaChangeAndFinalizeFees ownAddr availableUtxos nonAdaBalancedCollTx <#>
-        lmap ReturnAdaChangeError'
+      returnAdaChangeAndFinalizeFees ownAddr availableUtxos nonAdaBalancedCollTx
+        <#> lmap ReturnAdaChangeError'
     let
       unattachedTx'' = unsignedTx ^. _transaction'
         /\ unsignedTx ^. _redeemersTxIns

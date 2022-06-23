@@ -11,7 +11,8 @@ import Contract.Address
   , ownStakePubKeyHash
   )
 import Contract.Monad
-  ( ConfigParams(ConfigParams)
+  ( Contract
+  , ConfigParams(ConfigParams)
   , LogLevel(Trace)
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
@@ -22,12 +23,12 @@ import Contract.Monad
   , logInfo'
   , mkContractConfig
   , runContract_
-  , Contract
   )
+import Control.Monad.Reader (asks)
+import Effect.Ref as Ref
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
   ( BalancedSignedTransaction(..)
-  , balanceAndSignTxE
   , submit
   , withBalancedAndSignedTxs
   )
@@ -35,7 +36,12 @@ import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
-import Types.CborBytes
+import Types.UsedTxOuts (TxOutRefCache)
+
+getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
+getLockedInputs = do
+  cache <- asks (_.usedTxOuts <<< unwrap)
+  liftEffect $ Ref.read $ unwrap cache
 
 main :: Effect Unit
 main = launchAff_ $ do
@@ -66,7 +72,15 @@ main = launchAff_ $ do
 
     ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     ubTx2 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    withBalancedAndSignedTxs [ ubTx1, ubTx2 ] $ traverse submitAndLog
+
+    _ <- withBalancedAndSignedTxs [ ubTx1, ubTx2 ] $ \txs -> do
+      locked <- getLockedInputs
+      logInfo' $ "Locked inputs inside bracket (should be nonempty): " <> show
+        locked
+      traverse submitAndLog txs
+
+    locked <- getLockedInputs
+    logInfo' $ "Locked inputs after bracket (should be empty): " <> show locked
 
   where
   submitAndLog (BalancedSignedTransaction bsTx) = do
