@@ -261,8 +261,7 @@ getNetworkInfoFromNodeConfig nodeConfigPath = do
     nodeConfigJson
   byronGenesisFile <- fromRightEff $ getField nodeConfigAeson
     "ByronGenesisFile"
-  let requiresNetworkMagic = getField nodeConfigAeson "RequiresNetworkMagic"
-  if requiresNetworkMagic == Right "RequiresNoMagic" then pure Mainnet
+  if getField nodeConfigAeson "RequiresNetworkMagic" == Right "RequiresNoMagic" then pure Mainnet
   else do
     byronGenesisJson <- fromRightEff =<< parseJsonStringToAeson <$> readTextFile
       Encoding.UTF8
