@@ -19,10 +19,7 @@
     # Repository with network parameters
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
-      # TODO: https://github.com/Plutonomicon/cardano-transaction-lib/issues/525
-      #       Switch to official when it's updated
-      # url = "github:input-output-hk/cardano-configurations/chore/vasil-qa";
-      url = "github:jy14898/cardano-configurations";
+      url = "github:input-output-hk/cardano-configurations";
       flake = false;
     };
     easy-purescript-nix = {
@@ -172,7 +169,7 @@
       defaultConfig = final: with final; {
         inherit (inputs) cardano-configurations;
         network = {
-          name = "vasil-qa";
+          name = "vasil-dev";
           magic = 9; # use `null` for mainnet
         };
         node = { port = 3001; };
@@ -239,7 +236,7 @@
           services = {
             cardano-node = {
               service = {
-                image = "inputoutput/cardano-node:1.35.0-rc1";
+                image = "inputoutput/cardano-node:1.35.0-rc4";
                 ports = [ (bindPort node.port) ];
                 volumes = [
                   "${config.cardano-configurations}/network/${config.network.name}/cardano-node:/config"
