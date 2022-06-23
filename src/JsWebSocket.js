@@ -32,16 +32,21 @@ exports._mkWebSocket = logger => url => () => {
   return ws;
 };
 
-// _onWsConnect :: WebSocket -> (Unit -> Effect Unit) -> Effect Unit
+// _onWsConnect :: WebSocket -> (Unit -> Effect Unit) -> Effect ListenerRef
 exports._onWsConnect = ws => fn => () => {
   ws.addEventListener('open', fn);
+  return fn;
 };
+
+// _removeOnWsConnect :: JsWebSocket -> ListenerRef -> Effect Unit
+exports._removeOnWsConnect = ws => listener => () =>
+  ws.removeEventListener('open', listener);
 
 // _onWsError
 //   :: WebSocket
 //   -> (String -> Effect Unit) -- logger
 //   -> (String -> Effect Unit) -- handler
-//   -> Effect Listener
+//   -> Effect ListenerRef
 exports._onWsError = ws => logger => fn => () => {
   const listener = function (event) {
     const str = event.toString();
@@ -57,7 +62,7 @@ exports._onWsError = ws => logger => fn => () => {
 //  -> ListenerRef
 //  -> Effect Unit
 exports._removeOnWsError = ws => listener => () =>
-  ws.removeEventListener(listener);
+  ws.removeEventListener('error', listener);
 
 
 // _onWsMessage

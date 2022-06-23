@@ -52,9 +52,7 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , Aeson
-  , JsonDecodeError
-      ( TypeMismatch
-      )
+  , JsonDecodeError(TypeMismatch)
   , caseAesonString
   , decodeAeson
   , encodeAeson
@@ -70,9 +68,11 @@ import Cardano.Types.Transaction (Transaction(Transaction))
 import Cardano.Types.Transaction as Transaction
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value (Coin)
+import Control.Lazy (fix)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT, ask, asks)
+import Control.Monad.Rec.Class (forever)
 import Data.Array (length)
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
@@ -110,16 +110,14 @@ import JsWebSocket
   , _onWsConnect
   , _onWsError
   , _onWsMessage
+  , _removeOnWsConnect
   , _removeOnWsError
   , _wsClose
   , _wsReconnect
   , _wsSend
   , _wsWatch
   )
-import QueryM.DatumCacheWsp
-  ( GetDatumByHashR
-  , GetDatumsByHashesR
-  )
+import QueryM.DatumCacheWsp (GetDatumByHashR, GetDatumsByHashesR)
 import QueryM.DatumCacheWsp as DcWsp
 import QueryM.JsonWsp (parseJsonWspResponseId)
 import QueryM.JsonWsp as JsonWsp
@@ -641,7 +639,9 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
         "First connection to Ogmios WebSocket failed. Terminating"
       cb $ Left $ error err
   wsErrorRef <- _onWsError ws (logger Error) onFirstConnectionError
-  _onWsConnect ws do
+  hasConnectedOnceRef <- Ref.new false
+  wsConnectRef <- _onWsConnect ws do
+    Ref.write true hasConnectedOnceRef
     _removeOnWsError ws wsErrorRef
     _wsWatch ws (logger Debug) onError
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
@@ -660,6 +660,15 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       , systemStart:
           mkListenerSet systemStartDispatchMap systemStartPendingRequests
       }
+  void $ _onWsConnect ws do
+    launchAff_ do
+      forever do
+        delay (wrap 10.0)
+        liftEffect $ do
+          hasConnectedOnce <- Ref.read hasConnectedOnceRef
+          when hasConnectedOnce do
+            _removeOnWsConnect ws wsConnectRef
+            throw "Done cancelling"
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
   logger :: LogLevel -> String -> Effect Unit
@@ -692,7 +701,7 @@ mkDatumCacheWebSocket' lvl serverCfg cb = do
       _wsClose ws
       cb $ Left $ error err
   wsErrorRef <- _onWsError ws (logger Error) onFirstConnectionError
-  _onWsConnect ws do
+  void $ _onWsConnect ws do -- TODO
     _removeOnWsError ws wsErrorRef
     _wsWatch ws (logger Debug) onError
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
