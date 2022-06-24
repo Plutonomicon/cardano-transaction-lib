@@ -85,10 +85,10 @@ runPlutipM plutipCfg action = do
       let
         contract =
           flip runReaderT plutipCfg action
-      withResource (startOgmios plutipCfg response) stopOgmios $ const do
+      withResource (startOgmios plutipCfg response) stopChildProcess $ const do
         withResource (startOgmiosDatumCache plutipCfg response)
-          stopOgmiosDatumCache $ const do
-          withResource (startCtlServer plutipCfg response) stopCtlServer $ const
+          stopChildProcess $ const do
+          withResource (startCtlServer plutipCfg response) stopChildProcess $ const
             do
               contractCfg <- mkClusterContractCfg plutipCfg response
               liftAff $ runContract contractCfg contract
@@ -162,8 +162,8 @@ startOgmios cfg params = liftEffect $ spawn "ogmios" ogmiosArgs
     , params.nodeConfigPath
     ]
 
-stopOgmios :: ChildProcess -> Aff Unit
-stopOgmios = liftEffect <<< kill SIGINT
+stopChildProcess :: ChildProcess -> Aff Unit
+stopChildProcess = liftEffect <<< kill SIGINT
 
 -- TODO: use CLI arguments when https://github.com/mlabs-haskell/ogmios-datum-cache/issues/61 is resolved
 startOgmiosDatumCache
@@ -193,9 +193,6 @@ startOgmiosDatumCache cfg _params = do
   writeTextFile Encoding.UTF8 (dir <> "/config.toml") configContents
   liftEffect $ spawn "ogmios-datum-cache" [] defaultSpawnOptions
     { cwd = Just dir }
-
-stopOgmiosDatumCache :: ChildProcess -> Aff Unit
-stopOgmiosDatumCache = liftEffect <<< kill SIGINT
 
 mkClusterContractCfg
   :: forall (r :: Row Type)
@@ -249,9 +246,6 @@ startCtlServer cfg params = do
   getNetworkInfoArgs Mainnet = []
   getNetworkInfoArgs (Testnet networkId) =
     [ "--network-id", Int.toStringAs Int.decimal networkId ]
-
-stopCtlServer :: ChildProcess -> Aff Unit
-stopCtlServer = liftEffect <<< kill SIGINT
 
 getNetworkInfoFromNodeConfig :: FilePath -> Effect NetworkInfo
 getNetworkInfoFromNodeConfig nodeConfigPath = do
