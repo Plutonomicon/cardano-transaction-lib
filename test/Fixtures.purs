@@ -106,7 +106,6 @@ import Cardano.Types.Transaction
   , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
   , MIRToStakeCredentials(MIRToStakeCredentials)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
-  , Nonce(HashNonce)
   )
 import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
@@ -163,7 +162,7 @@ import Serialization.Hash
   )
 import Types.Aliases (Bech32String)
 import Types.BigNum (BigNum)
-import Types.BigNum (fromBigInt, fromStringUnsafe, one) as BigNum
+import Types.BigNum (fromBigInt, fromInt) as BigNum
 import Types.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
@@ -506,7 +505,7 @@ txFixture4 =
                 }
             ]
         , fee: Coin $ BigInt.fromInt 177513
-        , ttl: Just $ Slot $ BigNum.fromStringUnsafe "123"
+        , ttl: Just $ Slot $ BigNum.fromInt 123
         , certs: Just
             [ StakeRegistration stake1
             , StakeDeregistration stake1
@@ -578,7 +577,7 @@ txFixture4 =
         , auxiliaryDataHash: Just $ AuxiliaryDataHash
             $ byteArrayFromIntArrayUnsafe
             $ Array.replicate 32 0
-        , validityStartInterval: Just $ Slot $ BigNum.fromStringUnsafe "124"
+        , validityStartInterval: Just $ Slot $ BigNum.fromInt 124
         , mint: Just $ Mint $ mkNonAdaAsset $ Map.fromFoldable
             [ currencySymbol1 /\ Map.fromFoldable [ tokenName1 /\ one ] ]
         , scriptDataHash: Nothing
@@ -1034,10 +1033,10 @@ nativeScriptFixture5 = ScriptNOfK 1
   [ nativeScriptFixture1, nativeScriptFixture2 ]
 
 nativeScriptFixture6 :: NativeScript
-nativeScriptFixture6 = TimelockStart $ Slot $ BigNum.fromStringUnsafe "1000"
+nativeScriptFixture6 = TimelockStart $ Slot $ BigNum.fromInt 1000
 
 nativeScriptFixture7 :: NativeScript
-nativeScriptFixture7 = TimelockExpiry $ Slot $ BigNum.fromStringUnsafe "2000"
+nativeScriptFixture7 = TimelockExpiry $ Slot $ BigNum.fromInt 2000
 
 keyHashBaseAddress :: { payment :: String, stake :: String } -> Address
 keyHashBaseAddress { payment, stake } = baseAddressToAddress $ baseAddress

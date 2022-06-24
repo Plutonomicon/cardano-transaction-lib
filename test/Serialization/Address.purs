@@ -48,7 +48,7 @@ import Test.Spec.Assertions (shouldEqual)
 import Test.Utils (errMaybe)
 import TestM (TestPlanM)
 import Types.Aliases (Bech32String)
-import Types.BigNum (fromStringUnsafe) as BigNum
+import Types.BigNum (fromInt, fromStringUnsafe) as BigNum
 import Types.RawBytes (hexToRawBytesUnsafe)
 import Test.Fixtures (ed25519KeyHashFixture1)
 
@@ -153,8 +153,8 @@ pointerAddressFunctionsTest = test "PointerAddress tests" $ do
   let
     pointer =
       { slot: wrap (BigNum.fromStringUnsafe "2147483648")
-      , certIx: wrap (BigNum.fromStringUnsafe "20")
-      , txIx: wrap (BigNum.fromStringUnsafe "120")
+      , certIx: wrap (BigNum.fromInt 20)
+      , txIx: wrap (BigNum.fromInt 120)
       }
   paddr <- doesNotThrow $ pointerAddress
     { network: MainnetId

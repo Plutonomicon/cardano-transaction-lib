@@ -6,9 +6,7 @@ import Data.Array ((..), length, zip)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, wrap)
 import Data.Traversable (for_)
-import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested ((/\))
-import Data.UInt (UInt)
 import Data.UInt (fromInt) as UInt
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
@@ -28,7 +26,7 @@ import Test.Utils (errMaybe, toFromAesonTest)
 import TestM (TestPlanM)
 import Types.Aliases (Bech32String)
 import Types.BigNum (BigNum)
-import Types.BigNum (fromStringUnsafe) as BigNum
+import Types.BigNum (fromInt) as BigNum
 
 suite :: TestPlanM Unit
 suite = do
@@ -180,8 +178,8 @@ stakingHash =
 stakingPtr :: StakingCredential
 stakingPtr =
   let
-    wrapBn :: forall (t :: Type). Newtype t BigNum => String -> t
-    wrapBn = wrap <<< BigNum.fromStringUnsafe
+    wrapBn :: forall (t :: Type). Newtype t BigNum => Int -> t
+    wrapBn = wrap <<< BigNum.fromInt
   in
     StakingPtr
-      { slot: wrapBn "2498243", txIx: wrapBn "27", certIx: wrapBn "3" }
+      { slot: wrapBn 2498243, txIx: wrapBn 27, certIx: wrapBn 3 }

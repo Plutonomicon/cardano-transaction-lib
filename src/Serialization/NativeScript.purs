@@ -7,7 +7,6 @@ import Prelude
 
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
-import Data.UInt as UInt
 
 import Cardano.Types.Transaction
   ( NativeScript

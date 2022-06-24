@@ -29,7 +29,7 @@ import Serialization.Address
   , addressFromBytes
   )
 import Types.ByteArray (byteArrayToHex)
-import Types.CborBytes (CborBytes, cborBytesToHex, rawBytesAsCborBytes)
+import Types.CborBytes (rawBytesAsCborBytes)
 import Types.RawBytes (RawBytes, hexToRawBytes)
 import Untagged.Union (asOneOf)
 

@@ -37,4 +37,4 @@ exports._fromString = maybe => str => {
   }
 };
 
-exports.toString = bn => bn.to_str()
+exports.toString = bn => bn.to_str();

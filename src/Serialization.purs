@@ -28,14 +28,12 @@ import Cardano.Types.Transaction
       , MoveInstantaneousRewardsCert
       )
   , Costmdls(Costmdls)
-  , CostModel(CostModel)
   , GenesisDelegateHash(GenesisDelegateHash)
   , GenesisHash(GenesisHash)
   , Language(PlutusV1)
   , MIRToStakeCredentials(MIRToStakeCredentials)
   , Mint(Mint)
   , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
-  , Nonce(IdentityNonce, HashNonce)
   , PoolMetadata(PoolMetadata)
   , PoolMetadataHash(PoolMetadataHash)
   , ProposedProtocolParameterUpdates
@@ -69,7 +67,7 @@ import FfiHelpers
   , containerHelper
   )
 import Helpers (fromJustEff)
-import Serialization.Address (Address, Slot, StakeCredential, RewardAddress)
+import Serialization.Address (Address, StakeCredential, RewardAddress)
 import Serialization.Address (NetworkId(TestnetId, MainnetId)) as T
 import Serialization.AuxiliaryData (convertAuxiliaryData)
 import Serialization.BigInt as Serialization
@@ -520,8 +518,6 @@ convertProtocolParamUpdate
   , poolPledgeInfluence
   , expansionRate
   , treasuryGrowthRate
-  , d
-  , extraEntropy
   , protocolVersion
   , minPoolCost
   , adaPerUtxoByte

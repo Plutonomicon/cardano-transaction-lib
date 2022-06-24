@@ -2,6 +2,7 @@ module Types.BigNum
   ( BigNum
   , add
   , fromBigInt
+  , fromInt
   , fromString
   , fromStringUnsafe
   , maxValue
@@ -25,6 +26,7 @@ import Data.BigInt (fromString, toString) as BigInt
 import Data.Either (note)
 import Data.Int (fromString) as Int
 import Data.Maybe (Maybe, fromJust)
+import Data.UInt (fromInt, toString) as UInt
 import Deserialization.Error (FromCslRepError, fromCslRepError)
 import Error (E, noteE)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
@@ -60,9 +62,10 @@ fromBigInt = fromString <<< BigInt.toString
 toBigInt :: BigNum -> Maybe BigInt
 toBigInt = BigInt.fromString <<< toString
 
--- Converting uint64 to an arbitrary length integer should never fail.
 toBigIntUnsafe :: BigNum -> BigInt
-toBigIntUnsafe bn = unsafePartial fromJust $ toBigInt bn
+toBigIntUnsafe bn =
+  -- Converting uint64 to an arbitrary length integer should never fail.
+  unsafePartial fromJust $ toBigInt bn
 
 toBigInt' :: forall r. String -> BigNum -> E (FromCslRepError + r) BigInt
 toBigInt' nm bn =
@@ -92,6 +95,13 @@ foreign import bnMul :: MaybeFfiHelper -> BigNum -> BigNum -> Maybe BigNum
 
 mul :: BigNum -> BigNum -> Maybe BigNum
 mul = bnMul maybeFfiHelper
+
+-- | Converts an `Int` to a `BigNum` turning negative `Int`s into `BigNum`s
+-- | in range from `2^31` to `2^32-1`.
+fromInt :: Int -> BigNum
+fromInt =
+  -- Converting `UInt` (u32) to a `BigNum` (u64) should never fail.
+  fromStringUnsafe <<< UInt.toString <<< UInt.fromInt
 
 foreign import _fromString :: MaybeFfiHelper -> String -> Maybe BigNum
 

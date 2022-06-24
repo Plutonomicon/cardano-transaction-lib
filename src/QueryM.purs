@@ -74,7 +74,7 @@ import Data.Array (length)
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), either, isRight, note, hush)
+import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(POST))
@@ -85,7 +85,7 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Traversable (traverse, traverse_, for)
+import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -137,8 +137,6 @@ import QueryM.ServerConfig
   , mkWsUrl
   )
 import QueryM.UniqueId (ListenerId)
-import Deserialization.FromBytes (fromBytes) as Deserialization
-import Deserialization.Transaction (convertTransaction) as Deserialization
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address
   ( Address
