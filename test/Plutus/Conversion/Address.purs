@@ -3,9 +3,8 @@ module Test.Plutus.Conversion.Address (suite) where
 import Prelude
 
 import Data.Array ((..), length, zip)
-import Data.BigInt (fromInt) as BigInt
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (wrap)
+import Data.Newtype (class Newtype, wrap)
 import Data.Traversable (for_)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested ((/\))
@@ -28,6 +27,8 @@ import Test.Spec.Assertions (shouldEqual)
 import Test.Utils (errMaybe, toFromAesonTest)
 import TestM (TestPlanM)
 import Types.Aliases (Bech32String)
+import Types.BigNum (BigNum)
+import Types.BigNum (fromStringUnsafe) as BigNum
 
 suite :: TestPlanM Unit
 suite = do
@@ -177,8 +178,10 @@ stakingHash =
     (ed25519KeyHashFromBech32 stakeKeyBech32)
 
 stakingPtr :: StakingCredential
-stakingPtr = StakingPtr
-  { slot: wrap (BigInt.fromInt 2498243)
-  , txIx: wrap (UInt.fromInt 27)
-  , certIx: wrap (UInt.fromInt 3)
-  }
+stakingPtr =
+  let
+    wrapBn :: forall (t :: Type). Newtype t BigNum => String -> t
+    wrapBn = wrap <<< BigNum.fromStringUnsafe
+  in
+    StakingPtr
+      { slot: wrapBn "2498243", txIx: wrapBn "27", certIx: wrapBn "3" }

@@ -3,7 +3,7 @@ module Test.AffInterface (suite) where
 import Prelude
 
 import Address (addressToOgmiosAddress, ogmiosAddressToAddress)
-import Data.BigInt (fromInt, fromString) as BigInt
+import Data.BigInt (fromString) as BigInt
 import Data.Either (Either(Left, Right), either)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Traversable (traverse_)
@@ -33,6 +33,7 @@ import QueryM.Utxos (utxosAt)
 import Serialization.Address (Slot(Slot))
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
+import Types.BigNum (fromStringUnsafe) as BigNum
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Types.Interval
   ( PosixTimeToSlotError(PosixTimeBeforeSystemStart)
@@ -186,15 +187,15 @@ testSlotToPosixTime = do
     sysStart <- getSystemStart
     let
       slots = mkSlot <$>
-        [ 395930213
-        , 58278567
-        , 48272312
-        , 39270783
-        , 957323
-        , 34952
-        , 7532
-        , 232
-        , 1
+        [ "395930213"
+        , "58278567"
+        , "48272312"
+        , "39270783"
+        , "957323"
+        , "34952"
+        , "7532"
+        , "232"
+        , "1"
         ]
     traverse_ (idTest eraSummaries sysStart) slots
   where
@@ -206,8 +207,8 @@ testSlotToPosixTime = do
         eSlot <- posixTimeToSlot es ss posixTime
         either (throw <<< show) (shouldEqual slot) eSlot
 
-  mkSlot :: Int -> Slot
-  mkSlot = Slot <<< BigInt.fromInt
+  mkSlot :: String -> Slot
+  mkSlot = Slot <<< BigNum.fromStringUnsafe
 
 testPosixTimeToSlotError :: Aff Unit
 testPosixTimeToSlotError = do

@@ -21,11 +21,9 @@ import Cardano.Types.Transaction
   ) as T
 import FfiHelpers (ContainerHelper, containerHelper)
 import Serialization.Address (Slot(Slot)) as T
-import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.Hash (Ed25519KeyHash) as T
 import Serialization.Types
-  ( BigNum
-  , NativeScript
+  ( NativeScript
   , NativeScripts
   , ScriptAll
   , ScriptAny
@@ -34,6 +32,7 @@ import Serialization.Types
   , TimelockExpiry
   , TimelockStart
   )
+import Types.BigNum (BigNum)
 
 convertNativeScripts :: Array T.NativeScript -> Maybe NativeScripts
 convertNativeScripts = map packNativeScripts <<< traverse convertNativeScript
@@ -45,8 +44,8 @@ convertNativeScript = case _ of
   T.ScriptAll nss -> convertScriptAll nss
   T.ScriptAny nss -> convertScriptAny nss
   T.ScriptNOfK n nss -> convertScriptNOfK n nss
-  T.TimelockStart slot -> convertTimelockStart slot
-  T.TimelockExpiry slot -> convertTimelockExpiry slot
+  T.TimelockStart slot -> pure $ convertTimelockStart slot
+  T.TimelockExpiry slot -> pure $ convertTimelockExpiry slot
 
 convertScriptPubkey :: T.Ed25519KeyHash -> NativeScript
 convertScriptPubkey hash = do
@@ -67,15 +66,13 @@ convertScriptNOfK n nss =
   nativeScript_new_script_n_of_k <<< mkScriptNOfK n <<<
     packNativeScripts <$> for nss convertNativeScript
 
-convertTimelockStart :: T.Slot -> Maybe NativeScript
+convertTimelockStart :: T.Slot -> NativeScript
 convertTimelockStart (T.Slot slot) =
-  nativeScript_new_timelock_start <<< mkTimelockStart
-    <$> bigNumFromBigInt slot
+  nativeScript_new_timelock_start (mkTimelockStart slot)
 
-convertTimelockExpiry :: T.Slot -> Maybe NativeScript
+convertTimelockExpiry :: T.Slot -> NativeScript
 convertTimelockExpiry (T.Slot slot) =
-  nativeScript_new_timelock_expiry <<< mkTimelockExpiry
-    <$> bigNumFromBigInt slot
+  nativeScript_new_timelock_expiry (mkTimelockExpiry slot)
 
 packNativeScripts :: Array NativeScript -> NativeScripts
 packNativeScripts = _packNativeScripts containerHelper

@@ -73,7 +73,6 @@ import Serialization.Address (Address, Slot, StakeCredential, RewardAddress)
 import Serialization.Address (NetworkId(TestnetId, MainnetId)) as T
 import Serialization.AuxiliaryData (convertAuxiliaryData)
 import Serialization.BigInt as Serialization
-import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.Hash (ScriptHash, Ed25519KeyHash, scriptHashFromBytes)
 import Serialization.PlutusData (convertPlutusData)
 import Serialization.Types
@@ -82,7 +81,6 @@ import Serialization.Types
   , AuxiliaryData
   , AuxiliaryDataHash
   , BigInt
-  , BigNum
   , Certificate
   , Certificates
   , CostModel
@@ -140,6 +138,8 @@ import Serialization.WitnessSet
   , convertExUnits
   )
 import Types.Aliases (Bech32String)
+import Types.BigNum (BigNum)
+import Types.BigNum (fromBigInt, fromStringUnsafe, toString) as BigNum
 import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
 import Types.RawBytes (RawBytes)
@@ -452,12 +452,13 @@ convertTxBody :: T.TxBody -> Effect TransactionBody
 convertTxBody (T.TxBody body) = do
   inputs <- convertTxInputs body.inputs
   outputs <- convertTxOutputs body.outputs
-  fee <- fromJustEff "Failed to convert fee" $ bigNumFromBigInt
+  fee <- fromJustEff "Failed to convert fee" $ BigNum.fromBigInt
     (unwrap body.fee)
   txBody <- newTransactionBody inputs outputs fee
-  for_ body.ttl $ convertSlot >=> setTxBodyTtl txBody
+  for_ body.ttl $ unwrap >>> setTxBodyTtl txBody
   for_ body.validityStartInterval $
-    convertSlot >=> transactionBodySetValidityStartInterval txBody
+    unwrap >>> BigNum.toString >>> BigNum.fromStringUnsafe >>>
+      transactionBodySetValidityStartInterval txBody
   for_ body.requiredSigners $
     map unwrap >>> transactionBodySetRequiredSigners containerHelper txBody
   for_ body.auxiliaryDataHash $
@@ -533,22 +534,22 @@ convertProtocolParamUpdate
   ppu <- newProtocolParamUpdate
   for_ minfeeA $ ppuSetMinfeeA ppu <=<
     fromJustEff "convertProtocolParamUpdate: min_fee_a must not be negative"
-      <<< bigNumFromBigInt
+      <<< BigNum.fromBigInt
       <<< unwrap
   for_ minfeeB $ ppuSetMinfeeB ppu <=<
     fromJustEff "convertProtocolParamUpdate: min_fee_b must not be negative"
-      <<< bigNumFromBigInt
+      <<< BigNum.fromBigInt
       <<< unwrap
   for_ maxBlockBodySize $ ppuSetMaxBlockBodySize ppu <<< UInt.toInt
   for_ maxTxSize $ ppuSetMaxTxSize ppu <<< UInt.toInt
   for_ maxBlockHeaderSize $ ppuSetMaxBlockHeaderSize ppu <<< UInt.toInt
   for_ keyDeposit $ ppuSetKeyDeposit ppu <=<
     fromJustEff "convertProtocolParamUpdate: key_deposit must not be negative"
-      <<< bigNumFromBigInt
+      <<< BigNum.fromBigInt
       <<< unwrap
   for_ poolDeposit $ ppuSetPoolDeposit ppu <=<
     fromJustEff "convertProtocolParamUpdate: pool_deposit must not be negative"
-      <<< bigNumFromBigInt
+      <<< BigNum.fromBigInt
       <<< unwrap
   for_ maxEpoch $ ppuSetMaxEpoch ppu <<< UInt.toInt <<< unwrap
   for_ nOpt $ ppuSetNOpt ppu <<< UInt.toInt
@@ -587,7 +588,7 @@ convertWithdrawals mp =
   newWithdrawals containerHelper =<< do
     for (Map.toUnfoldable mp) \(k /\ Value.Coin v) -> do
       Tuple k <$> fromJustEff "convertWithdrawals: Failed to convert BigNum"
-        (bigNumFromBigInt v)
+        (BigNum.fromBigInt v)
 
 publicKeyFromBech32 :: Bech32String -> Maybe PublicKey
 publicKeyFromBech32 = _publicKeyFromBech32 maybeFfiHelper
@@ -746,13 +747,13 @@ convertValue val = do
       let tokenName = TokenName.getTokenName tokenName'
       assetName <- newAssetName tokenName
       value <- fromJustEff "convertValue: number must not be negative" $
-        bigNumFromBigInt bigIntValue
+        BigNum.fromBigInt bigIntValue
       insertAssets assets assetName value
     insertMultiAsset multiasset scripthash assets
   value <- newValueFromAssets multiasset
   valueSetCoin value =<< fromJustEff
     "convertValue: coin value must not be negative"
-    (bigNumFromBigInt lovelace)
+    (BigNum.fromBigInt lovelace)
   pure value
 
 convertCostmdls :: T.Costmdls -> Effect Costmdls
@@ -766,10 +767,6 @@ convertCostmdls (T.Costmdls cs) = do
   plutusV1 <- newPlutusV1
   costmdlsSetCostModel costmdls plutusV1 costModel
   pure costmdls
-
-convertSlot :: Slot -> Effect BigNum
-convertSlot =
-  fromJustEff "failed to convert slot" <<< bigNumFromBigInt <<< unwrap
 
 hashScriptData
   :: T.Costmdls

@@ -119,6 +119,14 @@ import QueryM.Ogmios
 import Serialization.Address (Slot(Slot))
 import ToData (class ToData, genericToData)
 import TypeLevel.Nat (S, Z)
+import Types.BigNum
+  ( add
+  , fromBigInt
+  , maxValue
+  , one
+  , toBigIntUnsafe
+  , zero
+  ) as BigNum
 
 --------------------------------------------------------------------------------
 -- Interval Type and related
@@ -478,9 +486,7 @@ beginningOfTime =
 
 -- | Maximum slot (u64)
 maxSlot :: Slot
-maxSlot =
-  Slot $ unsafePartial fromJust $
-    BigInt.fromString "18446744073709552000"
+maxSlot = wrap BigNum.maxValue
 
 --------------------------------------------------------------------------------
 -- Conversion functions
@@ -601,13 +607,15 @@ slotToPosixTime eraSummaries sysStart slot = runExceptT do
   _transTime :: BigInt -> BigInt
   _transTime = (*) $ BigInt.fromInt 1000
 
--- | Convert a CSL (Absolute) `Slot` to an Ogmios absolute slot.
+-- | Convert a CSL (Absolute) `Slot` (`BigNum`) to an Ogmios absolute slot
+-- | (`BigInt`).
 absSlotFromSlot :: Slot -> AbsSlot
-absSlotFromSlot = wrap <<< unwrap
+absSlotFromSlot = wrap <<< BigNum.toBigIntUnsafe <<< unwrap
 
--- | Convert an Ogmios absolute slot to a CSL (Absolute) `Slot`.
-slotFromAbsSlot :: AbsSlot -> Slot
-slotFromAbsSlot = wrap <<< unwrap
+-- | Convert an Ogmios absolute slot (`BigInt`) to a CSL (Absolute) `Slot`
+-- | (`BigNum`).
+slotFromAbsSlot :: AbsSlot -> Maybe Slot
+slotFromAbsSlot = map wrap <<< BigNum.fromBigInt <<< unwrap
 
 -- | Finds the `EraSummary` an `AbsSlot` lies inside (if any).
 findSlotEraSummary
@@ -727,6 +735,7 @@ data PosixTimeToSlotError
   | PosixTimeBeforeSystemStart POSIXTime
   | StartTimeGreaterThanTime AbsTime
   | EndSlotLessThanSlotOrModNonZero AbsSlot ModTime
+  | CannotConvertAbsSlotToSlot AbsSlot
   | CannotGetBigIntFromNumber'
 
 derive instance Generic PosixTimeToSlotError _
@@ -759,6 +768,11 @@ instance EncodeAeson PosixTimeToSlotError where
       posixTimeToSlotErrorStr
       "endSlotLessThanSlotOrModNonZero"
       [ encodeAeson absSlot, encodeAeson modTime ]
+  encodeAeson' (CannotConvertAbsSlotToSlot absSlot) =
+    encodeAeson' $ mkErrorRecord
+      posixTimeToSlotErrorStr
+      "cannotConvertAbsSlotToSlot"
+      [ absSlot ]
   encodeAeson' CannotGetBigIntFromNumber' =
     encodeAeson' $ mkErrorRecord
       posixTimeToSlotErrorStr
@@ -792,6 +806,9 @@ instance DecodeAeson PosixTimeToSlotError where
           (TypeMismatch "Could not extract second element")
           (index args 1)
         pure $ EndSlotLessThanSlotOrModNonZero as mt
+      "cannotConvertAbsSlotToSlot" -> do
+        arg <- extractArg o
+        pure $ CannotConvertAbsSlotToSlot arg
       "cannotGetBigIntFromNumber'" -> do
         args <- getField o "args"
         unless (isNull args) (throwError $ TypeMismatch "Non-empty args")
@@ -827,8 +844,8 @@ posixTimeToSlot eraSummaries sysStart pt'@(POSIXTime pt) = runExceptT do
   let relSlotMod = relSlotFromRelTime currentEra relTime
   -- Get absolute slot relative to system start
   absSlot <- liftEither $ absSlotFromRelSlot currentEra relSlotMod
-  -- Convert back to UInt `Slot`
-  pure $ slotFromAbsSlot absSlot
+  -- Convert back to BigNum `Slot`
+  liftM (CannotConvertAbsSlotToSlot absSlot) $ slotFromAbsSlot absSlot
 
 -- | Finds the `EraSummary` an `AbsTime` lies inside (if any).
 findTimeEraSummary
@@ -968,7 +985,7 @@ slotRangeToTransactionValidity
   validityStartInterval :: Maybe Slot
   validityStartInterval = case start, startInc of
     Finite s, true -> pure s
-    Finite s, false -> pure $ s <> Slot one
+    Finite (Slot s), false -> Slot <$> s `BigNum.add` BigNum.one
     NegInf, _ -> Nothing
     PosInf, _ -> pure maxSlot
 
@@ -977,9 +994,9 @@ slotRangeToTransactionValidity
   -- for closed upper bounds.
   timeToLive :: Maybe Slot
   timeToLive = case end, endInc of
-    Finite s, true -> pure $ s <> Slot one
+    Finite (Slot s), true -> Slot <$> s `BigNum.add` BigNum.one
     Finite s, false -> pure s
-    NegInf, _ -> pure $ Slot zero
+    NegInf, _ -> pure $ Slot BigNum.zero
     PosInf, _ -> Nothing
 
 -- | Converts a `POSIXTimeRange` to a transaction validity interval via a

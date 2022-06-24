@@ -125,7 +125,6 @@ import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Data.Variant (Variant, inj)
-import Deserialization.BigNum (bigNumToBigInt')
 import Deserialization.Error
   ( Err
   , FromCslRepError
@@ -162,7 +161,6 @@ import Serialization.Types
   ( AssetName
   , AuxiliaryData
   , AuxiliaryDataHash
-  , BigNum
   , Certificate
   , CostModel
   , Costmdls
@@ -203,6 +201,8 @@ import Serialization.Types
   , Withdrawals
   ) as Csl
 import Type.Row (type (+))
+import Types.BigNum (BigNum) as Csl
+import Types.BigNum (toBigInt') as BigNum
 import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
 import Types.Int (Int) as Csl
@@ -247,7 +247,7 @@ convertTxBody txBody = do
     _txBodyOutputs containerHelper txBody
       # traverse (convertOutput >>> cslErr "TransactionOutput")
   fee <-
-    Coin <$> (_txBodyFee txBody # bigNumToBigInt' "Tx fee")
+    Coin <$> (_txBodyFee txBody # BigNum.toBigInt' "Tx fee")
   let
     networkId =
       _txBodyNetworkId Csl.TestnetId Csl.MainnetId maybeFfiHelper txBody
@@ -262,7 +262,7 @@ convertTxBody txBody = do
     (map <<< map) M.fromFoldable
       -- bignum -> coin
       <<< (traverse <<< traverse <<< traverse)
-        (bigNumToBigInt' "txbody withdrawals" >>> map Coin)
+        (BigNum.toBigInt' "txbody withdrawals" >>> map Coin)
       $ ws
 
   update <- traverse convertUpdate $ _txBodyUpdate maybeFfiHelper txBody
@@ -273,26 +273,19 @@ convertTxBody txBody = do
         maybeFfiHelper
         txBody
 
-  ttl <-
-    traverse (map Slot <<< bigNumToBigInt' "ttl") $
-      _txBodyTtl maybeFfiHelper txBody
-
-  validityStartInterval <-
-    traverse (map Slot <<< bigNumToBigInt' "validityStartInterval") $
-      _txBodyValidityStartInterval maybeFfiHelper txBody
-
   pure $ T.TxBody
     { inputs
     , outputs
     , fee
-    , ttl
+    , ttl: Slot <$> _txBodyTtl maybeFfiHelper txBody
     , certs
     , withdrawals
     , update
     , auxiliaryDataHash:
         T.AuxiliaryDataHash <<< toBytes <<< asOneOf <$>
           _txBodyAuxiliaryDataHash maybeFfiHelper txBody
-    , validityStartInterval
+    , validityStartInterval:
+        Slot <$> _txBodyValidityStartInterval maybeFfiHelper txBody
     , mint: map convertMint $ _txBodyMultiAssets maybeFfiHelper txBody
     , scriptDataHash: convertScriptDataHash <$> _txBodyScriptDataHash
         maybeFfiHelper
@@ -460,16 +453,18 @@ convertProtocolParamUpdate cslPpu = do
     ppu = _unpackProtocolParamUpdate maybeFfiHelper cslPpu
     lbl = (<>) "ProtocolParamUpdate."
 
-  minfeeA <- traverse (map Coin <<< bigNumToBigInt' (lbl "minfeeA")) ppu.minfeeA
-  minfeeB <- traverse (map Coin <<< bigNumToBigInt' (lbl "minfeeB")) ppu.minfeeB
+  minfeeA <- traverse (map Coin <<< BigNum.toBigInt' (lbl "minfeeA"))
+    ppu.minfeeA
+  minfeeB <- traverse (map Coin <<< BigNum.toBigInt' (lbl "minfeeB"))
+    ppu.minfeeB
   maxBlockBodySize <- traverse (cslNumberToUInt (lbl "maxBlockBodySize"))
     ppu.maxBlockBodySize
   maxTxSize <- traverse (cslNumberToUInt (lbl "maxTxSize")) ppu.maxTxSize
   maxBlockHeaderSize <- traverse (cslNumberToUInt (lbl "maxBlockHeaderSize"))
     ppu.maxBlockHeaderSize
-  keyDeposit <- traverse (map Coin <<< bigNumToBigInt' (lbl "keyDeposit"))
+  keyDeposit <- traverse (map Coin <<< BigNum.toBigInt' (lbl "keyDeposit"))
     ppu.keyDeposit
-  poolDeposit <- traverse (map Coin <<< bigNumToBigInt' (lbl "poolDeposit"))
+  poolDeposit <- traverse (map Coin <<< BigNum.toBigInt' (lbl "poolDeposit"))
     ppu.poolDeposit
   maxEpoch <- traverse (map T.Epoch <<< cslNumberToUInt (lbl "maxEpoch"))
     ppu.maxEpoch
@@ -570,7 +565,7 @@ convertGeneralTransactionMetadata =
       -- convert tuple type
       traverse
         ( bitraverse
-            ( map TransactionMetadatumLabel <<< bigNumToBigInt'
+            ( map TransactionMetadatumLabel <<< BigNum.toBigInt'
                 "MetadatumLabel: "
             )
             (convertMetadatum "GeneralTransactionMetadata: ")
@@ -647,8 +642,8 @@ cslRatioToRational
   -> { denominator :: Csl.BigNum, numerator :: Csl.BigNum }
   -> E (FromCslRepError + r) (Ratio BigInt)
 cslRatioToRational err { numerator, denominator } = reduce
-  <$> bigNumToBigInt' (err <> " cslRatioToRational") numerator
-  <*> bigNumToBigInt' (err <> " cslRatioToRational") denominator
+  <$> BigNum.toBigInt' (err <> " cslRatioToRational") numerator
+  <*> BigNum.toBigInt' (err <> " cslRatioToRational") denominator
 
 convertExUnits
   :: forall (r :: Row Type)
@@ -660,8 +655,8 @@ convertExUnits nm cslExunits =
     { mem, steps } = _unpackExUnits cslExunits
   in
     { mem: _, steps: _ }
-      <$> bigNumToBigInt' (nm <> " mem") mem
-      <*> bigNumToBigInt' (nm <> " steps") steps
+      <$> BigNum.toBigInt' (nm <> " mem") mem
+      <*> BigNum.toBigInt' (nm <> " steps") steps
 
 convertScriptDataHash :: Csl.ScriptDataHash -> T.ScriptDataHash
 convertScriptDataHash = asOneOf >>> toBytes >>> T.ScriptDataHash

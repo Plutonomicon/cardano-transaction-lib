@@ -2,10 +2,8 @@ module Test.Serialization.Address (suite) where
 
 import Prelude
 
-import Data.BigInt (fromString) as BigInt
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (wrap)
-import Data.UInt (fromInt) as UInt
 import Effect.Class.Console (log)
 import Mote (group, test)
 import Serialization.Address
@@ -50,6 +48,7 @@ import Test.Spec.Assertions (shouldEqual)
 import Test.Utils (errMaybe)
 import TestM (TestPlanM)
 import Types.Aliases (Bech32String)
+import Types.BigNum (fromStringUnsafe) as BigNum
 import Types.RawBytes (hexToRawBytesUnsafe)
 import Test.Fixtures (ed25519KeyHashFixture1)
 
@@ -151,12 +150,11 @@ enterpriseAddressFunctionsTest = test "EnterpriseAddress tests" $ do
 pointerAddressFunctionsTest :: TestPlanM Unit
 pointerAddressFunctionsTest = test "PointerAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
-  slot' <- errMaybe "Error BigInt.fromString:" (BigInt.fromString "2147483648")
   let
     pointer =
-      { slot: wrap slot'
-      , certIx: wrap (UInt.fromInt 20)
-      , txIx: wrap (UInt.fromInt 120)
+      { slot: wrap (BigNum.fromStringUnsafe "2147483648")
+      , certIx: wrap (BigNum.fromStringUnsafe "20")
+      , txIx: wrap (BigNum.fromStringUnsafe "120")
       }
   paddr <- doesNotThrow $ pointerAddress
     { network: MainnetId

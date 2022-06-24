@@ -108,11 +108,12 @@ import Serialization.Hash (Ed25519KeyHash, ScriptHash)
 import Serialization.Types (Bip32PublicKey)
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String, Base58String)
+import Types.BigNum (BigNum)
 import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
 import Types.PlutusData (PlutusData(Bytes))
 
-newtype Slot = Slot BigInt
+newtype Slot = Slot BigNum
 
 derive instance Newtype Slot _
 derive instance Generic Slot _
@@ -125,12 +126,6 @@ derive newtype instance ToData Slot
 
 instance Show Slot where
   show = genericShow
-
-instance Semigroup Slot where
-  append (Slot s1) (Slot s2) = Slot $ s1 + s2
-
-instance Monoid Slot where
-  mempty = Slot zero
 
 -- it is an integer in ogmios
 -- bytestring in plutus
@@ -147,7 +142,7 @@ instance EncodeAeson BlockId where
 instance Show BlockId where
   show = genericShow
 
-newtype TransactionIndex = TransactionIndex UInt
+newtype TransactionIndex = TransactionIndex BigNum
 
 derive instance Eq TransactionIndex
 derive instance Ord TransactionIndex
@@ -161,7 +156,7 @@ derive newtype instance FromData TransactionIndex
 instance Show TransactionIndex where
   show = genericShow
 
-newtype CertificateIndex = CertificateIndex UInt
+newtype CertificateIndex = CertificateIndex BigNum
 
 derive instance Eq CertificateIndex
 derive instance Ord CertificateIndex

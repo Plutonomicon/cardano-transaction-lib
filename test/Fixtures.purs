@@ -154,7 +154,6 @@ import Serialization.Address
   , keyHashCredential
   , rewardAddress
   )
-import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.Hash
   ( Ed25519KeyHash
   , ScriptHash
@@ -162,8 +161,9 @@ import Serialization.Hash
   , ed25519KeyHashFromBytes
   , scriptHashFromBytes
   )
-import Serialization.Types (BigNum)
 import Types.Aliases (Bech32String)
+import Types.BigNum (BigNum)
+import Types.BigNum (fromBigInt, fromStringUnsafe, one) as BigNum
 import Types.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
@@ -431,7 +431,7 @@ ed25519KeyHash1 :: Ed25519KeyHash
 ed25519KeyHash1 = unsafePartial $ fromJust $ ed25519KeyHashFromBech32 pkhBech32
 
 bigNumOne :: BigNum
-bigNumOne = unsafePartial $ fromJust $ bigNumFromBigInt $ BigInt.fromInt 1
+bigNumOne = unsafePartial $ fromJust $ BigNum.fromBigInt $ BigInt.fromInt 1
 
 rewardAddress1 :: RewardAddress
 rewardAddress1 = rewardAddress { network: TestnetId, paymentCred: stake1 }
@@ -506,7 +506,7 @@ txFixture4 =
                 }
             ]
         , fee: Coin $ BigInt.fromInt 177513
-        , ttl: Just $ Slot $ BigInt.fromInt 123
+        , ttl: Just $ Slot $ BigNum.fromStringUnsafe "123"
         , certs: Just
             [ StakeRegistration stake1
             , StakeDeregistration stake1
@@ -578,7 +578,7 @@ txFixture4 =
         , auxiliaryDataHash: Just $ AuxiliaryDataHash
             $ byteArrayFromIntArrayUnsafe
             $ Array.replicate 32 0
-        , validityStartInterval: Just $ Slot $ BigInt.fromInt 124
+        , validityStartInterval: Just $ Slot $ BigNum.fromStringUnsafe "124"
         , mint: Just $ Mint $ mkNonAdaAsset $ Map.fromFoldable
             [ currencySymbol1 /\ Map.fromFoldable [ tokenName1 /\ one ] ]
         , scriptDataHash: Nothing
@@ -1034,10 +1034,10 @@ nativeScriptFixture5 = ScriptNOfK 1
   [ nativeScriptFixture1, nativeScriptFixture2 ]
 
 nativeScriptFixture6 :: NativeScript
-nativeScriptFixture6 = TimelockStart $ Slot $ BigInt.fromInt 1000
+nativeScriptFixture6 = TimelockStart $ Slot $ BigNum.fromStringUnsafe "1000"
 
 nativeScriptFixture7 :: NativeScript
-nativeScriptFixture7 = TimelockExpiry $ Slot $ BigInt.fromInt 2000
+nativeScriptFixture7 = TimelockExpiry $ Slot $ BigNum.fromStringUnsafe "2000"
 
 keyHashBaseAddress :: { payment :: String, stake :: String } -> Address
 keyHashBaseAddress { payment, stake } = baseAddressToAddress $ baseAddress

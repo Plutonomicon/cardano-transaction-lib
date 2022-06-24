@@ -8,7 +8,6 @@ import Cardano.Types.Transaction as T
 import Control.Alt ((<|>))
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
-import Deserialization.BigNum (bigNumToBigInt)
 import FfiHelpers
   ( ContainerHelper
   , MaybeFfiHelper
@@ -18,8 +17,7 @@ import FfiHelpers
 import Serialization.Hash (Ed25519KeyHash)
 import Serialization.Address (Slot(Slot))
 import Serialization.Types
-  ( BigNum
-  , NativeScript
+  ( NativeScript
   , ScriptAll
   , ScriptAny
   , ScriptNOfK
@@ -27,6 +25,7 @@ import Serialization.Types
   , TimelockExpiry
   , TimelockStart
   )
+import Types.BigNum (BigNum)
 
 convertNativeScript :: NativeScript -> Maybe T.NativeScript
 convertNativeScript ns =
@@ -63,13 +62,13 @@ convertScriptNOfK ns = do
 
 convertTimelockStart :: NativeScript -> Maybe T.NativeScript
 convertTimelockStart =
-  map (T.TimelockStart <<< Slot) <<< (bigNumToBigInt <<< timelockStart_slot)
-    <=< getTimelockStart maybeFfiHelper
+  map (T.TimelockStart <<< Slot <<< timelockStart_slot)
+    <<< getTimelockStart maybeFfiHelper
 
 convertTimelockExpiry :: NativeScript -> Maybe T.NativeScript
 convertTimelockExpiry = do
-  map (T.TimelockExpiry <<< Slot) <<< (bigNumToBigInt <<< timelockExpiry_slot)
-    <=< getTimelockExpiry maybeFfiHelper
+  map (T.TimelockExpiry <<< Slot <<< timelockExpiry_slot)
+    <<< getTimelockExpiry maybeFfiHelper
 
 foreign import getScriptPubkey
   :: MaybeFfiHelper -> NativeScript -> Maybe ScriptPubkey
