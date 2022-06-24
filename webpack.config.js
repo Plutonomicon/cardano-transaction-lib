@@ -46,6 +46,10 @@ module.exports = {
           },
         ],
       },
+      {
+        test: /\.plutus$/i,
+        type: 'asset/source',
+      },
     ],
   },
 
@@ -65,6 +69,11 @@ module.exports = {
       os: false,
       path: false,
       fs: false,
+    },
+    alias: {
+      // You should update this path to the location of your compile scripts,
+      // relative to `webpack.config.js`
+      Scripts: path.resolve(__dirname, 'examples/scripts'),
     },
   },
 

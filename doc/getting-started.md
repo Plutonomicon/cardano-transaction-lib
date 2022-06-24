@@ -172,6 +172,26 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
 
 One major caveat to using CTL in its current state is that we have no equivalent of Plutus' `awaitTxConfirmed`. We cannot guarantee that a transaction that has been accepted into a mempool has actually been added to a block. When `Contract.Transaction.submit` returns, this is **not** a guarantee that your transaction has been accepted into a block. If transaction confirmation is critical for you, you may wish to adopt a different strategy: sleeping for a pre-determined amount of time, looping until an address contains UTxOs from the recently submitted transaction, etc.... We plan to add functionality similar to `awaitTxConfirmed` in upcoming versions of CTL.
 
+### Using compiled scripts
+
+To use your own scripts, compile them to any subdirectory in the root of CTL project (where `webpack.config.js` is located) and add a relative path to `webpack.config.js` under the `resolve.alias` section.
+Thus you will be able to inline your script cbor in `.js` files and then load them in purescript via FFI
+  ```javascript
+  // inline .plutus file as a string
+  var rawScript = require("Scripts/myscript.plutus");
+  // since .plutus files are basically jsons, we can get access to its fields via
+  var data = JSON.parse(rawData);
+  // make loadable via FFI with "foreign import myscriptCbor :: String"
+  exports.myscriptCbor = data["cborHex"];
+  ```
+This way you avoid hardcoding your scripts directly to .purs files which could lead to synchronization issues should your scripts change.
+
+NOTE: if you use envelop format to serialize your script, it will get cbor-encoded twice. There is a hack to get around this by dropping the first 6 characters of the cbor:
+```javascript
+  // if you are sure that cbor object is a bytestring you can drop first 6 characters to "decode" it
+  exports.myscriptCbor = data["cborHex"].substring(6);
+  ```
+
 ## Testing
 
 ### Without light wallet

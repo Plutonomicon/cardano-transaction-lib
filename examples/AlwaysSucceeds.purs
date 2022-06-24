@@ -113,6 +113,7 @@ buildBalanceSignAndSubmitTx lookups constraints = do
   logInfo' $ "Tx ID: " <> show txId
   pure txId
 
+foreign import alwaysSucceedsCbor :: String
+
 alwaysSucceedsScript :: Maybe Validator
-alwaysSucceedsScript = map wrap $ hush $ decodeAeson $ fromString
-  "4d01000033222220051200120011"
+alwaysSucceedsScript = map wrap $ hush $ decodeAeson $ fromString alwaysSucceedsCbor

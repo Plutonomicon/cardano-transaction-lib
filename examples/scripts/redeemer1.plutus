@@ -1,0 +1,5 @@
+{
+    "cborHex": "5601000022325333573466e1d2002001149858dd680101",
+    "description": "redeemer-1",
+    "type": "PlutusScriptV1"
+}

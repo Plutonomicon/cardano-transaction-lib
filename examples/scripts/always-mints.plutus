@@ -1,0 +1,5 @@
+{
+    "cborHex": "46010000224981",
+    "description": "always-mints",
+    "type": "PlutusScriptV1"
+}
