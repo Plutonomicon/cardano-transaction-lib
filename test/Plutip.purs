@@ -43,7 +43,7 @@ main = launchAff_ do
 
 config :: PlutipConfig
 config =
-  { host: "localhost"
+  { host: "127.0.0.1"
   , port: UInt.fromInt 8082
   , logLevel: Trace
   , distribution:
@@ -55,21 +55,21 @@ config =
   -- Server configs are used to deploy the corresponding services:
   , ogmiosConfig:
       { port: UInt.fromInt 1337
-      , host: "localhost"
+      , host: "127.0.0.1"
       , secure: false
       }
   , ogmiosDatumCacheConfig:
       { port: UInt.fromInt 9999
-      , host: "localhost"
+      , host: "127.0.0.1"
       , secure: false
       }
   , ctlServerConfig:
       { port: UInt.fromInt 8081
-      , host: "localhost"
+      , host: "127.0.0.1"
       , secure: false
       }
   , postgresConfig:
-      { host: "localhost"
+      { host: "127.0.0.1"
       , port: UInt.fromInt 5432
       , user: "ctxlib"
       , password: "ctxlib"
