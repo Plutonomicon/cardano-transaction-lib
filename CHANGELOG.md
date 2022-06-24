@@ -16,23 +16,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ## [Unreleased]
 
-- `mkKeyWalletFromFile` helper to use `cardano-cli`-style `skey`s.
-- Removed `Contract.Wallet.mkGeroWallet` and `Contract.Wallet.mkNamiWallet` - `Aff` versions should be used instead.
-- Added `getProtocolParameters` call to retrieve current protocol parameters from Ogmios (#541)
-- Updated `ogmios-datum-cache` to the recent revision
-
 ### Added
 
+- `mkKeyWalletFromFile` helper to use `cardano-cli`-style `skey`s.
 - Single `Plutus.Conversion` module exposing all `(Type <-> Plutus Type)` conversion functions.
 - Support for using a `PrivateKey` as a `Wallet`.
+- `getProtocolParameters` call to retrieve current protocol parameters from Ogmios (#541)
 
 ### Removed
 
 - `FromPlutusType` / `ToPlutusType` type classes.
+- `Contract.Wallet.mkGeroWallet` and `Contract.Wallet.mkNamiWallet` - `Aff` versions should be used instead.
 
 ### Changed
 
-- Upgraded `ogmios-datum-cache` to `54ad2964af07ea0370bf95c0fed71f60a778ead5` for more stable datum from datum hash (see [here](https://github.com/Plutonomicon/cardano-transaction-lib/issues/526) for more details).
+- Updated `ogmios-datum-cache` - bug fixes (#542, #526).
 
 ### Fixed
 
