@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Removed `Contract.Wallet.mkGeroWallet` and `Contract.Wallet.mkNamiWallet` - `Aff` versions should be used instead.
 - Added `getProtocolParameters` call to retrieve current protocol parameters from Ogmios (#541)
 - Improved error response handling for Ogmios
+- Improved WebSocket UX: first connection error now leads to termination. Fixed automatic reconnection of WebSockets (#591)
 
 ### Added
 
