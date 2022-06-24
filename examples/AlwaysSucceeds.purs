@@ -116,4 +116,5 @@ buildBalanceSignAndSubmitTx lookups constraints = do
 foreign import alwaysSucceedsCbor :: String
 
 alwaysSucceedsScript :: Maybe Validator
-alwaysSucceedsScript = map wrap $ hush $ decodeAeson $ fromString alwaysSucceedsCbor
+alwaysSucceedsScript = map wrap $ hush $ decodeAeson $ fromString
+  alwaysSucceedsCbor

@@ -87,10 +87,13 @@ foreign import mintingPolicyRdmrInt2Cbor :: String
 foreign import mintingPolicyRdmrInt3Cbor :: String
 
 mintingPolicyRdmrInt1 :: Maybe MintingPolicy
-mintingPolicyRdmrInt1 = map wrap $ hush $ decodeAeson $ fromString mintingPolicyRdmrInt1Cbor
+mintingPolicyRdmrInt1 = map wrap $ hush $ decodeAeson $ fromString
+  mintingPolicyRdmrInt1Cbor
 
 mintingPolicyRdmrInt2 :: Maybe MintingPolicy
-mintingPolicyRdmrInt2 = map wrap $ hush $ decodeAeson $ fromString mintingPolicyRdmrInt2Cbor
+mintingPolicyRdmrInt2 = map wrap $ hush $ decodeAeson $ fromString
+  mintingPolicyRdmrInt2Cbor
 
 mintingPolicyRdmrInt3 :: Maybe MintingPolicy
-mintingPolicyRdmrInt3 = map wrap $ hush $ decodeAeson $ fromString mintingPolicyRdmrInt3Cbor
+mintingPolicyRdmrInt3 = map wrap $ hush $ decodeAeson $ fromString
+  mintingPolicyRdmrInt3Cbor
