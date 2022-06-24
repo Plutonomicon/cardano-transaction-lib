@@ -10,9 +10,10 @@ module Transaction
 import Prelude
 
 import Cardano.Types.Transaction
-  ( Redeemer
-  , Transaction(Transaction)
+  ( Costmdls
+  , Redeemer
   , ScriptDataHash(ScriptDataHash)
+  , Transaction(Transaction)
   , TransactionWitnessSet
   , TxBody(TxBody)
   )
@@ -29,7 +30,6 @@ import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
 import Effect.Class (liftEffect)
 import Helpers (liftEither)
-import ProtocolParametersAlonzo (costModels)
 import Serialization (hashScriptData, toBytes)
 import Serialization.PlutusData as Serialization.PlutusData
 import Serialization.Types as Serialization
@@ -63,8 +63,12 @@ finalizeTransaction rs ds tx = runExceptT $
 -- | Set the `Transaction` body's script data hash. NOTE: Must include *all* of
 -- | the datums and redeemers for the given transaction
 setScriptDataHash
-  :: Array Redeemer -> Array Datum -> Transaction -> Effect Transaction
-setScriptDataHash rs ds tx@(Transaction { body, witnessSet })
+  :: Costmdls
+  -> Array Redeemer
+  -> Array Datum
+  -> Transaction
+  -> Effect Transaction
+setScriptDataHash costModels rs ds tx@(Transaction { body, witnessSet })
   -- No hash should be set if *all* of the following hold:
   --
   --   * there are no scripts

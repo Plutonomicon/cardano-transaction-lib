@@ -89,6 +89,8 @@ import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
+import Deserialization.FromBytes (fromBytes) as Deserialization
+import Deserialization.Transaction (convertTransaction) as Deserialization
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Aff.Class (liftAff)
@@ -519,6 +521,7 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
   utxoDispatchMap <- createMutableDispatch
   chainTipDispatchMap <- createMutableDispatch
   evaluateTxDispatchMap <- createMutableDispatch
+  getProtocolParametersDispatchMap <- createMutableDispatch
   submitDispatchMap <- createMutableDispatch
   eraSummariesDispatchMap <- createMutableDispatch
   currentEpochDispatchMap <- createMutableDispatch
@@ -526,6 +529,7 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
   utxoPendingRequests <- createPendingRequests
   chainTipPendingRequests <- createPendingRequests
   evaluateTxPendingRequests <- createPendingRequests
+  getProtocolParametersPendingRequests <- createPendingRequests
   submitPendingRequests <- createPendingRequests
   eraSummariesPendingRequests <- createPendingRequests
   currentEpochPendingRequests <- createPendingRequests
@@ -535,6 +539,7 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       { utxoDispatchMap
       , chainTipDispatchMap
       , evaluateTxDispatchMap
+      , getProtocolParametersDispatchMap
       , submitDispatchMap
       , eraSummariesDispatchMap
       , currentEpochDispatchMap
@@ -548,6 +553,7 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       Ref.read utxoPendingRequests >>= traverse_ sendRequest
       Ref.read chainTipPendingRequests >>= traverse_ sendRequest
       Ref.read evaluateTxPendingRequests >>= traverse_ sendRequest
+      Ref.read getProtocolParametersPendingRequests >>= traverse_ sendRequest
       Ref.read submitPendingRequests >>= traverse_ sendRequest
       Ref.read eraSummariesPendingRequests >>= traverse_ sendRequest
       Ref.read currentEpochPendingRequests >>= traverse_ sendRequest
@@ -560,6 +566,8 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
       { utxo: mkListenerSet utxoDispatchMap utxoPendingRequests
       , chainTip: mkListenerSet chainTipDispatchMap chainTipPendingRequests
       , evaluate: mkListenerSet evaluateTxDispatchMap evaluateTxPendingRequests
+      , getProtocolParameters: mkListenerSet getProtocolParametersDispatchMap
+          getProtocolParametersPendingRequests
       , submit: mkListenerSet submitDispatchMap submitPendingRequests
       , eraSummaries:
           mkListenerSet eraSummariesDispatchMap eraSummariesPendingRequests
@@ -567,7 +575,6 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
           mkListenerSet currentEpochDispatchMap currentEpochPendingRequests
       , systemStart:
           mkListenerSet systemStartDispatchMap systemStartPendingRequests
-
       }
   pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
@@ -634,6 +641,7 @@ type OgmiosListeners =
   , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
   , submit :: ListenerSet { txCbor :: ByteArray } Ogmios.SubmitTxR
   , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationR
+  , getProtocolParameters :: ListenerSet Unit Ogmios.ProtocolParameters
   , eraSummaries :: ListenerSet Unit Ogmios.EraSummaries
   , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
   , systemStart :: ListenerSet Unit Ogmios.SystemStart
@@ -734,11 +742,18 @@ mkRequest getListeners getWebSocket jsonWspCall getLs inp = do
 -- Dispatch Setup
 --------------------------------------------------------------------------------
 
-data DispatchError = JsError Error | JsonError JsonDecodeError
+data DispatchError
+  = JsError Error
+  | JsonError JsonDecodeError
+  -- Server response has been parsed succesfully, but it contains error
+  -- message
+  | FaultError Aeson
 
 dispatchErrorToError :: DispatchError -> Error
 dispatchErrorToError (JsError err) = err
 dispatchErrorToError (JsonError err) = error $ show err
+dispatchErrorToError (FaultError err) =
+  error $ "Server responded with `fault`: " <> stringifyAeson err
 
 -- A function which accepts some unparsed Json, and checks it against one or
 -- more possible types to perform an appropriate effect (such as supplying the
@@ -755,6 +770,8 @@ ogmiosMessageDispatch
   :: { utxoDispatchMap :: DispatchIdMap Ogmios.UtxoQR
      , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipQR
      , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationR
+     , getProtocolParametersDispatchMap ::
+         DispatchIdMap Ogmios.ProtocolParameters
      , submitDispatchMap :: DispatchIdMap Ogmios.SubmitTxR
      , eraSummariesDispatchMap :: DispatchIdMap Ogmios.EraSummaries
      , currentEpochDispatchMap :: DispatchIdMap Ogmios.CurrentEpoch
@@ -765,6 +782,7 @@ ogmiosMessageDispatch
   { utxoDispatchMap
   , chainTipDispatchMap
   , evaluateTxDispatchMap
+  , getProtocolParametersDispatchMap
   , submitDispatchMap
   , eraSummariesDispatchMap
   , currentEpochDispatchMap
@@ -773,6 +791,7 @@ ogmiosMessageDispatch
   [ queryDispatch utxoDispatchMap
   , queryDispatch chainTipDispatchMap
   , queryDispatch evaluateTxDispatchMap
+  , queryDispatch getProtocolParametersDispatchMap
   , queryDispatch submitDispatchMap
   , queryDispatch eraSummariesDispatchMap
   , queryDispatch currentEpochDispatchMap
@@ -813,32 +832,60 @@ queryDispatch
   -> String
   -> Effect (Either DispatchError (Effect Unit))
 queryDispatch ref str = do
+  let eiAeson = parseJsonStringToAeson str
   -- Parse response
-  case JsonWsp.parseJsonWspResponse =<< parseJsonStringToAeson str of
+  case JsonWsp.parseJsonWspResponse =<< eiAeson of
     Left parseError -> do
       -- Try to at least parse ID  to dispatch the error to
-      case parseJsonWspResponseId =<< parseJsonStringToAeson str of
+      case parseJsonWspResponseId =<< eiAeson of
         -- We still return original error because ID parse error is useless
-        Left _idParseError -> pure $ Left $ JsonError parseError
-        Right (id :: ListenerId) -> do
-          idMap <- Ref.read ref
-          let
-            (mAction :: Maybe (Either DispatchError response -> Effect Unit)) =
-              MultiMap.lookup id idMap
-          case mAction of
+        Left _reflectionParseError -> pure $ Left $ JsonError parseError
+        Right reflection -> do
+          withAction reflection case _ of
             Nothing -> pure $ Left $ JsError $ error $
-              "Parse failed and Request Id: " <> id <> " has been cancelled"
+              "Parse failed and Request Id: " <> reflection <>
+                " has been cancelled"
             Just action -> pure $ Right $ action $ Left $ JsonError parseError
-    Right parsed -> do
-      let (id :: ListenerId) = parsed.reflection
-      idMap <- Ref.read ref
-      let
-        (mAction :: Maybe (Either DispatchError response -> Effect Unit)) =
-          MultiMap.lookup id idMap
-      case mAction of
+    Right { result: Just result, reflection } -> do
+      withAction reflection case _ of
+        -- This indicates an implementation error, thus we are not passing it
+        -- to `action`
         Nothing -> pure $ Left $ JsError $ error $
-          "Parse succeeded but Request Id: " <> id <> " has been cancelled"
-        Just action -> pure $ Right $ action $ Right parsed.result
+          "Parse succeeded but Request Id: " <> reflection <>
+            " has been cancelled"
+        Just action -> pure $ Right $ action $ Right result
+    -- If result is empty, then fault must be present
+    Right { result: Nothing, fault: Just fault, reflection } -> do
+      withAction reflection case _ of
+        Nothing -> pure $ Left $ FaultError fault
+        Just action -> do
+          pure $ Right $ action $ Left $ FaultError fault
+    -- Otherwise, our implementation is broken.
+    Right { result: Nothing, fault: Nothing, reflection } -> do
+      let
+        errMsg =
+          "Impossible happened: response does not contain neither `fault` "
+            <> "nor `result`, please report as bug. Response: "
+            <> str
+      withAction reflection case _ of
+        Nothing -> do
+          pure $ Left $ JsError $ error errMsg
+        Just action -> do
+          pure $ Right $ action $ Left $ JsError $ error errMsg
+  where
+  withAction
+    :: ListenerId
+    -> ( Maybe (Either DispatchError response -> Effect Unit)
+         -> Effect (Either DispatchError (Effect Unit))
+       )
+    -> Effect (Either DispatchError (Effect Unit))
+  withAction reflection cb = do
+    idMap <- Ref.read ref
+    let
+      mbAction =
+        MultiMap.lookup reflection idMap
+          :: Maybe (Either DispatchError response -> Effect Unit)
+    cb mbAction
 
 -- an empty error we can compare to, useful for ensuring we've not received any other kind of error
 defaultErr :: JsonDecodeError
@@ -865,7 +912,6 @@ defaultMessageListener lvl dispatchArray msg = do
           do
             logString lvl Error $
               "unexpected parse error on input: " <> msg
-
     )
     identity
     eAction

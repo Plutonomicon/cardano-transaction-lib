@@ -39,13 +39,15 @@ import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
 import Cardano.Types.Value
-  ( filterNonAda
+  ( Coin
+  , Value
+  , filterNonAda
   , geq
   , getLovelace
-  , lovelaceValueOf
   , isAdaOnly
   , isPos
   , isZero
+  , lovelaceValueOf
   , minus
   , mkCoin
   , mkValue
@@ -54,13 +56,15 @@ import Cardano.Types.Value
   , sumTokenNameLengths
   , valueToCoin
   , valueToCoin'
-  , Value
   )
-import Control.Monad.Except.Trans
-  ( ExceptT(ExceptT)
-  , except
-  , runExceptT
+import Constants.Alonzo
+  ( adaOnlyWords
+  , coinSize
+  , pidSize
+  , protocolParamUTxOCostPerWord
+  , utxoEntrySizeWithoutVal
   )
+import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
@@ -85,15 +89,7 @@ import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
-import Effect.Class (class MonadEffect, liftEffect)
-import ProtocolParametersAlonzo
-  ( adaOnlyWords
-  , coinSize
-  , lovelacePerUTxOWord
-  , pidSize
-  , protocolParamUTxOCostPerWord
-  , utxoEntrySizeWithoutVal
-  )
+import Effect.Class (class MonadEffect)
 import QueryM
   ( ClientError
   , QueryM
@@ -103,6 +99,7 @@ import QueryM
   , getWalletCollateral
   , evalTxExecutionUnits
   )
+import QueryM.ProtocolParameters (getProtocolParameters)
 import QueryM.Utxos (utxosAt)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
@@ -478,13 +475,14 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     -> UnattachedUnbalancedTx
     -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
   loop utxoIndex' ownAddr' prevMinUtxos' unattachedTx' = do
+    uTxOCostPerWord <- getProtocolParameters <#> unwrap >>> _.uTxOCostPerWord
     let
       Transaction { body: txBody'@(TxBody txB) } =
         unattachedTx' ^. _transaction'
 
       nextMinUtxos' :: MinUtxos
       nextMinUtxos' =
-        calculateMinUtxos $ txB.outputs \\ map fst prevMinUtxos'
+        calculateMinUtxos uTxOCostPerWord $ txB.outputs \\ map fst prevMinUtxos'
 
       minUtxos' :: MinUtxos
       minUtxos' = prevMinUtxos' <> nextMinUtxos'
@@ -700,16 +698,18 @@ returnAdaChange changeAddr utxos (unattachedTx /\ fees) =
           Right $
             unattachedTxWithChangeTxOut /\ { recalculateFees: true }
 
-calculateMinUtxos :: Array TransactionOutput -> MinUtxos
-calculateMinUtxos = map (\a -> a /\ calculateMinUtxo a)
+calculateMinUtxos :: Coin -> Array TransactionOutput -> MinUtxos
+calculateMinUtxos uTxOCostPerWord = map
+  (\a -> a /\ calculateMinUtxo uTxOCostPerWord a)
 
 -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
 -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
 -- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0028#rationale-for-parameter-choices
 -- | Given an array of transaction outputs, return the paired amount of lovelaces
 -- | required by each utxo.
-calculateMinUtxo :: TransactionOutput -> BigInt
-calculateMinUtxo txOut = unwrap lovelacePerUTxOWord * utxoEntrySize txOut
+calculateMinUtxo :: Coin -> TransactionOutput -> BigInt
+calculateMinUtxo uTxOCostPerWord txOut = unwrap uTxOCostPerWord * utxoEntrySize
+  txOut
   where
   -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
   -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst

@@ -11,8 +11,8 @@ module Wallet
 
 import Prelude
 
-import Wallet.Key (KeyWallet', mkKeyWallet')
-import Wallet.Key (KeyWallet') as KeyWallet
+import Wallet.Key (KeyWallet, privateKeyToKeyWallet)
+import Wallet.Key (KeyWallet, privateKeyToKeyWallet) as KeyWallet
 import Wallet.Cip30 (Cip30Wallet, Cip30Connection, mkCip30WalletAff)
 import Wallet.Cip30 (Cip30Wallet, Cip30Connection) as Cip30Wallet
 import Cardano.Types.Transaction
@@ -35,10 +35,10 @@ import Serialization.Types (PrivateKey)
 data Wallet
   = Nami Cip30Wallet
   | Gero Cip30Wallet
-  | KeyWallet KeyWallet'
+  | KeyWallet KeyWallet
 
 mkKeyWallet :: PrivateKey -> Wallet
-mkKeyWallet = KeyWallet <<< mkKeyWallet'
+mkKeyWallet = KeyWallet <<< privateKeyToKeyWallet
 
 mkNamiWalletAff :: Aff Wallet
 mkNamiWalletAff = Nami <$> mkCip30WalletAff "Nami" _enableNami

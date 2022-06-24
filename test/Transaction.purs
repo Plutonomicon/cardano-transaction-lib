@@ -25,9 +25,10 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Helpers (fromRightEff)
 import Mote (group, test)
+import Serialization.WitnessSet as Serialization.WitnessSet
+import Test.Fixtures.CostModels (costModelsFixture1)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
-import Serialization.WitnessSet as Serialization.WitnessSet
 import Transaction
   ( attachDatum
   , attachRedeemer
@@ -35,10 +36,10 @@ import Transaction
   , setScriptDataHash
   )
 import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
-import Types.PlutusData (PlutusData(Integer))
 import Types.Datum (Datum(Datum))
-import Types.Scripts (PlutusScript(PlutusScript))
+import Types.PlutusData (PlutusData(Integer))
 import Types.RedeemerTag (RedeemerTag(Spend))
+import Types.Scripts (PlutusScript(PlutusScript))
 
 suite :: TestPlanM Unit
 suite = group "attach datums to tx" $ do
@@ -103,7 +104,7 @@ testSetScriptDataHash :: Aff Unit
 testSetScriptDataHash = liftEffect $ do
   redeemer <- mkRedeemer datum2
   Transaction { body: TxBody body } <-
-    setScriptDataHash [ redeemer ] [ datum1 ] tx
+    setScriptDataHash costModelsFixture1 [ redeemer ] [ datum1 ] tx
   case body.scriptDataHash of
     Nothing -> throw "Script data hash wasn't set"
     Just (ScriptDataHash sdh) ->

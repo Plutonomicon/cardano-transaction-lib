@@ -19,13 +19,18 @@ module Examples.Datums (main) where
 
 import Contract.Prelude
 
-import Contract.Monad (runContract_, launchAff_, logInfo', traceContractConfig)
+import Contract.Monad
+  ( runContract_
+  , launchAff_
+  , logInfo'
+  , traceTestnetContractConfig
+  )
 import Contract.PlutusData (DataHash, getDatumByHash, getDatumsByHashes)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 
 main :: Effect Unit
 main = launchAff_ $ do
-  cfg <- traceContractConfig
+  cfg <- traceTestnetContractConfig
   runContract_ cfg $ do
     logInfo' "Running Examples.Datums"
     logInfo' <<< show =<< getDatumByHash

@@ -8,14 +8,14 @@ import Contract.Prelude
 import Contract.Aeson (decodeAeson, fromString)
 import Contract.Monad
   ( Contract
-  , ContractConfig(ContractConfig)
   , launchAff_
+  , liftContractAffM
   , liftContractM
   , liftedE
   , liftedM
   , logInfo'
   , runContract_
-  , traceContractConfig
+  , traceTestnetContractConfig
   )
 import Contract.PlutusData (PlutusData(Integer), Redeemer(Redeemer))
 import Contract.Prim.ByteArray (byteArrayFromAscii)
@@ -25,13 +25,11 @@ import Contract.Transaction (balanceAndSignTx, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
-import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt (fromInt) as BigInt
 
 main :: Effect Unit
 main = launchAff_ $ do
-  wallet <- Just <$> mkNamiWalletAff
-  cfg <- over ContractConfig _ { wallet = wallet } <$> traceContractConfig
+  cfg <- traceTestnetContractConfig
   runContract_ cfg $ do
     logInfo' "Running Examples.MintsMultipleTokens"
     tn1 <- mkTokenName "Token with a long name"
@@ -77,7 +75,7 @@ mkCurrencySymbol
   -> Contract r (MintingPolicy /\ CurrencySymbol)
 mkCurrencySymbol mintingPolicy = do
   mp <- liftContractM "Invalid script JSON" mintingPolicy
-  cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+  cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
   pure (mp /\ cs)
 
 mintingPolicyRdmrInt1 :: Maybe MintingPolicy
