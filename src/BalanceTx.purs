@@ -395,6 +395,7 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   networkId <- (unbalancedTx ^. _body <<< _networkId) #
     maybe (asks _.networkId) pure
   let unbalancedTx' = unbalancedTx # _body <<< _networkId ?~ networkId
+  utxoMinVal <- getAdaOnlyUtxoMinValue
   runExceptT do
     -- Get own wallet address, collateral and utxo set:
     ownAddr <- ExceptT $ getWalletAddress <#>
@@ -428,12 +429,12 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     logTx "Unbalanced Collaterised Tx " allUtxos unbalancedCollTx
     -- Prebalance collaterised tx without fees:
     ubcTx <- except $
-      prebalanceCollateral zero allUtxos ownAddr unbalancedCollTx
+      prebalanceCollateral zero allUtxos ownAddr utxoMinVal unbalancedCollTx
     -- Prebalance collaterised tx with fees:
     let unattachedTx' = unattachedTx # _transaction' .~ ubcTx
     _ /\ fees <- ExceptT $ evalExUnitsAndMinFee unattachedTx'
     ubcTx' <- except $
-      prebalanceCollateral (fees + feeBuffer) allUtxos ownAddr ubcTx
+      prebalanceCollateral (fees + feeBuffer) allUtxos ownAddr utxoMinVal ubcTx
     -- Loop to balance non-Ada assets
     nonAdaBalancedCollTx <- ExceptT $ loop allUtxos ownAddr [] $ unattachedTx' #
       _transaction' .~ ubcTx'
@@ -454,10 +455,11 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     :: BigInt
     -> Utxo
     -> Address
+    -> BigInt
     -> Transaction
     -> Either BalanceTxError Transaction
-  prebalanceCollateral fees utxos ownAddr tx =
-    balanceTxIns utxos fees (tx ^. _body)
+  prebalanceCollateral fees utxos ownAddr adaOnlyUtxoMinValue tx =
+    balanceTxIns utxos fees adaOnlyUtxoMinValue (tx ^. _body)
       >>= balanceNonAdaOuts ownAddr utxos
       <#> flip (set _body) tx
 
@@ -502,18 +504,18 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     -> UnattachedUnbalancedTx
     -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
   chainedBalancer minUtxos' utxoIndex' ownAddr' unattachedTx' =
-    runExceptT do
+    getAdaOnlyUtxoMinValue >>= \utxoMinVal -> runExceptT do
       let Transaction tx@{ body: txBody' } = unattachedTx' ^. _transaction'
       txBodyWithoutFees' <- except $
-        preBalanceTxBody minUtxos' zero utxoIndex' ownAddr' txBody'
+        preBalanceTxBody minUtxos' zero utxoIndex' ownAddr' utxoMinVal txBody'
       let
         tx' = wrap tx { body = txBodyWithoutFees' }
         unattachedTx'' = unattachedTx' # _unbalancedTx <<< _transaction .~ tx'
       unattachedTx''' /\ fees' <- ExceptT $
         evalExUnitsAndMinFee unattachedTx''
-
+      let feesWithBuffer = fees' + feeBuffer
       except <<< map (\body -> unattachedTx''' # _body' .~ body) $
-        preBalanceTxBody minUtxos' (fees' + feeBuffer) utxoIndex' ownAddr'
+        preBalanceTxBody minUtxos' feesWithBuffer utxoIndex' ownAddr' utxoMinVal
           txBody'
 
   -- We expect the user has a minimum amount of Ada (this buffer) on top of
@@ -582,15 +584,16 @@ returnAdaChangeAndFinalizeFees changeAddr utxos unattachedTx =
         unattachedTx' /\ fees' <-
           ExceptT $ evalExUnitsAndMinFee' unattachedTxWithChangeTxOut
             <#> lmap ReturnAdaChangeCalculateMinFee
-        except $
+        ExceptT $ getAdaOnlyUtxoMinValue <#>
           adjustAdaChangeAndSetFees unattachedTx' fees' (fees' - fees)
   where
   adjustAdaChangeAndSetFees
     :: UnattachedUnbalancedTx
     -> BigInt
     -> BigInt
+    -> BigInt
     -> Either ReturnAdaChangeError UnattachedUnbalancedTx
-  adjustAdaChangeAndSetFees unattachedTx' fees feesDelta
+  adjustAdaChangeAndSetFees unattachedTx' fees feesDelta changeUtxoMinValue
     | feesDelta <= zero = Right $
         unattachedTxSetFees unattachedTx' fees
     | otherwise =
@@ -602,14 +605,8 @@ returnAdaChangeAndFinalizeFees changeAddr utxos unattachedTx =
           returnAda = fromMaybe zero $
             Array.head txOutputs <#> \(TransactionOutput rec) ->
               (valueToCoin' rec.amount) - feesDelta
-
-          utxoCost :: BigInt
-          utxoCost = getLovelace protocolParamUTxOCostPerWord
-
-          changeMinUtxo :: BigInt
-          changeMinUtxo = adaOnlyWords * utxoCost
         in
-          case returnAda >= changeMinUtxo of
+          case returnAda >= changeUtxoMinValue of
             true -> do
               newOutputs <- updateChangeTxOutputValue returnAda txOutputs
               pure $
@@ -746,15 +743,17 @@ preBalanceTxBody
   -> BigInt
   -> Utxo
   -> Address
+  -> BigInt
   -> TxBody
   -> Either BalanceTxError TxBody
-preBalanceTxBody minUtxos fees utxos ownAddr txBody =
+preBalanceTxBody minUtxos fees utxos ownAddr adaOnlyUtxoMinValue txBody =
   -- -- Take a single Ada only utxo collateral
   -- addTxCollaterals utxos txBody
   --   >>= balanceTxIns utxos fees -- Add input fees for the Ada only collateral
   --   >>= balanceNonAdaOuts ownAddr utxos
   addLovelaces minUtxos txBody # pure
-    >>= balanceTxIns utxos fees -- Adding more inputs if required
+    -- Adding more inputs if required
+    >>= balanceTxIns utxos fees adaOnlyUtxoMinValue
     >>= balanceNonAdaOuts ownAddr utxos
 
 -- addTxCollaterals :: Utxo -> TxBody -> Either BalanceTxError TxBody
@@ -802,21 +801,16 @@ getPublicKeyTransactionInput (txOutRef /\ txOut) =
 -- Balance transaction inputs
 --------------------------------------------------------------------------------
 
-balanceTxIns :: Utxo -> BigInt -> TxBody -> Either BalanceTxError TxBody
-balanceTxIns utxos fees txbody =
-  balanceTxIns' utxos fees txbody # lmap BalanceTxInsError'
+balanceTxIns
+  :: Utxo -> BigInt -> BigInt -> TxBody -> Either BalanceTxError TxBody
+balanceTxIns utxos fees changeUtxoMinValue txbody =
+  balanceTxIns' utxos fees changeUtxoMinValue txbody
+    # lmap BalanceTxInsError'
 
--- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
--- Notice we aren't using protocol parameters for utxo cost per word.
-balanceTxIns' :: Utxo -> BigInt -> TxBody -> Either BalanceTxInsError TxBody
-balanceTxIns' utxos fees (TxBody txBody) = do
+balanceTxIns'
+  :: Utxo -> BigInt -> BigInt -> TxBody -> Either BalanceTxInsError TxBody
+balanceTxIns' utxos fees changeUtxoMinValue (TxBody txBody) = do
   let
-    utxoCost :: BigInt
-    utxoCost = getLovelace protocolParamUTxOCostPerWord
-
-    changeMinUtxo :: BigInt
-    changeMinUtxo = adaOnlyWords * utxoCost
-
     txOutputs :: Array TransactionOutput
     txOutputs = txBody.outputs
 
@@ -834,7 +828,7 @@ balanceTxIns' utxos fees (TxBody txBody) = do
 
   let
     minSpending :: Value
-    minSpending = lovelaceValueOf (fees + changeMinUtxo) <> nonMintedValue
+    minSpending = lovelaceValueOf (fees + changeUtxoMinValue) <> nonMintedValue
 
   -- a = spy "minSpending" minSpending
 
@@ -1018,3 +1012,12 @@ getInputValue utxos (TxBody txBody) =
   Array.foldMap
     getAmount
     (Array.mapMaybe (flip Map.lookup utxos) <<< _.inputs $ txBody)
+
+--------------------------------------------------------------------------------
+-- Helpers
+--------------------------------------------------------------------------------
+
+getAdaOnlyUtxoMinValue :: QueryM BigInt
+getAdaOnlyUtxoMinValue =
+  getProtocolParameters <#>
+    unwrap >>> _.uTxOCostPerWord >>> unwrap >>> mul adaOnlyWords
