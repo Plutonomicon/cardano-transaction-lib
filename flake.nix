@@ -190,8 +190,8 @@
           controlApiToken = "";
           blockFetcher = {
             firstBlock = {
-              slot = 54066900;
-              id = "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d";
+              slot = 61625527;
+              id = "3afd8895c7b270f8250b744ec8d2b3c53ee2859c9d5711d906c47fe51b800988";
             };
             autoStart = true;
             startFromLast = false;
