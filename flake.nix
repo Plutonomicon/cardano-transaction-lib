@@ -376,6 +376,7 @@
                 pkgs.nixpkgs-fmt
                 pkgs.fd
                 pkgs.arion
+                pkgs.haskellPackages.fourmolu
               ];
             };
           };
