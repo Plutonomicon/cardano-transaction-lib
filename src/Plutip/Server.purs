@@ -58,11 +58,11 @@ import Plutip.Types
   ( ClusterStartupParameters
   , ClusterStartupRequest(ClusterStartupRequest)
   , FilePath
-  , PlutipConfig
+  , PostgresConfig
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
-  , PostgresConfig
+  , PlutipConfig
   )
 import Plutip.Utils (tmpdir)
 import QueryM (ClientError(..))
@@ -87,28 +87,30 @@ runPlutipM
   -> PlutipM () a
   -> Aff a
 runPlutipM plutipCfg action = do
-  withResource (startPlutipCluster plutipCfg)
-    (const $ void $ stopPlutipCluster plutipCfg)
-    \startupResponse -> do
-      response <- case startupResponse of
-        ClusterStartupFailure _ -> do
-          liftEffect $ throw "Failed to start up cluster"
-        ClusterStartupSuccess response -> do
-          pure response
-      let
-        contract =
-          flip runReaderT plutipCfg action
-      withResource (startPostgresServer plutipCfg.postgresConfig response)
-        stopChildProcess $ const do
-        withResource (startOgmios plutipCfg response) stopChildProcess $ const
-          do
-            withResource (startOgmiosDatumCache plutipCfg response)
-              stopChildProcess $ const do
-              withResource (startCtlServer plutipCfg response) stopChildProcess
-                $ const
-                    do
-                      contractCfg <- mkClusterContractCfg plutipCfg response
-                      liftAff $ runContract contractCfg contract
+  withResource (startPlutipServer plutipCfg) stopChildProcess $ const do
+    withResource (startPlutipCluster plutipCfg)
+      (const $ void $ stopPlutipCluster plutipCfg)
+      \startupResponse -> do
+        response <- case startupResponse of
+          ClusterStartupFailure _ -> do
+            liftEffect $ throw "Failed to start up cluster"
+          ClusterStartupSuccess response -> do
+            pure response
+        let
+          contract =
+            flip runReaderT plutipCfg action
+        withResource (startPostgresServer plutipCfg.postgresConfig response)
+          stopChildProcess $ const do
+          withResource (startOgmios plutipCfg response) stopChildProcess $ const
+            do
+              withResource (startOgmiosDatumCache plutipCfg response)
+                stopChildProcess $ const do
+                withResource (startCtlServer plutipCfg response)
+                  stopChildProcess
+                  $ const
+                      do
+                        contractCfg <- mkClusterContractCfg plutipCfg response
+                        liftAff $ runContract contractCfg contract
 
 startPlutipCluster
   :: PlutipConfig -> Aff StartClusterResponse
@@ -181,6 +183,13 @@ startOgmios cfg params = liftEffect $ spawn "ogmios" ogmiosArgs
 
 stopChildProcess :: ChildProcess -> Aff Unit
 stopChildProcess = liftEffect <<< kill SIGINT
+
+startPlutipServer :: PlutipConfig -> Aff ChildProcess
+startPlutipServer cfg = do
+  p <- liftEffect $ spawn "plutip-server" [ "-p", UInt.toString cfg.port ]
+    defaultSpawnOptions { detached = true }
+  delay $ Milliseconds 100.0
+  pure p
 
 startPostgresServer
   :: PostgresConfig -> ClusterStartupParameters -> Aff ChildProcess

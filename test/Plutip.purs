@@ -16,6 +16,7 @@ import Data.BigInt as BigInt
 import Data.Log.Level (LogLevel(..))
 import Data.Maybe (Maybe(..))
 import Data.UInt as UInt
+import Control.Monad.Error.Class (withResource)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
@@ -25,6 +26,8 @@ import Plutip.Server
   ( liftContract
   , runPlutipM
   , startPlutipCluster
+  , startPlutipServer
+  , stopChildProcess
   , stopPlutipCluster
   )
 import Plutip.Types
@@ -81,16 +84,17 @@ suite :: TestPlanM Unit
 suite = do
   group "Plutip" do
     test "startPlutipCluster / stopPlutipCluster" do
-      startRes <- startPlutipCluster config
-      startRes `shouldSatisfy` case _ of
-        ClusterStartupSuccess _ -> true
-        _ -> false
-      liftEffect $ Console.log $ "startPlutipCluster: " <> show startRes
-      stopRes <- stopPlutipCluster config
-      stopRes `shouldSatisfy` case _ of
-        StopClusterSuccess -> true
-        _ -> false
-      liftEffect $ Console.log $ "stopPlutipCluster: " <> show stopRes
+      withResource (startPlutipServer config) stopChildProcess $ const do
+        startRes <- startPlutipCluster config
+        startRes `shouldSatisfy` case _ of
+          ClusterStartupSuccess _ -> true
+          _ -> false
+        liftEffect $ Console.log $ "startPlutipCluster: " <> show startRes
+        stopRes <- stopPlutipCluster config
+        stopRes `shouldSatisfy` case _ of
+          StopClusterSuccess -> true
+          _ -> false
+        liftEffect $ Console.log $ "stopPlutipCluster: " <> show stopRes
     test "runPlutipM" do
       runPlutipM config $ liftContract do
         ct <- getTip
