@@ -258,6 +258,13 @@ withSingleTransaction prepare extract utx action =
   withTransactions (traverse prepare) extract (NonEmptyArray.singleton utx)
     (action <<< NonEmptyArray.head)
 
+-- | Execute an action on an array of balanced
+-- | transactions (balanceTxs will be called). Within
+-- | this function, all transaction inputs used by these
+-- | transactions will be locked, so that they are not used
+-- | in any other context.
+-- | After the function completes, the locks will be removed.
+-- | Errors will be thrown.
 withBalancedTxs
   :: forall (a :: Type)
        (t :: Type -> Type)
@@ -268,6 +275,12 @@ withBalancedTxs
   -> Contract r a
 withBalancedTxs = withTransactions balanceTxs get1
 
+-- | Execute an action on a balanced transaction (balanceTx will
+-- | be called). Within this function, all transaction inputs
+-- | used by this transaction will be locked, so that they are not
+-- | used in any other context.
+-- | After the function completes, the locks will be removed.
+-- | Errors will be thrown.
 withBalancedTx
   :: forall (a :: Type)
        (r :: Row Type)
@@ -282,6 +295,13 @@ withBalancedTx = withSingleTransaction balanceTx' get1
       Left e -> throwError $ error $ show $ e
       Right tx' -> pure tx'
 
+-- | Execute an action on an array of balanced and signed
+-- | transactions (balanceAndSignTxs will be called). Within
+-- | this function, all transaction inputs used by these
+-- | transactions will be locked, so that they are not used
+-- | in any other context.
+-- | After the function completes, the locks will be removed.
+-- | Errors will be thrown.
 withBalancedAndSignedTxs
   :: forall (r :: Row Type) (a :: Type)
    . Array UnattachedUnbalancedTx
@@ -290,6 +310,12 @@ withBalancedAndSignedTxs
 withBalancedAndSignedTxs = withTransactions balanceAndSignTxs
   (_.transaction <<< unwrap)
 
+-- | Execute an action on a balanced and signed transaction.
+-- | (balanceAndSignTx will be called). Within this function,
+-- | all transaction inputs used by this transaction will be
+-- | locked, so that they are not used in any other context.
+-- | After the function completes, the locks will be removed.
+-- | Errors will be thrown.
 withBalancedAndSignedTx
   :: forall (a :: Type)
        (r :: Row Type)
