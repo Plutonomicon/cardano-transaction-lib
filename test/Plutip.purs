@@ -68,8 +68,9 @@ config =
       , host: "localhost"
       , secure: false
       }
-  , ogmiosDatumCachePostgresConfig:
-      { port: UInt.fromInt 5432
+  , postgresConfig:
+      { host: "localhost"
+      , port: UInt.fromInt 5432
       , user: "ctxlib"
       , password: "ctxlib"
       , dbname: "ctxlib"

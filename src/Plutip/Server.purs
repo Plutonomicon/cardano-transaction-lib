@@ -22,6 +22,7 @@ import Contract.Monad (Contract, ContractConfig(ContractConfig), runContract)
 import Control.Monad.Error.Class (withResource)
 import Control.Monad.Except (runExcept)
 import Control.Monad.Reader (ReaderT(ReaderT), runReaderT)
+import Data.Array (head)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Right, Left), either)
 import Data.Foldable (intercalate)
@@ -30,31 +31,43 @@ import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (wrap)
 import Data.Posix.Signal (Signal(SIGINT))
+import Data.String.Gen (genAlphaString)
 import Data.UInt as UInt
 import Data.YAML.Foreign.Decode (parseYAMLToJson)
 import Effect (Effect)
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, Milliseconds(..), delay)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
+import Effect.Console (log)
 import Effect.Exception (throw)
 import Helpers (fromJustEff, fromRightEff)
-import Node.ChildProcess (ChildProcess, defaultSpawnOptions, kill, spawn)
+import Node.Buffer as Bf
+import Node.ChildProcess
+  ( ChildProcess
+  , defaultExecSyncOptions
+  , defaultSpawnOptions
+  , execSync
+  , kill
+  , spawn
+  )
 import Node.Encoding as Encoding
 import Node.FS.Aff (writeTextFile)
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat, dirname)
 import Plutip.Types
-  ( ClusterStartupRequest(ClusterStartupRequest)
+  ( ClusterStartupParameters
+  , ClusterStartupRequest(ClusterStartupRequest)
   , FilePath
   , PlutipConfig
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
-  , ClusterStartupParameters
+  , PostgresConfig
   )
 import Plutip.Utils (tmpdir)
 import QueryM (ClientError(..))
 import QueryM as QueryM
+import Test.QuickCheck.Gen (randomSample)
 import Types.UsedTxOuts (newUsedTxOuts)
 
 type PlutipM (r :: Row Type) (a :: Type) = ReaderT PlutipConfig (Contract r) a
@@ -85,13 +98,17 @@ runPlutipM plutipCfg action = do
       let
         contract =
           flip runReaderT plutipCfg action
-      withResource (startOgmios plutipCfg response) stopChildProcess $ const do
-        withResource (startOgmiosDatumCache plutipCfg response)
-          stopChildProcess $ const do
-          withResource (startCtlServer plutipCfg response) stopChildProcess $ const
-            do
-              contractCfg <- mkClusterContractCfg plutipCfg response
-              liftAff $ runContract contractCfg contract
+      withResource (startPostgresServer plutipCfg.postgresConfig response)
+        stopChildProcess $ const do
+        withResource (startOgmios plutipCfg response) stopChildProcess $ const
+          do
+            withResource (startOgmiosDatumCache plutipCfg response)
+              stopChildProcess $ const do
+              withResource (startCtlServer plutipCfg response) stopChildProcess
+                $ const
+                    do
+                      contractCfg <- mkClusterContractCfg plutipCfg response
+                      liftAff $ runContract contractCfg contract
 
 startPlutipCluster
   :: PlutipConfig -> Aff StartClusterResponse
@@ -165,6 +182,51 @@ startOgmios cfg params = liftEffect $ spawn "ogmios" ogmiosArgs
 stopChildProcess :: ChildProcess -> Aff Unit
 stopChildProcess = liftEffect <<< kill SIGINT
 
+startPostgresServer
+  :: PostgresConfig -> ClusterStartupParameters -> Aff ChildProcess
+startPostgresServer pgConfig _ = do
+  randomStr <- liftEffect $ fromJustEff "hello" =<< head <$> randomSample
+    genAlphaString
+  tmpDir <- liftEffect tmpdir
+  let
+    workingDir = tmpDir <> "/" <> randomStr
+    databaseDir = workingDir <> "/postgres/data"
+  liftEffect $ void $ execSync ("initdb " <> databaseDir) defaultExecSyncOptions
+  pgChildProcess <- liftEffect $ spawn "postgres"
+    [ "-D"
+    , databaseDir
+    , "-p"
+    , UInt.toString pgConfig.port
+    , "-h"
+    , pgConfig.host
+    , "-k"
+    , workingDir <> "/postgres"
+    ]
+    defaultSpawnOptions
+  delay (Milliseconds 3000.0)
+  -- liftEffect $ log =<< Bf.toString Encoding.UTF8  =<< execSync ("createuser --createdb --superuser " <> pgConfig.user <> " -h '" <> pgConfig.host <> "' -p " <> UInt.toString pgConfig.port) defaultExecSyncOptions
+  liftEffect $ log =<< Bf.toString Encoding.UTF8 =<< execSync
+    ( "psql -h " <> pgConfig.host <> " -p " <> UInt.toString pgConfig.port
+        <> " -d postgres"
+        <> " -c \"CREATE ROLE "
+        <> pgConfig.user
+        <> " WITH LOGIN SUPERUSER CREATEDB PASSWORD '"
+        <> pgConfig.password
+        <> "';\""
+    )
+    defaultExecSyncOptions
+  liftEffect $ log =<< Bf.toString Encoding.UTF8 =<< execSync
+    ( "createdb -h " <> pgConfig.host <> " -p " <> UInt.toString pgConfig.port
+        <> " -U "
+        <> pgConfig.user
+        <> " -O "
+        <> pgConfig.user
+        <> " "
+        <> pgConfig.dbname
+    )
+    defaultExecSyncOptions
+  pure pgChildProcess
+
 -- TODO: use CLI arguments when https://github.com/mlabs-haskell/ogmios-datum-cache/issues/61 is resolved
 startOgmiosDatumCache
   :: PlutipConfig -> ClusterStartupParameters -> Aff ChildProcess
@@ -173,11 +235,11 @@ startOgmiosDatumCache cfg _params = do
   let
     dbString :: String
     dbString = intercalate " "
-      [ "host=" <> cfg.ogmiosDatumCacheConfig.host
-      , "port=" <> UInt.toString cfg.ogmiosDatumCachePostgresConfig.port
-      , "user=" <> cfg.ogmiosDatumCachePostgresConfig.user
-      , "dbname=" <> cfg.ogmiosDatumCachePostgresConfig.dbname
-      , "password=" <> cfg.ogmiosDatumCachePostgresConfig.password
+      [ "host=" <> cfg.postgresConfig.host
+      , "port=" <> UInt.toString cfg.postgresConfig.port
+      , "user=" <> cfg.postgresConfig.user
+      , "dbname=" <> cfg.postgresConfig.dbname
+      , "password=" <> cfg.postgresConfig.password
       ]
 
     configContents :: String
@@ -255,7 +317,8 @@ getNetworkInfoFromNodeConfig nodeConfigPath = do
     nodeConfigJson
   byronGenesisFile <- fromRightEff $ getField nodeConfigAeson
     "ByronGenesisFile"
-  if getField nodeConfigAeson "RequiresNetworkMagic" == Right "RequiresNoMagic" then pure Mainnet
+  if getField nodeConfigAeson "RequiresNetworkMagic" == Right "RequiresNoMagic" then
+    pure Mainnet
   else do
     byronGenesisJson <- fromRightEff =<< parseJsonStringToAeson <$> readTextFile
       Encoding.UTF8

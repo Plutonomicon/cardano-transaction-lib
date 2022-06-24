@@ -418,6 +418,7 @@
             shell = {
               packages = [
                 (hsProjectFor system).hsPkgs.ctl-server.components.exes.ctl-server
+                pkgs.postgresql
                 pkgs.ogmios
                 pkgs.cardano-cli
                 pkgs.ogmios-datum-cache
