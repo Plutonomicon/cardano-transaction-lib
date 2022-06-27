@@ -475,7 +475,7 @@
           # test. This will need to be run via a Hercules `effect`
           checks = {
             ctl-unit-test = project.runPursTest {
-              testMain = "Test.Unit";
+              testMain = "CTL.Test.Unit";
               sources = [ "src" "test" "fixtures" ];
             };
           };
