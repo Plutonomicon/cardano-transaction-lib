@@ -33,10 +33,11 @@ import Data.Posix.Signal (Signal(SIGINT))
 import Data.UInt as UInt
 import Data.YAML.Foreign.Decode (parseYAMLToJson)
 import Effect (Effect)
-import Effect.Aff (Aff, Milliseconds(Milliseconds), delay)
+import Effect.Aff (Aff, Milliseconds(Milliseconds))
 import Effect.Aff.Class (liftAff)
 import Effect.Aff.Retry
-  ( constantDelay
+  ( RetryPolicy
+  , constantDelay
   , limitRetriesByCumulativeDelay
   , recovering
   )
@@ -72,6 +73,10 @@ import QueryM (ClientError(..))
 import QueryM as QueryM
 import QueryM.UniqueId (uniqueId)
 import Types.UsedTxOuts (newUsedTxOuts)
+
+defaultRetryPolicy :: RetryPolicy
+defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
+  constantDelay (Milliseconds 100.0)
 
 type PlutipM (r :: Row Type) (a :: Type) = ReaderT PlutipConfig (Contract r) a
 
@@ -191,7 +196,11 @@ startPlutipServer :: PlutipConfig -> Aff ChildProcess
 startPlutipServer cfg = do
   p <- liftEffect $ spawn "plutip-server" [ "-p", UInt.toString cfg.port ]
     defaultSpawnOptions { detached = true }
-  delay $ Milliseconds 100.0
+  void
+    $ recovering defaultRetryPolicy
+        ([ \_ _ -> pure true ])
+    $ const
+    $ stopPlutipCluster cfg
   pure p
 
 startPostgresServer
@@ -214,12 +223,7 @@ startPostgresServer pgConfig _ = do
     , workingDir <> "/postgres"
     ]
     defaultSpawnOptions
-  void
-    $ recovering
-        ( limitRetriesByCumulativeDelay (Milliseconds 3000.00) $ constantDelay
-            (Milliseconds 100.0)
-        )
-        ([ \_ _ -> pure true ])
+  void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
     $ const
     $ liftEffect
     $ execSync
