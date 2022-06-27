@@ -5,7 +5,7 @@ import Prelude
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Test.Integration as Integration
-import Test.Unit as Unit
+import CTL.Test.Unit as Unit
 import Test.Utils as Utils
 
 main :: Effect Unit

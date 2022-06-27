@@ -1,4 +1,4 @@
-module Test.Unit (main, testPlan) where
+module CTL.Test.Unit (main, testPlan) where
 
 import Prelude
 
@@ -24,7 +24,7 @@ import Test.OgmiosDatumCache as OgmiosDatumCache
 import Test.Utils as Utils
 import TestM (TestPlanM)
 
--- Run with `spago test --main Test.Unit`
+-- Run with `spago test --main CTL.Test.Unit`
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpret testPlan

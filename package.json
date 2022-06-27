@@ -12,7 +12,7 @@
   "scripts": {
     "test": "npm run unit-test && npm run integration-test",
     "integration-test": "spago run --main Test.Integration",
-    "unit-test": "spago run --main Test.Unit",
+    "unit-test": "spago run --main CTL.Test.Unit",
     "dev": "make run-dev",
     "build": "make run-build"
   },
