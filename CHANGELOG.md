@@ -37,6 +37,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 - Handling of invalid UTF8 byte sequences in the Aeson instance for `TokenName`.
 - `Types.ScriptLookups.require` function naming caused problems with WebPack (#593)
+- Bad logging in `queryDispatch` that didn't propagate error messages (#615)
 
 ## [1.0.1] - 2022-06-17
 
