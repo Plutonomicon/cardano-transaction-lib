@@ -8,7 +8,8 @@ module Contract.Chain
 import Prelude
 
 import Contract.Monad (Contract, wrapContract)
-import QueryM (getChainTip, waitUntilSlot) as QueryM
+import QueryM (getChainTip) as QueryM
+import QueryM.WaitUntilSlot (waitUntilSlot) as QueryM
 import QueryM.Ogmios (AbsSlot)
 import Types.Chain
   ( BlockHeaderHash(BlockHeaderHash)

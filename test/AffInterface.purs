@@ -25,10 +25,10 @@ import QueryM
   , runQueryM
   , submitTxOgmios
   , traceQueryConfig
-  , waitUntilSlot
   )
 import QueryM.CurrentEpoch (getCurrentEpoch)
 import QueryM.EraSummaries (getEraSummaries)
+import QueryM.WaitUntilSlot (waitUntilSlot)
 import QueryM.Ogmios
   ( AbsSlot(AbsSlot)
   , EraSummaries
