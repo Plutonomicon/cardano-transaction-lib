@@ -448,11 +448,11 @@ totalMissingValue { valueSpentBalancesInputs, valueSpentBalancesOutputs } =
   missingValueSpent valueSpentBalancesInputs `join`
     missingValueSpent valueSpentBalancesOutputs
 
-provide :: Value -> ValueSpentBalances
-provide provided = ValueSpentBalances { provided, required: mempty }
+provideValue :: Value -> ValueSpentBalances
+provideValue provided = ValueSpentBalances { provided, required: mempty }
 
-require :: Value -> ValueSpentBalances
-require required = ValueSpentBalances { required, provided: mempty }
+requireValue :: Value -> ValueSpentBalances
+requireValue required = ValueSpentBalances { required, provided: mempty }
 
 -- A `StateT` ontop of `QueryM` ~ ReaderT QueryConfig Aff`.
 -- The state is `ConstraintProcessingState`, which keeps track of the unbalanced
@@ -728,7 +728,7 @@ addOwnInput (InputConstraint { txOutRef }) = do
     let value = typedTxOutRefValue typedTxOutRef
     -- Must be inserted in order. Hopefully this matches the order under CSL
     _cpsToTxBody <<< _inputs %= insert txOutRef
-    _valueSpentBalancesInputs <>= provide value
+    _valueSpentBalancesInputs <>= provideValue value
 
 -- | Add a typed output and return its value.
 addOwnOutput
@@ -754,7 +754,7 @@ addOwnOutput (OutputConstraint { datum: d, value }) = do
       ExceptT $ lift $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
     _cpsToTxBody <<< _outputs %= Array.(:) txOut
     ExceptT $ addDatum dat
-    _valueSpentBalancesOutputs <>= provide value'
+    _valueSpentBalancesOutputs <>= provideValue value'
 
 data MkUnbalancedTxError
   = TypeCheckFailed TypeCheckError
@@ -872,10 +872,10 @@ processConstraint mpsMap osMap = do
       _cpsToTxBody <<< _requiredSigners <>= Just [ wrap $ unwrap $ unwrap pkh ]
     MustSpendAtLeast plutusValue -> do
       let value = fromPlutusValue plutusValue
-      runExceptT $ _valueSpentBalancesInputs <>= require value
+      runExceptT $ _valueSpentBalancesInputs <>= requireValue value
     MustProduceAtLeast plutusValue -> do
       let value = fromPlutusValue plutusValue
-      runExceptT $ _valueSpentBalancesOutputs <>= require value
+      runExceptT $ _valueSpentBalancesOutputs <>= requireValue value
     MustSpendPubKeyOutput txo -> runExceptT do
       txOut <- ExceptT $ lookupTxOutRef txo
       -- Recall an Ogmios datum is a `Maybe String` where `Nothing` implies a
@@ -886,7 +886,7 @@ processConstraint mpsMap osMap = do
           -- keeps track TransactionInput and TxInType (the input type, whether
           -- consuming script, public key or simple script)
           _cpsToTxBody <<< _inputs %= insert txo
-          _valueSpentBalancesInputs <>= provide amount
+          _valueSpentBalancesInputs <>= provideValue amount
         _ -> liftEither $ throwError $ TxOutRefWrongType txo
     MustSpendScriptOutput txo red -> runExceptT do
       txOut <- ExceptT $ lookupTxOutRef txo
@@ -923,7 +923,7 @@ processConstraint mpsMap osMap = do
                 , data: unwrap red
                 , exUnits: scriptExUnits
                 }
-            _valueSpentBalancesInputs <>= provide amount
+            _valueSpentBalancesInputs <>= provideValue amount
             -- Append redeemer for spending to array.
             _redeemers <>= Array.singleton (redeemer /\ Just txo)
             -- Attach redeemer to witness set.
@@ -942,11 +942,11 @@ processConstraint mpsMap osMap = do
       mintVal <-
         if i < zero then do
           v <- liftM (CannotMakeValue cs tn i) (value $ negate i)
-          _valueSpentBalancesInputs <>= provide v
+          _valueSpentBalancesInputs <>= provideValue v
           liftEither $ Right $ map getNonAdaAsset $ value i
         else do
           v <- liftM (CannotMakeValue cs tn i) (value i)
-          _valueSpentBalancesOutputs <>= provide v
+          _valueSpentBalancesOutputs <>= provideValue v
           liftEither $ Right $ map getNonAdaAsset $ value i
       ExceptT $ attachToCps attachPlutusScript plutusScript
       let
@@ -1016,7 +1016,7 @@ processConstraint mpsMap osMap = do
             , dataHash
             }
         _cpsToTxBody <<< _outputs %= Array.(:) txOut
-        _valueSpentBalancesOutputs <>= provide amount
+        _valueSpentBalancesOutputs <>= provideValue amount
     MustPayToScript vlh dat plutusValue -> do
       networkId <- getNetworkId
       let amount = fromPlutusValue plutusValue
@@ -1033,7 +1033,7 @@ processConstraint mpsMap osMap = do
         -- Note we don't `addDatum` as this included as part of `mustPayToScript`
         -- constraint already.
         _cpsToTxBody <<< _outputs %= Array.(:) txOut
-        _valueSpentBalancesOutputs <>= provide amount
+        _valueSpentBalancesOutputs <>= provideValue amount
     MustHashDatum dh dt -> do
       let mdh = Hashing.datumHash dt
       if mdh == Just dh then addDatum dt
