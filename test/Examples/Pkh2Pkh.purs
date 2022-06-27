@@ -43,5 +43,4 @@ testPkh2Pkh = test "Pkh2Pkh" do
       clickButton "Sign" np
       reactSetValue password testPassword np
       clickButton "Confirm" np
-  delay (wrap 600000.0)
 

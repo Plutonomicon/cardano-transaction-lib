@@ -1,7 +1,5 @@
 module Test.E2E.Helpers
-  ( js
-  , tryJs
-  , hasSelector
+  ( hasSelector
   , injectJQuery
   , injectJQueryAll
   , findNamiPage
@@ -26,48 +24,36 @@ module Test.E2E.Helpers
   ) where
 
 import Toppokki as Toki
-import Control.Monad.Error.Class (catchError)
-import Data.Array (head, filter, zip)
+import Data.Array (head, filterA)
 import Data.Newtype (class Newtype, wrap, unwrap)
-import Data.Tuple (fst, snd)
 import Effect.Aff (Aff)
 import Effect.Class.Console (log)
 import Effect (Effect)
-import Data.Maybe (Maybe(..), isJust)
-import Foreign (Foreign)
+import Data.Maybe (Maybe)
+import Foreign (Foreign, unsafeFromForeign)
 import Prelude
 import Control.Promise (Promise, toAffE)
-import Data.Traversable (for, traverse, fold)
+import Data.Traversable (for, fold)
 
 foreign import _retrieveJQuery :: Toki.Page -> Effect (Promise String)
 
 retrieveJQuery :: Toki.Page -> Aff String
 retrieveJQuery = toAffE <<< _retrieveJQuery
 
-js :: String -> Toki.Page -> Aff Unit
-js str = void <$> Toki.unsafeEvaluateStringFunction str
-
-tryJs :: Toki.Selector -> String -> Toki.Page -> Aff (Maybe Unit)
-tryJs selector function page = catchError eval $ \e -> do
-  log $ show e
-  pure Nothing
-  where
-  eval :: Aff (Maybe Unit)
-  eval = do
-    _ <- Toki.unsafePageEval selector function page
-    pure $ Just unit
-
-hasSelector :: Toki.Selector -> Toki.Page -> Aff (Maybe Unit)
-hasSelector selector page = tryJs selector "(x)=>{}" page
-
 injectJQuery :: String -> Toki.Page -> Aff Foreign
 injectJQuery = Toki.unsafeEvaluateStringFunction
+
+jQueryCount :: Selector -> Toki.Page -> Aff Int
+jQueryCount selector page = unsafeFromForeign <$> doJQ selector (wrap "length") page
+
+hasSelector :: Selector -> Toki.Page -> Aff Boolean
+hasSelector selector page = (_ > 0) <$> jQueryCount selector page
 
 findNamiPage :: Toki.Browser -> Aff (Maybe Toki.Page)
 findNamiPage browser = do
   pages <- Toki.pages browser
-  results <- traverse (hasSelector $ wrap "button") pages
-  pure $ map snd $ head $ filter (isJust <<< fst) $ zip results pages
+  pages' <- filterA (hasSelector button) pages
+  pure $ head $ pages'
 
 -- | Wrapper for Page so it can be used in `shouldSatisfy`, which needs 'Show'
 -- | Doesn't show anything, thus 'NoShow'
@@ -87,10 +73,10 @@ newtype Action = Action String
 derive instance Newtype Action _
 
 -- | Build a primitive jQuery expression like '$("button").click()' and evaluate it in Toki
-doJQ :: Selector -> Action -> Toki.Page -> Aff Unit
+doJQ :: Selector -> Action -> Toki.Page -> Aff Foreign
 doJQ selector action page = do
   log jq
-  void $ Toki.unsafeEvaluateStringFunction jq page
+  Toki.unsafeEvaluateStringFunction jq page
   where
   jq :: String
   jq = "$('" <> unwrap selector <> "')." <> unwrap action
@@ -103,6 +89,9 @@ enable = wrap "prop(\"disabled\", false)"
 
 setAttr :: String -> String -> Action
 setAttr attr value = wrap $ "attr(" <> jqStr attr <> ", " <> value <> ")"
+
+button :: Selector
+button = wrap "button"
 
 buttonWithText :: String -> Selector
 buttonWithText text = wrap $ "button:contains(" <> text <> ")"
@@ -126,7 +115,7 @@ trigger :: String -> Action
 trigger event = wrap $ "trigger(" <> jqStr event <> ")"
 
 clickButton :: String -> Toki.Page -> Aff Unit
-clickButton buttonText = doJQ (buttonWithText buttonText) click
+clickButton buttonText = void <$> doJQ (buttonWithText buttonText) click
 
 injectJQueryAll :: String -> Toki.Browser -> Aff Unit
 injectJQueryAll jQuery browser = do
@@ -143,7 +132,8 @@ reactSetValue selector value page = void
       [ -- https://stackoverflow.com/questions/23892547/what-is-the-best-way-to-trigger-onchange-event-in-react-js
         -- Nami uses react, which complicates things a bit
         "var input = $('" <> unwrap selector <> "').get(0);"
-      , "var nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;"
+      , "var nativeInputValueSetter = "
+        <> " Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;"
       , "nativeInputValueSetter.call(input, '" <> value <> "');"
       , "var ev2 = new Event('input', { bubbles: true});"
       , "input.dispatchEvent(ev2);"
