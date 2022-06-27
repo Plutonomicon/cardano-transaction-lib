@@ -17,6 +17,8 @@ import Data.Maybe (Maybe(..), isJust, fromMaybe)
 import Data.Newtype (class Newtype, wrap)
 import Data.Tuple (fst, snd)
 import Effect.Class.Console (log)
+import Effect.Class (liftEffect)
+import Effect.Exception (throw)
 import Foreign (Foreign)
 import Foreign as Foreign
 import Test.E2E.Helpers (retrieveJQuery)
@@ -49,24 +51,11 @@ retrieveJQuery page = Foreign.unsafeFromForeign <$> Toki.unsafeEvaluateStringFun
 injectJQuery :: String -> Toki.Page -> Aff Foreign
 injectJQuery = Toki.unsafeEvaluateStringFunction
 
-findNamiPage :: Toki.Page -> Toki.Browser -> Aff (Maybe Toki.Page)
-findNamiPage page browser = do
-  
+findNamiPage :: Toki.Browser -> Aff (Maybe Toki.Page)
+findNamiPage browser = do  
   pages <- Toki.pages browser
-  _ <- pure $ spy "retrieve it!"
-  jQuery <- retrieveJQuery page
-  _ <- for pages $ injectJQuery jQuery
-  
-  _ <- pure $ spy "ohno" true
   results <- traverse (hasSelector $ wrap "button") pages
-  _ <- pure $ spy "Results" results  
-  let namiPage = map snd $ head $ filter (isJust <<< fst) $ zip results pages
-  case namiPage of
-      Nothing -> pure Nothing
-      Just np -> debugger $ \_ -> do
-        Toki.addScriptTag "https://code.jquery.com/jquery-3.2.1.min.js" np
-        _ <- pure $ spy "added Scripttag " true
-        pure namiPage
+  pure $ map snd $ head $ filter (isJust <<< fst) $ zip results pages
 
 -- | Wrapper for Page so it can be used in `shouldSatisfy`
 newtype NoShowPage = NoShowPage Toki.Page
@@ -82,6 +71,11 @@ clickButton buttonText page = do
   log selector
   tryJs (wrap selector) "(b) => b.click()" page
 
+injectJQueryAll :: String -> Toki.Browser -> Aff Unit
+injectJQueryAll jQuery browser = do
+  pages <- Toki.pages browser
+  void $ for pages $ Toki.unsafeEvaluateStringFunction jQuery
+  
 x :: Aff Unit
 x = do
   browser <- launchWithNami Visible
@@ -89,9 +83,15 @@ x = do
   jQuery <- retrieveJQuery page
   Toki.goto (wrap example) page
   delay (wrap 5000.0)
-{-  namiPage <- findNamiPage page browser
+  injectJQueryAll jQuery browser
+  namiPage <- findNamiPage browser
   shouldSatisfy (NoShowPage <$> namiPage) isJust
-  let namiPage' :: Toki.Page
+  case namiPage of
+    Nothing -> liftEffect $ throw "Impossible"
+    Just np -> void $ Toki.unsafeEvaluateStringFunction "$('button:contains(Sign)').click()" np
+  delay (wrap 60000.0)
+  
+{-  let namiPage' :: Toki.Page
       namiPage' = fromMaybe page namiPage
   r <- clickButton "Sign" namiPage'
   shouldSatisfy r (_ == (Just unit))
