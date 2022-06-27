@@ -231,7 +231,6 @@ startPostgresServer pgConfig _ = do
             <> " -d postgres"
         )
         defaultExecSyncOptions
-  -- liftEffect $ log =<< Bf.toString Encoding.UTF8  =<< execSync ("createuser --createdb --superuser " <> pgConfig.user <> " -h '" <> pgConfig.host <> "' -p " <> UInt.toString pgConfig.port) defaultExecSyncOptions
   liftEffect $ log =<< Bf.toString Encoding.UTF8 =<< execSync
     ( "psql -h " <> pgConfig.host <> " -p " <> UInt.toString pgConfig.port
         <> " -d postgres"
