@@ -2594,18 +2594,14 @@
         ]
       },
       "locked": {
-        "lastModified": 1654880012,
-        "narHash": "sha256-dNKFrjKGs0OwrXWd3eiPZVKgINIDQjdCDWX5nT6/wHA=",
-        "owner": "mlabs-haskell",
-        "repo": "plutip",
-        "rev": "ab17dc2a4828d72570ee91770c8a75b849c15144",
-        "type": "github"
+        "lastModified": 1656331256,
+        "narHash": "sha256-WQSFSCA2BJUquvxZruIr2gm2WN9Rm6lc/1Sbst+Abuw=",
+        "path": "/home/marijan/workspace/platonic-systems/plutip",
+        "type": "path"
       },
       "original": {
-        "owner": "mlabs-haskell",
-        "ref": "plutip-server",
-        "repo": "plutip",
-        "type": "github"
+        "path": "/home/marijan/workspace/platonic-systems/plutip",
+        "type": "path"
       }
     },
     "plutus": {
