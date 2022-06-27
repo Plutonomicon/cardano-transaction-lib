@@ -1,4 +1,4 @@
-module Test.E2E where
+module Test.E2E (main) where
 
 import Test.E2E.Wallet as Wallet
 
@@ -13,6 +13,7 @@ import Prelude
 import Test.Examples.Pkh2Pkh (testPkh2Pkh)
 import Mote as Mote
 import Test.Spec.Runner as SpecRunner
+import Debug (spy)
 
 -- Run with `spago test --main Test.E2E`
 main :: Effect Unit
@@ -23,5 +24,6 @@ main = launchAff_ do
 -- Requires external services listed in README.md
 testPlan :: TestPlanM Unit
 testPlan = do
+  _ <- pure $ spy "testPlan"
   --  _ <- Wallet.suite
   testPkh2Pkh
