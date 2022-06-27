@@ -130,8 +130,8 @@ reactSetValue selector value page = void $ flip Toki.unsafeEvaluateStringFunctio
                      , "input.dispatchEvent(ev2);"
                      ]
 
-x :: Aff Unit
-x = do
+testPkh2Pkh :: TestPlanM Unit
+testPkh2Pkh = test "Pkh2Pkh" do
   browser <- launchWithNami Visible
   page <- Toki.newPage browser
   jQuery <- retrieveJQuery page
@@ -147,16 +147,4 @@ x = do
                   reactSetValue password testPassword np
                   clickButton "Confirm" np
   delay (wrap 600000.0)
-  
-{-  let namiPage' :: Toki.Page
-      namiPage' = fromMaybe page namiPage
-  r <- clickButton "Sign" namiPage'
-  shouldSatisfy r (_ == (Just unit))
-  delay (wrap 60000.0)
-  pure unit
--}
---  namiPage <- Toki.openPopup page (Toki.goto host page)
---  js "console.log('test');" namiPage
 
-testPkh2Pkh :: TestPlanM Unit
-testPkh2Pkh = test "Pkh2Pkh" x
