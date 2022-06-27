@@ -68,6 +68,7 @@ type JsonWspResponse =
 newtype GetDatumByHashR = GetDatumByHashR (Maybe Datum)
 
 derive instance Newtype GetDatumByHashR _
+derive newtype instance Show GetDatumByHashR
 
 instance DecodeAeson GetDatumByHashR where
   decodeAeson r = GetDatumByHashR <$>
@@ -85,6 +86,7 @@ instance DecodeAeson GetDatumByHashR where
 newtype GetDatumsByHashesR = GetDatumsByHashesR (Map DataHash Datum)
 
 derive instance Newtype GetDatumsByHashesR _
+derive newtype instance Show GetDatumsByHashesR
 
 instance DecodeAeson GetDatumsByHashesR where
   decodeAeson r =

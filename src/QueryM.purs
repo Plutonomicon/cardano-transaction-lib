@@ -96,7 +96,7 @@ import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), delay, launchAff_, makeAff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Effect.Exception (Error, error, throw)
+import Effect.Exception (Error, error, message, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
@@ -878,12 +878,22 @@ data DispatchError
   -- Server response has been parsed succesfully, but it contains error
   -- message
   | FaultError Aeson
+  | ListenerCancelled
+  -- ^ The listener that was added for this message has been cancelled
+
+instance Show DispatchError where
+  show (JsError err) = "(JsError (message " <> show (message err) <> "))"
+  show (JsonError jsonErr) = "(JsonError " <> show jsonErr <> ")"
+  show (FaultError aeson) = "(FaultError " <> show aeson <> ")"
+  show ListenerCancelled = "ListenerCancelled"
 
 dispatchErrorToError :: DispatchError -> Error
 dispatchErrorToError (JsError err) = err
 dispatchErrorToError (JsonError err) = error $ show err
 dispatchErrorToError (FaultError err) =
   error $ "Server responded with `fault`: " <> stringifyAeson err
+dispatchErrorToError ListenerCancelled =
+  error $ "Listener cancelled"
 
 -- A function which accepts some unparsed Json, and checks it against one or
 -- more possible types to perform an appropriate effect (such as supplying the
@@ -958,6 +968,7 @@ createPendingRequests = Ref.new Map.empty
 queryDispatch
   :: forall (response :: Type)
    . DecodeAeson response
+  => Show response
   => DispatchIdMap response
   -> String
   -> Effect (Either DispatchError (Effect Unit))
@@ -1041,7 +1052,9 @@ defaultMessageListener lvl dispatchArray msg = do
           )
           do
             logString lvl Error $
-              "unexpected parse error on input: " <> msg
+              "unexpected error on input: " <> msg
+                <> " Error:"
+                <> show err
     )
     identity
     eAction

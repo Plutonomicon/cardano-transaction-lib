@@ -457,6 +457,8 @@ newtype TxEvaluationR = TxEvaluationR
         { memory :: Natural, steps :: Natural }
   }
 
+derive newtype instance Show TxEvaluationR
+
 instance DecodeAeson TxEvaluationR where
   decodeAeson _ = Left
     (TypeMismatch "DecodeAeson TxEvaluationR is not implemented")
