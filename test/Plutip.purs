@@ -73,7 +73,7 @@ config =
       }
   , postgresConfig:
       { host: "127.0.0.1"
-      , port: UInt.fromInt 5432
+      , port: UInt.fromInt 54321
       , user: "ctxlib"
       , password: "ctxlib"
       , dbname: "ctxlib"
