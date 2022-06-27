@@ -878,8 +878,8 @@ data DispatchError
   -- Server response has been parsed succesfully, but it contains error
   -- message
   | FaultError Aeson
+  -- The listener that was added for this message has been cancelled
   | ListenerCancelled
-  -- ^ The listener that was added for this message has been cancelled
 
 instance Show DispatchError where
   show (JsError err) = "(JsError (message " <> show (message err) <> "))"
@@ -974,45 +974,33 @@ queryDispatch
   -> Effect (Either DispatchError (Effect Unit))
 queryDispatch ref str = do
   let eiAeson = parseJsonStringToAeson str
-  -- Parse response
-  case JsonWsp.parseJsonWspResponse =<< eiAeson of
-    Left parseError -> do
-      -- Try to at least parse ID  to dispatch the error to
-      case parseJsonWspResponseId =<< eiAeson of
-        -- We still return original error because ID parse error is useless
-        Left _reflectionParseError -> pure $ Left $ JsonError parseError
-        Right reflection -> do
-          withAction reflection case _ of
-            Nothing -> pure $ Left $ JsError $ error $
-              "Parse failed and Request Id: " <> reflection <>
-                " has been cancelled"
-            Just action -> pure $ Right $ action $ Left $ JsonError parseError
-    Right { result: Just result, reflection } -> do
+  -- Parse response id
+  case parseJsonWspResponseId =<< eiAeson of
+    Left parseError ->
+      pure $ Left $ JsonError parseError
+    Right reflection -> do
+      -- Get callback action
       withAction reflection case _ of
-        -- This indicates an implementation error, thus we are not passing it
-        -- to `action`
         Nothing -> pure $ Left $ JsError $ error $
-          "Parse succeeded but Request Id: " <> reflection <>
-            " has been cancelled"
-        Just action -> pure $ Right $ action $ Right result
-    -- If result is empty, then fault must be present
-    Right { result: Nothing, fault: Just fault, reflection } -> do
-      withAction reflection case _ of
-        Nothing -> pure $ Left $ FaultError fault
-        Just action -> do
-          pure $ Right $ action $ Left $ FaultError fault
-    -- Otherwise, our implementation is broken.
-    Right { result: Nothing, fault: Nothing, reflection } -> do
-      let
-        errMsg =
-          "Impossible happened: response does not contain neither `fault` "
-            <> "nor `result`, please report as bug. Response: "
-            <> str
-      withAction reflection case _ of
-        Nothing -> do
-          pure $ Left $ JsError $ error errMsg
-        Just action -> do
-          pure $ Right $ action $ Left $ JsError $ error errMsg
+          "Request Id " <> reflection <> " has been cancelled"
+        Just action ->
+          -- Parse response
+          case JsonWsp.parseJsonWspResponse =<< eiAeson of
+            Left parseError -> do
+              pure $ Right $ action $ Left $ JsonError parseError
+            Right { result: Just result } -> do
+              pure $ Right $ action $ Right result
+            -- If result is empty, then fault must be present
+            Right { result: Nothing, fault: Just fault } -> do
+              pure $ Right $ action $ Left $ FaultError fault
+            -- Otherwise, our implementation is broken.
+            Right { result: Nothing, fault: Nothing } -> do
+              let
+                errMsg =
+                  "Impossible happened: response does not contain neither "
+                    <> "`fault` nor `result`, please report as bug. Response: "
+                    <> str
+              pure $ Right $ action $ Left $ JsError $ error errMsg
   where
   withAction
     :: ListenerId
