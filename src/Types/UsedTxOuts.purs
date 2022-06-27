@@ -149,11 +149,9 @@ withLockedTransactionInputs
   -> m a
 withLockedTransactionInputs t f = do
   used <- lockTransactionInputs t
-  res <- catchError f
-    ( \e -> do
-        unlockTxOutKeys used
-        throwError e
-    )
+  res <- catchError f \e -> do
+    unlockTxOutKeys used
+    throwError e
   pure res
 
 -- | Remove transaction's inputs used marks.
@@ -203,9 +201,12 @@ unlockTxOutKeys = unlockTxOutRefs <<< cacheToRefs <<< unwrap
     :: TxOutRefCache
     -> Array { transactionId :: TransactionHash, index :: UInt }
   cacheToRefs cache = concatMap flatten $ Map.toUnfoldable cache
-    where
-    flatten (Tuple tid indexes) = map (\ix -> { transactionId: tid, index: ix })
-      (Set.toUnfoldable indexes)
+
+  flatten
+    :: Tuple TransactionHash (Set UInt)
+    -> Array { transactionId :: TransactionHash, index :: UInt }
+  flatten (Tuple tid indexes) = map (\ix -> { transactionId: tid, index: ix })
+    (Set.toUnfoldable indexes)
 
 cacheContains
   :: TxOutRefCache

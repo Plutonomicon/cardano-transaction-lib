@@ -267,11 +267,9 @@ withSingleTransaction prepare extract utx action =
 -- | Errors will be thrown.
 withBalancedTxs
   :: forall (a :: Type)
-       (t :: Type -> Type)
        (r :: Row Type)
-   . Traversable t
-  => t UnattachedUnbalancedTx
-  -> (t UnattachedTransaction -> Contract r a)
+   . (Array UnattachedUnbalancedTx)
+  -> (Array UnattachedTransaction -> Contract r a)
   -> Contract r a
 withBalancedTxs = withTransactions balanceTxs get1
 

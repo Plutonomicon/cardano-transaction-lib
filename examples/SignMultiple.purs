@@ -83,6 +83,8 @@ main = launchAff_ $ do
     logInfo' $ "Locked inputs after bracket (should be empty): " <> show locked
 
   where
+  submitAndLog
+    :: forall (r :: Row Type). BalancedSignedTransaction -> Contract r Unit
   submitAndLog (BalancedSignedTransaction bsTx) = do
     txId <- submit bsTx.signedTxCbor
     logInfo' $ "Tx ID: " <> show txId
