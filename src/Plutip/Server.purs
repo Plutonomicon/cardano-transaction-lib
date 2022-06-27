@@ -22,7 +22,6 @@ import Contract.Monad (Contract, ContractConfig(ContractConfig), runContract)
 import Control.Monad.Error.Class (withResource)
 import Control.Monad.Except (runExcept)
 import Control.Monad.Reader (ReaderT(ReaderT), runReaderT)
-import Data.Array (head)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Right, Left), either)
 import Data.Foldable (intercalate)
@@ -31,12 +30,16 @@ import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (wrap)
 import Data.Posix.Signal (Signal(SIGINT))
-import Data.String.Gen (genAlphaString)
 import Data.UInt as UInt
 import Data.YAML.Foreign.Decode (parseYAMLToJson)
 import Effect (Effect)
-import Effect.Aff (Aff, Milliseconds(..), delay)
+import Effect.Aff (Aff, Milliseconds(Milliseconds), delay)
 import Effect.Aff.Class (liftAff)
+import Effect.Aff.Retry
+  ( constantDelay
+  , limitRetriesByCumulativeDelay
+  , recovering
+  )
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (throw)
@@ -67,7 +70,7 @@ import Plutip.Types
 import Plutip.Utils (tmpdir)
 import QueryM (ClientError(..))
 import QueryM as QueryM
-import Test.QuickCheck.Gen (randomSample)
+import QueryM.UniqueId (uniqueId)
 import Types.UsedTxOuts (newUsedTxOuts)
 
 type PlutipM (r :: Row Type) (a :: Type) = ReaderT PlutipConfig (Contract r) a
@@ -194,9 +197,8 @@ startPlutipServer cfg = do
 startPostgresServer
   :: PostgresConfig -> ClusterStartupParameters -> Aff ChildProcess
 startPostgresServer pgConfig _ = do
-  randomStr <- liftEffect $ fromJustEff "hello" =<< head <$> randomSample
-    genAlphaString
   tmpDir <- liftEffect tmpdir
+  randomStr <- liftEffect $ uniqueId ""
   let
     workingDir = tmpDir <> "/" <> randomStr
     databaseDir = workingDir <> "/postgres/data"
@@ -212,7 +214,19 @@ startPostgresServer pgConfig _ = do
     , workingDir <> "/postgres"
     ]
     defaultSpawnOptions
-  delay (Milliseconds 3000.0)
+  void
+    $ recovering
+        ( limitRetriesByCumulativeDelay (Milliseconds 3000.00) $ constantDelay
+            (Milliseconds 100.0)
+        )
+        ([ \_ _ -> pure true ])
+    $ const
+    $ liftEffect
+    $ execSync
+        ( "psql -h " <> pgConfig.host <> " -p " <> UInt.toString pgConfig.port
+            <> " -d postgres"
+        )
+        defaultExecSyncOptions
   -- liftEffect $ log =<< Bf.toString Encoding.UTF8  =<< execSync ("createuser --createdb --superuser " <> pgConfig.user <> " -h '" <> pgConfig.host <> "' -p " <> UInt.toString pgConfig.port) defaultExecSyncOptions
   liftEffect $ log =<< Bf.toString Encoding.UTF8 =<< execSync
     ( "psql -h " <> pgConfig.host <> " -p " <> UInt.toString pgConfig.port
