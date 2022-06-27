@@ -76,3 +76,10 @@ CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, ho
 - [CIP-30](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0030) (wallet interface - Nami partially implements this)
 - [Nami docs](https://github.com/Berry-Pool/nami-wallet)
 - [Alonzo CDDL spec](https://github.com/input-output-hk/cardano-ledger/blob/0738804155245062f05e2f355fadd1d16f04cd56/alonzo/impl/cddl-files/alonzo.cddl)
+
+### Available support channels info
+
+You can find help, more information and ongoing discusion about the project here:
+- [link] - short description
+- [link] - short description
+
