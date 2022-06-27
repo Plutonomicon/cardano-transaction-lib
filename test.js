@@ -1,12 +1,17 @@
-async function findAndClickButton (browser, text) {
+async function findAndClickButton (browser, jQuery, text) {
 
     console.log("Try to click " + text);
     pages = await browser.pages();
     console.log(pages.length + " pages:");
-   
+
     for(i=0;i<pages.length;i++) {
 	j = i;
 
+	await pages[j].evaluate(() => console.log("jquery"));
+	await pages[j].evaluate(jQuery);
+	await pages[j].evaluate(() => console.log("done"));
+	
+	
 	prefix = "P"+JSON.parse(JSON.stringify(j));
 	
 	pages[j]
@@ -20,13 +25,14 @@ async function findAndClickButton (browser, text) {
 	
 	console.log("eval in page " + j);
 	
-	await pages[i].evaluate((j, text) => {
+	await pages[i].evaluate((j, text) => {	    
+	    
 	    console.log("hello from page "+j);
 	    
 	    console.log("Body length " + document.body.children.length);
 	    console.log("Head length " + document.head.children.length);
 
-	    var walker = document.createTreeWalker(
+/*	    var walker = document.createTreeWalker(
 		document.body,
 		NodeFilter.SHOW_ELEMENT // only elements
 	    );
@@ -37,7 +43,7 @@ async function findAndClickButton (browser, text) {
 		    [...current.attributes].map(({value,name}) => `${name}=${value}`).join()
 		);
 	    }
-
+*/
 	    buttons = document.querySelectorAll("button");
 
 	    console.log("Number of buttons: " + buttons.length);
@@ -50,6 +56,11 @@ async function findAndClickButton (browser, text) {
 		    buttons[g].click()
 		}
 	    }
+
+	    jqButtons = console.log("jQuery('button')");
+	    console.log("jQButton: " + jQuery('button'));
+	    
+	    jQuery(`button:contains(${text})`).click();
 	    
 	    /*
 	      let observer = new MutationObserver ((mutations) => {
@@ -159,13 +170,27 @@ async function test() {
 	
 	console.log('C');
 
+
+	/* works
+	const jquery = await page.evaluate(() => window.fetch('https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js').then((res) => res.text()));
+	*/
+
+	/* works
+	const ffetch = () => window.fetch('https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js').then((res) => res.text());
+	
+	const jquery = await page.evaluate(ffetch);	
+	*/
+
+	const fetch ="async function x() { return window.fetch('https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js').then((res) => res.text()); } await x();";
+	
+	const jquery = await page.evaluate(fetch);
+	
 //	const newPagePromise = new Promise(x => page.once('popup', x));
 	console.log('C1');	
 	page.goto(example);
 	console.log('C2');
 
 	pages = await browser.pages();
-	
 
 	newPage = pages[0];
 	
@@ -178,11 +203,11 @@ async function test() {
 
 	try { await page.waitForNavigation({timeout:2000}); } catch (e) {}
 
-	findAndClickButton(browser, "Access");
+	findAndClickButton(browser, jquery, "Access");
 
 	try { await page.waitForNavigation({timeout:2000}); } catch (e) {}
 	
-	findAndClickButton(browser, "Sign");	
+	findAndClickButton(browser, jquery, "Sign");	
 	
 
 //	console.log(button);

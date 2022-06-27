@@ -2,6 +2,7 @@ module Test.Examples.Pkh2Pkh where
 
 import Control.Monad.Maybe.Trans
 import Data.Traversable
+import Debug
 import Effect.Aff
 import Mote
 import Prelude
@@ -11,6 +12,8 @@ import TestM
 import Control.Category (identity)
 import Control.Monad.Error.Class (catchError)
 import Data.Array (head, filter, zip)
+import Foreign as Foreign
+import Data.Functor (void)
 import Data.Maybe (Maybe(..), isJust, fromMaybe)
 import Data.Newtype (class Newtype, wrap)
 import Data.Tuple (fst, snd)
@@ -37,11 +40,29 @@ tryJs selector function page = catchError eval $ \e -> do
 hasSelector :: Toki.Selector -> Toki.Page -> Aff (Maybe Unit)
 hasSelector selector page = tryJs selector "(x)=>{}" page
 
-findNamiPage :: Toki.Browser -> Aff (Maybe Toki.Page)
-findNamiPage browser = do
+retrieveJQuery :: Toki.Page -> Aff String
+retrieveJQuery page = Foreign.unsafeFromForeign <$> Toki.unsafeEvaluateStringFunction fetch page
+  where fetch = "window.fetch('https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js')"
+
+injectJQuery :: String -> Toki.Page -> Aff Foreign
+injectJQuery = Toki.unsafeEvaluateStringFunction
+
+findNamiPage :: Toki.Page -> Toki.Browser -> Aff (Maybe Toki.Page)
+findNamiPage page browser = do
   pages <- Toki.pages browser
+  jQuery <- retrieveJQuery page
+  _ <- for pages $ injectJQuery jQuery
+  
+  _ <- pure $ spy "ohno" true
   results <- traverse (hasSelector $ wrap "button") pages
-  pure $ map snd $ head $ filter (isJust <<< fst) $ zip results pages
+  _ <- pure $ spy "Results" results  
+  let namiPage = map snd $ head $ filter (isJust <<< fst) $ zip results pages
+  case namiPage of
+      Nothing -> pure Nothing
+      Just np -> debugger $ \_ -> do
+        Toki.addScriptTag "https://code.jquery.com/jquery-3.2.1.min.js" np
+        _ <- pure $ spy "added Scripttag " true
+        pure namiPage
 
 -- | Wrapper for Page so it can be used in `shouldSatisfy`
 newtype NoShowPage = NoShowPage Toki.Page
@@ -63,7 +84,7 @@ x = do
   page <- Toki.newPage browser
   Toki.goto (wrap example) page
   delay (wrap 5000.0)
-  namiPage <- findNamiPage browser
+  namiPage <- findNamiPage page browser
   shouldSatisfy (NoShowPage <$> namiPage) isJust
   let namiPage' :: Toki.Page
       namiPage' = fromMaybe page namiPage
