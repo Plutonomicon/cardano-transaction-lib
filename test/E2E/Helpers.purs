@@ -18,22 +18,25 @@ module Test.E2E.Helpers
   , testPassword
   , reactSetValue
   , retrieveJQuery
+  , testFeedbackIsTrue
   , Selector(..)
   , Action(..)
   , NoShowPage(..)
   ) where
 
-import Toppokki as Toki
+import Prelude
+
+import Control.Promise (Promise, toAffE, toAff)
+import Control.Monad (join)
 import Data.Array (head, filterA)
+import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Traversable (for, fold)
+import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class.Console (log)
-import Effect (Effect)
-import Data.Maybe (Maybe)
 import Foreign (Foreign, unsafeFromForeign)
-import Prelude
-import Control.Promise (Promise, toAffE)
-import Data.Traversable (for, fold)
+import Toppokki as Toki
 
 foreign import _retrieveJQuery :: Toki.Page -> Effect (Promise String)
 
@@ -54,6 +57,9 @@ findNamiPage browser = do
   pages <- Toki.pages browser
   pages' <- filterA (hasSelector button) pages
   pure $ head $ pages'
+
+testFeedbackIsTrue :: Toki.Page -> Aff Boolean
+testFeedbackIsTrue page = unsafeFromForeign <$> Toki.unsafeEvaluateStringFunction "window.ctlTestFeedback" page
 
 -- | Wrapper for Page so it can be used in `shouldSatisfy`, which needs 'Show'
 -- | Doesn't show anything, thus 'NoShow'

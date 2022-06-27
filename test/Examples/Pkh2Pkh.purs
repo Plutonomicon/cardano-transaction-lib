@@ -1,27 +1,20 @@
 module Test.Examples.Pkh2Pkh where
 
-import Effect.Aff (delay)
-import Mote (test)
+import Examples.TestFeedback
 import Prelude
-import Test.E2E.Wallet (Mode(..), launchWithNami)
-import TestM (TestPlanM)
 
-import Effect.Class (liftEffect)
-import Effect.Exception (throw)
 import Data.Maybe (isJust, Maybe(..))
 import Data.Newtype (wrap)
-import Test.E2E.Helpers
-  ( clickButton
-  , findNamiPage
-  , injectJQueryAll
-  , password
-  , testPassword
-  , reactSetValue
-  , retrieveJQuery
-  , NoShowPage(NoShowPage)
-  )
+import Effect.Aff (delay)
+import Effect.Class (liftEffect)
+import Effect.Exception (throw)
+import Foreign (unsafeFromForeign)
+import Mote (test)
+import Test.E2E.Helpers (NoShowPage(NoShowPage), clickButton, findNamiPage, injectJQueryAll, password, reactSetValue, retrieveJQuery, testFeedbackIsTrue, testPassword)
+import Test.E2E.Wallet (Mode(..), launchWithNami)
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Toppoki (example)
+import TestM (TestPlanM)
 import Toppokki as Toki
 
 testPkh2Pkh :: TestPlanM Unit
@@ -43,4 +36,8 @@ testPkh2Pkh = test "Pkh2Pkh" do
       clickButton "Sign" np
       reactSetValue password testPassword np
       clickButton "Confirm" np
+      delay (wrap 1000.0)
+  delay (wrap 500.0)
+  feedback <- testFeedbackIsTrue page
+  shouldSatisfy feedback (_ == true)
 
