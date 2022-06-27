@@ -60,11 +60,6 @@ tryJs selector function page = catchError eval $ \e -> do
 hasSelector :: Toki.Selector -> Toki.Page -> Aff (Maybe Unit)
 hasSelector selector page = tryJs selector "(x)=>{}" page
 
-{-retrieveJQuery :: Toki.Page -> Aff String
-retrieveJQuery page = Foreign.unsafeFromForeign <$> Toki.unsafeEvaluateStringFunction fetch page
-  where fetch = "window.fetch('https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js')"
--}
-
 injectJQuery :: String -> Toki.Page -> Aff Foreign
 injectJQuery = Toki.unsafeEvaluateStringFunction
 
@@ -74,7 +69,8 @@ findNamiPage browser = do
   results <- traverse (hasSelector $ wrap "button") pages
   pure $ map snd $ head $ filter (isJust <<< fst) $ zip results pages
 
--- | Wrapper for Page so it can be used in `shouldSatisfy`
+-- | Wrapper for Page so it can be used in `shouldSatisfy`, which needs 'Show'
+-- | Doesn't show anything, thus 'NoShow'
 newtype NoShowPage = NoShowPage Toki.Page
 
 derive instance Newtype NoShowPage _
@@ -90,6 +86,7 @@ newtype Action = Action String
 
 derive instance Newtype Action _
 
+-- | Build a primitive jQuery expression like '$("button").click()' and evaluate it in Toki
 doJQ :: Selector -> Action -> Toki.Page -> Aff Unit
 doJQ selector action page = do
   log jq
