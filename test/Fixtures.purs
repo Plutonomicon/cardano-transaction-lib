@@ -35,8 +35,6 @@ module Test.Fixtures
   , plutusDataFixture8Bytes
   , plutusDataFixture8Bytes'
   , redeemerFixture1
-  , seabugMetadataDeltaFixture1
-  , seabugMetadataFixture1
   , tokenName1
   , tokenName2
   , txBinaryFixture1
@@ -134,11 +132,6 @@ import Metadata.Cip25
   , Cip25MetadataEntry(Cip25MetadataEntry)
   , Cip25MetadataFile(Cip25MetadataFile)
   )
-import Metadata.Seabug
-  ( SeabugMetadata(SeabugMetadata)
-  , SeabugMetadataDelta(SeabugMetadataDelta)
-  )
-import Metadata.Seabug.Share (Share, mkShare)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Partial.Unsafe (unsafePartial)
@@ -1139,33 +1132,6 @@ validatorHashFixture1 = ValidatorHash scriptHash1
 
 validatorHashFixture2 :: ValidatorHash
 validatorHashFixture2 = ValidatorHash scriptHash2
-
-shareFixture :: Share
-shareFixture = unsafePartial $ fromJust $ mkShare 100
-
-seabugMetadataFixture1 :: SeabugMetadata
-seabugMetadataFixture1 = SeabugMetadata
-  { policyId: policyId
-  , mintPolicy: hexToByteArrayUnsafe "00000000"
-  , collectionNftCS: currencySymbol1
-  , collectionNftTN: tokenName1
-  , lockingScript: validatorHashFixture1
-  , authorPkh: PubKeyHash ed25519KeyHashFixture1
-  , authorShare: shareFixture
-  , marketplaceScript: validatorHashFixture2
-  , marketplaceShare: shareFixture
-  , ownerPkh: PubKeyHash ed25519KeyHashFixture2
-  , ownerPrice: unsafePartial $ fromJust $ Natural.fromBigInt $ BigInt.fromInt
-      10
-  }
-
-seabugMetadataDeltaFixture1 :: SeabugMetadataDelta
-seabugMetadataDeltaFixture1 = SeabugMetadataDelta
-  { policyId: policyId
-  , ownerPkh: PubKeyHash ed25519KeyHashFixture2
-  , ownerPrice: unsafePartial $ fromJust $ Natural.fromBigInt $ BigInt.fromInt
-      10
-  }
 
 cip25MetadataFilesFixture1 :: Array Cip25MetadataFile
 cip25MetadataFilesFixture1 = Cip25MetadataFile <$>
