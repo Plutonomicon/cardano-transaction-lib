@@ -99,7 +99,6 @@ import QueryM
   , getWalletCollateral
   , evalTxExecutionUnits
   )
-import QueryM.ProtocolParameters (getProtocolParameters)
 import QueryM.Utxos (utxosAt)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
@@ -470,7 +469,7 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     -> UnattachedUnbalancedTx
     -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
   loop utxoIndex' ownAddr' prevMinUtxos' unattachedTx' = do
-    uTxOCostPerWord <- getProtocolParameters <#> unwrap >>> _.uTxOCostPerWord
+    uTxOCostPerWord <- asks _.pparams <#> unwrap >>> _.uTxOCostPerWord
     let
       Transaction { body: txBody'@(TxBody txB) } =
         unattachedTx' ^. _transaction'
@@ -1019,5 +1018,5 @@ getInputValue utxos (TxBody txBody) =
 
 getAdaOnlyUtxoMinValue :: QueryM BigInt
 getAdaOnlyUtxoMinValue =
-  getProtocolParameters <#>
+  asks _.pparams <#>
     unwrap >>> _.uTxOCostPerWord >>> unwrap >>> mul adaOnlyWords
