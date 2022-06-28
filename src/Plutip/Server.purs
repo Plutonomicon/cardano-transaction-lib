@@ -251,34 +251,34 @@ startPostgresServer pgConfig _ = do
     defaultExecSyncOptions
   pure pgChildProcess
 
--- TODO: use CLI arguments when https://github.com/mlabs-haskell/ogmios-datum-cache/issues/61 is resolved
 startOgmiosDatumCache
   :: PlutipConfig -> ClusterStartupParameters -> Aff ChildProcess
 startOgmiosDatumCache cfg _params = do
-  dir <- liftEffect tmpdir
+  apiKey <- liftEffect $ uniqueId "token"
   let
-    dbString :: String
-    dbString = intercalate " "
-      [ "host=" <> cfg.postgresConfig.host
-      , "port=" <> UInt.toString cfg.postgresConfig.port
-      , "user=" <> cfg.postgresConfig.user
-      , "dbname=" <> cfg.postgresConfig.dbname
-      , "password=" <> cfg.postgresConfig.password
+    arguments :: Array String
+    arguments =
+      [ "--server-api"
+      , apiKey
+      , "--server-port"
+      , UInt.toString cfg.ogmiosDatumCacheConfig.port
+      , "--ogmios-address"
+      , cfg.ogmiosDatumCacheConfig.host
+      , "--ogmios-port"
+      , UInt.toString cfg.ogmiosConfig.port
+      , "--db-port"
+      , UInt.toString cfg.postgresConfig.port
+      , "--db-host"
+      , cfg.postgresConfig.host
+      , "--db-user"
+      , cfg.postgresConfig.user
+      , "--db-name"
+      , cfg.postgresConfig.dbname
+      , "--db-password"
+      , cfg.postgresConfig.password
+      , "--use-latest"
       ]
-
-    configContents :: String
-    configContents = intercalate "\n"
-      [ "dbConnectionString = \"" <> dbString <> "\""
-      , "server.port = " <> UInt.toString cfg.ogmiosDatumCacheConfig.port
-      , "ogmios.address = \"" <> cfg.ogmiosDatumCacheConfig.host <> "\""
-      , "ogmios.port = " <> UInt.toString cfg.ogmiosConfig.port
-      , "blockFetcher.autoStart = true"
-      , "blockFetcher.firstBlock.slot = 0"
-      -- TODO: start from origin when https://github.com/mlabs-haskell/ogmios-datum-cache/pull/59 is merged
-      ]
-  writeTextFile Encoding.UTF8 (dir <> "/config.toml") configContents
-  liftEffect $ spawn "ogmios-datum-cache" [] defaultSpawnOptions
-    { cwd = Just dir }
+  liftEffect $ spawn "ogmios-datum-cache" arguments defaultSpawnOptions
 
 mkClusterContractCfg
   :: forall (r :: Row Type)
