@@ -137,7 +137,7 @@ testWaitUntilSlot = do
     getChainTip >>= case _ of
       TipAtGenesis -> liftEffect $ throw "Tip is at genesis"
       Tip (ChainTip { slot }) -> do
-        waitUntilSlot $ over AbsSlot (add (BigInt.fromInt 20)) slot
+        waitUntilSlot $ over AbsSlot (add (BigInt.fromInt 10)) slot
 
 testFromOgmiosAddress :: OgmiosAddress -> Aff Unit
 testFromOgmiosAddress testAddr = do

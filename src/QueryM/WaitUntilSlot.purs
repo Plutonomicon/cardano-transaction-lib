@@ -4,32 +4,38 @@ module QueryM.WaitUntilSlot
 
 import Prelude
 
+import Control.Monad.Reader (asks)
+import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.DateTime.Instant (unInstant)
 import Data.Either (hush)
 import Data.Int as Int
+import Data.Log.Level (LogLevel(Trace))
 import Data.Newtype (unwrap, wrap)
-import Data.Time.Duration (Seconds(..))
+import Data.Time.Duration (Milliseconds(Milliseconds), Seconds)
+import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect.Aff (Milliseconds, delay)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Effect.Console as Console
 import Effect.Exception (error)
 import Effect.Now (now)
-import Helpers (liftM)
+import Helpers (liftEither, liftM, logString)
 import QueryM (QueryM, getChainTip)
 import QueryM.EraSummaries (getEraSummaries)
-import QueryM.Ogmios (AbsSlot, EraSummaries(..), SystemStart(..))
+import QueryM.Ogmios (AbsSlot, EraSummaries, SystemStart)
 import QueryM.SystemStart (getSystemStart)
-import Serialization.Address (Slot(..))
+import Serialization.Address (Slot)
 import Types.Chain as Chain
-import Types.Interval (POSIXTime(..), slotToPosixTime)
+import Types.Interval
+  ( POSIXTime(POSIXTime)
+  , findSlotEraSummary
+  , getSlotLength
+  , slotToPosixTime
+  )
 
--- | Wait until slot. The returned slot will be no less than the slot provided
--- | as argument. The returned slot may be greater than the real current slot of
--- | the node.
+-- | The returned slot will be no less than the slot provided as argument.
 waitUntilSlot :: AbsSlot -> QueryM Chain.Tip
 waitUntilSlot futureAbsSlot =
   getChainTip >>= case _ of
@@ -38,50 +44,87 @@ waitUntilSlot futureAbsSlot =
       | otherwise -> do
           eraSummaries <- getEraSummaries
           sysStart <- getSystemStart
+          slotLengthMs <- map getSlotLength $ liftEither
+            $ lmap (const $ error "Unable to get current Era summary")
+            $ findSlotEraSummary eraSummaries slot
+          -- `timePadding` in slots
+          -- If there are less than `slotPadding` slots remaining, start querying for chainTip
+          -- repeatedly, because it's possible that at any given moment Ogmios suddenly
+          -- synchronizes with node that is also synchronized with global time.
+          slotPadding :: UInt <- liftM (error "Unable to calculate slotPadding")
+            $ UInt.fromNumber'
+            $ unwrap timePadding / BigInt.toNumber slotLengthMs
+          getLag eraSummaries sysStart slot >>= logLag slotLengthMs
+          futureSlot :: Slot <-
+            liftM (error "Unable to convert AbsSlot to Slot") $
+              wrap <$> UInt.fromString (BigInt.toString $ unwrap futureAbsSlot)
           let
-            -- Repeatedly check current slot until it's greater than or equal to futureSlot
+            paddedFutureSlot = wrap $ unwrap futureSlot - slotPadding :: Slot
+          futureTime <-
+            liftEffect (slotToPosixTime eraSummaries sysStart paddedFutureSlot)
+              >>= hush >>> liftM (error "Unable to convert Slot to POSIXTime")
+          delayTime <- estimateDelayUntil futureTime
+          liftAff $ delay delayTime
+          let
+            -- Repeatedly check current slot until it's greater than or equal to futureAbsSlot
             fetchRepeatedly :: QueryM Chain.Tip
             fetchRepeatedly =
               getChainTip >>= case _ of
-                tip@(Chain.Tip (Chain.ChainTip { slot }))
-                  | slot >= futureAbsSlot -> pure tip
-                _ -> do
+                currentTip@(Chain.Tip (Chain.ChainTip { slot: currentSlot }))
+                  | currentSlot >= futureAbsSlot -> pure currentTip
+                  | otherwise -> do
+                      liftAff $ delay $ Milliseconds $ BigInt.toNumber
+                        slotLengthMs
+                      getLag eraSummaries sysStart currentSlot >>= logLag
+                        slotLengthMs
+                      fetchRepeatedly
+                Chain.TipAtGenesis -> do
                   liftAff $ delay retryDelay
-                  lag <- getLag eraSummaries sysStart slot
-                  liftEffect $ Console.log $ "lag: " <> show lag
                   fetchRepeatedly
-          lag <- getLag eraSummaries sysStart slot
-          liftEffect $ Console.log $ "lag: " <> show lag
-          futureSlot <- liftM (error "Unable to convert AbsSlot to Slot") $
-            wrap <$> UInt.fromString (BigInt.toString $ unwrap futureAbsSlot)
-          futureTime <-
-            liftEffect (slotToPosixTime eraSummaries sysStart futureSlot) >>=
-              hush >>> liftM (error "Unable to convert Slot to POSIXTime")
-          delayTime <- estimateDelayUntil futureTime
-          liftEffect $ Console.log $ "delaying for" <> show delayTime
-          liftAff $ delay delayTime
           fetchRepeatedly
     Chain.TipAtGenesis -> do
       -- We just retry until it moves from genesis
       liftAff $ delay retryDelay
       waitUntilSlot futureAbsSlot
   where
+  -- `timePadding` is an estimation of how large a lag can normally be (in seconds).
+  -- It is estimated empirically by repeatedly measuring lag for a sufficiently
+  -- long time. Note that lag normally does not drop to zero, but we assume it's
+  -- possible.
+  -- For scale, lowest lag value ever seen was 3, and highest was about 160.
+  timePadding :: Milliseconds
+  timePadding = wrap 200_000.0
+
   retryDelay :: Milliseconds
   retryDelay = wrap 1000.0
 
-getLag :: EraSummaries -> SystemStart -> AbsSlot -> QueryM BigInt
+  logLag :: BigInt -> Milliseconds -> QueryM Unit
+  logLag slotLengthMs (Milliseconds lag) = do
+    logLevel <- asks _.logLevel
+    liftEffect $ logString logLevel Trace $
+      "waitUntilSlot: current lag: " <> show lag <> " ms, "
+        <> show (lag / BigInt.toNumber slotLengthMs)
+        <> " slots."
+
+-- | Calculate difference between estimated POSIX time of given slot
+-- | and current time.
+getLag :: EraSummaries -> SystemStart -> AbsSlot -> QueryM Milliseconds
 getLag eraSummaries sysStart nowAbsSlot = do
+  logLevel <- asks _.logLevel
   nowSlot <- liftM (error "Unable to convert AbsSlot to Slot") $
     wrap <$> UInt.fromString (BigInt.toString $ unwrap nowAbsSlot)
-  liftEffect $ Console.log $ "nowSlot: " <> show nowSlot
   nowPosixTime <- liftEffect (slotToPosixTime eraSummaries sysStart nowSlot) >>=
     hush >>> liftM (error "Unable to convert Slot to POSIXTime")
-  liftEffect $ Console.log $ "nowPosixTime: " <> show nowPosixTime
   nowMs <- unwrap <<< unInstant <$> liftEffect now
-  liftEffect $ Console.log $ "nowMs: " <> show nowMs
+  liftEffect $ logString logLevel Trace $
+    "getLag: current slot: " <> show (UInt.toInt $ unwrap nowSlot)
+      <> ", slot time: "
+      <> BigInt.toString (unwrap nowPosixTime)
+      <> ", system time: "
+      <> show nowMs
   nowMsBigInt <- liftM (error "Unable to convert Milliseconds to BigInt") $
     BigInt.fromNumber nowMs
-  pure $ nowMsBigInt - unwrap nowPosixTime
+  pure $ wrap $ BigInt.toNumber $ nowMsBigInt - unwrap nowPosixTime
 
 -- | Estimate how long we want to wait if we want to wait until `timePadding`
 -- | milliseconds before a given `POSIXTime`.
@@ -89,17 +132,19 @@ estimateDelayUntil :: POSIXTime -> QueryM Milliseconds
 estimateDelayUntil futureTimePosix = do
   futureTimeSec <- posixTimeToSeconds futureTimePosix
   nowMs <- unwrap <<< unInstant <$> liftEffect now
-  liftEffect $ Console.log $ show nowMs
-  liftEffect $ Console.log $ show futureTimeSec
+  logLevel <- asks _.logLevel
   let
     result = wrap $ mul 1000.0 $ nonNegative $
-      unwrap futureTimeSec - nowMs / 1000.0 - unwrap timePaddingSec
+      unwrap futureTimeSec - nowMs / 1000.0
+  liftEffect $ logString logLevel Trace $
+    "estimateDelayUntil: target time: " <> show (unwrap futureTimeSec * 1000.0)
+      <> ", system time: "
+      <> show nowMs
+      <> ", delay: "
+      <> show (unwrap result)
+      <> "ms"
   pure result
   where
-  -- We start `fetchRepeatedly` when the remaining time in seconds is less than `timePadding`.
-  timePaddingSec :: Seconds
-  timePaddingSec = wrap 50.0
-
   nonNegative :: Number -> Number
   nonNegative n
     | n < 0.0 = 0.0
