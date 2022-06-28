@@ -252,8 +252,9 @@ balanceAndSignTx uaubTx@(UnattachedUnbalancedTx { datums }) = do
   balancedTx /\ redeemersTxIns <- liftedE $ balanceTx uaubTx
   redeemers <- liftedE $ flip reindexSpentScriptRedeemers redeemersTxIns $
     balancedTx ^. _body <<< _inputs
-  finalizedTx <- liftedE $ liftEffect $ finalizeTransaction redeemers datums
-    balancedTx
+  costModels <- getProtocolParameters <#> unwrap >>> _.costModels
+  finalizedTx <- liftedE $ liftEffect $
+    finalizeTransaction costModels redeemers datums balancedTx
   map wrap <$> signTransaction finalizedTx
 
 scriptOutputToTransactionOutput

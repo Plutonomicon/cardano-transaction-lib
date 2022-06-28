@@ -51,12 +51,13 @@ instance Show ModifyTxError where
 -- | Sets the script integrity hash and attaches redeemers, for use after
 -- | reindexing
 finalizeTransaction
-  :: Array Redeemer
+  :: Costmdls
+  -> Array Redeemer
   -> Array Datum
   -> Transaction
   -> Effect (Either ModifyTxError Transaction)
-finalizeTransaction rs ds tx = runExceptT $
-  liftEffect <<< setScriptDataHash rs ds
+finalizeTransaction costModels rs ds tx = runExceptT $
+  liftEffect <<< setScriptDataHash costModels rs ds
     =<< attachRedeemers rs
     =<< attachDatums ds tx
 
