@@ -5,9 +5,6 @@ module Constants.Alonzo
   , utxoEntrySizeWithoutVal
   ) where
 
-import Prelude
-
-import Cardano.Types.Value (Coin(Coin))
 import Data.BigInt (BigInt, fromInt)
 
 -- words

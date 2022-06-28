@@ -864,34 +864,34 @@ mkDatumCacheRequest = mkRequest
 
 -- | Builds an Ogmios request action using `QueryM`
 mkRequest
-  :: forall (request :: Type) (response :: Type) (listeners' :: Type)
-   . QueryM listeners'
+  :: forall (request :: Type) (response :: Type) (listeners :: Type)
+   . QueryM listeners
   -> QueryM JsWebSocket
   -> JsonWsp.JsonWspCall request response
-  -> (listeners' -> ListenerSet request response)
+  -> (listeners -> ListenerSet request response)
   -> request
   -> QueryM response
 mkRequest getListeners getWebSocket jsonWspCall getLs inp = do
   ws <- getWebSocket
-  listeners <- getListeners
+  listeners' <- getListeners
   logLevel <- asks _.logLevel
-  liftAff $ mkRequestAff listeners ws logLevel jsonWspCall getLs inp
+  liftAff $ mkRequestAff listeners' ws logLevel jsonWspCall getLs inp
 
 -- | Builds an Ogmios request action using `Aff`
 mkRequestAff
-  :: forall (request :: Type) (response :: Type) (listeners' :: Type)
-   . listeners'
+  :: forall (request :: Type) (response :: Type) (listeners :: Type)
+   . listeners
   -> JsWebSocket
   -> LogLevel
   -> JsonWsp.JsonWspCall request response
-  -> (listeners' -> ListenerSet request response)
+  -> (listeners -> ListenerSet request response)
   -> request
   -> Aff response
-mkRequestAff listeners webSocket logLevel jsonWspCall getLs inp = do
+mkRequestAff listeners' webSocket logLevel jsonWspCall getLs inp = do
   { body, id } <- liftEffect $ JsonWsp.buildRequest jsonWspCall inp
   let
     respLs :: ListenerSet request response
-    respLs = getLs listeners
+    respLs = getLs listeners'
 
     affFunc :: (Either Error response -> Effect Unit) -> Effect Canceler
     affFunc cont = do
