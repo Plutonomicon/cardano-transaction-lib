@@ -3,19 +3,21 @@
 -- | a given `Address` is defined.
 module Contract.Utxos
   ( utxosAt
+  , getWalletBalance
   , module Transaction
   ) where
 
 import Prelude
 
+import Cardano.Types.Value (Value)
 import Contract.Monad (Contract, wrapContract, liftContractM)
 import Control.Monad.Reader.Class (asks)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)
-import QueryM.Utxos (utxosAt) as Utxos
 import Plutus.Conversion (fromPlutusAddress, toPlutusUtxoM)
 import Plutus.Types.Address (Address)
 import Plutus.Types.Transaction (UtxoM(UtxoM)) as Transaction
+import QueryM.Utxos (getWalletBalance, utxosAt) as Utxos
 
 -- | This module defines query functionality via Ogmios to get utxos.
 
@@ -35,3 +37,8 @@ utxosAt address = do
         toPlutusUtxoM
     )
     mCardanoUtxos
+
+getWalletBalance
+  :: forall (r :: Row Type)
+   . Contract r (Maybe Value)
+getWalletBalance = wrapContract Utxos.getWalletBalance
