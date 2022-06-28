@@ -24,7 +24,6 @@ import Control.Monad.Except (runExcept)
 import Control.Monad.Reader (ReaderT(ReaderT), runReaderT)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Right, Left), either)
-import Data.Foldable (intercalate)
 import Data.HTTP.Method as Method
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
@@ -56,7 +55,6 @@ import Node.ChildProcess
   )
 import Node.Encoding as Encoding
 import Node.FS.Aff (writeTextFile)
-import Node.FS.Sync (readTextFile)
 import Node.Path (concat, dirname)
 import Plutip.Types
   ( ClusterStartupParameters

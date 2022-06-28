@@ -9,7 +9,7 @@
 
     # for the purescript project
     ogmios.url = "github:mlabs-haskell/ogmios";
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache";
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/1be5e903e14f5a1785983bdb38203195b401bd15";
     plutip.url = "github:mlabs-haskell/plutip/plutip-server";
     # so named because we also need a different version of the repo below
     # in the server inputs and we use this one just for the `cardano-cli`
@@ -199,19 +199,11 @@
         };
         datumCache = {
           port = 9999;
-          dbConnectionString = nixpkgs.lib.concatStringsSep
-            " "
-            [
-              "host=postgres"
-              "port=5432"
-              "user=${postgres.user}"
-              "dbname=${postgres.db}"
-              "password=${postgres.password}"
-            ];
+          controlApiToken = "";
           blockFetcher = {
             firstBlock = {
-              slot = 54066900;
-              id = "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d";
+              slot = 61625527;
+              id = "3afd8895c7b270f8250b744ec8d2b3c53ee2859c9d5711d906c47fe51b800988";
             };
             autoStart = true;
             startFromLast = false;
@@ -351,16 +343,6 @@
                 filter = nixpkgs.lib.strings.replaceStrings
                   [ "\"" "\\" ] [ "\\\"" "\\\\" ]
                   datumCache.blockFetcher.filter;
-                configFile = ''
-                  dbConnectionString = "${datumCache.dbConnectionString}"
-                  server.port = ${toString datumCache.port}
-                  ogmios.address = "ogmios"
-                  ogmios.port = ${toString ogmios.port}
-                  blockFetcher.autoStart = ${nixpkgs.lib.boolToString datumCache.blockFetcher.autoStart}
-                  blockFetcher.firstBlock.slot = ${toString datumCache.blockFetcher.firstBlock.slot}
-                  blockFetcher.firstBlock.id = "${datumCache.blockFetcher.firstBlock.id}"
-                  blockFetcher.filter = "${filter}"
-                '';
               in
               {
                 service = {
@@ -372,11 +354,19 @@
                     "${pkgs.bash}/bin/sh"
                     "-c"
                     ''
-                      ${pkgs.coreutils}/bin/cat <<EOF > config.toml
-                        ${configFile}
-                      EOF
-                      ${pkgs.coreutils}/bin/sleep 1
-                      ${pkgs.ogmios-datum-cache}/bin/ogmios-datum-cache
+                      ${pkgs.ogmios-datum-cache}/bin/ogmios-datum-cache \
+                        --server-api "${toString datumCache.controlApiToken}" \
+                        --server-port ${toString datumCache.port} \
+                        --ogmios-address ogmios \
+                        --ogmios-port ${toString ogmios.port} \
+                        --db-port 5432 \
+                        --db-host postgres \
+                        --db-user "${postgres.user}" \
+                        --db-name "${postgres.db}" \
+                        --db-password "${postgres.password}" \
+                        --block-slot ${toString datumCache.blockFetcher.firstBlock.slot} \
+                        --block-hash "${datumCache.blockFetcher.firstBlock.id}" \
+                        --block-filter "${filter}"
                     ''
                   ];
                 };
@@ -428,6 +418,7 @@
                 pkgs.nixpkgs-fmt
                 pkgs.fd
                 pkgs.arion
+                pkgs.haskellPackages.fourmolu
               ];
             };
           };

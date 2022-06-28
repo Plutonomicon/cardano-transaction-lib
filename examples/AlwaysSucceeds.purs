@@ -9,21 +9,20 @@ import Contract.Address (scriptHashAddress)
 import Contract.Aeson (decodeAeson, fromString)
 import Contract.Monad
   ( Contract
-  , ContractConfig(ContractConfig)
   , launchAff_
+  , liftContractAffM
   , liftContractM
   , liftedE
   , liftedM
   , logInfo'
   , runContract_
-  , traceContractConfig
+  , traceTestnetContractConfig
   )
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
 import Contract.Transaction
-  ( BalancedSignedTransaction(BalancedSignedTransaction)
-  , TransactionHash
+  ( TransactionHash
   , TransactionInput(TransactionInput)
   , balanceAndSignTx
   , submit
@@ -32,19 +31,18 @@ import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (UtxoM(UtxoM), utxosAt)
 import Contract.Value as Value
-import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Effect.Aff (delay)
 
 main :: Effect Unit
 main = launchAff_ $ do
-  wallet <- Just <$> mkNamiWalletAff
-  cfg <- over ContractConfig _ { wallet = wallet } <$> traceContractConfig
+  cfg <- traceTestnetContractConfig
   runContract_ cfg $ do
     logInfo' "Running Examples.AlwaysSucceeds"
     validator <- liftContractM "Invalid script JSON" alwaysSucceedsScript
-    vhash <- liftContractM "Couldn't hash validator" $ validatorHash validator
+    vhash <- liftContractAffM "Couldn't hash validator"
+      $ validatorHash validator
     logInfo' "Attempt to lock value"
     txId <- payToAlwaysSucceeds vhash
     -- If the wallet is cold, you need a high parameter here.
@@ -108,9 +106,9 @@ buildBalanceSignAndSubmitTx
   -> Contract () TransactionHash
 buildBalanceSignAndSubmitTx lookups constraints = do
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  BalancedSignedTransaction bsTx <-
+  bsTx <-
     liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-  txId <- submit bsTx.signedTxCbor
+  txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
   pure txId
 
