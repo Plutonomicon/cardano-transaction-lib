@@ -54,7 +54,7 @@ import Node.ChildProcess
   , spawn
   )
 import Node.Encoding as Encoding
-import Node.FS.Aff (writeTextFile)
+import Node.FS.Sync (readTextFile)
 import Node.Path (concat, dirname)
 import Plutip.Types
   ( ClusterStartupParameters
