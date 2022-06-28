@@ -21,11 +21,7 @@ import Contract.Monad
   , mkContractConfig
   )
 import Contract.ScriptLookups as Lookups
-import Contract.Transaction
-  ( BalancedSignedTransaction(BalancedSignedTransaction)
-  , balanceAndSignTx
-  , submit
-  )
+import Contract.Transaction (balanceAndSignTx, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Control.Monad.Error.Class (catchError, liftMaybe)
@@ -128,8 +124,8 @@ main = do
             lookups = mempty
 
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          BalancedSignedTransaction bsTx <-
+          bsTx <-
             liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-          txId <- submit bsTx.signedTxCbor
+          txId <- submit bsTx
           logInfo' $ "Tx ID: " <> show txId
           liftEffect unlock

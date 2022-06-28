@@ -155,7 +155,7 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
   contract = do
     ...
     -- `liftedM` will throw on `Nothing`s
-    BalancedSignedTransaction bsTx <-
+    bsTx <-
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     ...
   ```
@@ -164,7 +164,7 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
   ```purescript
   contract = do
     ...
-    txId <- submit bsTx.signedTxCbor
+    txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
   ```
 

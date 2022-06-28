@@ -7,7 +7,6 @@ module QueryM
   , DispatchError(..)
   , DispatchIdMap
   , FeeEstimate(..)
-  , FinalizedTransaction(..)
   , ListenerSet
   , OgmiosListeners
   , OgmiosWebSocket
@@ -22,7 +21,6 @@ module QueryM
   , applyArgs
   , calculateMinFee
   , evalTxExecutionUnits
-  , finalizeTx
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
@@ -41,7 +39,6 @@ module QueryM
   , runQueryM
   , signTransaction
   , scriptToAeson
-  , signTransactionBytes
   , submitTxOgmios
   , traceQueryConfig
   , underlyingWebSocket
@@ -75,23 +72,21 @@ import Data.Array (length)
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), either, isRight, note, hush)
+import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(POST))
 import Data.Log.Level (LogLevel(Trace, Debug, Error))
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), maybe, maybe')
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Traversable (traverse, traverse_, for)
+import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Deserialization.FromBytes (fromBytes) as Deserialization
-import Deserialization.Transaction (convertTransaction) as Deserialization
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), delay, launchAff_, makeAff)
 import Effect.Aff.Class (liftAff)
@@ -150,8 +145,7 @@ import Serialization.Address
   , stakeCredentialToKeyHash
   )
 import Serialization.PlutusData (convertPlutusData) as Serialization
-import Serialization.WitnessSet (convertRedeemers) as Serialization
-import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
+import Types.ByteArray (ByteArray, byteArrayToHex)
 import Types.CborBytes (CborBytes)
 import Types.Chain as Chain
 import Types.Datum (DataHash, Datum)
@@ -294,23 +288,6 @@ signTransaction tx = withMWalletAff case _ of
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
   KeyWallet kw -> Just <$> kw.signTx tx
 
-signTransactionBytes
-  :: CborBytes -> QueryM (Maybe CborBytes)
-signTransactionBytes tx = withMWalletAff case _ of
-  Nami nami -> callCip30Wallet nami \nw -> flip nw.signTxBytes tx
-  Gero gero -> callCip30Wallet gero \nw -> flip nw.signTxBytes tx
-  KeyWallet kw ->
-    for
-      ( Deserialization.fromBytes (unwrap tx)
-          >>= Deserialization.convertTransaction
-            >>> hush
-      )
-      ( kw.signTx
-          >=> Serialization.convertTransaction
-            >>> map (asOneOf >>> Serialization.toBytes >>> wrap)
-            >>> liftEffect
-      )
-
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do
   mbAddress <- getWalletAddress
@@ -438,59 +415,6 @@ evalTxExecutionUnits tx = do
   url <- mkServerEndpointUrl "eval-ex-units"
   liftAff $ postAeson url (encodeAeson { tx: txHex })
     <#> handleAffjaxResponse
-
--- | CborHex-encoded tx
-newtype FinalizedTransaction = FinalizedTransaction ByteArray
-
-derive instance Generic FinalizedTransaction _
-
-instance Show FinalizedTransaction where
-  show = genericShow
-
-instance DecodeAeson FinalizedTransaction where
-  decodeAeson =
-    map FinalizedTransaction <<<
-      caseAesonString (Left err) (note err <<< hexToByteArray)
-    where
-    err = TypeMismatch "Expected CborHex of Tx"
-
-finalizeTx
-  :: Transaction.Transaction
-  -> Array Datum
-  -> Array Transaction.Redeemer
-  -> QueryM (Maybe FinalizedTransaction)
-finalizeTx tx datums redeemers = do
-  -- tx
-  txHex <- liftEffect (txToHex tx)
-  -- datums
-  encodedDatums <- liftEffect do
-    for datums \datum -> do
-      byteArrayToHex <<< Serialization.toBytes <<< asOneOf
-        <$> maybe'
-          (\_ -> throw $ "Failed to convert plutus data: " <> show datum)
-          pure
-          (Serialization.convertPlutusData $ unwrap datum)
-  -- redeemers
-  encodedRedeemers <- liftEffect $
-    byteArrayToHex <<< Serialization.toBytes <<< asOneOf <$>
-      Serialization.convertRedeemers redeemers
-  -- construct payload
-  let
-    body
-      :: { tx :: String
-         , datums :: Array String
-         , redeemers :: String
-         }
-    body =
-      { tx: txHex
-      , datums: encodedDatums
-      , redeemers: encodedRedeemers
-      }
-  url <- mkServerEndpointUrl "finalize"
-  -- get response json
-  jsonBody <- liftAff (postAeson url (encodeAeson body)) <#> map _.body
-  -- decode
-  pure $ hush <<< (decodeAeson <=< parseJsonStringToAeson) =<< hush jsonBody
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied

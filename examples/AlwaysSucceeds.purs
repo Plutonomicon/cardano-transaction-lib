@@ -22,8 +22,7 @@ import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
 import Contract.Transaction
-  ( BalancedSignedTransaction(BalancedSignedTransaction)
-  , TransactionHash
+  ( TransactionHash
   , TransactionInput(TransactionInput)
   , balanceAndSignTx
   , submit
@@ -107,9 +106,9 @@ buildBalanceSignAndSubmitTx
   -> Contract () TransactionHash
 buildBalanceSignAndSubmitTx lookups constraints = do
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  BalancedSignedTransaction bsTx <-
+  bsTx <-
     liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-  txId <- submit bsTx.signedTxCbor
+  txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
   pure txId
 
