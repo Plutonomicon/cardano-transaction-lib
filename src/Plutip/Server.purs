@@ -92,31 +92,38 @@ runPlutipM
    . PlutipConfig
   -> PlutipM () a
   -> Aff a
-runPlutipM plutipCfg action = do
-  withResource (startPlutipServer plutipCfg) stopChildProcess $ const do
-    withResource (startPlutipCluster plutipCfg)
-      (const $ void $ stopPlutipCluster plutipCfg)
-      \startupResponse -> do
-        response <- case startupResponse of
-          ClusterStartupFailure _ -> do
-            liftEffect $ throw "Failed to start up cluster"
-          ClusterStartupSuccess response -> do
-            pure response
-        let
-          contract =
-            flip runReaderT plutipCfg action
-        withResource (startPostgresServer plutipCfg.postgresConfig response)
-          stopChildProcess $ const do
-          withResource (startOgmios plutipCfg response) stopChildProcess $ const
-            do
-              withResource (startOgmiosDatumCache plutipCfg response)
-                stopChildProcess $ const do
-                withResource (startCtlServer plutipCfg response)
-                  stopChildProcess
-                  $ const
-                      do
-                        contractCfg <- mkClusterContractCfg plutipCfg response
-                        liftAff $ runContract contractCfg contract
+runPlutipM plutipCfg action =
+  withPlutipServer $
+    withPlutipCluster \response ->
+      withPostgres response
+        $ withOgmios response
+        $ withOgmiosDatumCache response
+        $ withCtlServer response do
+            contractCfg <- mkClusterContractCfg plutipCfg response
+            liftAff $ runContract contractCfg contract
+  where
+  withPlutipServer =
+    withResource (startPlutipServer plutipCfg) stopChildProcess <<< const
+  withPlutipCluster cont = withResource (startPlutipCluster plutipCfg)
+    (const $ void $ stopPlutipCluster plutipCfg)
+    \startupResponse -> do
+      case startupResponse of
+        ClusterStartupFailure _ -> do
+          liftEffect $ throw "Failed to start up cluster"
+        ClusterStartupSuccess response -> do
+          cont response
+  withPostgres response =
+    withResource (startPostgresServer plutipCfg.postgresConfig response)
+      stopChildProcess <<< const
+  withOgmios response =
+    withResource (startOgmios plutipCfg response) stopChildProcess <<< const
+  withOgmiosDatumCache response =
+    withResource (startOgmiosDatumCache plutipCfg response)
+      stopChildProcess <<< const
+  withCtlServer response =
+    withResource (startCtlServer plutipCfg response)
+      stopChildProcess <<< const
+  contract = flip runReaderT plutipCfg action
 
 startPlutipCluster
   :: PlutipConfig -> Aff StartClusterResponse
