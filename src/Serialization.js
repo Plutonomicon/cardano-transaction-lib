@@ -59,9 +59,6 @@ exports.newTransaction = body => witness_set => auxiliary_data => () =>
 exports.newTransaction_ = body => witness_set => () =>
     lib.Transaction.new(body, witness_set);
 
-exports.newTransactionWitnessSet = () =>
-    lib.TransactionWitnessSet.new();
-
 exports.newTransactionUnspentOutputFromBytes = bytes => () =>
     lib.TransactionUnspentOutput.from_bytes(bytes);
 
@@ -147,8 +144,14 @@ exports.newPlutusV1 = () =>
 exports.newInt32 = x => () =>
     lib.Int.new_i32(x);
 
-exports._hashScriptData = rs => cms => ds => () =>
-    lib.hash_script_data(rs, cms, ds);
+exports._hashScriptData = rs => cms => ds => () => {
+    const list = lib.PlutusList.new();
+    ds.forEach(d => list.add(d));
+    return lib.hash_script_data(rs, cms, list);
+};
+
+exports._hashScriptDataNoDatums = rs => cms => () =>
+    lib.hash_script_data(rs, cms);
 
 exports.newRedeemers = () =>
     lib.Redeemers.new();

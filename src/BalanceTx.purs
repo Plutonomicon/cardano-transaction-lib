@@ -89,7 +89,7 @@ import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
-import Effect.Class (class MonadEffect)
+import Effect.Class (class MonadEffect, liftEffect)
 import QueryM
   ( ClientError
   , QueryM
@@ -103,6 +103,7 @@ import QueryM.ProtocolParameters (getProtocolParameters)
 import QueryM.Utxos (utxosAt)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
+import Transaction (setScriptDataHash)
 import TxOutput (utxoIndexToUtxo)
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
@@ -274,7 +275,8 @@ evalExUnitsAndMinFee'
   :: UnattachedUnbalancedTx
   -> QueryM
        (Either EvalExUnitsAndMinFeeError (UnattachedUnbalancedTx /\ BigInt))
-evalExUnitsAndMinFee' unattachedTx =
+evalExUnitsAndMinFee' unattachedTx = do
+  costModels <- getProtocolParameters <#> unwrap >>> _.costModels
   runExceptT do
     -- Reindex `Spent` script redeemers:
     unattachedReindexedTx <- ExceptT $ reindexRedeemers unattachedTx
@@ -291,8 +293,15 @@ evalExUnitsAndMinFee' unattachedTx =
       -- Reattach datums and redeemers before calculating fees:
       attachedTxWithExUnits =
         reattachDatumsAndRedeemers unattachedTxWithExUnits
+    -- Set the script integrity hash:
+    let ws = attachedTxWithExUnits ^. _witnessSet # unwrap
+    attachedTxWithExUnitsAndIntegrityHash <- liftEffect $ setScriptDataHash
+      costModels
+      (fromMaybe mempty ws.redeemers)
+      (wrap <$> fromMaybe mempty ws.plutusData)
+      attachedTxWithExUnits
     -- Calculate the minimum fee for a transaction:
-    minFee <- ExceptT $ calculateMinFee attachedTxWithExUnits
+    minFee <- ExceptT $ calculateMinFee attachedTxWithExUnitsAndIntegrityHash
       <#> bimap EvalMinFeeError unwrap
     pure $ unattachedTxWithExUnits /\ minFee
 

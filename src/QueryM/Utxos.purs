@@ -16,7 +16,6 @@ import Control.Monad.Reader.Trans (ReaderT, asks)
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (bisequence)
 import Data.Foldable (fold)
-import Data.List (List)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing), maybe)
 import Data.Newtype (unwrap, wrap, over)
