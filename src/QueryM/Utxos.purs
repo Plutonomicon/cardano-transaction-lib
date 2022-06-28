@@ -15,17 +15,19 @@ import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, asks)
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (bisequence)
+import Data.Foldable (fold)
+import Data.List (List)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing), maybe)
 import Data.Newtype (unwrap, wrap, over)
-import Data.Traversable (sequence, traverse)
+import Data.Traversable (for, sequence, traverse)
 import Data.Tuple.Nested (type (/\))
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Helpers as Helpers
-import QueryM (QueryM, getWalletCollateral, mkOgmiosRequest)
+import QueryM (QueryM, getWalletAddress, getWalletCollateral, mkOgmiosRequest)
 import QueryM.Ogmios as Ogmios
 import Serialization.Address (Address)
 import TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
@@ -113,4 +115,10 @@ getWalletBalance = do
   asks _.wallet >>= map join <<< traverse case _ of
     Nami wallet -> liftAff $ wallet.getBalance wallet.connection
     Gero wallet -> liftAff $ wallet.getBalance wallet.connection
-    KeyWallet _ -> pure Nothing
+    KeyWallet _ -> do
+      -- Implement via `utxosAt`
+      mbAddress <- getWalletAddress
+      map join $ for mbAddress \address -> do
+        utxosAt address <#> map
+          -- Combine `Value`s
+          (fold <<< map _.amount <<< map unwrap <<< Map.values <<< unwrap)
