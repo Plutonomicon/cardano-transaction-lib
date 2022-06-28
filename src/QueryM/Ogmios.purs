@@ -457,7 +457,10 @@ newtype TxEvaluationR = TxEvaluationR
         { memory :: Natural, steps :: Natural }
   }
 
-derive newtype instance Show TxEvaluationR
+derive instance Generic TxEvaluationR _
+
+instance Show TxEvaluationR where
+  show = genericShow
 
 instance DecodeAeson TxEvaluationR where
   decodeAeson _ = Left

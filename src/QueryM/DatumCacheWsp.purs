@@ -29,10 +29,12 @@ import Aeson
   )
 import Control.Alt ((<|>))
 import Data.Either (Either(Left))
+import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
 import Data.Tuple.Nested (type (/\), (/\))
 import QueryM.JsonWsp (JsonWspCall, mkCallType)
@@ -68,7 +70,10 @@ type JsonWspResponse =
 newtype GetDatumByHashR = GetDatumByHashR (Maybe Datum)
 
 derive instance Newtype GetDatumByHashR _
-derive newtype instance Show GetDatumByHashR
+derive instance Generic GetDatumByHashR _
+
+instance Show GetDatumByHashR where
+  show = genericShow
 
 instance DecodeAeson GetDatumByHashR where
   decodeAeson r = GetDatumByHashR <$>
@@ -86,7 +91,10 @@ instance DecodeAeson GetDatumByHashR where
 newtype GetDatumsByHashesR = GetDatumsByHashesR (Map DataHash Datum)
 
 derive instance Newtype GetDatumsByHashesR _
-derive newtype instance Show GetDatumsByHashesR
+derive instance Generic GetDatumsByHashesR _
+
+instance Show GetDatumsByHashesR where
+  show = genericShow
 
 instance DecodeAeson GetDatumsByHashesR where
   decodeAeson r =
