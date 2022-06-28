@@ -981,31 +981,30 @@ queryDispatch ref str = do
     Right reflection -> do
       -- Get callback action
       withAction reflection case _ of
-        Nothing -> pure $ Left $ JsError $ error $
+        Nothing -> Left $ JsError $ error $
           "Request Id " <> reflection <> " has been cancelled"
-        Just action ->
+        Just action -> do
           -- Parse response
-          case JsonWsp.parseJsonWspResponse =<< eiAeson of
-            Left parseError -> do
-              pure $ Right $ action $ Left $ JsonError parseError
-            Right { result: Just result } -> do
-              pure $ Right $ action $ Right result
-            -- If result is empty, then fault must be present
-            Right { result: Nothing, fault: Just fault } -> do
-              pure $ Right $ action $ Left $ FaultError fault
-            -- Otherwise, our implementation is broken.
-            Right { result: Nothing, fault: Nothing } -> do
-              let
-                errMsg =
-                  "Impossible happened: response does not contain neither "
-                    <> "`fault` nor `result`, please report as bug. Response: "
-                    <> str
-              pure $ Right $ action $ Left $ JsError $ error errMsg
+          Right $ action $
+            case JsonWsp.parseJsonWspResponse =<< eiAeson of
+              Left parseError -> Left $ JsonError parseError
+              Right { result: Just result } -> Right result
+              -- If result is empty, then fault must be present
+              Right { result: Nothing, fault: Just fault } ->
+                Left $ FaultError fault
+              -- Otherwise, our implementation is broken.
+              Right { result: Nothing, fault: Nothing } ->
+                Left $ JsError $ error impossibleErrorMsg
   where
+  impossibleErrorMsg =
+    "Impossible happened: response does not contain neither "
+      <> "`fault` nor `result`, please report as bug. Response: "
+      <> str
+
   withAction
     :: ListenerId
     -> ( Maybe (Either DispatchError response -> Effect Unit)
-         -> Effect (Either DispatchError (Effect Unit))
+         -> Either DispatchError (Effect Unit)
        )
     -> Effect (Either DispatchError (Effect Unit))
   withAction reflection cb = do
@@ -1014,7 +1013,7 @@ queryDispatch ref str = do
       mbAction =
         MultiMap.lookup reflection idMap
           :: Maybe (Either DispatchError response -> Effect Unit)
-    cb mbAction
+    pure $ cb mbAction
 
 -- an empty error we can compare to, useful for ensuring we've not received any other kind of error
 defaultErr :: JsonDecodeError
