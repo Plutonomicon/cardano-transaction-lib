@@ -136,7 +136,10 @@ import Plutus.Types.Transaction
 import Plutus.Types.Value (Coin)
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (NetworkId)
-import Transaction (ReindexedUnattachedTx(ReindexedUnattachedTx), finalizeTransaction)
+import Transaction
+  ( ReindexedUnattachedTx(ReindexedUnattachedTx)
+  , finalizeTransaction
+  )
 import TxOutput (scriptOutputToTransactionOutput) as TxOutput
 import Types.Transaction (TransactionHash)
 import Types.Transaction
