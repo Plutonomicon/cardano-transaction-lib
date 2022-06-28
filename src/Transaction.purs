@@ -1,5 +1,6 @@
 module Transaction
-  ( ModifyTxError(..)
+  ( ReindexedUnattachedTx(..)
+  , ModifyTxError(..)
   , finalizeTransaction
   , attachDatum
   , attachRedeemer
@@ -23,7 +24,7 @@ import Data.Either (Either(Right), note)
 import Data.Foldable (null)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just))
-import Data.Newtype (over, unwrap)
+import Data.Newtype (class Newtype, over, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
 import Deserialization.WitnessSet as Deserialization.WitnessSet
@@ -37,6 +38,17 @@ import Serialization.WitnessSet as Serialization.WitnessSet
 import Types.Datum (Datum)
 import Types.Scripts (PlutusScript)
 import Untagged.Union (asOneOf)
+
+-- | A `Transaction` with its datums and reindexed redeemers
+newtype ReindexedUnattachedTx = ReindexedUnattachedTx
+  { redeemers :: Array Redeemer
+  , datums :: Array Datum
+  , tx :: Transaction
+  }
+
+derive instance Generic ReindexedUnattachedTx _
+derive instance Newtype ReindexedUnattachedTx _
+derive newtype instance Eq ReindexedUnattachedTx
 
 data ModifyTxError
   = ConvertWitnessesError
@@ -52,14 +64,12 @@ instance Show ModifyTxError where
 -- | reindexing
 finalizeTransaction
   :: Costmdls
-  -> Array Redeemer
-  -> Array Datum
-  -> Transaction
+  -> ReindexedUnattachedTx
   -> Effect (Either ModifyTxError Transaction)
-finalizeTransaction costModels rs ds tx = runExceptT $
-  liftEffect <<< setScriptDataHash costModels rs ds
-    =<< attachRedeemers rs
-    =<< attachDatums ds tx
+finalizeTransaction costModels (ReindexedUnattachedTx ruTx) = runExceptT $
+  liftEffect <<< setScriptDataHash costModels (ruTx.redeemers) (ruTx.datums)
+    =<< attachRedeemers (ruTx.redeemers)
+    =<< attachDatums (ruTx.datums) (ruTx.tx)
 
 -- | Set the `Transaction` body's script data hash. NOTE: Must include *all* of
 -- | the datums and redeemers for the given transaction
