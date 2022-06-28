@@ -12,7 +12,7 @@ import Contract.Prelude
 
 import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Monad (defaultTestnetContractConfig, launchAff_, runContract_)
-import Contract.Wallet (getWalletBalance)
+import Contract.Utxos (getWalletBalance)
 
 main :: Effect Unit
 main = launchAff_ $ do
