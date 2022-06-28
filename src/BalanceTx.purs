@@ -61,7 +61,6 @@ import Constants.Alonzo
   ( adaOnlyWords
   , coinSize
   , pidSize
-  , protocolParamUTxOCostPerWord
   , utxoEntrySizeWithoutVal
   )
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)

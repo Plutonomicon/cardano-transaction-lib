@@ -93,7 +93,6 @@ import QueryM
   , mkWsUrl
   ) as QueryM
 import QueryM (QueryM, QueryMExtended, QueryConfig)
-import QueryM.Ogmios (ProtocolParameters)
 import QueryM.ProtocolParameters (getProtocolParametersAff) as Ogmios
 import Record as Record
 import Serialization.Address (NetworkId(TestnetId))

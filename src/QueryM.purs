@@ -864,11 +864,11 @@ mkDatumCacheRequest = mkRequest
 
 -- | Builds an Ogmios request action using `QueryM`
 mkRequest
-  :: forall (request :: Type) (response :: Type) (listeners :: Type)
-   . QueryM listeners
+  :: forall (request :: Type) (response :: Type) (listeners' :: Type)
+   . QueryM listeners'
   -> QueryM JsWebSocket
   -> JsonWsp.JsonWspCall request response
-  -> (listeners -> ListenerSet request response)
+  -> (listeners' -> ListenerSet request response)
   -> request
   -> QueryM response
 mkRequest getListeners getWebSocket jsonWspCall getLs inp = do
@@ -879,12 +879,12 @@ mkRequest getListeners getWebSocket jsonWspCall getLs inp = do
 
 -- | Builds an Ogmios request action using `Aff`
 mkRequestAff
-  :: forall (request :: Type) (response :: Type) (listeners :: Type)
-   . listeners
+  :: forall (request :: Type) (response :: Type) (listeners' :: Type)
+   . listeners'
   -> JsWebSocket
   -> LogLevel
   -> JsonWsp.JsonWspCall request response
-  -> (listeners -> ListenerSet request response)
+  -> (listeners' -> ListenerSet request response)
   -> request
   -> Aff response
 mkRequestAff listeners webSocket logLevel jsonWspCall getLs inp = do
