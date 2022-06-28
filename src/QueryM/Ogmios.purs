@@ -39,6 +39,7 @@ module QueryM.Ogmios
   , queryUtxosAtCall
   , queryUtxosCall
   , submitTxCall
+  , mkOgmiosCallType
   ) where
 
 import Prelude

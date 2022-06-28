@@ -17,7 +17,7 @@ module QueryM
   , QueryMExtended
   , RdmrPtrExUnits(..)
   , RequestBody
-  , WebSocket
+  , WebSocket(WebSocket)
   , allowError
   , applyArgs
   , calculateMinFee
@@ -34,6 +34,8 @@ module QueryM
   , mkDatumCacheWebSocketAff
   , mkOgmiosRequest
   , mkOgmiosWebSocketAff
+  , mkWebSocketAff
+  , mkRequest
   , module ServerConfig
   , ownPaymentPubKeyHash
   , ownPubKeyHash
@@ -49,18 +51,7 @@ module QueryM
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , Aeson
-  , JsonDecodeError
-      ( TypeMismatch
-      )
-  , caseAesonString
-  , decodeAeson
-  , encodeAeson
-  , parseJsonStringToAeson
-  , stringifyAeson
-  )
+import Aeson (class DecodeAeson, Aeson, JsonDecodeError(TypeMismatch), caseAesonString, decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
 import Affjax (Error, Response, defaultRequest, printError, request) as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
@@ -92,6 +83,8 @@ import Data.Traversable (traverse, traverse_, for)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
+import Deserialization.FromBytes (fromBytes) as Deserialization
+import Deserialization.Transaction (convertTransaction) as Deserialization
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Aff.Class (liftAff)
@@ -101,56 +94,17 @@ import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
 import Helpers (logString, logWithLevel)
-import JsWebSocket
-  ( JsWebSocket
-  , Url
-  , _mkWebSocket
-  , _onWsConnect
-  , _onWsError
-  , _onWsMessage
-  , _wsSend
-  , _wsWatch
-  )
-import QueryM.DatumCacheWsp
-  ( GetDatumByHashR
-  , GetDatumsByHashesR
-  )
+import JsWebSocket (JsWebSocket, Url, _mkWebSocket, _onWsConnect, _onWsError, _onWsMessage, _wsSend, _wsWatch)
+import QueryM.DatumCacheWsp (GetDatumByHashR, GetDatumsByHashesR)
 import QueryM.DatumCacheWsp as DcWsp
-import QueryM.JsonWsp (parseJsonWspResponseId)
+import QueryM.JsonWsp (JsonWspResponse, parseJsonWspResponseId)
 import QueryM.JsonWsp as JsonWsp
 import QueryM.Ogmios as Ogmios
-import QueryM.ServerConfig
-  ( Host
-  , ServerConfig
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
-  , mkHttpUrl
-  , mkOgmiosDatumCacheWsUrl
-  , mkServerUrl
-  , mkWsUrl
-  ) as ServerConfig
-import QueryM.ServerConfig
-  ( ServerConfig
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
-  , mkHttpUrl
-  , mkOgmiosDatumCacheWsUrl
-  , mkWsUrl
-  )
+import QueryM.ServerConfig (Host, ServerConfig, defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkServerUrl, mkWsUrl) as ServerConfig
+import QueryM.ServerConfig (ServerConfig, defaultOgmiosWsConfig, defaultServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkWsUrl)
 import QueryM.UniqueId (ListenerId)
-import Deserialization.FromBytes (fromBytes) as Deserialization
-import Deserialization.Transaction (convertTransaction) as Deserialization
 import Serialization (convertTransaction, toBytes) as Serialization
-import Serialization.Address
-  ( Address
-  , NetworkId(TestnetId)
-  , baseAddressDelegationCred
-  , baseAddressFromAddress
-  , addressPaymentCred
-  , stakeCredentialToKeyHash
-  )
+import Serialization.Address (Address, NetworkId(TestnetId), baseAddressDelegationCred, baseAddressFromAddress, addressPaymentCred, stakeCredentialToKeyHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
@@ -164,12 +118,9 @@ import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
 import Types.Scripts (PlutusScript)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
+import Undefined (undefined)
 import Untagged.Union (asOneOf)
-import Wallet
-  ( Wallet(Gero, Nami, KeyWallet)
-  , Cip30Connection
-  , Cip30Wallet
-  )
+import Wallet (Wallet(Gero, Nami, KeyWallet), Cip30Connection, Cip30Wallet)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -222,7 +173,8 @@ runQueryM cfg =
 traceQueryConfig :: Aff DefaultQueryConfig
 traceQueryConfig = do
   ogmiosWs <- mkOgmiosWebSocketAff logLevel defaultOgmiosWsConfig
-  datumCacheWs <- mkDatumCacheWebSocketAff logLevel defaultDatumCacheWsConfig
+  -- datumCacheWs <- mkDatumCacheWebSocketAff logLevel defaultDatumCacheWsConfig
+  let datumCacheWs = undefined
   usedTxOuts <- newUsedTxOuts
   pure
     { ogmiosWs
@@ -586,12 +538,12 @@ type DatumCacheWebSocket = WebSocket DatumCacheListeners
 
 -- smart-constructor for OgmiosWebSocket in Aff Context
 -- (prevents sending messages before the websocket opens, etc)
-mkOgmiosWebSocket'
+mkOgmiosWebSocket
   :: LogLevel
   -> ServerConfig
   -> (Either Error OgmiosWebSocket -> Effect Unit)
-  -> Effect Canceler
-mkOgmiosWebSocket' lvl serverCfg cb = do
+  -> Effect (Error -> Effect Unit)
+mkOgmiosWebSocket lvl serverCfg cb = do
   utxoDispatchMap <- createMutableDispatch
   chainTipDispatchMap <- createMutableDispatch
   evaluateTxDispatchMap <- createMutableDispatch
@@ -651,17 +603,48 @@ mkOgmiosWebSocket' lvl serverCfg cb = do
           mkListenerSet systemStartDispatchMap systemStartPendingRequests
 
       }
-  pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
+  pure $ \err -> cb $ Left $ err
   where
   logger :: LogLevel -> String -> Effect Unit
   logger = logString lvl
 
-mkDatumCacheWebSocket'
+-- A simple websocket for testing
+-- TODO Move to test
+mkWebSocket
+  :: forall a b
+   . DecodeAeson b
+  => LogLevel
+  -> ServerConfig
+  -> (Either Error (WebSocket (ListenerSet a b)) -> Effect Unit)
+  -> Effect (Error -> Effect Unit)
+mkWebSocket lvl serverCfg cb = do
+  dispatchMap <- createMutableDispatch
+  pendingRequests <- createPendingRequests
+  let
+    md = [ queryDispatch dispatchMap ]
+  ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
+  let
+    sendRequest = _wsSend ws (logString lvl Debug)
+    onError = do
+      logString lvl Debug "WS error occured, resending requests"
+      Ref.read pendingRequests >>= traverse_ sendRequest
+  _onWsConnect ws do
+    _wsWatch ws (logger Debug) onError
+    _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
+    _onWsError ws (logger Error) $ const onError
+    cb $ Right $ WebSocket ws
+      (mkListenerSet dispatchMap pendingRequests)
+  pure $ \err -> cb $ Left $ err
+  where
+  logger :: LogLevel -> String -> Effect Unit
+  logger = logString lvl
+
+mkDatumCacheWebSocket
   :: LogLevel
   -> ServerConfig
   -> (Either Error DatumCacheWebSocket -> Effect Unit)
-  -> Effect Canceler
-mkDatumCacheWebSocket' lvl serverCfg cb = do
+  -> Effect (Error -> Effect Unit)
+mkDatumCacheWebSocket lvl serverCfg cb = do
   getDatumByHashDispatchMap <- createMutableDispatch
   getDatumsByHashesDispatchMap <- createMutableDispatch
   getDatumByHashPendingRequests <- createPendingRequests
@@ -688,16 +671,19 @@ mkDatumCacheWebSocket' lvl serverCfg cb = do
       , getDatumsByHashes: mkListenerSet getDatumsByHashesDispatchMap
           getDatumsByHashesPendingRequests
       }
-  pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
+  pure $ \err -> cb $ Left $ err
   where
   logger :: LogLevel -> String -> Effect Unit
   logger = logString lvl
 
 mkDatumCacheWebSocketAff :: LogLevel -> ServerConfig -> Aff DatumCacheWebSocket
-mkDatumCacheWebSocketAff lvl = makeAff <<< mkDatumCacheWebSocket' lvl
+mkDatumCacheWebSocketAff lvl = makeAff <<< map (map (Canceler <<< (map liftEffect))) <<< mkDatumCacheWebSocket lvl
 
 mkOgmiosWebSocketAff :: LogLevel -> ServerConfig -> Aff OgmiosWebSocket
-mkOgmiosWebSocketAff lvl = makeAff <<< mkOgmiosWebSocket' lvl
+mkOgmiosWebSocketAff lvl = makeAff <<< map (map (Canceler <<< (map liftEffect))) <<< mkOgmiosWebSocket lvl
+
+mkWebSocketAff :: forall a b. DecodeAeson b => LogLevel -> ServerConfig -> Aff (WebSocket (ListenerSet a b))
+mkWebSocketAff lvl = makeAff <<< map (map (Canceler <<< (map liftEffect))) <<< mkWebSocket lvl
 
 -- getter
 underlyingWebSocket :: forall (a :: Type). WebSocket a -> JsWebSocket
@@ -767,9 +753,14 @@ mkOgmiosRequest
   -> (OgmiosListeners -> ListenerSet request response)
   -> request
   -> QueryM response
-mkOgmiosRequest = mkRequest
-  (listeners <<< _.ogmiosWs <$> ask)
-  (underlyingWebSocket <<< _.ogmiosWs <$> ask)
+mkOgmiosRequest jsonWspCall getLs req = do
+  { logLevel, ogmiosWs } <- ask
+  liftAff $ mkRequest
+    (underlyingWebSocket ogmiosWs)
+    logLevel
+    jsonWspCall
+    (getLs $ listeners ogmiosWs)
+    req
 
 mkDatumCacheRequest
   :: forall (request :: Type) (response :: Type)
@@ -777,37 +768,39 @@ mkDatumCacheRequest
   -> (DatumCacheListeners -> ListenerSet request response)
   -> request
   -> QueryM response
-mkDatumCacheRequest = mkRequest
-  (listeners <<< _.datumCacheWs <$> ask)
-  (underlyingWebSocket <<< _.datumCacheWs <$> ask)
+mkDatumCacheRequest jsonWspCall getLs req = do
+  { logLevel, datumCacheWs } <- ask
+  liftAff $ mkRequest
+    (underlyingWebSocket datumCacheWs)
+    logLevel
+    jsonWspCall
+    (getLs $ listeners datumCacheWs)
+    req
 
--- | Builds a Ogmios request action using QueryM
+-- | Builds a JsonWsp request action using Aff
 mkRequest
   :: forall (request :: Type) (response :: Type) (listeners :: Type)
-   . QueryM listeners
-  -> QueryM JsWebSocket
+   . JsWebSocket
+  -> LogLevel
   -> JsonWsp.JsonWspCall request response
-  -> (listeners -> ListenerSet request response)
+  -> ListenerSet request response
   -> request
-  -> QueryM response
-mkRequest getListeners getWebSocket jsonWspCall getLs inp = do
+  -> Aff response
+mkRequest ws logLevel jsonWspCall respLs inp = do
   { body, id } <- liftEffect $ JsonWsp.buildRequest jsonWspCall inp
-  config <- ask
-  ws <- getWebSocket
-  respLs <- getLs <$> getListeners
   let
+    sBody :: RequestBody
+    sBody = stringifyAeson body
+
     affFunc :: (Either Error response -> Effect Unit) -> Effect Canceler
     affFunc cont = do
-      let
-        sBody :: RequestBody
-        sBody = stringifyAeson $ encodeAeson body
       _ <- respLs.addMessageListener id
         ( \result -> do
             respLs.removeMessageListener id
             cont (lmap dispatchErrorToError result)
         )
       respLs.addRequest id sBody
-      _wsSend ws (logString config.logLevel Debug) sBody
+      _wsSend ws (logString logLevel Debug) sBody
       pure $ Canceler $ \err -> do
         liftEffect $ respLs.removeMessageListener id
         liftEffect $ throwError $ err
@@ -880,7 +873,7 @@ datumCacheMessageDispatch
   ]
 
 -- each query type will have a corresponding ref that lives in ReaderT config or similar
--- for utxoQueryDispatch, the `a` parameter will be `UtxoQR` or similar
+-- for utxoQueryDispatch, the `response` parameter will be `UtxoQR` or similar
 -- the add and remove listener functions will know to grab the correct mutable dispatch, if one exists.
 createMutableDispatch
   :: forall (response :: Type). Effect (DispatchIdMap response)
@@ -890,9 +883,6 @@ createPendingRequests
   :: forall (request :: Type). Effect (PendingRequests request)
 createPendingRequests = Ref.new Map.empty
 
--- we parse out the utxo query result, then check if we're expecting a result
--- with the provided id, if we are then we dispatch to the effect that is
--- waiting on this result
 queryDispatch
   :: forall (response :: Type)
    . DecodeAeson response
