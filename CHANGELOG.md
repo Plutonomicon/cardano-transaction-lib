@@ -21,7 +21,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `mkKeyWalletFromFile` helper to use `cardano-cli`-style `skey`s.
 - Single `Plutus.Conversion` module exposing all `(Type <-> Plutus Type)` conversion functions.
 - Support for using a `PrivateKey` as a `Wallet`.
-- `getProtocolParameters` call to retrieve current protocol parameters from Ogmios (#541)
+- `getProtocolParameters` call to retrieve current protocol parameters from Ogmios ([#541](https://github.com/Plutonomicon/cardano-transaction-lib/issues/541))
+- `Contract.Utxos.getWalletBalance` call to get all available assets as a single `Value` ([#590](https://github.com/Plutonomicon/cardano-transaction-lib/issues/590))
 
 ### Removed
 
@@ -30,13 +31,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
-- Updated `ogmios-datum-cache` - bug fixes (#542, #526, #589).
-- Improved error response handling for Ogmios (#584)
+- Updated `ogmios-datum-cache` - bug fixes ([#542](https://github.com/Plutonomicon/cardano-transaction-lib/pull/542), [#526](https://github.com/Plutonomicon/cardano-transaction-lib/pull/526), [#589](https://github.com/Plutonomicon/cardano-transaction-lib/pull/589)).
+- Improved error response handling for Ogmios ([#584](https://github.com/Plutonomicon/cardano-transaction-lib/pull/584))
 
 ### Fixed
 
 - Handling of invalid UTF8 byte sequences in the Aeson instance for `TokenName`.
-- `Types.ScriptLookups.require` function naming caused problems with WebPack (#593)
+- `Types.ScriptLookups.require` function naming caused problems with WebPack ([#593](https://github.com/Plutonomicon/cardano-transaction-lib/pull/593))
 
 ## [1.0.1] - 2022-06-17
 
