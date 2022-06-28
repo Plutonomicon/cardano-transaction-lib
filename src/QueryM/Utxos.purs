@@ -2,12 +2,14 @@
 module QueryM.Utxos
   ( filterUnusedUtxos
   , utxosAt
+  , getWalletBalance
   ) where
 
 import Prelude
 
 import Address (addressToOgmiosAddress)
 import Cardano.Types.Transaction (TransactionOutput, UtxoM(UtxoM))
+import Cardano.Types.Value (Value)
 import Control.Monad.Logger.Trans (LoggerT)
 import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, asks)
@@ -16,9 +18,10 @@ import Data.Bitraversable (bisequence)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing), maybe)
 import Data.Newtype (unwrap, wrap, over)
-import Data.Traversable (sequence)
+import Data.Traversable (sequence, traverse)
 import Data.Tuple.Nested (type (/\))
 import Effect.Aff (Aff)
+import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Helpers as Helpers
@@ -103,3 +106,11 @@ withTxRefsCache
    . ReaderT UsedTxOuts (LoggerT Aff) a
   -> QueryM a
 withTxRefsCache f = withReaderT (_.usedTxOuts) f
+
+getWalletBalance
+  :: QueryM (Maybe Value)
+getWalletBalance = do
+  asks _.wallet >>= map join <<< traverse case _ of
+    Nami wallet -> liftAff $ wallet.getBalance wallet.connection
+    Gero wallet -> liftAff $ wallet.getBalance wallet.connection
+    KeyWallet _ -> pure Nothing

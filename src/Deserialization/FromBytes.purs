@@ -27,6 +27,7 @@ import Serialization.Types
   , TransactionUnspentOutput
   , TransactionWitnessSet
   , VRFKeyHash
+  , Value
   )
 import Type.Prelude (Proxy(Proxy))
 import Type.Row (type (+))
@@ -62,6 +63,9 @@ instance FromBytes Mint where
 
 instance FromBytes VRFKeyHash where
   fromBytes' = _fromBytesVRFKeyHash eh
+
+instance FromBytes Value where
+  fromBytes' = _fromBytesValue eh
 
 -- for backward compatibility until `Maybe` is abandoned. Then to be renamed.
 fromBytes :: forall (a :: Type). FromBytes a => ByteArray -> Maybe a
@@ -120,3 +124,6 @@ foreign import _fromBytesMint
 
 foreign import _fromBytesVRFKeyHash
   :: forall r. ErrorFfiHelper r -> ByteArray -> E r VRFKeyHash
+
+foreign import _fromBytesValue
+  :: forall r. ErrorFfiHelper r -> ByteArray -> E r Value

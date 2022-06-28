@@ -4,6 +4,7 @@ module Deserialization.UnspentOutput
   , newTransactionUnspentOutputFromBytes
   , convertInput
   , convertOutput
+  , convertValue
   ) where
 
 import Prelude

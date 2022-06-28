@@ -55,3 +55,6 @@ exports._attachSignature = txBytes => witBytes => () => {
 
   return lib.Transaction.new(tx.body(), wits, tx.auxiliary_data()).to_bytes();
 };
+
+// _getNamiBalance :: NamiConnection -> Effect (Promise string)
+exports._getBalance = conn => () => conn.getBalance();

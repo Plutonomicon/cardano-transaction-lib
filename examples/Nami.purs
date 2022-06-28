@@ -9,24 +9,15 @@
 module Examples.Nami (main) where
 
 import Contract.Prelude
+
 import Contract.Address (getWalletAddress, getWalletCollateral)
-import Contract.Monad
-  ( Contract
-  , defaultTestnetContractConfig
-  , launchAff_
-  , runContract_
-  )
+import Contract.Monad (defaultTestnetContractConfig, launchAff_, runContract_)
+import Contract.Wallet (getWalletBalance)
 
 main :: Effect Unit
 main = launchAff_ $ do
   cfg <- defaultTestnetContractConfig
   runContract_ cfg $ do
-    logAction getWalletAddress
-    logAction getWalletCollateral
-
-logAction
-  :: forall (a :: Type) (r :: Row Type)
-   . Show a
-  => Contract r a
-  -> Contract r Unit
-logAction act = log <<< show =<< act
+    log <<< show =<< getWalletAddress
+    log <<< show =<< getWalletCollateral
+    log <<< show =<< getWalletBalance
