@@ -22,7 +22,7 @@ import Data.Either (Either(Right), note)
 import Data.Foldable (null)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just))
-import Data.Newtype (class Newtype, over, unwrap)
+import Data.Newtype (over, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
 import Deserialization.WitnessSet as Deserialization.WitnessSet

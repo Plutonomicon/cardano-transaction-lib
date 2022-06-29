@@ -27,12 +27,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 - `FromPlutusType` / `ToPlutusType` type classes.
 - `Contract.Wallet.mkGeroWallet` and `Contract.Wallet.mkNamiWallet` - `Aff` versions should be used instead.
+- Protocol param update setters for the decentralisation constant (`set_d`) and the extra entropy (`set_extra_entropy`).
 
 ### Changed
 
 - Updated `ogmios-datum-cache` - bug fixes (#542, #526, #589).
 - Improved error response handling for Ogmios (#584).
 - Made protocol parameters part of `QueryConfig`.
+- Refactored `Plutus.Conversion.Address` code (utilized CSL functionality).
+- Changed the underlying type of `Slot`, `TransactionIndex` and `CertificateIndex` to `BigNum`.
+- Moved transaction finalization logic to `balanceTx`.
+- Upgraded to CSL v11.0.0-beta.1.
 
 ### Fixed
 
