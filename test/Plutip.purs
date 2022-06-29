@@ -16,6 +16,7 @@ import Data.BigInt as BigInt
 import Data.Log.Level (LogLevel(..))
 import Data.Maybe (Maybe(..))
 import Data.UInt as UInt
+import Control.Monad.Error.Class (withResource)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
@@ -25,6 +26,8 @@ import Plutip.Server
   ( liftContract
   , runPlutipM
   , startPlutipCluster
+  , startPlutipServer
+  , stopChildProcess
   , stopPlutipCluster
   )
 import Plutip.Types
@@ -43,7 +46,7 @@ main = launchAff_ do
 
 config :: PlutipConfig
 config =
-  { host: "localhost"
+  { host: "127.0.0.1"
   , port: UInt.fromInt 8082
   , logLevel: Trace
   , distribution:
@@ -55,21 +58,22 @@ config =
   -- Server configs are used to deploy the corresponding services:
   , ogmiosConfig:
       { port: UInt.fromInt 1337
-      , host: "localhost"
+      , host: "127.0.0.1"
       , secure: false
       }
   , ogmiosDatumCacheConfig:
       { port: UInt.fromInt 9999
-      , host: "localhost"
+      , host: "127.0.0.1"
       , secure: false
       }
   , ctlServerConfig:
       { port: UInt.fromInt 8081
-      , host: "localhost"
+      , host: "127.0.0.1"
       , secure: false
       }
-  , ogmiosDatumCachePostgresConfig:
-      { port: UInt.fromInt 5432
+  , postgresConfig:
+      { host: "127.0.0.1"
+      , port: UInt.fromInt 54321
       , user: "ctxlib"
       , password: "ctxlib"
       , dbname: "ctxlib"
@@ -80,16 +84,17 @@ suite :: TestPlanM Unit
 suite = do
   group "Plutip" do
     test "startPlutipCluster / stopPlutipCluster" do
-      startRes <- startPlutipCluster config
-      startRes `shouldSatisfy` case _ of
-        ClusterStartupSuccess _ -> true
-        _ -> false
-      liftEffect $ Console.log $ "startPlutipCluster: " <> show startRes
-      stopRes <- stopPlutipCluster config
-      stopRes `shouldSatisfy` case _ of
-        StopClusterSuccess -> true
-        _ -> false
-      liftEffect $ Console.log $ "stopPlutipCluster: " <> show stopRes
+      withResource (startPlutipServer config) stopChildProcess $ const do
+        startRes <- startPlutipCluster config
+        startRes `shouldSatisfy` case _ of
+          ClusterStartupSuccess _ -> true
+          _ -> false
+        liftEffect $ Console.log $ "startPlutipCluster: " <> show startRes
+        stopRes <- stopPlutipCluster config
+        stopRes `shouldSatisfy` case _ of
+          StopClusterSuccess -> true
+          _ -> false
+        liftEffect $ Console.log $ "stopPlutipCluster: " <> show stopRes
     test "runPlutipM" do
       runPlutipM config $ liftContract do
         ct <- getTip

@@ -33,29 +33,48 @@ import Data.Posix.Signal (Signal(SIGINT))
 import Data.UInt as UInt
 import Data.YAML.Foreign.Decode (parseYAMLToJson)
 import Effect (Effect)
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, Milliseconds(Milliseconds))
 import Effect.Aff.Class (liftAff)
+import Effect.Aff.Retry
+  ( RetryPolicy
+  , constantDelay
+  , limitRetriesByCumulativeDelay
+  , recovering
+  )
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Helpers (fromJustEff, fromRightEff)
-import Node.ChildProcess (ChildProcess, defaultSpawnOptions, kill, spawn)
+import Node.ChildProcess
+  ( ChildProcess
+  , defaultExecSyncOptions
+  , defaultSpawnOptions
+  , execSync
+  , kill
+  , spawn
+  )
 import Node.Encoding as Encoding
 import Node.FS.Aff (writeTextFile)
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat, dirname)
 import Plutip.Types
-  ( ClusterStartupRequest(ClusterStartupRequest)
+  ( ClusterStartupParameters
+  , ClusterStartupRequest(ClusterStartupRequest)
   , FilePath
-  , PlutipConfig
+  , PostgresConfig
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
-  , ClusterStartupParameters
+  , PlutipConfig
   )
 import Plutip.Utils (tmpdir)
 import QueryM (ClientError(..))
 import QueryM as QueryM
+import QueryM.UniqueId (uniqueId)
 import Types.UsedTxOuts (newUsedTxOuts)
+
+defaultRetryPolicy :: RetryPolicy
+defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
+  constantDelay (Milliseconds 100.0)
 
 type PlutipM (r :: Row Type) (a :: Type) = ReaderT PlutipConfig (Contract r) a
 
@@ -74,24 +93,30 @@ runPlutipM
   -> PlutipM () a
   -> Aff a
 runPlutipM plutipCfg action = do
-  withResource (startPlutipCluster plutipCfg)
-    (const $ void $ stopPlutipCluster plutipCfg)
-    \startupResponse -> do
-      response <- case startupResponse of
-        ClusterStartupFailure _ -> do
-          liftEffect $ throw "Failed to start up cluster"
-        ClusterStartupSuccess response -> do
-          pure response
-      let
-        contract =
-          flip runReaderT plutipCfg action
-      withResource (startOgmios plutipCfg response) stopOgmios $ const do
-        withResource (startOgmiosDatumCache plutipCfg response)
-          stopOgmiosDatumCache $ const do
-          withResource (startCtlServer plutipCfg response) stopCtlServer $ const
+  withResource (startPlutipServer plutipCfg) stopChildProcess $ const do
+    withResource (startPlutipCluster plutipCfg)
+      (const $ void $ stopPlutipCluster plutipCfg)
+      \startupResponse -> do
+        response <- case startupResponse of
+          ClusterStartupFailure _ -> do
+            liftEffect $ throw "Failed to start up cluster"
+          ClusterStartupSuccess response -> do
+            pure response
+        let
+          contract =
+            flip runReaderT plutipCfg action
+        withResource (startPostgresServer plutipCfg.postgresConfig response)
+          stopChildProcess $ const do
+          withResource (startOgmios plutipCfg response) stopChildProcess $ const
             do
-              contractCfg <- mkClusterContractCfg plutipCfg response
-              liftAff $ runContract contractCfg contract
+              withResource (startOgmiosDatumCache plutipCfg response)
+                stopChildProcess $ const do
+                withResource (startCtlServer plutipCfg response)
+                  stopChildProcess
+                  $ const
+                      do
+                        contractCfg <- mkClusterContractCfg plutipCfg response
+                        liftAff $ runContract contractCfg contract
 
 startPlutipCluster
   :: PlutipConfig -> Aff StartClusterResponse
@@ -162,8 +187,69 @@ startOgmios cfg params = liftEffect $ spawn "ogmios" ogmiosArgs
     , params.nodeConfigPath
     ]
 
-stopOgmios :: ChildProcess -> Aff Unit
-stopOgmios = liftEffect <<< kill SIGINT
+stopChildProcess :: ChildProcess -> Aff Unit
+stopChildProcess = liftEffect <<< kill SIGINT
+
+startPlutipServer :: PlutipConfig -> Aff ChildProcess
+startPlutipServer cfg = do
+  p <- liftEffect $ spawn "plutip-server" [ "-p", UInt.toString cfg.port ]
+    defaultSpawnOptions { detached = true }
+  void
+    $ recovering defaultRetryPolicy
+        ([ \_ _ -> pure true ])
+    $ const
+    $ stopPlutipCluster cfg
+  pure p
+
+startPostgresServer
+  :: PostgresConfig -> ClusterStartupParameters -> Aff ChildProcess
+startPostgresServer pgConfig _ = do
+  tmpDir <- liftEffect tmpdir
+  randomStr <- liftEffect $ uniqueId ""
+  let
+    workingDir = tmpDir <> "/" <> randomStr
+    databaseDir = workingDir <> "/postgres/data"
+  liftEffect $ void $ execSync ("initdb " <> databaseDir) defaultExecSyncOptions
+  pgChildProcess <- liftEffect $ spawn "postgres"
+    [ "-D"
+    , databaseDir
+    , "-p"
+    , UInt.toString pgConfig.port
+    , "-h"
+    , pgConfig.host
+    , "-k"
+    , workingDir <> "/postgres"
+    ]
+    defaultSpawnOptions
+  void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
+    $ const
+    $ liftEffect
+    $ execSync
+        ( "psql -h " <> pgConfig.host <> " -p " <> UInt.toString pgConfig.port
+            <> " -d postgres"
+        )
+        defaultExecSyncOptions
+  liftEffect $ void $ execSync
+    ( "psql -h " <> pgConfig.host <> " -p " <> UInt.toString pgConfig.port
+        <> " -d postgres"
+        <> " -c \"CREATE ROLE "
+        <> pgConfig.user
+        <> " WITH LOGIN SUPERUSER CREATEDB PASSWORD '"
+        <> pgConfig.password
+        <> "';\""
+    )
+    defaultExecSyncOptions
+  liftEffect $ void $ execSync
+    ( "createdb -h " <> pgConfig.host <> " -p " <> UInt.toString pgConfig.port
+        <> " -U "
+        <> pgConfig.user
+        <> " -O "
+        <> pgConfig.user
+        <> " "
+        <> pgConfig.dbname
+    )
+    defaultExecSyncOptions
+  pure pgChildProcess
 
 -- TODO: use CLI arguments when https://github.com/mlabs-haskell/ogmios-datum-cache/issues/61 is resolved
 startOgmiosDatumCache
@@ -173,11 +259,11 @@ startOgmiosDatumCache cfg _params = do
   let
     dbString :: String
     dbString = intercalate " "
-      [ "host=" <> cfg.ogmiosDatumCacheConfig.host
-      , "port=" <> UInt.toString cfg.ogmiosDatumCachePostgresConfig.port
-      , "user=" <> cfg.ogmiosDatumCachePostgresConfig.user
-      , "dbname=" <> cfg.ogmiosDatumCachePostgresConfig.dbname
-      , "password=" <> cfg.ogmiosDatumCachePostgresConfig.password
+      [ "host=" <> cfg.postgresConfig.host
+      , "port=" <> UInt.toString cfg.postgresConfig.port
+      , "user=" <> cfg.postgresConfig.user
+      , "dbname=" <> cfg.postgresConfig.dbname
+      , "password=" <> cfg.postgresConfig.password
       ]
 
     configContents :: String
@@ -193,9 +279,6 @@ startOgmiosDatumCache cfg _params = do
   writeTextFile Encoding.UTF8 (dir <> "/config.toml") configContents
   liftEffect $ spawn "ogmios-datum-cache" [] defaultSpawnOptions
     { cwd = Just dir }
-
-stopOgmiosDatumCache :: ChildProcess -> Aff Unit
-stopOgmiosDatumCache = liftEffect <<< kill SIGINT
 
 mkClusterContractCfg
   :: forall (r :: Row Type)
@@ -250,9 +333,6 @@ startCtlServer cfg params = do
   getNetworkInfoArgs (Testnet networkId) =
     [ "--network-id", Int.toStringAs Int.decimal networkId ]
 
-stopCtlServer :: ChildProcess -> Aff Unit
-stopCtlServer = liftEffect <<< kill SIGINT
-
 getNetworkInfoFromNodeConfig :: FilePath -> Effect NetworkInfo
 getNetworkInfoFromNodeConfig nodeConfigPath = do
   nodeConfigYaml <- readTextFile Encoding.UTF8 nodeConfigPath
@@ -261,7 +341,8 @@ getNetworkInfoFromNodeConfig nodeConfigPath = do
     nodeConfigJson
   byronGenesisFile <- fromRightEff $ getField nodeConfigAeson
     "ByronGenesisFile"
-  if getField nodeConfigAeson "RequiresNetworkMagic" == Right "RequiresNoMagic" then pure Mainnet
+  if getField nodeConfigAeson "RequiresNetworkMagic" == Right "RequiresNoMagic" then
+    pure Mainnet
   else do
     byronGenesisJson <- fromRightEff =<< parseJsonStringToAeson <$> readTextFile
       Encoding.UTF8

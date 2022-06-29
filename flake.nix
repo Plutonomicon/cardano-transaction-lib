@@ -10,6 +10,7 @@
     # for the purescript project
     ogmios.url = "github:mlabs-haskell/ogmios";
     ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache";
+    plutip.url = "github:mlabs-haskell/plutip/plutip-server";
     # so named because we also need a different version of the repo below
     # in the server inputs and we use this one just for the `cardano-cli`
     # executables
@@ -149,6 +150,7 @@
         ogmios-datum-cache =
           inputs.ogmios-datum-cache.defaultPackage.${system};
         ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
+        plutip-server = inputs.plutip.packages.${system}."plutip:exe:plutip-server";
         cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
         purescriptProject = import ./nix { inherit system; pkgs = prev; };
         buildCtlRuntime = buildCtlRuntime system;
@@ -418,9 +420,11 @@
             shell = {
               packages = [
                 (hsProjectFor system).hsPkgs.ctl-server.components.exes.ctl-server
+                pkgs.postgresql
                 pkgs.ogmios
                 pkgs.cardano-cli
                 pkgs.ogmios-datum-cache
+                pkgs.plutip-server
                 pkgs.nixpkgs-fmt
                 pkgs.fd
                 pkgs.arion
@@ -471,7 +475,7 @@
           # test. This will need to be run via a Hercules `effect`
           checks = {
             ctl-unit-test = project.runPursTest {
-              testMain = "Test.Unit";
+              testMain = "CTL.Test.Unit";
               sources = [ "src" "test" "fixtures" ];
             };
           };

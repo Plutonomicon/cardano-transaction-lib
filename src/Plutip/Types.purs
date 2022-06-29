@@ -29,11 +29,12 @@ type PlutipConfig =
   , ogmiosDatumCacheConfig :: ServerConfig
   , ctlServerConfig :: ServerConfig
   -- Should be synchronized with `defaultConfig.postgres` in `flake.nix`
-  , ogmiosDatumCachePostgresConfig :: OdcPostgresConfig
+  , postgresConfig :: PostgresConfig
   }
 
-type OdcPostgresConfig =
-  { port :: UInt
+type PostgresConfig =
+  { host :: String
+  , port :: UInt
   , user :: String
   , password :: String
   , dbname :: String
