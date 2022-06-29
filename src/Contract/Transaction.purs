@@ -254,7 +254,7 @@ withSingleTransaction prepare extract utx action =
     (action <<< NonEmptyArray.head)
 
 -- | Execute an action on an array of balanced
--- | transactions (balanceTxs will be called). Within
+-- | transactions (`balanceTxs` will be called). Within
 -- | this function, all transaction inputs used by these
 -- | transactions will be locked, so that they are not used
 -- | in any other context.
@@ -267,7 +267,7 @@ withBalancedTxs
   -> Contract r a
 withBalancedTxs = withTransactions reindexAndBalanceTxs (_.tx <<< unwrap)
 
--- | Execute an action on a balanced transaction (balanceTx will
+-- | Execute an action on a balanced transaction (`balanceTx` will
 -- | be called). Within this function, all transaction inputs
 -- | used by this transaction will be locked, so that they are not
 -- | used in any other context.
@@ -281,7 +281,7 @@ withBalancedTx
 withBalancedTx = withSingleTransaction reindexAndBalanceTx (_.tx <<< unwrap)
 
 -- | Execute an action on an array of balanced and signed
--- | transactions (balanceAndSignTxs will be called). Within
+-- | transactions (`balanceAndSignTxs` will be called). Within
 -- | this function, all transaction inputs used by these
 -- | transactions will be locked, so that they are not used
 -- | in any other context.
@@ -295,7 +295,7 @@ withBalancedAndSignedTxs
 withBalancedAndSignedTxs = withTransactions balanceAndSignTxs unwrap
 
 -- | Execute an action on a balanced and signed transaction.
--- | (balanceAndSignTx will be called). Within this function,
+-- | (`balanceAndSignTx` will be called). Within this function,
 -- | all transaction inputs used by this transaction will be
 -- | locked, so that they are not used in any other context.
 -- | After the function completes, the locks will be removed.
@@ -384,11 +384,11 @@ derive newtype instance Eq BalancedSignedTransaction
 instance Show BalancedSignedTransaction where
   show = genericShow
 
--- | Like 'balanceAndSignTx, but for more than one transaction.
+-- | Like `balanceAndSignTx`, but for more than one transaction.
 -- | This function may throw errors through the contract Monad.
 -- | If successful, transaction inputs will be locked afterwards.
 -- | If you want to re-use them in the same 'QueryM' context, call
--- | 'unlockTransactionInputs'.
+-- | `unlockTransactionInputs`.
 balanceAndSignTxs
   :: forall (r :: Row Type)
    . Array UnattachedUnbalancedTx
@@ -417,7 +417,7 @@ balanceAndSignTxs txs = do
 -- | submit the transaction.
 -- | If successful, transaction inputs will be locked afterwards.
 -- | If you want to re-use them in the same 'QueryM' context, call
--- | 'unlockTransactionInputs'.
+-- | `unlockTransactionInputs`.
 balanceAndSignTxE
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx
@@ -438,7 +438,7 @@ balanceAndSignTxE tx = try $ balanceAndSignTxs [ tx ] >>=
 -- | submit the transaction.
 -- | If successful, transaction inputs will be locked afterwards.
 -- | If you want to re-use them in the same 'QueryM' context, call
--- | 'unlockTransactionInputs'.
+-- | `unlockTransactionInputs`.
 balanceAndSignTx
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx

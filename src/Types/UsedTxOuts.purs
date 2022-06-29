@@ -73,7 +73,7 @@ newUsedTxOuts
   => m UsedTxOuts
 newUsedTxOuts = UsedTxOuts <$> liftEffect (Ref.new Map.empty)
 
--- | 'lockRemainingTransactionInputs alreadyLocked tx'
+-- | `lockRemainingTransactionInputs alreadyLocked tx`
 -- |
 -- | Mark 'tx's inputs as used, except for those which
 -- | are contained in 'alreadylocked' (which have been
@@ -188,7 +188,7 @@ unlockTxOutRefs txOutRefs' =
     ask >>= (unwrap >>> Ref.modify_ updateCache >>> liftEffect)
 
 -- | Remove used marks from all inputs that are saved in a `TxOutRefUnlockKeys`.
--- Use this on the result of a previous lockTransactionInputs
+-- | Use this on the result of a previous `lockTransactionInputs`
 unlockTxOutKeys
   :: forall (m :: Type -> Type) (a :: Type)
    . MonadAsk UsedTxOuts m

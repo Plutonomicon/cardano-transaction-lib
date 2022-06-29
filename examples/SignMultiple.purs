@@ -1,5 +1,5 @@
 -- | This module balances and signs two transactions at once and demonstrates
--- | the withBalancedandSignedTxs bracket. The point is that two different
+-- | the `withBalancedandSignedTxs` bracket. The point is that two different
 -- | Utxos will be used for these transactions.
 module Examples.SignMultiple (main) where
 
