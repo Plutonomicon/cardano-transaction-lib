@@ -14,7 +14,7 @@ import Control.Monad.Reader.Trans (ReaderT, asks)
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (bisequence)
 import Data.Map as Map
-import Data.Maybe (Maybe(Nothing), maybe)
+import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap, over)
 import Data.Traversable (sequence)
 import Data.Tuple.Nested (type (/\))
@@ -28,7 +28,7 @@ import Serialization.Address (Address)
 import TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
 import Types.Transaction (TransactionInput)
 import Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
-import Wallet (Wallet(Gero, Nami, KeyWallet))
+import Wallet (Wallet(Gero, Nami, KeyWallet, KeyListWallet))
 
 --------------------------------------------------------------------------------
 -- UtxosAt
@@ -46,6 +46,10 @@ utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
     Nami _ -> cip30UtxosAt address
     Gero _ -> cip30UtxosAt address
     KeyWallet _ -> pure Nothing
+    KeyListWallet { selected: Nothing } ->
+      liftEffect $ throw "utxosAt: KeyListWallet: no wallet selected"
+    KeyListWallet { selected: Just keyWallet } ->
+      utxosAtByWallet address (KeyWallet keyWallet)
 
   -- Gets all utxos at an (internal) Address in terms of (internal)
   -- Cardano.Transaction.Types.

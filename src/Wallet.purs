@@ -1,7 +1,7 @@
 module Wallet
   ( module KeyWallet
   , module Cip30Wallet
-  , Wallet(Gero, Nami, KeyWallet)
+  , Wallet(Gero, Nami, KeyWallet, KeyListWallet)
   , mkNamiWalletAff
   , mkGeroWalletAff
   , mkKeyWallet
@@ -11,10 +11,6 @@ module Wallet
 
 import Prelude
 
-import Wallet.Key (KeyWallet, privateKeyToKeyWallet)
-import Wallet.Key (KeyWallet, privateKeyToKeyWallet) as KeyWallet
-import Wallet.Cip30 (Cip30Wallet, Cip30Connection, mkCip30WalletAff)
-import Wallet.Cip30 (Cip30Wallet, Cip30Connection) as Cip30Wallet
 import Cardano.Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , PublicKey(PublicKey)
@@ -31,11 +27,17 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Helpers ((<<>>))
 import Serialization.Types (PrivateKey)
+import Wallet.Cip30 (Cip30Wallet, Cip30Connection) as Cip30Wallet
+import Wallet.Cip30 (Cip30Wallet, Cip30Connection, mkCip30WalletAff)
+import Wallet.Key (KeyWallet, privateKeyToKeyWallet)
+import Wallet.Key (KeyWallet, privateKeyToKeyWallet) as KeyWallet
+import Wallet.KeyList (KeyListWallet)
 
 data Wallet
   = Nami Cip30Wallet
   | Gero Cip30Wallet
   | KeyWallet KeyWallet
+  | KeyListWallet KeyListWallet
 
 mkKeyWallet :: PrivateKey -> Wallet
 mkKeyWallet = KeyWallet <<< privateKeyToKeyWallet

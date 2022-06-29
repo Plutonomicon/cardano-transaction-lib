@@ -26,9 +26,11 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either(Right, Left), either)
 import Data.HTTP.Method as Method
 import Data.Int as Int
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just), maybe)
 import Data.Newtype (wrap)
 import Data.Posix.Signal (Signal(SIGINT))
+import Data.String.CodeUnits as String
+import Data.Traversable (for)
 import Data.UInt as UInt
 import Data.YAML.Foreign.Decode (parseYAMLToJson)
 import Effect (Effect)
@@ -42,8 +44,8 @@ import Effect.Aff.Retry
   )
 import Effect.Class (liftEffect)
 import Effect.Console (log)
-import Effect.Exception (throw)
-import Helpers (fromJustEff, fromRightEff)
+import Effect.Exception (error, throw)
+import Helpers (fromJustEff, fromRightEff, liftM)
 import Node.Buffer as Bf
 import Node.ChildProcess
   ( ChildProcess
@@ -67,10 +69,16 @@ import Plutip.Types
   , PlutipConfig
   )
 import Plutip.Utils (tmpdir)
-import QueryM (ClientError(..))
+import QueryM (ClientError(ClientDecodeJsonError, ClientHttpError))
 import QueryM as QueryM
 import QueryM.UniqueId (uniqueId)
+import Serialization (privateKeyFromBytes)
+import Types.ByteArray (hexToByteArray)
+import Types.RawBytes (RawBytes(RawBytes))
 import Types.UsedTxOuts (newUsedTxOuts)
+import Wallet (Wallet(KeyListWallet))
+import Wallet.KeyList (KeyListWallet)
+import Wallet.KeyList as KeyList
 
 defaultRetryPolicy :: RetryPolicy
 defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
@@ -292,7 +300,7 @@ mkClusterContractCfg
    . PlutipConfig
   -> ClusterStartupParameters
   -> Aff (ContractConfig ())
-mkClusterContractCfg plutipCfg _clusterParams = do
+mkClusterContractCfg plutipCfg params = do
   ogmiosWs <- QueryM.mkOgmiosWebSocketAff plutipCfg.logLevel
     QueryM.defaultOgmiosWsConfig
       { port = plutipCfg.ogmiosConfig.port
@@ -305,15 +313,28 @@ mkClusterContractCfg plutipCfg _clusterParams = do
         , host = plutipCfg.ogmiosDatumCacheConfig.host
         }
   usedTxOuts <- newUsedTxOuts
+  wallet <- mkKeyListWallet params
   pure $ ContractConfig
     { ogmiosWs
     , datumCacheWs
-    , wallet: Nothing -- TODO: use KeyWallet when it's ready
+    , wallet: Just $ KeyListWallet wallet
     , usedTxOuts
     , serverConfig: plutipCfg.ctlServerConfig
     , networkId: TestnetId
     , logLevel: plutipCfg.logLevel
     }
+
+mkKeyListWallet :: ClusterStartupParameters -> Aff KeyListWallet
+mkKeyListWallet { privateKeys } = do
+  cslPrivateKeys <- for privateKeys \pkString -> do
+    let splitted = String.splitAt 4 pkString
+    unless (splitted.before == "5820") do
+      liftEffect $ throw $ "Incorrect PrivateKey format: " <> show pkString
+    byteArray <- liftM (error "Unable to decode KeyWallet") $
+      hexToByteArray splitted.after
+    maybe (liftEffect $ throw "Unable to construct PrivateKey") pure
+      $ privateKeyFromBytes (RawBytes byteArray)
+  pure $ KeyList.mkKeyListWallet cslPrivateKeys
 
 data NetworkInfo = Mainnet | Testnet Int
 
