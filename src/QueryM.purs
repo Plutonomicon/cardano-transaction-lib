@@ -91,7 +91,7 @@ import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), delay, launchAff_, makeAff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Effect.Exception (Error, error, throw)
+import Effect.Exception (Error, error, message, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
@@ -802,12 +802,22 @@ data DispatchError
   -- Server response has been parsed succesfully, but it contains error
   -- message
   | FaultError Aeson
+  -- The listener that was added for this message has been cancelled
+  | ListenerCancelled
+
+instance Show DispatchError where
+  show (JsError err) = "(JsError (message " <> show (message err) <> "))"
+  show (JsonError jsonErr) = "(JsonError " <> show jsonErr <> ")"
+  show (FaultError aeson) = "(FaultError " <> show aeson <> ")"
+  show ListenerCancelled = "ListenerCancelled"
 
 dispatchErrorToError :: DispatchError -> Error
 dispatchErrorToError (JsError err) = err
 dispatchErrorToError (JsonError err) = error $ show err
 dispatchErrorToError (FaultError err) =
   error $ "Server responded with `fault`: " <> stringifyAeson err
+dispatchErrorToError ListenerCancelled =
+  error $ "Listener cancelled"
 
 -- A function which accepts some unparsed Json, and checks it against one or
 -- more possible types to perform an appropriate effect (such as supplying the
@@ -882,55 +892,43 @@ createPendingRequests = Ref.new Map.empty
 queryDispatch
   :: forall (response :: Type)
    . DecodeAeson response
+  => Show response
   => DispatchIdMap response
   -> String
   -> Effect (Either DispatchError (Effect Unit))
 queryDispatch ref str = do
   let eiAeson = parseJsonStringToAeson str
-  -- Parse response
-  case JsonWsp.parseJsonWspResponse =<< eiAeson of
-    Left parseError -> do
-      -- Try to at least parse ID  to dispatch the error to
-      case parseJsonWspResponseId =<< eiAeson of
-        -- We still return original error because ID parse error is useless
-        Left _reflectionParseError -> pure $ Left $ JsonError parseError
-        Right reflection -> do
-          withAction reflection case _ of
-            Nothing -> pure $ Left $ JsError $ error $
-              "Parse failed and Request Id: " <> reflection <>
-                " has been cancelled"
-            Just action -> pure $ Right $ action $ Left $ JsonError parseError
-    Right { result: Just result, reflection } -> do
+  -- Parse response id
+  case parseJsonWspResponseId =<< eiAeson of
+    Left parseError ->
+      pure $ Left $ JsonError parseError
+    Right reflection -> do
+      -- Get callback action
       withAction reflection case _ of
-        -- This indicates an implementation error, thus we are not passing it
-        -- to `action`
-        Nothing -> pure $ Left $ JsError $ error $
-          "Parse succeeded but Request Id: " <> reflection <>
-            " has been cancelled"
-        Just action -> pure $ Right $ action $ Right result
-    -- If result is empty, then fault must be present
-    Right { result: Nothing, fault: Just fault, reflection } -> do
-      withAction reflection case _ of
-        Nothing -> pure $ Left $ FaultError fault
+        Nothing -> Left $ JsError $ error $
+          "Request Id " <> reflection <> " has been cancelled"
         Just action -> do
-          pure $ Right $ action $ Left $ FaultError fault
-    -- Otherwise, our implementation is broken.
-    Right { result: Nothing, fault: Nothing, reflection } -> do
-      let
-        errMsg =
-          "Impossible happened: response does not contain neither `fault` "
-            <> "nor `result`, please report as bug. Response: "
-            <> str
-      withAction reflection case _ of
-        Nothing -> do
-          pure $ Left $ JsError $ error errMsg
-        Just action -> do
-          pure $ Right $ action $ Left $ JsError $ error errMsg
+          -- Parse response
+          Right $ action $
+            case JsonWsp.parseJsonWspResponse =<< eiAeson of
+              Left parseError -> Left $ JsonError parseError
+              Right { result: Just result } -> Right result
+              -- If result is empty, then fault must be present
+              Right { result: Nothing, fault: Just fault } ->
+                Left $ FaultError fault
+              -- Otherwise, our implementation is broken.
+              Right { result: Nothing, fault: Nothing } ->
+                Left $ JsError $ error impossibleErrorMsg
   where
+  impossibleErrorMsg =
+    "Impossible happened: response does not contain neither "
+      <> "`fault` nor `result`, please report as bug. Response: "
+      <> str
+
   withAction
     :: ListenerId
     -> ( Maybe (Either DispatchError response -> Effect Unit)
-         -> Effect (Either DispatchError (Effect Unit))
+         -> Either DispatchError (Effect Unit)
        )
     -> Effect (Either DispatchError (Effect Unit))
   withAction reflection cb = do
@@ -939,7 +937,7 @@ queryDispatch ref str = do
       mbAction =
         MultiMap.lookup reflection idMap
           :: Maybe (Either DispatchError response -> Effect Unit)
-    cb mbAction
+    pure $ cb mbAction
 
 -- an empty error we can compare to, useful for ensuring we've not received any other kind of error
 defaultErr :: JsonDecodeError
@@ -965,7 +963,9 @@ defaultMessageListener lvl dispatchArray msg = do
           )
           do
             logString lvl Error $
-              "unexpected parse error on input: " <> msg
+              "unexpected error on input: " <> msg
+                <> " Error:"
+                <> show err
     )
     identity
     eAction
