@@ -163,14 +163,11 @@ import Types.ByteArray
   , hexToByteArrayUnsafe
   )
 import Types.Int as Int
-import Types.Natural as Natural
 import Types.PlutusData as PD
-import Types.PubKeyHash (PubKeyHash(PubKeyHash))
 import Types.RawBytes (rawBytesFromIntArrayUnsafe, hexToRawBytesUnsafe)
 import Types.RedeemerTag (RedeemerTag(Spend))
 import Types.Scripts
   ( MintingPolicyHash(MintingPolicyHash)
-  , ValidatorHash(ValidatorHash)
   )
 import Types.TokenName (TokenName, mkTokenName)
 import Types.Transaction
@@ -1119,19 +1116,8 @@ scriptHash1 = unsafePartial $ fromJust $ scriptHashFromBytes $
   hexToRawBytesUnsafe
     "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
 
-scriptHash2 :: ScriptHash
-scriptHash2 = unsafePartial $ fromJust $ scriptHashFromBytes $
-  hexToRawBytesUnsafe
-    "00000000005bb21ce6d8c7502aca70b9316d10e958611f3c6b758f60"
-
 policyId :: MintingPolicyHash
 policyId = MintingPolicyHash scriptHash1
-
-validatorHashFixture1 :: ValidatorHash
-validatorHashFixture1 = ValidatorHash scriptHash1
-
-validatorHashFixture2 :: ValidatorHash
-validatorHashFixture2 = ValidatorHash scriptHash2
 
 cip25MetadataFilesFixture1 :: Array Cip25MetadataFile
 cip25MetadataFilesFixture1 = Cip25MetadataFile <$>
