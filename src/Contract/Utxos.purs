@@ -9,14 +9,15 @@ module Contract.Utxos
 
 import Prelude
 
-import Cardano.Types.Value (Value)
 import Contract.Monad (Contract, wrapContract, liftContractM)
 import Control.Monad.Reader.Class (asks)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)
 import Plutus.Conversion (fromPlutusAddress, toPlutusUtxoM)
+import Plutus.Conversion.Value (toPlutusValue)
 import Plutus.Types.Address (Address)
 import Plutus.Types.Transaction (UtxoM(UtxoM)) as Transaction
+import Plutus.Types.Value (Value)
 import QueryM.Utxos (getWalletBalance, utxosAt) as Utxos
 
 -- | This module defines query functionality via Ogmios to get utxos.
@@ -41,4 +42,4 @@ utxosAt address = do
 getWalletBalance
   :: forall (r :: Row Type)
    . Contract r (Maybe Value)
-getWalletBalance = wrapContract Utxos.getWalletBalance
+getWalletBalance = wrapContract (Utxos.getWalletBalance <#> map toPlutusValue)
