@@ -771,7 +771,7 @@ convertCostmdls (T.Costmdls cs) = do
     $ Map.lookup T.PlutusV1 cs
   costModel <- newCostModel
   forWithIndex_ costs $ \operation cost ->
-    costModelSetCost costModel operation =<< newInt32 (UInt.toInt cost)
+    costModelSetCost costModel operation =<< newInt32 cost
   costmdls <- newCostmdls
   plutusV1 <- newPlutusV1
   costmdlsSetCostModel costmdls plutusV1 costModel

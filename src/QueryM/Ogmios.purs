@@ -75,7 +75,7 @@ import Cardano.Types.Value
   , mkValue
   )
 import Control.Alt ((<|>))
-import Data.Array (index, singleton)
+import Data.Array (catMaybes, index, singleton)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, hush, note)
@@ -89,7 +89,7 @@ import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern), indexOf, splitAt, uncons)
 import Data.String.Common as String
 import Data.Traversable (sequence, traverse)
-import Data.Tuple (uncurry)
+import Data.Tuple (uncurry, Tuple(Tuple))
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -386,7 +386,8 @@ instance Show Epoch where
 newtype EraSummaryParameters = EraSummaryParameters
   { epochLength :: EpochLength -- 0-18446744073709552000 An epoch number or length.
   , slotLength :: SlotLength -- <= 18446744073709552000 A slot length, in seconds.
-  , safeZone :: SafeZone -- 0-18446744073709552000 Number of slots from the tip of
+  , safeZone ::
+      Maybe SafeZone -- 0-18446744073709552000 Number of slots from the tip of
   -- the ledger in which it is guaranteed that no hard fork can take place.
   -- This should be (at least) the number of slots in which we are guaranteed
   -- to have k blocks.
@@ -518,7 +519,7 @@ type ProtocolParametersRaw =
   , "minPoolCost" :: BigInt
   , "coinsPerUtxoByte" :: BigInt
   , "costModels" ::
-      { "plutus:v1" :: CostModel
+      { "plutus:v1" :: Maybe CostModel
       }
   , "prices" ::
       { "memory" :: PParamRational
@@ -596,8 +597,10 @@ instance DecodeAeson ProtocolParameters where
       , monetaryExpansion: unwrap ps.monetaryExpansion
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
       , uTxOCostPerWord: Coin ps.coinsPerUtxoByte
-      , costModels: Costmdls $ Map.fromFoldable
-          [ PlutusV1 /\ convertCostModel ps.costModels."plutus:v1" ]
+      , costModels: Costmdls $ Map.fromFoldable $ catMaybes
+          [ ps.costModels."plutus:v1" >>= convertCostModel >>> Tuple PlutusV1
+              >>> pure
+          ]
       , prices: prices
       , maxTxExUnits: Just $ decodeExUnits ps.maxExecutionUnitsPerTransaction
       , maxBlockExUnits: Just $ decodeExUnits ps.maxExecutionUnitsPerBlock
@@ -619,172 +622,172 @@ instance DecodeAeson ProtocolParameters where
 
 -- | A type that represents a JSON-encoded Costmodel in format used by Ogmios
 type CostModel =
-  { "addInteger-cpu-arguments-intercept" :: UInt
-  , "addInteger-cpu-arguments-slope" :: UInt
-  , "addInteger-memory-arguments-intercept" :: UInt
-  , "addInteger-memory-arguments-slope" :: UInt
-  , "appendByteString-cpu-arguments-intercept" :: UInt
-  , "appendByteString-cpu-arguments-slope" :: UInt
-  , "appendByteString-memory-arguments-intercept" :: UInt
-  , "appendByteString-memory-arguments-slope" :: UInt
-  , "appendString-cpu-arguments-intercept" :: UInt
-  , "appendString-cpu-arguments-slope" :: UInt
-  , "appendString-memory-arguments-intercept" :: UInt
-  , "appendString-memory-arguments-slope" :: UInt
-  , "bData-cpu-arguments" :: UInt
-  , "bData-memory-arguments" :: UInt
-  , "blake2b_256-cpu-arguments-intercept" :: UInt
-  , "blake2b_256-cpu-arguments-slope" :: UInt
-  , "blake2b_256-memory-arguments" :: UInt
-  , "cekApplyCost-exBudgetCPU" :: UInt
-  , "cekApplyCost-exBudgetMemory" :: UInt
-  , "cekBuiltinCost-exBudgetCPU" :: UInt
-  , "cekBuiltinCost-exBudgetMemory" :: UInt
-  , "cekConstCost-exBudgetCPU" :: UInt
-  , "cekConstCost-exBudgetMemory" :: UInt
-  , "cekDelayCost-exBudgetCPU" :: UInt
-  , "cekDelayCost-exBudgetMemory" :: UInt
-  , "cekForceCost-exBudgetCPU" :: UInt
-  , "cekForceCost-exBudgetMemory" :: UInt
-  , "cekLamCost-exBudgetCPU" :: UInt
-  , "cekLamCost-exBudgetMemory" :: UInt
-  , "cekStartupCost-exBudgetCPU" :: UInt
-  , "cekStartupCost-exBudgetMemory" :: UInt
-  , "cekVarCost-exBudgetCPU" :: UInt
-  , "cekVarCost-exBudgetMemory" :: UInt
-  , "chooseData-cpu-arguments" :: UInt
-  , "chooseData-memory-arguments" :: UInt
-  , "chooseList-cpu-arguments" :: UInt
-  , "chooseList-memory-arguments" :: UInt
-  , "chooseUnit-cpu-arguments" :: UInt
-  , "chooseUnit-memory-arguments" :: UInt
-  , "consByteString-cpu-arguments-intercept" :: UInt
-  , "consByteString-cpu-arguments-slope" :: UInt
-  , "consByteString-memory-arguments-intercept" :: UInt
-  , "consByteString-memory-arguments-slope" :: UInt
-  , "constrData-cpu-arguments" :: UInt
-  , "constrData-memory-arguments" :: UInt
-  , "decodeUtf8-cpu-arguments-intercept" :: UInt
-  , "decodeUtf8-cpu-arguments-slope" :: UInt
-  , "decodeUtf8-memory-arguments-intercept" :: UInt
-  , "decodeUtf8-memory-arguments-slope" :: UInt
-  , "divideInteger-cpu-arguments-constant" :: UInt
-  , "divideInteger-cpu-arguments-model-arguments-intercept" :: UInt
-  , "divideInteger-cpu-arguments-model-arguments-slope" :: UInt
-  , "divideInteger-memory-arguments-intercept" :: UInt
-  , "divideInteger-memory-arguments-minimum" :: UInt
-  , "divideInteger-memory-arguments-slope" :: UInt
-  , "encodeUtf8-cpu-arguments-intercept" :: UInt
-  , "encodeUtf8-cpu-arguments-slope" :: UInt
-  , "encodeUtf8-memory-arguments-intercept" :: UInt
-  , "encodeUtf8-memory-arguments-slope" :: UInt
-  , "equalsByteString-cpu-arguments-constant" :: UInt
-  , "equalsByteString-cpu-arguments-intercept" :: UInt
-  , "equalsByteString-cpu-arguments-slope" :: UInt
-  , "equalsByteString-memory-arguments" :: UInt
-  , "equalsData-cpu-arguments-intercept" :: UInt
-  , "equalsData-cpu-arguments-slope" :: UInt
-  , "equalsData-memory-arguments" :: UInt
-  , "equalsInteger-cpu-arguments-intercept" :: UInt
-  , "equalsInteger-cpu-arguments-slope" :: UInt
-  , "equalsInteger-memory-arguments" :: UInt
-  , "equalsString-cpu-arguments-constant" :: UInt
-  , "equalsString-cpu-arguments-intercept" :: UInt
-  , "equalsString-cpu-arguments-slope" :: UInt
-  , "equalsString-memory-arguments" :: UInt
-  , "fstPair-cpu-arguments" :: UInt
-  , "fstPair-memory-arguments" :: UInt
-  , "headList-cpu-arguments" :: UInt
-  , "headList-memory-arguments" :: UInt
-  , "iData-cpu-arguments" :: UInt
-  , "iData-memory-arguments" :: UInt
-  , "ifThenElse-cpu-arguments" :: UInt
-  , "ifThenElse-memory-arguments" :: UInt
-  , "indexByteString-cpu-arguments" :: UInt
-  , "indexByteString-memory-arguments" :: UInt
-  , "lengthOfByteString-cpu-arguments" :: UInt
-  , "lengthOfByteString-memory-arguments" :: UInt
-  , "lessThanByteString-cpu-arguments-intercept" :: UInt
-  , "lessThanByteString-cpu-arguments-slope" :: UInt
-  , "lessThanByteString-memory-arguments" :: UInt
-  , "lessThanEqualsByteString-cpu-arguments-intercept" :: UInt
-  , "lessThanEqualsByteString-cpu-arguments-slope" :: UInt
-  , "lessThanEqualsByteString-memory-arguments" :: UInt
-  , "lessThanEqualsInteger-cpu-arguments-intercept" :: UInt
-  , "lessThanEqualsInteger-cpu-arguments-slope" :: UInt
-  , "lessThanEqualsInteger-memory-arguments" :: UInt
-  , "lessThanInteger-cpu-arguments-intercept" :: UInt
-  , "lessThanInteger-cpu-arguments-slope" :: UInt
-  , "lessThanInteger-memory-arguments" :: UInt
-  , "listData-cpu-arguments" :: UInt
-  , "listData-memory-arguments" :: UInt
-  , "mapData-cpu-arguments" :: UInt
-  , "mapData-memory-arguments" :: UInt
-  , "mkCons-cpu-arguments" :: UInt
-  , "mkCons-memory-arguments" :: UInt
-  , "mkNilData-cpu-arguments" :: UInt
-  , "mkNilData-memory-arguments" :: UInt
-  , "mkNilPairData-cpu-arguments" :: UInt
-  , "mkNilPairData-memory-arguments" :: UInt
-  , "mkPairData-cpu-arguments" :: UInt
-  , "mkPairData-memory-arguments" :: UInt
-  , "modInteger-cpu-arguments-constant" :: UInt
-  , "modInteger-cpu-arguments-model-arguments-intercept" :: UInt
-  , "modInteger-cpu-arguments-model-arguments-slope" :: UInt
-  , "modInteger-memory-arguments-intercept" :: UInt
-  , "modInteger-memory-arguments-minimum" :: UInt
-  , "modInteger-memory-arguments-slope" :: UInt
-  , "multiplyInteger-cpu-arguments-intercept" :: UInt
-  , "multiplyInteger-cpu-arguments-slope" :: UInt
-  , "multiplyInteger-memory-arguments-intercept" :: UInt
-  , "multiplyInteger-memory-arguments-slope" :: UInt
-  , "nullList-cpu-arguments" :: UInt
-  , "nullList-memory-arguments" :: UInt
-  , "quotientInteger-cpu-arguments-constant" :: UInt
-  , "quotientInteger-cpu-arguments-model-arguments-intercept" :: UInt
-  , "quotientInteger-cpu-arguments-model-arguments-slope" :: UInt
-  , "quotientInteger-memory-arguments-intercept" :: UInt
-  , "quotientInteger-memory-arguments-minimum" :: UInt
-  , "quotientInteger-memory-arguments-slope" :: UInt
-  , "remainderInteger-cpu-arguments-constant" :: UInt
-  , "remainderInteger-cpu-arguments-model-arguments-intercept" :: UInt
-  , "remainderInteger-cpu-arguments-model-arguments-slope" :: UInt
-  , "remainderInteger-memory-arguments-intercept" :: UInt
-  , "remainderInteger-memory-arguments-minimum" :: UInt
-  , "remainderInteger-memory-arguments-slope" :: UInt
-  , "sha2_256-cpu-arguments-intercept" :: UInt
-  , "sha2_256-cpu-arguments-slope" :: UInt
-  , "sha2_256-memory-arguments" :: UInt
-  , "sha3_256-cpu-arguments-intercept" :: UInt
-  , "sha3_256-cpu-arguments-slope" :: UInt
-  , "sha3_256-memory-arguments" :: UInt
-  , "sliceByteString-cpu-arguments-intercept" :: UInt
-  , "sliceByteString-cpu-arguments-slope" :: UInt
-  , "sliceByteString-memory-arguments-intercept" :: UInt
-  , "sliceByteString-memory-arguments-slope" :: UInt
-  , "sndPair-cpu-arguments" :: UInt
-  , "sndPair-memory-arguments" :: UInt
-  , "subtractInteger-cpu-arguments-intercept" :: UInt
-  , "subtractInteger-cpu-arguments-slope" :: UInt
-  , "subtractInteger-memory-arguments-intercept" :: UInt
-  , "subtractInteger-memory-arguments-slope" :: UInt
-  , "tailList-cpu-arguments" :: UInt
-  , "tailList-memory-arguments" :: UInt
-  , "trace-cpu-arguments" :: UInt
-  , "trace-memory-arguments" :: UInt
-  , "unBData-cpu-arguments" :: UInt
-  , "unBData-memory-arguments" :: UInt
-  , "unConstrData-cpu-arguments" :: UInt
-  , "unConstrData-memory-arguments" :: UInt
-  , "unIData-cpu-arguments" :: UInt
-  , "unIData-memory-arguments" :: UInt
-  , "unListData-cpu-arguments" :: UInt
-  , "unListData-memory-arguments" :: UInt
-  , "unMapData-cpu-arguments" :: UInt
-  , "unMapData-memory-arguments" :: UInt
-  , "verifyEd25519Signature-cpu-arguments-intercept" :: UInt
-  , "verifyEd25519Signature-cpu-arguments-slope" :: UInt
-  , "verifyEd25519Signature-memory-arguments" :: UInt
+  { "addInteger-cpu-arguments-intercept" :: Int
+  , "addInteger-cpu-arguments-slope" :: Int
+  , "addInteger-memory-arguments-intercept" :: Int
+  , "addInteger-memory-arguments-slope" :: Int
+  , "appendByteString-cpu-arguments-intercept" :: Int
+  , "appendByteString-cpu-arguments-slope" :: Int
+  , "appendByteString-memory-arguments-intercept" :: Int
+  , "appendByteString-memory-arguments-slope" :: Int
+  , "appendString-cpu-arguments-intercept" :: Int
+  , "appendString-cpu-arguments-slope" :: Int
+  , "appendString-memory-arguments-intercept" :: Int
+  , "appendString-memory-arguments-slope" :: Int
+  , "bData-cpu-arguments" :: Int
+  , "bData-memory-arguments" :: Int
+  , "blake2b_256-cpu-arguments-intercept" :: Int
+  , "blake2b_256-cpu-arguments-slope" :: Int
+  , "blake2b_256-memory-arguments" :: Int
+  , "cekApplyCost-exBudgetCPU" :: Int
+  , "cekApplyCost-exBudgetMemory" :: Int
+  , "cekBuiltinCost-exBudgetCPU" :: Int
+  , "cekBuiltinCost-exBudgetMemory" :: Int
+  , "cekConstCost-exBudgetCPU" :: Int
+  , "cekConstCost-exBudgetMemory" :: Int
+  , "cekDelayCost-exBudgetCPU" :: Int
+  , "cekDelayCost-exBudgetMemory" :: Int
+  , "cekForceCost-exBudgetCPU" :: Int
+  , "cekForceCost-exBudgetMemory" :: Int
+  , "cekLamCost-exBudgetCPU" :: Int
+  , "cekLamCost-exBudgetMemory" :: Int
+  , "cekStartupCost-exBudgetCPU" :: Int
+  , "cekStartupCost-exBudgetMemory" :: Int
+  , "cekVarCost-exBudgetCPU" :: Int
+  , "cekVarCost-exBudgetMemory" :: Int
+  , "chooseData-cpu-arguments" :: Int
+  , "chooseData-memory-arguments" :: Int
+  , "chooseList-cpu-arguments" :: Int
+  , "chooseList-memory-arguments" :: Int
+  , "chooseUnit-cpu-arguments" :: Int
+  , "chooseUnit-memory-arguments" :: Int
+  , "consByteString-cpu-arguments-intercept" :: Int
+  , "consByteString-cpu-arguments-slope" :: Int
+  , "consByteString-memory-arguments-intercept" :: Int
+  , "consByteString-memory-arguments-slope" :: Int
+  , "constrData-cpu-arguments" :: Int
+  , "constrData-memory-arguments" :: Int
+  , "decodeUtf8-cpu-arguments-intercept" :: Int
+  , "decodeUtf8-cpu-arguments-slope" :: Int
+  , "decodeUtf8-memory-arguments-intercept" :: Int
+  , "decodeUtf8-memory-arguments-slope" :: Int
+  , "divideInteger-cpu-arguments-constant" :: Int
+  , "divideInteger-cpu-arguments-model-arguments-intercept" :: Int
+  , "divideInteger-cpu-arguments-model-arguments-slope" :: Int
+  , "divideInteger-memory-arguments-intercept" :: Int
+  , "divideInteger-memory-arguments-minimum" :: Int
+  , "divideInteger-memory-arguments-slope" :: Int
+  , "encodeUtf8-cpu-arguments-intercept" :: Int
+  , "encodeUtf8-cpu-arguments-slope" :: Int
+  , "encodeUtf8-memory-arguments-intercept" :: Int
+  , "encodeUtf8-memory-arguments-slope" :: Int
+  , "equalsByteString-cpu-arguments-constant" :: Int
+  , "equalsByteString-cpu-arguments-intercept" :: Int
+  , "equalsByteString-cpu-arguments-slope" :: Int
+  , "equalsByteString-memory-arguments" :: Int
+  , "equalsData-cpu-arguments-intercept" :: Int
+  , "equalsData-cpu-arguments-slope" :: Int
+  , "equalsData-memory-arguments" :: Int
+  , "equalsInteger-cpu-arguments-intercept" :: Int
+  , "equalsInteger-cpu-arguments-slope" :: Int
+  , "equalsInteger-memory-arguments" :: Int
+  , "equalsString-cpu-arguments-constant" :: Int
+  , "equalsString-cpu-arguments-intercept" :: Int
+  , "equalsString-cpu-arguments-slope" :: Int
+  , "equalsString-memory-arguments" :: Int
+  , "fstPair-cpu-arguments" :: Int
+  , "fstPair-memory-arguments" :: Int
+  , "headList-cpu-arguments" :: Int
+  , "headList-memory-arguments" :: Int
+  , "iData-cpu-arguments" :: Int
+  , "iData-memory-arguments" :: Int
+  , "ifThenElse-cpu-arguments" :: Int
+  , "ifThenElse-memory-arguments" :: Int
+  , "indexByteString-cpu-arguments" :: Int
+  , "indexByteString-memory-arguments" :: Int
+  , "lengthOfByteString-cpu-arguments" :: Int
+  , "lengthOfByteString-memory-arguments" :: Int
+  , "lessThanByteString-cpu-arguments-intercept" :: Int
+  , "lessThanByteString-cpu-arguments-slope" :: Int
+  , "lessThanByteString-memory-arguments" :: Int
+  , "lessThanEqualsByteString-cpu-arguments-intercept" :: Int
+  , "lessThanEqualsByteString-cpu-arguments-slope" :: Int
+  , "lessThanEqualsByteString-memory-arguments" :: Int
+  , "lessThanEqualsInteger-cpu-arguments-intercept" :: Int
+  , "lessThanEqualsInteger-cpu-arguments-slope" :: Int
+  , "lessThanEqualsInteger-memory-arguments" :: Int
+  , "lessThanInteger-cpu-arguments-intercept" :: Int
+  , "lessThanInteger-cpu-arguments-slope" :: Int
+  , "lessThanInteger-memory-arguments" :: Int
+  , "listData-cpu-arguments" :: Int
+  , "listData-memory-arguments" :: Int
+  , "mapData-cpu-arguments" :: Int
+  , "mapData-memory-arguments" :: Int
+  , "mkCons-cpu-arguments" :: Int
+  , "mkCons-memory-arguments" :: Int
+  , "mkNilData-cpu-arguments" :: Int
+  , "mkNilData-memory-arguments" :: Int
+  , "mkNilPairData-cpu-arguments" :: Int
+  , "mkNilPairData-memory-arguments" :: Int
+  , "mkPairData-cpu-arguments" :: Int
+  , "mkPairData-memory-arguments" :: Int
+  , "modInteger-cpu-arguments-constant" :: Int
+  , "modInteger-cpu-arguments-model-arguments-intercept" :: Int
+  , "modInteger-cpu-arguments-model-arguments-slope" :: Int
+  , "modInteger-memory-arguments-intercept" :: Int
+  , "modInteger-memory-arguments-minimum" :: Int
+  , "modInteger-memory-arguments-slope" :: Int
+  , "multiplyInteger-cpu-arguments-intercept" :: Int
+  , "multiplyInteger-cpu-arguments-slope" :: Int
+  , "multiplyInteger-memory-arguments-intercept" :: Int
+  , "multiplyInteger-memory-arguments-slope" :: Int
+  , "nullList-cpu-arguments" :: Int
+  , "nullList-memory-arguments" :: Int
+  , "quotientInteger-cpu-arguments-constant" :: Int
+  , "quotientInteger-cpu-arguments-model-arguments-intercept" :: Int
+  , "quotientInteger-cpu-arguments-model-arguments-slope" :: Int
+  , "quotientInteger-memory-arguments-intercept" :: Int
+  , "quotientInteger-memory-arguments-minimum" :: Int
+  , "quotientInteger-memory-arguments-slope" :: Int
+  , "remainderInteger-cpu-arguments-constant" :: Int
+  , "remainderInteger-cpu-arguments-model-arguments-intercept" :: Int
+  , "remainderInteger-cpu-arguments-model-arguments-slope" :: Int
+  , "remainderInteger-memory-arguments-intercept" :: Int
+  , "remainderInteger-memory-arguments-minimum" :: Int
+  , "remainderInteger-memory-arguments-slope" :: Int
+  , "sha2_256-cpu-arguments-intercept" :: Int
+  , "sha2_256-cpu-arguments-slope" :: Int
+  , "sha2_256-memory-arguments" :: Int
+  , "sha3_256-cpu-arguments-intercept" :: Int
+  , "sha3_256-cpu-arguments-slope" :: Int
+  , "sha3_256-memory-arguments" :: Int
+  , "sliceByteString-cpu-arguments-intercept" :: Int
+  , "sliceByteString-cpu-arguments-slope" :: Int
+  , "sliceByteString-memory-arguments-intercept" :: Int
+  , "sliceByteString-memory-arguments-slope" :: Int
+  , "sndPair-cpu-arguments" :: Int
+  , "sndPair-memory-arguments" :: Int
+  , "subtractInteger-cpu-arguments-intercept" :: Int
+  , "subtractInteger-cpu-arguments-slope" :: Int
+  , "subtractInteger-memory-arguments-intercept" :: Int
+  , "subtractInteger-memory-arguments-slope" :: Int
+  , "tailList-cpu-arguments" :: Int
+  , "tailList-memory-arguments" :: Int
+  , "trace-cpu-arguments" :: Int
+  , "trace-memory-arguments" :: Int
+  , "unBData-cpu-arguments" :: Int
+  , "unBData-memory-arguments" :: Int
+  , "unConstrData-cpu-arguments" :: Int
+  , "unConstrData-memory-arguments" :: Int
+  , "unIData-cpu-arguments" :: Int
+  , "unIData-memory-arguments" :: Int
+  , "unListData-cpu-arguments" :: Int
+  , "unListData-memory-arguments" :: Int
+  , "unMapData-cpu-arguments" :: Int
+  , "unMapData-memory-arguments" :: Int
+  , "verifyEd25519Signature-cpu-arguments-intercept" :: Int
+  , "verifyEd25519Signature-cpu-arguments-slope" :: Int
+  , "verifyEd25519Signature-memory-arguments" :: Int
   }
 
 convertCostModel :: CostModel -> T.CostModel

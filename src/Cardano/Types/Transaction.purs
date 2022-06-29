@@ -361,7 +361,7 @@ derive instance Generic Language _
 instance Show Language where
   show = genericShow
 
-newtype CostModel = CostModel (Array UInt)
+newtype CostModel = CostModel (Array Int)
 
 derive instance Newtype CostModel _
 derive newtype instance Eq CostModel

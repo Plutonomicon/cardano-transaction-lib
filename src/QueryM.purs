@@ -115,7 +115,7 @@ import JsWebSocket
   )
 import QueryM.DatumCacheWsp (GetDatumByHashR, GetDatumsByHashesR)
 import QueryM.DatumCacheWsp as DcWsp
-import QueryM.JsonWsp (JsonWspResponse, parseJsonWspResponseId)
+import QueryM.JsonWsp (parseJsonWspResponseId)
 import QueryM.JsonWsp as JsonWsp
 import QueryM.Ogmios as Ogmios
 import QueryM.ServerConfig

@@ -142,6 +142,7 @@ let
         # sandbox, so we can just use node instead
         # (idea taken from `plutus-playground-client`)
         checkPhase = ''
+          export OGMIOS_FIXTURES="${buildOgmiosFixtures { }}"
           node -e 'require("./output/${testMain}").main()'
         '';
         installPhase = ''

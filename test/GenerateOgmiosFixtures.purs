@@ -6,7 +6,6 @@ import Effect (Effect)
 import Effect.Aff (launchAff_)
 import QueryM (WebSocket(..), defaultOgmiosWsConfig, mkRequest, mkWebSocketAff)
 
-
 import Aeson
   ( class EncodeAeson
   , Aeson
@@ -26,20 +25,16 @@ import Type.Prelude (Proxy(..))
 
 foreign import md5 :: String -> String
 
--- Something odd is happening
--- WS is regularly disconnecting, and when it reconnects, multiple (old?) messages are recieved
--- TODO Look at what vladmir found
-
 data Query = Query (JsonWspCall Unit Aeson) String
 
 mkQuery :: forall query. EncodeAeson query => query -> String -> Query
 mkQuery query shown = Query queryCall shown
   where
-    queryCall = mkOgmiosCallType
-      { methodname: "Query"
-      , args: const { query }
-      }
-      Proxy
+  queryCall = mkOgmiosCallType
+    { methodname: "Query"
+    , args: const { query }
+    }
+    Proxy
 
 mkQuery' :: String -> Query
 mkQuery' query = mkQuery query query
@@ -61,9 +56,9 @@ main =
             , "addr_test1vp842vatdp6qxqnhcfhh6w83t6c8c5udhua999slgzwcq2gvgpvm9"
             , "addr_test1vrmet2lzexpmw78jpyqkuqs8ktg80x457h6wcnkp3z63etsx3pg70"
             , "addr_test1qpsfwsr4eqjfe49md9wpnyp3ws5emf4z3k6xqagvm880zgnk2wgk4"
-              <> "wl2rz04eaqmq9fnxhyn56az0c4d3unvcvg2yw4qmkmv4t"
+                <> "wl2rz04eaqmq9fnxhyn56az0c4d3unvcvg2yw4qmkmv4t"
             , "addr1q9d34spgg2kdy47n82e7x9pdd6vql6d2engxmpj20jmhuc2047yqd4xnh7"
-              <> "u6u5jp4t0q3fkxzckph4tgnzvamlu7k5psuahzcp"
+                <> "u6u5jp4t0q3fkxzckph4tgnzvamlu7k5psuahzcp"
             ]
         let
           queries =
@@ -73,7 +68,7 @@ main =
             , mkQuery' "systemStart"
             , mkQuery' "chainTip"
             ] <>
-              (flip map addresses \addr -> mkQuery { utxo: [ addr ] } "utxosAt")
+              (flip map addresses \addr -> mkQuery { utxo: [ addr ] } "utxo")
         resps <- flip parTraverse queries \(Query qc shown) -> do
           resp <- mkRequest ws logLevel qc listeners unit
           pure { resp, query: shown }
