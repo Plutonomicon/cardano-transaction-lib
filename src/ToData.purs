@@ -13,29 +13,31 @@ module ToData
   ) where
 
 import Prelude
+
 import Data.Array (cons, sortWith)
 import Data.Array as Array
-import Data.NonEmpty (NonEmpty)
+import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt, fromInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Foldable (class Foldable)
 import Data.Generic.Rep as G
 import Data.List (List)
+import Data.Map (Map, toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap)
+import Data.NonEmpty (NonEmpty)
 import Data.Ratio (Ratio, denominator, numerator)
 import Data.Symbol (class IsSymbol)
 import Data.TextEncoder (encodeUtf8)
 import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.UInt (UInt)
 import Helpers (uIntToBigInt)
+import Plutus.Types.DataSchema (class HasPlutusSchema, class ValidPlutusSchema)
 import Prim.Row as Row
 import Prim.TypeError (class Fail, Text)
 import Record as Record
 import Type.RowList as RL
-
-import Plutus.Types.DataSchema (class HasPlutusSchema, class ValidPlutusSchema)
 import TypeLevel.Nat (class KnownNat, natVal)
 import TypeLevel.RowList.Unordered.Indexed
   ( class GetIndexWithLabel
@@ -44,9 +46,9 @@ import TypeLevel.RowList.Unordered.Indexed
   )
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray(ByteArray))
-import Types.RawBytes (RawBytes)
 import Types.CborBytes (CborBytes)
-import Types.PlutusData (PlutusData(Constr, Integer, List, Bytes))
+import Types.PlutusData (PlutusData(Constr, Integer, List, Bytes, Map))
+import Types.RawBytes (RawBytes)
 
 -- | Classes
 
@@ -267,6 +269,9 @@ instance ToData a => ToData (List a) where
 
 instance (ToData a, ToData b) => ToData (Tuple a b) where
   toData (Tuple a b) = Constr zero [ toData a, toData b ]
+
+instance (ToData k, ToData v) => ToData (Map.Map k v) where
+  toData mp = Map ((bimap toData toData) <$> (Map.toUnfoldable mp))
 
 -- Note that nothing prevents the denominator from being zero, we could provide
 -- safety here:
