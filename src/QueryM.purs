@@ -51,7 +51,16 @@ module QueryM
 
 import Prelude
 
-import Aeson (class DecodeAeson, Aeson, JsonDecodeError(TypeMismatch), caseAesonString, decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
+import Aeson
+  ( class DecodeAeson
+  , Aeson
+  , JsonDecodeError(TypeMismatch)
+  , caseAesonString
+  , decodeAeson
+  , encodeAeson
+  , parseJsonStringToAeson
+  , stringifyAeson
+  )
 import Affjax (Error, Response, defaultRequest, printError, request) as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
@@ -94,17 +103,50 @@ import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
 import Helpers (logString, logWithLevel)
-import JsWebSocket (JsWebSocket, Url, _mkWebSocket, _onWsConnect, _onWsError, _onWsMessage, _wsSend, _wsWatch)
+import JsWebSocket
+  ( JsWebSocket
+  , Url
+  , _mkWebSocket
+  , _onWsConnect
+  , _onWsError
+  , _onWsMessage
+  , _wsSend
+  , _wsWatch
+  )
 import QueryM.DatumCacheWsp (GetDatumByHashR, GetDatumsByHashesR)
 import QueryM.DatumCacheWsp as DcWsp
 import QueryM.JsonWsp (JsonWspResponse, parseJsonWspResponseId)
 import QueryM.JsonWsp as JsonWsp
 import QueryM.Ogmios as Ogmios
-import QueryM.ServerConfig (Host, ServerConfig, defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkServerUrl, mkWsUrl) as ServerConfig
-import QueryM.ServerConfig (ServerConfig, defaultOgmiosWsConfig, defaultServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkWsUrl)
+import QueryM.ServerConfig
+  ( Host
+  , ServerConfig
+  , defaultDatumCacheWsConfig
+  , defaultOgmiosWsConfig
+  , defaultServerConfig
+  , mkHttpUrl
+  , mkOgmiosDatumCacheWsUrl
+  , mkServerUrl
+  , mkWsUrl
+  ) as ServerConfig
+import QueryM.ServerConfig
+  ( ServerConfig
+  , defaultOgmiosWsConfig
+  , defaultServerConfig
+  , mkHttpUrl
+  , mkOgmiosDatumCacheWsUrl
+  , mkWsUrl
+  )
 import QueryM.UniqueId (ListenerId)
 import Serialization (convertTransaction, toBytes) as Serialization
-import Serialization.Address (Address, NetworkId(TestnetId), baseAddressDelegationCred, baseAddressFromAddress, addressPaymentCred, stakeCredentialToKeyHash)
+import Serialization.Address
+  ( Address
+  , NetworkId(TestnetId)
+  , baseAddressDelegationCred
+  , baseAddressFromAddress
+  , addressPaymentCred
+  , stakeCredentialToKeyHash
+  )
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Serialization.WitnessSet (convertRedeemers) as Serialization
 import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
@@ -610,6 +652,7 @@ mkOgmiosWebSocket lvl serverCfg cb = do
 
 -- A simple websocket for testing
 -- TODO Move to test
+-- TODO Alternatively, generalized
 mkWebSocket
   :: forall a b
    . DecodeAeson b
@@ -677,13 +720,22 @@ mkDatumCacheWebSocket lvl serverCfg cb = do
   logger = logString lvl
 
 mkDatumCacheWebSocketAff :: LogLevel -> ServerConfig -> Aff DatumCacheWebSocket
-mkDatumCacheWebSocketAff lvl = makeAff <<< map (map (Canceler <<< (map liftEffect))) <<< mkDatumCacheWebSocket lvl
+mkDatumCacheWebSocketAff lvl = makeAff
+  <<< map (map (Canceler <<< (map liftEffect)))
+  <<< mkDatumCacheWebSocket lvl
 
 mkOgmiosWebSocketAff :: LogLevel -> ServerConfig -> Aff OgmiosWebSocket
-mkOgmiosWebSocketAff lvl = makeAff <<< map (map (Canceler <<< (map liftEffect))) <<< mkOgmiosWebSocket lvl
+mkOgmiosWebSocketAff lvl = makeAff <<< map (map (Canceler <<< (map liftEffect)))
+  <<< mkOgmiosWebSocket lvl
 
-mkWebSocketAff :: forall a b. DecodeAeson b => LogLevel -> ServerConfig -> Aff (WebSocket (ListenerSet a b))
-mkWebSocketAff lvl = makeAff <<< map (map (Canceler <<< (map liftEffect))) <<< mkWebSocket lvl
+mkWebSocketAff
+  :: forall a b
+   . DecodeAeson b
+  => LogLevel
+  -> ServerConfig
+  -> Aff (WebSocket (ListenerSet a b))
+mkWebSocketAff lvl = makeAff <<< map (map (Canceler <<< (map liftEffect))) <<<
+  mkWebSocket lvl
 
 -- getter
 underlyingWebSocket :: forall (a :: Type). WebSocket a -> JsWebSocket
