@@ -3,12 +3,12 @@ module Metadata.FromMetadata where
 import Prelude
 
 import Data.Array (toUnfoldable, uncons, foldMap) as Array
+import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt)
 import Data.Map (Map)
 import Data.Map (fromFoldable, toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.NonEmpty (NonEmpty, (:|))
-import Data.Profunctor.Strong ((***))
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
 import Data.Unfoldable (class Unfoldable)
@@ -57,7 +57,7 @@ instance (FromMetadata k, FromMetadata v, Ord k) => FromMetadata (Map k v) where
     Just
       $ Map.fromFoldable
       $ Array.foldMap fromTupleMaybe
-      $ (fromMetadata *** fromMetadata) <$> (Map.toUnfoldable mp)
+      $ (bimap fromMetadata fromMetadata) <$> (Map.toUnfoldable mp)
   fromMetadata _ = Nothing
 
 --------------------------------------------------------------------------------
