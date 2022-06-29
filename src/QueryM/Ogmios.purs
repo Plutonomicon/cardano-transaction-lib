@@ -99,9 +99,6 @@ import QueryM.JsonWsp
   ( JsonWspCall
   , JsonWspRequest
   , mkCallType
-  , parseFieldToBigInt
-  , parseFieldToString
-  , parseFieldToUInt
   )
 import Serialization.BigNum as BigNum
 import Type.Proxy (Proxy(Proxy))
@@ -459,6 +456,11 @@ newtype TxEvaluationR = TxEvaluationR
         { entityRedeemerTag :: Tag.RedeemerTag, entityIndex :: Natural }
         { memory :: Natural, steps :: Natural }
   }
+
+derive instance Generic TxEvaluationR _
+
+instance Show TxEvaluationR where
+  show = genericShow
 
 instance DecodeAeson TxEvaluationR where
   decodeAeson _ = Left
@@ -1064,8 +1066,8 @@ aesonArray = caseAesonArray (Left (TypeMismatch "Expected Array"))
 -- parser for txOutRef
 parseTxOutRef :: Aeson -> Either JsonDecodeError OgmiosTxOutRef
 parseTxOutRef = aesonObject $ \o -> do
-  txId <- parseFieldToString o "txId"
-  index <- parseFieldToUInt o "index"
+  txId <- getField o "txId"
+  index <- getField o "index"
   pure { txId, index }
 
 type OgmiosTxOut =
@@ -1079,16 +1081,16 @@ type OgmiosTxOut =
 -- extracted.
 parseTxOut :: Aeson -> Either JsonDecodeError OgmiosTxOut
 parseTxOut = aesonObject $ \o -> do
-  address <- parseFieldToString o "address"
+  address <- getField o "address"
   value <- parseValue o
-  let datum = hush $ parseFieldToString o "datum"
+  let datum = hush $ getField o "datum"
   pure $ { address, value, datum }
 
 -- parses the `Value` type
 parseValue :: Object Aeson -> Either JsonDecodeError Value
 parseValue outer = do
   o <- getField outer "value"
-  coins <- parseFieldToBigInt o "coins"
+  coins <- getField o "coins"
     <|> Left (TypeMismatch "Expected 'coins' to be an Int or a BigInt")
   Assets assetsMap <- fromMaybe (Assets Map.empty)
     <$> getFieldOptional o "assets"

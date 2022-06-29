@@ -19,36 +19,48 @@ class NoPerMessageDeflateWebSocket extends OurWebSocket {
 
 // _mkWebsocket :: (String -> Effect Unit) -> String -> Effect WebSocket
 exports._mkWebSocket = logger => url => () => {
-  logger("Starting websocket attempt")();
-  var ws;
-  if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
-    ws = new ReconnectingWebSocket.default(url);
-  } else {
-    ws = new ReconnectingWebSocket(url, [], {
-      WebSocket: NoPerMessageDeflateWebSocket
-    });
-  }
-  logger("new websocket")();
-  return ws;
+  try {
+    var ws;
+    if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
+      ws = new ReconnectingWebSocket.default(url);
+    } else {
+      ws = new ReconnectingWebSocket(url, [], {
+        WebSocket: NoPerMessageDeflateWebSocket
+      });
+    }
+    logger("Created a new WebSocket")();
+    return ws;
+  } catch (e) {
+    logger("Failed to create a new WebSocket");
+    throw e;
+  };
 };
 
 // _onWsConnect :: WebSocket -> (Unit -> Effect Unit) -> Effect Unit
-exports._onWsConnect = ws => fn => () => {
+exports._onWsConnect = ws => fn => () =>
   ws.addEventListener('open', fn);
-};
 
 // _onWsError
 //   :: WebSocket
 //   -> (String -> Effect Unit) -- logger
 //   -> (String -> Effect Unit) -- handler
-//   -> Effect Unit
+//   -> Effect ListenerRef
 exports._onWsError = ws => logger => fn => () => {
-  ws.addEventListener('error', function func(event) {
+  const listener = function (event) {
     const str = event.toString();
-    logger(`error: ${str}`)();
+    logger(`WebSocket error: ${str}`)();
     fn(str)();
-  });
+  };
+  ws.addEventListener('error', listener);
+  return listener;
 };
+
+// _removeOnWsError
+//  :: JsWebSocket
+//  -> ListenerRef
+//  -> Effect Unit
+exports._removeOnWsError = ws => listener => () =>
+  ws.removeEventListener('error', listener);
 
 // _onWsMessage
 //   :: WebSocket
@@ -67,6 +79,10 @@ exports._onWsMessage = ws => logger => fn => () => {
 exports._wsSend = ws => logger => str => () => {
   logger(`sending: ${str}`)();
   ws.send(str);
+};
+
+exports._wsReconnect = ws => () => {
+  ws.reconnect();
 };
 
 // _wsClose :: WebSocket -> Effect Unit

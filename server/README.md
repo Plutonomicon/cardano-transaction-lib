@@ -112,34 +112,3 @@ The server executable can be built with `nix build .#ctl-server:exe:ctl-server` 
 ```javascript
 "160265"
 ```
-
-## POST /finalize
-
-### Request:
-
-- Supported content types are:
-
-    - `application/json;charset=utf-8`
-    - `application/json`
-
-- The input should contain CBOR of tx, redeemers, individual Plutusdatums, and Plutus script hashes (`application/json;charset=utf-8`, `application/json`):
-
-```javascript
-{"tx":"00","redeemers":"00","datums":["00"]}
-```
-
-### Response:
-
-- Status code 200
-- Headers: []
-
-- Supported content types are:
-
-    - `application/json;charset=utf-8`
-    - `application/json`
-
-- The output is CBOR-encoded Tx (`application/json;charset=utf-8`, `application/json`):
-
-```javascript
-"84a300818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001818258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d5336100021a0002b569a0f5f6"
-```
