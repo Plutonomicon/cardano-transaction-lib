@@ -27,6 +27,13 @@
       flake = false;
     };
 
+    
+    # for testing the ogmios parser
+    ogmios-fixtures = {
+      url = "github:CardanoSolutions/ogmios?ref=master";
+      flake = false;
+    };
+
     # for the haskell server
     iohk-nix.url = "github:input-output-hk/iohk-nix";
     haskell-nix.url = "github:mlabs-haskell/haskell.nix?ref=master";
@@ -380,6 +387,7 @@
           project = pkgs.purescriptProject {
             inherit src pkgs;
             projectName = "cardano-transaction-lib";
+            ogmios = inputs.ogmios-fixtures;
             shell = {
               packages = [
                 pkgs.ogmios
@@ -411,6 +419,8 @@
             };
 
             docs = project.buildSearchablePursDocs;
+
+            ogmios-fixtures = project.buildOgmiosFixtures {};
           };
 
           launchDocs =

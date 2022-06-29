@@ -1,6 +1,7 @@
 { pkgs, system }:
 { src
 , projectName
+, ogmios
   # We should try to use a consistent version of node across all
   # project components
 , nodejs ? pkgs.nodejs-14_x
@@ -63,10 +64,12 @@ let
         shellHook =
           let
             nodeModules = mkNodeModules { };
+            ogmiosFixtures = buildOgmiosFixtures { };
           in
           ''
             export NODE_PATH="${nodeModules}/lib/node_modules"
             export PATH="${nodeModules}/bin:$PATH"
+            export OGMIOS_FIXTURES="${ogmiosFixtures}"
           ''
           + shellHook;
       };
@@ -251,10 +254,43 @@ let
       '';
     };
 
+  buildOgmiosFixtures =
+    { name ? "${projectName}-ogmios-fixtures"
+    }@args:
+    pkgs.stdenv.mkDerivation {
+      inherit name;
+      dontUnpack = true;
+      buildInputs = [ pkgs.jq ];
+      buildPhase = ''
+        cp -r ${ogmios}/server/test/vectors/StateQuery/Response .
+        chmod -R +rwx .
+
+        function on_file () {
+          local query_regex='.*Query\[(.*)\].*'
+          if [[ "$1" =~ $query_regex ]]
+          then
+            echo "$1"
+            json=$(jq -c .result "$1")
+            md5=($(md5sum <<< $json))
+            printf "%s" "$json" > "ogmios/''${BASH_REMATCH[1]}-''${md5}.json"
+          fi
+        }
+        export -f on_file
+
+        mkdir ogmios
+        find . -type f -name "*.json" -exec bash -c 'on_file "{}"' \;
+      '';
+      installPhase = ''
+        mkdir $out
+        cp -rT ogmios $out
+      '';
+    };
+
 in
 {
   inherit buildPursProject runPursTest buildPursDocs bundlePursProject;
   inherit buildSearchablePursDocs buildPursDocsSearch;
+  inherit buildOgmiosFixtures;
   inherit purs nodejs mkNodeModules;
   devShell = shellFor shell;
 }

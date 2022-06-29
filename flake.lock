@@ -1707,6 +1707,23 @@
         "type": "github"
       }
     },
+    "ogmios-fixtures": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1656359716,
+        "narHash": "sha256-jeBnY4lJU+6QbbyRbjbu9lQ/+T1vH1rr5HUOG0SaWNU=",
+        "owner": "CardanoSolutions",
+        "repo": "ogmios",
+        "rev": "e0c3420cbb47210cb53f01228e5152e2ba8ace7f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "CardanoSolutions",
+        "ref": "master",
+        "repo": "ogmios",
+        "type": "github"
+      }
+    },
     "old-ghc-nix": {
       "flake": false,
       "locked": {
@@ -1904,6 +1921,7 @@
         ],
         "ogmios": "ogmios",
         "ogmios-datum-cache": "ogmios-datum-cache",
+        "ogmios-fixtures": "ogmios-fixtures",
         "optparse-applicative": "optparse-applicative_2",
         "ouroboros-network": "ouroboros-network_2",
         "plutus": "plutus_2",
