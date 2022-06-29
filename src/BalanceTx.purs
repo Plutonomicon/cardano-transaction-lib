@@ -7,12 +7,12 @@ module BalanceTx
   , CannotMinusError(..)
   , EvalExUnitsAndMinFeeError(..)
   , Expected(..)
+  , FinalizedTransaction(..)
   , GetPublicKeyTransactionInputError(..)
   , GetWalletAddressError(..)
   , GetWalletCollateralError(..)
   , ImpossibleError(..)
   , ReturnAdaChangeError(..)
-  , UnattachedTransaction
   , UtxosAtError(..)
   , balanceTx
   ) where
@@ -67,6 +67,7 @@ import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
+import Control.Monad.Trans.Class (lift)
 import Data.Array ((\\), modifyAt)
 import Data.Array as Array
 import Data.Bifunctor (bimap, lmap)
@@ -75,7 +76,7 @@ import Data.Either (Either(Left, Right), hush, note)
 import Data.Enum (fromEnum) as Enum
 import Data.Foldable as Foldable
 import Data.Generic.Rep (class Generic)
-import Data.Lens (Lens', lens', _1)
+import Data.Lens (Lens', lens')
 import Data.Lens.Getter ((^.))
 import Data.Lens.Index (ix) as Lens
 import Data.Lens.Setter ((.~), set, (?~), (%~))
@@ -252,14 +253,20 @@ instance showImpossibleError :: Show ImpossibleError where
   show = genericShow
 
 --------------------------------------------------------------------------------
--- Type aliases, temporary placeholder types
+-- Newtype wrappers, Type aliases, Temporary placeholder types
 --------------------------------------------------------------------------------
 
 -- Output utxos with the amount of lovelaces required.
 type MinUtxos = Array (TransactionOutput /\ BigInt)
 
-type UnattachedTransaction = Transaction /\ Array
-  (Redeemer /\ Maybe TransactionInput)
+newtype FinalizedTransaction = FinalizedTransaction Transaction
+
+derive instance Generic FinalizedTransaction _
+derive instance Newtype FinalizedTransaction _
+derive newtype instance Eq FinalizedTransaction
+
+instance Show FinalizedTransaction where
+  show = genericShow
 
 --------------------------------------------------------------------------------
 -- Evaluation of fees and execution units, Updating redeemers
@@ -273,41 +280,50 @@ evalExUnitsAndMinFee'
   :: UnattachedUnbalancedTx
   -> QueryM
        (Either EvalExUnitsAndMinFeeError (UnattachedUnbalancedTx /\ BigInt))
-evalExUnitsAndMinFee' unattachedTx = do
-  costModels <- asks _.pparams <#> unwrap >>> _.costModels
+evalExUnitsAndMinFee' unattachedTx =
   runExceptT do
     -- Reindex `Spent` script redeemers:
-    unattachedReindexedTx <- ExceptT $ reindexRedeemers unattachedTx
+    reindexedUnattachedTx <- ExceptT $ reindexRedeemers unattachedTx
       <#> lmap ReindexRedeemersError
     -- Reattach datums and redeemers before evaluating ex units:
-    let attachedTx = reattachDatumsAndRedeemers unattachedReindexedTx
+    let attachedTx = reattachDatumsAndRedeemers reindexedUnattachedTx
     -- Evaluate transaction ex units:
     rdmrPtrExUnitsList <- ExceptT $ evalTxExecutionUnits attachedTx
       <#> lmap EvalExUnitsError
     let
       -- Set execution units received from the server:
-      unattachedTxWithExUnits =
-        updateTxExecutionUnits unattachedReindexedTx rdmrPtrExUnitsList
-      -- Reattach datums and redeemers before calculating fees:
-      attachedTxWithExUnits =
-        reattachDatumsAndRedeemers unattachedTxWithExUnits
-    -- Set the script integrity hash:
-    let ws = attachedTxWithExUnits ^. _witnessSet # unwrap
-    attachedTxWithExUnitsAndIntegrityHash <- liftEffect $ setScriptDataHash
-      costModels
-      (fromMaybe mempty ws.redeemers)
-      (wrap <$> fromMaybe mempty ws.plutusData)
-      attachedTxWithExUnits
+      reindexedUnattachedTxWithExUnits =
+        updateTxExecutionUnits reindexedUnattachedTx rdmrPtrExUnitsList
+    -- Attach datums and redeemers, set the script integrity hash:
+    FinalizedTransaction finalizedTx <- lift $
+      finalizeTransaction reindexedUnattachedTxWithExUnits
     -- Calculate the minimum fee for a transaction:
-    minFee <- ExceptT $ calculateMinFee attachedTxWithExUnitsAndIntegrityHash
+    minFee <- ExceptT $ calculateMinFee finalizedTx
       <#> bimap EvalMinFeeError unwrap
-    pure $ unattachedTxWithExUnits /\ minFee
+    pure $ reindexedUnattachedTxWithExUnits /\ minFee
 
 evalExUnitsAndMinFee
   :: UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError (UnattachedUnbalancedTx /\ BigInt))
 evalExUnitsAndMinFee =
   map (lmap EvalExUnitsAndMinFeeError') <<< evalExUnitsAndMinFee'
+
+-- | Attaches datums and redeemers, sets the script integrity hash,
+-- | for use after reindexing.
+finalizeTransaction
+  :: UnattachedUnbalancedTx -> QueryM FinalizedTransaction
+finalizeTransaction reindexedUnattachedTxWithExUnits =
+  let
+    attachedTxWithExUnits =
+      reattachDatumsAndRedeemers reindexedUnattachedTxWithExUnits
+    ws = attachedTxWithExUnits ^. _witnessSet # unwrap
+    redeemers = fromMaybe mempty ws.redeemers
+    datums = wrap <$> fromMaybe mempty ws.plutusData
+  in
+    do
+      costModels <- asks _.pparams <#> unwrap >>> _.costModels
+      liftEffect $ FinalizedTransaction <$>
+        setScriptDataHash costModels redeemers datums attachedTxWithExUnits
 
 reindexRedeemers
   :: UnattachedUnbalancedTx
@@ -396,7 +412,7 @@ _redeemersTxIns = lens' \(UnattachedUnbalancedTx rec@{ redeemersTxIns }) ->
 -- | In particular, the transaction inputs must not include the collateral.
 balanceTx
   :: UnattachedUnbalancedTx
-  -> QueryM (Either BalanceTxError UnattachedTransaction)
+  -> QueryM (Either BalanceTxError FinalizedTransaction)
 balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   let (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = t
   networkId <- (unbalancedTx ^. _body <<< _networkId) #
@@ -449,14 +465,13 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     unsignedTx <- ExceptT $
       returnAdaChangeAndFinalizeFees ownAddr allUtxos nonAdaBalancedCollTx <#>
         lmap ReturnAdaChangeError'
-    let
-      unattachedTx'' = unsignedTx ^. _transaction'
-        /\ unsignedTx ^. _redeemersTxIns
-      -- Sort inputs at the very end so it behaves as a Set.
-      sortedUnsignedTx = fst unattachedTx'' # _body <<< _inputs %~ Array.sort
-    -- Logs final balanced tx and returns it
-    logTx "Post-balancing Tx " allUtxos sortedUnsignedTx
-    except $ Right (unattachedTx'' # _1 .~ sortedUnsignedTx)
+    -- Sort inputs at the very end so it behaves as a Set:
+    let sortedUnsignedTx = unsignedTx # _body' <<< _inputs %~ Array.sort
+    -- Attach datums and redeemers, set the script integrity hash:
+    finalizedTx <- lift $ finalizeTransaction sortedUnsignedTx
+    -- Log final balanced tx and return it:
+    logTx "Post-balancing Tx " allUtxos (unwrap finalizedTx)
+    except $ Right finalizedTx
   where
   prebalanceCollateral
     :: BigInt

@@ -1,7 +1,5 @@
 module Transaction
-  ( ReindexedUnattachedTx(..)
-  , ModifyTxError(..)
-  , finalizeTransaction
+  ( ModifyTxError(..)
   , attachDatum
   , attachRedeemer
   , attachPlutusScript
@@ -39,17 +37,6 @@ import Types.Datum (Datum)
 import Types.Scripts (PlutusScript)
 import Untagged.Union (asOneOf)
 
--- | A `Transaction` with its datums and reindexed redeemers
-newtype ReindexedUnattachedTx = ReindexedUnattachedTx
-  { redeemers :: Array Redeemer
-  , datums :: Array Datum
-  , tx :: Transaction
-  }
-
-derive instance Generic ReindexedUnattachedTx _
-derive instance Newtype ReindexedUnattachedTx _
-derive newtype instance Eq ReindexedUnattachedTx
-
 data ModifyTxError
   = ConvertWitnessesError
   | ConvertDatumError
@@ -59,17 +46,6 @@ derive instance Eq ModifyTxError
 
 instance Show ModifyTxError where
   show = genericShow
-
--- | Sets the script integrity hash and attaches redeemers, for use after
--- | reindexing
-finalizeTransaction
-  :: Costmdls
-  -> ReindexedUnattachedTx
-  -> Effect (Either ModifyTxError Transaction)
-finalizeTransaction costModels (ReindexedUnattachedTx ruTx) = runExceptT $
-  liftEffect <<< setScriptDataHash costModels (ruTx.redeemers) (ruTx.datums)
-    =<< attachRedeemers (ruTx.redeemers)
-    =<< attachDatums (ruTx.datums) (ruTx.tx)
 
 -- | Set the `Transaction` body's script data hash. NOTE: Must include *all* of
 -- | the datums and redeemers for the given transaction

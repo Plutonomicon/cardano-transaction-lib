@@ -86,7 +86,7 @@ estimateTxFees FeesRequest {count, tx} = do
               -- be able to handle a possible integer overflow
               feeBytes =
                 bytesNeeded (fee + bytesNeeded fee * feePerByte)
-           in fee + feeBytes * feePerByte
+           in fee + feeBytes * feePerByte + 2 * feePerByte -- FIXME:
       where
         -- Calculates the number of bytes that a given integer will take
         -- when CBOR encoded.
