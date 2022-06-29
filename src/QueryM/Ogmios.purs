@@ -511,14 +511,12 @@ type ProtocolParametersRaw =
   , "poolInfluence" :: PParamRational
   , "monetaryExpansion" :: PParamRational
   , "treasuryExpansion" :: PParamRational
-  , "decentralizationParameter" :: PParamRational
-  , "extraEntropy" :: Maybe Nonce
   , "protocolVersion" ::
       { "major" :: UInt
       , "minor" :: UInt
       }
   , "minPoolCost" :: BigInt
-  , "coinsPerUtxoWord" :: BigInt
+  , "coinsPerUtxoByte" :: BigInt
   , "costModels" ::
       { "plutus:v1" :: CostModel
       }
@@ -582,8 +580,9 @@ instance DecodeAeson ProtocolParameters where
 
     pure $ ProtocolParameters
       { protocolVersion: ps.protocolVersion.major /\ ps.protocolVersion.minor
-      , decentralization: unwrap ps.decentralizationParameter
-      , extraPraosEntropy: ps.extraEntropy
+      -- The following two parameters were removed from Babbage
+      , decentralization: zero
+      , extraPraosEntropy: Nothing
       , maxBlockHeaderSize: ps.maxBlockHeaderSize
       , maxBlockBodySize: ps.maxBlockBodySize
       , maxTxSize: ps.maxTxSize
@@ -596,7 +595,7 @@ instance DecodeAeson ProtocolParameters where
       , poolPledgeInfluence: unwrap ps.poolInfluence
       , monetaryExpansion: unwrap ps.monetaryExpansion
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
-      , uTxOCostPerWord: Coin ps.coinsPerUtxoWord
+      , uTxOCostPerWord: Coin ps.coinsPerUtxoByte
       , costModels: Costmdls $ Map.fromFoldable
           [ PlutusV1 /\ convertCostModel ps.costModels."plutus:v1" ]
       , prices: prices
