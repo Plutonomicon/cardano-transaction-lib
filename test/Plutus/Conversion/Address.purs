@@ -7,7 +7,6 @@ import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, wrap)
 import Data.Traversable (for_)
 import Data.Tuple.Nested ((/\))
-import Data.UInt (fromInt) as UInt
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Plutus.Conversion (fromPlutusAddress, toPlutusAddress)

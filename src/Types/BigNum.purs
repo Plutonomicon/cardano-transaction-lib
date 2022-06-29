@@ -63,11 +63,12 @@ toBigInt :: BigNum -> Maybe BigInt
 toBigInt = BigInt.fromString <<< toString
 
 toBigIntUnsafe :: BigNum -> BigInt
-toBigIntUnsafe bn =
+toBigIntUnsafe =
   -- Converting uint64 to an arbitrary length integer should never fail.
-  unsafePartial fromJust $ toBigInt bn
+  unsafePartial fromJust <<< toBigInt
 
-toBigInt' :: forall r. String -> BigNum -> E (FromCslRepError + r) BigInt
+toBigInt'
+  :: forall (r :: Row Type). String -> BigNum -> E (FromCslRepError + r) BigInt
 toBigInt' nm bn =
   noteE (fromCslRepError (nm <> ": CSL.BigNum (" <> show bn <> ") -> BigInt "))
     $ toBigInt bn
@@ -75,7 +76,8 @@ toBigInt' nm bn =
 toInt :: BigNum -> Maybe Int
 toInt = Int.fromString <<< toString
 
-toInt' :: forall r. String -> BigNum -> E (FromCslRepError + r) Int
+toInt'
+  :: forall (r :: Row Type). String -> BigNum -> E (FromCslRepError + r) Int
 toInt' nm bn =
   noteE (fromCslRepError (nm <> ": CSL.BigNum (" <> show bn <> ") -> Int ")) $
     toInt bn
@@ -109,7 +111,7 @@ fromString :: String -> Maybe BigNum
 fromString = _fromString maybeFfiHelper
 
 fromStringUnsafe :: String -> BigNum
-fromStringUnsafe str = unsafePartial fromJust $ fromString str
+fromStringUnsafe = unsafePartial fromJust <<< fromString
 
 foreign import toString :: BigNum -> String
 

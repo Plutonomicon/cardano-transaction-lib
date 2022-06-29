@@ -165,6 +165,7 @@ enterpriseAddressValidatorHash =
 -- | Get the `StakeValidatorHash` with an Plutus `Address`
 enterpriseAddressStakeValidatorHash :: Address -> Maybe StakeValidatorHash
 enterpriseAddressStakeValidatorHash =
+  -- Network id does not matter here (#484)
   Address.enterpriseAddressStakeValidatorHash
     <<< fromPlutusAddress MainnetId
 

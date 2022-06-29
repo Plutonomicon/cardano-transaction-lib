@@ -27,7 +27,8 @@ import Types.Interval
   , ModTime(ModTime)
   , POSIXTime(POSIXTime)
   , PosixTimeToSlotError
-      ( CannotFindTimeInEraSummaries
+      ( CannotConvertAbsSlotToSlot
+      , CannotFindTimeInEraSummaries
       , CannotGetBigIntFromNumber'
       , EndSlotLessThanSlotOrModNonZero
       , PosixTimeBeforeSystemStart
@@ -191,15 +192,15 @@ suite = do
       toFromAesonTest "EndTimeLessThanTime" $ EndTimeLessThanTime absTimeFixture
       toFromAesonTest "CannotGetBigIntFromNumber" CannotGetBigIntFromNumber
     group "PosixTimeToSlotError" do
-      -- toFromAesonTest "CannotConvertAbsSlotToSlot" posixTimeToSlotErrFixture
+      toFromAesonTest "CannotConvertAbsSlotToSlot" posixTimeToSlotErrFixture
       toFromAesonTest "PosixTimeBeforeSystemStart" $ PosixTimeBeforeSystemStart
         posixTimeFixture
       toFromAesonTest "StartTimeGreaterThanTime" $ StartTimeGreaterThanTime
         absTimeFixture
       toFromAesonTest "EndSlotLessThanSlotOrModNonZero" $
         EndSlotLessThanSlotOrModNonZero absSlotFixture modTimeFixture
-      -- toFromAesonTest "CannotConvertAbsSlotToSlot" $ CannotConvertAbsSlotToSlot
-      --   absSlotFixture
+      toFromAesonTest "CannotConvertAbsSlotToSlot" $ CannotConvertAbsSlotToSlot
+        absSlotFixture
       toFromAesonTest "CannotGetBigIntFromNumber'" $ CannotGetBigIntFromNumber'
     group "ToOnChainPosixTimeRangeError" do
       toFromAesonTest "PosixTimeToSlotError'" $ PosixTimeToSlotError'
