@@ -7,7 +7,6 @@ module Contract.Transaction
   , balanceTxM
   , calculateMinFee
   , calculateMinFeeM
-  , finalizeTx
   , module BalanceTxError
   , module ExportQueryM
   , module PTransaction
@@ -19,7 +18,6 @@ module Contract.Transaction
   , reindexSpentScriptRedeemers
   , scriptOutputToTransactionOutput
   , signTransaction
-  , signTransactionBytes
   , submit
   ) where
 
@@ -28,7 +26,8 @@ import Prelude
 import BalanceTx (UnattachedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
 import BalanceTx (BalanceTxError) as BalanceTxError
-import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
+import Contract.Monad (Contract, liftedE, wrapContract)
+import Contract.ProtocolParameters (getProtocolParameters)
 import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
@@ -36,25 +35,20 @@ import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
+import Effect.Class (liftEffect)
 import QueryM
   ( FeeEstimate(FeeEstimate)
   , ClientError(..) -- implicit as this error list will likely increase.
-  , FinalizedTransaction(FinalizedTransaction)
   ) as ExportQueryM
 import QueryM
-  ( FinalizedTransaction(FinalizedTransaction)
-  , calculateMinFee
+  ( calculateMinFee
   , signTransaction
-  , signTransactionBytes
-  , finalizeTx
   , submitTxOgmios
   ) as QueryM
 import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import ReindexRedeemers
   ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
   ) as ReindexRedeemersExport
-import Types.CborBytes (CborBytes)
-import Types.Datum (Datum)
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.ScriptLookups
   ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
@@ -140,7 +134,12 @@ import Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   ) as PTransaction
 import Plutus.Types.Value (Coin)
+import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (NetworkId)
+import Transaction
+  ( ReindexedUnattachedTx(ReindexedUnattachedTx)
+  , finalizeTransaction
+  )
 import TxOutput (scriptOutputToTransactionOutput) as TxOutput
 import Types.Transaction (TransactionHash)
 import Types.Transaction
@@ -166,6 +165,7 @@ import Types.UnbalancedTransaction
   , _utxoIndex
   , emptyUnbalancedTx
   ) as UnbalancedTx
+import Untagged.Union (asOneOf)
 
 -- | This module defines transaction-related requests. Currently signing and
 -- | submission is done with Nami.
@@ -175,17 +175,17 @@ signTransaction
   :: forall (r :: Row Type). Transaction -> Contract r (Maybe Transaction)
 signTransaction = wrapContract <<< QueryM.signTransaction
 
--- | Signs a `Transaction` with potential failure
-signTransactionBytes
+-- | Submits a `BalancedSignedTransaction`, which is the output of
+-- | `signTransaction` or `balanceAndSignTx`
+submit
   :: forall (r :: Row Type)
-   . CborBytes
-  -> Contract r (Maybe CborBytes)
-signTransactionBytes = wrapContract <<< QueryM.signTransactionBytes
-
--- | Submits a Cbor-hex encoded transaction, which is the output of
--- | `signTransactionBytes` or `balanceAndSignTx`
-submit :: forall (r :: Row Type). CborBytes -> Contract r TransactionHash
-submit = wrapContract <<< map (wrap <<< unwrap) <<< QueryM.submitTxOgmios
+   . BalancedSignedTransaction
+  -> Contract r TransactionHash
+submit tx = wrapContract <<< map (wrap <<< unwrap) <<< QueryM.submitTxOgmios =<<
+  liftEffect
+    ( wrap <<< Serialization.toBytes <<< asOneOf <$>
+        Serialization.convertTransaction (unwrap tx)
+    )
 
 -- | Query the Haskell server for the minimum transaction fee
 calculateMinFee
@@ -215,17 +215,6 @@ balanceTxM
   -> Contract r (Maybe UnattachedTransaction)
 balanceTxM = map hush <<< balanceTx
 
-finalizeTx
-  :: forall (r :: Row Type)
-   . Transaction.Transaction
-  -> Array Datum
-  -> Array Transaction.Redeemer
-  -> Contract r (Maybe QueryM.FinalizedTransaction)
-finalizeTx tx datums redeemers = wrapContract
-  $ QueryM.finalizeTx tx datums redeemers
-
--- We export this because we need the redeemers as Cardano Redeemers to be used
--- in `finalizeTx`
 -- | Reindex the `Spend` redeemers. Since we insert to an ordered array, we must
 -- | reindex the redeemers with such inputs. This must be crucially called after
 -- | balancing when all inputs are in place so they cannot be reordered.
@@ -241,10 +230,7 @@ reindexSpentScriptRedeemers
 reindexSpentScriptRedeemers balancedTx =
   wrapContract <<< ReindexRedeemers.reindexSpentScriptRedeemers balancedTx
 
-newtype BalancedSignedTransaction = BalancedSignedTransaction
-  { transaction :: Transaction.Transaction -- the balanced and unsigned transaction to help with logging
-  , signedTxCbor :: CborBytes -- the balanced and signed cbor ByteArray representation used in `submit`
-  }
+newtype BalancedSignedTransaction = BalancedSignedTransaction Transaction
 
 derive instance Generic BalancedSignedTransaction _
 derive instance Newtype BalancedSignedTransaction _
@@ -253,31 +239,23 @@ derive newtype instance Eq BalancedSignedTransaction
 instance Show BalancedSignedTransaction where
   show = genericShow
 
--- | A helper that wraps a few steps into: balance an unbalanced transaction
--- | (`balanceTx`), reindex script spend redeemers (not minting redeemers)
--- | (`reindexSpentScriptRedeemers`), attach datums and redeemers to the
--- | transaction (`finalizeTx`), and finally sign (`signTransactionBytes`).
+-- | A helper that wraps a few steps into: balancing an unbalanced transaction
+-- | (`balanceTx`), reindexing script `Spend` redeemers (not minting redeemers)
+-- | (`reindexSpentScriptRedeemers`), adding the final redeemers and
+-- | `ScriptDataHash`, and finally signing the tx (`signTransaction`).
+-- |
 -- | The return type includes the balanced (but unsigned) transaction for
--- | logging and more importantly, the `ByteArray` to be used with `Submit` to
+-- | logging and more importantly, the `ByteArray` to be used with `submit` to
 -- | submit the transaction.
 balanceAndSignTx
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx
   -> Contract r (Maybe BalancedSignedTransaction)
-balanceAndSignTx uaubTx@(UnattachedUnbalancedTx { datums }) = do
-  -- Balance unbalanced tx:
-  balancedTx /\ redeemersTxIns <- liftedE $ balanceTx uaubTx
-  let inputs = balancedTx ^. _body <<< _inputs
-  redeemers <- liftedE $ reindexSpentScriptRedeemers inputs redeemersTxIns
-  -- Reattach datums and redeemer:
-  QueryM.FinalizedTransaction txCbor <-
-    liftedM "balanceAndSignTx: Cannot attach datums and redeemer"
-      (finalizeTx balancedTx datums redeemers)
-  -- Sign the transaction returned as Cbor-hex encoded:
-  signedTxCbor <- liftedM "balanceAndSignTx: Failed to sign transaction" $
-    signTransactionBytes (wrap txCbor)
-  pure $ pure $ BalancedSignedTransaction
-    { transaction: balancedTx, signedTxCbor }
+balanceAndSignTx uaubTx = do
+  rbTx <- reindexAndBalanceTx uaubTx
+  costModels <- getProtocolParameters <#> unwrap >>> _.costModels
+  finalizedTx <- liftedE $ liftEffect $ finalizeTransaction costModels rbTx
+  map wrap <$> signTransaction finalizedTx
 
 scriptOutputToTransactionOutput
   :: NetworkId
@@ -286,3 +264,15 @@ scriptOutputToTransactionOutput
 scriptOutputToTransactionOutput networkId =
   toPlutusTxOutput
     <<< TxOutput.scriptOutputToTransactionOutput networkId
+
+reindexAndBalanceTx
+  :: forall (r :: Row Type)
+   . UnattachedUnbalancedTx
+  -> Contract r ReindexedUnattachedTx
+reindexAndBalanceTx uaubTx@(UnattachedUnbalancedTx { datums }) = do
+  -- Balance unbalanced tx:
+  tx /\ redeemersTxIns <- liftedE $ balanceTx uaubTx
+  -- Reindex its redeemers
+  redeemers <- liftedE $ flip reindexSpentScriptRedeemers redeemersTxIns $
+    tx ^. _body <<< _inputs
+  pure $ ReindexedUnattachedTx { datums, redeemers, tx }
