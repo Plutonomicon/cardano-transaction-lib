@@ -35,7 +35,7 @@ import Types.ByteArray (ByteArray)
 
 -- | Calls `from_bytes` method for the appropriate type
 class FromBytes a where
-  fromBytes' :: forall r. ByteArray -> E (FromBytesError + r) a
+  fromBytes' :: forall (r :: Row Type). ByteArray -> E (FromBytesError + r) a
 
 instance FromBytes DataHash where
   fromBytes' = _fromBytesDataHash eh
@@ -93,37 +93,46 @@ fromBytesError
 fromBytesError = Left <<< inj _fromBytesError
 
 -- | A local helper to shorten code
-eh :: forall r. ErrorFfiHelper (FromBytesError + r)
+eh :: forall (r :: Row Type). ErrorFfiHelper (FromBytesError + r)
 eh = errorHelper (inj _fromBytesError)
 
 ---- Foreign imports
 
 foreign import _fromBytesDataHash
-  :: forall r. ErrorFfiHelper r -> ByteArray -> E r DataHash
+  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r DataHash
 
 foreign import _fromBytesTransactionHash
-  :: forall r. ErrorFfiHelper r -> ByteArray -> E r TransactionHash
+  :: forall (r :: Row Type)
+   . ErrorFfiHelper r
+  -> ByteArray
+  -> E r TransactionHash
 
 foreign import _fromBytesPlutusData
-  :: forall r. ErrorFfiHelper r -> ByteArray -> E r PlutusData
+  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r PlutusData
 
 foreign import _fromBytesTransaction
-  :: forall r. ErrorFfiHelper r -> ByteArray -> E r Transaction
+  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r Transaction
 
 foreign import _fromBytesTransactionUnspentOutput
-  :: forall r. ErrorFfiHelper r -> ByteArray -> E r TransactionUnspentOutput
+  :: forall (r :: Row Type)
+   . ErrorFfiHelper r
+  -> ByteArray
+  -> E r TransactionUnspentOutput
 
 foreign import _fromBytesTransactionWitnessSet
-  :: forall r. ErrorFfiHelper r -> ByteArray -> E r TransactionWitnessSet
+  :: forall (r :: Row Type)
+   . ErrorFfiHelper r
+  -> ByteArray
+  -> E r TransactionWitnessSet
 
 foreign import _fromBytesNativeScript
-  :: forall r. ErrorFfiHelper r -> ByteArray -> E r NativeScript
+  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r NativeScript
 
 foreign import _fromBytesMint
-  :: forall r. ErrorFfiHelper r -> ByteArray -> E r Mint
+  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r Mint
 
 foreign import _fromBytesVRFKeyHash
-  :: forall r. ErrorFfiHelper r -> ByteArray -> E r VRFKeyHash
+  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r VRFKeyHash
 
 foreign import _fromBytesValue
-  :: forall r. ErrorFfiHelper r -> ByteArray -> E r Value
+  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r Value
