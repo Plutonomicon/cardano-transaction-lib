@@ -633,9 +633,9 @@ type CostModel =
   , "appendString-memory-arguments-slope" :: UInt
   , "bData-cpu-arguments" :: UInt
   , "bData-memory-arguments" :: UInt
-  , "blake2b-cpu-arguments-intercept" :: UInt
-  , "blake2b-cpu-arguments-slope" :: UInt
-  , "blake2b-memory-arguments" :: UInt
+  , "blake2b_256-cpu-arguments-intercept" :: UInt
+  , "blake2b_256-cpu-arguments-slope" :: UInt
+  , "blake2b_256-memory-arguments" :: UInt
   , "cekApplyCost-exBudgetCPU" :: UInt
   , "cekApplyCost-exBudgetMemory" :: UInt
   , "cekBuiltinCost-exBudgetCPU" :: UInt
@@ -782,9 +782,9 @@ type CostModel =
   , "unListData-memory-arguments" :: UInt
   , "unMapData-cpu-arguments" :: UInt
   , "unMapData-memory-arguments" :: UInt
-  , "verifySignature-cpu-arguments-intercept" :: UInt
-  , "verifySignature-cpu-arguments-slope" :: UInt
-  , "verifySignature-memory-arguments" :: UInt
+  , "verifyEd25519Signature-cpu-arguments-intercept" :: UInt
+  , "verifyEd25519Signature-cpu-arguments-slope" :: UInt
+  , "verifyEd25519Signature-memory-arguments" :: UInt
   }
 
 convertCostModel :: CostModel -> T.CostModel
@@ -803,9 +803,9 @@ convertCostModel model = wrap
   , model."appendString-memory-arguments-slope"
   , model."bData-cpu-arguments"
   , model."bData-memory-arguments"
-  , model."blake2b-cpu-arguments-intercept"
-  , model."blake2b-cpu-arguments-slope"
-  , model."blake2b-memory-arguments"
+  , model."blake2b_256-cpu-arguments-intercept"
+  , model."blake2b_256-cpu-arguments-slope"
+  , model."blake2b_256-memory-arguments"
   , model."cekApplyCost-exBudgetCPU"
   , model."cekApplyCost-exBudgetMemory"
   , model."cekBuiltinCost-exBudgetCPU"
@@ -952,9 +952,9 @@ convertCostModel model = wrap
   , model."unListData-memory-arguments"
   , model."unMapData-cpu-arguments"
   , model."unMapData-memory-arguments"
-  , model."verifySignature-cpu-arguments-intercept"
-  , model."verifySignature-cpu-arguments-slope"
-  , model."verifySignature-memory-arguments"
+  , model."verifyEd25519Signature-cpu-arguments-intercept"
+  , model."verifyEd25519Signature-cpu-arguments-slope"
+  , model."verifyEd25519Signature-memory-arguments"
   ]
 
 ---------------- CHAIN TIP QUERY RESPONSE & PARSING
