@@ -28,7 +28,7 @@ import Control.Monad.Reader (asks)
 import Effect.Ref as Ref
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
-  ( BalancedSignedTransaction(BalancedSignedTransaction)
+  ( BalancedSignedTransaction
   , submit
   , withBalancedAndSignedTxs
   )
@@ -85,7 +85,7 @@ main = launchAff_ $ do
   where
   submitAndLog
     :: forall (r :: Row Type). BalancedSignedTransaction -> Contract r Unit
-  submitAndLog (BalancedSignedTransaction bsTx) = do
-    txId <- submit bsTx.signedTxCbor
+  submitAndLog bsTx = do
+    txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
 

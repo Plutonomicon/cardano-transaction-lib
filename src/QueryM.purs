@@ -7,7 +7,6 @@ module QueryM
   , DispatchError(..)
   , DispatchIdMap
   , FeeEstimate(..)
-  , FinalizedTransaction(..)
   , ListenerSet
   , OgmiosListeners
   , OgmiosWebSocket
@@ -22,7 +21,6 @@ module QueryM
   , applyArgs
   , calculateMinFee
   , evalTxExecutionUnits
-  , finalizeTx
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
@@ -41,7 +39,6 @@ module QueryM
   , runQueryM
   , signTransaction
   , scriptToAeson
-  , signTransactionBytes
   , submitTxOgmios
   , traceQueryConfig
   , underlyingWebSocket
@@ -75,28 +72,26 @@ import Data.Array (length)
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), either, isRight, note, hush)
+import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(POST))
 import Data.Log.Level (LogLevel(Trace, Debug, Error))
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), maybe, maybe')
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Traversable (traverse, traverse_, for)
+import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Deserialization.FromBytes (fromBytes) as Deserialization
-import Deserialization.Transaction (convertTransaction) as Deserialization
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), delay, launchAff_, makeAff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Effect.Exception (Error, error, throw)
+import Effect.Exception (Error, error, message, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
@@ -150,8 +145,7 @@ import Serialization.Address
   , stakeCredentialToKeyHash
   )
 import Serialization.PlutusData (convertPlutusData) as Serialization
-import Serialization.WitnessSet (convertRedeemers) as Serialization
-import Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
+import Types.ByteArray (ByteArray, byteArrayToHex)
 import Types.CborBytes (CborBytes)
 import Types.Chain as Chain
 import Types.Datum (DataHash, Datum)
@@ -294,23 +288,6 @@ signTransaction tx = withMWalletAff case _ of
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
   KeyWallet kw -> Just <$> kw.signTx tx
 
-signTransactionBytes
-  :: CborBytes -> QueryM (Maybe CborBytes)
-signTransactionBytes tx = withMWalletAff case _ of
-  Nami nami -> callCip30Wallet nami \nw -> flip nw.signTxBytes tx
-  Gero gero -> callCip30Wallet gero \nw -> flip nw.signTxBytes tx
-  KeyWallet kw ->
-    for
-      ( Deserialization.fromBytes (unwrap tx)
-          >>= Deserialization.convertTransaction
-            >>> hush
-      )
-      ( kw.signTx
-          >=> Serialization.convertTransaction
-            >>> map (asOneOf >>> Serialization.toBytes >>> wrap)
-            >>> liftEffect
-      )
-
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do
   mbAddress <- getWalletAddress
@@ -438,59 +415,6 @@ evalTxExecutionUnits tx = do
   url <- mkServerEndpointUrl "eval-ex-units"
   liftAff $ postAeson url (encodeAeson { tx: txHex })
     <#> handleAffjaxResponse
-
--- | CborHex-encoded tx
-newtype FinalizedTransaction = FinalizedTransaction ByteArray
-
-derive instance Generic FinalizedTransaction _
-
-instance Show FinalizedTransaction where
-  show = genericShow
-
-instance DecodeAeson FinalizedTransaction where
-  decodeAeson =
-    map FinalizedTransaction <<<
-      caseAesonString (Left err) (note err <<< hexToByteArray)
-    where
-    err = TypeMismatch "Expected CborHex of Tx"
-
-finalizeTx
-  :: Transaction.Transaction
-  -> Array Datum
-  -> Array Transaction.Redeemer
-  -> QueryM (Maybe FinalizedTransaction)
-finalizeTx tx datums redeemers = do
-  -- tx
-  txHex <- liftEffect (txToHex tx)
-  -- datums
-  encodedDatums <- liftEffect do
-    for datums \datum -> do
-      byteArrayToHex <<< Serialization.toBytes <<< asOneOf
-        <$> maybe'
-          (\_ -> throw $ "Failed to convert plutus data: " <> show datum)
-          pure
-          (Serialization.convertPlutusData $ unwrap datum)
-  -- redeemers
-  encodedRedeemers <- liftEffect $
-    byteArrayToHex <<< Serialization.toBytes <<< asOneOf <$>
-      Serialization.convertRedeemers redeemers
-  -- construct payload
-  let
-    body
-      :: { tx :: String
-         , datums :: Array String
-         , redeemers :: String
-         }
-    body =
-      { tx: txHex
-      , datums: encodedDatums
-      , redeemers: encodedRedeemers
-      }
-  url <- mkServerEndpointUrl "finalize"
-  -- get response json
-  jsonBody <- liftAff (postAeson url (encodeAeson body)) <#> map _.body
-  -- decode
-  pure $ hush <<< (decodeAeson <=< parseJsonStringToAeson) =<< hush jsonBody
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
@@ -878,12 +802,22 @@ data DispatchError
   -- Server response has been parsed succesfully, but it contains error
   -- message
   | FaultError Aeson
+  -- The listener that was added for this message has been cancelled
+  | ListenerCancelled
+
+instance Show DispatchError where
+  show (JsError err) = "(JsError (message " <> show (message err) <> "))"
+  show (JsonError jsonErr) = "(JsonError " <> show jsonErr <> ")"
+  show (FaultError aeson) = "(FaultError " <> show aeson <> ")"
+  show ListenerCancelled = "ListenerCancelled"
 
 dispatchErrorToError :: DispatchError -> Error
 dispatchErrorToError (JsError err) = err
 dispatchErrorToError (JsonError err) = error $ show err
 dispatchErrorToError (FaultError err) =
   error $ "Server responded with `fault`: " <> stringifyAeson err
+dispatchErrorToError ListenerCancelled =
+  error $ "Listener cancelled"
 
 -- A function which accepts some unparsed Json, and checks it against one or
 -- more possible types to perform an appropriate effect (such as supplying the
@@ -958,55 +892,43 @@ createPendingRequests = Ref.new Map.empty
 queryDispatch
   :: forall (response :: Type)
    . DecodeAeson response
+  => Show response
   => DispatchIdMap response
   -> String
   -> Effect (Either DispatchError (Effect Unit))
 queryDispatch ref str = do
   let eiAeson = parseJsonStringToAeson str
-  -- Parse response
-  case JsonWsp.parseJsonWspResponse =<< eiAeson of
-    Left parseError -> do
-      -- Try to at least parse ID  to dispatch the error to
-      case parseJsonWspResponseId =<< eiAeson of
-        -- We still return original error because ID parse error is useless
-        Left _reflectionParseError -> pure $ Left $ JsonError parseError
-        Right reflection -> do
-          withAction reflection case _ of
-            Nothing -> pure $ Left $ JsError $ error $
-              "Parse failed and Request Id: " <> reflection <>
-                " has been cancelled"
-            Just action -> pure $ Right $ action $ Left $ JsonError parseError
-    Right { result: Just result, reflection } -> do
+  -- Parse response id
+  case parseJsonWspResponseId =<< eiAeson of
+    Left parseError ->
+      pure $ Left $ JsonError parseError
+    Right reflection -> do
+      -- Get callback action
       withAction reflection case _ of
-        -- This indicates an implementation error, thus we are not passing it
-        -- to `action`
-        Nothing -> pure $ Left $ JsError $ error $
-          "Parse succeeded but Request Id: " <> reflection <>
-            " has been cancelled"
-        Just action -> pure $ Right $ action $ Right result
-    -- If result is empty, then fault must be present
-    Right { result: Nothing, fault: Just fault, reflection } -> do
-      withAction reflection case _ of
-        Nothing -> pure $ Left $ FaultError fault
+        Nothing -> Left $ JsError $ error $
+          "Request Id " <> reflection <> " has been cancelled"
         Just action -> do
-          pure $ Right $ action $ Left $ FaultError fault
-    -- Otherwise, our implementation is broken.
-    Right { result: Nothing, fault: Nothing, reflection } -> do
-      let
-        errMsg =
-          "Impossible happened: response does not contain neither `fault` "
-            <> "nor `result`, please report as bug. Response: "
-            <> str
-      withAction reflection case _ of
-        Nothing -> do
-          pure $ Left $ JsError $ error errMsg
-        Just action -> do
-          pure $ Right $ action $ Left $ JsError $ error errMsg
+          -- Parse response
+          Right $ action $
+            case JsonWsp.parseJsonWspResponse =<< eiAeson of
+              Left parseError -> Left $ JsonError parseError
+              Right { result: Just result } -> Right result
+              -- If result is empty, then fault must be present
+              Right { result: Nothing, fault: Just fault } ->
+                Left $ FaultError fault
+              -- Otherwise, our implementation is broken.
+              Right { result: Nothing, fault: Nothing } ->
+                Left $ JsError $ error impossibleErrorMsg
   where
+  impossibleErrorMsg =
+    "Impossible happened: response does not contain neither "
+      <> "`fault` nor `result`, please report as bug. Response: "
+      <> str
+
   withAction
     :: ListenerId
     -> ( Maybe (Either DispatchError response -> Effect Unit)
-         -> Effect (Either DispatchError (Effect Unit))
+         -> Either DispatchError (Effect Unit)
        )
     -> Effect (Either DispatchError (Effect Unit))
   withAction reflection cb = do
@@ -1015,7 +937,7 @@ queryDispatch ref str = do
       mbAction =
         MultiMap.lookup reflection idMap
           :: Maybe (Either DispatchError response -> Effect Unit)
-    cb mbAction
+    pure $ cb mbAction
 
 -- an empty error we can compare to, useful for ensuring we've not received any other kind of error
 defaultErr :: JsonDecodeError
@@ -1041,7 +963,9 @@ defaultMessageListener lvl dispatchArray msg = do
           )
           do
             logString lvl Error $
-              "unexpected parse error on input: " <> msg
+              "unexpected error on input: " <> msg
+                <> " Error:"
+                <> show err
     )
     identity
     eAction

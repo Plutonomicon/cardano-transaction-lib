@@ -118,9 +118,9 @@ buildBalanceSignAndSubmitTx
   -> Contract () TransactionHash
 buildBalanceSignAndSubmitTx lookups constraints = do
   ubTx <- liftedE $ mkUnbalancedTx lookups constraints
-  BalancedSignedTransaction bsTx <-
+  bsTx <-
     liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-  txId <- submit bsTx.signedTxCbor
+  txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
   pure txId
 ```
