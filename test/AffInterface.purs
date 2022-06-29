@@ -5,18 +5,23 @@ import Prelude
 import Address (addressToOgmiosAddress, ogmiosAddressToAddress)
 import Data.BigInt (fromString) as BigInt
 import Data.Either (Either(Left, Right), either)
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust)
+import Data.Newtype (wrap)
+import Data.String.CodeUnits (indexOf)
+import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (traverse_)
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, try)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
+import Partial.Unsafe (unsafePartial)
 import QueryM
   ( QueryM
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
   , runQueryM
+  , submitTxOgmios
   , traceQueryConfig
   )
 import QueryM.CurrentEpoch (getCurrentEpoch)
@@ -27,24 +32,21 @@ import QueryM.Ogmios
   , OgmiosAddress
   , SystemStart
   )
+import QueryM.ProtocolParameters (getProtocolParameters)
 import QueryM.SystemStart (getSystemStart)
 import QueryM.Utxos (utxosAt)
 import Serialization.Address (Slot(Slot))
-import Test.Spec.Assertions (shouldEqual)
+import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import TestM (TestPlanM)
 import Types.BigNum (fromInt) as BigNum
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Types.Interval
-  ( PosixTimeToSlotError
-      ( CannotConvertAbsSlotToSlot
-      , PosixTimeBeforeSystemStart
-      )
+  ( PosixTimeToSlotError(CannotConvertAbsSlotToSlot, PosixTimeBeforeSystemStart)
   , POSIXTime(POSIXTime)
   , posixTimeToSlot
   , slotToPosixTime
   )
 import Types.Transaction (DataHash(DataHash))
-import Partial.Unsafe (unsafePartial)
 
 testnet_addr1 :: OgmiosAddress
 testnet_addr1 =
@@ -67,6 +69,7 @@ suite = do
     test "UtxosAt non-Testnet" $ testUtxosAt addr1
     test "Get ChainTip" testGetChainTip
     test "Get EraSummaries" testGetEraSummaries
+    test "Get ProtocolParameters" testGetProtocolParameters
     test "Get CurrentEpoch" testGetCurrentEpoch
     test "Get SystemStart" testGetSystemStart
     test "Inverse posixTimeToSlot >>> slotToPosixTime " testPosixTimeToSlot
@@ -78,6 +81,15 @@ suite = do
       $ testFromOgmiosAddress testnet_addr1
     test "Ogmios Address to Address & back non-Testnet"
       $ testFromOgmiosAddress addr1
+  group "Ogmios error" do
+    test "Ogmios fails with user-freindly message" do
+      try testSubmitTxFailure >>= case _ of
+        Right _ -> do
+          void $ liftEffect $ throw $
+            "Unexpected success in testSubmitTxFailure"
+        Left error -> do
+          (Pattern "Server responded with `fault`" `indexOf` show error)
+            `shouldSatisfy` isJust
   group "Ogmios datum cache" do
     test "Can process GetDatumByHash" do
       testOgmiosDatumCacheGetDatumByHash
@@ -124,6 +136,16 @@ testFromOgmiosAddress testAddr = do
 testGetEraSummaries :: Aff Unit
 testGetEraSummaries = do
   flip runQueryM (void getEraSummaries) =<< traceQueryConfig
+
+testSubmitTxFailure :: Aff Unit
+testSubmitTxFailure = do
+  flip runQueryM (void $ submitTxOgmios (wrap $ hexToByteArrayUnsafe "00")) =<<
+    traceQueryConfig
+
+testGetProtocolParameters :: Aff Unit
+testGetProtocolParameters = do
+  flip runQueryM (void getProtocolParameters) =<<
+    traceQueryConfig
 
 testGetCurrentEpoch :: Aff Unit
 testGetCurrentEpoch = do

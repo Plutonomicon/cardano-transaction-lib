@@ -26,7 +26,7 @@ import Cardano.Api qualified as C
 import Cardano.Api.Shelley qualified as Shelley
 import Cardano.Binary qualified as Cbor
 import Control.Exception (Exception)
-import Control.Monad.Catch (MonadThrow)
+import Control.Monad.Catch (MonadThrow, SomeException)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (MonadReader, ReaderT, asks)
 import Data.Aeson (FromJSON, ToJSON (toJSON))
@@ -174,6 +174,7 @@ newtype EvalExUnitsRequest = EvalExUnitsRequest
 data CtlServerError
   = CardanoError CardanoError
   | CborDecode CborDecodeError
+  | ErrorCall SomeException
   deriving stock (Show)
 
 instance Exception CtlServerError

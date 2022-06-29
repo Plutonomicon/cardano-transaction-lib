@@ -27,6 +27,7 @@ import BalanceTx (UnattachedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
 import BalanceTx (BalanceTxError) as BalanceTxError
 import Contract.Monad (Contract, liftedE, wrapContract)
+import Contract.ProtocolParameters (getProtocolParameters)
 import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
@@ -135,7 +136,10 @@ import Plutus.Types.Transaction
 import Plutus.Types.Value (Coin)
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (NetworkId)
-import Transaction (finalizeTransaction)
+import Transaction
+  ( ReindexedUnattachedTx(ReindexedUnattachedTx)
+  , finalizeTransaction
+  )
 import TxOutput (scriptOutputToTransactionOutput) as TxOutput
 import Types.Transaction (TransactionHash)
 import Types.Transaction
@@ -247,13 +251,10 @@ balanceAndSignTx
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx
   -> Contract r (Maybe BalancedSignedTransaction)
-balanceAndSignTx uaubTx@(UnattachedUnbalancedTx { datums }) = do
-  -- Balance unbalanced tx:
-  balancedTx /\ redeemersTxIns <- liftedE $ balanceTx uaubTx
-  redeemers <- liftedE $ flip reindexSpentScriptRedeemers redeemersTxIns $
-    balancedTx ^. _body <<< _inputs
-  finalizedTx <- liftedE $ liftEffect $ finalizeTransaction redeemers datums
-    balancedTx
+balanceAndSignTx uaubTx = do
+  rbTx <- reindexAndBalanceTx uaubTx
+  costModels <- getProtocolParameters <#> unwrap >>> _.costModels
+  finalizedTx <- liftedE $ liftEffect $ finalizeTransaction costModels rbTx
   map wrap <$> signTransaction finalizedTx
 
 scriptOutputToTransactionOutput
@@ -263,3 +264,15 @@ scriptOutputToTransactionOutput
 scriptOutputToTransactionOutput networkId =
   toPlutusTxOutput
     <<< TxOutput.scriptOutputToTransactionOutput networkId
+
+reindexAndBalanceTx
+  :: forall (r :: Row Type)
+   . UnattachedUnbalancedTx
+  -> Contract r ReindexedUnattachedTx
+reindexAndBalanceTx uaubTx@(UnattachedUnbalancedTx { datums }) = do
+  -- Balance unbalanced tx:
+  tx /\ redeemersTxIns <- liftedE $ balanceTx uaubTx
+  -- Reindex its redeemers
+  redeemers <- liftedE $ flip reindexSpentScriptRedeemers redeemersTxIns $
+    tx ^. _body <<< _inputs
+  pure $ ReindexedUnattachedTx { datums, redeemers, tx }

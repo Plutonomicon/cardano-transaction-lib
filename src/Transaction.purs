@@ -1,5 +1,6 @@
 module Transaction
-  ( ModifyTxError(..)
+  ( ReindexedUnattachedTx(..)
+  , ModifyTxError(..)
   , finalizeTransaction
   , attachDatum
   , attachRedeemer
@@ -10,9 +11,10 @@ module Transaction
 import Prelude
 
 import Cardano.Types.Transaction
-  ( Redeemer
-  , Transaction(Transaction)
+  ( Costmdls
+  , Redeemer
   , ScriptDataHash(ScriptDataHash)
+  , Transaction(Transaction)
   , TransactionWitnessSet
   , TxBody(TxBody)
   )
@@ -22,14 +24,13 @@ import Data.Either (Either(Right), note)
 import Data.Foldable (null)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just))
-import Data.Newtype (over, unwrap)
+import Data.Newtype (class Newtype, over, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
 import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
 import Effect.Class (liftEffect)
 import Helpers (liftEither)
-import ProtocolParametersAlonzo (costModels)
 import Serialization (hashScriptData, toBytes)
 import Serialization.PlutusData as Serialization.PlutusData
 import Serialization.Types as Serialization
@@ -37,6 +38,17 @@ import Serialization.WitnessSet as Serialization.WitnessSet
 import Types.Datum (Datum)
 import Types.Scripts (PlutusScript)
 import Untagged.Union (asOneOf)
+
+-- | A `Transaction` with its datums and reindexed redeemers
+newtype ReindexedUnattachedTx = ReindexedUnattachedTx
+  { redeemers :: Array Redeemer
+  , datums :: Array Datum
+  , tx :: Transaction
+  }
+
+derive instance Generic ReindexedUnattachedTx _
+derive instance Newtype ReindexedUnattachedTx _
+derive newtype instance Eq ReindexedUnattachedTx
 
 data ModifyTxError
   = ConvertWitnessesError
@@ -51,20 +63,23 @@ instance Show ModifyTxError where
 -- | Sets the script integrity hash and attaches redeemers, for use after
 -- | reindexing
 finalizeTransaction
-  :: Array Redeemer
-  -> Array Datum
-  -> Transaction
+  :: Costmdls
+  -> ReindexedUnattachedTx
   -> Effect (Either ModifyTxError Transaction)
-finalizeTransaction rs ds tx = runExceptT $
-  liftEffect <<< setScriptDataHash rs ds
-    =<< attachRedeemers rs
-    =<< attachDatums ds tx
+finalizeTransaction costModels (ReindexedUnattachedTx ruTx) = runExceptT $
+  liftEffect <<< setScriptDataHash costModels (ruTx.redeemers) (ruTx.datums)
+    =<< attachRedeemers (ruTx.redeemers)
+    =<< attachDatums (ruTx.datums) (ruTx.tx)
 
 -- | Set the `Transaction` body's script data hash. NOTE: Must include *all* of
 -- | the datums and redeemers for the given transaction
 setScriptDataHash
-  :: Array Redeemer -> Array Datum -> Transaction -> Effect Transaction
-setScriptDataHash rs ds tx@(Transaction { body, witnessSet })
+  :: Costmdls
+  -> Array Redeemer
+  -> Array Datum
+  -> Transaction
+  -> Effect Transaction
+setScriptDataHash costModels rs ds tx@(Transaction { body, witnessSet })
   -- No hash should be set if *all* of the following hold:
   --
   --   * there are no scripts

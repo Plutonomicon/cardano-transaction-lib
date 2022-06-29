@@ -8,7 +8,7 @@ module Api (
 
 import Api.Handlers qualified as Handlers
 import Cardano.Api qualified as C (displayError)
-import Control.Monad.Catch (try)
+import Control.Monad.Catch (catchAll, try)
 import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT, runReaderT)
@@ -44,7 +44,7 @@ import Types (
     TxValidityIntervalError
   ),
   CborDecodeError (InvalidCbor, InvalidHex, OtherDecodeError),
-  CtlServerError (CardanoError, CborDecode),
+  CtlServerError (CardanoError, CborDecode, ErrorCall),
   Env,
   EvalExUnitsRequest,
   ExecutionUnitsMap,
@@ -85,10 +85,9 @@ appServer env = hoistServer api appHandler server
         tryServer ::
           ReaderT Env IO a ->
           Handler (Either CtlServerError a)
-        tryServer =
-          liftIO
-            . try @_ @CtlServerError
-            . flip runReaderT env
+        tryServer ra =
+          liftIO (try @_ @CtlServerError $ runReaderT ra env)
+            `catchAll` (pure . Left . ErrorCall)
 
         handleError ::
           CtlServerError ->
@@ -109,6 +108,8 @@ appServer env = hoistServer api appHandler server
             throwError err400 {errBody = LC8.pack ih}
           OtherDecodeError str ->
             throwError err400 {errBody = LC8.pack str}
+        handleError (ErrorCall err) =
+          throwError err400 {errBody = LC8.pack $ show err}
 
 api :: Proxy Api
 api = Proxy
