@@ -42,7 +42,10 @@ import Prim.TypeError (class Fail, Text)
 import Record as Record
 import Type.Proxy (Proxy(Proxy))
 import TypeLevel.Nat (class KnownNat, natVal)
-import TypeLevel.RowList.Unordered.Indexed (class GetIndexWithLabel, class GetWithLabel)
+import TypeLevel.RowList.Unordered.Indexed
+  ( class GetIndexWithLabel
+  , class GetWithLabel
+  )
 import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
 import Types.PlutusData (PlutusData(Bytes, Constr, List, Integer, Map))

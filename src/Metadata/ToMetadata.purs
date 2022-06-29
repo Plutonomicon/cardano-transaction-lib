@@ -21,7 +21,9 @@ import Data.Tuple.Nested (type (/\))
 import Partial.Unsafe (unsafePartial)
 import Types.ByteArray (ByteArray)
 import Types.Int (Int, fromBigInt) as Int
-import Types.TransactionMetadata (TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text))
+import Types.TransactionMetadata
+  ( TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
+  )
 
 --------------------------------------------------------------------------------
 -- ToMetadata
@@ -46,7 +48,12 @@ else instance (ToMetadata k, ToMetadata v) => ToMetadata (Map k v) where
 
 instance (Ord k, ToMetadata k) => ToMetadata (Array (Tuple k AnyToMetadata)) where
   toMetadata = toMetadata <<< Map.fromFoldable
-else instance (Ord k, ToMetadata k, ToMetadata v) => ToMetadata (Array (Tuple k v)) where
+else instance
+  ( Ord k
+  , ToMetadata k
+  , ToMetadata v
+  ) =>
+  ToMetadata (Array (Tuple k v)) where
   toMetadata = toMetadata <<< Map.fromFoldable
 else instance ToMetadata a => ToMetadata (Array a) where
   toMetadata = MetadataList <<< map toMetadata
