@@ -22,7 +22,6 @@ check-format:
 e2e-test:
 	@rm -f chrome-data/SingletonLock && spago test --main Test.E2E
 
-
 format:
 	@purs-tidy format-in-place ${ps-sources}
 

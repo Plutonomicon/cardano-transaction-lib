@@ -33,7 +33,7 @@ import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
-import Examples.TestFeedback
+import Test.E2E.Feedback (publishTestFeedback)
 
 main :: Effect Unit
 main = launchAff_ $ do

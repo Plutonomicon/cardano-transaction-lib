@@ -1,6 +1,6 @@
 module Test.Examples.Pkh2Pkh where
 
-import Examples.TestFeedback
+import Test.E2E.Feedback
 import Prelude
 
 import Data.Maybe (isJust, Maybe(..))
@@ -36,8 +36,6 @@ testPkh2Pkh = test "Pkh2Pkh" do
       clickButton "Sign" np
       reactSetValue password testPassword np
       clickButton "Confirm" np
-      delay (wrap 1000.0)
-  delay (wrap 500.0)
   feedback <- testFeedbackIsTrue page
   shouldSatisfy feedback (_ == true)
 
