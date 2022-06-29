@@ -28,7 +28,7 @@ import Control.Monad.Reader (asks)
 import Effect.Ref as Ref
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
-  ( BalancedSignedTransaction(..)
+  ( BalancedSignedTransaction(BalancedSignedTransaction)
   , submit
   , withBalancedAndSignedTxs
   )

@@ -1,7 +1,7 @@
 -- | A module that defines the different transaction data types, balancing
 -- | functionality, transaction fees, signing and submission.
 module Contract.Transaction
-  ( BalancedSignedTransaction(..)
+  ( BalancedSignedTransaction(BalancedSignedTransaction)
   , balanceAndSignTx
   , balanceAndSignTxs
   , balanceAndSignTxE
@@ -112,23 +112,23 @@ import Control.Monad.Except.Trans (runExceptT)
 import Control.Monad.Reader (asks, runReaderT, ReaderT)
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
-import Data.Either (Either(..), hush)
+import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter ((^.))
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Traversable (class Traversable, fold, for, traverse, traverse_)
+import Data.Traversable (class Traversable, fold, traverse, traverse_)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), get1, (/\))
 import Effect.Class (liftEffect)
-import Effect.Exception (Error, error, throw)
+import Effect.Exception (Error, throw)
 import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
 import Plutus.Types.Transaction (TransactionOutput(TransactionOutput)) as PTransaction
 import Plutus.Types.Value (Coin)
 import QueryM
   ( FeeEstimate(FeeEstimate)
-  , ClientError(..)
+  , ClientError
   , FinalizedTransaction(FinalizedTransaction)
   ) as ExportQueryM
 import QueryM
@@ -147,7 +147,7 @@ import Types.CborBytes (CborBytes)
 import Types.Datum (Datum)
 import Types.ScriptLookups
   ( UnattachedUnbalancedTx(UnattachedUnbalancedTx)
-  , MkUnbalancedTxError(..)
+  , MkUnbalancedTxError
   , mkUnbalancedTx
   ) as ScriptLookups
 import Types.ScriptLookups (UnattachedUnbalancedTx)
@@ -240,12 +240,10 @@ withTransactions
 withTransactions prepare extract utxs action = do
   txs <- prepare utxs
   res <- try $ action txs
-  _ <- traverse (\t -> withUsedTxouts $ unlockTransactionInputs t) $ map extract
-    $
-      txs
-  case res of
-    Left e -> throwError e
-    Right x -> pure x
+  void $ traverse (withUsedTxouts <<< unlockTransactionInputs)
+    $ map extract
+    $ txs
+  liftedE $ pure res
 
 withSingleTransaction
   :: forall (a :: Type) (tx :: Type) (r :: Row Type)
@@ -266,9 +264,8 @@ withSingleTransaction prepare extract utx action =
 -- | After the function completes, the locks will be removed.
 -- | Errors will be thrown.
 withBalancedTxs
-  :: forall (a :: Type)
-       (r :: Row Type)
-   . (Array UnattachedUnbalancedTx)
+  :: forall (a :: Type) (r :: Row Type)
+   . Array UnattachedUnbalancedTx
   -> (Array UnattachedTransaction -> Contract r a)
   -> Contract r a
 withBalancedTxs = withTransactions balanceTxs get1
@@ -280,18 +277,11 @@ withBalancedTxs = withTransactions balanceTxs get1
 -- | After the function completes, the locks will be removed.
 -- | Errors will be thrown.
 withBalancedTx
-  :: forall (a :: Type)
-       (r :: Row Type)
+  :: forall (a :: Type) (r :: Row Type)
    . UnattachedUnbalancedTx
   -> (UnattachedTransaction -> Contract r a)
   -> Contract r a
-withBalancedTx = withSingleTransaction balanceTx' get1
-  where
-  balanceTx' uutx = do
-    tx <- balanceTx uutx
-    case tx of
-      Left e -> throwError $ error $ show $ e
-      Right tx' -> pure tx'
+withBalancedTx = withSingleTransaction (liftedE <<< balanceTx) get1
 
 -- | Execute an action on an array of balanced and signed
 -- | transactions (balanceAndSignTxs will be called). Within
@@ -315,21 +305,13 @@ withBalancedAndSignedTxs = withTransactions balanceAndSignTxs
 -- | After the function completes, the locks will be removed.
 -- | Errors will be thrown.
 withBalancedAndSignedTx
-  :: forall (a :: Type)
-       (r :: Row Type)
+  :: forall (a :: Type) (r :: Row Type)
    . UnattachedUnbalancedTx
   -> (BalancedSignedTransaction -> Contract r a)
   -> Contract r a
-withBalancedAndSignedTx = withSingleTransaction balanceAndSignTx'
+withBalancedAndSignedTx = withSingleTransaction
+  (liftedE <<< balanceAndSignTxE)
   (_.transaction <<< unwrap)
-  where
-  balanceAndSignTx'
-    :: UnattachedUnbalancedTx -> Contract r BalancedSignedTransaction
-  balanceAndSignTx' uutx = do
-    tx <- balanceAndSignTxE uutx
-    case tx of
-      Left e -> throwError $ error $ show $ e
-      Right tx' -> pure tx'
 
 balanceTxs
   :: forall
@@ -339,7 +321,6 @@ balanceTxs
   => t UnattachedUnbalancedTx
   -> Contract r (t UnattachedTransaction)
 balanceTxs uts = do
-
   -- First, lock all the already fixed inputs on all the unbalanced transactions.
   -- That prevents any inputs of any of those to be used to balance any of the
   -- other transactions
@@ -347,7 +328,7 @@ balanceTxs uts = do
     $ liftedE
     $ withUsedTxouts
     $ runExceptT
-    $ (fold <$> for uts (lockTransactionInputs <<< uutxToTx))
+    $ fold <$> traverse (lockTransactionInputs <<< uutxToTx) uts
 
   -- Then, balance each transaction and lock the used inputs immediately.
   unlockAllOnError $ traverse (balanceAndLock unlockKeys) uts
@@ -372,7 +353,7 @@ balanceTxs uts = do
     -> Contract r UnattachedTransaction
   balanceAndLock alreadyLocked uutx = do
     bt <- liftedE $ balanceTx uutx
-    _ <- withUsedTxouts $ lockRemainingTransactionInputs alreadyLocked
+    void $ withUsedTxouts $ lockRemainingTransactionInputs alreadyLocked
       (utxToTx bt)
     pure bt
 
@@ -465,19 +446,12 @@ balanceAndSignTxE
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx
   -> Contract r (Either Error BalancedSignedTransaction)
-balanceAndSignTxE tx = try $ do
-  txs' <-
-    balanceAndSignTxs [ tx ] :: Contract r (Array BalancedSignedTransaction)
-  tx' <- headE txs'
-  pure tx'
-  where
-  headE :: forall a. Array a -> Contract r a
-  headE ar =
-    case ar of
-      [ x ] -> pure x
-      -- Which error should we throw here?
-      _ -> liftEffect $ throw $
-        "Unexpected internal error during transaction signing"
+balanceAndSignTxE tx = try $ balanceAndSignTxs [ tx ] >>=
+  case _ of
+    [ x ] -> pure x
+    -- Which error should we throw here?
+    _ -> liftEffect $ throw $
+      "Unexpected internal error during transaction signing"
 
 -- | A helper that wraps a few steps into: balance an unbalanced transaction
 -- | (`balanceTx`), reindex script spend redeemers (not minting redeemers)

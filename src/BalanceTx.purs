@@ -456,7 +456,6 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
       -- Sort inputs at the very end so it behaves as a Set.
       sortedUnsignedTx = fst unattachedTx'' # _body <<< _inputs %~ Array.sort
     -- Logs final balanced tx and returns it
-
     logTx "Post-balancing Tx " availableUtxos sortedUnsignedTx
     except $ Right (unattachedTx'' # _1 .~ sortedUnsignedTx)
   where

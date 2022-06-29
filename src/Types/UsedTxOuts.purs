@@ -38,7 +38,7 @@ import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Semigroup (class Semigroup)
 import Data.Set (Set)
 import Data.Set as Set
-import Data.Tuple (Tuple(Tuple))
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.Unit (Unit)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -200,12 +200,12 @@ unlockTxOutKeys = unlockTxOutRefs <<< cacheToRefs <<< unwrap
   cacheToRefs
     :: TxOutRefCache
     -> Array { transactionId :: TransactionHash, index :: UInt }
-  cacheToRefs cache = concatMap flatten $ Map.toUnfoldable cache
+  cacheToRefs = concatMap flatten <<< Map.toUnfoldable
 
   flatten
-    :: Tuple TransactionHash (Set UInt)
+    :: TransactionHash /\ Set UInt
     -> Array { transactionId :: TransactionHash, index :: UInt }
-  flatten (Tuple tid indexes) = map (\ix -> { transactionId: tid, index: ix })
+  flatten (tid /\ indexes) = map ({ transactionId: tid, index: _ })
     (Set.toUnfoldable indexes)
 
 cacheContains
