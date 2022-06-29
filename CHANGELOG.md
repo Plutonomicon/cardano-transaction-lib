@@ -21,7 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `mkKeyWalletFromFile` helper to use `cardano-cli`-style `skey`s.
 - Single `Plutus.Conversion` module exposing all `(Type <-> Plutus Type)` conversion functions.
 - Support for using a `PrivateKey` as a `Wallet`.
-- `getProtocolParameters` call to retrieve current protocol parameters from Ogmios (#541)
+- `getProtocolParameters` call to retrieve current protocol parameters from Ogmios (#541).
 
 ### Removed
 
@@ -31,19 +31,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Changed
 
 - Updated `ogmios-datum-cache` - bug fixes (#542, #526, #589).
-- Improved error response handling for Ogmios (#584)
+- Improved error response handling for Ogmios (#584).
+- Made protocol parameters part of `QueryConfig`.
 
 ### Fixed
 
 - Handling of invalid UTF8 byte sequences in the Aeson instance for `TokenName`.
 - `Types.ScriptLookups.require` function naming caused problems with WebPack (#593)
-- Bad logging in `queryDispatch` that didn't propagate error messages (#615)
+- Bad logging in `queryDispatch` that didn't propagate error messages (#615).
+- `Types.ScriptLookups.require` function naming caused problems with WebPack (#593).
+- UTxO Min-Ada-Value calculation.
 
 ## [1.0.1] - 2022-06-17
 
 ### Fixed
 
-- `mustBeSignedBy` now sets the `Ed25519KeyHash` corresponding to the provided `PaymentPubKeyHash` directly. Previously, this constraint would fail as there was no way to provide a matching `PaymentPubKey` as a lookup. Note that this diverges from Plutus as the `paymentPubKey` lookup is always required in that implementation
+- `mustBeSignedBy` now sets the `Ed25519KeyHash` corresponding to the provided `PaymentPubKeyHash` directly. Previously, this constraint would fail as there was no way to provide a matching `PaymentPubKey` as a lookup. Note that this diverges from Plutus as the `paymentPubKey` lookup is always required in that implementation.
 
 ## [1.0.0] - 2022-06-10
 
