@@ -1,27 +1,26 @@
-module Test.Toppoki where
+module Test.Toppokki (launchChrome, exampleUrl) where
 
+import Effect.Aff (Aff)
 import Toppokki as Toki
 import Prelude
 
-namiHash = "lpfcbjknijpeeillifnkikgncikgfhdo"
-namiPath = "/home/mike/.config/google-chrome/Default/Extensions/" <> namiHash <>
-  "/3.2.5_1"
+exampleUrl :: String
+exampleUrl = "http://localhost:4008/"
 
-welcomePage = "chrome-extension://" <> namiHash <> "/index.html"
-otherPage = "chrome-extension://" <> namiHash <> "/mainPopup.bundle.js"
-jsPage = "chrome-extension://" <> namiHash <> "/injected.bundle.js"
-normalPage = "http://www.orf.at/"
-example = "http://localhost:4008/"
-
---launchOptions :: Toki.LaunchOptions
-launchOptions =
-  { args:
-      [ "--disable-extensions-except=" <> namiPath
-      , "--load-extension=" <> namiPath
-      --                         , "--headless=chrome"
-      ]
-  , userDataDir: "/tmp/ChromeProfile"
-  }
-
-launchChrome = Toki.launch launchOptions
+launchChrome :: Aff Toki.Browser
+launchChrome =
+  let
+    namiHash = "lpfcbjknijpeeillifnkikgncikgfhdo"
+    namiPath = "/home/mike/.config/google-chrome/Default/Extensions/"
+      <> namiHash
+      <> "/3.2.5_1"
+  in
+    Toki.launch
+      { args:
+          [ "--disable-extensions-except=" <> namiPath
+          , "--load-extension=" <> namiPath
+          --                         , "--headless=chrome"
+          ]
+      , userDataDir: "/tmp/ChromeProfile"
+      }
 

@@ -21,7 +21,7 @@ import Test.E2E.Helpers
 import Test.E2E.Wallet (Mode(..), launchWithNami)
 import Test.E2E.Feedback (testFeedbackIsTrue)
 import Test.Spec.Assertions (shouldSatisfy)
-import Test.Toppoki (example)
+import Test.Toppokki (exampleUrl)
 import TestM (TestPlanM)
 import Toppokki as Toki
 
@@ -30,7 +30,7 @@ testPkh2Pkh = test "Pkh2Pkh" do
   browser <- launchWithNami Headless
   page <- Toki.newPage browser
   jQuery <- retrieveJQuery page
-  Toki.goto (wrap example) page
+  Toki.goto (wrap exampleUrl) page
   -- find a nicer way for waiting
   delay (wrap 5000.0)
   injectJQueryAll jQuery browser
@@ -44,6 +44,9 @@ testPkh2Pkh = test "Pkh2Pkh" do
       clickButton "Sign" np
       reactSetValue password testPassword np
       clickButton "Confirm" np
+  -- Wait a moment to avoid a race condition. After Nami gets confirmation,
+  -- it will take a few ms to return control to our example.
+  delay (wrap 500.0)
   feedback <- testFeedbackIsTrue page
   shouldSatisfy feedback (_ == true)
 

@@ -32,7 +32,6 @@ import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Traversable (for, fold)
 import Effect (Effect)
 import Effect.Aff (Aff)
-import Effect.Class.Console (log)
 import Foreign (Foreign, unsafeFromForeign)
 import Toppokki as Toki
 
@@ -77,7 +76,6 @@ derive instance Newtype Action _
 -- | Build a primitive jQuery expression like '$("button").click()' and evaluate it in Toki
 doJQ :: Selector -> Action -> Toki.Page -> Aff Foreign
 doJQ selector action page = do
-  log jq
   Toki.unsafeEvaluateStringFunction jq page
   where
   jq :: String
