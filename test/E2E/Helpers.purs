@@ -18,7 +18,6 @@ module Test.E2E.Helpers
   , testPassword
   , reactSetValue
   , retrieveJQuery
-  , testFeedbackIsTrue
   , Selector(..)
   , Action(..)
   , NoShowPage(..)
@@ -57,9 +56,6 @@ findNamiPage browser = do
   pages <- Toki.pages browser
   pages' <- filterA (hasSelector button) pages
   pure $ head $ pages'
-
-testFeedbackIsTrue :: Toki.Page -> Aff Boolean
-testFeedbackIsTrue page = unsafeFromForeign <$> Toki.unsafeEvaluateStringFunction "window.ctlTestFeedback" page
 
 -- | Wrapper for Page so it can be used in `shouldSatisfy`, which needs 'Show'
 -- | Doesn't show anything, thus 'NoShow'

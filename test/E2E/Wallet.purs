@@ -1,20 +1,16 @@
 module Test.E2E.Wallet where
 
-import Control.Promise
-import Data.Maybe
 import Prelude
-import Toppokki
-import Mote
-import TestM
+
+import Effect (Effect)
+import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
+import Foreign (typeOf)
+import Mote (group, test)
+import TestM (TestPlanM)
 import Toppokki as Toki
-import Effect
-import Effect.Aff
-import Effect.Class
-import Effect.Class.Console
-import Foreign
-import Test.Spec.Assertions
-import Wallet
 import Test.Examples.Config (userDataDir)
+import Test.Spec.Assertions (shouldEqual)
 
 namiHash :: String
 namiHash = "lpfcbjknijpeeillifnkikgncikgfhdo"
@@ -33,7 +29,7 @@ chromeArgsWithNami mode =
   , "--load-extension=" <> namiPath
   ] <> if mode == Headless then [ "--headless=chrome" ] else []
 
-launchWithNami :: Mode -> Aff Browser
+launchWithNami :: Mode -> Aff Toki.Browser
 launchWithNami mode =
   Toki.launch
     { args: chromeArgsWithNami mode
@@ -41,11 +37,11 @@ launchWithNami mode =
     , userDataDir: userDataDir
     }
 
-launchWithNami' :: Aff Browser
+launchWithNami' :: Aff Toki.Browser
 launchWithNami' = launchWithNami Headless
 
 -- | To access the wallet without navigating to a page
-initializeNami :: Browser -> Aff Toki.Page
+initializeNami :: Toki.Browser -> Aff Toki.Page
 initializeNami browser = do
   page <- Toki.newPage browser
   outputJs <- liftEffect _outputJsPath
@@ -74,19 +70,19 @@ suite = group "Nami" $ do
   test "Initialize Nami" $ do
     browser <- launchWithNami'
     page <- initializeNami browser
-    fgn <- unsafeEvaluateStringFunction "window.cardano" page
+    fgn <- Toki.unsafeEvaluateStringFunction "window.cardano" page
     typeOf fgn `shouldEqual` "object"
 
   test "getNamiWalletAddress" $ do
     browser <- launchWithNami'
     page <- initializeNami browser
-    fgn <- unsafeEvaluateStringFunction "window.cardano" page
+    fgn <- Toki.unsafeEvaluateStringFunction "window.cardano" page
     typeOf fgn `shouldEqual` "object"
 
   test "getAlwaysSucceedsExample" $ do
     browser <- launchWithNami'
     page <- initializeNami browser
-    fgn <- unsafeEvaluateStringFunction "PS['Examples.AlwaysSucceeds']" page
+    fgn <- Toki.unsafeEvaluateStringFunction "PS['Examples.AlwaysSucceeds']" page
     typeOf fgn `shouldEqual` "object"
 
 --    wallet <- mkNamiWalletAff

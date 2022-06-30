@@ -1,6 +1,5 @@
 module Test.Examples.Pkh2Pkh where
 
-import Test.E2E.Feedback
 import Prelude
 
 import Data.Maybe (isJust, Maybe(..))
@@ -8,10 +7,10 @@ import Data.Newtype (wrap)
 import Effect.Aff (delay)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Foreign (unsafeFromForeign)
 import Mote (test)
-import Test.E2E.Helpers (NoShowPage(NoShowPage), clickButton, findNamiPage, injectJQueryAll, password, reactSetValue, retrieveJQuery, testFeedbackIsTrue, testPassword)
+import Test.E2E.Helpers (NoShowPage(NoShowPage), clickButton, findNamiPage, injectJQueryAll, password, reactSetValue, retrieveJQuery, testPassword)
 import Test.E2E.Wallet (Mode(..), launchWithNami)
+import Test.E2E.Feedback (testFeedbackIsTrue)
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Toppoki (example)
 import TestM (TestPlanM)
@@ -19,7 +18,7 @@ import Toppokki as Toki
 
 testPkh2Pkh :: TestPlanM Unit
 testPkh2Pkh = test "Pkh2Pkh" do
-  browser <- launchWithNami Visible
+  browser <- launchWithNami Headless
   page <- Toki.newPage browser
   jQuery <- retrieveJQuery page
   Toki.goto (wrap example) page
