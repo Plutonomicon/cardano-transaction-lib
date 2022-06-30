@@ -106,8 +106,9 @@ import Serialization.Address
   , StakeCredential
   )
 import Serialization.Hash (Ed25519KeyHash)
-import Serialization.Types (BigNum, VRFKeyHash)
+import Serialization.Types (VRFKeyHash)
 import Types.Aliases (Bech32String)
+import Types.BigNum (BigNum)
 import Types.ByteArray (ByteArray)
 import Types.Int as Int
 import Types.PlutusData (PlutusData)

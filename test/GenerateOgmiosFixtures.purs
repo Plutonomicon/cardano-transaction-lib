@@ -30,7 +30,7 @@ import QueryM
   , defaultMessageListener
   , defaultOgmiosWsConfig
   , mkListenerSet
-  , mkRequest
+  , mkRequestAff
   , queryDispatch
   )
 import QueryM.JsonWsp (JsonWspCall)
@@ -127,7 +127,7 @@ main =
         , mkQuery' "chainTip"
         ] <> flip map addresses \addr -> mkQuery { utxo: [ addr ] } "utxo"
     resps <- flip parTraverse queries \(Query qc shown) -> do
-      resp <- mkRequest ws logLevel qc listeners unit
+      resp <- mkRequestAff listeners ws logLevel qc identity unit
       pure { resp, query: shown }
 
     for_ resps \{ resp, query } -> do

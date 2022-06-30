@@ -24,6 +24,7 @@ module QueryM
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
+  , getProtocolParametersAff
   , getWalletAddress
   , getWalletCollateral
   , liftQueryM
@@ -34,8 +35,10 @@ module QueryM
   , defaultMessageListener
   , mkListenerSet
   , mkOgmiosRequest
+  , mkOgmiosRequestAff
   , mkOgmiosWebSocketAff
   , mkRequest
+  , mkRequestAff
   , module ServerConfig
   , ownPaymentPubKeyHash
   , ownPubKeyHash
@@ -181,6 +184,7 @@ type QueryConfig (r :: Row Type) =
   , usedTxOuts :: UsedTxOuts
   , networkId :: NetworkId
   , logLevel :: LogLevel
+  , pparams :: Ogmios.ProtocolParameters
   | r
   }
 
@@ -204,6 +208,7 @@ liftQueryM = withReaderT toDefaultQueryConfig
     , usedTxOuts: c.usedTxOuts
     , networkId: c.networkId
     , logLevel: c.logLevel
+    , pparams: c.pparams
     }
 
 runQueryM :: forall (a :: Type). DefaultQueryConfig -> QueryM a -> Aff a
@@ -216,6 +221,7 @@ traceQueryConfig = do
   ogmiosWs <- mkOgmiosWebSocketAff logLevel defaultOgmiosWsConfig
   datumCacheWs <- mkDatumCacheWebSocketAff logLevel defaultDatumCacheWsConfig
   usedTxOuts <- newUsedTxOuts
+  pparams <- getProtocolParametersAff ogmiosWs logLevel
   pure
     { ogmiosWs
     , datumCacheWs
@@ -224,10 +230,18 @@ traceQueryConfig = do
     , usedTxOuts
     , networkId: TestnetId
     , logLevel
+    , pparams
     }
   where
   logLevel :: LogLevel
   logLevel = Trace
+
+getProtocolParametersAff
+  :: OgmiosWebSocket -> LogLevel -> Aff Ogmios.ProtocolParameters
+getProtocolParametersAff ogmiosWs logLevel =
+  mkOgmiosRequestAff ogmiosWs logLevel Ogmios.queryProtocolParametersCall
+    _.getProtocolParameters
+    unit
 
 --------------------------------------------------------------------------------
 -- OGMIOS LOCAL STATE QUERY PROTOCOL
@@ -743,21 +757,29 @@ mkListenerSet dim pr =
         Ref.modify_ (Map.insert id req) pr
   }
 
--- | Builds a Ogmios request action using QueryM
+-- | Builds an Ogmios request action using `QueryM`
 mkOgmiosRequest
   :: forall (request :: Type) (response :: Type)
    . JsonWsp.JsonWspCall request response
   -> (OgmiosListeners -> ListenerSet request response)
   -> request
   -> QueryM response
-mkOgmiosRequest jsonWspCall getLs req = do
-  { logLevel, ogmiosWs } <- ask
-  liftAff $ mkRequest
-    (underlyingWebSocket ogmiosWs)
-    logLevel
-    jsonWspCall
-    (getLs $ listeners ogmiosWs)
-    req
+mkOgmiosRequest = mkRequest
+  (listeners <<< _.ogmiosWs <$> ask)
+  (underlyingWebSocket <<< _.ogmiosWs <$> ask)
+
+-- | Builds an Ogmios request action using `Aff`
+mkOgmiosRequestAff
+  :: forall (request :: Type) (response :: Type)
+   . OgmiosWebSocket
+  -> LogLevel
+  -> JsonWsp.JsonWspCall request response
+  -> (OgmiosListeners -> ListenerSet request response)
+  -> request
+  -> Aff response
+mkOgmiosRequestAff ogmiosWs = mkRequestAff
+  (listeners ogmiosWs)
+  (underlyingWebSocket ogmiosWs)
 
 mkDatumCacheRequest
   :: forall (request :: Type) (response :: Type)
@@ -765,27 +787,41 @@ mkDatumCacheRequest
   -> (DatumCacheListeners -> ListenerSet request response)
   -> request
   -> QueryM response
-mkDatumCacheRequest jsonWspCall getLs req = do
-  { logLevel, datumCacheWs } <- ask
-  liftAff $ mkRequest
-    (underlyingWebSocket datumCacheWs)
-    logLevel
-    jsonWspCall
-    (getLs $ listeners datumCacheWs)
-    req
+mkDatumCacheRequest = mkRequest
+  (listeners <<< _.datumCacheWs <$> ask)
+  (underlyingWebSocket <<< _.datumCacheWs <$> ask)
 
--- | Builds a JsonWsp request action using Aff
+-- | Builds an Ogmios request action using `QueryM`
 mkRequest
   :: forall (request :: Type) (response :: Type) (listeners :: Type)
-   . JsWebSocket
+   . QueryM listeners
+  -> QueryM JsWebSocket
+  -> JsonWsp.JsonWspCall request response
+  -> (listeners -> ListenerSet request response)
+  -> request
+  -> QueryM response
+mkRequest getListeners getWebSocket jsonWspCall getLs inp = do
+  ws <- getWebSocket
+  listeners' <- getListeners
+  logLevel <- asks _.logLevel
+  liftAff $ mkRequestAff listeners' ws logLevel jsonWspCall getLs inp
+
+-- | Builds an Ogmios request action using `Aff`
+mkRequestAff
+  :: forall (request :: Type) (response :: Type) (listeners :: Type)
+   . listeners
+  -> JsWebSocket
   -> LogLevel
   -> JsonWsp.JsonWspCall request response
-  -> ListenerSet request response
+  -> (listeners -> ListenerSet request response)
   -> request
   -> Aff response
-mkRequest ws logLevel jsonWspCall respLs inp = do
+mkRequestAff listeners' webSocket logLevel jsonWspCall getLs inp = do
   { body, id } <- liftEffect $ JsonWsp.buildRequest jsonWspCall inp
   let
+    respLs :: ListenerSet request response
+    respLs = getLs listeners'
+
     sBody :: RequestBody
     sBody = stringifyAeson body
 
@@ -797,11 +833,11 @@ mkRequest ws logLevel jsonWspCall respLs inp = do
             cont (lmap dispatchErrorToError result)
         )
       respLs.addRequest id sBody
-      _wsSend ws (logString logLevel Debug) sBody
+      _wsSend webSocket (logString logLevel Debug) sBody
       pure $ Canceler $ \err -> do
         liftEffect $ respLs.removeMessageListener id
         liftEffect $ throwError $ err
-  liftAff $ makeAff $ affFunc
+  makeAff affFunc
 
 -------------------------------------------------------------------------------
 -- Dispatch Setup

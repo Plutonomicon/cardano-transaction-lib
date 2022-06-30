@@ -26,8 +26,7 @@ utxosAt
   :: forall (r :: Row Type). Address -> Contract r (Maybe Transaction.UtxoM)
 utxosAt address = do
   networkId <- asks (_.networkId <<< unwrap)
-  cardanoAddr <- liftContractM "utxosAt: unable to serialize address"
-    (fromPlutusAddress networkId address)
+  let cardanoAddr = fromPlutusAddress networkId address
   -- Don't error if we get `Nothing` as the Cardano utxos
   mCardanoUtxos <- wrapContract $ Utxos.utxosAt cardanoAddr
   maybe (pure Nothing)
