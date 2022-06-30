@@ -16,13 +16,11 @@ import Prelude
 import Control.Alternative ((<|>))
 import Data.Array (uncons)
 import Data.Array as Array
-import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), hush, note)
 import Data.Generic.Rep as G
 import Data.List (List)
-import Data.Map (Map, fromFoldable) as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (wrap, unwrap)
 import Data.NonEmpty (NonEmpty(NonEmpty))
@@ -48,7 +46,7 @@ import TypeLevel.RowList.Unordered.Indexed
   )
 import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
-import Types.PlutusData (PlutusData(Bytes, Constr, List, Integer, Map))
+import Types.PlutusData (PlutusData(Bytes, Constr, List, Integer))
 import Types.RawBytes (RawBytes)
 
 -- | Errors
@@ -291,14 +289,6 @@ instance (FromData a, FromData b) => FromData (Tuple a b) where
     | n == zero = Tuple <$> fromData a <*> fromData b
   fromData _ = Nothing
 
-instance (FromData k, FromData v, Ord k) => FromData (Map.Map k v) where
-  fromData (Map entries) =
-    Just
-      $ Map.fromFoldable
-      $ Array.foldMap fromTupleMaybe
-      $ (bimap fromData fromData) <$> entries
-  fromData _ = Nothing
-
 instance FromData ByteArray where
   fromData (Bytes res) = Just res
   fromData _ = Nothing
@@ -331,10 +321,3 @@ fromDataUnfoldable
 fromDataUnfoldable (List entries) = Array.toUnfoldable <$> traverse fromData
   entries
 fromDataUnfoldable _ = Nothing
-
-fromTupleMaybe
-  :: forall (a :: Type) (b :: Type)
-   . Tuple (Maybe a) (Maybe b)
-  -> Array (Tuple a b)
-fromTupleMaybe (Tuple (Just a) (Just b)) = [ Tuple a b ]
-fromTupleMaybe (Tuple _ _) = []
