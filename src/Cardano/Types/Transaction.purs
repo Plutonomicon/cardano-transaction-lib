@@ -74,6 +74,7 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
   , Aeson
+  , AesonEncoder
   , caseAesonString
   , decodeAeson
   , encodeAeson
@@ -120,7 +121,6 @@ import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
 import Types.Transaction (DataHash, TransactionInput)
 import Types.TransactionMetadata (GeneralTransactionMetadata)
-import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- `Transaction`
@@ -138,6 +138,7 @@ newtype Transaction = Transaction
 derive instance Generic Transaction _
 derive instance Eq Transaction
 derive instance Newtype Transaction _
+derive newtype instance EncodeAeson Transaction
 
 instance Show Transaction where
   show = genericShow
@@ -553,7 +554,6 @@ instance Show MIRToStakeCredentials where
 
 instance EncodeAeson MIRToStakeCredentials where
   encodeAeson' (MIRToStakeCredentials m) = encodeAeson' $ encodeMap m
-    -- TODO: There's no `EncodeAeson` instance for `Int` for some reason
     where
     (Op encodeMap) = dictionary (Op encodeAeson) (Op encodeAeson)
 
@@ -693,6 +693,7 @@ newtype TransactionWitnessSet = TransactionWitnessSet
 derive instance Generic TransactionWitnessSet _
 derive instance Newtype TransactionWitnessSet _
 derive newtype instance Eq TransactionWitnessSet
+derive newtype instance EncodeAeson TransactionWitnessSet
 
 instance Show TransactionWitnessSet where
   show = genericShow
@@ -774,6 +775,7 @@ newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
 derive instance Generic Vkeywitness _
 derive newtype instance Eq Vkeywitness
+derive newtype instance EncodeAeson Vkeywitness
 derive instance Newtype Vkeywitness _
 
 instance Show Vkeywitness where
@@ -785,6 +787,7 @@ derive instance Generic Vkey _
 derive instance Newtype Vkey _
 derive newtype instance Eq Vkey
 derive newtype instance Ord Vkey
+derive newtype instance EncodeAeson Vkey
 
 instance Show Vkey where
   show = genericShow
@@ -795,6 +798,7 @@ derive instance Generic PublicKey _
 derive instance Newtype PublicKey _
 derive newtype instance Eq PublicKey
 derive newtype instance Ord PublicKey
+derive newtype instance EncodeAeson PublicKey
 
 instance Show PublicKey where
   show = genericShow
@@ -804,6 +808,7 @@ newtype Ed25519Signature = Ed25519Signature Bech32String
 derive instance Generic Ed25519Signature _
 derive newtype instance Eq Ed25519Signature
 derive newtype instance Ord Ed25519Signature
+derive newtype instance EncodeAeson Ed25519Signature
 
 instance Show Ed25519Signature where
   show = genericShow
@@ -818,6 +823,7 @@ newtype Redeemer = Redeemer
 derive instance Generic Redeemer _
 derive newtype instance Eq Redeemer
 derive newtype instance Ord Redeemer
+derive newtype instance EncodeAeson Redeemer
 
 instance Show Redeemer where
   show = genericShow
@@ -830,6 +836,7 @@ newtype AuxiliaryData = AuxiliaryData
 
 derive newtype instance Eq AuxiliaryData
 derive instance Generic AuxiliaryData _
+derive newtype instance EncodeAeson AuxiliaryData
 
 instance Show AuxiliaryData where
   show = genericShow
@@ -862,6 +869,20 @@ derive instance Generic NativeScript _
 
 instance Show NativeScript where
   show x = genericShow x
+
+instance EncodeAeson NativeScript where
+  encodeAeson' = case _ of
+    ScriptPubkey hash -> encodeTagged' "ScriptPubKey" hash
+    ScriptAll arr -> encodeTagged' "ScriptAll" arr
+    ScriptAny arr -> encodeTagged' "ScriptAny" arr
+    ScriptNOfK n nativeScripts -> encodeTagged' "ScriptPubKey"
+      { n, nativeScripts }
+    TimelockStart slot -> encodeTagged' "TimeLockStart" slot
+    TimelockExpiry slot -> encodeTagged' "TimeLockExpiry" slot
+    where
+    encodeTagged'
+      :: forall x. EncodeAeson x => String -> x -> AesonEncoder Aeson
+    encodeTagged' str x = encodeAeson' $ encodeTagged str x (Op encodeAeson)
 
 newtype TransactionOutput = TransactionOutput
   { address :: Address

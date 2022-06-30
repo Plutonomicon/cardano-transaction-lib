@@ -52,7 +52,6 @@ import Prelude hiding (join)
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
-  , Aeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonObject
   , encodeAeson

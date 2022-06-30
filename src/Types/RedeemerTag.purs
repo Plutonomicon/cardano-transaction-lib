@@ -4,6 +4,8 @@ module Types.RedeemerTag
 
 import Prelude
 
+import Aeson (class EncodeAeson, encodeAeson', encodeAeson)
+import Aeson.Encode (encodeTagged)
 import Data.Enum (class Enum, class BoundedEnum)
 import Data.Enum.Generic
   ( genericPred
@@ -13,6 +15,7 @@ import Data.Enum.Generic
   , genericFromEnum
   )
 import Data.Generic.Rep (class Generic)
+import Data.Op (Op(Op))
 import Data.Show.Generic (genericShow)
 
 -- lives in it's own module due to a name conflict with the `Mint` Type
@@ -37,3 +40,12 @@ instance BoundedEnum RedeemerTag where
   cardinality = genericCardinality
   toEnum = genericToEnum
   fromEnum = genericFromEnum
+
+instance EncodeAeson RedeemerTag where
+  encodeAeson' = case _ of
+    Spend -> encodeTagged' "Spend" {}
+    Mint -> encodeTagged' "Mint" {}
+    Cert -> encodeTagged' "Cert" {}
+    Reward -> encodeTagged' "Reward" {}
+    where
+    encodeTagged' str x = encodeAeson' $ encodeTagged str x (Op encodeAeson)
