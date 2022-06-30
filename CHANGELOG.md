@@ -30,6 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `FromPlutusType` / `ToPlutusType` type classes.
 - `Contract.Wallet.mkGeroWallet` and `Contract.Wallet.mkNamiWallet` - `Aff` versions should be used instead.
 - Protocol param update setters for the decentralisation constant (`set_d`) and the extra entropy (`set_extra_entropy`).
+- `AbsSlot` and related functions have been removed in favour of `Slot`.
 
 ### Changed
 
