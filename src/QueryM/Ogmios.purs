@@ -1,8 +1,7 @@
 -- | Provides types and instances to create Ogmios requests and decode
 -- | its responses.
 module QueryM.Ogmios
-  ( AbsSlot(..)
-  , ChainOrigin(..)
+  ( ChainOrigin(..)
   , ChainPoint(..)
   , ChainTipQR(..)
   , CostModel
@@ -100,6 +99,7 @@ import QueryM.JsonWsp
   , JsonWspRequest
   , mkCallType
   )
+import Serialization.Address (Slot)
 import Type.Proxy (Proxy(Proxy))
 import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray, hexToByteArray)
@@ -310,8 +310,12 @@ instance EncodeAeson EraSummary where
 newtype EraSummaryTime = EraSummaryTime
   { time :: RelativeTime -- 0-18446744073709552000, The time is relative to the
   -- start time of the network.
-  , slot :: AbsSlot -- 0-18446744073709552000, An absolute slot number. don't
-  -- use `Slot` because Slot is bounded by UInt ~ 0-4294967295.
+  , slot :: Slot -- An absolute slot number
+  -- Ogmios returns a number 0-18446744073709552000 but our `Slot` is a Rust
+  -- u64 which has precision up to 18446744073709551615 (note 385 difference)
+  -- we treat this as neglible instead of defining `AbsSlot BigInt`. See
+  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/632 for
+  -- details.
   , epoch :: Epoch -- 0-18446744073709552000, an epoch number or length, don't
   -- use `Cardano.Types.Epoch` because Epoch is bounded by UInt also.
   }
@@ -351,19 +355,6 @@ derive newtype instance EncodeAeson RelativeTime
 
 instance Show RelativeTime where
   show (RelativeTime rt) = showWithParens "RelativeTime" rt
-
--- | Absolute slot relative to SystemStart. [ 0 .. 18446744073709552000 ]
-newtype AbsSlot = AbsSlot BigInt
-
-derive instance Generic AbsSlot _
-derive instance Newtype AbsSlot _
-derive newtype instance Eq AbsSlot
-derive newtype instance Ord AbsSlot
-derive newtype instance DecodeAeson AbsSlot
-derive newtype instance EncodeAeson AbsSlot
-
-instance Show AbsSlot where
-  show (AbsSlot as) = showWithParens "AbsSlot" as
 
 -- | An epoch number or length with greater precision for Ogmios than
 -- | `Cardano.Types.Epoch`. [ 0 .. 18446744073709552000 ]
@@ -1001,8 +992,8 @@ instance Show ChainOrigin where
 
 -- | A point on the chain, identified by a slot and a block header hash
 type ChainPoint =
-  { slot :: AbsSlot -- I think we need to use `AbsSlot` here, 18446744073709552000
-  -- is outside of `Slot` range.
+  { slot :: Slot -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/632
+  -- for details on why we lose a neglible amount of precision.
   , hash :: OgmiosBlockHeaderHash
   }
 
