@@ -149,10 +149,9 @@ withLockedTransactionInputs
   -> m a
 withLockedTransactionInputs t f = do
   used <- lockTransactionInputs t
-  res <- catchError f \e -> do
+  catchError f \e -> do
     unlockTxOutKeys used
     throwError e
-  pure res
 
 -- | Remove transaction's inputs used marks.
 unlockTransactionInputs

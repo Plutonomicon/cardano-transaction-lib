@@ -73,11 +73,11 @@ main = launchAff_ $ do
     ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     ubTx2 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
 
-    _ <- withBalancedAndSignedTxs [ ubTx1, ubTx2 ] $ \txs -> do
+    withBalancedAndSignedTxs [ ubTx1, ubTx2 ] $ \txs -> do
       locked <- getLockedInputs
       logInfo' $ "Locked inputs inside bracket (should be nonempty): " <> show
         locked
-      traverse submitAndLog txs
+      traverse_ submitAndLog txs
 
     locked <- getLockedInputs
     logInfo' $ "Locked inputs after bracket (should be empty): " <> show locked
