@@ -39,7 +39,7 @@ import Node.Path (FilePath)
 import Test.Spec (Spec, describe, it, pending)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter (consoleReporter)
-import Test.Spec.Runner (runSpec', defaultConfig)
+import Test.Spec.Runner (defaultConfig, runSpec')
 import TestM (TestPlanM)
 import Type.Proxy (Proxy)
 

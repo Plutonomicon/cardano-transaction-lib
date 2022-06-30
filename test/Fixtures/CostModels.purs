@@ -1,66 +1,20 @@
-module ProtocolParametersAlonzo
-  ( adaOnlyWords
-  , coinSize
-  , costModels
-  , lovelacePerUTxOWord
-  , minAdaTxOut
-  , pidSize
-  , protocolParamUTxOCostPerWord
-  , utxoEntrySizeWithoutVal
+module Test.Fixtures.CostModels
+  ( costModelsFixture1
   ) where
 
 import Prelude
 
-import Cardano.Types.Transaction
-  ( Costmdls(Costmdls)
-  , CostModel(CostModel)
-  , Language(PlutusV1)
-  )
-import Cardano.Types.Value (Coin(Coin))
-import Data.BigInt (BigInt, fromInt)
 import Data.Map as Map
 import Data.Tuple.Nested ((/\))
+import Cardano.Types.Transaction
+  ( CostModel(CostModel)
+  , Costmdls(Costmdls)
+  , Language(PlutusV1)
+  )
 import Data.UInt as UInt
 
--- https://playground.plutus.iohkdev.io/doc/haddock/plutus-pab/html/src/Cardano.Api.ProtocolParameters.html
--- Shelley params, is this unchanged?
-protocolParamUTxOCostPerWord :: Coin
-protocolParamUTxOCostPerWord = Coin $ fromInt 1
-
--- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0028
-lovelacePerUTxOWord :: Coin
-lovelacePerUTxOWord = Coin $ fromInt 34482
-
--- words
--- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
-utxoEntrySizeWithoutVal :: BigInt
-utxoEntrySizeWithoutVal = fromInt 27
-
--- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
-pidSize :: BigInt
-pidSize = fromInt 28
-
--- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
-coinSize :: BigInt
-coinSize = fromInt 2
-
--- Minimum required Ada for each tx output.
-minAdaTxOut :: Coin
-minAdaTxOut = Coin $ fromInt 2_000_000
-
--- An ada-only UTxO entry is 29 words. More details about min utxo
--- calculation can be found here:
--- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0028#rationale-for-parameter-choices
-adaOnlyWords :: BigInt
-adaOnlyWords = fromInt 29
-
-costModels :: Costmdls
-costModels = Costmdls $ Map.fromFoldable
-  -- Note that the ordering of the cost models does not match the ordering of
-  -- of the keys in the JSON-encoded protocol params
-  --
-  -- See https://github.com/Emurgo/cardano-serialization-lib/issues/281 for
-  -- more details on the ordering below
+costModelsFixture1 :: Costmdls
+costModelsFixture1 = Costmdls $ Map.fromFoldable
   [ PlutusV1 /\
       ( CostModel $
           UInt.fromInt <$>
