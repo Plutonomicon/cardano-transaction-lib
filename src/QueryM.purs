@@ -32,9 +32,11 @@ module QueryM
   , listeners
   , postAeson
   , mkDatumCacheWebSocketAff
+  , queryDispatch
+  , defaultMessageListener
+  , mkListenerSet
   , mkOgmiosRequest
   , mkOgmiosWebSocketAff
-  , mkWebSocketAff
   , mkRequest
   , module ServerConfig
   , ownPaymentPubKeyHash
@@ -650,38 +652,6 @@ mkOgmiosWebSocket lvl serverCfg cb = do
   logger :: LogLevel -> String -> Effect Unit
   logger = logString lvl
 
--- A simple websocket for testing
--- TODO Move to test
--- TODO Alternatively, generalized
-mkWebSocket
-  :: forall a b
-   . DecodeAeson b
-  => LogLevel
-  -> ServerConfig
-  -> (Either Error (WebSocket (ListenerSet a b)) -> Effect Unit)
-  -> Effect (Error -> Effect Unit)
-mkWebSocket lvl serverCfg cb = do
-  dispatchMap <- createMutableDispatch
-  pendingRequests <- createPendingRequests
-  let
-    md = [ queryDispatch dispatchMap ]
-  ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
-  let
-    sendRequest = _wsSend ws (logString lvl Debug)
-    onError = do
-      logString lvl Debug "WS error occured, resending requests"
-      Ref.read pendingRequests >>= traverse_ sendRequest
-  _onWsConnect ws do
-    _wsWatch ws (logger Debug) onError
-    _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
-    _onWsError ws (logger Error) $ const onError
-    cb $ Right $ WebSocket ws
-      (mkListenerSet dispatchMap pendingRequests)
-  pure $ \err -> cb $ Left $ err
-  where
-  logger :: LogLevel -> String -> Effect Unit
-  logger = logString lvl
-
 mkDatumCacheWebSocket
   :: LogLevel
   -> ServerConfig
@@ -727,15 +697,6 @@ mkDatumCacheWebSocketAff lvl = makeAff
 mkOgmiosWebSocketAff :: LogLevel -> ServerConfig -> Aff OgmiosWebSocket
 mkOgmiosWebSocketAff lvl = makeAff <<< map (map (Canceler <<< (map liftEffect)))
   <<< mkOgmiosWebSocket lvl
-
-mkWebSocketAff
-  :: forall a b
-   . DecodeAeson b
-  => LogLevel
-  -> ServerConfig
-  -> Aff (WebSocket (ListenerSet a b))
-mkWebSocketAff lvl = makeAff <<< map (map (Canceler <<< (map liftEffect))) <<<
-  mkWebSocket lvl
 
 -- getter
 underlyingWebSocket :: forall (a :: Type). WebSocket a -> JsWebSocket

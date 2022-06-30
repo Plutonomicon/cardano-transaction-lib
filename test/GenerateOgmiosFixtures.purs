@@ -2,26 +2,84 @@ module Test.GenerateOgmiosFixtures where
 
 import Prelude
 
-import Effect (Effect)
-import Effect.Aff (launchAff_)
-import QueryM (WebSocket(..), defaultOgmiosWsConfig, mkRequest, mkWebSocketAff)
-
-import Aeson
-  ( class EncodeAeson
-  , Aeson
-  , stringifyAeson
-  )
+import Aeson (class DecodeAeson, class EncodeAeson, Aeson, stringifyAeson)
+import Contract.Monad (ListenerSet)
 import Control.Parallel (parTraverse)
+import Data.Either (Either(..))
 import Data.Log.Level (LogLevel(..))
-import Data.Traversable (for_)
+import Data.Traversable (for_, traverse_)
+import Effect (Effect)
+import Effect.Aff (Aff, Canceler(..), launchAff_, makeAff)
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
+import Effect.Exception (Error, throw)
+import Effect.Ref as Ref
+import Helpers (logString)
+import JsWebSocket
+  ( _mkWebSocket
+  , _onWsConnect
+  , _onWsError
+  , _onWsMessage
+  , _wsSend
+  , _wsWatch
+  )
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff (writeTextFile)
 import Node.Path (concat)
+import QueryM
+  ( WebSocket(..)
+  , defaultMessageListener
+  , defaultOgmiosWsConfig
+  , mkListenerSet
+  , mkRequest
+  , queryDispatch
+  )
 import QueryM.JsonWsp (JsonWspCall)
 import QueryM.Ogmios (mkOgmiosCallType)
+import QueryM.ServerConfig (ServerConfig, mkWsUrl)
 import Type.Prelude (Proxy(..))
+import Types.MultiMap as MultiMap
+import Data.Map as Map
+
+-- A simple websocket for testing
+-- TODO Generalize websocket constructors using type classes traversing rows
+-- to factor mk{Ogmios{DatumCache,},}WebSocket into a single implementation
+mkWebSocket
+  :: forall a b
+   . DecodeAeson b
+  => LogLevel
+  -> ServerConfig
+  -> (Either Error (WebSocket (ListenerSet a b)) -> Effect Unit)
+  -> Effect (Error -> Effect Unit)
+mkWebSocket lvl serverCfg cb = do
+  dispatchMap <- Ref.new MultiMap.empty
+  pendingRequests <- Ref.new Map.empty
+  let
+    md = [ queryDispatch dispatchMap ]
+  ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
+  let
+    sendRequest = _wsSend ws (logString lvl Debug)
+    onError = do
+      logString lvl Debug "WS error occured, resending requests"
+      Ref.read pendingRequests >>= traverse_ sendRequest
+  _onWsConnect ws do
+    _wsWatch ws (logger Debug) onError
+    _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
+    _onWsError ws (logger Error) $ const onError
+    cb $ Right $ WebSocket ws
+      (mkListenerSet dispatchMap pendingRequests)
+  pure $ \err -> cb $ Left $ err
+  where
+  logger :: LogLevel -> String -> Effect Unit
+  logger = logString lvl
+
+mkWebSocketAff
+  :: forall a b
+   . DecodeAeson b
+  => LogLevel
+  -> ServerConfig
+  -> Aff (WebSocket (ListenerSet a b))
+mkWebSocketAff lvl = makeAff <<< map (map (Canceler <<< (map liftEffect))) <<<
+  mkWebSocket lvl
 
 foreign import md5 :: String -> String
 
