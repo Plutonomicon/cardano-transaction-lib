@@ -21,8 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `mkKeyWalletFromFile` helper to use `cardano-cli`-style `skey`s.
 - Single `Plutus.Conversion` module exposing all `(Type <-> Plutus Type)` conversion functions.
 - Support for using a `PrivateKey` as a `Wallet`.
+- `getProtocolParameters` call to retrieve current protocol parameters from Ogmios ([#541](https://github.com/Plutonomicon/cardano-transaction-lib/issues/541))
+- `Contract.Utxos.getWalletBalance` call to get all available assets as a single `Value` ([#590](https://github.com/Plutonomicon/cardano-transaction-lib/issues/590))
 - `balanceAndSignTxs` balances and signs multiple transactions while taking care to use transaction inputs only once.
-- `getProtocolParameters` call to retrieve current protocol parameters from Ogmios (#541)
 - Ability to load stake keys from files when using `KeyWallet` ([#635](https://github.com/Plutonomicon/cardano-transaction-lib/issues/635))
 
 ### Removed
@@ -33,10 +34,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
-- Upgraded `ogmios-datum-cache` to `54ad2964af07ea0370bf95c0fed71f60a778ead5` for more stable datum from datum hash (see [here](https://github.com/Plutonomicon/cardano-transaction-lib/issues/526) for more details).
+- Updated `ogmios-datum-cache` - bug fixes ([#542](https://github.com/Plutonomicon/cardano-transaction-lib/pull/542), [#526](https://github.com/Plutonomicon/cardano-transaction-lib/pull/526), [#589](https://github.com/Plutonomicon/cardano-transaction-lib/pull/589)).
+- Improved error response handling for Ogmios ([#584](https://github.com/Plutonomicon/cardano-transaction-lib/pull/584))
 - `balanceAndSignTx` now locks transaction inputs within the current `Contract` context. If the resulting transaction is never used, then the inputs must be freed with `unlockTransactionInputs`.
 - Updated `ogmios-datum-cache` - bug fixes (#542, #526, #589).
-- Improved error response handling for Ogmios (#584).
 - Made protocol parameters part of `QueryConfig`.
 - Refactored `Plutus.Conversion.Address` code (utilized CSL functionality).
 - Changed the underlying type of `Slot`, `TransactionIndex` and `CertificateIndex` to `BigNum`.
@@ -46,10 +47,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Fixed
 
 - Handling of invalid UTF8 byte sequences in the Aeson instance for `TokenName`.
-- `Types.ScriptLookups.require` function naming caused problems with WebPack (#593)
-- Bad logging in `queryDispatch` that didn't propagate error messages (#615).
-- `Types.ScriptLookups.require` function naming caused problems with WebPack (#593).
-- UTxO Min-Ada-Value calculation.
+- `Types.ScriptLookups.require` function naming caused problems with WebPack ([#593](https://github.com/Plutonomicon/cardano-transaction-lib/pull/593))
+- Bad logging in `queryDispatch` that didn't propagate error messages ([#615](https://github.com/Plutonomicon/cardano-transaction-lib/pull/615))
+- UTxO Min-Ada-Value calculation ([#611](https://github.com/Plutonomicon/cardano-transaction-lib/pull/611))
 
 ## [1.0.1] - 2022-06-17
 

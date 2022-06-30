@@ -9,6 +9,7 @@ import Contract.Prelude
 
 import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Monad (configWithLogLevel, launchAff_, runContract_)
+import Contract.Utxos (getWalletBalance)
 import Contract.Wallet (mkGeroWalletAff)
 import Data.Log.Level (LogLevel(Trace))
 import Serialization.Address (NetworkId(TestnetId))
@@ -20,3 +21,4 @@ main = launchAff_ $ do
   runContract_ cfg $ do
     log <<< show =<< getWalletAddress
     log <<< show =<< getWalletCollateral
+    log <<< show =<< getWalletBalance
