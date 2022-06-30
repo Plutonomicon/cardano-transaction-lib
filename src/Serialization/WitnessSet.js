@@ -2,9 +2,9 @@
 
 var lib;
 if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
-    lib = require('@ngua/cardano-serialization-lib-browser');
+    lib = require('@emurgo/cardano-serialization-lib-browser');
 } else {
-    lib = require('@ngua/cardano-serialization-lib-nodejs');
+    lib = require('@emurgo/cardano-serialization-lib-nodejs');
 }
 
 exports.newTransactionWitnessSet = () =>
@@ -30,17 +30,6 @@ exports.addVkeywitness = witnesses => witness => () =>
 
 exports.newPlutusScript = bytes => () =>
     lib.PlutusScript.new(bytes);
-
-exports._newPlutusScriptMaybe = maybe => bytes => () => {
-    var res = null;
-    try{
-        res = lib.PlutusScript.new(bytes);
-    }
-    catch(_){
-        return maybe.nothing;
-    }
-    return maybe.just(res);
-};
 
 exports.newPlutusScripts = () =>
     lib.PlutusScripts.new();

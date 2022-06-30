@@ -69,9 +69,20 @@ module Cardano.Types.Transaction
 
 import Prelude
 
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , JsonDecodeError(TypeMismatch)
+  , caseAesonString
+  , decodeAeson
+  , encodeAeson'
+  )
+import Cardano.Types.Value (Coin, NonAdaAsset, Value)
+import Control.Alternative ((<|>))
 import Control.Apply (lift2)
 import Data.Array (union)
 import Data.BigInt (BigInt)
+import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
 import Data.Lens.Iso.Newtype (_Newtype)
@@ -104,7 +115,6 @@ import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
 import Types.Transaction (DataHash, TransactionInput)
 import Types.TransactionMetadata (GeneralTransactionMetadata)
-import Cardano.Types.Value (Coin, NonAdaAsset, Value)
 
 --------------------------------------------------------------------------------
 -- `Transaction`
@@ -374,6 +384,22 @@ derive instance Eq Nonce
 instance Show Nonce where
   show = genericShow
 
+instance DecodeAeson Nonce where
+  decodeAeson aeson = (HashNonce <$> decodeAeson aeson) <|>
+    caseAesonString err
+      ( case _ of
+          "neutral" -> pure IdentityNonce
+          _ -> err
+      )
+      aeson
+    where
+    err :: Either JsonDecodeError Nonce
+    err = Left (TypeMismatch "Nonce")
+
+instance EncodeAeson Nonce where
+  encodeAeson' IdentityNonce = encodeAeson' "neutral"
+  encodeAeson' (HashNonce hash) = encodeAeson' hash
+
 type UnitInterval =
   { numerator :: BigNum
   , denominator :: BigNum
@@ -496,7 +522,7 @@ data Certificate
       , pledge :: BigNum
       , cost :: BigNum
       , margin :: UnitInterval
-      , reward_account :: RewardAddress
+      , rewardAccount :: RewardAddress
       , poolOwners :: Array Ed25519KeyHash
       , relays :: Array Relay
       , poolMetadata :: Maybe PoolMetadata
@@ -655,6 +681,7 @@ newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
 derive instance Generic Vkeywitness _
 derive newtype instance Eq Vkeywitness
+derive instance Newtype Vkeywitness _
 
 instance Show Vkeywitness where
   show = genericShow

@@ -152,6 +152,38 @@ let additions =
         , repo = "https://github.com/mlabs-haskell/purescript-aeson.git"
         , version = "69bd18c4a9cffdebc45c55d2448740721a91854c"
         }
+      , aeson-helpers =
+        { dependencies =
+          [ "aff"
+          , "argonaut-codecs"
+          , "argonaut-core"
+          , "arrays"
+          , "bifunctors"
+          , "contravariant"
+          , "control"
+          , "effect"
+          , "either"
+          , "enums"
+          , "foldable-traversable"
+          , "foreign-object"
+          , "maybe"
+          , "newtype"
+          , "ordered-collections"
+          , "prelude"
+          , "profunctor"
+          , "psci-support"
+          , "quickcheck"
+          , "record"
+          , "spec"
+          , "spec-quickcheck"
+          , "transformers"
+          , "tuples"
+          , "typelevel-prelude"
+          ]
+        , repo =
+            "https://github.com/mlabs-haskell/purescript-bridge-aeson-helpers.git"
+        , version = "44d0dae060cf78babd4534320192b58c16a6f45b"
+        }
       , sequences =
         { dependencies =
           [ "arrays"

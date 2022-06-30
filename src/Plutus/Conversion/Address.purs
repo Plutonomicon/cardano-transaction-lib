@@ -29,7 +29,7 @@ import Serialization.Hash
   )
 
 import Plutus.Types.Address
-  ( Address(Address)
+  ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
   ) as Plutus
 import Plutus.Types.AddressHeaderType
@@ -77,7 +77,7 @@ fromPlutusAddressWithNetworkTag (Plutus.AddressWithNetworkTag rec) =
 -- | CIP-0019: https://cips.cardano.org/cips/cip19/
 fromPlutusAddress
   :: NetworkId -> Plutus.Address -> Maybe CSL.Address
-fromPlutusAddress networkId addrPlutus@(Plutus.Address rec) =
+fromPlutusAddress networkId addrPlutus =
   case rec.addressCredential, rec.addressStakingCredential of
     -- %b0000 | network tag | key hash | key hash
     PubKeyCredential pkh, Just (StakingHash (PubKeyCredential skh)) ->
