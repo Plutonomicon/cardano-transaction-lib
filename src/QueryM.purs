@@ -133,6 +133,7 @@ import QueryM.ServerConfig
   ) as ServerConfig
 import QueryM.ServerConfig
   ( ServerConfig
+  , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
   , mkHttpUrl
@@ -162,7 +163,6 @@ import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
 import Types.Scripts (PlutusScript)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
-import Undefined (undefined)
 import Untagged.Union (asOneOf)
 import Wallet (Wallet(Gero, Nami, KeyWallet), Cip30Connection, Cip30Wallet)
 
@@ -217,8 +217,7 @@ runQueryM cfg =
 traceQueryConfig :: Aff DefaultQueryConfig
 traceQueryConfig = do
   ogmiosWs <- mkOgmiosWebSocketAff logLevel defaultOgmiosWsConfig
-  -- datumCacheWs <- mkDatumCacheWebSocketAff logLevel defaultDatumCacheWsConfig
-  let datumCacheWs = undefined
+  datumCacheWs <- mkDatumCacheWebSocketAff logLevel defaultDatumCacheWsConfig
   usedTxOuts <- newUsedTxOuts
   pure
     { ogmiosWs
@@ -582,12 +581,12 @@ type DatumCacheWebSocket = WebSocket DatumCacheListeners
 
 -- smart-constructor for OgmiosWebSocket in Aff Context
 -- (prevents sending messages before the websocket opens, etc)
-mkOgmiosWebSocket
+mkOgmiosWebSocket'
   :: LogLevel
   -> ServerConfig
   -> (Either Error OgmiosWebSocket -> Effect Unit)
-  -> Effect (Error -> Effect Unit)
-mkOgmiosWebSocket lvl serverCfg cb = do
+  -> Effect Canceler
+mkOgmiosWebSocket' lvl serverCfg cb = do
   utxoDispatchMap <- createMutableDispatch
   chainTipDispatchMap <- createMutableDispatch
   evaluateTxDispatchMap <- createMutableDispatch
@@ -647,17 +646,17 @@ mkOgmiosWebSocket lvl serverCfg cb = do
           mkListenerSet systemStartDispatchMap systemStartPendingRequests
 
       }
-  pure $ \err -> cb $ Left $ err
+  pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
   logger :: LogLevel -> String -> Effect Unit
   logger = logString lvl
 
-mkDatumCacheWebSocket
+mkDatumCacheWebSocket'
   :: LogLevel
   -> ServerConfig
   -> (Either Error DatumCacheWebSocket -> Effect Unit)
-  -> Effect (Error -> Effect Unit)
-mkDatumCacheWebSocket lvl serverCfg cb = do
+  -> Effect Canceler
+mkDatumCacheWebSocket' lvl serverCfg cb = do
   getDatumByHashDispatchMap <- createMutableDispatch
   getDatumsByHashesDispatchMap <- createMutableDispatch
   getDatumByHashPendingRequests <- createPendingRequests
@@ -684,19 +683,16 @@ mkDatumCacheWebSocket lvl serverCfg cb = do
       , getDatumsByHashes: mkListenerSet getDatumsByHashesDispatchMap
           getDatumsByHashesPendingRequests
       }
-  pure $ \err -> cb $ Left $ err
+  pure $ Canceler $ \err -> liftEffect $ cb $ Left $ err
   where
   logger :: LogLevel -> String -> Effect Unit
   logger = logString lvl
 
 mkDatumCacheWebSocketAff :: LogLevel -> ServerConfig -> Aff DatumCacheWebSocket
-mkDatumCacheWebSocketAff lvl = makeAff
-  <<< map (map (Canceler <<< (map liftEffect)))
-  <<< mkDatumCacheWebSocket lvl
+mkDatumCacheWebSocketAff lvl = makeAff <<< mkDatumCacheWebSocket' lvl
 
 mkOgmiosWebSocketAff :: LogLevel -> ServerConfig -> Aff OgmiosWebSocket
-mkOgmiosWebSocketAff lvl = makeAff <<< map (map (Canceler <<< (map liftEffect)))
-  <<< mkOgmiosWebSocket lvl
+mkOgmiosWebSocketAff lvl = makeAff <<< mkOgmiosWebSocket' lvl
 
 -- getter
 underlyingWebSocket :: forall (a :: Type). WebSocket a -> JsWebSocket
@@ -886,7 +882,7 @@ datumCacheMessageDispatch
   ]
 
 -- each query type will have a corresponding ref that lives in ReaderT config or similar
--- for utxoQueryDispatch, the `response` parameter will be `UtxoQR` or similar
+-- for utxoQueryDispatch, the `a` parameter will be `UtxoQR` or similar
 -- the add and remove listener functions will know to grab the correct mutable dispatch, if one exists.
 createMutableDispatch
   :: forall (response :: Type). Effect (DispatchIdMap response)
@@ -896,6 +892,9 @@ createPendingRequests
   :: forall (request :: Type). Effect (PendingRequests request)
 createPendingRequests = Ref.new Map.empty
 
+-- we parse out the utxo query result, then check if we're expecting a result
+-- with the provided id, if we are then we dispatch to the effect that is
+-- waiting on this result
 queryDispatch
   :: forall (response :: Type)
    . DecodeAeson response
