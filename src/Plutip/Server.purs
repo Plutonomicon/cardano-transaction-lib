@@ -41,10 +41,8 @@ import Effect.Aff.Retry
   , recovering
   )
 import Effect.Class (liftEffect)
-import Effect.Console (log)
 import Effect.Exception (throw)
 import Helpers (fromJustEff, fromRightEff)
-import Node.Buffer as Bf
 import Node.ChildProcess
   ( ChildProcess
   , defaultExecSyncOptions
@@ -229,7 +227,7 @@ startPostgresServer pgConfig _ = do
             <> " -d postgres"
         )
         defaultExecSyncOptions
-  liftEffect $ log =<< Bf.toString Encoding.UTF8 =<< execSync
+  liftEffect $ void $ execSync
     ( "psql -h " <> pgConfig.host <> " -p " <> UInt.toString pgConfig.port
         <> " -d postgres"
         <> " -c \"CREATE ROLE "
@@ -239,7 +237,7 @@ startPostgresServer pgConfig _ = do
         <> "';\""
     )
     defaultExecSyncOptions
-  liftEffect $ log =<< Bf.toString Encoding.UTF8 =<< execSync
+  liftEffect $ void $ execSync
     ( "createdb -h " <> pgConfig.host <> " -p " <> UInt.toString pgConfig.port
         <> " -U "
         <> pgConfig.user
