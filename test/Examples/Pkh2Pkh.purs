@@ -8,7 +8,16 @@ import Effect.Aff (delay)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (test)
-import Test.E2E.Helpers (NoShowPage(NoShowPage), clickButton, findNamiPage, injectJQueryAll, password, reactSetValue, retrieveJQuery, testPassword)
+import Test.E2E.Helpers
+  ( NoShowPage(NoShowPage)
+  , clickButton
+  , findNamiPage
+  , injectJQueryAll
+  , password
+  , reactSetValue
+  , retrieveJQuery
+  , testPassword
+  )
 import Test.E2E.Wallet (Mode(..), launchWithNami)
 import Test.E2E.Feedback (testFeedbackIsTrue)
 import Test.Spec.Assertions (shouldSatisfy)

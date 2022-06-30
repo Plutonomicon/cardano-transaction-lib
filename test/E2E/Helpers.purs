@@ -46,7 +46,8 @@ injectJQuery :: String -> Toki.Page -> Aff Foreign
 injectJQuery = Toki.unsafeEvaluateStringFunction
 
 jQueryCount :: Selector -> Toki.Page -> Aff Int
-jQueryCount selector page = unsafeFromForeign <$> doJQ selector (wrap "length") page
+jQueryCount selector page = unsafeFromForeign <$> doJQ selector (wrap "length")
+  page
 
 hasSelector :: Selector -> Toki.Page -> Aff Boolean
 hasSelector selector page = (_ > 0) <$> jQueryCount selector page
@@ -135,7 +136,8 @@ reactSetValue selector value page = void
         -- Nami uses react, which complicates things a bit
         "var input = $('" <> unwrap selector <> "').get(0);"
       , "var nativeInputValueSetter = "
-        <> " Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;"
+          <>
+            " Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;"
       , "nativeInputValueSetter.call(input, '" <> value <> "');"
       , "var ev2 = new Event('input', { bubbles: true});"
       , "input.dispatchEvent(ev2);"

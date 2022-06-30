@@ -2,10 +2,10 @@
 -- | in order to establish a communication between the Examples and E2E tests.
 -- | Retrieval must be called from Puppeteer, while publishing happens in the browser.
 module Test.E2E.Feedback
-       ( publishTestFeedback
-       , retrieveTestFeedback
-       , testFeedbackIsTrue
-       ) where
+  ( publishTestFeedback
+  , retrieveTestFeedback
+  , testFeedbackIsTrue
+  ) where
 
 import Effect (Effect)
 import Effect.Aff (Aff)
@@ -22,7 +22,9 @@ publishTestFeedback = liftEffect <<< _publishTestFeedback
 
 -- | Retrieve the feedback value
 retrieveTestFeedback :: Toki.Page -> Aff Foreign
-retrieveTestFeedback page = Toki.unsafeEvaluateStringFunction "window.ctlTestFeedback" page
+retrieveTestFeedback page = Toki.unsafeEvaluateStringFunction
+  "window.ctlTestFeedback"
+  page
 
 -- | Convenience function for boolean feedback
 testFeedbackIsTrue :: Toki.Page -> Aff Boolean

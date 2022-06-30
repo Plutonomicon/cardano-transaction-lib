@@ -82,7 +82,8 @@ suite = group "Nami" $ do
   test "getAlwaysSucceedsExample" $ do
     browser <- launchWithNami'
     page <- initializeNami browser
-    fgn <- Toki.unsafeEvaluateStringFunction "PS['Examples.AlwaysSucceeds']" page
+    fgn <- Toki.unsafeEvaluateStringFunction "PS['Examples.AlwaysSucceeds']"
+      page
     typeOf fgn `shouldEqual` "object"
 
 --    wallet <- mkNamiWalletAff
