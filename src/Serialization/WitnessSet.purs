@@ -56,12 +56,10 @@ import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Exception (throw)
 import FfiHelpers (ContainerHelper, containerHelper)
-import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.NativeScript (convertNativeScripts)
 import Serialization.PlutusData (convertPlutusData)
 import Serialization.Types
-  ( BigNum
-  , BootstrapWitness
+  ( BootstrapWitness
   , Ed25519Signature
   , ExUnits
   , NativeScripts
@@ -78,6 +76,8 @@ import Serialization.Types
   )
 import Serialization.Types (PlutusData) as PDS
 import Types.Aliases (Bech32String)
+import Types.BigNum (BigNum)
+import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData) as PD
 import Types.RedeemerTag as Tag
@@ -128,7 +128,7 @@ convertRedeemer :: T.Redeemer -> Effect Redeemer
 convertRedeemer (T.Redeemer { tag, index, "data": data_, exUnits }) = do
   tag' <- convertRedeemerTag tag
   index' <- maybe (throw "Failed to convert redeemer index") pure $
-    bigNumFromBigInt index
+    BigNum.fromBigInt index
   data' <- convertPlutusDataEffect data_
   exUnits' <- convertExUnits exUnits
   newRedeemer tag' index' data' exUnits'
@@ -148,8 +148,8 @@ convertRedeemerTag = _newRedeemerTag <<< case _ of
 convertExUnits :: T.ExUnits -> Effect ExUnits
 convertExUnits { mem, steps } =
   maybe (throw "Failed to construct ExUnits") pure do
-    mem' <- bigNumFromBigInt mem
-    steps' <- bigNumFromBigInt steps
+    mem' <- BigNum.fromBigInt mem
+    steps' <- BigNum.fromBigInt steps
     pure $ newExUnits mem' steps'
 
 convertBootstrap :: T.BootstrapWitness -> Effect BootstrapWitness

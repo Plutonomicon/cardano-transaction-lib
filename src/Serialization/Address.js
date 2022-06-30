@@ -7,7 +7,6 @@ if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
     CardanoWasm = require('@emurgo/cardano-serialization-lib-nodejs');
 }
 
-
 const callClassStaticMaybe = (classname, functionname) => maybe => input => {
     var ret = null;
     try {
@@ -94,9 +93,9 @@ exports.icarusFromKey = bip32pubkey => byronProtocolMagic => {
 
 exports.pointerAddressStakePointer = pa => {
     const pointerForeign = pa.stake_pointer();
-    return { slot: pointerForeign.slot(),
-             txIx: pointerForeign.tx_index(),
-             certIx: pointerForeign.cert_index() };
+    return { slot: pointerForeign.slot_bignum(),
+             txIx: pointerForeign.tx_index_bignum(),
+             certIx: pointerForeign.cert_index_bignum() };
 };
 
 // newEnterpriseAddress :: { network:: NetworkId, paymentCred :: StakeCredential } -> EnterpriseAddress
@@ -118,6 +117,6 @@ exports._baseAddress = netIdToInt => inpRec => {
 // newPointerAddress :: { network:: NetworkId, paymentCred :: StakeCredential, stakePointer :: Pointer } -> PointerAddress
 exports._pointerAddress = netIdToInt => inpRec => {
     const p =  inpRec.stakePointer;
-    const pointerForeign = CardanoWasm.Pointer.new(p.slot,p.txIx, p.certIx);
+    const pointerForeign = CardanoWasm.Pointer.new_pointer(p.slot, p.txIx, p.certIx);
     return CardanoWasm.PointerAddress.new(netIdToInt(inpRec.network), inpRec.paymentCred, pointerForeign);
 };

@@ -92,7 +92,6 @@ import Cardano.Types.Transaction
       , TimelockStart
       , TimelockExpiry
       )
-  , Nonce(HashNonce)
   , PoolMetadata(PoolMetadata)
   , PoolMetadataHash(PoolMetadataHash)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
@@ -153,7 +152,6 @@ import Serialization.Address
   , keyHashCredential
   , rewardAddress
   )
-import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.Hash
   ( Ed25519KeyHash
   , ScriptHash
@@ -161,9 +159,10 @@ import Serialization.Hash
   , ed25519KeyHashFromBytes
   , scriptHashFromBytes
   )
-import Serialization.Types (BigNum)
 import Test.Fixtures.CostModels (costModelsFixture1)
 import Types.Aliases (Bech32String)
+import Types.BigNum (BigNum)
+import Types.BigNum (fromBigInt, fromInt) as BigNum
 import Types.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
@@ -431,7 +430,7 @@ ed25519KeyHash1 :: Ed25519KeyHash
 ed25519KeyHash1 = unsafePartial $ fromJust $ ed25519KeyHashFromBech32 pkhBech32
 
 bigNumOne :: BigNum
-bigNumOne = unsafePartial $ fromJust $ bigNumFromBigInt $ BigInt.fromInt 1
+bigNumOne = unsafePartial $ fromJust $ BigNum.fromBigInt $ BigInt.fromInt 1
 
 rewardAddress1 :: RewardAddress
 rewardAddress1 = rewardAddress { network: TestnetId, paymentCred: stake1 }
@@ -457,9 +456,9 @@ proposedProtocolParameterUpdates1 = ProposedProtocolParameterUpdates $
         , expansionRate: Just { numerator: bigNumOne, denominator: bigNumOne }
         , treasuryGrowthRate: Just
             { numerator: bigNumOne, denominator: bigNumOne }
-        , d: Just { numerator: bigNumOne, denominator: bigNumOne }
-        , extraEntropy: Just $ HashNonce $ hexToByteArrayUnsafe
-            "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f6500000000"
+        , d: Nothing -- Just { numerator: bigNumOne, denominator: bigNumOne }
+        , extraEntropy: Nothing -- Just $ HashNonce $ hexToByteArrayUnsafe
+        --    "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f6500000000"
         , protocolVersion: Just
             [ { major: UInt.fromInt 1, minor: UInt.fromInt 1 } ]
         , minPoolCost: Just bigNumOne
@@ -506,7 +505,7 @@ txFixture4 =
                 }
             ]
         , fee: Coin $ BigInt.fromInt 177513
-        , ttl: Just $ Slot $ UInt.fromInt 123
+        , ttl: Just $ Slot $ BigNum.fromInt 123
         , certs: Just
             [ StakeRegistration stake1
             , StakeDeregistration stake1
@@ -578,7 +577,7 @@ txFixture4 =
         , auxiliaryDataHash: Just $ AuxiliaryDataHash
             $ byteArrayFromIntArrayUnsafe
             $ Array.replicate 32 0
-        , validityStartInterval: Just $ Slot $ UInt.fromInt 124
+        , validityStartInterval: Just $ Slot $ BigNum.fromInt 124
         , mint: Just $ Mint $ mkNonAdaAsset $ Map.fromFoldable
             [ currencySymbol1 /\ Map.fromFoldable [ tokenName1 /\ one ] ]
         , scriptDataHash: Nothing
@@ -656,25 +655,24 @@ txBinaryFixture4 =
   \00000000000000000000820682010182068201a18200581c1730b1b700d616d51555538e83d6\
   \7f13c113ad5f9b22212703482cb30105a1581de01730b1b700d616d51555538e83d67f13c113\
   \ad5f9b22212703482cb3010682a1581c5d677265fa5bb21ce6d8c7502aca70b9316d10e95861\
-  \1f3c6b758f65b6000101010219271003192710041903e8050106010701080109d81e8201010a\
-  \d81e8201010bd81e8201010cd81e8201010d820158205d677265fa5bb21ce6d8c7502aca70b9\
-  \316d10e958611f3c6b758f65000000000e8101011001110112a10098a61a000302590001011a\
-  \00060bc719026d00011a000249f01903e800011a000249f018201a0025cea81971f70419744d\
-  \186419744d186419744d186419744d186419744d186419744d18641864186419744d18641a00\
-  \0249f018201a000249f018201a000249f018201a000249f01903e800011a000249f018201a00\
-  \0249f01903e800081a000242201a00067e2318760001011a000249f01903e800081a000249f0\
-  \1a0001b79818f7011a000249f0192710011a0002155e19052e011903e81a000249f01903e801\
-  \1a000249f018201a000249f018201a000249f0182001011a000249f0011a000249f0041a0001\
-  \94af18f8011a000194af18f8011a0002377c190556011a0002bdea1901f1011a000249f01820\
-  \1a000249f018201a000249f018201a000249f018201a000249f018201a000249f018201a0002\
-  \42201a00067e23187600010119f04c192bd200011a000249f018201a000242201a00067e2318\
-  \760001011a000242201a00067e2318760001011a0025cea81971f704001a000141bb041a0002\
-  \49f019138800011a000249f018201a000302590001011a000249f018201a000249f018201a00\
-  \0249f018201a000249f018201a000249f018201a000249f018201a000249f018201a00330da7\
-  \01011382d81e820101d81e820101148201011582010116010107582000000000000000000000\
-  \0000000000000000000000000000000000000000000008187c09a1581c1d6445ddeda578117f\
-  \393848e685128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e010e81581c1c12\
-  \f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d533610f01a0f5f6"
+  \1f3c6b758f65b4000101010219271003192710041903e8050106010701080109d81e8201010a\
+  \d81e8201010bd81e8201010e8101011001110112a10098a61a000302590001011a00060bc719\
+  \026d00011a000249f01903e800011a000249f018201a0025cea81971f70419744d186419744d\
+  \186419744d186419744d186419744d186419744d18641864186419744d18641a000249f01820\
+  \1a000249f018201a000249f018201a000249f01903e800011a000249f018201a000249f01903\
+  \e800081a000242201a00067e2318760001011a000249f01903e800081a000249f01a0001b798\
+  \18f7011a000249f0192710011a0002155e19052e011903e81a000249f01903e8011a000249f0\
+  \18201a000249f018201a000249f0182001011a000249f0011a000249f0041a000194af18f801\
+  \1a000194af18f8011a0002377c190556011a0002bdea1901f1011a000249f018201a000249f0\
+  \18201a000249f018201a000249f018201a000249f018201a000249f018201a000242201a0006\
+  \7e23187600010119f04c192bd200011a000249f018201a000242201a00067e2318760001011a\
+  \000242201a00067e2318760001011a0025cea81971f704001a000141bb041a000249f0191388\
+  \00011a000249f018201a000302590001011a000249f018201a000249f018201a000249f01820\
+  \1a000249f018201a000249f018201a000249f018201a000249f018201a00330da701011382d8\
+  \1e820101d81e8201011482010115820101160101075820000000000000000000000000000000\
+  \000000000000000000000000000000000008187c09a1581c1d6445ddeda578117f393848e685\
+  \128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e010e81581c1c12f03c1ef2e9\
+  \35acc35ec2e6f96c650fd3bfba3e96550504d533610f01a0f5f6"
 
 utxoFixture1 :: ByteArray
 utxoFixture1 = hexToByteArrayUnsafe
@@ -1035,10 +1033,10 @@ nativeScriptFixture5 = ScriptNOfK 1
   [ nativeScriptFixture1, nativeScriptFixture2 ]
 
 nativeScriptFixture6 :: NativeScript
-nativeScriptFixture6 = TimelockStart $ Slot $ UInt.fromInt 1000
+nativeScriptFixture6 = TimelockStart $ Slot $ BigNum.fromInt 1000
 
 nativeScriptFixture7 :: NativeScript
-nativeScriptFixture7 = TimelockExpiry $ Slot $ UInt.fromInt 2000
+nativeScriptFixture7 = TimelockExpiry $ Slot $ BigNum.fromInt 2000
 
 keyHashBaseAddress :: { payment :: String, stake :: String } -> Address
 keyHashBaseAddress { payment, stake } = baseAddressToAddress $ baseAddress
