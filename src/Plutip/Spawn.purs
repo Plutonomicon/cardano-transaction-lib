@@ -41,16 +41,16 @@ spawnAndWaitForOutput
   -> (String -> NewOutputAction)
   -> Aff ChildProcess
 spawnAndWaitForOutput cmd args opts filter =
-  makeAff (spawnAndWait cmd args opts filter)
+  makeAff (spawnAndWaitForOutput' cmd args opts filter)
 
-spawnAndWait
+spawnAndWaitForOutput'
   :: String
   -> Array String
   -> SpawnOptions
   -> (String -> NewOutputAction)
   -> (Either Error ChildProcess -> Effect Unit)
   -> Effect Canceler
-spawnAndWait cmd args opts filter cont = do
+spawnAndWaitForOutput' cmd args opts filter cont = do
   child <- spawn cmd args opts
   onExit child $ const $ cont $ Left $ error $ "Process " <> cmd <> " exited"
   ref <- Ref.new ""

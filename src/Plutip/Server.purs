@@ -173,8 +173,12 @@ stopPlutipCluster cfg = do
   either (liftEffect <<< throw <<< show) pure res
 
 startOgmios :: PlutipConfig -> ClusterStartupParameters -> Aff ChildProcess
-startOgmios cfg params = liftEffect $ spawn "ogmios" ogmiosArgs
-  defaultSpawnOptions
+startOgmios cfg params = do
+  -- We wait for any output, because CTL-server tries to connect to Ogmios
+  -- repeatedly, and we can just wait for CTL-server to connect, instead of
+  -- waiting for Ogmios first.
+  spawnAndWaitForOutput "ogmios" ogmiosArgs defaultSpawnOptions
+    $ pure Success
   where
   ogmiosArgs :: Array String
   ogmiosArgs =
@@ -330,11 +334,20 @@ startCtlServer cfg params = do
       , UInt.toString cfg.ctlServerConfig.port
       , "--node-socket"
       , params.nodeSocketPath
+      , "--ogmios-host"
+      , cfg.ogmiosConfig.host
+      , "--ogmios-port"
+      , UInt.toString cfg.ogmiosConfig.port
       ] <> getNetworkInfoArgs networkInfo
-  liftEffect $ spawn "ctl-server" ctlServerArgs defaultSpawnOptions
+  spawnAndWaitForOutput "ctl-server" ctlServerArgs defaultSpawnOptions
+    -- Wait for "Successfully connected to Ogmios" string in the output
+    $ String.indexOf (Pattern "Successfully connected to Ogmios")
+        >>> maybe NoOp (const Success)
+
   where
   getNetworkInfoArgs :: NetworkInfo -> Array String
-  getNetworkInfoArgs Mainnet = []
+  getNetworkInfoArgs Mainnet =
+    [ "--network-id", "mainnet" ]
   getNetworkInfoArgs (Testnet networkId) =
     [ "--network-id", Int.toStringAs Int.decimal networkId ]
 
