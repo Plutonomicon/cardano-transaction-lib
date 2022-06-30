@@ -29,7 +29,6 @@ import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt as UInt
-import Deserialization.BigNum (bigNumToBigInt)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization (toBytes)
 import Serialization.Address (Address)
@@ -37,7 +36,6 @@ import Serialization.Hash (ScriptHash, scriptHashToBytes)
 import Serialization.Types
   ( AssetName
   , Assets
-  , BigNum
   , DataHash
   , MultiAsset
   , TransactionHash
@@ -46,6 +44,8 @@ import Serialization.Types
   , TransactionUnspentOutput
   , Value
   )
+import Types.BigNum (BigNum)
+import Types.BigNum (toBigInt) as BigNum
 import Types.ByteArray (ByteArray)
 import Types.Transaction
   ( DataHash(DataHash)
@@ -83,7 +83,7 @@ convertOutput output = do
 
 convertValue :: Value -> Maybe T.Value
 convertValue value = do
-  coin <- bigNumToBigInt $ getCoin value
+  coin <- BigNum.toBigInt $ getCoin value
   -- multiasset is optional
   multiasset <- for (getMultiAsset maybeFfiHelper value) \multiasset -> do
     let
@@ -111,7 +111,7 @@ convertValue value = do
               map Map.fromFoldable
         )
     -- convert BigNum values, possibly failing
-    traverse (traverse bigNumToBigInt) multiasset''
+    traverse (traverse BigNum.toBigInt) multiasset''
   pure
     $ T.mkValue (T.Coin coin)
     $ T.mkNonAdaAsset (fromMaybe Map.empty multiasset)

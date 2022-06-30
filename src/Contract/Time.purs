@@ -56,7 +56,6 @@ import Types.Interval
       , PosixTimeBeforeSystemStart
       , StartTimeGreaterThanTime
       , EndSlotLessThanSlotOrModNonZero
-      , CannotConvertAbsSlotToSlot
       , CannotGetBigIntFromNumber'
       )
   , RelTime(RelTime)
@@ -117,4 +116,3 @@ getEraSummaries = wrapContract EraSummaries.getEraSummaries
 -- | https://ogmios.dev/api/ under "systemStart" query
 getSystemStart :: forall (r :: Row Type). Contract r SystemStart
 getSystemStart = wrapContract SystemStart.getSystemStart
-

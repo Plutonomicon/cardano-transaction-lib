@@ -100,8 +100,8 @@ import QueryM.JsonWsp
   , JsonWspRequest
   , mkCallType
   )
-import Serialization.BigNum as BigNum
 import Type.Proxy (Proxy(Proxy))
+import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray, hexToByteArray)
 import Types.CborBytes (CborBytes, cborBytesToHex)
 import Types.Natural (Natural)
@@ -494,8 +494,8 @@ instance DecodeAeson PParamRational where
 
 rationalToSubcoin :: PParamRational -> Maybe SubCoin
 rationalToSubcoin (PParamRational rat) = do
-  numerator <- BigNum.bigNumFromBigInt $ Rational.numerator rat
-  denominator <- BigNum.bigNumFromBigInt $ Rational.denominator rat
+  numerator <- BigNum.fromBigInt $ Rational.numerator rat
+  denominator <- BigNum.fromBigInt $ Rational.denominator rat
   pure { numerator, denominator }
 
 -- | A type that corresponds to Ogmios response.

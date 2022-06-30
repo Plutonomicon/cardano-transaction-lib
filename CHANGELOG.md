@@ -28,25 +28,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 - `FromPlutusType` / `ToPlutusType` type classes.
 - `Contract.Wallet.mkGeroWallet` and `Contract.Wallet.mkNamiWallet` - `Aff` versions should be used instead.
+- Protocol param update setters for the decentralisation constant (`set_d`) and the extra entropy (`set_extra_entropy`).
 
 ### Changed
 
 - Upgraded `ogmios-datum-cache` to `54ad2964af07ea0370bf95c0fed71f60a778ead5` for more stable datum from datum hash (see [here](https://github.com/Plutonomicon/cardano-transaction-lib/issues/526) for more details).
 - `balanceAndSignTx` now locks transaction inputs within the current `Contract` context. If the resulting transaction is never used, then the inputs must be freed with `unlockTransactionInputs`.
 - Updated `ogmios-datum-cache` - bug fixes (#542, #526, #589).
-- Improved error response handling for Ogmios (#584)
+- Improved error response handling for Ogmios (#584).
+- Made protocol parameters part of `QueryConfig`.
+- Refactored `Plutus.Conversion.Address` code (utilized CSL functionality).
+- Changed the underlying type of `Slot`, `TransactionIndex` and `CertificateIndex` to `BigNum`.
+- Moved transaction finalization logic to `balanceTx`.
+- Upgraded to CSL v11.0.0-beta.1.
 
 ### Fixed
 
 - Handling of invalid UTF8 byte sequences in the Aeson instance for `TokenName`.
 - `Types.ScriptLookups.require` function naming caused problems with WebPack (#593)
-- Bad logging in `queryDispatch` that didn't propagate error messages (#615)
+- Bad logging in `queryDispatch` that didn't propagate error messages (#615).
+- `Types.ScriptLookups.require` function naming caused problems with WebPack (#593).
+- UTxO Min-Ada-Value calculation.
 
 ## [1.0.1] - 2022-06-17
 
 ### Fixed
 
-- `mustBeSignedBy` now sets the `Ed25519KeyHash` corresponding to the provided `PaymentPubKeyHash` directly. Previously, this constraint would fail as there was no way to provide a matching `PaymentPubKey` as a lookup. Note that this diverges from Plutus as the `paymentPubKey` lookup is always required in that implementation
+- `mustBeSignedBy` now sets the `Ed25519KeyHash` corresponding to the provided `PaymentPubKeyHash` directly. Previously, this constraint would fail as there was no way to provide a matching `PaymentPubKey` as a lookup. Note that this diverges from Plutus as the `paymentPubKey` lookup is always required in that implementation.
 
 ## [1.0.0] - 2022-06-10
 
