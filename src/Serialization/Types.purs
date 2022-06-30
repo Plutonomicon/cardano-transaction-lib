@@ -88,6 +88,7 @@ module Serialization.Types
 import Prelude
 
 import Data.Function (on)
+import Aeson (class EncodeAeson, encodeAeson')
 import Types.ByteArray (ByteArray, byteArrayToHex)
 
 foreign import data AssetName :: Type
@@ -181,11 +182,17 @@ instance Show BigNum where
 instance Eq BigNum where
   eq = eq `on` show
 
+instance EncodeAeson BigNum where
+  encodeAeson' = _to_str >>> encodeAeson'
+
 instance Show VRFKeyHash where
   show = _vrfKeyHashBytes >>> byteArrayToHex
 
 instance Eq VRFKeyHash where
   eq = eq `on` show
+
+instance EncodeAeson VRFKeyHash where
+  encodeAeson' = _vrfKeyHashBytes >>> byteArrayToHex >>> encodeAeson'
 
 foreign import _to_str :: forall a. a -> String
 -- We can't use ToBytes class here, because of cyclic dependencies

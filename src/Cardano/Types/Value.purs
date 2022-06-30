@@ -52,11 +52,14 @@ import Prelude hiding (join)
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
+  , Aeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonObject
+  , encodeAeson
   , encodeAeson'
   , getField
   )
+import Aeson.Encode (dictionary)
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Data.Array (cons, filter)
@@ -75,6 +78,7 @@ import Data.Map (keys, lookup, Map, toUnfoldable, unions, values)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Op (Op(Op))
 import Data.Set (Set)
 import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This))
@@ -129,6 +133,7 @@ derive instance Generic Coin _
 derive instance Newtype Coin _
 derive newtype instance Eq Coin
 derive newtype instance Ord Coin
+derive newtype instance EncodeAeson Coin
 
 instance Show Coin where
   show (Coin c) = showWithParens "Coin" c
@@ -230,6 +235,7 @@ mkUnsafeAdaSymbol byteArr =
 --------------------------------------------------------------------------------
 -- NonAdaAsset
 --------------------------------------------------------------------------------
+
 newtype NonAdaAsset = NonAdaAsset (Map CurrencySymbol (Map TokenName BigInt))
 
 derive instance Newtype NonAdaAsset _
@@ -265,6 +271,12 @@ instance Split NonAdaAsset where
         mp'
 
     npos /\ pos = mapThese splitIntl mp
+
+instance EncodeAeson NonAdaAsset where
+  encodeAeson' (NonAdaAsset m) = encodeAeson' $ encodeNestedMap m
+    where
+    (Op encodeMap) = dictionary (Op encodeAeson) (Op encodeAeson)
+    (Op encodeNestedMap) = dictionary (Op encodeAeson) (Op encodeMap)
 
 -- We shouldn't need this check if we don't export unsafeAdaSymbol etc.
 -- | Create a singleton `NonAdaAsset` which by definition should be safe since
@@ -362,6 +374,12 @@ instance Split Value where
   split (Value coin nonAdaAsset) =
     bimap (flip Value mempty) (flip Value mempty) (split coin)
       <> bimap (Value mempty) (Value mempty) (split nonAdaAsset)
+
+instance EncodeAeson Value where
+  encodeAeson' (Value coin nonAdaAsset) = encodeAeson'
+    { coin
+    , nonAdaAsset
+    }
 
 -- | Create a `Value` from `Coin` and `NonAdaAsset`, the latter should have been
 -- | constructed safely at this point.

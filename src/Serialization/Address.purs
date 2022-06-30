@@ -84,12 +84,14 @@ module Serialization.Address
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, encodeAeson')
+import Aeson (class DecodeAeson, class EncodeAeson, encodeAeson, encodeAeson')
+import Aeson.Encode (encodeTagged)
 import Control.Alt ((<|>))
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Op (Op(Op))
 import Data.Show.Generic (genericShow)
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -177,6 +179,9 @@ foreign import data Address :: Type
 
 instance Show Address where
   show a = "(Address " <> addressBech32 a <> ")"
+
+instance EncodeAeson Address where
+  encodeAeson' a = encodeAeson' $ addressBech32 a
 
 showVia
   :: forall (a :: Type) (b :: Type). Show b => String -> (a -> b) -> a -> String
@@ -277,6 +282,9 @@ instance FromData RewardAddress where
 instance ToData RewardAddress where
   toData = toData <<< rewardAddressBytes
 
+instance EncodeAeson RewardAddress where
+  encodeAeson' = encodeAeson' <<< rewardAddressBech32
+
 foreign import data StakeCredential :: Type
 
 instance Eq StakeCredential where
@@ -295,6 +303,10 @@ instance FromData StakeCredential where
 
 instance ToData StakeCredential where
   toData = toData <<< unwrap <<< stakeCredentialToBytes
+
+instance EncodeAeson StakeCredential where
+  encodeAeson' = withStakeCredential
+    { onKeyHash: encodeAeson', onScriptHash: encodeAeson' }
 
 foreign import _addressFromBech32
   :: MaybeFfiHelper -> Bech32String -> Maybe Address
@@ -354,6 +366,11 @@ newtype ByronProtocolMagic = ByronProtocolMagic UInt
 data NetworkId
   = TestnetId
   | MainnetId
+
+instance EncodeAeson NetworkId where
+  encodeAeson' = case _ of
+    TestnetId -> encodeAeson' $ encodeTagged "TestnetId" {} (Op encodeAeson)
+    MainnetId -> encodeAeson' $ encodeTagged "MainnetId" {} (Op encodeAeson)
 
 networkIdtoInt :: NetworkId -> Int
 networkIdtoInt = case _ of

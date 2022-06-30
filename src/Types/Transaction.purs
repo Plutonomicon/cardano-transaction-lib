@@ -8,6 +8,7 @@ module Types.Transaction
 
 import Prelude
 
+import Aeson (class EncodeAeson)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype)
@@ -26,6 +27,7 @@ newtype TransactionInput = TransactionInput
 derive instance Newtype TransactionInput _
 derive instance Generic TransactionInput _
 derive newtype instance Eq TransactionInput
+derive newtype instance EncodeAeson TransactionInput
 
 -- Potential fix me: the below is based on a small sample of smart contract
 -- transactions, so fix this as required.
@@ -61,6 +63,7 @@ newtype TransactionHash = TransactionHash ByteArray
 derive instance Generic TransactionHash _
 derive instance Newtype TransactionHash _
 derive newtype instance Eq TransactionHash
+derive newtype instance EncodeAeson TransactionHash
 
 -- This is not newtyped derived because it will be used for ordering a
 -- `TransactionInput`, we want lexicographical ordering on the hexstring.
@@ -88,6 +91,7 @@ derive newtype instance Eq DataHash
 derive newtype instance FromData DataHash
 derive newtype instance Ord DataHash
 derive newtype instance ToData DataHash
+derive newtype instance EncodeAeson DataHash
 
 instance Show DataHash where
   show = genericShow
