@@ -1,4 +1,4 @@
-module Test.UnitTest (main, testPlan) where
+module Test.Unit (main, testPlan) where
 
 import Prelude
 

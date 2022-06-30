@@ -38,8 +38,8 @@ import Node.Path (FilePath)
 import Test.Spec (Spec, describe, it, pending)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter (consoleReporter)
-import Test.Spec.Runner as SpecRunner
 import Test.Spec.Runner (defaultConfig, runSpec')
+import Test.Spec.Runner as SpecRunner
 import TestM (TestPlanM)
 import Type.Proxy (Proxy)
 
@@ -52,7 +52,7 @@ foreign import unsafeCall
 interpret' :: SpecRunner.Config -> TestPlanM Unit -> Aff Unit
 interpret' config spif = do
   plan <- planT spif
-  runSpec' defaultConfig { timeout = Just (wrap 10000.0) } [ consoleReporter ] $
+  runSpec' config [ consoleReporter ] $
     go plan
   where
   go :: Plan (Const Void) (Aff Unit) -> Spec Unit
@@ -67,7 +67,7 @@ interpret' config spif = do
 -- | is then interpreted here in a pure context, mainly due to some painful types
 -- | in Test.Spec which prohibit effects.
 interpret :: TestPlanM Unit -> Aff Unit
-interpret = interpret' defaultConfig
+interpret = interpret' defaultConfig { timeout = Just (wrap 10000.0) }
 
 -- | Test a boolean value, throwing the provided string as an error if `false`
 assertTrue
@@ -127,4 +127,3 @@ aesonRoundTrip = decodeAeson <<< encodeAeson
 readAeson :: forall (m :: Type -> Type). MonadEffect m => FilePath -> m Aeson
 readAeson = errEither <<< parseJsonStringToAeson
   <=< liftEffect <<< readTextFile UTF8
-
