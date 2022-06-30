@@ -27,7 +27,7 @@
       flake = false;
     };
 
-    
+
     # for testing the ogmios parser
     ogmios-fixtures = {
       url = "github:CardanoSolutions/ogmios?ref=master";
@@ -409,7 +409,7 @@
 
             docs = project.buildSearchablePursDocs;
 
-            ogmios-fixtures = project.buildOgmiosFixtures {};
+            ogmios-fixtures = project.buildOgmiosFixtures { };
           };
 
           launchDocs =
