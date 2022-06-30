@@ -71,7 +71,7 @@ import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.List (List(Nil, Cons))
-import Data.Map (Map, empty, fromFoldable, lookup, mapMaybe, singleton, union)
+import Data.Map (Map, empty, fromFoldable, lookup, singleton, union)
 import Data.Map (insert, toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
@@ -105,7 +105,6 @@ import Transaction
   , attachRedeemer
   , setScriptDataHash
   )
-import TxOutput (transactionOutputToScriptOutput)
 import Types.Any (Any)
 import Types.Datum (DataHash, Datum)
 import Types.Interval
@@ -685,9 +684,8 @@ updateUtxoIndex = runExceptT do
   networkId <- lift getNetworkId
   cTxOutputs <- liftM CannotConvertFromPlutusType
     (traverse (fromPlutusType <<< Tuple networkId) txOutputs)
-  let txOutsMap = mapMaybe transactionOutputToScriptOutput cTxOutputs
   -- Left bias towards original map, hence `flip`:
-  _unbalancedTx <<< _utxoIndex %= flip union txOutsMap
+  _unbalancedTx <<< _utxoIndex %= flip union cTxOutputs
 
 -- Note, we don't use the redeemer here, unlike Plutus because of our lack of
 -- `TxIn` datatype.
