@@ -127,14 +127,15 @@ let
   runPursTest =
     { testMain ? "Test.Main"
     , name ? "${projectName}-check"
-    , srcs ? [ "src" "test" ]
+    , sources ? [ "src" "test" ]
+    , buildInputs ? []
     , ...
     }@args:
     (buildPursProject args).overrideAttrs
       (oas: {
         inherit name;
         doCheck = true;
-        buildInputs = oas.buildInputs ++ [ nodejs ];
+        buildInputs = oas.buildInputs ++ [ nodejs ] ++ buildInputs;
         # spago will attempt to download things, which will fail in the
         # sandbox, so we can just use node instead
         # (idea taken from `plutus-playground-client`)

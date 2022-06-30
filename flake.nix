@@ -469,6 +469,17 @@
               testMain = "CTL.Test.Unit";
               sources = [ "src" "test" "fixtures" ];
             };
+            ctl-plutip-test = project.runPursTest {
+              testMain = "Test.Plutip";
+              sources = [ "src" "test" "fixtures" ];
+              buildInputs = [
+                (hsProjectFor system).hsPkgs.ctl-server.components.exes.ctl-server
+                pkgs.postgresql
+                pkgs.ogmios
+                pkgs.ogmios-datum-cache
+                pkgs.plutip-server
+              ];
+            };
           };
 
           devShell = project.devShell;
