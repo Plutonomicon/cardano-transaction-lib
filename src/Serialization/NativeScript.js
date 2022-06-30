@@ -20,5 +20,5 @@ exports._packNativeScripts = helper => nss => helper.pack(lib.NativeScripts, nss
 exports.mkScriptAll = nss => lib.ScriptAll.new(nss);
 exports.mkScriptAny = nss => lib.ScriptAny.new(nss);
 exports.mkScriptNOfK = n => nss => lib.ScriptNOfK.new(n, nss);
-exports.mkTimelockExpiry = n => lib.TimelockExpiry.new(n);
-exports.mkTimelockStart = n => lib.TimelockStart.new(n);
+exports.mkTimelockExpiry = n => lib.TimelockExpiry.new_timelockexpiry(n);
+exports.mkTimelockStart = n => lib.TimelockStart.new_timelockstart(n);

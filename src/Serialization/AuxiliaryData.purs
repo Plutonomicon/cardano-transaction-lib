@@ -17,11 +17,9 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import FfiHelpers (ContainerHelper, containerHelper)
 import Helpers (fromJustEff)
-import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.NativeScript (convertNativeScripts)
 import Serialization.Types
   ( AuxiliaryData
-  , BigNum
   , GeneralTransactionMetadata
   , NativeScripts
   , PlutusScripts
@@ -32,6 +30,8 @@ import Serialization.WitnessSet
   , convertPlutusScript
   , newPlutusScripts
   )
+import Types.BigNum (BigNum)
+import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray)
 import Types.Int as Int
 import Types.TransactionMetadata
@@ -108,7 +108,7 @@ convertGeneralTransactionMetadata (T.GeneralTransactionMetadata mp) = do
         label <-
           fromJustEff
             "convertGeneralTransactionMetadata: failing to convert MetadataumLabel"
-            (bigNumFromBigInt l)
+            (BigNum.fromBigInt l)
         datum <- convertTransactionMetadatum d
         pure $ label /\ datum
 
