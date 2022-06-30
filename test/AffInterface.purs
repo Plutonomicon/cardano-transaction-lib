@@ -3,14 +3,13 @@ module Test.AffInterface (suite) where
 import Prelude
 
 import Address (addressToOgmiosAddress, ogmiosAddressToAddress)
-import Data.BigInt as BigInt
+import Data.BigInt (fromString) as BigInt
 import Data.Either (Either(Left, Right), either)
 import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust)
 import Data.Newtype (wrap)
 import Data.String.CodeUnits (indexOf)
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (traverse_)
-import Data.UInt as UInt
 import Effect.Aff (Aff, try)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
@@ -39,6 +38,7 @@ import QueryM.Utxos (utxosAt)
 import Serialization.Address (Slot(Slot))
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import TestM (TestPlanM)
+import Types.BigNum (fromInt) as BigNum
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Types.Interval
   ( PosixTimeToSlotError(CannotConvertAbsSlotToSlot, PosixTimeBeforeSystemStart)
@@ -232,7 +232,7 @@ testSlotToPosixTime = do
         either (throw <<< show) (shouldEqual slot) eSlot
 
   mkSlot :: Int -> Slot
-  mkSlot = Slot <<< UInt.fromInt
+  mkSlot = Slot <<< BigNum.fromInt
 
 testPosixTimeToSlotError :: Aff Unit
 testPosixTimeToSlotError = do
