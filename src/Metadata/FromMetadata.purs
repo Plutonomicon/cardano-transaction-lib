@@ -2,14 +2,13 @@ module Metadata.FromMetadata where
 
 import Prelude
 
-import Data.Array (toUnfoldable, uncons, foldMap) as Array
-import Data.Bifunctor (bimap)
+import Data.Array (toUnfoldable, uncons) as Array
 import Data.BigInt (BigInt)
 import Data.Map (Map)
 import Data.Map (fromFoldable, toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.NonEmpty (NonEmpty, (:|))
-import Data.Traversable (traverse)
+import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(..))
 import Data.Unfoldable (class Unfoldable)
 import Types.ByteArray (ByteArray)
@@ -53,11 +52,17 @@ instance FromMetadata String where
   fromMetadata _ = Nothing
 
 instance (FromMetadata k, FromMetadata v, Ord k) => FromMetadata (Map k v) where
-  fromMetadata (MetadataMap mp) =
-    Just
-      $ Map.fromFoldable
-      $ Array.foldMap fromTupleMaybe
-      $ (bimap fromMetadata fromMetadata) <$> (Map.toUnfoldable mp)
+  fromMetadata (MetadataMap mp) = do
+    Map.fromFoldable <$>
+      ( for (entries mp) \(Tuple k v) ->
+          Tuple <$> fromMetadata k <*> fromMetadata v
+      )
+    where
+    entries
+      :: Map TransactionMetadatum TransactionMetadatum
+      -> Array (Tuple TransactionMetadatum TransactionMetadatum)
+    entries x = Map.toUnfoldable x
+        
   fromMetadata _ = Nothing
 
 --------------------------------------------------------------------------------
@@ -73,10 +78,3 @@ fromMetadataUnfoldable
 fromMetadataUnfoldable (MetadataList entries) =
   Array.toUnfoldable <$> traverse fromMetadata entries
 fromMetadataUnfoldable _ = Nothing
-
-fromTupleMaybe
-  :: forall (a :: Type) (b :: Type)
-   . Tuple (Maybe a) (Maybe b)
-  -> Array (Tuple a b)
-fromTupleMaybe (Tuple (Just a) (Just b)) = [ Tuple a b ]
-fromTupleMaybe (Tuple _ _) = []
