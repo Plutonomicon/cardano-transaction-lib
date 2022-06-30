@@ -28,44 +28,11 @@ module Contract.Transaction
   ) where
 
 import Prelude
-{-
-import BalanceTx (UnattachedTransaction)
-import BalanceTx (balanceTx) as BalanceTx
-import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
-import Contract.ProtocolParameters (getProtocolParameters)
--}
 
+import BalanceTx (BalanceTxError) as BalanceTxError
 import BalanceTx (FinalizedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
-import BalanceTx (BalanceTxError) as BalanceTxError
-import Contract.Monad (Contract, liftedE, wrapContract)
-import Data.Either (Either, hush)
-import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Show.Generic (genericShow)
-import Data.Tuple.Nested (type (/\))
-import Effect.Class (liftEffect)
-import QueryM
-  ( FeeEstimate(FeeEstimate)
-  , ClientError(..) -- implicit as this error list will likely increase.
-  ) as ExportQueryM
-import QueryM
-  ( calculateMinFee
-  , signTransaction
-  , submitTxOgmios
-  ) as QueryM
-import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
-import ReindexRedeemers
-  ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
-  ) as ReindexRedeemersExport
-import Types.ScriptLookups (UnattachedUnbalancedTx)
-import Types.ScriptLookups
-  ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
-  , mkUnbalancedTx
-  ) as ScriptLookups
-import Cardano.Types.Transaction (Transaction)
-import Cardano.Types.Transaction -- Most re-exported, don't re-export `Redeemer` and associated lens.
+import Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
   , BootstrapWitness
@@ -135,18 +102,33 @@ import Cardano.Types.Transaction -- Most re-exported, don't re-export `Redeemer`
   , _withdrawals
   , _witnessSet
   ) as Transaction
+import Cardano.Types.Transaction (Transaction)
+import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
 import Control.Monad.Error.Class (try, catchError, throwError)
 import Control.Monad.Except.Trans (runExceptT)
 import Control.Monad.Reader (asks, runReaderT, ReaderT)
 import Data.Array.NonEmpty as NonEmptyArray
+import Data.Either (Either, hush)
+import Data.Generic.Rep (class Generic)
+import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Show.Generic (genericShow)
 import Data.Traversable (class Traversable, fold, traverse, traverse_)
+import Data.Tuple.Nested (type (/\))
+import Effect.Class (liftEffect)
 import Effect.Exception (Error, throw)
 import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
 import Plutus.Types.Transaction (TransactionOutput(TransactionOutput)) as PTransaction
 import Plutus.Types.Value (Coin)
+import QueryM (FeeEstimate(FeeEstimate), ClientError(..)) as ExportQueryM
+import QueryM (calculateMinFee, signTransaction, submitTxOgmios) as QueryM
+import ReindexRedeemers (ReindexErrors(CannotGetTxOutRefIndexForRedeemer)) as ReindexRedeemersExport
+import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (NetworkId)
 import TxOutput (scriptOutputToTransactionOutput) as TxOutput
+import Types.ScriptLookups (MkUnbalancedTxError(..), mkUnbalancedTx) as ScriptLookups
+import Types.ScriptLookups (UnattachedUnbalancedTx)
 import Types.Transaction
   ( DataHash(DataHash)
   , TransactionHash(TransactionHash)
@@ -271,9 +253,9 @@ withSingleTransaction prepare extract utx action =
 withBalancedTxs
   :: forall (a :: Type) (r :: Row Type)
    . Array UnattachedUnbalancedTx
-  -> (Array ReindexedUnattachedTx -> Contract r a)
+  -> (Array FinalizedTransaction -> Contract r a)
   -> Contract r a
-withBalancedTxs = withTransactions reindexAndBalanceTxs (_.tx <<< unwrap)
+withBalancedTxs = withTransactions balanceTxs unwrap
 
 -- | Execute an action on a balanced transaction (`balanceTx` will
 -- | be called). Within this function, all transaction inputs
@@ -284,9 +266,9 @@ withBalancedTxs = withTransactions reindexAndBalanceTxs (_.tx <<< unwrap)
 withBalancedTx
   :: forall (a :: Type) (r :: Row Type)
    . UnattachedUnbalancedTx
-  -> (ReindexedUnattachedTx -> Contract r a)
+  -> (FinalizedTransaction -> Contract r a)
   -> Contract r a
-withBalancedTx = withSingleTransaction reindexAndBalanceTx (_.tx <<< unwrap)
+withBalancedTx = withSingleTransaction (liftedE <<< balanceTx) unwrap
 
 -- | Execute an action on an array of balanced and signed
 -- | transactions (`balanceAndSignTxs` will be called). Within
@@ -317,14 +299,14 @@ withBalancedAndSignedTx = withSingleTransaction
   (liftedE <<< balanceAndSignTxE)
   unwrap
 
-reindexAndBalanceTxs
+balanceTxs
   :: forall
        (t :: Type -> Type)
        (r :: Row Type)
    . Traversable t
   => t UnattachedUnbalancedTx
-  -> Contract r (t ReindexedUnattachedTx)
-reindexAndBalanceTxs uts = do
+  -> Contract r (t FinalizedTransaction)
+balanceTxs uts = do
   -- First, lock all the already fixed inputs on all the unbalanced transactions.
   -- That prevents any inputs of any of those to be used to balance any of the
   -- other transactions
@@ -348,17 +330,14 @@ reindexAndBalanceTxs uts = do
   uutxToTx :: UnattachedUnbalancedTx -> Transaction
   uutxToTx = _.transaction <<< unwrap <<< _.unbalancedTx <<< unwrap
 
-  utxToTx :: ReindexedUnattachedTx -> Transaction
-  utxToTx = _.tx <<< unwrap
-
   balanceAndLock
     :: TxOutRefUnlockKeys
     -> UnattachedUnbalancedTx
-    -> Contract r ReindexedUnattachedTx
+    -> Contract r FinalizedTransaction
   balanceAndLock alreadyLocked uutx = do
-    bt <- reindexAndBalanceTx uutx
+    bt <- liftedE $ balanceTx uutx
     void $ withUsedTxouts $ lockRemainingTransactionInputs alreadyLocked
-      (utxToTx bt)
+      (unwrap bt)
     pure bt
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` hushing the error.
@@ -401,19 +380,8 @@ balanceAndSignTxs
   :: forall (r :: Row Type)
    . Array UnattachedUnbalancedTx
   -> Contract r (Array BalancedSignedTransaction)
-balanceAndSignTxs txs = do
-  costModels <- getProtocolParameters <#> unwrap >>> _.costModels
-  txs' <- reindexAndBalanceTxs txs
-  traverse (signOne costModels) txs'
-  where
-  signOne
-    :: Transaction.Costmdls
-    -> ReindexedUnattachedTx
-    -> Contract r BalancedSignedTransaction
-  signOne costModels rbTx = do
-    finalizedTx <- liftedE $ liftEffect $ finalizeTransaction costModels rbTx
-    liftedM "Error signing transaction" $ signTransaction'
-      finalizedTx
+balanceAndSignTxs txs = balanceTxs txs >>= traverse
+  (liftedM "error signing a transaction" <<< signTransaction')
 
 -- | Balances an unbalanced transaction and signs it.
 -- |

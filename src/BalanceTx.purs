@@ -459,20 +459,23 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
 
     -- Prebalance collaterised tx without fees:
     ubcTx <- except $
-      prebalanceCollateral zero availableUtxos ownAddr utxoMinVal unbalancedCollTx
+      prebalanceCollateral zero availableUtxos ownAddr utxoMinVal
+        unbalancedCollTx
     -- Prebalance collaterised tx with fees:
     let unattachedTx' = unattachedTx # _transaction' .~ ubcTx
     _ /\ fees <- ExceptT $ evalExUnitsAndMinFee unattachedTx'
     ubcTx' <- except $
-      prebalanceCollateral (fees + feeBuffer) availableUtxos ownAddr utxoMinVal ubcTx
+      prebalanceCollateral (fees + feeBuffer) availableUtxos ownAddr utxoMinVal
+        ubcTx
     -- Loop to balance non-Ada assets
     nonAdaBalancedCollTx <- ExceptT $ loop availableUtxos ownAddr [] $
       unattachedTx' #
         _transaction' .~ ubcTx'
     -- Return excess Ada change to wallet:
-    unsignedTx <- ExceptT $ 
-      returnAdaChangeAndFinalizeFees ownAddr availableUtxos nonAdaBalancedCollTx <#>
-        lmap ReturnAdaChangeError'
+    unsignedTx <- ExceptT $
+      returnAdaChangeAndFinalizeFees ownAddr availableUtxos nonAdaBalancedCollTx
+        <#>
+          lmap ReturnAdaChangeError'
     -- Sort inputs at the very end so it behaves as a Set:
     let sortedUnsignedTx = unsignedTx # _body' <<< _inputs %~ Array.sort
     -- Attach datums and redeemers, set the script integrity hash:
