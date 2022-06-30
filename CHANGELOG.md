@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Support for using a `PrivateKey` as a `Wallet`.
 - `balanceAndSignTxs` balances and signs multiple transactions while taking care to use transaction inputs only once.
 - `getProtocolParameters` call to retrieve current protocol parameters from Ogmios (#541)
+- Ability to load stake keys from files when using `KeyWallet` ([#635](https://github.com/Plutonomicon/cardano-transaction-lib/issues/635))
 
 ### Removed
 

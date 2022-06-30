@@ -11,15 +11,13 @@ import Cardano.Types.Transaction
 import Contract.Address (NetworkId(TestnetId))
 import Contract.Monad (configWithLogLevel, runContract)
 import Contract.Transaction (signTransaction)
-import Contract.Wallet.KeyFile (mkKeyWalletFromFile)
+import Contract.Wallet.KeyFile (mkKeyWalletFromFiles)
 import Data.Lens (_2, _Just, (^?))
 import Data.Lens.Index (ix)
 import Data.Lens.Iso.Newtype (unto)
 import Data.Lens.Record (prop)
 import Data.Log.Level (LogLevel(Trace))
-import Data.Maybe (Maybe(Just), maybe)
-import Effect.Class (liftEffect)
-import Effect.Exception (throw)
+import Data.Maybe (Maybe(Just))
 import Mote (group, test)
 import Test.Fixtures (txFixture1)
 import Test.Spec.Assertions (shouldEqual)
@@ -30,8 +28,9 @@ suite :: TestPlanM Unit
 suite = do
   group "PrivateKey" $ do
     test "privateKeyFromFile" do
-      wallet <- mkKeyWalletFromFile "fixtures/test/parsing/PrivateKey/skey.json"
-        >>= maybe (liftEffect $ throw "Unable to read PrivateKey") pure
+      wallet <- mkKeyWalletFromFiles
+        "fixtures/test/parsing/PrivateKey/payment.skey"
+        (Just "fixtures/test/parsing/PrivateKey/stake.skey")
       cfg <- configWithLogLevel TestnetId wallet Trace
       runContract cfg do
         mbTx <- signTransaction txFixture1
