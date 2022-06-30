@@ -1,92 +1,93 @@
 module Serialization.Address
-  ( Slot(Slot)
-  , BlockId(BlockId)
-  , TransactionIndex(TransactionIndex)
-  , CertificateIndex(CertificateIndex)
-  , Pointer
-  , Address
+  ( Address
   , BaseAddress
+  , BlockId(..)
   , ByronAddress
+  , ByronProtocolMagic(..)
+  , CertificateIndex(..)
   , EnterpriseAddress
+  , NetworkId(..)
+  , Pointer
   , PointerAddress
   , RewardAddress
+  , Slot(..)
   , StakeCredential
-  , addressBytes
+  , TransactionIndex(..)
   , addressBech32
-  , addressNetworkId
-  , intToNetworkId
-  , keyHashCredential
-  , scriptHashCredential
-  , withStakeCredential
-  , stakeCredentialToBytes
-  , baseAddress
-  , baseAddressPaymentCred
-  , baseAddressDelegationCred
-  , baseAddressToAddress
-  , paymentKeyHashStakeKeyHashAddress
-  , scriptHashStakeKeyHashAddress
-  , paymentKeyHashScriptHashAddress
-  , scriptHashScriptHashAddress
-  , scriptAddress
-  , ByronProtocolMagic(ByronProtocolMagic)
-  , NetworkId(..)
-  , stakeCredentialToKeyHash
-  , stakeCredentialToScriptHash
-  , stakeCredentialFromBytes
-  , addressFromBytes
+  , addressBech32_
+  , addressBytes
   , addressFromBech32
+  , addressFromBytes
+  , addressNetworkId
   , addressPaymentCred
-  , baseAddressFromAddress
-  , baseAddressBytes
+  , baseAddress
   , baseAddressBech32
-  , baseAddressFromBytes
+  , baseAddressBytes
+  , baseAddressDelegationCred
+  , baseAddressFromAddress
   , baseAddressFromBech32
+  , baseAddressFromBytes
   , baseAddressNetworkId
-  , byronAddressToBase58
+  , baseAddressPaymentCred
+  , baseAddressToAddress
+  , byronAddressAttributes
+  , byronAddressBytes
+  , byronAddressFromAddress
   , byronAddressFromBase58
   , byronAddressFromBytes
-  , byronAddressBytes
-  , byronProtocolMagic
-  , byronAddressAttributes
-  , byronAddressNetworkId
-  , byronAddressFromAddress
-  , byronAddressToAddress
   , byronAddressIsValid
-  , icarusFromKey
+  , byronAddressNetworkId
+  , byronAddressToAddress
+  , byronAddressToBase58
+  , byronProtocolMagic
   , enterpriseAddress
+  , enterpriseAddressBech32
+  , enterpriseAddressBytes
+  , enterpriseAddressFromAddress
+  , enterpriseAddressFromBech32
+  , enterpriseAddressFromBytes
+  , enterpriseAddressNetworkId
   , enterpriseAddressPaymentCred
   , enterpriseAddressToAddress
-  , enterpriseAddressFromAddress
-  , enterpriseAddressBytes
-  , enterpriseAddressBech32
-  , enterpriseAddressFromBytes
-  , enterpriseAddressFromBech32
-  , enterpriseAddressNetworkId
-  , paymentKeyHashEnterpriseAddress
-  , scriptHashEnterpriseAddress
+  , icarusFromKey
+  , intToNetworkId
+  , keyHashCredential
   , networkIdtoInt
-  , pointerAddress
-  , pointerAddressPaymentCred
-  , pointerAddressToAddress
-  , pointerAddressFromAddress
-  , pointerAddressStakePointer
-  , pointerAddressBytes
-  , pointerAddressBech32
-  , pointerAddressFromBytes
-  , pointerAddressFromBech32
-  , pointerAddressNetworkId
+  , paymentKeyHashEnterpriseAddress
   , paymentKeyHashPointerAddress
-  , scriptHashPointerAddress
+  , paymentKeyHashScriptHashAddress
+  , paymentKeyHashStakeKeyHashAddress
+  , pointerAddress
+  , pointerAddressBech32
+  , pointerAddressBytes
+  , pointerAddressFromAddress
+  , pointerAddressFromBech32
+  , pointerAddressFromBytes
+  , pointerAddressNetworkId
+  , pointerAddressPaymentCred
+  , pointerAddressStakePointer
+  , pointerAddressToAddress
   , rewardAddress
+  , rewardAddressBech32
+  , rewardAddressBytes
+  , rewardAddressFromAddress
+  , rewardAddressFromBech32
+  , rewardAddressFromBytes
+  , rewardAddressNetworkId
   , rewardAddressPaymentCred
   , rewardAddressToAddress
-  , rewardAddressBytes
-  , rewardAddressBech32
-  , rewardAddressFromBytes
-  , rewardAddressFromBech32
-  , rewardAddressNetworkId
-  , rewardAddressFromAddress
+  , scriptAddress
+  , scriptHashCredential
+  , scriptHashEnterpriseAddress
+  , scriptHashPointerAddress
+  , scriptHashScriptHashAddress
+  , scriptHashStakeKeyHashAddress
+  , stakeCredentialFromBytes
+  , stakeCredentialToBytes
+  , stakeCredentialToKeyHash
+  , stakeCredentialToScriptHash
   , unsafeIntToNetId
+  , withStakeCredential
   ) where
 
 import Prelude
@@ -109,7 +110,7 @@ import ToData (class ToData, toData)
 import Types.Aliases (Bech32String, Base58String)
 import Types.BigNum (BigNum)
 import Types.ByteArray (ByteArray)
-import Types.CborBytes (CborBytes)
+import Types.CborBytes (CborBytes, cborBytesToHex)
 import Types.PlutusData (PlutusData(Bytes))
 
 newtype Slot = Slot BigNum
@@ -178,7 +179,7 @@ type Pointer =
 foreign import data Address :: Type
 
 instance Show Address where
-  show a = "(Address " <> addressBech32 a <> ")"
+  show a = "(Address " <> (addressBytes >>> cborBytesToHex) a <> ")"
 
 showVia
   :: forall (a :: Type) (b :: Type). Show b => String -> (a -> b) -> a -> String
@@ -303,7 +304,11 @@ foreign import _addressFromBech32
 
 foreign import _addressFromBytes :: MaybeFfiHelper -> CborBytes -> Maybe Address
 foreign import addressBytes :: Address -> CborBytes
+
+-- | Convert an address to a Bech32 string with the "addr"/"addr_test" prefix.
 foreign import addressBech32 :: Address -> Bech32String
+-- | Convert an address to a Bech32 string with the given prefix.
+foreign import addressBech32_ :: Address -> String -> Bech32String
 
 foreign import _addressNetworkId :: (Int -> NetworkId) -> Address -> NetworkId
 

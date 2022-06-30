@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 
+- `addressBech32_` for printing bech32 repr of an `Address` with a given prefix.
 - `mkKeyWalletFromFile` helper to use `cardano-cli`-style `skey`s.
 - Single `Plutus.Conversion` module exposing all `(Type <-> Plutus Type)` conversion functions.
 - Support for using a `PrivateKey` as a `Wallet`.
@@ -34,6 +35,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
+- `addressBech32` now uses "addr" / "addr_test" prefix.
+- `Show Address` now shows hex encoded CborBytes.
 - Updated `ogmios-datum-cache` - bug fixes ([#542](https://github.com/Plutonomicon/cardano-transaction-lib/pull/542), [#526](https://github.com/Plutonomicon/cardano-transaction-lib/pull/526), [#589](https://github.com/Plutonomicon/cardano-transaction-lib/pull/589)).
 - Improved error response handling for Ogmios ([#584](https://github.com/Plutonomicon/cardano-transaction-lib/pull/584))
 - `balanceAndSignTx` now locks transaction inputs within the current `Contract` context. If the resulting transaction is never used, then the inputs must be freed with `unlockTransactionInputs`.

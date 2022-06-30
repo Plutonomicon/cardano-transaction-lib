@@ -47,7 +47,14 @@ exports.addressBytes = callToBytes;
 exports.byronAddressBytes = callToBytes;
 exports.stakeCredentialToBytes = callToBytes;
 
-exports.addressBech32 = callToBech32;
+exports.addressBech32 = addr => {
+    // 0 TestnetId
+    // 1 MainnetId
+    return addr.network_id() == 0 ? addr.to_bech32("addr_test") : addr.to_bech32("addr");
+};
+exports.addressBech32_ = addr => prefix => {
+    return addr.to_bech32(prefix);
+};
 exports._addressNetworkId = toAdt => addr => {
     return toAdt(callNetworkId(addr));
 }
