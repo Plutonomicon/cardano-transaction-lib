@@ -28,6 +28,11 @@ module Contract.Monad
   , logError
   , logError'
   , logAeson
+  , logAesonTrace
+  , logAesonDebug
+  , logAesonInfo
+  , logAesonWarn
+  , logAesonError
   , mkContractConfig
   , runContract
   , runContract_
@@ -382,4 +387,49 @@ logAeson
   -> a
   -- ^ Data structure to output
   -> m Unit
-logAeson logger a = logger (stringifyAeson (encodeAeson a))
+logAeson logger = logger <<< stringifyAeson <<< encodeAeson
+
+logAesonTrace
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadLogger m
+  => EncodeAeson a
+  => a
+  -- ^ Data structure to output
+  -> m Unit
+logAesonTrace = logAeson logTrace'
+
+logAesonDebug
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadLogger m
+  => EncodeAeson a
+  => a
+  -- ^ Data structure to output
+  -> m Unit
+logAesonDebug = logAeson logDebug'
+
+logAesonInfo
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadLogger m
+  => EncodeAeson a
+  => a
+  -- ^ Data structure to output
+  -> m Unit
+logAesonInfo = logAeson logInfo'
+
+logAesonWarn
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadLogger m
+  => EncodeAeson a
+  => a
+  -- ^ Data structure to output
+  -> m Unit
+logAesonWarn = logAeson logWarn'
+
+logAesonError
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadLogger m
+  => EncodeAeson a
+  => a
+  -- ^ Data structure to output
+  -> m Unit
+logAesonError = logAeson logError'
