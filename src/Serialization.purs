@@ -74,7 +74,7 @@ import Serialization.AuxiliaryData (convertAuxiliaryData)
 import Serialization.BigInt as Serialization
 import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.Hash (ScriptHash, Ed25519KeyHash, scriptHashFromBytes)
-import Serialization.PlutusData (packPlutusList)
+import Serialization.PlutusData (convertPlutusData)
 import Serialization.Types
   ( AssetName
   , Assets
@@ -105,7 +105,6 @@ import Serialization.Types
   , NativeScript
   , NetworkId
   , PlutusData
-  , PlutusList
   , PoolMetadata
   , ProposedProtocolParameterUpdates
   , ProtocolParamUpdate
@@ -187,7 +186,6 @@ foreign import newTransaction_
   -> TransactionWitnessSet
   -> Effect Transaction
 
-foreign import newTransactionWitnessSet :: Effect TransactionWitnessSet
 foreign import newTransactionWitnessSetFromBytes
   :: CborBytes -> Effect TransactionWitnessSet
 
@@ -234,7 +232,10 @@ foreign import costModelSetCost :: CostModel -> Int -> Int32 -> Effect Unit
 foreign import newPlutusV1 :: Effect Language
 foreign import newInt32 :: Int -> Effect Int32
 foreign import _hashScriptData
-  :: Redeemers -> Costmdls -> PlutusList -> Effect ScriptDataHash
+  :: Redeemers -> Costmdls -> Array PlutusData -> Effect ScriptDataHash
+
+foreign import _hashScriptDataNoDatums
+  :: Redeemers -> Costmdls -> Effect ScriptDataHash
 
 foreign import newRedeemers :: Effect Redeemers
 foreign import addRedeemer :: Redeemers -> Redeemer -> Effect Unit
@@ -778,13 +779,17 @@ convertCostmdls (T.Costmdls cs) = do
   pure costmdls
 
 hashScriptData
-  :: Array T.Redeemer
-  -> T.Costmdls
+  :: T.Costmdls
+  -> Array T.Redeemer
   -> Array PlutusData.PlutusData
   -> Effect ScriptDataHash
-hashScriptData rs cms ps = do
-  plist <- fromJustEff "failed to convert datums" $ packPlutusList ps
+hashScriptData cms rs ps = do
   rs' <- newRedeemers
   cms' <- convertCostmdls cms
   traverse_ (addRedeemer rs' <=< convertRedeemer) rs
-  _hashScriptData rs' cms' plist
+  -- If an empty `PlutusData` array is passed to CSL's script integrity hashing
+  -- function, the resulting hash will be wrong
+  case ps of
+    [] -> _hashScriptDataNoDatums rs' cms'
+    _ -> _hashScriptData rs' cms' =<< fromJustEff "failed to convert datums"
+      (traverse convertPlutusData ps)

@@ -46,6 +46,7 @@ import Data.Map as Map
 mkWebSocket
   :: forall a b
    . DecodeAeson b
+  => Show b
   => LogLevel
   -> ServerConfig
   -> (Either Error (WebSocket (ListenerSet a b)) -> Effect Unit)
@@ -64,7 +65,7 @@ mkWebSocket lvl serverCfg cb = do
   _onWsConnect ws do
     _wsWatch ws (logger Debug) onError
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
-    _onWsError ws (logger Error) $ const onError
+    _ <- _onWsError ws (logger Error) $ const onError
     cb $ Right $ WebSocket ws
       (mkListenerSet dispatchMap pendingRequests)
   pure $ \err -> cb $ Left $ err
@@ -75,6 +76,7 @@ mkWebSocket lvl serverCfg cb = do
 mkWebSocketAff
   :: forall a b
    . DecodeAeson b
+  => Show b
   => LogLevel
   -> ServerConfig
   -> Aff (WebSocket (ListenerSet a b))
