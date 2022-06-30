@@ -9,7 +9,7 @@
 
     # for the purescript project
     ogmios.url = "github:mlabs-haskell/ogmios";
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/1be5e903e14f5a1785983bdb38203195b401bd15";
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/85e030ae914abcffba4a7c261d9cd81f98b2168c";
     plutip.url = "github:mlabs-haskell/plutip/plutip-server";
     # so named because we also need a different version of the repo below
     # in the server inputs and we use this one just for the `cardano-cli`
