@@ -25,8 +25,7 @@ module Test.E2E.Helpers
 
 import Prelude
 
-import Control.Promise (Promise, toAffE, toAff)
-import Control.Monad (join)
+import Control.Promise (Promise, toAffE)
 import Data.Array (head, filterA)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, wrap, unwrap)

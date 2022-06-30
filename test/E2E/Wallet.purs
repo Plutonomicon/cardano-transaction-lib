@@ -96,11 +96,3 @@ suite = group "Nami" $ do
 -}
 
 foreign import _outputJsPath :: Effect String
-
-{-
-foreign import _confirmNamiAccess :: Effect Unit
-
-confirmNamiAccess :: Page -> Aff Unit
-confirmNamiAccess = void <$> Toki.unsafeEvaluateStringFunction "_confirmNamiAccess"
--}
-
