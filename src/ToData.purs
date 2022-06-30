@@ -43,6 +43,8 @@ import TypeLevel.RowList.Unordered.Indexed
   , class GetWithLabel
   )
 import Type.Proxy (Proxy(Proxy))
+import Types.BigNum (BigNum)
+import Types.BigNum (toBigIntUnsafe) as BigNum
 import Types.ByteArray (ByteArray(ByteArray))
 import Types.RawBytes (RawBytes)
 import Types.CborBytes (CborBytes)
@@ -252,6 +254,9 @@ instance Fail (Text "Int is not supported, use BigInt instead") => ToData Int wh
 
 instance ToData BigInt where
   toData = Integer
+
+instance ToData BigNum where
+  toData = toData <<< BigNum.toBigIntUnsafe
 
 instance ToData UInt where
   toData = toData <<< uIntToBigInt

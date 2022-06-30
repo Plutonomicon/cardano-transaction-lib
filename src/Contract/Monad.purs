@@ -93,6 +93,7 @@ import QueryM
   , mkWsUrl
   ) as QueryM
 import QueryM (QueryM, QueryMExtended, QueryConfig)
+import QueryM.ProtocolParameters (getProtocolParametersAff) as Ogmios
 import Record as Record
 import Serialization.Address (NetworkId(TestnetId))
 import Types.UsedTxOuts (newUsedTxOuts)
@@ -186,6 +187,7 @@ mkContractConfig
   ogmiosWs <- QueryM.mkOgmiosWebSocketAff logLevel params.ogmiosConfig
   datumCacheWs <- QueryM.mkDatumCacheWebSocketAff logLevel
     params.datumCacheConfig
+  pparams <- Ogmios.getProtocolParametersAff ogmiosWs logLevel
   usedTxOuts <- newUsedTxOuts
   let
     queryConfig =
@@ -196,6 +198,7 @@ mkContractConfig
       , wallet
       , datumCacheWs
       , serverConfig: params.ctlServerConfig
+      , pparams
       }
   pure $ wrap $ queryConfig `Record.union` params.extraConfig
 
@@ -313,6 +316,7 @@ configWithLogLevel networkId wallet logLevel = do
   ogmiosWs <- QueryM.mkOgmiosWebSocketAff logLevel QueryM.defaultOgmiosWsConfig
   datumCacheWs <-
     QueryM.mkDatumCacheWebSocketAff logLevel QueryM.defaultDatumCacheWsConfig
+  pparams <- Ogmios.getProtocolParametersAff ogmiosWs logLevel
   usedTxOuts <- newUsedTxOuts
   pure $ ContractConfig
     { ogmiosWs
@@ -322,6 +326,7 @@ configWithLogLevel networkId wallet logLevel = do
     , serverConfig: QueryM.defaultServerConfig
     , networkId
     , logLevel
+    , pparams
     }
 
 -- Logging effects

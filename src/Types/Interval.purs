@@ -90,18 +90,15 @@ import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
-import Data.UInt (fromString) as UInt
 import Effect (Effect)
 import Effect.Class (liftEffect)
 import Foreign.Object (Object)
 import FromData (class FromData, genericFromData)
 import Helpers
-  ( bigIntToUInt
-  , liftEither
+  ( liftEither
   , liftM
   , mkErrorRecord
   , showWithParens
-  , uIntToBigInt
   )
 import Partial.Unsafe (unsafePartial)
 import Plutus.Types.DataSchema
@@ -122,6 +119,14 @@ import QueryM.Ogmios
 import Serialization.Address (Slot(Slot))
 import ToData (class ToData, genericToData)
 import TypeLevel.Nat (S, Z)
+import Types.BigNum
+  ( add
+  , fromBigInt
+  , maxValue
+  , one
+  , toBigIntUnsafe
+  , zero
+  ) as BigNum
 
 --------------------------------------------------------------------------------
 -- Interval Type and related
@@ -475,11 +480,13 @@ type SlotRange = Interval Slot
 -- | (2020-07-29T21:44:51Z) which is 1596059091000 in POSIX time
 -- | (number of milliseconds since 1970-01-01T00:00:00Z).
 beginningOfTime :: BigInt
-beginningOfTime = unsafePartial fromJust $ BigInt.fromString "1596059091000"
+beginningOfTime =
+  unsafePartial fromJust $
+    BigInt.fromString "1596059091000"
 
--- | Maximum slot under `Data.UInt`
+-- | Maximum slot (u64)
 maxSlot :: Slot
-maxSlot = Slot $ unsafePartial fromJust $ UInt.fromString "4294967295"
+maxSlot = wrap BigNum.maxValue
 
 --------------------------------------------------------------------------------
 -- Conversion functions
@@ -600,15 +607,15 @@ slotToPosixTime eraSummaries sysStart slot = runExceptT do
   _transTime :: BigInt -> BigInt
   _transTime = (*) $ BigInt.fromInt 1000
 
--- | Convert a CSL (Absolute) `Slot` (`UInt`) to an Ogmios absolute slot
--- | (`BigInt`)
+-- | Convert a CSL (Absolute) `Slot` (`BigNum`) to an Ogmios absolute slot
+-- | (`BigInt`).
 absSlotFromSlot :: Slot -> AbsSlot
-absSlotFromSlot = wrap <<< uIntToBigInt <<< unwrap
+absSlotFromSlot = wrap <<< BigNum.toBigIntUnsafe <<< unwrap
 
 -- | Convert an Ogmios absolute slot (`BigInt`) to a CSL (Absolute) `Slot`
--- | (`UInt`)
+-- | (`BigNum`).
 slotFromAbsSlot :: AbsSlot -> Maybe Slot
-slotFromAbsSlot = map wrap <<< bigIntToUInt <<< unwrap
+slotFromAbsSlot = map wrap <<< BigNum.fromBigInt <<< unwrap
 
 -- | Finds the `EraSummary` an `AbsSlot` lies inside (if any).
 findSlotEraSummary
@@ -837,7 +844,7 @@ posixTimeToSlot eraSummaries sysStart pt'@(POSIXTime pt) = runExceptT do
   let relSlotMod = relSlotFromRelTime currentEra relTime
   -- Get absolute slot relative to system start
   absSlot <- liftEither $ absSlotFromRelSlot currentEra relSlotMod
-  -- Convert back to UInt `Slot`
+  -- Convert back to BigNum `Slot`
   liftM (CannotConvertAbsSlotToSlot absSlot) $ slotFromAbsSlot absSlot
 
 -- | Finds the `EraSummary` an `AbsTime` lies inside (if any).
@@ -978,7 +985,7 @@ slotRangeToTransactionValidity
   validityStartInterval :: Maybe Slot
   validityStartInterval = case start, startInc of
     Finite s, true -> pure s
-    Finite s, false -> pure $ s <> Slot one
+    Finite (Slot s), false -> Slot <$> s `BigNum.add` BigNum.one
     NegInf, _ -> Nothing
     PosInf, _ -> pure maxSlot
 
@@ -987,9 +994,9 @@ slotRangeToTransactionValidity
   -- for closed upper bounds.
   timeToLive :: Maybe Slot
   timeToLive = case end, endInc of
-    Finite s, true -> pure $ s <> Slot one
+    Finite (Slot s), true -> Slot <$> s `BigNum.add` BigNum.one
     Finite s, false -> pure s
-    NegInf, _ -> pure $ Slot zero
+    NegInf, _ -> pure $ Slot BigNum.zero
     PosInf, _ -> Nothing
 
 -- | Converts a `POSIXTimeRange` to a transaction validity interval via a
