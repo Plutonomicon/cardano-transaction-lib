@@ -10,7 +10,6 @@ import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Deserialization.BigInt (convertBigInt)
-import Deserialization.BigNum (bigNumToBigInt)
 import FfiHelpers
   ( ContainerHelper
   , MaybeFfiHelper
@@ -19,12 +18,13 @@ import FfiHelpers
   )
 import Serialization.Types
   ( BigInt
-  , BigNum
   , ConstrPlutusData
   , PlutusData
   , PlutusList
   , PlutusMap
   )
+import Types.BigNum (BigNum)
+import Types.BigNum (toBigInt) as BigNum
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData(Constr, Map, List, Integer, Bytes)) as T
 
@@ -42,7 +42,7 @@ convertPlutusConstr pd = do
   data' <- traverse convertPlutusData
     $ _unpackPlutusList containerHelper
     $ _ConstrPlutusData_data constr
-  alt <- bigNumToBigInt $ _ConstrPlutusData_alternative constr
+  alt <- BigNum.toBigInt $ _ConstrPlutusData_alternative constr
   pure $ T.Constr alt data'
 
 convertPlutusMap :: PlutusData -> Maybe T.PlutusData
