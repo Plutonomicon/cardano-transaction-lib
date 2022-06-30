@@ -96,7 +96,9 @@ utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
 
 filterUnusedUtxos :: UtxoM -> QueryM UtxoM
 filterUnusedUtxos (UtxoM utxos) = withTxRefsCache $
-  UtxoM <$> Helpers.filterMapWithKeyM (\k _ -> isTxOutRefUsed (unwrap k)) utxos
+  UtxoM <$> Helpers.filterMapWithKeyM
+    (\k _ -> not <$> isTxOutRefUsed (unwrap k))
+    utxos
 
 withTxRefsCache
   :: forall (m :: Type -> Type) (a :: Type)

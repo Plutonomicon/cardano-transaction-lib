@@ -11,6 +11,7 @@ module BalanceTx
   , GetPublicKeyTransactionInputError(..)
   , GetWalletAddressError(..)
   , GetWalletCollateralError(..)
+  , TxInputLockedError(..)
   , ImpossibleError(..)
   , ReturnAdaChangeError(..)
   , UtxosAtError(..)
@@ -99,7 +100,7 @@ import QueryM
   , getWalletCollateral
   , evalTxExecutionUnits
   )
-import QueryM.Utxos (utxosAt)
+import QueryM.Utxos (utxosAt, filterUnusedUtxos)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import Transaction (setScriptDataHash)
@@ -128,32 +129,32 @@ data BalanceTxError
   | BalanceTxInsError' BalanceTxInsError
   | BalanceNonAdaOutsError' BalanceNonAdaOutsError
   | EvalExUnitsAndMinFeeError' EvalExUnitsAndMinFeeError
+  | TxInputLockedError' TxInputLockedError
 
-derive instance genericBalanceTxError :: Generic BalanceTxError _
+derive instance Generic BalanceTxError _
 
-instance showBalanceTxError :: Show BalanceTxError where
+instance Show BalanceTxError where
   show = genericShow
 
 data GetWalletAddressError = CouldNotGetWalletAddress
 
-derive instance genericGetWalletAddressError :: Generic GetWalletAddressError _
+derive instance Generic GetWalletAddressError _
 
-instance showGetWalletAddressError :: Show GetWalletAddressError where
+instance Show GetWalletAddressError where
   show = genericShow
 
 data GetWalletCollateralError = CouldNotGetCollateral
 
-derive instance genericGetWalletCollateralError ::
-  Generic GetWalletCollateralError _
+derive instance Generic GetWalletCollateralError _
 
-instance showGetWalletCollateralError :: Show GetWalletCollateralError where
+instance Show GetWalletCollateralError where
   show = genericShow
 
 data UtxosAtError = CouldNotGetUtxos
 
-derive instance genericUtxosAtError :: Generic UtxosAtError _
+derive instance Generic UtxosAtError _
 
-instance showUtxosAtError :: Show UtxosAtError where
+instance Show UtxosAtError where
   show = genericShow
 
 data EvalExUnitsAndMinFeeError
@@ -161,10 +162,9 @@ data EvalExUnitsAndMinFeeError
   | EvalMinFeeError ClientError
   | ReindexRedeemersError ReindexErrors
 
-derive instance genericEvalExUnitsAndMinFeeError ::
-  Generic EvalExUnitsAndMinFeeError _
+derive instance Generic EvalExUnitsAndMinFeeError _
 
-instance showEvalExUnitsAndMinFeeError :: Show EvalExUnitsAndMinFeeError where
+instance Show EvalExUnitsAndMinFeeError where
   show = genericShow
 
 data ReturnAdaChangeError
@@ -172,84 +172,88 @@ data ReturnAdaChangeError
   | ReturnAdaChangeImpossibleError String ImpossibleError
   | ReturnAdaChangeCalculateMinFee EvalExUnitsAndMinFeeError
 
-derive instance genericReturnAdaChangeError :: Generic ReturnAdaChangeError _
+derive instance Generic ReturnAdaChangeError _
 
-instance showReturnAdaChangeError :: Show ReturnAdaChangeError where
+instance Show ReturnAdaChangeError where
   show = genericShow
 
 data AddTxCollateralsError
   = CollateralUtxosUnavailable
   | AddTxCollateralsError
 
-derive instance genericAddTxCollateralsError :: Generic AddTxCollateralsError _
+derive instance Generic AddTxCollateralsError _
 
-instance showAddTxCollateralsError :: Show AddTxCollateralsError where
+instance Show AddTxCollateralsError where
   show = genericShow
 
 data GetPublicKeyTransactionInputError = CannotConvertScriptOutputToTxInput
 
-derive instance genericGetPublicKeyTransactionInputError ::
-  Generic GetPublicKeyTransactionInputError _
+derive instance Generic GetPublicKeyTransactionInputError _
 
-instance showGetPublicKeyTransactionInputError ::
-  Show GetPublicKeyTransactionInputError where
+instance Show GetPublicKeyTransactionInputError where
   show = genericShow
 
 data BalanceTxInsError
   = InsufficientTxInputs Expected Actual
   | BalanceTxInsCannotMinus CannotMinusError
 
-derive instance genericBalanceTxInsError :: Generic BalanceTxInsError _
+derive instance Generic BalanceTxInsError _
 
-instance showBalanceTxInsError :: Show BalanceTxInsError where
+instance Show BalanceTxInsError where
   show = genericShow
 
 data CannotMinusError = CannotMinus Actual
 
-derive instance genericCannotMinusError :: Generic CannotMinusError _
+derive instance Generic CannotMinusError _
 
-instance showCannotMinusError :: Show CannotMinusError where
+instance Show CannotMinusError where
   show = genericShow
 
 data CollectTxInsError = CollectTxInsInsufficientTxInputs BalanceTxInsError
 
-derive instance genericCollectTxInsError :: Generic CollectTxInsError _
+derive instance Generic CollectTxInsError _
 
-instance showCollectTxInsError :: Show CollectTxInsError where
+instance Show CollectTxInsError where
   show = genericShow
 
 newtype Expected = Expected Value
 
-derive instance genericExpected :: Generic Expected _
-derive instance newtypeExpected :: Newtype Expected _
+derive instance Generic Expected _
+derive instance Newtype Expected _
 
-instance showExpected :: Show Expected where
+instance Show Expected where
   show = genericShow
 
 newtype Actual = Actual Value
 
-derive instance genericActual :: Generic Actual _
-derive instance newtypeActual :: Newtype Actual _
+derive instance Generic Actual _
+derive instance Newtype Actual _
 
-instance showActual :: Show Actual where
+instance Show Actual where
   show = genericShow
 
 data BalanceNonAdaOutsError
   = InputsCannotBalanceNonAdaTokens
   | BalanceNonAdaOutsCannotMinus CannotMinusError
 
-derive instance genericBalanceNonAdaOutsError ::
-  Generic BalanceNonAdaOutsError _
+derive instance Generic BalanceNonAdaOutsError _
 
-instance showBalanceNonAdaOutsError :: Show BalanceNonAdaOutsError where
+instance Show BalanceNonAdaOutsError where
+  show = genericShow
+
+data TxInputLockedError = TxInputLockedError
+
+derive instance Generic TxInputLockedError _
+
+instance Show TxInputLockedError where
   show = genericShow
 
 -- | Represents that an error reason should be impossible
 data ImpossibleError = Impossible
 
-derive instance genericImpossibleError :: Generic ImpossibleError _
+derive instance Generic ImpossibleError _
 
-instance showImpossibleError :: Show ImpossibleError where
+instance Show ImpossibleError where
   show = genericShow
 
 --------------------------------------------------------------------------------
@@ -448,29 +452,36 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
       unbalancedCollTx :: Transaction
       unbalancedCollTx = maybe identity addTxCollateral collateral unbalancedTx'
 
+    availableUtxos <- lift $ map unwrap $ filterUnusedUtxos $ wrap allUtxos
+
     -- Logging Unbalanced Tx with collateral added:
-    logTx "Unbalanced Collaterised Tx " allUtxos unbalancedCollTx
+    logTx "Unbalanced Collaterised Tx " availableUtxos unbalancedCollTx
+
     -- Prebalance collaterised tx without fees:
     ubcTx <- except $
-      prebalanceCollateral zero allUtxos ownAddr utxoMinVal unbalancedCollTx
+      prebalanceCollateral zero availableUtxos ownAddr utxoMinVal
+        unbalancedCollTx
     -- Prebalance collaterised tx with fees:
     let unattachedTx' = unattachedTx # _transaction' .~ ubcTx
     _ /\ fees <- ExceptT $ evalExUnitsAndMinFee unattachedTx'
     ubcTx' <- except $
-      prebalanceCollateral (fees + feeBuffer) allUtxos ownAddr utxoMinVal ubcTx
+      prebalanceCollateral (fees + feeBuffer) availableUtxos ownAddr utxoMinVal
+        ubcTx
     -- Loop to balance non-Ada assets
-    nonAdaBalancedCollTx <- ExceptT $ loop allUtxos ownAddr [] $ unattachedTx' #
-      _transaction' .~ ubcTx'
+    nonAdaBalancedCollTx <- ExceptT $ loop availableUtxos ownAddr [] $
+      unattachedTx' #
+        _transaction' .~ ubcTx'
     -- Return excess Ada change to wallet:
     unsignedTx <- ExceptT $
-      returnAdaChangeAndFinalizeFees ownAddr allUtxos nonAdaBalancedCollTx <#>
-        lmap ReturnAdaChangeError'
+      returnAdaChangeAndFinalizeFees ownAddr availableUtxos nonAdaBalancedCollTx
+        <#>
+          lmap ReturnAdaChangeError'
     -- Sort inputs at the very end so it behaves as a Set:
     let sortedUnsignedTx = unsignedTx # _body' <<< _inputs %~ Array.sort
     -- Attach datums and redeemers, set the script integrity hash:
     finalizedTx <- lift $ finalizeTransaction sortedUnsignedTx
     -- Log final balanced tx and return it:
-    logTx "Post-balancing Tx " allUtxos (unwrap finalizedTx)
+    logTx "Post-balancing Tx " availableUtxos (unwrap finalizedTx)
     except $ Right finalizedTx
   where
   prebalanceCollateral

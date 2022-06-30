@@ -1,7 +1,7 @@
--- | This module demonstrates how the `Contract` interface can be used to build,
--- | balance, and submit a transaction. It creates a simple transaction that gets
--- | UTxOs from the user's wallet and sends two Ada back to the same wallet address
-module Examples.Pkh2Pkh (main) where
+-- | This module balances and signs two transactions at once and demonstrates
+-- | the `withBalancedandSignedTxs` bracket. The point is that two different
+-- | Utxos will be used for these transactions.
+module Examples.SignMultiple (main) where
 
 import Contract.Prelude
 
@@ -11,7 +11,8 @@ import Contract.Address
   , ownStakePubKeyHash
   )
 import Contract.Monad
-  ( ConfigParams(ConfigParams)
+  ( Contract
+  , ConfigParams(ConfigParams)
   , LogLevel(Trace)
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
@@ -23,12 +24,24 @@ import Contract.Monad
   , mkContractConfig
   , runContract_
   )
+import Control.Monad.Reader (asks)
+import Effect.Ref as Ref
 import Contract.ScriptLookups as Lookups
-import Contract.Transaction (balanceAndSignTx, submit)
+import Contract.Transaction
+  ( BalancedSignedTransaction
+  , submit
+  , withBalancedAndSignedTxs
+  )
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
+import Types.UsedTxOuts (TxOutRefCache)
+
+getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
+getLockedInputs = do
+  cache <- asks (_.usedTxOuts <<< unwrap)
+  liftEffect $ Ref.read $ unwrap cache
 
 main :: Effect Unit
 main = launchAff_ $ do
@@ -57,9 +70,22 @@ main = launchAff_ $ do
       lookups :: Lookups.ScriptLookups Void
       lookups = mempty
 
-    ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    bsTx <-
-      liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+    ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+    ubTx2 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+
+    withBalancedAndSignedTxs [ ubTx1, ubTx2 ] $ \txs -> do
+      locked <- getLockedInputs
+      logInfo' $ "Locked inputs inside bracket (should be nonempty): " <> show
+        locked
+      traverse_ submitAndLog txs
+
+    locked <- getLockedInputs
+    logInfo' $ "Locked inputs after bracket (should be empty): " <> show locked
+
+  where
+  submitAndLog
+    :: forall (r :: Row Type). BalancedSignedTransaction -> Contract r Unit
+  submitAndLog bsTx = do
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
 
