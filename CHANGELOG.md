@@ -27,6 +27,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 - `FromPlutusType` / `ToPlutusType` type classes.
 - `Contract.Wallet.mkGeroWallet` and `Contract.Wallet.mkNamiWallet` - `Aff` versions should be used instead.
+- Modules `Metadata.Seabug` and `Metadata.Seabug.Share`
 
 ### Changed
 
