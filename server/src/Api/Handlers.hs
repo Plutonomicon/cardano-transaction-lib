@@ -86,7 +86,8 @@ estimateTxFees FeesRequest {count, tx} = do
               -- be able to handle a possible integer overflow
               feeBytes =
                 bytesNeeded (fee + bytesNeeded fee * feePerByte)
-           in fee + feeBytes * feePerByte + 2 * feePerByte -- FIXME:
+           in -- FIXME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/638
+              fee + feeBytes * feePerByte + 2 * feePerByte
       where
         -- Calculates the number of bytes that a given integer will take
         -- when CBOR encoded.
