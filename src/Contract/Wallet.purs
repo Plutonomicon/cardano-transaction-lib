@@ -7,7 +7,8 @@ module Contract.Wallet
   ) where
 
 import Contract.Address (getWalletAddress, getWalletCollateral) as ContractAddress
-import Serialization.Types (PrivateKey)
+import Data.Maybe (Maybe)
+import Serialization (privateKeyFromBytes) as Serialization
 import Wallet
   ( Cip30Connection
   , Cip30Wallet
@@ -16,8 +17,9 @@ import Wallet
   , mkGeroWalletAff
   ) as Wallet
 import Wallet (mkKeyWallet)
-import Wallet.Key (KeyWallet, privateKeyToKeyWallet) as Wallet
-import Serialization (privateKeyFromBytes) as Serialization
+import Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
+import Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 
-mkKeyWalletFromPrivateKey :: PrivateKey -> Wallet.Wallet
+mkKeyWalletFromPrivateKey
+  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet.Wallet
 mkKeyWalletFromPrivateKey = mkKeyWallet

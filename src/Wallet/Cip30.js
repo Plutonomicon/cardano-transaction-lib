@@ -28,3 +28,6 @@ exports._signTx = txHex => conn => () => {
           throw (JSON.stringify(e));
       });
 };
+
+// _getBalance :: Cip30Connection -> Effect (Promise string)
+exports._getBalance = conn => () => conn.getBalance();

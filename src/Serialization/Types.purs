@@ -4,7 +4,6 @@ module Serialization.Types
   , AuxiliaryData
   , AuxiliaryDataHash
   , BigInt
-  , BigNum
   , Bip32PublicKey
   , BootstrapWitness
   , BootstrapWitnesses
@@ -95,7 +94,6 @@ foreign import data Assets :: Type
 foreign import data AuxiliaryData :: Type
 foreign import data AuxiliaryDataHash :: Type
 foreign import data BigInt :: Type
-foreign import data BigNum :: Type
 foreign import data Bip32PublicKey :: Type
 foreign import data BootstrapWitness :: Type
 foreign import data BootstrapWitnesses :: Type
@@ -175,18 +173,11 @@ foreign import data Vkeywitness :: Type
 foreign import data Vkeywitnesses :: Type
 foreign import data Withdrawals :: Type
 
-instance Show BigNum where
-  show = _to_str
-
-instance Eq BigNum where
-  eq = eq `on` show
-
 instance Show VRFKeyHash where
   show = _vrfKeyHashBytes >>> byteArrayToHex
 
 instance Eq VRFKeyHash where
   eq = eq `on` show
 
-foreign import _to_str :: forall a. a -> String
 -- We can't use ToBytes class here, because of cyclic dependencies
 foreign import _vrfKeyHashBytes :: VRFKeyHash -> ByteArray

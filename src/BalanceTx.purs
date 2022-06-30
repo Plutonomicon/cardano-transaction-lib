@@ -7,12 +7,13 @@ module BalanceTx
   , CannotMinusError(..)
   , EvalExUnitsAndMinFeeError(..)
   , Expected(..)
+  , FinalizedTransaction(..)
   , GetPublicKeyTransactionInputError(..)
   , GetWalletAddressError(..)
   , GetWalletCollateralError(..)
+  , TxInputLockedError(..)
   , ImpossibleError(..)
   , ReturnAdaChangeError(..)
-  , UnattachedTransaction
   , UtxosAtError(..)
   , balanceTx
   ) where
@@ -61,13 +62,13 @@ import Constants.Alonzo
   ( adaOnlyWords
   , coinSize
   , pidSize
-  , protocolParamUTxOCostPerWord
   , utxoEntrySizeWithoutVal
   )
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
+import Control.Monad.Trans.Class (lift)
 import Data.Array ((\\), modifyAt)
 import Data.Array as Array
 import Data.Bifunctor (bimap, lmap)
@@ -76,7 +77,7 @@ import Data.Either (Either(Left, Right), hush, note)
 import Data.Enum (fromEnum) as Enum
 import Data.Foldable as Foldable
 import Data.Generic.Rep (class Generic)
-import Data.Lens (Lens', lens', _1)
+import Data.Lens (Lens', lens')
 import Data.Lens.Getter ((^.))
 import Data.Lens.Index (ix) as Lens
 import Data.Lens.Setter ((.~), set, (?~), (%~))
@@ -99,8 +100,7 @@ import QueryM
   , getWalletCollateral
   , evalTxExecutionUnits
   )
-import QueryM.ProtocolParameters (getProtocolParameters)
-import QueryM.Utxos (utxosAt)
+import QueryM.Utxos (utxosAt, filterUnusedUtxos)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import Transaction (setScriptDataHash)
@@ -129,32 +129,32 @@ data BalanceTxError
   | BalanceTxInsError' BalanceTxInsError
   | BalanceNonAdaOutsError' BalanceNonAdaOutsError
   | EvalExUnitsAndMinFeeError' EvalExUnitsAndMinFeeError
+  | TxInputLockedError' TxInputLockedError
 
-derive instance genericBalanceTxError :: Generic BalanceTxError _
+derive instance Generic BalanceTxError _
 
-instance showBalanceTxError :: Show BalanceTxError where
+instance Show BalanceTxError where
   show = genericShow
 
 data GetWalletAddressError = CouldNotGetWalletAddress
 
-derive instance genericGetWalletAddressError :: Generic GetWalletAddressError _
+derive instance Generic GetWalletAddressError _
 
-instance showGetWalletAddressError :: Show GetWalletAddressError where
+instance Show GetWalletAddressError where
   show = genericShow
 
 data GetWalletCollateralError = CouldNotGetCollateral
 
-derive instance genericGetWalletCollateralError ::
-  Generic GetWalletCollateralError _
+derive instance Generic GetWalletCollateralError _
 
-instance showGetWalletCollateralError :: Show GetWalletCollateralError where
+instance Show GetWalletCollateralError where
   show = genericShow
 
 data UtxosAtError = CouldNotGetUtxos
 
-derive instance genericUtxosAtError :: Generic UtxosAtError _
+derive instance Generic UtxosAtError _
 
-instance showUtxosAtError :: Show UtxosAtError where
+instance Show UtxosAtError where
   show = genericShow
 
 data EvalExUnitsAndMinFeeError
@@ -162,10 +162,9 @@ data EvalExUnitsAndMinFeeError
   | EvalMinFeeError ClientError
   | ReindexRedeemersError ReindexErrors
 
-derive instance genericEvalExUnitsAndMinFeeError ::
-  Generic EvalExUnitsAndMinFeeError _
+derive instance Generic EvalExUnitsAndMinFeeError _
 
-instance showEvalExUnitsAndMinFeeError :: Show EvalExUnitsAndMinFeeError where
+instance Show EvalExUnitsAndMinFeeError where
   show = genericShow
 
 data ReturnAdaChangeError
@@ -173,95 +172,105 @@ data ReturnAdaChangeError
   | ReturnAdaChangeImpossibleError String ImpossibleError
   | ReturnAdaChangeCalculateMinFee EvalExUnitsAndMinFeeError
 
-derive instance genericReturnAdaChangeError :: Generic ReturnAdaChangeError _
+derive instance Generic ReturnAdaChangeError _
 
-instance showReturnAdaChangeError :: Show ReturnAdaChangeError where
+instance Show ReturnAdaChangeError where
   show = genericShow
 
 data AddTxCollateralsError
   = CollateralUtxosUnavailable
   | AddTxCollateralsError
 
-derive instance genericAddTxCollateralsError :: Generic AddTxCollateralsError _
+derive instance Generic AddTxCollateralsError _
 
-instance showAddTxCollateralsError :: Show AddTxCollateralsError where
+instance Show AddTxCollateralsError where
   show = genericShow
 
 data GetPublicKeyTransactionInputError = CannotConvertScriptOutputToTxInput
 
-derive instance genericGetPublicKeyTransactionInputError ::
-  Generic GetPublicKeyTransactionInputError _
+derive instance Generic GetPublicKeyTransactionInputError _
 
-instance showGetPublicKeyTransactionInputError ::
-  Show GetPublicKeyTransactionInputError where
+instance Show GetPublicKeyTransactionInputError where
   show = genericShow
 
 data BalanceTxInsError
   = InsufficientTxInputs Expected Actual
   | BalanceTxInsCannotMinus CannotMinusError
 
-derive instance genericBalanceTxInsError :: Generic BalanceTxInsError _
+derive instance Generic BalanceTxInsError _
 
-instance showBalanceTxInsError :: Show BalanceTxInsError where
+instance Show BalanceTxInsError where
   show = genericShow
 
 data CannotMinusError = CannotMinus Actual
 
-derive instance genericCannotMinusError :: Generic CannotMinusError _
+derive instance Generic CannotMinusError _
 
-instance showCannotMinusError :: Show CannotMinusError where
+instance Show CannotMinusError where
   show = genericShow
 
 data CollectTxInsError = CollectTxInsInsufficientTxInputs BalanceTxInsError
 
-derive instance genericCollectTxInsError :: Generic CollectTxInsError _
+derive instance Generic CollectTxInsError _
 
-instance showCollectTxInsError :: Show CollectTxInsError where
+instance Show CollectTxInsError where
   show = genericShow
 
 newtype Expected = Expected Value
 
-derive instance genericExpected :: Generic Expected _
-derive instance newtypeExpected :: Newtype Expected _
+derive instance Generic Expected _
+derive instance Newtype Expected _
 
-instance showExpected :: Show Expected where
+instance Show Expected where
   show = genericShow
 
 newtype Actual = Actual Value
 
-derive instance genericActual :: Generic Actual _
-derive instance newtypeActual :: Newtype Actual _
+derive instance Generic Actual _
+derive instance Newtype Actual _
 
-instance showActual :: Show Actual where
+instance Show Actual where
   show = genericShow
 
 data BalanceNonAdaOutsError
   = InputsCannotBalanceNonAdaTokens
   | BalanceNonAdaOutsCannotMinus CannotMinusError
 
-derive instance genericBalanceNonAdaOutsError ::
-  Generic BalanceNonAdaOutsError _
+derive instance Generic BalanceNonAdaOutsError _
 
-instance showBalanceNonAdaOutsError :: Show BalanceNonAdaOutsError where
+instance Show BalanceNonAdaOutsError where
+  show = genericShow
+
+data TxInputLockedError = TxInputLockedError
+
+derive instance Generic TxInputLockedError _
+
+instance Show TxInputLockedError where
   show = genericShow
 
 -- | Represents that an error reason should be impossible
 data ImpossibleError = Impossible
 
-derive instance genericImpossibleError :: Generic ImpossibleError _
+derive instance Generic ImpossibleError _
 
-instance showImpossibleError :: Show ImpossibleError where
+instance Show ImpossibleError where
   show = genericShow
 
 --------------------------------------------------------------------------------
--- Type aliases, temporary placeholder types
+-- Newtype wrappers, Type aliases, Temporary placeholder types
 --------------------------------------------------------------------------------
 
 -- Output utxos with the amount of lovelaces required.
 type MinUtxos = Array (TransactionOutput /\ BigInt)
 
-type UnattachedTransaction = Transaction /\ Array
-  (Redeemer /\ Maybe TransactionInput)
+newtype FinalizedTransaction = FinalizedTransaction Transaction
+
+derive instance Generic FinalizedTransaction _
+derive instance Newtype FinalizedTransaction _
+derive newtype instance Eq FinalizedTransaction
+
+instance Show FinalizedTransaction where
+  show = genericShow
 
 --------------------------------------------------------------------------------
 -- Evaluation of fees and execution units, Updating redeemers
@@ -275,41 +284,50 @@ evalExUnitsAndMinFee'
   :: UnattachedUnbalancedTx
   -> QueryM
        (Either EvalExUnitsAndMinFeeError (UnattachedUnbalancedTx /\ BigInt))
-evalExUnitsAndMinFee' unattachedTx = do
-  costModels <- getProtocolParameters <#> unwrap >>> _.costModels
+evalExUnitsAndMinFee' unattachedTx =
   runExceptT do
     -- Reindex `Spent` script redeemers:
-    unattachedReindexedTx <- ExceptT $ reindexRedeemers unattachedTx
+    reindexedUnattachedTx <- ExceptT $ reindexRedeemers unattachedTx
       <#> lmap ReindexRedeemersError
     -- Reattach datums and redeemers before evaluating ex units:
-    let attachedTx = reattachDatumsAndRedeemers unattachedReindexedTx
+    let attachedTx = reattachDatumsAndRedeemers reindexedUnattachedTx
     -- Evaluate transaction ex units:
     rdmrPtrExUnitsList <- ExceptT $ evalTxExecutionUnits attachedTx
       <#> lmap EvalExUnitsError
     let
       -- Set execution units received from the server:
-      unattachedTxWithExUnits =
-        updateTxExecutionUnits unattachedReindexedTx rdmrPtrExUnitsList
-      -- Reattach datums and redeemers before calculating fees:
-      attachedTxWithExUnits =
-        reattachDatumsAndRedeemers unattachedTxWithExUnits
-    -- Set the script integrity hash:
-    let ws = attachedTxWithExUnits ^. _witnessSet # unwrap
-    attachedTxWithExUnitsAndIntegrityHash <- liftEffect $ setScriptDataHash
-      costModels
-      (fromMaybe mempty ws.redeemers)
-      (wrap <$> fromMaybe mempty ws.plutusData)
-      attachedTxWithExUnits
+      reindexedUnattachedTxWithExUnits =
+        updateTxExecutionUnits reindexedUnattachedTx rdmrPtrExUnitsList
+    -- Attach datums and redeemers, set the script integrity hash:
+    FinalizedTransaction finalizedTx <- lift $
+      finalizeTransaction reindexedUnattachedTxWithExUnits
     -- Calculate the minimum fee for a transaction:
-    minFee <- ExceptT $ calculateMinFee attachedTxWithExUnitsAndIntegrityHash
+    minFee <- ExceptT $ calculateMinFee finalizedTx
       <#> bimap EvalMinFeeError unwrap
-    pure $ unattachedTxWithExUnits /\ minFee
+    pure $ reindexedUnattachedTxWithExUnits /\ minFee
 
 evalExUnitsAndMinFee
   :: UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError (UnattachedUnbalancedTx /\ BigInt))
 evalExUnitsAndMinFee =
   map (lmap EvalExUnitsAndMinFeeError') <<< evalExUnitsAndMinFee'
+
+-- | Attaches datums and redeemers, sets the script integrity hash,
+-- | for use after reindexing.
+finalizeTransaction
+  :: UnattachedUnbalancedTx -> QueryM FinalizedTransaction
+finalizeTransaction reindexedUnattachedTxWithExUnits =
+  let
+    attachedTxWithExUnits =
+      reattachDatumsAndRedeemers reindexedUnattachedTxWithExUnits
+    ws = attachedTxWithExUnits ^. _witnessSet # unwrap
+    redeemers = fromMaybe mempty ws.redeemers
+    datums = wrap <$> fromMaybe mempty ws.plutusData
+  in
+    do
+      costModels <- asks _.pparams <#> unwrap >>> _.costModels
+      liftEffect $ FinalizedTransaction <$>
+        setScriptDataHash costModels redeemers datums attachedTxWithExUnits
 
 reindexRedeemers
   :: UnattachedUnbalancedTx
@@ -398,12 +416,13 @@ _redeemersTxIns = lens' \(UnattachedUnbalancedTx rec@{ redeemersTxIns }) ->
 -- | In particular, the transaction inputs must not include the collateral.
 balanceTx
   :: UnattachedUnbalancedTx
-  -> QueryM (Either BalanceTxError UnattachedTransaction)
+  -> QueryM (Either BalanceTxError FinalizedTransaction)
 balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   let (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = t
   networkId <- (unbalancedTx ^. _body <<< _networkId) #
     maybe (asks _.networkId) pure
   let unbalancedTx' = unbalancedTx # _body <<< _networkId ?~ networkId
+  utxoMinVal <- getAdaOnlyUtxoMinValue
   runExceptT do
     -- Get own wallet address, collateral and utxo set:
     ownAddr <- ExceptT $ getWalletAddress <#>
@@ -433,40 +452,47 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
       unbalancedCollTx :: Transaction
       unbalancedCollTx = maybe identity addTxCollateral collateral unbalancedTx'
 
+    availableUtxos <- lift $ map unwrap $ filterUnusedUtxos $ wrap allUtxos
+
     -- Logging Unbalanced Tx with collateral added:
-    logTx "Unbalanced Collaterised Tx " allUtxos unbalancedCollTx
+    logTx "Unbalanced Collaterised Tx " availableUtxos unbalancedCollTx
+
     -- Prebalance collaterised tx without fees:
     ubcTx <- except $
-      prebalanceCollateral zero allUtxos ownAddr unbalancedCollTx
+      prebalanceCollateral zero availableUtxos ownAddr utxoMinVal
+        unbalancedCollTx
     -- Prebalance collaterised tx with fees:
     let unattachedTx' = unattachedTx # _transaction' .~ ubcTx
     _ /\ fees <- ExceptT $ evalExUnitsAndMinFee unattachedTx'
     ubcTx' <- except $
-      prebalanceCollateral (fees + feeBuffer) allUtxos ownAddr ubcTx
+      prebalanceCollateral (fees + feeBuffer) availableUtxos ownAddr utxoMinVal
+        ubcTx
     -- Loop to balance non-Ada assets
-    nonAdaBalancedCollTx <- ExceptT $ loop allUtxos ownAddr [] $ unattachedTx' #
-      _transaction' .~ ubcTx'
+    nonAdaBalancedCollTx <- ExceptT $ loop availableUtxos ownAddr [] $
+      unattachedTx' #
+        _transaction' .~ ubcTx'
     -- Return excess Ada change to wallet:
     unsignedTx <- ExceptT $
-      returnAdaChangeAndFinalizeFees ownAddr allUtxos nonAdaBalancedCollTx <#>
-        lmap ReturnAdaChangeError'
-    let
-      unattachedTx'' = unsignedTx ^. _transaction'
-        /\ unsignedTx ^. _redeemersTxIns
-      -- Sort inputs at the very end so it behaves as a Set.
-      sortedUnsignedTx = fst unattachedTx'' # _body <<< _inputs %~ Array.sort
-    -- Logs final balanced tx and returns it
-    logTx "Post-balancing Tx " allUtxos sortedUnsignedTx
-    except $ Right (unattachedTx'' # _1 .~ sortedUnsignedTx)
+      returnAdaChangeAndFinalizeFees ownAddr allUtxos nonAdaBalancedCollTx
+        <#>
+          lmap ReturnAdaChangeError'
+    -- Sort inputs at the very end so it behaves as a Set:
+    let sortedUnsignedTx = unsignedTx # _body' <<< _inputs %~ Array.sort
+    -- Attach datums and redeemers, set the script integrity hash:
+    finalizedTx <- lift $ finalizeTransaction sortedUnsignedTx
+    -- Log final balanced tx and return it:
+    logTx "Post-balancing Tx " availableUtxos (unwrap finalizedTx)
+    except $ Right finalizedTx
   where
   prebalanceCollateral
     :: BigInt
     -> Utxo
     -> Address
+    -> BigInt
     -> Transaction
     -> Either BalanceTxError Transaction
-  prebalanceCollateral fees utxos ownAddr tx =
-    balanceTxIns utxos fees (tx ^. _body)
+  prebalanceCollateral fees utxos ownAddr adaOnlyUtxoMinValue tx =
+    balanceTxIns utxos fees adaOnlyUtxoMinValue (tx ^. _body)
       >>= balanceNonAdaOuts ownAddr utxos
       <#> flip (set _body) tx
 
@@ -477,7 +503,7 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     -> UnattachedUnbalancedTx
     -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
   loop utxoIndex' ownAddr' prevMinUtxos' unattachedTx' = do
-    uTxOCostPerWord <- getProtocolParameters <#> unwrap >>> _.uTxOCostPerWord
+    uTxOCostPerWord <- asks _.pparams <#> unwrap >>> _.uTxOCostPerWord
     let
       Transaction { body: txBody'@(TxBody txB) } =
         unattachedTx' ^. _transaction'
@@ -511,18 +537,18 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     -> UnattachedUnbalancedTx
     -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
   chainedBalancer minUtxos' utxoIndex' ownAddr' unattachedTx' =
-    runExceptT do
+    getAdaOnlyUtxoMinValue >>= \utxoMinVal -> runExceptT do
       let Transaction tx@{ body: txBody' } = unattachedTx' ^. _transaction'
       txBodyWithoutFees' <- except $
-        preBalanceTxBody minUtxos' zero utxoIndex' ownAddr' txBody'
+        preBalanceTxBody minUtxos' zero utxoIndex' ownAddr' utxoMinVal txBody'
       let
         tx' = wrap tx { body = txBodyWithoutFees' }
         unattachedTx'' = unattachedTx' # _unbalancedTx <<< _transaction .~ tx'
       unattachedTx''' /\ fees' <- ExceptT $
         evalExUnitsAndMinFee unattachedTx''
-
+      let feesWithBuffer = fees' + feeBuffer
       except <<< map (\body -> unattachedTx''' # _body' .~ body) $
-        preBalanceTxBody minUtxos' (fees' + feeBuffer) utxoIndex' ownAddr'
+        preBalanceTxBody minUtxos' feesWithBuffer utxoIndex' ownAddr' utxoMinVal
           txBody'
 
   -- We expect the user has a minimum amount of Ada (this buffer) on top of
@@ -591,15 +617,16 @@ returnAdaChangeAndFinalizeFees changeAddr utxos unattachedTx =
         unattachedTx' /\ fees' <-
           ExceptT $ evalExUnitsAndMinFee' unattachedTxWithChangeTxOut
             <#> lmap ReturnAdaChangeCalculateMinFee
-        except $
+        ExceptT $ getAdaOnlyUtxoMinValue <#>
           adjustAdaChangeAndSetFees unattachedTx' fees' (fees' - fees)
   where
   adjustAdaChangeAndSetFees
     :: UnattachedUnbalancedTx
     -> BigInt
     -> BigInt
+    -> BigInt
     -> Either ReturnAdaChangeError UnattachedUnbalancedTx
-  adjustAdaChangeAndSetFees unattachedTx' fees feesDelta
+  adjustAdaChangeAndSetFees unattachedTx' fees feesDelta changeUtxoMinValue
     | feesDelta <= zero = Right $
         unattachedTxSetFees unattachedTx' fees
     | otherwise =
@@ -611,14 +638,8 @@ returnAdaChangeAndFinalizeFees changeAddr utxos unattachedTx =
           returnAda = fromMaybe zero $
             Array.head txOutputs <#> \(TransactionOutput rec) ->
               (valueToCoin' rec.amount) - feesDelta
-
-          utxoCost :: BigInt
-          utxoCost = getLovelace protocolParamUTxOCostPerWord
-
-          changeMinUtxo :: BigInt
-          changeMinUtxo = adaOnlyWords * utxoCost
         in
-          case returnAda >= changeMinUtxo of
+          case returnAda >= changeUtxoMinValue of
             true -> do
               newOutputs <- updateChangeTxOutputValue returnAda txOutputs
               pure $
@@ -755,15 +776,17 @@ preBalanceTxBody
   -> BigInt
   -> Utxo
   -> Address
+  -> BigInt
   -> TxBody
   -> Either BalanceTxError TxBody
-preBalanceTxBody minUtxos fees utxos ownAddr txBody =
+preBalanceTxBody minUtxos fees utxos ownAddr adaOnlyUtxoMinValue txBody =
   -- -- Take a single Ada only utxo collateral
   -- addTxCollaterals utxos txBody
   --   >>= balanceTxIns utxos fees -- Add input fees for the Ada only collateral
   --   >>= balanceNonAdaOuts ownAddr utxos
   addLovelaces minUtxos txBody # pure
-    >>= balanceTxIns utxos fees -- Adding more inputs if required
+    -- Adding more inputs if required
+    >>= balanceTxIns utxos fees adaOnlyUtxoMinValue
     >>= balanceNonAdaOuts ownAddr utxos
 
 -- addTxCollaterals :: Utxo -> TxBody -> Either BalanceTxError TxBody
@@ -811,21 +834,16 @@ getPublicKeyTransactionInput (txOutRef /\ txOut) =
 -- Balance transaction inputs
 --------------------------------------------------------------------------------
 
-balanceTxIns :: Utxo -> BigInt -> TxBody -> Either BalanceTxError TxBody
-balanceTxIns utxos fees txbody =
-  balanceTxIns' utxos fees txbody # lmap BalanceTxInsError'
+balanceTxIns
+  :: Utxo -> BigInt -> BigInt -> TxBody -> Either BalanceTxError TxBody
+balanceTxIns utxos fees changeUtxoMinValue txbody =
+  balanceTxIns' utxos fees changeUtxoMinValue txbody
+    # lmap BalanceTxInsError'
 
--- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
--- Notice we aren't using protocol parameters for utxo cost per word.
-balanceTxIns' :: Utxo -> BigInt -> TxBody -> Either BalanceTxInsError TxBody
-balanceTxIns' utxos fees (TxBody txBody) = do
+balanceTxIns'
+  :: Utxo -> BigInt -> BigInt -> TxBody -> Either BalanceTxInsError TxBody
+balanceTxIns' utxos fees changeUtxoMinValue (TxBody txBody) = do
   let
-    utxoCost :: BigInt
-    utxoCost = getLovelace protocolParamUTxOCostPerWord
-
-    changeMinUtxo :: BigInt
-    changeMinUtxo = adaOnlyWords * utxoCost
-
     txOutputs :: Array TransactionOutput
     txOutputs = txBody.outputs
 
@@ -843,7 +861,7 @@ balanceTxIns' utxos fees (TxBody txBody) = do
 
   let
     minSpending :: Value
-    minSpending = lovelaceValueOf (fees + changeMinUtxo) <> nonMintedValue
+    minSpending = lovelaceValueOf (fees + changeUtxoMinValue) <> nonMintedValue
 
   -- a = spy "minSpending" minSpending
 
@@ -1027,3 +1045,12 @@ getInputValue utxos (TxBody txBody) =
   Array.foldMap
     getAmount
     (Array.mapMaybe (flip Map.lookup utxos) <<< _.inputs $ txBody)
+
+--------------------------------------------------------------------------------
+-- Helpers
+--------------------------------------------------------------------------------
+
+getAdaOnlyUtxoMinValue :: QueryM BigInt
+getAdaOnlyUtxoMinValue =
+  asks _.pparams <#>
+    unwrap >>> _.uTxOCostPerWord >>> unwrap >>> mul adaOnlyWords

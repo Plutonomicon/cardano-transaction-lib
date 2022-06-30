@@ -14,7 +14,6 @@ import Data.Either (hush)
 import Data.Maybe (isJust, isNothing)
 import Data.Newtype (unwrap)
 import Deserialization.BigInt as DB
-import Deserialization.BigNum (bigNumToBigInt)
 import Deserialization.FromBytes (fromBytes)
 import Deserialization.NativeScript as NSD
 import Deserialization.PlutusData as DPD
@@ -33,7 +32,6 @@ import Mote (group, test)
 import Serialization (toBytes)
 import Serialization as Serialization
 import Serialization.BigInt as SB
-import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.NativeScript (convertNativeScript) as NSS
 import Serialization.PlutusData as SPD
 import Serialization.Types (TransactionUnspentOutput)
@@ -74,6 +72,7 @@ import Test.Fixtures
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy, expectError)
 import Test.Utils (errMaybe)
 import TestM (TestPlanM)
+import Types.BigNum (fromBigInt, toBigInt) as BigNum
 import Types.Transaction (TransactionInput) as T
 import Untagged.Union (asOneOf)
 
@@ -89,8 +88,8 @@ suite = do
     group "BigNum" do
       test "Deserialization is inverse to serialization" do
         let bigInt = BigInt.fromInt 123
-        res <- errMaybe "Failed to serialize BigInt" $ bigNumFromBigInt bigInt
-          >>= bigNumToBigInt
+        res <- errMaybe "Failed to serialize BigInt" $ BigNum.fromBigInt bigInt
+          >>= BigNum.toBigInt
         res `shouldEqual` bigInt
     group "CSL <-> CTL PlutusData roundtrip tests" do
       let
