@@ -174,7 +174,7 @@ One major caveat to using CTL in its current state is that we have no equivalent
 
 ## Testing
 
-### Without light wallet
+### Without a light wallet
 
 We provide `KeyWallet` to enable testing outside of the browser, or in-browser without a light wallet installed. To generate a key, you can use `cardano-cli` as follows:
 
