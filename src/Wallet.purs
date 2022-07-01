@@ -1,7 +1,7 @@
 module Wallet
   ( module KeyWallet
   , module Cip30Wallet
-  , Wallet(Gero, Nami, KeyWallet, KeyListWallet)
+  , Wallet(Gero, Nami, KeyWallet)
   , mkNamiWalletAff
   , mkGeroWalletAff
   , mkKeyWallet
@@ -35,13 +35,11 @@ import Wallet.Key
   , privateKeysToKeyWallet
   )
 import Wallet.Key (KeyWallet, privateKeysToKeyWallet) as KeyWallet
-import Wallet.KeyList (KeyListWallet)
 
 data Wallet
   = Nami Cip30Wallet
   | Gero Cip30Wallet
   | KeyWallet KeyWallet
-  | KeyListWallet KeyListWallet
 
 mkKeyWallet :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
 mkKeyWallet payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet payKey

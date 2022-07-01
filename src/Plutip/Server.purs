@@ -75,9 +75,6 @@ import QueryM as QueryM
 import QueryM.ProtocolParameters as Ogmios
 import QueryM.UniqueId (uniqueId)
 import Types.UsedTxOuts (newUsedTxOuts)
-import Wallet (Wallet(KeyListWallet))
-import Wallet.KeyList (KeyListWallet)
-import Wallet.KeyList as KeyList
 
 defaultRetryPolicy :: RetryPolicy
 defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
@@ -335,17 +332,13 @@ mkClusterContractCfg plutipCfg params = do
   pure $ ContractConfig
     { ogmiosWs
     , datumCacheWs
-    , wallet: Just $ KeyListWallet $ mkKeyListWallet params
+    , wallet: Nothing
     , usedTxOuts
     , serverConfig: plutipCfg.ctlServerConfig
     , networkId: TestnetId
     , logLevel: plutipCfg.logLevel
     , pparams
     }
-
-mkKeyListWallet :: ClusterStartupParameters -> KeyListWallet
-mkKeyListWallet { privateKeys } = KeyList.mkKeyListWallet
-  (unwrap <$> privateKeys)
 
 data NetworkInfo = Mainnet | Testnet Int
 

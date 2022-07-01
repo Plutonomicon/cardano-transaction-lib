@@ -162,7 +162,7 @@ import Untagged.Union (asOneOf)
 import Wallet
   ( Cip30Connection
   , Cip30Wallet
-  , Wallet(Gero, Nami, KeyListWallet, KeyWallet)
+  , Wallet(Gero, Nami, KeyWallet)
   )
 import Wallet.Key as KeyWallet
 
@@ -292,10 +292,6 @@ getWalletAddress = do
     Nami nami -> callCip30Wallet nami _.getWalletAddress
     Gero gero -> callCip30Wallet gero _.getWalletAddress
     KeyWallet kw -> Just <$> (unwrap kw).address networkId
-    KeyListWallet ks -> case ks.selected of
-      Nothing -> do
-        liftEffect $ throw "getWalletAddress: KeyListWallet: no wallet selected"
-      Just kw -> Just <$> (unwrap kw).address networkId
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
 getWalletCollateral = asks _.wallet >>= maybe (pure Nothing)
@@ -307,11 +303,6 @@ getWalletCollateral = asks _.wallet >>= maybe (pure Nothing)
     Gero gero -> liftAff $ callCip30Wallet gero _.getCollateral
     KeyWallet (KeyWallet.KeyWallet { selectCollateral: _ }) ->
       liftEffect $ throw "getWalletCollacteral: KeyWallet: Not implemented"
-    KeyListWallet { selected: Nothing } ->
-      liftEffect $ throw
-        "getWalletCollateral: KeyListWallet: no wallet selected"
-    KeyListWallet { selected: Just keyWallet } ->
-      getWalletCollateral' (KeyWallet keyWallet)
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
@@ -319,9 +310,6 @@ signTransaction tx = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
   KeyWallet kw -> Just <$> (unwrap kw).signTx tx
-  KeyListWallet ks -> case ks.selected of
-    Nothing -> pure Nothing
-    Just kw -> Just <$> (unwrap kw).signTx tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do
