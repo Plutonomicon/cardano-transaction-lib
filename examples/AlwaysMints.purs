@@ -6,16 +6,7 @@ module Examples.AlwaysMints (main) where
 import Contract.Prelude
 
 import Contract.Aeson (decodeAeson, fromString)
-import Contract.Monad
-  ( launchAff_
-  , liftContractAffM
-  , liftContractM
-  , liftedE
-  , liftedM
-  , logInfo'
-  , runContract_
-  , traceTestnetContractConfig
-  )
+import Contract.Monad (launchAff_, liftContractAffM, liftContractM, liftedE, liftedM, logInfo', runContract_, traceTestnetContractConfig)
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)
@@ -23,6 +14,7 @@ import Contract.Transaction (balanceAndSignTx, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Data.BigInt as BigInt
+import Test.E2E.Feedback (publishTestFeedback)
 
 main :: Effect Unit
 main = launchAff_ $ do
@@ -49,6 +41,7 @@ main = launchAff_ $ do
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
+  publishTestFeedback true
 
 alwaysMintsPolicy :: Maybe MintingPolicy
 alwaysMintsPolicy = map wrap $ hush $ decodeAeson $ fromString

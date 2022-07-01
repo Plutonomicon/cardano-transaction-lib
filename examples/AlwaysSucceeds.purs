@@ -34,6 +34,7 @@ import Contract.Value as Value
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Effect.Aff (delay)
+import Test.E2E.Feedback (publishTestFeedback)
 
 main :: Effect Unit
 main = launchAff_ $ do
@@ -49,6 +50,7 @@ main = launchAff_ $ do
     countToZero 60
     logInfo' "Try to spend locked values"
     spendFromAlwaysSucceeds vhash validator txId
+  publishTestFeedback true
 
 countToZero :: Int -> Contract () Unit
 countToZero n =

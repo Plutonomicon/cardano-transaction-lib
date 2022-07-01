@@ -37,6 +37,7 @@ import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
 import Types.UsedTxOuts (TxOutRefCache)
+import Test.E2E.Feedback (publishTestFeedback)
 
 getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
 getLockedInputs = do
@@ -81,7 +82,9 @@ main = launchAff_ $ do
 
     locked <- getLockedInputs
     logInfo' $ "Locked inputs after bracket (should be empty): " <> show locked
-
+    
+  publishTestFeedback true
+  
   where
   submitAndLog
     :: forall (r :: Row Type). BalancedSignedTransaction -> Contract r Unit

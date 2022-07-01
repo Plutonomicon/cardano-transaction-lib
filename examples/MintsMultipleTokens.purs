@@ -26,6 +26,7 @@ import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
 import Data.BigInt (fromInt) as BigInt
+import Test.E2E.Feedback (publishTestFeedback)
 
 main :: Effect Unit
 main = launchAff_ $ do
@@ -63,6 +64,8 @@ main = launchAff_ $ do
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
+    
+  publishTestFeedback true
 
 mkTokenName :: forall (r :: Row Type). String -> Contract r TokenName
 mkTokenName =

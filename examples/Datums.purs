@@ -27,7 +27,8 @@ import Contract.Monad
   )
 import Contract.PlutusData (DataHash, getDatumByHash, getDatumsByHashes)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
-
+import Test.E2E.Feedback (publishTestFeedback)
+  
 main :: Effect Unit
 main = launchAff_ $ do
   cfg <- traceTestnetContractConfig
@@ -43,6 +44,7 @@ main = launchAff_ $ do
       , mkDatumHash
           "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
       ]
+  publishTestFeedback true
   where
   mkDatumHash :: String -> DataHash
   mkDatumHash = wrap <<< hexToByteArrayUnsafe
