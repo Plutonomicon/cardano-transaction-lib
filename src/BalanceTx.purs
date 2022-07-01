@@ -104,7 +104,6 @@ import QueryM.Utxos (utxosAt, filterUnusedUtxos)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import Transaction (setScriptDataHash)
-import TxOutput (utxoIndexToUtxo)
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (DataHash, TransactionInput)
@@ -442,7 +441,7 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
       -- Combines utxos at the user address and those from any scripts
       -- involved with the contract in the unbalanced transaction.
       allUtxos :: Utxo
-      allUtxos = utxos `Map.union` utxoIndexToUtxo networkId utxoIndex
+      allUtxos = utxos `Map.union` utxoIndex
 
       -- After adding collateral, we need to balance the inputs and
       -- non-Ada outputs before looping, i.e. we need to add input fees

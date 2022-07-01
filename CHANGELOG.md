@@ -53,6 +53,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Bad logging in `queryDispatch` that didn't propagate error messages ([#615](https://github.com/Plutonomicon/cardano-transaction-lib/pull/615))
 - UTxO Min-Ada-Value calculation ([#611](https://github.com/Plutonomicon/cardano-transaction-lib/pull/611))
 
+## [1.1.0] - 2022-06-30
+
+### Fixed
+
+- Changed `utxoIndex` inside an `UnbalancedTx` to be a `Map` with values `TransactionOutput` instead of `ScriptOutput` so there is no conversion in the balancer to `ScriptOutput`. This means the balancer can spend UTxOs from different wallets instead of just the current wallet and script addresses.
+
+
 ## [1.0.1] - 2022-06-17
 
 ### Fixed
