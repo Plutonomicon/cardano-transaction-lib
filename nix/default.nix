@@ -128,7 +128,7 @@ let
     { testMain ? "Test.Main"
     , name ? "${projectName}-check"
     , sources ? [ "src" "test" ]
-    , buildInputs ? []
+    , buildInputs ? [ ]
     , ...
     }@args:
     (buildPursProject args).overrideAttrs
