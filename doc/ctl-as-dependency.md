@@ -200,6 +200,8 @@ Make sure to perform **all** of the following steps, otherwise you **will** enco
                   , "baz"
                   ]
                 }
+              , repo = "https://github.com/quux/foo.git"
+              , version = "0000000000000000000000000000000000000000"
               -- ...
               }
         ```
