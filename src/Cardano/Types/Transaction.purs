@@ -73,14 +73,10 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
-  , Aeson
-  , AesonEncoder
   , caseAesonString
   , decodeAeson
-  , encodeAeson
   , encodeAeson'
   )
-import Aeson.Encode (dictionary, encodeTagged)
 
 import Cardano.Types.Value (Coin, NonAdaAsset, Value)
 import Control.Alternative ((<|>))
@@ -97,13 +93,12 @@ import Data.Map (Map)
 import Data.Maybe (Maybe(Nothing))
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype, unwrap)
-import Data.Op (Op(Op))
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
-import Helpers ((</>), (<<>>), appendMap)
+import Helpers ((</>), (<<>>), appendMap, encodeMap, encodeTagged')
 import Serialization.Address
   ( Address
   , NetworkId
@@ -261,8 +256,6 @@ instance EncodeAeson TxBody where
   encodeAeson' (TxBody r) = encodeAeson' $ r
     { withdrawals = encodeMap <$> r.withdrawals
     }
-    where
-    (Op encodeMap) = dictionary (Op encodeAeson) (Op encodeAeson)
 
 newtype ScriptDataHash = ScriptDataHash ByteArray
 
@@ -319,8 +312,6 @@ instance Show ProposedProtocolParameterUpdates where
 
 instance EncodeAeson ProposedProtocolParameterUpdates where
   encodeAeson' (ProposedProtocolParameterUpdates r) = encodeAeson' $ encodeMap r
-    where
-    (Op encodeMap) = dictionary (Op encodeAeson) (Op encodeAeson)
 
 newtype GenesisHash = GenesisHash ByteArray
 
@@ -381,8 +372,6 @@ instance Show Costmdls where
 
 instance EncodeAeson Costmdls where
   encodeAeson' = encodeAeson' <<< encodeMap <<< unwrap
-    where
-    (Op encodeMap) = dictionary (Op encodeAeson) (Op encodeAeson)
 
 data Language = PlutusV1
 
@@ -395,7 +384,7 @@ instance Show Language where
 
 instance EncodeAeson Language where
   encodeAeson' = case _ of
-    PlutusV1 -> encodeAeson' $ encodeTagged "PlutusV1" {} (Op encodeAeson)
+    PlutusV1 -> encodeAeson' $ encodeTagged' "PlutusV1" {}
 
 newtype CostModel = CostModel (Array UInt)
 
@@ -493,12 +482,9 @@ instance Show Relay where
 
 instance EncodeAeson Relay where
   encodeAeson' = case _ of
-    SingleHostAddr r -> encodeAeson' $ encodeTagged "SingleHostAddr" r
-      (Op encodeAeson)
-    SingleHostName r -> encodeAeson' $ encodeTagged "SingleHostName" r
-      (Op encodeAeson)
-    MultiHostName r -> encodeAeson' $ encodeTagged "MultiHostName" r
-      (Op encodeAeson)
+    SingleHostAddr r -> encodeAeson' $ encodeTagged' "SingleHostAddr" r
+    SingleHostName r -> encodeAeson' $ encodeTagged' "SingleHostName" r
+    MultiHostName r -> encodeAeson' $ encodeTagged' "MultiHostName" r
 
 newtype URL = URL String
 
@@ -553,9 +539,7 @@ instance Show MIRToStakeCredentials where
   show = genericShow
 
 instance EncodeAeson MIRToStakeCredentials where
-  encodeAeson' (MIRToStakeCredentials m) = encodeAeson' $ encodeMap m
-    where
-    (Op encodeMap) = dictionary (Op encodeAeson) (Op encodeAeson)
+  encodeAeson' (MIRToStakeCredentials r) = encodeAeson' $ encodeMap r
 
 data MoveInstantaneousReward
   = ToOtherPot
@@ -575,9 +559,8 @@ instance Show MoveInstantaneousReward where
 
 instance EncodeAeson MoveInstantaneousReward where
   encodeAeson' = case _ of
-    ToOtherPot r -> encodeAeson' $ encodeTagged "ToOtherPot" r (Op encodeAeson)
-    ToStakeCreds r -> encodeAeson' $ encodeTagged "ToStakeCreds" r
-      (Op encodeAeson)
+    ToOtherPot r -> encodeAeson' $ encodeTagged' "ToOtherPot" r
+    ToStakeCreds r -> encodeAeson' $ encodeTagged' "ToStakeCreds" r
 
 data Certificate
   = StakeRegistration StakeCredential
@@ -613,11 +596,9 @@ instance Show Certificate where
 
 instance EncodeAeson Certificate where
   encodeAeson' cert = case cert of
-    StakeRegistration cred -> encodeAeson' $ encodeTagged' "StakeRegistration"
-      cred
-    StakeDeregistration cred -> encodeAeson' $ encodeTagged'
-      "StakeDeregistration"
-      cred
+    StakeRegistration r -> encodeAeson' $ encodeTagged' "StakeRegistration" r
+    StakeDeregistration r -> encodeAeson' $ encodeTagged' "StakeDeregistration"
+      r
     StakeDelegation cred hash -> encodeAeson' $ encodeTagged' "StakeDelegation"
       { stakeCredential: cred, ed25519KeyHash: hash }
     PoolRegistration r -> encodeAeson' $ encodeTagged' "PoolRegistration" r
@@ -625,12 +606,9 @@ instance EncodeAeson Certificate where
     GenesisKeyDelegation r -> encodeAeson' $ encodeTagged'
       "GenesisKeyDelegation"
       r
-    MoveInstantaneousRewardsCert moveReward -> encodeAeson' $ encodeTagged'
+    MoveInstantaneousRewardsCert r -> encodeAeson' $ encodeTagged'
       "MoveInstantaneousReward"
-      moveReward
-    where
-    encodeTagged' :: forall a. EncodeAeson a => String -> a -> Aeson
-    encodeTagged' str x = encodeTagged str x (Op encodeAeson)
+      r
 
 --------------------------------------------------------------------------------
 -- `TxBody` Lenses
@@ -872,17 +850,13 @@ instance Show NativeScript where
 
 instance EncodeAeson NativeScript where
   encodeAeson' = case _ of
-    ScriptPubkey hash -> encodeTagged' "ScriptPubKey" hash
-    ScriptAll arr -> encodeTagged' "ScriptAll" arr
-    ScriptAny arr -> encodeTagged' "ScriptAny" arr
-    ScriptNOfK n nativeScripts -> encodeTagged' "ScriptPubKey"
+    ScriptPubkey r -> encodeAeson' $ encodeTagged' "ScriptPubKey" r
+    ScriptAll r -> encodeAeson' $ encodeTagged' "ScriptAll" r
+    ScriptAny r -> encodeAeson' $ encodeTagged' "ScriptAny" r
+    ScriptNOfK n nativeScripts -> encodeAeson' $ encodeTagged' "ScriptPubKey"
       { n, nativeScripts }
-    TimelockStart slot -> encodeTagged' "TimeLockStart" slot
-    TimelockExpiry slot -> encodeTagged' "TimeLockExpiry" slot
-    where
-    encodeTagged'
-      :: forall x. EncodeAeson x => String -> x -> AesonEncoder Aeson
-    encodeTagged' str x = encodeAeson' $ encodeTagged str x (Op encodeAeson)
+    TimelockStart r -> encodeAeson' $ encodeTagged' "TimeLockStart" r
+    TimelockExpiry r -> encodeAeson' $ encodeTagged' "TimeLockExpiry" r
 
 newtype TransactionOutput = TransactionOutput
   { address :: Address

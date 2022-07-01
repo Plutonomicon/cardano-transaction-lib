@@ -25,7 +25,7 @@ module Contract.Transaction
 
 import Prelude
 
-import Aeson(class EncodeAeson)
+import Aeson (class EncodeAeson)
 import BalanceTx (UnattachedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
 import BalanceTx (BalanceTxError) as BalanceTxError

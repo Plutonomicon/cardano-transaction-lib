@@ -6,16 +6,14 @@ module Types.TransactionMetadata
 
 import Prelude
 
-import Aeson (class EncodeAeson, Aeson, AesonEncoder, encodeAeson, encodeAeson')
-import Aeson.Encode (encodeTagged, dictionary)
+import Aeson (class EncodeAeson, encodeAeson')
 import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map (empty) as Map
 import Data.Newtype (class Newtype)
-import Data.Op (Op(Op))
 import Data.Show.Generic (genericShow)
-import Helpers (appendRightMap, showWithParens)
+import Helpers (encodeMap, encodeTagged', appendRightMap, showWithParens)
 import Types.ByteArray (ByteArray)
 import Types.Int (Int) as Int
 
@@ -33,8 +31,6 @@ instance Show GeneralTransactionMetadata where
 
 instance EncodeAeson GeneralTransactionMetadata where
   encodeAeson' (GeneralTransactionMetadata m) = encodeAeson' $ encodeMap m
-    where
-    (Op encodeMap) = dictionary (Op encodeAeson) (Op encodeAeson)
 
 -- This Semigroup instance simply takes the Last value for duplicate keys
 -- to avoid a Semigroup instance for TransactionMetadatum.
@@ -76,17 +72,9 @@ instance Show TransactionMetadatum where
 
 instance EncodeAeson TransactionMetadatum where
   encodeAeson' = case _ of
-    MetadataMap m -> encodeTagged' "MetadataMap" $ encodeMap m
-    MetadataList arr -> encodeTagged' "MetadataList" arr
-    Int n -> encodeTagged' "Int" n
-    Bytes bytes -> encodeTagged' "Bytes" bytes
-    Text string -> encodeTagged' "Text" string
-    where
-    encodeTagged'
-      :: forall x. EncodeAeson x => String -> x -> AesonEncoder Aeson
-    encodeTagged' str x = encodeAeson' $ encodeTagged str x (Op encodeAeson)
+    MetadataMap m -> encodeAeson' $ encodeMap m
+    MetadataList arr -> encodeAeson' $ encodeTagged' "MetadataList" arr
+    Int n -> encodeAeson' $ encodeTagged' "Int" n
+    Bytes bytes -> encodeAeson' $ encodeTagged' "Bytes" bytes
+    Text string -> encodeAeson' $ encodeTagged' "Text" string
 
-    encodeMap :: forall k v. EncodeAeson k => EncodeAeson v => Map k v -> Aeson
-    encodeMap = encodeMap'
-      where
-      (Op encodeMap') = dictionary (Op encodeAeson) (Op encodeAeson)

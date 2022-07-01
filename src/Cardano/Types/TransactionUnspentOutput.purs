@@ -4,7 +4,7 @@ module Cardano.Types.TransactionUnspentOutput
 
 import Prelude
 
-import Aeson(class EncodeAeson)
+import Aeson (class EncodeAeson)
 import Cardano.Types.Transaction (TransactionOutput)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)

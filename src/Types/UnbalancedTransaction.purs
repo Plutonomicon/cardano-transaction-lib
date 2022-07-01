@@ -11,8 +11,7 @@ module Types.UnbalancedTransaction
 
 import Prelude
 
-import Aeson(class EncodeAeson, encodeAeson, encodeAeson')
-import Aeson.Encode(dictionary)
+import Aeson (class EncodeAeson, encodeAeson')
 import Cardano.Types.Transaction
   ( Transaction
   , PublicKey(PublicKey)
@@ -25,9 +24,9 @@ import Data.Lens.Types (Lens')
 import Data.Map (Map, empty)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
-import Data.Op(Op(Op))
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))
+import Helpers (encodeMap)
 import Serialization
   ( publicKeyFromBech32
   , publicKeyHash
@@ -86,10 +85,9 @@ instance Show UnbalancedTx where
   show = genericShow
 
 instance EncodeAeson UnbalancedTx where
-    encodeAeson' (UnbalancedTx r)  = encodeAeson' $ r {
-        utxoIndex = encodeMap r.utxoIndex
+  encodeAeson' (UnbalancedTx r) = encodeAeson' $ r
+    { utxoIndex = encodeMap r.utxoIndex
     }
-        where (Op encodeMap) = dictionary (Op encodeAeson) (Op encodeAeson)
 
 _transaction :: Lens' UnbalancedTx Transaction
 _transaction = lens'

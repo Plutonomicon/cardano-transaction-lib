@@ -54,11 +54,10 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonObject
-  , encodeAeson
   , encodeAeson'
   , getField
   )
-import Aeson.Encode (dictionary)
+
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Data.Array (cons, filter)
@@ -77,7 +76,6 @@ import Data.Map (keys, lookup, Map, toUnfoldable, unions, values)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Op (Op(Op))
 import Data.Set (Set)
 import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This))
@@ -85,7 +83,7 @@ import Data.Traversable (class Traversable, traverse)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import FromData (class FromData)
-import Helpers (showWithParens)
+import Helpers (encodeMap, showWithParens)
 import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Partial.Unsafe (unsafePartial)
@@ -272,10 +270,7 @@ instance Split NonAdaAsset where
     npos /\ pos = mapThese splitIntl mp
 
 instance EncodeAeson NonAdaAsset where
-  encodeAeson' (NonAdaAsset m) = encodeAeson' $ encodeNestedMap m
-    where
-    (Op encodeMap) = dictionary (Op encodeAeson) (Op encodeAeson)
-    (Op encodeNestedMap) = dictionary (Op encodeAeson) (Op encodeMap)
+  encodeAeson' (NonAdaAsset m) = encodeAeson' $ encodeMap $ encodeMap <$> m
 
 -- We shouldn't need this check if we don't export unsafeAdaSymbol etc.
 -- | Create a singleton `NonAdaAsset` which by definition should be safe since
