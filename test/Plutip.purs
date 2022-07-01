@@ -105,7 +105,7 @@ suite = do
         withKeyWallet bob do
           pure unit -- sign, balance, submit, etc.
         liftEffect $ Console.log $ show $ ct
-    test "runPlutipContract: pkh2pkh" do
+    test "runPlutipContract: Pkh2Pkh" do
       let
         distribution :: Array BigInt
         distribution =
@@ -113,7 +113,6 @@ suite = do
           , BigInt.fromInt 2_000_000_000
           ]
       runPlutipContract config distribution \alice -> do
-        ct <- getTip
         withKeyWallet alice do
           pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
           let
@@ -129,4 +128,3 @@ suite = do
             liftedE $ balanceAndSignTxE ubTx
           txId <- submit bsTx
           logInfo' $ "Tx ID: " <> show txId
-        liftEffect $ Console.log $ show $ ct

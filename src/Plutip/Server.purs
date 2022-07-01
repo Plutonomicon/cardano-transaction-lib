@@ -17,7 +17,7 @@ import Affjax as Affjax
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
-import Contract.Address (NetworkId(TestnetId))
+import Contract.Address (NetworkId(MainnetId))
 import Contract.Monad (Contract, ContractConfig(ContractConfig), runContract)
 import Control.Monad.Error.Class (withResource)
 import Control.Monad.Except (runExcept)
@@ -335,7 +335,7 @@ mkClusterContractCfg plutipCfg params = do
     , wallet: Nothing
     , usedTxOuts
     , serverConfig: plutipCfg.ctlServerConfig
-    , networkId: TestnetId
+    , networkId: MainnetId
     , logLevel: plutipCfg.logLevel
     , pparams
     }
