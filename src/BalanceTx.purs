@@ -86,6 +86,8 @@ import Data.Log.Tag (tag)
 import Data.Map as Map
 import Data.Maybe (fromMaybe, maybe, isJust, Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Set (Set)
+import Data.Set as Set
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse_)
 import Data.Tuple (fst)
@@ -334,7 +336,7 @@ reindexRedeemers
 reindexRedeemers
   unattachedTx@(UnattachedUnbalancedTx { redeemersTxIns }) =
   let
-    inputs = unattachedTx ^. _body' <<< _inputs
+    inputs = Array.fromFoldable $ unattachedTx ^. _body' <<< _inputs
   in
     reindexSpentScriptRedeemers' inputs redeemersTxIns <#>
       map \redeemersTxInsReindexed ->
@@ -475,10 +477,8 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
       returnAdaChangeAndFinalizeFees ownAddr allUtxos nonAdaBalancedCollTx
         <#>
           lmap ReturnAdaChangeError'
-    -- Sort inputs at the very end so it behaves as a Set:
-    let sortedUnsignedTx = unsignedTx # _body' <<< _inputs %~ Array.sort
     -- Attach datums and redeemers, set the script integrity hash:
-    finalizedTx <- lift $ finalizeTransaction sortedUnsignedTx
+    finalizedTx <- lift $ finalizeTransaction unsignedTx
     -- Log final balanced tx and return it:
     logTx "Post-balancing Tx " availableUtxos (unwrap finalizedTx)
     except $ Right finalizedTx
@@ -864,30 +864,26 @@ balanceTxIns' utxos fees changeUtxoMinValue (TxBody txBody) = do
 
   -- a = spy "minSpending" minSpending
 
-  txIns :: Array TransactionInput <-
+  txIns <-
     lmap
       ( \(CollectTxInsInsufficientTxInputs insufficientTxInputs) ->
           insufficientTxInputs
       )
       $ collectTxIns txBody.inputs utxos minSpending
-  -- Original code uses Set append which is union. Array unions behave
-  -- a little differently as it removes duplicates in the second argument.
-  -- but all inputs should be unique anyway so I think this is fine.
-  -- Note, this does not sort automatically unlike Data.Set
   pure $ wrap
     txBody
-      { inputs = Array.union txIns txBody.inputs
+      { inputs = Set.union txIns txBody.inputs
       }
 
 --https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- | Getting the necessary input utxos to cover the fees for the transaction
 collectTxIns
-  :: Array TransactionInput
+  :: Set TransactionInput
   -> Utxo
   -> Value
-  -> Either CollectTxInsError (Array TransactionInput)
+  -> Either CollectTxInsError (Set TransactionInput)
 collectTxIns originalTxIns utxos value =
-  if isSufficient updatedInputs then pure updatedInputs
+  if isSufficient updatedInputs then pure $ Set.fromFoldable updatedInputs
   else
     Left $ CollectTxInsInsufficientTxInputs $
       InsufficientTxInputs (Expected value)
@@ -900,7 +896,7 @@ collectTxIns originalTxIns utxos value =
           if Array.elem txIn newTxIns || isSufficient newTxIns then newTxIns
           else Array.insert txIn newTxIns -- treat as a set.
       )
-      originalTxIns
+      (Array.fromFoldable originalTxIns)
       $ utxosToTransactionInput utxos
 
   -- Useful spies for debugging:
@@ -912,9 +908,9 @@ collectTxIns originalTxIns utxos value =
   isSufficient txIns' =
     not (Array.null txIns') && (txInsValue utxos txIns') `geq` value
 
-txInsValue :: Utxo -> Array TransactionInput -> Value
-txInsValue utxos =
-  Array.foldMap getAmount <<< Array.mapMaybe (flip Map.lookup utxos)
+  txInsValue :: Utxo -> Array TransactionInput -> Value
+  txInsValue utxos' =
+    Array.foldMap getAmount <<< Array.mapMaybe (flip Map.lookup utxos')
 
 utxosToTransactionInput :: Utxo -> Array TransactionInput
 utxosToTransactionInput =
@@ -928,8 +924,6 @@ balanceNonAdaOuts
 balanceNonAdaOuts changeAddr utxos txBody =
   balanceNonAdaOuts' changeAddr utxos txBody # lmap BalanceNonAdaOutsError'
 
--- FIX ME: (payment credential) address for change substitute for pkh (Address)
--- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L225
 -- | We need to balance non ada values as part of the prebalancer before returning
 -- | excess Ada to the owner.
 balanceNonAdaOuts'
@@ -938,14 +932,7 @@ balanceNonAdaOuts'
   -> TxBody
   -> Either BalanceNonAdaOutsError TxBody
 balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
-  let -- FIX ME: Similar to Address issue, need pkh.
-    -- payCredentials :: PaymentCredential
-    -- payCredentials = addressPaymentCredentials changeAddr
-
-    -- FIX ME: once both BaseAddresses are merged into one.
-    -- pkh :: PubKeyHash
-    -- pkh = addressPubKeyHash (unwrap changeAddr)."AddrType"
-
+  let
     txOutputs :: Array TransactionOutput
     txOutputs = txBody.outputs
 
@@ -1043,7 +1030,10 @@ getInputValue :: Utxo -> TxBody -> Value
 getInputValue utxos (TxBody txBody) =
   Array.foldMap
     getAmount
-    (Array.mapMaybe (flip Map.lookup utxos) <<< _.inputs $ txBody)
+    ( Array.mapMaybe (flip Map.lookup utxos)
+        <<< Array.fromFoldable
+        <<< _.inputs $ txBody
+    )
 
 --------------------------------------------------------------------------------
 -- Helpers
