@@ -63,7 +63,6 @@ let
         shellHook =
           let
             nodeModules = mkNodeModules { };
-            ogmiosFixtures = buildOgmiosFixtures { };
           in
           ''
             export NODE_PATH="${nodeModules}/lib/node_modules"
