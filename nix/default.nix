@@ -1,7 +1,6 @@
 { pkgs, system }:
 { src
 , projectName
-, ogmios
   # We should try to use a consistent version of node across all
   # project components
 , nodejs ? pkgs.nodejs-14_x
@@ -69,7 +68,6 @@ let
           ''
             export NODE_PATH="${nodeModules}/lib/node_modules"
             export PATH="${nodeModules}/bin:$PATH"
-            export OGMIOS_FIXTURES="${ogmiosFixtures}"
           ''
           + shellHook;
       };
@@ -142,7 +140,6 @@ let
         # sandbox, so we can just use node instead
         # (idea taken from `plutus-playground-client`)
         checkPhase = ''
-          export OGMIOS_FIXTURES="${buildOgmiosFixtures { }}"
           node -e 'require("./output/${testMain}").main()'
         '';
         installPhase = ''
@@ -263,7 +260,7 @@ let
       dontUnpack = true;
       buildInputs = [ pkgs.jq ];
       buildPhase = ''
-        cp -r ${ogmios}/server/test/vectors/StateQuery/Response .
+        cp -r ${pkgs.ogmios-fixtures}/server/test/vectors/StateQuery/Response .
         chmod -R +rwx .
 
         function on_file () {

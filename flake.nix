@@ -27,13 +27,6 @@
       flake = false;
     };
 
-
-    # for testing the ogmios parser
-    ogmios-fixtures = {
-      url = "github:CardanoSolutions/ogmios?ref=master";
-      flake = false;
-    };
-
     # for the haskell server
     iohk-nix.url = "github:input-output-hk/iohk-nix";
     haskell-nix.url = "github:mlabs-haskell/haskell.nix?ref=master";
@@ -156,6 +149,7 @@
         ogmios-datum-cache =
           inputs.ogmios-datum-cache.defaultPackage.${system};
         ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
+        ogmios-fixtures = ogmios;
         cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
         purescriptProject = import ./nix { inherit system; pkgs = prev; };
         buildCtlRuntime = buildCtlRuntime system;
@@ -375,7 +369,6 @@
           project = pkgs.purescriptProject {
             inherit src pkgs;
             projectName = "cardano-transaction-lib";
-            ogmios = inputs.ogmios-fixtures;
             shell = {
               packages = [
                 pkgs.ogmios
@@ -388,6 +381,10 @@
               ];
             };
           };
+          exportOgmiosFixtures =
+            ''
+              export OGMIOS_FIXTURES="${project.buildOgmiosFixtures { }}"
+            '';
         in
         rec {
           defaultPackage = packages.ctl-example-bundle-web;
@@ -408,8 +405,6 @@
             };
 
             docs = project.buildSearchablePursDocs;
-
-            ogmios-fixtures = project.buildOgmiosFixtures { };
           };
 
           launchDocs =
@@ -436,10 +431,15 @@
             ctl-unit-test = project.runPursTest {
               testMain = "Test.Unit";
               sources = [ "src" "test" "fixtures" ];
-            };
+            }.overrideAttrs (oas: {
+              checkPhase = exportOgmiosFixtures + oas.checkPhase;
+            });
           };
 
-          devShell = project.devShell;
+          devShell = project.devShell.overrideAttrs (oas: {
+            shellHook = oas.shellHook + exportOgmiosFixtures;
+          });
+
         };
 
       hsProjectFor = system:
