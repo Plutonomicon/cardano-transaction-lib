@@ -16,7 +16,7 @@ module QueryM
   , QueryMExtended
   , RdmrPtrExUnits(..)
   , RequestBody
-  , WebSocket(WebSocket)
+  , WebSocket(..)
   , allowError
   , applyArgs
   , calculateMinFee
