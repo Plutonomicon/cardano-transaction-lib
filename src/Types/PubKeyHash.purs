@@ -41,7 +41,7 @@ import Serialization.Address
   , enterpriseAddress
   , enterpriseAddressToAddress
   , keyHashCredential
-  , pubKeyAddress
+  , paymentKeyHashStakeKeyHashAddress
   , rewardAddress
   , rewardAddressToAddress
   )
@@ -102,7 +102,8 @@ ed25519RewardAddress network skh =
 
 pubKeyHashBaseAddress :: NetworkId -> PubKeyHash -> StakePubKeyHash -> Address
 pubKeyHashBaseAddress networkId pkh skh =
-  baseAddressToAddress $ pubKeyAddress networkId (unwrap pkh)
+  baseAddressToAddress $ paymentKeyHashStakeKeyHashAddress networkId
+    (unwrap pkh)
     (unwrap $ unwrap skh)
 
 pubKeyHashRewardAddress :: NetworkId -> PubKeyHash -> Address

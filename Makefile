@@ -5,6 +5,7 @@ SHELL := bash
 
 ps-sources := $(shell fd -epurs)
 nix-sources := $(shell fd -enix --exclude='spago*')
+hs-sources := $(shell fd . './server/src' './server/exe' -ehs)
 ps-entrypoint := Examples.AlwaysSucceeds
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 
@@ -17,10 +18,14 @@ run-build:
 	@${ps-bundle} && BROWSER_RUNTIME=1 webpack --mode=production
 
 check-format:
-	@purs-tidy check ${ps-sources} && nixpkgs-fmt --check ${nix-sources}
+	@purs-tidy check ${ps-sources}
+	nixpkgs-fmt --check ${nix-sources}
+	fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost ${hs-sources}
 
 format:
 	@purs-tidy format-in-place ${ps-sources}
+	nixpkgs-fmt ${nix-sources}
+	fourmolu -m inplace -o -XTypeApplications -o -XImportQualifiedPost ${hs-sources}
 
 run-datum-cache-postgres-console:
 	@nix shell nixpkgs#postgresql -c psql postgresql://ctxlib:ctxlib@localhost:5432

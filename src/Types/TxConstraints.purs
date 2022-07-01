@@ -96,7 +96,7 @@ derive instance Newtype (InputConstraint i) _
 derive instance Functor InputConstraint
 derive newtype instance Eq i => Eq (InputConstraint i)
 
-instance showInputConstraint :: Show i => Show (InputConstraint i) where
+instance Show i => Show (InputConstraint i) where
   show = genericShow
 
 newtype OutputConstraint (o :: Type) = OutputConstraint

@@ -34,7 +34,6 @@ import Cardano.Types.Transaction
   , MIRToStakeCredentials(MIRToStakeCredentials)
   , Mint(Mint)
   , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
-  , Nonce(IdentityNonce, HashNonce)
   , PoolMetadata(PoolMetadata)
   , PoolMetadataHash(PoolMetadataHash)
   , ProposedProtocolParameterUpdates
@@ -72,16 +71,14 @@ import Serialization.Address (Address, StakeCredential, RewardAddress)
 import Serialization.Address (NetworkId(TestnetId, MainnetId)) as T
 import Serialization.AuxiliaryData (convertAuxiliaryData)
 import Serialization.BigInt as Serialization
-import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.Hash (ScriptHash, Ed25519KeyHash, scriptHashFromBytes)
-import Serialization.PlutusData (packPlutusList)
+import Serialization.PlutusData (convertPlutusData)
 import Serialization.Types
   ( AssetName
   , Assets
   , AuxiliaryData
   , AuxiliaryDataHash
   , BigInt
-  , BigNum
   , Certificate
   , Certificates
   , CostModel
@@ -105,7 +102,6 @@ import Serialization.Types
   , NativeScript
   , NetworkId
   , PlutusData
-  , PlutusList
   , PoolMetadata
   , ProposedProtocolParameterUpdates
   , ProtocolParamUpdate
@@ -140,6 +136,8 @@ import Serialization.WitnessSet
   , convertExUnits
   )
 import Types.Aliases (Bech32String)
+import Types.BigNum (BigNum)
+import Types.BigNum (fromBigInt, fromStringUnsafe, toString) as BigNum
 import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
 import Types.RawBytes (RawBytes)
@@ -173,7 +171,6 @@ foreign import newTransactionBody
   :: TransactionInputs
   -> TransactionOutputs
   -> BigNum
-  -> UndefinedOr Int
   -> Effect TransactionBody
 
 foreign import newTransaction
@@ -187,7 +184,6 @@ foreign import newTransaction_
   -> TransactionWitnessSet
   -> Effect Transaction
 
-foreign import newTransactionWitnessSet :: Effect TransactionWitnessSet
 foreign import newTransactionWitnessSetFromBytes
   :: CborBytes -> Effect TransactionWitnessSet
 
@@ -234,7 +230,10 @@ foreign import costModelSetCost :: CostModel -> Int -> Int32 -> Effect Unit
 foreign import newPlutusV1 :: Effect Language
 foreign import newInt32 :: Int -> Effect Int32
 foreign import _hashScriptData
-  :: Redeemers -> Costmdls -> PlutusList -> Effect ScriptDataHash
+  :: Redeemers -> Costmdls -> Array PlutusData -> Effect ScriptDataHash
+
+foreign import _hashScriptDataNoDatums
+  :: Redeemers -> Costmdls -> Effect ScriptDataHash
 
 foreign import newRedeemers :: Effect Redeemers
 foreign import addRedeemer :: Redeemers -> Redeemer -> Effect Unit
@@ -253,6 +252,8 @@ foreign import insertMintAsset :: MintAssets -> AssetName -> Int -> Effect Unit
 foreign import setTxBodyNetworkId :: TransactionBody -> NetworkId -> Effect Unit
 foreign import networkIdTestnet :: Effect NetworkId
 foreign import networkIdMainnet :: Effect NetworkId
+
+foreign import setTxBodyTtl :: TransactionBody -> BigNum -> Effect Unit
 
 foreign import setTxBodyCerts :: TransactionBody -> Certificates -> Effect Unit
 foreign import newCertificates :: Effect Certificates
@@ -320,7 +321,7 @@ foreign import transactionBodySetRequiredSigners
   :: ContainerHelper -> TransactionBody -> Array Ed25519KeyHash -> Effect Unit
 
 foreign import transactionBodySetValidityStartInterval
-  :: TransactionBody -> Int -> Effect Unit
+  :: TransactionBody -> BigNum -> Effect Unit
 
 foreign import transactionBodySetAuxiliaryDataHash
   :: TransactionBody -> ByteArray -> Effect Unit
@@ -371,14 +372,6 @@ foreign import ppuSetExpansionRate
 
 foreign import ppuSetTreasuryGrowthRate
   :: ProtocolParamUpdate -> UnitInterval -> Effect Unit
-
-foreign import ppuSetD :: ProtocolParamUpdate -> UnitInterval -> Effect Unit
-
-foreign import ppuSetExtraEntropyIdentity
-  :: ProtocolParamUpdate -> Effect Unit
-
-foreign import ppuSetExtraEntropyFromHash
-  :: ProtocolParamUpdate -> ByteArray -> Effect Unit
 
 foreign import newProtocolVersion :: Int -> Int -> Effect ProtocolVersion
 
@@ -457,12 +450,13 @@ convertTxBody :: T.TxBody -> Effect TransactionBody
 convertTxBody (T.TxBody body) = do
   inputs <- convertTxInputs body.inputs
   outputs <- convertTxOutputs body.outputs
-  fee <- fromJustEff "Failed to convert fee" $ bigNumFromBigInt
+  fee <- fromJustEff "Failed to convert fee" $ BigNum.fromBigInt
     (unwrap body.fee)
-  let ttl = body.ttl <#> unwrap >>> UInt.toInt
-  txBody <- newTransactionBody inputs outputs fee (maybeToUor ttl)
+  txBody <- newTransactionBody inputs outputs fee
+  for_ body.ttl $ unwrap >>> setTxBodyTtl txBody
   for_ body.validityStartInterval $
-    unwrap >>> UInt.toInt >>> transactionBodySetValidityStartInterval txBody
+    unwrap >>> BigNum.toString >>> BigNum.fromStringUnsafe >>>
+      transactionBodySetValidityStartInterval txBody
   for_ body.requiredSigners $
     map unwrap >>> transactionBodySetRequiredSigners containerHelper txBody
   for_ body.auxiliaryDataHash $
@@ -524,8 +518,6 @@ convertProtocolParamUpdate
   , poolPledgeInfluence
   , expansionRate
   , treasuryGrowthRate
-  , d
-  , extraEntropy
   , protocolVersion
   , minPoolCost
   , adaPerUtxoByte
@@ -538,22 +530,22 @@ convertProtocolParamUpdate
   ppu <- newProtocolParamUpdate
   for_ minfeeA $ ppuSetMinfeeA ppu <=<
     fromJustEff "convertProtocolParamUpdate: min_fee_a must not be negative"
-      <<< bigNumFromBigInt
+      <<< BigNum.fromBigInt
       <<< unwrap
   for_ minfeeB $ ppuSetMinfeeB ppu <=<
     fromJustEff "convertProtocolParamUpdate: min_fee_b must not be negative"
-      <<< bigNumFromBigInt
+      <<< BigNum.fromBigInt
       <<< unwrap
   for_ maxBlockBodySize $ ppuSetMaxBlockBodySize ppu <<< UInt.toInt
   for_ maxTxSize $ ppuSetMaxTxSize ppu <<< UInt.toInt
   for_ maxBlockHeaderSize $ ppuSetMaxBlockHeaderSize ppu <<< UInt.toInt
   for_ keyDeposit $ ppuSetKeyDeposit ppu <=<
     fromJustEff "convertProtocolParamUpdate: key_deposit must not be negative"
-      <<< bigNumFromBigInt
+      <<< BigNum.fromBigInt
       <<< unwrap
   for_ poolDeposit $ ppuSetPoolDeposit ppu <=<
     fromJustEff "convertProtocolParamUpdate: pool_deposit must not be negative"
-      <<< bigNumFromBigInt
+      <<< BigNum.fromBigInt
       <<< unwrap
   for_ maxEpoch $ ppuSetMaxEpoch ppu <<< UInt.toInt <<< unwrap
   for_ nOpt $ ppuSetNOpt ppu <<< UInt.toInt
@@ -563,11 +555,6 @@ convertProtocolParamUpdate
     mkUnitInterval >=> ppuSetExpansionRate ppu
   for_ treasuryGrowthRate $
     mkUnitInterval >=> ppuSetTreasuryGrowthRate ppu
-  for_ d $
-    mkUnitInterval >=> ppuSetD ppu
-  for_ extraEntropy $ case _ of
-    T.IdentityNonce -> ppuSetExtraEntropyIdentity ppu
-    T.HashNonce bytes -> ppuSetExtraEntropyFromHash ppu bytes
   for_ protocolVersion $
     ppuSetProtocolVersion containerHelper ppu <=<
       traverse \pv -> newProtocolVersion (UInt.toInt pv.major)
@@ -597,7 +584,7 @@ convertWithdrawals mp =
   newWithdrawals containerHelper =<< do
     for (Map.toUnfoldable mp) \(k /\ Value.Coin v) -> do
       Tuple k <$> fromJustEff "convertWithdrawals: Failed to convert BigNum"
-        (bigNumFromBigInt v)
+        (BigNum.fromBigInt v)
 
 publicKeyFromBech32 :: Bech32String -> Maybe PublicKey
 publicKeyFromBech32 = _publicKeyFromBech32 maybeFfiHelper
@@ -706,7 +693,7 @@ convertMint (T.Mint (Value.NonAdaAsset m)) = do
       assetName <- newAssetName tokenName
       bigInt <- fromJustEff "convertMint: failed to convert BigInt" $
         Serialization.convertBigInt bigIntValue
-      int <- fromJustEff "converMint: numeric overflow or underflow" $
+      int <- fromJustEff "convertMint: numeric overflow or underflow" $
         _bigIntToInt maybeFfiHelper bigInt
       insertMintAsset assets assetName int
     insertMintAssets mint scripthash assets
@@ -756,13 +743,13 @@ convertValue val = do
       let tokenName = TokenName.getTokenName tokenName'
       assetName <- newAssetName tokenName
       value <- fromJustEff "convertValue: number must not be negative" $
-        bigNumFromBigInt bigIntValue
+        BigNum.fromBigInt bigIntValue
       insertAssets assets assetName value
     insertMultiAsset multiasset scripthash assets
   value <- newValueFromAssets multiasset
   valueSetCoin value =<< fromJustEff
     "convertValue: coin value must not be negative"
-    (bigNumFromBigInt lovelace)
+    (BigNum.fromBigInt lovelace)
   pure value
 
 convertCostmdls :: T.Costmdls -> Effect Costmdls
@@ -778,13 +765,17 @@ convertCostmdls (T.Costmdls cs) = do
   pure costmdls
 
 hashScriptData
-  :: Array T.Redeemer
-  -> T.Costmdls
+  :: T.Costmdls
+  -> Array T.Redeemer
   -> Array PlutusData.PlutusData
   -> Effect ScriptDataHash
-hashScriptData rs cms ps = do
-  plist <- fromJustEff "failed to convert datums" $ packPlutusList ps
+hashScriptData cms rs ps = do
   rs' <- newRedeemers
   cms' <- convertCostmdls cms
   traverse_ (addRedeemer rs' <=< convertRedeemer) rs
-  _hashScriptData rs' cms' plist
+  -- If an empty `PlutusData` array is passed to CSL's script integrity hashing
+  -- function, the resulting hash will be wrong
+  case ps of
+    [] -> _hashScriptDataNoDatums rs' cms'
+    _ -> _hashScriptData rs' cms' =<< fromJustEff "failed to convert datums"
+      (traverse convertPlutusData ps)

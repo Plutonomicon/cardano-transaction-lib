@@ -16,8 +16,8 @@ import Data.Function (on)
 import Data.Maybe (Maybe, fromJust)
 import Partial.Unsafe (unsafePartial)
 import Prim as Prim
-import Serialization.BigNum (bigNumFromBigInt)
-import Serialization.Types (BigNum)
+import Types.BigNum (BigNum)
+import Types.BigNum (fromBigInt) as BigNum
 
 foreign import data Int :: Prim.Type
 
@@ -39,8 +39,8 @@ instance EncodeAeson Int where
 
 fromBigInt :: BigInt.BigInt -> Maybe Int
 fromBigInt bi =
-  (newPositive <$> bigNumFromBigInt bi) <|>
-    (newNegative <$> bigNumFromBigInt (negate bi))
+  (newPositive <$> BigNum.fromBigInt bi) <|>
+    (newNegative <$> BigNum.fromBigInt (negate bi))
 
 toBigInt :: Int -> BigInt.BigInt
 toBigInt int =

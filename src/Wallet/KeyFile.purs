@@ -1,6 +1,7 @@
 -- | **NodeJS-only module**
 module Wallet.KeyFile
-  ( privateKeyFromFile
+  ( privatePaymentKeyFromFile
+  , privateStakeKeyFromFile
   ) where
 
 import Prelude
@@ -19,20 +20,25 @@ import Data.Newtype (wrap)
 import Data.String.CodeUnits as String
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
+import Effect.Exception (error, throw)
+import Helpers (liftM)
 import Node.Encoding as Encoding
 import Node.FS.Sync (readTextFile)
 import Node.Path (FilePath)
-import Serialization.Types (PrivateKey)
+import Serialization (privateKeyFromBytes)
 import Types.ByteArray (hexToByteArray)
 import Types.RawBytes (RawBytes)
-import Serialization (privateKeyFromBytes)
+import Wallet.Key
+  ( PrivatePaymentKey(PrivatePaymentKey)
+  , PrivateStakeKey(PrivateStakeKey)
+  )
 
--- | Byte representation of CSL PrivateKey, can be decoded from JSON.
+-- | Byte representation of CSL PrivateKey, can be decoded from JSON in
+-- | `cardano-cli` format.
 -- | (`PaymentSigningKeyShelley_ed25519`).
-newtype PrivateKeyFile = PrivateKeyFile RawBytes
+newtype PrivatePaymentKeyFile = PrivatePaymentKeyFile RawBytes
 
-instance DecodeAeson PrivateKeyFile where
+instance DecodeAeson PrivatePaymentKeyFile where
   decodeAeson aeson = do
     obj <- decodeAeson aeson
     typeStr <- obj .: "type"
@@ -44,12 +50,41 @@ instance DecodeAeson PrivateKeyFile where
       throwError (TypeMismatch "PrivateKeyFile CborHex")
     case hexToByteArray splitted.after of
       Nothing -> throwError (TypeMismatch "PrivateKey CborHex")
-      Just byteArray -> pure $ PrivateKeyFile $ wrap $ byteArray
+      Just byteArray -> pure $ PrivatePaymentKeyFile $ wrap $ byteArray
 
-privateKeyFromFile :: FilePath -> Aff (Maybe PrivateKey)
-privateKeyFromFile filePath = do
+privatePaymentKeyFromFile :: FilePath -> Aff PrivatePaymentKey
+privatePaymentKeyFromFile filePath = do
   fileContents <- liftEffect $ readTextFile Encoding.UTF8 filePath
   case (decodeAeson <=< parseJsonStringToAeson) fileContents of
     Left err -> liftEffect $ throw $ show err
-    Right (PrivateKeyFile bytes) -> do
-      pure $ privateKeyFromBytes bytes
+    Right (PrivatePaymentKeyFile bytes) -> do
+      liftM (error "Unable to decode private payment key") $
+        PrivatePaymentKey <$> privateKeyFromBytes bytes
+
+-- | Byte representation of CSL PrivateKey, can be decoded from JSON in
+-- | `cardano-cli` format.
+-- | (`StakeSigningKeyShelley_ed25519`).
+newtype PrivateStakeKeyFile = PrivateStakeKeyFile RawBytes
+
+instance DecodeAeson PrivateStakeKeyFile where
+  decodeAeson aeson = do
+    obj <- decodeAeson aeson
+    typeStr <- obj .: "type"
+    unless (typeStr == "StakeSigningKeyShelley_ed25519") do
+      throwError (TypeMismatch "StakeSigningKeyShelley_ed25519")
+    cborHex <- obj .: "cborHex"
+    let splitted = String.splitAt 4 cborHex
+    unless (splitted.before == "5820") do
+      throwError (TypeMismatch "PrivateKeyFile CborHex")
+    case hexToByteArray splitted.after of
+      Nothing -> throwError (TypeMismatch "PrivateKey CborHex")
+      Just byteArray -> pure $ PrivateStakeKeyFile $ wrap $ byteArray
+
+privateStakeKeyFromFile :: FilePath -> Aff PrivateStakeKey
+privateStakeKeyFromFile filePath = do
+  fileContents <- liftEffect $ readTextFile Encoding.UTF8 filePath
+  case (decodeAeson <=< parseJsonStringToAeson) fileContents of
+    Left err -> liftEffect $ throw $ show err
+    Right (PrivateStakeKeyFile bytes) -> do
+      liftM (error "Unable to decode private stake key") $
+        PrivateStakeKey <$> privateKeyFromBytes bytes
