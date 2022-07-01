@@ -38,6 +38,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Changed the underlying type of `Slot`, `TransactionIndex` and `CertificateIndex` to `BigNum`.
 - Moved transaction finalization logic to `balanceTx`.
 - Upgraded to CSL v11.0.0-beta.1.
+- Upgraded to Ogmios v5.5.0
 
 ### Fixed
 
