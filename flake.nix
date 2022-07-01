@@ -471,7 +471,7 @@
             };
             ctl-plutip-test = project.runPursTest {
               testMain = "Test.Plutip";
-              sources = [ "src" "test" "fixtures" ];
+              sources = [ "src" "test" "examples" "fixtures" ];
               buildInputs = [
                 (hsProjectFor system).hsPkgs.ctl-server.components.exes.ctl-server
                 pkgs.postgresql
