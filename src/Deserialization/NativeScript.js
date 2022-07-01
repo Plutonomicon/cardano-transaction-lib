@@ -25,5 +25,5 @@ exports.scriptAllScripts = helper => helper.unpackFromProperty('native_scripts')
 exports.scriptAnyScripts = helper => helper.unpackFromProperty('native_scripts');
 exports.scriptNOfKScripts = helper => helper.unpackFromProperty('native_scripts');
 exports.scriptNOfK_n = call('n');
-exports.timelockStart_slot = call('slot');
-exports.timelockExpiry_slot = call('slot');
+exports.timelockStart_slot = call('slot_bignum');
+exports.timelockExpiry_slot = call('slot_bignum');

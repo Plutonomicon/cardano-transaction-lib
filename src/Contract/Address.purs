@@ -160,20 +160,21 @@ enterpriseAddressValidatorHash :: Address -> Maybe ValidatorHash
 enterpriseAddressValidatorHash =
   -- Network id does not matter here (#484)
   Address.enterpriseAddressValidatorHash
-    <=< fromPlutusAddress MainnetId
+    <<< fromPlutusAddress MainnetId
 
 -- | Get the `StakeValidatorHash` with an Plutus `Address`
 enterpriseAddressStakeValidatorHash :: Address -> Maybe StakeValidatorHash
 enterpriseAddressStakeValidatorHash =
+  -- Network id does not matter here (#484)
   Address.enterpriseAddressStakeValidatorHash
-    <=< fromPlutusAddress MainnetId
+    <<< fromPlutusAddress MainnetId
 
 -- | Get the `ScriptHash` with an Plutus `Address`
 enterpriseAddressScriptHash :: Address -> Maybe ScriptHash
 enterpriseAddressScriptHash =
   -- Network id does not matter here (#484)
   Address.enterpriseAddressScriptHash
-    <=< fromPlutusAddress MainnetId
+    <<< fromPlutusAddress MainnetId
 
 -- | Converts a Plutus `TypedValidator` to a Plutus (`BaseAddress`) `Address`
 typedValidatorBaseAddress

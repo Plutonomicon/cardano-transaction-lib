@@ -3,14 +3,13 @@ module Test.AffInterface (suite) where
 import Prelude
 
 import Address (addressToOgmiosAddress, ogmiosAddressToAddress)
-import Data.BigInt as BigInt
+import Data.BigInt (fromString) as BigInt
 import Data.Either (Either(Left, Right), either)
 import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust)
 import Data.Newtype (wrap)
 import Data.String.CodeUnits (indexOf)
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (traverse_)
-import Data.UInt as UInt
 import Effect.Aff (Aff, try)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
@@ -28,8 +27,7 @@ import QueryM
 import QueryM.CurrentEpoch (getCurrentEpoch)
 import QueryM.EraSummaries (getEraSummaries)
 import QueryM.Ogmios
-  ( AbsSlot(AbsSlot)
-  , EraSummaries
+  ( EraSummaries
   , OgmiosAddress
   , SystemStart
   )
@@ -39,9 +37,10 @@ import QueryM.Utxos (utxosAt)
 import Serialization.Address (Slot(Slot))
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import TestM (TestPlanM)
+import Types.BigNum (fromInt) as BigNum
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Types.Interval
-  ( PosixTimeToSlotError(CannotConvertAbsSlotToSlot, PosixTimeBeforeSystemStart)
+  ( PosixTimeToSlotError(PosixTimeBeforeSystemStart)
   , POSIXTime(POSIXTime)
   , posixTimeToSlot
   , slotToPosixTime
@@ -232,7 +231,7 @@ testSlotToPosixTime = do
         either (throw <<< show) (shouldEqual slot) eSlot
 
   mkSlot :: Int -> Slot
-  mkSlot = Slot <<< UInt.fromInt
+  mkSlot = Slot <<< BigNum.fromInt
 
 testPosixTimeToSlotError :: Aff Unit
 testPosixTimeToSlotError = do
@@ -241,17 +240,10 @@ testPosixTimeToSlotError = do
     sysStart <- getSystemStart
     let
       posixTime = mkPosixTime "1000"
-      badPosixTime = mkPosixTime "99999999999999999999999999999999999999"
-      badAbsSlot = AbsSlot
-        $ unsafePartial fromJust
-        $ BigInt.fromString "99999999999999999999999998405630783"
     -- Some difficulty reproducing all the errors
     errTest eraSummaries sysStart
       posixTime
       (PosixTimeBeforeSystemStart posixTime)
-    errTest eraSummaries sysStart
-      badPosixTime
-      (CannotConvertAbsSlotToSlot badAbsSlot)
   where
   errTest
     :: forall (err :: Type)

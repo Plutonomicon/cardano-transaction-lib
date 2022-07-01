@@ -2,12 +2,10 @@ module Test.Plutus.Conversion.Address (suite) where
 
 import Prelude
 
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Array ((..), length, zip)
-import Data.UInt (UInt, fromInt)
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, wrap)
 import Data.Traversable (for_)
-import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested ((/\))
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
@@ -26,6 +24,8 @@ import Test.Spec.Assertions (shouldEqual)
 import Test.Utils (errMaybe, toFromAesonTest)
 import TestM (TestPlanM)
 import Types.Aliases (Bech32String)
+import Types.BigNum (BigNum)
+import Types.BigNum (fromInt) as BigNum
 
 suite :: TestPlanM Unit
 suite = do
@@ -34,17 +34,6 @@ suite = do
       addressConversionTests MainnetId
     group "Shelley testnet addresses" do
       addressConversionTests TestnetId
-  group "Plutus.Types.Address" $ do
-    group "FromPlutusType & ToPlutusType" $ do
-      let indices = 0 .. (length addresses - 1)
-      group "Shelley mainnet addresses" $ do
-        let testData = zip (zip addressesBech32Mainnet addresses) indices
-        for_ testData $ \(Tuple (Tuple addrBech32 addr) addrType) ->
-          toFromPlutusAddressTest MainnetId addrType addrBech32 addr
-      group "Shelley testnet addresses" $ do
-        let testData = zip (zip addressesBech32Testnet addresses) indices
-        for_ testData $ \(Tuple (Tuple addrBech32 addr) addrType) ->
-          toFromPlutusAddressTest TestnetId addrType addrBech32 addr
     group "Aeson tests" $ do
       group "Roundtrip tests"
         $ for_ addresses
@@ -75,9 +64,7 @@ toFromPlutusAddressTest networkId addrType addrBech32 addrPlutus = do
       errMaybe "toPlutusAddress failed on valid foreign address" $
         toPlutusAddress addrForeign
     resAddrPlutus `shouldEqual` addrPlutus
-    resAddrForeign <-
-      errMaybe "fromPlutusAddress failed on valid native address" $
-        fromPlutusAddress networkId resAddrPlutus
+    let resAddrForeign = fromPlutusAddress networkId resAddrPlutus
     resAddrForeign `shouldEqual` addrForeign
 
 -- Mainnet addresses.
@@ -190,8 +177,8 @@ stakingHash =
 stakingPtr :: StakingCredential
 stakingPtr =
   let
-    wrapUInt :: forall (t :: Type). Newtype t UInt => Int -> t
-    wrapUInt = wrap <<< fromInt
+    wrapBn :: forall (t :: Type). Newtype t BigNum => Int -> t
+    wrapBn = wrap <<< BigNum.fromInt
   in
-    StakingPtr $
-      { slot: wrapUInt 2498243, txIx: wrapUInt 27, certIx: wrapUInt 3 }
+    StakingPtr
+      { slot: wrapBn 2498243, txIx: wrapBn 27, certIx: wrapBn 3 }

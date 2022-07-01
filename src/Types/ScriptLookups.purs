@@ -66,13 +66,13 @@ import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (foldM)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
-import Data.Lens ((%=), (%~), (.=), (.~), (<>=))
+import Data.Lens ((%=), (.=), (<>=), (.~), (%~))
 import Data.Lens.Getter (to, use)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.List (List(Nil, Cons))
-import Data.Map (Map, empty, fromFoldable, lookup, mapMaybe, singleton, union)
+import Data.Map (Map, empty, fromFoldable, lookup, singleton, union)
 import Data.Map (insert, toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
@@ -108,7 +108,6 @@ import Transaction
   , attachRedeemer
   , setScriptDataHash
   )
-import TxOutput (transactionOutputToScriptOutput)
 import Types.Any (Any)
 import Types.Datum (DataHash, Datum)
 import Types.Interval
@@ -384,10 +383,9 @@ type ConstraintProcessingState (a :: Type) =
   -- Balance of the values produced and required for the transaction's outputs
   , datums :: Array Datum
   -- Ordered accumulation of datums so we can use to `setScriptDataHash`
-  , redeemers :: Array (T.Redeemer /\ Maybe TransactionInput)
+  , redeemersTxIns :: Array (T.Redeemer /\ Maybe TransactionInput)
   -- Ordered accumulation of redeemers so we can use to `setScriptDataHash` and
-  -- add execution units via Ogmios. Note: this mixes script and minting
-  -- redeemers.
+  -- add execution units via Ogmios
   , mintRedeemers :: Map MintingPolicyHash T.Redeemer
   -- Mint redeemers with the corresponding minting policy hashes.
   -- We need to reindex mint redeemers every time we add a new one, since
@@ -420,11 +418,11 @@ _costModels
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) Costmdls
 _costModels = prop (SProxy :: SProxy "costModels")
 
-_redeemers
+_redeemersTxIns
   :: forall (a :: Type)
    . Lens' (ConstraintProcessingState a)
        (Array (T.Redeemer /\ Maybe TransactionInput))
-_redeemers = prop (SProxy :: SProxy "redeemers")
+_redeemersTxIns = prop (SProxy :: SProxy "redeemersTxIns")
 
 _mintRedeemers
   :: forall (a :: Type)
@@ -557,7 +555,7 @@ runConstraintsM lookups txConstraints = do
       , valueSpentBalancesOutputs:
           ValueSpentBalances { required: mempty, provided: mempty }
       , datums: mempty
-      , redeemers: mempty
+      , redeemersTxIns: mempty
       , mintRedeemers: empty
       , lookups
       , costModels
@@ -622,7 +620,7 @@ mkUnbalancedTx
   -> QueryM (Either MkUnbalancedTxError UnattachedUnbalancedTx)
 mkUnbalancedTx scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map
-    \{ unbalancedTx, datums, redeemers } ->
+    \{ unbalancedTx, datums, redeemersTxIns } ->
       let
         stripScriptDataHash :: UnbalancedTx -> UnbalancedTx
         stripScriptDataHash uTx =
@@ -634,7 +632,7 @@ mkUnbalancedTx scriptLookups txConstraints =
             _ { plutusData = Nothing, redeemers = Nothing }
         tx = stripDatumsRedeemers $ stripScriptDataHash unbalancedTx
       in
-        wrap { unbalancedTx: tx, datums, redeemersTxIns: redeemers }
+        wrap { unbalancedTx: tx, datums, redeemersTxIns }
 
 addScriptDataHash
   :: forall (a :: Type)
@@ -643,7 +641,7 @@ addScriptDataHash = runExceptT do
   dats <- use _datums
   costModels <- use _costModels
   -- Use both script and minting redeemers in the order they were appended.
-  reds <- use (_redeemers <<< to (map fst))
+  reds <- use (_redeemersTxIns <<< to (map fst))
   tx <- use (_unbalancedTx <<< _transaction)
   tx' <- ExceptT $ liftEffect $ setScriptDataHash costModels reds dats tx <#>
     Right
@@ -693,11 +691,9 @@ updateUtxoIndex
 updateUtxoIndex = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
   networkId <- lift getNetworkId
-  cTxOutputs <- liftM CannotConvertFromPlutusType
-    (traverse (fromPlutusTxOutput networkId) txOutputs)
-  let txOutsMap = mapMaybe transactionOutputToScriptOutput cTxOutputs
+  let cTxOutputs = map (fromPlutusTxOutput networkId) txOutputs
   -- Left bias towards original map, hence `flip`:
-  _unbalancedTx <<< _utxoIndex %= flip union txOutsMap
+  _unbalancedTx <<< _utxoIndex %= flip union cTxOutputs
 
 -- Note, we don't use the redeemer here, unlike Plutus because of our lack of
 -- `TxIn` datatype.
@@ -716,8 +712,7 @@ addOwnInput (InputConstraint { txOutRef }) = do
   runExceptT do
     ScriptLookups { txOutputs, typedValidator } <- use _lookups
     -- Convert to Cardano type
-    cTxOutputs <- liftM CannotConvertFromPlutusType
-      (traverse (fromPlutusTxOutput networkId) txOutputs)
+    let cTxOutputs = map (fromPlutusTxOutput networkId) txOutputs
     inst <- liftM TypedValidatorMissing typedValidator
     -- This line is to type check the `TransactionInput`. Plutus actually creates a `TxIn`
     -- but we don't have such a datatype for our `TxBody`. Therefore, if we pass
@@ -780,7 +775,6 @@ data MkUnbalancedTxError
   | CannotHashValidator Validator
   | CannotConvertPaymentPubKeyHash PaymentPubKeyHash
   | CannotSatisfyAny
-  | CannotConvertFromPlutusType
 
 derive instance Generic MkUnbalancedTxError _
 derive instance Eq MkUnbalancedTxError
@@ -796,8 +790,7 @@ lookupTxOutRef outRef = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
   txOut <- liftM (TxOutRefNotFound outRef) (lookup outRef txOutputs)
   networkId <- lift getNetworkId
-  liftM CannotConvertFromPlutusType $
-    fromPlutusTxOutput networkId txOut
+  pure $ fromPlutusTxOutput networkId txOut
 
 lookupDatum
   :: forall (a :: Type)
@@ -925,7 +918,7 @@ processConstraint mpsMap osMap = do
                 }
             _valueSpentBalancesInputs <>= provideValue amount
             -- Append redeemer for spending to array.
-            _redeemers <>= Array.singleton (redeemer /\ Just txo)
+            _redeemersTxIns <>= Array.singleton (redeemer /\ Just txo)
             -- Attach redeemer to witness set.
             ExceptT $ attachToCps attachRedeemer redeemer
         _ -> liftEither $ throwError $ TxOutRefWrongType txo
@@ -961,11 +954,11 @@ processConstraint mpsMap osMap = do
           , exUnits: mintExUnits
           }
       -- Remove mint redeemers from array before reindexing.
-      _redeemers %= filter \(T.Redeemer { tag } /\ _) -> tag /= Mint
+      _redeemersTxIns %= filter \(T.Redeemer { tag } /\ _) -> tag /= Mint
       -- Reindex mint redeemers.
       mintRedeemers <- lift $ reindexMintRedeemers mpsHash redeemer
       -- Append reindexed mint redeemers to array.
-      _redeemers <>= map (_ /\ Nothing) mintRedeemers
+      _redeemersTxIns <>= map (_ /\ Nothing) mintRedeemers
       _cpsToTxBody <<< _mint <>= map wrap mintVal
     MustPayToPubKeyAddress pkh skh mDatum plutusValue -> do
       networkId <- getNetworkId
