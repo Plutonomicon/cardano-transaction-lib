@@ -5,14 +5,6 @@ module Types.RedeemerTag
 
 import Prelude
 
-import Data.Enum (class Enum, class BoundedEnum)
-import Data.Enum.Generic
-  ( genericPred
-  , genericSucc
-  , genericCardinality
-  , genericToEnum
-  , genericFromEnum
-  )
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
@@ -34,16 +26,3 @@ derive instance Ord RedeemerTag
 
 instance Show RedeemerTag where
   show = genericShow
-
-instance Enum RedeemerTag where
-  pred = genericPred
-  succ = genericSucc
-
-instance Bounded RedeemerTag where
-  top = Reward
-  bottom = Spend
-
-instance BoundedEnum RedeemerTag where
-  cardinality = genericCardinality
-  toEnum = genericToEnum
-  fromEnum = genericFromEnum

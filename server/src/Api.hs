@@ -2,12 +2,10 @@ module Api (
   app,
   estimateTxFees,
   applyArgs,
-  evalTxExecutionUnits,
   apiDocs,
 ) where
 
 import Api.Handlers qualified as Handlers
-import Cardano.Api qualified as C (displayError)
 import Control.Monad.Catch (catchAll, try)
 import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (liftIO)
@@ -37,17 +35,9 @@ import Types (
   AppM (AppM),
   AppliedScript,
   ApplyArgsRequest,
-  CardanoError (
-    AcquireFailure,
-    EraMismatchError,
-    ScriptExecutionError,
-    TxValidityIntervalError
-  ),
   CborDecodeError (InvalidCbor, InvalidHex, OtherDecodeError),
-  CtlServerError (CardanoError, CborDecode, ErrorCall),
+  CtlServerError (CborDecode, ErrorCall),
   Env,
-  EvalExUnitsRequest,
-  ExecutionUnitsMap,
   Fee,
   FeesRequest,
  )
@@ -62,9 +52,6 @@ type Api =
     :<|> "apply-args"
       :> ReqBody '[JSON] ApplyArgsRequest
       :> Post '[JSON] AppliedScript
-    :<|> "eval-ex-units"
-      :> ReqBody '[JSON] EvalExUnitsRequest
-      :> Post '[JSON] ExecutionUnitsMap
 
 app :: Env -> Application
 app = Cors.cors (const $ Just policy) . serve api . appServer
@@ -82,25 +69,12 @@ appServer env = hoistServer api appHandler server
     appHandler :: forall (a :: Type). AppM a -> Handler a
     appHandler (AppM x) = tryServer x >>= either handleError pure
       where
-        tryServer ::
-          ReaderT Env IO a ->
-          Handler (Either CtlServerError a)
+        tryServer :: ReaderT Env IO a -> Handler (Either CtlServerError a)
         tryServer ra =
           liftIO (try @_ @CtlServerError $ runReaderT ra env)
             `catchAll` (pure . Left . ErrorCall)
 
-        handleError ::
-          CtlServerError ->
-          Handler a
-        handleError (CardanoError ce) = case ce of
-          AcquireFailure str ->
-            throwError err400 {errBody = LC8.pack str}
-          ScriptExecutionError err ->
-            throwError err400 {errBody = LC8.pack (C.displayError err)}
-          TxValidityIntervalError str ->
-            throwError err400 {errBody = LC8.pack str}
-          EraMismatchError ->
-            throwError err400 {errBody = lbshow EraMismatchError}
+        handleError :: CtlServerError -> Handler a
         handleError (CborDecode de) = case de of
           InvalidCbor ic ->
             throwError err400 {errBody = lbshow ic}
@@ -115,18 +89,11 @@ api :: Proxy Api
 api = Proxy
 
 server :: ServerT Api AppM
-server =
-  Handlers.estimateTxFees
-    :<|> Handlers.applyArgs
-    :<|> Handlers.evalTxExecutionUnits
+server = Handlers.estimateTxFees :<|> Handlers.applyArgs
 
 apiDocs :: Docs.API
 apiDocs = Docs.docs api
 
 estimateTxFees :: FeesRequest -> ClientM Fee
 applyArgs :: ApplyArgsRequest -> ClientM AppliedScript
-evalTxExecutionUnits :: EvalExUnitsRequest -> ClientM ExecutionUnitsMap
-estimateTxFees
-  :<|> applyArgs
-  :<|> evalTxExecutionUnits =
-    client api
+estimateTxFees :<|> applyArgs = client api

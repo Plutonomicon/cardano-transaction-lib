@@ -14,13 +14,11 @@ module QueryM
   , QueryConfig
   , QueryM
   , QueryMExtended
-  , RdmrPtrExUnits(..)
   , RequestBody
   , WebSocket
   , allowError
   , applyArgs
   , calculateMinFee
-  , evalTxExecutionUnits
   , evaluateTxOgmios
   , getChainTip
   , getDatumByHash
@@ -410,28 +408,6 @@ calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   --     required signers
   witCount :: UInt
   witCount = maybe one UInt.fromInt $ length <$> body.requiredSigners
-
-newtype RdmrPtrExUnits = RdmrPtrExUnits
-  { rdmrPtrTag :: Int
-  , rdmrPtrIdx :: Natural
-  , exUnitsMem :: Natural
-  , exUnitsSteps :: Natural
-  }
-
-derive instance Generic RdmrPtrExUnits _
-
-instance Show RdmrPtrExUnits where
-  show = genericShow
-
-derive newtype instance DecodeAeson RdmrPtrExUnits
-
-evalTxExecutionUnits
-  :: Transaction -> QueryM (Either ClientError (Array RdmrPtrExUnits))
-evalTxExecutionUnits tx = do
-  txHex <- liftEffect (txToHex tx)
-  url <- mkServerEndpointUrl "eval-ex-units"
-  liftAff $ postAeson url (encodeAeson { tx: txHex })
-    <#> handleAffjaxResponse
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
