@@ -11,7 +11,7 @@ import Test.Utils as Utils
 import TestM (TestPlanM)
 import Prelude (Unit, ($), map, bind, pure)
 import Test.Examples.Pkh2Pkh (testPkh2Pkh)
-import Test.E2E.Wallet (Mode(Headless, Visible), launchWithNami)
+import Test.E2E.Browser (Mode(Headless, Visible), launchWithNami)
 import Test.Spec.Runner as SpecRunner
 import Options.Applicative
 import Toppokki as Toki

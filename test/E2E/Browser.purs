@@ -1,4 +1,4 @@
-module Test.E2E.Wallet
+module Test.E2E.Browser
   ( namiHash
   , Mode(..)
   , launchWithNami
