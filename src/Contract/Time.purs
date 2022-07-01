@@ -24,8 +24,7 @@ import QueryM.Ogmios
   , SystemStart
   )
 import QueryM.Ogmios
-  ( AbsSlot(AbsSlot)
-  , CurrentEpoch(CurrentEpoch)
+  ( CurrentEpoch(CurrentEpoch)
   , Epoch(Epoch)
   , EpochLength(EpochLength)
   , EraSummaries(EraSummaries)
@@ -56,7 +55,6 @@ import Types.Interval
       , PosixTimeBeforeSystemStart
       , StartTimeGreaterThanTime
       , EndSlotLessThanSlotOrModNonZero
-      , CannotConvertAbsSlotToSlot
       , CannotGetBigIntFromNumber'
       )
   , RelTime(RelTime)
@@ -69,7 +67,6 @@ import Types.Interval
       )
   , ToOnChainPosixTimeRangeError(PosixTimeToSlotError', SlotToPosixTimeError')
   , UpperBound(UpperBound)
-  , absSlotFromSlot
   , after
   , always
   , before
@@ -93,7 +90,6 @@ import Types.Interval
   , posixTimeRangeToSlotRange
   , posixTimeToSlot
   , singleton
-  , slotFromAbsSlot
   , slotRangeToPosixTimeRange
   , slotToPosixTime
   , strictLowerBound
@@ -117,4 +113,3 @@ getEraSummaries = wrapContract EraSummaries.getEraSummaries
 -- | https://ogmios.dev/api/ under "systemStart" query
 getSystemStart :: forall (r :: Row Type). Contract r SystemStart
 getSystemStart = wrapContract SystemStart.getSystemStart
-

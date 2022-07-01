@@ -4,7 +4,6 @@ import Prelude
 
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (wrap)
-import Data.UInt (fromInt)
 import Effect.Class.Console (log)
 import Mote (group, test)
 import Serialization.Address
@@ -23,12 +22,12 @@ import Serialization.Address
   , enterpriseAddressPaymentCred
   , enterpriseAddressToAddress
   , keyHashCredential
+  , paymentKeyHashStakeKeyHashAddress
   , pointerAddress
   , pointerAddressFromAddress
   , pointerAddressPaymentCred
   , pointerAddressStakePointer
   , pointerAddressToAddress
-  , pubKeyAddress
   , rewardAddress
   , rewardAddressFromAddress
   , rewardAddressPaymentCred
@@ -49,6 +48,7 @@ import Test.Spec.Assertions (shouldEqual)
 import Test.Utils (errMaybe)
 import TestM (TestPlanM)
 import Types.Aliases (Bech32String)
+import Types.BigNum (fromInt, fromStringUnsafe) as BigNum
 import Types.RawBytes (hexToRawBytesUnsafe)
 import Test.Fixtures (ed25519KeyHashFixture1)
 
@@ -113,7 +113,8 @@ stakeCredentialTests = test "StakeCredential tests" $ do
 baseAddressFunctionsTest :: TestPlanM Unit
 baseAddressFunctionsTest = test "BaseAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
-  baddr <- doesNotThrow $ pubKeyAddress MainnetId pkh ed25519KeyHashFixture1
+  baddr <- doesNotThrow $
+    paymentKeyHashStakeKeyHashAddress MainnetId pkh ed25519KeyHashFixture1
   addr <- doesNotThrow $ baseAddressToAddress baddr
   baddr2 <- errMaybe "baseAddressFromAddress failed on valid base address" $
     baseAddressFromAddress
@@ -151,9 +152,9 @@ pointerAddressFunctionsTest = test "PointerAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
   let
     pointer =
-      { slot: wrap (fromInt (-2147483648))
-      , certIx: wrap (fromInt 20)
-      , txIx: wrap (fromInt 120)
+      { slot: wrap (BigNum.fromStringUnsafe "2147483648")
+      , certIx: wrap (BigNum.fromInt 20)
+      , txIx: wrap (BigNum.fromInt 120)
       }
   paddr <- doesNotThrow $ pointerAddress
     { network: MainnetId

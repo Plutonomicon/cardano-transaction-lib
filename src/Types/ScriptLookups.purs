@@ -72,7 +72,7 @@ import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.List (List(Nil, Cons))
-import Data.Map (Map, empty, fromFoldable, lookup, mapMaybe, singleton, union)
+import Data.Map (Map, empty, fromFoldable, lookup, singleton, union)
 import Data.Map (insert, toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
@@ -108,7 +108,6 @@ import Transaction
   , attachRedeemer
   , setScriptDataHash
   )
-import TxOutput (transactionOutputToScriptOutput)
 import Types.Any (Any)
 import Types.Datum (DataHash, Datum)
 import Types.Interval
@@ -692,11 +691,9 @@ updateUtxoIndex
 updateUtxoIndex = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
   networkId <- lift getNetworkId
-  cTxOutputs <- liftM CannotConvertFromPlutusType
-    (traverse (fromPlutusTxOutput networkId) txOutputs)
-  let txOutsMap = mapMaybe transactionOutputToScriptOutput cTxOutputs
+  let cTxOutputs = map (fromPlutusTxOutput networkId) txOutputs
   -- Left bias towards original map, hence `flip`:
-  _unbalancedTx <<< _utxoIndex %= flip union txOutsMap
+  _unbalancedTx <<< _utxoIndex %= flip union cTxOutputs
 
 -- Note, we don't use the redeemer here, unlike Plutus because of our lack of
 -- `TxIn` datatype.
@@ -715,8 +712,7 @@ addOwnInput (InputConstraint { txOutRef }) = do
   runExceptT do
     ScriptLookups { txOutputs, typedValidator } <- use _lookups
     -- Convert to Cardano type
-    cTxOutputs <- liftM CannotConvertFromPlutusType
-      (traverse (fromPlutusTxOutput networkId) txOutputs)
+    let cTxOutputs = map (fromPlutusTxOutput networkId) txOutputs
     inst <- liftM TypedValidatorMissing typedValidator
     -- This line is to type check the `TransactionInput`. Plutus actually creates a `TxIn`
     -- but we don't have such a datatype for our `TxBody`. Therefore, if we pass
@@ -779,7 +775,6 @@ data MkUnbalancedTxError
   | CannotHashValidator Validator
   | CannotConvertPaymentPubKeyHash PaymentPubKeyHash
   | CannotSatisfyAny
-  | CannotConvertFromPlutusType
 
 derive instance Generic MkUnbalancedTxError _
 derive instance Eq MkUnbalancedTxError
@@ -795,8 +790,7 @@ lookupTxOutRef outRef = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
   txOut <- liftM (TxOutRefNotFound outRef) (lookup outRef txOutputs)
   networkId <- lift getNetworkId
-  liftM CannotConvertFromPlutusType $
-    fromPlutusTxOutput networkId txOut
+  pure $ fromPlutusTxOutput networkId txOut
 
 lookupDatum
   :: forall (a :: Type)
