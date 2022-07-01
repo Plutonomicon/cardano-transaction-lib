@@ -26,7 +26,7 @@ import Data.Either (Either(Right, Left), either)
 import Data.HTTP.Method as Method
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
@@ -99,7 +99,7 @@ runPlutipContract plutipCfg distr contContract =
           $ withOgmios response
           $ withOgmiosDatumCache response
           $ withCtlServer response do
-              contractCfg <- mkClusterContractCfg plutipCfg response
+              contractCfg <- mkClusterContractCfg plutipCfg
               liftAff $ runContract contractCfg (contContract wallets)
   where
   withPlutipServer =
@@ -313,9 +313,8 @@ startOgmiosDatumCache cfg _params = do
 mkClusterContractCfg
   :: forall (r :: Row Type)
    . PlutipConfig
-  -> ClusterStartupParameters
   -> Aff (ContractConfig ())
-mkClusterContractCfg plutipCfg params = do
+mkClusterContractCfg plutipCfg = do
   ogmiosWs <- QueryM.mkOgmiosWebSocketAff plutipCfg.logLevel
     QueryM.defaultOgmiosWsConfig
       { port = plutipCfg.ogmiosConfig.port
