@@ -467,7 +467,7 @@
           checks = {
             ctl-unit-test = project.runPursTest {
               testMain = "CTL.Test.Unit";
-              sources = [ "src" "test" "fixtures" ];
+              sources = [ "src" "test" "examples" "fixtures" ];
             };
             ctl-plutip-test = project.runPursTest {
               testMain = "Test.Plutip";
