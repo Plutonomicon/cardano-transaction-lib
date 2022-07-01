@@ -1,8 +1,7 @@
 module Test.E2E.Helpers
   ( hasSelector
-  , injectJQuery
-  , injectJQueryAll
-  , findNamiPage
+  , startExample
+  , exampleUrl
   , doJQ
   , click
   , enable
@@ -21,27 +20,35 @@ module Test.E2E.Helpers
   , Selector(..)
   , Action(..)
   , NoShowPage(..)
+  , ExamplePages(..)
   ) where
 
 import Prelude
 
 import Control.Promise (Promise, toAffE)
 import Data.Array (head, filterA)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Traversable (for, fold)
 import Effect (Effect)
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, delay)
 import Foreign (Foreign, unsafeFromForeign)
 import Toppokki as Toki
+import Debug(spy)
+
+exampleUrl :: Toki.URL
+exampleUrl = wrap "http://localhost:4008/"
+
+newtype ExamplePages = ExamplePages { nami :: Toki.Page
+                                    , main :: Toki.Page
+                                    } 
+
+derive instance Newtype ExamplePages _
 
 foreign import _retrieveJQuery :: Toki.Page -> Effect (Promise String)
 
 retrieveJQuery :: Toki.Page -> Aff String
 retrieveJQuery = toAffE <<< _retrieveJQuery
-
-injectJQuery :: String -> Toki.Page -> Aff Foreign
-injectJQuery = Toki.unsafeEvaluateStringFunction
 
 jQueryCount :: Selector -> Toki.Page -> Aff Int
 jQueryCount selector page = unsafeFromForeign <$> doJQ selector (wrap "length")
@@ -50,11 +57,29 @@ jQueryCount selector page = unsafeFromForeign <$> doJQ selector (wrap "length")
 hasSelector :: Selector -> Toki.Page -> Aff Boolean
 hasSelector selector page = (_ > 0) <$> jQueryCount selector page
 
-findNamiPage :: Toki.Browser -> Aff (Maybe Toki.Page)
-findNamiPage browser = do
-  pages <- Toki.pages browser
+findNamiPage :: String -> Toki.Browser -> Aff (Maybe Toki.Page)
+findNamiPage jQuery browser = do
+  pages <- injectJQueryAll jQuery browser
   pages' <- filterA (hasSelector button) pages
   pure $ head $ pages'
+
+waitForNamiPage :: String -> Toki.Browser -> Aff Toki.Page
+waitForNamiPage jQuery browser =
+  findNamiPage jQuery browser >>= case _ of
+    Nothing -> do
+      delay $ wrap 100.0
+      waitForNamiPage jQuery browser
+    Just page -> pure page  
+
+-- | start example at URL with Nami and return both Nami's page and the example's
+startExample :: Toki.URL -> Toki.Browser -> Aff ExamplePages
+startExample url browser = do
+  page <- Toki.newPage browser
+  jQuery <- retrieveJQuery page
+  Toki.goto url page
+  namiPage <- waitForNamiPage jQuery browser
+  pure $ wrap { nami : namiPage
+              , main : page }
 
 -- | Wrapper for Page so it can be used in `shouldSatisfy`, which needs 'Show'
 -- | Doesn't show anything, thus 'NoShow'
@@ -117,11 +142,16 @@ trigger event = wrap $ "trigger(" <> jqStr event <> ")"
 clickButton :: String -> Toki.Page -> Aff Unit
 clickButton buttonText = void <$> doJQ (buttonWithText buttonText) click
 
-injectJQueryAll :: String -> Toki.Browser -> Aff Unit
+injectJQueryAll :: String -> Toki.Browser -> Aff (Array Toki.Page)
 injectJQueryAll jQuery browser = do
   pages <- Toki.pages browser
-  void $ for pages $ Toki.unsafeEvaluateStringFunction jQuery
-
+  void $ for pages $ \page -> do
+    (alreadyInjected :: Boolean) <-
+      unsafeFromForeign <$>
+      Toki.unsafeEvaluateStringFunction "typeof(jQuery) !== 'undefined'" page
+    unless alreadyInjected $ void $ Toki.unsafeEvaluateStringFunction jQuery page
+  pure pages
+  
 testPassword :: String
 testPassword = "ctlctlctl"
 
