@@ -11,26 +11,29 @@ import Aeson
   , toStringifiedNumbersJson
   , (.:)
   )
+import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.String as String
+import Data.Tuple (Tuple(..))
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import QueryM.ServerConfig (ServerConfig)
 import Serialization (privateKeyFromBytes)
 import Serialization.Types (PrivateKey)
 import Types.ByteArray (hexToByteArray)
 import Types.RawBytes (RawBytes(RawBytes))
+import Wallet.Key (KeyWallet, PrivatePaymentKey(..), privateKeysToKeyWallet)
 
 type PlutipConfig =
   { host :: String
   , port :: UInt
   , logLevel :: LogLevel
-  , distribution :: Array InitialUtxos
   -- Server configs are used to deploy the corresponding services:
   , ogmiosConfig :: ServerConfig
   , ogmiosDatumCacheConfig :: ServerConfig
@@ -162,20 +165,31 @@ instance DecodeAeson StopClusterResponse where
 
 type InitialUtxos = Array UtxoAmount
 
-class UtxoDistribution spec wallets | spec -> wallets, wallets -> spec where
-  encodeSpec :: spec -> Array (Array UtxoAmount)
-  decodeWallets :: Array PrivateKey -> Maybe wallets
+-- | A type class that implements a type-safe interface for specifying UTXO
+-- | distribution for wallets.
+-- | Numer of wallets in distribution specification matches the number of
+-- | provided wallets.
+class UtxoDistribution distr wallets | distr -> wallets, wallets -> distr where
+  encodeDistribution :: distr -> Array (Array UtxoAmount)
+  decodeWallets :: Array PrivateKeyResponse -> Maybe wallets
 
--- instance UtxoDistribution InitialUtxos KeyWallet where
---   encodeSpec amounts = [ amounts ]
---   decodeWallets [ x ] = pure x
---   decodeWallets _ = Nothing
+instance UtxoDistribution Unit Unit where
+  encodeDistribution _ = []
+  decodeWallets _ = Just unit
 
--- instance
---   UtxoDistribution restSpec restWallets =>
---   UtxoDistribution (InitialUtxos /\ restSpec) (PrivateKey /\ restWallets) where
---     encodeSpec (amounts /\ rest) = encodeSpec amounts <> encodeSpec rest
---     decodeWallets = Array.uncons >>> case _ of
---       Nothing -> Nothing
---       Just { head, tail } ->
---         Tuple head <$> decodeWallets tail
+instance UtxoDistribution InitialUtxos KeyWallet where
+  encodeDistribution amounts = [ amounts ]
+  decodeWallets [ (PrivateKeyResponse key) ] =
+    pure $ privateKeysToKeyWallet (PrivatePaymentKey key) Nothing
+  decodeWallets _ = Nothing
+
+instance
+  UtxoDistribution restSpec restWallets =>
+  UtxoDistribution (InitialUtxos /\ restSpec) (KeyWallet /\ restWallets) where
+  encodeDistribution (amounts /\ rest) =
+    encodeDistribution amounts <> encodeDistribution rest
+  decodeWallets = Array.uncons >>> case _ of
+    Nothing -> Nothing
+    Just { head: PrivateKeyResponse key, tail } ->
+      Tuple (privateKeysToKeyWallet (PrivatePaymentKey key) Nothing) <$>
+        decodeWallets tail

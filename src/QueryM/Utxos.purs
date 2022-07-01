@@ -49,7 +49,7 @@ utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
   utxosAtByWallet address = case _ of
     Nami _ -> cip30UtxosAt address
     Gero _ -> cip30UtxosAt address
-    KeyWallet _ -> pure Nothing
+    KeyWallet _ -> allUtxosAt address
     KeyListWallet { selected: Nothing } ->
       liftEffect $ throw "utxosAt: KeyListWallet: no wallet selected"
     KeyListWallet { selected: Just keyWallet } ->

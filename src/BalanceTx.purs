@@ -435,7 +435,7 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
           note (GetWalletCollateralError' CouldNotGetCollateral)
       -- TODO: Combine with getWalletCollateral, and supply with fee estimate
       --       https://github.com/Plutonomicon/cardano-transaction-lib/issues/510
-      Just (KeyWallet kw) -> pure $ kw.selectCollateral utxos
+      Just (KeyWallet kw) -> pure $ (unwrap kw).selectCollateral utxos
       _ -> pure Nothing
     let
       -- Combines utxos at the user address and those from any scripts

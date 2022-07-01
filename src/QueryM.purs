@@ -164,6 +164,7 @@ import Wallet
   , Cip30Wallet
   , Wallet(Gero, Nami, KeyListWallet, KeyWallet)
   )
+import Wallet.Key as KeyWallet
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -290,11 +291,11 @@ getWalletAddress = do
   withMWalletAff case _ of
     Nami nami -> callCip30Wallet nami _.getWalletAddress
     Gero gero -> callCip30Wallet gero _.getWalletAddress
-    KeyWallet kw -> Just <$> kw.address networkId
+    KeyWallet kw -> Just <$> (unwrap kw).address networkId
     KeyListWallet ks -> case ks.selected of
       Nothing -> do
         liftEffect $ throw "getWalletAddress: KeyListWallet: no wallet selected"
-      Just kw -> Just <$> kw.address networkId
+      Just kw -> Just <$> (unwrap kw).address networkId
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
 getWalletCollateral = asks _.wallet >>= maybe (pure Nothing)
@@ -304,7 +305,7 @@ getWalletCollateral = asks _.wallet >>= maybe (pure Nothing)
   getWalletCollateral' = case _ of
     Nami nami -> liftAff $ callCip30Wallet nami _.getCollateral
     Gero gero -> liftAff $ callCip30Wallet gero _.getCollateral
-    KeyWallet { selectCollateral: _ } ->
+    KeyWallet (KeyWallet.KeyWallet { selectCollateral: _ }) ->
       liftEffect $ throw "getWalletCollacteral: KeyWallet: Not implemented"
     KeyListWallet { selected: Nothing } ->
       liftEffect $ throw
@@ -317,10 +318,10 @@ signTransaction
 signTransaction tx = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
-  KeyWallet kw -> Just <$> kw.signTx tx
+  KeyWallet kw -> Just <$> (unwrap kw).signTx tx
   KeyListWallet ks -> case ks.selected of
     Nothing -> pure Nothing
-    Just kw -> Just <$> kw.signTx tx
+    Just kw -> Just <$> (unwrap kw).signTx tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do
