@@ -430,8 +430,8 @@
           # project compiles (i.e. all of `src`, `examples`, and `test`)
           packages = {
             ctl-example-bundle-web = project.bundlePursProject {
-              sources = [ "src" "examples" ];
-              main = "Examples.Pkh2Pkh";
+              sources = [ "src" "examples" "test" ];
+              main = "Examples.SignMultiple";
               entrypoint = "examples/index.js";
               htmlTemplate = "examples/index.html";
             };

@@ -57,7 +57,7 @@ main = launchAff_ $ do
     }
 
   runContract_ cfg $ do
-    logInfo' "Running Examples.Pkh2Pkh"
+    logInfo' "Running Examples.SignMultiple"
     pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
     skh <- liftedM "Failed to get own SKH" ownStakePubKeyHash
 
@@ -88,4 +88,3 @@ main = launchAff_ $ do
   submitAndLog bsTx = do
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
-

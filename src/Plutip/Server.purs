@@ -85,7 +85,7 @@ mkServerEndpointUrl cfg path = do
   "http://" <> cfg.host <> ":" <> UInt.toString cfg.port <> "/" <> path
 
 runPlutipContract
-  :: forall (a :: Type) (distr :: Type) (wallets :: Type)
+  :: forall (distr :: Type) (wallets :: Type) (a :: Type)
    . UtxoDistribution distr wallets
   => PlutipConfig
   -> distr
