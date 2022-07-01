@@ -8,8 +8,9 @@ nix-sources := $(shell fd -enix --exclude='spago*')
 hs-sources := $(shell fd . './server/src' './server/exe' -ehs)
 ps-entrypoint := Examples.Pkh2Pkh
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
-
 node-ipc = $(shell docker volume inspect cardano-transaction-lib_node-ipc | jq -r '.[0].Mountpoint')
+e2e-temp-dir := $(shell mktemp -tdu e2e.XXXXXXX)
+e2e-test-nami := test-data/chrome-extensions/nami_3.2.5_1.crx
 
 run-dev:
 	@${ps-bundle} && BROWSER_RUNTIME=1 webpack-dev-server --progress
@@ -23,7 +24,10 @@ check-format:
 	fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost ${hs-sources}
 
 e2e-test:
-	@rm -f chrome-data/SingletonLock && spago test --main Test.E2E
+	@mkdir ${e2e-temp-dir}
+	@unzip ${e2e-test-nami} -d ${e2e-temp-dir} || echo "ignore warning" # or make stops
+	rm -f chrome-data/SingletonLock
+	@spago test --main Test.E2E -a "E2ETest --nami-dir=${e2e-temp-dir} --no-headless"
 
 format:
 	@purs-tidy format-in-place ${ps-sources}

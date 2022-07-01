@@ -18,16 +18,16 @@ import Test.E2E.Helpers
   , retrieveJQuery
   , testPassword
   )
-import Test.E2E.Wallet (Mode(..), launchWithNami)
+import Test.E2E.Wallet (Mode, launchWithNami)
 import Test.E2E.Feedback (testFeedbackIsTrue)
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Toppokki (exampleUrl)
 import TestM (TestPlanM)
 import Toppokki as Toki
 
-testPkh2Pkh :: TestPlanM Unit
-testPkh2Pkh = test "Pkh2Pkh" do
-  browser <- launchWithNami Headless
+testPkh2Pkh :: String -> Mode -> TestPlanM Unit
+testPkh2Pkh namiDir mode = test "Pkh2Pkh" do
+  browser <- launchWithNami namiDir mode
   page <- Toki.newPage browser
   jQuery <- retrieveJQuery page
   Toki.goto (wrap exampleUrl) page

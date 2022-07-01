@@ -45,6 +45,7 @@ You can edit this file as you like.
   , "nonempty"
   , "ordered-collections"
   , "orders"
+  , "optparse"    
   , "partial"
   , "prelude"
   , "profunctor"
