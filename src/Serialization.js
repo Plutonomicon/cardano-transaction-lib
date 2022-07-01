@@ -47,8 +47,8 @@ exports.newTransactionOutputs = () =>
 exports.addTransactionOutput = outputs => output => () =>
     outputs.add(output);
 
-exports.newTransactionBody = inputs => outputs => fee => ttl => () =>
-    lib.TransactionBody.new(inputs, outputs, fee, ttl);
+exports.newTransactionBody = inputs => outputs => fee => () =>
+    lib.TransactionBody.new_tx_body(inputs, outputs, fee);
 
 exports.setTxIsValid = tx => isValid => () =>
     tx.set_is_valid(isValid);
@@ -200,6 +200,8 @@ exports.networkIdTestnet = () =>
 exports.networkIdMainnet = () =>
     lib.NetworkId.mainnet();
 
+exports.setTxBodyTtl = setter('ttl');
+
 exports.setTxBodyCerts = setter('certs');
 
 exports.newCertificates = () =>
@@ -247,7 +249,7 @@ exports.transactionBodySetRequiredSigners = containerHelper => body =>
     body.set_required_signers(
         containerHelper.pack(lib.Ed25519KeyHashes, keyHashes));
 
-exports.transactionBodySetValidityStartInterval = setter('validity_start_interval');
+exports.transactionBodySetValidityStartInterval = setter('validity_start_interval_bignum');
 
 exports.transactionBodySetAuxiliaryDataHash = txBody => hashBytes => () =>
     txBody.set_auxiliary_data_hash(lib.AuxiliaryDataHash.from_bytes(hashBytes));
@@ -332,14 +334,6 @@ exports.ppuSetPoolPledgeInfluence = setter('pool_pledge_influence');
 exports.ppuSetExpansionRate = setter('expansion_rate');
 
 exports.ppuSetTreasuryGrowthRate = setter('treasury_growth_rate');
-
-exports.ppuSetD = setter('d');
-
-exports.ppuSetExtraEntropyIdentity = ppu => () =>
-    ppu.set_extra_entropy(lib.Nonce.new_identity());
-
-exports.ppuSetExtraEntropyFromHash = ppu => bytes => () =>
-    ppu.set_extra_entropy(lib.Nonce.new_from_hash(bytes));
 
 exports.newProtocolVersion = major => minor => () =>
     lib.ProtocolVersion.new(major, minor);

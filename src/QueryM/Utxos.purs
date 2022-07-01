@@ -2,27 +2,31 @@
 module QueryM.Utxos
   ( filterUnusedUtxos
   , utxosAt
+  , getWalletBalance
   ) where
 
 import Prelude
 
 import Address (addressToOgmiosAddress)
 import Cardano.Types.Transaction (TransactionOutput, UtxoM(UtxoM))
+import Cardano.Types.Value (Value)
 import Control.Monad.Logger.Trans (LoggerT)
 import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, asks)
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (bisequence)
+import Data.Foldable (fold)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap, over)
-import Data.Traversable (sequence)
+import Data.Traversable (for, sequence, traverse)
 import Data.Tuple.Nested (type (/\))
 import Effect.Aff (Aff)
+import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Helpers as Helpers
-import QueryM (QueryM, getWalletCollateral, mkOgmiosRequest)
+import QueryM (QueryM, getWalletAddress, getWalletCollateral, mkOgmiosRequest)
 import QueryM.Ogmios as Ogmios
 import Serialization.Address (Address)
 import TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
@@ -100,10 +104,28 @@ utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
 
 filterUnusedUtxos :: UtxoM -> QueryM UtxoM
 filterUnusedUtxos (UtxoM utxos) = withTxRefsCache $
-  UtxoM <$> Helpers.filterMapWithKeyM (\k _ -> isTxOutRefUsed (unwrap k)) utxos
+  UtxoM <$> Helpers.filterMapWithKeyM
+    (\k _ -> not <$> isTxOutRefUsed (unwrap k))
+    utxos
 
 withTxRefsCache
   :: forall (m :: Type -> Type) (a :: Type)
    . ReaderT UsedTxOuts (LoggerT Aff) a
   -> QueryM a
 withTxRefsCache f = withReaderT (_.usedTxOuts) f
+
+getWalletBalance
+  :: QueryM (Maybe Value)
+getWalletBalance = do
+  asks _.wallet >>= map join <<< traverse case _ of
+    Nami wallet -> liftAff $ wallet.getBalance wallet.connection
+    Gero wallet -> liftAff $ wallet.getBalance wallet.connection
+    KeyWallet _ -> do
+      -- Implement via `utxosAt`
+      mbAddress <- getWalletAddress
+      map join $ for mbAddress \address -> do
+        utxosAt address <#> map
+          -- Combine `Value`s
+          (fold <<< map _.amount <<< map unwrap <<< Map.values <<< unwrap)
+    KeyListWallet _ -> do
+      pure Nothing -- TODO

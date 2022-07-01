@@ -5,8 +5,9 @@ module Wallet.KeyList
 
 import Prelude
 import Data.Maybe (Maybe(Nothing))
-import Wallet.Key (KeyWallet, privateKeyToKeyWallet)
+import Data.Newtype (wrap)
 import Serialization.Types (PrivateKey)
+import Wallet.Key (KeyWallet, privateKeysToKeyWallet)
 
 type KeyListWallet =
   { selected :: Maybe KeyWallet
@@ -16,5 +17,7 @@ type KeyListWallet =
 mkKeyListWallet :: Array PrivateKey -> KeyListWallet
 mkKeyListWallet pks =
   { selected: Nothing
-  , available: pks <#> privateKeyToKeyWallet
+  , available: pks <#> wrap >>> flip privateKeysToKeyWallet Nothing
+  -- TODO: add stake keys to plutip:
+  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/659
   }

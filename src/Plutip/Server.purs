@@ -26,9 +26,11 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either(Right, Left), either)
 import Data.HTTP.Method as Method
 import Data.Int as Int
-import Data.Maybe (Maybe(Just))
+import Data.Maybe (Maybe(Just), maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Posix.Signal (Signal(SIGINT))
+import Data.String.CodeUnits as String
+import Data.String.Pattern (Pattern(Pattern))
 import Data.UInt as UInt
 import Data.YAML.Foreign.Decode (parseYAMLToJson)
 import Effect (Effect)
@@ -41,10 +43,8 @@ import Effect.Aff.Retry
   , recovering
   )
 import Effect.Class (liftEffect)
-import Effect.Console (log)
 import Effect.Exception (throw)
 import Helpers (fromJustEff, fromRightEff)
-import Node.Buffer as Bf
 import Node.ChildProcess
   ( ChildProcess
   , defaultExecSyncOptions
@@ -56,6 +56,7 @@ import Node.ChildProcess
 import Node.Encoding as Encoding
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat, dirname)
+import Plutip.Spawn (NewOutputAction(Success, NoOp), spawnAndWaitForOutput)
 import Plutip.Types
   ( ClusterStartupParameters
   , ClusterStartupRequest(ClusterStartupRequest)
@@ -69,6 +70,7 @@ import Plutip.Types
 import Plutip.Utils (tmpdir)
 import QueryM (ClientError(ClientDecodeJsonError, ClientHttpError))
 import QueryM as QueryM
+import QueryM.ProtocolParameters as Ogmios
 import QueryM.UniqueId (uniqueId)
 import Types.UsedTxOuts (newUsedTxOuts)
 import Wallet (Wallet(KeyListWallet))
@@ -182,8 +184,12 @@ stopPlutipCluster cfg = do
   either (liftEffect <<< throw <<< show) pure res
 
 startOgmios :: PlutipConfig -> ClusterStartupParameters -> Aff ChildProcess
-startOgmios cfg params = liftEffect $ spawn "ogmios" ogmiosArgs
-  defaultSpawnOptions
+startOgmios cfg params = do
+  -- We wait for any output, because CTL-server tries to connect to Ogmios
+  -- repeatedly, and we can just wait for CTL-server to connect, instead of
+  -- waiting for Ogmios first.
+  spawnAndWaitForOutput "ogmios" ogmiosArgs defaultSpawnOptions
+    $ pure Success
   where
   ogmiosArgs :: Array String
   ogmiosArgs =
@@ -204,6 +210,8 @@ startPlutipServer :: PlutipConfig -> Aff ChildProcess
 startPlutipServer cfg = do
   p <- liftEffect $ spawn "plutip-server" [ "-p", UInt.toString cfg.port ]
     defaultSpawnOptions { detached = true }
+  -- We are trying to call stopPlutipCluster endpoint to ensure that
+  -- `plutip-server` has started.
   void
     $ recovering defaultRetryPolicy
         ([ \_ _ -> pure true ])
@@ -239,7 +247,7 @@ startPostgresServer pgConfig _ = do
             <> " -d postgres"
         )
         defaultExecSyncOptions
-  liftEffect $ log =<< Bf.toString Encoding.UTF8 =<< execSync
+  liftEffect $ void $ execSync
     ( "psql -h " <> pgConfig.host <> " -p " <> UInt.toString pgConfig.port
         <> " -d postgres"
         <> " -c \"CREATE ROLE "
@@ -249,7 +257,7 @@ startPostgresServer pgConfig _ = do
         <> "';\""
     )
     defaultExecSyncOptions
-  liftEffect $ log =<< Bf.toString Encoding.UTF8 =<< execSync
+  liftEffect $ void $ execSync
     ( "createdb -h " <> pgConfig.host <> " -p " <> UInt.toString pgConfig.port
         <> " -U "
         <> pgConfig.user
@@ -287,8 +295,12 @@ startOgmiosDatumCache cfg _params = do
       , "--db-password"
       , cfg.postgresConfig.password
       , "--use-latest"
+      , "--origin"
       ]
-  liftEffect $ spawn "ogmios-datum-cache" arguments defaultSpawnOptions
+  spawnAndWaitForOutput "ogmios-datum-cache" arguments defaultSpawnOptions
+    -- Wait for "Intersection found" string in the output
+    $ String.indexOf (Pattern "Intersection found")
+        >>> maybe NoOp (const Success)
 
 mkClusterContractCfg
   :: forall (r :: Row Type)
@@ -308,6 +320,7 @@ mkClusterContractCfg plutipCfg params = do
         , host = plutipCfg.ogmiosDatumCacheConfig.host
         }
   usedTxOuts <- newUsedTxOuts
+  pparams <- Ogmios.getProtocolParametersAff ogmiosWs plutipCfg.logLevel
   pure $ ContractConfig
     { ogmiosWs
     , datumCacheWs
@@ -316,6 +329,7 @@ mkClusterContractCfg plutipCfg params = do
     , serverConfig: plutipCfg.ctlServerConfig
     , networkId: TestnetId
     , logLevel: plutipCfg.logLevel
+    , pparams
     }
 
 mkKeyListWallet :: ClusterStartupParameters -> KeyListWallet
@@ -339,11 +353,20 @@ startCtlServer cfg params = do
       , UInt.toString cfg.ctlServerConfig.port
       , "--node-socket"
       , params.nodeSocketPath
+      , "--ogmios-host"
+      , cfg.ogmiosConfig.host
+      , "--ogmios-port"
+      , UInt.toString cfg.ogmiosConfig.port
       ] <> getNetworkInfoArgs networkInfo
-  liftEffect $ spawn "ctl-server" ctlServerArgs defaultSpawnOptions
+  spawnAndWaitForOutput "ctl-server" ctlServerArgs defaultSpawnOptions
+    -- Wait for "Successfully connected to Ogmios" string in the output
+    $ String.indexOf (Pattern "Successfully connected to Ogmios")
+        >>> maybe NoOp (const Success)
+
   where
   getNetworkInfoArgs :: NetworkInfo -> Array String
-  getNetworkInfoArgs Mainnet = []
+  getNetworkInfoArgs Mainnet =
+    [ "--network-id", "mainnet" ]
   getNetworkInfoArgs (Testnet networkId) =
     [ "--network-id", Int.toStringAs Int.decimal networkId ]
 

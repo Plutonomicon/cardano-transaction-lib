@@ -26,11 +26,15 @@ import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Helpers ((<<>>))
-import Serialization.Types (PrivateKey)
 import Wallet.Cip30 (Cip30Wallet, Cip30Connection) as Cip30Wallet
 import Wallet.Cip30 (Cip30Wallet, Cip30Connection, mkCip30WalletAff)
-import Wallet.Key (KeyWallet, privateKeyToKeyWallet)
-import Wallet.Key (KeyWallet, privateKeyToKeyWallet) as KeyWallet
+import Wallet.Key
+  ( KeyWallet
+  , PrivatePaymentKey
+  , PrivateStakeKey
+  , privateKeysToKeyWallet
+  )
+import Wallet.Key (KeyWallet, privateKeysToKeyWallet) as KeyWallet
 import Wallet.KeyList (KeyListWallet)
 
 data Wallet
@@ -39,8 +43,9 @@ data Wallet
   | KeyWallet KeyWallet
   | KeyListWallet KeyListWallet
 
-mkKeyWallet :: PrivateKey -> Wallet
-mkKeyWallet = KeyWallet <<< privateKeyToKeyWallet
+mkKeyWallet :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
+mkKeyWallet payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet payKey
+  mbStakeKey
 
 mkNamiWalletAff :: Aff Wallet
 mkNamiWalletAff = Nami <$> mkCip30WalletAff "Nami" _enableNami
