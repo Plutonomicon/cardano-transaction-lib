@@ -11,7 +11,9 @@ ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 node-ipc = $(shell docker volume inspect cardano-transaction-lib_node-ipc | jq -r '.[0].Mountpoint')
 e2e-temp-dir := $(shell mktemp -tdu e2e.XXXXXXX)
 # bump version here
+e2e-test-chrome-dir := test-data/chrome-user-data
 e2e-test-nami := test-data/chrome-extensions/nami_3.2.5_1.crx
+e2e-test-nami-settings := test-data/nami_settings.tar.gz
 
 # https://stackoverflow.com/questions/2214575/passing-arguments-to-make-run
 # example: make e2e-test -- --no-headless
@@ -39,8 +41,13 @@ e2e-test:
 	@mkdir ${e2e-temp-dir}
 	@unzip ${e2e-test-nami} -d ${e2e-temp-dir} > /dev/zero \
             || echo "ignore warnings" # or make stops
+	@tar xzf ${e2e-test-nami-settings}
 	rm -f test-data/chrome-user-data/SingletonLock
 	@spago test --main Test.E2E -a "E2ETest --nami-dir=${e2e-temp-dir} $(TEST_ARGS)"
+
+# extract current nami settings from e2e-test-chrome-dir and store them for git
+nami-settings:
+	tar czf ${e2e-test-nami-settings} ${e2e-test-chrome-dir}/Default/Local\ Extension\ Settings/lpfcbjknijpeeillifnkikgncikgfhdo/*
 
 format:
 	@purs-tidy format-in-place ${ps-sources}
