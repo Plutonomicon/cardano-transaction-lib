@@ -5,25 +5,32 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
-  , JsonDecodeError(UnexpectedValue)
+  , JsonDecodeError(TypeMismatch, UnexpectedValue)
   , decodeAeson
   , encodeAeson'
   , toStringifiedNumbersJson
   , (.:)
   )
 import Data.BigInt (BigInt)
-import Data.Either (Either(Left))
+import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel)
+import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
+import Data.String as String
 import Data.UInt (UInt)
 import QueryM.ServerConfig (ServerConfig)
+import Serialization (privateKeyFromBytes)
+import Serialization.Types (PrivateKey)
+import Types.ByteArray (hexToByteArray)
+import Types.RawBytes (RawBytes(RawBytes))
 
 type PlutipConfig =
   { host :: String
   , port :: UInt
   , logLevel :: LogLevel
-  , distribution :: InitialUTXOs
+  , distribution :: Array InitialUtxos
   -- Server configs are used to deploy the corresponding services:
   , ogmiosConfig :: ServerConfig
   , ogmiosDatumCacheConfig :: ServerConfig
@@ -40,8 +47,6 @@ type PostgresConfig =
   , dbname :: String
   }
 
-type PrivateKey = String
-
 type FilePath = String
 
 type ErrorMessage = String
@@ -57,8 +62,27 @@ newtype ClusterStartupRequest = ClusterStartupRequest
 
 derive newtype instance EncodeAeson ClusterStartupRequest
 
+newtype PrivateKeyResponse = PrivateKeyResponse PrivateKey
+
+derive instance Newtype PrivateKeyResponse _
+derive instance Generic PrivateKeyResponse _
+
+instance Show PrivateKeyResponse where
+  show _ = "(PrivateKeyResponse \"<private key>\")"
+
+instance DecodeAeson PrivateKeyResponse where
+  decodeAeson json = do
+    cborStr :: String <- decodeAeson json
+    let splitted = String.splitAt 4 cborStr
+    if splitted.before == "5820" then do
+      cborBytes <- note err $ hexToByteArray splitted.after
+      PrivateKeyResponse <$> note err (privateKeyFromBytes (RawBytes cborBytes))
+    else Left err
+    where
+    err = (TypeMismatch "PrivateKey")
+
 type ClusterStartupParameters =
-  { privateKeys :: Array PrivateKey
+  { privateKeys :: Array PrivateKeyResponse
   , nodeSocketPath :: FilePath
   , nodeConfigPath :: FilePath
   , keysDirectory :: FilePath
@@ -135,3 +159,23 @@ instance DecodeAeson StopClusterResponse where
         StopClusterFailure <$> decodeAeson failure
       _ -> do
         Left (UnexpectedValue (toStringifiedNumbersJson aeson))
+
+type InitialUtxos = Array UtxoAmount
+
+class UtxoDistribution spec wallets | spec -> wallets, wallets -> spec where
+  encodeSpec :: spec -> Array (Array UtxoAmount)
+  decodeWallets :: Array PrivateKey -> Maybe wallets
+
+-- instance UtxoDistribution InitialUtxos KeyWallet where
+--   encodeSpec amounts = [ amounts ]
+--   decodeWallets [ x ] = pure x
+--   decodeWallets _ = Nothing
+
+-- instance
+--   UtxoDistribution restSpec restWallets =>
+--   UtxoDistribution (InitialUtxos /\ restSpec) (PrivateKey /\ restWallets) where
+--     encodeSpec (amounts /\ rest) = encodeSpec amounts <> encodeSpec rest
+--     decodeWallets = Array.uncons >>> case _ of
+--       Nothing -> Nothing
+--       Just { head, tail } ->
+--         Tuple head <$> decodeWallets tail
