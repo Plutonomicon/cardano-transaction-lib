@@ -32,7 +32,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contract.Wallet.mkGeroWallet` and `Contract.Wallet.mkNamiWallet` - `Aff` versions should be used instead.
 - Protocol param update setters for the decentralisation constant (`set_d`) and the extra entropy (`set_extra_entropy`).
 - `AbsSlot` and related functions have been removed in favour of `Slot`.
-- Modules `Metadata.Seabug` and `Metadata.Seabug.Share`
+- Modules `Metadata.Seabug` and `Metadata.Seabug.Share`.
+- POST /eval-ex-units Haskell server endpoint. 
 
 ### Changed
 
@@ -45,6 +46,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Changed the underlying type of `Slot`, `TransactionIndex` and `CertificateIndex` to `BigNum`.
 - Moved transaction finalization logic to `balanceTx`.
 - Upgraded to CSL v11.0.0-beta.1.
+- Switched to Ogmios for execution units evaluation.
 
 ### Fixed
 
@@ -58,7 +60,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Fixed
 
 - Changed `utxoIndex` inside an `UnbalancedTx` to be a `Map` with values `TransactionOutput` instead of `ScriptOutput` so there is no conversion in the balancer to `ScriptOutput`. This means the balancer can spend UTxOs from different wallets instead of just the current wallet and script addresses.
-
 
 ## [1.0.1] - 2022-06-17
 

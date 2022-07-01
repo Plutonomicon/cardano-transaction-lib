@@ -75,7 +75,6 @@ import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
-import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(POST))
 import Data.Log.Level (LogLevel(Trace, Debug, Error))
 import Data.Map (Map)
@@ -83,7 +82,6 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
@@ -152,7 +150,6 @@ import Types.Chain as Chain
 import Types.Datum (DataHash, Datum)
 import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
-import Types.Natural (Natural)
 import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
 import Types.Scripts (PlutusScript)
