@@ -199,6 +199,8 @@ startPlutipServer :: PlutipConfig -> Aff ChildProcess
 startPlutipServer cfg = do
   p <- liftEffect $ spawn "plutip-server" [ "-p", UInt.toString cfg.port ]
     defaultSpawnOptions { detached = true }
+  -- We are trying to call stopPlutipCluster endpoint to ensure that
+  -- `plutip-server` has started.
   void
     $ recovering defaultRetryPolicy
         ([ \_ _ -> pure true ])
