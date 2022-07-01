@@ -201,6 +201,36 @@
         };
       };
 
+      buildOgmiosFixtures = pkgs:
+        pkgs.stdenv.mkDerivation {
+          name = "ogmios-fixtures";
+          dontUnpack = true;
+          buildInputs = [ pkgs.jq ];
+          buildPhase = ''
+            cp -r ${pkgs.ogmios-fixtures}/server/test/vectors/StateQuery/Response .
+            chmod -R +rwx .
+
+            function on_file () {
+              local query_regex='.*Query\[(.*)\].*'
+              if [[ "$1" =~ $query_regex ]]
+              then
+                echo "$1"
+                json=$(jq -c .result "$1")
+                md5=($(md5sum <<< $json))
+                printf "%s" "$json" > "ogmios/''${BASH_REMATCH[1]}-''${md5}.json"
+              fi
+            }
+            export -f on_file
+
+            mkdir ogmios
+            find . -type f -name "*.json" -exec bash -c 'on_file "{}"' \;
+          '';
+          installPhase = ''
+            mkdir $out
+            cp -rT ogmios $out
+          '';
+        };
+
       buildCtlRuntime = system: extraConfig:
         { ... }:
         let
@@ -383,7 +413,7 @@
           };
           exportOgmiosFixtures =
             ''
-              export OGMIOS_FIXTURES="${project.buildOgmiosFixtures { }}"
+              export OGMIOS_FIXTURES="${buildOgmiosFixtures pkgs}"
             '';
         in
         rec {
@@ -431,9 +461,10 @@
             ctl-unit-test = project.runPursTest {
               testMain = "Test.Unit";
               sources = [ "src" "test" "fixtures" ];
-            }.overrideAttrs (oas: {
-              checkPhase = exportOgmiosFixtures + oas.checkPhase;
-            });
+            }.overrideAttrs
+              (oas: {
+                checkPhase = exportOgmiosFixtures + oas.checkPhase;
+              });
           };
 
           devShell = project.devShell.overrideAttrs (oas: {

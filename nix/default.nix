@@ -250,44 +250,10 @@ let
         cp -r generated-docs $out
       '';
     };
-
-  buildOgmiosFixtures =
-    { name ? "${projectName}-ogmios-fixtures"
-    }@args:
-    pkgs.stdenv.mkDerivation {
-      inherit name;
-      dontUnpack = true;
-      buildInputs = [ pkgs.jq ];
-      buildPhase = ''
-        cp -r ${pkgs.ogmios-fixtures}/server/test/vectors/StateQuery/Response .
-        chmod -R +rwx .
-
-        function on_file () {
-          local query_regex='.*Query\[(.*)\].*'
-          if [[ "$1" =~ $query_regex ]]
-          then
-            echo "$1"
-            json=$(jq -c .result "$1")
-            md5=($(md5sum <<< $json))
-            printf "%s" "$json" > "ogmios/''${BASH_REMATCH[1]}-''${md5}.json"
-          fi
-        }
-        export -f on_file
-
-        mkdir ogmios
-        find . -type f -name "*.json" -exec bash -c 'on_file "{}"' \;
-      '';
-      installPhase = ''
-        mkdir $out
-        cp -rT ogmios $out
-      '';
-    };
-
 in
 {
   inherit buildPursProject runPursTest buildPursDocs bundlePursProject;
   inherit buildSearchablePursDocs buildPursDocsSearch;
-  inherit buildOgmiosFixtures;
   inherit purs nodejs mkNodeModules;
   devShell = shellFor shell;
 }
