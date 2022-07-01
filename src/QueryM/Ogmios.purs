@@ -12,12 +12,14 @@ module QueryM.Ogmios
   , EraSummary(..)
   , EraSummaryParameters(..)
   , EraSummaryTime(..)
+  , ExecutionUnits
   , OgmiosAddress
   , OgmiosBlockHeaderHash(..)
   , OgmiosTxOut(..)
   , OgmiosTxOutRef(..)
   , PParamRational(..)
   , ProtocolParameters(..)
+  , RedeemerPointer
   , RelativeTime(..)
   , SafeZone(..)
   , SlotLength(..)
@@ -84,7 +86,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.String (Pattern(Pattern), indexOf, splitAt, uncons)
+import Data.String (Pattern(Pattern), indexOf, split, splitAt, uncons)
 import Data.String.Common as String
 import Data.Traversable (sequence, traverse)
 import Data.Tuple (uncurry)
@@ -92,7 +94,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Foreign.Object (Object)
-import Foreign.Object as FO
+import Foreign.Object (toUnfoldable) as ForeignObject
 import Helpers (showWithParens)
 import QueryM.JsonWsp
   ( JsonWspCall
@@ -105,9 +107,11 @@ import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray, hexToByteArray)
 import Types.CborBytes (CborBytes, cborBytesToHex)
 import Types.Natural (Natural)
+import Types.Natural (fromString) as Natural
 import Types.Rational (Rational, (%))
 import Types.Rational as Rational
-import Types.RedeemerTag as Tag
+import Types.RedeemerTag (RedeemerTag)
+import Types.RedeemerTag (fromString) as RedeemerTag
 import Types.TokenName (TokenName, mkTokenName)
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
@@ -441,12 +445,11 @@ instance Show SafeZone where
 
 ---------------- TX EVALUATION QUERY RESPONSE & PARSING
 
-newtype TxEvaluationR = TxEvaluationR
-  { "EvaluationResult" ::
-      Map
-        { entityRedeemerTag :: Tag.RedeemerTag, entityIndex :: Natural }
-        { memory :: Natural, steps :: Natural }
-  }
+type RedeemerPointer = { redeemerTag :: RedeemerTag, redeemerIndex :: Natural }
+
+type ExecutionUnits = { memory :: Natural, steps :: Natural }
+
+newtype TxEvaluationR = TxEvaluationR (Map RedeemerPointer ExecutionUnits)
 
 derive instance Generic TxEvaluationR _
 
@@ -454,8 +457,36 @@ instance Show TxEvaluationR where
   show = genericShow
 
 instance DecodeAeson TxEvaluationR where
-  decodeAeson _ = Left
-    (TypeMismatch "DecodeAeson TxEvaluationR is not implemented")
+  decodeAeson = aesonObject $ \obj -> do
+    rdmrPtrExUnitsList :: Array (String /\ Aeson) <-
+      ForeignObject.toUnfoldable <$> getField obj "EvaluationResult"
+    TxEvaluationR <<< Map.fromFoldable <$>
+      traverse decodeRdmrPtrExUnitsItem rdmrPtrExUnitsList
+    where
+    decodeRdmrPtrExUnitsItem
+      :: String /\ Aeson
+      -> Either JsonDecodeError (RedeemerPointer /\ ExecutionUnits)
+    decodeRdmrPtrExUnitsItem (redeemerPtrRaw /\ exUnitsAeson) = do
+      redeemerPtr <- note redeemerPtrTypeMismatch $
+        decodeRedeemerPointer redeemerPtrRaw
+      flip aesonObject exUnitsAeson $ \exUnitsObj -> do
+        memory <- getField exUnitsObj "memory"
+        steps <- getField exUnitsObj "steps"
+        pure $ redeemerPtr /\ { memory, steps }
+
+    redeemerPtrTypeMismatch :: JsonDecodeError
+    redeemerPtrTypeMismatch = TypeMismatch $
+      "Expected redeemer pointer to be encoded as: \
+      \^(spend|mint|certificate|withdrawal):[0-9]+$"
+
+    decodeRedeemerPointer :: String -> Maybe RedeemerPointer
+    decodeRedeemerPointer redeemerPtrRaw =
+      case split (Pattern ":") redeemerPtrRaw of
+        [ tagRaw, indexRaw ] ->
+          { redeemerTag: _, redeemerIndex: _ }
+            <$> RedeemerTag.fromString tagRaw
+            <*> Natural.fromString indexRaw
+        _ -> Nothing
 
 ---------------- PROTOCOL PARAMETERS QUERY RESPONSE & PARSING
 
@@ -1091,7 +1122,8 @@ newtype Assets = Assets (Map CurrencySymbol (Map TokenName BigInt))
 
 instance DecodeAeson Assets where
   decodeAeson j = do
-    wspAssets :: Array (String /\ BigInt) <- FO.toUnfoldable <$> decodeAeson j
+    wspAssets :: Array (String /\ BigInt) <-
+      ForeignObject.toUnfoldable <$> decodeAeson j
     Assets <<< Map.fromFoldableWith (Map.unionWith (+)) <$> sequence
       (uncurry decodeAsset <$> wspAssets)
     where

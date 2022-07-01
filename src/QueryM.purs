@@ -21,6 +21,7 @@ module QueryM
   , applyArgs
   , calculateMinFee
   , evalTxExecutionUnits
+  , evaluateTxOgmios
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
@@ -258,7 +259,10 @@ getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
 --------------------------------------------------------------------------------
 
 submitTxOgmios :: CborBytes -> QueryM Ogmios.SubmitTxR
-submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall _.submit txCbor
+submitTxOgmios = mkOgmiosRequest Ogmios.submitTxCall _.submit
+
+evaluateTxOgmios :: CborBytes -> QueryM Ogmios.TxEvaluationR
+evaluateTxOgmios = mkOgmiosRequest Ogmios.evaluateTxCall _.evaluate
 
 --------------------------------------------------------------------------------
 -- DATUM CACHE QUERIES
