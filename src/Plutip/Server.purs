@@ -24,12 +24,13 @@ import Control.Monad.Except (runExcept)
 import Control.Monad.Reader (ReaderT(ReaderT), runReaderT)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Right, Left), either)
-import Data.Foldable (intercalate)
 import Data.HTTP.Method as Method
 import Data.Int as Int
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (wrap)
 import Data.Posix.Signal (Signal(SIGINT))
+import Data.String.CodeUnits as String
+import Data.String.Pattern (Pattern(Pattern))
 import Data.UInt as UInt
 import Data.YAML.Foreign.Decode (parseYAMLToJson)
 import Effect (Effect)
@@ -53,9 +54,9 @@ import Node.ChildProcess
   , spawn
   )
 import Node.Encoding as Encoding
-import Node.FS.Aff (writeTextFile)
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat, dirname)
+import Plutip.Spawn (NewOutputAction(Success, NoOp), spawnAndWaitForOutput)
 import Plutip.Types
   ( ClusterStartupParameters
   , ClusterStartupRequest(ClusterStartupRequest)
@@ -172,8 +173,12 @@ stopPlutipCluster cfg = do
   either (liftEffect <<< throw <<< show) pure res
 
 startOgmios :: PlutipConfig -> ClusterStartupParameters -> Aff ChildProcess
-startOgmios cfg params = liftEffect $ spawn "ogmios" ogmiosArgs
-  defaultSpawnOptions
+startOgmios cfg params = do
+  -- We wait for any output, because CTL-server tries to connect to Ogmios
+  -- repeatedly, and we can just wait for CTL-server to connect, instead of
+  -- waiting for Ogmios first.
+  spawnAndWaitForOutput "ogmios" ogmiosArgs defaultSpawnOptions
+    $ pure Success
   where
   ogmiosArgs :: Array String
   ogmiosArgs =
@@ -194,6 +199,8 @@ startPlutipServer :: PlutipConfig -> Aff ChildProcess
 startPlutipServer cfg = do
   p <- liftEffect $ spawn "plutip-server" [ "-p", UInt.toString cfg.port ]
     defaultSpawnOptions { detached = true }
+  -- We are trying to call stopPlutipCluster endpoint to ensure that
+  -- `plutip-server` has started.
   void
     $ recovering defaultRetryPolicy
         ([ \_ _ -> pure true ])
@@ -251,34 +258,38 @@ startPostgresServer pgConfig _ = do
     defaultExecSyncOptions
   pure pgChildProcess
 
--- TODO: use CLI arguments when https://github.com/mlabs-haskell/ogmios-datum-cache/issues/61 is resolved
 startOgmiosDatumCache
   :: PlutipConfig -> ClusterStartupParameters -> Aff ChildProcess
 startOgmiosDatumCache cfg _params = do
-  dir <- liftEffect tmpdir
+  apiKey <- liftEffect $ uniqueId "token"
   let
-    dbString :: String
-    dbString = intercalate " "
-      [ "host=" <> cfg.postgresConfig.host
-      , "port=" <> UInt.toString cfg.postgresConfig.port
-      , "user=" <> cfg.postgresConfig.user
-      , "dbname=" <> cfg.postgresConfig.dbname
-      , "password=" <> cfg.postgresConfig.password
+    arguments :: Array String
+    arguments =
+      [ "--server-api"
+      , apiKey
+      , "--server-port"
+      , UInt.toString cfg.ogmiosDatumCacheConfig.port
+      , "--ogmios-address"
+      , cfg.ogmiosDatumCacheConfig.host
+      , "--ogmios-port"
+      , UInt.toString cfg.ogmiosConfig.port
+      , "--db-port"
+      , UInt.toString cfg.postgresConfig.port
+      , "--db-host"
+      , cfg.postgresConfig.host
+      , "--db-user"
+      , cfg.postgresConfig.user
+      , "--db-name"
+      , cfg.postgresConfig.dbname
+      , "--db-password"
+      , cfg.postgresConfig.password
+      , "--use-latest"
+      , "--origin"
       ]
-
-    configContents :: String
-    configContents = intercalate "\n"
-      [ "dbConnectionString = \"" <> dbString <> "\""
-      , "server.port = " <> UInt.toString cfg.ogmiosDatumCacheConfig.port
-      , "ogmios.address = \"" <> cfg.ogmiosDatumCacheConfig.host <> "\""
-      , "ogmios.port = " <> UInt.toString cfg.ogmiosConfig.port
-      , "blockFetcher.autoStart = true"
-      , "blockFetcher.firstBlock.slot = 0"
-      -- TODO: start from origin when https://github.com/mlabs-haskell/ogmios-datum-cache/pull/59 is merged
-      ]
-  writeTextFile Encoding.UTF8 (dir <> "/config.toml") configContents
-  liftEffect $ spawn "ogmios-datum-cache" [] defaultSpawnOptions
-    { cwd = Just dir }
+  spawnAndWaitForOutput "ogmios-datum-cache" arguments defaultSpawnOptions
+    -- Wait for "Intersection found" string in the output
+    $ String.indexOf (Pattern "Intersection found")
+        >>> maybe NoOp (const Success)
 
 mkClusterContractCfg
   :: forall (r :: Row Type)
@@ -325,11 +336,20 @@ startCtlServer cfg params = do
       , UInt.toString cfg.ctlServerConfig.port
       , "--node-socket"
       , params.nodeSocketPath
+      , "--ogmios-host"
+      , cfg.ogmiosConfig.host
+      , "--ogmios-port"
+      , UInt.toString cfg.ogmiosConfig.port
       ] <> getNetworkInfoArgs networkInfo
-  liftEffect $ spawn "ctl-server" ctlServerArgs defaultSpawnOptions
+  spawnAndWaitForOutput "ctl-server" ctlServerArgs defaultSpawnOptions
+    -- Wait for "Successfully connected to Ogmios" string in the output
+    $ String.indexOf (Pattern "Successfully connected to Ogmios")
+        >>> maybe NoOp (const Success)
+
   where
   getNetworkInfoArgs :: NetworkInfo -> Array String
-  getNetworkInfoArgs Mainnet = []
+  getNetworkInfoArgs Mainnet =
+    [ "--network-id", "mainnet" ]
   getNetworkInfoArgs (Testnet networkId) =
     [ "--network-id", Int.toStringAs Int.decimal networkId ]
 

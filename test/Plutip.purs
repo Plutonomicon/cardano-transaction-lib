@@ -55,25 +55,25 @@ config =
         ]
       , [ BigInt.fromInt 2000000000 ]
       ]
-  -- Server configs are used to deploy the corresponding services:
+  -- Server configs are used to deploy the corresponding services.
   , ogmiosConfig:
-      { port: UInt.fromInt 1337
+      { port: UInt.fromInt 1338
       , host: "127.0.0.1"
       , secure: false
       }
   , ogmiosDatumCacheConfig:
-      { port: UInt.fromInt 9999
+      { port: UInt.fromInt 10000
       , host: "127.0.0.1"
       , secure: false
       }
   , ctlServerConfig:
-      { port: UInt.fromInt 8081
+      { port: UInt.fromInt 8083
       , host: "127.0.0.1"
       , secure: false
       }
   , postgresConfig:
       { host: "127.0.0.1"
-      , port: UInt.fromInt 54321
+      , port: UInt.fromInt 5433
       , user: "ctxlib"
       , password: "ctxlib"
       , dbname: "ctxlib"
