@@ -28,7 +28,7 @@ testPkh2Pkh browser = test "Pkh2Pkh" do
   clickButton "Confirm" nami
   -- Wait a moment to avoid a race condition. After Nami gets confirmation,
   -- it will take a few ms to return control to our example.
-  delay (wrap 500.0)
+  delay (wrap 1000.0)
   feedback <- testFeedbackIsTrue main
   shouldSatisfy feedback (_ == true)
 
