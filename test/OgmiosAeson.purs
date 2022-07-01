@@ -1,4 +1,6 @@
-module Test.OgmiosAeson where
+module Test.OgmiosAeson
+  ( suite
+  ) where
 
 import Prelude
 
@@ -21,7 +23,7 @@ import Effect.Aff (Aff, error)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, skip, test)
-import Node.Encoding (Encoding(..))
+import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (FilePath, basename, concat)
 import Node.Process (lookupEnv)
@@ -56,6 +58,7 @@ blacklist =
   --   | grep ",true" | cut -d, -f1
   -- ```
   -- TODO Support plutus:v2 parameters
+  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/567
   , "currentProtocolParameters-c049b0e3a9fbd2fb9d03c94d4bda5592.json"
   , "currentProtocolParameters-2894b0c38840381075e4128bb3486ccb.json"
   , "currentProtocolParameters-5f5a6f750e60d05b6b74fb5a9b1af79e.json"
@@ -144,7 +147,7 @@ suite = group "Ogmios Aeson tests" do
         for_ fps \fp -> do
           file <- readTextFile UTF8 fp
           let
-            handle :: forall f a. DecodeAeson a => f a -> Aff Unit
+            handle :: forall (a :: Type). DecodeAeson a => Proxy a -> Aff Unit
             handle _ = liftEither $ bimap
               ( error <<< ((basename fp <> "\n  ") <> _) <<<
                   printJsonDecodeError

@@ -1,17 +1,19 @@
-module Test.GenerateOgmiosFixtures where
+module Test.GenerateOgmiosFixtures
+  ( main
+  ) where
 
 import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson, Aeson, stringifyAeson)
 import Contract.Monad (ListenerSet)
 import Control.Parallel (parTraverse)
-import Data.Either (Either(..))
-import Data.Log.Level (LogLevel(..))
+import Data.Either (Either(Left, Right))
+import Data.Log.Level (LogLevel(Debug, Error, Trace))
 import Data.Traversable (for_, traverse_)
 import Effect (Effect)
-import Effect.Aff (Aff, Canceler(..), launchAff_, makeAff)
+import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
 import Effect.Class (liftEffect)
-import Effect.Exception (Error, throw)
+import Effect.Exception (Error)
 import Effect.Ref as Ref
 import Helpers (logString)
 import JsWebSocket
@@ -21,12 +23,13 @@ import JsWebSocket
   , _onWsMessage
   , _wsSend
   , _wsWatch
+  , _wsClose
   )
-import Node.Encoding (Encoding(..))
+import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (writeTextFile)
 import Node.Path (concat)
 import QueryM
-  ( WebSocket(..)
+  ( WebSocket(WebSocket)
   , defaultMessageListener
   , defaultOgmiosWsConfig
   , mkListenerSet
@@ -36,15 +39,16 @@ import QueryM
 import QueryM.JsonWsp (JsonWspCall)
 import QueryM.Ogmios (mkOgmiosCallType)
 import QueryM.ServerConfig (ServerConfig, mkWsUrl)
-import Type.Prelude (Proxy(..))
+import Type.Prelude (Proxy(Proxy))
 import Types.MultiMap as MultiMap
 import Data.Map as Map
 
 -- A simple websocket for testing
 -- TODO Generalize websocket constructors using type classes traversing rows
 -- to factor mk{Ogmios{DatumCache,},}WebSocket into a single implementation
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/664
 mkWebSocket
-  :: forall a b
+  :: forall (a :: Type) (b :: Type)
    . DecodeAeson b
   => Show b
   => LogLevel
@@ -65,7 +69,7 @@ mkWebSocket lvl serverCfg cb = do
   _onWsConnect ws do
     _wsWatch ws (logger Debug) onError
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
-    _ <- _onWsError ws (logger Error) $ const onError
+    void $ _onWsError ws (logger Error) $ const onError
     cb $ Right $ WebSocket ws
       (mkListenerSet dispatchMap pendingRequests)
   pure $ \err -> cb $ Left $ err
@@ -74,20 +78,20 @@ mkWebSocket lvl serverCfg cb = do
   logger = logString lvl
 
 mkWebSocketAff
-  :: forall a b
+  :: forall (a :: Type) (b :: Type)
    . DecodeAeson b
   => Show b
   => LogLevel
   -> ServerConfig
   -> Aff (WebSocket (ListenerSet a b))
-mkWebSocketAff lvl = makeAff <<< map (map (Canceler <<< (map liftEffect))) <<<
+mkWebSocketAff lvl = makeAff <<< map (map (Canceler <<< map liftEffect)) <<<
   mkWebSocket lvl
 
 foreign import md5 :: String -> String
 
 data Query = Query (JsonWspCall Unit Aeson) String
 
-mkQuery :: forall query. EncodeAeson query => query -> String -> Query
+mkQuery :: forall (query :: Type). EncodeAeson query => query -> String -> Query
 mkQuery query shown = Query queryCall shown
   where
   queryCall = mkOgmiosCallType
@@ -141,5 +145,4 @@ main =
           , query <> "-" <> respMd5 <> ".json"
           ]
       writeTextFile UTF8 fp resp'
-    -- TODO Remove by properly shutting down the websocket
-    liftEffect $ throw "terminating"
+    liftEffect $ _wsClose ws
