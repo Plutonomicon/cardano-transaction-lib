@@ -74,7 +74,6 @@ import Data.Array as Array
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt, fromInt, quot)
 import Data.Either (Either(Left, Right), hush, note)
-import Data.Enum (fromEnum) as Enum
 import Data.Foldable as Foldable
 import Data.Generic.Rep (class Generic)
 import Data.Lens (Lens', lens')
@@ -83,7 +82,7 @@ import Data.Lens.Index (ix) as Lens
 import Data.Lens.Setter ((.~), set, (?~), (%~))
 import Data.List ((:), List(Nil), partition)
 import Data.Log.Tag (tag)
-import Data.Map as Map
+import Data.Map (fromFoldable, lookup, toUnfoldable, union) as Map
 import Data.Maybe (fromMaybe, maybe, isJust, Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -91,23 +90,24 @@ import Data.Traversable (traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect, liftEffect)
+import QueryM (ClientError, QueryM)
 import QueryM
-  ( ClientError
-  , QueryM
-  , RdmrPtrExUnits(RdmrPtrExUnits)
-  , calculateMinFee
+  ( calculateMinFee
   , getWalletAddress
   , getWalletCollateral
-  , evalTxExecutionUnits
-  )
+  , evaluateTxOgmios
+  ) as QueryM
+import QueryM.Ogmios (TxEvaluationR(TxEvaluationR)) as Ogmios
 import QueryM.Utxos (utxosAt, filterUnusedUtxos)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
+import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import Transaction (setScriptDataHash)
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (DataHash, TransactionInput)
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), _transaction)
+import Untagged.Union (asOneOf)
 import Wallet (Wallet(KeyWallet), cip30Wallet)
 
 -- This module replicates functionality from
@@ -157,8 +157,7 @@ instance Show UtxosAtError where
   show = genericShow
 
 data EvalExUnitsAndMinFeeError
-  = EvalExUnitsError ClientError
-  | EvalMinFeeError ClientError
+  = EvalMinFeeError ClientError
   | ReindexRedeemersError ReindexErrors
 
 derive instance Generic EvalExUnitsAndMinFeeError _
@@ -275,6 +274,14 @@ instance Show FinalizedTransaction where
 -- Evaluation of fees and execution units, Updating redeemers
 --------------------------------------------------------------------------------
 
+evalTxExecutionUnits :: Transaction -> QueryM Ogmios.TxEvaluationR
+evalTxExecutionUnits tx =
+  QueryM.evaluateTxOgmios =<<
+    liftEffect
+      ( wrap <<< Serialization.toBytes <<< asOneOf <$>
+          Serialization.convertTransaction tx
+      )
+
 -- Calculates the execution units needed for each script in the transaction
 -- and the minimum fee, including the script fees.
 -- Returns a tuple consisting of updated `UnattachedUnbalancedTx` and
@@ -291,8 +298,7 @@ evalExUnitsAndMinFee' unattachedTx =
     -- Reattach datums and redeemers before evaluating ex units:
     let attachedTx = reattachDatumsAndRedeemers reindexedUnattachedTx
     -- Evaluate transaction ex units:
-    rdmrPtrExUnitsList <- ExceptT $ evalTxExecutionUnits attachedTx
-      <#> lmap EvalExUnitsError
+    rdmrPtrExUnitsList <- lift $ evalTxExecutionUnits attachedTx
     let
       -- Set execution units received from the server:
       reindexedUnattachedTxWithExUnits =
@@ -301,7 +307,7 @@ evalExUnitsAndMinFee' unattachedTx =
     FinalizedTransaction finalizedTx <- lift $
       finalizeTransaction reindexedUnattachedTxWithExUnits
     -- Calculate the minimum fee for a transaction:
-    minFee <- ExceptT $ calculateMinFee finalizedTx
+    minFee <- ExceptT $ QueryM.calculateMinFee finalizedTx
       <#> bimap EvalMinFeeError unwrap
     pure $ reindexedUnattachedTxWithExUnits /\ minFee
 
@@ -351,30 +357,31 @@ reattachDatumsAndRedeemers
       # _witnessSet <<< _redeemers ?~ map fst redeemersTxIns
 
 updateTxExecutionUnits
-  :: UnattachedUnbalancedTx -> Array RdmrPtrExUnits -> UnattachedUnbalancedTx
-updateTxExecutionUnits unattachedTx rdmrPtrExUnits =
+  :: UnattachedUnbalancedTx -> Ogmios.TxEvaluationR -> UnattachedUnbalancedTx
+updateTxExecutionUnits unattachedTx rdmrPtrExUnitsList =
   unattachedTx #
-    _redeemersTxIns %~ flip setRdmrsExecutionUnits rdmrPtrExUnits
+    _redeemersTxIns %~ flip setRdmrsExecutionUnits rdmrPtrExUnitsList
 
 setRdmrsExecutionUnits
   :: Array (Redeemer /\ Maybe TransactionInput)
-  -> Array RdmrPtrExUnits
+  -> Ogmios.TxEvaluationR
   -> Array (Redeemer /\ Maybe TransactionInput)
-setRdmrsExecutionUnits rs xxs =
-  case Array.uncons xxs of
+setRdmrsExecutionUnits rs (Ogmios.TxEvaluationR xxs) =
+  case Array.uncons (Map.toUnfoldable xxs) of
     Nothing -> rs
-    Just { head: RdmrPtrExUnits x, tail: xs } ->
+    Just { head: ptr /\ exUnits, tail: xs } ->
       let
+        xsWrapped = Ogmios.TxEvaluationR (Map.fromFoldable xs)
         ixMaybe = flip Array.findIndex rs $ \(Redeemer rdmr /\ _) ->
-          Enum.fromEnum rdmr.tag == x.rdmrPtrTag
-            && rdmr.index == Natural.toBigInt x.rdmrPtrIdx
+          rdmr.tag == ptr.redeemerTag
+            && rdmr.index == Natural.toBigInt ptr.redeemerIndex
       in
-        ixMaybe # maybe (setRdmrsExecutionUnits rs xs) \ix ->
-          flip setRdmrsExecutionUnits xs $
+        ixMaybe # maybe (setRdmrsExecutionUnits rs xsWrapped) \ix ->
+          flip setRdmrsExecutionUnits xsWrapped $
             rs # Lens.ix ix %~ \(Redeemer rec /\ txOutRef) ->
               let
-                mem = Natural.toBigInt x.exUnitsMem
-                steps = Natural.toBigInt x.exUnitsSteps
+                mem = Natural.toBigInt exUnits.memory
+                steps = Natural.toBigInt exUnits.steps
               in
                 Redeemer rec { exUnits = { mem, steps } } /\ txOutRef
 
@@ -424,14 +431,14 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   utxoMinVal <- getAdaOnlyUtxoMinValue
   runExceptT do
     -- Get own wallet address, collateral and utxo set:
-    ownAddr <- ExceptT $ getWalletAddress <#>
+    ownAddr <- ExceptT $ QueryM.getWalletAddress <#>
       note (GetWalletAddressError' CouldNotGetWalletAddress)
     wallet <- asks _.wallet
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
     collateral <- case wallet of
       Just w | isJust (cip30Wallet w) ->
-        map Just $ ExceptT $ getWalletCollateral <#>
+        map Just $ ExceptT $ QueryM.getWalletCollateral <#>
           note (GetWalletCollateralError' CouldNotGetCollateral)
       -- TODO: Combine with getWalletCollateral, and supply with fee estimate
       --       https://github.com/Plutonomicon/cardano-transaction-lib/issues/510

@@ -451,6 +451,7 @@ type ExecutionUnits = { memory :: Natural, steps :: Natural }
 
 newtype TxEvaluationR = TxEvaluationR (Map RedeemerPointer ExecutionUnits)
 
+derive instance Newtype TxEvaluationR _
 derive instance Generic TxEvaluationR _
 
 instance Show TxEvaluationR where
