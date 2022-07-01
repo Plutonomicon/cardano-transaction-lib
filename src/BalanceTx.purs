@@ -912,9 +912,9 @@ collectTxIns originalTxIns utxos value =
   txInsValue utxos' =
     Array.foldMap getAmount <<< Array.mapMaybe (flip Map.lookup utxos')
 
-utxosToTransactionInput :: Utxo -> Array TransactionInput
-utxosToTransactionInput =
-  Array.mapMaybe (hush <<< getPublicKeyTransactionInput) <<< Map.toUnfoldable
+  utxosToTransactionInput :: Utxo -> Array TransactionInput
+  utxosToTransactionInput =
+    Array.mapMaybe (hush <<< getPublicKeyTransactionInput) <<< Map.toUnfoldable
 
 balanceNonAdaOuts
   :: Address
