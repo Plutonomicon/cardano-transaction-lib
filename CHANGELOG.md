@@ -31,6 +31,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `FromPlutusType` / `ToPlutusType` type classes.
 - `Contract.Wallet.mkGeroWallet` and `Contract.Wallet.mkNamiWallet` - `Aff` versions should be used instead.
 - Protocol param update setters for the decentralisation constant (`set_d`) and the extra entropy (`set_extra_entropy`).
+- `AbsSlot` and related functions have been removed in favour of `Slot`.
+- Modules `Metadata.Seabug` and `Metadata.Seabug.Share`
 
 ### Changed
 
@@ -50,6 +52,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Types.ScriptLookups.require` function naming caused problems with WebPack ([#593](https://github.com/Plutonomicon/cardano-transaction-lib/pull/593))
 - Bad logging in `queryDispatch` that didn't propagate error messages ([#615](https://github.com/Plutonomicon/cardano-transaction-lib/pull/615))
 - UTxO Min-Ada-Value calculation ([#611](https://github.com/Plutonomicon/cardano-transaction-lib/pull/611))
+
+## [1.1.0] - 2022-06-30
+
+### Fixed
+
+- Changed `utxoIndex` inside an `UnbalancedTx` to be a `Map` with values `TransactionOutput` instead of `ScriptOutput` so there is no conversion in the balancer to `ScriptOutput`. This means the balancer can spend UTxOs from different wallets instead of just the current wallet and script addresses.
+
 
 ## [1.0.1] - 2022-06-17
 

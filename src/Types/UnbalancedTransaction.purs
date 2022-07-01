@@ -13,6 +13,7 @@ import Prelude
 
 import Cardano.Types.Transaction
   ( Transaction
+  , TransactionOutput
   , PublicKey(PublicKey)
   , Vkey(Vkey)
   , RequiredSigner(RequiredSigner)
@@ -71,7 +72,7 @@ payPubKeyRequiredSigner (PaymentPubKey (PublicKey bech32)) =
 -- | Resembles `UnbalancedTx` from `plutus-apps`.
 newtype UnbalancedTx = UnbalancedTx
   { transaction :: Transaction
-  , utxoIndex :: Map TransactionInput ScriptOutput
+  , utxoIndex :: Map TransactionInput TransactionOutput
   }
 
 derive instance Newtype UnbalancedTx _
@@ -88,7 +89,7 @@ _transaction = lens'
       transaction
       \tx -> UnbalancedTx rec { transaction = tx }
 
-_utxoIndex :: Lens' UnbalancedTx (Map TransactionInput ScriptOutput)
+_utxoIndex :: Lens' UnbalancedTx (Map TransactionInput TransactionOutput)
 _utxoIndex = lens'
   \(UnbalancedTx rec@{ utxoIndex }) ->
     Tuple

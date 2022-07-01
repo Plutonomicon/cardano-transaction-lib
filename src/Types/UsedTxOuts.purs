@@ -45,7 +45,7 @@ import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
-import Prelude (map, not, discard, otherwise)
+import Prelude (map, not, discard, otherwise, (<>))
 import Types.Transaction (TransactionHash)
 
 type TxOutRefCache = Map TransactionHash (Set UInt)
@@ -88,17 +88,14 @@ lockRemainingTransactionInputs
   -> m TxOutRefUnlockKeys
 lockRemainingTransactionInputs alreadyLocked tx =
   let
-    outRefs = txOutRefs tx
+    outRefs :: Array { transactionId :: TransactionHash, index :: UInt }
+    outRefs = filter (not $ cacheContains $ unwrap alreadyLocked) $ txOutRefs tx
 
     updateCache :: TxOutRefCache -> { state :: TxOutRefCache, value :: Boolean }
     updateCache cache
       | all (isUnlocked cache) outRefs =
-          { state: updateCache' cache, value: true }
+          { state: foldr insertCache cache $ outRefs, value: true }
       | otherwise = { state: cache, value: false }
-
-    updateCache' cache = foldr insertCache cache
-      $ filter (not $ cacheContains $ unwrap alreadyLocked)
-      $ outRefs
 
     isUnlocked cache { transactionId, index } = maybe true
       (not $ Set.member index)
@@ -123,7 +120,7 @@ lockRemainingTransactionInputs alreadyLocked tx =
       success <- liftEffect $ Ref.modify' updateCache cache
       unless success $ liftEffect $ throw
         "Transaction inputs locked by another transaction"
-      pure (wrap $ refsToTxOut outRefs)
+      pure $ (wrap $ refsToTxOut outRefs) <> alreadyLocked
 
 -- | Mark transaction's inputs as used.
 -- | Returns the set of TxOuts that was locked by this call
