@@ -6,7 +6,16 @@ module Examples.AlwaysMints (main) where
 import Contract.Prelude
 
 import Contract.Aeson (decodeAeson, fromString)
-import Contract.Monad (launchAff_, liftContractAffM, liftContractM, liftedE, liftedM, logInfo', runContract_, traceTestnetContractConfig)
+import Contract.Monad
+  ( launchAff_
+  , liftContractAffM
+  , liftContractM
+  , liftedE
+  , liftedM
+  , logInfo'
+  , runContract_
+  , traceTestnetContractConfig
+  )
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)

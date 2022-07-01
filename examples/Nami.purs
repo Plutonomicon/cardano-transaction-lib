@@ -22,4 +22,4 @@ main = launchAff_ $ do
     log <<< show =<< getWalletAddress
     log <<< show =<< getWalletCollateral
     log <<< show =<< getWalletBalance
-  publishTestFeedback true    
+  publishTestFeedback true

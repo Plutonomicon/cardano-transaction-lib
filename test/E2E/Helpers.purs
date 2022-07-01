@@ -34,14 +34,15 @@ import Effect (Effect)
 import Effect.Aff (Aff, delay)
 import Foreign (Foreign, unsafeFromForeign)
 import Toppokki as Toki
-import Debug(spy)
+import Debug (spy)
 
 exampleUrl :: Toki.URL
 exampleUrl = wrap "http://localhost:4008/"
 
-newtype ExamplePages = ExamplePages { nami :: Toki.Page
-                                    , main :: Toki.Page
-                                    } 
+newtype ExamplePages = ExamplePages
+  { nami :: Toki.Page
+  , main :: Toki.Page
+  }
 
 derive instance Newtype ExamplePages _
 
@@ -69,7 +70,7 @@ waitForNamiPage jQuery browser =
     Nothing -> do
       delay $ wrap 100.0
       waitForNamiPage jQuery browser
-    Just page -> pure page  
+    Just page -> pure page
 
 -- | start example at URL with Nami and return both Nami's page and the example's
 startExample :: Toki.URL -> Toki.Browser -> Aff ExamplePages
@@ -78,8 +79,10 @@ startExample url browser = do
   jQuery <- retrieveJQuery page
   Toki.goto url page
   namiPage <- waitForNamiPage jQuery browser
-  pure $ wrap { nami : namiPage
-              , main : page }
+  pure $ wrap
+    { nami: namiPage
+    , main: page
+    }
 
 -- | Wrapper for Page so it can be used in `shouldSatisfy`, which needs 'Show'
 -- | Doesn't show anything, thus 'NoShow'
@@ -148,10 +151,11 @@ injectJQueryAll jQuery browser = do
   void $ for pages $ \page -> do
     (alreadyInjected :: Boolean) <-
       unsafeFromForeign <$>
-      Toki.unsafeEvaluateStringFunction "typeof(jQuery) !== 'undefined'" page
-    unless alreadyInjected $ void $ Toki.unsafeEvaluateStringFunction jQuery page
+        Toki.unsafeEvaluateStringFunction "typeof(jQuery) !== 'undefined'" page
+    unless alreadyInjected $ void $ Toki.unsafeEvaluateStringFunction jQuery
+      page
   pure pages
-  
+
 testPassword :: String
 testPassword = "ctlctlctl"
 

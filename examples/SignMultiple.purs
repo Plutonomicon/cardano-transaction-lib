@@ -82,9 +82,9 @@ main = launchAff_ $ do
 
     locked <- getLockedInputs
     logInfo' $ "Locked inputs after bracket (should be empty): " <> show locked
-    
+
   publishTestFeedback true
-  
+
   where
   submitAndLog
     :: forall (r :: Row Type). BalancedSignedTransaction -> Contract r Unit

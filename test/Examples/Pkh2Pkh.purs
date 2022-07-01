@@ -18,7 +18,7 @@ import Test.E2E.Helpers
 import Test.Spec.Assertions (shouldSatisfy)
 import TestM (TestPlanM)
 import Toppokki as Toki
-  
+
 testPkh2Pkh :: Toki.Browser -> TestPlanM Unit
 testPkh2Pkh browser = test "Pkh2Pkh" do
   ExamplePages { nami, main } <- startExample exampleUrl browser

@@ -64,7 +64,7 @@ main = launchAff_ $ do
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
-    
+
   publishTestFeedback true
 
 mkTokenName :: forall (r :: Row Type). String -> Contract r TokenName

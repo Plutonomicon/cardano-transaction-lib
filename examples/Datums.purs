@@ -28,7 +28,7 @@ import Contract.Monad
 import Contract.PlutusData (DataHash, getDatumByHash, getDatumsByHashes)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Test.E2E.Feedback (publishTestFeedback)
-  
+
 main :: Effect Unit
 main = launchAff_ $ do
   cfg <- traceTestnetContractConfig
