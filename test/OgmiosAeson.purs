@@ -48,14 +48,14 @@ blacklist =
   , "utxo-a9df54ac55c8156d849806393b2c490d.json"
   , "utxo-f7482203ea6d735521aaa13d3bdbcc8c.json"
 
-    -- plutus:v1 parameters are required
-    -- ```bash
-    -- $ find $OGMIOS_FIXTURES -type f -name "currentProtocolParameters-*" \
-    --   -printf "%f," \
-    --   -exec jq 'type=="object" and has("costModels") and (.costModels | has("plutus:v1") | not)' {} \; \
-    --   | grep ",true" | cut -d, -f1
-    -- ```
-    -- TODO Support plutus:v2 parameters
+  -- plutus:v1 parameters are required
+  -- ```bash
+  -- $ find $OGMIOS_FIXTURES -type f -name "currentProtocolParameters-*" \
+  --   -printf "%f," \
+  --   -exec jq 'type=="object" and has("costModels") and (.costModels | has("plutus:v1") | not)' {} \; \
+  --   | grep ",true" | cut -d, -f1
+  -- ```
+  -- TODO Support plutus:v2 parameters
   , "currentProtocolParameters-c049b0e3a9fbd2fb9d03c94d4bda5592.json"
   , "currentProtocolParameters-2894b0c38840381075e4128bb3486ccb.json"
   , "currentProtocolParameters-5f5a6f750e60d05b6b74fb5a9b1af79e.json"
