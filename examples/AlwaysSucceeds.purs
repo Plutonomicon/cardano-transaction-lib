@@ -1,7 +1,7 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that pays two Ada to the `AlwaysSucceeds` script address
-module Examples.AlwaysSucceeds (main) where
+module Examples.AlwaysSucceeds (main, contract) where
 
 import Contract.Prelude
 
@@ -38,7 +38,10 @@ import Data.Map as Map
 import Effect.Aff (delay)
 
 main :: Effect Unit
-main = launchAff_ $ do
+main = launchAff_ contract
+
+contract :: Aff Unit
+contract = do
   wallet <- Just <$> mkNamiWalletAff
   cfg <- over ContractConfig _ { wallet = wallet } <$> traceContractConfig
   runContract_ cfg $ do

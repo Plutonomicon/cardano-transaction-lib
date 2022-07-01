@@ -1,7 +1,7 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that mints a value using the `AlwaysMints` policy
-module Examples.AlwaysMints (main) where
+module Examples.AlwaysMints (main, contract) where
 
 import Contract.Prelude
 
@@ -30,7 +30,10 @@ import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
 
 main :: Effect Unit
-main = launchAff_ $ do
+main = launchAff_ contract
+
+contract :: Aff Unit
+contract = do
   wallet <- Just <$> mkNamiWalletAff
   cfg <- over ContractConfig _ { wallet = wallet } <$> traceContractConfig
   runContract_ cfg $ do

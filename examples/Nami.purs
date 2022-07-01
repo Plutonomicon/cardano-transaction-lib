@@ -6,7 +6,7 @@
 --
 -- NOTE: due to Nami's limitations, only chromium-based browsers are supported
 
-module Examples.Nami (main) where
+module Examples.Nami (main, contract) where
 
 import Contract.Prelude
 import Contract.Address (getWalletAddress, getWalletCollateral)
@@ -18,7 +18,10 @@ import Contract.Monad
   )
 
 main :: Effect Unit
-main = launchAff_ $ do
+main = launchAff_ contract
+
+contract :: Aff Unit
+contract = do
   cfg <- defaultContractConfig
   runContract_ cfg $ do
     logAction getWalletAddress
