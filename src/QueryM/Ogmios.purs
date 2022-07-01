@@ -75,7 +75,7 @@ import Cardano.Types.Value
   , mkValue
   )
 import Control.Alt ((<|>))
-import Data.Array (catMaybes, index, singleton)
+import Data.Array (index, singleton)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, hush, note)
@@ -89,7 +89,7 @@ import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern), indexOf, splitAt, uncons)
 import Data.String.Common as String
 import Data.Traversable (sequence, traverse)
-import Data.Tuple (uncurry, Tuple(Tuple))
+import Data.Tuple (uncurry)
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -521,7 +521,7 @@ type ProtocolParametersRaw =
   , "minPoolCost" :: BigInt
   , "coinsPerUtxoByte" :: BigInt
   , "costModels" ::
-      { "plutus:v1" :: Maybe CostModel
+      { "plutus:v1" :: CostModel
       }
   , "prices" ::
       { "memory" :: PParamRational
@@ -599,10 +599,8 @@ instance DecodeAeson ProtocolParameters where
       , monetaryExpansion: unwrap ps.monetaryExpansion
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
       , uTxOCostPerWord: Coin ps.coinsPerUtxoByte
-      , costModels: Costmdls $ Map.fromFoldable $ catMaybes
-          [ ps.costModels."plutus:v1" >>= convertCostModel >>> Tuple PlutusV1
-              >>> pure
-          ]
+      , costModels: Costmdls $ Map.fromFoldable
+          [ PlutusV1 /\ convertCostModel ps.costModels."plutus:v1" ]
       , prices: prices
       , maxTxExUnits: Just $ decodeExUnits ps.maxExecutionUnitsPerTransaction
       , maxBlockExUnits: Just $ decodeExUnits ps.maxExecutionUnitsPerBlock
