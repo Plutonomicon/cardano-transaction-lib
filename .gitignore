@@ -24,4 +24,4 @@ result-*
 output.js
 .DS_Store
 .idea/
-chrome-data/
+test-data/chrome-user-data/

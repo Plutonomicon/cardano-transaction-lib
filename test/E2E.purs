@@ -6,20 +6,22 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (wrap)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
+import Mote (group)
 import Test.Utils as Utils
 import TestM (TestPlanM)
-import Prelude (Unit, ($), (>>=), pure, map)
+import Prelude (Unit, ($), map, bind, pure)
 import Test.Examples.Pkh2Pkh (testPkh2Pkh)
-import Test.E2E.Wallet (Mode(Headless, Visible))
+import Test.E2E.Wallet (Mode(Headless, Visible), launchWithNami)
 import Test.Spec.Runner as SpecRunner
 import Options.Applicative
+import Toppokki as Toki
 
 data TestOptions = TestOptions
-                   { chromeExe         :: Maybe String
-                   , namiDir           :: String
-                   , chromeUserDataDir :: String
-                   , noHeadless        :: Boolean
-                   }
+  { chromeExe :: Maybe String
+  , namiDir :: String
+  , chromeUserDataDir :: String
+  , noHeadless :: Boolean
+  }
 
 optParser :: Parser TestOptions
 optParser = ado
@@ -46,21 +48,30 @@ optParser = ado
     , help "Show visible browser window"
     ]
   in TestOptions { chromeExe, namiDir, chromeUserDataDir, noHeadless }
-  
+
 -- Run with `spago test --main Test.E2E`
 main :: Effect Unit
-main = execParser opts >>= \testOpts -> launchAff_ $
-  Utils.interpret'
-    (SpecRunner.defaultConfig { timeout = pure $ wrap 500_000.0 })
-    (testPlan testOpts)
+main = do
+  TestOptions
+    { namiDir
+    , noHeadless
+    , chromeExe
+    , chromeUserDataDir
+    } <- execParser $ info optParser fullDesc
+  launchAff_ $ do
+    browser <- launchWithNami chromeExe chromeUserDataDir namiDir
+      (headlessMode noHeadless)
+    Utils.interpret'
+      (SpecRunner.defaultConfig { timeout = pure $ wrap 500_000.0 })
+      (testPlan browser)
   where
-    opts = info optParser fullDesc
-                                      
+  headlessMode :: Boolean -> Mode
+  headlessMode noHeadless =
+    if noHeadless then Visible
+    else Headless
+
 -- Requires external services listed in README.md
-testPlan :: TestOptions -> TestPlanM Unit
-testPlan (TestOptions { namiDir, noHeadless }) =
-  let mode = if noHeadless
-             then Visible
-             else Headless
-  in testPkh2Pkh namiDir mode
+testPlan :: Toki.Browser -> TestPlanM Unit
+testPlan browser = group "e2e tests" do
+  testPkh2Pkh browser
 

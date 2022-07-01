@@ -10,7 +10,19 @@ ps-entrypoint := Examples.Pkh2Pkh
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 node-ipc = $(shell docker volume inspect cardano-transaction-lib_node-ipc | jq -r '.[0].Mountpoint')
 e2e-temp-dir := $(shell mktemp -tdu e2e.XXXXXXX)
+# bump version here
 e2e-test-nami := test-data/chrome-extensions/nami_3.2.5_1.crx
+
+# https://stackoverflow.com/questions/2214575/passing-arguments-to-make-run
+# example: make e2e-test -- --no-headless
+#
+# If the first argument is "e2e-test,"...
+ifeq (e2e-test,$(firstword $(MAKECMDGOALS)))
+  # use the rest as arguments for "e2e-test"
+  TEST_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  # ...and turn them into do-nothing targets
+  $(eval $(TEST_ARGS):;@:)
+endif
 
 run-dev:
 	@${ps-bundle} && BROWSER_RUNTIME=1 webpack-dev-server --progress
@@ -25,9 +37,10 @@ check-format:
 
 e2e-test:
 	@mkdir ${e2e-temp-dir}
-	@unzip ${e2e-test-nami} -d ${e2e-temp-dir} || echo "ignore warning" # or make stops
-	rm -f chrome-data/SingletonLock
-	@spago test --main Test.E2E -a "E2ETest --nami-dir=${e2e-temp-dir} --no-headless"
+	@unzip ${e2e-test-nami} -d ${e2e-temp-dir} > /dev/zero \
+            || echo "ignore warnings" # or make stops
+	rm -f test-data/chrome-user-data/SingletonLock
+	@spago test --main Test.E2E -a "E2ETest --nami-dir=${e2e-temp-dir} $(TEST_ARGS)"
 
 format:
 	@purs-tidy format-in-place ${ps-sources}

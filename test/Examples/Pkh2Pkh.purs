@@ -25,9 +25,8 @@ import Test.Toppokki (exampleUrl)
 import TestM (TestPlanM)
 import Toppokki as Toki
 
-testPkh2Pkh :: String -> Mode -> TestPlanM Unit
-testPkh2Pkh namiDir mode = test "Pkh2Pkh" do
-  browser <- launchWithNami namiDir mode
+testPkh2Pkh :: Toki.Browser -> TestPlanM Unit
+testPkh2Pkh browser = test "Pkh2Pkh" do
   page <- Toki.newPage browser
   jQuery <- retrieveJQuery page
   Toki.goto (wrap exampleUrl) page

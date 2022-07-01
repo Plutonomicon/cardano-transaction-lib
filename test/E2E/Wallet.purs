@@ -2,11 +2,10 @@ module Test.E2E.Wallet
   ( namiHash
   , Mode(..)
   , launchWithNami
-  , launchWithNami'
   ) where
 
 import Prelude
-
+import Data.Maybe (Maybe, fromMaybe)
 import Effect.Aff (Aff)
 import Toppokki as Toki
 import Test.Examples.Config (userDataDir)
@@ -18,20 +17,15 @@ data Mode = Headless | Visible
 
 derive instance Eq Mode
 
-chromeArgsWithNami :: String -> Mode -> Array String
-chromeArgsWithNami namiPath mode =
-  [ "--disable-extensions-except=" <> namiPath
-  , "--load-extension=" <> namiPath
-  ] <> if mode == Headless then [ "--headless=chrome" ] else []
-
-launchWithNami :: String -> Mode -> Aff Toki.Browser
-launchWithNami namiDir mode =
+launchWithNami :: Maybe String -> String -> String -> Mode -> Aff Toki.Browser
+launchWithNami chromeExe chromeUserDataDir namiDir mode =
   Toki.launch
-    { args: chromeArgsWithNami namiDir mode
+    { args:
+        [ "--disable-extensions-except=" <> namiDir
+        , "--load-extension=" <> namiDir
+        ] <> if mode == Headless then [ "--headless=chrome" ] else []
     , headless: mode == Headless
-    , userDataDir: userDataDir
+    , userDataDir: chromeUserDataDir
+    , executablePath: fromMaybe "" chromeExe
     }
-
-launchWithNami' :: String -> Aff Toki.Browser
-launchWithNami' namiDir = launchWithNami namiDir Headless
 
