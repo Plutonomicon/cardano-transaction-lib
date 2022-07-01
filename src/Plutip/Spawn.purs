@@ -9,6 +9,7 @@ module Plutip.Spawn
 import Prelude
 
 import Data.Either (Either(Left))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Posix.Signal (Signal(SIGINT))
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), makeAff)
@@ -53,15 +54,19 @@ spawnAndWaitForOutput'
 spawnAndWaitForOutput' cmd args opts filter cont = do
   child <- spawn cmd args opts
   onExit child $ const $ cont $ Left $ error $ "Process " <> cmd <> " exited"
-  ref <- Ref.new ""
+  ref <- Ref.new (Just "")
   onDataString (stdout child) Encoding.UTF8
     \str -> do
-      Ref.modify_ (_ <> str) ref
-      output <- Ref.read ref
-      case filter output of
-        NoOp -> pure unit
-        Success -> cont (pure child)
-        Cancel -> do
+      output <- Ref.modify (map (_ <> str)) ref
+      case filter <$> output of
+        Nothing -> pure unit
+        Just NoOp -> pure unit
+        Just Success -> do
+          -- Set to Nothing to prevent future updates
+          Ref.write Nothing ref
+          cont (pure child)
+        Just Cancel -> do
+          Ref.write Nothing ref
           kill SIGINT child
           cont $ Left $ error
             $ "Process cancelled because output received: " <> str
