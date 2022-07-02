@@ -1,5 +1,6 @@
 module Test.OgmiosAeson
-  ( suite
+  ( main
+  , suite
   ) where
 
 import Prelude
@@ -20,9 +21,10 @@ import Data.String.Regex (match, regex)
 import Data.String.Regex.Flags (noFlags)
 import Data.Traversable (for_)
 import Data.Tuple.Nested (type (/\), (/\))
-import Effect.Aff (Aff, error)
+import Effect.Aff (Aff, error, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
+import Effect (Effect)
 import Mote (group, skip, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (readTextFile, readdir)
@@ -30,6 +32,7 @@ import Node.Path (FilePath, basename, concat)
 import Node.Process (lookupEnv)
 import QueryM.Ogmios as O
 import TestM (TestPlanM)
+import Test.Utils as Utils
 import Type.Proxy (Proxy(Proxy))
 
 supported :: Array String
@@ -131,3 +134,7 @@ suite = group "Ogmios Aeson tests" do
             "EvaluateTx" -> handle (Proxy :: _ O.TxEvaluationR)
             "SubmitTx" -> handle (Proxy :: _ O.SubmitTxR)
             _ -> liftEffect $ throw $ "Unknown case " <> bn
+
+main :: Effect Unit
+main = launchAff_ do
+  Utils.interpret suite
