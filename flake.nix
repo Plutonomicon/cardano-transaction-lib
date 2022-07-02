@@ -205,19 +205,20 @@
         pkgs.stdenv.mkDerivation {
           name = "ogmios-fixtures";
           dontUnpack = true;
-          buildInputs = [ pkgs.jq ];
+          buildInputs = [ pkgs.jq pkgs.pcre ];
           buildPhase = ''
-            cp -r ${pkgs.ogmios-fixtures}/server/test/vectors/StateQuery/Response .
+            cp -r ${pkgs.ogmios-fixtures}/server/test/vectors .
             chmod -R +rwx .
 
             function on_file () {
-              local query_regex='.*Query\[(.*)\].*'
-              if [[ "$1" =~ $query_regex ]]
+              local path=$1
+              local parent="$(basename "$(dirname "$path")")"
+              if command=$(pcregrep -o1 -o2 -o3 'Query\[(.*)\]|(EvaluateTx)|(SubmitTx)' <<< "$path")
               then
-                echo "$1"
-                json=$(jq -c .result "$1")
-                md5=($(md5sum <<< $json))
-                printf "%s" "$json" > "ogmios/''${BASH_REMATCH[1]}-''${md5}.json"
+                echo "$path"
+                json=$(jq -c .result "$path")
+                md5=($(md5sum <<< "$json"))
+                printf "%s" "$json" > "ogmios/$command-$md5.json"
               fi
             }
             export -f on_file
