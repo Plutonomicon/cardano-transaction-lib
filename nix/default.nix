@@ -7,7 +7,7 @@
 , spagoPackages ? "${src}/spago-packages.nix"
 , shell ? { }
 , ...
-}:
+}@args:
 let
   purs = pkgs.easy-ps.purs-0_14_5;
   spagoPkgs = import spagoPackages { inherit pkgs; };
@@ -38,16 +38,20 @@ let
     in
     (modules { }).shell.nodeDependencies;
 
+  projectNodeModules = mkNodeModules { };
+
   shellFor =
     { packages ? [ ]
     , inputsFrom ? [ ]
     , shellHook ? ""
     , formatter ? "purs-tidy"
     , pursls ? true
+    , nodeModules ? projectNodeModules
     }:
       assert pkgs.lib.assertOneOf "formatter" formatter [ "purs-tidy" "purty" ];
       pkgs.mkShell {
         buildInputs = [
+          nodeModules
           purs
           nodejs
           pkgs.easy-ps.spago
@@ -61,9 +65,6 @@ let
           pkgs.easy-ps.purescript-language-server;
         inherit packages inputsFrom;
         shellHook =
-          let
-            nodeModules = mkNodeModules { };
-          in
           ''
             export NODE_PATH="${nodeModules}/lib/node_modules"
             export PATH="${nodeModules}/bin:$PATH"
@@ -73,13 +74,12 @@ let
 
   buildPursProject =
     { sources ? [ "src" ]
-    , withDevDeps ? false
     , name ? projectName
     , censorCodes ? [ "UserDefinedWarning" ]
+    , nodeModules ? projectNodeModules
     , ...
     }:
     let
-      nodeModules = mkNodeModules { inherit withDevDeps; };
       sepWithComma = builtins.concatStringsSep ",";
       # for e.g. `cp -r {a,b,c}` vs `cp -r a`
       srcsStr =
@@ -99,6 +99,7 @@ let
     pkgs.stdenv.mkDerivation {
       inherit name src;
       buildInputs = [
+        nodeModules
         spagoPkgs.installSpagoStyle
         pkgs.easy-ps.psa
       ];
