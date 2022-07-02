@@ -4,7 +4,7 @@ module Test.OgmiosAeson
 
 import Prelude
 
-import Aeson (class DecodeAeson,  Aeson)
+import Aeson (class DecodeAeson, Aeson)
 import Aeson as A
 import Foreign.Object (Object)
 import Control.Monad.Error.Class (liftEither)
@@ -45,25 +45,34 @@ supported =
   -- , "currentProtocolParameters-noPlutusV1"
   ]
 
-getField :: forall (a :: Type). DecodeAeson a => String -> Object Aeson -> Maybe a
+getField
+  :: forall (a :: Type). DecodeAeson a => String -> Object Aeson -> Maybe a
 getField f o = join $ hush $ A.getFieldOptional' o f
 
 type Query = String
 
 -- Given a query and an response of the query, create a special case query
 specialize :: Query -> Aeson -> Query
-specialize query a | Just _ :: _ Aeson <- getField "eraMismatch" =<< A.toObject a = query <> "-" <> "eraMismatch"
-                   | "currentProtocolParameters" <- query
-                   , Just costModels <- getField "costModels" =<< A.toObject a
-                   , Nothing :: _ Aeson <- getField "plutus:v1" costModels = query <> "-" <> "noPlutusV1"
-                   | "SubmitTx" <- query
-                   , Just _ :: _ Aeson <- getField "SubmitFail" =<< A.toObject a = query <> "-" <> "SubmitFail"
+specialize query a
+  | Just _ :: _ Aeson <- getField "eraMismatch" =<< A.toObject a = query <> "-"
+      <> "eraMismatch"
+  | "currentProtocolParameters" <- query
+  , Just costModels <- getField "costModels" =<< A.toObject a
+  , Nothing :: _ Aeson <- getField "plutus:v1" costModels = query <> "-" <>
+      "noPlutusV1"
+  | "SubmitTx" <- query
+  , Just _ :: _ Aeson <- getField "SubmitFail" =<< A.toObject a = query <> "-"
+      <> "SubmitFail"
 specialize query _ = query
 
 readdir' :: FilePath -> Aff (Array FilePath)
 readdir' fp = (map <<< map) (\fn -> concat [ fp, fn ]) (readdir fp)
 
-applyTuple :: forall (a :: Type) (b :: Type) (c :: Type). (a -> b) /\ (a -> c) -> a -> b /\ c
+applyTuple
+  :: forall (a :: Type) (b :: Type) (c :: Type)
+   . (a -> b) /\ (a -> c)
+  -> a
+  -> b /\ c
 applyTuple (f /\ g) a = f a /\ g a
 
 suite :: TestPlanM Unit
@@ -79,11 +88,11 @@ suite = group "Ogmios Aeson tests" do
       readdir'
     -- parFor?
     catMaybes <$> for (ourFixtures <> ogmiosFixtures) \fp -> do
-      let bn = basename fp 
+      let bn = basename fp
       contents <- readTextFile UTF8 fp
       aeson <- liftEither $ lmap
-          ( error <<< ((bn <> "\n  ") <> _) <<< printJsonDecodeError )
-          (A.parseJsonStringToAeson contents)
+        (error <<< ((bn <> "\n  ") <> _) <<< printJsonDecodeError)
+        (A.parseJsonStringToAeson contents)
       pure case pattern >>= flip match bn >>> map tail of
         Just [ Just query ] -> Just
           { query: specialize query aeson
@@ -93,16 +102,16 @@ suite = group "Ogmios Aeson tests" do
         _ -> Nothing
 
   let
-    groupedFiles
-      = map (applyTuple $ _.query <<< head /\ map \{aeson, bn} -> {aeson, bn})
-      $ groupAllBy (comparing _.query)
-      $ nubBy (comparing _.bn) files
+    groupedFiles =
+      map (applyTuple $ _.query <<< head /\ map \{ aeson, bn } -> { aeson, bn })
+        $ groupAllBy (comparing _.query)
+        $ nubBy (comparing _.bn) files
 
   for_ groupedFiles \(query /\ files') ->
     (if query `elem` supported then identity else skip)
       $ test (query <> " (" <> show (length files') <> ")")
       $
-        for_ files' \{aeson, bn} -> do
+        for_ files' \{ aeson, bn } -> do
           let
             handle :: forall (a :: Type). DecodeAeson a => Proxy a -> Aff Unit
             handle _ = liftEither $ bimap
