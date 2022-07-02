@@ -93,8 +93,8 @@ mkEpochLength = EpochLength <<< BigInt.fromInt
 mkSlotLength :: Int -> SlotLength
 mkSlotLength = SlotLength <<< BigInt.fromInt
 
-mkSafeZone :: Int -> Maybe SafeZone
-mkSafeZone = Just <<< SafeZone <<< BigInt.fromInt
+mkSafeZone :: Int -> SafeZone
+mkSafeZone = SafeZone <<< BigInt.fromInt
 
 eraSummariesFixture :: EraSummaries
 eraSummariesFixture = EraSummaries

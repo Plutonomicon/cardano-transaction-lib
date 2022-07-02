@@ -383,8 +383,7 @@ instance Show Epoch where
 newtype EraSummaryParameters = EraSummaryParameters
   { epochLength :: EpochLength -- 0-18446744073709552000 An epoch number or length.
   , slotLength :: SlotLength -- <= 18446744073709552000 A slot length, in seconds.
-  , safeZone ::
-      Maybe SafeZone -- 0-18446744073709552000 Number of slots from the tip of
+  , safeZone :: SafeZone -- 0-18446744073709552000 Number of slots from the tip of
   -- the ledger in which it is guaranteed that no hard fork can take place.
   -- This should be (at least) the number of slots in which we are guaranteed
   -- to have k blocks.
@@ -401,7 +400,7 @@ instance DecodeAeson EraSummaryParameters where
   decodeAeson = aesonObject $ \o -> do
     epochLength <- getField o "epochLength"
     slotLength <- getField o "slotLength"
-    safeZone <- getField o "safeZone"
+    safeZone <- fromMaybe zero <$> getField o "safeZone"
     pure $ wrap { epochLength, slotLength, safeZone }
 
 instance EncodeAeson EraSummaryParameters where
@@ -444,6 +443,7 @@ newtype SafeZone = SafeZone BigInt
 derive instance Generic SafeZone _
 derive instance Newtype SafeZone _
 derive newtype instance Eq SafeZone
+derive newtype instance Semiring SafeZone
 derive newtype instance DecodeAeson SafeZone
 derive newtype instance EncodeAeson SafeZone
 
