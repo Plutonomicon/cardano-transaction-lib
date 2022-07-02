@@ -368,6 +368,9 @@
           project = pkgs.purescriptProject {
             inherit src pkgs;
             projectName = "cardano-transaction-lib";
+            packageJson = ./package.json;
+            packageLock = ./package-lock.json;
+            psSources = [ "src" "test" "examples" ];
             shell = {
               packages = [
                 pkgs.ogmios
@@ -419,13 +422,10 @@
               program = "${script}/bin/${binPath}";
             };
 
-          # FIXME
-          # Once we have ogmios/node instances available, we should also include a
-          # test. This will need to be run via a Hercules `effect`
           checks = {
             ctl-unit-test = project.runPursTest {
+              name = "ctl-unit-test";
               testMain = "Test.Unit";
-              sources = [ "src" "test" "fixtures" ];
             };
           };
 

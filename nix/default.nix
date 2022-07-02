@@ -1,6 +1,12 @@
 { pkgs, system }:
 { src
 , projectName
+  # package.json
+, packageJson
+  # package-lock.json
+, packageLock
+, psSources ? [ "src" "test" ]
+, censorCodes ? [ "UserDefinedWarning" ]
   # We should try to use a consistent version of node across all
   # project components
 , nodejs ? pkgs.nodejs-14_x
@@ -12,16 +18,16 @@ let
   purs = pkgs.easy-ps.purs-0_14_5;
   spagoPkgs = import spagoPackages { inherit pkgs; };
   mkNodeEnv = { withDevDeps ? true }: import
-    (pkgs.runCommand "nodePackages"
+    (pkgs.runCommand "node-packages-${projectName}"
       {
         buildInputs = [ pkgs.nodePackages.node2nix ];
       } ''
       mkdir $out
-      cp ${src}/package.json $out/package.json
-      cp ${src}/package-lock.json $out/package-lock.json
       cd $out
+      cp ${packageLock} ./package-lock.json
+      cp ${packageJson} ./package.json
       node2nix ${pkgs.lib.optionalString withDevDeps "--development" } \
-        --lock package-lock.json
+        --lock ./package-lock.json -i ./package.json
     '')
     { inherit pkgs nodejs system; };
   mkNodeModules = { withDevDeps ? true }:
@@ -39,6 +45,17 @@ let
     (modules { }).shell.nodeDependencies;
 
   projectNodeModules = mkNodeModules { };
+
+  sepWithComma = builtins.concatStringsSep ",";
+
+  # for e.g. `cp -r {a,b,c}` vs `cp -r a`
+  joinSources = srcs:
+    let
+      withCommas = sepWithComma srcs;
+    in
+    if builtins.length srcs > 1
+    then ("{" + withCommas + "}")
+    else withCommas;
 
   shellFor =
     { packages ? [ ]
@@ -64,31 +81,20 @@ let
           pursls
           pkgs.easy-ps.purescript-language-server;
         inherit packages inputsFrom;
-        shellHook =
-          ''
-            export NODE_PATH="${nodeModules}/lib/node_modules"
-            export PATH="${nodeModules}/bin:$PATH"
-          ''
-          + shellHook;
+        shellHook = ''
+          export NODE_PATH="${nodeModules}/lib/node_modules"
+          export PATH="${nodeModules}/bin:$PATH"
+        ''
+        + shellHook;
       };
 
   buildPursProject =
-    { sources ? [ "src" ]
-    , name ? projectName
-    , censorCodes ? [ "UserDefinedWarning" ]
+    { name ? projectName
+    , psaCensorCodes ? censorCodes
     , nodeModules ? projectNodeModules
     , ...
     }:
     let
-      sepWithComma = builtins.concatStringsSep ",";
-      # for e.g. `cp -r {a,b,c}` vs `cp -r a`
-      srcsStr =
-        let
-          withCommas = sepWithComma sources;
-        in
-        if builtins.length sources > 1
-        then ("{" + withCommas + "}")
-        else withCommas;
       # This is what spago2nix does
       spagoGlob = pkg:
         ''".spago/${pkg.name}/${pkg.version}/src/**/*.purs"'';
@@ -107,17 +113,16 @@ let
         purs
         pkgs.easy-ps.spago
       ];
-      unpackPhase =
-        ''
-          export HOME="$TMP"
-          export NODE_PATH="${nodeModules}/lib/node_modules"
-          export PATH="${nodeModules}/bin:$PATH"
-          cp -r $src/${srcsStr} .
-          install-spago-style
-        '';
+      unpackPhase = ''
+        export HOME="$TMP"
+        export NODE_PATH="${nodeModules}/lib/node_modules"
+        export PATH="${nodeModules}/bin:$PATH"
+        cp -r $src/${joinSources psSources} .
+        install-spago-style
+      '';
       buildPhase = ''
         psa --strict --censor-lib --is-lib=.spago ${spagoGlobs} \
-          --censor-codes=${sepWithComma censorCodes} "./**/*.purs"
+          --censor-codes=${sepWithComma psaCensorCodes} "./**/*.purs"
       '';
       installPhase = ''
         mkdir $out
@@ -125,27 +130,27 @@ let
       '';
     };
 
+  compiledProject = buildPursProject { };
+
   runPursTest =
     { testMain ? "Test.Main"
     , name ? "${projectName}-check"
-    , srcs ? [ "src" "test" ]
+    , project ? compiledProject
+    , nodeModules ? projectNodeModules
     , ...
-    }@args:
-    (buildPursProject args).overrideAttrs
-      (oas: {
-        inherit name;
-        doCheck = true;
-        buildInputs = oas.buildInputs ++ [ nodejs ];
-        # spago will attempt to download things, which will fail in the
-        # sandbox, so we can just use node instead
-        # (idea taken from `plutus-playground-client`)
-        checkPhase = ''
-          node -e 'require("./output/${testMain}").main()'
-        '';
-        installPhase = ''
-          touch $out
-        '';
-      });
+    }@args: pkgs.runCommand "${name}"
+      {
+        buildInputs = [ project nodeModules ];
+      }
+      # spago will attempt to download things, which will fail in the
+      # sandbox, so we can just use node instead
+      # (idea taken from `plutus-playground-client`)
+      ''
+        cd ${src}
+        export NODE_PATH="${nodeModules}/lib/node_modules"
+        ${nodejs}/bin/node -e 'require("${project}/output/${testMain}").main()'
+        touch $out
+      '';
 
   bundlePursProject =
     { name ? "${projectName}-bundle-" +
