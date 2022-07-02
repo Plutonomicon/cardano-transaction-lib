@@ -9,6 +9,7 @@ import Aeson as A
 import Foreign.Object (Object)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
+import Control.Parallel (parTraverse)
 import Data.Argonaut.Decode.Error (printJsonDecodeError)
 import Data.Array (catMaybes, elem, groupAllBy, nubBy)
 import Data.Array.NonEmpty (head, length, tail)
@@ -17,7 +18,7 @@ import Data.Either (hush)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.String.Regex (match, regex)
 import Data.String.Regex.Flags (noFlags)
-import Data.Traversable (for_, for)
+import Data.Traversable (for_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff (Aff, error)
 import Effect.Class (liftEffect)
@@ -86,8 +87,7 @@ suite = group "Ogmios Aeson tests" do
     ogmiosFixtures <- (liftEffect $ lookupEnv "OGMIOS_FIXTURES") >>= maybe
       (liftEffect $ throw $ "OGMIOS_FIXTURES environment variable not set")
       readdir'
-    -- parFor?
-    catMaybes <$> for (ourFixtures <> ogmiosFixtures) \fp -> do
+    catMaybes <$> flip parTraverse (ourFixtures <> ogmiosFixtures) \fp -> do
       let bn = basename fp
       contents <- readTextFile UTF8 fp
       aeson <- liftEither $ lmap
