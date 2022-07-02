@@ -364,10 +364,10 @@
       psProjectFor = system:
         let
           pkgs = nixpkgsFor system;
+          projectName = "cardano-transaction-lib";
           src = self;
           project = pkgs.purescriptProject {
-            inherit src pkgs;
-            projectName = "cardano-transaction-lib";
+            inherit src pkgs projectName;
             packageJson = ./package.json;
             packageLock = ./package-lock.json;
             psSources = [ "src" "test" "examples" ];
@@ -387,8 +387,6 @@
         rec {
           defaultPackage = packages.ctl-example-bundle-web;
 
-          # Building this package and the check below will ensure that the entire
-          # project compiles (i.e. all of `src`, `examples`, and `test`)
           packages = {
             ctl-example-bundle-web = project.bundlePursProject {
               main = "Examples.Pkh2Pkh";
@@ -401,7 +399,9 @@
               modules = [ (buildCtlRuntime system { }) ];
             };
 
-            docs = project.buildSearchablePursDocs;
+            docs = project.buildSearchablePursDocs {
+              packageName = projectName;
+            };
           };
 
           checks = {

@@ -196,39 +196,42 @@ let
       '';
     };
 
-  buildPursDocsSearch =
-    { name ? "purescript-docs-search"
-    , ...
-    }:
+  pursDocsSearchNpm =
     let
-      docsUrl =
-        "https://github.com/purescript/purescript-docs-search/releases/download";
-      docsVersion = "v0.0.11";
+      fakePackage = builtins.toJSON {
+        name = "pursDocsSearch";
+        version = "0.0.0";
+        dependencies = { "purescript-docs-search" = "0.0.11"; };
+      };
+      fakePackageLock = builtins.toJSON {
+        requires = true;
+        lockfileVersion = 1;
+        dependencies = {
+          purescript-docs-search = {
+            version = "0.0.11";
+            resolved = "https://registry.npmjs.org/purescript-docs-search/-/purescript-docs-search-0.0.11.tgz";
+            integrity = "sha512-eFcxaXv2mgI8XFBSMMuuI0S6Ti0+Ol4jxZSC5rUzeDuNQNKVhKotRWxBqoirIzFmSGXbEqYOo9oZVuDJAFLNIg==";
+          };
+        };
+      };
     in
-    pkgs.stdenv.mkDerivation {
-      inherit name;
-      srcs = [
-        (pkgs.fetchurl {
-          url = "${docsUrl}/${docsVersion}/docs-search-app.js";
-          sha256 = "17qngsdxfg96cka1cgrl3zdrpal8ll6vyhhnazqm4hwj16ywjm02";
-        })
-        (pkgs.fetchurl {
-          url = "${docsUrl}/${docsVersion}/purescript-docs-search";
-          sha256 = "1hjdprm990vyxz86fgq14ajn0lkams7i00h8k2i2g1a0hjdwppq6";
-        })
-      ];
-      buildInputs = [ nodejs ];
-      unpackPhase = ''
-        for srcFile in $srcs; do
-          cp $srcFile $(stripHash $srcFile)
-        done
-      '';
-      installPhase = ''
-        chmod +x purescript-docs-search
-        mkdir -p $out/bin
-        mv docs-search-app.js purescript-docs-search $out/bin
-      '';
-    };
+    import
+      (pkgs.runCommand "purescript-docs-search-npm"
+        {
+          buildInputs = [ pkgs.nodePackages.node2nix ];
+        }
+        ''
+          mkdir $out
+          cd $out
+          cat > package.json <<EOF
+            ${fakePackage}
+          EOF
+          cat > package-lock.json <<EOF
+            ${fakePackageLock}
+          EOF
+          node2nix --lock ./package-lock.json -i ./package.json
+        '')
+      { inherit pkgs nodejs system; };
 
   buildPursDocs =
     { name ? "${projectName}-docs"
@@ -248,19 +251,18 @@ let
         '';
       });
 
-  buildSearchablePursDocs =
+  buildSearchablePursDocs = { packageName, ... }:
     pkgs.stdenv.mkDerivation {
       name = "${projectName}-searchable-docs";
       dontUnpack = true;
-      buildInputs = [
-        spagoPkgs.installSpagoStyle
-      ];
+      buildInputs = [ spagoPkgs.installSpagoStyle ];
       buildPhase = ''
+        export NODE_PATH="${pursDocsSearchNpm.nodeDependencies}/lib/node_modules"
+        export PATH="${pursDocsSearchNpm.nodeDependencies}/bin:$PATH"
         cp -r ${buildPursDocs { }}/{generated-docs,output} .
         install-spago-style
         chmod -R +rwx .
-        ${buildPursDocsSearch { }}/bin/purescript-docs-search build-index \
-          --package-name cardano-transaction-lib
+        purescript-docs-search build-index --package-name ${packageName}
       '';
       installPhase = ''
         mkdir $out
@@ -270,8 +272,7 @@ let
 
 in
 {
-  inherit buildPursProject runPursTest buildPursDocs bundlePursProject;
-  inherit buildSearchablePursDocs buildPursDocsSearch;
-  inherit purs nodejs mkNodeModules;
+  inherit buildPursProject runPursTest buildPursDocs bundlePursProject
+    buildSearchablePursDocs purs nodejs mkNodeModules;
   devShell = shellFor shell;
 }
