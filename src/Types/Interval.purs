@@ -97,6 +97,7 @@ import Helpers
   , liftM
   , mkErrorRecord
   , showWithParens
+  , aesonObject
   )
 import Partial.Unsafe (unsafePartial)
 import Plutus.Types.DataSchema
@@ -111,7 +112,6 @@ import QueryM.Ogmios
   ( EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
   , SystemStart
-  , aesonObject
   )
 import Serialization.Address (Slot(Slot))
 import ToData (class ToData, genericToData)
