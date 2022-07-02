@@ -391,7 +391,6 @@
           # project compiles (i.e. all of `src`, `examples`, and `test`)
           packages = {
             ctl-example-bundle-web = project.bundlePursProject {
-              sources = [ "src" "examples" ];
               main = "Examples.Pkh2Pkh";
               entrypoint = "examples/index.js";
               htmlTemplate = "examples/index.html";
@@ -405,23 +404,6 @@
             docs = project.buildSearchablePursDocs;
           };
 
-          launchDocs =
-            let
-              binPath = "docs-server";
-              builtDocs = packages.docs;
-              script = (pkgs.writeShellScriptBin "${binPath}"
-                ''
-                  ${pkgs.nodePackages.http-server}/bin/http-server ${builtDocs}/generated-docs/html
-                ''
-              ).overrideAttrs (_: {
-                buildInputs = [ pkgs.nodejs-14_x pkgs.nodePackages.http-server ];
-              });
-            in
-            {
-              type = "app";
-              program = "${script}/bin/${binPath}";
-            };
-
           checks = {
             ctl-unit-test = project.runPursTest {
               name = "ctl-unit-test";
@@ -430,6 +412,29 @@
           };
 
           devShell = project.devShell;
+
+          apps = {
+            docs =
+              let
+                binPath = "docs-server";
+                builtDocs = packages.docs;
+                script = (pkgs.writeShellScriptBin "${binPath}"
+                  ''
+                    ${pkgs.nodePackages.http-server}/bin/http-server \
+                      ${builtDocs}/generated-docs/html
+                  ''
+                ).overrideAttrs (_: {
+                  buildInputs = [
+                    pkgs.nodejs-14_x
+                    pkgs.nodePackages.http-server
+                  ];
+                });
+              in
+              {
+                type = "app";
+                program = "${script}/bin/${binPath}";
+              };
+          };
         };
 
       hsProjectFor = system:
@@ -464,12 +469,10 @@
         // (psProjectFor system).packages
       );
 
-      apps = perSystem
-        (system: {
-          inherit
-            (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
+      apps = perSystem (system:
+        (psProjectFor system).apps // {
+          inherit (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
           ctl-runtime = (nixpkgsFor system).launchCtlRuntime { };
-          docs = (psProjectFor system).launchDocs;
         });
 
       checks = perSystem (system:
@@ -513,7 +516,5 @@
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);
 
       overlay = perSystem overlay;
-
-      herculesCI.ciSystems = [ "x86_64-linux" ];
     };
 }

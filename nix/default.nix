@@ -161,29 +161,40 @@ let
     , browserRuntime ? true
     , webpackConfig ? "webpack.config.js"
     , bundledModuleName ? "output.js"
+    , nodeModules ? projectNodeModules
     , ...
-    }@args:
-    (buildPursProject (args // { withDevDeps = true; })).overrideAttrs
-      (oas: {
-        inherit name;
-        buildInputs = oas.buildInputs ++ [ nodejs ];
-        buildPhase = oas.buildPhase + ''
-          ${pkgs.lib.optionalString browserRuntime "export BROWSER_RUNTIME=1"}
-          chmod -R +rwx .
-          spago bundle-module --no-install --no-build -m "${main}" \
-            --to ${bundledModuleName}
-          cp $src/${entrypoint} .
-          cp $src/${htmlTemplate} .
-          cp $src/${webpackConfig} .
-          mkdir ./dist
-          webpack --mode=production -c ${webpackConfig} -o ./dist \
-            --entry ./${entrypoint}
-        '';
-        installPhase = ''
-          mkdir $out
-          mv dist $out
-        '';
-      });
+    }: pkgs.stdenv.mkDerivation {
+      inherit name src;
+      buildInputs = [
+        nodejs
+        nodeModules
+        compiledProject
+      ];
+      nativeBuildInputs = [
+        purs
+        pkgs.easy-ps.spago
+      ];
+      buildPhase = ''
+        export HOME="$TMP"
+        export NODE_PATH="${nodeModules}/lib/node_modules"
+        export PATH="${nodeModules}/bin:$PATH"
+        ${pkgs.lib.optionalString browserRuntime "export BROWSER_RUNTIME=1"}
+        cp -r ${compiledProject}/output .
+        chmod -R +rwx .
+        spago bundle-module --no-install --no-build -m "${main}" \
+          --to ${bundledModuleName}
+        cp $src/${entrypoint} .
+        cp $src/${htmlTemplate} .
+        cp $src/${webpackConfig} .
+        mkdir ./dist
+        webpack --mode=production -c ${webpackConfig} -o ./dist \
+          --entry ./${entrypoint}
+      '';
+      installPhase = ''
+        mkdir $out
+        mv dist $out
+      '';
+    };
 
   buildPursDocsSearch =
     { name ? "purescript-docs-search"
