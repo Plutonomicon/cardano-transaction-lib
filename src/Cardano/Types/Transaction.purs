@@ -72,8 +72,10 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
+  , Aeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonString
+  , getField
   , decodeAeson
   , encodeAeson'
   )
@@ -95,9 +97,10 @@ import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested (type (/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
-import Helpers ((</>), (<<>>), appendMap)
+import Foreign.Object(Object)
+import Helpers ((</>), (<<>>), appendMap, aesonObject)
 import Serialization.Address
   ( Address
   , NetworkId
@@ -116,6 +119,7 @@ import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
 import Types.Transaction (DataHash, TransactionInput)
 import Types.TransactionMetadata (GeneralTransactionMetadata)
+import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- `Transaction`
@@ -159,6 +163,13 @@ instance Monoid Transaction where
     , isValid: true
     , auxiliaryData: Nothing
     }
+
+instance DecodeAeson Transaction where
+  decodeAeson = aesonObject $ \o -> do
+    body <- getField o "body"
+    witnessSet <- getField o "witness"
+    -- isValid and auxiliaryData fields are not present in ODC's responses, not sure how to get them
+    pure $ Transaction { body, witnessSet, isValid: undefined, auxiliaryData: undefined }
 
 --------------------------------------------------------------------------------
 -- `Transaction` Lenses
@@ -250,6 +261,40 @@ instance Monoid TxBody where
     , requiredSigners: Nothing
     , networkId: Nothing
     }
+
+instance DecodeAeson TxBody where
+  decodeAeson = aesonObject $ \o -> do
+    inputs <- getField o "inputs"
+    outputs <- getField o "outputs"
+    fee <- getField o "fee"
+    -- there's no ttl field in the ODC's response
+    certs <- getField o "certs"
+    withdrawals <- getField o "withdrawals"
+    update <- getField o "update"
+    -- there's no auxiliaryDataHash field in ODC's response
+    validityStartInterval <- getField o "validityInterval"
+    mint <- getField o "mint"
+    -- probably the scriptIntegrityHash field in ODC's response
+    scriptDataHash <- getField o "scriptIntegrityHash"
+    collateral <- getField o "collaterals"
+    requiredSigners <- getField o "requiredExtraSignatures"
+    networkId <- getField o "network"
+    pure $ TxBody {
+      inputs
+      , outputs
+      , fee
+      , ttl: undefined
+      , certs
+      , withdrawals
+      , update
+      , auxiliaryDataHash: undefined
+      , validityStartInterval
+      , mint
+      , scriptDataHash
+      , collateral
+      , requiredSigners
+      , networkId
+      }
 
 newtype ScriptDataHash = ScriptDataHash ByteArray
 
@@ -630,6 +675,28 @@ instance Monoid TransactionWitnessSet where
     , plutusData: Nothing
     , redeemers: Nothing
     }
+
+instance DecodeAeson TransactionWitnessSet where
+    decodeAeson = aesonObject $ \o -> do
+        vkeys <- getField o "signatures"
+        bootstraps <- getField o "bootstrap"
+        redeemers <- getField o "redeemers"
+        plutusData <- getField o "datums"
+        nativeScripts /\ plutusScripts <- witnessSetScripts o
+        pure $ TransactionWitnessSet {
+          vkeys
+          , nativeScripts
+          , bootstraps
+          , plutusScripts
+          , plutusData
+          , redeemers }
+
+witnessSetScripts ::
+  Object Aeson
+  -> Either JsonDecodeError (Maybe (Array NativeScript) /\ Maybe (Array PlutusScript))
+witnessSetScripts o = do
+  undefined
+
 
 --------------------------------------------------------------------------------
 -- `TransactionWitnessSet` Lenses
