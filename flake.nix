@@ -526,5 +526,11 @@
       defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);
 
       overlay = perSystem overlay;
+
+      hydraJobs = perSystem (system:
+        self.checks.${system}
+        // self.packages.${system}
+        // self.devShells.${system}
+      );
     };
 }
