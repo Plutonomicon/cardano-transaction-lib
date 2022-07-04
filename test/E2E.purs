@@ -21,6 +21,7 @@ data TestOptions = TestOptions
   , namiDir :: String
   , chromeUserDataDir :: String
   , noHeadless :: Boolean
+  , dumpIO :: Boolean
   }
 
 optParser :: Parser TestOptions
@@ -47,7 +48,11 @@ optParser = ado
     [ long "no-headless"
     , help "Show visible browser window"
     ]
-  in TestOptions { chromeExe, namiDir, chromeUserDataDir, noHeadless }
+  dumpIO <- switch $ fold
+    [ long "dumpio"
+    , help "Print browser console output to terminal"
+    ]
+  in TestOptions { chromeExe, namiDir, chromeUserDataDir, noHeadless, dumpIO }
 
 -- Run with `spago test --main Test.E2E`
 main :: Effect Unit
@@ -57,10 +62,12 @@ main = do
     , noHeadless
     , chromeExe
     , chromeUserDataDir
+    , dumpIO
     } <- execParser $ info optParser fullDesc
   launchAff_ $ do
     browser <- launchWithNami chromeExe chromeUserDataDir namiDir
       (headlessMode noHeadless)
+      dumpIO
     Utils.interpret'
       (SpecRunner.defaultConfig { timeout = pure $ wrap 500_000.0 })
       (testPlan browser)

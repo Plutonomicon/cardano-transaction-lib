@@ -34,7 +34,6 @@ import Effect (Effect)
 import Effect.Aff (Aff, delay)
 import Foreign (Foreign, unsafeFromForeign)
 import Toppokki as Toki
-import Debug (spy)
 
 exampleUrl :: Toki.URL
 exampleUrl = wrap "http://localhost:4008/"

@@ -17,8 +17,9 @@ data Mode = Headless | Visible
 
 derive instance Eq Mode
 
-launchWithNami :: Maybe String -> String -> String -> Mode -> Aff Toki.Browser
-launchWithNami chromeExe chromeUserDataDir namiDir mode =
+launchWithNami
+  :: Maybe String -> String -> String -> Mode -> Boolean -> Aff Toki.Browser
+launchWithNami chromeExe chromeUserDataDir namiDir mode dumpIO =
   Toki.launch
     { args:
         [ "--disable-extensions-except=" <> namiDir
@@ -27,5 +28,7 @@ launchWithNami chromeExe chromeUserDataDir namiDir mode =
     , headless: mode == Headless
     , userDataDir: chromeUserDataDir
     , executablePath: fromMaybe "" chromeExe
+    , dumpio: dumpIO
+    , devtools: dumpIO
     }
 
