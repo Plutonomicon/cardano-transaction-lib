@@ -17,7 +17,6 @@ module Types (
   unsafeDecode,
 ) where
 
-import Cardano.Api qualified as C
 import Cardano.Api.Shelley qualified as Shelley
 import Cardano.Binary qualified as Cbor
 import Control.Exception (Exception)
@@ -57,23 +56,18 @@ newtype AppM (a :: Type) = AppM (ReaderT Env IO a)
     , MonadThrow
     )
 
-data Env = Env
-  { serverOptions :: ServerOptions
-  , protocolParams :: Shelley.ProtocolParameters
-  }
+newtype Env = Env {protocolParams :: Shelley.ProtocolParameters}
   deriving stock (Generic)
 
 data ServerOptions = ServerOptions
   { port :: Port
-  , nodeSocket :: FilePath
-  , networkId :: C.NetworkId
   , ogmiosHost :: String
   , ogmiosPort :: Int
   }
   deriving stock (Generic)
 
 newEnvIO :: ServerOptions -> IO (Either String Env)
-newEnvIO serverOptions@ServerOptions {ogmiosHost, ogmiosPort} =
+newEnvIO ServerOptions { ogmiosHost, ogmiosPort } =
   let ogmiosServerParams =
         Ogmios.Query.defaultServerParameters
           { Ogmios.Query.port = ogmiosPort
@@ -85,9 +79,10 @@ newEnvIO serverOptions@ServerOptions {ogmiosHost, ogmiosPort} =
         >>= \case
           Right response ->
             pure $
-              Env serverOptions <$> decodeProtocolParameters response
+              Env <$> decodeProtocolParameters response
           Left msg ->
-            pure . Left $ "Can't get protocol parameters from Ogmios: \n" <> msg
+            pure . Left $
+              "Can't get protocol parameters from Ogmios: \n" <> msg
 
 newtype Cbor = Cbor Text
   deriving stock (Show)
