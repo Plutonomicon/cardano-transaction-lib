@@ -67,7 +67,7 @@ data ServerOptions = ServerOptions
   deriving stock (Generic)
 
 newEnvIO :: ServerOptions -> IO (Either String Env)
-newEnvIO ServerOptions { ogmiosHost, ogmiosPort } =
+newEnvIO ServerOptions {ogmiosHost, ogmiosPort} =
   let ogmiosServerParams =
         Ogmios.Query.defaultServerParameters
           { Ogmios.Query.port = ogmiosPort
