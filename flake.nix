@@ -365,12 +365,22 @@
         let
           pkgs = nixpkgsFor system;
           projectName = "cardano-transaction-lib";
-          src = self;
+          # `filterSource` will still trigger rebuilds with flakes, even if a
+          # filtered path is modified as the output path name is impurely
+          # derived. Setting an explicit `name` with `path` helps mitigate this
+          src = builtins.path {
+            path = self;
+            name = "ctl-src";
+            filter = path: ftype:
+              !(pkgs.lib.hasSuffix ".md" path)
+              && !(ftype == "directory" && builtins.elem
+                (baseNameOf path) [ "server" "doc" ]
+              );
+          };
           project = pkgs.purescriptProject {
             inherit src pkgs projectName;
             packageJson = ./package.json;
             packageLock = ./package-lock.json;
-            psSources = [ "src" "test" "examples" ];
             shell = {
               packages = [
                 pkgs.ogmios
