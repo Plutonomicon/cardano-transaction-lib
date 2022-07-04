@@ -1,7 +1,6 @@
 module Main (main) where
 
 import Api (app, applyArgs, estimateTxFees)
-import Cardano.Api qualified as C
 import Cardano.Api.Shelley (
   ExecutionUnitPrices (
     ExecutionUnitPrices,
@@ -81,14 +80,6 @@ import Types (
   Env (Env),
   Fee (Fee),
   FeesRequest (FeesRequest),
-  ServerOptions (
-    ServerOptions,
-    networkId,
-    nodeSocket,
-    ogmiosHost,
-    ogmiosPort,
-    port
-  ),
   WitnessCount (WitnessCount),
   unsafeDecode,
  )
@@ -174,16 +165,7 @@ withTestApp :: ActionWith (Port -> IO ())
 withTestApp =
   Warp.testWithApplication $
     pure . app $
-      Env serverOptions fixedProtocolParameters
-  where
-    serverOptions =
-      ServerOptions
-        { port = 8081
-        , nodeSocket = "./.node/socket/node.socket"
-        , networkId = C.Testnet (C.NetworkMagic 1097911063)
-        , ogmiosHost = "localhost"
-        , ogmiosPort = 1337
-        }
+      Env fixedProtocolParameters
 
 runClientM' ::
   forall (a :: Type).

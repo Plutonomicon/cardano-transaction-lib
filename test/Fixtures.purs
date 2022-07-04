@@ -124,6 +124,8 @@ import Data.Either (fromRight)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.NonEmpty ((:|))
+import Data.Set (Set)
+import Data.Set (singleton) as Set
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Deserialization.FromBytes (fromBytes)
@@ -231,7 +233,7 @@ txOutputBinaryFixture1 =
 
 -- | Extend this for your needs.
 type SampleTxConfig =
-  { inputs :: Array TransactionInput }
+  { inputs :: Set TransactionInput }
 
 -- | Build a sample transaction using convenient config
 -- | and existing one as a base.
@@ -299,7 +301,7 @@ txFixture1 :: Transaction
 txFixture1 =
   Transaction
     { body: TxBody
-        { inputs: [ txInputFixture1 ]
+        { inputs: Set.singleton txInputFixture1
         , outputs: [ txOutputFixture1 ]
         , fee: Coin $ BigInt.fromInt 177513
         , ttl: Nothing
@@ -330,7 +332,7 @@ txFixture2 :: Transaction
 txFixture2 =
   Transaction
     { body: TxBody
-        { inputs: [ txInputFixture1 ]
+        { inputs: Set.singleton txInputFixture1
         , outputs: [ txOutputFixture2 ]
         , fee: Coin $ BigInt.fromInt 177513
         , ttl: Nothing
@@ -361,7 +363,7 @@ txFixture3 :: Transaction
 txFixture3 =
   Transaction
     { body: TxBody
-        { inputs: [ txInputFixture1 ]
+        { inputs: Set.singleton txInputFixture1
         , outputs:
             [ TransactionOutput
                 { address: keyHashBaseAddress
@@ -471,7 +473,7 @@ txFixture4 :: Transaction
 txFixture4 =
   Transaction
     { body: TxBody
-        { inputs: [ txInputFixture1 ]
+        { inputs: Set.singleton txInputFixture1
         , outputs:
             [ TransactionOutput
                 { address: keyHashBaseAddress
