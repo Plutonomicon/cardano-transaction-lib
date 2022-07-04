@@ -476,7 +476,7 @@ instance DecodeAeson TxEvaluationR where
         pure $ redeemerPtr /\ { memory, steps }
 
     redeemerPtrTypeMismatch :: JsonDecodeError
-    redeemerPtrTypeMismatch = TypeMismatch $
+    redeemerPtrTypeMismatch = TypeMismatch
       "Expected redeemer pointer to be encoded as: \
       \^(spend|mint|certificate|withdrawal):[0-9]+$"
 

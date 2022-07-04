@@ -13,12 +13,12 @@ import Data.Show.Generic (genericShow)
 data RedeemerTag = Spend | Mint | Cert | Reward
 
 fromString :: String -> Maybe RedeemerTag
-fromString tag
-  | tag == "spend" = Just Spend
-  | tag == "mint" = Just Mint
-  | tag == "certificate" = Just Cert
-  | tag == "withdrawal" = Just Reward
-  | otherwise = Nothing
+fromString = case _ of
+  "spend" -> Just Spend
+  "mint" -> Just Mint
+  "certificate" -> Just Cert
+  "withdrawal" -> Just Reward
+  _ -> Nothing
 
 derive instance Generic RedeemerTag _
 derive instance Eq RedeemerTag

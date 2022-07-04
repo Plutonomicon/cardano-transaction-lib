@@ -33,7 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Protocol param update setters for the decentralisation constant (`set_d`) and the extra entropy (`set_extra_entropy`).
 - `AbsSlot` and related functions have been removed in favour of `Slot`.
 - Modules `Metadata.Seabug` and `Metadata.Seabug.Share`.
-- POST /eval-ex-units Haskell server endpoint. 
+- `POST /eval-ex-units` Haskell server endpoint.
 
 ### Changed
 
