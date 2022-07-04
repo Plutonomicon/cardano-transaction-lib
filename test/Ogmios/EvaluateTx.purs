@@ -3,7 +3,6 @@ module Test.Ogmios.EvaluateTx (suite) where
 import Prelude
 
 import Aeson (decodeAeson, JsonDecodeError(TypeMismatch))
-import Data.BigInt (fromInt) as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Map (toUnfoldable) as Map
 import Data.Newtype (unwrap)
@@ -16,8 +15,7 @@ import Test.Fixtures
   )
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import TestM (TestPlanM)
-import Types.Natural (Natural)
-import Types.Natural (fromBigInt') as Natural
+import Types.Natural (fromInt')
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
 import QueryM.Ogmios (TxEvaluationR, ExecutionUnits, RedeemerPointer)
 
@@ -40,11 +38,8 @@ suite = do
 
 ogmiosEvaluateTxValidRespDecoded :: Array (RedeemerPointer /\ ExecutionUnits)
 ogmiosEvaluateTxValidRespDecoded =
-  [ { redeemerTag: Mint, redeemerIndex: nat zero }
-      /\ { memory: nat 1685698, steps: nat 609724445 }
-  , { redeemerTag: Spend, redeemerIndex: nat one }
-      /\ { memory: nat 1700, steps: nat 476468 }
+  [ { redeemerTag: Mint, redeemerIndex: zero }
+      /\ { memory: fromInt' 1685698, steps: fromInt' 609724445 }
+  , { redeemerTag: Spend, redeemerIndex: one }
+      /\ { memory: fromInt' 1700, steps: fromInt' 476468 }
   ]
-
-nat :: Int -> Natural
-nat = Natural.fromBigInt' <<< BigInt.fromInt
