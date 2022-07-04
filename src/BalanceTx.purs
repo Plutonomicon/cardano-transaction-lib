@@ -58,8 +58,8 @@ import Cardano.Types.Value
   , valueToCoin
   , valueToCoin'
   )
-import Constants.Alonzo
-  ( adaOnlyWords
+import Constants.Babbage
+  ( adaOnlyBytes
   , coinSize
   , pidSize
   , utxoEntrySizeWithoutVal
@@ -509,14 +509,15 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     -> UnattachedUnbalancedTx
     -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
   loop utxoIndex' ownAddr' prevMinUtxos' unattachedTx' = do
-    uTxOCostPerWord <- asks _.pparams <#> unwrap >>> _.uTxOCostPerWord
+    coinsPerUtxoByte <- asks _.pparams <#> unwrap >>> _.coinsPerUtxoByte
     let
       Transaction { body: txBody'@(TxBody txB) } =
         unattachedTx' ^. _transaction'
 
       nextMinUtxos' :: MinUtxos
       nextMinUtxos' =
-        calculateMinUtxos uTxOCostPerWord $ txB.outputs \\ map fst prevMinUtxos'
+        calculateMinUtxos coinsPerUtxoByte $
+          txB.outputs \\ map fst prevMinUtxos'
 
       minUtxos' :: MinUtxos
       minUtxos' = prevMinUtxos' <> nextMinUtxos'
@@ -728,8 +729,8 @@ returnAdaChange changeAddr utxos (unattachedTx /\ fees) =
             unattachedTxWithChangeTxOut /\ { recalculateFees: true }
 
 calculateMinUtxos :: Coin -> Array TransactionOutput -> MinUtxos
-calculateMinUtxos uTxOCostPerWord = map
-  (\a -> a /\ calculateMinUtxo uTxOCostPerWord a)
+calculateMinUtxos coinsPerUtxoByte = map
+  (\a -> a /\ calculateMinUtxo coinsPerUtxoByte a)
 
 -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
 -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
@@ -737,8 +738,8 @@ calculateMinUtxos uTxOCostPerWord = map
 -- | Given an array of transaction outputs, return the paired amount of lovelaces
 -- | required by each utxo.
 calculateMinUtxo :: Coin -> TransactionOutput -> BigInt
-calculateMinUtxo uTxOCostPerWord txOut = unwrap uTxOCostPerWord * utxoEntrySize
-  txOut
+calculateMinUtxo coinsPerUtxoByte txOut =
+  (unwrap coinsPerUtxoByte * fromInt 8) * utxoEntrySize txOut
   where
   -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
   -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
@@ -1049,4 +1050,4 @@ getInputValue utxos (TxBody txBody) =
 getAdaOnlyUtxoMinValue :: QueryM BigInt
 getAdaOnlyUtxoMinValue =
   asks _.pparams <#>
-    unwrap >>> _.uTxOCostPerWord >>> unwrap >>> mul adaOnlyWords
+    unwrap >>> _.coinsPerUtxoByte >>> unwrap >>> mul adaOnlyBytes

@@ -1,11 +1,7 @@
 module Ogmios.Parser (decodeProtocolParameters) where
 
-import Cardano.Api (
-  ExecutionUnitPrices (ExecutionUnitPrices),
-  PraosNonce,
- )
+import Cardano.Api (ExecutionUnitPrices (ExecutionUnitPrices))
 import Cardano.Api.Shelley (ProtocolParameters (ProtocolParameters))
-import Control.Applicative ((<|>))
 import Data.Aeson ((.!=), (.:), (.:?))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Types qualified as Aeson.Types
@@ -29,15 +25,14 @@ instance Aeson.FromJSON ProtocolParametersWrapper where
       params <-
         ProtocolParameters
           <$> ((,) <$> v .: "major" <*> v .: "minor")
-          <*> (rationalP =<< o .: "decentralizationParameter")
-          <*> (o .: "extraEntropy" <|> (neutralNonceP =<< o .: "extraEntropy"))
+          <*> pure 0 -- `decentralizationParameter` is deprecated
+          <*> pure Nothing -- `extraEntropy` is deprecated
           <*> o .: "maxBlockHeaderSize"
           <*> o .: "maxBlockBodySize"
           <*> o .: "maxTxSize"
           <*> o .: "minFeeConstant"
           <*> o .: "minFeeCoefficient"
-          -- "minUtxO is deprecated"
-          <*> pure Nothing
+          <*> pure Nothing -- `minUtxO` is deprecated
           <*> o .: "stakeKeyDeposit"
           <*> o .: "poolDeposit"
           <*> o .: "minPoolCost"
@@ -46,7 +41,7 @@ instance Aeson.FromJSON ProtocolParametersWrapper where
           <*> (rationalP =<< o .: "poolInfluence")
           <*> (rationalP =<< o .: "monetaryExpansion")
           <*> (rationalP =<< o .: "treasuryExpansion")
-          <*> o .:? "coinsPerUtxoWord"
+          <*> ((fmap (* 8)) <$> o .:? "coinsPerUtxoByte")
           <*> (o .:? "costModels" .!= Map.empty)
           <*> parseExecutionPrices o
           <*> o .:? "maxExecutionUnitsPerTransaction"
@@ -117,8 +112,3 @@ decodeProtocolParameters response =
         <$> Aeson.eitherDecode @ProtocolParametersWrapper
           (Aeson.encode modifiedResponse)
     _ -> Left "Can't modify costModels name in response"
-
-neutralNonceP :: Aeson.Value -> Aeson.Types.Parser (Maybe PraosNonce)
-neutralNonceP = Aeson.withText "(Maybe PraosNonce)" $ \case
-  "neutral" -> pure Nothing
-  _ -> fail "Couldn't parse `(Maybe PraosNonce)`"

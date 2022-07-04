@@ -581,7 +581,7 @@ newtype ProtocolParameters = ProtocolParameters
   , poolPledgeInfluence :: Rational
   , monetaryExpansion :: Rational
   , treasuryCut :: Rational
-  , uTxOCostPerWord :: Coin
+  , coinsPerUtxoByte :: Coin
   , costModels :: Costmdls
   , prices :: Maybe ExUnitPrices
   , maxTxExUnits :: Maybe ExUnits
@@ -619,7 +619,7 @@ instance DecodeAeson ProtocolParameters where
       , poolPledgeInfluence: unwrap ps.poolInfluence
       , monetaryExpansion: unwrap ps.monetaryExpansion
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
-      , uTxOCostPerWord: Coin ps.coinsPerUtxoByte
+      , coinsPerUtxoByte: Coin ps.coinsPerUtxoByte
       , costModels: Costmdls $ Map.fromFoldable
           [ PlutusV1 /\ convertCostModel ps.costModels."plutus:v1" ]
       , prices: prices
