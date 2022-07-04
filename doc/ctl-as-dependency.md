@@ -210,5 +210,5 @@ Make sure to perform **all** of the following steps, otherwise you **will** enco
 3. **Update your JS dependencies**
   - If CTL has added any JS dependencies, these will also need to be added to your own `package.json` 
   - Similarly, if any of CTL's JS dependencies have changed versions, you will need to use the **exact** same version in your own `package.json`
-  - That is, avoid using the `~` or `^` prefixes (e.g use versions like `"^1.6.51"` instead of `"^1.6.51"`)
+  - That is, avoid using the `~` or `^` prefixes (e.g use versions like `"1.6.51"` instead of `"^1.6.51"`)
   - If you're using a `package-lock.json` (which is _highly_ recommended), you can update the lockfile with `npm i --package-lock-only`
