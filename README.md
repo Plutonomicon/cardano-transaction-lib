@@ -73,7 +73,7 @@ CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, ho
 
 ## Additional resources/tools:
 
-- [`cardano-serialization-lib`](https://github.com/SundaeSwap-finance/cardano-serialization-lib) (Sundae fork)
+- [`cardano-serialization-lib`](https://github.com/Emurgo/cardano-serialization-lib/)
 - [Ogmios](https://ogmios.dev) for chain queries
 - [CIP-30](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0030) (wallet interface - Nami partially implements this)
 - [Nami docs](https://github.com/Berry-Pool/nami-wallet)
