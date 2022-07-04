@@ -2,12 +2,17 @@
 { src
   # The name of the project, used to generate derivation names
 , projectName
-  # The `package.json` for the project
-, packageJson
-  # The `package-lock.json` for the project
-, packageLock
-  # Warnings from `purs` to silence during compilation. By default, any
-  # warnings generated from project source files will trigger a build error
+  # The `package.json` for the project. It is *highly* recommended to pass this
+  # in explicitly, even if it can be derived from the `src` argument. By doing
+  # so, you will prevent frequent rebuilds of your generated `node_modules`
+, packageJson ? "${src}/package.json"
+  # The `package-lock.json` for the project. It is *highly* recommended to pass
+  # this in explicitly, even if it can be derived from the `src` argument. By
+  # doing so, you will prevent frequent rebuilds of your generated `node_modules`
+, packageLock ? "${src}/package-lock.json"
+  # If warnings generated from project source files will trigger a build error
+, strictComp ? true
+  # Warnings from `purs` to silence during compilation, independent of `strictComp`
 , censorCodes ? [ "UserDefinedWarning" ]
   # The version of node to use across all project components
 , nodejs ? pkgs.nodejs-14_x
@@ -115,7 +120,8 @@ let
         install-spago-style
       '';
       buildPhase = ''
-        psa --strict --censor-lib --is-lib=.spago ${spagoGlobs} \
+        psa ${pkgs.lib.optionalString strictComp "--strict" } \
+          --censor-lib --is-lib=.spago ${spagoGlobs} \
           --censor-codes=${sepWithComma psaCensorCodes} "./**/*.purs"
       '';
       installPhase = ''
