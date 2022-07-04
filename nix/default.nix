@@ -21,7 +21,7 @@
   # Configuration that will be used to generate a `devShell` for the project
 , shell ? { }
 , ...
-}@args:
+}:
 let
   purs = pkgs.easy-ps.purs-0_14_5;
 
@@ -137,7 +137,7 @@ let
     , name ? "${projectName}-check"
     , nodeModules ? projectNodeModules
     , ...
-    }@args: pkgs.runCommand "${name}"
+    }: pkgs.runCommand "${name}"
       {
         buildInputs = [ project nodeModules ];
       }
