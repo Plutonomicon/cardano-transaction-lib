@@ -1,5 +1,5 @@
 module Contract.Plutip
-  ( module X
+  ( module Server
   ) where
 
-import Plutip.Server (runPlutipContract) as X
+import Plutip.Server (runPlutipContract) as Server

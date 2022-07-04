@@ -75,14 +75,15 @@ instance Show PrivateKeyResponse where
 
 instance DecodeAeson PrivateKeyResponse where
   decodeAeson json = do
-    cborStr :: String <- decodeAeson json
+    cborStr <- decodeAeson json
     let splitted = String.splitAt 4 cborStr
+    -- 5820 prefix comes from Cbor
     if splitted.before == "5820" then do
       cborBytes <- note err $ hexToByteArray splitted.after
       PrivateKeyResponse <$> note err (privateKeyFromBytes (RawBytes cborBytes))
     else Left err
     where
-    err = (TypeMismatch "PrivateKey")
+    err = TypeMismatch "PrivateKey"
 
 type ClusterStartupParameters =
   { privateKeys :: Array PrivateKeyResponse
@@ -167,8 +168,8 @@ type InitialUtxos = Array UtxoAmount
 
 -- | A type class that implements a type-safe interface for specifying UTXO
 -- | distribution for wallets.
--- | Numer of wallets in distribution specification matches the number of
--- | provided wallets.
+-- | Number of wallets in distribution specification matches the number of
+-- | wallets provided to the user.
 class UtxoDistribution distr wallets | distr -> wallets, wallets -> distr where
   encodeDistribution :: distr -> Array (Array UtxoAmount)
   decodeWallets :: Array PrivateKeyResponse -> Maybe wallets

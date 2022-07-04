@@ -1,6 +1,8 @@
 -- | `plutip-server` PR:
 -- | https://github.com/mlabs-haskell/plutip/pull/79 (run with `cabal run plutip-server`)
-module Test.Plutip where
+module Test.Plutip
+  ( main
+  ) where
 
 import Prelude
 

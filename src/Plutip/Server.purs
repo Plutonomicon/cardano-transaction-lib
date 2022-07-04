@@ -106,12 +106,11 @@ runPlutipContract plutipCfg distr contContract =
     withResource (startPlutipServer plutipCfg) stopChildProcess <<< const
   withPlutipCluster cont = withResource (startPlutipCluster plutipCfg distr)
     (const $ void $ stopPlutipCluster plutipCfg)
-    \startupResponse -> do
-      case startupResponse of
-        ClusterStartupFailure _ -> do
-          liftEffect $ throw "Failed to start up cluster"
-        ClusterStartupSuccess response -> do
-          cont response
+    case _ of
+      ClusterStartupFailure _ -> do
+        liftEffect $ throw "Failed to start up cluster"
+      ClusterStartupSuccess response -> do
+        cont response
   withPostgres response =
     withResource (startPostgresServer plutipCfg.postgresConfig response)
       stopChildProcess <<< const
