@@ -4,14 +4,13 @@ import Prelude
 
 import Address (addressToOgmiosAddress, ogmiosAddressToAddress)
 import Contract.Chain (ChainTip(ChainTip), Tip(Tip, TipAtGenesis))
-import Data.BigInt as BigInt
+import Data.BigInt (fromString) as BigInt
 import Data.Either (Either(Left, Right), either)
-import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, isJust)
 import Data.Newtype (over, wrap)
 import Data.String.CodeUnits (indexOf)
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (traverse_)
-import Data.UInt as UInt
 import Effect.Aff (Aff, try)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
@@ -28,22 +27,18 @@ import QueryM
   )
 import QueryM.CurrentEpoch (getCurrentEpoch)
 import QueryM.EraSummaries (getEraSummaries)
-import QueryM.WaitUntilSlot (waitUntilSlot)
-import QueryM.Ogmios
-  ( AbsSlot(AbsSlot)
-  , EraSummaries
-  , OgmiosAddress
-  , SystemStart
-  )
+import QueryM.Ogmios (EraSummaries, OgmiosAddress, SystemStart)
 import QueryM.ProtocolParameters (getProtocolParameters)
 import QueryM.SystemStart (getSystemStart)
 import QueryM.Utxos (utxosAt)
+import QueryM.WaitUntilSlot (waitUntilSlot)
 import Serialization.Address (Slot(Slot))
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import TestM (TestPlanM)
+import Types.BigNum (fromInt, add) as BigNum
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Types.Interval
-  ( PosixTimeToSlotError(CannotConvertAbsSlotToSlot, PosixTimeBeforeSystemStart)
+  ( PosixTimeToSlotError(PosixTimeBeforeSystemStart)
   , POSIXTime(POSIXTime)
   , posixTimeToSlot
   , slotToPosixTime
@@ -137,7 +132,9 @@ testWaitUntilSlot = do
     getChainTip >>= case _ of
       TipAtGenesis -> liftEffect $ throw "Tip is at genesis"
       Tip (ChainTip { slot }) -> do
-        waitUntilSlot $ over AbsSlot (add (BigInt.fromInt 10)) slot
+        waitUntilSlot $ over Slot
+          (fromMaybe (BigNum.fromInt 0) <<< BigNum.add (BigNum.fromInt 10))
+          slot
 
 testFromOgmiosAddress :: OgmiosAddress -> Aff Unit
 testFromOgmiosAddress testAddr = do
@@ -244,7 +241,7 @@ testSlotToPosixTime = do
         either (throw <<< show) (shouldEqual slot) eSlot
 
   mkSlot :: Int -> Slot
-  mkSlot = Slot <<< UInt.fromInt
+  mkSlot = Slot <<< BigNum.fromInt
 
 testPosixTimeToSlotError :: Aff Unit
 testPosixTimeToSlotError = do
@@ -253,17 +250,10 @@ testPosixTimeToSlotError = do
     sysStart <- getSystemStart
     let
       posixTime = mkPosixTime "1000"
-      badPosixTime = mkPosixTime "99999999999999999999999999999999999999"
-      badAbsSlot = AbsSlot
-        $ unsafePartial fromJust
-        $ BigInt.fromString "99999999999999999999999998405630783"
     -- Some difficulty reproducing all the errors
     errTest eraSummaries sysStart
       posixTime
       (PosixTimeBeforeSystemStart posixTime)
-    errTest eraSummaries sysStart
-      badPosixTime
-      (CannotConvertAbsSlotToSlot badAbsSlot)
   where
   errTest
     :: forall (err :: Type)

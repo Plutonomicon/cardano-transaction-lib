@@ -30,10 +30,12 @@
 
 ### Light wallet support
 
-Support is planned for the following light wallets, roughly in order of implementation:
+Support is planned for the following light wallets:
 
 - [x] [Nami](https://namiwallet.io/)
 - [x] [Gero](https://gerowallet.io/)
+- [ ] [Flint](https://flint-wallet.com/)
+- [ ] [Lace](https://www.lace.io/)
 - [ ] [Typhon](https://typhonwallet.io/)
 - [ ] [Yoroi](https://yoroi-wallet.com/)
 - [ ] [Eternl (formerly CCvault)](https://eternl.io/)
@@ -71,8 +73,14 @@ CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, ho
 
 ## Additional resources/tools:
 
-- [`cardano-serialization-lib`](https://github.com/SundaeSwap-finance/cardano-serialization-lib) (Sundae fork)
+- [`cardano-serialization-lib`](https://github.com/Emurgo/cardano-serialization-lib/)
 - [Ogmios](https://ogmios.dev) for chain queries
 - [CIP-30](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0030) (wallet interface - Nami partially implements this)
 - [Nami docs](https://github.com/Berry-Pool/nami-wallet)
 - [Alonzo CDDL spec](https://github.com/input-output-hk/cardano-ledger/blob/0738804155245062f05e2f355fadd1d16f04cd56/alonzo/impl/cddl-files/alonzo.cddl)
+
+## Available support channels info
+
+You can find help, more information and ongoing discusion about the project here:
+- Plutonomicon Discord: https://discord.gg/c8kZWxzJ
+- #ctl channel at MLabs' Slack

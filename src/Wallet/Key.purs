@@ -1,6 +1,8 @@
 module Wallet.Key
   ( KeyWallet
-  , privateKeyToKeyWallet
+  , PrivatePaymentKey(PrivatePaymentKey)
+  , PrivateStakeKey(PrivateStakeKey)
+  , privateKeysToKeyWallet
   ) where
 
 import Prelude
@@ -30,6 +32,8 @@ import Serialization as Serialization
 import Serialization.Address
   ( Address
   , NetworkId
+  , baseAddress
+  , baseAddressToAddress
   , enterpriseAddress
   , enterpriseAddressToAddress
   , keyHashCredential
@@ -45,21 +49,40 @@ type KeyWallet =
   , signTx :: Transaction -> Aff Transaction
   }
 
-privateKeyToKeyWallet :: PrivateKey -> KeyWallet
-privateKeyToKeyWallet key =
+newtype PrivatePaymentKey = PrivatePaymentKey PrivateKey
+
+derive instance Newtype PrivatePaymentKey _
+
+newtype PrivateStakeKey = PrivateStakeKey PrivateKey
+
+derive instance Newtype PrivateStakeKey _
+
+privateKeysToKeyWallet
+  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> KeyWallet
+privateKeysToKeyWallet payKey mbStakeKey =
   { address
   , selectCollateral
   , signTx
   }
   where
   address :: NetworkId -> Aff Address
-  address network = publicKeyFromPrivateKey key
-    # liftEffect
-    <#> publicKeyHash
-      >>> keyHashCredential
-      >>> { network, paymentCred: _ }
-      >>> enterpriseAddress
-      >>> enterpriseAddressToAddress
+  address network = do
+    pubPayKey <- liftEffect $ publicKeyFromPrivateKey (unwrap payKey)
+    case mbStakeKey of
+      Just stakeKey -> do
+        pubStakeKey <- liftEffect $ publicKeyFromPrivateKey (unwrap stakeKey)
+        pure $ baseAddressToAddress $
+          baseAddress
+            { network
+            , paymentCred: keyHashCredential $ publicKeyHash $ pubPayKey
+            , delegationCred: keyHashCredential $ publicKeyHash $ pubStakeKey
+            }
+
+      Nothing -> pure $ pubPayKey # publicKeyHash
+        >>> keyHashCredential
+        >>> { network, paymentCred: _ }
+        >>> enterpriseAddress
+        >>> enterpriseAddressToAddress
 
   selectCollateral :: Utxo -> Maybe TransactionUnspentOutput
   selectCollateral utxos = unwrap <<< unwrap <$> flip
@@ -80,7 +103,7 @@ privateKeyToKeyWallet key =
     txBody <- Serialization.convertTxBody tx.body
     hash <- Serialization.hashTransaction txBody
     wit <- Deserialization.WitnessSet.convertVkeyWitness <$>
-      Serialization.makeVkeywitness hash key
+      Serialization.makeVkeywitness hash (unwrap payKey)
     let witnessSet' = set _vkeys (pure $ pure wit) mempty
     pure $ Transaction $ tx { witnessSet = witnessSet' <> tx.witnessSet }
 

@@ -9,7 +9,6 @@ module TxOutput
   , transactionOutputToOgmiosTxOut
   , transactionOutputToScriptOutput
   , txOutRefToTransactionInput
-  , utxoIndexToUtxo
   ) where
 
 import Prelude
@@ -21,9 +20,7 @@ import Address
   )
 import Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
-  , Utxo
   ) as Transaction
-import Data.Map (Map)
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap)
 import Scripts (validatorHashEnterpriseAddress)
@@ -151,13 +148,3 @@ ogmiosDatumHashToDatumHash str = hexToByteArray str <#> wrap
 -- | Converts an internal `DataHash` to an Ogmios datumhash `String`
 datumHashToOgmiosDatumHash :: DataHash -> String
 datumHashToOgmiosDatumHash = byteArrayToHex <<< unwrap
-
---------------------------------------------------------------------------------
--- Conversion between Utxo types
---------------------------------------------------------------------------------
--- | Converts a utxoIndex from `UnbalancedTx` to `Utxo`.
-utxoIndexToUtxo
-  :: NetworkId
-  -> Map Transaction.TransactionInput UTx.ScriptOutput
-  -> Transaction.Utxo
-utxoIndexToUtxo networkId = map (scriptOutputToTransactionOutput networkId)

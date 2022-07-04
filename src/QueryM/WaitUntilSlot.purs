@@ -14,8 +14,6 @@ import Data.Int as Int
 import Data.Log.Level (LogLevel(Trace))
 import Data.Newtype (unwrap, wrap)
 import Data.Time.Duration (Milliseconds(Milliseconds), Seconds)
-import Data.UInt (UInt)
-import Data.UInt as UInt
 import Effect.Aff (Milliseconds, delay)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
@@ -24,9 +22,10 @@ import Effect.Now (now)
 import Helpers (liftEither, liftM, logString)
 import QueryM (QueryM, getChainTip)
 import QueryM.EraSummaries (getEraSummaries)
-import QueryM.Ogmios (AbsSlot, EraSummaries, SystemStart)
+import QueryM.Ogmios (EraSummaries, SystemStart)
 import QueryM.SystemStart (getSystemStart)
 import Serialization.Address (Slot)
+import Types.BigNum as BigNum
 import Types.Chain as Chain
 import Types.Interval
   ( POSIXTime(POSIXTime)
@@ -36,11 +35,11 @@ import Types.Interval
   )
 
 -- | The returned slot will be no less than the slot provided as argument.
-waitUntilSlot :: AbsSlot -> QueryM Chain.Tip
-waitUntilSlot futureAbsSlot =
+waitUntilSlot :: Slot -> QueryM Chain.Tip
+waitUntilSlot futureSlot =
   getChainTip >>= case _ of
     tip@(Chain.Tip (Chain.ChainTip { slot }))
-      | slot >= futureAbsSlot -> pure tip
+      | slot >= futureSlot -> pure tip
       | otherwise -> do
           eraSummaries <- getEraSummaries
           sysStart <- getSystemStart
@@ -51,17 +50,9 @@ waitUntilSlot futureAbsSlot =
           -- If there are less than `slotPadding` slots remaining, start querying for chainTip
           -- repeatedly, because it's possible that at any given moment Ogmios suddenly
           -- synchronizes with node that is also synchronized with global time.
-          slotPadding :: UInt <- liftM (error "Unable to calculate slotPadding")
-            $ UInt.fromNumber'
-            $ unwrap timePadding / BigInt.toNumber slotLengthMs
           getLag eraSummaries sysStart slot >>= logLag slotLengthMs
-          futureSlot :: Slot <-
-            liftM (error "Unable to convert AbsSlot to Slot") $
-              wrap <$> UInt.fromString (BigInt.toString $ unwrap futureAbsSlot)
-          let
-            paddedFutureSlot = wrap $ unwrap futureSlot - slotPadding :: Slot
           futureTime <-
-            liftEffect (slotToPosixTime eraSummaries sysStart paddedFutureSlot)
+            liftEffect (slotToPosixTime eraSummaries sysStart futureSlot)
               >>= hush >>> liftM (error "Unable to convert Slot to POSIXTime")
           delayTime <- estimateDelayUntil futureTime
           liftAff $ delay delayTime
@@ -71,7 +62,7 @@ waitUntilSlot futureAbsSlot =
             fetchRepeatedly =
               getChainTip >>= case _ of
                 currentTip@(Chain.Tip (Chain.ChainTip { slot: currentSlot }))
-                  | currentSlot >= futureAbsSlot -> pure currentTip
+                  | currentSlot >= futureSlot -> pure currentTip
                   | otherwise -> do
                       liftAff $ delay $ Milliseconds $ BigInt.toNumber
                         slotLengthMs
@@ -83,18 +74,10 @@ waitUntilSlot futureAbsSlot =
                   fetchRepeatedly
           fetchRepeatedly
     Chain.TipAtGenesis -> do
-      -- We just retry until it moves from genesis
+      -- We just retry until the tip moves from genesis
       liftAff $ delay retryDelay
-      waitUntilSlot futureAbsSlot
+      waitUntilSlot futureSlot
   where
-  -- `timePadding` is an estimation of how large a lag can normally be (in seconds).
-  -- It is estimated empirically by repeatedly measuring lag for a sufficiently
-  -- long time. Note that lag normally does not drop to zero, but we assume it's
-  -- possible.
-  -- For scale, lowest lag value ever seen was 3, and highest was about 160.
-  timePadding :: Milliseconds
-  timePadding = wrap 200_000.0
-
   retryDelay :: Milliseconds
   retryDelay = wrap 1000.0
 
@@ -108,16 +91,14 @@ waitUntilSlot futureAbsSlot =
 
 -- | Calculate difference between estimated POSIX time of given slot
 -- | and current time.
-getLag :: EraSummaries -> SystemStart -> AbsSlot -> QueryM Milliseconds
-getLag eraSummaries sysStart nowAbsSlot = do
+getLag :: EraSummaries -> SystemStart -> Slot -> QueryM Milliseconds
+getLag eraSummaries sysStart nowSlot = do
   logLevel <- asks _.logLevel
-  nowSlot <- liftM (error "Unable to convert AbsSlot to Slot") $
-    wrap <$> UInt.fromString (BigInt.toString $ unwrap nowAbsSlot)
   nowPosixTime <- liftEffect (slotToPosixTime eraSummaries sysStart nowSlot) >>=
     hush >>> liftM (error "Unable to convert Slot to POSIXTime")
   nowMs <- unwrap <<< unInstant <$> liftEffect now
   liftEffect $ logString logLevel Trace $
-    "getLag: current slot: " <> show (UInt.toInt $ unwrap nowSlot)
+    "getLag: current slot: " <> BigNum.toString (unwrap nowSlot)
       <> ", slot time: "
       <> BigInt.toString (unwrap nowPosixTime)
       <> ", system time: "

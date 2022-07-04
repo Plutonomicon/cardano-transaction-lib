@@ -46,7 +46,7 @@ exports._txBodyOutputs = containerhelper => body => containerhelper.unpack(body.
 // fee(): BigNum;
 exports._txBodyFee = body => body.fee();
 // ttl(): number | void;
-exports._txBodyTtl = maybeGetter("ttl");
+exports._txBodyTtl = maybeGetter("ttl_bignum");
 // certs(): Certificates | void;
 exports._txBodyCerts = maybeGetterMulti("certs");
 // withdrawals(): Withdrawals | void;
@@ -56,7 +56,7 @@ exports._txBodyUpdate = maybeGetter("update");
 // auxiliary_data_hash(): AuxiliaryDataHash | void;
 exports._txBodyAuxiliaryDataHash = maybeGetter("auxiliary_data_hash");
 // validity_start_interval(): number | void;
-exports._txBodyValidityStartInterval = maybeGetter("validity_start_interval");
+exports._txBodyValidityStartInterval = maybeGetter("validity_start_interval_bignum");
 // multiassets(): Mint | void;
 exports._txBodyMultiAssets = maybeGetter("multiassets");
 // script_data_hash(): ScriptDataHash | void;

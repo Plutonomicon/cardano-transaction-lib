@@ -14,8 +14,6 @@ module Types (
   ApplyArgsRequest (..),
   AppliedScript (..),
   EvalExUnitsRequest (..),
-  FinalizeRequest (..),
-  FinalizedTransaction (..),
   CardanoError (..),
   CborDecodeError (..),
   CtlServerError (..),
@@ -173,19 +171,6 @@ newtype EvalExUnitsRequest = EvalExUnitsRequest
   deriving stock (Show, Generic, Eq)
   deriving anyclass (FromJSON, ToJSON)
 
-data FinalizeRequest = FinalizeRequest
-  { tx :: Cbor
-  , datums :: [Cbor]
-  , redeemers :: Cbor
-  }
-  deriving stock (Show, Generic, Eq)
-  deriving anyclass (FromJSON, ToJSON)
-
--- This is only to avoid an orphan instance for @ToDocs@
-newtype FinalizedTransaction = FinalizedTransaction Cbor
-  deriving stock (Show, Generic)
-  deriving newtype (Eq, FromJSON, ToJSON)
-
 data CtlServerError
   = CardanoError CardanoError
   | CborDecode CborDecodeError
@@ -286,31 +271,6 @@ instance Docs.ToSample AppliedScript where
       , AppliedScript exampleScript
       )
     ]
-
-instance Docs.ToSample FinalizeRequest where
-  toSamples _ =
-    [
-      ( "The input should contain CBOR of tx, redeemers, individual Plutus\
-        \datums, and Plutus script hashes"
-      , FinalizeRequest (Cbor "00") [Cbor "00"] (Cbor "00")
-      )
-    ]
-
-instance Docs.ToSample FinalizedTransaction where
-  toSamples _ =
-    [ ("The output is CBOR-encoded Tx", exampleTx)
-    ]
-    where
-      exampleTx :: FinalizedTransaction
-      exampleTx =
-        FinalizedTransaction . Cbor $
-          mconcat
-            [ "84a300818258205d677265fa5bb21ce6d8c7502aca70b93"
-            , "16d10e958611f3c6b758f65ad9599960001818258390030"
-            , "fb3b8539951e26f034910a5a37f22cb99d94d1d409f69dd"
-            , "baea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba"
-            , "3e96550504d5336100021a0002b569a0f5f6"
-            ]
 
 -- For decoding test fixtures, samples, etc...
 unsafeDecode :: forall (a :: Type). FromJSON a => String -> LC8.ByteString -> a
