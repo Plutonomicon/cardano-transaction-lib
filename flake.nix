@@ -370,7 +370,7 @@
           # derived. Setting an explicit `name` with `path` helps mitigate this
           src = builtins.path {
             path = self;
-            name = "ctl-src";
+            name = "${projectName}-src";
             filter = path: ftype:
               !(pkgs.lib.hasSuffix ".md" path)
               && !(ftype == "directory" && builtins.elem

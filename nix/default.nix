@@ -24,7 +24,9 @@
 }@args:
 let
   purs = pkgs.easy-ps.purs-0_14_5;
+
   spagoPkgs = import spagoPackages { inherit pkgs; };
+
   mkNodeEnv = { withDevDeps ? true }: import
     (pkgs.runCommand "node-packages-${projectName}"
       {
@@ -38,6 +40,7 @@ let
         --lock ./package-lock.json -i ./package.json
     '')
     { inherit pkgs nodejs system; };
+
   mkNodeModules = { withDevDeps ? true }:
     let
       nodeEnv = mkNodeEnv { inherit withDevDeps; };
@@ -53,8 +56,6 @@ let
     (modules { }).shell.nodeDependencies;
 
   projectNodeModules = mkNodeModules { };
-
-  sepWithComma = builtins.concatStringsSep ",";
 
   shellFor =
     { packages ? [ ]
@@ -89,7 +90,6 @@ let
 
   buildPursProject =
     { name ? projectName
-    , psaCensorCodes ? censorCodes
     , nodeModules ? projectNodeModules
     , ...
     }:
@@ -122,7 +122,7 @@ let
       buildPhase = ''
         psa ${pkgs.lib.optionalString strictComp "--strict" } \
           --censor-lib --is-lib=.spago ${spagoGlobs} \
-          --censor-codes=${sepWithComma psaCensorCodes} "./**/*.purs"
+          --censor-codes=${builtins.concatStringsSep "," censorCodes} "./**/*.purs"
       '';
       installPhase = ''
         mkdir $out
@@ -130,12 +130,11 @@ let
       '';
     };
 
-  compiledProject = buildPursProject { };
+  project = buildPursProject { };
 
   runPursTest =
     { testMain ? "Test.Main"
     , name ? "${projectName}-check"
-    , project ? compiledProject
     , nodeModules ? projectNodeModules
     , ...
     }@args: pkgs.runCommand "${name}"
@@ -168,7 +167,7 @@ let
       buildInputs = [
         nodejs
         nodeModules
-        compiledProject
+        project
       ];
       nativeBuildInputs = [
         purs
@@ -179,7 +178,7 @@ let
         export NODE_PATH="${nodeModules}/lib/node_modules"
         export PATH="${nodeModules}/bin:$PATH"
         ${pkgs.lib.optionalString browserRuntime "export BROWSER_RUNTIME=1"}
-        cp -r ${compiledProject}/output .
+        cp -r ${project}/output .
         chmod -R +rwx .
         spago bundle-module --no-install --no-build -m "${main}" \
           --to ${bundledModuleName}
