@@ -30,10 +30,12 @@
 
 ### Light wallet support
 
-Support is planned for the following light wallets, roughly in order of implementation:
+Support is planned for the following light wallets:
 
 - [x] [Nami](https://namiwallet.io/)
 - [x] [Gero](https://gerowallet.io/)
+- [ ] [Flint](https://flint-wallet.com/)
+- [ ] [Lace](https://www.lace.io/)
 - [ ] [Typhon](https://typhonwallet.io/)
 - [ ] [Yoroi](https://yoroi-wallet.com/)
 - [ ] [Eternl (formerly CCvault)](https://eternl.io/)
