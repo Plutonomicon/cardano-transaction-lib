@@ -7,14 +7,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 **Table of Contents**
 
 - [[Unreleased]](#unreleased)
+- [[2.0.0-alpha] - 2022-07-06](#200-alpha---2022-07-06)
   - [Added](#added)
   - [Removed](#removed)
+  - [Changed](#changed)
   - [Fixed](#fixed)
-- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+- [[1.1.0] - 2022-06-30](#110---2022-06-30)
   - [Fixed](#fixed-1)
+- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+  - [Fixed](#fixed-2)
 - [[1.0.0] - 2022-06-10](#100---2022-06-10)
 
 ## [Unreleased]
+
+## [2.0.0-alpha] - 2022-07-06
+
+This release adds support for running CTL contracts against Babbage-era nodes. **Note**: this release does not support Babbagge-era features and improvements, e.g. inline datums and reference inputs. Those feature will be implemented in v2.0.0 proper.
 
 ### Added
 
