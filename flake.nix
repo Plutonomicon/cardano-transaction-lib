@@ -8,8 +8,8 @@
     };
 
     # for the purescript project
-    ogmios.url = "github:mlabs-haskell/ogmios";
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/1be5e903e14f5a1785983bdb38203195b401bd15";
+    ogmios.url = "github:mlabs-haskell/ogmios/e406801eaeb32b28cd84357596ca1512bff27741";
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/98b1c4f2badc7ab1efe4be188ee9f9f5e4e54bb0";
     # so named because we also need a different version of the repo below
     # in the server inputs and we use this one just for the `cardano-cli`
     # executables
@@ -227,7 +227,7 @@
           services = {
             cardano-node = {
               service = {
-                image = "inputoutput/cardano-node:1.34.1";
+                image = "inputoutput/cardano-node:1.35.0";
                 ports = [ (bindPort node.port) ];
                 volumes = [
                   "${config.cardano-configurations}/network/${config.network.name}/cardano-node:/config"
@@ -279,12 +279,7 @@
                   "${pkgs.bash}/bin/sh"
                   "-c"
                   ''
-                    ${server}/bin/ctl-server \
-                      --port ${toString ctlServer.port} \
-                      --node-socket ${nodeSocketPath} \
-                      --network-id ${if config.network.magic == null
-                                     then "mainnet"
-                                     else toString config.network.magic}
+                    ${server}/bin/ctl-server --port ${toString ctlServer.port}
                   ''
                 ];
               };

@@ -24,6 +24,8 @@ module Test.Fixtures
   , nativeScriptFixture5
   , nativeScriptFixture6
   , nativeScriptFixture7
+  , ogmiosEvaluateTxInvalidPointerFormatFixture
+  , ogmiosEvaluateTxValidRespFixture
   , plutusDataFixture1
   , plutusDataFixture2
   , plutusDataFixture3
@@ -1158,6 +1160,17 @@ cip25MetadataFixture1 = Cip25Metadata
 cip25MetadataJsonFixture1 :: Effect Aeson
 cip25MetadataJsonFixture1 =
   readTextFile UTF8 "test/Fixtures/cip25MetadataJsonFixture1.json" >>=
+    pure <<< fromRight aesonNull <<< parseJsonStringToAeson
+
+ogmiosEvaluateTxValidRespFixture :: Effect Aeson
+ogmiosEvaluateTxValidRespFixture =
+  readTextFile UTF8 "test/Fixtures/OgmiosEvaluateTxValidRespFixture.json" >>=
+    pure <<< fromRight aesonNull <<< parseJsonStringToAeson
+
+ogmiosEvaluateTxInvalidPointerFormatFixture :: Effect Aeson
+ogmiosEvaluateTxInvalidPointerFormatFixture =
+  readTextFile UTF8
+    "test/Fixtures/OgmiosEvaluateTxInvalidPointerFormatFixture.json" >>=
     pure <<< fromRight aesonNull <<< parseJsonStringToAeson
 
 redeemerFixture1 :: Redeemer

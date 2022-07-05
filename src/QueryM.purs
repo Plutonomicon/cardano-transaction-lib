@@ -14,13 +14,12 @@ module QueryM
   , QueryConfig
   , QueryM
   , QueryMExtended
-  , RdmrPtrExUnits(..)
   , RequestBody
   , WebSocket
   , allowError
   , applyArgs
   , calculateMinFee
-  , evalTxExecutionUnits
+  , evaluateTxOgmios
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
@@ -76,7 +75,6 @@ import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
-import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(POST))
 import Data.Log.Level (LogLevel(Trace, Debug, Error))
 import Data.Map (Map)
@@ -84,7 +82,6 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
@@ -153,7 +150,6 @@ import Types.Chain as Chain
 import Types.Datum (DataHash, Datum)
 import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
-import Types.Natural (Natural)
 import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
 import Types.Scripts (PlutusScript)
@@ -258,7 +254,10 @@ getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
 --------------------------------------------------------------------------------
 
 submitTxOgmios :: CborBytes -> QueryM Ogmios.SubmitTxR
-submitTxOgmios txCbor = mkOgmiosRequest Ogmios.submitTxCall _.submit txCbor
+submitTxOgmios = mkOgmiosRequest Ogmios.submitTxCall _.submit
+
+evaluateTxOgmios :: CborBytes -> QueryM Ogmios.TxEvaluationR
+evaluateTxOgmios = mkOgmiosRequest Ogmios.evaluateTxCall _.evaluate
 
 --------------------------------------------------------------------------------
 -- DATUM CACHE QUERIES
@@ -406,28 +405,6 @@ calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
   --     required signers
   witCount :: UInt
   witCount = maybe one UInt.fromInt $ length <$> body.requiredSigners
-
-newtype RdmrPtrExUnits = RdmrPtrExUnits
-  { rdmrPtrTag :: Int
-  , rdmrPtrIdx :: Natural
-  , exUnitsMem :: Natural
-  , exUnitsSteps :: Natural
-  }
-
-derive instance Generic RdmrPtrExUnits _
-
-instance Show RdmrPtrExUnits where
-  show = genericShow
-
-derive newtype instance DecodeAeson RdmrPtrExUnits
-
-evalTxExecutionUnits
-  :: Transaction -> QueryM (Either ClientError (Array RdmrPtrExUnits))
-evalTxExecutionUnits tx = do
-  txHex <- liftEffect (txToHex tx)
-  url <- mkServerEndpointUrl "eval-ex-units"
-  liftAff $ postAeson url (encodeAeson { tx: txHex })
-    <#> handleAffjaxResponse
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied

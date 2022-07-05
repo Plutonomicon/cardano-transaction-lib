@@ -12,12 +12,14 @@ module QueryM.Ogmios
   , EraSummary(..)
   , EraSummaryParameters(..)
   , EraSummaryTime(..)
+  , ExecutionUnits
   , OgmiosAddress
   , OgmiosBlockHeaderHash(..)
   , OgmiosTxOut(..)
   , OgmiosTxOutRef(..)
   , PParamRational(..)
   , ProtocolParameters(..)
+  , RedeemerPointer
   , RelativeTime(..)
   , SafeZone(..)
   , SlotLength(..)
@@ -84,7 +86,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.String (Pattern(Pattern), indexOf, splitAt, uncons)
+import Data.String (Pattern(Pattern), indexOf, split, splitAt, uncons)
 import Data.String.Common as String
 import Data.Traversable (sequence, traverse)
 import Data.Tuple (uncurry)
@@ -92,7 +94,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Foreign.Object (Object)
-import Foreign.Object as FO
+import Foreign.Object (toUnfoldable) as ForeignObject
 import Helpers (showWithParens)
 import QueryM.JsonWsp
   ( JsonWspCall
@@ -105,9 +107,11 @@ import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray, hexToByteArray)
 import Types.CborBytes (CborBytes, cborBytesToHex)
 import Types.Natural (Natural)
+import Types.Natural (fromString) as Natural
 import Types.Rational (Rational, (%))
 import Types.Rational as Rational
-import Types.RedeemerTag as Tag
+import Types.RedeemerTag (RedeemerTag)
+import Types.RedeemerTag (fromString) as RedeemerTag
 import Types.TokenName (TokenName, mkTokenName)
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
@@ -441,21 +445,49 @@ instance Show SafeZone where
 
 ---------------- TX EVALUATION QUERY RESPONSE & PARSING
 
-newtype TxEvaluationR = TxEvaluationR
-  { "EvaluationResult" ::
-      Map
-        { entityRedeemerTag :: Tag.RedeemerTag, entityIndex :: Natural }
-        { memory :: Natural, steps :: Natural }
-  }
+type RedeemerPointer = { redeemerTag :: RedeemerTag, redeemerIndex :: Natural }
 
+type ExecutionUnits = { memory :: Natural, steps :: Natural }
+
+newtype TxEvaluationR = TxEvaluationR (Map RedeemerPointer ExecutionUnits)
+
+derive instance Newtype TxEvaluationR _
 derive instance Generic TxEvaluationR _
 
 instance Show TxEvaluationR where
   show = genericShow
 
 instance DecodeAeson TxEvaluationR where
-  decodeAeson _ = Left
-    (TypeMismatch "DecodeAeson TxEvaluationR is not implemented")
+  decodeAeson = aesonObject $ \obj -> do
+    rdmrPtrExUnitsList :: Array (String /\ Aeson) <-
+      ForeignObject.toUnfoldable <$> getField obj "EvaluationResult"
+    TxEvaluationR <<< Map.fromFoldable <$>
+      traverse decodeRdmrPtrExUnitsItem rdmrPtrExUnitsList
+    where
+    decodeRdmrPtrExUnitsItem
+      :: String /\ Aeson
+      -> Either JsonDecodeError (RedeemerPointer /\ ExecutionUnits)
+    decodeRdmrPtrExUnitsItem (redeemerPtrRaw /\ exUnitsAeson) = do
+      redeemerPtr <- note redeemerPtrTypeMismatch $
+        decodeRedeemerPointer redeemerPtrRaw
+      flip aesonObject exUnitsAeson $ \exUnitsObj -> do
+        memory <- getField exUnitsObj "memory"
+        steps <- getField exUnitsObj "steps"
+        pure $ redeemerPtr /\ { memory, steps }
+
+    redeemerPtrTypeMismatch :: JsonDecodeError
+    redeemerPtrTypeMismatch = TypeMismatch
+      "Expected redeemer pointer to be encoded as: \
+      \^(spend|mint|certificate|withdrawal):[0-9]+$"
+
+    decodeRedeemerPointer :: String -> Maybe RedeemerPointer
+    decodeRedeemerPointer redeemerPtrRaw =
+      case split (Pattern ":") redeemerPtrRaw of
+        [ tagRaw, indexRaw ] ->
+          { redeemerTag: _, redeemerIndex: _ }
+            <$> RedeemerTag.fromString tagRaw
+            <*> Natural.fromString indexRaw
+        _ -> Nothing
 
 ---------------- PROTOCOL PARAMETERS QUERY RESPONSE & PARSING
 
@@ -503,14 +535,12 @@ type ProtocolParametersRaw =
   , "poolInfluence" :: PParamRational
   , "monetaryExpansion" :: PParamRational
   , "treasuryExpansion" :: PParamRational
-  , "decentralizationParameter" :: PParamRational
-  , "extraEntropy" :: Maybe Nonce
   , "protocolVersion" ::
       { "major" :: UInt
       , "minor" :: UInt
       }
   , "minPoolCost" :: BigInt
-  , "coinsPerUtxoWord" :: BigInt
+  , "coinsPerUtxoByte" :: BigInt
   , "costModels" ::
       { "plutus:v1" :: CostModel
       }
@@ -551,7 +581,7 @@ newtype ProtocolParameters = ProtocolParameters
   , poolPledgeInfluence :: Rational
   , monetaryExpansion :: Rational
   , treasuryCut :: Rational
-  , uTxOCostPerWord :: Coin
+  , coinsPerUtxoByte :: Coin
   , costModels :: Costmdls
   , prices :: Maybe ExUnitPrices
   , maxTxExUnits :: Maybe ExUnits
@@ -574,8 +604,9 @@ instance DecodeAeson ProtocolParameters where
 
     pure $ ProtocolParameters
       { protocolVersion: ps.protocolVersion.major /\ ps.protocolVersion.minor
-      , decentralization: unwrap ps.decentralizationParameter
-      , extraPraosEntropy: ps.extraEntropy
+      -- The following two parameters were removed from Babbage
+      , decentralization: zero
+      , extraPraosEntropy: Nothing
       , maxBlockHeaderSize: ps.maxBlockHeaderSize
       , maxBlockBodySize: ps.maxBlockBodySize
       , maxTxSize: ps.maxTxSize
@@ -588,7 +619,7 @@ instance DecodeAeson ProtocolParameters where
       , poolPledgeInfluence: unwrap ps.poolInfluence
       , monetaryExpansion: unwrap ps.monetaryExpansion
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
-      , uTxOCostPerWord: Coin ps.coinsPerUtxoWord
+      , coinsPerUtxoByte: Coin ps.coinsPerUtxoByte
       , costModels: Costmdls $ Map.fromFoldable
           [ PlutusV1 /\ convertCostModel ps.costModels."plutus:v1" ]
       , prices: prices
@@ -626,9 +657,9 @@ type CostModel =
   , "appendString-memory-arguments-slope" :: UInt
   , "bData-cpu-arguments" :: UInt
   , "bData-memory-arguments" :: UInt
-  , "blake2b-cpu-arguments-intercept" :: UInt
-  , "blake2b-cpu-arguments-slope" :: UInt
-  , "blake2b-memory-arguments" :: UInt
+  , "blake2b_256-cpu-arguments-intercept" :: UInt
+  , "blake2b_256-cpu-arguments-slope" :: UInt
+  , "blake2b_256-memory-arguments" :: UInt
   , "cekApplyCost-exBudgetCPU" :: UInt
   , "cekApplyCost-exBudgetMemory" :: UInt
   , "cekBuiltinCost-exBudgetCPU" :: UInt
@@ -775,9 +806,9 @@ type CostModel =
   , "unListData-memory-arguments" :: UInt
   , "unMapData-cpu-arguments" :: UInt
   , "unMapData-memory-arguments" :: UInt
-  , "verifySignature-cpu-arguments-intercept" :: UInt
-  , "verifySignature-cpu-arguments-slope" :: UInt
-  , "verifySignature-memory-arguments" :: UInt
+  , "verifyEd25519Signature-cpu-arguments-intercept" :: UInt
+  , "verifyEd25519Signature-cpu-arguments-slope" :: UInt
+  , "verifyEd25519Signature-memory-arguments" :: UInt
   }
 
 convertCostModel :: CostModel -> T.CostModel
@@ -796,9 +827,9 @@ convertCostModel model = wrap
   , model."appendString-memory-arguments-slope"
   , model."bData-cpu-arguments"
   , model."bData-memory-arguments"
-  , model."blake2b-cpu-arguments-intercept"
-  , model."blake2b-cpu-arguments-slope"
-  , model."blake2b-memory-arguments"
+  , model."blake2b_256-cpu-arguments-intercept"
+  , model."blake2b_256-cpu-arguments-slope"
+  , model."blake2b_256-memory-arguments"
   , model."cekApplyCost-exBudgetCPU"
   , model."cekApplyCost-exBudgetMemory"
   , model."cekBuiltinCost-exBudgetCPU"
@@ -945,9 +976,9 @@ convertCostModel model = wrap
   , model."unListData-memory-arguments"
   , model."unMapData-cpu-arguments"
   , model."unMapData-memory-arguments"
-  , model."verifySignature-cpu-arguments-intercept"
-  , model."verifySignature-cpu-arguments-slope"
-  , model."verifySignature-memory-arguments"
+  , model."verifyEd25519Signature-cpu-arguments-intercept"
+  , model."verifyEd25519Signature-cpu-arguments-slope"
+  , model."verifyEd25519Signature-memory-arguments"
   ]
 
 ---------------- CHAIN TIP QUERY RESPONSE & PARSING
@@ -1074,7 +1105,7 @@ parseTxOut :: Aeson -> Either JsonDecodeError OgmiosTxOut
 parseTxOut = aesonObject $ \o -> do
   address <- getField o "address"
   value <- parseValue o
-  let datum = hush $ getField o "datum"
+  let datum = hush $ getField o "datumHash"
   pure $ { address, value, datum }
 
 -- parses the `Value` type
@@ -1091,7 +1122,8 @@ newtype Assets = Assets (Map CurrencySymbol (Map TokenName BigInt))
 
 instance DecodeAeson Assets where
   decodeAeson j = do
-    wspAssets :: Array (String /\ BigInt) <- FO.toUnfoldable <$> decodeAeson j
+    wspAssets :: Array (String /\ BigInt) <-
+      ForeignObject.toUnfoldable <$> decodeAeson j
     Assets <<< Map.fromFoldableWith (Map.unionWith (+)) <$> sequence
       (uncurry decodeAsset <$> wspAssets)
     where
