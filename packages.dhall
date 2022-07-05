@@ -278,8 +278,9 @@ let additions =
           , "node-fs-aff"
           ]
         , repo = "https://github.com/firefrorefiddle/purescript-toppokki"
-        , version = "ae0090e04f01a5bddca856baca91a0f213b095a9"
+        , version = "3d7ca70bc32d5f390893cf4c4b0c2cc1f4cf9c2c"
         }
       }
 
 in  upstream // additions
+

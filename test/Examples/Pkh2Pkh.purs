@@ -2,8 +2,10 @@ module Test.Examples.Pkh2Pkh where
 
 import Prelude
 
+import Effect.Console (log)
 import Data.Newtype (wrap)
 import Effect.Aff (delay)
+import Effect.Class (liftEffect)
 import Mote (test)
 import Test.E2E.Feedback (testFeedbackIsTrue)
 import Test.E2E.Helpers
@@ -12,6 +14,7 @@ import Test.E2E.Helpers
   , clickButton
   , password
   , reactSetValue
+  , showOutput
   , testPassword
   , exampleUrl
   )
@@ -21,7 +24,7 @@ import Toppokki as Toki
 
 testPkh2Pkh :: Toki.Browser -> TestPlanM Unit
 testPkh2Pkh browser = test "Pkh2Pkh" do
-  ExamplePages { nami, main } <- startExample exampleUrl browser
+  ExamplePages { nami, main, errors } <- startExample exampleUrl browser
   clickButton "Access" nami -- this matches when the wallet is used the first time
   clickButton "Sign" nami
   reactSetValue password testPassword nami
@@ -30,5 +33,6 @@ testPkh2Pkh browser = test "Pkh2Pkh" do
   -- it will take a few ms to return control to our example.
   delay (wrap 1000.0)
   feedback <- testFeedbackIsTrue main
+  unless feedback $ liftEffect $ showOutput errors >>= log
   shouldSatisfy feedback (_ == true)
 

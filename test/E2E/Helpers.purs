@@ -17,30 +17,51 @@ module Test.E2E.Helpers
   , testPassword
   , reactSetValue
   , retrieveJQuery
+  , showOutput
   , Selector(..)
   , Action(..)
   , NoShowPage(..)
   , ExamplePages(..)
+  , E2EOutput
   ) where
 
 import Prelude
 
 import Control.Promise (Promise, toAffE)
 import Data.Array (head, filterA)
+import Data.Foldable (intercalate)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, wrap, unwrap)
+import Effect.Console (log)
+import Effect.Ref (Ref)
+import Effect.Ref as Ref
 import Data.Traversable (for, fold)
 import Effect (Effect)
-import Effect.Aff (Aff, delay)
-import Foreign (Foreign, unsafeFromForeign)
+import Effect.Aff (Aff, launchAff_, delay)
+import Effect.Class (liftEffect)
+import Effect.Uncurried (mkEffectFn1, EffectFn1)
+import Foreign (Foreign, typeOf, unsafeFromForeign, unsafeToForeign)
 import Toppokki as Toki
+
+
+import Data.Function.Uncurried as FU
 
 exampleUrl :: Toki.URL
 exampleUrl = wrap "http://localhost:4008/"
 
+data OutputType = PageError | Console | RequestFailed
+
+derive instance Eq OutputType
+
+newtype E2EOutput = E2EOutput
+                    { outputType :: OutputType
+                    , output :: String
+                    }
+
 newtype ExamplePages = ExamplePages
   { nami :: Toki.Page
   , main :: Toki.Page
+  , errors :: Ref (Array E2EOutput)
   }
 
 derive instance Newtype ExamplePages _
@@ -71,17 +92,43 @@ waitForNamiPage jQuery browser =
       waitForNamiPage jQuery browser
     Just page -> pure page
 
+showOutput :: Ref (Array E2EOutput) -> Effect String
+showOutput ref =
+  let show' (E2EOutput { outputType, output }) = showType outputType <> " " <> output
+      showType PageError     = "ERR"
+      showType Console       = "..."
+      showType RequestFailed = "REQ"
+  in Ref.read ref >>= pure <<< intercalate "\n" <<< map show'
+
 -- | start example at URL with Nami and return both Nami's page and the example's
 startExample :: Toki.URL -> Toki.Browser -> Aff ExamplePages
 startExample url browser = do
   page <- Toki.newPage browser
   jQuery <- retrieveJQuery page
+  errorRef <- liftEffect $ Ref.new []
+  liftEffect do
+    Toki.onPageError (handler errorRef PageError $ pure <<< show) page
+    Toki.onConsole (handler errorRef Console Toki.consoleMessageText) page
+    Toki.onRequestFailed (handler errorRef RequestFailed $ pure <<< show) page
   Toki.goto url page
   namiPage <- waitForNamiPage jQuery browser
   pure $ wrap
     { nami: namiPage
     , main: page
+    , errors: errorRef
     }
+  where
+    handler :: forall (a :: Type)
+               . Ref (Array (E2EOutput))
+               -> OutputType
+               -> (a -> Aff String)
+               -> EffectFn1 a Unit
+    handler errorRef outputType f = mkEffectFn1 $ \e -> launchAff_ do
+      output <- f e
+      liftEffect $ Ref.modify_ (_ <> [E2EOutput
+                                      { outputType : outputType
+                                      , output : output
+                                      }]) errorRef
 
 -- | Wrapper for Page so it can be used in `shouldSatisfy`, which needs 'Show'
 -- | Doesn't show anything, thus 'NoShow'

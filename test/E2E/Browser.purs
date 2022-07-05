@@ -8,7 +8,6 @@ import Prelude
 import Data.Maybe (Maybe, fromMaybe)
 import Effect.Aff (Aff)
 import Toppokki as Toki
-import Test.Examples.Config (userDataDir)
 
 namiHash :: String
 namiHash = "lpfcbjknijpeeillifnkikgncikgfhdo"
