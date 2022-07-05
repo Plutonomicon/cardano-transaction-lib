@@ -263,6 +263,7 @@ mkSampleTx startTx changes =
             , auxiliaryDataHash
             , validityStartInterval
             , mint
+            , referenceInputs
             , scriptDataHash
             , collateral
             , requiredSigners
@@ -286,6 +287,7 @@ mkSampleTx startTx changes =
             , auxiliaryDataHash
             , validityStartInterval
             , mint
+            , referenceInputs
             , scriptDataHash
             , collateral
             , requiredSigners
@@ -311,6 +313,7 @@ txFixture1 =
         , auxiliaryDataHash: Nothing
         , validityStartInterval: Nothing
         , mint: Nothing
+        , referenceInputs: Nothing
         , scriptDataHash: Nothing
         , collateral: Nothing
         , requiredSigners: Nothing
@@ -342,6 +345,7 @@ txFixture2 =
         , auxiliaryDataHash: Nothing
         , validityStartInterval: Nothing
         , mint: Nothing
+        , referenceInputs: Nothing
         , scriptDataHash: Nothing
         , collateral: Nothing
         , requiredSigners: Nothing
@@ -393,6 +397,7 @@ txFixture3 =
         , certs: Nothing
         , withdrawals: Nothing
         , update: Nothing
+        , referenceInputs: Just [ txInputFixture1 ]
         , auxiliaryDataHash: Nothing
         , validityStartInterval: Nothing
         , mint: Nothing
@@ -574,6 +579,7 @@ txFixture4 =
         , validityStartInterval: Just $ Slot $ BigNum.fromInt 124
         , mint: Just $ Mint $ mkNonAdaAsset $ Map.fromFoldable
             [ currencySymbol1 /\ Map.fromFoldable [ tokenName1 /\ one ] ]
+        , referenceInputs: Nothing
         , scriptDataHash: Nothing
         , collateral: Nothing
         , requiredSigners: Just [ RequiredSigner ed25519KeyHashFixture1 ]
@@ -620,11 +626,12 @@ txBinaryFixture2 =
 
 txBinaryFixture3 :: String
 txBinaryFixture3 =
-  "84a400818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599\
+  "84a500818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599\
   \960001828258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45\
   \aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a0023e8fa8258390030fb3b\
   \8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1\
-  \f823bf257680c3c723ac2d49f975461a000f4240021a0002b5690f01a0f5f6"
+  \f823bf257680c3c723ac2d49f975461a000f4240021a0002b5690f0112818258205d677265fa\
+  \5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad95999600a0f5f6"
 
 txBinaryFixture4 :: String
 txBinaryFixture4 =

@@ -198,6 +198,7 @@ newtype TxBody = TxBody
   , auxiliaryDataHash :: Maybe AuxiliaryDataHash
   , validityStartInterval :: Maybe Slot
   , mint :: Maybe Mint
+  , referenceInputs :: Maybe (Array TransactionInput)
   , scriptDataHash :: Maybe ScriptDataHash
   , collateral :: Maybe (Array TransactionInput)
   , requiredSigners :: Maybe (Array RequiredSigner)
@@ -226,6 +227,7 @@ instance Semigroup TxBody where
           txB.validityStartInterval
           txB'.validityStartInterval
     , mint: txB.mint <> txB'.mint
+    , referenceInputs: txB.referenceInputs <> txB'.referenceInputs
     , scriptDataHash: txB.scriptDataHash </> txB'.scriptDataHash
     , collateral: lift2 union txB.collateral txB'.collateral
     , requiredSigners: lift2 union txB.requiredSigners txB'.requiredSigners
@@ -247,6 +249,7 @@ instance Monoid TxBody where
     , auxiliaryDataHash: Nothing
     , validityStartInterval: Nothing
     , mint: Nothing
+    , referenceInputs: Nothing
     , scriptDataHash: Nothing
     , collateral: Nothing
     , requiredSigners: Nothing
