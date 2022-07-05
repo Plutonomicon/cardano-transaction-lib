@@ -1,4 +1,4 @@
-module Test.GenerateOgmiosFixtures
+module Test.Ogmios.GenerateFixtures
   ( main
   ) where
 

@@ -1,4 +1,4 @@
-module Test.OgmiosAeson
+module Test.Ogmios.Aeson
   ( main
   , suite
   ) where
@@ -6,7 +6,7 @@ module Test.OgmiosAeson
 import Prelude
 
 import Aeson (class DecodeAeson, Aeson)
-import Aeson as A
+import Aeson as Aeson
 import Foreign.Object (Object)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
@@ -51,21 +51,23 @@ supported =
 
 getField
   :: forall (a :: Type). DecodeAeson a => String -> Object Aeson -> Maybe a
-getField f o = join $ hush $ A.getFieldOptional' o f
+getField f o = join $ hush $ Aeson.getFieldOptional' o f
 
 type Query = String
 
 -- Given a query and an response of the query, create a special case query
 specialize :: Query -> Aeson -> Query
 specialize query a
-  | Just _ :: _ Aeson <- getField "eraMismatch" =<< A.toObject a = query <> "-"
+  | Just _ :: _ Aeson <- getField "eraMismatch" =<< Aeson.toObject a = query
+      <> "-"
       <> "eraMismatch"
   | "currentProtocolParameters" <- query
-  , Just costModels <- getField "costModels" =<< A.toObject a
+  , Just costModels <- getField "costModels" =<< Aeson.toObject a
   , Nothing :: _ Aeson <- getField "plutus:v1" costModels = query <> "-" <>
       "noPlutusV1"
   | "SubmitTx" <- query
-  , Just _ :: _ Aeson <- getField "SubmitFail" =<< A.toObject a = query <> "-"
+  , Just _ :: _ Aeson <- getField "SubmitFail" =<< Aeson.toObject a = query
+      <> "-"
       <> "SubmitFail"
 specialize query _ = query
 
@@ -95,7 +97,7 @@ suite = group "Ogmios Aeson tests" do
       contents <- readTextFile UTF8 fp
       aeson <- liftEither $ lmap
         (error <<< ((bn <> "\n  ") <> _) <<< printJsonDecodeError)
-        (A.parseJsonStringToAeson contents)
+        (Aeson.parseJsonStringToAeson contents)
       pure case pattern >>= flip match bn >>> map tail of
         Just [ Just query ] -> Just
           { query: specialize query aeson
@@ -122,7 +124,7 @@ suite = group "Ogmios Aeson tests" do
                   printJsonDecodeError
               )
               (const unit)
-              (A.decodeAeson aeson :: _ a)
+              (Aeson.decodeAeson aeson :: _ a)
           case query of
             "chainTip" -> handle (Proxy :: _ O.ChainTipQR)
             "utxo" -> handle (Proxy :: _ O.UtxoQR)
