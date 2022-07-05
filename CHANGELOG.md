@@ -7,14 +7,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 **Table of Contents**
 
 - [[Unreleased]](#unreleased)
+- [[2.0.0-alpha] - 2022-07-06](#200-alpha---2022-07-06)
   - [Added](#added)
   - [Removed](#removed)
+  - [Changed](#changed)
   - [Fixed](#fixed)
-- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+- [[1.1.0] - 2022-06-30](#110---2022-06-30)
   - [Fixed](#fixed-1)
+- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+  - [Fixed](#fixed-2)
 - [[1.0.0] - 2022-06-10](#100---2022-06-10)
 
 ## [Unreleased]
+
+## [2.0.0-alpha] - 2022-07-05
+
+This release adds support for running CTL contracts against Babbage-era nodes. **Note**: this release does not support Babbagge-era features and improvements, e.g. inline datums and reference inputs. Those feature will be implemented in v2.0.0 proper.
 
 ### Added
 
@@ -42,16 +50,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 - Updated `ogmios-datum-cache` - bug fixes ([#542](https://github.com/Plutonomicon/cardano-transaction-lib/pull/542), [#526](https://github.com/Plutonomicon/cardano-transaction-lib/pull/526), [#589](https://github.com/Plutonomicon/cardano-transaction-lib/pull/589))
 - Improved error response handling for Ogmios ([#584](https://github.com/Plutonomicon/cardano-transaction-lib/pull/584))
-- `balanceAndSignTx` now locks transaction inputs within the current `Contract` context. If the resulting transaction is never used, then the inputs must be freed with `unlockTransactionInputs`
-- Updated `ogmios-datum-cache` - bug fixes (#542, #526, #589)
-- Made protocol parameters part of `QueryConfig` ([#611](https://github.com/Plutonomicon/cardano-transaction-lib/pull/611))
-- Refactored `Plutus.Conversion.Address` code (utilized CSL functionality) ([#609](https://github.com/Plutonomicon/cardano-transaction-lib/pull/609))
-- Changed the underlying type of `Slot`, `TransactionIndex` and `CertificateIndex` to `BigNum` ([#609](https://github.com/Plutonomicon/cardano-transaction-lib/pull/609))
-- Moved transaction finalization logic to `balanceTx` ([#609](https://github.com/Plutonomicon/cardano-transaction-lib/pull/609))
-- Upgraded to CSL v11.0.0-beta.1 ([#609](https://github.com/Plutonomicon/cardano-transaction-lib/pull/609))
+- `balanceAndSignTx` now locks transaction inputs within the current `Contract` context. If the resulting transaction is never used, then the inputs must be freed with `unlockTransactionInputs`.
+- Updated `ogmios-datum-cache` - bug fixes (#542, #526, #589).
+- Made protocol parameters part of `QueryConfig`.
+- Refactored `Plutus.Conversion.Address` code (utilized CSL functionality).
+- Changed the underlying type of `Slot`, `TransactionIndex` and `CertificateIndex` to `BigNum`.
+- Moved transaction finalization logic to `balanceTx`.
+- Upgraded to CSL v11.0.0-beta.1.
+- `purescriptProject` (exposed via the CTL overlay) was reworked significantly. Please see the [updated example](./doc/ctl-as-dependency#using-the-ctl-overlay) in the documentation for more details.
 - Switched to Ogmios for execution units evaluation ([#665](https://github.com/Plutonomicon/cardano-transaction-lib/pull/665))
 - Changed `inputs` inside `TxBody` to be `Set TransactionInput` instead `Array TransactionInput`. This guarantees ordering of inputs inline with Cardano ([#641](https://github.com/Plutonomicon/cardano-transaction-lib/pull/661))
 - Upgraded to Ogmios v5.5.0
+- Change `inputs` inside `TxBody` to be `Set TransactionInput` instead `Array TransactionInput`. This guarantees ordering of inputs inline with Cardano ([#641](https://github.com/Plutonomicon/cardano-transaction-lib/pull/661)).
 
 ### Fixed
 
