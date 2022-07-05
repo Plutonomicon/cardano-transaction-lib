@@ -207,7 +207,7 @@
           dontUnpack = true;
           buildInputs = [ pkgs.jq pkgs.pcre ];
           buildPhase = ''
-            cp -r ${pkgs.ogmios-fixtures}/server/test/vectors .
+            cp -r ${pkgs.ogmios-fixtures}/server/test/vectors vectors
             chmod -R +rwx .
 
             function on_file () {
@@ -224,39 +224,7 @@
             export -f on_file
 
             mkdir ogmios
-            find . -type f -name "*.json" -exec bash -c 'on_file "{}"' \;
-          '';
-          installPhase = ''
-            mkdir $out
-            cp -rT ogmios $out
-          '';
-        };
-
-      debugOgmiosFixtures = pkgs:
-        pkgs.stdenv.mkDerivation {
-          name = "ogmios-fixtures";
-          dontUnpack = true;
-          buildInputs = [ pkgs.jq pkgs.pcre ];
-          buildPhase = ''
-            cp -r ${pkgs.ogmios-fixtures}/server/test/vectors .
-            chmod -R +rwx .
-
-            function on_file () {
-              local path=$1
-              local parent="$(basename "$(dirname "$path")")"
-              if command=$(pcregrep -o1 -o2 -o3 'Query\[(.*)\]|(EvaluateTx)|(SubmitTx)' <<< "$path")
-              then
-                echo "$path"
-                json=$(jq -c .result "$path")
-                md5=($(md5sum <<< "$json"))
-                printf "%s" "$path" >> "ogmios/$command-$md5.json"
-                printf "%s" "$json" >> "ogmios/$command-$md5.json"
-              fi
-            }
-            export -f on_file
-
-            mkdir ogmios
-            find . -type f -name "*.json" -exec bash -c 'on_file "{}"' \;
+            find vectors/ -type f -name "*.json" -exec bash -c 'on_file "{}"' \;
           '';
           installPhase = ''
             mkdir $out
@@ -468,8 +436,6 @@
             };
 
             docs = project.buildSearchablePursDocs;
-
-            debug = debugOgmiosFixtures pkgs;
           };
 
           launchDocs =
