@@ -14,6 +14,8 @@ e2e-temp-dir := $(shell mktemp -tdu e2e.XXXXXXX)
 e2e-test-chrome-dir := test-data/chrome-user-data
 e2e-test-nami := test-data/chrome-extensions/nami_3.2.5_1.crx
 e2e-test-nami-settings := test-data/nami_settings.tar.gz
+e2e-test-gero := test-data/chrome-extensions/gero_testnet_3.0.0_0.crx
+e2e-test-gero-settings := test-data/gero_settings.tar.gz
 
 # https://stackoverflow.com/questions/2214575/passing-arguments-to-make-run
 # example: make e2e-test -- --no-headless
@@ -39,22 +41,36 @@ check-format:
 
 e2e-test:
 	@mkdir ${e2e-temp-dir}
-	@unzip ${e2e-test-nami} -d ${e2e-temp-dir} > /dev/zero \
+	@unzip ${e2e-test-nami} -d ${e2e-temp-dir}/nami > /dev/zero \
             || echo "ignore warnings" # or make stops
 	@tar xzf ${e2e-test-nami-settings}
+	@unzip ${e2e-test-gero} -d ${e2e-temp-dir}/gero > /dev/zero \
+            || echo "ignore warnings" # or make stops
+	@tar xzf ${e2e-test-gero-settings}
 	@rm -f ${e2e-test-chrome-dir}/SingletonLock
-	@spago test --main Test.E2E -a "E2ETest --nami-dir=${e2e-temp-dir} $(TEST_ARGS)"
+	@spago test --main Test.E2E -a "E2ETest --extensions-dir=${e2e-temp-dir} $(TEST_ARGS)" || rm -Rf ${e2e-temp-dir}
 
-e2e-run-browser:
+e2e-run-browser-nami:
 	@mkdir ${e2e-temp-dir}
-	@unzip ${e2e-test-nami} -d ${e2e-temp-dir} > /dev/zero \
+	@unzip ${e2e-test-nami} -d ${e2e-temp-dir}/nami > /dev/zero \
             || echo "ignore warnings" # or make stops
 	@tar xzf ${e2e-test-nami-settings}
-	@google-chrome --load-extension=${e2e-temp-dir} --user-data-dir=${e2e-test-chrome-dir}
+	@google-chrome --load-extension=${e2e-temp-dir}/nami --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e-temp-dir}
+
+e2e-run-browser-gero:
+	@mkdir ${e2e-temp-dir}
+	@unzip ${e2e-test-gero} -d ${e2e-temp-dir}/gero > /dev/zero \
+            || echo "ignore warnings" # or make stops
+#	@tar xzf ${e2e-test-gero-settings}
+	@google-chrome --load-extension=${e2e-temp-dir}/gero --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e-temp-dir}
 
 # extract current nami settings from e2e-test-chrome-dir and store them for git
 nami-settings:
 	tar czf ${e2e-test-nami-settings} ${e2e-test-chrome-dir}/Default/Local\ Extension\ Settings/lpfcbjknijpeeillifnkikgncikgfhdo/*
+
+# extract current gero settings from e2e-test-chrome-dir and store them for git
+gero-settings:
+	tar czf ${e2e-test-gero-settings} ${e2e-test-chrome-dir}/Default/Local\ Extension\ Settings/iifeegfcfhlhhnilhfoeihllenamcfgc/*
 
 format:
 	@purs-tidy format-in-place ${ps-sources}

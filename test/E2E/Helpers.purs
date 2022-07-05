@@ -33,24 +33,27 @@ import Data.Array (head, filterA)
 import Data.Foldable (intercalate)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, wrap, unwrap)
-import Effect.Console (log)
-import Effect.Ref (Ref)
-import Effect.Ref as Ref
 import Data.Traversable (for, fold)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_, delay)
 import Effect.Class (liftEffect)
+import Effect.Console (log)
+import Effect.Ref (Ref)
+import Effect.Ref as Ref
 import Effect.Uncurried (mkEffectFn1, EffectFn1)
 import Foreign (Foreign, unsafeFromForeign)
-import Toppokki as Toki
 import Test.E2E.Feedback (testFeedbackIsTrue)
 import Test.Spec.Assertions (shouldSatisfy)
+import Toppokki as Toki
 
 exampleUrl :: Toki.URL
 exampleUrl = wrap "http://localhost:4008/"
 
 testPassword :: String
 testPassword = "ctlctlctl"
+
+testPasswordGero :: String
+testPasswordGero = "VZVfu5rp1r"
 
 data OutputType = PageError | Console | RequestFailed
 
