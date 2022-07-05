@@ -6,7 +6,7 @@ SHELL := bash
 ps-sources := $(shell fd -epurs)
 nix-sources := $(shell fd -enix --exclude='spago*')
 hs-sources := $(shell fd . './server/src' './server/exe' -ehs)
-ps-entrypoint := Examples.AlwaysSucceeds
+ps-entrypoint := Examples.Pkh2Pkh
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 node-ipc = $(shell docker volume inspect cardano-transaction-lib_node-ipc | jq -r '.[0].Mountpoint')
 e2e-temp-dir := $(shell mktemp -tdu e2e.XXXXXXX)
@@ -42,8 +42,15 @@ e2e-test:
 	@unzip ${e2e-test-nami} -d ${e2e-temp-dir} > /dev/zero \
             || echo "ignore warnings" # or make stops
 	@tar xzf ${e2e-test-nami-settings}
-	rm -f test-data/chrome-user-data/SingletonLock
+	@rm -f ${e2e-test-chrome-dir}/SingletonLock
 	@spago test --main Test.E2E -a "E2ETest --nami-dir=${e2e-temp-dir} $(TEST_ARGS)"
+
+e2e-run-browser:
+	@mkdir ${e2e-temp-dir}
+	@unzip ${e2e-test-nami} -d ${e2e-temp-dir} > /dev/zero \
+            || echo "ignore warnings" # or make stops
+	@tar xzf ${e2e-test-nami-settings}
+	@google-chrome --load-extension=${e2e-temp-dir} --user-data-dir=${e2e-test-chrome-dir}
 
 # extract current nami settings from e2e-test-chrome-dir and store them for git
 nami-settings:

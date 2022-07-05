@@ -41,11 +41,10 @@ import Effect (Effect)
 import Effect.Aff (Aff, launchAff_, delay)
 import Effect.Class (liftEffect)
 import Effect.Uncurried (mkEffectFn1, EffectFn1)
-import Foreign (Foreign, typeOf, unsafeFromForeign, unsafeToForeign)
+import Foreign (Foreign, unsafeFromForeign)
 import Toppokki as Toki
 import Test.E2E.Feedback (testFeedbackIsTrue)
 import Test.Spec.Assertions (shouldSatisfy)
-import Data.Function.Uncurried as FU
 
 exampleUrl :: Toki.URL
 exampleUrl = wrap "http://localhost:4008/"
