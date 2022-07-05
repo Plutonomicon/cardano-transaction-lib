@@ -364,10 +364,23 @@
       psProjectFor = system:
         let
           pkgs = nixpkgsFor system;
-          src = self;
+          projectName = "cardano-transaction-lib";
+          # `filterSource` will still trigger rebuilds with flakes, even if a
+          # filtered path is modified as the output path name is impurely
+          # derived. Setting an explicit `name` with `path` helps mitigate this
+          src = builtins.path {
+            path = self;
+            name = "${projectName}-src";
+            filter = path: ftype:
+              !(pkgs.lib.hasSuffix ".md" path)
+              && !(ftype == "directory" && builtins.elem
+                (baseNameOf path) [ "server" "doc" ]
+              );
+          };
           project = pkgs.purescriptProject {
-            inherit src pkgs;
-            projectName = "cardano-transaction-lib";
+            inherit src pkgs projectName;
+            packageJson = ./package.json;
+            packageLock = ./package-lock.json;
             shell = {
               packages = [
                 pkgs.ogmios
@@ -384,11 +397,8 @@
         rec {
           defaultPackage = packages.ctl-example-bundle-web;
 
-          # Building this package and the check below will ensure that the entire
-          # project compiles (i.e. all of `src`, `examples`, and `test`)
           packages = {
             ctl-example-bundle-web = project.bundlePursProject {
-              sources = [ "src" "examples" ];
               main = "Examples.Pkh2Pkh";
               entrypoint = "examples/index.js";
               htmlTemplate = "examples/index.html";
@@ -399,37 +409,42 @@
               modules = [ (buildCtlRuntime system { }) ];
             };
 
-            docs = project.buildSearchablePursDocs;
+            docs = project.buildSearchablePursDocs {
+              packageName = projectName;
+            };
           };
 
-          launchDocs =
-            let
-              binPath = "docs-server";
-              builtDocs = packages.docs;
-              script = (pkgs.writeShellScriptBin "${binPath}"
-                ''
-                  ${pkgs.nodePackages.http-server}/bin/http-server ${builtDocs}/generated-docs/html
-                ''
-              ).overrideAttrs (_: {
-                buildInputs = [ pkgs.nodejs-14_x pkgs.nodePackages.http-server ];
-              });
-            in
-            {
-              type = "app";
-              program = "${script}/bin/${binPath}";
-            };
-
-          # FIXME
-          # Once we have ogmios/node instances available, we should also include a
-          # test. This will need to be run via a Hercules `effect`
           checks = {
             ctl-unit-test = project.runPursTest {
+              name = "ctl-unit-test";
               testMain = "Test.Unit";
-              sources = [ "src" "test" "fixtures" ];
             };
           };
 
           devShell = project.devShell;
+
+          apps = {
+            docs =
+              let
+                binPath = "docs-server";
+                builtDocs = packages.docs;
+                script = (pkgs.writeShellScriptBin "${binPath}"
+                  ''
+                    ${pkgs.nodePackages.http-server}/bin/http-server \
+                      ${builtDocs}/generated-docs/html
+                  ''
+                ).overrideAttrs (_: {
+                  buildInputs = [
+                    pkgs.nodejs-14_x
+                    pkgs.nodePackages.http-server
+                  ];
+                });
+              in
+              {
+                type = "app";
+                program = "${script}/bin/${binPath}";
+              };
+          };
         };
 
       hsProjectFor = system:
@@ -464,12 +479,10 @@
         // (psProjectFor system).packages
       );
 
-      apps = perSystem
-        (system: {
-          inherit
-            (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
+      apps = perSystem (system:
+        (psProjectFor system).apps // {
+          inherit (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
           ctl-runtime = (nixpkgsFor system).launchCtlRuntime { };
-          docs = (psProjectFor system).launchDocs;
         });
 
       checks = perSystem (system:
@@ -514,6 +527,10 @@
 
       overlay = perSystem overlay;
 
-      herculesCI.ciSystems = [ "x86_64-linux" ];
+      hydraJobs = perSystem (system:
+        self.checks.${system}
+        // self.packages.${system}
+        // self.devShells.${system}
+      );
     };
 }
