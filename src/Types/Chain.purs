@@ -9,7 +9,7 @@ import Prelude
 import Data.Newtype (class Newtype)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
-import QueryM.Ogmios (AbsSlot)
+import Serialization.Address (Slot)
 
 data Tip
   = TipAtGenesis
@@ -23,8 +23,8 @@ instance Show Tip where
 
 newtype ChainTip = ChainTip
   { blockHeaderHash :: BlockHeaderHash
-  , slot :: AbsSlot -- Querying from Ogmios returns slots outside of UInt range
-  -- so don't use `Slot` then converting.
+  , slot :: Slot -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/632
+  -- for details on why we lose a neglible amount of precision.
   }
 
 derive instance Newtype ChainTip _

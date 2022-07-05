@@ -49,6 +49,7 @@ import Cardano.Types.Transaction
   ) as T
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value as Value
+import Data.Foldable (class Foldable)
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
@@ -699,10 +700,14 @@ convertMint (T.Mint (Value.NonAdaAsset m)) = do
     insertMintAssets mint scripthash assets
   pure mint
 
-convertTxInputs :: Array T.TransactionInput -> Effect TransactionInputs
-convertTxInputs arrInputs = do
+convertTxInputs
+  :: forall (f :: Type -> Type)
+   . Foldable f
+  => f T.TransactionInput
+  -> Effect TransactionInputs
+convertTxInputs fInputs = do
   inputs <- newTransactionInputs
-  traverse_ (convertTxInput >=> addTransactionInput inputs) arrInputs
+  traverse_ (convertTxInput >=> addTransactionInput inputs) fInputs
   pure inputs
 
 convertTxInput :: T.TransactionInput -> Effect TransactionInput

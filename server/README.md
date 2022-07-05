@@ -51,37 +51,6 @@ The server executable can be built with `nix build .#ctl-server:exe:ctl-server` 
 "4d01000033222220051200120011"
 ```
 
-## POST /eval-ex-units
-
-### Request:
-
-- Supported content types are:
-
-    - `application/json;charset=utf-8`
-    - `application/json`
-
-- The input should contain the CBOR of the tx (`application/json;charset=utf-8`, `application/json`):
-
-```javascript
-{"tx":"00"}
-```
-
-### Response:
-
-- Status code 200
-- Headers: []
-
-- Supported content types are:
-
-    - `application/json;charset=utf-8`
-    - `application/json`
-
-- The `(RdmrPtr -> ExUnits)` map will be returned as a list of `RdmrPtrExUnits` objects with the following structure (`application/json;charset=utf-8`, `application/json`):
-
-```javascript
-[{"exUnitsSteps":0,"rdmrPtrTag":0,"exUnitsMem":0,"rdmrPtrIdx":0}]
-```
-
 ## POST /fees
 
 ### Request:

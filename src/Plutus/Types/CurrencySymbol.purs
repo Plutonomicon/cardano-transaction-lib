@@ -28,13 +28,17 @@ import Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
 import ToData (class ToData)
 import Types.ByteArray (ByteArray)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
+import Metadata.FromMetadata (class FromMetadata)
+import Metadata.ToMetadata (class ToMetadata)
 
 newtype CurrencySymbol = CurrencySymbol ByteArray
 
 derive newtype instance Eq CurrencySymbol
 derive newtype instance Ord CurrencySymbol
 derive newtype instance FromData CurrencySymbol
+derive newtype instance FromMetadata CurrencySymbol
 derive newtype instance ToData CurrencySymbol
+derive newtype instance ToMetadata CurrencySymbol
 
 instance DecodeAeson CurrencySymbol where
   decodeAeson = caseAesonObject
