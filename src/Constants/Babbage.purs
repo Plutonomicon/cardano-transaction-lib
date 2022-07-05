@@ -1,10 +1,12 @@
-module Constants.Alonzo
-  ( adaOnlyWords
+module Constants.Babbage
+  ( adaOnlyBytes
+  , adaOnlyWords
   , coinSize
   , pidSize
   , utxoEntrySizeWithoutVal
   ) where
 
+import Prelude
 import Data.BigInt (BigInt, fromInt)
 
 -- words
@@ -25,3 +27,6 @@ coinSize = fromInt 2
 -- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0028#rationale-for-parameter-choices
 adaOnlyWords :: BigInt
 adaOnlyWords = fromInt 29
+
+adaOnlyBytes :: BigInt
+adaOnlyBytes = adaOnlyWords * fromInt 8

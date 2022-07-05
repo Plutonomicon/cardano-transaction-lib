@@ -169,8 +169,8 @@
       defaultConfig = final: with final; {
         inherit (inputs) cardano-configurations;
         network = {
-          name = "vasil-dev";
-          magic = 9; # use `null` for mainnet
+          name = "testnet";
+          magic = 1097911063; # use `null` for mainnet
         };
         node = { port = 3001; };
         ogmios = { port = 1337; };
@@ -279,12 +279,7 @@
                   "${pkgs.bash}/bin/sh"
                   "-c"
                   ''
-                    ${server}/bin/ctl-server \
-                      --port ${toString ctlServer.port} \
-                      --node-socket ${nodeSocketPath} \
-                      --network-id ${if config.network.magic == null
-                                     then "mainnet"
-                                     else toString config.network.magic}
+                    ${server}/bin/ctl-server --port ${toString ctlServer.port}
                   ''
                 ];
               };

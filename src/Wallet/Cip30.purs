@@ -11,11 +11,13 @@ import Cardano.Types.Transaction
   , TransactionWitnessSet
   )
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Cardano.Types.Value (Value)
 import Control.Promise (Promise, toAffE)
 import Control.Promise as Promise
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (unwrap)
-import Deserialization.FromBytes (fromBytesEffect)
+import Deserialization.FromBytes (fromBytes, fromBytesEffect)
+import Deserialization.UnspentOutput (convertValue)
 import Deserialization.UnspentOutput as Deserialization.UnspentOuput
 import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
@@ -39,6 +41,8 @@ type Cip30Wallet =
   -- Get the address associated with the wallet (Nami does not support
   -- multiple addresses)
   , getWalletAddress :: Cip30Connection -> Aff (Maybe Address)
+  -- Get combination of all available UTxOs
+  , getBalance :: Cip30Connection -> Aff (Maybe Value)
   -- Get the collateral UTxO associated with the Nami wallet
   , getCollateral :: Cip30Connection -> Aff (Maybe TransactionUnspentOutput)
   -- Sign a transaction with the given wallet
@@ -61,6 +65,7 @@ mkCip30WalletAff walletName enableWallet = do
     , getWalletAddress
     , getCollateral
     , signTx
+    , getBalance
     }
 
 -------------------------------------------------------------------------------
@@ -102,6 +107,12 @@ signTx conn tx = do
   combineWitnessSet (Transaction tx'@{ witnessSet: oldWits }) newWits =
     Transaction $ tx' { witnessSet = oldWits <> newWits }
 
+getBalance :: Cip30Connection -> Aff (Maybe Value)
+getBalance wallet = do
+  fromHexString _getBalance wallet <#> \mbBytes -> do
+    bytes <- mbBytes
+    fromBytes (unwrap bytes) >>= convertValue
+
 fromHexString
   :: (Cip30Connection -> Effect (Promise String))
   -> Cip30Connection
@@ -132,3 +143,5 @@ foreign import _signTx
   :: String -- Hex-encoded cbor of tx
   -> Cip30Connection
   -> Effect (Promise String)
+
+foreign import _getBalance :: Cip30Connection -> Effect (Promise String)

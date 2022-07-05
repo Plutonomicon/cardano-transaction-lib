@@ -27,8 +27,7 @@ import QueryM
 import QueryM.CurrentEpoch (getCurrentEpoch)
 import QueryM.EraSummaries (getEraSummaries)
 import QueryM.Ogmios
-  ( AbsSlot(AbsSlot)
-  , EraSummaries
+  ( EraSummaries
   , OgmiosAddress
   , SystemStart
   )
@@ -41,7 +40,7 @@ import TestM (TestPlanM)
 import Types.BigNum (fromInt) as BigNum
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Types.Interval
-  ( PosixTimeToSlotError(CannotConvertAbsSlotToSlot, PosixTimeBeforeSystemStart)
+  ( PosixTimeToSlotError(PosixTimeBeforeSystemStart)
   , POSIXTime(POSIXTime)
   , posixTimeToSlot
   , slotToPosixTime
@@ -170,10 +169,44 @@ testPosixTimeToSlot = do
       -- here https://cardano.stackexchange.com/questions/7034/how-to-convert-posixtime-to-slot-number-on-cardano-testnet/7035#7035
       -- `timeWhenSlotChangedTo1Sec = POSIXTime 1595967616000` - exactly
       -- divisible by 1 second.
+
+      -- *Testing far into the future note during hardforks:*
+      -- It's worth noting that testing values "in" the recent era summary may
+      -- fail during hardforks. This is because the last element's `end`
+      -- field may be non null, meaning there is a limit to how far we can go
+      -- into the future for reliable slot/time conversion (an exception like
+      -- `CannotFindSlotInEraSummaries` is raised in this case).
+      -- This `end` field presumably changes to `null` after the the initial
+      -- period is over and things stabilise.
+      -- For example, at the time of writing (start of Vasil hardfork during
+      -- Babbage era), the *last* era summary element is
+      -- ```
+      -- {
+      --   "start": {
+      --     "time": 92880000,
+      --     "slot": 62510400,
+      --     "epoch": 215
+      --   },
+      --   "end": {
+      --     "time": 93312000,
+      --     "slot": 62942400,
+      --     "epoch": 216
+      --   },
+      --   "parameters": {
+      --     "epochLength": 432000,
+      --     "slotLength": 1,
+      --     "safeZone": 129600
+      --   }
+      -- }
+      -- ```
+      -- Note, `end` isn't null. This means any time "after" 93312000 will raise
+      -- `CannotFindSlotInEraSummaries` an exception. So adding a time far
+      -- into the future for `posixTimes` below will raise this exception.
+      -- Notice also how 93312000 - 92880000 is a relatively small period of
+      -- time so I expect this will change to `null` once things stabilise.
       posixTimes = mkPosixTime <$>
         [ "1603636353000"
         , "1613636755000"
-        , "1753645721000"
         ]
     traverse_ (idTest eraSummaries sysStart identity) posixTimes
     -- With Milliseconds, we generally round down, provided the aren't at the
@@ -209,10 +242,11 @@ testSlotToPosixTime = do
   traceQueryConfig >>= flip runQueryM do
     eraSummaries <- getEraSummaries
     sysStart <- getSystemStart
+    -- See *Testing far into the future note during hardforks:* for details on
+    -- how far into the future we test with slots when a hardfork occurs.
     let
       slots = mkSlot <$>
-        [ 395930213
-        , 58278567
+        [ 58278567
         , 48272312
         , 39270783
         , 957323
@@ -241,17 +275,10 @@ testPosixTimeToSlotError = do
     sysStart <- getSystemStart
     let
       posixTime = mkPosixTime "1000"
-      badPosixTime = mkPosixTime "99999999999999999999999999999999999999"
-      badAbsSlot = AbsSlot
-        $ unsafePartial fromJust
-        $ BigInt.fromString "99999999999999999999999998405630783"
     -- Some difficulty reproducing all the errors
     errTest eraSummaries sysStart
       posixTime
       (PosixTimeBeforeSystemStart posixTime)
-    errTest eraSummaries sysStart
-      badPosixTime
-      (CannotConvertAbsSlotToSlot badAbsSlot)
   where
   errTest
     :: forall (err :: Type)

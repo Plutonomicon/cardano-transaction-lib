@@ -59,7 +59,7 @@ import Control.Monad.Reader.Trans (ReaderT)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Data.Array ((:), singleton, union) as Array
-import Data.Array (filter, insert, mapWithIndex, toUnfoldable, zip)
+import Data.Array (filter, mapWithIndex, toUnfoldable, zip)
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
 import Data.Either (Either(Left, Right), either, note)
@@ -72,10 +72,11 @@ import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.List (List(Nil, Cons))
-import Data.Map (Map, empty, fromFoldable, lookup, mapMaybe, singleton, union)
+import Data.Map (Map, empty, fromFoldable, lookup, singleton, union)
 import Data.Map (insert, toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
+import Data.Set (insert) as Set
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
 import Data.Traversable (sequence, traverse, traverse_)
@@ -108,7 +109,6 @@ import Transaction
   , attachRedeemer
   , setScriptDataHash
   )
-import TxOutput (transactionOutputToScriptOutput)
 import Types.Any (Any)
 import Types.Datum (DataHash, Datum)
 import Types.Interval
@@ -692,11 +692,9 @@ updateUtxoIndex
 updateUtxoIndex = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
   networkId <- lift getNetworkId
-  let
-    cTxOutputs = map (fromPlutusTxOutput networkId) txOutputs
-    txOutsMap = mapMaybe transactionOutputToScriptOutput cTxOutputs
+  let cTxOutputs = map (fromPlutusTxOutput networkId) txOutputs
   -- Left bias towards original map, hence `flip`:
-  _unbalancedTx <<< _utxoIndex %= flip union txOutsMap
+  _unbalancedTx <<< _utxoIndex %= flip union cTxOutputs
 
 -- Note, we don't use the redeemer here, unlike Plutus because of our lack of
 -- `TxIn` datatype.
@@ -725,7 +723,7 @@ addOwnInput (InputConstraint { txOutRef }) = do
         <#> lmap TypeCheckFailed
     let value = typedTxOutRefValue typedTxOutRef
     -- Must be inserted in order. Hopefully this matches the order under CSL
-    _cpsToTxBody <<< _inputs %= insert txOutRef
+    _cpsToTxBody <<< _inputs %= Set.insert txOutRef
     _valueSpentBalancesInputs <>= provideValue value
 
 -- | Add a typed output and return its value.
@@ -881,7 +879,7 @@ processConstraint mpsMap osMap = do
           -- POTENTIAL FIX ME: Plutus has Tx.TxIn and Tx.PubKeyTxIn -- TxIn
           -- keeps track TransactionInput and TxInType (the input type, whether
           -- consuming script, public key or simple script)
-          _cpsToTxBody <<< _inputs %= insert txo
+          _cpsToTxBody <<< _inputs %= Set.insert txo
           _valueSpentBalancesInputs <>= provideValue amount
         _ -> liftEither $ throwError $ TxOutRefWrongType txo
     MustSpendScriptOutput txo red -> runExceptT do
@@ -906,7 +904,7 @@ processConstraint mpsMap osMap = do
               lookupD <- lookupDatum dHash
               pure $ queryD <|> lookupD
             ExceptT $ attachToCps attachPlutusScript plutusScript
-            _cpsToTxBody <<< _inputs %= insert txo
+            _cpsToTxBody <<< _inputs %= Set.insert txo
             ExceptT $ addDatum dataValue
             let
               -- Create a redeemer with hardcoded execution units then call Ogmios

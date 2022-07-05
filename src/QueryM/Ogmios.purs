@@ -1,8 +1,7 @@
 -- | Provides types and instances to create Ogmios requests and decode
 -- | its responses.
 module QueryM.Ogmios
-  ( AbsSlot(..)
-  , ChainOrigin(..)
+  ( ChainOrigin(..)
   , ChainPoint(..)
   , ChainTipQR(..)
   , CostModel
@@ -13,12 +12,14 @@ module QueryM.Ogmios
   , EraSummary(..)
   , EraSummaryParameters(..)
   , EraSummaryTime(..)
+  , ExecutionUnits
   , OgmiosAddress
   , OgmiosBlockHeaderHash(..)
   , OgmiosTxOut(..)
   , OgmiosTxOutRef(..)
   , PParamRational(..)
   , ProtocolParameters(..)
+  , RedeemerPointer
   , RelativeTime(..)
   , SafeZone(..)
   , SlotLength(..)
@@ -85,7 +86,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.String (Pattern(Pattern), indexOf, splitAt, uncons)
+import Data.String (Pattern(Pattern), indexOf, split, splitAt, uncons)
 import Data.String.Common as String
 import Data.Traversable (sequence, traverse)
 import Data.Tuple (uncurry)
@@ -93,21 +94,24 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Foreign.Object (Object)
-import Foreign.Object as FO
+import Foreign.Object (toUnfoldable) as ForeignObject
 import Helpers (showWithParens)
 import QueryM.JsonWsp
   ( JsonWspCall
   , JsonWspRequest
   , mkCallType
   )
+import Serialization.Address (Slot)
 import Type.Proxy (Proxy(Proxy))
 import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray, hexToByteArray)
 import Types.CborBytes (CborBytes, cborBytesToHex)
 import Types.Natural (Natural)
+import Types.Natural (fromString) as Natural
 import Types.Rational (Rational, (%))
 import Types.Rational as Rational
-import Types.RedeemerTag as Tag
+import Types.RedeemerTag (RedeemerTag)
+import Types.RedeemerTag (fromString) as RedeemerTag
 import Types.TokenName (TokenName, mkTokenName)
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
@@ -310,8 +314,12 @@ instance EncodeAeson EraSummary where
 newtype EraSummaryTime = EraSummaryTime
   { time :: RelativeTime -- 0-18446744073709552000, The time is relative to the
   -- start time of the network.
-  , slot :: AbsSlot -- 0-18446744073709552000, An absolute slot number. don't
-  -- use `Slot` because Slot is bounded by UInt ~ 0-4294967295.
+  , slot :: Slot -- An absolute slot number
+  -- Ogmios returns a number 0-18446744073709552000 but our `Slot` is a Rust
+  -- u64 which has precision up to 18446744073709551615 (note 385 difference)
+  -- we treat this as neglible instead of defining `AbsSlot BigInt`. See
+  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/632 for
+  -- details.
   , epoch :: Epoch -- 0-18446744073709552000, an epoch number or length, don't
   -- use `Cardano.Types.Epoch` because Epoch is bounded by UInt also.
   }
@@ -351,19 +359,6 @@ derive newtype instance EncodeAeson RelativeTime
 
 instance Show RelativeTime where
   show (RelativeTime rt) = showWithParens "RelativeTime" rt
-
--- | Absolute slot relative to SystemStart. [ 0 .. 18446744073709552000 ]
-newtype AbsSlot = AbsSlot BigInt
-
-derive instance Generic AbsSlot _
-derive instance Newtype AbsSlot _
-derive newtype instance Eq AbsSlot
-derive newtype instance Ord AbsSlot
-derive newtype instance DecodeAeson AbsSlot
-derive newtype instance EncodeAeson AbsSlot
-
-instance Show AbsSlot where
-  show (AbsSlot as) = showWithParens "AbsSlot" as
 
 -- | An epoch number or length with greater precision for Ogmios than
 -- | `Cardano.Types.Epoch`. [ 0 .. 18446744073709552000 ]
@@ -450,21 +445,49 @@ instance Show SafeZone where
 
 ---------------- TX EVALUATION QUERY RESPONSE & PARSING
 
-newtype TxEvaluationR = TxEvaluationR
-  { "EvaluationResult" ::
-      Map
-        { entityRedeemerTag :: Tag.RedeemerTag, entityIndex :: Natural }
-        { memory :: Natural, steps :: Natural }
-  }
+type RedeemerPointer = { redeemerTag :: RedeemerTag, redeemerIndex :: Natural }
 
+type ExecutionUnits = { memory :: Natural, steps :: Natural }
+
+newtype TxEvaluationR = TxEvaluationR (Map RedeemerPointer ExecutionUnits)
+
+derive instance Newtype TxEvaluationR _
 derive instance Generic TxEvaluationR _
 
 instance Show TxEvaluationR where
   show = genericShow
 
 instance DecodeAeson TxEvaluationR where
-  decodeAeson _ = Left
-    (TypeMismatch "DecodeAeson TxEvaluationR is not implemented")
+  decodeAeson = aesonObject $ \obj -> do
+    rdmrPtrExUnitsList :: Array (String /\ Aeson) <-
+      ForeignObject.toUnfoldable <$> getField obj "EvaluationResult"
+    TxEvaluationR <<< Map.fromFoldable <$>
+      traverse decodeRdmrPtrExUnitsItem rdmrPtrExUnitsList
+    where
+    decodeRdmrPtrExUnitsItem
+      :: String /\ Aeson
+      -> Either JsonDecodeError (RedeemerPointer /\ ExecutionUnits)
+    decodeRdmrPtrExUnitsItem (redeemerPtrRaw /\ exUnitsAeson) = do
+      redeemerPtr <- note redeemerPtrTypeMismatch $
+        decodeRedeemerPointer redeemerPtrRaw
+      flip aesonObject exUnitsAeson $ \exUnitsObj -> do
+        memory <- getField exUnitsObj "memory"
+        steps <- getField exUnitsObj "steps"
+        pure $ redeemerPtr /\ { memory, steps }
+
+    redeemerPtrTypeMismatch :: JsonDecodeError
+    redeemerPtrTypeMismatch = TypeMismatch
+      "Expected redeemer pointer to be encoded as: \
+      \^(spend|mint|certificate|withdrawal):[0-9]+$"
+
+    decodeRedeemerPointer :: String -> Maybe RedeemerPointer
+    decodeRedeemerPointer redeemerPtrRaw =
+      case split (Pattern ":") redeemerPtrRaw of
+        [ tagRaw, indexRaw ] ->
+          { redeemerTag: _, redeemerIndex: _ }
+            <$> RedeemerTag.fromString tagRaw
+            <*> Natural.fromString indexRaw
+        _ -> Nothing
 
 ---------------- PROTOCOL PARAMETERS QUERY RESPONSE & PARSING
 
@@ -558,7 +581,7 @@ newtype ProtocolParameters = ProtocolParameters
   , poolPledgeInfluence :: Rational
   , monetaryExpansion :: Rational
   , treasuryCut :: Rational
-  , uTxOCostPerWord :: Coin
+  , coinsPerUtxoByte :: Coin
   , costModels :: Costmdls
   , prices :: Maybe ExUnitPrices
   , maxTxExUnits :: Maybe ExUnits
@@ -596,7 +619,7 @@ instance DecodeAeson ProtocolParameters where
       , poolPledgeInfluence: unwrap ps.poolInfluence
       , monetaryExpansion: unwrap ps.monetaryExpansion
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
-      , uTxOCostPerWord: Coin ps.coinsPerUtxoByte
+      , coinsPerUtxoByte: Coin ps.coinsPerUtxoByte
       , costModels: Costmdls $ Map.fromFoldable
           [ PlutusV1 /\ convertCostModel ps.costModels."plutus:v1" ]
       , prices: prices
@@ -1000,8 +1023,8 @@ instance Show ChainOrigin where
 
 -- | A point on the chain, identified by a slot and a block header hash
 type ChainPoint =
-  { slot :: AbsSlot -- I think we need to use `AbsSlot` here, 18446744073709552000
-  -- is outside of `Slot` range.
+  { slot :: Slot -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/632
+  -- for details on why we lose a neglible amount of precision.
   , hash :: OgmiosBlockHeaderHash
   }
 
@@ -1099,7 +1122,8 @@ newtype Assets = Assets (Map CurrencySymbol (Map TokenName BigInt))
 
 instance DecodeAeson Assets where
   decodeAeson j = do
-    wspAssets :: Array (String /\ BigInt) <- FO.toUnfoldable <$> decodeAeson j
+    wspAssets :: Array (String /\ BigInt) <-
+      ForeignObject.toUnfoldable <$> decodeAeson j
     Assets <<< Map.fromFoldableWith (Map.unionWith (+)) <$> sequence
       (uncurry decodeAsset <$> wspAssets)
     where

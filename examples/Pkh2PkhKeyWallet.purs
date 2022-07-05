@@ -101,7 +101,7 @@ main = do
           ed25519KeyHashFromBech32 input.toPkh
         lovelace <- liftMaybe (error "Failed to parse lovelace amount") $
           BigInt.fromString input.lovelace
-        let wallet = mkKeyWallet priv
+        let wallet = mkKeyWallet (wrap priv) Nothing
         cfg <- mkContractConfig $ ConfigParams
           { ogmiosConfig: defaultOgmiosWsConfig
           , datumCacheConfig: defaultDatumCacheWsConfig
