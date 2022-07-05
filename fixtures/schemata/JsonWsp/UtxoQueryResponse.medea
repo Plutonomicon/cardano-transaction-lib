@@ -73,7 +73,7 @@ $schema ogmiosTxOut
         $property-schema $string
         $property-name "value"
         $property-schema valueType
-        $property-name "datum"
+        $property-name "datumHash"
         $property-schema datumType
 
 $schema valueType
