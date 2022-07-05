@@ -232,6 +232,40 @@
           '';
         };
 
+      debugOgmiosFixtures = pkgs:
+        pkgs.stdenv.mkDerivation {
+          name = "ogmios-fixtures";
+          dontUnpack = true;
+          buildInputs = [ pkgs.jq pkgs.pcre ];
+          buildPhase = ''
+            cp -r ${pkgs.ogmios-fixtures}/server/test/vectors .
+            chmod -R +rwx .
+
+            function on_file () {
+              local path=$1
+              local parent="$(basename "$(dirname "$path")")"
+              if command=$(pcregrep -o1 -o2 -o3 'Query\[(.*)\]|(EvaluateTx)|(SubmitTx)' <<< "$path")
+              then
+                json=$(jq -c .result "$path")
+                md5=($(md5sum <<< "$json"))
+                if [[ "$md5" =~ "674441960ca1ba2de08ad4e50c9fde98" ]]
+                then
+                  echo "$path" >> out.log
+                  cat "$path" >> out.log
+                fi
+              fi
+            }
+            export -f on_file
+
+            touch out.log
+            find . -type f -name "*.json" -exec bash -c 'on_file "{}"' \;
+          '';
+          installPhase = ''
+            mkdir $out
+            cp out.log $out
+          '';
+        };
+
       buildCtlRuntime = system: extraConfig:
         { ... }:
         let
@@ -436,6 +470,8 @@
             };
 
             docs = project.buildSearchablePursDocs;
+
+            debug = debugOgmiosFixtures pkgs;
           };
 
           launchDocs =
