@@ -1,15 +1,20 @@
 module Ogmios.Parser (decodeProtocolParameters) where
 
-import Cardano.Api (ExecutionUnitPrices (ExecutionUnitPrices))
+import Cardano.Api (
+  AnyPlutusScriptVersion (AnyPlutusScriptVersion),
+  CostModel,
+  ExecutionUnitPrices (ExecutionUnitPrices),
+  PlutusScriptVersion (PlutusScriptV1, PlutusScriptV2),
+ )
 import Cardano.Api.Shelley (ProtocolParameters (ProtocolParameters))
-import Data.Aeson ((.!=), (.:), (.:?))
+import Data.Aeson (FromJSON (parseJSON), (.:), (.:?))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Types qualified as Aeson.Types
 import Data.ByteString.Lazy (ByteString)
-import Data.HashMap.Strict qualified as HashMap
+import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (fromMaybe)
 import Data.Ratio ((%))
+import Data.Text (Text)
 import Data.Text qualified as Text
 import Text.Read (readMaybe)
 
@@ -41,8 +46,10 @@ instance Aeson.FromJSON ProtocolParametersWrapper where
           <*> (rationalP =<< o .: "poolInfluence")
           <*> (rationalP =<< o .: "monetaryExpansion")
           <*> (rationalP =<< o .: "treasuryExpansion")
-          <*> ((fmap (* 8)) <$> o .:? "coinsPerUtxoByte")
-          <*> (o .:? "costModels" .!= Map.empty)
+          <*> (fmap (* 8) <$> o .:? "coinsPerUtxoByte")
+          <*> ( maybe (pure Map.empty) parseCostmodels
+                  =<< (o .:? "costModels")
+              )
           <*> parseExecutionPrices o
           <*> o .:? "maxExecutionUnitsPerTransaction"
           <*> o .:? "maxExecutionUnitsPerBlock"
@@ -51,28 +58,23 @@ instance Aeson.FromJSON ProtocolParametersWrapper where
           <*> o .:? "maxCollateralInputs"
       pure $ ProtocolParametersWrapper params
 
-modifyPlutusName :: Aeson.Value -> Aeson.Value
-modifyPlutusName originalValue@(Aeson.Object keyHashMap) =
-  fromMaybe originalValue fixedName
+parseCostmodels ::
+  Map Text Aeson.Types.Object ->
+  Aeson.Types.Parser (Map AnyPlutusScriptVersion CostModel)
+parseCostmodels = fmap Map.fromList . traverse parseModel . Map.toList
   where
-    fixedName :: Maybe Aeson.Value
-    fixedName = do
-      result <- HashMap.lookup "result" keyHashMap >>= unwrapObject
-      costModels <- HashMap.lookup "costModels" result >>= unwrapObject
-      plutus <- HashMap.lookup "plutus:v1" costModels
-      let newCostModel =
-            HashMap.insert "PlutusScriptV1" plutus $
-              HashMap.delete "plutus:v1" costModels
-          newResult =
-            HashMap.insert "costModels" (Aeson.Object newCostModel) result
-          newKeyHashMap =
-            HashMap.insert "result" (Aeson.Object newResult) keyHashMap
-      pure $ Aeson.Object newKeyHashMap
+    parseModel ::
+      (Text, Aeson.Types.Object) ->
+      Aeson.Types.Parser (AnyPlutusScriptVersion, CostModel)
+    parseModel (k, o) =
+      (,) <$> parseScriptVersion k
+        <*> parseJSON (Aeson.Types.Object o)
 
-    unwrapObject :: Aeson.Value -> Maybe Aeson.Object
-    unwrapObject (Aeson.Object obj) = Just obj
-    unwrapObject _ = Nothing
-modifyPlutusName x = x
+parseScriptVersion :: Text -> Aeson.Types.Parser AnyPlutusScriptVersion
+parseScriptVersion = \case
+  "plutus:v1" -> pure $ AnyPlutusScriptVersion PlutusScriptV1
+  "plutus:v2" -> pure $ AnyPlutusScriptVersion PlutusScriptV2
+  _ -> fail "Unrecognized Plutus script tag"
 
 parseExecutionPrices ::
   Aeson.Object -> Aeson.Types.Parser (Maybe ExecutionUnitPrices)
@@ -105,10 +107,4 @@ rationalP = Aeson.withText "Rational" $ \t ->
     parseFail = fail "Couldn't parse `Rational` value"
 
 decodeProtocolParameters :: ByteString -> Either String ProtocolParameters
-decodeProtocolParameters response =
-  case modifyPlutusName <$> Aeson.decode response of
-    Just modifiedResponse ->
-      unwrapParams
-        <$> Aeson.eitherDecode @ProtocolParametersWrapper
-          (Aeson.encode modifiedResponse)
-    _ -> Left "Can't modify costModels name in response"
+decodeProtocolParameters = fmap unwrapParams . Aeson.eitherDecode
