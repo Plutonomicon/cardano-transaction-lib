@@ -1105,7 +1105,7 @@ parseTxOut :: Aeson -> Either JsonDecodeError OgmiosTxOut
 parseTxOut = aesonObject $ \o -> do
   address <- getField o "address"
   value <- parseValue o
-  let datum = hush $ getField o "datum"
+  let datum = hush $ getField o "datumHash"
   pure $ { address, value, datum }
 
 -- parses the `Value` type
