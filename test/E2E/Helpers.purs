@@ -4,6 +4,7 @@ module Test.E2E.Helpers
   , exampleUrl
   , doJQ
   , click
+  , checkSuccess
   , enable
   , setAttr
   , buttonWithText
@@ -42,12 +43,15 @@ import Effect.Class (liftEffect)
 import Effect.Uncurried (mkEffectFn1, EffectFn1)
 import Foreign (Foreign, typeOf, unsafeFromForeign, unsafeToForeign)
 import Toppokki as Toki
-
-
+import Test.E2E.Feedback (testFeedbackIsTrue)
+import Test.Spec.Assertions (shouldSatisfy)
 import Data.Function.Uncurried as FU
 
 exampleUrl :: Toki.URL
 exampleUrl = wrap "http://localhost:4008/"
+
+testPassword :: String
+testPassword = "ctlctlctl"
 
 data OutputType = PageError | Console | RequestFailed
 
@@ -130,6 +134,13 @@ startExample url browser = do
                                       , output : output
                                       }]) errorRef
 
+checkSuccess :: ExamplePages -> Aff Unit
+checkSuccess (ExamplePages { main, errors }) = do
+  feedback <- testFeedbackIsTrue main
+  unless feedback $ liftEffect $ showOutput errors >>= log
+  shouldSatisfy feedback (_ == true)
+
+
 -- | Wrapper for Page so it can be used in `shouldSatisfy`, which needs 'Show'
 -- | Doesn't show anything, thus 'NoShow'
 newtype NoShowPage = NoShowPage Toki.Page
@@ -201,9 +212,6 @@ injectJQueryAll jQuery browser = do
     unless alreadyInjected $ void $ Toki.unsafeEvaluateStringFunction jQuery
       page
   pure pages
-
-testPassword :: String
-testPassword = "ctlctlctl"
 
 reactSetValue :: Selector -> String -> Toki.Page -> Aff Unit
 reactSetValue selector value page = void
