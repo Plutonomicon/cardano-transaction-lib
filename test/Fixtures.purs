@@ -267,6 +267,8 @@ mkSampleTx startTx changes =
             , collateral
             , requiredSigners
             , networkId
+            , collateralReturn
+            , totalCollateral
             }
         , witnessSet
         , isValid
@@ -290,6 +292,8 @@ mkSampleTx startTx changes =
             , collateral
             , requiredSigners
             , networkId
+            , collateralReturn
+            , totalCollateral
             }
         , witnessSet
         , isValid
@@ -315,6 +319,8 @@ txFixture1 =
         , collateral: Nothing
         , requiredSigners: Nothing
         , networkId: Just MainnetId
+        , collateralReturn: Nothing
+        , totalCollateral: Nothing
         }
     , witnessSet: TransactionWitnessSet
         { vkeys: Nothing
@@ -346,6 +352,8 @@ txFixture2 =
         , collateral: Nothing
         , requiredSigners: Nothing
         , networkId: Just MainnetId
+        , collateralReturn: Nothing
+        , totalCollateral: Nothing
         }
     , witnessSet: TransactionWitnessSet
         { vkeys: Nothing
@@ -400,6 +408,8 @@ txFixture3 =
         , collateral: Nothing
         , requiredSigners: Nothing
         , networkId: Just MainnetId
+        , collateralReturn: Nothing
+        , totalCollateral: Nothing
         }
     , witnessSet: TransactionWitnessSet
         { vkeys: Nothing
@@ -578,6 +588,8 @@ txFixture4 =
         , collateral: Nothing
         , requiredSigners: Just [ RequiredSigner ed25519KeyHashFixture1 ]
         , networkId: Just MainnetId
+        , collateralReturn: Just txOutputFixture1
+        , totalCollateral: Just $ Coin $ BigInt.fromInt 5_000_000
         }
     , witnessSet: TransactionWitnessSet
         { vkeys: Nothing
@@ -628,7 +640,7 @@ txBinaryFixture3 =
 
 txBinaryFixture4 :: String
 txBinaryFixture4 =
-  "84ac00818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599\
+  "84ae00818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599\
   \960001828258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45\
   \aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a0023e8fa8258390030fb3b\
   \8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1\
@@ -666,7 +678,9 @@ txBinaryFixture4 =
   \1e820101d81e8201011482010115820101160101075820000000000000000000000000000000\
   \000000000000000000000000000000000008187c09a1581c1d6445ddeda578117f393848e685\
   \128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e010e81581c1c12f03c1ef2e9\
-  \35acc35ec2e6f96c650fd3bfba3e96550504d533610f01a0f5f6"
+  \35acc35ec2e6f96c650fd3bfba3e96550504d533610f01108258390030fb3b8539951e26f034\
+  \910a5a37f22cb99d94d1d409f69ddbaea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba\
+  \3e96550504d5336100111a004c4b40a0f5f6"
 
 utxoFixture1 :: ByteArray
 utxoFixture1 = hexToByteArrayUnsafe
