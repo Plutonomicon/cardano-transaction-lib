@@ -22,15 +22,23 @@ module Helpers
   , notImplemented
   , showWithParens
   , uIntToBigInt
+  , aesonObject
+  , aesonArray
   ) where
 
 import Prelude
 
+import Aeson
+  ( Aeson
+  , JsonDecodeError(TypeMismatch)
+  , caseAesonObject
+  , caseAesonArray
+  )
 import Control.Monad.Error.Class (class MonadError, throwError)
 import Data.Array (union)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Either (Either(Right), either)
+import Data.Either (Either(Left, Right), either)
 import Data.Function (on)
 import Data.JSDate (now)
 import Data.List.Lazy as LL
@@ -50,6 +58,7 @@ import Effect (Effect)
 import Effect.Class (class MonadEffect)
 import Effect.Class.Console (log)
 import Effect.Exception (throw)
+import Foreign.Object (Object)
 import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
 
@@ -219,3 +228,20 @@ showWithParens
   -> a -- the inner type.
   -> String
 showWithParens ctorName x = "(" <> ctorName <> " (" <> show x <> "))"
+
+-- | Helper for assuming we get an `Object`
+aesonObject
+  :: forall (a :: Type)
+   . (Object Aeson -> Either JsonDecodeError a)
+  -> Aeson
+  -> Either JsonDecodeError a
+aesonObject = caseAesonObject (Left (TypeMismatch "Expected Object"))
+
+-- | Helper for assuming we get an `Array`
+aesonArray
+  :: forall (a :: Type)
+   . (Array Aeson -> Either JsonDecodeError a)
+  -> Aeson
+  -> Either JsonDecodeError a
+aesonArray = caseAesonArray (Left (TypeMismatch "Expected Array"))
+

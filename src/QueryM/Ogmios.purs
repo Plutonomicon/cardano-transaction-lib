@@ -27,8 +27,6 @@ module QueryM.Ogmios
   , TxHash
   , UtxoQR(..)
   , UtxoQueryResult(..)
-  , aesonArray
-  , aesonObject
   , evaluateTxCall
   , queryProtocolParametersCall
   , queryChainTipCall
@@ -47,8 +45,6 @@ import Aeson
   , class EncodeAeson
   , Aeson
   , JsonDecodeError(TypeMismatch)
-  , caseAesonArray
-  , caseAesonObject
   , caseAesonString
   , decodeAeson
   , encodeAeson'
@@ -93,7 +89,7 @@ import Data.UInt (UInt)
 import Data.UInt as UInt
 import Foreign.Object (Object)
 import Foreign.Object as FO
-import Helpers (showWithParens)
+import Helpers (showWithParens, aesonObject, aesonArray)
 import QueryM.JsonWsp
   ( JsonWspCall
   , JsonWspRequest
@@ -1037,22 +1033,6 @@ parseUtxoQueryResult = aesonArray $ foldl insertFunc (Right Map.empty)
       txOutRef <- parseTxOutRef txOutRefJson
       txOut <- parseTxOut txOutJson
       Map.insert txOutRef txOut <$> acc
-
--- helper for assuming we get an object
-aesonObject
-  :: forall (a :: Type)
-   . (Object Aeson -> Either JsonDecodeError a)
-  -> Aeson
-  -> Either JsonDecodeError a
-aesonObject = caseAesonObject (Left (TypeMismatch "Expected Object"))
-
--- helper for assumming we get an array
-aesonArray
-  :: forall (a :: Type)
-   . (Array Aeson -> Either JsonDecodeError a)
-  -> Aeson
-  -> Either JsonDecodeError a
-aesonArray = caseAesonArray (Left (TypeMismatch "Expected Array"))
 
 -- parser for txOutRef
 parseTxOutRef :: Aeson -> Either JsonDecodeError OgmiosTxOutRef
