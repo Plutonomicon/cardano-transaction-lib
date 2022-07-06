@@ -102,8 +102,11 @@ runPlutipContract plutipCfg distr contContract =
               contractCfg <- mkClusterContractCfg plutipCfg
               liftAff $ runContract contractCfg (contContract wallets)
   where
+  withPlutipServer :: Aff a -> Aff a
   withPlutipServer =
     withResource (startPlutipServer plutipCfg) stopChildProcess <<< const
+
+  withPlutipCluster :: (ClusterStartupParameters -> Aff a) -> Aff a
   withPlutipCluster cont = withResource (startPlutipCluster plutipCfg distr)
     (const $ void $ stopPlutipCluster plutipCfg)
     case _ of
@@ -111,14 +114,22 @@ runPlutipContract plutipCfg distr contContract =
         liftEffect $ throw "Failed to start up cluster"
       ClusterStartupSuccess response -> do
         cont response
+
+  withPostgres :: ClusterStartupParameters -> Aff a -> Aff a
   withPostgres response =
     withResource (startPostgresServer plutipCfg.postgresConfig response)
       stopChildProcess <<< const
+
+  withOgmios :: ClusterStartupParameters -> Aff a -> Aff a
   withOgmios response =
     withResource (startOgmios plutipCfg response) stopChildProcess <<< const
+
+  withOgmiosDatumCache :: ClusterStartupParameters -> Aff a -> Aff a
   withOgmiosDatumCache response =
     withResource (startOgmiosDatumCache plutipCfg response)
       stopChildProcess <<< const
+
+  withCtlServer :: ClusterStartupParameters -> Aff a -> Aff a
   withCtlServer response =
     withResource (startCtlServer plutipCfg response)
       stopChildProcess <<< const
