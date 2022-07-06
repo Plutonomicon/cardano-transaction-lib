@@ -347,6 +347,8 @@
                     "-c"
                     ''
                       ${pkgs.ogmios-datum-cache}/bin/ogmios-datum-cache \
+                        --log-level warn \
+                        --use-latest \
                         --server-api "${toString datumCache.controlApiToken}" \
                         --server-port ${toString datumCache.port} \
                         --ogmios-address ogmios \
