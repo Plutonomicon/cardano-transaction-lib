@@ -6,7 +6,7 @@ SHELL := bash
 ps-sources := $(shell fd -epurs)
 nix-sources := $(shell fd -enix --exclude='spago*')
 hs-sources := $(shell fd . './server/src' './server/exe' -ehs)
-ps-entrypoint := Examples.Pkh2Pkh
+ps-entrypoint := Examples.Gero
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 node-ipc = $(shell docker volume inspect cardano-transaction-lib_node-ipc | jq -r '.[0].Mountpoint')
 e2e-temp-dir := $(shell mktemp -tdu e2e.XXXXXXX)
@@ -14,7 +14,7 @@ e2e-temp-dir := $(shell mktemp -tdu e2e.XXXXXXX)
 e2e-test-chrome-dir := test-data/chrome-user-data
 e2e-test-nami := test-data/chrome-extensions/nami_3.2.5_1.crx
 e2e-test-nami-settings := test-data/nami_settings.tar.gz
-e2e-test-gero := test-data/chrome-extensions/gero_testnet_3.0.0_0.crx
+e2e-test-gero := test-data/chrome-extensions/gero_testnet_1.10.0_0.crx
 e2e-test-gero-settings := test-data/gero_settings.tar.gz
 
 # https://stackoverflow.com/questions/2214575/passing-arguments-to-make-run
@@ -48,7 +48,7 @@ e2e-test:
             || echo "ignore warnings" # or make stops
 	@tar xzf ${e2e-test-gero-settings}
 	@rm -f ${e2e-test-chrome-dir}/SingletonLock
-	@spago test --main Test.E2E -a "E2ETest --extensions-dir=${e2e-temp-dir} $(TEST_ARGS)" || rm -Rf ${e2e-temp-dir}
+	@spago test --main Test.E2E -a "E2ETest --nami-dir=${e2e-temp-dir}/nami --gero-dir=${e2e-temp-dir}/gero $(TEST_ARGS)" || rm -Rf ${e2e-temp-dir}
 
 e2e-run-browser-nami:
 	@mkdir ${e2e-temp-dir}
@@ -61,7 +61,7 @@ e2e-run-browser-gero:
 	@mkdir ${e2e-temp-dir}
 	@unzip ${e2e-test-gero} -d ${e2e-temp-dir}/gero > /dev/zero \
             || echo "ignore warnings" # or make stops
-#	@tar xzf ${e2e-test-gero-settings}
+	@tar xzf ${e2e-test-gero-settings}
 	@google-chrome --load-extension=${e2e-temp-dir}/gero --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e-temp-dir}
 
 # extract current nami settings from e2e-test-chrome-dir and store them for git
@@ -70,7 +70,9 @@ nami-settings:
 
 # extract current gero settings from e2e-test-chrome-dir and store them for git
 gero-settings:
-	tar czf ${e2e-test-gero-settings} ${e2e-test-chrome-dir}/Default/Local\ Extension\ Settings/iifeegfcfhlhhnilhfoeihllenamcfgc/*
+	tar czf ${e2e-test-gero-settings} \
+		${e2e-test-chrome-dir}/Default/IndexedDB/chrome-extension_iifeegfcfhlhhnilhfoeihllenamcfgc_0.indexeddb.leveldb \
+		${e2e-test-chrome-dir}/Default/Extension\ State
 
 format:
 	@purs-tidy format-in-place ${ps-sources}

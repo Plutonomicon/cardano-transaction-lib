@@ -9,16 +9,18 @@ import Effect.Aff (launchAff_)
 import Mote (group)
 import Test.Utils as Utils
 import TestM (TestPlanM)
-import Prelude (Unit, ($), map, bind, pure)
-import Test.Examples.Pkh2Pkh (testPkh2Pkh)
-import Test.E2E.Browser (Mode(Headless, Visible), launchWithNami)
+import Prelude (Unit, ($), map, bind, discard, pure)
+import Test.E2E.Browser (Mode(Headless, Visible), launchWithExtension)
 import Test.Spec.Runner as SpecRunner
 import Options.Applicative
 import Toppokki as Toki
+import Test.Examples.Pkh2Pkh (testPkh2Pkh)
+import Test.Examples.Gero (testGero)
 
 data TestOptions = TestOptions
   { chromeExe :: Maybe String
   , namiDir :: String
+  , geroDir :: String
   , chromeUserDataDir :: String
   , noHeadless :: Boolean
   , dumpIO :: Boolean
@@ -37,6 +39,11 @@ optParser = ado
     , metavar "DIR"
     , help "Directory where nami is unpacked"
     ]
+  geroDir <- strOption $ fold
+    [ long "gero-dir"
+    , metavar "DIR"
+    , help "Directory where gero is unpacked"
+    ]
   chromeUserDataDir <- strOption $ fold
     [ long "chrome-user-data"
     , help "Chrome/-ium user data dir"
@@ -52,25 +59,31 @@ optParser = ado
     [ long "dumpio"
     , help "Print browser console output to terminal"
     ]
-  in TestOptions { chromeExe, namiDir, chromeUserDataDir, noHeadless, dumpIO }
+  in
+    TestOptions
+      { chromeExe, namiDir, geroDir, chromeUserDataDir, noHeadless, dumpIO }
 
 -- Run with `spago test --main Test.E2E`
 main :: Effect Unit
 main = do
   TestOptions
     { namiDir
+    , geroDir
     , noHeadless
     , chromeExe
     , chromeUserDataDir
     , dumpIO
     } <- execParser $ info optParser fullDesc
   launchAff_ $ do
-    browser <- launchWithNami chromeExe chromeUserDataDir namiDir
+    {-    browserWithNami <- launchWithExtension chromeExe chromeUserDataDir namiDir
+    (headlessMode noHeadless)
+    dumpIO -}
+    browserWithGero <- launchWithExtension chromeExe chromeUserDataDir geroDir
       (headlessMode noHeadless)
       dumpIO
     Utils.interpret'
       (SpecRunner.defaultConfig { timeout = pure $ wrap 500_000.0 })
-      (testPlan browser)
+      (testPlan browserWithGero browserWithGero)
   where
   headlessMode :: Boolean -> Mode
   headlessMode noHeadless =
@@ -78,7 +91,8 @@ main = do
     else Headless
 
 -- Requires external services listed in README.md
-testPlan :: Toki.Browser -> TestPlanM Unit
-testPlan browser = group "e2e tests" do
-  testPkh2Pkh browser
+testPlan :: Toki.Browser -> Toki.Browser -> TestPlanM Unit
+testPlan browserWithNami browserWithGero = group "e2e tests" do
+  testGero browserWithGero
+--  testPkh2Pkh browserWithNami
 

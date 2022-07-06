@@ -1,7 +1,6 @@
 module Test.E2E.Browser
-  ( namiHash
-  , Mode(..)
-  , launchWithNami
+  ( Mode(..)
+  , launchWithExtension
   ) where
 
 import Prelude
@@ -9,20 +8,17 @@ import Data.Maybe (Maybe, fromMaybe)
 import Effect.Aff (Aff)
 import Toppokki as Toki
 
-namiHash :: String
-namiHash = "lpfcbjknijpeeillifnkikgncikgfhdo"
-
 data Mode = Headless | Visible
 
 derive instance Eq Mode
 
-launchWithNami
+launchWithExtension
   :: Maybe String -> String -> String -> Mode -> Boolean -> Aff Toki.Browser
-launchWithNami chromeExe chromeUserDataDir namiDir mode dumpIO =
+launchWithExtension chromeExe chromeUserDataDir extDir mode dumpIO =
   Toki.launch
     { args:
-        [ "--disable-extensions-except=" <> namiDir
-        , "--load-extension=" <> namiDir
+        [ "--disable-extensions-except=" <> extDir
+        , "--load-extension=" <> extDir
         ] <> if mode == Headless then [ "--headless=chrome" ] else []
     , headless: mode == Headless
     , userDataDir: chromeUserDataDir
