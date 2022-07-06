@@ -88,7 +88,7 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
-import Data.Traversable (traverse_)
+import Data.Traversable (traverse, traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect, liftEffect)
@@ -196,6 +196,7 @@ instance Show GetPublicKeyTransactionInputError where
 data BalanceTxInsError
   = InsufficientTxInputs Expected Actual
   | BalanceTxInsCannotMinus CannotMinusError
+  | UtxoLookupFailedFor TransactionInput
 
 derive instance Generic BalanceTxInsError _
 
@@ -207,13 +208,6 @@ data CannotMinusError = CannotMinus Actual
 derive instance Generic CannotMinusError _
 
 instance Show CannotMinusError where
-  show = genericShow
-
-data CollectTxInsError = CollectTxInsInsufficientTxInputs BalanceTxInsError
-
-derive instance Generic CollectTxInsError _
-
-instance Show CollectTxInsError where
   show = genericShow
 
 newtype Expected = Expected Value
@@ -872,16 +866,8 @@ balanceTxIns' utxos fees changeUtxoMinValue (TxBody txBody) = do
 
   -- a = spy "minSpending" minSpending
 
-  txIns <-
-    lmap
-      ( \(CollectTxInsInsufficientTxInputs insufficientTxInputs) ->
-          insufficientTxInputs
-      )
-      $ collectTxIns txBody.inputs utxos minSpending
-  pure $ wrap
-    txBody
-      { inputs = Set.union txIns txBody.inputs
-      }
+  collectTxIns txBody.inputs utxos minSpending <#>
+    \txIns -> wrap txBody { inputs = Set.union txIns txBody.inputs }
 
 --https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- | Getting the necessary input utxos to cover the fees for the transaction
@@ -889,22 +875,28 @@ collectTxIns
   :: Set TransactionInput
   -> Utxo
   -> Value
-  -> Either CollectTxInsError (Set TransactionInput)
-collectTxIns originalTxIns utxos value =
-  if isSufficient updatedInputs then pure $ Set.fromFoldable updatedInputs
-  else
-    Left $ CollectTxInsInsufficientTxInputs $
-      InsufficientTxInputs (Expected value)
-        (Actual $ txInsValue utxos updatedInputs)
+  -> Either BalanceTxInsError (Set TransactionInput)
+collectTxIns originalTxIns utxos value = do
+  txInsValue <- updatedInputs >>= getTxInsValue utxos
+  updatedInputs' <- updatedInputs
+  case isSufficient updatedInputs' txInsValue of
+    true ->
+      pure $ Set.fromFoldable updatedInputs'
+    false ->
+      Left $ InsufficientTxInputs (Expected value) (Actual txInsValue)
   where
-  updatedInputs :: Array TransactionInput
+  updatedInputs :: Either BalanceTxInsError (Array TransactionInput)
   updatedInputs =
     Foldable.foldl
-      ( \newTxIns txIn ->
-          if Array.elem txIn newTxIns || isSufficient newTxIns then newTxIns
-          else Array.insert txIn newTxIns -- treat as a set.
+      ( \newTxIns txIn -> do
+          txIns <- newTxIns
+          txInsValue <- getTxInsValue utxos txIns
+          case Array.elem txIn txIns || isSufficient txIns txInsValue of
+            true -> newTxIns
+            false ->
+              Right $ Array.insert txIn txIns -- treat as a set.
       )
-      (Array.fromFoldable originalTxIns)
+      (Right $ Array.fromFoldable originalTxIns)
       $ utxosToTransactionInput utxos
 
   -- Useful spies for debugging:
@@ -912,13 +904,15 @@ collectTxIns originalTxIns utxos value =
   -- y = spy "collectTxIns:txInsValueOG" (txInsValue utxos originalTxIns)
   -- z = spy "collectTxIns:txInsValueNEW" (txInsValue utxos updatedInputs)
 
-  isSufficient :: Array TransactionInput -> Boolean
-  isSufficient txIns' =
-    not (Array.null txIns') && (txInsValue utxos txIns') `geq` value
+  isSufficient :: Array TransactionInput -> Value -> Boolean
+  isSufficient txIns' txInsValue =
+    not (Array.null txIns') && txInsValue `geq` value
 
-  txInsValue :: Utxo -> Array TransactionInput -> Value
-  txInsValue utxos' =
-    Array.foldMap getAmount <<< Array.mapMaybe (flip Map.lookup utxos')
+  getTxInsValue
+    :: Utxo -> Array TransactionInput -> Either BalanceTxInsError Value
+  getTxInsValue utxos' =
+    map (Array.foldMap getAmount) <<<
+      traverse (\x -> note (UtxoLookupFailedFor x) $ Map.lookup x utxos')
 
   utxosToTransactionInput :: Utxo -> Array TransactionInput
   utxosToTransactionInput =
