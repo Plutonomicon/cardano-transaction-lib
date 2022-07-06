@@ -447,13 +447,11 @@
           };
 
           checks = {
-            ctl-unit-test = (project.runPursTest {
+            ctl-unit-test = project.runPursTest {
               name = "ctl-unit-test";
               testMain = "Test.Unit";
-            }).overrideAttrs
-              (oas: {
-                checkPhase = exportOgmiosFixtures + oas.checkPhase;
-              });
+              env = { OGMIOS_FIXTURES = "${buildOgmiosFixtures pkgs}"; };
+            };
           };
 
           devShell = project.devShell;
