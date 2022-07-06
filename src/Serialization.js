@@ -169,6 +169,9 @@ exports.newRedeemers = () =>
 exports.addRedeemer = rs => r => () =>
     rs.add(r);
 
+exports.setTxBodyReferenceInputs = txBody => referenceInputs => () =>
+    txBody.set_reference_inputs(referenceInputs);
+
 exports.newScriptDataHashFromBytes = bytes => () =>
     lib.ScriptDataHash.from_bytes(bytes);
 
@@ -209,6 +212,12 @@ exports.networkIdTestnet = () =>
 
 exports.networkIdMainnet = () =>
     lib.NetworkId.mainnet();
+
+exports.setTxBodyCollateralReturn = txBody => collateralReturn => () =>
+    txBody.set_collateral_return(collateralReturn);
+
+exports.setTxBodyTotalCollateral = txBody => totalCollateral => () =>
+    txBody.set_total_collateral(totalCollateral);
 
 exports.setTxBodyTtl = setter('ttl');
 

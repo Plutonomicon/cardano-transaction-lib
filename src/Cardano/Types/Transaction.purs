@@ -199,10 +199,13 @@ newtype TxBody = TxBody
   , auxiliaryDataHash :: Maybe AuxiliaryDataHash
   , validityStartInterval :: Maybe Slot
   , mint :: Maybe Mint
+  , referenceInputs :: Maybe (Array TransactionInput)
   , scriptDataHash :: Maybe ScriptDataHash
   , collateral :: Maybe (Array TransactionInput)
   , requiredSigners :: Maybe (Array RequiredSigner)
   , networkId :: Maybe NetworkId
+  , collateralReturn :: Maybe TransactionOutput
+  , totalCollateral :: Maybe Coin
   }
 
 derive instance Generic TxBody _
@@ -227,10 +230,13 @@ instance Semigroup TxBody where
           txB.validityStartInterval
           txB'.validityStartInterval
     , mint: txB.mint <> txB'.mint
+    , referenceInputs: txB.referenceInputs <> txB'.referenceInputs
     , scriptDataHash: txB.scriptDataHash </> txB'.scriptDataHash
     , collateral: lift2 union txB.collateral txB'.collateral
     , requiredSigners: lift2 union txB.requiredSigners txB'.requiredSigners
     , networkId: txB.networkId </> txB'.networkId
+    , collateralReturn: txB.collateralReturn <|> txB.collateralReturn
+    , totalCollateral: txB.totalCollateral <|> txB.totalCollateral
     }
     where
     lowerbound :: Slot -> Slot -> Slot
@@ -248,10 +254,13 @@ instance Monoid TxBody where
     , auxiliaryDataHash: Nothing
     , validityStartInterval: Nothing
     , mint: Nothing
+    , referenceInputs: Nothing
     , scriptDataHash: Nothing
     , collateral: Nothing
     , requiredSigners: Nothing
     , networkId: Nothing
+    , collateralReturn: Nothing
+    , totalCollateral: Nothing
     }
 
 newtype ScriptDataHash = ScriptDataHash ByteArray

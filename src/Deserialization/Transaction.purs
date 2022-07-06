@@ -268,12 +268,23 @@ convertTxBody txBody = do
       $ ws
 
   update <- traverse convertUpdate $ _txBodyUpdate maybeFfiHelper txBody
+  referenceInputs <-
+    _txBodyReferenceInputs maybeFfiHelper containerHelper txBody #
+      traverse (traverse (convertInput >>> cslErr "TransactionInput"))
 
   certs <- addErrTrace "Tx body certificates"
     $ traverse (traverse convertCertificate)
     $ _txBodyCerts containerHelper
         maybeFfiHelper
         txBody
+
+  collateralReturn <-
+    _txBodyCollateralReturn maybeFfiHelper txBody #
+      traverse (convertOutput >>> cslErr "TransactionOutput")
+
+  totalCollateral <-
+    _txBodyTotalCollateral maybeFfiHelper txBody # traverse
+      (BigNum.toBigInt' "txbody withdrawals" >>> map Coin)
 
   pure $ T.TxBody
     { inputs
@@ -289,6 +300,7 @@ convertTxBody txBody = do
     , validityStartInterval:
         Slot <$> _txBodyValidityStartInterval maybeFfiHelper txBody
     , mint: map convertMint $ _txBodyMultiAssets maybeFfiHelper txBody
+    , referenceInputs
     , scriptDataHash: convertScriptDataHash <$> _txBodyScriptDataHash
         maybeFfiHelper
         txBody
@@ -298,6 +310,8 @@ convertTxBody txBody = do
         _txBodyRequiredSigners containerHelper maybeFfiHelper txBody #
           (map <<< map) T.RequiredSigner
     , networkId
+    , collateralReturn
+    , totalCollateral
     }
 
 convertUpdate :: forall (r :: Row Type). Csl.Update -> Err r T.Update
@@ -825,6 +839,13 @@ foreign import _txBodyValidityStartInterval
 foreign import _txBodyMultiAssets
   :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Csl.Mint
 
+-- reference_inputs(): TransactionInputs | void;
+foreign import _txBodyReferenceInputs
+  :: MaybeFfiHelper
+  -> ContainerHelper
+  -> Csl.TransactionBody
+  -> Maybe (Array Csl.TransactionInput)
+
 -- script_data_hash(): ScriptDataHash | void
 foreign import _txBodyScriptDataHash
   :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Csl.ScriptDataHash
@@ -850,6 +871,18 @@ foreign import _txBodyNetworkId
   -> MaybeFfiHelper
   -> Csl.TransactionBody
   -> Maybe Csl.NetworkId
+
+-- collateral_return(): TransactionOutput | void
+foreign import _txBodyCollateralReturn
+  :: MaybeFfiHelper
+  -> Csl.TransactionBody
+  -> Maybe Csl.TransactionOutput
+
+-- total_collateral(): BigNum | void
+foreign import _txBodyTotalCollateral
+  :: MaybeFfiHelper
+  -> Csl.TransactionBody
+  -> Maybe Csl.BigNum
 
 foreign import _unpackWithdrawals
   :: ContainerHelper

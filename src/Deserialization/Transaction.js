@@ -59,6 +59,10 @@ exports._txBodyAuxiliaryDataHash = maybeGetter("auxiliary_data_hash");
 exports._txBodyValidityStartInterval = maybeGetter("validity_start_interval_bignum");
 // multiassets(): Mint | void;
 exports._txBodyMultiAssets = maybeGetter("multiassets");
+exports._txBodyReferenceInputs = maybe => containerhelper => body =>
+    body.reference_inputs() ?
+    maybe.just(containerhelper.unpack(body.reference_inputs())) :
+    maybe.nothing;
 // script_data_hash(): ScriptDataHash | void;
 exports._txBodyScriptDataHash = maybeGetter("script_data_hash");
 // collateral(): Array TransactionInput | void;
@@ -78,6 +82,12 @@ exports._txBodyNetworkId = testnet => mainnet => maybeGetter_(
         }
     }
 )("network_id");
+
+// collateral_return(): TransactionOutput | void;
+exports._txBodyCollateralReturn = maybeGetter("collateral_return");
+
+// total_collateral(): BigNum | void
+exports._txBodyTotalCollateral = maybeGetter("total_collateral");
 
 // foreign import _unpackWithdrawals :: ContainerHelper -> CSL.Withdrawals -> Array(Tuple CSL.RewardAddress CSL.BigNum)
 exports._unpackWithdrawals = containerhelper => containerhelper.unpackKeyIndexed;
