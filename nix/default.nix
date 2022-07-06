@@ -136,7 +136,7 @@ let
     { testMain ? "Test.Main"
     , name ? "${projectName}-check"
     , nodeModules ? projectNodeModules
-    , env ? {}
+    , env ? { }
     , ...
     }: pkgs.runCommand "${name}"
       ({
