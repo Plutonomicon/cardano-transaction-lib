@@ -17,6 +17,7 @@ module Serialization
 
 import Prelude
 
+import Cardano.Types.ScriptRef as T
 import Cardano.Types.Transaction
   ( Certificate
       ( StakeRegistration
@@ -73,6 +74,7 @@ import Serialization.Address (NetworkId(TestnetId, MainnetId)) as T
 import Serialization.AuxiliaryData (convertAuxiliaryData)
 import Serialization.BigInt as Serialization
 import Serialization.Hash (ScriptHash, Ed25519KeyHash, scriptHashFromBytes)
+import Serialization.NativeScript (convertNativeScript)
 import Serialization.PlutusData (convertPlutusData)
 import Serialization.Types
   ( AssetName
@@ -103,17 +105,19 @@ import Serialization.Types
   , NativeScript
   , NetworkId
   , PlutusData
+  , PlutusScript
   , PoolMetadata
+  , PrivateKey
   , ProposedProtocolParameterUpdates
   , ProtocolParamUpdate
   , ProtocolVersion
   , PublicKey
-  , PrivateKey
   , Redeemer
   , Redeemers
   , Relay
   , Relays
   , ScriptDataHash
+  , ScriptRef
   , Transaction
   , TransactionBody
   , TransactionHash
@@ -132,18 +136,19 @@ import Serialization.Types
   , Withdrawals
   )
 import Serialization.WitnessSet
-  ( convertWitnessSet
+  ( convertExUnits
+  , convertPlutusScript
   , convertRedeemer
-  , convertExUnits
+  , convertWitnessSet
   )
 import Types.Aliases (Bech32String)
 import Types.BigNum (BigNum)
 import Types.BigNum (fromBigInt, fromStringUnsafe, toString) as BigNum
 import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
-import Types.RawBytes (RawBytes)
 import Types.Int as Int
 import Types.PlutusData as PlutusData
+import Types.RawBytes (RawBytes)
 import Types.TokenName (getTokenName) as TokenName
 import Types.Transaction (TransactionInput(TransactionInput)) as T
 import Untagged.Union (type (|+|), UndefinedOr, maybeToUor)
@@ -200,6 +205,18 @@ foreign import insertAssets :: Assets -> AssetName -> BigNum -> Effect Unit
 foreign import newAssetName :: ByteArray -> Effect AssetName
 foreign import transactionOutputSetDataHash
   :: TransactionOutput -> DataHash -> Effect Unit
+
+foreign import transactionOutputSetPlutusData
+  :: TransactionOutput -> PlutusData -> Effect Unit
+
+foreign import transactionOutputSetScriptRef
+  :: TransactionOutput -> ScriptRef -> Effect Unit
+
+foreign import scriptRefNewNativeScript
+  :: NativeScript -> ScriptRef
+
+foreign import scriptRefNewPlutusScript
+  :: PlutusScript -> ScriptRef
 
 foreign import newVkeywitnesses :: Effect Vkeywitnesses
 foreign import makeVkeywitness
@@ -722,13 +739,26 @@ convertTxOutputs arrOutputs = do
   pure outputs
 
 convertTxOutput :: T.TransactionOutput -> Effect TransactionOutput
-convertTxOutput (T.TransactionOutput { address, amount, dataHash }) = do
+convertTxOutput
+  (T.TransactionOutput { address, amount, dataHash, datum, scriptRef }) = do
   value <- convertValue amount
   txo <- newTransactionOutput address value
   for_ (unwrap <$> dataHash) \bytes -> do
     for_ (fromBytes bytes) $
       transactionOutputSetDataHash txo
+  for_ datum $
+    convertPlutusData >>> fromJustEff "convertTxOutput"
+      >=> transactionOutputSetPlutusData txo
+  for_ scriptRef $
+    convertScriptRef >=> transactionOutputSetScriptRef txo
   pure txo
+
+convertScriptRef :: T.ScriptRef -> Effect ScriptRef
+convertScriptRef (T.NativeScriptRef nativeScript) = do
+  scriptRefNewNativeScript <$> fromJustEff "convertScriptRef"
+    (convertNativeScript nativeScript)
+convertScriptRef (T.PlutusScriptRef plutusScript) =
+  scriptRefNewPlutusScript <$> convertPlutusScript plutusScript
 
 convertValue :: Value.Value -> Effect Value
 convertValue val = do

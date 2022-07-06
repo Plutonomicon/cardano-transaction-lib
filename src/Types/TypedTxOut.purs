@@ -179,7 +179,15 @@ mkTypedTxOut networkId typedVal dt amount =
       Nothing -> Nothing
       Just dHash ->
         Just <<< mkTypedTxOut' dt $
-          wrap { address, amount, dataHash: pure dHash }
+          wrap
+            { address
+            , amount
+            , dataHash: pure dHash
+            -- TODO: populate properly
+            -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
+            , datum: Nothing
+            , scriptRef: Nothing
+            }
   where
   mkTypedTxOut'
     :: b -- Data

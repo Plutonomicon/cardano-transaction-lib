@@ -673,16 +673,22 @@ addMissingValueSpent = do
         { address: payPubKeyHashBaseAddress networkId pkh skh
         , amount: missing
         , dataHash: Nothing
+        , datum: Nothing
+        , scriptRef: Nothing
         }
       Just pkh, Nothing -> liftEither $ Right $ TransactionOutput
         { address: payPubKeyHashEnterpriseAddress networkId pkh
         , amount: missing
         , dataHash: Nothing
+        , datum: Nothing
+        , scriptRef: Nothing
         }
       Nothing, Just skh -> liftEither $ Right $ TransactionOutput
         { address: stakePubKeyHashRewardAddress networkId skh
         , amount: missing
         , dataHash: Nothing
+        , datum: Nothing
+        , scriptRef: Nothing
         }
     _cpsToTxBody <<< _outputs %= Array.(:) txOut
 
@@ -1008,6 +1014,11 @@ processConstraint mpsMap osMap = do
             { address
             , amount
             , dataHash
+            -- TODO: save correct datum and scriptRef, should be done in
+            -- Constraints API upgrade that follows Vasil
+            -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
+            , datum: Nothing
+            , scriptRef: Nothing
             }
         _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provideValue amount
@@ -1023,6 +1034,11 @@ processConstraint mpsMap osMap = do
             { address: validatorHashEnterpriseAddress networkId vlh
             , amount
             , dataHash
+            -- TODO: save correct datum and scriptRef, should be done in
+            -- Constraints API upgrade that follows Vasil
+            -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
+            , datum: Nothing
+            , scriptRef: Nothing
             }
         -- Note we don't `addDatum` as this included as part of `mustPayToScript`
         -- constraint already.

@@ -718,6 +718,8 @@ returnAdaChange changeAddr utxos (unattachedTx /\ fees) =
             { address: changeAddr
             , amount: lovelaceValueOf returnAda
             , dataHash: Nothing
+            , datum: Nothing
+            , scriptRef: Nothing
             }
 
           unattachedTxWithChangeTxOut :: UnattachedUnbalancedTx
@@ -987,6 +989,8 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
               { address: changeAddr
               , amount: nonAdaChange
               , dataHash: Nothing
+              , datum: Nothing
+              , scriptRef: Nothing
               } : txOuts
           { no: txOuts'
           , yes: TransactionOutput txOut@{ amount: v } : txOuts

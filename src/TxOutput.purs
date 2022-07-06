@@ -18,16 +18,14 @@ import Address
   , enterpriseAddressValidatorHash
   , ogmiosAddressToAddress
   )
-import Cardano.Types.Transaction
-  ( TransactionOutput(TransactionOutput)
-  ) as Transaction
+import Cardano.Types.Transaction (TransactionOutput(TransactionOutput)) as Transaction
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap)
+import QueryM.Ogmios as Ogmios
 import Scripts (validatorHashEnterpriseAddress)
 import Serialization.Address (NetworkId)
 import Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Types.Datum (DataHash)
-import QueryM.Ogmios as Ogmios
 import Types.Transaction (TransactionInput(TransactionInput)) as Transaction
 import Types.UnbalancedTransaction as UTx
 
@@ -72,6 +70,10 @@ ogmiosTxOutToTransactionOutput { address, value, datum } = do
     { address: address'
     , amount: value
     , dataHash
+    -- TODO: populate properly
+    -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
+    , datum: Nothing
+    , scriptRef: Nothing
     }
 
 -- | Converts an internal transaction output to the Ogmios transaction output.
@@ -136,6 +138,8 @@ scriptOutputToTransactionOutput
     { address: validatorHashEnterpriseAddress networkId validatorHash
     , amount: value
     , dataHash: Just datumHash
+    , datum: Nothing
+    , scriptRef: Nothing
     }
 
 --------------------------------------------------------------------------------

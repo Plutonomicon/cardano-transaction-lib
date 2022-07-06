@@ -11,9 +11,11 @@ module Contract.Transaction
   , calculateMinFeeM
   , module BalanceTxError
   , module ExportQueryM
+  , module NativeScript
   , module PTransaction
   , module ReindexRedeemersExport
   , module ScriptLookups
+  , module ScriptRef
   , module Transaction
   , module TransactionMetadata
   , module UnbalancedTx
@@ -32,6 +34,19 @@ import Prelude
 import BalanceTx (BalanceTxError) as BalanceTxError
 import BalanceTx (FinalizedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
+import Cardano.Types.NativeScript
+  ( NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
+  ) as NativeScript
+import Cardano.Types.ScriptRef
+  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
+  ) as ScriptRef
 import Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
@@ -54,14 +69,6 @@ import Cardano.Types.Transaction
   , GenesisHash(GenesisHash)
   , Language(PlutusV1)
   , Mint(Mint)
-  , NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
   , Nonce(IdentityNonce, HashNonce)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate

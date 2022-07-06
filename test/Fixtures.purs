@@ -64,6 +64,16 @@ module Test.Fixtures
 import Prelude
 
 import Aeson (Aeson, aesonNull, parseJsonStringToAeson)
+import Cardano.Types.NativeScript
+  ( NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
+  )
 import Cardano.Types.Transaction
   ( AuxiliaryDataHash(AuxiliaryDataHash)
   , Certificate
@@ -84,14 +94,6 @@ import Cardano.Types.Transaction
   , MIRToStakeCredentials(MIRToStakeCredentials)
   , Mint(Mint)
   , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
-  , NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
   , PoolMetadata(PoolMetadata)
   , PoolMetadataHash(PoolMetadataHash)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
@@ -198,6 +200,8 @@ txOutputFixture1 =
         }
     , amount: Value (Coin $ BigInt.fromInt 0) mempty
     , dataHash: Nothing
+    , datum: Nothing
+    , scriptRef: Nothing
     }
 
 txOutputFixture2 :: TransactionOutput
@@ -211,6 +215,8 @@ txOutputFixture2 =
         mkSingletonNonAdaAsset currencySymbol1 tokenName1
           (BigInt.fromInt 1000000)
     , dataHash: Nothing
+    , datum: Nothing
+    , scriptRef: Nothing
     }
 
 currencySymbol1 :: CurrencySymbol
@@ -375,6 +381,8 @@ txFixture3 =
                     }
                 , amount: Value (Coin $ BigInt.fromInt 2353402) mempty
                 , dataHash: Nothing
+                , datum: Nothing
+                , scriptRef: Nothing
                 }
             , TransactionOutput
                 { address: keyHashBaseAddress
@@ -386,6 +394,8 @@ txFixture3 =
                     }
                 , amount: Value (Coin $ BigInt.fromInt 1000000) mempty
                 , dataHash: Nothing
+                , datum: Nothing
+                , scriptRef: Nothing
                 }
             ]
         , fee: Coin $ BigInt.fromInt 177513
@@ -485,6 +495,8 @@ txFixture4 =
                     }
                 , amount: Value (Coin $ BigInt.fromInt 2353402) mempty
                 , dataHash: Nothing
+                , datum: Nothing
+                , scriptRef: Nothing
                 }
             , TransactionOutput
                 { address: keyHashBaseAddress
@@ -496,6 +508,8 @@ txFixture4 =
                     }
                 , amount: Value (Coin $ BigInt.fromInt 1000000) mempty
                 , dataHash: Nothing
+                , datum: Nothing
+                , scriptRef: Nothing
                 }
             ]
         , fee: Coin $ BigInt.fromInt 177513
@@ -792,6 +806,8 @@ utxoFixture1' =
                 }
             , amount: Value (Coin (BigInt.fromInt 5000000)) mempty
             , dataHash: Nothing
+            , datum: Nothing
+            , scriptRef: Nothing
             }
         )
     }
