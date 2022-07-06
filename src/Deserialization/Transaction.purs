@@ -268,6 +268,9 @@ convertTxBody txBody = do
       $ ws
 
   update <- traverse convertUpdate $ _txBodyUpdate maybeFfiHelper txBody
+  referenceInputs <-
+    _txBodyReferenceInputs maybeFfiHelper containerHelper txBody #
+      traverse (traverse (convertInput >>> cslErr "TransactionInput"))
 
   certs <- addErrTrace "Tx body certificates"
     $ traverse (traverse convertCertificate)
@@ -297,6 +300,7 @@ convertTxBody txBody = do
     , validityStartInterval:
         Slot <$> _txBodyValidityStartInterval maybeFfiHelper txBody
     , mint: map convertMint $ _txBodyMultiAssets maybeFfiHelper txBody
+    , referenceInputs
     , scriptDataHash: convertScriptDataHash <$> _txBodyScriptDataHash
         maybeFfiHelper
         txBody
@@ -834,6 +838,13 @@ foreign import _txBodyValidityStartInterval
 -- multiassets(): Mint | void
 foreign import _txBodyMultiAssets
   :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Csl.Mint
+
+-- reference_inputs(): TransactionInputs | void;
+foreign import _txBodyReferenceInputs
+  :: MaybeFfiHelper
+  -> ContainerHelper
+  -> Csl.TransactionBody
+  -> Maybe (Array Csl.TransactionInput)
 
 -- script_data_hash(): ScriptDataHash | void
 foreign import _txBodyScriptDataHash

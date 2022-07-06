@@ -238,6 +238,11 @@ foreign import _hashScriptDataNoDatums
 
 foreign import newRedeemers :: Effect Redeemers
 foreign import addRedeemer :: Redeemers -> Redeemer -> Effect Unit
+foreign import setTxBodyReferenceInputs
+  :: TransactionBody
+  -> TransactionInputs
+  -> Effect Unit
+
 foreign import newScriptDataHashFromBytes :: CborBytes -> Effect ScriptDataHash
 foreign import setTxBodyScriptDataHash
   :: TransactionBody -> ScriptDataHash -> Effect Unit
@@ -473,7 +478,14 @@ convertTxBody (T.TxBody body) = do
   for_ body.validityStartInterval $
     unwrap >>> BigNum.toString >>> BigNum.fromStringUnsafe >>>
       transactionBodySetValidityStartInterval txBody
+  for_ body.requiredSigners $
+    map unwrap >>> transactionBodySetRequiredSigners containerHelper txBody
+  for_ body.auxiliaryDataHash $
+    unwrap >>> transactionBodySetAuxiliaryDataHash txBody
+  for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
   for_ body.mint $ convertMint >=> setTxBodyMint txBody
+  for_ body.referenceInputs $
+    convertTxInputs >=> setTxBodyReferenceInputs txBody
   for_ body.scriptDataHash
     ( unwrap >>> wrap >>> newScriptDataHashFromBytes >=>
         setTxBodyScriptDataHash txBody

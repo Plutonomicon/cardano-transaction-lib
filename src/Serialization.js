@@ -159,6 +159,9 @@ exports.newRedeemers = () =>
 exports.addRedeemer = rs => r => () =>
     rs.add(r);
 
+exports.setTxBodyReferenceInputs = txBody => referenceInputs => () =>
+    txBody.set_reference_inputs(referenceInputs);
+
 exports.newScriptDataHashFromBytes = bytes => () =>
     lib.ScriptDataHash.from_bytes(bytes);
 
