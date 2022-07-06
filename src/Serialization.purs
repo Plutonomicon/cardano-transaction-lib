@@ -17,7 +17,12 @@ module Serialization
 
 import Prelude
 
-import Cardano.Types.ScriptRef as T
+import Cardano.Types.ScriptRef
+  ( ScriptRef
+      ( NativeScriptRef
+      , PlutusScriptRef
+      )
+  ) as T
 import Cardano.Types.Transaction
   ( Certificate
       ( StakeRegistration
