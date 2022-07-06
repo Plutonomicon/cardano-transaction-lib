@@ -228,10 +228,10 @@ showWithParens ctorName x = "(" <> ctorName <> " (" <> show x <> "))"
 
 -- | A wrapper around the `dictionary` function from `Aeson.Encode`
 -- | that uses `encodeAeson` for encoding keys and values.
-encodeMap :: forall k v. EncodeAeson k => EncodeAeson v => Map k v -> Aeson
+encodeMap :: forall (k :: Type) (v :: Type) . EncodeAeson k => EncodeAeson v => Map k v -> Aeson
 encodeMap = unwrap $ dictionary (Op encodeAeson) (Op encodeAeson)
 
 -- | A wrapper around `encodeTagged` function from `Aeson.Encode` that uses
 -- | `encodeAeson` for encoding the passed value
-encodeTagged' :: forall a. EncodeAeson a => String -> a -> Aeson
+encodeTagged' :: forall (a :: Type) . EncodeAeson a => String -> a -> Aeson
 encodeTagged' str x = encodeTagged str x (Op encodeAeson)

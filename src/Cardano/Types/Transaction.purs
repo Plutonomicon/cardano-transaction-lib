@@ -275,14 +275,10 @@ derive instance Newtype Mint _
 derive newtype instance Eq Mint
 derive newtype instance Semigroup Mint
 derive newtype instance Monoid Mint
+derive newtype instance EncodeAeson Mint
 
 instance Show Mint where
   show = genericShow
-
-instance EncodeAeson Mint where
-  encodeAeson' (Mint asset) = encodeAeson'
-    { nonAdaAsset: asset
-    }
 
 newtype AuxiliaryDataHash = AuxiliaryDataHash ByteArray
 
@@ -596,7 +592,7 @@ instance Show Certificate where
   show = genericShow
 
 instance EncodeAeson Certificate where
-  encodeAeson' cert = case cert of
+  encodeAeson' = case _ of
     StakeRegistration r -> encodeAeson' $ encodeTagged' "StakeRegistration" r
     StakeDeregistration r -> encodeAeson' $ encodeTagged' "StakeDeregistration"
       r
@@ -740,15 +736,11 @@ newtype RequiredSigner = RequiredSigner Ed25519KeyHash
 derive instance Newtype RequiredSigner _
 derive newtype instance Eq RequiredSigner
 derive newtype instance Ord RequiredSigner
+derive newtype instance EncodeAeson RequiredSigner
 derive instance Generic RequiredSigner _
 
 instance Show RequiredSigner where
   show = genericShow
-
-instance EncodeAeson RequiredSigner where
-  encodeAeson' (RequiredSigner k) = encodeAeson'
-    { ed25519KeyHash: k
-    }
 
 newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
@@ -868,12 +860,10 @@ newtype TransactionOutput = TransactionOutput
 derive instance Generic TransactionOutput _
 derive instance Newtype TransactionOutput _
 derive newtype instance Eq TransactionOutput
+derive newtype instance EncodeAeson TransactionOutput
 
 instance Show TransactionOutput where
   show = genericShow
-
-instance EncodeAeson TransactionOutput where
-  encodeAeson' (TransactionOutput r) = encodeAeson' r
 
 newtype UtxoM = UtxoM Utxo
 

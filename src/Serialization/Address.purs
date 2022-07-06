@@ -183,7 +183,7 @@ instance Show Address where
   show a = "(Address " <> addressBech32 a <> ")"
 
 instance EncodeAeson Address where
-  encodeAeson' a = encodeAeson' $ addressBech32 a
+  encodeAeson' = encodeAeson' <<< addressBech32
 
 showVia
   :: forall (a :: Type) (b :: Type). Show b => String -> (a -> b) -> a -> String
