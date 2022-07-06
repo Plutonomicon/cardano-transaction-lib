@@ -409,6 +409,7 @@
             packageJson = ./package.json;
             packageLock = ./package-lock.json;
             shell = {
+              shellHook = exportOgmiosFixtures;
               packages = [
                 pkgs.ogmios
                 pkgs.cardano-cli
@@ -455,9 +456,7 @@
               });
           };
 
-          devShell = project.devShell.overrideAttrs (oas: {
-            shellHook = oas.shellHook + exportOgmiosFixtures;
-          });
+          devShell = project.devShell;
 
           apps = {
             docs =
