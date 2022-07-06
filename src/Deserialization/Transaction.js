@@ -59,9 +59,10 @@ exports._txBodyAuxiliaryDataHash = maybeGetter("auxiliary_data_hash");
 exports._txBodyValidityStartInterval = maybeGetter("validity_start_interval_bignum");
 // multiassets(): Mint | void;
 exports._txBodyMultiAssets = maybeGetter("multiassets");
-exports._txBodyReferenceInputs = maybe => containerhelper =>
-    body => body.reference_inputs() ?
-    maybe.just(containerhelper.unpack(body.reference_inputs())) : maybe.nothing;
+exports._txBodyReferenceInputs = maybe => containerhelper => body =>
+    body.reference_inputs() ?
+    maybe.just(containerhelper.unpack(body.reference_inputs())) :
+    maybe.nothing;
 // script_data_hash(): ScriptDataHash | void;
 exports._txBodyScriptDataHash = maybeGetter("script_data_hash");
 // collateral(): Array TransactionInput | void;
