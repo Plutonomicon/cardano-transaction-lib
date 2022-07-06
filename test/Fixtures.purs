@@ -126,7 +126,6 @@ import Data.BigInt as BigInt
 import Data.Either (fromRight, hush)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (wrap)
 import Data.NonEmpty ((:|))
 import Data.Set (Set)
 import Data.Set (singleton) as Set
