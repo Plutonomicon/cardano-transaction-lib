@@ -1,0 +1,12 @@
+{
+  "EvaluationResult": {
+    "spend:1": {
+      "memory": 1700,
+      "steps": 476468
+    },
+    "mint:0": {
+      "memory": 1685698,
+      "steps": 609724445
+    }
+  }
+}

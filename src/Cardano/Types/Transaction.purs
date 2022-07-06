@@ -93,6 +93,8 @@ import Data.Map (Map)
 import Data.Maybe (Maybe(Nothing))
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype, unwrap)
+import Data.Set (Set)
+import Data.Set (union) as Set
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
@@ -188,7 +190,7 @@ _auxiliaryData = lens' \(Transaction rec@{ auxiliaryData }) ->
 -- requiredSigners is an Array over `VKey`s essentially. But some comments at
 -- the bottom say it's Maybe?
 newtype TxBody = TxBody
-  { inputs :: Array TransactionInput
+  { inputs :: Set TransactionInput
   , outputs :: Array TransactionOutput
   , fee :: Coin
   , ttl :: Maybe Slot
@@ -213,7 +215,7 @@ instance Show TxBody where
 
 instance Semigroup TxBody where
   append (TxBody txB) (TxBody txB') = TxBody
-    { inputs: txB.inputs `union` txB'.inputs
+    { inputs: txB.inputs `Set.union` txB'.inputs
     , outputs: txB.outputs `union` txB'.outputs
     , fee: txB.fee <> txB'.fee
     , ttl: lift2 lowerbound txB.ttl txB'.ttl
@@ -383,7 +385,7 @@ instance EncodeAeson Language where
   encodeAeson' = case _ of
     PlutusV1 -> encodeAeson' $ encodeTagged' "PlutusV1" {}
 
-newtype CostModel = CostModel (Array UInt)
+newtype CostModel = CostModel (Array Int)
 
 derive instance Newtype CostModel _
 derive newtype instance Eq CostModel
@@ -610,7 +612,7 @@ instance EncodeAeson Certificate where
 --------------------------------------------------------------------------------
 -- `TxBody` Lenses
 --------------------------------------------------------------------------------
-_inputs :: Lens' TxBody (Array TransactionInput)
+_inputs :: Lens' TxBody (Set TransactionInput)
 _inputs = _Newtype <<< prop (SProxy :: SProxy "inputs")
 
 _outputs :: Lens' TxBody (Array TransactionOutput)

@@ -116,10 +116,12 @@ import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Bitraversable (bitraverse)
 import Data.Either (Either)
+import Data.Int (fromString)
 import Data.Map as M
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap, unwrap)
 import Data.Ratio (Ratio, reduce)
+import Data.Set (fromFoldable) as Set
 import Data.Traversable (traverse, for)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
@@ -243,6 +245,7 @@ convertTxBody txBody = do
   inputs <-
     _txBodyInputs containerHelper txBody
       # traverse (convertInput >>> cslErr "TransactionInput")
+      <#> Set.fromFoldable
   outputs <-
     _txBodyOutputs containerHelper txBody
       # traverse (convertOutput >>> cslErr "TransactionOutput")
@@ -535,13 +538,13 @@ convertCostModel
    . String
   -> Csl.CostModel
   -> E (FromCslRepError + r) T.CostModel
-convertCostModel err = map T.CostModel <<< traverse stringToUInt <<<
+convertCostModel err = map T.CostModel <<< traverse stringToInt <<<
   _unpackCostModel
   where
-  stringToUInt
-    :: String -> Either (Variant (fromCslRepError :: String | r)) UInt
-  stringToUInt s = cslErr (err <> ": string (" <> s <> ") -> uint") $
-    UInt.fromString s
+  stringToInt
+    :: String -> Either (Variant (fromCslRepError :: String | r)) Int
+  stringToInt s = cslErr (err <> ": string (" <> s <> ") -> int") $
+    fromString s
 
 convertAuxiliaryData
   :: forall (r :: Row Type). Csl.AuxiliaryData -> Err r T.AuxiliaryData

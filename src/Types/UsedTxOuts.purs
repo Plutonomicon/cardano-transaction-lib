@@ -27,7 +27,7 @@ import Control.Category ((<<<), (>>>))
 import Control.Monad.Error.Class (class MonadError, catchError, throwError)
 import Control.Monad.RWS (ask)
 import Control.Monad.Reader (class MonadAsk)
-import Data.Array (concatMap, filter)
+import Data.Array (concatMap)
 import Data.Foldable (class Foldable, foldr, all)
 import Data.Function (($))
 import Data.Map (Map)
@@ -88,8 +88,9 @@ lockRemainingTransactionInputs
   -> m TxOutRefUnlockKeys
 lockRemainingTransactionInputs alreadyLocked tx =
   let
-    outRefs :: Array { transactionId :: TransactionHash, index :: UInt }
-    outRefs = filter (not $ cacheContains $ unwrap alreadyLocked) $ txOutRefs tx
+    outRefs :: Set { transactionId :: TransactionHash, index :: UInt }
+    outRefs =
+      Set.filter (not $ cacheContains $ unwrap alreadyLocked) $ txOutRefs tx
 
     updateCache :: TxOutRefCache -> { state :: TxOutRefCache, value :: Boolean }
     updateCache cache
@@ -102,7 +103,7 @@ lockRemainingTransactionInputs alreadyLocked tx =
       (Map.lookup transactionId cache)
 
     refsToTxOut
-      :: Array { transactionId :: TransactionHash, index :: UInt }
+      :: Set { transactionId :: TransactionHash, index :: UInt }
       -> TxOutRefCache
     refsToTxOut = foldr insertCache Map.empty
 
@@ -224,5 +225,5 @@ isTxOutRefUsed ref = do
   pure (cacheContains cache ref)
 
 txOutRefs
-  :: Transaction -> Array { transactionId :: TransactionHash, index :: UInt }
-txOutRefs tx = unwrap <$> (unwrap (unwrap tx).body).inputs
+  :: Transaction -> Set { transactionId :: TransactionHash, index :: UInt }
+txOutRefs tx = Set.map unwrap (unwrap (unwrap tx).body).inputs
