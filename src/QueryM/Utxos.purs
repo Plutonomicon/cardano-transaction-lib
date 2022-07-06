@@ -1,8 +1,9 @@
 -- | A module for `QueryM` queries related to utxos.
 module QueryM.Utxos
   ( filterUnusedUtxos
-  , utxosAt
+  , getUtxo
   , getWalletBalance
+  , utxosAt
   ) where
 
 import Prelude
@@ -10,7 +11,9 @@ import Prelude
 import Address (addressToOgmiosAddress)
 import Cardano.Types.Transaction (TransactionOutput, UtxoM(UtxoM))
 import Cardano.Types.Value (Value)
+import Contract.Prelude (Maybe(..))
 import Control.Monad.Logger.Trans (LoggerT)
+import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
 import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, asks)
 import Data.Bifunctor (bimap)
@@ -42,26 +45,34 @@ import Wallet (Wallet(Gero, Nami, KeyWallet))
 -- | Gets utxos at an (internal) `Address` in terms of (internal) `Cardano.Transaction.Types`.
 -- | Results may vary depending on `Wallet` type.
 utxosAt :: Address -> QueryM (Maybe UtxoM)
-utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
+utxosAt = mkUtxoQuery
+  <<< mkOgmiosRequest Ogmios.queryUtxosAtCall _.utxo
+  <<< addressToOgmiosAddress
+
+getUtxo
+  :: TransactionInput -> QueryM (Maybe (TransactionInput /\ TransactionOutput))
+getUtxo ref = runMaybeT $ do
+  (UtxoM utxos) <- MaybeT $ mkUtxoQuery
+    (mkOgmiosRequest Ogmios.queryUtxoCall _.utxo ref)
+  case Map.toUnfoldableUnordered utxos of
+    [ x ] -> pure x
+    _ -> MaybeT $ pure Nothing
+
+mkUtxoQuery :: QueryM Ogmios.UtxoQR -> QueryM (Maybe UtxoM)
+mkUtxoQuery query = asks _.wallet >>= maybe (allUtxosAt) (utxosAtByWallet)
   where
   -- Add more wallet types here:
-  utxosAtByWallet :: Address -> Wallet -> QueryM (Maybe UtxoM)
-  utxosAtByWallet address = case _ of
-    Nami _ -> cip30UtxosAt address
-    Gero _ -> cip30UtxosAt address
-    KeyWallet _ -> allUtxosAt address
+  utxosAtByWallet :: Wallet -> QueryM (Maybe UtxoM)
+  utxosAtByWallet = case _ of
+    Nami _ -> cip30UtxosAt
+    Gero _ -> cip30UtxosAt
+    KeyWallet _ -> allUtxosAt
 
   -- Gets all utxos at an (internal) Address in terms of (internal)
   -- Cardano.Transaction.Types.
-  allUtxosAt :: Address -> QueryM (Maybe UtxoM)
-  allUtxosAt = addressToOgmiosAddress >>> getUtxos
+  allUtxosAt :: QueryM (Maybe UtxoM)
+  allUtxosAt = convertUtxos <$> query
     where
-    utxosAt' :: Ogmios.OgmiosAddress -> QueryM Ogmios.UtxoQR
-    utxosAt' addr' = mkOgmiosRequest Ogmios.queryUtxosAtCall _.utxo addr'
-
-    getUtxos :: Ogmios.OgmiosAddress -> QueryM (Maybe UtxoM)
-    getUtxos address = convertUtxos <$> utxosAt' address
-
     convertUtxos :: Ogmios.UtxoQR -> Maybe UtxoM
     convertUtxos (Ogmios.UtxoQR utxoQueryResult) =
       let
@@ -86,12 +97,12 @@ utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
       in
         wrap <<< Map.fromFoldable <$> out
 
-  cip30UtxosAt :: Address -> QueryM (Maybe UtxoM)
-  cip30UtxosAt address = getWalletCollateral >>= maybe
+  cip30UtxosAt :: QueryM (Maybe UtxoM)
+  cip30UtxosAt = getWalletCollateral >>= maybe
     (liftEffect $ throw "CIP-30 wallet missing collateral")
     \collateral' -> do
       let collateral = unwrap collateral'
-      utxos' <- allUtxosAt address
+      utxos' <- allUtxosAt
       pure (over UtxoM (Map.delete collateral.input) <$> utxos')
 
 --------------------------------------------------------------------------------

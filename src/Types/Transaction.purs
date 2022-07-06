@@ -8,6 +8,7 @@ module Types.Transaction
 
 import Prelude
 
+import Aeson (class EncodeAeson)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype)
@@ -61,6 +62,7 @@ newtype TransactionHash = TransactionHash ByteArray
 derive instance Generic TransactionHash _
 derive instance Newtype TransactionHash _
 derive newtype instance Eq TransactionHash
+derive newtype instance EncodeAeson TransactionHash
 
 -- This is not newtyped derived because it will be used for ordering a
 -- `TransactionInput`, we want lexicographical ordering on the hexstring.

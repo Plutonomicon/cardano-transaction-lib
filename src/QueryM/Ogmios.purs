@@ -32,15 +32,16 @@ module QueryM.Ogmios
   , aesonArray
   , aesonObject
   , evaluateTxCall
-  , queryProtocolParametersCall
+  , mkOgmiosCallType
   , queryChainTipCall
   , queryCurrentEpochCall
   , queryEraSummariesCall
+  , queryProtocolParametersCall
   , querySystemStartCall
+  , queryUtxoCall
   , queryUtxosAtCall
   , queryUtxosCall
   , submitTxCall
-  , mkOgmiosCallType
   ) where
 
 import Prelude
@@ -97,11 +98,7 @@ import Data.UInt as UInt
 import Foreign.Object (Object)
 import Foreign.Object (toUnfoldable) as ForeignObject
 import Helpers (showWithParens)
-import QueryM.JsonWsp
-  ( JsonWspCall
-  , JsonWspRequest
-  , mkCallType
-  )
+import QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
 import Serialization.Address (Slot)
 import Type.Proxy (Proxy(Proxy))
 import Types.BigNum (fromBigInt) as BigNum
@@ -114,6 +111,7 @@ import Types.Rational as Rational
 import Types.RedeemerTag (RedeemerTag)
 import Types.RedeemerTag (fromString) as RedeemerTag
 import Types.TokenName (TokenName, mkTokenName)
+import Types.Transaction (TransactionInput(..))
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
 
@@ -161,7 +159,7 @@ queryChainTipCall = mkOgmiosCallType
   Proxy
 
 -- | Queries Ogmios for utxos at given addresses.
--- NOTE. querying for utxos by address is deprecated, should use output reference instead
+-- | NOTE. querying for utxos by address is deprecated, should use output reference instead
 queryUtxosCall :: JsonWspCall { utxo :: Array OgmiosAddress } UtxoQR
 queryUtxosCall = mkOgmiosCallType
   { methodname: "Query"
@@ -170,13 +168,23 @@ queryUtxosCall = mkOgmiosCallType
   Proxy
 
 -- | Queries Ogmios for utxos at given address.
--- NOTE. querying for utxos by address is deprecated, should use output reference instead
+-- | NOTE. querying for utxos by address is deprecated, should use output reference instead
 queryUtxosAtCall :: JsonWspCall OgmiosAddress UtxoQR
 queryUtxosAtCall = mkOgmiosCallType
   { methodname: "Query"
   , args: { query: _ } <<< { utxo: _ } <<< singleton
   }
   Proxy
+
+-- | Queries Ogmios for the utxo with the given output reference.
+queryUtxoCall :: JsonWspCall TransactionInput UtxoQR
+queryUtxoCall = mkOgmiosCallType
+  { methodname: "Query"
+  , args: { query: _ } <<< { utxo: _ } <<< singleton <<< renameFields <<< unwrap
+  }
+  Proxy
+  where
+  renameFields { transactionId, index } = { txId: transactionId, index }
 
 type OgmiosAddress = String
 
