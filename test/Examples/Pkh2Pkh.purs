@@ -6,14 +6,19 @@ import Data.Newtype (wrap)
 import Effect.Aff (delay)
 import Mote (test)
 import Test.E2E.Browser (TestOptions, launchWithExtension)
-import Test.E2E.Helpers (checkSuccess, namiSign, namiConfirmAccess, startExample)
+import Test.E2E.Helpers
+  ( checkSuccess
+  , namiSign
+  , namiConfirmAccess
+  , startExample
+  )
 import TestM (TestPlanM)
 import Toppokki as Toki
 
 testPkh2Pkh :: TestOptions -> TestPlanM Unit
 testPkh2Pkh options = test "Pkh2Pkh" do
-  delay $ wrap 1000.0  
-  browser <- launchWithExtension options "Nami" 
+  delay $ wrap 1000.0
+  browser <- launchWithExtension options "Nami"
   example <- startExample "Pkh2Pkh" browser
   namiConfirmAccess example
   namiSign example

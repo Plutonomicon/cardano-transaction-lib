@@ -25,6 +25,5 @@ main = launchAff_ $ do
 testPlan :: TestOptions -> TestPlanM Unit
 testPlan options = group "e2e tests" do
   testGero options
-  testPkh2Pkh options  
-
+  testPkh2Pkh options
 

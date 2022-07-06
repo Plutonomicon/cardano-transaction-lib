@@ -1,6 +1,6 @@
 module Test.E2E.Browser
   ( Mode(..)
-  , TestOptions(..)    
+  , TestOptions(..)
   , launchWithExtension
   , parseOptions
   ) where
@@ -14,7 +14,21 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Console (error)
-import Options.Applicative (Parser, execParser, help, long, metavar, option, showDefault, str, strOption, switch, value, info, fullDesc)
+import Options.Applicative
+  ( Parser
+  , execParser
+  , help
+  , long
+  , metavar
+  , option
+  , showDefault
+  , str
+  , strOption
+  , switch
+  , value
+  , info
+  , fullDesc
+  )
 import Toppokki as Toki
 
 data TestOptions = TestOptions
@@ -65,20 +79,22 @@ optParser = ado
 parseOptions :: Effect TestOptions
 parseOptions = execParser $ info optParser fullDesc
 
-
 launchWithExtension
   :: TestOptions -> String -> Aff Toki.Browser
-launchWithExtension (TestOptions {chromeExe, chromeUserDataDir, namiDir, geroDir, noHeadless}) wallet = Toki.launch
-    { args:
-        [ "--disable-extensions-except=" <> extDir
-        , "--load-extension=" <> extDir
-        ] <> if mode == Headless then [ "--headless=chrome" ] else []
-    , headless: mode == Headless
-    , userDataDir: chromeUserDataDir
-    , executablePath: fromMaybe "" chromeExe
-    }
+launchWithExtension
+  (TestOptions { chromeExe, chromeUserDataDir, namiDir, geroDir, noHeadless })
+  wallet = Toki.launch
+  { args:
+      [ "--disable-extensions-except=" <> extDir
+      , "--load-extension=" <> extDir
+      ] <> if mode == Headless then [ "--headless=chrome" ] else []
+  , headless: mode == Headless
+  , userDataDir: chromeUserDataDir
+  , executablePath: fromMaybe "" chromeExe
+  }
   where
   mode :: Mode
-  mode =  if noHeadless then Visible else Headless  
+  mode = if noHeadless then Visible else Headless
+
   extDir :: String
   extDir = if wallet == "Gero" then geroDir else namiDir
