@@ -136,17 +136,18 @@ let
     { testMain ? "Test.Main"
     , name ? "${projectName}-check"
     , nodeModules ? projectNodeModules
+    , env ? { }
     , ...
     }: pkgs.runCommand "${name}"
-      {
+      ({
         buildInputs = [ project nodeModules ];
-      }
+        NODE_PATH = "${nodeModules}/lib/node_modules";
+      } // env)
       # spago will attempt to download things, which will fail in the
       # sandbox, so we can just use node instead
       # (idea taken from `plutus-playground-client`)
       ''
         cd ${src}
-        export NODE_PATH="${nodeModules}/lib/node_modules"
         ${nodejs}/bin/node -e 'require("${project}/output/${testMain}").main()'
         touch $out
       '';

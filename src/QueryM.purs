@@ -15,7 +15,7 @@ module QueryM
   , QueryM
   , QueryMExtended
   , RequestBody
-  , WebSocket
+  , WebSocket(..)
   , allowError
   , applyArgs
   , calculateMinFee
@@ -30,9 +30,14 @@ module QueryM
   , listeners
   , postAeson
   , mkDatumCacheWebSocketAff
+  , queryDispatch
+  , defaultMessageListener
+  , mkListenerSet
   , mkOgmiosRequest
   , mkOgmiosRequestAff
   , mkOgmiosWebSocketAff
+  , mkRequest
+  , mkRequestAff
   , module ServerConfig
   , ownPaymentPubKeyHash
   , ownPubKeyHash
@@ -794,11 +799,11 @@ mkRequestAff listeners' webSocket logLevel jsonWspCall getLs inp = do
     respLs :: ListenerSet request response
     respLs = getLs listeners'
 
+    sBody :: RequestBody
+    sBody = stringifyAeson body
+
     affFunc :: (Either Error response -> Effect Unit) -> Effect Canceler
     affFunc cont = do
-      let
-        sBody :: RequestBody
-        sBody = stringifyAeson $ encodeAeson body
       _ <- respLs.addMessageListener id
         ( \result -> do
             respLs.removeMessageListener id

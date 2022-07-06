@@ -149,6 +149,7 @@
         ogmios-datum-cache =
           inputs.ogmios-datum-cache.defaultPackage.${system};
         ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
+        ogmios-fixtures = ogmios;
         cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
         purescriptProject = import ./nix { inherit system; pkgs = prev; };
         buildCtlRuntime = buildCtlRuntime system;
@@ -199,6 +200,37 @@
           };
         };
       };
+
+      buildOgmiosFixtures = pkgs:
+        pkgs.stdenv.mkDerivation {
+          name = "ogmios-fixtures";
+          dontUnpack = true;
+          buildInputs = [ pkgs.jq pkgs.pcre ];
+          buildPhase = ''
+            cp -r ${pkgs.ogmios-fixtures}/server/test/vectors vectors
+            chmod -R +rwx .
+
+            function on_file () {
+              local path=$1
+              local parent="$(basename "$(dirname "$path")")"
+              if command=$(pcregrep -o1 -o2 -o3 'Query\[(.*)\]|(EvaluateTx)|(SubmitTx)' <<< "$path")
+              then
+                echo "$path"
+                json=$(jq -c .result "$path")
+                md5=($(md5sum <<< "$json"))
+                printf "%s" "$json" > "ogmios/$command-$md5.json"
+              fi
+            }
+            export -f on_file
+
+            mkdir ogmios
+            find vectors/ -type f -name "*.json" -exec bash -c 'on_file "{}"' \;
+          '';
+          installPhase = ''
+            mkdir $out
+            cp -rT ogmios $out
+          '';
+        };
 
       buildCtlRuntime = system: extraConfig:
         { ... }:
@@ -377,6 +409,7 @@
             packageJson = ./package.json;
             packageLock = ./package-lock.json;
             shell = {
+              shellHook = exportOgmiosFixtures;
               packages = [
                 pkgs.ogmios
                 pkgs.cardano-cli
@@ -388,6 +421,10 @@
               ];
             };
           };
+          exportOgmiosFixtures =
+            ''
+              export OGMIOS_FIXTURES="${buildOgmiosFixtures pkgs}"
+            '';
         in
         rec {
           defaultPackage = packages.ctl-example-bundle-web;
@@ -413,6 +450,7 @@
             ctl-unit-test = project.runPursTest {
               name = "ctl-unit-test";
               testMain = "Test.Unit";
+              env = { OGMIOS_FIXTURES = "${buildOgmiosFixtures pkgs}"; };
             };
           };
 
