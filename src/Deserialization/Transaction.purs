@@ -278,6 +278,14 @@ convertTxBody txBody = do
         maybeFfiHelper
         txBody
 
+  collateralReturn <-
+    _txBodyCollateralReturn maybeFfiHelper txBody #
+      traverse (convertOutput >>> cslErr "TransactionOutput")
+
+  totalCollateral <-
+    _txBodyTotalCollateral maybeFfiHelper txBody # traverse
+      (BigNum.toBigInt' "txbody withdrawals" >>> map Coin)
+
   pure $ T.TxBody
     { inputs
     , outputs
@@ -302,6 +310,8 @@ convertTxBody txBody = do
         _txBodyRequiredSigners containerHelper maybeFfiHelper txBody #
           (map <<< map) T.RequiredSigner
     , networkId
+    , collateralReturn
+    , totalCollateral
     }
 
 convertUpdate :: forall (r :: Row Type). Csl.Update -> Err r T.Update
@@ -861,6 +871,18 @@ foreign import _txBodyNetworkId
   -> MaybeFfiHelper
   -> Csl.TransactionBody
   -> Maybe Csl.NetworkId
+
+-- collateral_return(): TransactionOutput | void
+foreign import _txBodyCollateralReturn
+  :: MaybeFfiHelper
+  -> Csl.TransactionBody
+  -> Maybe Csl.TransactionOutput
+
+-- total_collateral(): BigNum | void
+foreign import _txBodyTotalCollateral
+  :: MaybeFfiHelper
+  -> Csl.TransactionBody
+  -> Maybe Csl.BigNum
 
 foreign import _unpackWithdrawals
   :: ContainerHelper

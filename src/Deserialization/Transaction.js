@@ -83,6 +83,12 @@ exports._txBodyNetworkId = testnet => mainnet => maybeGetter_(
     }
 )("network_id");
 
+// collateral_return(): TransactionOutput | void;
+exports._txBodyCollateralReturn = maybeGetter("collateral_return");
+
+// total_collateral(): BigNum | void
+exports._txBodyTotalCollateral = maybeGetter("total_collateral");
+
 // foreign import _unpackWithdrawals :: ContainerHelper -> CSL.Withdrawals -> Array(Tuple CSL.RewardAddress CSL.BigNum)
 exports._unpackWithdrawals = containerhelper => containerhelper.unpackKeyIndexed;
 

@@ -259,6 +259,16 @@ foreign import setTxBodyNetworkId :: TransactionBody -> NetworkId -> Effect Unit
 foreign import networkIdTestnet :: Effect NetworkId
 foreign import networkIdMainnet :: Effect NetworkId
 
+foreign import setTxBodyCollateralReturn
+  :: TransactionBody
+  -> TransactionOutput
+  -> Effect Unit
+
+foreign import setTxBodyTotalCollateral
+  :: TransactionBody
+  -> BigNum
+  -> Effect Unit
+
 foreign import setTxBodyTtl :: TransactionBody -> BigNum -> Effect Unit
 
 foreign import setTxBodyCerts :: TransactionBody -> Certificates -> Effect Unit
@@ -460,6 +470,11 @@ convertTxBody (T.TxBody body) = do
     (unwrap body.fee)
   txBody <- newTransactionBody inputs outputs fee
   for_ body.ttl $ unwrap >>> setTxBodyTtl txBody
+  for_ body.certs $ convertCerts >=> setTxBodyCerts txBody
+  for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
+  for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
+  for_ body.auxiliaryDataHash $
+    unwrap >>> transactionBodySetAuxiliaryDataHash txBody
   for_ body.validityStartInterval $
     unwrap >>> BigNum.toString >>> BigNum.fromStringUnsafe >>>
       transactionBodySetValidityStartInterval txBody
@@ -468,17 +483,22 @@ convertTxBody (T.TxBody body) = do
   for_ body.auxiliaryDataHash $
     unwrap >>> transactionBodySetAuxiliaryDataHash txBody
   for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
+  for_ body.mint $ convertMint >=> setTxBodyMint txBody
   for_ body.referenceInputs $
     convertTxInputs >=> setTxBodyReferenceInputs txBody
   for_ body.scriptDataHash
     ( unwrap >>> wrap >>> newScriptDataHashFromBytes >=>
         setTxBodyScriptDataHash txBody
     )
-  for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
-  for_ body.mint $ convertMint >=> setTxBodyMint txBody
-  for_ body.certs $ convertCerts >=> setTxBodyCerts txBody
   for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
-  for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
+  for_ body.requiredSigners $
+    map unwrap >>> transactionBodySetRequiredSigners containerHelper txBody
+  for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
+  for_ body.collateralReturn $ convertTxOutput >=> setTxBodyCollateralReturn
+    txBody
+  for_ body.totalCollateral $
+    unwrap >>> BigNum.fromBigInt >>> fromJustEff "Failed to convert fee" >=>
+      setTxBodyTotalCollateral txBody
   pure txBody
 
 convertTransaction :: T.Transaction -> Effect Transaction
