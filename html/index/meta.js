@@ -1,0 +1,1 @@
+window.DocsSearchMeta = {"localPackageName":"cardano-transaction-lib"}
