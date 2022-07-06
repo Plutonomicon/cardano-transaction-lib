@@ -16,11 +16,11 @@ import Data.BigInt (BigInt)
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.String as String
-import Data.Tuple (Tuple(..))
+import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import QueryM.ServerConfig (ServerConfig)
@@ -28,7 +28,11 @@ import Serialization (privateKeyFromBytes)
 import Serialization.Types (PrivateKey)
 import Types.ByteArray (hexToByteArray)
 import Types.RawBytes (RawBytes(RawBytes))
-import Wallet.Key (KeyWallet, PrivatePaymentKey(..), privateKeysToKeyWallet)
+import Wallet.Key
+  ( KeyWallet
+  , PrivatePaymentKey(PrivatePaymentKey)
+  , privateKeysToKeyWallet
+  )
 
 type PlutipConfig =
   { host :: String
@@ -83,6 +87,7 @@ instance DecodeAeson PrivateKeyResponse where
       PrivateKeyResponse <$> note err (privateKeyFromBytes (RawBytes cborBytes))
     else Left err
     where
+    err :: JsonDecodeError
     err = TypeMismatch "PrivateKey"
 
 type ClusterStartupParameters =
