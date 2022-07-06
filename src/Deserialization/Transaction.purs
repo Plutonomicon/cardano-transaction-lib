@@ -507,8 +507,6 @@ convertProtocolParamUpdate cslPpu = do
     , poolPledgeInfluence: _unpackUnitInterval <$> ppu.poolPledgeInfluence
     , expansionRate: _unpackUnitInterval <$> ppu.expansionRate
     , treasuryGrowthRate: _unpackUnitInterval <$> ppu.treasuryGrowthRate
-    , d: _unpackUnitInterval <$> ppu.d
-    , extraEntropy: convertNonce <$> ppu.extraEntropy
     , protocolVersion
     , minPoolCost: ppu.minPoolCost
     , adaPerUtxoByte: ppu.adaPerUtxoByte
@@ -714,8 +712,6 @@ foreign import _unpackProtocolParamUpdate
          Maybe Csl.UnitInterval
      , treasuryGrowthRate ::
          Maybe Csl.UnitInterval
-     , d :: Maybe Csl.UnitInterval
-     , extraEntropy :: Maybe Csl.Nonce
      , protocolVersion :: Maybe Csl.ProtocolVersions
      , minPoolCost :: Maybe Csl.BigNum
      , adaPerUtxoByte :: Maybe Csl.BigNum

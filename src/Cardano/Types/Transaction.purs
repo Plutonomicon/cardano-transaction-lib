@@ -331,8 +331,6 @@ type ProtocolParamUpdate =
   , poolPledgeInfluence :: Maybe UnitInterval
   , expansionRate :: Maybe UnitInterval
   , treasuryGrowthRate :: Maybe UnitInterval
-  , d :: Maybe UnitInterval
-  , extraEntropy :: Maybe Nonce
   , protocolVersion :: Maybe (Array ProtocolVersion)
   , minPoolCost :: Maybe BigNum
   , adaPerUtxoByte :: Maybe BigNum
