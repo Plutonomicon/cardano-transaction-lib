@@ -122,8 +122,8 @@ showOutput ref =
     Ref.read ref >>= pure <<< intercalate "\n" <<< map show'
 
 -- | start example at URL with Nami and return both Nami's page and the example's
-startExample :: Toki.URL -> Toki.Browser -> Aff RunningExample
-startExample url browser = do
+startExample :: String -> Toki.Browser -> Aff RunningExample
+startExample name browser = do
   page <- Toki.newPage browser
   jQuery <- retrieveJQuery page
   errorRef <- liftEffect $ Ref.new []
@@ -139,6 +139,9 @@ startExample url browser = do
     , errors: errorRef
     }
   where
+  url :: Toki.URL
+  url = wrap $ unwrap exampleUrl <> "?" <> name
+
   handler
     :: forall (a :: Type)
      . Ref (Array (E2EOutput))
@@ -254,7 +257,6 @@ doJQ' selector = doJQInd selector (Just 0)
 
 doJQInd :: Selector -> Maybe Int -> Action -> Toki.Page -> Aff Foreign
 doJQInd selector index action page = do
-  liftEffect $ log jq
   Toki.unsafeEvaluateStringFunction jq page
   where
   jq :: String

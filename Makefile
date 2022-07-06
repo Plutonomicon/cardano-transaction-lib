@@ -6,7 +6,7 @@ SHELL := bash
 ps-sources := $(shell fd -epurs)
 nix-sources := $(shell fd -enix --exclude='spago*')
 hs-sources := $(shell fd . './server/src' './server/exe' -ehs)
-ps-entrypoint := Examples.Gero
+ps-entrypoint := Examples.ByUrl
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 node-ipc = $(shell docker volume inspect cardano-transaction-lib_node-ipc | jq -r '.[0].Mountpoint')
 e2e-temp-dir := $(shell mktemp -tdu e2e.XXXXXXX)
