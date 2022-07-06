@@ -200,6 +200,12 @@ exports.networkIdTestnet = () =>
 exports.networkIdMainnet = () =>
     lib.NetworkId.mainnet();
 
+exports.setTxBodyCollateralReturn = txBody => collateralReturn => () =>
+    txBody.set_collateral_return(collateralReturn);
+
+exports.setTxBodyTotalCollateral = txBody => totalCollateral => () =>
+    txBody.set_total_collateral(totalCollateral);
+
 exports.setTxBodyTtl = setter('ttl');
 
 exports.setTxBodyCerts = setter('certs');

@@ -202,6 +202,8 @@ newtype TxBody = TxBody
   , collateral :: Maybe (Array TransactionInput)
   , requiredSigners :: Maybe (Array RequiredSigner)
   , networkId :: Maybe NetworkId
+  , collateralReturn :: Maybe TransactionOutput
+  , totalCollateral :: Maybe Coin
   }
 
 derive instance Generic TxBody _
@@ -230,6 +232,8 @@ instance Semigroup TxBody where
     , collateral: lift2 union txB.collateral txB'.collateral
     , requiredSigners: lift2 union txB.requiredSigners txB'.requiredSigners
     , networkId: txB.networkId </> txB'.networkId
+    , collateralReturn: txB.collateralReturn <|> txB.collateralReturn
+    , totalCollateral: txB.totalCollateral <|> txB.totalCollateral
     }
     where
     lowerbound :: Slot -> Slot -> Slot
@@ -251,6 +255,8 @@ instance Monoid TxBody where
     , collateral: Nothing
     , requiredSigners: Nothing
     , networkId: Nothing
+    , collateralReturn: Nothing
+    , totalCollateral: Nothing
     }
 
 newtype ScriptDataHash = ScriptDataHash ByteArray
