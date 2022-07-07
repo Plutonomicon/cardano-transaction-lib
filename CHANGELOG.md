@@ -35,6 +35,7 @@ This release adds support for running CTL contracts against Babbage-era nodes. *
 - Ability to load stake keys from files when using `KeyWallet` ([#635](https://github.com/Plutonomicon/cardano-transaction-lib/issues/635))
 - Implement utxosAt for `KeyWallet` ([#617](https://github.com/Plutonomicon/cardano-transaction-lib/issues/617))
 - `FromMetadata` and `ToMetadata` instances for `Contract.Value.CurrencySymbol`
+- `Contract.Chain.waitUntilSlot` to delay contract execution until local chain tip reaches certain point of time (in slots).
 
 ### Removed
 
