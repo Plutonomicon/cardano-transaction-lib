@@ -113,7 +113,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Traversable (class Traversable, fold, traverse, traverse_)
+import Data.Traversable (class Traversable, fold, for_, traverse)
 import Data.Tuple.Nested (type (/\))
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, throw)
@@ -150,7 +150,6 @@ import Types.UnbalancedTransaction
 import Types.UsedTxOuts
   ( TxOutRefUnlockKeys
   , UsedTxOuts
-  , lockRemainingTransactionInputs
   , lockTransactionInputs
   , unlockTransactionInputs
   )
@@ -299,6 +298,8 @@ withBalancedAndSignedTx = withSingleTransaction
   (liftedE <<< balanceAndSignTxE)
   unwrap
 
+-- | Balances each transaction and locks the used inputs
+-- | so that they cannot be reused by subsequent transactions.
 balanceTxs
   :: forall
        (t :: Type -> Type)
@@ -306,39 +307,23 @@ balanceTxs
    . Traversable t
   => t UnattachedUnbalancedTx
   -> Contract r (t FinalizedTransaction)
-balanceTxs uts = do
-  -- First, lock all the already fixed inputs on all the unbalanced transactions.
-  -- That prevents any inputs of any of those to be used to balance any of the
-  -- other transactions
-  unlockKeys <- unlockAllOnError
-    $ liftedE
-    $ withUsedTxouts
-    $ runExceptT
-    $ fold <$> traverse (lockTransactionInputs <<< uutxToTx) uts
-
-  -- Then, balance each transaction and lock the used inputs immediately.
-  unlockAllOnError $ traverse (balanceAndLock unlockKeys) uts
-
+balanceTxs unbalancedTxs =
+  unlockAllOnError $ traverse balanceAndLock unbalancedTxs
   where
   unlockAllOnError :: forall (a :: Type). Contract r a -> Contract r a
   unlockAllOnError f = catchError f $ \e -> do
-    traverse_
-      (withUsedTxouts <<< unlockTransactionInputs <<< uutxToTx)
-      uts
+    for_ unbalancedTxs $
+      withUsedTxouts <<< unlockTransactionInputs <<< uutxToTx
     throwError e
 
   uutxToTx :: UnattachedUnbalancedTx -> Transaction
   uutxToTx = _.transaction <<< unwrap <<< _.unbalancedTx <<< unwrap
 
-  balanceAndLock
-    :: TxOutRefUnlockKeys
-    -> UnattachedUnbalancedTx
-    -> Contract r FinalizedTransaction
-  balanceAndLock alreadyLocked uutx = do
-    bt <- liftedE $ balanceTx uutx
-    void $ withUsedTxouts $ lockRemainingTransactionInputs alreadyLocked
-      (unwrap bt)
-    pure bt
+  balanceAndLock :: UnattachedUnbalancedTx -> Contract r FinalizedTransaction
+  balanceAndLock unbalancedTx = do
+    balancedTx <- liftedE $ balanceTx unbalancedTx
+    void $ withUsedTxouts $ lockTransactionInputs (unwrap balancedTx)
+    pure balancedTx
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` hushing the error.
 balanceTxM
