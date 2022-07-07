@@ -2,23 +2,25 @@
 -- | input to transaction output. Furthermore, a helper to get the utxos at
 -- | a given `Address` is defined.
 module Contract.Utxos
-  ( utxosAt
+  ( getUtxo
   , getWalletBalance
   , module Transaction
+  , utxosAt
   ) where
 
 import Prelude
 
-import Contract.Monad (Contract, wrapContract, liftContractM)
+import Contract.Monad (Contract, liftContractM, wrapContract)
+import Contract.Transaction (TransactionInput, TransactionOutput)
 import Control.Monad.Reader.Class (asks)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)
-import Plutus.Conversion (fromPlutusAddress, toPlutusUtxoM)
+import Plutus.Conversion (fromPlutusAddress, toPlutusTxOutput, toPlutusUtxoM)
 import Plutus.Conversion.Value (toPlutusValue)
 import Plutus.Types.Address (Address)
 import Plutus.Types.Transaction (UtxoM(UtxoM)) as Transaction
 import Plutus.Types.Value (Value)
-import QueryM.Utxos (getWalletBalance, utxosAt) as Utxos
+import QueryM.Utxos (getUtxo, getWalletBalance, utxosAt) as Utxos
 
 -- | This module defines query functionality via Ogmios to get utxos.
 
@@ -37,6 +39,19 @@ utxosAt address = do
         toPlutusUtxoM
     )
     mCardanoUtxos
+
+-- | `getUtxo ref` queries for the utxo given by `ref`.
+getUtxo
+  :: forall (r :: Row Type)
+   . TransactionInput
+  -> Contract r (Maybe TransactionOutput)
+getUtxo ref = do
+  cardanoTxOut <- wrapContract $ Utxos.getUtxo ref
+  maybe (pure Nothing)
+    ( map Just <<< liftContractM "getUtxo: unable to deserialize utxo" <<<
+        toPlutusTxOutput
+    )
+    cardanoTxOut
 
 getWalletBalance
   :: forall (r :: Row Type)
