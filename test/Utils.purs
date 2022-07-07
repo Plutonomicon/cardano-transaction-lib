@@ -50,7 +50,7 @@ foreign import unsafeCall
 interpret :: TestPlanM Unit -> Aff Unit
 interpret spif = do
   plan <- planT spif
-  runSpec' defaultConfig { timeout = Just (wrap 10000.0) } [ consoleReporter ] $
+  runSpec' defaultConfig { timeout = Just $ wrap 50000.0 } [ consoleReporter ] $
     go plan
   where
   go :: Plan (Const Void) (Aff Unit) -> Spec Unit

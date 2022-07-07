@@ -9,7 +9,7 @@
 
     # for the purescript project
     ogmios.url = "github:mlabs-haskell/ogmios/e406801eaeb32b28cd84357596ca1512bff27741";
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/98b1c4f2badc7ab1efe4be188ee9f9f5e4e54bb0";
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/1c7a4af3f18bd3fa94a59e5a52e0ad6d974233e8";
     # so named because we also need a different version of the repo below
     # in the server inputs and we use this one just for the `cardano-cli`
     # executables
@@ -149,6 +149,7 @@
         ogmios-datum-cache =
           inputs.ogmios-datum-cache.defaultPackage.${system};
         ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
+        ogmios-fixtures = ogmios;
         cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
         purescriptProject = import ./nix { inherit system; pkgs = prev; };
         buildCtlRuntime = buildCtlRuntime system;
@@ -199,6 +200,37 @@
           };
         };
       };
+
+      buildOgmiosFixtures = pkgs:
+        pkgs.stdenv.mkDerivation {
+          name = "ogmios-fixtures";
+          dontUnpack = true;
+          buildInputs = [ pkgs.jq pkgs.pcre ];
+          buildPhase = ''
+            cp -r ${pkgs.ogmios-fixtures}/server/test/vectors vectors
+            chmod -R +rwx .
+
+            function on_file () {
+              local path=$1
+              local parent="$(basename "$(dirname "$path")")"
+              if command=$(pcregrep -o1 -o2 -o3 'Query\[(.*)\]|(EvaluateTx)|(SubmitTx)' <<< "$path")
+              then
+                echo "$path"
+                json=$(jq -c .result "$path")
+                md5=($(md5sum <<< "$json"))
+                printf "%s" "$json" > "ogmios/$command-$md5.json"
+              fi
+            }
+            export -f on_file
+
+            mkdir ogmios
+            find vectors/ -type f -name "*.json" -exec bash -c 'on_file "{}"' \;
+          '';
+          installPhase = ''
+            mkdir $out
+            cp -rT ogmios $out
+          '';
+        };
 
       buildCtlRuntime = system: extraConfig:
         { ... }:
@@ -315,6 +347,8 @@
                     "-c"
                     ''
                       ${pkgs.ogmios-datum-cache}/bin/ogmios-datum-cache \
+                        --log-level warn \
+                        --use-latest \
                         --server-api "${toString datumCache.controlApiToken}" \
                         --server-port ${toString datumCache.port} \
                         --ogmios-address ogmios \
@@ -377,6 +411,7 @@
             packageJson = ./package.json;
             packageLock = ./package-lock.json;
             shell = {
+              shellHook = exportOgmiosFixtures;
               packages = [
                 pkgs.ogmios
                 pkgs.cardano-cli
@@ -388,6 +423,10 @@
               ];
             };
           };
+          exportOgmiosFixtures =
+            ''
+              export OGMIOS_FIXTURES="${buildOgmiosFixtures pkgs}"
+            '';
         in
         rec {
           defaultPackage = packages.ctl-example-bundle-web;
@@ -413,6 +452,7 @@
             ctl-unit-test = project.runPursTest {
               name = "ctl-unit-test";
               testMain = "Test.Unit";
+              env = { OGMIOS_FIXTURES = "${buildOgmiosFixtures pkgs}"; };
             };
           };
 

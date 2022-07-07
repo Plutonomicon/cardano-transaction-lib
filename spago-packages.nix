@@ -785,6 +785,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "node-process" = pkgs.stdenv.mkDerivation {
+        name = "node-process";
+        version = "v8.2.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-node/purescript-node-process.git";
+          rev = "e1e807ac7831d1a8a15e242964f7e5005e42f76b";
+          sha256 = "0nl9r271s8f71a9wqfkadq9b490h8phwgqc61jbzhm4ags23pqpg";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "node-streams" = pkgs.stdenv.mkDerivation {
         name = "node-streams";
         version = "v5.0.0";
@@ -912,6 +924,18 @@ let
           url = "https://github.com/felixschl/purescript-pipes.git";
           rev = "42e43f0961ad0fc3f1cef6986fe23ca9f48f6dda";
           sha256 = "0jzgzi34wqqdcfgznbpfv4b8al2prd36yshnndlvkqfv70smx3kh";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "posix-types" = pkgs.stdenv.mkDerivation {
+        name = "posix-types";
+        version = "v5.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-node/purescript-posix-types.git";
+          rev = "e562680fce64b67e26741a61a51160a04fd3e7fb";
+          sha256 = "1knhdnnmxx77qsjz3gk1ga7n713l303dxyn8zs46qh7p2hnkalkc";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
