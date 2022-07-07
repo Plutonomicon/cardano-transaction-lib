@@ -72,7 +72,7 @@ instance Show TransactionMetadatum where
 
 instance EncodeAeson TransactionMetadatum where
   encodeAeson' = case _ of
-    MetadataMap m -> encodeAeson' $ encodeMap m
+    MetadataMap m -> encodeAeson' $ encodeTagged' "MetadataMap" $ encodeMap m
     MetadataList arr -> encodeAeson' $ encodeTagged' "MetadataList" arr
     Int n -> encodeAeson' $ encodeTagged' "Int" n
     Bytes bytes -> encodeAeson' $ encodeTagged' "Bytes" bytes

@@ -382,7 +382,7 @@ logError'
   :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
 logError' = Logger.error Map.empty
 
--- Log JSON representation of a data structure
+-- | Log JSON representation of a data structure
 logAeson
   :: forall (m :: Type -> Type) (a :: Type)
    . MonadLogger m
