@@ -6,14 +6,6 @@ module Types.RedeemerTag
 import Prelude
 
 import Aeson (class EncodeAeson, encodeAeson')
-import Data.Enum (class Enum, class BoundedEnum)
-import Data.Enum.Generic
-  ( genericPred
-  , genericSucc
-  , genericCardinality
-  , genericToEnum
-  , genericFromEnum
-  )
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
