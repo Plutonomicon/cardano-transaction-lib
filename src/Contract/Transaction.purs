@@ -105,7 +105,6 @@ import Cardano.Types.Transaction
 import Cardano.Types.Transaction (Transaction)
 import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
 import Control.Monad.Error.Class (try, catchError, throwError)
-import Control.Monad.Except.Trans (runExceptT)
 import Control.Monad.Reader (asks, runReaderT, ReaderT)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Either (Either, hush)
@@ -113,7 +112,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Traversable (class Traversable, fold, for_, traverse)
+import Data.Traversable (class Traversable, for_, traverse)
 import Data.Tuple.Nested (type (/\))
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, throw)
@@ -148,8 +147,7 @@ import Types.UnbalancedTransaction
   , emptyUnbalancedTx
   ) as UnbalancedTx
 import Types.UsedTxOuts
-  ( TxOutRefUnlockKeys
-  , UsedTxOuts
+  ( UsedTxOuts
   , lockTransactionInputs
   , unlockTransactionInputs
   )
