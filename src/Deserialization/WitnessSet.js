@@ -47,6 +47,7 @@ exports.getBootstrapAttributes = call('attributes');
 exports.getPlutusScripts = callMaybe('plutus_scripts');
 exports.extractPlutusScripts = containerExtractor;
 exports.plutusScriptBytes = call('bytes');
+exports.plutusScriptVersion = call('language_version');
 exports.getWitnessSetPlutusData = callMaybe('plutus_data');
 exports.extractPlutusData = containerExtractor;
 exports.getRedeemers = callMaybe('redeemers');

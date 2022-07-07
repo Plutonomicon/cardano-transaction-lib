@@ -254,22 +254,6 @@ exports._unpackCostModel = cm => {
     return res;
 };
 
-// foreign import _convertLanguage
-//   :: forall r.ErrorFfiHelper r -> { plutusV1:: Language } -> CSL.Language -> E r Language
-exports._convertLanguage = errorHelper => langCtors => cslLang => {
-    try{
-        if(cslLang.kind()==lib.LanguageKind.PlutusV1){
-            return errorHelper.valid(langCtors.plutusV1);
-        }
-        else{
-            return errorHelper.error("_convertLanguage: Unsupported language kind: " + cslLang.kind());
-        }
-    }
-    catch(e){
-        return errorHelper.error("_convertLanguage raised: " + e);
-    }
-};
-
 // foreign import _convertNonce :: forall r. { identityNonce:: Nonce, hashNonce :: UInt8Array -> Nonce } -> CSL.Nonce -> Nonce
 exports._convertNonce = nonceCtors => cslNonce => {
     const hashBytes = cslNonce.get_hash();

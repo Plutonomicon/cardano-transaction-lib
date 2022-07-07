@@ -141,6 +141,9 @@ exports.costModelSetCost = cm => op => cost => () =>
 exports.newPlutusV1 = () =>
     lib.Language.new_plutus_v1();
 
+exports.newPlutusV2 = () =>
+    lib.Language.new_plutus_v2();
+
 exports.newInt32 = x => () =>
     lib.Int.new_i32(x);
 

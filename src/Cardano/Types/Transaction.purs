@@ -13,7 +13,6 @@ module Cardano.Types.Transaction
   , GenesisHash(..)
   , Ipv4(..)
   , Ipv6(..)
-  , Language(..)
   , MIRToStakeCredentials(..)
   , Mint(..)
   , MoveInstantaneousReward(..)
@@ -115,7 +114,7 @@ import Types.ByteArray (ByteArray)
 import Types.Int as Int
 import Types.PlutusData (PlutusData)
 import Types.RedeemerTag (RedeemerTag)
-import Types.Scripts (PlutusScript)
+import Types.Scripts (PlutusScript, Language)
 import Types.Transaction (DataHash, TransactionInput)
 import Types.TransactionMetadata (GeneralTransactionMetadata)
 
@@ -362,15 +361,6 @@ derive newtype instance Eq Costmdls
 derive instance Generic Costmdls _
 
 instance Show Costmdls where
-  show = genericShow
-
-data Language = PlutusV1
-
-derive instance Eq Language
-derive instance Ord Language
-derive instance Generic Language _
-
-instance Show Language where
   show = genericShow
 
 newtype CostModel = CostModel (Array Int)

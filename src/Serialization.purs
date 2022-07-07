@@ -28,9 +28,9 @@ import Cardano.Types.Transaction
       , MoveInstantaneousRewardsCert
       )
   , Costmdls(Costmdls)
+  , CostModel(CostModel)
   , GenesisDelegateHash(GenesisDelegateHash)
   , GenesisHash(GenesisHash)
-  , Language(PlutusV1)
   , MIRToStakeCredentials(MIRToStakeCredentials)
   , Mint(Mint)
   , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
@@ -146,6 +146,7 @@ import Types.Int as Int
 import Types.PlutusData as PlutusData
 import Types.TokenName (getTokenName) as TokenName
 import Types.Transaction (TransactionInput(TransactionInput)) as T
+import Types.Scripts (Language(PlutusV1, PlutusV2)) as S
 import Untagged.Union (type (|+|), UndefinedOr, maybeToUor)
 
 foreign import hashTransaction :: TransactionBody -> Effect TransactionHash
@@ -229,6 +230,7 @@ foreign import costmdlsSetCostModel
 foreign import newCostModel :: Effect CostModel
 foreign import costModelSetCost :: CostModel -> Int -> Int32 -> Effect Unit
 foreign import newPlutusV1 :: Effect Language
+foreign import newPlutusV2 :: Effect Language
 foreign import newInt32 :: Int -> Effect Int32
 foreign import _hashScriptData
   :: Redeemers -> Costmdls -> Array PlutusData -> Effect ScriptDataHash
@@ -786,15 +788,24 @@ convertValue val = do
 
 convertCostmdls :: T.Costmdls -> Effect Costmdls
 convertCostmdls (T.Costmdls cs) = do
-  costs <- map unwrap <<< fromJustEff "`PlutusV1` not found in `Costmdls`"
-    $ Map.lookup T.PlutusV1 cs
+  costmdls <- newCostmdls
+  let
+    loadCostModel lang lang' = do
+      costModel <-
+        convertCostModel <=< fromJustEff
+          ("`" <> show lang <> "` not found in `Costmdls`")
+          $ Map.lookup lang cs
+      costmdlsSetCostModel costmdls lang' costModel
+  loadCostModel S.PlutusV1 =<< newPlutusV1
+  loadCostModel S.PlutusV2 =<< newPlutusV2
+  pure costmdls
+
+convertCostModel :: T.CostModel -> Effect CostModel
+convertCostModel (T.CostModel costs) = do
   costModel <- newCostModel
   forWithIndex_ costs $ \operation cost ->
     costModelSetCost costModel operation =<< newInt32 cost
-  costmdls <- newCostmdls
-  plutusV1 <- newPlutusV1
-  costmdlsSetCostModel costmdls plutusV1 costModel
-  pure costmdls
+  pure costModel
 
 hashScriptData
   :: T.Costmdls

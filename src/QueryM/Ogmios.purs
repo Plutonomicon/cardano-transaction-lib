@@ -63,7 +63,6 @@ import Cardano.Types.Transaction
   ( Costmdls(Costmdls)
   , ExUnitPrices
   , ExUnits
-  , Language(PlutusV1)
   , Nonce
   , SubCoin
   )
@@ -114,6 +113,7 @@ import Types.Rational as Rational
 import Types.RedeemerTag (RedeemerTag)
 import Types.RedeemerTag (fromString) as RedeemerTag
 import Types.TokenName (TokenName, mkTokenName)
+import Types.Scripts (Language(PlutusV1, PlutusV2))
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
 
@@ -545,6 +545,7 @@ type ProtocolParametersRaw =
   , "coinsPerUtxoByte" :: BigInt
   , "costModels" ::
       { "plutus:v1" :: CostModel
+      , "plutus:v2" :: CostModel
       }
   , "prices" ::
       { "memory" :: PParamRational
@@ -623,7 +624,9 @@ instance DecodeAeson ProtocolParameters where
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
       , coinsPerUtxoByte: Coin ps.coinsPerUtxoByte
       , costModels: Costmdls $ Map.fromFoldable
-          [ PlutusV1 /\ convertCostModel ps.costModels."plutus:v1" ]
+          [ PlutusV1 /\ convertCostModel ps.costModels."plutus:v1"
+          , PlutusV2 /\ convertCostModel ps.costModels."plutus:v2"
+          ]
       , prices: prices
       , maxTxExUnits: Just $ decodeExUnits ps.maxExecutionUnitsPerTransaction
       , maxBlockExUnits: Just $ decodeExUnits ps.maxExecutionUnitsPerBlock

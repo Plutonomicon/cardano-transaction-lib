@@ -5,6 +5,7 @@ import Prelude
 import Data.BigInt (fromInt)
 import Data.Maybe (Maybe(Just), fromJust)
 import Data.Newtype (wrap)
+import Data.Tuple.Nested ((/\))
 import Hashing
   ( blake2b256Hash
   , blake2b256HashHex
@@ -24,7 +25,7 @@ import TestM (TestPlanM)
 import Types.ByteArray (ByteArray, byteArrayFromAscii, hexToByteArrayUnsafe)
 import Types.PlutusData (PlutusData(Integer))
 import Types.RawBytes (hexToRawBytesUnsafe)
-import Types.Scripts (PlutusScript)
+import Types.Scripts (PlutusScript, Language(PlutusV1))
 import Types.Transaction (DataHash)
 
 suite :: TestPlanM Unit
@@ -100,7 +101,7 @@ datumHashFixture =
 plutusScriptFixture :: PlutusScript
 plutusScriptFixture =
   wrap $
-    hexToByteArrayUnsafe "4d01000033222220051200120011"
+    hexToByteArrayUnsafe "4d01000033222220051200120011" /\ PlutusV1
 
 plutusScriptHashFixture :: ScriptHash
 plutusScriptHashFixture =

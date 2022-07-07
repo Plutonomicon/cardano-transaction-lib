@@ -15,6 +15,7 @@ import Control.Promise (Promise)
 import Control.Promise (toAffE) as Promise
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap, unwrap)
+import Data.Tuple (fst)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes)
@@ -31,7 +32,7 @@ foreign import _blake2b256HashHex :: ByteArray -> Effect (Promise String)
 
 foreign import hashPlutusData :: Serialization.PlutusData -> ByteArray
 
-foreign import hashPlutusScript :: PlutusScript -> Effect (Promise ByteArray)
+foreign import hashPlutusScript :: (PlutusScript -> ByteArray) -> PlutusScript -> Effect (Promise ByteArray)
 
 foreign import sha256Hash :: ByteArray -> ByteArray
 
@@ -53,4 +54,4 @@ datumHash =
 
 plutusScriptHash :: PlutusScript -> Aff (Maybe ScriptHash)
 plutusScriptHash =
-  map (scriptHashFromBytes <<< wrap) <<< Promise.toAffE <<< hashPlutusScript
+  map (scriptHashFromBytes <<< wrap) <<< Promise.toAffE <<< hashPlutusScript (fst <<< unwrap)

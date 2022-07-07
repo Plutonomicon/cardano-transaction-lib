@@ -13,6 +13,7 @@ module Contract.Transaction
   , module ExportQueryM
   , module PTransaction
   , module ReindexRedeemersExport
+  , module Scripts
   , module ScriptLookups
   , module Transaction
   , module TransactionMetadata
@@ -52,7 +53,6 @@ import Cardano.Types.Transaction
   , ExUnitPrices
   , ExUnits
   , GenesisHash(GenesisHash)
-  , Language(PlutusV1)
   , Mint(Mint)
   , NativeScript
       ( ScriptPubkey
@@ -127,6 +127,7 @@ import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (NetworkId)
 import TxOutput (scriptOutputToTransactionOutput) as TxOutput
+import Types.Scripts (Language(PlutusV1, PlutusV2)) as Scripts
 import Types.ScriptLookups (MkUnbalancedTxError(..), mkUnbalancedTx) as ScriptLookups
 import Types.ScriptLookups (UnattachedUnbalancedTx)
 import Types.Transaction

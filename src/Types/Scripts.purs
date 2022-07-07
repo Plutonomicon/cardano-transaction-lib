@@ -6,6 +6,7 @@ module Types.Scripts
   , StakeValidatorHash(..)
   , Validator(..)
   , ValidatorHash(..)
+  , Language(..)
   ) where
 
 import Prelude
@@ -14,16 +15,20 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError(TypeMismatch)
+  , JsonDecodeError(TypeMismatch, UnexpectedValue)
   , caseAesonObject
+  , caseAesonString
   , decodeAeson
   , encodeAeson'
   , getField
+  , toStringifiedNumbersJson
+  , fromString
   )
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
+import Data.Tuple.Nested (type (/\))
 import FromData (class FromData)
 import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
@@ -31,11 +36,36 @@ import Serialization.Hash (ScriptHash)
 import ToData (class ToData)
 import Types.ByteArray (ByteArray)
 
+data Language
+  = PlutusV1
+  | PlutusV2
+
+derive instance Eq Language
+derive instance Ord Language
+derive instance Generic Language _
+
+instance DecodeAeson Language where
+  decodeAeson = caseAesonString
+    (Left $ TypeMismatch "Expected string")
+    case _ of
+      "PlutusV1" -> pure PlutusV1
+      "PlutusV2" -> pure PlutusV2
+      other -> Left $ UnexpectedValue $ toStringifiedNumbersJson $ fromString
+        other
+
+instance EncodeAeson Language where
+  encodeAeson' = pure <<< fromString <<< case _ of
+    PlutusV1 -> "PlutusV1"
+    PlutusV2 -> "PlutusV2"
+
+instance Show Language where
+  show = genericShow
+
 --------------------------------------------------------------------------------
 -- `PlutusScript` newtypes and `TypedValidator`
 --------------------------------------------------------------------------------
 -- | Corresponds to "Script" in Plutus
-newtype PlutusScript = PlutusScript ByteArray
+newtype PlutusScript = PlutusScript (ByteArray /\ Language)
 
 derive instance Generic PlutusScript _
 derive instance Newtype PlutusScript _

@@ -88,6 +88,7 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
+import Data.Tuple (fst, snd)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -157,7 +158,7 @@ import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
 import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
-import Types.Scripts (PlutusScript)
+import Types.Scripts (PlutusScript, Language(PlutusV1))
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
 import Wallet (Wallet(Gero, Nami, KeyWallet), Cip30Connection, Cip30Wallet)
@@ -420,19 +421,20 @@ applyArgs
   => a
   -> Array PlutusData
   -> QueryM (Either ClientError a)
-applyArgs script args = case traverse plutusDataToAeson args of
-  Nothing -> pure $ Left $ ClientEncodingError "Failed to convert script args"
-  Just ps -> do
-    let
-      reqBody :: Aeson
-      reqBody = encodeAeson
-        $ Object.fromFoldable
-            [ "script" /\ scriptToAeson (unwrap script)
-            , "args" /\ encodeAeson ps
-            ]
-    url <- mkServerEndpointUrl "apply-args"
-    liftAff (postAeson url reqBody)
-      <#> map wrap <<< handleAffjaxResponse
+applyArgs script args | PlutusV1 <- snd $ unwrap $ unwrap script =
+  case traverse plutusDataToAeson args of
+    Nothing -> pure $ Left $ ClientEncodingError "Failed to convert script args"
+    Just ps -> do
+      let
+        reqBody :: Aeson
+        reqBody = encodeAeson
+          $ Object.fromFoldable
+              [ "script" /\ scriptToAeson (unwrap script)
+              , "args" /\ encodeAeson ps
+              ]
+      url <- mkServerEndpointUrl "apply-args"
+      liftAff (postAeson url reqBody)
+        <#> map wrap <<< handleAffjaxResponse
   where
   plutusDataToAeson :: PlutusData -> Maybe Aeson
   plutusDataToAeson =
@@ -443,6 +445,8 @@ applyArgs script args = case traverse plutusDataToAeson args of
           <<< asOneOf
       )
       <<< Serialization.convertPlutusData
+-- TODO Check if PlutusV2 can be treated the same
+applyArgs _ _ = pure $ Left $ ClientOtherError "Unsupported plutus version"
 
 -- Checks response status code and returns `ClientError` in case of failure,
 -- otherwise attempts to decode the result.
@@ -479,7 +483,7 @@ postAeson url body = Affjax.request $ Affjax.defaultRequest
 -- instance (there are some brutal cyclical dependency issues trying to
 -- write an instance in the `Types.*` modules)
 scriptToAeson :: PlutusScript -> Aeson
-scriptToAeson = encodeAeson <<< byteArrayToHex <<< unwrap
+scriptToAeson = encodeAeson <<< byteArrayToHex <<< fst <<< unwrap
 
 mkServerEndpointUrl :: String -> QueryM Url
 mkServerEndpointUrl path = asks $ (_ <> "/" <> path)

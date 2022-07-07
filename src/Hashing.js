@@ -47,7 +47,9 @@ exports.hashPlutusData = plutusData => {
   return lib.hash_plutus_data(plutusData).to_bytes();
 };
 
-exports.hashPlutusScript = plutusScriptBytes => () => {
+exports.hashPlutusScript = getBytes => plutusScript => () => {
+  const plutusScriptBytes = getBytes(plutusScript);
+  // TODO Check if plutusv2 needs to be treated differently
   // set Plutus language namespace byte
   const bytes = new Uint8Array([0x1, ...plutusScriptBytes]);
   return blake2bHash(bytes)(DIGEST_LENGTH_224)(DIGEST_ENCODING_BINARY);
