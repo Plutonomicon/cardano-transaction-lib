@@ -152,6 +152,9 @@ import Types.BigNum (fromBigInt, fromStringUnsafe, toString) as BigNum
 import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
 import Types.Int as Int
+import Types.OutputDatum
+  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
+  )
 import Types.PlutusData as PlutusData
 import Types.RawBytes (RawBytes)
 import Types.TokenName (getTokenName) as TokenName
@@ -772,15 +775,18 @@ convertTxOutputs arrOutputs = do
 
 convertTxOutput :: T.TransactionOutput -> Effect TransactionOutput
 convertTxOutput
-  (T.TransactionOutput { address, amount, dataHash, datum, scriptRef }) = do
+  (T.TransactionOutput { address, amount, datum, scriptRef }) = do
   value <- convertValue amount
   txo <- newTransactionOutput address value
-  for_ (unwrap <$> dataHash) \bytes -> do
-    for_ (fromBytes bytes) $
-      transactionOutputSetDataHash txo
-  for_ datum $
-    convertPlutusData >>> fromJustEff "convertTxOutput"
-      >=> transactionOutputSetPlutusData txo
+  case datum of
+    NoOutputDatum -> pure unit
+    OutputDatumHash dataHash -> do
+      for_ (fromBytes $ unwrap dataHash) $
+        transactionOutputSetDataHash txo
+    OutputDatum datumValue -> do
+      transactionOutputSetPlutusData txo
+        =<< fromJustEff "convertTxOutput"
+          (convertPlutusData $ unwrap datumValue)
   for_ scriptRef $
     convertScriptRef >=> transactionOutputSetScriptRef txo
   pure txo

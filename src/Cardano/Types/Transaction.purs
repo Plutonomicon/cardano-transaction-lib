@@ -114,10 +114,11 @@ import Types.Aliases (Bech32String)
 import Types.BigNum (BigNum)
 import Types.ByteArray (ByteArray)
 import Types.Int as Int
+import Types.OutputDatum (OutputDatum)
 import Types.PlutusData (PlutusData)
 import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
-import Types.Transaction (DataHash, TransactionInput)
+import Types.Transaction (TransactionInput)
 import Types.TransactionMetadata (GeneralTransactionMetadata)
 
 --------------------------------------------------------------------------------
@@ -772,8 +773,7 @@ instance Monoid AuxiliaryData where
 newtype TransactionOutput = TransactionOutput
   { address :: Address
   , amount :: Value
-  , dataHash :: Maybe DataHash
-  , datum :: Maybe PlutusData
+  , datum :: OutputDatum
   , scriptRef :: Maybe ScriptRef
   }
 

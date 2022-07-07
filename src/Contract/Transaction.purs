@@ -12,6 +12,7 @@ module Contract.Transaction
   , module BalanceTxError
   , module ExportQueryM
   , module NativeScript
+  , module OutputDatum
   , module PTransaction
   , module ReindexRedeemersExport
   , module ScriptLookups
@@ -134,6 +135,11 @@ import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (NetworkId)
 import TxOutput (scriptOutputToTransactionOutput) as TxOutput
+import Types.OutputDatum
+  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
+  , outputDatumDataHash
+  , outputDatumDatum
+  ) as OutputDatum
 import Types.ScriptLookups (MkUnbalancedTxError(..), mkUnbalancedTx) as ScriptLookups
 import Types.ScriptLookups (UnattachedUnbalancedTx)
 import Types.Transaction

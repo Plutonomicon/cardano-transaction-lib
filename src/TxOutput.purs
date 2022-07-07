@@ -21,11 +21,16 @@ import Address
 import Cardano.Types.Transaction (TransactionOutput(TransactionOutput)) as Transaction
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap)
+import Data.Traversable (traverse)
 import QueryM.Ogmios as Ogmios
 import Scripts (validatorHashEnterpriseAddress)
 import Serialization.Address (NetworkId)
 import Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Types.Datum (DataHash)
+import Types.OutputDatum
+  ( OutputDatum(OutputDatumHash, NoOutputDatum)
+  , outputDatumDataHash
+  )
 import Types.Transaction (TransactionInput(TransactionInput)) as Transaction
 import Types.UnbalancedTransaction as UTx
 
@@ -64,15 +69,13 @@ ogmiosTxOutToTransactionOutput { address, value, datum } = do
   address' <- ogmiosAddressToAddress address
   -- If datum ~ Maybe String is Nothing, do nothing. Otherwise, attempt to hash
   -- and capture failure if we can't hash.
-  dataHash <-
-    maybe (Just Nothing) (map Just <<< ogmiosDatumHashToDatumHash) datum
+  dataHash <- traverse ogmiosDatumHashToDatumHash datum
   pure $ wrap
     { address: address'
     , amount: value
-    , dataHash
     -- TODO: populate properly
     -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
-    , datum: Nothing
+    , datum: maybe NoOutputDatum OutputDatumHash dataHash
     , scriptRef: Nothing
     }
 
@@ -80,10 +83,10 @@ ogmiosTxOutToTransactionOutput { address, value, datum } = do
 transactionOutputToOgmiosTxOut
   :: Transaction.TransactionOutput -> Ogmios.OgmiosTxOut
 transactionOutputToOgmiosTxOut
-  (Transaction.TransactionOutput { address, amount: value, dataHash }) =
+  (Transaction.TransactionOutput { address, amount: value, datum }) =
   { address: addressToOgmiosAddress address
   , value
-  , datum: datumHashToOgmiosDatumHash <$> dataHash
+  , datum: datumHashToOgmiosDatumHash <$> outputDatumDataHash datum
   }
 
 -- | Converts an Ogmios Transaction output to a `ScriptOutput`.
@@ -117,7 +120,7 @@ transactionOutputToScriptOutput
   :: Transaction.TransactionOutput -> Maybe UTx.ScriptOutput
 transactionOutputToScriptOutput
   ( Transaction.TransactionOutput
-      { address, amount: value, dataHash: Just datumHash }
+      { address, amount: value, datum: OutputDatumHash datumHash }
   ) = do
   validatorHash <- enterpriseAddressValidatorHash address
   pure $ UTx.ScriptOutput
@@ -126,7 +129,7 @@ transactionOutputToScriptOutput
     , datumHash
     }
 transactionOutputToScriptOutput
-  (Transaction.TransactionOutput { dataHash: Nothing }) = Nothing
+  (Transaction.TransactionOutput _) = Nothing
 
 -- | Converts `ScriptOutput` to an internal transaction output.
 scriptOutputToTransactionOutput
@@ -137,8 +140,7 @@ scriptOutputToTransactionOutput
   Transaction.TransactionOutput
     { address: validatorHashEnterpriseAddress networkId validatorHash
     , amount: value
-    , dataHash: Just datumHash
-    , datum: Nothing
+    , datum: OutputDatumHash datumHash
     , scriptRef: Nothing
     }
 

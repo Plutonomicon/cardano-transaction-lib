@@ -25,8 +25,8 @@ import Cardano.Types.Value
 import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe, fromMaybe)
-import Data.Newtype (unwrap)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
+import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
@@ -56,7 +56,10 @@ import Serialization.Types
 import Types.BigNum (BigNum)
 import Types.BigNum (toBigInt) as BigNum
 import Types.ByteArray (ByteArray)
-import Types.Scripts (PlutusScript(..)) as T
+import Types.OutputDatum
+  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
+  )
+import Types.Scripts (PlutusScript(PlutusScript)) as T
 import Types.TokenName (TokenName, assetNameName, mkTokenName) as T
 import Types.Transaction
   ( DataHash(DataHash)
@@ -86,13 +89,19 @@ convertOutput output = do
   amount <- convertValue $ getAmount output
   let
     address = getAddress output
-    dataHash =
+    mbDataHash =
       getDataHash maybeFfiHelper output <#>
         asOneOf >>> toBytes >>> T.DataHash
-  datum <- getPlutusData maybeFfiHelper output # traverse convertPlutusData
+    mbDatum = getPlutusData maybeFfiHelper output
+  datum <- case mbDatum, mbDataHash of
+    Just _, Just _ -> Nothing -- impossible, so it's better to fail
+    Just datumValue, Nothing -> OutputDatum <<< wrap <$> convertPlutusData
+      datumValue
+    Nothing, Just datumHash -> pure $ OutputDatumHash datumHash
+    Nothing, Nothing -> pure $ NoOutputDatum
   scriptRef <- getScriptRef maybeFfiHelper output # traverse convertScriptRef
   pure $ T.TransactionOutput
-    { address, amount, dataHash, datum, scriptRef }
+    { address, amount, datum, scriptRef }
 
 convertScriptRef :: ScriptRef -> Maybe T.ScriptRef
 convertScriptRef = withScriptRef

@@ -34,7 +34,7 @@ import Prelude
 import Cardano.Types.Transaction (TransactionOutput, UtxoM) as Cardano
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput) as Cardano
 import Cardano.Types.Value (Coin) as Cardano
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (wrap, unwrap)
 import Data.Traversable (traverse)
 import Plutus.Conversion.Address
@@ -46,7 +46,6 @@ import Plutus.Conversion.Address
 import Plutus.Conversion.Address (fromPlutusAddress, toPlutusAddress)
 import Plutus.Conversion.Value (fromPlutusValue, toPlutusValue)
 import Plutus.Conversion.Value (fromPlutusValue, toPlutusValue) as Conversion.Value
-import Plutus.Types.Transaction (OutputDatum(OutputDatum, OutputDatumHash))
 import Plutus.Types.Transaction (TransactionOutput, UtxoM) as Plutus
 import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput) as Plutus
 import Plutus.Types.Value (Coin) as Plutus
@@ -75,12 +74,7 @@ fromPlutusTxOutput networkId plutusTxOut =
     wrap
       { address: fromPlutusAddress networkId rec.address
       , amount: fromPlutusValue rec.amount
-      , dataHash: case rec.datum of
-          OutputDatumHash dataHash -> pure dataHash
-          _ -> Nothing
-      , datum: case rec.datum of
-          OutputDatum datum -> pure $ unwrap datum
-          _ -> Nothing
+      , datum: rec.datum
       -- can't restore script from hash. TODO: Should we fail?
       -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
       , scriptRef: Nothing
@@ -92,15 +86,10 @@ toPlutusTxOutput cardanoTxOut = do
   let rec = unwrap cardanoTxOut
   address <- toPlutusAddress rec.address
   let amount = toPlutusValue rec.amount
-  datum <- case rec.dataHash, rec.datum of
-    Just _dataHash, Just _datum -> Nothing
-    Just dataHash, Nothing -> pure $ OutputDatumHash dataHash
-    Nothing, Just datum -> pure $ OutputDatum $ wrap datum
-    _, _ -> Nothing
   pure $ wrap
     { address
     , amount
-    , datum
+    , datum: rec.datum
     -- TODO: properly initialize reference script
     -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
     , referenceScript: Nothing

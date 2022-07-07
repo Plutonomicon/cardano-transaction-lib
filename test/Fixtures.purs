@@ -126,6 +126,7 @@ import Data.BigInt as BigInt
 import Data.Either (fromRight, hush)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Newtype (wrap)
 import Data.NonEmpty ((:|))
 import Data.Set (Set)
 import Data.Set (singleton) as Set
@@ -169,6 +170,7 @@ import Types.ByteArray
   , hexToByteArrayUnsafe
   )
 import Types.Int as Int
+import Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatum))
 import Types.PlutusData as PD
 import Types.RawBytes (rawBytesFromIntArrayUnsafe, hexToRawBytesUnsafe)
 import Types.RedeemerTag (RedeemerTag(Spend))
@@ -198,8 +200,7 @@ txOutputFixture1 =
                   "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
         }
     , amount: Value (Coin $ BigInt.fromInt 0) mempty
-    , dataHash: Nothing
-    , datum: Nothing
+    , datum: NoOutputDatum
     , scriptRef: Nothing
     }
 
@@ -213,8 +214,7 @@ txOutputFixture2 =
     , amount: Value (Coin $ BigInt.fromInt 0) $
         mkSingletonNonAdaAsset currencySymbol1 tokenName1
           (BigInt.fromInt 1000000)
-    , dataHash: Nothing
-    , datum: Nothing
+    , datum: NoOutputDatum
     , scriptRef: Nothing
     }
 
@@ -391,8 +391,7 @@ txFixture3 =
                         "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                     }
                 , amount: Value (Coin $ BigInt.fromInt 2353402) mempty
-                , dataHash: Nothing
-                , datum: Nothing
+                , datum: NoOutputDatum
                 , scriptRef: Nothing
                 }
             , TransactionOutput
@@ -404,8 +403,7 @@ txFixture3 =
                         "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                     }
                 , amount: Value (Coin $ BigInt.fromInt 1000000) mempty
-                , dataHash: Nothing
-                , datum: Nothing
+                , datum: NoOutputDatum
                 , scriptRef: Nothing
                 }
             ]
@@ -514,8 +512,7 @@ txFixture4 =
                         "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                     }
                 , amount: Value (Coin $ BigInt.fromInt 2353402) mempty
-                , dataHash: Nothing
-                , datum: Just plutusDataFixture1
+                , datum: OutputDatum $ wrap plutusDataFixture1
                 , scriptRef: Just $ PlutusScriptRef plutusScriptFixture1
                 }
             , TransactionOutput
@@ -527,8 +524,7 @@ txFixture4 =
                         "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                     }
                 , amount: Value (Coin $ BigInt.fromInt 1000000) mempty
-                , dataHash: Nothing
-                , datum: Nothing
+                , datum: NoOutputDatum
                 , scriptRef: Just $ NativeScriptRef nativeScriptFixture5
                 }
             ]
@@ -834,8 +830,7 @@ utxoFixture1' =
                       )
                 }
             , amount: Value (Coin (BigInt.fromInt 5000000)) mempty
-            , dataHash: Nothing
-            , datum: Nothing
+            , datum: NoOutputDatum
             , scriptRef: Nothing
             }
         )
