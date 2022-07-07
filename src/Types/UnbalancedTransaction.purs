@@ -1,7 +1,7 @@
 module Types.UnbalancedTransaction
-  ( PaymentPubKey(..)
-  , ScriptOutput(..)
-  , UnbalancedTx(..)
+  ( PaymentPubKey(PaymentPubKey)
+  , ScriptOutput(ScriptOutput)
+  , UnbalancedTx(UnbalancedTx)
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx

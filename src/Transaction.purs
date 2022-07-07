@@ -1,5 +1,5 @@
 module Transaction
-  ( ModifyTxError(..)
+  ( ModifyTxError(ConvertWitnessesError, ConvertDatumError)
   , attachDatum
   , attachRedeemer
   , attachPlutusScript

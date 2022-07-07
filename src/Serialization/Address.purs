@@ -29,7 +29,7 @@ module Serialization.Address
   , scriptHashScriptHashAddress
   , scriptAddress
   , ByronProtocolMagic(ByronProtocolMagic)
-  , NetworkId(..)
+  , NetworkId(MainnetId, TestnetId)
   , stakeCredentialToKeyHash
   , stakeCredentialToScriptHash
   , stakeCredentialFromBytes

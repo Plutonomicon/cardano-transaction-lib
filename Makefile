@@ -18,11 +18,11 @@ run-build:
 	@${ps-bundle} && BROWSER_RUNTIME=1 webpack --mode=production
 
 check-explicit-exports: $(eval SHELL:=/bin/bash)
-	@[ -z "$$(grep -rnw '(\.\.)' ./src ./test ./examples)" ] || \
+	@[ -z "$$(grep -rn '(\.\.)' ./src ./test ./examples)" ] || \
 		(echo "Use explicit exports:" && \
-		grep -rnw '(\.\.)' ./src ./test ./examples)
+		grep -rn '(\.\.)' ./src ./test ./examples)
 
-check-format: check-explicit-exports
+check-format:
 	@purs-tidy check ${ps-sources}
 	nixpkgs-fmt --check ${nix-sources}
 	fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost ${hs-sources}

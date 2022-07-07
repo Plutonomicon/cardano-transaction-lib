@@ -1,8 +1,8 @@
 -- | A module defining the `Contract` monad.
 module Contract.Monad
-  ( Contract(..)
-  , ContractConfig(..)
-  , ConfigParams(..)
+  ( Contract(Contract)
+  , ContractConfig(ContractConfig)
+  , ConfigParams(ConfigParams)
   , DefaultContractConfig
   , module Aff
   , module QueryM
