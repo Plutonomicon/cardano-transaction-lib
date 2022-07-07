@@ -37,19 +37,6 @@ derive instance Ord RedeemerTag
 instance Show RedeemerTag where
   show = genericShow
 
-instance Enum RedeemerTag where
-  pred = genericPred
-  succ = genericSucc
-
-instance Bounded RedeemerTag where
-  top = Reward
-  bottom = Spend
-
-instance BoundedEnum RedeemerTag where
-  cardinality = genericCardinality
-  toEnum = genericToEnum
-  fromEnum = genericFromEnum
-
 instance EncodeAeson RedeemerTag where
   encodeAeson' = case _ of
     Spend -> encodeAeson' $ encodeTagged' "Spend" {}
