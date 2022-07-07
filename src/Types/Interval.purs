@@ -23,6 +23,7 @@ module Types.Interval
   , findSlotEraSummary
   , findTimeEraSummary
   , from
+  , getSlotLength
   , hull
   , intersection
   , interval
