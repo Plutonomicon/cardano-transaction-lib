@@ -111,7 +111,7 @@ import Types.Rational as Rational
 import Types.RedeemerTag (RedeemerTag)
 import Types.RedeemerTag (fromString) as RedeemerTag
 import Types.TokenName (TokenName, mkTokenName)
-import Types.Transaction (TransactionInput(..))
+import Types.Transaction (TransactionInput)
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
 
