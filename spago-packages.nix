@@ -377,6 +377,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "exitcodes" = pkgs.stdenv.mkDerivation {
+        name = "exitcodes";
+        version = "v4.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/Risto-Stevcev/purescript-exitcodes.git";
+          rev = "8a9a93fd1776aba4a14cdc9a31094c9e05b05348";
+          sha256 = "16861bn1h6jz47i20sd2a0d3qdj52akkqpx43yllmsdggcawmjxc";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "foldable-traversable" = pkgs.stdenv.mkDerivation {
         name = "foldable-traversable";
         version = "v5.0.1";
@@ -809,6 +821,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "node-process" = pkgs.stdenv.mkDerivation {
+        name = "node-process";
+        version = "v8.2.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-node/purescript-node-process.git";
+          rev = "e1e807ac7831d1a8a15e242964f7e5005e42f76b";
+          sha256 = "0nl9r271s8f71a9wqfkadq9b490h8phwgqc61jbzhm4ags23pqpg";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "node-streams" = pkgs.stdenv.mkDerivation {
         name = "node-streams";
         version = "v5.0.0";
@@ -881,6 +905,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "open-memoize" = pkgs.stdenv.mkDerivation {
+        name = "open-memoize";
+        version = "v6.1.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-open-community/purescript-open-memoize.git";
+          rev = "20d5c14d3033d19044e2d49c11d02278bda72a54";
+          sha256 = "10xaylggw22s41bdvxvy7jg16idwa7npwjnns4d65mjynh2ia6kv";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "options" = pkgs.stdenv.mkDerivation {
         name = "options";
         version = "v6.0.0";
@@ -888,6 +924,18 @@ let
           url = "https://github.com/purescript-contrib/purescript-options.git";
           rev = "0309a42692251ce5e3d1d0be57d4f63f7143f858";
           sha256 = "04f70wfik1pi6nzfq2cn3la9z735akkadpx5cxbs4mx8xg032sjd";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "optparse" = pkgs.stdenv.mkDerivation {
+        name = "optparse";
+        version = "v4.1.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/f-o-a-m/purescript-optparse.git";
+          rev = "04f2ed818f32390a9feff04b892f23c96ccb84cb";
+          sha256 = "0b05wczcjnann0xw6vdaq2c1a2n9rcgvq9l29wa5461b5mvjyb80";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -965,6 +1013,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "posix-types" = pkgs.stdenv.mkDerivation {
+        name = "posix-types";
+        version = "v5.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-node/purescript-posix-types.git";
+          rev = "e562680fce64b67e26741a61a51160a04fd3e7fb";
+          sha256 = "1knhdnnmxx77qsjz3gk1ga7n713l303dxyn8zs46qh7p2hnkalkc";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "prelude" = pkgs.stdenv.mkDerivation {
         name = "prelude";
         version = "v5.0.1";
@@ -1020,6 +1080,18 @@ let
           url = "https://github.com/purescript/purescript-psci-support.git";
           rev = "f26fe8266a63494080476333e22f971404ea8846";
           sha256 = "16vhf8hapd7rcgmafmjpiq7smhzdh3300f2idk1q4kk01yxn8ddj";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "purescript-toppokki" = pkgs.stdenv.mkDerivation {
+        name = "purescript-toppokki";
+        version = "3d7ca70bc32d5f390893cf4c4b0c2cc1f4cf9c2c";
+        src = pkgs.fetchgit {
+          url = "https://github.com/firefrorefiddle/purescript-toppokki";
+          rev = "3d7ca70bc32d5f390893cf4c4b0c2cc1f4cf9c2c";
+          sha256 = "1pk8mcdcl8vpan50pzzjv7a53sg97lb356593ffhrjcbrf62gwrp";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
