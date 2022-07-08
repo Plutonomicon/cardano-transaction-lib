@@ -548,6 +548,19 @@
               prettier -c $(fd -ejs)
               touch $out
             '';
+
+          js-lint-check = pkgs.runCommand "js-lint-check"
+            {
+              nativeBuildInputs = [
+                pkgs.nodePackages.eslint
+                pkgs.fd
+              ];
+            }
+            ''
+              cd ${self}
+              eslint $(fd -ejs)
+              touch $out
+            '';
         });
 
       check = perSystem (system:
