@@ -29,6 +29,7 @@ module Contract.Transaction
 
 import Prelude
 
+import Aeson (class EncodeAeson)
 import BalanceTx (BalanceTxError) as BalanceTxError
 import BalanceTx (FinalizedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
@@ -367,6 +368,7 @@ newtype BalancedSignedTransaction = BalancedSignedTransaction Transaction
 derive instance Generic BalancedSignedTransaction _
 derive instance Newtype BalancedSignedTransaction _
 derive newtype instance Eq BalancedSignedTransaction
+derive newtype instance EncodeAeson BalancedSignedTransaction
 
 instance Show BalancedSignedTransaction where
   show = genericShow

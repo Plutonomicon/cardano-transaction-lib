@@ -6,13 +6,14 @@ module Types.TransactionMetadata
 
 import Prelude
 
+import Aeson (class EncodeAeson, encodeAeson')
 import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map (empty) as Map
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
-import Helpers (appendRightMap, showWithParens)
+import Helpers (encodeMap, encodeTagged', appendRightMap, showWithParens)
 import Types.ByteArray (ByteArray)
 import Types.Int (Int) as Int
 
@@ -27,6 +28,9 @@ derive instance Generic GeneralTransactionMetadata _
 
 instance Show GeneralTransactionMetadata where
   show = genericShow
+
+instance EncodeAeson GeneralTransactionMetadata where
+  encodeAeson' (GeneralTransactionMetadata m) = encodeAeson' $ encodeMap m
 
 -- This Semigroup instance simply takes the Last value for duplicate keys
 -- to avoid a Semigroup instance for TransactionMetadatum.
@@ -45,6 +49,7 @@ newtype TransactionMetadatumLabel = TransactionMetadatumLabel BigInt
 derive instance Newtype TransactionMetadatumLabel _
 derive newtype instance Eq TransactionMetadatumLabel
 derive newtype instance Ord TransactionMetadatumLabel
+derive newtype instance EncodeAeson TransactionMetadatumLabel
 derive instance Generic TransactionMetadatumLabel _
 
 instance Show TransactionMetadatumLabel where
@@ -64,3 +69,12 @@ derive instance Generic TransactionMetadatum _
 
 instance Show TransactionMetadatum where
   show x = genericShow x
+
+instance EncodeAeson TransactionMetadatum where
+  encodeAeson' = case _ of
+    MetadataMap m -> encodeAeson' $ encodeTagged' "MetadataMap" $ encodeMap m
+    MetadataList arr -> encodeAeson' $ encodeTagged' "MetadataList" arr
+    Int n -> encodeAeson' $ encodeTagged' "Int" n
+    Bytes bytes -> encodeAeson' $ encodeTagged' "Bytes" bytes
+    Text string -> encodeAeson' $ encodeTagged' "Text" string
+

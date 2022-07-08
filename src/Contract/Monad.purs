@@ -27,6 +27,12 @@ module Contract.Monad
   , logWarn'
   , logError
   , logError'
+  , logAeson
+  , logAesonTrace
+  , logAesonDebug
+  , logAesonInfo
+  , logAesonWarn
+  , logAesonError
   , mkContractConfig
   , runContract
   , runContract_
@@ -37,6 +43,11 @@ module Contract.Monad
 
 import Prelude
 
+import Aeson
+  ( class EncodeAeson
+  , encodeAeson
+  , stringifyAeson
+  )
 import Control.Monad.Error.Class (class MonadError, class MonadThrow)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
@@ -370,3 +381,60 @@ logWarn' = Logger.warn Map.empty
 logError'
   :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
 logError' = Logger.error Map.empty
+
+-- | Log JSON representation of a data structure
+logAeson
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadLogger m
+  => EncodeAeson a
+  => (String -> m Unit)
+  -- ^ Logging function to use
+  -> a
+  -- ^ Data structure to output
+  -> m Unit
+logAeson logger = logger <<< stringifyAeson <<< encodeAeson
+
+logAesonTrace
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadLogger m
+  => EncodeAeson a
+  => a
+  -- ^ Data structure to output
+  -> m Unit
+logAesonTrace = logAeson logTrace'
+
+logAesonDebug
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadLogger m
+  => EncodeAeson a
+  => a
+  -- ^ Data structure to output
+  -> m Unit
+logAesonDebug = logAeson logDebug'
+
+logAesonInfo
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadLogger m
+  => EncodeAeson a
+  => a
+  -- ^ Data structure to output
+  -> m Unit
+logAesonInfo = logAeson logInfo'
+
+logAesonWarn
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadLogger m
+  => EncodeAeson a
+  => a
+  -- ^ Data structure to output
+  -> m Unit
+logAesonWarn = logAeson logWarn'
+
+logAesonError
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadLogger m
+  => EncodeAeson a
+  => a
+  -- ^ Data structure to output
+  -> m Unit
+logAesonError = logAeson logError'
