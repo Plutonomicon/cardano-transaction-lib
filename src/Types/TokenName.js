@@ -8,7 +8,7 @@ if (typeof BROWSER_RUNTIME == "undefined" || !BROWSER_RUNTIME) {
   OurTextDecoder = TextDecoder;
 }
 
-exports._decodeUtf8 = (buffer) => (left) => (right) => {
+exports._decodeUtf8 = buffer => left => right => {
   let decoder = new OurTextDecoder("utf-8", { fatal: true }); // Without fatal=true it never fails
 
   try {
@@ -19,5 +19,5 @@ exports._decodeUtf8 = (buffer) => (left) => (right) => {
 };
 
 // FIXME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/548
-const call = (property) => (object) => object[property]();
+const call = property => object => object[property]();
 exports.assetNameName = call("name");

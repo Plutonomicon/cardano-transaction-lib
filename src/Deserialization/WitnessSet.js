@@ -7,9 +7,9 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   lib = require("@emurgo/cardano-serialization-lib-nodejs");
 }
 
-const call = (property) => (object) => object[property]();
+const call = property => object => object[property]();
 
-const callMaybe = (property) => (maybe) => (object) => {
+const callMaybe = property => maybe => object => {
   const res = object[property]();
   return res != null ? maybe.just(res) : maybe.nothing;
 };
@@ -17,7 +17,7 @@ const callMaybe = (property) => (maybe) => (object) => {
 // Classes like TransactionInputs are just monomorphic containers with `len`
 // and `get()` methods. This function abstracts away converting them to Array
 // of something.
-const containerExtractor = (obj) => {
+const containerExtractor = obj => {
   const res = [];
 
   for (let i = 0; i < obj.len(); i++) {
@@ -36,7 +36,7 @@ exports.publicKeyToBech32 = call("to_bech32");
 exports.signatureToBech32 = call("to_bech32");
 exports.getNativeScripts = callMaybe("native_scripts");
 exports.extractNativeScripts = containerExtractor;
-exports.nativeScriptAs = (maybe) => (prop) => (res) => (ns) =>
+exports.nativeScriptAs = maybe => prop => res => ns =>
   ns[prop]() == null ? maybe.nothing : maybe.just(res);
 exports.getBootstraps = callMaybe("bootstraps");
 exports.extractBootstraps = containerExtractor;
@@ -58,7 +58,7 @@ exports.getRedeemerPlutusData = call("data");
 exports.getExUnits = call("ex_units");
 exports.getExUnitsMem = call("mem");
 exports.getExUnitsSteps = call("steps");
-exports._deserializeWitnessSet = (maybe) => (bytes) => {
+exports._deserializeWitnessSet = maybe => bytes => {
   try {
     return maybe.just(lib.TransactionWitnessSet.from_bytes(bytes));
   } catch (_) {

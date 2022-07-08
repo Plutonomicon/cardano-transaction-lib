@@ -1,6 +1,6 @@
 /* global BROWSER_RUNTIME */
 
-const plutusDataAs = (what) => (helper) => (data) => {
+const plutusDataAs = what => helper => data => {
   const res = data["as_" + what]();
   return res == null ? helper.nothing : helper.just(res);
 };
@@ -10,11 +10,11 @@ exports._PlutusData_map = plutusDataAs("map");
 exports._PlutusData_list = plutusDataAs("list");
 exports._PlutusData_integer = plutusDataAs("integer");
 exports._PlutusData_bytes = plutusDataAs("bytes");
-exports._unpackPlutusList = (containerHelper) => containerHelper.unpack;
-exports._ConstrPlutusData_alternative = (x) => x.alternative();
-exports._ConstrPlutusData_data = (x) => x.data();
+exports._unpackPlutusList = containerHelper => containerHelper.unpack;
+exports._ConstrPlutusData_alternative = x => x.alternative();
+exports._ConstrPlutusData_data = x => x.data();
 
-exports._unpackPlutusMap = (containerHelper) => (tuple) => (plutusMap) => {
+exports._unpackPlutusMap = containerHelper => tuple => plutusMap => {
   const keys = containerHelper.unpack(plutusMap.keys());
   const res = [];
   for (let key of keys) {

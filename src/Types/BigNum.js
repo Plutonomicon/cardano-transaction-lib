@@ -7,13 +7,13 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   lib = require("@emurgo/cardano-serialization-lib-nodejs");
 }
 
-exports.bnCompare = (lhs) => (rhs) => lhs.compare(rhs);
+exports.bnCompare = lhs => rhs => lhs.compare(rhs);
 
 exports.zero = lib.BigNum.zero();
 
 exports.one = lib.BigNum.one();
 
-exports.bnAdd = (maybe) => (lhs) => (rhs) => {
+exports.bnAdd = maybe => lhs => rhs => {
   try {
     return maybe.just(lhs.checked_add(rhs));
   } catch (_) {
@@ -21,7 +21,7 @@ exports.bnAdd = (maybe) => (lhs) => (rhs) => {
   }
 };
 
-exports.bnMul = (maybe) => (lhs) => (rhs) => {
+exports.bnMul = maybe => lhs => rhs => {
   try {
     return maybe.just(lhs.checked_mul(rhs));
   } catch (_) {
@@ -29,7 +29,7 @@ exports.bnMul = (maybe) => (lhs) => (rhs) => {
   }
 };
 
-exports._fromString = (maybe) => (str) => {
+exports._fromString = maybe => str => {
   try {
     return maybe.just(lib.BigNum.from_str(str));
   } catch (_) {
@@ -37,4 +37,4 @@ exports._fromString = (maybe) => (str) => {
   }
 };
 
-exports.toString = (bn) => bn.to_str();
+exports.toString = bn => bn.to_str();

@@ -1,3 +1,3 @@
 const uniqid = require("uniqid");
 
-exports.uniqueId = (str) => () => uniqid(str);
+exports.uniqueId = str => () => uniqid(str);

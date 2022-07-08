@@ -17,7 +17,7 @@ class NoPerMessageDeflateWebSocket extends OurWebSocket {
   }
 }
 
-exports._mkWebSocket = (logger) => (url) => () => {
+exports._mkWebSocket = logger => url => () => {
   try {
     let ws;
     if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
@@ -35,9 +35,9 @@ exports._mkWebSocket = (logger) => (url) => () => {
   }
 };
 
-exports._onWsConnect = (ws) => (fn) => () => ws.addEventListener("open", fn);
+exports._onWsConnect = ws => fn => () => ws.addEventListener("open", fn);
 
-exports._onWsError = (ws) => (logger) => (fn) => () => {
+exports._onWsError = ws => logger => fn => () => {
   const listener = function (event) {
     const str = event.toString();
     logger(`WebSocket error: ${str}`)();
@@ -47,10 +47,10 @@ exports._onWsError = (ws) => (logger) => (fn) => () => {
   return listener;
 };
 
-exports._removeOnWsError = (ws) => (listener) => () =>
+exports._removeOnWsError = ws => listener => () =>
   ws.removeEventListener("error", listener);
 
-exports._onWsMessage = (ws) => (logger) => (fn) => () => {
+exports._onWsMessage = ws => logger => fn => () => {
   ws.addEventListener("message", function func(event) {
     const str = event.data;
     logger(`message: ${str}`)();
@@ -58,18 +58,18 @@ exports._onWsMessage = (ws) => (logger) => (fn) => () => {
   });
 };
 
-exports._wsSend = (ws) => (logger) => (str) => () => {
+exports._wsSend = ws => logger => str => () => {
   logger(`sending: ${str}`)();
   ws.send(str);
 };
 
-exports._wsReconnect = (ws) => () => {
+exports._wsReconnect = ws => () => {
   ws.reconnect();
 };
 
-exports._wsClose = (ws) => () => ws.close();
+exports._wsClose = ws => () => ws.close();
 
-const heartbeat = (ws) => (logger) => (id) => (onError) => {
+const heartbeat = ws => logger => id => onError => {
   logger("websocket heartbeat fired")();
   ws.ping();
   if (id !== null) {
@@ -82,7 +82,7 @@ const heartbeat = (ws) => (logger) => (id) => (onError) => {
   return cancelId;
 };
 
-exports._wsWatch = (ws) => (logger) => (onError) => () => {
+exports._wsWatch = ws => logger => onError => () => {
   let counter = null;
   let heartbeatAndCount = () => {
     counter = heartbeat(ws, logger, counter, onError);

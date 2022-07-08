@@ -9,4 +9,4 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 
 exports.newPositive = lib.Int.new;
 exports.newNegative = lib.Int.new_negative;
-exports._intToStr = (n) => n.to_str();
+exports._intToStr = n => n.to_str();

@@ -1,5 +1,5 @@
 // From instance for Array in prelude
-exports.ord_ = (f) => (xs) => (ys) => {
+exports.ord_ = f => xs => ys => {
   let i = 0;
   const xlen = xs.length;
   const ylen = ys.length;
@@ -19,7 +19,7 @@ exports.ord_ = (f) => (xs) => (ys) => {
   }
 };
 
-exports.concat_ = (xs) => (ys) => {
+exports.concat_ = xs => ys => {
   const res = new Uint8Array(xs.length + ys.length);
   for (let i = 0; i < xs.length; i++) {
     res[i] = xs[i];
@@ -30,7 +30,7 @@ exports.concat_ = (xs) => (ys) => {
   return res;
 };
 
-exports.byteArrayToHex = (arr) => Buffer.from(arr).toString("hex");
+exports.byteArrayToHex = arr => Buffer.from(arr).toString("hex");
 
 /* adapted from https://github.com/WebReflection/uint8-to-utf16/blob/master/esm/index.js
  * (someone who knows javascript should like import that or something)
@@ -38,7 +38,7 @@ exports.byteArrayToHex = (arr) => Buffer.from(arr).toString("hex");
 const { ceil } = Math;
 const { fromCharCode } = String;
 
-exports.byteArrayToUTF16le = (uint8array) => {
+exports.byteArrayToUTF16le = uint8array => {
   let extra = 0;
   const output = [];
   const { length } = uint8array;
@@ -53,7 +53,7 @@ exports.byteArrayToUTF16le = (uint8array) => {
   return output.join("");
 };
 
-exports.hexToByteArray_ = (nothing) => (just) => (hex) => {
+exports.hexToByteArray_ = nothing => just => hex => {
   let bytes = [];
   for (let c = 0; c < hex.length; c += 2) {
     const chunk = hex.substr(c, 2);
@@ -66,7 +66,7 @@ exports.hexToByteArray_ = (nothing) => (just) => (hex) => {
   return just(new Uint8Array(bytes));
 };
 
-exports.hexToByteArrayUnsafe = (hex) => {
+exports.hexToByteArrayUnsafe = hex => {
   let bytes = [];
   for (let c = 0; c < hex.length; c += 2) {
     bytes.push(parseInt(hex.substr(c, 2), 16));
@@ -74,19 +74,19 @@ exports.hexToByteArrayUnsafe = (hex) => {
   return new Uint8Array(bytes);
 };
 
-exports.byteArrayFromIntArrayUnsafe = (ints) => new Uint8Array(ints);
+exports.byteArrayFromIntArrayUnsafe = ints => new Uint8Array(ints);
 
-exports.byteArrayFromInt16ArrayUnsafe = (ints) =>
+exports.byteArrayFromInt16ArrayUnsafe = ints =>
   new Uint8Array(ints.buffer, ints.byteOffset, ints.byteLength);
 
-exports.byteArrayFromIntArray_ = (nothing) => (just) => (ints) => {
-  if (ints.every((i) => i < 256 && i >= 0)) {
+exports.byteArrayFromIntArray_ = nothing => just => ints => {
+  if (ints.every(i => i < 256 && i >= 0)) {
     return just(new Uint8Array(ints));
   } else {
     return nothing;
   }
 };
 
-exports.byteArrayToIntArray = (bytes) => Array.from(bytes);
+exports.byteArrayToIntArray = bytes => Array.from(bytes);
 
-exports._byteLength = (bytes) => bytes.byteLength;
+exports._byteLength = bytes => bytes.byteLength;

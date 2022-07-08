@@ -7,21 +7,21 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   lib = require("@emurgo/cardano-serialization-lib-nodejs");
 }
 
-const call = (property) => (object) => object[property]();
-const callMaybe = (property) => (maybe) => (object) => {
+const call = property => object => object[property]();
+const callMaybe = property => maybe => object => {
   const res = object[property]();
   return res != null ? maybe.just(res) : maybe.nothing;
 };
 
-exports._txIsValid = (tx) => tx.is_valid();
-exports._txWitnessSet = (tx) => tx.witness_set();
-exports._txBody = (tx) => tx.body();
-exports._txAuxiliaryData = (maybe) => (tx) => {
+exports._txIsValid = tx => tx.is_valid();
+exports._txWitnessSet = tx => tx.witness_set();
+exports._txBody = tx => tx.body();
+exports._txAuxiliaryData = maybe => tx => {
   const ad = tx.auxiliary_data();
   return ad == null ? maybe.nothing : maybe.just(ad);
 };
 
-const maybeGetter_ = (fmap) => (propstr) => (maybe) => (obj) => {
+const maybeGetter_ = fmap => propstr => maybe => obj => {
   if (typeof propstr != "string") {
     const s = "maybeGetter_ propstr must be a string, got " + propstr;
     throw s;
@@ -29,9 +29,9 @@ const maybeGetter_ = (fmap) => (propstr) => (maybe) => (obj) => {
   const res = obj[propstr]();
   return res == null ? maybe.nothing : maybe.just(fmap(res));
 };
-const maybeGetter = maybeGetter_((a) => a);
-const maybeGetterMulti = (propstr) => (containerHelper) =>
-  maybeGetter_((o) => containerHelper.unpack(o))(propstr);
+const maybeGetter = maybeGetter_(a => a);
+const maybeGetterMulti = propstr => containerHelper =>
+  maybeGetter_(o => containerHelper.unpack(o))(propstr);
 
 exports._txAuxiliaryData = maybeGetter("auxiliary_data");
 exports._adGeneralMetadata = maybeGetter("metadata");
@@ -39,13 +39,13 @@ exports._adNativeScripts = maybeGetter("native_scripts");
 exports._adPlutusScripts = maybeGetter("plutus_scripts");
 
 // inputs(): TransactionInputs;
-exports._txBodyInputs = (containerhelper) => (body) =>
+exports._txBodyInputs = containerhelper => body =>
   containerhelper.unpack(body.inputs());
 // outputs(): TransactionOutputs;
-exports._txBodyOutputs = (containerhelper) => (body) =>
+exports._txBodyOutputs = containerhelper => body =>
   containerhelper.unpack(body.outputs());
 // fee(): BigNum;
-exports._txBodyFee = (body) => body.fee();
+exports._txBodyFee = body => body.fee();
 // ttl(): number | void;
 exports._txBodyTtl = maybeGetter("ttl_bignum");
 // certs(): Certificates | void;
@@ -69,8 +69,8 @@ exports._txBodyCollateral = maybeGetterMulti("collateral");
 // required_signers(): Ed25519KeyHashes | void;
 exports._txBodyRequiredSigners = maybeGetterMulti("required_signers");
 // network_id(): number | void;
-exports._txBodyNetworkId = (testnet) => (mainnet) =>
-  maybeGetter_((o) => {
+exports._txBodyNetworkId = testnet => mainnet =>
+  maybeGetter_(o => {
     switch (o.kind()) {
       case lib.NetworkIdKind.Testnet:
         return testnet;
@@ -81,22 +81,21 @@ exports._txBodyNetworkId = (testnet) => (mainnet) =>
     }
   })("network_id");
 
-exports._unpackWithdrawals = (containerhelper) =>
+exports._unpackWithdrawals = containerhelper =>
   containerhelper.unpackKeyIndexed;
 
-exports._unpackUpdate = (containerhelper) => (update) => {
+exports._unpackUpdate = containerhelper => update => {
   const pppus = containerhelper.unpackKeyIndexed(
     update.proposed_protocol_parameter_updates()
   );
   return { epoch: update.epoch(), paramUpdates: pppus };
 };
 
-exports._unpackMint = (containerhelper) => containerhelper.unpackKeyIndexed;
+exports._unpackMint = containerhelper => containerhelper.unpackKeyIndexed;
 
-exports._unpackMintAssets = (containerhelper) =>
-  containerhelper.unpackKeyIndexed;
+exports._unpackMintAssets = containerhelper => containerhelper.unpackKeyIndexed;
 
-exports._convertCert = (certConvHelper) => (cert) => {
+exports._convertCert = certConvHelper => cert => {
   switch (cert.kind()) {
     case lib.CertificateKind.StakeRegistration:
       return certConvHelper.stakeRegistration(
@@ -146,8 +145,8 @@ exports._convertCert = (certConvHelper) => (cert) => {
   }
 };
 
-exports._unpackProtocolParamUpdate = (maybe) => (ppu) => {
-  const optional = (x) => (x == null ? maybe.nothing : maybe.just(x));
+exports._unpackProtocolParamUpdate = maybe => ppu => {
+  const optional = x => (x == null ? maybe.nothing : maybe.just(x));
 
   return {
     minfeeA: optional(ppu.minfee_a()),
@@ -175,10 +174,9 @@ exports._unpackProtocolParamUpdate = (maybe) => (ppu) => {
   };
 };
 
-exports._unpackCostModels = (containerhelper) =>
-  containerhelper.unpackKeyIndexed;
+exports._unpackCostModels = containerhelper => containerhelper.unpackKeyIndexed;
 
-exports._unpackCostModel = (cm) => {
+exports._unpackCostModel = cm => {
   // XXX should OP_COUNT be used instead?
   const res = [];
   try {
@@ -191,7 +189,7 @@ exports._unpackCostModel = (cm) => {
   return res;
 };
 
-exports._convertLanguage = (errorHelper) => (langCtors) => (cslLang) => {
+exports._convertLanguage = errorHelper => langCtors => cslLang => {
   try {
     if (cslLang.kind() == lib.LanguageKind.PlutusV1) {
       return errorHelper.valid(langCtors.plutusV1);
@@ -205,22 +203,21 @@ exports._convertLanguage = (errorHelper) => (langCtors) => (cslLang) => {
   }
 };
 
-exports._convertNonce = (nonceCtors) => (cslNonce) => {
+exports._convertNonce = nonceCtors => cslNonce => {
   const hashBytes = cslNonce.get_hash();
   return hashBytes == null
     ? nonceCtors.identityNonce
     : nonceCtors.hashNonce(hashBytes);
 };
 
-exports._unpackMetadatums = (containerHelper) =>
+exports._unpackMetadatums = containerHelper => containerHelper.unpackKeyIndexed;
+
+exports._unpackMetadataMap = containerHelper =>
   containerHelper.unpackKeyIndexed;
 
-exports._unpackMetadataMap = (containerHelper) =>
-  containerHelper.unpackKeyIndexed;
+exports._unpackMetadataList = containerHelper => containerHelper.unpack;
 
-exports._unpackMetadataList = (containerHelper) => containerHelper.unpack;
-
-exports._convertMetadatum = (metadataCtors) => (cslMetadatum) => {
+exports._convertMetadatum = metadataCtors => cslMetadatum => {
   // map
   let r = null;
   try {
@@ -264,21 +261,21 @@ exports._convertMetadatum = (metadataCtors) => (cslMetadatum) => {
   return metadataCtors.error("Could not convert to known types.");
 };
 
-exports._unpackExUnits = (exunits) => {
+exports._unpackExUnits = exunits => {
   return {
     mem: exunits.mem(),
     steps: exunits.steps(),
   };
 };
 
-exports._unpackUnitInterval = (ui) => {
+exports._unpackUnitInterval = ui => {
   return {
     numerator: ui.numerator(),
     denominator: ui.denominator(),
   };
 };
 
-exports._unpackProtocolVersions = (containerhelper) => (cslPV) => {
+exports._unpackProtocolVersions = containerhelper => cslPV => {
   const pvs = containerhelper.unpack(cslPV);
   const res = [];
   for (let i = 0; i < pvs.length; i++) {
@@ -287,7 +284,7 @@ exports._unpackProtocolVersions = (containerhelper) => (cslPV) => {
   return res;
 };
 
-exports._unpackExUnitsPrices = (cslEup) => {
+exports._unpackExUnitsPrices = cslEup => {
   return {
     memPrice: cslEup.mem_price(),
     stepPrice: cslEup.step_price(),
@@ -300,13 +297,13 @@ exports.poolParamsPledge = call("pledge");
 exports.poolParamsCost = call("cost");
 exports.poolParamsMargin = call("margin");
 exports.poolParamsRewardAccount = call("reward_account");
-exports.poolParamsPoolOwners = (containerHelper) => (poolParams) =>
+exports.poolParamsPoolOwners = containerHelper => poolParams =>
   containerHelper.unpack(poolParams.pool_owners());
-exports.poolParamsRelays = (containerHelper) => (poolParams) =>
+exports.poolParamsRelays = containerHelper => poolParams =>
   containerHelper.unpack(poolParams.relays());
 exports.poolParamsPoolMetadata = callMaybe("pool_metadata");
 
-exports.convertRelay_ = (helper) => (relay) => {
+exports.convertRelay_ = helper => relay => {
   let res = relay.as_single_host_addr();
   if (res) {
     return helper.asSingleHostAddr(res);
@@ -325,11 +322,11 @@ exports.convertRelay_ = (helper) => (relay) => {
   throw "convertRelay_: impossible happened: invalid Relay";
 };
 
-exports.convertIpv6_ = (ipv6) => ipv6.ip();
+exports.convertIpv6_ = ipv6 => ipv6.ip();
 
-exports.convertIpv4_ = (ipv6) => ipv6.ip();
+exports.convertIpv4_ = ipv6 => ipv6.ip();
 
-exports.convertSingleHostAddr_ = (maybe) => (cont) => (singleHostAddr) => {
+exports.convertSingleHostAddr_ = maybe => cont => singleHostAddr => {
   const port = singleHostAddr.port();
   const ipv4 = singleHostAddr.ipv4();
   const ipv6 = singleHostAddr.ipv6();
@@ -339,19 +336,19 @@ exports.convertSingleHostAddr_ = (maybe) => (cont) => (singleHostAddr) => {
   )(ipv6 ? maybe.just(ipv6) : maybe.nothing);
 };
 
-exports.convertSingleHostName_ = (maybe) => (cont) => (singleHostName) => {
+exports.convertSingleHostName_ = maybe => cont => singleHostName => {
   const port = singleHostName.port();
   return cont(port ? maybe.just(port) : maybe.nothing)(
     singleHostName.dns_name().record()
   );
 };
 
-exports.convertMultiHostName_ = (multiHostName) =>
+exports.convertMultiHostName_ = multiHostName =>
   multiHostName.dns_name().record();
 
 exports.unpackMIRToStakeCredentials_ =
-  (containerHelper) => (mirToStakeCredentials) =>
+  containerHelper => mirToStakeCredentials =>
     containerHelper.unpackKeyIndexed(mirToStakeCredentials);
 
-exports.convertPoolMetadata_ = (cont) => (poolMetadata) =>
+exports.convertPoolMetadata_ = cont => poolMetadata =>
   cont(poolMetadata.url().url())(poolMetadata.pool_metadata_hash().to_bytes());
