@@ -11,9 +11,12 @@ module Contract.Transaction
   , calculateMinFeeM
   , module BalanceTxError
   , module ExportQueryM
+  , module NativeScript
+  , module OutputDatum
   , module PTransaction
   , module ReindexRedeemersExport
   , module ScriptLookups
+  , module ScriptRef
   , module Transaction
   , module TransactionMetadata
   , module UnbalancedTx
@@ -32,6 +35,19 @@ import Prelude
 import BalanceTx (BalanceTxError) as BalanceTxError
 import BalanceTx (FinalizedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
+import Cardano.Types.NativeScript
+  ( NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
+  ) as NativeScript
+import Cardano.Types.ScriptRef
+  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
+  ) as ScriptRef
 import Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
@@ -54,14 +70,6 @@ import Cardano.Types.Transaction
   , GenesisHash(GenesisHash)
   , Language(PlutusV1)
   , Mint(Mint)
-  , NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
   , Nonce(IdentityNonce, HashNonce)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate
@@ -127,6 +135,11 @@ import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (NetworkId)
 import TxOutput (scriptOutputToTransactionOutput) as TxOutput
+import Types.OutputDatum
+  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
+  , outputDatumDataHash
+  , outputDatumDatum
+  ) as OutputDatum
 import Types.ScriptLookups (MkUnbalancedTxError(..), mkUnbalancedTx) as ScriptLookups
 import Types.ScriptLookups (UnattachedUnbalancedTx)
 import Types.Transaction

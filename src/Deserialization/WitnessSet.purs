@@ -10,11 +10,11 @@ module Deserialization.WitnessSet
 
 import Prelude
 
+import Cardano.Types.NativeScript (NativeScript) as T
 import Cardano.Types.Transaction
   ( BootstrapWitness
   , Ed25519Signature(Ed25519Signature)
   , ExUnits
-  , NativeScript
   , PublicKey(PublicKey)
   , Redeemer(Redeemer)
   , TransactionWitnessSet(TransactionWitnessSet)

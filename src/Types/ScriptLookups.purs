@@ -116,6 +116,11 @@ import Types.Interval
   , POSIXTimeRange
   , posixTimeRangeToTransactionValidity
   )
+import Types.OutputDatum
+  ( OutputDatum(NoOutputDatum, OutputDatumHash)
+  , outputDatumDataHash
+  , outputDatumDatum
+  )
 import Types.PubKeyHash
   ( PaymentPubKeyHash
   , StakePubKeyHash
@@ -493,9 +498,9 @@ processLookupsAndConstraints
   let
     mps = lookups.mps
     scripts = lookups.scripts
-  mpsHashes <- ExceptT $
+  mpsHashes <- ExceptT do
     hashScripts mintingPolicyHash CannotHashMintingPolicy mps
-  validatorHashes <- ExceptT $
+  validatorHashes <- ExceptT do
     hashScripts validatorHash CannotHashValidator scripts
   let
     mpsMap = fromFoldable $ zip mpsHashes mps
@@ -672,17 +677,20 @@ addMissingValueSpent = do
       Just pkh, Just skh -> liftEither $ Right $ TransactionOutput
         { address: payPubKeyHashBaseAddress networkId pkh skh
         , amount: missing
-        , dataHash: Nothing
+        , datum: NoOutputDatum
+        , scriptRef: Nothing
         }
       Just pkh, Nothing -> liftEither $ Right $ TransactionOutput
         { address: payPubKeyHashEnterpriseAddress networkId pkh
         , amount: missing
-        , dataHash: Nothing
+        , datum: NoOutputDatum
+        , scriptRef: Nothing
         }
       Nothing, Just skh -> liftEither $ Right $ TransactionOutput
         { address: stakePubKeyHashRewardAddress networkId skh
         , amount: missing
-        , dataHash: Nothing
+        , datum: NoOutputDatum
+        , scriptRef: Nothing
         }
     _cpsToTxBody <<< _outputs %= Array.(:) txOut
 
@@ -765,6 +773,7 @@ data MkUnbalancedTxError
   | OwnPubKeyAndStakeKeyMissing
   | TypedValidatorMissing
   | DatumWrongHash DataHash Datum
+  | CannotFindDatum
   | CannotQueryDatum DataHash
   | CannotHashDatum Datum
   | CannotConvertPOSIXTimeRange POSIXTimeRange PosixTimeToSlotError
@@ -858,7 +867,7 @@ processConstraint mpsMap osMap = do
             { ttl = timeToLive
             , validityStartInterval = validityStartInterval
             }
-    MustBeSignedBy pkh -> runExceptT $
+    MustBeSignedBy pkh -> runExceptT do
       -- FIXME This is incompatible with Plutus' version, which requires
       -- the corresponding `paymentPubKey` lookup. In the next major version,
       -- we might wish to revise this
@@ -875,7 +884,7 @@ processConstraint mpsMap osMap = do
       -- Recall an Ogmios datum is a `Maybe String` where `Nothing` implies a
       -- wallet address and `Just` as script address.
       case txOut of
-        TransactionOutput { amount, dataHash: Nothing } -> do
+        TransactionOutput { amount, datum: NoOutputDatum } -> do
           -- POTENTIAL FIX ME: Plutus has Tx.TxIn and Tx.PubKeyTxIn -- TxIn
           -- keeps track TransactionInput and TxInType (the input type, whether
           -- consuming script, public key or simple script)
@@ -887,7 +896,9 @@ processConstraint mpsMap osMap = do
       -- Recall an Ogmios datum is a `Maybe String` where `Nothing` implies a
       -- wallet address and `Just` as script address.
       case txOut of
-        TransactionOutput { address, amount, dataHash: Just dHash } ->
+        TransactionOutput { datum: NoOutputDatum } ->
+          liftEither $ throwError $ TxOutRefWrongType txo
+        TransactionOutput { address, amount, datum: datum' } ->
           do
             vHash <- liftM
               (CannotGetValidatorHashFromAddress address)
@@ -898,11 +909,17 @@ processConstraint mpsMap osMap = do
             -- Note: if we get `Nothing`, we have to throw eventhough that's a
             -- valid input, because our `txOut` above is a Script address via
             -- `Just`.
-            dataValue <- ExceptT $ do
-              queryD <- lift $
-                getDatumByHash dHash <#> note (CannotQueryDatum dHash)
-              lookupD <- lookupDatum dHash
-              pure $ queryD <|> lookupD
+            dataValue <- ExceptT do
+              queryD <- lift case outputDatumDataHash datum' of
+                Nothing -> pure $ Left CannotFindDatum
+                Just dHash -> do
+                  getDatumByHash dHash <#> note (CannotQueryDatum dHash)
+              lookupD <- case outputDatumDataHash datum' of
+                Nothing -> pure $ Left CannotFindDatum
+                Just dHash -> do
+                  lookupDatum dHash
+              pure $ queryD <|> lookupD <|>
+                (outputDatumDatum datum' # note CannotFindDatum)
             ExceptT $ attachToCps attachPlutusScript plutusScript
             _cpsToTxBody <<< _inputs %= Set.insert txo
             ExceptT $ addDatum dataValue
@@ -922,7 +939,6 @@ processConstraint mpsMap osMap = do
             _redeemersTxIns <>= Array.singleton (redeemer /\ Just txo)
             -- Attach redeemer to witness set.
             ExceptT $ attachToCps attachRedeemer redeemer
-        _ -> liftEither $ throwError $ TxOutRefWrongType txo
     MustMintValue mpsHash red tn i -> runExceptT do
       plutusScript <-
         ExceptT $ lookupMintingPolicy mpsHash mpsMap <#> map unwrap
@@ -1007,7 +1023,11 @@ processConstraint mpsMap osMap = do
           txOut = TransactionOutput
             { address
             , amount
-            , dataHash
+            -- TODO: save correct datum and scriptRef, should be done in
+            -- Constraints API upgrade that follows Vasil
+            -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
+            , datum: maybe NoOutputDatum OutputDatumHash dataHash
+            , scriptRef: Nothing
             }
         _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provideValue amount
@@ -1016,13 +1036,17 @@ processConstraint mpsMap osMap = do
       let amount = fromPlutusValue plutusValue
       runExceptT do
         -- Don't write `let dataHash = datumHash datum`, see [datumHash Note]
-        dataHash <- except $ note (CannotHashDatum dat)
+        _dataHash <- except $ note (CannotHashDatum dat)
           $ (map Just <<< Hashing.datumHash) dat
         let
           txOut = TransactionOutput
             { address: validatorHashEnterpriseAddress networkId vlh
             , amount
-            , dataHash
+            -- TODO: save correct datum and scriptRef, should be done in
+            -- Constraints API upgrade that follows Vasil
+            -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
+            , datum: NoOutputDatum
+            , scriptRef: Nothing
             }
         -- Note we don't `addDatum` as this included as part of `mustPayToScript`
         -- constraint already.

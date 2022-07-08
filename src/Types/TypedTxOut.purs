@@ -23,7 +23,9 @@ module Types.TypedTxOut
 -- | https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger/html/src/Ledger.Typed.Tx.html
 
 import Prelude
+
 import Cardano.Types.Transaction (TransactionOutput(TransactionOutput))
+import Cardano.Types.Value (Value)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Data.Either (Either, note)
@@ -39,13 +41,10 @@ import Scripts (typedValidatorEnterpriseAddress)
 import Serialization.Address (Address, NetworkId)
 import ToData (class ToData, toData)
 import Types.Datum (DataHash, Datum(Datum))
+import Types.OutputDatum (OutputDatum(OutputDatumHash), outputDatumDataHash)
 import Types.PlutusData (PlutusData)
 import Types.Transaction (TransactionInput)
-import Types.TypedValidator
-  ( class DatumType
-  , TypedValidator
-  )
-import Cardano.Types.Value (Value)
+import Types.TypedValidator (class DatumType, TypedValidator)
 
 -- | A `TransactionInput` tagged by a phantom type: and the
 -- | connection type of the output.
@@ -130,7 +129,8 @@ typedTxOutDatumHash
   => ToData b
   => TypedTxOut a b
   -> Maybe DataHash
-typedTxOutDatumHash (TypedTxOut { txOut }) = (unwrap txOut).dataHash
+typedTxOutDatumHash (TypedTxOut { txOut }) = outputDatumDataHash
+  (unwrap txOut).datum
 
 -- | Extract the `Value` of a `TypedTxOut`
 typedTxOutValue
@@ -179,7 +179,14 @@ mkTypedTxOut networkId typedVal dt amount =
       Nothing -> Nothing
       Just dHash ->
         Just <<< mkTypedTxOut' dt $
-          wrap { address, amount, dataHash: pure dHash }
+          wrap
+            { address
+            , amount
+            -- TODO: populate properly
+            -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
+            , datum: OutputDatumHash dHash
+            , scriptRef: Nothing
+            }
   where
   mkTypedTxOut'
     :: b -- Data
@@ -256,10 +263,10 @@ typeTxOut
 typeTxOut
   networkId
   typedVal
-  (TransactionOutput { address, amount, dataHash }) =
+  (TransactionOutput { address, amount, datum }) =
   runExceptT do
     -- Assume `Nothing` is a public key.
-    dHash <- liftM ExpectedScriptGotPubkey dataHash
+    dHash <- liftM ExpectedScriptGotPubkey $ outputDatumDataHash datum
     void $ checkValidatorAddress networkId typedVal address
     pd <- ExceptT $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
     dtOut <- ExceptT $ checkDatum typedVal pd

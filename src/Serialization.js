@@ -82,6 +82,16 @@ exports.newAssetName = name => () =>
 
 exports.transactionOutputSetDataHash = setter('data_hash');
 
+exports.transactionOutputSetPlutusData = setter('plutus_data');
+
+exports.transactionOutputSetScriptRef = setter('script_ref');
+
+exports.scriptRefNewNativeScript = nativeScript =>
+    lib.ScriptRef.new_native_script(nativeScript);
+
+exports.scriptRefNewPlutusScript = plutusScript =>
+    lib.ScriptRef.new_plutus_script(plutusScript);
+
 exports.newVkeywitnesses = () =>
     lib.Vkeywitnesses.new();
 
