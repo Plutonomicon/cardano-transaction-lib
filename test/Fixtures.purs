@@ -496,9 +496,7 @@ proposedProtocolParameterUpdates1 = ProposedProtocolParameterUpdates $
 plutusScriptFixture1 :: PlutusScript
 plutusScriptFixture1 = unsafePartial $ fromJust $ map plutusV1Script $ hush
   $ decodeAeson
-  $
-    fromString
-      "4d01000033222220051200120011"
+  $ fromString "4d01000033222220051200120011"
 
 txFixture4 :: Transaction
 txFixture4 =
