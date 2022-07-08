@@ -1,14 +1,14 @@
-/* global require exports BROWSER_RUNTIME */
+/* global BROWSER_RUNTIME */
 
-var CardanoWasm;
+let lib;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-  CardanoWasm = require("@emurgo/cardano-serialization-lib-browser");
+  lib = require("@emurgo/cardano-serialization-lib-browser");
 } else {
-  CardanoWasm = require("@emurgo/cardano-serialization-lib-nodejs");
+  lib = require("@emurgo/cardano-serialization-lib-nodejs");
 }
 
 const hashFromImpl = (hashClassFrom) => (maybe) => (input) => {
-  var ret = null;
+  let ret = null;
   try {
     ret = hashClassFrom(input);
   } catch (e) {
@@ -29,7 +29,7 @@ const hashToBech32Unsafe = (prefix) => (hash) => {
 };
 
 const hashToBech32Impl = (maybe) => (prefix) => (hash) => {
-  var ret = null;
+  let ret = null;
   try {
     ret = hash.to_bech32(prefix);
   } catch (e) {
@@ -42,19 +42,19 @@ const hashToBech32Impl = (maybe) => (prefix) => (hash) => {
 };
 
 exports._ed25519KeyHashFromBech32Impl = (maybe) => (bech32str) => {
-  return hashFromImpl(CardanoWasm.Ed25519KeyHash.from_bech32)(maybe)(bech32str);
+  return hashFromImpl(lib.Ed25519KeyHash.from_bech32)(maybe)(bech32str);
 };
 
 exports._ed25519KeyHashFromBytesImpl = (maybe) => (bytes) => {
-  return hashFromImpl(CardanoWasm.Ed25519KeyHash.from_bytes)(maybe)(bytes);
+  return hashFromImpl(lib.Ed25519KeyHash.from_bytes)(maybe)(bytes);
 };
 
 exports._scriptHashFromBytesImpl = (maybe) => (bytes) => {
-  return hashFromImpl(CardanoWasm.ScriptHash.from_bytes)(maybe)(bytes);
+  return hashFromImpl(lib.ScriptHash.from_bytes)(maybe)(bytes);
 };
 
 exports._scriptHashFromBech32Impl = (maybe) => (bech32str) => {
-  return hashFromImpl(CardanoWasm.ScriptHash.from_bech32)(maybe)(bech32str);
+  return hashFromImpl(lib.ScriptHash.from_bech32)(maybe)(bech32str);
 };
 
 exports.ed25519KeyHashToBytes = hashToBytes;

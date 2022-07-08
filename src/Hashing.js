@@ -1,4 +1,4 @@
-/* global require exports BROWSER_RUNTIME */
+/* global BROWSER_RUNTIME */
 
 const Blake2bWasm = require("blake2b-wasm");
 const SHA256 = require("jssha/dist/sha256");

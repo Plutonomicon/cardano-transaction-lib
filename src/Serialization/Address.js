@@ -1,19 +1,19 @@
-/* global require exports BROWSER_RUNTIME */
+/* global BROWSER_RUNTIME */
 
-var CardanoWasm;
+let lib;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-  CardanoWasm = require("@emurgo/cardano-serialization-lib-browser");
+  lib = require("@emurgo/cardano-serialization-lib-browser");
 } else {
-  CardanoWasm = require("@emurgo/cardano-serialization-lib-nodejs");
+  lib = require("@emurgo/cardano-serialization-lib-nodejs");
 }
 
 const callClassStaticMaybe =
   (classname, functionname) => (maybe) => (input) => {
-    var ret = null;
+    let ret = null;
     try {
-      ret = CardanoWasm[classname][functionname](input);
-    } catch (e) {
-      // console.log(e);
+      ret = lib[classname][functionname](input);
+    } catch (_) {
+      // ignored
     }
     if (ret == null) {
       return maybe.nothing;
@@ -31,7 +31,6 @@ const callNetworkId = callMethodParameterless("network_id");
 const callPaymentCred = callMethodParameterless("payment_cred");
 const callStakeCred = callMethodParameterless("stake_cred");
 
-// :: forall a. { onKeyHash:: Ed25519KeyHash -> a, onScriptHash :: ScriptHash -> a } -> StakeCredential -> a
 exports.withStakeCredential = (cbObj) => (stakeCred) => {
   const keyhash = stakeCred.to_keyhash();
   return keyhash
@@ -39,8 +38,8 @@ exports.withStakeCredential = (cbObj) => (stakeCred) => {
     : cbObj.onScriptHash(stakeCred.to_scripthash());
 };
 
-exports.keyHashCredential = CardanoWasm.StakeCredential.from_keyhash;
-exports.scriptHashCredential = CardanoWasm.StakeCredential.from_scripthash;
+exports.keyHashCredential = lib.StakeCredential.from_keyhash;
+exports.scriptHashCredential = lib.StakeCredential.from_scripthash;
 
 exports.addressBytes = callToBytes;
 exports.byronAddressBytes = callToBytes;
@@ -106,15 +105,12 @@ exports.pointerAddressPaymentCred = callPaymentCred;
 exports.baseAddressDelegationCred = callStakeCred;
 
 exports.byronAddressAttributes = callMethodParameterless("attributes");
-exports.byronAddressIsValid = CardanoWasm.ByronAddress.is_valid;
+exports.byronAddressIsValid = lib.ByronAddress.is_valid;
 exports.byronAddressToBase58 = callMethodParameterless("to_base58");
 exports.byronProtocolMagic = callMethodParameterless("byron_protocol_magic");
 
 exports.icarusFromKey = (bip32pubkey) => (byronProtocolMagic) => {
-  return CardanoWasm.ByronAddress.icarus_from_key(
-    bip32pubkey,
-    byronProtocolMagic
-  );
+  return lib.ByronAddress.icarus_from_key(bip32pubkey, byronProtocolMagic);
 };
 
 exports.pointerAddressStakePointer = (pa) => {
@@ -126,41 +122,29 @@ exports.pointerAddressStakePointer = (pa) => {
   };
 };
 
-// newEnterpriseAddress :: { network:: NetworkId, paymentCred :: StakeCredential } -> EnterpriseAddress
 exports._enterpriseAddress = (netIdToInt) => (inpRec) => {
-  return CardanoWasm.EnterpriseAddress.new(
+  return lib.EnterpriseAddress.new(
     netIdToInt(inpRec.network),
     inpRec.paymentCred
   );
 };
 
-// newRewardAddress :: { network:: NetworkId, paymentCred :: StakeCredential } -> RewardAddress
 exports._rewardAddress = (netIdToInt) => (inpRec) => {
-  return CardanoWasm.RewardAddress.new(
-    netIdToInt(inpRec.network),
-    inpRec.paymentCred
-  );
+  return lib.RewardAddress.new(netIdToInt(inpRec.network), inpRec.paymentCred);
 };
 
-// newBaseAddress ::
-//    { network :: NetworkId, paymentCred :: StakeCredential, delegationCred :: StakeCredential } -> BaseAddress
 exports._baseAddress = (netIdToInt) => (inpRec) => {
-  return CardanoWasm.BaseAddress.new(
+  return lib.BaseAddress.new(
     netIdToInt(inpRec.network),
     inpRec.paymentCred,
     inpRec.delegationCred
   );
 };
 
-// newPointerAddress :: { network:: NetworkId, paymentCred :: StakeCredential, stakePointer :: Pointer } -> PointerAddress
 exports._pointerAddress = (netIdToInt) => (inpRec) => {
   const p = inpRec.stakePointer;
-  const pointerForeign = CardanoWasm.Pointer.new_pointer(
-    p.slot,
-    p.txIx,
-    p.certIx
-  );
-  return CardanoWasm.PointerAddress.new(
+  const pointerForeign = lib.Pointer.new_pointer(p.slot, p.txIx, p.certIx);
+  return lib.PointerAddress.new(
     netIdToInt(inpRec.network),
     inpRec.paymentCred,
     pointerForeign

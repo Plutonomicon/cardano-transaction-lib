@@ -1,6 +1,4 @@
-// NOTE: Adopted from https://github.com/AlexaDeWit/purescript-text-encoding/blob/master/src/Data/TextDecoding.js
-// See https://github.com/Plutonomicon/cardano-transaction-lib/issues/544
-"use strict";
+/* global BROWSER_RUNTIME */
 
 // `TextDecoder` is not available in `node`, use polyfill in that case
 let OurTextDecoder;

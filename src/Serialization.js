@@ -1,6 +1,6 @@
-/* global require exports BROWSER_RUNTIME */
+/* global BROWSER_RUNTIME */
 
-var lib;
+let lib;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   lib = require("@emurgo/cardano-serialization-lib-browser");
 } else {
@@ -149,18 +149,18 @@ exports.setTxBodyMint = setter("mint");
 
 exports.newMint = () => lib.Mint.new();
 
-exports._bigIntToInt = (maybeFfiHelper) => (bigInt) => {
+exports._bigIntToInt = (maybe) => (bigInt) => {
   try {
     const str = bigInt.to_str();
     if (str[0] == "-") {
-      return maybeFfiHelper.just(
+      return maybe.just(
         lib.Int.new_negative(lib.BigNum.from_str(str.slice(1)))
       );
     } else {
-      return maybeFfiHelper.just(lib.Int.new(lib.BigNum.from_str(str)));
+      return maybe.just(lib.Int.new(lib.BigNum.from_str(str)));
     }
   } catch (_) {
-    return Maybe.nothing;
+    return maybe.nothing;
   }
 };
 

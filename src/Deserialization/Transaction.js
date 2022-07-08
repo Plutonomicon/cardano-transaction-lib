@@ -1,6 +1,6 @@
-/* global require exports BROWSER_RUNTIME */
+/* global BROWSER_RUNTIME */
 
-var lib;
+let lib;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   lib = require("@emurgo/cardano-serialization-lib-browser");
 } else {
@@ -17,7 +17,7 @@ exports._txIsValid = (tx) => tx.is_valid();
 exports._txWitnessSet = (tx) => tx.witness_set();
 exports._txBody = (tx) => tx.body();
 exports._txAuxiliaryData = (maybe) => (tx) => {
-  ad = tx.auxiliary_data();
+  const ad = tx.auxiliary_data();
   return ad == null ? maybe.nothing : maybe.just(ad);
 };
 
@@ -81,11 +81,9 @@ exports._txBodyNetworkId = (testnet) => (mainnet) =>
     }
   })("network_id");
 
-// foreign import _unpackWithdrawals :: ContainerHelper -> CSL.Withdrawals -> Array(Tuple CSL.RewardAddress CSL.BigNum)
 exports._unpackWithdrawals = (containerhelper) =>
   containerhelper.unpackKeyIndexed;
 
-// foreign import _unpackUpdate :: (forall a b.a -> b -> Tuple a b) -> CSL.Update -> { epoch:: Int, paramUpdates:: Array(Tuple GenesisHash CSL.ProtocolParamUpdate) }
 exports._unpackUpdate = (containerhelper) => (update) => {
   const pppus = containerhelper.unpackKeyIndexed(
     update.proposed_protocol_parameter_updates()
@@ -93,31 +91,11 @@ exports._unpackUpdate = (containerhelper) => (update) => {
   return { epoch: update.epoch(), paramUpdates: pppus };
 };
 
-// foreign import _unpackMint :: ContainerHelper -> CSL.Mint -> Array(Tuple ScriptHash MintAssets  )
 exports._unpackMint = (containerhelper) => containerhelper.unpackKeyIndexed;
 
-// foreign import _unpackMintAssets :: ContainerHelper -> CSL.MintAssets -> Array (Tuple CSL.AssetName Int)
 exports._unpackMintAssets = (containerhelper) =>
   containerhelper.unpackKeyIndexed;
 
-// type CertConvHelper (r :: Row Type) =
-//   { stakeDeregistration :: Csl.StakeCredential -> Err r T.Certificate
-//   , stakeRegistration :: Csl.StakeCredential -> Err r T.Certificate
-//   , stakeDelegation ::
-//       Csl.StakeCredential -> Ed25519KeyHash -> Err r T.Certificate
-//   , poolRegistration :: Csl.PoolParams -> Err r T.Certificate
-//   , poolRetirement :: Ed25519KeyHash -> Int -> Err r T.Certificate
-//   , genesisKeyDelegation ::
-//       Csl.GenesisHash
-//       -> Csl.GenesisDelegateHash
-//       -> Csl.VRFKeyHash
-//       -> Err r T.Certificate
-//   , moveInstantaneousRewardsToOtherPotCert ::
-//       Number -> Csl.BigNum -> Err r T.Certificate
-//   , moveInstantaneousRewardsToStakeCreds ::
-//       Number -> Csl.MIRToStakeCredentials -> Err r T.Certificate
-//   }
-// foreign import _convertCert :: forall r.CertConvHelper r -> CSL.Certificate -> Err r Certificate
 exports._convertCert = (certConvHelper) => (cert) => {
   switch (cert.kind()) {
     case lib.CertificateKind.StakeRegistration:
@@ -168,34 +146,6 @@ exports._convertCert = (certConvHelper) => (cert) => {
   }
 };
 
-// foreign import _unpackProtocolParamUpdate
-//   :: MaybeFfiHelper
-//   -> Csl.ProtocolParamUpdate
-//   -> { minfeeA :: Maybe Csl.BigNum
-//      , minfeeB :: Maybe Csl.BigNum
-//      , maxBlockBodySize :: Maybe Number
-//      , maxTxSize :: Maybe Number
-//      , maxBlockHeaderSize :: Maybe Number
-//      , keyDeposit :: Maybe Csl.BigNum
-//      , poolDeposit :: Maybe Csl.BigNum
-//      , maxEpoch :: Maybe Number
-//      , nOpt :: Maybe Number
-//      , poolPledgeInfluence :: Maybe Csl.UnitInterval
-//      , expansionRate ::
-//          Maybe Csl.UnitInterval
-//      , treasuryGrowthRate ::
-//          Maybe Csl.UnitInterval
-//      , d :: Maybe Csl.UnitInterval
-//      , extraEntropy :: Maybe Csl.Nonce
-//      , protocolVersion :: Maybe Csl.ProtocolVersions
-//      , minPoolCost :: Maybe Csl.BigNum
-//      , adaPerUtxoByte :: Maybe Csl.BigNum
-//      , costModels :: Maybe Csl.Costmdls
-//      , executionCosts :: Maybe Csl.ExUnitPrices
-//      , maxTxExUnits :: Maybe Csl.ExUnits
-//      , maxBlockExUnits :: Maybe Csl.ExUnits
-//      , maxValueSize :: Maybe Number
-//      }
 exports._unpackProtocolParamUpdate = (maybe) => (ppu) => {
   const optional = (x) => (x == null ? maybe.nothing : maybe.just(x));
 
@@ -225,25 +175,22 @@ exports._unpackProtocolParamUpdate = (maybe) => (ppu) => {
   };
 };
 
-// foreign import _unpackCostModels :: ContainerHelper -> CSL.Costmdls -> Array(Tuple CSL.Language CSL.CostModel)
 exports._unpackCostModels = (containerhelper) =>
   containerhelper.unpackKeyIndexed;
 
-// foreign import unpackCostModel :: CSL.CostModel -> Array String
 exports._unpackCostModel = (cm) => {
   // XXX should OP_COUNT be used instead?
-  var err = false;
   const res = [];
   try {
-    for (var op = 0; ; op++) {
+    for (let op = 0; ; op++) {
       res.push(cm.get(op).to_str());
     }
-  } catch (_) {}
+  } catch (_) {
+    // ignore error
+  }
   return res;
 };
 
-// foreign import _convertLanguage
-//   :: forall r.ErrorFfiHelper r -> { plutusV1:: Language } -> CSL.Language -> E r Language
 exports._convertLanguage = (errorHelper) => (langCtors) => (cslLang) => {
   try {
     if (cslLang.kind() == lib.LanguageKind.PlutusV1) {
@@ -258,7 +205,6 @@ exports._convertLanguage = (errorHelper) => (langCtors) => (cslLang) => {
   }
 };
 
-// foreign import _convertNonce :: forall r. { identityNonce:: Nonce, hashNonce :: UInt8Array -> Nonce } -> CSL.Nonce -> Nonce
 exports._convertNonce = (nonceCtors) => (cslNonce) => {
   const hashBytes = cslNonce.get_hash();
   return hashBytes == null
@@ -266,24 +212,17 @@ exports._convertNonce = (nonceCtors) => (cslNonce) => {
     : nonceCtors.hashNonce(hashBytes);
 };
 
-// foreign import _unpackMetadatums
-//   :: ContainerHelper
-//     -> CSL.GeneralTransactionMetadata
-//     -> Array(Tuple CSL.BigNum CSL.TransactionMetadatum)
 exports._unpackMetadatums = (containerHelper) =>
   containerHelper.unpackKeyIndexed;
 
-// foreign import _unpackMetadataMap :: ContainerHelper -> CSL.MetadataMap -> Array(Tuple CSL.TransactionMetadatum CSL.TransactionMetadatum)
 exports._unpackMetadataMap = (containerHelper) =>
   containerHelper.unpackKeyIndexed;
 
-// foreign import _unpackMetadataList
-//   :: ContainerHelper -> CSL.MetadataList -> Array CSL.TransactionMetadatum
 exports._unpackMetadataList = (containerHelper) => containerHelper.unpack;
 
 exports._convertMetadatum = (metadataCtors) => (cslMetadatum) => {
   // map
-  var r = null;
+  let r = null;
   try {
     r = cslMetadatum.as_map();
   } catch (_) {
@@ -325,8 +264,6 @@ exports._convertMetadatum = (metadataCtors) => (cslMetadatum) => {
   return metadataCtors.error("Could not convert to known types.");
 };
 
-// foreign import _unpackExUnits
-// :: Csl.ExUnits -> {mem :: Csl.BigNum, steps :: Csl.BigNum}
 exports._unpackExUnits = (exunits) => {
   return {
     mem: exunits.mem(),
@@ -334,8 +271,6 @@ exports._unpackExUnits = (exunits) => {
   };
 };
 
-// foreign import _unpackUnitInterval ::
-// Csl.UnitInterval -> { numerator :: Csl.BigNum, denominator :: Csl.BigNum}
 exports._unpackUnitInterval = (ui) => {
   return {
     numerator: ui.numerator(),
@@ -343,19 +278,15 @@ exports._unpackUnitInterval = (ui) => {
   };
 };
 
-// foreign import _unpackProtocolVersions
-// :: ContainerHelper -> Csl.ProtocolVersions -> Array { major :: Number, minor :: Number }
 exports._unpackProtocolVersions = (containerhelper) => (cslPV) => {
   const pvs = containerhelper.unpack(cslPV);
   const res = [];
-  for (var i = 0; i < pvs.length; i++) {
+  for (let i = 0; i < pvs.length; i++) {
     res.push({ major: pvs[i].major(), minor: pvs[i].minor() });
   }
   return res;
 };
 
-// foreign import _unpackExUnitsPrices
-// :: Csl.ExUnitPrices -> {memPrice :: Csl.UnitInterval, stepPrice :: Csl.UnitInterval}
 exports._unpackExUnitsPrices = (cslEup) => {
   return {
     memPrice: cslEup.mem_price(),

@@ -4,7 +4,7 @@ exports.ord_ = (f) => (xs) => (ys) => {
   const xlen = xs.length;
   const ylen = ys.length;
   while (i < xlen && i < ylen) {
-    var o = f(xs[i])(ys[i]);
+    let o = f(xs[i])(ys[i]);
     if (o !== 0) {
       return o;
     }
@@ -54,7 +54,8 @@ exports.byteArrayToUTF16le = (uint8array) => {
 };
 
 exports.hexToByteArray_ = (nothing) => (just) => (hex) => {
-  for (var bytes = [], c = 0; c < hex.length; c += 2) {
+  let bytes = [];
+  for (let c = 0; c < hex.length; c += 2) {
     const chunk = hex.substr(c, 2);
     if (/[0-9a-f]{2}/i.test(chunk)) {
       bytes.push(parseInt(chunk, 16));
@@ -66,8 +67,10 @@ exports.hexToByteArray_ = (nothing) => (just) => (hex) => {
 };
 
 exports.hexToByteArrayUnsafe = (hex) => {
-  for (var bytes = [], c = 0; c < hex.length; c += 2)
+  let bytes = [];
+  for (let c = 0; c < hex.length; c += 2) {
     bytes.push(parseInt(hex.substr(c, 2), 16));
+  }
   return new Uint8Array(bytes);
 };
 
@@ -86,5 +89,4 @@ exports.byteArrayFromIntArray_ = (nothing) => (just) => (ints) => {
 
 exports.byteArrayToIntArray = (bytes) => Array.from(bytes);
 
-// _byteLength :: Uint8Array -> BigInt
 exports._byteLength = (bytes) => bytes.byteLength;

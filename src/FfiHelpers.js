@@ -1,5 +1,3 @@
-/* global exports */
-
 // Abstracts away unpacking elements from a monomorphic container.
 const unpack = (obj) => {
   const res = [];
@@ -16,8 +14,8 @@ const unpack = (obj) => {
 const unpackKeyIndexed = (tuple) => (obj) => {
   const res = [];
   for (let i = 0; i < obj.len(); i++) {
-    var k = obj.keys().get(i);
-    var v = obj.get(k);
+    let k = obj.keys().get(i);
+    let v = obj.get(k);
     if (v == null) continue;
     res.push(tuple(k)(v));
   }
