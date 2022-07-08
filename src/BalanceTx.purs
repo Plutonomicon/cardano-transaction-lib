@@ -58,8 +58,8 @@ import Cardano.Types.Value
   , valueToCoin
   , valueToCoin'
   )
-import Constants.Alonzo
-  ( adaOnlyWords
+import Constants.Babbage
+  ( adaOnlyBytes
   , coinSize
   , pidSize
   , utxoEntrySizeWithoutVal
@@ -74,7 +74,6 @@ import Data.Array as Array
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt, fromInt, quot)
 import Data.Either (Either(Left, Right), hush, note)
-import Data.Enum (fromEnum) as Enum
 import Data.Foldable as Foldable
 import Data.Generic.Rep (class Generic)
 import Data.Lens (Lens', lens')
@@ -83,31 +82,34 @@ import Data.Lens.Index (ix) as Lens
 import Data.Lens.Setter ((.~), set, (?~), (%~))
 import Data.List ((:), List(Nil), partition)
 import Data.Log.Tag (tag)
-import Data.Map as Map
+import Data.Map (fromFoldable, lookup, toUnfoldable, union) as Map
 import Data.Maybe (fromMaybe, maybe, isJust, Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Set (Set)
+import Data.Set as Set
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect, liftEffect)
+import QueryM (ClientError, QueryM)
 import QueryM
-  ( ClientError
-  , QueryM
-  , RdmrPtrExUnits(RdmrPtrExUnits)
-  , calculateMinFee
+  ( calculateMinFee
   , getWalletAddress
   , getWalletCollateral
-  , evalTxExecutionUnits
-  )
+  , evaluateTxOgmios
+  ) as QueryM
+import QueryM.Ogmios (TxEvaluationR(TxEvaluationR)) as Ogmios
 import QueryM.Utxos (utxosAt, filterUnusedUtxos)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
+import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import Transaction (setScriptDataHash)
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (DataHash, TransactionInput)
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), _transaction)
+import Untagged.Union (asOneOf)
 import Wallet (Wallet(KeyWallet), cip30Wallet)
 
 -- This module replicates functionality from
@@ -157,8 +159,7 @@ instance Show UtxosAtError where
   show = genericShow
 
 data EvalExUnitsAndMinFeeError
-  = EvalExUnitsError ClientError
-  | EvalMinFeeError ClientError
+  = EvalMinFeeError ClientError
   | ReindexRedeemersError ReindexErrors
 
 derive instance Generic EvalExUnitsAndMinFeeError _
@@ -275,6 +276,14 @@ instance Show FinalizedTransaction where
 -- Evaluation of fees and execution units, Updating redeemers
 --------------------------------------------------------------------------------
 
+evalTxExecutionUnits :: Transaction -> QueryM Ogmios.TxEvaluationR
+evalTxExecutionUnits tx =
+  QueryM.evaluateTxOgmios =<<
+    liftEffect
+      ( wrap <<< Serialization.toBytes <<< asOneOf <$>
+          Serialization.convertTransaction tx
+      )
+
 -- Calculates the execution units needed for each script in the transaction
 -- and the minimum fee, including the script fees.
 -- Returns a tuple consisting of updated `UnattachedUnbalancedTx` and
@@ -291,8 +300,7 @@ evalExUnitsAndMinFee' unattachedTx =
     -- Reattach datums and redeemers before evaluating ex units:
     let attachedTx = reattachDatumsAndRedeemers reindexedUnattachedTx
     -- Evaluate transaction ex units:
-    rdmrPtrExUnitsList <- ExceptT $ evalTxExecutionUnits attachedTx
-      <#> lmap EvalExUnitsError
+    rdmrPtrExUnitsList <- lift $ evalTxExecutionUnits attachedTx
     let
       -- Set execution units received from the server:
       reindexedUnattachedTxWithExUnits =
@@ -301,7 +309,7 @@ evalExUnitsAndMinFee' unattachedTx =
     FinalizedTransaction finalizedTx <- lift $
       finalizeTransaction reindexedUnattachedTxWithExUnits
     -- Calculate the minimum fee for a transaction:
-    minFee <- ExceptT $ calculateMinFee finalizedTx
+    minFee <- ExceptT $ QueryM.calculateMinFee finalizedTx
       <#> bimap EvalMinFeeError unwrap
     pure $ reindexedUnattachedTxWithExUnits /\ minFee
 
@@ -334,7 +342,7 @@ reindexRedeemers
 reindexRedeemers
   unattachedTx@(UnattachedUnbalancedTx { redeemersTxIns }) =
   let
-    inputs = unattachedTx ^. _body' <<< _inputs
+    inputs = Array.fromFoldable $ unattachedTx ^. _body' <<< _inputs
   in
     reindexSpentScriptRedeemers' inputs redeemersTxIns <#>
       map \redeemersTxInsReindexed ->
@@ -351,30 +359,31 @@ reattachDatumsAndRedeemers
       # _witnessSet <<< _redeemers ?~ map fst redeemersTxIns
 
 updateTxExecutionUnits
-  :: UnattachedUnbalancedTx -> Array RdmrPtrExUnits -> UnattachedUnbalancedTx
-updateTxExecutionUnits unattachedTx rdmrPtrExUnits =
+  :: UnattachedUnbalancedTx -> Ogmios.TxEvaluationR -> UnattachedUnbalancedTx
+updateTxExecutionUnits unattachedTx rdmrPtrExUnitsList =
   unattachedTx #
-    _redeemersTxIns %~ flip setRdmrsExecutionUnits rdmrPtrExUnits
+    _redeemersTxIns %~ flip setRdmrsExecutionUnits rdmrPtrExUnitsList
 
 setRdmrsExecutionUnits
   :: Array (Redeemer /\ Maybe TransactionInput)
-  -> Array RdmrPtrExUnits
+  -> Ogmios.TxEvaluationR
   -> Array (Redeemer /\ Maybe TransactionInput)
-setRdmrsExecutionUnits rs xxs =
-  case Array.uncons xxs of
+setRdmrsExecutionUnits rs (Ogmios.TxEvaluationR xxs) =
+  case Array.uncons (Map.toUnfoldable xxs) of
     Nothing -> rs
-    Just { head: RdmrPtrExUnits x, tail: xs } ->
+    Just { head: ptr /\ exUnits, tail: xs } ->
       let
+        xsWrapped = Ogmios.TxEvaluationR (Map.fromFoldable xs)
         ixMaybe = flip Array.findIndex rs $ \(Redeemer rdmr /\ _) ->
-          Enum.fromEnum rdmr.tag == x.rdmrPtrTag
-            && rdmr.index == Natural.toBigInt x.rdmrPtrIdx
+          rdmr.tag == ptr.redeemerTag
+            && rdmr.index == Natural.toBigInt ptr.redeemerIndex
       in
-        ixMaybe # maybe (setRdmrsExecutionUnits rs xs) \ix ->
-          flip setRdmrsExecutionUnits xs $
+        ixMaybe # maybe (setRdmrsExecutionUnits rs xsWrapped) \ix ->
+          flip setRdmrsExecutionUnits xsWrapped $
             rs # Lens.ix ix %~ \(Redeemer rec /\ txOutRef) ->
               let
-                mem = Natural.toBigInt x.exUnitsMem
-                steps = Natural.toBigInt x.exUnitsSteps
+                mem = Natural.toBigInt exUnits.memory
+                steps = Natural.toBigInt exUnits.steps
               in
                 Redeemer rec { exUnits = { mem, steps } } /\ txOutRef
 
@@ -424,14 +433,14 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   utxoMinVal <- getAdaOnlyUtxoMinValue
   runExceptT do
     -- Get own wallet address, collateral and utxo set:
-    ownAddr <- ExceptT $ getWalletAddress <#>
+    ownAddr <- ExceptT $ QueryM.getWalletAddress <#>
       note (GetWalletAddressError' CouldNotGetWalletAddress)
     wallet <- asks _.wallet
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
     collateral <- case wallet of
       Just w | isJust (cip30Wallet w) ->
-        map Just $ ExceptT $ getWalletCollateral <#>
+        map Just $ ExceptT $ QueryM.getWalletCollateral <#>
           note (GetWalletCollateralError' CouldNotGetCollateral)
       -- TODO: Combine with getWalletCollateral, and supply with fee estimate
       --       https://github.com/Plutonomicon/cardano-transaction-lib/issues/510
@@ -475,10 +484,8 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
       returnAdaChangeAndFinalizeFees ownAddr allUtxos nonAdaBalancedCollTx
         <#>
           lmap ReturnAdaChangeError'
-    -- Sort inputs at the very end so it behaves as a Set:
-    let sortedUnsignedTx = unsignedTx # _body' <<< _inputs %~ Array.sort
     -- Attach datums and redeemers, set the script integrity hash:
-    finalizedTx <- lift $ finalizeTransaction sortedUnsignedTx
+    finalizedTx <- lift $ finalizeTransaction unsignedTx
     -- Log final balanced tx and return it:
     logTx "Post-balancing Tx " availableUtxos (unwrap finalizedTx)
     except $ Right finalizedTx
@@ -502,14 +509,15 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     -> UnattachedUnbalancedTx
     -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
   loop utxoIndex' ownAddr' prevMinUtxos' unattachedTx' = do
-    uTxOCostPerWord <- asks _.pparams <#> unwrap >>> _.uTxOCostPerWord
+    coinsPerUtxoByte <- asks _.pparams <#> unwrap >>> _.coinsPerUtxoByte
     let
       Transaction { body: txBody'@(TxBody txB) } =
         unattachedTx' ^. _transaction'
 
       nextMinUtxos' :: MinUtxos
       nextMinUtxos' =
-        calculateMinUtxos uTxOCostPerWord $ txB.outputs \\ map fst prevMinUtxos'
+        calculateMinUtxos coinsPerUtxoByte $
+          txB.outputs \\ map fst prevMinUtxos'
 
       minUtxos' :: MinUtxos
       minUtxos' = prevMinUtxos' <> nextMinUtxos'
@@ -721,8 +729,8 @@ returnAdaChange changeAddr utxos (unattachedTx /\ fees) =
             unattachedTxWithChangeTxOut /\ { recalculateFees: true }
 
 calculateMinUtxos :: Coin -> Array TransactionOutput -> MinUtxos
-calculateMinUtxos uTxOCostPerWord = map
-  (\a -> a /\ calculateMinUtxo uTxOCostPerWord a)
+calculateMinUtxos coinsPerUtxoByte = map
+  (\a -> a /\ calculateMinUtxo coinsPerUtxoByte a)
 
 -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
 -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
@@ -730,8 +738,8 @@ calculateMinUtxos uTxOCostPerWord = map
 -- | Given an array of transaction outputs, return the paired amount of lovelaces
 -- | required by each utxo.
 calculateMinUtxo :: Coin -> TransactionOutput -> BigInt
-calculateMinUtxo uTxOCostPerWord txOut = unwrap uTxOCostPerWord * utxoEntrySize
-  txOut
+calculateMinUtxo coinsPerUtxoByte txOut =
+  (unwrap coinsPerUtxoByte * fromInt 8) * utxoEntrySize txOut
   where
   -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
   -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
@@ -864,30 +872,26 @@ balanceTxIns' utxos fees changeUtxoMinValue (TxBody txBody) = do
 
   -- a = spy "minSpending" minSpending
 
-  txIns :: Array TransactionInput <-
+  txIns <-
     lmap
       ( \(CollectTxInsInsufficientTxInputs insufficientTxInputs) ->
           insufficientTxInputs
       )
       $ collectTxIns txBody.inputs utxos minSpending
-  -- Original code uses Set append which is union. Array unions behave
-  -- a little differently as it removes duplicates in the second argument.
-  -- but all inputs should be unique anyway so I think this is fine.
-  -- Note, this does not sort automatically unlike Data.Set
   pure $ wrap
     txBody
-      { inputs = Array.union txIns txBody.inputs
+      { inputs = Set.union txIns txBody.inputs
       }
 
 --https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- | Getting the necessary input utxos to cover the fees for the transaction
 collectTxIns
-  :: Array TransactionInput
+  :: Set TransactionInput
   -> Utxo
   -> Value
-  -> Either CollectTxInsError (Array TransactionInput)
+  -> Either CollectTxInsError (Set TransactionInput)
 collectTxIns originalTxIns utxos value =
-  if isSufficient updatedInputs then pure updatedInputs
+  if isSufficient updatedInputs then pure $ Set.fromFoldable updatedInputs
   else
     Left $ CollectTxInsInsufficientTxInputs $
       InsufficientTxInputs (Expected value)
@@ -900,7 +904,7 @@ collectTxIns originalTxIns utxos value =
           if Array.elem txIn newTxIns || isSufficient newTxIns then newTxIns
           else Array.insert txIn newTxIns -- treat as a set.
       )
-      originalTxIns
+      (Array.fromFoldable originalTxIns)
       $ utxosToTransactionInput utxos
 
   -- Useful spies for debugging:
@@ -912,13 +916,13 @@ collectTxIns originalTxIns utxos value =
   isSufficient txIns' =
     not (Array.null txIns') && (txInsValue utxos txIns') `geq` value
 
-txInsValue :: Utxo -> Array TransactionInput -> Value
-txInsValue utxos =
-  Array.foldMap getAmount <<< Array.mapMaybe (flip Map.lookup utxos)
+  txInsValue :: Utxo -> Array TransactionInput -> Value
+  txInsValue utxos' =
+    Array.foldMap getAmount <<< Array.mapMaybe (flip Map.lookup utxos')
 
-utxosToTransactionInput :: Utxo -> Array TransactionInput
-utxosToTransactionInput =
-  Array.mapMaybe (hush <<< getPublicKeyTransactionInput) <<< Map.toUnfoldable
+  utxosToTransactionInput :: Utxo -> Array TransactionInput
+  utxosToTransactionInput =
+    Array.mapMaybe (hush <<< getPublicKeyTransactionInput) <<< Map.toUnfoldable
 
 balanceNonAdaOuts
   :: Address
@@ -928,8 +932,6 @@ balanceNonAdaOuts
 balanceNonAdaOuts changeAddr utxos txBody =
   balanceNonAdaOuts' changeAddr utxos txBody # lmap BalanceNonAdaOutsError'
 
--- FIX ME: (payment credential) address for change substitute for pkh (Address)
--- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L225
 -- | We need to balance non ada values as part of the prebalancer before returning
 -- | excess Ada to the owner.
 balanceNonAdaOuts'
@@ -938,14 +940,7 @@ balanceNonAdaOuts'
   -> TxBody
   -> Either BalanceNonAdaOutsError TxBody
 balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
-  let -- FIX ME: Similar to Address issue, need pkh.
-    -- payCredentials :: PaymentCredential
-    -- payCredentials = addressPaymentCredentials changeAddr
-
-    -- FIX ME: once both BaseAddresses are merged into one.
-    -- pkh :: PubKeyHash
-    -- pkh = addressPubKeyHash (unwrap changeAddr)."AddrType"
-
+  let
     txOutputs :: Array TransactionOutput
     txOutputs = txBody.outputs
 
@@ -1043,7 +1038,10 @@ getInputValue :: Utxo -> TxBody -> Value
 getInputValue utxos (TxBody txBody) =
   Array.foldMap
     getAmount
-    (Array.mapMaybe (flip Map.lookup utxos) <<< _.inputs $ txBody)
+    ( Array.mapMaybe (flip Map.lookup utxos)
+        <<< Array.fromFoldable
+        <<< _.inputs $ txBody
+    )
 
 --------------------------------------------------------------------------------
 -- Helpers
@@ -1052,4 +1050,4 @@ getInputValue utxos (TxBody txBody) =
 getAdaOnlyUtxoMinValue :: QueryM BigInt
 getAdaOnlyUtxoMinValue =
   asks _.pparams <#>
-    unwrap >>> _.uTxOCostPerWord >>> unwrap >>> mul adaOnlyWords
+    unwrap >>> _.coinsPerUtxoByte >>> unwrap >>> mul adaOnlyBytes

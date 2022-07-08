@@ -821,6 +821,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "node-process" = pkgs.stdenv.mkDerivation {
+        name = "node-process";
+        version = "v8.2.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-node/purescript-node-process.git";
+          rev = "e1e807ac7831d1a8a15e242964f7e5005e42f76b";
+          sha256 = "0nl9r271s8f71a9wqfkadq9b490h8phwgqc61jbzhm4ags23pqpg";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "node-streams" = pkgs.stdenv.mkDerivation {
         name = "node-streams";
         version = "v5.0.0";

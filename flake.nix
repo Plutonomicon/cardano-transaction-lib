@@ -8,7 +8,7 @@
     };
 
     # for the purescript project
-    ogmios.url = "github:mlabs-haskell/ogmios";
+    ogmios.url = "github:mlabs-haskell/ogmios/e406801eaeb32b28cd84357596ca1512bff27741";
     ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/85e030ae914abcffba4a7c261d9cd81f98b2168c";
     plutip.url = "github:mlabs-haskell/plutip/plutip-server";
     # so named because we also need a different version of the repo below
@@ -150,13 +150,12 @@
         ogmios-datum-cache =
           inputs.ogmios-datum-cache.defaultPackage.${system};
         ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
+        ogmios-fixtures = ogmios;
         plutip-server = inputs.plutip.packages.${system}."plutip:exe:plutip-server";
         cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
         purescriptProject = import ./nix { inherit system; pkgs = prev; };
         buildCtlRuntime = buildCtlRuntime system;
-        buildPlutipRuntime = buildPlutipRuntime system;
         launchCtlRuntime = launchCtlRuntime system;
-        launchPlutipRuntime = launchPlutipRuntime system;
         inherit cardano-configurations;
       });
 
@@ -212,31 +211,35 @@
         };
       };
 
-      buildPlutipRuntime = system: extraConfig:
-        { ... }:
-        let
-          inherit (builtins) toString;
-          pkgs = nixpkgsFor system;
-          config = configFor pkgs extraConfig;
-        in
-        with config;
-        {
-          services = {
-            postgres = {
-              service = {
-                image = "postgres:13";
-                ports =
-                  if postgres.port == null
-                  then [ ]
-                  else [ "${toString postgres.port}:5432" ];
-                environment = {
-                  POSTGRES_USER = "${postgres.user}";
-                  POSTGRES_PASSWORD = "${postgres.password}";
-                  POSTGRES_DB = "${postgres.db}";
-                };
-              };
-            };
-          };
+      buildOgmiosFixtures = pkgs:
+        pkgs.stdenv.mkDerivation {
+          name = "ogmios-fixtures";
+          dontUnpack = true;
+          buildInputs = [ pkgs.jq pkgs.pcre ];
+          buildPhase = ''
+            cp -r ${pkgs.ogmios-fixtures}/server/test/vectors vectors
+            chmod -R +rwx .
+
+            function on_file () {
+              local path=$1
+              local parent="$(basename "$(dirname "$path")")"
+              if command=$(pcregrep -o1 -o2 -o3 'Query\[(.*)\]|(EvaluateTx)|(SubmitTx)' <<< "$path")
+              then
+                echo "$path"
+                json=$(jq -c .result "$path")
+                md5=($(md5sum <<< "$json"))
+                printf "%s" "$json" > "ogmios/$command-$md5.json"
+              fi
+            }
+            export -f on_file
+
+            mkdir ogmios
+            find vectors/ -type f -name "*.json" -exec bash -c 'on_file "{}"' \;
+          '';
+          installPhase = ''
+            mkdir $out
+            cp -rT ogmios $out
+          '';
         };
 
       buildCtlRuntime = system: extraConfig:
@@ -262,7 +265,7 @@
           services = {
             cardano-node = {
               service = {
-                image = "inputoutput/cardano-node:1.34.1";
+                image = "inputoutput/cardano-node:1.35.0";
                 ports = [ (bindPort node.port) ];
                 volumes = [
                   "${config.cardano-configurations}/network/${config.network.name}/cardano-node:/config"
@@ -314,12 +317,7 @@
                   "${pkgs.bash}/bin/sh"
                   "-c"
                   ''
-                    ${server}/bin/ctl-server \
-                      --port ${toString ctlServer.port} \
-                      --node-socket ${nodeSocketPath} \
-                      --network-id ${if config.network.magic == null
-                                     then "mainnet"
-                                     else toString config.network.magic}
+                    ${server}/bin/ctl-server --port ${toString ctlServer.port}
                   ''
                 ];
               };
@@ -398,16 +396,28 @@
 
       launchCtlRuntime = launchRuntime "ctl" buildCtlRuntime;
 
-      launchPlutipRuntime = launchRuntime "plutip" buildPlutipRuntime;
-
       psProjectFor = system:
         let
           pkgs = nixpkgsFor system;
-          src = self;
+          projectName = "cardano-transaction-lib";
+          # `filterSource` will still trigger rebuilds with flakes, even if a
+          # filtered path is modified as the output path name is impurely
+          # derived. Setting an explicit `name` with `path` helps mitigate this
+          src = builtins.path {
+            path = self;
+            name = "${projectName}-src";
+            filter = path: ftype:
+              !(pkgs.lib.hasSuffix ".md" path)
+              && !(ftype == "directory" && builtins.elem
+                (baseNameOf path) [ "server" "doc" ]
+              );
+          };
           project = pkgs.purescriptProject {
-            inherit src pkgs;
-            projectName = "cardano-transaction-lib";
+            inherit src pkgs projectName;
+            packageJson = ./package.json;
+            packageLock = ./package-lock.json;
             shell = {
+              shellHook = exportOgmiosFixtures;
               packages = [
                 (hsProjectFor system).hsPkgs.ctl-server.components.exes.ctl-server
                 pkgs.postgresql
@@ -422,16 +432,17 @@
               ];
             };
           };
+          exportOgmiosFixtures =
+            ''
+              export OGMIOS_FIXTURES="${buildOgmiosFixtures pkgs}"
+            '';
         in
         rec {
           defaultPackage = packages.ctl-example-bundle-web;
 
-          # Building this package and the check below will ensure that the entire
-          # project compiles (i.e. all of `src`, `examples`, and `test`)
           packages = {
             ctl-example-bundle-web = project.bundlePursProject {
-              sources = [ "src" "examples" "test" ];
-              main = "Examples.SignMultiple";
+              main = "Examples.Pkh2Pkh";
               entrypoint = "examples/index.js";
               htmlTemplate = "examples/index.html";
             };
@@ -441,37 +452,20 @@
               modules = [ (buildCtlRuntime system { }) ];
             };
 
-            docs = project.buildSearchablePursDocs;
+            docs = project.buildSearchablePursDocs {
+              packageName = projectName;
+            };
           };
 
-          launchDocs =
-            let
-              binPath = "docs-server";
-              builtDocs = packages.docs;
-              script = (pkgs.writeShellScriptBin "${binPath}"
-                ''
-                  ${pkgs.nodePackages.http-server}/bin/http-server ${builtDocs}/generated-docs/html
-                ''
-              ).overrideAttrs (_: {
-                buildInputs = [ pkgs.nodejs-14_x pkgs.nodePackages.http-server ];
-              });
-            in
-            {
-              type = "app";
-              program = "${script}/bin/${binPath}";
-            };
-
-          # FIXME
-          # Once we have ogmios/node instances available, we should also include a
-          # test. This will need to be run via a Hercules `effect`
           checks = {
             ctl-unit-test = project.runPursTest {
+              name = "ctl-unit-test";
               testMain = "CTL.Test.Unit";
-              sources = [ "src" "test" "examples" "fixtures" ];
+              env = { OGMIOS_FIXTURES = "${buildOgmiosFixtures pkgs}"; };
             };
             ctl-plutip-test = project.runPursTest {
+              name = "ctl-plutip-test";
               testMain = "Test.Plutip";
-              sources = [ "src" "test" "examples" "fixtures" ];
               buildInputs = [
                 (hsProjectFor system).hsPkgs.ctl-server.components.exes.ctl-server
                 pkgs.postgresql
@@ -483,6 +477,29 @@
           };
 
           devShell = project.devShell;
+
+          apps = {
+            docs =
+              let
+                binPath = "docs-server";
+                builtDocs = packages.docs;
+                script = (pkgs.writeShellScriptBin "${binPath}"
+                  ''
+                    ${pkgs.nodePackages.http-server}/bin/http-server \
+                      ${builtDocs}/generated-docs/html
+                  ''
+                ).overrideAttrs (_: {
+                  buildInputs = [
+                    pkgs.nodejs-14_x
+                    pkgs.nodePackages.http-server
+                  ];
+                });
+              in
+              {
+                type = "app";
+                program = "${script}/bin/${binPath}";
+              };
+          };
         };
 
       hsProjectFor = system:
@@ -517,12 +534,10 @@
         // (psProjectFor system).packages
       );
 
-      apps = perSystem
-        (system: {
-          inherit
-            (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
+      apps = perSystem (system:
+        (psProjectFor system).apps // {
+          inherit (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
           ctl-runtime = (nixpkgsFor system).launchCtlRuntime { };
-          plutip-runtime = (nixpkgsFor system).launchPlutipRuntime { };
           docs = (psProjectFor system).launchDocs;
         });
 
@@ -568,6 +583,10 @@
 
       overlay = perSystem overlay;
 
-      herculesCI.ciSystems = [ "x86_64-linux" ];
+      hydraJobs = perSystem (system:
+        self.checks.${system}
+        // self.packages.${system}
+        // self.devShells.${system}
+      );
     };
 }

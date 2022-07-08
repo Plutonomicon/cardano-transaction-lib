@@ -28,6 +28,8 @@ module Test.Fixtures
   , nativeScriptFixture5
   , nativeScriptFixture6
   , nativeScriptFixture7
+  , ogmiosEvaluateTxInvalidPointerFormatFixture
+  , ogmiosEvaluateTxValidRespFixture
   , plutusDataFixture1
   , plutusDataFixture2
   , plutusDataFixture3
@@ -128,6 +130,8 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (wrap)
 import Data.NonEmpty ((:|))
+import Data.Set (Set)
+import Data.Set (singleton) as Set
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Deserialization.FromBytes (fromBytes)
@@ -233,7 +237,7 @@ txOutputBinaryFixture1 =
 
 -- | Extend this for your needs.
 type SampleTxConfig =
-  { inputs :: Array TransactionInput }
+  { inputs :: Set TransactionInput }
 
 -- | Build a sample transaction using convenient config
 -- | and existing one as a base.
@@ -301,7 +305,7 @@ txFixture1 :: Transaction
 txFixture1 =
   Transaction
     { body: TxBody
-        { inputs: [ txInputFixture1 ]
+        { inputs: Set.singleton txInputFixture1
         , outputs: [ txOutputFixture1 ]
         , fee: Coin $ BigInt.fromInt 177513
         , ttl: Nothing
@@ -332,7 +336,7 @@ txFixture2 :: Transaction
 txFixture2 =
   Transaction
     { body: TxBody
-        { inputs: [ txInputFixture1 ]
+        { inputs: Set.singleton txInputFixture1
         , outputs: [ txOutputFixture2 ]
         , fee: Coin $ BigInt.fromInt 177513
         , ttl: Nothing
@@ -363,7 +367,7 @@ txFixture3 :: Transaction
 txFixture3 =
   Transaction
     { body: TxBody
-        { inputs: [ txInputFixture1 ]
+        { inputs: Set.singleton txInputFixture1
         , outputs:
             [ TransactionOutput
                 { address: keyHashBaseAddress
@@ -473,7 +477,7 @@ txFixture4 :: Transaction
 txFixture4 =
   Transaction
     { body: TxBody
-        { inputs: [ txInputFixture1 ]
+        { inputs: Set.singleton txInputFixture1
         , outputs:
             [ TransactionOutput
                 { address: keyHashBaseAddress
@@ -1160,6 +1164,17 @@ cip25MetadataFixture1 = Cip25Metadata
 cip25MetadataJsonFixture1 :: Effect Aeson
 cip25MetadataJsonFixture1 =
   readTextFile UTF8 "test/Fixtures/cip25MetadataJsonFixture1.json" >>=
+    pure <<< fromRight aesonNull <<< parseJsonStringToAeson
+
+ogmiosEvaluateTxValidRespFixture :: Effect Aeson
+ogmiosEvaluateTxValidRespFixture =
+  readTextFile UTF8 "test/Fixtures/OgmiosEvaluateTxValidRespFixture.json" >>=
+    pure <<< fromRight aesonNull <<< parseJsonStringToAeson
+
+ogmiosEvaluateTxInvalidPointerFormatFixture :: Effect Aeson
+ogmiosEvaluateTxInvalidPointerFormatFixture =
+  readTextFile UTF8
+    "test/Fixtures/OgmiosEvaluateTxInvalidPointerFormatFixture.json" >>=
     pure <<< fromRight aesonNull <<< parseJsonStringToAeson
 
 redeemerFixture1 :: Redeemer
