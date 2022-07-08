@@ -12,8 +12,6 @@ result
 result-*
 .envrc
 .direnv
-/node_modules
-/node_modules/
 .node
 .node-cfg
 /server/dist-newstyle

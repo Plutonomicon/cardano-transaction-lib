@@ -1,8 +1,21 @@
 module Types.TxConstraints
-  ( InputConstraint(..)
-  , OutputConstraint(..)
-  , TxConstraint(..)
-  , TxConstraints(..)
+  ( InputConstraint(InputConstraint)
+  , OutputConstraint(OutputConstraint)
+  , TxConstraint
+      ( MustIncludeDatum
+      , MustValidateIn
+      , MustBeSignedBy
+      , MustSpendAtLeast
+      , MustProduceAtLeast
+      , MustSpendPubKeyOutput
+      , MustSpendScriptOutput
+      , MustMintValue
+      , MustPayToPubKeyAddress
+      , MustPayToScript
+      , MustHashDatum
+      , MustSatisfyAnyOf
+      )
+  , TxConstraints(TxConstraints)
   , addTxIn
   , isSatisfiable
   , modifiesUtxoSet
@@ -35,8 +48,8 @@ module Types.TxConstraints
 
 import Prelude hiding (join)
 
-import Data.Array as Array
 import Data.Array ((:), concat)
+import Data.Array as Array
 import Data.Bifunctor (class Bifunctor)
 import Data.BigInt (BigInt)
 import Data.Foldable (class Foldable, any, foldl, foldMap, foldr, null)
@@ -49,13 +62,14 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested ((/\), type (/\))
 import Plutus.Types.CurrencySymbol (CurrencySymbol, currencyMPSHash)
 import Plutus.Types.Value (Value, isZero, flattenNonAdaAssets)
-import Types.Interval (POSIXTimeRange, always, intersection, isEmpty)
-import Types.Redeemer (Redeemer, unitRedeemer)
-import Types.PubKeyHash (PaymentPubKeyHash, StakePubKeyHash)
-import Types.Scripts (MintingPolicyHash, ValidatorHash)
+import Prim.TypeError (class Warn, Text)
 import Types.Datum (Datum)
-import Types.Transaction (DataHash, TransactionInput)
+import Types.Interval (POSIXTimeRange, always, intersection, isEmpty)
+import Types.PubKeyHash (PaymentPubKeyHash, StakePubKeyHash)
+import Types.Redeemer (Redeemer, unitRedeemer)
+import Types.Scripts (MintingPolicyHash, ValidatorHash)
 import Types.TokenName (TokenName)
+import Types.Transaction (DataHash, TransactionInput)
 
 --------------------------------------------------------------------------------
 -- TxConstraints Type and related
@@ -175,7 +189,11 @@ mustIncludeDatum = singleton <<< MustIncludeDatum
 -- | Lock the value with a public key
 mustPayToPubKey
   :: forall (i :: Type) (o :: Type)
-   . PaymentPubKeyHash
+   . Warn
+       ( Text
+           "Some wallets may not recognize addresses without a staking key component. Consider using mustPayToPubKeyAddress"
+       )
+  => PaymentPubKeyHash
   -> Value
   -> TxConstraints i o
 mustPayToPubKey pkh = singleton <<< MustPayToPubKeyAddress pkh Nothing Nothing

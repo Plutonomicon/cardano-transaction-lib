@@ -1,6 +1,6 @@
 SHELL := bash
 .ONESHELL:
-.PHONY: run-dev run-build check-format format run-datum-cache-postgres-console query-testnet-tip clean
+.PHONY: run-dev run-build check-format format run-datum-cache-postgres-console query-testnet-tip clean check-explicit-exports
 .SHELLFLAGS := -eu -o pipefail -c
 
 ps-sources := $(shell fd -epurs)
@@ -16,6 +16,11 @@ run-dev:
 
 run-build:
 	@${ps-bundle} && BROWSER_RUNTIME=1 webpack --mode=production
+
+check-explicit-exports:
+	@[ -z "$$(grep -rn '(\.\.)' ./src ./test ./examples)" ] || \
+		(echo "Use explicit exports:" && \
+		grep -rn '(\.\.)' ./src ./test ./examples)
 
 check-format:
 	@purs-tidy check ${ps-sources}

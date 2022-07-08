@@ -1,20 +1,44 @@
 module BalanceTx
-  ( Actual(..)
-  , AddTxCollateralsError(..)
-  , BalanceNonAdaOutsError(..)
-  , BalanceTxError(..)
-  , BalanceTxInsError(..)
-  , CannotMinusError(..)
-  , EvalExUnitsAndMinFeeError(..)
-  , Expected(..)
-  , FinalizedTransaction(..)
-  , GetPublicKeyTransactionInputError(..)
-  , GetWalletAddressError(..)
-  , GetWalletCollateralError(..)
-  , TxInputLockedError(..)
-  , ImpossibleError(..)
-  , ReturnAdaChangeError(..)
-  , UtxosAtError(..)
+  ( Actual(Actual)
+  , AddTxCollateralsError
+      ( CollateralUtxosUnavailable
+      , AddTxCollateralsError
+      )
+  , BalanceNonAdaOutsError
+      ( InputsCannotBalanceNonAdaTokens
+      , BalanceNonAdaOutsCannotMinus
+      )
+  , BalanceTxError
+      ( GetWalletAddressError'
+      , GetWalletCollateralError'
+      , UtxosAtError'
+      , ReturnAdaChangeError'
+      , AddTxCollateralsError'
+      , GetPublicKeyTransactionInputError'
+      , BalanceTxInsError'
+      , BalanceNonAdaOutsError'
+      , EvalExUnitsAndMinFeeError'
+      , TxInputLockedError'
+      )
+  , BalanceTxInsError(InsufficientTxInputs, BalanceTxInsCannotMinus)
+  , CannotMinusError(CannotMinus)
+  , EvalExUnitsAndMinFeeError
+      ( EvalMinFeeError
+      , ReindexRedeemersError
+      )
+  , Expected(Expected)
+  , FinalizedTransaction(FinalizedTransaction)
+  , GetPublicKeyTransactionInputError(CannotConvertScriptOutputToTxInput)
+  , GetWalletAddressError(CouldNotGetWalletAddress)
+  , GetWalletCollateralError(CouldNotGetCollateral)
+  , TxInputLockedError(TxInputLockedError)
+  , ImpossibleError(Impossible)
+  , ReturnAdaChangeError
+      ( ReturnAdaChangeError
+      , ReturnAdaChangeImpossibleError
+      , ReturnAdaChangeCalculateMinFee
+      )
+  , UtxosAtError(CouldNotGetUtxos)
   , balanceTx
   ) where
 

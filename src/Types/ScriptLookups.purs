@@ -1,7 +1,31 @@
 module Types.ScriptLookups
-  ( MkUnbalancedTxError(..)
-  , ScriptLookups(..)
-  , UnattachedUnbalancedTx(..)
+  ( MkUnbalancedTxError
+      ( TypeCheckFailed
+      , ModifyTx
+      , TxOutRefNotFound
+      , TxOutRefWrongType
+      , DatumNotFound
+      , MintingPolicyNotFound
+      , MintingPolicyHashNotCurrencySymbol
+      , CannotMakeValue
+      , ValidatorHashNotFound
+      , OwnPubKeyAndStakeKeyMissing
+      , TypedValidatorMissing
+      , DatumWrongHash
+      , CannotQueryDatum
+      , CannotHashDatum
+      , CannotConvertPOSIXTimeRange
+      , CannotGetMintingPolicyScriptIndex
+      , CannotGetValidatorHashFromAddress
+      , MkTypedTxOutFailed
+      , TypedTxOutHasNoDatumHash
+      , CannotHashMintingPolicy
+      , CannotHashValidator
+      , CannotConvertPaymentPubKeyHash
+      , CannotSatisfyAny
+      )
+  , ScriptLookups(ScriptLookups)
+  , UnattachedUnbalancedTx(UnattachedUnbalancedTx)
   , generalise
   , mintingPolicy
   , mintingPolicyM
@@ -23,6 +47,7 @@ module Types.ScriptLookups
 import Prelude hiding (join)
 
 import Address (enterpriseAddressValidatorHash)
+import Aeson (class EncodeAeson)
 import Cardano.Types.Transaction
   ( Costmdls
   , ExUnits
@@ -601,6 +626,7 @@ newtype UnattachedUnbalancedTx = UnattachedUnbalancedTx
 derive instance Generic UnattachedUnbalancedTx _
 derive instance Newtype UnattachedUnbalancedTx _
 derive newtype instance Eq UnattachedUnbalancedTx
+derive newtype instance EncodeAeson UnattachedUnbalancedTx
 
 instance Show UnattachedUnbalancedTx where
   show = genericShow

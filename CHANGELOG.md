@@ -31,12 +31,15 @@ This release adds support for running CTL contracts against Babbage-era nodes. *
 - `mkKeyWalletFromFile` helper to use `cardano-cli`-style `skey`s
 - Single `Plutus.Conversion` module exposing all `(Type <-> Plutus Type)` conversion functions ([#464](https://github.com/Plutonomicon/cardano-transaction-lib/pull/464))
 - Support for using a `PrivateKey` as a `Wallet`
+- `logAeson` family of functions to be able to log JSON representations
+- `EncodeAeson` instances for most types under `Cardano.Types.*` as well as other useful types (`Value`, `Coin`, etc.)
 - `getProtocolParameters` call to retrieve current protocol parameters from Ogmios ([#541](https://github.com/Plutonomicon/cardano-transaction-lib/issues/541))
 - `Contract.Utxos.getWalletBalance` call to get all available assets as a single `Value` ([#590](https://github.com/Plutonomicon/cardano-transaction-lib/issues/590))
 - `balanceAndSignTxs` balances and signs multiple transactions while taking care to use transaction inputs only once
 - Ability to load stake keys from files when using `KeyWallet` ([#635](https://github.com/Plutonomicon/cardano-transaction-lib/issues/635))
 - Implement utxosAt for `KeyWallet` ([#617](https://github.com/Plutonomicon/cardano-transaction-lib/issues/617))
 - `FromMetadata` and `ToMetadata` instances for `Contract.Value.CurrencySymbol`
+- `Contract.Chain.waitUntilSlot` to delay contract execution until local chain tip reaches certain point of time (in slots).
 
 ### Removed
 
