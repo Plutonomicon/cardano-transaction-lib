@@ -12,7 +12,7 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Foreign (Foreign, unsafeFromForeign)
 import Prelude
-import Toppokki as Toki
+import Toppokki as Toppokki
 
 foreign import _publishTestFeedback :: forall (a :: Type). a -> Effect Unit
 
@@ -21,11 +21,11 @@ publishTestFeedback :: forall (a :: Type). a -> Aff Unit
 publishTestFeedback = liftEffect <<< _publishTestFeedback
 
 -- | Retrieve the feedback value
-retrieveTestFeedback :: Toki.Page -> Aff Foreign
-retrieveTestFeedback page = Toki.unsafeEvaluateStringFunction
+retrieveTestFeedback :: Toppokki.Page -> Aff Foreign
+retrieveTestFeedback page = Toppokki.unsafeEvaluateStringFunction
   "window.ctlTestFeedback"
   page
 
 -- | Convenience function for boolean feedback
-testFeedbackIsTrue :: Toki.Page -> Aff Boolean
+testFeedbackIsTrue :: Toppokki.Page -> Aff Boolean
 testFeedbackIsTrue page = unsafeFromForeign <$> retrieveTestFeedback page

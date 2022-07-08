@@ -50,9 +50,9 @@ import Effect.Uncurried (mkEffectFn1, EffectFn1)
 import Foreign (Foreign, unsafeFromForeign)
 import Test.E2E.Feedback (testFeedbackIsTrue)
 import Test.Spec.Assertions (shouldSatisfy)
-import Toppokki as Toki
+import Toppokki as Toppokki
 
-exampleUrl :: Toki.URL
+exampleUrl :: Toppokki.URL
 exampleUrl = wrap "http://localhost:4008/"
 
 testPassword :: String
@@ -75,34 +75,34 @@ newtype E2EOutput = E2EOutput
   }
 
 newtype RunningExample = RunningExample
-  { browser :: Toki.Browser
+  { browser :: Toppokki.Browser
   , jQuery :: String
-  , main :: Toki.Page
+  , main :: Toppokki.Page
   , errors :: Ref (Array E2EOutput)
   }
 
 derive instance Newtype RunningExample _
 
-retrieveJQuery :: Toki.Page -> Aff String
+retrieveJQuery :: Toppokki.Page -> Aff String
 retrieveJQuery = toAffE <<< _retrieveJQuery
 
-typeInto :: Selector -> String -> Toki.Page -> Aff Unit
+typeInto :: Selector -> String -> Toppokki.Page -> Aff Unit
 typeInto selector text page = toAffE $ _typeInto selector text page
 
-jQueryCount :: Selector -> Toki.Page -> Aff Int
+jQueryCount :: Selector -> Toppokki.Page -> Aff Int
 jQueryCount selector page = unsafeFromForeign <$> doJQ selector (wrap "length")
   page
 
-hasSelector :: Selector -> Toki.Page -> Aff Boolean
+hasSelector :: Selector -> Toppokki.Page -> Aff Boolean
 hasSelector selector page = (_ > 0) <$> jQueryCount selector page
 
-findWalletPage :: String -> Toki.Browser -> Aff (Maybe Toki.Page)
+findWalletPage :: String -> Toppokki.Browser -> Aff (Maybe Toppokki.Page)
 findWalletPage jQuery browser = do
   pages <- injectJQueryAll jQuery browser
   pages' <- filterA (hasSelector button) pages
   pure $ head $ pages'
 
-waitForWalletPage :: String -> Toki.Browser -> Aff Toki.Page
+waitForWalletPage :: String -> Toppokki.Browser -> Aff Toppokki.Page
 waitForWalletPage jQuery browser =
   findWalletPage jQuery browser >>= case _ of
     Nothing -> do
@@ -122,16 +122,16 @@ showOutput ref =
     Ref.read ref >>= pure <<< intercalate "\n" <<< map show'
 
 -- | start example at URL with Nami and return both Nami's page and the example's
-startExample :: String -> Toki.Browser -> Aff RunningExample
+startExample :: String -> Toppokki.Browser -> Aff RunningExample
 startExample name browser = do
-  page <- Toki.newPage browser
+  page <- Toppokki.newPage browser
   jQuery <- retrieveJQuery page
   errorRef <- liftEffect $ Ref.new []
   liftEffect do
-    Toki.onPageError (handler errorRef PageError $ pure <<< show) page
-    Toki.onConsole (handler errorRef Console Toki.consoleMessageText) page
-    Toki.onRequestFailed (handler errorRef RequestFailed $ pure <<< show) page
-  Toki.goto url page
+    Toppokki.onPageError (handler errorRef PageError $ pure <<< show) page
+    Toppokki.onConsole (handler errorRef Console Toppokki.consoleMessageText) page
+    Toppokki.onRequestFailed (handler errorRef RequestFailed $ pure <<< show) page
+  Toppokki.goto url page
   pure $ wrap
     { browser: browser
     , jQuery: jQuery
@@ -139,7 +139,7 @@ startExample name browser = do
     , errors: errorRef
     }
   where
-  url :: Toki.URL
+  url :: Toppokki.URL
   url = wrap $ unwrap exampleUrl <> "?" <> name
 
   handler
@@ -167,7 +167,7 @@ checkSuccess (RunningExample { main, errors }) = do
   shouldSatisfy feedback (_ == true)
 
 inWalletPage
-  :: forall (a :: Type). RunningExample -> (Toki.Page -> Aff a) -> Aff a
+  :: forall (a :: Type). RunningExample -> (Toppokki.Page -> Aff a) -> Aff a
 inWalletPage (RunningExample { browser, jQuery }) =
   (waitForWalletPage jQuery browser >>= _)
 
@@ -190,14 +190,14 @@ geroConfirmAccess =
     void $ doJQ (inputType "checkbox") click page
     void $ doJQ (buttonWithText "Connect") click page
 
-geroInit :: Toki.Browser -> Aff Unit
+geroInit :: Toppokki.Browser -> Aff Unit
 geroInit browser = do
-  page <- Toki.newPage browser
+  page <- Toppokki.newPage browser
   jQuery <- retrieveJQuery page
-  Toki.goto
+  Toppokki.goto
     (wrap "chrome-extension://iifeegfcfhlhhnilhfoeihllenamcfgc/index.html")
     page
-  void $ Toki.unsafeEvaluateStringFunction jQuery page
+  void $ Toppokki.unsafeEvaluateStringFunction jQuery page
   delay $ wrap 1000.0
   void $ doJQ (buttonWithText "Get Started") click page
   delay $ wrap 1000.0
@@ -220,11 +220,11 @@ geroInit browser = do
   delay $ wrap 50000.0
   pure unit
 
-{-geroSetCollateral :: Toki.Browser -> Aff Unit
+{-geroSetCollateral :: Toppokki.Browser -> Aff Unit
 geroSetCollateral = do
-  page <- Toki.newPage browser
+  page <- Toppokki.newPage browser
   jQuery <- retrieveJQuery page
-  Toki.goto (wrap "chrome-extension://iifeegfcfhlhhnilhfoeihllenamcfgc/index.html") page
+  Toppokki.goto (wrap "chrome-extension://iifeegfcfhlhhnilhfoeihllenamcfgc/index.html") page
 -}
 
 geroSign :: RunningExample -> Aff Unit
@@ -233,7 +233,7 @@ geroSign (RunningExample { browser }) = do
 
 -- | Wrapper for Page so it can be used in `shouldSatisfy`, which needs 'Show'
 -- | Doesn't show anything, thus 'NoShow'
-newtype NoShowPage = NoShowPage Toki.Page
+newtype NoShowPage = NoShowPage Toppokki.Page
 
 derive instance Newtype NoShowPage _
 
@@ -248,16 +248,16 @@ newtype Action = Action String
 
 derive instance Newtype Action _
 
--- | Build a primitive jQuery expression like '$("button").click()' and evaluate it in Toki
-doJQ :: Selector -> Action -> Toki.Page -> Aff Foreign
+-- | Build a primitive jQuery expression like '$("button").click()' and evaluate it in Toppokki
+doJQ :: Selector -> Action -> Toppokki.Page -> Aff Foreign
 doJQ selector = doJQInd selector Nothing
 
-doJQ' :: Selector -> Action -> Toki.Page -> Aff Foreign
+doJQ' :: Selector -> Action -> Toppokki.Page -> Aff Foreign
 doJQ' selector = doJQInd selector (Just 0)
 
-doJQInd :: Selector -> Maybe Int -> Action -> Toki.Page -> Aff Foreign
+doJQInd :: Selector -> Maybe Int -> Action -> Toppokki.Page -> Aff Foreign
 doJQInd selector index action page = do
-  Toki.unsafeEvaluateStringFunction jq page
+  Toppokki.unsafeEvaluateStringFunction jq page
   where
   jq :: String
   jq = "$('" <> unwrap selector <> "')" <> indexStr <> "." <> unwrap action
@@ -307,23 +307,23 @@ setValue = jqSet "val" <<< jqStr
 trigger :: String -> Action
 trigger event = wrap $ "trigger(" <> jqStr event <> ")"
 
-clickButton :: String -> Toki.Page -> Aff Unit
+clickButton :: String -> Toppokki.Page -> Aff Unit
 clickButton buttonText = void <$> doJQ (buttonWithText buttonText) click
 
-injectJQueryAll :: String -> Toki.Browser -> Aff (Array Toki.Page)
+injectJQueryAll :: String -> Toppokki.Browser -> Aff (Array Toppokki.Page)
 injectJQueryAll jQuery browser = do
-  pages <- Toki.pages browser
+  pages <- Toppokki.pages browser
   void $ for pages $ \page -> do
     (alreadyInjected :: Boolean) <-
       unsafeFromForeign <$>
-        Toki.unsafeEvaluateStringFunction "typeof(jQuery) !== 'undefined'" page
-    unless alreadyInjected $ void $ Toki.unsafeEvaluateStringFunction jQuery
+        Toppokki.unsafeEvaluateStringFunction "typeof(jQuery) !== 'undefined'" page
+    unless alreadyInjected $ void $ Toppokki.unsafeEvaluateStringFunction jQuery
       page
   pure pages
 
-reactSetValue :: Selector -> String -> Toki.Page -> Aff Unit
+reactSetValue :: Selector -> String -> Toppokki.Page -> Aff Unit
 reactSetValue selector value page = void
-  $ flip Toki.unsafeEvaluateStringFunction page
+  $ flip Toppokki.unsafeEvaluateStringFunction page
   $ fold
       [ -- https://stackoverflow.com/questions/23892547/what-is-the-best-way-to-trigger-onchange-event-in-react-js
         -- Nami uses react, which complicates things a bit
@@ -336,9 +336,9 @@ reactSetValue selector value page = void
       , "input.dispatchEvent(ev2);"
       ]
 
-reactSetValueP :: Selector -> String -> Toki.Page -> Aff Unit
+reactSetValueP :: Selector -> String -> Toppokki.Page -> Aff Unit
 reactSetValueP selector value page = void
-  $ flip Toki.unsafeEvaluateStringFunction page
+  $ flip Toppokki.unsafeEvaluateStringFunction page
   $ fold
       [ -- https://stackoverflow.com/questions/23892547/what-is-the-best-way-to-trigger-onchange-event-in-react-js
         -- Nami uses react, which complicates things a bit
@@ -351,15 +351,15 @@ reactSetValueP selector value page = void
       , "input.dispatchEvent(ev2);"
       ]
 
-foreign import _retrieveJQuery :: Toki.Page -> Effect (Promise String)
+foreign import _retrieveJQuery :: Toppokki.Page -> Effect (Promise String)
 foreign import _typeInto
-  :: Selector -> String -> Toki.Page -> Effect (Promise Unit)
+  :: Selector -> String -> Toppokki.Page -> Effect (Promise Unit)
 
-foreign import _clickTab :: Toki.Browser -> Toki.Page -> Effect Unit
-foreign import _openPopup :: Toki.Browser -> Effect (Promise Unit)
+foreign import _clickTab :: Toppokki.Browser -> Toppokki.Page -> Effect Unit
+foreign import _openPopup :: Toppokki.Browser -> Effect (Promise Unit)
 
-clickTab :: Toki.Browser -> Toki.Page -> Aff Unit
+clickTab :: Toppokki.Browser -> Toppokki.Page -> Aff Unit
 clickTab b p = liftEffect $ _clickTab b p
 
-openPopup :: Toki.Browser -> Aff Unit
+openPopup :: Toppokki.Browser -> Aff Unit
 openPopup b = toAffE $ _openPopup b

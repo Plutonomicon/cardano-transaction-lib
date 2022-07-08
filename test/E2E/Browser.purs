@@ -29,7 +29,7 @@ import Options.Applicative
   , info
   , fullDesc
   )
-import Toppokki as Toki
+import Toppokki as Toppokki
 
 data TestOptions = TestOptions
   { chromeExe :: Maybe String
@@ -80,10 +80,10 @@ parseOptions :: Effect TestOptions
 parseOptions = execParser $ info optParser fullDesc
 
 launchWithExtension
-  :: TestOptions -> String -> Aff Toki.Browser
+  :: TestOptions -> String -> Aff Toppokki.Browser
 launchWithExtension
   (TestOptions { chromeExe, chromeUserDataDir, namiDir, geroDir, noHeadless })
-  wallet = Toki.launch
+  wallet = Toppokki.launch
   { args:
       [ "--disable-extensions-except=" <> extDir
       , "--load-extension=" <> extDir

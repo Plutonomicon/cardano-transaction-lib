@@ -13,7 +13,7 @@ import Test.E2E.Helpers
   , startExample
   )
 import TestM (TestPlanM)
-import Toppokki as Toki
+import Toppokki as Toppokki
 
 testPkh2Pkh :: TestOptions -> TestPlanM Unit
 testPkh2Pkh options = test "Pkh2Pkh" do
@@ -26,5 +26,5 @@ testPkh2Pkh options = test "Pkh2Pkh" do
   -- it will take a few ms to return control to our example.
   delay (wrap 10000.0)
   checkSuccess example
-  Toki.close browser
+  Toppokki.close browser
 
