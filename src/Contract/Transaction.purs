@@ -29,6 +29,7 @@ module Contract.Transaction
 
 import Prelude
 
+import Aeson (class EncodeAeson)
 import BalanceTx (BalanceTxError) as BalanceTxError
 import BalanceTx (FinalizedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
@@ -120,14 +121,50 @@ import Effect.Exception (Error, throw)
 import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
 import Plutus.Types.Transaction (TransactionOutput(TransactionOutput)) as PTransaction
 import Plutus.Types.Value (Coin)
-import QueryM (FeeEstimate(FeeEstimate), ClientError(..)) as ExportQueryM
+import QueryM
+  ( FeeEstimate(FeeEstimate)
+  , ClientError
+      ( ClientHttpError
+      , ClientHttpResponseError
+      , ClientDecodeJsonError
+      , ClientEncodingError
+      , ClientOtherError
+      )
+  ) as ExportQueryM
 import QueryM (calculateMinFee, signTransaction, submitTxOgmios) as QueryM
 import ReindexRedeemers (ReindexErrors(CannotGetTxOutRefIndexForRedeemer)) as ReindexRedeemersExport
 import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (NetworkId)
 import TxOutput (scriptOutputToTransactionOutput) as TxOutput
-import Types.ScriptLookups (MkUnbalancedTxError(..), mkUnbalancedTx) as ScriptLookups
+import Types.ScriptLookups
+  ( MkUnbalancedTxError
+      ( TypeCheckFailed
+      , ModifyTx
+      , TxOutRefNotFound
+      , TxOutRefWrongType
+      , DatumNotFound
+      , MintingPolicyNotFound
+      , MintingPolicyHashNotCurrencySymbol
+      , CannotMakeValue
+      , ValidatorHashNotFound
+      , OwnPubKeyAndStakeKeyMissing
+      , TypedValidatorMissing
+      , DatumWrongHash
+      , CannotQueryDatum
+      , CannotHashDatum
+      , CannotConvertPOSIXTimeRange
+      , CannotGetMintingPolicyScriptIndex
+      , CannotGetValidatorHashFromAddress
+      , MkTypedTxOutFailed
+      , TypedTxOutHasNoDatumHash
+      , CannotHashMintingPolicy
+      , CannotHashValidator
+      , CannotConvertPaymentPubKeyHash
+      , CannotSatisfyAny
+      )
+  , mkUnbalancedTx
+  ) as ScriptLookups
 import Types.ScriptLookups (UnattachedUnbalancedTx)
 import Types.Transaction
   ( DataHash(DataHash)
@@ -367,6 +404,7 @@ newtype BalancedSignedTransaction = BalancedSignedTransaction Transaction
 derive instance Generic BalancedSignedTransaction _
 derive instance Newtype BalancedSignedTransaction _
 derive newtype instance Eq BalancedSignedTransaction
+derive newtype instance EncodeAeson BalancedSignedTransaction
 
 instance Show BalancedSignedTransaction where
   show = genericShow
