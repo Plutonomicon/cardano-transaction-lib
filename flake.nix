@@ -412,14 +412,16 @@
             packageLock = ./package-lock.json;
             shell = {
               shellHook = exportOgmiosFixtures;
-              packages = [
-                pkgs.ogmios
-                pkgs.cardano-cli
-                pkgs.ogmios-datum-cache
-                pkgs.nixpkgs-fmt
-                pkgs.fd
-                pkgs.arion
-                pkgs.haskellPackages.fourmolu
+              packages = with pkgs; [
+                ogmios
+                cardano-cli
+                ogmios-datum-cache
+                nixpkgs-fmt
+                fd
+                arion
+                haskellPackages.fourmolu
+                nodePackages.prettier
+                nodePackages.eslint
               ];
             };
           };
