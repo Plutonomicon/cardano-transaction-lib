@@ -112,7 +112,7 @@ testSetScriptDataHash = liftEffect $ do
       -- Verify the hash with some external tool
       byteArrayToHex sdh
         `shouldEqual`
-          "3ed3d611bc67ef89de1ef8200e4af38210be6c1cfa436e2fef90c7ad48a33df9"
+          "022b4e6f5e29a81f1a84afcc9b0b1487e719ffd95aad04149080dfa74483d4f4"
   where
   tx :: Transaction
   tx = mempty
