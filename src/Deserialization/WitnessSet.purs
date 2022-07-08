@@ -1,6 +1,7 @@
 module Deserialization.WitnessSet
   ( convertNativeScripts
   , convertPlutusScripts
+  , convertPlutusScript
   , convertVkeyWitnesses
   , convertVkeyWitness
   , convertWitnessSet
@@ -10,11 +11,11 @@ module Deserialization.WitnessSet
 
 import Prelude
 
+import Cardano.Types.NativeScript (NativeScript) as T
 import Cardano.Types.Transaction
   ( BootstrapWitness
   , Ed25519Signature(Ed25519Signature)
   , ExUnits
-  , NativeScript
   , PublicKey(PublicKey)
   , Redeemer(Redeemer)
   , TransactionWitnessSet(TransactionWitnessSet)
@@ -109,7 +110,11 @@ convertBootstraps = extractBootstraps >>> map \bootstrap ->
 
 convertPlutusScripts :: PlutusScripts -> Maybe (Array S.PlutusScript)
 convertPlutusScripts plutusScripts =
-  hush $ for (extractPlutusScripts plutusScripts) \plutusScript -> do
+  for (extractPlutusScripts plutusScripts) convertPlutusScript
+
+convertPlutusScript :: PlutusScript -> Maybe S.PlutusScript
+convertPlutusScript plutusScript =
+  hush do
     language <- convertLanguage $ plutusScriptVersion plutusScript
     pure $ curry S.PlutusScript (plutusScriptBytes plutusScript) language
 

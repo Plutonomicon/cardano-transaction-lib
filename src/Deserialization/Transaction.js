@@ -225,8 +225,6 @@ exports._unpackProtocolParamUpdate = maybe => ppu => {
         poolPledgeInfluence: optional(ppu.pool_pledge_influence()),
         expansionRate: optional(ppu.expansion_rate()),
         treasuryGrowthRate: optional(ppu.treasury_growth_rate()),
-        d: optional(ppu.d()),
-        extraEntropy: optional(ppu.extra_entropy()),
         protocolVersion: optional(ppu.protocol_version()),
         minPoolCost: optional(ppu.min_pool_cost()),
         adaPerUtxoByte: optional(ppu.ada_per_utxo_byte()),

@@ -16,7 +16,6 @@ module Cardano.Types.Transaction
   , MIRToStakeCredentials(..)
   , Mint(..)
   , MoveInstantaneousReward(..)
-  , NativeScript(..)
   , Nonce(..)
   , PoolMetadata(..)
   , PoolMetadataHash(..)
@@ -76,6 +75,8 @@ import Aeson
   , decodeAeson
   , encodeAeson'
   )
+import Cardano.Types.NativeScript (NativeScript)
+import Cardano.Types.ScriptRef (ScriptRef)
 import Cardano.Types.Value (Coin, NonAdaAsset, Value)
 import Control.Alternative ((<|>))
 import Control.Apply (lift2)
@@ -112,10 +113,11 @@ import Types.Aliases (Bech32String)
 import Types.BigNum (BigNum)
 import Types.ByteArray (ByteArray)
 import Types.Int as Int
+import Types.OutputDatum (OutputDatum)
 import Types.PlutusData (PlutusData)
 import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript, Language)
-import Types.Transaction (DataHash, TransactionInput)
+import Types.Transaction (TransactionInput)
 import Types.TransactionMetadata (GeneralTransactionMetadata)
 
 --------------------------------------------------------------------------------
@@ -330,8 +332,6 @@ type ProtocolParamUpdate =
   , poolPledgeInfluence :: Maybe UnitInterval
   , expansionRate :: Maybe UnitInterval
   , treasuryGrowthRate :: Maybe UnitInterval
-  , d :: Maybe UnitInterval
-  , extraEntropy :: Maybe Nonce
   , protocolVersion :: Maybe (Array ProtocolVersion)
   , minPoolCost :: Maybe BigNum
   , adaPerUtxoByte :: Maybe BigNum
@@ -758,24 +758,11 @@ instance Monoid AuxiliaryData where
     , plutusScripts: Nothing
     }
 
-data NativeScript
-  = ScriptPubkey Ed25519KeyHash
-  | ScriptAll (Array NativeScript)
-  | ScriptAny (Array NativeScript)
-  | ScriptNOfK Int (Array NativeScript)
-  | TimelockStart Slot
-  | TimelockExpiry Slot
-
-derive instance Eq NativeScript
-derive instance Generic NativeScript _
-
-instance Show NativeScript where
-  show x = genericShow x
-
 newtype TransactionOutput = TransactionOutput
   { address :: Address
   , amount :: Value
-  , dataHash :: Maybe DataHash
+  , datum :: OutputDatum
+  , scriptRef :: Maybe ScriptRef
   }
 
 derive instance Generic TransactionOutput _
