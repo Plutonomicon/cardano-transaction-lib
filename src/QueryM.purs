@@ -158,7 +158,7 @@ import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
 import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
-import Types.Scripts (PlutusScript(PlutusScript), Language(PlutusV1))
+import Types.Scripts (PlutusScript(PlutusScript), Language)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
 import Wallet (Wallet(Gero, Nami, KeyWallet), Cip30Connection, Cip30Wallet)
