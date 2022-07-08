@@ -77,7 +77,6 @@ You can edit this file as you like.
   , "unfoldable"
   , "untagged-union"
   , "variant"
-  , "yaml-next"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs", "examples/**/*.purs" ]

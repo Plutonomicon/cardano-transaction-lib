@@ -2,17 +2,7 @@ module Plutip.Server where
 
 import Prelude
 
-import Aeson
-  ( decodeAeson
-  , encodeAeson
-  , getField
-  , getNestedAeson
-  , jsonToAeson
-  , parseJsonStringToAeson
-  , stringifyAeson
-  , toNumber
-  , toObject
-  )
+import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
 import Affjax as Affjax
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
@@ -20,19 +10,15 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
 import Contract.Monad (Contract, ContractConfig(ContractConfig), runContract)
 import Control.Monad.Error.Class (withResource)
-import Control.Monad.Except (runExcept)
 import Data.Bifunctor (lmap)
-import Data.Either (Either(Right, Left), either)
+import Data.Either (Either(Left), either)
 import Data.HTTP.Method as Method
-import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.UInt as UInt
-import Data.YAML.Foreign.Decode (parseYAMLToJson)
-import Effect (Effect)
 import Effect.Aff (Aff, Milliseconds(Milliseconds))
 import Effect.Aff.Class (liftAff)
 import Effect.Aff.Retry
@@ -43,7 +29,6 @@ import Effect.Aff.Retry
   )
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Helpers (fromJustEff, fromRightEff)
 import Node.ChildProcess
   ( ChildProcess
   , defaultExecSyncOptions
@@ -52,8 +37,6 @@ import Node.ChildProcess
   , kill
   , spawn
   )
-import Node.Encoding as Encoding
-import Node.FS.Sync (readTextFile)
 import Node.Path (concat, dirname)
 import Plutip.Spawn (NewOutputAction(Success, NoOp), spawnAndWaitForOutput)
 import Plutip.Types
@@ -98,7 +81,7 @@ runPlutipContract plutipCfg distr contContract =
         withPostgres response
           $ withOgmios response
           $ withOgmiosDatumCache response
-          $ withCtlServer response do
+          $ withCtlServer do
               contractCfg <- mkClusterContractCfg plutipCfg
               liftAff $ runContract contractCfg (contContract wallets)
   where
@@ -129,9 +112,9 @@ runPlutipContract plutipCfg distr contContract =
     withResource (startOgmiosDatumCache plutipCfg response)
       stopChildProcess <<< const
 
-  withCtlServer :: ClusterStartupParameters -> Aff a -> Aff a
-  withCtlServer response =
-    withResource (startCtlServer plutipCfg response)
+  withCtlServer :: Aff a -> Aff a
+  withCtlServer =
+    withResource (startCtlServer plutipCfg)
       stopChildProcess <<< const
 
   withWallets :: ClusterStartupParameters -> (wallets -> Aff a) -> Aff a
@@ -357,50 +340,21 @@ type CtlServerConfig =
   , networkId :: NetworkInfo
   }
 
-startCtlServer :: PlutipConfig -> ClusterStartupParameters -> Aff ChildProcess
-startCtlServer cfg params = do
-  networkInfo <- liftEffect $ getNetworkInfoFromNodeConfig params.nodeConfigPath
+startCtlServer :: PlutipConfig -> Aff ChildProcess
+startCtlServer cfg = do
   let
     ctlServerArgs =
       [ "--port"
       , UInt.toString cfg.ctlServerConfig.port
-      , "--node-socket"
-      , params.nodeSocketPath
       , "--ogmios-host"
       , cfg.ogmiosConfig.host
       , "--ogmios-port"
       , UInt.toString cfg.ogmiosConfig.port
-      ] <> getNetworkInfoArgs networkInfo
+      ]
   spawnAndWaitForOutput "ctl-server" ctlServerArgs defaultSpawnOptions
     -- Wait for "Successfully connected to Ogmios" string in the output
     $ String.indexOf (Pattern "Successfully connected to Ogmios")
         >>> maybe NoOp (const Success)
-
-  where
-  getNetworkInfoArgs :: NetworkInfo -> Array String
-  getNetworkInfoArgs Mainnet =
-    [ "--network-id", "mainnet" ]
-  getNetworkInfoArgs (Testnet networkId) =
-    [ "--network-id", Int.toStringAs Int.decimal networkId ]
-
-getNetworkInfoFromNodeConfig :: FilePath -> Effect NetworkInfo
-getNetworkInfoFromNodeConfig nodeConfigPath = do
-  nodeConfigYaml <- readTextFile Encoding.UTF8 nodeConfigPath
-  nodeConfigJson <- fromRightEff $ runExcept $ parseYAMLToJson nodeConfigYaml
-  nodeConfigAeson <- fromJustEff "Not a json object" $ toObject $ jsonToAeson
-    nodeConfigJson
-  byronGenesisFile <- fromRightEff $ getField nodeConfigAeson
-    "ByronGenesisFile"
-  if getField nodeConfigAeson "RequiresNetworkMagic" == Right "RequiresNoMagic" then
-    pure Mainnet
-  else do
-    byronGenesisJson <- fromRightEff =<< parseJsonStringToAeson <$> readTextFile
-      Encoding.UTF8
-      byronGenesisFile
-    networkMagicString <- fromRightEff $ getNestedAeson byronGenesisJson
-      [ "protocolConsts", "protocolMagic" ]
-    Testnet <$> fromJustEff "Couldn't convert 'protocolMagic' String to Int"
-      (Int.fromString =<< toNumber networkMagicString)
 
 type OgmiosConfig =
   { port :: Int
