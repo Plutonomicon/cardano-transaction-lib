@@ -7,6 +7,8 @@ module Types.Scripts
   , Validator(..)
   , ValidatorHash(..)
   , Language(..)
+  , plutusV1Script
+  , plutusV2Script
   ) where
 
 import Prelude
@@ -28,7 +30,7 @@ import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
-import Data.Tuple.Nested (type (/\))
+import Data.Tuple.Nested ((/\), type (/\))
 import FromData (class FromData)
 import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
@@ -76,6 +78,12 @@ derive newtype instance EncodeAeson PlutusScript
 
 instance Show PlutusScript where
   show = genericShow
+
+plutusV1Script :: ByteArray -> PlutusScript
+plutusV1Script ba = PlutusScript (ba /\ PlutusV1)
+
+plutusV2Script :: ByteArray -> PlutusScript
+plutusV2Script ba = PlutusScript (ba /\ PlutusV2)
 
 decodeAesonHelper
   :: ∀ (a :: Type) (b :: Type)
