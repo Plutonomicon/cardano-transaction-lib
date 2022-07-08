@@ -1,2 +1,1 @@
-
-exports.unsafeCall = _ => property => object => object[property]();
+exports.unsafeCall = (_) => (property) => (object) => object[property]();

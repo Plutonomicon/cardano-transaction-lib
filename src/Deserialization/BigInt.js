@@ -1,3 +1,3 @@
 /* global exports */
 
-exports._BigInt_to_str = x => x.to_str();
+exports._BigInt_to_str = (x) => x.to_str();
