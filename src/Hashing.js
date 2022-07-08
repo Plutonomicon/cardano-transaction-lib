@@ -47,11 +47,15 @@ exports.hashPlutusData = plutusData => {
   return lib.hash_plutus_data(plutusData).to_bytes();
 };
 
-exports.hashPlutusScript = getBytes => plutusScript => () => {
+// TODO Investigate using CSL's hashing
+exports.hashPlutusScript = getBytes => onLanguage => plutusScript => () => {
   const plutusScriptBytes = getBytes(plutusScript);
-  // TODO Check if plutusv2 needs to be treated differently
   // set Plutus language namespace byte
-  const bytes = new Uint8Array([0x1, ...plutusScriptBytes]);
+  const prefix = onLanguage({
+    PlutusV1: 0x1,
+    PlutusV2: 0x2
+  })(plutusScript);
+  const bytes = new Uint8Array([prefix, ...plutusScriptBytes]);
   return blake2bHash(bytes)(DIGEST_LENGTH_224)(DIGEST_ENCODING_BINARY);
 };
 
