@@ -535,6 +535,7 @@
                 easy-ps.purs-tidy
                 haskellPackages.fourmolu
                 nixpkgs-fmt
+                nodePackages.prettier
                 fd
               ];
             }
@@ -544,6 +545,7 @@
               fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost \
                 $(fd -ehs)
               nixpkgs-fmt --check $(fd -enix --exclude='spago*')
+              prettier -c $(fd -ejs)
               touch $out
             '';
         });
