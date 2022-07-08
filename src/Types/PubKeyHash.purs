@@ -1,7 +1,7 @@
 module Types.PubKeyHash
-  ( PaymentPubKeyHash(..)
-  , PubKeyHash(..)
-  , StakePubKeyHash(..)
+  ( PaymentPubKeyHash(PaymentPubKeyHash)
+  , PubKeyHash(PubKeyHash)
+  , StakePubKeyHash(StakePubKeyHash)
   , payPubKeyHashBaseAddress
   , payPubKeyHashEnterpriseAddress
   , payPubKeyHashRewardAddress

@@ -1,5 +1,11 @@
 module Types.PlutusData
-  ( PlutusData(..)
+  ( PlutusData
+      ( Constr
+      , Map
+      , List
+      , Integer
+      , Bytes
+      )
   ) where
 
 import Prelude

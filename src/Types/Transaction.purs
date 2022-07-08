@@ -1,9 +1,9 @@
 -- | A module for shared types across Cardano.Types.Transaction and
 -- | Plutus.Types.Transaction.
 module Types.Transaction
-  ( DataHash(..)
-  , TransactionHash(..)
-  , TransactionInput(..)
+  ( DataHash(DataHash)
+  , TransactionHash(TransactionHash)
+  , TransactionInput(TransactionInput)
   ) where
 
 import Prelude
@@ -27,6 +27,7 @@ newtype TransactionInput = TransactionInput
 derive instance Newtype TransactionInput _
 derive instance Generic TransactionInput _
 derive newtype instance Eq TransactionInput
+derive newtype instance EncodeAeson TransactionInput
 
 -- Potential fix me: the below is based on a small sample of smart contract
 -- transactions, so fix this as required.
@@ -90,6 +91,7 @@ derive newtype instance Eq DataHash
 derive newtype instance FromData DataHash
 derive newtype instance Ord DataHash
 derive newtype instance ToData DataHash
+derive newtype instance EncodeAeson DataHash
 
 instance Show DataHash where
   show = genericShow

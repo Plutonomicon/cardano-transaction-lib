@@ -1,5 +1,5 @@
 module Types.Datum
-  ( Datum(..)
+  ( Datum(Datum)
   , unitDatum
   , module X
   ) where

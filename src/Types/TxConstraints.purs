@@ -1,8 +1,21 @@
 module Types.TxConstraints
-  ( InputConstraint(..)
-  , OutputConstraint(..)
-  , TxConstraint(..)
-  , TxConstraints(..)
+  ( InputConstraint(InputConstraint)
+  , OutputConstraint(OutputConstraint)
+  , TxConstraint
+      ( MustIncludeDatum
+      , MustValidateIn
+      , MustBeSignedBy
+      , MustSpendAtLeast
+      , MustProduceAtLeast
+      , MustSpendPubKeyOutput
+      , MustSpendScriptOutput
+      , MustMintValue
+      , MustPayToPubKeyAddress
+      , MustPayToScript
+      , MustHashDatum
+      , MustSatisfyAnyOf
+      )
+  , TxConstraints(TxConstraints)
   , addTxIn
   , isSatisfiable
   , modifiesUtxoSet
