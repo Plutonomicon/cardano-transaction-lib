@@ -111,7 +111,7 @@ import Types.Rational as Rational
 import Types.RedeemerTag (RedeemerTag)
 import Types.RedeemerTag (fromString) as RedeemerTag
 import Types.TokenName (TokenName, mkTokenName)
-import Types.Transaction (TransactionInput)
+import Types.Transaction (TransactionHash, TransactionInput)
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
 
@@ -184,6 +184,9 @@ queryUtxoCall = mkOgmiosCallType
   }
   Proxy
   where
+  renameFields
+    :: { transactionId :: TransactionHash, index :: UInt }
+    -> { txId :: TransactionHash, index :: UInt }
   renameFields { transactionId, index } = { txId: transactionId, index }
 
 type OgmiosAddress = String
