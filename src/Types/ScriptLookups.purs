@@ -498,9 +498,9 @@ processLookupsAndConstraints
   let
     mps = lookups.mps
     scripts = lookups.scripts
-  mpsHashes <- ExceptT $
+  mpsHashes <- ExceptT do
     hashScripts mintingPolicyHash CannotHashMintingPolicy mps
-  validatorHashes <- ExceptT $
+  validatorHashes <- ExceptT do
     hashScripts validatorHash CannotHashValidator scripts
   let
     mpsMap = fromFoldable $ zip mpsHashes mps
@@ -867,7 +867,7 @@ processConstraint mpsMap osMap = do
             { ttl = timeToLive
             , validityStartInterval = validityStartInterval
             }
-    MustBeSignedBy pkh -> runExceptT $
+    MustBeSignedBy pkh -> runExceptT do
       -- FIXME This is incompatible with Plutus' version, which requires
       -- the corresponding `paymentPubKey` lookup. In the next major version,
       -- we might wish to revise this
@@ -909,7 +909,7 @@ processConstraint mpsMap osMap = do
             -- Note: if we get `Nothing`, we have to throw eventhough that's a
             -- valid input, because our `txOut` above is a Script address via
             -- `Just`.
-            dataValue <- ExceptT $ do
+            dataValue <- ExceptT do
               queryD <- lift case outputDatumDataHash datum' of
                 Nothing -> pure $ Left CannotFindDatum
                 Just dHash -> do

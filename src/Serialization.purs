@@ -795,7 +795,7 @@ convertScriptRef :: T.ScriptRef -> Effect ScriptRef
 convertScriptRef (T.NativeScriptRef nativeScript) = do
   scriptRefNewNativeScript <$> fromJustEff "convertScriptRef"
     (convertNativeScript nativeScript)
-convertScriptRef (T.PlutusScriptRef plutusScript) =
+convertScriptRef (T.PlutusScriptRef plutusScript) = do
   scriptRefNewPlutusScript <$> convertPlutusScript plutusScript
 
 convertValue :: Value.Value -> Effect Value

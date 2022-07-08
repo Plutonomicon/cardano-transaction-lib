@@ -98,7 +98,7 @@ convertOutput output = do
     Just datumValue, Nothing -> OutputDatum <<< wrap <$> convertPlutusData
       datumValue
     Nothing, Just datumHash -> pure $ OutputDatumHash datumHash
-    Nothing, Nothing -> pure $ NoOutputDatum
+    Nothing, Nothing -> pure NoOutputDatum
   scriptRef <- getScriptRef maybeFfiHelper output # traverse convertScriptRef
   pure $ T.TransactionOutput
     { address, amount, datum, scriptRef }
@@ -155,7 +155,7 @@ foreign import getScriptRef
   :: MaybeFfiHelper -> TransactionOutput -> Maybe ScriptRef
 
 foreign import withScriptRef
-  :: forall a
+  :: forall (a :: Type)
    . (NativeScript -> a)
   -> (PlutusScript -> a)
   -> ScriptRef
