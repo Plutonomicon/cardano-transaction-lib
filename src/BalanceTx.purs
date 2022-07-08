@@ -91,6 +91,7 @@ import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
+import Debug (traceM)
 import Effect.Class (class MonadEffect, liftEffect)
 import QueryM (ClientError, QueryM)
 import QueryM
@@ -100,7 +101,7 @@ import QueryM
   , evaluateTxOgmios
   ) as QueryM
 import QueryM.Ogmios (TxEvaluationR(TxEvaluationR)) as Ogmios
-import QueryM.Utxos (utxosAt, filterUnusedUtxos)
+import QueryM.Utxos (utxosAt, filterLockedUtxos)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
@@ -414,6 +415,44 @@ _redeemersTxIns = lens' \(UnattachedUnbalancedTx rec@{ redeemersTxIns }) ->
     \rdmrs -> UnattachedUnbalancedTx rec { redeemersTxIns = rdmrs }
 
 --------------------------------------------------------------------------------
+-- Setting collateral, collateral return, total collateral
+--------------------------------------------------------------------------------
+
+setCollateral
+  :: Transaction -> Utxo -> QueryM (Either BalanceTxError Transaction)
+setCollateral transaction utxos =
+  runExceptT do
+    wallet <- asks _.wallet
+    mCollateral <- ExceptT $ selectCollateral wallet
+    traceM ("collateral: " <> show mCollateral)
+    case (mCollateral /\ wallet) of
+      Nothing /\ _ ->
+        pure $ transaction
+      Just collateral /\ (Just (KeyWallet _)) -> do
+        let collTx = addTxCollateral collateral transaction
+        pure collTx -- TODO:
+      Just collateral /\ _ -> do
+        pure $ addTxCollateral collateral transaction
+  where
+  selectCollateral
+    :: Maybe Wallet
+    -> QueryM (Either BalanceTxError (Maybe (TransactionUnspentOutput)))
+  selectCollateral (Just w) | isJust (cip30Wallet w) =
+    map Just <$> QueryM.getWalletCollateral <#>
+      note (GetWalletCollateralError' CouldNotGetCollateral)
+  selectCollateral (Just (KeyWallet kw)) =
+    -- TODO: Combine with getWalletCollateral and supply with fee estimate
+    -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/510
+    Right <$> kw.selectCollateral <$> filterLockedUtxos utxos
+  selectCollateral _ =
+    pure (Right Nothing)
+
+addTxCollateral :: TransactionUnspentOutput -> Transaction -> Transaction
+addTxCollateral (TransactionUnspentOutput { input }) transaction =
+  transaction # _body <<< _collateral ?~
+    Array.singleton input
+
+--------------------------------------------------------------------------------
 -- Balancing functions and helpers
 --------------------------------------------------------------------------------
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L54
@@ -436,32 +475,23 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     -- Get own wallet address, collateral and utxo set:
     ownAddr <- ExceptT $ QueryM.getWalletAddress <#>
       note (GetWalletAddressError' CouldNotGetWalletAddress)
-    wallet <- asks _.wallet
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
-    collateral <- case wallet of
-      Just w | isJust (cip30Wallet w) ->
-        map Just $ ExceptT $ QueryM.getWalletCollateral <#>
-          note (GetWalletCollateralError' CouldNotGetCollateral)
-      -- TODO: Combine with getWalletCollateral, and supply with fee estimate
-      --       https://github.com/Plutonomicon/cardano-transaction-lib/issues/510
-      Just (KeyWallet kw) -> pure $ kw.selectCollateral utxos
-      _ -> pure Nothing
+
+    -- After adding collateral, we need to balance the inputs and
+    -- non-Ada outputs before looping, i.e. we need to add input fees
+    -- for the Ada only collateral. No MinUtxos required. Perhaps
+    -- for some wallets this step can be skipped and we can go straight
+    -- to prebalancer.
+    unbalancedCollTx <- ExceptT $ setCollateral unbalancedTx' utxos
+
     let
       -- Combines utxos at the user address and those from any scripts
       -- involved with the contract in the unbalanced transaction.
       allUtxos :: Utxo
       allUtxos = utxos `Map.union` utxoIndex
 
-      -- After adding collateral, we need to balance the inputs and
-      -- non-Ada outputs before looping, i.e. we need to add input fees
-      -- for the Ada only collateral. No MinUtxos required. Perhaps
-      -- for some wallets this step can be skipped and we can go straight
-      -- to prebalancer.
-      unbalancedCollTx :: Transaction
-      unbalancedCollTx = maybe identity addTxCollateral collateral unbalancedTx'
-
-    availableUtxos <- lift $ map unwrap $ filterUnusedUtxos $ wrap allUtxos
+    availableUtxos <- lift $ filterLockedUtxos allUtxos
 
     -- Logging Unbalanced Tx with collateral added:
     logTx "Unbalanced Collaterised Tx " availableUtxos unbalancedCollTx
@@ -576,11 +606,6 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   -- top of their transaction as input.
   feeBuffer :: BigInt
   feeBuffer = fromInt 500000
-
-addTxCollateral :: TransactionUnspentOutput -> Transaction -> Transaction
-addTxCollateral (TransactionUnspentOutput { input }) transaction =
-  transaction # _body <<< _collateral ?~
-    Array.singleton input
 
 -- Logging for Transaction type without returning Transaction
 logTx

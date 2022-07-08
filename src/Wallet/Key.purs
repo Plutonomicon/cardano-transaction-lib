@@ -85,17 +85,14 @@ privateKeysToKeyWallet payKey mbStakeKey =
         >>> enterpriseAddressToAddress
 
   selectCollateral :: Utxo -> Maybe TransactionUnspentOutput
-  selectCollateral utxos = unwrap <<< unwrap <$> flip
-    foldMapWithIndex
-    utxos
-    \input output ->
+  selectCollateral utxos = unwrap <<< unwrap <$>
+    flip foldMapWithIndex utxos \input output ->
       let
-        txuo = AdaOut $ TransactionUnspentOutput { input, output }
-        Value ada (NonAdaAsset naa) = _value txuo
-        onlyAda = all (all ((==) zero)) naa
-        bigAda = ada >= mkCoin 5_000_000
+        unspentOutput = AdaOut $ TransactionUnspentOutput { input, output }
+        Value ada _ = _value unspentOutput
+        minRequiredCollateral = mkCoin 5_000_000
       in
-        if onlyAda && bigAda then Just $ Min txuo
+        if ada >= minRequiredCollateral then Just (Min unspentOutput)
         else Nothing
 
   signTx :: Transaction -> Aff Transaction
