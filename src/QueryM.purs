@@ -159,7 +159,12 @@ import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
 import Types.Scripts (PlutusScript)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
-import Wallet (Wallet(Gero, Nami, KeyWallet), Cip30Connection, Cip30Wallet)
+import Wallet
+  ( Cip30Connection
+  , Cip30Wallet
+  , Wallet(Gero, Nami, KeyWallet)
+  )
+import Wallet.Key as KeyWallet
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -286,20 +291,25 @@ getWalletAddress = do
   withMWalletAff case _ of
     Nami nami -> callCip30Wallet nami _.getWalletAddress
     Gero gero -> callCip30Wallet gero _.getWalletAddress
-    KeyWallet kw -> Just <$> kw.address networkId
+    KeyWallet kw -> Just <$> (unwrap kw).address networkId
 
 getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
-getWalletCollateral = withMWalletAff case _ of
-  Nami nami -> callCip30Wallet nami _.getCollateral
-  Gero gero -> callCip30Wallet gero _.getCollateral
-  KeyWallet _ -> liftEffect $ throw "Not implemented"
+getWalletCollateral = asks _.wallet >>= maybe (pure Nothing)
+  getWalletCollateral'
+  where
+  getWalletCollateral' :: Wallet -> QueryM (Maybe TransactionUnspentOutput)
+  getWalletCollateral' = case _ of
+    Nami nami -> liftAff $ callCip30Wallet nami _.getCollateral
+    Gero gero -> liftAff $ callCip30Wallet gero _.getCollateral
+    KeyWallet (KeyWallet.KeyWallet { selectCollateral: _ }) ->
+      liftEffect $ throw "getWalletCollacteral: KeyWallet: Not implemented"
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
 signTransaction tx = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
-  KeyWallet kw -> Just <$> kw.signTx tx
+  KeyWallet kw -> Just <$> (unwrap kw).signTx tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do

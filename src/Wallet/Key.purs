@@ -1,5 +1,5 @@
 module Wallet.Key
-  ( KeyWallet
+  ( KeyWallet(KeyWallet)
   , PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   , privateKeysToKeyWallet
@@ -43,11 +43,13 @@ import Serialization.Types (PrivateKey)
 -------------------------------------------------------------------------------
 -- Key backend
 -------------------------------------------------------------------------------
-type KeyWallet =
+newtype KeyWallet = KeyWallet
   { address :: NetworkId -> Aff Address
   , selectCollateral :: Utxo -> Maybe TransactionUnspentOutput
   , signTx :: Transaction -> Aff Transaction
   }
+
+derive instance Newtype KeyWallet _
 
 newtype PrivatePaymentKey = PrivatePaymentKey PrivateKey
 
@@ -59,7 +61,7 @@ derive instance Newtype PrivateStakeKey _
 
 privateKeysToKeyWallet
   :: PrivatePaymentKey -> Maybe PrivateStakeKey -> KeyWallet
-privateKeysToKeyWallet payKey mbStakeKey =
+privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
   { address
   , selectCollateral
   , signTx

@@ -17,16 +17,15 @@ import Affjax as Affjax
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
-import Contract.Address (NetworkId(TestnetId))
+import Contract.Address (NetworkId(MainnetId))
 import Contract.Monad (Contract, ContractConfig(ContractConfig), runContract)
 import Control.Monad.Error.Class (withResource)
 import Control.Monad.Except (runExcept)
-import Control.Monad.Reader (ReaderT(ReaderT), runReaderT)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Right, Left), either)
 import Data.HTTP.Method as Method
 import Data.Int as Int
-import Data.Maybe (Maybe(Nothing, Just), maybe)
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.String.CodeUnits as String
@@ -58,18 +57,22 @@ import Node.FS.Sync (readTextFile)
 import Node.Path (concat, dirname)
 import Plutip.Spawn (NewOutputAction(Success, NoOp), spawnAndWaitForOutput)
 import Plutip.Types
-  ( ClusterStartupParameters
+  ( class UtxoDistribution
+  , ClusterStartupParameters
   , ClusterStartupRequest(ClusterStartupRequest)
   , FilePath
+  , PlutipConfig
   , PostgresConfig
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
-  , PlutipConfig
+  , decodeWallets
+  , encodeDistribution
   )
 import Plutip.Utils (tmpdir)
-import QueryM (ClientError(..))
+import QueryM (ClientError(ClientDecodeJsonError, ClientHttpError))
 import QueryM as QueryM
+import QueryM.ProtocolParameters as Ogmios
 import QueryM.UniqueId (uniqueId)
 import Types.UsedTxOuts (newUsedTxOuts)
 
@@ -77,51 +80,74 @@ defaultRetryPolicy :: RetryPolicy
 defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
   constantDelay (Milliseconds 100.0)
 
-type PlutipM (r :: Row Type) (a :: Type) = ReaderT PlutipConfig (Contract r) a
-
-liftContract
-  :: forall (r :: Row Type)
-   . Contract r ~> PlutipM r
-liftContract = ReaderT <<< const
-
 mkServerEndpointUrl :: PlutipConfig -> String -> String
 mkServerEndpointUrl cfg path = do
   "http://" <> cfg.host <> ":" <> UInt.toString cfg.port <> "/" <> path
 
-runPlutipM
-  :: forall (a :: Type)
-   . PlutipConfig
-  -> PlutipM () a
+runPlutipContract
+  :: forall (distr :: Type) (wallets :: Type) (a :: Type)
+   . UtxoDistribution distr wallets
+  => PlutipConfig
+  -> distr
+  -> (wallets -> Contract () a)
   -> Aff a
-runPlutipM plutipCfg action = do
-  withResource (startPlutipServer plutipCfg) stopChildProcess $ const do
-    withResource (startPlutipCluster plutipCfg)
-      (const $ void $ stopPlutipCluster plutipCfg)
-      \startupResponse -> do
-        response <- case startupResponse of
-          ClusterStartupFailure _ -> do
-            liftEffect $ throw "Failed to start up cluster"
-          ClusterStartupSuccess response -> do
-            pure response
-        let
-          contract =
-            flip runReaderT plutipCfg action
-        withResource (startPostgresServer plutipCfg.postgresConfig response)
-          stopChildProcess $ const do
-          withResource (startOgmios plutipCfg response) stopChildProcess $ const
-            do
-              withResource (startOgmiosDatumCache plutipCfg response)
-                stopChildProcess $ const do
-                withResource (startCtlServer plutipCfg response)
-                  stopChildProcess
-                  $ const
-                      do
-                        contractCfg <- mkClusterContractCfg plutipCfg response
-                        liftAff $ runContract contractCfg contract
+runPlutipContract plutipCfg distr contContract =
+  withPlutipServer $
+    withPlutipCluster \response ->
+      withWallets response \wallets ->
+        withPostgres response
+          $ withOgmios response
+          $ withOgmiosDatumCache response
+          $ withCtlServer response do
+              contractCfg <- mkClusterContractCfg plutipCfg
+              liftAff $ runContract contractCfg (contContract wallets)
+  where
+  withPlutipServer :: Aff a -> Aff a
+  withPlutipServer =
+    withResource (startPlutipServer plutipCfg) stopChildProcess <<< const
+
+  withPlutipCluster :: (ClusterStartupParameters -> Aff a) -> Aff a
+  withPlutipCluster cont = withResource (startPlutipCluster plutipCfg distr)
+    (const $ void $ stopPlutipCluster plutipCfg)
+    case _ of
+      ClusterStartupFailure _ -> do
+        liftEffect $ throw "Failed to start up cluster"
+      ClusterStartupSuccess response -> do
+        cont response
+
+  withPostgres :: ClusterStartupParameters -> Aff a -> Aff a
+  withPostgres response =
+    withResource (startPostgresServer plutipCfg.postgresConfig response)
+      stopChildProcess <<< const
+
+  withOgmios :: ClusterStartupParameters -> Aff a -> Aff a
+  withOgmios response =
+    withResource (startOgmios plutipCfg response) stopChildProcess <<< const
+
+  withOgmiosDatumCache :: ClusterStartupParameters -> Aff a -> Aff a
+  withOgmiosDatumCache response =
+    withResource (startOgmiosDatumCache plutipCfg response)
+      stopChildProcess <<< const
+
+  withCtlServer :: ClusterStartupParameters -> Aff a -> Aff a
+  withCtlServer response =
+    withResource (startCtlServer plutipCfg response)
+      stopChildProcess <<< const
+
+  withWallets :: ClusterStartupParameters -> (wallets -> Aff a) -> Aff a
+  withWallets response cont = case decodeWallets response.privateKeys of
+    Nothing ->
+      liftEffect $ throw $ "Impossible happened: unable to decode" <>
+        " wallets from private keys. Please report as bug."
+    Just wallets -> cont wallets
 
 startPlutipCluster
-  :: PlutipConfig -> Aff StartClusterResponse
-startPlutipCluster cfg = do
+  :: forall (distr :: Type) (wallets :: Type)
+   . UtxoDistribution distr wallets
+  => PlutipConfig
+  -> distr
+  -> Aff StartClusterResponse
+startPlutipCluster cfg utxoDistribution = do
   let url = mkServerEndpointUrl cfg "start"
   res <- do
     response <- liftAff
@@ -131,7 +157,8 @@ startPlutipCluster cfg = do
                 $ RequestBody.String
                 $ stringifyAeson
                 $ encodeAeson
-                $ ClusterStartupRequest { keysToGenerate: cfg.distribution }
+                $ ClusterStartupRequest
+                    { keysToGenerate: encodeDistribution utxoDistribution }
             , responseFormat = Affjax.ResponseFormat.string
             , headers = [ Header.ContentType (wrap "application/json") ]
             , url = url
@@ -259,7 +286,9 @@ startPostgresServer pgConfig _ = do
   pure pgChildProcess
 
 startOgmiosDatumCache
-  :: PlutipConfig -> ClusterStartupParameters -> Aff ChildProcess
+  :: PlutipConfig
+  -> ClusterStartupParameters
+  -> Aff ChildProcess
 startOgmiosDatumCache cfg _params = do
   apiKey <- liftEffect $ uniqueId "token"
   let
@@ -294,9 +323,8 @@ startOgmiosDatumCache cfg _params = do
 mkClusterContractCfg
   :: forall (r :: Row Type)
    . PlutipConfig
-  -> ClusterStartupParameters
   -> Aff (ContractConfig ())
-mkClusterContractCfg plutipCfg _clusterParams = do
+mkClusterContractCfg plutipCfg = do
   ogmiosWs <- QueryM.mkOgmiosWebSocketAff plutipCfg.logLevel
     QueryM.defaultOgmiosWsConfig
       { port = plutipCfg.ogmiosConfig.port
@@ -309,14 +337,16 @@ mkClusterContractCfg plutipCfg _clusterParams = do
         , host = plutipCfg.ogmiosDatumCacheConfig.host
         }
   usedTxOuts <- newUsedTxOuts
+  pparams <- Ogmios.getProtocolParametersAff ogmiosWs plutipCfg.logLevel
   pure $ ContractConfig
     { ogmiosWs
     , datumCacheWs
-    , wallet: Nothing -- TODO: use KeyWallet when it's ready
+    , wallet: Nothing
     , usedTxOuts
     , serverConfig: plutipCfg.ctlServerConfig
-    , networkId: TestnetId
+    , networkId: MainnetId
     , logLevel: plutipCfg.logLevel
+    , pparams
     }
 
 data NetworkInfo = Mainnet | Testnet Int

@@ -430,8 +430,8 @@
           # project compiles (i.e. all of `src`, `examples`, and `test`)
           packages = {
             ctl-example-bundle-web = project.bundlePursProject {
-              sources = [ "src" "examples" ];
-              main = "Examples.Pkh2Pkh";
+              sources = [ "src" "examples" "test" ];
+              main = "Examples.SignMultiple";
               entrypoint = "examples/index.js";
               htmlTemplate = "examples/index.html";
             };
@@ -467,11 +467,11 @@
           checks = {
             ctl-unit-test = project.runPursTest {
               testMain = "CTL.Test.Unit";
-              sources = [ "src" "test" "fixtures" ];
+              sources = [ "src" "test" "examples" "fixtures" ];
             };
             ctl-plutip-test = project.runPursTest {
               testMain = "Test.Plutip";
-              sources = [ "src" "test" "fixtures" ];
+              sources = [ "src" "test" "examples" "fixtures" ];
               buildInputs = [
                 (hsProjectFor system).hsPkgs.ctl-server.components.exes.ctl-server
                 pkgs.postgresql

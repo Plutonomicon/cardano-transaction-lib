@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 
+- `withKeyWallet` utility that allows to simulate multiple actors in Plutip environment ([#663](https://github.com/Plutonomicon/cardano-transaction-lib/issues/663))
 - `mkKeyWalletFromFile` helper to use `cardano-cli`-style `skey`s.
 - Single `Plutus.Conversion` module exposing all `(Type <-> Plutus Type)` conversion functions.
 - Support for using a `PrivateKey` as a `Wallet`.
