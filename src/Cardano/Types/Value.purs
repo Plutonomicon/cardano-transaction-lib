@@ -1,8 +1,8 @@
 module Cardano.Types.Value
-  ( Coin(..)
+  ( Coin(Coin)
   , CurrencySymbol
-  , NonAdaAsset(..)
-  , Value(..)
+  , NonAdaAsset(NonAdaAsset)
+  , Value(Value)
   , class Negate
   , class Split
   , coinToValue

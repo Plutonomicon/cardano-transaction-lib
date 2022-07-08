@@ -10,7 +10,7 @@ import Test.QuickCheck.Laws.Data.Monoid (checkMonoid)
 import Test.QuickCheck.Laws.Data.Ord (checkOrd)
 import Test.QuickCheck.Laws.Data.Semigroup (checkSemigroup)
 import TestM (TestPlanM)
-import Type.Proxy (Proxy(..))
+import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray
   ( ByteArray
   , byteArrayFromIntArray

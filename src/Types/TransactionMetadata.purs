@@ -1,7 +1,13 @@
 module Types.TransactionMetadata
-  ( GeneralTransactionMetadata(..)
-  , TransactionMetadatum(..)
-  , TransactionMetadatumLabel(..)
+  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
+  , TransactionMetadatum
+      ( MetadataMap
+      , MetadataList
+      , Int
+      , Bytes
+      , Text
+      )
+  , TransactionMetadatumLabel(TransactionMetadatumLabel)
   ) where
 
 import Prelude

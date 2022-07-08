@@ -1,46 +1,61 @@
 module Cardano.Types.Transaction
-  ( AuxiliaryData(..)
-  , AuxiliaryDataHash(..)
+  ( AuxiliaryData(AuxiliaryData)
+  , AuxiliaryDataHash(AuxiliaryDataHash)
   , BootstrapWitness
-  , Certificate(..)
-  , CostModel(..)
-  , Costmdls(..)
-  , Ed25519Signature(..)
-  , Epoch(..)
+  , Certificate
+      ( StakeRegistration
+      , StakeDeregistration
+      , StakeDelegation
+      , PoolRegistration
+      , PoolRetirement
+      , GenesisKeyDelegation
+      , MoveInstantaneousRewardsCert
+      )
+  , CostModel(CostModel)
+  , Costmdls(Costmdls)
+  , Ed25519Signature(Ed25519Signature)
+  , Epoch(Epoch)
   , ExUnitPrices
   , ExUnits
-  , GenesisDelegateHash(..)
-  , GenesisHash(..)
-  , Ipv4(..)
-  , Ipv6(..)
-  , Language(..)
-  , MIRToStakeCredentials(..)
-  , Mint(..)
-  , MoveInstantaneousReward(..)
-  , NativeScript(..)
-  , Nonce(..)
-  , PoolMetadata(..)
-  , PoolMetadataHash(..)
-  , ProposedProtocolParameterUpdates(..)
+  , GenesisDelegateHash(GenesisDelegateHash)
+  , GenesisHash(GenesisHash)
+  , Ipv4(Ipv4)
+  , Ipv6(Ipv6)
+  , Language(PlutusV1)
+  , MIRToStakeCredentials(MIRToStakeCredentials)
+  , Mint(Mint)
+  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
+  , NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
+  , Nonce(IdentityNonce, HashNonce)
+  , PoolMetadata(PoolMetadata)
+  , PoolMetadataHash(PoolMetadataHash)
+  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate
   , ProtocolVersion
-  , PublicKey(..)
-  , Redeemer(..)
-  , Relay(..)
-  , RequiredSigner(..)
-  , ScriptDataHash(..)
+  , PublicKey(PublicKey)
+  , Redeemer(Redeemer)
+  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
+  , RequiredSigner(RequiredSigner)
+  , ScriptDataHash(ScriptDataHash)
   , SubCoin
-  , Transaction(..)
-  , TransactionOutput(..)
-  , TransactionWitnessSet(..)
-  , TxBody(..)
-  , URL(..)
+  , Transaction(Transaction)
+  , TransactionOutput(TransactionOutput)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , TxBody(TxBody)
+  , URL(URL)
   , UnitInterval
   , Update
   , Utxo
-  , UtxoM(..)
-  , Vkey(..)
-  , Vkeywitness(..)
+  , UtxoM(UtxoM)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
   , _auxiliaryData
   , _auxiliaryDataHash
   , _body

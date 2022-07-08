@@ -1,5 +1,5 @@
 module Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(..)
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) where
 
 import Prelude

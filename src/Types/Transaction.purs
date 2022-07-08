@@ -1,9 +1,9 @@
 -- | A module for shared types across Cardano.Types.Transaction and
 -- | Plutus.Types.Transaction.
 module Types.Transaction
-  ( DataHash(..)
-  , TransactionHash(..)
-  , TransactionInput(..)
+  ( DataHash(DataHash)
+  , TransactionHash(TransactionHash)
+  , TransactionInput(TransactionInput)
   ) where
 
 import Prelude

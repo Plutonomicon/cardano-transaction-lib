@@ -1,7 +1,31 @@
 module Types.ScriptLookups
-  ( MkUnbalancedTxError(..)
-  , ScriptLookups(..)
-  , UnattachedUnbalancedTx(..)
+  ( MkUnbalancedTxError
+      ( TypeCheckFailed
+      , ModifyTx
+      , TxOutRefNotFound
+      , TxOutRefWrongType
+      , DatumNotFound
+      , MintingPolicyNotFound
+      , MintingPolicyHashNotCurrencySymbol
+      , CannotMakeValue
+      , ValidatorHashNotFound
+      , OwnPubKeyAndStakeKeyMissing
+      , TypedValidatorMissing
+      , DatumWrongHash
+      , CannotQueryDatum
+      , CannotHashDatum
+      , CannotConvertPOSIXTimeRange
+      , CannotGetMintingPolicyScriptIndex
+      , CannotGetValidatorHashFromAddress
+      , MkTypedTxOutFailed
+      , TypedTxOutHasNoDatumHash
+      , CannotHashMintingPolicy
+      , CannotHashValidator
+      , CannotConvertPaymentPubKeyHash
+      , CannotSatisfyAny
+      )
+  , ScriptLookups(ScriptLookups)
+  , UnattachedUnbalancedTx(UnattachedUnbalancedTx)
   , generalise
   , mintingPolicy
   , mintingPolicyM

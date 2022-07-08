@@ -1,7 +1,7 @@
 -- | CborBytes. A wrapper over `ByteArray` to indicate that the bytes are cbor.
 
 module Types.CborBytes
-  ( CborBytes(..)
+  ( CborBytes(CborBytes)
   , cborBytesToByteArray
   , cborBytesFromByteArray
   , cborBytesFromAscii

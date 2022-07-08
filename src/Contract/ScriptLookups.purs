@@ -21,7 +21,31 @@ import Data.Maybe (Maybe)
 import FromData (class FromData)
 import ToData (class ToData)
 import Types.ScriptLookups
-  ( MkUnbalancedTxError(..) -- A lot errors so will refrain from explicit names.
+  ( MkUnbalancedTxError
+      ( TypeCheckFailed
+      , ModifyTx
+      , TxOutRefNotFound
+      , TxOutRefWrongType
+      , DatumNotFound
+      , MintingPolicyNotFound
+      , MintingPolicyHashNotCurrencySymbol
+      , CannotMakeValue
+      , ValidatorHashNotFound
+      , OwnPubKeyAndStakeKeyMissing
+      , TypedValidatorMissing
+      , DatumWrongHash
+      , CannotQueryDatum
+      , CannotHashDatum
+      , CannotConvertPOSIXTimeRange
+      , CannotGetMintingPolicyScriptIndex
+      , CannotGetValidatorHashFromAddress
+      , MkTypedTxOutFailed
+      , TypedTxOutHasNoDatumHash
+      , CannotHashMintingPolicy
+      , CannotHashValidator
+      , CannotConvertPaymentPubKeyHash
+      , CannotSatisfyAny
+      )
   , ScriptLookups(ScriptLookups)
   , UnattachedUnbalancedTx(UnattachedUnbalancedTx)
   , datum
