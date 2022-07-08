@@ -465,9 +465,6 @@ proposedProtocolParameterUpdates1 = ProposedProtocolParameterUpdates $
         , expansionRate: Just { numerator: bigNumOne, denominator: bigNumOne }
         , treasuryGrowthRate: Just
             { numerator: bigNumOne, denominator: bigNumOne }
-        , d: Nothing -- Just { numerator: bigNumOne, denominator: bigNumOne }
-        , extraEntropy: Nothing -- Just $ HashNonce $ hexToByteArrayUnsafe
-        --    "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f6500000000"
         , protocolVersion: Just
             [ { major: UInt.fromInt 1, minor: UInt.fromInt 1 } ]
         , minPoolCost: Just bigNumOne
