@@ -59,8 +59,6 @@ spawnAndWaitForOutput' cmd args opts filter cont = do
     \str -> do
       output <- Ref.modify (map (_ <> str)) ref
       case filter <$> output of
-        Nothing -> pure unit
-        Just NoOp -> pure unit
         Just Success -> do
           -- Set to Nothing to prevent future updates
           Ref.write Nothing ref
@@ -70,4 +68,5 @@ spawnAndWaitForOutput' cmd args opts filter cont = do
           kill SIGINT child
           cont $ Left $ error
             $ "Process cancelled because output received: " <> str
+        _ -> pure unit
   pure $ Canceler $ const $ liftEffect $ kill SIGINT child

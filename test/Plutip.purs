@@ -158,6 +158,9 @@ suite = do
           pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
           let
             constraints :: Constraints.TxConstraints Void Void
+            -- In real contracts, library users most likely want to use
+            -- `mustPayToPubKeyAddres` (we're not doing that because Plutip
+            -- does not provide stake keys).
             constraints = Constraints.mustPayToPubKey pkh
               $ Value.lovelaceValueOf
               $ BigInt.fromInt 2_000_000
@@ -271,6 +274,9 @@ suite = do
           pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
           let
             constraints :: Constraints.TxConstraints Void Void
+            -- In real contracts, library users most likely want to use
+            -- `mustPayToPubKeyAddres` (we're not doing that because Plutip
+            -- does not provide stake keys).
             constraints = Constraints.mustPayToPubKey pkh
               $ Value.lovelaceValueOf
               $ BigInt.fromInt 2_000_000

@@ -1,4 +1,10 @@
-module Plutip.Server where
+module Plutip.Server
+  ( runPlutipContract
+  , startPlutipCluster
+  , stopPlutipCluster
+  , startPlutipServer
+  , stopChildProcess
+  ) where
 
 import Prelude
 
@@ -37,7 +43,6 @@ import Node.ChildProcess
   , kill
   , spawn
   )
-import Node.Path (concat, dirname)
 import Plutip.Spawn (NewOutputAction(Success, NoOp), spawnAndWaitForOutput)
 import Plutip.Types
   ( class UtxoDistribution
@@ -355,15 +360,3 @@ startCtlServer cfg = do
     -- Wait for "Successfully connected to Ogmios" string in the output
     $ String.indexOf (Pattern "Successfully connected to Ogmios")
         >>> maybe NoOp (const Success)
-
-type OgmiosConfig =
-  { port :: Int
-  , nodeSocketConfig :: FilePath
-  , nodeSocketPath :: FilePath
-  }
-
-mkOgmiosConfig :: OgmiosConfig -> ClusterStartupParameters -> OgmiosConfig
-mkOgmiosConfig ogmiosCfg { nodeSocketPath } = ogmiosCfg
-  { nodeSocketConfig = concat [ dirname nodeSocketPath, "node.config" ]
-  , nodeSocketPath = nodeSocketPath
-  }

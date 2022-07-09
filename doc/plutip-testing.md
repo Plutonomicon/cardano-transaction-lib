@@ -28,7 +28,7 @@ runPlutipContract
   -> Aff a
 ```
 
-`distr` is a specification of how many wallets and with how much funds should be created. It should either be a `unit` (for no wallets) or nested tuples containing `Array BigInt` - each element of the array specifies an UTxO amount in Ada.
+`distr` is a specification of how many wallets and with how much funds should be created. It should either be a `unit` (for no wallets) or nested tuples containing `Array BigInt` - each element of the array specifies an UTxO amount in Lovelaces (0.000001 Ada).
 
 `wallets` argument is either a `Unit` or a tuple of `KeyWallet`s (with the same nesting level as in `distr`, which is guaranteed by `UtxoDistribution`).
 

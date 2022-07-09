@@ -1,4 +1,29 @@
-module Plutip.Types where
+module Plutip.Types
+  ( PlutipConfig
+  , PostgresConfig
+  , FilePath
+  , ErrorMessage
+  , UtxoAmount
+  , InitialUTxODistribution
+  , ClusterStartupRequest(ClusterStartupRequest)
+  , PrivateKeyResponse(PrivateKeyResponse)
+  , ClusterStartupParameters
+  , ClusterStartupFailureReason
+      ( ClusterIsRunningAlready
+      , NegativeLovelaces
+      , NodeConfigNotFound
+      )
+  , StartClusterResponse
+      ( ClusterStartupFailure
+      , ClusterStartupSuccess
+      )
+  , StopClusterRequest(StopClusterRequest)
+  , StopClusterResponse(StopClusterSuccess, StopClusterFailure)
+  , InitialUTxO
+  , class UtxoDistribution
+  , encodeDistribution
+  , decodeWallets
+  ) where
 
 import Prelude
 
@@ -58,14 +83,15 @@ type FilePath = String
 
 type ErrorMessage = String
 
-type KeyId = Int
-
+-- | UTxO amount in Lovelaces
 type UtxoAmount = BigInt
 
-type InitialUTXOs = Array (Array UtxoAmount)
+type InitialUTxO = Array UtxoAmount
+
+type InitialUTxODistribution = Array InitialUTxO
 
 newtype ClusterStartupRequest = ClusterStartupRequest
-  { keysToGenerate :: InitialUTXOs }
+  { keysToGenerate :: InitialUTxODistribution }
 
 derive newtype instance EncodeAeson ClusterStartupRequest
 
@@ -109,8 +135,7 @@ instance Show ClusterStartupFailureReason where
 
 instance DecodeAeson ClusterStartupFailureReason where
   decodeAeson aeson = do
-    tag <- decodeAeson aeson
-    case tag of
+    decodeAeson aeson >>= case _ of
       "ClusterIsRunningAlready" -> do
         pure ClusterIsRunningAlready
       "NegativeLovelaces" -> pure NegativeLovelaces
@@ -130,8 +155,7 @@ instance Show StartClusterResponse where
 instance DecodeAeson StartClusterResponse where
   decodeAeson aeson = do
     obj <- decodeAeson aeson
-    tag <- obj .: "tag"
-    case tag of
+    obj .: "tag" >>= case _ of
       "ClusterStartupSuccess" -> do
         ClusterStartupSuccess <$> decodeAeson aeson
       "ClusterStartupFailure" -> do
@@ -160,16 +184,13 @@ instance Show StopClusterResponse where
 instance DecodeAeson StopClusterResponse where
   decodeAeson aeson = do
     obj <- decodeAeson aeson
-    tag <- obj .: "tag"
-    case tag of
+    obj .: "tag" >>= case _ of
       "StopClusterSuccess" -> pure StopClusterSuccess
       "StopClusterFailure" -> do
         failure <- obj .: "contents"
         StopClusterFailure <$> decodeAeson failure
       _ -> do
         Left (UnexpectedValue (toStringifiedNumbersJson aeson))
-
-type InitialUtxos = Array UtxoAmount
 
 -- | A type class that implements a type-safe interface for specifying UTXO
 -- | distribution for wallets.
@@ -183,7 +204,7 @@ instance UtxoDistribution Unit Unit where
   encodeDistribution _ = []
   decodeWallets _ = Just unit
 
-instance UtxoDistribution InitialUtxos KeyWallet where
+instance UtxoDistribution InitialUTxO KeyWallet where
   encodeDistribution amounts = [ amounts ]
   decodeWallets [ (PrivateKeyResponse key) ] =
     pure $ privateKeysToKeyWallet (PrivatePaymentKey key) Nothing
@@ -191,7 +212,7 @@ instance UtxoDistribution InitialUtxos KeyWallet where
 
 instance
   UtxoDistribution restSpec restWallets =>
-  UtxoDistribution (InitialUtxos /\ restSpec) (KeyWallet /\ restWallets) where
+  UtxoDistribution (InitialUTxO /\ restSpec) (KeyWallet /\ restWallets) where
   encodeDistribution (amounts /\ rest) =
     encodeDistribution amounts <> encodeDistribution rest
   decodeWallets = Array.uncons >>> case _ of
