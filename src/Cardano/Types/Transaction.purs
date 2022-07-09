@@ -332,7 +332,7 @@ type ProtocolParamUpdate =
   , poolPledgeInfluence :: Maybe UnitInterval
   , expansionRate :: Maybe UnitInterval
   , treasuryGrowthRate :: Maybe UnitInterval
-  , protocolVersion :: Maybe (Array ProtocolVersion)
+  , protocolVersion :: Maybe ProtocolVersion
   , minPoolCost :: Maybe BigNum
   , adaPerUtxoByte :: Maybe BigNum
   , costModels :: Maybe Costmdls

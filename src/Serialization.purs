@@ -419,9 +419,8 @@ foreign import ppuSetTreasuryGrowthRate
 foreign import newProtocolVersion :: Int -> Int -> Effect ProtocolVersion
 
 foreign import ppuSetProtocolVersion
-  :: ContainerHelper
-  -> ProtocolParamUpdate
-  -> Array ProtocolVersion
+  :: ProtocolParamUpdate
+  -> ProtocolVersion
   -> Effect Unit
 
 foreign import ppuSetMinPoolCost
@@ -611,9 +610,8 @@ convertProtocolParamUpdate
   for_ treasuryGrowthRate $
     mkUnitInterval >=> ppuSetTreasuryGrowthRate ppu
   for_ protocolVersion $
-    ppuSetProtocolVersion containerHelper ppu <=<
-      traverse \pv -> newProtocolVersion (UInt.toInt pv.major)
-        (UInt.toInt pv.minor)
+    ppuSetProtocolVersion ppu <=<
+      \pv -> newProtocolVersion (UInt.toInt pv.major) (UInt.toInt pv.minor)
   for_ minPoolCost $ ppuSetMinPoolCost ppu
   for_ adaPerUtxoByte $ ppuSetAdaPerUtxoByte ppu
   for_ costModels $ convertCostmdls >=> ppuSetCostModels ppu
