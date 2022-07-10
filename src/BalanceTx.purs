@@ -5,6 +5,7 @@ module BalanceTx
   , BalanceTxError(..)
   , BalanceTxInsError(..)
   , CannotMinusError(..)
+  , CollateralReturnError(..)
   , EvalExUnitsAndMinFeeError(..)
   , Expected(..)
   , FinalizedTransaction(..)
@@ -28,12 +29,14 @@ import Cardano.Types.Transaction
   , Utxo
   , _body
   , _collateral
+  , _collateralReturn
   , _fee
   , _inputs
   , _networkId
   , _outputs
   , _plutusData
   , _redeemers
+  , _totalCollateral
   , _witnessSet
   )
 import Cardano.Types.TransactionUnspentOutput
@@ -41,10 +44,12 @@ import Cardano.Types.TransactionUnspentOutput
   )
 import Cardano.Types.Value
   ( Coin
-  , Value
+  , NonAdaAsset
+  , Value(Value)
   , filterNonAda
   , geq
   , getLovelace
+  , getNonAdaAsset
   , isAdaOnly
   , isPos
   , isZero
@@ -85,13 +90,13 @@ import Data.Log.Tag (tag)
 import Data.Map (fromFoldable, lookup, toUnfoldable, union) as Map
 import Data.Maybe (fromMaybe, maybe, isJust, Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Ord.Max (Max(Max))
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
-import Debug (traceM)
 import Effect.Class (class MonadEffect, liftEffect)
 import QueryM (ClientError, QueryM)
 import QueryM
@@ -126,6 +131,7 @@ data BalanceTxError
   = GetWalletAddressError' GetWalletAddressError
   | GetWalletCollateralError' GetWalletCollateralError
   | UtxosAtError' UtxosAtError
+  | CollateralReturnError' CollateralReturnError
   | ReturnAdaChangeError' ReturnAdaChangeError
   | AddTxCollateralsError' AddTxCollateralsError
   | GetPublicKeyTransactionInputError' GetPublicKeyTransactionInputError
@@ -158,6 +164,13 @@ data UtxosAtError = CouldNotGetUtxos
 derive instance Generic UtxosAtError _
 
 instance Show UtxosAtError where
+  show = genericShow
+
+data CollateralReturnError = CollateralReturnError String
+
+derive instance Generic CollateralReturnError _
+
+instance Show CollateralReturnError where
   show = genericShow
 
 data EvalExUnitsAndMinFeeError
@@ -419,18 +432,22 @@ _redeemersTxIns = lens' \(UnattachedUnbalancedTx rec@{ redeemersTxIns }) ->
 --------------------------------------------------------------------------------
 
 setCollateral
-  :: Transaction -> Utxo -> QueryM (Either BalanceTxError Transaction)
-setCollateral transaction utxos =
+  :: Transaction
+  -> Utxo
+  -> Address
+  -> QueryM (Either BalanceTxError Transaction)
+setCollateral transaction utxos ownAddr =
   runExceptT do
     wallet <- asks _.wallet
     mCollateral <- ExceptT $ selectCollateral wallet
-    traceM ("collateral: " <> show mCollateral)
     case (mCollateral /\ wallet) of
       Nothing /\ _ ->
         pure $ transaction
       Just collateral /\ (Just (KeyWallet _)) -> do
         let collTx = addTxCollateral collateral transaction
-        pure collTx -- TODO:
+        coinsPerUtxoByte <- asks _.pparams <#> unwrap >>> _.coinsPerUtxoByte
+        except <<< lmap CollateralReturnError' $
+          addTxCollateralReturn collateral collTx ownAddr coinsPerUtxoByte
       Just collateral /\ _ -> do
         pure $ addTxCollateral collateral transaction
   where
@@ -451,6 +468,60 @@ addTxCollateral :: TransactionUnspentOutput -> Transaction -> Transaction
 addTxCollateral (TransactionUnspentOutput { input }) transaction =
   transaction # _body <<< _collateral ?~
     Array.singleton input
+
+addTxCollateralReturn
+  :: TransactionUnspentOutput
+  -> Transaction
+  -> Address
+  -> Coin
+  -> Either CollateralReturnError Transaction
+addTxCollateralReturn collateral transaction ownAddr coinsPerUtxoByte =
+  let
+    TransactionUnspentOutput { output: collOutput } = collateral
+    TransactionOutput { amount: collValue } = collOutput
+    Value collAda collNonAdaAsset = collValue
+    fixedCollAmount = fromInt 5_000_000
+  in
+    case unwrap collAda <= fixedCollAmount && collNonAdaAsset == mempty of
+      true -> Right transaction
+      false ->
+        setTxCollateralReturn (unwrap collAda) collNonAdaAsset fixedCollAmount
+  where
+  setTxCollateralReturn
+    :: BigInt
+    -> NonAdaAsset
+    -> BigInt
+    -> Either CollateralReturnError Transaction
+  setTxCollateralReturn collAda collNonAdaAsset fixedCollAmount =
+    let
+      collReturnOutputRec =
+        { address: ownAddr
+        , amount: mkValue mempty collNonAdaAsset
+        , datum: NoOutputDatum
+        , scriptRef: Nothing
+        }
+
+      collReturnAda :: BigInt
+      collReturnAda = unwrap $
+        Max (collAda - fixedCollAmount)
+          <> Max (calculateMinUtxo coinsPerUtxoByte $ wrap collReturnOutputRec)
+
+      collReturnOutput :: TransactionOutput
+      collReturnOutput = wrap $
+        collReturnOutputRec
+          { amount = mkValue (wrap collReturnAda) collNonAdaAsset }
+
+      totalCollateral :: BigInt
+      totalCollateral = collAda - collReturnAda
+    in
+      case totalCollateral > zero of
+        true ->
+          Right $
+            transaction # _body <<< _collateralReturn ?~ collReturnOutput
+              # _body <<< _totalCollateral ?~ wrap totalCollateral
+        false ->
+          Left $ CollateralReturnError
+            "negative totalCollateral after covering min-utxo-ada requirement"
 
 --------------------------------------------------------------------------------
 -- Balancing functions and helpers
@@ -483,7 +554,7 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     -- for the Ada only collateral. No MinUtxos required. Perhaps
     -- for some wallets this step can be skipped and we can go straight
     -- to prebalancer.
-    unbalancedCollTx <- ExceptT $ setCollateral unbalancedTx' utxos
+    unbalancedCollTx <- ExceptT $ setCollateral unbalancedTx' utxos ownAddr
 
     let
       -- Combines utxos at the user address and those from any scripts

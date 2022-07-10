@@ -46,6 +46,7 @@ module Cardano.Types.Transaction
   , _bootstraps
   , _certs
   , _collateral
+  , _collateralReturn
   , _fee
   , _inputs
   , _isValid
@@ -58,6 +59,7 @@ module Cardano.Types.Transaction
   , _redeemers
   , _requiredSigners
   , _scriptDataHash
+  , _totalCollateral
   , _ttl
   , _update
   , _validityStartInterval
@@ -559,6 +561,7 @@ instance Show Certificate where
 --------------------------------------------------------------------------------
 -- `TxBody` Lenses
 --------------------------------------------------------------------------------
+
 _inputs :: Lens' TxBody (Set TransactionInput)
 _inputs = _Newtype <<< prop (SProxy :: SProxy "inputs")
 
@@ -601,6 +604,12 @@ _requiredSigners = _Newtype <<< prop (SProxy :: SProxy "requiredSigners")
 
 _networkId :: Lens' TxBody (Maybe NetworkId)
 _networkId = _Newtype <<< prop (SProxy :: SProxy "networkId")
+
+_collateralReturn :: Lens' TxBody (Maybe TransactionOutput)
+_collateralReturn = _Newtype <<< prop (SProxy :: SProxy "collateralReturn")
+
+_totalCollateral :: Lens' TxBody (Maybe Coin)
+_totalCollateral = _Newtype <<< prop (SProxy :: SProxy "totalCollateral")
 
 --------------------------------------------------------------------------------
 -- `TransactionWitnessSet`
