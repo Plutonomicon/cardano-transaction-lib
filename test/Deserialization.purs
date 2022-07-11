@@ -59,6 +59,7 @@ import Test.Fixtures
   , txFixture2
   , txFixture3
   , txFixture4
+  , txFixture5
   , txInputFixture1
   , txOutputFixture1
   , utxoFixture1
@@ -75,7 +76,6 @@ import Test.Utils (errMaybe)
 import TestM (TestPlanM)
 import Types.BigNum (fromBigInt, toBigInt) as BigNum
 import Types.Transaction (TransactionInput) as T
-import Types.Scripts (Language(PlutusV1, PlutusV2))
 import Untagged.Union (asOneOf)
 
 suite :: TestPlanM Unit
@@ -161,13 +161,13 @@ suite = do
         serialized <- liftEffect $ TS.convertTransaction input
         let expected = TD.convertTransaction serialized
         pure input `shouldEqual` hush expected
-      test "deserialization is inverse to serialization (PlutusV1) #4" do
-        let input = txFixture4 PlutusV1
+      test "deserialization is inverse to serialization #4" do
+        let input = txFixture4
         serialized <- liftEffect $ TS.convertTransaction input
         let expected = TD.convertTransaction serialized
         pure input `shouldEqual` hush expected
-      test "deserialization is inverse to serialization (PlutusV2) #5" do
-        let input = txFixture4 PlutusV2
+      test "deserialization is inverse to serialization #5" do
+        let input = txFixture5
         serialized <- liftEffect $ TS.convertTransaction input
         let expected = TD.convertTransaction serialized
         pure input `shouldEqual` hush expected
