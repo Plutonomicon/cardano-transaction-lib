@@ -7,7 +7,7 @@ SHELL := bash
 ps-sources := $(shell fd -epurs)
 nix-sources := $(shell fd -enix --exclude='spago*')
 hs-sources := $(shell fd . './server/src' './server/exe' -ehs)
-js-sources := $(shell fd -ejs)
+js-sources := $(shell fd -ejs -Enode_modules)
 ps-entrypoint := Examples.AlwaysSucceeds
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 
