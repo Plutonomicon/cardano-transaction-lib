@@ -156,6 +156,7 @@
         purescriptProject = import ./nix { inherit system; pkgs = prev; };
         buildCtlRuntime = buildCtlRuntime system;
         launchCtlRuntime = launchCtlRuntime system;
+        ctl-server = self.packages.${system}."ctl-server:exe:ctl-server";
         inherit cardano-configurations;
       });
 
@@ -421,7 +422,7 @@
             shell = {
               shellHook = exportOgmiosFixtures;
               packages = [
-                (hsProjectFor system).hsPkgs.ctl-server.components.exes.ctl-server
+                pkgs.ctl-server
                 pkgs.postgresql
                 pkgs.ogmios
                 pkgs.cardano-cli
@@ -459,24 +460,22 @@
             };
           };
 
-          checks = {
-            ctl-unit-test = project.runPursTest {
-              name = "ctl-unit-test";
-              testMain = "CTL.Test.Unit";
-              env = { OGMIOS_FIXTURES = "${buildOgmiosFixtures pkgs}"; };
+          checks =
+            let
+              ogmiosFixtures = buildOgmiosFixtures pkgs;
+            in
+            {
+              ctl-unit-test = project.runPursTest {
+                name = "ctl-unit-test";
+                testMain = "CTL.Test.Unit";
+                env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
+              };
+              ctl-plutip-test = project.runPlutipTest {
+                name = "ctl-plutip-test";
+                testMain = "Test.Plutip";
+                env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
+              };
             };
-            ctl-plutip-test = project.runPursTest {
-              name = "ctl-plutip-test";
-              testMain = "Test.Plutip";
-              buildInputs = [
-                (hsProjectFor system).hsPkgs.ctl-server.components.exes.ctl-server
-                pkgs.postgresql
-                pkgs.ogmios
-                pkgs.ogmios-datum-cache
-                pkgs.plutip-server
-              ];
-            };
-          };
 
           devShell = project.devShell;
 
