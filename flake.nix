@@ -412,14 +412,16 @@
             packageLock = ./package-lock.json;
             shell = {
               shellHook = exportOgmiosFixtures;
-              packages = [
-                pkgs.ogmios
-                pkgs.cardano-cli
-                pkgs.ogmios-datum-cache
-                pkgs.nixpkgs-fmt
-                pkgs.fd
-                pkgs.arion
-                pkgs.haskellPackages.fourmolu
+              packages = with pkgs; [
+                ogmios
+                cardano-cli
+                ogmios-datum-cache
+                nixpkgs-fmt
+                fd
+                arion
+                haskellPackages.fourmolu
+                nodePackages.prettier
+                nodePackages.eslint
               ];
             };
           };
@@ -533,6 +535,7 @@
                 easy-ps.purs-tidy
                 haskellPackages.fourmolu
                 nixpkgs-fmt
+                nodePackages.prettier
                 fd
               ];
             }
@@ -542,6 +545,20 @@
               fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost \
                 $(fd -ehs)
               nixpkgs-fmt --check $(fd -enix --exclude='spago*')
+              prettier -c $(fd -ejs)
+              touch $out
+            '';
+
+          js-lint-check = pkgs.runCommand "js-lint-check"
+            {
+              nativeBuildInputs = [
+                pkgs.nodePackages.eslint
+                pkgs.fd
+              ];
+            }
+            ''
+              cd ${self}
+              eslint $(fd -ejs)
               touch $out
             '';
         });
