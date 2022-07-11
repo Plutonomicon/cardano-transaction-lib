@@ -39,7 +39,7 @@ import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Types.Datum (Datum(Datum))
 import Types.PlutusData (PlutusData(Integer))
 import Types.RedeemerTag (RedeemerTag(Spend))
-import Types.Scripts (PlutusScript(PlutusScript), Language(PlutusV1))
+import Types.Scripts (PlutusScript, plutusV1Script)
 
 suite :: TestPlanM Unit
 suite = group "attach datums to tx" $ do
@@ -97,8 +97,8 @@ testAttachScript = liftEffect $
   tx = mempty
 
   script :: PlutusScript
-  script = PlutusScript $
-    hexToByteArrayUnsafe "4e4d01000033222220051200120011" /\ PlutusV1
+  script = plutusV1Script $
+    hexToByteArrayUnsafe "4e4d01000033222220051200120011"
 
 testSetScriptDataHash :: Aff Unit
 testSetScriptDataHash = liftEffect $ do
