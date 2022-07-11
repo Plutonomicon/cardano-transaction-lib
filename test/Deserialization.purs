@@ -75,6 +75,7 @@ import Test.Utils (errMaybe)
 import TestM (TestPlanM)
 import Types.BigNum (fromBigInt, toBigInt) as BigNum
 import Types.Transaction (TransactionInput) as T
+import Types.Scripts (Language(PlutusV1, PlutusV2))
 import Untagged.Union (asOneOf)
 
 suite :: TestPlanM Unit
@@ -160,8 +161,13 @@ suite = do
         serialized <- liftEffect $ TS.convertTransaction input
         let expected = TD.convertTransaction serialized
         pure input `shouldEqual` hush expected
-      test "deserialization is inverse to serialization #4" do
-        let input = txFixture4
+      test "deserialization is inverse to serialization (PlutusV1) #4" do
+        let input = txFixture4 PlutusV1
+        serialized <- liftEffect $ TS.convertTransaction input
+        let expected = TD.convertTransaction serialized
+        pure input `shouldEqual` hush expected
+      test "deserialization is inverse to serialization (PlutusV2) #5" do
+        let input = txFixture4 PlutusV2
         serialized <- liftEffect $ TS.convertTransaction input
         let expected = TD.convertTransaction serialized
         pure input `shouldEqual` hush expected

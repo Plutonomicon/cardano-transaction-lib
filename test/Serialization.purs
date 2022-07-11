@@ -16,6 +16,7 @@ import Test.Fixtures
   , txBinaryFixture2
   , txBinaryFixture3
   , txBinaryFixture4
+  , txBinaryFixture5
   , txFixture1
   , txFixture2
   , txFixture3
@@ -28,6 +29,7 @@ import Test.Utils (errMaybe)
 import TestM (TestPlanM)
 import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Types.PlutusData as PD
+import Types.Scripts (Language(PlutusV1, PlutusV2))
 import Untagged.Union (asOneOf)
 
 suite :: TestPlanM Unit
@@ -94,8 +96,15 @@ suite = do
         tx <- convertTransaction txFixture3
         let bytes = toBytes (asOneOf tx)
         byteArrayToHex bytes `shouldEqual` txBinaryFixture3
-      test "Transaction serialization #4 - ada + mint + certificates" $
-        liftEffect do
-          tx <- convertTransaction txFixture4
-          let bytes = toBytes (asOneOf tx)
-          byteArrayToHex bytes `shouldEqual` txBinaryFixture4
+      test "Transaction serialization (PlutusV1) #4 - ada + mint + certificates"
+        $
+          liftEffect do
+            tx <- convertTransaction (txFixture4 PlutusV1)
+            let bytes = toBytes (asOneOf tx)
+            byteArrayToHex bytes `shouldEqual` txBinaryFixture4
+      test "Transaction serialization (PlutusV2) #5 - ada + mint + certificates"
+        $
+          liftEffect do
+            tx <- convertTransaction (txFixture4 PlutusV2)
+            let bytes = toBytes (asOneOf tx)
+            byteArrayToHex bytes `shouldEqual` txBinaryFixture5
