@@ -8,14 +8,9 @@
     };
 
     # for the purescript project
-    ogmios.url = "github:mlabs-haskell/ogmios/e406801eaeb32b28cd84357596ca1512bff27741";
+    ogmios.url = "github:mlabs-haskell/ogmios/8804e52450d3e5f039f90f961774b4e4557149eb";
     ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/1c7a4af3f18bd3fa94a59e5a52e0ad6d974233e8";
-    # so named because we also need a different version of the repo below
-    # in the server inputs and we use this one just for the `cardano-cli`
-    # executables
-    cardano-node-exe = {
-      url = "github:input-output-hk/cardano-node/ea8b632820db5546b22430bbb5ed8db4a2fef7dd";
-    };
+
     # Repository with network parameters
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
@@ -150,7 +145,7 @@
           inputs.ogmios-datum-cache.defaultPackage.${system};
         ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
         ogmios-fixtures = ogmios;
-        cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
+        cardano-cli = ogmios.inputs.cardano-node.packages.${system}.cardano-cli;
         purescriptProject = import ./nix { inherit system; pkgs = prev; };
         buildCtlRuntime = buildCtlRuntime prev;
         launchCtlRuntime = launchCtlRuntime prev;
