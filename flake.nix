@@ -202,36 +202,35 @@
         };
       };
 
-      buildOgmiosFixtures = pkgs:
-        pkgs.stdenv.mkDerivation {
-          name = "ogmios-fixtures";
-          dontUnpack = true;
-          buildInputs = [ pkgs.jq pkgs.pcre ];
-          buildPhase = ''
-            cp -r ${pkgs.ogmios-fixtures}/server/test/vectors vectors
-            chmod -R +rwx .
+      buildOgmiosFixtures = pkgs: pkgs.stdenv.mkDerivation {
+        name = "ogmios-fixtures";
+        dontUnpack = true;
+        buildInputs = [ pkgs.jq pkgs.pcre ];
+        buildPhase = ''
+          cp -r ${pkgs.ogmios-fixtures}/server/test/vectors vectors
+          chmod -R +rwx .
 
-            function on_file () {
-              local path=$1
-              local parent="$(basename "$(dirname "$path")")"
-              if command=$(pcregrep -o1 -o2 -o3 'Query\[(.*)\]|(EvaluateTx)|(SubmitTx)' <<< "$path")
-              then
-                echo "$path"
-                json=$(jq -c .result "$path")
-                md5=($(md5sum <<< "$json"))
-                printf "%s" "$json" > "ogmios/$command-$md5.json"
-              fi
-            }
-            export -f on_file
+          function on_file () {
+            local path=$1
+            local parent="$(basename "$(dirname "$path")")"
+            if command=$(pcregrep -o1 -o2 -o3 'Query\[(.*)\]|(EvaluateTx)|(SubmitTx)' <<< "$path")
+            then
+              echo "$path"
+              json=$(jq -c .result "$path")
+              md5=($(md5sum <<< "$json"))
+              printf "%s" "$json" > "ogmios/$command-$md5.json"
+            fi
+          }
+          export -f on_file
 
-            mkdir ogmios
-            find vectors/ -type f -name "*.json" -exec bash -c 'on_file "{}"' \;
-          '';
-          installPhase = ''
-            mkdir $out
-            cp -rT ogmios $out
-          '';
-        };
+          mkdir ogmios
+          find vectors/ -type f -name "*.json" -exec bash -c 'on_file "{}"' \;
+        '';
+        installPhase = ''
+          mkdir $out
+          cp -rT ogmios $out
+        '';
+      };
 
       buildCtlRuntime = pkgs: extraConfig:
         { ... }:
@@ -404,6 +403,7 @@
                 (baseNameOf path) [ "server" "doc" ]
               );
           };
+          ogmiosFixtures = buildOgmiosFixtures pkgs;
           project = pkgs.purescriptProject {
             inherit src pkgs projectName;
             packageJson = ./package.json;
@@ -425,7 +425,7 @@
           };
           exportOgmiosFixtures =
             ''
-              export OGMIOS_FIXTURES="${buildOgmiosFixtures pkgs}"
+              export OGMIOS_FIXTURES="${ogmiosFixtures}"
             '';
         in
         rec {
@@ -452,7 +452,7 @@
             ctl-unit-test = project.runPursTest {
               name = "ctl-unit-test";
               testMain = "Test.Unit";
-              env = { OGMIOS_FIXTURES = "${buildOgmiosFixtures pkgs}"; };
+              env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
             };
           };
 
