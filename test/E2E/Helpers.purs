@@ -5,7 +5,6 @@ module Test.E2E.Helpers
   , doJQ
   , click
   , checkSuccess
-  , enable
   , setAttr
   , buttonWithText
   , password
@@ -24,12 +23,11 @@ module Test.E2E.Helpers
   , namiSign
   , geroConfirmAccess
   , geroSign
-  , geroInit
   , Selector(..)
   , Action(..)
-  , NoShowPage(..)
   , RunningExample(..)
   , E2EOutput
+  , delaySec
   ) where
 
 import Prelude
@@ -106,7 +104,7 @@ waitForWalletPage :: String -> Toppokki.Browser -> Aff Toppokki.Page
 waitForWalletPage jQuery browser =
   findWalletPage jQuery browser >>= case _ of
     Nothing -> do
-      delay $ wrap 100.0
+      delaySec 0.1
       waitForWalletPage jQuery browser
     Just page -> pure page
 
@@ -183,62 +181,17 @@ namiSign = flip inWalletPage \nami -> do
 geroConfirmAccess :: RunningExample -> Aff Unit
 geroConfirmAccess =
   flip inWalletPage $ \page -> do
-    delay $ wrap 100.0
+    delaySec 0.1
     void $ doJQ (inputType "radio") click page
     void $ doJQ (buttonWithText "Continue") click page
-    delay $ wrap 100.0
+    delaySec 0.1
     void $ doJQ (inputType "checkbox") click page
     void $ doJQ (buttonWithText "Connect") click page
 
-geroInit :: Toppokki.Browser -> Aff Unit
-geroInit browser = do
-  page <- Toppokki.newPage browser
-  jQuery <- retrieveJQuery page
-  Toppokki.goto
-    (wrap "chrome-extension://iifeegfcfhlhhnilhfoeihllenamcfgc/index.html")
-    page
-  void $ Toppokki.unsafeEvaluateStringFunction jQuery page
-  delay $ wrap 1000.0
-  void $ doJQ (buttonWithText "Get Started") click page
-  delay $ wrap 1000.0
-  void $ doJQ' (wrap "a[href=\"#/wallet-options/import-wallet\"]") click page
-  delay $ wrap 100.0
-  reactSetValue (byId "wallet-name") "ctltest" page
-  typeInto textarea geroSeed page
-  void $ doJQ (buttonWithText "Import") click page
-  delay $ wrap 100.0
-  typeInto (byId "wallet-password") testPasswordGero page
-  typeInto (byId "wallet-password-confirm") testPasswordGero page
-  void $ doJQ (byId "user-agree") click page
-  void $ doJQ (byId "password-agree") click page
-  void $ doJQ (byId "set-up-password") click page
-  delay $ wrap 100.0
-  void $ doJQ (buttonWithText "Continue") click page
-  delay $ wrap 100.0
-  void $ doJQ (byId "done") click page
-  openPopup browser
-  delay $ wrap 50000.0
-  pure unit
-
-{-geroSetCollateral :: Toppokki.Browser -> Aff Unit
-geroSetCollateral = do
-  page <- Toppokki.newPage browser
-  jQuery <- retrieveJQuery page
-  Toppokki.goto (wrap "chrome-extension://iifeegfcfhlhhnilhfoeihllenamcfgc/index.html") page
--}
 
 geroSign :: RunningExample -> Aff Unit
-geroSign (RunningExample { browser }) = do
+geroSign (RunningExample { browser }) =
   pure unit
-
--- | Wrapper for Page so it can be used in `shouldSatisfy`, which needs 'Show'
--- | Doesn't show anything, thus 'NoShow'
-newtype NoShowPage = NoShowPage Toppokki.Page
-
-derive instance Newtype NoShowPage _
-
-instance Show NoShowPage where
-  show _ = "Toppoki.Page"
 
 newtype Selector = Selector String
 
@@ -264,12 +217,6 @@ doJQInd selector index action page = do
 
   indexStr :: String
   indexStr = maybe "" (\i -> "[" <> show i <> "]") index
-
-click :: Action
-click = wrap "click()"
-
-enable :: Action
-enable = wrap "prop(\"disabled\", false)"
 
 setAttr :: String -> String -> Action
 setAttr attr value = wrap $ "attr(" <> jqStr attr <> ", " <> value <> ")"
@@ -307,9 +254,13 @@ setValue = jqSet "val" <<< jqStr
 trigger :: String -> Action
 trigger event = wrap $ "trigger(" <> jqStr event <> ")"
 
+click :: Action
+click = wrap "click()"
+
 clickButton :: String -> Toppokki.Page -> Aff Unit
 clickButton buttonText = void <$> doJQ (buttonWithText buttonText) click
 
+-- | inject jQuery into all pages in the browser which don't have it yet.
 injectJQueryAll :: String -> Toppokki.Browser -> Aff (Array Toppokki.Page)
 injectJQueryAll jQuery browser = do
   pages <- Toppokki.pages browser
@@ -336,30 +287,44 @@ reactSetValue selector value page = void
       , "input.dispatchEvent(ev2);"
       ]
 
-reactSetValueP :: Selector -> String -> Toppokki.Page -> Aff Unit
-reactSetValueP selector value page = void
-  $ flip Toppokki.unsafeEvaluateStringFunction page
-  $ fold
-      [ -- https://stackoverflow.com/questions/23892547/what-is-the-best-way-to-trigger-onchange-event-in-react-js
-        -- Nami uses react, which complicates things a bit
-        "var input = $('" <> unwrap selector <> "').get(0);"
-      , "var nativeInputValueSetter = "
-          <>
-            " Object.getOwnPropertyDescriptor(window.HTMLPasswordElement.prototype, 'value').set;"
-      , "nativeInputValueSetter.call(input, '" <> value <> "');"
-      , "var ev2 = new Event('input', { bubbles: true});"
-      , "input.dispatchEvent(ev2);"
-      ]
-
 foreign import _retrieveJQuery :: Toppokki.Page -> Effect (Promise String)
 foreign import _typeInto
   :: Selector -> String -> Toppokki.Page -> Effect (Promise Unit)
 
-foreign import _clickTab :: Toppokki.Browser -> Toppokki.Page -> Effect Unit
-foreign import _openPopup :: Toppokki.Browser -> Effect (Promise Unit)
+delaySec :: Number -> Aff Unit
+delaySec seconds = delay $ wrap $ seconds * 1000.0
 
-clickTab :: Toppokki.Browser -> Toppokki.Page -> Aff Unit
-clickTab b p = liftEffect $ _clickTab b p
+{-
+-- This can initialize gero and import a walllet without storing any config data
+-- anywhere. However, there doesn't seem to be a straightforward way to set the collateral,
+-- which makes it rather useless, as this would involve opening the extension popup window,
+-- and that is currently not supported in Puppeteer.
 
-openPopup :: Toppokki.Browser -> Aff Unit
-openPopup b = toAffE $ _openPopup b
+geroInit :: Toppokki.Browser -> Aff Unit
+geroInit browser = do
+  page <- Toppokki.newPage browser
+  jQuery <- retrieveJQuery page
+  Toppokki.goto
+    (wrap "chrome-extension://iifeegfcfhlhhnilhfoeihllenamcfgc/index.html")
+    page
+  void $ Toppokki.unsafeEvaluateStringFunction jQuery page
+  delay $ wrap 1000.0
+  void $ doJQ (buttonWithText "Get Started") click page
+  delay $ wrap 1000.0
+  void $ doJQ' (wrap "a[href=\"#/wallet-options/import-wallet\"]") click page
+  delay $ wrap 100.0
+  reactSetValue (byId "wallet-name") "ctltest" page
+  typeInto textarea geroSeed page
+  void $ doJQ (buttonWithText "Import") click page
+  delay $ wrap 100.0
+  typeInto (byId "wallet-password") testPasswordGero page
+  typeInto (byId "wallet-password-confirm") testPasswordGero page
+  void $ doJQ (byId "user-agree") click page
+  void $ doJQ (byId "password-agree") click page
+  void $ doJQ (byId "set-up-password") click page
+  delay $ wrap 100.0
+  void $ doJQ (buttonWithText "Continue") click page
+  delay $ wrap 100.0
+  void $ doJQ (byId "done") click page
+  pure unit
+-}

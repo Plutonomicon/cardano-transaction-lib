@@ -9,6 +9,7 @@ import Prelude (Unit, ($), bind, discard, pure)
 import Test.E2E.Browser (TestOptions, parseOptions)
 import Test.Examples.Gero (testGero)
 import Test.Examples.Pkh2Pkh (testPkh2Pkh)
+import Test.Examples.AlwaysMints (testAlwaysMints)
 import Test.Spec.Runner as SpecRunner
 import Test.Utils as Utils
 import TestM (TestPlanM)
@@ -26,4 +27,5 @@ testPlan :: TestOptions -> TestPlanM Unit
 testPlan options = group "e2e tests" do
   testGero options
   testPkh2Pkh options
+  testAlwaysMints options  
 
