@@ -50,7 +50,7 @@ module BalanceTx
 
 import Prelude
 
-import BalanceTx.UtxoMinAda (utxoMinAdaValue)
+import BalanceTx.UtxoMinAda (adaOnlyUtxoMinAdaValue, utxoMinAdaValue)
 import Cardano.Types.Transaction
   ( Redeemer(Redeemer)
   , Transaction(Transaction)
@@ -463,7 +463,7 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   networkId <- (unbalancedTx ^. _body <<< _networkId) #
     maybe (asks _.networkId) pure
   let unbalancedTx' = unbalancedTx # _body <<< _networkId ?~ networkId
-  utxoMinVal <- getAdaOnlyUtxoMinValue
+  utxoMinVal <- adaOnlyUtxoMinAdaValue
   runExceptT do
     -- Get own wallet address, collateral and utxo set:
     ownAddr <- ExceptT $ QueryM.getWalletAddress <#>
@@ -560,7 +560,7 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     let balancedTxBody = unattachedTxWithBalancedBody ^. _body'
 
     if txBody' == balancedTxBody then
-      pure $ unattachedTxWithBalancedBody
+      pure unattachedTxWithBalancedBody
     else
       ExceptT $
         loop utxoIndex' ownAddr' minUtxos' unattachedTxWithBalancedBody
@@ -572,7 +572,7 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     -> UnattachedUnbalancedTx
     -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
   chainedBalancer minUtxos' utxoIndex' ownAddr' unattachedTx' =
-    getAdaOnlyUtxoMinValue >>= \utxoMinVal -> runExceptT do
+    adaOnlyUtxoMinAdaValue >>= \utxoMinVal -> runExceptT do
       let Transaction tx@{ body: txBody' } = unattachedTx' ^. _transaction'
       txBodyWithoutFees' <- except $
         preBalanceTxBody minUtxos' zero utxoIndex' ownAddr' utxoMinVal txBody'
@@ -652,7 +652,7 @@ returnAdaChangeAndFinalizeFees changeAddr utxos unattachedTx =
         unattachedTx' /\ fees' <-
           ExceptT $ evalExUnitsAndMinFee' unattachedTxWithChangeTxOut
             <#> lmap ReturnAdaChangeCalculateMinFee
-        ExceptT $ getAdaOnlyUtxoMinValue <#>
+        ExceptT $ adaOnlyUtxoMinAdaValue <#>
           adjustAdaChangeAndSetFees unattachedTx' fees' (fees' - fees)
   where
   adjustAdaChangeAndSetFees
@@ -1006,12 +1006,3 @@ getInputValue utxos (TxBody txBody) =
         <<< Array.fromFoldable
         <<< _.inputs $ txBody
     )
-
---------------------------------------------------------------------------------
--- Helpers
---------------------------------------------------------------------------------
-
-getAdaOnlyUtxoMinValue :: QueryM BigInt
-getAdaOnlyUtxoMinValue =
-  asks _.pparams <#>
-    unwrap >>> _.coinsPerUtxoByte >>> unwrap >>> mul adaOnlyBytes
