@@ -202,11 +202,11 @@
         };
       };
 
-      buildOgmiosFixtures = pkgs: pkgs.stdenv.mkDerivation {
-        name = "ogmios-fixtures";
-        dontUnpack = true;
-        buildInputs = [ pkgs.jq pkgs.pcre ];
-        buildPhase = ''
+      buildOgmiosFixtures = pkgs: pkgs.runCommand "ogmios-fixtures"
+        {
+          buildInputs = [ pkgs.jq pkgs.pcre ];
+        }
+        ''
           cp -r ${pkgs.ogmios-fixtures}/server/test/vectors vectors
           chmod -R +rwx .
 
@@ -225,15 +225,11 @@
 
           mkdir ogmios
           find vectors/ -type f -name "*.json" -exec bash -c 'on_file "{}"' \;
-        '';
-        installPhase = ''
           mkdir $out
           cp -rT ogmios $out
         '';
-      };
 
-      buildCtlRuntime = pkgs: extraConfig:
-        { ... }:
+      buildCtlRuntime = pkgs: extraConfig: { ... }:
         let
           inherit (builtins) toString;
           config = with pkgs.lib;

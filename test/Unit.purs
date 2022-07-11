@@ -9,7 +9,7 @@ import Test.Data as Data
 import Test.Deserialization as Deserialization
 import Test.Hashing as Hashing
 import Test.Metadata.Cip25 as Cip25
-import Test.Ogmios.EvaluateTx as OgmiosEvaluateTx
+import Test.Ogmios.EvaluateTx as Ogmios.EvaluateTx
 import Test.OgmiosDatumCache as OgmiosDatumCache
 import Test.Ogmios.Aeson as Ogmios.Aeson
 import Test.Parser as Parser
@@ -49,6 +49,6 @@ testPlan = do
   UsedTxOuts.suite
   OgmiosDatumCache.suite
   Ogmios.Aeson.suite
-  OgmiosEvaluateTx.suite
+  Ogmios.EvaluateTx.suite
   ProtocolParams.suite
   Types.TokenName.suite
