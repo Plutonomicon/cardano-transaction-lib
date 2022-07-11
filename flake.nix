@@ -152,8 +152,9 @@
         ogmios-fixtures = ogmios;
         cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
         purescriptProject = import ./nix { inherit system; pkgs = prev; };
-        buildCtlRuntime = buildCtlRuntime system;
-        launchCtlRuntime = launchCtlRuntime system;
+        buildCtlRuntime = buildCtlRuntime prev;
+        launchCtlRuntime = launchCtlRuntime prev;
+        ctl-server = self.packages.${system}."ctl-server:exe:ctl-server";
         inherit cardano-configurations;
       });
 
@@ -232,11 +233,10 @@
           '';
         };
 
-      buildCtlRuntime = system: extraConfig:
+      buildCtlRuntime = pkgs: extraConfig:
         { ... }:
         let
           inherit (builtins) toString;
-          pkgs = nixpkgsFor system;
           config = with pkgs.lib;
             fix (final: recursiveUpdate
               (defaultConfig final)
@@ -244,8 +244,7 @@
           nodeDbVol = "node-${config.network.name}-db";
           nodeIpcVol = "node-${config.network.name}-ipc";
           nodeSocketPath = "/ipc/node.socket";
-          serverName = "ctl-server:exe:ctl-server";
-          server = self.packages.${system}."${serverName}";
+          server = pkgs.ctl-server;
           bindPort = port: "${toString port}:${toString port}";
         in
         with config;
@@ -369,13 +368,12 @@
         };
 
       # Makes a set compatible with flake `apps` to launch all runtime services
-      launchCtlRuntime = system: config:
+      launchCtlRuntime = pkgs: config:
         let
-          pkgs = nixpkgsFor system;
           binPath = "ctl-runtime";
           prebuilt = (pkgs.arion.build {
             inherit pkgs;
-            modules = [ (buildCtlRuntime system config) ];
+            modules = [ (buildCtlRuntime pkgs config) ];
           }).outPath;
           script = (pkgs.writeShellScriptBin "${binPath}"
             ''
@@ -442,7 +440,7 @@
 
             ctl-runtime = pkgs.arion.build {
               inherit pkgs;
-              modules = [ (buildCtlRuntime system { }) ];
+              modules = [ (buildCtlRuntime pkgs { }) ];
             };
 
             docs = project.buildSearchablePursDocs {
