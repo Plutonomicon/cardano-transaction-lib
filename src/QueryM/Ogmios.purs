@@ -76,12 +76,14 @@ import Cardano.Types.Value
   , mkValue
   )
 import Control.Alt ((<|>))
-import Data.Array (index, singleton, (:), reverse)
+import Data.Array (index, singleton, reverse)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, hush, note)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
+import Data.List (List)
+import Data.List as List
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
@@ -834,12 +836,12 @@ type CostModelV2 =
 -- This assumes that cost models are stored in lexicographical order
 convertCostModel
   :: forall costModel
-   . HFoldl (Array Int -> Int -> Array Int) (Array Int) costModel (Array Int)
+   . HFoldl (List Int -> Int -> List Int) (List Int) costModel (List Int)
   => costModel
   -> T.CostModel
-convertCostModel model = wrap $ reverse $ hfoldl
-  ((\xs x -> x : xs) :: Array Int -> Int -> Array Int)
-  ([] :: Array Int)
+convertCostModel model = wrap $ reverse $ List.toUnfoldable $ hfoldl
+  ((\xs x -> x List.: xs) :: List Int -> Int -> List Int)
+  (mempty :: List Int)
   model
 
 ---------------- CHAIN TIP QUERY RESPONSE & PARSING
