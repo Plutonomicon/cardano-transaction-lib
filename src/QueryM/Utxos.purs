@@ -46,7 +46,7 @@ import Wallet (Wallet(Gero, Nami, KeyWallet))
 utxosAt
   :: Warn
        ( Text
-           "`utxosAt`: Querying for UTxOs by address is deprecated. See https://github.com/CardanoSolutions/ogmios/issues/199."
+           "`utxosAt`: Querying for UTxOs by address is deprecated. See https://github.com/Plutonomicon/cardano-transaction-lib/issues/536."
        )
   => Address
   -> QueryM (Maybe UtxoM)
@@ -63,7 +63,7 @@ getUtxo ref =
     (_ >>= unwrap >>> Map.lookup ref)
 
 mkUtxoQuery :: QueryM Ogmios.UtxoQR -> QueryM (Maybe UtxoM)
-mkUtxoQuery query = asks _.wallet >>= maybe (allUtxosAt) (utxosAtByWallet)
+mkUtxoQuery query = asks _.wallet >>= maybe allUtxosAt utxosAtByWallet
   where
   -- Add more wallet types here:
   utxosAtByWallet :: Wallet -> QueryM (Maybe UtxoM)

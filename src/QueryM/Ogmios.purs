@@ -187,7 +187,7 @@ queryUtxoCall = mkOgmiosCallType
   renameFields
     :: { transactionId :: TransactionHash, index :: UInt }
     -> { txId :: TransactionHash, index :: UInt }
-  renameFields { transactionId, index } = { txId: transactionId, index }
+  renameFields { transactionId: txId, index } = { txId, index }
 
 type OgmiosAddress = String
 

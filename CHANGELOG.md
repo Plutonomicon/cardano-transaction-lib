@@ -7,8 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 **Table of Contents**
 
 - [[Unreleased]](#unreleased)
-- [[2.0.0-alpha] - 2022-07-06](#200-alpha---2022-07-06)
   - [Added](#added)
+- [[2.0.0-alpha] - 2022-07-06](#200-alpha---2022-07-06)
+  - [Added](#added-1)
   - [Removed](#removed)
   - [Changed](#changed)
   - [Fixed](#fixed)
