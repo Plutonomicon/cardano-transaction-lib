@@ -370,13 +370,14 @@
             inherit pkgs;
             modules = [ (buildCtlRuntime pkgs config) ];
           }).outPath;
-          script = (pkgs.writeShellScriptBin "${binPath}"
-            ''
-              ${pkgs.arion}/bin/arion --prebuilt-file ${prebuilt} up
-            ''
-          ).overrideAttrs (_: {
-            buildInputs = [ pkgs.arion pkgs.docker ];
-          });
+          script = pkgs.writeShellApplication {
+            name = binPath;
+            runtimeInputs = [ pkgs.arion pkgs.docker ];
+            text =
+              ''
+                ${pkgs.arion}/bin/arion --prebuilt-file ${prebuilt} up
+              '';
+          };
         in
         {
           type = "app";
@@ -459,17 +460,18 @@
               let
                 binPath = "docs-server";
                 builtDocs = packages.docs;
-                script = (pkgs.writeShellScriptBin "${binPath}"
-                  ''
-                    ${pkgs.nodePackages.http-server}/bin/http-server \
-                      ${builtDocs}/generated-docs/html
-                  ''
-                ).overrideAttrs (_: {
-                  buildInputs = [
+                script = pkgs.writeShellApplication {
+                  name = binPath;
+                  runtimeInputs = [
                     pkgs.nodejs-14_x
                     pkgs.nodePackages.http-server
                   ];
-                });
+                  text =
+                    ''
+                      ${pkgs.nodePackages.http-server}/bin/http-server \
+                        ${builtDocs}/generated-docs/html
+                    '';
+                };
               in
               {
                 type = "app";
