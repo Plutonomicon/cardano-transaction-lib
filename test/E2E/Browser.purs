@@ -2,6 +2,7 @@ module Test.E2E.Browser
   ( Mode(..)
   , TestOptions(..)
   , launchWithExtension
+  , withBrowser
   , parseOptions
   ) where
 
@@ -11,7 +12,7 @@ import Control.Applicative (apply, (<$>))
 import Data.Foldable (fold)
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Effect (Effect)
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, bracket)
 import Effect.Class (liftEffect)
 import Effect.Console (error)
 import Options.Applicative
@@ -78,6 +79,14 @@ optParser = ado
 
 parseOptions :: Effect TestOptions
 parseOptions = execParser $ info optParser fullDesc
+
+withBrowser
+  :: forall (a :: Type)
+   . TestOptions
+  -> String
+  -> (Toppokki.Browser -> Aff a)
+  -> Aff a
+withBrowser opts ext = bracket (launchWithExtension opts ext) Toppokki.close
 
 launchWithExtension
   :: TestOptions -> String -> Aff Toppokki.Browser

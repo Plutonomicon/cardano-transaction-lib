@@ -1,6 +1,8 @@
 module Test.E2E.Helpers
   ( hasSelector
   , startExample
+  , runE2ETest
+  , withExample
   , exampleUrl
   , doJQ
   , click
@@ -33,19 +35,24 @@ module Test.E2E.Helpers
 import Prelude
 
 import Control.Promise (Promise, toAffE)
+import Control.Monad.Error.Class (try)
 import Data.Array (head, filterA)
 import Data.Foldable (intercalate)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Traversable (for, fold)
 import Effect (Effect)
-import Effect.Aff (Aff, launchAff_, delay)
+import Effect.Aff (Aff, bracket, launchAff_, delay)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
+import Effect.Exception (throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Effect.Uncurried (mkEffectFn1, EffectFn1)
 import Foreign (Foreign, unsafeFromForeign)
+import Mote (test)
+import TestM (TestPlanM)
+import Test.E2E.Browser (TestOptions, withBrowser)
 import Test.E2E.Feedback (testFeedbackIsTrue)
 import Test.Spec.Assertions (shouldSatisfy)
 import Toppokki as Toppokki
@@ -100,12 +107,14 @@ findWalletPage jQuery browser = do
   pages' <- filterA (hasSelector button) pages
   pure $ head $ pages'
 
-waitForWalletPage :: String -> Toppokki.Browser -> Aff Toppokki.Page
-waitForWalletPage jQuery browser =
+waitForWalletPage :: String -> Number -> Toppokki.Browser -> Aff Toppokki.Page
+waitForWalletPage jQuery timeout browser =
   findWalletPage jQuery browser >>= case _ of
     Nothing -> do
-      delaySec 0.1
-      waitForWalletPage jQuery browser
+      if timeout > 0.0 then do
+        delaySec 0.1
+        waitForWalletPage jQuery (timeout - 0.1) browser
+      else liftEffect $ throw "Wallet did not open"
     Just page -> pure page
 
 showOutput :: Ref (Array E2EOutput) -> Effect String
@@ -127,8 +136,10 @@ startExample name browser = do
   errorRef <- liftEffect $ Ref.new []
   liftEffect do
     Toppokki.onPageError (handler errorRef PageError $ pure <<< show) page
-    Toppokki.onConsole (handler errorRef Console Toppokki.consoleMessageText) page
-    Toppokki.onRequestFailed (handler errorRef RequestFailed $ pure <<< show) page
+    Toppokki.onConsole (handler errorRef Console Toppokki.consoleMessageText)
+      page
+    Toppokki.onRequestFailed (handler errorRef RequestFailed $ pure <<< show)
+      page
   Toppokki.goto url page
   pure $ wrap
     { browser: browser
@@ -158,6 +169,32 @@ startExample name browser = do
       )
       errorRef
 
+withExample
+  :: forall (a :: Type)
+   . String
+  -> Toppokki.Browser
+  -> (RunningExample -> Aff a)
+  -> Aff a
+withExample example browser = bracket (startExample example browser)
+  (const $ pure unit)
+
+runE2ETest
+  :: forall (a :: Type)
+   . String
+  -> TestOptions
+  -> String
+  -> (RunningExample -> Aff a)
+  -> TestPlanM Unit
+runE2ETest example opts ext f = test example $ withBrowser opts ext $
+  \browser -> withExample example browser
+    ( \e -> do
+        liftEffect $ log "A"
+        _ <- void $ try $ f e
+        liftEffect $ log "B"
+        delaySec 0.5
+        checkSuccess e
+    )
+
 checkSuccess :: RunningExample -> Aff Unit
 checkSuccess (RunningExample { main, errors }) = do
   feedback <- testFeedbackIsTrue main
@@ -167,7 +204,7 @@ checkSuccess (RunningExample { main, errors }) = do
 inWalletPage
   :: forall (a :: Type). RunningExample -> (Toppokki.Page -> Aff a) -> Aff a
 inWalletPage (RunningExample { browser, jQuery }) =
-  (waitForWalletPage jQuery browser >>= _)
+  (waitForWalletPage jQuery 1.0 browser >>= _)
 
 namiConfirmAccess :: RunningExample -> Aff Unit
 namiConfirmAccess = flip inWalletPage (clickButton "Access")
@@ -181,13 +218,15 @@ namiSign = flip inWalletPage \nami -> do
 geroConfirmAccess :: RunningExample -> Aff Unit
 geroConfirmAccess =
   flip inWalletPage $ \page -> do
+    liftEffect $ log "1"
     delaySec 0.1
     void $ doJQ (inputType "radio") click page
+    liftEffect $ log "2"
     void $ doJQ (buttonWithText "Continue") click page
     delaySec 0.1
     void $ doJQ (inputType "checkbox") click page
     void $ doJQ (buttonWithText "Connect") click page
-
+    liftEffect $ log "3"
 
 geroSign :: RunningExample -> Aff Unit
 geroSign (RunningExample { browser }) =
@@ -267,7 +306,8 @@ injectJQueryAll jQuery browser = do
   void $ for pages $ \page -> do
     (alreadyInjected :: Boolean) <-
       unsafeFromForeign <$>
-        Toppokki.unsafeEvaluateStringFunction "typeof(jQuery) !== 'undefined'" page
+        Toppokki.unsafeEvaluateStringFunction "typeof(jQuery) !== 'undefined'"
+          page
     unless alreadyInjected $ void $ Toppokki.unsafeEvaluateStringFunction jQuery
       page
   pure pages

@@ -1,1 +1,1 @@
-exports._publishTestFeedback = value => () => window.ctlTestFeedback = value;
+exports._publishTestFeedback = value => () => (window.ctlTestFeedback = value);
