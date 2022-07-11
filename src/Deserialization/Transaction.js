@@ -200,7 +200,7 @@ exports._convertCert = certConvHelper => cert => {
 //          Maybe Csl.UnitInterval
 //      , d :: Maybe Csl.UnitInterval
 //      , extraEntropy :: Maybe Csl.Nonce
-//      , protocolVersion :: Maybe Csl.ProtocolVersions
+//      , protocolVersion :: Maybe Csl.ProtocolVersion
 //      , minPoolCost :: Maybe Csl.BigNum
 //      , adaPerUtxoByte :: Maybe Csl.BigNum
 //      , costModels :: Maybe Csl.Costmdls
@@ -355,15 +355,13 @@ exports._unpackUnitInterval = ui => {
     };
 };
 
-// foreign import _unpackProtocolVersions
-// :: ContainerHelper -> Csl.ProtocolVersions -> Array { major :: Number, minor :: Number }
-exports._unpackProtocolVersions = containerhelper => cslPV => {
-    const pvs = containerhelper.unpack(cslPV);
-    const res = [];
-    for(var i=0; i<pvs.length; i++){
-        res.push({major: pvs[i].major(), minor: pvs[i].minor()});
-    }
-    return res;
+// foreign import _unpackProtocolVersion
+// :: Csl.ProtocolVersion -> { major :: Number, minor :: Number }
+exports._unpackProtocolVersion = cslPV => {
+    return {
+      major: cslPV.major(),
+      minor: cslPV.minor()
+    };
 };
 
 

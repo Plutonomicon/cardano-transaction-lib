@@ -36,7 +36,7 @@ module Deserialization.Transaction
   , _unpackMint
   , _unpackMintAssets
   , _unpackProtocolParamUpdate
-  , _unpackProtocolVersions
+  , _unpackProtocolVersion
   , _unpackUnitInterval
   , _unpackUpdate
   , _unpackWithdrawals
@@ -54,7 +54,7 @@ module Deserialization.Transaction
   , convertMint
   , convertNonce
   , convertProtocolParamUpdate
-  , convertProtocolVersions
+  , convertProtocolVersion
   , convertTransaction
   , convertTxBody
   , convertUpdate
@@ -186,7 +186,7 @@ import Serialization.Types
   , PoolMetadata
   , PoolParams
   , ProtocolParamUpdate
-  , ProtocolVersions
+  , ProtocolVersion
   , Relay
   , ScriptDataHash
   , SingleHostAddr
@@ -486,7 +486,7 @@ convertProtocolParamUpdate cslPpu = do
   maxEpoch <- traverse (map T.Epoch <<< cslNumberToUInt (lbl "maxEpoch"))
     ppu.maxEpoch
   nOpt <- traverse (cslNumberToUInt (lbl "nOpt")) ppu.nOpt
-  protocolVersion <- traverse (convertProtocolVersions (lbl "protocolVersion"))
+  protocolVersion <- traverse (convertProtocolVersion (lbl "protocolVersion"))
     ppu.protocolVersion
   costModels <- traverse (convertCostModels (lbl "costModels")) ppu.costModels
   maxTxExUnits <- traverse (convertExUnits (lbl "maxTxExUnits"))
@@ -676,18 +676,18 @@ convertExUnits nm cslExunits =
 convertScriptDataHash :: Csl.ScriptDataHash -> T.ScriptDataHash
 convertScriptDataHash = asOneOf >>> toBytes >>> T.ScriptDataHash
 
-convertProtocolVersions
+convertProtocolVersion
   :: forall (r :: Row Type)
    . String
-  -> Csl.ProtocolVersions
-  -> E (FromCslRepError + r) (Array T.ProtocolVersion)
-convertProtocolVersions nm cslPV =
-  for (_unpackProtocolVersions containerHelper cslPV)
-    ( \{ major, minor } ->
-        { major: _, minor: _ }
-          <$> cslNumberToUInt (nm <> " major") major
-          <*> cslNumberToUInt (nm <> " minor") minor
-    )
+  -> Csl.ProtocolVersion
+  -> E (FromCslRepError + r) T.ProtocolVersion
+convertProtocolVersion nm cslPV =
+  let
+    { major, minor } = _unpackProtocolVersion cslPV
+  in
+    { major: _, minor: _ }
+      <$> cslNumberToUInt (nm <> " major") major
+      <*> cslNumberToUInt (nm <> " minor") minor
 
 ---- foreign imports
 
@@ -713,7 +713,7 @@ foreign import _unpackProtocolParamUpdate
          Maybe Csl.UnitInterval
      , treasuryGrowthRate ::
          Maybe Csl.UnitInterval
-     , protocolVersion :: Maybe Csl.ProtocolVersions
+     , protocolVersion :: Maybe Csl.ProtocolVersion
      , minPoolCost :: Maybe Csl.BigNum
      , adaPerUtxoByte :: Maybe Csl.BigNum
      , costModels :: Maybe Csl.Costmdls
@@ -745,10 +745,9 @@ type MetadatumHelper (r :: Row Type) =
   , error :: String -> Err r TransactionMetadatum
   }
 
-foreign import _unpackProtocolVersions
-  :: ContainerHelper
-  -> Csl.ProtocolVersions
-  -> Array { major :: Number, minor :: Number }
+foreign import _unpackProtocolVersion
+  :: Csl.ProtocolVersion
+  -> { major :: Number, minor :: Number }
 
 foreign import _unpackExUnits
   :: Csl.ExUnits -> { mem :: Csl.BigNum, steps :: Csl.BigNum }
