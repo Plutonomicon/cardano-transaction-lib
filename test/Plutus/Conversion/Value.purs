@@ -2,7 +2,7 @@ module Test.Plutus.Conversion.Value (suite) where
 
 import Prelude
 
-import Data.Array ((..), length, zip)
+import Data.Array (range, length, zip)
 import Data.BigInt (fromInt)
 import Data.Maybe (fromJust)
 import Data.Tuple (fst, snd)
@@ -24,7 +24,7 @@ import Cardano.Types.Value as Value
 suite :: TestPlanM Unit
 suite = do
   group "Conversion: Plutus Value <-> Types.Value" $ do
-    let indices = 0 .. (length testData - 1)
+    let indices = 0 `range` (length testData - 1)
     for_ (zip testData indices) $ \((valuePlutus /\ value) /\ i) ->
       toFromPlutusValueTest i valuePlutus value
 

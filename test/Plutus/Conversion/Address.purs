@@ -2,7 +2,7 @@ module Test.Plutus.Conversion.Address (suite) where
 
 import Prelude
 
-import Data.Array ((..), length, zip)
+import Data.Array (range, length, zip)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, wrap)
 import Data.Traversable (for_)
@@ -46,7 +46,7 @@ addressConversionTests networkId =
       case networkId of
         MainnetId -> addressesBech32Mainnet
         TestnetId -> addressesBech32Testnet
-    indices = 0 .. (length addresses - 1)
+    indices = 0 `range` (length addresses - 1)
     testData = zip (zip addressesBech32 addresses) indices
   in
     for_ testData $ \((addrBech32 /\ addr) /\ addrType) ->

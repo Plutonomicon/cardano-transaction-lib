@@ -52,8 +52,7 @@ foreign import unsafeCall
 interpret' :: SpecRunner.Config -> TestPlanM Unit -> Aff Unit
 interpret' config spif = do
   plan <- planT spif
-  runSpec' config [ consoleReporter ] $
-    go plan
+  runSpec' config [ consoleReporter ] $ go plan
   where
   go :: Plan (Const Void) (Aff Unit) -> Spec Unit
   go =
@@ -67,7 +66,7 @@ interpret' config spif = do
 -- | is then interpreted here in a pure context, mainly due to some painful types
 -- | in Test.Spec which prohibit effects.
 interpret :: TestPlanM Unit -> Aff Unit
-interpret = interpret' defaultConfig { timeout = Just (wrap 10000.0) }
+interpret = interpret' defaultConfig { timeout = Just (wrap 50000.0) }
 
 -- | Test a boolean value, throwing the provided string as an error if `false`
 assertTrue

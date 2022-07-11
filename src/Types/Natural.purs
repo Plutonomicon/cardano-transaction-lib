@@ -5,6 +5,8 @@ module Types.Natural
   , binaryOnBigInt
   , fromBigInt
   , fromBigInt'
+  , fromInt
+  , fromInt'
   , fromString
   , minus
   , toBigInt
@@ -14,7 +16,7 @@ import Prelude
 
 import Aeson (class DecodeAeson, JsonDecodeError(TypeMismatch), caseAesonBigInt)
 import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
+import Data.BigInt (fromInt, fromString) as BigInt
 import Data.Either (Either(Left), note)
 import Data.Function (on)
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe)
@@ -50,21 +52,47 @@ instance DecodeAeson Natural where
           fromBigInt bi
       )
 
+type MNatural = Maybe Natural
+
+-- | Attempts to convert an instance of `Semiring` to `Natural`.
+-- | Fails with `Nothing` on negative input.
+fromSemiringType
+  :: forall (a :: Type). Semiring a => Ord a => (a -> BigInt) -> a -> MNatural
+fromSemiringType f n
+  | n >= zero = Just (Natural $ f n)
+  | otherwise = Nothing
+
+-- | Converts an instance of `Semiring` to `Natural`.
+-- | If the input is negative, negates it.
+fromSemiringType'
+  :: forall (a :: Type). Semiring a => Ord a => (a -> BigInt) -> a -> Natural
+fromSemiringType' f n
+  | n >= zero = Natural (f n)
+  | otherwise = Natural (negate $ f n)
+
+-- | Attempts to convert `BigInt` to `Natural`.
 -- | Fails with `Nothing` on negative input.
 fromBigInt :: BigInt -> Maybe Natural
-fromBigInt n =
-  if n >= BigInt.fromInt 0 then Just $ Natural n
-  else Nothing
+fromBigInt = fromSemiringType identity
 
--- | Negate `BigInt` if it's negative.
+-- | Converts `BigInt` to `Natural`. Negates `BigInt` if it's negative.
 fromBigInt' :: BigInt -> Natural
-fromBigInt' n =
-  if n >= BigInt.fromInt 0 then Natural n
-  else Natural (negate n)
+fromBigInt' = fromSemiringType' identity
 
+-- | Unwraps `Natural` and returns the underlying `BigInt`.
 toBigInt :: Natural -> BigInt
 toBigInt (Natural n) = n
 
+-- | Attempts to convert `Int` to `Natural`.
+-- | Fails with `Nothing` on negative input.
+fromInt :: Int -> Maybe Natural
+fromInt = fromSemiringType BigInt.fromInt
+
+-- | Converts `Int` to `Natural`. Negates `Int` if it's negative.
+fromInt' :: Int -> Natural
+fromInt' = fromSemiringType' BigInt.fromInt
+
+-- | Attempts to build `Natural` from `String`.
 fromString :: String -> Maybe Natural
 fromString = fromBigInt <=< BigInt.fromString
 

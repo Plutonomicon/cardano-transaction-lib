@@ -1,6 +1,6 @@
 {
   "name": "cardano-transaction-lib",
-  "version": "1.1.0",
+  "version": "2.0.0-alpha",
   "description": "",
   "repository": {
     "type": "git",
@@ -37,5 +37,8 @@
     "webpack": "5.67.0",
     "webpack-cli": "4.9.2",
     "webpack-dev-server": "4.7.4"
+  },
+  "prettier": {
+    "arrowParens": "avoid"
   }
 }
