@@ -71,29 +71,18 @@ import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
 import Cardano.Types.Value
-  ( Coin
-  , Value
+  ( Value
   , filterNonAda
   , geq
   , getLovelace
-  , isAdaOnly
   , isPos
   , isZero
   , lovelaceValueOf
   , minus
   , mkCoin
   , mkValue
-  , numNonAdaAssets
-  , numNonAdaCurrencySymbols
-  , sumTokenNameLengths
   , valueToCoin
   , valueToCoin'
-  )
-import Constants.Babbage
-  ( adaOnlyBytes
-  , coinSize
-  , pidSize
-  , utxoEntrySizeWithoutVal
   )
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
@@ -103,7 +92,7 @@ import Control.Monad.Trans.Class (lift)
 import Data.Array ((\\), modifyAt)
 import Data.Array as Array
 import Data.Bifunctor (bimap, lmap)
-import Data.BigInt (BigInt, fromInt, quot)
+import Data.BigInt (BigInt, fromInt)
 import Data.Either (Either(Left, Right), hush, note)
 import Data.Foldable as Foldable
 import Data.Generic.Rep (class Generic)
@@ -138,7 +127,7 @@ import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import Transaction (setScriptDataHash)
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
-import Types.Transaction (DataHash, TransactionInput)
+import Types.Transaction (TransactionInput)
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), _transaction)
 import Untagged.Union (asOneOf)
 import Wallet (Wallet(KeyWallet), cip30Wallet)
