@@ -3,6 +3,7 @@ module Serialization
   , convertTxBody
   , convertTxInput
   , convertTxOutput
+  , defaultCostmdls
   , toBytes
   , newTransactionUnspentOutputFromBytes
   , newTransactionWitnessSetFromBytes
@@ -248,6 +249,7 @@ foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
 foreign import transactionWitnessSetSetVkeys
   :: TransactionWitnessSet -> Vkeywitnesses -> Effect Unit
 
+foreign import defaultCostmdls :: Effect Costmdls
 foreign import newCostmdls :: Effect Costmdls
 foreign import costmdlsSetCostModel
   :: Costmdls -> Language -> CostModel -> Effect Unit

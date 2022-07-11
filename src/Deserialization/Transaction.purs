@@ -483,7 +483,8 @@ convertProtocolParamUpdate cslPpu = do
   nOpt <- traverse (cslNumberToUInt (lbl "nOpt")) ppu.nOpt
   protocolVersion <- traverse (convertProtocolVersion (lbl "protocolVersion"))
     ppu.protocolVersion
-  costModels <- traverse (convertCostModels (lbl "costModels")) ppu.costModels
+  costModels <- addErrTrace (lbl "costModels") $ traverse convertCostModels
+    ppu.costModels
   maxTxExUnits <- traverse (convertExUnits (lbl "maxTxExUnits"))
     ppu.maxTxExUnits
   maxBlockExUnits <- traverse (convertExUnits (lbl "maxBlockExUnits"))
@@ -519,10 +520,9 @@ convertNonce = _convertNonce
 
 convertCostModels
   :: forall (r :: Row Type)
-   . String
-  -> Csl.Costmdls
+   . Csl.Costmdls
   -> Err r T.Costmdls
-convertCostModels nm cslCostMdls = addErrTrace nm
+convertCostModels cslCostMdls =
   let
     mdls :: Array (Csl.Language /\ Csl.CostModel)
     mdls = _unpackCostModels containerHelper cslCostMdls
