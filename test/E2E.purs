@@ -11,6 +11,10 @@ import Test.Examples.Gero as Gero
 import Test.Examples.Pkh2PkhGero as Pkh2PkhGero
 import Test.Examples.Pkh2Pkh as Pkh2Pkh
 import Test.Examples.AlwaysMints as AlwaysMints
+import Test.Examples.AlwaysSucceeds as AlwaysSucceeds
+import Test.Examples.Datums as Datums
+import Test.Examples.MintsMultipleTokens as MintsMultipleTokens
+import Test.Examples.SignMultiple as SignMultiple
 import Test.Spec.Runner as SpecRunner
 import Test.Utils as Utils
 import TestM (TestPlanM)
@@ -30,4 +34,8 @@ testPlan options = group "e2e tests" do
   Pkh2PkhGero.runExample options
   Pkh2Pkh.runExample options
   AlwaysMints.runExample options
+  AlwaysSucceeds.runExample options
+  Datums.runExample options
+  MintsMultipleTokens.runExample options
+  SignMultiple.runExample options      
 

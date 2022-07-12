@@ -1,4 +1,4 @@
-module Test.Examples.AlwaysMints (runExample) where
+module Test.Examples.MintsMultipleTokens (runExample) where
 
 import Prelude
 
@@ -18,7 +18,7 @@ import TestM (TestPlanM)
 import Toppokki as Toppokki
 
 runExample :: TestOptions -> TestPlanM Unit
-runExample options = runE2ETest "AlwaysMints" options "Nami" $ \example -> do
+runExample options = runE2ETest "MintsMultipleTokens" options "Nami" $ \example -> do
   namiConfirmAccess example
   namiSign example
   -- Wait a moment to avoid a race condition. After Nami gets confirmation,

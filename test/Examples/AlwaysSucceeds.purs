@@ -1,4 +1,4 @@
-module Test.Examples.AlwaysMints (runExample) where
+module Test.Examples.AlwaysSucceeds (runExample) where
 
 import Prelude
 
@@ -18,10 +18,10 @@ import TestM (TestPlanM)
 import Toppokki as Toppokki
 
 runExample :: TestOptions -> TestPlanM Unit
-runExample options = runE2ETest "AlwaysMints" options "Nami" $ \example -> do
+runExample options = runE2ETest "AlwaysSucceeds" options "Nami" $ \example -> do
   namiConfirmAccess example
   namiSign example
   -- Wait a moment to avoid a race condition. After Nami gets confirmation,
   -- it will take a few ms to return control to our example.
-  delaySec 1.0
+  delaySec 65.0
   checkSuccess example
