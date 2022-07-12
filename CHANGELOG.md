@@ -7,10 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 **Table of Contents**
 
 - [[Unreleased]](#unreleased)
-- [[2.0.0-alpha] - 2022-07-06](#200-alpha---2022-07-06)
   - [Added](#added)
-  - [Removed](#removed)
   - [Changed](#changed)
+- [[2.0.0-alpha] - 2022-07-06](#200-alpha---2022-07-06)
+  - [Added](#added-1)
+  - [Removed](#removed)
+  - [Changed](#changed-1)
   - [Fixed](#fixed)
 - [[1.1.0] - 2022-06-30](#110---2022-06-30)
   - [Fixed](#fixed-1)
@@ -19,6 +21,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - [[1.0.0] - 2022-06-10](#100---2022-06-10)
 
 ## [Unreleased]
+
+### Added
+
+- `Contract.Utxos.getUtxo` call to get a single utxo at a given output reference.
+
+## Changed
+
+- CTL's `overlay` no longer requires an explicitly passed `system`
+
 
 ## [2.0.0-alpha] - 2022-07-05
 
@@ -74,6 +85,8 @@ This release adds support for running CTL contracts against Babbage-era nodes. *
 - `Types.ScriptLookups.require` function naming caused problems with WebPack ([#593](https://github.com/Plutonomicon/cardano-transaction-lib/pull/593))
 - Bad logging in `queryDispatch` that didn't propagate error messages ([#615](https://github.com/Plutonomicon/cardano-transaction-lib/pull/615))
 - UTxO Min-Ada-Value calculation ([#611](https://github.com/Plutonomicon/cardano-transaction-lib/pull/611))
+- Discarding invalid inputs in `txInsValues` instead of yielding an error ([#696](https://github.com/Plutonomicon/cardano-transaction-lib/pull/696))
+- Locking transaction inputs before the actual balancing of the transaction ([#696](https://github.com/Plutonomicon/cardano-transaction-lib/pull/696))
 
 ## [1.1.0] - 2022-06-30
 

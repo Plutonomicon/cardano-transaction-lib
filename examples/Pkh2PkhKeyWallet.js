@@ -40,24 +40,24 @@ code {
 <code></code>
 `;
 
-exports.logError = (error) => () => {
+exports.logError = error => () => {
   console.log(error);
 };
 
-exports.mkForm = (handler) => () => {
+exports.mkForm = handler => () => {
   window.document.body.insertAdjacentHTML("beforeend", form);
-  const formEl = window.document.querySelector('form');
-  const fieldsEl = window.document.querySelector('fieldset');
-  const resultEl = window.document.querySelector('code');
-  formEl.addEventListener('submit', (event) => {
+  const formEl = window.document.querySelector("form");
+  const fieldsEl = window.document.querySelector("fieldset");
+  const resultEl = window.document.querySelector("code");
+  formEl.addEventListener("submit", event => {
     event.preventDefault();
     resultEl.replaceChildren();
 
     const data = new FormData(formEl);
     const input = Object.fromEntries(data);
-    fieldsEl.setAttribute("disabled","disabled");
+    fieldsEl.setAttribute("disabled", "disabled");
 
-    const log = (color) => (text) => () => {
+    const log = color => text => () => {
       const line = document.createElement("div");
       line.style.color = color;
       line.textContent = text;
@@ -65,7 +65,7 @@ exports.mkForm = (handler) => () => {
     };
 
     const unlock = () => {
-      fieldsEl.setAttribute("disabled","disabled");
+      fieldsEl.setAttribute("disabled", "disabled");
       fieldsEl.removeAttribute("disabled");
     };
 
