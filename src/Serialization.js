@@ -71,15 +71,15 @@ exports.newAssetName = name => () => lib.AssetName.new(name);
 
 exports.transactionOutputSetDataHash = setter("data_hash");
 
-exports.transactionOutputSetPlutusData = setter('plutus_data');
+exports.transactionOutputSetPlutusData = setter("plutus_data");
 
-exports.transactionOutputSetScriptRef = setter('script_ref');
+exports.transactionOutputSetScriptRef = setter("script_ref");
 
 exports.scriptRefNewNativeScript = nativeScript =>
-    lib.ScriptRef.new_native_script(nativeScript);
+  lib.ScriptRef.new_native_script(nativeScript);
 
 exports.scriptRefNewPlutusScript = plutusScript =>
-    lib.ScriptRef.new_plutus_script(plutusScript);
+  lib.ScriptRef.new_plutus_script(plutusScript);
 
 exports.newVkeywitnesses = () => lib.Vkeywitnesses.new();
 
@@ -147,7 +147,7 @@ exports.newRedeemers = () => lib.Redeemers.new();
 exports.addRedeemer = rs => r => () => rs.add(r);
 
 exports.setTxBodyReferenceInputs = txBody => referenceInputs => () =>
-    txBody.set_reference_inputs(referenceInputs);
+  txBody.set_reference_inputs(referenceInputs);
 
 exports.newScriptDataHashFromBytes = bytes => () =>
   lib.ScriptDataHash.from_bytes(bytes);
@@ -186,10 +186,10 @@ exports.networkIdTestnet = () => lib.NetworkId.testnet();
 exports.networkIdMainnet = () => lib.NetworkId.mainnet();
 
 exports.setTxBodyCollateralReturn = txBody => collateralReturn => () =>
-    txBody.set_collateral_return(collateralReturn);
+  txBody.set_collateral_return(collateralReturn);
 
 exports.setTxBodyTotalCollateral = txBody => totalCollateral => () =>
-    txBody.set_total_collateral(totalCollateral);
+  txBody.set_total_collateral(totalCollateral);
 
 exports.setTxBodyTtl = setter("ttl");
 
@@ -357,7 +357,7 @@ exports.newProtocolVersion = major => minor => () =>
   lib.ProtocolVersion.new(major, minor);
 
 exports.ppuSetProtocolVersion = ppu => version => () =>
-    ppu.set_protocol_version(version);
+  ppu.set_protocol_version(version);
 
 exports.ppuSetMinPoolCost = setter("min_pool_cost");
 

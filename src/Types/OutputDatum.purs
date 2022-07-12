@@ -59,7 +59,6 @@ instance EncodeAeson OutputDatum where
     OutputDatumHash r -> encodeAeson' $ encodeTagged' "OutputDatumHash" r
     OutputDatum r -> encodeAeson' $ encodeTagged' "OutputDatum" r
 
-
 outputDatumDataHash :: OutputDatum -> Maybe DataHash
 outputDatumDataHash (OutputDatumHash hash) = Just hash
 outputDatumDataHash _ = Nothing

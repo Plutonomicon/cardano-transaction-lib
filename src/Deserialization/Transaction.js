@@ -63,9 +63,9 @@ exports._txBodyValidityStartInterval = maybeGetter(
 // multiassets(): Mint | void;
 exports._txBodyMultiAssets = maybeGetter("multiassets");
 exports._txBodyReferenceInputs = maybe => containerhelper => body =>
-    body.reference_inputs() ?
-    maybe.just(containerhelper.unpack(body.reference_inputs())) :
-    maybe.nothing;
+  body.reference_inputs()
+    ? maybe.just(containerhelper.unpack(body.reference_inputs()))
+    : maybe.nothing;
 // script_data_hash(): ScriptDataHash | void;
 exports._txBodyScriptDataHash = maybeGetter("script_data_hash");
 // collateral(): Array TransactionInput | void;
@@ -92,7 +92,8 @@ exports._txBodyCollateralReturn = maybeGetter("collateral_return");
 exports._txBodyTotalCollateral = maybeGetter("total_collateral");
 
 // foreign import _unpackWithdrawals :: ContainerHelper -> CSL.Withdrawals -> Array(Tuple CSL.RewardAddress CSL.BigNum)
-exports._unpackWithdrawals = containerhelper => containerhelper.unpackKeyIndexed;
+exports._unpackWithdrawals = containerhelper =>
+  containerhelper.unpackKeyIndexed;
 
 exports._unpackUpdate = containerhelper => update => {
   const pppus = containerhelper.unpackKeyIndexed(
@@ -285,7 +286,7 @@ exports._unpackUnitInterval = ui => {
 
 exports._unpackProtocolVersion = cslPV => ({
   major: cslPV.major(),
-  minor: cslPV.minor()
+  minor: cslPV.minor(),
 });
 
 exports._unpackExUnitsPrices = cslEup => {
