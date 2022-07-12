@@ -81,6 +81,7 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT, ask, asks)
 import Data.Array (length)
+import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -90,10 +91,10 @@ import Data.HTTP.Method (Method(POST))
 import Data.Log.Level (LogLevel(Trace, Debug, Error))
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Traversable (traverse, traverse_)
+import Data.Traversable (for_, traverse, traverse_)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -299,10 +300,26 @@ getWalletAddress = do
     KeyWallet kw -> Just <$> kw.address networkId
 
 getWalletCollateral :: QueryM (Maybe (Array TransactionUnspentOutput))
-getWalletCollateral = withMWalletAff case _ of
-  Nami nami -> callCip30Wallet nami _.getCollateral
-  Gero gero -> callCip30Wallet gero _.getCollateral
-  KeyWallet _ -> liftEffect $ throw "Not implemented"
+getWalletCollateral = do
+  mbCollateralUTxOs <- withMWalletAff case _ of
+    Nami nami -> callCip30Wallet nami _.getCollateral
+    Gero gero -> callCip30Wallet gero _.getCollateral
+    KeyWallet _ -> liftEffect $ throw "Not implemented"
+  for_ mbCollateralUTxOs \collateralUTxOs -> do
+    pparams <- asks _.pparams
+    let
+      tooManyCollateralUTxOs =
+        fromMaybe false do
+          maxCollateralInputs <- (unwrap pparams).maxCollateralInputs
+          pure $ UInt.fromInt (Array.length collateralUTxOs) >
+            maxCollateralInputs
+    when tooManyCollateralUTxOs do
+      liftEffect $ throw tooManyCollateralUTxOsError
+  pure mbCollateralUTxOs
+  where
+  tooManyCollateralUTxOsError =
+    "Wallet returned too many UTxOs as collateral. This is likely a bug in \
+    \the wallet."
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
