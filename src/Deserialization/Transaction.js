@@ -241,14 +241,10 @@ exports._unpackCostModels = containerhelper => containerhelper.unpackKeyIndexed;
 
 // foreign import unpackCostModel :: CSL.CostModel -> Array String
 exports._unpackCostModel = cm => {
-    // XXX should OP_COUNT be used instead?
-    var err = false;
     const res = [];
-    try {
-      for(var op = 0;; op++) {
-        res.push(cm.get(op).to_str());
-      }
-    } catch (_) { }
+    for(var op = 0; op < cm.len(); op++) {
+      res.push(cm.get(op).to_str());
+    }
     return res;
 };
 
