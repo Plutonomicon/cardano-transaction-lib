@@ -1,7 +1,7 @@
 SHELL := bash
 .ONESHELL:
 .PHONY: run-dev run-build check-format format run-datum-cache-postgres-console
-		query-testnet-tip clean check-explicit-exports
+		query-testnet-tip clean check-explicit-exports e2e-test
 .SHELLFLAGS := -eu -o pipefail -c
 
 ps-sources := $(shell fd -epurs)
@@ -18,6 +18,7 @@ e2e-test-nami := test-data/chrome-extensions/nami_3.2.5_1.crx
 e2e-test-nami-settings := test-data/nami_settings.tar.gz
 e2e-test-gero := test-data/chrome-extensions/gero_testnet_1.10.0_0.crx
 e2e-test-gero-settings := test-data/gero_settings.tar.gz
+e2e-browser := $(shell which google-chrome)
 
 # https://stackoverflow.com/questions/2214575/passing-arguments-to-make-run
 # example: make e2e-test -- --no-headless
@@ -57,7 +58,7 @@ e2e-test:
             || echo "ignore warnings" # or make stops
 	@tar xzf ${e2e-test-gero-settings}
 	@rm -f ${e2e-test-chrome-dir}/SingletonLock
-	@spago test --main Test.E2E -a "E2ETest --nami-dir=${e2e-temp-dir}/nami --gero-dir=${e2e-temp-dir}/gero $(TEST_ARGS)" || rm -Rf ${e2e-temp-dir}
+	@spago test --main Test.E2E -a "E2ETest --nami-dir=${e2e-temp-dir}/nami --gero-dir=${e2e-temp-dir}/gero $(TEST_ARGS) --chrome-exe=${e2e-browser}" || rm -Rf ${e2e-temp-dir}
 
 e2e-run-browser-nami:
 	@mkdir ${e2e-temp-dir}
@@ -71,7 +72,7 @@ e2e-run-browser-gero:
 	@unzip ${e2e-test-gero} -d ${e2e-temp-dir}/gero > /dev/zero \
             || echo "ignore warnings" # or make stops
 	@tar xzf ${e2e-test-gero-settings}
-	@google-chrome --load-extension=${e2e-temp-dir}/gero --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e-temp-dir}
+	google-chrome --load-extension=${e2e-temp-dir}/gero --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e-temp-dir}
 
 # extract current nami settings from e2e-test-chrome-dir and store them for git
 nami-settings:
