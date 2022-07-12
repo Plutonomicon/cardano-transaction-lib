@@ -1,5 +1,11 @@
 module FromData
-  ( FromDataError(..)
+  ( FromDataError
+      ( ArgsWantedButGot
+      , FromDataFailed
+      , BigIntToIntFailed
+      , IndexWantedButGot
+      , WantedConstrGot
+      )
   , class FromData
   , class FromDataArgs
   , class FromDataArgsRL
