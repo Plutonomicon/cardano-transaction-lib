@@ -134,6 +134,7 @@ import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import Transaction (setScriptDataHash)
 import Types.Natural (toBigInt) as Natural
+import Types.OutputDatum (OutputDatum(NoOutputDatum), outputDatumDataHash)
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (DataHash, TransactionInput)
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), _transaction)
@@ -739,7 +740,8 @@ returnAdaChange changeAddr utxos (unattachedTx /\ fees) =
           changeTxOutput = wrap
             { address: changeAddr
             , amount: lovelaceValueOf returnAda
-            , dataHash: Nothing
+            , datum: NoOutputDatum
+            , scriptRef: Nothing
             }
 
           unattachedTxWithChangeTxOut :: UnattachedUnbalancedTx
@@ -774,7 +776,9 @@ calculateMinUtxo coinsPerUtxoByte txOut =
       if isAdaOnly outputValue then utxoEntrySizeWithoutVal + coinSize -- 29 in Alonzo
       else utxoEntrySizeWithoutVal
         + size outputValue
-        + dataHashSize txOut'.dataHash
+        -- TODO: add datum size
+        -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
+        + dataHashSize (outputDatumDataHash txOut'.datum)
 
 -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
 -- | Calculates how many words are needed depending on whether the datum is
@@ -1008,7 +1012,8 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
             TransactionOutput
               { address: changeAddr
               , amount: nonAdaChange
-              , dataHash: Nothing
+              , datum: NoOutputDatum
+              , scriptRef: Nothing
               } : txOuts
           { no: txOuts'
           , yes: TransactionOutput txOut@{ amount: v } : txOuts
