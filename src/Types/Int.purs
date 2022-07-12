@@ -9,6 +9,7 @@ module Types.Int
 
 import Prelude
 
+import Aeson (class EncodeAeson, encodeAeson')
 import Control.Alternative ((<|>))
 import Data.BigInt as BigInt
 import Data.Function (on)
@@ -32,6 +33,9 @@ instance Ord Int where
 
 instance Show Int where
   show = _intToStr
+
+instance EncodeAeson Int where
+  encodeAeson' = encodeAeson' <<< _intToStr
 
 fromBigInt :: BigInt.BigInt -> Maybe Int
 fromBigInt bi =

@@ -5,9 +5,11 @@ module Types.RedeemerTag
 
 import Prelude
 
+import Aeson (class EncodeAeson, encodeAeson')
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
+import Helpers (encodeTagged')
 
 -- lives in it's own module due to a name conflict with the `Mint` Type
 data RedeemerTag = Spend | Mint | Cert | Reward
@@ -26,3 +28,10 @@ derive instance Ord RedeemerTag
 
 instance Show RedeemerTag where
   show = genericShow
+
+instance EncodeAeson RedeemerTag where
+  encodeAeson' = case _ of
+    Spend -> encodeAeson' $ encodeTagged' "Spend" {}
+    Mint -> encodeAeson' $ encodeTagged' "Mint" {}
+    Cert -> encodeAeson' $ encodeTagged' "Cert" {}
+    Reward -> encodeAeson' $ encodeTagged' "Reward" {}

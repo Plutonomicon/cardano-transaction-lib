@@ -6,6 +6,11 @@ module Types.OutputDatum
 
 import Prelude
 
+import Aeson
+  ( class EncodeAeson
+  , encodeAeson'
+  )
+import Helpers (encodeTagged')
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
@@ -47,6 +52,13 @@ instance ToData OutputDatum where
 
 instance FromData OutputDatum where
   fromData = genericFromData
+
+instance EncodeAeson OutputDatum where
+  encodeAeson' = case _ of
+    NoOutputDatum -> encodeAeson' $ encodeTagged' "NoOutputDatum" {}
+    OutputDatumHash r -> encodeAeson' $ encodeTagged' "OutputDatumHash" r
+    OutputDatum r -> encodeAeson' $ encodeTagged' "OutputDatum" r
+
 
 outputDatumDataHash :: OutputDatum -> Maybe DataHash
 outputDatumDataHash (OutputDatumHash hash) = Just hash

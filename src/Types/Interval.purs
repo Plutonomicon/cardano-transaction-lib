@@ -1,20 +1,32 @@
 module Types.Interval
-  ( AbsTime(..)
+  ( AbsTime(AbsTime)
   , Closure
-  , Extended(..)
-  , Interval(..)
-  , LowerBound(..)
-  , ModTime(..)
-  , OnchainPOSIXTimeRange(..)
-  , POSIXTime(..)
+  , Extended(NegInf, Finite, PosInf)
+  , Interval(Interval)
+  , LowerBound(LowerBound)
+  , ModTime(ModTime)
+  , OnchainPOSIXTimeRange(OnchainPOSIXTimeRange)
+  , POSIXTime(POSIXTime)
   , POSIXTimeRange
-  , PosixTimeToSlotError(..)
-  , RelSlot(..)
-  , RelTime(..)
+  , PosixTimeToSlotError
+      ( CannotFindTimeInEraSummaries
+      , PosixTimeBeforeSystemStart
+      , StartTimeGreaterThanTime
+      , EndSlotLessThanSlotOrModNonZero
+      , CannotGetBigIntFromNumber'
+      , CannotGetBigNumFromBigInt'
+      )
+  , RelSlot(RelSlot)
+  , RelTime(RelTime)
   , SlotRange
-  , SlotToPosixTimeError(..)
-  , ToOnChainPosixTimeRangeError(..)
-  , UpperBound(..)
+  , SlotToPosixTimeError
+      ( CannotFindSlotInEraSummaries
+      , StartingSlotGreaterThanSlot
+      , EndTimeLessThanTime
+      , CannotGetBigIntFromNumber
+      )
+  , ToOnChainPosixTimeRangeError(PosixTimeToSlotError', SlotToPosixTimeError')
+  , UpperBound(UpperBound)
   , after
   , always
   , before
