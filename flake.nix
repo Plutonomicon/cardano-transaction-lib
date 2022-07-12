@@ -8,7 +8,7 @@
     };
 
     # for the purescript project
-    ogmios.url = "github:mlabs-haskell/ogmios/8804e52450d3e5f039f90f961774b4e4557149eb";
+    ogmios.url = "github:mlabs-haskell/ogmios/e406801eaeb32b28cd84357596ca1512bff27741";
     ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/1c7a4af3f18bd3fa94a59e5a52e0ad6d974233e8";
 
     # Repository with network parameters
@@ -149,8 +149,6 @@
             inputs.ogmios-datum-cache.defaultPackage.${system};
           ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
           ogmios-fixtures = ogmios;
-          cardano-cli =
-            ogmios.inputs.cardano-node.packages.${system}.cardano-cli;
           purescriptProject = import ./nix { inherit system; pkgs = final; };
           buildCtlRuntime = buildCtlRuntime final;
           launchCtlRuntime = launchCtlRuntime final;
@@ -411,7 +409,6 @@
               shellHook = exportOgmiosFixtures;
               packages = with pkgs; [
                 ogmios
-                cardano-cli
                 ogmios-datum-cache
                 nixpkgs-fmt
                 fd
