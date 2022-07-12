@@ -13,7 +13,6 @@ import Contract.Monad
   , liftContractAffM
   , liftContractM
   , liftedE
-  , liftedM
   , logInfo'
   , runContract_
   , traceTestnetContractConfig
@@ -22,10 +21,9 @@ import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
 import Contract.Transaction
-  ( BalancedSignedTransaction(BalancedSignedTransaction)
-  , TransactionHash
+  ( TransactionHash
   , TransactionInput(TransactionInput)
-  , balanceAndSignTx
+  , balanceAndSignTxE
   , submit
   )
 import Contract.TxConstraints (TxConstraints)
@@ -107,9 +105,8 @@ buildBalanceSignAndSubmitTx
   -> Contract () TransactionHash
 buildBalanceSignAndSubmitTx lookups constraints = do
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  BalancedSignedTransaction bsTx <-
-    liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-  txId <- submit bsTx.signedTxCbor
+  bsTx <- liftedE $ balanceAndSignTxE ubTx
+  txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
   pure txId
 

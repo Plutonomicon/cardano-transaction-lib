@@ -1,5 +1,5 @@
 module Types.TypedValidator
-  ( TypedValidator(..)
+  ( TypedValidator(TypedValidator)
   , ValidatorType
   , WrappedValidatorType
   , class DatumType

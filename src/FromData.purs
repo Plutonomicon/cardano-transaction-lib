@@ -1,5 +1,11 @@
 module FromData
-  ( FromDataError(..)
+  ( FromDataError
+      ( ArgsWantedButGot
+      , FromDataFailed
+      , BigIntToIntFailed
+      , IndexWantedButGot
+      , WantedConstrGot
+      )
   , class FromData
   , class FromDataArgs
   , class FromDataArgsRL
@@ -43,6 +49,8 @@ import TypeLevel.RowList.Unordered.Indexed
   ( class GetIndexWithLabel
   , class GetWithLabel
   )
+import Types.BigNum (BigNum)
+import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray)
 import Types.RawBytes (RawBytes)
 import Types.CborBytes (CborBytes)
@@ -266,6 +274,10 @@ instance Fail (Text "Int is not supported, use BigInt instead") => FromData Int 
 
 instance FromData BigInt where
   fromData (Integer n) = Just n
+  fromData _ = Nothing
+
+instance FromData BigNum where
+  fromData (Integer n) = BigNum.fromBigInt n
   fromData _ = Nothing
 
 instance FromData UInt where

@@ -48,8 +48,7 @@ import Contract.Scripts
   , scriptHashAddress
   )
 import Contract.Transaction
-  ( BalancedSignedTransaction(BalancedSignedTransaction)
-  , balanceAndSignTx
+  ( balanceAndSignTx
   , submit
   , TransactionHash
   , TransactionInput
@@ -212,12 +211,12 @@ createTokens = do
       ]
 
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  BalancedSignedTransaction bsTx <-
+  bsTx <-
     liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
 
   logInfo' $ "Balanced and signed tx is " <> show bsTx
 
-  submit bsTx.signedTxCbor
+  submit bsTx
 
 -- | for each Script we have one redeemer that we're goig to supply
 -- | for each MintingPolicy we spend the specified count of tokens with the names specified
@@ -255,9 +254,9 @@ spendTokens hash = do
       ]
 
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  BalancedSignedTransaction bsTx <-
+  bsTx <-
     liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-  hash2 <- submit bsTx.signedTxCbor
+  hash2 <- submit bsTx
   logInfo' $ "Hash of second transaction " <> show hash2
   pure unit
 
