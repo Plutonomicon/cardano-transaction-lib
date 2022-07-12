@@ -298,7 +298,7 @@ getWalletAddress = do
     Gero gero -> callCip30Wallet gero _.getWalletAddress
     KeyWallet kw -> Just <$> kw.address networkId
 
-getWalletCollateral :: QueryM (Maybe TransactionUnspentOutput)
+getWalletCollateral :: QueryM (Maybe (Array TransactionUnspentOutput))
 getWalletCollateral = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami _.getCollateral
   Gero gero -> callCip30Wallet gero _.getCollateral

@@ -14,8 +14,9 @@ import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value (Value)
 import Control.Promise (Promise, toAffE)
 import Control.Promise as Promise
-import Data.Maybe (Maybe(Just, Nothing), isNothing)
+import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
 import Data.Newtype (unwrap)
+import Data.Traversable (for, traverse)
 import Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Deserialization.UnspentOutput (convertValue)
 import Deserialization.UnspentOutput as Deserialization.UnspentOuput
@@ -26,10 +27,7 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization as Serialization
-import Serialization.Address
-  ( Address
-  , addressFromBytes
-  )
+import Serialization.Address (Address, addressFromBytes)
 import Types.ByteArray (byteArrayToHex)
 import Types.CborBytes (rawBytesAsCborBytes)
 import Types.RawBytes (RawBytes, hexToRawBytes)
@@ -44,7 +42,8 @@ type Cip30Wallet =
   -- Get combination of all available UTxOs
   , getBalance :: Cip30Connection -> Aff (Maybe Value)
   -- Get the collateral UTxO associated with the Nami wallet
-  , getCollateral :: Cip30Connection -> Aff (Maybe TransactionUnspentOutput)
+  , getCollateral ::
+      Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
   -- Sign a transaction with the given wallet
   , signTx :: Cip30Connection -> Transaction -> Aff (Maybe Transaction)
   }
@@ -82,14 +81,15 @@ getWalletAddress :: Cip30Connection -> Aff (Maybe Address)
 getWalletAddress conn = fromHexString _getAddress conn <#>
   (_ >>= addressFromBytes <<< rawBytesAsCborBytes)
 
-getCollateral :: Cip30Connection -> Aff (Maybe TransactionUnspentOutput)
-getCollateral conn = fromMaybeHexString getCip30Collateral conn >>=
+getCollateral :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
+getCollateral conn = fromMaybeHexStrings getCip30Collateral conn >>=
   case _ of
     Nothing -> pure Nothing
-    Just bytes -> do
-      liftEffect $
-        Deserialization.UnspentOuput.convertUnspentOutput
-          <$> fromBytesEffect (unwrap bytes)
+    Just collateralUtxos -> liftEffect do
+      Just <$> for collateralUtxos \bytes -> do
+        maybe (throw "Unable to convert UTxO") pure =<<
+          Deserialization.UnspentOuput.convertUnspentOutput
+            <$> fromBytesEffect (unwrap bytes)
 
 signTx :: Cip30Connection -> Transaction -> Aff (Maybe Transaction)
 signTx conn tx = do
@@ -119,12 +119,12 @@ fromHexString
   -> Aff (Maybe RawBytes)
 fromHexString act = map hexToRawBytes <<< Promise.toAffE <<< act
 
-fromMaybeHexString
-  :: (Cip30Connection -> Effect (Promise (Maybe String)))
+fromMaybeHexStrings
+  :: (Cip30Connection -> Effect (Promise (Maybe (Array String))))
   -> Cip30Connection
-  -> Aff (Maybe RawBytes)
-fromMaybeHexString act =
-  map (flip bind hexToRawBytes) <<< Promise.toAffE <<< act
+  -> Aff (Maybe (Array RawBytes))
+fromMaybeHexStrings act =
+  map (join <<< map (traverse hexToRawBytes)) <<< Promise.toAffE <<< act
 
 -------------------------------------------------------------------------------
 -- FFI stuff
@@ -134,9 +134,11 @@ foreign import data Cip30Connection :: Type
 foreign import _getAddress :: Cip30Connection -> Effect (Promise String)
 
 foreign import _getCollateral
-  :: MaybeFfiHelper -> Cip30Connection -> Effect (Promise (Maybe String))
+  :: MaybeFfiHelper
+  -> Cip30Connection
+  -> Effect (Promise (Maybe (Array String)))
 
-getCip30Collateral :: Cip30Connection -> Effect (Promise (Maybe String))
+getCip30Collateral :: Cip30Connection -> Effect (Promise (Maybe (Array String)))
 getCip30Collateral = _getCollateral maybeFfiHelper
 
 foreign import _signTx

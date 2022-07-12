@@ -64,9 +64,7 @@ import Cardano.Types.Transaction
   , _redeemers
   , _witnessSet
   )
-import Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  )
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value
   ( Coin
   , Value
@@ -466,7 +464,11 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
           note (GetWalletCollateralError' CouldNotGetCollateral)
       -- TODO: Combine with getWalletCollateral, and supply with fee estimate
       --       https://github.com/Plutonomicon/cardano-transaction-lib/issues/510
-      Just (KeyWallet kw) -> pure $ kw.selectCollateral utxos
+      -- TODO: modify collateral selection algorithm to be able to return
+      -- multiple UTxOs
+      --       https://github.com/Plutonomicon/cardano-transaction-lib/issues/724
+      Just (KeyWallet kw) -> pure $ Array.singleton <$> kw.selectCollateral
+        utxos
       _ -> pure Nothing
     let
       -- Combines utxos at the user address and those from any scripts
@@ -598,10 +600,9 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   feeBuffer :: BigInt
   feeBuffer = fromInt 500000
 
-addTxCollateral :: TransactionUnspentOutput -> Transaction -> Transaction
-addTxCollateral (TransactionUnspentOutput { input }) transaction =
-  transaction # _body <<< _collateral ?~
-    Array.singleton input
+addTxCollateral :: Array TransactionUnspentOutput -> Transaction -> Transaction
+addTxCollateral utxos transaction =
+  transaction # _body <<< _collateral ?~ (utxos <#> unwrap >>> _.input)
 
 -- Logging for Transaction type without returning Transaction
 logTx
