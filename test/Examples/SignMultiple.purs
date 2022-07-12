@@ -15,7 +15,6 @@ import Test.E2E.Helpers
   , runE2ETest
   )
 import TestM (TestPlanM)
-import Toppokki as Toppokki
 
 runExample :: TestOptions -> TestPlanM Unit
 runExample options = runE2ETest "SignMultiple" options "Nami" $ \example -> do

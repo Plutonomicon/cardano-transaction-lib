@@ -66,10 +66,6 @@ testPassword = "ctlctlctl"
 testPasswordGero :: String
 testPasswordGero = "VZVfu5rp1r"
 
-geroSeed :: String
-geroSeed =
-  "blanket source govern pony crash genius army announce space topic fan beauty clever risk act"
-
 data OutputType = PageError | Console | RequestFailed
 
 derive instance Eq OutputType
@@ -119,14 +115,16 @@ waitForWalletPage jQuery timeout browser = do
 
 showOutput :: Ref (Array E2EOutput) -> Effect String
 showOutput ref =
-  let
-    show' (E2EOutput { outputType, output }) = showType outputType <> " " <>
-      output
-    showType PageError = "ERR"
-    showType Console = "..."
-    showType RequestFailed = "REQ"
-  in
-    Ref.read ref >>= pure <<< intercalate "\n" <<< map show'
+  Ref.read ref >>= pure <<< intercalate "\n" <<< map show'
+  where
+  show' :: E2EOutput -> String
+  show' (E2EOutput { outputType, output }) = showType outputType <> " " <>
+    output
+
+  showType :: OutputType -> String
+  showType PageError = "ERR"
+  showType Console = "..."
+  showType RequestFailed = "REQ"
 
 -- | start example at URL with Nami and return both Nami's page and the example's
 startExample :: String -> Toppokki.Browser -> Aff RunningExample
@@ -238,22 +236,14 @@ newtype Action = Action String
 
 derive instance Newtype Action _
 
--- | Build a primitive jQuery expression like '$("button").click()' and evaluate it in Toppokki
+-- | Build a primitive jQuery expression like '$("button").click()' and
+-- | out of a selector and action and evaluate it in Toppokki
 doJQ :: Selector -> Action -> Toppokki.Page -> Aff Foreign
-doJQ selector = doJQInd selector Nothing
-
-doJQ' :: Selector -> Action -> Toppokki.Page -> Aff Foreign
-doJQ' selector = doJQInd selector (Just 0)
-
-doJQInd :: Selector -> Maybe Int -> Action -> Toppokki.Page -> Aff Foreign
-doJQInd selector index action page = do
+doJQ selector action page = do
   Toppokki.unsafeEvaluateStringFunction jq page
   where
   jq :: String
-  jq = "$('" <> unwrap selector <> "')" <> indexStr <> "." <> unwrap action
-
-  indexStr :: String
-  indexStr = maybe "" (\i -> "[" <> show i <> "]") index
+  jq = "$('" <> unwrap selector <> "')." <> unwrap action
 
 setAttr :: String -> String -> Action
 setAttr attr value = wrap $ "attr(" <> jqStr attr <> ", " <> value <> ")"
@@ -266,9 +256,6 @@ buttonWithText text = wrap $ "button:contains(" <> text <> ")"
 
 inputType :: String -> Selector
 inputType typ = wrap $ "input[type=\"" <> typ <> "\"]"
-
-textarea :: Selector
-textarea = wrap "textarea"
 
 byId :: String -> Selector
 byId = wrap <<< ("#" <> _)
@@ -316,7 +303,7 @@ reactSetValue selector value page = void
   $ fold
       [ -- https://stackoverflow.com/questions/23892547/what-is-the-best-way-to-trigger-onchange-event-in-react-js
         -- Nami uses react, which complicates things a bit
-        "var input = $('" <> unwrap selector <> "').get(0);"
+        "let input = $('" <> unwrap selector <> "').get(0);"
       , "var nativeInputValueSetter = "
           <>
             " Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;"
@@ -349,7 +336,7 @@ geroInit browser = do
   delay $ wrap 1000.0
   void $ doJQ (buttonWithText "Get Started") click page
   delay $ wrap 1000.0
-  void $ doJQ' (wrap "a[href=\"#/wallet-options/import-wallet\"]") click page
+  void $ doJQ (wrap "a[href=\"#/wallet-options/import-wallet\"]") click page
   delay $ wrap 100.0
   reactSetValue (byId "wallet-name") "ctltest" page
   typeInto textarea geroSeed page
@@ -364,5 +351,4 @@ geroInit browser = do
   void $ doJQ (buttonWithText "Continue") click page
   delay $ wrap 100.0
   void $ doJQ (byId "done") click page
-  pure unit
 -}
