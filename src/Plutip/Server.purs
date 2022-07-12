@@ -301,7 +301,7 @@ startOgmiosDatumCache cfg _params = do
       , "--db-password"
       , cfg.postgresConfig.password
       , "--use-latest"
-      , "--origin"
+      , "--from-origin"
       ]
   spawnAndWaitForOutput "ogmios-datum-cache" arguments defaultSpawnOptions
     -- Wait for "Intersection found" string in the output

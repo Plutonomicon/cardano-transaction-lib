@@ -140,10 +140,12 @@ let
     , buildInputs ? [ ]
     , ...
     }: pkgs.runCommand "${name}"
-      ({
-        buildInputs = [ project nodeModules ] ++ buildInputs;
-        NODE_PATH = "${nodeModules}/lib/node_modules";
-      } // env)
+      (
+        {
+          buildInputs = [ project nodeModules ] ++ buildInputs;
+          NODE_PATH = "${nodeModules}/lib/node_modules";
+        } // env
+      )
       # spago will attempt to download things, which will fail in the
       # sandbox, so we can just use node instead
       # (idea taken from `plutus-playground-client`)
@@ -152,6 +154,18 @@ let
         ${nodejs}/bin/node -e 'require("${project}/output/${testMain}").main()'
         touch $out
       '';
+
+  runPlutipTest = args: runPursTest (
+    {
+      buildInputs = with pkgs; [
+        postgresql
+        ogmios
+        ogmios-datum-cache
+        plutip-server
+        ctl-server
+      ];
+    } // args
+  );
 
   bundlePursProject =
     { name ? "${projectName}-bundle-" +
@@ -273,7 +287,7 @@ let
 
 in
 {
-  inherit buildPursProject runPursTest buildPursDocs bundlePursProject
-    buildSearchablePursDocs purs nodejs mkNodeModules;
+  inherit buildPursProject runPursTest runPlutipTest bundlePursProject
+    buildPursDocs buildSearchablePursDocs purs nodejs mkNodeModules;
   devShell = shellFor shell;
 }
