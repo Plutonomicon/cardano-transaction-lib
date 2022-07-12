@@ -52,3 +52,7 @@ runPlutipContract config distribution \(alice /\ bob) -> do
 ```
 
 Note that during execution WebSocket connection errors may occur. However, payloads are resent after these errors, so you can ignore them. [These errors will be suppressed in the future.](https://github.com/Plutonomicon/cardano-transaction-lib/issues/670).
+
+## Limitations
+
+- Plutip does not currently provide staking keys. However, arbitrary staking keys can be used if the application does not depend on staking (because payment keys and stake keys don't have to be connected in any way). It's also possible to omit staking keys in a lot of cases by using `mustPayToPubKey` instead of `mustPayToPubKeyAddress`.
