@@ -8,7 +8,7 @@ module QueryM.Utxos
 import Prelude
 
 import Address (addressToOgmiosAddress)
-import Cardano.Types.Transaction (TransactionOutput, UtxoM(UtxoM), Utxo)
+import Cardano.Types.Transaction (TransactionOutput, UtxoM(UtxoM), Utxos)
 import Cardano.Types.Value (Value)
 import Control.Monad.Logger.Trans (LoggerT)
 import Control.Monad.Reader (withReaderT)
@@ -98,7 +98,7 @@ utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
 -- Used Utxos helpers
 --------------------------------------------------------------------------------
 
-filterLockedUtxos :: Utxo -> QueryM Utxo
+filterLockedUtxos :: Utxos -> QueryM Utxos
 filterLockedUtxos utxos =
   withTxRefsCache $
     flip Helpers.filterMapWithKeyM utxos

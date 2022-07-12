@@ -60,15 +60,15 @@ runKeyWalletContract_ contract =
         , extraConfig: {}
         , wallet: Just wallet
         }
-      runContract_ log' cfg (contract pkh lovelace unlock)
+      runContract' log' cfg (contract pkh lovelace unlock)
   where
-  runContract_
+  runContract'
     :: forall (r :: Row Type)
      . Log
     -> ContractConfig r
     -> Contract r Unit
     -> Aff Unit
-  runContract_ log' (ContractConfig config) =
+  runContract' log' (ContractConfig config) =
     flip runLoggerT printLog <<< flip runReaderT config <<< unwrap
     where
     printLog :: Message -> Aff Unit
