@@ -1087,11 +1087,11 @@ let
 
     "purescript-toppokki" = pkgs.stdenv.mkDerivation {
         name = "purescript-toppokki";
-        version = "3d7ca70bc32d5f390893cf4c4b0c2cc1f4cf9c2c";
+        version = "6983e07bf0aa55ab779bcef12df3df339a2b5bd9";
         src = pkgs.fetchgit {
           url = "https://github.com/firefrorefiddle/purescript-toppokki";
-          rev = "3d7ca70bc32d5f390893cf4c4b0c2cc1f4cf9c2c";
-          sha256 = "1pk8mcdcl8vpan50pzzjv7a53sg97lb356593ffhrjcbrf62gwrp";
+          rev = "6983e07bf0aa55ab779bcef12df3df339a2b5bd9";
+          sha256 = "01arx2sp2k287cr4y96frnn6jlghcias9hwdr27yr28k4xa5bhfv";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

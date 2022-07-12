@@ -7,11 +7,12 @@ module Test.E2E.Feedback
   , testFeedbackIsTrue
   ) where
 
+import Prelude
+
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Foreign (Foreign, unsafeFromForeign)
-import Prelude
 import Toppokki as Toppokki
 
 foreign import _publishTestFeedback :: forall (a :: Type). a -> Effect Unit
