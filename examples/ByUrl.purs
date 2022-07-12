@@ -16,6 +16,7 @@ import Examples.Gero as Gero
 import Examples.Pkh2Pkh as Pkh2Pkh
 import Examples.Pkh2PkhGero as Pkh2PkhGero
 import Examples.SignMultiple as SignMultiple
+import Examples.MintsMultipleTokens as MintsMultipleTokens
 
 foreign import _queryString :: Effect String
 
@@ -30,4 +31,5 @@ main = last <<< split (Pattern "?") <$> _queryString >>=
     Just "Pkh2Pkh" -> Pkh2Pkh.main
     Just "Pkh2PkhGero" -> Pkh2PkhGero.main
     Just "SignMultiple" -> SignMultiple.main
+    Just "MintsMultipleTokens" -> MintsMultipleTokens.main
     _ -> liftEffect $ error "Error parsing query string"

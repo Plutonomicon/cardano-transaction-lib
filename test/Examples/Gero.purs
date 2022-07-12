@@ -18,7 +18,5 @@ import Test.E2E.Helpers
 import Toppokki as Toppokki
 
 runExample :: TestOptions -> TestPlanM Unit
-runExample options = runE2ETest "Gero" options "Gero" $ \example -> do
-  geroConfirmAccess example
-  delaySec 1.0
-  checkSuccess example
+runExample options = runE2ETest "Gero" options "Gero" geroConfirmAccess
+

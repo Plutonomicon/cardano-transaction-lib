@@ -16,12 +16,13 @@ import Test.E2E.Helpers
   )
 import TestM (TestPlanM)
 import Toppokki as Toppokki
+import Effect.Class (liftEffect)
+import Effect.Console (log)
 
 runExample :: TestOptions -> TestPlanM Unit
-runExample options = runE2ETest "MintsMultipleTokens" options "Nami" $ \example -> do
-  namiConfirmAccess example
-  namiSign example
-  -- Wait a moment to avoid a race condition. After Nami gets confirmation,
-  -- it will take a few ms to return control to our example.
-  delaySec 1.0
-  checkSuccess example
+runExample options = runE2ETest "MintsMultipleTokens" options "Nami" $
+  \example -> do
+    liftEffect $ log "Confirm Nami Access"
+    namiConfirmAccess example
+    liftEffect $ log "Sign Nami Transaction"
+    namiSign example

@@ -37,5 +37,4 @@ testPlan options = group "e2e tests" do
   AlwaysSucceeds.runExample options
   Datums.runExample options
   MintsMultipleTokens.runExample options
-  SignMultiple.runExample options      
-
+  SignMultiple.runExample options

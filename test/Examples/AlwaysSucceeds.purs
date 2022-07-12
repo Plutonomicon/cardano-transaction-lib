@@ -24,4 +24,4 @@ runExample options = runE2ETest "AlwaysSucceeds" options "Nami" $ \example -> do
   -- Wait a moment to avoid a race condition. After Nami gets confirmation,
   -- it will take a few ms to return control to our example.
   delaySec 65.0
-  checkSuccess example
+

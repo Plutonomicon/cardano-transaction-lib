@@ -21,6 +21,6 @@ import Test.E2E.Helpers
 runExample :: TestOptions -> TestPlanM Unit
 runExample options = runE2ETest "Pkh2PkhGero" options "Gero" $ \example -> do
   geroConfirmAccess example
-  geroSign example  
-
+  delaySec 7.0
+  geroSign example
 

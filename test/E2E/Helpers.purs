@@ -189,7 +189,7 @@ runE2ETest example opts ext f = test example $ withBrowser opts ext $
   \browser -> withExample example browser
     ( \e -> do
         _ <- void $ try $ f e
-        delaySec 1.0
+        delaySec 10.0
         checkSuccess e
     )
 

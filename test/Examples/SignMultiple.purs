@@ -25,5 +25,3 @@ runExample options = runE2ETest "SignMultiple" options "Nami" $ \example -> do
   -- it will take a few ms to return control to our example.
   delaySec 1.0
   namiSign example
-  delaySec 1.0
-  checkSuccess example
