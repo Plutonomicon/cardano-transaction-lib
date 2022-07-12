@@ -94,7 +94,9 @@ launchWithExtension
   }
   where
   mode :: Mode
-  mode = if noHeadless then Visible else Headless
+  mode noHeadless
+    | noHeadless = Visible 
+    | otherwise = Headless
 
   extDir :: String
   extDir = if wallet == "Gero" then geroDir else namiDir
