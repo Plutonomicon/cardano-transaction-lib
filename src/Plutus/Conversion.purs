@@ -31,25 +31,35 @@ module Plutus.Conversion
 
 import Prelude
 
-import Cardano.Types.Transaction (TransactionOutput, UtxoM) as Cardano
-import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput) as Cardano
-import Cardano.Types.Value (Coin) as Cardano
-import Data.Maybe (Maybe(Nothing))
+import Data.Maybe (Maybe)
 import Data.Newtype (wrap, unwrap)
 import Data.Traversable (traverse)
+
+import Cardano.Types.Transaction (TransactionOutput, UtxoM) as Cardano
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  ) as Cardano
+import Cardano.Types.Value (Coin) as Cardano
+
+import Plutus.Conversion.Address (fromPlutusAddress, toPlutusAddress)
+import Plutus.Conversion.Value (fromPlutusValue, toPlutusValue)
+import Plutus.Types.Transaction (TransactionOutput, UtxoM) as Plutus
+import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput) as Plutus
+import Plutus.Types.Value (Coin) as Plutus
+
+import Serialization.Address (NetworkId)
+
 import Plutus.Conversion.Address
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
   , toPlutusAddress
   , toPlutusAddressWithNetworkTag
   ) as Conversion.Address
-import Plutus.Conversion.Address (fromPlutusAddress, toPlutusAddress)
-import Plutus.Conversion.Value (fromPlutusValue, toPlutusValue)
-import Plutus.Conversion.Value (fromPlutusValue, toPlutusValue) as Conversion.Value
-import Plutus.Types.Transaction (TransactionOutput, UtxoM) as Plutus
-import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput) as Plutus
-import Plutus.Types.Value (Coin) as Plutus
-import Serialization.Address (NetworkId)
+
+import Plutus.Conversion.Value
+  ( fromPlutusValue
+  , toPlutusValue
+  ) as Conversion.Value
 
 --------------------------------------------------------------------------------
 -- Plutus Coin <-> Cardano Coin
@@ -74,10 +84,7 @@ fromPlutusTxOutput networkId plutusTxOut =
     wrap
       { address: fromPlutusAddress networkId rec.address
       , amount: fromPlutusValue rec.amount
-      , datum: rec.datum
-      -- can't restore script from hash. TODO: Should we fail?
-      -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
-      , scriptRef: Nothing
+      , dataHash: rec.dataHash
       }
 
 toPlutusTxOutput
@@ -86,14 +93,7 @@ toPlutusTxOutput cardanoTxOut = do
   let rec = unwrap cardanoTxOut
   address <- toPlutusAddress rec.address
   let amount = toPlutusValue rec.amount
-  pure $ wrap
-    { address
-    , amount
-    , datum: rec.datum
-    -- TODO: properly initialize reference script
-    -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
-    , referenceScript: Nothing
-    }
+  pure $ wrap { address, amount, dataHash: rec.dataHash }
 
 --------------------------------------------------------------------------------
 -- Plutus TransactionUnspentOutput <-> Cardano TransactionUnspentOutput

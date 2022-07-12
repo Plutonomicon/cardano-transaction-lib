@@ -51,7 +51,6 @@ This release adds support for running CTL contracts against Babbage-era nodes. *
 - Modules `Metadata.Seabug` and `Metadata.Seabug.Share`
 - `POST /eval-ex-units` Haskell server endpoint ([#665](https://github.com/Plutonomicon/cardano-transaction-lib/pull/665))
 - Truncated test fixtures for time/slots inside `AffInterface` to test time/slots not too far into the future which can be problematic during hardforks https://github.com/Plutonomicon/cardano-transaction-lib/pull/676
-- `d` and `extraEntropy` protocol parameters from protocol parameters update proposal
 
 ### Changed
 
