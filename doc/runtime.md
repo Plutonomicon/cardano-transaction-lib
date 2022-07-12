@@ -52,7 +52,7 @@ Here is an example that uses the overlay to launch runtime services:
       # various additional packages, using the same versions of CTL, including:
       nixpkgsFor = system: import nixpkgs {
         inherit system;
-        overlays = [ cardano-transaction-lib.overlay.${system} ];
+        overlays = [ cardano-transaction-lib.overlay ];
       };
 
       # The configuration for the CTL runtime, which will be passed to the
