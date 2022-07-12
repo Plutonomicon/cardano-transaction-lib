@@ -7,10 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 **Table of Contents**
 
 - [[Unreleased]](#unreleased)
+  - [Changed](#changed)
 - [[2.0.0-alpha] - 2022-07-06](#200-alpha---2022-07-06)
   - [Added](#added)
   - [Removed](#removed)
-  - [Changed](#changed)
+  - [Changed](#changed-1)
   - [Fixed](#fixed)
 - [[1.1.0] - 2022-06-30](#110---2022-06-30)
   - [Fixed](#fixed-1)
@@ -19,6 +20,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - [[1.0.0] - 2022-06-10](#100---2022-06-10)
 
 ## [Unreleased]
+
+### Changed 
+
+- Switched to CSL for utxo min ada value calculation ([#715](https://github.com/Plutonomicon/cardano-transaction-lib/pull/715))
 
 ## [2.0.0-alpha] - 2022-07-05
 
@@ -64,7 +69,6 @@ This release adds support for running CTL contracts against Babbage-era nodes. *
 - Switched to Ogmios for execution units evaluation ([#665](https://github.com/Plutonomicon/cardano-transaction-lib/pull/665))
 - Changed `inputs` inside `TxBody` to be `Set TransactionInput` instead `Array TransactionInput`. This guarantees ordering of inputs inline with Cardano ([#641](https://github.com/Plutonomicon/cardano-transaction-lib/pull/661))
 - Upgraded to Ogmios v5.5.0
-- Switched to CSL for utxo min ada value calculation ([#715](https://github.com/Plutonomicon/cardano-transaction-lib/pull/715))
 
 ### Fixed
 
