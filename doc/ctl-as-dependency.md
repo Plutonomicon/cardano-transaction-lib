@@ -52,7 +52,7 @@ CTL exposes an `overlay` from its flake. You can use this in the Nix setup of yo
       #   - `cardano-cli`
       nixpkgsFor = system: import nixpkgs {
         inherit system;
-        overlays = [ cardano-transaction-lib.overlay.${system} ];
+        overlays = [ cardano-transaction-lib.overlay ];
       };
 
       # The overlay also include several tools for generating a PS project
