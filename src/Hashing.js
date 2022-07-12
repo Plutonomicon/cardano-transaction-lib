@@ -48,6 +48,7 @@ exports.hashPlutusData = plutusData => {
 };
 
 // TODO Investigate using CSL's hashing
+// https://github.com/Plutonomicon/cardano-transaction-lib/issues/719
 exports.hashPlutusScript = getBytes => onLanguage => plutusScript => () => {
   const plutusScriptBytes = getBytes(plutusScript);
   // set Plutus language namespace byte
