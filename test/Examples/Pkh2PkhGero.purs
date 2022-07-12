@@ -22,5 +22,8 @@ runExample :: TestOptions -> TestPlanM Unit
 runExample options = runE2ETest "Pkh2PkhGero" options "Gero" $ \example -> do
   liftEffect $ log "1!"
   geroConfirmAccess example
-  liftEffect $ log "2!"
+  liftEffect $ log "2!"  
+  geroSign example  
+  liftEffect $ log "3!"
+
 

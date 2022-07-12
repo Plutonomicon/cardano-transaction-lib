@@ -25,4 +25,3 @@ runExample options = runE2ETest "AlwaysMints" options "Nami" $ \example -> do
   -- it will take a few ms to return control to our example.
   delaySec 65.0
   checkSuccess example
-

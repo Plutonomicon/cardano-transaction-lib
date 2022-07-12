@@ -108,7 +108,7 @@ findWalletPage jQuery browser = do
   pure $ head $ pages'
 
 waitForWalletPage :: String -> Number -> Toppokki.Browser -> Aff Toppokki.Page
-waitForWalletPage jQuery timeout browser =
+waitForWalletPage jQuery timeout browser = do
   findWalletPage jQuery browser >>= case _ of
     Nothing -> do
       if timeout > 0.0 then do
@@ -188,10 +188,8 @@ runE2ETest
 runE2ETest example opts ext f = test example $ withBrowser opts ext $
   \browser -> withExample example browser
     ( \e -> do
-        liftEffect $ log "A"
         _ <- void $ try $ f e
-        liftEffect $ log "B"
-        delaySec 0.5
+        delaySec 1.0
         checkSuccess e
     )
 
@@ -204,7 +202,7 @@ checkSuccess (RunningExample { main, errors }) = do
 inWalletPage
   :: forall (a :: Type). RunningExample -> (Toppokki.Page -> Aff a) -> Aff a
 inWalletPage (RunningExample { browser, jQuery }) =
-  (waitForWalletPage jQuery 1.0 browser >>= _)
+  (waitForWalletPage jQuery 10.0 browser >>= _)
 
 namiConfirmAccess :: RunningExample -> Aff Unit
 namiConfirmAccess = flip inWalletPage (clickButton "Access")
@@ -218,19 +216,19 @@ namiSign = flip inWalletPage \nami -> do
 geroConfirmAccess :: RunningExample -> Aff Unit
 geroConfirmAccess =
   flip inWalletPage $ \page -> do
-    liftEffect $ log "1"
     delaySec 0.1
     void $ doJQ (inputType "radio") click page
-    liftEffect $ log "2"
     void $ doJQ (buttonWithText "Continue") click page
     delaySec 0.1
     void $ doJQ (inputType "checkbox") click page
     void $ doJQ (buttonWithText "Connect") click page
-    liftEffect $ log "3"
 
 geroSign :: RunningExample -> Aff Unit
-geroSign (RunningExample { browser }) =
-  pure unit
+geroSign =
+  flip inWalletPage $ \gero -> do
+    void $ doJQ (byId "confirm-swap") click gero
+    typeInto (byId "wallet-password") testPasswordGero gero
+    clickButton "Next" gero
 
 newtype Selector = Selector String
 

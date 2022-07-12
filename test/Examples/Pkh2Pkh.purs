@@ -16,13 +16,13 @@ import Test.E2E.Helpers
   )
 import TestM (TestPlanM)
 import Toppokki as Toppokki
+import Effect.Console (log)
+import Effect.Class (liftEffect)
 
 runExample :: TestOptions -> TestPlanM Unit
 runExample options = runE2ETest "Pkh2Pkh" options "Nami" $ \example -> do
+  liftEffect $ log "XX"
   namiConfirmAccess example
+  liftEffect $ log "XY"  
   namiSign example
-  -- Wait a moment to avoid a race condition. After Nami gets confirmation,
-  -- it will take a few ms to return control to our example.
-  delaySec 1.0
-  checkSuccess example
-
+  liftEffect $ log "XZ"  
