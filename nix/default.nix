@@ -84,6 +84,7 @@ let
         shellHook = ''
           export NODE_PATH="${nodeModules}/lib/node_modules"
           export PATH="${nodeModules}/bin:$PATH"
+          export NPM_CONFIG_PACKAGE_LOCK_ONLY=true
         ''
         + shellHook;
       };
