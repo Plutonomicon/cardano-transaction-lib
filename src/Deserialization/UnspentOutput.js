@@ -44,18 +44,6 @@ exports.getOutput = call("output");
 exports.getTransactionHash = call("transaction_id");
 exports.getTransactionIndex = call("index");
 exports.getAddress = call("address");
-exports.getPlutusData = callMaybe("plutus_data");
-exports.getScriptRef = callMaybe("script_ref");
-exports.withScriptRef = ccNativeScript => ccPlutusScript => scriptRef => {
-  if (scriptRef.is_native_script()) {
-    return ccNativeScript(scriptRef.native_script());
-  } else if (scriptRef.is_plutus_script()) {
-    return ccPlutusScript(scriptRef.plutus_script());
-  } else {
-    throw "Impossible happened: withScriptRef: not a script";
-  }
-};
-
 exports.getAmount = call("amount");
 exports.getCoin = call("coin");
 exports.getMultiAsset = callMaybe("multiasset");

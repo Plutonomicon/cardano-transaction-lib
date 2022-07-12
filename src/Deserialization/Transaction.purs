@@ -36,7 +36,7 @@ module Deserialization.Transaction
   , _unpackMint
   , _unpackMintAssets
   , _unpackProtocolParamUpdate
-  , _unpackProtocolVersion
+  , _unpackProtocolVersions
   , _unpackUnitInterval
   , _unpackUpdate
   , _unpackWithdrawals
@@ -54,7 +54,7 @@ module Deserialization.Transaction
   , convertMint
   , convertNonce
   , convertProtocolParamUpdate
-  , convertProtocolVersion
+  , convertProtocolVersions
   , convertTransaction
   , convertTxBody
   , convertUpdate
@@ -186,7 +186,7 @@ import Serialization.Types
   , PoolMetadata
   , PoolParams
   , ProtocolParamUpdate
-  , ProtocolVersion
+  , ProtocolVersions
   , Relay
   , ScriptDataHash
   , SingleHostAddr
@@ -269,23 +269,12 @@ convertTxBody txBody = do
       $ ws
 
   update <- traverse convertUpdate $ _txBodyUpdate maybeFfiHelper txBody
-  referenceInputs <-
-    _txBodyReferenceInputs maybeFfiHelper containerHelper txBody #
-      traverse (traverse (convertInput >>> cslErr "TransactionInput"))
 
   certs <- addErrTrace "Tx body certificates"
     $ traverse (traverse convertCertificate)
     $ _txBodyCerts containerHelper
         maybeFfiHelper
         txBody
-
-  collateralReturn <-
-    _txBodyCollateralReturn maybeFfiHelper txBody #
-      traverse (convertOutput >>> cslErr "TransactionOutput")
-
-  totalCollateral <-
-    _txBodyTotalCollateral maybeFfiHelper txBody # traverse
-      (BigNum.toBigInt' "txbody withdrawals" >>> map Coin)
 
   pure $ T.TxBody
     { inputs
@@ -301,7 +290,6 @@ convertTxBody txBody = do
     , validityStartInterval:
         Slot <$> _txBodyValidityStartInterval maybeFfiHelper txBody
     , mint: map convertMint $ _txBodyMultiAssets maybeFfiHelper txBody
-    , referenceInputs
     , scriptDataHash: convertScriptDataHash <$> _txBodyScriptDataHash
         maybeFfiHelper
         txBody
@@ -311,8 +299,6 @@ convertTxBody txBody = do
         _txBodyRequiredSigners containerHelper maybeFfiHelper txBody #
           (map <<< map) T.RequiredSigner
     , networkId
-    , collateralReturn
-    , totalCollateral
     }
 
 convertUpdate :: forall (r :: Row Type). Csl.Update -> Err r T.Update
@@ -486,7 +472,7 @@ convertProtocolParamUpdate cslPpu = do
   maxEpoch <- traverse (map T.Epoch <<< cslNumberToUInt (lbl "maxEpoch"))
     ppu.maxEpoch
   nOpt <- traverse (cslNumberToUInt (lbl "nOpt")) ppu.nOpt
-  protocolVersion <- traverse (convertProtocolVersion (lbl "protocolVersion"))
+  protocolVersion <- traverse (convertProtocolVersions (lbl "protocolVersion"))
     ppu.protocolVersion
   costModels <- traverse (convertCostModels (lbl "costModels")) ppu.costModels
   maxTxExUnits <- traverse (convertExUnits (lbl "maxTxExUnits"))
@@ -508,6 +494,8 @@ convertProtocolParamUpdate cslPpu = do
     , poolPledgeInfluence: _unpackUnitInterval <$> ppu.poolPledgeInfluence
     , expansionRate: _unpackUnitInterval <$> ppu.expansionRate
     , treasuryGrowthRate: _unpackUnitInterval <$> ppu.treasuryGrowthRate
+    , d: _unpackUnitInterval <$> ppu.d
+    , extraEntropy: convertNonce <$> ppu.extraEntropy
     , protocolVersion
     , minPoolCost: ppu.minPoolCost
     , adaPerUtxoByte: ppu.adaPerUtxoByte
@@ -676,18 +664,18 @@ convertExUnits nm cslExunits =
 convertScriptDataHash :: Csl.ScriptDataHash -> T.ScriptDataHash
 convertScriptDataHash = asOneOf >>> toBytes >>> T.ScriptDataHash
 
-convertProtocolVersion
+convertProtocolVersions
   :: forall (r :: Row Type)
    . String
-  -> Csl.ProtocolVersion
-  -> E (FromCslRepError + r) T.ProtocolVersion
-convertProtocolVersion nm cslPV =
-  let
-    { major, minor } = _unpackProtocolVersion cslPV
-  in
-    { major: _, minor: _ }
-      <$> cslNumberToUInt (nm <> " major") major
-      <*> cslNumberToUInt (nm <> " minor") minor
+  -> Csl.ProtocolVersions
+  -> E (FromCslRepError + r) (Array T.ProtocolVersion)
+convertProtocolVersions nm cslPV =
+  for (_unpackProtocolVersions containerHelper cslPV)
+    ( \{ major, minor } ->
+        { major: _, minor: _ }
+          <$> cslNumberToUInt (nm <> " major") major
+          <*> cslNumberToUInt (nm <> " minor") minor
+    )
 
 ---- foreign imports
 
@@ -713,7 +701,9 @@ foreign import _unpackProtocolParamUpdate
          Maybe Csl.UnitInterval
      , treasuryGrowthRate ::
          Maybe Csl.UnitInterval
-     , protocolVersion :: Maybe Csl.ProtocolVersion
+     , d :: Maybe Csl.UnitInterval
+     , extraEntropy :: Maybe Csl.Nonce
+     , protocolVersion :: Maybe Csl.ProtocolVersions
      , minPoolCost :: Maybe Csl.BigNum
      , adaPerUtxoByte :: Maybe Csl.BigNum
      , costModels :: Maybe Csl.Costmdls
@@ -745,9 +735,10 @@ type MetadatumHelper (r :: Row Type) =
   , error :: String -> Err r TransactionMetadatum
   }
 
-foreign import _unpackProtocolVersion
-  :: Csl.ProtocolVersion
-  -> { major :: Number, minor :: Number }
+foreign import _unpackProtocolVersions
+  :: ContainerHelper
+  -> Csl.ProtocolVersions
+  -> Array { major :: Number, minor :: Number }
 
 foreign import _unpackExUnits
   :: Csl.ExUnits -> { mem :: Csl.BigNum, steps :: Csl.BigNum }
@@ -835,13 +826,6 @@ foreign import _txBodyValidityStartInterval
 foreign import _txBodyMultiAssets
   :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Csl.Mint
 
--- reference_inputs(): TransactionInputs | void;
-foreign import _txBodyReferenceInputs
-  :: MaybeFfiHelper
-  -> ContainerHelper
-  -> Csl.TransactionBody
-  -> Maybe (Array Csl.TransactionInput)
-
 -- script_data_hash(): ScriptDataHash | void
 foreign import _txBodyScriptDataHash
   :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Csl.ScriptDataHash
@@ -867,18 +851,6 @@ foreign import _txBodyNetworkId
   -> MaybeFfiHelper
   -> Csl.TransactionBody
   -> Maybe Csl.NetworkId
-
--- collateral_return(): TransactionOutput | void
-foreign import _txBodyCollateralReturn
-  :: MaybeFfiHelper
-  -> Csl.TransactionBody
-  -> Maybe Csl.TransactionOutput
-
--- total_collateral(): BigNum | void
-foreign import _txBodyTotalCollateral
-  :: MaybeFfiHelper
-  -> Csl.TransactionBody
-  -> Maybe Csl.BigNum
 
 foreign import _unpackWithdrawals
   :: ContainerHelper

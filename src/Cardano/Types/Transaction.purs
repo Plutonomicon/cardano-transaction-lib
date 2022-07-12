@@ -25,6 +25,14 @@ module Cardano.Types.Transaction
   , MIRToStakeCredentials(MIRToStakeCredentials)
   , Mint(Mint)
   , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
+  , NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
   , Nonce(IdentityNonce, HashNonce)
   , PoolMetadata(PoolMetadata)
   , PoolMetadataHash(PoolMetadataHash)
@@ -86,8 +94,6 @@ import Aeson
   , encodeAeson'
   )
 
-import Cardano.Types.NativeScript (NativeScript)
-import Cardano.Types.ScriptRef (ScriptRef)
 import Cardano.Types.Value (Coin, NonAdaAsset, Value)
 import Control.Alternative ((<|>))
 import Control.Apply (lift2)
@@ -124,11 +130,10 @@ import Types.Aliases (Bech32String)
 import Types.BigNum (BigNum)
 import Types.ByteArray (ByteArray)
 import Types.Int as Int
-import Types.OutputDatum (OutputDatum)
 import Types.PlutusData (PlutusData)
 import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
-import Types.Transaction (TransactionInput)
+import Types.Transaction (DataHash, TransactionInput)
 import Types.TransactionMetadata (GeneralTransactionMetadata)
 
 --------------------------------------------------------------------------------
@@ -211,13 +216,10 @@ newtype TxBody = TxBody
   , auxiliaryDataHash :: Maybe AuxiliaryDataHash
   , validityStartInterval :: Maybe Slot
   , mint :: Maybe Mint
-  , referenceInputs :: Maybe (Array TransactionInput)
   , scriptDataHash :: Maybe ScriptDataHash
   , collateral :: Maybe (Array TransactionInput)
   , requiredSigners :: Maybe (Array RequiredSigner)
   , networkId :: Maybe NetworkId
-  , collateralReturn :: Maybe TransactionOutput
-  , totalCollateral :: Maybe Coin
   }
 
 derive instance Generic TxBody _
@@ -242,13 +244,10 @@ instance Semigroup TxBody where
           txB.validityStartInterval
           txB'.validityStartInterval
     , mint: txB.mint <> txB'.mint
-    , referenceInputs: txB.referenceInputs <> txB'.referenceInputs
     , scriptDataHash: txB.scriptDataHash </> txB'.scriptDataHash
     , collateral: lift2 union txB.collateral txB'.collateral
     , requiredSigners: lift2 union txB.requiredSigners txB'.requiredSigners
     , networkId: txB.networkId </> txB'.networkId
-    , collateralReturn: txB.collateralReturn <|> txB.collateralReturn
-    , totalCollateral: txB.totalCollateral <|> txB.totalCollateral
     }
     where
     lowerbound :: Slot -> Slot -> Slot
@@ -266,13 +265,10 @@ instance Monoid TxBody where
     , auxiliaryDataHash: Nothing
     , validityStartInterval: Nothing
     , mint: Nothing
-    , referenceInputs: Nothing
     , scriptDataHash: Nothing
     , collateral: Nothing
     , requiredSigners: Nothing
     , networkId: Nothing
-    , collateralReturn: Nothing
-    , totalCollateral: Nothing
     }
 
 instance EncodeAeson TxBody where
@@ -357,7 +353,9 @@ type ProtocolParamUpdate =
   , poolPledgeInfluence :: Maybe UnitInterval
   , expansionRate :: Maybe UnitInterval
   , treasuryGrowthRate :: Maybe UnitInterval
-  , protocolVersion :: Maybe ProtocolVersion
+  , d :: Maybe UnitInterval
+  , extraEntropy :: Maybe Nonce
+  , protocolVersion :: Maybe (Array ProtocolVersion)
   , minPoolCost :: Maybe BigNum
   , adaPerUtxoByte :: Maybe BigNum
   , costModels :: Maybe Costmdls
@@ -848,11 +846,34 @@ instance Monoid AuxiliaryData where
     , plutusScripts: Nothing
     }
 
+data NativeScript
+  = ScriptPubkey Ed25519KeyHash
+  | ScriptAll (Array NativeScript)
+  | ScriptAny (Array NativeScript)
+  | ScriptNOfK Int (Array NativeScript)
+  | TimelockStart Slot
+  | TimelockExpiry Slot
+
+derive instance Eq NativeScript
+derive instance Generic NativeScript _
+
+instance Show NativeScript where
+  show x = genericShow x
+
+instance EncodeAeson NativeScript where
+  encodeAeson' = case _ of
+    ScriptPubkey r -> encodeAeson' $ encodeTagged' "ScriptPubKey" r
+    ScriptAll r -> encodeAeson' $ encodeTagged' "ScriptAll" r
+    ScriptAny r -> encodeAeson' $ encodeTagged' "ScriptAny" r
+    ScriptNOfK n nativeScripts -> encodeAeson' $ encodeTagged' "ScriptPubKey"
+      { n, nativeScripts }
+    TimelockStart r -> encodeAeson' $ encodeTagged' "TimeLockStart" r
+    TimelockExpiry r -> encodeAeson' $ encodeTagged' "TimeLockExpiry" r
+
 newtype TransactionOutput = TransactionOutput
   { address :: Address
   , amount :: Value
-  , datum :: OutputDatum
-  , scriptRef :: Maybe ScriptRef
+  , dataHash :: Maybe DataHash
   }
 
 derive instance Generic TransactionOutput _

@@ -47,6 +47,7 @@ module Serialization.Types
   , ProposedProtocolParameterUpdates
   , ProtocolParamUpdate
   , ProtocolVersion
+  , ProtocolVersions
   , PublicKey
   , PrivateKey
   , Redeemer
@@ -59,7 +60,6 @@ module Serialization.Types
   , ScriptDataHash
   , ScriptNOfK
   , ScriptPubkey
-  , ScriptRef
   , SingleHostAddr
   , SingleHostName
   , TimelockExpiry
@@ -138,6 +138,7 @@ foreign import data PoolParams :: Type
 foreign import data ProposedProtocolParameterUpdates :: Type
 foreign import data ProtocolParamUpdate :: Type
 foreign import data ProtocolVersion :: Type
+foreign import data ProtocolVersions :: Type
 foreign import data PublicKey :: Type
 foreign import data PrivateKey :: Type
 foreign import data Redeemer :: Type
@@ -150,7 +151,6 @@ foreign import data ScriptAny :: Type
 foreign import data ScriptDataHash :: Type
 foreign import data ScriptNOfK :: Type
 foreign import data ScriptPubkey :: Type
-foreign import data ScriptRef :: Type
 foreign import data SingleHostAddr :: Type
 foreign import data SingleHostName :: Type
 foreign import data TimelockExpiry :: Type

@@ -8,7 +8,7 @@ import Prelude
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
 
-import Cardano.Types.NativeScript
+import Cardano.Types.Transaction
   ( NativeScript
       ( ScriptPubkey
       , ScriptAll
