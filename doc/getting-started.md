@@ -12,6 +12,7 @@ This guide will help you get started writing contracts with CTL. Please also see
   - [Making the `ContractConfig`](#making-the-contractconfig)
 - [Building and submitting transactions](#building-and-submitting-transactions)
   - [Awaiting tx confirmation](#awaiting-tx-confirmation)
+  - [Using compiled scripts](#using-compiled-scripts)
 - [Testing](#testing)
   - [With a light wallet](#with-a-light-wallet)
   - [Without a light wallet](#without-a-light-wallet)
@@ -186,7 +187,8 @@ And on the purescript side, the script can be loaded like so:
   foreign import myscript :: String
 
   myscriptValidator :: Aff Validator
-  myscriptValidator = wrap <<< wrap <$> textEnvelopeBytes myscript PlutusScriptV1
+  myscriptValidator = wrap <<< wrap
+    <$> Cardano.TextEnvelope.textEnvelopeBytes myscript PlutusScriptV1
 
   myContract cfg = runContract_ cfg $ do
     validator <- liftAff myscriptValidator
