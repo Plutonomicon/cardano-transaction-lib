@@ -463,7 +463,7 @@
             };
             ctl-unit-test = project.runPursTest {
               name = "ctl-unit-test";
-              testMain = "Test.Unit";
+              testMain = "Ctl.Test.Unit";
               env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
             };
           };
