@@ -9,27 +9,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - [[Unreleased]](#unreleased)
   - [Added](#added)
   - [Changed](#changed)
+  - [Fixed](#fixed)
 - [[2.0.0-alpha] - 2022-07-06](#200-alpha---2022-07-06)
   - [Added](#added-1)
   - [Removed](#removed)
   - [Changed](#changed-1)
-  - [Fixed](#fixed)
-- [[1.1.0] - 2022-06-30](#110---2022-06-30)
   - [Fixed](#fixed-1)
-- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+- [[1.1.0] - 2022-06-30](#110---2022-06-30)
   - [Fixed](#fixed-2)
+- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+  - [Fixed](#fixed-3)
 - [[1.0.0] - 2022-06-10](#100---2022-06-10)
 
 ## [Unreleased]
 
 ### Added
 
-- `Contract.Utxos.getUtxo` call to get a single utxo at a given output reference.
+- `Contract.Utxos.getUtxo` call to get a single utxo at a given output reference
 
 ### Changed
 
 - CTL's `overlay` no longer requires an explicitly passed `system`
 - Switched to CSL for utxo min ada value calculation ([#715](https://github.com/Plutonomicon/cardano-transaction-lib/pull/715))
+
+## Fixed 
+
+- Bug with collateral selection for `KeyWallet` when signing multiple transactions ([#709](https://github.com/Plutonomicon/cardano-transaction-lib/pull/709))
 
 ## [2.0.0-alpha] - 2022-07-05
 
