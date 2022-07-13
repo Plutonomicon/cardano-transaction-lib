@@ -7,9 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 **Table of Contents**
 
 - [[Unreleased]](#unreleased)
+  - [Added](#added)
   - [Changed](#changed)
 - [[2.0.0-alpha] - 2022-07-06](#200-alpha---2022-07-06)
-  - [Added](#added)
+  - [Added](#added-1)
   - [Removed](#removed)
   - [Changed](#changed-1)
   - [Fixed](#fixed)
@@ -21,7 +22,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ## [Unreleased]
 
-### Changed 
+### Added
+
+- `Contract.Utxos.getUtxo` call to get a single utxo at a given output reference.
+
+### Changed
 
 - CTL's `overlay` no longer requires an explicitly passed `system`
 - Switched to CSL for utxo min ada value calculation ([#715](https://github.com/Plutonomicon/cardano-transaction-lib/pull/715))
