@@ -240,14 +240,12 @@ type QueryRuntime =
   , pparams :: Ogmios.ProtocolParameters
   }
 
--- | `QueryEnv` everything needed for `QueryM` to run.
+-- | `QueryEnv` contains everything needed for `QueryM` to run.
 type QueryEnv (r :: Row Type) =
   { config :: QueryConfig
   , runtime :: QueryRuntime
-  , userSettings :: { | r }
+  , extraConfig :: { | r }
   }
-
-data QueryMWebSocketsClosed = QueryMWebSocketsClosed
 
 type DefaultQueryEnv = QueryEnv ()
 
@@ -261,7 +259,7 @@ liftQueryM :: forall (r :: Row Type) (a :: Type). QueryM a -> QueryMExtended r a
 liftQueryM = withReaderT toDefaultQueryEnv
   where
   toDefaultQueryEnv :: QueryEnv r -> DefaultQueryEnv
-  toDefaultQueryEnv c = c { userSettings = {} }
+  toDefaultQueryEnv c = c { extraConfig = {} }
 
 -- | Constructs and finalizes a contract environment that is usable inside a
 -- | bracket callback.
@@ -339,7 +337,7 @@ runQueryMInRuntime
   -> Aff a
 runQueryMInRuntime config runtime = do
   flip runLoggerT logger <<<
-    flip runReaderT { config, runtime, userSettings: {} }
+    flip runReaderT { config, runtime, extraConfig: {} }
   where
   logger = fromMaybe (logWithLevel config.logLevel) config.customLogger
 
@@ -360,7 +358,7 @@ traceQueryConfig = do
   pure
     { config
     , runtime
-    , userSettings: {}
+    , extraConfig: {}
     }
 
 getProtocolParametersAff

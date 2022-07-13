@@ -116,7 +116,7 @@ import Hashing (datumHash) as Hashing
 import Helpers ((<\>), liftEither, liftM)
 import Plutus.Conversion (fromPlutusTxOutput, fromPlutusValue)
 import Plutus.Types.Transaction (TransactionOutput) as Plutus
-import QueryM (DefaultQuerySettings, QueryM, getDatumByHash)
+import QueryM (DefaultQueryEnv, QueryM, getDatumByHash)
 import QueryM.EraSummaries (getEraSummaries)
 import QueryM.ProtocolParameters (getProtocolParameters)
 import QueryM.SystemStart (getSystemStart)
@@ -486,7 +486,7 @@ requireValue required = ValueSpentBalances { required, provided: mempty }
 -- applied.
 type ConstraintsM (a :: Type) (b :: Type) =
   StateT (ConstraintProcessingState a)
-    (ReaderT DefaultQuerySettings (LoggerT Aff))
+    (ReaderT DefaultQueryEnv (LoggerT Aff))
     b
 
 -- The constraints don't precisely match those of Plutus:

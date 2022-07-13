@@ -15,7 +15,9 @@ module Contract.Monad
   , liftedE'
   , liftedM
   , runContract
+  , runContractInEnv
   , throwContractError
+  , withContractEnv
   , wrapContract
   ) where
 
@@ -222,7 +224,7 @@ withContractEnv
   withQueryRuntime config \runtime -> do
     let
       contractSettings = wrap
-        { runtime, config, userSettings: params.extraConfig }
+        { runtime, config, extraConfig: params.extraConfig }
     action contractSettings
 
 -- | Throws an `Error` for any showable error using `Effect.Exception.throw`

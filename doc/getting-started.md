@@ -66,57 +66,48 @@ Internally, CTL uses Purescript's `Aff` monad, which represents asynchronous eff
 
 ```purescript
 main :: Effect Unit
-main = Contract.Monad.launchAff_ $ do -- we re-export this for you
+main = Contract.Monad.launchAff_ do -- we re-export this for you
  ...
 ```
 
-Within this `Aff` action, you should create a wallet type and initialize your `ContractConfig`:
+Then use the eliminator `Contract.Monad.runContract` with a config specifying network and wallet:
 
 ```purescript
 main :: Effect Unit
-main = Contract.Monad.launchAff_ $ do
-  wallet <- Contract.Wallet.mkNamiWalletAff
-  cfg <- undefined -- see the next section for more details on this part
- ...
-```
-
-Then use the eliminator `Contract.Monad.runContract` (or `runContract_` to discard the return value):
-
-```purescript
-main :: Effect Unit
-main = Contract.Monad.launchAff_ $ do
-  wallet <- Contract.Wallet.mkNamiWalletAff
-  cfg <- undefined
-  runContract_ cfg $ do
+main = Contract.Monad.launchAff_ do
+  runContract Contract.Config.testnetNamiConfig do
     ...
 ```
 
-### Making the `ContractConfig`
+### Making the `ContractEnv`
 
-The `ContractConfig` contains the configuration values and websocket connections that are required to execute contracts written in CTL. For local development and testing, we provide `Contract.Monad.traceContractConfig` where all service hosts are set to `localhost` and the `logLevel` is set to `Trace`. Needless to say, this is not viable for production or staging environments.
+The `ContractEnv` type contains configuration values and websocket connections that are required to execute contracts written in CTL. The users should not construct it directly - `Contract.Config.ConfigParams` should be used instead.
 
-It is **not recommended to directly construct or manipulate a `ContractConfig` yourself** as the process of making a new config initializes websockets. Instead, use `Contract.Monad.ConfigParams` with `Contract.Monad.mkContractConfig`.
+For local development and testing, we provide `Contract.Config.testnetConfig` where all service hosts are set to `localhost` and the `logLevel` is set to `Trace`.
+
+It is **not recommended to directly construct or manipulate a `ContractEnv` yourself** as the process of making a new config initializes websockets. Instead, use `Contract.Monad.ConfigParams` with `runContract`.
 
 As explained in the [Plutus/PAB comparison](plutus-comparison.md#the-contract-type), the `ContractConfig` environment using Purescript's extensible records. This can also be done via `ConfigParams`, which holds an `extraConfig` field corresponding to the `Row Type` argument to `ContractConfig` (and by extension, `Contract`).
 
-An example of building a `ContractConfig` via `ConfigParams` is as follows:
+A special `Contract.Config.WalletSpec` type is used to specify which wallet to use during the `Contract` lifetime.
+
+An example of building a `Contract` via `ConfigParams` is as follows:
 
 ```purescript
 main :: Effect Unit
-main = Contract.Monad.launchAff_ $ do -- we re-export this for you
-  wallet <- Contract.Wallet.mkNamiWalletAff -- for the Nami backend
-  cfg <- mkContractConfig $ ConfigParams
-    -- The server defaults below are also exported from
-    -- `Contract.Monad`
-    { ogmiosConfig: defaultOgmiosWsConfig
-    , datumCacheConfig: defaultDatumCacheWsConfig
-    , ctlServerConfig: defaultServerConfig
-    , networkId: TestnetId
-    , logLevel: Trace
-    , extraConfig: { apiKey: "foo" }
-    , wallet
-    }
-  runContract_ cfg someContractWithApiKeyInEnv
+main = Contract.Monad.launchAff_ do -- we re-export this for you
+  let
+    (config :: ConfigParams ()) =
+      { ogmiosConfig: defaultOgmiosWsConfig
+      , datumCacheConfig: defaultDatumCacheWsConfig
+      , ctlServerConfig: defaultServerConfig
+      , networkId: TestnetId
+      , logLevel: Trace
+      , extraConfig: { apiKey: "foo" }
+      , walletSpec: Just ConnectToNami
+      , customLogger: Nothing
+      }
+  runContract config someContractWithApiKeyInEnv
 
 -- As we provided `(apiKey :: String)` to the `extraConfig` above, we can now
 -- access it in the reader environment of any `Contract` actions call using
@@ -160,7 +151,8 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
     ...
   ```
 
-- Submit using `Contract.Transaction.submit` (note that due to current infelicities in CTL's internal transaction builder, we must currently use the CBOR of the balanced and signed transaction rather than the transaction itself; this will be resolved in an upcoming CTL version):
+- Submit using `Contract.Transaction.submit`:
+
   ```purescript
   contract = do
     ...
@@ -182,7 +174,7 @@ We provide `KeyWallet` to enable testing outside of the browser, or in-browser w
 $ cardano-cli address key-gen --normal-key --signing-key-file payment.skey --verification-key-file payment.vkey
 ```
 
-The signing key can be loaded to CTL using `Contract.Wallet.KeyFile.mkKeyWalletFromFile` See also `examples/Pkh2PkhKeyWallet.purs`.
+The signing key can be loaded to CTL using `WalletSpec`'s `UseKeys` constructor. See `examples/Pkh2PkhKeyWallet.purs`.
 
 From here you can submit transactions that will be signed with your private key, or perhaps export transactions to be tested with external tools such as [`plutip` testing tool](https://github.com/mlabs-haskell/plutip). We are currently working on integration with the plutip. These will be included in an upcoming release of CTL.
 
