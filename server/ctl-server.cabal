@@ -55,8 +55,8 @@ library
     , bytestring
     , cardano-api
     , cardano-binary
+    , cardano-ledger-babbage
     , cardano-ledger-core
-    , cardano-ledger-alonzo
     , cborg
     , containers
     , exceptions
@@ -90,6 +90,7 @@ library
     Utils
     Ogmios.Query
     Ogmios.Parser
+    Plutus.Instances
 
 executable ctl-server
   import:           common-language
