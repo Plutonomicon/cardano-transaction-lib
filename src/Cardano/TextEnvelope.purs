@@ -33,6 +33,12 @@ data TextEnvelopeType
 
 derive instance Eq TextEnvelopeType
 
+instance Show TextEnvelopeType where
+  show = case _ of
+    PlutusScriptV1 -> "PlutusScriptV1"
+    PaymentSigningKeyShelley_ed25519 -> "PaymentSigningKeyShelley_ed25519"
+    StakeSigningKeyShelley_ed25519 -> "StakeSigningKeyShelley_ed25519"
+
 instance DecodeAeson TextEnvelopeType where
   decodeAeson aeson = do
     decodeAeson aeson >>= case _ of
