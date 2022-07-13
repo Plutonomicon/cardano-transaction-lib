@@ -225,8 +225,7 @@
           cp -rT ogmios $out
         '';
 
-      buildCtlRuntime = pkgs: extraConfig:
-        { ... }:
+      buildCtlRuntime = pkgs: extraConfig: { ... }:
         let
           inherit (builtins) toString;
           config = with pkgs.lib;
@@ -477,10 +476,10 @@
         };
 
       hsProjectFor = pkgs: import ./server/nix {
-          inherit inputs pkgs;
-          inherit (pkgs) system;
-          src = ./server;
-        };
+        inherit inputs pkgs;
+        inherit (pkgs) system;
+        src = ./server;
+      };
     in
     {
       # flake from haskell.nix project
