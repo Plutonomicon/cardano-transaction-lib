@@ -138,36 +138,30 @@
         "aarch64-darwin"
       ];
       perSystem = nixpkgs.lib.genAttrs defaultSystems;
-      overlay = with inputs; (final: prev:
-        let
-          inherit (prev) system;
-        in
-        {
-          easy-ps =
-            import inputs.easy-purescript-nix { pkgs = final; };
-          ogmios-datum-cache =
-            inputs.ogmios-datum-cache.defaultPackage.${system};
-          ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
-          ogmios-fixtures = ogmios;
-          purescriptProject = import ./nix { inherit system; pkgs = final; };
-          buildCtlRuntime = buildCtlRuntime final;
-          launchCtlRuntime = launchCtlRuntime final;
-          ctl-server = self.packages.${system}."ctl-server:exe:ctl-server";
-          inherit cardano-configurations;
-        });
+      overlay = system: with inputs; (prev: final: {
+        easy-ps =
+          import inputs.easy-purescript-nix { pkgs = prev; };
+        ogmios-datum-cache =
+          inputs.ogmios-datum-cache.defaultPackage.${system};
+        ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
+        ogmios-fixtures = ogmios;
+        cardano-cli = ogmios.inputs.cardano-node.packages.${system}.cardano-cli;
+        purescriptProject = import ./nix { inherit system; pkgs = prev; };
+        buildCtlRuntime = buildCtlRuntime prev;
+        launchCtlRuntime = launchCtlRuntime prev;
+        ctl-server = self.packages.${system}."ctl-server:exe:ctl-server";
+        inherit cardano-configurations;
+      });
 
-      mkNixpkgsFor = system: import nixpkgs {
+      nixpkgsFor = system: import nixpkgs {
         overlays = [
           haskell-nix.overlay
           iohk-nix.overlays.crypto
-          overlay
+          (overlay system)
         ];
         inherit (haskell-nix) config;
         inherit system;
       };
-
-      allNixpkgs = perSystem mkNixpkgsFor;
-      nixpkgsFor = system: allNixpkgs.${system};
 
       defaultConfig = final: with final; {
         inherit (inputs) cardano-configurations;
@@ -385,8 +379,9 @@
           program = "${script}/bin/${binPath}";
         };
 
-      psProjectFor = pkgs:
+      psProjectFor = system:
         let
+          pkgs = nixpkgsFor system;
           projectName = "cardano-transaction-lib";
           # `filterSource` will still trigger rebuilds with flakes, even if a
           # filtered path is modified as the output path name is impurely
@@ -479,24 +474,25 @@
           };
         };
 
-      hsProjectFor = pkgs: import ./server/nix {
-        inherit inputs pkgs;
-        inherit (pkgs) system;
-        src = ./server;
-      };
+      hsProjectFor = system:
+        let
+          pkgs = nixpkgsFor system;
+          src = ./server;
+        in
+        import ./server/nix {
+          inherit src inputs pkgs system;
+        };
     in
     {
-      inherit overlay;
-
       # flake from haskell.nix project
-      hsFlake = perSystem (system: (hsProjectFor (nixpkgsFor system)).flake { });
+      hsFlake = perSystem (system: (hsProjectFor system).flake { });
 
       devShell = perSystem (system: self.devShells.${system}.ctl);
 
       devShells = perSystem (system: {
         # This is the default `devShell` and can be run without specifying
         # it (i.e. `nix develop`)
-        ctl = (psProjectFor (nixpkgsFor system)).devShell;
+        ctl = (psProjectFor system).devShell;
         # It might be a good idea to keep this as a separate shell; if you're
         # working on the PS frontend, it doesn't make a lot of sense to pull
         # in all of the Haskell dependencies
@@ -507,23 +503,20 @@
 
       packages = perSystem (system:
         self.hsFlake.${system}.packages
-        // (psProjectFor (nixpkgsFor system)).packages
+        // (psProjectFor system).packages
       );
 
       apps = perSystem (system:
-        let
-          pkgs = nixpkgsFor system;
-        in
-        (psProjectFor pkgs).apps // {
+        (psProjectFor system).apps // {
           inherit (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
-          ctl-runtime = pkgs.launchCtlRuntime { };
+          ctl-runtime = (nixpkgsFor system).launchCtlRuntime { };
         });
 
       checks = perSystem (system:
         let
           pkgs = nixpkgsFor system;
         in
-        (psProjectFor pkgs).checks
+        (psProjectFor system).checks
         // self.hsFlake.${system}.checks
         // {
           formatting-check = pkgs.runCommand "formatting-check"
@@ -572,9 +565,9 @@
           ''
       );
 
-      defaultPackage = perSystem (system:
-        (psProjectFor (nixpkgsFor system)).defaultPackage
-      );
+      defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);
+
+      overlay = perSystem overlay;
 
       hydraJobs = perSystem (system:
         self.checks.${system}
