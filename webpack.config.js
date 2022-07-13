@@ -73,7 +73,7 @@ module.exports = {
     alias: {
       // You should update this path to the location of your compile scripts,
       // relative to `webpack.config.js`
-      Scripts: path.resolve(__dirname, "examples/scripts"),
+      Scripts: path.resolve(__dirname, "fixtures/scripts"),
     },
   },
 
