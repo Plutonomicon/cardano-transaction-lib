@@ -61,6 +61,7 @@ library
     , containers
     , exceptions
     , extra
+    , flat
     , integer-logarithms
     , lens
     , mtl

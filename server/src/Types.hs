@@ -39,6 +39,7 @@ import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (Port)
 import Ogmios.Parser (decodeProtocolParameters)
 import Ogmios.Query qualified
+import Plutus.Instances ()
 import Plutus.V1.Ledger.Api qualified as Ledger
 import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
 import Servant (FromHttpApiData, QueryParam', Required, ToHttpApiData)
