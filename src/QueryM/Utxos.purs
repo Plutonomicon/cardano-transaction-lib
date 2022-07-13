@@ -1,14 +1,15 @@
 -- | A module for `QueryM` queries related to utxos.
 module QueryM.Utxos
-  ( filterUnusedUtxos
-  , utxosAt
+  ( filterLockedUtxos
+  , getUtxo
   , getWalletBalance
+  , utxosAt
   ) where
 
 import Prelude
 
 import Address (addressToOgmiosAddress)
-import Cardano.Types.Transaction (TransactionOutput, UtxoM(UtxoM))
+import Cardano.Types.Transaction (TransactionOutput, UtxoM(UtxoM), Utxos)
 import Cardano.Types.Value (Value)
 import Control.Monad.Logger.Trans (LoggerT)
 import Control.Monad.Reader (withReaderT)
@@ -26,6 +27,7 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Helpers as Helpers
+import Prim.TypeError (class Warn, Text)
 import QueryM (QueryM, getWalletAddress, getWalletCollateral, mkOgmiosRequest)
 import QueryM.Ogmios as Ogmios
 import Serialization.Address (Address)
@@ -41,27 +43,40 @@ import Wallet (Wallet(Gero, Nami, KeyWallet))
 -- If required, we can change to Either with more granular error handling.
 -- | Gets utxos at an (internal) `Address` in terms of (internal) `Cardano.Transaction.Types`.
 -- | Results may vary depending on `Wallet` type.
-utxosAt :: Address -> QueryM (Maybe UtxoM)
-utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
+utxosAt
+  :: Warn
+       ( Text
+           "`utxosAt`: Querying for UTxOs by address is deprecated. See https://github.com/Plutonomicon/cardano-transaction-lib/issues/536."
+       )
+  => Address
+  -> QueryM (Maybe UtxoM)
+utxosAt = mkUtxoQuery
+  <<< mkOgmiosRequest Ogmios.queryUtxosAtCall _.utxo
+  <<< addressToOgmiosAddress
+
+-- | Queries for UTxO given a transaction input.
+getUtxo
+  :: TransactionInput -> QueryM (Maybe TransactionOutput)
+getUtxo ref =
+  mkUtxoQuery
+    (mkOgmiosRequest Ogmios.queryUtxoCall _.utxo ref) <#>
+    (_ >>= unwrap >>> Map.lookup ref)
+
+mkUtxoQuery :: QueryM Ogmios.UtxoQR -> QueryM (Maybe UtxoM)
+mkUtxoQuery query = asks _.wallet >>= maybe allUtxosAt utxosAtByWallet
   where
   -- Add more wallet types here:
-  utxosAtByWallet :: Address -> Wallet -> QueryM (Maybe UtxoM)
-  utxosAtByWallet address = case _ of
-    Nami _ -> cip30UtxosAt address
-    Gero _ -> cip30UtxosAt address
-    KeyWallet _ -> allUtxosAt address
+  utxosAtByWallet :: Wallet -> QueryM (Maybe UtxoM)
+  utxosAtByWallet = case _ of
+    Nami _ -> cip30UtxosAt
+    Gero _ -> cip30UtxosAt
+    KeyWallet _ -> allUtxosAt
 
   -- Gets all utxos at an (internal) Address in terms of (internal)
   -- Cardano.Transaction.Types.
-  allUtxosAt :: Address -> QueryM (Maybe UtxoM)
-  allUtxosAt = addressToOgmiosAddress >>> getUtxos
+  allUtxosAt :: QueryM (Maybe UtxoM)
+  allUtxosAt = convertUtxos <$> query
     where
-    utxosAt' :: Ogmios.OgmiosAddress -> QueryM Ogmios.UtxoQR
-    utxosAt' addr' = mkOgmiosRequest Ogmios.queryUtxosAtCall _.utxo addr'
-
-    getUtxos :: Ogmios.OgmiosAddress -> QueryM (Maybe UtxoM)
-    getUtxos address = convertUtxos <$> utxosAt' address
-
     convertUtxos :: Ogmios.UtxoQR -> Maybe UtxoM
     convertUtxos (Ogmios.UtxoQR utxoQueryResult) =
       let
@@ -86,23 +101,23 @@ utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
       in
         wrap <<< Map.fromFoldable <$> out
 
-  cip30UtxosAt :: Address -> QueryM (Maybe UtxoM)
-  cip30UtxosAt address = getWalletCollateral >>= maybe
+  cip30UtxosAt :: QueryM (Maybe UtxoM)
+  cip30UtxosAt = getWalletCollateral >>= maybe
     (liftEffect $ throw "CIP-30 wallet missing collateral")
     \collateral' -> do
       let collateral = unwrap collateral'
-      utxos' <- allUtxosAt address
+      utxos' <- allUtxosAt
       pure (over UtxoM (Map.delete collateral.input) <$> utxos')
 
 --------------------------------------------------------------------------------
 -- Used Utxos helpers
 --------------------------------------------------------------------------------
 
-filterUnusedUtxos :: UtxoM -> QueryM UtxoM
-filterUnusedUtxos (UtxoM utxos) = withTxRefsCache $
-  UtxoM <$> Helpers.filterMapWithKeyM
-    (\k _ -> not <$> isTxOutRefUsed (unwrap k))
-    utxos
+filterLockedUtxos :: Utxos -> QueryM Utxos
+filterLockedUtxos utxos =
+  withTxRefsCache $
+    flip Helpers.filterMapWithKeyM utxos
+      (\k _ -> not <$> isTxOutRefUsed (unwrap k))
 
 withTxRefsCache
   :: forall (m :: Type -> Type) (a :: Type)
