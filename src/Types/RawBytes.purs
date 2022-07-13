@@ -1,7 +1,7 @@
 -- | A wrapper over `ByteArray` to indicate a byte array with no further specified meaning
 
 module Types.RawBytes
-  ( RawBytes(..)
+  ( RawBytes(RawBytes)
   , rawBytesToByteArray
   , rawBytesFromByteArray
   , rawBytesToIntArray

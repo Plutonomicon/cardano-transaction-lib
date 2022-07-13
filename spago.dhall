@@ -17,6 +17,7 @@ You can edit this file as you like.
   , "checked-exceptions"
   , "console"
   , "const"
+  , "contravariant"
   , "control"
   , "datetime"
   , "debug"

@@ -1,35 +1,35 @@
 -- | Provides types and instances to create Ogmios requests and decode
 -- | its responses.
 module QueryM.Ogmios
-  ( ChainOrigin(..)
-  , ChainPoint(..)
-  , ChainTipQR(..)
+  ( ChainOrigin(ChainOrigin)
+  , ChainPoint
+  , ChainTipQR(CtChainOrigin, CtChainPoint)
   , CostModelV1
   , CostModelV2
-  , CurrentEpoch(..)
-  , Epoch(..)
-  , EpochLength(..)
-  , EraSummaries(..)
-  , EraSummary(..)
-  , EraSummaryParameters(..)
-  , EraSummaryTime(..)
+  , CurrentEpoch(CurrentEpoch)
+  , Epoch(Epoch)
+  , EpochLength(EpochLength)
+  , EraSummaries(EraSummaries)
+  , EraSummary(EraSummary)
+  , EraSummaryParameters(EraSummaryParameters)
+  , EraSummaryTime(EraSummaryTime)
   , ExecutionUnits
   , OgmiosAddress
-  , OgmiosBlockHeaderHash(..)
-  , OgmiosTxOut(..)
-  , OgmiosTxOutRef(..)
-  , PParamRational(..)
-  , ProtocolParameters(..)
+  , OgmiosBlockHeaderHash(OgmiosBlockHeaderHash)
+  , OgmiosTxOut
+  , OgmiosTxOutRef
+  , PParamRational(PParamRational)
+  , ProtocolParameters(ProtocolParameters)
   , RedeemerPointer
-  , RelativeTime(..)
-  , SafeZone(..)
-  , SlotLength(..)
-  , SubmitTxR(..)
-  , SystemStart(..)
-  , TxEvaluationR(..)
+  , RelativeTime(RelativeTime)
+  , SafeZone(SafeZone)
+  , SlotLength(SlotLength)
+  , SubmitTxR(SubmitTxR)
+  , SystemStart(SystemStart)
+  , TxEvaluationR(TxEvaluationR)
   , TxHash
-  , UtxoQR(..)
-  , UtxoQueryResult(..)
+  , UtxoQR(UtxoQR)
+  , UtxoQueryResult
   , aesonArray
   , aesonObject
   , evaluateTxCall

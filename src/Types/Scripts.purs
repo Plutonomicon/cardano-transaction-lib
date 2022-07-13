@@ -1,12 +1,12 @@
 module Types.Scripts
-  ( MintingPolicy(..)
-  , MintingPolicyHash(..)
-  , PlutusScript(..)
-  , StakeValidator(..)
-  , StakeValidatorHash(..)
-  , Validator(..)
-  , ValidatorHash(..)
-  , Language(..)
+  ( MintingPolicy(MintingPolicy)
+  , MintingPolicyHash(MintingPolicyHash)
+  , PlutusScript(PlutusScript)
+  , StakeValidator(StakeValidator)
+  , StakeValidatorHash(StakeValidatorHash)
+  , Validator(Validator)
+  , ValidatorHash(ValidatorHash)
+  , Language(PlutusV1, PlutusV2)
   , plutusV1Script
   , plutusV2Script
   ) where

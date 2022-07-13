@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 - `PlutusScript` is now aware of which version of Plutus the script is for. The JSON representation has thus changed to reflect this and is not compatible with previously compatible JSON.
+- CTL's `overlay` no longer requires an explicitly passed `system`
 
 ## [2.0.0-alpha] - 2022-07-05
 
@@ -33,6 +34,8 @@ This release adds support for running CTL contracts against Babbage-era nodes. *
 - `mkKeyWalletFromFile` helper to use `cardano-cli`-style `skey`s
 - Single `Plutus.Conversion` module exposing all `(Type <-> Plutus Type)` conversion functions ([#464](https://github.com/Plutonomicon/cardano-transaction-lib/pull/464))
 - Support for using a `PrivateKey` as a `Wallet`
+- `logAeson` family of functions to be able to log JSON representations
+- `EncodeAeson` instances for most types under `Cardano.Types.*` as well as other useful types (`Value`, `Coin`, etc.)
 - `getProtocolParameters` call to retrieve current protocol parameters from Ogmios ([#541](https://github.com/Plutonomicon/cardano-transaction-lib/issues/541))
 - `Contract.Utxos.getWalletBalance` call to get all available assets as a single `Value` ([#590](https://github.com/Plutonomicon/cardano-transaction-lib/issues/590))
 - `balanceAndSignTxs` balances and signs multiple transactions while taking care to use transaction inputs only once
@@ -75,6 +78,8 @@ This release adds support for running CTL contracts against Babbage-era nodes. *
 - `Types.ScriptLookups.require` function naming caused problems with WebPack ([#593](https://github.com/Plutonomicon/cardano-transaction-lib/pull/593))
 - Bad logging in `queryDispatch` that didn't propagate error messages ([#615](https://github.com/Plutonomicon/cardano-transaction-lib/pull/615))
 - UTxO Min-Ada-Value calculation ([#611](https://github.com/Plutonomicon/cardano-transaction-lib/pull/611))
+- Discarding invalid inputs in `txInsValues` instead of yielding an error ([#696](https://github.com/Plutonomicon/cardano-transaction-lib/pull/696))
+- Locking transaction inputs before the actual balancing of the transaction ([#696](https://github.com/Plutonomicon/cardano-transaction-lib/pull/696))
 
 ## [1.1.0] - 2022-06-30
 

@@ -1,5 +1,5 @@
 module Plutus.Types.Value
-  ( Coin(..)
+  ( Coin(Coin)
   , Value
   , coinToValue
   , flattenNonAdaAssets

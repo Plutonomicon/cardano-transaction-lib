@@ -1,14 +1,14 @@
-/* global require exports BROWSER_RUNTIME */
+/* global BROWSER_RUNTIME */
 
-const Blake2bWasm = require('blake2b-wasm');
-const SHA256 = require('jssha/dist/sha256');
-const SHA3 = require('jssha/dist/sha3');
+const Blake2bWasm = require("blake2b-wasm");
+const SHA256 = require("jssha/dist/sha256");
+const SHA3 = require("jssha/dist/sha3");
 
 let lib;
-if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
-  lib = require('@emurgo/cardano-serialization-lib-browser');
+if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
+  lib = require("@emurgo/cardano-serialization-lib-browser");
 } else {
-  lib = require('@emurgo/cardano-serialization-lib-nodejs');
+  lib = require("@emurgo/cardano-serialization-lib-nodejs");
 }
 
 // -----------------------------------------------------------------------------
@@ -17,22 +17,22 @@ if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
 
 const DIGEST_LENGTH_256 = 32;
 const DIGEST_LENGTH_224 = 28;
-const DIGEST_ENCODING_BINARY = 'binary';
-const DIGEST_ENCODING_HEX = 'hex';
+const DIGEST_ENCODING_BINARY = "binary";
+const DIGEST_ENCODING_HEX = "hex";
 
 const blake2bHash = bytesToHash => digestLength => digestEncoding => {
   return new Promise((resolve, reject) => {
     Blake2bWasm.ready(error => {
       if (error || !Blake2bWasm.SUPPORTED) {
-        reject(new Error('Failed to calculate Blake2b hash'));
+        reject(new Error("Failed to calculate Blake2b hash"));
       } else {
         const digest = Blake2bWasm(digestLength)
           .update(Buffer.from(bytesToHash))
           .digest(digestEncoding);
         resolve(digest);
       }
-    })
-  })
+    });
+  });
 };
 
 exports._blake2b256Hash = bytesToHash => () => {
@@ -54,7 +54,7 @@ exports.hashPlutusScript = getBytes => onLanguage => plutusScript => () => {
   // set Plutus language namespace byte
   const prefix = onLanguage({
     PlutusV1: 0x1,
-    PlutusV2: 0x2
+    PlutusV2: 0x2,
   })(plutusScript);
   const bytes = new Uint8Array([prefix, ...plutusScriptBytes]);
   return blake2bHash(bytes)(DIGEST_LENGTH_224)(DIGEST_ENCODING_BINARY);
@@ -64,10 +64,10 @@ exports.hashPlutusScript = getBytes => onLanguage => plutusScript => () => {
 // sha256Hash, sha256HashHex, sha3_256Hash, sha3_256HashHex
 // -----------------------------------------------------------------------------
 
-const SHA256_HASH_VARIANT = 'SHA-256';
-const SHA3_256_HASH_VARIANT = 'SHA3-256';
-const UINT8ARRAY_FORMAT = 'UINT8ARRAY';
-const HEX_FORMAT = 'HEX';
+const SHA256_HASH_VARIANT = "SHA-256";
+const SHA3_256_HASH_VARIANT = "SHA3-256";
+const UINT8ARRAY_FORMAT = "UINT8ARRAY";
+const HEX_FORMAT = "HEX";
 
 exports.sha256Hash = bytesToHash => {
   const shaObj = new SHA256(SHA256_HASH_VARIANT, UINT8ARRAY_FORMAT);

@@ -1,5 +1,5 @@
 module Plutus.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(..)
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) where
 
 import Prelude

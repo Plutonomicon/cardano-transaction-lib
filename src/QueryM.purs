@@ -1,12 +1,18 @@
 -- | TODO docstring
 module QueryM
-  ( ClientError(..)
+  ( ClientError
+      ( ClientHttpError
+      , ClientHttpResponseError
+      , ClientDecodeJsonError
+      , ClientEncodingError
+      , ClientOtherError
+      )
   , DatumCacheListeners
   , DatumCacheWebSocket
   , DefaultQueryConfig
-  , DispatchError(..)
+  , DispatchError(JsError, JsonError, FaultError, ListenerCancelled)
   , DispatchIdMap
-  , FeeEstimate(..)
+  , FeeEstimate(FeeEstimate)
   , ListenerSet
   , OgmiosListeners
   , OgmiosWebSocket
@@ -15,7 +21,7 @@ module QueryM
   , QueryM
   , QueryMExtended
   , RequestBody
-  , WebSocket(..)
+  , WebSocket(WebSocket)
   , allowError
   , applyArgs
   , calculateMinFee
