@@ -5,7 +5,10 @@ module Examples.AlwaysMints (main) where
 
 import Contract.Prelude
 
-import Contract.Aeson (decodeAeson, fromString)
+import Cardano.TextEnvelope
+  ( TextEnvelopeType(PlutusScriptV1)
+  , textEnvelopeBytes
+  )
 import Contract.Monad
   ( launchAff_
   , liftContractAffM
@@ -29,7 +32,7 @@ main = launchAff_ $ do
   cfg <- traceTestnetContractConfig
   runContract_ cfg $ do
     logInfo' "Running Examples.AlwaysMints"
-    mp <- liftContractM "Invalid script JSON" $ alwaysMintsPolicy
+    mp <- liftAff alwaysMintsPolicy
     cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
     tn <- liftContractM "Cannot make token name"
       $ Value.mkTokenName
@@ -50,7 +53,8 @@ main = launchAff_ $ do
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
 
-foreign import alwaysMintsCbor :: String
+foreign import alwaysMints :: String
 
-alwaysMintsPolicy :: Maybe MintingPolicy
-alwaysMintsPolicy = map wrap $ hush $ decodeAeson $ fromString alwaysMintsCbor
+alwaysMintsPolicy :: Aff MintingPolicy
+alwaysMintsPolicy = wrap <<< wrap <$> textEnvelopeBytes alwaysMints
+  PlutusScriptV1

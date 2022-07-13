@@ -7,24 +7,17 @@ module Wallet.KeyFile
 
 import Prelude
 
-import Aeson (parseJsonStringToAeson, JsonDecodeError(TypeMismatch))
 import Cardano.TextEnvelope
-  ( TextEnvelope(TextEnvelope)
-  , TextEnvelopeDecodeError(JsonDecodeError)
-  , TextEnvelopeType
+  ( TextEnvelopeType
       ( PaymentSigningKeyShelley_ed25519
       , StakeSigningKeyShelley_ed25519
       )
-  , decodeTextEnvelope
-  , printTextEnvelopeDecodeError
+  , textEnvelopeBytes
   )
-import Data.Bifunctor (lmap)
 import Data.Newtype (wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
-import Control.Monad.Except.Trans (throwError)
-import Control.Monad.Error.Class (liftEither)
 import Helpers (liftM)
 import Node.Encoding as Encoding
 import Node.FS.Sync (readTextFile)
@@ -39,12 +32,7 @@ import Wallet.Key
 keyFromFile :: FilePath -> TextEnvelopeType -> Aff ByteArray
 keyFromFile filePath ty = do
   fileContents <- liftEffect $ readTextFile Encoding.UTF8 filePath
-  liftEither $ lmap (error <<< printTextEnvelopeDecodeError) do
-    aeson <- lmap JsonDecodeError $ parseJsonStringToAeson fileContents
-    TextEnvelope te <- decodeTextEnvelope aeson
-    unless (te.type_ == ty) $ throwError $ JsonDecodeError $ TypeMismatch $
-      show ty
-    pure te.bytes
+  textEnvelopeBytes fileContents ty
 
 privatePaymentKeyFromFile :: FilePath -> Aff PrivatePaymentKey
 privatePaymentKeyFromFile filePath = do

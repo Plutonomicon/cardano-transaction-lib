@@ -1,6 +1,7 @@
 module Cardano.TextEnvelope
   ( decodeTextEnvelope
   , printTextEnvelopeDecodeError
+  , textEnvelopeBytes
   , TextEnvelope(TextEnvelope)
   , TextEnvelopeType
       ( PlutusScriptV1
@@ -17,12 +18,15 @@ import Aeson
   , Aeson
   , JsonDecodeError(TypeMismatch)
   , decodeAeson
+  , parseJsonStringToAeson
   )
 import Control.Monad.Except (throwError)
+import Control.Monad.Error.Class (liftEither)
 import Data.Argonaut (printJsonDecodeError)
 import Data.Bifunctor (lmap)
 import Data.Either (Either, note)
 import Data.Newtype (class Newtype, wrap)
+import Effect.Aff (Aff, error)
 import Types.ByteArray (ByteArray, hexToByteArray)
 import Types.Cbor (CborParseError, toByteArray)
 
@@ -75,6 +79,9 @@ decodeTextEnvelope aeson = do
   { "type": type_, description, cborHex } <-
     lmap JsonDecodeError $ decodeAeson aeson :: _ TextEnvelopeRaw
   cborBa <- note (JsonDecodeError $ TypeMismatch "Hex") $ hexToByteArray cborHex
+  -- NOTE PlutusScriptV1 is doubly-encoded cbor, so the resulting `ByteArray`
+  -- is *still* cbor encoded.
+  -- https://github.com/Emurgo/cardano-serialization-lib/issues/268#issuecomment-1042986055
   ba <- lmap CborParseError $ toByteArray $ wrap $ wrap cborBa
   pure $ wrap { type_, description, bytes: ba }
 
@@ -83,3 +90,11 @@ printTextEnvelopeDecodeError = case _ of
   JsonDecodeError err -> printJsonDecodeError err
   CborParseError err -> show err
 
+textEnvelopeBytes :: String -> TextEnvelopeType -> Aff ByteArray
+textEnvelopeBytes json ty =
+  liftEither $ lmap (error <<< printTextEnvelopeDecodeError) do
+    aeson <- lmap JsonDecodeError $ parseJsonStringToAeson json
+    TextEnvelope te <- decodeTextEnvelope aeson
+    unless (te.type_ == ty) $ throwError $ JsonDecodeError $ TypeMismatch $
+      show ty
+    pure te.bytes

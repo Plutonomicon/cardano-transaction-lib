@@ -178,19 +178,22 @@ To use your own scripts, compile them to any subdirectory in the root of CTL pro
 Thus you will be able to inline your script cbor in `.js` files and then load them in purescript via FFI
   ```javascript
   // inline .plutus file as a string
-  var rawScript = require("Scripts/myscript.plutus");
-  // since .plutus files are basically jsons, we can get access to its fields via
-  var data = JSON.parse(rawData);
-  // make loadable via FFI with "foreign import myscriptCbor :: String"
-  exports.myscriptCbor = data["cborHex"];
+  exports.myscript = require("Scripts/myscript.plutus");
   ```
-This way you avoid hardcoding your scripts directly to .purs files which could lead to synchronization issues should your scripts change.
 
-NOTE: if you use envelop format to serialize your script, it will get cbor-encoded twice. There is a hack to get around this by dropping the first 6 characters of the cbor:
-```javascript
-  // if you are sure that cbor object is a bytestring you can drop first 6 characters to "decode" it
-  exports.myscriptCbor = data["cborHex"].substring(6);
+And on the purescript side, the script can be loaded like so:
+  ```purescript
+  foreign import myscript :: String
+
+  myscriptValidator :: Aff Validator
+  myscriptValidator = wrap <<< wrap <$> textEnvelopeBytes myscript PlutusScriptV1
+
+  myContract cfg = runContract_ cfg $ do
+    validator <- liftAff myscriptValidator
+    ...
   ```
+
+This way you avoid hardcoding your scripts directly to .purs files which could lead to synchronization issues should your scripts change.
 
 ## Testing
 

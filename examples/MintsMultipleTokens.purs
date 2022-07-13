@@ -5,7 +5,10 @@ module Examples.MintsMultipleTokens (main) where
 
 import Contract.Prelude
 
-import Contract.Aeson (decodeAeson, fromString)
+import Cardano.TextEnvelope
+  ( TextEnvelopeType(PlutusScriptV1)
+  , textEnvelopeBytes
+  )
 import Contract.Monad
   ( Contract
   , launchAff_
@@ -71,25 +74,25 @@ mkTokenName =
 
 mkCurrencySymbol
   :: forall (r :: Row Type)
-   . Maybe MintingPolicy
+   . Aff MintingPolicy
   -> Contract r (MintingPolicy /\ CurrencySymbol)
 mkCurrencySymbol mintingPolicy = do
-  mp <- liftContractM "Invalid script JSON" mintingPolicy
+  mp <- liftAff mintingPolicy
   cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
   pure (mp /\ cs)
 
-foreign import mintingPolicyRdmrInt1Cbor :: String
-foreign import mintingPolicyRdmrInt2Cbor :: String
-foreign import mintingPolicyRdmrInt3Cbor :: String
+foreign import redeemerInt1 :: String
+foreign import redeemerInt2 :: String
+foreign import redeemerInt3 :: String
 
-mintingPolicyRdmrInt1 :: Maybe MintingPolicy
-mintingPolicyRdmrInt1 = map wrap $ hush $ decodeAeson $ fromString
-  mintingPolicyRdmrInt1Cbor
+mintingPolicyRdmrInt1 :: Aff MintingPolicy
+mintingPolicyRdmrInt1 = wrap <<< wrap <$> textEnvelopeBytes redeemerInt1
+  PlutusScriptV1
 
-mintingPolicyRdmrInt2 :: Maybe MintingPolicy
-mintingPolicyRdmrInt2 = map wrap $ hush $ decodeAeson $ fromString
-  mintingPolicyRdmrInt2Cbor
+mintingPolicyRdmrInt2 :: Aff MintingPolicy
+mintingPolicyRdmrInt2 = wrap <<< wrap <$> textEnvelopeBytes redeemerInt2
+  PlutusScriptV1
 
-mintingPolicyRdmrInt3 :: Maybe MintingPolicy
-mintingPolicyRdmrInt3 = map wrap $ hush $ decodeAeson $ fromString
-  mintingPolicyRdmrInt3Cbor
+mintingPolicyRdmrInt3 :: Aff MintingPolicy
+mintingPolicyRdmrInt3 = wrap <<< wrap <$> textEnvelopeBytes redeemerInt3
+  PlutusScriptV1

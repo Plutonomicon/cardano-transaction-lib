@@ -5,13 +5,15 @@ module Examples.AlwaysSucceeds (main) where
 
 import Contract.Prelude
 
+import Cardano.TextEnvelope
+  ( TextEnvelopeType(PlutusScriptV1)
+  , textEnvelopeBytes
+  )
 import Contract.Address (scriptHashAddress)
-import Contract.Aeson (decodeAeson, fromString)
 import Contract.Monad
   ( Contract
   , launchAff_
   , liftContractAffM
-  , liftContractM
   , liftedE
   , logInfo'
   , runContract_
@@ -39,7 +41,7 @@ main = launchAff_ $ do
   cfg <- traceTestnetContractConfig
   runContract_ cfg $ do
     logInfo' "Running Examples.AlwaysSucceeds"
-    validator <- liftContractM "Invalid script JSON" alwaysSucceedsScript
+    validator <- liftAff alwaysSucceedsScript
     vhash <- liftContractAffM "Couldn't hash validator"
       $ validatorHash validator
     logInfo' "Attempt to lock value"
@@ -110,8 +112,8 @@ buildBalanceSignAndSubmitTx lookups constraints = do
   logInfo' $ "Tx ID: " <> show txId
   pure txId
 
-foreign import alwaysSucceedsCbor :: String
+foreign import alwaysSucceeds :: String
 
-alwaysSucceedsScript :: Maybe Validator
-alwaysSucceedsScript = map wrap $ hush $ decodeAeson $ fromString
-  alwaysSucceedsCbor
+alwaysSucceedsScript :: Aff Validator
+alwaysSucceedsScript = wrap <<< wrap <$> textEnvelopeBytes alwaysSucceeds
+  PlutusScriptV1
