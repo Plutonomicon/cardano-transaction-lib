@@ -64,8 +64,6 @@ let
     , formatter ? "purs-tidy"
     , pursls ? true
     , nodeModules ? projectNodeModules
-    # When set to true, the `node_modules` folder will not be built when `npm`
-    # is used inside the shell.
     , packageLockOnly ? false
     }:
       assert pkgs.lib.assertOneOf "formatter" formatter [ "purs-tidy" "purty" ];
