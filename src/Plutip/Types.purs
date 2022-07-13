@@ -157,7 +157,8 @@ instance DecodeAeson StartClusterResponse where
     obj <- decodeAeson aeson
     obj .: "tag" >>= case _ of
       "ClusterStartupSuccess" -> do
-        ClusterStartupSuccess <$> decodeAeson aeson
+        contents <- obj .: "contents"
+        ClusterStartupSuccess <$> decodeAeson contents
       "ClusterStartupFailure" -> do
         failure <- obj .: "contents"
         ClusterStartupFailure <$> decodeAeson failure
