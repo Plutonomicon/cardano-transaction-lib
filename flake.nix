@@ -154,7 +154,7 @@
           buildCtlRuntime = buildCtlRuntime final;
           launchCtlRuntime = launchCtlRuntime final;
           inherit cardano-configurations;
-      });
+        });
 
       mkNixpkgsFor = system: import nixpkgs {
         overlays = [
