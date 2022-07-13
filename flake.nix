@@ -138,30 +138,32 @@
         "aarch64-darwin"
       ];
       perSystem = nixpkgs.lib.genAttrs defaultSystems;
-      overlay = system: with inputs; (prev: final: {
+      overlay = with inputs; (final: prev: {
         easy-ps =
-          import inputs.easy-purescript-nix { pkgs = prev; };
+          import inputs.easy-purescript-nix { pkgs = final; };
         ogmios-datum-cache =
-          inputs.ogmios-datum-cache.defaultPackage.${system};
-        ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
+          inputs.ogmios-datum-cache.defaultPackage.${prev.system};
+        ogmios = ogmios.packages.${prev.system}."ogmios:exe:ogmios";
         ogmios-fixtures = ogmios;
-        cardano-cli = ogmios.inputs.cardano-node.packages.${system}.cardano-cli;
-        purescriptProject = import ./nix { inherit system; pkgs = prev; };
-        buildCtlRuntime = buildCtlRuntime prev;
-        launchCtlRuntime = launchCtlRuntime prev;
-        ctl-server = self.packages.${system}."ctl-server:exe:ctl-server";
+        cardano-cli = cardano-node-exe.packages.${prev.system}.cardano-cli;
+        purescriptProject = import ./nix { pkgs = final; system = prev.system; };
+        buildCtlRuntime = buildCtlRuntime final;
+        launchCtlRuntime = launchCtlRuntime final;
         inherit cardano-configurations;
       });
 
-      nixpkgsFor = system: import nixpkgs {
+      makeNixpkgsFor = system: import nixpkgs {
         overlays = [
           haskell-nix.overlay
           iohk-nix.overlays.crypto
-          (overlay system)
+          overlay
         ];
         inherit (haskell-nix) config;
         inherit system;
       };
+      # memoize nixpkgs instances to make evaluation faster
+      allNixpkgs = perSystem makeNixpkgsFor;
+      nixpkgsFor = system: allNixpkgs.${system};
 
       defaultConfig = final: with final; {
         inherit (inputs) cardano-configurations;
@@ -224,7 +226,8 @@
           cp -rT ogmios $out
         '';
 
-      buildCtlRuntime = pkgs: extraConfig: { ... }:
+      buildCtlRuntime = pkgs: extraConfig:
+        { ... }:
         let
           inherit (builtins) toString;
           config = with pkgs.lib;
@@ -234,7 +237,8 @@
           nodeDbVol = "node-${config.network.name}-db";
           nodeIpcVol = "node-${config.network.name}-ipc";
           nodeSocketPath = "/ipc/node.socket";
-          server = pkgs.ctl-server;
+          serverName = "ctl-server:exe:ctl-server";
+          server = self.packages.${pkgs.system}."${serverName}";
           bindPort = port: "${toString port}:${toString port}";
         in
         with config;
@@ -379,9 +383,8 @@
           program = "${script}/bin/${binPath}";
         };
 
-      psProjectFor = system:
+      psProjectFor = pkgs:
         let
-          pkgs = nixpkgsFor system;
           projectName = "cardano-transaction-lib";
           # `filterSource` will still trigger rebuilds with flakes, even if a
           # filtered path is modified as the output path name is impurely
@@ -474,25 +477,23 @@
           };
         };
 
-      hsProjectFor = system:
-        let
-          pkgs = nixpkgsFor system;
-          src = ./server;
-        in
+      hsProjectFor = pkgs:
         import ./server/nix {
-          inherit src inputs pkgs system;
+          src = ./server;
+          inherit inputs pkgs;
+          inherit (pkgs) system;
         };
     in
     {
       # flake from haskell.nix project
-      hsFlake = perSystem (system: (hsProjectFor system).flake { });
+      hsFlake = perSystem (system: (hsProjectFor (nixpkgsFor system)).flake { });
 
       devShell = perSystem (system: self.devShells.${system}.ctl);
 
       devShells = perSystem (system: {
         # This is the default `devShell` and can be run without specifying
         # it (i.e. `nix develop`)
-        ctl = (psProjectFor system).devShell;
+        ctl = (psProjectFor (nixpkgsFor system)).devShell;
         # It might be a good idea to keep this as a separate shell; if you're
         # working on the PS frontend, it doesn't make a lot of sense to pull
         # in all of the Haskell dependencies
@@ -503,20 +504,23 @@
 
       packages = perSystem (system:
         self.hsFlake.${system}.packages
-        // (psProjectFor system).packages
+        // (psProjectFor (nixpkgsFor system)).packages
       );
 
       apps = perSystem (system:
-        (psProjectFor system).apps // {
+        let
+          pkgs = nixpkgsFor system;
+        in
+        (psProjectFor pkgs).apps // {
           inherit (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
-          ctl-runtime = (nixpkgsFor system).launchCtlRuntime { };
+          ctl-runtime = pkgs.launchCtlRuntime { };
         });
 
       checks = perSystem (system:
         let
           pkgs = nixpkgsFor system;
         in
-        (psProjectFor system).checks
+        (psProjectFor pkgs).checks
         // self.hsFlake.${system}.checks
         // {
           formatting-check = pkgs.runCommand "formatting-check"
@@ -565,9 +569,9 @@
           ''
       );
 
-      defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);
+      defaultPackage = perSystem (system: (psProjectFor (nixpkgsFor system)).defaultPackage);
 
-      overlay = perSystem overlay;
+      overlay = overlay;
 
       hydraJobs = perSystem (system:
         self.checks.${system}
