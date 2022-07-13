@@ -5,45 +5,19 @@ module Examples.Pkh2Pkh (main) where
 
 import Contract.Prelude
 
-import Contract.Address
-  ( NetworkId(TestnetId)
-  , ownPaymentPubKeyHash
-  , ownStakePubKeyHash
-  )
-import Contract.Monad
-  ( ConfigParams(ConfigParams)
-  , LogLevel(Trace)
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
-  , launchAff_
-  , liftedE
-  , liftedM
-  , logInfo'
-  , mkContractConfig
-  , runContract_
-  )
+import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
+import Contract.Config (testnetNamiConfig)
+import Contract.Log (logInfo')
+import Contract.Monad (launchAff_, liftedE, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction (balanceAndSignTx, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
-import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
 
 main :: Effect Unit
-main = launchAff_ $ do
-  wallet <- Just <$> mkNamiWalletAff
-  cfg <- mkContractConfig $ ConfigParams
-    { ogmiosConfig: defaultOgmiosWsConfig
-    , datumCacheConfig: defaultDatumCacheWsConfig
-    , ctlServerConfig: defaultServerConfig
-    , networkId: TestnetId
-    , logLevel: Trace
-    , extraConfig: {}
-    , wallet
-    }
-
-  runContract_ cfg $ do
+main = launchAff_ do
+  runContract testnetNamiConfig do
     logInfo' "Running Examples.Pkh2Pkh"
     pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
     skh <- liftedM "Failed to get own SKH" ownStakePubKeyHash
@@ -62,4 +36,3 @@ main = launchAff_ $ do
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
-

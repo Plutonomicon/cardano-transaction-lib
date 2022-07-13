@@ -21,7 +21,7 @@ import QueryM
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
-  , runQueryM
+  , runQueryMWithSettings
   , submitTxOgmios
   , traceQueryConfig
   )
@@ -96,7 +96,7 @@ suite = do
 
 testOgmiosDatumCacheGetDatumByHash :: Aff Unit
 testOgmiosDatumCacheGetDatumByHash =
-  traceQueryConfig >>= flip runQueryM do
+  traceQueryConfig >>= flip runQueryMWithSettings do
     -- Use this to trigger block fetching in order to actually get the datum:
     -- ```
     -- curl localhost:9999/control/fetch_blocks -X POST -d '{"slot": 54066900, "id": "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d", "datumFilter": {"address": "addr_xyz"}}' -H 'Content-Type: application/json'
@@ -107,7 +107,7 @@ testOgmiosDatumCacheGetDatumByHash =
 
 testOgmiosDatumCacheGetDatumsByHashes :: Aff Unit
 testOgmiosDatumCacheGetDatumsByHashes =
-  traceQueryConfig >>= flip runQueryM do
+  traceQueryConfig >>= flip runQueryMWithSettings do
     -- Use this to trigger block fetching in order to actually get the datum:
     -- ```
     -- curl localhost:9999/control/fetch_blocks -X POST -d '{"slot": 54066900, "id": "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d", "datumFilter": {"address": "addr_xyz"}}' -H 'Content-Type: application/json'
@@ -119,16 +119,17 @@ testOgmiosDatumCacheGetDatumsByHashes =
 testUtxosAt :: OgmiosAddress -> Aff Unit
 testUtxosAt testAddr = case ogmiosAddressToAddress testAddr of
   Nothing -> liftEffect $ throw "Failed UtxosAt"
-  Just addr -> flip runQueryM (void $ utxosAt addr) =<< traceQueryConfig
+  Just addr -> flip runQueryMWithSettings (void $ utxosAt addr) =<<
+    traceQueryConfig
 
 testGetChainTip :: Aff Unit
 testGetChainTip = do
-  flip runQueryM (void getChainTip) =<< traceQueryConfig
+  flip runQueryMWithSettings (void getChainTip) =<< traceQueryConfig
 
 testWaitUntilSlot :: Aff Unit
 testWaitUntilSlot = do
   cfg <- traceQueryConfig
-  void $ runQueryM cfg do
+  void $ runQueryMWithSettings cfg do
     getChainTip >>= case _ of
       TipAtGenesis -> liftEffect $ throw "Tip is at genesis"
       Tip (ChainTip { slot }) -> do
@@ -144,29 +145,30 @@ testFromOgmiosAddress testAddr = do
 
 testGetEraSummaries :: Aff Unit
 testGetEraSummaries = do
-  flip runQueryM (void getEraSummaries) =<< traceQueryConfig
+  flip runQueryMWithSettings (void getEraSummaries) =<< traceQueryConfig
 
 testSubmitTxFailure :: Aff Unit
 testSubmitTxFailure = do
-  flip runQueryM (void $ submitTxOgmios (wrap $ hexToByteArrayUnsafe "00")) =<<
+  flip runQueryMWithSettings
+    (void $ submitTxOgmios (wrap $ hexToByteArrayUnsafe "00")) =<<
     traceQueryConfig
 
 testGetProtocolParameters :: Aff Unit
 testGetProtocolParameters = do
-  flip runQueryM (void getProtocolParameters) =<<
+  flip runQueryMWithSettings (void getProtocolParameters) =<<
     traceQueryConfig
 
 testGetCurrentEpoch :: Aff Unit
 testGetCurrentEpoch = do
-  flip runQueryM (void getCurrentEpoch) =<< traceQueryConfig
+  flip runQueryMWithSettings (void getCurrentEpoch) =<< traceQueryConfig
 
 testGetSystemStart :: Aff Unit
 testGetSystemStart = do
-  flip runQueryM (void getSystemStart) =<< traceQueryConfig
+  flip runQueryMWithSettings (void getSystemStart) =<< traceQueryConfig
 
 testPosixTimeToSlot :: Aff Unit
 testPosixTimeToSlot = do
-  traceQueryConfig >>= flip runQueryM do
+  traceQueryConfig >>= flip runQueryMWithSettings do
     eraSummaries <- getEraSummaries
     sysStart <- getSystemStart
     let
@@ -249,7 +251,7 @@ mkPosixTime = POSIXTime <<< unsafePartial fromJust <<< BigInt.fromString
 
 testSlotToPosixTime :: Aff Unit
 testSlotToPosixTime = do
-  traceQueryConfig >>= flip runQueryM do
+  traceQueryConfig >>= flip runQueryMWithSettings do
     eraSummaries <- getEraSummaries
     sysStart <- getSystemStart
     -- See *Testing far into the future note during hardforks:* for details on
@@ -280,7 +282,7 @@ testSlotToPosixTime = do
 
 testPosixTimeToSlotError :: Aff Unit
 testPosixTimeToSlotError = do
-  traceQueryConfig >>= flip runQueryM do
+  traceQueryConfig >>= flip runQueryMWithSettings do
     eraSummaries <- getEraSummaries
     sysStart <- getSystemStart
     let

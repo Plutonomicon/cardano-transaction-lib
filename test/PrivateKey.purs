@@ -1,5 +1,6 @@
 module Test.PrivateKey where
 
+import Contract.Config (testnetConfig)
 import Prelude
 
 import Cardano.Types.Transaction
@@ -8,30 +9,39 @@ import Cardano.Types.Transaction
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkeywitness(Vkeywitness)
   )
-import Contract.Address (NetworkId(TestnetId))
-import Contract.Monad (configWithLogLevel, runContract)
+import Contract.Monad (runContract)
 import Contract.Transaction (signTransaction)
-import Contract.Wallet.KeyFile (mkKeyWalletFromFiles)
 import Data.Lens (_2, _Just, (^?))
 import Data.Lens.Index (ix)
 import Data.Lens.Iso.Newtype (unto)
 import Data.Lens.Record (prop)
-import Data.Log.Level (LogLevel(Trace))
 import Data.Maybe (Maybe(Just))
 import Mote (group, test)
 import Test.Fixtures (txFixture1)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Type.Proxy (Proxy(Proxy))
+import Wallet.Spec
+  ( PrivatePaymentKeySource(PrivatePaymentKeyFile)
+  , PrivateStakeKeySource(PrivateStakeKeyFile)
+  , WalletSpec(UseKeys)
+  )
 
 suite :: TestPlanM Unit
 suite = do
   group "PrivateKey" $ do
     test "privateKeyFromFile" do
-      wallet <- mkKeyWalletFromFiles
-        "fixtures/test/parsing/PrivateKey/payment.skey"
-        (Just "fixtures/test/parsing/PrivateKey/stake.skey")
-      cfg <- configWithLogLevel TestnetId wallet Trace
+      let
+        cfg =
+          testnetConfig
+            { walletSpec = Just $ UseKeys
+                ( PrivatePaymentKeyFile
+                    "fixtures/test/parsing/PrivateKey/payment.skey"
+                )
+                ( Just $ PrivateStakeKeyFile
+                    "fixtures/test/parsing/PrivateKey/stake.skey"
+                )
+            }
       runContract cfg do
         mbTx <- signTransaction txFixture1
         let

@@ -6,37 +6,26 @@ module Examples.Pkh2PkhKeyWallet (main) where
 
 import Contract.Prelude
 
-import Contract.Address (NetworkId(TestnetId))
-import Contract.Monad
-  ( ConfigParams(ConfigParams)
-  , Contract
-  , ContractConfig
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
-  , launchAff_
-  , liftedE
-  , liftedM
-  , logInfo'
-  , mkContractConfig
-  )
+import Contract.Config (testnetConfig)
+import Contract.Log (logInfo')
+import Contract.Monad (launchAff_, liftedE, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction (balanceAndSignTx, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Control.Monad.Error.Class (catchError, liftMaybe)
-import Control.Monad.Logger.Trans (runLoggerT)
-import Control.Monad.Reader (runReaderT)
 import Data.BigInt as BigInt
 import Data.Log.Formatter.Pretty (prettyFormatter)
 import Data.Log.Level (LogLevel(Trace, Debug, Warn, Info, Error))
 import Data.Log.Message (Message)
 import Effect.Exception (Error, error, message)
-import QueryM (QueryConfig)
 import Serialization (privateKeyFromBytes)
 import Serialization.Hash (ed25519KeyHashFromBech32)
 import Types.RawBytes (hexToRawBytes)
-import Wallet (mkKeyWallet)
+import Wallet.Spec
+  ( PrivatePaymentKeySource(PrivatePaymentKeyValue)
+  , WalletSpec(UseKeys)
+  )
 
 type Form =
   { privateKey :: String
@@ -70,23 +59,6 @@ levelColor _ = "black"
 main :: Effect Unit
 main = do
   mkForm \input log' unlock -> do
-    let
-      runContract_
-        :: forall r
-         . ContractConfig r
-        -> Contract r Unit
-        -> Aff Unit
-      runContract_ config = flip runLoggerT printLog <<< flip runReaderT cfg <<<
-        unwrap
-        where
-        printLog :: Message -> Aff Unit
-        printLog m = liftEffect $ when (m.level >= cfg.logLevel) $ do
-          prettyFormatter m >>= log
-          log' (levelColor m.level)
-            ("[" <> levelName m.level <> "] " <> m.message)
-
-        cfg :: QueryConfig r
-        cfg = unwrap config
 
     launchAff_ $ flip catchError
       ( \e -> liftEffect $ logError e
@@ -101,18 +73,20 @@ main = do
           ed25519KeyHashFromBech32 input.toPkh
         lovelace <- liftMaybe (error "Failed to parse lovelace amount") $
           BigInt.fromString input.lovelace
-        let wallet = mkKeyWallet (wrap priv) Nothing
-        cfg <- mkContractConfig $ ConfigParams
-          { ogmiosConfig: defaultOgmiosWsConfig
-          , datumCacheConfig: defaultDatumCacheWsConfig
-          , ctlServerConfig: defaultServerConfig
-          , networkId: TestnetId
-          , logLevel: Trace
-          , extraConfig: {}
-          , wallet: Just wallet
-          }
+        let
 
-        runContract_ cfg do
+          printLog :: Message -> Aff Unit
+          printLog m = liftEffect $ when (m.level >= cfg.logLevel) do
+            prettyFormatter m >>= log
+            log' (levelColor m.level)
+              ("[" <> levelName m.level <> "] " <> m.message)
+          cfg = testnetConfig
+            { walletSpec = Just $ UseKeys (PrivatePaymentKeyValue (wrap priv))
+                Nothing
+            , customLogger = Just printLog
+            }
+
+        runContract cfg do
           logInfo' "Running Examples.Pkh2PkhKeyWallet"
 
           let

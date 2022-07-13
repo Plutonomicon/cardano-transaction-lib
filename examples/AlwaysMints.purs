@@ -6,15 +6,15 @@ module Examples.AlwaysMints (main) where
 import Contract.Prelude
 
 import Contract.Aeson (decodeAeson, fromString)
+import Contract.Config (testnetNamiConfig)
+import Contract.Log (logInfo')
 import Contract.Monad
   ( launchAff_
   , liftContractAffM
   , liftContractM
   , liftedE
   , liftedM
-  , logInfo'
-  , runContract_
-  , traceTestnetContractConfig
+  , runContract
   )
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
@@ -26,8 +26,7 @@ import Data.BigInt as BigInt
 
 main :: Effect Unit
 main = launchAff_ $ do
-  cfg <- traceTestnetContractConfig
-  runContract_ cfg $ do
+  runContract testnetNamiConfig $ do
     logInfo' "Running Examples.AlwaysMints"
     mp <- liftContractM "Invalid script JSON" $ alwaysMintsPolicy
     cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp

@@ -28,7 +28,7 @@ import QueryM.Utxos (getWalletBalance, utxosAt) as Utxos
 utxosAt
   :: forall (r :: Row Type). Address -> Contract r (Maybe Transaction.UtxoM)
 utxosAt address = do
-  networkId <- asks (_.networkId <<< unwrap)
+  networkId <- asks (_.networkId <<< _.config <<< unwrap)
   let cardanoAddr = fromPlutusAddress networkId address
   -- Don't error if we get `Nothing` as the Cardano utxos
   mCardanoUtxos <- wrapContract $ Utxos.utxosAt cardanoAddr

@@ -1,15 +1,12 @@
 -- | A module defining the `Contract` monad.
 module Contract.Monad
   ( Contract(Contract)
-  , ContractConfig(ContractConfig)
-  , ConfigParams(ConfigParams)
-  , DefaultContractConfig
+  , ContractEnv(ContractEnv)
+  , ConfigParams
+  , DefaultContractEnv
   , module Aff
   , module QueryM
-  , module Log.Level
   , module Log.Tag
-  , configWithLogLevel
-  , defaultTestnetContractConfig
   , liftContractAffM
   , liftContractE
   , liftContractE'
@@ -17,40 +14,15 @@ module Contract.Monad
   , liftedE
   , liftedE'
   , liftedM
-  , logTrace
-  , logTrace'
-  , logDebug
-  , logDebug'
-  , logInfo
-  , logInfo'
-  , logWarn
-  , logWarn'
-  , logError
-  , logError'
-  , logAeson
-  , logAesonTrace
-  , logAesonDebug
-  , logAesonInfo
-  , logAesonWarn
-  , logAesonError
-  , mkContractConfig
   , runContract
-  , runContract_
   , throwContractError
-  , traceTestnetContractConfig
   , wrapContract
   ) where
 
 import Prelude
 
-import Aeson
-  ( class EncodeAeson
-  , encodeAeson
-  , stringifyAeson
-  )
 import Control.Monad.Error.Class (class MonadError, class MonadThrow)
 import Control.Monad.Logger.Class (class MonadLogger)
-import Control.Monad.Logger.Class as Logger
 import Control.Monad.Logger.Trans (runLoggerT)
 import Control.Monad.Reader.Class
   ( class MonadAsk
@@ -61,10 +33,8 @@ import Control.Monad.Reader.Class
 import Control.Monad.Reader.Trans (runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Data.Either (Either, either, hush)
-import Data.Log.Level (LogLevel(Error, Trace))
-import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error)) as Log.Level
+import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Log.Tag (TagSet)
 import Data.Log.Tag
   ( TagSet
   , tag
@@ -74,8 +44,7 @@ import Data.Log.Tag
   , jsDateTag
   , tagSetTag
   ) as Log.Tag
-import Data.Map as Map
-import Data.Maybe (Maybe(Just), maybe)
+import Data.Maybe (Maybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Profunctor (dimap)
 import Effect.Aff (Aff)
@@ -103,12 +72,16 @@ import QueryM
   , mkOgmiosWebSocketAff
   , mkWsUrl
   ) as QueryM
-import QueryM (QueryM, QueryMExtended, QueryConfig)
-import QueryM.ProtocolParameters (getProtocolParametersAff) as Ogmios
-import Record as Record
-import Serialization.Address (NetworkId(TestnetId))
-import Types.UsedTxOuts (newUsedTxOuts)
-import Wallet (Wallet, mkNamiWalletAff)
+import QueryM
+  ( QueryConfig
+  , QueryM
+  , QueryMExtended
+  , QueryRuntime
+  , QueryEnv
+  , withQueryRuntime
+  )
+import Serialization.Address (NetworkId)
+import Wallet.Spec (WalletSpec)
 
 -- | The `Contract` monad is a newtype wrapper over `QueryM` which is `ReaderT`
 -- | on `QueryConfig` over asynchronous effects, `Aff`. Throwing and catching
@@ -124,7 +97,7 @@ import Wallet (Wallet, mkNamiWalletAff)
 -- | find the type in the `QueryM` module.
 -- |
 -- | The configuration for `Contract` is also a newtype wrapper over the
--- | underlying `QueryConfig`, see `ContractConfig`.
+-- | underlying `QueryConfig`, see `ContractEnv`.
 -- |
 -- | All useful functions written in `QueryM` should be lifted into the
 -- | `Contract` monad and available in the same namespace. If anything is
@@ -149,69 +122,108 @@ derive newtype instance MonadError Error (Contract r)
 derive newtype instance MonadRec (Contract r)
 derive newtype instance MonadLogger (Contract r)
 
-instance MonadAsk (ContractConfig r) (Contract r) where
+instance MonadAsk (ContractEnv r) (Contract r) where
   -- Use the underlying `ask`:
-  ask = Contract $ ContractConfig <$> ask
+  ask = Contract $ ContractEnv <$> ask
 
-instance MonadReader (ContractConfig r) (Contract r) where
+instance MonadReader (ContractEnv r) (Contract r) where
   -- Use the underlying `local` after dimapping and unwrapping:
   local f contract = Contract $ local (dimap wrap unwrap f) (unwrap contract)
 
--- | The config for `Contract` is just a newtype wrapper over the underlying
--- | `QueryM` config. To use a configuration with default values, see
--- | `defaultContractConfig`. To specify non-default configuration values, it
--- | is recommended to construct a `ContractConfig` indirectly with from
--- | `ConfigParams` using `mkContractConfig`
-newtype ContractConfig (r :: Row Type) = ContractConfig (QueryConfig r)
+-- | `ContractEnv` is a trivial wrapper over `QueryEnv`.
+newtype ContractEnv (r :: Row Type) = ContractEnv (QueryEnv r)
 
-type DefaultContractConfig = ContractConfig ()
+type DefaultContractEnv = ContractEnv ()
 
-derive instance Newtype (ContractConfig r) _
+derive instance Newtype (ContractEnv r) _
 
 wrapContract :: forall (r :: Row Type) (a :: Type). QueryM a -> Contract r a
 wrapContract = wrap <<< QueryM.liftQueryM
 
--- | Options to construct a `ContractConfig` indirectly. Use `mkContractConfig`
--- | to create a `ContractConfig` which will call the necessary effects for
--- | websocket initializations according to the provided options. `extraConfig`
--- | holds additional options that will extend the resulting `ContractConfig`
--- | directly
-newtype ConfigParams (r :: Row Type) = ConfigParams
+-- | Options to construct a `ContractEnv` indirectly. `extraConfig`
+-- | holds additional options that will extend the resulting `ContractEnv`.
+-- |
+-- | Use `runContract` to run a `Contract` within an implicity constructed
+-- | `ContractEnv` environment, or use `withContractEnv` if your application
+-- | contains multiple contracts that can be run in parallel, reusing the same
+-- | environment (see `withContractEnv`)
+type ConfigParams (r :: Row Type) =
   { ogmiosConfig :: QueryM.ServerConfig
   , datumCacheConfig :: QueryM.ServerConfig
   , ctlServerConfig :: QueryM.ServerConfig
   , networkId :: NetworkId
   , logLevel :: LogLevel
-  , wallet :: Maybe Wallet
-  -- | Additional config options to extend the `ContractConfig`
+  , walletSpec :: Maybe WalletSpec
+  , customLogger :: Maybe (Message -> Aff Unit)
+  -- | Additional config options to extend the `ContractEnv`
   , extraConfig :: { | r }
   }
 
-derive instance Newtype (ConfigParams r) _
+-- | Interprets a contract into an `Aff` context.
+-- | Implicitly initializes and finalizes a new `ContractEnv` runtime.
+-- |
+-- | Use `withContractEnv` if your application contains multiple contracts that
+-- | can be run in parallel, reusing the same environment (see
+-- | `withContractEnv`)
+runContract
+  :: forall (r :: Row Type) (a :: Type)
+   . ConfigParams r
+  -> Contract r a
+  -> Aff a
+runContract params contract = do
+  withContractEnv params \config ->
+    runContractInEnv config contract
 
--- | Create a `ContractConfig` from the provided params. This will call the
--- | necessary initialization code for the websocket connections
-mkContractConfig
-  :: forall (r :: Row Type). ConfigParams r -> Aff (ContractConfig r)
-mkContractConfig
-  (ConfigParams params@{ logLevel, networkId, wallet }) = do
-  ogmiosWs <- QueryM.mkOgmiosWebSocketAff logLevel params.ogmiosConfig
-  datumCacheWs <- QueryM.mkDatumCacheWebSocketAff logLevel
-    params.datumCacheConfig
-  pparams <- Ogmios.getProtocolParametersAff ogmiosWs logLevel
-  usedTxOuts <- newUsedTxOuts
+-- | Runs a contract in existing environment. Does not destroy the environment
+-- | when contract execution ends.
+runContractInEnv
+  :: forall (r :: Row Type) (a :: Type)
+   . ContractEnv r
+  -> Contract r a
+  -> Aff a
+runContractInEnv config =
+  flip runLoggerT printLog
+    <<< flip runReaderT (unwrap config)
+    <<< unwrap
+  where
+  printLog :: Message -> Aff Unit
+  printLog = logWithLevel (unwrap config).config.logLevel
+
+-- | Constructs and finalizes a contract environment that is usable inside a
+-- | bracket callback.
+-- | Make sure that `Aff` action does not end before all contracts that use the
+-- | runtime terminate. Otherwise `WebSocket`s will be closed too early.
+withContractEnv
+  :: forall (r :: Row Type) (a :: Type)
+   . ConfigParams r
+  -> (ContractEnv r -> Aff a)
+  -> Aff a
+withContractEnv
+  params@
+    { ctlServerConfig
+    , ogmiosConfig
+    , datumCacheConfig
+    , networkId
+    , logLevel
+    , walletSpec
+    , customLogger
+    }
+  action = do
   let
-    queryConfig =
-      { logLevel
+    config =
+      { ctlServerConfig
+      , ogmiosConfig
+      , datumCacheConfig
       , networkId
-      , ogmiosWs
-      , usedTxOuts
-      , wallet
-      , datumCacheWs
-      , serverConfig: params.ctlServerConfig
-      , pparams
+      , logLevel
+      , walletSpec
+      , customLogger
       }
-  pure $ wrap $ queryConfig `Record.union` params.extraConfig
+  withQueryRuntime config \runtime -> do
+    let
+      contractSettings = wrap
+        { runtime, config, userSettings: params.extraConfig }
+    action contractSettings
 
 -- | Throws an `Error` for any showable error using `Effect.Exception.throw`
 -- | and lifting into the `Contract` monad.
@@ -284,157 +296,3 @@ liftedE'
   -> Contract r (Either e a)
   -> Contract r a
 liftedE' str em = em >>= liftContractE' str
-
--- | Runs the contract, essentially `runReaderT` but with arguments flipped.
-runContract
-  :: forall (r :: Row Type) (a :: Type)
-   . ContractConfig r
-  -> Contract r a
-  -> Aff a
-runContract config = flip runLoggerT printLog <<< flip runReaderT cfg <<< unwrap
-  where
-  printLog :: Message -> Aff Unit
-  printLog = logWithLevel cfg.logLevel
-
-  cfg :: QueryConfig r
-  cfg = unwrap config
-
--- | Same as `runContract` discarding output.
-runContract_
-  :: forall (r :: Row Type) (a :: Type)
-   . ContractConfig r
-  -> Contract r a
-  -> Aff Unit
-runContract_ config = void <<< runContract config
-
--- | Creates a default `ContractConfig` with a Nami wallet inside `Aff` as
--- | required by the websockets.
-defaultTestnetContractConfig :: Aff DefaultContractConfig
-defaultTestnetContractConfig = do
-  wallet <- mkNamiWalletAff
-  configWithLogLevel TestnetId wallet Error
-
--- | Same as `defaultTestnetContractConfig` but with `Trace` config level.
--- | Should be used for testing.
-traceTestnetContractConfig :: Aff DefaultContractConfig
-traceTestnetContractConfig = do
-  wallet <- mkNamiWalletAff
-  configWithLogLevel TestnetId wallet Trace
-
-configWithLogLevel
-  :: NetworkId -> Wallet -> LogLevel -> Aff DefaultContractConfig
-configWithLogLevel networkId wallet logLevel = do
-  ogmiosWs <- QueryM.mkOgmiosWebSocketAff logLevel QueryM.defaultOgmiosWsConfig
-  datumCacheWs <-
-    QueryM.mkDatumCacheWebSocketAff logLevel QueryM.defaultDatumCacheWsConfig
-  pparams <- Ogmios.getProtocolParametersAff ogmiosWs logLevel
-  usedTxOuts <- newUsedTxOuts
-  pure $ ContractConfig
-    { ogmiosWs
-    , datumCacheWs
-    , wallet: Just wallet
-    , usedTxOuts
-    , serverConfig: QueryM.defaultServerConfig
-    , networkId
-    , logLevel
-    , pparams
-    }
-
--- Logging effects
-
-logTrace
-  :: forall (m :: Type -> Type). MonadLogger m => TagSet -> String -> m Unit
-logTrace = Logger.trace
-
-logDebug
-  :: forall (m :: Type -> Type). MonadLogger m => TagSet -> String -> m Unit
-logDebug = Logger.debug
-
-logInfo
-  :: forall (m :: Type -> Type). MonadLogger m => TagSet -> String -> m Unit
-logInfo = Logger.info
-
-logWarn
-  :: forall (m :: Type -> Type). MonadLogger m => TagSet -> String -> m Unit
-logWarn = Logger.warn
-
-logError
-  :: forall (m :: Type -> Type). MonadLogger m => TagSet -> String -> m Unit
-logError = Logger.error
-
-logTrace'
-  :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
-logTrace' = Logger.trace Map.empty
-
-logDebug'
-  :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
-logDebug' = Logger.debug Map.empty
-
-logInfo'
-  :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
-logInfo' = Logger.info Map.empty
-
-logWarn'
-  :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
-logWarn' = Logger.warn Map.empty
-
-logError'
-  :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
-logError' = Logger.error Map.empty
-
--- | Log JSON representation of a data structure
-logAeson
-  :: forall (m :: Type -> Type) (a :: Type)
-   . MonadLogger m
-  => EncodeAeson a
-  => (String -> m Unit)
-  -- ^ Logging function to use
-  -> a
-  -- ^ Data structure to output
-  -> m Unit
-logAeson logger = logger <<< stringifyAeson <<< encodeAeson
-
-logAesonTrace
-  :: forall (m :: Type -> Type) (a :: Type)
-   . MonadLogger m
-  => EncodeAeson a
-  => a
-  -- ^ Data structure to output
-  -> m Unit
-logAesonTrace = logAeson logTrace'
-
-logAesonDebug
-  :: forall (m :: Type -> Type) (a :: Type)
-   . MonadLogger m
-  => EncodeAeson a
-  => a
-  -- ^ Data structure to output
-  -> m Unit
-logAesonDebug = logAeson logDebug'
-
-logAesonInfo
-  :: forall (m :: Type -> Type) (a :: Type)
-   . MonadLogger m
-  => EncodeAeson a
-  => a
-  -- ^ Data structure to output
-  -> m Unit
-logAesonInfo = logAeson logInfo'
-
-logAesonWarn
-  :: forall (m :: Type -> Type) (a :: Type)
-   . MonadLogger m
-  => EncodeAeson a
-  => a
-  -- ^ Data structure to output
-  -> m Unit
-logAesonWarn = logAeson logWarn'
-
-logAesonError
-  :: forall (m :: Type -> Type) (a :: Type)
-   . MonadLogger m
-  => EncodeAeson a
-  => a
-  -- ^ Data structure to output
-  -> m Unit
-logAesonError = logAeson logError'

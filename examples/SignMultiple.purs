@@ -5,27 +5,10 @@ module Examples.SignMultiple (main) where
 
 import Contract.Prelude
 
-import Contract.Address
-  ( NetworkId(TestnetId)
-  , ownPaymentPubKeyHash
-  , ownStakePubKeyHash
-  )
-import Contract.Monad
-  ( Contract
-  , ConfigParams(ConfigParams)
-  , LogLevel(Trace)
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
-  , launchAff_
-  , liftedE
-  , liftedM
-  , logInfo'
-  , mkContractConfig
-  , runContract_
-  )
-import Control.Monad.Reader (asks)
-import Effect.Ref as Ref
+import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
+import Contract.Config (testnetNamiConfig)
+import Contract.Log (logInfo')
+import Contract.Monad (Contract, launchAff_, liftedE, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
   ( BalancedSignedTransaction
@@ -34,29 +17,19 @@ import Contract.Transaction
   )
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
-import Contract.Wallet (mkNamiWalletAff)
+import Control.Monad.Reader (asks)
 import Data.BigInt as BigInt
+import Effect.Ref as Ref
 import Types.UsedTxOuts (TxOutRefCache)
 
 getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
 getLockedInputs = do
-  cache <- asks (_.usedTxOuts <<< unwrap)
+  cache <- asks (_.usedTxOuts <<< _.runtime <<< unwrap)
   liftEffect $ Ref.read $ unwrap cache
 
 main :: Effect Unit
-main = launchAff_ $ do
-  wallet <- Just <$> mkNamiWalletAff
-  cfg <- mkContractConfig $ ConfigParams
-    { ogmiosConfig: defaultOgmiosWsConfig
-    , datumCacheConfig: defaultDatumCacheWsConfig
-    , ctlServerConfig: defaultServerConfig
-    , networkId: TestnetId
-    , logLevel: Trace
-    , extraConfig: {}
-    , wallet
-    }
-
-  runContract_ cfg $ do
+main = launchAff_ do
+  runContract testnetNamiConfig do
     logInfo' "Running Examples.Pkh2Pkh"
     pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
     skh <- liftedM "Failed to get own SKH" ownStakePubKeyHash
@@ -88,4 +61,3 @@ main = launchAff_ $ do
   submitAndLog bsTx = do
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
-

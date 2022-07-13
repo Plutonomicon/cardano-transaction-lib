@@ -42,7 +42,8 @@ import Wallet (Wallet(Gero, Nami, KeyWallet))
 -- | Gets utxos at an (internal) `Address` in terms of (internal) `Cardano.Transaction.Types`.
 -- | Results may vary depending on `Wallet` type.
 utxosAt :: Address -> QueryM (Maybe UtxoM)
-utxosAt addr = asks _.wallet >>= maybe (allUtxosAt addr) (utxosAtByWallet addr)
+utxosAt addr = asks (_.runtime >>> _.wallet) >>= maybe (allUtxosAt addr)
+  (utxosAtByWallet addr)
   where
   -- Add more wallet types here:
   utxosAtByWallet :: Address -> Wallet -> QueryM (Maybe UtxoM)
@@ -108,12 +109,12 @@ withTxRefsCache
   :: forall (m :: Type -> Type) (a :: Type)
    . ReaderT UsedTxOuts (LoggerT Aff) a
   -> QueryM a
-withTxRefsCache f = withReaderT (_.usedTxOuts) f
+withTxRefsCache f = withReaderT (_.runtime >>> _.usedTxOuts) f
 
 getWalletBalance
   :: QueryM (Maybe Value)
 getWalletBalance = do
-  asks _.wallet >>= map join <<< traverse case _ of
+  asks (_.runtime >>> _.wallet) >>= map join <<< traverse case _ of
     Nami wallet -> liftAff $ wallet.getBalance wallet.connection
     Gero wallet -> liftAff $ wallet.getBalance wallet.connection
     KeyWallet _ -> do

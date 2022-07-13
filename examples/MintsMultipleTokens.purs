@@ -6,6 +6,8 @@ module Examples.MintsMultipleTokens (main) where
 import Contract.Prelude
 
 import Contract.Aeson (decodeAeson, fromString)
+import Contract.Config (testnetNamiConfig)
+import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
   , launchAff_
@@ -13,9 +15,7 @@ import Contract.Monad
   , liftContractM
   , liftedE
   , liftedM
-  , logInfo'
-  , runContract_
-  , traceTestnetContractConfig
+  , runContract
   )
 import Contract.PlutusData (PlutusData(Integer), Redeemer(Redeemer))
 import Contract.Prim.ByteArray (byteArrayFromAscii)
@@ -28,9 +28,8 @@ import Contract.Value as Value
 import Data.BigInt (fromInt) as BigInt
 
 main :: Effect Unit
-main = launchAff_ $ do
-  cfg <- traceTestnetContractConfig
-  runContract_ cfg $ do
+main = launchAff_ do
+  runContract testnetNamiConfig do
     logInfo' "Running Examples.MintsMultipleTokens"
     tn1 <- mkTokenName "Token with a long name"
     tn2 <- mkTokenName "Token"

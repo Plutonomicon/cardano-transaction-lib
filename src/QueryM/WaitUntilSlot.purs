@@ -83,7 +83,7 @@ waitUntilSlot futureSlot =
 
   logLag :: BigInt -> Milliseconds -> QueryM Unit
   logLag slotLengthMs (Milliseconds lag) = do
-    logLevel <- asks _.logLevel
+    logLevel <- asks $ _.config >>> _.logLevel
     liftEffect $ logString logLevel Trace $
       "waitUntilSlot: current lag: " <> show lag <> " ms, "
         <> show (lag / BigInt.toNumber slotLengthMs)
@@ -93,7 +93,7 @@ waitUntilSlot futureSlot =
 -- | and current time.
 getLag :: EraSummaries -> SystemStart -> Slot -> QueryM Milliseconds
 getLag eraSummaries sysStart nowSlot = do
-  logLevel <- asks _.logLevel
+  logLevel <- asks $ _.config >>> _.logLevel
   nowPosixTime <- liftEffect (slotToPosixTime eraSummaries sysStart nowSlot) >>=
     hush >>> liftM (error "Unable to convert Slot to POSIXTime")
   nowMs <- unwrap <<< unInstant <$> liftEffect now
@@ -113,7 +113,7 @@ estimateDelayUntil :: POSIXTime -> QueryM Milliseconds
 estimateDelayUntil futureTimePosix = do
   futureTimeSec <- posixTimeToSeconds futureTimePosix
   nowMs <- unwrap <<< unInstant <$> liftEffect now
-  logLevel <- asks _.logLevel
+  logLevel <- asks $ _.config >>> _.logLevel
   let
     result = wrap $ mul 1000.0 $ nonNegative $
       unwrap futureTimeSec - nowMs / 1000.0

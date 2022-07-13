@@ -354,7 +354,7 @@ finalizeTransaction reindexedUnattachedTxWithExUnits =
     datums = wrap <$> fromMaybe mempty ws.plutusData
   in
     do
-      costModels <- asks _.pparams <#> unwrap >>> _.costModels
+      costModels <- asks (_.runtime >>> _.pparams >>> unwrap >>> _.costModels)
       liftEffect $ FinalizedTransaction <$>
         setScriptDataHash costModels redeemers datums attachedTxWithExUnits
 
@@ -450,14 +450,14 @@ balanceTx
 balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   let (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = t
   networkId <- (unbalancedTx ^. _body <<< _networkId) #
-    maybe (asks _.networkId) pure
+    maybe (asks $ _.config >>> _.networkId) pure
   let unbalancedTx' = unbalancedTx # _body <<< _networkId ?~ networkId
   utxoMinVal <- getAdaOnlyUtxoMinValue
   runExceptT do
     -- Get own wallet address, collateral and utxo set:
     ownAddr <- ExceptT $ QueryM.getWalletAddress <#>
       note (GetWalletAddressError' CouldNotGetWalletAddress)
-    wallet <- asks _.wallet
+    wallet <- asks $ _.runtime >>> _.wallet
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
     collateral <- case wallet of
@@ -531,7 +531,8 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     -> UnattachedUnbalancedTx
     -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
   loop utxoIndex' ownAddr' prevMinUtxos' unattachedTx' = do
-    coinsPerUtxoByte <- asks _.pparams <#> unwrap >>> _.coinsPerUtxoByte
+    coinsPerUtxoByte <- asks
+      (_.runtime >>> _.pparams >>> unwrap >>> _.coinsPerUtxoByte)
     let
       Transaction { body: txBody'@(TxBody txB) } =
         unattachedTx' ^. _transaction'
@@ -1071,5 +1072,5 @@ getInputValue utxos (TxBody txBody) =
 
 getAdaOnlyUtxoMinValue :: QueryM BigInt
 getAdaOnlyUtxoMinValue =
-  asks _.pparams <#>
+  asks (_.runtime >>> _.pparams) <#>
     unwrap >>> _.coinsPerUtxoByte >>> unwrap >>> mul adaOnlyBytes

@@ -7,15 +7,15 @@ import Contract.Prelude
 
 import Contract.Address (scriptHashAddress)
 import Contract.Aeson (decodeAeson, fromString)
+import Contract.Config (testnetNamiConfig)
+import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
   , launchAff_
   , liftContractAffM
   , liftContractM
   , liftedE
-  , logInfo'
-  , runContract_
-  , traceTestnetContractConfig
+  , runContract
   )
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
@@ -35,9 +35,8 @@ import Data.Map as Map
 import Effect.Aff (delay)
 
 main :: Effect Unit
-main = launchAff_ $ do
-  cfg <- traceTestnetContractConfig
-  runContract_ cfg $ do
+main = launchAff_ do
+  runContract testnetNamiConfig do
     logInfo' "Running Examples.AlwaysSucceeds"
     validator <- liftContractM "Invalid script JSON" alwaysSucceedsScript
     vhash <- liftContractAffM "Couldn't hash validator"
