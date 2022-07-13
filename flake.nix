@@ -152,7 +152,7 @@
         inherit cardano-configurations;
       });
 
-      makeNixpkgsFor = system: import nixpkgs {
+      mkNixpkgsFor = system: import nixpkgs {
         overlays = [
           haskell-nix.overlay
           iohk-nix.overlays.crypto
@@ -161,8 +161,7 @@
         inherit (haskell-nix) config;
         inherit system;
       };
-      # memoize nixpkgs instances to make evaluation faster
-      allNixpkgs = perSystem makeNixpkgsFor;
+      allNixpkgs = perSystem mkNixpkgsFor;
       nixpkgsFor = system: allNixpkgs.${system};
 
       defaultConfig = final: with final; {
@@ -477,11 +476,10 @@
           };
         };
 
-      hsProjectFor = pkgs:
-        import ./server/nix {
-          src = ./server;
+      hsProjectFor = pkgs: import ./server/nix {
           inherit inputs pkgs;
           inherit (pkgs) system;
+          src = ./server;
         };
     in
     {
@@ -569,7 +567,9 @@
           ''
       );
 
-      defaultPackage = perSystem (system: (psProjectFor (nixpkgsFor system)).defaultPackage);
+      defaultPackage = perSystem (system:
+        (psProjectFor (nixpkgsFor system)).defaultPackage
+      );
 
       overlay = overlay;
 
