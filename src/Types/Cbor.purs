@@ -23,7 +23,7 @@ derive newtype instance Ord Cbor
 derive newtype instance Semigroup Cbor
 derive newtype instance Monoid Cbor
 
-data CborType = ByteString Int
+data CborType = ByteStringType Int
 
 data CborParseError
   = UnknownType Int
@@ -64,11 +64,11 @@ decodeType rawCborType = do
       lengthBytes <- takeN (2 `pow` v)
       pure $ foldl (\acc b -> shl acc 8 .|. b) 0 lengthBytes
     _ -> throwError $ UnknownBytesType minorType
-  pure $ ByteString length
+  pure $ ByteStringType length
 
 -- | Extract a `ByteArray` if the `Cbor` was a byte string
 toByteArray :: Cbor -> Either CborParseError ByteArray
 toByteArray (Cbor (CborBytes ba)) = runExcept $ flip evalStateT ba do
   rawCborType <- readType
   decodeType rawCborType >>= case _ of
-    ByteString length -> takeN' length
+    ByteStringType length -> takeN' length
