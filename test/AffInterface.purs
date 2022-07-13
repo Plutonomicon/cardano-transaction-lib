@@ -3,14 +3,14 @@ module Test.AffInterface (suite) where
 import Prelude
 
 import Address (addressToOgmiosAddress, ogmiosAddressToAddress)
-import Data.BigInt as BigInt
+import Contract.Chain (ChainTip(ChainTip), Tip(Tip, TipAtGenesis))
+import Data.BigInt (fromString) as BigInt
 import Data.Either (Either(Left, Right), either)
-import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust)
-import Data.Newtype (wrap)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, isJust)
+import Data.Newtype (over, wrap)
 import Data.String.CodeUnits (indexOf)
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (traverse_)
-import Data.UInt as UInt
 import Effect.Aff (Aff, try)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
@@ -27,21 +27,18 @@ import QueryM
   )
 import QueryM.CurrentEpoch (getCurrentEpoch)
 import QueryM.EraSummaries (getEraSummaries)
-import QueryM.Ogmios
-  ( AbsSlot(AbsSlot)
-  , EraSummaries
-  , OgmiosAddress
-  , SystemStart
-  )
+import QueryM.Ogmios (EraSummaries, OgmiosAddress, SystemStart)
 import QueryM.ProtocolParameters (getProtocolParameters)
 import QueryM.SystemStart (getSystemStart)
 import QueryM.Utxos (utxosAt)
+import QueryM.WaitUntilSlot (waitUntilSlot)
 import Serialization.Address (Slot(Slot))
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import TestM (TestPlanM)
+import Types.BigNum (fromInt, add) as BigNum
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Types.Interval
-  ( PosixTimeToSlotError(CannotConvertAbsSlotToSlot, PosixTimeBeforeSystemStart)
+  ( PosixTimeToSlotError(PosixTimeBeforeSystemStart)
   , POSIXTime(POSIXTime)
   , posixTimeToSlot
   , slotToPosixTime
@@ -68,6 +65,7 @@ suite = do
     test "UtxosAt Testnet" $ testUtxosAt testnet_addr1
     test "UtxosAt non-Testnet" $ testUtxosAt addr1
     test "Get ChainTip" testGetChainTip
+    test "Get waitUntilSlot" testWaitUntilSlot
     test "Get EraSummaries" testGetEraSummaries
     test "Get ProtocolParameters" testGetProtocolParameters
     test "Get CurrentEpoch" testGetCurrentEpoch
@@ -127,6 +125,17 @@ testGetChainTip :: Aff Unit
 testGetChainTip = do
   flip runQueryM (void getChainTip) =<< traceQueryConfig
 
+testWaitUntilSlot :: Aff Unit
+testWaitUntilSlot = do
+  cfg <- traceQueryConfig
+  void $ runQueryM cfg do
+    getChainTip >>= case _ of
+      TipAtGenesis -> liftEffect $ throw "Tip is at genesis"
+      Tip (ChainTip { slot }) -> do
+        waitUntilSlot $ over Slot
+          (fromMaybe (BigNum.fromInt 0) <<< BigNum.add (BigNum.fromInt 10))
+          slot
+
 testFromOgmiosAddress :: OgmiosAddress -> Aff Unit
 testFromOgmiosAddress testAddr = do
   liftEffect case ogmiosAddressToAddress testAddr of
@@ -170,10 +179,44 @@ testPosixTimeToSlot = do
       -- here https://cardano.stackexchange.com/questions/7034/how-to-convert-posixtime-to-slot-number-on-cardano-testnet/7035#7035
       -- `timeWhenSlotChangedTo1Sec = POSIXTime 1595967616000` - exactly
       -- divisible by 1 second.
+
+      -- *Testing far into the future note during hardforks:*
+      -- It's worth noting that testing values "in" the recent era summary may
+      -- fail during hardforks. This is because the last element's `end`
+      -- field may be non null, meaning there is a limit to how far we can go
+      -- into the future for reliable slot/time conversion (an exception like
+      -- `CannotFindSlotInEraSummaries` is raised in this case).
+      -- This `end` field presumably changes to `null` after the the initial
+      -- period is over and things stabilise.
+      -- For example, at the time of writing (start of Vasil hardfork during
+      -- Babbage era), the *last* era summary element is
+      -- ```
+      -- {
+      --   "start": {
+      --     "time": 92880000,
+      --     "slot": 62510400,
+      --     "epoch": 215
+      --   },
+      --   "end": {
+      --     "time": 93312000,
+      --     "slot": 62942400,
+      --     "epoch": 216
+      --   },
+      --   "parameters": {
+      --     "epochLength": 432000,
+      --     "slotLength": 1,
+      --     "safeZone": 129600
+      --   }
+      -- }
+      -- ```
+      -- Note, `end` isn't null. This means any time "after" 93312000 will raise
+      -- `CannotFindSlotInEraSummaries` an exception. So adding a time far
+      -- into the future for `posixTimes` below will raise this exception.
+      -- Notice also how 93312000 - 92880000 is a relatively small period of
+      -- time so I expect this will change to `null` once things stabilise.
       posixTimes = mkPosixTime <$>
         [ "1603636353000"
         , "1613636755000"
-        , "1753645721000"
         ]
     traverse_ (idTest eraSummaries sysStart identity) posixTimes
     -- With Milliseconds, we generally round down, provided the aren't at the
@@ -209,10 +252,11 @@ testSlotToPosixTime = do
   traceQueryConfig >>= flip runQueryM do
     eraSummaries <- getEraSummaries
     sysStart <- getSystemStart
+    -- See *Testing far into the future note during hardforks:* for details on
+    -- how far into the future we test with slots when a hardfork occurs.
     let
       slots = mkSlot <$>
-        [ 395930213
-        , 58278567
+        [ 58278567
         , 48272312
         , 39270783
         , 957323
@@ -232,7 +276,7 @@ testSlotToPosixTime = do
         either (throw <<< show) (shouldEqual slot) eSlot
 
   mkSlot :: Int -> Slot
-  mkSlot = Slot <<< UInt.fromInt
+  mkSlot = Slot <<< BigNum.fromInt
 
 testPosixTimeToSlotError :: Aff Unit
 testPosixTimeToSlotError = do
@@ -241,17 +285,10 @@ testPosixTimeToSlotError = do
     sysStart <- getSystemStart
     let
       posixTime = mkPosixTime "1000"
-      badPosixTime = mkPosixTime "99999999999999999999999999999999999999"
-      badAbsSlot = AbsSlot
-        $ unsafePartial fromJust
-        $ BigInt.fromString "99999999999999999999999998405630783"
     -- Some difficulty reproducing all the errors
     errTest eraSummaries sysStart
       posixTime
       (PosixTimeBeforeSystemStart posixTime)
-    errTest eraSummaries sysStart
-      badPosixTime
-      (CannotConvertAbsSlotToSlot badAbsSlot)
   where
   errTest
     :: forall (err :: Type)

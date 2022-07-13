@@ -17,15 +17,15 @@ import FfiHelpers
   , containerHelper
   , maybeFfiHelper
   )
-import Serialization.BigNum (bigNumFromBigInt)
 import Serialization.Types
   ( BigInt
-  , BigNum
   , ConstrPlutusData
   , PlutusData
   , PlutusList
   , PlutusMap
   )
+import Types.BigNum (BigNum)
+import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray)
 import Types.PlutusData as T
 
@@ -40,7 +40,7 @@ convertPlutusData = case _ of
 convertConstr :: BigInt.BigInt -> Array T.PlutusData -> Maybe PlutusData
 convertConstr alt list =
   map _mkPlutusData_constr $ _mkConstrPlutusData
-    <$> bigNumFromBigInt alt
+    <$> BigNum.fromBigInt alt
     <*> (_packPlutusList containerHelper <$> for list convertPlutusData)
 
 convertPlutusList :: Array T.PlutusData -> Maybe PlutusData

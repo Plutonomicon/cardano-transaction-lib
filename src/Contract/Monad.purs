@@ -1,8 +1,8 @@
 -- | A module defining the `Contract` monad.
 module Contract.Monad
-  ( Contract(..)
-  , ContractConfig(..)
-  , ConfigParams(..)
+  ( Contract(Contract)
+  , ContractConfig(ContractConfig)
+  , ConfigParams(ConfigParams)
   , DefaultContractConfig
   , module Aff
   , module QueryM
@@ -27,6 +27,12 @@ module Contract.Monad
   , logWarn'
   , logError
   , logError'
+  , logAeson
+  , logAesonTrace
+  , logAesonDebug
+  , logAesonInfo
+  , logAesonWarn
+  , logAesonError
   , mkContractConfig
   , runContract
   , runContract_
@@ -37,6 +43,11 @@ module Contract.Monad
 
 import Prelude
 
+import Aeson
+  ( class EncodeAeson
+  , encodeAeson
+  , stringifyAeson
+  )
 import Control.Monad.Error.Class (class MonadError, class MonadThrow)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
@@ -93,6 +104,7 @@ import QueryM
   , mkWsUrl
   ) as QueryM
 import QueryM (QueryM, QueryMExtended, QueryConfig)
+import QueryM.ProtocolParameters (getProtocolParametersAff) as Ogmios
 import Record as Record
 import Serialization.Address (NetworkId(TestnetId))
 import Types.UsedTxOuts (newUsedTxOuts)
@@ -186,6 +198,7 @@ mkContractConfig
   ogmiosWs <- QueryM.mkOgmiosWebSocketAff logLevel params.ogmiosConfig
   datumCacheWs <- QueryM.mkDatumCacheWebSocketAff logLevel
     params.datumCacheConfig
+  pparams <- Ogmios.getProtocolParametersAff ogmiosWs logLevel
   usedTxOuts <- newUsedTxOuts
   let
     queryConfig =
@@ -196,6 +209,7 @@ mkContractConfig
       , wallet
       , datumCacheWs
       , serverConfig: params.ctlServerConfig
+      , pparams
       }
   pure $ wrap $ queryConfig `Record.union` params.extraConfig
 
@@ -313,6 +327,7 @@ configWithLogLevel networkId wallet logLevel = do
   ogmiosWs <- QueryM.mkOgmiosWebSocketAff logLevel QueryM.defaultOgmiosWsConfig
   datumCacheWs <-
     QueryM.mkDatumCacheWebSocketAff logLevel QueryM.defaultDatumCacheWsConfig
+  pparams <- Ogmios.getProtocolParametersAff ogmiosWs logLevel
   usedTxOuts <- newUsedTxOuts
   pure $ ContractConfig
     { ogmiosWs
@@ -322,6 +337,7 @@ configWithLogLevel networkId wallet logLevel = do
     , serverConfig: QueryM.defaultServerConfig
     , networkId
     , logLevel
+    , pparams
     }
 
 -- Logging effects
@@ -365,3 +381,60 @@ logWarn' = Logger.warn Map.empty
 logError'
   :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
 logError' = Logger.error Map.empty
+
+-- | Log JSON representation of a data structure
+logAeson
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadLogger m
+  => EncodeAeson a
+  => (String -> m Unit)
+  -- ^ Logging function to use
+  -> a
+  -- ^ Data structure to output
+  -> m Unit
+logAeson logger = logger <<< stringifyAeson <<< encodeAeson
+
+logAesonTrace
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadLogger m
+  => EncodeAeson a
+  => a
+  -- ^ Data structure to output
+  -> m Unit
+logAesonTrace = logAeson logTrace'
+
+logAesonDebug
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadLogger m
+  => EncodeAeson a
+  => a
+  -- ^ Data structure to output
+  -> m Unit
+logAesonDebug = logAeson logDebug'
+
+logAesonInfo
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadLogger m
+  => EncodeAeson a
+  => a
+  -- ^ Data structure to output
+  -> m Unit
+logAesonInfo = logAeson logInfo'
+
+logAesonWarn
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadLogger m
+  => EncodeAeson a
+  => a
+  -- ^ Data structure to output
+  -> m Unit
+logAesonWarn = logAeson logWarn'
+
+logAesonError
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadLogger m
+  => EncodeAeson a
+  => a
+  -- ^ Data structure to output
+  -> m Unit
+logAesonError = logAeson logError'

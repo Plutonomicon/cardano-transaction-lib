@@ -76,12 +76,16 @@ toPlutusCoin = wrap <<< unwrap
 --------------------------------------------------------------------------------
 
 fromPlutusTxOutput
-  :: NetworkId -> Plutus.TransactionOutput -> Maybe Cardano.TransactionOutput
-fromPlutusTxOutput networkId plutusTxOut = do
-  let rec = unwrap plutusTxOut
-  address <- fromPlutusAddress networkId rec.address
-  let amount = fromPlutusValue rec.amount
-  pure $ wrap { address, amount, dataHash: rec.dataHash }
+  :: NetworkId -> Plutus.TransactionOutput -> Cardano.TransactionOutput
+fromPlutusTxOutput networkId plutusTxOut =
+  let
+    rec = unwrap plutusTxOut
+  in
+    wrap
+      { address: fromPlutusAddress networkId rec.address
+      , amount: fromPlutusValue rec.amount
+      , dataHash: rec.dataHash
+      }
 
 toPlutusTxOutput
   :: Cardano.TransactionOutput -> Maybe Plutus.TransactionOutput
@@ -98,11 +102,15 @@ toPlutusTxOutput cardanoTxOut = do
 fromPlutusTxUnspentOutput
   :: NetworkId
   -> Plutus.TransactionUnspentOutput
-  -> Maybe Cardano.TransactionUnspentOutput
-fromPlutusTxUnspentOutput networkId txUnspentOutput = do
-  let rec = unwrap txUnspentOutput
-  output <- fromPlutusTxOutput networkId rec.output
-  pure $ wrap { input: rec.input, output }
+  -> Cardano.TransactionUnspentOutput
+fromPlutusTxUnspentOutput networkId txUnspentOutput =
+  let
+    rec = unwrap txUnspentOutput
+  in
+    wrap
+      { input: rec.input
+      , output: fromPlutusTxOutput networkId rec.output
+      }
 
 toPlutusTxUnspentOutput
   :: Cardano.TransactionUnspentOutput
@@ -116,9 +124,9 @@ toPlutusTxUnspentOutput txUnspentOutput = do
 -- Plutus UtxoM <-> Cardano UtxoM
 --------------------------------------------------------------------------------
 
-fromPlutusUtxoM :: NetworkId -> Plutus.UtxoM -> Maybe Cardano.UtxoM
+fromPlutusUtxoM :: NetworkId -> Plutus.UtxoM -> Cardano.UtxoM
 fromPlutusUtxoM networkId =
-  map wrap <<< traverse (fromPlutusTxOutput networkId) <<< unwrap
+  wrap <<< map (fromPlutusTxOutput networkId) <<< unwrap
 
 toPlutusUtxoM :: Cardano.UtxoM -> Maybe Plutus.UtxoM
 toPlutusUtxoM =

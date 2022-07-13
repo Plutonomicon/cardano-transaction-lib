@@ -21,11 +21,7 @@ import Contract.PlutusData (PlutusData(Integer), Redeemer(Redeemer))
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)
-import Contract.Transaction
-  ( BalancedSignedTransaction(BalancedSignedTransaction)
-  , balanceAndSignTx
-  , submit
-  )
+import Contract.Transaction (balanceAndSignTx, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
@@ -63,9 +59,9 @@ main = launchAff_ $ do
           <> Lookups.mintingPolicy mp3
 
     ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    BalancedSignedTransaction bsTx <-
+    bsTx <-
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-    txId <- submit bsTx.signedTxCbor
+    txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
 
 mkTokenName :: forall (r :: Row Type). String -> Contract r TokenName

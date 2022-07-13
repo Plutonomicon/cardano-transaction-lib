@@ -1,6 +1,6 @@
 -- | Our domain type for byte arrays, a wrapper over `Uint8Array`.
 module Types.ByteArray
-  ( ByteArray(..)
+  ( ByteArray(ByteArray)
   , byteArrayFromIntArray
   , byteArrayFromIntArrayUnsafe
   , byteArrayFromInt16ArrayUnsafe

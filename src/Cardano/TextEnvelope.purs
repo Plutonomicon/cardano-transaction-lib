@@ -1,14 +1,23 @@
 module Cardano.TextEnvelope
   ( decodeTextEnvelope
   , printTextEnvelopeDecodeError
-  , TextEnvelope(..)
-  , TextEnvelopeType(..)
-  , TextEnvelopeDecodeError(..)
+  , TextEnvelope(TextEnvelope)
+  , TextEnvelopeType
+      ( PlutusScriptV1
+      , PaymentSigningKeyShelley_ed25519
+      , StakeSigningKeyShelley_ed25519
+      )
+  , TextEnvelopeDecodeError(JsonDecodeError, CborParseError)
   ) where
 
 import Prelude
 
-import Aeson (class DecodeAeson, Aeson, JsonDecodeError(..), decodeAeson)
+import Aeson
+  ( class DecodeAeson
+  , Aeson
+  , JsonDecodeError(TypeMismatch)
+  , decodeAeson
+  )
 import Control.Monad.Except (throwError)
 import Data.Argonaut (printJsonDecodeError)
 import Data.Bifunctor (lmap)
@@ -20,6 +29,7 @@ import Types.Cbor (CborParseError, toByteArray)
 data TextEnvelopeType
   = PlutusScriptV1
   | PaymentSigningKeyShelley_ed25519
+  | StakeSigningKeyShelley_ed25519
 
 derive instance Eq TextEnvelopeType
 
@@ -29,6 +39,8 @@ instance DecodeAeson TextEnvelopeType where
       "PlutusScriptV1" -> pure PlutusScriptV1
       "PaymentSigningKeyShelley_ed25519" -> pure
         PaymentSigningKeyShelley_ed25519
+      "StakeSigningKeyShelley_ed25519" -> pure
+        StakeSigningKeyShelley_ed25519
       _ -> throwError $ TypeMismatch "TextEnvelopeType"
 
 type TextEnvelopeRaw =

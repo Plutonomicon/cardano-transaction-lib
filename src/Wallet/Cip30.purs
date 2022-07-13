@@ -11,11 +11,13 @@ import Cardano.Types.Transaction
   , TransactionWitnessSet
   )
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Cardano.Types.Value (Value)
 import Control.Promise (Promise, toAffE)
 import Control.Promise as Promise
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (unwrap)
-import Deserialization.FromBytes (fromBytesEffect)
+import Deserialization.FromBytes (fromBytes, fromBytesEffect)
+import Deserialization.UnspentOutput (convertValue)
 import Deserialization.UnspentOutput as Deserialization.UnspentOuput
 import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
@@ -29,7 +31,7 @@ import Serialization.Address
   , addressFromBytes
   )
 import Types.ByteArray (byteArrayToHex)
-import Types.CborBytes (CborBytes, cborBytesToHex, rawBytesAsCborBytes)
+import Types.CborBytes (rawBytesAsCborBytes)
 import Types.RawBytes (RawBytes, hexToRawBytes)
 import Untagged.Union (asOneOf)
 
@@ -39,12 +41,12 @@ type Cip30Wallet =
   -- Get the address associated with the wallet (Nami does not support
   -- multiple addresses)
   , getWalletAddress :: Cip30Connection -> Aff (Maybe Address)
+  -- Get combination of all available UTxOs
+  , getBalance :: Cip30Connection -> Aff (Maybe Value)
   -- Get the collateral UTxO associated with the Nami wallet
   , getCollateral :: Cip30Connection -> Aff (Maybe TransactionUnspentOutput)
   -- Sign a transaction with the given wallet
   , signTx :: Cip30Connection -> Transaction -> Aff (Maybe Transaction)
-  -- Sign transaction bytes with the given wallet
-  , signTxBytes :: Cip30Connection -> CborBytes -> Aff (Maybe CborBytes)
   }
 
 mkCip30WalletAff
@@ -63,7 +65,7 @@ mkCip30WalletAff walletName enableWallet = do
     , getWalletAddress
     , getCollateral
     , signTx
-    , signTxBytes
+    , getBalance
     }
 
 -------------------------------------------------------------------------------
@@ -105,12 +107,11 @@ signTx conn tx = do
   combineWitnessSet (Transaction tx'@{ witnessSet: oldWits }) newWits =
     Transaction $ tx' { witnessSet = oldWits <> newWits }
 
-signTxBytes :: Cip30Connection -> CborBytes -> Aff (Maybe CborBytes)
-signTxBytes conn txBytes = do
-  fromHexString (_signTx (cborBytesToHex txBytes)) conn >>= case _ of
-    Nothing -> pure Nothing
-    Just witBytes -> Just <$> liftEffect
-      (_attachSignature txBytes (rawBytesAsCborBytes witBytes))
+getBalance :: Cip30Connection -> Aff (Maybe Value)
+getBalance wallet = do
+  fromHexString _getBalance wallet <#> \mbBytes -> do
+    bytes <- mbBytes
+    fromBytes (unwrap bytes) >>= convertValue
 
 fromHexString
   :: (Cip30Connection -> Effect (Promise String))
@@ -143,7 +144,4 @@ foreign import _signTx
   -> Cip30Connection
   -> Effect (Promise String)
 
-foreign import _attachSignature
-  :: CborBytes -- CBOR bytes of tx
-  -> CborBytes -- CBOR bytes of witness set
-  -> Effect CborBytes
+foreign import _getBalance :: Cip30Connection -> Effect (Promise String)

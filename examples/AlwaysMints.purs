@@ -19,11 +19,7 @@ import Contract.Monad
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)
-import Contract.Transaction
-  ( BalancedSignedTransaction(BalancedSignedTransaction)
-  , balanceAndSignTx
-  , submit
-  )
+import Contract.Transaction (balanceAndSignTx, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Data.BigInt as BigInt
@@ -49,9 +45,9 @@ main = launchAff_ $ do
       lookups = Lookups.mintingPolicy mp
 
     ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    BalancedSignedTransaction bsTx <-
+    bsTx <-
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-    txId <- submit bsTx.signedTxCbor
+    txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
 
 foreign import alwaysMintsCbor :: String

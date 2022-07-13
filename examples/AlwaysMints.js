@@ -1,4 +1,4 @@
-var rawData = require('Scripts/always-mints.plutus');
+var rawData = require("Scripts/always-mints.plutus");
 
 var data = JSON.parse(rawData);
 

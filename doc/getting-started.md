@@ -155,7 +155,7 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
   contract = do
     ...
     -- `liftedM` will throw on `Nothing`s
-    BalancedSignedTransaction bsTx <-
+    bsTx <-
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     ...
   ```
@@ -164,7 +164,7 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
   ```purescript
   contract = do
     ...
-    txId <- submit bsTx.signedTxCbor
+    txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
   ```
 
@@ -194,7 +194,7 @@ NOTE: if you use envelop format to serialize your script, it will get cbor-encod
 
 ## Testing
 
-### Without light wallet
+### Without a light wallet
 
 We provide `KeyWallet` to enable testing outside of the browser, or in-browser without a light wallet installed. To generate a key, you can use `cardano-cli` as follows:
 

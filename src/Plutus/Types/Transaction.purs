@@ -1,7 +1,7 @@
 module Plutus.Types.Transaction
-  ( TransactionOutput(..)
+  ( TransactionOutput(TransactionOutput)
   , Utxo
-  , UtxoM(..)
+  , UtxoM(UtxoM)
   ) where
 
 import Prelude
