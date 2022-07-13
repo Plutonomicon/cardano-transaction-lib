@@ -138,18 +138,22 @@
         "aarch64-darwin"
       ];
       perSystem = nixpkgs.lib.genAttrs defaultSystems;
-      overlay = with inputs; (final: prev: {
-        easy-ps =
-          import inputs.easy-purescript-nix { pkgs = final; };
-        ogmios-datum-cache =
-          inputs.ogmios-datum-cache.defaultPackage.${prev.system};
-        ogmios = ogmios.packages.${prev.system}."ogmios:exe:ogmios";
-        ogmios-fixtures = ogmios;
-        cardano-cli = cardano-node-exe.packages.${prev.system}.cardano-cli;
-        purescriptProject = import ./nix { pkgs = final; system = prev.system; };
-        buildCtlRuntime = buildCtlRuntime final;
-        launchCtlRuntime = launchCtlRuntime final;
-        inherit cardano-configurations;
+      overlay = with inputs; (final: prev:
+        let
+          inherit (prev) system;
+        in
+        {
+          easy-ps =
+            import inputs.easy-purescript-nix { pkgs = final; };
+          ogmios-datum-cache =
+            inputs.ogmios-datum-cache.defaultPackage.${system};
+          ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
+          ogmios-fixtures = ogmios;
+          cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
+          purescriptProject = import ./nix { pkgs = final; inherit system; };
+          buildCtlRuntime = buildCtlRuntime final;
+          launchCtlRuntime = launchCtlRuntime final;
+          inherit cardano-configurations;
       });
 
       mkNixpkgsFor = system: import nixpkgs {
@@ -482,6 +486,8 @@
       };
     in
     {
+      inherit overlay;
+
       # flake from haskell.nix project
       hsFlake = perSystem (system: (hsProjectFor (nixpkgsFor system)).flake { });
 
@@ -569,8 +575,6 @@
       defaultPackage = perSystem (system:
         (psProjectFor (nixpkgsFor system)).defaultPackage
       );
-
-      overlay = overlay;
 
       hydraJobs = perSystem (system:
         self.checks.${system}
