@@ -143,6 +143,10 @@ CTL exposes an `overlay` from its flake. You can use this in the Nix setup of yo
 
             # If `purescript-language-server` should be included in the shell
             pursls = true;
+
+            # If the `node_modules` folder should not be built when `npm` is
+            # used inside the shell
+            packageLockOnly = false;
           };
         };
 

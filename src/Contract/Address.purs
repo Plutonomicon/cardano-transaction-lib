@@ -38,15 +38,13 @@ import Address
   ) as Address
 import Contract.Monad (Contract, wrapContract, liftedM)
 import Data.Maybe (Maybe)
-import Data.Traversable (for)
+import Data.Traversable (for, traverse)
 import Plutus.Conversion
   ( fromPlutusAddress
   , toPlutusAddress
   , toPlutusTxUnspentOutput
   )
--- The helpers under Plutus.Type.Address deconstruct/construct the Plutus
--- `Address` directly, instead of those defined in this module use CSL helpers,
--- redefining function domain/range to be Plutus-style types.
+import Plutus.Types.Address (Address)
 import Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
@@ -56,7 +54,6 @@ import Plutus.Types.Address
   , toValidatorHash
   , toStakingCredential
   ) as ExportAddress
-import Plutus.Types.Address (Address)
 import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import QueryM
   ( getWalletAddress
@@ -120,11 +117,13 @@ getWalletAddress = do
 -- | Get the collateral of the browser wallet. This collateral will vary
 -- | depending on the wallet.
 -- | E.g. Nami creates a hardcoded 5 Ada collateral.
+-- | Throws on `Promise` rejection by wallet, returns `Nothing` if no collateral
+-- | is available.
 getWalletCollateral
-  :: forall (r :: Row Type). Contract r (Maybe TransactionUnspentOutput)
+  :: forall (r :: Row Type). Contract r (Maybe (Array TransactionUnspentOutput))
 getWalletCollateral = do
   mtxUnspentOutput <- wrapContract QueryM.getWalletCollateral
-  for mtxUnspentOutput $
+  for mtxUnspentOutput $ traverse $
     liftedM
       "getWalletCollateral: failed to deserialize TransactionUnspentOutput"
       <<< wrapContract
