@@ -11,8 +11,8 @@ import Data.Aeson (FromJSON (parseJSON), ToJSON (toJSON))
 import Data.Aeson qualified as Aeson (Value (String), withText)
 import Data.Aeson.Types qualified as Aeson (Parser)
 import Data.ByteString qualified as BS (ByteString)
-import Data.ByteString.Lazy qualified as BSL (fromStrict)
 import Data.ByteString.Base16 qualified as Base16 (decode, encode)
+import Data.ByteString.Lazy qualified as BSL (fromStrict)
 import Data.Text qualified as Text (Text)
 import Data.Text.Encoding qualified as TE (decodeUtf8, encodeUtf8)
 import Flat qualified as Flat (Flat, flat, unflat)
@@ -51,7 +51,7 @@ instance FromJSON Ledger.Script where
 instance ToJSON Ledger.Script where
   toJSON (Ledger.Script p) =
     Aeson.String $ encodeSerialise (SerialiseViaFlat p)
-  
+
 --------------------------------------------------------------------------------
 -- Helpers
 --------------------------------------------------------------------------------

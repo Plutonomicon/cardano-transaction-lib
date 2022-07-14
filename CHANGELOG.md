@@ -21,7 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ## [Unreleased]
 
 ## Changed
+
 - CTL's `overlay` no longer requires an explicitly passed `system`
+- Upgraded Haskell server to fully support Babbage-era transactions ([#733](https://github.com/Plutonomicon/cardano-transaction-lib/pull/733))
 
 ## [2.0.0-alpha] - 2022-07-05
 
