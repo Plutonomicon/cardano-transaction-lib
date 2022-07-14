@@ -1,5 +1,13 @@
 module Types.TypedTxOut
-  ( TypeCheckError(..)
+  ( TypeCheckError
+      ( WrongValidatorAddress
+      , ExpectedScriptGotPubkey
+      , WrongRedeemerType
+      , WrongDatumType
+      , CannotQueryDatum
+      , CannotMakeTypedTxOut
+      , UnknownRef
+      )
   , TypedTxOut
   , TypedTxOutRef
   , mkTypedTxOut

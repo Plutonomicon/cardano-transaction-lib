@@ -4,6 +4,11 @@ module Cardano.Types.ScriptRef
 
 import Prelude
 
+import Aeson
+  ( class EncodeAeson
+  , encodeAeson'
+  )
+import Helpers (encodeTagged')
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Cardano.Types.NativeScript (NativeScript)
@@ -16,3 +21,8 @@ derive instance Generic ScriptRef _
 
 instance Show ScriptRef where
   show = genericShow
+
+instance EncodeAeson ScriptRef where
+  encodeAeson' = case _ of
+    NativeScriptRef r -> encodeAeson' $ encodeTagged' "NativeScriptRef" r
+    PlutusScriptRef r -> encodeAeson' $ encodeTagged' "PlutusScriptRef" r
