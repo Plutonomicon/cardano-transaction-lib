@@ -16,7 +16,7 @@ import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, asks)
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (bisequence)
-import Data.Foldable (fold)
+import Data.Foldable (fold, foldr)
 import Data.Map as Map
 import Data.Maybe (Maybe, maybe)
 import Data.Newtype (unwrap, wrap, over)
@@ -104,10 +104,14 @@ mkUtxoQuery query = asks _.wallet >>= maybe allUtxosAt utxosAtByWallet
   cip30UtxosAt :: QueryM (Maybe UtxoM)
   cip30UtxosAt = getWalletCollateral >>= maybe
     (liftEffect $ throw "CIP-30 wallet missing collateral")
-    \collateral' -> do
-      let collateral = unwrap collateral'
-      utxos' <- allUtxosAt
-      pure (over UtxoM (Map.delete collateral.input) <$> utxos')
+    \collateralUtxos ->
+      allUtxosAt <#> \utxos' ->
+        foldr
+          ( \collateralUtxo utxoAcc ->
+              over UtxoM (Map.delete (unwrap collateralUtxo).input) <$> utxoAcc
+          )
+          utxos'
+          collateralUtxos
 
 --------------------------------------------------------------------------------
 -- Used Utxos helpers

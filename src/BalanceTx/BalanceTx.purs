@@ -67,9 +67,7 @@ import Cardano.Types.Transaction
   , _redeemers
   , _witnessSet
   )
-import Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  )
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value
   ( Value
   , filterNonAda
@@ -455,21 +453,20 @@ setCollateral transaction utxos =
   where
   selectCollateral
     :: Maybe Wallet
-    -> QueryM (Either BalanceTxError (Maybe (TransactionUnspentOutput)))
+    -> QueryM (Either BalanceTxError (Maybe (Array TransactionUnspentOutput)))
   selectCollateral (Just w) | isJust (cip30Wallet w) =
     map Just <$> QueryM.getWalletCollateral <#>
       note (GetWalletCollateralError' CouldNotGetCollateral)
   selectCollateral (Just (KeyWallet kw)) =
     -- TODO: Combine with getWalletCollateral and supply with fee estimate
     -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/510
-    Right <$> kw.selectCollateral <$> filterLockedUtxos utxos
+    Right <<< map pure <$> kw.selectCollateral <$> filterLockedUtxos utxos
   selectCollateral _ =
     pure (Right Nothing)
 
-addTxCollateral :: TransactionUnspentOutput -> Transaction -> Transaction
-addTxCollateral (TransactionUnspentOutput { input }) transaction =
-  transaction # _body <<< _collateral ?~
-    Array.singleton input
+addTxCollateral :: Array TransactionUnspentOutput -> Transaction -> Transaction
+addTxCollateral utxos transaction =
+  transaction # _body <<< _collateral ?~ map (_.input <<< unwrap) utxos
 
 --------------------------------------------------------------------------------
 -- Balancing functions and helpers
@@ -496,7 +493,6 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
       note (GetWalletAddressError' CouldNotGetWalletAddress)
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
-
     -- After adding collateral, we need to balance the inputs and
     -- non-Ada outputs before looping, i.e. we need to add input fees
     -- for the Ada only collateral. No MinUtxos required. Perhaps
