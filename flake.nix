@@ -149,10 +149,9 @@
             inputs.ogmios-datum-cache.defaultPackage.${system};
           ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
           ogmios-fixtures = ogmios;
-          purescriptProject = import ./nix { inherit system; pkgs = final; };
+          purescriptProject = import ./nix { pkgs = final; inherit system; };
           buildCtlRuntime = buildCtlRuntime final;
           launchCtlRuntime = launchCtlRuntime final;
-          ctl-server = self.packages.${system}."ctl-server:exe:ctl-server";
           inherit cardano-configurations;
         });
 
@@ -165,7 +164,6 @@
         inherit (haskell-nix) config;
         inherit system;
       };
-
       allNixpkgs = perSystem mkNixpkgsFor;
       nixpkgsFor = system: allNixpkgs.${system};
 
@@ -240,7 +238,8 @@
           nodeDbVol = "node-${config.network.name}-db";
           nodeIpcVol = "node-${config.network.name}-ipc";
           nodeSocketPath = "/ipc/node.socket";
-          server = pkgs.ctl-server;
+          serverName = "ctl-server:exe:ctl-server";
+          server = self.packages.${pkgs.system}."${serverName}";
           bindPort = port: "${toString port}:${toString port}";
         in
         with config;
