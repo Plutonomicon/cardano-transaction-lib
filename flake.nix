@@ -406,6 +406,7 @@
             packageLock = ./package-lock.json;
             shell = {
               shellHook = exportOgmiosFixtures;
+              packageLockOnly = true;
               packages = with pkgs; [
                 ogmios
                 ogmios-datum-cache
