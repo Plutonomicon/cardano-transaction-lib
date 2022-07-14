@@ -81,12 +81,16 @@ getWalletAddress :: Cip30Connection -> Aff (Maybe Address)
 getWalletAddress conn = fromHexString _getAddress conn <#>
   (_ >>= addressFromBytes <<< rawBytesAsCborBytes)
 
+-- | Get collateral using CIP-30 `getCollateral` method.
+-- | Throws on `Promise` rejection by wallet, returns `Nothing` if no collateral
+-- | is available.
 getCollateral :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
 getCollateral conn = do
   mbUtxoStrs <- toAffE $ getCip30Collateral conn
   let
     (mbUtxoBytes :: Maybe (Array RawBytes)) =
       join $ map (traverse hexToRawBytes) mbUtxoStrs
+  -- de-serialize UTxOs
   liftEffect $ for mbUtxoBytes \collateralUtxos -> do
     for collateralUtxos \bytes -> do
       maybe (throw "Unable to convert UTxO") pure =<<

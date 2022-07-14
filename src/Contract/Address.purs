@@ -117,6 +117,8 @@ getWalletAddress = do
 -- | Get the collateral of the browser wallet. This collateral will vary
 -- | depending on the wallet.
 -- | E.g. Nami creates a hardcoded 5 Ada collateral.
+-- | Throws on `Promise` rejection by wallet, returns `Nothing` if no collateral
+-- | is available.
 getWalletCollateral
   :: forall (r :: Row Type). Contract r (Maybe (Array TransactionUnspentOutput))
 getWalletCollateral = do

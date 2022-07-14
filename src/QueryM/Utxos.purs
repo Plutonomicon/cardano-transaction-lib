@@ -1,6 +1,6 @@
 -- | A module for `QueryM` queries related to utxos.
 module QueryM.Utxos
-  ( filterUnusedUtxos
+  ( filterLockedUtxos
   , getUtxo
   , getWalletBalance
   , utxosAt
@@ -9,7 +9,7 @@ module QueryM.Utxos
 import Prelude
 
 import Address (addressToOgmiosAddress)
-import Cardano.Types.Transaction (TransactionOutput, UtxoM(UtxoM))
+import Cardano.Types.Transaction (TransactionOutput, UtxoM(UtxoM), Utxos)
 import Cardano.Types.Value (Value)
 import Control.Monad.Logger.Trans (LoggerT)
 import Control.Monad.Reader (withReaderT)
@@ -117,11 +117,11 @@ mkUtxoQuery query = asks _.wallet >>= maybe allUtxosAt utxosAtByWallet
 -- Used Utxos helpers
 --------------------------------------------------------------------------------
 
-filterUnusedUtxos :: UtxoM -> QueryM UtxoM
-filterUnusedUtxos (UtxoM utxos) = withTxRefsCache $
-  UtxoM <$> Helpers.filterMapWithKeyM
-    (\k _ -> not <$> isTxOutRefUsed (unwrap k))
-    utxos
+filterLockedUtxos :: Utxos -> QueryM Utxos
+filterLockedUtxos utxos =
+  withTxRefsCache $
+    flip Helpers.filterMapWithKeyM utxos
+      (\k _ -> not <$> isTxOutRefUsed (unwrap k))
 
 withTxRefsCache
   :: forall (m :: Type -> Type) (a :: Type)
