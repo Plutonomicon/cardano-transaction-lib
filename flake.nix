@@ -149,7 +149,6 @@
             inputs.ogmios-datum-cache.defaultPackage.${system};
           ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
           ogmios-fixtures = ogmios;
-          cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
           purescriptProject = import ./nix { pkgs = final; inherit system; };
           buildCtlRuntime = buildCtlRuntime final;
           launchCtlRuntime = launchCtlRuntime final;
