@@ -187,7 +187,7 @@ exports._unpackCostModels = containerhelper => containerhelper.unpackKeyIndexed;
 
 exports._unpackCostModel = cm => {
   const res = [];
-  for (var op = 0; op < cm.len(); op++) {
+  for (let op = 0; op < cm.len(); op++) {
     res.push(cm.get(op).to_str());
   }
   return res;
