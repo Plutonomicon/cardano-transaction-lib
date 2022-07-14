@@ -5,12 +5,9 @@ module Examples.AlwaysMints (main) where
 
 import Contract.Prelude
 
-import Cardano.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV1)
-  , textEnvelopeBytes
-  )
 import Contract.Monad
-  ( launchAff_
+  ( Contract
+  , launchAff_
   , liftContractAffM
   , liftContractM
   , liftedE
@@ -22,6 +19,10 @@ import Contract.Monad
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)
+import Contract.TextEnvelope
+  ( TextEnvelopeType(PlutusScriptV1)
+  , textEnvelopeBytes
+  )
 import Contract.Transaction (balanceAndSignTx, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
@@ -32,7 +33,7 @@ main = launchAff_ $ do
   cfg <- traceTestnetContractConfig
   runContract_ cfg $ do
     logInfo' "Running Examples.AlwaysMints"
-    mp <- liftAff alwaysMintsPolicy
+    mp <- alwaysMintsPolicy
     cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
     tn <- liftContractM "Cannot make token name"
       $ Value.mkTokenName
@@ -55,6 +56,6 @@ main = launchAff_ $ do
 
 foreign import alwaysMints :: String
 
-alwaysMintsPolicy :: Aff MintingPolicy
+alwaysMintsPolicy :: forall r. Contract r MintingPolicy
 alwaysMintsPolicy = wrap <<< wrap <$> textEnvelopeBytes alwaysMints
   PlutusScriptV1

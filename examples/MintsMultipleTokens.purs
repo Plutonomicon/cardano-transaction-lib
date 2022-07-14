@@ -5,10 +5,6 @@ module Examples.MintsMultipleTokens (main) where
 
 import Contract.Prelude
 
-import Cardano.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV1)
-  , textEnvelopeBytes
-  )
 import Contract.Monad
   ( Contract
   , launchAff_
@@ -24,6 +20,10 @@ import Contract.PlutusData (PlutusData(Integer), Redeemer(Redeemer))
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)
+import Contract.TextEnvelope
+  ( TextEnvelopeType(PlutusScriptV1)
+  , textEnvelopeBytes
+  )
 import Contract.Transaction (balanceAndSignTx, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName)
@@ -74,10 +74,10 @@ mkTokenName =
 
 mkCurrencySymbol
   :: forall (r :: Row Type)
-   . Aff MintingPolicy
+   . Contract r MintingPolicy
   -> Contract r (MintingPolicy /\ CurrencySymbol)
 mkCurrencySymbol mintingPolicy = do
-  mp <- liftAff mintingPolicy
+  mp <- mintingPolicy
   cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
   pure (mp /\ cs)
 
@@ -85,14 +85,14 @@ foreign import redeemerInt1 :: String
 foreign import redeemerInt2 :: String
 foreign import redeemerInt3 :: String
 
-mintingPolicyRdmrInt1 :: Aff MintingPolicy
+mintingPolicyRdmrInt1 :: forall r. Contract r MintingPolicy
 mintingPolicyRdmrInt1 = wrap <<< wrap <$> textEnvelopeBytes redeemerInt1
   PlutusScriptV1
 
-mintingPolicyRdmrInt2 :: Aff MintingPolicy
+mintingPolicyRdmrInt2 :: forall r. Contract r MintingPolicy
 mintingPolicyRdmrInt2 = wrap <<< wrap <$> textEnvelopeBytes redeemerInt2
   PlutusScriptV1
 
-mintingPolicyRdmrInt3 :: Aff MintingPolicy
+mintingPolicyRdmrInt3 :: forall r. Contract r MintingPolicy
 mintingPolicyRdmrInt3 = wrap <<< wrap <$> textEnvelopeBytes redeemerInt3
   PlutusScriptV1

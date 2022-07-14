@@ -5,10 +5,6 @@ module Examples.AlwaysSucceeds (main) where
 
 import Contract.Prelude
 
-import Cardano.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV1)
-  , textEnvelopeBytes
-  )
 import Contract.Address (scriptHashAddress)
 import Contract.Monad
   ( Contract
@@ -22,6 +18,10 @@ import Contract.Monad
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.TextEnvelope
+  ( TextEnvelopeType(PlutusScriptV1)
+  , textEnvelopeBytes
+  )
 import Contract.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
@@ -41,7 +41,7 @@ main = launchAff_ $ do
   cfg <- traceTestnetContractConfig
   runContract_ cfg $ do
     logInfo' "Running Examples.AlwaysSucceeds"
-    validator <- liftAff alwaysSucceedsScript
+    validator <- alwaysSucceedsScript
     vhash <- liftContractAffM "Couldn't hash validator"
       $ validatorHash validator
     logInfo' "Attempt to lock value"
@@ -114,6 +114,6 @@ buildBalanceSignAndSubmitTx lookups constraints = do
 
 foreign import alwaysSucceeds :: String
 
-alwaysSucceedsScript :: Aff Validator
+alwaysSucceedsScript :: Contract () Validator
 alwaysSucceedsScript = wrap <<< wrap <$> textEnvelopeBytes alwaysSucceeds
   PlutusScriptV1

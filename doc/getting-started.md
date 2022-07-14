@@ -186,12 +186,12 @@ And on the purescript side, the script can be loaded like so:
   ```purescript
   foreign import myscript :: String
 
-  myscriptValidator :: Aff Validator
-  myscriptValidator = wrap <<< wrap
-    <$> Cardano.TextEnvelope.textEnvelopeBytes myscript PlutusScriptV1
+  parseValidator :: Contract () Validator
+  parseValidator = wrap <<< wrap
+    <$> Contract.TextEnvelope.textEnvelopeBytes myscript PlutusScriptV1
 
   myContract cfg = runContract_ cfg $ do
-    validator <- liftAff myscriptValidator
+    validator <- parseValidator
     ...
   ```
 

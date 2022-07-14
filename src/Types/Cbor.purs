@@ -4,10 +4,10 @@ module Types.Cbor
   , RawCborType
   , CborType(ByteStringType)
   , CborParseError
-    ( UnknownType
-    , UnknownAdditionalInformation
-    , ByteArrayTooShort
-    )
+      ( UnknownType
+      , UnknownAdditionalInformation
+      , ByteArrayTooShort
+      )
   , Parser
   , runParser
   , cborType
