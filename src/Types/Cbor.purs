@@ -1,19 +1,35 @@
-module Types.Cbor where
+-- | A partial CBOR decoder, based on [RFC 8949](https://www.rfc-editor.org/rfc/rfc8949.html)
+module Types.Cbor
+  ( Cbor(Cbor)
+  , RawCborType
+  , CborType(ByteStringType)
+  , CborParseError
+    ( UnknownType
+    , UnknownAdditionalInformation
+    , ByteArrayTooShort
+    )
+  , Parser
+  , runParser
+  , cborType
+  , takeN
+  , takeN'
+  , toByteArray
+  ) where
 
 import Prelude
 
 import Contract.Prelude (foldl)
 import Control.Monad.Except (Except, runExcept, throwError)
 import Control.Monad.State.Trans (StateT, evalStateT, get, put)
-import Data.Array.Partial (head)
 import Data.Either (Either)
-import Data.Int (pow)
-import Data.Int.Bits (zshr, shl, (.&.), (.|.))
+import Data.Maybe (maybe)
+import Data.UInt (UInt, zshr, shl, (.&.), (.|.))
+import Data.UInt as UInt
 import Data.Newtype (class Newtype)
-import Partial.Unsafe (unsafePartial)
 import Types.ByteArray (ByteArray, byteArrayToIntArray, subarray, byteLength)
 import Types.CborBytes (CborBytes(CborBytes))
 
+-- | A CBOR data item is encoded as a byte string
 newtype Cbor = Cbor CborBytes
 
 derive instance Newtype Cbor _
@@ -23,52 +39,97 @@ derive newtype instance Ord Cbor
 derive newtype instance Semigroup Cbor
 derive newtype instance Monoid Cbor
 
-data CborType = ByteStringType Int
+-- | The initial byte of the head of the data item
+type RawCborType = UInt
+
+-- | A structured representation of the head of the data item
+data CborType = ByteStringType UInt
 
 data CborParseError
-  = UnknownType Int
-  | UnknownBytesType Int
-  | ByteArrayTooShort Int
+  = UnknownType UInt
+  | UnknownAdditionalInformation UInt
+  | ByteArrayTooShort UInt
 
 instance Show CborParseError where
   show = case _ of
     UnknownType ty -> "UnknownType " <> show ty
-    UnknownBytesType minor -> "UnknownBytesType " <> show minor
+    UnknownAdditionalInformation info -> "UnknownAdditionalInformation " <> show
+      info
     ByteArrayTooShort extra -> "ByteArrayTooShort " <> show extra
 
 type Parser a = StateT ByteArray (Except CborParseError) a
 
-takeN :: Int -> Parser (Array Int)
-takeN n = byteArrayToIntArray <$> takeN' n
+-- | Same as `takeN'`, except returns `Array UInt`
+takeN :: UInt -> Parser (Array UInt)
+takeN n = map UInt.fromInt <<< byteArrayToIntArray <$> takeN' n
 
-takeN' :: Int -> Parser ByteArray
-takeN' n = do
+-- | Consume and return n bytes from the input, throwing an exception if there
+-- | is not enough
+takeN' :: UInt -> Parser ByteArray
+takeN' = UInt.toInt >>> \n -> do
   ba <- get
-  unless (byteLength ba >= n) $ throwError $ ByteArrayTooShort
-    (n - byteLength ba)
+  let remainingBytesLength = UInt.fromInt' (n - byteLength ba)
+  maybe (pure unit) (throwError <<< ByteArrayTooShort) remainingBytesLength
   put $ subarray n (byteLength ba) ba
   pure $ subarray 0 n ba
 
-readType :: Parser Int
-readType = unsafePartial head <$> takeN 1
+-- | Convert an array of bytes in network order into an unsigned integer
+fromBytes :: Array UInt -> UInt
+fromBytes = foldl (\acc b -> shl acc (UInt.fromInt 8) .|. b) zero
 
-decodeType :: Int -> Parser CborType
-decodeType rawCborType = do
-  let
-    majorType = rawCborType `zshr` 5
-    minorType = rawCborType .&. 31
-  unless (majorType == 2) $ throwError $ UnknownType majorType
-  length <- case minorType - 24 of
-    v | v < 0 -> pure minorType
-    v | v >= 0 && v < 4 -> do
-      lengthBytes <- takeN (2 `pow` v)
-      pure $ foldl (\acc b -> shl acc 8 .|. b) 0 lengthBytes
-    _ -> throwError $ UnknownBytesType minorType
-  pure $ ByteStringType length
+-- | Read the initial byte of the head of the data item
+readType :: Parser RawCborType
+readType = fromBytes <$> takeN one
+
+-- | The initial byte of the head of the data item contains a major type and
+-- | additional information
+-- |
+-- | https://www.rfc-editor.org/rfc/rfc8949.html#section-3-2
+partitionType
+  :: RawCborType -> { majorType :: UInt, additionalInformation :: UInt }
+partitionType u =
+  { -- The 3 most signficant bits
+    majorType: u `zshr` UInt.fromInt 5
+  -- The 5 least signficant bits
+  , additionalInformation: u .&. UInt.fromInt 31
+  }
+
+-- | Decode the rest of the head of the data item, given the first byte, into a
+-- | `CborType`
+-- |
+-- | https://www.rfc-editor.org/rfc/rfc8949.html#name-specification-of-the-cbor-e
+decodeType :: RawCborType -> Parser CborType
+decodeType rawCborType =
+  -- https://www.rfc-editor.org/rfc/rfc8949.html#name-major-types
+  case UInt.toInt majorType of
+    2 -> ByteStringType <$> decodeByteStringLength
+    _ -> throwError $ UnknownType majorType
+  where
+  { majorType
+  , additionalInformation
+  } = partitionType rawCborType
+
+  -- Below 24, the additional information is directly used as the length.
+  -- Otherwise, it represents varying sizes of unsigned integers to read from
+  -- the head.
+  decodeByteStringLength :: Parser UInt
+  decodeByteStringLength =
+    case UInt.toInt additionalInformation of
+      v | v < 24 -> pure additionalInformation
+      24 -> takeN (UInt.fromInt 1) <#> fromBytes
+      25 -> takeN (UInt.fromInt 2) <#> fromBytes
+      26 -> takeN (UInt.fromInt 4) <#> fromBytes
+      27 -> takeN (UInt.fromInt 8) <#> fromBytes
+      _ -> throwError $ UnknownAdditionalInformation additionalInformation
+
+-- | Decodes the head of the data item into `CborType`
+cborType :: Parser CborType
+cborType = readType >>= decodeType
+
+runParser :: forall a. Parser a -> Cbor -> Either CborParseError a
+runParser parser (Cbor (CborBytes ba)) = runExcept $ flip evalStateT ba $ parser
 
 -- | Extract a `ByteArray` if the `Cbor` was a byte string
 toByteArray :: Cbor -> Either CborParseError ByteArray
-toByteArray (Cbor (CborBytes ba)) = runExcept $ flip evalStateT ba do
-  rawCborType <- readType
-  decodeType rawCborType >>= case _ of
-    ByteStringType length -> takeN' length
+toByteArray = runParser $ cborType >>= case _ of
+  ByteStringType length -> takeN' length
