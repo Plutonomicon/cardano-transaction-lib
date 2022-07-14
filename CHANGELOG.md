@@ -26,13 +26,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Added
 
 - `Contract.Utxos.getUtxo` call to get a single utxo at a given output reference
+- `Contract.Config` module that contains everything needed to create and manipulate `ConfigParams`, as well as a number of `ConfigParams` fixtures for common use cases.
+- `Contract.Config.WalletSpec` type that allows to define wallet parameters declaratively in `ConfigParams`
+- Faster initialization of `Contract` runtime due to parallelism.
 
 ### Changed
 
 - CTL's `overlay` no longer requires an explicitly passed `system`
 - Switched to CSL for utxo min ada value calculation ([#715](https://github.com/Plutonomicon/cardano-transaction-lib/pull/715))
+- `ConfigParams` is now a type synonym instead of a newtype. `ContractConfig` has been renamed to `ContractEnv`.
+- Moved logging functions to `Contract.Log` from `Contract.Monad` ([#727](https://github.com/Plutonomicon/cardano-transaction-lib/issues/727)
 
-## Fixed 
+## Fixed
 
 - Bug with collateral selection for `KeyWallet` when signing multiple transactions ([#709](https://github.com/Plutonomicon/cardano-transaction-lib/pull/709))
 

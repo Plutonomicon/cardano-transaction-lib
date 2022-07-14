@@ -201,11 +201,6 @@ import Wallet.Spec
 -- Or for verifying that the connection is live, those concerns are addressed
 -- here
 
--- This module defines an Aff interface for Ogmios Websocket Queries
--- Since WebSockets do not define a mechanism for linking request/response
--- Or for verifying that the connection is live, those concerns are addressed
--- here
-
 -- | `QueryConfig` contains a complete specification on how to initialize a
 -- | `QueryM` environment.
 -- | It includes:
