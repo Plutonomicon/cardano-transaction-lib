@@ -56,7 +56,6 @@ module QueryM
   , signTransaction
   , scriptToAeson
   , submitTxOgmios
-  , traceQueryConfig
   , underlyingWebSocket
   , withQueryRuntime
   ) where
@@ -93,7 +92,7 @@ import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
 import Data.HTTP.Method (Method(POST))
-import Data.Log.Level (LogLevel(Trace, Debug, Error))
+import Data.Log.Level (LogLevel(Error, Debug))
 import Data.Log.Message (Message)
 import Data.Map (Map)
 import Data.Map as Map
@@ -152,9 +151,7 @@ import QueryM.ServerConfig
   ) as ServerConfig
 import QueryM.ServerConfig
   ( ServerConfig
-  , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
-  , defaultServerConfig
   , mkHttpUrl
   , mkOgmiosDatumCacheWsUrl
   , mkWsUrl
@@ -163,10 +160,10 @@ import QueryM.UniqueId (ListenerId)
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address
   ( Address
-  , NetworkId(TestnetId)
+  , NetworkId
+  , addressPaymentCred
   , baseAddressDelegationCred
   , baseAddressFromAddress
-  , addressPaymentCred
   , stakeCredentialToKeyHash
   )
 import Serialization.PlutusData (convertPlutusData) as Serialization
@@ -335,26 +332,6 @@ runQueryMInRuntime config runtime = do
     flip runReaderT { config, runtime, extraConfig: {} }
   where
   logger = fromMaybe (logWithLevel config.logLevel) config.customLogger
-
--- A `DefaultQueryEnv` useful for testing, with `logLevel` set to `Trace`
-traceQueryConfig :: Aff DefaultQueryEnv
-traceQueryConfig = do
-  let
-    config =
-      { ctlServerConfig: defaultServerConfig
-      , ogmiosConfig: defaultOgmiosWsConfig
-      , datumCacheConfig: defaultDatumCacheWsConfig
-      , networkId: TestnetId
-      , logLevel: Trace
-      , walletSpec: Just ConnectToNami
-      , customLogger: Nothing
-      }
-  runtime <- mkQueryRuntime config
-  pure
-    { config
-    , runtime
-    , extraConfig: {}
-    }
 
 getProtocolParametersAff
   :: OgmiosWebSocket -> LogLevel -> Aff Ogmios.ProtocolParameters
