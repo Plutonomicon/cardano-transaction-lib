@@ -82,14 +82,16 @@ getWalletAddress conn = fromHexString _getAddress conn <#>
   (_ >>= addressFromBytes <<< rawBytesAsCborBytes)
 
 getCollateral :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
-getCollateral conn = fromMaybeHexStrings getCip30Collateral conn >>=
-  case _ of
-    Nothing -> pure Nothing
-    Just collateralUtxos -> liftEffect do
-      Just <$> for collateralUtxos \bytes -> do
-        maybe (throw "Unable to convert UTxO") pure =<<
-          Deserialization.UnspentOuput.convertUnspentOutput
-            <$> fromBytesEffect (unwrap bytes)
+getCollateral conn = do
+  mbUtxoStrs <- toAffE $ getCip30Collateral conn
+  let
+    (mbUtxoBytes :: Maybe (Array RawBytes)) =
+      join $ map (traverse hexToRawBytes) mbUtxoStrs
+  liftEffect $ for mbUtxoBytes \collateralUtxos -> do
+    for collateralUtxos \bytes -> do
+      maybe (throw "Unable to convert UTxO") pure =<<
+        Deserialization.UnspentOuput.convertUnspentOutput
+          <$> fromBytesEffect (unwrap bytes)
 
 signTx :: Cip30Connection -> Transaction -> Aff (Maybe Transaction)
 signTx conn tx = do
@@ -118,13 +120,6 @@ fromHexString
   -> Cip30Connection
   -> Aff (Maybe RawBytes)
 fromHexString act = map hexToRawBytes <<< Promise.toAffE <<< act
-
-fromMaybeHexStrings
-  :: (Cip30Connection -> Effect (Promise (Maybe (Array String))))
-  -> Cip30Connection
-  -> Aff (Maybe (Array RawBytes))
-fromMaybeHexStrings act =
-  map (join <<< map (traverse hexToRawBytes)) <<< Promise.toAffE <<< act
 
 -------------------------------------------------------------------------------
 -- FFI stuff
