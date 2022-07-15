@@ -3,7 +3,7 @@ module Test.Serialization.Hash (suite) where
 import Control.Bind (discard, bind)
 import Data.Eq ((==))
 import Data.Function (($))
-import Data.Maybe (Maybe(..), isNothing)
+import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (wrap)
 import Data.Unit (Unit)
 import Serialization.Hash

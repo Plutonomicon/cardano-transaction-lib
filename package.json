@@ -19,8 +19,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@emurgo/cardano-serialization-lib-browser": "11.0.0-beta.1",
-    "@emurgo/cardano-serialization-lib-nodejs": "11.0.0-beta.1",
+    "@emurgo/cardano-serialization-lib-browser": "11.0.0-rc.1",
+    "@emurgo/cardano-serialization-lib-nodejs": "11.0.0-rc.1",
     "big-integer": "1.6.51",
     "blake2b-wasm": "2.4.0",
     "bufferutil": "4.0.5",
@@ -37,5 +37,8 @@
     "webpack": "5.67.0",
     "webpack-cli": "4.9.2",
     "webpack-dev-server": "4.7.4"
+  },
+  "prettier": {
+    "arrowParens": "avoid"
   }
 }

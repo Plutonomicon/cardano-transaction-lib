@@ -32,6 +32,7 @@ module Contract.Transaction
 
 import Prelude
 
+import Aeson (class EncodeAeson)
 import BalanceTx (BalanceTxError) as BalanceTxError
 import BalanceTx (FinalizedTransaction)
 import BalanceTx (balanceTx) as BalanceTx
@@ -113,7 +114,6 @@ import Cardano.Types.Transaction
 import Cardano.Types.Transaction (Transaction)
 import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
 import Control.Monad.Error.Class (try, catchError, throwError)
-import Control.Monad.Except.Trans (runExceptT)
 import Control.Monad.Reader (asks, runReaderT, ReaderT)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Either (Either, hush)
@@ -121,14 +121,23 @@ import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Traversable (class Traversable, fold, traverse, traverse_)
+import Data.Traversable (class Traversable, for_, traverse)
 import Data.Tuple.Nested (type (/\))
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, throw)
 import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
 import Plutus.Types.Transaction (TransactionOutput(TransactionOutput)) as PTransaction
 import Plutus.Types.Value (Coin)
-import QueryM (FeeEstimate(FeeEstimate), ClientError(..)) as ExportQueryM
+import QueryM
+  ( FeeEstimate(FeeEstimate)
+  , ClientError
+      ( ClientHttpError
+      , ClientHttpResponseError
+      , ClientDecodeJsonError
+      , ClientEncodingError
+      , ClientOtherError
+      )
+  ) as ExportQueryM
 import QueryM (calculateMinFee, signTransaction, submitTxOgmios) as QueryM
 import ReindexRedeemers (ReindexErrors(CannotGetTxOutRefIndexForRedeemer)) as ReindexRedeemersExport
 import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
@@ -140,7 +149,34 @@ import Types.OutputDatum
   , outputDatumDataHash
   , outputDatumDatum
   ) as OutputDatum
-import Types.ScriptLookups (MkUnbalancedTxError(..), mkUnbalancedTx) as ScriptLookups
+import Types.ScriptLookups
+  ( MkUnbalancedTxError
+      ( TypeCheckFailed
+      , ModifyTx
+      , TxOutRefNotFound
+      , TxOutRefWrongType
+      , DatumNotFound
+      , MintingPolicyNotFound
+      , MintingPolicyHashNotCurrencySymbol
+      , CannotMakeValue
+      , ValidatorHashNotFound
+      , OwnPubKeyAndStakeKeyMissing
+      , TypedValidatorMissing
+      , DatumWrongHash
+      , CannotQueryDatum
+      , CannotHashDatum
+      , CannotConvertPOSIXTimeRange
+      , CannotGetMintingPolicyScriptIndex
+      , CannotGetValidatorHashFromAddress
+      , MkTypedTxOutFailed
+      , TypedTxOutHasNoDatumHash
+      , CannotHashMintingPolicy
+      , CannotHashValidator
+      , CannotConvertPaymentPubKeyHash
+      , CannotSatisfyAny
+      )
+  , mkUnbalancedTx
+  ) as ScriptLookups
 import Types.ScriptLookups (UnattachedUnbalancedTx)
 import Types.Transaction
   ( DataHash(DataHash)
@@ -161,9 +197,7 @@ import Types.UnbalancedTransaction
   , emptyUnbalancedTx
   ) as UnbalancedTx
 import Types.UsedTxOuts
-  ( TxOutRefUnlockKeys
-  , UsedTxOuts
-  , lockRemainingTransactionInputs
+  ( UsedTxOuts
   , lockTransactionInputs
   , unlockTransactionInputs
   )
@@ -312,6 +346,8 @@ withBalancedAndSignedTx = withSingleTransaction
   (liftedE <<< balanceAndSignTxE)
   unwrap
 
+-- | Balances each transaction and locks the used inputs
+-- | so that they cannot be reused by subsequent transactions.
 balanceTxs
   :: forall
        (t :: Type -> Type)
@@ -319,39 +355,23 @@ balanceTxs
    . Traversable t
   => t UnattachedUnbalancedTx
   -> Contract r (t FinalizedTransaction)
-balanceTxs uts = do
-  -- First, lock all the already fixed inputs on all the unbalanced transactions.
-  -- That prevents any inputs of any of those to be used to balance any of the
-  -- other transactions
-  unlockKeys <- unlockAllOnError
-    $ liftedE
-    $ withUsedTxouts
-    $ runExceptT
-    $ fold <$> traverse (lockTransactionInputs <<< uutxToTx) uts
-
-  -- Then, balance each transaction and lock the used inputs immediately.
-  unlockAllOnError $ traverse (balanceAndLock unlockKeys) uts
-
+balanceTxs unbalancedTxs =
+  unlockAllOnError $ traverse balanceAndLock unbalancedTxs
   where
   unlockAllOnError :: forall (a :: Type). Contract r a -> Contract r a
   unlockAllOnError f = catchError f $ \e -> do
-    traverse_
-      (withUsedTxouts <<< unlockTransactionInputs <<< uutxToTx)
-      uts
+    for_ unbalancedTxs $
+      withUsedTxouts <<< unlockTransactionInputs <<< uutxToTx
     throwError e
 
   uutxToTx :: UnattachedUnbalancedTx -> Transaction
   uutxToTx = _.transaction <<< unwrap <<< _.unbalancedTx <<< unwrap
 
-  balanceAndLock
-    :: TxOutRefUnlockKeys
-    -> UnattachedUnbalancedTx
-    -> Contract r FinalizedTransaction
-  balanceAndLock alreadyLocked uutx = do
-    bt <- liftedE $ balanceTx uutx
-    void $ withUsedTxouts $ lockRemainingTransactionInputs alreadyLocked
-      (unwrap bt)
-    pure bt
+  balanceAndLock :: UnattachedUnbalancedTx -> Contract r FinalizedTransaction
+  balanceAndLock unbalancedTx = do
+    balancedTx <- liftedE $ balanceTx unbalancedTx
+    void $ withUsedTxouts $ lockTransactionInputs (unwrap balancedTx)
+    pure balancedTx
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` hushing the error.
 balanceTxM
@@ -380,6 +400,7 @@ newtype BalancedSignedTransaction = BalancedSignedTransaction Transaction
 derive instance Generic BalancedSignedTransaction _
 derive instance Newtype BalancedSignedTransaction _
 derive newtype instance Eq BalancedSignedTransaction
+derive newtype instance EncodeAeson BalancedSignedTransaction
 
 instance Show BalancedSignedTransaction where
   show = genericShow

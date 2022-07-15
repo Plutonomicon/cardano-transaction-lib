@@ -1,7 +1,7 @@
 "use strict";
 
-const crypto = require('crypto');
+const crypto = require("crypto");
 
 exports.md5 = function (message) {
-    return crypto.createHash('md5').update(message).digest('hex');
+  return crypto.createHash("md5").update(message).digest("hex");
 };
