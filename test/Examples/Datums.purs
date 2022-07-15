@@ -19,6 +19,6 @@ import Toppokki as Toppokki
 
 runExample :: TestOptions -> TestPlanM Unit
 runExample options = runE2ETest "Datums" options NamiExt
-                     $ \example -> do
-  namiConfirmAccess example
-  namiSign example
+  $ \example -> do
+      namiConfirmAccess example
+      namiSign example

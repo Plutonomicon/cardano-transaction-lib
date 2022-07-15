@@ -1,7 +1,7 @@
 module Test.E2E.Browser
   ( Mode(Headless, Visible)
   , TestOptions(TestOptions)
-  , WalletExt (GeroExt, NamiExt)
+  , WalletExt(GeroExt, NamiExt)
   , withBrowser
   , parseOptions
   ) where
@@ -100,21 +100,22 @@ withBrowser opts ext = bracket (launchWithExtension ext opts) Toppokki.close
 
 launchWithExtension
   :: WalletExt -> TestOptions -> Aff Toppokki.Browser
-launchWithExtension walletExt
+launchWithExtension
+  walletExt
   (TestOptions { chromeExe, chromeUserDataDir, namiDir, geroDir, noHeadless }) =
-    Toppokki.launch
-  { args:
-      [ "--disable-extensions-except=" <> extDir 
-      , "--load-extension=" <> extDir 
-      ] <> if mode == Headless then [ "--headless=chrome" ] else []
-  , headless: mode == Headless
-  , userDataDir: chromeUserDataDir
-  , executablePath: fromMaybe "" chromeExe
-  }
+  Toppokki.launch
+    { args:
+        [ "--disable-extensions-except=" <> extDir
+        , "--load-extension=" <> extDir
+        ] <> if mode == Headless then [ "--headless=chrome" ] else []
+    , headless: mode == Headless
+    , userDataDir: chromeUserDataDir
+    , executablePath: fromMaybe "" chromeExe
+    }
   where
   mode :: Mode
   mode
-    | noHeadless = Visible 
+    | noHeadless = Visible
     | otherwise = Headless
 
   extDir :: FilePath
