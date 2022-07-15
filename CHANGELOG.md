@@ -27,6 +27,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 - `Contract.Utxos.getUtxo` call to get a single utxo at a given output reference
 - `purescriptProject`'s `shell` parameter now accepts `packageLockOnly`, which if set to true will stop npm from generating node\_modules. This is enabled for CTL developers
+- `Contract.Transaction.awaitTxConfirmed` and `Contract.Transaction.awaitTxConfirmedWithTimeout`
 
 ### Changed
 

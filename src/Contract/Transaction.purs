@@ -456,12 +456,16 @@ scriptOutputToTransactionOutput networkId =
   toPlutusTxOutput
     <<< TxOutput.scriptOutputToTransactionOutput networkId
 
+-- | Wait until a transaction with given hash is confirmed.
+-- | Use `awaitTxConfirmedWithTimeout` if you want to limit the time of waiting.
 awaitTxConfirmed
   :: forall (r :: Row Type)
    . TransactionHash
   -> Contract r Unit
 awaitTxConfirmed = wrapContract <<< QueryM.awaitTxConfirmed <<< unwrap
 
+-- | Same as `awaitTxConfirmed`, but allows to specify a timeout for waiting.
+-- | Throws an exception on timeout.
 awaitTxConfirmedWithTimeout
   :: forall (r :: Row Type)
    . Seconds
