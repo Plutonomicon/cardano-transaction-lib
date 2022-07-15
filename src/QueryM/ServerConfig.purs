@@ -66,4 +66,4 @@ mkServerUrl protocol cfg =
     <> cfg.host
     <> ":"
     <> UInt.toString cfg.port
-    <> fromMaybe "" cfg.path 
+    <> fromMaybe "" cfg.path
