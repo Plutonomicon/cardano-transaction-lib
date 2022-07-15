@@ -12,14 +12,13 @@ import Cardano.TextEnvelope
   , TextEnvelope(TextEnvelope)
   , TextEnvelopeType
       ( PlutusScriptV1
-      , PaymentSigningKeyShelley_ed25519
-      , StakeSigningKeyShelley_ed25519
+      , PaymentSigningKeyShelleyed25519
+      , StakeSigningKeyShelleyed25519
       )
   , TextEnvelopeDecodeError(JsonDecodeError, CborParseError)
   ) as TextEnvelope
 import Contract.Monad (Contract)
 import Types.ByteArray (ByteArray)
 
-textEnvelopeBytes
-  :: forall r. String -> TE.TextEnvelopeType -> Contract r ByteArray
+textEnvelopeBytes :: String -> TE.TextEnvelopeType -> Contract () ByteArray
 textEnvelopeBytes json ty = liftAff $ TE.textEnvelopeBytes json ty

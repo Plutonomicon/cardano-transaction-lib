@@ -110,11 +110,9 @@ foreign import byteArrayToIntArray :: ByteArray -> Array Int
 
 foreign import byteLength :: ByteArray -> Int
 
-foreign import subarray
-  :: Int
-  -> Int
-  -> ByteArray
-  -> ByteArray
+-- | Given a begin offset (inclusive) and end offset (exclusive), efficiently
+-- | create a new `ByteArray` backed by the same underlying buffer.
+foreign import subarray :: Int -> Int -> ByteArray -> ByteArray
 
 instance Arbitrary ByteArray where
   arbitrary = byteArrayFromIntArrayUnsafe <$> arbitrary

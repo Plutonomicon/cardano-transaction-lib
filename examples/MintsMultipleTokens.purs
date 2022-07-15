@@ -67,15 +67,14 @@ main = launchAff_ $ do
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
 
-mkTokenName :: forall (r :: Row Type). String -> Contract r TokenName
+mkTokenName :: String -> Contract () TokenName
 mkTokenName =
   liftContractM "Cannot make token name"
     <<< (Value.mkTokenName <=< byteArrayFromAscii)
 
 mkCurrencySymbol
-  :: forall (r :: Row Type)
-   . Contract r MintingPolicy
-  -> Contract r (MintingPolicy /\ CurrencySymbol)
+  :: Contract () MintingPolicy
+  -> Contract () (MintingPolicy /\ CurrencySymbol)
 mkCurrencySymbol mintingPolicy = do
   mp <- mintingPolicy
   cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
@@ -85,14 +84,14 @@ foreign import redeemerInt1 :: String
 foreign import redeemerInt2 :: String
 foreign import redeemerInt3 :: String
 
-mintingPolicyRdmrInt1 :: forall r. Contract r MintingPolicy
+mintingPolicyRdmrInt1 :: Contract () MintingPolicy
 mintingPolicyRdmrInt1 = wrap <<< wrap <$> textEnvelopeBytes redeemerInt1
   PlutusScriptV1
 
-mintingPolicyRdmrInt2 :: forall r. Contract r MintingPolicy
+mintingPolicyRdmrInt2 :: Contract () MintingPolicy
 mintingPolicyRdmrInt2 = wrap <<< wrap <$> textEnvelopeBytes redeemerInt2
   PlutusScriptV1
 
-mintingPolicyRdmrInt3 :: forall r. Contract r MintingPolicy
+mintingPolicyRdmrInt3 :: Contract () MintingPolicy
 mintingPolicyRdmrInt3 = wrap <<< wrap <$> textEnvelopeBytes redeemerInt3
   PlutusScriptV1

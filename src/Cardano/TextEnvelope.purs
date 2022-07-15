@@ -5,8 +5,8 @@ module Cardano.TextEnvelope
   , TextEnvelope(TextEnvelope)
   , TextEnvelopeType
       ( PlutusScriptV1
-      , PaymentSigningKeyShelley_ed25519
-      , StakeSigningKeyShelley_ed25519
+      , PaymentSigningKeyShelleyed25519
+      , StakeSigningKeyShelleyed25519
       )
   , TextEnvelopeDecodeError(JsonDecodeError, CborParseError)
   ) where
@@ -32,25 +32,25 @@ import Types.Cbor (CborParseError, toByteArray)
 
 data TextEnvelopeType
   = PlutusScriptV1
-  | PaymentSigningKeyShelley_ed25519
-  | StakeSigningKeyShelley_ed25519
+  | PaymentSigningKeyShelleyed25519
+  | StakeSigningKeyShelleyed25519
 
 derive instance Eq TextEnvelopeType
 
 instance Show TextEnvelopeType where
   show = case _ of
     PlutusScriptV1 -> "PlutusScriptV1"
-    PaymentSigningKeyShelley_ed25519 -> "PaymentSigningKeyShelley_ed25519"
-    StakeSigningKeyShelley_ed25519 -> "StakeSigningKeyShelley_ed25519"
+    PaymentSigningKeyShelleyed25519 -> "PaymentSigningKeyShelley_ed25519"
+    StakeSigningKeyShelleyed25519 -> "StakeSigningKeyShelley_ed25519"
 
 instance DecodeAeson TextEnvelopeType where
   decodeAeson aeson = do
     decodeAeson aeson >>= case _ of
       "PlutusScriptV1" -> pure PlutusScriptV1
       "PaymentSigningKeyShelley_ed25519" -> pure
-        PaymentSigningKeyShelley_ed25519
+        PaymentSigningKeyShelleyed25519
       "StakeSigningKeyShelley_ed25519" -> pure
-        StakeSigningKeyShelley_ed25519
+        StakeSigningKeyShelleyed25519
       _ -> throwError $ TypeMismatch "TextEnvelopeType"
 
 type TextEnvelopeRaw =

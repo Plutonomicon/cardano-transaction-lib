@@ -57,6 +57,7 @@ instance Show CborParseError where
       info
     ByteArrayTooShort extra -> "ByteArrayTooShort " <> show extra
 
+type Parser :: Type -> Type
 type Parser a = StateT ByteArray (Except CborParseError) a
 
 -- | Same as `takeN'`, except returns `Array UInt`
@@ -126,7 +127,7 @@ decodeType rawCborType =
 cborType :: Parser CborType
 cborType = readType >>= decodeType
 
-runParser :: forall a. Parser a -> Cbor -> Either CborParseError a
+runParser :: forall (a :: Type). Parser a -> Cbor -> Either CborParseError a
 runParser parser (Cbor (CborBytes ba)) = runExcept $ flip evalStateT ba $ parser
 
 -- | Extract a `ByteArray` if the `Cbor` was a byte string

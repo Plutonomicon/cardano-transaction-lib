@@ -175,25 +175,25 @@ One major caveat to using CTL in its current state is that we have no equivalent
 
 ### Using compiled scripts
 
-To use your own scripts, compile them to any subdirectory in the root of CTL project (where `webpack.config.js` is located) and add a relative path to `webpack.config.js` under the `resolve.alias` section.
-Thus you will be able to inline your script cbor in `.js` files and then load them in purescript via FFI
-  ```javascript
-  // inline .plutus file as a string
-  exports.myscript = require("Scripts/myscript.plutus");
-  ```
+To use your own scripts, compile them to any subdirectory in the root of your project (where `webpack.config.js` is located) and add a relative path to `webpack.config.js` under the `resolve.alias` section. In CTL, we have the `Scripts` alias for this purpose. Note the capitalization of `Scripts`: it is necessary to disambiguate it from local folders.
+This enables inlining your serialized scripts in `.js` files, to then be loaded in purescript via FFI
+```javascript
+// inline .plutus file as a string
+exports.myscript = require("Scripts/myscript.plutus");
+```
 
 And on the purescript side, the script can be loaded like so:
-  ```purescript
-  foreign import myscript :: String
+```purescript
+foreign import myscript :: String
 
-  parseValidator :: Contract () Validator
-  parseValidator = wrap <<< wrap
-    <$> Contract.TextEnvelope.textEnvelopeBytes myscript PlutusScriptV1
+parseValidator :: Contract () Validator
+parseValidator = wrap <<< wrap
+  <$> Contract.TextEnvelope.textEnvelopeBytes myscript PlutusScriptV1
 
-  myContract cfg = runContract_ cfg $ do
-    validator <- parseValidator
-    ...
-  ```
+myContract cfg = runContract_ cfg $ do
+  validator <- parseValidator
+  ...
+```
 
 This way you avoid hardcoding your scripts directly to .purs files which could lead to synchronization issues should your scripts change.
 

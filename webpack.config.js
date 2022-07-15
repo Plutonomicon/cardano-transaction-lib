@@ -37,14 +37,7 @@ module.exports = {
     rules: [
       {
         test: /\.(png|jpg|gif)$/i,
-        use: [
-          {
-            loader: "url-loader",
-            options: {
-              limit: 8192,
-            },
-          },
-        ],
+        type: "asset",
       },
       {
         test: /\.plutus$/i,
@@ -71,7 +64,7 @@ module.exports = {
       fs: false,
     },
     alias: {
-      // You should update this path to the location of your compile scripts,
+      // You should update this path to the location of your compiled scripts,
       // relative to `webpack.config.js`
       Scripts: path.resolve(__dirname, "fixtures/scripts"),
     },

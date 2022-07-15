@@ -9,8 +9,8 @@ import Prelude
 
 import Cardano.TextEnvelope
   ( TextEnvelopeType
-      ( PaymentSigningKeyShelley_ed25519
-      , StakeSigningKeyShelley_ed25519
+      ( PaymentSigningKeyShelleyed25519
+      , StakeSigningKeyShelleyed25519
       )
   , textEnvelopeBytes
   )
@@ -36,12 +36,12 @@ keyFromFile filePath ty = do
 
 privatePaymentKeyFromFile :: FilePath -> Aff PrivatePaymentKey
 privatePaymentKeyFromFile filePath = do
-  bytes <- keyFromFile filePath PaymentSigningKeyShelley_ed25519
+  bytes <- keyFromFile filePath PaymentSigningKeyShelleyed25519
   liftM (error "Unable to decode private payment key") $
     PrivatePaymentKey <$> privateKeyFromBytes (wrap bytes)
 
 privateStakeKeyFromFile :: FilePath -> Aff PrivateStakeKey
 privateStakeKeyFromFile filePath = do
-  bytes <- keyFromFile filePath StakeSigningKeyShelley_ed25519
+  bytes <- keyFromFile filePath StakeSigningKeyShelleyed25519
   liftM (error "Unable to decode private stake key") $
     PrivateStakeKey <$> privateKeyFromBytes (wrap bytes)

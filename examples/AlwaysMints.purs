@@ -56,6 +56,6 @@ main = launchAff_ $ do
 
 foreign import alwaysMints :: String
 
-alwaysMintsPolicy :: forall r. Contract r MintingPolicy
+alwaysMintsPolicy :: Contract () MintingPolicy
 alwaysMintsPolicy = wrap <<< wrap <$> textEnvelopeBytes alwaysMints
   PlutusScriptV1
