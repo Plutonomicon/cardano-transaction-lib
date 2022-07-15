@@ -40,6 +40,7 @@ import Data.Map (toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Ord.Max (Max(Max))
+import Data.Ordering (Ordering(EQ))
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
@@ -158,7 +159,13 @@ instance Eq CollateralCandidate where
   eq = eq `on` (Tuple.snd <<< unwrap)
 
 instance Ord CollateralCandidate where
-  compare = compare `on` (Tuple.snd <<< unwrap)
+  compare lhs rhs =
+    case on compare (Tuple.snd <<< unwrap) lhs rhs of
+      -- If two candidate utxo combinations correspond to return outputs with
+      -- the same utxo min ada value, order them by the number of
+      -- collateral inputs:
+      EQ -> on compare (List.length <<< Tuple.fst <<< unwrap) lhs rhs
+      ordering -> ordering
 
 mkCollateralCandidate
   :: List TransactionUnspentOutput /\ Maybe BigInt -> Maybe CollateralCandidate
