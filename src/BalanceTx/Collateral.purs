@@ -12,6 +12,7 @@ module BalanceTx.Collateral
 import Prelude
 
 import BalanceTx.Helpers (fakeOutputWithNonAdaAssets)
+import BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Cardano.Types.Transaction
   ( Transaction
   , TransactionOutput
@@ -50,9 +51,6 @@ import Serialization.Address (Address)
 import Types.BigNum (maxValue, toBigIntUnsafe) as BigNum
 import Types.OutputDatum (OutputDatum(NoOutputDatum))
 import Types.Transaction (TransactionInput)
-
-utxoMinAdaValue :: TransactionOutput -> QueryM (Maybe BigInt)
-utxoMinAdaValue _ = pure Nothing -- TODO: merge `develop`
 
 minRequiredCollateral :: BigInt
 minRequiredCollateral = BigInt.fromInt 5_000_000

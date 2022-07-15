@@ -12,6 +12,8 @@ module BalanceTx
       ( GetWalletAddressError'
       , GetWalletCollateralError'
       , UtxosAtError'
+      , UtxoMinAdaValueCalcError'
+      , CollateralReturnError'
       , ReturnAdaChangeError'
       , AddTxCollateralsError'
       , GetPublicKeyTransactionInputError'
@@ -43,6 +45,7 @@ module BalanceTx
       , ReturnAdaChangeCalculateMinFee
       )
   , UtxosAtError(CouldNotGetUtxos)
+  , UtxoMinAdaValueCalcError(UtxoMinAdaValueCalcError)
   , balanceTx
   ) where
 
@@ -55,6 +58,7 @@ import BalanceTx.Collateral
   , getMaxCollateralInputs
   , selectCollateral
   ) as Collateral
+import BalanceTx.UtxoMinAda (adaOnlyUtxoMinAdaValue, utxoMinAdaValue)
 import Cardano.Types.Transaction
   ( Redeemer(Redeemer)
   , Transaction(Transaction)
@@ -72,29 +76,18 @@ import Cardano.Types.Transaction
   )
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value
-  ( Coin
-  , Value
+  ( Value
   , filterNonAda
   , geq
   , getLovelace
-  , isAdaOnly
   , isPos
   , isZero
   , lovelaceValueOf
   , minus
   , mkCoin
   , mkValue
-  , numNonAdaAssets
-  , numNonAdaCurrencySymbols
-  , sumTokenNameLengths
   , valueToCoin
   , valueToCoin'
-  )
-import Constants.Babbage
-  ( adaOnlyBytes
-  , coinSize
-  , pidSize
-  , utxoEntrySizeWithoutVal
   )
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
@@ -104,7 +97,7 @@ import Control.Monad.Trans.Class (lift)
 import Data.Array ((\\), modifyAt)
 import Data.Array as Array
 import Data.Bifunctor (bimap, lmap)
-import Data.BigInt (BigInt, fromInt, quot)
+import Data.BigInt (BigInt, fromInt)
 import Data.Either (Either(Left, Right), hush, note)
 import Data.Foldable as Foldable
 import Data.Generic.Rep (class Generic)
@@ -120,8 +113,8 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
-import Data.Traversable (traverse, traverse_)
-import Data.Tuple (fst)
+import Data.Traversable (sequence, traverse, traverse_)
+import Data.Tuple (Tuple(Tuple), fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import QueryM (ClientError, QueryM)
@@ -140,7 +133,7 @@ import Transaction (setScriptDataHash)
 import Types.Natural (toBigInt) as Natural
 import Types.OutputDatum (OutputDatum(NoOutputDatum), outputDatumDataHash)
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
-import Types.Transaction (DataHash, TransactionInput)
+import Types.Transaction (TransactionInput)
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), _transaction)
 import Untagged.Union (asOneOf)
 import Wallet (Wallet(KeyWallet), cip30Wallet)
@@ -165,6 +158,7 @@ data BalanceTxError
   | BalanceNonAdaOutsError' BalanceNonAdaOutsError
   | EvalExUnitsAndMinFeeError' EvalExUnitsAndMinFeeError
   | TxInputLockedError' TxInputLockedError
+  | UtxoMinAdaValueCalcError' UtxoMinAdaValueCalcError
 
 derive instance Generic BalanceTxError _
 
@@ -274,6 +268,13 @@ data TxInputLockedError = TxInputLockedError
 derive instance Generic TxInputLockedError _
 
 instance Show TxInputLockedError where
+  show = genericShow
+
+data UtxoMinAdaValueCalcError = UtxoMinAdaValueCalcError
+
+derive instance Generic UtxoMinAdaValueCalcError _
+
+instance Show UtxoMinAdaValueCalcError where
   show = genericShow
 
 -- | Represents that an error reason should be impossible
@@ -498,7 +499,7 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   networkId <- (unbalancedTx ^. _body <<< _networkId) #
     maybe (asks _.networkId) pure
   let unbalancedTx' = unbalancedTx # _body <<< _networkId ?~ networkId
-  utxoMinVal <- getAdaOnlyUtxoMinValue
+  utxoMinVal <- adaOnlyUtxoMinAdaValue
   runExceptT do
     -- Get own wallet address, collateral and utxo set:
     ownAddr <- ExceptT $ QueryM.getWalletAddress <#>
@@ -567,34 +568,29 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     -> MinUtxos
     -> UnattachedUnbalancedTx
     -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
-  loop utxoIndex' ownAddr' prevMinUtxos' unattachedTx' = do
-    coinsPerUtxoByte <- asks _.pparams <#> unwrap >>> _.coinsPerUtxoByte
+  loop utxoIndex' ownAddr' prevMinUtxos' unattachedTx' = runExceptT do
     let
       Transaction { body: txBody'@(TxBody txB) } =
         unattachedTx' ^. _transaction'
 
-      nextMinUtxos' :: MinUtxos
-      nextMinUtxos' =
-        calculateMinUtxos coinsPerUtxoByte $
-          txB.outputs \\ map fst prevMinUtxos'
+    nextMinUtxos' :: MinUtxos <-
+      ExceptT $ calculateMinUtxos (txB.outputs \\ map fst prevMinUtxos')
+        <#> lmap UtxoMinAdaValueCalcError'
 
+    let
       minUtxos' :: MinUtxos
       minUtxos' = prevMinUtxos' <> nextMinUtxos'
 
-    unattachedTxWithBalancedBody <- chainedBalancer minUtxos' utxoIndex'
-      ownAddr'
-      unattachedTx'
+    unattachedTxWithBalancedBody <-
+      ExceptT $ chainedBalancer minUtxos' utxoIndex' ownAddr' unattachedTx'
 
-    case unattachedTxWithBalancedBody of
-      Left err -> pure $ Left err
-      Right unattachedTxWithBalancedBody' ->
-        let
-          balancedTxBody = unattachedTxWithBalancedBody' ^. _body'
-        in
-          if txBody' == balancedTxBody then
-            pure $ Right unattachedTxWithBalancedBody'
-          else
-            loop utxoIndex' ownAddr' minUtxos' unattachedTxWithBalancedBody'
+    let balancedTxBody = unattachedTxWithBalancedBody ^. _body'
+
+    if txBody' == balancedTxBody then
+      pure unattachedTxWithBalancedBody
+    else
+      ExceptT $
+        loop utxoIndex' ownAddr' minUtxos' unattachedTxWithBalancedBody
 
   chainedBalancer
     :: MinUtxos
@@ -603,7 +599,7 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     -> UnattachedUnbalancedTx
     -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
   chainedBalancer minUtxos' utxoIndex' ownAddr' unattachedTx' =
-    getAdaOnlyUtxoMinValue >>= \utxoMinVal -> runExceptT do
+    adaOnlyUtxoMinAdaValue >>= \utxoMinVal -> runExceptT do
       let Transaction tx@{ body: txBody' } = unattachedTx' ^. _transaction'
       txBodyWithoutFees' <- except $
         preBalanceTxBody minUtxos' zero utxoIndex' ownAddr' utxoMinVal txBody'
@@ -678,7 +674,7 @@ returnAdaChangeAndFinalizeFees changeAddr utxos unattachedTx =
         unattachedTx' /\ fees' <-
           ExceptT $ evalExUnitsAndMinFee' unattachedTxWithChangeTxOut
             <#> lmap ReturnAdaChangeCalculateMinFee
-        ExceptT $ getAdaOnlyUtxoMinValue <#>
+        ExceptT $ adaOnlyUtxoMinAdaValue <#>
           adjustAdaChangeAndSetFees unattachedTx' fees' (fees' - fees)
   where
   adjustAdaChangeAndSetFees
@@ -783,56 +779,16 @@ returnAdaChange changeAddr utxos (unattachedTx /\ fees) =
           Right $
             unattachedTxWithChangeTxOut /\ { recalculateFees: true }
 
-calculateMinUtxos :: Coin -> Array TransactionOutput -> MinUtxos
-calculateMinUtxos coinsPerUtxoByte = map
-  (\a -> a /\ calculateMinUtxo coinsPerUtxoByte a)
-
--- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
--- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
--- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0028#rationale-for-parameter-choices
--- | Given an array of transaction outputs, return the paired amount of lovelaces
--- | required by each utxo.
-calculateMinUtxo :: Coin -> TransactionOutput -> BigInt
-calculateMinUtxo coinsPerUtxoByte txOut =
-  (unwrap coinsPerUtxoByte * fromInt 8) * utxoEntrySize txOut
-  where
-  -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
-  -- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
-  utxoEntrySize :: TransactionOutput -> BigInt
-  utxoEntrySize (TransactionOutput txOut') =
-    let
-      outputValue :: Value
-      outputValue = txOut'.amount
-    in
-      if isAdaOnly outputValue then utxoEntrySizeWithoutVal + coinSize -- 29 in Alonzo
-      else utxoEntrySizeWithoutVal
-        + size outputValue
-        -- TODO: add datum size
-        -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
-        + dataHashSize (outputDatumDataHash txOut'.datum)
-
--- https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst
--- | Calculates how many words are needed depending on whether the datum is
--- | hashed or not. 10 words for a hashed datum and 0 for no hash. The argument
--- | to the function is the datum hash found in `TransactionOutput`.
-dataHashSize :: Maybe DataHash -> BigInt -- Should we add type safety?
-dataHashSize Nothing = zero
-dataHashSize (Just _) = fromInt 10
-
--- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
--- See "size"
-size :: Value -> BigInt
-size v = fromInt 6 + roundupBytesToWords b
-  where
-  b :: BigInt
-  b = numNonAdaAssets v * fromInt 12
-    + sumTokenNameLengths v
-    + numNonAdaCurrencySymbols v * pidSize
-
-  -- https://cardano-ledger.readthedocs.io/en/latest/explanations/min-utxo-mary.html
-  -- Converts bytes to 8-byte long words, rounding up
-  roundupBytesToWords :: BigInt -> BigInt
-  roundupBytesToWords b' = quot (b' + (fromInt 7)) $ fromInt 8
+-- | Given an array of transaction outputs, return the paired amount of
+-- | lovelaces required by each utxo.
+calculateMinUtxos
+  :: Array TransactionOutput
+  -> QueryM (Either UtxoMinAdaValueCalcError MinUtxos)
+calculateMinUtxos = map sequence <<< traverse
+  ( \txOutput ->
+      utxoMinAdaValue txOutput
+        <#> note UtxoMinAdaValueCalcError >>> map (Tuple txOutput)
+  )
 
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L116
 preBalanceTxBody
@@ -852,32 +808,6 @@ preBalanceTxBody minUtxos fees utxos ownAddr adaOnlyUtxoMinValue txBody =
     -- Adding more inputs if required
     >>= balanceTxIns utxos fees adaOnlyUtxoMinValue
     >>= balanceNonAdaOuts ownAddr utxos
-
--- addTxCollaterals :: Utxo -> TxBody -> Either BalanceTxError TxBody
--- addTxCollaterals utxo txBody =
---   addTxCollaterals' utxo txBody # lmap AddTxCollateralsError
-
--- -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L211
--- -- | Pick a collateral from the utxo map and add it to the unbalanced transaction
--- -- | (suboptimally we just pick a random utxo from the tx inputs). TO DO: upgrade
--- -- | to a better coin selection algorithm.
--- addTxCollaterals' :: Utxo -> TxBody -> Either AddTxCollateralsError TxBody
--- addTxCollaterals' utxos (TxBody txBody) = do
---   let
---     txIns :: Array TransactionInput
---     txIns = utxosToTransactionInput $ filterAdaOnly utxos
---   txIn :: TransactionInput <- findPubKeyTxIn txIns
---   pure $ wrap txBody { collateral = Just (Array.singleton txIn) }
---   where
---   filterAdaOnly :: Utxo -> Utxo
---   filterAdaOnly = Map.filter (isAdaOnly <<< getAmount)
-
---   -- Take head for collateral - can use better coin selection here.
---   findPubKeyTxIn
---     :: Array TransactionInput
---     -> Either AddTxCollateralsError TransactionInput
---   findPubKeyTxIn =
---     note CollateralUtxosUnavailable <<< Array.head
 
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- | Get `TransactionInput` such that it is associated to `PaymentCredentialKey`
@@ -1100,12 +1030,3 @@ getInputValue utxos (TxBody txBody) =
         <<< Array.fromFoldable
         <<< _.inputs $ txBody
     )
-
---------------------------------------------------------------------------------
--- Helpers
---------------------------------------------------------------------------------
-
-getAdaOnlyUtxoMinValue :: QueryM BigInt
-getAdaOnlyUtxoMinValue =
-  asks _.pparams <#>
-    unwrap >>> _.coinsPerUtxoByte >>> unwrap >>> mul adaOnlyBytes
