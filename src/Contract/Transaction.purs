@@ -3,6 +3,7 @@
 module Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
   , awaitTxConfirmed
+  , awaitTxConfirmedWithTimeout
   , balanceAndSignTx
   , balanceAndSignTxs
   , balanceAndSignTxE
@@ -114,6 +115,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
+import Data.Time.Duration (Seconds)
 import Data.Traversable (class Traversable, for_, traverse)
 import Data.Tuple.Nested (type (/\))
 import Effect.Class (liftEffect)
@@ -133,6 +135,7 @@ import QueryM
   ) as ExportQueryM
 import QueryM
   ( awaitTxConfirmed
+  , awaitTxConfirmedWithTimeout
   , calculateMinFee
   , signTransaction
   , submitTxOgmios
@@ -458,3 +461,12 @@ awaitTxConfirmed
    . TransactionHash
   -> Contract r Unit
 awaitTxConfirmed = wrapContract <<< QueryM.awaitTxConfirmed <<< unwrap
+
+awaitTxConfirmedWithTimeout
+  :: forall (r :: Row Type)
+   . Seconds
+  -> TransactionHash
+  -> Contract r Unit
+awaitTxConfirmedWithTimeout timeout = wrapContract
+  <<< QueryM.awaitTxConfirmedWithTimeout timeout
+  <<< unwrap

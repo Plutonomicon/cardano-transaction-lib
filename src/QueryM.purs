@@ -25,6 +25,7 @@ module QueryM
   , allowError
   , applyArgs
   , awaitTxConfirmed
+  , awaitTxConfirmedWithTimeout
   , calculateMinFee
   , evaluateTxOgmios
   , getChainTip
@@ -86,6 +87,7 @@ import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
+import Data.DateTime.Instant (unInstant)
 import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
 import Data.HTTP.Method (Method(POST))
@@ -95,6 +97,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Time.Duration (Seconds(Seconds))
 import Data.Traversable (for_, traverse, traverse_)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
@@ -104,6 +107,7 @@ import Effect.Aff (Aff, Canceler(Canceler), delay, launchAff_, makeAff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, error, message, throw)
+import Effect.Now (now)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
@@ -286,11 +290,28 @@ getDatumsByHashes hashes = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
 
 awaitTxConfirmed :: TxHash -> QueryM Unit
-awaitTxConfirmed txHash = do
-  txFound <- unwrap <$> mkDatumCacheRequest DcWsp.getTxByHash _.getTxByHash
-    txHash
-  liftAff $ delay $ wrap 1000.0
-  if txFound then pure unit else awaitTxConfirmed txHash
+awaitTxConfirmed = awaitTxConfirmedWithTimeout (Seconds 300.0)
+
+awaitTxConfirmedWithTimeout :: Seconds -> TxHash -> QueryM Unit
+awaitTxConfirmedWithTimeout timeoutSeconds txHash = do
+  nowMs <- getNowMs
+  let timeoutTime = nowMs + unwrap timeoutSeconds * 1000.0
+  go timeoutTime
+  where
+  getNowMs :: QueryM Number
+  getNowMs = unwrap <<< unInstant <$> liftEffect now
+
+  go :: Number -> QueryM Unit
+  go timeoutTime = do
+    isTxFound <- unwrap <$> mkDatumCacheRequest DcWsp.getTxByHash _.getTxByHash
+      txHash
+    nowMs <- getNowMs
+    when (nowMs >= timeoutTime) do
+      liftEffect $ throw $
+        "awaitTxConfirmedWithTimeout: timeout exceeded, Transaction not \
+        \confirmed"
+    liftAff $ delay $ wrap 1000.0
+    if isTxFound then pure unit else go timeoutTime
 
 allowError
   :: forall (a :: Type). (Either Error a -> Effect Unit) -> a -> Effect Unit
