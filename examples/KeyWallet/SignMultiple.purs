@@ -38,8 +38,8 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
 
   withBalancedAndSignedTxs [ ubTx1, ubTx2 ] $ \txs -> do
     locked <- getLockedInputs
-    logInfo' $
-      "Locked inputs inside bracket (should be nonempty): " <> show locked
+    logInfo' $ "Locked inputs inside bracket (should be nonempty): "
+      <> show locked
     traverse_ submitAndLog txs
 
   locked <- getLockedInputs
@@ -47,8 +47,8 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
 
   liftEffect unlock
   where
-    submitAndLog
-      :: forall (r :: Row Type). BalancedSignedTransaction -> Contract r Unit
-    submitAndLog bsTx = do
-      txId <- submit bsTx
-      logInfo' $ "Tx ID: " <> show txId
+  submitAndLog
+    :: forall (r :: Row Type). BalancedSignedTransaction -> Contract r Unit
+  submitAndLog bsTx = do
+    txId <- submit bsTx
+    logInfo' $ "Tx ID: " <> show txId

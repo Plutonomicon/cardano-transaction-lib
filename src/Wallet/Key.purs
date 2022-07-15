@@ -7,23 +7,11 @@ module Wallet.Key
 
 import Prelude
 
-import Cardano.Types.Transaction
-  ( Transaction(Transaction)
-  , Utxo
-  , _vkeys
-  , TransactionOutput(TransactionOutput)
-  )
-import Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  )
-import Cardano.Types.Value (NonAdaAsset(NonAdaAsset), Value(Value), mkCoin)
+import Cardano.Types.Transaction (Transaction(Transaction), _vkeys)
 import Contract.Prelude (class Newtype)
-import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.Lens (set)
-import Data.List (all)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap)
-import Data.Ord.Min (Min(Min))
 import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -45,7 +33,6 @@ import Serialization.Types (PrivateKey)
 -------------------------------------------------------------------------------
 type KeyWallet =
   { address :: NetworkId -> Aff Address
-  , selectCollateral :: Utxo -> Maybe TransactionUnspentOutput
   , signTx :: Transaction -> Aff Transaction
   }
 
@@ -59,11 +46,7 @@ derive instance Newtype PrivateStakeKey _
 
 privateKeysToKeyWallet
   :: PrivatePaymentKey -> Maybe PrivateStakeKey -> KeyWallet
-privateKeysToKeyWallet payKey mbStakeKey =
-  { address
-  , selectCollateral
-  , signTx
-  }
+privateKeysToKeyWallet payKey mbStakeKey = { address, signTx }
   where
   address :: NetworkId -> Aff Address
   address network = do
@@ -84,17 +67,6 @@ privateKeysToKeyWallet payKey mbStakeKey =
         >>> enterpriseAddress
         >>> enterpriseAddressToAddress
 
-  selectCollateral :: Utxo -> Maybe TransactionUnspentOutput
-  selectCollateral utxos = unwrap <<< unwrap <$>
-    flip foldMapWithIndex utxos \input output ->
-      let
-        unspentOutput = AdaOut $ TransactionUnspentOutput { input, output }
-        Value ada _ = _value unspentOutput
-        minRequiredCollateral = mkCoin 5_000_000
-      in
-        if ada >= minRequiredCollateral then Just (Min unspentOutput)
-        else Nothing
-
   signTx :: Transaction -> Aff Transaction
   signTx (Transaction tx) = liftEffect do
     txBody <- Serialization.convertTxBody tx.body
@@ -103,23 +75,3 @@ privateKeysToKeyWallet payKey mbStakeKey =
       Serialization.makeVkeywitness hash (unwrap payKey)
     let witnessSet' = set _vkeys (pure $ pure wit) mempty
     pure $ Transaction $ tx { witnessSet = witnessSet' <> tx.witnessSet }
-
-_value :: AdaOut -> Value
-_value
-  (AdaOut (TransactionUnspentOutput { output: TransactionOutput { amount } })) =
-  amount
-
--- A wrapper around a UTxO, ordered by ada value
-newtype AdaOut = AdaOut TransactionUnspentOutput
-
-derive instance Newtype AdaOut _
-
-instance Eq AdaOut where
-  eq a b
-    | Value a' _ <- _value a
-    , Value b' _ <- _value b = eq a' b'
-
-instance Ord AdaOut where
-  compare a b
-    | Value a' _ <- _value a
-    , Value b' _ <- _value b = compare a' b'
