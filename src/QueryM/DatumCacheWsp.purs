@@ -2,13 +2,16 @@ module QueryM.DatumCacheWsp
   ( DatumCacheMethod
       ( GetDatumByHash
       , GetDatumsByHashes
+      , GetTxByHash
       )
   , GetDatumByHashR(GetDatumByHashR)
   , GetDatumsByHashesR(GetDatumsByHashesR)
+  , GetTxByHashR(GetTxByHashR)
   , WspFault(WspFault)
   , faultToString
   , getDatumByHashCall
   , getDatumsByHashesCall
+  , getTxByHash
   , JsonWspRequest
   , JsonWspResponse
   ) where
@@ -40,7 +43,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import QueryM.JsonWsp (JsonWspCall, mkCallType)
 import QueryM.UniqueId (ListenerId)
 import Type.Proxy (Proxy(Proxy))
-import Types.ByteArray (byteArrayToHex)
+import Types.ByteArray (ByteArray, byteArrayToHex)
 import Types.Datum (Datum, DataHash)
 
 newtype WspFault = WspFault Aeson
@@ -115,10 +118,32 @@ instance DecodeAeson GetDatumsByHashesR where
         r
         [ "DatumsFound", "value" ]
 
+newtype GetTxByHashR = GetTxByHashR Boolean
+
+derive instance Newtype GetTxByHashR _
+derive instance Generic GetTxByHashR _
+
+instance Show GetTxByHashR where
+  show = genericShow
+
+instance DecodeAeson GetTxByHashR where
+  decodeAeson r = GetTxByHashR <$>
+    let
+      txFound :: Either JsonDecodeError Boolean
+      txFound =
+        true <$ getNestedAeson r [ "TxFound", "value" ]
+
+      txNotFound :: Either JsonDecodeError Boolean
+      txNotFound =
+        false <$ getNestedAeson r [ "TxNotFound" ]
+    in
+      txFound <|> txNotFound
+
 -- TODO: delete
 data DatumCacheMethod
   = GetDatumByHash
   | GetDatumsByHashes
+  | GetTxByHash
 
 derive instance Eq DatumCacheMethod
 
@@ -129,6 +154,7 @@ datumCacheMethodToString :: DatumCacheMethod -> String
 datumCacheMethodToString = case _ of
   GetDatumByHash -> "GetDatumByHash"
   GetDatumsByHashes -> "GetDatumsByHashes"
+  GetTxByHash -> "GetTxByHash"
 
 getDatumByHashCall :: JsonWspCall DataHash GetDatumByHashR
 getDatumByHashCall = mkDatumCacheCallType
@@ -139,6 +165,13 @@ getDatumsByHashesCall :: JsonWspCall (Array DataHash) GetDatumsByHashesR
 getDatumsByHashesCall = mkDatumCacheCallType
   GetDatumsByHashes
   ({ hashes: _ } <<< map (byteArrayToHex <<< unwrap))
+
+type TxHash = ByteArray
+
+getTxByHash :: JsonWspCall TxHash GetTxByHashR
+getTxByHash = mkDatumCacheCallType
+  GetTxByHash
+  ({ hash: _ } <<< byteArrayToHex)
 
 -- convenience helper
 mkDatumCacheCallType

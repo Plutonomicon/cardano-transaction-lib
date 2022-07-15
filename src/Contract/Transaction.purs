@@ -2,6 +2,7 @@
 -- | functionality, transaction fees, signing and submission.
 module Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
+  , awaitTxConfirmed
   , balanceAndSignTx
   , balanceAndSignTxs
   , balanceAndSignTxE
@@ -130,7 +131,12 @@ import QueryM
       , ClientOtherError
       )
   ) as ExportQueryM
-import QueryM (calculateMinFee, signTransaction, submitTxOgmios) as QueryM
+import QueryM
+  ( awaitTxConfirmed
+  , calculateMinFee
+  , signTransaction
+  , submitTxOgmios
+  ) as QueryM
 import ReindexRedeemers (ReindexErrors(CannotGetTxOutRefIndexForRedeemer)) as ReindexRedeemersExport
 import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import Serialization (convertTransaction, toBytes) as Serialization
@@ -446,3 +452,9 @@ scriptOutputToTransactionOutput
 scriptOutputToTransactionOutput networkId =
   toPlutusTxOutput
     <<< TxOutput.scriptOutputToTransactionOutput networkId
+
+awaitTxConfirmed
+  :: forall (r :: Row Type)
+   . TransactionHash
+  -> Contract r Unit
+awaitTxConfirmed = wrapContract <<< QueryM.awaitTxConfirmed <<< unwrap

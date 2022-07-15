@@ -24,6 +24,7 @@ module QueryM
   , WebSocket(WebSocket)
   , allowError
   , applyArgs
+  , awaitTxConfirmed
   , calculateMinFee
   , evaluateTxOgmios
   , getChainTip
@@ -120,10 +121,11 @@ import JsWebSocket
   , _wsSend
   , _wsWatch
   )
-import QueryM.DatumCacheWsp (GetDatumByHashR, GetDatumsByHashesR)
+import QueryM.DatumCacheWsp (GetDatumByHashR, GetDatumsByHashesR, GetTxByHashR)
 import QueryM.DatumCacheWsp as DcWsp
 import QueryM.JsonWsp (parseJsonWspResponseId)
 import QueryM.JsonWsp as JsonWsp
+import QueryM.Ogmios (TxHash)
 import QueryM.Ogmios as Ogmios
 import QueryM.ServerConfig
   ( Host
@@ -282,6 +284,13 @@ getDatumByHash hash = unwrap <$> do
 getDatumsByHashes :: Array DataHash -> QueryM (Map DataHash Datum)
 getDatumsByHashes hashes = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
+
+awaitTxConfirmed :: TxHash -> QueryM Unit
+awaitTxConfirmed txHash = do
+  txFound <- unwrap <$> mkDatumCacheRequest DcWsp.getTxByHash _.getTxByHash
+    txHash
+  liftAff $ delay $ wrap 1000.0
+  if txFound then pure unit else awaitTxConfirmed txHash
 
 allowError
   :: forall (a :: Type). (Either Error a -> Effect Unit) -> a -> Effect Unit
@@ -630,12 +639,15 @@ mkDatumCacheWebSocket'
 mkDatumCacheWebSocket' lvl serverCfg continue = do
   getDatumByHashDispatchMap <- createMutableDispatch
   getDatumsByHashesDispatchMap <- createMutableDispatch
+  getTxByHashDispatchMap <- createMutableDispatch
   getDatumByHashPendingRequests <- createPendingRequests
   getDatumsByHashesPendingRequests <- createPendingRequests
+  getTxByHashPendingRequests <- createPendingRequests
   let
     messageDispatch = datumCacheMessageDispatch
       { getDatumByHashDispatchMap
       , getDatumsByHashesDispatchMap
+      , getTxByHashDispatchMap
       }
   ws <- _mkWebSocket (logger Debug) $ mkOgmiosDatumCacheWsUrl serverCfg
   let
@@ -643,6 +655,7 @@ mkDatumCacheWebSocket' lvl serverCfg continue = do
     resendPendingRequests = do
       Ref.read getDatumByHashPendingRequests >>= traverse_ sendRequest
       Ref.read getDatumsByHashesPendingRequests >>= traverse_ sendRequest
+      Ref.read getTxByHashPendingRequests >>= traverse_ sendRequest
     -- We want to fail if the first connection attempt is not successful.
     -- Otherwise, we start reconnecting indefinitely.
     onFirstConnectionError errMessage = do
@@ -682,6 +695,8 @@ mkDatumCacheWebSocket' lvl serverCfg continue = do
             getDatumByHashPendingRequests
         , getDatumsByHashes: mkListenerSet getDatumsByHashesDispatchMap
             getDatumsByHashesPendingRequests
+        , getTxByHash: mkListenerSet getTxByHashDispatchMap
+            getTxByHashPendingRequests
         }
   pure $ Canceler $ \err -> liftEffect do
     _wsClose ws
@@ -722,6 +737,7 @@ type OgmiosListeners =
 type DatumCacheListeners =
   { getDatumByHash :: ListenerSet DataHash GetDatumByHashR
   , getDatumsByHashes :: ListenerSet (Array DataHash) GetDatumsByHashesR
+  , getTxByHash :: ListenerSet TxHash GetTxByHashR
   }
 
 -- convenience type for adding additional query types later
@@ -912,14 +928,17 @@ ogmiosMessageDispatch
 datumCacheMessageDispatch
   :: { getDatumByHashDispatchMap :: DispatchIdMap GetDatumByHashR
      , getDatumsByHashesDispatchMap :: DispatchIdMap GetDatumsByHashesR
+     , getTxByHashDispatchMap :: DispatchIdMap GetTxByHashR
      }
   -> Array WebsocketDispatch
 datumCacheMessageDispatch
   { getDatumByHashDispatchMap
   , getDatumsByHashesDispatchMap
+  , getTxByHashDispatchMap
   } =
   [ queryDispatch getDatumByHashDispatchMap
   , queryDispatch getDatumsByHashesDispatchMap
+  , queryDispatch getTxByHashDispatchMap
   ]
 
 -- each query type will have a corresponding ref that lives in ReaderT config or similar
