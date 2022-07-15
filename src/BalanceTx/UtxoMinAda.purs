@@ -10,14 +10,13 @@ import Cardano.Types.Transaction (TransactionOutput)
 import Cardano.Types.Value (lovelaceValueOf)
 import Control.Monad.Reader.Class (asks)
 import Data.BigInt (BigInt)
-import Data.Maybe (Maybe(Nothing), fromJust)
-import Data.Newtype (wrap, unwrap)
+import Data.Maybe (Maybe, fromJust)
+import Data.Newtype (unwrap)
 import Effect.Class (liftEffect)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Partial.Unsafe (unsafePartial)
 import QueryM (QueryM)
 import Serialization (convertTxOutput)
-import Serialization.Address (addressFromBech32) as Csl
 import Serialization.Types (TransactionOutput) as Csl
 import Types.BigNum (BigNum)
 import Types.BigNum (fromBigInt, maxValue, toBigInt, toBigIntUnsafe) as BigNum
