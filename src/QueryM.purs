@@ -97,6 +97,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Number (infinity)
 import Data.Time.Duration (Seconds(Seconds))
 import Data.Traversable (for_, traverse, traverse_)
 import Data.Tuple.Nested ((/\))
@@ -290,7 +291,7 @@ getDatumsByHashes hashes = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
 
 awaitTxConfirmed :: TxHash -> QueryM Unit
-awaitTxConfirmed = awaitTxConfirmedWithTimeout (Seconds 300.0)
+awaitTxConfirmed = awaitTxConfirmedWithTimeout (Seconds infinity)
 
 awaitTxConfirmedWithTimeout :: Seconds -> TxHash -> QueryM Unit
 awaitTxConfirmedWithTimeout timeoutSeconds txHash = do

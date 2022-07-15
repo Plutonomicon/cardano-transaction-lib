@@ -47,6 +47,7 @@ You can edit this file as you like.
   , "node-process"
   , "nonempty"
   , "now"
+  , "numbers"
   , "ordered-collections"
   , "orders"
   , "parallel"

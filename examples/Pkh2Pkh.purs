@@ -25,7 +25,7 @@ import Contract.Monad
   )
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
-  ( awaitTxConfirmedWithTimeout
+  ( awaitTxConfirmed
   , balanceAndSignTx
   , submit
   )
@@ -33,7 +33,6 @@ import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
-import Data.Time.Duration (Seconds(Seconds))
 
 main :: Effect Unit
 main = launchAff_ $ do
@@ -67,5 +66,5 @@ main = launchAff_ $ do
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
-    awaitTxConfirmedWithTimeout (Seconds 50.0) txId
-    logInfo' $ "Tx sumbitted successfully!"
+    awaitTxConfirmed txId
+    logInfo' $ "Tx submitted successfully!"
