@@ -14,7 +14,6 @@ module Test.E2E.Helpers
   , jqSet
   , setText
   , setValue
-  , trigger
   , clickButton
   , testPassword
   , reactSetValue
@@ -52,7 +51,7 @@ import Effect.Uncurried (mkEffectFn1, EffectFn1)
 import Foreign (Foreign, unsafeFromForeign)
 import Mote (test)
 import TestM (TestPlanM)
-import Test.E2E.Browser (TestOptions, withBrowser)
+import Test.E2E.Browser (TestOptions, withBrowser, WalletExt)
 import Test.E2E.Feedback (testFeedbackIsTrue)
 import Test.Spec.Assertions (shouldSatisfy)
 import Toppokki as Toppokki
@@ -167,6 +166,7 @@ startExample name browser = do
       )
       errorRef
 
+-- | Run an example in the browser and close the browser afterwards
 withExample
   :: forall (a :: Type)
    . String
@@ -180,7 +180,7 @@ runE2ETest
   :: forall (a :: Type)
    . String
   -> TestOptions
-  -> String
+  -> WalletExt
   -> (RunningExample -> Aff a)
   -> TestPlanM Unit
 runE2ETest example opts ext f = test example $ withBrowser opts ext $
@@ -228,10 +228,12 @@ geroSign =
     typeInto (byId "wallet-password") testPasswordGero gero
     clickButton "Next" gero
 
+-- | A String representing a jQuery selector, e.g. "#my-id" or ".my-class"
 newtype Selector = Selector String
 
 derive instance Newtype Selector _
 
+-- | A String representing a jQuery action, e.g. "click" or "enable".
 newtype Action = Action String
 
 derive instance Newtype Action _
@@ -245,38 +247,45 @@ doJQ selector action page = do
   jq :: String
   jq = "$('" <> unwrap selector <> "')." <> unwrap action
 
+-- | set an attribute to a value
 setAttr :: String -> String -> Action
 setAttr attr value = wrap $ "attr(" <> jqStr attr <> ", " <> value <> ")"
 
+-- | select any button
 button :: Selector
 button = wrap "button"
 
+-- | select a button with a specific text inside
 buttonWithText :: String -> Selector
 buttonWithText text = wrap $ "button:contains(" <> text <> ")"
 
+-- | select an input element of a specific type
 inputType :: String -> Selector
 inputType typ = wrap $ "input[type=\"" <> typ <> "\"]"
 
+-- | select an element by Id
 byId :: String -> Selector
 byId = wrap <<< ("#" <> _)
 
+-- | select any password field
 password :: Selector
 password = wrap ":password"
 
+-- | wrap a string inside quotation marks (intended: make a jQuery string).
 jqStr :: String -> String
 jqStr str = "\"" <> str <> "\""
 
+-- | set something to value with jQuery, i.e. call $(...).<thing>(<value>)
 jqSet :: String -> String -> Action
 jqSet what value = wrap $ what <> "(" <> value <> ")"
 
+-- | set the text
 setText :: String -> Action
 setText = jqSet "text" <<< jqStr
 
+-- | set the value
 setValue :: String -> Action
 setValue = jqSet "val" <<< jqStr
-
-trigger :: String -> Action
-trigger event = wrap $ "trigger(" <> jqStr event <> ")"
 
 click :: Action
 click = wrap "click()"

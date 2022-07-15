@@ -12,10 +12,13 @@ ps-entrypoint := Examples.ByUrl
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 node-ipc = $(shell docker volume inspect cardano-transaction-lib_node-ipc | jq -r '.[0].Mountpoint')
 e2e-temp-dir := $(shell mktemp -tdu e2e.XXXXXXX)
-# bump version here
 e2e-test-chrome-dir := test-data/chrome-user-data
+
+# bump version here
 e2e-test-nami := test-data/chrome-extensions/nami_3.2.5_1.crx
 e2e-test-nami-settings := test-data/nami_settings.tar.gz
+
+# bump version here
 e2e-test-gero := test-data/chrome-extensions/gero_testnet_1.10.0_0.crx
 e2e-test-gero-settings := test-data/gero_settings.tar.gz
 e2e-browser := $(shell which google-chrome)

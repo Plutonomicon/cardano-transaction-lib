@@ -1,20 +1,18 @@
 module Test.E2E.Browser
-  ( Mode(..)
-  , TestOptions(..)
-  , launchWithExtension
+  ( Mode(Headless, Visible)
+  , TestOptions(TestOptions)
+  , WalletExt (GeroExt, NamiExt)
   , withBrowser
   , parseOptions
   ) where
 
 import Prelude
 
-import Control.Applicative (apply, (<$>))
 import Data.Foldable (fold)
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Effect (Effect)
 import Effect.Aff (Aff, bracket)
-import Effect.Class (liftEffect)
-import Effect.Console (error)
+import Node.Path (FilePath)
 import Options.Applicative
   ( Parser
   , execParser
@@ -32,11 +30,23 @@ import Options.Applicative
   )
 import Toppokki as Toppokki
 
+data WalletExt = NamiExt | GeroExt
+
+-- | Parameters for E2E tests
+-- | 'chromeExe' should point to a chromium or google-chrome binary.
+-- | 'namiDir' should point to a directory where Nami is unpacked.
+-- | 'geroDir' should point to a directory where Gero is unpacked.
+-- |    both Nami and Gero must be provided to run the full suite of tests.
+-- | 'chromeUserDataDir' should point to a chromium profile directory. If
+-- |    not provided, test-data/chrome-user-data is used.
+-- |    'make e2e-test' then takes care to unpack Nami and Gero settings to there,
+-- |    so that wallet data is available.
+-- | 'noHeadless' is a flag to display the browser during the tests.
 data TestOptions = TestOptions
-  { chromeExe :: Maybe String
-  , namiDir :: String
-  , geroDir :: String
-  , chromeUserDataDir :: String
+  { chromeExe :: Maybe FilePath
+  , namiDir :: FilePath
+  , geroDir :: FilePath
+  , chromeUserDataDir :: FilePath
   , noHeadless :: Boolean
   }
 
@@ -83,19 +93,19 @@ parseOptions = execParser $ info optParser fullDesc
 withBrowser
   :: forall (a :: Type)
    . TestOptions
-  -> String
+  -> WalletExt
   -> (Toppokki.Browser -> Aff a)
   -> Aff a
-withBrowser opts ext = bracket (launchWithExtension opts ext) Toppokki.close
+withBrowser opts ext = bracket (launchWithExtension ext opts) Toppokki.close
 
 launchWithExtension
-  :: TestOptions -> String -> Aff Toppokki.Browser
-launchWithExtension
-  (TestOptions { chromeExe, chromeUserDataDir, namiDir, geroDir, noHeadless })
-  wallet = Toppokki.launch
+  :: WalletExt -> TestOptions -> Aff Toppokki.Browser
+launchWithExtension walletExt
+  (TestOptions { chromeExe, chromeUserDataDir, namiDir, geroDir, noHeadless }) =
+    Toppokki.launch
   { args:
-      [ "--disable-extensions-except=" <> extDir
-      , "--load-extension=" <> extDir
+      [ "--disable-extensions-except=" <> extDir 
+      , "--load-extension=" <> extDir 
       ] <> if mode == Headless then [ "--headless=chrome" ] else []
   , headless: mode == Headless
   , userDataDir: chromeUserDataDir
@@ -103,9 +113,11 @@ launchWithExtension
   }
   where
   mode :: Mode
-  mode noHeadless
+  mode
     | noHeadless = Visible 
     | otherwise = Headless
 
-  extDir :: String
-  extDir = if wallet == "Gero" then geroDir else namiDir
+  extDir :: FilePath
+  extDir = case walletExt of
+    GeroExt -> geroDir
+    NamiExt -> namiDir

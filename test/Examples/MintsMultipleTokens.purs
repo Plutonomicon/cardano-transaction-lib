@@ -2,25 +2,14 @@ module Test.Examples.MintsMultipleTokens (runExample) where
 
 import Prelude
 
-import Data.Newtype (wrap)
-import Effect.Aff (delay)
-import Mote (test)
-import Test.E2E.Browser (TestOptions, launchWithExtension)
-import Test.E2E.Helpers
-  ( checkSuccess
-  , namiSign
-  , namiConfirmAccess
-  , startExample
-  , delaySec
-  , runE2ETest
-  )
+import Test.E2E.Browser (TestOptions, WalletExt(NamiExt))
+import Test.E2E.Helpers (namiSign, namiConfirmAccess, runE2ETest)
 import TestM (TestPlanM)
-import Toppokki as Toppokki
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 
 runExample :: TestOptions -> TestPlanM Unit
-runExample options = runE2ETest "MintsMultipleTokens" options "Nami" $
+runExample options = runE2ETest "MintsMultipleTokens" options NamiExt $
   \example -> do
     liftEffect $ log "Confirm Nami Access"
     namiConfirmAccess example
