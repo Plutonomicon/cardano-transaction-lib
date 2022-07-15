@@ -2,12 +2,13 @@ module BalanceTx.Collateral where
 
 import Prelude
 
+import BalanceTx.Helpers (fakeOutputWithNonAdaAssets)
 import Cardano.Types.Transaction (TransactionOutput, Utxo)
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Cardano.Types.Value (valueToCoin')
+import Cardano.Types.Value (NonAdaAsset, getNonAdaAsset, valueToCoin')
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt) as BigInt
-import Data.Foldable (foldl)
+import Data.Foldable (foldl, foldMap)
 import Data.Function (on)
 import Data.List (List(Nil, Cons))
 import Data.List as List
@@ -24,9 +25,14 @@ import Types.Transaction (TransactionInput)
 utxoMinAdaValue :: TransactionOutput -> QueryM (Maybe BigInt)
 utxoMinAdaValue _ = pure Nothing -- TODO: merge `develop`
 
+--------------------------------------------------------------------------------
+-- Select Collateral
+--------------------------------------------------------------------------------
+
 collateralReturnMinAdaValue
   :: List TransactionUnspentOutput -> QueryM (Maybe BigInt)
-collateralReturnMinAdaValue _ = pure Nothing -- TODO:
+collateralReturnMinAdaValue =
+  utxoMinAdaValue <<< fakeOutputWithNonAdaAssets <<< foldMap nonAdaAsset
 
 newtype CollateralCandidate =
   CollateralCandidate (List TransactionUnspentOutput /\ BigInt)
@@ -81,6 +87,9 @@ asTxUnspentOutput (input /\ output) = wrap { input, output }
 
 adaValue :: TransactionUnspentOutput -> BigInt
 adaValue = valueToCoin' <<< _.amount <<< unwrap <<< _.output <<< unwrap
+
+nonAdaAsset :: TransactionUnspentOutput -> NonAdaAsset
+nonAdaAsset = getNonAdaAsset <<< _.amount <<< unwrap <<< _.output <<< unwrap
 
 subsequences :: forall (a :: Type). List a -> List (List a)
 subsequences Nil = Cons Nil Nil
