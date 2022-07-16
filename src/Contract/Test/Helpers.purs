@@ -33,8 +33,10 @@ module Contract.Test.Helpers
 
 import Prelude
 
-import Control.Promise (Promise, toAffE)
+import Contract.Test.Browser (TestOptions, withBrowser, WalletExt)
+import Contract.Test.Feedback (resetTestFeedback, testFeedbackIsTrue)
 import Control.Monad.Error.Class (try)
+import Control.Promise (Promise, toAffE)
 import Data.Array (head, filterA)
 import Data.Foldable (intercalate)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -50,10 +52,8 @@ import Effect.Ref as Ref
 import Effect.Uncurried (mkEffectFn1, EffectFn1)
 import Foreign (Foreign, unsafeFromForeign)
 import Mote (test)
-import TestM (TestPlanM)
-import Contract.Test.Browser (TestOptions, withBrowser, WalletExt)
-import Contract.Test.Feedback (testFeedbackIsTrue)
 import Test.Spec.Assertions (shouldSatisfy)
+import TestM (TestPlanM)
 import Toppokki as Toppokki
 
 exampleUrl :: Toppokki.URL
@@ -196,9 +196,10 @@ runE2ETest
 runE2ETest example opts ext f = test example $ withBrowser opts ext $
   \browser -> withExample example browser
     ( \e -> do
-        _ <- void $ try $ f e
-        delaySec 10.0
-        checkSuccess e
+         resetTestFeedback (_.main $ unwrap e)
+         void $ try $ f e
+         delaySec 10.0
+         checkSuccess e
     )
 
 checkSuccess :: RunningExample -> Aff Unit

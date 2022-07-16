@@ -4,6 +4,7 @@
 module Contract.Test.Feedback
   ( publishTestFeedback
   , retrieveTestFeedback
+  , resetTestFeedback    
   , testFeedbackIsTrue
   ) where
 
@@ -21,11 +22,14 @@ foreign import _publishTestFeedback :: forall (a :: Type). a -> Effect Unit
 publishTestFeedback :: forall (a :: Type). a -> Aff Unit
 publishTestFeedback = liftEffect <<< _publishTestFeedback
 
+resetTestFeedback :: Toppokki.Page -> Aff Unit
+resetTestFeedback = void <<< Toppokki.unsafeEvaluateStringFunction
+                    "window.ctlTestFeedback = false;"
+
 -- | Retrieve the feedback value
 retrieveTestFeedback :: Toppokki.Page -> Aff Foreign
-retrieveTestFeedback page = Toppokki.unsafeEvaluateStringFunction
+retrieveTestFeedback = Toppokki.unsafeEvaluateStringFunction
   "window.ctlTestFeedback"
-  page
 
 -- | Convenience function for boolean feedback
 testFeedbackIsTrue :: Toppokki.Page -> Aff Boolean
