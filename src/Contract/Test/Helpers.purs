@@ -196,9 +196,11 @@ runE2ETest
 runE2ETest example opts ext f = test example $ withBrowser opts ext $
   \browser -> withExample example browser
     ( \e -> do
+         liftEffect $ log $ "Start Example " <> example
          resetTestFeedback (_.main $ unwrap e)
          void $ try $ f e
          delaySec 10.0
+         liftEffect $ log $ "Example " <> example <> " finished, check success..."
          checkSuccess e
     )
 

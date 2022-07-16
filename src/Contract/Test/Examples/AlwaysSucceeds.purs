@@ -10,13 +10,13 @@ import Contract.Test.Helpers
   , runE2ETest
   )
 import TestM (TestPlanM)
+import Effect.Console (log)
+import Effect.Class (liftEffect)
 
 runExample :: TestOptions -> TestPlanM Unit
-runExample options = runE2ETest "AlwaysSucceeds" options NamiExt $ \example ->
-  do
+runExample options = runE2ETest "AlwaysSucceeds" options NamiExt $ \example -> do
     namiConfirmAccess example
     namiSign example
-    -- Wait a moment to avoid a race condition. After Nami gets confirmation,
-    -- it will take a few ms to return control to our example.
+    liftEffect $ log $ " ...waiting before trying to spend script output (this will take a minute)"
     delaySec 65.0
 
