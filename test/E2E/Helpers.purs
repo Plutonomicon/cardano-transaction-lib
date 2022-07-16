@@ -83,27 +83,36 @@ newtype RunningExample = RunningExample
 
 derive instance Newtype RunningExample _
 
+-- | Download jQuery
 retrieveJQuery :: Toppokki.Page -> Aff String
 retrieveJQuery = toAffE <<< _retrieveJQuery
 
+-- | Simulate physical typing into a form element.
 typeInto :: Selector -> String -> Toppokki.Page -> Aff Unit
 typeInto selector text page = toAffE $ _typeInto selector text page
 
+-- | Count how many items match a selector
 jQueryCount :: Selector -> Toppokki.Page -> Aff Int
 jQueryCount selector page = unsafeFromForeign <$> doJQ selector (wrap "length")
   page
 
+-- | Check if a selector is matched on a page
 hasSelector :: Selector -> Toppokki.Page -> Aff Boolean
 hasSelector selector page = (_ > 0) <$> jQueryCount selector page
 
+-- | Find the popup page of the wallet. This works for both Nami and Gero
+-- | by looking for a page with a button. If there is a button on the main page
+-- | this needs to be modified.
 findWalletPage :: String -> Toppokki.Browser -> Aff (Maybe Toppokki.Page)
 findWalletPage jQuery browser = do
   pages <- injectJQueryAll jQuery browser
   pages' <- filterA (hasSelector button) pages
   pure $ head $ pages'
 
+-- | Wait until the wallet page pops up. Timout should be at least a few seconds.
+-- | The 'String' param is the text of jQuery, which will be injected.
 waitForWalletPage :: String -> Number -> Toppokki.Browser -> Aff Toppokki.Page
-waitForWalletPage jQuery timeout browser = do
+waitForWalletPage jQuery timeout browser =
   findWalletPage jQuery browser >>= case _ of
     Nothing -> do
       if timeout > 0.0 then do
@@ -114,7 +123,7 @@ waitForWalletPage jQuery timeout browser = do
 
 showOutput :: Ref (Array E2EOutput) -> Effect String
 showOutput ref =
-  Ref.read ref >>= pure <<< intercalate "\n" <<< map show'
+  Ref.read ref >>= map show' >>> intercalate "\n" >>> pure
   where
   show' :: E2EOutput -> String
   show' (E2EOutput { outputType, output }) = showType outputType <> " " <>
@@ -125,7 +134,7 @@ showOutput ref =
   showType Console = "..."
   showType RequestFailed = "REQ"
 
--- | start example at URL with Nami and return both Nami's page and the example's
+-- | Navigate to an example's page, inject jQuery and set up error handlers
 startExample :: String -> Toppokki.Browser -> Aff RunningExample
 startExample name browser = do
   page <- Toppokki.newPage browser
@@ -148,6 +157,7 @@ startExample name browser = do
   url :: Toppokki.URL
   url = wrap $ unwrap exampleUrl <> "?" <> name
 
+  -- Setup a handler for an output type.
   handler
     :: forall (a :: Type)
      . Ref (Array (E2EOutput))
@@ -306,13 +316,16 @@ injectJQueryAll jQuery browser = do
       page
   pure pages
 
+-- | Set the value of an item with the browser's native value setter.
+-- | This is necessary for react items so that react reacts.
+-- | (sometimes 'typeInto' is an alternative).
+-- | React is used in Nami.
+-- | https://stackoverflow.com/questions/23892547/what-is-the-best-way-to-trigger-onchange-event-in-react-js
 reactSetValue :: Selector -> String -> Toppokki.Page -> Aff Unit
 reactSetValue selector value page = void
   $ flip Toppokki.unsafeEvaluateStringFunction page
   $ fold
-      [ -- https://stackoverflow.com/questions/23892547/what-is-the-best-way-to-trigger-onchange-event-in-react-js
-        -- Nami uses react, which complicates things a bit
-        "let input = $('" <> unwrap selector <> "').get(0);"
+      [ "let input = $('" <> unwrap selector <> "').get(0);"
       , "var nativeInputValueSetter = "
           <>
             " Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;"
@@ -322,6 +335,7 @@ reactSetValue selector value page = void
       ]
 
 foreign import _retrieveJQuery :: Toppokki.Page -> Effect (Promise String)
+
 foreign import _typeInto
   :: Selector -> String -> Toppokki.Page -> Effect (Promise Unit)
 
