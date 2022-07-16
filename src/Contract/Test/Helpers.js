@@ -9,11 +9,3 @@ exports._retrieveJQuery = page => () =>
 
 exports._typeInto = selector => text => page => () =>
   page.focus(selector).then(() => page.keyboard.type(text));
-
-exports._clickTab = chrome => walletPage => () => {
-  walletPage.evaluate(() => {
-    chrome.tabs.query({ active: true }, tabs => {
-      chrome.browserAction.onClicked.dispatch(tabs[0]);
-    });
-  });
-};

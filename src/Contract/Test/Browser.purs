@@ -1,4 +1,4 @@
-module Test.E2E.Browser
+module Contract.Test.Browser
   ( Mode(Headless, Visible)
   , TestOptions(TestOptions)
   , WalletExt(GeroExt, NamiExt)

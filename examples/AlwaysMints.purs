@@ -23,7 +23,7 @@ import Contract.Transaction (balanceAndSignTx, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Data.BigInt as BigInt
-import Test.E2E.Feedback (publishTestFeedback)
+import Contract.Test.Feedback (publishTestFeedback)
 
 main :: Effect Unit
 main = launchAff_ $ do

@@ -1,10 +1,10 @@
-module Test.Examples.Pkh2PkhGero (runExample) where
+module Contract.Test.Examples.Pkh2PkhGero (runExample) where
 
 import Prelude
 
 import TestM (TestPlanM)
-import Test.E2E.Browser (TestOptions, WalletExt(GeroExt))
-import Test.E2E.Helpers
+import Contract.Test.Browser (TestOptions, WalletExt(GeroExt))
+import Contract.Test.Helpers
   ( geroSign
   , geroConfirmAccess
   , delaySec

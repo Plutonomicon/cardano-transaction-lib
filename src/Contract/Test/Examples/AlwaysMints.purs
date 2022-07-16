@@ -1,11 +1,10 @@
-module Test.Examples.AlwaysMints (runExample) where
+module Contract.Test.Examples.AlwaysMints (runExample) where
 
 import Prelude
 
-import Test.E2E.Browser (TestOptions, WalletExt(NamiExt))
-import Test.E2E.Helpers
-  ( checkSuccess
-  , namiSign
+import Contract.Test.Browser (TestOptions, WalletExt(NamiExt))
+import Contract.Test.Helpers
+  ( namiSign
   , namiConfirmAccess
   , delaySec
   , runE2ETest

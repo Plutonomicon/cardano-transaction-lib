@@ -1,4 +1,4 @@
-module Test.E2E (main) where
+module Contract.Test.E2E (main) where
 
 import Data.Newtype (wrap)
 import Effect (Effect)
@@ -6,15 +6,15 @@ import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
 import Mote (group)
 import Prelude (Unit, ($), bind, discard, pure)
-import Test.E2E.Browser (TestOptions, parseOptions)
-import Test.Examples.Gero as Gero
-import Test.Examples.Pkh2PkhGero as Pkh2PkhGero
-import Test.Examples.Pkh2Pkh as Pkh2Pkh
-import Test.Examples.AlwaysMints as AlwaysMints
-import Test.Examples.AlwaysSucceeds as AlwaysSucceeds
-import Test.Examples.Datums as Datums
-import Test.Examples.MintsMultipleTokens as MintsMultipleTokens
-import Test.Examples.SignMultiple as SignMultiple
+import Contract.Test.Browser (TestOptions, parseOptions)
+import Contract.Test.Examples.Gero as Gero
+import Contract.Test.Examples.Pkh2PkhGero as Pkh2PkhGero
+import Contract.Test.Examples.Pkh2Pkh as Pkh2Pkh
+import Contract.Test.Examples.AlwaysMints as AlwaysMints
+import Contract.Test.Examples.AlwaysSucceeds as AlwaysSucceeds
+import Contract.Test.Examples.Datums as Datums
+import Contract.Test.Examples.MintsMultipleTokens as MintsMultipleTokens
+import Contract.Test.Examples.SignMultiple as SignMultiple
 import Test.Spec.Runner as SpecRunner
 import Test.Utils as Utils
 import TestM (TestPlanM)

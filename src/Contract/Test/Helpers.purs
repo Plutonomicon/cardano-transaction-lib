@@ -1,4 +1,4 @@
-module Test.E2E.Helpers
+module Contract.Test.Helpers
   ( hasSelector
   , startExample
   , runE2ETest
@@ -37,7 +37,7 @@ import Control.Promise (Promise, toAffE)
 import Control.Monad.Error.Class (try)
 import Data.Array (head, filterA)
 import Data.Foldable (intercalate)
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Traversable (for, fold)
 import Effect (Effect)
@@ -51,8 +51,8 @@ import Effect.Uncurried (mkEffectFn1, EffectFn1)
 import Foreign (Foreign, unsafeFromForeign)
 import Mote (test)
 import TestM (TestPlanM)
-import Test.E2E.Browser (TestOptions, withBrowser, WalletExt)
-import Test.E2E.Feedback (testFeedbackIsTrue)
+import Contract.Test.Browser (TestOptions, withBrowser, WalletExt)
+import Contract.Test.Feedback (testFeedbackIsTrue)
 import Test.Spec.Assertions (shouldSatisfy)
 import Toppokki as Toppokki
 

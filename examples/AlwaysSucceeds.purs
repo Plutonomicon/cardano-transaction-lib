@@ -33,7 +33,7 @@ import Contract.Value as Value
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Effect.Aff (delay)
-import Test.E2E.Feedback (publishTestFeedback)
+import Contract.Test.Feedback (publishTestFeedback)
 
 main :: Effect Unit
 main = launchAff_ $ do

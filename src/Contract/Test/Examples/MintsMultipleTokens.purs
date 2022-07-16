@@ -1,9 +1,9 @@
-module Test.Examples.MintsMultipleTokens (runExample) where
+module Contract.Test.Examples.MintsMultipleTokens (runExample) where
 
 import Prelude
 
-import Test.E2E.Browser (TestOptions, WalletExt(NamiExt))
-import Test.E2E.Helpers (namiSign, namiConfirmAccess, runE2ETest)
+import Contract.Test.Browser (TestOptions, WalletExt(NamiExt))
+import Contract.Test.Helpers (namiSign, namiConfirmAccess, runE2ETest)
 import TestM (TestPlanM)
 import Effect.Class (liftEffect)
 import Effect.Console (log)

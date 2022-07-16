@@ -61,7 +61,7 @@ e2e-test:
             || echo "ignore warnings" # or make stops
 	@tar xzf ${e2e-test-gero-settings}
 	@rm -f ${e2e-test-chrome-dir}/SingletonLock
-	@spago test --main Test.E2E -a "E2ETest --nami-dir=${e2e-temp-dir}/nami --gero-dir=${e2e-temp-dir}/gero $(TEST_ARGS) --chrome-exe=${e2e-browser}" || rm -Rf ${e2e-temp-dir}
+	@spago test --main Contract.Test.E2E -a "E2ETest --nami-dir=${e2e-temp-dir}/nami --gero-dir=${e2e-temp-dir}/gero $(TEST_ARGS) --chrome-exe=${e2e-browser}" || rm -Rf ${e2e-temp-dir}
 
 e2e-run-browser-nami:
 	@mkdir ${e2e-temp-dir}

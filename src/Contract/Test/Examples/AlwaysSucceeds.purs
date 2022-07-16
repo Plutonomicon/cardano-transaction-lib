@@ -1,9 +1,9 @@
-module Test.Examples.AlwaysSucceeds (runExample) where
+module Contract.Test.Examples.AlwaysSucceeds (runExample) where
 
 import Prelude
 
-import Test.E2E.Browser (TestOptions, WalletExt(NamiExt))
-import Test.E2E.Helpers
+import Contract.Test.Browser (TestOptions, WalletExt(NamiExt))
+import Contract.Test.Helpers
   ( namiSign
   , namiConfirmAccess
   , delaySec

@@ -37,7 +37,7 @@ import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
 import Types.UsedTxOuts (TxOutRefCache)
-import Test.E2E.Feedback (publishTestFeedback)
+import Contract.Test.Feedback (publishTestFeedback)
 
 getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
 getLockedInputs = do
