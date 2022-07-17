@@ -40,7 +40,6 @@ import Data.Map (toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Ord.Max (Max(Max))
-import Data.Ordering (Ordering(EQ))
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
