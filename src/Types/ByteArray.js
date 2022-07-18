@@ -89,6 +89,4 @@ exports.byteArrayFromIntArray_ = nothing => just => ints => {
 
 exports.byteArrayToIntArray = bytes => Array.from(bytes);
 
-exports.byteLength = bytes => bytes.byteLength;
-
-exports.subarray = start => end => bytes => bytes.subarray(start, end);
+exports._byteLength = bytes => bytes.byteLength;

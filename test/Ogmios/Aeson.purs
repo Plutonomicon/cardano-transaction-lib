@@ -5,12 +5,13 @@ module Test.Ogmios.Aeson
 
 import Prelude
 
-import Aeson (class DecodeAeson, Aeson, printJsonDecodeError)
+import Aeson (class DecodeAeson, Aeson)
 import Aeson as Aeson
 import Foreign.Object (Object)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
+import Data.Argonaut.Decode.Error (printJsonDecodeError)
 import Data.Array (catMaybes, elem, groupAllBy, nubBy)
 import Data.Array.NonEmpty (head, length, tail)
 import Data.Bifunctor (lmap, bimap)

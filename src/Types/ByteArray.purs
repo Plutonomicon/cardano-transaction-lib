@@ -11,7 +11,6 @@ module Types.ByteArray
   , hexToByteArray
   , hexToByteArrayUnsafe
   , byteArrayToUTF16le
-  , subarray
   ) where
 
 import Prelude
@@ -31,7 +30,7 @@ import Data.ArrayBuffer.Types (Uint8Array)
 import Data.Char (toCharCode)
 import Data.Either (Either(Left), note)
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap)
 import Data.String.CodeUnits (toCharArray)
 import Data.Traversable (for)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
@@ -108,11 +107,10 @@ byteArrayFromIntArray = byteArrayFromIntArray_ Nothing Just
 
 foreign import byteArrayToIntArray :: ByteArray -> Array Int
 
-foreign import byteLength :: ByteArray -> Int
+foreign import _byteLength :: Uint8Array -> Int
 
--- | Given a begin offset (inclusive) and end offset (exclusive), efficiently
--- | create a new `ByteArray` backed by the same underlying buffer.
-foreign import subarray :: Int -> Int -> ByteArray -> ByteArray
+byteLength :: ByteArray -> Int
+byteLength = _byteLength <<< unwrap
 
 instance Arbitrary ByteArray where
   arbitrary = byteArrayFromIntArrayUnsafe <$> arbitrary
