@@ -25,7 +25,6 @@ import Prelude
 
 import Control.Monad.Error.Class (class MonadError, class MonadThrow)
 import Control.Monad.Logger.Class (class MonadLogger)
-import Control.Monad.Logger.Trans (runLoggerT)
 import Control.Monad.Reader.Class
   ( class MonadAsk
   , class MonadReader
@@ -54,7 +53,6 @@ import Effect.Aff (Aff, launchAff_) as Aff
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
-import Helpers (logWithLevel)
 import QueryM
   ( DatumCacheListeners
   , DatumCacheWebSocket
@@ -184,12 +182,9 @@ runContractInEnv
   -> Contract r a
   -> Aff a
 runContractInEnv config =
-  flip runLoggerT printLog
-    <<< flip runReaderT (unwrap config)
+  flip runReaderT (unwrap config)
     <<< unwrap
-  where
-  printLog :: Message -> Aff Unit
-  printLog = logWithLevel (unwrap config).config.logLevel
+    <<< unwrap
 
 -- | Constructs and finalizes a contract environment that is usable inside a
 -- | bracket callback.
