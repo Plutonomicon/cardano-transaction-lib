@@ -173,6 +173,45 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
 
 To use your own scripts, compile them to any subdirectory in the root of your project (where `webpack.config.js` is located) and add a relative path to `webpack.config.js` under the `resolve.alias` section. In CTL, we have the `Scripts` alias for this purpose. Note the capitalization of `Scripts`: it is necessary to disambiguate it from local folders.
 
+First, in your `webpack.config.js`, define an `alias` under `module.exports.resolve.alias` in order to `require` the compiled scripts from JS modules:
+
+```javascript
+const path = require("path");
+
+module.exports = {
+  // ...
+  resolve: {
+    modules: [process.env.NODE_PATH],
+    extensions: [".js"],
+    fallback: {
+      // ...
+    },
+    alias: {
+      // You should update this path to the location of your compiled scripts,
+      // relative to `webpack.config.js`
+      Scripts: path.resolve(__dirname, "fixtures/scripts"),
+    },
+  },
+}
+```
+
+You must also add the following to `module.exports.module.rules`: 
+
+```javascript
+module.exports = {
+  // ...
+  module: {
+    rules: [
+      {
+        test: /\.plutus$/i,
+        type: "asset/source",
+      },
+      // ...
+    ],
+  },
+}
+```
+
 This enables inlining your serialized scripts in `.js` files, to then be loaded in Purescript via the FFI:
 
 ```javascript
@@ -202,7 +241,7 @@ This way you avoid hardcoding your scripts directly to .purs files which could l
 
 We provide `KeyWallet` to enable testing outside of the browser, or in-browser without a light wallet installed. To generate a key, you can use `cardano-cli` as follows:
 
-```bash
+```shell
 $ cardano-cli address key-gen --normal-key --signing-key-file payment.skey --verification-key-file payment.vkey
 ```
 
