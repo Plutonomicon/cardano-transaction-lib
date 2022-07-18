@@ -168,10 +168,6 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
     logInfo' $ "Tx ID: " <> show txId
   ```
 
-### Awaiting tx confirmation
-
-One major caveat to using CTL in its current state is that we have no equivalent of Plutus' `awaitTxConfirmed`. We cannot guarantee that a transaction that has been accepted into a mempool has actually been added to a block. When `Contract.Transaction.submit` returns, this is **not** a guarantee that your transaction has been accepted into a block. If transaction confirmation is critical for you, you may wish to adopt a different strategy: sleeping for a pre-determined amount of time, looping until an address contains UTxOs from the recently submitted transaction, etc.... We plan to add functionality similar to `awaitTxConfirmed` in upcoming versions of CTL.
-
 ## Testing
 
 ### Without a light wallet
