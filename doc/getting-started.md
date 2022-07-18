@@ -169,20 +169,19 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
     logInfo' $ "Tx ID: " <> show txId
   ```
 
-### Awaiting tx confirmation
-
-One major caveat to using CTL in its current state is that we have no equivalent of Plutus' `awaitTxConfirmed`. We cannot guarantee that a transaction that has been accepted into a mempool has actually been added to a block. When `Contract.Transaction.submit` returns, this is **not** a guarantee that your transaction has been accepted into a block. If transaction confirmation is critical for you, you may wish to adopt a different strategy: sleeping for a pre-determined amount of time, looping until an address contains UTxOs from the recently submitted transaction, etc.... We plan to add functionality similar to `awaitTxConfirmed` in upcoming versions of CTL.
-
 ### Using compiled scripts
 
 To use your own scripts, compile them to any subdirectory in the root of your project (where `webpack.config.js` is located) and add a relative path to `webpack.config.js` under the `resolve.alias` section. In CTL, we have the `Scripts` alias for this purpose. Note the capitalization of `Scripts`: it is necessary to disambiguate it from local folders.
-This enables inlining your serialized scripts in `.js` files, to then be loaded in purescript via FFI
+
+This enables inlining your serialized scripts in `.js` files, to then be loaded in Purescript via the FFI:
+
 ```javascript
 // inline .plutus file as a string
 exports.myscript = require("Scripts/myscript.plutus");
 ```
 
 And on the purescript side, the script can be loaded like so:
+
 ```purescript
 foreign import myscript :: String
 
