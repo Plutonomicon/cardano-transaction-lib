@@ -118,6 +118,10 @@ instance DecodeAeson GetDatumsByHashesR where
         r
         [ "DatumsFound", "value" ]
 
+-- TODO
+-- This should be changed to `GetTxByHashR Transaction` once we support `getTxById`
+--
+-- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/30
 newtype GetTxByHashR = GetTxByHashR Boolean
 
 derive instance Newtype GetTxByHashR _
