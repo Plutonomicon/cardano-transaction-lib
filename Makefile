@@ -4,6 +4,17 @@ SHELL := bash
 		query-testnet-tip clean check-explicit-exports e2e-test
 .SHELLFLAGS := -eu -o pipefail -c
 
+# find a suitable browser for e2e-tests
+define e2e-browser
+	$(shell which chromium google-chrome | head -n1)
+endef
+
+# find a suitable temp directory for e2e-tests. snaps don't work
+# in $TMPDIR, because of lacking read access!
+define e2e-temp-base
+	$(if $(findstring snap,$(call e2e-browser)),./tmp,$TMPDIR)
+endef
+
 ps-sources := $(shell fd -epurs)
 nix-sources := $(shell fd -enix --exclude='spago*')
 hs-sources := $(shell fd . './server/src' './server/exe' -ehs)
@@ -11,7 +22,7 @@ js-sources := $(shell fd -ejs -Enode_modules)
 ps-entrypoint := Examples.ByUrl
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 node-ipc = $(shell docker volume inspect cardano-transaction-lib_node-ipc | jq -r '.[0].Mountpoint')
-e2e-temp-dir := $(shell mktemp -tdu e2e.XXXXXXX)
+e2e-temp-dir := $(strip $(call e2e-temp-base))/$(shell mktemp -du e2e.XXXXXXX)
 e2e-test-chrome-dir := test-data/chrome-user-data
 
 # bump version here
@@ -21,7 +32,6 @@ e2e-test-nami-settings := test-data/nami_settings.tar.gz
 # bump version here
 e2e-test-gero := test-data/chrome-extensions/gero_testnet_1.10.0_0.crx
 e2e-test-gero-settings := test-data/gero_settings.tar.gz
-e2e-browser := $(shell which google-chrome)
 
 # https://stackoverflow.com/questions/2214575/passing-arguments-to-make-run
 # example: make e2e-test -- --no-headless
@@ -53,7 +63,7 @@ check-format:
 	eslint ${js-sources}
 
 e2e-test:
-	@mkdir ${e2e-temp-dir}
+	@mkdir -p ${e2e-temp-dir}
 	@unzip ${e2e-test-nami} -d ${e2e-temp-dir}/nami > /dev/zero \
             || echo "ignore warnings" # or make stops
 	@tar xzf ${e2e-test-nami-settings}
@@ -61,21 +71,22 @@ e2e-test:
             || echo "ignore warnings" # or make stops
 	@tar xzf ${e2e-test-gero-settings}
 	@rm -f ${e2e-test-chrome-dir}/SingletonLock
-	@spago test --main Contract.Test.E2E -a "E2ETest --nami-dir=${e2e-temp-dir}/nami --gero-dir=${e2e-temp-dir}/gero $(TEST_ARGS) --chrome-exe=${e2e-browser}" || rm -Rf ${e2e-temp-dir}
+	@spago test --main Contract.Test.E2E -a "E2ETest --nami-dir=${e2e-temp-dir}/nami --gero-dir=${e2e-temp-dir}/gero $(TEST_ARGS) --chrome-exe=$(call e2e-browser)" || rm -Rf ${e2e-temp-dir}
 
 e2e-run-browser-nami:
-	@mkdir ${e2e-temp-dir}
+	@mkdir -p ${e2e-temp-dir}
 	@unzip ${e2e-test-nami} -d ${e2e-temp-dir}/nami > /dev/zero \
             || echo "ignore warnings" # or make stops
 	@tar xzf ${e2e-test-nami-settings}
-	@google-chrome --load-extension=${e2e-temp-dir}/nami --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e-temp-dir}
+	@$(call e2e-browser) --load-extension=${e2e-temp-dir}/nami --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e-temp-dir}
 
 e2e-run-browser-gero:
-	@mkdir ${e2e-temp-dir}
+	@mkdir -p ${e2e-temp-dir}
 	@unzip ${e2e-test-gero} -d ${e2e-temp-dir}/gero > /dev/zero \
-            || echo "ignore warnings" # or make stops
+	   || echo "ignore warnings" # or make stops
 	@tar xzf ${e2e-test-gero-settings}
-	google-chrome --load-extension=${e2e-temp-dir}/gero --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e-temp-dir}
+	echo $(call e2e-browser) --load-extension=${e2e-temp-dir}/gero --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e-temp-dir}	
+	$(call e2e-browser) --load-extension=${e2e-temp-dir}/gero --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e-temp-dir}
 
 # extract current nami settings from e2e-test-chrome-dir and store them for git
 nami-settings:
@@ -108,3 +119,6 @@ clean:
 	@ rm -rf .spago2nix || true
 	@ rm -rf node_modules || true
 	@ rm -rf output || true
+
+tgt:
+	@echo $(call e2e-temp-base,$(call e2e-browser))
