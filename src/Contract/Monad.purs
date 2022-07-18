@@ -25,7 +25,12 @@ module Contract.Monad
 
 import Prelude
 
-import Control.Monad.Error.Class (class MonadError, class MonadThrow)
+import Control.Alt (class Alt)
+import Control.Monad.Error.Class
+  ( class MonadError
+  , class MonadThrow
+  , catchError
+  )
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Trans (runLoggerT)
 import Control.Monad.Reader.Class
@@ -37,6 +42,7 @@ import Control.Monad.Reader.Class
   )
 import Control.Monad.Reader.Trans (runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
+import Control.Plus (class Plus, empty)
 import Data.Either (Either, either, hush)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
@@ -137,6 +143,17 @@ instance MonadReader (ContractEnv r) (Contract r) where
 
 -- | `ContractEnv` is a trivial wrapper over `QueryEnv`.
 newtype ContractEnv (r :: Row Type) = ContractEnv (QueryEnv r)
+
+-- | Contract's `Alt` instance piggie-backs on the underlying `Aff`'s `Alt`
+-- | instance, which uses `MonadError` capabilities.
+-- | You can use `alt` operator to provide an alternative contract in case
+-- | the first one fails with an error.
+instance Alt (Contract r) where
+  alt a1 a2 = catchError a1 (const a2)
+
+-- | Identity for `alt` - a.k.a. a contract that "always fails".
+instance Plus (Contract r) where
+  empty = liftAff empty
 
 type DefaultContractEnv = ContractEnv ()
 

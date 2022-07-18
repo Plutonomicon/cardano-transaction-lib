@@ -107,27 +107,7 @@ class RedeemerType (a :: Type) (b :: Type) | a -> b
 
 #### Using scripts from the frontend
 
-As noted above, all scripts and various script newtypes (`Validator`, `MintingPolicy`, etc...) must be explicitly passed to CTL. Unlike Plutus, where on- and off-chain code can freely share Haskell values, scripts must be provided to CTL in a serialized format. The easiest way to do this is via `Contract.Scripts.PlutusScript`'s `DecodeAeson`, instance which decodes the script as JSON. Note that this method is offered solely for convenience; it merely converts a hexadecimal string into `CborBytes` (a `ByteArray` that represents a value encoded as CBOR), which could also be achieved manually.
-
-Using JSON is probably the simplest way of providing scripts to your CTL contracts. Two possible ways of achieving this:
-
-- Storing the script JSON as part of your build configuration, to be read from disk upon application startup
-- Embedding the scripts into a Purescript module directly, using the JS FFI. For example:
-
-  ```purescript
-  mintingPolicy :: Either JsonDecodeError MintingPolicy
-  mintingPolicy = wrap <$> decodeAeson _mintingPolicy
-
-  foreign import _mintingPolicy :: Aeson
-  ```
-
-  The corresponding FFI module would contain:
-
-  ```js
-  exports._mintingPolicy = "deadbeef";
-  ```
-
-  As shown above, such embedded scripts can be decoded as JSON for greater type safety, rather than attempting to pass types directly across the FFI boundary (which performs no validity checks)
+As noted above, all scripts and various script newtypes (`Validator`, `MintingPolicy`, etc...) must be explicitly passed to CTL. Unlike Plutus, where on- and off-chain code can freely share Haskell values, scripts must be provided to CTL in a serialized format. The easiest way to do this is using `Contract.TextEnvelope.textEnvelope` along with the JS FFI. See the [getting started guide](doc/getting-started#using-compiled-scripts) for more details.
 
 #### Applying arguments to parameterized scripts
 

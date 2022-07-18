@@ -10,7 +10,11 @@ import Contract.Config (testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (launchAff_, liftedE, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
-import Contract.Transaction (balanceAndSignTx, submit)
+import Contract.Transaction
+  ( awaitTxConfirmedWithTimeout
+  , balanceAndSignTx
+  , submit
+  )
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Data.BigInt as BigInt
@@ -36,3 +40,5 @@ main = launchAff_ do
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
+    awaitTxConfirmedWithTimeout (wrap 100.0) txId
+    logInfo' $ "Tx submitted successfully!"
