@@ -8,8 +8,8 @@ This guide will help you get started writing contracts with CTL. Please also see
 - [Importing CTL modules](#importing-ctl-modules)
   - [The `Contract` interface](#the-contract-interface)
   - [Our `Prelude`](#our-prelude)
-- [Executing contracts and the `ContractConfig`](#executing-contracts-and-the-contractconfig)
-  - [Making the `ContractConfig`](#making-the-contractconfig)
+- [Executing contracts and the `ContractEnv`](#executing-contracts-and-the-contractenv)
+  - [Making the `ContractEnv`](#making-the-contractenv)
 - [Building and submitting transactions](#building-and-submitting-transactions)
   - [Awaiting tx confirmation](#awaiting-tx-confirmation)
 - [Testing](#testing)
@@ -51,7 +51,7 @@ import Contract.Scripts (MintingPolicy)
 
 Unlike Haskell, Purescript's `Prelude` is not imported implicitly in every module and is much smaller in scope (for example, common non-primitive types like `Maybe` are contained in their own packages, rather than in the `Prelude`). Rather than require users to import Purescript's `Prelude` and other common modules directly, we offer a `Contract.Prelude` that re-exports Purescript's `Prelude`, several common modules (e.g. `Data.Maybe`, `Data.Either`, etc...), and CTL-specific functionality. **We recommend using `Contract.Prelude` as a replacement for `Prelude` in projects using CTL**, particularly for developers who are less familiar with Purescript and its divergences from Haskell.
 
-## Executing contracts and the `ContractConfig`
+## Executing contracts and the `ContractEnv`
 
 Unlike [Plutus/PAB](plutus-comparison.md#the-contract-type), CTL is structued internally around a familiar `mtl`-style monad transformer stack. As such, contracts written in CTL are called from other Purescript code (i.e. CTL has no concept of "endpoints" or "activation"). The top-level of your program written in CTL will look like the following:
 
@@ -87,7 +87,7 @@ For local development and testing, we provide `Contract.Config.testnetConfig` wh
 
 It is **not recommended to directly construct or manipulate a `ContractEnv` yourself** as the process of making a new config initializes websockets. Instead, use `Contract.Monad.ConfigParams` with `runContract`.
 
-As explained in the [Plutus/PAB comparison](plutus-comparison.md#the-contract-type), the `ContractConfig` environment using Purescript's extensible records. This can also be done via `ConfigParams`, which holds an `extraConfig` field corresponding to the `Row Type` argument to `ContractConfig` (and by extension, `Contract`).
+As explained in the [Plutus/PAB comparison](plutus-comparison.md#the-contract-type), the `ContractEnv` environment using Purescript's extensible records. This can also be done via `ConfigParams`, which holds an `extraConfig` field corresponding to the `Row Type` argument to `ContractEnv` (and by extension, `Contract`).
 
 A special `Contract.Config.WalletSpec` type is used to specify which wallet to use during the `Contract` lifetime.
 
@@ -97,7 +97,7 @@ An example of building a `Contract` via `ConfigParams` is as follows:
 main :: Effect Unit
 main = Contract.Monad.launchAff_ do -- we re-export this for you
   let
-    (config :: ConfigParams ()) =
+    (config :: ConfigParams (apiKey :: String)) =
       { ogmiosConfig: defaultOgmiosWsConfig
       , datumCacheConfig: defaultDatumCacheWsConfig
       , ctlServerConfig: defaultServerConfig
@@ -111,11 +111,14 @@ main = Contract.Monad.launchAff_ do -- we re-export this for you
 
 -- As we provided `(apiKey :: String)` to the `extraConfig` above, we can now
 -- access it in the reader environment of any `Contract` actions call using
--- the `ContractConfig` we created above. We can also retain polymorphism
--- by adding `| r` to the row type
+-- `askConfig`.
 someContractWithApiKeyInEnv
-  :: forall (r :: Row Type). Contract (apiKey :: String | r) Unit
-someContractWithApiKeyInEnv = ...
+  :: forall. Contract (apiKey :: String) Unit
+  -- We can also retain polymorphism by adding `| r` to the row type:
+  --   :: forall (r :: Row Type). Contract (apiKey :: String | r) Unit
+someContractWithApiKeyInEnv = do
+  { apiKey } <- askConfig
+  ...
 ```
 
 ## Building and submitting transactions

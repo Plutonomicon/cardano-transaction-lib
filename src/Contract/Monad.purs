@@ -7,6 +7,8 @@ module Contract.Monad
   , module Aff
   , module QueryM
   , module Log.Tag
+  , askConfig
+  , asksConfig
   , liftContractAffM
   , liftContractE
   , liftContractE'
@@ -30,6 +32,7 @@ import Control.Monad.Reader.Class
   ( class MonadAsk
   , class MonadReader
   , ask
+  , asks
   , local
   )
 import Control.Monad.Reader.Trans (runReaderT)
@@ -142,6 +145,16 @@ derive instance Newtype (ContractEnv r) _
 wrapContract :: forall (r :: Row Type) (a :: Type). QueryM a -> Contract r a
 wrapContract = wrap <<< QueryM.liftQueryM
 
+-- | Same as `ask`, but points to the user config record.
+askConfig :: forall (r :: Row Type). Contract r { | r }
+askConfig = do
+  asks $ unwrap >>> _.extraConfig
+
+-- | Same as `asks`, but allows to apply a function to the user config record.
+asksConfig :: forall (r :: Row Type) (a :: Type). ({ | r } -> a) -> Contract r a
+asksConfig f = do
+  asks $ unwrap >>> _.extraConfig >>> f
+
 -- | Options to construct a `ContractEnv` indirectly. `extraConfig`
 -- | holds additional options that will extend the resulting `ContractEnv`.
 -- |
@@ -193,6 +206,7 @@ runContractInEnv config =
 
 -- | Constructs and finalizes a contract environment that is usable inside a
 -- | bracket callback.
+-- | One environment can be used by multiple `Contract`s in parallel.
 -- | Make sure that `Aff` action does not end before all contracts that use the
 -- | runtime terminate. Otherwise `WebSocket`s will be closed too early.
 withContractEnv
