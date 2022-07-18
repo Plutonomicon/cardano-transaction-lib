@@ -5,7 +5,6 @@ module Examples.MintsMultipleTokens (main) where
 
 import Contract.Prelude
 
-import Contract.Aeson (decodeAeson, fromString)
 import Contract.Config (testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
