@@ -9,7 +9,6 @@ You can edit this file as you like.
   , "aff"
   , "aff-promise"
   , "affjax"
-  , "argonaut-codecs"
   , "arraybuffer-types"
   , "arrays"
   , "bifunctors"
