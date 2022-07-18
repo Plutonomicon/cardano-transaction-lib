@@ -59,6 +59,7 @@ import Test.Fixtures
   , txFixture2
   , txFixture3
   , txFixture4
+  , txFixture5
   , txInputFixture1
   , txOutputFixture1
   , utxoFixture1
@@ -162,6 +163,11 @@ suite = do
         pure input `shouldEqual` hush expected
       test "deserialization is inverse to serialization #4" do
         let input = txFixture4
+        serialized <- liftEffect $ TS.convertTransaction input
+        let expected = TD.convertTransaction serialized
+        pure input `shouldEqual` hush expected
+      test "deserialization is inverse to serialization #5" do
+        let input = txFixture5
         serialized <- liftEffect $ TS.convertTransaction input
         let expected = TD.convertTransaction serialized
         pure input `shouldEqual` hush expected

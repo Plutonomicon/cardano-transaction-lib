@@ -21,7 +21,7 @@ module Serialization.WitnessSet
   , newVkeywitnesses
   , newVkeywitness
   , addVkeywitness
-  , newPlutusScript
+  , newPlutusV1Script
   , newPlutusScripts
   , addPlutusScript
   , transactionWitnessSetSetVkeys
@@ -81,7 +81,7 @@ import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData) as PD
 import Types.RedeemerTag as Tag
-import Types.Scripts (PlutusScript(PlutusScript)) as S
+import Types.Scripts (PlutusScript(PlutusScript), Language(PlutusV1, PlutusV2)) as S
 
 setPlutusData :: Array PDS.PlutusData -> TransactionWitnessSet -> Effect Unit
 setPlutusData pd ws = setWitnesses _wsSetPlutusData ws pd
@@ -159,7 +159,9 @@ convertBootstrap { vkey, signature, chainCode, attributes } = do
   newBootstrapWitness vkey' signature' chainCode attributes
 
 convertPlutusScript :: S.PlutusScript -> Effect PlutusScript
-convertPlutusScript (S.PlutusScript bytes) = newPlutusScript bytes
+convertPlutusScript (S.PlutusScript (bytes /\ language)) = case language of
+  S.PlutusV1 -> newPlutusV1Script bytes
+  S.PlutusV2 -> newPlutusV2Script bytes
 
 convertVkeywitnesses :: Array T.Vkeywitness -> Effect Vkeywitnesses
 convertVkeywitnesses arr = do
@@ -188,7 +190,8 @@ foreign import newVkeyFromPublicKey :: PublicKey -> Effect Vkey
 foreign import newVkeywitnesses :: Effect Vkeywitnesses
 foreign import newVkeywitness :: Vkey -> Ed25519Signature -> Effect Vkeywitness
 foreign import addVkeywitness :: Vkeywitnesses -> Vkeywitness -> Effect Unit
-foreign import newPlutusScript :: ByteArray -> Effect PlutusScript
+foreign import newPlutusV1Script :: ByteArray -> Effect PlutusScript
+foreign import newPlutusV2Script :: ByteArray -> Effect PlutusScript
 foreign import newPlutusScripts :: Effect PlutusScripts
 foreign import addPlutusScript :: PlutusScripts -> PlutusScript -> Effect Unit
 foreign import transactionWitnessSetSetVkeys

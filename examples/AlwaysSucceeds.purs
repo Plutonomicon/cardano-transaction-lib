@@ -25,6 +25,7 @@ import Contract.Transaction
   , TransactionInput(TransactionInput)
   , balanceAndSignTxE
   , submit
+  , plutusV1Script
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
@@ -111,5 +112,5 @@ buildBalanceSignAndSubmitTx lookups constraints = do
   pure txId
 
 alwaysSucceedsScript :: Maybe Validator
-alwaysSucceedsScript = map wrap $ hush $ decodeAeson $ fromString
-  "4d01000033222220051200120011"
+alwaysSucceedsScript = map (wrap <<< plutusV1Script) $ hush $ decodeAeson $
+  fromString "4d01000033222220051200120011"

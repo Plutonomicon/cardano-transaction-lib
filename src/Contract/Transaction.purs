@@ -15,6 +15,7 @@ module Contract.Transaction
   , module OutputDatum
   , module PTransaction
   , module ReindexRedeemersExport
+  , module Scripts
   , module ScriptLookups
   , module ScriptRef
   , module Transaction
@@ -69,7 +70,6 @@ import Cardano.Types.Transaction
   , ExUnitPrices
   , ExUnits
   , GenesisHash(GenesisHash)
-  , Language(PlutusV1)
   , Mint(Mint)
   , Nonce(IdentityNonce, HashNonce)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
@@ -144,6 +144,11 @@ import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (NetworkId)
 import TxOutput (scriptOutputToTransactionOutput) as TxOutput
+import Types.Scripts
+  ( Language(PlutusV1, PlutusV2)
+  , plutusV1Script
+  , plutusV2Script
+  ) as Scripts
 import Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   , outputDatumDataHash

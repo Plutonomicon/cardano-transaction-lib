@@ -16,10 +16,12 @@ import Test.Fixtures
   , txBinaryFixture2
   , txBinaryFixture3
   , txBinaryFixture4
+  , txBinaryFixture5
   , txFixture1
   , txFixture2
   , txFixture3
   , txFixture4
+  , txFixture5
   , txOutputBinaryFixture1
   , txOutputFixture1
   )
@@ -99,3 +101,7 @@ suite = do
           tx <- convertTransaction txFixture4
           let bytes = toBytes (asOneOf tx)
           byteArrayToHex bytes `shouldEqual` txBinaryFixture4
+      test "Transaction serialization #5 - plutusv2" $ liftEffect do
+        tx <- convertTransaction txFixture5
+        let bytes = toBytes (asOneOf tx)
+        byteArrayToHex bytes `shouldEqual` txBinaryFixture5

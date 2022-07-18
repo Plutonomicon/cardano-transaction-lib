@@ -7,10 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 **Table of Contents**
 
 - [[Unreleased]](#unreleased)
+  - [Changed](#changed)
 - [[2.0.0-alpha] - 2022-07-06](#200-alpha---2022-07-06)
   - [Added](#added)
   - [Removed](#removed)
-  - [Changed](#changed)
+  - [Changed](#changed-1)
   - [Fixed](#fixed)
 - [[1.1.0] - 2022-06-30](#110---2022-06-30)
   - [Fixed](#fixed-1)
@@ -20,7 +21,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ## [Unreleased]
 
-## Changed
+### Changed
+- `PlutusScript` is now aware of which version of Plutus the script is for. The JSON representation has thus changed to reflect this and is not compatible with older JSON format.
 - CTL's `overlay` no longer requires an explicitly passed `system`
 
 ## [2.0.0-alpha] - 2022-07-05
