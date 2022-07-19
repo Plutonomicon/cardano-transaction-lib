@@ -127,6 +127,25 @@ someContractWithApiKeyInEnv
 someContractWithApiKeyInEnv = ...
 ```
 
+An example of `ServerConfig` where a path is used to differentiate between services.
+```purescript
+customOgmiosWsConfig :: ServerConfig
+customOgmiosWsConfig =
+  { port: UInt.fromInt 80
+  , host: "localhost"
+  , secure: false
+  , path: "/api/ogmios"
+  }
+
+customDatumCacheWsConfig :: ServerConfig
+customDatumCacheWsConfig =
+  { port: UInt.fromInt 80
+  , host: "localhost"
+  , secure: false
+  , path: "/api/ogmios-datum-cache"
+  }
+```
+
 ## Building and submitting transactions
 
 Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for transactions and most of the steps are called individually. The general workflow in CTL is similar to the following:
