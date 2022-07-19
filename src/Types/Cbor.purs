@@ -14,6 +14,7 @@ module Types.Cbor
   , takeN
   , takeN'
   , toByteArray
+  , fromBytes
   ) where
 
 import Prelude
@@ -22,7 +23,6 @@ import Contract.Prelude (foldl)
 import Control.Monad.Except (Except, runExcept, throwError)
 import Control.Monad.State.Trans (StateT, evalStateT, get, put)
 import Data.Either (Either)
-import Data.Maybe (maybe)
 import Data.UInt (UInt, zshr, shl, (.&.), (.|.))
 import Data.UInt as UInt
 import Data.Newtype (class Newtype)
@@ -48,14 +48,19 @@ data CborType = ByteStringType UInt
 data CborParseError
   = UnknownType UInt
   | UnknownAdditionalInformation UInt
-  | ByteArrayTooShort UInt
+  | ByteArrayTooShort ByteArray Int
 
 instance Show CborParseError where
   show = case _ of
-    UnknownType ty -> "UnknownType " <> show ty
-    UnknownAdditionalInformation info -> "UnknownAdditionalInformation " <> show
-      info
-    ByteArrayTooShort extra -> "ByteArrayTooShort " <> show extra
+    UnknownType ty -> "(UnknownType " <> show ty <> ")"
+    UnknownAdditionalInformation info -> "(UnknownAdditionalInformation "
+      <> show
+        info
+      <> ")"
+    ByteArrayTooShort bs extra -> "(ByteArrayTooShort " <> show bs
+      <> " "
+      <> show extra
+      <> ")"
 
 type Parser :: Type -> Type
 type Parser a = StateT ByteArray (Except CborParseError) a
@@ -69,8 +74,8 @@ takeN n = map UInt.fromInt <<< byteArrayToIntArray <$> takeN' n
 takeN' :: UInt -> Parser ByteArray
 takeN' = UInt.toInt >>> \n -> do
   ba <- get
-  let remainingBytesLength = UInt.fromInt' (n - byteLength ba)
-  maybe (pure unit) (throwError <<< ByteArrayTooShort) remainingBytesLength
+  when (n > byteLength ba) do
+    throwError $ ByteArrayTooShort ba n
   put $ subarray n (byteLength ba) ba
   pure $ subarray 0 n ba
 
