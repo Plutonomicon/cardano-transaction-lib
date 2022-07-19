@@ -16,8 +16,10 @@ module Contract.Monad
   , liftedE
   , liftedE'
   , liftedM
+  , mkContractEnv
   , runContract
   , runContractInEnv
+  , stopContractEnv
   , throwContractError
   , withContractEnv
   , wrapContract
@@ -58,12 +60,14 @@ import Data.Log.Tag
 import Data.Maybe (Maybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Profunctor (dimap)
+import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Aff (Aff, launchAff_) as Aff
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
-import Helpers (logWithLevel)
+import Helpers (logWithLevel, unwarn)
+import Prim.TypeError (class Warn, Text)
 import QueryM
   ( DatumCacheListeners
   , DatumCacheWebSocket
@@ -84,14 +88,19 @@ import QueryM
   , mkWsUrl
   ) as QueryM
 import QueryM
-  ( QueryConfig
+  ( MkQueryRuntimeWarning
+  , QueryConfig
+  , QueryEnv
   , QueryM
   , QueryMExtended
   , QueryRuntime
-  , QueryEnv
+  , StopQueryRuntimeWarning
+  , mkQueryRuntime
+  , stopQueryRuntime
   , withQueryRuntime
   )
 import Serialization.Address (NetworkId)
+import Type.Proxy (Proxy(..))
 import Wallet.Spec (WalletSpec)
 
 -- | The `Contract` monad is a newtype wrapper over `QueryM` which is `ReaderT`
@@ -221,6 +230,52 @@ runContractInEnv config =
   printLog :: Message -> Aff Unit
   printLog = logWithLevel (unwrap config).config.logLevel
 
+mkContractEnv
+  :: forall (r :: Row Type) (a :: Type)
+   . Warn
+       ( Text
+           "Using `mkContractEnv` is not recommended: it does not ensure `ContractEnv` finalization. Consider using `withContractEnv`"
+       )
+  => ConfigParams r
+  -> Aff (ContractEnv r)
+mkContractEnv
+  params@
+    { ctlServerConfig
+    , ogmiosConfig
+    , datumCacheConfig
+    , networkId
+    , logLevel
+    , walletSpec
+    , customLogger
+    } = do
+  let
+    config =
+      { ctlServerConfig
+      , ogmiosConfig
+      , datumCacheConfig
+      , networkId
+      , logLevel
+      , walletSpec
+      , customLogger
+      }
+  runtime <- unwarn (Proxy :: Proxy MkQueryRuntimeWarning) $ mkQueryRuntime
+    config
+  let
+    contractEnv = wrap
+      { runtime, config, extraConfig: params.extraConfig }
+  pure contractEnv
+
+stopContractEnv
+  :: forall (r :: Row Type)
+   . Warn
+       ( Text
+           "Using `stopContractEnv` is not recommended: users should rely on `withContractEnv` to finalize the runtime environment instead"
+       )
+  => ContractEnv r
+  -> Effect Unit
+stopContractEnv env = unwarn (Proxy :: Proxy StopQueryRuntimeWarning) $
+  stopQueryRuntime (unwrap env).runtime
+
 -- | Constructs and finalizes a contract environment that is usable inside a
 -- | bracket callback.
 -- | One environment can be used by multiple `Contract`s in parallel.
@@ -254,9 +309,9 @@ withContractEnv
       }
   withQueryRuntime config \runtime -> do
     let
-      contractSettings = wrap
+      contractEnv = wrap
         { runtime, config, extraConfig: params.extraConfig }
-    action contractSettings
+    action contractEnv
 
 -- | Throws an `Error` for any showable error using `Effect.Exception.throw`
 -- | and lifting into the `Contract` monad.

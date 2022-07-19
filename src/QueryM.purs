@@ -46,6 +46,7 @@ module QueryM
   , mkOgmiosRequest
   , mkOgmiosRequestAff
   , mkOgmiosWebSocketAff
+  , mkQueryRuntime
   , mkRequest
   , mkRequestAff
   , module ServerConfig
@@ -57,9 +58,12 @@ module QueryM
   , runQueryMInRuntime
   , signTransaction
   , scriptToAeson
+  , stopQueryRuntime
   , submitTxOgmios
   , underlyingWebSocket
   , withQueryRuntime
+  , MkQueryRuntimeWarning
+  , StopQueryRuntimeWarning
   ) where
 
 import Prelude
@@ -104,9 +108,9 @@ import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Number (infinity)
+import Data.Time.Duration (Seconds(Seconds))
 import Data.Traversable (for, for_, traverse, traverse_)
 import Data.Tuple.Nested ((/\), type (/\))
-import Data.Time.Duration (Seconds(Seconds))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
@@ -126,7 +130,7 @@ import Effect.Now (now)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
-import Helpers (logString, logWithLevel)
+import Helpers (logString, logWithLevel, unwarn)
 import JsWebSocket
   ( JsWebSocket
   , Url
@@ -140,6 +144,7 @@ import JsWebSocket
   , _wsSend
   , _wsWatch
   )
+import Prim.TypeError (class Warn, Text)
 import QueryM.DatumCacheWsp (GetDatumByHashR, GetDatumsByHashesR, GetTxByHashR)
 import QueryM.DatumCacheWsp as DcWsp
 import QueryM.JsonWsp (parseJsonWspResponseId)
@@ -175,6 +180,7 @@ import Serialization.Address
   , stakeCredentialToKeyHash
   )
 import Serialization.PlutusData (convertPlutusData) as Serialization
+import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray, byteArrayToHex)
 import Types.CborBytes (CborBytes)
 import Types.Chain as Chain
@@ -261,6 +267,12 @@ liftQueryM = withReaderT toDefaultQueryEnv
   toDefaultQueryEnv :: QueryEnv r -> DefaultQueryEnv
   toDefaultQueryEnv c = c { extraConfig = {} }
 
+type MkQueryRuntimeWarning = Text
+  "Using `mkQueryRuntime` is not recommended: it does not ensure `QueryRuntime` finalization. Consider using `withQueryRuntime`"
+
+type StopQueryRuntimeWarning = Text
+  "Using `stopQueryRuntime` is not recommended: users should rely on `withQueryRuntime` to finalize the runtime instead"
+
 -- | Constructs and finalizes a contract environment that is usable inside a
 -- | bracket callback.
 -- | Make sure that `Aff` action does not end before all contracts that use the
@@ -271,10 +283,20 @@ withQueryRuntime
   -> (QueryRuntime -> Aff a)
   -> Aff a
 withQueryRuntime config action = do
-  runtime <- mkQueryRuntime config
+  runtime <- unwarn (Proxy :: Proxy MkQueryRuntimeWarning)
+    $ mkQueryRuntime config
   supervise (action runtime) `flip finally` do
-    liftEffect $ _wsClose $ underlyingWebSocket runtime.ogmiosWs
-    liftEffect $ _wsClose $ underlyingWebSocket runtime.datumCacheWs
+    liftEffect $ unwarn (Proxy :: Proxy StopQueryRuntimeWarning) $
+      stopQueryRuntime runtime
+
+-- | Close the websockets in `QueryRuntime`, effectively making it unusable
+stopQueryRuntime
+  :: Warn StopQueryRuntimeWarning
+  => QueryRuntime
+  -> Effect Unit
+stopQueryRuntime runtime = do
+  _wsClose $ underlyingWebSocket runtime.ogmiosWs
+  _wsClose $ underlyingWebSocket runtime.datumCacheWs
 
 -- | Used in `mkQueryRuntime` only
 data QueryRuntimeModel = QueryRuntimeModel
@@ -282,7 +304,10 @@ data QueryRuntimeModel = QueryRuntimeModel
   DatumCacheWebSocket
   (Maybe Wallet)
 
-mkQueryRuntime :: QueryConfig -> Aff QueryRuntime
+mkQueryRuntime
+  :: Warn MkQueryRuntimeWarning
+  => QueryConfig
+  -> Aff QueryRuntime
 mkQueryRuntime config = do
   usedTxOuts <- newUsedTxOuts
   QueryRuntimeModel (ogmiosWs /\ pparams) datumCacheWs wallet <- sequential $
