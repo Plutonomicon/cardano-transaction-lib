@@ -14,9 +14,11 @@ import Effect.Console (log)
 import Effect.Class (liftEffect)
 
 runExample :: TestOptions -> TestPlanM Unit
-runExample options = runE2ETest "AlwaysSucceeds" options NamiExt $ \example -> do
+runExample options = runE2ETest "AlwaysSucceeds" options NamiExt $ \example ->
+  do
     namiConfirmAccess example
     namiSign example
-    liftEffect $ log $ " ...waiting before trying to spend script output (this will take a minute)"
+    liftEffect $ log $
+      " ...waiting before trying to spend script output (this will take a minute)"
     delaySec 65.0
 

@@ -15,10 +15,10 @@ define e2e-temp-base
 	$(if $(findstring snap,$(call e2e-browser)),./tmp,$TMPDIR)
 endef
 
-ps-sources := $(shell fd -epurs)
-nix-sources := $(shell fd -enix --exclude='spago*')
-hs-sources := $(shell fd . './server/src' './server/exe' -ehs)
-js-sources := $(shell fd -ejs -Enode_modules)
+ps-sources := $(shell fd -epurs -Etmp)
+nix-sources := $(shell fd -enix --exclude='spago*' -Etmp)
+hs-sources := $(shell fd . './server/src' './server/exe' -ehs -Etmp)
+js-sources := $(shell fd -ejs -Etmp)
 ps-entrypoint := Examples.ByUrl
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 node-ipc = $(shell docker volume inspect cardano-transaction-lib_node-ipc | jq -r '.[0].Mountpoint')
@@ -71,7 +71,7 @@ e2e-test:
             || echo "ignore warnings" # or make stops
 	@tar xzf ${e2e-test-gero-settings}
 	@rm -f ${e2e-test-chrome-dir}/SingletonLock
-	@spago test --main Contract.Test.E2E -a "E2ETest --nami-dir=${e2e-temp-dir}/nami --gero-dir=${e2e-temp-dir}/gero $(TEST_ARGS) --chrome-exe=$(call e2e-browser)" || rm -Rf ${e2e-temp-dir}
+	@spago test --main Contract.Test.E2E -a "E2ETest --nami-dir ${e2e-temp-dir}/nami --gero-dir ${e2e-temp-dir}/gero $(TEST_ARGS) --chrome-exe $(call e2e-browser)" || rm -Rf ${e2e-temp-dir}
 
 e2e-run-browser-nami:
 	@mkdir -p ${e2e-temp-dir}

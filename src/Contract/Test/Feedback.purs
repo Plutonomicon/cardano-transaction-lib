@@ -4,7 +4,7 @@
 module Contract.Test.Feedback
   ( publishTestFeedback
   , retrieveTestFeedback
-  , resetTestFeedback    
+  , resetTestFeedback
   , testFeedbackIsTrue
   ) where
 
@@ -24,7 +24,7 @@ publishTestFeedback = liftEffect <<< _publishTestFeedback
 
 resetTestFeedback :: Toppokki.Page -> Aff Unit
 resetTestFeedback = void <<< Toppokki.unsafeEvaluateStringFunction
-                    "window.ctlTestFeedback = false;"
+  "window.ctlTestFeedback = false;"
 
 -- | Retrieve the feedback value
 retrieveTestFeedback :: Toppokki.Page -> Aff Foreign
