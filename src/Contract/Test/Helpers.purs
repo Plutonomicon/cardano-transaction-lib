@@ -35,9 +35,10 @@ import Prelude
 
 import Contract.Test.Browser (TestOptions, withBrowser, WalletExt)
 import Contract.Test.Feedback (resetTestFeedback, testFeedbackIsTrue)
+import Control.Alternative ((<|>))
 import Control.Monad.Error.Class (try)
 import Control.Promise (Promise, toAffE)
-import Data.Array (head, filterA)
+import Data.Array (head, filterA, elem, any)
 import Data.Foldable (intercalate)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, wrap, unwrap)
@@ -205,8 +206,24 @@ runE2ETest example opts ext f = test example $ withBrowser opts ext $
         checkSuccess e
     )
 
+waitForTestFeedback :: RunningExample -> Number -> Aff Unit
+waitForTestFeedback ex@(RunningExample { main, errors }) timeout
+  | timeout <= 0.0 = pure unit
+  | otherwise =
+      do
+        done <-
+          testFeedbackIsTrue main <|>
+            any isError <$> liftEffect (Ref.read errors)
+        delaySec 1.0
+        when (not done) $ waitForTestFeedback ex (timeout - 1.0)
+      where
+      isError :: E2EOutput -> Boolean
+      isError (E2EOutput { outputType }) = outputType `elem`
+        [ PageError, RequestFailed ]
+
 checkSuccess :: RunningExample -> Aff Unit
-checkSuccess (RunningExample { main, errors }) = do
+checkSuccess ex@(RunningExample { main, errors }) = do
+  waitForTestFeedback ex 20.0
   feedback <- testFeedbackIsTrue main
   unless feedback $ liftEffect $ showOutput errors >>= log
   shouldSatisfy feedback (_ == true)
