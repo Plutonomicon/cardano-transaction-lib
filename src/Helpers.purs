@@ -24,7 +24,6 @@ module Helpers
   , uIntToBigInt
   , encodeMap
   , encodeTagged'
-  , unwarn
   ) where
 
 import Prelude
@@ -59,8 +58,6 @@ import Effect.Class.Console (log)
 import Effect.Exception (throw)
 import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
-import Type.Proxy (Proxy)
-import Unsafe.Coerce (unsafeCoerce)
 
 -- | Throws provided error on `Nothing`
 fromJustEff :: forall (a :: Type). String -> Maybe a -> Effect a
@@ -243,6 +240,3 @@ encodeMap = unwrap $ dictionary (Op encodeAeson) (Op encodeAeson)
 -- | `encodeAeson` for encoding the passed value
 encodeTagged' :: forall (a :: Type). EncodeAeson a => String -> a -> Aeson
 encodeTagged' str x = encodeTagged str x (Op encodeAeson)
-
-unwarn :: forall warning a. Proxy warning -> (Warn warning => a) -> a
-unwarn _ = unsafeCoerce
