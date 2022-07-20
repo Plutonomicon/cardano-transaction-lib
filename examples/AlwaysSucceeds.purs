@@ -116,5 +116,6 @@ buildBalanceSignAndSubmitTx lookups constraints = do
 foreign import alwaysSucceeds :: String
 
 alwaysSucceedsScript :: Contract () Validator
-alwaysSucceedsScript = wrap <<< plutusV1Script <$> textEnvelopeBytes alwaysSucceeds
+alwaysSucceedsScript = wrap <<< plutusV1Script <$> textEnvelopeBytes
+  alwaysSucceeds
   PlutusScriptV1

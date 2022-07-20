@@ -85,13 +85,16 @@ foreign import redeemerInt2 :: String
 foreign import redeemerInt3 :: String
 
 mintingPolicyRdmrInt1 :: Contract () MintingPolicy
-mintingPolicyRdmrInt1 = wrap <<< plutusV1Script <$> textEnvelopeBytes redeemerInt1
+mintingPolicyRdmrInt1 = wrap <<< plutusV1Script <$> textEnvelopeBytes
+  redeemerInt1
   PlutusScriptV1
 
 mintingPolicyRdmrInt2 :: Contract () MintingPolicy
-mintingPolicyRdmrInt2 = wrap <<< plutusV1Script <$> textEnvelopeBytes redeemerInt2
+mintingPolicyRdmrInt2 = wrap <<< plutusV1Script <$> textEnvelopeBytes
+  redeemerInt2
   PlutusScriptV1
 
 mintingPolicyRdmrInt3 :: Contract () MintingPolicy
-mintingPolicyRdmrInt3 = wrap <<< plutusV1Script <$> textEnvelopeBytes redeemerInt3
+mintingPolicyRdmrInt3 = wrap <<< plutusV1Script <$> textEnvelopeBytes
+  redeemerInt3
   PlutusScriptV1
