@@ -2,6 +2,8 @@ module Wallet
   ( module KeyWallet
   , module Cip30Wallet
   , Wallet(Gero, Nami, KeyWallet)
+  , isGeroAvailable
+  , isNamiAvailable
   , mkNamiWalletAff
   , mkGeroWalletAff
   , mkKeyWallet
@@ -45,10 +47,20 @@ mkKeyWallet :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
 mkKeyWallet payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet payKey
   mbStakeKey
 
+isNamiAvailable :: Effect Boolean
+isNamiAvailable = _isNamiAvailable
+
+foreign import _isNamiAvailable :: Effect Boolean
+
 mkNamiWalletAff :: Aff Wallet
 mkNamiWalletAff = Nami <$> mkCip30WalletAff "Nami" _enableNami
 
 foreign import _enableNami :: Effect (Promise Cip30Connection)
+
+isGeroAvailable :: Effect Boolean
+isGeroAvailable = _isGeroAvailable
+
+foreign import _isGeroAvailable :: Effect Boolean
 
 mkGeroWalletAff :: Aff Wallet
 mkGeroWalletAff = Gero <$> mkCip30WalletAff "Gero" _enableGero
