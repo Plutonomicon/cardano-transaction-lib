@@ -4,7 +4,8 @@ module QueryM.Ogmios
   ( ChainOrigin(ChainOrigin)
   , ChainPoint
   , ChainTipQR(CtChainOrigin, CtChainPoint)
-  , CostModel
+  , CostModelV1
+  , CostModelV2
   , CurrentEpoch(CurrentEpoch)
   , Epoch(Epoch)
   , EpochLength(EpochLength)
@@ -64,7 +65,6 @@ import Cardano.Types.Transaction
   ( Costmdls(Costmdls)
   , ExUnitPrices
   , ExUnits
-  , Language(PlutusV1)
   , Nonce
   , SubCoin
   )
@@ -77,12 +77,14 @@ import Cardano.Types.Value
   , mkValue
   )
 import Control.Alt ((<|>))
-import Data.Array (index, singleton)
+import Data.Array (index, singleton, reverse)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, hush, note)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
+import Data.List (List)
+import Data.List as List
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
@@ -110,10 +112,12 @@ import Types.Rational (Rational, (%))
 import Types.Rational as Rational
 import Types.RedeemerTag (RedeemerTag)
 import Types.RedeemerTag (fromString) as RedeemerTag
+import Types.Scripts (Language(PlutusV1, PlutusV2))
 import Types.TokenName (TokenName, mkTokenName)
 import Types.Transaction (TransactionHash, TransactionInput)
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
+import Heterogeneous.Folding (class HFoldl, hfoldl)
 
 -- LOCAL STATE QUERY PROTOCOL
 -- https://ogmios.dev/mini-protocols/local-state-query/
@@ -555,7 +559,8 @@ type ProtocolParametersRaw =
   , "minPoolCost" :: BigInt
   , "coinsPerUtxoByte" :: BigInt
   , "costModels" ::
-      { "plutus:v1" :: CostModel
+      { "plutus:v1" :: { | CostModelV1 }
+      , "plutus:v2" :: { | CostModelV2 }
       }
   , "prices" ::
       { "memory" :: PParamRational
@@ -634,7 +639,9 @@ instance DecodeAeson ProtocolParameters where
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
       , coinsPerUtxoByte: Coin ps.coinsPerUtxoByte
       , costModels: Costmdls $ Map.fromFoldable
-          [ PlutusV1 /\ convertCostModel ps.costModels."plutus:v1" ]
+          [ PlutusV1 /\ convertCostModel ps.costModels."plutus:v1"
+          , PlutusV2 /\ convertCostModel ps.costModels."plutus:v2"
+          ]
       , prices: prices
       , maxTxExUnits: Just $ decodeExUnits ps.maxExecutionUnitsPerTransaction
       , maxBlockExUnits: Just $ decodeExUnits ps.maxExecutionUnitsPerBlock
@@ -655,8 +662,8 @@ instance DecodeAeson ProtocolParameters where
       pure $ Just { memPrice, stepPrice } -- Maybe ExUnits
 
 -- | A type that represents a JSON-encoded Costmodel in format used by Ogmios
-type CostModel =
-  { "addInteger-cpu-arguments-intercept" :: Int
+type CostModelV1 =
+  ( "addInteger-cpu-arguments-intercept" :: Int
   , "addInteger-cpu-arguments-slope" :: Int
   , "addInteger-memory-arguments-intercept" :: Int
   , "addInteger-memory-arguments-slope" :: Int
@@ -822,177 +829,31 @@ type CostModel =
   , "verifyEd25519Signature-cpu-arguments-intercept" :: Int
   , "verifyEd25519Signature-cpu-arguments-slope" :: Int
   , "verifyEd25519Signature-memory-arguments" :: Int
-  }
+  )
 
-convertCostModel :: CostModel -> T.CostModel
-convertCostModel model = wrap
-  [ model."addInteger-cpu-arguments-intercept"
-  , model."addInteger-cpu-arguments-slope"
-  , model."addInteger-memory-arguments-intercept"
-  , model."addInteger-memory-arguments-slope"
-  , model."appendByteString-cpu-arguments-intercept"
-  , model."appendByteString-cpu-arguments-slope"
-  , model."appendByteString-memory-arguments-intercept"
-  , model."appendByteString-memory-arguments-slope"
-  , model."appendString-cpu-arguments-intercept"
-  , model."appendString-cpu-arguments-slope"
-  , model."appendString-memory-arguments-intercept"
-  , model."appendString-memory-arguments-slope"
-  , model."bData-cpu-arguments"
-  , model."bData-memory-arguments"
-  , model."blake2b_256-cpu-arguments-intercept"
-  , model."blake2b_256-cpu-arguments-slope"
-  , model."blake2b_256-memory-arguments"
-  , model."cekApplyCost-exBudgetCPU"
-  , model."cekApplyCost-exBudgetMemory"
-  , model."cekBuiltinCost-exBudgetCPU"
-  , model."cekBuiltinCost-exBudgetMemory"
-  , model."cekConstCost-exBudgetCPU"
-  , model."cekConstCost-exBudgetMemory"
-  , model."cekDelayCost-exBudgetCPU"
-  , model."cekDelayCost-exBudgetMemory"
-  , model."cekForceCost-exBudgetCPU"
-  , model."cekForceCost-exBudgetMemory"
-  , model."cekLamCost-exBudgetCPU"
-  , model."cekLamCost-exBudgetMemory"
-  , model."cekStartupCost-exBudgetCPU"
-  , model."cekStartupCost-exBudgetMemory"
-  , model."cekVarCost-exBudgetCPU"
-  , model."cekVarCost-exBudgetMemory"
-  , model."chooseData-cpu-arguments"
-  , model."chooseData-memory-arguments"
-  , model."chooseList-cpu-arguments"
-  , model."chooseList-memory-arguments"
-  , model."chooseUnit-cpu-arguments"
-  , model."chooseUnit-memory-arguments"
-  , model."consByteString-cpu-arguments-intercept"
-  , model."consByteString-cpu-arguments-slope"
-  , model."consByteString-memory-arguments-intercept"
-  , model."consByteString-memory-arguments-slope"
-  , model."constrData-cpu-arguments"
-  , model."constrData-memory-arguments"
-  , model."decodeUtf8-cpu-arguments-intercept"
-  , model."decodeUtf8-cpu-arguments-slope"
-  , model."decodeUtf8-memory-arguments-intercept"
-  , model."decodeUtf8-memory-arguments-slope"
-  , model."divideInteger-cpu-arguments-constant"
-  , model."divideInteger-cpu-arguments-model-arguments-intercept"
-  , model."divideInteger-cpu-arguments-model-arguments-slope"
-  , model."divideInteger-memory-arguments-intercept"
-  , model."divideInteger-memory-arguments-minimum"
-  , model."divideInteger-memory-arguments-slope"
-  , model."encodeUtf8-cpu-arguments-intercept"
-  , model."encodeUtf8-cpu-arguments-slope"
-  , model."encodeUtf8-memory-arguments-intercept"
-  , model."encodeUtf8-memory-arguments-slope"
-  , model."equalsByteString-cpu-arguments-constant"
-  , model."equalsByteString-cpu-arguments-intercept"
-  , model."equalsByteString-cpu-arguments-slope"
-  , model."equalsByteString-memory-arguments"
-  , model."equalsData-cpu-arguments-intercept"
-  , model."equalsData-cpu-arguments-slope"
-  , model."equalsData-memory-arguments"
-  , model."equalsInteger-cpu-arguments-intercept"
-  , model."equalsInteger-cpu-arguments-slope"
-  , model."equalsInteger-memory-arguments"
-  , model."equalsString-cpu-arguments-constant"
-  , model."equalsString-cpu-arguments-intercept"
-  , model."equalsString-cpu-arguments-slope"
-  , model."equalsString-memory-arguments"
-  , model."fstPair-cpu-arguments"
-  , model."fstPair-memory-arguments"
-  , model."headList-cpu-arguments"
-  , model."headList-memory-arguments"
-  , model."iData-cpu-arguments"
-  , model."iData-memory-arguments"
-  , model."ifThenElse-cpu-arguments"
-  , model."ifThenElse-memory-arguments"
-  , model."indexByteString-cpu-arguments"
-  , model."indexByteString-memory-arguments"
-  , model."lengthOfByteString-cpu-arguments"
-  , model."lengthOfByteString-memory-arguments"
-  , model."lessThanByteString-cpu-arguments-intercept"
-  , model."lessThanByteString-cpu-arguments-slope"
-  , model."lessThanByteString-memory-arguments"
-  , model."lessThanEqualsByteString-cpu-arguments-intercept"
-  , model."lessThanEqualsByteString-cpu-arguments-slope"
-  , model."lessThanEqualsByteString-memory-arguments"
-  , model."lessThanEqualsInteger-cpu-arguments-intercept"
-  , model."lessThanEqualsInteger-cpu-arguments-slope"
-  , model."lessThanEqualsInteger-memory-arguments"
-  , model."lessThanInteger-cpu-arguments-intercept"
-  , model."lessThanInteger-cpu-arguments-slope"
-  , model."lessThanInteger-memory-arguments"
-  , model."listData-cpu-arguments"
-  , model."listData-memory-arguments"
-  , model."mapData-cpu-arguments"
-  , model."mapData-memory-arguments"
-  , model."mkCons-cpu-arguments"
-  , model."mkCons-memory-arguments"
-  , model."mkNilData-cpu-arguments"
-  , model."mkNilData-memory-arguments"
-  , model."mkNilPairData-cpu-arguments"
-  , model."mkNilPairData-memory-arguments"
-  , model."mkPairData-cpu-arguments"
-  , model."mkPairData-memory-arguments"
-  , model."modInteger-cpu-arguments-constant"
-  , model."modInteger-cpu-arguments-model-arguments-intercept"
-  , model."modInteger-cpu-arguments-model-arguments-slope"
-  , model."modInteger-memory-arguments-intercept"
-  , model."modInteger-memory-arguments-minimum"
-  , model."modInteger-memory-arguments-slope"
-  , model."multiplyInteger-cpu-arguments-intercept"
-  , model."multiplyInteger-cpu-arguments-slope"
-  , model."multiplyInteger-memory-arguments-intercept"
-  , model."multiplyInteger-memory-arguments-slope"
-  , model."nullList-cpu-arguments"
-  , model."nullList-memory-arguments"
-  , model."quotientInteger-cpu-arguments-constant"
-  , model."quotientInteger-cpu-arguments-model-arguments-intercept"
-  , model."quotientInteger-cpu-arguments-model-arguments-slope"
-  , model."quotientInteger-memory-arguments-intercept"
-  , model."quotientInteger-memory-arguments-minimum"
-  , model."quotientInteger-memory-arguments-slope"
-  , model."remainderInteger-cpu-arguments-constant"
-  , model."remainderInteger-cpu-arguments-model-arguments-intercept"
-  , model."remainderInteger-cpu-arguments-model-arguments-slope"
-  , model."remainderInteger-memory-arguments-intercept"
-  , model."remainderInteger-memory-arguments-minimum"
-  , model."remainderInteger-memory-arguments-slope"
-  , model."sha2_256-cpu-arguments-intercept"
-  , model."sha2_256-cpu-arguments-slope"
-  , model."sha2_256-memory-arguments"
-  , model."sha3_256-cpu-arguments-intercept"
-  , model."sha3_256-cpu-arguments-slope"
-  , model."sha3_256-memory-arguments"
-  , model."sliceByteString-cpu-arguments-intercept"
-  , model."sliceByteString-cpu-arguments-slope"
-  , model."sliceByteString-memory-arguments-intercept"
-  , model."sliceByteString-memory-arguments-slope"
-  , model."sndPair-cpu-arguments"
-  , model."sndPair-memory-arguments"
-  , model."subtractInteger-cpu-arguments-intercept"
-  , model."subtractInteger-cpu-arguments-slope"
-  , model."subtractInteger-memory-arguments-intercept"
-  , model."subtractInteger-memory-arguments-slope"
-  , model."tailList-cpu-arguments"
-  , model."tailList-memory-arguments"
-  , model."trace-cpu-arguments"
-  , model."trace-memory-arguments"
-  , model."unBData-cpu-arguments"
-  , model."unBData-memory-arguments"
-  , model."unConstrData-cpu-arguments"
-  , model."unConstrData-memory-arguments"
-  , model."unIData-cpu-arguments"
-  , model."unIData-memory-arguments"
-  , model."unListData-cpu-arguments"
-  , model."unListData-memory-arguments"
-  , model."unMapData-cpu-arguments"
-  , model."unMapData-memory-arguments"
-  , model."verifyEd25519Signature-cpu-arguments-intercept"
-  , model."verifyEd25519Signature-cpu-arguments-slope"
-  , model."verifyEd25519Signature-memory-arguments"
-  ]
+type CostModelV2 =
+  ( "serialiseData-cpu-arguments-intercept" :: Int
+  , "serialiseData-cpu-arguments-slope" :: Int
+  , "serialiseData-memory-arguments-intercept" :: Int
+  , "serialiseData-memory-arguments-slope" :: Int
+  , "verifyEcdsaSecp256k1Signature-cpu-arguments" :: Int
+  , "verifyEcdsaSecp256k1Signature-memory-arguments" :: Int
+  , "verifySchnorrSecp256k1Signature-cpu-arguments-intercept" :: Int
+  , "verifySchnorrSecp256k1Signature-cpu-arguments-slope" :: Int
+  , "verifySchnorrSecp256k1Signature-memory-arguments" :: Int
+  | CostModelV1
+  )
+
+-- This assumes that cost models are stored in lexicographical order
+convertCostModel
+  :: forall costModel
+   . HFoldl (List Int -> Int -> List Int) (List Int) costModel (List Int)
+  => costModel
+  -> T.CostModel
+convertCostModel model = wrap $ reverse $ List.toUnfoldable $ hfoldl
+  ((\xs x -> x List.: xs) :: List Int -> Int -> List Int)
+  (mempty :: List Int)
+  model
 
 ---------------- CHAIN TIP QUERY RESPONSE & PARSING
 

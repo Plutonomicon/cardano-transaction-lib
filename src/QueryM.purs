@@ -100,6 +100,7 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Number (infinity)
 import Data.Time.Duration (Seconds(Seconds))
 import Data.Traversable (for_, traverse, traverse_)
+import Data.Tuple (fst, snd, Tuple(Tuple))
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -171,7 +172,7 @@ import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
 import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
-import Types.Scripts (PlutusScript)
+import Types.Scripts (PlutusScript(PlutusScript), Language)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
 import Wallet (Wallet(Gero, Nami, KeyWallet), Cip30Connection, Cip30Wallet)
@@ -474,19 +475,24 @@ applyArgs
   => a
   -> Array PlutusData
   -> QueryM (Either ClientError a)
-applyArgs script args = case traverse plutusDataToAeson args of
-  Nothing -> pure $ Left $ ClientEncodingError "Failed to convert script args"
-  Just ps -> do
-    let
-      reqBody :: Aeson
-      reqBody = encodeAeson
-        $ Object.fromFoldable
-            [ "script" /\ scriptToAeson (unwrap script)
-            , "args" /\ encodeAeson ps
-            ]
-    url <- mkServerEndpointUrl "apply-args"
-    liftAff (postAeson url reqBody)
-      <#> map wrap <<< handleAffjaxResponse
+applyArgs script args =
+  case traverse plutusDataToAeson args of
+    Nothing -> pure $ Left $ ClientEncodingError "Failed to convert script args"
+    Just ps -> do
+      let
+        language :: Language
+        language = snd $ unwrap $ unwrap script
+
+        reqBody :: Aeson
+        reqBody = encodeAeson
+          $ Object.fromFoldable
+              [ "script" /\ scriptToAeson (unwrap script)
+              , "args" /\ encodeAeson ps
+              ]
+      url <- mkServerEndpointUrl "apply-args"
+      liftAff (postAeson url reqBody)
+        <#> map (wrap <<< PlutusScript <<< flip Tuple language) <<<
+          handleAffjaxResponse
   where
   plutusDataToAeson :: PlutusData -> Maybe Aeson
   plutusDataToAeson =
@@ -533,7 +539,7 @@ postAeson url body = Affjax.request $ Affjax.defaultRequest
 -- instance (there are some brutal cyclical dependency issues trying to
 -- write an instance in the `Types.*` modules)
 scriptToAeson :: PlutusScript -> Aeson
-scriptToAeson = encodeAeson <<< byteArrayToHex <<< unwrap
+scriptToAeson = encodeAeson <<< byteArrayToHex <<< fst <<< unwrap
 
 mkServerEndpointUrl :: String -> QueryM Url
 mkServerEndpointUrl path = asks $ (_ <> "/" <> path)

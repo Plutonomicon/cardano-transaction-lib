@@ -27,6 +27,7 @@ import Contract.Transaction
   , TransactionInput(TransactionInput)
   , balanceAndSignTxE
   , submit
+  , plutusV1Script
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
@@ -115,5 +116,5 @@ buildBalanceSignAndSubmitTx lookups constraints = do
 foreign import alwaysSucceeds :: String
 
 alwaysSucceedsScript :: Contract () Validator
-alwaysSucceedsScript = wrap <<< wrap <$> textEnvelopeBytes alwaysSucceeds
+alwaysSucceedsScript = wrap <<< plutusV1Script <$> textEnvelopeBytes alwaysSucceeds
   PlutusScriptV1

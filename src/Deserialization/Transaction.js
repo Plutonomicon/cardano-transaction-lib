@@ -186,30 +186,11 @@ exports._unpackProtocolParamUpdate = maybe => ppu => {
 exports._unpackCostModels = containerhelper => containerhelper.unpackKeyIndexed;
 
 exports._unpackCostModel = cm => {
-  // XXX should OP_COUNT be used instead?
   const res = [];
-  try {
-    for (let op = 0; ; op++) {
-      res.push(cm.get(op).to_str());
-    }
-  } catch (_) {
-    // ignore error
+  for (let op = 0; op < cm.len(); op++) {
+    res.push(cm.get(op).to_str());
   }
   return res;
-};
-
-exports._convertLanguage = errorHelper => langCtors => cslLang => {
-  try {
-    if (cslLang.kind() == lib.LanguageKind.PlutusV1) {
-      return errorHelper.valid(langCtors.plutusV1);
-    } else {
-      return errorHelper.error(
-        "_convertLanguage: Unsupported language kind: " + cslLang.kind()
-      );
-    }
-  } catch (e) {
-    return errorHelper.error("_convertLanguage raised: " + e);
-  }
 };
 
 exports._convertNonce = nonceCtors => cslNonce => {

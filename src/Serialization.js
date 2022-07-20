@@ -123,6 +123,9 @@ exports.toBytes = sth => sth.to_bytes();
 
 exports.newCostmdls = () => lib.Costmdls.new();
 
+exports.defaultCostmdls = () =>
+  lib.TxBuilderConstants.plutus_vasil_cost_models();
+
 exports.costmdlsSetCostModel = cms => lang => cm => () => cms.insert(lang, cm);
 
 exports.newCostModel = () => lib.CostModel.new();
@@ -130,6 +133,8 @@ exports.newCostModel = () => lib.CostModel.new();
 exports.costModelSetCost = cm => op => cost => () => cm.set(op, cost);
 
 exports.newPlutusV1 = () => lib.Language.new_plutus_v1();
+
+exports.newPlutusV2 = () => lib.Language.new_plutus_v2();
 
 exports.newInt32 = x => () => lib.Int.new_i32(x);
 

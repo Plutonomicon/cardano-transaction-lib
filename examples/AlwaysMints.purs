@@ -23,7 +23,7 @@ import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
   )
-import Contract.Transaction (balanceAndSignTx, submit)
+import Contract.Transaction (balanceAndSignTx, submit, plutusV1Script)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Data.BigInt as BigInt
@@ -57,5 +57,5 @@ main = launchAff_ $ do
 foreign import alwaysMints :: String
 
 alwaysMintsPolicy :: Contract () MintingPolicy
-alwaysMintsPolicy = wrap <<< wrap <$> textEnvelopeBytes alwaysMints
+alwaysMintsPolicy = wrap <<< plutusV1Script <$> textEnvelopeBytes alwaysMints
   PlutusScriptV1
