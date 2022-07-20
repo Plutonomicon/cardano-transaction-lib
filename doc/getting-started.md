@@ -12,6 +12,7 @@ This guide will help you get started writing contracts with CTL. Please also see
   - [Making the `ContractConfig`](#making-the-contractconfig)
 - [Building and submitting transactions](#building-and-submitting-transactions)
   - [Awaiting tx confirmation](#awaiting-tx-confirmation)
+  - [Using compiled scripts](#using-compiled-scripts)
 - [Testing](#testing)
   - [With a light wallet](#with-a-light-wallet)
   - [Without a light wallet](#without-a-light-wallet)
@@ -168,9 +169,71 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
     logInfo' $ "Tx ID: " <> show txId
   ```
 
-### Awaiting tx confirmation
+### Using compiled scripts
 
-One major caveat to using CTL in its current state is that we have no equivalent of Plutus' `awaitTxConfirmed`. We cannot guarantee that a transaction that has been accepted into a mempool has actually been added to a block. When `Contract.Transaction.submit` returns, this is **not** a guarantee that your transaction has been accepted into a block. If transaction confirmation is critical for you, you may wish to adopt a different strategy: sleeping for a pre-determined amount of time, looping until an address contains UTxOs from the recently submitted transaction, etc.... We plan to add functionality similar to `awaitTxConfirmed` in upcoming versions of CTL.
+To use your own scripts, compile them to any subdirectory in the root of your project (where `webpack.config.js` is located) and add a relative path to `webpack.config.js` under the `resolve.alias` section. In CTL, we have the `Scripts` alias for this purpose. Note the capitalization of `Scripts`: it is necessary to disambiguate it from local folders.
+
+First, in your `webpack.config.js`, define an `alias` under `module.exports.resolve.alias` in order to `require` the compiled scripts from JS modules:
+
+```javascript
+const path = require("path");
+
+module.exports = {
+  // ...
+  resolve: {
+    modules: [process.env.NODE_PATH],
+    extensions: [".js"],
+    fallback: {
+      // ...
+    },
+    alias: {
+      // You should update this path to the location of your compiled scripts,
+      // relative to `webpack.config.js`
+      Scripts: path.resolve(__dirname, "fixtures/scripts"),
+    },
+  },
+}
+```
+
+You must also add the following to `module.exports.module.rules`: 
+
+```javascript
+module.exports = {
+  // ...
+  module: {
+    rules: [
+      {
+        test: /\.plutus$/i,
+        type: "asset/source",
+      },
+      // ...
+    ],
+  },
+}
+```
+
+This enables inlining your serialized scripts in `.js` files, to then be loaded in Purescript via the FFI:
+
+```javascript
+// inline .plutus file as a string
+exports.myscript = require("Scripts/myscript.plutus");
+```
+
+And on the purescript side, the script can be loaded like so:
+
+```purescript
+foreign import myscript :: String
+
+parseValidator :: Contract () Validator
+parseValidator = wrap <<< wrap
+  <$> Contract.TextEnvelope.textEnvelopeBytes myscript PlutusScriptV1
+
+myContract cfg = runContract_ cfg $ do
+  validator <- parseValidator
+  ...
+```
+
+This way you avoid hardcoding your scripts directly to .purs files which could lead to synchronization issues should your scripts change.
 
 ## Testing
 
@@ -178,7 +241,7 @@ One major caveat to using CTL in its current state is that we have no equivalent
 
 We provide `KeyWallet` to enable testing outside of the browser, or in-browser without a light wallet installed. To generate a key, you can use `cardano-cli` as follows:
 
-```bash
+```shell
 $ cardano-cli address key-gen --normal-key --signing-key-file payment.skey --verification-key-file payment.vkey
 ```
 
