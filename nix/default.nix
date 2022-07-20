@@ -64,6 +64,7 @@ let
     , formatter ? "purs-tidy"
     , pursls ? true
     , nodeModules ? projectNodeModules
+    , packageLockOnly ? false
     }:
       assert pkgs.lib.assertOneOf "formatter" formatter [ "purs-tidy" "purty" ];
       pkgs.mkShell {
@@ -84,6 +85,7 @@ let
         shellHook = ''
           export NODE_PATH="${nodeModules}/lib/node_modules"
           export PATH="${nodeModules}/bin:$PATH"
+          ${pkgs.lib.optionalString packageLockOnly "export NPM_CONFIG_PACKAGE_LOCK_ONLY=true"}
         ''
         + shellHook;
       };
