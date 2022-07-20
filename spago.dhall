@@ -9,7 +9,6 @@ You can edit this file as you like.
   , "aff"
   , "aff-promise"
   , "affjax"
-  , "argonaut-codecs"
   , "arraybuffer-types"
   , "arrays"
   , "bifunctors"
@@ -47,6 +46,7 @@ You can edit this file as you like.
   , "node-process"
   , "nonempty"
   , "now"
+  , "numbers"
   , "ordered-collections"
   , "orders"
   , "parallel"
@@ -73,6 +73,7 @@ You can edit this file as you like.
   , "uint"
   , "undefined"
   , "unfoldable"
+  , "unsafe-coerce"
   , "untagged-union"
   , "variant"
   ]

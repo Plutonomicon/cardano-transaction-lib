@@ -26,6 +26,8 @@ module QueryM
   , WebSocket(WebSocket)
   , allowError
   , applyArgs
+  , awaitTxConfirmed
+  , awaitTxConfirmedWithTimeout
   , calculateMinFee
   , evaluateTxOgmios
   , getChainTip
@@ -44,6 +46,7 @@ module QueryM
   , mkOgmiosRequest
   , mkOgmiosRequestAff
   , mkOgmiosWebSocketAff
+  , mkQueryRuntime
   , mkRequest
   , mkRequestAff
   , module ServerConfig
@@ -55,9 +58,12 @@ module QueryM
   , runQueryMInRuntime
   , signTransaction
   , scriptToAeson
+  , stopQueryRuntime
   , submitTxOgmios
   , underlyingWebSocket
   , withQueryRuntime
+  , MkQueryRuntimeWarning
+  , StopQueryRuntimeWarning
   ) where
 
 import Prelude
@@ -96,6 +102,7 @@ import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
+import Data.DateTime.Instant (unInstant)
 import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
 import Data.HTTP.Method (Method(POST))
@@ -106,6 +113,8 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Number (infinity)
+import Data.Time.Duration (Seconds(Seconds))
 import Data.Traversable (for, for_, traverse, traverse_)
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt)
@@ -123,10 +132,11 @@ import Effect.Aff
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error, message, throw)
+import Effect.Now (now)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
-import Helpers (logString, logWithLevel)
+import Helpers (logString, logWithLevel, unwarn)
 import JsWebSocket
   ( JsWebSocket
   , Url
@@ -140,10 +150,12 @@ import JsWebSocket
   , _wsSend
   , _wsWatch
   )
-import QueryM.DatumCacheWsp (GetDatumByHashR, GetDatumsByHashesR)
+import Prim.TypeError (class Warn, Text)
+import QueryM.DatumCacheWsp (GetDatumByHashR, GetDatumsByHashesR, GetTxByHashR)
 import QueryM.DatumCacheWsp as DcWsp
 import QueryM.JsonWsp (parseJsonWspResponseId)
 import QueryM.JsonWsp as JsonWsp
+import QueryM.Ogmios (TxHash)
 import QueryM.Ogmios as Ogmios
 import QueryM.ServerConfig
   ( Host
@@ -174,6 +186,7 @@ import Serialization.Address
   , stakeCredentialToKeyHash
   )
 import Serialization.PlutusData (convertPlutusData) as Serialization
+import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray, byteArrayToHex)
 import Types.CborBytes (CborBytes)
 import Types.Chain as Chain
@@ -283,6 +296,12 @@ liftQueryM = unwrap >>> withReaderT toDefaultQueryEnv >>> wrap
   toDefaultQueryEnv :: QueryEnv r -> DefaultQueryEnv
   toDefaultQueryEnv c = c { extraConfig = {} }
 
+type MkQueryRuntimeWarning = Text
+  "Using `mkQueryRuntime` is not recommended: it does not ensure `QueryRuntime` finalization. Consider using `withQueryRuntime`"
+
+type StopQueryRuntimeWarning = Text
+  "Using `stopQueryRuntime` is not recommended: users should rely on `withQueryRuntime` to finalize the runtime instead"
+
 -- | Constructs and finalizes a contract environment that is usable inside a
 -- | bracket callback.
 -- | Make sure that `Aff` action does not end before all contracts that use the
@@ -293,10 +312,20 @@ withQueryRuntime
   -> (QueryRuntime -> Aff a)
   -> Aff a
 withQueryRuntime config action = do
-  runtime <- mkQueryRuntime config
+  runtime <- unwarn (Proxy :: Proxy MkQueryRuntimeWarning)
+    $ mkQueryRuntime config
   supervise (action runtime) `flip finally` do
-    liftEffect $ _wsClose $ underlyingWebSocket runtime.ogmiosWs
-    liftEffect $ _wsClose $ underlyingWebSocket runtime.datumCacheWs
+    liftEffect $ unwarn (Proxy :: Proxy StopQueryRuntimeWarning) $
+      stopQueryRuntime runtime
+
+-- | Close the websockets in `QueryRuntime`, effectively making it unusable
+stopQueryRuntime
+  :: Warn StopQueryRuntimeWarning
+  => QueryRuntime
+  -> Effect Unit
+stopQueryRuntime runtime = do
+  _wsClose $ underlyingWebSocket runtime.ogmiosWs
+  _wsClose $ underlyingWebSocket runtime.datumCacheWs
 
 -- | Used in `mkQueryRuntime` only
 data QueryRuntimeModel = QueryRuntimeModel
@@ -304,7 +333,10 @@ data QueryRuntimeModel = QueryRuntimeModel
   DatumCacheWebSocket
   (Maybe Wallet)
 
-mkQueryRuntime :: QueryConfig -> Aff QueryRuntime
+mkQueryRuntime
+  :: Warn MkQueryRuntimeWarning
+  => QueryConfig
+  -> Aff QueryRuntime
 mkQueryRuntime config = do
   usedTxOuts <- newUsedTxOuts
   QueryRuntimeModel (ogmiosWs /\ pparams) datumCacheWs wallet <- sequential $
@@ -403,6 +435,30 @@ getDatumByHash hash = unwrap <$> do
 getDatumsByHashes :: Array DataHash -> QueryM (Map DataHash Datum)
 getDatumsByHashes hashes = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
+
+awaitTxConfirmed :: TxHash -> QueryM Unit
+awaitTxConfirmed = awaitTxConfirmedWithTimeout (Seconds infinity)
+
+awaitTxConfirmedWithTimeout :: Seconds -> TxHash -> QueryM Unit
+awaitTxConfirmedWithTimeout timeoutSeconds txHash = do
+  nowMs <- getNowMs
+  let timeoutTime = nowMs + unwrap timeoutSeconds * 1000.0
+  go timeoutTime
+  where
+  getNowMs :: QueryM Number
+  getNowMs = unwrap <<< unInstant <$> liftEffect now
+
+  go :: Number -> QueryM Unit
+  go timeoutTime = do
+    isTxFound <- unwrap <$> mkDatumCacheRequest DcWsp.getTxByHash _.getTxByHash
+      txHash
+    nowMs <- getNowMs
+    when (nowMs >= timeoutTime) do
+      liftEffect $ throw $
+        "awaitTxConfirmedWithTimeout: timeout exceeded, Transaction not \
+        \confirmed"
+    liftAff $ delay $ wrap 1000.0
+    if isTxFound then pure unit else go timeoutTime
 
 allowError
   :: forall (a :: Type). (Either Error a -> Effect Unit) -> a -> Effect Unit
@@ -753,12 +809,15 @@ mkDatumCacheWebSocket'
 mkDatumCacheWebSocket' lvl serverCfg continue = do
   getDatumByHashDispatchMap <- createMutableDispatch
   getDatumsByHashesDispatchMap <- createMutableDispatch
+  getTxByHashDispatchMap <- createMutableDispatch
   getDatumByHashPendingRequests <- createPendingRequests
   getDatumsByHashesPendingRequests <- createPendingRequests
+  getTxByHashPendingRequests <- createPendingRequests
   let
     messageDispatch = datumCacheMessageDispatch
       { getDatumByHashDispatchMap
       , getDatumsByHashesDispatchMap
+      , getTxByHashDispatchMap
       }
   ws <- _mkWebSocket (logger Debug) $ mkOgmiosDatumCacheWsUrl serverCfg
   let
@@ -766,6 +825,7 @@ mkDatumCacheWebSocket' lvl serverCfg continue = do
     resendPendingRequests = do
       Ref.read getDatumByHashPendingRequests >>= traverse_ sendRequest
       Ref.read getDatumsByHashesPendingRequests >>= traverse_ sendRequest
+      Ref.read getTxByHashPendingRequests >>= traverse_ sendRequest
     -- We want to fail if the first connection attempt is not successful.
     -- Otherwise, we start reconnecting indefinitely.
     onFirstConnectionError errMessage = do
@@ -805,6 +865,8 @@ mkDatumCacheWebSocket' lvl serverCfg continue = do
             getDatumByHashPendingRequests
         , getDatumsByHashes: mkListenerSet getDatumsByHashesDispatchMap
             getDatumsByHashesPendingRequests
+        , getTxByHash: mkListenerSet getTxByHashDispatchMap
+            getTxByHashPendingRequests
         }
   pure $ Canceler $ \err -> liftEffect do
     _wsClose ws
@@ -845,6 +907,7 @@ type OgmiosListeners =
 type DatumCacheListeners =
   { getDatumByHash :: ListenerSet DataHash GetDatumByHashR
   , getDatumsByHashes :: ListenerSet (Array DataHash) GetDatumsByHashesR
+  , getTxByHash :: ListenerSet TxHash GetTxByHashR
   }
 
 -- convenience type for adding additional query types later
@@ -1035,14 +1098,17 @@ ogmiosMessageDispatch
 datumCacheMessageDispatch
   :: { getDatumByHashDispatchMap :: DispatchIdMap GetDatumByHashR
      , getDatumsByHashesDispatchMap :: DispatchIdMap GetDatumsByHashesR
+     , getTxByHashDispatchMap :: DispatchIdMap GetTxByHashR
      }
   -> Array WebsocketDispatch
 datumCacheMessageDispatch
   { getDatumByHashDispatchMap
   , getDatumsByHashesDispatchMap
+  , getTxByHashDispatchMap
   } =
   [ queryDispatch getDatumByHashDispatchMap
   , queryDispatch getDatumsByHashesDispatchMap
+  , queryDispatch getTxByHashDispatchMap
   ]
 
 -- each query type will have a corresponding ref that lives in ReaderT config or similar
