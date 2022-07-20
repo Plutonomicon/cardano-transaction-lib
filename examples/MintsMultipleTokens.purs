@@ -66,7 +66,7 @@ main = launchAff_ $ do
     bsTx <-
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx
-    logInfo' $ "Tx ID: " <> show txId    
+    logInfo' $ "Tx ID: " <> show txId
   publishTestFeedback true
 
 mkTokenName :: String -> Contract () TokenName

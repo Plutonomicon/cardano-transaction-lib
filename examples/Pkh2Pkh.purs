@@ -70,4 +70,4 @@ main = launchAff_ $ do
 
     awaitTxConfirmed txId
     logInfo' $ "Tx submitted successfully!"
-    liftAff $ publishTestFeedback true    
+    liftAff $ publishTestFeedback true
