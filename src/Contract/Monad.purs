@@ -65,7 +65,6 @@ import Effect.Aff (Aff, launchAff_) as Aff
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
-import Helpers (logWithLevel)
 import Prim.TypeError (class Warn, Text)
 import QueryM
   ( DatumCacheListeners
