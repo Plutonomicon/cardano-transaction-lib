@@ -127,7 +127,7 @@ feeEstimateSpec = around withTestApp $ do
       result <-
         runClientM' (clientEnv port) . estimateTxFees $
           FeesRequest (WitnessCount 1) cborTxFixture
-      result `shouldBe` Right (Fee 168713)
+      result `shouldBe` Right (Fee 168889)
 
     it "catches invalid hex strings" $ \port -> do
       result <-
@@ -272,7 +272,7 @@ fixedProtocolParameters :: ProtocolParameters
 fixedProtocolParameters =
   ProtocolParameters
     { protocolParamProtocolVersion = (7, 0)
-    , protocolParamDecentralization = 0 % 1
+    , protocolParamDecentralization = Nothing -- 0 % 1
     , protocolParamExtraPraosEntropy = Nothing
     , protocolParamMaxBlockHeaderSize = 1100
     , protocolParamMaxBlockBodySize = 65536
