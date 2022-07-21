@@ -60,16 +60,7 @@ module QueryM
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , Aeson
-  , JsonDecodeError(TypeMismatch)
-  , caseAesonString
-  , decodeAeson
-  , encodeAeson
-  , parseJsonStringToAeson
-  , stringifyAeson
-  )
+import Aeson (class DecodeAeson, Aeson, JsonDecodeError(TypeMismatch), caseAesonString, decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
 import Affjax (Error, Response, defaultRequest, printError, request) as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
@@ -113,56 +104,21 @@ import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
 import Helpers (logString, logWithLevel)
-import JsWebSocket
-  ( JsWebSocket
-  , Url
-  , _mkWebSocket
-  , _onWsConnect
-  , _onWsError
-  , _onWsMessage
-  , _removeOnWsError
-  , _wsClose
-  , _wsReconnect
-  , _wsSend
-  , _wsWatch
-  )
+import JsWebSocket (JsWebSocket, Url, _mkWebSocket, _onWsConnect, _onWsError, _onWsMessage, _removeOnWsError, _wsClose, _wsReconnect, _wsSend, _wsWatch)
 import QueryM.DatumCacheWsp (GetDatumByHashR, GetDatumsByHashesR, GetTxByHashR)
 import QueryM.DatumCacheWsp as DcWsp
 import QueryM.JsonWsp (parseJsonWspResponseId)
 import QueryM.JsonWsp as JsonWsp
 import QueryM.Ogmios (TxHash)
 import QueryM.Ogmios as Ogmios
-import QueryM.ServerConfig
-  ( Host
-  , ServerConfig
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
-  , mkHttpUrl
-  , mkOgmiosDatumCacheWsUrl
-  , mkServerUrl
-  , mkWsUrl
-  ) as ServerConfig
-import QueryM.ServerConfig
-  ( ServerConfig
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
-  , mkHttpUrl
-  , mkOgmiosDatumCacheWsUrl
-  , mkWsUrl
-  )
+import QueryM.ServerConfig (Host, ServerConfig, defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkServerUrl, mkWsUrl) as ServerConfig
+import QueryM.ServerConfig (ServerConfig, defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkWsUrl)
 import QueryM.UniqueId (ListenerId)
+import QueryM.WaitUntilSlot (waitUntilSlot)
 import Serialization (convertTransaction, toBytes) as Serialization
-import Serialization.Address
-  ( Address
-  , NetworkId(TestnetId)
-  , baseAddressDelegationCred
-  , baseAddressFromAddress
-  , addressPaymentCred
-  , stakeCredentialToKeyHash
-  )
+import Serialization.Address (Address, NetworkId(TestnetId), Slot, baseAddressDelegationCred, baseAddressFromAddress, addressPaymentCred, stakeCredentialToKeyHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
+import Types.BigNum as BigNum
 import Types.ByteArray (ByteArray, byteArrayToHex)
 import Types.CborBytes (CborBytes)
 import Types.Chain as Chain
@@ -293,6 +249,54 @@ getDatumsByHashes hashes = unwrap <$> do
 awaitTxConfirmed :: TxHash -> QueryM Unit
 awaitTxConfirmed = awaitTxConfirmedWithTimeout (Seconds infinity)
 
+
+awaitTxConfirmedWithTimeoutGen :: forall (a :: Type). (Ord a) => (QueryM a) -> (a -> QueryM Unit) -> (a -> a -> a) -> a -> a -> TxHash -> QueryM Unit
+awaitTxConfirmedWithTimeoutGen getCurrent wait add increment timeout txHash = do
+  current <- getCurrent
+  go current `add` timeout
+  where
+
+  go :: a -> QueryM Unit
+  go timeoutTime = do
+    isTxFound <- unwrap <$> mkDatumCacheRequest DcWsp.getTxByHash _.getTxByHash
+      txHash
+    case isTxFound of
+      true -> pure unit
+      false -> do
+        current <- getCurrent
+        when (current >= timeoutTime) do
+          liftEffect $ throw $
+            "awaitTxConfirmedWithTimeout: timeout exceeded, Transaction not \
+             \confirmed"
+        wait (add current increment)
+        go timeoutTime
+
+awaitTxConfirmedWithTimeout :: Seconds -> TxHash -> QueryM Unit
+awaitTxConfirmedWithTimeout timeoutSeconds txHash =
+  awaitTxConfirmedWithTimeoutGen getNowMs waitSeconds (+) timeoutSeconds txHash
+  where
+    
+  getNowMs :: QueryM Number
+  getNowMs = unwrap <<< unInstant <$> liftEffect now
+
+  waitSeconds = liftAff <<< delay <<< wrap
+
+awaitTxConfirmedWithTimeoutSlots :: Int -> TxHash -> QueryM Unit
+awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash = 
+  awaitTxConfirmedWithTimeoutGen getCurrentSlot waitUntilSlot addSlots timeoutSlots txHash
+
+  where
+    getCurrentSlot :: QueryM Slot
+    getCurrentSlot = getChainTip >>= case _ of
+      Chain.TipAtGenesis -> do
+        liftAff $ delay $ wrap 1000.0
+        getCurrentSlot
+      Chain.Tip (Chain.ChainTip { startSlot }) -> pure startSlot
+      
+    addSlots :: Slot -> Int -> Slot
+    addSlots slot n = wrap $ unwrap slot + BigNum.fromInt n
+    
+{-
 awaitTxConfirmedWithTimeout :: Seconds -> TxHash -> QueryM Unit
 awaitTxConfirmedWithTimeout timeoutSeconds txHash = do
   nowMs <- getNowMs
@@ -314,6 +318,32 @@ awaitTxConfirmedWithTimeout timeoutSeconds txHash = do
     liftAff $ delay $ wrap 1000.0
     if isTxFound then pure unit else go timeoutTime
 
+awaitTxConfirmedWithTimeoutSlots :: Int -> TxHash -> QueryM Unit
+awaitTxConfirmedWithTimeoutSlots slots txHash = do
+  startSlot <- getCurrentSlot
+  go $ startSlot `addSlots` slots
+  where
+    getCurrentSlot :: QueryM Slot
+    getCurrentSlot = getChainTip >>= case _ of
+      Chain.TipAtGenesis -> do
+        liftAff $ delay $ wrap 1000.0
+        getCurrentSlot
+      Chain.Tip (Chain.ChainTip { startSlot }) -> pure startSlot
+
+    addSlots :: Slot -> Int -> Slot
+    addSlots slot n = wrap $ unwrap slot + BigNum.fromInt n
+    
+    go :: Slot -> TxHash -> QueryM Unit
+    go maxSlot = do
+      isTxFound <- unwrap <$> mkDatumCacheRequest DcWsp.getTxByHash _.getTxByHash txHash
+      curSlot <- getCurrentSlot
+      when (curSlot > maxSlot) do
+        liftEffect $ throw $
+          "awaitTxConfirmedWithTimeout: timeout exceeded, Transaction not \
+          \confirmed"
+        waitUntilSlot (curSlot `addSlots` 1)
+        if isTxFound then pure unit else go maxSlot
+      -}
 allowError
   :: forall (a :: Type). (Either Error a -> Effect Unit) -> a -> Effect Unit
 allowError func = func <<< Right
