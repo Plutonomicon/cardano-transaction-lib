@@ -832,6 +832,7 @@ convertCostmdls (T.Costmdls cs) = do
   costmdls <- newCostmdls
   -- TODO Check the traversal order of the costmodels map isn't important for
   --      mixed language transactions
+  --      https://github.com/Plutonomicon/cardano-transaction-lib/issues/764
   forWithIndex_ cs \language costModel -> do
     language' <- case language of
       S.PlutusV1 -> newPlutusV1
