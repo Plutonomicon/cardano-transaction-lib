@@ -8,7 +8,11 @@ import Contract.Prelude
 
 import Contract.Monad (liftedE, liftedM, logInfo')
 import Contract.ScriptLookups as Lookups
-import Contract.Transaction (balanceAndSignTx, submit)
+import Contract.Transaction
+  ( awaitTxConfirmedWithTimeout
+  , balanceAndSignTx
+  , submit
+  )
 import Contract.TxConstraints as Constraints
 import Contract.Value (lovelaceValueOf) as Value
 import Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
@@ -31,3 +35,5 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
   liftEffect unlock
+  awaitTxConfirmedWithTimeout (wrap 120.0) txId
+  logInfo' $ "Tx submitted successfully!"

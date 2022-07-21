@@ -25,7 +25,7 @@ import Contract.Monad
   )
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
-  ( awaitTxConfirmed
+  ( awaitTxConfirmedWithTimeout
   , balanceAndSignTx
   , submit
   )
@@ -66,5 +66,5 @@ main = launchAff_ $ do
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
-    awaitTxConfirmed txId
+    awaitTxConfirmedWithTimeout (wrap 120.0) txId
     logInfo' $ "Tx submitted successfully!"
