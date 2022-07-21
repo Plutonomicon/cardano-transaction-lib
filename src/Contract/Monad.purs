@@ -65,7 +65,7 @@ import Effect.Aff (Aff, launchAff_) as Aff
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
-import Helpers (logWithLevel, unwarn)
+import Helpers (logWithLevel)
 import Prim.TypeError (class Warn, Text)
 import QueryM
   ( DatumCacheListeners
@@ -87,19 +87,16 @@ import QueryM
   , mkWsUrl
   ) as QueryM
 import QueryM
-  ( MkQueryRuntimeWarning
-  , QueryConfig
+  ( QueryConfig
   , QueryEnv
   , QueryM
   , QueryMExtended
   , QueryRuntime
-  , StopQueryRuntimeWarning
   , mkQueryRuntime
   , stopQueryRuntime
   , withQueryRuntime
   )
 import Serialization.Address (NetworkId)
-import Type.Proxy (Proxy(..))
 import Wallet.Spec (WalletSpec)
 
 -- | The `Contract` monad is a newtype wrapper over `QueryM` which is `ReaderT`
@@ -254,7 +251,7 @@ mkContractEnv
       , walletSpec
       , customLogger
       }
-  runtime <- unwarn (Proxy :: Proxy MkQueryRuntimeWarning) $ mkQueryRuntime
+  runtime <- mkQueryRuntime
     config
   let
     contractEnv = wrap
@@ -269,8 +266,7 @@ stopContractEnv
        )
   => ContractEnv r
   -> Effect Unit
-stopContractEnv env = unwarn (Proxy :: Proxy StopQueryRuntimeWarning) $
-  stopQueryRuntime (unwrap env).runtime
+stopContractEnv env = stopQueryRuntime (unwrap env).runtime
 
 -- | Constructs and finalizes a contract environment that is usable inside a
 -- | bracket callback.
