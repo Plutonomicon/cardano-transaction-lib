@@ -51,7 +51,7 @@ import Metadata.Cip25.Cip25String
   )
 import Metadata.Cip25.Common
   ( nftMetadataLabel
-  , Cip25TokenName
+  , Cip25TokenName(Cip25TokenName)
   , Cip25MetadataFile(Cip25MetadataFile)
   )
 import Metadata.FromMetadata (class FromMetadata, fromMetadata)
