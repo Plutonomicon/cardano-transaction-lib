@@ -6,14 +6,16 @@ module Deserialization.Error
   , addErrTrace
   , cslErr
   , fromCslRepError
+  , toError
   ) where
 
 import Prelude
 import Data.Maybe (Maybe)
 import Data.Either (Either(Left))
-import Data.Variant (default, inj, onMatch)
+import Data.Variant (Variant, default, inj, onMatch, match)
 import Deserialization.FromBytes (FromBytesError, _fromBytesError)
 import Error (E, NotImplementedError, _notImplementedError, noteE)
+import Effect.Exception (Error, error)
 import Type.Proxy (Proxy(Proxy))
 import Type.Row (type (+))
 
@@ -53,3 +55,13 @@ addErrTrace s (Left e) =
         }
     )
 addErrTrace _ a = a
+
+-- | Convert a deserialization error into an `Effect` error
+toError
+  :: Variant (FromBytesError + NotImplementedError + FromCslRepError + ())
+  -> Error
+toError = error <<< match
+  { fromCslRepError: \err -> "FromCslRepError: " <> err
+  , fromBytesError: \err -> "FromBytesError: " <> err
+  , notImplementedError: \err -> "NotImplementedError: " <> err
+  }

@@ -44,9 +44,6 @@ supported =
   , "eraSummaries"
   , "currentProtocolParameters"
   , "SubmitTx"
-  -- TODO Support plutus:v2 parameters
-  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/567
-  -- , "currentProtocolParameters-noPlutusV1"
   ]
 
 getField
@@ -55,7 +52,7 @@ getField f o = join $ hush $ Aeson.getFieldOptional' o f
 
 type Query = String
 
--- Given a query and an response of the query, create a special case query
+-- Given a query and a response of the query, create a special case query
 specialize :: Query -> Aeson -> Query
 specialize query a
   | Just _ :: _ Aeson <- getField "eraMismatch" =<< Aeson.toObject a = query
@@ -65,6 +62,10 @@ specialize query a
   , Just costModels <- getField "costModels" =<< Aeson.toObject a
   , Nothing :: _ Aeson <- getField "plutus:v1" costModels = query <> "-" <>
       "noPlutusV1"
+  | "currentProtocolParameters" <- query
+  , Just costModels <- getField "costModels" =<< Aeson.toObject a
+  , Nothing :: _ Aeson <- getField "plutus:v2" costModels = query <> "-" <>
+      "noPlutusV2"
   | "SubmitTx" <- query
   , Just _ :: _ Aeson <- getField "SubmitFail" =<< Aeson.toObject a = query
       <> "-"

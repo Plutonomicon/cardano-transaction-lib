@@ -5,7 +5,6 @@ module Deserialization.Transaction
   , _adNativeScripts
   , _adPlutusScripts
   , _convertCert
-  , _convertLanguage
   , _convertMetadatum
   , _convertNonce
   , _txAuxiliaryData
@@ -47,7 +46,6 @@ module Deserialization.Transaction
   , convertExUnitPrices
   , convertExUnits
   , convertGeneralTransactionMetadata
-  , convertLanguage
   , convertMetadataList
   , convertMetadataMap
   , convertMetadatum
@@ -87,7 +85,6 @@ import Cardano.Types.Transaction
   , GenesisHash(GenesisHash)
   , Ipv4(Ipv4)
   , Ipv6(Ipv6)
-  , Language(PlutusV1)
   , MIRToStakeCredentials(MIRToStakeCredentials)
   , Mint(Mint)
   , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
@@ -126,11 +123,10 @@ import Data.Traversable (traverse, for)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Data.Variant (Variant, inj)
+import Data.Variant (Variant)
 import Deserialization.Error
   ( Err
   , FromCslRepError
-  , _fromCslRepError
   , addErrTrace
   , cslErr
   , fromCslRepError
@@ -142,13 +138,12 @@ import Deserialization.WitnessSet
   , convertPlutusScripts
   , convertWitnessSet
   )
+import Deserialization.Language (convertLanguage)
 import Error (E)
 import FfiHelpers
   ( ContainerHelper
-  , ErrorFfiHelper
   , MaybeFfiHelper
   , containerHelper
-  , errorHelper
   , maybeFfiHelper
   )
 import Serialization (toBytes)
@@ -488,7 +483,8 @@ convertProtocolParamUpdate cslPpu = do
   nOpt <- traverse (cslNumberToUInt (lbl "nOpt")) ppu.nOpt
   protocolVersion <- traverse (convertProtocolVersion (lbl "protocolVersion"))
     ppu.protocolVersion
-  costModels <- traverse (convertCostModels (lbl "costModels")) ppu.costModels
+  costModels <- addErrTrace (lbl "costModels") $ traverse convertCostModels
+    ppu.costModels
   maxTxExUnits <- traverse (convertExUnits (lbl "maxTxExUnits"))
     ppu.maxTxExUnits
   maxBlockExUnits <- traverse (convertExUnits (lbl "maxBlockExUnits"))
@@ -524,38 +520,27 @@ convertNonce = _convertNonce
 
 convertCostModels
   :: forall (r :: Row Type)
-   . String
-  -> Csl.Costmdls
-  -> E (FromCslRepError + r) T.Costmdls
-convertCostModels nm cslCostMdls =
+   . Csl.Costmdls
+  -> Err r T.Costmdls
+convertCostModels cslCostMdls =
   let
     mdls :: Array (Csl.Language /\ Csl.CostModel)
     mdls = _unpackCostModels containerHelper cslCostMdls
   in
     (T.Costmdls <<< M.fromFoldable) <$> traverse
-      (bitraverse (convertLanguage nm) (convertCostModel nm))
+      (bitraverse convertLanguage convertCostModel)
       mdls
-
-convertLanguage
-  :: forall (r :: Row Type)
-   . String
-  -> Csl.Language
-  -> E (FromCslRepError + r) T.Language
-convertLanguage err = _convertLanguage
-  (errorHelper (inj _fromCslRepError <<< \e -> err <> ": " <> e))
-  { plutusV1: T.PlutusV1 }
 
 convertCostModel
   :: forall (r :: Row Type)
-   . String
-  -> Csl.CostModel
+   . Csl.CostModel
   -> E (FromCslRepError + r) T.CostModel
-convertCostModel err = map T.CostModel <<< traverse stringToInt <<<
+convertCostModel = map T.CostModel <<< traverse stringToInt <<<
   _unpackCostModel
   where
   stringToInt
     :: String -> Either (Variant (fromCslRepError :: String | r)) Int
-  stringToInt s = cslErr (err <> ": string (" <> s <> ") -> int") $
+  stringToInt s = cslErr ("string (" <> s <> ") -> int") $
     fromString s
 
 convertAuxiliaryData
@@ -566,7 +551,7 @@ convertAuxiliaryData ad = addErrTrace "convertAuxiliaryData" do
   pure $ T.AuxiliaryData
     { metadata
     , nativeScripts: convertNativeScripts =<< _adNativeScripts maybeFfiHelper ad
-    , plutusScripts: convertPlutusScripts <$> _adPlutusScripts maybeFfiHelper ad
+    , plutusScripts: convertPlutusScripts =<< _adPlutusScripts maybeFfiHelper ad
     }
 
 convertGeneralTransactionMetadata
@@ -921,13 +906,6 @@ foreign import _convertCert
    . CertConvHelper (Err r T.Certificate)
   -> Csl.Certificate
   -> Err r T.Certificate
-
-foreign import _convertLanguage
-  :: forall (r :: Row Type)
-   . ErrorFfiHelper r
-  -> { plutusV1 :: T.Language }
-  -> Csl.Language
-  -> E r T.Language
 
 foreign import poolParamsOperator :: Csl.PoolParams -> Ed25519KeyHash
 foreign import poolParamsVrfKeyhash :: Csl.PoolParams -> Csl.VRFKeyHash
