@@ -43,7 +43,7 @@ module Cardano.Types.Transaction
   , URL(URL)
   , UnitInterval
   , Update
-  , Utxo
+  , Utxos
   , UtxoM(UtxoM)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
@@ -849,7 +849,7 @@ derive newtype instance EncodeAeson TransactionOutput
 instance Show TransactionOutput where
   show = genericShow
 
-newtype UtxoM = UtxoM Utxo
+newtype UtxoM = UtxoM Utxos
 
 derive instance Generic UtxoM _
 derive instance Newtype UtxoM _
@@ -858,4 +858,4 @@ derive newtype instance Eq UtxoM
 instance Show UtxoM where
   show = genericShow
 
-type Utxo = Map TransactionInput TransactionOutput
+type Utxos = Map TransactionInput TransactionOutput
