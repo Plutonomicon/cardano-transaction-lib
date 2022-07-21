@@ -160,7 +160,6 @@
           purescriptProject = import ./nix { inherit system; pkgs = final; };
           buildCtlRuntime = buildCtlRuntime final;
           launchCtlRuntime = launchCtlRuntime final;
-          ctl-server = self.packages.${system}."ctl-server:exe:ctl-server";
           inherit cardano-configurations;
         });
 
@@ -169,6 +168,9 @@
           haskell-nix.overlay
           iohk-nix.overlays.crypto
           overlay
+          (_: _: {
+            ctl-server = self.packages.${system}."ctl-server:exe:ctl-server";
+          })
         ];
         inherit (haskell-nix) config;
         inherit system;
@@ -176,6 +178,7 @@
 
       allNixpkgs = perSystem mkNixpkgsFor;
       nixpkgsFor = system: allNixpkgs.${system};
+
       defaultConfig = final: with final; {
         inherit (inputs) cardano-configurations;
         network = {
