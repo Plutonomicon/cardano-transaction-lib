@@ -30,7 +30,7 @@ instance Aeson.FromJSON ProtocolParametersWrapper where
       params <-
         ProtocolParameters
           <$> ((,) <$> v .: "major" <*> v .: "minor")
-          <*> pure 0 -- `decentralizationParameter` is deprecated
+          <*> pure Nothing -- `decentralizationParameter` is deprecated
           <*> pure Nothing -- `extraEntropy` is deprecated
           <*> o .: "maxBlockHeaderSize"
           <*> o .: "maxBlockBodySize"

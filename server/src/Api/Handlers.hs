@@ -5,7 +5,7 @@ module Api.Handlers (
 
 import Cardano.Api qualified as C
 import Cardano.Api.Shelley qualified as Shelley
-import Cardano.Ledger.Alonzo.Tx qualified as Tx
+import Cardano.Ledger.Babbage.Tx qualified as Tx
 import Control.Lens ((&), (<&>))
 import Control.Monad.Catch (throwM)
 import Control.Monad.Reader (asks)
@@ -75,9 +75,9 @@ estimateTxFees FeesRequest {count, tx} = do
                 List.find predicate [2 ^ x | x <- [(0 :: Int) ..]]
 
     -- FIXME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/570
-    withScriptIntegrityHash :: C.Tx C.AlonzoEra -> C.Tx C.AlonzoEra
-    withScriptIntegrityHash transaction@(C.Tx txBodyAlonzo keyWits) =
-      case txBodyAlonzo of
+    withScriptIntegrityHash :: C.Tx C.BabbageEra -> C.Tx C.BabbageEra
+    withScriptIntegrityHash transaction@(C.Tx txBodyBabbage keyWits) =
+      case txBodyBabbage of
         Shelley.ShelleyTxBody era txBody scr sData aux val ->
           case Tx.scriptIntegrityHash txBody of
             SNothing ->
@@ -100,7 +100,7 @@ applyArgs ApplyArgsRequest {script, args} =
  https://input-output-hk.github.io/cardano-node/cardano-api/src/Cardano.Api.Fees.html#evaluateTransactionFee
 -}
 estimateFee ::
-  Shelley.ProtocolParameters -> Word -> C.Tx C.AlonzoEra -> Integer
+  Shelley.ProtocolParameters -> Word -> C.Tx C.BabbageEra -> Integer
 estimateFee pparams numWits (C.Tx txBody _) =
   let estimate :: Integer
       C.Lovelace estimate =
@@ -122,7 +122,7 @@ decodeCborText (Cbor cborText) =
   first InvalidHex . Base16.decode $
     Text.Encoding.encodeUtf8 cborText
 
-decodeCborTx :: Cbor -> Either CborDecodeError (C.Tx C.AlonzoEra)
+decodeCborTx :: Cbor -> Either CborDecodeError (C.Tx C.BabbageEra)
 decodeCborTx cbor =
   first InvalidCbor
     . C.deserialiseFromCBOR (C.proxyToAsType Proxy)
