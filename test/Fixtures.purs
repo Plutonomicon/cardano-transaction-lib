@@ -63,7 +63,7 @@ module Test.Fixtures
 
 import Prelude
 
-import Aeson (Aeson, aesonNull, decodeAeson, fromString, parseJsonStringToAeson)
+import Aeson (Aeson, aesonNull, parseJsonStringToAeson)
 import Cardano.Types.Transaction
   ( AuxiliaryDataHash(AuxiliaryDataHash)
   , Certificate
@@ -118,13 +118,11 @@ import Cardano.Types.Value
   , mkNonAdaAsset
   , mkSingletonNonAdaAsset
   )
-import Contract.Scripts (MintingPolicy)
 import Data.Array as Array
 import Data.BigInt as BigInt
-import Data.Either (fromRight, hush)
+import Data.Either (fromRight)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (wrap)
 import Data.NonEmpty ((:|))
 import Data.Set (Set)
 import Data.Set (singleton) as Set

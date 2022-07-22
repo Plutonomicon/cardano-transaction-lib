@@ -179,7 +179,6 @@ import Wallet
   , Cip30Wallet
   , Wallet(Gero, Nami, KeyWallet)
   )
-import Wallet.Key as KeyWallet
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
