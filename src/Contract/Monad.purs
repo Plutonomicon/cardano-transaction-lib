@@ -227,6 +227,9 @@ runContractInEnv config =
   printLog :: Message -> Aff Unit
   printLog = logWithLevel (unwrap config).config.logLevel
 
+-- | Initializes a `Contract` environment. Does not ensure finalization.
+-- | Consider using `withContractEnv` if possible - otherwise use
+-- | `stopContractEnv` to properly finalize.
 mkContractEnv
   :: forall (r :: Row Type) (a :: Type)
    . Warn
@@ -262,6 +265,7 @@ mkContractEnv
       { runtime, config, extraConfig: params.extraConfig }
   pure contractEnv
 
+-- | Finalizes a `Contract` environment.
 stopContractEnv
   :: forall (r :: Row Type)
    . Warn
@@ -274,7 +278,8 @@ stopContractEnv env = stopQueryRuntime (unwrap env).runtime
 
 -- | Constructs and finalizes a contract environment that is usable inside a
 -- | bracket callback.
--- | One environment can be used by multiple `Contract`s in parallel.
+-- | One environment can be used by multiple `Contract`s in parallel (see
+-- | `runContractInEnv`).
 -- | Make sure that `Aff` action does not end before all contracts that use the
 -- | runtime terminate. Otherwise `WebSocket`s will be closed too early.
 withContractEnv
