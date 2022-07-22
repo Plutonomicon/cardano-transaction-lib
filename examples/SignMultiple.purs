@@ -21,9 +21,9 @@ import Contract.Monad
   , liftedE
   , liftedM
   , logInfo'
-  , logError'
   , mkContractConfig
   , runContract_
+  , throwContractError
   )
 import Control.Monad.Reader (asks)
 import Effect.Ref as Ref
@@ -31,7 +31,7 @@ import Contract.ScriptLookups as Lookups
 import Contract.Transaction
   ( BalancedSignedTransaction
   , TransactionHash
-  , awaitTxConfirmedWithTimeout
+  , awaitTxConfirmed
   , submit
   , withBalancedAndSignedTxs
   )
@@ -87,11 +87,11 @@ main = launchAff_ $ do
 
     case txIds of
       [ txId1, txId2 ] -> do
-        awaitTxConfirmedWithTimeout (wrap 120.0) txId1
+        awaitTxConfirmed txId1
         logInfo' $ "Tx 1 submitted successfully!"
-        awaitTxConfirmedWithTimeout (wrap 120.0) txId2
+        awaitTxConfirmed txId2
         logInfo' $ "Tx 2 submitted successfully!"
-      _ -> logError' "Unexpected error - no transaction IDs"
+      _ -> throwContractError "Unexpected error - no transaction IDs"
 
   where
   submitAndLog

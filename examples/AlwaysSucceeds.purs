@@ -25,7 +25,7 @@ import Contract.TextEnvelope
 import Contract.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
-  , awaitTxConfirmedWithTimeout
+  , awaitTxConfirmed
   , balanceAndSignTxE
   , submit
   )
@@ -48,16 +48,9 @@ main = launchAff_ $ do
     logInfo' "Attempt to lock value"
     txId <- payToAlwaysSucceeds vhash
     -- If the wallet is cold, you need a high parameter here.
-    awaitTxConfirmedWithTimeout (wrap 120.0) txId
+    awaitTxConfirmed txId
     logInfo' "Tx submitted successfully, Try to spend locked values"
     spendFromAlwaysSucceeds vhash validator txId
-
-countToZero :: Int -> Contract () Unit
-countToZero n =
-  unless (n <= 0) do
-    logInfo' $ "Waiting before we try to unlock: " <> show n
-    (liftAff <<< delay <<< wrap) 1000.0
-    countToZero (n - 1)
 
 payToAlwaysSucceeds :: ValidatorHash -> Contract () TransactionHash
 payToAlwaysSucceeds vhash = do
@@ -93,7 +86,7 @@ spendFromAlwaysSucceeds vhash validator txId = do
       in
         do
           spendTxId <- buildBalanceSignAndSubmitTx lookups constraints
-          awaitTxConfirmedWithTimeout (wrap 120.0) spendTxId
+          awaitTxConfirmed spendTxId
           logInfo' "Successfully spent locked values."
 
     _ ->

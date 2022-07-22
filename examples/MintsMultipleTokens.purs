@@ -25,7 +25,7 @@ import Contract.TextEnvelope
   , textEnvelopeBytes
   )
 import Contract.Transaction
-  ( awaitTxConfirmedWithTimeout
+  ( awaitTxConfirmed
   , balanceAndSignTx
   , submit
   )
@@ -70,7 +70,7 @@ main = launchAff_ $ do
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
-    awaitTxConfirmedWithTimeout (wrap 120.0) txId
+    awaitTxConfirmed txId
     logInfo' $ "Tx submitted successfully!"
 
 mkTokenName :: String -> Contract () TokenName
