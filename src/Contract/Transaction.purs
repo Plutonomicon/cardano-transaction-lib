@@ -8,6 +8,7 @@ module Contract.Transaction
   , balanceAndSignTxs
   , balanceAndSignTxE
   , balanceTx
+  , balanceTxWithOwnAddress
   , balanceTxM
   , calculateMinFee
   , calculateMinFeeM
@@ -27,6 +28,7 @@ module Contract.Transaction
   , withBalancedTx
   , withBalancedAndSignedTxs
   , withBalancedAndSignedTx
+  , balanceTxsWithOwnAddress
   ) where
 
 import Prelude
@@ -34,7 +36,7 @@ import Prelude
 import Aeson (class EncodeAeson)
 import BalanceTx (BalanceTxError) as BalanceTxError
 import BalanceTx (FinalizedTransaction)
-import BalanceTx (balanceTx) as BalanceTx
+import BalanceTx (balanceTx, balanceTxWithOwnAddress) as BalanceTx
 import Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
@@ -106,13 +108,14 @@ import Cardano.Types.Transaction
   , _witnessSet
   ) as Transaction
 import Cardano.Types.Transaction (Transaction)
+import Contract.Address (getWalletAddress)
 import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
 import Control.Monad.Error.Class (try, catchError, throwError)
 import Control.Monad.Reader (asks, runReaderT, ReaderT)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Time.Duration (Seconds)
@@ -121,6 +124,8 @@ import Data.Tuple.Nested (type (/\))
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, throw)
 import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
+import Plutus.Conversion.Address (fromPlutusAddress)
+import Plutus.Types.Address (Address)
 import Plutus.Types.Transaction (TransactionOutput(TransactionOutput)) as PTransaction
 import Plutus.Types.Value (Coin)
 import QueryM
@@ -255,6 +260,18 @@ balanceTx
   -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
 balanceTx = wrapContract <<< BalanceTx.balanceTx
 
+-- | Attempts to balance an `UnattachedUnbalancedTx`.
+balanceTxWithOwnAddress
+  :: forall (r :: Row Type)
+   . Address
+  -> UnattachedUnbalancedTx
+  -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
+balanceTxWithOwnAddress addr tx = do
+  networkId <- asks $ unwrap >>> _.networkId
+  wrapContract $ BalanceTx.balanceTxWithOwnAddress
+    (fromPlutusAddress networkId addr)
+    tx
+
 -- Helper to avoid repetition
 withTransactions
   :: forall (a :: Type)
@@ -342,16 +359,17 @@ withBalancedAndSignedTx = withSingleTransaction
   (liftedE <<< balanceAndSignTxE)
   unwrap
 
--- | Balances each transaction and locks the used inputs
--- | so that they cannot be reused by subsequent transactions.
-balanceTxs
+-- | Like `balanceTxs`, but uses `balanceTxWithOwnAddress` instead of `balanceTx`
+-- | internally.
+balanceTxsWithOwnAddress
   :: forall
        (t :: Type -> Type)
        (r :: Row Type)
    . Traversable t
-  => t UnattachedUnbalancedTx
+  => Address
+  -> t UnattachedUnbalancedTx
   -> Contract r (t FinalizedTransaction)
-balanceTxs unbalancedTxs =
+balanceTxsWithOwnAddress ownAddress unbalancedTxs =
   unlockAllOnError $ traverse balanceAndLock unbalancedTxs
   where
   unlockAllOnError :: forall (a :: Type). Contract r a -> Contract r a
@@ -365,9 +383,29 @@ balanceTxs unbalancedTxs =
 
   balanceAndLock :: UnattachedUnbalancedTx -> Contract r FinalizedTransaction
   balanceAndLock unbalancedTx = do
-    balancedTx <- liftedE $ balanceTx unbalancedTx
+    networkId <- asks $ unwrap >>> _.networkId
+    balancedTx <- liftedE $ wrapContract $ BalanceTx.balanceTxWithOwnAddress
+      (fromPlutusAddress networkId ownAddress)
+      unbalancedTx
     void $ withUsedTxouts $ lockTransactionInputs (unwrap balancedTx)
     pure balancedTx
+
+-- | Balances each transaction and locks the used inputs
+-- | so that they cannot be reused by subsequent transactions.
+balanceTxs
+  :: forall
+       (t :: Type -> Type)
+       (r :: Row Type)
+   . Traversable t
+  => t UnattachedUnbalancedTx
+  -> Contract r (t FinalizedTransaction)
+balanceTxs unbalancedTxs = do
+  mbOwnAddress <- getWalletAddress
+  case mbOwnAddress of
+    Nothing -> liftEffect $ throw $
+      "Failed to get own Address"
+    Just ownAddress ->
+      balanceTxsWithOwnAddress ownAddress unbalancedTxs
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` hushing the error.
 balanceTxM
