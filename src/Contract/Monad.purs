@@ -169,12 +169,25 @@ wrapContract :: forall (r :: Row Type) (a :: Type). QueryM a -> Contract r a
 wrapContract = wrap <<< QueryM.liftQueryM
 
 -- | Same as `ask`, but points to the user config record.
-askConfig :: forall (r :: Row Type). Contract r { | r }
+askConfig
+  :: forall (r :: Row Type)
+   . Warn
+       ( Text
+           "User-defined configs are deprecated - https://github.com/Plutonomicon/cardano-transaction-lib/issues/734"
+       )
+  => Contract r { | r }
 askConfig = do
   asks $ unwrap >>> _.extraConfig
 
 -- | Same as `asks`, but allows to apply a function to the user config record.
-asksConfig :: forall (r :: Row Type) (a :: Type). ({ | r } -> a) -> Contract r a
+asksConfig
+  :: forall (r :: Row Type) (a :: Type)
+   . Warn
+       ( Text
+           "User-defined configs are deprecated - https://github.com/Plutonomicon/cardano-transaction-lib/issues/734"
+       )
+  => ({ | r } -> a)
+  -> Contract r a
 asksConfig f = do
   asks $ unwrap >>> _.extraConfig >>> f
 
