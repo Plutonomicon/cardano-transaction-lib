@@ -1,6 +1,6 @@
 -- | A module for `QueryM` queries related to utxos.
 module QueryM.Utxos
-  ( filterUnusedUtxos
+  ( filterLockedUtxos
   , getUtxo
   , getWalletBalance
   , utxosAt
@@ -9,14 +9,14 @@ module QueryM.Utxos
 import Prelude
 
 import Address (addressToOgmiosAddress)
-import Cardano.Types.Transaction (TransactionOutput, UtxoM(UtxoM))
+import Cardano.Types.Transaction (TransactionOutput, UtxoM(UtxoM), Utxos)
 import Cardano.Types.Value (Value)
 import Control.Monad.Logger.Trans (LoggerT)
 import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, asks)
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (bisequence)
-import Data.Foldable (fold)
+import Data.Foldable (fold, foldr)
 import Data.Map as Map
 import Data.Maybe (Maybe, maybe)
 import Data.Newtype (unwrap, wrap, over)
@@ -104,20 +104,24 @@ mkUtxoQuery query = asks _.wallet >>= maybe allUtxosAt utxosAtByWallet
   cip30UtxosAt :: QueryM (Maybe UtxoM)
   cip30UtxosAt = getWalletCollateral >>= maybe
     (liftEffect $ throw "CIP-30 wallet missing collateral")
-    \collateral' -> do
-      let collateral = unwrap collateral'
-      utxos' <- allUtxosAt
-      pure (over UtxoM (Map.delete collateral.input) <$> utxos')
+    \collateralUtxos ->
+      allUtxosAt <#> \utxos' ->
+        foldr
+          ( \collateralUtxo utxoAcc ->
+              over UtxoM (Map.delete (unwrap collateralUtxo).input) <$> utxoAcc
+          )
+          utxos'
+          collateralUtxos
 
 --------------------------------------------------------------------------------
 -- Used Utxos helpers
 --------------------------------------------------------------------------------
 
-filterUnusedUtxos :: UtxoM -> QueryM UtxoM
-filterUnusedUtxos (UtxoM utxos) = withTxRefsCache $
-  UtxoM <$> Helpers.filterMapWithKeyM
-    (\k _ -> not <$> isTxOutRefUsed (unwrap k))
-    utxos
+filterLockedUtxos :: Utxos -> QueryM Utxos
+filterLockedUtxos utxos =
+  withTxRefsCache $
+    flip Helpers.filterMapWithKeyM utxos
+      (\k _ -> not <$> isTxOutRefUsed (unwrap k))
 
 withTxRefsCache
   :: forall (m :: Type -> Type) (a :: Type)

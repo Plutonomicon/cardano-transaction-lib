@@ -1,7 +1,12 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that mints a value using three minting policies with different redeemers.
-module Examples.MintsMultipleTokens (main) where
+module Examples.MintsMultipleTokens
+  ( main
+  , mintingPolicyRdmrInt1
+  , mintingPolicyRdmrInt2
+  , mintingPolicyRdmrInt3
+  ) where
 
 import Contract.Prelude
 
@@ -20,16 +25,15 @@ import Contract.PlutusData (PlutusData(Integer), Redeemer(Redeemer))
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)
+import Contract.TextEnvelope
+  ( TextEnvelopeType(PlutusScriptV1)
+  , textEnvelopeBytes
+  )
 import Contract.Transaction (balanceAndSignTx, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
 import Data.BigInt (fromInt) as BigInt
-import Test.Fixtures
-  ( mintingPolicyRdmrInt1
-  , mintingPolicyRdmrInt2
-  , mintingPolicyRdmrInt3
-  )
 
 main :: Effect Unit
 main = launchAff_ $ do
@@ -68,16 +72,31 @@ main = launchAff_ $ do
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
 
-mkTokenName :: forall (r :: Row Type). String -> Contract r TokenName
+mkTokenName :: String -> Contract () TokenName
 mkTokenName =
   liftContractM "Cannot make token name"
     <<< (Value.mkTokenName <=< byteArrayFromAscii)
 
 mkCurrencySymbol
-  :: forall (r :: Row Type)
-   . Maybe MintingPolicy
-  -> Contract r (MintingPolicy /\ CurrencySymbol)
+  :: Contract () MintingPolicy
+  -> Contract () (MintingPolicy /\ CurrencySymbol)
 mkCurrencySymbol mintingPolicy = do
-  mp <- liftContractM "Invalid script JSON" mintingPolicy
+  mp <- mintingPolicy
   cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
   pure (mp /\ cs)
+
+foreign import redeemerInt1 :: String
+foreign import redeemerInt2 :: String
+foreign import redeemerInt3 :: String
+
+mintingPolicyRdmrInt1 :: Contract () MintingPolicy
+mintingPolicyRdmrInt1 = wrap <<< wrap <$> textEnvelopeBytes redeemerInt1
+  PlutusScriptV1
+
+mintingPolicyRdmrInt2 :: Contract () MintingPolicy
+mintingPolicyRdmrInt2 = wrap <<< wrap <$> textEnvelopeBytes redeemerInt2
+  PlutusScriptV1
+
+mintingPolicyRdmrInt3 :: Contract () MintingPolicy
+mintingPolicyRdmrInt3 = wrap <<< wrap <$> textEnvelopeBytes redeemerInt3
+  PlutusScriptV1

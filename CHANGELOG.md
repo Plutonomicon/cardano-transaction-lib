@@ -9,27 +9,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - [[Unreleased]](#unreleased)
   - [Added](#added)
   - [Changed](#changed)
+  - [Fixed](#fixed)
 - [[2.0.0-alpha] - 2022-07-06](#200-alpha---2022-07-06)
   - [Added](#added-1)
   - [Removed](#removed)
   - [Changed](#changed-1)
-  - [Fixed](#fixed)
-- [[1.1.0] - 2022-06-30](#110---2022-06-30)
   - [Fixed](#fixed-1)
-- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+- [[1.1.0] - 2022-06-30](#110---2022-06-30)
   - [Fixed](#fixed-2)
+- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+  - [Fixed](#fixed-3)
 - [[1.0.0] - 2022-06-10](#100---2022-06-10)
 
 ## [Unreleased]
 
 ### Added
 
-- `Contract.Utxos.getUtxo` call to get a single utxo at a given output reference.
+- `Alt` and `Plus` instances for `Contract`.
+- `Contract.Utxos.getUtxo` call to get a single utxo at a given output reference
+- `purescriptProject`'s `shell` parameter now accepts `packageLockOnly`, which if set to true will stop npm from generating node\_modules. This is enabled for CTL developers
+- `Contract.Transaction.awaitTxConfirmed` and `Contract.Transaction.awaitTxConfirmedWithTimeout`
+- `Contract.TextEnvelope.textEnvelopeBytes` and family to decode the `TextEnvelope` format, a common format output by tools like `cardano-cli` to serialize values such as cryptographical keys and on-chain scripts
+- `Contract.Wallet.isNamiAvailable` and `Contract.Wallet.isGeroAvailable` functions ([#558](https://github.com/Plutonomicon/cardano-transaction-lib/issues/558)])
 
-## Changed
+### Changed
 
 - CTL's `overlay` no longer requires an explicitly passed `system`
+- Switched to CSL for utxo min ada value calculation ([#715](https://github.com/Plutonomicon/cardano-transaction-lib/pull/715))
 
+### Fixed 
+
+- Bug with collateral selection: only the first UTxO provided by wallet was included as collateral [(#723)](https://github.com/Plutonomicon/cardano-transaction-lib/issues/723)
+- Bug with collateral selection for `KeyWallet` when signing multiple transactions ([#709](https://github.com/Plutonomicon/cardano-transaction-lib/pull/709))
 
 ## [2.0.0-alpha] - 2022-07-05
 
@@ -77,14 +88,13 @@ This release adds support for running CTL contracts against Babbage-era nodes. *
 - Switched to Ogmios for execution units evaluation ([#665](https://github.com/Plutonomicon/cardano-transaction-lib/pull/665))
 - Changed `inputs` inside `TxBody` to be `Set TransactionInput` instead `Array TransactionInput`. This guarantees ordering of inputs inline with Cardano ([#641](https://github.com/Plutonomicon/cardano-transaction-lib/pull/661))
 - Upgraded to Ogmios v5.5.0
-- Change `inputs` inside `TxBody` to be `Set TransactionInput` instead `Array TransactionInput`. This guarantees ordering of inputs inline with Cardano ([#641](https://github.com/Plutonomicon/cardano-transaction-lib/pull/661)).
 
 ### Fixed
 
 - Handling of invalid UTF8 byte sequences in the Aeson instance for `TokenName`
 - `Types.ScriptLookups.require` function naming caused problems with WebPack ([#593](https://github.com/Plutonomicon/cardano-transaction-lib/pull/593))
 - Bad logging in `queryDispatch` that didn't propagate error messages ([#615](https://github.com/Plutonomicon/cardano-transaction-lib/pull/615))
-- UTxO Min-Ada-Value calculation ([#611](https://github.com/Plutonomicon/cardano-transaction-lib/pull/611))
+- Utxo min ada value calculation ([#611](https://github.com/Plutonomicon/cardano-transaction-lib/pull/611))
 - Discarding invalid inputs in `txInsValues` instead of yielding an error ([#696](https://github.com/Plutonomicon/cardano-transaction-lib/pull/696))
 - Locking transaction inputs before the actual balancing of the transaction ([#696](https://github.com/Plutonomicon/cardano-transaction-lib/pull/696))
 

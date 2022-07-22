@@ -1,12 +1,13 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that mints a value using the `AlwaysMints` policy
-module Examples.AlwaysMints (main) where
+module Examples.AlwaysMints (main, alwaysMintsPolicy) where
 
 import Contract.Prelude
 
 import Contract.Monad
-  ( launchAff_
+  ( Contract
+  , launchAff_
   , liftContractAffM
   , liftContractM
   , liftedE
@@ -17,18 +18,22 @@ import Contract.Monad
   )
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
+import Contract.Scripts (MintingPolicy)
+import Contract.TextEnvelope
+  ( TextEnvelopeType(PlutusScriptV1)
+  , textEnvelopeBytes
+  )
 import Contract.Transaction (balanceAndSignTx, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Data.BigInt as BigInt
-import Test.Fixtures (alwaysMintsPolicy)
 
 main :: Effect Unit
 main = launchAff_ $ do
   cfg <- traceTestnetContractConfig
   runContract_ cfg $ do
     logInfo' "Running Examples.AlwaysMints"
-    mp <- liftContractM "Invalid script JSON" alwaysMintsPolicy
+    mp <- alwaysMintsPolicy
     cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
     tn <- liftContractM "Cannot make token name"
       $ Value.mkTokenName
@@ -48,3 +53,9 @@ main = launchAff_ $ do
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
+
+foreign import alwaysMints :: String
+
+alwaysMintsPolicy :: Contract () MintingPolicy
+alwaysMintsPolicy = wrap <<< wrap <$> textEnvelopeBytes alwaysMints
+  PlutusScriptV1

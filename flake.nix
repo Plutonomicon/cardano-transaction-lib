@@ -17,7 +17,7 @@
     };
 
     plutip.url = "github:mlabs-haskell/plutip/d24b98162bcbcbfb4ca403ee62fdb890f2059f47";
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/1c7a4af3f18bd3fa94a59e5a52e0ad6d974233e8";
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/bf76a74fa9e94d97310087dcda7b3aca259f96dd";
 
     # Repository with network parameters
     cardano-configurations = {
@@ -158,7 +158,7 @@
           ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
           ogmios-fixtures = ogmios;
           plutip-server = inputs.plutip.packages.${system}."plutip:exe:plutip-server";
-          purescriptProject = import ./nix { inherit system; pkgs = final; };
+          purescriptProject = import ./nix { pkgs = final; inherit system; };
           buildCtlRuntime = buildCtlRuntime final;
           launchCtlRuntime = launchCtlRuntime final;
           inherit cardano-configurations;
@@ -267,7 +267,7 @@
           services = {
             cardano-node = {
               service = {
-                image = "inputoutput/cardano-node:1.35.0";
+                image = "inputoutput/cardano-node:1.35.1";
                 ports = [ (bindPort node.port) ];
                 volumes = [
                   "${config.cardano-configurations}/network/${config.network.name}/cardano-node:/config"
@@ -420,6 +420,7 @@
             packageLock = ./package-lock.json;
             shell = {
               shellHook = exportOgmiosFixtures;
+              packageLockOnly = true;
               packages = with pkgs; [
                 arion
                 ctl-server
