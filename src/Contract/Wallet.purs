@@ -13,8 +13,10 @@ import Wallet
   ( Cip30Connection
   , Cip30Wallet
   , Wallet(Gero, Nami)
-  , mkNamiWalletAff
+  , isGeroAvailable
+  , isNamiAvailable
   , mkGeroWalletAff
+  , mkNamiWalletAff
   ) as Wallet
 import Wallet (mkKeyWallet)
 import Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
