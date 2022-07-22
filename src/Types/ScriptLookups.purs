@@ -1063,8 +1063,8 @@ processConstraint mpsMap osMap = do
       let amount = fromPlutusValue plutusValue
       runExceptT do
         -- Don't write `let dataHash = datumHash datum`, see [datumHash Note]
-        _dataHash <- except $ note (CannotHashDatum dat)
-          $ (map Just <<< Hashing.datumHash) dat
+        datum' <- except $ note (CannotHashDatum dat)
+          $ (map OutputDatumHash <<< Hashing.datumHash) dat
         let
           txOut = TransactionOutput
             { address: validatorHashEnterpriseAddress networkId vlh
@@ -1072,7 +1072,7 @@ processConstraint mpsMap osMap = do
             -- TODO: save correct datum and scriptRef, should be done in
             -- Constraints API upgrade that follows Vasil
             -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
-            , datum: NoOutputDatum
+            , datum: datum'
             , scriptRef: Nothing
             }
         -- Note we don't `addDatum` as this included as part of `mustPayToScript`
