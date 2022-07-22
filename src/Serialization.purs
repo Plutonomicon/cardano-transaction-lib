@@ -830,15 +830,12 @@ convertValue val = do
 convertCostmdls :: T.Costmdls -> Effect Costmdls
 convertCostmdls (T.Costmdls cs) = do
   costmdls <- newCostmdls
-  let
-    loadCostModel lang lang' = do
-      costModel <-
-        convertCostModel <=< fromJustEff
-          ("`" <> show lang <> "` not found in `Costmdls`")
-          $ Map.lookup lang cs
-      costmdlsSetCostModel costmdls lang' costModel
-  loadCostModel S.PlutusV1 =<< newPlutusV1
-  loadCostModel S.PlutusV2 =<< newPlutusV2
+  forWithIndex_ cs \language costModel -> do
+    language' <- case language of
+      S.PlutusV1 -> newPlutusV1
+      S.PlutusV2 -> newPlutusV2
+    costModel' <- convertCostModel costModel
+    costmdlsSetCostModel costmdls language' costModel'
   pure costmdls
 
 convertCostModel :: T.CostModel -> Effect CostModel

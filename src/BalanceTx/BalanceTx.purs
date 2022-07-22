@@ -100,14 +100,14 @@ import Data.Lens.Index (ix) as Lens
 import Data.Lens.Setter ((.~), set, (?~), (%~))
 import Data.List ((:), List(Nil), partition)
 import Data.Log.Tag (tag)
-import Data.Map (fromFoldable, lookup, toUnfoldable, union) as Map
+import Data.Map (fromFoldable, lookup, toUnfoldable, union, filterKeys) as Map
 import Data.Maybe (fromMaybe, maybe, isJust, Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
 import Data.Traversable (sequence, traverse, traverse_)
-import Data.Tuple (Tuple(Tuple), fst)
+import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import QueryM (ClientError, QueryM)
@@ -344,18 +344,20 @@ evalExUnitsAndMinFee =
 -- | for use after reindexing.
 finalizeTransaction
   :: UnattachedUnbalancedTx -> QueryM FinalizedTransaction
-finalizeTransaction reindexedUnattachedTxWithExUnits =
+finalizeTransaction reindexedUnattachedTxWithExUnits = do
   let
     attachedTxWithExUnits =
       reattachDatumsAndRedeemers reindexedUnattachedTxWithExUnits
     ws = attachedTxWithExUnits ^. _witnessSet # unwrap
     redeemers = fromMaybe mempty ws.redeemers
     datums = wrap <$> fromMaybe mempty ws.plutusData
-  in
-    do
-      costModels <- asks _.pparams <#> unwrap >>> _.costModels
-      liftEffect $ FinalizedTransaction <$>
-        setScriptDataHash costModels redeemers datums attachedTxWithExUnits
+    scripts = fromMaybe mempty ws.plutusScripts
+    languages = Foldable.foldMap (unwrap >>> snd >>> Set.singleton) scripts
+  costModels <- asks _.pparams <#> unwrap >>> _.costModels >>> unwrap
+    >>> Map.filterKeys (flip Set.member languages)
+    >>> wrap
+  liftEffect $ FinalizedTransaction <$>
+    setScriptDataHash costModels redeemers datums attachedTxWithExUnits
 
 reindexRedeemers
   :: UnattachedUnbalancedTx
