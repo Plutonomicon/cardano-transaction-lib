@@ -4,7 +4,7 @@ import Prelude
 
 import TestM (TestPlanM)
 import Contract.Test.Browser (TestOptions, WalletExt(GeroExt))
-import Contract.Test.Helpers
+import Contract.Test.Examples
   ( geroConfirmAccess
   , runE2ETest
   )

@@ -3,7 +3,7 @@ module Contract.Test.Examples.AlwaysSucceeds (runExample) where
 import Prelude
 
 import Contract.Test.Browser (TestOptions, WalletExt(NamiExt))
-import Contract.Test.Helpers
+import Contract.Test.Examples
   ( namiSign
   , namiConfirmAccess
   , delaySec

@@ -3,7 +3,7 @@ module Contract.Test.Examples.SignMultiple (runExample) where
 import Prelude
 
 import Contract.Test.Browser (TestOptions, WalletExt(NamiExt))
-import Contract.Test.Helpers
+import Contract.Test.Examples
   ( namiSign
   , namiConfirmAccess
   , delaySec

@@ -1,32 +1,11 @@
-module Contract.Test.Helpers
-  ( hasSelector
-  , startExample
-  , runE2ETest
-  , withExample
+module Contract.Test.Internal.Helpers
+  ( runE2ETest
   , exampleUrl
-  , doJQ
-  , click
-  , checkSuccess
-  , setAttr
-  , buttonWithText
-  , password
-  , jqStr
-  , jqSet
-  , setText
-  , setValue
-  , clickButton
-  , testPassword
-  , reactSetValue
-  , retrieveJQuery
-  , showOutput
-  , inWalletPage
   , namiConfirmAccess
   , namiSign
   , geroConfirmAccess
   , geroSign
-  , Selector(..)
-  , Action(..)
-  , RunningExample(..)
+  , RunningExample(RunningExample)
   , E2EOutput
   , delaySec
   ) where
@@ -34,7 +13,7 @@ module Contract.Test.Helpers
 import Prelude
 
 import Contract.Test.Browser (TestOptions, withBrowser, WalletExt)
-import Contract.Test.Feedback (resetTestFeedback, testFeedbackIsTrue)
+import Contract.Test.Internal.Feedback (resetTestFeedback, testFeedbackIsTrue)
 import Control.Alternative ((<|>))
 import Control.Monad.Error.Class (try)
 import Control.Promise (Promise, toAffE)
@@ -278,10 +257,6 @@ doJQ selector action page = do
   jq :: String
   jq = "$('" <> unwrap selector <> "')." <> unwrap action
 
--- | set an attribute to a value
-setAttr :: String -> String -> Action
-setAttr attr value = wrap $ "attr(" <> jqStr attr <> ", " <> value <> ")"
-
 -- | select any button
 button :: Selector
 button = wrap "button"
@@ -301,22 +276,6 @@ byId = wrap <<< ("#" <> _)
 -- | select any password field
 password :: Selector
 password = wrap ":password"
-
--- | wrap a string inside quotation marks (intended: make a jQuery string).
-jqStr :: String -> String
-jqStr str = "\"" <> str <> "\""
-
--- | set something to value with jQuery, i.e. call $(...).<thing>(<value>)
-jqSet :: String -> String -> Action
-jqSet what value = wrap $ what <> "(" <> value <> ")"
-
--- | set the text
-setText :: String -> Action
-setText = jqSet "text" <<< jqStr
-
--- | set the value
-setValue :: String -> Action
-setValue = jqSet "val" <<< jqStr
 
 click :: Action
 click = wrap "click()"

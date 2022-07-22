@@ -3,7 +3,7 @@ module Contract.Test.Examples.MintsMultipleTokens (runExample) where
 import Prelude
 
 import Contract.Test.Browser (TestOptions, WalletExt(NamiExt))
-import Contract.Test.Helpers (namiSign, namiConfirmAccess, runE2ETest)
+import Contract.Test.Examples (namiSign, namiConfirmAccess, runE2ETest)
 import TestM (TestPlanM)
 
 runExample :: TestOptions -> TestPlanM Unit
