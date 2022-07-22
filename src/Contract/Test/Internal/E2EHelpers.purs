@@ -1,4 +1,4 @@
-module Contract.Test.Internal.Helpers
+module Contract.Test.Internal.E2EHelpers
   ( runE2ETest
   , exampleUrl
   , namiConfirmAccess
@@ -202,7 +202,7 @@ waitForTestFeedback ex@(RunningExample { main, errors }) timeout
 
 checkSuccess :: RunningExample -> Aff Unit
 checkSuccess ex@(RunningExample { main, errors }) = do
-  waitForTestFeedback ex 20.0
+  waitForTestFeedback ex 50.0
   feedback <- testFeedbackIsTrue main
   unless feedback $ liftEffect $ showOutput errors >>= log
   shouldSatisfy feedback (_ == true)

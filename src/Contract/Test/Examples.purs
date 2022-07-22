@@ -1,9 +1,9 @@
 module Contract.Test.Examples
-       ( module Helpers,
+       ( module E2EHelpers,
          module Feedback
        ) where
 
-import Contract.Test.Internal.Helpers
+import Contract.Test.Internal.E2EHelpers
        ( runE2ETest
        , exampleUrl
        , namiConfirmAccess
@@ -11,6 +11,6 @@ import Contract.Test.Internal.Helpers
        , geroConfirmAccess
        , geroSign
        , delaySec
-       ) as Helpers
+       ) as E2EHelpers
 
 import Contract.Test.Internal.Feedback (publishTestFeedback) as Feedback
