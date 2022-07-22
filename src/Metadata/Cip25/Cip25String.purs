@@ -76,7 +76,8 @@ takeCip25String str =
   -- In UTF-8, characters from the U+0000..U+10FFFF range (the UTF-16
   --    accessible range) are encoded using sequences of 1 to 4 octets
   --
-  -- Hence we start at 64/4 = 16:
+  -- Hence we start at 64/4 = 16 (worst case, all code points take 4 bytes),
+  -- with a step equal to (64 - 16) / 2 = 24.
   case
     forwardSearch
       { minBound: 16
