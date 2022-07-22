@@ -128,14 +128,15 @@ someContractWithApiKeyInEnv
 someContractWithApiKeyInEnv = ...
 ```
 
-An example of `ServerConfig` where a path is used to differentiate between services.
+When using custom environments (e.g. in production), services can be configured to point to the same port with different paths (a webserver is needed to set that up):
+
 ```purescript
 customOgmiosWsConfig :: ServerConfig
 customOgmiosWsConfig =
   { port: UInt.fromInt 80
   , host: "localhost"
   , secure: false
-  , path: "/api/ogmios"
+  , path: Just "/api/ogmios"
   }
 
 customDatumCacheWsConfig :: ServerConfig
@@ -143,7 +144,7 @@ customDatumCacheWsConfig =
   { port: UInt.fromInt 80
   , host: "localhost"
   , secure: false
-  , path: "/api/ogmios-datum-cache"
+  , path: Just "/api/ogmios-datum-cache"
   }
 ```
 
@@ -214,7 +215,7 @@ module.exports = {
 }
 ```
 
-You must also add the following to `module.exports.module.rules`: 
+You must also add the following to `module.exports.module.rules`:
 
 ```javascript
 module.exports = {
