@@ -8,15 +8,17 @@
     };
 
     # for the purescript project
-    ogmios.url = "github:mlabs-haskell/ogmios/e406801eaeb32b28cd84357596ca1512bff27741";
-    plutip.url = "github:mlabs-haskell/plutip";
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/1c7a4af3f18bd3fa94a59e5a52e0ad6d974233e8";
-    # so named because we also need a different version of the repo below
-    # in the server inputs and we use this one just for the `cardano-cli`
-    # executables
-    cardano-node-exe = {
-      url = "github:input-output-hk/cardano-node/ea8b632820db5546b22430bbb5ed8db4a2fef7dd";
+    ogmios = {
+      url = "github:mlabs-haskell/ogmios/e406801eaeb32b28cd84357596ca1512bff27741";
+      inputs = {
+        haskell-nix.follows = "haskell-nix";
+        nixpkgs.follows = "nixpkgs";
+      };
     };
+
+    plutip.url = "github:mlabs-haskell/plutip/d24b98162bcbcbfb4ca403ee62fdb890f2059f47";
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/1c7a4af3f18bd3fa94a59e5a52e0ad6d974233e8";
+
     # Repository with network parameters
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
@@ -30,8 +32,8 @@
 
     # for the haskell server
     iohk-nix.url = "github:input-output-hk/iohk-nix";
-    haskell-nix.url = "github:mlabs-haskell/haskell.nix?ref=master";
-    nixpkgs.follows = "haskell-nix/nixpkgs-unstable";
+    haskell-nix.follows = "plutip/haskell-nix";
+    nixpkgs.follows = "plutip/nixpkgs";
     cardano-addresses = {
       url =
         "github:input-output-hk/cardano-addresses/d2f86caa085402a953920c6714a0de6a50b655ec";
@@ -156,7 +158,6 @@
           ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
           ogmios-fixtures = ogmios;
           plutip-server = inputs.plutip.packages.${system}."plutip:exe:plutip-server";
-          cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
           purescriptProject = import ./nix { inherit system; pkgs = final; };
           buildCtlRuntime = buildCtlRuntime final;
           launchCtlRuntime = launchCtlRuntime final;
@@ -168,6 +169,8 @@
           haskell-nix.overlay
           iohk-nix.overlays.crypto
           overlay
+          # This needs to go here and not in the `overlay` above as it
+          # instantiates our `nixpkgs`
           (_: _: {
             ctl-server = self.packages.${system}."ctl-server:exe:ctl-server";
           })
@@ -419,7 +422,6 @@
               shellHook = exportOgmiosFixtures;
               packages = with pkgs; [
                 arion
-                cardano-cli
                 ctl-server
                 fd
                 haskellPackages.fourmolu
