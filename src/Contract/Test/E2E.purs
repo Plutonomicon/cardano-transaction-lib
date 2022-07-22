@@ -19,7 +19,7 @@ import Test.Spec.Runner as SpecRunner
 import Test.Utils as Utils
 import TestM (TestPlanM)
 
--- Run with `spago test --main Test.E2E`
+-- Run with `spago test --main Contract.Test.E2E`
 main :: Effect Unit
 main = launchAff_ $ do
   options <- liftEffect parseOptions
