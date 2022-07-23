@@ -126,9 +126,14 @@ let
           --censor-lib --is-lib=.spago ${spagoGlobs} \
           --censor-codes=${builtins.concatStringsSep "," censorCodes} "./**/*.purs"
       '';
+      # We also need to copy all of `src` here, since compiled modules in `output`
+      # might refer to paths that will point to nothing if we use `src` directly
+      # in other derivations (e.g. when using `fs.readFileSync` inside an FFI
+      # module)
       installPhase = ''
         mkdir $out
         mv output $out/
+        cp -r $src/* $out/
       '';
     };
 
@@ -152,8 +157,8 @@ let
       # sandbox, so we can just use node instead
       # (idea taken from `plutus-playground-client`)
       ''
-        cd ${src}
-        ${nodejs}/bin/node -e 'require("${project}/output/${testMain}").main()'
+        cd ${project}
+        ${nodejs}/bin/node -e 'require("./output/${testMain}").main()'
         touch $out
       '';
 
