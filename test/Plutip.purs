@@ -95,16 +95,19 @@ config =
       { port: UInt.fromInt 1338
       , host: "127.0.0.1"
       , secure: false
+      , path: Nothing
       }
   , ogmiosDatumCacheConfig:
       { port: UInt.fromInt 10000
       , host: "127.0.0.1"
       , secure: false
+      , path: Nothing
       }
   , ctlServerConfig:
       { port: UInt.fromInt 8083
       , host: "127.0.0.1"
       , secure: false
+      , path: Nothing
       }
   , postgresConfig:
       { host: "127.0.0.1"
