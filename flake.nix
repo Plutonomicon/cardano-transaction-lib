@@ -157,7 +157,7 @@
           ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
           ogmios-fixtures = ogmios;
           plutip-server = inputs.plutip.packages.${system}."plutip:exe:plutip-server";
-          purescriptProject = import ./nix { pkgs = final; inherit system; };
+          purescriptProject = import ./nix { pkgs = final; };
           buildCtlRuntime = buildCtlRuntime final;
           launchCtlRuntime = launchCtlRuntime final;
           inherit cardano-configurations;
@@ -252,7 +252,7 @@
           nodeDbVol = "node-${config.network.name}-db";
           nodeIpcVol = "node-${config.network.name}-ipc";
           nodeSocketPath = "/ipc/node.socket";
-          server = pkgs.ctl-server;
+          server = self.packages.${pkgs.system}."ctl-server:exe:ctl-server";
           bindPort = port: "${toString port}:${toString port}";
         in
         with config;

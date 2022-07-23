@@ -1,4 +1,4 @@
-{ pkgs, system }:
+{ pkgs }:
 { src
   # The name of the project, used to generate derivation names
 , projectName
@@ -23,6 +23,8 @@
 , ...
 }:
 let
+  inherit (pkgs) system;
+
   purs = pkgs.easy-ps.purs-0_14_5;
 
   spagoPkgs = import spagoPackages { inherit pkgs; };
