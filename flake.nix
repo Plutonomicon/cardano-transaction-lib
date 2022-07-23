@@ -26,7 +26,7 @@
       flake = false;
     };
     easy-purescript-nix = {
-      url = "github:justinwoo/easy-purescript-nix";
+      url = "github:justinwoo/easy-purescript-nix/d56c436a66ec2a8a93b309c83693cef1507dca7a";
       flake = false;
     };
 
@@ -448,7 +448,6 @@
             ctl-example-bundle-web = project.bundlePursProject {
               main = "Examples.Pkh2Pkh";
               entrypoint = "examples/index.js";
-              htmlTemplate = "examples/index.html";
             };
 
             ctl-runtime = pkgs.arion.build {
@@ -538,7 +537,6 @@
         in
         (psProjectFor pkgs).apps // {
           inherit (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
-          docs = (psProjectFor system).launchDocs;
           ctl-runtime = pkgs.launchCtlRuntime { };
         });
 

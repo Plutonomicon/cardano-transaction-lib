@@ -178,45 +178,39 @@ let
     { name ? "${projectName}-bundle-" +
         (if browserRuntime then "web" else "nodejs")
     , entrypoint ? "index.js"
-    , htmlTemplate ? "index.html"
     , main ? "Main"
     , browserRuntime ? true
     , webpackConfig ? "webpack.config.js"
     , bundledModuleName ? "output.js"
     , nodeModules ? projectNodeModules
     , ...
-    }: pkgs.stdenv.mkDerivation {
-      inherit name src;
-      buildInputs = [
-        nodejs
-        nodeModules
-        project
-      ];
-      nativeBuildInputs = [
-        purs
-        pkgs.easy-ps.spago
-      ];
-      buildPhase = ''
+    }: pkgs.runCommand "${name}"
+      {
+        buildInputs = [
+          nodejs
+          nodeModules
+          project
+        ];
+        nativeBuildInputs = [
+          purs
+          pkgs.easy-ps.spago
+        ];
+      }
+      ''
         export HOME="$TMP"
         export NODE_PATH="${nodeModules}/lib/node_modules"
         export PATH="${nodeModules}/bin:$PATH"
         ${pkgs.lib.optionalString browserRuntime "export BROWSER_RUNTIME=1"}
-        cp -r ${project}/output .
+        cp -r ${project}/* .
         chmod -R +rwx .
         spago bundle-module --no-install --no-build -m "${main}" \
           --to ${bundledModuleName}
-        cp $src/${entrypoint} .
-        cp $src/${htmlTemplate} .
-        cp $src/${webpackConfig} .
         mkdir ./dist
         webpack --mode=production -c ${webpackConfig} -o ./dist \
           --entry ./${entrypoint}
-      '';
-      installPhase = ''
         mkdir $out
         mv dist $out
       '';
-    };
 
   pursDocsSearchNpm =
     let
@@ -274,27 +268,25 @@ let
       });
 
   buildSearchablePursDocs = { packageName, ... }:
-    pkgs.stdenv.mkDerivation {
-      name = "${projectName}-searchable-docs";
-      dontUnpack = true;
-      buildInputs = [ spagoPkgs.installSpagoStyle ];
-      buildPhase = ''
+    pkgs.runCommand "${projectName}-searchable-docs"
+      {
+        buildInputs = [ spagoPkgs.installSpagoStyle ];
+      }
+      ''
         export NODE_PATH="${pursDocsSearchNpm.nodeDependencies}/lib/node_modules"
         export PATH="${pursDocsSearchNpm.nodeDependencies}/bin:$PATH"
         cp -r ${buildPursDocs { }}/{generated-docs,output} .
         install-spago-style
         chmod -R +rwx .
         purescript-docs-search build-index --package-name ${packageName}
-      '';
-      installPhase = ''
         mkdir $out
         cp -r generated-docs $out
       '';
-    };
 
 in
 {
-  inherit buildPursProject runPursTest runPlutipTest bundlePursProject
+  inherit
+    buildPursProject runPursTest runPlutipTest bundlePursProject
     buildPursDocs buildSearchablePursDocs purs nodejs mkNodeModules;
   devShell = shellFor shell;
 }
