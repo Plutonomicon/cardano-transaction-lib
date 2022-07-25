@@ -143,6 +143,10 @@ CTL exposes an `overlay` from its flake. You can use this in the Nix setup of yo
 
             # If `purescript-language-server` should be included in the shell
             pursls = true;
+
+            # If the `node_modules` folder should not be built when `npm` is
+            # used inside the shell
+            packageLockOnly = false;
           };
         };
 
@@ -158,9 +162,6 @@ CTL exposes an `overlay` from its flake. You can use this in the Nix setup of yo
           # The JS entrypoint (must correspond to the one listed in the
           # webpack config), relative to the `src`
           entrypoint = "index.js";
-          # The HTML template to render the bundle to (must correspond to
-          # the template listed in the webpack config)
-          htmlTemplate = "index.html";
           # If this should be bundled for the browser
           browserRuntime = true;
           # The path to the webpack config to use
@@ -195,32 +196,42 @@ Unfortunately, the process of upgrading CTL is fairly involved. This is in part 
 Make sure to perform **all** of the following steps, otherwise you **will** encounter difficult-to-debug issues:
 
 1. **Update your flake input**
-  - Update the `rev` you're using for CTL in your flake `inputs`
-    - **Note**: Nix might throw an error about CTL following a "non-existent input" after doing this. The best way to solve this is to upgrade the version of Nix that you're using. Otherwise, `nix flake lock --update-input <NAME>`, where `NAME` is the one you're using for CTL in your `inputs`, should solve this
-2. **Update your Purescript dependencies**
-  - Update the CTL `version` in your `packages.dhall`. Make sure that this is the exact same revision as in your flake inputs
-  - Possibly update the `dependencies` section for CTL in your `packages.dhall`
-    - You can find a list of CTL's dependencies in our own `spago.dhall` (but make sure to check at the correct revision)
-    - You might also need to add new transitive git dependencies if CTL has added any to its own direct dependencies (i.e. you need to copy the matching stanzas from CTL's `packages.dhall` to your own; these are contained in the `additions` record in CTL's `packages.dhall`)
-      - For example, if the following package `foo` is added to CTL's `additions` (in `packages.dhall`) between your old revision and the one you're upgrading to:
-        ```dhall
 
-        let additions =
-              { foo =
-                { dependencies =
-                  [ "bar"
-                  , "baz"
-                  ]
-                }
-              , repo = "https://github.com/quux/foo.git"
-              , version = "0000000000000000000000000000000000000000"
-              -- ...
+- Update the `rev` you're using for CTL in your flake `inputs`
+  - **Note**: Nix might throw an error about CTL following a "non-existent input" after doing this. The best way to solve this is to upgrade the version of Nix that you're using. Otherwise, `nix flake lock --update-input <NAME>`, where `NAME` is the one you're using for CTL in your `inputs`, should solve this
+
+2. **Update your Purescript dependencies**
+
+- Update the CTL `version` in your `packages.dhall`. Make sure that this is the exact same revision as in your flake inputs
+- Possibly update the `dependencies` section for CTL in your `packages.dhall`
+
+  - You can find a list of CTL's dependencies in our own `spago.dhall` (but make sure to check at the correct revision)
+  - You might also need to add new transitive git dependencies if CTL has added any to its own direct dependencies (i.e. you need to copy the matching stanzas from CTL's `packages.dhall` to your own; these are contained in the `additions` record in CTL's `packages.dhall`)
+
+    - For example, if the following package `foo` is added to CTL's `additions` (in `packages.dhall`) between your old revision and the one you're upgrading to:
+
+      ```dhall
+
+      let additions =
+            { foo =
+              { dependencies =
+                [ "bar"
+                , "baz"
+                ]
               }
-        ```
-        You also need to add the same package, identically, to your own `packages.dhall`, otherwise the compiler will not be able to find it
-  - Run `spago2nix generate` and make sure to stage and commit the resulting `spago-packages.nix` if it has changed
+            , repo = "https://github.com/quux/foo.git"
+            , version = "0000000000000000000000000000000000000000"
+            -- ...
+            }
+      ```
+
+      You also need to add the same package, identically, to your own `packages.dhall`, otherwise the compiler will not be able to find it
+
+- Run `spago2nix generate` and make sure to stage and commit the resulting `spago-packages.nix` if it has changed
+
 3. **Update your JS dependencies**
-  - If CTL has added any JS dependencies, these will also need to be added to your own `package.json` 
-  - Similarly, if any of CTL's JS dependencies have changed versions, you will need to use the **exact** same version in your own `package.json`
-  - That is, avoid using the `~` or `^` prefixes (e.g use versions like `"1.6.51"` instead of `"^1.6.51"`)
-  - If you're using a `package-lock.json` (which is _highly_ recommended), you can update the lockfile with `npm i --package-lock-only`
+
+- If CTL has added any JS dependencies, these will also need to be added to your own `package.json`
+- Similarly, if any of CTL's JS dependencies have changed versions, you will need to use the **exact** same version in your own `package.json`
+- That is, avoid using the `~` or `^` prefixes (e.g use versions like `"1.6.51"` instead of `"^1.6.51"`)
+- If you're using a `package-lock.json` (which is _highly_ recommended), you can update the lockfile with `npm i --package-lock-only`

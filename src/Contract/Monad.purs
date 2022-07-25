@@ -43,12 +43,13 @@ module Contract.Monad
 
 import Prelude
 
-import Aeson
-  ( class EncodeAeson
-  , encodeAeson
-  , stringifyAeson
+import Aeson (class EncodeAeson, encodeAeson, stringifyAeson)
+import Control.Alt (class Alt)
+import Control.Monad.Error.Class
+  ( class MonadError
+  , class MonadThrow
+  , catchError
   )
-import Control.Monad.Error.Class (class MonadError, class MonadThrow)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
 import Control.Monad.Logger.Trans (runLoggerT)
@@ -60,6 +61,7 @@ import Control.Monad.Reader.Class
   )
 import Control.Monad.Reader.Trans (runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
+import Control.Plus (class Plus, empty)
 import Data.Either (Either, either, hush)
 import Data.Log.Level (LogLevel(Error, Trace))
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error)) as Log.Level
@@ -156,6 +158,17 @@ instance MonadAsk (ContractConfig r) (Contract r) where
 instance MonadReader (ContractConfig r) (Contract r) where
   -- Use the underlying `local` after dimapping and unwrapping:
   local f contract = Contract $ local (dimap wrap unwrap f) (unwrap contract)
+
+-- | Contract's `Alt` instance piggie-backs on the underlying `Aff`'s `Alt`
+-- | instance, which uses `MonadError` capabilities.
+-- | You can use `alt` operator to provide an alternative contract in case
+-- | the first one fails with an error.
+instance Alt (Contract r) where
+  alt a1 a2 = catchError a1 (const a2)
+
+-- | Identity for `alt` - a.k.a. a contract that "always fails".
+instance Plus (Contract r) where
+  empty = liftAff empty
 
 -- | The config for `Contract` is just a newtype wrapper over the underlying
 -- | `QueryM` config. To use a configuration with default values, see

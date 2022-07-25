@@ -5,7 +5,7 @@ exports._getAddress = conn => () =>
 
 exports._getCollateral = maybe => conn => () =>
   conn.experimental.getCollateral().then(utxos => {
-    return utxos.length ? maybe.just(utxos[0]) : maybe.nothing;
+    return utxos.length ? maybe.just(utxos) : maybe.nothing;
   });
 
 exports._signTx = txHex => conn => () => {

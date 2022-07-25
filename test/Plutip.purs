@@ -56,6 +56,12 @@ import Effect.Console as Console
 import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Examples.AlwaysSucceeds as AlwaysSucceeds
+import Examples.AlwaysMints (alwaysMintsPolicy)
+import Examples.MintsMultipleTokens
+  ( mintingPolicyRdmrInt1
+  , mintingPolicyRdmrInt2
+  , mintingPolicyRdmrInt3
+  )
 import Mote (group, test)
 import Plutip.Server
   ( runPlutipContract
@@ -68,12 +74,6 @@ import Plutip.Types
   ( PlutipConfig
   , StartClusterResponse(ClusterStartupSuccess)
   , StopClusterResponse(StopClusterSuccess)
-  )
-import Test.Fixtures
-  ( alwaysMintsPolicy
-  , mintingPolicyRdmrInt1
-  , mintingPolicyRdmrInt2
-  , mintingPolicyRdmrInt3
   )
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Utils as Utils
@@ -95,16 +95,19 @@ config =
       { port: UInt.fromInt 1338
       , host: "127.0.0.1"
       , secure: false
+      , path: Nothing
       }
   , ogmiosDatumCacheConfig:
       { port: UInt.fromInt 10000
       , host: "127.0.0.1"
       , secure: false
+      , path: Nothing
       }
   , ctlServerConfig:
       { port: UInt.fromInt 8083
       , host: "127.0.0.1"
       , secure: false
+      , path: Nothing
       }
   , postgresConfig:
       { host: "127.0.0.1"
@@ -181,7 +184,7 @@ suite = do
           ]
       runPlutipContract config distribution \alice -> do
         withKeyWallet alice do
-          mp <- liftContractM "Invalid script JSON" alwaysMintsPolicy
+          mp <- alwaysMintsPolicy
           cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
           tn <- liftContractM "Cannot make token name"
             $ Value.mkTokenName
@@ -309,8 +312,7 @@ suite = do
           ]
       runPlutipContract config distribution \alice -> do
         withKeyWallet alice do
-          validator <- liftContractM "Invalid script JSON"
-            AlwaysSucceeds.alwaysSucceedsScript
+          validator <- AlwaysSucceeds.alwaysSucceedsScript
           vhash <- liftContractAffM "Couldn't hash validator"
             $ validatorHash validator
           logInfo' "Attempt to lock value"
@@ -337,9 +339,9 @@ mkTokenName =
 
 mkCurrencySymbol
   :: forall (r :: Row Type)
-   . Maybe MintingPolicy
+   . Contract r MintingPolicy
   -> Contract r (MintingPolicy /\ CurrencySymbol)
 mkCurrencySymbol mintingPolicy = do
-  mp <- liftContractM "Invalid script JSON" mintingPolicy
+  mp <- mintingPolicy
   cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
   pure (mp /\ cs)
