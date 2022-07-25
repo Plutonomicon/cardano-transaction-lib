@@ -1,0 +1,25 @@
+name: Build and Deploy docs to Github Pages
+on:
+  push:
+    branches:
+      - develop
+permissions:
+  contents: write
+jobs:
+  build-and-deploy:
+    concurrency: ci-${{ github.ref }} # Recommended if you intend to make multiple deployments in quick succession.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install and Build
+        run: |
+          npm install -g spago
+          npm install -g purescript@0.14.5
+          spago docs
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4.3.3
+        with:
+          branch: gh-pages
+          folder: generated-docs/html
