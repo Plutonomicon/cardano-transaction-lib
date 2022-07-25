@@ -16,7 +16,7 @@ All of these are provided by CTL flake (`nix develop`). The services are NOT run
 
 ## Testing contracts
 
-The main entry point to the testing interface is `Contract.Plutip.runPlutipContract` function:
+The main entry point to the testing interface is `Contract.Test.Plutip.runPlutipContract` function:
 
 ```purescript
 runPlutipContract

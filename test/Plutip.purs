@@ -26,6 +26,7 @@ import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy, validatorHash)
+import Contract.Test.Plutip (InitialUTxO, runPlutipContract)
 import Contract.Transaction
   ( BalancedSignedTransaction
   , DataHash
@@ -65,8 +66,7 @@ import Examples.MintsMultipleTokens
   )
 import Mote (group, test)
 import Plutip.Server
-  ( runPlutipContract
-  , startPlutipCluster
+  ( startPlutipCluster
   , startPlutipServer
   , stopChildProcess
   , stopPlutipCluster
@@ -137,22 +137,20 @@ suite = do
 
     test "runPlutipContract" do
       let
-        distribution :: Array BigInt /\ Array BigInt
+        distribution :: InitialUTxO /\ InitialUTxO
         distribution =
-          [ BigInt.fromInt 1000000000
-          , BigInt.fromInt 2000000000
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 2_000_000_000
           ] /\
-            [ BigInt.fromInt 2000000000 ]
+            [ BigInt.fromInt 2_000_000_000 ]
       runPlutipContract config distribution \(alice /\ bob) -> do
-        ct <- getTip
         withKeyWallet alice do
           pure unit -- sign, balance, submit, etc.
         withKeyWallet bob do
           pure unit -- sign, balance, submit, etc.
-        liftEffect $ Console.log $ show $ ct
     test "runPlutipContract: Pkh2Pkh" do
       let
-        distribution :: Array BigInt
+        distribution :: InitialUTxO
         distribution =
           [ BigInt.fromInt 1_000_000_000
           , BigInt.fromInt 2_000_000_000
@@ -178,7 +176,7 @@ suite = do
 
     test "runPlutipContract: AlwaysMints" do
       let
-        distribution :: Array BigInt
+        distribution :: InitialUTxO
         distribution =
           [ BigInt.fromInt 5_000_000
           , BigInt.fromInt 2_000_000_000
@@ -225,7 +223,7 @@ suite = do
 
     test "runPlutipContract: MintsMultipleTokens" do
       let
-        distribution :: Array BigInt
+        distribution :: InitialUTxO
         distribution =
           [ BigInt.fromInt 5_000_000
           , BigInt.fromInt 2_000_000_000
@@ -265,7 +263,7 @@ suite = do
 
     test "runPlutipContract: SignMultiple" do
       let
-        distribution :: Array BigInt
+        distribution :: InitialUTxO
         distribution =
           [ BigInt.fromInt 100_000_000
           -- move this entry one position up in the list to reproduce the bug:
@@ -306,7 +304,7 @@ suite = do
 
     test "runPlutipContract: AlwaysSucceeds" do
       let
-        distribution :: Array BigInt
+        distribution :: InitialUTxO
         distribution =
           [ BigInt.fromInt 5_000_000
           , BigInt.fromInt 2_000_000_000
