@@ -23,7 +23,11 @@ import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
   )
-import Contract.Transaction (balanceAndSignTx, submit)
+import Contract.Transaction
+  ( awaitTxConfirmed
+  , balanceAndSignTx
+  , submit
+  )
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Data.BigInt as BigInt
@@ -53,6 +57,8 @@ main = launchAff_ $ do
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
+    awaitTxConfirmed txId
+    logInfo' $ "Tx submitted successfully!"
 
 foreign import alwaysMints :: String
 
