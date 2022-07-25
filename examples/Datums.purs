@@ -27,7 +27,7 @@ import Contract.Monad
   )
 import Contract.PlutusData (DataHash, getDatumByHash, getDatumsByHashes)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
-import Contract.Test.Examples (publishTestFeedback)
+import Contract.Test.Feedback (publishTestFeedback)
 
 main :: Effect Unit
 main = launchAff_ $ do

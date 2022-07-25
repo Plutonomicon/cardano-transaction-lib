@@ -1,10 +1,10 @@
-module Contract.Test.Examples.AlwaysMints (runExample) where
+module Test.E2E.Examples.AlwaysMints (runExample) where
 
 import Prelude
 
 import Contract.Test.Browser (TestOptions, WalletExt(NamiExt))
-import Contract.Test.Examples
-  ( namiSign
+import Test.E2E.Helpers
+  ( namiSign'
   , namiConfirmAccess
   , delaySec
   , runE2ETest
@@ -15,4 +15,4 @@ runExample :: TestOptions -> TestPlanM Unit
 runExample options = runE2ETest "AlwaysMints" options NamiExt $ \example -> do
   namiConfirmAccess example
   delaySec 3.0
-  namiSign example
+  namiSign' example

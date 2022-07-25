@@ -1,10 +1,10 @@
-module Contract.Test.Examples.Gero (runExample) where
+module Test.E2E.Examples.Gero (runExample) where
 
 import Prelude
 
 import TestM (TestPlanM)
 import Contract.Test.Browser (TestOptions, WalletExt(GeroExt))
-import Contract.Test.Examples
+import Test.E2E.Helpers
   ( geroConfirmAccess
   , runE2ETest
   )

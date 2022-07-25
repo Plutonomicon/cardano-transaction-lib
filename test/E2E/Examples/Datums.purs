@@ -1,10 +1,10 @@
-module Contract.Test.Examples.Datums (runExample) where
+module Test.E2E.Examples.Datums (runExample) where
 
 import Prelude
 
 import Contract.Test.Browser (TestOptions, WalletExt(NamiExt))
-import Contract.Test.Examples
-  ( namiSign
+import Test.E2E.Helpers
+  ( namiSign'
   , namiConfirmAccess
   , runE2ETest
   )
@@ -14,4 +14,4 @@ runExample :: TestOptions -> TestPlanM Unit
 runExample options = runE2ETest "Datums" options NamiExt
   $ \example -> do
       namiConfirmAccess example
-      namiSign example
+      namiSign' example

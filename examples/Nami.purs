@@ -13,7 +13,7 @@ import Contract.Prelude
 import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Monad (defaultTestnetContractConfig, launchAff_, runContract_)
 import Contract.Utxos (getWalletBalance)
-import Contract.Test.Examples (publishTestFeedback)
+import Contract.Test.Feedback (publishTestFeedback)
 
 main :: Effect Unit
 main = launchAff_ $ do

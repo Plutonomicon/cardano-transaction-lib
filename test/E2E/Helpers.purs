@@ -1,19 +1,23 @@
-module Contract.Test.Internal.E2EHelpers
-  ( runE2ETest
+module Test.E2E.Helpers
+  ( E2EOutput
+  , RunningExample(RunningExample)
+  , WalletPassword(WalletPassword)
+  , runE2ETest
   , exampleUrl
   , namiConfirmAccess
   , namiSign
+  , namiSign'
   , geroConfirmAccess
   , geroSign
-  , RunningExample(RunningExample)
-  , E2EOutput
+  , geroSign'
   , delaySec
+  , withExample
   ) where
 
 import Prelude
 
 import Contract.Test.Browser (TestOptions, withBrowser, WalletExt)
-import Contract.Test.Internal.Feedback (resetTestFeedback, testFeedbackIsTrue)
+import Contract.Test.Feedback (resetTestFeedback, testFeedbackIsTrue)
 import Control.Alternative ((<|>))
 import Control.Monad.Error.Class (try)
 import Control.Promise (Promise, toAffE)
@@ -36,14 +40,18 @@ import Test.Spec.Assertions (shouldSatisfy)
 import TestM (TestPlanM)
 import Toppokki as Toppokki
 
-exampleUrl :: Toppokki.URL
-exampleUrl = wrap "http://localhost:4008/"
+newtype WalletPassword = WalletPassword String
 
-testPassword :: String
-testPassword = "ctlctlctl"
+derive instance Newtype WalletPassword _
 
-testPasswordGero :: String
-testPasswordGero = "VZVfu5rp1r"
+exampleUrl :: String -> Toppokki.URL
+exampleUrl exampleName = wrap $ "http://localhost:4008/?" <> exampleName
+
+testPasswordNami :: WalletPassword
+testPasswordNami = wrap "ctlctlctl"
+
+testPasswordGero :: WalletPassword
+testPasswordGero = wrap "VZVfu5rp1r"
 
 data OutputType = PageError | Console | RequestFailed
 
@@ -115,8 +123,8 @@ showOutput ref =
   showType RequestFailed = "REQ"
 
 -- | Navigate to an example's page, inject jQuery and set up error handlers
-startExample :: String -> Toppokki.Browser -> Aff RunningExample
-startExample name browser = do
+startExample :: Toppokki.URL -> Toppokki.Browser -> Aff RunningExample
+startExample url browser = do
   page <- Toppokki.newPage browser
   jQuery <- retrieveJQuery page
   errorRef <- liftEffect $ Ref.new []
@@ -134,8 +142,6 @@ startExample name browser = do
     , errors: errorRef
     }
   where
-  url :: Toppokki.URL
-  url = wrap $ unwrap exampleUrl <> "?" <> name
 
   -- Setup a handler for an output type.
   handler
@@ -157,15 +163,28 @@ startExample name browser = do
       errorRef
 
 -- | Run an example in the browser and close the browser afterwards
+-- | A Wallet page will be detected.
+-- | Sample usage:
+-- |   withBrowser options NamiExt $ \browser -> do
+-- |     withExample
+-- |        (wrap "http://myserver:1234/docontract")
+-- |        browser $ do
+-- |          namiSign $ wrap "mypassword"
 withExample
   :: forall (a :: Type)
-   . String
+   . Toppokki.URL
   -> Toppokki.Browser
   -> (RunningExample -> Aff a)
   -> Aff a
-withExample example browser = bracket (startExample example browser)
+withExample url browser = bracket (startExample url browser)
   (const $ pure unit)
 
+-- | Run an E2E test. Parameters are:
+-- |   String: Just a name for the logs
+-- |   Toppoku.URL: URL where the example is running
+-- |   TestOptions: Options to start the browser with
+-- |   WalletExt: An extension which should be used
+-- |   RunningExample -> Aff a: A function which runs the test
 runE2ETest
   :: forall (a :: Type)
    . String
@@ -174,7 +193,7 @@ runE2ETest
   -> (RunningExample -> Aff a)
   -> TestPlanM Unit
 runE2ETest example opts ext f = test example $ withBrowser opts ext $
-  \browser -> withExample example browser
+  \browser -> withExample (exampleUrl example) browser
     ( \e -> do
         liftEffect $ log $ "Start Example " <> example
         resetTestFeedback (_.main $ unwrap e)
@@ -215,11 +234,14 @@ inWalletPage (RunningExample { browser, jQuery }) =
 namiConfirmAccess :: RunningExample -> Aff Unit
 namiConfirmAccess = flip inWalletPage (clickButton "Access")
 
-namiSign :: RunningExample -> Aff Unit
-namiSign = flip inWalletPage \nami -> do
+namiSign :: WalletPassword -> RunningExample -> Aff Unit
+namiSign wpassword = flip inWalletPage \nami -> do
   clickButton "Sign" nami
-  reactSetValue password testPassword nami
+  reactSetValue password (unwrap wpassword) nami
   clickButton "Confirm" nami
+
+namiSign' :: RunningExample -> Aff Unit
+namiSign' = namiSign testPasswordNami
 
 geroConfirmAccess :: RunningExample -> Aff Unit
 geroConfirmAccess =
@@ -231,12 +253,15 @@ geroConfirmAccess =
     void $ doJQ (inputType "checkbox") click page
     void $ doJQ (buttonWithText "Connect") click page
 
-geroSign :: RunningExample -> Aff Unit
-geroSign =
+geroSign :: WalletPassword -> RunningExample -> Aff Unit
+geroSign gpassword =
   flip inWalletPage $ \gero -> do
     void $ doJQ (byId "confirm-swap") click gero
-    typeInto (byId "wallet-password") testPasswordGero gero
+    typeInto (byId "wallet-password") (unwrap gpassword) gero
     clickButton "Next" gero
+
+geroSign' :: RunningExample -> Aff Unit
+geroSign' = geroSign testPasswordGero
 
 -- | A String representing a jQuery selector, e.g. "#my-id" or ".my-class"
 newtype Selector = Selector String

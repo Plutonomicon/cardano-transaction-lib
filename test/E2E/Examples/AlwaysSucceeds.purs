@@ -1,10 +1,10 @@
-module Contract.Test.Examples.AlwaysSucceeds (runExample) where
+module Test.E2E.Examples.AlwaysSucceeds (runExample) where
 
 import Prelude
 
 import Contract.Test.Browser (TestOptions, WalletExt(NamiExt))
-import Contract.Test.Examples
-  ( namiSign
+import Test.E2E.Helpers
+  ( namiSign'
   , namiConfirmAccess
   , delaySec
   , runE2ETest
@@ -17,7 +17,7 @@ runExample :: TestOptions -> TestPlanM Unit
 runExample options = runE2ETest "AlwaysSucceeds" options NamiExt $ \example ->
   do
     namiConfirmAccess example
-    namiSign example
+    namiSign' example
     liftEffect $ log $
       " ...waiting before trying to spend script output (this will take a minute)"
     delaySec 65.0
