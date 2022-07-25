@@ -46,7 +46,7 @@ module BalanceTx
   , UtxosAtError(CouldNotGetUtxos)
   , UtxoMinAdaValueCalcError(UtxoMinAdaValueCalcError)
   , balanceTx
-  , balanceTxWithOwnAddress
+  , balanceTxWithAddress
   ) where
 
 import Prelude
@@ -478,11 +478,11 @@ addTxCollateral utxos transaction =
 
 -- | Like `balanceTx`, but allows to provide an address that is treated like
 -- | user's own (while `balanceTx` gets it from the wallet).
-balanceTxWithOwnAddress
+balanceTxWithAddress
   :: Address
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-balanceTxWithOwnAddress
+balanceTxWithAddress
   ownAddr
   unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   let (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = t
@@ -625,7 +625,7 @@ balanceTx
 balanceTx tx = do
   QueryM.getWalletAddress >>= case _ of
     Nothing -> pure $ Left $ GetWalletAddressError' CouldNotGetWalletAddress
-    Just address -> balanceTxWithOwnAddress address tx
+    Just address -> balanceTxWithAddress address tx
 
 -- Logging for Transaction type without returning Transaction
 logTx

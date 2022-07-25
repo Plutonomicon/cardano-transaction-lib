@@ -8,7 +8,7 @@ module Contract.Transaction
   , balanceAndSignTxs
   , balanceAndSignTxE
   , balanceTx
-  , balanceTxWithOwnAddress
+  , balanceTxWithAddress
   , balanceTxM
   , calculateMinFee
   , calculateMinFeeM
@@ -28,7 +28,7 @@ module Contract.Transaction
   , withBalancedTx
   , withBalancedAndSignedTxs
   , withBalancedAndSignedTx
-  , balanceTxsWithOwnAddress
+  , balanceTxsWithAddress
   ) where
 
 import Prelude
@@ -36,7 +36,7 @@ import Prelude
 import Aeson (class EncodeAeson)
 import BalanceTx (BalanceTxError) as BalanceTxError
 import BalanceTx (FinalizedTransaction)
-import BalanceTx (balanceTx, balanceTxWithOwnAddress) as BalanceTx
+import BalanceTx (balanceTx, balanceTxWithAddress) as BalanceTx
 import Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
@@ -261,14 +261,14 @@ balanceTx
 balanceTx = wrapContract <<< BalanceTx.balanceTx
 
 -- | Attempts to balance an `UnattachedUnbalancedTx`.
-balanceTxWithOwnAddress
+balanceTxWithAddress
   :: forall (r :: Row Type)
    . Address
   -> UnattachedUnbalancedTx
   -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
-balanceTxWithOwnAddress addr tx = do
+balanceTxWithAddress addr tx = do
   networkId <- asks $ unwrap >>> _.networkId
-  wrapContract $ BalanceTx.balanceTxWithOwnAddress
+  wrapContract $ BalanceTx.balanceTxWithAddress
     (fromPlutusAddress networkId addr)
     tx
 
@@ -359,9 +359,9 @@ withBalancedAndSignedTx = withSingleTransaction
   (liftedE <<< balanceAndSignTxE)
   unwrap
 
--- | Like `balanceTxs`, but uses `balanceTxWithOwnAddress` instead of `balanceTx`
+-- | Like `balanceTxs`, but uses `balanceTxWithAddress` instead of `balanceTx`
 -- | internally.
-balanceTxsWithOwnAddress
+balanceTxsWithAddress
   :: forall
        (t :: Type -> Type)
        (r :: Row Type)
@@ -369,7 +369,7 @@ balanceTxsWithOwnAddress
   => Address
   -> t UnattachedUnbalancedTx
   -> Contract r (t FinalizedTransaction)
-balanceTxsWithOwnAddress ownAddress unbalancedTxs =
+balanceTxsWithAddress ownAddress unbalancedTxs =
   unlockAllOnError $ traverse balanceAndLock unbalancedTxs
   where
   unlockAllOnError :: forall (a :: Type). Contract r a -> Contract r a
@@ -384,7 +384,7 @@ balanceTxsWithOwnAddress ownAddress unbalancedTxs =
   balanceAndLock :: UnattachedUnbalancedTx -> Contract r FinalizedTransaction
   balanceAndLock unbalancedTx = do
     networkId <- asks $ unwrap >>> _.networkId
-    balancedTx <- liftedE $ wrapContract $ BalanceTx.balanceTxWithOwnAddress
+    balancedTx <- liftedE $ wrapContract $ BalanceTx.balanceTxWithAddress
       (fromPlutusAddress networkId ownAddress)
       unbalancedTx
     void $ withUsedTxouts $ lockTransactionInputs (unwrap balancedTx)
@@ -405,7 +405,7 @@ balanceTxs unbalancedTxs = do
     Nothing -> liftEffect $ throw $
       "Failed to get own Address"
     Just ownAddress ->
-      balanceTxsWithOwnAddress ownAddress unbalancedTxs
+      balanceTxsWithAddress ownAddress unbalancedTxs
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` hushing the error.
 balanceTxM
