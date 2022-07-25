@@ -1,4 +1,4 @@
-module Contract.Test.E2E (main) where
+module Test.E2E (main) where
 
 import Data.Newtype (wrap)
 import Effect (Effect)
