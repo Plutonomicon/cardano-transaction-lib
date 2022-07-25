@@ -35,7 +35,6 @@ import Contract.Utxos (UtxoM(UtxoM), utxosAt)
 import Contract.Value as Value
 import Data.BigInt as BigInt
 import Data.Map as Map
-import Effect.Aff (delay)
 
 main :: Effect Unit
 main = launchAff_ $ do
