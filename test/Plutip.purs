@@ -29,6 +29,7 @@ import Contract.Scripts (MintingPolicy, validatorHash)
 import Contract.Transaction
   ( BalancedSignedTransaction
   , DataHash
+  , awaitTxConfirmed
   , balanceAndSignTx
   , balanceAndSignTxE
   , submit
@@ -55,8 +56,8 @@ import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (throw)
 import Effect.Ref as Ref
-import Examples.AlwaysSucceeds as AlwaysSucceeds
 import Examples.AlwaysMints (alwaysMintsPolicy)
+import Examples.AlwaysSucceeds as AlwaysSucceeds
 import Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt1
   , mintingPolicyRdmrInt2
@@ -317,7 +318,7 @@ suite = do
             $ validatorHash validator
           logInfo' "Attempt to lock value"
           txId <- AlwaysSucceeds.payToAlwaysSucceeds vhash
-          AlwaysSucceeds.countToZero 5
+          awaitTxConfirmed txId
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 

@@ -5,7 +5,6 @@ module Examples.AlwaysSucceeds
   ( main
   , alwaysSucceedsScript
   , payToAlwaysSucceeds
-  , countToZero
   , spendFromAlwaysSucceeds
   ) where
 
