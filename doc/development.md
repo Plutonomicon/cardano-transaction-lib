@@ -51,7 +51,10 @@ To develop locally, you can use one the CTL flake to launch all required service
   - `nix build` _or_
   - `spago build`
 - To test the project, currently only supported when running in a NodeJS environment:
-  - `npm run unit-test` for unit tests, `npm run integration-test` for integration tests, or `npm run test` for both.
+  - Use `npm run test`, or, if you need to test some specific functionality:
+    - `npm run unit-test` for unit tests
+    - `npm run integration-test` for integration tests (requires ctl-runtime running)
+    - `npm run plutip-test` for Plutip integration tests (does not require ctl-runtime)
   - `nix build .#checks.<SYSTEM>.ctl-unit-test` will build and run the unit tests (useful for CI)
 - To run or build/bundle the project for the browser:
   - `make run-dev` _or_ `npm run dev` will start a Webpack development server at `localhost:4008`

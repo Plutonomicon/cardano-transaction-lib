@@ -10,9 +10,10 @@
     "test": "test"
   },
   "scripts": {
-    "test": "npm run unit-test && npm run integration-test",
+    "test": "npm run unit-test && npm run integration-test && npm run plutip-test",
     "integration-test": "spago run --main Test.Integration",
     "unit-test": "spago run --main Ctl.Test.Unit",
+    "plutip-test": "spago run --main Test.Plutip",
     "dev": "make run-dev",
     "build": "make run-build"
   },

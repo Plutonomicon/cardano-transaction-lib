@@ -40,16 +40,18 @@ An example `Contract` with two actors:
 let
   distribution :: Array BigInt /\ Array BigInt
   distribution =
-    [ BigInt.fromInt 1000000000
-    , BigInt.fromInt 2000000000
+    [ BigInt.fromInt 1_000_000_000
+    , BigInt.fromInt 2_000_000_000
     ] /\
-      [ BigInt.fromInt 2000000000 ]
+      [ BigInt.fromInt 2_000_000_000 ]
 runPlutipContract config distribution \(alice /\ bob) -> do
   withKeyWallet alice do
     pure unit -- sign, balance, submit, etc.
   withKeyWallet bob do
     pure unit -- sign, balance, submit, etc.
 ```
+
+In most cases at least two UTxOs per wallet are needed (one of which will be used as collateral, so it should exceed `5_000_000` Lovelace).
 
 Note that during execution WebSocket connection errors may occur. However, payloads are resent after these errors, so you can ignore them. [These errors will be suppressed in the future.](https://github.com/Plutonomicon/cardano-transaction-lib/issues/670).
 
