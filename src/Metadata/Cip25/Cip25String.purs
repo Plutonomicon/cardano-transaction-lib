@@ -83,7 +83,7 @@ takeCip25String str =
       { minBound: 16
       , maxBound: 64
       , step: 24
-      , isTrue: \ix -> mkCip25String (String.take ix str)
+      , takeN: \ix -> mkCip25String (String.take ix str)
       }
     of
     Nothing /\ _ -> Nothing
@@ -98,19 +98,19 @@ takeCip25String str =
 
 forwardSearch
   :: forall (a :: Type)
-   . { step :: Int, minBound :: Int, maxBound :: Int, isTrue :: Int -> Maybe a }
+   . { step :: Int, minBound :: Int, maxBound :: Int, takeN :: Int -> Maybe a }
   -> Maybe a /\ Int
-forwardSearch { minBound, maxBound, isTrue, step }
-  | isJust (isTrue $ minBound + step) =
+forwardSearch { minBound, maxBound, takeN, step }
+  | isJust (takeN $ minBound + step) =
       if minBound + step <= maxBound then forwardSearch
-        { minBound: minBound + step, maxBound, isTrue, step }
-      else isTrue maxBound /\ maxBound
+        { minBound: minBound + step, maxBound, takeN, step }
+      else takeN maxBound /\ maxBound
   | otherwise =
       if step == 1 then
-        isTrue minBound /\ minBound
+        takeN minBound /\ minBound
       else
         forwardSearch
-          { minBound: minBound, maxBound, isTrue, step: step `div` 2 }
+          { minBound: minBound, maxBound, takeN, step: step `div` 2 }
 
 toCip25Strings :: String -> Array Cip25String
 toCip25Strings str = case takeCip25String str of
