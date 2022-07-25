@@ -36,6 +36,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 - CTL's `overlay` no longer requires an explicitly passed `system`
 - Switched to CSL for utxo min ada value calculation ([#715](https://github.com/Plutonomicon/cardano-transaction-lib/pull/715))
+- Examples now wait for transactions to be confirmed and log success.
+- ServerConfig accepts a url `path` field
 
 ### Fixed 
 
