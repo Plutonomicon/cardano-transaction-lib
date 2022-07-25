@@ -18,6 +18,8 @@ import Aeson
   , encodeAeson'
   , (.:)
   )
+import Data.BigInt (BigInt)
+import Data.BigInt as BigInt
 import Data.Either (note)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap, wrap)
@@ -38,8 +40,8 @@ import Plutus.Types.AssocMap as AssocMap
 import ToData (class ToData, toData)
 import Types.TokenName (TokenName, getTokenName, mkTokenName)
 
-nftMetadataLabel :: String
-nftMetadataLabel = "721"
+nftMetadataLabel :: BigInt
+nftMetadataLabel = BigInt.fromInt 721
 
 -- | A newtype over `TokenName` that uses correct Json encoding (without `0x` prefix)
 newtype Cip25TokenName = Cip25TokenName TokenName

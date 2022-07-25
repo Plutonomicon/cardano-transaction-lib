@@ -31,8 +31,9 @@ import Control.Alt ((<|>))
 import Data.Array (catMaybes, concat, groupBy)
 import Data.Array.NonEmpty (NonEmptyArray, toArray)
 import Data.Array.NonEmpty (head) as NonEmpty
-import Data.BigInt (fromInt) as BigInt
+import Data.BigInt (fromInt, toString) as BigInt
 import Data.Either (Either(Left), note)
+import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Map (toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe)
@@ -221,13 +222,11 @@ instance Show Cip25Metadata where
   show = genericShow
 
 instance MetadataType Cip25Metadata where
-  metadataLabel _ = wrap (BigInt.fromInt 721)
+  metadataLabel _ = wrap nftMetadataLabel
 
 groupEntries
   :: Array Cip25MetadataEntry -> Array (NonEmptyArray Cip25MetadataEntry)
-groupEntries =
-  groupBy \(Cip25MetadataEntry a) (Cip25MetadataEntry b) ->
-    a.policyId == b.policyId
+groupEntries = groupBy (eq `on` (unwrap >>> _.policyId))
 
 instance ToMetadata Cip25Metadata where
   toMetadata (Cip25Metadata entries) = toMetadata $
@@ -253,9 +252,9 @@ instance FromMetadata Cip25Metadata where
               ( if assets == toMetadata Cip25V2 then pure Nothing
                 else Nothing -- fail if version does not match
               )
-            else Just -- key is policyId
-
-              case assets of
+            else
+              -- key is policyId
+              Just case assets of
                 MetadataMap mp2 ->
                   for (Map.toUnfoldable mp2) \(assetName /\ contents) ->
                     metadataEntryFromMetadata <$> fromMetadata key
@@ -267,7 +266,7 @@ instance FromMetadata Cip25Metadata where
 
 instance ToData Cip25Metadata where
   toData (Cip25Metadata entries) = toData
-    $ AssocMap.singleton (toData nftMetadataLabel)
+    $ AssocMap.singleton (toData $ BigInt.toString nftMetadataLabel)
     $ AssocMap.Map
         let
           dataEntries =
@@ -284,7 +283,7 @@ instance ToData Cip25Metadata where
 
 instance FromData Cip25Metadata where
   fromData meta = do
-    entries <- lookupKey nftMetadataLabel meta >>= case _ of
+    entries <- lookupKey (BigInt.toString nftMetadataLabel) meta >>= case _ of
       Map mp1 -> map concat
         $ for mp1
             \(policyId /\ assets) ->
@@ -312,7 +311,7 @@ instance FromData Cip25Metadata where
 instance DecodeAeson Cip25Metadata where
   decodeAeson =
     caseAesonObject errExpectedObject \obj -> do
-      policies <- obj .: nftMetadataLabel
+      policies <- obj .: BigInt.toString nftMetadataLabel
       withJsonObject policies \objPolicies ->
         map (wrap <<< concat)
           $ for (objToArray objPolicies)
@@ -323,11 +322,11 @@ instance DecodeAeson Cip25Metadata where
                     assetName_ <- decodeAssetName assetName
                     metadataEntryDecodeAeson policyId_ assetName_ contents
     where
-    objToArray :: forall a. FO.Object a -> Array (Tuple String a)
+    objToArray :: forall (a :: Type). FO.Object a -> Array (Tuple String a)
     objToArray = FO.toUnfoldable
 
     withJsonObject
-      :: forall a
+      :: forall (a :: Type)
        . Aeson
       -> (FO.Object Aeson -> Either JsonDecodeError a)
       -> Either JsonDecodeError a

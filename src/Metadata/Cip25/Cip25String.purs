@@ -23,7 +23,7 @@ import Control.Alt ((<|>))
 import Data.Array ((:))
 import Data.Array as Array
 import Data.Either (hush, note)
-import Data.Foldable (fold)
+import Data.Foldable (fold, foldMap)
 import Data.Maybe (Maybe(Nothing, Just), isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.String.CodePoints as String
@@ -97,7 +97,7 @@ takeCip25String str =
       }
 
 forwardSearch
-  :: forall a
+  :: forall (a :: Type)
    . { step :: Int, minBound :: Int, maxBound :: Int, isTrue :: Int -> Maybe a }
   -> Maybe a /\ Int
 forwardSearch { minBound, maxBound, isTrue, step }
@@ -121,7 +121,7 @@ toCip25Strings str = case takeCip25String str of
       Nothing -> [ cip25String ]
 
 fromCip25Strings :: Array Cip25String -> String
-fromCip25Strings = fold <<< map unCip25String
+fromCip25Strings = foldMap unCip25String
 
 toDataString :: String -> PlutusData
 toDataString str = case toCip25Strings str of
@@ -141,6 +141,6 @@ toMetadataString str = case toCip25Strings str of
 
 fromMetadataString :: TransactionMetadatum -> Maybe String
 fromMetadataString datum = do
-  fromCip25Strings <$> ((Array.singleton <$> fromMetadata datum)) <|> do
+  fromCip25Strings <$> (Array.singleton <$> fromMetadata datum) <|> do
     bytes :: Array ByteArray <- fromMetadata datum
     hush $ decodeUtf8 $ unwrap $ fold bytes

@@ -31,6 +31,6 @@ lookupMetadata :: String -> TransactionMetadatum -> Maybe TransactionMetadatum
 lookupMetadata keyStr (MetadataMap mp) = Map.lookup (Text keyStr) mp
 lookupMetadata _ _ = Nothing
 
-errExpectedObject :: forall a. Either JsonDecodeError a
+errExpectedObject :: forall (a :: Type). Either JsonDecodeError a
 errExpectedObject =
   Left (TypeMismatch "Expected object")
