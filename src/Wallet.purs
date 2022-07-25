@@ -1,13 +1,16 @@
 module Wallet
   ( module KeyWallet
   , module Cip30Wallet
-  , Wallet(Gero, Nami, Flint, KeyWallet)
+  , Wallet(Gero, Nami, Flint, Eternl, KeyWallet)
   , isGeroAvailable
   , isNamiAvailable
   , isFlintAvailable
   , mkNamiWalletAff
+  , isGeroAvailable
   , mkGeroWalletAff
   , mkFlintWalletAff
+  , isEternlAvailable
+  , mkEternlWalletAff
   , mkKeyWallet
   , cip30Wallet
   , dummySign
@@ -44,11 +47,14 @@ data Wallet
   = Nami Cip30Wallet
   | Gero Cip30Wallet
   | Flint Cip30Wallet
+  | Eternl Cip30Wallet
   | KeyWallet KeyWallet
 
 mkKeyWallet :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
 mkKeyWallet payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet payKey
   mbStakeKey
+
+-- ====== Nami ======
 
 isNamiAvailable :: Effect Boolean
 isNamiAvailable = _isNamiAvailable
@@ -59,6 +65,8 @@ mkNamiWalletAff :: Aff Wallet
 mkNamiWalletAff = Nami <$> mkCip30WalletAff "Nami" _enableNami
 
 foreign import _enableNami :: Effect (Promise Cip30Connection)
+
+-- ====== Gero ======
 
 isGeroAvailable :: Effect Boolean
 isGeroAvailable = _isGeroAvailable
@@ -79,12 +87,24 @@ mkFlintWalletAff :: Aff Wallet
 mkFlintWalletAff = Flint <$> mkCip30WalletAff "Flint" _enableFlint
 
 foreign import _enableFlint :: Effect (Promise Cip30Connection)
+-- ====== Eternl ======
+
+isEternlAvailable :: Effect Boolean
+isEternlAvailable = _isEternlAvailable
+
+foreign import _isEternlAvailable :: Effect Boolean
+
+mkEternlWalletAff :: Aff Wallet
+mkEternlWalletAff = Eternl <$> mkCip30WalletAff "Eternl" _enableEternl
+
+foreign import _enableEternl :: Effect (Promise Cip30Connection)
 
 cip30Wallet :: Wallet -> Maybe Cip30Wallet
 cip30Wallet = case _ of
   Nami c30 -> Just c30
   Gero c30 -> Just c30
   Flint c30 -> Just c30
+  Eternl c30 -> Just c30
   KeyWallet _ -> Nothing
 
 -- Attach a dummy vkey witness to a transaction. Helpful for when we need to

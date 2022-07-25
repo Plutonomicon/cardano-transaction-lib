@@ -178,9 +178,10 @@ import Untagged.Union (asOneOf)
 import Wallet
   ( Cip30Connection
   , Cip30Wallet
-  , Wallet(Gero, Flint, Nami, KeyWallet)
+  , Wallet(Gero, Flint, Nami, Eternl, KeyWallet)
   , mkGeroWalletAff
   , mkFlintWalletAff
+  , mkEternlWalletAff
   , mkKeyWallet
   , mkNamiWalletAff
   )
@@ -420,6 +421,7 @@ getWalletAddress = do
     Nami nami -> callCip30Wallet nami _.getWalletAddress
     Gero gero -> callCip30Wallet gero _.getWalletAddress
     Flint flint -> callCip30Wallet flint _.getWalletAddress
+    Eternl eternl -> callCip30Wallet eternl _.getWalletAddress
     KeyWallet kw -> Just <$> (unwrap kw).address networkId
 
 signTransaction
@@ -428,6 +430,7 @@ signTransaction tx = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
   Flint flint -> callCip30Wallet flint \nw -> flip nw.signTx tx
+  Eternl eternl -> callCip30Wallet eternl \nw -> flip nw.signTx tx
   KeyWallet kw -> Just <$> (unwrap kw).signTx tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
