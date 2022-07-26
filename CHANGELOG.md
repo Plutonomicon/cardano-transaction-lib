@@ -52,6 +52,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 -- `asset_name` is up to 32 bytes.
 
 See https://github.com/cardano-foundation/CIPs/issues/303 for motivation
+- `ogmios-datum-cache` now works on `x86_64-darwin`
 
 ## [2.0.0-alpha] - 2022-07-05
 
