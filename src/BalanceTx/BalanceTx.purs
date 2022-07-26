@@ -46,6 +46,7 @@ module BalanceTx
   , UtxosAtError(CouldNotGetUtxos)
   , UtxoMinAdaValueCalcError(UtxoMinAdaValueCalcError)
   , balanceTx
+  , balanceTxWithAddress
   ) where
 
 import Prelude
@@ -476,13 +477,15 @@ addTxCollateral utxos transaction =
 -- FIX ME: UnbalancedTx contains requiredSignatories which would be a part of
 -- multisig but we don't have such functionality ATM.
 
--- | Balances an unbalanced transaction. For submitting a tx via Nami, the
--- | utxo set shouldn't include the collateral which is vital for balancing.
--- | In particular, the transaction inputs must not include the collateral.
-balanceTx
-  :: UnattachedUnbalancedTx
+-- | Like `balanceTx`, but allows to provide an address that is treated like
+-- | user's own (while `balanceTx` gets it from the wallet).
+balanceTxWithAddress
+  :: Address
+  -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
+balanceTxWithAddress
+  ownAddr
+  unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   let (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = t
   networkId <- (unbalancedTx ^. _body <<< _networkId) #
     maybe (asks _.networkId) pure
@@ -490,8 +493,6 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   utxoMinVal <- adaOnlyUtxoMinAdaValue
   runExceptT do
     -- Get own wallet address, collateral and utxo set:
-    ownAddr <- ExceptT $ QueryM.getWalletAddress <#>
-      note (GetWalletAddressError' CouldNotGetWalletAddress)
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
     -- After adding collateral, we need to balance the inputs and
@@ -514,13 +515,12 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
 
     -- Prebalance collaterised tx without fees:
     ubcTx <- except $
-      prebalanceCollateral zero availableUtxos ownAddr utxoMinVal
-        unbalancedCollTx
+      prebalanceCollateral zero availableUtxos utxoMinVal unbalancedCollTx
     -- Prebalance collaterised tx with fees:
     let unattachedTx' = unattachedTx # _transaction' .~ ubcTx
     _ /\ fees <- ExceptT $ evalExUnitsAndMinFee unattachedTx'
     ubcTx' <- except $
-      prebalanceCollateral (fees + feeBuffer) availableUtxos ownAddr utxoMinVal
+      prebalanceCollateral (fees + feeBuffer) availableUtxos utxoMinVal
         ubcTx
     -- Loop to balance non-Ada assets
     nonAdaBalancedCollTx <- ExceptT $ loop availableUtxos ownAddr [] $
@@ -540,11 +540,10 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   prebalanceCollateral
     :: BigInt
     -> Utxos
-    -> Address
     -> BigInt
     -> Transaction
     -> Either BalanceTxError Transaction
-  prebalanceCollateral fees utxos ownAddr adaOnlyUtxoMinValue tx =
+  prebalanceCollateral fees utxos adaOnlyUtxoMinValue tx =
     balanceTxIns utxos fees adaOnlyUtxoMinValue (tx ^. _body)
       >>= balanceNonAdaOuts ownAddr utxos
       <#> flip (set _body) tx
@@ -617,6 +616,17 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   -- top of their transaction as input.
   feeBuffer :: BigInt
   feeBuffer = fromInt 500000
+
+-- | Balances an unbalanced transaction. For submitting a tx via Nami, the
+-- | utxo set shouldn't include the collateral which is vital for balancing.
+-- | In particular, the transaction inputs must not include the collateral.
+balanceTx
+  :: UnattachedUnbalancedTx
+  -> QueryM (Either BalanceTxError FinalizedTransaction)
+balanceTx tx = do
+  QueryM.getWalletAddress >>= case _ of
+    Nothing -> pure $ Left $ GetWalletAddressError' CouldNotGetWalletAddress
+    Just address -> balanceTxWithAddress address tx
 
 -- Logging for Transaction type without returning Transaction
 logTx
