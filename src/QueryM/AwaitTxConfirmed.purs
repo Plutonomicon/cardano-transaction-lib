@@ -68,14 +68,12 @@ awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash = do
   go :: Slot -> QueryM Unit
   go timeout =
     mkDatumCacheRequest getTxByHash _.getTxByHash txHash >>= \found ->
-      case unwrap found of
-        true -> pure unit
-        false -> do
-          slot <- getCurrentSlot
-          when (slot >= timeout) do
-            liftEffect $ throw $
-              "awaitTxConfirmedWithTimeoutSlots: \
-              \ timeout exceeded, Transaction not confirmed"
-          void $ addSlots 1 slot >>= waitUntilSlot
-          go timeout
+      unless (unwrap found) do
+        slot <- getCurrentSlot
+        when (slot >= timeout) do
+          liftEffect $ throw $
+            "awaitTxConfirmedWithTimeoutSlots: \
+            \ timeout exceeded, Transaction not confirmed"
+        void $ addSlots 1 slot >>= waitUntilSlot
+        go timeout
 
