@@ -5,46 +5,21 @@ module Examples.Pkh2PkhGero (main) where
 
 import Contract.Prelude
 
-import Contract.Address
-  ( NetworkId(TestnetId)
-  , ownPaymentPubKeyHash
-  , ownStakePubKeyHash
-  )
-import Contract.Monad
-  ( ConfigParams(ConfigParams)
-  , LogLevel(Trace)
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
-  , launchAff_
-  , liftedE
-  , liftedM
-  , logInfo'
-  , mkContractConfig
-  , runContract_
-  )
+import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
+import Contract.Config (testnetGeroConfig)
+import Contract.Log (logInfo')
+import Contract.Monad (launchAff_, liftedE, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
+import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction (balanceAndSignTxE, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
-import Contract.Wallet (mkGeroWalletAff)
 import Data.BigInt as BigInt
-import Contract.Test.E2E (publishTestFeedback)
 
 main :: Effect Unit
-main = launchAff_ $ do
-  wallet <- Just <$> mkGeroWalletAff
-  cfg <- mkContractConfig $ ConfigParams
-    { ogmiosConfig: defaultOgmiosWsConfig
-    , datumCacheConfig: defaultDatumCacheWsConfig
-    , ctlServerConfig: defaultServerConfig
-    , networkId: TestnetId
-    , logLevel: Trace
-    , extraConfig: {}
-    , wallet
-    }
+main = launchAff_ do
 
-  runContract_ cfg $ do
+  runContract testnetGeroConfig do
     logInfo' "Running Examples.Pkh2PkhGero"
     pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
     skh <- liftedM "Failed to get own SKH" ownStakePubKeyHash

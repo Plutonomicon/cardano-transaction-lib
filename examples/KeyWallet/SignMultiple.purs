@@ -2,7 +2,8 @@ module Examples.KeyWallet.SignMultiple where
 
 import Contract.Prelude
 
-import Contract.Monad (Contract, liftedE, logInfo', throwContractError)
+import Contract.Monad (Contract, liftedE, throwContractError)
+import Contract.Log (logInfo')
 import Control.Monad.Reader (asks)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
@@ -14,13 +15,14 @@ import Contract.Transaction
   )
 import Contract.TxConstraints as Constraints
 import Contract.Value (lovelaceValueOf) as Value
+import Data.Newtype (unwrap)
 import Effect.Ref (read) as Ref
 import Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
 import Types.UsedTxOuts (TxOutRefCache)
 
 getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
 getLockedInputs = do
-  cache <- asks (_.usedTxOuts <<< unwrap)
+  cache <- asks (_.usedTxOuts <<< _.runtime <<< unwrap)
   liftEffect $ Ref.read $ unwrap cache
 
 main :: Effect Unit
