@@ -18,6 +18,7 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Data.BigInt as BigInt
+import Contract.Test.E2E (publishTestFeedback)
 
 main :: Effect Unit
 main = launchAff_ do
@@ -42,3 +43,4 @@ main = launchAff_ do
     logInfo' $ "Tx ID: " <> show txId
     awaitTxConfirmedWithTimeout (wrap 100.0) txId
     logInfo' $ "Tx submitted successfully!"
+    liftAff $ publishTestFeedback true
