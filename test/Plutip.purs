@@ -7,7 +7,6 @@ module Test.Plutip
 import Prelude
 
 import Contract.Address (ownPaymentPubKeyHash)
-import Contract.Chain (getTip)
 import Contract.Monad
   ( Contract
   , liftContractAffM
@@ -42,7 +41,6 @@ import Contract.Value as Value
 import Contract.Wallet (withKeyWallet)
 import Control.Monad.Error.Class (withResource)
 import Control.Monad.Reader (asks)
-import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Log.Level (LogLevel(Trace))
 import Data.Map as Map
