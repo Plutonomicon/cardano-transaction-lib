@@ -253,7 +253,7 @@
           services = {
             cardano-node = {
               service = {
-                image = "inputoutput/cardano-node:1.35.1";
+                image = "inputoutput/cardano-node:1.35.2";
                 ports = [ (bindPort node.port) ];
                 volumes = [
                   "${config.cardano-configurations}/network/${config.network.name}/cardano-node:/config"
