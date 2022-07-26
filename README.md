@@ -51,7 +51,7 @@ Please explore our documentation to discover how to use CTL, how to set up its r
 - [Developing on CTL](./doc/development.md)
 - [Testing contracts with Plutip](./doc/plutip-testing.md)
 
-You can also [generate Purescript documentation for CTL and its dependencies](./doc/development.md#generating-ps-documentation).
+You can also access [PureScript documentation for CTL and its dependencies](https://plutonomicon.github.io/cardano-transaction-lib/) for the most recent `develop` version, or [generate it yourself](./doc/development.md#generating-ps-documentation).
 
 ## Architecture
 
