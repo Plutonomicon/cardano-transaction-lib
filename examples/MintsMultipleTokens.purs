@@ -24,7 +24,11 @@ import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
   )
-import Contract.Transaction (balanceAndSignTx, submit)
+import Contract.Transaction
+  ( awaitTxConfirmed
+  , balanceAndSignTx
+  , submit
+  )
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
@@ -66,6 +70,8 @@ main = launchAff_ $ do
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
+    awaitTxConfirmed txId
+    logInfo' $ "Tx submitted successfully!"
 
 mkTokenName :: String -> Contract () TokenName
 mkTokenName =
