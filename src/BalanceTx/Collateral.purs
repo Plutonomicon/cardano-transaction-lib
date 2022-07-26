@@ -78,6 +78,12 @@ derive instance Generic CollateralReturnError _
 instance Show CollateralReturnError where
   show = genericShow
 
+-- | Sets `collateral return` and `total collateral` fields of the transaction.
+-- | In the special case with an Ada-only collateral that is less than or equal
+-- | to `minRequiredCollateral`, returns unmodified transaction (see NOTE).
+-- |
+-- | NOTE: Collateral cannot be less than `minRequiredCollateral` when
+-- | selected using `selectCollateral` function in this module.
 addTxCollateralReturn
   :: Array TransactionUnspentOutput
   -> Transaction
@@ -113,15 +119,18 @@ addTxCollateralReturn collateral transaction ownAddress =
         , scriptRef: Nothing
         }
 
+    -- Calculate the required min ada value for the collateral return output:
     minAdaValue <-
       ExceptT $ utxoMinAdaValue (wrap collReturnOutputRec)
         <#> note CollateralReturnMinAdaValueCalcError
 
     let
+      -- Determine the actual ada value of the collateral return output:
       collReturnAda :: BigInt
       collReturnAda = unwrap $
         Max (collAdaValue - minRequiredCollateral) <> Max minAdaValue
 
+      -- Build the final collateral return output:
       collReturnOutput :: TransactionOutput
       collReturnOutput = wrap $
         collReturnOutputRec
@@ -133,6 +142,7 @@ addTxCollateralReturn collateral transaction ownAddress =
     except $
       case totalCollateral > zero of
         true ->
+          -- Set collateral return and total collateral:
           Right $
             transaction # _body <<< _collateralReturn ?~ collReturnOutput
               # _body <<< _totalCollateral ?~ wrap totalCollateral
@@ -149,8 +159,10 @@ collateralReturnMinAdaValue
 collateralReturnMinAdaValue =
   utxoMinAdaValue <<< fakeOutputWithNonAdaAssets <<< foldMap nonAdaAsset
 
+type ReturnOutMinAdaValue = BigInt
+
 newtype CollateralCandidate =
-  CollateralCandidate (List TransactionUnspentOutput /\ BigInt)
+  CollateralCandidate (List TransactionUnspentOutput /\ ReturnOutMinAdaValue)
 
 derive instance Newtype CollateralCandidate _
 
@@ -167,11 +179,27 @@ instance Ord CollateralCandidate where
       ordering -> ordering
 
 mkCollateralCandidate
-  :: List TransactionUnspentOutput /\ Maybe BigInt -> Maybe CollateralCandidate
-mkCollateralCandidate (_ /\ Nothing) = Nothing
-mkCollateralCandidate (unspentOutputs /\ Just val) =
-  Just (CollateralCandidate $ unspentOutputs /\ val)
+  :: List TransactionUnspentOutput /\ Maybe ReturnOutMinAdaValue
+  -> Maybe CollateralCandidate
+mkCollateralCandidate (unspentOutputs /\ returnOutMinAdaValue) =
+  CollateralCandidate <<< Tuple unspentOutputs <$> returnOutMinAdaValue
 
+-- | Selects an utxo combination to use as collateral by generating all possible
+-- | utxo combinations and then applying the following constraints:
+-- |
+-- |   1. `maxCollateralInputs` protocol parameter limits the maximum
+-- |   cardinality of a single utxo combination.
+-- |
+-- |   2. Collateral inputs must have a total value of at least 5 Ada
+-- |   (`minRequiredCollateral`).
+-- |
+-- |   3. We prefer utxo combinations that require the lowest utxo min ada
+-- |   value for the corresponding collateral output, thus maintaining a
+-- |   sufficient `totalCollateral`.
+-- |
+-- |   4. If two utxo combinations correspond to return outputs with the same
+-- |   utxo min ada value, we prefer the one with fewer inputs.
+-- |
 selectCollateral
   :: Int -> Utxo -> QueryM (Maybe (List TransactionUnspentOutput))
 selectCollateral maxCollateralInputs =
@@ -210,11 +238,14 @@ nonAdaAsset :: TransactionUnspentOutput -> NonAdaAsset
 nonAdaAsset =
   Value.getNonAdaAsset <<< _.amount <<< unwrap <<< _.output <<< unwrap
 
+-- | Returns a list of all subsequences of the given list.
 subsequences :: forall (a :: Type). List a -> List (List a)
 subsequences Nil = Cons Nil Nil
 subsequences (Cons x xs) =
-  map (Cons x) (subsequences xs) <> subsequences xs
+  let subs = subsequences xs in map (Cons x) subs <> subs
 
+-- | Generates all possible combinations of list elements with the number of
+-- | elements in each combination not exceeding `k` (no repetitions, no order).
 combinations :: forall (a :: Type). Int -> List a -> List (List a)
 combinations k =
   List.filter (\x -> List.length x <= k && not (List.null x))
