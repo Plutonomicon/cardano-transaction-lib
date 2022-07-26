@@ -21,4 +21,4 @@ runExample options = runE2ETest "AlwaysSucceeds" options NamiExt $ \example ->
     liftEffect $ log $
       " ...waiting before trying to spend script output (this will take a minute)"
     delaySec 65.0
-
+    namiSign' example

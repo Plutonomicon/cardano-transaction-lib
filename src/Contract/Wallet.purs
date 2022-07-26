@@ -1,13 +1,12 @@
 -- | A module with Wallet-related functionality.
 module Contract.Wallet
-  ( mkKeyWalletFromPrivateKey
+  ( mkKeyWalletFromPrivateKeys
   , withKeyWallet
   , module Contract.Address
   , module Serialization
   , module Wallet.Spec
   , module Wallet.Key
   , module Wallet
-  , mkKeyWalletFromPrivateKeys
   ) where
 
 import Prelude
@@ -24,17 +23,13 @@ import Serialization (privateKeyFromBytes) as Serialization
 import Type.Proxy (Proxy(Proxy))
 import Wallet (isGeroAvailable, isNamiAvailable) as Wallet
 import Wallet (mkKeyWallet, Wallet(KeyWallet))
-import Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
-import Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Wallet.Spec
   ( WalletSpec(UseKeys, ConnectToNami, ConnectToGero)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
-
-mkKeyWalletFromPrivateKey
-  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
-mkKeyWalletFromPrivateKey = mkKeyWallet
+import Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
+import Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 
 withKeyWallet
   :: forall (r :: Row Type) (a :: Type)
