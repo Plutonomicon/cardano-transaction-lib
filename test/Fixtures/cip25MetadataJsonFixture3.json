@@ -4,24 +4,14 @@
       "ItestToken": {
         "name": "ItestToken",
         "image": "image_uri1",
-        "mediaType": "media_type",
         "description": "desc1",
         "files": [
           {
             "name": "file_name_1",
             "mediaType": "media_type",
             "src": "uri1"
-          },
-          {
-            "name": "file_name_2",
-            "mediaType": "media_type_2",
-            "src": "uri4"
           }
         ]
-      },
-      "TestToken2": {
-        "name": "TestToken2",
-        "image": "image_uri1"
       }
     }
   }
