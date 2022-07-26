@@ -327,6 +327,8 @@ import Helpers -- Could maybe move this somewhere better:
   , liftEither
   , liftM
   , liftMWith
+  , traverse2
+  , for2
   ) as Helpers
 import Undefined (undefined) as Undefined
 
