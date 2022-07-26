@@ -31,6 +31,7 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Data.BigInt as BigInt
+import Contract.Test.E2E (publishTestFeedback)
 
 main :: Effect Unit
 main = launchAff_ $ do
@@ -57,8 +58,11 @@ main = launchAff_ $ do
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
+
     awaitTxConfirmed txId
     logInfo' $ "Tx submitted successfully!"
+
+  publishTestFeedback true
 
 foreign import alwaysMints :: String
 
