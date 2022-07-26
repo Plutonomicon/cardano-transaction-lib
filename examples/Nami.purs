@@ -11,14 +11,14 @@ module Examples.Nami (main) where
 import Contract.Prelude
 
 import Contract.Address (getWalletAddress, getWalletCollateral)
-import Contract.Monad (defaultTestnetContractConfig, launchAff_, runContract_)
+import Contract.Config (testnetNamiConfig)
+import Contract.Monad (launchAff_, runContract)
 import Contract.Utxos (getWalletBalance)
 import Contract.Test.E2E (publishTestFeedback)
 
 main :: Effect Unit
-main = launchAff_ $ do
-  cfg <- defaultTestnetContractConfig
-  runContract_ cfg $ do
+main = launchAff_ do
+  runContract testnetNamiConfig do
     log <<< show =<< getWalletAddress
     log <<< show =<< getWalletCollateral
     log <<< show =<< getWalletBalance

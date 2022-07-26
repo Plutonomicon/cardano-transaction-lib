@@ -251,7 +251,7 @@ withUsedTxouts
   :: forall (r :: Row Type) (a :: Type)
    . ReaderT UsedTxOuts (Contract r) a
   -> Contract r a
-withUsedTxouts f = asks (_.usedTxOuts <<< unwrap) >>= runReaderT f
+withUsedTxouts f = asks (_.usedTxOuts <<< _.runtime <<< unwrap) >>= runReaderT f
 
 -- | Attempts to balance an `UnattachedUnbalancedTx`.
 balanceTx
@@ -267,7 +267,7 @@ balanceTxWithAddress
   -> UnattachedUnbalancedTx
   -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
 balanceTxWithAddress addr tx = do
-  networkId <- asks $ unwrap >>> _.networkId
+  networkId <- asks $ unwrap >>> _.config >>> _.networkId
   wrapContract $ BalanceTx.balanceTxWithAddress
     (fromPlutusAddress networkId addr)
     tx
@@ -383,7 +383,7 @@ balanceTxsWithAddress ownAddress unbalancedTxs =
 
   balanceAndLock :: UnattachedUnbalancedTx -> Contract r FinalizedTransaction
   balanceAndLock unbalancedTx = do
-    networkId <- asks $ unwrap >>> _.networkId
+    networkId <- asks $ unwrap >>> _.config >>> _.networkId
     balancedTx <- liftedE $ wrapContract $ BalanceTx.balanceTxWithAddress
       (fromPlutusAddress networkId ownAddress)
       unbalancedTx

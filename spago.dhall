@@ -28,7 +28,6 @@ You can edit this file as you like.
   , "foldable-traversable"
   , "foreign"
   , "foreign-object"
-  , "functions"
   , "http-methods"
   , "identity"
   , "integers"
