@@ -5,19 +5,19 @@ module Examples.KeyWallet.Internal.Pkh2PkhContract
 import Contract.Prelude
 
 import Contract.Address (NetworkId(TestnetId), PaymentPubKeyHash)
+import Contract.Config
+  ( PrivatePaymentKeySource(PrivatePaymentKeyValue)
+  , WalletSpec(UseKeys)
+  )
 import Contract.Monad
-  ( ConfigParams(ConfigParams)
-  , Contract
-  , ContractConfig(ContractConfig)
+  ( Contract
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
   , launchAff_
-  , mkContractConfig
+  , runContract
   )
 import Control.Monad.Error.Class (class MonadError, catchError, liftMaybe)
-import Control.Monad.Logger.Trans (runLoggerT)
-import Control.Monad.Reader (runReaderT)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromString) as BigInt
 import Data.Log.Formatter.Pretty (prettyFormatter)
@@ -35,7 +35,6 @@ import Examples.KeyWallet.Internal.Pkh2PkhHtmlForm
 import Serialization (privateKeyFromBytes)
 import Serialization.Hash (ed25519KeyHashFromBech32)
 import Types.RawBytes (hexToRawBytes)
-import Wallet (mkKeyWallet)
 
 runKeyWalletContract_
   :: (PaymentPubKeyHash -> BigInt -> Unlock -> Contract () Unit) -> Effect Unit
@@ -50,32 +49,27 @@ runKeyWalletContract_ contract =
         $ ed25519KeyHashFromBech32 input.toPkh
       lovelace <- liftMaybe (error "Failed to parse lovelace amount") $
         BigInt.fromString input.lovelace
-      let wallet = mkKeyWallet (wrap privateKey) Nothing
-      cfg <- mkContractConfig $ ConfigParams
-        { ogmiosConfig: defaultOgmiosWsConfig
-        , datumCacheConfig: defaultDatumCacheWsConfig
-        , ctlServerConfig: defaultServerConfig
-        , networkId: TestnetId
-        , logLevel: Trace
-        , extraConfig: {}
-        , wallet: Just wallet
-        }
-      runContract' log' cfg (contract pkh lovelace unlock)
+      let
+        cfg =
+          { ogmiosConfig: defaultOgmiosWsConfig
+          , datumCacheConfig: defaultDatumCacheWsConfig
+          , ctlServerConfig: defaultServerConfig
+          , networkId: TestnetId
+          , logLevel: Trace
+          , extraConfig: {}
+          , walletSpec: Just $ UseKeys
+              (PrivatePaymentKeyValue $ wrap privateKey)
+              Nothing
+          , customLogger: Just printLog
+          }
+
+        printLog :: Message -> Aff Unit
+        printLog m = liftEffect $ when (m.level >= Trace) $ do
+          prettyFormatter m >>= log
+          log' (HtmlForm.levelColor m.level)
+            ("[" <> HtmlForm.levelName m.level <> "] " <> m.message)
+      runContract cfg (contract pkh lovelace unlock)
   where
-  runContract'
-    :: forall (r :: Row Type)
-     . Log
-    -> ContractConfig r
-    -> Contract r Unit
-    -> Aff Unit
-  runContract' log' (ContractConfig config) =
-    flip runLoggerT printLog <<< flip runReaderT config <<< unwrap
-    where
-    printLog :: Message -> Aff Unit
-    printLog m = liftEffect $ when (m.level >= config.logLevel) $ do
-      prettyFormatter m >>= log
-      log' (HtmlForm.levelColor m.level)
-        ("[" <> HtmlForm.levelName m.level <> "] " <> m.message)
 
   errorHandler
     :: forall (m :: Type -> Type)

@@ -8,18 +8,14 @@ module Examples.Gero (main) where
 import Contract.Prelude
 
 import Contract.Address (getWalletAddress, getWalletCollateral)
-import Contract.Monad (configWithLogLevel, launchAff_, runContract_)
+import Contract.Config (testnetGeroConfig)
+import Contract.Monad (launchAff_, runContract)
 import Contract.Utxos (getWalletBalance)
-import Contract.Wallet (mkGeroWalletAff)
-import Data.Log.Level (LogLevel(Trace))
-import Serialization.Address (NetworkId(TestnetId))
 import Contract.Test.E2E (publishTestFeedback)
 
 main :: Effect Unit
 main = launchAff_ $ do
-  wallet <- mkGeroWalletAff
-  cfg <- configWithLogLevel TestnetId wallet Trace
-  runContract_ cfg $ do
+  runContract testnetGeroConfig $ do
     log <<< show =<< getWalletAddress
     log <<< show =<< getWalletCollateral
     log <<< show =<< getWalletBalance

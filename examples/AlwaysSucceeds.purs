@@ -11,14 +11,14 @@ module Examples.AlwaysSucceeds
 import Contract.Prelude
 
 import Contract.Address (scriptHashAddress)
+import Contract.Config (testnetNamiConfig)
+import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
   , launchAff_
   , liftContractAffM
   , liftedE
-  , logInfo'
-  , runContract_
-  , traceTestnetContractConfig
+  , runContract
   )
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
@@ -43,9 +43,8 @@ import Data.Map as Map
 import Contract.Test.E2E (publishTestFeedback)
 
 main :: Effect Unit
-main = launchAff_ $ do
-  cfg <- traceTestnetContractConfig
-  runContract_ cfg $ do
+main = launchAff_ do
+  runContract testnetNamiConfig do
     logInfo' "Running Examples.AlwaysSucceeds"
     validator <- alwaysSucceedsScript
     vhash <- liftContractAffM "Couldn't hash validator"

@@ -14,7 +14,7 @@ import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
-import Contract.Monad (Contract, ContractConfig(ContractConfig), runContract)
+import Contract.Monad (Contract, ContractEnv(ContractEnv), runContractInEnv)
 import Control.Monad.Error.Class (withResource)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left), either)
@@ -48,7 +48,6 @@ import Plutip.Types
   ( class UtxoDistribution
   , ClusterStartupParameters
   , ClusterStartupRequest(ClusterStartupRequest)
-  , FilePath
   , PlutipConfig
   , PostgresConfig
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
@@ -87,8 +86,8 @@ runPlutipContract plutipCfg distr contContract =
           $ withOgmios response
           $ withOgmiosDatumCache response
           $ withCtlServer do
-              contractCfg <- mkClusterContractCfg plutipCfg
-              liftAff $ runContract contractCfg (contContract wallets)
+              contractEnv <- mkClusterContractEnv plutipCfg
+              liftAff $ runContractInEnv contractEnv (contContract wallets)
   where
   withPlutipServer :: Aff a -> Aff a
   withPlutipServer =
@@ -308,11 +307,10 @@ startOgmiosDatumCache cfg _params = do
     $ String.indexOf (Pattern "Intersection found")
         >>> maybe NoOp (const Success)
 
-mkClusterContractCfg
-  :: forall (r :: Row Type)
-   . PlutipConfig
-  -> Aff (ContractConfig ())
-mkClusterContractCfg plutipCfg = do
+mkClusterContractEnv
+  :: PlutipConfig
+  -> Aff (ContractEnv ())
+mkClusterContractEnv plutipCfg = do
   ogmiosWs <- QueryM.mkOgmiosWebSocketAff plutipCfg.logLevel
     QueryM.defaultOgmiosWsConfig
       { port = plutipCfg.ogmiosConfig.port
@@ -326,24 +324,25 @@ mkClusterContractCfg plutipCfg = do
         }
   usedTxOuts <- newUsedTxOuts
   pparams <- Ogmios.getProtocolParametersAff ogmiosWs plutipCfg.logLevel
-  pure $ ContractConfig
-    { ogmiosWs
-    , datumCacheWs
-    , wallet: Nothing
-    , usedTxOuts
-    , serverConfig: plutipCfg.ctlServerConfig
-    , networkId: MainnetId
-    , logLevel: plutipCfg.logLevel
-    , pparams
+  pure $ ContractEnv
+    { config:
+        { ctlServerConfig: plutipCfg.ctlServerConfig
+        , ogmiosConfig: plutipCfg.ogmiosConfig
+        , datumCacheConfig: plutipCfg.ogmiosDatumCacheConfig
+        , networkId: MainnetId
+        , logLevel: plutipCfg.logLevel
+        , walletSpec: Nothing
+        , customLogger: Nothing
+        }
+    , runtime:
+        { ogmiosWs
+        , datumCacheWs
+        , wallet: Nothing
+        , usedTxOuts
+        , pparams
+        }
+    , extraConfig: {}
     }
-
-data NetworkInfo = Mainnet | Testnet Int
-
-type CtlServerConfig =
-  { port :: Int
-  , nodeSocketPath :: FilePath
-  , networkId :: NetworkInfo
-  }
 
 startCtlServer :: PlutipConfig -> Aff ChildProcess
 startCtlServer cfg = do

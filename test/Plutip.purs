@@ -7,13 +7,13 @@ module Test.Plutip
 import Prelude
 
 import Contract.Address (ownPaymentPubKeyHash)
+import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
   , liftContractAffM
   , liftContractM
   , liftedE
   , liftedM
-  , logInfo'
   )
 import Contract.PlutusData
   ( PlutusData(Integer)
@@ -326,7 +326,7 @@ submitAndLog bsTx = do
 
 getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
 getLockedInputs = do
-  cache <- asks (_.usedTxOuts <<< unwrap)
+  cache <- asks (_.usedTxOuts <<< _.runtime <<< unwrap)
   liftEffect $ Ref.read $ unwrap cache
 
 mkTokenName :: forall (r :: Row Type). String -> Contract r TokenName
