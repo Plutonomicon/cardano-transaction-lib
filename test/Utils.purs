@@ -5,6 +5,7 @@ module Test.Utils
   , errMaybe
   , errEither
   , interpret
+  , interpret'
   , toFromAesonTest
   , unsafeCall
   , readAeson
@@ -38,6 +39,7 @@ import Test.Spec (Spec, describe, it, pending)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter (consoleReporter)
 import Test.Spec.Runner (defaultConfig, runSpec')
+import Test.Spec.Runner as SpecRunner
 import TestM (TestPlanM)
 import Type.Proxy (Proxy)
 
@@ -47,11 +49,10 @@ foreign import unsafeCall
 -- | We use `mote` here so that we can use effects to build up a test tree, which
 -- | is then interpreted here in a pure context, mainly due to some painful types
 -- | in Test.Spec which prohibit effects.
-interpret :: TestPlanM Unit -> Aff Unit
-interpret spif = do
+interpret' :: SpecRunner.Config -> TestPlanM Unit -> Aff Unit
+interpret' config spif = do
   plan <- planT spif
-  runSpec' defaultConfig { timeout = Just $ wrap 50000.0 } [ consoleReporter ] $
-    go plan
+  runSpec' config [ consoleReporter ] $ go plan
   where
   go :: Plan (Const Void) (Aff Unit) -> Spec Unit
   go =
@@ -60,6 +61,12 @@ interpret spif = do
       pending
       (\x -> describe x.label $ go x.value)
       sequence_
+
+-- | We use `mote` here so that we can use effects to build up a test tree, which
+-- | is then interpreted here in a pure context, mainly due to some painful types
+-- | in Test.Spec which prohibit effects.
+interpret :: TestPlanM Unit -> Aff Unit
+interpret = interpret' defaultConfig { timeout = Just (wrap 50000.0) }
 
 -- | Test a boolean value, throwing the provided string as an error if `false`
 assertTrue
