@@ -1,4 +1,4 @@
--- \ This module contains everything needed for `Contract` testing in Plutip
+-- | This module contains everything needed for `Contract` testing in Plutip
 -- | environment.
 module Contract.Test.Plutip
   ( module X

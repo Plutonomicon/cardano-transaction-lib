@@ -26,7 +26,7 @@ import Test.UsedTxOuts as UsedTxOuts
 import Test.Utils as Utils
 import TestM (TestPlanM)
 
--- Run with `spago test --main CTL.Test.Unit`
+-- Run with `spago test --main Ctl.Test.Unit`
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpret testPlan
