@@ -353,7 +353,7 @@ finalizeTransaction reindexedUnattachedTxWithExUnits =
     datums = wrap <$> fromMaybe mempty ws.plutusData
   in
     do
-      costModels <- asks _.pparams <#> unwrap >>> _.costModels
+      costModels <- asks (_.runtime >>> _.pparams >>> unwrap >>> _.costModels)
       liftEffect $ FinalizedTransaction <$>
         setScriptDataHash costModels redeemers datums attachedTxWithExUnits
 
@@ -441,7 +441,7 @@ setCollateral
   :: Transaction -> Utxos -> QueryM (Either BalanceTxError Transaction)
 setCollateral transaction utxos =
   runExceptT do
-    wallet <- asks _.wallet
+    wallet <- asks $ _.runtime >>> _.wallet
     mCollateral <- ExceptT $ selectCollateral wallet
     pure $ case mCollateral /\ wallet of
       Nothing /\ _ ->
@@ -487,7 +487,7 @@ balanceTxWithAddress
   unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   let (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = t
   networkId <- (unbalancedTx ^. _body <<< _networkId) #
-    maybe (asks _.networkId) pure
+    maybe (asks $ _.config >>> _.networkId) pure
   let unbalancedTx' = unbalancedTx # _body <<< _networkId ?~ networkId
   utxoMinVal <- adaOnlyUtxoMinAdaValue
   runExceptT do
