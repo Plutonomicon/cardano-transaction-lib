@@ -2,7 +2,7 @@ module Test.E2E.Examples.SignMultiple (runExample) where
 
 import Prelude
 
-import Contract.Test.Browser (TestOptions, WalletExt(NamiExt))
+import Contract.Test.E2E (TestOptions, WalletExt(NamiExt))
 import Test.E2E.Helpers
   ( namiSign'
   , namiConfirmAccess

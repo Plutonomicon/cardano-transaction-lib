@@ -1,3 +1,5 @@
+-- | Augmented version of Contract.Test.E2E.Helpers, with some functions that
+-- | are only useful for testing CTL itself.
 module Test.E2E.Helpers
   ( module E2EHelpers
   , runE2ETest
@@ -8,10 +10,12 @@ module Test.E2E.Helpers
 
 import Prelude
 
-import Contract.Test.Browser (TestOptions, withBrowser, WalletExt)
-import Contract.Test.Feedback (resetTestFeedback)
-import Contract.Test.Helpers
-  ( RunningExample(RunningExample)
+import Contract.Test.E2E
+  ( TestOptions
+  , withBrowser
+  , WalletExt
+  , resetTestFeedback
+  , RunningExample
   , WalletPassword
   , checkSuccess
   , delaySec
@@ -19,7 +23,7 @@ import Contract.Test.Helpers
   , namiSign
   , withExample
   )
-import Contract.Test.Helpers
+import Contract.Test.E2E
   ( E2EOutput
   , RunningExample(RunningExample)
   , WalletPassword(WalletPassword)

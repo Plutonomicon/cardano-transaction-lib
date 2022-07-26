@@ -13,7 +13,7 @@ import Contract.Utxos (getWalletBalance)
 import Contract.Wallet (mkGeroWalletAff)
 import Data.Log.Level (LogLevel(Trace))
 import Serialization.Address (NetworkId(TestnetId))
-import Contract.Test.Feedback (publishTestFeedback)
+import Contract.Test.E2E (publishTestFeedback)
 
 main :: Effect Unit
 main = launchAff_ $ do

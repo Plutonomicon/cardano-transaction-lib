@@ -2,7 +2,7 @@ module Test.E2E.Examples.MintsMultipleTokens (runExample) where
 
 import Prelude
 
-import Contract.Test.Browser
+import Contract.Test.E2E
   ( TestOptions
   , WalletExt(NamiExt)
   )

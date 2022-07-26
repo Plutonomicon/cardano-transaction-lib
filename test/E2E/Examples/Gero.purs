@@ -3,7 +3,7 @@ module Test.E2E.Examples.Gero (runExample) where
 import Prelude
 
 import TestM (TestPlanM)
-import Contract.Test.Browser (TestOptions, WalletExt(GeroExt))
+import Contract.Test.E2E (TestOptions, WalletExt(GeroExt))
 import Test.E2E.Helpers
   ( geroConfirmAccess
   , runE2ETest

@@ -6,7 +6,7 @@ import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
 import Mote (group)
 import Prelude (Unit, ($), bind, discard, pure)
-import Contract.Test.Browser (TestOptions, parseOptions)
+import Contract.Test.E2E (TestOptions, parseOptions)
 import Test.E2E.Examples.Gero as Gero
 import Test.E2E.Examples.Pkh2PkhGero as Pkh2PkhGero
 import Test.E2E.Examples.Pkh2Pkh as Pkh2Pkh
