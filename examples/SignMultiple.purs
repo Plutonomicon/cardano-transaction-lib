@@ -40,6 +40,7 @@ import Contract.Value as Value
 import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
 import Types.UsedTxOuts (TxOutRefCache)
+import Contract.Test.E2E (publishTestFeedback)
 
 getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
 getLockedInputs = do
@@ -60,7 +61,7 @@ main = launchAff_ $ do
     }
 
   runContract_ cfg $ do
-    logInfo' "Running Examples.Pkh2Pkh"
+    logInfo' "Running Examples.SignMultiple"
     pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
     skh <- liftedM "Failed to get own SKH" ownStakePubKeyHash
 
@@ -92,6 +93,8 @@ main = launchAff_ $ do
         awaitTxConfirmed txId2
         logInfo' $ "Tx 2 submitted successfully!"
       _ -> throwContractError "Unexpected error - no transaction IDs"
+
+  publishTestFeedback true
 
   where
   submitAndLog
