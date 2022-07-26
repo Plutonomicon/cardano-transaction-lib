@@ -21,7 +21,6 @@ module Cardano.Types.Transaction
   , GenesisHash(GenesisHash)
   , Ipv4(Ipv4)
   , Ipv6(Ipv6)
-  , Language(PlutusV1)
   , MIRToStakeCredentials(MIRToStakeCredentials)
   , Mint(Mint)
   , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
@@ -44,7 +43,7 @@ module Cardano.Types.Transaction
   , URL(URL)
   , UnitInterval
   , Update
-  , Utxo
+  , Utxos
   , UtxoM(UtxoM)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
@@ -129,7 +128,7 @@ import Types.Int as Int
 import Types.OutputDatum (OutputDatum)
 import Types.PlutusData (PlutusData)
 import Types.RedeemerTag (RedeemerTag)
-import Types.Scripts (PlutusScript)
+import Types.Scripts (PlutusScript, Language)
 import Types.Transaction (TransactionInput)
 import Types.TransactionMetadata (GeneralTransactionMetadata)
 
@@ -392,19 +391,6 @@ instance Show Costmdls where
 
 instance EncodeAeson Costmdls where
   encodeAeson' = encodeAeson' <<< encodeMap <<< unwrap
-
-data Language = PlutusV1
-
-derive instance Eq Language
-derive instance Ord Language
-derive instance Generic Language _
-
-instance Show Language where
-  show = genericShow
-
-instance EncodeAeson Language where
-  encodeAeson' = case _ of
-    PlutusV1 -> encodeAeson' $ encodeTagged' "PlutusV1" {}
 
 newtype CostModel = CostModel (Array Int)
 
@@ -872,7 +858,7 @@ derive newtype instance EncodeAeson TransactionOutput
 instance Show TransactionOutput where
   show = genericShow
 
-newtype UtxoM = UtxoM Utxo
+newtype UtxoM = UtxoM Utxos
 
 derive instance Generic UtxoM _
 derive instance Newtype UtxoM _
@@ -881,4 +867,4 @@ derive newtype instance Eq UtxoM
 instance Show UtxoM where
   show = genericShow
 
-type Utxo = Map TransactionInput TransactionOutput
+type Utxos = Map TransactionInput TransactionOutput

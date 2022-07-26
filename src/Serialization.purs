@@ -3,6 +3,7 @@ module Serialization
   , convertTxBody
   , convertTxInput
   , convertTxOutput
+  , defaultCostmdls
   , toBytes
   , newTransactionUnspentOutputFromBytes
   , newTransactionWitnessSetFromBytes
@@ -34,9 +35,9 @@ import Cardano.Types.Transaction
       , MoveInstantaneousRewardsCert
       )
   , Costmdls(Costmdls)
+  , CostModel(CostModel)
   , GenesisDelegateHash(GenesisDelegateHash)
   , GenesisHash(GenesisHash)
-  , Language(PlutusV1)
   , MIRToStakeCredentials(MIRToStakeCredentials)
   , Mint(Mint)
   , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
@@ -159,6 +160,7 @@ import Types.PlutusData as PlutusData
 import Types.RawBytes (RawBytes)
 import Types.TokenName (getTokenName) as TokenName
 import Types.Transaction (TransactionInput(TransactionInput)) as T
+import Types.Scripts (Language(PlutusV1, PlutusV2)) as S
 import Untagged.Union (type (|+|), UndefinedOr, maybeToUor)
 
 foreign import hashTransaction :: TransactionBody -> Effect TransactionHash
@@ -247,6 +249,7 @@ foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
 foreign import transactionWitnessSetSetVkeys
   :: TransactionWitnessSet -> Vkeywitnesses -> Effect Unit
 
+foreign import defaultCostmdls :: Effect Costmdls
 foreign import newCostmdls :: Effect Costmdls
 foreign import costmdlsSetCostModel
   :: Costmdls -> Language -> CostModel -> Effect Unit
@@ -254,6 +257,7 @@ foreign import costmdlsSetCostModel
 foreign import newCostModel :: Effect CostModel
 foreign import costModelSetCost :: CostModel -> Int -> Int32 -> Effect Unit
 foreign import newPlutusV1 :: Effect Language
+foreign import newPlutusV2 :: Effect Language
 foreign import newInt32 :: Int -> Effect Int32
 foreign import _hashScriptData
   :: Redeemers -> Costmdls -> Array PlutusData -> Effect ScriptDataHash
@@ -825,15 +829,21 @@ convertValue val = do
 
 convertCostmdls :: T.Costmdls -> Effect Costmdls
 convertCostmdls (T.Costmdls cs) = do
-  costs <- map unwrap <<< fromJustEff "`PlutusV1` not found in `Costmdls`"
-    $ Map.lookup T.PlutusV1 cs
+  costmdls <- newCostmdls
+  forWithIndex_ cs \language costModel -> do
+    language' <- case language of
+      S.PlutusV1 -> newPlutusV1
+      S.PlutusV2 -> newPlutusV2
+    costModel' <- convertCostModel costModel
+    costmdlsSetCostModel costmdls language' costModel'
+  pure costmdls
+
+convertCostModel :: T.CostModel -> Effect CostModel
+convertCostModel (T.CostModel costs) = do
   costModel <- newCostModel
   forWithIndex_ costs $ \operation cost ->
     costModelSetCost costModel operation =<< newInt32 cost
-  costmdls <- newCostmdls
-  plutusV1 <- newPlutusV1
-  costmdlsSetCostModel costmdls plutusV1 costModel
-  pure costmdls
+  pure costModel
 
 hashScriptData
   :: T.Costmdls

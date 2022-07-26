@@ -2,6 +2,8 @@
 -- | functionality, transaction fees, signing and submission.
 module Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
+  , awaitTxConfirmed
+  , awaitTxConfirmedWithTimeout
   , balanceAndSignTx
   , balanceAndSignTxs
   , balanceAndSignTxE
@@ -15,6 +17,7 @@ module Contract.Transaction
   , module OutputDatum
   , module PTransaction
   , module ReindexRedeemersExport
+  , module Scripts
   , module ScriptLookups
   , module ScriptRef
   , module Transaction
@@ -69,7 +72,6 @@ import Cardano.Types.Transaction
   , ExUnitPrices
   , ExUnits
   , GenesisHash(GenesisHash)
-  , Language(PlutusV1)
   , Mint(Mint)
   , Nonce(IdentityNonce, HashNonce)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
@@ -121,6 +123,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
+import Data.Time.Duration (Seconds)
 import Data.Traversable (class Traversable, for_, traverse)
 import Data.Tuple.Nested (type (/\))
 import Effect.Class (liftEffect)
@@ -138,12 +141,23 @@ import QueryM
       , ClientOtherError
       )
   ) as ExportQueryM
-import QueryM (calculateMinFee, signTransaction, submitTxOgmios) as QueryM
+import QueryM
+  ( awaitTxConfirmed
+  , awaitTxConfirmedWithTimeout
+  , calculateMinFee
+  , signTransaction
+  , submitTxOgmios
+  ) as QueryM
 import ReindexRedeemers (ReindexErrors(CannotGetTxOutRefIndexForRedeemer)) as ReindexRedeemersExport
 import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (NetworkId)
 import TxOutput (scriptOutputToTransactionOutput) as TxOutput
+import Types.Scripts
+  ( Language(PlutusV1, PlutusV2)
+  , plutusV1Script
+  , plutusV2Script
+  ) as Scripts
 import Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   , outputDatumDataHash
@@ -459,3 +473,22 @@ scriptOutputToTransactionOutput
 scriptOutputToTransactionOutput networkId =
   toPlutusTxOutput
     <<< TxOutput.scriptOutputToTransactionOutput networkId
+
+-- | Wait until a transaction with given hash is confirmed.
+-- | Use `awaitTxConfirmedWithTimeout` if you want to limit the time of waiting.
+awaitTxConfirmed
+  :: forall (r :: Row Type)
+   . TransactionHash
+  -> Contract r Unit
+awaitTxConfirmed = wrapContract <<< QueryM.awaitTxConfirmed <<< unwrap
+
+-- | Same as `awaitTxConfirmed`, but allows to specify a timeout for waiting.
+-- | Throws an exception on timeout.
+awaitTxConfirmedWithTimeout
+  :: forall (r :: Row Type)
+   . Seconds
+  -> TransactionHash
+  -> Contract r Unit
+awaitTxConfirmedWithTimeout timeout = wrapContract
+  <<< QueryM.awaitTxConfirmedWithTimeout timeout
+  <<< unwrap

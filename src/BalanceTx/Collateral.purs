@@ -16,7 +16,7 @@ import BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Cardano.Types.Transaction
   ( Transaction
   , TransactionOutput
-  , Utxo
+  , Utxos
   , _body
   , _collateral
   , _collateralReturn
@@ -37,7 +37,7 @@ import Data.Lens.Setter ((?~))
 import Data.List (List(Nil, Cons))
 import Data.List as List
 import Data.Map (toUnfoldable) as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
+import Data.Maybe (Maybe(Nothing), fromMaybe)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Ord.Max (Max(Max))
 import Data.Show.Generic (genericShow)
@@ -201,7 +201,7 @@ mkCollateralCandidate (unspentOutputs /\ returnOutMinAdaValue) =
 -- |   utxo min ada value, we prefer the one with fewer inputs.
 -- |
 selectCollateral
-  :: Int -> Utxo -> QueryM (Maybe (List TransactionUnspentOutput))
+  :: Int -> Utxos -> QueryM (Maybe (List TransactionUnspentOutput))
 selectCollateral maxCollateralInputs =
   -- Sort candidate utxo combinations in ascending order by utxo min ada value
   -- of return output, then select the first utxo combination:

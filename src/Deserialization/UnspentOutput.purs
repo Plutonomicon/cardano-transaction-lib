@@ -33,7 +33,7 @@ import Data.Tuple.Nested (type (/\))
 import Data.UInt as UInt
 import Deserialization.NativeScript (convertNativeScript)
 import Deserialization.PlutusData (convertPlutusData)
-import Deserialization.WitnessSet (plutusScriptBytes)
+import Deserialization.WitnessSet (convertPlutusScript)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization (toBytes)
 import Serialization.Address (Address)
@@ -59,7 +59,6 @@ import Types.ByteArray (ByteArray)
 import Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
-import Types.Scripts (PlutusScript(PlutusScript)) as T
 import Types.TokenName (TokenName, assetNameName, mkTokenName) as T
 import Types.Transaction
   ( DataHash(DataHash)
@@ -106,7 +105,7 @@ convertOutput output = do
 convertScriptRef :: ScriptRef -> Maybe T.ScriptRef
 convertScriptRef = withScriptRef
   (convertNativeScript >>> map T.NativeScriptRef)
-  (plutusScriptBytes >>> T.PlutusScript >>> T.PlutusScriptRef >>> pure)
+  (convertPlutusScript >>> map T.PlutusScriptRef)
 
 convertValue :: Value -> Maybe T.Value
 convertValue value = do

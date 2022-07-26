@@ -64,7 +64,7 @@ import Cardano.Types.Transaction
   , Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
-  , Utxo
+  , Utxos
   , _body
   , _fee
   , _inputs
@@ -107,14 +107,14 @@ import Data.Lens.Index (ix) as Lens
 import Data.Lens.Setter ((.~), set, (?~), (%~))
 import Data.List ((:), List(Nil), partition)
 import Data.Log.Tag (tag)
-import Data.Map (fromFoldable, lookup, toUnfoldable, union) as Map
+import Data.Map (fromFoldable, lookup, toUnfoldable, union, filterKeys) as Map
 import Data.Maybe (fromMaybe, maybe, isJust, Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
 import Data.Traversable (sequence, traverse, traverse_)
-import Data.Tuple (Tuple(Tuple), fst)
+import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import QueryM (ClientError, QueryM)
@@ -352,18 +352,20 @@ evalExUnitsAndMinFee =
 -- | for use after reindexing.
 finalizeTransaction
   :: UnattachedUnbalancedTx -> QueryM FinalizedTransaction
-finalizeTransaction reindexedUnattachedTxWithExUnits =
+finalizeTransaction reindexedUnattachedTxWithExUnits = do
   let
     attachedTxWithExUnits =
       reattachDatumsAndRedeemers reindexedUnattachedTxWithExUnits
     ws = attachedTxWithExUnits ^. _witnessSet # unwrap
     redeemers = fromMaybe mempty ws.redeemers
     datums = wrap <$> fromMaybe mempty ws.plutusData
-  in
-    do
-      costModels <- asks _.pparams <#> unwrap >>> _.costModels
-      liftEffect $ FinalizedTransaction <$>
-        setScriptDataHash costModels redeemers datums attachedTxWithExUnits
+    scripts = fromMaybe mempty ws.plutusScripts
+    languages = Foldable.foldMap (unwrap >>> snd >>> Set.singleton) scripts
+  costModels <- asks _.pparams <#> unwrap >>> _.costModels >>> unwrap
+    >>> Map.filterKeys (flip Set.member languages)
+    >>> wrap
+  liftEffect $ FinalizedTransaction <$>
+    setScriptDataHash costModels redeemers datums attachedTxWithExUnits
 
 reindexRedeemers
   :: UnattachedUnbalancedTx
@@ -447,7 +449,7 @@ _redeemersTxIns = lens' \(UnattachedUnbalancedTx rec@{ redeemersTxIns }) ->
 
 setCollateral
   :: Transaction
-  -> Utxo
+  -> Utxos
   -> Address
   -> QueryM (Either BalanceTxError Transaction)
 setCollateral transaction utxos ownAddr = runExceptT do
@@ -465,12 +467,11 @@ setCollateral transaction utxos ownAddr = runExceptT do
 
 selectCollateral
   :: Maybe Wallet
-  -> Utxo
+  -> Utxos
   -> QueryM (Either BalanceTxError (Maybe (Array TransactionUnspentOutput)))
 selectCollateral (Just w) _ | isJust (cip30Wallet w) =
-  QueryM.getWalletCollateral <#>
-    map (Just <<< Array.singleton)
-      <<< note (GetWalletCollateralError' CouldNotGetCollateral)
+  map Just <$> QueryM.getWalletCollateral <#>
+    note (GetWalletCollateralError' CouldNotGetCollateral)
 selectCollateral (Just (KeyWallet _)) utxos = do
   -- TODO: Combine with getWalletCollateral and supply with fee estimate
   -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/510
@@ -517,7 +518,7 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
     let
       -- Combines utxos at the user address and those from any scripts
       -- involved with the contract in the unbalanced transaction.
-      allUtxos :: Utxo
+      allUtxos :: Utxos
       allUtxos = utxos `Map.union` utxoIndex
 
     availableUtxos <- lift $ filterLockedUtxos allUtxos
@@ -552,7 +553,7 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   where
   prebalanceCollateral
     :: BigInt
-    -> Utxo
+    -> Utxos
     -> Address
     -> BigInt
     -> Transaction
@@ -563,7 +564,7 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
       <#> flip (set _body) tx
 
   loop
-    :: Utxo
+    :: Utxos
     -> Address
     -> MinUtxos
     -> UnattachedUnbalancedTx
@@ -594,7 +595,7 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
 
   chainedBalancer
     :: MinUtxos
-    -> Utxo
+    -> Utxos
     -> Address
     -> UnattachedUnbalancedTx
     -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
@@ -637,7 +638,7 @@ logTx
    . MonadEffect m
   => MonadLogger m
   => String
-  -> Utxo
+  -> Utxos
   -> Transaction
   -> m Unit
 logTx msg utxos (Transaction { body: body'@(TxBody body) }) =
@@ -653,7 +654,7 @@ logTx msg utxos (Transaction { body: body'@(TxBody body) }) =
 -- namely, after "loop".
 returnAdaChangeAndFinalizeFees
   :: Address
-  -> Utxo
+  -> Utxos
   -> UnattachedUnbalancedTx
   -> QueryM (Either ReturnAdaChangeError UnattachedUnbalancedTx)
 returnAdaChangeAndFinalizeFees changeAddr utxos unattachedTx =
@@ -726,7 +727,7 @@ returnAdaChangeAndFinalizeFees changeAddr utxos unattachedTx =
 
 returnAdaChange
   :: Address
-  -> Utxo
+  -> Utxos
   -> UnattachedUnbalancedTx /\ BigInt
   -> Either ReturnAdaChangeError
        (UnattachedUnbalancedTx /\ { recalculateFees :: Boolean })
@@ -794,7 +795,7 @@ calculateMinUtxos = map sequence <<< traverse
 preBalanceTxBody
   :: MinUtxos
   -> BigInt
-  -> Utxo
+  -> Utxos
   -> Address
   -> BigInt
   -> TxBody
@@ -829,13 +830,13 @@ getPublicKeyTransactionInput (txOutRef /\ txOut) =
 --------------------------------------------------------------------------------
 
 balanceTxIns
-  :: Utxo -> BigInt -> BigInt -> TxBody -> Either BalanceTxError TxBody
+  :: Utxos -> BigInt -> BigInt -> TxBody -> Either BalanceTxError TxBody
 balanceTxIns utxos fees changeUtxoMinValue txbody =
   balanceTxIns' utxos fees changeUtxoMinValue txbody
     # lmap BalanceTxInsError'
 
 balanceTxIns'
-  :: Utxo -> BigInt -> BigInt -> TxBody -> Either BalanceTxInsError TxBody
+  :: Utxos -> BigInt -> BigInt -> TxBody -> Either BalanceTxInsError TxBody
 balanceTxIns' utxos fees changeUtxoMinValue (TxBody txBody) = do
   let
     txOutputs :: Array TransactionOutput
@@ -866,7 +867,7 @@ balanceTxIns' utxos fees changeUtxoMinValue (TxBody txBody) = do
 -- | Getting the necessary input utxos to cover the fees for the transaction
 collectTxIns
   :: Set TransactionInput
-  -> Utxo
+  -> Utxos
   -> Value
   -> Either BalanceTxInsError (Set TransactionInput)
 collectTxIns originalTxIns utxos value = do
@@ -902,18 +903,18 @@ collectTxIns originalTxIns utxos value = do
     not (Array.null txIns') && txInsValue `geq` value
 
   getTxInsValue
-    :: Utxo -> Array TransactionInput -> Either BalanceTxInsError Value
+    :: Utxos -> Array TransactionInput -> Either BalanceTxInsError Value
   getTxInsValue utxos' =
     map (Array.foldMap getAmount) <<<
       traverse (\x -> note (UtxoLookupFailedFor x) $ Map.lookup x utxos')
 
-  utxosToTransactionInput :: Utxo -> Array TransactionInput
+  utxosToTransactionInput :: Utxos -> Array TransactionInput
   utxosToTransactionInput =
     Array.mapMaybe (hush <<< getPublicKeyTransactionInput) <<< Map.toUnfoldable
 
 balanceNonAdaOuts
   :: Address
-  -> Utxo
+  -> Utxos
   -> TxBody
   -> Either BalanceTxError TxBody
 balanceNonAdaOuts changeAddr utxos txBody =
@@ -923,7 +924,7 @@ balanceNonAdaOuts changeAddr utxos txBody =
 -- | excess Ada to the owner.
 balanceNonAdaOuts'
   :: Address
-  -> Utxo
+  -> Utxos
   -> TxBody
   -> Either BalanceNonAdaOutsError TxBody
 balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
@@ -1022,7 +1023,7 @@ addLovelaces minLovelaces (TxBody txBody) =
   in
     wrap txBody { outputs = lovelacesAdded }
 
-getInputValue :: Utxo -> TxBody -> Value
+getInputValue :: Utxos -> TxBody -> Value
 getInputValue utxos (TxBody txBody) =
   Array.foldMap
     getAmount
