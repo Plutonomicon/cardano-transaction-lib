@@ -6,6 +6,7 @@ module BalanceTx.Collateral
   , addTxCollateral
   , addTxCollateralReturn
   , getMaxCollateralInputs
+  , minRequiredCollateral
   , selectCollateral
   ) where
 

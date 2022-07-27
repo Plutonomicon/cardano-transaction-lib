@@ -5,6 +5,7 @@ import Prelude
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Test.AffInterface as AffInterface
+import Test.BalanceTx.Collateral as Collateral
 import Test.Utils as Utils
 import Test.PrivateKey as PrivateKey
 import TestM (TestPlanM)
@@ -18,4 +19,5 @@ main = launchAff_ do
 testPlan :: TestPlanM Unit
 testPlan = do
   AffInterface.suite
+  Collateral.suite
   PrivateKey.suite
