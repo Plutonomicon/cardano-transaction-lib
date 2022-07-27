@@ -18,18 +18,7 @@ module QueryM.DatumCacheWsp
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , class EncodeAeson
-  , Aeson
-  , JsonDecodeError(TypeMismatch)
-  , caseAesonArray
-  , caseAesonObject
-  , decodeAeson
-  , getNestedAeson
-  , stringifyAeson
-  , (.:)
-  )
+import Aeson (class DecodeAeson, class EncodeAeson, Aeson, JsonDecodeError(TypeMismatch), caseAesonArray, caseAesonObject, decodeAeson, getNestedAeson, stringifyAeson, (.:))
 import Control.Alt ((<|>))
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
@@ -113,10 +102,12 @@ instance DecodeAeson GetDatumsByHashesR where
       decodeDatum = caseAesonObject (Left $ TypeMismatch "expected object")
         $ \o -> (/\) <$> map wrap (o .: "hash") <*>
             (decodeAeson =<< o .: "value")
+
     in
-      map GetDatumsByHashesR <<< decodeDatumArray =<< getNestedAeson
+      (map GetDatumsByHashesR <<< decodeDatumArray =<< getNestedAeson
         r
-        [ "DatumsFound", "value" ]
+        [ "DatumsFound", "value" ]) <|> 
+        (getNestedAeson r [ "DatumsNotFound"]  $> GetDatumsByHashesR Map.empty)
 
 -- TODO
 -- This should be changed to `GetTxByHashR Transaction` once we support `getTxById`
