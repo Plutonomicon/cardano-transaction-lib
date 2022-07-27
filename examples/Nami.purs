@@ -14,6 +14,7 @@ import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Config (testnetNamiConfig)
 import Contract.Monad (launchAff_, runContract)
 import Contract.Utxos (getWalletBalance)
+import Contract.Test.E2E (publishTestFeedback)
 
 main :: Effect Unit
 main = launchAff_ do
@@ -21,3 +22,4 @@ main = launchAff_ do
     log <<< show =<< getWalletAddress
     log <<< show =<< getWalletCollateral
     log <<< show =<< getWalletBalance
+  publishTestFeedback true

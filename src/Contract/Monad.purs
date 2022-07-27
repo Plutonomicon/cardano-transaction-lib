@@ -167,12 +167,25 @@ wrapContract :: forall (r :: Row Type) (a :: Type). QueryM a -> Contract r a
 wrapContract = wrap <<< QueryM.liftQueryM
 
 -- | Same as `ask`, but points to the user config record.
-askConfig :: forall (r :: Row Type). Contract r { | r }
+askConfig
+  :: forall (r :: Row Type)
+   . Warn
+       ( Text
+           "User-defined configs are deprecated - https://github.com/Plutonomicon/cardano-transaction-lib/issues/734"
+       )
+  => Contract r { | r }
 askConfig = do
   asks $ unwrap >>> _.extraConfig
 
 -- | Same as `asks`, but allows to apply a function to the user config record.
-asksConfig :: forall (r :: Row Type) (a :: Type). ({ | r } -> a) -> Contract r a
+asksConfig
+  :: forall (r :: Row Type) (a :: Type)
+   . Warn
+       ( Text
+           "User-defined configs are deprecated - https://github.com/Plutonomicon/cardano-transaction-lib/issues/734"
+       )
+  => ({ | r } -> a)
+  -> Contract r a
 asksConfig f = do
   asks $ unwrap >>> _.extraConfig >>> f
 
@@ -222,6 +235,9 @@ runContractInEnv config =
     <<< unwrap
     <<< unwrap
 
+-- | Initializes a `Contract` environment. Does not ensure finalization.
+-- | Consider using `withContractEnv` if possible - otherwise use
+-- | `stopContractEnv` to properly finalize.
 mkContractEnv
   :: forall (r :: Row Type) (a :: Type)
    . Warn
@@ -257,6 +273,7 @@ mkContractEnv
       { runtime, config, extraConfig: params.extraConfig }
   pure contractEnv
 
+-- | Finalizes a `Contract` environment.
 stopContractEnv
   :: forall (r :: Row Type)
    . Warn
@@ -269,7 +286,8 @@ stopContractEnv env = stopQueryRuntime (unwrap env).runtime
 
 -- | Constructs and finalizes a contract environment that is usable inside a
 -- | bracket callback.
--- | One environment can be used by multiple `Contract`s in parallel.
+-- | One environment can be used by multiple `Contract`s in parallel (see
+-- | `runContractInEnv`).
 -- | Make sure that `Aff` action does not end before all contracts that use the
 -- | runtime terminate. Otherwise `WebSocket`s will be closed too early.
 withContractEnv

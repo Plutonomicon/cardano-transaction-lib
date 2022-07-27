@@ -26,7 +26,6 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Helpers as Helpers
-import Prim.TypeError (class Warn, Text)
 import QueryM (QueryM, getWalletAddress, getWalletCollateral, mkOgmiosRequest)
 import QueryM.Ogmios as Ogmios
 import Serialization.Address (Address)
@@ -43,11 +42,7 @@ import Wallet (Wallet(Gero, Nami, KeyWallet))
 -- | Gets utxos at an (internal) `Address` in terms of (internal) `Cardano.Transaction.Types`.
 -- | Results may vary depending on `Wallet` type.
 utxosAt
-  :: Warn
-       ( Text
-           "`utxosAt`: Querying for UTxOs by address is deprecated. See https://github.com/Plutonomicon/cardano-transaction-lib/issues/536."
-       )
-  => Address
+  :: Address
   -> QueryM (Maybe UtxoM)
 utxosAt = mkUtxoQuery
   <<< mkOgmiosRequest Ogmios.queryUtxosAtCall _.utxo
