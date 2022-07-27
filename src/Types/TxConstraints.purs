@@ -12,6 +12,7 @@ module Types.TxConstraints
       , MustMintValue
       , MustPayToPubKeyAddress
       , MustPayToScript
+      , MustPayToNativeScript
       , MustHashDatum
       , MustSatisfyAnyOf
       )
@@ -27,6 +28,7 @@ module Types.TxConstraints
   , mustMintValue
   , mustMintValueWithRedeemer
   , mustPayToScript
+  , mustPayToNativeScript
   , mustPayToPubKey
   , mustPayToPubKeyAddress
   , mustPayWithDatumToPubKey
@@ -60,6 +62,7 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, over, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested ((/\), type (/\))
+import NativeScripts (NativeScriptHash)
 import Plutus.Types.CurrencySymbol (CurrencySymbol, currencyMPSHash)
 import Plutus.Types.Value (Value, isZero, flattenNonAdaAssets)
 import Prim.TypeError (class Warn, Text)
@@ -91,6 +94,7 @@ data TxConstraint
       (Maybe Datum)
       Value
   | MustPayToScript ValidatorHash Datum Value
+  | MustPayToNativeScript NativeScriptHash Value
   | MustHashDatum DataHash Datum
   | MustSatisfyAnyOf (Array (Array TxConstraint))
 
@@ -245,6 +249,14 @@ mustPayToScript
 mustPayToScript vh dt vl =
   singleton (MustPayToScript vh dt vl)
     <> singleton (MustIncludeDatum dt)
+
+mustPayToNativeScript
+  :: forall (i :: Type) (o :: Type)
+   . NativeScriptHash
+  -> Value
+  -> TxConstraints i o
+mustPayToNativeScript vh vl =
+  singleton (MustPayToNativeScript vh vl)
 
 -- | Mint the given `Value`
 mustMintValue :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
@@ -409,6 +421,7 @@ modifiesUtxoSet (TxConstraints { constraints, ownInputs, ownOutputs }) =
       MustMintValue _ _ _ _ -> true
       MustPayToPubKeyAddress _ _ _ vl -> not (isZero vl)
       MustPayToScript _ _ vl -> not (isZero vl)
+      MustPayToNativeScript _ vl -> not (isZero vl)
       MustSatisfyAnyOf xs -> any requiresInputOutput $ concat xs
       _ -> false
   in

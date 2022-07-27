@@ -1,5 +1,5 @@
 module Contract.Hashing
-  ( module ExportHashing
+  ( module X
   ) where
 
 import Hashing
@@ -11,4 +11,5 @@ import Hashing
   , sha256HashHex
   , sha3_256Hash
   , sha3_256HashHex
-  ) as ExportHashing
+  ) as X
+import NativeScripts (nativeScriptHash) as X

@@ -6,7 +6,12 @@ module Test.Plutip
 
 import Prelude
 
-import Contract.Address (ownPaymentPubKeyHash)
+import Contract.Address
+  ( PaymentPubKeyHash(PaymentPubKeyHash)
+  , PubKeyHash(PubKeyHash)
+  , ownPaymentPubKeyHash
+  )
+import Contract.Hashing (nativeScriptHash)
 import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
@@ -29,12 +34,14 @@ import Contract.Test.Plutip (InitialUTxO, runPlutipContract)
 import Contract.Transaction
   ( BalancedSignedTransaction
   , DataHash
+  , NativeScript(ScriptAll, ScriptPubkey)
   , awaitTxConfirmed
   , balanceAndSignTx
   , balanceAndSignTxE
   , submit
   , withBalancedAndSignedTxs
   )
+import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
@@ -62,7 +69,7 @@ import Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
-import Mote (group, test)
+import Mote (group, only, test)
 import Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
@@ -74,6 +81,7 @@ import Plutip.Types
   , StartClusterResponse(ClusterStartupSuccess)
   , StopClusterResponse(StopClusterSuccess)
   )
+import Safe.Coerce (coerce)
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Utils as Utils
 import TestM (TestPlanM)
@@ -119,7 +127,7 @@ config =
 
 suite :: TestPlanM Unit
 suite = do
-  group "Plutip" do
+  only $ group "Plutip" do
     test "startPlutipCluster / stopPlutipCluster" do
       withResource (startPlutipServer config) stopChildProcess $ const do
         startRes <- startPlutipCluster config unit
@@ -146,6 +154,53 @@ suite = do
           pure unit -- sign, balance, submit, etc.
         withKeyWallet bob do
           pure unit -- sign, balance, submit, etc.
+
+    only $ test "NativeScript" do
+      let
+        distribution :: InitialUTxO /\ InitialUTxO /\ InitialUTxO
+        distribution =
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+            /\
+              [ BigInt.fromInt 2_000_000_000
+              , BigInt.fromInt 2_000_000_000
+              ]
+            /\
+              [ BigInt.fromInt 2_000_000_000
+              , BigInt.fromInt 2_000_000_000
+              ]
+      runPlutipContract config distribution \(alice /\ bob /\ charlie) -> do
+        alicePaymentPKH <- liftedM "Unable to get Alice's PKH" $
+          coerce <$> withKeyWallet alice ownPaymentPubKeyHash
+        bobPaymentPKH <- liftedM "Unable to get Bob's PKH" $
+          coerce <$> withKeyWallet bob ownPaymentPubKeyHash
+        charliePaymentPKH <- liftedM "Unable to get Charlie's PKH" $
+          coerce <$> withKeyWallet charlie ownPaymentPubKeyHash
+        let
+          nativeScript = ScriptAll
+            [ ScriptPubkey alicePaymentPKH
+            , ScriptPubkey bobPaymentPKH
+            , ScriptPubkey charliePaymentPKH
+            ]
+        nativeScriptHash <- liftContractM "Unable to hash NativeScript" $
+          nativeScriptHash nativeScript
+        let
+          constraints :: TxConstraints Unit Unit
+          constraints = Constraints.mustPayToNativeScript nativeScriptHash
+            $ Value.lovelaceValueOf
+            $ BigInt.fromInt 10_000_000
+
+          lookups :: Lookups.ScriptLookups PlutusData
+          lookups = mempty
+
+        withKeyWallet alice do
+          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+          bsTx <-
+            liftedE $ balanceAndSignTxE ubTx
+          txId <- submit bsTx
+          awaitTxConfirmed txId
+
     test "runPlutipContract: Pkh2Pkh" do
       let
         distribution :: InitialUTxO

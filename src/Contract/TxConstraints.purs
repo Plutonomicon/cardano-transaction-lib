@@ -30,6 +30,7 @@ import Types.TxConstraints
   , mustMintCurrencyWithRedeemer
   , mustMintValue
   , mustMintValueWithRedeemer
+  , mustPayToNativeScript
   , mustPayToScript
   , mustPayToPubKey
   , mustPayToPubKeyAddress
