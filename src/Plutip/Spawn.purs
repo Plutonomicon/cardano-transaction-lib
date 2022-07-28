@@ -9,6 +9,7 @@ module Plutip.Spawn
 import Prelude
 
 import Data.Either (Either(Left))
+import Data.Foldable (fold)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Posix.Signal (Signal(SIGINT))
 import Effect (Effect)
@@ -53,8 +54,11 @@ spawnAndWaitForOutput'
   -> Effect Canceler
 spawnAndWaitForOutput' cmd args opts filter cont = do
   child <- spawn cmd args opts
-  onExit child $ const $ cont $ Left $ error $ "Process " <> cmd <> " exited"
   ref <- Ref.new (Just "")
+  onExit child $ const do
+    output <- Ref.read ref
+    cont $ Left $ error $
+      "Process " <> cmd <> " exited. Output:\n" <> fold output
   onDataString (stdout child) Encoding.UTF8
     \str -> do
       output <- Ref.modify (map (_ <> str)) ref

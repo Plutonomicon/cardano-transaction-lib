@@ -75,6 +75,7 @@ import Plutip.Types
   , StopClusterResponse(StopClusterSuccess)
   )
 import Test.Spec.Assertions (shouldSatisfy)
+import Test.Spec.Runner (defaultConfig)
 import Test.Utils as Utils
 import TestM (TestPlanM)
 import Types.UsedTxOuts (TxOutRefCache)
@@ -82,7 +83,11 @@ import Types.UsedTxOuts (TxOutRefCache)
 -- Run with `spago test --main Test.Plutip`
 main :: Effect Unit
 main = launchAff_ do
-  Utils.interpretWithTimeout (Just $ wrap 30_000.0) suite
+  Utils.interpretWithConfig
+    -- we don't want to exit because we need to clean up after failure by
+    -- timeout
+    defaultConfig { timeout = Just $ wrap 30_000.0, exit = false }
+    suite
 
 config :: PlutipConfig
 config =
