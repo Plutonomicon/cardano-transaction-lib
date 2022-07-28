@@ -113,6 +113,7 @@ import Contract.Address (getWalletAddress)
 import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
 import Control.Monad.Error.Class (try, catchError, throwError)
 import Control.Monad.Reader (asks, runReaderT, ReaderT)
+import Data.Argonaut.Core (Json,stringify)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
@@ -144,6 +145,7 @@ import QueryM
   , signTransaction
   , submitTxOgmios
   ) as QueryM
+import QueryM.Ogmios(SubmitTxR(SubmitTxR,SubmitFail))
 import QueryM.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
@@ -230,11 +232,22 @@ submit
   :: forall (r :: Row Type)
    . BalancedSignedTransaction
   -> Contract r TransactionHash
-submit tx = wrapContract <<< map (wrap <<< unwrap) <<< QueryM.submitTxOgmios =<<
+submit tx = do
+  result <- wrapContract <<< QueryM.submitTxOgmios =<<
+    liftEffect
+      ( wrap <<< Serialization.toBytes <<< asOneOf <$>
+          Serialization.convertTransaction (unwrap tx)
+      )
+  case result of
+    SubmitTxR th -> pure $ wrap th
+    SubmitFail json -> liftEffect $ throw $ "Submit failed with: " <> show (stringify <$> json)
+{-
+  wrapContract <<< map (wrap <<< unwrap) <<< QueryM.submitTxOgmios =<<
   liftEffect
     ( wrap <<< Serialization.toBytes <<< asOneOf <$>
         Serialization.convertTransaction (unwrap tx)
     )
+    -}
 
 -- | Query the Haskell server for the minimum transaction fee
 calculateMinFee

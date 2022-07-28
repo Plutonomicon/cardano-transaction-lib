@@ -23,7 +23,7 @@ module QueryM.Ogmios
   , RelativeTime(RelativeTime)
   , SafeZone(SafeZone)
   , SlotLength(SlotLength)
-  , SubmitTxR(SubmitTxR)
+  , SubmitTxR(SubmitTxR,SubmitFail)
   , SystemStart(SystemStart)
   , TxEvaluationR(TxEvaluationR)
   , TxHash
@@ -78,6 +78,7 @@ import Cardano.Types.Value
   )
 import Control.Alt ((<|>))
 import Data.Array (index, singleton)
+import Data.Argonaut.Core (Json,stringify)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, hush, note)
@@ -227,20 +228,25 @@ mkOgmiosCallType = mkCallType
 
 ---------------- TX SUBMISSION QUERY RESPONSE & PARSING
 
-newtype SubmitTxR = SubmitTxR TxHash
+data SubmitTxR
+  = SubmitTxR TxHash
+  | SubmitFail (Object Json)
 
 derive instance Generic SubmitTxR _
-derive instance Newtype SubmitTxR _
 
 instance Show SubmitTxR where
-  show = genericShow
+  show (SubmitTxR txh) = "SubmitTxR" <> show txh
+  show (SubmitFail obj) = "SubmitFail " <> show (stringify <$> obj)
 
 type TxHash = ByteArray
 
 instance DecodeAeson SubmitTxR where
   decodeAeson = aesonObject $
-    \o -> getField o "SubmitSuccess" >>= flip getField "txId" >>= hexToByteArray
-      >>> maybe (Left (TypeMismatch "Expected hexstring")) (pure <<< wrap)
+    \o ->
+      (getField o "SubmitSuccess" >>= flip getField "txId" >>= hexToByteArray
+      >>> maybe (Left (TypeMismatch "Expected hexstring")) (pure <<< SubmitTxR)
+      ) <|> (getField o "SubmitFail")
+
 
 ---------------- SYSTEM START QUERY RESPONSE & PARSING
 newtype SystemStart = SystemStart String
