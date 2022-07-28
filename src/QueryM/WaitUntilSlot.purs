@@ -1,5 +1,8 @@
 module QueryM.WaitUntilSlot
   ( waitUntilSlot
+  , waitNSlots
+  , currentSlot
+  , currentTime
   ) where
 
 import Prelude
