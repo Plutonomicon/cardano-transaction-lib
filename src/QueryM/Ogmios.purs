@@ -231,13 +231,13 @@ mkOgmiosCallType = mkCallType
 
 data SubmitTxR
   = SubmitTxR TxHash
-  | SubmitFail (List Json)
+  | SubmitFail (List (Object Json))
 
 derive instance Generic SubmitTxR _
 
 instance Show SubmitTxR where
   show (SubmitTxR txh) = "SubmitTxR" <> show txh
-  show (SubmitFail obj) = "SubmitFail " <> show (stringify <$> obj)
+  show (SubmitFail obj) = "SubmitFail " <> show (map stringify <$> obj)
 
 type TxHash = ByteArray
 
