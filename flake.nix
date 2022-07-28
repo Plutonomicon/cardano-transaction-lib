@@ -399,7 +399,6 @@
                 (baseNameOf path) [ "server" "doc" ]
               );
           };
-          withChromium = false;
           ogmiosFixtures = buildOgmiosFixtures pkgs;
           project = pkgs.purescriptProject {
             inherit src pkgs projectName;
@@ -417,8 +416,6 @@
                 haskellPackages.fourmolu
                 nodePackages.prettier
                 nodePackages.eslint
-                unzip
-                (pkgs.lib.optionalString withChromium chromium)
               ];
             };
           };

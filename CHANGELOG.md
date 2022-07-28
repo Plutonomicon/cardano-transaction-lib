@@ -39,7 +39,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contract.Wallet.isNamiAvailable` and `Contract.Wallet.isGeroAvailable` functions ([#558](https://github.com/Plutonomicon/cardano-transaction-lib/issues/558)])
 - `Contract.Transaction.balanceTxWithOwnAddress` and `Contract.Transaction.balanceTxsWithOwnAddress` to override an `Address` used in `balanceTx` internally ([#775](https://github.com/Plutonomicon/cardano-transaction-lib/pull/775))
 - `Contract.Transaction.awaitTxConfirmedWithTimeoutSlots` waits a specified number of slots for a transaction to succeed. ([#790](https://github.com/Plutonomicon/cardano-transaction-lib/pull/790))
-- Added unzip and Chromium (optional) to Nix overlay. ([#799](https://github.com/Plutonomicon/cardano-transaction-lib/pull/799))
+- Added unzip dev shell. New Flag `withChromium` also adds Chromium to devShell ([#799](https://github.com/Plutonomicon/cardano-transaction-lib/pull/799))
 
 ### Changed
 
