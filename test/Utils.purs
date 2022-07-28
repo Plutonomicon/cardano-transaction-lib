@@ -31,7 +31,7 @@ import Data.Either (Either(Right), either)
 import Data.Foldable (sequence_)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (wrap, unwrap)
-import Data.Time.Duration (class Duration, Milliseconds, Seconds(Seconds))
+import Data.Time.Duration (class Duration, Milliseconds, Seconds)
 import Data.Time.Duration (fromDuration, toDuration) as Duration
 import Data.Time.Duration (Seconds(Seconds)) as ExportSeconds
 import Effect.Aff (Aff, error)

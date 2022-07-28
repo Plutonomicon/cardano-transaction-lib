@@ -45,10 +45,18 @@ suite = do
           collateral `shouldEqual`
             Just (List.singleton $ txUnspentOut zero adaOnlyTxOutputSuf)
 
+      test "Prefers an input with the lowest min ada for collateral output" do
+        withMaxCollateralInputs \maxCollateralInputs -> do
+          collateral <-
+            TestUtils.measure $
+              selectCollateral maxCollateralInputs utxosFixture2
+          collateral `shouldEqual`
+            Just (List.singleton $ txUnspentOut zero singleAssetTxOutputSuf)
+
       test "Selects a collateral in less than 2 seconds" do
         withMaxCollateralInputs \maxColalteralInputs ->
-          TestUtils.measureWithTimeout (Seconds 2.0) $
-            (void $ selectCollateral maxColalteralInputs utxosFixture2)
+          TestUtils.measureWithTimeout (Seconds 2.0)
+            (void $ selectCollateral maxColalteralInputs utxosFixture3)
 
 withMaxCollateralInputs :: (Int -> QueryM Unit) -> Aff Unit
 withMaxCollateralInputs test =
@@ -73,6 +81,14 @@ singleAssetTxOutputSuf =
     $ Value (Coin $ minRequiredCollateral + one)
     $ Value.mkSingletonNonAdaAsset currencySymbol1 tokenName1 one
 
+-- | Multi-asset tx output sufficient to cover `minRequiredCollateral`.
+multiAssetTxOutputSuf :: TransactionOutput
+multiAssetTxOutputSuf =
+  fakeOutputWithValue
+    $ Value (Coin $ minRequiredCollateral + one)
+    $ Value.mkSingletonNonAdaAsset currencySymbol1 tokenName1 one
+        <> Value.mkSingletonNonAdaAsset currencySymbol1 tokenName2 one
+
 utxosFixture1 :: Utxos
 utxosFixture1 =
   mkUtxosFixture
@@ -80,6 +96,11 @@ utxosFixture1 =
 
 utxosFixture2 :: Utxos
 utxosFixture2 =
+  mkUtxosFixture
+    [ singleAssetTxOutputSuf, multiAssetTxOutputSuf ]
+
+utxosFixture3 :: Utxos
+utxosFixture3 =
   mkUtxosFixture $
     Array.replicate (maxCandidateUtxos * 100) adaOnlyTxOutputInsuf
 
