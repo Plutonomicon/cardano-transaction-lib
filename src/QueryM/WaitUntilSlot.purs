@@ -36,7 +36,8 @@ import Types.Interval
   , getSlotLength
   , slotToPosixTime
   )
-import Types.Natural (Natural, toBigInt)
+import Types.Natural (Natural)
+import Types.Natural as Natural
 
 -- | The returned slot will be no less than the slot provided as argument.
 waitUntilSlot :: Slot -> QueryM Chain.Tip
@@ -146,7 +147,7 @@ posixTimeToSeconds (POSIXTime futureTimeBigInt) = do
 waitNSlots :: Natural -> QueryM Chain.Tip
 waitNSlots offset = do
   offsetBigNum <- liftM (error "Unable to convert BigInt to BigNum")
-    $ (BigNum.fromBigInt <<< toBigInt) offset
+    $ (BigNum.fromBigInt <<< Natural.toBigInt) offset
   if offsetBigNum == BigNum.fromInt 0 then getChainTip
   else do
     slot <- currentSlot
@@ -157,7 +158,7 @@ waitNSlots offset = do
 currentSlot :: QueryM Slot
 currentSlot = getChainTip >>= case _ of
   Chain.Tip (Chain.ChainTip { slot }) -> pure slot
-  Chain.TipAtGenesis -> pure $ Slot $ BigNum.fromInt 0
+  Chain.TipAtGenesis -> (pure <<< Slot <<< BigNum.fromInt) 0
 
 -- | Get the latest POSIXTime of the current slot.
 -- The plutus implementation relies on `slotToEndPOSIXTime`
