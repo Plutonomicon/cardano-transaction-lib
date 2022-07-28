@@ -78,7 +78,6 @@ import Cardano.Types.Value
   )
 import Control.Alt ((<|>))
 import Data.Array (index, singleton)
-import Data.Argonaut.Core (Json,stringify)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, hush, note)
@@ -230,13 +229,14 @@ mkOgmiosCallType = mkCallType
 
 data SubmitTxR
   = SubmitTxR TxHash
-  | SubmitFail Json
+  | SubmitFail Aeson
 
 derive instance Generic SubmitTxR _
 
 instance Show SubmitTxR where
-  show (SubmitTxR txh) = "SubmitTxR" <> show txh
-  show (SubmitFail obj) = "SubmitFail " <> stringify obj
+  show = genericShow
+  --show (SubmitTxR txh) = "SubmitTxR" <> show txh
+  --show (SubmitFail obj) = "SubmitFail " <> stringify obj
 
 type TxHash = ByteArray
 
@@ -245,7 +245,7 @@ instance DecodeAeson SubmitTxR where
     \o ->
       (getField o "SubmitSuccess" >>= flip getField "txId" >>= hexToByteArray
       >>> maybe (Left (TypeMismatch "Expected hexstring")) (pure <<< SubmitTxR)
-      ) <|> (getField o "SubmitFail")
+      ) <|> (SubmitFail <$> getField o "SubmitFail")
 
 
 ---------------- SYSTEM START QUERY RESPONSE & PARSING

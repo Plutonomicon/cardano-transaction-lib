@@ -113,7 +113,6 @@ import Contract.Address (getWalletAddress)
 import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
 import Control.Monad.Error.Class (try, catchError, throwError)
 import Control.Monad.Reader (asks, runReaderT, ReaderT)
-import Data.Argonaut.Core (stringify)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
@@ -240,7 +239,7 @@ submit tx = do
       )
   case result of
     SubmitTxR th -> pure $ wrap th
-    SubmitFail json -> liftEffect $ throw $ "Submit failed with: " <> stringify json
+    SubmitFail json -> liftEffect $ throw $ "Submit failed with: " <> show json
 {-
   wrapContract <<< map (wrap <<< unwrap) <<< QueryM.submitTxOgmios =<<
   liftEffect
