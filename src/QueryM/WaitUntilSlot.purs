@@ -34,7 +34,6 @@ import Types.Interval
   ( POSIXTime(POSIXTime)
   , findSlotEraSummary
   , getSlotLength
-  , slotRangeToPosixTimeRange
   , slotToPosixTime
   )
 import Types.Natural (Natural, toBigInt)
@@ -66,12 +65,12 @@ waitUntilSlot futureSlot =
             fetchRepeatedly :: QueryM Chain.Tip
             fetchRepeatedly =
               getChainTip >>= case _ of
-                currentTip@(Chain.Tip (Chain.ChainTip { slot: currentSlot }))
-                  | currentSlot >= futureSlot -> pure currentTip
+                currentTip@(Chain.Tip (Chain.ChainTip { slot: currentSlot_ }))
+                  | currentSlot_ >= futureSlot -> pure currentTip
                   | otherwise -> do
                       liftAff $ delay $ Milliseconds $ BigInt.toNumber
                         slotLengthMs
-                      getLag eraSummaries sysStart currentSlot >>= logLag
+                      getLag eraSummaries sysStart currentSlot_ >>= logLag
                         slotLengthMs
                       fetchRepeatedly
                 Chain.TipAtGenesis -> do
@@ -145,16 +144,20 @@ posixTimeToSeconds (POSIXTime futureTimeBigInt) = do
 
 -- | Wait at least `offset` number of slots.
 waitNSlots :: Natural -> QueryM Chain.Tip
-waitNSlots offset =
-  getChainTip >>= case _ of
-    tip@(Chain.Tip (Chain.ChainTip { slot }))
-      | offset == 0 -> pure tip
-      | otherwise -> waitUntilSlot $ Slot (unwrap slot + toBigInt offset)
+waitNSlots offset = do
+  offsetBigNum <- liftM (error "Unable to convert BigInt to BigNum")
+    $ (BigNum.fromBigInt <<< toBigInt) offset
+  if offsetBigNum == BigNum.fromInt 0 then getChainTip
+  else do
+    slot <- currentSlot
+    newSlot <- liftM (error "Unable to advance slot")
+      $ wrap <$> BigNum.add (unwrap slot) offsetBigNum
+    waitUntilSlot newSlot
 
-currentSlot :: QueryM Chain.Tip
+currentSlot :: QueryM Slot
 currentSlot = getChainTip >>= case _ of
   Chain.Tip (Chain.ChainTip { slot }) -> pure slot
-  Chain.Tip Chain.TipAtGenesis -> pure $ Slot 0
+  Chain.TipAtGenesis -> pure $ Slot $ BigNum.fromInt 0
 
 -- | Get the latest POSIXTime of the current slot.
 -- The plutus implementation relies on `slotToEndPOSIXTime`
