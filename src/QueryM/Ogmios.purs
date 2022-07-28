@@ -84,7 +84,6 @@ import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, hush, note)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
-import Data.List(List)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
@@ -231,13 +230,13 @@ mkOgmiosCallType = mkCallType
 
 data SubmitTxR
   = SubmitTxR TxHash
-  | SubmitFail (List (Object Json))
+  | SubmitFail Json
 
 derive instance Generic SubmitTxR _
 
 instance Show SubmitTxR where
   show (SubmitTxR txh) = "SubmitTxR" <> show txh
-  show (SubmitFail obj) = "SubmitFail " <> show (map stringify <$> obj)
+  show (SubmitFail obj) = "SubmitFail " <> stringify obj
 
 type TxHash = ByteArray
 

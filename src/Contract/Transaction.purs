@@ -240,7 +240,7 @@ submit tx = do
       )
   case result of
     SubmitTxR th -> pure $ wrap th
-    SubmitFail json -> liftEffect $ throw $ "Submit failed with: " <> show (map stringify <$> json)
+    SubmitFail json -> liftEffect $ throw $ "Submit failed with: " <> stringify json
 {-
   wrapContract <<< map (wrap <<< unwrap) <<< QueryM.submitTxOgmios =<<
   liftEffect
