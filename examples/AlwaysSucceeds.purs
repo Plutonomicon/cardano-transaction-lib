@@ -6,14 +6,14 @@ module Examples.AlwaysSucceeds (main) where
 import Contract.Prelude
 
 import Contract.Address (scriptHashAddress)
+import Contract.Config (testnetNamiConfig)
+import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
   , launchAff_
   , liftContractAffM
   , liftedE
-  , logInfo'
-  , runContract_
-  , traceTestnetContractConfig
+  , runContract
   )
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
@@ -35,11 +35,11 @@ import Contract.Utxos (UtxoM(UtxoM), utxosAt)
 import Contract.Value as Value
 import Data.BigInt as BigInt
 import Data.Map as Map
+import Contract.Test.E2E (publishTestFeedback)
 
 main :: Effect Unit
-main = launchAff_ $ do
-  cfg <- traceTestnetContractConfig
-  runContract_ cfg $ do
+main = launchAff_ do
+  runContract testnetNamiConfig do
     logInfo' "Running Examples.AlwaysSucceeds"
     validator <- alwaysSucceedsScript
     vhash <- liftContractAffM "Couldn't hash validator"
@@ -50,6 +50,7 @@ main = launchAff_ $ do
     awaitTxConfirmed txId
     logInfo' "Tx submitted successfully, Try to spend locked values"
     spendFromAlwaysSucceeds vhash validator txId
+  publishTestFeedback true
 
 payToAlwaysSucceeds :: ValidatorHash -> Contract () TransactionHash
 payToAlwaysSucceeds vhash = do
