@@ -416,6 +416,7 @@
                 haskellPackages.fourmolu
                 nodePackages.prettier
                 nodePackages.eslint
+                unzip
               ];
             };
           };
