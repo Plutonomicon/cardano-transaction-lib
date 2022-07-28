@@ -86,7 +86,7 @@ main = launchAff_ do
   Utils.interpretWithConfig
     -- we don't want to exit because we need to clean up after failure by
     -- timeout
-    defaultConfig { timeout = Just $ wrap 30_000.0, exit = false }
+    defaultConfig { timeout = Just $ wrap 30_000.0, exit = true }
     suite
 
 config :: PlutipConfig
