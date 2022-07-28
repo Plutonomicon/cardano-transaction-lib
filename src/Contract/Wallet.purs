@@ -1,25 +1,29 @@
 -- | A module with Wallet-related functionality.
 module Contract.Wallet
-  ( mkKeyWalletFromPrivateKey
-  , module ContractAddress
-  , module Wallet
+  ( module Contract.Address
   , module Serialization
+  , module Wallet.Spec
+  , module Wallet.Key
+  , module Wallet
+  , mkKeyWalletFromPrivateKeys
   ) where
 
-import Contract.Address (getWalletAddress, getWalletCollateral) as ContractAddress
+import Contract.Address (getWalletAddress, getWalletCollateral)
+import Wallet.Spec
+  ( WalletSpec(UseKeys, ConnectToNami, ConnectToGero)
+  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
+  , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  )
 import Data.Maybe (Maybe)
 import Serialization (privateKeyFromBytes) as Serialization
 import Wallet
-  ( Cip30Connection
-  , Cip30Wallet
-  , Wallet(Gero, Nami)
-  , mkNamiWalletAff
-  , mkGeroWalletAff
+  ( isGeroAvailable
+  , isNamiAvailable
   ) as Wallet
-import Wallet (mkKeyWallet)
+import Wallet (Wallet, mkKeyWallet)
 import Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
 import Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 
-mkKeyWalletFromPrivateKey
-  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet.Wallet
-mkKeyWalletFromPrivateKey = mkKeyWallet
+mkKeyWalletFromPrivateKeys
+  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
+mkKeyWalletFromPrivateKeys = mkKeyWallet

@@ -2,10 +2,14 @@
 -- | functionality, transaction fees, signing and submission.
 module Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
+  , awaitTxConfirmed
+  , awaitTxConfirmedWithTimeout
+  , awaitTxConfirmedWithTimeoutSlots
   , balanceAndSignTx
   , balanceAndSignTxs
   , balanceAndSignTxE
   , balanceTx
+  , balanceTxWithAddress
   , balanceTxM
   , calculateMinFee
   , calculateMinFeeM
@@ -25,6 +29,7 @@ module Contract.Transaction
   , withBalancedTx
   , withBalancedAndSignedTxs
   , withBalancedAndSignedTx
+  , balanceTxsWithAddress
   ) where
 
 import Prelude
@@ -32,7 +37,7 @@ import Prelude
 import Aeson (class EncodeAeson)
 import BalanceTx (BalanceTxError) as BalanceTxError
 import BalanceTx (FinalizedTransaction)
-import BalanceTx (balanceTx) as BalanceTx
+import BalanceTx (balanceTx, balanceTxWithAddress) as BalanceTx
 import Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
@@ -104,20 +109,24 @@ import Cardano.Types.Transaction
   , _witnessSet
   ) as Transaction
 import Cardano.Types.Transaction (Transaction)
+import Contract.Address (getWalletAddress)
 import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
 import Control.Monad.Error.Class (try, catchError, throwError)
 import Control.Monad.Reader (asks, runReaderT, ReaderT)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Either (Either, hush)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
+import Data.Time.Duration (Seconds)
 import Data.Traversable (class Traversable, for_, traverse)
 import Data.Tuple.Nested (type (/\))
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, throw)
 import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
+import Plutus.Conversion.Address (fromPlutusAddress)
+import Plutus.Types.Address (Address)
 import Plutus.Types.Transaction (TransactionOutput(TransactionOutput)) as PTransaction
 import Plutus.Types.Value (Coin)
 import QueryM
@@ -130,7 +139,16 @@ import QueryM
       , ClientOtherError
       )
   ) as ExportQueryM
-import QueryM (calculateMinFee, signTransaction, submitTxOgmios) as QueryM
+import QueryM
+  ( calculateMinFee
+  , signTransaction
+  , submitTxOgmios
+  ) as QueryM
+import QueryM.AwaitTxConfirmed
+  ( awaitTxConfirmed
+  , awaitTxConfirmedWithTimeout
+  , awaitTxConfirmedWithTimeoutSlots
+  ) as AwaitTx
 import ReindexRedeemers (ReindexErrors(CannotGetTxOutRefIndexForRedeemer)) as ReindexRedeemersExport
 import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import Serialization (convertTransaction, toBytes) as Serialization
@@ -237,7 +255,7 @@ withUsedTxouts
   :: forall (r :: Row Type) (a :: Type)
    . ReaderT UsedTxOuts (Contract r) a
   -> Contract r a
-withUsedTxouts f = asks (_.usedTxOuts <<< unwrap) >>= runReaderT f
+withUsedTxouts f = asks (_.usedTxOuts <<< _.runtime <<< unwrap) >>= runReaderT f
 
 -- | Attempts to balance an `UnattachedUnbalancedTx`.
 balanceTx
@@ -245,6 +263,18 @@ balanceTx
    . UnattachedUnbalancedTx
   -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
 balanceTx = wrapContract <<< BalanceTx.balanceTx
+
+-- | Attempts to balance an `UnattachedUnbalancedTx`.
+balanceTxWithAddress
+  :: forall (r :: Row Type)
+   . Address
+  -> UnattachedUnbalancedTx
+  -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
+balanceTxWithAddress addr tx = do
+  networkId <- asks $ unwrap >>> _.config >>> _.networkId
+  wrapContract $ BalanceTx.balanceTxWithAddress
+    (fromPlutusAddress networkId addr)
+    tx
 
 -- Helper to avoid repetition
 withTransactions
@@ -333,16 +363,17 @@ withBalancedAndSignedTx = withSingleTransaction
   (liftedE <<< balanceAndSignTxE)
   unwrap
 
--- | Balances each transaction and locks the used inputs
--- | so that they cannot be reused by subsequent transactions.
-balanceTxs
+-- | Like `balanceTxs`, but uses `balanceTxWithAddress` instead of `balanceTx`
+-- | internally.
+balanceTxsWithAddress
   :: forall
        (t :: Type -> Type)
        (r :: Row Type)
    . Traversable t
-  => t UnattachedUnbalancedTx
+  => Address
+  -> t UnattachedUnbalancedTx
   -> Contract r (t FinalizedTransaction)
-balanceTxs unbalancedTxs =
+balanceTxsWithAddress ownAddress unbalancedTxs =
   unlockAllOnError $ traverse balanceAndLock unbalancedTxs
   where
   unlockAllOnError :: forall (a :: Type). Contract r a -> Contract r a
@@ -356,9 +387,29 @@ balanceTxs unbalancedTxs =
 
   balanceAndLock :: UnattachedUnbalancedTx -> Contract r FinalizedTransaction
   balanceAndLock unbalancedTx = do
-    balancedTx <- liftedE $ balanceTx unbalancedTx
+    networkId <- asks $ unwrap >>> _.config >>> _.networkId
+    balancedTx <- liftedE $ wrapContract $ BalanceTx.balanceTxWithAddress
+      (fromPlutusAddress networkId ownAddress)
+      unbalancedTx
     void $ withUsedTxouts $ lockTransactionInputs (unwrap balancedTx)
     pure balancedTx
+
+-- | Balances each transaction and locks the used inputs
+-- | so that they cannot be reused by subsequent transactions.
+balanceTxs
+  :: forall
+       (t :: Type -> Type)
+       (r :: Row Type)
+   . Traversable t
+  => t UnattachedUnbalancedTx
+  -> Contract r (t FinalizedTransaction)
+balanceTxs unbalancedTxs = do
+  mbOwnAddress <- getWalletAddress
+  case mbOwnAddress of
+    Nothing -> liftEffect $ throw $
+      "Failed to get own Address"
+    Just ownAddress ->
+      balanceTxsWithAddress ownAddress unbalancedTxs
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` hushing the error.
 balanceTxM
@@ -446,3 +497,33 @@ scriptOutputToTransactionOutput
 scriptOutputToTransactionOutput networkId =
   toPlutusTxOutput
     <<< TxOutput.scriptOutputToTransactionOutput networkId
+
+-- | Wait until a transaction with given hash is confirmed.
+-- | Use `awaitTxConfirmedWithTimeout` if you want to limit the time of waiting.
+awaitTxConfirmed
+  :: forall (r :: Row Type)
+   . TransactionHash
+  -> Contract r Unit
+awaitTxConfirmed = wrapContract <<< AwaitTx.awaitTxConfirmed <<< unwrap
+
+-- | Same as `awaitTxConfirmed`, but allows to specify a timeout in seconds for waiting.
+-- | Throws an exception on timeout.
+awaitTxConfirmedWithTimeout
+  :: forall (r :: Row Type)
+   . Seconds
+  -> TransactionHash
+  -> Contract r Unit
+awaitTxConfirmedWithTimeout timeout = wrapContract
+  <<< AwaitTx.awaitTxConfirmedWithTimeout timeout
+  <<< unwrap
+
+-- | Same as `awaitTxConfirmed`, but allows to specify a timeout in slots for waiting.
+-- | Throws an exception on timeout.
+awaitTxConfirmedWithTimeoutSlots
+  :: forall (r :: Row Type)
+   . Int
+  -> TransactionHash
+  -> Contract r Unit
+awaitTxConfirmedWithTimeoutSlots timeout = wrapContract
+  <<< AwaitTx.awaitTxConfirmedWithTimeoutSlots timeout
+  <<< unwrap

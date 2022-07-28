@@ -26,7 +26,8 @@ foreign import minAdaForOutput
 
 utxoMinAdaValue :: TransactionOutput -> QueryM (Maybe BigInt)
 utxoMinAdaValue txOutput = do
-  coinsPerUtxoByte <- asks _.pparams <#> unwrap >>> _.coinsPerUtxoByte
+  coinsPerUtxoByte <- asks (_.runtime >>> _.pparams) <#> unwrap >>>
+    _.coinsPerUtxoByte
   cslTxOutput <- liftEffect $ convertTxOutput txOutput
   pure $ BigNum.fromBigInt (unwrap coinsPerUtxoByte)
     >>= minAdaForOutput maybeFfiHelper cslTxOutput

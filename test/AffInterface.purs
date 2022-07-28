@@ -23,8 +23,8 @@ import QueryM
   , getDatumsByHashes
   , runQueryM
   , submitTxOgmios
-  , traceQueryConfig
   )
+import QueryM.Config (testnetTraceQueryConfig)
 import QueryM.CurrentEpoch (getCurrentEpoch)
 import QueryM.EraSummaries (getEraSummaries)
 import QueryM.Ogmios (EraSummaries, OgmiosAddress, SystemStart)
@@ -95,19 +95,17 @@ suite = do
       testOgmiosDatumCacheGetDatumsByHashes
 
 testOgmiosDatumCacheGetDatumByHash :: Aff Unit
-testOgmiosDatumCacheGetDatumByHash =
-  traceQueryConfig >>= flip runQueryM do
-    -- Use this to trigger block fetching in order to actually get the datum:
-    -- ```
-    -- curl localhost:9999/control/fetch_blocks -X POST -d '{"slot": 54066900, "id": "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d", "datumFilter": {"address": "addr_xyz"}}' -H 'Content-Type: application/json'
-    -- ```
-    _datum <- getDatumByHash $ DataHash $ hexToByteArrayUnsafe
-      "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
-    pure unit
+testOgmiosDatumCacheGetDatumByHash = runQueryM testnetTraceQueryConfig do
+  -- Use this to trigger block fetching in order to actually get the datum:
+  -- ```
+  -- curl localhost:9999/control/fetch_blocks -X POST -d '{"slot": 54066900, "id": "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d", "datumFilter": {"address": "addr_xyz"}}' -H 'Content-Type: application/json'
+  -- ```
+  void $ getDatumByHash $ DataHash $ hexToByteArrayUnsafe
+    "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
 
 testOgmiosDatumCacheGetDatumsByHashes :: Aff Unit
 testOgmiosDatumCacheGetDatumsByHashes =
-  traceQueryConfig >>= flip runQueryM do
+  runQueryM testnetTraceQueryConfig do
     -- Use this to trigger block fetching in order to actually get the datum:
     -- ```
     -- curl localhost:9999/control/fetch_blocks -X POST -d '{"slot": 54066900, "id": "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d", "datumFilter": {"address": "addr_xyz"}}' -H 'Content-Type: application/json'
@@ -119,17 +117,16 @@ testOgmiosDatumCacheGetDatumsByHashes =
 testUtxosAt :: OgmiosAddress -> Aff Unit
 testUtxosAt testAddr = case ogmiosAddressToAddress testAddr of
   Nothing -> liftEffect $ throw "Failed UtxosAt"
-  Just addr -> flip runQueryM (void $ utxosAt addr) =<< traceQueryConfig
+  Just addr -> runQueryM testnetTraceQueryConfig (void $ utxosAt addr)
 
 testGetChainTip :: Aff Unit
 testGetChainTip = do
-  flip runQueryM (void getChainTip) =<< traceQueryConfig
+  runQueryM testnetTraceQueryConfig (void getChainTip)
 
 testWaitUntilSlot :: Aff Unit
 testWaitUntilSlot = do
-  cfg <- traceQueryConfig
-  void $ runQueryM cfg do
-    getChainTip >>= case _ of
+  runQueryM testnetTraceQueryConfig do
+    void $ getChainTip >>= case _ of
       TipAtGenesis -> liftEffect $ throw "Tip is at genesis"
       Tip (ChainTip { slot }) -> do
         waitUntilSlot $ over Slot
@@ -144,29 +141,28 @@ testFromOgmiosAddress testAddr = do
 
 testGetEraSummaries :: Aff Unit
 testGetEraSummaries = do
-  flip runQueryM (void getEraSummaries) =<< traceQueryConfig
+  runQueryM testnetTraceQueryConfig (void getEraSummaries)
 
 testSubmitTxFailure :: Aff Unit
 testSubmitTxFailure = do
-  flip runQueryM (void $ submitTxOgmios (wrap $ hexToByteArrayUnsafe "00")) =<<
-    traceQueryConfig
+  runQueryM testnetTraceQueryConfig
+    (void $ submitTxOgmios (wrap $ hexToByteArrayUnsafe "00"))
 
 testGetProtocolParameters :: Aff Unit
 testGetProtocolParameters = do
-  flip runQueryM (void getProtocolParameters) =<<
-    traceQueryConfig
+  runQueryM testnetTraceQueryConfig (void getProtocolParameters)
 
 testGetCurrentEpoch :: Aff Unit
 testGetCurrentEpoch = do
-  flip runQueryM (void getCurrentEpoch) =<< traceQueryConfig
+  runQueryM testnetTraceQueryConfig (void getCurrentEpoch)
 
 testGetSystemStart :: Aff Unit
 testGetSystemStart = do
-  flip runQueryM (void getSystemStart) =<< traceQueryConfig
+  runQueryM testnetTraceQueryConfig (void getSystemStart)
 
 testPosixTimeToSlot :: Aff Unit
 testPosixTimeToSlot = do
-  traceQueryConfig >>= flip runQueryM do
+  runQueryM testnetTraceQueryConfig do
     eraSummaries <- getEraSummaries
     sysStart <- getSystemStart
     let
@@ -249,7 +245,7 @@ mkPosixTime = POSIXTime <<< unsafePartial fromJust <<< BigInt.fromString
 
 testSlotToPosixTime :: Aff Unit
 testSlotToPosixTime = do
-  traceQueryConfig >>= flip runQueryM do
+  runQueryM testnetTraceQueryConfig do
     eraSummaries <- getEraSummaries
     sysStart <- getSystemStart
     -- See *Testing far into the future note during hardforks:* for details on
@@ -280,7 +276,7 @@ testSlotToPosixTime = do
 
 testPosixTimeToSlotError :: Aff Unit
 testPosixTimeToSlotError = do
-  traceQueryConfig >>= flip runQueryM do
+  runQueryM testnetTraceQueryConfig do
     eraSummaries <- getEraSummaries
     sysStart <- getSystemStart
     let
