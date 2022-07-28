@@ -230,7 +230,7 @@ mkOgmiosCallType = mkCallType
 
 data SubmitTxR
   = SubmitTxR TxHash
-  | SubmitFail (Object Json)
+  | SubmitFail (List Json)
 
 derive instance Generic SubmitTxR _
 
