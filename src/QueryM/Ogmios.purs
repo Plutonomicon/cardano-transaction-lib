@@ -84,6 +84,7 @@ import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, hush, note)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
+import Data.List(List)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
