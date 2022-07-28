@@ -4,6 +4,7 @@ import Prelude
 
 import BalanceTx.Collateral
   ( getMaxCollateralInputs
+  , maxCandidateUtxos
   , minRequiredCollateral
   , selectCollateral
   )
@@ -12,11 +13,11 @@ import Cardano.Types.Transaction (TransactionOutput, Utxos)
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value (Coin(Coin), Value(Value))
 import Cardano.Types.Value (lovelaceValueOf, mkSingletonNonAdaAsset) as Value
+import Data.Array (length, range, replicate, zipWith) as Array
 import Data.BigInt (fromInt) as BigInt
 import Data.List (singleton) as List
-import Data.Map (Map)
 import Data.Map (fromFoldable) as Map
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just))
 import Data.Newtype (wrap, unwrap)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
@@ -27,7 +28,8 @@ import Mote (group, test)
 import QueryM (QueryM, runQueryM, traceQueryConfig)
 import Test.Fixtures (currencySymbol1, tokenName1, tokenName2, txInputFixture1)
 import Test.Spec.Assertions (shouldEqual)
-import Test.Utils (measure) as TestUtils
+import Test.Utils (Seconds(Seconds))
+import Test.Utils (measure, measureWithTimeout) as TestUtils
 import TestM (TestPlanM)
 import Types.Transaction (TransactionHash, TransactionInput)
 
@@ -36,42 +38,55 @@ suite = do
   group "BalanceTx.Collateral" do
     group "selectCollateral" do
       test "Prefers a single Ada-only inp if it covers minRequiredCollateral" do
-        withMaxCollateralInputs $ \maxCollateralInputs -> do
-          collateral <- selectCollateral maxCollateralInputs utxosFixture1
+        withMaxCollateralInputs \maxCollateralInputs -> do
+          collateral <-
+            TestUtils.measure $
+              selectCollateral maxCollateralInputs utxosFixture1
           collateral `shouldEqual`
-            Just (List.singleton $ txUnspentOut zero adaOnlyTxOutputFixtureSuf)
+            Just (List.singleton $ txUnspentOut zero adaOnlyTxOutputSuf)
+
+      test "Selects a collateral in less than 2 seconds" do
+        withMaxCollateralInputs \maxColalteralInputs ->
+          TestUtils.measureWithTimeout (Seconds 2.0) $
+            (void $ selectCollateral maxColalteralInputs utxosFixture2)
 
 withMaxCollateralInputs :: (Int -> QueryM Unit) -> Aff Unit
 withMaxCollateralInputs test =
-  TestUtils.measure $
-    traceQueryConfig >>= flip runQueryM (getMaxCollateralInputs >>= test)
+  traceQueryConfig >>= flip runQueryM (getMaxCollateralInputs >>= test)
 
 -- | Ada-only tx output sufficient to cover `minRequiredCollateral`.
-adaOnlyTxOutputFixtureSuf :: TransactionOutput
-adaOnlyTxOutputFixtureSuf =
+adaOnlyTxOutputSuf :: TransactionOutput
+adaOnlyTxOutputSuf =
   fakeOutputWithValue $
     Value.lovelaceValueOf (minRequiredCollateral + one)
 
 -- | Ada-only tx output insufficient to cover `minRequiredCollateral`.
-adaOnlyTxOutputFixtureInsuf :: TransactionOutput
-adaOnlyTxOutputFixtureInsuf =
+adaOnlyTxOutputInsuf :: TransactionOutput
+adaOnlyTxOutputInsuf =
   fakeOutputWithValue $
     Value.lovelaceValueOf (minRequiredCollateral / BigInt.fromInt 2)
 
 -- | Single-asset tx output sufficient to cover `minRequiredCollateral`.
-singleAssetTxOutputFixtureSuf :: TransactionOutput
-singleAssetTxOutputFixtureSuf =
+singleAssetTxOutputSuf :: TransactionOutput
+singleAssetTxOutputSuf =
   fakeOutputWithValue
     $ Value (Coin $ minRequiredCollateral + one)
     $ Value.mkSingletonNonAdaAsset currencySymbol1 tokenName1 one
 
 utxosFixture1 :: Utxos
 utxosFixture1 =
-  Map.fromFoldable
-    [ utxo zero adaOnlyTxOutputFixtureSuf
-    , utxo one adaOnlyTxOutputFixtureInsuf
-    , utxo 2 singleAssetTxOutputFixtureSuf
-    ]
+  mkUtxosFixture
+    [ adaOnlyTxOutputSuf, adaOnlyTxOutputInsuf, singleAssetTxOutputSuf ]
+
+utxosFixture2 :: Utxos
+utxosFixture2 =
+  mkUtxosFixture $
+    Array.replicate (maxCandidateUtxos * 100) adaOnlyTxOutputInsuf
+
+mkUtxosFixture :: Array TransactionOutput -> Utxos
+mkUtxosFixture txOuts =
+  Map.fromFoldable $
+    Array.zipWith utxo (Array.range 0 $ Array.length txOuts - 1) txOuts
 
 -- | Constructs an utxo with given tx output and its index.
 utxo :: Int -> TransactionOutput -> TransactionInput /\ TransactionOutput

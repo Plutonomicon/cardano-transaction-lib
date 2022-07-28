@@ -6,6 +6,7 @@ module BalanceTx.Collateral
   , addTxCollateral
   , addTxCollateralReturn
   , getMaxCollateralInputs
+  , maxCandidateUtxos
   , minRequiredCollateral
   , selectCollateral
   ) where
@@ -65,6 +66,11 @@ getMaxCollateralInputs :: QueryM Int
 getMaxCollateralInputs =
   asks _.pparams <#>
     fromMaybe 3 <<< map UInt.toInt <<< _.maxCollateralInputs <<< unwrap
+
+-- | A constant that limits the number of candidate utxos for collateral
+-- | selection, thus maintaining acceptable time complexity.
+maxCandidateUtxos :: Int
+maxCandidateUtxos = 10
 
 --------------------------------------------------------------------------------
 -- Collateral Return, Total Collateral
@@ -218,6 +224,7 @@ selectCollateral maxCollateralInputs =
     -- with the number of utxos <= `maxCollateralInputs`:
     <<< combinations maxCollateralInputs
     <<< map asTxUnspentOutput
+    <<< List.take maxCandidateUtxos
     <<< Map.toUnfoldable
 
 --------------------------------------------------------------------------------

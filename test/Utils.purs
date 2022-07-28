@@ -1,5 +1,6 @@
 module Test.Utils
-  ( aesonRoundTrip
+  ( module ExportSeconds
+  , aesonRoundTrip
   , assertTrue
   , assertTrue_
   , errMaybe
@@ -32,6 +33,7 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (wrap, unwrap)
 import Data.Time.Duration (class Duration, Milliseconds, Seconds(Seconds))
 import Data.Time.Duration (fromDuration, toDuration) as Duration
+import Data.Time.Duration (Seconds(Seconds)) as ExportSeconds
 import Effect.Aff (Aff, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -69,24 +71,28 @@ interpret spif = do
       (\x -> describe x.label $ go x.value)
       sequence_
 
-measureWithTimeout
-  :: forall (m :: Type -> Type). MonadEffect m => Number -> m Unit -> m Unit
-measureWithTimeout timeoutSeconds =
-  measure' (Just $ Seconds timeoutSeconds)
-
-measure :: forall (m :: Type -> Type). MonadEffect m => m Unit -> m Unit
+measure :: forall (m :: Type -> Type) (a :: Type). MonadEffect m => m a -> m a
 measure = measure' (Nothing :: Maybe Seconds)
 
+measureWithTimeout
+  :: forall (m :: Type -> Type) (d :: Type) (a :: Type)
+   . MonadEffect m
+  => Duration d
+  => d
+  -> m a
+  -> m a
+measureWithTimeout timeout = measure' (Just timeout)
+
 measure'
-  :: forall (m :: Type -> Type) (d :: Type)
+  :: forall (m :: Type -> Type) (d :: Type) (a :: Type)
    . MonadEffect m
   => Duration d
   => Maybe d
-  -> m Unit
-  -> m Unit
+  -> m a
+  -> m a
 measure' timeout action =
-  getNowMs >>= \startTime ->
-    action *> getNowMs >>= \endTime -> liftEffect do
+  getNowMs >>= \startTime -> action >>= \result -> getNowMs >>= \endTime ->
+    liftEffect do
       let
         duration :: Milliseconds
         duration = wrap (endTime - startTime)
@@ -99,7 +105,8 @@ measure' timeout action =
           let msg = "Timeout exceeded, execution time: " <> show durationSeconds
           throwException (error msg)
         _ ->
-          log ("Execution time: " <> show durationSeconds)
+          log ("---\nExecution time: " <> show durationSeconds)
+      pure result
   where
   getNowMs :: m Number
   getNowMs = unwrap <<< unInstant <$> liftEffect now
