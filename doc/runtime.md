@@ -156,7 +156,7 @@ When changing networks, make sure that `network.magic` is correctly synchronized
 
 ### Other requirements
 
-In order to run most `Contract` actions, **you must use Nami or Gero wallet**. The following steps must be taken to ensure that you can run CTL contracts:
+In order to run most `Contract` actions in the browser, **you must use Nami or Gero wallet**. The following steps must be taken to ensure that you can run CTL contracts:
 
 #### With Nami:
 

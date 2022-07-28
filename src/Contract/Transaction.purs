@@ -4,6 +4,7 @@ module Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
   , awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
+  , awaitTxConfirmedWithTimeoutSlots
   , balanceAndSignTx
   , balanceAndSignTxs
   , balanceAndSignTxE
@@ -139,12 +140,15 @@ import QueryM
       )
   ) as ExportQueryM
 import QueryM
-  ( awaitTxConfirmed
-  , awaitTxConfirmedWithTimeout
-  , calculateMinFee
+  ( calculateMinFee
   , signTransaction
   , submitTxOgmios
   ) as QueryM
+import QueryM.AwaitTxConfirmed
+  ( awaitTxConfirmed
+  , awaitTxConfirmedWithTimeout
+  , awaitTxConfirmedWithTimeoutSlots
+  ) as AwaitTx
 import ReindexRedeemers (ReindexErrors(CannotGetTxOutRefIndexForRedeemer)) as ReindexRedeemersExport
 import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import Serialization (convertTransaction, toBytes) as Serialization
@@ -500,9 +504,9 @@ awaitTxConfirmed
   :: forall (r :: Row Type)
    . TransactionHash
   -> Contract r Unit
-awaitTxConfirmed = wrapContract <<< QueryM.awaitTxConfirmed <<< unwrap
+awaitTxConfirmed = wrapContract <<< AwaitTx.awaitTxConfirmed <<< unwrap
 
--- | Same as `awaitTxConfirmed`, but allows to specify a timeout for waiting.
+-- | Same as `awaitTxConfirmed`, but allows to specify a timeout in seconds for waiting.
 -- | Throws an exception on timeout.
 awaitTxConfirmedWithTimeout
   :: forall (r :: Row Type)
@@ -510,5 +514,16 @@ awaitTxConfirmedWithTimeout
   -> TransactionHash
   -> Contract r Unit
 awaitTxConfirmedWithTimeout timeout = wrapContract
-  <<< QueryM.awaitTxConfirmedWithTimeout timeout
+  <<< AwaitTx.awaitTxConfirmedWithTimeout timeout
+  <<< unwrap
+
+-- | Same as `awaitTxConfirmed`, but allows to specify a timeout in slots for waiting.
+-- | Throws an exception on timeout.
+awaitTxConfirmedWithTimeoutSlots
+  :: forall (r :: Row Type)
+   . Int
+  -> TransactionHash
+  -> Contract r Unit
+awaitTxConfirmedWithTimeoutSlots timeout = wrapContract
+  <<< AwaitTx.awaitTxConfirmedWithTimeoutSlots timeout
   <<< unwrap
