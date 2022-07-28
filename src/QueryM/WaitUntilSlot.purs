@@ -24,15 +24,17 @@ import QueryM (QueryM, getChainTip)
 import QueryM.EraSummaries (getEraSummaries)
 import QueryM.Ogmios (EraSummaries, SystemStart)
 import QueryM.SystemStart (getSystemStart)
-import Serialization.Address (Slot)
+import Serialization.Address (Slot(Slot))
 import Types.BigNum as BigNum
 import Types.Chain as Chain
 import Types.Interval
   ( POSIXTime(POSIXTime)
   , findSlotEraSummary
   , getSlotLength
+  , slotRangeToPosixTimeRange
   , slotToPosixTime
   )
+import Types.Natural (Natural, toBigInt)
 
 -- | The returned slot will be no less than the slot provided as argument.
 waitUntilSlot :: Slot -> QueryM Chain.Tip
@@ -137,3 +139,35 @@ posixTimeToSeconds (POSIXTime futureTimeBigInt) = do
     $ map (wrap <<< Int.toNumber)
     $ BigInt.toInt
     $ futureTimeBigInt / BigInt.fromInt 1000
+
+-- | Wait at least `offset` number of slots.
+waitNSlots :: Natural -> QueryM Chain.Tip
+waitNSlots offset =
+  getChainTip >>= case _ of
+    tip@(Chain.Tip (Chain.ChainTip { slot }))
+      | offset == 0 -> pure tip
+      | otherwise -> waitUntilSlot $ Slot (unwrap slot + toBigInt offset)
+
+currentSlot :: QueryM Chain.Tip
+currentSlot = getChainTip >>= case _ of
+  Chain.Tip (Chain.ChainTip { slot }) -> pure slot
+  Chain.Tip Chain.TipAtGenesis -> pure $ Slot 0
+
+-- | Get the latest POSIXTime of the current slot.
+-- The plutus implementation relies on `slotToEndPOSIXTime`
+-- https://github.com/input-output-hk/plutus-apps/blob/fb8a39645e532841b6e38d42ecb957f1945833a5/plutus-contract/src/Plutus/Contract/Trace.hs
+currentTime :: QueryM POSIXTime
+currentTime = currentSlot >>= slotToEndPOSIXTime
+
+-- | Get the ending 'POSIXTime' of a 'Slot' related to
+-- | our `QueryM` configuration.
+-- see https://github.com/input-output-hk/plutus-apps/blob/fb8a39645e532841b6e38d42ecb957f1945833a5/plutus-ledger/src/Ledger/TimeSlot.hs
+slotToEndPOSIXTime :: Slot -> QueryM POSIXTime
+slotToEndPOSIXTime slot = do
+  futureSlot <- liftM (error "Unable to advance slot")
+    $ wrap <$> BigNum.add (unwrap slot) (BigNum.fromInt 1)
+  eraSummaries <- getEraSummaries
+  sysStart <- getSystemStart
+  futureTime <- liftEffect $ slotToPosixTime eraSummaries sysStart futureSlot
+    >>= hush >>> liftM (error "Unable to convert Slot to POSIXTime")
+  pure ((+) (wrap <<< BigInt.fromInt $ -1) futureTime)
