@@ -9,6 +9,7 @@ import Cardano.Types.Transaction (TransactionOutput)
 import Cardano.Types.Value (lovelaceValueOf)
 import Control.Monad.Reader.Class (asks)
 import Data.BigInt (BigInt)
+import Data.BigInt as BigInt
 import Data.Maybe (Maybe(Nothing), fromJust)
 import Data.Newtype (wrap, unwrap)
 import Effect.Class (liftEffect)

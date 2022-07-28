@@ -9,6 +9,7 @@ module Types.TxConstraints
       , MustProduceAtLeast
       , MustSpendPubKeyOutput
       , MustSpendScriptOutput
+      , MustSpendNativeScriptOutput
       , MustMintValue
       , MustPayToPubKeyAddress
       , MustPayToScript
@@ -38,6 +39,7 @@ module Types.TxConstraints
   , mustSatisfyAnyOf
   , mustSpendAtLeast
   , mustSpendAtLeastTotal
+  , mustSpendNativeScriptOutput
   , mustSpendPubKeyOutput
   , mustSpendScriptOutput
   , mustValidateIn
@@ -89,6 +91,7 @@ data TxConstraint
   | MustProduceAtLeast Value
   | MustSpendPubKeyOutput TransactionInput
   | MustSpendScriptOutput TransactionInput Redeemer
+  | MustSpendNativeScriptOutput TransactionInput NativeScriptHash
   | MustMintValue MintingPolicyHash Redeemer TokenName BigInt
   | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash)
       (Maybe Datum)
@@ -316,6 +319,14 @@ mustSpendScriptOutput
   -> Redeemer
   -> TxConstraints i o
 mustSpendScriptOutput txOutRef = singleton <<< MustSpendScriptOutput txOutRef
+
+mustSpendNativeScriptOutput
+  :: forall (i :: Type) (o :: Type)
+   . TransactionInput
+  -> NativeScriptHash
+  -> TxConstraints i o
+mustSpendNativeScriptOutput txOutRef = singleton <<< MustSpendNativeScriptOutput
+  txOutRef
 
 mustHashDatum
   :: forall (i :: Type) (o :: Type). DataHash -> Datum -> TxConstraints i o

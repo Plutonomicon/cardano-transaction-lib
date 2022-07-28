@@ -52,6 +52,7 @@ import Types.ScriptLookups
   , generalise
   , mintingPolicy
   , mintingPolicyM
+  , nativeScript
   , validator
   , validatorM
   , ownPaymentPubKeyHash

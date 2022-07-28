@@ -53,11 +53,15 @@ import Prelude
 
 import BalanceTx.UtxoMinAda (adaOnlyUtxoMinAdaValue, utxoMinAdaValue)
 import Cardano.Types.Transaction
-  ( Redeemer(Redeemer)
+  ( Ed25519Signature(..)
+  , PublicKey(..)
+  , Redeemer(Redeemer)
   , Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
   , Utxos
+  , Vkey(..)
+  , Vkeywitness(..)
   , _body
   , _collateral
   , _fee
@@ -66,6 +70,8 @@ import Cardano.Types.Transaction
   , _outputs
   , _plutusData
   , _redeemers
+  , _requiredSigners
+  , _vkeys
   , _witnessSet
   )
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
@@ -92,12 +98,14 @@ import Data.Array ((\\), modifyAt)
 import Data.Array as Array
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt, fromInt)
+import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), hush, note)
 import Data.Foldable as Foldable
 import Data.Generic.Rep (class Generic)
-import Data.Lens (Lens', lens')
+import Data.Lens (Lens', folded, lens')
 import Data.Lens.Getter ((^.))
 import Data.Lens.Index (ix) as Lens
+import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Setter ((.~), set, (?~), (%~))
 import Data.List ((:), List(Nil), partition)
 import Data.Log.Tag (tag)
@@ -123,6 +131,7 @@ import QueryM.Utxos (utxosAt, filterLockedUtxos)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
+import Serialization.Hash (ed25519KeyHashToBech32Unsafe)
 import Transaction (setScriptDataHash)
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
@@ -477,6 +486,35 @@ addTxCollateral utxos transaction =
 -- FIX ME: UnbalancedTx contains requiredSignatories which would be a part of
 -- multisig but we don't have such functionality ATM.
 
+attachFakeSignatures :: UnbalancedTx -> UnbalancedTx
+attachFakeSignatures unbalancedTx =
+  let
+    requiredSigners = unbalancedTx ^. _transaction <<< _body
+      <<< _requiredSigners
+      <<< folded
+    newFakeWits = (requiredSigners <#> const fakeWitness)
+  in
+    unbalancedTx # _transaction <<< _witnessSet <<< _vkeys %~
+      Just <<< maybe newFakeWits (append newFakeWits)
+
+removeFakeSignatures :: FinalizedTransaction -> FinalizedTransaction
+removeFakeSignatures (FinalizedTransaction tx) =
+  FinalizedTransaction $ tx # _witnessSet <<< _vkeys %~
+    map (Array.filter (_ /= fakeWitness))
+
+fakeWitness = Vkeywitness
+  ( ( Vkey
+        ( PublicKey
+            "ed25519_pk1eamrnx3pph58yr5l4z2wghjpu2dt2f0rp0zq9qquqa39p52ct0xsudjp4e"
+        )
+    -- $ ed25519KeyHashToBech32Unsafe "ed25519_pk" publicKey)
+    )
+      /\
+        ( Ed25519Signature
+            "ed25519_sig1hwtxlux8ca72t8fqghy9lpmeusg38s874e6nxljadngcs8vyqhdwxrlz655306q0c5hvzaqfunxx6x6gnmm7vhje3t6y98wlhmakqrg8xx0xn"
+        )
+  )
+
 -- | Like `balanceTx`, but allows to provide an address that is treated like
 -- | user's own (while `balanceTx` gets it from the wallet).
 balanceTxWithAddress
@@ -486,7 +524,9 @@ balanceTxWithAddress
 balanceTxWithAddress
   ownAddr
   unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
-  let (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = t
+  let
+    (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) =
+      attachFakeSignatures t
   networkId <- (unbalancedTx ^. _body <<< _networkId) #
     maybe (asks $ _.config >>> _.networkId) pure
   let unbalancedTx' = unbalancedTx # _body <<< _networkId ?~ networkId
@@ -532,7 +572,8 @@ balanceTxWithAddress
         <#>
           lmap ReturnAdaChangeError'
     -- Attach datums and redeemers, set the script integrity hash:
-    finalizedTx <- lift $ finalizeTransaction unsignedTx
+    finalizedTx <- lift $ finalizeTransaction unsignedTx <#>
+      removeFakeSignatures
     -- Log final balanced tx and return it:
     logTx "Post-balancing Tx " availableUtxos (unwrap finalizedTx)
     except $ Right finalizedTx

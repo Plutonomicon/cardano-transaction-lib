@@ -1,27 +1,29 @@
 module Types.ScriptLookups
   ( MkUnbalancedTxError
-      ( TypeCheckFailed
-      , ModifyTx
-      , TxOutRefNotFound
-      , TxOutRefWrongType
-      , DatumNotFound
-      , MintingPolicyNotFound
-      , MintingPolicyHashNotCurrencySymbol
-      , CannotMakeValue
-      , ValidatorHashNotFound
-      , OwnPubKeyAndStakeKeyMissing
-      , TypedValidatorMissing
-      , DatumWrongHash
-      , CannotQueryDatum
-      , CannotHashDatum
-      , CannotConvertPOSIXTimeRange
+      ( CannotConvertPOSIXTimeRange
+      , CannotConvertPaymentPubKeyHash
       , CannotGetMintingPolicyScriptIndex
       , CannotGetValidatorHashFromAddress
-      , MkTypedTxOutFailed
-      , TypedTxOutHasNoDatumHash
+      , CannotHashDatum
       , CannotHashMintingPolicy
+      , CannotHashNativeScript
       , CannotHashValidator
-      , CannotConvertPaymentPubKeyHash
+      , CannotMakeValue
+      , CannotQueryDatum
+      , DatumNotFound
+      , DatumWrongHash
+      , MintingPolicyHashNotCurrencySymbol
+      , MintingPolicyNotFound
+      , MkTypedTxOutFailed
+      , ModifyTx
+      , NativeScriptHashNotFound
+      , OwnPubKeyAndStakeKeyMissing
+      , TxOutRefNotFound
+      , TxOutRefWrongType
+      , TypeCheckFailed
+      , TypedTxOutHasNoDatumHash
+      , TypedValidatorMissing
+      , ValidatorHashNotFound
       , CannotSatisfyAny
       )
   , ScriptLookups(ScriptLookups)
@@ -32,6 +34,7 @@ module Types.ScriptLookups
   , mkUnbalancedTx
   , mkUnbalancedTx'
   , datum
+  , nativeScript
   , validator
   , validatorM
   , ownPaymentPubKeyHash
@@ -115,6 +118,7 @@ import Effect.Class (liftEffect)
 import FromData (class FromData)
 import Hashing (datumHash) as Hashing
 import Helpers ((<\>), liftEither, liftM)
+import NativeScripts (NativeScriptHash(..), nativeScriptHash)
 import Plutus.Conversion (fromPlutusTxOutput, fromPlutusValue)
 import Plutus.Types.Transaction (TransactionOutput) as Plutus
 import QueryM (DefaultQueryEnv, QueryM, getDatumByHash)
@@ -132,6 +136,7 @@ import ToData (class ToData)
 import Transaction
   ( ModifyTxError
   , attachDatum
+  , attachNativeScript
   , attachPlutusScript
   , attachRedeemer
   , setScriptDataHash
@@ -162,21 +167,7 @@ import Types.Transaction (TransactionInput)
 import Types.TxConstraints
   ( InputConstraint(InputConstraint)
   , OutputConstraint(OutputConstraint)
-  , TxConstraint
-      ( MustBeSignedBy
-      , MustHashDatum
-      , MustIncludeDatum
-      , MustMintValue
-      , MustPayToScript
-      , MustPayToNativeScript
-      , MustPayToPubKeyAddress
-      , MustProduceAtLeast
-      , MustSatisfyAnyOf
-      , MustSpendAtLeast
-      , MustSpendPubKeyOutput
-      , MustSpendScriptOutput
-      , MustValidateIn
-      )
+  , TxConstraint(..)
   , TxConstraints(TxConstraints)
   )
 import Types.TypedTxOut
@@ -343,6 +334,9 @@ mintingPolicyM = pure <<< mintingPolicy
 validator :: forall (a :: Type). Validator -> ScriptLookups a
 validator vl =
   over ScriptLookups _ { scripts = Array.singleton vl } mempty
+
+nativeScript :: forall (a :: Type). NativeScript -> ScriptLookups a
+nativeScript ns = over ScriptLookups _ { nativeScripts = [ ns ] } mempty
 
 -- | Same as `validator` but in `Maybe` context for convenience. This
 -- | should not fail.
@@ -525,14 +519,18 @@ processLookupsAndConstraints
   let
     mps = lookups.mps
     scripts = lookups.scripts
+    nativeScripts = lookups.nativeScripts
   mpsHashes <- ExceptT $
     hashScripts mintingPolicyHash CannotHashMintingPolicy mps
   validatorHashes <- ExceptT $
     hashScripts validatorHash CannotHashValidator scripts
+  nativeScriptHashes <- ExceptT $
+    hashScripts (pure <<< nativeScriptHash) CannotHashNativeScript nativeScripts
   let
     mpsMap = fromFoldable $ zip mpsHashes mps
     osMap = fromFoldable $ zip validatorHashes scripts
-  ExceptT $ foldConstraints (processConstraint mpsMap osMap) constraints
+    nsMap = fromFoldable $ zip nativeScriptHashes nativeScripts
+  ExceptT $ foldConstraints (processConstraint mpsMap osMap nsMap) constraints
 
   -- Attach mint redeemers to witness set.
   mintRedeemers :: Array _ <- use _mintRedeemers <#> Map.toUnfoldable
@@ -795,6 +793,7 @@ data MkUnbalancedTxError
   | MintingPolicyHashNotCurrencySymbol MintingPolicyHash
   | CannotMakeValue CurrencySymbol TokenName BigInt
   | ValidatorHashNotFound ValidatorHash
+  | NativeScriptHashNotFound NativeScriptHash
   | OwnPubKeyAndStakeKeyMissing
   | TypedValidatorMissing
   | DatumWrongHash DataHash Datum
@@ -807,6 +806,7 @@ data MkUnbalancedTxError
   | TypedTxOutHasNoDatumHash
   | CannotHashMintingPolicy MintingPolicy
   | CannotHashValidator Validator
+  | CannotHashNativeScript NativeScript
   | CannotConvertPaymentPubKeyHash PaymentPubKeyHash
   | CannotSatisfyAny
 
@@ -853,6 +853,15 @@ lookupValidator vh osMap = do
   let err = pure $ throwError $ ValidatorHashNotFound vh
   maybe err (pure <<< Right) $ lookup vh osMap
 
+lookupNativeScript
+  :: forall (a :: Type)
+   . NativeScriptHash
+  -> Map NativeScriptHash NativeScript
+  -> ConstraintsM a (Either MkUnbalancedTxError NativeScript)
+lookupNativeScript nsh mp = do
+  let err = pure $ throwError $ NativeScriptHashNotFound nsh
+  maybe err (pure <<< Right) $ lookup nsh mp
+
 reindexMintRedeemers
   :: forall (a :: Type)
    . MintingPolicyHash
@@ -872,9 +881,10 @@ processConstraint
   :: forall (a :: Type)
    . Map MintingPolicyHash MintingPolicy
   -> Map ValidatorHash Validator
+  -> Map NativeScriptHash NativeScript
   -> TxConstraint
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
-processConstraint mpsMap osMap = do
+processConstraint mpsMap osMap nsMap = do
   case _ of
     MustIncludeDatum dat -> addDatum dat
     MustValidateIn posixTimeRange -> do
@@ -956,6 +966,12 @@ processConstraint mpsMap osMap = do
             -- Attach redeemer to witness set.
             ExceptT $ attachToCps attachRedeemer redeemer
         _ -> liftEither $ throwError $ TxOutRefWrongType txo
+    MustSpendNativeScriptOutput txo nsHash -> runExceptT do
+      amount <- ExceptT (lookupTxOutRef txo) <#> unwrap >>> _.amount
+      ns <- ExceptT $ lookupNativeScript nsHash nsMap
+      _cpsToTxBody <<< _inputs %= Set.insert txo
+      -- _valueSpentBalancesInputs <>= provideValue amount
+      ExceptT $ attachToCps attachNativeScript ns
     MustMintValue mpsHash red tn i -> runExceptT do
       plutusScript <-
         ExceptT $ lookupMintingPolicy mpsHash mpsMap <#> map unwrap
@@ -1095,7 +1111,7 @@ processConstraint mpsMap osMap = do
           -- `put`)
           foldM
             ( \_ constr -> runExceptT do
-                ExceptT $ processConstraint mpsMap osMap constr
+                ExceptT $ processConstraint mpsMap osMap nsMap constr
                   `catchError` \_ -> put cps *> tryNext zs
             )
             (Right unit)
