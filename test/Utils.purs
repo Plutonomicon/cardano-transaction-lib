@@ -1,10 +1,14 @@
 module Test.Utils
-  ( aesonRoundTrip
+  ( module ExportSeconds
+  , aesonRoundTrip
   , assertTrue
   , assertTrue_
   , errMaybe
   , errEither
   , interpret
+  , measure
+  , measureWithTimeout
+  , measure'
   , toFromAesonTest
   , unsafeCall
   , readAeson
@@ -22,14 +26,20 @@ import Aeson
   , parseJsonStringToAeson
   )
 import Data.Const (Const)
+import Data.DateTime.Instant (unInstant)
 import Data.Either (Either(Right), either)
 import Data.Foldable (sequence_)
-import Data.Maybe (Maybe(Just), maybe)
-import Data.Newtype (wrap)
+import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Newtype (wrap, unwrap)
+import Data.Time.Duration (class Duration, Milliseconds, Seconds)
+import Data.Time.Duration (fromDuration, toDuration) as Duration
+import Data.Time.Duration (Seconds(Seconds)) as ExportSeconds
 import Effect.Aff (Aff, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Console (log)
 import Effect.Exception (throwException, throw)
+import Effect.Now (now)
 import Mote (Plan, foldPlan, planT, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
@@ -60,6 +70,46 @@ interpret spif = do
       pending
       (\x -> describe x.label $ go x.value)
       sequence_
+
+measure :: forall (m :: Type -> Type) (a :: Type). MonadEffect m => m a -> m a
+measure = measure' (Nothing :: Maybe Seconds)
+
+measureWithTimeout
+  :: forall (m :: Type -> Type) (d :: Type) (a :: Type)
+   . MonadEffect m
+  => Duration d
+  => d
+  -> m a
+  -> m a
+measureWithTimeout timeout = measure' (Just timeout)
+
+measure'
+  :: forall (m :: Type -> Type) (d :: Type) (a :: Type)
+   . MonadEffect m
+  => Duration d
+  => Maybe d
+  -> m a
+  -> m a
+measure' timeout action =
+  getNowMs >>= \startTime -> action >>= \result -> getNowMs >>= \endTime ->
+    liftEffect do
+      let
+        duration :: Milliseconds
+        duration = wrap (endTime - startTime)
+
+        durationSeconds :: Seconds
+        durationSeconds = Duration.toDuration duration
+
+      case timeout of
+        Just timeout' | duration > Duration.fromDuration timeout' -> do
+          let msg = "Timeout exceeded, execution time: " <> show durationSeconds
+          throwException (error msg)
+        _ ->
+          log ("---\nExecution time: " <> show durationSeconds)
+      pure result
+  where
+  getNowMs :: m Number
+  getNowMs = unwrap <<< unInstant <$> liftEffect now
 
 -- | Test a boolean value, throwing the provided string as an error if `false`
 assertTrue
