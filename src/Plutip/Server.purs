@@ -230,6 +230,7 @@ startPostgresServer pgConfig _ = do
   let
     workingDir = tmpDir <> "/" <> randomStr
     databaseDir = workingDir <> "/postgres/data"
+    postgresSocket = workingDir <> "/postgres"
   liftEffect $ void $ execSync ("initdb " <> databaseDir) defaultExecSyncOptions
   pgChildProcess <- liftEffect $ spawn "postgres"
     [ "-D"
@@ -239,7 +240,7 @@ startPostgresServer pgConfig _ = do
     , "-h"
     , pgConfig.host
     , "-k"
-    , workingDir <> "/postgres"
+    , postgresSocket
     ]
     defaultSpawnOptions
   void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])

@@ -164,7 +164,7 @@ suite = do
           let
             constraints :: Constraints.TxConstraints Void Void
             -- In real contracts, library users most likely want to use
-            -- `mustPayToPubKeyAddres` (we're not doing that because Plutip
+            -- `mustPayToPubKeyAddress` (we're not doing that because Plutip
             -- does not provide stake keys).
             constraints = Constraints.mustPayToPubKey pkh
               $ Value.lovelaceValueOf
