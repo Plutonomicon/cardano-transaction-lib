@@ -44,7 +44,7 @@ import Control.Monad.Reader (asks)
 import Data.BigInt as BigInt
 import Data.Log.Level (LogLevel(Trace))
 import Data.Map as Map
-import Data.Maybe (Maybe(Nothing))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -82,7 +82,7 @@ import Types.UsedTxOuts (TxOutRefCache)
 -- Run with `spago test --main Test.Plutip`
 main :: Effect Unit
 main = launchAff_ do
-  Utils.interpretWithTimeout Nothing suite
+  Utils.interpretWithTimeout (Just $ wrap 30_000.0) suite
 
 config :: PlutipConfig
 config =
