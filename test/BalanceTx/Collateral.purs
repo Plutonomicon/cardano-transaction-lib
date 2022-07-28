@@ -54,9 +54,9 @@ suite = do
             Just (List.singleton $ txUnspentOut zero singleAssetTxOutputSuf)
 
       test "Selects a collateral in less than 2 seconds" do
-        withMaxCollateralInputs \maxColalteralInputs ->
+        withMaxCollateralInputs \maxCollateralInputs ->
           TestUtils.measureWithTimeout (Seconds 2.0)
-            (void $ selectCollateral maxColalteralInputs utxosFixture3)
+            (void $ selectCollateral maxCollateralInputs utxosFixture3)
 
 withMaxCollateralInputs :: (Int -> QueryM Unit) -> Aff Unit
 withMaxCollateralInputs test =
