@@ -76,7 +76,7 @@ import Cardano.Types.Value
   , isPos
   , isZero
   , lovelaceValueOf
-  , minus
+  , minusNonZero
   , mkCoin
   , mkValue
   , valueToCoin
@@ -830,7 +830,7 @@ balanceTxIns' utxos fees changeUtxoMinValue (TxBody txBody) = do
     mintVal = maybe mempty (mkValue (mkCoin zero) <<< unwrap) txBody.mint
 
   nonMintedValue <- note (BalanceTxInsCannotMinus $ CannotMinus $ wrap mintVal)
-    $ Array.foldMap getAmount txOutputs `minus` mintVal
+    $ Array.foldMap getAmount txOutputs `minusNonZero` mintVal
 
   -- Useful spies for debugging:
   -- let x = spy "nonMintedVal" nonMintedValue
@@ -927,7 +927,7 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
 
   nonMintedOutputValue <-
     note (BalanceNonAdaOutsCannotMinus $ CannotMinus $ wrap mintVal)
-      $ outputValue `minus` mintVal
+      $ outputValue `minusNonZero` mintVal
 
   let (nonMintedAdaOutputValue :: Value) = filterNonAda nonMintedOutputValue
 
@@ -936,7 +936,7 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
       ( BalanceNonAdaOutsCannotMinus $ CannotMinus $ wrap
           nonMintedAdaOutputValue
       )
-      $ filterNonAda inputValue `minus` nonMintedAdaOutputValue
+      $ filterNonAda inputValue `minusNonZero` nonMintedAdaOutputValue
 
   let
     -- Useful spies for debugging:
