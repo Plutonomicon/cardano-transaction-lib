@@ -441,8 +441,6 @@
             '';
         in
         rec {
-          defaultPackage = packages.ctl-example-bundle-web;
-
           packages = {
             ctl-example-bundle-web = project.bundlePursProject {
               main = "Examples.Pkh2Pkh";
@@ -511,12 +509,10 @@
       # flake from haskell.nix project
       hsFlake = perSystem (system: (hsProjectFor (nixpkgsFor system)).flake { });
 
-      devShell = perSystem (system: self.devShells.${system}.ctl);
-
       devShells = perSystem (system: {
         # This is the default `devShell` and can be run without specifying
         # it (i.e. `nix develop`)
-        ctl = (psProjectFor (nixpkgsFor system)).devShell;
+        default = (psProjectFor (nixpkgsFor system)).devShell;
         # It might be a good idea to keep this as a separate shell; if you're
         # working on the PS frontend, it doesn't make a lot of sense to pull
         # in all of the Haskell dependencies
@@ -537,6 +533,7 @@
         (psProjectFor pkgs).apps // {
           inherit (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
           ctl-runtime = pkgs.launchCtlRuntime { };
+          default = self.apps.${system}.ctl-runtime;
         });
 
       checks = perSystem (system:
@@ -592,11 +589,8 @@
           ''
       );
 
-      defaultPackage = perSystem (system:
-        (psProjectFor (nixpkgsFor system)).defaultPackage
-      );
-
       templates = {
+        default = self.templates.ctl-scaffold;
         ctl-scaffold = {
           path = ./templates/ctl-scaffold;
           description = "A minimal CTL-based scaffold project";
