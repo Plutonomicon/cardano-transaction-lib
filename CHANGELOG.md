@@ -50,7 +50,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `ConfigParams` is now a type synonym instead of a newtype. `ContractConfig` has been renamed to `ContractEnv`.
 - Moved logging functions to `Contract.Log` from `Contract.Monad` ([#727](https://github.com/Plutonomicon/cardano-transaction-lib/issues/727)
 - Renamed `Contract.Wallet.mkKeyWalletFromPrivateKey` to `Contract.Wallet.mkKeyWalletFromPrivateKeys`.
-- Rplaced `/\` with `Tuple` for the `Array Tuple` instances in `Metadata.ToMetadata` ([#633](https://github.com/Plutonomicon/cardano-transaction-lib/pull/633))
+- Replaced `/\` with `Tuple` for the `Array Tuple` instances in `Metadata.ToMetadata` ([#633](https://github.com/Plutonomicon/cardano-transaction-lib/pull/633))
 
 ### Removed
 
