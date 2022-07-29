@@ -154,6 +154,7 @@ getWalletCollateral = do
       Nami nami -> liftAff $ callCip30Wallet nami _.getCollateral
       Gero gero -> liftAff $ callCip30Wallet gero _.getCollateral
       Flint flint -> liftAff $ callCip30Wallet flint _.getCollateral
+      Eternl eternl -> liftAff $ callCip30Wallet eternl _.getCollateral
       KeyWallet kw -> do
         networkId <- asks $ _.config >>> _.networkId
         addr <- liftAff $ (unwrap kw).address networkId
