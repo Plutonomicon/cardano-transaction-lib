@@ -5,7 +5,8 @@ module Test.Utils
   , errMaybe
   , errEither
   , interpret
-  , interpret'
+  , interpretWithTimeout
+  , interpretWithConfig
   , toFromAesonTest
   , unsafeCall
   , readAeson
@@ -27,6 +28,7 @@ import Data.Either (Either(Right), either)
 import Data.Foldable (sequence_)
 import Data.Maybe (Maybe(Just), maybe)
 import Data.Newtype (wrap)
+import Data.Time.Duration (Milliseconds)
 import Effect.Aff (Aff, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -49,24 +51,27 @@ foreign import unsafeCall
 -- | We use `mote` here so that we can use effects to build up a test tree, which
 -- | is then interpreted here in a pure context, mainly due to some painful types
 -- | in Test.Spec which prohibit effects.
-interpret' :: SpecRunner.Config -> TestPlanM Unit -> Aff Unit
-interpret' config spif = do
-  plan <- planT spif
-  runSpec' config [ consoleReporter ] $ go plan
-  where
-  go :: Plan (Const Void) (Aff Unit) -> Spec Unit
-  go =
-    foldPlan
-      (\x -> it x.label $ liftAff x.value)
-      pending
-      (\x -> describe x.label $ go x.value)
-      sequence_
-
--- | We use `mote` here so that we can use effects to build up a test tree, which
--- | is then interpreted here in a pure context, mainly due to some painful types
--- | in Test.Spec which prohibit effects.
 interpret :: TestPlanM Unit -> Aff Unit
-interpret = interpret' defaultConfig { timeout = Just (wrap 50000.0) }
+interpret = interpretWithConfig defaultConfig { timeout = Just (wrap 50000.0) }
+
+interpretWithTimeout :: Maybe Milliseconds -> TestPlanM Unit -> Aff Unit
+interpretWithTimeout timeout spif = do
+  plan <- planT spif
+  runSpec' defaultConfig { timeout = timeout } [ consoleReporter ] $
+    planToSpec plan
+
+interpretWithConfig :: SpecRunner.Config -> TestPlanM Unit -> Aff Unit
+interpretWithConfig config spif = do
+  plan <- planT spif
+  runSpec' config [ consoleReporter ] $ planToSpec plan
+
+planToSpec :: Plan (Const Void) (Aff Unit) -> Spec Unit
+planToSpec =
+  foldPlan
+    (\x -> it x.label $ liftAff x.value)
+    pending
+    (\x -> describe x.label $ planToSpec x.value)
+    sequence_
 
 -- | Test a boolean value, throwing the provided string as an error if `false`
 assertTrue
