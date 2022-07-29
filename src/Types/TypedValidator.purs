@@ -47,31 +47,36 @@ import Types.Scripts
 -- | A typeclass that associates a type standing for a connection type with two
 -- | types, the type of the redeemer and the data script for that connection type.
 class
-  ( DatumType a b
-  , RedeemerType a b
+  ( DatumType v d
+  , RedeemerType v r
   ) <=
-  ValidatorTypes (a :: Type) (b :: Type)
-  | a -> b
+  ValidatorTypes (v :: Type) (d :: Type) (r :: Type)
+
+instance (DatumType v d, RedeemerType v r) => ValidatorTypes v d r
 
 -- | The type of the data of this connection type.
-class DatumType (a :: Type) (b :: Type) | a -> b
+class DatumType (v :: Type) (d :: Type) | v -> d
 
 instance DatumType Void Void
 
 instance DatumType Any PlutusData
 
+instance DatumType PlutusData Unit
+
 -- | The type of the redeemers of this connection type.
-class RedeemerType (a :: Type) (b :: Type) | a -> b
+class RedeemerType (v :: Type) (r :: Type) | v -> r
 
 instance RedeemerType Void Void
 
 instance RedeemerType Any PlutusData
 
+instance RedeemerType PlutusData Unit
+
 -- Replace `ScriptContext` by `Transaction` which contains all the scripts
 -- anyway:
 -- | The type of validators for the given connection type.
-type ValidatorType (a :: Type) (b :: Type) =
-  DatumType a b => RedeemerType a b => a -> b -> Transaction -> Boolean
+type ValidatorType (v :: Type) (d :: Type) (r :: Type) =
+  DatumType v d => RedeemerType v r => d -> r -> Transaction -> Boolean
 
 type WrappedValidatorType =
   PlutusData -> PlutusData -> PlutusData -> Effect Unit
