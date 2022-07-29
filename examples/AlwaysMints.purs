@@ -1,7 +1,7 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that mints a value using the `AlwaysMints` policy
-module Examples.AlwaysMints (main) where
+module Examples.AlwaysMints (main, alwaysMintsPolicy) where
 
 import Contract.Prelude
 

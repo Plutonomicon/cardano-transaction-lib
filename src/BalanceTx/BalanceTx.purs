@@ -461,7 +461,8 @@ setCollateral transaction utxos =
   selectCollateral (Just (KeyWallet kw)) =
     -- TODO: Combine with getWalletCollateral and supply with fee estimate
     -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/510
-    Right <<< map pure <$> kw.selectCollateral <$> filterLockedUtxos utxos
+    Right <<< map pure <$> (unwrap kw).selectCollateral <$> filterLockedUtxos
+      utxos
   selectCollateral _ =
     pure (Right Nothing)
 

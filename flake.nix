@@ -8,9 +8,16 @@
     };
 
     # for the purescript project
-    ogmios.url = "github:mlabs-haskell/ogmios/e406801eaeb32b28cd84357596ca1512bff27741";
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/1e618a1949667ea3eb972fbaccf34414e8d17e89";
+    ogmios = {
+      url = "github:mlabs-haskell/ogmios/e406801eaeb32b28cd84357596ca1512bff27741";
+      inputs = {
+        haskell-nix.follows = "haskell-nix";
+        nixpkgs.follows = "nixpkgs";
+      };
+    };
 
+    plutip.url = "github:mlabs-haskell/plutip/d24b98162bcbcbfb4ca403ee62fdb890f2059f47";
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/1e618a1949667ea3eb972fbaccf34414e8d17e89";
     # Repository with network parameters
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
@@ -18,14 +25,14 @@
       flake = false;
     };
     easy-purescript-nix = {
-      url = "github:justinwoo/easy-purescript-nix";
+      url = "github:justinwoo/easy-purescript-nix/d56c436a66ec2a8a93b309c83693cef1507dca7a";
       flake = false;
     };
 
     # for the haskell server
     iohk-nix.url = "github:input-output-hk/iohk-nix";
-    haskell-nix.url = "github:mlabs-haskell/haskell.nix?ref=master";
-    nixpkgs.follows = "haskell-nix/nixpkgs-unstable";
+    haskell-nix.follows = "plutip/haskell-nix";
+    nixpkgs.follows = "plutip/nixpkgs";
     cardano-addresses = {
       url =
         "github:input-output-hk/cardano-addresses/d2f86caa085402a953920c6714a0de6a50b655ec";
@@ -149,7 +156,8 @@
             inputs.ogmios-datum-cache.defaultPackage.${system};
           ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
           ogmios-fixtures = ogmios;
-          purescriptProject = import ./nix { pkgs = final; inherit system; };
+          plutip-server = inputs.plutip.packages.${system}."plutip:exe:plutip-server";
+          purescriptProject = import ./nix { pkgs = final; };
           buildCtlRuntime = buildCtlRuntime final;
           launchCtlRuntime = launchCtlRuntime final;
           inherit cardano-configurations;
@@ -160,10 +168,16 @@
           haskell-nix.overlay
           iohk-nix.overlays.crypto
           overlay
+          # This needs to go here and not in the `overlay` above as it
+          # instantiates our `nixpkgs`
+          (_: _: {
+            ctl-server = self.packages.${system}."ctl-server:exe:ctl-server";
+          })
         ];
         inherit (haskell-nix) config;
         inherit system;
       };
+
       allNixpkgs = perSystem mkNixpkgsFor;
       nixpkgsFor = system: allNixpkgs.${system};
 
@@ -238,8 +252,7 @@
           nodeDbVol = "node-${config.network.name}-db";
           nodeIpcVol = "node-${config.network.name}-ipc";
           nodeSocketPath = "/ipc/node.socket";
-          serverName = "ctl-server:exe:ctl-server";
-          server = self.packages.${pkgs.system}."${serverName}";
+          server = self.packages.${pkgs.system}."ctl-server:exe:ctl-server";
           bindPort = port: "${toString port}:${toString port}";
         in
         with config;
@@ -408,14 +421,17 @@
               shellHook = exportOgmiosFixtures;
               packageLockOnly = true;
               packages = with pkgs; [
+                arion
+                ctl-server
+                fd
+                haskellPackages.fourmolu
+                nixpkgs-fmt
+                nodePackages.eslint
+                nodePackages.prettier
                 ogmios
                 ogmios-datum-cache
-                nixpkgs-fmt
-                fd
-                arion
-                haskellPackages.fourmolu
-                nodePackages.prettier
-                nodePackages.eslint
+                plutip-server
+                postgresql
               ];
             };
           };
@@ -431,7 +447,6 @@
             ctl-example-bundle-web = project.bundlePursProject {
               main = "Examples.Pkh2Pkh";
               entrypoint = "examples/index.js";
-              htmlTemplate = "examples/index.html";
             };
 
             ctl-runtime = pkgs.arion.build {
@@ -445,9 +460,14 @@
           };
 
           checks = {
+            ctl-plutip-test = project.runPlutipTest {
+              name = "ctl-plutip-test";
+              testMain = "Test.Plutip";
+              env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
+            };
             ctl-unit-test = project.runPursTest {
               name = "ctl-unit-test";
-              testMain = "Test.Unit";
+              testMain = "Ctl.Test.Unit";
               env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
             };
           };
