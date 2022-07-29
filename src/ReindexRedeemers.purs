@@ -1,7 +1,7 @@
 -- | This module implements functionality to reindex redeemers to be used after
 -- | balancing when all inputs have been inserted to the array.
 module ReindexRedeemers
-  ( ReindexErrors(..)
+  ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
   , reindexSpentScriptRedeemers
   , reindexSpentScriptRedeemers'
   ) where

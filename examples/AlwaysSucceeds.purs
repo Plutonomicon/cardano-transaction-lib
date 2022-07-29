@@ -1,63 +1,61 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that pays two Ada to the `AlwaysSucceeds` script address
-module Examples.AlwaysSucceeds (main) where
+module Examples.AlwaysSucceeds
+  ( main
+  , alwaysSucceedsScript
+  , payToAlwaysSucceeds
+  , spendFromAlwaysSucceeds
+  ) where
 
 import Contract.Prelude
 
 import Contract.Address (scriptHashAddress)
-import Contract.Aeson (decodeAeson, fromString)
+import Contract.Config (testnetNamiConfig)
+import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
-  , ContractConfig(ContractConfig)
   , launchAff_
-  , liftContractM
+  , liftContractAffM
   , liftedE
-  , liftedM
-  , logInfo'
-  , runContract_
-  , traceContractConfig
+  , runContract
   )
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.TextEnvelope
+  ( TextEnvelopeType(PlutusScriptV1)
+  , textEnvelopeBytes
+  )
 import Contract.Transaction
-  ( BalancedSignedTransaction(BalancedSignedTransaction)
-  , TransactionHash
+  ( TransactionHash
   , TransactionInput(TransactionInput)
-  , balanceAndSignTx
+  , awaitTxConfirmed
+  , balanceAndSignTxE
   , submit
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (UtxoM(UtxoM), utxosAt)
 import Contract.Value as Value
-import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
 import Data.Map as Map
-import Effect.Aff (delay)
+import Contract.Test.E2E (publishTestFeedback)
 
 main :: Effect Unit
-main = launchAff_ $ do
-  wallet <- Just <$> mkNamiWalletAff
-  cfg <- over ContractConfig _ { wallet = wallet } <$> traceContractConfig
-  runContract_ cfg $ do
+main = launchAff_ do
+  runContract testnetNamiConfig do
     logInfo' "Running Examples.AlwaysSucceeds"
-    validator <- liftContractM "Invalid script JSON" alwaysSucceedsScript
-    vhash <- liftContractM "Couldn't hash validator" $ validatorHash validator
+    validator <- alwaysSucceedsScript
+    vhash <- liftContractAffM "Couldn't hash validator"
+      $ validatorHash validator
     logInfo' "Attempt to lock value"
     txId <- payToAlwaysSucceeds vhash
     -- If the wallet is cold, you need a high parameter here.
-    countToZero 60
-    logInfo' "Try to spend locked values"
+    awaitTxConfirmed txId
+    logInfo' "Tx submitted successfully, Try to spend locked values"
     spendFromAlwaysSucceeds vhash validator txId
-
-countToZero :: Int -> Contract () Unit
-countToZero n =
-  unless (n <= 0) do
-    logInfo' $ "Waiting before we try to unlock: " <> show n
-    (liftAff <<< delay <<< wrap) 1000.0
-    countToZero (n - 1)
+  publishTestFeedback true
 
 payToAlwaysSucceeds :: ValidatorHash -> Contract () TransactionHash
 payToAlwaysSucceeds vhash = do
@@ -91,7 +89,11 @@ spendFromAlwaysSucceeds vhash validator txId = do
         constraints =
           Constraints.mustSpendScriptOutput txInput unitRedeemer
       in
-        void $ buildBalanceSignAndSubmitTx lookups constraints
+        do
+          spendTxId <- buildBalanceSignAndSubmitTx lookups constraints
+          awaitTxConfirmed spendTxId
+          logInfo' "Successfully spent locked values."
+
     _ ->
       logInfo' $ "The id "
         <> show txId
@@ -108,12 +110,13 @@ buildBalanceSignAndSubmitTx
   -> Contract () TransactionHash
 buildBalanceSignAndSubmitTx lookups constraints = do
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  BalancedSignedTransaction bsTx <-
-    liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-  txId <- submit bsTx.signedTxCbor
+  bsTx <- liftedE $ balanceAndSignTxE ubTx
+  txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
   pure txId
 
-alwaysSucceedsScript :: Maybe Validator
-alwaysSucceedsScript = map wrap $ hush $ decodeAeson $ fromString
-  "4d01000033222220051200120011"
+foreign import alwaysSucceeds :: String
+
+alwaysSucceedsScript :: Contract () Validator
+alwaysSucceedsScript = wrap <<< wrap <$> textEnvelopeBytes alwaysSucceeds
+  PlutusScriptV1

@@ -116,16 +116,17 @@ import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Bitraversable (bitraverse)
 import Data.Either (Either)
+import Data.Int (fromString)
 import Data.Map as M
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap, unwrap)
 import Data.Ratio (Ratio, reduce)
+import Data.Set (fromFoldable) as Set
 import Data.Traversable (traverse, for)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Data.Variant (Variant, inj)
-import Deserialization.BigNum (bigNumToBigInt')
 import Deserialization.Error
   ( Err
   , FromCslRepError
@@ -162,7 +163,6 @@ import Serialization.Types
   ( AssetName
   , AuxiliaryData
   , AuxiliaryDataHash
-  , BigNum
   , Certificate
   , CostModel
   , Costmdls
@@ -203,6 +203,8 @@ import Serialization.Types
   , Withdrawals
   ) as Csl
 import Type.Row (type (+))
+import Types.BigNum (BigNum) as Csl
+import Types.BigNum (toBigInt') as BigNum
 import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
 import Types.Int (Int) as Csl
@@ -243,11 +245,12 @@ convertTxBody txBody = do
   inputs <-
     _txBodyInputs containerHelper txBody
       # traverse (convertInput >>> cslErr "TransactionInput")
+      <#> Set.fromFoldable
   outputs <-
     _txBodyOutputs containerHelper txBody
       # traverse (convertOutput >>> cslErr "TransactionOutput")
   fee <-
-    Coin <$> (_txBodyFee txBody # bigNumToBigInt' "Tx fee")
+    Coin <$> (_txBodyFee txBody # BigNum.toBigInt' "Tx fee")
   let
     networkId =
       _txBodyNetworkId Csl.TestnetId Csl.MainnetId maybeFfiHelper txBody
@@ -262,7 +265,7 @@ convertTxBody txBody = do
     (map <<< map) M.fromFoldable
       -- bignum -> coin
       <<< (traverse <<< traverse <<< traverse)
-        (bigNumToBigInt' "txbody withdrawals" >>> map Coin)
+        (BigNum.toBigInt' "txbody withdrawals" >>> map Coin)
       $ ws
 
   update <- traverse convertUpdate $ _txBodyUpdate maybeFfiHelper txBody
@@ -273,21 +276,19 @@ convertTxBody txBody = do
         maybeFfiHelper
         txBody
 
-  validityStartInterval <-
-    traverse intToSlot $ _txBodyValidityStartInterval maybeFfiHelper txBody
-
   pure $ T.TxBody
     { inputs
     , outputs
     , fee
-    , ttl: map Slot <<< UInt.fromNumber' =<< _txBodyTtl maybeFfiHelper txBody
+    , ttl: Slot <$> _txBodyTtl maybeFfiHelper txBody
     , certs
     , withdrawals
     , update
     , auxiliaryDataHash:
         T.AuxiliaryDataHash <<< toBytes <<< asOneOf <$>
           _txBodyAuxiliaryDataHash maybeFfiHelper txBody
-    , validityStartInterval
+    , validityStartInterval:
+        Slot <$> _txBodyValidityStartInterval maybeFfiHelper txBody
     , mint: map convertMint $ _txBodyMultiAssets maybeFfiHelper txBody
     , scriptDataHash: convertScriptDataHash <$> _txBodyScriptDataHash
         maybeFfiHelper
@@ -299,16 +300,6 @@ convertTxBody txBody = do
           (map <<< map) T.RequiredSigner
     , networkId
     }
-
-  where
-  intToSlot
-    :: forall (s :: Row Type)
-     . Int
-    -> Either (Variant (fromCslRepError :: String | s)) Slot
-  intToSlot x =
-    cslErr ("validityStartInterval UInt.fromInt': " <> show x)
-      <<< map Slot
-      <<< UInt.fromInt' $ x
 
 convertUpdate :: forall (r :: Row Type). Csl.Update -> Err r T.Update
 convertUpdate u = do
@@ -465,16 +456,18 @@ convertProtocolParamUpdate cslPpu = do
     ppu = _unpackProtocolParamUpdate maybeFfiHelper cslPpu
     lbl = (<>) "ProtocolParamUpdate."
 
-  minfeeA <- traverse (map Coin <<< bigNumToBigInt' (lbl "minfeeA")) ppu.minfeeA
-  minfeeB <- traverse (map Coin <<< bigNumToBigInt' (lbl "minfeeB")) ppu.minfeeB
+  minfeeA <- traverse (map Coin <<< BigNum.toBigInt' (lbl "minfeeA"))
+    ppu.minfeeA
+  minfeeB <- traverse (map Coin <<< BigNum.toBigInt' (lbl "minfeeB"))
+    ppu.minfeeB
   maxBlockBodySize <- traverse (cslNumberToUInt (lbl "maxBlockBodySize"))
     ppu.maxBlockBodySize
   maxTxSize <- traverse (cslNumberToUInt (lbl "maxTxSize")) ppu.maxTxSize
   maxBlockHeaderSize <- traverse (cslNumberToUInt (lbl "maxBlockHeaderSize"))
     ppu.maxBlockHeaderSize
-  keyDeposit <- traverse (map Coin <<< bigNumToBigInt' (lbl "keyDeposit"))
+  keyDeposit <- traverse (map Coin <<< BigNum.toBigInt' (lbl "keyDeposit"))
     ppu.keyDeposit
-  poolDeposit <- traverse (map Coin <<< bigNumToBigInt' (lbl "poolDeposit"))
+  poolDeposit <- traverse (map Coin <<< BigNum.toBigInt' (lbl "poolDeposit"))
     ppu.poolDeposit
   maxEpoch <- traverse (map T.Epoch <<< cslNumberToUInt (lbl "maxEpoch"))
     ppu.maxEpoch
@@ -545,13 +538,13 @@ convertCostModel
    . String
   -> Csl.CostModel
   -> E (FromCslRepError + r) T.CostModel
-convertCostModel err = map T.CostModel <<< traverse stringToUInt <<<
+convertCostModel err = map T.CostModel <<< traverse stringToInt <<<
   _unpackCostModel
   where
-  stringToUInt
-    :: String -> Either (Variant (fromCslRepError :: String | r)) UInt
-  stringToUInt s = cslErr (err <> ": string (" <> s <> ") -> uint") $
-    UInt.fromString s
+  stringToInt
+    :: String -> Either (Variant (fromCslRepError :: String | r)) Int
+  stringToInt s = cslErr (err <> ": string (" <> s <> ") -> int") $
+    fromString s
 
 convertAuxiliaryData
   :: forall (r :: Row Type). Csl.AuxiliaryData -> Err r T.AuxiliaryData
@@ -575,7 +568,7 @@ convertGeneralTransactionMetadata =
       -- convert tuple type
       traverse
         ( bitraverse
-            ( map TransactionMetadatumLabel <<< bigNumToBigInt'
+            ( map TransactionMetadatumLabel <<< BigNum.toBigInt'
                 "MetadatumLabel: "
             )
             (convertMetadatum "GeneralTransactionMetadata: ")
@@ -652,8 +645,8 @@ cslRatioToRational
   -> { denominator :: Csl.BigNum, numerator :: Csl.BigNum }
   -> E (FromCslRepError + r) (Ratio BigInt)
 cslRatioToRational err { numerator, denominator } = reduce
-  <$> bigNumToBigInt' (err <> " cslRatioToRational") numerator
-  <*> bigNumToBigInt' (err <> " cslRatioToRational") denominator
+  <$> BigNum.toBigInt' (err <> " cslRatioToRational") numerator
+  <*> BigNum.toBigInt' (err <> " cslRatioToRational") denominator
 
 convertExUnits
   :: forall (r :: Row Type)
@@ -665,8 +658,8 @@ convertExUnits nm cslExunits =
     { mem, steps } = _unpackExUnits cslExunits
   in
     { mem: _, steps: _ }
-      <$> bigNumToBigInt' (nm <> " mem") mem
-      <*> bigNumToBigInt' (nm <> " steps") steps
+      <$> BigNum.toBigInt' (nm <> " mem") mem
+      <*> BigNum.toBigInt' (nm <> " steps") steps
 
 convertScriptDataHash :: Csl.ScriptDataHash -> T.ScriptDataHash
 convertScriptDataHash = asOneOf >>> toBytes >>> T.ScriptDataHash
@@ -804,7 +797,7 @@ foreign import _txBodyOutputs
 foreign import _txBodyFee :: Csl.TransactionBody -> Csl.BigNum
 -- ttl(): number | void;
 foreign import _txBodyTtl
-  :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Number
+  :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Csl.BigNum
 
 -- certs(): Certificates | void;
 foreign import _txBodyCerts
@@ -827,7 +820,7 @@ foreign import _txBodyAuxiliaryDataHash
 
 -- validity_start_interval(): number | void
 foreign import _txBodyValidityStartInterval
-  :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Int
+  :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Csl.BigNum
 
 -- multiassets(): Mint | void
 foreign import _txBodyMultiAssets

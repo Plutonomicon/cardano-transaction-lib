@@ -2,6 +2,7 @@ module Deserialization.WitnessSet
   ( convertNativeScripts
   , convertPlutusScripts
   , convertVkeyWitnesses
+  , convertVkeyWitness
   , convertWitnessSet
   , deserializeWitnessSet
   , plutusScriptBytes
@@ -23,11 +24,9 @@ import Cardano.Types.Transaction
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (for, traverse)
 import Data.Tuple.Nested ((/\))
-import Deserialization.BigNum (bigNumToBigInt)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization.Types
-  ( BigNum
-  , BootstrapWitness
+  ( BootstrapWitness
   , BootstrapWitnesses
   , Ed25519Signature
   , ExUnits
@@ -46,6 +45,8 @@ import Serialization.Types
   , Vkeywitness
   , Vkeywitnesses
   )
+import Types.BigNum (BigNum)
+import Types.BigNum (toBigInt) as BigNum
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData) as T
 import Types.RedeemerTag as Tag
@@ -72,7 +73,10 @@ convertWitnessSet ws = do
     }
 
 convertVkeyWitnesses :: Vkeywitnesses -> Array T.Vkeywitness
-convertVkeyWitnesses = extractWitnesses >>> map \witness ->
+convertVkeyWitnesses = extractWitnesses >>> map convertVkeyWitness
+
+convertVkeyWitness :: Vkeywitness -> T.Vkeywitness
+convertVkeyWitness witness =
   let
     vkey = getVkey witness
     publicKey = convertVkey vkey
@@ -111,7 +115,7 @@ convertRedeemers = extractRedeemers >>> traverse convertRedeemer
 convertRedeemer :: Redeemer -> Maybe T.Redeemer
 convertRedeemer redeemer = do
   tag <- convertRedeemerTag $ getRedeemerTag redeemer
-  index <- bigNumToBigInt $ getRedeemerIndex redeemer
+  index <- BigNum.toBigInt $ getRedeemerIndex redeemer
   exUnits <- convertExUnits $ getExUnits redeemer
   data_ <- convertPlutusData $ getRedeemerPlutusData redeemer
   pure $ T.Redeemer
@@ -131,8 +135,8 @@ convertRedeemerTag tag = case getRedeemerTagKind tag of
 
 convertExUnits :: ExUnits -> Maybe T.ExUnits
 convertExUnits eu = do
-  mem <- bigNumToBigInt $ getExUnitsMem eu
-  steps <- bigNumToBigInt $ getExUnitsSteps eu
+  mem <- BigNum.toBigInt $ getExUnitsMem eu
+  steps <- BigNum.toBigInt $ getExUnitsSteps eu
   pure { mem, steps }
 
 foreign import getVkeywitnesses

@@ -1,46 +1,61 @@
 module Cardano.Types.Transaction
-  ( AuxiliaryData(..)
-  , AuxiliaryDataHash(..)
+  ( AuxiliaryData(AuxiliaryData)
+  , AuxiliaryDataHash(AuxiliaryDataHash)
   , BootstrapWitness
-  , Certificate(..)
-  , CostModel(..)
-  , Costmdls(..)
-  , Ed25519Signature(..)
-  , Epoch(..)
+  , Certificate
+      ( StakeRegistration
+      , StakeDeregistration
+      , StakeDelegation
+      , PoolRegistration
+      , PoolRetirement
+      , GenesisKeyDelegation
+      , MoveInstantaneousRewardsCert
+      )
+  , CostModel(CostModel)
+  , Costmdls(Costmdls)
+  , Ed25519Signature(Ed25519Signature)
+  , Epoch(Epoch)
   , ExUnitPrices
   , ExUnits
-  , GenesisDelegateHash(..)
-  , GenesisHash(..)
-  , Ipv4(..)
-  , Ipv6(..)
-  , Language(..)
-  , MIRToStakeCredentials(..)
-  , Mint(..)
-  , MoveInstantaneousReward(..)
-  , NativeScript(..)
-  , Nonce(..)
-  , PoolMetadata(..)
-  , PoolMetadataHash(..)
-  , ProposedProtocolParameterUpdates(..)
+  , GenesisDelegateHash(GenesisDelegateHash)
+  , GenesisHash(GenesisHash)
+  , Ipv4(Ipv4)
+  , Ipv6(Ipv6)
+  , Language(PlutusV1)
+  , MIRToStakeCredentials(MIRToStakeCredentials)
+  , Mint(Mint)
+  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
+  , NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
+  , Nonce(IdentityNonce, HashNonce)
+  , PoolMetadata(PoolMetadata)
+  , PoolMetadataHash(PoolMetadataHash)
+  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate
   , ProtocolVersion
-  , PublicKey(..)
-  , Redeemer(..)
-  , Relay(..)
-  , RequiredSigner(..)
-  , ScriptDataHash(..)
+  , PublicKey(PublicKey)
+  , Redeemer(Redeemer)
+  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
+  , RequiredSigner(RequiredSigner)
+  , ScriptDataHash(ScriptDataHash)
   , SubCoin
-  , Transaction(..)
-  , TransactionOutput(..)
-  , TransactionWitnessSet(..)
-  , TxBody(..)
-  , URL(..)
+  , Transaction(Transaction)
+  , TransactionOutput(TransactionOutput)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , TxBody(TxBody)
+  , URL(URL)
   , UnitInterval
   , Update
-  , Utxo
-  , UtxoM(..)
-  , Vkey(..)
-  , Vkeywitness(..)
+  , Utxos
+  , UtxoM(UtxoM)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
   , _auxiliaryData
   , _auxiliaryDataHash
   , _body
@@ -69,9 +84,22 @@ module Cardano.Types.Transaction
 
 import Prelude
 
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , JsonDecodeError(TypeMismatch)
+  , caseAesonString
+  , decodeAeson
+  , encodeAeson
+  , encodeAeson'
+  )
+
+import Cardano.Types.Value (Coin, NonAdaAsset, Value)
+import Control.Alternative ((<|>))
 import Control.Apply (lift2)
 import Data.Array (union)
 import Data.BigInt (BigInt)
+import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
 import Data.Lens.Iso.Newtype (_Newtype)
@@ -80,13 +108,15 @@ import Data.Lens.Types (Lens')
 import Data.Map (Map)
 import Data.Maybe (Maybe(Nothing))
 import Data.Monoid (guard)
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap)
+import Data.Set (Set)
+import Data.Set (union, toUnfoldable) as Set
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
-import Helpers ((</>), (<<>>), appendMap)
+import Helpers ((</>), (<<>>), appendMap, encodeMap, encodeTagged')
 import Serialization.Address
   ( Address
   , NetworkId
@@ -95,8 +125,9 @@ import Serialization.Address
   , StakeCredential
   )
 import Serialization.Hash (Ed25519KeyHash)
-import Serialization.Types (BigNum, VRFKeyHash)
+import Serialization.Types (VRFKeyHash)
 import Types.Aliases (Bech32String)
+import Types.BigNum (BigNum)
 import Types.ByteArray (ByteArray)
 import Types.Int as Int
 import Types.PlutusData (PlutusData)
@@ -104,7 +135,6 @@ import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript)
 import Types.Transaction (DataHash, TransactionInput)
 import Types.TransactionMetadata (GeneralTransactionMetadata)
-import Cardano.Types.Value (Coin, NonAdaAsset, Value)
 
 --------------------------------------------------------------------------------
 -- `Transaction`
@@ -122,6 +152,7 @@ newtype Transaction = Transaction
 derive instance Generic Transaction _
 derive instance Eq Transaction
 derive instance Newtype Transaction _
+derive newtype instance EncodeAeson Transaction
 
 instance Show Transaction where
   show = genericShow
@@ -175,7 +206,7 @@ _auxiliaryData = lens' \(Transaction rec@{ auxiliaryData }) ->
 -- requiredSigners is an Array over `VKey`s essentially. But some comments at
 -- the bottom say it's Maybe?
 newtype TxBody = TxBody
-  { inputs :: Array TransactionInput
+  { inputs :: Set TransactionInput
   , outputs :: Array TransactionOutput
   , fee :: Coin
   , ttl :: Maybe Slot
@@ -200,7 +231,7 @@ instance Show TxBody where
 
 instance Semigroup TxBody where
   append (TxBody txB) (TxBody txB') = TxBody
-    { inputs: txB.inputs `union` txB'.inputs
+    { inputs: txB.inputs `Set.union` txB'.inputs
     , outputs: txB.outputs `union` txB'.outputs
     , fee: txB.fee <> txB'.fee
     , ttl: lift2 lowerbound txB.ttl txB'.ttl
@@ -240,11 +271,18 @@ instance Monoid TxBody where
     , networkId: Nothing
     }
 
+instance EncodeAeson TxBody where
+  encodeAeson' (TxBody r) = encodeAeson' $ r
+    { inputs = encodeAeson (Set.toUnfoldable r.inputs :: Array TransactionInput)
+    , withdrawals = encodeMap <$> r.withdrawals
+    }
+
 newtype ScriptDataHash = ScriptDataHash ByteArray
 
 derive instance Newtype ScriptDataHash _
 derive instance Generic ScriptDataHash _
 derive newtype instance Eq ScriptDataHash
+derive newtype instance EncodeAeson ScriptDataHash
 
 instance Show ScriptDataHash where
   show = genericShow
@@ -256,6 +294,7 @@ derive instance Newtype Mint _
 derive newtype instance Eq Mint
 derive newtype instance Semigroup Mint
 derive newtype instance Monoid Mint
+derive newtype instance EncodeAeson Mint
 
 instance Show Mint where
   show = genericShow
@@ -265,6 +304,7 @@ newtype AuxiliaryDataHash = AuxiliaryDataHash ByteArray
 derive instance Generic AuxiliaryDataHash _
 derive instance Newtype AuxiliaryDataHash _
 derive newtype instance Eq AuxiliaryDataHash
+derive newtype instance EncodeAeson AuxiliaryDataHash
 
 instance Show AuxiliaryDataHash where
   show = genericShow
@@ -286,12 +326,16 @@ derive instance Generic ProposedProtocolParameterUpdates _
 instance Show ProposedProtocolParameterUpdates where
   show = genericShow
 
+instance EncodeAeson ProposedProtocolParameterUpdates where
+  encodeAeson' (ProposedProtocolParameterUpdates r) = encodeAeson' $ encodeMap r
+
 newtype GenesisHash = GenesisHash ByteArray
 
 derive instance Newtype GenesisHash _
 derive newtype instance Eq GenesisHash
 derive newtype instance Ord GenesisHash
 derive instance Generic GenesisHash _
+derive newtype instance EncodeAeson GenesisHash
 
 instance Show GenesisHash where
   show = genericShow
@@ -342,6 +386,9 @@ derive instance Generic Costmdls _
 instance Show Costmdls where
   show = genericShow
 
+instance EncodeAeson Costmdls where
+  encodeAeson' = encodeAeson' <<< encodeMap <<< unwrap
+
 data Language = PlutusV1
 
 derive instance Eq Language
@@ -351,10 +398,15 @@ derive instance Generic Language _
 instance Show Language where
   show = genericShow
 
-newtype CostModel = CostModel (Array UInt)
+instance EncodeAeson Language where
+  encodeAeson' = case _ of
+    PlutusV1 -> encodeAeson' $ encodeTagged' "PlutusV1" {}
+
+newtype CostModel = CostModel (Array Int)
 
 derive instance Newtype CostModel _
 derive newtype instance Eq CostModel
+derive newtype instance EncodeAeson CostModel
 derive instance Generic Nonce _
 derive instance Generic CostModel _
 
@@ -374,6 +426,22 @@ derive instance Eq Nonce
 instance Show Nonce where
   show = genericShow
 
+instance DecodeAeson Nonce where
+  decodeAeson aeson = (HashNonce <$> decodeAeson aeson) <|>
+    caseAesonString err
+      ( case _ of
+          "neutral" -> pure IdentityNonce
+          _ -> err
+      )
+      aeson
+    where
+    err :: Either JsonDecodeError Nonce
+    err = Left (TypeMismatch "Nonce")
+
+instance EncodeAeson Nonce where
+  encodeAeson' IdentityNonce = encodeAeson' "neutral"
+  encodeAeson' (HashNonce hash) = encodeAeson' hash
+
 type UnitInterval =
   { numerator :: BigNum
   , denominator :: BigNum
@@ -384,6 +452,7 @@ newtype Epoch = Epoch UInt
 derive instance Newtype Epoch _
 derive instance Generic Epoch _
 derive newtype instance Eq Epoch
+derive newtype instance EncodeAeson Epoch
 
 instance Show Epoch where
   show = genericShow
@@ -393,6 +462,8 @@ newtype Ipv4 = Ipv4 ByteArray
 derive instance Eq Ipv4
 derive instance Generic Ipv4 _
 derive instance Newtype Ipv4 _
+-- TODO: Use a more legible representation
+derive newtype instance EncodeAeson Ipv4
 
 instance Show Ipv4 where
   show = genericShow
@@ -402,6 +473,7 @@ newtype Ipv6 = Ipv6 ByteArray
 derive instance Eq Ipv6
 derive instance Generic Ipv6 _
 derive instance Newtype Ipv6 _
+derive newtype instance EncodeAeson Ipv6
 
 instance Show Ipv6 where
   show = genericShow
@@ -424,11 +496,18 @@ derive instance Generic Relay _
 instance Show Relay where
   show = genericShow
 
+instance EncodeAeson Relay where
+  encodeAeson' = case _ of
+    SingleHostAddr r -> encodeAeson' $ encodeTagged' "SingleHostAddr" r
+    SingleHostName r -> encodeAeson' $ encodeTagged' "SingleHostName" r
+    MultiHostName r -> encodeAeson' $ encodeTagged' "MultiHostName" r
+
 newtype URL = URL String
 
 derive instance Eq URL
 derive instance Generic URL _
 derive instance Newtype URL _
+derive newtype instance EncodeAeson URL
 
 instance Show URL where
   show = genericShow
@@ -438,6 +517,7 @@ newtype PoolMetadataHash = PoolMetadataHash ByteArray
 derive instance Eq PoolMetadataHash
 derive instance Generic PoolMetadataHash _
 derive instance Newtype PoolMetadataHash _
+derive newtype instance EncodeAeson PoolMetadataHash
 
 instance Show PoolMetadataHash where
   show = genericShow
@@ -453,10 +533,14 @@ derive instance Generic PoolMetadata _
 instance Show PoolMetadata where
   show = genericShow
 
+instance EncodeAeson PoolMetadata where
+  encodeAeson' (PoolMetadata r) = encodeAeson' r
+
 newtype GenesisDelegateHash = GenesisDelegateHash ByteArray
 
 derive instance Eq GenesisDelegateHash
 derive instance Generic GenesisDelegateHash _
+derive newtype instance EncodeAeson GenesisDelegateHash
 
 instance Show GenesisDelegateHash where
   show = genericShow
@@ -469,6 +553,9 @@ derive instance Generic MIRToStakeCredentials _
 
 instance Show MIRToStakeCredentials where
   show = genericShow
+
+instance EncodeAeson MIRToStakeCredentials where
+  encodeAeson' (MIRToStakeCredentials r) = encodeAeson' $ encodeMap r
 
 data MoveInstantaneousReward
   = ToOtherPot
@@ -485,6 +572,11 @@ derive instance Generic MoveInstantaneousReward _
 
 instance Show MoveInstantaneousReward where
   show = genericShow
+
+instance EncodeAeson MoveInstantaneousReward where
+  encodeAeson' = case _ of
+    ToOtherPot r -> encodeAeson' $ encodeTagged' "ToOtherPot" r
+    ToStakeCreds r -> encodeAeson' $ encodeTagged' "ToStakeCreds" r
 
 data Certificate
   = StakeRegistration StakeCredential
@@ -518,10 +610,26 @@ derive instance Generic Certificate _
 instance Show Certificate where
   show = genericShow
 
+instance EncodeAeson Certificate where
+  encodeAeson' = case _ of
+    StakeRegistration r -> encodeAeson' $ encodeTagged' "StakeRegistration" r
+    StakeDeregistration r -> encodeAeson' $ encodeTagged' "StakeDeregistration"
+      r
+    StakeDelegation cred hash -> encodeAeson' $ encodeTagged' "StakeDelegation"
+      { stakeCredential: cred, ed25519KeyHash: hash }
+    PoolRegistration r -> encodeAeson' $ encodeTagged' "PoolRegistration" r
+    PoolRetirement r -> encodeAeson' $ encodeTagged' "PoolRetirement" r
+    GenesisKeyDelegation r -> encodeAeson' $ encodeTagged'
+      "GenesisKeyDelegation"
+      r
+    MoveInstantaneousRewardsCert r -> encodeAeson' $ encodeTagged'
+      "MoveInstantaneousReward"
+      r
+
 --------------------------------------------------------------------------------
 -- `TxBody` Lenses
 --------------------------------------------------------------------------------
-_inputs :: Lens' TxBody (Array TransactionInput)
+_inputs :: Lens' TxBody (Set TransactionInput)
 _inputs = _Newtype <<< prop (SProxy :: SProxy "inputs")
 
 _outputs :: Lens' TxBody (Array TransactionOutput)
@@ -579,6 +687,7 @@ newtype TransactionWitnessSet = TransactionWitnessSet
 derive instance Generic TransactionWitnessSet _
 derive instance Newtype TransactionWitnessSet _
 derive newtype instance Eq TransactionWitnessSet
+derive newtype instance EncodeAeson TransactionWitnessSet
 
 instance Show TransactionWitnessSet where
   show = genericShow
@@ -646,6 +755,7 @@ newtype RequiredSigner = RequiredSigner Ed25519KeyHash
 derive instance Newtype RequiredSigner _
 derive newtype instance Eq RequiredSigner
 derive newtype instance Ord RequiredSigner
+derive newtype instance EncodeAeson RequiredSigner
 derive instance Generic RequiredSigner _
 
 instance Show RequiredSigner where
@@ -655,6 +765,8 @@ newtype Vkeywitness = Vkeywitness (Vkey /\ Ed25519Signature)
 
 derive instance Generic Vkeywitness _
 derive newtype instance Eq Vkeywitness
+derive newtype instance EncodeAeson Vkeywitness
+derive instance Newtype Vkeywitness _
 
 instance Show Vkeywitness where
   show = genericShow
@@ -665,6 +777,7 @@ derive instance Generic Vkey _
 derive instance Newtype Vkey _
 derive newtype instance Eq Vkey
 derive newtype instance Ord Vkey
+derive newtype instance EncodeAeson Vkey
 
 instance Show Vkey where
   show = genericShow
@@ -675,6 +788,7 @@ derive instance Generic PublicKey _
 derive instance Newtype PublicKey _
 derive newtype instance Eq PublicKey
 derive newtype instance Ord PublicKey
+derive newtype instance EncodeAeson PublicKey
 
 instance Show PublicKey where
   show = genericShow
@@ -684,6 +798,7 @@ newtype Ed25519Signature = Ed25519Signature Bech32String
 derive instance Generic Ed25519Signature _
 derive newtype instance Eq Ed25519Signature
 derive newtype instance Ord Ed25519Signature
+derive newtype instance EncodeAeson Ed25519Signature
 
 instance Show Ed25519Signature where
   show = genericShow
@@ -698,6 +813,7 @@ newtype Redeemer = Redeemer
 derive instance Generic Redeemer _
 derive newtype instance Eq Redeemer
 derive newtype instance Ord Redeemer
+derive newtype instance EncodeAeson Redeemer
 
 instance Show Redeemer where
   show = genericShow
@@ -710,6 +826,7 @@ newtype AuxiliaryData = AuxiliaryData
 
 derive newtype instance Eq AuxiliaryData
 derive instance Generic AuxiliaryData _
+derive newtype instance EncodeAeson AuxiliaryData
 
 instance Show AuxiliaryData where
   show = genericShow
@@ -743,6 +860,16 @@ derive instance Generic NativeScript _
 instance Show NativeScript where
   show x = genericShow x
 
+instance EncodeAeson NativeScript where
+  encodeAeson' = case _ of
+    ScriptPubkey r -> encodeAeson' $ encodeTagged' "ScriptPubKey" r
+    ScriptAll r -> encodeAeson' $ encodeTagged' "ScriptAll" r
+    ScriptAny r -> encodeAeson' $ encodeTagged' "ScriptAny" r
+    ScriptNOfK n nativeScripts -> encodeAeson' $ encodeTagged' "ScriptPubKey"
+      { n, nativeScripts }
+    TimelockStart r -> encodeAeson' $ encodeTagged' "TimeLockStart" r
+    TimelockExpiry r -> encodeAeson' $ encodeTagged' "TimeLockExpiry" r
+
 newtype TransactionOutput = TransactionOutput
   { address :: Address
   , amount :: Value
@@ -752,11 +879,12 @@ newtype TransactionOutput = TransactionOutput
 derive instance Generic TransactionOutput _
 derive instance Newtype TransactionOutput _
 derive newtype instance Eq TransactionOutput
+derive newtype instance EncodeAeson TransactionOutput
 
 instance Show TransactionOutput where
   show = genericShow
 
-newtype UtxoM = UtxoM Utxo
+newtype UtxoM = UtxoM Utxos
 
 derive instance Generic UtxoM _
 derive instance Newtype UtxoM _
@@ -765,4 +893,4 @@ derive newtype instance Eq UtxoM
 instance Show UtxoM where
   show = genericShow
 
-type Utxo = Map TransactionInput TransactionOutput
+type Utxos = Map TransactionInput TransactionOutput

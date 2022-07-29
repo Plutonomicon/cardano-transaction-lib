@@ -20,24 +20,25 @@ import Aeson
   , getField
   )
 import Data.Either (Either(Left))
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe, fromJust)
+import Data.Newtype (unwrap, wrap)
 import FromData (class FromData)
-import Serialization.Hash
-  ( ScriptHash
-  , scriptHashFromBytes
-  , scriptHashToBytes
-  )
+import Partial.Unsafe (unsafePartial)
+import Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
 import ToData (class ToData)
 import Types.ByteArray (ByteArray)
-import Data.Newtype (unwrap, wrap)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
+import Metadata.FromMetadata (class FromMetadata)
+import Metadata.ToMetadata (class ToMetadata)
 
 newtype CurrencySymbol = CurrencySymbol ByteArray
 
 derive newtype instance Eq CurrencySymbol
 derive newtype instance Ord CurrencySymbol
 derive newtype instance FromData CurrencySymbol
+derive newtype instance FromMetadata CurrencySymbol
 derive newtype instance ToData CurrencySymbol
+derive newtype instance ToMetadata CurrencySymbol
 
 instance DecodeAeson CurrencySymbol where
   decodeAeson = caseAesonObject
@@ -60,8 +61,8 @@ scriptHashAsCurrencySymbol :: ScriptHash -> CurrencySymbol
 scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< scriptHashToBytes
 
 -- | The minting policy hash of a currency symbol.
-currencyMPSHash :: CurrencySymbol -> Maybe MintingPolicyHash
-currencyMPSHash = map MintingPolicyHash <<< currencyScriptHash
+currencyMPSHash :: CurrencySymbol -> MintingPolicyHash
+currencyMPSHash = MintingPolicyHash <<< currencyScriptHash
 
 -- | The currency symbol of a monetary policy hash.
 mpsSymbol :: MintingPolicyHash -> Maybe CurrencySymbol
@@ -82,5 +83,8 @@ mkCurrencySymbol byteArr
 -- Internal
 --------------------------------------------------------------------------------
 
-currencyScriptHash :: CurrencySymbol -> Maybe ScriptHash
-currencyScriptHash = scriptHashFromBytes <<< wrap <<< getCurrencySymbol
+-- This must be safe to use as long as we always construct a
+-- `CurrencySymbol` with the smart-constructors.
+currencyScriptHash :: CurrencySymbol -> ScriptHash
+currencyScriptHash = unsafePartial $ fromJust <<< scriptHashFromBytes <<< wrap
+  <<< getCurrencySymbol

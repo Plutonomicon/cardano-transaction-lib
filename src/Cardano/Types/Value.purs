@@ -1,8 +1,8 @@
 module Cardano.Types.Value
-  ( Coin(..)
+  ( Coin(Coin)
   , CurrencySymbol
-  , NonAdaAsset(..)
-  , Value(..)
+  , NonAdaAsset(NonAdaAsset)
+  , Value(Value)
   , class Negate
   , class Split
   , coinToValue
@@ -34,6 +34,8 @@ module Cardano.Types.Value
   , mpsSymbol
   , negation
   , numCurrencySymbols
+  , numNonAdaAssets
+  , numNonAdaCurrencySymbols
   , numTokenNames
   , split
   , sumTokenNameLengths
@@ -55,6 +57,7 @@ import Aeson
   , encodeAeson'
   , getField
   )
+
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Data.Array (cons, filter)
@@ -64,9 +67,11 @@ import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Either (Either(Left), note)
 import Data.Foldable (any, fold, foldl, length)
 import Data.FoldableWithIndex (foldrWithIndex)
+import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (class JoinSemilattice, class MeetSemilattice, join, meet)
 import Data.List ((:), all, List(Nil))
+import Data.List (nubByEq) as List
 import Data.Map (keys, lookup, Map, toUnfoldable, unions, values)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
@@ -75,20 +80,16 @@ import Data.Set (Set)
 import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This))
 import Data.Traversable (class Traversable, traverse)
+import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import FromData (class FromData)
-import Helpers (showWithParens)
+import Helpers (encodeMap, showWithParens)
 import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Partial.Unsafe (unsafePartial)
-import Serialization.Hash
-  ( ScriptHash
-  , scriptHashFromBytes
-  , scriptHashToBytes
-  )
+import Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
 import ToData (class ToData)
-import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex)
-import Types.CborBytes (byteLength)
+import Types.ByteArray (ByteArray, byteArrayToHex, byteLength, hexToByteArray)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Types.TokenName
   ( TokenName
@@ -128,6 +129,8 @@ newtype Coin = Coin BigInt
 derive instance Generic Coin _
 derive instance Newtype Coin _
 derive newtype instance Eq Coin
+derive newtype instance Ord Coin
+derive newtype instance EncodeAeson Coin
 
 instance Show Coin where
   show (Coin c) = showWithParens "Coin" c
@@ -229,6 +232,7 @@ mkUnsafeAdaSymbol byteArr =
 --------------------------------------------------------------------------------
 -- NonAdaAsset
 --------------------------------------------------------------------------------
+
 newtype NonAdaAsset = NonAdaAsset (Map CurrencySymbol (Map TokenName BigInt))
 
 derive instance Newtype NonAdaAsset _
@@ -264,6 +268,9 @@ instance Split NonAdaAsset where
         mp'
 
     npos /\ pos = mapThese splitIntl mp
+
+instance EncodeAeson NonAdaAsset where
+  encodeAeson' (NonAdaAsset m) = encodeAeson' $ encodeMap $ encodeMap <$> m
 
 -- We shouldn't need this check if we don't export unsafeAdaSymbol etc.
 -- | Create a singleton `NonAdaAsset` which by definition should be safe since
@@ -361,6 +368,12 @@ instance Split Value where
   split (Value coin nonAdaAsset) =
     bimap (flip Value mempty) (flip Value mempty) (split coin)
       <> bimap (Value mempty) (Value mempty) (split nonAdaAsset)
+
+instance EncodeAeson Value where
+  encodeAeson' (Value coin nonAdaAsset) = encodeAeson'
+    { coin
+    , nonAdaAsset
+    }
 
 -- | Create a `Value` from `Coin` and `NonAdaAsset`, the latter should have been
 -- | constructed safely at this point.
@@ -601,13 +614,26 @@ valueOf (Value (Coin lovelaces) (NonAdaAsset nonAdaAsset)) curSymbol tokenName =
           Just v -> v
     true -> lovelaces
 
+-- | The number of distinct non-Ada assets.
+numNonAdaAssets :: Value -> BigInt
+numNonAdaAssets (Value _ nonAdaAssets) =
+  length (flattenNonAdaValue nonAdaAssets)
+
+-- | The number of distinct non-Ada currency symbols, i.e. the number of policy
+-- | IDs not including Ada in `Coin`.
+numNonAdaCurrencySymbols :: Value -> BigInt
+numNonAdaCurrencySymbols (Value _ nonAdaAssets) =
+  fromInt <<< length <<< List.nubByEq ((==) `on` fst) $
+    flattenNonAdaValue nonAdaAssets
+
 -- | The number of distinct currency symbols, i.e. the number of policy IDs
 -- | including Ada in `Coin`.
 numCurrencySymbols :: Value -> BigInt
-numCurrencySymbols (Value coin (NonAdaAsset nonAdaAsset)) =
-  case coin == mempty of
-    false -> fromInt $ 1 + length nonAdaAsset
-    true -> fromInt $ length nonAdaAsset -- FIX ME: Should we count this regardless whether it's zero?
+numCurrencySymbols value@(Value coin _)
+  | coin == mempty =
+      numNonAdaCurrencySymbols value
+  | otherwise =
+      one + numNonAdaCurrencySymbols value
 
 -- Don't export this, we don't really care about the v in k,v.
 unsafeAllTokenNames' :: Value -> Map TokenName BigInt

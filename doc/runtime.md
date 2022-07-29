@@ -1,6 +1,6 @@
 # CTL's Runtime Dependencies
 
-In order to run CTL's `Contract` effects, several services are required. These can be configured through a `ContractConfig` that holds websocket connections, information about server hosts/ports, and other requisite information.
+In order to run CTL's `Contract` effects, several services are required. These can be configured through a `ContractEnv` that holds websocket connections, information about server hosts/ports, and other requisite information.
 
 **Table of Contents**
 
@@ -52,7 +52,7 @@ Here is an example that uses the overlay to launch runtime services:
       # various additional packages, using the same versions of CTL, including:
       nixpkgsFor = system: import nixpkgs {
         inherit system;
-        overlays = [ cardano-transaction-lib.overlay.${system} ];
+        overlays = [ cardano-transaction-lib.overlay ];
       };
 
       # The configuration for the CTL runtime, which will be passed to the
@@ -156,7 +156,7 @@ When changing networks, make sure that `network.magic` is correctly synchronized
 
 ### Other requirements
 
-In order to run most `Contract` actions, **you must use Nami wallet** (or Gero, depending on how `ContractConfig` is initialized). The following steps must be taken to ensure that you can run CTL contracts:
+In order to run most `Contract` actions in the browser, **you must use Nami or Gero wallet**. The following steps must be taken to ensure that you can run CTL contracts:
 
 #### With Nami:
 

@@ -5,6 +5,8 @@ module Test.Utils
   , errMaybe
   , errEither
   , interpret
+  , interpretWithTimeout
+  , interpretWithConfig
   , toFromAesonTest
   , unsafeCall
   , readAeson
@@ -24,7 +26,9 @@ import Aeson
 import Data.Const (Const)
 import Data.Either (Either(Right), either)
 import Data.Foldable (sequence_)
-import Data.Maybe (Maybe, maybe)
+import Data.Maybe (Maybe(Just), maybe)
+import Data.Newtype (wrap)
+import Data.Time.Duration (Milliseconds)
 import Effect.Aff (Aff, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -36,7 +40,8 @@ import Node.Path (FilePath)
 import Test.Spec (Spec, describe, it, pending)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter (consoleReporter)
-import Test.Spec.Runner (runSpec)
+import Test.Spec.Runner (defaultConfig, runSpec')
+import Test.Spec.Runner as SpecRunner
 import TestM (TestPlanM)
 import Type.Proxy (Proxy)
 
@@ -47,17 +52,26 @@ foreign import unsafeCall
 -- | is then interpreted here in a pure context, mainly due to some painful types
 -- | in Test.Spec which prohibit effects.
 interpret :: TestPlanM Unit -> Aff Unit
-interpret spif = do
+interpret = interpretWithConfig defaultConfig { timeout = Just (wrap 50000.0) }
+
+interpretWithTimeout :: Maybe Milliseconds -> TestPlanM Unit -> Aff Unit
+interpretWithTimeout timeout spif = do
   plan <- planT spif
-  runSpec [ consoleReporter ] $ go plan
-  where
-  go :: Plan (Const Void) (Aff Unit) -> Spec Unit
-  go =
-    foldPlan
-      (\x -> it x.label $ liftAff x.value)
-      pending
-      (\x -> describe x.label $ go x.value)
-      sequence_
+  runSpec' defaultConfig { timeout = timeout } [ consoleReporter ] $
+    planToSpec plan
+
+interpretWithConfig :: SpecRunner.Config -> TestPlanM Unit -> Aff Unit
+interpretWithConfig config spif = do
+  plan <- planT spif
+  runSpec' config [ consoleReporter ] $ planToSpec plan
+
+planToSpec :: Plan (Const Void) (Aff Unit) -> Spec Unit
+planToSpec =
+  foldPlan
+    (\x -> it x.label $ liftAff x.value)
+    pending
+    (\x -> describe x.label $ planToSpec x.value)
+    sequence_
 
 -- | Test a boolean value, throwing the provided string as an error if `false`
 assertTrue

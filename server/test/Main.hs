@@ -1,8 +1,8 @@
 module Main (main) where
 
 import Api (app, applyArgs, estimateTxFees)
-import Cardano.Api qualified as C
 import Cardano.Api.Shelley (
+  EpochNo (EpochNo),
   ExecutionUnitPrices (
     ExecutionUnitPrices,
     priceExecutionMemory,
@@ -44,7 +44,8 @@ import Data.ByteString.Lazy qualified as LBS
 import Data.ByteString.Lazy.Char8 qualified as LC8
 import Data.Functor ((<&>))
 import Data.Kind (Type)
-import Data.Map.Strict qualified as Map.Strict
+import Data.Map qualified as Map
+import Data.Ratio ((%))
 import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Network.HTTP.Types (Status (Status))
 import Network.Wai.Handler.Warp (Port)
@@ -81,14 +82,6 @@ import Types (
   Env (Env),
   Fee (Fee),
   FeesRequest (FeesRequest),
-  ServerOptions (
-    ServerOptions,
-    networkId,
-    nodeSocket,
-    ogmiosHost,
-    ogmiosPort,
-    port
-  ),
   WitnessCount (WitnessCount),
   unsafeDecode,
  )
@@ -134,7 +127,7 @@ feeEstimateSpec = around withTestApp $ do
       result <-
         runClientM' (clientEnv port) . estimateTxFees $
           FeesRequest (WitnessCount 1) cborTxFixture
-      result `shouldBe` Right (Fee 168625)
+      result `shouldBe` Right (Fee 168713)
 
     it "catches invalid hex strings" $ \port -> do
       result <-
@@ -174,16 +167,7 @@ withTestApp :: ActionWith (Port -> IO ())
 withTestApp =
   Warp.testWithApplication $
     pure . app $
-      Env serverOptions fixedProtocolParameters
-  where
-    serverOptions =
-      ServerOptions
-        { port = 8081
-        , nodeSocket = "./.node/socket/node.socket"
-        , networkId = C.Testnet (C.NetworkMagic 1097911063)
-        , ogmiosHost = "localhost"
-        , ogmiosPort = 1337
-        }
+      Env fixedProtocolParameters
 
 runClientM' ::
   forall (a :: Type).
@@ -287,43 +271,47 @@ fullyAppliedScript =
 fixedProtocolParameters :: ProtocolParameters
 fixedProtocolParameters =
   ProtocolParameters
-    { protocolParamProtocolVersion = (6, 0)
-    , protocolParamDecentralization = 0
+    { protocolParamProtocolVersion = (7, 0)
+    , protocolParamDecentralization = 0 % 1
     , protocolParamExtraPraosEntropy = Nothing
     , protocolParamMaxBlockHeaderSize = 1100
-    , protocolParamMaxBlockBodySize = 98304
+    , protocolParamMaxBlockBodySize = 65536
     , protocolParamMaxTxSize = 16384
     , protocolParamTxFeeFixed = 155381
     , protocolParamTxFeePerByte = 44
     , protocolParamMinUTxOValue = Nothing
-    , protocolParamStakeAddressDeposit = 2000000
-    , protocolParamStakePoolDeposit = 500000000
-    , protocolParamMinPoolCost = 340000000
-    , protocolParamPoolRetireMaxEpoch = 18
-    , protocolParamStakePoolTargetNum = 500
-    , protocolParamPoolPledgeInfluence = 3 / 10
-    , protocolParamMonetaryExpansion = 3 / 1000
-    , protocolParamTreasuryCut = 1 / 5
-    , protocolParamUTxOCostPerWord = Just $ Lovelace 34482
-    , protocolParamCostModels = mempty
+    , protocolParamStakeAddressDeposit = Lovelace 400000
+    , protocolParamStakePoolDeposit = Lovelace 500000000
+    , protocolParamMinPoolCost = Lovelace 0
+    , protocolParamPoolRetireMaxEpoch = EpochNo 18
+    , protocolParamStakePoolTargetNum = 50
+    , protocolParamPoolPledgeInfluence = 1 % 10
+    , protocolParamMonetaryExpansion = 178650067 % 100000000000
+    , protocolParamTreasuryCut = 1 % 10
+    , protocolParamUTxOCostPerWord = Just (Lovelace 34480)
+    , protocolParamCostModels = Map.empty
     , protocolParamPrices =
-        Just $
-          ExecutionUnitPrices
-            { priceExecutionSteps = 721 / 10000000
-            , priceExecutionMemory = 577 / 10000
-            }
+        Just
+          ( ExecutionUnitPrices
+              { priceExecutionSteps = 721 % 10000000
+              , priceExecutionMemory = 577 % 10000
+              }
+          )
     , protocolParamMaxTxExUnits =
-        Just $
-          ExecutionUnits
-            { executionSteps = 10000000000
-            , executionMemory = 16000000
-            }
+        Just
+          ( ExecutionUnits
+              { executionSteps =
+                  10000000000
+              , executionMemory = 10000000
+              }
+          )
     , protocolParamMaxBlockExUnits =
-        Just $
-          ExecutionUnits
-            { executionSteps = 40000000000
-            , executionMemory = 80000000
-            }
+        Just
+          ( ExecutionUnits
+              { executionSteps = 40000000000
+              , executionMemory = 50000000
+              }
+          )
     , protocolParamMaxValueSize = Just 5000
     , protocolParamCollateralPercent = Just 150
     , protocolParamMaxCollateralInputs = Just 3
@@ -350,5 +338,5 @@ testParser =
     isNotNullCostModels ::
       Either String ProtocolParameters -> Bool
     isNotNullCostModels (Right parameters) =
-      not . Map.Strict.null . protocolParamCostModels $ parameters
+      not . Map.null . protocolParamCostModels $ parameters
     isNotNullCostModels _ = False

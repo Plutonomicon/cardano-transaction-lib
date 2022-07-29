@@ -1,5 +1,5 @@
 module Plutus.Types.AssocMap
-  ( Map(..)
+  ( Map(Map)
   , delete
   , elems
   , empty

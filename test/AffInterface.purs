@@ -3,48 +3,47 @@ module Test.AffInterface (suite) where
 import Prelude
 
 import Address (addressToOgmiosAddress, ogmiosAddressToAddress)
-import Data.BigInt as BigInt
+import Contract.Chain (ChainTip(ChainTip), Tip(Tip, TipAtGenesis))
+import Data.BigInt (fromString) as BigInt
 import Data.Either (Either(Left, Right), either)
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, isJust)
+import Data.Newtype (over, wrap)
+import Data.String.CodeUnits (indexOf)
+import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (traverse_)
-import Data.UInt as UInt
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, try)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
+import Partial.Unsafe (unsafePartial)
 import QueryM
   ( QueryM
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
   , runQueryM
-  , traceQueryConfig
+  , submitTxOgmios
   )
+import QueryM.Config (testnetTraceQueryConfig)
 import QueryM.CurrentEpoch (getCurrentEpoch)
 import QueryM.EraSummaries (getEraSummaries)
-import QueryM.Ogmios
-  ( AbsSlot(AbsSlot)
-  , EraSummaries
-  , OgmiosAddress
-  , SystemStart
-  )
+import QueryM.Ogmios (EraSummaries, OgmiosAddress, SystemStart)
+import QueryM.ProtocolParameters (getProtocolParameters)
 import QueryM.SystemStart (getSystemStart)
 import QueryM.Utxos (utxosAt)
+import QueryM.WaitUntilSlot (waitUntilSlot)
 import Serialization.Address (Slot(Slot))
-import Test.Spec.Assertions (shouldEqual)
+import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import TestM (TestPlanM)
+import Types.BigNum (fromInt, add) as BigNum
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Types.Interval
-  ( PosixTimeToSlotError
-      ( CannotConvertAbsSlotToSlot
-      , PosixTimeBeforeSystemStart
-      )
+  ( PosixTimeToSlotError(PosixTimeBeforeSystemStart)
   , POSIXTime(POSIXTime)
   , posixTimeToSlot
   , slotToPosixTime
   )
 import Types.Transaction (DataHash(DataHash))
-import Partial.Unsafe (unsafePartial)
 
 testnet_addr1 :: OgmiosAddress
 testnet_addr1 =
@@ -66,7 +65,9 @@ suite = do
     test "UtxosAt Testnet" $ testUtxosAt testnet_addr1
     test "UtxosAt non-Testnet" $ testUtxosAt addr1
     test "Get ChainTip" testGetChainTip
+    test "Get waitUntilSlot" testWaitUntilSlot
     test "Get EraSummaries" testGetEraSummaries
+    test "Get ProtocolParameters" testGetProtocolParameters
     test "Get CurrentEpoch" testGetCurrentEpoch
     test "Get SystemStart" testGetSystemStart
     test "Inverse posixTimeToSlot >>> slotToPosixTime " testPosixTimeToSlot
@@ -78,6 +79,15 @@ suite = do
       $ testFromOgmiosAddress testnet_addr1
     test "Ogmios Address to Address & back non-Testnet"
       $ testFromOgmiosAddress addr1
+  group "Ogmios error" do
+    test "Ogmios fails with user-freindly message" do
+      try testSubmitTxFailure >>= case _ of
+        Right _ -> do
+          void $ liftEffect $ throw $
+            "Unexpected success in testSubmitTxFailure"
+        Left error -> do
+          (Pattern "Server responded with `fault`" `indexOf` show error)
+            `shouldSatisfy` isJust
   group "Ogmios datum cache" do
     test "Can process GetDatumByHash" do
       testOgmiosDatumCacheGetDatumByHash
@@ -85,19 +95,17 @@ suite = do
       testOgmiosDatumCacheGetDatumsByHashes
 
 testOgmiosDatumCacheGetDatumByHash :: Aff Unit
-testOgmiosDatumCacheGetDatumByHash =
-  traceQueryConfig >>= flip runQueryM do
-    -- Use this to trigger block fetching in order to actually get the datum:
-    -- ```
-    -- curl localhost:9999/control/fetch_blocks -X POST -d '{"slot": 54066900, "id": "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d", "datumFilter": {"address": "addr_xyz"}}' -H 'Content-Type: application/json'
-    -- ```
-    _datum <- getDatumByHash $ DataHash $ hexToByteArrayUnsafe
-      "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
-    pure unit
+testOgmiosDatumCacheGetDatumByHash = runQueryM testnetTraceQueryConfig do
+  -- Use this to trigger block fetching in order to actually get the datum:
+  -- ```
+  -- curl localhost:9999/control/fetch_blocks -X POST -d '{"slot": 54066900, "id": "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d", "datumFilter": {"address": "addr_xyz"}}' -H 'Content-Type: application/json'
+  -- ```
+  void $ getDatumByHash $ DataHash $ hexToByteArrayUnsafe
+    "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
 
 testOgmiosDatumCacheGetDatumsByHashes :: Aff Unit
 testOgmiosDatumCacheGetDatumsByHashes =
-  traceQueryConfig >>= flip runQueryM do
+  runQueryM testnetTraceQueryConfig do
     -- Use this to trigger block fetching in order to actually get the datum:
     -- ```
     -- curl localhost:9999/control/fetch_blocks -X POST -d '{"slot": 54066900, "id": "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d", "datumFilter": {"address": "addr_xyz"}}' -H 'Content-Type: application/json'
@@ -109,11 +117,21 @@ testOgmiosDatumCacheGetDatumsByHashes =
 testUtxosAt :: OgmiosAddress -> Aff Unit
 testUtxosAt testAddr = case ogmiosAddressToAddress testAddr of
   Nothing -> liftEffect $ throw "Failed UtxosAt"
-  Just addr -> flip runQueryM (void $ utxosAt addr) =<< traceQueryConfig
+  Just addr -> runQueryM testnetTraceQueryConfig (void $ utxosAt addr)
 
 testGetChainTip :: Aff Unit
 testGetChainTip = do
-  flip runQueryM (void getChainTip) =<< traceQueryConfig
+  runQueryM testnetTraceQueryConfig (void getChainTip)
+
+testWaitUntilSlot :: Aff Unit
+testWaitUntilSlot = do
+  runQueryM testnetTraceQueryConfig do
+    void $ getChainTip >>= case _ of
+      TipAtGenesis -> liftEffect $ throw "Tip is at genesis"
+      Tip (ChainTip { slot }) -> do
+        waitUntilSlot $ over Slot
+          (fromMaybe (BigNum.fromInt 0) <<< BigNum.add (BigNum.fromInt 10))
+          slot
 
 testFromOgmiosAddress :: OgmiosAddress -> Aff Unit
 testFromOgmiosAddress testAddr = do
@@ -123,19 +141,28 @@ testFromOgmiosAddress testAddr = do
 
 testGetEraSummaries :: Aff Unit
 testGetEraSummaries = do
-  flip runQueryM (void getEraSummaries) =<< traceQueryConfig
+  runQueryM testnetTraceQueryConfig (void getEraSummaries)
+
+testSubmitTxFailure :: Aff Unit
+testSubmitTxFailure = do
+  runQueryM testnetTraceQueryConfig
+    (void $ submitTxOgmios (wrap $ hexToByteArrayUnsafe "00"))
+
+testGetProtocolParameters :: Aff Unit
+testGetProtocolParameters = do
+  runQueryM testnetTraceQueryConfig (void getProtocolParameters)
 
 testGetCurrentEpoch :: Aff Unit
 testGetCurrentEpoch = do
-  flip runQueryM (void getCurrentEpoch) =<< traceQueryConfig
+  runQueryM testnetTraceQueryConfig (void getCurrentEpoch)
 
 testGetSystemStart :: Aff Unit
 testGetSystemStart = do
-  flip runQueryM (void getSystemStart) =<< traceQueryConfig
+  runQueryM testnetTraceQueryConfig (void getSystemStart)
 
 testPosixTimeToSlot :: Aff Unit
 testPosixTimeToSlot = do
-  traceQueryConfig >>= flip runQueryM do
+  runQueryM testnetTraceQueryConfig do
     eraSummaries <- getEraSummaries
     sysStart <- getSystemStart
     let
@@ -148,10 +175,44 @@ testPosixTimeToSlot = do
       -- here https://cardano.stackexchange.com/questions/7034/how-to-convert-posixtime-to-slot-number-on-cardano-testnet/7035#7035
       -- `timeWhenSlotChangedTo1Sec = POSIXTime 1595967616000` - exactly
       -- divisible by 1 second.
+
+      -- *Testing far into the future note during hardforks:*
+      -- It's worth noting that testing values "in" the recent era summary may
+      -- fail during hardforks. This is because the last element's `end`
+      -- field may be non null, meaning there is a limit to how far we can go
+      -- into the future for reliable slot/time conversion (an exception like
+      -- `CannotFindSlotInEraSummaries` is raised in this case).
+      -- This `end` field presumably changes to `null` after the the initial
+      -- period is over and things stabilise.
+      -- For example, at the time of writing (start of Vasil hardfork during
+      -- Babbage era), the *last* era summary element is
+      -- ```
+      -- {
+      --   "start": {
+      --     "time": 92880000,
+      --     "slot": 62510400,
+      --     "epoch": 215
+      --   },
+      --   "end": {
+      --     "time": 93312000,
+      --     "slot": 62942400,
+      --     "epoch": 216
+      --   },
+      --   "parameters": {
+      --     "epochLength": 432000,
+      --     "slotLength": 1,
+      --     "safeZone": 129600
+      --   }
+      -- }
+      -- ```
+      -- Note, `end` isn't null. This means any time "after" 93312000 will raise
+      -- `CannotFindSlotInEraSummaries` an exception. So adding a time far
+      -- into the future for `posixTimes` below will raise this exception.
+      -- Notice also how 93312000 - 92880000 is a relatively small period of
+      -- time so I expect this will change to `null` once things stabilise.
       posixTimes = mkPosixTime <$>
         [ "1603636353000"
         , "1613636755000"
-        , "1753645721000"
         ]
     traverse_ (idTest eraSummaries sysStart identity) posixTimes
     -- With Milliseconds, we generally round down, provided the aren't at the
@@ -184,13 +245,14 @@ mkPosixTime = POSIXTime <<< unsafePartial fromJust <<< BigInt.fromString
 
 testSlotToPosixTime :: Aff Unit
 testSlotToPosixTime = do
-  traceQueryConfig >>= flip runQueryM do
+  runQueryM testnetTraceQueryConfig do
     eraSummaries <- getEraSummaries
     sysStart <- getSystemStart
+    -- See *Testing far into the future note during hardforks:* for details on
+    -- how far into the future we test with slots when a hardfork occurs.
     let
       slots = mkSlot <$>
-        [ 395930213
-        , 58278567
+        [ 58278567
         , 48272312
         , 39270783
         , 957323
@@ -210,26 +272,19 @@ testSlotToPosixTime = do
         either (throw <<< show) (shouldEqual slot) eSlot
 
   mkSlot :: Int -> Slot
-  mkSlot = Slot <<< UInt.fromInt
+  mkSlot = Slot <<< BigNum.fromInt
 
 testPosixTimeToSlotError :: Aff Unit
 testPosixTimeToSlotError = do
-  traceQueryConfig >>= flip runQueryM do
+  runQueryM testnetTraceQueryConfig do
     eraSummaries <- getEraSummaries
     sysStart <- getSystemStart
     let
       posixTime = mkPosixTime "1000"
-      badPosixTime = mkPosixTime "99999999999999999999999999999999999999"
-      badAbsSlot = AbsSlot
-        $ unsafePartial fromJust
-        $ BigInt.fromString "99999999999999999999999998405630783"
     -- Some difficulty reproducing all the errors
     errTest eraSummaries sysStart
       posixTime
       (PosixTimeBeforeSystemStart posixTime)
-    errTest eraSummaries sysStart
-      badPosixTime
-      (CannotConvertAbsSlotToSlot badAbsSlot)
   where
   errTest
     :: forall (err :: Type)

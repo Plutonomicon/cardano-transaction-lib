@@ -8,14 +8,16 @@
     };
 
     # for the purescript project
-    ogmios.url = "github:mlabs-haskell/ogmios";
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache";
-    # so named because we also need a different version of the repo below
-    # in the server inputs and we use this one just for the `cardano-cli`
-    # executables
-    cardano-node-exe = {
-      url = "github:input-output-hk/cardano-node/ea8b632820db5546b22430bbb5ed8db4a2fef7dd";
+    ogmios = {
+      url = "github:mlabs-haskell/ogmios/e406801eaeb32b28cd84357596ca1512bff27741";
+      inputs = {
+        haskell-nix.follows = "haskell-nix";
+        nixpkgs.follows = "nixpkgs";
+      };
     };
+
+    plutip.url = "github:mlabs-haskell/plutip/d24b98162bcbcbfb4ca403ee62fdb890f2059f47";
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/1e618a1949667ea3eb972fbaccf34414e8d17e89";
     # Repository with network parameters
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
@@ -23,14 +25,14 @@
       flake = false;
     };
     easy-purescript-nix = {
-      url = "github:justinwoo/easy-purescript-nix";
+      url = "github:justinwoo/easy-purescript-nix/d56c436a66ec2a8a93b309c83693cef1507dca7a";
       flake = false;
     };
 
     # for the haskell server
     iohk-nix.url = "github:input-output-hk/iohk-nix";
-    haskell-nix.url = "github:mlabs-haskell/haskell.nix?ref=master";
-    nixpkgs.follows = "haskell-nix/nixpkgs-unstable";
+    haskell-nix.follows = "plutip/haskell-nix";
+    nixpkgs.follows = "plutip/nixpkgs";
     cardano-addresses = {
       url =
         "github:input-output-hk/cardano-addresses/d2f86caa085402a953920c6714a0de6a50b655ec";
@@ -143,28 +145,41 @@
         "aarch64-darwin"
       ];
       perSystem = nixpkgs.lib.genAttrs defaultSystems;
-      overlay = system: with inputs; (prev: final: {
-        easy-ps =
-          import inputs.easy-purescript-nix { pkgs = prev; };
-        ogmios-datum-cache =
-          inputs.ogmios-datum-cache.defaultPackage.${system};
-        ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
-        cardano-cli = cardano-node-exe.packages.${system}.cardano-cli;
-        purescriptProject = import ./nix { inherit system; pkgs = prev; };
-        buildCtlRuntime = buildCtlRuntime system;
-        launchCtlRuntime = launchCtlRuntime system;
-        inherit cardano-configurations;
-      });
+      overlay = with inputs; (final: prev:
+        let
+          inherit (prev) system;
+        in
+        {
+          easy-ps =
+            import inputs.easy-purescript-nix { pkgs = final; };
+          ogmios-datum-cache =
+            inputs.ogmios-datum-cache.defaultPackage.${system};
+          ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
+          ogmios-fixtures = ogmios;
+          plutip-server = inputs.plutip.packages.${system}."plutip:exe:plutip-server";
+          purescriptProject = import ./nix { pkgs = final; };
+          buildCtlRuntime = buildCtlRuntime final;
+          launchCtlRuntime = launchCtlRuntime final;
+          inherit cardano-configurations;
+        });
 
-      nixpkgsFor = system: import nixpkgs {
+      mkNixpkgsFor = system: import nixpkgs {
         overlays = [
           haskell-nix.overlay
           iohk-nix.overlays.crypto
-          (overlay system)
+          overlay
+          # This needs to go here and not in the `overlay` above as it
+          # instantiates our `nixpkgs`
+          (_: _: {
+            ctl-server = self.packages.${system}."ctl-server:exe:ctl-server";
+          })
         ];
         inherit (haskell-nix) config;
         inherit system;
       };
+
+      allNixpkgs = perSystem mkNixpkgsFor;
+      nixpkgsFor = system: allNixpkgs.${system};
 
       defaultConfig = final: with final; {
         inherit (inputs) cardano-configurations;
@@ -187,19 +202,11 @@
         };
         datumCache = {
           port = 9999;
-          dbConnectionString = nixpkgs.lib.concatStringsSep
-            " "
-            [
-              "host=postgres"
-              "port=5432"
-              "user=${postgres.user}"
-              "dbname=${postgres.db}"
-              "password=${postgres.password}"
-            ];
+          controlApiToken = "";
           blockFetcher = {
             firstBlock = {
-              slot = 54066900;
-              id = "6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d";
+              slot = 61625527;
+              id = "3afd8895c7b270f8250b744ec8d2b3c53ee2859c9d5711d906c47fe51b800988";
             };
             autoStart = true;
             startFromLast = false;
@@ -208,11 +215,36 @@
         };
       };
 
-      buildCtlRuntime = system: extraConfig:
-        { ... }:
+      buildOgmiosFixtures = pkgs: pkgs.runCommand "ogmios-fixtures"
+        {
+          buildInputs = [ pkgs.jq pkgs.pcre ];
+        }
+        ''
+          cp -r ${pkgs.ogmios-fixtures}/server/test/vectors vectors
+          chmod -R +rwx .
+
+          function on_file () {
+            local path=$1
+            local parent="$(basename "$(dirname "$path")")"
+            if command=$(pcregrep -o1 -o2 -o3 'Query\[(.*)\]|(EvaluateTx)|(SubmitTx)' <<< "$path")
+            then
+              echo "$path"
+              json=$(jq -c .result "$path")
+              md5=($(md5sum <<< "$json"))
+              printf "%s" "$json" > "ogmios/$command-$md5.json"
+            fi
+          }
+          export -f on_file
+
+          mkdir ogmios
+          find vectors/ -type f -name "*.json" -exec bash -c 'on_file "{}"' \;
+          mkdir $out
+          cp -rT ogmios $out
+        '';
+
+      buildCtlRuntime = pkgs: extraConfig: { ... }:
         let
           inherit (builtins) toString;
-          pkgs = nixpkgsFor system;
           config = with pkgs.lib;
             fix (final: recursiveUpdate
               (defaultConfig final)
@@ -220,8 +252,7 @@
           nodeDbVol = "node-${config.network.name}-db";
           nodeIpcVol = "node-${config.network.name}-ipc";
           nodeSocketPath = "/ipc/node.socket";
-          serverName = "ctl-server:exe:ctl-server";
-          server = self.packages.${system}."${serverName}";
+          server = self.packages.${pkgs.system}."ctl-server:exe:ctl-server";
           bindPort = port: "${toString port}:${toString port}";
         in
         with config;
@@ -235,7 +266,7 @@
           services = {
             cardano-node = {
               service = {
-                image = "inputoutput/cardano-node:1.34.1";
+                image = "inputoutput/cardano-node:1.35.2";
                 ports = [ (bindPort node.port) ];
                 volumes = [
                   "${config.cardano-configurations}/network/${config.network.name}/cardano-node:/config"
@@ -287,12 +318,7 @@
                   "${pkgs.bash}/bin/sh"
                   "-c"
                   ''
-                    ${server}/bin/ctl-server \
-                      --port ${toString ctlServer.port} \
-                      --node-socket ${nodeSocketPath} \
-                      --network-id ${if config.network.magic == null
-                                     then "mainnet"
-                                     else toString config.network.magic}
+                    ${server}/bin/ctl-server --port ${toString ctlServer.port}
                   ''
                 ];
               };
@@ -316,16 +342,6 @@
                 filter = nixpkgs.lib.strings.replaceStrings
                   [ "\"" "\\" ] [ "\\\"" "\\\\" ]
                   datumCache.blockFetcher.filter;
-                configFile = ''
-                  dbConnectionString = "${datumCache.dbConnectionString}"
-                  server.port = ${toString datumCache.port}
-                  ogmios.address = "ogmios"
-                  ogmios.port = ${toString ogmios.port}
-                  blockFetcher.autoStart = ${nixpkgs.lib.boolToString datumCache.blockFetcher.autoStart}
-                  blockFetcher.firstBlock.slot = ${toString datumCache.blockFetcher.firstBlock.slot}
-                  blockFetcher.firstBlock.id = "${datumCache.blockFetcher.firstBlock.id}"
-                  blockFetcher.filter = "${filter}"
-                '';
               in
               {
                 service = {
@@ -337,11 +353,21 @@
                     "${pkgs.bash}/bin/sh"
                     "-c"
                     ''
-                      ${pkgs.coreutils}/bin/cat <<EOF > config.toml
-                        ${configFile}
-                      EOF
-                      ${pkgs.coreutils}/bin/sleep 1
-                      ${pkgs.ogmios-datum-cache}/bin/ogmios-datum-cache
+                      ${pkgs.ogmios-datum-cache}/bin/ogmios-datum-cache \
+                        --log-level warn \
+                        --use-latest \
+                        --server-api "${toString datumCache.controlApiToken}" \
+                        --server-port ${toString datumCache.port} \
+                        --ogmios-address ogmios \
+                        --ogmios-port ${toString ogmios.port} \
+                        --db-port 5432 \
+                        --db-host postgres \
+                        --db-user "${postgres.user}" \
+                        --db-name "${postgres.db}" \
+                        --db-password "${postgres.password}" \
+                        --block-slot ${toString datumCache.blockFetcher.firstBlock.slot} \
+                        --block-hash "${datumCache.blockFetcher.firstBlock.id}" \
+                        --block-filter "${filter}"
                     ''
                   ];
                 };
@@ -350,116 +376,147 @@
         };
 
       # Makes a set compatible with flake `apps` to launch all runtime services
-      launchCtlRuntime = system: config:
+      launchCtlRuntime = pkgs: config:
         let
-          pkgs = nixpkgsFor system;
           binPath = "ctl-runtime";
           prebuilt = (pkgs.arion.build {
             inherit pkgs;
-            modules = [ (buildCtlRuntime system config) ];
+            modules = [ (buildCtlRuntime pkgs config) ];
           }).outPath;
-          script = (pkgs.writeShellScriptBin "${binPath}"
-            ''
-              ${pkgs.arion}/bin/arion --prebuilt-file ${prebuilt} up
-            ''
-          ).overrideAttrs (_: {
-            buildInputs = [ pkgs.arion pkgs.docker ];
-          });
+          script = pkgs.writeShellApplication {
+            name = binPath;
+            runtimeInputs = [ pkgs.arion pkgs.docker ];
+            text =
+              ''
+                ${pkgs.arion}/bin/arion --prebuilt-file ${prebuilt} up
+              '';
+          };
         in
         {
           type = "app";
           program = "${script}/bin/${binPath}";
         };
 
-      psProjectFor = system:
+      psProjectFor = pkgs:
         let
-          pkgs = nixpkgsFor system;
-          src = self;
+          projectName = "cardano-transaction-lib";
+          # `filterSource` will still trigger rebuilds with flakes, even if a
+          # filtered path is modified as the output path name is impurely
+          # derived. Setting an explicit `name` with `path` helps mitigate this
+          src = builtins.path {
+            path = self;
+            name = "${projectName}-src";
+            filter = path: ftype:
+              !(pkgs.lib.hasSuffix ".md" path)
+              && !(ftype == "directory" && builtins.elem
+                (baseNameOf path) [ "server" "doc" ]
+              );
+          };
+          ogmiosFixtures = buildOgmiosFixtures pkgs;
           project = pkgs.purescriptProject {
-            inherit src pkgs;
-            projectName = "cardano-transaction-lib";
+            inherit src pkgs projectName;
+            packageJson = ./package.json;
+            packageLock = ./package-lock.json;
             shell = {
-              packages = [
-                pkgs.ogmios
-                pkgs.cardano-cli
-                pkgs.ogmios-datum-cache
-                pkgs.nixpkgs-fmt
-                pkgs.fd
-                pkgs.arion
+              shellHook = exportOgmiosFixtures;
+              packageLockOnly = true;
+              packages = with pkgs; [
+                arion
+                ctl-server
+                fd
+                haskellPackages.fourmolu
+                nixpkgs-fmt
+                nodePackages.eslint
+                nodePackages.prettier
+                ogmios
+                ogmios-datum-cache
+                plutip-server
+                postgresql
               ];
             };
           };
+          exportOgmiosFixtures =
+            ''
+              export OGMIOS_FIXTURES="${ogmiosFixtures}"
+            '';
         in
         rec {
           defaultPackage = packages.ctl-example-bundle-web;
 
-          # Building this package and the check below will ensure that the entire
-          # project compiles (i.e. all of `src`, `examples`, and `test`)
           packages = {
             ctl-example-bundle-web = project.bundlePursProject {
-              sources = [ "src" "examples" ];
               main = "Examples.Pkh2Pkh";
               entrypoint = "examples/index.js";
-              htmlTemplate = "examples/index.html";
             };
 
             ctl-runtime = pkgs.arion.build {
               inherit pkgs;
-              modules = [ (buildCtlRuntime system { }) ];
+              modules = [ (buildCtlRuntime pkgs { }) ];
             };
 
-            docs = project.buildSearchablePursDocs;
+            docs = project.buildSearchablePursDocs {
+              packageName = projectName;
+            };
           };
 
-          launchDocs =
-            let
-              binPath = "docs-server";
-              builtDocs = packages.docs;
-              script = (pkgs.writeShellScriptBin "${binPath}"
-                ''
-                  ${pkgs.nodePackages.http-server}/bin/http-server ${builtDocs}/generated-docs/html
-                ''
-              ).overrideAttrs (_: {
-                buildInputs = [ pkgs.nodejs-14_x pkgs.nodePackages.http-server ];
-              });
-            in
-            {
-              type = "app";
-              program = "${script}/bin/${binPath}";
-            };
-
-          # FIXME
-          # Once we have ogmios/node instances available, we should also include a
-          # test. This will need to be run via a Hercules `effect`
           checks = {
+            ctl-plutip-test = project.runPlutipTest {
+              name = "ctl-plutip-test";
+              testMain = "Test.Plutip";
+              env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
+            };
             ctl-unit-test = project.runPursTest {
-              testMain = "Test.Unit";
-              sources = [ "src" "test" "fixtures" ];
+              name = "ctl-unit-test";
+              testMain = "Ctl.Test.Unit";
+              env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
             };
           };
 
           devShell = project.devShell;
+
+          apps = {
+            docs =
+              let
+                binPath = "docs-server";
+                builtDocs = packages.docs;
+                script = pkgs.writeShellApplication {
+                  name = binPath;
+                  runtimeInputs = [
+                    pkgs.nodejs-14_x
+                    pkgs.nodePackages.http-server
+                  ];
+                  text =
+                    ''
+                      ${pkgs.nodePackages.http-server}/bin/http-server \
+                        ${builtDocs}/generated-docs/html
+                    '';
+                };
+              in
+              {
+                type = "app";
+                program = "${script}/bin/${binPath}";
+              };
+          };
         };
 
-      hsProjectFor = system:
-        let
-          pkgs = nixpkgsFor system;
-          src = ./server;
-        in
-        import ./server/nix {
-          inherit src inputs pkgs system;
-        };
+      hsProjectFor = pkgs: import ./server/nix {
+        inherit inputs pkgs;
+        inherit (pkgs) system;
+        src = ./server;
+      };
     in
     {
+      inherit overlay;
+
       # flake from haskell.nix project
-      hsFlake = perSystem (system: (hsProjectFor system).flake { });
+      hsFlake = perSystem (system: (hsProjectFor (nixpkgsFor system)).flake { });
 
       devShell = perSystem (system: self.devShells.${system}.ctl);
 
       devShells = perSystem (system: {
         # This is the default `devShell` and can be run without specifying
         # it (i.e. `nix develop`)
-        ctl = (psProjectFor system).devShell;
+        ctl = (psProjectFor (nixpkgsFor system)).devShell;
         # It might be a good idea to keep this as a separate shell; if you're
         # working on the PS frontend, it doesn't make a lot of sense to pull
         # in all of the Haskell dependencies
@@ -470,22 +527,23 @@
 
       packages = perSystem (system:
         self.hsFlake.${system}.packages
-        // (psProjectFor system).packages
+        // (psProjectFor (nixpkgsFor system)).packages
       );
 
-      apps = perSystem
-        (system: {
-          inherit
-            (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
-          ctl-runtime = (nixpkgsFor system).launchCtlRuntime { };
-          docs = (psProjectFor system).launchDocs;
+      apps = perSystem (system:
+        let
+          pkgs = nixpkgsFor system;
+        in
+        (psProjectFor pkgs).apps // {
+          inherit (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
+          ctl-runtime = pkgs.launchCtlRuntime { };
         });
 
       checks = perSystem (system:
         let
           pkgs = nixpkgsFor system;
         in
-        (psProjectFor system).checks
+        (psProjectFor pkgs).checks
         // self.hsFlake.${system}.checks
         // {
           formatting-check = pkgs.runCommand "formatting-check"
@@ -494,6 +552,7 @@
                 easy-ps.purs-tidy
                 haskellPackages.fourmolu
                 nixpkgs-fmt
+                nodePackages.prettier
                 fd
               ];
             }
@@ -503,6 +562,20 @@
               fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost \
                 $(fd -ehs)
               nixpkgs-fmt --check $(fd -enix --exclude='spago*')
+              prettier -c $(fd -ejs)
+              touch $out
+            '';
+
+          js-lint-check = pkgs.runCommand "js-lint-check"
+            {
+              nativeBuildInputs = [
+                pkgs.nodePackages.eslint
+                pkgs.fd
+              ];
+            }
+            ''
+              cd ${self}
+              eslint $(fd -ejs)
               touch $out
             '';
         });
@@ -519,10 +592,14 @@
           ''
       );
 
-      defaultPackage = perSystem (system: (psProjectFor system).defaultPackage);
+      defaultPackage = perSystem (system:
+        (psProjectFor (nixpkgsFor system)).defaultPackage
+      );
 
-      overlay = perSystem overlay;
-
-      herculesCI.ciSystems = [ "x86_64-linux" ];
+      hydraJobs = perSystem (system:
+        self.checks.${system}
+        // self.packages.${system}
+        // self.devShells.${system}
+      );
     };
 }

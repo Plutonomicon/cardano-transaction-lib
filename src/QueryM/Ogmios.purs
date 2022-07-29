@@ -1,37 +1,44 @@
 -- | Provides types and instances to create Ogmios requests and decode
 -- | its responses.
 module QueryM.Ogmios
-  ( AbsSlot(..)
-  , ChainOrigin(..)
-  , ChainPoint(..)
-  , ChainTipQR(..)
-  , CurrentEpoch(..)
-  , Epoch(..)
-  , EpochLength(..)
-  , EraSummaries(..)
-  , EraSummary(..)
-  , EraSummaryParameters(..)
-  , EraSummaryTime(..)
+  ( ChainOrigin(ChainOrigin)
+  , ChainPoint
+  , ChainTipQR(CtChainOrigin, CtChainPoint)
+  , CostModel
+  , CurrentEpoch(CurrentEpoch)
+  , Epoch(Epoch)
+  , EpochLength(EpochLength)
+  , EraSummaries(EraSummaries)
+  , EraSummary(EraSummary)
+  , EraSummaryParameters(EraSummaryParameters)
+  , EraSummaryTime(EraSummaryTime)
+  , ExecutionUnits
   , OgmiosAddress
-  , OgmiosBlockHeaderHash(..)
-  , OgmiosTxOut(..)
-  , OgmiosTxOutRef(..)
-  , RelativeTime(..)
-  , SafeZone(..)
-  , SlotLength(..)
-  , SubmitTxR(..)
-  , SystemStart(..)
-  , TxEvaluationR(..)
+  , OgmiosBlockHeaderHash(OgmiosBlockHeaderHash)
+  , OgmiosTxOut
+  , OgmiosTxOutRef
+  , PParamRational(PParamRational)
+  , ProtocolParameters(ProtocolParameters)
+  , RedeemerPointer
+  , RelativeTime(RelativeTime)
+  , SafeZone(SafeZone)
+  , SlotLength(SlotLength)
+  , SubmitTxR(SubmitTxR)
+  , SystemStart(SystemStart)
+  , TxEvaluationR(TxEvaluationR)
   , TxHash
-  , UtxoQR(..)
-  , UtxoQueryResult(..)
+  , UtxoQR(UtxoQR)
+  , UtxoQueryResult
   , aesonArray
   , aesonObject
   , evaluateTxCall
+  , mkOgmiosCallType
   , queryChainTipCall
   , queryCurrentEpochCall
   , queryEraSummariesCall
+  , queryProtocolParametersCall
   , querySystemStartCall
+  , queryUtxoCall
   , queryUtxosAtCall
   , queryUtxosCall
   , submitTxCall
@@ -43,51 +50,68 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError
-      ( TypeMismatch
-      )
+  , JsonDecodeError(TypeMismatch)
   , caseAesonArray
   , caseAesonObject
+  , caseAesonString
   , decodeAeson
   , encodeAeson'
   , getField
   , getFieldOptional
   , isNull
   )
+import Cardano.Types.Transaction
+  ( Costmdls(Costmdls)
+  , ExUnitPrices
+  , ExUnits
+  , Language(PlutusV1)
+  , Nonce
+  , SubCoin
+  )
+import Cardano.Types.Transaction as T
+import Cardano.Types.Value
+  ( Coin(Coin)
+  , CurrencySymbol
+  , Value
+  , mkCurrencySymbol
+  , mkValue
+  )
 import Control.Alt ((<|>))
 import Data.Array (index, singleton)
 import Data.BigInt (BigInt)
+import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, hush, note)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
-import Data.Newtype (class Newtype, wrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.String (Pattern(Pattern), indexOf, splitAt, uncons)
+import Data.String (Pattern(Pattern), indexOf, split, splitAt, uncons)
+import Data.String.Common as String
 import Data.Traversable (sequence, traverse)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested ((/\), type (/\))
+import Data.UInt (UInt)
 import Data.UInt as UInt
 import Foreign.Object (Object)
-import Foreign.Object as FO
+import Foreign.Object (toUnfoldable) as ForeignObject
 import Helpers (showWithParens)
-import QueryM.JsonWsp
-  ( JsonWspCall
-  , JsonWspRequest
-  , mkCallType
-  , parseFieldToBigInt
-  , parseFieldToString
-  , parseFieldToUInt
-  )
+import QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
+import Serialization.Address (Slot)
 import Type.Proxy (Proxy(Proxy))
+import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray, hexToByteArray)
 import Types.CborBytes (CborBytes, cborBytesToHex)
 import Types.Natural (Natural)
-import Types.RedeemerTag as Tag
-import Cardano.Types.Value (CurrencySymbol, Value, mkCurrencySymbol, mkValue)
+import Types.Natural (fromString) as Natural
+import Types.Rational (Rational, (%))
+import Types.Rational as Rational
+import Types.RedeemerTag (RedeemerTag)
+import Types.RedeemerTag (fromString) as RedeemerTag
 import Types.TokenName (TokenName, mkTokenName)
+import Types.Transaction (TransactionHash, TransactionInput)
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
 
@@ -118,6 +142,14 @@ queryEraSummariesCall = mkOgmiosCallType
   }
   Proxy
 
+-- | Queries Ogmios for the current protocol parameters
+queryProtocolParametersCall :: JsonWspCall Unit ProtocolParameters
+queryProtocolParametersCall = mkOgmiosCallType
+  { methodname: "Query"
+  , args: const { query: "currentProtocolParameters" }
+  }
+  Proxy
+
 -- | Queries Ogmios for the chain’s current tip.
 queryChainTipCall :: JsonWspCall Unit ChainTipQR
 queryChainTipCall = mkOgmiosCallType
@@ -127,7 +159,7 @@ queryChainTipCall = mkOgmiosCallType
   Proxy
 
 -- | Queries Ogmios for utxos at given addresses.
--- NOTE. querying for utxos by address is deprecated, should use output reference instead
+-- | NOTE. querying for utxos by address is deprecated, should use output reference instead
 queryUtxosCall :: JsonWspCall { utxo :: Array OgmiosAddress } UtxoQR
 queryUtxosCall = mkOgmiosCallType
   { methodname: "Query"
@@ -136,13 +168,26 @@ queryUtxosCall = mkOgmiosCallType
   Proxy
 
 -- | Queries Ogmios for utxos at given address.
--- NOTE. querying for utxos by address is deprecated, should use output reference instead
+-- | NOTE. querying for utxos by address is deprecated, should use output reference instead
 queryUtxosAtCall :: JsonWspCall OgmiosAddress UtxoQR
 queryUtxosAtCall = mkOgmiosCallType
   { methodname: "Query"
   , args: { query: _ } <<< { utxo: _ } <<< singleton
   }
   Proxy
+
+-- | Queries Ogmios for the utxo with the given output reference.
+queryUtxoCall :: JsonWspCall TransactionInput UtxoQR
+queryUtxoCall = mkOgmiosCallType
+  { methodname: "Query"
+  , args: { query: _ } <<< { utxo: _ } <<< singleton <<< renameFields <<< unwrap
+  }
+  Proxy
+  where
+  renameFields
+    :: { transactionId :: TransactionHash, index :: UInt }
+    -> { txId :: TransactionHash, index :: UInt }
+  renameFields { transactionId: txId, index } = { txId, index }
 
 type OgmiosAddress = String
 
@@ -281,8 +326,12 @@ instance EncodeAeson EraSummary where
 newtype EraSummaryTime = EraSummaryTime
   { time :: RelativeTime -- 0-18446744073709552000, The time is relative to the
   -- start time of the network.
-  , slot :: AbsSlot -- 0-18446744073709552000, An absolute slot number. don't
-  -- use `Slot` because Slot is bounded by UInt ~ 0-4294967295.
+  , slot :: Slot -- An absolute slot number
+  -- Ogmios returns a number 0-18446744073709552000 but our `Slot` is a Rust
+  -- u64 which has precision up to 18446744073709551615 (note 385 difference)
+  -- we treat this as neglible instead of defining `AbsSlot BigInt`. See
+  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/632 for
+  -- details.
   , epoch :: Epoch -- 0-18446744073709552000, an epoch number or length, don't
   -- use `Cardano.Types.Epoch` because Epoch is bounded by UInt also.
   }
@@ -323,19 +372,6 @@ derive newtype instance EncodeAeson RelativeTime
 instance Show RelativeTime where
   show (RelativeTime rt) = showWithParens "RelativeTime" rt
 
--- | Absolute slot relative to SystemStart. [ 0 .. 18446744073709552000 ]
-newtype AbsSlot = AbsSlot BigInt
-
-derive instance Generic AbsSlot _
-derive instance Newtype AbsSlot _
-derive newtype instance Eq AbsSlot
-derive newtype instance Ord AbsSlot
-derive newtype instance DecodeAeson AbsSlot
-derive newtype instance EncodeAeson AbsSlot
-
-instance Show AbsSlot where
-  show (AbsSlot as) = showWithParens "AbsSlot" as
-
 -- | An epoch number or length with greater precision for Ogmios than
 -- | `Cardano.Types.Epoch`. [ 0 .. 18446744073709552000 ]
 newtype Epoch = Epoch BigInt
@@ -370,7 +406,7 @@ instance DecodeAeson EraSummaryParameters where
   decodeAeson = aesonObject $ \o -> do
     epochLength <- getField o "epochLength"
     slotLength <- getField o "slotLength"
-    safeZone <- getField o "safeZone"
+    safeZone <- fromMaybe zero <$> getField o "safeZone"
     pure $ wrap { epochLength, slotLength, safeZone }
 
 instance EncodeAeson EraSummaryParameters where
@@ -413,6 +449,7 @@ newtype SafeZone = SafeZone BigInt
 derive instance Generic SafeZone _
 derive instance Newtype SafeZone _
 derive newtype instance Eq SafeZone
+derive newtype instance Semiring SafeZone
 derive newtype instance DecodeAeson SafeZone
 derive newtype instance EncodeAeson SafeZone
 
@@ -421,16 +458,541 @@ instance Show SafeZone where
 
 ---------------- TX EVALUATION QUERY RESPONSE & PARSING
 
-newtype TxEvaluationR = TxEvaluationR
-  { "EvaluationResult" ::
-      Map
-        { entityRedeemerTag :: Tag.RedeemerTag, entityIndex :: Natural }
-        { memory :: Natural, steps :: Natural }
-  }
+type RedeemerPointer = { redeemerTag :: RedeemerTag, redeemerIndex :: Natural }
+
+type ExecutionUnits = { memory :: Natural, steps :: Natural }
+
+newtype TxEvaluationR = TxEvaluationR (Map RedeemerPointer ExecutionUnits)
+
+derive instance Newtype TxEvaluationR _
+derive instance Generic TxEvaluationR _
+
+instance Show TxEvaluationR where
+  show = genericShow
 
 instance DecodeAeson TxEvaluationR where
-  decodeAeson _ = Left
-    (TypeMismatch "DecodeAeson TxEvaluationR is not implemented")
+  decodeAeson = aesonObject $ \obj -> do
+    rdmrPtrExUnitsList :: Array (String /\ Aeson) <-
+      ForeignObject.toUnfoldable <$> getField obj "EvaluationResult"
+    TxEvaluationR <<< Map.fromFoldable <$>
+      traverse decodeRdmrPtrExUnitsItem rdmrPtrExUnitsList
+    where
+    decodeRdmrPtrExUnitsItem
+      :: String /\ Aeson
+      -> Either JsonDecodeError (RedeemerPointer /\ ExecutionUnits)
+    decodeRdmrPtrExUnitsItem (redeemerPtrRaw /\ exUnitsAeson) = do
+      redeemerPtr <- note redeemerPtrTypeMismatch $
+        decodeRedeemerPointer redeemerPtrRaw
+      flip aesonObject exUnitsAeson $ \exUnitsObj -> do
+        memory <- getField exUnitsObj "memory"
+        steps <- getField exUnitsObj "steps"
+        pure $ redeemerPtr /\ { memory, steps }
+
+    redeemerPtrTypeMismatch :: JsonDecodeError
+    redeemerPtrTypeMismatch = TypeMismatch
+      "Expected redeemer pointer to be encoded as: \
+      \^(spend|mint|certificate|withdrawal):[0-9]+$"
+
+    decodeRedeemerPointer :: String -> Maybe RedeemerPointer
+    decodeRedeemerPointer redeemerPtrRaw =
+      case split (Pattern ":") redeemerPtrRaw of
+        [ tagRaw, indexRaw ] ->
+          { redeemerTag: _, redeemerIndex: _ }
+            <$> RedeemerTag.fromString tagRaw
+            <*> Natural.fromString indexRaw
+        _ -> Nothing
+
+---------------- PROTOCOL PARAMETERS QUERY RESPONSE & PARSING
+
+-- | A version of `Rational` with Aeson instance that decodes from `x/y`
+-- | representation, instead of `{ numerator, denominator }`
+newtype PParamRational = PParamRational Rational
+
+derive instance Newtype PParamRational _
+derive instance Generic PParamRational _
+
+instance Show PParamRational where
+  show = genericShow
+
+instance DecodeAeson PParamRational where
+  decodeAeson =
+    caseAesonString (Left err)
+      \string -> do
+        case String.split (Pattern "/") string of
+          [ numeratorStr, denominatorStr ] -> note err do
+            numerator <- BigInt.fromString numeratorStr
+            denominator <- BigInt.fromString denominatorStr
+            PParamRational <$> numerator % denominator
+          _ -> Left err
+    where
+    err :: JsonDecodeError
+    err = TypeMismatch "PParamRaional"
+
+rationalToSubcoin :: PParamRational -> Maybe SubCoin
+rationalToSubcoin (PParamRational rat) = do
+  numerator <- BigNum.fromBigInt $ Rational.numerator rat
+  denominator <- BigNum.fromBigInt $ Rational.denominator rat
+  pure { numerator, denominator }
+
+-- | A type that corresponds to Ogmios response.
+type ProtocolParametersRaw =
+  { "minFeeCoefficient" :: UInt
+  , "minFeeConstant" :: UInt
+  , "maxBlockBodySize" :: UInt
+  , "maxBlockHeaderSize" :: UInt
+  , "maxTxSize" :: UInt
+  , "stakeKeyDeposit" :: BigInt
+  , "poolDeposit" :: BigInt
+  , "poolRetirementEpochBound" :: BigInt
+  , "desiredNumberOfPools" :: BigInt
+  , "poolInfluence" :: PParamRational
+  , "monetaryExpansion" :: PParamRational
+  , "treasuryExpansion" :: PParamRational
+  , "protocolVersion" ::
+      { "major" :: UInt
+      , "minor" :: UInt
+      }
+  , "minPoolCost" :: BigInt
+  , "coinsPerUtxoByte" :: BigInt
+  , "costModels" ::
+      { "plutus:v1" :: CostModel
+      }
+  , "prices" ::
+      { "memory" :: PParamRational
+      , "steps" :: PParamRational
+      }
+  , "maxExecutionUnitsPerTransaction" ::
+      { "memory" :: BigInt
+      , "steps" :: BigInt
+      }
+  , "maxExecutionUnitsPerBlock" ::
+      { "memory" :: BigInt
+      , "steps" :: BigInt
+      }
+  , "maxValueSize" :: Maybe UInt
+  , "collateralPercentage" :: Maybe UInt
+  , "maxCollateralInputs" :: Maybe UInt
+  }
+
+-- Based on `Cardano.Api.ProtocolParameters.ProtocolParameters` from
+-- `cardano-api`.
+newtype ProtocolParameters = ProtocolParameters
+  { protocolVersion :: UInt /\ UInt
+  , decentralization :: Rational
+  , extraPraosEntropy :: Maybe Nonce
+  , maxBlockHeaderSize :: UInt
+  , maxBlockBodySize :: UInt
+  , maxTxSize :: UInt
+  , txFeeFixed :: UInt
+  , txFeePerByte :: UInt
+  , stakeAddressDeposit :: Coin
+  , stakePoolDeposit :: Coin
+  , minPoolCost :: Coin
+  , poolRetireMaxEpoch :: Epoch
+  -- TODO: add stakePoolTargetNum :: UInt
+  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/571
+  , poolPledgeInfluence :: Rational
+  , monetaryExpansion :: Rational
+  , treasuryCut :: Rational
+  , coinsPerUtxoByte :: Coin
+  , costModels :: Costmdls
+  , prices :: Maybe ExUnitPrices
+  , maxTxExUnits :: Maybe ExUnits
+  , maxBlockExUnits :: Maybe ExUnits
+  , maxValueSize :: Maybe UInt
+  , collateralPercent :: Maybe UInt
+  , maxCollateralInputs :: Maybe UInt
+  }
+
+derive instance Newtype ProtocolParameters _
+derive instance Generic ProtocolParameters _
+
+instance Show ProtocolParameters where
+  show = genericShow
+
+instance DecodeAeson ProtocolParameters where
+  decodeAeson aeson = do
+    ps :: ProtocolParametersRaw <- decodeAeson aeson
+    prices <- decodePrices ps
+
+    pure $ ProtocolParameters
+      { protocolVersion: ps.protocolVersion.major /\ ps.protocolVersion.minor
+      -- The following two parameters were removed from Babbage
+      , decentralization: zero
+      , extraPraosEntropy: Nothing
+      , maxBlockHeaderSize: ps.maxBlockHeaderSize
+      , maxBlockBodySize: ps.maxBlockBodySize
+      , maxTxSize: ps.maxTxSize
+      , txFeeFixed: ps.minFeeConstant
+      , txFeePerByte: ps.minFeeCoefficient
+      , stakeAddressDeposit: Coin ps.stakeKeyDeposit
+      , stakePoolDeposit: Coin ps.poolDeposit
+      , minPoolCost: Coin ps.minPoolCost
+      , poolRetireMaxEpoch: Epoch ps.poolRetirementEpochBound
+      , poolPledgeInfluence: unwrap ps.poolInfluence
+      , monetaryExpansion: unwrap ps.monetaryExpansion
+      , treasuryCut: unwrap ps.treasuryExpansion -- Rational
+      , coinsPerUtxoByte: Coin ps.coinsPerUtxoByte
+      , costModels: Costmdls $ Map.fromFoldable
+          [ PlutusV1 /\ convertCostModel ps.costModels."plutus:v1" ]
+      , prices: prices
+      , maxTxExUnits: Just $ decodeExUnits ps.maxExecutionUnitsPerTransaction
+      , maxBlockExUnits: Just $ decodeExUnits ps.maxExecutionUnitsPerBlock
+      , maxValueSize: ps.maxValueSize
+      , collateralPercent: ps.collateralPercentage
+      , maxCollateralInputs: ps.maxCollateralInputs
+      }
+    where
+    decodeExUnits
+      :: { memory :: BigInt, steps :: BigInt } -> ExUnits
+    decodeExUnits { memory, steps } = { mem: memory, steps }
+
+    decodePrices
+      :: ProtocolParametersRaw -> Either JsonDecodeError (Maybe ExUnitPrices)
+    decodePrices ps = note (TypeMismatch "ExUnitPrices") do
+      memPrice <- rationalToSubcoin ps.prices.memory
+      stepPrice <- rationalToSubcoin ps.prices.steps
+      pure $ Just { memPrice, stepPrice } -- Maybe ExUnits
+
+-- | A type that represents a JSON-encoded Costmodel in format used by Ogmios
+type CostModel =
+  { "addInteger-cpu-arguments-intercept" :: Int
+  , "addInteger-cpu-arguments-slope" :: Int
+  , "addInteger-memory-arguments-intercept" :: Int
+  , "addInteger-memory-arguments-slope" :: Int
+  , "appendByteString-cpu-arguments-intercept" :: Int
+  , "appendByteString-cpu-arguments-slope" :: Int
+  , "appendByteString-memory-arguments-intercept" :: Int
+  , "appendByteString-memory-arguments-slope" :: Int
+  , "appendString-cpu-arguments-intercept" :: Int
+  , "appendString-cpu-arguments-slope" :: Int
+  , "appendString-memory-arguments-intercept" :: Int
+  , "appendString-memory-arguments-slope" :: Int
+  , "bData-cpu-arguments" :: Int
+  , "bData-memory-arguments" :: Int
+  , "blake2b_256-cpu-arguments-intercept" :: Int
+  , "blake2b_256-cpu-arguments-slope" :: Int
+  , "blake2b_256-memory-arguments" :: Int
+  , "cekApplyCost-exBudgetCPU" :: Int
+  , "cekApplyCost-exBudgetMemory" :: Int
+  , "cekBuiltinCost-exBudgetCPU" :: Int
+  , "cekBuiltinCost-exBudgetMemory" :: Int
+  , "cekConstCost-exBudgetCPU" :: Int
+  , "cekConstCost-exBudgetMemory" :: Int
+  , "cekDelayCost-exBudgetCPU" :: Int
+  , "cekDelayCost-exBudgetMemory" :: Int
+  , "cekForceCost-exBudgetCPU" :: Int
+  , "cekForceCost-exBudgetMemory" :: Int
+  , "cekLamCost-exBudgetCPU" :: Int
+  , "cekLamCost-exBudgetMemory" :: Int
+  , "cekStartupCost-exBudgetCPU" :: Int
+  , "cekStartupCost-exBudgetMemory" :: Int
+  , "cekVarCost-exBudgetCPU" :: Int
+  , "cekVarCost-exBudgetMemory" :: Int
+  , "chooseData-cpu-arguments" :: Int
+  , "chooseData-memory-arguments" :: Int
+  , "chooseList-cpu-arguments" :: Int
+  , "chooseList-memory-arguments" :: Int
+  , "chooseUnit-cpu-arguments" :: Int
+  , "chooseUnit-memory-arguments" :: Int
+  , "consByteString-cpu-arguments-intercept" :: Int
+  , "consByteString-cpu-arguments-slope" :: Int
+  , "consByteString-memory-arguments-intercept" :: Int
+  , "consByteString-memory-arguments-slope" :: Int
+  , "constrData-cpu-arguments" :: Int
+  , "constrData-memory-arguments" :: Int
+  , "decodeUtf8-cpu-arguments-intercept" :: Int
+  , "decodeUtf8-cpu-arguments-slope" :: Int
+  , "decodeUtf8-memory-arguments-intercept" :: Int
+  , "decodeUtf8-memory-arguments-slope" :: Int
+  , "divideInteger-cpu-arguments-constant" :: Int
+  , "divideInteger-cpu-arguments-model-arguments-intercept" :: Int
+  , "divideInteger-cpu-arguments-model-arguments-slope" :: Int
+  , "divideInteger-memory-arguments-intercept" :: Int
+  , "divideInteger-memory-arguments-minimum" :: Int
+  , "divideInteger-memory-arguments-slope" :: Int
+  , "encodeUtf8-cpu-arguments-intercept" :: Int
+  , "encodeUtf8-cpu-arguments-slope" :: Int
+  , "encodeUtf8-memory-arguments-intercept" :: Int
+  , "encodeUtf8-memory-arguments-slope" :: Int
+  , "equalsByteString-cpu-arguments-constant" :: Int
+  , "equalsByteString-cpu-arguments-intercept" :: Int
+  , "equalsByteString-cpu-arguments-slope" :: Int
+  , "equalsByteString-memory-arguments" :: Int
+  , "equalsData-cpu-arguments-intercept" :: Int
+  , "equalsData-cpu-arguments-slope" :: Int
+  , "equalsData-memory-arguments" :: Int
+  , "equalsInteger-cpu-arguments-intercept" :: Int
+  , "equalsInteger-cpu-arguments-slope" :: Int
+  , "equalsInteger-memory-arguments" :: Int
+  , "equalsString-cpu-arguments-constant" :: Int
+  , "equalsString-cpu-arguments-intercept" :: Int
+  , "equalsString-cpu-arguments-slope" :: Int
+  , "equalsString-memory-arguments" :: Int
+  , "fstPair-cpu-arguments" :: Int
+  , "fstPair-memory-arguments" :: Int
+  , "headList-cpu-arguments" :: Int
+  , "headList-memory-arguments" :: Int
+  , "iData-cpu-arguments" :: Int
+  , "iData-memory-arguments" :: Int
+  , "ifThenElse-cpu-arguments" :: Int
+  , "ifThenElse-memory-arguments" :: Int
+  , "indexByteString-cpu-arguments" :: Int
+  , "indexByteString-memory-arguments" :: Int
+  , "lengthOfByteString-cpu-arguments" :: Int
+  , "lengthOfByteString-memory-arguments" :: Int
+  , "lessThanByteString-cpu-arguments-intercept" :: Int
+  , "lessThanByteString-cpu-arguments-slope" :: Int
+  , "lessThanByteString-memory-arguments" :: Int
+  , "lessThanEqualsByteString-cpu-arguments-intercept" :: Int
+  , "lessThanEqualsByteString-cpu-arguments-slope" :: Int
+  , "lessThanEqualsByteString-memory-arguments" :: Int
+  , "lessThanEqualsInteger-cpu-arguments-intercept" :: Int
+  , "lessThanEqualsInteger-cpu-arguments-slope" :: Int
+  , "lessThanEqualsInteger-memory-arguments" :: Int
+  , "lessThanInteger-cpu-arguments-intercept" :: Int
+  , "lessThanInteger-cpu-arguments-slope" :: Int
+  , "lessThanInteger-memory-arguments" :: Int
+  , "listData-cpu-arguments" :: Int
+  , "listData-memory-arguments" :: Int
+  , "mapData-cpu-arguments" :: Int
+  , "mapData-memory-arguments" :: Int
+  , "mkCons-cpu-arguments" :: Int
+  , "mkCons-memory-arguments" :: Int
+  , "mkNilData-cpu-arguments" :: Int
+  , "mkNilData-memory-arguments" :: Int
+  , "mkNilPairData-cpu-arguments" :: Int
+  , "mkNilPairData-memory-arguments" :: Int
+  , "mkPairData-cpu-arguments" :: Int
+  , "mkPairData-memory-arguments" :: Int
+  , "modInteger-cpu-arguments-constant" :: Int
+  , "modInteger-cpu-arguments-model-arguments-intercept" :: Int
+  , "modInteger-cpu-arguments-model-arguments-slope" :: Int
+  , "modInteger-memory-arguments-intercept" :: Int
+  , "modInteger-memory-arguments-minimum" :: Int
+  , "modInteger-memory-arguments-slope" :: Int
+  , "multiplyInteger-cpu-arguments-intercept" :: Int
+  , "multiplyInteger-cpu-arguments-slope" :: Int
+  , "multiplyInteger-memory-arguments-intercept" :: Int
+  , "multiplyInteger-memory-arguments-slope" :: Int
+  , "nullList-cpu-arguments" :: Int
+  , "nullList-memory-arguments" :: Int
+  , "quotientInteger-cpu-arguments-constant" :: Int
+  , "quotientInteger-cpu-arguments-model-arguments-intercept" :: Int
+  , "quotientInteger-cpu-arguments-model-arguments-slope" :: Int
+  , "quotientInteger-memory-arguments-intercept" :: Int
+  , "quotientInteger-memory-arguments-minimum" :: Int
+  , "quotientInteger-memory-arguments-slope" :: Int
+  , "remainderInteger-cpu-arguments-constant" :: Int
+  , "remainderInteger-cpu-arguments-model-arguments-intercept" :: Int
+  , "remainderInteger-cpu-arguments-model-arguments-slope" :: Int
+  , "remainderInteger-memory-arguments-intercept" :: Int
+  , "remainderInteger-memory-arguments-minimum" :: Int
+  , "remainderInteger-memory-arguments-slope" :: Int
+  , "sha2_256-cpu-arguments-intercept" :: Int
+  , "sha2_256-cpu-arguments-slope" :: Int
+  , "sha2_256-memory-arguments" :: Int
+  , "sha3_256-cpu-arguments-intercept" :: Int
+  , "sha3_256-cpu-arguments-slope" :: Int
+  , "sha3_256-memory-arguments" :: Int
+  , "sliceByteString-cpu-arguments-intercept" :: Int
+  , "sliceByteString-cpu-arguments-slope" :: Int
+  , "sliceByteString-memory-arguments-intercept" :: Int
+  , "sliceByteString-memory-arguments-slope" :: Int
+  , "sndPair-cpu-arguments" :: Int
+  , "sndPair-memory-arguments" :: Int
+  , "subtractInteger-cpu-arguments-intercept" :: Int
+  , "subtractInteger-cpu-arguments-slope" :: Int
+  , "subtractInteger-memory-arguments-intercept" :: Int
+  , "subtractInteger-memory-arguments-slope" :: Int
+  , "tailList-cpu-arguments" :: Int
+  , "tailList-memory-arguments" :: Int
+  , "trace-cpu-arguments" :: Int
+  , "trace-memory-arguments" :: Int
+  , "unBData-cpu-arguments" :: Int
+  , "unBData-memory-arguments" :: Int
+  , "unConstrData-cpu-arguments" :: Int
+  , "unConstrData-memory-arguments" :: Int
+  , "unIData-cpu-arguments" :: Int
+  , "unIData-memory-arguments" :: Int
+  , "unListData-cpu-arguments" :: Int
+  , "unListData-memory-arguments" :: Int
+  , "unMapData-cpu-arguments" :: Int
+  , "unMapData-memory-arguments" :: Int
+  , "verifyEd25519Signature-cpu-arguments-intercept" :: Int
+  , "verifyEd25519Signature-cpu-arguments-slope" :: Int
+  , "verifyEd25519Signature-memory-arguments" :: Int
+  }
+
+convertCostModel :: CostModel -> T.CostModel
+convertCostModel model = wrap
+  [ model."addInteger-cpu-arguments-intercept"
+  , model."addInteger-cpu-arguments-slope"
+  , model."addInteger-memory-arguments-intercept"
+  , model."addInteger-memory-arguments-slope"
+  , model."appendByteString-cpu-arguments-intercept"
+  , model."appendByteString-cpu-arguments-slope"
+  , model."appendByteString-memory-arguments-intercept"
+  , model."appendByteString-memory-arguments-slope"
+  , model."appendString-cpu-arguments-intercept"
+  , model."appendString-cpu-arguments-slope"
+  , model."appendString-memory-arguments-intercept"
+  , model."appendString-memory-arguments-slope"
+  , model."bData-cpu-arguments"
+  , model."bData-memory-arguments"
+  , model."blake2b_256-cpu-arguments-intercept"
+  , model."blake2b_256-cpu-arguments-slope"
+  , model."blake2b_256-memory-arguments"
+  , model."cekApplyCost-exBudgetCPU"
+  , model."cekApplyCost-exBudgetMemory"
+  , model."cekBuiltinCost-exBudgetCPU"
+  , model."cekBuiltinCost-exBudgetMemory"
+  , model."cekConstCost-exBudgetCPU"
+  , model."cekConstCost-exBudgetMemory"
+  , model."cekDelayCost-exBudgetCPU"
+  , model."cekDelayCost-exBudgetMemory"
+  , model."cekForceCost-exBudgetCPU"
+  , model."cekForceCost-exBudgetMemory"
+  , model."cekLamCost-exBudgetCPU"
+  , model."cekLamCost-exBudgetMemory"
+  , model."cekStartupCost-exBudgetCPU"
+  , model."cekStartupCost-exBudgetMemory"
+  , model."cekVarCost-exBudgetCPU"
+  , model."cekVarCost-exBudgetMemory"
+  , model."chooseData-cpu-arguments"
+  , model."chooseData-memory-arguments"
+  , model."chooseList-cpu-arguments"
+  , model."chooseList-memory-arguments"
+  , model."chooseUnit-cpu-arguments"
+  , model."chooseUnit-memory-arguments"
+  , model."consByteString-cpu-arguments-intercept"
+  , model."consByteString-cpu-arguments-slope"
+  , model."consByteString-memory-arguments-intercept"
+  , model."consByteString-memory-arguments-slope"
+  , model."constrData-cpu-arguments"
+  , model."constrData-memory-arguments"
+  , model."decodeUtf8-cpu-arguments-intercept"
+  , model."decodeUtf8-cpu-arguments-slope"
+  , model."decodeUtf8-memory-arguments-intercept"
+  , model."decodeUtf8-memory-arguments-slope"
+  , model."divideInteger-cpu-arguments-constant"
+  , model."divideInteger-cpu-arguments-model-arguments-intercept"
+  , model."divideInteger-cpu-arguments-model-arguments-slope"
+  , model."divideInteger-memory-arguments-intercept"
+  , model."divideInteger-memory-arguments-minimum"
+  , model."divideInteger-memory-arguments-slope"
+  , model."encodeUtf8-cpu-arguments-intercept"
+  , model."encodeUtf8-cpu-arguments-slope"
+  , model."encodeUtf8-memory-arguments-intercept"
+  , model."encodeUtf8-memory-arguments-slope"
+  , model."equalsByteString-cpu-arguments-constant"
+  , model."equalsByteString-cpu-arguments-intercept"
+  , model."equalsByteString-cpu-arguments-slope"
+  , model."equalsByteString-memory-arguments"
+  , model."equalsData-cpu-arguments-intercept"
+  , model."equalsData-cpu-arguments-slope"
+  , model."equalsData-memory-arguments"
+  , model."equalsInteger-cpu-arguments-intercept"
+  , model."equalsInteger-cpu-arguments-slope"
+  , model."equalsInteger-memory-arguments"
+  , model."equalsString-cpu-arguments-constant"
+  , model."equalsString-cpu-arguments-intercept"
+  , model."equalsString-cpu-arguments-slope"
+  , model."equalsString-memory-arguments"
+  , model."fstPair-cpu-arguments"
+  , model."fstPair-memory-arguments"
+  , model."headList-cpu-arguments"
+  , model."headList-memory-arguments"
+  , model."iData-cpu-arguments"
+  , model."iData-memory-arguments"
+  , model."ifThenElse-cpu-arguments"
+  , model."ifThenElse-memory-arguments"
+  , model."indexByteString-cpu-arguments"
+  , model."indexByteString-memory-arguments"
+  , model."lengthOfByteString-cpu-arguments"
+  , model."lengthOfByteString-memory-arguments"
+  , model."lessThanByteString-cpu-arguments-intercept"
+  , model."lessThanByteString-cpu-arguments-slope"
+  , model."lessThanByteString-memory-arguments"
+  , model."lessThanEqualsByteString-cpu-arguments-intercept"
+  , model."lessThanEqualsByteString-cpu-arguments-slope"
+  , model."lessThanEqualsByteString-memory-arguments"
+  , model."lessThanEqualsInteger-cpu-arguments-intercept"
+  , model."lessThanEqualsInteger-cpu-arguments-slope"
+  , model."lessThanEqualsInteger-memory-arguments"
+  , model."lessThanInteger-cpu-arguments-intercept"
+  , model."lessThanInteger-cpu-arguments-slope"
+  , model."lessThanInteger-memory-arguments"
+  , model."listData-cpu-arguments"
+  , model."listData-memory-arguments"
+  , model."mapData-cpu-arguments"
+  , model."mapData-memory-arguments"
+  , model."mkCons-cpu-arguments"
+  , model."mkCons-memory-arguments"
+  , model."mkNilData-cpu-arguments"
+  , model."mkNilData-memory-arguments"
+  , model."mkNilPairData-cpu-arguments"
+  , model."mkNilPairData-memory-arguments"
+  , model."mkPairData-cpu-arguments"
+  , model."mkPairData-memory-arguments"
+  , model."modInteger-cpu-arguments-constant"
+  , model."modInteger-cpu-arguments-model-arguments-intercept"
+  , model."modInteger-cpu-arguments-model-arguments-slope"
+  , model."modInteger-memory-arguments-intercept"
+  , model."modInteger-memory-arguments-minimum"
+  , model."modInteger-memory-arguments-slope"
+  , model."multiplyInteger-cpu-arguments-intercept"
+  , model."multiplyInteger-cpu-arguments-slope"
+  , model."multiplyInteger-memory-arguments-intercept"
+  , model."multiplyInteger-memory-arguments-slope"
+  , model."nullList-cpu-arguments"
+  , model."nullList-memory-arguments"
+  , model."quotientInteger-cpu-arguments-constant"
+  , model."quotientInteger-cpu-arguments-model-arguments-intercept"
+  , model."quotientInteger-cpu-arguments-model-arguments-slope"
+  , model."quotientInteger-memory-arguments-intercept"
+  , model."quotientInteger-memory-arguments-minimum"
+  , model."quotientInteger-memory-arguments-slope"
+  , model."remainderInteger-cpu-arguments-constant"
+  , model."remainderInteger-cpu-arguments-model-arguments-intercept"
+  , model."remainderInteger-cpu-arguments-model-arguments-slope"
+  , model."remainderInteger-memory-arguments-intercept"
+  , model."remainderInteger-memory-arguments-minimum"
+  , model."remainderInteger-memory-arguments-slope"
+  , model."sha2_256-cpu-arguments-intercept"
+  , model."sha2_256-cpu-arguments-slope"
+  , model."sha2_256-memory-arguments"
+  , model."sha3_256-cpu-arguments-intercept"
+  , model."sha3_256-cpu-arguments-slope"
+  , model."sha3_256-memory-arguments"
+  , model."sliceByteString-cpu-arguments-intercept"
+  , model."sliceByteString-cpu-arguments-slope"
+  , model."sliceByteString-memory-arguments-intercept"
+  , model."sliceByteString-memory-arguments-slope"
+  , model."sndPair-cpu-arguments"
+  , model."sndPair-memory-arguments"
+  , model."subtractInteger-cpu-arguments-intercept"
+  , model."subtractInteger-cpu-arguments-slope"
+  , model."subtractInteger-memory-arguments-intercept"
+  , model."subtractInteger-memory-arguments-slope"
+  , model."tailList-cpu-arguments"
+  , model."tailList-memory-arguments"
+  , model."trace-cpu-arguments"
+  , model."trace-memory-arguments"
+  , model."unBData-cpu-arguments"
+  , model."unBData-memory-arguments"
+  , model."unConstrData-cpu-arguments"
+  , model."unConstrData-memory-arguments"
+  , model."unIData-cpu-arguments"
+  , model."unIData-memory-arguments"
+  , model."unListData-cpu-arguments"
+  , model."unListData-memory-arguments"
+  , model."unMapData-cpu-arguments"
+  , model."unMapData-memory-arguments"
+  , model."verifyEd25519Signature-cpu-arguments-intercept"
+  , model."verifyEd25519Signature-cpu-arguments-slope"
+  , model."verifyEd25519Signature-memory-arguments"
+  ]
 
 ---------------- CHAIN TIP QUERY RESPONSE & PARSING
 
@@ -474,8 +1036,8 @@ instance Show ChainOrigin where
 
 -- | A point on the chain, identified by a slot and a block header hash
 type ChainPoint =
-  { slot :: AbsSlot -- I think we need to use `AbsSlot` here, 18446744073709552000
-  -- is outside of `Slot` range.
+  { slot :: Slot -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/632
+  -- for details on why we lose a neglible amount of precision.
   , hash :: OgmiosBlockHeaderHash
   }
 
@@ -539,8 +1101,8 @@ aesonArray = caseAesonArray (Left (TypeMismatch "Expected Array"))
 -- parser for txOutRef
 parseTxOutRef :: Aeson -> Either JsonDecodeError OgmiosTxOutRef
 parseTxOutRef = aesonObject $ \o -> do
-  txId <- parseFieldToString o "txId"
-  index <- parseFieldToUInt o "index"
+  txId <- getField o "txId"
+  index <- getField o "index"
   pure { txId, index }
 
 type OgmiosTxOut =
@@ -554,16 +1116,16 @@ type OgmiosTxOut =
 -- extracted.
 parseTxOut :: Aeson -> Either JsonDecodeError OgmiosTxOut
 parseTxOut = aesonObject $ \o -> do
-  address <- parseFieldToString o "address"
+  address <- getField o "address"
   value <- parseValue o
-  let datum = hush $ parseFieldToString o "datum"
+  let datum = hush $ getField o "datumHash"
   pure $ { address, value, datum }
 
 -- parses the `Value` type
 parseValue :: Object Aeson -> Either JsonDecodeError Value
 parseValue outer = do
   o <- getField outer "value"
-  coins <- parseFieldToBigInt o "coins"
+  coins <- getField o "coins"
     <|> Left (TypeMismatch "Expected 'coins' to be an Int or a BigInt")
   Assets assetsMap <- fromMaybe (Assets Map.empty)
     <$> getFieldOptional o "assets"
@@ -573,7 +1135,8 @@ newtype Assets = Assets (Map CurrencySymbol (Map TokenName BigInt))
 
 instance DecodeAeson Assets where
   decodeAeson j = do
-    wspAssets :: Array (String /\ BigInt) <- FO.toUnfoldable <$> decodeAeson j
+    wspAssets :: Array (String /\ BigInt) <-
+      ForeignObject.toUnfoldable <$> decodeAeson j
     Assets <<< Map.fromFoldableWith (Map.unionWith (+)) <$> sequence
       (uncurry decodeAsset <$> wspAssets)
     where

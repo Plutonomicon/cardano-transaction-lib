@@ -1,7 +1,7 @@
 module Types.UnbalancedTransaction
-  ( PaymentPubKey(..)
-  , ScriptOutput(..)
-  , UnbalancedTx(..)
+  ( PaymentPubKey(PaymentPubKey)
+  , ScriptOutput(ScriptOutput)
+  , UnbalancedTx(UnbalancedTx)
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
@@ -11,8 +11,10 @@ module Types.UnbalancedTransaction
 
 import Prelude
 
+import Aeson (class EncodeAeson, encodeAeson')
 import Cardano.Types.Transaction
   ( Transaction
+  , TransactionOutput
   , PublicKey(PublicKey)
   , Vkey(Vkey)
   , RequiredSigner(RequiredSigner)
@@ -25,6 +27,7 @@ import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))
+import Helpers (encodeMap)
 import Serialization
   ( publicKeyFromBech32
   , publicKeyHash
@@ -55,6 +58,7 @@ newtype ScriptOutput = ScriptOutput
 derive instance Newtype ScriptOutput _
 derive instance Generic ScriptOutput _
 derive newtype instance Eq ScriptOutput
+derive newtype instance EncodeAeson ScriptOutput
 
 instance Show ScriptOutput where
   show = genericShow
@@ -71,7 +75,7 @@ payPubKeyRequiredSigner (PaymentPubKey (PublicKey bech32)) =
 -- | Resembles `UnbalancedTx` from `plutus-apps`.
 newtype UnbalancedTx = UnbalancedTx
   { transaction :: Transaction
-  , utxoIndex :: Map TransactionInput ScriptOutput
+  , utxoIndex :: Map TransactionInput TransactionOutput
   }
 
 derive instance Newtype UnbalancedTx _
@@ -81,6 +85,11 @@ derive newtype instance Eq UnbalancedTx
 instance Show UnbalancedTx where
   show = genericShow
 
+instance EncodeAeson UnbalancedTx where
+  encodeAeson' (UnbalancedTx r) = encodeAeson' $ r
+    { utxoIndex = encodeMap r.utxoIndex
+    }
+
 _transaction :: Lens' UnbalancedTx Transaction
 _transaction = lens'
   \(UnbalancedTx rec@{ transaction }) ->
@@ -88,7 +97,7 @@ _transaction = lens'
       transaction
       \tx -> UnbalancedTx rec { transaction = tx }
 
-_utxoIndex :: Lens' UnbalancedTx (Map TransactionInput ScriptOutput)
+_utxoIndex :: Lens' UnbalancedTx (Map TransactionInput TransactionOutput)
 _utxoIndex = lens'
   \(UnbalancedTx rec@{ utxoIndex }) ->
     Tuple

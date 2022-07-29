@@ -8,11 +8,14 @@ This guide will help you get started writing contracts with CTL. Please also see
 - [Importing CTL modules](#importing-ctl-modules)
   - [The `Contract` interface](#the-contract-interface)
   - [Our `Prelude`](#our-prelude)
-- [Executing contracts and the `ContractConfig`](#executing-contracts-and-the-contractconfig)
-  - [Making the `ContractConfig`](#making-the-contractconfig)
+- [Executing contracts and the `ContractEnv`](#executing-contracts-and-the-contractenv)
+  - [Making the `ContractEnv`](#making-the-contractenv)
 - [Building and submitting transactions](#building-and-submitting-transactions)
   - [Awaiting tx confirmation](#awaiting-tx-confirmation)
+  - [Using compiled scripts](#using-compiled-scripts)
 - [Testing](#testing)
+  - [With a light wallet](#with-a-light-wallet)
+  - [Without a light wallet](#without-a-light-wallet)
 
 ## Prerequisites
 
@@ -49,7 +52,7 @@ import Contract.Scripts (MintingPolicy)
 
 Unlike Haskell, Purescript's `Prelude` is not imported implicitly in every module and is much smaller in scope (for example, common non-primitive types like `Maybe` are contained in their own packages, rather than in the `Prelude`). Rather than require users to import Purescript's `Prelude` and other common modules directly, we offer a `Contract.Prelude` that re-exports Purescript's `Prelude`, several common modules (e.g. `Data.Maybe`, `Data.Either`, etc...), and CTL-specific functionality. **We recommend using `Contract.Prelude` as a replacement for `Prelude` in projects using CTL**, particularly for developers who are less familiar with Purescript and its divergences from Haskell.
 
-## Executing contracts and the `ContractConfig`
+## Executing contracts and the `ContractEnv`
 
 Unlike [Plutus/PAB](plutus-comparison.md#the-contract-type), CTL is structued internally around a familiar `mtl`-style monad transformer stack. As such, contracts written in CTL are called from other Purescript code (i.e. CTL has no concept of "endpoints" or "activation"). The top-level of your program written in CTL will look like the following:
 
@@ -64,65 +67,79 @@ Internally, CTL uses Purescript's `Aff` monad, which represents asynchronous eff
 
 ```purescript
 main :: Effect Unit
-main = Contract.Monad.launchAff_ $ do -- we re-export this for you
+main = Contract.Monad.launchAff_ do -- we re-export this for you
  ...
 ```
 
-Within this `Aff` action, you should create a wallet type and initialize your `ContractConfig`:
+Then use the eliminator `Contract.Monad.runContract` with a config specifying network and wallet:
 
 ```purescript
 main :: Effect Unit
-main = Contract.Monad.launchAff_ $ do
-  wallet <- Contract.Wallet.mkNamiWalletAff
-  cfg <- undefined -- see the next section for more details on this part
- ...
-```
-
-Then use the eliminator `Contract.Monad.runContract` (or `runContract_` to discard the return value):
-
-```purescript
-main :: Effect Unit
-main = Contract.Monad.launchAff_ $ do
-  wallet <- Contract.Wallet.mkNamiWalletAff
-  cfg <- undefined
-  runContract_ cfg $ do
+main = Contract.Monad.launchAff_ do
+  runContract Contract.Config.testnetNamiConfig do
     ...
 ```
 
-### Making the `ContractConfig`
+### Making the `ContractEnv`
 
-The `ContractConfig` contains the configuration values and websocket connections that are required to execute contracts written in CTL. For local development and testing, we provide `Contract.Monad.traceContractConfig` where all service hosts are set to `localhost` and the `logLevel` is set to `Trace`. Needless to say, this is not viable for production or staging environments.
+The `ContractEnv` type contains configuration values and websocket connections that are required to execute contracts written in CTL. The users should not construct it directly - `Contract.Config.ConfigParams` should be used instead.
 
-It is **not recommended to directly construct or manipulate a `ContractConfig` yourself** as the process of making a new config initializes websockets. Instead, use `Contract.Monad.ConfigParams` with `Contract.Monad.mkContractConfig`.
+For local development and testing, we provide `Contract.Config.testnetConfig` where all service hosts are set to `localhost` and the `logLevel` is set to `Trace`.
 
-As explained in the [Plutus/PAB comparison](plutus-comparison.md#the-contract-type), the `ContractConfig` environment using Purescript's extensible records. This can also be done via `ConfigParams`, which holds an `extraConfig` field corresponding to the `Row Type` argument to `ContractConfig` (and by extension, `Contract`).
+It is **not recommended to directly construct or manipulate a `ContractEnv` yourself** as the process of making a new config initializes websockets. Instead, use `Contract.Monad.ConfigParams` with `runContract`.
 
-An example of building a `ContractConfig` via `ConfigParams` is as follows:
+As explained in the [Plutus/PAB comparison](plutus-comparison.md#the-contract-type), the `ContractEnv` environment using Purescript's extensible records. This can also be done via `ConfigParams`, which holds an `extraConfig` field corresponding to the `Row Type` argument to `ContractEnv` (and by extension, `Contract`).
+
+A special `Contract.Config.WalletSpec` type is used to specify which wallet to use during the `Contract` lifetime.
+
+An example of building a `Contract` via `ConfigParams` is as follows:
 
 ```purescript
 main :: Effect Unit
-main = Contract.Monad.launchAff_ $ do -- we re-export this for you
-  wallet <- Contract.Wallet.mkNamiWalletAff -- for the Nami backend
-  cfg <- mkContractConfig $ ConfigParams
-    -- The server defaults below are also exported from
-    -- `Contract.Monad`
-    { ogmiosConfig: defaultOgmiosWsConfig
-    , datumCacheConfig: defaultDatumCacheWsConfig
-    , ctlServerConfig: defaultServerConfig
-    , networkId: TestnetId
-    , logLevel: Trace
-    , extraConfig: { apiKey: "foo" }
-    , wallet
-    }
-  runContract_ cfg someContractWithApiKeyInEnv
+main = Contract.Monad.launchAff_ do -- we re-export this for you
+  let
+    (config :: ConfigParams (apiKey :: String)) =
+      { ogmiosConfig: defaultOgmiosWsConfig
+      , datumCacheConfig: defaultDatumCacheWsConfig
+      , ctlServerConfig: defaultServerConfig
+      , networkId: TestnetId
+      , logLevel: Trace
+      , extraConfig: { apiKey: "foo" }
+      , walletSpec: Just ConnectToNami
+      , customLogger: Nothing
+      }
+  runContract config someContractWithApiKeyInEnv
 
 -- As we provided `(apiKey :: String)` to the `extraConfig` above, we can now
 -- access it in the reader environment of any `Contract` actions call using
--- the `ContractConfig` we created above. We can also retain polymorphism
--- by adding `| r` to the row type
+-- `askConfig`.
 someContractWithApiKeyInEnv
-  :: forall (r :: Row Type). Contract (apiKey :: String | r) Unit
-someContractWithApiKeyInEnv = ...
+  :: forall. Contract (apiKey :: String) Unit
+  -- We can also retain polymorphism by adding `| r` to the row type:
+  --   :: forall (r :: Row Type). Contract (apiKey :: String | r) Unit
+someContractWithApiKeyInEnv = do
+  { apiKey } <- askConfig
+  ...
+```
+
+When using custom environments (e.g. in production), services can be configured to point to the same port with different paths (a webserver is needed to set that up):
+
+```purescript
+customOgmiosWsConfig :: ServerConfig
+customOgmiosWsConfig =
+  { port: UInt.fromInt 80
+  , host: "localhost"
+  , secure: false
+  , path: Just "/api/ogmios"
+  }
+
+customDatumCacheWsConfig :: ServerConfig
+customDatumCacheWsConfig =
+  { port: UInt.fromInt 80
+  , host: "localhost"
+  , secure: false
+  , path: Just "/api/ogmios-datum-cache"
+  }
 ```
 
 ## Building and submitting transactions
@@ -153,25 +170,119 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
   contract = do
     ...
     -- `liftedM` will throw on `Nothing`s
-    BalancedSignedTransaction bsTx <-
+    bsTx <-
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     ...
   ```
 
-- Submit using `Contract.Transaction.submit` (note that due to current infelicities in CTL's internal transaction builder, we must currently use the CBOR of the balanced and signed transaction rather than the transaction itself; this will be resolved in an upcoming CTL version):
+- Submit using `Contract.Transaction.submit`:
+
   ```purescript
   contract = do
     ...
-    txId <- submit bsTx.signedTxCbor
+    txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
   ```
 
-### Awaiting tx confirmation
+### Using compiled scripts
 
-One major caveat to using CTL in its current state is that we have no equivalent of Plutus' `awaitTxConfirmed`. We cannot guarantee that a transaction that has been accepted into a mempool has actually been added to a block. When `Contract.Transaction.submit` returns, this is **not** a guarantee that your transaction has been accepted into a block. If transaction confirmation is critical for you, you may wish to adopt a different strategy: sleeping for a pre-determined amount of time, looping until an address contains UTxOs from the recently submitted transaction, etc.... We plan to add functionality similar to `awaitTxConfirmed` in upcoming versions of CTL.
+To use your own scripts, compile them to any subdirectory in the root of your project (where `webpack.config.js` is located) and add a relative path to `webpack.config.js` under the `resolve.alias` section. In CTL, we have the `Scripts` alias for this purpose. Note the capitalization of `Scripts`: it is necessary to disambiguate it from local folders.
+
+First, in your `webpack.config.js`, define an `alias` under `module.exports.resolve.alias` in order to `require` the compiled scripts from JS modules:
+
+```javascript
+const path = require("path");
+
+module.exports = {
+  // ...
+  resolve: {
+    modules: [process.env.NODE_PATH],
+    extensions: [".js"],
+    fallback: {
+      // ...
+    },
+    alias: {
+      // You should update this path to the location of your compiled scripts,
+      // relative to `webpack.config.js`
+      Scripts: path.resolve(__dirname, "fixtures/scripts"),
+    },
+  },
+};
+```
+
+You must also add the following to `module.exports.module.rules`:
+
+```javascript
+module.exports = {
+  // ...
+  module: {
+    rules: [
+      {
+        test: /\.plutus$/i,
+        type: "asset/source",
+      },
+      // ...
+    ],
+  },
+};
+```
+
+This enables inlining your serialized scripts in `.js` files, to then be loaded in Purescript via the FFI:
+
+```javascript
+// inline .plutus file as a string
+exports.myscript = require("Scripts/myscript.plutus");
+```
+
+And on the purescript side, the script can be loaded like so:
+
+```purescript
+foreign import myscript :: String
+
+parseValidator :: Contract () Validator
+parseValidator = wrap <<< wrap
+  <$> Contract.TextEnvelope.textEnvelopeBytes myscript PlutusScriptV1
+
+myContract cfg = runContract_ cfg $ do
+  validator <- parseValidator
+  ...
+```
+
+This way you avoid hardcoding your scripts directly to .purs files which could lead to synchronization issues should your scripts change.
+
+**Note**: The `alias` method above will only work in the browser when bundling with Webpack. In order to load the scripts for both browser and NodeJS environments, you can use the `BROWSER_RUNTIME` environment variable like so:
+
+```javascript
+let script;
+if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
+  script = require("Scripts/my-script.plutus");
+} else {
+  const fs = require("fs");
+  const path = require("path");
+  script = fs.readFileSync(
+    path.resolve(__dirname, "../../fixtures/scripts/my-script.plutus"),
+    "utf8"
+  );
+}
+exports.myScript = script;
+```
+
+Note that the relative path passed to `path.resolve` for the NodeJS case starts from the `output` directory that the Purescript compiler produces.
 
 ## Testing
 
-Unfortunately, CTL does not currently offer robust testing strategies out-of-the-box. We are currently working on a keypair-based wallet that will work outside of a browser environment as well as integration with the [`plutip` testing tool](https://github.com/mlabs-haskell/plutip). These will be included in an upcoming release of CTL.
+### Without a light wallet
+
+We provide `KeyWallet` to enable testing outside of the browser, or in-browser without a light wallet installed. To generate a key, you can use `cardano-cli` as follows:
+
+```shell
+$ cardano-cli address key-gen --normal-key --signing-key-file payment.skey --verification-key-file payment.vkey
+```
+
+The signing key can be loaded to CTL using `WalletSpec`'s `UseKeys` constructor. See `examples/Pkh2PkhKeyWallet.purs`.
+
+From here you can submit transactions that will be signed with your private key, or perhaps export transactions to be tested with external tools such as [`plutip` testing tool](https://github.com/mlabs-haskell/plutip). We are currently working on integration with the plutip. These will be included in an upcoming release of CTL.
+
+### With a light wallet
 
 For full testing with browser-based light wallets, tools such as [`puppeteer`](https://github.com/puppeteer/puppeteer) or its [Purescript bindings](https://pursuit.purescript.org/packages/purescript-toppokki) might be useful.
