@@ -23,7 +23,7 @@ module QueryM.Ogmios
   , RelativeTime(RelativeTime)
   , SafeZone(SafeZone)
   , SlotLength(SlotLength)
-  , SubmitTxR(SubmitTxR,SubmitFail)
+  , SubmitTxR(SubmitTxR, SubmitFail)
   , SystemStart(SystemStart)
   , TxEvaluationR(TxEvaluationR)
   , TxHash
@@ -241,10 +241,10 @@ type TxHash = ByteArray
 instance DecodeAeson SubmitTxR where
   decodeAeson = aesonObject $
     \o ->
-      (getField o "SubmitSuccess" >>= flip getField "txId" >>= hexToByteArray
-      >>> maybe (Left (TypeMismatch "Expected hexstring")) (pure <<< SubmitTxR)
+      ( getField o "SubmitSuccess" >>= flip getField "txId" >>= hexToByteArray
+          >>> maybe (Left (TypeMismatch "Expected hexstring"))
+            (pure <<< SubmitTxR)
       ) <|> (SubmitFail <$> getField o "SubmitFail")
-
 
 ---------------- SYSTEM START QUERY RESPONSE & PARSING
 newtype SystemStart = SystemStart String

@@ -35,7 +35,7 @@ module Contract.Transaction
 
 import Prelude
 
-import Aeson (class EncodeAeson,Aeson)
+import Aeson (class EncodeAeson, Aeson)
 import BalanceTx (BalanceTxError) as BalanceTxError
 import BalanceTx (FinalizedTransaction)
 import BalanceTx (balanceTx, balanceTxWithAddress) as BalanceTx
@@ -115,7 +115,7 @@ import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
 import Control.Monad.Error.Class (try, catchError, throwError)
 import Control.Monad.Reader (asks, runReaderT, ReaderT)
 import Data.Array.NonEmpty as NonEmptyArray
-import Data.Either (Either(Left,Right), hush)
+import Data.Either (Either(Left, Right), hush)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
@@ -145,7 +145,7 @@ import QueryM
   , signTransaction
   , submitTxOgmios
   ) as QueryM
-import QueryM.Ogmios(SubmitTxR(SubmitTxR,SubmitFail))
+import QueryM.Ogmios (SubmitTxR(SubmitTxR, SubmitFail))
 import QueryM.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
