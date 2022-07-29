@@ -4,6 +4,7 @@
 module Plutip.Spawn
   ( NewOutputAction(NoOp, Success, Cancel)
   , spawnAndWaitForOutput
+  , killOnExit
   ) where
 
 import Prelude
@@ -21,11 +22,12 @@ import Node.ChildProcess
   ( ChildProcess
   , SpawnOptions
   , kill
-  , onExit
   , spawn
   , stdout
   )
+import Node.ChildProcess as ChildProcess
 import Node.Encoding as Encoding
+import Node.Process as Process
 import Node.Stream (onDataString)
 
 -- | Provides a way to react on update of a program output.
@@ -55,7 +57,7 @@ spawnAndWaitForOutput'
 spawnAndWaitForOutput' cmd args opts filter cont = do
   child <- spawn cmd args opts
   ref <- Ref.new (Just "")
-  onExit child $ const do
+  ChildProcess.onExit child $ const do
     output <- Ref.read ref
     cont $ Left $ error $
       "Process " <> cmd <> " exited. Output:\n" <> fold output
@@ -74,3 +76,15 @@ spawnAndWaitForOutput' cmd args opts filter cont = do
             $ "Process cancelled because output received: " <> str
         _ -> pure unit
   pure $ Canceler $ const $ liftEffect $ kill SIGINT child
+
+-- | Kill child process when current process exits. Assumes that given process
+-- | is still running.
+killOnExit :: ChildProcess -> Effect Unit
+killOnExit child = do
+  aliveRef <- Ref.new true
+  ChildProcess.onExit child \_ -> do
+    Ref.write false aliveRef
+  Process.onExit \_ -> do
+    alive <- Ref.read aliveRef
+    when alive do
+      kill SIGINT child
