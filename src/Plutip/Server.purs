@@ -1,5 +1,6 @@
 module Plutip.Server
   ( runPlutipContract
+  , withPlutipContractEnv
   , startPlutipCluster
   , stopPlutipCluster
   , startPlutipServer
@@ -71,14 +72,7 @@ import QueryM.ProtocolParameters as Ogmios
 import QueryM.UniqueId (uniqueId)
 import Types.UsedTxOuts (newUsedTxOuts)
 
-defaultRetryPolicy :: RetryPolicy
-defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
-  constantDelay (Milliseconds 100.0)
-
-mkServerEndpointUrl :: PlutipConfig -> String -> String
-mkServerEndpointUrl cfg path = do
-  "http://" <> cfg.host <> ":" <> UInt.toString cfg.port <> "/" <> path
-
+-- | Run a single `Contract` in Plutip environment.
 runPlutipContract
   :: forall (distr :: Type) (wallets :: Type) (a :: Type)
    . UtxoDistribution distr wallets
@@ -86,7 +80,20 @@ runPlutipContract
   -> distr
   -> (wallets -> Contract () a)
   -> Aff a
-runPlutipContract plutipCfg distr contContract =
+runPlutipContract cfg distr cont = withPlutipContractEnv cfg distr
+  \env wallets ->
+    runContractInEnv env (cont wallets)
+
+-- | Provide a `ContractEnv` connected to Plutip.
+-- | can be used to run multiple `Contract`s using `runContractInEnv`.
+withPlutipContractEnv
+  :: forall (distr :: Type) (wallets :: Type) (a :: Type)
+   . UtxoDistribution distr wallets
+  => PlutipConfig
+  -> distr
+  -> (ContractEnv () -> wallets -> Aff a)
+  -> Aff a
+withPlutipContractEnv plutipCfg distr cont =
   withPlutipServer $
     withPlutipCluster \response ->
       withWallets response \wallets ->
@@ -94,21 +101,20 @@ runPlutipContract plutipCfg distr contContract =
           $ withOgmios response
           $ withOgmiosDatumCache response
           $ withCtlServer
-          $ withContractEnv
-          $ flip runContractInEnv (contContract wallets)
+          $ withContractEnv (flip cont wallets)
   where
   withPlutipServer :: Aff a -> Aff a
   withPlutipServer =
     withResource (startPlutipServer plutipCfg) stopChildProcess <<< const
 
   withPlutipCluster :: (ClusterStartupParameters -> Aff a) -> Aff a
-  withPlutipCluster cont = withResource (startPlutipCluster plutipCfg distr)
+  withPlutipCluster cc = withResource (startPlutipCluster plutipCfg distr)
     (const $ void $ stopPlutipCluster plutipCfg)
     case _ of
       ClusterStartupFailure _ -> do
         liftEffect $ throw "Failed to start up cluster"
       ClusterStartupSuccess response -> do
-        cont response
+        cc response
 
   withPostgres :: ClusterStartupParameters -> Aff a -> Aff a
   withPostgres response =
@@ -130,11 +136,11 @@ runPlutipContract plutipCfg distr contContract =
       stopChildProcess <<< const
 
   withWallets :: ClusterStartupParameters -> (wallets -> Aff a) -> Aff a
-  withWallets response cont = case decodeWallets response.privateKeys of
+  withWallets response cc = case decodeWallets response.privateKeys of
     Nothing ->
       liftEffect $ throw $ "Impossible happened: unable to decode" <>
         " wallets from private keys. Please report as bug."
-    Just wallets -> cont wallets
+    Just wallets -> cc wallets
 
   withContractEnv :: (ContractEnv () -> Aff a) -> Aff a
   withContractEnv = withResource (mkClusterContractEnv plutipCfg)
@@ -385,3 +391,11 @@ startCtlServer cfg = do
         >>> maybe NoOp (const Success)
   liftEffect $ killOnExit child
   pure child
+
+defaultRetryPolicy :: RetryPolicy
+defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
+  constantDelay (Milliseconds 100.0)
+
+mkServerEndpointUrl :: PlutipConfig -> String -> String
+mkServerEndpointUrl cfg path = do
+  "http://" <> cfg.host <> ":" <> UInt.toString cfg.port <> "/" <> path
