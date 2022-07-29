@@ -77,7 +77,7 @@
           pkgs = nixpkgsFor system;
         in
         {
-          ctl-scaffold = (psProjectFor system).runPursTest {
+          ctl-scaffold-plutip-test = (psProjectFor system).runPlutipTest {
             testMain = "Scaffold.Test.Main";
           };
 
