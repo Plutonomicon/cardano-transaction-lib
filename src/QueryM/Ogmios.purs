@@ -235,8 +235,6 @@ derive instance Generic SubmitTxR _
 
 instance Show SubmitTxR where
   show = genericShow
-  --show (SubmitTxR txh) = "SubmitTxR" <> show txh
-  --show (SubmitFail obj) = "SubmitFail " <> stringify obj
 
 type TxHash = ByteArray
 
