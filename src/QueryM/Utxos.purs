@@ -11,7 +11,6 @@ import Prelude
 import Address (addressToOgmiosAddress)
 import Cardano.Types.Transaction (TransactionOutput, UtxoM(UtxoM), Utxos)
 import Cardano.Types.Value (Value)
-import Control.Monad.Logger.Trans (LoggerT)
 import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, asks)
 import Data.Bifunctor (bimap)
@@ -121,9 +120,9 @@ filterLockedUtxos utxos =
 
 withTxRefsCache
   :: forall (m :: Type -> Type) (a :: Type)
-   . ReaderT UsedTxOuts (LoggerT Aff) a
+   . ReaderT UsedTxOuts Aff a
   -> QueryM a
-withTxRefsCache f = withReaderT (_.runtime >>> _.usedTxOuts) f
+withTxRefsCache = wrap <<< withReaderT (_.runtime >>> _.usedTxOuts)
 
 getWalletBalance
   :: QueryM (Maybe Value)
