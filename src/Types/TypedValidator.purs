@@ -58,26 +58,20 @@ class DatumType (a :: Type) (b :: Type) | a -> b
 
 instance DatumType Void Void
 
-else instance DatumType Any PlutusData
-
--- | Default instance
-else instance DatumType a Unit
+instance DatumType Any PlutusData
 
 -- | The type of the redeemers of this connection type.
 class RedeemerType (a :: Type) (b :: Type) | a -> b
 
 instance RedeemerType Void Void
 
-else instance RedeemerType Any PlutusData
-
--- | Default instance
-else instance RedeemerType a Unit
+instance RedeemerType Any PlutusData
 
 -- Replace `ScriptContext` by `Transaction` which contains all the scripts
 -- anyway:
 -- | The type of validators for the given connection type.
 type ValidatorType (a :: Type) (b :: Type) =
-  DatumType a b => RedeemerType a b => b -> b -> Transaction -> Boolean
+  DatumType a b => RedeemerType a b => a -> b -> Transaction -> Boolean
 
 type WrappedValidatorType =
   PlutusData -> PlutusData -> PlutusData -> Effect Unit
