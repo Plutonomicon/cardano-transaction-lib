@@ -1,3 +1,7 @@
+-- | This module demonstrates how the `Contract` interface can be used to build,
+-- | balance, and submit a smart-contract transaction. It creates a transaction
+-- | that mints a token using the `AlwaysMints` policy and sends it along with
+-- | the selected amount to the specified address.
 module Examples.KeyWallet.MintsAndSendsToken where
 
 import Contract.Prelude
