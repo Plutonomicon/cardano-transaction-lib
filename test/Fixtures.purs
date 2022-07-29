@@ -97,6 +97,7 @@ import Cardano.Types.Transaction
       , TimelockStart
       , TimelockExpiry
       )
+  , Nonce(HashNonce)
   , PoolMetadata(PoolMetadata)
   , PoolMetadataHash(PoolMetadataHash)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
@@ -458,7 +459,7 @@ proposedProtocolParameterUpdates1 = ProposedProtocolParameterUpdates $
         , extraEntropy: Nothing -- Just $ HashNonce $ hexToByteArrayUnsafe
         --    "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f6500000000"
         , protocolVersion: Just
-            [ { major: UInt.fromInt 1, minor: UInt.fromInt 1 } ]
+            { major: UInt.fromInt 1, minor: UInt.fromInt 1 }
         , minPoolCost: Just bigNumOne
         , adaPerUtxoByte: Just bigNumOne
         , costModels: Just costModelsFixture1
@@ -654,7 +655,7 @@ txBinaryFixture4 =
   \7f13c113ad5f9b22212703482cb30105a1581de01730b1b700d616d51555538e83d67f13c113\
   \ad5f9b22212703482cb3010682a1581c5d677265fa5bb21ce6d8c7502aca70b9316d10e95861\
   \1f3c6b758f65b4000101010219271003192710041903e8050106010701080109d81e8201010a\
-  \d81e8201010bd81e8201010e8101011001110112a10098a61a000302590001011a00060bc719\
+  \d81e8201010bd81e8201010e8201011001110112a10098a61a000302590001011a00060bc719\
   \026d00011a000249f01903e800011a000249f018201a0025cea81971f70419744d186419744d\
   \186419744d186419744d186419744d186419744d18641864186419744d18641a000249f01820\
   \1a000249f018201a000249f018201a000249f01903e800011a000249f018201a000249f01903\
