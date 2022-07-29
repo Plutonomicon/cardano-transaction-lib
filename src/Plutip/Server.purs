@@ -20,11 +20,12 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either(Left), either)
 import Data.HTTP.Method as Method
 import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Newtype (wrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.UInt as UInt
+import Effect (Effect)
 import Effect.Aff (Aff, Milliseconds(Milliseconds))
 import Effect.Aff.Class (liftAff)
 import Effect.Aff.Retry
@@ -43,7 +44,11 @@ import Node.ChildProcess
   , kill
   , spawn
   )
-import Plutip.Spawn (NewOutputAction(Success, NoOp), spawnAndWaitForOutput)
+import Plutip.Spawn
+  ( NewOutputAction(Success, NoOp)
+  , killOnExit
+  , spawnAndWaitForOutput
+  )
 import Plutip.Types
   ( class UtxoDistribution
   , ClusterStartupParameters
@@ -57,7 +62,10 @@ import Plutip.Types
   , encodeDistribution
   )
 import Plutip.Utils (tmpdir)
-import QueryM (ClientError(ClientDecodeJsonError, ClientHttpError))
+import QueryM
+  ( ClientError(ClientDecodeJsonError, ClientHttpError)
+  , stopQueryRuntime
+  )
 import QueryM as QueryM
 import QueryM.ProtocolParameters as Ogmios
 import QueryM.UniqueId (uniqueId)
@@ -85,9 +93,9 @@ runPlutipContract plutipCfg distr contContract =
         withPostgres response
           $ withOgmios response
           $ withOgmiosDatumCache response
-          $ withCtlServer do
-              contractEnv <- mkClusterContractEnv plutipCfg
-              liftAff $ runContractInEnv contractEnv (contContract wallets)
+          $ withCtlServer
+          $ withContractEnv
+          $ flip runContractInEnv (contContract wallets)
   where
   withPlutipServer :: Aff a -> Aff a
   withPlutipServer =
@@ -127,6 +135,14 @@ runPlutipContract plutipCfg distr contContract =
       liftEffect $ throw $ "Impossible happened: unable to decode" <>
         " wallets from private keys. Please report as bug."
     Just wallets -> cont wallets
+
+  withContractEnv :: (ContractEnv () -> Aff a) -> Aff a
+  withContractEnv = withResource (mkClusterContractEnv plutipCfg)
+    (liftEffect <<< stopContractEnv)
+
+  -- a version of Contract.Monad.stopContractEnv without a compile-time warning
+  stopContractEnv :: ContractEnv () -> Effect Unit
+  stopContractEnv env = stopQueryRuntime (unwrap env).runtime
 
 startPlutipCluster
   :: forall (distr :: Type) (wallets :: Type)
@@ -191,8 +207,10 @@ startOgmios cfg params = do
   -- We wait for any output, because CTL-server tries to connect to Ogmios
   -- repeatedly, and we can just wait for CTL-server to connect, instead of
   -- waiting for Ogmios first.
-  spawnAndWaitForOutput "ogmios" ogmiosArgs defaultSpawnOptions
+  child <- spawnAndWaitForOutput "ogmios" ogmiosArgs defaultSpawnOptions
     $ pure Success
+  liftEffect $ killOnExit child
+  pure child
   where
   ogmiosArgs :: Array String
   ogmiosArgs =
@@ -212,7 +230,8 @@ stopChildProcess = liftEffect <<< kill SIGINT
 startPlutipServer :: PlutipConfig -> Aff ChildProcess
 startPlutipServer cfg = do
   p <- liftEffect $ spawn "plutip-server" [ "-p", UInt.toString cfg.port ]
-    defaultSpawnOptions { detached = true }
+    defaultSpawnOptions
+  liftEffect $ killOnExit p
   -- We are trying to call stopPlutipCluster endpoint to ensure that
   -- `plutip-server` has started.
   void
@@ -230,6 +249,7 @@ startPostgresServer pgConfig _ = do
   let
     workingDir = tmpDir <> "/" <> randomStr
     databaseDir = workingDir <> "/postgres/data"
+    postgresSocket = workingDir <> "/postgres"
   liftEffect $ void $ execSync ("initdb " <> databaseDir) defaultExecSyncOptions
   pgChildProcess <- liftEffect $ spawn "postgres"
     [ "-D"
@@ -239,9 +259,10 @@ startPostgresServer pgConfig _ = do
     , "-h"
     , pgConfig.host
     , "-k"
-    , workingDir <> "/postgres"
+    , postgresSocket
     ]
     defaultSpawnOptions
+  liftEffect $ killOnExit pgChildProcess
   void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
     $ const
     $ liftEffect
@@ -302,10 +323,13 @@ startOgmiosDatumCache cfg _params = do
       , "--use-latest"
       , "--from-origin"
       ]
-  spawnAndWaitForOutput "ogmios-datum-cache" arguments defaultSpawnOptions
-    -- Wait for "Intersection found" string in the output
-    $ String.indexOf (Pattern "Intersection found")
-        >>> maybe NoOp (const Success)
+  child <-
+    spawnAndWaitForOutput "ogmios-datum-cache" arguments defaultSpawnOptions
+      -- Wait for "Intersection found" string in the output
+      $ String.indexOf (Pattern "Intersection found")
+          >>> maybe NoOp (const Success)
+  liftEffect $ killOnExit child
+  pure child
 
 mkClusterContractEnv
   :: PlutipConfig
@@ -355,7 +379,9 @@ startCtlServer cfg = do
       , "--ogmios-port"
       , UInt.toString cfg.ogmiosConfig.port
       ]
-  spawnAndWaitForOutput "ctl-server" ctlServerArgs defaultSpawnOptions
+  child <- spawnAndWaitForOutput "ctl-server" ctlServerArgs defaultSpawnOptions
     -- Wait for "Successfully connected to Ogmios" string in the output
     $ String.indexOf (Pattern "Successfully connected to Ogmios")
         >>> maybe NoOp (const Success)
+  liftEffect $ killOnExit child
+  pure child

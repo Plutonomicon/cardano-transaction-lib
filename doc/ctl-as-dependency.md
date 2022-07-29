@@ -36,7 +36,7 @@ CTL exposes an `overlay` from its flake. You can use this in the Nix setup of yo
     nixpkgs.follows = "cardano-transaction-lib/nixpkgs";
   };
 
-  outputs = { self, cardano-transaction-lib, ... }:
+  outputs = { self, cardano-transaction-lib, nixpkgs, ... }:
     # some boilerplate
     let
       perSystem = nixpkgs.lib.genAttrs [

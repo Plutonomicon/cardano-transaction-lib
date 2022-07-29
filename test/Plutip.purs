@@ -56,7 +56,7 @@ import Data.Array (find)
 import Data.BigInt as BigInt
 import Data.Log.Level (LogLevel(Trace))
 import Data.Map as Map
-import Data.Maybe (Maybe(Nothing), fromMaybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse_)
 import Data.Tuple (fst)
@@ -75,7 +75,7 @@ import Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
-import Mote (group, only, test)
+import Mote (group, only, skip, test)
 import Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
@@ -91,6 +91,7 @@ import Plutus.Conversion.Address (toPlutusAddress)
 import Safe.Coerce (coerce)
 import Scripts (nativeScriptHashEnterpriseAddress)
 import Test.Spec.Assertions (shouldSatisfy)
+import Test.Spec.Runner (defaultConfig)
 import Test.Utils as Utils
 import TestM (TestPlanM)
 import Types.UsedTxOuts (TxOutRefCache)
@@ -98,7 +99,11 @@ import Types.UsedTxOuts (TxOutRefCache)
 -- Run with `spago test --main Test.Plutip`
 main :: Effect Unit
 main = launchAff_ do
-  Utils.interpretWithTimeout Nothing suite
+  Utils.interpretWithConfig
+    -- we don't want to exit because we need to clean up after failure by
+    -- timeout
+    defaultConfig { timeout = Just $ wrap 30_000.0, exit = true }
+    suite
 
 config :: PlutipConfig
 config =
@@ -279,7 +284,7 @@ suite = do
           let
             constraints :: Constraints.TxConstraints Void Void
             -- In real contracts, library users most likely want to use
-            -- `mustPayToPubKeyAddres` (we're not doing that because Plutip
+            -- `mustPayToPubKeyAddress` (we're not doing that because Plutip
             -- does not provide stake keys).
             constraints = Constraints.mustPayToPubKey pkh
               $ Value.lovelaceValueOf
@@ -420,7 +425,7 @@ suite = do
           unless (locked # Map.isEmpty) do
             liftEffect $ throw "locked inputs map is not empty"
 
-    test "runPlutipContract: AlwaysSucceeds" do
+    skip $ test "runPlutipContract: AlwaysSucceeds" do
       let
         distribution :: InitialUTxO
         distribution =

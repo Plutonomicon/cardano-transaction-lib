@@ -82,9 +82,7 @@ import Cardano.Types.Value
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
-import Control.Monad.Logger.Trans (LoggerT)
 import Control.Monad.Reader.Class (asks)
-import Control.Monad.Reader.Trans (ReaderT)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Data.Array ((:), singleton, union) as Array
@@ -121,7 +119,7 @@ import Helpers ((<\>), liftEither, liftM)
 import NativeScripts (NativeScriptHash(..), nativeScriptHash)
 import Plutus.Conversion (fromPlutusTxOutput, fromPlutusValue)
 import Plutus.Types.Transaction (TransactionOutput) as Plutus
-import QueryM (DefaultQueryEnv, QueryM, getDatumByHash)
+import QueryM (QueryM, QueryMExtended, getDatumByHash)
 import QueryM.EraSummaries (getEraSummaries)
 import QueryM.ProtocolParameters (getProtocolParameters)
 import QueryM.SystemStart (getSystemStart)
@@ -486,9 +484,7 @@ requireValue required = ValueSpentBalances { required, provided: mempty }
 -- We write `ReaderT QueryConfig Aff` below since type synonyms need to be fully
 -- applied.
 type ConstraintsM (a :: Type) (b :: Type) =
-  StateT (ConstraintProcessingState a)
-    (ReaderT DefaultQueryEnv (LoggerT Aff))
-    b
+  StateT (ConstraintProcessingState a) (QueryMExtended ()) b
 
 -- The constraints don't precisely match those of Plutus:
 -- `forall a. (FromData (DatumType a), ToData (DatumType a), ToData (RedeemerType a))`

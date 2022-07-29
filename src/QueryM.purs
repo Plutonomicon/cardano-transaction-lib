@@ -19,15 +19,13 @@ module QueryM
   , PendingRequests
   , QueryConfig
   , QueryM
-  , QueryMExtended
+  , QueryMExtended(QueryMExtended)
   , QueryEnv
   , QueryRuntime
   , RequestBody
   , WebSocket(WebSocket)
   , allowError
   , applyArgs
-  , awaitTxConfirmed
-  , awaitTxConfirmedWithTimeout
   , calculateMinFee
   , evaluateTxOgmios
   , getChainTip
@@ -40,6 +38,7 @@ module QueryM
   , listeners
   , postAeson
   , mkDatumCacheWebSocketAff
+  , mkDatumCacheRequest
   , queryDispatch
   , defaultMessageListener
   , mkListenerSet
@@ -85,16 +84,21 @@ import Cardano.Types.Transaction (Transaction(Transaction))
 import Cardano.Types.Transaction as Transaction
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value (Coin)
-import Control.Monad.Error.Class (throwError)
-import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
+import Control.Monad.Error.Class
+  ( class MonadError
+  , class MonadThrow
+  , throwError
+  )
+import Control.Monad.Logger.Class (class MonadLogger)
+import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
 import Control.Monad.Reader.Trans (ReaderT, asks, runReaderT, withReaderT)
+import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (parallel, sequential)
 import Data.Array (length)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.DateTime.Instant (unInstant)
 import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
 import Data.HTTP.Method (Method(POST))
@@ -105,8 +109,6 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Number (infinity)
-import Data.Time.Duration (Seconds(Seconds))
 import Data.Traversable (for, for_, traverse, traverse_)
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt)
@@ -121,10 +123,9 @@ import Effect.Aff
   , makeAff
   , supervise
   )
-import Effect.Aff.Class (liftAff)
-import Effect.Class (liftEffect)
+import Effect.Aff.Class (class MonadAff, liftAff)
+import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error, message, throw)
-import Effect.Now (now)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
@@ -251,14 +252,37 @@ type QueryEnv (r :: Row Type) =
 
 type DefaultQueryEnv = QueryEnv ()
 
-type QueryM (a :: Type) = ReaderT DefaultQueryEnv (LoggerT Aff) a
+type QueryM (a :: Type) = QueryMExtended () a
 
-type QueryMExtended (r :: Row Type) (a :: Type) = ReaderT (QueryEnv r)
-  (LoggerT Aff)
-  a
+newtype QueryMExtended (r :: Row Type) (a :: Type) = QueryMExtended
+  (ReaderT (QueryEnv r) Aff a)
+
+derive instance Newtype (QueryMExtended r a) _
+derive newtype instance Functor (QueryMExtended r)
+derive newtype instance Apply (QueryMExtended r)
+derive newtype instance Applicative (QueryMExtended r)
+derive newtype instance Bind (QueryMExtended r)
+derive newtype instance Monad (QueryMExtended r)
+derive newtype instance MonadEffect (QueryMExtended r)
+derive newtype instance MonadAff (QueryMExtended r)
+derive newtype instance Semigroup a => Semigroup (QueryMExtended r a)
+derive newtype instance Monoid a => Monoid (QueryMExtended r a)
+derive newtype instance MonadThrow Error (QueryMExtended r)
+derive newtype instance MonadError Error (QueryMExtended r)
+derive newtype instance MonadRec (QueryMExtended r)
+derive newtype instance MonadAsk (QueryEnv r) (QueryMExtended r)
+derive newtype instance MonadReader (QueryEnv r) (QueryMExtended r)
+
+instance MonadLogger (QueryMExtended r) where
+  log msg = do
+    config <- asks $ _.config
+    let
+      logFunction =
+        config # _.customLogger >>> fromMaybe (logWithLevel config.logLevel)
+    liftAff $ logFunction msg
 
 liftQueryM :: forall (r :: Row Type) (a :: Type). QueryM a -> QueryMExtended r a
-liftQueryM = withReaderT toDefaultQueryEnv
+liftQueryM = unwrap >>> withReaderT toDefaultQueryEnv >>> wrap
   where
   toDefaultQueryEnv :: QueryEnv r -> DefaultQueryEnv
   toDefaultQueryEnv c = c { extraConfig = {} }
@@ -347,10 +371,7 @@ runQueryMInRuntime
   -> QueryM a
   -> Aff a
 runQueryMInRuntime config runtime = do
-  flip runLoggerT logger <<<
-    flip runReaderT { config, runtime, extraConfig: {} }
-  where
-  logger = fromMaybe (logWithLevel config.logLevel) config.customLogger
+  flip runReaderT { config, runtime, extraConfig: {} } <<< unwrap
 
 getProtocolParametersAff
   :: OgmiosWebSocket -> LogLevel -> Aff Ogmios.ProtocolParameters
@@ -395,30 +416,6 @@ getDatumByHash hash = unwrap <$> do
 getDatumsByHashes :: Array DataHash -> QueryM (Map DataHash Datum)
 getDatumsByHashes hashes = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
-
-awaitTxConfirmed :: TxHash -> QueryM Unit
-awaitTxConfirmed = awaitTxConfirmedWithTimeout (Seconds infinity)
-
-awaitTxConfirmedWithTimeout :: Seconds -> TxHash -> QueryM Unit
-awaitTxConfirmedWithTimeout timeoutSeconds txHash = do
-  nowMs <- getNowMs
-  let timeoutTime = nowMs + unwrap timeoutSeconds * 1000.0
-  go timeoutTime
-  where
-  getNowMs :: QueryM Number
-  getNowMs = unwrap <<< unInstant <$> liftEffect now
-
-  go :: Number -> QueryM Unit
-  go timeoutTime = do
-    isTxFound <- unwrap <$> mkDatumCacheRequest DcWsp.getTxByHash _.getTxByHash
-      txHash
-    nowMs <- getNowMs
-    when (nowMs >= timeoutTime) do
-      liftEffect $ throw $
-        "awaitTxConfirmedWithTimeout: timeout exceeded, Transaction not \
-        \confirmed"
-    liftAff $ delay $ wrap 1000.0
-    if isTxFound then pure unit else go timeoutTime
 
 allowError
   :: forall (a :: Type). (Either Error a -> Effect Unit) -> a -> Effect Unit
