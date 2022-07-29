@@ -236,7 +236,8 @@ submit tx = do
   result <- submitE tx
   case result of
     Right th -> pure th
-    Left json -> liftEffect $ throw $ "`submit` call failed. Error from Ogmios: " <> show json
+    Left json -> liftEffect $ throw $
+      "`submit` call failed. Error from Ogmios: " <> show json
 
 -- | Like submit except when ogmios sends a SubmitFail
 -- | the error is returned as an Array of Aesons
