@@ -62,7 +62,7 @@ import Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
-import Mote (group, test)
+import Mote (group, skip, test)
 import Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
@@ -305,7 +305,7 @@ suite = do
           unless (locked # Map.isEmpty) do
             liftEffect $ throw "locked inputs map is not empty"
 
-    test "runPlutipContract: AlwaysSucceeds" do
+    skip $ test "runPlutipContract: AlwaysSucceeds" do
       let
         distribution :: InitialUTxO
         distribution =
