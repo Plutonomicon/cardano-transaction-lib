@@ -596,6 +596,13 @@
         (psProjectFor (nixpkgsFor system)).defaultPackage
       );
 
+      templates = {
+        ctl-scaffold = {
+          path = ./templates/ctl-scaffold;
+          description = "A minimal CTL-based scaffold project";
+        };
+      };
+
       hydraJobs = perSystem (system:
         self.checks.${system}
         // self.packages.${system}
