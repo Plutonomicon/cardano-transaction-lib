@@ -145,7 +145,7 @@ import QueryM
   , signTransaction
   , submitTxOgmios
   ) as QueryM
-import QueryM.Ogmios (SubmitTxR(SubmitTxR, SubmitFail))
+import QueryM.Ogmios (SubmitTxR(SubmitTxSuccess, SubmitFail))
 import QueryM.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
@@ -251,7 +251,7 @@ submitE tx = do
           Serialization.convertTransaction (unwrap tx)
       )
   pure $ case result of
-    SubmitTxR th -> Right $ wrap th
+    SubmitTxSuccess th -> Right $ wrap th
     SubmitFail json -> Left json
 
 -- | Query the Haskell server for the minimum transaction fee

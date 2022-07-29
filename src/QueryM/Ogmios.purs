@@ -23,7 +23,7 @@ module QueryM.Ogmios
   , RelativeTime(RelativeTime)
   , SafeZone(SafeZone)
   , SlotLength(SlotLength)
-  , SubmitTxR(SubmitTxR, SubmitFail)
+  , SubmitTxR(SubmitTxSuccess, SubmitFail)
   , SystemStart(SystemStart)
   , TxEvaluationR(TxEvaluationR)
   , TxHash
@@ -228,7 +228,7 @@ mkOgmiosCallType = mkCallType
 ---------------- TX SUBMISSION QUERY RESPONSE & PARSING
 
 data SubmitTxR
-  = SubmitTxR TxHash
+  = SubmitTxSuccess TxHash
   | SubmitFail (Array Aeson)
 
 derive instance Generic SubmitTxR _
@@ -243,7 +243,7 @@ instance DecodeAeson SubmitTxR where
     \o ->
       ( getField o "SubmitSuccess" >>= flip getField "txId" >>= hexToByteArray
           >>> maybe (Left (TypeMismatch "Expected hexstring"))
-            (pure <<< SubmitTxR)
+            (pure <<< SubmitTxSuccess)
       ) <|> (SubmitFail <$> getField o "SubmitFail")
 
 ---------------- SYSTEM START QUERY RESPONSE & PARSING
