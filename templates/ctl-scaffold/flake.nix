@@ -10,7 +10,7 @@
       type = "github";
       owner = "Plutonomicon";
       repo = "cardano-transaction-lib";
-      rev = "a5c1724212325828a637810b9a1ec4098b173ea3";
+      rev = "2ca7a6b7b82690737d1228469ec1283939dcb9c4";
     };
     nixpkgs.follows = "ctl/nixpkgs";
   };
@@ -27,10 +27,8 @@
       nixpkgsFor = system: import nixpkgs {
         inherit system;
         overlays = [
-          ctl.overlay
-          (_: _: {
-            ctl-server = ctl.packages.${system}."ctl-server:exe:ctl-server";
-          })
+          ctl.overlays.purescript
+          ctl.overlays.runtime
         ];
       };
       psProjectFor = system:
