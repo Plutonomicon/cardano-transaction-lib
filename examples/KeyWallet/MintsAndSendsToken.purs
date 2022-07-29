@@ -1,4 +1,4 @@
-module Examples.KeyWallet.SendsToken where
+module Examples.KeyWallet.MintsAndSendsToken where
 
 import Contract.Prelude
 
@@ -24,7 +24,7 @@ import Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
 
 main :: Effect Unit
 main = runKeyWalletContract_ \pkh lovelace unlock -> do
-  logInfo' "Running Examples.KeyWallet.SendsToken"
+  logInfo' "Running Examples.KeyWallet.MintsAndSendsToken"
 
   mp <- alwaysMintsPolicy
   cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
@@ -34,12 +34,14 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
 
   let
     constraints :: Constraints.TxConstraints Void Void
-    constraints =
-      Constraints.mustPayToPubKey pkh
-        (Value.lovelaceValueOf lovelace <> Value.singleton cs tn one)
+    constraints = mconcat
+      [ Constraints.mustMintValue (Value.singleton cs tn one)
+      , Constraints.mustPayToPubKey pkh
+          (Value.lovelaceValueOf lovelace <> Value.singleton cs tn one)
+      ]
 
     lookups :: Lookups.ScriptLookups Void
-    lookups = mempty
+    lookups = Lookups.mintingPolicy mp
 
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
   bsTx <- liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
