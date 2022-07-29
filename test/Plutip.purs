@@ -46,6 +46,7 @@ import Contract.Value as Value
 import Contract.Wallet (withKeyWallet)
 import Control.Monad.Error.Class (withResource)
 import Control.Monad.Reader (asks)
+import Control.Parallel (parallel, sequential)
 import Data.BigInt as BigInt
 import Data.Log.Level (LogLevel(Trace))
 import Data.Map as Map
@@ -55,7 +56,7 @@ import Data.Traversable (traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (forkAff, joinFiber, launchAff_)
+import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (throw)
@@ -193,44 +194,45 @@ suite = do
             [ BigInt.fromInt 1_000_000_000
             , BigInt.fromInt 2_000_000_000
             ]
-      withPlutipContractEnv config distribution \env (alice /\ bob) -> do
-        fiber <- forkAff $ runContractInEnv env $ withKeyWallet alice do
-          bobPkh <- liftedM "Failed to get PKH" $ withKeyWallet bob
-            ownPaymentPubKeyHash
-          let
-            constraints :: Constraints.TxConstraints Void Void
-            -- In real contracts, library users most likely want to use
-            -- `mustPayToPubKeyAddress` (we're not doing that because Plutip
-            -- does not provide stake keys).
-            constraints = Constraints.mustPayToPubKey bobPkh
-              $ Value.lovelaceValueOf
-              $ BigInt.fromInt 2_000_000
+      withPlutipContractEnv config distribution \env (alice /\ bob) ->
+        sequential ado
+          parallel $ runContractInEnv env $ withKeyWallet alice do
+            bobPkh <- liftedM "Failed to get PKH" $ withKeyWallet bob
+              ownPaymentPubKeyHash
+            let
+              constraints :: Constraints.TxConstraints Void Void
+              -- In real contracts, library users most likely want to use
+              -- `mustPayToPubKeyAddress` (we're not doing that because Plutip
+              -- does not provide stake keys).
+              constraints = Constraints.mustPayToPubKey bobPkh
+                $ Value.lovelaceValueOf
+                $ BigInt.fromInt 2_000_000
 
-            lookups :: Lookups.ScriptLookups Void
-            lookups = mempty
-          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <-
-            liftedE $ balanceAndSignTxE ubTx
-          submitAndLog bsTx
-        runContractInEnv env $ withKeyWallet bob do
-          alicePkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
-            ownPaymentPubKeyHash
-          let
-            constraints :: Constraints.TxConstraints Void Void
-            -- In real contracts, library users most likely want to use
-            -- `mustPayToPubKeyAddress` (we're not doing that because Plutip
-            -- does not provide stake keys).
-            constraints = Constraints.mustPayToPubKey alicePkh
-              $ Value.lovelaceValueOf
-              $ BigInt.fromInt 2_000_000
+              lookups :: Lookups.ScriptLookups Void
+              lookups = mempty
+            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            bsTx <-
+              liftedE $ balanceAndSignTxE ubTx
+            submitAndLog bsTx
+          parallel $ runContractInEnv env $ withKeyWallet bob do
+            alicePkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
+              ownPaymentPubKeyHash
+            let
+              constraints :: Constraints.TxConstraints Void Void
+              -- In real contracts, library users most likely want to use
+              -- `mustPayToPubKeyAddress` (we're not doing that because Plutip
+              -- does not provide stake keys).
+              constraints = Constraints.mustPayToPubKey alicePkh
+                $ Value.lovelaceValueOf
+                $ BigInt.fromInt 2_000_000
 
-            lookups :: Lookups.ScriptLookups Void
-            lookups = mempty
-          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <-
-            liftedE $ balanceAndSignTxE ubTx
-          submitAndLog bsTx
-        joinFiber fiber
+              lookups :: Lookups.ScriptLookups Void
+              lookups = mempty
+            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            bsTx <-
+              liftedE $ balanceAndSignTxE ubTx
+            submitAndLog bsTx
+          in unit
 
     test "runPlutipContract: AlwaysMints" do
       let
