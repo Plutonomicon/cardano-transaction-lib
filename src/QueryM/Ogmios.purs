@@ -229,7 +229,7 @@ mkOgmiosCallType = mkCallType
 
 data SubmitTxR
   = SubmitTxR TxHash
-  | SubmitFail Aeson
+  | SubmitFail (Array Aeson)
 
 derive instance Generic SubmitTxR _
 

@@ -239,11 +239,11 @@ submit tx = do
     Left json -> liftEffect $ throw $ show json
 
 -- | Like submit except when ogmios sends a SubmitFail
--- | the error is returned as an Aeson
+-- | the error is returned as an Array of Aesons
 submitE
   :: forall (r :: Row Type)
    . BalancedSignedTransaction
-  -> Contract r (Either Aeson TransactionHash)
+  -> Contract r (Either (Array Aeson) TransactionHash)
 submitE tx = do
   result <- wrapContract <<< QueryM.submitTxOgmios =<<
     liftEffect
