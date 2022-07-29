@@ -145,33 +145,15 @@
         "aarch64-darwin"
       ];
       perSystem = nixpkgs.lib.genAttrs defaultSystems;
-      overlay = with inputs; (final: prev:
-        let
-          inherit (prev) system;
-        in
-        {
-          easy-ps =
-            import inputs.easy-purescript-nix { pkgs = final; };
-          ogmios-datum-cache =
-            inputs.ogmios-datum-cache.defaultPackage.${system};
-          ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
-          ogmios-fixtures = ogmios;
-          plutip-server = inputs.plutip.packages.${system}."plutip:exe:plutip-server";
-          purescriptProject = import ./nix { pkgs = final; };
-          buildCtlRuntime = buildCtlRuntime final;
-          launchCtlRuntime = launchCtlRuntime final;
-          inherit cardano-configurations;
-        });
 
       mkNixpkgsFor = system: import nixpkgs {
         overlays = [
           haskell-nix.overlay
           iohk-nix.overlays.crypto
-          overlay
-          # This needs to go here and not in the `overlay` above as it
-          # instantiates our `nixpkgs`
+          self.overlays.purescript
+          self.overlays.runtime
           (_: _: {
-            ctl-server = self.packages.${system}."ctl-server:exe:ctl-server";
+            ogmios-fixtures = inputs.ogmios;
           })
         ];
         inherit (haskell-nix) config;
@@ -504,7 +486,40 @@
       };
     in
     {
-      inherit overlay;
+      overlay = builtins.trace
+        (
+          "warning: `cardano-transaction-lib.overlay` is deprecated and will be"
+          + " removed in the next release. Please use"
+          + " `cardano-transaction-lib.overlays.{runtime, purescript}`"
+          + " directly instead"
+        )
+        (final: prev:
+          (self.overlays.purescript final prev)
+          // (self.overlays.runtime final prev)
+        );
+
+      overlays = with inputs;  {
+        purescript = final: prev: {
+          easy-ps = import inputs.easy-purescript-nix { pkgs = final; };
+          purescriptProject = import ./nix { pkgs = final; };
+        };
+        runtime = final: prev:
+          let
+            inherit (prev) system;
+          in
+          {
+            plutip-server =
+              inputs.plutip.packages.${system}."plutip:exe:plutip-server";
+            ctl-server =
+              (hsProjectFor final).hsPkgs.ctl-server.components.exes.ctl-server;
+            ogmios-datum-cache =
+              inputs.ogmios-datum-cache.defaultPackage.${system};
+            ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
+            buildCtlRuntime = buildCtlRuntime final;
+            launchCtlRuntime = launchCtlRuntime final;
+            inherit cardano-configurations;
+          };
+      };
 
       # flake from haskell.nix project
       hsFlake = perSystem (system: (hsProjectFor (nixpkgsFor system)).flake { });
