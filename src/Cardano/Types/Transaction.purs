@@ -355,7 +355,7 @@ type ProtocolParamUpdate =
   , treasuryGrowthRate :: Maybe UnitInterval
   , d :: Maybe UnitInterval
   , extraEntropy :: Maybe Nonce
-  , protocolVersion :: Maybe (Array ProtocolVersion)
+  , protocolVersion :: Maybe ProtocolVersion
   , minPoolCost :: Maybe BigNum
   , adaPerUtxoByte :: Maybe BigNum
   , costModels :: Maybe Costmdls

@@ -275,14 +275,10 @@ exports._unpackUnitInterval = ui => {
   };
 };
 
-exports._unpackProtocolVersions = containerhelper => cslPV => {
-  const pvs = containerhelper.unpack(cslPV);
-  const res = [];
-  for (let i = 0; i < pvs.length; i++) {
-    res.push({ major: pvs[i].major(), minor: pvs[i].minor() });
-  }
-  return res;
-};
+exports._unpackProtocolVersion = cslPV => ({
+  major: cslPV.major(),
+  minor: cslPV.minor(),
+});
 
 exports._unpackExUnitsPrices = cslEup => {
   return {
