@@ -63,6 +63,7 @@ You can edit this file as you like.
   , "spec"
   , "spec-quickcheck"
   , "strings"
+  , "stringutils"
   , "tailrec"
   , "text-encoding"
   , "these"

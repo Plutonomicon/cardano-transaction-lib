@@ -26,7 +26,7 @@ import Contract.Monad
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
   ( awaitTxConfirmed
-  , balanceAndSignTx
+  , balanceAndSignTxM
   , submit
   )
 import Contract.TxConstraints as Constraints
@@ -63,7 +63,7 @@ main = launchAff_ $ do
 
     ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     bsTx <-
-      liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+      liftedM "Failed to balance/sign tx" $ balanceAndSignTxM ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
     awaitTxConfirmed txId

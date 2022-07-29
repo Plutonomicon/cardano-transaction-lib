@@ -45,13 +45,13 @@ main = launchAff_ $ do
       constraints :: Constraints.TxConstraints Void Void
       constraints = mconcat
         [ Constraints.mustMintValueWithRedeemer
-            (Redeemer $ Integer (BigInt.fromInt 1))
+            (Redeemer $ Integer (BigInt.fromInt 12323))
             (Value.singleton cs1 tn1 one <> Value.singleton cs1 tn2 one)
         , Constraints.mustMintValueWithRedeemer
-            (Redeemer $ Integer (BigInt.fromInt 2))
+            (Redeemer $ Integer (BigInt.fromInt 21111))
             (Value.singleton cs2 tn1 one <> Value.singleton cs2 tn2 one)
         , Constraints.mustMintValueWithRedeemer
-            (Redeemer $ Integer (BigInt.fromInt 3))
+            (Redeemer $ Integer (BigInt.fromInt 332132))
             (Value.singleton cs3 tn1 one <> Value.singleton cs3 tn2 one)
         ]
 
@@ -62,8 +62,7 @@ main = launchAff_ $ do
           <> Lookups.mintingPolicy mp3
 
     ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    bsTx <-
-      liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+    bsTx <- balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
 

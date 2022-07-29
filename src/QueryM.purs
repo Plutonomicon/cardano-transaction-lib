@@ -275,8 +275,11 @@ getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
 submitTxOgmios :: CborBytes -> QueryM Ogmios.SubmitTxR
 submitTxOgmios = mkOgmiosRequest Ogmios.submitTxCall _.submit
 
-evaluateTxOgmios :: CborBytes -> QueryM Ogmios.TxEvaluationR
-evaluateTxOgmios = mkOgmiosRequest Ogmios.evaluateTxCall _.evaluate
+evaluateTxOgmios :: CborBytes -> QueryM Ogmios.TxEvaluationResult
+evaluateTxOgmios bytes = do
+  response <- unwrap <$> mkOgmiosRequest Ogmios.evaluateTxCall _.evaluate bytes
+  either (throwError <<< error <<< Ogmios.printTxEvaluationFailure (Just bytes)) pure
+    response
 
 --------------------------------------------------------------------------------
 -- DATUM CACHE QUERIES
@@ -749,7 +752,7 @@ type OgmiosListeners =
   { utxo :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoQR
   , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
   , submit :: ListenerSet { txCbor :: ByteArray } Ogmios.SubmitTxR
-  , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationR
+  , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationResponse
   , getProtocolParameters :: ListenerSet Unit Ogmios.ProtocolParameters
   , eraSummaries :: ListenerSet Unit Ogmios.EraSummaries
   , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
@@ -918,7 +921,7 @@ type DispatchIdMap response = Ref
 ogmiosMessageDispatch
   :: { utxoDispatchMap :: DispatchIdMap Ogmios.UtxoQR
      , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipQR
-     , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationR
+     , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationResponse
      , getProtocolParametersDispatchMap ::
          DispatchIdMap Ogmios.ProtocolParameters
      , submitDispatchMap :: DispatchIdMap Ogmios.SubmitTxR

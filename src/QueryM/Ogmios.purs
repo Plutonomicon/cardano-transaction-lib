@@ -22,10 +22,17 @@ module QueryM.Ogmios
   , RedeemerPointer
   , RelativeTime(RelativeTime)
   , SafeZone(SafeZone)
+  , ScriptFailure(..) -- TODO
+  , OgmiosDatum
+  , OgmiosScript
+  , OgmiosTxIn
+  , OgmiosTxId
   , SlotLength(SlotLength)
   , SubmitTxR(SubmitTxR)
   , SystemStart(SystemStart)
-  , TxEvaluationR(TxEvaluationR)
+  , TxEvaluationFailure(..) -- TODO
+  , TxEvaluationResult(TxEvaluationResult)
+  , TxEvaluationResponse(TxEvaluationResponse)
   , TxHash
   , UtxoQR(UtxoQR)
   , UtxoQueryResult
@@ -42,6 +49,7 @@ module QueryM.Ogmios
   , queryUtxosAtCall
   , queryUtxosCall
   , submitTxCall
+  , printTxEvaluationFailure
   ) where
 
 import Prelude
@@ -57,11 +65,14 @@ import Aeson
   , decodeAeson
   , encodeAeson'
   , getField
+  , caseAeson
   , getFieldOptional
   , isNull
+  , stringifyAeson
   )
 import Cardano.Types.Transaction
   ( Costmdls(Costmdls)
+  , Redeemer(Redeemer)
   , ExUnitPrices
   , ExUnits
   , Language(PlutusV1)
@@ -77,26 +88,35 @@ import Cardano.Types.Value
   , mkValue
   )
 import Control.Alt ((<|>))
-import Data.Array (index, singleton)
+import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
+import Data.Array (index, singleton, replicate, filter)
+import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), either, hush, note)
-import Data.Foldable (foldl)
+import Data.Either (Either(Left, Right), either, hush, note, isLeft)
+import Data.Foldable (foldl, fold, oneOf, find, length)
+import Data.Function (applyN)
+import Data.Bifunctor (bimap)
 import Data.Generic.Rep (class Generic)
+import Data.Int (toStringAs, decimal, ceil, toNumber)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe, isJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern), indexOf, split, splitAt, uncons)
 import Data.String.Common as String
-import Data.Traversable (sequence, traverse)
+import Data.String.CodePoints as String
+import Data.String.Utils (padEnd)
+import Data.Traversable (sequence, traverse, for, foldMap)
+import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
+import Deserialization.Transaction (deserializeTransaction)
 import Foreign.Object (Object)
-import Foreign.Object (toUnfoldable) as ForeignObject
+import Foreign.Object (toUnfoldable, lookup) as ForeignObject
 import Helpers (showWithParens)
 import QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
 import Serialization.Address (Slot)
@@ -105,7 +125,7 @@ import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray, hexToByteArray)
 import Types.CborBytes (CborBytes, cborBytesToHex)
 import Types.Natural (Natural)
-import Types.Natural (fromString) as Natural
+import Types.Natural (fromString, toBigInt) as Natural
 import Types.Rational (Rational, (%))
 import Types.Rational as Rational
 import Types.RedeemerTag (RedeemerTag)
@@ -205,7 +225,7 @@ submitTxCall = mkOgmiosCallType
 
 -- | Evaluates the execution units of scripts present in a given transaction,
 -- | without actually submitting the transaction.
-evaluateTxCall :: JsonWspCall CborBytes TxEvaluationR
+evaluateTxCall :: JsonWspCall CborBytes TxEvaluationResponse
 evaluateTxCall = mkOgmiosCallType
   { methodname: "EvaluateTx"
   , args: { evaluate: _ } <<< cborBytesToHex
@@ -462,45 +482,261 @@ type RedeemerPointer = { redeemerTag :: RedeemerTag, redeemerIndex :: Natural }
 
 type ExecutionUnits = { memory :: Natural, steps :: Natural }
 
-newtype TxEvaluationR = TxEvaluationR (Map RedeemerPointer ExecutionUnits)
+newtype TxEvaluationResponse = TxEvaluationResponse
+  (Either TxEvaluationFailure TxEvaluationResult)
 
-derive instance Newtype TxEvaluationR _
-derive instance Generic TxEvaluationR _
+derive instance Newtype TxEvaluationResponse _
+derive instance Generic TxEvaluationResponse _
 
-instance Show TxEvaluationR where
+instance Show TxEvaluationResponse where
   show = genericShow
 
-instance DecodeAeson TxEvaluationR where
+instance DecodeAeson TxEvaluationResponse where
+  decodeAeson aeson = (wrap <<< Right <$> decodeAeson aeson) <|> (wrap <<< Left <$> decodeAeson aeson)
+
+newtype TxEvaluationResult = TxEvaluationResult
+  (Map RedeemerPointer ExecutionUnits)
+
+derive instance Newtype TxEvaluationResult _
+derive instance Generic TxEvaluationResult _
+
+instance Show TxEvaluationResult where
+  show = genericShow
+
+instance DecodeAeson TxEvaluationResult where
   decodeAeson = aesonObject $ \obj -> do
     rdmrPtrExUnitsList :: Array (String /\ Aeson) <-
       ForeignObject.toUnfoldable <$> getField obj "EvaluationResult"
-    TxEvaluationR <<< Map.fromFoldable <$>
+    TxEvaluationResult <<< Map.fromFoldable <$>
       traverse decodeRdmrPtrExUnitsItem rdmrPtrExUnitsList
     where
     decodeRdmrPtrExUnitsItem
       :: String /\ Aeson
       -> Either JsonDecodeError (RedeemerPointer /\ ExecutionUnits)
     decodeRdmrPtrExUnitsItem (redeemerPtrRaw /\ exUnitsAeson) = do
-      redeemerPtr <- note redeemerPtrTypeMismatch $
-        decodeRedeemerPointer redeemerPtrRaw
+      redeemerPtr <- decodeRedeemerPointer redeemerPtrRaw
       flip aesonObject exUnitsAeson $ \exUnitsObj -> do
         memory <- getField exUnitsObj "memory"
         steps <- getField exUnitsObj "steps"
         pure $ redeemerPtr /\ { memory, steps }
 
-    redeemerPtrTypeMismatch :: JsonDecodeError
-    redeemerPtrTypeMismatch = TypeMismatch
-      "Expected redeemer pointer to be encoded as: \
-      \^(spend|mint|certificate|withdrawal):[0-9]+$"
+redeemerPtrTypeMismatch :: JsonDecodeError
+redeemerPtrTypeMismatch = TypeMismatch
+  "Expected redeemer pointer to be encoded as: \
+  \^(spend|mint|certificate|withdrawal):[0-9]+$"
 
-    decodeRedeemerPointer :: String -> Maybe RedeemerPointer
-    decodeRedeemerPointer redeemerPtrRaw =
-      case split (Pattern ":") redeemerPtrRaw of
-        [ tagRaw, indexRaw ] ->
-          { redeemerTag: _, redeemerIndex: _ }
-            <$> RedeemerTag.fromString tagRaw
-            <*> Natural.fromString indexRaw
-        _ -> Nothing
+decodeRedeemerPointer :: String -> Either JsonDecodeError RedeemerPointer
+decodeRedeemerPointer redeemerPtrRaw = note redeemerPtrTypeMismatch
+  case split (Pattern ":") redeemerPtrRaw of
+    [ tagRaw, indexRaw ] ->
+      { redeemerTag: _, redeemerIndex: _ }
+        <$> RedeemerTag.fromString tagRaw
+        <*> Natural.fromString indexRaw
+    _ -> Nothing
+
+type WorkingLine = String
+type FrozenLine = String
+
+type PrettyString = Array (Either WorkingLine FrozenLine)
+
+runPrettyString :: PrettyString -> String
+runPrettyString ary = String.joinWith "" (either identity identity <$> ary)
+
+freeze :: PrettyString -> PrettyString
+freeze ary = either Right Right <$> ary
+
+line :: String -> PrettyString
+line s = case Array.uncons ((\l -> Left (l <> "\n")) <$> String.split (Pattern "\n") s) of
+  Nothing -> []
+  Just { head, tail: [] } -> [ head ]
+  Just { head, tail } -> [ head ] <> freeze tail
+
+indent :: PrettyString -> PrettyString
+indent ary = freeze (bimap indent' indent' <$> ary)
+
+indent' :: String -> String
+indent' s = "  " <> s
+
+bullet :: PrettyString -> PrettyString
+bullet ary = freeze (bimap ("- " <> _) indent' <$> ary)
+
+number :: PrettyString -> PrettyString
+number ary =
+  let biggest = ceil (toNumber (String.length (toStringAs decimal (length (filter isLeft ary)) <> ". ")) / 2.0) * 2
+      onWorkingLine i l = padEnd biggest (toStringAs decimal (i + 1) <> ". ") <> l
+      onFrozenLine = applyN indent' (biggest / 2)
+   in freeze (foldl (\b a -> b <> [bimap (onWorkingLine $ length b) onFrozenLine a]) [] ary)
+
+-- TODO Accept a transaction as context to improve printing
+-- TODO Accept UnattachedUnbalanced as input, as that has more info about the redeemers?
+--      Requires changing evaluateTxOgmios to accept an UnattachedUnbalancedTx?
+printTxEvaluationFailure :: Maybe CborBytes -> TxEvaluationFailure -> String
+printTxEvaluationFailure mbBytes e | Just tx <- mbBytes >>= deserializeTransaction >>> hush
+  = runPrettyString $ line "" <> case e of
+    UnparsedError aeson -> line $ "Unknown error: " <> stringifyAeson aeson
+    ScriptFailures sf -> line "Script failures:" <> bullet (foldMapWithIndex printScriptFailures sf)
+  where
+  redeemers = oneOf (unwrap (unwrap tx).witnessSet).redeemers
+
+  lookupRedeemerPointer :: RedeemerPointer -> Maybe Redeemer
+  lookupRedeemerPointer ptr = flip find redeemers $ \(Redeemer rdmr) -> rdmr.tag == ptr.redeemerTag && rdmr.index == Natural.toBigInt ptr.redeemerIndex
+
+  -- TODO Just print ptr directly like in the last case, and use the lookup to find the datum after
+  showRedeemerPointer :: RedeemerPointer -> String
+  showRedeemerPointer ptr
+    | Just (Redeemer { "data": data_, index, tag }) <- lookupRedeemerPointer ptr
+    = show tag <> ":" <> BigInt.toString index <> " with datum " <> show data_
+  showRedeemerPointer { redeemerTag, redeemerIndex } = show redeemerTag <> ":" <> BigInt.toString (Natural.toBigInt redeemerIndex)
+
+  -- shorten :: String -> String
+  -- shorten s | String.length s > 15 = String.take 15 s <> "…"
+  -- shorten s = s
+
+  -- TODO Only print n characters of datums/scripts?
+  -- For OgmiosDatum, should we serialize it to CSL and then toBytes it?
+  -- well it's not a PlutusDatum, it's probably a hash. Maybe just leave as is until we see
+  -- we dont even show script addresses yet
+  -- Yeah they're 32 byte digests of serialized datum
+
+  printScriptFailure :: ScriptFailure -> PrettyString
+  printScriptFailure = case _ of
+    ExtraRedeemers ptrs -> line "Extra redeemers:" <> bullet (foldMap (line <<< showRedeemerPointer) ptrs)
+    MissingRequiredDatums { provided, missing }
+      -> line "Supplied with datums:"
+      <> bullet (foldMap (foldMap line) provided)
+      <> line "But missing required datums:"
+      <> bullet (foldMap line missing)
+    MissingRequiredScripts { resolved, missing }
+      -> line "Supplied with scripts:"
+      <> foldMapWithIndex (\ptr scr -> line (showRedeemerPointer ptr <> " @ " <> scr)) resolved
+      <> line "But missing required scripts:"
+      <> bullet (foldMap line missing)
+    ValidatorFailed { error, traces } -> line error <> line "Trace:" <> number (foldMap line traces)
+    UnknownInputReferencedByRedeemer txIn -> line ("Unknown input referenced by redeemer: " <> show txIn)
+    NonScriptInputReferencedByRedeemer txIn -> line ("Non script input referenced by redeemer: " <> show txIn)
+    IllFormedExecutionBudget mbEU -> line ("Ill formed execution budget: " <> show mbEU)
+    NoCostModelForLanguage language -> line ("No cost model for language \"" <> language <> "\"")
+
+  printScriptFailures :: RedeemerPointer -> Array ScriptFailure -> PrettyString
+  printScriptFailures ptr sfs = line (showRedeemerPointer ptr) <> bullet (foldMap printScriptFailure sfs)
+
+printTxEvaluationFailure _ _ = "Internal CTL error: Could not decode bytes into Transaction"
+
+
+-- TODO Check these aren't duplicating other types
+-- ogmiosDatumHashToDatumHash
+type OgmiosDatum = String
+type OgmiosScript = String
+type OgmiosTxId = String
+type OgmiosTxIn = { txId :: OgmiosTxId, index :: Int }
+-- type OgmiosExUnits = { memory :: BigInt, steps :: BigInt }
+
+-- Some of these are from tx submission errors
+-- maybe I should switch to untagged union
+data ScriptFailure
+  = ExtraRedeemers (Array RedeemerPointer)
+  | MissingRequiredDatums
+      { provided :: Maybe (Array OgmiosDatum), missing :: Array OgmiosDatum }
+  | MissingRequiredScripts
+      { resolved :: Map RedeemerPointer OgmiosScript
+      , missing :: Array OgmiosScript
+      }
+  | ValidatorFailed { error :: String, traces :: Array String }
+  | UnknownInputReferencedByRedeemer OgmiosTxIn
+  | NonScriptInputReferencedByRedeemer OgmiosTxIn
+  | IllFormedExecutionBudget (Maybe ExecutionUnits)
+  | NoCostModelForLanguage String
+
+-- TODO
+-- IncompatibleEra
+-- AdditionalUtxoOverlap
+-- NotEnoughSynced
+-- CannotCreateEvaluationContext
+data TxEvaluationFailure
+  = UnparsedError Aeson
+  | ScriptFailures (Map RedeemerPointer (Array ScriptFailure))
+
+instance Show TxEvaluationFailure where
+  show = const "error"
+
+-- TODO Use this in TxEvaluationFailure too
+-- ReaderT has an Alt instance if m does
+type ScriptFailureM = ReaderT (Object Aeson) (Either JsonDecodeError)
+  ScriptFailure
+
+liftField
+  :: forall a b
+   . DecodeAeson a
+  => String
+  -> (a -> Either JsonDecodeError b)
+  -> ReaderT (Object Aeson) (Either JsonDecodeError) b
+liftField f act = ReaderT (flip getField f >=> act)
+
+instance DecodeAeson ScriptFailure where
+  decodeAeson = aesonObject $ runReaderT cases
+    where
+    cases :: ScriptFailureM
+    cases = decodeExtraRedeemers
+      <|> decodeMissingRequiredDatums
+      <|> decodeMissingRequiredScripts
+      <|> decodeValidatorFailed
+      <|> decodeUnknownInputReferencedByRedeemer
+      <|> decodeNonScriptInputReferencedByRedeemer 
+      <|> decodeIllFormedExecutionBudget
+      <|> decodeNoCostModelForLanguage
+      <|> defaultCase
+
+    defaultCase :: ScriptFailureM
+    defaultCase = ReaderT $ const $ Left $ TypeMismatch "Expected ScriptFailure"
+
+    decodeExtraRedeemers :: ScriptFailureM
+    decodeExtraRedeemers = ExtraRedeemers <$> liftField "extraRedeemers"
+      (traverse decodeRedeemerPointer)
+
+    decodeMissingRequiredDatums :: ScriptFailureM
+    decodeMissingRequiredDatums = liftField "missingRequiredDatums" \o -> do
+      pure $ MissingRequiredDatums o
+
+    decodeMissingRequiredScripts :: ScriptFailureM
+    decodeMissingRequiredScripts = liftField "missingRequiredScripts" \o -> do
+      resolvedKV <- ForeignObject.toUnfoldable <$> getField o "resolved"
+      resolved <- Map.fromFoldable <$> for (resolvedKV :: Array _)
+        \(k /\ v) -> (_ /\ v) <$> decodeRedeemerPointer k
+      missing <- getField o "missing"
+      pure $ MissingRequiredScripts { resolved, missing }
+
+    decodeValidatorFailed :: ScriptFailureM
+    decodeValidatorFailed = liftField "validatorFailed" \o -> do
+      pure $ ValidatorFailed o
+
+    decodeUnknownInputReferencedByRedeemer :: ScriptFailureM
+    decodeUnknownInputReferencedByRedeemer = liftField "unknownInputReferencedByRedeemer" \o -> do
+      pure $ UnknownInputReferencedByRedeemer o
+
+    decodeNonScriptInputReferencedByRedeemer :: ScriptFailureM
+    decodeNonScriptInputReferencedByRedeemer = liftField "nonScriptInputReferencedByRedeemer" \o -> do
+      pure $ NonScriptInputReferencedByRedeemer o
+
+    decodeIllFormedExecutionBudget :: ScriptFailureM
+    decodeIllFormedExecutionBudget = liftField "illFormedExecutionBudget" \o -> do
+      pure $ IllFormedExecutionBudget o
+
+    decodeNoCostModelForLanguage :: ScriptFailureM
+    decodeNoCostModelForLanguage = liftField "noCostModelForLanguage" \o -> do
+      pure $ NoCostModelForLanguage o
+
+instance DecodeAeson TxEvaluationFailure where
+  decodeAeson aeson = decodeScriptFailures aeson <|> pure (UnparsedError aeson)
+    where
+    decodeScriptFailures :: Aeson -> Either JsonDecodeError TxEvaluationFailure
+    decodeScriptFailures = aesonObject \o -> do
+      scriptFailuresKV <- ForeignObject.toUnfoldable
+        <$> (getField o "EvaluationFailure" >>= flip getField "ScriptFailures")
+      scriptFailures <- Map.fromFoldable <$> for (scriptFailuresKV :: Array _)
+        \(k /\ v) -> do
+           v' <- decodeAeson v
+           (_ /\ v') <$> decodeRedeemerPointer k
+      pure $ ScriptFailures scriptFailures
 
 ---------------- PROTOCOL PARAMETERS QUERY RESPONSE & PARSING
 

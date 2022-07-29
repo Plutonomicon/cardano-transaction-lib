@@ -117,7 +117,7 @@ import QueryM
   , getWalletCollateral
   , evaluateTxOgmios
   ) as QueryM
-import QueryM.Ogmios (TxEvaluationR(TxEvaluationR)) as Ogmios
+import QueryM.Ogmios (TxEvaluationResult(TxEvaluationResult)) as Ogmios
 import QueryM.Utxos (utxosAt, filterLockedUtxos)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization (convertTransaction, toBytes) as Serialization
@@ -296,7 +296,7 @@ instance Show FinalizedTransaction where
 -- Evaluation of fees and execution units, Updating redeemers
 --------------------------------------------------------------------------------
 
-evalTxExecutionUnits :: Transaction -> QueryM Ogmios.TxEvaluationR
+evalTxExecutionUnits :: Transaction -> QueryM Ogmios.TxEvaluationResult
 evalTxExecutionUnits tx =
   QueryM.evaluateTxOgmios =<<
     liftEffect
@@ -379,21 +379,23 @@ reattachDatumsAndRedeemers
       # _witnessSet <<< _redeemers ?~ map fst redeemersTxIns
 
 updateTxExecutionUnits
-  :: UnattachedUnbalancedTx -> Ogmios.TxEvaluationR -> UnattachedUnbalancedTx
+  :: UnattachedUnbalancedTx
+  -> Ogmios.TxEvaluationResult
+  -> UnattachedUnbalancedTx
 updateTxExecutionUnits unattachedTx rdmrPtrExUnitsList =
   unattachedTx #
     _redeemersTxIns %~ flip setRdmrsExecutionUnits rdmrPtrExUnitsList
 
 setRdmrsExecutionUnits
   :: Array (Redeemer /\ Maybe TransactionInput)
-  -> Ogmios.TxEvaluationR
+  -> Ogmios.TxEvaluationResult
   -> Array (Redeemer /\ Maybe TransactionInput)
-setRdmrsExecutionUnits rs (Ogmios.TxEvaluationR xxs) =
+setRdmrsExecutionUnits rs (Ogmios.TxEvaluationResult xxs) =
   case Array.uncons (Map.toUnfoldable xxs) of
     Nothing -> rs
     Just { head: ptr /\ exUnits, tail: xs } ->
       let
-        xsWrapped = Ogmios.TxEvaluationR (Map.fromFoldable xs)
+        xsWrapped = Ogmios.TxEvaluationResult (Map.fromFoldable xs)
         ixMaybe = flip Array.findIndex rs $ \(Redeemer rdmr /\ _) ->
           rdmr.tag == ptr.redeemerTag
             && rdmr.index == Natural.toBigInt ptr.redeemerIndex

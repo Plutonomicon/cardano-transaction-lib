@@ -1,6 +1,7 @@
 module Test.Ogmios.Aeson
   ( main
   , suite
+  , loadFixtures
   ) where
 
 import Prelude
@@ -12,7 +13,7 @@ import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
 import Data.Array (catMaybes, elem, groupAllBy, nubBy)
-import Data.Array.NonEmpty (head, length, tail)
+import Data.Array.NonEmpty (head, length, tail, NonEmptyArray)
 import Data.Bifunctor (lmap, bimap)
 import Data.Either (hush)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
@@ -43,6 +44,7 @@ supported =
   , "eraSummaries"
   , "currentProtocolParameters"
   , "SubmitTx"
+  , "EvaluateTx"
   -- TODO Support plutus:v2 parameters
   -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/567
   -- , "currentProtocolParameters-noPlutusV1"
@@ -80,13 +82,13 @@ applyTuple
   -> b /\ c
 applyTuple (f /\ g) a = f a /\ g a
 
-suite :: TestPlanM Unit
-suite = group "Ogmios Aeson tests" do
+loadFixtures :: Aff (Array (Query /\ NonEmptyArray { aeson :: Aeson, bn :: String }))
+loadFixtures = do
   let
     path = concat [ "fixtures", "test", "ogmios" ]
     pattern = hush $ regex "^([a-zA-Z]+)-[0-9a-fA-F]+\\.json$" noFlags
 
-  files <- lift do
+  files <- do
     ourFixtures <- readdir' path
     ogmiosFixtures <- (liftEffect $ lookupEnv "OGMIOS_FIXTURES") >>= maybe
       (liftEffect $ throw $ "OGMIOS_FIXTURES environment variable not set")
@@ -111,6 +113,12 @@ suite = group "Ogmios Aeson tests" do
         $ groupAllBy (comparing _.query)
         $ nubBy (comparing _.bn) files
 
+  pure groupedFiles
+
+suite :: TestPlanM Unit
+suite = group "Ogmios Aeson tests" do
+  groupedFiles <- lift loadFixtures
+
   for_ groupedFiles \(query /\ files') ->
     (if query `elem` supported then identity else skip)
       $ test (query <> " (" <> show (length files') <> ")")
@@ -132,7 +140,7 @@ suite = group "Ogmios Aeson tests" do
             "eraSummaries" -> handle (Proxy :: _ O.EraSummaries)
             "currentProtocolParameters" -> handle
               (Proxy :: _ O.ProtocolParameters)
-            "EvaluateTx" -> handle (Proxy :: _ O.TxEvaluationR)
+            "EvaluateTx" -> handle (Proxy :: _ O.TxEvaluationResponse)
             "SubmitTx" -> handle (Proxy :: _ O.SubmitTxR)
             _ -> liftEffect $ throw $ "Unknown case " <> bn
 

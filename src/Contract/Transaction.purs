@@ -7,6 +7,7 @@ module Contract.Transaction
   , balanceAndSignTx
   , balanceAndSignTxs
   , balanceAndSignTxE
+  , balanceAndSignTxM
   , balanceTx
   , balanceTxM
   , calculateMinFee
@@ -425,12 +426,9 @@ balanceAndSignTxE
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx
   -> Contract r (Either Error BalancedSignedTransaction)
-balanceAndSignTxE tx = try $ balanceAndSignTxs [ tx ] >>=
-  case _ of
-    [ x ] -> pure x
-    -- Which error should we throw here?
-    _ -> liftEffect $ throw $
-      "Unexpected internal error during transaction signing"
+balanceAndSignTxE  = try <<< balanceAndSignTx
+
+balanceAndSignTxM = map hush <<< balanceAndSignTxE
 
 -- | A helper that wraps a few steps into: balance an unbalanced transaction
 -- | (`balanceTx`), reindex script spend redeemers (not minting redeemers)
@@ -445,8 +443,13 @@ balanceAndSignTxE tx = try $ balanceAndSignTxs [ tx ] >>=
 balanceAndSignTx
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx
-  -> Contract r (Maybe BalancedSignedTransaction)
-balanceAndSignTx = map hush <<< balanceAndSignTxE
+  -> Contract r BalancedSignedTransaction
+balanceAndSignTx tx = balanceAndSignTxs [ tx ] >>=
+  case _ of
+    [ x ] -> pure x
+    -- Which error should we throw here?
+    _ -> liftEffect $ throw $
+      "Unexpected internal error during transaction signing"
 
 scriptOutputToTransactionOutput
   :: NetworkId

@@ -23,7 +23,7 @@ import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
   )
-import Contract.Transaction (balanceAndSignTx, submit)
+import Contract.Transaction (balanceAndSignTxM, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Data.BigInt as BigInt
@@ -50,7 +50,7 @@ main = launchAff_ $ do
 
     ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     bsTx <-
-      liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+      liftedM "Failed to balance/sign tx" $ balanceAndSignTxM ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
 
