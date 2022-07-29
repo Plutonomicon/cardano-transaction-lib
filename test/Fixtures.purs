@@ -97,7 +97,6 @@ import Cardano.Types.Transaction
       , TimelockStart
       , TimelockExpiry
       )
-  , Nonce(HashNonce)
   , PoolMetadata(PoolMetadata)
   , PoolMetadataHash(PoolMetadataHash)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
