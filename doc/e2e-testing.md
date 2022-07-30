@@ -1,11 +1,16 @@
 # E2E Testing in the Browser
 
-CTL has basic machinery for E2E testing in the browser. This can be used to
+CTL has basic machinery for E2E testing in the browser. This can be used to either run the included examples (in `examples`) or create a custom test suite for E2E testing.
 
-- run the included examples (in `examples`).
-- create a custom test suite for E2E testing.
+**Table of Contents**
 
-## Parts involved
+- [Parts Involved](#parts-involved)
+- [How to Run the Included Examples](#how-to-run-the-included-examples)
+- [Accepted Command Line Options](#accepted-command-line-options)
+- [How Wallets are Used](#how-wallets-are-used)
+- [How to Create Your Own Test Suite](#how-to-create-your-own-test-suite)
+
+## Parts Involved
 
 [Puppeteer](https://github.com/puppeteer/puppeteer) (driven by [Toppokki](https://github.com/justinwoo/purescript-toppokki))
 is used to drive the tests. Supported browsers are [Chromium](https://www.chromium.org/) and Google Chrome.
@@ -86,7 +91,7 @@ A new settings tarball can be easily created, for example using the `Makefile`:
 2. Run `make e2e-run-browser-gero` or `make e2e-run-browser-nami` to fire up the test browser with one of the wallets loaded. Configure your wallet as usual.
 3. Run `make nami-settings` or `make gero-settings` to store the settings to a tarball.
 
-### How to Create Your Own Test Suite
+## How to Create Your Own Test Suite
 
 If you are using CTL as a library, you can and should create your own test suite to test your own contracts.
 
