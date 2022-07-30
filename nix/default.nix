@@ -67,6 +67,7 @@ let
     , pursls ? true
     , nodeModules ? projectNodeModules
     , packageLockOnly ? false
+    , withChromium ? false
     }:
       assert pkgs.lib.assertOneOf "formatter" formatter [ "purs-tidy" "purty" ];
       pkgs.mkShell {
@@ -80,9 +81,13 @@ let
           pkgs.easy-ps.psa
           pkgs.easy-ps.spago2nix
           pkgs.nodePackages.node2nix
+          pkgs.unzip
         ] ++ pkgs.lib.lists.optional
           pursls
-          pkgs.easy-ps.purescript-language-server;
+          pkgs.easy-ps.purescript-language-server
+        ++ pkgs.lib.lists.optional
+          withChromium
+          pkgs.chromium;
         inherit packages inputsFrom;
         shellHook = ''
           export NODE_PATH="${nodeModules}/lib/node_modules"
