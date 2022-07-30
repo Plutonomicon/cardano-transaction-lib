@@ -77,7 +77,7 @@ import Cardano.Types.Value
   , isPos
   , isZero
   , lovelaceValueOf
-  , minus
+  , minusNonZero
   , mkCoin
   , mkValue
   , valueToCoin
@@ -841,7 +841,7 @@ balanceTxIns' utxos fees changeUtxoMinValue (TxBody txBody) = do
     mintVal = maybe mempty (mkValue (mkCoin zero) <<< unwrap) txBody.mint
 
   nonMintedValue <- note (BalanceTxInsCannotMinus $ CannotMinus $ wrap mintVal)
-    $ Array.foldMap getAmount txOutputs `minus` mintVal
+    $ Array.foldMap getAmount txOutputs `minusNonZero` mintVal
 
   -- Useful spies for debugging:
   -- let x = spy "nonMintedVal" nonMintedValue
@@ -938,7 +938,7 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
 
   nonMintedOutputValue <-
     note (BalanceNonAdaOutsCannotMinus $ CannotMinus $ wrap mintVal)
-      $ outputValue `minus` mintVal
+      $ outputValue `minusNonZero` mintVal
 
   let (nonMintedAdaOutputValue :: Value) = filterNonAda nonMintedOutputValue
 
@@ -947,7 +947,7 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
       ( BalanceNonAdaOutsCannotMinus $ CannotMinus $ wrap
           nonMintedAdaOutputValue
       )
-      $ filterNonAda inputValue `minus` nonMintedAdaOutputValue
+      $ filterNonAda inputValue `minusNonZero` nonMintedAdaOutputValue
 
   let
     -- Useful spies for debugging:
@@ -977,10 +977,10 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
             TransactionOutput
               txOut { amount = v <> nonAdaChange } : txOuts <> txOuts'
 
+  if isZero nonAdaChange then pure $ wrap txBody
   -- Original code uses "isNat" because there is a guard against zero, see
   -- isPos for more detail.
-  if isPos nonAdaChange then pure $ wrap txBody { outputs = outputs }
-  else if isZero nonAdaChange then pure $ wrap txBody
+  else if isPos nonAdaChange then pure $ wrap txBody { outputs = outputs }
   else Left InputsCannotBalanceNonAdaTokens
 
 getAmount :: TransactionOutput -> Value

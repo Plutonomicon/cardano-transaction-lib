@@ -22,6 +22,7 @@ module Cardano.Types.Value
   , lovelaceValueOf
   , lt
   , minus
+  , minusNonZero
   , mkCoin
   , mkCurrencySymbol
   , mkNonAdaAsset
@@ -521,7 +522,10 @@ isAdaOnly v =
         tn == adaToken
     _ -> false
 
--- From https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
+minusNonZero :: Value -> Value -> Maybe Value
+minusNonZero x =
+  map fold <<< (traverse unflattenValue <<< unsafeFlattenValue) <=< minus x
+
 minus :: Value -> Value -> Maybe Value
 minus x y = do
   let
