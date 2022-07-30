@@ -1,7 +1,12 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that mints a value using three minting policies with different redeemers.
-module Examples.MintsMultipleTokens (main) where
+module Examples.MintsMultipleTokens
+  ( main
+  , mintingPolicyRdmrInt1
+  , mintingPolicyRdmrInt2
+  , mintingPolicyRdmrInt3
+  ) where
 
 import Contract.Prelude
 

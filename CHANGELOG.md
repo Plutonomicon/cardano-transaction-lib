@@ -77,6 +77,8 @@ This release adds support for running CTL contracts against Babbage-era nodes. *
 
 ### Added
 
+- `withKeyWallet` utility that allows to simulate multiple actors in Plutip environment ([#663](https://github.com/Plutonomicon/cardano-transaction-lib/issues/663))
+- Support for using a `PrivateKey` as a `Wallet`.
 - `mkKeyWalletFromFile` helper to use `cardano-cli`-style `skey`s
 - Single `Plutus.Conversion` module exposing all `(Type <-> Plutus Type)` conversion functions ([#464](https://github.com/Plutonomicon/cardano-transaction-lib/pull/464))
 - Support for using a `PrivateKey` as a `Wallet`
