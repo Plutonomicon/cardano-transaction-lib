@@ -156,9 +156,9 @@ waitNSlots offset = do
     waitUntilSlot newSlot
 
 currentSlot :: QueryM Slot
-currentSlot = getChainTip >>= case _ of
-  Chain.Tip (Chain.ChainTip { slot }) -> pure slot
-  Chain.TipAtGenesis -> (pure <<< Slot <<< BigNum.fromInt) 0
+currentSlot = getChainTip <#> case _ of
+  Chain.Tip (Chain.ChainTip { slot }) -> slot
+  Chain.TipAtGenesis -> (Slot <<< BigNum.fromInt) 0
 
 -- | Get the latest POSIXTime of the current slot.
 -- The plutus implementation relies on `slotToEndPOSIXTime`
@@ -177,4 +177,5 @@ slotToEndPOSIXTime slot = do
   sysStart <- getSystemStart
   futureTime <- liftEffect $ slotToPosixTime eraSummaries sysStart futureSlot
     >>= hush >>> liftM (error "Unable to convert Slot to POSIXTime")
-  pure ((+) (wrap <<< BigInt.fromInt $ -1) futureTime)
+  -- We assume that a slot is 1000 milliseconds here.
+  pure ((wrap <<< BigInt.fromInt $ -1) + futureTime)
