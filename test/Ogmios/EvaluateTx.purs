@@ -12,11 +12,15 @@ import Test.Fixtures
   ( ogmiosEvaluateTxInvalidPointerFormatFixture
   , ogmiosEvaluateTxValidRespFixture
   )
-import Test.Spec.Assertions (shouldEqual, shouldSatisfy,fail)
+import Test.Spec.Assertions (shouldEqual, shouldSatisfy, fail)
 import TestM (TestPlanM)
 import Types.Natural (fromInt')
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
-import QueryM.Ogmios (TxEvaluationR(TxEvaluationFailure,TxEvaluationSuccess), ExecutionUnits, RedeemerPointer)
+import QueryM.Ogmios
+  ( TxEvaluationR(TxEvaluationFailure, TxEvaluationSuccess)
+  , ExecutionUnits
+  , RedeemerPointer
+  )
 
 suite :: TestPlanM Unit
 suite = do
@@ -27,8 +31,10 @@ suite = do
           decodeAeson <$> liftEffect ogmiosEvaluateTxValidRespFixture
         case txEvalR of
           Left err -> fail $ "JSON decodeing failed with:" <> show err
-          Right (TxEvaluationFailure aeson) -> fail $ "Evaluation failed with:" <> show aeson
-          Right (TxEvaluationSuccess response) -> Map.toUnfoldable response `shouldEqual` ogmiosEvaluateTxValidRespDecoded
+          Right (TxEvaluationFailure aeson) -> fail $ "Evaluation failed with:"
+            <> show aeson
+          Right (TxEvaluationSuccess response) -> Map.toUnfoldable response
+            `shouldEqual` ogmiosEvaluateTxValidRespDecoded
 
       test "Fails to decode a response with invalid redeemer pointer format" do
         txEvalR :: Either JsonDecodeError TxEvaluationR <-

@@ -52,7 +52,7 @@ module BalanceTx
 
 import Prelude
 
-import Aeson(Aeson)
+import Aeson (Aeson)
 import BalanceTx.UtxoMinAda (adaOnlyUtxoMinAdaValue, utxoMinAdaValue)
 import Cardano.Types.Transaction
   ( Redeemer(Redeemer)
@@ -120,7 +120,10 @@ import QueryM
   , getWalletCollateral
   , evaluateTxOgmios
   ) as QueryM
-import QueryM.Ogmios (TxEvaluationR(TxEvaluationSuccess,TxEvaluationFailure),CostMap) as Ogmios
+import QueryM.Ogmios
+  ( TxEvaluationR(TxEvaluationSuccess, TxEvaluationFailure)
+  , CostMap
+  ) as Ogmios
 import QueryM.Utxos (utxosAt, filterLockedUtxos)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization (convertTransaction, toBytes) as Serialization
@@ -326,7 +329,8 @@ evalExUnitsAndMinFee' unattachedTx =
     -- Evaluate transaction ex units:
     evalResult <- lift $ evalTxExecutionUnits attachedTx
     case evalResult of
-      Ogmios.TxEvaluationFailure aeson -> except $ Left $ OgmiosEvaluationError aeson
+      Ogmios.TxEvaluationFailure aeson -> except $ Left $ OgmiosEvaluationError
+        aeson
       Ogmios.TxEvaluationSuccess rdmrPtrExUnitsList -> do
         let
           -- Set execution units received from the server:

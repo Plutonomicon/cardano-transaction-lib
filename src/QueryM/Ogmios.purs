@@ -26,7 +26,7 @@ module QueryM.Ogmios
   , SlotLength(SlotLength)
   , SubmitTxR(SubmitTxSuccess, SubmitFail)
   , SystemStart(SystemStart)
-  , TxEvaluationR(TxEvaluationSuccess,TxEvaluationFailure)
+  , TxEvaluationR(TxEvaluationSuccess, TxEvaluationFailure)
   , TxHash
   , UtxoQR(UtxoQR)
   , UtxoQueryResult
@@ -481,13 +481,13 @@ instance Show TxEvaluationR where
 instance DecodeAeson TxEvaluationR where
   decodeAeson = aesonObject $ \obj ->
     (TxEvaluationFailure <$> getField obj "EvaluationFailure") <|>
-    -- Putting the falure case first gives better errors in some cases
-    (do
-      rdmrPtrExUnitsList :: Array (String /\ Aeson) <-
-        ForeignObject.toUnfoldable <$> getField obj "EvaluationResult"
-      TxEvaluationSuccess <<< Map.fromFoldable <$>
-        traverse decodeRdmrPtrExUnitsItem rdmrPtrExUnitsList
-    )
+      -- Putting the falure case first gives better errors in some cases
+      ( do
+          rdmrPtrExUnitsList :: Array (String /\ Aeson) <-
+            ForeignObject.toUnfoldable <$> getField obj "EvaluationResult"
+          TxEvaluationSuccess <<< Map.fromFoldable <$>
+            traverse decodeRdmrPtrExUnitsItem rdmrPtrExUnitsList
+      )
     where
     decodeRdmrPtrExUnitsItem
       :: String /\ Aeson
