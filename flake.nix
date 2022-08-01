@@ -138,13 +138,14 @@
     , ...
     }@inputs:
     let
-      defaultSystems = [
+      supportedSystems = [
         "x86_64-linux"
         "x86_64-darwin"
         "aarch64-linux"
         "aarch64-darwin"
       ];
-      perSystem = nixpkgs.lib.genAttrs defaultSystems;
+
+      perSystem = nixpkgs.lib.genAttrs supportedSystems;
 
       mkNixpkgsFor = system: import nixpkgs {
         overlays = [
@@ -270,27 +271,9 @@
           devShell = project.devShell;
 
           apps = {
-            docs =
-              let
-                binPath = "docs-server";
-                builtDocs = packages.docs;
-                script = pkgs.writeShellApplication {
-                  name = binPath;
-                  runtimeInputs = [
-                    pkgs.nodejs-14_x
-                    pkgs.nodePackages.http-server
-                  ];
-                  text =
-                    ''
-                      ${pkgs.nodePackages.http-server}/bin/http-server \
-                        ${builtDocs}/generated-docs/html
-                    '';
-                };
-              in
-              {
-                type = "app";
-                program = "${script}/bin/${binPath}";
-              };
+            docs = project.launchSearchablePursDocs {
+              builtDocs = packages.docs;
+            };
           };
         };
 

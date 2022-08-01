@@ -285,10 +285,36 @@ let
         cp -r generated-docs $out
       '';
 
+  launchSearchablePursDocs = { builtDocs ? null, ... }:
+    let
+      binPath = "docs-server";
+      docs =
+        if builtDocs == null
+        then buildSearchablePursDocs { }
+        else builtDocs;
+      script = pkgs.writeShellApplication {
+        name = binPath;
+        runtimeInputs = [
+          pkgs.nodejs-14_x
+          pkgs.nodePackages.http-server
+        ];
+        text =
+          ''
+            ${pkgs.nodePackages.http-server}/bin/http-server \
+              ${docs}/generated-docs/html
+          '';
+      };
+    in
+    {
+      type = "app";
+      program = "${script}/bin/${binPath}";
+    };
+
 in
 {
   inherit
     buildPursProject runPursTest runPlutipTest bundlePursProject
-    buildPursDocs buildSearchablePursDocs purs nodejs mkNodeModules;
+    buildPursDocs buildSearchablePursDocs launchSearchablePursDocs
+    purs nodejs mkNodeModules;
   devShell = shellFor shell;
 }
