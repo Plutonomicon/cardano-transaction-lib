@@ -48,15 +48,19 @@ import Types.Scripts
 -- | types, the type of the redeemer and the data script for that connection type.
 class ValidatorTypes :: Type -> Type -> Type -> Constraint
 class
-  ( DatumType v d
-  , RedeemerType v r
+  ( DatumType validator datum
+  , RedeemerType validator redeemer
   ) <=
-  ValidatorTypes (v :: Type) (d :: Type) (r :: Type)
+  ValidatorTypes (validator :: Type) (datum :: Type) (redeemer :: Type)
 
-instance (DatumType v d, RedeemerType v r) => ValidatorTypes v d r
+instance
+  ( DatumType validator datum
+  , RedeemerType validator redeemer
+  ) =>
+  ValidatorTypes validator datum redeemer
 
 -- | The type of the data of this connection type.
-class DatumType (v :: Type) (d :: Type) | v -> d
+class DatumType (validator :: Type) (datum :: Type) | validator -> datum
 
 instance DatumType Void Void
 
@@ -65,7 +69,9 @@ instance DatumType Any PlutusData
 instance DatumType PlutusData Unit
 
 -- | The type of the redeemers of this connection type.
-class RedeemerType (v :: Type) (r :: Type) | v -> r
+class
+  RedeemerType (validator :: Type) (redeemer :: Type)
+  | validator -> redeemer
 
 instance RedeemerType Void Void
 
@@ -76,8 +82,13 @@ instance RedeemerType PlutusData Unit
 -- Replace `ScriptContext` by `Transaction` which contains all the scripts
 -- anyway:
 -- | The type of validators for the given connection type.
-type ValidatorType (v :: Type) (d :: Type) (r :: Type) =
-  DatumType v d => RedeemerType v r => d -> r -> Transaction -> Boolean
+type ValidatorType (validator :: Type) (datum :: Type) (redeemer :: Type) =
+  DatumType validator datum
+  => RedeemerType validator redeemer
+  => datum
+  -> redeemer
+  -> Transaction
+  -> Boolean
 
 type WrappedValidatorType =
   PlutusData -> PlutusData -> PlutusData -> Effect Unit
