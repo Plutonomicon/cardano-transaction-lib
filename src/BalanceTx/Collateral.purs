@@ -42,6 +42,7 @@ import Data.Map (toUnfoldable) as Map
 import Data.Maybe (Maybe(Nothing), fromMaybe)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Ord.Max (Max(Max))
+import Data.Ordering (invert) as Ordering
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
@@ -223,13 +224,29 @@ selectCollateral maxCollateralInputs =
     -- Get all possible non-empty utxo combinations
     -- with the number of utxos <= `maxCollateralInputs`:
     <<< combinations maxCollateralInputs
-    <<< map asTxUnspentOutput
+    -- Limit the number of candidate utxos for collateral selection to
+    -- maintain acceptable time complexity:
     <<< List.take maxCandidateUtxos
+    <<< map unwrap
+    -- Sort utxos by ada value in decreasing order:
+    <<< List.sortBy (\lhs -> Ordering.invert <<< compare lhs)
+    <<< map (AdaOut <<< asTxUnspentOutput)
     <<< Map.toUnfoldable
 
 --------------------------------------------------------------------------------
 -- Helpers
 --------------------------------------------------------------------------------
+
+-- | A wrapper around an utxo with ordering by ada value.
+newtype AdaOut = AdaOut TransactionUnspentOutput
+
+derive instance Newtype AdaOut _
+
+instance Eq AdaOut where
+  eq = eq `on` (adaValue <<< unwrap)
+
+instance Ord AdaOut where
+  compare = compare `on` (adaValue <<< unwrap)
 
 asTxUnspentOutput
   :: TransactionInput /\ TransactionOutput -> TransactionUnspentOutput
