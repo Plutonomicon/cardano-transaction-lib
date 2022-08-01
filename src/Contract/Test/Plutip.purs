@@ -6,7 +6,9 @@ module Contract.Test.Plutip
 
 import Plutip.Server
   ( runPlutipContract
+  , withPlutipContractEnv
   ) as X
+import Contract.Monad (runContractInEnv) as X
 import Plutip.Types
   ( PlutipConfig
   , PostgresConfig

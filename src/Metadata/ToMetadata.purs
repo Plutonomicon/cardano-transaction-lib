@@ -16,7 +16,7 @@ import Data.Map (catMaybes, fromFoldable, toUnfoldable) as Map
 import Data.Maybe (Maybe(Just), fromJust)
 import Data.NonEmpty (NonEmpty)
 import Data.Profunctor.Strong ((***))
-import Data.Tuple.Nested (type (/\))
+import Data.Tuple (Tuple)
 import Partial.Unsafe (unsafePartial)
 import Types.ByteArray (ByteArray)
 import Types.Int (Int, fromBigInt) as Int
@@ -40,14 +40,19 @@ instance (Ord k, ToMetadata k) => ToMetadata (Map k AnyToMetadata) where
 else instance (ToMetadata k, ToMetadata v) => ToMetadata (Map k v) where
   toMetadata mp =
     let
-      entries = Map.toUnfoldable mp :: Array (k /\ v)
+      entries = Map.toUnfoldable mp :: Array (Tuple k v)
     in
       MetadataMap <<< Map.fromFoldable $
         map (toMetadata *** toMetadata) entries
 
-instance (Ord k, ToMetadata k) => ToMetadata (Array (k /\ AnyToMetadata)) where
+instance (Ord k, ToMetadata k) => ToMetadata (Array (Tuple k AnyToMetadata)) where
   toMetadata = toMetadata <<< Map.fromFoldable
-else instance (Ord k, ToMetadata k, ToMetadata v) => ToMetadata (Array (k /\ v)) where
+else instance
+  ( Ord k
+  , ToMetadata k
+  , ToMetadata v
+  ) =>
+  ToMetadata (Array (Tuple k v)) where
   toMetadata = toMetadata <<< Map.fromFoldable
 else instance ToMetadata a => ToMetadata (Array a) where
   toMetadata = MetadataList <<< map toMetadata

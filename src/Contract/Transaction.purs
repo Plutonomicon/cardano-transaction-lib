@@ -25,6 +25,7 @@ module Contract.Transaction
   , scriptOutputToTransactionOutput
   , signTransaction
   , submit
+  , submitE
   , withBalancedTxs
   , withBalancedTx
   , withBalancedAndSignedTxs
@@ -34,7 +35,7 @@ module Contract.Transaction
 
 import Prelude
 
-import Aeson (class EncodeAeson)
+import Aeson (class EncodeAeson, Aeson)
 import BalanceTx (BalanceTxError) as BalanceTxError
 import BalanceTx (FinalizedTransaction)
 import BalanceTx (balanceTx, balanceTxWithAddress) as BalanceTx
@@ -114,7 +115,7 @@ import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
 import Control.Monad.Error.Class (try, catchError, throwError)
 import Control.Monad.Reader (asks, runReaderT, ReaderT)
 import Data.Array.NonEmpty as NonEmptyArray
-import Data.Either (Either, hush)
+import Data.Either (Either(Left, Right), hush)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
@@ -144,6 +145,7 @@ import QueryM
   , signTransaction
   , submitTxOgmios
   ) as QueryM
+import QueryM.Ogmios (SubmitTxR(SubmitTxSuccess, SubmitFail))
 import QueryM.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
@@ -230,11 +232,28 @@ submit
   :: forall (r :: Row Type)
    . BalancedSignedTransaction
   -> Contract r TransactionHash
-submit tx = wrapContract <<< map (wrap <<< unwrap) <<< QueryM.submitTxOgmios =<<
-  liftEffect
-    ( wrap <<< Serialization.toBytes <<< asOneOf <$>
-        Serialization.convertTransaction (unwrap tx)
-    )
+submit tx = do
+  result <- submitE tx
+  case result of
+    Right th -> pure th
+    Left json -> liftEffect $ throw $
+      "`submit` call failed. Error from Ogmios: " <> show json
+
+-- | Like submit except when ogmios sends a SubmitFail
+-- | the error is returned as an Array of Aesons
+submitE
+  :: forall (r :: Row Type)
+   . BalancedSignedTransaction
+  -> Contract r (Either (Array Aeson) TransactionHash)
+submitE tx = do
+  result <- wrapContract <<< QueryM.submitTxOgmios =<<
+    liftEffect
+      ( wrap <<< Serialization.toBytes <<< asOneOf <$>
+          Serialization.convertTransaction (unwrap tx)
+      )
+  pure $ case result of
+    SubmitTxSuccess th -> Right $ wrap th
+    SubmitFail json -> Left json
 
 -- | Query the Haskell server for the minimum transaction fee
 calculateMinFee
