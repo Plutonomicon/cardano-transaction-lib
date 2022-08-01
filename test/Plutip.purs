@@ -183,15 +183,7 @@ suite = do
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
           bsTx <-
             liftedE $ balanceAndSignTxE ubTx
-          txId <- submit bsTx
-          logInfo' $ "Tx ID: " <> show txId
-          awaitTxConfirmed txId
-          mbTransaction <- getTxByHash txId
-          logInfo' $ "Tx: " <> show mbTransaction
-          liftEffect $ when (isNothing mbTransaction) do
-            void $ throw "Unable to get Tx contents"
-            when (mbTransaction /= Just (unwrap bsTx)) do
-              throw "Tx contents do not match"
+          submitAndLog bsTx
 
     test "runPlutipContract: parallel Pkh2Pkh" do
       let
@@ -394,6 +386,13 @@ submitAndLog
 submitAndLog bsTx = do
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
+  awaitTxConfirmed txId
+  mbTransaction <- getTxByHash txId
+  logInfo' $ "Tx: " <> show mbTransaction
+  liftEffect $ when (isNothing mbTransaction) do
+    void $ throw "Unable to get Tx contents"
+    when (mbTransaction /= Just (unwrap bsTx)) do
+      throw "Tx contents do not match"
 
 getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
 getLockedInputs = do
