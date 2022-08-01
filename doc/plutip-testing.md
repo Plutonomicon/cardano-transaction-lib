@@ -12,24 +12,9 @@ CTL depends on a number of binaries in the `$PATH` to execute Plutip tests:
 - PostgreSQL: `initdb`, `createdb` and `psql` for `ogmios-datum-cache` storage
 - `ctl-server`: a server-side part of CTL itself.
 
-Most of these are provided by CTL's `overlay` (and are provided in CTL's own `devShell`). The services are NOT run by `docker-compose` as is the case with `launchCtlRuntime`: they are started and stopped on each CTL `Contract` execution by CTL.
+All of these are provided by CTL's `overlays.runtime` (and are provided in CTL's own `devShell`). You **must** use the `runtime` overlay or otherwise make the services available in your package set (e.g. by defining them within your own `overlays` when instantiating `nixpkgs`) as `purescriptProject.runPlutipTest` expects all of them.
 
-**Note**: `ctl-server` is not made available in CTL's `overlay`. If it were, the overlay would ignore the passed version of `nixpkgs` and instantiate CTL's own `nixpkgs` input even if users do not intend to use the Plutip integration or otherwise require `ctl-server`. You can easily add it to your own `overlays`, however, e.g.:
-
-```nix
-import inputs.nixpkgs {
-  inherit system;
-  overlays = [
-    cardano-transaction-lib.overlay
-    (_: _: {
-      ctl-server =
-        cardano-transaction-lib.packages.${system}."ctl-server:exe:ctl-server";
-    })
-  ];
-}
-```
-
-You must perform this step in order to use our Plutip integration with Nix, as `purescriptProject.runPlutipTest` expects `ctl-server` to be present in the package set.
+The services are NOT run by `docker-compose` as is the case with `launchCtlRuntime`: they are started and stopped on each CTL `Contract` execution by CTL.
 
 ## Testing contracts
 
