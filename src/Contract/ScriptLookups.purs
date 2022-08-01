@@ -74,7 +74,8 @@ import Types.TypedValidator (class ValidatorTypes)
 -- | a separate call. In particular, this should be called in conjuction with
 -- | `balanceAndSignTx`.
 mkUnbalancedTx
-  :: forall (r :: Row Type) (validator :: Type) (datum :: Type) (redeemer :: Type)
+  :: forall (r :: Row Type) (validator :: Type) (datum :: Type)
+       (redeemer :: Type)
    . ValidatorTypes validator datum redeemer
   => IsData datum
   => IsData redeemer
@@ -89,7 +90,8 @@ mkUnbalancedTx lookups = wrapContract <<< SL.mkUnbalancedTx lookups
 
 -- | Same as `mkUnbalancedTx` but hushes the error.
 mkUnbalancedTxM
-  :: forall (r :: Row Type) (validator :: Type) (datum :: Type) (redeemer :: Type)
+  :: forall (r :: Row Type) (validator :: Type) (datum :: Type)
+       (redeemer :: Type)
    . ValidatorTypes validator datum redeemer
   => IsData datum
   => IsData redeemer

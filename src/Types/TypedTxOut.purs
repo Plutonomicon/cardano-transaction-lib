@@ -67,7 +67,11 @@ newtype TypedTxOutRef (validator :: Type) (datum :: Type) = TypedTxOutRef
 
 -- `DatumType validator datum` not needed but this replicates Plutus and provides extra
 -- type safety.
-derive newtype instance (DatumType validator datum, Eq datum) => Eq (TypedTxOutRef validator datum)
+derive newtype instance
+  ( DatumType validator datum
+  , Eq datum
+  ) =>
+  Eq (TypedTxOutRef validator datum)
 
 -- | Extract the `Address` of a `TypedTxOutRef`
 typedTxOutRefAddress
@@ -111,7 +115,11 @@ newtype TypedTxOut (validator :: Type) (datum :: Type) = TypedTxOut
 
 -- `DatumType a b` not needed but this replicates Plutus and provides extra
 -- type safety.
-derive newtype instance (DatumType validator datum, Eq datum) => Eq (TypedTxOut validator datum)
+derive newtype instance
+  ( DatumType validator datum
+  , Eq datum
+  ) =>
+  Eq (TypedTxOut validator datum)
 
 -- | Extract the `Address` of a `TypedTxOut`
 typedTxOutAddress

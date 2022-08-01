@@ -587,7 +587,8 @@ runConstraintsM lookups txConstraints = do
       }
 
     unpackTuple
-      :: Either MkUnbalancedTxError Unit /\ (ConstraintProcessingState validator)
+      :: Either MkUnbalancedTxError Unit /\
+           (ConstraintProcessingState validator)
       -> Either MkUnbalancedTxError (ConstraintProcessingState validator)
     unpackTuple (Left err /\ _) = Left err
     unpackTuple (_ /\ cps) = Right cps
