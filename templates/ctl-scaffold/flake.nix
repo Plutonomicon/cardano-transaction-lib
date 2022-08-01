@@ -10,7 +10,7 @@
       type = "github";
       owner = "Plutonomicon";
       repo = "cardano-transaction-lib";
-      rev = "2ca7a6b7b82690737d1228469ec1283939dcb9c4";
+      rev = "ec38c06c77c1b75a7e7f1dcb215db7816e44b339";
     };
     nixpkgs.follows = "ctl/nixpkgs";
   };
@@ -68,6 +68,7 @@
       apps = perSystem (system: {
         default = self.apps.${system}.ctl-scaffold-runtime;
         ctl-scaffold-runtime = (nixpkgsFor system).launchCtlRuntime { };
+        docs = (psProjectFor system).launchSearchablePursDocs { };
       });
 
       checks = perSystem (system:
