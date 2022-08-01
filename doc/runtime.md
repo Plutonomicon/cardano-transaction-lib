@@ -75,6 +75,36 @@ Here is an example that uses the `runtime` overlay to launch all of the required
       # that takes a single arugment. Alternatively, you can pass an attrset
       # directly
       runtimeConfig = final: with final; {
+        # You can add new services to the runtime. These should correspond to
+        # Arion's `service` definition. The default is the empty attribute set
+        extraServices = {
+          # an image from dockerhub
+          foo = {
+            service = {
+              image = "bar:foo";
+              command = [
+                "baz"
+                "--quux"
+              ];
+            };
+
+            # Or a Nix-based image
+            foo2 = {
+              service = {
+                useHostStore = true;
+                command = [
+                  "${(nixpkgsFor system).baz}/bin/baz"
+                  "--quux"
+                ];
+              };
+            };
+          };
+        };
+        # This corresponds to `docker-compose.raw` from Arion. You can add new
+        # volumes, etc... using this
+        extraDockerCompose = { volumes = { someVol = { }; }; };
+        # This is the default. You can override this to run using different
+        # configurations: see ./runtime.md#changing-network-configurations
         network = {
           name = "testnet";
           magic = 1097911063;
