@@ -25,6 +25,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 
+- Plutip integration to run `Contract`s in local, private testnets ([#470](https://github.com/Plutonomicon/cardano-transaction-lib/pull/470))
+- Ability to run `Contract`s in Plutip environment in parallel - `Contract.Test.Plutip.withPlutipContractEnv` ([#800](https://github.com/Plutonomicon/cardano-transaction-lib/issues/800))
+- `withKeyWallet` utility that allows to simulate multiple actors in Plutip environment ([#663](https://github.com/Plutonomicon/cardano-transaction-lib/issues/663))
 - `Alt` and `Plus` instances for `Contract`.
 - `Contract.Utxos.getUtxo` call to get a single utxo at a given output reference
 - `Contract.Monad.withContractEnv` function  that constructs and finalizes a contract environment that is usable inside a bracket callback. **This is the intended way to run multiple contracts**. ([#731](https://github.com/Plutonomicon/cardano-transaction-lib/pull/731))
@@ -39,6 +42,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contract.Wallet.isNamiAvailable` and `Contract.Wallet.isGeroAvailable` functions ([#558](https://github.com/Plutonomicon/cardano-transaction-lib/issues/558)])
 - `Contract.Transaction.balanceTxWithOwnAddress` and `Contract.Transaction.balanceTxsWithOwnAddress` to override an `Address` used in `balanceTx` internally ([#775](https://github.com/Plutonomicon/cardano-transaction-lib/pull/775))
 - `Contract.Transaction.awaitTxConfirmedWithTimeoutSlots` waits a specified number of slots for a transaction to succeed. ([#790](https://github.com/Plutonomicon/cardano-transaction-lib/pull/790))
+- `Contract.Transaction.submitE` like submit but uses an `Either (Array Aeson) TransactionHash` to handle a SubmitFail response from ogmios
+- `Contract.Chain.waitNSlots`,  `Contract.Chain.currentSlot` and `Contract.Chain.currentTime` a function to wait at least `N` number of slots and functions to get the current time in `Slot` or `POSIXTime`. ([#740](https://github.com/Plutonomicon/cardano-transaction-lib/issues/740))
 
 ### Changed
 
@@ -49,6 +54,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `ConfigParams` is now a type synonym instead of a newtype. `ContractConfig` has been renamed to `ContractEnv`.
 - Moved logging functions to `Contract.Log` from `Contract.Monad` ([#727](https://github.com/Plutonomicon/cardano-transaction-lib/issues/727)
 - Renamed `Contract.Wallet.mkKeyWalletFromPrivateKey` to `Contract.Wallet.mkKeyWalletFromPrivateKeys`.
+- Updated CSL version to v11.0.0 ([#801](https://github.com/Plutonomicon/cardano-transaction-lib/issues/801))
 
 ### Removed
 
@@ -78,11 +84,9 @@ This release adds support for running CTL contracts against Babbage-era nodes. *
 
 ### Added
 
-- `withKeyWallet` utility that allows to simulate multiple actors in Plutip environment ([#663](https://github.com/Plutonomicon/cardano-transaction-lib/issues/663))
 - Support for using a `PrivateKey` as a `Wallet`.
 - `mkKeyWalletFromFile` helper to use `cardano-cli`-style `skey`s
 - Single `Plutus.Conversion` module exposing all `(Type <-> Plutus Type)` conversion functions ([#464](https://github.com/Plutonomicon/cardano-transaction-lib/pull/464))
-- Support for using a `PrivateKey` as a `Wallet`
 - `logAeson` family of functions to be able to log JSON representations
 - `EncodeAeson` instances for most types under `Cardano.Types.*` as well as other useful types (`Value`, `Coin`, etc.)
 - `getProtocolParameters` call to retrieve current protocol parameters from Ogmios ([#541](https://github.com/Plutonomicon/cardano-transaction-lib/issues/541))
