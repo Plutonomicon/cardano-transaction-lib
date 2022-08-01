@@ -1,5 +1,8 @@
 module QueryM.WaitUntilSlot
   ( waitUntilSlot
+  , waitNSlots
+  , currentSlot
+  , currentTime
   ) where
 
 import Prelude
@@ -24,7 +27,7 @@ import QueryM (QueryM, getChainTip)
 import QueryM.EraSummaries (getEraSummaries)
 import QueryM.Ogmios (EraSummaries, SystemStart)
 import QueryM.SystemStart (getSystemStart)
-import Serialization.Address (Slot)
+import Serialization.Address (Slot(Slot))
 import Types.BigNum as BigNum
 import Types.Chain as Chain
 import Types.Interval
@@ -33,6 +36,8 @@ import Types.Interval
   , getSlotLength
   , slotToPosixTime
   )
+import Types.Natural (Natural)
+import Types.Natural as Natural
 
 -- | The returned slot will be no less than the slot provided as argument.
 waitUntilSlot :: Slot -> QueryM Chain.Tip
@@ -61,12 +66,12 @@ waitUntilSlot futureSlot =
             fetchRepeatedly :: QueryM Chain.Tip
             fetchRepeatedly =
               getChainTip >>= case _ of
-                currentTip@(Chain.Tip (Chain.ChainTip { slot: currentSlot }))
-                  | currentSlot >= futureSlot -> pure currentTip
+                currentTip@(Chain.Tip (Chain.ChainTip { slot: currentSlot_ }))
+                  | currentSlot_ >= futureSlot -> pure currentTip
                   | otherwise -> do
                       liftAff $ delay $ Milliseconds $ BigInt.toNumber
                         slotLengthMs
-                      getLag eraSummaries sysStart currentSlot >>= logLag
+                      getLag eraSummaries sysStart currentSlot_ >>= logLag
                         slotLengthMs
                       fetchRepeatedly
                 Chain.TipAtGenesis -> do
@@ -137,3 +142,40 @@ posixTimeToSeconds (POSIXTime futureTimeBigInt) = do
     $ map (wrap <<< Int.toNumber)
     $ BigInt.toInt
     $ futureTimeBigInt / BigInt.fromInt 1000
+
+-- | Wait at least `offset` number of slots.
+waitNSlots :: Natural -> QueryM Chain.Tip
+waitNSlots offset = do
+  offsetBigNum <- liftM (error "Unable to convert BigInt to BigNum")
+    $ (BigNum.fromBigInt <<< Natural.toBigInt) offset
+  if offsetBigNum == BigNum.fromInt 0 then getChainTip
+  else do
+    slot <- currentSlot
+    newSlot <- liftM (error "Unable to advance slot")
+      $ wrap <$> BigNum.add (unwrap slot) offsetBigNum
+    waitUntilSlot newSlot
+
+currentSlot :: QueryM Slot
+currentSlot = getChainTip <#> case _ of
+  Chain.Tip (Chain.ChainTip { slot }) -> slot
+  Chain.TipAtGenesis -> (Slot <<< BigNum.fromInt) 0
+
+-- | Get the latest POSIXTime of the current slot.
+-- The plutus implementation relies on `slotToEndPOSIXTime`
+-- https://github.com/input-output-hk/plutus-apps/blob/fb8a39645e532841b6e38d42ecb957f1945833a5/plutus-contract/src/Plutus/Contract/Trace.hs
+currentTime :: QueryM POSIXTime
+currentTime = currentSlot >>= slotToEndPOSIXTime
+
+-- | Get the ending 'POSIXTime' of a 'Slot' related to
+-- | our `QueryM` configuration.
+-- see https://github.com/input-output-hk/plutus-apps/blob/fb8a39645e532841b6e38d42ecb957f1945833a5/plutus-ledger/src/Ledger/TimeSlot.hs
+slotToEndPOSIXTime :: Slot -> QueryM POSIXTime
+slotToEndPOSIXTime slot = do
+  futureSlot <- liftM (error "Unable to advance slot")
+    $ wrap <$> BigNum.add (unwrap slot) (BigNum.fromInt 1)
+  eraSummaries <- getEraSummaries
+  sysStart <- getSystemStart
+  futureTime <- liftEffect $ slotToPosixTime eraSummaries sysStart futureSlot
+    >>= hush >>> liftM (error "Unable to convert Slot to POSIXTime")
+  -- We assume that a slot is 1000 milliseconds here.
+  pure ((wrap <<< BigInt.fromInt $ -1) + futureTime)
