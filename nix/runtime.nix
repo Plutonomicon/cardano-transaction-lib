@@ -33,7 +33,8 @@ rec {
       };
     };
     # Additional config that will be included in Arion's `docker-compose.raw`. This
-    # corresponds directly to YAML that would be written in a `docker-compose` file
+    # corresponds directly to YAML that would be written in a `docker-compose` file,
+    # e.g. volumes
     extraDockerCompose = { };
     # Additional services to include in the `docker-compose` config that Arion
     # produces.
@@ -59,7 +60,7 @@ rec {
     #     service = {
     #       useHostStore = true;
     #       command = [
-    #         "{pkgs.baz}/bin/baz"
+    #         "${pkgs.baz}/bin/baz"
     #         "--quux"
     #       ];
     #     };
@@ -81,16 +82,7 @@ rec {
       nodeSocketPath = "/ipc/node.socket";
       server = pkgs.ctl-server;
       bindPort = port: "${toString port}:${toString port}";
-    in
-    with config;
-    {
-      docker-compose.raw = {
-        volumes = {
-          "${nodeDbVol}" = { };
-          "${nodeIpcVol}" = { };
-        };
-      };
-      services = {
+      defaultServices = with config; {
         cardano-node = {
           service = {
             image = "inputoutput/cardano-node:1.35.2";
@@ -199,7 +191,18 @@ rec {
               ];
             };
           };
-      } // extraServices;
+      };
+    in
+    {
+      docker-compose.raw = pkgs.lib.recursiveUpdate
+        {
+          volumes = {
+            "${nodeDbVol}" = { };
+            "${nodeIpcVol}" = { };
+          };
+        }
+        config.extraDockerCompose;
+      services = pkgs.lib.recursiveUpdate defaultServices config.extraServices;
     };
 
   # Makes a set compatible with flake `apps` to launch all runtime services
