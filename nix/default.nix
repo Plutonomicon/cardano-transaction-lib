@@ -269,7 +269,7 @@ let
         '';
       });
 
-  buildSearchablePursDocs = { packageName, ... }:
+  buildSearchablePursDocs = { packageName ? projectName, ... }:
     pkgs.runCommand "${projectName}-searchable-docs"
       {
         buildInputs = [ spagoPkgs.installSpagoStyle ];
