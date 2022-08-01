@@ -4,6 +4,7 @@ module Contract.Config
   , testnetNamiConfig
   , testnetGeroConfig
   , testnetFlintConfig
+  , testnetEternlConfig
   , mainnetConfig
   , mainnetNamiConfig
   , mainnetGeroConfig
@@ -23,7 +24,7 @@ import Contract.Monad (ConfigParams)
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
 import Data.Maybe (Maybe(Just, Nothing))
 import Wallet.Spec
-  ( WalletSpec(UseKeys, ConnectToNami, ConnectToGero, ConnectToFlint)
+  ( WalletSpec(UseKeys, ConnectToNami, ConnectToGero, ConnectToFlint, ConnectToEternl)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
@@ -60,6 +61,9 @@ testnetGeroConfig = testnetConfig { walletSpec = Just ConnectToGero }
 
 testnetFlintConfig :: ConfigParams ()
 testnetFlintConfig = testnetConfig { walletSpec = Just ConnectToFlint }
+
+testnetEternlConfig :: ConfigParams ()
+testnetEternlConfig = testnetConfig { walletSpec = Just ConnectToEternl }
 
 mainnetConfig :: ConfigParams ()
 mainnetConfig = testnetConfig { networkId = MainnetId }
