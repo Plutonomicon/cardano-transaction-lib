@@ -102,7 +102,15 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (for, traverse, traverse_)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect (Effect)
-import Effect.Aff (Aff, Canceler(Canceler), delay, finally, launchAff_, makeAff, supervise)
+import Effect.Aff
+  ( Aff
+  , Canceler(Canceler)
+  , delay
+  , finally
+  , launchAff_
+  , makeAff
+  , supervise
+  )
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error, message)
