@@ -44,7 +44,11 @@ import Node.ChildProcess
   , kill
   , spawn
   )
-import Plutip.Spawn (NewOutputAction(Success, NoOp), spawnAndWaitForOutput)
+import Plutip.Spawn
+  ( NewOutputAction(Success, NoOp)
+  , killOnExit
+  , spawnAndWaitForOutput
+  )
 import Plutip.Types
   ( class UtxoDistribution
   , ClusterStartupParameters
@@ -203,8 +207,10 @@ startOgmios cfg params = do
   -- We wait for any output, because CTL-server tries to connect to Ogmios
   -- repeatedly, and we can just wait for CTL-server to connect, instead of
   -- waiting for Ogmios first.
-  spawnAndWaitForOutput "ogmios" ogmiosArgs defaultSpawnOptions
+  child <- spawnAndWaitForOutput "ogmios" ogmiosArgs defaultSpawnOptions
     $ pure Success
+  liftEffect $ killOnExit child
+  pure child
   where
   ogmiosArgs :: Array String
   ogmiosArgs =
@@ -225,6 +231,7 @@ startPlutipServer :: PlutipConfig -> Aff ChildProcess
 startPlutipServer cfg = do
   p <- liftEffect $ spawn "plutip-server" [ "-p", UInt.toString cfg.port ]
     defaultSpawnOptions
+  liftEffect $ killOnExit p
   -- We are trying to call stopPlutipCluster endpoint to ensure that
   -- `plutip-server` has started.
   void
@@ -255,6 +262,7 @@ startPostgresServer pgConfig _ = do
     , postgresSocket
     ]
     defaultSpawnOptions
+  liftEffect $ killOnExit pgChildProcess
   void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
     $ const
     $ liftEffect
@@ -315,10 +323,13 @@ startOgmiosDatumCache cfg _params = do
       , "--use-latest"
       , "--from-origin"
       ]
-  spawnAndWaitForOutput "ogmios-datum-cache" arguments defaultSpawnOptions
-    -- Wait for "Intersection found" string in the output
-    $ String.indexOf (Pattern "Intersection found")
-        >>> maybe NoOp (const Success)
+  child <-
+    spawnAndWaitForOutput "ogmios-datum-cache" arguments defaultSpawnOptions
+      -- Wait for "Intersection found" string in the output
+      $ String.indexOf (Pattern "Intersection found")
+          >>> maybe NoOp (const Success)
+  liftEffect $ killOnExit child
+  pure child
 
 mkClusterContractEnv
   :: PlutipConfig
@@ -368,7 +379,9 @@ startCtlServer cfg = do
       , "--ogmios-port"
       , UInt.toString cfg.ogmiosConfig.port
       ]
-  spawnAndWaitForOutput "ctl-server" ctlServerArgs defaultSpawnOptions
+  child <- spawnAndWaitForOutput "ctl-server" ctlServerArgs defaultSpawnOptions
     -- Wait for "Successfully connected to Ogmios" string in the output
     $ String.indexOf (Pattern "Successfully connected to Ogmios")
         >>> maybe NoOp (const Success)
+  liftEffect $ killOnExit child
+  pure child
