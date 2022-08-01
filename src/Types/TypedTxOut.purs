@@ -42,6 +42,7 @@ import Data.Show.Generic (genericShow)
 import FromData (class FromData, fromData)
 import Hashing (datumHash) as Hashing
 import Helpers (liftM)
+import IsData (class IsData)
 import QueryM (QueryM, getDatumByHash)
 import Scripts (typedValidatorEnterpriseAddress)
 import Serialization.Address (Address, NetworkId)
@@ -62,86 +63,86 @@ import Cardano.Types.Value (Value)
 -- | carries the address type. We don't include such a type in our setup.
 -- | Note that `TypedTxOut` is implicitly constrained by its smart
 -- | constructor.
-newtype TypedTxOutRef (a :: Type) (b :: Type) = TypedTxOutRef
-  { txOutRef :: TransactionInput, typedTxOut :: TypedTxOut a b }
+newtype TypedTxOutRef (validator :: Type) (datum :: Type) = TypedTxOutRef
+  { txOutRef :: TransactionInput, typedTxOut :: TypedTxOut validator datum }
 
--- `DatumType v d` not needed but this replicates Plutus and provides extra
+-- `DatumType validator datum` not needed but this replicates Plutus and provides extra
 -- type safety.
-derive newtype instance (DatumType v d, Eq d) => Eq (TypedTxOutRef v d)
+derive newtype instance (DatumType validator datum, Eq datum) => Eq (TypedTxOutRef validator datum)
 
 -- | Extract the `Address` of a `TypedTxOutRef`
 typedTxOutRefAddress
-  :: forall (v :: Type) (d :: Type)
-   . DatumType v d -- TODO: are there artificial constraints needed? (here and below)
-  => TypedTxOutRef v d
+  :: forall (validator :: Type) (datum :: Type)
+   . DatumType validator datum
+  => TypedTxOutRef validator datum
   -> Address
 typedTxOutRefAddress (TypedTxOutRef { typedTxOut }) =
   typedTxOutAddress typedTxOut
 
 -- | Extract the `DataHash` of a `TypedTxOutRef`
 typedTxOutRefDatumHash
-  :: forall (v :: Type) (d :: Type)
-   . DatumType v d
-  => TypedTxOutRef v d
+  :: forall (validator :: Type) (datum :: Type)
+   . DatumType validator datum
+  => TypedTxOutRef validator datum
   -> Maybe DataHash
 typedTxOutRefDatumHash (TypedTxOutRef { typedTxOut }) =
   typedTxOutDatumHash typedTxOut
 
 -- | Extract the `Value` of a `TypedTxOutRef`
 typedTxOutRefValue
-  :: forall (v :: Type) (d :: Type)
-   . DatumType v d
-  => TypedTxOutRef v d
+  :: forall (validator :: Type) (datum :: Type)
+   . DatumType validator datum
+  => TypedTxOutRef validator datum
   -> Value
 typedTxOutRefValue (TypedTxOutRef { typedTxOut }) = typedTxOutValue typedTxOut
 
 -- | Extract the `TransactionInput` of a `TypedTxOutRef`
 typedTxOutRefInput
-  :: forall (v :: Type) (d :: Type)
-   . DatumType v d
-  => TypedTxOutRef v d
+  :: forall (validator :: Type) (datum :: Type)
+   . DatumType validator datum
+  => TypedTxOutRef validator datum
   -> TransactionInput
 typedTxOutRefInput (TypedTxOutRef { txOutRef }) = txOutRef
 
 -- A `TransactionOutput` tagged by a phantom type: and the connection type of
 -- the output. DO NOT import as extra constraints are required so only import
 -- the smart constructor `mkTypedTxOut`
-newtype TypedTxOut (v :: Type) (d :: Type) = TypedTxOut
-  { txOut :: TransactionOutput, data :: d }
+newtype TypedTxOut (validator :: Type) (datum :: Type) = TypedTxOut
+  { txOut :: TransactionOutput, data :: datum }
 
 -- `DatumType a b` not needed but this replicates Plutus and provides extra
 -- type safety.
-derive newtype instance (DatumType v d, Eq d) => Eq (TypedTxOut v d)
+derive newtype instance (DatumType validator datum, Eq datum) => Eq (TypedTxOut validator datum)
 
 -- | Extract the `Address` of a `TypedTxOut`
 typedTxOutAddress
-  :: forall (v :: Type) (d :: Type)
-   . DatumType v d
-  => TypedTxOut v d
+  :: forall (validator :: Type) (datum :: Type)
+   . DatumType validator datum
+  => TypedTxOut validator datum
   -> Address
 typedTxOutAddress (TypedTxOut { txOut }) = (unwrap txOut).address
 
 -- | Extract the `DataHash` of a `TypedTxOut`
 typedTxOutDatumHash
-  :: forall (v :: Type) (d :: Type)
-   . DatumType v d
-  => TypedTxOut v d
+  :: forall (validator :: Type) (datum :: Type)
+   . DatumType validator datum
+  => TypedTxOut validator datum
   -> Maybe DataHash
 typedTxOutDatumHash (TypedTxOut { txOut }) = (unwrap txOut).dataHash
 
 -- | Extract the `Value` of a `TypedTxOut`
 typedTxOutValue
-  :: forall (v :: Type) (d :: Type)
-   . DatumType v d
-  => TypedTxOut v d
+  :: forall (validator :: Type) (datum :: Type)
+   . DatumType validator datum
+  => TypedTxOut validator datum
   -> Value
 typedTxOutValue (TypedTxOut { txOut }) = (unwrap txOut).amount
 
 -- | Extract the `TxOut` ~ `TransactionOutput` of a `TypedTxOut`
 typedTxOutTxOut
-  :: forall (v :: Type) (d :: Type)
-   . DatumType v d
-  => TypedTxOut v d
+  :: forall (validator :: Type) (datum :: Type)
+   . DatumType validator datum
+  => TypedTxOut validator datum
   -> TransactionOutput
 typedTxOutTxOut (TypedTxOut { txOut }) = txOut
 
@@ -152,14 +153,14 @@ typedTxOutTxOut (TypedTxOut { txOut }) = txOut
 -- | constructor is required because extra constraints are needed.
 -- | `TransactionOutput` is tagged by a phantom type.
 mkTypedTxOut
-  :: forall (v :: Type) (d :: Type)
-   . DatumType v d
-  => ToData d
+  :: forall (validator :: Type) (datum :: Type)
+   . DatumType validator datum
+  => ToData datum
   => NetworkId
-  -> TypedValidator v
-  -> d
+  -> TypedValidator validator
+  -> datum
   -> Value
-  -> Maybe (TypedTxOut v d)
+  -> Maybe (TypedTxOut validator datum)
 mkTypedTxOut networkId typedVal dt amount =
   let
     mDHash = Hashing.datumHash $ Datum $ toData dt
@@ -174,9 +175,9 @@ mkTypedTxOut networkId typedVal dt amount =
           wrap { address, amount, dataHash: pure dHash }
   where
   mkTypedTxOut'
-    :: d -- Data
+    :: datum -- Data
     -> TransactionOutput
-    -> TypedTxOut v d
+    -> TypedTxOut validator datum
   mkTypedTxOut' dat txOut = TypedTxOut { txOut, data: dat }
 
 -- | An error we can get while trying to type an existing transaction part.
@@ -198,10 +199,10 @@ instance Show TypeCheckError where
 
 -- | Checks that the given validator hash is consistent with the actual validator.
 checkValidatorAddress
-  :: forall (a :: Type) (m :: Type -> Type)
+  :: forall (validator :: Type) (m :: Type -> Type)
    . Monad m
   => NetworkId
-  -> TypedValidator a
+  -> TypedValidator validator
   -> Address
   -> m (Either TypeCheckError Unit)
 checkValidatorAddress networkId typedVal actualAddr = runExceptT do
@@ -224,27 +225,26 @@ checkValidatorAddress networkId typedVal actualAddr = runExceptT do
 
 -- | Checks that the given datum has the right type.
 checkDatum
-  :: forall (v :: Type) (d :: Type) (m :: Type -> Type)
+  :: forall (validator :: Type) (datum :: Type) (m :: Type -> Type)
    . Monad m
-  => DatumType v d
-  => FromData d
-  => TypedValidator v
+  => DatumType validator datum
+  => FromData datum
+  => TypedValidator validator
   -> Datum
-  -> m (Either TypeCheckError d)
+  -> m (Either TypeCheckError datum)
 checkDatum _ (Datum pd) =
-  runExceptT $ liftM (WrongDatumType pd) (fromData pd :: Maybe d)
+  runExceptT $ liftM (WrongDatumType pd) (fromData pd :: Maybe datum)
 
 -- | Create a `TypedTxOut` from an existing `TransactionInput` by
 -- | checking the types of its parts.
 typeTxOut
-  :: forall (v :: Type) (d :: Type)
-   . DatumType v d
-  => FromData d
-  => ToData d
+  :: forall (validator :: Type) (datum :: Type)
+   . DatumType validator datum
+  => IsData datum
   => NetworkId
-  -> TypedValidator v
+  -> TypedValidator validator
   -> TransactionOutput
-  -> QueryM (Either TypeCheckError (TypedTxOut v d))
+  -> QueryM (Either TypeCheckError (TypedTxOut validator datum))
 typeTxOut
   networkId
   typedVal
@@ -263,15 +263,14 @@ typeTxOut
 -- | against the validator script and be able to look up the `TransactionInput` to
 -- | which this reference points.
 typeTxOutRef
-  :: forall (v :: Type) (d :: Type) (m :: Type -> Type)
-   . DatumType v d
-  => FromData d
-  => ToData d
+  :: forall (validator :: Type) (datum :: Type) (m :: Type -> Type)
+   . DatumType validator datum
+  => IsData datum
   => NetworkId
   -> (TransactionInput -> Maybe TransactionOutput)
-  -> TypedValidator v
+  -> TypedValidator validator
   -> TransactionInput
-  -> QueryM (Either TypeCheckError (TypedTxOutRef v d))
+  -> QueryM (Either TypeCheckError (TypedTxOutRef validator datum))
 typeTxOutRef networkId lookupRef typedVal txOutRef = runExceptT do
   out <- liftM UnknownRef (lookupRef txOutRef)
   typedTxOut <- ExceptT $ typeTxOut networkId typedVal out
