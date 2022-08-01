@@ -114,10 +114,14 @@ instance DecodeAeson GetDatumsByHashesR where
       decodeDatum = caseAesonObject (Left $ TypeMismatch "expected object")
         $ \o -> (/\) <$> map wrap (o .: "hash") <*>
             (decodeAeson =<< o .: "value")
+      datumsFound =
+        map GetDatumsByHashesR <<< decodeDatumArray =<< getNestedAeson
+          r
+          [ "DatumsFound", "value" ]
+      datumsNotFound =
+        getNestedAeson r [ "DatumsNotFound" ] $> GetDatumsByHashesR Map.empty
     in
-      map GetDatumsByHashesR <<< decodeDatumArray =<< getNestedAeson
-        r
-        [ "DatumsFound", "value" ]
+      datumsFound <|> datumsNotFound
 
 -- TODO
 -- This should be changed to `GetTxByHashR Transaction` once we support `getTxById`
