@@ -111,7 +111,6 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import FromData (class FromData)
 import Hashing (datumHash) as Hashing
 import Helpers ((<\>), liftEither, liftM)
 import IsData (class IsData)
@@ -180,8 +179,6 @@ import Types.TxConstraints
   )
 import Types.TypedTxOut
   ( TypeCheckError
-  , TypedTxOut
-  , TypedTxOutRef
   , mkTypedTxOut
   , typedTxOutDatumHash
   , typedTxOutRefValue
@@ -190,7 +187,6 @@ import Types.TypedTxOut
   )
 import Types.TypedValidator
   ( class DatumType
-  , class RedeemerType
   , class ValidatorTypes
   , TypedValidator(TypedValidator)
   )

@@ -18,9 +18,7 @@ import Prelude
 import Contract.Monad (Contract, wrapContract)
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
-import FromData (class FromData)
 import IsData (class IsData)
-import ToData (class ToData)
 import Types.ScriptLookups
   ( MkUnbalancedTxError
       ( TypeCheckFailed
@@ -68,11 +66,7 @@ import Types.ScriptLookups
   ) as ScriptLookups
 import Types.ScriptLookups (mkUnbalancedTx) as SL
 import Types.TxConstraints (TxConstraints)
-import Types.TypedValidator
-  ( class DatumType
-  , class RedeemerType
-  , class ValidatorTypes
-  )
+import Types.TypedValidator (class ValidatorTypes)
 
 -- | Create an `UnattachedUnbalancedTx` given `ScriptLookups` and
 -- | `TxConstraints`. You will probably want to use this version as it returns
