@@ -46,6 +46,7 @@ import Types.Scripts
 -- it suffices.
 -- | A typeclass that associates a type standing for a connection type with two
 -- | types, the type of the redeemer and the data script for that connection type.
+class ValidatorTypes :: Type -> Type -> Type -> Constraint
 class
   ( DatumType v d
   , RedeemerType v r
