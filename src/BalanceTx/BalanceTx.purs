@@ -30,6 +30,7 @@ module BalanceTx
   , EvalExUnitsAndMinFeeError
       ( EvalMinFeeError
       , ReindexRedeemersError
+      , OgmiosEvaluationError
       )
   , Expected(Expected)
   , FinalizedTransaction(FinalizedTransaction)
@@ -51,6 +52,7 @@ module BalanceTx
 
 import Prelude
 
+import Aeson(Aeson)
 import BalanceTx.UtxoMinAda (adaOnlyUtxoMinAdaValue, utxoMinAdaValue)
 import Cardano.Types.Transaction
   ( Redeemer(Redeemer)
@@ -118,7 +120,7 @@ import QueryM
   , getWalletCollateral
   , evaluateTxOgmios
   ) as QueryM
-import QueryM.Ogmios (TxEvaluationR(TxEvaluationR)) as Ogmios
+import QueryM.Ogmios (TxEvaluationR(TxEvaluationSuccess,TxEvaluationFailure),CostMap) as Ogmios
 import QueryM.Utxos (utxosAt, filterLockedUtxos)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization (convertTransaction, toBytes) as Serialization
@@ -181,6 +183,7 @@ instance Show UtxosAtError where
 data EvalExUnitsAndMinFeeError
   = EvalMinFeeError ClientError
   | ReindexRedeemersError ReindexErrors
+  | OgmiosEvaluationError Aeson
 
 derive instance Generic EvalExUnitsAndMinFeeError _
 
@@ -321,18 +324,21 @@ evalExUnitsAndMinFee' unattachedTx =
     -- Reattach datums and redeemers before evaluating ex units:
     let attachedTx = reattachDatumsAndRedeemers reindexedUnattachedTx
     -- Evaluate transaction ex units:
-    rdmrPtrExUnitsList <- lift $ evalTxExecutionUnits attachedTx
-    let
-      -- Set execution units received from the server:
-      reindexedUnattachedTxWithExUnits =
-        updateTxExecutionUnits reindexedUnattachedTx rdmrPtrExUnitsList
-    -- Attach datums and redeemers, set the script integrity hash:
-    FinalizedTransaction finalizedTx <- lift $
-      finalizeTransaction reindexedUnattachedTxWithExUnits
-    -- Calculate the minimum fee for a transaction:
-    minFee <- ExceptT $ QueryM.calculateMinFee finalizedTx
-      <#> bimap EvalMinFeeError unwrap
-    pure $ reindexedUnattachedTxWithExUnits /\ minFee
+    evalResult <- lift $ evalTxExecutionUnits attachedTx
+    case evalResult of
+      Ogmios.TxEvaluationFailure aeson -> except $ Left $ OgmiosEvaluationError aeson
+      Ogmios.TxEvaluationSuccess rdmrPtrExUnitsList -> do
+        let
+          -- Set execution units received from the server:
+          reindexedUnattachedTxWithExUnits =
+            updateTxExecutionUnits reindexedUnattachedTx rdmrPtrExUnitsList
+        -- Attach datums and redeemers, set the script integrity hash:
+        FinalizedTransaction finalizedTx <- lift $
+          finalizeTransaction reindexedUnattachedTxWithExUnits
+        -- Calculate the minimum fee for a transaction:
+        minFee <- ExceptT $ QueryM.calculateMinFee finalizedTx
+          <#> bimap EvalMinFeeError unwrap
+        pure $ reindexedUnattachedTxWithExUnits /\ minFee
 
 evalExUnitsAndMinFee
   :: UnattachedUnbalancedTx
@@ -380,27 +386,26 @@ reattachDatumsAndRedeemers
       # _witnessSet <<< _redeemers ?~ map fst redeemersTxIns
 
 updateTxExecutionUnits
-  :: UnattachedUnbalancedTx -> Ogmios.TxEvaluationR -> UnattachedUnbalancedTx
+  :: UnattachedUnbalancedTx -> Ogmios.CostMap -> UnattachedUnbalancedTx
 updateTxExecutionUnits unattachedTx rdmrPtrExUnitsList =
   unattachedTx #
     _redeemersTxIns %~ flip setRdmrsExecutionUnits rdmrPtrExUnitsList
 
 setRdmrsExecutionUnits
   :: Array (Redeemer /\ Maybe TransactionInput)
-  -> Ogmios.TxEvaluationR
+  -> Ogmios.CostMap
   -> Array (Redeemer /\ Maybe TransactionInput)
-setRdmrsExecutionUnits rs (Ogmios.TxEvaluationR xxs) =
+setRdmrsExecutionUnits rs xxs =
   case Array.uncons (Map.toUnfoldable xxs) of
     Nothing -> rs
     Just { head: ptr /\ exUnits, tail: xs } ->
       let
-        xsWrapped = Ogmios.TxEvaluationR (Map.fromFoldable xs)
         ixMaybe = flip Array.findIndex rs $ \(Redeemer rdmr /\ _) ->
           rdmr.tag == ptr.redeemerTag
             && rdmr.index == Natural.toBigInt ptr.redeemerIndex
       in
-        ixMaybe # maybe (setRdmrsExecutionUnits rs xsWrapped) \ix ->
-          flip setRdmrsExecutionUnits xsWrapped $
+        ixMaybe # maybe (setRdmrsExecutionUnits rs (Map.fromFoldable xs)) \ix ->
+          flip setRdmrsExecutionUnits (Map.fromFoldable xs) $
             rs # Lens.ix ix %~ \(Redeemer rec /\ txOutRef) ->
               let
                 mem = Natural.toBigInt exUnits.memory

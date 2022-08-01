@@ -5,6 +5,7 @@ module QueryM.Ogmios
   , ChainPoint
   , ChainTipQR(CtChainOrigin, CtChainPoint)
   , CostModel
+  , CostMap
   , CurrentEpoch(CurrentEpoch)
   , Epoch(Epoch)
   , EpochLength(EpochLength)
@@ -25,7 +26,7 @@ module QueryM.Ogmios
   , SlotLength(SlotLength)
   , SubmitTxR(SubmitTxSuccess, SubmitFail)
   , SystemStart(SystemStart)
-  , TxEvaluationR(TxEvaluationR)
+  , TxEvaluationR(TxEvaluationSuccess,TxEvaluationFailure)
   , TxHash
   , UtxoQR(UtxoQR)
   , UtxoQueryResult
@@ -466,20 +467,27 @@ type RedeemerPointer = { redeemerTag :: RedeemerTag, redeemerIndex :: Natural }
 
 type ExecutionUnits = { memory :: Natural, steps :: Natural }
 
-newtype TxEvaluationR = TxEvaluationR (Map RedeemerPointer ExecutionUnits)
+type CostMap = Map RedeemerPointer ExecutionUnits
 
-derive instance Newtype TxEvaluationR _
+data TxEvaluationR
+  = TxEvaluationSuccess CostMap
+  | TxEvaluationFailure Aeson
+
 derive instance Generic TxEvaluationR _
 
 instance Show TxEvaluationR where
   show = genericShow
 
 instance DecodeAeson TxEvaluationR where
-  decodeAeson = aesonObject $ \obj -> do
-    rdmrPtrExUnitsList :: Array (String /\ Aeson) <-
-      ForeignObject.toUnfoldable <$> getField obj "EvaluationResult"
-    TxEvaluationR <<< Map.fromFoldable <$>
-      traverse decodeRdmrPtrExUnitsItem rdmrPtrExUnitsList
+  decodeAeson = aesonObject $ \obj ->
+    (TxEvaluationFailure <$> getField obj "EvaluationFailure") <|>
+    -- Putting the falure case first gives better errors in some cases
+    (do
+      rdmrPtrExUnitsList :: Array (String /\ Aeson) <-
+        ForeignObject.toUnfoldable <$> getField obj "EvaluationResult"
+      TxEvaluationSuccess <<< Map.fromFoldable <$>
+        traverse decodeRdmrPtrExUnitsItem rdmrPtrExUnitsList
+    )
     where
     decodeRdmrPtrExUnitsItem
       :: String /\ Aeson
