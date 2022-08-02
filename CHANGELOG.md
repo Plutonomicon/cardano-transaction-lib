@@ -76,6 +76,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 See https://github.com/cardano-foundation/CIPs/issues/303 for motivation
 - `ogmios-datum-cache` now works on `x86_64-darwin`
+- Removed unwanted error messages in case `WebSocket` listeners get cancelled ([#827](https://github.com/Plutonomicon/cardano-transaction-lib/issues/827))
 
 ## [2.0.0-alpha] - 2022-07-05
 
