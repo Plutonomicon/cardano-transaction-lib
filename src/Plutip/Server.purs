@@ -136,7 +136,7 @@ withPlutipContractEnv plutipCfg distr cont =
       stopChildProcess <<< const
 
   withWallets :: ClusterStartupParameters -> (wallets -> Aff a) -> Aff a
-  withWallets response cc = case decodeWallets response.privateKeys of
+  withWallets response cc = case decodeWallets distr response.privateKeys of
     Nothing ->
       liftEffect $ throw $ "Impossible happened: unable to decode" <>
         " wallets from private keys. Please report as bug."

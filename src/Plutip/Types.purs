@@ -1,28 +1,23 @@
 module Plutip.Types
-  ( PlutipConfig
-  , PostgresConfig
-  , FilePath
-  , ErrorMessage
-  , UtxoAmount
-  , InitialUTxODistribution
-  , ClusterStartupRequest(ClusterStartupRequest)
-  , PrivateKeyResponse(PrivateKeyResponse)
+  ( ClusterStartupFailureReason(..)
   , ClusterStartupParameters
-  , ClusterStartupFailureReason
-      ( ClusterIsRunningAlready
-      , NegativeLovelaces
-      , NodeConfigNotFound
-      )
-  , StartClusterResponse
-      ( ClusterStartupFailure
-      , ClusterStartupSuccess
-      )
-  , StopClusterRequest(StopClusterRequest)
-  , StopClusterResponse(StopClusterSuccess, StopClusterFailure)
+  , ClusterStartupRequest(..)
+  , ErrorMessage
+  , FilePath
   , InitialUTxO
+  , InitialUTxODistribution
+  , InitialUTxOWithStakeKey
+  , PlutipConfig
+  , PostgresConfig
+  , PrivateKeyResponse(..)
+  , StartClusterResponse(..)
+  , StopClusterRequest(..)
+  , StopClusterResponse(..)
+  , UtxoAmount
   , class UtxoDistribution
-  , encodeDistribution
   , decodeWallets
+  , encodeDistribution
+  , withStakeKey
   ) where
 
 import Prelude
@@ -56,6 +51,7 @@ import Types.RawBytes (RawBytes(RawBytes))
 import Wallet.Key
   ( KeyWallet
   , PrivatePaymentKey(PrivatePaymentKey)
+  , PrivateStakeKey
   , privateKeysToKeyWallet
   )
 
@@ -87,6 +83,9 @@ type ErrorMessage = String
 type UtxoAmount = BigInt
 
 type InitialUTxO = Array UtxoAmount
+
+data InitialUTxOWithStakeKey =
+  InitialUTxOWithStakeKey PrivateStakeKey InitialUTxO
 
 type InitialUTxODistribution = Array InitialUTxO
 
@@ -197,27 +196,62 @@ instance DecodeAeson StopClusterResponse where
 -- | distribution for wallets.
 -- | Number of wallets in distribution specification matches the number of
 -- | wallets provided to the user.
-class UtxoDistribution distr wallets | distr -> wallets, wallets -> distr where
+class UtxoDistribution distr wallets | distr -> wallets where
   encodeDistribution :: distr -> Array (Array UtxoAmount)
-  decodeWallets :: Array PrivateKeyResponse -> Maybe wallets
+  decodeWallets
+    :: distr -> Array PrivateKeyResponse -> Maybe wallets
 
 instance UtxoDistribution Unit Unit where
   encodeDistribution _ = []
-  decodeWallets _ = Just unit
+  decodeWallets _ _ = Just unit
 
 instance UtxoDistribution InitialUTxO KeyWallet where
   encodeDistribution amounts = [ amounts ]
-  decodeWallets [ (PrivateKeyResponse key) ] =
+  decodeWallets _ [ PrivateKeyResponse key ] =
     pure $ privateKeysToKeyWallet (PrivatePaymentKey key) Nothing
-  decodeWallets _ = Nothing
+  decodeWallets _ _ = Nothing
 
 instance
   UtxoDistribution restSpec restWallets =>
   UtxoDistribution (InitialUTxO /\ restSpec) (KeyWallet /\ restWallets) where
-  encodeDistribution (amounts /\ rest) =
-    encodeDistribution amounts <> encodeDistribution rest
-  decodeWallets = Array.uncons >>> case _ of
-    Nothing -> Nothing
-    Just { head: PrivateKeyResponse key, tail } ->
-      Tuple (privateKeysToKeyWallet (PrivatePaymentKey key) Nothing) <$>
-        decodeWallets tail
+  encodeDistribution = encodeDistributionRecurse
+  decodeWallets (_ /\ rest) = decodeWalletsRecurse Nothing rest
+
+instance UtxoDistribution InitialUTxOWithStakeKey KeyWallet where
+  encodeDistribution (InitialUTxOWithStakeKey _ amounts) = [ amounts ]
+  decodeWallets (InitialUTxOWithStakeKey stake _) [ PrivateKeyResponse key ] =
+    pure $ privateKeysToKeyWallet (PrivatePaymentKey key) (Just stake)
+  decodeWallets _ _ = Nothing
+
+instance
+  UtxoDistribution restSpec restWallets =>
+  UtxoDistribution (InitialUTxOWithStakeKey /\ restSpec)
+    (KeyWallet /\ restWallets) where
+  encodeDistribution = encodeDistributionRecurse
+  decodeWallets (InitialUTxOWithStakeKey stake _ /\ rest) =
+    decodeWalletsRecurse (Just stake) rest
+
+encodeDistributionRecurse
+  :: forall distr wallets restSpec restWallets
+   . UtxoDistribution distr wallets
+  => UtxoDistribution restSpec restWallets
+  => (distr /\ restSpec)
+  -> Array (Array UtxoAmount)
+encodeDistributionRecurse (distr /\ rest) =
+  encodeDistribution distr <> encodeDistribution rest
+
+decodeWalletsRecurse
+  :: forall restSpec restWallets
+   . UtxoDistribution restSpec restWallets
+  => Maybe PrivateStakeKey
+  -> restSpec
+  -> Array PrivateKeyResponse
+  -> Maybe (KeyWallet /\ restWallets)
+decodeWalletsRecurse stake rest = Array.uncons >>> case _ of
+  Nothing -> Nothing
+  Just { head: PrivateKeyResponse key, tail } ->
+    Tuple (privateKeysToKeyWallet (PrivatePaymentKey key) stake) <$>
+      decodeWallets rest tail
+
+withStakeKey :: PrivateStakeKey -> InitialUTxO -> InitialUTxOWithStakeKey
+withStakeKey = InitialUTxOWithStakeKey
