@@ -1,7 +1,7 @@
 module Test.Ogmios.Aeson
   ( main
   , suite
-  , loadFixtures
+  , printEvaluateTxFailures
   ) where
 
 import Prelude
@@ -12,17 +12,20 @@ import Foreign.Object (Object)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
-import Data.Array (catMaybes, elem, groupAllBy, nubBy)
+import Data.Array (catMaybes, elem, groupAllBy, nubBy, filter)
 import Data.Array.NonEmpty (head, length, tail, NonEmptyArray)
 import Data.Bifunctor (lmap, bimap)
-import Data.Either (hush)
+import Data.Either (hush, either)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Newtype (unwrap)
 import Data.String.Regex (match, regex)
 import Data.String.Regex.Flags (noFlags)
-import Data.Traversable (for_)
+import Data.Traversable (for_, traverse)
+import Data.Tuple (snd, fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff (Aff, error, launchAff_)
 import Effect.Class (liftEffect)
+import Effect.Class.Console (log)
 import Effect.Exception (throw)
 import Effect (Effect)
 import Mote (group, skip, test)
@@ -82,7 +85,8 @@ applyTuple
   -> b /\ c
 applyTuple (f /\ g) a = f a /\ g a
 
-loadFixtures :: Aff (Array (Query /\ NonEmptyArray { aeson :: Aeson, bn :: String }))
+loadFixtures
+  :: Aff (Array (Query /\ NonEmptyArray { aeson :: Aeson, bn :: String }))
 loadFixtures = do
   let
     path = concat [ "fixtures", "test", "ogmios" ]
@@ -114,6 +118,15 @@ loadFixtures = do
         $ nubBy (comparing _.bn) files
 
   pure groupedFiles
+
+printEvaluateTxFailures :: Effect Unit
+printEvaluateTxFailures = launchAff_ do
+  fixtures <- loadFixtures <#> filter (fst >>> (_ == "EvaluateTx")) >>> map snd
+  flip (traverse >>> traverse) fixtures \{ aeson } -> do
+    let
+      response = hush $ Aeson.decodeAeson aeson :: _ O.TxEvaluationResponse
+      mbFailure = response >>= unwrap >>> either pure (const Nothing)
+    for_ mbFailure (log <<< O.printTxEvaluationFailure Nothing)
 
 suite :: TestPlanM Unit
 suite = group "Ogmios Aeson tests" do

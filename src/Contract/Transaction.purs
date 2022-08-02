@@ -426,7 +426,7 @@ balanceAndSignTxE
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx
   -> Contract r (Either Error BalancedSignedTransaction)
-balanceAndSignTxE  = try <<< balanceAndSignTx
+balanceAndSignTxE = try <<< balanceAndSignTx
 
 balanceAndSignTxM = map hush <<< balanceAndSignTxE
 

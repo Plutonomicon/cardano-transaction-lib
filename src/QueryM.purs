@@ -278,7 +278,11 @@ submitTxOgmios = mkOgmiosRequest Ogmios.submitTxCall _.submit
 evaluateTxOgmios :: CborBytes -> QueryM Ogmios.TxEvaluationResult
 evaluateTxOgmios bytes = do
   response <- unwrap <$> mkOgmiosRequest Ogmios.evaluateTxCall _.evaluate bytes
-  either (throwError <<< error <<< Ogmios.printTxEvaluationFailure (Just bytes)) pure
+  either
+    ( throwError <<< error <<< ("\n" <> _) <<< Ogmios.printTxEvaluationFailure
+        (Just bytes)
+    )
+    pure
     response
 
 --------------------------------------------------------------------------------
