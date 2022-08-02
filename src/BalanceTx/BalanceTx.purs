@@ -36,7 +36,11 @@ module BalanceTx
   , FinalizedTransaction(FinalizedTransaction)
   , GetPublicKeyTransactionInputError(CannotConvertScriptOutputToTxInput)
   , GetWalletAddressError(CouldNotGetWalletAddress)
-  , GetWalletCollateralError(CouldNotGetCollateral)
+  , GetWalletCollateralError
+      ( CannotRequestCollateralForWallet
+      , CouldNotGetCollateral
+      , WalletNotSpecified
+      )
   , TxInputLockedError(TxInputLockedError)
   , ImpossibleError(Impossible)
   , ReturnAdaChangeError
@@ -169,7 +173,10 @@ derive instance Generic GetWalletAddressError _
 instance Show GetWalletAddressError where
   show = genericShow
 
-data GetWalletCollateralError = CouldNotGetCollateral
+data GetWalletCollateralError
+  = CannotRequestCollateralForWallet ImpossibleError
+  | CouldNotGetCollateral
+  | WalletNotSpecified
 
 derive instance Generic GetWalletCollateralError _
 
@@ -443,37 +450,33 @@ _redeemersTxIns = lens' \(UnattachedUnbalancedTx rec@{ redeemersTxIns }) ->
     \rdmrs -> UnattachedUnbalancedTx rec { redeemersTxIns = rdmrs }
 
 --------------------------------------------------------------------------------
--- Setting collateral, collateral return, total collateral
+-- Setting collateral
 --------------------------------------------------------------------------------
 
 setCollateral
-  :: Transaction -> Utxos -> QueryM (Either BalanceTxError Transaction)
-setCollateral transaction utxos =
-  runExceptT do
-    wallet <- asks $ _.runtime >>> _.wallet
-    mCollateral <- ExceptT $ selectCollateral wallet
-    pure $ case mCollateral /\ wallet of
-      Nothing /\ _ ->
-        transaction
-      Just collateral /\ Just (KeyWallet _) ->
-        -- TODO: https://github.com/Plutonomicon/cardano-transaction-lib/pull/707
-        addTxCollateral collateral transaction
-      Just collateral /\ _ -> do
-        addTxCollateral collateral transaction
+  :: Transaction
+  -> Utxos
+  -> QueryM (Either GetWalletCollateralError Transaction)
+setCollateral transaction utxos = runExceptT do
+  wallet <-
+    ExceptT $ asks (_.runtime >>> _.wallet) <#> note WalletNotSpecified
+  collateral <- ExceptT $ selectCollateral wallet
+  -- TODO: https://github.com/Plutonomicon/cardano-transaction-lib/pull/707
+  pure $ addTxCollateral collateral transaction
   where
   selectCollateral
-    :: Maybe Wallet
-    -> QueryM (Either BalanceTxError (Maybe (Array TransactionUnspentOutput)))
-  selectCollateral (Just w) | isJust (cip30Wallet w) =
-    map Just <$> QueryM.getWalletCollateral <#>
-      note (GetWalletCollateralError' CouldNotGetCollateral)
-  selectCollateral (Just (KeyWallet kw)) =
+    :: Wallet
+    -> QueryM (Either GetWalletCollateralError (Array TransactionUnspentOutput))
+  selectCollateral (KeyWallet keyWallet) =
     -- TODO: Combine with getWalletCollateral and supply with fee estimate
     -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/510
-    Right <<< map pure <$> (unwrap kw).selectCollateral <$> filterLockedUtxos
-      utxos
-  selectCollateral _ =
-    pure (Right Nothing)
+    (unwrap keyWallet).selectCollateral <$> filterLockedUtxos utxos
+      <#> note CouldNotGetCollateral <<< map Array.singleton
+  selectCollateral wallet
+    | isJust (cip30Wallet wallet) =
+        QueryM.getWalletCollateral <#> note CouldNotGetCollateral
+    | otherwise =
+        pure $ Left $ CannotRequestCollateralForWallet Impossible
 
 addTxCollateral :: Array TransactionUnspentOutput -> Transaction -> Transaction
 addTxCollateral utxos transaction =
@@ -504,12 +507,18 @@ balanceTxWithAddress
     -- Get own wallet address, collateral and utxo set:
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
+
     -- After adding collateral, we need to balance the inputs and
     -- non-Ada outputs before looping, i.e. we need to add input fees
     -- for the Ada only collateral. No MinUtxos required. Perhaps
     -- for some wallets this step can be skipped and we can go straight
     -- to prebalancer.
-    unbalancedCollTx <- ExceptT $ setCollateral unbalancedTx' utxos
+    unbalancedCollTx <-
+      if Array.null (unattachedTx ^. _redeemersTxIns)
+      -- Don't set collateral if tx doesn't contain phase-2 scripts:
+      then pure unbalancedTx'
+      else ExceptT $ setCollateral unbalancedTx' utxos
+        <#> lmap GetWalletCollateralError'
 
     let
       -- Combines utxos at the user address and those from any scripts
