@@ -8,7 +8,7 @@ ps-sources := $(shell fd -epurs)
 nix-sources := $(shell fd -enix --exclude='spago*')
 hs-sources := $(shell fd . './server/src' './server/exe' -ehs)
 js-sources := $(shell fd -ejs)
-ps-entrypoint := Examples.MintsMultipleTokens
+ps-entrypoint := Examples.AlwaysSucceeds
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 
 node-ipc = $(shell docker volume inspect cardano-transaction-lib_node-ipc | jq -r '.[0].Mountpoint')
