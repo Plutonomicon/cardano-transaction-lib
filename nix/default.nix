@@ -59,13 +59,28 @@ let
 
   projectNodeModules = mkNodeModules { };
 
+  # Constructs a development environment containing various tools to work on
+  # Purescript projects. The resulting derivation can be used as a `devShell` in
+  # your flake outputs
+  #
+  # All arguments are optional
   shellFor =
-    { packages ? [ ]
+    {
+      # Extra packages to include in the shell environment
+      packages ? [ ]
+      # Passed through to `pkgs.mkShell.inputsFrom`
     , inputsFrom ? [ ]
+      # Passed through to `pkgs.mkShell.shellHook`
     , shellHook ? ""
+      # One of `purs-tidy` or `purty` to format Purescript sources
     , formatter ? "purs-tidy"
+      # Whether or not to include `purescript-language-server`
     , pursls ? true
+      # Generated `node_modules` in the Nix store. Can be passed to have better
+      # control over individual project components
     , nodeModules ? projectNodeModules
+      # If `true`, `npm i` will only write to your `package-lock.json` instead
+      # of installing to a local `node_modules`
     , packageLockOnly ? false
     }:
       assert pkgs.lib.assertOneOf "formatter" formatter [ "purs-tidy" "purty" ];
@@ -92,8 +107,16 @@ let
         + shellHook;
       };
 
+  # Compiles your Purescript project and copies the `output` directory into the
+  # Nix store. Also copies the local sources to be made available later as `purs`
+  # does not include any external files to its `output` (if we attempted to refer
+  # to absolute paths from the project-wide `src` argument, they would be wrong)
   buildPursProject =
-    { name ? projectName
+    {
+      # Can be used to override the name given to the resulting derivation
+      name ? projectName
+      # Generated `node_modules` in the Nix store. Can be passed to have better
+      # control over individual project components
     , nodeModules ? projectNodeModules
     , ...
     }:
@@ -141,11 +164,20 @@ let
 
   project = buildPursProject { };
 
+  # Runs a test written in Purescript using NodeJS.
   runPursTest =
-    { testMain ? "Test.Main"
+    {
+      # The name of the main Purescript module
+      testMain ? "Test.Main"
+      # Can be used to override the name of the resulting derivation
     , name ? "${projectName}-check"
+      # Generated `node_modules` in the Nix store. Can be passed to have better
+      # control over individual project components
     , nodeModules ? projectNodeModules
+      # Additional variables to pass to the test environment
     , env ? { }
+      # Passed through to the `buildInputs` of the derivation. Use this to add
+      # additional packages to the test environment
     , buildInputs ? [ ]
     , ...
     }: pkgs.runCommand "${name}"
@@ -164,6 +196,16 @@ let
         touch $out
       '';
 
+  # Runs a test using Plutip. Takes the same arguments as `runPursTest`
+  #
+  # NOTE: You *must* either use CTL's `overlays.runtime` or otherwise make the
+  # the following required `buildInputs` available in your own package set:
+  #
+  #  - `ogmios`
+  #  - `ogmios-datum-cache`
+  #  - `plutip-server`
+  #  - `ctl-server`
+  #
   runPlutipTest = args: runPursTest (
     {
       buildInputs = with pkgs; [
@@ -176,14 +218,24 @@ let
     } // args
   );
 
+  # Bundles a Purescript project using Webpack, typically for the browser
   bundlePursProject =
-    { name ? "${projectName}-bundle-" +
+    {
+      # Can be used to override the name given to the resulting derivation
+      name ? "${projectName}-bundle-" +
         (if browserRuntime then "web" else "nodejs")
+      # The Webpack `entrypoint`
     , entrypoint ? "index.js"
+      # The main Purescript module
     , main ? "Main"
+      # If this bundle is being produced for a browser environment or not
     , browserRuntime ? true
+      # Path to the Webpack config to use
     , webpackConfig ? "webpack.config.js"
+      # The name of the bundled JS module that `spago bundle-module` will produce
     , bundledModuleName ? "output.js"
+      # Generated `node_modules` in the Nix store. Can be passed to have better
+      # control over individual project components
     , nodeModules ? projectNodeModules
     , ...
     }: pkgs.runCommand "${name}"
@@ -269,7 +321,14 @@ let
         '';
       });
 
-  buildSearchablePursDocs = { packageName ? projectName, ... }:
+  # Builds all of the documentation for your Purescript project (including deps)
+  # and creates a searchable index for them
+  buildSearchablePursDocs =
+    {
+      # Passed to the `--package-name` argument of `purescript-docs-search`
+      packageName ? projectName
+    , ...
+    }:
     pkgs.runCommand "${projectName}-searchable-docs"
       {
         buildInputs = [ spagoPkgs.installSpagoStyle ];
@@ -285,7 +344,24 @@ let
         cp -r generated-docs $out
       '';
 
-  launchSearchablePursDocs = { builtDocs ? null, ... }:
+  # Creates a flakes-compatible `apps` output which can be invoked with
+  # `nix run`, e.g.
+  #
+  # ```
+  #   apps = perSystem (system: {
+  #     docs = (psProjectFor system).launchSearchablePursDocs { };
+  #   });
+  # ```
+  #
+  # You can then invke `nix run .#docs` to serve the documentation index locally
+  launchSearchablePursDocs =
+    {
+      # If you are already building your docs (e.g. as part of your flake
+      # `packages`), you can pass them here. Otherwise, `buildSearchablePursDocs`
+      # will be invoked
+      builtDocs ? null
+    , ...
+    }:
     let
       binPath = "docs-server";
       docs =
