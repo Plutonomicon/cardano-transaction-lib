@@ -344,22 +344,25 @@ let
         cp -r generated-docs $out
       '';
 
-  # Creates a flakes-compatible `apps` output which can be invoked with
-  # `nix run`, e.g.
+  # Creates a flakes-compatible `apps` output to serve a searchable index of all
+  # project docs (including dependencies) locally. For example
   #
   # ```
   #   apps = perSystem (system: {
-  #     docs = (psProjectFor system).launchSearchablePursDocs { };
+  #     docs = (psProjectFor system).launchSearchablePursDocs { port = 9090; };
   #   });
   # ```
   #
-  # You can then invke `nix run .#docs` to serve the documentation index locally
+  # You can then invoke `nix run .#docs` to serve the documentation index locally
+  # and visit `localhost:9090` to browse them
   launchSearchablePursDocs =
     {
       # If you are already building your docs (e.g. as part of your flake
       # `packages`), you can pass them here. Otherwise, `buildSearchablePursDocs`
       # will be invoked
       builtDocs ? null
+      # The port to run the local HTTP server on
+    , port ? 8080
     , ...
     }:
     let
@@ -377,7 +380,7 @@ let
         text =
           ''
             ${pkgs.nodePackages.http-server}/bin/http-server \
-              ${docs}/generated-docs/html
+              --port ${builtins.toString port} ${docs}/generated-docs/html
           '';
       };
     in
