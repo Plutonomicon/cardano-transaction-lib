@@ -24,7 +24,7 @@ CTL exposes two `overlay`s from its flake. You can use these in the Nix setup of
 
 We've split the overlays into two components to allow users to more easily choose which parts of CTL's Nix infrastructure they would like to directly consume. For example, some users do not require a pre-packaged runtime and would prefer to build it themselves with more control over its components (e.g. by directly using `ogmios` from their own `inputs`). Such users might still like to use our `purescript` overlay -- splitting the `overlays` allows us to support this. `overlays.runtime` also contains several haskell.nix packages which may cause issues with `hackage.nix` versions in your own project.
 
-Do note that `runPlutipTest` in `overlays.purescript` requires the presence of all of our runtime components. If you choose not to consume `overlays.runtime`, please ensure that your package set contains these (e.g. by adding them to your own `overlays` when instantiating `nixpkgs`).
+Do note that `runPlutipTest` in `overlays.purescript` requires the presence of all of our runtime components. If you choose not to consume `overlays.runtime`, please ensure that your package set contains these (e.g. by adding them to your own `overlays` when instantiating `nixpkgs`). You can find a complete list of the required runtime services [here](./plutip-testing.md#architecture).
 
 To see an example project that uses both `overlays`, please refer to our [scaffolding template](../templates/ctl-scaffold/flake.nix). You can also use this template to conveniently initialize a new CTL-based project (`nix flake init -t github:Plutonomicon/cardano-transaction-lib` in a new directory).
 
