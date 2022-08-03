@@ -4,6 +4,7 @@ import Prelude
 
 import Effect (Effect)
 import Effect.Aff (launchAff_)
+import Test.Base64 as Base64
 import Test.ByteArray as ByteArray
 import Test.Data as Data
 import Test.Deserialization as Deserialization
@@ -33,6 +34,7 @@ main = launchAff_ do
 
 testPlan :: TestPlanM Unit
 testPlan = do
+  Base64.suite
   ByteArray.suite
   Cip25.suite
   Data.suite

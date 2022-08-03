@@ -22,6 +22,7 @@
   "dependencies": {
     "@emurgo/cardano-serialization-lib-browser": "11.0.0",
     "@emurgo/cardano-serialization-lib-nodejs": "11.0.0",
+    "base64-js": "^1.5.1",
     "big-integer": "1.6.51",
     "blake2b-wasm": "2.4.0",
     "bufferutil": "4.0.5",
