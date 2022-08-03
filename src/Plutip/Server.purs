@@ -22,6 +22,7 @@ import Contract.Monad
   , runContractInEnv
   )
 import Control.Monad.Error.Class (withResource)
+import Data.Array (foldr, length)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt as BigInt
@@ -65,12 +66,14 @@ import Plutip.Types
   ( class UtxoDistribution
   , ClusterStartupParameters
   , ClusterStartupRequest(ClusterStartupRequest)
+  , InitialUTxO
   , PlutipConfig
   , PostgresConfig
   , PrivateKeyResponse(PrivateKeyResponse)
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
+  , InitialUTxODistribution
   , decodeWallets
   , encodeDistribution
   , keyWallets
@@ -127,26 +130,9 @@ withPlutipContractEnv plutipCfg distr cont = do
 
   withPlutipCluster
     :: ((PrivatePaymentKey /\ ClusterStartupParameters) -> Aff a) -> Aff a
-  withPlutipCluster cc = withResource
-    ( startPlutipCluster plutipCfg
-        ( [ BigInt.fromInt 1_000_000_000, BigInt.fromInt 1_000_000_000 ] /\
-            distr
-        )
-    )
+  withPlutipCluster = withResource
+    (startPlutipCluster plutipCfg distr)
     (const $ void $ stopPlutipCluster plutipCfg)
-    case _ of
-      ClusterStartupFailure _ -> do
-        liftEffect $ throw "Failed to start up cluster"
-      ClusterStartupSuccess response@{ privateKeys } ->
-        case Array.uncons privateKeys of
-          Nothing ->
-            liftEffect $ throw $
-              "Impossible happened: insufficient private keys provided by plutip. Please report as bug."
-          Just { head: PrivateKeyResponse ourKey, tail } ->
-            cc
-              ( PrivatePaymentKey ourKey /\
-                  (response { privateKeys = tail })
-              )
 
   withPostgres :: ClusterStartupParameters -> Aff a -> Aff a
   withPostgres response =
@@ -214,14 +200,24 @@ configCheck cfg = do
   printServiceEntry (port /\ service) =
     "- " <> service <> " (port: " <> show (UInt.toInt port) <> ")\n"
 
+-- | Start the plutip cluster, initializing the state with the given
+-- | utxo distribution. Also initializes an extra payment key (aka
+-- | `ourKey`) with some utxos for use with further plutip
+-- | setup. `ourKey` has funds proportional to the number of utxos in
+-- | the passed distribution, so it can be used to handle transaction
+-- | fees.
 startPlutipCluster
   :: forall (distr :: Type) (wallets :: Type)
    . UtxoDistribution distr wallets
   => PlutipConfig
   -> distr
-  -> Aff StartClusterResponse
+  -> Aff (PrivatePaymentKey /\ ClusterStartupParameters)
 startPlutipCluster cfg utxoDistribution = do
-  let url = mkServerEndpointUrl cfg "start"
+  let
+    url = mkServerEndpointUrl cfg "start"
+    initialDistribution = encodeDistribution $
+      ourInitialUtxos (encodeDistribution utxoDistribution) /\
+        utxoDistribution
   res <- do
     response <- liftAff
       ( Affjax.request
@@ -231,7 +227,7 @@ startPlutipCluster cfg utxoDistribution = do
                 $ stringifyAeson
                 $ encodeAeson
                 $ ClusterStartupRequest
-                    { keysToGenerate: encodeDistribution utxoDistribution }
+                    { keysToGenerate: initialDistribution }
             , responseFormat = Affjax.ResponseFormat.string
             , headers = [ Header.ContentType (wrap "application/json") ]
             , url = url
@@ -244,7 +240,33 @@ startPlutipCluster cfg utxoDistribution = do
           <<< (decodeAeson <=< parseJsonStringToAeson)
           <<< _.body
       )
-  either (liftEffect <<< throw <<< show) pure res
+  either (liftEffect <<< throw <<< show) pure res >>=
+    case _ of
+      ClusterStartupFailure _ -> do
+        liftEffect $ throw "Failed to start up cluster"
+      ClusterStartupSuccess response@{ privateKeys } ->
+        case Array.uncons privateKeys of
+          Nothing ->
+            liftEffect $ throw $
+              "Impossible happened: insufficient private keys provided by plutip. Please report as bug."
+          Just { head: PrivateKeyResponse ourKey, tail } ->
+            pure $ PrivatePaymentKey ourKey /\ response { privateKeys = tail }
+
+-- | Calculate the initial utxos needed for `ourKey` to cover
+-- | transaction costs for the given initial distribution
+ourInitialUtxos :: InitialUTxODistribution -> InitialUTxO
+ourInitialUtxos utxoDistribution =
+  let
+    numUtxos = foldr (length >>> add) 0 utxoDistribution
+  in
+    [ -- For each utxo, include an excessive amount of ada to cover
+      -- the transaction fees of including that utxo. Also make sure
+      -- we don't request a 0 ada utxo
+      BigInt.fromInt 1_000_000_000 +
+        (BigInt.fromInt numUtxos * BigInt.fromInt 1_000_000_000)
+    , -- In case a collateral utxo is needed
+      BigInt.fromInt 1_000_000_000
+    ]
 
 stopPlutipCluster :: PlutipConfig -> Aff StopClusterResponse
 stopPlutipCluster cfg = do

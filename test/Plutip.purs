@@ -54,6 +54,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse_)
+import Data.Tuple (snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt as UInt
 import Effect (Effect)
@@ -76,11 +77,7 @@ import Plutip.Server
   , stopChildProcessWithPort
   , stopPlutipCluster
   )
-import Plutip.Types
-  ( PlutipConfig
-  , StartClusterResponse(ClusterStartupSuccess)
-  , StopClusterResponse(StopClusterSuccess)
-  )
+import Plutip.Types (PlutipConfig, StopClusterResponse(StopClusterSuccess))
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 import Test.Utils as Utils
@@ -136,10 +133,9 @@ suite = do
       withResource (startPlutipServer config)
         (stopChildProcessWithPort config.port) $ const do
         startRes <- startPlutipCluster config unit
-        startRes `shouldSatisfy` case _ of
-          ClusterStartupSuccess _ -> true
-          _ -> false
-        liftEffect $ Console.log $ "startPlutipCluster: " <> show startRes
+        liftEffect $ Console.log $ "startPlutipCluster: "
+          <> "<ourKey> /\\ "
+          <> show (snd startRes)
         stopRes <- stopPlutipCluster config
         stopRes `shouldSatisfy` case _ of
           StopClusterSuccess -> true
