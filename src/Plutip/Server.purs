@@ -4,7 +4,7 @@ module Plutip.Server
   , startPlutipCluster
   , stopPlutipCluster
   , startPlutipServer
-  , stopChildProcess
+  , stopChildProcessWithPort
   ) where
 
 import Prelude
@@ -111,7 +111,8 @@ withPlutipContractEnv plutipCfg distr cont = do
   where
   withPlutipServer :: Aff a -> Aff a
   withPlutipServer =
-    withResource (startPlutipServer plutipCfg) stopChildProcess <<< const
+    withResource (startPlutipServer plutipCfg)
+      (stopChildProcessWithPort plutipCfg.port) <<< const
 
   withPlutipCluster :: (ClusterStartupParameters -> Aff a) -> Aff a
   withPlutipCluster cc = withResource (startPlutipCluster plutipCfg distr)
@@ -125,21 +126,22 @@ withPlutipContractEnv plutipCfg distr cont = do
   withPostgres :: ClusterStartupParameters -> Aff a -> Aff a
   withPostgres response =
     withResource (startPostgresServer plutipCfg.postgresConfig response)
-      (stopPostgresServer plutipCfg.postgresConfig.port) <<< const
+      (stopChildProcessWithPort plutipCfg.postgresConfig.port) <<< const
 
   withOgmios :: ClusterStartupParameters -> Aff a -> Aff a
   withOgmios response =
-    withResource (startOgmios plutipCfg response) stopChildProcess <<< const
+    withResource (startOgmios plutipCfg response)
+      (stopChildProcessWithPort plutipCfg.ogmiosConfig.port) <<< const
 
   withOgmiosDatumCache :: ClusterStartupParameters -> Aff a -> Aff a
   withOgmiosDatumCache response =
     withResource (startOgmiosDatumCache plutipCfg response)
-      stopChildProcess <<< const
+      (stopChildProcessWithPort plutipCfg.ogmiosDatumCacheConfig.port) <<< const
 
   withCtlServer :: Aff a -> Aff a
   withCtlServer =
     withResource (startCtlServer plutipCfg)
-      stopChildProcess <<< const
+      (stopChildProcessWithPort plutipCfg.ctlServerConfig.port) <<< const
 
   withWallets :: ClusterStartupParameters -> (wallets -> Aff a) -> Aff a
   withWallets response cc = case decodeWallets response.privateKeys of
@@ -326,9 +328,9 @@ startPostgresServer pgConfig _ = do
     defaultExecSyncOptions
   pure pgChildProcess
 
--- | Kill postgres and wait for it to stop listening
-stopPostgresServer :: UInt -> ChildProcess -> Aff Unit
-stopPostgresServer port childProcess = do
+-- | Kill a process and wait for it to stop listening on a specific port.
+stopChildProcessWithPort :: UInt -> ChildProcess -> Aff Unit
+stopChildProcessWithPort port childProcess = do
   stopChildProcess childProcess
   void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
     \_ -> do
