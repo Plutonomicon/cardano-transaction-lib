@@ -113,7 +113,12 @@ Here is an example that uses the `runtime` overlay to launch all of the required
         # values. If you need even more customization, you can use `overideAttrs`
         # to change the values after calling `buildCtlRuntime` (e.g. a secrets
         # volume for the `postgres` service)
-        node = { port = 3001; };
+        node = {
+          port = 3001;
+          # the version of the node to use, corresponds to the image version tag,
+          # # i.e. `"inputoutput/cardano-node:${tag}"`
+          tag = "1.35.2";
+        };
         ogmios = { port = 1337; };
         ctlServer = { port = 8081; };
         postgres = {

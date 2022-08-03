@@ -6,7 +6,12 @@ rec {
       name = "testnet";
       magic = 1097911063; # use `null` for mainnet
     };
-    node = { port = 3001; };
+    node = {
+      port = 3001;
+      # the version of the node to use, corresponds to the image version tag,
+      # i.e. `"inputoutput/cardano-node:${tag}"`
+      tag = "1.35.2";
+    };
     ogmios = { port = 1337; };
     ctlServer = { port = 8081; };
     postgres = {
@@ -74,9 +79,15 @@ rec {
     let
       inherit (builtins) toString;
       config = with pkgs.lib;
-        fix (final: recursiveUpdate
-          (defaultConfig final)
-          (if isFunction extraConfig then extraConfig final else extraConfig));
+        fix (final:
+          recursiveUpdate
+            (defaultConfig final)
+            (
+              if isFunction extraConfig
+              then extraConfig final
+              else extraConfig
+            )
+        );
       nodeDbVol = "node-${config.network.name}-db";
       nodeIpcVol = "node-${config.network.name}-ipc";
       nodeSocketPath = "/ipc/node.socket";
@@ -85,7 +96,7 @@ rec {
       defaultServices = with config; {
         cardano-node = {
           service = {
-            image = "inputoutput/cardano-node:1.35.2";
+            image = "inputoutput/cardano-node:${node.tag}";
             ports = [ (bindPort node.port) ];
             volumes = [
               "${config.cardano-configurations}/network/${config.network.name}/cardano-node:/config"
