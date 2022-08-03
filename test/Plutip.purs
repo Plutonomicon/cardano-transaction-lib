@@ -68,11 +68,11 @@ import Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
-import Mote (group, skip, test)
+import Mote (group, test)
 import Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
-  , stopChildProcess
+  , stopChildProcessWithPort
   , stopPlutipCluster
   )
 import Plutip.Types
@@ -132,7 +132,8 @@ suite :: TestPlanM Unit
 suite = do
   group "Plutip" do
     test "startPlutipCluster / stopPlutipCluster" do
-      withResource (startPlutipServer config) stopChildProcess $ const do
+      withResource (startPlutipServer config)
+        (stopChildProcessWithPort config.port) $ const do
         startRes <- startPlutipCluster config unit
         startRes `shouldSatisfy` case _ of
           ClusterStartupSuccess _ -> true
@@ -359,7 +360,7 @@ suite = do
           unless (locked # Map.isEmpty) do
             liftEffect $ throw "locked inputs map is not empty"
 
-    skip $ test "runPlutipContract: AlwaysSucceeds" do
+    test "runPlutipContract: AlwaysSucceeds" do
       let
         distribution :: InitialUTxO
         distribution =
