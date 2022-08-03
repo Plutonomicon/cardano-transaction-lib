@@ -349,6 +349,10 @@
           default = self.apps.${system}.ctl-runtime;
         });
 
+      # TODO
+      # Add a check that attempts to verify if the scaffolding template is
+      # reasonably up-to-date. See:
+      # https://github.com/Plutonomicon/cardano-transaction-lib/issues/839
       checks = perSystem (system:
         let
           pkgs = nixpkgsFor system;
