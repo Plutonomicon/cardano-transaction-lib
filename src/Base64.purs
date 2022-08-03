@@ -12,7 +12,7 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
-  , JsonDecodeError(..)
+  , JsonDecodeError(TypeMismatch)
   , decodeAeson
   )
 import Data.Either (Either(Left))
