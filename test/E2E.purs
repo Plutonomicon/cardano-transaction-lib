@@ -23,7 +23,7 @@ import TestM (TestPlanM)
 main :: Effect Unit
 main = launchAff_ $ do
   options <- liftEffect parseOptions
-  Utils.interpret'
+  Utils.interpretWithConfig
     (SpecRunner.defaultConfig { timeout = pure $ wrap 500_000.0 })
     (testPlan options)
 

@@ -34,7 +34,6 @@ import Control.Monad.Error.Class
   , catchError
   )
 import Control.Monad.Logger.Class (class MonadLogger)
-import Control.Monad.Logger.Trans (runLoggerT)
 import Control.Monad.Reader.Class
   ( class MonadAsk
   , class MonadReader
@@ -66,7 +65,6 @@ import Effect.Aff (Aff, launchAff_) as Aff
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
-import Helpers (logWithLevel)
 import Prim.TypeError (class Warn, Text)
 import QueryM
   ( DatumCacheListeners
@@ -233,12 +231,9 @@ runContractInEnv
   -> Contract r a
   -> Aff a
 runContractInEnv config =
-  flip runLoggerT printLog
-    <<< flip runReaderT (unwrap config)
+  flip runReaderT (unwrap config)
     <<< unwrap
-  where
-  printLog :: Message -> Aff Unit
-  printLog = logWithLevel (unwrap config).config.logLevel
+    <<< unwrap
 
 -- | Initializes a `Contract` environment. Does not ensure finalization.
 -- | Consider using `withContractEnv` if possible - otherwise use
