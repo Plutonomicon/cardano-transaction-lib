@@ -37,6 +37,7 @@ import Contract.Transaction
   , awaitTxConfirmed
   , balanceAndSignTx
   , balanceAndSignTxE
+  , getTxByHash
   , submit
   , withBalancedAndSignedTxs
   )
@@ -50,7 +51,7 @@ import Control.Parallel (parallel, sequential)
 import Data.BigInt as BigInt
 import Data.Log.Level (LogLevel(Trace))
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -383,6 +384,13 @@ submitAndLog
 submitAndLog bsTx = do
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
+  awaitTxConfirmed txId
+  mbTransaction <- getTxByHash txId
+  logInfo' $ "Tx: " <> show mbTransaction
+  liftEffect $ when (isNothing mbTransaction) do
+    void $ throw "Unable to get Tx contents"
+    when (mbTransaction /= Just (unwrap bsTx)) do
+      throw "Tx contents do not match"
 
 getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
 getLockedInputs = do
