@@ -17,7 +17,9 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
 import Contract.Monad (Contract, ContractEnv(ContractEnv), runContractInEnv)
 import Control.Monad.Error.Class (withResource)
+import Data.Array as Array
 import Data.Bifunctor (lmap)
+import Data.BigInt as BigInt
 import Data.Either (Either(Left), either)
 import Data.HTTP.Method as Method
 import Data.Maybe (Maybe(Just, Nothing), maybe)
@@ -25,6 +27,7 @@ import Data.Newtype (unwrap, wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Aff (Aff, Milliseconds(Milliseconds))
@@ -56,6 +59,7 @@ import Plutip.Types
   , ClusterStartupRequest(ClusterStartupRequest)
   , PlutipConfig
   , PostgresConfig
+  , PrivateKeyResponse(..)
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
@@ -71,6 +75,7 @@ import QueryM as QueryM
 import QueryM.ProtocolParameters as Ogmios
 import QueryM.UniqueId (uniqueId)
 import Types.UsedTxOuts (newUsedTxOuts)
+import Wallet.Key (PrivatePaymentKey(..))
 
 -- | Run a single `Contract` in Plutip environment.
 runPlutipContract
@@ -95,26 +100,40 @@ withPlutipContractEnv
   -> Aff a
 withPlutipContractEnv plutipCfg distr cont =
   withPlutipServer $
-    withPlutipCluster \response ->
-      withWallets response \wallets ->
-        withPostgres response
-          $ withOgmios response
-          $ withOgmiosDatumCache response
-          $ withCtlServer
-          $ withContractEnv (flip cont wallets)
+    withPlutipCluster \(ourKey /\ response) ->
+      withPostgres response
+        $ withOgmios response
+        $ withOgmiosDatumCache response
+        $ withCtlServer
+        $ withContractEnv \env ->
+            withWallets env ourKey response (cont env)
   where
   withPlutipServer :: Aff a -> Aff a
   withPlutipServer =
     withResource (startPlutipServer plutipCfg) stopChildProcess <<< const
 
-  withPlutipCluster :: (ClusterStartupParameters -> Aff a) -> Aff a
-  withPlutipCluster cc = withResource (startPlutipCluster plutipCfg distr)
+  withPlutipCluster
+    :: ((PrivatePaymentKey /\ ClusterStartupParameters) -> Aff a) -> Aff a
+  withPlutipCluster cc = withResource
+    ( startPlutipCluster plutipCfg
+        ( [ BigInt.fromInt 1_000_000_000, BigInt.fromInt 1_000_000_000 ] /\
+            distr
+        )
+    )
     (const $ void $ stopPlutipCluster plutipCfg)
     case _ of
       ClusterStartupFailure _ -> do
         liftEffect $ throw "Failed to start up cluster"
-      ClusterStartupSuccess response -> do
-        cc response
+      ClusterStartupSuccess response@{ privateKeys } ->
+        case Array.uncons privateKeys of
+          Nothing ->
+            liftEffect $ throw $
+              "Impossible happened: insufficient private keys provided by plutip. Please report as bug."
+          Just { head: PrivateKeyResponse ourKey, tail } ->
+            cc
+              ( PrivatePaymentKey ourKey /\
+                  (response { privateKeys = tail })
+              )
 
   withPostgres :: ClusterStartupParameters -> Aff a -> Aff a
   withPostgres response =
@@ -135,12 +154,16 @@ withPlutipContractEnv plutipCfg distr cont =
     withResource (startCtlServer plutipCfg)
       stopChildProcess <<< const
 
-  withWallets :: ClusterStartupParameters -> (wallets -> Aff a) -> Aff a
-  withWallets response cc = case decodeWallets distr response.privateKeys of
-    Nothing ->
-      liftEffect $ throw $ "Impossible happened: unable to decode" <>
-        " wallets from private keys. Please report as bug."
-    Just wallets -> cc wallets
+  withWallets
+    :: ContractEnv ()
+    -> PrivatePaymentKey
+    -> ClusterStartupParameters
+    -> (wallets -> Aff a)
+    -> Aff a
+  withWallets env ourKey response cc = do
+    wallets <- runContractInEnv env $ decodeWallets ourKey distr
+      response.privateKeys
+    cc wallets
 
   withContractEnv :: (ContractEnv () -> Aff a) -> Aff a
   withContractEnv = withResource (mkClusterContractEnv plutipCfg)
