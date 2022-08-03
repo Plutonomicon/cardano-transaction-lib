@@ -16,7 +16,12 @@ import Cardano.Types.Transaction
 import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
-import Cardano.Types.Value (NonAdaAsset(NonAdaAsset), Value(Value), mkCoin)
+import Cardano.Types.Value
+  ( NonAdaAsset
+  , Value(Value)
+  , mkCoin
+  , unwrapNonAdaAsset
+  )
 import Contract.Prelude (class Newtype)
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.Lens (set)
@@ -93,8 +98,8 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
     \input output ->
       let
         txuo = AdaOut $ TransactionUnspentOutput { input, output }
-        Value ada (NonAdaAsset naa) = _value txuo
-        onlyAda = all (all ((==) zero)) naa
+        Value ada naa = _value txuo
+        onlyAda = all (all ((==) zero)) (unwrapNonAdaAsset naa)
         bigAda = ada >= mkCoin 5_000_000
       in
         if onlyAda && bigAda then Just $ Min txuo

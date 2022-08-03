@@ -1,7 +1,7 @@
 module Cardano.Types.Value
   ( Coin(Coin)
   , CurrencySymbol
-  , NonAdaAsset(NonAdaAsset)
+  , NonAdaAsset
   , Value(Value)
   , class Negate
   , class Split
@@ -9,6 +9,7 @@ module Cardano.Types.Value
   , currencyMPSHash
   , eq
   , filterNonAda
+  , flattenNonAdaValue
   , geq
   , getCurrencySymbol
   , getLovelace
@@ -22,7 +23,6 @@ module Cardano.Types.Value
   , lovelaceValueOf
   , lt
   , minus
-  , minusNonZero
   , mkCoin
   , mkCurrencySymbol
   , mkNonAdaAsset
@@ -43,6 +43,7 @@ module Cardano.Types.Value
   , scriptHashAsCurrencySymbol
   , unionWith
   , unionWithNonAda
+  , unwrapNonAdaAsset
   , valueOf
   , valueToCoin
   , valueToCoin'
@@ -236,7 +237,6 @@ mkUnsafeAdaSymbol byteArr =
 
 newtype NonAdaAsset = NonAdaAsset (Map CurrencySymbol (Map TokenName BigInt))
 
-derive instance Newtype NonAdaAsset _
 derive newtype instance Eq NonAdaAsset
 
 instance Show NonAdaAsset where
@@ -255,7 +255,7 @@ instance MeetSemilattice NonAdaAsset where
   meet = unionWithNonAda min
 
 instance Negate NonAdaAsset where
-  negation = wrap <<< map (map negate) <<< unwrap
+  negation = NonAdaAsset <<< map (map negate) <<< unwrapNonAdaAsset
 
 instance Split NonAdaAsset where
   split (NonAdaAsset mp) = NonAdaAsset npos /\ NonAdaAsset pos
@@ -273,6 +273,9 @@ instance Split NonAdaAsset where
 instance EncodeAeson NonAdaAsset where
   encodeAeson' (NonAdaAsset m) = encodeAeson' $ encodeMap $ encodeMap <$> m
 
+unwrapNonAdaAsset :: NonAdaAsset -> Map CurrencySymbol (Map TokenName BigInt)
+unwrapNonAdaAsset (NonAdaAsset mp) = mp
+
 -- We shouldn't need this check if we don't export unsafeAdaSymbol etc.
 -- | Create a singleton `NonAdaAsset` which by definition should be safe since
 -- | `CurrencySymbol` and `TokenName` are safe
@@ -281,15 +284,16 @@ mkSingletonNonAdaAsset
   -> TokenName
   -> BigInt
   -> NonAdaAsset
-mkSingletonNonAdaAsset curSymbol tokenName amount =
-  NonAdaAsset $ Map.singleton curSymbol $ Map.singleton tokenName amount
+mkSingletonNonAdaAsset curSymbol tokenName amount
+  | amount == zero = mempty
+  | otherwise =
+      NonAdaAsset $ Map.singleton curSymbol $ Map.singleton tokenName amount
 
 -- Assume all CurrencySymbol are well-formed at this point, since they come from
 -- mkCurrencySymbol and mkTokenName.
--- | Given the relevant map, create a `NonAdaAsset`. The map should be constructed
--- | safely by definition
+-- | Given the relevant map, create a normalized `NonAdaAsset`.
 mkNonAdaAsset :: Map CurrencySymbol (Map TokenName BigInt) -> NonAdaAsset
-mkNonAdaAsset = NonAdaAsset
+mkNonAdaAsset = normalizeNonAdaAsset <<< NonAdaAsset
 
 mkNonAdaAssetsFromTokenMap'
   :: forall (t :: Type -> Type)
@@ -406,6 +410,12 @@ mkSingletonValue' curSymbol tokenName amount = do
 --------------------------------------------------------------------------------
 -- Helpers
 --------------------------------------------------------------------------------
+
+-- | Normalize `NonAdaAsset` so that it doesn't contain zero-valued tokens.
+normalizeNonAdaAsset :: NonAdaAsset -> NonAdaAsset
+normalizeNonAdaAsset (NonAdaAsset mp) =
+  NonAdaAsset $ Map.filter (not Map.isEmpty) $ Map.filter (notEq zero) <$> mp
+
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-tx/html/src/PlutusTx.AssocMap.html#union
 -- | Combine two `Map`s.
 union :: ∀ k v r. Ord k => Map k v -> Map k r -> Map k (These v r)
@@ -456,7 +466,7 @@ unionNonAda (NonAdaAsset l) (NonAdaAsset r) =
   in
     unBoth <$> combined
 
--- Don't export to `Contract` due to https://github.com/Plutonomicon/cardano-transaction-lib/issues/193
+-- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#unionWith
 -- | Same as `unionWith` but specifically for `NonAdaAsset`
 unionWithNonAda
   :: (BigInt -> BigInt -> BigInt)
@@ -474,7 +484,8 @@ unionWithNonAda f ls rs =
       That b -> f zero b
       Both a b -> f a b
   in
-    NonAdaAsset $ map unBoth <$> combined
+    normalizeNonAdaAsset $
+      NonAdaAsset (map unBoth <$> combined)
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#unionWith
 -- | Combines `Value` with a binary function on `BigInt`s.
@@ -521,10 +532,6 @@ isAdaOnly v =
       cs == unsafeAdaSymbol &&
         tn == adaToken
     _ -> false
-
-minusNonZero :: Value -> Value -> Maybe Value
-minusNonZero x =
-  map fold <<< (traverse unflattenValue <<< unsafeFlattenValue) <=< minus x
 
 minus :: Value -> Value -> Maybe Value
 minus x y = do
