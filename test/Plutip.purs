@@ -37,6 +37,7 @@ import Contract.Transaction
   , awaitTxConfirmed
   , balanceAndSignTx
   , balanceAndSignTxE
+  , getTxByHash
   , submit
   , withBalancedAndSignedTxs
   )
@@ -50,7 +51,7 @@ import Control.Parallel (parallel, sequential)
 import Data.BigInt as BigInt
 import Data.Log.Level (LogLevel(Trace))
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -68,11 +69,11 @@ import Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
-import Mote (group, skip, test)
+import Mote (group, test)
 import Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
-  , stopChildProcess
+  , stopChildProcessWithPort
   , stopPlutipCluster
   )
 import Plutip.Types
@@ -132,7 +133,8 @@ suite :: TestPlanM Unit
 suite = do
   group "Plutip" do
     test "startPlutipCluster / stopPlutipCluster" do
-      withResource (startPlutipServer config) stopChildProcess $ const do
+      withResource (startPlutipServer config)
+        (stopChildProcessWithPort config.port) $ const do
         startRes <- startPlutipCluster config unit
         startRes `shouldSatisfy` case _ of
           ClusterStartupSuccess _ -> true
@@ -325,11 +327,8 @@ suite = do
       let
         distribution :: InitialUTxO
         distribution =
-          [ BigInt.fromInt 100_000_000
-          -- move this entry one position up in the list to reproduce the bug:
-          -- TODO:
-          -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/668
-          , BigInt.fromInt 5_000_000
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 100_000_000
           ]
       runPlutipContract config distribution \alice -> do
         withKeyWallet alice do
@@ -362,7 +361,7 @@ suite = do
           unless (locked # Map.isEmpty) do
             liftEffect $ throw "locked inputs map is not empty"
 
-    skip $ test "runPlutipContract: AlwaysSucceeds" do
+    test "runPlutipContract: AlwaysSucceeds" do
       let
         distribution :: InitialUTxO
         distribution =
@@ -385,6 +384,13 @@ submitAndLog
 submitAndLog bsTx = do
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
+  awaitTxConfirmed txId
+  mbTransaction <- getTxByHash txId
+  logInfo' $ "Tx: " <> show mbTransaction
+  liftEffect $ when (isNothing mbTransaction) do
+    void $ throw "Unable to get Tx contents"
+    when (mbTransaction /= Just (unwrap bsTx)) do
+      throw "Tx contents do not match"
 
 getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
 getLockedInputs = do
