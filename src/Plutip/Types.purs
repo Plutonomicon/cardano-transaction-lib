@@ -230,15 +230,8 @@ instance UtxoDistribution Unit Unit where
 
 instance UtxoDistribution InitialUTxO KeyWallet where
   encodeDistribution amounts = [ amounts ]
-  decodeWallets _ _ [ PrivateKeyResponse key ] =
-    pure $ privateKeysToKeyWallet (PrivatePaymentKey key) Nothing
+  decodeWallets ourKey _ [ key ] = decodeWallet ourKey key Nothing
   decodeWallets _ _ _ = wrongNumberPrivateKeysError
-
-instance
-  UtxoDistribution restSpec restWallets =>
-  UtxoDistribution (InitialUTxO /\ restSpec) (KeyWallet /\ restWallets) where
-  encodeDistribution = encodeDistributionRecurse
-  decodeWallets ourKey (distr /\ rest) = decodeWalletsRecurse ourKey distr rest
 
 instance UtxoDistribution InitialUTxOWithStakeKey KeyWallet where
   encodeDistribution (InitialUTxOWithStakeKey _ amounts) = [ amounts ]
@@ -247,38 +240,18 @@ instance UtxoDistribution InitialUTxOWithStakeKey KeyWallet where
   decodeWallets _ _ _ = wrongNumberPrivateKeysError
 
 instance
-  UtxoDistribution restSpec restWallets =>
-  UtxoDistribution (InitialUTxOWithStakeKey /\ restSpec)
-    (KeyWallet /\ restWallets) where
-  encodeDistribution = encodeDistributionRecurse
+  ( UtxoDistribution headSpec headWallets
+  , UtxoDistribution restSpec restWallets
+  ) =>
+  UtxoDistribution (headSpec /\ restSpec) (headWallets /\ restWallets) where
+  encodeDistribution (distr /\ rest) =
+    encodeDistribution distr <> encodeDistribution rest
   decodeWallets ourKey (distr /\ rest) =
-    decodeWalletsRecurse ourKey distr rest
-
-encodeDistributionRecurse
-  :: forall distr wallets restSpec restWallets
-   . UtxoDistribution distr wallets
-  => UtxoDistribution restSpec restWallets
-  => (distr /\ restSpec)
-  -> Array (Array UtxoAmount)
-encodeDistributionRecurse (distr /\ rest) =
-  encodeDistribution distr <> encodeDistribution rest
-
--- | Get a key wallet for the current distribution+PrivateKeyResponse
--- | pair, then recurse and combine
-decodeWalletsRecurse
-  :: forall distr restSpec restWallets
-   . UtxoDistribution distr KeyWallet
-  => UtxoDistribution restSpec restWallets
-  => PrivatePaymentKey
-  -> distr
-  -> restSpec
-  -> Array PrivateKeyResponse
-  -> Contract () (KeyWallet /\ restWallets)
-decodeWalletsRecurse ourKey distr rest = Array.uncons >>> case _ of
-  Nothing -> wrongNumberPrivateKeysError
-  Just { head, tail } -> do
-    wallet <- decodeWallets ourKey distr [ head ]
-    Tuple wallet <$> decodeWallets ourKey rest tail
+    Array.uncons >>> case _ of
+      Nothing -> wrongNumberPrivateKeysError
+      Just { head, tail } -> do
+        wallet <- decodeWallets ourKey distr [ head ]
+        Tuple wallet <$> decodeWallets ourKey rest tail
 
 -- | Get a wallet for a single private key response, and if a stake
 -- | key is provided for it, transfer the funds allocated by plutip to
@@ -291,10 +264,11 @@ decodeWallet
 decodeWallet ourKey (PrivateKeyResponse key) stake = do
   let
     paymentKey = PrivatePaymentKey key
-    payKeyOnlyWallet = privateKeysToKeyWallet paymentKey Nothing
-    ourWallet = privateKeysToKeyWallet ourKey Nothing
     wallet = privateKeysToKeyWallet paymentKey stake
-  when (isJust stake) $ withKeyWallet ourWallet do
+  when (isJust stake) do
+    let
+      ourWallet = privateKeysToKeyWallet ourKey Nothing
+      payKeyOnlyWallet = privateKeysToKeyWallet paymentKey Nothing
     payKeyOnlyAddr <- liftedM "Could not get address"
       $ withKeyWallet payKeyOnlyWallet getWalletAddress
     ourAddr <- liftedM "Could not get our address"
@@ -337,7 +311,8 @@ decodeWallet ourKey (PrivateKeyResponse key) stake = do
               (unwrap payKeyOnlyUtxos)
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     log $ show unbalancedTx
-    signedTx <- liftedE $ balanceAndSignTxE unbalancedTx
+    signedTx <- liftedE $ withKeyWallet ourWallet $
+      balanceAndSignTxE unbalancedTx
     signedTx' <- liftedM "Could not sign" $ withKeyWallet payKeyOnlyWallet $
       signTransaction (unwrap signedTx)
     txHash <- submit (wrap signedTx')
