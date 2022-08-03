@@ -14,6 +14,7 @@
     "integration-test": "spago run --main Test.Integration",
     "unit-test": "spago run --main Ctl.Test.Unit",
     "plutip-test": "spago run --main Test.Plutip",
+    "one-shot-test": "spago run --main Test.OneShot",
     "dev": "make run-dev",
     "build": "make run-build"
   },
