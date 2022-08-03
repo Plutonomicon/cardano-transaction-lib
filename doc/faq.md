@@ -1,5 +1,11 @@
 This document lists common problems encountered by CTL users and developers.
 
+# Bundling-related
+
+## lib.Something is not a function
+
+This is probably because npm is used directly. This is something users have reported when using `npm install` instead of having Nix manage the node dependencies (done automatically with `nix develop`, but if you have `node_modules` present in the working directory it will shadow the ones from the Nix store).
+
 # Time-related
 
 ## Q: Time-related functions behave strangely, what's the reason?
