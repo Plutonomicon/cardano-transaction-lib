@@ -326,11 +326,8 @@ suite = do
       let
         distribution :: InitialUTxO
         distribution =
-          [ BigInt.fromInt 100_000_000
-          -- move this entry one position up in the list to reproduce the bug:
-          -- TODO:
-          -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/668
-          , BigInt.fromInt 5_000_000
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 100_000_000
           ]
       runPlutipContract config distribution \alice -> do
         withKeyWallet alice do
