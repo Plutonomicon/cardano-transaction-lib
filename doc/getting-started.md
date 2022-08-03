@@ -34,6 +34,8 @@ $ git init
 $ git commit -a -m 'Initial commit'
 ```
 
+**Note**: Nix flakes are just source trees with a `flake.nix` file in them, so initializing a `git` repo as illustrated above is necessary to have a working project. Source files not tracked by a VCS are invisible to Nix when using flakes, so do not skip that (or a similar) step!
+
 You can learn more about using CTL as a dependency [here](./ctl-as-dependency.md).
 
 ### Other prerequisites
