@@ -44,6 +44,7 @@ Support is planned for the following light wallets:
 
 Please explore our documentation to discover how to use CTL, how to set up its runtime, and how it compares to Plutus/PAB:
 
+- [Super quick start](./doc/getting-started.md#setting-up-a-new-project)
 - [Migrating from Plutus to CTL](./doc/plutus-comparison.md)
 - [Adding CTL as a dependency](./doc/ctl-as-dependency.md)
 - [Getting started writing CTL contracts](./doc/getting-started.md)
@@ -83,5 +84,6 @@ CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, ho
 ## Available support channels info
 
 You can find help, more information and ongoing discusion about the project here:
+
 - Plutonomicon Discord: https://discord.gg/c8kZWxzJ
 - #ctl channel at MLabs' Slack
