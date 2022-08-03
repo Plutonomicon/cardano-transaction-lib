@@ -1,7 +1,5 @@
 module Plutip.Types
-  ( ClusterStartupFailureReason(..)
-  , ClusterStartupParameters
-  , ClusterStartupRequest(..)
+  ( ClusterStartupParameters
   , ErrorMessage
   , FilePath
   , InitialUTxO
@@ -9,14 +7,25 @@ module Plutip.Types
   , InitialUTxOWithStakeKey
   , PlutipConfig
   , PostgresConfig
-  , PrivateKeyResponse(..)
-  , StartClusterResponse(..)
-  , StopClusterRequest(..)
-  , StopClusterResponse(..)
+  , ClusterStartupRequest(ClusterStartupRequest)
+  , PrivateKeyResponse(PrivateKeyResponse)
+  , ClusterStartupFailureReason
+      ( ClusterIsRunningAlready
+      , NegativeLovelaces
+      , NodeConfigNotFound
+      )
+  , StartClusterResponse
+      ( ClusterStartupFailure
+      , ClusterStartupSuccess
+      )
+  , StopClusterRequest(StopClusterRequest)
+  , StopClusterResponse(StopClusterSuccess, StopClusterFailure)
   , UtxoAmount
   , class UtxoDistribution
   , decodeWallets
+  , keyWallets
   , encodeDistribution
+  , transferFundsFromEnterpriseToBase
   , withStakeKey
   ) where
 
@@ -32,15 +41,19 @@ import Aeson
   , (.:)
   )
 import Contract.Address
-  ( getWalletAddress
+  ( PaymentPubKeyHash
+  , StakePubKeyHash
+  , getNetworkId
+  , getWalletAddress
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
+  , payPubKeyHashEnterpriseAddress
   )
-import Contract.Monad (Contract, liftedE, liftedM, throwContractError)
-import Contract.Prelude (isJust, mconcat)
+import Contract.Monad (Contract, liftContractM, liftedE, liftedM)
+import Contract.Prelude (foldM, foldMap, null)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
-  ( TransactionOutput(..)
+  ( TransactionOutput(TransactionOutput)
   , awaitTxConfirmed
   , balanceAndSignTxE
   , signTransaction
@@ -54,6 +67,7 @@ import Data.BigInt (BigInt)
 import Data.Either (Either(Left), note)
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.Generic.Rep (class Generic)
+import Data.List (List, (:))
 import Data.Log.Level (LogLevel)
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (class Newtype, unwrap, wrap)
@@ -62,15 +76,16 @@ import Data.String as String
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
-import Effect.Class.Console (log)
+import Plutus.Types.Transaction (Utxo)
 import QueryM.ServerConfig (ServerConfig)
 import Serialization (privateKeyFromBytes)
 import Serialization.Types (PrivateKey)
+import Type.Prelude (Proxy(Proxy))
 import Types.ByteArray (hexToByteArray)
 import Types.RawBytes (RawBytes(RawBytes))
 import Wallet.Key
   ( KeyWallet
-  , PrivatePaymentKey(..)
+  , PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey
   , privateKeysToKeyWallet
   )
@@ -218,26 +233,27 @@ instance DecodeAeson StopClusterResponse where
 -- | wallets provided to the user.
 class UtxoDistribution distr wallets | distr -> wallets where
   encodeDistribution :: distr -> Array (Array UtxoAmount)
-  decodeWallets
-    :: PrivatePaymentKey
-    -> distr
-    -> Array PrivateKeyResponse
-    -> Contract () wallets
+  decodeWallets :: distr -> Array PrivateKeyResponse -> Maybe wallets
+  keyWallets :: Proxy distr -> wallets -> Array KeyWallet
 
 instance UtxoDistribution Unit Unit where
   encodeDistribution _ = []
-  decodeWallets _ _ _ = pure unit
+  decodeWallets _ _ = pure unit
+  keyWallets _ _ = []
 
 instance UtxoDistribution InitialUTxO KeyWallet where
   encodeDistribution amounts = [ amounts ]
-  decodeWallets ourKey _ [ key ] = decodeWallet ourKey key Nothing
-  decodeWallets _ _ _ = wrongNumberPrivateKeysError
+  decodeWallets _ [ PrivateKeyResponse key ] =
+    Just $ privateKeysToKeyWallet (PrivatePaymentKey key) Nothing
+  decodeWallets _ _ = Nothing
+  keyWallets _ wallet = [ wallet ]
 
 instance UtxoDistribution InitialUTxOWithStakeKey KeyWallet where
   encodeDistribution (InitialUTxOWithStakeKey _ amounts) = [ amounts ]
-  decodeWallets ourKey (InitialUTxOWithStakeKey stake _) [ key ] =
-    decodeWallet ourKey key (Just stake)
-  decodeWallets _ _ _ = wrongNumberPrivateKeysError
+  decodeWallets (InitialUTxOWithStakeKey stake _) [ PrivateKeyResponse key ] =
+    Just $ privateKeysToKeyWallet (PrivatePaymentKey key) (Just stake)
+  decodeWallets _ _ = Nothing
+  keyWallets _ wallet = [ wallet ]
 
 instance
   ( UtxoDistribution headSpec headWallets
@@ -246,83 +262,85 @@ instance
   UtxoDistribution (headSpec /\ restSpec) (headWallets /\ restWallets) where
   encodeDistribution (distr /\ rest) =
     encodeDistribution distr <> encodeDistribution rest
-  decodeWallets ourKey (distr /\ rest) =
-    Array.uncons >>> case _ of
-      Nothing -> wrongNumberPrivateKeysError
-      Just { head, tail } -> do
-        wallet <- decodeWallets ourKey distr [ head ]
-        Tuple wallet <$> decodeWallets ourKey rest tail
+  decodeWallets (distr /\ rest) =
+    Array.uncons >=>
+      \{ head, tail } -> do
+        wallet <- decodeWallets distr [ head ]
+        Tuple wallet <$> decodeWallets rest tail
+  keyWallets _ (headWallets /\ restWallets) =
+    (keyWallets (Proxy :: Proxy headSpec) headWallets)
+      <> (keyWallets (Proxy :: Proxy restSpec) restWallets)
 
--- | Get a wallet for a single private key response, and if a stake
--- | key is provided for it, transfer the funds allocated by plutip to
--- | the address combining the payment key and the stake key
-decodeWallet
-  :: PrivatePaymentKey
-  -> PrivateKeyResponse
-  -> Maybe PrivateStakeKey
-  -> Contract () KeyWallet
-decodeWallet ourKey (PrivateKeyResponse key) stake = do
-  let
-    paymentKey = PrivatePaymentKey key
-    wallet = privateKeysToKeyWallet paymentKey stake
-  when (isJust stake) do
-    let
-      ourWallet = privateKeysToKeyWallet ourKey Nothing
-      payKeyOnlyWallet = privateKeysToKeyWallet paymentKey Nothing
-    payKeyOnlyAddr <- liftedM "Could not get address"
-      $ withKeyWallet payKeyOnlyWallet getWalletAddress
+type WalletInfo =
+  { utxos :: Utxo
+  , payPkh :: PaymentPubKeyHash
+  , stakePkh :: StakePubKeyHash
+  , wallet :: KeyWallet
+  }
+
+-- | For each wallet which includes a stake key, transfer the value of
+-- | the utxos at its enterprise address to its base address.
+transferFundsFromEnterpriseToBase
+  :: forall (r :: Row Type)
+   . PrivatePaymentKey
+  -> Array KeyWallet
+  -> Contract r Unit
+transferFundsFromEnterpriseToBase ourKey wallets = do
+  -- Get all utxos and key hashes at all wallets containing a stake key
+  walletsInfo <- foldM addStakeKeyWalletInfo mempty wallets
+  unless (null walletsInfo) do
+    let ourWallet = privateKeysToKeyWallet ourKey Nothing
     ourAddr <- liftedM "Could not get our address"
       $ withKeyWallet ourWallet getWalletAddress
-    payKeyOnlyUtxos <- liftedM "Could not find utxos" $ utxosAt payKeyOnlyAddr
-    ourUtxos <- liftedM "Could not find utxos" $ utxosAt ourAddr
-
-    log $ show payKeyOnlyUtxos
-    log $ show ourUtxos
-
-    payPkh <- withKeyWallet wallet $ liftedM
-      "Could not get payment pkh"
+    ourUtxos <- liftedM "Could not find our utxos" $ utxosAt ourAddr
+    ourPkh <- withKeyWallet ourWallet $ liftedM "Could not get our payment pkh"
       ownPaymentPubKeyHash
-    stakePkh <- withKeyWallet wallet $ liftedM
-      "Could not get stake pkh"
-      ownStakePubKeyHash
-    ourPkh <- withKeyWallet ourWallet $ liftedM
-      "Could not get our payment pkh"
-      ownPaymentPubKeyHash
-
     let
-      lookups = mconcat
-        [ Lookups.unspentOutputs $ unwrap payKeyOnlyUtxos
-        , Lookups.unspentOutputs $ unwrap ourUtxos
-        ]
+      lookups = Lookups.unspentOutputs (unwrap ourUtxos)
+        <> foldMap (_.utxos >>> Lookups.unspentOutputs) walletsInfo
 
       constraints :: Constraints.TxConstraints Unit Unit
-      constraints =
-        -- Both `mustBeSignedBy`s need to be included, otherwise
-        -- there's a `feeTooSmall` error
-        Constraints.mustBeSignedBy payPkh
-          <> Constraints.mustBeSignedBy ourPkh
-          <>
-            foldMapWithIndex
-              ( \input (TransactionOutput output) ->
-                  Constraints.mustPayToPubKeyAddress payPkh stakePkh
-                    output.amount
-                    <> Constraints.mustSpendPubKeyOutput input
-              )
-              (unwrap payKeyOnlyUtxos)
+      constraints = Constraints.mustBeSignedBy ourPkh
+        <> foldMap constraintsForWallet walletsInfo
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    log $ show unbalancedTx
     signedTx <- liftedE $ withKeyWallet ourWallet $
       balanceAndSignTxE unbalancedTx
-    signedTx' <- liftedM "Could not sign" $ withKeyWallet payKeyOnlyWallet $
-      signTransaction (unwrap signedTx)
+    signedTx' <- foldM
+      ( \tx { wallet } -> liftedM "Could not sign" $ withKeyWallet wallet $
+          signTransaction tx
+      )
+      (unwrap signedTx)
+      walletsInfo
     txHash <- submit (wrap signedTx')
     awaitTxConfirmed txHash
+  where
+  constraintsForWallet :: WalletInfo -> Constraints.TxConstraints Unit Unit
+  constraintsForWallet { utxos, payPkh, stakePkh } =
+    -- It's necessary to include `mustBeSignedBy`, we get a
+    -- `feeTooSmall` error otherwise
+    Constraints.mustBeSignedBy payPkh <>
+      foldMapWithIndex
+        ( \input (TransactionOutput { amount }) ->
+            Constraints.mustPayToPubKeyAddress payPkh stakePkh amount
+              <> Constraints.mustSpendPubKeyOutput input
+        )
+        utxos
 
-  pure wallet
+  addStakeKeyWalletInfo
+    :: List WalletInfo
+    -> KeyWallet
+    -> Contract r (List WalletInfo)
+  addStakeKeyWalletInfo walletsInfo wallet = withKeyWallet wallet $
+    ownStakePubKeyHash >>= case _ of
+      Nothing -> pure walletsInfo
+      Just stakePkh -> do
+        payPkh <- liftedM "Could not get payment pubkeyhash" $
+          ownPaymentPubKeyHash
+        networkId <- getNetworkId
+        addr <- liftContractM "Could not get wallet address" $
+          payPubKeyHashEnterpriseAddress networkId payPkh
+        utxos' <- liftedM "Could not find utxos" $ utxosAt addr
+        pure $ { utxos: unwrap utxos', payPkh, stakePkh, wallet } : walletsInfo
 
 withStakeKey :: PrivateStakeKey -> InitialUTxO -> InitialUTxOWithStakeKey
 withStakeKey = InitialUTxOWithStakeKey
-
-wrongNumberPrivateKeysError :: forall a. Contract () a
-wrongNumberPrivateKeysError = throwContractError
-  "Wrong number of private keys provided while decoding wallets. Please report as a bug."

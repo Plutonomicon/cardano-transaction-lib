@@ -15,7 +15,12 @@ import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
-import Contract.Monad (Contract, ContractEnv(ContractEnv), runContractInEnv)
+import Contract.Monad
+  ( Contract
+  , ContractEnv(ContractEnv)
+  , liftContractM
+  , runContractInEnv
+  )
 import Control.Monad.Error.Class (withResource)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
@@ -62,12 +67,14 @@ import Plutip.Types
   , ClusterStartupRequest(ClusterStartupRequest)
   , PlutipConfig
   , PostgresConfig
-  , PrivateKeyResponse(..)
+  , PrivateKeyResponse(PrivateKeyResponse)
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
   , decodeWallets
   , encodeDistribution
+  , keyWallets
+  , transferFundsFromEnterpriseToBase
   )
 import Plutip.Utils (tmpdir)
 import QueryM
@@ -77,8 +84,9 @@ import QueryM
 import QueryM as QueryM
 import QueryM.ProtocolParameters as Ogmios
 import QueryM.UniqueId (uniqueId)
+import Type.Prelude (Proxy(Proxy))
 import Types.UsedTxOuts (newUsedTxOuts)
-import Wallet.Key (PrivatePaymentKey(..))
+import Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 
 -- | Run a single `Contract` in Plutip environment.
 runPlutipContract
@@ -167,8 +175,14 @@ withPlutipContractEnv plutipCfg distr cont = do
     -> (wallets -> Aff a)
     -> Aff a
   withWallets env ourKey response cc = do
-    wallets <- runContractInEnv env $ decodeWallets ourKey distr
-      response.privateKeys
+    wallets <- runContractInEnv env do
+      wallets <-
+        liftContractM
+          "Impossible happened: could not decode wallets. Please report as bug"
+          $ decodeWallets distr response.privateKeys
+      let walletsArray = keyWallets (Proxy :: Proxy distr) wallets
+      transferFundsFromEnterpriseToBase ourKey walletsArray
+      pure wallets
     cc wallets
 
   withContractEnv :: (ContractEnv () -> Aff a) -> Aff a
