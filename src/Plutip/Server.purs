@@ -17,6 +17,7 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
 import Contract.Monad (Contract, ContractEnv(ContractEnv), runContractInEnv)
 import Control.Monad.Error.Class (withResource)
+import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left), either)
 import Data.HTTP.Method as Method
@@ -25,6 +26,9 @@ import Data.Newtype (unwrap, wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
+import Data.Traversable (for, foldMap)
+import Data.Tuple.Nested ((/\))
+import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Aff (Aff, Milliseconds(Milliseconds))
@@ -45,6 +49,7 @@ import Node.ChildProcess
   , kill
   , spawn
   )
+import Plutip.PortCheck (isPortAvailable)
 import Plutip.Spawn
   ( NewOutputAction(Success, NoOp)
   , killOnExit
@@ -93,7 +98,8 @@ withPlutipContractEnv
   -> distr
   -> (ContractEnv () -> wallets -> Aff a)
   -> Aff a
-withPlutipContractEnv plutipCfg distr cont =
+withPlutipContractEnv plutipCfg distr cont = do
+  configCheck plutipCfg
   withPlutipServer $
     withPlutipCluster \response ->
       withWallets response \wallets ->
@@ -119,7 +125,7 @@ withPlutipContractEnv plutipCfg distr cont =
   withPostgres :: ClusterStartupParameters -> Aff a -> Aff a
   withPostgres response =
     withResource (startPostgresServer plutipCfg.postgresConfig response)
-      stopChildProcess <<< const
+      (stopPostgresServer plutipCfg.postgresConfig.port) <<< const
 
   withOgmios :: ClusterStartupParameters -> Aff a -> Aff a
   withOgmios response =
@@ -149,6 +155,27 @@ withPlutipContractEnv plutipCfg distr cont =
   -- a version of Contract.Monad.stopContractEnv without a compile-time warning
   stopContractEnv :: ContractEnv () -> Effect Unit
   stopContractEnv env = stopQueryRuntime (unwrap env).runtime
+
+-- | Throw an exception if `PlutipConfig` contains ports that are occupied.
+configCheck :: PlutipConfig -> Aff Unit
+configCheck cfg = do
+  let
+    services =
+      [ cfg.port /\ "plutip-server"
+      , cfg.ogmiosConfig.port /\ "ogmios"
+      , cfg.ogmiosDatumCacheConfig.port /\ "ogmios-datum-cache"
+      , cfg.ctlServerConfig.port /\ "ctl-server"
+      , cfg.postgresConfig.port /\ "postgres"
+      ]
+  occupiedServices <- Array.catMaybes <$> for services \(port /\ service) -> do
+    isPortAvailable port <#> if _ then Nothing else Just (port /\ service)
+  unless (Array.null occupiedServices) do
+    liftEffect $ throw $
+      "Unable to run the following services, because the ports are occupied:\
+      \\n" <> foldMap printServiceEntry occupiedServices
+  where
+  printServiceEntry (port /\ service) =
+    "- " <> service <> " (port: " <> show (UInt.toInt port) <> ")\n"
 
 startPlutipCluster
   :: forall (distr :: Type) (wallets :: Type)
@@ -298,6 +325,16 @@ startPostgresServer pgConfig _ = do
     )
     defaultExecSyncOptions
   pure pgChildProcess
+
+-- | Kill postgres and wait for it to stop listening
+stopPostgresServer :: UInt -> ChildProcess -> Aff Unit
+stopPostgresServer port childProcess = do
+  stopChildProcess childProcess
+  void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
+    \_ -> do
+      isAvailable <- isPortAvailable port
+      unless isAvailable do
+        liftEffect $ throw "retry"
 
 startOgmiosDatumCache
   :: PlutipConfig
