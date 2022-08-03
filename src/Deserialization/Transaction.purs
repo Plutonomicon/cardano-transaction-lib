@@ -107,7 +107,6 @@ import Cardano.Types.Transaction
   ) as T
 import Cardano.Types.Value
   ( Coin(Coin)
-  , NonAdaAsset
   , mkNonAdaAsset
   , scriptHashAsCurrencySymbol
   )

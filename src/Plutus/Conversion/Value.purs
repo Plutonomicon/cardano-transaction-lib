@@ -5,10 +5,10 @@ module Plutus.Conversion.Value
 
 import Prelude
 
-import Data.Array (concatMap, head, partition)
+import Data.Array (head, partition)
 import Data.Foldable (fold)
 import Data.List (List)
-import Data.Map (fromFoldable, toUnfoldable) as Map
+import Data.Map (fromFoldable) as Map
 import Data.Maybe (fromMaybe, fromJust)
 import Data.Newtype (wrap, unwrap)
 import Data.Tuple (snd)

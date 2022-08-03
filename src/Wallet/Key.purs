@@ -16,12 +16,7 @@ import Cardano.Types.Transaction
 import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
-import Cardano.Types.Value
-  ( NonAdaAsset
-  , Value(Value)
-  , mkCoin
-  , unwrapNonAdaAsset
-  )
+import Cardano.Types.Value (Value(Value), mkCoin, unwrapNonAdaAsset)
 import Contract.Prelude (class Newtype)
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.Lens (set)
