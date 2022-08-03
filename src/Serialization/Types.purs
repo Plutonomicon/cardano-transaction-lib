@@ -47,7 +47,6 @@ module Serialization.Types
   , ProposedProtocolParameterUpdates
   , ProtocolParamUpdate
   , ProtocolVersion
-  , ProtocolVersions
   , PublicKey
   , PrivateKey
   , Redeemer
@@ -138,7 +137,6 @@ foreign import data PoolParams :: Type
 foreign import data ProposedProtocolParameterUpdates :: Type
 foreign import data ProtocolParamUpdate :: Type
 foreign import data ProtocolVersion :: Type
-foreign import data ProtocolVersions :: Type
 foreign import data PublicKey :: Type
 foreign import data PrivateKey :: Type
 foreign import data Redeemer :: Type
