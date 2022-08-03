@@ -51,7 +51,7 @@ class
   ( DatumType validator datum
   , RedeemerType validator redeemer
   ) <=
-  ValidatorTypes (validator :: Type) (datum :: Type) (redeemer :: Type)
+  ValidatorTypes validator datum redeemer
 
 instance
   ( DatumType validator datum
@@ -60,7 +60,8 @@ instance
   ValidatorTypes validator datum redeemer
 
 -- | The type of the data of this connection type.
-class DatumType (validator :: Type) (datum :: Type) | validator -> datum
+class DatumType :: Type -> Type -> Constraint
+class DatumType validator datum | validator -> datum
 
 instance DatumType Void Void
 
@@ -69,9 +70,8 @@ instance DatumType Any PlutusData
 instance DatumType PlutusData Unit
 
 -- | The type of the redeemers of this connection type.
-class
-  RedeemerType (validator :: Type) (redeemer :: Type)
-  | validator -> redeemer
+class RedeemerType :: Type -> Type -> Constraint
+class RedeemerType validator redeemer | validator -> redeemer
 
 instance RedeemerType Void Void
 
