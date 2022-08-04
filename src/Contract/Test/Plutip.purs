@@ -9,13 +9,15 @@ import Plutip.Server
   , withPlutipContractEnv
   ) as X
 import Contract.Monad (runContractInEnv) as X
+import Plutip.UtxoDistribution
+  ( class UtxoDistribution
+  , withStakeKey
+  ) as X
 import Plutip.Types
   ( PlutipConfig
   , PostgresConfig
   , UtxoAmount
   , InitialUTxO
   , InitialUTxODistribution
-  , class UtxoDistribution
-  , withStakeKey
   ) as X
 import Contract.Wallet (withKeyWallet) as X

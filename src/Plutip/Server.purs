@@ -64,8 +64,7 @@ import Plutip.Spawn
   , spawnAndWaitForOutput
   )
 import Plutip.Types
-  ( class UtxoDistribution
-  , ClusterStartupParameters
+  ( ClusterStartupParameters
   , ClusterStartupRequest(ClusterStartupRequest)
   , InitialUTxO
   , PlutipConfig
@@ -75,6 +74,9 @@ import Plutip.Types
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
   , InitialUTxODistribution
+  )
+import Plutip.UtxoDistribution
+  ( class UtxoDistribution
   , decodeWallets
   , encodeDistribution
   , keyWallets
