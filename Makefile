@@ -55,7 +55,7 @@ check-explicit-exports:
 		(echo "Use explicit exports:" && \
 		grep -rn '(\.\.)' ./src ./test ./examples)
 
-check-format:
+check-format: check-explicit-exports
 	@purs-tidy check ${ps-sources}
 	nixpkgs-fmt --check ${nix-sources}
 	fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost ${hs-sources}
@@ -65,10 +65,10 @@ check-format:
 e2e-test:
 	@mkdir -p ${e2e-temp-dir}
 	@unzip ${e2e-test-nami} -d ${e2e-temp-dir}/nami > /dev/zero \
-            || echo "ignore warnings" # or make stops
+	    || echo "ignore warnings" # or make stops
 	@tar xzf ${e2e-test-nami-settings}
 	@unzip ${e2e-test-gero} -d ${e2e-temp-dir}/gero > /dev/zero \
-            || echo "ignore warnings" # or make stops
+	    || echo "ignore warnings" # or make stops
 	@tar xzf ${e2e-test-gero-settings}
 	@rm -f ${e2e-test-chrome-dir}/SingletonLock
 	@spago test --main Test.E2E -a "E2ETest --nami-dir ${e2e-temp-dir}/nami --gero-dir ${e2e-temp-dir}/gero $(TEST_ARGS) --chrome-exe $(call e2e-browser)" || rm -Rf ${e2e-temp-dir}
@@ -76,7 +76,7 @@ e2e-test:
 e2e-run-browser-nami:
 	@mkdir -p ${e2e-temp-dir}
 	@unzip ${e2e-test-nami} -d ${e2e-temp-dir}/nami > /dev/zero \
-            || echo "ignore warnings" # or make stops
+	    || echo "ignore warnings" # or make stops
 	@tar xzf ${e2e-test-nami-settings}
 	@$(call e2e-browser) --load-extension=${e2e-temp-dir}/nami --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e-temp-dir}
 
@@ -85,7 +85,7 @@ e2e-run-browser-gero:
 	@unzip ${e2e-test-gero} -d ${e2e-temp-dir}/gero > /dev/zero \
 	   || echo "ignore warnings" # or make stops
 	@tar xzf ${e2e-test-gero-settings}
-	echo $(call e2e-browser) --load-extension=${e2e-temp-dir}/gero --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e-temp-dir}	
+	echo $(call e2e-browser) --load-extension=${e2e-temp-dir}/gero --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e-temp-dir}
 	$(call e2e-browser) --load-extension=${e2e-temp-dir}/gero --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e-temp-dir}
 
 # extract current nami settings from e2e-test-chrome-dir and store them for git
