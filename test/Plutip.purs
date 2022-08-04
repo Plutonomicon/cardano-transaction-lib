@@ -6,7 +6,17 @@ module Test.Plutip
 
 import Prelude
 
-import Contract.Address (ownPaymentPubKeyHash)
+import Contract.Address
+  ( Address
+  , PaymentPubKeyHash
+  , StakePubKeyHash
+  , getNetworkId
+  , getWalletAddress
+  , ownPaymentPubKeyHash
+  , ownStakePubKeyHash
+  , payPubKeyHashBaseAddress
+  , payPubKeyHashEnterpriseAddress
+  )
 import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
@@ -30,10 +40,13 @@ import Contract.Test.Plutip
   , runContractInEnv
   , runPlutipContract
   , withPlutipContractEnv
+  , withStakeKey
   )
 import Contract.Transaction
   ( BalancedSignedTransaction
   , DataHash
+  , TransactionInput
+  , TransactionOutput(TransactionOutput)
   , awaitTxConfirmed
   , balanceAndSignTx
   , balanceAndSignTxE
@@ -42,18 +55,22 @@ import Contract.Transaction
   , withBalancedAndSignedTxs
   )
 import Contract.TxConstraints as Constraints
-import Contract.Value (CurrencySymbol, TokenName)
+import Contract.Utxos (utxosAt)
+import Contract.Value (CurrencySymbol, TokenName, Value, lovelaceValueOf)
 import Contract.Value as Value
-import Contract.Wallet (withKeyWallet)
+import Contract.Wallet (KeyWallet, privateKeyFromBytes, withKeyWallet)
 import Control.Monad.Error.Class (withResource)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
+import Data.Array (foldl)
+import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
+import Data.FoldableWithIndex (foldlWithIndex)
 import Data.Log.Level (LogLevel(Trace))
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), isNothing)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, isNothing)
 import Data.Newtype (unwrap, wrap)
-import Data.Traversable (traverse_)
+import Data.Traversable (for_, traverse_)
 import Data.Tuple (snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt as UInt
@@ -70,7 +87,8 @@ import Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
-import Mote (group, test)
+import Mote (group, only, test)
+import Partial.Unsafe (unsafePartial)
 import Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
@@ -78,11 +96,14 @@ import Plutip.Server
   , stopPlutipCluster
   )
 import Plutip.Types (PlutipConfig, StopClusterResponse(StopClusterSuccess))
+import Plutus.Types.Transaction (Utxo)
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 import Test.Utils as Utils
 import TestM (TestPlanM)
+import Types.RawBytes (hexToRawBytes)
 import Types.UsedTxOuts (TxOutRefCache)
+import Wallet.Key (PrivateStakeKey)
 
 -- Run with `spago test --main Test.Plutip`
 main :: Effect Unit
@@ -126,6 +147,11 @@ config =
       }
   }
 
+privateStakeKey :: PrivateStakeKey
+privateStakeKey = wrap $ unsafePartial $ fromJust
+  $ privateKeyFromBytes =<< hexToRawBytes
+      "633b1c4c4a075a538d37e062c1ed0706d3f0a94b013708e8f5ab0a0ca1df163d"
+
 suite :: TestPlanM Unit
 suite = do
   group "Plutip" do
@@ -162,23 +188,22 @@ suite = do
           , BigInt.fromInt 2_000_000_000
           ]
       runPlutipContract config distribution \alice -> do
-        withKeyWallet alice do
-          pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
-          let
-            constraints :: Constraints.TxConstraints Void Void
-            -- In real contracts, library users most likely want to use
-            -- `mustPayToPubKeyAddress` (we're not doing that because Plutip
-            -- does not provide stake keys).
-            constraints = Constraints.mustPayToPubKey pkh
-              $ Value.lovelaceValueOf
-              $ BigInt.fromInt 2_000_000
+        assertCorrectDistribution [ alice /\ distribution ]
+        assertNoUtxosAtBaseAddress alice
+        withKeyWallet alice pkh2PkhContract
 
-            lookups :: Lookups.ScriptLookups Void
-            lookups = mempty
-          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <-
-            liftedE $ balanceAndSignTxE ubTx
-          submitAndLog bsTx
+    test "runPlutipContract: Pkh2Pkh with stake key" do
+      let
+        aliceUtxos =
+          [ BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+        distribution = withStakeKey privateStakeKey aliceUtxos
+
+      runPlutipContract config distribution \alice -> do
+        assertCorrectDistribution [ alice /\ aliceUtxos ]
+        assertNoUtxosAtEnterpriseAddress alice
+        withKeyWallet alice pkh2PkhContract
 
     test "runPlutipContract: parallel Pkh2Pkh" do
       let
@@ -373,6 +398,23 @@ suite = do
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
+pkh2PkhContract :: forall (r :: Row Type). Contract r Unit
+pkh2PkhContract = do
+  pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
+  stakePkh <- ownStakePubKeyHash
+  let
+    constraints :: Constraints.TxConstraints Void Void
+    constraints = mustPayToPubKeyStakeAddress pkh stakePkh
+      $ Value.lovelaceValueOf
+      $ BigInt.fromInt 2_000_000
+
+    lookups :: Lookups.ScriptLookups Void
+    lookups = mempty
+  ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  bsTx <-
+    liftedE $ balanceAndSignTxE ubTx
+  submitAndLog bsTx
+
 submitAndLog
   :: forall (r :: Row Type). BalancedSignedTransaction -> Contract r Unit
 submitAndLog bsTx = do
@@ -404,3 +446,90 @@ mkCurrencySymbol mintingPolicy = do
   mp <- mintingPolicy
   cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
   pure (mp /\ cs)
+
+mustPayToPubKeyStakeAddress
+  :: forall (o :: Type) (i :: Type)
+   . PaymentPubKeyHash
+  -> Maybe StakePubKeyHash
+  -> Value
+  -> Constraints.TxConstraints i o
+mustPayToPubKeyStakeAddress pkh Nothing = Constraints.mustPayToPubKey pkh
+mustPayToPubKeyStakeAddress pkh (Just stk) =
+  Constraints.mustPayToPubKeyAddress pkh stk
+
+assertContract :: forall (r :: Row Type). String -> Boolean -> Contract r Unit
+assertContract msg cond = if cond then pure unit else liftEffect $ throw msg
+
+assertNoUtxosAtEnterpriseAddress
+  :: forall (r :: Row Type). KeyWallet -> Contract r Unit
+assertNoUtxosAtEnterpriseAddress wallet = withKeyWallet wallet $
+  assertNoUtxosAtAddress =<< liftedM "Could not get wallet address"
+    ( payPubKeyHashEnterpriseAddress
+        <$> getNetworkId
+        <*> liftedM "Could not get payment pubkeyhash" ownPaymentPubKeyHash
+    )
+
+-- | Assert the wallet has no utxos at its base address, either
+-- | because the base address is empty or there is no base address
+-- | because the wallet has no stake key.
+assertNoUtxosAtBaseAddress
+  :: forall (r :: Row Type). KeyWallet -> Contract r Unit
+assertNoUtxosAtBaseAddress wallet = withKeyWallet wallet $
+  ownStakePubKeyHash >>= traverse_ \stake ->
+    assertNoUtxosAtAddress =<< liftedM "Could not get wallet address"
+      ( payPubKeyHashBaseAddress
+          <$> getNetworkId
+          <*> liftedM "Could not get payment pubkeyhash" ownPaymentPubKeyHash
+          <*> pure stake
+      )
+
+assertNoUtxosAtAddress :: forall (r :: Row Type). Address -> Contract r Unit
+assertNoUtxosAtAddress addr = do
+  utxos <- liftedM "Could not get wallet utxos" $ map unwrap <$> utxosAt addr
+  assertContract "Expected address to not hold utxos" $ Map.isEmpty utxos
+
+-- | For each wallet, assert that there is a one-to-one correspondance
+-- | between its utxo set and its expected utxo amounts.
+assertCorrectDistribution
+  :: forall (r :: Row Type). Array (KeyWallet /\ InitialUTxO) -> Contract r Unit
+assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
+  withKeyWallet wallet do
+    addr <- liftedM "Could not get wallet address" getWalletAddress
+    utxos <- liftedM "Could not get wallet utxos" $ map unwrap <$> utxosAt addr
+    assertContract "Incorrect distribution of utxos" $
+      checkDistr utxos expectedAmounts
+  where
+  checkDistr :: Utxo -> InitialUTxO -> Boolean
+  checkDistr originalUtxos expectedAmounts =
+    let
+      allFound /\ remainingUtxos =
+        foldl findAndRemoveExpected (true /\ originalUtxos) expectedAmounts
+    in
+      allFound && Map.isEmpty remainingUtxos
+    where
+    -- Remove a single utxo containing the expected ada amount,
+    -- returning the updated utxo map and false if it could not be
+    -- found
+    findAndRemoveExpected :: Boolean /\ Utxo -> BigInt -> Boolean /\ Utxo
+    findAndRemoveExpected o@(false /\ _) _ = o
+    findAndRemoveExpected (_ /\ utxos) expected =
+      foldlWithIndex
+        (removeUtxoMatchingValue $ lovelaceValueOf expected)
+        (false /\ Map.empty)
+        utxos
+
+    -- Include the utxo if it does not match the value, return true if
+    -- the utxo matches the value
+    removeUtxoMatchingValue
+      :: Value
+      -> TransactionInput
+      -> Boolean /\ Utxo
+      -> TransactionOutput
+      -> Boolean /\ Utxo
+    removeUtxoMatchingValue
+      expected
+      i
+      (found /\ m)
+      o@(TransactionOutput { amount })
+      | not found && expected == amount = true /\ m
+      | otherwise = found /\ Map.insert i o m

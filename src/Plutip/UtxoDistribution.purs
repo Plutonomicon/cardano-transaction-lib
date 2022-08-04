@@ -162,7 +162,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     ownStakePubKeyHash >>= case _ of
       Nothing -> pure walletsInfo
       Just stakePkh -> do
-        payPkh <- liftedM "Could not get payment pubkeyhash" $
+        payPkh <- liftedM "Could not get payment pubkeyhash"
           ownPaymentPubKeyHash
         networkId <- getNetworkId
         addr <- liftContractM "Could not get wallet address" $
