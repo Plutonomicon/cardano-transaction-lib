@@ -8,7 +8,6 @@ import Contract.Prelude
 import Contract.Monad
   ( Contract
   , launchAff_
-  , liftContractAffM
   , liftContractM
   , liftedE
   , liftedM
@@ -34,7 +33,7 @@ main = launchAff_ $ do
   runContract_ cfg $ do
     logInfo' "Running Examples.AlwaysMints"
     mp <- alwaysMintsPolicy
-    cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+    cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
     tn <- liftContractM "Cannot make token name"
       $ Value.mkTokenName
       =<< byteArrayFromAscii "TheToken"

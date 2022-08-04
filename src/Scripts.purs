@@ -12,10 +12,8 @@ module Scripts
 
 import Prelude
 
-import Control.Bind (bindFlipped)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, wrap, unwrap)
-import Effect.Aff (Aff)
 import Hashing (plutusScriptHash)
 import Plutus.Types.CurrencySymbol (CurrencySymbol, mpsSymbol)
 import Serialization.Address
@@ -58,11 +56,11 @@ typedValidatorEnterpriseAddress network (TypedValidator typedVal) =
   validatorHashEnterpriseAddress network typedVal.validatorHash
 
 -- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
-mintingPolicyHash :: MintingPolicy -> Aff (Maybe MintingPolicyHash)
+mintingPolicyHash :: MintingPolicy -> MintingPolicyHash
 mintingPolicyHash = scriptHash
 
 -- | Converts a Plutus-style `Validator` to an `ValidatorHash`
-validatorHash :: Validator -> Aff (Maybe ValidatorHash)
+validatorHash :: Validator -> ValidatorHash
 validatorHash = scriptHash
 
 -- | Converts a Plutus-style `ValidatorHash` to a `Address` as a `BaseAddress`
@@ -83,7 +81,7 @@ validatorHashEnterpriseAddress network valHash =
       }
 
 -- | Converts a Plutus-style `StakeValidator` to an `StakeValidatorHash`
-stakeValidatorHash :: StakeValidator -> Aff (Maybe StakeValidatorHash)
+stakeValidatorHash :: StakeValidator -> StakeValidatorHash
 stakeValidatorHash = scriptHash
 
 -- | Converts any newtype wrapper of `PlutusScript` to a newtype wrapper
@@ -93,9 +91,9 @@ scriptHash
    . Newtype m PlutusScript
   => Newtype n ScriptHash
   => m
-  -> Aff (Maybe n)
-scriptHash = map (map wrap) <<< plutusScriptHash <<< unwrap
+  -> n
+scriptHash = wrap <<< plutusScriptHash <<< unwrap
 
 -- | Converts a `MintingPolicy` to a `CurrencySymbol`.
-scriptCurrencySymbol :: MintingPolicy -> Aff (Maybe CurrencySymbol)
-scriptCurrencySymbol = map (bindFlipped mpsSymbol) <<< mintingPolicyHash
+scriptCurrencySymbol :: MintingPolicy -> Maybe CurrencySymbol
+scriptCurrencySymbol = mpsSymbol <<< mintingPolicyHash

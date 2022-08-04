@@ -82,6 +82,7 @@ import Serialization.BigInt as Serialization
 import Serialization.Hash (ScriptHash, Ed25519KeyHash, scriptHashFromBytes)
 import Serialization.NativeScript (convertNativeScript)
 import Serialization.PlutusData (convertPlutusData)
+import Serialization.PlutusScript (convertPlutusScript)
 import Serialization.Types
   ( AssetName
   , Assets
@@ -143,7 +144,6 @@ import Serialization.Types
   )
 import Serialization.WitnessSet
   ( convertExUnits
-  , convertPlutusScript
   , convertRedeemer
   , convertWitnessSet
   )
@@ -798,7 +798,7 @@ convertScriptRef (T.NativeScriptRef nativeScript) = do
   scriptRefNewNativeScript <$> fromJustEff "convertScriptRef"
     (convertNativeScript nativeScript)
 convertScriptRef (T.PlutusScriptRef plutusScript) = do
-  scriptRefNewPlutusScript <$> convertPlutusScript plutusScript
+  pure $ scriptRefNewPlutusScript $ convertPlutusScript plutusScript
 
 convertValue :: Value.Value -> Effect Value
 convertValue val = do

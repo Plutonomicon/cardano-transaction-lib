@@ -15,15 +15,15 @@ import Control.Promise (Promise)
 import Control.Promise (toAffE) as Promise
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap, unwrap)
-import Data.Tuple (fst, snd)
 import Effect (Effect)
 import Effect.Aff (Aff)
-import Serialization.Hash (ScriptHash, scriptHashFromBytes)
+import Serialization.Hash (ScriptHash)
 import Serialization.PlutusData (convertPlutusData)
-import Serialization.Types (PlutusData) as Serialization
+import Serialization.PlutusScript (convertPlutusScript)
+import Serialization.Types (PlutusData, PlutusScript) as Serialization
 import Types.ByteArray (ByteArray)
 import Types.Datum (Datum)
-import Types.Scripts (PlutusScript, Language(PlutusV1, PlutusV2))
+import Types.Scripts (PlutusScript)
 import Types.Transaction (DataHash)
 
 foreign import _blake2b256Hash :: ByteArray -> Effect (Promise ByteArray)
@@ -32,15 +32,7 @@ foreign import _blake2b256HashHex :: ByteArray -> Effect (Promise String)
 
 foreign import hashPlutusData :: Serialization.PlutusData -> ByteArray
 
-foreign import hashPlutusScript
-  :: (PlutusScript -> ByteArray)
-  -> ( forall (a :: Type)
-        . { "PlutusV1" :: a, "PlutusV2" :: a }
-       -> PlutusScript
-       -> a
-     )
-  -> PlutusScript
-  -> Effect (Promise ByteArray)
+foreign import hashPlutusScript :: Serialization.PlutusScript -> ScriptHash
 
 foreign import sha256Hash :: ByteArray -> ByteArray
 
@@ -57,21 +49,7 @@ blake2b256HashHex :: ByteArray -> Aff String
 blake2b256HashHex = Promise.toAffE <<< _blake2b256HashHex
 
 datumHash :: Datum -> Maybe DataHash
-datumHash =
-  map (wrap <<< hashPlutusData) <<< convertPlutusData <<< unwrap
+datumHash = map (wrap <<< hashPlutusData) <<< convertPlutusData <<< unwrap
 
-onLanguage
-  :: forall (a :: Type)
-   . { "PlutusV1" :: a, "PlutusV2" :: a }
-  -> PlutusScript
-  -> a
-onLanguage { "PlutusV1": plutusV1, "PlutusV2": plutusV2 } = unwrap >>> snd >>>
-  case _ of
-    PlutusV1 -> plutusV1
-    PlutusV2 -> plutusV2
-
-plutusScriptHash :: PlutusScript -> Aff (Maybe ScriptHash)
-plutusScriptHash =
-  map (scriptHashFromBytes <<< wrap) <<< Promise.toAffE <<< hashPlutusScript
-    (fst <<< unwrap)
-    onLanguage
+plutusScriptHash :: PlutusScript -> ScriptHash
+plutusScriptHash = hashPlutusScript <<< convertPlutusScript
