@@ -133,9 +133,7 @@ suite = do
       withResource (startPlutipServer config)
         (stopChildProcessWithPort config.port) $ const do
         startRes <- startPlutipCluster config unit
-        liftEffect $ Console.log $ "startPlutipCluster: "
-          <> "<ourKey> /\\ "
-          <> show (snd startRes)
+        liftEffect $ Console.log $ "startPlutipCluster: " <> show (snd startRes)
         stopRes <- stopPlutipCluster config
         stopRes `shouldSatisfy` case _ of
           StopClusterSuccess -> true

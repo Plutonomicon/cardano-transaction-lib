@@ -22,14 +22,15 @@ import Contract.Monad
   , runContractInEnv
   )
 import Control.Monad.Error.Class (withResource)
-import Data.Array (foldr, length)
+import Data.Array (foldr)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left), either)
+import Data.Foldable (sum)
 import Data.HTTP.Method as Method
 import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (over, unwrap, wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
@@ -161,14 +162,16 @@ withPlutipContractEnv plutipCfg distr cont = do
     -> (wallets -> Aff a)
     -> Aff a
   withWallets env ourKey response cc = do
-    wallets <- runContractInEnv env do
-      wallets <-
-        liftContractM
-          "Impossible happened: could not decode wallets. Please report as bug"
-          $ decodeWallets distr response.privateKeys
-      let walletsArray = keyWallets (Proxy :: Proxy distr) wallets
-      transferFundsFromEnterpriseToBase ourKey walletsArray
-      pure wallets
+    wallets <- runContractInEnv
+      (over wrap (_ { config { customLogger = Just (const $ pure unit) } }) env)
+      do
+        wallets <-
+          liftContractM
+            "Impossible happened: could not decode wallets. Please report as bug"
+            $ decodeWallets distr response.privateKeys
+        let walletsArray = keyWallets (Proxy :: Proxy distr) wallets
+        transferFundsFromEnterpriseToBase ourKey walletsArray
+        pure wallets
     cc wallets
 
   withContractEnv :: (ContractEnv () -> Aff a) -> Aff a
@@ -257,15 +260,12 @@ startPlutipCluster cfg utxoDistribution = do
 ourInitialUtxos :: InitialUTxODistribution -> InitialUTxO
 ourInitialUtxos utxoDistribution =
   let
-    numUtxos = foldr (length >>> add) 0 utxoDistribution
+    total = foldr (sum >>> add) zero utxoDistribution
   in
-    [ -- For each utxo, include an excessive amount of ada to cover
-      -- the transaction fees of including that utxo. Also make sure
+    [ -- Take the total value of the utxos and add some extra on top
+      -- of it to cover the possible transaction fees. Also make sure
       -- we don't request a 0 ada utxo
-      BigInt.fromInt 1_000_000_000 +
-        (BigInt.fromInt numUtxos * BigInt.fromInt 1_000_000_000)
-    , -- In case a collateral utxo is needed
-      BigInt.fromInt 1_000_000_000
+      total + BigInt.fromInt 1_000_000_000
     ]
 
 stopPlutipCluster :: PlutipConfig -> Aff StopClusterResponse

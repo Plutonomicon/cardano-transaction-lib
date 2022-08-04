@@ -292,9 +292,10 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     let ourWallet = privateKeysToKeyWallet ourKey Nothing
     ourAddr <- liftedM "Could not get our address"
       $ withKeyWallet ourWallet getWalletAddress
-    ourUtxos <- liftedM "Could not find our utxos" $ utxosAt ourAddr
-    ourPkh <- withKeyWallet ourWallet $ liftedM "Could not get our payment pkh"
-      ownPaymentPubKeyHash
+    ourUtxos <- liftedM "Could not find our utxos"
+      $ utxosAt ourAddr
+    ourPkh <- liftedM "Could not get our payment pkh"
+      $ withKeyWallet ourWallet ownPaymentPubKeyHash
     let
       lookups = Lookups.unspentOutputs (unwrap ourUtxos)
         <> foldMap (_.utxos >>> Lookups.unspentOutputs) walletsInfo
@@ -316,8 +317,9 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
   where
   constraintsForWallet :: WalletInfo -> Constraints.TxConstraints Unit Unit
   constraintsForWallet { utxos, payPkh, stakePkh } =
-    -- It's necessary to include `mustBeSignedBy`, we get a
-    -- `feeTooSmall` error otherwise
+    -- TODO: It's necessary to include `mustBeSignedBy`, we get a
+    -- `feeTooSmall` error otherwise. See
+    -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/853
     Constraints.mustBeSignedBy payPkh <>
       foldMapWithIndex
         ( \input (TransactionOutput { amount }) ->
