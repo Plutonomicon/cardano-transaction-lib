@@ -9,7 +9,6 @@ module Serialization.WitnessSet
   , convertRedeemerTag
   , convertExUnits
   , convertBootstrap
-  , convertPlutusScript
   , convertVkeywitnesses
   , convertVkeywitness
   , convertEd25519Signature
@@ -21,7 +20,6 @@ module Serialization.WitnessSet
   , newVkeywitnesses
   , newVkeywitness
   , addVkeywitness
-  , newPlutusV1Script
   , newPlutusScripts
   , addPlutusScript
   , transactionWitnessSetSetVkeys
@@ -74,6 +72,7 @@ import Serialization.Types
   , Vkeywitness
   , Vkeywitnesses
   )
+import Serialization.PlutusScript (convertPlutusScript)
 import Serialization.Types (PlutusData) as PDS
 import Types.Aliases (Bech32String)
 import Types.BigNum (BigNum)
@@ -81,7 +80,6 @@ import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData) as PD
 import Types.RedeemerTag as Tag
-import Types.Scripts (PlutusScript(PlutusScript), Language(PlutusV1, PlutusV2)) as S
 
 setPlutusData :: Array PDS.PlutusData -> TransactionWitnessSet -> Effect Unit
 setPlutusData pd ws = setWitnesses _wsSetPlutusData ws pd
@@ -112,7 +110,7 @@ convertWitnessSet (T.TransactionWitnessSet tws) = do
     (traverse convertBootstrap >=> _wsSetBootstraps containerHelper ws)
   for_ tws.plutusScripts \ps -> do
     scripts <- newPlutusScripts
-    for_ ps (convertPlutusScript >=> addPlutusScript scripts)
+    for_ ps (convertPlutusScript >>> addPlutusScript scripts)
     txWitnessSetSetPlutusScripts ws scripts
   for_ tws.plutusData
     (traverse convertPlutusDataEffect >=> _wsSetPlutusData containerHelper ws)
@@ -158,11 +156,6 @@ convertBootstrap { vkey, signature, chainCode, attributes } = do
   signature' <- convertEd25519Signature signature
   newBootstrapWitness vkey' signature' chainCode attributes
 
-convertPlutusScript :: S.PlutusScript -> Effect PlutusScript
-convertPlutusScript (S.PlutusScript (bytes /\ language)) = case language of
-  S.PlutusV1 -> newPlutusV1Script bytes
-  S.PlutusV2 -> newPlutusV2Script bytes
-
 convertVkeywitnesses :: Array T.Vkeywitness -> Effect Vkeywitnesses
 convertVkeywitnesses arr = do
   witnesses <- newVkeywitnesses
@@ -190,8 +183,6 @@ foreign import newVkeyFromPublicKey :: PublicKey -> Effect Vkey
 foreign import newVkeywitnesses :: Effect Vkeywitnesses
 foreign import newVkeywitness :: Vkey -> Ed25519Signature -> Effect Vkeywitness
 foreign import addVkeywitness :: Vkeywitnesses -> Vkeywitness -> Effect Unit
-foreign import newPlutusV1Script :: ByteArray -> Effect PlutusScript
-foreign import newPlutusV2Script :: ByteArray -> Effect PlutusScript
 foreign import newPlutusScripts :: Effect PlutusScripts
 foreign import addPlutusScript :: PlutusScripts -> PlutusScript -> Effect Unit
 foreign import transactionWitnessSetSetVkeys

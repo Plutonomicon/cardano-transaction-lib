@@ -9,7 +9,6 @@ import Contract.Address (scriptHashAddress)
 import Contract.Monad
   ( Contract
   , launchAff_
-  , liftContractAffM
   , liftedE
   , logInfo'
   , runContract_
@@ -43,8 +42,7 @@ main = launchAff_ $ do
   runContract_ cfg $ do
     logInfo' "Running Examples.AlwaysSucceeds"
     validator <- alwaysSucceedsScript
-    vhash <- liftContractAffM "Couldn't hash validator"
-      $ validatorHash validator
+    let vhash = validatorHash validator
     logInfo' "Attempt to lock value"
     txId <- payToAlwaysSucceeds vhash
     -- If the wallet is cold, you need a high parameter here.

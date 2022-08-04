@@ -8,7 +8,6 @@ import Contract.Prelude
 import Contract.Monad
   ( Contract
   , launchAff_
-  , liftContractAffM
   , liftContractM
   , liftedE
   , liftedM
@@ -77,7 +76,7 @@ mkCurrencySymbol
   -> Contract () (MintingPolicy /\ CurrencySymbol)
 mkCurrencySymbol mintingPolicy = do
   mp <- mintingPolicy
-  cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+  cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
   pure (mp /\ cs)
 
 foreign import redeemerInt1 :: String

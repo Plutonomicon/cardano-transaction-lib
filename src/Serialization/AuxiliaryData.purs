@@ -25,11 +25,8 @@ import Serialization.Types
   , PlutusScripts
   , TransactionMetadatum
   )
-import Serialization.WitnessSet
-  ( addPlutusScript
-  , convertPlutusScript
-  , newPlutusScripts
-  )
+import Serialization.PlutusScript (convertPlutusScript)
+import Serialization.WitnessSet (addPlutusScript, newPlutusScripts)
 import Types.BigNum (BigNum)
 import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray)
@@ -95,7 +92,7 @@ convertAuxiliaryData
     ) >=> setAuxiliaryDataNativeScripts ad
   for_ plutusScripts \ps -> do
     scripts <- newPlutusScripts
-    for_ ps (convertPlutusScript >=> addPlutusScript scripts)
+    for_ ps (convertPlutusScript >>> addPlutusScript scripts)
     setAuxiliaryDataPlutusScripts ad scripts
   pure ad
 

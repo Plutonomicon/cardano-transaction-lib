@@ -47,18 +47,7 @@ exports.hashPlutusData = plutusData => {
   return lib.hash_plutus_data(plutusData).to_bytes();
 };
 
-// TODO Investigate using CSL's hashing
-// https://github.com/Plutonomicon/cardano-transaction-lib/issues/719
-exports.hashPlutusScript = getBytes => onLanguage => plutusScript => () => {
-  const plutusScriptBytes = getBytes(plutusScript);
-  // set Plutus language namespace byte
-  const prefix = onLanguage({
-    PlutusV1: 0x1,
-    PlutusV2: 0x2,
-  })(plutusScript);
-  const bytes = new Uint8Array([prefix, ...plutusScriptBytes]);
-  return blake2bHash(bytes)(DIGEST_LENGTH_224)(DIGEST_ENCODING_BINARY);
-};
+exports.hashPlutusScript = script => script.hash();
 
 // -----------------------------------------------------------------------------
 // sha256Hash, sha256HashHex, sha3_256Hash, sha3_256HashHex
