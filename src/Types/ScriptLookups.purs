@@ -109,9 +109,9 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import FromData (class FromData)
 import Hashing (datumHash) as Hashing
 import Helpers ((<\>), liftEither, liftM)
+import IsData (class IsData)
 import Plutus.Conversion (fromPlutusTxOutput, fromPlutusValue)
 import Plutus.Types.Transaction (TransactionOutput) as Plutus
 import QueryM (QueryM, QueryMExtended, getDatumByHash)
@@ -132,6 +132,7 @@ import Transaction
   , attachRedeemer
   , setScriptDataHash
   )
+import Type.Proxy (Proxy(Proxy))
 import Types.Any (Any)
 import Types.Datum (DataHash, Datum)
 import Types.Interval
@@ -184,7 +185,7 @@ import Types.TypedTxOut
   )
 import Types.TypedValidator
   ( class DatumType
-  , class RedeemerType
+  , class ValidatorTypes
   , TypedValidator(TypedValidator)
   )
 import Types.TypedValidator (generalise) as TV
@@ -486,11 +487,11 @@ type ConstraintsM (a :: Type) (b :: Type) =
   StateT (ConstraintProcessingState a) (QueryMExtended ()) b
 
 -- The constraints don't precisely match those of Plutus:
--- `forall a. (FromData (DatumType a), ToData (DatumType a), ToData (RedeemerType a))`
--- as we don't have the same granularity on the classes, but the type `a` fixes
--- a type `b` as seen below. We could alternatively create specific typeclasses:
--- ToData (Datumtype a) <-> (Datumtype a b, ToData b) <= ToDataDatumType a b
--- if we require granular control, similarly FromDataToDatumType a b etc.
+-- `forall v. (FromData (DatumType v), ToData (DatumType v), ToData (RedeemerType v))`
+-- as we don't have the same granularity on the classes, but the type `v` fixes
+-- types `d` and `r` as seen below. We could alternatively create specific typeclasses:
+-- ToData (DatumType v) <-> (DatumType v d, ToData d) <= ToDataDatumType v d
+-- if we require granular control, similarly FromDataDatumType v d etc.
 -- We could use `MonadError` to clean up the `ExceptT`s below although we can't
 -- use the type alias because they need to be fully applied so this is perhaps
 -- more readable.
@@ -499,13 +500,12 @@ type ConstraintsM (a :: Type) (b :: Type) =
 -- | Resolve some `TxConstraints` by modifying the `UnbalancedTx` in the
 -- | `ConstraintProcessingState`
 processLookupsAndConstraints
-  :: forall (a :: Type) (b :: Type)
-   . DatumType a b
-  => RedeemerType a b
-  => FromData b
-  => ToData b
-  => TxConstraints b b
-  -> ConstraintsM a (Either MkUnbalancedTxError Unit)
+  :: forall (validator :: Type) (datum :: Type) (redeemer :: Type)
+   . ValidatorTypes validator datum redeemer
+  => IsData datum
+  => IsData redeemer
+  => TxConstraints redeemer datum
+  -> ConstraintsM validator (Either MkUnbalancedTxError Unit)
 processLookupsAndConstraints
   (TxConstraints { constraints, ownInputs, ownOutputs }) = runExceptT do
   -- Hash all the MintingPolicys and Scripts beforehand. These maps are lost
@@ -527,7 +527,7 @@ processLookupsAndConstraints
   mintRedeemers :: Array _ <- use _mintRedeemers <#> Map.toUnfoldable
   lift $ traverse_ (attachToCps attachRedeemer <<< snd) mintRedeemers
 
-  ExceptT $ foldConstraints addOwnInput ownInputs
+  ExceptT $ foldConstraints (addOwnInput (Proxy :: Proxy datum)) ownInputs
   ExceptT $ foldConstraints addOwnOutput ownOutputs
   ExceptT addScriptDataHash
   ExceptT addMissingValueSpent
@@ -558,18 +558,17 @@ processLookupsAndConstraints
 -- Helper to run the stack and get back to `QueryM`. See comments in
 -- `processLookupsAndConstraints` regarding constraints.
 runConstraintsM
-  :: forall (a :: Type) (b :: Type)
-   . DatumType a b
-  => RedeemerType a b
-  => FromData b
-  => ToData b
-  => ScriptLookups a
-  -> TxConstraints b b
-  -> QueryM (Either MkUnbalancedTxError (ConstraintProcessingState a))
+  :: forall (validator :: Type) (datum :: Type) (redeemer :: Type)
+   . ValidatorTypes validator datum redeemer
+  => IsData datum
+  => IsData redeemer
+  => ScriptLookups validator
+  -> TxConstraints redeemer datum
+  -> QueryM (Either MkUnbalancedTxError (ConstraintProcessingState validator))
 runConstraintsM lookups txConstraints = do
   costModels <- getProtocolParameters <#> unwrap >>> _.costModels
   let
-    initCps :: ConstraintProcessingState a
+    initCps :: ConstraintProcessingState validator
     initCps =
       { unbalancedTx: emptyUnbalancedTx
       , valueSpentBalancesInputs:
@@ -584,8 +583,9 @@ runConstraintsM lookups txConstraints = do
       }
 
     unpackTuple
-      :: Either MkUnbalancedTxError Unit /\ (ConstraintProcessingState a)
-      -> Either MkUnbalancedTxError (ConstraintProcessingState a)
+      :: Either MkUnbalancedTxError Unit /\
+           (ConstraintProcessingState validator)
+      -> Either MkUnbalancedTxError (ConstraintProcessingState validator)
     unpackTuple (Left err /\ _) = Left err
     unpackTuple (_ /\ cps) = Right cps
   unpackTuple <$>
@@ -594,13 +594,12 @@ runConstraintsM lookups txConstraints = do
 -- See comments in `processLookupsAndConstraints` regarding constraints.
 -- | Create an `UnbalancedTx` given `ScriptLookups` and `TxConstraints`.
 mkUnbalancedTx'
-  :: forall (a :: Type) (b :: Type)
-   . DatumType a b
-  => RedeemerType a b
-  => FromData b
-  => ToData b
-  => ScriptLookups a
-  -> TxConstraints b b
+  :: forall (validator :: Type) (datum :: Type) (redeemer :: Type)
+   . ValidatorTypes validator datum redeemer
+  => IsData datum
+  => IsData redeemer
+  => ScriptLookups validator
+  -> TxConstraints redeemer datum
   -> QueryM (Either MkUnbalancedTxError UnbalancedTx)
 mkUnbalancedTx' scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map _.unbalancedTx
@@ -633,13 +632,12 @@ instance Show UnattachedUnbalancedTx where
 -- | the server. The `Spend` redeemers will require reindexing and all hardcoded
 -- | to `zero` from this function.
 mkUnbalancedTx
-  :: forall (a :: Type) (b :: Type)
-   . DatumType a b
-  => RedeemerType a b
-  => FromData b
-  => ToData b
-  => ScriptLookups a
-  -> TxConstraints b b
+  :: forall (validator :: Type) (datum :: Type) (redeemer :: Type)
+   . ValidatorTypes validator datum redeemer
+  => IsData datum
+  => IsData redeemer
+  => ScriptLookups validator
+  -> TxConstraints redeemer datum
   -> QueryM (Either MkUnbalancedTxError UnattachedUnbalancedTx)
 mkUnbalancedTx scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map
@@ -723,14 +721,14 @@ updateUtxoIndex = runExceptT do
 -- | Add a typed input, checking the type of the output it spends. Return the value
 -- | of the spent output.
 addOwnInput
-  :: forall (a :: Type) (b :: Type)
-   . DatumType a b
-  => RedeemerType a b
-  => FromData b
-  => ToData b
-  => InputConstraint b
-  -> ConstraintsM a (Either MkUnbalancedTxError Unit)
-addOwnInput (InputConstraint { txOutRef }) = do
+  :: forall (validator :: Type) (datum :: Type) (redeemer :: Type)
+   . ValidatorTypes validator datum redeemer
+  => IsData datum
+  => IsData redeemer
+  => Proxy datum
+  -> InputConstraint redeemer
+  -> ConstraintsM validator (Either MkUnbalancedTxError Unit)
+addOwnInput _pd (InputConstraint { txOutRef }) = do
   networkId <- getNetworkId
   runExceptT do
     ScriptLookups { txOutputs, typedValidator } <- use _lookups
@@ -750,12 +748,11 @@ addOwnInput (InputConstraint { txOutRef }) = do
 
 -- | Add a typed output and return its value.
 addOwnOutput
-  :: forall (a :: Type) (b :: Type)
-   . DatumType a b
-  => FromData b
-  => ToData b
-  => OutputConstraint b
-  -> ConstraintsM a (Either MkUnbalancedTxError Unit)
+  :: forall (validator :: Type) (datum :: Type)
+   . DatumType validator datum
+  => ToData datum
+  => OutputConstraint datum
+  -> ConstraintsM validator (Either MkUnbalancedTxError Unit)
 addOwnOutput (OutputConstraint { datum: d, value }) = do
   networkId <- getNetworkId
   runExceptT do

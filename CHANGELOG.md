@@ -46,6 +46,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contract.Chain.waitNSlots`,  `Contract.Chain.currentSlot` and `Contract.Chain.currentTime` a function to wait at least `N` number of slots and functions to get the current time in `Slot` or `POSIXTime`. ([#740](https://github.com/Plutonomicon/cardano-transaction-lib/issues/740))
 - `Contract.Transaction.getTxByHash` to retrieve contents of an on-chain transaction.
 - `project.launchSearchablePursDocs` to create an `apps` output for serving Pursuit documentation locally ([#816](https://github.com/Plutonomicon/cardano-transaction-lib/issues/816))
+- `Contract.PlutusData.IsData` type class (`ToData` + `FromData`) ([#809](https://github.com/Plutonomicon/cardano-transaction-lib/pull/809))
 - A check for port availability before Plutip runtime initialization attempt ([#837](https://github.com/Plutonomicon/cardano-transaction-lib/issues/837))
 - `Contract.Address.addressToBech32` and `Contract.Address.addressWithNetworkTagToBech32` ([#846](https://github.com/Plutonomicon/cardano-transaction-lib/issues/846))
 
@@ -84,6 +85,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 See https://github.com/cardano-foundation/CIPs/issues/303 for motivation
 - `ogmios-datum-cache` now works on `x86_64-darwin`
+- `TypedValidator` interface ([#808](https://github.com/Plutonomicon/cardano-transaction-lib/issues/808))
 
 ## [2.0.0-alpha] - 2022-07-05
 
