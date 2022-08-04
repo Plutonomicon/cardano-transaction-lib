@@ -9,12 +9,6 @@ module Plutip.UtxoDistribution
 
 import Prelude
 
-import Plutip.Types
-  ( InitialUTxO
-  , InitialUTxOWithStakeKey(InitialUTxOWithStakeKey)
-  , PrivateKeyResponse(PrivateKeyResponse)
-  , UtxoAmount
-  )
 import Contract.Address
   ( PaymentPubKeyHash
   , StakePubKeyHash
@@ -44,6 +38,12 @@ import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (unwrap, wrap)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
+import Plutip.Types
+  ( InitialUTxO
+  , InitialUTxOWithStakeKey(InitialUTxOWithStakeKey)
+  , PrivateKeyResponse(PrivateKeyResponse)
+  , UtxoAmount
+  )
 import Plutus.Types.Transaction (Utxo)
 import Type.Prelude (Proxy(Proxy))
 import Wallet.Key
@@ -123,10 +123,11 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     ourPkh <- liftedM "Could not get our payment pkh"
       $ withKeyWallet ourWallet ownPaymentPubKeyHash
     let
+      lookups :: Lookups.ScriptLookups Void
       lookups = Lookups.unspentOutputs (unwrap ourUtxos)
         <> foldMap (_.utxos >>> Lookups.unspentOutputs) walletsInfo
 
-      constraints :: Constraints.TxConstraints Unit Unit
+      constraints :: Constraints.TxConstraints Void Void
       constraints = Constraints.mustBeSignedBy ourPkh
         <> foldMap constraintsForWallet walletsInfo
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
@@ -141,7 +142,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     txHash <- submit (wrap signedTx')
     awaitTxConfirmed txHash
   where
-  constraintsForWallet :: WalletInfo -> Constraints.TxConstraints Unit Unit
+  constraintsForWallet :: WalletInfo -> Constraints.TxConstraints Void Void
   constraintsForWallet { utxos, payPkh, stakePkh } =
     -- TODO: It's necessary to include `mustBeSignedBy`, we get a
     -- `feeTooSmall` error otherwise. See
