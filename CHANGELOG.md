@@ -38,6 +38,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Switched to CSL for utxo min ada value calculation ([#715](https://github.com/Plutonomicon/cardano-transaction-lib/pull/715))
 - Upgraded Haskell server to fully support Babbage-era transactions ([#733](https://github.com/Plutonomicon/cardano-transaction-lib/pull/733))
 - Improved the collateral selection algorithm for `KeyWallet` ([#707](https://github.com/Plutonomicon/cardano-transaction-lib/pull/707))
+- Switched to CSL for `PlutusScript` hashing ([#852](https://github.com/Plutonomicon/cardano-transaction-lib/pull/852))
 
 ### Fixed 
 

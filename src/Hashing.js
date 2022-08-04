@@ -15,18 +15,16 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 // blake2b256Hash, blake2b256HashHex, hashPlutusData, hashPlutusScript
 // -----------------------------------------------------------------------------
 
-const DIGEST_LENGTH_256 = 32;
-const DIGEST_LENGTH_224 = 28;
 const DIGEST_ENCODING_BINARY = "binary";
 const DIGEST_ENCODING_HEX = "hex";
 
-const blake2bHash = bytesToHash => digestLength => digestEncoding => {
+const blake2b256Hash = bytesToHash => digestEncoding => {
   return new Promise((resolve, reject) => {
     Blake2bWasm.ready(error => {
       if (error || !Blake2bWasm.SUPPORTED) {
         reject(new Error("Failed to calculate Blake2b hash"));
       } else {
-        const digest = Blake2bWasm(digestLength)
+        const digest = Blake2bWasm(32)
           .update(Buffer.from(bytesToHash))
           .digest(digestEncoding);
         resolve(digest);
@@ -36,11 +34,11 @@ const blake2bHash = bytesToHash => digestLength => digestEncoding => {
 };
 
 exports._blake2b256Hash = bytesToHash => () => {
-  return blake2bHash(bytesToHash)(DIGEST_LENGTH_256)(DIGEST_ENCODING_BINARY);
+  return blake2b256Hash(bytesToHash)(DIGEST_ENCODING_BINARY);
 };
 
 exports._blake2b256HashHex = bytesToHash => () => {
-  return blake2bHash(bytesToHash)(DIGEST_LENGTH_256)(DIGEST_ENCODING_HEX);
+  return blake2b256Hash(bytesToHash)(DIGEST_ENCODING_HEX);
 };
 
 exports.hashPlutusData = plutusData => {
