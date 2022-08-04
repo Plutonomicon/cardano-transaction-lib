@@ -91,16 +91,18 @@ class ValidatorTypes (a :: Type) where
 Purescript lacks most of Haskell's more advanced type-level faculties, including type/data families. Purescript does, however, support functional dependencies, allowing us to encode `ValidatorTypes` as follows:
 
 ```purescript
+class ValidatorTypes :: Type -> Type -> Type -> Constraint
 class
-  ( DatumType a b
-  , RedeemerType a b
+  ( DatumType validator datum
+  , RedeemerType validator redeemer
   ) <=
-  ValidatorTypes (a :: Type) (b :: Type)
-  | a -> b
+  ValidatorTypes validator datum redeemer
 
-class DatumType (a :: Type) (b :: Type) | a -> b
+class DatumType :: Type -> Type -> Constraint
+class DatumType validator datum | validator -> datum
 
-class RedeemerType (a :: Type) (b :: Type) | a -> b
+class RedeemerType :: Type -> Type -> Constraint
+class RedeemerType validator redeemer | validator -> redeemer
 ```
 
 ### Working with scripts
