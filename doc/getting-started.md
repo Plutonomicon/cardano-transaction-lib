@@ -5,6 +5,8 @@ This guide will help you get started writing contracts with CTL. Please also see
 **Table of Contents**
 
 - [Prerequisites](#prerequisites)
+  - [Setting up a new project](#setting-up-a-new-project)
+  - [Other prerequisites](#other-prerequisites)
 - [Importing CTL modules](#importing-ctl-modules)
   - [The `Contract` interface](#the-contract-interface)
   - [Our `Prelude`](#our-prelude)
@@ -19,7 +21,26 @@ This guide will help you get started writing contracts with CTL. Please also see
 
 ## Prerequisites
 
-You need to have set up a Purescript project using CTL as a dependency ([more details here](./ctl-as-dependency.md)). You will also need to become familiar with [CTL's runtime](./runtime.md) as its runtime services are required for executing virtually all contracts.
+### Setting up a new project
+
+The easiest way to create a new CTL project is to use our `ctl-scaffold` flake template. This lives in the CTL repo -- you can have a look [here](../templates/ctl-scaffold). It contains a simple, yet complete, flakes-based scaffolding project with example `outputs` for a CTL project, including its runtime.
+
+A new project can be initialized as follows:
+
+```
+$ mkdir new-project && cd new-project
+$ nix flake init -t github:Plutonomicon/cardano-transaction-lib
+$ git init
+$ git commit -a -m 'Initial commit'
+```
+
+**Note**: Nix flakes are just source trees with a `flake.nix` file in them, so initializing a `git` repo as illustrated above is necessary to have a working project. Source files not tracked by a VCS are invisible to Nix when using flakes, so do not skip that (or a similar) step!
+
+You can learn more about using CTL as a dependency [here](./ctl-as-dependency.md).
+
+### Other prerequisites
+
+You will also need to become familiar with [CTL's runtime](./runtime.md) as its runtime services are required for executing virtually all contracts.
 
 ## Importing CTL modules
 
@@ -207,7 +228,7 @@ module.exports = {
       Scripts: path.resolve(__dirname, "fixtures/scripts"),
     },
   },
-}
+};
 ```
 
 You must also add the following to `module.exports.module.rules`:
@@ -224,7 +245,7 @@ module.exports = {
       // ...
     ],
   },
-}
+};
 ```
 
 This enables inlining your serialized scripts in `.js` files, to then be loaded in Purescript via the FFI:
@@ -249,6 +270,25 @@ myContract cfg = runContract_ cfg $ do
 ```
 
 This way you avoid hardcoding your scripts directly to .purs files which could lead to synchronization issues should your scripts change.
+
+**Note**: The `alias` method above will only work in the browser when bundling with Webpack. In order to load the scripts for both browser and NodeJS environments, you can use the `BROWSER_RUNTIME` environment variable like so:
+
+```javascript
+let script;
+if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
+  script = require("Scripts/my-script.plutus");
+} else {
+  const fs = require("fs");
+  const path = require("path");
+  script = fs.readFileSync(
+    path.resolve(__dirname, "../../fixtures/scripts/my-script.plutus"),
+    "utf8"
+  );
+}
+exports.myScript = script;
+```
+
+Note that the relative path passed to `path.resolve` for the NodeJS case starts from the `output` directory that the Purescript compiler produces.
 
 ## Testing
 
