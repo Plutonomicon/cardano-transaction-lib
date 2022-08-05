@@ -9,6 +9,7 @@ module Contract.PlutusData
   , module Datum
   , module ExportQueryM
   , module Hashing
+  , module IsData
   , module PlutusData
   , module Redeemer
   , module FromData
@@ -95,6 +96,7 @@ import Types.Redeemer
   , redeemerHash
   , unitRedeemer
   ) as Redeemer
+import IsData (class IsData) as IsData
 
 -- | Get a `PlutusData` given a `DatumHash`.
 getDatumByHash
