@@ -314,7 +314,7 @@
             buildCtlRuntime = buildCtlRuntime final;
             launchCtlRuntime = launchCtlRuntime final;
             inherit cardano-configurations;
-          } //
+          }
           # if `haskell-nix.overlay` has not been applied, we cannot use the
           # package set to build the `hsProjectFor`. We don't want to always
           # add haskell.nix's overlay or use the `ctl-server` from our own
@@ -325,9 +325,15 @@
           #
           # We can check for the necessary attribute and then apply the overlay
           # if necessary
-          nixpkgs.lib.optionalAttrs
+          // nixpkgs.lib.optionalAttrs
             (!(builtins.hasAttr "haskell-nix" prev))
-            (haskell-nix.overlay final prev);
+            (haskell-nix.overlay final prev)
+          # Similarly, we need to make sure that `libsodium-vrf` is available
+          # for the Haskell server
+          // nixpkgs.lib.optionalAttrs
+            (!(builtins.hasAttr "libsodium-vrf" prev))
+            (iohk-nix.overlays.crypto final prev)
+        ;
       };
 
       # flake from haskell.nix project
