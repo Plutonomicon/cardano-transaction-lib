@@ -36,7 +36,8 @@ import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy, validatorHash)
 import Contract.Test.Plutip
-  ( InitialUTxO
+  ( class UtxoDistribution
+  , InitialUTxO
   , runContractInEnv
   , runPlutipContract
   , withPlutipContractEnv
@@ -59,23 +60,26 @@ import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value, lovelaceValueOf)
 import Contract.Value as Value
 import Contract.Wallet (KeyWallet, privateKeyFromBytes, withKeyWallet)
+import Control.Lazy (fix)
 import Control.Monad.Error.Class (withResource)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
-import Data.Array (foldl)
+import Data.Array (foldl, zip)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.FoldableWithIndex (foldlWithIndex)
+import Data.List as List
 import Data.Log.Level (LogLevel(Trace))
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, isNothing)
 import Data.Newtype (unwrap, wrap)
+import Data.NonEmpty ((:|))
 import Data.Traversable (for_, traverse_)
 import Data.Tuple (snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (launchAff_)
+import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (throw)
@@ -87,7 +91,7 @@ import Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
-import Mote (group, only, skip, test)
+import Mote (group, only, test)
 import Partial.Unsafe (unsafePartial)
 import Plutip.Server
   ( startPlutipCluster
@@ -95,12 +99,20 @@ import Plutip.Server
   , stopChildProcessWithPort
   , stopPlutipCluster
   )
-import Plutip.Types (PlutipConfig, StopClusterResponse(StopClusterSuccess))
+import Plutip.Types
+  ( InitialUTxOWithStakeKey(InitialUTxOWithStakeKey)
+  , PlutipConfig
+  , StopClusterResponse(StopClusterSuccess)
+  )
+import Plutip.UtxoDistribution (encodeDistribution, keyWallets)
 import Plutus.Types.Transaction (Utxo)
+import Test.QuickCheck (class Arbitrary, arbitrary)
+import Test.QuickCheck.Gen (Gen, arrayOf, chooseInt, frequency, randomSample')
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 import Test.Utils as Utils
 import TestM (TestPlanM)
+import Type.Prelude (Proxy(Proxy))
 import Types.RawBytes (hexToRawBytes)
 import Types.UsedTxOuts (TxOutRefCache)
 import Wallet.Key (PrivateStakeKey)
@@ -180,7 +192,7 @@ suite = do
         withKeyWallet bob do
           pure unit -- sign, balance, submit, etc.
 
-    only $ test "runPlutipContract: Pkh2Pkh" do
+    test "runPlutipContract: Pkh2Pkh" do
       let
         distribution :: InitialUTxO
         distribution =
@@ -192,7 +204,7 @@ suite = do
         assertNoUtxosAtBaseAddress alice
         withKeyWallet alice $ pkh2PkhContract alice
 
-    only $ test "runPlutipContract: Pkh2Pkh with stake key" do
+    test "runPlutipContract: Pkh2Pkh with stake key" do
       let
         aliceUtxos =
           [ BigInt.fromInt 2_000_000_000
@@ -205,7 +217,7 @@ suite = do
         assertNoUtxosAtEnterpriseAddress alice
         withKeyWallet alice $ pkh2PkhContract alice
 
-    only $ test "runPlutipContract: parallel Pkh2Pkh" do
+    test "runPlutipContract: parallel Pkh2Pkh" do
       let
         aliceUtxos =
           [ BigInt.fromInt 1_000_000_000
@@ -230,7 +242,7 @@ suite = do
             pkh2PkhContract alice
           in unit
 
-    only $ test "runPlutipContract: parallel Pkh2Pkh with stake keys" do
+    test "runPlutipContract: parallel Pkh2Pkh with stake keys" do
       let
         aliceUtxos =
           [ BigInt.fromInt 1_000_000_000
@@ -342,7 +354,7 @@ suite = do
             liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
           submitAndLog bsTx
 
-    only $ test "runPlutipContract: SignMultiple" do
+    test "runPlutipContract: SignMultiple" do
       let
         distribution :: InitialUTxO
         distribution =
@@ -355,7 +367,7 @@ suite = do
         withKeyWallet alice signMultipleContract
 
     -- TODO: not sure what's causing this to fail
-    skip $ test "runPlutipContract: SignMultiple with stake key" do
+    test "runPlutipContract: SignMultiple with stake key" do
       let
         aliceUtxos =
           [ BigInt.fromInt 5_000_000
@@ -367,8 +379,10 @@ suite = do
         assertNoUtxosAtEnterpriseAddress alice
         withKeyWallet alice signMultipleContract
 
-    -- only $ test "runPlutipContract: stake key transfers" do
-    --   quickCheck
+    distrs <- liftEffect $ randomSample' 5 arbitrary
+    for_ distrs $ \distr ->
+      only $ test "runPlutipContract: stake key transfers random distribution" $
+        withArbUtxoDistr checkUtxoDistribution distr
 
     test "runPlutipContract: AlwaysSucceeds" do
       let
@@ -387,6 +401,64 @@ suite = do
           awaitTxConfirmed txId
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
+
+-- TODO: use this function in the other tests
+checkUtxoDistribution
+  :: forall distr wallet. UtxoDistribution distr wallet => distr -> Aff Unit
+checkUtxoDistribution distr = do
+  runPlutipContract config distr \wallets -> do
+    let
+      walletsArray = keyWallets (Proxy :: Proxy distr) wallets
+      walletUtxos = encodeDistribution distr
+    -- TODO: test no utxos at the wrong address
+    -- assertNoUtxosAtEnterpriseAddress $ unsafePartial $ head walletsArray
+    assertCorrectDistribution $ zip walletsArray walletUtxos
+
+-- TODO: minimum value of 1 ada is hardcoded, tests become flaky below
+-- that value. Ideally this shouldn't be hardcoded
+genInitialUtxo :: Gen InitialUTxO
+genInitialUtxo = map (BigInt.fromInt >>> (_ * BigInt.fromInt 1_000_000))
+  <$> arrayOf (chooseInt 1 1000)
+
+instance Arbitrary ArbitraryUtxoDistr where
+  arbitrary = fix \_ -> frequency <<< wrap $
+    (1.0 /\ pure UDUnit) :|
+      List.fromFoldable
+        [ 2.0 /\ (UDInitialUtxo <$> genInitialUtxo)
+        , 2.0 /\
+            ( UDInitialUtxoWithStake <$>
+                ( InitialUTxOWithStakeKey
+                    <$> (pure privateStakeKey)
+                    <*> genInitialUtxo
+                )
+            )
+        , 4.0 /\ (UDTuple <$> arbitrary <*> arbitrary)
+        ]
+
+data ArbitraryUtxoDistr
+  = UDUnit
+  | UDInitialUtxo InitialUTxO
+  | UDInitialUtxoWithStake InitialUTxOWithStakeKey
+  | UDTuple ArbitraryUtxoDistr ArbitraryUtxoDistr
+
+instance Show ArbitraryUtxoDistr where
+  show = case _ of
+    UDUnit -> "unit"
+    UDInitialUtxo x -> show x
+    UDInitialUtxoWithStake (InitialUTxOWithStakeKey _ x) -> "stake + " <> show x
+    UDTuple x y -> "(" <> show x <> " /\\ " <> show y <> ")"
+
+withArbUtxoDistr
+  :: forall a
+   . (forall distr wallet. UtxoDistribution distr wallet => distr -> a)
+  -> ArbitraryUtxoDistr
+  -> a
+withArbUtxoDistr f = case _ of
+  UDUnit -> f unit
+  UDInitialUtxo x -> f x
+  UDInitialUtxoWithStake x -> f x
+  UDTuple x y ->
+    withArbUtxoDistr (\d1 -> withArbUtxoDistr (f <<< (d1 /\ _)) y) x
 
 signMultipleContract :: forall (r :: Row Type). Contract r Unit
 signMultipleContract = do
