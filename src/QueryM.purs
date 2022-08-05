@@ -48,6 +48,7 @@ module QueryM
   , mkQueryRuntime
   , mkRequest
   , mkRequestAff
+  , mkWalletBySpec
   , module ServerConfig
   , ownPaymentPubKeyHash
   , ownPubKeyHash

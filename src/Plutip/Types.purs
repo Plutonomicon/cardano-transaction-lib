@@ -53,10 +53,10 @@ import Serialization (privateKeyFromBytes)
 import Serialization.Types (PrivateKey)
 import Types.ByteArray (hexToByteArray)
 import Types.RawBytes (RawBytes(RawBytes))
-import Wallet.Key
-  ( KeyWallet
-  , PrivatePaymentKey(PrivatePaymentKey)
-  , privateKeysToKeyWallet
+import Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
+import Wallet.Spec
+  (WalletSpec(UseKeys)
+  ,PrivatePaymentKeySource(PrivatePaymentKeyValue)
   )
 
 type PlutipConfig =
@@ -205,19 +205,19 @@ instance UtxoDistribution Unit Unit where
   encodeDistribution _ = []
   decodeWallets _ = Just unit
 
-instance UtxoDistribution InitialUTxO KeyWallet where
+instance UtxoDistribution InitialUTxO WalletSpec where
   encodeDistribution amounts = [ amounts ]
   decodeWallets [ (PrivateKeyResponse key) ] =
-    pure $ privateKeysToKeyWallet (PrivatePaymentKey key) Nothing
+    pure $ UseKeys ( PrivatePaymentKeyValue $ PrivatePaymentKey key) Nothing
   decodeWallets _ = Nothing
 
 instance
   UtxoDistribution restSpec restWallets =>
-  UtxoDistribution (InitialUTxO /\ restSpec) (KeyWallet /\ restWallets) where
+  UtxoDistribution (InitialUTxO /\ restSpec) (WalletSpec /\ restWallets) where
   encodeDistribution (amounts /\ rest) =
     encodeDistribution amounts <> encodeDistribution rest
   decodeWallets = Array.uncons >>> case _ of
     Nothing -> Nothing
     Just { head: PrivateKeyResponse key, tail } ->
-      Tuple (privateKeysToKeyWallet (PrivatePaymentKey key) Nothing) <$>
+      Tuple (UseKeys (PrivatePaymentKeyValue $ PrivatePaymentKey key) Nothing) <$>
         decodeWallets tail

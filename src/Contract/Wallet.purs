@@ -1,7 +1,7 @@
 -- | A module with Wallet-related functionality.
 module Contract.Wallet
   ( mkKeyWalletFromPrivateKeys
-  , withKeyWallet
+  , withWalletSpec
   , module Contract.Address
   , module Serialization
   , module Wallet.Spec
@@ -19,6 +19,8 @@ import Data.Lens.Common (simple)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Maybe (Maybe(Just))
+import Effect.Aff.Class(liftAff)
+import QueryM(mkWalletBySpec)
 import Serialization (privateKeyFromBytes) as Serialization
 import Type.Proxy (Proxy(Proxy))
 import Wallet (isGeroAvailable, isNamiAvailable) as Wallet
@@ -31,17 +33,18 @@ import Wallet.Spec
 import Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
 import Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 
-withKeyWallet
+withWalletSpec
   :: forall (r :: Row Type) (a :: Type)
-   . Wallet.KeyWallet
+   . WalletSpec
   -> Contract r a
   -> Contract r a
-withKeyWallet wallet action = do
+withWalletSpec walletSpec action = do
+  wallet <- liftAff $ mkWalletBySpec walletSpec
   let
     setUpdatedWallet :: ContractEnv r -> ContractEnv r
     setUpdatedWallet =
       simple _Newtype <<< _runtime <<< _wallet .~
-        (Just (KeyWallet wallet))
+        (Just wallet)
   local setUpdatedWallet action
   where
   _wallet
