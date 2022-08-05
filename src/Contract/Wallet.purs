@@ -19,8 +19,8 @@ import Data.Lens.Common (simple)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Maybe (Maybe(Just))
-import Effect.Aff.Class(liftAff)
-import QueryM(mkWalletBySpec)
+import Effect.Aff.Class (liftAff)
+import QueryM (mkWalletBySpec)
 import Serialization (privateKeyFromBytes) as Serialization
 import Type.Proxy (Proxy(Proxy))
 import Wallet (isGeroAvailable, isNamiAvailable) as Wallet

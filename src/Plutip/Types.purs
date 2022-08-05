@@ -55,8 +55,8 @@ import Types.ByteArray (hexToByteArray)
 import Types.RawBytes (RawBytes(RawBytes))
 import Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Wallet.Spec
-  (WalletSpec(UseKeys)
-  ,PrivatePaymentKeySource(PrivatePaymentKeyValue)
+  ( WalletSpec(UseKeys)
+  , PrivatePaymentKeySource(PrivatePaymentKeyValue)
   )
 
 type PlutipConfig =
@@ -208,7 +208,7 @@ instance UtxoDistribution Unit Unit where
 instance UtxoDistribution InitialUTxO WalletSpec where
   encodeDistribution amounts = [ amounts ]
   decodeWallets [ (PrivateKeyResponse key) ] =
-    pure $ UseKeys ( PrivatePaymentKeyValue $ PrivatePaymentKey key) Nothing
+    pure $ UseKeys (PrivatePaymentKeyValue $ PrivatePaymentKey key) Nothing
   decodeWallets _ = Nothing
 
 instance
@@ -219,5 +219,6 @@ instance
   decodeWallets = Array.uncons >>> case _ of
     Nothing -> Nothing
     Just { head: PrivateKeyResponse key, tail } ->
-      Tuple (UseKeys (PrivatePaymentKeyValue $ PrivatePaymentKey key) Nothing) <$>
-        decodeWallets tail
+      Tuple (UseKeys (PrivatePaymentKeyValue $ PrivatePaymentKey key) Nothing)
+        <$>
+          decodeWallets tail
