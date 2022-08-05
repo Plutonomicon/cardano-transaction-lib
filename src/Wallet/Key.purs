@@ -47,6 +47,8 @@ newtype KeyWallet = KeyWallet
   { address :: NetworkId -> Aff Address
   , selectCollateral :: Utxos -> Maybe TransactionUnspentOutput
   , signTx :: Transaction -> Aff Transaction
+  , paymentKey :: PrivatePaymentKey
+  , stakeKey :: Maybe PrivateStakeKey
   }
 
 derive instance Newtype KeyWallet _
@@ -65,6 +67,8 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
   { address
   , selectCollateral
   , signTx
+  , paymentKey: payKey
+  , stakeKey: mbStakeKey
   }
   where
   address :: NetworkId -> Aff Address
