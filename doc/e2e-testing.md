@@ -2,13 +2,18 @@
 
 CTL has basic machinery for E2E testing in the browser. This can be used to either run the included examples (in `examples`) or create a custom test suite for E2E testing.
 
-**Table of Contents**
-
+- [E2E Testing in the Browser](#e2e-testing-in-the-browser)
 - [Parts Involved](#parts-involved)
 - [How to Run the Included Examples](#how-to-run-the-included-examples)
 - [Accepted Command Line Options](#accepted-command-line-options)
 - [How Wallets are Used](#how-wallets-are-used)
+  - [How to Use a Different Version of a Wallet](#how-to-use-a-different-version-of-a-wallet)
+  - [Where to Find the Installed Extensions](#where-to-find-the-installed-extensions)
+  - [Re-Package an Extension as a CRX File](#re-package-an-extension-as-a-crx-file)
+  - [Use a CRX File](#use-a-crx-file)
+  - [How to Use a Different User Wallet](#how-to-use-a-different-user-wallet)
 - [How to Create Your Own Test Suite](#how-to-create-your-own-test-suite)
+- [Using a reproducible `chromium` version](#using-a-reproducible-chromium-version)
 
 ## Parts Involved
 
@@ -36,6 +41,7 @@ The provided test suite accepts some options. These can be passed via `make` aft
 ## How Wallets are Used
 
 For purposes of testing, there are two parts to using a wallet: providing the right software version and importing a wallet with enough assets and a known password.
+
 - The software just needs to be unpacked to some directory. This can either be the location where the browser unpacks it, or the result of unpacking a CRX file (see below).
 - We provide the wallet data as tarballs which will be unpacked into the chrome profile before a test run.
 
@@ -103,3 +109,25 @@ If you are using CTL as a library, you can and should create your own test suite
    - `withExample`: navigate to a URL, detect the wallet and get ready to run a contract.
 2. Fire up your own contracts.
 3. Take the `Makefile` as an inspiration, prepare your wallets and run the tests.
+
+## Using a reproducible `chromium` version
+
+Although most users will have some version of Chromium or Google Chrome installed system-wide, it can be a good idea to use the same version for all e2e testing. When creating your project's `devShell` using `purescriptProject`, you can set the `shell.withChromium` flag to `true` to include it in the shell's packages. This will be the version of `chromium` present in the `nixpkgs` you pass to create your project:
+
+```nix
+{
+  projectFor = system:
+    let
+      pkgs = nixpkgsFor system;
+    in
+    pkgs.purescriptProject {
+      inherit pkgs;
+      projectName = "my-project";
+      shell = {
+        withChromium = true;
+        # ...
+      };
+      # ...
+    };
+}
+```
