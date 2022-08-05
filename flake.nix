@@ -291,10 +291,8 @@
           + " `cardano-transaction-lib.overlays.{runtime, purescript}`"
           + " directly instead"
         )
-        (final: prev:
-          (self.overlays.purescript final prev)
-          // (self.overlays.runtime final prev)
-        );
+        nixpkgs.lib.composeManyExtensions
+        (nixpkgs.lib.attrValues self.overlays);
 
       overlays = with inputs;  {
         purescript = final: prev: {
@@ -316,7 +314,20 @@
             buildCtlRuntime = buildCtlRuntime final;
             launchCtlRuntime = launchCtlRuntime final;
             inherit cardano-configurations;
-          };
+          } //
+          # if `haskell-nix.overlay` has not been applied, we cannot use the
+          # package set to build the `hsProjectFor`. We don't want to always
+          # add haskell.nix's overlay or use the `ctl-server` from our own
+          # `outputs.packages` because this might lead to conflicts with the
+          # `hackage.nix` version being used (this might also happen with the
+          # Ogmios and Plutip packages, but at least we have direct control over
+          # our own haskell.nix project)
+          #
+          # We can check for the necessary attribute and then apply the overlay
+          # if necessary
+          nixpkgs.lib.optionalAttrs
+            (!(builtins.hasAttr "haskell-nix" prev))
+            (haskell-nix.overlay final prev);
       };
 
       # flake from haskell.nix project
