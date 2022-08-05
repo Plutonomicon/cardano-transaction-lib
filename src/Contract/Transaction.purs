@@ -13,6 +13,7 @@ module Contract.Transaction
   , balanceTxM
   , calculateMinFee
   , calculateMinFeeM
+  , getTxByHash
   , module BalanceTxError
   , module ExportQueryM
   , module PTransaction
@@ -140,17 +141,14 @@ import QueryM
       , ClientOtherError
       )
   ) as ExportQueryM
-import QueryM
-  ( calculateMinFee
-  , signTransaction
-  , submitTxOgmios
-  ) as QueryM
-import QueryM.Ogmios (SubmitTxR(SubmitTxSuccess, SubmitFail))
+import QueryM (calculateMinFee, signTransaction, submitTxOgmios) as QueryM
 import QueryM.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
   , awaitTxConfirmedWithTimeoutSlots
   ) as AwaitTx
+import QueryM.GetTxByHash (getTxByHash) as QueryM
+import QueryM.Ogmios (SubmitTxR(SubmitTxSuccess, SubmitFail))
 import ReindexRedeemers (ReindexErrors(CannotGetTxOutRefIndexForRedeemer)) as ReindexRedeemersExport
 import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import Serialization (convertTransaction, toBytes) as Serialization
@@ -516,6 +514,13 @@ scriptOutputToTransactionOutput
 scriptOutputToTransactionOutput networkId =
   toPlutusTxOutput
     <<< TxOutput.scriptOutputToTransactionOutput networkId
+
+-- | Get `Transaction` contents by hash
+getTxByHash
+  :: forall (r :: Row Type)
+   . TransactionHash
+  -> Contract r (Maybe Transaction)
+getTxByHash = wrapContract <<< QueryM.getTxByHash <<< unwrap
 
 -- | Wait until a transaction with given hash is confirmed.
 -- | Use `awaitTxConfirmedWithTimeout` if you want to limit the time of waiting.

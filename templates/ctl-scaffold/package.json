@@ -1,28 +1,21 @@
 {
-  "name": "cardano-transaction-lib",
-  "version": "2.0.0-alpha",
+  "name": "ctl-scaffold",
+  "version": "0.1.0",
   "description": "",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-  },
+  "main": "index.js",
   "directories": {
     "test": "test"
   },
   "scripts": {
-    "test": "npm run unit-test && npm run integration-test && npm run plutip-test",
-    "integration-test": "spago run --main Test.Integration",
-    "unit-test": "spago run --main Ctl.Test.Unit",
-    "plutip-test": "spago run --main Test.Plutip",
+    "test": "spago run --main Test.Main",
     "dev": "make run-dev",
     "build": "make run-build"
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@emurgo/cardano-serialization-lib-browser": "11.0.0",
-    "@emurgo/cardano-serialization-lib-nodejs": "11.0.0",
-    "base64-js": "^1.5.1",
+    "@emurgo/cardano-serialization-lib-browser": "11.0.0-beta.1",
+    "@emurgo/cardano-serialization-lib-nodejs": "11.0.0-beta.1",
     "big-integer": "1.6.51",
     "blake2b-wasm": "2.4.0",
     "bufferutil": "4.0.5",
