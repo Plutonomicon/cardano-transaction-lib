@@ -44,7 +44,7 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
-import Contract.Wallet (withKeyWallet)
+import Contract.Wallet (withWalletSpec)
 import Control.Monad.Error.Class (withResource)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
@@ -155,9 +155,9 @@ suite = do
           ] /\
             [ BigInt.fromInt 2_000_000_000 ]
       runPlutipContract config distribution \(alice /\ bob) -> do
-        withKeyWallet alice do
+        withWalletSpec alice do
           pure unit -- sign, balance, submit, etc.
-        withKeyWallet bob do
+        withWalletSpec bob do
           pure unit -- sign, balance, submit, etc.
 
     test "runPlutipContract: Pkh2Pkh" do
@@ -168,7 +168,7 @@ suite = do
           , BigInt.fromInt 2_000_000_000
           ]
       runPlutipContract config distribution \alice -> do
-        withKeyWallet alice do
+        withWalletSpec alice do
           pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
           let
             constraints :: Constraints.TxConstraints Void Void
@@ -198,8 +198,8 @@ suite = do
             ]
       withPlutipContractEnv config distribution \env (alice /\ bob) ->
         sequential ado
-          parallel $ runContractInEnv env $ withKeyWallet alice do
-            bobPkh <- liftedM "Failed to get PKH" $ withKeyWallet bob
+          parallel $ runContractInEnv env $ withWalletSpec alice do
+            bobPkh <- liftedM "Failed to get PKH" $ withWalletSpec bob
               ownPaymentPubKeyHash
             let
               constraints :: Constraints.TxConstraints Void Void
@@ -216,8 +216,8 @@ suite = do
             bsTx <-
               liftedE $ balanceAndSignTxE ubTx
             submitAndLog bsTx
-          parallel $ runContractInEnv env $ withKeyWallet bob do
-            alicePkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
+          parallel $ runContractInEnv env $ withWalletSpec bob do
+            alicePkh <- liftedM "Failed to get PKH" $ withWalletSpec alice
               ownPaymentPubKeyHash
             let
               constraints :: Constraints.TxConstraints Void Void
@@ -244,7 +244,7 @@ suite = do
           , BigInt.fromInt 2_000_000_000
           ]
       runPlutipContract config distribution \alice -> do
-        withKeyWallet alice do
+        withWalletSpec alice do
           mp <- alwaysMintsPolicy
           cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
           tn <- liftContractM "Cannot make token name"
@@ -291,7 +291,7 @@ suite = do
           , BigInt.fromInt 2_000_000_000
           ]
       runPlutipContract config distribution \alice -> do
-        withKeyWallet alice do
+        withWalletSpec alice do
           tn1 <- mkTokenName "Token with a long name"
           tn2 <- mkTokenName "Token"
           mp1 /\ cs1 <- mkCurrencySymbol mintingPolicyRdmrInt1
@@ -331,7 +331,7 @@ suite = do
           , BigInt.fromInt 100_000_000
           ]
       runPlutipContract config distribution \alice -> do
-        withKeyWallet alice do
+        withWalletSpec alice do
           pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
           let
             constraints :: Constraints.TxConstraints Void Void
@@ -369,7 +369,7 @@ suite = do
           , BigInt.fromInt 2_000_000_000
           ]
       runPlutipContract config distribution \alice -> do
-        withKeyWallet alice do
+        withWalletSpec alice do
           validator <- AlwaysSucceeds.alwaysSucceedsScript
           vhash <- liftContractAffM "Couldn't hash validator"
             $ validatorHash validator

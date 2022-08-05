@@ -17,4 +17,4 @@ import Plutip.Types
   , InitialUTxODistribution
   , class UtxoDistribution
   ) as X
-import Contract.Wallet (withKeyWallet) as X
+import Contract.Wallet (withWalletSpec) as X
