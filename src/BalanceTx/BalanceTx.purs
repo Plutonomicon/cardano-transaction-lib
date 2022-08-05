@@ -119,11 +119,10 @@ import QueryM (ClientError, QueryM)
 import QueryM
   ( calculateMinFee
   , getWalletAddress
-  , getWalletCollateral
   , evaluateTxOgmios
   ) as QueryM
 import QueryM.Ogmios (TxEvaluationR(TxEvaluationR)) as Ogmios
-import QueryM.Utxos (utxosAt, filterLockedUtxos)
+import QueryM.Utxos (utxosAt, filterLockedUtxos, getWalletCollateral)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
@@ -465,7 +464,7 @@ setCollateral transaction utxos = runExceptT do
       <#> note CouldNotGetCollateral <<< map Array.singleton
   selectCollateral wallet
     | isJust (cip30Wallet wallet) =
-        QueryM.getWalletCollateral <#> note CouldNotGetCollateral
+        getWalletCollateral <#> note CouldNotGetCollateral
     | otherwise =
         pure $ Left $ CannotRequestCollateralForWallet Impossible
 
