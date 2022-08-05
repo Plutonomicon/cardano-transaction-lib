@@ -75,6 +75,7 @@ import Plutip.Types
   , StopClusterResponse
   , InitialUTxODistribution
   )
+import Plutip.Utils (tmpdir)
 import Plutip.UtxoDistribution
   ( class UtxoDistribution
   , decodeWallets
@@ -82,7 +83,6 @@ import Plutip.UtxoDistribution
   , keyWallets
   , transferFundsFromEnterpriseToBase
   )
-import Plutip.Utils (tmpdir)
 import QueryM
   ( ClientError(ClientDecodeJsonError, ClientHttpError)
   , stopQueryRuntime

@@ -1,6 +1,7 @@
 module Plutip.UtxoDistribution
   ( class UtxoDistribution
   , decodeWallets
+  , decodeWallets'
   , keyWallets
   , encodeDistribution
   , transferFundsFromEnterpriseToBase
@@ -36,7 +37,7 @@ import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.List (List, (:))
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (unwrap, wrap)
-import Data.Tuple (Tuple(Tuple))
+import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Plutip.Types
   ( InitialUTxO
@@ -60,25 +61,33 @@ import Wallet.Key
 class UtxoDistribution distr wallets | distr -> wallets where
   encodeDistribution :: distr -> Array (Array UtxoAmount)
   decodeWallets :: distr -> Array PrivateKeyResponse -> Maybe wallets
+  decodeWallets'
+    :: distr
+    -> Array PrivateKeyResponse
+    -> Maybe (wallets /\ Array PrivateKeyResponse)
   keyWallets :: Proxy distr -> wallets -> Array KeyWallet
 
 instance UtxoDistribution Unit Unit where
   encodeDistribution _ = []
-  decodeWallets _ _ = pure unit
+  decodeWallets d p = fst <$> decodeWallets' d p
+  decodeWallets' _ pks = Just $ unit /\ pks
   keyWallets _ _ = []
 
 instance UtxoDistribution InitialUTxO KeyWallet where
   encodeDistribution amounts = [ amounts ]
-  decodeWallets _ [ PrivateKeyResponse key ] =
-    Just $ privateKeysToKeyWallet (PrivatePaymentKey key) Nothing
-  decodeWallets _ _ = Nothing
+  decodeWallets d p = fst <$> decodeWallets' d p
+  decodeWallets' _ pks = Array.uncons pks <#>
+    \{ head: PrivateKeyResponse key, tail } ->
+      (privateKeysToKeyWallet (PrivatePaymentKey key) Nothing) /\ tail
   keyWallets _ wallet = [ wallet ]
 
 instance UtxoDistribution InitialUTxOWithStakeKey KeyWallet where
   encodeDistribution (InitialUTxOWithStakeKey _ amounts) = [ amounts ]
-  decodeWallets (InitialUTxOWithStakeKey stake _) [ PrivateKeyResponse key ] =
-    Just $ privateKeysToKeyWallet (PrivatePaymentKey key) (Just stake)
-  decodeWallets _ _ = Nothing
+  decodeWallets d p = fst <$> decodeWallets' d p
+  decodeWallets' (InitialUTxOWithStakeKey stake _) pks = Array.uncons pks <#>
+    \{ head: PrivateKeyResponse key, tail } ->
+      privateKeysToKeyWallet (PrivatePaymentKey key) (Just stake) /\
+        tail
   keyWallets _ wallet = [ wallet ]
 
 instance
@@ -88,11 +97,11 @@ instance
   UtxoDistribution (headSpec /\ restSpec) (headWallets /\ restWallets) where
   encodeDistribution (distr /\ rest) =
     encodeDistribution distr <> encodeDistribution rest
-  decodeWallets (distr /\ rest) =
-    Array.uncons >=>
-      \{ head, tail } -> do
-        wallet <- decodeWallets distr [ head ]
-        Tuple wallet <$> decodeWallets rest tail
+  decodeWallets d p = fst <$> decodeWallets' d p
+  decodeWallets' (distr /\ rest) pks = do
+    (headWallets /\ pks') <- decodeWallets' distr pks
+    (restWallets /\ pks'') <- decodeWallets' rest pks'
+    pure $ (headWallets /\ restWallets) /\ pks''
   keyWallets _ (headWallets /\ restWallets) =
     (keyWallets (Proxy :: Proxy headSpec) headWallets)
       <> (keyWallets (Proxy :: Proxy restSpec) restWallets)
