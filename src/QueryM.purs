@@ -107,7 +107,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Traversable (for, for_, traverse, traverse_)
+import Data.Traversable (for, traverse, traverse_)
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -123,7 +123,7 @@ import Effect.Aff
   )
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, error, message, throw)
+import Effect.Exception (Error, error, message)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
