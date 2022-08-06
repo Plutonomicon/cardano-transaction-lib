@@ -8,7 +8,7 @@ Please also see our
 
 - [Documentation](https://github.com/Plutonomicon/cardano-transaction-lib/tree/develop/doc)
 
-- [Pursuit docs](https://plutonomicon.github.io/cardano-transaction-lib/)
+- [Generated docs](https://plutonomicon.github.io/cardano-transaction-lib/)
 
 - [Discord server](https://discord.gg/c8kZWxzJ)
 
