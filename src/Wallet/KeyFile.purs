@@ -9,7 +9,7 @@ module Wallet.KeyFile
 
 import Prelude
 
-import Aeson(encodeAeson)
+import Aeson (encodeAeson)
 import Cardano.TextEnvelope
   ( TextEnvelopeType
       ( PaymentSigningKeyShelleyed25519
@@ -18,18 +18,18 @@ import Cardano.TextEnvelope
   , textEnvelopeBytes
   )
 import Data.Newtype (wrap)
-import Data.Maybe(Maybe)
+import Data.Maybe (Maybe)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Helpers (liftM)
 import Node.Encoding as Encoding
-import Node.FS.Sync (readTextFile,writeTextFile)
+import Node.FS.Sync (readTextFile, writeTextFile)
 import Node.Path (FilePath)
-import Serialization (privateKeyFromBytes,bytesFromPrivateKey)
+import Serialization (privateKeyFromBytes, bytesFromPrivateKey)
 import Serialization.Types (PrivateKey)
 import Types.ByteArray (ByteArray)
-import Types.RawBytes(rawBytesToHex)
+import Types.RawBytes (rawBytesToHex)
 import Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
@@ -53,29 +53,32 @@ privateStakeKeyFromFile filePath = do
     PrivateStakeKey <$> privateKeyFromBytes (wrap bytes)
 
 privatePaymentKeyToFile :: FilePath -> PrivatePaymentKey -> Aff Unit
-privatePaymentKeyToFile filePath key
-  = liftEffect $ writeTextFile Encoding.UTF8 filePath (formatPaymentKey key)
+privatePaymentKeyToFile filePath key = liftEffect $ writeTextFile Encoding.UTF8
+  filePath
+  (formatPaymentKey key)
 
 privateStakeKeyToFile :: FilePath -> PrivateStakeKey -> Aff Unit
-privateStakeKeyToFile filePath key
-  = liftEffect $ writeTextFile Encoding.UTF8 filePath (formatStakeKey key)
+privateStakeKeyToFile filePath key = liftEffect $ writeTextFile Encoding.UTF8
+  filePath
+  (formatStakeKey key)
 
 formatPaymentKey :: PrivatePaymentKey -> String
 formatPaymentKey (PrivatePaymentKey key) = encodeAeson >>> show $
-  { "type" : "PaymentSigningKeyShelley_ed25519",
-    description : "Payment Signing Key",
-    cborHex : keyToCbor key
+  { "type": "PaymentSigningKeyShelley_ed25519"
+  , description: "Payment Signing Key"
+  , cborHex: keyToCbor key
   }
 
 formatStakeKey :: PrivateStakeKey -> String
 formatStakeKey (PrivateStakeKey key) = encodeAeson >>> show $
-  { "type": "StakeSigningKeyShelley_ed25519",
-    description : "Stake Signing Key",
-    cborHex : keyToCbor key
+  { "type": "StakeSigningKeyShelley_ed25519"
+  , description: "Stake Signing Key"
+  , cborHex: keyToCbor key
   }
 
 keyToCbor :: PrivateKey -> Maybe String
-keyToCbor = ((rawBytesToHex >>> (magicPrefix <> _)) <$> _) <<< bytesFromPrivateKey
+keyToCbor = ((rawBytesToHex >>> (magicPrefix <> _)) <$> _) <<<
+  bytesFromPrivateKey
 
 magicPrefix :: String
 magicPrefix = "5820"
