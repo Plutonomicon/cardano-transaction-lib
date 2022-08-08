@@ -153,6 +153,7 @@ getWalletCollateral = do
         networkId <- asks $ _.config >>> _.networkId
         addr <- liftAff $ (unwrap kw).address networkId
         utxos <- utxosAt addr <#> map unwrap >>> fromMaybe Map.empty
+          >>= filterLockedUtxos
         pure $ Array.singleton <$> (unwrap kw).selectCollateral utxos
   for_ mbCollateralUTxOs \collateralUTxOs -> do
     pparams <- asks $ _.runtime >>> _.pparams
