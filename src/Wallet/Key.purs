@@ -3,6 +3,8 @@ module Wallet.Key
   , PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   , privateKeysToKeyWallet
+  , keyWalletPrivatePaymentKey
+  , keyWalletPrivateStakeKey
   ) where
 
 import Prelude
@@ -60,6 +62,12 @@ derive instance Newtype PrivatePaymentKey _
 newtype PrivateStakeKey = PrivateStakeKey PrivateKey
 
 derive instance Newtype PrivateStakeKey _
+
+keyWalletPrivatePaymentKey :: KeyWallet -> PrivatePaymentKey
+keyWalletPrivatePaymentKey = unwrap >>> _.paymentKey
+
+keyWalletPrivateStakeKey :: KeyWallet -> Maybe PrivateStakeKey
+keyWalletPrivateStakeKey = unwrap >>> _.stakeKey
 
 privateKeysToKeyWallet
   :: PrivatePaymentKey -> Maybe PrivateStakeKey -> KeyWallet
