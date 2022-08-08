@@ -9,6 +9,7 @@ module Contract.Prelude
   , module Enum
   , module Foldable
   , module Generic
+  , module Log.Level
   , module Maybe
   , module Newtype
   , module PurescriptPrelude
@@ -204,6 +205,7 @@ import Data.Foldable
   , surroundMap
   ) as Foldable
 import Data.Generic.Rep (class Generic) as Generic
+import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error)) as Log.Level
 import Data.Maybe
   ( Maybe(Just, Nothing)
   , fromJust

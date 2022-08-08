@@ -6,9 +6,14 @@ module Examples.KeyWallet.Pkh2Pkh (main) where
 
 import Contract.Prelude
 
-import Contract.Monad (liftedE, liftedM, logInfo')
+import Contract.Monad (liftedE, liftedM)
+import Contract.Log (logInfo')
 import Contract.ScriptLookups as Lookups
-import Contract.Transaction (balanceAndSignTxM, submit)
+import Contract.Transaction
+  ( awaitTxConfirmed
+  , balanceAndSignTxM
+  , submit
+  )
 import Contract.TxConstraints as Constraints
 import Contract.Value (lovelaceValueOf) as Value
 import Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
@@ -31,3 +36,5 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
   liftEffect unlock
+  awaitTxConfirmed txId
+  logInfo' $ "Tx submitted successfully!"

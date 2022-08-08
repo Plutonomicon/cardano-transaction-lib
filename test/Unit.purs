@@ -1,9 +1,10 @@
-module Test.Unit (main, testPlan) where
+module Ctl.Test.Unit (main, testPlan) where
 
 import Prelude
 
 import Effect (Effect)
 import Effect.Aff (launchAff_)
+import Test.Base64 as Base64
 import Test.ByteArray as ByteArray
 import Test.Data as Data
 import Test.Deserialization as Deserialization
@@ -26,13 +27,14 @@ import Test.UsedTxOuts as UsedTxOuts
 import Test.Utils as Utils
 import TestM (TestPlanM)
 
--- Run with `spago test --main Test.Unit`
+-- Run with `spago test --main Ctl.Test.Unit`
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpret testPlan
 
 testPlan :: TestPlanM Unit
 testPlan = do
+  Base64.suite
   ByteArray.suite
   Cip25.suite
   Data.suite

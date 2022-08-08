@@ -11,7 +11,6 @@ import Prelude
 import Address (addressToOgmiosAddress)
 import Cardano.Types.Transaction (TransactionOutput, UtxoM(UtxoM), Utxos)
 import Cardano.Types.Value (Value)
-import Control.Monad.Logger.Trans (LoggerT)
 import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, asks)
 import Data.Bifunctor (bimap)
@@ -27,7 +26,6 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Helpers as Helpers
-import Prim.TypeError (class Warn, Text)
 import QueryM (QueryM, getWalletAddress, getWalletCollateral, mkOgmiosRequest)
 import QueryM.Ogmios as Ogmios
 import Serialization.Address (Address)
@@ -44,11 +42,7 @@ import Wallet (Wallet(Gero, Nami, KeyWallet))
 -- | Gets utxos at an (internal) `Address` in terms of (internal) `Cardano.Transaction.Types`.
 -- | Results may vary depending on `Wallet` type.
 utxosAt
-  :: Warn
-       ( Text
-           "`utxosAt`: Querying for UTxOs by address is deprecated. See https://github.com/Plutonomicon/cardano-transaction-lib/issues/536."
-       )
-  => Address
+  :: Address
   -> QueryM (Maybe UtxoM)
 utxosAt = mkUtxoQuery
   <<< mkOgmiosRequest Ogmios.queryUtxosAtCall _.utxo
@@ -63,7 +57,8 @@ getUtxo ref =
     (_ >>= unwrap >>> Map.lookup ref)
 
 mkUtxoQuery :: QueryM Ogmios.UtxoQR -> QueryM (Maybe UtxoM)
-mkUtxoQuery query = asks _.wallet >>= maybe allUtxosAt utxosAtByWallet
+mkUtxoQuery query = asks (_.runtime >>> _.wallet) >>= maybe allUtxosAt
+  utxosAtByWallet
   where
   -- Add more wallet types here:
   utxosAtByWallet :: Wallet -> QueryM (Maybe UtxoM)
@@ -125,14 +120,14 @@ filterLockedUtxos utxos =
 
 withTxRefsCache
   :: forall (m :: Type -> Type) (a :: Type)
-   . ReaderT UsedTxOuts (LoggerT Aff) a
+   . ReaderT UsedTxOuts Aff a
   -> QueryM a
-withTxRefsCache f = withReaderT (_.usedTxOuts) f
+withTxRefsCache = wrap <<< withReaderT (_.runtime >>> _.usedTxOuts)
 
 getWalletBalance
   :: QueryM (Maybe Value)
 getWalletBalance = do
-  asks _.wallet >>= map join <<< traverse case _ of
+  asks (_.runtime >>> _.wallet) >>= map join <<< traverse case _ of
     Nami wallet -> liftAff $ wallet.getBalance wallet.connection
     Gero wallet -> liftAff $ wallet.getBalance wallet.connection
     KeyWallet _ -> do

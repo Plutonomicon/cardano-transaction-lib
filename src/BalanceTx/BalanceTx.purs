@@ -35,7 +35,11 @@ module BalanceTx
   , FinalizedTransaction(FinalizedTransaction)
   , GetPublicKeyTransactionInputError(CannotConvertScriptOutputToTxInput)
   , GetWalletAddressError(CouldNotGetWalletAddress)
-  , GetWalletCollateralError(CouldNotGetCollateral)
+  , GetWalletCollateralError
+      ( CannotRequestCollateralForWallet
+      , CouldNotGetCollateral
+      , WalletNotSpecified
+      )
   , TxInputLockedError(TxInputLockedError)
   , ImpossibleError(Impossible)
   , ReturnAdaChangeError
@@ -46,6 +50,7 @@ module BalanceTx
   , UtxosAtError(CouldNotGetUtxos)
   , UtxoMinAdaValueCalcError(UtxoMinAdaValueCalcError)
   , balanceTx
+  , balanceTxWithAddress
   ) where
 
 import Prelude
@@ -163,7 +168,10 @@ derive instance Generic GetWalletAddressError _
 instance Show GetWalletAddressError where
   show = genericShow
 
-data GetWalletCollateralError = CouldNotGetCollateral
+data GetWalletCollateralError
+  = CannotRequestCollateralForWallet ImpossibleError
+  | CouldNotGetCollateral
+  | WalletNotSpecified
 
 derive instance Generic GetWalletCollateralError _
 
@@ -352,7 +360,7 @@ finalizeTransaction reindexedUnattachedTxWithExUnits =
     datums = wrap <$> fromMaybe mempty ws.plutusData
   in
     do
-      costModels <- asks _.pparams <#> unwrap >>> _.costModels
+      costModels <- asks (_.runtime >>> _.pparams >>> unwrap >>> _.costModels)
       liftEffect $ FinalizedTransaction <$>
         setScriptDataHash costModels redeemers datums attachedTxWithExUnits
 
@@ -435,36 +443,33 @@ _redeemersTxIns = lens' \(UnattachedUnbalancedTx rec@{ redeemersTxIns }) ->
     \rdmrs -> UnattachedUnbalancedTx rec { redeemersTxIns = rdmrs }
 
 --------------------------------------------------------------------------------
--- Setting collateral, collateral return, total collateral
+-- Setting collateral
 --------------------------------------------------------------------------------
 
 setCollateral
-  :: Transaction -> Utxos -> QueryM (Either BalanceTxError Transaction)
-setCollateral transaction utxos =
-  runExceptT do
-    wallet <- asks _.wallet
-    mCollateral <- ExceptT $ selectCollateral wallet
-    pure $ case mCollateral /\ wallet of
-      Nothing /\ _ ->
-        transaction
-      Just collateral /\ Just (KeyWallet _) ->
-        -- TODO: https://github.com/Plutonomicon/cardano-transaction-lib/pull/707
-        addTxCollateral collateral transaction
-      Just collateral /\ _ -> do
-        addTxCollateral collateral transaction
+  :: Transaction
+  -> Utxos
+  -> QueryM (Either GetWalletCollateralError Transaction)
+setCollateral transaction utxos = runExceptT do
+  wallet <-
+    ExceptT $ asks (_.runtime >>> _.wallet) <#> note WalletNotSpecified
+  collateral <- ExceptT $ selectCollateral wallet
+  -- TODO: https://github.com/Plutonomicon/cardano-transaction-lib/pull/707
+  pure $ addTxCollateral collateral transaction
   where
   selectCollateral
-    :: Maybe Wallet
-    -> QueryM (Either BalanceTxError (Maybe (Array TransactionUnspentOutput)))
-  selectCollateral (Just w) | isJust (cip30Wallet w) =
-    map Just <$> QueryM.getWalletCollateral <#>
-      note (GetWalletCollateralError' CouldNotGetCollateral)
-  selectCollateral (Just (KeyWallet kw)) =
+    :: Wallet
+    -> QueryM (Either GetWalletCollateralError (Array TransactionUnspentOutput))
+  selectCollateral (KeyWallet keyWallet) =
     -- TODO: Combine with getWalletCollateral and supply with fee estimate
     -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/510
-    Right <<< map pure <$> kw.selectCollateral <$> filterLockedUtxos utxos
-  selectCollateral _ =
-    pure (Right Nothing)
+    (unwrap keyWallet).selectCollateral <$> filterLockedUtxos utxos
+      <#> note CouldNotGetCollateral <<< map Array.singleton
+  selectCollateral wallet
+    | isJust (cip30Wallet wallet) =
+        QueryM.getWalletCollateral <#> note CouldNotGetCollateral
+    | otherwise =
+        pure $ Left $ CannotRequestCollateralForWallet Impossible
 
 addTxCollateral :: Array TransactionUnspentOutput -> Transaction -> Transaction
 addTxCollateral utxos transaction =
@@ -477,30 +482,36 @@ addTxCollateral utxos transaction =
 -- FIX ME: UnbalancedTx contains requiredSignatories which would be a part of
 -- multisig but we don't have such functionality ATM.
 
--- | Balances an unbalanced transaction. For submitting a tx via Nami, the
--- | utxo set shouldn't include the collateral which is vital for balancing.
--- | In particular, the transaction inputs must not include the collateral.
-balanceTx
-  :: UnattachedUnbalancedTx
+-- | Like `balanceTx`, but allows to provide an address that is treated like
+-- | user's own (while `balanceTx` gets it from the wallet).
+balanceTxWithAddress
+  :: Address
+  -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
+balanceTxWithAddress
+  ownAddr
+  unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   let (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = t
   networkId <- (unbalancedTx ^. _body <<< _networkId) #
-    maybe (asks _.networkId) pure
+    maybe (asks $ _.config >>> _.networkId) pure
   let unbalancedTx' = unbalancedTx # _body <<< _networkId ?~ networkId
   utxoMinVal <- adaOnlyUtxoMinAdaValue
   runExceptT do
     -- Get own wallet address, collateral and utxo set:
-    ownAddr <- ExceptT $ QueryM.getWalletAddress <#>
-      note (GetWalletAddressError' CouldNotGetWalletAddress)
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
+
     -- After adding collateral, we need to balance the inputs and
     -- non-Ada outputs before looping, i.e. we need to add input fees
     -- for the Ada only collateral. No MinUtxos required. Perhaps
     -- for some wallets this step can be skipped and we can go straight
     -- to prebalancer.
-    unbalancedCollTx <- ExceptT $ setCollateral unbalancedTx' utxos
+    unbalancedCollTx <-
+      if Array.null (unattachedTx ^. _redeemersTxIns)
+      -- Don't set collateral if tx doesn't contain phase-2 scripts:
+      then pure unbalancedTx'
+      else ExceptT $ setCollateral unbalancedTx' utxos
+        <#> lmap GetWalletCollateralError'
 
     let
       -- Combines utxos at the user address and those from any scripts
@@ -515,13 +526,12 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
 
     -- Prebalance collaterised tx without fees:
     ubcTx <- except $
-      prebalanceCollateral zero availableUtxos ownAddr utxoMinVal
-        unbalancedCollTx
+      prebalanceCollateral zero availableUtxos utxoMinVal unbalancedCollTx
     -- Prebalance collaterised tx with fees:
     let unattachedTx' = unattachedTx # _transaction' .~ ubcTx
     _ /\ fees <- ExceptT $ evalExUnitsAndMinFee unattachedTx'
     ubcTx' <- except $
-      prebalanceCollateral (fees + feeBuffer) availableUtxos ownAddr utxoMinVal
+      prebalanceCollateral (fees + feeBuffer) availableUtxos utxoMinVal
         ubcTx
     -- Loop to balance non-Ada assets
     nonAdaBalancedCollTx <- ExceptT $ loop availableUtxos ownAddr [] $
@@ -541,11 +551,10 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   prebalanceCollateral
     :: BigInt
     -> Utxos
-    -> Address
     -> BigInt
     -> Transaction
     -> Either BalanceTxError Transaction
-  prebalanceCollateral fees utxos ownAddr adaOnlyUtxoMinValue tx =
+  prebalanceCollateral fees utxos adaOnlyUtxoMinValue tx =
     balanceTxIns utxos fees adaOnlyUtxoMinValue (tx ^. _body)
       >>= balanceNonAdaOuts ownAddr utxos
       <#> flip (set _body) tx
@@ -618,6 +627,17 @@ balanceTx unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
   -- top of their transaction as input.
   feeBuffer :: BigInt
   feeBuffer = fromInt 500000
+
+-- | Balances an unbalanced transaction. For submitting a tx via Nami, the
+-- | utxo set shouldn't include the collateral which is vital for balancing.
+-- | In particular, the transaction inputs must not include the collateral.
+balanceTx
+  :: UnattachedUnbalancedTx
+  -> QueryM (Either BalanceTxError FinalizedTransaction)
+balanceTx tx = do
+  QueryM.getWalletAddress >>= case _ of
+    Nothing -> pure $ Left $ GetWalletAddressError' CouldNotGetWalletAddress
+    Just address -> balanceTxWithAddress address tx
 
 -- Logging for Transaction type without returning Transaction
 logTx
