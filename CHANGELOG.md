@@ -52,6 +52,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `doc/e2e-testing.md` describes the process of E2E testing. ([#814](https://github.com/Plutonomicon/cardano-transaction-lib/pull/814))
 - Added unzip to the `devShell`. New `purescriptProject.shell` flag `withChromium` also optionally adds Chromium to the `devShell` ([#799](https://github.com/Plutonomicon/cardano-transaction-lib/pull/799))
 - Added paymentKey and stakeKey fields to the record in KeyWallet
+- Added `privatePaymentKeyToFile`, `privateStakeKeyToFile`, `formatPaymentKey` and `formatStakeKey` to `Wallet.KeyFile` for formatting private keys and writing them to files
+- Added `bytesFromPrivateKey` to `Serialization`
 
 ### Changed
 
