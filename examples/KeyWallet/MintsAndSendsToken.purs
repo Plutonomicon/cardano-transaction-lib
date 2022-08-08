@@ -2,7 +2,7 @@
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that mints a token using the `AlwaysMints` policy and sends it along with
 -- | the selected amount to the specified address.
-module Examples.KeyWallet.MintsAndSendsToken where
+module Examples.KeyWallet.MintsAndSendsToken (main) where
 
 import Contract.Prelude
 
@@ -24,6 +24,7 @@ import Contract.TextEnvelope
 import Contract.Transaction (balanceAndSignTx, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
+import Examples.AlwaysMints (alwaysMintsPolicy)
 import Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
 
 main :: Effect Unit
@@ -52,9 +53,3 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
   liftEffect unlock
-
-foreign import alwaysMints :: String
-
-alwaysMintsPolicy :: Contract () MintingPolicy
-alwaysMintsPolicy = wrap <<< wrap <$> textEnvelopeBytes alwaysMints
-  PlutusScriptV1
