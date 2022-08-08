@@ -167,8 +167,8 @@ suite = do
               [ TransactionUnspentOutput
                   { output: TransactionOutput { amount } }
               ] -> do
-              when (amount /= lovelaceValueOf (BigInt.fromInt 1_000_000_000)) do
-                throw "Wrong UTxO selected as collateral"
+              unless (amount == lovelaceValueOf (BigInt.fromInt 1_000_000_000))
+                $ throw "Wrong UTxO selected as collateral"
             Just _ -> do
               -- not a bug, but unexpected
               throw "More than one UTxO in collateral"
