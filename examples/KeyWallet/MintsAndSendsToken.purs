@@ -7,20 +7,9 @@ module Examples.KeyWallet.MintsAndSendsToken (main) where
 import Contract.Prelude
 
 import Contract.Log (logInfo')
-import Contract.Monad
-  ( Contract
-  , liftContractAffM
-  , liftContractM
-  , liftedE
-  , liftedM
-  )
+import Contract.Monad (liftContractAffM, liftContractM, liftedE, liftedM)
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (MintingPolicy)
-import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV1)
-  , textEnvelopeBytes
-  )
 import Contract.Transaction (balanceAndSignTx, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
