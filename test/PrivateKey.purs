@@ -3,7 +3,6 @@ module Test.PrivateKey where
 import Contract.Config (testnetConfig)
 import Prelude
 
-import Aeson (fromString)
 import Cardano.Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , Transaction(Transaction)
@@ -20,11 +19,10 @@ import Data.Maybe (Maybe(Just))
 import Data.Newtype (unwrap)
 import Effect.Class (liftEffect)
 import Mote (group, test)
-import Node.Encoding as Encoding
-import Node.FS.Sync (readTextFile, writeTextFile, unlink)
+import Node.FS.Sync (unlink)
 import Serialization (publicKeyFromPrivateKey, publicKeyHash)
 import Test.Fixtures (txFixture1)
-import Test.Spec.Assertions (shouldEqual, fail)
+import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Type.Proxy (Proxy(Proxy))
 import Wallet.Spec

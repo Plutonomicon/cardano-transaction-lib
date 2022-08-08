@@ -23,7 +23,7 @@ import Data.Newtype (wrap)
 import Data.Maybe (Maybe)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
-import Effect.Exception (error, throw)
+import Effect.Exception (error)
 import Helpers (liftM)
 import Node.Encoding as Encoding
 import Node.FS.Sync (readTextFile, writeTextFile)
