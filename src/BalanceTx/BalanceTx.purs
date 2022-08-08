@@ -37,7 +37,6 @@ module BalanceTx
   , GetWalletAddressError(CouldNotGetWalletAddress)
   , GetWalletCollateralError
       ( CouldNotGetCollateral
-      , WalletNotSpecified
       )
   , TxInputLockedError(TxInputLockedError)
   , ImpossibleError(Impossible)
@@ -105,7 +104,7 @@ import Data.Lens.Setter ((.~), set, (?~), (%~))
 import Data.List ((:), List(Nil), partition)
 import Data.Log.Tag (tag)
 import Data.Map (fromFoldable, lookup, toUnfoldable, union) as Map
-import Data.Maybe (fromMaybe, maybe, isJust, Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
@@ -131,7 +130,6 @@ import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (TransactionInput)
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), _transaction)
 import Untagged.Union (asOneOf)
-import Wallet (Wallet(KeyWallet), cip30Wallet)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
@@ -166,9 +164,7 @@ derive instance Generic GetWalletAddressError _
 instance Show GetWalletAddressError where
   show = genericShow
 
-data GetWalletCollateralError
-  = CouldNotGetCollateral
-  | WalletNotSpecified
+data GetWalletCollateralError = CouldNotGetCollateral
 
 derive instance Generic GetWalletCollateralError _
 
