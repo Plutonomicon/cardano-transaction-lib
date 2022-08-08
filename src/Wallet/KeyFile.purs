@@ -21,7 +21,7 @@ import Data.Newtype (wrap)
 import Data.Maybe (Maybe)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
-import Effect.Exception (error)
+import Effect.Exception (error, throw)
 import Helpers (liftM)
 import Node.Encoding as Encoding
 import Node.FS.Sync (readTextFile, writeTextFile)
@@ -53,28 +53,32 @@ privateStakeKeyFromFile filePath = do
     PrivateStakeKey <$> privateKeyFromBytes (wrap bytes)
 
 privatePaymentKeyToFile :: FilePath -> PrivatePaymentKey -> Aff Unit
-privatePaymentKeyToFile filePath key = liftEffect $ writeTextFile Encoding.UTF8
-  filePath
-  (formatPaymentKey key)
+privatePaymentKeyToFile filePath key =
+  liftM (error "failed to format key") (formatPaymentKey key) >>=
+    liftEffect <<< (writeTextFile Encoding.UTF8 filePath)
 
 privateStakeKeyToFile :: FilePath -> PrivateStakeKey -> Aff Unit
-privateStakeKeyToFile filePath key = liftEffect $ writeTextFile Encoding.UTF8
-  filePath
-  (formatStakeKey key)
+privateStakeKeyToFile filePath key =
+  liftM (error "failed to format key") (formatStakeKey key) >>=
+    liftEffect <<< (writeTextFile Encoding.UTF8 filePath)
 
-formatPaymentKey :: PrivatePaymentKey -> String
-formatPaymentKey (PrivatePaymentKey key) = encodeAeson >>> show $
-  { "type": "PaymentSigningKeyShelley_ed25519"
-  , description: "Payment Signing Key"
-  , cborHex: keyToCbor key
-  }
+formatPaymentKey :: PrivatePaymentKey -> Maybe String
+formatPaymentKey (PrivatePaymentKey key) = encodeAeson >>> show
+  <$>
+    { "type": "PaymentSigningKeyShelley_ed25519"
+    , description: "Payment Signing Key"
+    , cborHex: _
+    }
+  <$> keyToCbor key
 
-formatStakeKey :: PrivateStakeKey -> String
-formatStakeKey (PrivateStakeKey key) = encodeAeson >>> show $
-  { "type": "StakeSigningKeyShelley_ed25519"
-  , description: "Stake Signing Key"
-  , cborHex: keyToCbor key
-  }
+formatStakeKey :: PrivateStakeKey -> Maybe String
+formatStakeKey (PrivateStakeKey key) = encodeAeson >>> show
+  <$>
+    { "type": "StakeSigningKeyShelley_ed25519"
+    , description: "Stake Signing Key"
+    , cborHex: _
+    }
+  <$> keyToCbor key
 
 keyToCbor :: PrivateKey -> Maybe String
 keyToCbor = ((rawBytesToHex >>> (magicPrefix <> _)) <$> _) <<<
