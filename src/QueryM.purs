@@ -26,7 +26,7 @@ module QueryM
   , WebSocket(WebSocket)
   , allowError
   , applyArgs
-  , calculateMinFee
+  , calculateMinFeeOld
   , evaluateTxOgmios
   , getChainTip
   , getDatumByHash
@@ -203,6 +203,8 @@ import Wallet.Spec
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
+
+import Serialization.MinFee
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -544,8 +546,8 @@ txToHex tx =
     <$> Serialization.convertTransaction tx
 
 -- Query the Haskell server for the minimum transaction fee
-calculateMinFee :: Transaction -> QueryM (Either ClientError Coin)
-calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
+calculateMinFeeOld :: Transaction -> QueryM (Either ClientError Coin)
+calculateMinFeeOld tx@(Transaction { body: Transaction.TxBody body }) = do
   txHex <- liftEffect (txToHex tx)
   url <- mkServerEndpointUrl "fees"
   liftAff (postAeson url (encodeAeson { count: witCount, tx: txHex }))

@@ -4,9 +4,11 @@ import Prelude
 
 import Effect (Effect)
 import Effect.Aff (launchAff_)
+import Mote (only)
 import Test.AffInterface as AffInterface
-import Test.Utils as Utils
+import Test.MinFee as MinFee
 import Test.PrivateKey as PrivateKey
+import Test.Utils as Utils
 import TestM (TestPlanM)
 
 -- Run with `spago test --main Test.Integration`
@@ -18,4 +20,5 @@ main = launchAff_ do
 testPlan :: TestPlanM Unit
 testPlan = do
   AffInterface.suite
+  only $ MinFee.suite
   PrivateKey.suite
