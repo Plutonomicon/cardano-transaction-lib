@@ -5,6 +5,8 @@ module Wallet.KeyFile
   , keyFromFile
   , privatePaymentKeyToFile
   , privateStakeKeyToFile
+  , formatStakeKey
+  , formatPaymentKey
   ) where
 
 import Prelude
