@@ -102,6 +102,14 @@ exports._privateKeyFromBytes = maybe => bytes => {
   }
 };
 
+exports._bytesFromPrivateKey = maybe => key => {
+  try {
+    return maybe.just(key.as_bytes());
+  } catch (err) {
+    return maybe.nothing;
+  }
+};
+
 exports.publicKeyHash = pk => pk.hash();
 
 exports.newEd25519Signature = bech32 => () =>

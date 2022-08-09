@@ -162,7 +162,6 @@ import QueryM.ServerConfig
   ) as ServerConfig
 import QueryM.ServerConfig
   ( ServerConfig
-  , defaultOgmiosWsConfig
   , mkHttpUrl
   , mkOgmiosDatumCacheWsUrl
   , mkWsUrl
@@ -323,7 +322,7 @@ mkQueryRuntime config = do
   QueryRuntimeModel (ogmiosWs /\ pparams) datumCacheWs wallet <- sequential $
     QueryRuntimeModel
       <$> parallel do
-        ogmiosWs <- mkOgmiosWebSocketAff config.logLevel defaultOgmiosWsConfig
+        ogmiosWs <- mkOgmiosWebSocketAff config.logLevel config.ogmiosConfig
         pparams <- getProtocolParametersAff ogmiosWs config.logLevel
         pure $ ogmiosWs /\ pparams
       <*> parallel

@@ -1145,10 +1145,10 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
             TransactionOutput
               txOut { amount = v <> nonAdaChange } : txOuts <> txOuts'
 
+  if isZero nonAdaChange then pure $ wrap txBody
   -- Original code uses "isNat" because there is a guard against zero, see
   -- isPos for more detail.
-  if isPos nonAdaChange then pure $ wrap txBody { outputs = outputs }
-  else if isZero nonAdaChange then pure $ wrap txBody
+  else if isPos nonAdaChange then pure $ wrap txBody { outputs = outputs }
   else Left InputsCannotBalanceNonAdaTokens
 
 getAmount :: TransactionOutput -> Value
