@@ -18,7 +18,6 @@ import Contract.Monad
   , liftContractAffM
   , liftContractM
   , liftedE
-  , liftedM
   , runContract
   )
 import Contract.PlutusData (PlutusData(Integer), Redeemer(Redeemer))
@@ -54,7 +53,7 @@ main = launchAff_ do
       constraints :: Constraints.TxConstraints Void Void
       constraints = mconcat
         [ Constraints.mustMintValueWithRedeemer
-            (Redeemer $ Integer (BigInt.fromInt 1))
+            (Redeemer $ Integer (BigInt.fromInt 123))
             (Value.singleton cs1 tn1 one <> Value.singleton cs1 tn2 one)
         , Constraints.mustMintValueWithRedeemer
             (Redeemer $ Integer (BigInt.fromInt 2))

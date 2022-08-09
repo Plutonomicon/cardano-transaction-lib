@@ -6,12 +6,12 @@ module Examples.KeyWallet.Pkh2Pkh (main) where
 
 import Contract.Prelude
 
-import Contract.Monad (liftedE, liftedM)
+import Contract.Monad (liftedE)
 import Contract.Log (logInfo')
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
   ( awaitTxConfirmed
-  , balanceAndSignTxM
+  , balanceAndSignTx
   , submit
   )
 import Contract.TxConstraints as Constraints
@@ -31,8 +31,7 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
     lookups = mempty
 
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  bsTx <-
-    liftedM "Failed to balance/sign tx" $ balanceAndSignTxM ubTx
+  bsTx <- balanceAndSignTx ubTx
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
   liftEffect unlock

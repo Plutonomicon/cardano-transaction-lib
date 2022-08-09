@@ -402,15 +402,18 @@ getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
 submitTxOgmios :: CborBytes -> QueryM Ogmios.SubmitTxR
 submitTxOgmios = mkOgmiosRequest Ogmios.submitTxCall _.submit
 
-evaluateTxOgmios :: CborBytes -> QueryM Ogmios.TxEvaluationResult
-evaluateTxOgmios bytes = do
-  response <- unwrap <$> mkOgmiosRequest Ogmios.evaluateTxCall _.evaluate bytes
-  either
-    ( throwError <<< error <<< ("\n" <> _) <<< Ogmios.printTxEvaluationFailure
-        (Just bytes)
-    )
-    pure
-    response
+evaluateTxOgmios :: CborBytes -> QueryM Ogmios.TxEvaluationResponse
+evaluateTxOgmios bytes =
+  do
+    {-response <- unwrap <$> -} mkOgmiosRequest Ogmios.evaluateTxCall _.evaluate
+  bytes
+
+-- either
+--   ( throwError <<< error <<< ("\n" <> _) <<< Ogmios.printTxEvaluationFailure
+--       (Just bytes)
+--   )
+--   pure
+--   response
 
 --------------------------------------------------------------------------------
 -- DATUM CACHE QUERIES

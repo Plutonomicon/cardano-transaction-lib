@@ -30,6 +30,7 @@ module BalanceTx
   , EvalExUnitsAndMinFeeError
       ( EvalMinFeeError
       , ReindexRedeemersError
+      , EvalTxFailure
       )
   , Expected(Expected)
   , FinalizedTransaction(FinalizedTransaction)
@@ -51,6 +52,7 @@ module BalanceTx
   , UtxoMinAdaValueCalcError(UtxoMinAdaValueCalcError)
   , balanceTx
   , balanceTxWithAddress
+  , printTxEvaluationFailure
   ) where
 
 import Prelude
@@ -92,12 +94,17 @@ import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Trans.Class (lift)
-import Data.Array ((\\), modifyAt)
+import Data.Array ((\\), modifyAt, filter, catMaybes)
 import Data.Array as Array
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt, fromInt)
-import Data.Either (Either(Left, Right), hush, note)
-import Data.Foldable as Foldable
+import Data.BigInt as BigInt
+import Data.Either (Either(Left, Right), hush, note, either, isLeft)
+import Data.Foldable (find, foldl, length, foldMap)
+import Data.Foldable (lookup) as Foldable
+import Data.FoldableWithIndex (foldMapWithIndex)
+import Data.Function (applyN)
+import Data.Int (toStringAs, decimal, ceil, toNumber)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (Lens', lens')
 import Data.Lens.Getter ((^.))
@@ -111,8 +118,12 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
+import Data.String (Pattern(Pattern))
+import Data.String.Common (joinWith, split) as String
+import Data.String.CodePoints (length) as String
+import Data.String.Utils (padEnd)
 import Data.Traversable (sequence, traverse, traverse_)
-import Data.Tuple (Tuple(Tuple), fst)
+import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import QueryM (ClientError, QueryM)
@@ -122,7 +133,21 @@ import QueryM
   , getWalletCollateral
   , evaluateTxOgmios
   ) as QueryM
-import QueryM.Ogmios (TxEvaluationResult(TxEvaluationResult)) as Ogmios
+import QueryM.Ogmios
+  ( TxEvaluationResult(TxEvaluationResult)
+  , TxEvaluationFailure(UnparsedError, ScriptFailures)
+  , RedeemerPointer
+  , ScriptFailure
+      ( ExtraRedeemers
+      , MissingRequiredDatums
+      , MissingRequiredScripts
+      , ValidatorFailed
+      , UnknownInputReferencedByRedeemer
+      , NonScriptInputReferencedByRedeemer
+      , IllFormedExecutionBudget
+      , NoCostModelForLanguage
+      )
+  ) as Ogmios
 import QueryM.Utxos (utxosAt, filterLockedUtxos)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization (convertTransaction, toBytes) as Serialization
@@ -159,7 +184,132 @@ data BalanceTxError
 derive instance Generic BalanceTxError _
 
 instance Show BalanceTxError where
-  show = genericShow
+  show (EvalExUnitsAndMinFeeError' (EvalTxFailure tx failure)) =
+    "EvalExUnitsAndMinFeeError': EvalTxFailure: " <> printTxEvaluationFailure tx
+      failure
+  show e = genericShow e
+
+type WorkingLine = String
+type FrozenLine = String
+
+type PrettyString = Array (Either WorkingLine FrozenLine)
+
+runPrettyString :: PrettyString -> String
+runPrettyString ary = String.joinWith "" (either identity identity <$> ary)
+
+freeze :: PrettyString -> PrettyString
+freeze ary = either Right Right <$> ary
+
+line :: String -> PrettyString
+line s =
+  case
+    Array.uncons ((\l -> Left (l <> "\n")) <$> String.split (Pattern "\n") s)
+    of
+    Nothing -> []
+    Just { head, tail: [] } -> [ head ]
+    Just { head, tail } -> [ head ] <> freeze tail
+
+indent' :: String -> String
+indent' s = "  " <> s
+
+bullet :: PrettyString -> PrettyString
+bullet ary = freeze (bimap ("- " <> _) indent' <$> ary)
+
+number :: PrettyString -> PrettyString
+number ary =
+  let
+    biggest =
+      ceil
+        ( toNumber
+            ( String.length
+                (toStringAs decimal (length (filter isLeft ary)) <> ". ")
+            ) / 2.0
+        ) * 2
+    onWorkingLine i l = padEnd biggest (toStringAs decimal (i + 1) <> ". ") <> l
+    onFrozenLine = applyN indent' (biggest / 2)
+  in
+    freeze
+      ( foldl (\b a -> b <> [ bimap (onWorkingLine $ length b) onFrozenLine a ])
+          []
+          ary
+      )
+
+printTxEvaluationFailure
+  :: UnattachedUnbalancedTx -> Ogmios.TxEvaluationFailure -> String
+printTxEvaluationFailure (UnattachedUnbalancedTx { redeemersTxIns }) e =
+  runPrettyString $ case e of
+    Ogmios.UnparsedError error -> line $ "Unknown error: " <> error
+    Ogmios.ScriptFailures sf -> line "Script failures:" <> bullet
+      (foldMapWithIndex printScriptFailures sf)
+  where
+  lookupRedeemerPointer
+    :: Ogmios.RedeemerPointer -> Maybe (Redeemer /\ Maybe TransactionInput)
+  lookupRedeemerPointer ptr = flip find redeemersTxIns
+    $ \(Redeemer rdmr /\ _) -> rdmr.tag == ptr.redeemerTag && rdmr.index ==
+        Natural.toBigInt ptr.redeemerIndex
+
+  printRedeemerPointer :: Ogmios.RedeemerPointer -> PrettyString
+  printRedeemerPointer ptr =
+    line
+      ( show ptr.redeemerTag <> ":" <> BigInt.toString
+          (Natural.toBigInt ptr.redeemerIndex)
+      )
+
+  -- TODO Print more details, if possible, for example minting policy/minted assets
+  printRedeemerDetails :: Ogmios.RedeemerPointer -> PrettyString
+  printRedeemerDetails ptr =
+    let
+      mbRedeemerTxIn = lookupRedeemerPointer ptr
+      mbData = mbRedeemerTxIn <#> \(Redeemer r /\ _) -> "Redeemer: " <> show
+        r.data
+      mbTxIn = (mbRedeemerTxIn >>= snd) <#> \txIn -> "Input: " <> show txIn
+    in
+      foldMap line $ catMaybes [ mbData, mbTxIn ]
+
+  printRedeemer :: Ogmios.RedeemerPointer -> PrettyString
+  printRedeemer ptr =
+    printRedeemerPointer ptr <> bullet (printRedeemerDetails ptr)
+
+  printScriptFailure :: Ogmios.ScriptFailure -> PrettyString
+  printScriptFailure = case _ of
+    Ogmios.ExtraRedeemers ptrs -> line "Extra redeemers:" <> bullet
+      (foldMap printRedeemer ptrs)
+    Ogmios.MissingRequiredDatums { provided, missing }
+    -> line "Supplied with datums:"
+      <> bullet (foldMap (foldMap line) provided)
+      <> line "But missing required datums:"
+      <> bullet (foldMap line missing)
+    Ogmios.MissingRequiredScripts { resolved, missing }
+    -> line "Supplied with scripts:"
+      <> bullet
+        ( foldMapWithIndex
+            (\ptr scr -> printRedeemer ptr <> line ("Script: " <> scr))
+            resolved
+        )
+      <> line "But missing required scripts:"
+      <> bullet (foldMap line missing)
+    Ogmios.ValidatorFailed { error, traces } -> line error <> line "Trace:" <>
+      number
+        (foldMap line traces)
+    Ogmios.UnknownInputReferencedByRedeemer txIn -> line
+      ("Unknown input referenced by redeemer: " <> show txIn)
+    Ogmios.NonScriptInputReferencedByRedeemer txIn -> line
+      ("Non script input referenced by redeemer: " <> show txIn)
+    Ogmios.IllFormedExecutionBudget Nothing -> line
+      ("Ill formed execution budget: Execution budget missing")
+    Ogmios.IllFormedExecutionBudget (Just { memory, steps }) ->
+      line "Ill formed execution budget:"
+        <> bullet
+          ( line ("Memory: " <> BigInt.toString (Natural.toBigInt memory))
+              <> line ("Steps: " <> BigInt.toString (Natural.toBigInt steps))
+          )
+    Ogmios.NoCostModelForLanguage language -> line
+      ("No cost model for language \"" <> language <> "\"")
+
+  printScriptFailures
+    :: Ogmios.RedeemerPointer -> Array Ogmios.ScriptFailure -> PrettyString
+  printScriptFailures ptr sfs = printRedeemer ptr <> bullet
+    (foldMap printScriptFailure sfs)
 
 data GetWalletAddressError = CouldNotGetWalletAddress
 
@@ -188,6 +338,7 @@ instance Show UtxosAtError where
 data EvalExUnitsAndMinFeeError
   = EvalMinFeeError ClientError
   | ReindexRedeemersError ReindexErrors
+  | EvalTxFailure UnattachedUnbalancedTx Ogmios.TxEvaluationFailure
 
 derive instance Generic EvalExUnitsAndMinFeeError _
 
@@ -304,13 +455,18 @@ instance Show FinalizedTransaction where
 -- Evaluation of fees and execution units, Updating redeemers
 --------------------------------------------------------------------------------
 
-evalTxExecutionUnits :: Transaction -> QueryM Ogmios.TxEvaluationResult
-evalTxExecutionUnits tx =
-  QueryM.evaluateTxOgmios =<<
-    liftEffect
-      ( wrap <<< Serialization.toBytes <<< asOneOf <$>
-          Serialization.convertTransaction tx
-      )
+-- Evaluate the transactions execution uni
+evalTxExecutionUnits
+  :: Transaction
+  -> UnattachedUnbalancedTx
+  -> QueryM (Either EvalExUnitsAndMinFeeError Ogmios.TxEvaluationResult)
+evalTxExecutionUnits tx unattachedTx = do
+  txBytes <- liftEffect
+    ( wrap <<< Serialization.toBytes <<< asOneOf <$>
+        Serialization.convertTransaction tx
+    )
+  lmap (EvalTxFailure unattachedTx) <<< unwrap <$> QueryM.evaluateTxOgmios
+    txBytes
 
 -- Calculates the execution units needed for each script in the transaction
 -- and the minimum fee, including the script fees.
@@ -328,7 +484,8 @@ evalExUnitsAndMinFee' unattachedTx =
     -- Reattach datums and redeemers before evaluating ex units:
     let attachedTx = reattachDatumsAndRedeemers reindexedUnattachedTx
     -- Evaluate transaction ex units:
-    rdmrPtrExUnitsList <- lift $ evalTxExecutionUnits attachedTx
+    rdmrPtrExUnitsList <- ExceptT $ evalTxExecutionUnits attachedTx
+      reindexedUnattachedTx
     let
       -- Set execution units received from the server:
       reindexedUnattachedTxWithExUnits =
@@ -887,7 +1044,7 @@ collectTxIns originalTxIns utxos value = do
   where
   updatedInputs :: Either BalanceTxInsError (Array TransactionInput)
   updatedInputs =
-    Foldable.foldl
+    foldl
       ( \newTxIns txIn -> do
           txIns <- newTxIns
           txInsValue <- getTxInsValue utxos txIns

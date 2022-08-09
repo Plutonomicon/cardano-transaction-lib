@@ -25,7 +25,7 @@ import Contract.TextEnvelope
   )
 import Contract.Transaction
   ( awaitTxConfirmed
-  , balanceAndSignTxM
+  , balanceAndSignTx
   , submit
   )
 import Contract.TxConstraints as Constraints
@@ -53,8 +53,7 @@ main = launchAff_ $ do
       lookups = Lookups.mintingPolicy mp
 
     ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    bsTx <-
-      liftedM "Failed to balance/sign tx" $ balanceAndSignTxM ubTx
+    bsTx <- balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
 

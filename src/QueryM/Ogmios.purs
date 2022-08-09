@@ -58,7 +58,6 @@ module QueryM.Ogmios
   , queryUtxosAtCall
   , queryUtxosCall
   , submitTxCall
-  , printTxEvaluationFailure
   ) where
 
 import Prelude
@@ -547,115 +546,6 @@ decodeRedeemerPointer redeemerPtrRaw = note redeemerPtrTypeMismatch
         <*> Natural.fromString indexRaw
     _ -> Nothing
 
-type WorkingLine = String
-type FrozenLine = String
-
-type PrettyString = Array (Either WorkingLine FrozenLine)
-
-runPrettyString :: PrettyString -> String
-runPrettyString ary = String.joinWith "" (either identity identity <$> ary)
-
-freeze :: PrettyString -> PrettyString
-freeze ary = either Right Right <$> ary
-
-line :: String -> PrettyString
-line s =
-  case
-    Array.uncons ((\l -> Left (l <> "\n")) <$> String.split (Pattern "\n") s)
-    of
-    Nothing -> []
-    Just { head, tail: [] } -> [ head ]
-    Just { head, tail } -> [ head ] <> freeze tail
-
-indent' :: String -> String
-indent' s = "  " <> s
-
-bullet :: PrettyString -> PrettyString
-bullet ary = freeze (bimap ("- " <> _) indent' <$> ary)
-
-number :: PrettyString -> PrettyString
-number ary =
-  let
-    biggest =
-      ceil
-        ( toNumber
-            ( String.length
-                (toStringAs decimal (length (filter isLeft ary)) <> ". ")
-            ) / 2.0
-        ) * 2
-    onWorkingLine i l = padEnd biggest (toStringAs decimal (i + 1) <> ". ") <> l
-    onFrozenLine = applyN indent' (biggest / 2)
-  in
-    freeze
-      ( foldl (\b a -> b <> [ bimap (onWorkingLine $ length b) onFrozenLine a ])
-          []
-          ary
-      )
-
--- TODO Accept UnattachedUnbalanced as input, as that has more info about the redeemers?
---      Requires changing evaluateTxOgmios to accept an UnattachedUnbalancedTx?
-printTxEvaluationFailure :: Maybe CborBytes -> TxEvaluationFailure -> String
-printTxEvaluationFailure mbBytes e = runPrettyString $ case e of
-  UnparsedError aeson -> line $ "Unknown error: " <> stringifyAeson aeson
-  ScriptFailures sf -> line "Script failures:" <> bullet
-    (foldMapWithIndex printScriptFailures sf)
-  where
-  mbTx = mbBytes >>= deserializeTransaction >>> hush
-  mbRedeemers = mbTx >>= \tx -> pure $ oneOf
-    (unwrap (unwrap tx).witnessSet).redeemers
-
-  lookupRedeemerPointer :: RedeemerPointer -> Maybe Redeemer
-  lookupRedeemerPointer ptr = mbRedeemers >>= \redeemers -> flip find redeemers
-    $ \(Redeemer rdmr) -> rdmr.tag == ptr.redeemerTag && rdmr.index ==
-        Natural.toBigInt ptr.redeemerIndex
-
-  showRedeemerPointer :: RedeemerPointer -> String
-  showRedeemerPointer ptr
-    | Just (Redeemer { "data": data_, index, tag }) <- lookupRedeemerPointer ptr =
-        show tag <> ":" <> BigInt.toString index <> " with redeemer " <> show
-          data_
-  showRedeemerPointer { redeemerTag, redeemerIndex } = show redeemerTag <> ":"
-    <> BigInt.toString (Natural.toBigInt redeemerIndex)
-
-  printScriptFailure :: ScriptFailure -> PrettyString
-  printScriptFailure = case _ of
-    ExtraRedeemers ptrs -> line "Extra redeemers:" <> bullet
-      (foldMap (line <<< showRedeemerPointer) ptrs)
-    MissingRequiredDatums { provided, missing }
-    -> line "Supplied with datums:"
-      <> bullet (foldMap (foldMap line) provided)
-      <> line "But missing required datums:"
-      <> bullet (foldMap line missing)
-    MissingRequiredScripts { resolved, missing }
-    -> line "Supplied with scripts:"
-      <> bullet
-        ( foldMapWithIndex
-            (\ptr scr -> line (showRedeemerPointer ptr <> " @ " <> scr))
-            resolved
-        )
-      <> line "But missing required scripts:"
-      <> bullet (foldMap line missing)
-    ValidatorFailed { error, traces } -> line error <> line "Trace:" <> number
-      (foldMap line traces)
-    UnknownInputReferencedByRedeemer txIn -> line
-      ("Unknown input referenced by redeemer: " <> show txIn)
-    NonScriptInputReferencedByRedeemer txIn -> line
-      ("Non script input referenced by redeemer: " <> show txIn)
-    IllFormedExecutionBudget Nothing -> line
-      ("Ill formed execution budget: Execution budget missing")
-    IllFormedExecutionBudget (Just { memory, steps }) ->
-      line "Ill formed execution budget:"
-        <> bullet
-          ( line ("Memory: " <> BigInt.toString (Natural.toBigInt memory))
-              <> line ("Steps: " <> BigInt.toString (Natural.toBigInt steps))
-          )
-    NoCostModelForLanguage language -> line
-      ("No cost model for language \"" <> language <> "\"")
-
-  printScriptFailures :: RedeemerPointer -> Array ScriptFailure -> PrettyString
-  printScriptFailures ptr sfs = line (showRedeemerPointer ptr) <> bullet
-    (foldMap printScriptFailure sfs)
-
 -- TODO Check these aren't duplicating other types
 type OgmiosDatum = String
 type OgmiosScript = String
@@ -676,17 +566,24 @@ data ScriptFailure
   | IllFormedExecutionBudget (Maybe ExecutionUnits)
   | NoCostModelForLanguage String
 
+derive instance Generic ScriptFailure _
+
+instance Show ScriptFailure where
+  show = genericShow
+
 -- TODO
 -- IncompatibleEra
 -- AdditionalUtxoOverlap
 -- NotEnoughSynced
 -- CannotCreateEvaluationContext
 data TxEvaluationFailure
-  = UnparsedError Aeson
+  = UnparsedError String
   | ScriptFailures (Map RedeemerPointer (Array ScriptFailure))
 
+derive instance Generic TxEvaluationFailure _
+
 instance Show TxEvaluationFailure where
-  show = printTxEvaluationFailure Nothing
+  show = genericShow
 
 -- TODO Use this in TxEvaluationFailure too
 -- ReaderT has an Alt instance if m does
@@ -760,7 +657,8 @@ instance DecodeAeson ScriptFailure where
       pure $ NoCostModelForLanguage o
 
 instance DecodeAeson TxEvaluationFailure where
-  decodeAeson aeson = decodeScriptFailures aeson <|> pure (UnparsedError aeson)
+  decodeAeson aeson = decodeScriptFailures aeson <|> pure
+    (UnparsedError (stringifyAeson aeson))
     where
     decodeScriptFailures :: Aeson -> Either JsonDecodeError TxEvaluationFailure
     decodeScriptFailures = aesonObject \o -> do

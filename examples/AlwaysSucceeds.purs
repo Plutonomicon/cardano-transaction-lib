@@ -31,7 +31,7 @@ import Contract.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
   , awaitTxConfirmed
-  , balanceAndSignTxE
+  , balanceAndSignTx
   , submit
   )
 import Contract.TxConstraints (TxConstraints)
@@ -110,7 +110,7 @@ buildBalanceSignAndSubmitTx
   -> Contract () TransactionHash
 buildBalanceSignAndSubmitTx lookups constraints = do
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  bsTx <- liftedE $ balanceAndSignTxE ubTx
+  bsTx <- balanceAndSignTx ubTx
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
   pure txId

@@ -35,8 +35,7 @@ import Contract.Transaction
   ( BalancedSignedTransaction
   , DataHash
   , awaitTxConfirmed
-  , balanceAndSignTxM
-  , balanceAndSignTxE
+  , balanceAndSignTx
   , getTxByHash
   , submit
   , withBalancedAndSignedTxs
@@ -182,8 +181,7 @@ suite = do
             lookups :: Lookups.ScriptLookups Void
             lookups = mempty
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <-
-            liftedE $ balanceAndSignTxE ubTx
+          bsTx <- balanceAndSignTx ubTx
           submitAndLog bsTx
 
     test "runPlutipContract: parallel Pkh2Pkh" do
@@ -213,8 +211,7 @@ suite = do
               lookups :: Lookups.ScriptLookups Void
               lookups = mempty
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            bsTx <-
-              liftedE $ balanceAndSignTxE ubTx
+            bsTx <- balanceAndSignTx ubTx
             submitAndLog bsTx
           parallel $ runContractInEnv env $ withKeyWallet bob do
             alicePkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
@@ -231,8 +228,7 @@ suite = do
               lookups :: Lookups.ScriptLookups Void
               lookups = mempty
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            bsTx <-
-              liftedE $ balanceAndSignTxE ubTx
+            bsTx <- balanceAndSignTx ubTx
             submitAndLog bsTx
           in unit
 
@@ -261,8 +257,7 @@ suite = do
             lookups = Lookups.mintingPolicy mp
 
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <-
-            liftedM "Failed to balance/sign tx" $ balanceAndSignTxM ubTx
+          bsTx <- balanceAndSignTx ubTx
           submitAndLog bsTx
 
     test "runPlutipContract: Datums" do
@@ -319,8 +314,7 @@ suite = do
                 <> Lookups.mintingPolicy mp3
 
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <-
-            liftedM "Failed to balance/sign tx" $ balanceAndSignTxM ubTx
+          bsTx <- balanceAndSignTx ubTx
           submitAndLog bsTx
 
     test "runPlutipContract: SignMultiple" do

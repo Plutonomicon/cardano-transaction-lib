@@ -11,7 +11,7 @@ import Contract.Log (logInfo')
 import Contract.Monad (launchAff_, liftedE, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
-  ( balanceAndSignTxM
+  ( balanceAndSignTx
   , awaitTxConfirmedWithTimeout
   , submit
   )
@@ -37,8 +37,7 @@ main = launchAff_ do
       lookups = mempty
 
     ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    bsTx <-
-      liftedM "Failed to balance/sign tx" $ balanceAndSignTxM ubTx
+    bsTx <- balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
     awaitTxConfirmedWithTimeout (wrap 100.0) txId

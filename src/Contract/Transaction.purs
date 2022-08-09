@@ -7,8 +7,6 @@ module Contract.Transaction
   , awaitTxConfirmedWithTimeoutSlots
   , balanceAndSignTx
   , balanceAndSignTxs
-  , balanceAndSignTxE
-  , balanceAndSignTxM
   , balanceTx
   , balanceTxWithAddress
   , balanceTxM
@@ -126,7 +124,7 @@ import Data.Time.Duration (Seconds)
 import Data.Traversable (class Traversable, for_, traverse)
 import Data.Tuple.Nested (type (/\))
 import Effect.Class (liftEffect)
-import Effect.Exception (Error, throw)
+import Effect.Exception (throw)
 import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
 import Plutus.Conversion.Address (fromPlutusAddress)
 import Plutus.Types.Address (Address)
@@ -378,7 +376,7 @@ withBalancedAndSignedTx
   -> (BalancedSignedTransaction -> Contract r a)
   -> Contract r a
 withBalancedAndSignedTx = withSingleTransaction
-  (liftedE <<< balanceAndSignTxE)
+  balanceAndSignTx
   unwrap
 
 -- | Like `balanceTxs`, but uses `balanceTxWithAddress` instead of `balanceTx`
@@ -472,22 +470,6 @@ balanceAndSignTxs
   -> Contract r (Array BalancedSignedTransaction)
 balanceAndSignTxs txs = balanceTxs txs >>= traverse
   (liftedM "error signing a transaction" <<< signTransaction')
-
--- | Balances an unbalanced transaction and signs it.
--- |
--- | The return type includes the balanced (but unsigned) transaction for
--- | logging and more importantly, the `ByteArray` to be used with `submit` to
--- | submit the transaction.
--- | If successful, transaction inputs will be locked afterwards.
--- | If you want to re-use them in the same 'QueryM' context, call
--- | `unlockTransactionInputs`.
-balanceAndSignTxE
-  :: forall (r :: Row Type)
-   . UnattachedUnbalancedTx
-  -> Contract r (Either Error BalancedSignedTransaction)
-balanceAndSignTxE = try <<< balanceAndSignTx
-
-balanceAndSignTxM = map hush <<< balanceAndSignTxE
 
 -- | A helper that wraps a few steps into: balance an unbalanced transaction
 -- | (`balanceTx`), reindex script spend redeemers (not minting redeemers)

@@ -17,7 +17,8 @@ import Data.Array.NonEmpty (head, length, tail, NonEmptyArray)
 import Data.Bifunctor (lmap, bimap)
 import Data.Either (hush, either)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Newtype (unwrap)
+import Data.Map as Map
+import Data.Newtype (unwrap, wrap)
 import Data.String.Regex (match, regex)
 import Data.String.Regex.Flags (noFlags)
 import Data.Traversable (for_, traverse)
@@ -34,6 +35,7 @@ import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (FilePath, basename, concat)
 import Node.Process (lookupEnv)
 import QueryM.Ogmios as O
+import BalanceTx (printTxEvaluationFailure)
 import TestM (TestPlanM)
 import Test.Utils as Utils
 import Type.Proxy (Proxy(Proxy))
@@ -126,7 +128,15 @@ printEvaluateTxFailures = launchAff_ do
     let
       response = hush $ Aeson.decodeAeson aeson :: _ O.TxEvaluationResponse
       mbFailure = response >>= unwrap >>> either pure (const Nothing)
-    for_ mbFailure (log <<< O.printTxEvaluationFailure Nothing)
+    for_ mbFailure
+      ( log <<< printTxEvaluationFailure
+          ( wrap
+              { datums: []
+              , redeemersTxIns: []
+              , unbalancedTx: wrap { transaction: mempty, utxoIndex: Map.empty }
+              }
+          )
+      )
 
 suite :: TestPlanM Unit
 suite = group "Ogmios Aeson tests" do
