@@ -513,13 +513,6 @@ instance Show ClientError where
       <> err
       <> ")"
 
-txToHex :: Transaction -> Effect String
-txToHex tx =
-  byteArrayToHex
-    <<< Serialization.toBytes
-    <<< asOneOf
-    <$> Serialization.convertTransaction tx
-
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
 applyArgs
