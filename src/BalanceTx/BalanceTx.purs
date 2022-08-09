@@ -250,7 +250,8 @@ printTxEvaluationFailure (UnattachedUnbalancedTx { redeemersTxIns }) e =
           (Natural.toBigInt ptr.redeemerIndex)
       )
 
-  -- TODO Print more details, if possible, for example minting policy/minted assets
+  -- TODO Investigate if more details can be printed, for example minting
+  -- policy/minted assets
   printRedeemerDetails :: Ogmios.RedeemerPointer -> PrettyString
   printRedeemerDetails ptr =
     let
