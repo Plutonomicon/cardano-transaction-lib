@@ -15,3 +15,6 @@ exports._minFee = maybe => tx => txFeeFixed => txFeePerByte => {
     return maybe.nothing;
   }
 };
+
+exports._minScriptFee = exUnitPrices => tx =>
+  lib.min_script_fee(tx, exUnitPrices);

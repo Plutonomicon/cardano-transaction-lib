@@ -1,4 +1,4 @@
-module QueryM.MinFee where
+module QueryM.MinFee (calculateMinFee) where
 
 import Prelude
 
@@ -8,6 +8,7 @@ import QueryM (QueryM)
 import QueryM.ProtocolParameters (getProtocolParameters)
 import Serialization.MinFee (calculateMinFeeCsl)
 
+-- | Calculate `min_fee` using CSL with protocol parameters from Ogmios.
 calculateMinFee :: Transaction -> QueryM Coin
 calculateMinFee tx = do
   pparams <- getProtocolParameters
