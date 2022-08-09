@@ -66,7 +66,7 @@ import Plutip.Spawn
 import Plutip.Types
   ( ClusterStartupParameters
   , ClusterStartupRequest(ClusterStartupRequest)
-  , InitialUTxO
+  , InitialUTxOs
   , PlutipConfig
   , PostgresConfig
   , PrivateKeyResponse(PrivateKeyResponse)
@@ -208,9 +208,9 @@ configCheck cfg = do
 -- | Start the plutip cluster, initializing the state with the given
 -- | utxo distribution. Also initializes an extra payment key (aka
 -- | `ourKey`) with some utxos for use with further plutip
--- | setup. `ourKey` has funds proportional to the number of utxos in
--- | the passed distribution, so it can be used to handle transaction
--- | fees.
+-- | setup. `ourKey` has funds proportional to the total amount of the
+-- | utxos in the passed distribution, so it can be used to handle
+-- | transaction fees.
 startPlutipCluster
   :: forall (distr :: Type) (wallets :: Type)
    . UtxoDistribution distr wallets
@@ -259,7 +259,7 @@ startPlutipCluster cfg utxoDistribution = do
 
 -- | Calculate the initial utxos needed for `ourKey` to cover
 -- | transaction costs for the given initial distribution
-ourInitialUtxos :: InitialUTxODistribution -> InitialUTxO
+ourInitialUtxos :: InitialUTxODistribution -> InitialUTxOs
 ourInitialUtxos utxoDistribution =
   let
     total = foldr (sum >>> add) zero utxoDistribution

@@ -2,9 +2,9 @@ module Plutip.Types
   ( ClusterStartupParameters
   , ErrorMessage
   , FilePath
-  , InitialUTxO
+  , InitialUTxOs
   , InitialUTxODistribution
-  , InitialUTxOWithStakeKey(InitialUTxOWithStakeKey)
+  , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   , PlutipConfig
   , PostgresConfig
   , ClusterStartupRequest(ClusterStartupRequest)
@@ -76,12 +76,12 @@ type ErrorMessage = String
 -- | UTxO amount in Lovelaces
 type UtxoAmount = BigInt
 
-type InitialUTxO = Array UtxoAmount
+type InitialUTxOs = Array UtxoAmount
 
-data InitialUTxOWithStakeKey =
-  InitialUTxOWithStakeKey PrivateStakeKey InitialUTxO
+data InitialUTxOsWithStakeKey =
+  InitialUTxOsWithStakeKey PrivateStakeKey InitialUTxOs
 
-type InitialUTxODistribution = Array InitialUTxO
+type InitialUTxODistribution = Array InitialUTxOs
 
 newtype ClusterStartupRequest = ClusterStartupRequest
   { keysToGenerate :: InitialUTxODistribution }

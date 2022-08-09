@@ -36,7 +36,7 @@ import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy, validatorHash)
 import Contract.Test.Plutip
   ( class UtxoDistribution
-  , InitialUTxO
+  , InitialUTxOs
   , runContractInEnv
   , runPlutipContract
   , withPlutipContractEnv
@@ -99,7 +99,7 @@ import Plutip.Server
   , stopPlutipCluster
   )
 import Plutip.Types
-  ( InitialUTxOWithStakeKey(InitialUTxOWithStakeKey)
+  ( InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   , PlutipConfig
   , StopClusterResponse(StopClusterSuccess)
   )
@@ -179,7 +179,7 @@ suite = do
 
     test "runPlutipContract" do
       let
-        distribution :: InitialUTxO /\ InitialUTxO
+        distribution :: InitialUTxOs /\ InitialUTxOs
         distribution =
           [ BigInt.fromInt 1_000_000_000
           , BigInt.fromInt 2_000_000_000
@@ -193,7 +193,7 @@ suite = do
 
     only $ test "runPlutipContract: Pkh2Pkh" do
       let
-        distribution :: InitialUTxO
+        distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 1_000_000_000
           , BigInt.fromInt 2_000_000_000
@@ -225,7 +225,7 @@ suite = do
           , BigInt.fromInt 2_000_000_000
           ]
 
-        distribution :: InitialUTxO /\ InitialUTxO
+        distribution :: InitialUTxOs /\ InitialUTxOs
         distribution = aliceUtxos /\ bobUtxos
       withPlutipContractEnv config distribution \env wallets@(alice /\ bob) ->
         do
@@ -264,7 +264,7 @@ suite = do
 
     test "runPlutipContract: AlwaysMints" do
       let
-        distribution :: InitialUTxO
+        distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
           , BigInt.fromInt 2_000_000_000
@@ -311,7 +311,7 @@ suite = do
 
     test "runPlutipContract: MintsMultipleTokens" do
       let
-        distribution :: InitialUTxO
+        distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
           , BigInt.fromInt 2_000_000_000
@@ -351,7 +351,7 @@ suite = do
 
     only $ test "runPlutipContract: SignMultiple" do
       let
-        distribution :: InitialUTxO
+        distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
           , BigInt.fromInt 100_000_000
@@ -387,7 +387,7 @@ suite = do
 
     test "runPlutipContract: AlwaysSucceeds" do
       let
-        distribution :: InitialUTxO
+        distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
           , BigInt.fromInt 2_000_000_000
@@ -418,7 +418,7 @@ checkUtxoDistribution distr wallets = do
 
 -- TODO: minimum value of 1 ada is hardcoded, tests become flaky below
 -- that value. Ideally this shouldn't be hardcoded
-genInitialUtxo :: Gen InitialUTxO
+genInitialUtxo :: Gen InitialUTxOs
 genInitialUtxo = map (BigInt.fromInt >>> (_ * BigInt.fromInt 1_000_000))
   <$> arrayOf (chooseInt 1 1000)
 
@@ -426,10 +426,10 @@ instance Arbitrary ArbitraryUtxoDistr where
   arbitrary = fix \_ -> frequency <<< wrap $
     (1.0 /\ pure UDUnit) :|
       List.fromFoldable
-        [ 2.0 /\ (UDInitialUtxo <$> genInitialUtxo)
+        [ 2.0 /\ (UDInitialUtxos <$> genInitialUtxo)
         , 2.0 /\
-            ( UDInitialUtxoWithStake <$>
-                ( InitialUTxOWithStakeKey
+            ( UDInitialUtxosWithStake <$>
+                ( InitialUTxOsWithStakeKey
                     <$> (pure privateStakeKey)
                     <*> genInitialUtxo
                 )
@@ -439,15 +439,15 @@ instance Arbitrary ArbitraryUtxoDistr where
 
 data ArbitraryUtxoDistr
   = UDUnit
-  | UDInitialUtxo InitialUTxO
-  | UDInitialUtxoWithStake InitialUTxOWithStakeKey
+  | UDInitialUtxos InitialUTxOs
+  | UDInitialUtxosWithStake InitialUTxOsWithStakeKey
   | UDTuple ArbitraryUtxoDistr ArbitraryUtxoDistr
 
 instance Show ArbitraryUtxoDistr where
   show = case _ of
     UDUnit -> "unit"
-    UDInitialUtxo x -> show x
-    UDInitialUtxoWithStake (InitialUTxOWithStakeKey _ x) -> "stake + " <> show x
+    UDInitialUtxos x -> show x
+    UDInitialUtxosWithStake (InitialUTxOsWithStakeKey _ x) -> "stake + " <> show x
     UDTuple x y -> "(" <> show x <> " /\\ " <> show y <> ")"
 
 withArbUtxoDistr
@@ -457,8 +457,8 @@ withArbUtxoDistr
   -> a
 withArbUtxoDistr d f = case d of
   UDUnit -> f unit
-  UDInitialUtxo x -> f x
-  UDInitialUtxoWithStake x -> f x
+  UDInitialUtxos x -> f x
+  UDInitialUtxosWithStake x -> f x
   UDTuple x y ->
     withArbUtxoDistr x (\d1 -> withArbUtxoDistr y (f <<< (d1 /\ _)))
 
@@ -581,7 +581,7 @@ assertNoUtxosAtAddress addr = do
 -- | For each wallet, assert that there is a one-to-one correspondance
 -- | between its utxo set and its expected utxo amounts.
 assertCorrectDistribution
-  :: forall (r :: Row Type). Array (KeyWallet /\ InitialUTxO) -> Contract r Unit
+  :: forall (r :: Row Type). Array (KeyWallet /\ InitialUTxOs) -> Contract r Unit
 assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
   withKeyWallet wallet do
     addr <- liftedM "Could not get wallet address" getWalletAddress
@@ -594,7 +594,7 @@ assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
   -- false. Once we've gone through all expected amounts, if all of
   -- them have been found in the utxo set, we expect there to be no
   -- utxos remaining
-  checkDistr :: Utxo -> InitialUTxO -> Boolean
+  checkDistr :: Utxo -> InitialUTxOs -> Boolean
   checkDistr originalUtxos expectedAmounts =
     let
       allFound /\ remainingUtxos =

@@ -38,11 +38,10 @@ import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.List (List, (:))
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (unwrap, wrap)
-import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Plutip.Types
-  ( InitialUTxO
-  , InitialUTxOWithStakeKey(InitialUTxOWithStakeKey)
+  ( InitialUTxOs
+  , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   , PrivateKeyResponse(PrivateKeyResponse)
   , UtxoAmount
   )
@@ -74,7 +73,7 @@ instance UtxoDistribution Unit Unit where
   decodeWallets' _ pks = Just $ unit /\ pks
   keyWallets _ _ = []
 
-instance UtxoDistribution InitialUTxO KeyWallet where
+instance UtxoDistribution InitialUTxOs KeyWallet where
   encodeDistribution amounts = [ amounts ]
   decodeWallets d p = decodeWalletsDefault d p
   decodeWallets' _ pks = Array.uncons pks <#>
@@ -82,10 +81,10 @@ instance UtxoDistribution InitialUTxO KeyWallet where
       (privateKeysToKeyWallet (PrivatePaymentKey key) Nothing) /\ tail
   keyWallets _ wallet = [ wallet ]
 
-instance UtxoDistribution InitialUTxOWithStakeKey KeyWallet where
-  encodeDistribution (InitialUTxOWithStakeKey _ amounts) = [ amounts ]
+instance UtxoDistribution InitialUTxOsWithStakeKey KeyWallet where
+  encodeDistribution (InitialUTxOsWithStakeKey _ amounts) = [ amounts ]
   decodeWallets d p = decodeWalletsDefault d p
-  decodeWallets' (InitialUTxOWithStakeKey stake _) pks = Array.uncons pks <#>
+  decodeWallets' (InitialUTxOsWithStakeKey stake _) pks = Array.uncons pks <#>
     \{ head: PrivateKeyResponse key, tail } ->
       privateKeysToKeyWallet (PrivatePaymentKey key) (Just stake) /\
         tail
@@ -104,8 +103,8 @@ instance
     (restWallets /\ pks'') <- decodeWallets' rest pks'
     pure $ (headWallets /\ restWallets) /\ pks''
   keyWallets _ (headWallets /\ restWallets) =
-    (keyWallets (Proxy :: Proxy headSpec) headWallets)
-      <> (keyWallets (Proxy :: Proxy restSpec) restWallets)
+    keyWallets (Proxy :: Proxy headSpec) headWallets
+      <> keyWallets (Proxy :: Proxy restSpec) restWallets
 
 decodeWalletsDefault
   :: forall distr wallets
@@ -165,7 +164,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
   where
   constraintsForWallet :: WalletInfo -> Constraints.TxConstraints Void Void
   constraintsForWallet { utxos, payPkh, stakePkh } =
-    -- TODO: It's necessary to include `mustBeSignedBy`, we get a
+    -- It's necessary to include `mustBeSignedBy`, we get a
     -- `feeTooSmall` error otherwise. See
     -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/853
     Constraints.mustBeSignedBy payPkh <>
@@ -192,5 +191,5 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
         utxos' <- liftedM "Could not find utxos" $ utxosAt addr
         pure $ { utxos: unwrap utxos', payPkh, stakePkh, wallet } : walletsInfo
 
-withStakeKey :: PrivateStakeKey -> InitialUTxO -> InitialUTxOWithStakeKey
-withStakeKey = InitialUTxOWithStakeKey
+withStakeKey :: PrivateStakeKey -> InitialUTxOs -> InitialUTxOsWithStakeKey
+withStakeKey = InitialUTxOsWithStakeKey

@@ -17,7 +17,7 @@ import Plutip.Types
   ( PlutipConfig
   , PostgresConfig
   , UtxoAmount
-  , InitialUTxO
+  , InitialUTxOs
   , InitialUTxODistribution
   ) as X
 import Contract.Wallet (withKeyWallet) as X
