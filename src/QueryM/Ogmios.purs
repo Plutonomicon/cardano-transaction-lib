@@ -72,6 +72,7 @@ import Aeson
   , caseAesonString
   , decodeAeson
   , encodeAeson'
+  , encodeAeson
   , getField
   , getFieldOptional
   , isNull
@@ -538,7 +539,6 @@ decodeRedeemerPointer redeemerPtrRaw = note redeemerPtrTypeMismatch
         <*> Natural.fromString indexRaw
     _ -> Nothing
 
--- TODO Check these aren't duplicating other types
 type OgmiosDatum = String
 type OgmiosScript = String
 type OgmiosTxId = String
@@ -563,7 +563,7 @@ derive instance Generic ScriptFailure _
 instance Show ScriptFailure where
   show = genericShow
 
--- TODO
+-- The following cases are fine to fall through into unparsed error:
 -- IncompatibleEra
 -- AdditionalUtxoOverlap
 -- NotEnoughSynced
@@ -577,23 +577,20 @@ derive instance Generic TxEvaluationFailure _
 instance Show TxEvaluationFailure where
   show = genericShow
 
--- TODO Use this in TxEvaluationFailure too
--- ReaderT has an Alt instance if m does
-type ScriptFailureM = ReaderT (Object Aeson) (Either JsonDecodeError)
-  ScriptFailure
+type ObjectParser = ReaderT (Object Aeson) (Either JsonDecodeError)
 
 liftField
   :: forall a b
    . DecodeAeson a
   => String
   -> (a -> Either JsonDecodeError b)
-  -> ReaderT (Object Aeson) (Either JsonDecodeError) b
+  -> ObjectParser b
 liftField f act = ReaderT (flip getField f >=> act)
 
 instance DecodeAeson ScriptFailure where
   decodeAeson = aesonObject $ runReaderT cases
     where
-    cases :: ScriptFailureM
+    cases :: ObjectParser ScriptFailure
     cases = decodeExtraRedeemers
       <|> decodeMissingRequiredDatums
       <|> decodeMissingRequiredScripts
@@ -604,18 +601,18 @@ instance DecodeAeson ScriptFailure where
       <|> decodeNoCostModelForLanguage
       <|> defaultCase
 
-    defaultCase :: ScriptFailureM
+    defaultCase :: ObjectParser ScriptFailure
     defaultCase = ReaderT $ const $ Left $ TypeMismatch "Expected ScriptFailure"
 
-    decodeExtraRedeemers :: ScriptFailureM
+    decodeExtraRedeemers :: ObjectParser ScriptFailure
     decodeExtraRedeemers = ExtraRedeemers <$> liftField "extraRedeemers"
       (traverse decodeRedeemerPointer)
 
-    decodeMissingRequiredDatums :: ScriptFailureM
+    decodeMissingRequiredDatums :: ObjectParser ScriptFailure
     decodeMissingRequiredDatums = liftField "missingRequiredDatums" \o -> do
       pure $ MissingRequiredDatums o
 
-    decodeMissingRequiredScripts :: ScriptFailureM
+    decodeMissingRequiredScripts :: ObjectParser ScriptFailure
     decodeMissingRequiredScripts = liftField "missingRequiredScripts" \o -> do
       resolvedKV <- ForeignObject.toUnfoldable <$> getField o "resolved"
       resolved <- Map.fromFoldable <$> for (resolvedKV :: Array _)
@@ -623,37 +620,43 @@ instance DecodeAeson ScriptFailure where
       missing <- getField o "missing"
       pure $ MissingRequiredScripts { resolved, missing }
 
-    decodeValidatorFailed :: ScriptFailureM
+    decodeValidatorFailed :: ObjectParser ScriptFailure
     decodeValidatorFailed = liftField "validatorFailed" \o -> do
       pure $ ValidatorFailed o
 
-    decodeUnknownInputReferencedByRedeemer :: ScriptFailureM
+    decodeUnknownInputReferencedByRedeemer :: ObjectParser ScriptFailure
     decodeUnknownInputReferencedByRedeemer = liftField
       "unknownInputReferencedByRedeemer"
       \o -> do
         pure $ UnknownInputReferencedByRedeemer o
 
-    decodeNonScriptInputReferencedByRedeemer :: ScriptFailureM
+    decodeNonScriptInputReferencedByRedeemer :: ObjectParser ScriptFailure
     decodeNonScriptInputReferencedByRedeemer = liftField
       "nonScriptInputReferencedByRedeemer"
       \o -> do
         pure $ NonScriptInputReferencedByRedeemer o
 
-    decodeIllFormedExecutionBudget :: ScriptFailureM
+    decodeIllFormedExecutionBudget :: ObjectParser ScriptFailure
     decodeIllFormedExecutionBudget = liftField "illFormedExecutionBudget" \o ->
       do
         pure $ IllFormedExecutionBudget o
 
-    decodeNoCostModelForLanguage :: ScriptFailureM
+    decodeNoCostModelForLanguage :: ObjectParser ScriptFailure
     decodeNoCostModelForLanguage = liftField "noCostModelForLanguage" \o -> do
       pure $ NoCostModelForLanguage o
 
 instance DecodeAeson TxEvaluationFailure where
-  decodeAeson aeson = decodeScriptFailures aeson <|> pure
-    (UnparsedError (stringifyAeson aeson))
+  decodeAeson = aesonObject $ runReaderT cases
     where
-    decodeScriptFailures :: Aeson -> Either JsonDecodeError TxEvaluationFailure
-    decodeScriptFailures = aesonObject \o -> do
+    cases :: ObjectParser TxEvaluationFailure
+    cases = decodeScriptFailures <|> defaultCase
+
+    defaultCase :: ObjectParser TxEvaluationFailure
+    defaultCase = ReaderT \o ->
+      pure (UnparsedError (stringifyAeson (encodeAeson o)))
+
+    decodeScriptFailures :: ObjectParser TxEvaluationFailure
+    decodeScriptFailures = ReaderT \o -> do
       scriptFailuresKV <- ForeignObject.toUnfoldable
         <$> (getField o "EvaluationFailure" >>= flip getField "ScriptFailures")
       scriptFailures <- Map.fromFoldable <$> for (scriptFailuresKV :: Array _)

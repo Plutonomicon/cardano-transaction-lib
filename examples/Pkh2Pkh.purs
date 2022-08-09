@@ -11,8 +11,8 @@ import Contract.Log (logInfo')
 import Contract.Monad (launchAff_, liftedE, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
-  ( balanceAndSignTx
-  , awaitTxConfirmedWithTimeout
+  ( awaitTxConfirmedWithTimeout
+  , balanceAndSignTx
   , submit
   )
 import Contract.TxConstraints as Constraints

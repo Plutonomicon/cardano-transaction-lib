@@ -56,6 +56,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Added `formatPaymentKey` and `formatStakeKey` to `Wallet.KeyFile` and `Contract.Wallet` for formatting private keys
 - Added `privatePaymentKeyToFile` and `privateStakeKeyToFile` to `Wallet.KeyFile` and `Contract.Wallet.KeyFile` for writing keys to files
 - Added `bytesFromPrivateKey` to `Serialization`
+- Improved error handling of transaction evaluation through Ogmios. This helps with debugging during balancing, as it requires the transaction to be evaluated to calculate fees. ([#832](https://github.com/Plutonomicon/cardano-transaction-lib/pull/832)
 
 ### Changed
 
@@ -73,11 +74,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - The [`ctl-scaffold`](https://github.com/mlabs-haskell/ctl-scaffold) repository has been archived and deprecated and its contents moved to `templates.ctl-scaffold` in the CTL flake ([#760](https://github.com/Plutonomicon/cardano-transaction-lib/issues/760)).
 - The CTL `overlay` output has been deprecated and replaced by `overlays.purescript` and `overlays.runtime` ([#796](https://github.com/Plutonomicon/cardano-transaction-lib/issues/796)).
 - `buildCtlRuntime` and `launchCtlRuntime` now take an `extraServices` argument to add `docker-compose` services to the resulting Arion expression ([#769](https://github.com/Plutonomicon/cardano-transaction-lib/issues/769)).
+- `balanceAndSignTx` no longer silently drops error information via `Maybe`. Use `map hush <<< try <<< balanceAndSignTx` to recover the old behaviour.
 
 ### Removed
 
 - `Contract.Monad.traceTestnetContractConfig` - use `Contract.Config.testnetNamiConfig` instead.
 - `runContract_` - use `void <<< runContract`.
+- `balanceAndSignTxE` - use `try <<< balanceAndSignTx` instead.
 
 ### Fixed
 
