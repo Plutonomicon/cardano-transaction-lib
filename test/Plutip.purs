@@ -14,7 +14,6 @@ import Contract.Address
   , getWalletAddress
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
-  , payPubKeyHashBaseAddress
   , payPubKeyHashEnterpriseAddress
   )
 import Contract.Log (logInfo')
@@ -71,7 +70,7 @@ import Data.FoldableWithIndex (foldlWithIndex)
 import Data.List as List
 import Data.Log.Level (LogLevel(Trace))
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust, isNothing)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust, isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.NonEmpty ((:|))
 import Data.Traversable (for_, traverse_)
@@ -79,7 +78,7 @@ import Data.Tuple (snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (Aff, launchAff_)
+import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (throw)
@@ -192,7 +191,7 @@ suite = do
         withKeyWallet bob do
           pure unit -- sign, balance, submit, etc.
 
-    test "runPlutipContract: Pkh2Pkh" do
+    only $ test "runPlutipContract: Pkh2Pkh" do
       let
         distribution :: InitialUTxO
         distribution =
@@ -200,11 +199,10 @@ suite = do
           , BigInt.fromInt 2_000_000_000
           ]
       runPlutipContract config distribution \alice -> do
-        assertCorrectDistribution [ alice /\ distribution ]
-        assertNoUtxosAtBaseAddress alice
+        checkUtxoDistribution distribution alice
         withKeyWallet alice $ pkh2PkhContract alice
 
-    test "runPlutipContract: Pkh2Pkh with stake key" do
+    only $ test "runPlutipContract: Pkh2Pkh with stake key" do
       let
         aliceUtxos =
           [ BigInt.fromInt 2_000_000_000
@@ -213,11 +211,10 @@ suite = do
         distribution = withStakeKey privateStakeKey aliceUtxos
 
       runPlutipContract config distribution \alice -> do
-        assertCorrectDistribution [ alice /\ aliceUtxos ]
-        assertNoUtxosAtEnterpriseAddress alice
+        checkUtxoDistribution distribution alice
         withKeyWallet alice $ pkh2PkhContract alice
 
-    test "runPlutipContract: parallel Pkh2Pkh" do
+    only $ test "runPlutipContract: parallel Pkh2Pkh" do
       let
         aliceUtxos =
           [ BigInt.fromInt 1_000_000_000
@@ -230,19 +227,18 @@ suite = do
 
         distribution :: InitialUTxO /\ InitialUTxO
         distribution = aliceUtxos /\ bobUtxos
-      withPlutipContractEnv config distribution \env (alice /\ bob) -> do
-        runContractInEnv env do
-          assertCorrectDistribution [ alice /\ aliceUtxos, bob /\ bobUtxos ]
-          assertNoUtxosAtBaseAddress alice
-          assertNoUtxosAtBaseAddress bob
-        sequential ado
-          parallel $ runContractInEnv env $ withKeyWallet alice $
-            pkh2PkhContract bob
-          parallel $ runContractInEnv env $ withKeyWallet bob $
-            pkh2PkhContract alice
-          in unit
+      withPlutipContractEnv config distribution \env wallets@(alice /\ bob) ->
+        do
+          runContractInEnv env $
+            checkUtxoDistribution distribution wallets
+          sequential ado
+            parallel $ runContractInEnv env $ withKeyWallet alice $
+              pkh2PkhContract bob
+            parallel $ runContractInEnv env $ withKeyWallet bob $
+              pkh2PkhContract alice
+            in unit
 
-    test "runPlutipContract: parallel Pkh2Pkh with stake keys" do
+    only $ test "runPlutipContract: parallel Pkh2Pkh with stake keys" do
       let
         aliceUtxos =
           [ BigInt.fromInt 1_000_000_000
@@ -255,17 +251,16 @@ suite = do
         distribution =
           withStakeKey privateStakeKey aliceUtxos
             /\ withStakeKey privateStakeKey bobUtxos
-      withPlutipContractEnv config distribution \env (alice /\ bob) -> do
-        runContractInEnv env do
-          assertCorrectDistribution [ alice /\ aliceUtxos, bob /\ bobUtxos ]
-          assertNoUtxosAtEnterpriseAddress alice
-          assertNoUtxosAtEnterpriseAddress bob
-        sequential ado
-          parallel $ runContractInEnv env $ withKeyWallet alice $
-            pkh2PkhContract bob
-          parallel $ runContractInEnv env $ withKeyWallet bob $
-            pkh2PkhContract alice
-          in unit
+      withPlutipContractEnv config distribution \env wallets@(alice /\ bob) ->
+        do
+          runContractInEnv env $
+            checkUtxoDistribution distribution wallets
+          sequential ado
+            parallel $ runContractInEnv env $ withKeyWallet alice $
+              pkh2PkhContract bob
+            parallel $ runContractInEnv env $ withKeyWallet bob $
+              pkh2PkhContract alice
+            in unit
 
     test "runPlutipContract: AlwaysMints" do
       let
@@ -354,7 +349,7 @@ suite = do
             liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
           submitAndLog bsTx
 
-    test "runPlutipContract: SignMultiple" do
+    only $ test "runPlutipContract: SignMultiple" do
       let
         distribution :: InitialUTxO
         distribution =
@@ -362,12 +357,11 @@ suite = do
           , BigInt.fromInt 100_000_000
           ]
       runPlutipContract config distribution \alice -> do
-        assertCorrectDistribution [ alice /\ distribution ]
-        assertNoUtxosAtBaseAddress alice
+        checkUtxoDistribution distribution alice
         withKeyWallet alice signMultipleContract
 
     -- TODO: not sure what's causing this to fail
-    test "runPlutipContract: SignMultiple with stake key" do
+    only $ test "runPlutipContract: SignMultiple with stake key" do
       let
         aliceUtxos =
           [ BigInt.fromInt 5_000_000
@@ -375,14 +369,21 @@ suite = do
           ]
         distribution = withStakeKey privateStakeKey aliceUtxos
       runPlutipContract config distribution \alice -> do
-        assertCorrectDistribution [ alice /\ aliceUtxos ]
-        assertNoUtxosAtEnterpriseAddress alice
+        checkUtxoDistribution distribution alice
         withKeyWallet alice signMultipleContract
 
     distrs <- liftEffect $ randomSample' 5 arbitrary
     for_ distrs $ \distr ->
-      only $ test "runPlutipContract: stake key transfers random distribution" $
-        withArbUtxoDistr checkUtxoDistribution distr
+      only
+        $ test
+            ( "runPlutipContract: stake key transfers with random distribution: "
+                <> show distr
+            )
+        $
+          withArbUtxoDistr
+            distr
+            \randDistr -> runPlutipContract config randDistr $
+              checkUtxoDistribution randDistr
 
     test "runPlutipContract: AlwaysSucceeds" do
       let
@@ -402,17 +403,18 @@ suite = do
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
--- TODO: use this function in the other tests
 checkUtxoDistribution
-  :: forall distr wallet. UtxoDistribution distr wallet => distr -> Aff Unit
-checkUtxoDistribution distr = do
-  runPlutipContract config distr \wallets -> do
-    let
-      walletsArray = keyWallets (Proxy :: Proxy distr) wallets
-      walletUtxos = encodeDistribution distr
-    -- TODO: test no utxos at the wrong address
-    -- assertNoUtxosAtEnterpriseAddress $ unsafePartial $ head walletsArray
-    assertCorrectDistribution $ zip walletsArray walletUtxos
+  :: forall distr wallet (r :: Row Type)
+   . UtxoDistribution distr wallet
+  => distr
+  -> wallet
+  -> Contract r Unit
+checkUtxoDistribution distr wallets = do
+  let
+    walletsArray = keyWallets (Proxy :: Proxy distr) wallets
+    walletUtxos = encodeDistribution distr
+  for_ walletsArray assertUtxosAtPlutipWalletAddress
+  assertCorrectDistribution $ zip walletsArray walletUtxos
 
 -- TODO: minimum value of 1 ada is hardcoded, tests become flaky below
 -- that value. Ideally this shouldn't be hardcoded
@@ -450,15 +452,15 @@ instance Show ArbitraryUtxoDistr where
 
 withArbUtxoDistr
   :: forall a
-   . (forall distr wallet. UtxoDistribution distr wallet => distr -> a)
-  -> ArbitraryUtxoDistr
+   . ArbitraryUtxoDistr
+  -> (forall distr wallet. UtxoDistribution distr wallet => distr -> a)
   -> a
-withArbUtxoDistr f = case _ of
+withArbUtxoDistr d f = case d of
   UDUnit -> f unit
   UDInitialUtxo x -> f x
   UDInitialUtxoWithStake x -> f x
   UDTuple x y ->
-    withArbUtxoDistr (\d1 -> withArbUtxoDistr (f <<< (d1 /\ _)) y) x
+    withArbUtxoDistr x (\d1 -> withArbUtxoDistr y (f <<< (d1 /\ _)))
 
 signMultipleContract :: forall (r :: Row Type). Contract r Unit
 signMultipleContract = do
@@ -551,6 +553,17 @@ mustPayToPubKeyStakeAddress pkh (Just stk) =
 assertContract :: forall (r :: Row Type). String -> Boolean -> Contract r Unit
 assertContract msg cond = if cond then pure unit else liftEffect $ throw msg
 
+-- | For a plutip test wallet, assert that any utxos held by the
+-- | wallet are at the expected address. If the wallet has a stake
+-- | key, this function assumes the expected address is the base
+-- | address, otherwise it assumes the expected address is the
+-- | enterprise address.
+assertUtxosAtPlutipWalletAddress
+  :: forall (r :: Row Type). KeyWallet -> Contract r Unit
+assertUtxosAtPlutipWalletAddress wallet = withKeyWallet wallet do
+  maybeStake <- ownStakePubKeyHash
+  when (isJust maybeStake) $ assertNoUtxosAtEnterpriseAddress wallet
+
 assertNoUtxosAtEnterpriseAddress
   :: forall (r :: Row Type). KeyWallet -> Contract r Unit
 assertNoUtxosAtEnterpriseAddress wallet = withKeyWallet wallet $
@@ -559,20 +572,6 @@ assertNoUtxosAtEnterpriseAddress wallet = withKeyWallet wallet $
         <$> getNetworkId
         <*> liftedM "Could not get payment pubkeyhash" ownPaymentPubKeyHash
     )
-
--- | Assert the wallet has no utxos at its base address, either
--- | because the base address is empty or there is no base address
--- | because the wallet has no stake key.
-assertNoUtxosAtBaseAddress
-  :: forall (r :: Row Type). KeyWallet -> Contract r Unit
-assertNoUtxosAtBaseAddress wallet = withKeyWallet wallet $
-  ownStakePubKeyHash >>= traverse_ \stake ->
-    assertNoUtxosAtAddress =<< liftedM "Could not get wallet address"
-      ( payPubKeyHashBaseAddress
-          <$> getNetworkId
-          <*> liftedM "Could not get payment pubkeyhash" ownPaymentPubKeyHash
-          <*> pure stake
-      )
 
 assertNoUtxosAtAddress :: forall (r :: Row Type). Address -> Contract r Unit
 assertNoUtxosAtAddress addr = do
