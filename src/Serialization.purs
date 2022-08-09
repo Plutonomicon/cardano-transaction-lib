@@ -1,5 +1,6 @@
 module Serialization
-  ( convertTransaction
+  ( bytesFromPrivateKey
+  , convertTransaction
   , convertTxBody
   , convertTxInput
   , convertTxOutput
@@ -216,6 +217,9 @@ foreign import publicKeyFromPrivateKey
 
 foreign import _privateKeyFromBytes
   :: MaybeFfiHelper -> RawBytes -> Maybe PrivateKey
+
+foreign import _bytesFromPrivateKey
+  :: MaybeFfiHelper -> PrivateKey -> Maybe RawBytes
 
 foreign import publicKeyHash :: PublicKey -> Ed25519KeyHash
 foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
@@ -591,6 +595,9 @@ publicKeyFromBech32 = _publicKeyFromBech32 maybeFfiHelper
 
 privateKeyFromBytes :: RawBytes -> Maybe PrivateKey
 privateKeyFromBytes = _privateKeyFromBytes maybeFfiHelper
+
+bytesFromPrivateKey :: PrivateKey -> Maybe RawBytes
+bytesFromPrivateKey = _bytesFromPrivateKey maybeFfiHelper
 
 convertCerts :: Array T.Certificate -> Effect Certificates
 convertCerts certs = do
