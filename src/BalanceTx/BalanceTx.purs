@@ -202,37 +202,32 @@ freeze ary = either Right Right <$> ary
 
 line :: String -> PrettyString
 line s =
-  case
-    Array.uncons ((\l -> Left (l <> "\n")) <$> String.split (Pattern "\n") s)
-    of
+  case Array.uncons lines of
     Nothing -> []
-    Just { head, tail: [] } -> [ head ]
     Just { head, tail } -> [ head ] <> freeze tail
-
-indent' :: String -> String
-indent' s = "  " <> s
+  where
+  lines = Left <<< (_ <> "\n") <$> String.split (Pattern "\n") s
 
 bullet :: PrettyString -> PrettyString
-bullet ary = freeze (bimap ("- " <> _) indent' <$> ary)
+bullet ary = freeze (bimap ("- " <> _) ("  " <> _) <$> ary)
 
 number :: PrettyString -> PrettyString
-number ary =
-  let
-    biggest =
-      ceil
-        ( toNumber
-            ( String.length
-                (toStringAs decimal (length (filter isLeft ary)) <> ". ")
-            ) / 2.0
-        ) * 2
-    onWorkingLine i l = padEnd biggest (toStringAs decimal (i + 1) <> ". ") <> l
-    onFrozenLine = applyN indent' (biggest / 2)
-  in
-    freeze
-      ( foldl (\b a -> b <> [ bimap (onWorkingLine $ length b) onFrozenLine a ])
-          []
-          ary
-      )
+number ary = freeze (foldl go [] ary)
+  where
+  biggestPrefix :: String
+  biggestPrefix = toStringAs decimal (length (filter isLeft ary)) <> ". "
+
+  width :: Int
+  width = ceil (toNumber (String.length biggestPrefix) / 2.0) * 2
+
+  numberLine :: Int -> String -> String
+  numberLine i l = padEnd width (toStringAs decimal (i + 1) <> ". ") <> l
+
+  indentLine :: String -> String
+  indentLine = applyN ("  " <> _) (width / 2)
+
+  go :: PrettyString -> Either WorkingLine FrozenLine -> PrettyString
+  go b a = b <> [ bimap (numberLine $ length b) indentLine a ]
 
 printTxEvaluationFailure
   :: UnattachedUnbalancedTx -> Ogmios.TxEvaluationFailure -> String
