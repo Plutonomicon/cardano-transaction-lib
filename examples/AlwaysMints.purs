@@ -13,7 +13,6 @@ import Contract.Monad
   , liftContractAffM
   , liftContractM
   , liftedE
-  , liftedM
   , runContract
   )
 import Contract.Prim.ByteArray (byteArrayFromAscii)

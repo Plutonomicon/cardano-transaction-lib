@@ -79,7 +79,6 @@ import Aeson
   )
 import Cardano.Types.Transaction
   ( Costmdls(Costmdls)
-  , Redeemer(Redeemer)
   , ExUnitPrices
   , ExUnits
   , Language(PlutusV1)
@@ -97,32 +96,24 @@ import Cardano.Types.Value
   )
 import Control.Alt ((<|>))
 import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
-import Data.Array (index, singleton, filter)
-import Data.Array as Array
+import Data.Array (index, singleton)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), either, hush, note, isLeft)
-import Data.Foldable (foldl, oneOf, find, length)
-import Data.Function (applyN)
-import Data.Bifunctor (bimap)
+import Data.Either (Either(Left, Right), either, hush, note)
+import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
-import Data.Int (toStringAs, decimal, ceil, toNumber)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern), indexOf, split, splitAt, uncons)
-import Data.String.Common (joinWith, split) as String
-import Data.String.CodePoints (length) as String
-import Data.String.Utils (padEnd)
-import Data.Traversable (sequence, traverse, for, foldMap)
-import Data.FoldableWithIndex (foldMapWithIndex)
+import Data.String.Common (split) as String
+import Data.Traversable (sequence, traverse, for)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Deserialization.Transaction (deserializeTransaction)
 import Foreign.Object (Object)
 import Foreign.Object (toUnfoldable) as ForeignObject
 import Helpers (showWithParens)
@@ -133,7 +124,7 @@ import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray, hexToByteArray)
 import Types.CborBytes (CborBytes, cborBytesToHex)
 import Types.Natural (Natural)
-import Types.Natural (fromString, toBigInt) as Natural
+import Types.Natural (fromString) as Natural
 import Types.Rational (Rational, (%))
 import Types.Rational as Rational
 import Types.RedeemerTag (RedeemerTag)
