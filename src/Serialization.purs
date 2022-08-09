@@ -685,7 +685,8 @@ convertNetworkId = case _ of
   T.MainnetId -> networkIdMainnet
 
 convertMint :: T.Mint -> Effect Mint
-convertMint (T.Mint (Value.NonAdaAsset m)) = do
+convertMint (T.Mint nonAdaAssets) = do
+  let m = Value.unwrapNonAdaAsset nonAdaAssets
   mint <- newMint
   forWithIndex_ m \scriptHashBytes' values -> do
     let
