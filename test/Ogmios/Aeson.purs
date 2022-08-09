@@ -126,7 +126,7 @@ printEvaluateTxFailures = launchAff_ do
   fixtures <- loadFixtures <#> filter (fst >>> (_ == "EvaluateTx")) >>> map snd
   flip (traverse >>> traverse) fixtures \{ aeson } -> do
     let
-      response = hush $ Aeson.decodeAeson aeson :: _ O.TxEvaluationResponse
+      response = hush $ Aeson.decodeAeson aeson :: _ O.TxEvaluationR
       mbFailure = response >>= unwrap >>> either pure (const Nothing)
     for_ mbFailure
       ( log <<< printTxEvaluationFailure
@@ -163,7 +163,7 @@ suite = group "Ogmios Aeson tests" do
             "eraSummaries" -> handle (Proxy :: _ O.EraSummaries)
             "currentProtocolParameters" -> handle
               (Proxy :: _ O.ProtocolParameters)
-            "EvaluateTx" -> handle (Proxy :: _ O.TxEvaluationResponse)
+            "EvaluateTx" -> handle (Proxy :: _ O.TxEvaluationR)
             "SubmitTx" -> handle (Proxy :: _ O.SubmitTxR)
             _ -> liftEffect $ throw $ "Unknown case " <> bn
 

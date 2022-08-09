@@ -41,7 +41,7 @@ module QueryM.Ogmios
   , SystemStart(SystemStart)
   , TxEvaluationFailure(UnparsedError, ScriptFailures)
   , TxEvaluationResult(TxEvaluationResult)
-  , TxEvaluationResponse(TxEvaluationResponse)
+  , TxEvaluationR(TxEvaluationR)
   , TxHash
   , UtxoQR(UtxoQR)
   , UtxoQueryResult
@@ -233,7 +233,7 @@ submitTxCall = mkOgmiosCallType
 
 -- | Evaluates the execution units of scripts present in a given transaction,
 -- | without actually submitting the transaction.
-evaluateTxCall :: JsonWspCall CborBytes TxEvaluationResponse
+evaluateTxCall :: JsonWspCall CborBytes TxEvaluationR
 evaluateTxCall = mkOgmiosCallType
   { methodname: "EvaluateTx"
   , args: { evaluate: _ } <<< cborBytesToHex
@@ -494,16 +494,16 @@ type RedeemerPointer = { redeemerTag :: RedeemerTag, redeemerIndex :: Natural }
 
 type ExecutionUnits = { memory :: Natural, steps :: Natural }
 
-newtype TxEvaluationResponse = TxEvaluationResponse
+newtype TxEvaluationR = TxEvaluationR
   (Either TxEvaluationFailure TxEvaluationResult)
 
-derive instance Newtype TxEvaluationResponse _
-derive instance Generic TxEvaluationResponse _
+derive instance Newtype TxEvaluationR _
+derive instance Generic TxEvaluationR _
 
-instance Show TxEvaluationResponse where
+instance Show TxEvaluationR where
   show = genericShow
 
-instance DecodeAeson TxEvaluationResponse where
+instance DecodeAeson TxEvaluationR where
   decodeAeson aeson = (wrap <<< Right <$> decodeAeson aeson) <|>
     (wrap <<< Left <$> decodeAeson aeson)
 

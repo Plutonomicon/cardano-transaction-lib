@@ -401,7 +401,7 @@ getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
 submitTxOgmios :: CborBytes -> QueryM Ogmios.SubmitTxR
 submitTxOgmios = mkOgmiosRequest Ogmios.submitTxCall _.submit
 
-evaluateTxOgmios :: CborBytes -> QueryM Ogmios.TxEvaluationResponse
+evaluateTxOgmios :: CborBytes -> QueryM Ogmios.TxEvaluationR
 evaluateTxOgmios bytes = mkOgmiosRequest Ogmios.evaluateTxCall _.evaluate bytes
 
 --------------------------------------------------------------------------------
@@ -853,7 +853,7 @@ type OgmiosListeners =
   { utxo :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoQR
   , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
   , submit :: ListenerSet { txCbor :: ByteArray } Ogmios.SubmitTxR
-  , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationResponse
+  , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationR
   , getProtocolParameters :: ListenerSet Unit Ogmios.ProtocolParameters
   , eraSummaries :: ListenerSet Unit Ogmios.EraSummaries
   , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
@@ -1022,7 +1022,7 @@ type DispatchIdMap response = Ref
 ogmiosMessageDispatch
   :: { utxoDispatchMap :: DispatchIdMap Ogmios.UtxoQR
      , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipQR
-     , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationResponse
+     , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationR
      , getProtocolParametersDispatchMap ::
          DispatchIdMap Ogmios.ProtocolParameters
      , submitDispatchMap :: DispatchIdMap Ogmios.SubmitTxR
