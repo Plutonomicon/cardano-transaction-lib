@@ -7,14 +7,10 @@ module Test.Plutip
 import Prelude
 
 import Contract.Address
-  ( Address
-  , PaymentPubKeyHash
+  ( PaymentPubKeyHash
   , StakePubKeyHash
-  , getNetworkId
-  , getWalletAddress
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
-  , payPubKeyHashEnterpriseAddress
   )
 import Contract.Log (logInfo')
 import Contract.Monad
@@ -35,8 +31,7 @@ import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy, validatorHash)
 import Contract.Test.Plutip
-  ( class UtxoDistribution
-  , InitialUTxOs
+  ( InitialUTxOs
   , runContractInEnv
   , runPlutipContract
   , withPlutipContractEnv
@@ -45,8 +40,6 @@ import Contract.Test.Plutip
 import Contract.Transaction
   ( BalancedSignedTransaction
   , DataHash
-  , TransactionInput
-  , TransactionOutput(TransactionOutput)
   , awaitTxConfirmed
   , balanceAndSignTx
   , balanceAndSignTxE
@@ -55,28 +48,19 @@ import Contract.Transaction
   , withBalancedAndSignedTxs
   )
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (utxosAt)
-import Contract.Value (CurrencySymbol, TokenName, Value, lovelaceValueOf)
+import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value as Value
-import Contract.Wallet (KeyWallet, privateKeyFromBytes, withKeyWallet)
-import Control.Lazy (fix)
+import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Monad.Error.Class (withResource)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
-import Data.Array (foldl, zip)
-import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.FoldableWithIndex (foldlWithIndex)
-import Data.List as List
-import Data.Log.Level (LogLevel(Trace))
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust, isNothing)
+import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (unwrap, wrap)
-import Data.NonEmpty ((:|))
-import Data.Traversable (for_, traverse_)
+import Data.Traversable (traverse_)
 import Data.Tuple (snd)
 import Data.Tuple.Nested (type (/\), (/\))
-import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
@@ -91,30 +75,21 @@ import Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt3
   )
 import Mote (group, only, test)
-import Partial.Unsafe (unsafePartial)
 import Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
   , stopChildProcessWithPort
   , stopPlutipCluster
   )
-import Plutip.Types
-  ( InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
-  , PlutipConfig
-  , StopClusterResponse(StopClusterSuccess)
-  )
-import Plutip.UtxoDistribution (encodeDistribution, keyWallets)
-import Plutus.Types.Transaction (Utxo)
-import Test.QuickCheck (class Arbitrary, arbitrary)
-import Test.QuickCheck.Gen (Gen, arrayOf, chooseInt, frequency, randomSample')
+import Plutip.Types (StopClusterResponse(StopClusterSuccess))
+import Test.Plutip.Common (config, privateStakeKey)
+import Test.Plutip.UtxoDistribution as UtxoDistribution
+import Test.Plutip.UtxoDistribution (checkUtxoDistribution)
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 import Test.Utils as Utils
 import TestM (TestPlanM)
-import Type.Prelude (Proxy(Proxy))
-import Types.RawBytes (hexToRawBytes)
 import Types.UsedTxOuts (TxOutRefCache)
-import Wallet.Key (PrivateStakeKey)
 
 -- Run with `spago test --main Test.Plutip`
 main :: Effect Unit
@@ -123,45 +98,9 @@ main = launchAff_ do
     -- we don't want to exit because we need to clean up after failure by
     -- timeout
     defaultConfig { timeout = Just $ wrap 30_000.0, exit = true }
-    suite
-
-config :: PlutipConfig
-config =
-  { host: "127.0.0.1"
-  , port: UInt.fromInt 8082
-  , logLevel: Trace
-  -- Server configs are used to deploy the corresponding services.
-  , ogmiosConfig:
-      { port: UInt.fromInt 1338
-      , host: "127.0.0.1"
-      , secure: false
-      , path: Nothing
-      }
-  , ogmiosDatumCacheConfig:
-      { port: UInt.fromInt 10000
-      , host: "127.0.0.1"
-      , secure: false
-      , path: Nothing
-      }
-  , ctlServerConfig:
-      { port: UInt.fromInt 8083
-      , host: "127.0.0.1"
-      , secure: false
-      , path: Nothing
-      }
-  , postgresConfig:
-      { host: "127.0.0.1"
-      , port: UInt.fromInt 5433
-      , user: "ctxlib"
-      , password: "ctxlib"
-      , dbname: "ctxlib"
-      }
-  }
-
-privateStakeKey :: PrivateStakeKey
-privateStakeKey = wrap $ unsafePartial $ fromJust
-  $ privateKeyFromBytes =<< hexToRawBytes
-      "633b1c4c4a075a538d37e062c1ed0706d3f0a94b013708e8f5ab0a0ca1df163d"
+    do
+      suite
+      UtxoDistribution.suite
 
 suite :: TestPlanM Unit
 suite = do
@@ -372,19 +311,6 @@ suite = do
         checkUtxoDistribution distribution alice
         withKeyWallet alice signMultipleContract
 
-    distrs <- liftEffect $ randomSample' 5 arbitrary
-    for_ distrs $ \distr ->
-      only
-        $ test
-            ( "runPlutipContract: stake key transfers with random distribution: "
-                <> show distr
-            )
-        $
-          withArbUtxoDistr
-            distr
-            \randDistr -> runPlutipContract config randDistr $
-              checkUtxoDistribution randDistr
-
     test "runPlutipContract: AlwaysSucceeds" do
       let
         distribution :: InitialUTxOs
@@ -402,65 +328,6 @@ suite = do
           awaitTxConfirmed txId
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
-
-checkUtxoDistribution
-  :: forall distr wallet (r :: Row Type)
-   . UtxoDistribution distr wallet
-  => distr
-  -> wallet
-  -> Contract r Unit
-checkUtxoDistribution distr wallets = do
-  let
-    walletsArray = keyWallets (Proxy :: Proxy distr) wallets
-    walletUtxos = encodeDistribution distr
-  for_ walletsArray assertUtxosAtPlutipWalletAddress
-  assertCorrectDistribution $ zip walletsArray walletUtxos
-
--- TODO: minimum value of 1 ada is hardcoded, tests become flaky below
--- that value. Ideally this shouldn't be hardcoded
-genInitialUtxo :: Gen InitialUTxOs
-genInitialUtxo = map (BigInt.fromInt >>> (_ * BigInt.fromInt 1_000_000))
-  <$> arrayOf (chooseInt 1 1000)
-
-instance Arbitrary ArbitraryUtxoDistr where
-  arbitrary = fix \_ -> frequency <<< wrap $
-    (1.0 /\ pure UDUnit) :|
-      List.fromFoldable
-        [ 2.0 /\ (UDInitialUtxos <$> genInitialUtxo)
-        , 2.0 /\
-            ( UDInitialUtxosWithStake <$>
-                ( InitialUTxOsWithStakeKey
-                    <$> (pure privateStakeKey)
-                    <*> genInitialUtxo
-                )
-            )
-        , 4.0 /\ (UDTuple <$> arbitrary <*> arbitrary)
-        ]
-
-data ArbitraryUtxoDistr
-  = UDUnit
-  | UDInitialUtxos InitialUTxOs
-  | UDInitialUtxosWithStake InitialUTxOsWithStakeKey
-  | UDTuple ArbitraryUtxoDistr ArbitraryUtxoDistr
-
-instance Show ArbitraryUtxoDistr where
-  show = case _ of
-    UDUnit -> "unit"
-    UDInitialUtxos x -> show x
-    UDInitialUtxosWithStake (InitialUTxOsWithStakeKey _ x) -> "stake + " <> show x
-    UDTuple x y -> "(" <> show x <> " /\\ " <> show y <> ")"
-
-withArbUtxoDistr
-  :: forall a
-   . ArbitraryUtxoDistr
-  -> (forall distr wallet. UtxoDistribution distr wallet => distr -> a)
-  -> a
-withArbUtxoDistr d f = case d of
-  UDUnit -> f unit
-  UDInitialUtxos x -> f x
-  UDInitialUtxosWithStake x -> f x
-  UDTuple x y ->
-    withArbUtxoDistr x (\d1 -> withArbUtxoDistr y (f <<< (d1 /\ _)))
 
 signMultipleContract :: forall (r :: Row Type). Contract r Unit
 signMultipleContract = do
@@ -549,82 +416,3 @@ mustPayToPubKeyStakeAddress
 mustPayToPubKeyStakeAddress pkh Nothing = Constraints.mustPayToPubKey pkh
 mustPayToPubKeyStakeAddress pkh (Just stk) =
   Constraints.mustPayToPubKeyAddress pkh stk
-
-assertContract :: forall (r :: Row Type). String -> Boolean -> Contract r Unit
-assertContract msg cond = if cond then pure unit else liftEffect $ throw msg
-
--- | For a plutip test wallet, assert that any utxos held by the
--- | wallet are at the expected address. If the wallet has a stake
--- | key, this function assumes the expected address is the base
--- | address, otherwise it assumes the expected address is the
--- | enterprise address.
-assertUtxosAtPlutipWalletAddress
-  :: forall (r :: Row Type). KeyWallet -> Contract r Unit
-assertUtxosAtPlutipWalletAddress wallet = withKeyWallet wallet do
-  maybeStake <- ownStakePubKeyHash
-  when (isJust maybeStake) $ assertNoUtxosAtEnterpriseAddress wallet
-
-assertNoUtxosAtEnterpriseAddress
-  :: forall (r :: Row Type). KeyWallet -> Contract r Unit
-assertNoUtxosAtEnterpriseAddress wallet = withKeyWallet wallet $
-  assertNoUtxosAtAddress =<< liftedM "Could not get wallet address"
-    ( payPubKeyHashEnterpriseAddress
-        <$> getNetworkId
-        <*> liftedM "Could not get payment pubkeyhash" ownPaymentPubKeyHash
-    )
-
-assertNoUtxosAtAddress :: forall (r :: Row Type). Address -> Contract r Unit
-assertNoUtxosAtAddress addr = do
-  utxos <- liftedM "Could not get wallet utxos" $ map unwrap <$> utxosAt addr
-  assertContract "Expected address to not hold utxos" $ Map.isEmpty utxos
-
--- | For each wallet, assert that there is a one-to-one correspondance
--- | between its utxo set and its expected utxo amounts.
-assertCorrectDistribution
-  :: forall (r :: Row Type). Array (KeyWallet /\ InitialUTxOs) -> Contract r Unit
-assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
-  withKeyWallet wallet do
-    addr <- liftedM "Could not get wallet address" getWalletAddress
-    utxos <- liftedM "Could not get wallet utxos" $ map unwrap <$> utxosAt addr
-    assertContract "Incorrect distribution of utxos" $
-      checkDistr utxos expectedAmounts
-  where
-  -- Idea here is to iterate through the expected amounts and remove
-  -- one matching utxo from the utxo set if found, otherwise return
-  -- false. Once we've gone through all expected amounts, if all of
-  -- them have been found in the utxo set, we expect there to be no
-  -- utxos remaining
-  checkDistr :: Utxo -> InitialUTxOs -> Boolean
-  checkDistr originalUtxos expectedAmounts =
-    let
-      allFound /\ remainingUtxos =
-        foldl findAndRemoveExpected (true /\ originalUtxos) expectedAmounts
-    in
-      allFound && Map.isEmpty remainingUtxos
-    where
-    -- Remove a single utxo containing the expected ada amount,
-    -- returning the updated utxo map and false if it could not be
-    -- found
-    findAndRemoveExpected :: Boolean /\ Utxo -> BigInt -> Boolean /\ Utxo
-    findAndRemoveExpected o@(false /\ _) _ = o
-    findAndRemoveExpected (_ /\ utxos) expected =
-      foldlWithIndex
-        (removeUtxoMatchingValue $ lovelaceValueOf expected)
-        (false /\ Map.empty)
-        utxos
-
-    -- Include the utxo if it does not match the value, return true if
-    -- the utxo matches the value
-    removeUtxoMatchingValue
-      :: Value
-      -> TransactionInput
-      -> Boolean /\ Utxo
-      -> TransactionOutput
-      -> Boolean /\ Utxo
-    removeUtxoMatchingValue
-      expected
-      i
-      (found /\ m)
-      o@(TransactionOutput { amount })
-      | not found && expected == amount = true /\ m
-      | otherwise = found /\ Map.insert i o m
