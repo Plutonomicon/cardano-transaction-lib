@@ -74,6 +74,7 @@ import Cardano.Types.Value
   , CurrencySymbol
   , Value
   , mkCurrencySymbol
+  , mkNonAdaAsset
   , mkValue
   )
 import Control.Alt ((<|>))
@@ -1133,7 +1134,7 @@ parseValue outer = do
     <|> Left (TypeMismatch "Expected 'coins' to be an Int or a BigInt")
   Assets assetsMap <- fromMaybe (Assets Map.empty)
     <$> getFieldOptional o "assets"
-  pure $ mkValue (wrap coins) (wrap assetsMap)
+  pure $ mkValue (wrap coins) (mkNonAdaAsset assetsMap)
 
 newtype Assets = Assets (Map CurrencySymbol (Map TokenName BigInt))
 
