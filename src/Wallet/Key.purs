@@ -3,6 +3,8 @@ module Wallet.Key
   , PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   , privateKeysToKeyWallet
+  , keyWalletPrivatePaymentKey
+  , keyWalletPrivateStakeKey
   ) where
 
 import Prelude
@@ -47,6 +49,8 @@ newtype KeyWallet = KeyWallet
   { address :: NetworkId -> Aff Address
   , selectCollateral :: Utxos -> Maybe TransactionUnspentOutput
   , signTx :: Transaction -> Aff Transaction
+  , paymentKey :: PrivatePaymentKey
+  , stakeKey :: Maybe PrivateStakeKey
   }
 
 derive instance Newtype KeyWallet _
@@ -59,12 +63,20 @@ newtype PrivateStakeKey = PrivateStakeKey PrivateKey
 
 derive instance Newtype PrivateStakeKey _
 
+keyWalletPrivatePaymentKey :: KeyWallet -> PrivatePaymentKey
+keyWalletPrivatePaymentKey = unwrap >>> _.paymentKey
+
+keyWalletPrivateStakeKey :: KeyWallet -> Maybe PrivateStakeKey
+keyWalletPrivateStakeKey = unwrap >>> _.stakeKey
+
 privateKeysToKeyWallet
   :: PrivatePaymentKey -> Maybe PrivateStakeKey -> KeyWallet
 privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
   { address
   , selectCollateral
   , signTx
+  , paymentKey: payKey
+  , stakeKey: mbStakeKey
   }
   where
   address :: NetworkId -> Aff Address
