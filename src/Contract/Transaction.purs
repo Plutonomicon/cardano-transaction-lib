@@ -132,8 +132,7 @@ import Plutus.Types.Address (Address)
 import Plutus.Types.Transaction (TransactionOutput(TransactionOutput)) as PTransaction
 import Plutus.Types.Value (Coin)
 import QueryM
-  ( FeeEstimate(FeeEstimate)
-  , ClientError
+  ( ClientError
       ( ClientHttpError
       , ClientHttpResponseError
       , ClientDecodeJsonError
