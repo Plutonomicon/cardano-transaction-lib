@@ -48,7 +48,7 @@ import Data.Traversable (for_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Mote (group, only, test)
+import Mote (group, test)
 import Plutip.Types (InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey))
 import Plutip.UtxoDistribution (encodeDistribution, keyWallets)
 import Plutus.Types.Transaction (Utxo)
@@ -62,11 +62,10 @@ suite :: TestPlanM Unit
 suite = group "Plutip UtxoDistribution" do
   distrs <- liftEffect $ randomSample' 5 arbitrary
   for_ distrs $ \distr ->
-    only
-      $ test
-          ( "runPlutipContract: stake key transfers with random distribution: "
-              <> show distr
-          )
+    test
+      ( "runPlutipContract: stake key transfers with random distribution: "
+          <> show distr
+      )
       $
         withArbUtxoDistr
           distr

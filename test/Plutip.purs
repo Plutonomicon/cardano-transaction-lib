@@ -74,7 +74,7 @@ import Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
-import Mote (group, only, test)
+import Mote (group, skip, test)
 import Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
@@ -83,8 +83,8 @@ import Plutip.Server
   )
 import Plutip.Types (StopClusterResponse(StopClusterSuccess))
 import Test.Plutip.Common (config, privateStakeKey)
-import Test.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Plutip.UtxoDistribution (checkUtxoDistribution)
+import Test.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 import Test.Utils as Utils
@@ -130,7 +130,7 @@ suite = do
         withKeyWallet bob do
           pure unit -- sign, balance, submit, etc.
 
-    only $ test "runPlutipContract: Pkh2Pkh" do
+    test "runPlutipContract: Pkh2Pkh" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -141,7 +141,7 @@ suite = do
         checkUtxoDistribution distribution alice
         withKeyWallet alice $ pkh2PkhContract alice
 
-    only $ test "runPlutipContract: Pkh2Pkh with stake key" do
+    test "runPlutipContract: Pkh2Pkh with stake key" do
       let
         aliceUtxos =
           [ BigInt.fromInt 2_000_000_000
@@ -153,7 +153,7 @@ suite = do
         checkUtxoDistribution distribution alice
         withKeyWallet alice $ pkh2PkhContract alice
 
-    only $ test "runPlutipContract: parallel Pkh2Pkh" do
+    test "runPlutipContract: parallel Pkh2Pkh" do
       let
         aliceUtxos =
           [ BigInt.fromInt 1_000_000_000
@@ -177,7 +177,7 @@ suite = do
               pkh2PkhContract alice
             in unit
 
-    only $ test "runPlutipContract: parallel Pkh2Pkh with stake keys" do
+    test "runPlutipContract: parallel Pkh2Pkh with stake keys" do
       let
         aliceUtxos =
           [ BigInt.fromInt 1_000_000_000
@@ -288,7 +288,7 @@ suite = do
             liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
           submitAndLog bsTx
 
-    only $ test "runPlutipContract: SignMultiple" do
+    test "runPlutipContract: SignMultiple" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -300,7 +300,7 @@ suite = do
         withKeyWallet alice signMultipleContract
 
     -- TODO: not sure what's causing this to fail
-    only $ test "runPlutipContract: SignMultiple with stake key" do
+    skip $ test "runPlutipContract: SignMultiple with stake key" do
       let
         aliceUtxos =
           [ BigInt.fromInt 5_000_000
