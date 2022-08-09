@@ -77,7 +77,6 @@ import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
-import Cardano.Types.Transaction (Transaction)
 import Cardano.Types.Transaction as Transaction
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Control.Monad.Error.Class
@@ -160,7 +159,7 @@ import QueryM.ServerConfig
   , mkWsUrl
   )
 import QueryM.UniqueId (ListenerId)
-import Serialization (convertTransaction, toBytes) as Serialization
+import Serialization (toBytes) as Serialization
 import Serialization.Address
   ( Address
   , NetworkId
