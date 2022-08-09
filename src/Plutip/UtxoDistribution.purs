@@ -32,6 +32,7 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Wallet (withKeyWallet)
+import Control.Alternative (guard)
 import Data.Array as Array
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.List (List, (:))
@@ -69,13 +70,13 @@ class UtxoDistribution distr wallets | distr -> wallets where
 
 instance UtxoDistribution Unit Unit where
   encodeDistribution _ = []
-  decodeWallets d p = fst <$> decodeWallets' d p
+  decodeWallets d p = decodeWalletsDefault d p
   decodeWallets' _ pks = Just $ unit /\ pks
   keyWallets _ _ = []
 
 instance UtxoDistribution InitialUTxO KeyWallet where
   encodeDistribution amounts = [ amounts ]
-  decodeWallets d p = fst <$> decodeWallets' d p
+  decodeWallets d p = decodeWalletsDefault d p
   decodeWallets' _ pks = Array.uncons pks <#>
     \{ head: PrivateKeyResponse key, tail } ->
       (privateKeysToKeyWallet (PrivatePaymentKey key) Nothing) /\ tail
@@ -83,7 +84,7 @@ instance UtxoDistribution InitialUTxO KeyWallet where
 
 instance UtxoDistribution InitialUTxOWithStakeKey KeyWallet where
   encodeDistribution (InitialUTxOWithStakeKey _ amounts) = [ amounts ]
-  decodeWallets d p = fst <$> decodeWallets' d p
+  decodeWallets d p = decodeWalletsDefault d p
   decodeWallets' (InitialUTxOWithStakeKey stake _) pks = Array.uncons pks <#>
     \{ head: PrivateKeyResponse key, tail } ->
       privateKeysToKeyWallet (PrivatePaymentKey key) (Just stake) /\
@@ -97,7 +98,7 @@ instance
   UtxoDistribution (headSpec /\ restSpec) (headWallets /\ restWallets) where
   encodeDistribution (distr /\ rest) =
     encodeDistribution distr <> encodeDistribution rest
-  decodeWallets d p = fst <$> decodeWallets' d p
+  decodeWallets d p = decodeWalletsDefault d p
   decodeWallets' (distr /\ rest) pks = do
     (headWallets /\ pks') <- decodeWallets' distr pks
     (restWallets /\ pks'') <- decodeWallets' rest pks'
@@ -105,6 +106,17 @@ instance
   keyWallets _ (headWallets /\ restWallets) =
     (keyWallets (Proxy :: Proxy headSpec) headWallets)
       <> (keyWallets (Proxy :: Proxy restSpec) restWallets)
+
+decodeWalletsDefault
+  :: forall distr wallets
+   . UtxoDistribution distr wallets
+  => distr
+  -> Array PrivateKeyResponse
+  -> Maybe wallets
+decodeWalletsDefault d p = do
+  wallets /\ remainingPKeys <- decodeWallets' d p
+  guard $ Array.null remainingPKeys
+  pure wallets
 
 type WalletInfo =
   { utxos :: Utxo
