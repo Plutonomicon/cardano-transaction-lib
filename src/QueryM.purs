@@ -33,7 +33,6 @@ module QueryM
   , getDatumsByHashes
   , getProtocolParametersAff
   , getWalletAddress
-  , getWalletCollateral
   , liftQueryM
   , listeners
   , postAeson
@@ -61,6 +60,7 @@ module QueryM
   , submitTxOgmios
   , underlyingWebSocket
   , withQueryRuntime
+  , callCip30Wallet
   ) where
 
 import Prelude
@@ -82,7 +82,6 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
 import Cardano.Types.Transaction (Transaction(Transaction))
 import Cardano.Types.Transaction as Transaction
-import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value (Coin)
 import Control.Monad.Error.Class
   ( class MonadError
@@ -95,7 +94,6 @@ import Control.Monad.Reader.Trans (ReaderT, asks, runReaderT, withReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (parallel, sequential)
 import Data.Array (length)
-import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -109,7 +107,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Traversable (for, for_, traverse, traverse_)
+import Data.Traversable (for, traverse, traverse_)
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -125,7 +123,7 @@ import Effect.Aff
   )
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, error, message, throw)
+import Effect.Exception (Error, error, message)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
@@ -431,28 +429,6 @@ getWalletAddress = do
     Nami nami -> callCip30Wallet nami _.getWalletAddress
     Gero gero -> callCip30Wallet gero _.getWalletAddress
     KeyWallet kw -> Just <$> (unwrap kw).address networkId
-
-getWalletCollateral :: QueryM (Maybe (Array TransactionUnspentOutput))
-getWalletCollateral = do
-  mbCollateralUTxOs <- withMWalletAff case _ of
-    Nami nami -> callCip30Wallet nami _.getCollateral
-    Gero gero -> callCip30Wallet gero _.getCollateral
-    KeyWallet _ -> liftEffect $ throw "Not implemented"
-  for_ mbCollateralUTxOs \collateralUTxOs -> do
-    pparams <- asks $ _.runtime >>> _.pparams
-    let
-      tooManyCollateralUTxOs =
-        fromMaybe false do
-          maxCollateralInputs <- (unwrap pparams).maxCollateralInputs
-          pure $ UInt.fromInt (Array.length collateralUTxOs) >
-            maxCollateralInputs
-    when tooManyCollateralUTxOs do
-      liftEffect $ throw tooManyCollateralUTxOsError
-  pure mbCollateralUTxOs
-  where
-  tooManyCollateralUTxOsError =
-    "Wallet returned too many UTxOs as collateral. This is likely a bug in \
-    \the wallet."
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
