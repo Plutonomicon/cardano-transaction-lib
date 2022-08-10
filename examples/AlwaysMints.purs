@@ -13,6 +13,7 @@ import Contract.Monad
   , liftContractAffM
   , liftContractM
   , liftedE
+  , liftedM
   , runContract
   )
 import Contract.Prim.ByteArray (byteArrayFromAscii)
@@ -52,7 +53,8 @@ main = launchAff_ $ do
       lookups = Lookups.mintingPolicy mp
 
     ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    bsTx <- balanceAndSignTx ubTx
+    bsTx <-
+      liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
 

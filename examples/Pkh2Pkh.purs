@@ -37,7 +37,8 @@ main = launchAff_ do
       lookups = mempty
 
     ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    bsTx <- balanceAndSignTx ubTx
+    bsTx <-
+      liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
     awaitTxConfirmedWithTimeout (wrap 100.0) txId

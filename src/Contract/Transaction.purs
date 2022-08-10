@@ -6,6 +6,7 @@ module Contract.Transaction
   , awaitTxConfirmedWithTimeout
   , awaitTxConfirmedWithTimeoutSlots
   , balanceAndSignTx
+  , balanceAndSignTxE
   , balanceAndSignTxs
   , balanceTx
   , balanceTxWithAddress
@@ -34,6 +35,7 @@ module Contract.Transaction
   ) where
 
 import Prelude
+import Prim.TypeError (class Warn, Text)
 
 import Aeson (class EncodeAeson, Aeson)
 import BalanceTx (BalanceTxError) as BalanceTxError
@@ -124,7 +126,7 @@ import Data.Time.Duration (Seconds)
 import Data.Traversable (class Traversable, for_, traverse)
 import Data.Tuple.Nested (type (/\))
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
+import Effect.Exception (Error, throw)
 import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
 import Plutus.Conversion.Address (fromPlutusAddress)
 import Plutus.Types.Address (Address)
@@ -376,7 +378,7 @@ withBalancedAndSignedTx
   -> (BalancedSignedTransaction -> Contract r a)
   -> Contract r a
 withBalancedAndSignedTx = withSingleTransaction
-  balanceAndSignTx
+  internalBalanceAndSignTx
   unwrap
 
 -- | Like `balanceTxs`, but uses `balanceTxWithAddress` instead of `balanceTx`
@@ -483,14 +485,28 @@ balanceAndSignTxs txs = balanceTxs txs >>= traverse
 -- | `unlockTransactionInputs`.
 balanceAndSignTx
   :: forall (r :: Row Type)
+   . Warn ( Text "`balanceAndSignTx` no longer returns `Nothing` when failing, instead letting errors continue through the `Contract` monad. `Maybe` will be removed in a future release.")
+  => UnattachedUnbalancedTx
+  -> Contract r (Maybe BalancedSignedTransaction)
+balanceAndSignTx tx = pure <$> internalBalanceAndSignTx tx
+
+internalBalanceAndSignTx
+  :: forall (r :: Row Type)
    . UnattachedUnbalancedTx
   -> Contract r BalancedSignedTransaction
-balanceAndSignTx tx = balanceAndSignTxs [ tx ] >>=
+internalBalanceAndSignTx tx = balanceAndSignTxs [ tx ] >>=
   case _ of
     [ x ] -> pure x
-    -- Which error should we throw here?
     _ -> liftEffect $ throw $
       "Unexpected internal error during transaction signing"
+
+-- TODO Deprecate `balanceAndSignTxE` once `Maybe` is dropped from
+-- `balanceAndSignTx`, like in `internalBalanceAndSignTx`.
+balanceAndSignTxE
+  :: forall (r :: Row Type)
+   . UnattachedUnbalancedTx
+  -> Contract r (Either Error BalancedSignedTransaction)
+balanceAndSignTxE = try <<< internalBalanceAndSignTx
 
 scriptOutputToTransactionOutput
   :: NetworkId

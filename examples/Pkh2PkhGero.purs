@@ -11,7 +11,7 @@ import Contract.Log (logInfo')
 import Contract.Monad (launchAff_, liftedE, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Test.E2E (publishTestFeedback)
-import Contract.Transaction (balanceAndSignTx, submit)
+import Contract.Transaction (balanceAndSignTxE, submit)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Data.BigInt as BigInt
@@ -34,7 +34,7 @@ main = launchAff_ do
       lookups = mempty
 
     ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    bsTx <- balanceAndSignTx ubTx
+    bsTx <- liftedE $ balanceAndSignTxE ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
 

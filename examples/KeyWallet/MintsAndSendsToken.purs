@@ -7,7 +7,7 @@ module Examples.KeyWallet.MintsAndSendsToken (main) where
 import Contract.Prelude
 
 import Contract.Log (logInfo')
-import Contract.Monad (liftContractAffM, liftContractM, liftedE)
+import Contract.Monad (liftContractAffM, liftContractM, liftedE, liftedM)
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction (balanceAndSignTx, submit)
@@ -38,7 +38,7 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
     lookups = Lookups.mintingPolicy mp
 
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  bsTx <- balanceAndSignTx ubTx
+  bsTx <- liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
   liftEffect unlock

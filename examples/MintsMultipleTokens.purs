@@ -18,6 +18,7 @@ import Contract.Monad
   , liftContractAffM
   , liftContractM
   , liftedE
+  , liftedM
   , runContract
   )
 import Contract.PlutusData (PlutusData(Integer), Redeemer(Redeemer))
@@ -70,7 +71,8 @@ main = launchAff_ do
           <> Lookups.mintingPolicy mp3
 
     ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    bsTx <- balanceAndSignTx ubTx
+    bsTx <-
+      liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
 
