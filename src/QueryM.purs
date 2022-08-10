@@ -688,7 +688,7 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
           errMessage
       _wsClose ws
       continue $ Left $ error errMessage
-  firstConnectionErrorRef <- _onWsError ws (logger Error) onFirstConnectionError
+  firstConnectionErrorRef <- _onWsError ws onFirstConnectionError
   hasConnectedOnceRef <- Ref.new false
   _onWsConnect ws $ Ref.read hasConnectedOnceRef >>= case _ of
     true -> do
@@ -704,7 +704,7 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
         _wsReconnect ws
       _onWsMessage ws (logger Debug) $ defaultMessageListener lvl
         messageDispatch
-      void $ _onWsError ws (logger Error) $ \err -> do
+      void $ _onWsError ws \err -> do
         logString lvl Debug $
           "Ogmios WebSocket error (" <> err <> "). Reconnecting..."
         launchAff_ do
@@ -767,7 +767,7 @@ mkDatumCacheWebSocket' lvl serverCfg continue = do
           <> "Terminating. Error: "
           <> errMessage
       continue $ Left $ error errMessage
-  firstConnectionErrorRef <- _onWsError ws (logger Error) onFirstConnectionError
+  firstConnectionErrorRef <- _onWsError ws onFirstConnectionError
   hasConnectedOnceRef <- Ref.new false
   _onWsConnect ws $ Ref.read hasConnectedOnceRef >>= case _ of
     true -> do
@@ -785,7 +785,7 @@ mkDatumCacheWebSocket' lvl serverCfg continue = do
         _wsReconnect ws
       _onWsMessage ws (logger Debug) $ defaultMessageListener lvl
         messageDispatch
-      void $ _onWsError ws (logger Error) $ \err -> do
+      void $ _onWsError ws \err -> do
         logger Debug $
           "Ogmios Datum Cache WebSocket error (" <> err <>
             "). Reconnecting..."
@@ -948,7 +948,9 @@ mkRequestAff listeners' webSocket logLevel jsonWspCall getLs inp = do
       _ <- respLs.addMessageListener id
         ( \result -> do
             respLs.removeMessageListener id
-            cont (lmap dispatchErrorToError result)
+            case result of
+              Left (ListenerCancelled _) -> pure unit
+              _ -> cont (lmap dispatchErrorToError result)
         )
       respLs.addRequest id sBody
       _wsSend webSocket (logString logLevel Debug) sBody
@@ -968,21 +970,22 @@ data DispatchError
   -- message
   | FaultError Aeson
   -- The listener that was added for this message has been cancelled
-  | ListenerCancelled
+  | ListenerCancelled ListenerId
 
 instance Show DispatchError where
   show (JsError err) = "(JsError (message " <> show (message err) <> "))"
   show (JsonError jsonErr) = "(JsonError " <> show jsonErr <> ")"
   show (FaultError aeson) = "(FaultError " <> show aeson <> ")"
-  show ListenerCancelled = "ListenerCancelled"
+  show (ListenerCancelled listenerId) =
+    "(ListenerCancelled " <> show listenerId <> ")"
 
 dispatchErrorToError :: DispatchError -> Error
 dispatchErrorToError (JsError err) = err
 dispatchErrorToError (JsonError err) = error $ show err
 dispatchErrorToError (FaultError err) =
   error $ "Server responded with `fault`: " <> stringifyAeson err
-dispatchErrorToError ListenerCancelled =
-  error $ "Listener cancelled"
+dispatchErrorToError (ListenerCancelled listenerId) =
+  error $ "Listener cancelled (" <> listenerId <> ")"
 
 -- A function which accepts some unparsed Json, and checks it against one or
 -- more possible types to perform an appropriate effect (such as supplying the
@@ -1073,8 +1076,7 @@ queryDispatch ref str = do
     Right reflection -> do
       -- Get callback action
       withAction reflection case _ of
-        Nothing -> Left $ JsError $ error $
-          "Request Id " <> reflection <> " has been cancelled"
+        Nothing -> Left (ListenerCancelled reflection)
         Just action -> do
           -- Parse response
           Right $ action $
