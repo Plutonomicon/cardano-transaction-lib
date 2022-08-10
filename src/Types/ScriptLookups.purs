@@ -112,7 +112,6 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Hashing (datumHash) as Hashing
 import Helpers ((<\>), liftEither, liftM)
-import NativeScripts (NativeScriptHash(NativeScriptHash), nativeScriptHash)
 import IsData (class IsData)
 import Plutus.Conversion (fromPlutusTxOutput, fromPlutusValue)
 import Plutus.Types.Transaction (TransactionOutput) as Plutus
@@ -955,7 +954,6 @@ processConstraint mpsMap osMap = do
         _ -> liftEither $ throwError $ TxOutRefWrongType txo
     MustSpendNativeScriptOutput txo ns -> runExceptT do
       _cpsToTxBody <<< _inputs %= Set.insert txo
-      -- _valueSpentBalancesInputs <>= provideValue amount
       ExceptT $ attachToCps attachNativeScript ns
     MustMintValue mpsHash red tn i -> runExceptT do
       plutusScript <-
