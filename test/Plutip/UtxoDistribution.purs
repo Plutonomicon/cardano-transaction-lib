@@ -7,6 +7,7 @@ module Test.Plutip.UtxoDistribution
   , assertUtxosAtPlutipWalletAddress
   , checkUtxoDistribution
   , genInitialUtxo
+  , ppArbitraryUtxoDistr
   , suite
   , withArbUtxoDistr
   ) where
@@ -54,7 +55,15 @@ import Plutip.UtxoDistribution (encodeDistribution, keyWallets)
 import Plutus.Types.Transaction (Utxo)
 import Test.Plutip.Common (config, privateStakeKey)
 import Test.QuickCheck (class Arbitrary, arbitrary)
-import Test.QuickCheck.Gen (Gen, arrayOf, chooseInt, frequency, randomSample')
+import Test.QuickCheck.Gen
+  ( Gen
+  , arrayOf
+  , chooseInt
+  , frequency
+  , randomSample'
+  , resize
+  , sized
+  )
 import TestM (TestPlanM)
 import Type.Prelude (Proxy(Proxy))
 
@@ -64,7 +73,7 @@ suite = group "Plutip UtxoDistribution" do
   for_ distrs $ \distr ->
     test
       ( "runPlutipContract: stake key transfers with random distribution: "
-          <> show distr
+          <> ppArbitraryUtxoDistr distr
       )
       $
         withArbUtxoDistr
@@ -86,13 +95,16 @@ checkUtxoDistribution distr wallets = do
   assertCorrectDistribution $ zip walletsArray walletUtxos
 
 -- TODO: minimum value of 1 ada is hardcoded, tests become flaky below
--- that value. Ideally this shouldn't be hardcoded
+-- that value. Ideally this shouldn't be hardcoded. We might be able
+-- to remove this minimum after
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/857
+-- is resolved
 genInitialUtxo :: Gen InitialUTxOs
 genInitialUtxo = map (BigInt.fromInt >>> (_ * BigInt.fromInt 1_000_000))
   <$> arrayOf (chooseInt 1 1000)
 
 instance Arbitrary ArbitraryUtxoDistr where
-  arbitrary = fix \_ -> frequency <<< wrap $
+  arbitrary = fix \_ -> sized $ \size -> resize size $ frequency <<< wrap $
     (1.0 /\ pure UDUnit) :|
       List.fromFoldable
         [ 2.0 /\ (UDInitialUtxos <$> genInitialUtxo)
@@ -103,7 +115,11 @@ instance Arbitrary ArbitraryUtxoDistr where
                     <*> genInitialUtxo
                 )
             )
-        , 4.0 /\ (UDTuple <$> arbitrary <*> arbitrary)
+        , 4.0 /\
+            ( UDTuple
+                <$> resize (size - 1) arbitrary
+                <*> resize (size - 1) arbitrary
+            )
         ]
 
 data ArbitraryUtxoDistr
@@ -112,13 +128,15 @@ data ArbitraryUtxoDistr
   | UDInitialUtxosWithStake InitialUTxOsWithStakeKey
   | UDTuple ArbitraryUtxoDistr ArbitraryUtxoDistr
 
-instance Show ArbitraryUtxoDistr where
-  show = case _ of
-    UDUnit -> "unit"
-    UDInitialUtxos x -> show x
-    UDInitialUtxosWithStake (InitialUTxOsWithStakeKey _ x) -> "stake + " <> show
-      x
-    UDTuple x y -> "(" <> show x <> " /\\ " <> show y <> ")"
+ppArbitraryUtxoDistr :: ArbitraryUtxoDistr -> String
+ppArbitraryUtxoDistr = case _ of
+  UDUnit -> "unit"
+  UDInitialUtxos x -> show x
+  UDInitialUtxosWithStake (InitialUTxOsWithStakeKey _ x) ->
+    "stake + " <> show x
+  UDTuple x y -> "(" <> ppArbitraryUtxoDistr x <> " /\\ "
+    <> ppArbitraryUtxoDistr y
+    <> ")"
 
 withArbUtxoDistr
   :: forall a
