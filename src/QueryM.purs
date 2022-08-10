@@ -727,6 +727,7 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
   let
     messageDispatch = ogmiosMessageDispatch
       { utxoDispatchMap
+      , utxosAtDispatchMap
       , chainTipDispatchMap
       , evaluateTxDispatchMap
       , getProtocolParametersDispatchMap
@@ -734,6 +735,8 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
       , eraSummariesDispatchMap
       , currentEpochDispatchMap
       , systemStartDispatchMap
+      , acquireMempoolDispatchMap
+      , mempoolHasTxDispatchMap
       }
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   let
@@ -769,6 +772,7 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
 
     resendPendingRequests = do
       Ref.read utxoPendingRequests >>= traverse_ sendRequest
+      Ref.read utxosAtPendingRequests >>= traverse_ sendRequest
       Ref.read chainTipPendingRequests >>= traverse_ sendRequest
       Ref.read evaluateTxPendingRequests >>= traverse_ sendRequest
       Ref.read getProtocolParametersPendingRequests >>= traverse_ sendRequest
@@ -1101,6 +1105,7 @@ type DispatchIdMap response = Ref
 -- an immutable queue of response type handlers
 ogmiosMessageDispatch
   :: { utxoDispatchMap :: DispatchIdMap Ogmios.UtxoQR
+     , utxosAtDispatchMap :: DispatchIdMap Ogmios.UtxoQR
      , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipQR
      , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationR
      , getProtocolParametersDispatchMap ::
@@ -1109,10 +1114,13 @@ ogmiosMessageDispatch
      , eraSummariesDispatchMap :: DispatchIdMap Ogmios.EraSummaries
      , currentEpochDispatchMap :: DispatchIdMap Ogmios.CurrentEpoch
      , systemStartDispatchMap :: DispatchIdMap Ogmios.SystemStart
+     , acquireMempoolDispatchMap :: DispatchIdMap Ogmios.MempoolSnapshotAcquired
+     , mempoolHasTxDispatchMap :: DispatchIdMap Boolean
      }
   -> Array WebsocketDispatch
 ogmiosMessageDispatch
   { utxoDispatchMap
+  , utxosAtDispatchMap
   , chainTipDispatchMap
   , evaluateTxDispatchMap
   , getProtocolParametersDispatchMap
@@ -1120,8 +1128,11 @@ ogmiosMessageDispatch
   , eraSummariesDispatchMap
   , currentEpochDispatchMap
   , systemStartDispatchMap
+  , acquireMempoolDispatchMap
+  , mempoolHasTxDispatchMap
   } =
   [ queryDispatch utxoDispatchMap
+  , queryDispatch utxosAtDispatchMap
   , queryDispatch chainTipDispatchMap
   , queryDispatch evaluateTxDispatchMap
   , queryDispatch getProtocolParametersDispatchMap
@@ -1129,6 +1140,8 @@ ogmiosMessageDispatch
   , queryDispatch eraSummariesDispatchMap
   , queryDispatch currentEpochDispatchMap
   , queryDispatch systemStartDispatchMap
+  , queryDispatch acquireMempoolDispatchMap
+  , queryDispatch mempoolHasTxDispatchMap
   ]
 
 datumCacheMessageDispatch

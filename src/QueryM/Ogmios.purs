@@ -231,6 +231,11 @@ mempoolSnapshotHasTxCall _ = mkOgmiosCallType Proxy
 
 newtype MempoolSnapshotAcquired = AwaitAcquired Slot
 
+derive instance Generic MempoolSnapshotAcquired _
+
+instance Show MempoolSnapshotAcquired where
+  show = genericShow
+
 instance DecodeAeson MempoolSnapshotAcquired where
   decodeAeson =
     map AwaitAcquired <<< aesonObject
