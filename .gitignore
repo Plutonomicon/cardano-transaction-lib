@@ -22,3 +22,5 @@ result-*
 output.js
 .DS_Store
 .idea/
+test-data/chrome-user-data/
+tmp

@@ -9,7 +9,7 @@ module QueryM
       )
   , DatumCacheListeners
   , DatumCacheWebSocket
-  , DefaultQueryConfig
+  , DefaultQueryEnv
   , DispatchError(JsError, JsonError, FaultError, ListenerCancelled)
   , DispatchIdMap
   , FeeEstimate(FeeEstimate)
@@ -19,13 +19,13 @@ module QueryM
   , PendingRequests
   , QueryConfig
   , QueryM
-  , QueryMExtended
+  , QueryMExtended(QueryMExtended)
+  , QueryEnv
+  , QueryRuntime
   , RequestBody
   , WebSocket(WebSocket)
   , allowError
   , applyArgs
-  , awaitTxConfirmed
-  , awaitTxConfirmedWithTimeout
   , calculateMinFee
   , evaluateTxOgmios
   , getChainTip
@@ -33,17 +33,18 @@ module QueryM
   , getDatumsByHashes
   , getProtocolParametersAff
   , getWalletAddress
-  , getWalletCollateral
   , liftQueryM
   , listeners
   , postAeson
   , mkDatumCacheWebSocketAff
+  , mkDatumCacheRequest
   , queryDispatch
   , defaultMessageListener
   , mkListenerSet
   , mkOgmiosRequest
   , mkOgmiosRequestAff
   , mkOgmiosWebSocketAff
+  , mkQueryRuntime
   , mkRequest
   , mkRequestAff
   , module ServerConfig
@@ -51,11 +52,15 @@ module QueryM
   , ownPubKeyHash
   , ownStakePubKeyHash
   , runQueryM
+  , runQueryMWithSettings
+  , runQueryMInRuntime
   , signTransaction
   , scriptToAeson
+  , stopQueryRuntime
   , submitTxOgmios
-  , traceQueryConfig
   , underlyingWebSocket
+  , withQueryRuntime
+  , callCip30Wallet
   ) where
 
 import Prelude
@@ -77,39 +82,49 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
 import Cardano.Types.Transaction (Transaction(Transaction))
 import Cardano.Types.Transaction as Transaction
-import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value (Coin)
-import Control.Monad.Error.Class (throwError)
-import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
-import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT, ask, asks)
+import Control.Monad.Error.Class
+  ( class MonadError
+  , class MonadThrow
+  , throwError
+  )
+import Control.Monad.Logger.Class (class MonadLogger)
+import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
+import Control.Monad.Reader.Trans (ReaderT, asks, runReaderT, withReaderT)
+import Control.Monad.Rec.Class (class MonadRec)
+import Control.Parallel (parallel, sequential)
 import Data.Array (length)
-import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.DateTime.Instant (unInstant)
 import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldl)
 import Data.HTTP.Method (Method(POST))
-import Data.Log.Level (LogLevel(Trace, Debug, Error))
+import Data.Log.Level (LogLevel(Error, Debug))
+import Data.Log.Message (Message)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Number (infinity)
-import Data.Time.Duration (Seconds(Seconds))
-import Data.Traversable (for_, traverse, traverse_)
+import Data.Traversable (for, traverse, traverse_)
 import Data.Tuple (fst, snd, Tuple(Tuple))
-import Data.Tuple.Nested ((/\))
+import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (Aff, Canceler(Canceler), delay, launchAff_, makeAff)
-import Effect.Aff.Class (liftAff)
-import Effect.Class (liftEffect)
-import Effect.Exception (Error, error, message, throw)
-import Effect.Now (now)
+import Effect.Aff
+  ( Aff
+  , Canceler(Canceler)
+  , delay
+  , finally
+  , launchAff_
+  , makeAff
+  , supervise
+  )
+import Effect.Aff.Class (class MonadAff, liftAff)
+import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Exception (Error, error, message)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
@@ -146,9 +161,6 @@ import QueryM.ServerConfig
   ) as ServerConfig
 import QueryM.ServerConfig
   ( ServerConfig
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
   , mkHttpUrl
   , mkOgmiosDatumCacheWsUrl
   , mkWsUrl
@@ -157,10 +169,10 @@ import QueryM.UniqueId (ListenerId)
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address
   ( Address
-  , NetworkId(TestnetId)
+  , NetworkId
+  , addressPaymentCred
   , baseAddressDelegationCred
   , baseAddressFromAddress
-  , addressPaymentCred
   , stakeCredentialToKeyHash
   )
 import Serialization.PlutusData (convertPlutusData) as Serialization
@@ -175,77 +187,189 @@ import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
 import Types.Scripts (PlutusScript(PlutusScript), Language)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
-import Wallet (Wallet(Gero, Nami, KeyWallet), Cip30Connection, Cip30Wallet)
+import Wallet
+  ( Cip30Connection
+  , Cip30Wallet
+  , Wallet(Gero, Nami, KeyWallet)
+  , mkGeroWalletAff
+  , mkKeyWallet
+  , mkNamiWalletAff
+  )
+import Wallet.KeyFile (privatePaymentKeyFromFile, privateStakeKeyFromFile)
+import Wallet.Spec
+  ( WalletSpec(UseKeys, ConnectToGero, ConnectToNami)
+  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
+  , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  )
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
 -- Or for verifying that the connection is live, those concerns are addressed
 -- here
 
-------------------------
-
--- when we add multiple query backends or wallets,
--- we just need to extend this type
-type QueryConfig (r :: Row Type) =
-  { ogmiosWs :: OgmiosWebSocket
-  , datumCacheWs :: DatumCacheWebSocket
-  , serverConfig :: ServerConfig
-  , wallet :: Maybe Wallet
-  -- should probably be more tightly coupled with a wallet
-  , usedTxOuts :: UsedTxOuts
+-- | `QueryConfig` contains a complete specification on how to initialize a
+-- | `QueryM` environment.
+-- | It includes:
+-- | - server parameters for all the services
+-- | - network ID
+-- | - logging level
+-- | - wallet setup instructions
+-- | - optional custom logger
+type QueryConfig =
+  { ctlServerConfig :: ServerConfig
+  , ogmiosConfig :: ServerConfig
+  , datumCacheConfig :: ServerConfig
   , networkId :: NetworkId
   , logLevel :: LogLevel
-  , pparams :: Ogmios.ProtocolParameters
-  | r
+  , walletSpec :: Maybe WalletSpec
+  , customLogger :: Maybe (Message -> Aff Unit)
   }
 
-type DefaultQueryConfig = QueryConfig ()
+-- | Reusable part of `QueryRuntime` that can be shared between many `QueryM`
+-- |  instances running in parallel.
+-- |
+-- | Includes:
+-- | - WebSocket connections
+-- | - A wallet connection
+-- | - A data structure to keep UTxOs that has already been spent
+-- | - Current protocol parameters
+type QueryRuntime =
+  { ogmiosWs :: OgmiosWebSocket
+  , datumCacheWs :: DatumCacheWebSocket
+  , wallet :: Maybe Wallet
+  , usedTxOuts :: UsedTxOuts
+  , pparams :: Ogmios.ProtocolParameters
+  }
 
-type QueryM (a :: Type) = ReaderT DefaultQueryConfig (LoggerT Aff) a
+-- | `QueryEnv` contains everything needed for `QueryM` to run.
+type QueryEnv (r :: Row Type) =
+  { config :: QueryConfig
+  , runtime :: QueryRuntime
+  , extraConfig :: { | r }
+  }
 
-type QueryMExtended (r :: Row Type) (a :: Type) = ReaderT (QueryConfig r)
-  (LoggerT Aff)
-  a
+type DefaultQueryEnv = QueryEnv ()
+
+type QueryM (a :: Type) = QueryMExtended () a
+
+newtype QueryMExtended (r :: Row Type) (a :: Type) = QueryMExtended
+  (ReaderT (QueryEnv r) Aff a)
+
+derive instance Newtype (QueryMExtended r a) _
+derive newtype instance Functor (QueryMExtended r)
+derive newtype instance Apply (QueryMExtended r)
+derive newtype instance Applicative (QueryMExtended r)
+derive newtype instance Bind (QueryMExtended r)
+derive newtype instance Monad (QueryMExtended r)
+derive newtype instance MonadEffect (QueryMExtended r)
+derive newtype instance MonadAff (QueryMExtended r)
+derive newtype instance Semigroup a => Semigroup (QueryMExtended r a)
+derive newtype instance Monoid a => Monoid (QueryMExtended r a)
+derive newtype instance MonadThrow Error (QueryMExtended r)
+derive newtype instance MonadError Error (QueryMExtended r)
+derive newtype instance MonadRec (QueryMExtended r)
+derive newtype instance MonadAsk (QueryEnv r) (QueryMExtended r)
+derive newtype instance MonadReader (QueryEnv r) (QueryMExtended r)
+
+instance MonadLogger (QueryMExtended r) where
+  log msg = do
+    config <- asks $ _.config
+    let
+      logFunction =
+        config # _.customLogger >>> fromMaybe (logWithLevel config.logLevel)
+    liftAff $ logFunction msg
 
 liftQueryM :: forall (r :: Row Type) (a :: Type). QueryM a -> QueryMExtended r a
-liftQueryM = withReaderT toDefaultQueryConfig
+liftQueryM = unwrap >>> withReaderT toDefaultQueryEnv >>> wrap
   where
-  toDefaultQueryConfig :: QueryConfig r -> DefaultQueryConfig
-  toDefaultQueryConfig c =
-    { ogmiosWs: c.ogmiosWs
-    , datumCacheWs: c.datumCacheWs
-    , serverConfig: c.serverConfig
-    , wallet: c.wallet
-    , usedTxOuts: c.usedTxOuts
-    , networkId: c.networkId
-    , logLevel: c.logLevel
-    , pparams: c.pparams
-    }
+  toDefaultQueryEnv :: QueryEnv r -> DefaultQueryEnv
+  toDefaultQueryEnv c = c { extraConfig = {} }
 
-runQueryM :: forall (a :: Type). DefaultQueryConfig -> QueryM a -> Aff a
-runQueryM cfg =
-  flip runLoggerT (logWithLevel cfg.logLevel) <<< flip runReaderT cfg
+-- | Constructs and finalizes a contract environment that is usable inside a
+-- | bracket callback.
+-- | Make sure that `Aff` action does not end before all contracts that use the
+-- | runtime terminate. Otherwise `WebSocket`s will be closed too early.
+withQueryRuntime
+  :: forall a
+   . QueryConfig
+  -> (QueryRuntime -> Aff a)
+  -> Aff a
+withQueryRuntime config action = do
+  runtime <- mkQueryRuntime config
+  supervise (action runtime) `flip finally` do
+    liftEffect $ stopQueryRuntime runtime
 
--- A `DefaultQueryConfig` useful for testing, with `logLevel` set to `Trace`
-traceQueryConfig :: Aff DefaultQueryConfig
-traceQueryConfig = do
-  ogmiosWs <- mkOgmiosWebSocketAff logLevel defaultOgmiosWsConfig
-  datumCacheWs <- mkDatumCacheWebSocketAff logLevel defaultDatumCacheWsConfig
+-- | Close the websockets in `QueryRuntime`, effectively making it unusable
+stopQueryRuntime
+  :: QueryRuntime
+  -> Effect Unit
+stopQueryRuntime runtime = do
+  _wsClose $ underlyingWebSocket runtime.ogmiosWs
+  _wsClose $ underlyingWebSocket runtime.datumCacheWs
+
+-- | Used in `mkQueryRuntime` only
+data QueryRuntimeModel = QueryRuntimeModel
+  (OgmiosWebSocket /\ Ogmios.ProtocolParameters)
+  DatumCacheWebSocket
+  (Maybe Wallet)
+
+mkQueryRuntime
+  :: QueryConfig
+  -> Aff QueryRuntime
+mkQueryRuntime config = do
   usedTxOuts <- newUsedTxOuts
-  pparams <- getProtocolParametersAff ogmiosWs logLevel
+  QueryRuntimeModel (ogmiosWs /\ pparams) datumCacheWs wallet <- sequential $
+    QueryRuntimeModel
+      <$> parallel do
+        ogmiosWs <- mkOgmiosWebSocketAff config.logLevel config.ogmiosConfig
+        pparams <- getProtocolParametersAff ogmiosWs config.logLevel
+        pure $ ogmiosWs /\ pparams
+      <*> parallel
+        (mkDatumCacheWebSocketAff config.logLevel config.datumCacheConfig)
+      <*> parallel (for config.walletSpec mkWalletBySpec)
   pure
     { ogmiosWs
     , datumCacheWs
-    , serverConfig: defaultServerConfig
-    , wallet: Nothing
+    , wallet
     , usedTxOuts
-    , networkId: TestnetId
-    , logLevel
     , pparams
     }
-  where
-  logLevel :: LogLevel
-  logLevel = Trace
+
+mkWalletBySpec :: WalletSpec -> Aff Wallet
+mkWalletBySpec = case _ of
+  UseKeys paymentKeySpec mbStakeKeySpec -> do
+    privatePaymentKey <- case paymentKeySpec of
+      PrivatePaymentKeyFile filePath ->
+        privatePaymentKeyFromFile filePath
+      PrivatePaymentKeyValue key -> pure key
+    mbPrivateStakeKey <- for mbStakeKeySpec case _ of
+      PrivateStakeKeyFile filePath -> privateStakeKeyFromFile filePath
+      PrivateStakeKeyValue key -> pure key
+    pure $ mkKeyWallet privatePaymentKey mbPrivateStakeKey
+  ConnectToNami -> mkNamiWalletAff
+  ConnectToGero -> mkGeroWalletAff
+
+runQueryM :: forall (a :: Type). QueryConfig -> QueryM a -> Aff a
+runQueryM config action = do
+  withQueryRuntime config \runtime ->
+    runQueryMInRuntime config runtime action
+
+runQueryMWithSettings
+  :: forall (r :: Row Type) (a :: Type)
+   . QueryEnv r
+  -> QueryM a
+  -> Aff a
+runQueryMWithSettings settings action = do
+  runQueryMInRuntime settings.config settings.runtime action
+
+runQueryMInRuntime
+  :: forall (a :: Type)
+   . QueryConfig
+  -> QueryRuntime
+  -> QueryM a
+  -> Aff a
+runQueryMInRuntime config runtime = do
+  flip runReaderT { config, runtime, extraConfig: {} } <<< unwrap
 
 getProtocolParametersAff
   :: OgmiosWebSocket -> LogLevel -> Aff Ogmios.ProtocolParameters
@@ -291,30 +415,6 @@ getDatumsByHashes :: Array DataHash -> QueryM (Map DataHash Datum)
 getDatumsByHashes hashes = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
 
-awaitTxConfirmed :: TxHash -> QueryM Unit
-awaitTxConfirmed = awaitTxConfirmedWithTimeout (Seconds infinity)
-
-awaitTxConfirmedWithTimeout :: Seconds -> TxHash -> QueryM Unit
-awaitTxConfirmedWithTimeout timeoutSeconds txHash = do
-  nowMs <- getNowMs
-  let timeoutTime = nowMs + unwrap timeoutSeconds * 1000.0
-  go timeoutTime
-  where
-  getNowMs :: QueryM Number
-  getNowMs = unwrap <<< unInstant <$> liftEffect now
-
-  go :: Number -> QueryM Unit
-  go timeoutTime = do
-    isTxFound <- unwrap <$> mkDatumCacheRequest DcWsp.getTxByHash _.getTxByHash
-      txHash
-    nowMs <- getNowMs
-    when (nowMs >= timeoutTime) do
-      liftEffect $ throw $
-        "awaitTxConfirmedWithTimeout: timeout exceeded, Transaction not \
-        \confirmed"
-    liftAff $ delay $ wrap 1000.0
-    if isTxFound then pure unit else go timeoutTime
-
 allowError
   :: forall (a :: Type). (Either Error a -> Effect Unit) -> a -> Effect Unit
 allowError func = func <<< Right
@@ -325,40 +425,18 @@ allowError func = func <<< Right
 
 getWalletAddress :: QueryM (Maybe Address)
 getWalletAddress = do
-  networkId <- asks _.networkId
+  networkId <- asks $ _.config >>> _.networkId
   withMWalletAff case _ of
     Nami nami -> callCip30Wallet nami _.getWalletAddress
     Gero gero -> callCip30Wallet gero _.getWalletAddress
-    KeyWallet kw -> Just <$> kw.address networkId
-
-getWalletCollateral :: QueryM (Maybe (Array TransactionUnspentOutput))
-getWalletCollateral = do
-  mbCollateralUTxOs <- withMWalletAff case _ of
-    Nami nami -> callCip30Wallet nami _.getCollateral
-    Gero gero -> callCip30Wallet gero _.getCollateral
-    KeyWallet _ -> liftEffect $ throw "Not implemented"
-  for_ mbCollateralUTxOs \collateralUTxOs -> do
-    pparams <- asks _.pparams
-    let
-      tooManyCollateralUTxOs =
-        fromMaybe false do
-          maxCollateralInputs <- (unwrap pparams).maxCollateralInputs
-          pure $ UInt.fromInt (Array.length collateralUTxOs) >
-            maxCollateralInputs
-    when tooManyCollateralUTxOs do
-      liftEffect $ throw tooManyCollateralUTxOsError
-  pure mbCollateralUTxOs
-  where
-  tooManyCollateralUTxOsError =
-    "Wallet returned too many UTxOs as collateral. This is likely a bug in \
-    \the wallet."
+    KeyWallet kw -> Just <$> (unwrap kw).address networkId
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
 signTransaction tx = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
-  KeyWallet kw -> Just <$> kw.signTx tx
+  KeyWallet kw -> Just <$> (unwrap kw).signTx tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do
@@ -379,7 +457,8 @@ ownStakePubKeyHash = do
 
 withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
-withMWalletAff act = asks _.wallet >>= maybe (pure Nothing) (liftAff <<< act)
+withMWalletAff act = asks (_.runtime >>> _.wallet) >>= maybe (pure Nothing)
+  (liftAff <<< act)
 
 callCip30Wallet
   :: forall (a :: Type)
@@ -544,7 +623,8 @@ scriptToAeson = encodeAeson <<< byteArrayToHex <<< fst <<< unwrap
 mkServerEndpointUrl :: String -> QueryM Url
 mkServerEndpointUrl path = asks $ (_ <> "/" <> path)
   <<< mkHttpUrl
-  <<< _.serverConfig
+  <<< _.ctlServerConfig
+  <<< _.config
 
 --------------------------------------------------------------------------------
 -- OgmiosWebSocket Setup and PrimOps
@@ -614,7 +694,7 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
           errMessage
       _wsClose ws
       continue $ Left $ error errMessage
-  firstConnectionErrorRef <- _onWsError ws (logger Error) onFirstConnectionError
+  firstConnectionErrorRef <- _onWsError ws onFirstConnectionError
   hasConnectedOnceRef <- Ref.new false
   _onWsConnect ws $ Ref.read hasConnectedOnceRef >>= case _ of
     true -> do
@@ -630,7 +710,7 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
         _wsReconnect ws
       _onWsMessage ws (logger Debug) $ defaultMessageListener lvl
         messageDispatch
-      void $ _onWsError ws (logger Error) $ \err -> do
+      void $ _onWsError ws \err -> do
         logString lvl Debug $
           "Ogmios WebSocket error (" <> err <> "). Reconnecting..."
         launchAff_ do
@@ -693,7 +773,7 @@ mkDatumCacheWebSocket' lvl serverCfg continue = do
           <> "Terminating. Error: "
           <> errMessage
       continue $ Left $ error errMessage
-  firstConnectionErrorRef <- _onWsError ws (logger Error) onFirstConnectionError
+  firstConnectionErrorRef <- _onWsError ws onFirstConnectionError
   hasConnectedOnceRef <- Ref.new false
   _onWsConnect ws $ Ref.read hasConnectedOnceRef >>= case _ of
     true -> do
@@ -711,7 +791,7 @@ mkDatumCacheWebSocket' lvl serverCfg continue = do
         _wsReconnect ws
       _onWsMessage ws (logger Debug) $ defaultMessageListener lvl
         messageDispatch
-      void $ _onWsError ws (logger Error) $ \err -> do
+      void $ _onWsError ws \err -> do
         logger Debug $
           "Ogmios Datum Cache WebSocket error (" <> err <>
             "). Reconnecting..."
@@ -809,8 +889,8 @@ mkOgmiosRequest
   -> request
   -> QueryM response
 mkOgmiosRequest = mkRequest
-  (listeners <<< _.ogmiosWs <$> ask)
-  (underlyingWebSocket <<< _.ogmiosWs <$> ask)
+  (asks $ listeners <<< _.ogmiosWs <<< _.runtime)
+  (asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime)
 
 -- | Builds an Ogmios request action using `Aff`
 mkOgmiosRequestAff
@@ -832,8 +912,8 @@ mkDatumCacheRequest
   -> request
   -> QueryM response
 mkDatumCacheRequest = mkRequest
-  (listeners <<< _.datumCacheWs <$> ask)
-  (underlyingWebSocket <<< _.datumCacheWs <$> ask)
+  (asks $ listeners <<< _.datumCacheWs <<< _.runtime)
+  (asks $ underlyingWebSocket <<< _.datumCacheWs <<< _.runtime)
 
 -- | Builds an Ogmios request action using `QueryM`
 mkRequest
@@ -847,7 +927,7 @@ mkRequest
 mkRequest getListeners getWebSocket jsonWspCall getLs inp = do
   ws <- getWebSocket
   listeners' <- getListeners
-  logLevel <- asks _.logLevel
+  logLevel <- asks $ _.config >>> _.logLevel
   liftAff $ mkRequestAff listeners' ws logLevel jsonWspCall getLs inp
 
 -- | Builds an Ogmios request action using `Aff`
@@ -874,7 +954,9 @@ mkRequestAff listeners' webSocket logLevel jsonWspCall getLs inp = do
       _ <- respLs.addMessageListener id
         ( \result -> do
             respLs.removeMessageListener id
-            cont (lmap dispatchErrorToError result)
+            case result of
+              Left (ListenerCancelled _) -> pure unit
+              _ -> cont (lmap dispatchErrorToError result)
         )
       respLs.addRequest id sBody
       _wsSend webSocket (logString logLevel Debug) sBody
@@ -894,21 +976,22 @@ data DispatchError
   -- message
   | FaultError Aeson
   -- The listener that was added for this message has been cancelled
-  | ListenerCancelled
+  | ListenerCancelled ListenerId
 
 instance Show DispatchError where
   show (JsError err) = "(JsError (message " <> show (message err) <> "))"
   show (JsonError jsonErr) = "(JsonError " <> show jsonErr <> ")"
   show (FaultError aeson) = "(FaultError " <> show aeson <> ")"
-  show ListenerCancelled = "ListenerCancelled"
+  show (ListenerCancelled listenerId) =
+    "(ListenerCancelled " <> show listenerId <> ")"
 
 dispatchErrorToError :: DispatchError -> Error
 dispatchErrorToError (JsError err) = err
 dispatchErrorToError (JsonError err) = error $ show err
 dispatchErrorToError (FaultError err) =
   error $ "Server responded with `fault`: " <> stringifyAeson err
-dispatchErrorToError ListenerCancelled =
-  error $ "Listener cancelled"
+dispatchErrorToError (ListenerCancelled listenerId) =
+  error $ "Listener cancelled (" <> listenerId <> ")"
 
 -- A function which accepts some unparsed Json, and checks it against one or
 -- more possible types to perform an appropriate effect (such as supplying the
@@ -999,8 +1082,7 @@ queryDispatch ref str = do
     Right reflection -> do
       -- Get callback action
       withAction reflection case _ of
-        Nothing -> Left $ JsError $ error $
-          "Request Id " <> reflection <> " has been cancelled"
+        Nothing -> Left (ListenerCancelled reflection)
         Just action -> do
           -- Parse response
           Right $ action $

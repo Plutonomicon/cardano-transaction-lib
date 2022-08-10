@@ -65,7 +65,7 @@ addTxCollateral collateral transaction =
 
 getMaxCollateralInputs :: QueryM Int
 getMaxCollateralInputs =
-  asks _.pparams <#>
+  asks $ _.runtime >>> _.pparams <#>
     fromMaybe 3 <<< map UInt.toInt <<< _.maxCollateralInputs <<< unwrap
 
 -- | A constant that limits the number of candidate utxos for collateral
