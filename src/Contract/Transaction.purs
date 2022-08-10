@@ -6,8 +6,8 @@ module Contract.Transaction
   , awaitTxConfirmedWithTimeout
   , awaitTxConfirmedWithTimeoutSlots
   , balanceAndSignTx
-  , balanceAndSignTxE
   , balanceAndSignTxs
+  , balanceAndSignTxE
   , balanceTx
   , balanceTxWithAddress
   , balanceTxM
