@@ -41,7 +41,7 @@ import Contract.Transaction
   ( BalancedSignedTransaction
   , DataHash
   , NativeScript(ScriptAll, ScriptPubkey)
-  , TransactionInput(..)
+  , TransactionInput(TransactionInput)
   , awaitTxConfirmed
   , balanceAndSignTx
   , balanceAndSignTxE
@@ -53,7 +53,7 @@ import Contract.Transaction
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (UtxoM(..), utxosAt)
+import Contract.Utxos (UtxoM(UtxoM), utxosAt)
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
 import Contract.Wallet (withKeyWallet)
@@ -226,8 +226,8 @@ suite = do
             nativeScript = ScriptAll
               [ ScriptPubkey alicePaymentPKH
               , ScriptPubkey bobPaymentPKH
-              -- , ScriptPubkey charliePaymentPKH
-              -- , ScriptPubkey danPaymentPKH
+              , ScriptPubkey charliePaymentPKH
+              , ScriptPubkey danPaymentPKH
               ]
           nsHash <- liftContractM "Unable to hash NativeScript" $
             nativeScriptHash nativeScript
@@ -271,10 +271,8 @@ suite = do
                   <> Constraints.mustSpendNativeScriptOutput txInput nsHash
                   <> Constraints.mustBeSignedBy (wrap $ wrap alicePaymentPKH)
                   <> Constraints.mustBeSignedBy (wrap $ wrap bobPaymentPKH)
-                  <> Constraints.mustBeSignedBy (wrap $ wrap bobPaymentPKH)
-
-              -- <> Constraints.mustBeSignedBy (wrap $ wrap charliePaymentPKH)
-              -- <> Constraints.mustBeSignedBy (wrap $ wrap danPaymentPKH)
+                  <> Constraints.mustBeSignedBy (wrap $ wrap charliePaymentPKH)
+                  <> Constraints.mustBeSignedBy (wrap $ wrap danPaymentPKH)
 
               lookups :: Lookups.ScriptLookups PlutusData
               lookups = Lookups.unspentOutputs utxos <>
@@ -286,11 +284,11 @@ suite = do
               bTx
             tx <- withKeyWallet alice do
               liftContractM "Unable to sign transaction" =<< signTransaction tx
-            -- tx <- withKeyWallet charlie do
-            --   liftContractM "Unable to sign transaction" =<< signTransaction tx
-            -- tx <- withKeyWallet dan do
-            --   liftContractM "Unable to sign transaction" =<< signTransaction
-            --     tx
+            tx <- withKeyWallet charlie do
+              liftContractM "Unable to sign transaction" =<< signTransaction tx
+            tx <- withKeyWallet dan do
+              liftContractM "Unable to sign transaction" =<< signTransaction
+                tx
             liftEffect $ Console.log $ show tx
             txId <- submit (wrap tx)
             awaitTxConfirmed txId
