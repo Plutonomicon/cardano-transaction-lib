@@ -110,6 +110,7 @@ import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (for, for_, traverse, traverse_)
+import Data.Tuple (fst) as Tuple
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -121,6 +122,7 @@ import Effect.Aff
   , finally
   , launchAff_
   , makeAff
+  , runAff_
   , supervise
   )
 import Effect.Aff.Class (class MonadAff, liftAff)
@@ -186,6 +188,7 @@ import Types.MultiMap as MultiMap
 import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
 import Types.Scripts (PlutusScript)
+import Types.Transaction (TransactionInput)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
 import Wallet
@@ -380,7 +383,7 @@ getProtocolParametersAff ogmiosWs logLevel =
     unit
 
 --------------------------------------------------------------------------------
--- OGMIOS LOCAL STATE QUERY PROTOCOL
+-- Ogmios Local State Query Protocol
 --------------------------------------------------------------------------------
 
 getChainTip :: QueryM Chain.Tip
@@ -395,17 +398,52 @@ getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
       { slot, blockHeaderHash: wrap $ unwrap hash }
 
 --------------------------------------------------------------------------------
--- OGMIOS LOCAL TX SUBMISSION PROTOCOL
+-- Ogmios Local Tx Submission Protocol
 --------------------------------------------------------------------------------
 
-submitTxOgmios :: CborBytes -> QueryM Ogmios.SubmitTxR
+submitTxOgmios :: TxHash /\ CborBytes -> QueryM Ogmios.SubmitTxR
 submitTxOgmios = mkOgmiosRequest Ogmios.submitTxCall _.submit
 
 evaluateTxOgmios :: CborBytes -> QueryM Ogmios.TxEvaluationR
 evaluateTxOgmios = mkOgmiosRequest Ogmios.evaluateTxCall _.evaluate
 
 --------------------------------------------------------------------------------
--- DATUM CACHE QUERIES
+-- Ogmios Local Tx Monitor Protocol
+--------------------------------------------------------------------------------
+
+acquireMempoolSnapshotAff
+  :: OgmiosWebSocket -> LogLevel -> Aff Ogmios.MempoolSnapshotAcquired
+acquireMempoolSnapshotAff ogmiosWs logLevel =
+  mkOgmiosRequestAff ogmiosWs logLevel Ogmios.acquireMempoolSnapshotCall
+    _.acquireMempool
+    unit
+
+withMempoolSnapshot
+  :: OgmiosWebSocket
+  -> LogLevel
+  -> (Maybe Ogmios.MempoolSnapshotAcquired -> Aff Unit)
+  -> Effect Unit
+withMempoolSnapshot ogmiosWs logLevel cont =
+  flip runAff_ (acquireMempoolSnapshotAff ogmiosWs logLevel) $ case _ of
+    Left err -> do
+      logString logLevel Error $
+        "Failed to acquire a mempool snapshot: Error: " <> show err
+      launchAff_ (cont Nothing)
+    Right mempoolSnapshot ->
+      launchAff_ (cont $ Just mempoolSnapshot)
+
+mempoolSnapshotHasTxAff
+  :: OgmiosWebSocket
+  -> LogLevel
+  -> Ogmios.MempoolSnapshotAcquired
+  -> TxHash
+  -> Aff Boolean
+mempoolSnapshotHasTxAff ogmiosWs logLevel ms =
+  mkOgmiosRequestAff ogmiosWs logLevel (Ogmios.mempoolSnapshotHasTxCall ms)
+    _.mempoolHasTx
+
+--------------------------------------------------------------------------------
+-- Datum Cache Queries
 --------------------------------------------------------------------------------
 
 getDatumByHash :: DataHash -> QueryM (Maybe Datum)
@@ -664,6 +702,7 @@ mkOgmiosWebSocket'
   -> Effect Canceler
 mkOgmiosWebSocket' lvl serverCfg continue = do
   utxoDispatchMap <- createMutableDispatch
+  utxosAtDispatchMap <- createMutableDispatch
   chainTipDispatchMap <- createMutableDispatch
   evaluateTxDispatchMap <- createMutableDispatch
   getProtocolParametersDispatchMap <- createMutableDispatch
@@ -671,7 +710,10 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
   eraSummariesDispatchMap <- createMutableDispatch
   currentEpochDispatchMap <- createMutableDispatch
   systemStartDispatchMap <- createMutableDispatch
+  acquireMempoolDispatchMap <- createMutableDispatch
+  mempoolHasTxDispatchMap <- createMutableDispatch
   utxoPendingRequests <- createPendingRequests
+  utxosAtPendingRequests <- createPendingRequests
   chainTipPendingRequests <- createPendingRequests
   evaluateTxPendingRequests <- createPendingRequests
   getProtocolParametersPendingRequests <- createPendingRequests
@@ -679,6 +721,8 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
   eraSummariesPendingRequests <- createPendingRequests
   currentEpochPendingRequests <- createPendingRequests
   systemStartPendingRequests <- createPendingRequests
+  acquireMempoolPendingRequests <- createPendingRequests
+  mempoolHasTxPendingRequests <- createPendingRequests
   let
     messageDispatch = ogmiosMessageDispatch
       { utxoDispatchMap
@@ -692,17 +736,60 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
       }
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   let
-    sendRequest = _wsSend ws (logString lvl Debug)
+    ogmiosWs :: OgmiosWebSocket
+    ogmiosWs = WebSocket ws
+      { utxo:
+          mkListenerSet utxoDispatchMap utxoPendingRequests
+      , utxosAt:
+          mkListenerSet utxosAtDispatchMap utxosAtPendingRequests
+      , chainTip:
+          mkListenerSet chainTipDispatchMap chainTipPendingRequests
+      , evaluate:
+          mkListenerSet evaluateTxDispatchMap evaluateTxPendingRequests
+      , getProtocolParameters:
+          mkListenerSet getProtocolParametersDispatchMap
+            getProtocolParametersPendingRequests
+      , submit:
+          mkListenerSet submitDispatchMap submitPendingRequests
+      , eraSummaries:
+          mkListenerSet eraSummariesDispatchMap eraSummariesPendingRequests
+      , currentEpoch:
+          mkListenerSet currentEpochDispatchMap currentEpochPendingRequests
+      , systemStart:
+          mkListenerSet systemStartDispatchMap systemStartPendingRequests
+      , acquireMempool:
+          mkListenerSet acquireMempoolDispatchMap acquireMempoolPendingRequests
+      , mempoolHasTx:
+          mkListenerSet mempoolHasTxDispatchMap mempoolHasTxPendingRequests
+      }
+
+    sendRequest :: forall (req :: Type). RequestBody /\ req -> Effect Unit
+    sendRequest = _wsSend ws (logString lvl Debug) <<< Tuple.fst
+
     resendPendingRequests = do
       Ref.read utxoPendingRequests >>= traverse_ sendRequest
       Ref.read chainTipPendingRequests >>= traverse_ sendRequest
       Ref.read evaluateTxPendingRequests >>= traverse_ sendRequest
       Ref.read getProtocolParametersPendingRequests >>= traverse_ sendRequest
-      Ref.read submitPendingRequests >>= traverse_ sendRequest
       Ref.read eraSummariesPendingRequests >>= traverse_ sendRequest
       Ref.read currentEpochPendingRequests >>= traverse_ sendRequest
       Ref.read systemStartPendingRequests >>= traverse_ sendRequest
-      logString lvl Debug "Resent all pending requests"
+
+      submitPendingRequests' <- Ref.read submitPendingRequests
+
+      unless (Map.isEmpty submitPendingRequests') $
+        withMempoolSnapshot ogmiosWs lvl case _ of
+          Nothing ->
+            liftEffect $ traverse_ sendRequest submitPendingRequests'
+          Just ms -> do
+            pendingTxs <- liftEffect $ Ref.read submitPendingRequests
+            for_ pendingTxs $ \(requestBody /\ txHash /\ _) -> do
+              txInMempool <- mempoolSnapshotHasTxAff ogmiosWs lvl ms txHash
+              liftEffect $ logger Debug $
+                "Mempool: " <> show txInMempool <> " TxHash: " <> show txHash
+              unless txInMempool do
+                liftEffect $ sendRequest (requestBody /\ txHash)
+
     -- We want to fail if the first connection attempt is not successful.
     -- Otherwise, we start reconnecting indefinitely.
     onFirstConnectionError errMessage = do
@@ -719,6 +806,7 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
       logger Debug
         "Ogmios WS connection re-established, resending pending requests..."
       resendPendingRequests
+      logger Debug "Resent all pending requests"
     false -> do
       logger Debug "Ogmios Connection established"
       Ref.write true hasConnectedOnceRef
@@ -734,22 +822,7 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
         launchAff_ do
           delay (wrap 500.0)
           liftEffect $ _wsReconnect ws
-      continue $ Right $ WebSocket ws
-        { utxo: mkListenerSet utxoDispatchMap utxoPendingRequests
-        , chainTip: mkListenerSet chainTipDispatchMap chainTipPendingRequests
-        , evaluate: mkListenerSet evaluateTxDispatchMap
-            evaluateTxPendingRequests
-        , getProtocolParameters: mkListenerSet
-            getProtocolParametersDispatchMap
-            getProtocolParametersPendingRequests
-        , submit: mkListenerSet submitDispatchMap submitPendingRequests
-        , eraSummaries:
-            mkListenerSet eraSummariesDispatchMap eraSummariesPendingRequests
-        , currentEpoch:
-            mkListenerSet currentEpochDispatchMap currentEpochPendingRequests
-        , systemStart:
-            mkListenerSet systemStartDispatchMap systemStartPendingRequests
-        }
+      continue (Right ogmiosWs)
   pure $ Canceler $ \err -> liftEffect do
     _wsClose ws
     continue $ Left $ err
@@ -777,7 +850,9 @@ mkDatumCacheWebSocket' lvl serverCfg continue = do
       }
   ws <- _mkWebSocket (logger Debug) $ mkOgmiosDatumCacheWsUrl serverCfg
   let
-    sendRequest = _wsSend ws (logger Debug)
+    sendRequest :: forall (inp :: Type). RequestBody /\ inp -> Effect Unit
+    sendRequest = _wsSend ws (logger Debug) <<< Tuple.fst
+
     resendPendingRequests = do
       Ref.read getDatumByHashPendingRequests >>= traverse_ sendRequest
       Ref.read getDatumsByHashesPendingRequests >>= traverse_ sendRequest
@@ -845,19 +920,23 @@ underlyingWebSocket (WebSocket ws _) = ws
 listeners :: forall (listeners :: Type). WebSocket listeners -> listeners
 listeners (WebSocket _ ls) = ls
 
-type PendingRequests (request :: Type) = Ref (Map ListenerId RequestBody)
+type PendingRequests (request :: Type) =
+  Ref (Map ListenerId (RequestBody /\ request))
 
 type RequestBody = String
 
 type OgmiosListeners =
-  { utxo :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoQR
+  { utxo :: ListenerSet TransactionInput Ogmios.UtxoQR
+  , utxosAt :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoQR
   , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
-  , submit :: ListenerSet { txCbor :: ByteArray } Ogmios.SubmitTxR
-  , evaluate :: ListenerSet { txCbor :: ByteArray } Ogmios.TxEvaluationR
+  , submit :: ListenerSet (TxHash /\ CborBytes) Ogmios.SubmitTxR
+  , evaluate :: ListenerSet CborBytes Ogmios.TxEvaluationR
   , getProtocolParameters :: ListenerSet Unit Ogmios.ProtocolParameters
   , eraSummaries :: ListenerSet Unit Ogmios.EraSummaries
   , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
   , systemStart :: ListenerSet Unit Ogmios.SystemStart
+  , acquireMempool :: ListenerSet Unit Ogmios.MempoolSnapshotAcquired
+  , mempoolHasTx :: ListenerSet TxHash Boolean
   }
 
 type DatumCacheListeners =
@@ -874,7 +953,7 @@ type ListenerSet (request :: Type) (response :: Type) =
       -> Effect Unit
   , removeMessageListener :: ListenerId -> Effect Unit
   -- ^ Removes ID from dispatch map and pending requests queue.
-  , addRequest :: ListenerId -> RequestBody -> Effect Unit
+  , addRequest :: ListenerId -> RequestBody /\ request -> Effect Unit
   -- ^ Saves request body until the request is fulfilled. The body is used
   --  to replay requests in case of a WebSocket failure.
   }
@@ -974,7 +1053,7 @@ mkRequestAff listeners' webSocket logLevel jsonWspCall getLs inp = do
             respLs.removeMessageListener id
             cont (lmap dispatchErrorToError result)
         )
-      respLs.addRequest id sBody
+      respLs.addRequest id (sBody /\ inp)
       _wsSend webSocket (logString logLevel Debug) sBody
       pure $ Canceler $ \err -> do
         liftEffect $ respLs.removeMessageListener id
