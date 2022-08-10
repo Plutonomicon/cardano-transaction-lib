@@ -4,6 +4,8 @@ exports._enableNami = () => window.cardano.nami.enable();
 
 exports._enableGero = () => window.cardano.gerowallet.enable();
 
+exports._enableFlint = () => window.cardano.flint.enable();
+
 const isWalletAvailable = walletName => () =>
   typeof window.cardano != "undefined" &&
   typeof window.cardano[walletName] != "undefined" &&
@@ -12,3 +14,5 @@ const isWalletAvailable = walletName => () =>
 exports._isNamiAvailable = isWalletAvailable("nami");
 
 exports._isGeroAvailable = isWalletAvailable("gerowallet");
+
+exports._isFlintAvailable = isWalletAvailable("flint");

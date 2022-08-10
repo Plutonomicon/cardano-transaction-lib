@@ -192,14 +192,15 @@ import Untagged.Union (asOneOf)
 import Wallet
   ( Cip30Connection
   , Cip30Wallet
-  , Wallet(Gero, Nami, KeyWallet)
+  , Wallet(Gero, Flint, Nami, KeyWallet)
   , mkGeroWalletAff
+  , mkFlintWalletAff
   , mkKeyWallet
   , mkNamiWalletAff
   )
 import Wallet.KeyFile (privatePaymentKeyFromFile, privateStakeKeyFromFile)
 import Wallet.Spec
-  ( WalletSpec(UseKeys, ConnectToGero, ConnectToNami)
+  ( WalletSpec(UseKeys, ConnectToGero, ConnectToNami, ConnectToFlint)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
@@ -350,6 +351,7 @@ mkWalletBySpec = case _ of
     pure $ mkKeyWallet privatePaymentKey mbPrivateStakeKey
   ConnectToNami -> mkNamiWalletAff
   ConnectToGero -> mkGeroWalletAff
+  ConnectToFlint -> mkFlintWalletAff
 
 runQueryM :: forall (a :: Type). QueryConfig -> QueryM a -> Aff a
 runQueryM config action = do
@@ -431,6 +433,7 @@ getWalletAddress = do
   withMWalletAff case _ of
     Nami nami -> callCip30Wallet nami _.getWalletAddress
     Gero gero -> callCip30Wallet gero _.getWalletAddress
+    Flint flint -> callCip30Wallet flint _.getWalletAddress
     KeyWallet kw -> Just <$> (unwrap kw).address networkId
 
 getWalletCollateral :: QueryM (Maybe (Array TransactionUnspentOutput))
@@ -438,6 +441,7 @@ getWalletCollateral = do
   mbCollateralUTxOs <- withMWalletAff case _ of
     Nami nami -> callCip30Wallet nami _.getCollateral
     Gero gero -> callCip30Wallet gero _.getCollateral
+    Flint flint -> callCip30Wallet flint _.getCollateral
     KeyWallet _ -> liftEffect $ throw "Not implemented"
   for_ mbCollateralUTxOs \collateralUTxOs -> do
     pparams <- asks $ _.runtime >>> _.pparams
@@ -460,6 +464,7 @@ signTransaction
 signTransaction tx = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
+  Flint flint -> callCip30Wallet flint \nw -> flip nw.signTx tx
   KeyWallet kw -> Just <$> (unwrap kw).signTx tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)

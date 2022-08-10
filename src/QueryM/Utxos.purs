@@ -32,7 +32,7 @@ import Serialization.Address (Address)
 import TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
 import Types.Transaction (TransactionInput)
 import Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
-import Wallet (Wallet(Gero, Nami, KeyWallet))
+import Wallet (Wallet(Gero, Nami, Flint, KeyWallet))
 
 --------------------------------------------------------------------------------
 -- UtxosAt
@@ -65,6 +65,7 @@ mkUtxoQuery query = asks (_.runtime >>> _.wallet) >>= maybe allUtxosAt
   utxosAtByWallet = case _ of
     Nami _ -> cip30UtxosAt
     Gero _ -> cip30UtxosAt
+    Flint _ -> cip30UtxosAt
     KeyWallet _ -> allUtxosAt
 
   -- Gets all utxos at an (internal) Address in terms of (internal)
@@ -130,6 +131,7 @@ getWalletBalance = do
   asks (_.runtime >>> _.wallet) >>= map join <<< traverse case _ of
     Nami wallet -> liftAff $ wallet.getBalance wallet.connection
     Gero wallet -> liftAff $ wallet.getBalance wallet.connection
+    Flint wallet -> liftAff $ wallet.getBalance wallet.connection
     KeyWallet _ -> do
       -- Implement via `utxosAt`
       mbAddress <- getWalletAddress
