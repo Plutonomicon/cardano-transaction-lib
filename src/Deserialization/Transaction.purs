@@ -542,9 +542,9 @@ convertCostModel err = map T.CostModel <<< traverse stringToInt <<<
   _unpackCostModel
   where
   stringToInt
-    :: String -> Either (Variant (fromCslRepError :: String | r)) Int
-  stringToInt s = cslErr (err <> ": string (" <> s <> ") -> int") $
-    fromString s
+    :: String -> Either (Variant (fromCslRepError :: String | r)) Int.Int
+  stringToInt s = cslErr ("string (" <> s <> ") -> int") $
+    Int.fromBigInt =<< BigInt.fromString s
 
 convertAuxiliaryData
   :: forall (r :: Row Type). Csl.AuxiliaryData -> Err r T.AuxiliaryData

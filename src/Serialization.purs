@@ -92,7 +92,6 @@ import Serialization.Types
   , ExUnits
   , GenesisDelegateHash
   , GenesisHash
-  , Int32
   , Ipv4
   , Ipv6
   , Language
@@ -142,9 +141,10 @@ import Types.BigNum (BigNum)
 import Types.BigNum (fromBigInt, fromStringUnsafe, toString) as BigNum
 import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
-import Types.RawBytes (RawBytes)
+import Types.Int as Csl
 import Types.Int as Int
 import Types.PlutusData as PlutusData
+import Types.RawBytes (RawBytes)
 import Types.TokenName (getTokenName) as TokenName
 import Types.Transaction (TransactionInput(TransactionInput)) as T
 import Untagged.Union (type (|+|), UndefinedOr, maybeToUor)
@@ -231,9 +231,9 @@ foreign import costmdlsSetCostModel
   :: Costmdls -> Language -> CostModel -> Effect Unit
 
 foreign import newCostModel :: Effect CostModel
-foreign import costModelSetCost :: CostModel -> Int -> Int32 -> Effect Unit
+foreign import costModelSetCost :: CostModel -> Int -> Csl.Int -> Effect Unit
 foreign import newPlutusV1 :: Effect Language
-foreign import newInt32 :: Int -> Effect Int32
+
 foreign import _hashScriptData
   :: Redeemers -> Costmdls -> Array PlutusData -> Effect ScriptDataHash
 
@@ -770,7 +770,7 @@ convertCostmdls (T.Costmdls cs) = do
     $ Map.lookup T.PlutusV1 cs
   costModel <- newCostModel
   forWithIndex_ costs $ \operation cost ->
-    costModelSetCost costModel operation =<< newInt32 cost
+    costModelSetCost costModel operation cost
   costmdls <- newCostmdls
   plutusV1 <- newPlutusV1
   costmdlsSetCostModel costmdls plutusV1 costModel
