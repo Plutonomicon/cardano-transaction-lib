@@ -145,8 +145,9 @@ testGetEraSummaries = do
 
 testSubmitTxFailure :: Aff Unit
 testSubmitTxFailure = do
+  let bytes = hexToByteArrayUnsafe "00"
   runQueryM testnetTraceQueryConfig
-    (void $ submitTxOgmios (wrap $ hexToByteArrayUnsafe "00"))
+    (void $ submitTxOgmios bytes (wrap bytes))
 
 testGetProtocolParameters :: Aff Unit
 testGetProtocolParameters = do

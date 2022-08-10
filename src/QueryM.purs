@@ -401,8 +401,9 @@ getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
 -- Ogmios Local Tx Submission Protocol
 --------------------------------------------------------------------------------
 
-submitTxOgmios :: TxHash /\ CborBytes -> QueryM Ogmios.SubmitTxR
-submitTxOgmios = mkOgmiosRequest Ogmios.submitTxCall _.submit
+submitTxOgmios :: TxHash -> CborBytes -> QueryM Ogmios.SubmitTxR
+submitTxOgmios txHash tx =
+  mkOgmiosRequest Ogmios.submitTxCall _.submit (txHash /\ tx)
 
 evaluateTxOgmios :: CborBytes -> QueryM Ogmios.TxEvaluationR
 evaluateTxOgmios = mkOgmiosRequest Ogmios.evaluateTxCall _.evaluate
