@@ -345,15 +345,15 @@ suite = do
               constraints =
                 Constraints.mustPayToPubKey (wrap $ wrap alicePaymentPKH)
                   (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
-                  <> Constraints.mustSpendNativeScriptOutput txInput nsHash
+                  <> Constraints.mustSpendNativeScriptOutput txInput
+                    nativeScript
                   <> Constraints.mustBeSignedBy (wrap $ wrap alicePaymentPKH)
                   <> Constraints.mustBeSignedBy (wrap $ wrap bobPaymentPKH)
                   <> Constraints.mustBeSignedBy (wrap $ wrap charliePaymentPKH)
                   <> Constraints.mustBeSignedBy (wrap $ wrap danPaymentPKH)
 
               lookups :: Lookups.ScriptLookups PlutusData
-              lookups = Lookups.unspentOutputs utxos <>
-                Lookups.nativeScript nativeScript
+              lookups = Lookups.unspentOutputs utxos
 
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
             bTx <- liftedE $ map unwrap <$> balanceTx ubTx

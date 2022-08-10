@@ -52,6 +52,7 @@ module Types.TxConstraints
 
 import Prelude hiding (join)
 
+import Cardano.Types.Transaction (NativeScript)
 import Data.Array ((:), concat)
 import Data.Array as Array
 import Data.Bifunctor (class Bifunctor)
@@ -91,7 +92,7 @@ data TxConstraint
   | MustProduceAtLeast Value
   | MustSpendPubKeyOutput TransactionInput
   | MustSpendScriptOutput TransactionInput Redeemer
-  | MustSpendNativeScriptOutput TransactionInput NativeScriptHash
+  | MustSpendNativeScriptOutput TransactionInput NativeScript
   | MustMintValue MintingPolicyHash Redeemer TokenName BigInt
   | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash)
       (Maybe Datum)
@@ -258,8 +259,8 @@ mustPayToNativeScript
    . NativeScriptHash
   -> Value
   -> TxConstraints i o
-mustPayToNativeScript vh vl =
-  singleton (MustPayToNativeScript vh vl)
+mustPayToNativeScript nsHash vl =
+  singleton (MustPayToNativeScript nsHash vl)
 
 -- | Mint the given `Value`
 mustMintValue :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
@@ -323,7 +324,7 @@ mustSpendScriptOutput txOutRef = singleton <<< MustSpendScriptOutput txOutRef
 mustSpendNativeScriptOutput
   :: forall (i :: Type) (o :: Type)
    . TransactionInput
-  -> NativeScriptHash
+  -> NativeScript
   -> TxConstraints i o
 mustSpendNativeScriptOutput txOutRef = singleton <<< MustSpendNativeScriptOutput
   txOutRef

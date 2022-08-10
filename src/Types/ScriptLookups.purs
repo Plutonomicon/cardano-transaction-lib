@@ -6,7 +6,6 @@ module Types.ScriptLookups
       , CannotGetValidatorHashFromAddress
       , CannotHashDatum
       , CannotHashMintingPolicy
-      , CannotHashNativeScript
       , CannotHashValidator
       , CannotMakeValue
       , CannotQueryDatum
@@ -16,7 +15,6 @@ module Types.ScriptLookups
       , MintingPolicyNotFound
       , MkTypedTxOutFailed
       , ModifyTx
-      , NativeScriptHashNotFound
       , OwnPubKeyAndStakeKeyMissing
       , TxOutRefNotFound
       , TxOutRefWrongType
@@ -34,7 +32,6 @@ module Types.ScriptLookups
   , mkUnbalancedTx
   , mkUnbalancedTx'
   , datum
-  , nativeScript
   , validator
   , validatorM
   , ownPaymentPubKeyHash
@@ -349,9 +346,6 @@ validator :: forall (a :: Type). Validator -> ScriptLookups a
 validator vl =
   over ScriptLookups _ { scripts = Array.singleton vl } mempty
 
-nativeScript :: forall (a :: Type). NativeScript -> ScriptLookups a
-nativeScript ns = over ScriptLookups _ { nativeScripts = [ ns ] } mempty
-
 -- | Same as `validator` but in `Maybe` context for convenience. This
 -- | should not fail.
 validatorM :: forall (a :: Type). Validator -> Maybe (ScriptLookups a)
@@ -535,13 +529,10 @@ processLookupsAndConstraints
     hashScripts mintingPolicyHash CannotHashMintingPolicy mps
   validatorHashes <- ExceptT $
     hashScripts validatorHash CannotHashValidator scripts
-  nativeScriptHashes <- ExceptT $
-    hashScripts (pure <<< nativeScriptHash) CannotHashNativeScript nativeScripts
   let
     mpsMap = fromFoldable $ zip mpsHashes mps
     osMap = fromFoldable $ zip validatorHashes scripts
-    nsMap = fromFoldable $ zip nativeScriptHashes nativeScripts
-  ExceptT $ foldConstraints (processConstraint mpsMap osMap nsMap) constraints
+  ExceptT $ foldConstraints (processConstraint mpsMap osMap) constraints
 
   -- Attach mint redeemers to witness set.
   mintRedeemers :: Array _ <- use _mintRedeemers <#> Map.toUnfoldable
@@ -801,7 +792,6 @@ data MkUnbalancedTxError
   | MintingPolicyHashNotCurrencySymbol MintingPolicyHash
   | CannotMakeValue CurrencySymbol TokenName BigInt
   | ValidatorHashNotFound ValidatorHash
-  | NativeScriptHashNotFound NativeScriptHash
   | OwnPubKeyAndStakeKeyMissing
   | TypedValidatorMissing
   | DatumWrongHash DataHash Datum
@@ -814,7 +804,6 @@ data MkUnbalancedTxError
   | TypedTxOutHasNoDatumHash
   | CannotHashMintingPolicy MintingPolicy
   | CannotHashValidator Validator
-  | CannotHashNativeScript NativeScript
   | CannotConvertPaymentPubKeyHash PaymentPubKeyHash
   | CannotSatisfyAny
 
@@ -861,15 +850,6 @@ lookupValidator vh osMap = do
   let err = pure $ throwError $ ValidatorHashNotFound vh
   maybe err (pure <<< Right) $ lookup vh osMap
 
-lookupNativeScript
-  :: forall (a :: Type)
-   . NativeScriptHash
-  -> Map NativeScriptHash NativeScript
-  -> ConstraintsM a (Either MkUnbalancedTxError NativeScript)
-lookupNativeScript nsh mp = do
-  let err = pure $ throwError $ NativeScriptHashNotFound nsh
-  maybe err (pure <<< Right) $ lookup nsh mp
-
 reindexMintRedeemers
   :: forall (a :: Type)
    . MintingPolicyHash
@@ -889,10 +869,9 @@ processConstraint
   :: forall (a :: Type)
    . Map MintingPolicyHash MintingPolicy
   -> Map ValidatorHash Validator
-  -> Map NativeScriptHash NativeScript
   -> TxConstraint
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
-processConstraint mpsMap osMap nsMap = do
+processConstraint mpsMap osMap = do
   case _ of
     MustIncludeDatum dat -> addDatum dat
     MustValidateIn posixTimeRange -> do
@@ -974,8 +953,7 @@ processConstraint mpsMap osMap nsMap = do
             -- Attach redeemer to witness set.
             ExceptT $ attachToCps attachRedeemer redeemer
         _ -> liftEither $ throwError $ TxOutRefWrongType txo
-    MustSpendNativeScriptOutput txo nsHash -> runExceptT do
-      ns <- ExceptT $ lookupNativeScript nsHash nsMap
+    MustSpendNativeScriptOutput txo ns -> runExceptT do
       _cpsToTxBody <<< _inputs %= Set.insert txo
       -- _valueSpentBalancesInputs <>= provideValue amount
       ExceptT $ attachToCps attachNativeScript ns
@@ -1118,7 +1096,7 @@ processConstraint mpsMap osMap nsMap = do
           -- `put`)
           foldM
             ( \_ constr -> runExceptT do
-                ExceptT $ processConstraint mpsMap osMap nsMap constr
+                ExceptT $ processConstraint mpsMap osMap constr
                   `catchError` \_ -> put cps *> tryNext zs
             )
             (Right unit)
