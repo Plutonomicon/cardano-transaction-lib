@@ -51,7 +51,6 @@ import Aeson (class EncodeAeson)
 import Cardano.Types.Transaction
   ( Costmdls
   , ExUnits
-  , NativeScript
   , Transaction
   , TransactionOutput(TransactionOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
@@ -224,8 +223,6 @@ newtype ScriptLookups (a :: Type) = ScriptLookups
       Map TransactionInput Plutus.TransactionOutput -- Unspent outputs that the script may want to spend
   , scripts ::
       Array Validator -- Script validators
-  , nativeScripts ::
-      Array NativeScript
   , datums :: Map DataHash Datum --  Datums that we might need
   -- FIXME there's currently no way to set this field
   -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/569
@@ -261,7 +258,6 @@ instance Semigroup (ScriptLookups a) where
       { mps: l.mps `Array.union` r.mps
       , txOutputs: l.txOutputs `union` r.txOutputs
       , scripts: l.scripts `Array.union` r.scripts
-      , nativeScripts: l.nativeScripts `Array.union` r.nativeScripts
       , datums: l.datums `union` r.datums
       , paymentPubKeyHashes: l.paymentPubKeyHashes `union` r.paymentPubKeyHashes
       -- 'First' to match the semigroup instance of Map (left-biased)
@@ -275,7 +271,6 @@ instance Monoid (ScriptLookups a) where
     { mps: mempty
     , txOutputs: empty
     , scripts: mempty
-    , nativeScripts: mempty
     , datums: empty
     , paymentPubKeyHashes: empty
     , typedValidator: Nothing
@@ -523,7 +518,6 @@ processLookupsAndConstraints
   let
     mps = lookups.mps
     scripts = lookups.scripts
-    nativeScripts = lookups.nativeScripts
   mpsHashes <- ExceptT $
     hashScripts mintingPolicyHash CannotHashMintingPolicy mps
   validatorHashes <- ExceptT $
