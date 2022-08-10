@@ -463,8 +463,7 @@ balanceTxWithAddress
 balanceTxWithAddress
   ownAddr
   unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
-  let
-    (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = t
+  let (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = t
   networkId <- (unbalancedTx ^. _body <<< _networkId) #
     maybe (asks $ _.config >>> _.networkId) pure
   let unbalancedTx' = unbalancedTx # _body <<< _networkId ?~ networkId
