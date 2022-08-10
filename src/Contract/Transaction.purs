@@ -473,13 +473,10 @@ balanceAndSignTxs
 balanceAndSignTxs txs = balanceTxs txs >>= traverse
   (liftedM "error signing a transaction" <<< signTransaction')
 
--- | A helper that wraps a few steps into: balance an unbalanced transaction
--- | (`balanceTx`), reindex script spend redeemers (not minting redeemers)
--- | (`reindexSpentScriptRedeemers`), attach datums and redeemers to the
--- | transaction (`finalizeTx`), and finally sign (`signTransactionBytes`).
--- | The return type includes the balanced (but unsigned) transaction for
--- | logging and more importantly, the `ByteArray` to be used with `Submit` to
--- | submit the transaction.
+-- | Balances an unbalanced transaction and signs it.
+-- |
+-- | The return type includes the balanced transaction to be used with `submit`
+-- | to submit the transaction.
 -- | If successful, transaction inputs will be locked afterwards.
 -- | If you want to re-use them in the same 'QueryM' context, call
 -- | `unlockTransactionInputs`.
@@ -502,6 +499,11 @@ internalBalanceAndSignTx tx = balanceAndSignTxs [ tx ] >>=
 
 -- TODO Deprecate `balanceAndSignTxE` once `Maybe` is dropped from
 -- `balanceAndSignTx`, like in `internalBalanceAndSignTx`.
+-- | Like `balanceAndSignTx`, but does not throw errors, and which are instead
+-- | held in `Left`.
+-- | If successful, transaction inputs will be locked afterwards.
+-- | If you want to re-use them in the same 'QueryM' context, call
+-- | `unlockTransactionInputs`.
 balanceAndSignTxE
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx
