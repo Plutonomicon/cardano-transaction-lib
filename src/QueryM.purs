@@ -31,7 +31,6 @@ module QueryM
   , getDatumsByHashes
   , getProtocolParametersAff
   , getWalletAddress
-  , getWalletCollateral
   , liftQueryM
   , listeners
   , postAeson
@@ -59,6 +58,7 @@ module QueryM
   , submitTxOgmios
   , underlyingWebSocket
   , withQueryRuntime
+  , callCip30Wallet
   ) where
 
 import Prelude
@@ -78,7 +78,6 @@ import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
 import Cardano.Types.Transaction as Transaction
-import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Control.Monad.Error.Class
   ( class MonadError
   , class MonadThrow
@@ -89,7 +88,6 @@ import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
 import Control.Monad.Reader.Trans (ReaderT, asks, runReaderT, withReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (parallel, sequential)
-import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
@@ -101,9 +99,8 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Traversable (for, for_, traverse, traverse_)
+import Data.Traversable (for, traverse, traverse_)
 import Data.Tuple.Nested ((/\), type (/\))
-import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Aff
   ( Aff
@@ -116,7 +113,7 @@ import Effect.Aff
   )
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, error, message, throw)
+import Effect.Exception (Error, error, message)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
@@ -423,28 +420,6 @@ getWalletAddress = do
     Gero gero -> callCip30Wallet gero _.getWalletAddress
     KeyWallet kw -> Just <$> (unwrap kw).address networkId
 
-getWalletCollateral :: QueryM (Maybe (Array TransactionUnspentOutput))
-getWalletCollateral = do
-  mbCollateralUTxOs <- withMWalletAff case _ of
-    Nami nami -> callCip30Wallet nami _.getCollateral
-    Gero gero -> callCip30Wallet gero _.getCollateral
-    KeyWallet _ -> liftEffect $ throw "Not implemented"
-  for_ mbCollateralUTxOs \collateralUTxOs -> do
-    pparams <- asks $ _.runtime >>> _.pparams
-    let
-      tooManyCollateralUTxOs =
-        fromMaybe false do
-          maxCollateralInputs <- (unwrap pparams).maxCollateralInputs
-          pure $ UInt.fromInt (Array.length collateralUTxOs) >
-            maxCollateralInputs
-    when tooManyCollateralUTxOs do
-      liftEffect $ throw tooManyCollateralUTxOsError
-  pure mbCollateralUTxOs
-  where
-  tooManyCollateralUTxOsError =
-    "Wallet returned too many UTxOs as collateral. This is likely a bug in \
-    \the wallet."
-
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
 signTransaction tx = withMWalletAff case _ of
@@ -655,7 +630,7 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
           errMessage
       _wsClose ws
       continue $ Left $ error errMessage
-  firstConnectionErrorRef <- _onWsError ws (logger Error) onFirstConnectionError
+  firstConnectionErrorRef <- _onWsError ws onFirstConnectionError
   hasConnectedOnceRef <- Ref.new false
   _onWsConnect ws $ Ref.read hasConnectedOnceRef >>= case _ of
     true -> do
@@ -671,7 +646,7 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
         _wsReconnect ws
       _onWsMessage ws (logger Debug) $ defaultMessageListener lvl
         messageDispatch
-      void $ _onWsError ws (logger Error) $ \err -> do
+      void $ _onWsError ws \err -> do
         logString lvl Debug $
           "Ogmios WebSocket error (" <> err <> "). Reconnecting..."
         launchAff_ do
@@ -734,7 +709,7 @@ mkDatumCacheWebSocket' lvl serverCfg continue = do
           <> "Terminating. Error: "
           <> errMessage
       continue $ Left $ error errMessage
-  firstConnectionErrorRef <- _onWsError ws (logger Error) onFirstConnectionError
+  firstConnectionErrorRef <- _onWsError ws onFirstConnectionError
   hasConnectedOnceRef <- Ref.new false
   _onWsConnect ws $ Ref.read hasConnectedOnceRef >>= case _ of
     true -> do
@@ -752,7 +727,7 @@ mkDatumCacheWebSocket' lvl serverCfg continue = do
         _wsReconnect ws
       _onWsMessage ws (logger Debug) $ defaultMessageListener lvl
         messageDispatch
-      void $ _onWsError ws (logger Error) $ \err -> do
+      void $ _onWsError ws \err -> do
         logger Debug $
           "Ogmios Datum Cache WebSocket error (" <> err <>
             "). Reconnecting..."
@@ -915,7 +890,9 @@ mkRequestAff listeners' webSocket logLevel jsonWspCall getLs inp = do
       _ <- respLs.addMessageListener id
         ( \result -> do
             respLs.removeMessageListener id
-            cont (lmap dispatchErrorToError result)
+            case result of
+              Left (ListenerCancelled _) -> pure unit
+              _ -> cont (lmap dispatchErrorToError result)
         )
       respLs.addRequest id sBody
       _wsSend webSocket (logString logLevel Debug) sBody
@@ -935,21 +912,22 @@ data DispatchError
   -- message
   | FaultError Aeson
   -- The listener that was added for this message has been cancelled
-  | ListenerCancelled
+  | ListenerCancelled ListenerId
 
 instance Show DispatchError where
   show (JsError err) = "(JsError (message " <> show (message err) <> "))"
   show (JsonError jsonErr) = "(JsonError " <> show jsonErr <> ")"
   show (FaultError aeson) = "(FaultError " <> show aeson <> ")"
-  show ListenerCancelled = "ListenerCancelled"
+  show (ListenerCancelled listenerId) =
+    "(ListenerCancelled " <> show listenerId <> ")"
 
 dispatchErrorToError :: DispatchError -> Error
 dispatchErrorToError (JsError err) = err
 dispatchErrorToError (JsonError err) = error $ show err
 dispatchErrorToError (FaultError err) =
   error $ "Server responded with `fault`: " <> stringifyAeson err
-dispatchErrorToError ListenerCancelled =
-  error $ "Listener cancelled"
+dispatchErrorToError (ListenerCancelled listenerId) =
+  error $ "Listener cancelled (" <> listenerId <> ")"
 
 -- A function which accepts some unparsed Json, and checks it against one or
 -- more possible types to perform an appropriate effect (such as supplying the
@@ -1040,8 +1018,7 @@ queryDispatch ref str = do
     Right reflection -> do
       -- Get callback action
       withAction reflection case _ of
-        Nothing -> Left $ JsError $ error $
-          "Request Id " <> reflection <> " has been cancelled"
+        Nothing -> Left (ListenerCancelled reflection)
         Just action -> do
           -- Parse response
           Right $ action $

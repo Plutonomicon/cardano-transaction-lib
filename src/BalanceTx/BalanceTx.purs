@@ -36,9 +36,7 @@ module BalanceTx
   , GetPublicKeyTransactionInputError(CannotConvertScriptOutputToTxInput)
   , GetWalletAddressError(CouldNotGetWalletAddress)
   , GetWalletCollateralError
-      ( CannotRequestCollateralForWallet
-      , CouldNotGetCollateral
-      , WalletNotSpecified
+      ( CouldNotGetCollateral
       )
   , TxInputLockedError(TxInputLockedError)
   , ImpossibleError(Impossible)
@@ -106,7 +104,7 @@ import Data.Lens.Setter ((.~), set, (?~), (%~))
 import Data.List ((:), List(Nil), partition)
 import Data.Log.Tag (tag)
 import Data.Map (fromFoldable, lookup, toUnfoldable, union) as Map
-import Data.Maybe (fromMaybe, maybe, isJust, Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
@@ -117,13 +115,12 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import QueryM (ClientError, QueryM)
 import QueryM
-  ( getWalletAddress
-  , getWalletCollateral
-  , evaluateTxOgmios
+  ( evaluateTxOgmios
+  , getWalletAddress
   ) as QueryM
 import QueryM.MinFee (calculateMinFee) as QueryM
 import QueryM.Ogmios (TxEvaluationR(TxEvaluationR)) as Ogmios
-import QueryM.Utxos (utxosAt, filterLockedUtxos)
+import QueryM.Utxos (utxosAt, filterLockedUtxos, getWalletCollateral)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
@@ -133,7 +130,6 @@ import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (TransactionInput)
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), _transaction)
 import Untagged.Union (asOneOf)
-import Wallet (Wallet(KeyWallet), cip30Wallet)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
@@ -168,10 +164,7 @@ derive instance Generic GetWalletAddressError _
 instance Show GetWalletAddressError where
   show = genericShow
 
-data GetWalletCollateralError
-  = CannotRequestCollateralForWallet ImpossibleError
-  | CouldNotGetCollateral
-  | WalletNotSpecified
+data GetWalletCollateralError = CouldNotGetCollateral
 
 derive instance Generic GetWalletCollateralError _
 
@@ -445,28 +438,10 @@ _redeemersTxIns = lens' \(UnattachedUnbalancedTx rec@{ redeemersTxIns }) ->
 
 setCollateral
   :: Transaction
-  -> Utxos
   -> QueryM (Either GetWalletCollateralError Transaction)
-setCollateral transaction utxos = runExceptT do
-  wallet <-
-    ExceptT $ asks (_.runtime >>> _.wallet) <#> note WalletNotSpecified
-  collateral <- ExceptT $ selectCollateral wallet
-  -- TODO: https://github.com/Plutonomicon/cardano-transaction-lib/pull/707
+setCollateral transaction = runExceptT do
+  collateral <- ExceptT $ getWalletCollateral <#> note CouldNotGetCollateral
   pure $ addTxCollateral collateral transaction
-  where
-  selectCollateral
-    :: Wallet
-    -> QueryM (Either GetWalletCollateralError (Array TransactionUnspentOutput))
-  selectCollateral (KeyWallet keyWallet) =
-    -- TODO: Combine with getWalletCollateral and supply with fee estimate
-    -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/510
-    (unwrap keyWallet).selectCollateral <$> filterLockedUtxos utxos
-      <#> note CouldNotGetCollateral <<< map Array.singleton
-  selectCollateral wallet
-    | isJust (cip30Wallet wallet) =
-        QueryM.getWalletCollateral <#> note CouldNotGetCollateral
-    | otherwise =
-        pure $ Left $ CannotRequestCollateralForWallet Impossible
 
 addTxCollateral :: Array TransactionUnspentOutput -> Transaction -> Transaction
 addTxCollateral utxos transaction =
@@ -507,7 +482,7 @@ balanceTxWithAddress
       if Array.null (unattachedTx ^. _redeemersTxIns)
       -- Don't set collateral if tx doesn't contain phase-2 scripts:
       then pure unbalancedTx'
-      else ExceptT $ setCollateral unbalancedTx' utxos
+      else ExceptT $ setCollateral unbalancedTx'
         <#> lmap GetWalletCollateralError'
 
     let

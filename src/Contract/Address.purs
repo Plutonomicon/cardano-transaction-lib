@@ -64,11 +64,11 @@ import Plutus.Types.Address
 import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import QueryM
   ( getWalletAddress
-  , getWalletCollateral
   , ownPaymentPubKeyHash
   , ownPubKeyHash
   , ownStakePubKeyHash
   ) as QueryM
+import QueryM.Utxos (getWalletCollateral) as QueryM
 import Scripts
   ( typedValidatorBaseAddress
   , typedValidatorEnterpriseAddress
