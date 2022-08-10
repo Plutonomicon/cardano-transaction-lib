@@ -3,6 +3,8 @@ module Wallet.Key
   , PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   , privateKeysToKeyWallet
+  , keyWalletPrivatePaymentKey
+  , keyWalletPrivateStakeKey
   ) where
 
 import Prelude
@@ -16,7 +18,7 @@ import Cardano.Types.Transaction
 import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
-import Cardano.Types.Value (NonAdaAsset(NonAdaAsset), Value(Value), mkCoin)
+import Cardano.Types.Value (Value(Value), mkCoin, unwrapNonAdaAsset)
 import Contract.Prelude (class Newtype)
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.Lens (set)
@@ -47,6 +49,8 @@ newtype KeyWallet = KeyWallet
   { address :: NetworkId -> Aff Address
   , selectCollateral :: Utxos -> Maybe TransactionUnspentOutput
   , signTx :: Transaction -> Aff Transaction
+  , paymentKey :: PrivatePaymentKey
+  , stakeKey :: Maybe PrivateStakeKey
   }
 
 derive instance Newtype KeyWallet _
@@ -59,12 +63,20 @@ newtype PrivateStakeKey = PrivateStakeKey PrivateKey
 
 derive instance Newtype PrivateStakeKey _
 
+keyWalletPrivatePaymentKey :: KeyWallet -> PrivatePaymentKey
+keyWalletPrivatePaymentKey = unwrap >>> _.paymentKey
+
+keyWalletPrivateStakeKey :: KeyWallet -> Maybe PrivateStakeKey
+keyWalletPrivateStakeKey = unwrap >>> _.stakeKey
+
 privateKeysToKeyWallet
   :: PrivatePaymentKey -> Maybe PrivateStakeKey -> KeyWallet
 privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
   { address
   , selectCollateral
   , signTx
+  , paymentKey: payKey
+  , stakeKey: mbStakeKey
   }
   where
   address :: NetworkId -> Aff Address
@@ -93,8 +105,8 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
     \input output ->
       let
         txuo = AdaOut $ TransactionUnspentOutput { input, output }
-        Value ada (NonAdaAsset naa) = _value txuo
-        onlyAda = all (all ((==) zero)) naa
+        Value ada naa = _value txuo
+        onlyAda = all (all ((==) zero)) (unwrapNonAdaAsset naa)
         bigAda = ada >= mkCoin 5_000_000
       in
         if onlyAda && bigAda then Just $ Min txuo
