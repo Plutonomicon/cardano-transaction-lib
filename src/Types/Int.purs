@@ -44,7 +44,7 @@ instance Show Int where
   show = _intToStr
 
 instance EncodeAeson Int where
-  encodeAeson' = encodeAeson' <<< _intToStr
+  encodeAeson' = encodeAeson' <<< toBigInt
 
 instance DecodeAeson Int where
   decodeAeson aeson =

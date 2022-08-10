@@ -30,6 +30,11 @@ exports.bnMul = maybe => lhs => rhs => {
 };
 
 exports._fromString = maybe => str => {
+  // this is needed because try/catch overuse breaks runtime badly
+  // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
+  if (str[0] == "-") {
+    return maybe.nothing;
+  }
   try {
     return maybe.just(lib.BigNum.from_str(str));
   } catch (_) {
