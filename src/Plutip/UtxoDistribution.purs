@@ -33,12 +33,16 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Wallet (withKeyWallet)
 import Control.Alternative (guard)
+import Control.Monad.Reader (asks)
 import Data.Array as Array
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.List (List, (:))
+import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (unwrap, wrap)
 import Data.Tuple.Nested (type (/\), (/\))
+import Effect.Class (liftEffect)
+import Effect.Ref as Ref
 import Plutip.Types
   ( InitialUTxOs
   , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
@@ -125,7 +129,11 @@ type WalletInfo =
   }
 
 -- | For each wallet which includes a stake key, transfer the value of
--- | the utxos at its enterprise address to its base address.
+-- | the utxos at its enterprise address to its base address. Note
+-- | that this function clears the `usedTxOuts` cache, so it should
+-- | not be used if there could be items in the cache that shouldn't
+-- | be cleared (this function is intended to be used only on plutip
+-- | startup).
 transferFundsFromEnterpriseToBase
   :: forall (r :: Row Type)
    . PrivatePaymentKey
@@ -161,6 +169,11 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
       walletsInfo
     txHash <- submit (wrap signedTx')
     awaitTxConfirmed txHash
+    -- Clear the used txouts cache because we know the state of these
+    -- utxos is settled, see here:
+    -- https://github.com/Plutonomicon/cardano-transaction-lib/pull/838#discussion_r941592493
+    cache <- asks (unwrap <<< _.usedTxOuts <<< _.runtime <<< unwrap)
+    liftEffect $ Ref.write Map.empty cache
   where
   constraintsForWallet :: WalletInfo -> Constraints.TxConstraints Void Void
   constraintsForWallet { utxos, payPkh, stakePkh } =

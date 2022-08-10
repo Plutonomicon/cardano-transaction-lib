@@ -75,26 +75,22 @@ import Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
-import Mote (group, skip, test)
+import Mote (group, test)
 import Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
   , stopChildProcessWithPort
   , stopPlutipCluster
   )
-import Plutip.Types
-  ( PlutipConfig
-  , StartClusterResponse(ClusterStartupSuccess)
-  , StopClusterResponse(StopClusterSuccess)
-  )
-import Test.Plutip.Common (config, privateStakeKey)
-import Test.Plutip.UtxoDistribution (checkUtxoDistribution)
-import Test.Plutip.UtxoDistribution as UtxoDistribution
+import Plutip.Types (StopClusterResponse(StopClusterSuccess))
 import Plutus.Types.Transaction (TransactionOutput(TransactionOutput))
 import Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
 import Plutus.Types.Value (lovelaceValueOf)
+import Test.Plutip.Common (config, privateStakeKey)
+import Test.Plutip.UtxoDistribution (checkUtxoDistribution)
+import Test.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 import Test.Utils as Utils
@@ -319,8 +315,7 @@ suite = do
         checkUtxoDistribution distribution alice
         withKeyWallet alice signMultipleContract
 
-    -- TODO: not sure what's causing this to fail
-    skip $ test "runPlutipContract: SignMultiple with stake key" do
+    test "runPlutipContract: SignMultiple with stake key" do
       let
         aliceUtxos =
           [ BigInt.fromInt 5_000_000
