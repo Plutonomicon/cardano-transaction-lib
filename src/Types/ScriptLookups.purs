@@ -166,8 +166,23 @@ import Types.Transaction (TransactionInput)
 import Types.TxConstraints
   ( InputConstraint(InputConstraint)
   , OutputConstraint(OutputConstraint)
-  , TxConstraint(..)
   , TxConstraints(TxConstraints)
+  , TxConstraint
+      ( MustIncludeDatum
+      , MustValidateIn
+      , MustBeSignedBy
+      , MustSpendAtLeast
+      , MustProduceAtLeast
+      , MustSpendPubKeyOutput
+      , MustSpendScriptOutput
+      , MustSpendNativeScriptOutput
+      , MustMintValue
+      , MustPayToPubKeyAddress
+      , MustPayToScript
+      , MustPayToNativeScript
+      , MustHashDatum
+      , MustSatisfyAnyOf
+      )
   )
 import Types.TypedTxOut
   ( TypeCheckError
@@ -960,7 +975,6 @@ processConstraint mpsMap osMap nsMap = do
             ExceptT $ attachToCps attachRedeemer redeemer
         _ -> liftEither $ throwError $ TxOutRefWrongType txo
     MustSpendNativeScriptOutput txo nsHash -> runExceptT do
-      amount <- ExceptT (lookupTxOutRef txo) <#> unwrap >>> _.amount
       ns <- ExceptT $ lookupNativeScript nsHash nsMap
       _cpsToTxBody <<< _inputs %= Set.insert txo
       -- _valueSpentBalancesInputs <>= provideValue amount

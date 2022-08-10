@@ -15,7 +15,7 @@ import Cardano.Types.Transaction
   , Redeemer
   , ScriptDataHash(ScriptDataHash)
   , Transaction(Transaction)
-  , TransactionWitnessSet(..)
+  , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
   )
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
