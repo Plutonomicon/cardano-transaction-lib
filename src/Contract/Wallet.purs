@@ -7,6 +7,7 @@ module Contract.Wallet
   , module Wallet.Spec
   , module Wallet.Key
   , module Wallet
+  , module Wallet.KeyFile
   ) where
 
 import Prelude
@@ -30,6 +31,7 @@ import Wallet.Spec
   )
 import Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
 import Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
+import Wallet.KeyFile (formatPaymentKey, formatStakeKey)
 
 withKeyWallet
   :: forall (r :: Row Type) (a :: Type)
