@@ -91,23 +91,25 @@ class ValidatorTypes (a :: Type) where
 Purescript lacks most of Haskell's more advanced type-level faculties, including type/data families. Purescript does, however, support functional dependencies, allowing us to encode `ValidatorTypes` as follows:
 
 ```purescript
+class ValidatorTypes :: Type -> Type -> Type -> Constraint
 class
-  ( DatumType a b
-  , RedeemerType a b
+  ( DatumType validator datum
+  , RedeemerType validator redeemer
   ) <=
-  ValidatorTypes (a :: Type) (b :: Type)
-  | a -> b
+  ValidatorTypes validator datum redeemer
 
-class DatumType (a :: Type) (b :: Type) | a -> b
+class DatumType :: Type -> Type -> Constraint
+class DatumType validator datum | validator -> datum
 
-class RedeemerType (a :: Type) (b :: Type) | a -> b
+class RedeemerType :: Type -> Type -> Constraint
+class RedeemerType validator redeemer | validator -> redeemer
 ```
 
 ### Working with scripts
 
 #### Using scripts from the frontend
 
-As noted above, all scripts and various script newtypes (`Validator`, `MintingPolicy`, etc...) must be explicitly passed to CTL. Unlike Plutus, where on- and off-chain code can freely share Haskell values, scripts must be provided to CTL in a serialized format. The easiest way to do this is using `Contract.TextEnvelope.textEnvelope` along with the JS FFI. See the [getting started guide](doc/getting-started#using-compiled-scripts) for more details.
+As noted above, all scripts and various script newtypes (`Validator`, `MintingPolicy`, etc...) must be explicitly passed to CTL. Unlike Plutus, where on- and off-chain code can freely share Haskell values, scripts must be provided to CTL in a serialized format. The easiest way to do this is using `Contract.TextEnvelope.textEnvelope` along with the JS FFI. See the [getting started guide](getting-started.md#using-compiled-scripts) for more details.
 
 #### Applying arguments to parameterized scripts
 

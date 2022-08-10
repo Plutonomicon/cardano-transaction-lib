@@ -35,7 +35,9 @@ module BalanceTx
   , FinalizedTransaction(FinalizedTransaction)
   , GetPublicKeyTransactionInputError(CannotConvertScriptOutputToTxInput)
   , GetWalletAddressError(CouldNotGetWalletAddress)
-  , GetWalletCollateralError(CouldNotGetCollateral)
+  , GetWalletCollateralError
+      ( CouldNotGetCollateral
+      )
   , TxInputLockedError(TxInputLockedError)
   , ImpossibleError(Impossible)
   , ReturnAdaChangeError
@@ -96,7 +98,7 @@ import Control.Monad.Reader.Class (asks)
 import Control.Monad.Trans.Class (lift)
 import Data.Array ((\\), modifyAt)
 import Data.Array as Array
-import Data.Bifunctor (bimap, lmap)
+import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), hush, note)
@@ -110,7 +112,7 @@ import Data.Lens.Setter ((.~), set, (?~), (%~))
 import Data.List ((:), List(Nil), partition)
 import Data.Log.Tag (tag)
 import Data.Map (fromFoldable, lookup, toUnfoldable, union) as Map
-import Data.Maybe (fromMaybe, maybe, isJust, Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
@@ -121,13 +123,12 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import QueryM (ClientError, QueryM)
 import QueryM
-  ( calculateMinFee
+  ( evaluateTxOgmios
   , getWalletAddress
-  , getWalletCollateral
-  , evaluateTxOgmios
   ) as QueryM
+import QueryM.MinFee (calculateMinFee) as QueryM
 import QueryM.Ogmios (TxEvaluationR(TxEvaluationR)) as Ogmios
-import QueryM.Utxos (utxosAt, filterLockedUtxos)
+import QueryM.Utxos (utxosAt, filterLockedUtxos, getWalletCollateral)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
@@ -138,7 +139,6 @@ import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (TransactionInput)
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), _transaction)
 import Untagged.Union (asOneOf)
-import Wallet (Wallet(KeyWallet), cip30Wallet)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
@@ -339,8 +339,7 @@ evalExUnitsAndMinFee' unattachedTx =
     FinalizedTransaction finalizedTx <- lift $
       finalizeTransaction reindexedUnattachedTxWithExUnits
     -- Calculate the minimum fee for a transaction:
-    minFee <- ExceptT $ QueryM.calculateMinFee finalizedTx
-      <#> bimap EvalMinFeeError unwrap
+    minFee <- ExceptT $ QueryM.calculateMinFee finalizedTx <#> pure <<< unwrap
     pure $ reindexedUnattachedTxWithExUnits /\ minFee
 
 evalExUnitsAndMinFee
@@ -443,37 +442,15 @@ _redeemersTxIns = lens' \(UnattachedUnbalancedTx rec@{ redeemersTxIns }) ->
     \rdmrs -> UnattachedUnbalancedTx rec { redeemersTxIns = rdmrs }
 
 --------------------------------------------------------------------------------
--- Setting collateral, collateral return, total collateral
+-- Setting collateral
 --------------------------------------------------------------------------------
 
 setCollateral
-  :: Transaction -> Utxos -> QueryM (Either BalanceTxError Transaction)
-setCollateral transaction utxos =
-  runExceptT do
-    wallet <- asks $ _.runtime >>> _.wallet
-    mCollateral <- ExceptT $ selectCollateral wallet
-    pure $ case mCollateral /\ wallet of
-      Nothing /\ _ ->
-        transaction
-      Just collateral /\ Just (KeyWallet _) ->
-        -- TODO: https://github.com/Plutonomicon/cardano-transaction-lib/pull/707
-        addTxCollateral collateral transaction
-      Just collateral /\ _ -> do
-        addTxCollateral collateral transaction
-  where
-  selectCollateral
-    :: Maybe Wallet
-    -> QueryM (Either BalanceTxError (Maybe (Array TransactionUnspentOutput)))
-  selectCollateral (Just w) | isJust (cip30Wallet w) =
-    map Just <$> QueryM.getWalletCollateral <#>
-      note (GetWalletCollateralError' CouldNotGetCollateral)
-  selectCollateral (Just (KeyWallet kw)) =
-    -- TODO: Combine with getWalletCollateral and supply with fee estimate
-    -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/510
-    Right <<< map pure <$> (unwrap kw).selectCollateral <$> filterLockedUtxos
-      utxos
-  selectCollateral _ =
-    pure (Right Nothing)
+  :: Transaction
+  -> QueryM (Either GetWalletCollateralError Transaction)
+setCollateral transaction = runExceptT do
+  collateral <- ExceptT $ getWalletCollateral <#> note CouldNotGetCollateral
+  pure $ addTxCollateral collateral transaction
 
 addTxCollateral :: Array TransactionUnspentOutput -> Transaction -> Transaction
 addTxCollateral utxos transaction =
@@ -535,12 +512,18 @@ balanceTxWithAddress
     -- Get own wallet address, collateral and utxo set:
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
+
     -- After adding collateral, we need to balance the inputs and
     -- non-Ada outputs before looping, i.e. we need to add input fees
     -- for the Ada only collateral. No MinUtxos required. Perhaps
     -- for some wallets this step can be skipped and we can go straight
     -- to prebalancer.
-    unbalancedCollTx <- ExceptT $ setCollateral unbalancedTx' utxos
+    unbalancedCollTx <-
+      if Array.null (unattachedTx ^. _redeemersTxIns)
+      -- Don't set collateral if tx doesn't contain phase-2 scripts:
+      then pure unbalancedTx'
+      else ExceptT $ setCollateral unbalancedTx'
+        <#> lmap GetWalletCollateralError'
 
     let
       -- Combines utxos at the user address and those from any scripts
@@ -1018,10 +1001,10 @@ balanceNonAdaOuts' changeAddr utxos txBody'@(TxBody txBody) = do
             TransactionOutput
               txOut { amount = v <> nonAdaChange } : txOuts <> txOuts'
 
+  if isZero nonAdaChange then pure $ wrap txBody
   -- Original code uses "isNat" because there is a guard against zero, see
   -- isPos for more detail.
-  if isPos nonAdaChange then pure $ wrap txBody { outputs = outputs }
-  else if isZero nonAdaChange then pure $ wrap txBody
+  else if isPos nonAdaChange then pure $ wrap txBody { outputs = outputs }
   else Left InputsCannotBalanceNonAdaTokens
 
 getAmount :: TransactionOutput -> Value

@@ -18,8 +18,7 @@ import Prelude
 import Contract.Monad (Contract, wrapContract)
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
-import FromData (class FromData)
-import ToData (class ToData)
+import IsData (class IsData)
 import Types.ScriptLookups
   ( MkUnbalancedTxError
       ( TypeCheckFailed
@@ -68,10 +67,7 @@ import Types.ScriptLookups
   ) as ScriptLookups
 import Types.ScriptLookups (mkUnbalancedTx) as SL
 import Types.TxConstraints (TxConstraints)
-import Types.TypedValidator
-  ( class DatumType
-  , class RedeemerType
-  )
+import Types.TypedValidator (class ValidatorTypes)
 
 -- | Create an `UnattachedUnbalancedTx` given `ScriptLookups` and
 -- | `TxConstraints`. You will probably want to use this version as it returns
@@ -79,13 +75,13 @@ import Types.TypedValidator
 -- | a separate call. In particular, this should be called in conjuction with
 -- | `balanceAndSignTx`.
 mkUnbalancedTx
-  :: forall (r :: Row Type) (a :: Type) (b :: Type)
-   . DatumType a b
-  => RedeemerType a b
-  => FromData b
-  => ToData b
-  => ScriptLookups.ScriptLookups a
-  -> TxConstraints b b
+  :: forall (r :: Row Type) (validator :: Type) (datum :: Type)
+       (redeemer :: Type)
+   . ValidatorTypes validator datum redeemer
+  => IsData datum
+  => IsData redeemer
+  => ScriptLookups.ScriptLookups validator
+  -> TxConstraints redeemer datum
   -> Contract r
        ( Either
            ScriptLookups.MkUnbalancedTxError
@@ -95,12 +91,12 @@ mkUnbalancedTx lookups = wrapContract <<< SL.mkUnbalancedTx lookups
 
 -- | Same as `mkUnbalancedTx` but hushes the error.
 mkUnbalancedTxM
-  :: forall (r :: Row Type) (a :: Type) (b :: Type)
-   . DatumType a b
-  => RedeemerType a b
-  => FromData b
-  => ToData b
-  => ScriptLookups.ScriptLookups a
-  -> TxConstraints b b
+  :: forall (r :: Row Type) (validator :: Type) (datum :: Type)
+       (redeemer :: Type)
+   . ValidatorTypes validator datum redeemer
+  => IsData datum
+  => IsData redeemer
+  => ScriptLookups.ScriptLookups validator
+  -> TxConstraints redeemer datum
   -> Contract r (Maybe ScriptLookups.UnattachedUnbalancedTx)
 mkUnbalancedTxM lookups = map hush <<< mkUnbalancedTx lookups

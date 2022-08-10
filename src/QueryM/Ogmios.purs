@@ -23,7 +23,7 @@ module QueryM.Ogmios
   , RelativeTime(RelativeTime)
   , SafeZone(SafeZone)
   , SlotLength(SlotLength)
-  , SubmitTxR(SubmitTxR)
+  , SubmitTxR(SubmitTxSuccess, SubmitFail)
   , SystemStart(SystemStart)
   , TxEvaluationR(TxEvaluationR)
   , TxHash
@@ -74,6 +74,7 @@ import Cardano.Types.Value
   , CurrencySymbol
   , Value
   , mkCurrencySymbol
+  , mkNonAdaAsset
   , mkValue
   )
 import Control.Alt ((<|>))
@@ -227,10 +228,11 @@ mkOgmiosCallType = mkCallType
 
 ---------------- TX SUBMISSION QUERY RESPONSE & PARSING
 
-newtype SubmitTxR = SubmitTxR TxHash
+data SubmitTxR
+  = SubmitTxSuccess TxHash
+  | SubmitFail (Array Aeson)
 
 derive instance Generic SubmitTxR _
-derive instance Newtype SubmitTxR _
 
 instance Show SubmitTxR where
   show = genericShow
@@ -239,8 +241,11 @@ type TxHash = ByteArray
 
 instance DecodeAeson SubmitTxR where
   decodeAeson = aesonObject $
-    \o -> getField o "SubmitSuccess" >>= flip getField "txId" >>= hexToByteArray
-      >>> maybe (Left (TypeMismatch "Expected hexstring")) (pure <<< wrap)
+    \o ->
+      ( getField o "SubmitSuccess" >>= flip getField "txId" >>= hexToByteArray
+          >>> maybe (Left (TypeMismatch "Expected hexstring"))
+            (pure <<< SubmitTxSuccess)
+      ) <|> (SubmitFail <$> getField o "SubmitFail")
 
 ---------------- SYSTEM START QUERY RESPONSE & PARSING
 newtype SystemStart = SystemStart String
@@ -1129,7 +1134,7 @@ parseValue outer = do
     <|> Left (TypeMismatch "Expected 'coins' to be an Int or a BigInt")
   Assets assetsMap <- fromMaybe (Assets Map.empty)
     <$> getFieldOptional o "assets"
-  pure $ mkValue (wrap coins) (wrap assetsMap)
+  pure $ mkValue (wrap coins) (mkNonAdaAsset assetsMap)
 
 newtype Assets = Assets (Map CurrencySymbol (Map TokenName BigInt))
 

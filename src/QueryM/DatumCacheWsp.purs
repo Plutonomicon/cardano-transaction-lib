@@ -30,6 +30,7 @@ import Aeson
   , stringifyAeson
   , (.:)
   )
+import Base64 (Base64String)
 import Control.Alt ((<|>))
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
@@ -113,16 +114,20 @@ instance DecodeAeson GetDatumsByHashesR where
       decodeDatum = caseAesonObject (Left $ TypeMismatch "expected object")
         $ \o -> (/\) <$> map wrap (o .: "hash") <*>
             (decodeAeson =<< o .: "value")
+      datumsFound =
+        map GetDatumsByHashesR <<< decodeDatumArray =<< getNestedAeson
+          r
+          [ "DatumsFound", "value" ]
+      datumsNotFound =
+        getNestedAeson r [ "DatumsNotFound" ] $> GetDatumsByHashesR Map.empty
     in
-      map GetDatumsByHashesR <<< decodeDatumArray =<< getNestedAeson
-        r
-        [ "DatumsFound", "value" ]
+      datumsFound <|> datumsNotFound
 
 -- TODO
 -- This should be changed to `GetTxByHashR Transaction` once we support `getTxById`
 --
 -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/30
-newtype GetTxByHashR = GetTxByHashR Boolean
+newtype GetTxByHashR = GetTxByHashR (Maybe Base64String)
 
 derive instance Newtype GetTxByHashR _
 derive instance Generic GetTxByHashR _
@@ -133,13 +138,13 @@ instance Show GetTxByHashR where
 instance DecodeAeson GetTxByHashR where
   decodeAeson r = GetTxByHashR <$>
     let
-      txFound :: Either JsonDecodeError Boolean
+      txFound :: Either JsonDecodeError (Maybe Base64String)
       txFound =
-        true <$ getNestedAeson r [ "TxFound", "value" ]
+        getNestedAeson r [ "TxFound", "value", "raw" ] >>= decodeAeson
 
-      txNotFound :: Either JsonDecodeError Boolean
+      txNotFound :: Either JsonDecodeError (Maybe Base64String)
       txNotFound =
-        false <$ getNestedAeson r [ "TxNotFound" ]
+        Nothing <$ getNestedAeson r [ "TxNotFound" ]
     in
       txFound <|> txNotFound
 

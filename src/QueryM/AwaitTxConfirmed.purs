@@ -7,7 +7,7 @@ module QueryM.AwaitTxConfirmed
 import Prelude
 
 import Data.DateTime.Instant (unInstant)
-import Data.Maybe (maybe)
+import Data.Maybe (isJust, maybe)
 import Data.Newtype (wrap, unwrap)
 import Data.Number (infinity)
 import Data.Time.Duration (Seconds(Seconds))
@@ -38,7 +38,8 @@ awaitTxConfirmedWithTimeout timeoutSeconds txHash = do
 
   go :: Number -> QueryM Unit
   go timeoutTime = do
-    isTxFound <- unwrap <$> mkDatumCacheRequest getTxByHash _.getTxByHash
+    isTxFound <- isJust <<< unwrap <$> mkDatumCacheRequest getTxByHash
+      _.getTxByHash
       txHash
     nowMs <- getNowMs
     when (nowMs >= timeoutTime) do
@@ -68,7 +69,7 @@ awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash = do
   go :: Slot -> QueryM Unit
   go timeout =
     mkDatumCacheRequest getTxByHash _.getTxByHash txHash >>= \found ->
-      unless (unwrap found) do
+      unless (isJust $ unwrap found) do
         slot <- getCurrentSlot
         when (slot >= timeout) do
           liftEffect $ throw $
@@ -76,4 +77,3 @@ awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash = do
             \ timeout exceeded, Transaction not confirmed"
         void $ addSlots 1 slot >>= waitUntilSlot
         go timeout
-

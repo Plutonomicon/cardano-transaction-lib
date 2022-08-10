@@ -37,11 +37,9 @@ exports._mkWebSocket = logger => url => () => {
 
 exports._onWsConnect = ws => fn => () => ws.addEventListener("open", fn);
 
-exports._onWsError = ws => logger => fn => () => {
+exports._onWsError = ws => fn => () => {
   const listener = function (event) {
-    const str = event.toString();
-    logger(`WebSocket error: ${str}`)();
-    fn(str)();
+    fn(event.toString())();
   };
   ws.addEventListener("error", listener);
   return listener;

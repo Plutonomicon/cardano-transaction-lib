@@ -43,7 +43,6 @@ foreign import _onWsMessage
 
 foreign import _onWsError
   :: JsWebSocket
-  -> (String -> Effect Unit) -- logger
   -> (String -> Effect Unit) -- handler
   -> Effect ListenerRef
 
