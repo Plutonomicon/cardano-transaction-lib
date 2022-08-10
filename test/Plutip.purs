@@ -9,6 +9,7 @@ import Prelude
 import Contract.Address
   ( PaymentPubKeyHash
   , StakePubKeyHash
+  , getWalletCollateral
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
   )
@@ -81,10 +82,19 @@ import Plutip.Server
   , stopChildProcessWithPort
   , stopPlutipCluster
   )
-import Plutip.Types (StopClusterResponse(StopClusterSuccess))
+import Plutip.Types
+  ( PlutipConfig
+  , StartClusterResponse(ClusterStartupSuccess)
+  , StopClusterResponse(StopClusterSuccess)
+  )
 import Test.Plutip.Common (config, privateStakeKey)
 import Test.Plutip.UtxoDistribution (checkUtxoDistribution)
 import Test.Plutip.UtxoDistribution as UtxoDistribution
+import Plutus.Types.Transaction (TransactionOutput(TransactionOutput))
+import Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  )
+import Plutus.Types.Value (lovelaceValueOf)
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 import Test.Utils as Utils
@@ -126,7 +136,17 @@ suite = do
             [ BigInt.fromInt 2_000_000_000 ]
       runPlutipContract config distribution \(alice /\ bob) -> do
         withKeyWallet alice do
-          pure unit -- sign, balance, submit, etc.
+          getWalletCollateral >>= liftEffect <<< case _ of
+            Nothing -> throw "Unable to get collateral"
+            Just
+              [ TransactionUnspentOutput
+                  { output: TransactionOutput { amount } }
+              ] -> do
+              unless (amount == lovelaceValueOf (BigInt.fromInt 1_000_000_000))
+                $ throw "Wrong UTxO selected as collateral"
+            Just _ -> do
+              -- not a bug, but unexpected
+              throw "More than one UTxO in collateral"
         withKeyWallet bob do
           pure unit -- sign, balance, submit, etc.
 
