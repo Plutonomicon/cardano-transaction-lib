@@ -241,7 +241,7 @@
         rec {
           packages = {
             ctl-example-bundle-web = project.bundlePursProject {
-              main = "Examples.Pkh2Pkh";
+              main = "Examples.ByUrl";
               entrypoint = "examples/index.js";
             };
 

@@ -92,7 +92,7 @@ import Control.Monad.Reader.Class (asks)
 import Control.Monad.Trans.Class (lift)
 import Data.Array ((\\), modifyAt)
 import Data.Array as Array
-import Data.Bifunctor (bimap, lmap)
+import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
 import Data.Either (Either(Left, Right), hush, note)
 import Data.Foldable as Foldable
@@ -115,10 +115,10 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import QueryM (ClientError, QueryM)
 import QueryM
-  ( calculateMinFee
+  ( evaluateTxOgmios
   , getWalletAddress
-  , evaluateTxOgmios
   ) as QueryM
+import QueryM.MinFee (calculateMinFee) as QueryM
 import QueryM.Ogmios (TxEvaluationR(TxEvaluationR)) as Ogmios
 import QueryM.Utxos (utxosAt, filterLockedUtxos, getWalletCollateral)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
@@ -330,8 +330,7 @@ evalExUnitsAndMinFee' unattachedTx =
     FinalizedTransaction finalizedTx <- lift $
       finalizeTransaction reindexedUnattachedTxWithExUnits
     -- Calculate the minimum fee for a transaction:
-    minFee <- ExceptT $ QueryM.calculateMinFee finalizedTx
-      <#> bimap EvalMinFeeError unwrap
+    minFee <- ExceptT $ QueryM.calculateMinFee finalizedTx <#> pure <<< unwrap
     pure $ reindexedUnattachedTxWithExUnits /\ minFee
 
 evalExUnitsAndMinFee

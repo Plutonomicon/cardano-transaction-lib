@@ -1,5 +1,6 @@
 module Serialization
   ( bytesFromPrivateKey
+  , convertExUnitPrices
   , convertTransaction
   , convertTxBody
   , convertTxInput
@@ -29,6 +30,7 @@ import Cardano.Types.Transaction
       , MoveInstantaneousRewardsCert
       )
   , Costmdls(Costmdls)
+  , ExUnitPrices
   , GenesisDelegateHash(GenesisDelegateHash)
   , GenesisHash(GenesisHash)
   , Language(PlutusV1)
@@ -571,17 +573,17 @@ convertProtocolParamUpdate
   for_ maxBlockExUnits $ convertExUnits >=> ppuSetMaxBlockExUnits ppu
   for_ maxValueSize $ UInt.toInt >>> ppuSetMaxValueSize ppu
   pure ppu
-  where
-  mkUnitInterval
-    :: T.UnitInterval -> Effect UnitInterval
-  mkUnitInterval x = newUnitInterval x.numerator x.denominator
 
-  convertExUnitPrices
-    :: { memPrice :: T.UnitInterval, stepPrice :: T.UnitInterval }
-    -> Effect ExUnitPrices
-  convertExUnitPrices { memPrice, stepPrice } =
-    join $ newExUnitPrices <$> mkUnitInterval memPrice <*> mkUnitInterval
-      stepPrice
+mkUnitInterval
+  :: T.UnitInterval -> Effect UnitInterval
+mkUnitInterval x = newUnitInterval x.numerator x.denominator
+
+convertExUnitPrices
+  :: T.ExUnitPrices
+  -> Effect ExUnitPrices
+convertExUnitPrices { memPrice, stepPrice } =
+  join $ newExUnitPrices <$> mkUnitInterval memPrice <*> mkUnitInterval
+    stepPrice
 
 convertWithdrawals :: Map.Map RewardAddress Value.Coin -> Effect Withdrawals
 convertWithdrawals mp =
