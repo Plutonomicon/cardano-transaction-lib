@@ -295,10 +295,10 @@ suite = do
           bobPaymentPKH <- liftedM "Unable to get Bob's PKH" $
             coerce <$> withKeyWallet bob ownPaymentPubKeyHash
           charliePaymentPKH <- liftedM "Unable to get Charlie's PKH" $
-            map (unwrap <<< unwrap) <$> withKeyWallet charlie
+            coerce <$> withKeyWallet charlie
               ownPaymentPubKeyHash
           danPaymentPKH <- liftedM "Unable to get Dan's PKH" $
-            map (unwrap <<< unwrap) <$> withKeyWallet dan ownPaymentPubKeyHash
+            coerce <$> withKeyWallet dan ownPaymentPubKeyHash
           let
             nativeScript = ScriptAll
               [ ScriptPubkey alicePaymentPKH
@@ -343,14 +343,14 @@ suite = do
             let
               constraints :: TxConstraints Unit Unit
               constraints =
-                Constraints.mustPayToPubKey (wrap $ wrap alicePaymentPKH)
+                Constraints.mustPayToPubKey (coerce alicePaymentPKH)
                   (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
                   <> Constraints.mustSpendNativeScriptOutput txInput
                     nativeScript
-                  <> Constraints.mustBeSignedBy (wrap $ wrap alicePaymentPKH)
-                  <> Constraints.mustBeSignedBy (wrap $ wrap bobPaymentPKH)
-                  <> Constraints.mustBeSignedBy (wrap $ wrap charliePaymentPKH)
-                  <> Constraints.mustBeSignedBy (wrap $ wrap danPaymentPKH)
+                  <> Constraints.mustBeSignedBy (coerce alicePaymentPKH)
+                  <> Constraints.mustBeSignedBy (coerce bobPaymentPKH)
+                  <> Constraints.mustBeSignedBy (coerce charliePaymentPKH)
+                  <> Constraints.mustBeSignedBy (coerce danPaymentPKH)
 
               lookups :: Lookups.ScriptLookups PlutusData
               lookups = Lookups.unspentOutputs utxos

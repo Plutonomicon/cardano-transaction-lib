@@ -84,6 +84,7 @@ validatorHashEnterpriseAddress network valHash =
       , paymentCred: scriptHashCredential (unwrap valHash)
       }
 
+-- | Converts a `NativeScriptHash` to an `Address` as an `EnterpriseAddress`.
 nativeScriptHashEnterpriseAddress :: NetworkId -> NativeScriptHash -> Address
 nativeScriptHashEnterpriseAddress network nsHash =
   validatorHashEnterpriseAddress network (wrap $ unwrap nsHash)
