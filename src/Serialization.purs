@@ -1,5 +1,7 @@
 module Serialization
-  ( convertTransaction
+  ( bytesFromPrivateKey
+  , convertExUnitPrices
+  , convertTransaction
   , convertTxBody
   , convertTxInput
   , convertTxOutput
@@ -28,6 +30,7 @@ import Cardano.Types.Transaction
       , MoveInstantaneousRewardsCert
       )
   , Costmdls(Costmdls)
+  , ExUnitPrices
   , GenesisDelegateHash(GenesisDelegateHash)
   , GenesisHash(GenesisHash)
   , Language(PlutusV1)
@@ -216,6 +219,9 @@ foreign import publicKeyFromPrivateKey
 
 foreign import _privateKeyFromBytes
   :: MaybeFfiHelper -> RawBytes -> Maybe PrivateKey
+
+foreign import _bytesFromPrivateKey
+  :: MaybeFfiHelper -> PrivateKey -> Maybe RawBytes
 
 foreign import publicKeyHash :: PublicKey -> Ed25519KeyHash
 foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
@@ -568,17 +574,17 @@ convertProtocolParamUpdate
   for_ maxBlockExUnits $ convertExUnits >=> ppuSetMaxBlockExUnits ppu
   for_ maxValueSize $ UInt.toInt >>> ppuSetMaxValueSize ppu
   pure ppu
-  where
-  mkUnitInterval
-    :: T.UnitInterval -> Effect UnitInterval
-  mkUnitInterval x = newUnitInterval x.numerator x.denominator
 
-  convertExUnitPrices
-    :: { memPrice :: T.UnitInterval, stepPrice :: T.UnitInterval }
-    -> Effect ExUnitPrices
-  convertExUnitPrices { memPrice, stepPrice } =
-    join $ newExUnitPrices <$> mkUnitInterval memPrice <*> mkUnitInterval
-      stepPrice
+mkUnitInterval
+  :: T.UnitInterval -> Effect UnitInterval
+mkUnitInterval x = newUnitInterval x.numerator x.denominator
+
+convertExUnitPrices
+  :: T.ExUnitPrices
+  -> Effect ExUnitPrices
+convertExUnitPrices { memPrice, stepPrice } =
+  join $ newExUnitPrices <$> mkUnitInterval memPrice <*> mkUnitInterval
+    stepPrice
 
 convertWithdrawals :: Map.Map RewardAddress Value.Coin -> Effect Withdrawals
 convertWithdrawals mp =
@@ -592,6 +598,9 @@ publicKeyFromBech32 = _publicKeyFromBech32 maybeFfiHelper
 
 privateKeyFromBytes :: RawBytes -> Maybe PrivateKey
 privateKeyFromBytes = _privateKeyFromBytes maybeFfiHelper
+
+bytesFromPrivateKey :: PrivateKey -> Maybe RawBytes
+bytesFromPrivateKey = _bytesFromPrivateKey maybeFfiHelper
 
 convertCerts :: Array T.Certificate -> Effect Certificates
 convertCerts certs = do
@@ -679,7 +688,8 @@ convertNetworkId = case _ of
   T.MainnetId -> networkIdMainnet
 
 convertMint :: T.Mint -> Effect Mint
-convertMint (T.Mint (Value.NonAdaAsset m)) = do
+convertMint (T.Mint nonAdaAssets) = do
+  let m = Value.unwrapNonAdaAsset nonAdaAssets
   mint <- newMint
   forWithIndex_ m \scriptHashBytes' values -> do
     let
