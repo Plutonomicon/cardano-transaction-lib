@@ -502,6 +502,7 @@ internalBalanceAndSignTx tx = balanceAndSignTxs [ tx ] >>=
 
 -- TODO Deprecate `balanceAndSignTxE` once `Maybe` is dropped from
 -- `balanceAndSignTx`, like in `internalBalanceAndSignTx`.
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/880
 -- | Like `balanceAndSignTx`, but does not throw errors, and which are instead
 -- | held in `Left`.
 -- | If successful, transaction inputs will be locked afterwards.
