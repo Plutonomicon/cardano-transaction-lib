@@ -231,8 +231,6 @@ mempoolSnapshotHasTxCall _ = mkOgmiosCallType Proxy
 
 newtype MempoolSnapshotAcquired = AwaitAcquired Slot
 
-derive instance Generic MempoolSnapshotAcquired _
-
 instance Show MempoolSnapshotAcquired where
   show (AwaitAcquired slot) = "(AwaitAcquired " <> show slot <> ")"
 

@@ -785,8 +785,14 @@ mkOgmiosWebSocket' datumCacheWs lvl serverCfg continue = do
       Ref.read eraSummariesPendingRequests >>= traverse_ sendRequest
       Ref.read currentEpochPendingRequests >>= traverse_ sendRequest
       Ref.read systemStartPendingRequests >>= traverse_ sendRequest
-      Ref.read submitPendingRequests
-        >>= resendPendingSubmitRequests ogmiosWs datumCacheWs lvl sendRequest
+      Ref.write MultiMap.empty acquireMempoolDispatchMap
+      Ref.write Map.empty acquireMempoolPendingRequests
+      Ref.write MultiMap.empty mempoolHasTxDispatchMap
+      Ref.write Map.empty mempoolHasTxPendingRequests
+
+      resendPendingSubmitRequests ogmiosWs datumCacheWs lvl sendRequest
+        submitDispatchMap
+        submitPendingRequests
 
     -- We want to fail if the first connection attempt is not successful.
     -- Otherwise, we start reconnecting indefinitely.
@@ -833,29 +839,39 @@ resendPendingSubmitRequests
   -> DatumCacheWebSocket
   -> LogLevel
   -> (forall (inp :: Type). RequestBody /\ inp -> Effect Unit)
-  -> Map ListenerId (RequestBody /\ TxHash /\ CborBytes)
+  -> DispatchIdMap Ogmios.SubmitTxR
+  -> PendingRequests (TxHash /\ CborBytes)
   -> Effect Unit
-resendPendingSubmitRequests ogmiosWs datumCacheWs logLevel sendRequest pr
-  | Map.isEmpty pr = pure unit
-  | otherwise =
-      let
-        logger :: String -> Boolean -> TxHash -> Aff Unit
-        logger label value txHash =
-          liftEffect $ logString logLevel Debug $
-            label <> ": " <> show value <> " TxHash: " <> show txHash
-      in
-        withMempoolSnapshot ogmiosWs logLevel case _ of
-          Nothing ->
-            liftEffect $ traverse_ sendRequest pr
-          Just ms ->
-            for_ pr \(requestBody /\ txHash /\ _) -> do
-              txInMempool <- mempoolSnapshotHasTxAff ogmiosWs logLevel ms txHash
-              logger "Tx in the mempool" txInMempool txHash
-              unless txInMempool do
-                txConfirmed <- checkTxByHashAff datumCacheWs logLevel txHash
-                logger "Tx confirmed" txConfirmed txHash
-                unless txConfirmed do
-                  liftEffect $ sendRequest (requestBody /\ txHash)
+resendPendingSubmitRequests ogmiosWs datumCacheWs lvl sendRequest dim pr = do
+  submitPendingRequests <- Ref.read pr
+  unless (Map.isEmpty submitPendingRequests) do
+    let
+      logger :: String -> Boolean -> TxHash -> Aff Unit
+      logger label value txHash =
+        liftEffect $ logString lvl Debug $
+          label <> ": " <> show value <> " TxHash: " <> show txHash
+    withMempoolSnapshot ogmiosWs lvl case _ of
+      Nothing ->
+        liftEffect $ traverse_ sendRequest submitPendingRequests
+      Just ms -> do
+        let (pr' :: Array _) = Map.toUnfoldable submitPendingRequests
+        for_ pr' \(listenerId /\ requestBody /\ txHash /\ _) -> do
+          txInMempool <- mempoolSnapshotHasTxAff ogmiosWs lvl ms txHash
+          logger "Tx in the mempool" txInMempool txHash
+          retrySubmitTxRef <- liftEffect $ Ref.new false
+          unless txInMempool do
+            txConfirmed <- checkTxByHashAff datumCacheWs lvl txHash
+            logger "Tx confirmed" txConfirmed txHash
+            unless txConfirmed $ liftEffect do
+              Ref.write true retrySubmitTxRef
+              sendRequest (requestBody /\ txHash)
+          retrySubmitTx <- liftEffect $ Ref.read retrySubmitTxRef
+          unless retrySubmitTx $ liftEffect do
+            Ref.modify_ (Map.delete listenerId) pr
+            dispatchMap <- Ref.read dim
+            Ref.modify_ (MultiMap.delete listenerId) dim
+            MultiMap.lookup listenerId dispatchMap #
+              maybe (pure unit) (_ $ Right $ Ogmios.SubmitTxSuccess txHash)
 
 mkDatumCacheWebSocket'
   :: LogLevel
