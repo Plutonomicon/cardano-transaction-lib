@@ -133,8 +133,7 @@ import Plutus.Types.Address (Address)
 import Plutus.Types.Transaction (TransactionOutput(TransactionOutput)) as PTransaction
 import Plutus.Types.Value (Coin)
 import QueryM
-  ( FeeEstimate(FeeEstimate)
-  , ClientError
+  ( ClientError
       ( ClientHttpError
       , ClientHttpResponseError
       , ClientDecodeJsonError
@@ -142,7 +141,8 @@ import QueryM
       , ClientOtherError
       )
   ) as ExportQueryM
-import QueryM (calculateMinFee, signTransaction, submitTxOgmios) as QueryM
+import QueryM (signTransaction, submitTxOgmios) as QueryM
+import QueryM.MinFee (calculateMinFee) as QueryM
 import QueryM.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
@@ -259,7 +259,7 @@ calculateMinFee
   :: forall (r :: Row Type)
    . Transaction
   -> Contract r (Either ExportQueryM.ClientError Coin)
-calculateMinFee = (map <<< map) toPlutusCoin
+calculateMinFee = map (pure <<< toPlutusCoin)
   <<< wrapContract
   <<< QueryM.calculateMinFee
 

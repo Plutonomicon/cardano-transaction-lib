@@ -14,6 +14,8 @@ module Types.BigNum
   , toInt
   , toInt'
   , toString
+  , fromUInt
+  , toUInt
   , zero
   ) where
 
@@ -26,7 +28,8 @@ import Data.BigInt (fromString, toString) as BigInt
 import Data.Either (note)
 import Data.Int (fromString) as Int
 import Data.Maybe (Maybe, fromJust)
-import Data.UInt (fromInt, toString) as UInt
+import Data.UInt (fromInt, fromString, toString) as UInt
+import Data.UInt (UInt)
 import Deserialization.Error (FromCslRepError, fromCslRepError)
 import Error (E, noteE)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
@@ -117,3 +120,9 @@ foreign import toString :: BigNum -> String
 
 maxValue :: BigNum
 maxValue = fromStringUnsafe "18446744073709551615"
+
+fromUInt :: UInt -> BigNum
+fromUInt = fromStringUnsafe <<< UInt.toString
+
+toUInt :: BigNum -> Maybe UInt
+toUInt = toString >>> UInt.fromString
