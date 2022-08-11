@@ -402,7 +402,7 @@ submitTxOgmios :: CborBytes -> QueryM Ogmios.SubmitTxR
 submitTxOgmios = mkOgmiosRequest Ogmios.submitTxCall _.submit
 
 evaluateTxOgmios :: CborBytes -> QueryM Ogmios.TxEvaluationR
-evaluateTxOgmios bytes = mkOgmiosRequest Ogmios.evaluateTxCall _.evaluate bytes
+evaluateTxOgmios = mkOgmiosRequest Ogmios.evaluateTxCall _.evaluate
 
 --------------------------------------------------------------------------------
 -- DATUM CACHE QUERIES
