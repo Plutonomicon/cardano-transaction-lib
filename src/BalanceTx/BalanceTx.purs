@@ -225,6 +225,9 @@ number ary = freeze (foldl go [] ary)
   go :: PrettyString -> Either WorkingLine FrozenLine -> PrettyString
   go b a = b <> [ bimap (numberLine $ length b) indentLine a ]
 
+-- | Pretty print the failure response from Ogmios's EvaluateTx endpoint.
+-- | Exported to allow testing, use `Test.Ogmios.Aeson.printEvaluateTxFailures`
+-- | to visually verify the printing of errors without a context on fixtures.
 printTxEvaluationFailure
   :: UnattachedUnbalancedTx -> Ogmios.TxEvaluationFailure -> String
 printTxEvaluationFailure (UnattachedUnbalancedTx { redeemersTxIns }) e =
