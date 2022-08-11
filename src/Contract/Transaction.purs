@@ -113,9 +113,16 @@ import Cardano.Types.Transaction
   ) as Transaction
 import Cardano.Types.Transaction (Transaction)
 import Contract.Address (getWalletAddress)
-import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
+import Contract.Monad
+  ( Contract
+  , liftedE
+  , liftedM
+  , wrapContract
+  , runContractInEnv
+  )
 import Control.Monad.Error.Class (try, catchError, throwError)
 import Control.Monad.Reader (asks, runReaderT, ReaderT)
+import Control.Monad.Reader.Class (ask)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Either (Either(Left, Right), hush)
 import Data.Generic.Rep (class Generic)
@@ -125,6 +132,8 @@ import Data.Show.Generic (genericShow)
 import Data.Time.Duration (Seconds)
 import Data.Traversable (class Traversable, for_, traverse)
 import Data.Tuple.Nested (type (/\))
+import Effect.Aff (bracket)
+import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, throw)
 import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
@@ -307,12 +316,17 @@ withTransactions
   -> (t tx -> Contract r a)
   -> Contract r a
 withTransactions prepare extract utxs action = do
-  txs <- prepare utxs
-  res <- try $ action txs
-  void $ traverse (withUsedTxouts <<< unlockTransactionInputs)
-    $ map extract
-    $ txs
-  liftedE $ pure res
+  env <- ask
+  let
+    run :: forall (b :: Type). _ b -> _ b
+    run = runContractInEnv env
+  liftAff $ bracket
+    (run (prepare utxs))
+    (run <<< cleanup)
+    (run <<< action)
+  where
+  cleanup txs = for_ txs
+    (withUsedTxouts <<< unlockTransactionInputs <<< extract)
 
 withSingleTransaction
   :: forall (a :: Type) (tx :: Type) (r :: Row Type)
