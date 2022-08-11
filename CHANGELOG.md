@@ -74,13 +74,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - The [`ctl-scaffold`](https://github.com/mlabs-haskell/ctl-scaffold) repository has been archived and deprecated and its contents moved to `templates.ctl-scaffold` in the CTL flake ([#760](https://github.com/Plutonomicon/cardano-transaction-lib/issues/760)).
 - The CTL `overlay` output has been deprecated and replaced by `overlays.purescript` and `overlays.runtime` ([#796](https://github.com/Plutonomicon/cardano-transaction-lib/issues/796)).
 - `buildCtlRuntime` and `launchCtlRuntime` now take an `extraServices` argument to add `docker-compose` services to the resulting Arion expression ([#769](https://github.com/Plutonomicon/cardano-transaction-lib/issues/769)).
-- `balanceAndSignTx` no longer silently drops error information via `Maybe`. Use `map hush <<< try <<< balanceAndSignTx` to recover the old behaviour.
+- `balanceAndSignTx` no longer silently drops error information via `Maybe`. The `Maybe` wrapper is currently maintained for API compatibility, but will be dropped in the future.
 
 ### Removed
 
 - `Contract.Monad.traceTestnetContractConfig` - use `Contract.Config.testnetNamiConfig` instead.
 - `runContract_` - use `void <<< runContract`.
-- `balanceAndSignTxE` - use `try <<< balanceAndSignTx` instead.
 
 ### Fixed
 
