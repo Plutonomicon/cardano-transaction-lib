@@ -8,7 +8,7 @@ import Aeson (class DecodeAeson, class EncodeAeson, Aeson, stringifyAeson)
 import Contract.Monad (ListenerSet)
 import Control.Parallel (parTraverse)
 import Data.Either (Either(Left, Right))
-import Data.Log.Level (LogLevel(Debug, Error, Trace))
+import Data.Log.Level (LogLevel(Trace, Debug))
 import Data.Traversable (for_, traverse_)
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
@@ -69,7 +69,7 @@ mkWebSocket lvl serverCfg cb = do
   _onWsConnect ws do
     _wsWatch ws (logger Debug) onError
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
-    void $ _onWsError ws (logger Error) $ const onError
+    void $ _onWsError ws $ const onError
     cb $ Right $ WebSocket ws
       (mkListenerSet dispatchMap pendingRequests)
   pure $ \err -> cb $ Left $ err
