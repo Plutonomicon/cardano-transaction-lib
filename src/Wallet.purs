@@ -85,7 +85,7 @@ cip30Wallet = case _ of
   Nami c30 -> Just c30
   Gero c30 -> Just c30
   Flint c30 -> Just c30
-  _ -> Nothing
+  KeyWallet _ -> Nothing
 
 -- Attach a dummy vkey witness to a transaction. Helpful for when we need to
 -- know the number of witnesses (e.g. fee calculation) but the wallet hasn't
