@@ -482,7 +482,10 @@ balanceAndSignTxs txs = balanceTxs txs >>= traverse
 -- | `unlockTransactionInputs`.
 balanceAndSignTx
   :: forall (r :: Row Type)
-   . Warn ( Text "`balanceAndSignTx` no longer returns `Nothing` when failing, instead letting errors continue through the `Contract` monad. `Maybe` will be removed in a future release.")
+   . Warn
+       ( Text
+           "`balanceAndSignTx` no longer returns `Nothing` when failing, instead letting errors continue through the `Contract` monad. `Maybe` will be removed in a future release."
+       )
   => UnattachedUnbalancedTx
   -> Contract r (Maybe BalancedSignedTransaction)
 balanceAndSignTx tx = pure <$> internalBalanceAndSignTx tx
