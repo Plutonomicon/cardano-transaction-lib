@@ -580,7 +580,7 @@ instance Show TxEvaluationFailure where
 type ObjectParser = ReaderT (Object Aeson) (Either JsonDecodeError)
 
 liftField
-  :: forall a b
+  :: forall (a :: Type) (b :: Type)
    . DecodeAeson a
   => String
   -> (a -> Either JsonDecodeError b)
