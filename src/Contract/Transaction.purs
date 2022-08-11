@@ -35,6 +35,7 @@ module Contract.Transaction
   ) where
 
 import Prelude
+import Prim.TypeError (class Warn, Text)
 
 import Aeson (class EncodeAeson, Aeson)
 import BalanceTx (BalanceTxError) as BalanceTxError
@@ -377,7 +378,7 @@ withBalancedAndSignedTx
   -> (BalancedSignedTransaction -> Contract r a)
   -> Contract r a
 withBalancedAndSignedTx = withSingleTransaction
-  (liftedE <<< balanceAndSignTxE)
+  internalBalanceAndSignTx
   unwrap
 
 -- | Like `balanceTxs`, but uses `balanceTxWithAddress` instead of `balanceTx`
@@ -474,9 +475,36 @@ balanceAndSignTxs txs = balanceTxs txs >>= traverse
 
 -- | Balances an unbalanced transaction and signs it.
 -- |
--- | The return type includes the balanced (but unsigned) transaction for
--- | logging and more importantly, the `ByteArray` to be used with `submit` to
--- | submit the transaction.
+-- | The return type includes the balanced transaction to be used with `submit`
+-- | to submit the transaction.
+-- | If successful, transaction inputs will be locked afterwards.
+-- | If you want to re-use them in the same 'QueryM' context, call
+-- | `unlockTransactionInputs`.
+balanceAndSignTx
+  :: forall (r :: Row Type)
+   . Warn
+       ( Text
+           "`balanceAndSignTx` no longer returns `Nothing` when failing, instead letting errors continue through the `Contract` monad. `Maybe` will be removed in a future release."
+       )
+  => UnattachedUnbalancedTx
+  -> Contract r (Maybe BalancedSignedTransaction)
+balanceAndSignTx tx = pure <$> internalBalanceAndSignTx tx
+
+internalBalanceAndSignTx
+  :: forall (r :: Row Type)
+   . UnattachedUnbalancedTx
+  -> Contract r BalancedSignedTransaction
+internalBalanceAndSignTx tx = balanceAndSignTxs [ tx ] >>=
+  case _ of
+    [ x ] -> pure x
+    _ -> liftEffect $ throw $
+      "Unexpected internal error during transaction signing"
+
+-- TODO Deprecate `balanceAndSignTxE` once `Maybe` is dropped from
+-- `balanceAndSignTx`, like in `internalBalanceAndSignTx`.
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/880
+-- | Like `balanceAndSignTx`, but does not throw errors, and which are instead
+-- | held in `Left`.
 -- | If successful, transaction inputs will be locked afterwards.
 -- | If you want to re-use them in the same 'QueryM' context, call
 -- | `unlockTransactionInputs`.
@@ -484,28 +512,7 @@ balanceAndSignTxE
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx
   -> Contract r (Either Error BalancedSignedTransaction)
-balanceAndSignTxE tx = try $ balanceAndSignTxs [ tx ] >>=
-  case _ of
-    [ x ] -> pure x
-    -- Which error should we throw here?
-    _ -> liftEffect $ throw $
-      "Unexpected internal error during transaction signing"
-
--- | A helper that wraps a few steps into: balance an unbalanced transaction
--- | (`balanceTx`), reindex script spend redeemers (not minting redeemers)
--- | (`reindexSpentScriptRedeemers`), attach datums and redeemers to the
--- | transaction (`finalizeTx`), and finally sign (`signTransactionBytes`).
--- | The return type includes the balanced (but unsigned) transaction for
--- | logging and more importantly, the `ByteArray` to be used with `Submit` to
--- | submit the transaction.
--- | If successful, transaction inputs will be locked afterwards.
--- | If you want to re-use them in the same 'QueryM' context, call
--- | `unlockTransactionInputs`.
-balanceAndSignTx
-  :: forall (r :: Row Type)
-   . UnattachedUnbalancedTx
-  -> Contract r (Maybe BalancedSignedTransaction)
-balanceAndSignTx = map hush <<< balanceAndSignTxE
+balanceAndSignTxE = try <<< internalBalanceAndSignTx
 
 scriptOutputToTransactionOutput
   :: NetworkId
