@@ -347,10 +347,17 @@ suite = do
                   (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
                   <> Constraints.mustSpendNativeScriptOutput txInput
                     nativeScript
-                  <> Constraints.mustBeSignedBy (coerce alicePaymentPKH)
-                  <> Constraints.mustBeSignedBy (coerce bobPaymentPKH)
-                  <> Constraints.mustBeSignedBy (coerce charliePaymentPKH)
-                  <> Constraints.mustBeSignedBy (coerce danPaymentPKH)
+
+              -- Note that specifying required signers is optional:
+              --
+              -- <> Constraints.mustBeSignedBy (coerce alicePaymentPKH)
+              -- <> Constraints.mustBeSignedBy (coerce bobPaymentPKH)
+              -- <> Constraints.mustBeSignedBy (coerce charliePaymentPKH)
+              -- <> Constraints.mustBeSignedBy (coerce danPaymentPKH)
+              --
+              -- The maximum needed number of signers is calculated from
+              -- the script itself, so we know how much space to allocate
+              -- for signatures on fee calculation stage.
 
               lookups :: Lookups.ScriptLookups PlutusData
               lookups = Lookups.unspentOutputs utxos
