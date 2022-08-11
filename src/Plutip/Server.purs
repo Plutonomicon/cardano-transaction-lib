@@ -111,7 +111,7 @@ withPlutipContractEnv plutipCfg distr cont = do
   withPlutipServer :: Aff a -> Aff a
   withPlutipServer =
     bracket (startPlutipServer plutipCfg)
-      (stopChildProcessWithPort plutipCfg.port v) <<< const
+      (stopChildProcessWithPort plutipCfg.port) <<< const
 
   withPlutipCluster :: (ClusterStartupParameters -> Aff a) -> Aff a
   withPlutipCluster cc = bracket (startPlutipCluster plutipCfg distr)
