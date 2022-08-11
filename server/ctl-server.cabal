@@ -51,34 +51,22 @@ library
   build-depends:
     , aeson
     , base
-    , base16-bytestring
     , bytestring
     , cardano-api
-    , cardano-binary
-    , cardano-ledger-core
-    , cardano-ledger-alonzo
-    , cborg
     , containers
     , exceptions
     , extra
-    , integer-logarithms
-    , lens
     , mtl
     , plutus-ledger-api
-    , plutus-tx
-    , serialise
     , servant
     , servant-client
     , servant-docs
     , servant-server
-    , strict-containers
     , text
     , wai-cors
     , warp
-    , cardano-ledger-shelley-ma
     , network
     , websockets
-    , unordered-containers
     , attoparsec
 
   exposed-modules:
@@ -124,7 +112,6 @@ test-suite test
     , http-client
     , http-types
     , plutus-ledger-api
-    , plutus-tx
     , servant
     , servant-client
     , servant-server
