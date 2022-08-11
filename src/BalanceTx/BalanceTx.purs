@@ -248,6 +248,7 @@ printTxEvaluationFailure (UnattachedUnbalancedTx { redeemersTxIns }) e =
 
   -- TODO Investigate if more details can be printed, for example minting
   -- policy/minted assets
+  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/881
   printRedeemerDetails :: Ogmios.RedeemerPointer -> PrettyString
   printRedeemerDetails ptr =
     let
