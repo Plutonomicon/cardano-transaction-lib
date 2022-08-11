@@ -107,7 +107,7 @@ import Cardano.Types.Transaction
   ) as T
 import Cardano.Types.Value
   ( Coin(Coin)
-  , NonAdaAsset(NonAdaAsset)
+  , mkNonAdaAsset
   , scriptHashAsCurrencySymbol
   )
 import Control.Lazy (fix)
@@ -432,7 +432,7 @@ convertPoolRetirement poolKeyhash epochInt = do
   pure $ T.PoolRetirement { poolKeyhash, epoch }
 
 convertMint :: Csl.Mint -> T.Mint
-convertMint mint = T.Mint $ NonAdaAsset
+convertMint mint = T.Mint $ mkNonAdaAsset
   $
     -- outer map
     M.fromFoldable <<< map (lmap scriptHashAsCurrencySymbol)

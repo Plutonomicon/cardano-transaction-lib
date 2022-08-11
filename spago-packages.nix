@@ -1301,6 +1301,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "stringutils" = pkgs.stdenv.mkDerivation {
+        name = "stringutils";
+        version = "v0.0.11";
+        src = pkgs.fetchgit {
+          url = "https://github.com/menelaos/purescript-stringutils.git";
+          rev = "e149d04cd5bcc25222c1807f2e1edafb36b5f70e";
+          sha256 = "1hbr936bvnm5iil4cfr9qhkbzd1i00yrxf5jd0rnny29df5wsq1w";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "tailrec" = pkgs.stdenv.mkDerivation {
         name = "tailrec";
         version = "v5.0.1";
@@ -1572,18 +1584,6 @@ let
           url = "https://github.com/purescript-web/purescript-web-xhr.git";
           rev = "997b87caa6dcdf66b6db22f29f522d722559956b";
           sha256 = "0hzmqga8l24l20kyd98bcpd8bmz7by14vl311m9yfdg5mjkjg42g";
-        };
-        phases = "installPhase";
-        installPhase = "ln -s $src $out";
-      };
-
-    "yaml-next" = pkgs.stdenv.mkDerivation {
-        name = "yaml-next";
-        version = "v3.0.1";
-        src = pkgs.fetchgit {
-          url = "https://github.com/archaeron/purescript-yaml-next.git";
-          rev = "904acc2f6f065b967e30a460f5b27f28ff950309";
-          sha256 = "1nhdqb33k185fz0011slm2f4fx9z083hx7naxvyqq714lnlpnk3q";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

@@ -5,9 +5,10 @@ module Plutus.Conversion.Value
 
 import Prelude
 
-import Data.Array (concatMap, head, partition)
+import Data.Array (head, partition)
 import Data.Foldable (fold)
-import Data.Map (fromFoldable, toUnfoldable) as Map
+import Data.List (List)
+import Data.Map (fromFoldable) as Map
 import Data.Maybe (fromMaybe, fromJust)
 import Data.Newtype (wrap, unwrap)
 import Data.Tuple (snd)
@@ -16,7 +17,8 @@ import Partial.Unsafe (unsafePartial)
 
 import Cardano.Types.Value (Coin(Coin), Value(Value)) as Types
 import Cardano.Types.Value
-  ( NonAdaAsset(NonAdaAsset)
+  ( NonAdaAsset
+  , flattenNonAdaValue
   , getCurrencySymbol
   , mkValue
   , mkNonAdaAssetsFromTokenMap
@@ -67,7 +69,7 @@ fromPlutusValue plutusValue =
 --------------------------------------------------------------------------------
 
 toPlutusValue :: Types.Value -> Plutus.Value
-toPlutusValue (Types.Value (Types.Coin adaAmount) (NonAdaAsset nonAdaAssets)) =
+toPlutusValue (Types.Value (Types.Coin adaAmount) nonAdaAssets) =
   adaValue <> fold nonAdaValues
   where
   adaValue :: Plutus.Value
@@ -75,11 +77,8 @@ toPlutusValue (Types.Value (Types.Coin adaAmount) (NonAdaAsset nonAdaAssets)) =
     | adaAmount == zero = mempty
     | otherwise = Plutus.Value.lovelaceValueOf adaAmount
 
-  nonAdaValues :: Array Plutus.Value
+  nonAdaValues :: List Plutus.Value
   nonAdaValues =
-    flip concatMap (Map.toUnfoldable nonAdaAssets) $ \(cs /\ tokens) ->
-      Map.toUnfoldable tokens <#> \(tn /\ val) ->
-        unsafePartial $ fromJust $
-          Plutus.Value.singleton' (getCurrencySymbol cs)
-            (getTokenName tn)
-            val
+    flattenNonAdaValue nonAdaAssets <#> \(cs /\ tn /\ val) ->
+      unsafePartial fromJust $
+        Plutus.Value.singleton' (getCurrencySymbol cs) (getTokenName tn) val
