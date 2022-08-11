@@ -106,7 +106,7 @@ import Data.Log.Level (LogLevel(Error, Debug))
 import Data.Log.Message (Message)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (for, for_, traverse, traverse_)
@@ -179,7 +179,7 @@ import Serialization.Address
   , stakeCredentialToKeyHash
   )
 import Serialization.PlutusData (convertPlutusData) as Serialization
-import Types.ByteArray (ByteArray, byteArrayToHex)
+import Types.ByteArray (byteArrayToHex)
 import Types.CborBytes (CborBytes)
 import Types.Chain as Chain
 import Types.Datum (DataHash, Datum)
@@ -313,8 +313,7 @@ stopQueryRuntime runtime = do
 
 -- | Used in `mkQueryRuntime` only
 data QueryRuntimeModel = QueryRuntimeModel
-  (OgmiosWebSocket /\ Ogmios.ProtocolParameters)
-  DatumCacheWebSocket
+  (OgmiosWebSocket /\ DatumCacheWebSocket /\ Ogmios.ProtocolParameters)
   (Maybe Wallet)
 
 mkQueryRuntime
@@ -322,14 +321,15 @@ mkQueryRuntime
   -> Aff QueryRuntime
 mkQueryRuntime config = do
   usedTxOuts <- newUsedTxOuts
-  QueryRuntimeModel (ogmiosWs /\ pparams) datumCacheWs wallet <- sequential $
+  QueryRuntimeModel (ogmiosWs /\ datumCacheWs /\ pparams) wallet <- sequential $
     QueryRuntimeModel
       <$> parallel do
-        ogmiosWs <- mkOgmiosWebSocketAff config.logLevel config.ogmiosConfig
+        datumCacheWs <-
+          mkDatumCacheWebSocketAff config.logLevel config.datumCacheConfig
+        ogmiosWs <-
+          mkOgmiosWebSocketAff datumCacheWs config.logLevel config.ogmiosConfig
         pparams <- getProtocolParametersAff ogmiosWs config.logLevel
-        pure $ ogmiosWs /\ pparams
-      <*> parallel
-        (mkDatumCacheWebSocketAff config.logLevel config.datumCacheConfig)
+        pure $ ogmiosWs /\ datumCacheWs /\ pparams
       <*> parallel (for config.walletSpec mkWalletBySpec)
   pure
     { ogmiosWs
@@ -454,6 +454,11 @@ getDatumByHash hash = unwrap <$> do
 getDatumsByHashes :: Array DataHash -> QueryM (Map DataHash Datum)
 getDatumsByHashes hashes = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
+
+checkTxByHashAff :: DatumCacheWebSocket -> LogLevel -> TxHash -> Aff Boolean
+checkTxByHashAff datumCacheWs logLevel =
+  mkDatumCacheRequestAff datumCacheWs logLevel DcWsp.getTxByHash _.getTxByHash
+    >>> map (unwrap >>> isJust)
 
 allowError
   :: forall (a :: Type). (Either Error a -> Effect Unit) -> a -> Effect Unit
@@ -697,11 +702,12 @@ type DatumCacheWebSocket = WebSocket DatumCacheListeners
 -- smart-constructor for OgmiosWebSocket in Aff Context
 -- (prevents sending messages before the websocket opens, etc)
 mkOgmiosWebSocket'
-  :: LogLevel
+  :: DatumCacheWebSocket
+  -> LogLevel
   -> ServerConfig
   -> (Either Error OgmiosWebSocket -> Effect Unit)
   -> Effect Canceler
-mkOgmiosWebSocket' lvl serverCfg continue = do
+mkOgmiosWebSocket' datumCacheWs lvl serverCfg continue = do
   utxoDispatchMap <- createMutableDispatch
   utxosAtDispatchMap <- createMutableDispatch
   chainTipDispatchMap <- createMutableDispatch
@@ -779,21 +785,8 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
       Ref.read eraSummariesPendingRequests >>= traverse_ sendRequest
       Ref.read currentEpochPendingRequests >>= traverse_ sendRequest
       Ref.read systemStartPendingRequests >>= traverse_ sendRequest
-
-      submitPendingRequests' <- Ref.read submitPendingRequests
-
-      unless (Map.isEmpty submitPendingRequests') $
-        withMempoolSnapshot ogmiosWs lvl case _ of
-          Nothing ->
-            liftEffect $ traverse_ sendRequest submitPendingRequests'
-          Just ms -> do
-            pendingTxs <- liftEffect $ Ref.read submitPendingRequests
-            for_ pendingTxs $ \(requestBody /\ txHash /\ _) -> do
-              txInMempool <- mempoolSnapshotHasTxAff ogmiosWs lvl ms txHash
-              liftEffect $ logger Debug $
-                "Mempool: " <> show txInMempool <> " TxHash: " <> show txHash
-              unless txInMempool do
-                liftEffect $ sendRequest (requestBody /\ txHash)
+      Ref.read submitPendingRequests
+        >>= resendPendingSubmitRequests ogmiosWs datumCacheWs lvl sendRequest
 
     -- We want to fail if the first connection attempt is not successful.
     -- Otherwise, we start reconnecting indefinitely.
@@ -834,6 +827,35 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
   where
   logger :: LogLevel -> String -> Effect Unit
   logger = logString lvl
+
+resendPendingSubmitRequests
+  :: OgmiosWebSocket
+  -> DatumCacheWebSocket
+  -> LogLevel
+  -> (forall (inp :: Type). RequestBody /\ inp -> Effect Unit)
+  -> Map ListenerId (RequestBody /\ TxHash /\ CborBytes)
+  -> Effect Unit
+resendPendingSubmitRequests ogmiosWs datumCacheWs logLevel sendRequest pr
+  | Map.isEmpty pr = pure unit
+  | otherwise =
+      let
+        logger :: String -> Boolean -> TxHash -> Aff Unit
+        logger label value txHash =
+          liftEffect $ logString logLevel Debug $
+            label <> ": " <> show value <> " TxHash: " <> show txHash
+      in
+        withMempoolSnapshot ogmiosWs logLevel case _ of
+          Nothing ->
+            liftEffect $ traverse_ sendRequest pr
+          Just ms ->
+            for_ pr \(requestBody /\ txHash /\ _) -> do
+              txInMempool <- mempoolSnapshotHasTxAff ogmiosWs logLevel ms txHash
+              logger "Tx in the mempool" txInMempool txHash
+              unless txInMempool do
+                txConfirmed <- checkTxByHashAff datumCacheWs logLevel txHash
+                logger "Tx confirmed" txConfirmed txHash
+                unless txConfirmed do
+                  liftEffect $ sendRequest (requestBody /\ txHash)
 
 mkDatumCacheWebSocket'
   :: LogLevel
@@ -914,8 +936,10 @@ mkDatumCacheWebSocket' lvl serverCfg continue = do
 mkDatumCacheWebSocketAff :: LogLevel -> ServerConfig -> Aff DatumCacheWebSocket
 mkDatumCacheWebSocketAff lvl = makeAff <<< mkDatumCacheWebSocket' lvl
 
-mkOgmiosWebSocketAff :: LogLevel -> ServerConfig -> Aff OgmiosWebSocket
-mkOgmiosWebSocketAff lvl = makeAff <<< mkOgmiosWebSocket' lvl
+mkOgmiosWebSocketAff
+  :: DatumCacheWebSocket -> LogLevel -> ServerConfig -> Aff OgmiosWebSocket
+mkOgmiosWebSocketAff datumCacheWs lvl =
+  makeAff <<< mkOgmiosWebSocket' datumCacheWs lvl
 
 -- getter
 underlyingWebSocket :: forall (a :: Type). WebSocket a -> JsWebSocket
@@ -1007,6 +1031,7 @@ mkOgmiosRequestAff ogmiosWs = mkRequestAff
   (listeners ogmiosWs)
   (underlyingWebSocket ogmiosWs)
 
+-- | Builds a Datum Cache request action using `QueryM`
 mkDatumCacheRequest
   :: forall (request :: Type) (response :: Type)
    . JsonWsp.JsonWspCall request response
@@ -1017,7 +1042,19 @@ mkDatumCacheRequest = mkRequest
   (asks $ listeners <<< _.datumCacheWs <<< _.runtime)
   (asks $ underlyingWebSocket <<< _.datumCacheWs <<< _.runtime)
 
--- | Builds an Ogmios request action using `QueryM`
+-- | Builds a Datum Cache request action using `Aff`
+mkDatumCacheRequestAff
+  :: forall (request :: Type) (response :: Type)
+   . DatumCacheWebSocket
+  -> LogLevel
+  -> JsonWsp.JsonWspCall request response
+  -> (DatumCacheListeners -> ListenerSet request response)
+  -> request
+  -> Aff response
+mkDatumCacheRequestAff datumCacheWs = mkRequestAff
+  (listeners datumCacheWs)
+  (underlyingWebSocket datumCacheWs)
+
 mkRequest
   :: forall (request :: Type) (response :: Type) (listeners :: Type)
    . QueryM listeners
@@ -1032,7 +1069,6 @@ mkRequest getListeners getWebSocket jsonWspCall getLs inp = do
   logLevel <- asks $ _.config >>> _.logLevel
   liftAff $ mkRequestAff listeners' ws logLevel jsonWspCall getLs inp
 
--- | Builds an Ogmios request action using `Aff`
 mkRequestAff
   :: forall (request :: Type) (response :: Type) (listeners :: Type)
    . listeners

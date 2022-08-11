@@ -234,7 +234,7 @@ newtype MempoolSnapshotAcquired = AwaitAcquired Slot
 derive instance Generic MempoolSnapshotAcquired _
 
 instance Show MempoolSnapshotAcquired where
-  show = genericShow
+  show (AwaitAcquired slot) = "(AwaitAcquired " <> show slot <> ")"
 
 instance DecodeAeson MempoolSnapshotAcquired where
   decodeAeson =
