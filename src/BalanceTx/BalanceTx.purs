@@ -451,7 +451,6 @@ instance Show FinalizedTransaction where
 -- Evaluation of fees and execution units, Updating redeemers
 --------------------------------------------------------------------------------
 
--- Evaluate the transactions execution uni
 evalTxExecutionUnits
   :: Transaction
   -> UnattachedUnbalancedTx
