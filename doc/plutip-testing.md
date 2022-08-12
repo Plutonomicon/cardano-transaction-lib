@@ -16,6 +16,9 @@ CTL depends on a number of binaries in the `$PATH` to execute Plutip tests:
 - [`ogmios`](https://ogmios.dev/)
 - [`ogmios-datum-cache`](https://github.com/mlabs-haskell/ogmios-datum-cache)
 - PostgreSQL: `initdb`, `createdb` and `psql` for `ogmios-datum-cache` storage
+
+If you plan on using CTL's `applyArgs` effect, you must also ensure the following is on your `$PATH`:
+
 - `ctl-server`: a server-side part of CTL itself.
 
 All of these are provided by CTL's `overlays.runtime` (and are provided in CTL's own `devShell`). You **must** use the `runtime` overlay or otherwise make the services available in your package set (e.g. by defining them within your own `overlays` when instantiating `nixpkgs`) as `purescriptProject.runPlutipTest` expects all of them.

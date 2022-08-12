@@ -259,6 +259,8 @@
             ctl-plutip-test = project.runPlutipTest {
               name = "ctl-plutip-test";
               testMain = "Test.Plutip";
+              # After updating `PlutipConfig` this can be set for now:
+              # withCtlServer = false;
               env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
             };
             ctl-unit-test = project.runPursTest {
