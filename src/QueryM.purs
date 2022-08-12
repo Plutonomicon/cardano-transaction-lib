@@ -796,15 +796,15 @@ resendPendingSubmitRequests ogmiosWs datumCacheWs lvl sendRequest dim pr = do
     -- Check if the transaction was added to the mempool:
     txInMempool <- mempoolSnapshotHasTxAff ogmiosWs lvl ms txHash
     logger "Tx in the mempool" txInMempool txHash
-    retrySubmitTxRef <- liftEffect $ Ref.new false
-    unless txInMempool do
-      -- Check if the transaction was included in the block:
-      txConfirmed <- checkTxByHashAff datumCacheWs lvl txHash
-      logger "Tx confirmed" txConfirmed txHash
-      unless txConfirmed $ liftEffect do
-        Ref.write true retrySubmitTxRef
-        sendRequest (requestBody /\ unit)
-    retrySubmitTx <- liftEffect $ Ref.read retrySubmitTxRef
+    retrySubmitTx <-
+      if txInMempool then pure false
+      else do
+        -- Check if the transaction was included in the block:
+        txConfirmed <- checkTxByHashAff datumCacheWs lvl txHash
+        logger "Tx confirmed" txConfirmed txHash
+        unless txConfirmed $ liftEffect do
+          sendRequest (requestBody /\ unit)
+        pure (not txConfirmed)
     -- Manually dispatch `SubmitTx` response if resending is not required:
     unless retrySubmitTx $ liftEffect do
       Ref.modify_ (Map.delete listenerId) pr
