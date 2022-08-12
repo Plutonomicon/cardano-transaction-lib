@@ -2,39 +2,35 @@
 <html lang="en" data-framework="purescript">
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <script>
+    function writeExampleWalletLink (example, wallet) {
+        document.writeln('<a href="/?' + example + ':' + wallet+'">' + wallet + '</a>');
+
+    }
+    function writeExampleHTML (example) {
+        document.writeln('<li>');
+        document.writeln(example + ': ');
+        for (let wallet of ['gero', 'nami', 'flint']) {
+            writeExampleWalletLink(example, wallet);
+        }
+        document.writeln('</li>');
+    }
+  </script>
 </head>
 
 <body>
   <script type="module" src="./bundle.js"></script>
   Examples source code is located in <i>examples/</i> directory.
   <ul>
-    <li>
-      <a href="/?AlwaysMints">AlwaysMints</a>
-    </li>
-    <li>
-      <a href="/?AlwaysSucceeds">AlwaysSucceeds</a>
-    </li>
-    <li>
-      <a href="/?AlwaysSucceeds">Datums</a>
-    </li>
-    <li>
-      <a href="/?Nami">Nami</a>
-    </li>
-    <li>
-      <a href="/?Gero">Gero</a>
-    </li>
-    <li>
-      <a href="/?Pkh2Pkh">Pkh2Pkh</a>
-    </li>
-    <li>
-      <a href="/?Pkh2PkhGero">Pkh2PkhGero</a>
-    </li>
-    <li>
-      <a href="/?SignMultiple">SignMultiple</a>
-    </li>
-    <li>
-      <a href="/?MintsMultipleTokens">MintsMultipleTokens</a>
-    </li>
+    <script>
+      writeExampleHTML('AlwaysMints');
+      writeExampleHTML('AlwaysSucceeds');
+      writeExampleHTML('Datums');
+      writeExampleHTML('Wallet');
+      writeExampleHTML('Pkh2Pkh');
+      writeExampleHTML('SignMultiple');
+      writeExampleHTML('MintsMultipleTokens');
+    </script>
   </ul>
 </body>
 </html>
