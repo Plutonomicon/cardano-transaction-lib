@@ -22,9 +22,25 @@ module QueryM.Ogmios
   , RedeemerPointer
   , RelativeTime(RelativeTime)
   , SafeZone(SafeZone)
+  , ScriptFailure
+      ( ExtraRedeemers
+      , MissingRequiredDatums
+      , MissingRequiredScripts
+      , ValidatorFailed
+      , UnknownInputReferencedByRedeemer
+      , NonScriptInputReferencedByRedeemer
+      , IllFormedExecutionBudget
+      , NoCostModelForLanguage
+      )
+  , OgmiosDatum
+  , OgmiosScript
+  , OgmiosTxIn
+  , OgmiosTxId
   , SlotLength(SlotLength)
   , SubmitTxR(SubmitTxSuccess, SubmitFail)
   , SystemStart(SystemStart)
+  , TxEvaluationFailure(UnparsedError, ScriptFailures)
+  , TxEvaluationResult(TxEvaluationResult)
   , TxEvaluationR(TxEvaluationR)
   , TxHash
   , UtxoQR(UtxoQR)
@@ -56,9 +72,11 @@ import Aeson
   , caseAesonString
   , decodeAeson
   , encodeAeson'
+  , encodeAeson
   , getField
   , getFieldOptional
   , isNull
+  , stringifyAeson
   )
 import Cardano.Types.Transaction
   ( Costmdls(Costmdls)
@@ -78,6 +96,7 @@ import Cardano.Types.Value
   , mkValue
   )
 import Control.Alt ((<|>))
+import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
 import Data.Array (index, singleton)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -90,8 +109,8 @@ import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern), indexOf, split, splitAt, uncons)
-import Data.String.Common as String
-import Data.Traversable (sequence, traverse)
+import Data.String.Common (split) as String
+import Data.Traversable (sequence, traverse, for)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt)
@@ -468,7 +487,8 @@ type RedeemerPointer = { redeemerTag :: RedeemerTag, redeemerIndex :: Natural }
 
 type ExecutionUnits = { memory :: Natural, steps :: Natural }
 
-newtype TxEvaluationR = TxEvaluationR (Map RedeemerPointer ExecutionUnits)
+newtype TxEvaluationR = TxEvaluationR
+  (Either TxEvaluationFailure TxEvaluationResult)
 
 derive instance Newtype TxEvaluationR _
 derive instance Generic TxEvaluationR _
@@ -477,36 +497,174 @@ instance Show TxEvaluationR where
   show = genericShow
 
 instance DecodeAeson TxEvaluationR where
+  decodeAeson aeson = (wrap <<< Right <$> decodeAeson aeson) <|>
+    (wrap <<< Left <$> decodeAeson aeson)
+
+newtype TxEvaluationResult = TxEvaluationResult
+  (Map RedeemerPointer ExecutionUnits)
+
+derive instance Newtype TxEvaluationResult _
+derive instance Generic TxEvaluationResult _
+
+instance Show TxEvaluationResult where
+  show = genericShow
+
+instance DecodeAeson TxEvaluationResult where
   decodeAeson = aesonObject $ \obj -> do
     rdmrPtrExUnitsList :: Array (String /\ Aeson) <-
       ForeignObject.toUnfoldable <$> getField obj "EvaluationResult"
-    TxEvaluationR <<< Map.fromFoldable <$>
+    TxEvaluationResult <<< Map.fromFoldable <$>
       traverse decodeRdmrPtrExUnitsItem rdmrPtrExUnitsList
     where
     decodeRdmrPtrExUnitsItem
       :: String /\ Aeson
       -> Either JsonDecodeError (RedeemerPointer /\ ExecutionUnits)
     decodeRdmrPtrExUnitsItem (redeemerPtrRaw /\ exUnitsAeson) = do
-      redeemerPtr <- note redeemerPtrTypeMismatch $
-        decodeRedeemerPointer redeemerPtrRaw
+      redeemerPtr <- decodeRedeemerPointer redeemerPtrRaw
       flip aesonObject exUnitsAeson $ \exUnitsObj -> do
         memory <- getField exUnitsObj "memory"
         steps <- getField exUnitsObj "steps"
         pure $ redeemerPtr /\ { memory, steps }
 
-    redeemerPtrTypeMismatch :: JsonDecodeError
-    redeemerPtrTypeMismatch = TypeMismatch
-      "Expected redeemer pointer to be encoded as: \
-      \^(spend|mint|certificate|withdrawal):[0-9]+$"
+redeemerPtrTypeMismatch :: JsonDecodeError
+redeemerPtrTypeMismatch = TypeMismatch
+  "Expected redeemer pointer to be encoded as: \
+  \^(spend|mint|certificate|withdrawal):[0-9]+$"
 
-    decodeRedeemerPointer :: String -> Maybe RedeemerPointer
-    decodeRedeemerPointer redeemerPtrRaw =
-      case split (Pattern ":") redeemerPtrRaw of
-        [ tagRaw, indexRaw ] ->
-          { redeemerTag: _, redeemerIndex: _ }
-            <$> RedeemerTag.fromString tagRaw
-            <*> Natural.fromString indexRaw
-        _ -> Nothing
+decodeRedeemerPointer :: String -> Either JsonDecodeError RedeemerPointer
+decodeRedeemerPointer redeemerPtrRaw = note redeemerPtrTypeMismatch
+  case split (Pattern ":") redeemerPtrRaw of
+    [ tagRaw, indexRaw ] ->
+      { redeemerTag: _, redeemerIndex: _ }
+        <$> RedeemerTag.fromString tagRaw
+        <*> Natural.fromString indexRaw
+    _ -> Nothing
+
+type OgmiosDatum = String
+type OgmiosScript = String
+type OgmiosTxId = String
+type OgmiosTxIn = { txId :: OgmiosTxId, index :: Int }
+
+data ScriptFailure
+  = ExtraRedeemers (Array RedeemerPointer)
+  | MissingRequiredDatums
+      { provided :: Maybe (Array OgmiosDatum), missing :: Array OgmiosDatum }
+  | MissingRequiredScripts
+      { resolved :: Map RedeemerPointer OgmiosScript
+      , missing :: Array OgmiosScript
+      }
+  | ValidatorFailed { error :: String, traces :: Array String }
+  | UnknownInputReferencedByRedeemer OgmiosTxIn
+  | NonScriptInputReferencedByRedeemer OgmiosTxIn
+  | IllFormedExecutionBudget (Maybe ExecutionUnits)
+  | NoCostModelForLanguage String
+
+derive instance Generic ScriptFailure _
+
+instance Show ScriptFailure where
+  show = genericShow
+
+-- The following cases are fine to fall through into unparsed error:
+-- IncompatibleEra
+-- AdditionalUtxoOverlap
+-- NotEnoughSynced
+-- CannotCreateEvaluationContext
+data TxEvaluationFailure
+  = UnparsedError String
+  | ScriptFailures (Map RedeemerPointer (Array ScriptFailure))
+
+derive instance Generic TxEvaluationFailure _
+
+instance Show TxEvaluationFailure where
+  show = genericShow
+
+type ObjectParser = ReaderT (Object Aeson) (Either JsonDecodeError)
+
+liftField
+  :: forall (a :: Type) (b :: Type)
+   . DecodeAeson a
+  => String
+  -> (a -> Either JsonDecodeError b)
+  -> ObjectParser b
+liftField f act = ReaderT (flip getField f >=> act)
+
+instance DecodeAeson ScriptFailure where
+  decodeAeson = aesonObject $ runReaderT cases
+    where
+    cases :: ObjectParser ScriptFailure
+    cases = decodeExtraRedeemers
+      <|> decodeMissingRequiredDatums
+      <|> decodeMissingRequiredScripts
+      <|> decodeValidatorFailed
+      <|> decodeUnknownInputReferencedByRedeemer
+      <|> decodeNonScriptInputReferencedByRedeemer
+      <|> decodeIllFormedExecutionBudget
+      <|> decodeNoCostModelForLanguage
+      <|> defaultCase
+
+    defaultCase :: ObjectParser ScriptFailure
+    defaultCase = ReaderT $ const $ Left $ TypeMismatch "Expected ScriptFailure"
+
+    decodeExtraRedeemers :: ObjectParser ScriptFailure
+    decodeExtraRedeemers = ExtraRedeemers <$> liftField "extraRedeemers"
+      (traverse decodeRedeemerPointer)
+
+    decodeMissingRequiredDatums :: ObjectParser ScriptFailure
+    decodeMissingRequiredDatums = liftField "missingRequiredDatums" \o -> do
+      pure $ MissingRequiredDatums o
+
+    decodeMissingRequiredScripts :: ObjectParser ScriptFailure
+    decodeMissingRequiredScripts = liftField "missingRequiredScripts" \o -> do
+      resolvedKV <- ForeignObject.toUnfoldable <$> getField o "resolved"
+      resolved <- Map.fromFoldable <$> for (resolvedKV :: Array _)
+        \(k /\ v) -> (_ /\ v) <$> decodeRedeemerPointer k
+      missing <- getField o "missing"
+      pure $ MissingRequiredScripts { resolved, missing }
+
+    decodeValidatorFailed :: ObjectParser ScriptFailure
+    decodeValidatorFailed = liftField "validatorFailed" \o -> do
+      pure $ ValidatorFailed o
+
+    decodeUnknownInputReferencedByRedeemer :: ObjectParser ScriptFailure
+    decodeUnknownInputReferencedByRedeemer = liftField
+      "unknownInputReferencedByRedeemer"
+      \o -> do
+        pure $ UnknownInputReferencedByRedeemer o
+
+    decodeNonScriptInputReferencedByRedeemer :: ObjectParser ScriptFailure
+    decodeNonScriptInputReferencedByRedeemer = liftField
+      "nonScriptInputReferencedByRedeemer"
+      \o -> do
+        pure $ NonScriptInputReferencedByRedeemer o
+
+    decodeIllFormedExecutionBudget :: ObjectParser ScriptFailure
+    decodeIllFormedExecutionBudget = liftField "illFormedExecutionBudget" \o ->
+      do
+        pure $ IllFormedExecutionBudget o
+
+    decodeNoCostModelForLanguage :: ObjectParser ScriptFailure
+    decodeNoCostModelForLanguage = liftField "noCostModelForLanguage" \o -> do
+      pure $ NoCostModelForLanguage o
+
+instance DecodeAeson TxEvaluationFailure where
+  decodeAeson = aesonObject $ runReaderT cases
+    where
+    cases :: ObjectParser TxEvaluationFailure
+    cases = decodeScriptFailures <|> defaultCase
+
+    defaultCase :: ObjectParser TxEvaluationFailure
+    defaultCase = ReaderT \o ->
+      pure (UnparsedError (stringifyAeson (encodeAeson o)))
+
+    decodeScriptFailures :: ObjectParser TxEvaluationFailure
+    decodeScriptFailures = ReaderT \o -> do
+      scriptFailuresKV <- ForeignObject.toUnfoldable
+        <$> (getField o "EvaluationFailure" >>= flip getField "ScriptFailures")
+      scriptFailures <- Map.fromFoldable <$> for (scriptFailuresKV :: Array _)
+        \(k /\ v) -> do
+          v' <- decodeAeson v
+          (_ /\ v') <$> decodeRedeemerPointer k
+      pure $ ScriptFailures scriptFailures
 
 ---------------- PROTOCOL PARAMETERS QUERY RESPONSE & PARSING
 
