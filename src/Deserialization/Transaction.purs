@@ -116,7 +116,6 @@ import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Bitraversable (bitraverse)
 import Data.Either (Either)
-import Data.Int (fromString)
 import Data.Map as M
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap, unwrap)
@@ -542,9 +541,9 @@ convertCostModel err = map T.CostModel <<< traverse stringToInt <<<
   _unpackCostModel
   where
   stringToInt
-    :: String -> Either (Variant (fromCslRepError :: String | r)) Int
+    :: String -> Either (Variant (fromCslRepError :: String | r)) Int.Int
   stringToInt s = cslErr (err <> ": string (" <> s <> ") -> int") $
-    fromString s
+    Int.fromBigInt =<< BigInt.fromString s
 
 convertAuxiliaryData
   :: forall (r :: Row Type). Csl.AuxiliaryData -> Err r T.AuxiliaryData
