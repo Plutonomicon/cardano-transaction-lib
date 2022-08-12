@@ -21,7 +21,6 @@ module Serialization.Types
   , GenesisDelegateHash
   , GenesisHash
   , GenesisKeyDelegation
-  , Int32
   , Ipv4
   , Ipv6
   , Language
@@ -111,7 +110,6 @@ foreign import data GeneralTransactionMetadata :: Type
 foreign import data GenesisDelegateHash :: Type
 foreign import data GenesisHash :: Type
 foreign import data GenesisKeyDelegation :: Type
-foreign import data Int32 :: Type
 foreign import data Ipv4 :: Type
 foreign import data Ipv6 :: Type
 foreign import data Language :: Type

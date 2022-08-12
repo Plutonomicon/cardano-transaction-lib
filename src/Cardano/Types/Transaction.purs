@@ -402,7 +402,7 @@ instance EncodeAeson Language where
   encodeAeson' = case _ of
     PlutusV1 -> encodeAeson' $ encodeTagged' "PlutusV1" {}
 
-newtype CostModel = CostModel (Array Int)
+newtype CostModel = CostModel (Array Int.Int)
 
 derive instance Newtype CostModel _
 derive newtype instance Eq CostModel
