@@ -59,6 +59,8 @@ plutusScriptHash :: PlutusScript -> Aff (Maybe ScriptHash)
 plutusScriptHash =
   map (scriptHashFromBytes <<< wrap) <<< Promise.toAffE <<< hashPlutusScript
 
+-- | Calculates the hash of the transaction by applying `blake2b256Hash` to
+-- | the cbor-encoded transaction body.
 transactionHash :: Serialization.Transaction -> Aff TransactionHash
 transactionHash =
   map wrap <<< blake2b256Hash <<< toBytes <<< asOneOf <<< _txBody

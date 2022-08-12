@@ -392,10 +392,10 @@ getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
 submitTxOgmios :: TxHash -> CborBytes -> QueryM Ogmios.SubmitTxR
 submitTxOgmios txHash tx = do
   ws <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
-  listeners <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
-  logLevel <- asks $ _.logLevel <<< _.config
+  listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
+  lvl <- asks $ _.logLevel <<< _.config
   let inp = RequestInputToStoreInPendingRequests (txHash /\ tx)
-  liftAff $ mkRequestAff' listeners ws logLevel Ogmios.submitTxCall _.submit inp
+  liftAff $ mkRequestAff' listeners' ws lvl Ogmios.submitTxCall _.submit inp
 
 evaluateTxOgmios :: CborBytes -> QueryM Ogmios.TxEvaluationR
 evaluateTxOgmios = mkOgmiosRequest Ogmios.evaluateTxCall _.evaluate
@@ -756,6 +756,8 @@ mkOgmiosWebSocket' datumCacheWs lvl serverCfg continue = do
   logger :: LogLevel -> String -> Effect Unit
   logger = logString lvl
 
+-- | For all pending `SubmitTx` requests checks if a transaction was added
+-- | to the mempool or included in the block before retrying the request.
 resendPendingSubmitRequests
   :: OgmiosWebSocket
   -> DatumCacheWebSocket
@@ -767,15 +769,14 @@ resendPendingSubmitRequests
 resendPendingSubmitRequests ogmiosWs datumCacheWs lvl sendRequest dim pr = do
   submitPendingRequests <- Ref.read pr
   unless (Map.isEmpty submitPendingRequests) do
-    let
-      logger :: String -> Boolean -> TxHash -> Aff Unit
-      logger label value txHash =
-        liftEffect $ logString lvl Debug $
-          label <> ": " <> show value <> " TxHash: " <> show txHash
+    -- Acquiring a mempool snapshot should never fail and,
+    -- after ws reconnection, should be instantaneous.
     withMempoolSnapshot ogmiosWs lvl case _ of
       Nothing ->
         liftEffect $ traverse_ sendRequest submitPendingRequests
       Just ms -> do
+        -- A delay of 5 sec for transactions to be processed by the node
+        -- and added to the mempool:
         delay (wrap 5000.0)
         let (pr' :: Array _) = Map.toUnfoldable submitPendingRequests
         for_ pr' \(listenerId /\ requestBody /\ requestInput) ->
@@ -783,22 +784,39 @@ resendPendingSubmitRequests ogmiosWs datumCacheWs lvl sendRequest dim pr = do
             Nothing ->
               liftEffect $ sendRequest (requestBody /\ unit)
             Just (txHash /\ _) -> do
-              txInMempool <- mempoolSnapshotHasTxAff ogmiosWs lvl ms txHash
-              logger "Tx in the mempool" txInMempool txHash
-              retrySubmitTxRef <- liftEffect $ Ref.new false
-              unless txInMempool do
-                txConfirmed <- checkTxByHashAff datumCacheWs lvl txHash
-                logger "Tx confirmed" txConfirmed txHash
-                unless txConfirmed $ liftEffect do
-                  Ref.write true retrySubmitTxRef
-                  sendRequest (requestBody /\ unit)
-              retrySubmitTx <- liftEffect $ Ref.read retrySubmitTxRef
-              unless retrySubmitTx $ liftEffect do
-                Ref.modify_ (Map.delete listenerId) pr
-                dispatchMap <- Ref.read dim
-                Ref.modify_ (MultiMap.delete listenerId) dim
-                MultiMap.lookup listenerId dispatchMap #
-                  maybe (pure unit) (_ $ Right $ Ogmios.SubmitTxSuccess txHash)
+              handlePendingSubmitRequest ms listenerId requestBody txHash
+  where
+  handlePendingSubmitRequest
+    :: Ogmios.MempoolSnapshotAcquired
+    -> ListenerId
+    -> RequestBody
+    -> TxHash
+    -> Aff Unit
+  handlePendingSubmitRequest ms listenerId requestBody txHash = do
+    -- Check if the transaction was added to the mempool:
+    txInMempool <- mempoolSnapshotHasTxAff ogmiosWs lvl ms txHash
+    logger "Tx in the mempool" txInMempool txHash
+    retrySubmitTxRef <- liftEffect $ Ref.new false
+    unless txInMempool do
+      -- Check if the transaction was included in the block:
+      txConfirmed <- checkTxByHashAff datumCacheWs lvl txHash
+      logger "Tx confirmed" txConfirmed txHash
+      unless txConfirmed $ liftEffect do
+        Ref.write true retrySubmitTxRef
+        sendRequest (requestBody /\ unit)
+    retrySubmitTx <- liftEffect $ Ref.read retrySubmitTxRef
+    -- Manually dispatch `SubmitTx` response if resending is not required:
+    unless retrySubmitTx $ liftEffect do
+      Ref.modify_ (Map.delete listenerId) pr
+      dispatchMap <- Ref.read dim
+      Ref.modify_ (MultiMap.delete listenerId) dim
+      MultiMap.lookup listenerId dispatchMap #
+        maybe (pure unit) (_ $ Right $ Ogmios.SubmitTxSuccess txHash)
+
+  logger :: String -> Boolean -> TxHash -> Aff Unit
+  logger label value txHash =
+    liftEffect $ logString lvl Debug $
+      label <> ": " <> show value <> " TxHash: " <> show txHash
 
 mkDatumCacheWebSocket'
   :: LogLevel
