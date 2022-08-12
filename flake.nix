@@ -294,7 +294,7 @@
         nixpkgs.lib.composeManyExtensions
         (nixpkgs.lib.attrValues self.overlays);
 
-      overlays = with inputs;  {
+      overlays = with inputs; {
         purescript = final: prev: {
           easy-ps = import inputs.easy-purescript-nix { pkgs = final; };
           purescriptProject = import ./nix { pkgs = final; };

@@ -13,7 +13,10 @@ rec {
       tag = "1.35.2";
     };
     ogmios = { port = 1337; };
-    ctlServer = { port = 8081; };
+    ctlServer = {
+      enable = true;
+      port = 8081;
+    };
     postgres = {
       # User-facing port on host machine.
       # Can be set to null in order to not bind postgres port to host.
@@ -91,7 +94,6 @@ rec {
       nodeDbVol = "node-${config.network.name}-db";
       nodeIpcVol = "node-${config.network.name}-ipc";
       nodeSocketPath = "/ipc/node.socket";
-      server = pkgs.ctl-server;
       bindPort = port: "${toString port}:${toString port}";
       defaultServices = with config; {
         cardano-node = {
@@ -134,21 +136,6 @@ rec {
                   --port ${toString ogmios.port} \
                   --node-socket /ipc/node.socket \
                   --node-config /config/cardano-node/config.json
-              ''
-            ];
-          };
-        };
-        ctl-server = {
-          service = {
-            useHostStore = true;
-            ports = [ (bindPort ctlServer.port) ];
-            depends_on = [ "ogmios" ];
-            volumes = [ "${nodeIpcVol}:/ipc" ];
-            command = [
-              "${pkgs.bash}/bin/sh"
-              "-c"
-              ''
-                ${server}/bin/ctl-server --port ${toString ctlServer.port}
               ''
             ];
           };
@@ -202,6 +189,22 @@ rec {
               ];
             };
           };
+      } // pkgs.lib.optionalAttrs ctlServer.enable {
+        ctl-server = {
+          service = {
+            useHostStore = true;
+            ports = [ (bindPort ctlServer.port) ];
+            depends_on = [ "ogmios" ];
+            volumes = [ "${nodeIpcVol}:/ipc" ];
+            command = [
+              "${pkgs.bash}/bin/sh"
+              "-c"
+              ''
+                ${pkgs.ctl-server}/bin/ctl-server --port ${toString ctlServer.port}
+              ''
+            ];
+          };
+        };
       };
     in
     {
