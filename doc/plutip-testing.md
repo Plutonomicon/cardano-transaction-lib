@@ -6,6 +6,7 @@
 
 - [Architecture](#architecture)
 - [Testing contracts](#testing-contracts)
+  - [Testing with Nix](#testing-with-nix)
 - [Limitations](#limitations)
 
 ## Architecture
@@ -19,7 +20,7 @@ CTL depends on a number of binaries in the `$PATH` to execute Plutip tests:
 
 If you plan on using CTL's `applyArgs` effect, you must also ensure the following is on your `$PATH`:
 
-- `ctl-server`: a server-side part of CTL itself.
+- `ctl-server`: a server-side part of CTL itself
 
 All of these are provided by CTL's `overlays.runtime` (and are provided in CTL's own `devShell`). You **must** use the `runtime` overlay or otherwise make the services available in your package set (e.g. by defining them within your own `overlays` when instantiating `nixpkgs`) as `purescriptProject.runPlutipTest` expects all of them.
 
@@ -65,6 +66,27 @@ runPlutipContract config distribution \(alice /\ bob) -> do
 In most cases at least two UTxOs per wallet are needed (one of which will be used as collateral, so it should exceed `5_000_000` Lovelace).
 
 Note that during execution WebSocket connection errors may occur. However, payloads are re-sent after these errors, so you can ignore them. [These errors will be suppressed in the future.](https://github.com/Plutonomicon/cardano-transaction-lib/issues/670).
+
+### Testing with Nix
+
+You can run Plutip tests via CTL's `purescriptProject` as well. After creating your project, you can use the `runPlutipTest` attribute to create a Plutip testing environment that is suitable for use with your flake's `checks`. An example:
+
+```nix
+{
+  some-plutip-test = project.runPlutipTest {
+    name = "some-plutip-test";
+    testMain = "MyProject.Test.Plutip";
+    # If you don't need `ctl-server`, you can set the following
+    # to `false`. Make sure to leave it as `true` (the default)
+    # if you are calling `applyArgs` in your contracts. This
+    # must match your `PlutipConfig` -- if `ctlServerConfig` is
+    # `Nothing`, `ctl-server` will not be spawned
+    withCtlServer = false;
+    # The rest of the arguments are passed through to `runPursTest`:
+    env = { SOME_ENV_VAR = "${some-value}"; };
+  };
+}
+```
 
 ## Limitations
 
