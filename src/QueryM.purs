@@ -390,8 +390,12 @@ getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
 --------------------------------------------------------------------------------
 
 submitTxOgmios :: TxHash -> CborBytes -> QueryM Ogmios.SubmitTxR
-submitTxOgmios txHash tx =
-  mkOgmiosRequest Ogmios.submitTxCall _.submit (txHash /\ tx)
+submitTxOgmios txHash tx = do
+  ws <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
+  listeners <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
+  logLevel <- asks $ _.logLevel <<< _.config
+  let inp = RequestInputToStoreInPendingRequests (txHash /\ tx)
+  liftAff $ mkRequestAff' listeners ws logLevel Ogmios.submitTxCall _.submit inp
 
 evaluateTxOgmios :: CborBytes -> QueryM Ogmios.TxEvaluationR
 evaluateTxOgmios = mkOgmiosRequest Ogmios.evaluateTxCall _.evaluate
@@ -772,24 +776,29 @@ resendPendingSubmitRequests ogmiosWs datumCacheWs lvl sendRequest dim pr = do
       Nothing ->
         liftEffect $ traverse_ sendRequest submitPendingRequests
       Just ms -> do
+        delay (wrap 5000.0)
         let (pr' :: Array _) = Map.toUnfoldable submitPendingRequests
-        for_ pr' \(listenerId /\ requestBody /\ txHash /\ _) -> do
-          txInMempool <- mempoolSnapshotHasTxAff ogmiosWs lvl ms txHash
-          logger "Tx in the mempool" txInMempool txHash
-          retrySubmitTxRef <- liftEffect $ Ref.new false
-          unless txInMempool do
-            txConfirmed <- checkTxByHashAff datumCacheWs lvl txHash
-            logger "Tx confirmed" txConfirmed txHash
-            unless txConfirmed $ liftEffect do
-              Ref.write true retrySubmitTxRef
-              sendRequest (requestBody /\ txHash)
-          retrySubmitTx <- liftEffect $ Ref.read retrySubmitTxRef
-          unless retrySubmitTx $ liftEffect do
-            Ref.modify_ (Map.delete listenerId) pr
-            dispatchMap <- Ref.read dim
-            Ref.modify_ (MultiMap.delete listenerId) dim
-            MultiMap.lookup listenerId dispatchMap #
-              maybe (pure unit) (_ $ Right $ Ogmios.SubmitTxSuccess txHash)
+        for_ pr' \(listenerId /\ requestBody /\ requestInput) ->
+          case requestInput of
+            Nothing ->
+              liftEffect $ sendRequest (requestBody /\ unit)
+            Just (txHash /\ _) -> do
+              txInMempool <- mempoolSnapshotHasTxAff ogmiosWs lvl ms txHash
+              logger "Tx in the mempool" txInMempool txHash
+              retrySubmitTxRef <- liftEffect $ Ref.new false
+              unless txInMempool do
+                txConfirmed <- checkTxByHashAff datumCacheWs lvl txHash
+                logger "Tx confirmed" txConfirmed txHash
+                unless txConfirmed $ liftEffect do
+                  Ref.write true retrySubmitTxRef
+                  sendRequest (requestBody /\ unit)
+              retrySubmitTx <- liftEffect $ Ref.read retrySubmitTxRef
+              unless retrySubmitTx $ liftEffect do
+                Ref.modify_ (Map.delete listenerId) pr
+                dispatchMap <- Ref.read dim
+                Ref.modify_ (MultiMap.delete listenerId) dim
+                MultiMap.lookup listenerId dispatchMap #
+                  maybe (pure unit) (_ $ Right $ Ogmios.SubmitTxSuccess txHash)
 
 mkDatumCacheWebSocket'
   :: LogLevel
@@ -884,7 +893,20 @@ listeners :: forall (listeners :: Type). WebSocket listeners -> listeners
 listeners (WebSocket _ ls) = ls
 
 type PendingRequests (request :: Type) =
-  Ref (Map ListenerId (RequestBody /\ request))
+  Ref (Map ListenerId (RequestBody /\ Maybe request))
+
+data RequestInput (request :: Type)
+  = RequestInput request
+  | RequestInputToStoreInPendingRequests request
+
+getRequestInput :: forall (request :: Type). RequestInput request -> request
+getRequestInput (RequestInput inp) = inp
+getRequestInput (RequestInputToStoreInPendingRequests inp) = inp
+
+getRequestInputToStore
+  :: forall (request :: Type). RequestInput request -> Maybe request
+getRequestInputToStore (RequestInput _) = Nothing
+getRequestInputToStore (RequestInputToStoreInPendingRequests inp) = Just inp
 
 type RequestBody = String
 
@@ -916,7 +938,7 @@ type ListenerSet (request :: Type) (response :: Type) =
       -> Effect Unit
   , removeMessageListener :: ListenerId -> Effect Unit
   -- ^ Removes ID from dispatch map and pending requests queue.
-  , addRequest :: ListenerId -> RequestBody /\ request -> Effect Unit
+  , addRequest :: ListenerId -> RequestBody /\ Maybe request -> Effect Unit
   -- ^ Saves request body until the request is fulfilled. The body is used
   --  to replay requests in case of a WebSocket failure.
   }
@@ -1012,8 +1034,22 @@ mkRequestAff
   -> (listeners -> ListenerSet request response)
   -> request
   -> Aff response
-mkRequestAff listeners' webSocket logLevel jsonWspCall getLs inp = do
-  { body, id } <- liftEffect $ JsonWsp.buildRequest jsonWspCall inp
+mkRequestAff listeners' webSocket logLevel jsonWspCall getLs =
+  mkRequestAff' listeners' webSocket logLevel jsonWspCall getLs
+    <<< RequestInput
+
+mkRequestAff'
+  :: forall (request :: Type) (response :: Type) (listeners :: Type)
+   . listeners
+  -> JsWebSocket
+  -> LogLevel
+  -> JsonWsp.JsonWspCall request response
+  -> (listeners -> ListenerSet request response)
+  -> RequestInput request
+  -> Aff response
+mkRequestAff' listeners' webSocket logLevel jsonWspCall getLs inp = do
+  { body, id } <-
+    liftEffect $ JsonWsp.buildRequest jsonWspCall (getRequestInput inp)
   let
     respLs :: ListenerSet request response
     respLs = getLs listeners'
@@ -1030,8 +1066,11 @@ mkRequestAff listeners' webSocket logLevel jsonWspCall getLs inp = do
               Left (ListenerCancelled _) -> pure unit
               _ -> cont (lmap dispatchErrorToError result)
         )
-      respLs.addRequest id (sBody /\ inp)
+      respLs.addRequest id (sBody /\ getRequestInputToStore inp)
       _wsSend webSocket (logString logLevel Debug) sBody
+      -- Uncomment this code fragment to test `SubmitTx` request resend logic:
+      -- when (isJust $ getRequestInputToStore inp) $
+      --   _wsReconnect webSocket
       pure $ Canceler $ \err -> do
         liftEffect $ respLs.removeMessageListener id
         liftEffect $ throwError $ err
