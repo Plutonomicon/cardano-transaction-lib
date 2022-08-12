@@ -21,8 +21,6 @@ import Contract.Monad
   , liftContractM
   , runContractInEnv
   )
-import Control.Monad.Error.Class (withResource)
-import Data.Array (foldr)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt as BigInt
@@ -39,7 +37,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (Aff, Milliseconds(Milliseconds))
+import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket)
 import Effect.Aff.Class (liftAff)
 import Effect.Aff.Retry
   ( RetryPolicy
@@ -128,33 +126,33 @@ withPlutipContractEnv plutipCfg distr cont = do
   where
   withPlutipServer :: Aff a -> Aff a
   withPlutipServer =
-    withResource (startPlutipServer plutipCfg)
+    bracket (startPlutipServer plutipCfg)
       (stopChildProcessWithPort plutipCfg.port) <<< const
 
   withPlutipCluster
     :: ((PrivatePaymentKey /\ ClusterStartupParameters) -> Aff a) -> Aff a
-  withPlutipCluster = withResource
+  withPlutipCluster = bracket
     (startPlutipCluster plutipCfg distr)
     (const $ void $ stopPlutipCluster plutipCfg)
 
   withPostgres :: ClusterStartupParameters -> Aff a -> Aff a
   withPostgres response =
-    withResource (startPostgresServer plutipCfg.postgresConfig response)
+    bracket (startPostgresServer plutipCfg.postgresConfig response)
       (stopChildProcessWithPort plutipCfg.postgresConfig.port) <<< const
 
   withOgmios :: ClusterStartupParameters -> Aff a -> Aff a
   withOgmios response =
-    withResource (startOgmios plutipCfg response)
+    bracket (startOgmios plutipCfg response)
       (stopChildProcessWithPort plutipCfg.ogmiosConfig.port) <<< const
 
   withOgmiosDatumCache :: ClusterStartupParameters -> Aff a -> Aff a
   withOgmiosDatumCache response =
-    withResource (startOgmiosDatumCache plutipCfg response)
+    bracket (startOgmiosDatumCache plutipCfg response)
       (stopChildProcessWithPort plutipCfg.ogmiosDatumCacheConfig.port) <<< const
 
   withCtlServer :: Aff a -> Aff a
   withCtlServer =
-    withResource (startCtlServer plutipCfg)
+    bracket (startCtlServer plutipCfg)
       (stopChildProcessWithPort plutipCfg.ctlServerConfig.port) <<< const
 
   withWallets
@@ -177,7 +175,7 @@ withPlutipContractEnv plutipCfg distr cont = do
     cc wallets
 
   withContractEnv :: (ContractEnv () -> Aff a) -> Aff a
-  withContractEnv = withResource (mkClusterContractEnv plutipCfg)
+  withContractEnv = bracket (mkClusterContractEnv plutipCfg)
     (liftEffect <<< stopContractEnv)
 
   -- a version of Contract.Monad.stopContractEnv without a compile-time warning
@@ -262,7 +260,7 @@ startPlutipCluster cfg utxoDistribution = do
 ourInitialUtxos :: InitialUTxODistribution -> InitialUTxOs
 ourInitialUtxos utxoDistribution =
   let
-    total = foldr (sum >>> add) zero utxoDistribution
+    total = Array.foldr (sum >>> add) zero utxoDistribution
   in
     [ -- Take the total value of the utxos and add some extra on top
       -- of it to cover the possible transaction fees. Also make sure

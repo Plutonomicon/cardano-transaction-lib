@@ -52,7 +52,6 @@ import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value as Value
 import Contract.Wallet (KeyWallet, withKeyWallet)
-import Control.Monad.Error.Class (withResource)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
 import Data.BigInt as BigInt
@@ -63,7 +62,7 @@ import Data.Traversable (traverse_)
 import Data.Tuple (snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import Effect.Aff (launchAff_)
+import Effect.Aff (launchAff_, bracket)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (throw)
@@ -103,7 +102,7 @@ main = launchAff_ do
   Utils.interpretWithConfig
     -- we don't want to exit because we need to clean up after failure by
     -- timeout
-    defaultConfig { timeout = Just $ wrap 30_000.0, exit = true }
+    defaultConfig { timeout = Just $ wrap 30_000.0, exit = false }
     do
       suite
       UtxoDistribution.suite
@@ -112,7 +111,7 @@ suite :: TestPlanM Unit
 suite = do
   group "Plutip" do
     test "startPlutipCluster / stopPlutipCluster" do
-      withResource (startPlutipServer config)
+      bracket (startPlutipServer config)
         (stopChildProcessWithPort config.port) $ const do
         startRes <- startPlutipCluster config unit
         liftEffect $ Console.log $ "startPlutipCluster: " <> show (snd startRes)
