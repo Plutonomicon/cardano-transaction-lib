@@ -43,11 +43,8 @@ nativeScriptHash ns = wrap <<< Hashing.nativeScriptHash <$> convertNativeScript
   ns
 
 -- | `SetChoice` is an internal type representing internal state of
--- | `getMaximumSigners` algorithm. There are a number of values (key hashes)
--- | from which we must choose exactly `choice`. It's like a suspended `NOfK`
--- | choice. We track the alternatives alongside their count to adjust for
--- | possible duplicates in `allChoice`.
-type SetChoice a = Array { set :: Set a, choice :: Int }
+-- | `getMaximumSigners` algorithm.
+type SetChoice a = Array { set :: Set a, size :: Int }
 
 anyChoice :: forall a. Ord a => SetChoice a -> SetChoice a -> SetChoice a
 anyChoice as bs = Array.nub $ as <> bs
@@ -56,15 +53,9 @@ allChoice :: forall a. Ord a => SetChoice a -> SetChoice a -> SetChoice a
 allChoice as bs = Array.concat do
   a <- as
   b <- bs
-  pure
-    -- We want to select a.choice from a.set and b.choice from b.set,
-    -- but there are equal elements that count for both if we select them.
-    -- So to satisfy the requirement we must uncount the elements present in
-    -- both sets.
-    [ { choice: a.choice + b.choice - Set.size (Set.intersection a.set b.set)
-      , set: a.set <> b.set
-      }
-    ]
+  let
+    set = a.set <> b.set
+  pure [ { size: Set.size set, set } ]
 
 subsetsOfLength :: forall a. Int -> Array a -> Array (Array a)
 subsetsOfLength n =
@@ -85,18 +76,21 @@ sublists n xs = List.take (List.length xs - n + 1) $ sublists' n xs
 -- | of already known signers to be ignored in this function.
 getMaximumSigners :: Set Ed25519KeyHash -> NativeScript -> Int
 getMaximumSigners alreadyCounted =
-  choices >>> maximumBy (compare `on` _.choice) >>> map _.choice >>> fromMaybe 0
+  sizes >>> maximumBy (compare `on` _.size) >>> map _.size >>> fromMaybe 0
   where
-  choices :: NativeScript -> SetChoice Ed25519KeyHash
-  choices = case _ of
+  sizes :: NativeScript -> SetChoice Ed25519KeyHash
+  sizes = case _ of
     ScriptPubkey kh
-      | Set.member kh alreadyCounted -> [ { choice: 0, set: Set.empty } ]
-      | otherwise -> [ { choice: 1, set: Set.singleton kh } ]
-    ScriptAll nss -> foldr allChoice [ { choice: 0, set: Set.empty } ]
-      (choices <$> nss)
-    ScriptAny nss -> foldr anyChoice [ { choice: 0, set: Set.empty } ]
-      (choices <$> nss)
-    ScriptNOfK n nss -> choices
+      | Set.member kh alreadyCounted -> emptySetChoice
+      | otherwise -> [ { size: 1, set: Set.singleton kh } ]
+    ScriptAll nss -> foldr allChoice emptySetChoice
+      (sizes <$> nss)
+    ScriptAny nss -> foldr anyChoice emptySetChoice
+      (sizes <$> nss)
+    ScriptNOfK n nss -> sizes
       (ScriptAny $ map ScriptAll (subsetsOfLength n nss))
-    TimelockStart _ -> [ { choice: 0, set: Set.empty } ]
-    TimelockExpiry _ -> [ { choice: 0, set: Set.empty } ]
+    TimelockStart _ -> emptySetChoice
+    TimelockExpiry _ -> emptySetChoice
+
+emptySetChoice :: forall a. SetChoice a
+emptySetChoice = [ { size: 0, set: Set.empty } ]
