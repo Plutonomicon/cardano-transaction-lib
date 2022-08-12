@@ -44,7 +44,7 @@ nativeScriptHash ns = wrap <<< Hashing.nativeScriptHash <$> convertNativeScript
 
 -- | `SetChoice` is an internal type representing internal state of
 -- | `getMaximumSigners` algorithm.
-type SetChoice a = Array { set :: Set a, size :: Int }
+type SetChoice a = Array (Set a)
 
 anyChoice :: forall a. Ord a => SetChoice a -> SetChoice a -> SetChoice a
 anyChoice as bs = Array.nub $ as <> bs
@@ -53,9 +53,7 @@ allChoice :: forall a. Ord a => SetChoice a -> SetChoice a -> SetChoice a
 allChoice as bs = do
   a <- as
   b <- bs
-  let
-    set = a.set <> b.set
-  pure { size: Set.size set, set }
+  pure $ a <> b
 
 subsetsOfLength :: forall a. Int -> Array a -> Array (Array a)
 subsetsOfLength n =
@@ -76,13 +74,13 @@ sublists n xs = List.take (List.length xs - n + 1) $ sublists' n xs
 -- | of already known signers to be ignored in this function.
 getMaximumSigners :: Set Ed25519KeyHash -> NativeScript -> Int
 getMaximumSigners alreadyCounted =
-  sizes >>> maximumBy (compare `on` _.size) >>> map _.size >>> fromMaybe 0
+  sizes >>> maximumBy (compare `on` Set.size) >>> map Set.size >>> fromMaybe 0
   where
   sizes :: NativeScript -> SetChoice Ed25519KeyHash
   sizes = case _ of
     ScriptPubkey kh
       | Set.member kh alreadyCounted -> emptySetChoice
-      | otherwise -> [ { size: 1, set: Set.singleton kh } ]
+      | otherwise -> [ Set.singleton kh ]
     ScriptAll nss -> foldr allChoice emptySetChoice
       (sizes <$> nss)
     ScriptAny nss -> foldr anyChoice emptySetChoice
@@ -93,4 +91,4 @@ getMaximumSigners alreadyCounted =
     TimelockExpiry _ -> emptySetChoice
 
 emptySetChoice :: forall a. SetChoice a
-emptySetChoice = [ { size: 0, set: Set.empty } ]
+emptySetChoice = [ Set.empty ]
