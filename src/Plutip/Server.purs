@@ -9,7 +9,12 @@ module Plutip.Server
 
 import Prelude
 
-import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
+import Aeson
+  ( decodeAeson
+  , encodeAeson
+  , parseJsonStringToAeson
+  , stringifyAeson
+  )
 import Affjax as Affjax
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
@@ -26,7 +31,7 @@ import Data.Posix.Signal (Signal(SIGINT))
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (for, foldMap)
-import Data.Tuple.Nested ((/\))
+import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
@@ -105,7 +110,7 @@ withPlutipContractEnv plutipCfg distr cont = do
         withPostgres response
           $ withOgmios response
           $ withOgmiosDatumCache response
-          $ withCtlServer
+          $ withMCtlServer
           $ withContractEnv (flip cont wallets)
   where
   withPlutipServer :: Aff a -> Aff a
@@ -137,10 +142,11 @@ withPlutipContractEnv plutipCfg distr cont = do
     bracket (startOgmiosDatumCache plutipCfg response)
       (stopChildProcessWithPort plutipCfg.ogmiosDatumCacheConfig.port) <<< const
 
-  withCtlServer :: Aff a -> Aff a
-  withCtlServer =
-    bracket (startCtlServer plutipCfg)
-      (stopChildProcessWithPort plutipCfg.ctlServerConfig.port) <<< const
+  withMCtlServer :: Aff a -> Aff a
+  withMCtlServer x = case plutipCfg.ctlServerConfig of
+    Nothing -> x
+    Just config -> const x # bracket (startCtlServer plutipCfg config.port)
+      (stopChildProcessWithPort config.port)
 
   withWallets :: ClusterStartupParameters -> (wallets -> Aff a) -> Aff a
   withWallets response cc = case decodeWallets response.privateKeys of
@@ -161,13 +167,13 @@ withPlutipContractEnv plutipCfg distr cont = do
 configCheck :: PlutipConfig -> Aff Unit
 configCheck cfg = do
   let
+    services :: Array (UInt /\ String)
     services =
       [ cfg.port /\ "plutip-server"
       , cfg.ogmiosConfig.port /\ "ogmios"
       , cfg.ogmiosDatumCacheConfig.port /\ "ogmios-datum-cache"
-      , cfg.ctlServerConfig.port /\ "ctl-server"
       , cfg.postgresConfig.port /\ "postgres"
-      ]
+      ] <> foldMap (pure <<< (_ /\ "ctl-server") <<< _.port) cfg.ctlServerConfig
   occupiedServices <- Array.catMaybes <$> for services \(port /\ service) -> do
     isPortAvailable port <#> if _ then Nothing else Just (port /\ service)
   unless (Array.null occupiedServices) do
@@ -175,6 +181,7 @@ configCheck cfg = do
       "Unable to run the following services, because the ports are occupied:\
       \\n" <> foldMap printServiceEntry occupiedServices
   where
+  printServiceEntry :: UInt /\ String -> String
   printServiceEntry (port /\ service) =
     "- " <> service <> " (port: " <> show (UInt.toInt port) <> ")\n"
 
@@ -412,12 +419,12 @@ mkClusterContractEnv plutipCfg = do
     , extraConfig: {}
     }
 
-startCtlServer :: PlutipConfig -> Aff ChildProcess
-startCtlServer cfg = do
+startCtlServer :: PlutipConfig -> UInt -> Aff ChildProcess
+startCtlServer cfg serverPort = do
   let
     ctlServerArgs =
       [ "--port"
-      , UInt.toString cfg.ctlServerConfig.port
+      , UInt.toString serverPort
       , "--ogmios-host"
       , cfg.ogmiosConfig.host
       , "--ogmios-port"
