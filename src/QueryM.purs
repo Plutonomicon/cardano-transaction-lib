@@ -501,7 +501,10 @@ applyArgs script args = asks (_.ctlServerConfig <<< _.config) >>= case _ of
       $ Left
       $
         ClientOtherError
-          "The `ctl-server` service is required to call `applyArgs`"
+          "The `ctl-server` service is required to call `applyArgs`. Please \
+          \provide a `Just` value in `ConfigParams.ctlServerConfig` and make \
+          \sure that the `ctl-server` service is running and available at the \
+          \provided host and port"
   Just config -> case traverse plutusDataToAeson args of
     Nothing -> pure $ Left $ ClientEncodingError "Failed to convert script args"
     Just ps -> do
