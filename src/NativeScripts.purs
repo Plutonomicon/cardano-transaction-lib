@@ -66,10 +66,6 @@ allChoice as bs = Array.concat do
       }
     ]
 
-subsets :: forall a. List a -> List (List a)
-subsets Nil = List.singleton Nil
-subsets (Cons x xs) = map (Cons x) (subsets xs) <> subsets xs
-
 subsetsOfLength :: forall a. Int -> Array a -> Array (Array a)
 subsetsOfLength n =
   List.fromFoldable >>> sublists n >>> List.toUnfoldable >>> map
