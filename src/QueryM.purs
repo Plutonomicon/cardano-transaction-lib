@@ -129,7 +129,6 @@ import JsWebSocket
   , _wsClose
   , _wsReconnect
   , _wsSend
-  , _wsWatch
   )
 import QueryM.DatumCacheWsp (GetDatumByHashR, GetDatumsByHashesR, GetTxByHashR)
 import QueryM.DatumCacheWsp as DcWsp
@@ -641,9 +640,6 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
       logger Debug "Ogmios Connection established"
       Ref.write true hasConnectedOnceRef
       _removeOnWsError ws firstConnectionErrorRef
-      _wsWatch ws (logger Debug) do
-        logger Debug "Ogmios WebSocket terminated by timeout. Reconnecting..."
-        _wsReconnect ws
       _onWsMessage ws (logger Debug) $ defaultMessageListener lvl
         messageDispatch
       void $ _onWsError ws \err -> do
@@ -721,10 +717,6 @@ mkDatumCacheWebSocket' lvl serverCfg continue = do
       logger Debug "Ogmios Datum Cache Connection established"
       Ref.write true hasConnectedOnceRef
       _removeOnWsError ws firstConnectionErrorRef
-      _wsWatch ws (logger Debug) do
-        logger Debug $ "Ogmios Datum Cache WebSocket terminated by " <>
-          "timeout. Reconnecting..."
-        _wsReconnect ws
       _onWsMessage ws (logger Debug) $ defaultMessageListener lvl
         messageDispatch
       void $ _onWsError ws \err -> do
