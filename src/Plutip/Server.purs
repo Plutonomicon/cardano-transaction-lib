@@ -16,7 +16,6 @@ import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
 import Contract.Monad (Contract, ContractEnv(ContractEnv), runContractInEnv)
-import Control.Monad.Error.Class (withResource)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left), either)
@@ -31,7 +30,7 @@ import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (Aff, Milliseconds(Milliseconds))
+import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket)
 import Effect.Aff.Class (liftAff)
 import Effect.Aff.Retry
   ( RetryPolicy
@@ -111,11 +110,11 @@ withPlutipContractEnv plutipCfg distr cont = do
   where
   withPlutipServer :: Aff a -> Aff a
   withPlutipServer =
-    withResource (startPlutipServer plutipCfg)
+    bracket (startPlutipServer plutipCfg)
       (stopChildProcessWithPort plutipCfg.port) <<< const
 
   withPlutipCluster :: (ClusterStartupParameters -> Aff a) -> Aff a
-  withPlutipCluster cc = withResource (startPlutipCluster plutipCfg distr)
+  withPlutipCluster cc = bracket (startPlutipCluster plutipCfg distr)
     (const $ void $ stopPlutipCluster plutipCfg)
     case _ of
       ClusterStartupFailure _ -> do
@@ -125,22 +124,22 @@ withPlutipContractEnv plutipCfg distr cont = do
 
   withPostgres :: ClusterStartupParameters -> Aff a -> Aff a
   withPostgres response =
-    withResource (startPostgresServer plutipCfg.postgresConfig response)
+    bracket (startPostgresServer plutipCfg.postgresConfig response)
       (stopChildProcessWithPort plutipCfg.postgresConfig.port) <<< const
 
   withOgmios :: ClusterStartupParameters -> Aff a -> Aff a
   withOgmios response =
-    withResource (startOgmios plutipCfg response)
+    bracket (startOgmios plutipCfg response)
       (stopChildProcessWithPort plutipCfg.ogmiosConfig.port) <<< const
 
   withOgmiosDatumCache :: ClusterStartupParameters -> Aff a -> Aff a
   withOgmiosDatumCache response =
-    withResource (startOgmiosDatumCache plutipCfg response)
+    bracket (startOgmiosDatumCache plutipCfg response)
       (stopChildProcessWithPort plutipCfg.ogmiosDatumCacheConfig.port) <<< const
 
   withCtlServer :: Aff a -> Aff a
   withCtlServer =
-    withResource (startCtlServer plutipCfg)
+    bracket (startCtlServer plutipCfg)
       (stopChildProcessWithPort plutipCfg.ctlServerConfig.port) <<< const
 
   withWallets :: ClusterStartupParameters -> (wallets -> Aff a) -> Aff a
@@ -151,7 +150,7 @@ withPlutipContractEnv plutipCfg distr cont = do
     Just wallets -> cc wallets
 
   withContractEnv :: (ContractEnv () -> Aff a) -> Aff a
-  withContractEnv = withResource (mkClusterContractEnv plutipCfg)
+  withContractEnv = bracket (mkClusterContractEnv plutipCfg)
     (liftEffect <<< stopContractEnv)
 
   -- a version of Contract.Monad.stopContractEnv without a compile-time warning

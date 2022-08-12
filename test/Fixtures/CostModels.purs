@@ -4,18 +4,19 @@ module Test.Fixtures.CostModels
 
 import Prelude
 
-import Data.Map as Map
-import Data.Tuple.Nested ((/\))
 import Cardano.Types.Transaction
   ( CostModel(CostModel)
   , Costmdls(Costmdls)
   , Language(PlutusV1)
   )
+import Data.Map as Map
+import Data.Tuple.Nested ((/\))
+import Types.Int as Int
 
 costModelsFixture1 :: Costmdls
 costModelsFixture1 = Costmdls $ Map.fromFoldable
   [ PlutusV1 /\
-      ( CostModel
+      ( CostModel $ map Int.fromInt
           [ 197209
           , 0
           , 1
