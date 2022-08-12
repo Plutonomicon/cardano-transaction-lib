@@ -101,6 +101,7 @@ See https://github.com/cardano-foundation/CIPs/issues/303 for motivation
 - `Contract.Address.getWalletCollateral` now works with `KeyWallet`.
 - Removed unwanted error messages in case `WebSocket` listeners get cancelled ([#827](https://github.com/Plutonomicon/cardano-transaction-lib/issues/827))
 - Bug in `CostModel` serialization - incorrect `Int` type ([#874](https://github.com/Plutonomicon/cardano-transaction-lib/issues/874))
+- Fix excessive logging after the end of `Contract` execution ([#893](https://github.com/Plutonomicon/cardano-transaction-lib/issues/893))
 
 ## [2.0.0-alpha] - 2022-07-05
 
