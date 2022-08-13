@@ -1,4 +1,4 @@
--- | This module demonstrates how the `Contract` interface can be used to build,
+--github:neovim/neovim?dir=contrib | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a transaction. It creates a simple transaction that gets
 -- | UTxOs from the user's wallet and sends two Ada back to the same wallet address
 module Examples.Pkh2Pkh (main, example) where
@@ -8,7 +8,14 @@ import Contract.Prelude
 import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad (launchAff_, liftedE, liftedM, runContract)
+import Contract.Monad
+  ( launchAff_
+  , liftContractM
+  , liftedE
+  , liftedM
+  , runContract
+  , wrapContract
+  )
 import Contract.ScriptLookups as Lookups
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction
@@ -18,6 +25,7 @@ import Contract.Transaction
   )
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
+import Data.Array (index)
 import Data.BigInt as BigInt
 
 main :: Effect Unit
@@ -37,9 +45,12 @@ example cfg = launchAff_ do
         $ BigInt.fromInt 2_000_000
 
       lookups :: Lookups.ScriptLookups Void
-      lookups = mempty
+      lookups = Lookups.unspentOutputs utxos
 
     ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+
+    logInfo' $ "Unbalanced tx" <> show ubTx
+
     bsTx <-
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx
@@ -47,3 +58,7 @@ example cfg = launchAff_ do
     awaitTxConfirmedWithTimeout (wrap 100.0) txId
     logInfo' $ "Tx submitted successfully!"
     liftAff $ publishTestFeedback true
+
+addrToPkh :: Maybe Address -> Maybe PaymentPubKeyHash
+addrToPkh addr = (wrap <<< wrap) <$>
+  (addr >>= (addressPaymentCred >=> stakeCredentialToKeyHash))

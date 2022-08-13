@@ -3,6 +3,8 @@
 exports._getAddress = conn => () =>
   conn.getUsedAddresses().then(addrs => addrs[0]);
 
+exports._getUsedAddresses = conn => conn.getUsedAddresses;
+
 exports._getCollateral = maybe => conn => () =>
   conn.experimental.getCollateral().then(utxos => {
     return utxos.length ? maybe.just(utxos) : maybe.nothing;

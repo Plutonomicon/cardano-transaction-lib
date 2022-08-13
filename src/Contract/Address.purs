@@ -7,6 +7,7 @@ module Contract.Address
   , addressWithNetworkTagToBech32
   , addressToBech32
   , getWalletAddress
+  , getUsedAddresses
   , getWalletCollateral
   , module ByteArray
   , module ExportAddress
@@ -122,6 +123,19 @@ getWalletAddress = do
       <<< wrapContract
       <<< pure
       <<< toPlutusAddress
+
+getUsedAddresses
+  :: forall (r :: Row Type). Contract r (Maybe (Array Address))
+getUsedAddresses = do
+  mbAddrs <- wrapContract $ QueryM.getUsedAddresses
+  for mbAddrs
+    ( traverse
+        ( liftedM "getUsedAddresses: failed to deserialize Address"
+            <<< wrapContract
+            <<< pure
+            <<< toPlutusAddress
+        )
+    )
 
 -- | Get the collateral of the browser wallet. This collateral will vary
 -- | depending on the wallet.
