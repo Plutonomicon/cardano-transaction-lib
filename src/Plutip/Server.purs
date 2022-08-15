@@ -51,7 +51,6 @@ import Node.ChildProcess
 import Plutip.PortCheck (isPortAvailable)
 import Plutip.Spawn
   ( NewOutputAction(Success, NoOp)
-  , killOnExit
   , spawnAndWaitForOutput
   )
 import Plutip.Types
@@ -243,7 +242,6 @@ startOgmios cfg params = do
   -- waiting for Ogmios first.
   child <- spawnAndWaitForOutput "ogmios" ogmiosArgs defaultSpawnOptions
     $ pure Success
-  liftEffect $ killOnExit child
   pure child
   where
   ogmiosArgs :: Array String
@@ -265,7 +263,6 @@ startPlutipServer :: PlutipConfig -> Aff ChildProcess
 startPlutipServer cfg = do
   p <- liftEffect $ spawn "plutip-server" [ "-p", UInt.toString cfg.port ]
     defaultSpawnOptions
-  liftEffect $ killOnExit p
   -- We are trying to call stopPlutipCluster endpoint to ensure that
   -- `plutip-server` has started.
   void
@@ -296,7 +293,6 @@ startPostgresServer pgConfig _ = do
     , postgresSocket
     ]
     defaultSpawnOptions
-  liftEffect $ killOnExit pgChildProcess
   void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
     $ const
     $ liftEffect
@@ -372,7 +368,6 @@ startOgmiosDatumCache cfg _params = do
       -- Wait for "Intersection found" string in the output
       $ String.indexOf (Pattern "Intersection found")
           >>> maybe NoOp (const Success)
-  liftEffect $ killOnExit child
   pure child
 
 mkClusterContractEnv
@@ -427,7 +422,6 @@ startCtlServer cfg = do
     -- Wait for "Successfully connected to Ogmios" string in the output
     $ String.indexOf (Pattern "Successfully connected to Ogmios")
         >>> maybe NoOp (const Success)
-  liftEffect $ killOnExit child
   pure child
 
 defaultRetryPolicy :: RetryPolicy

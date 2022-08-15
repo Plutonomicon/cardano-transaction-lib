@@ -4,7 +4,6 @@
 module Plutip.Spawn
   ( NewOutputAction(NoOp, Success, Cancel)
   , spawnAndWaitForOutput
-  , killOnExit
   ) where
 
 import Prelude
@@ -76,15 +75,3 @@ spawnAndWaitForOutput' cmd args opts filter cont = do
             $ "Process cancelled because output received: " <> str
         _ -> pure unit
   pure $ Canceler $ const $ liftEffect $ kill SIGINT child
-
--- | Kill child process when current process exits. Assumes that given process
--- | is still running.
-killOnExit :: ChildProcess -> Effect Unit
-killOnExit child = do
-  aliveRef <- Ref.new true
-  ChildProcess.onExit child \_ -> do
-    Ref.write false aliveRef
-  Process.onExit \_ -> do
-    alive <- Ref.read aliveRef
-    when alive do
-      kill SIGINT child
