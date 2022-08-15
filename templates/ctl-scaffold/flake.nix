@@ -28,8 +28,8 @@
         inherit system;
         overlays = [
           ctl.overlays.purescript
-          ctl.overlays.runtime
           ctl.overlays.ctl-server
+          ctl.overlays.runtime
         ];
       };
       psProjectFor = pkgs:
@@ -116,8 +116,12 @@
             '';
         });
 
-      devShells = perSystem (system: {
-        default = (psProjectFor system).devShell;
-      });
+      devShells = perSystem (system:
+        let
+          pkgs = nixpkgsFor system;
+        in
+        {
+          default = (psProjectFor pkgs).devShell;
+        });
     };
 }
