@@ -302,50 +302,66 @@
         # Including it by default in the `overlays.runtime` also requires that
         # `prev` include `haskell-nix.overlay` and `iohk-nix.overlays.crypto`;
         # this is not ideal to force upon all users
-        ctl-server = final: prev: {
-          ctl-server =
-            (hsProjectFor final).hsPkgs.ctl-server.components.exes.ctl-server;
-        }
-        # if `haskell-nix.overlay` has not been applied, we cannot use the
-        # package set to build the `hsProjectFor`. We don't want to always
-        # add haskell.nix's overlay or use the `ctl-server` from our own
-        # `outputs.packages` because this might lead to conflicts with the
-        # `hackage.nix` version being used (this might also happen with the
-        # Ogmios and Plutip packages, but at least we have direct control over
-        # our own haskell.nix project)
-        #
-        # We can check for the necessary attribute and then apply the overlay
-        # if necessary
-        // nixpkgs.lib.optionalAttrs
-          (!(prev ? haskell-nix))
-          (haskell-nix.overlay final prev)
-        # Similarly, we need to make sure that `libsodium-vrf` is available
-        # for the Haskell server
-        // nixpkgs.lib.optionalAttrs
-          (!(prev ? libsodium-vrf))
-          (iohk-nix.overlays.crypto final prev)
-        ;
-        runtime = final: prev:
-          let
-            inherit (prev) system;
-          in
-          {
-            plutip-server =
-              inputs.plutip.packages.${system}."plutip:exe:plutip-server";
-            ogmios-datum-cache =
-              inputs.ogmios-datum-cache.defaultPackage.${system};
-            ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
-            buildCtlRuntime = buildCtlRuntime final;
-            launchCtlRuntime = launchCtlRuntime final;
-            inherit cardano-configurations;
-          } // nixpkgs.lib.optionalAttrs (!(prev ? ctl-server))
-            (builtins.trace
-              (
-                "Warning: `ctl-server` has moved to `overlays.ctl-server` and"
-                + " will be removed from `overlays.runtime` soon"
-              )
-              (self.overlays.ctl-server final prev))
-        ;
+        ctl-server = nixpkgs.lib.composeManyExtensions [
+          (
+            final: prev: {
+              ctl-server =
+                (hsProjectFor final).hsPkgs.ctl-server.components.exes.ctl-server;
+            }
+          )
+          (
+            final: prev:
+              # if `haskell-nix.overlay` has not been applied, we cannot use the
+              # package set to build the `hsProjectFor`. We don't want to always
+              # add haskell.nix's overlay or use the `ctl-server` from our own
+              # `outputs.packages` because this might lead to conflicts with the
+              # `hackage.nix` version being used (this might also happen with the
+              # Ogmios and Plutip packages, but at least we have direct control over
+              # our own haskell.nix project)
+              #
+              # We can check for the necessary attribute and then apply the
+              # overlay if necessary
+              nixpkgs.lib.optionalAttrs
+                (!(prev ? haskell-nix))
+                (haskell-nix.overlay final prev)
+
+          )
+          (final: prev:
+            # Similarly, we need to make sure that `libsodium-vrf` is available
+            # for the Haskell server
+            nixpkgs.lib.optionalAttrs
+              (!(prev ? libsodium-vrf))
+              (iohk-nix.overlays.crypto final prev)
+          )
+        ];
+        runtime = nixpkgs.lib.composeManyExtensions [
+          (
+            final: prev:
+              let
+                inherit (prev) system;
+              in
+              {
+                plutip-server =
+                  inputs.plutip.packages.${system}."plutip:exe:plutip-server";
+                ogmios-datum-cache =
+                  inputs.ogmios-datum-cache.defaultPackage.${system};
+                ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
+                buildCtlRuntime = buildCtlRuntime final;
+                launchCtlRuntime = launchCtlRuntime final;
+                inherit cardano-configurations;
+              }
+          )
+          (final: prev:
+            nixpkgs.lib.optionalAttrs (!(prev ? ctl-server))
+              (builtins.trace
+                (
+                  "Warning: `ctl-server` has moved to `overlays.ctl-server` and"
+                  + " will be removed from `overlays.runtime` soon"
+                )
+                (self.overlays.ctl-server final prev))
+          )
+
+        ];
       };
 
       # flake from haskell.nix project
