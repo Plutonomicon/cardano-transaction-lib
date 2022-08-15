@@ -58,6 +58,9 @@ module QueryM.Ogmios
   , queryUtxosAtCall
   , queryUtxosCall
   , submitTxCall
+  , slotLengthFactor
+  , parseSlotLength
+  , encodeSlotLength
   ) where
 
 import Prelude
@@ -71,8 +74,9 @@ import Aeson
   , caseAesonObject
   , caseAesonString
   , decodeAeson
-  , encodeAeson'
+  , decodeJsonString
   , encodeAeson
+  , encodeAeson'
   , getField
   , getFieldOptional
   , isNull
@@ -95,6 +99,7 @@ import Cardano.Types.Value
   , mkNonAdaAsset
   , mkValue
   )
+import Contract.Prelude (Tuple(Tuple))
 import Control.Alt ((<|>))
 import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
 import Data.Array (index, singleton)
@@ -103,13 +108,23 @@ import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, hush, note)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
+import Data.Int as Int
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.String (Pattern(Pattern), indexOf, split, splitAt, uncons)
+import Data.String
+  ( Pattern(Pattern)
+  , indexOf
+  , length
+  , split
+  , splitAt
+  , take
+  , uncons
+  )
 import Data.String.Common (split) as String
+import Data.String.Utils (repeat)
 import Data.Traversable (sequence, traverse, for)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested ((/\), type (/\))
@@ -430,17 +445,55 @@ instance Show EraSummaryParameters where
 instance DecodeAeson EraSummaryParameters where
   decodeAeson = aesonObject $ \o -> do
     epochLength <- getField o "epochLength"
-    slotLength <- getField o "slotLength"
+    slotLength <- getField o "slotLength" >>= stringifyAeson >>> parseSlotLength
     safeZone <- fromMaybe zero <$> getField o "safeZone"
     pure $ wrap { epochLength, slotLength, safeZone }
+
+slotLengthFactor :: Int
+slotLengthFactor = 1000
+
+parseSlotLength :: String -> Either JsonDecodeError SlotLength
+parseSlotLength slotLengthStr = do
+  intPart /\ fracPart <- case split (Pattern ".") slotLengthStr of
+    [ intPart ] -> parseBigIntOrEmpty intPart <#> (_ /\ zero)
+    [ intPart, fracPart ] ->
+      Tuple
+        <$> parseBigIntOrEmpty intPart
+        <*> (parseBigIntOrEmpty =<< formatFracPart fracPart)
+    _ -> Left $ TypeMismatch $
+      "Couldn't parse slotLength: " <> slotLengthStr
+  pure $ wrap $ intPart * BigInt.fromInt slotLengthFactor + fracPart
+  where
+  parseBigIntOrEmpty :: String -> Either JsonDecodeError BigInt
+  parseBigIntOrEmpty = case _ of
+    "" -> Right zero
+    x -> decodeJsonString x
+
+  formatFracPart :: String -> Either JsonDecodeError String
+  formatFracPart x = note (TypeMismatch "Could not format fraction part")
+    let
+      len = length x
+      goalLen = 3
+    in
+      if len <= goalLen then (x <> _) <$> repeat (goalLen - len) "0"
+      else Just $ take goalLen x
 
 instance EncodeAeson EraSummaryParameters where
   encodeAeson' (EraSummaryParameters { epochLength, slotLength, safeZone }) =
     encodeAeson'
       { "epochLength": epochLength
-      , "slotLength": slotLength
+      , "slotLength": encodeSlotLength slotLength
       , "safeZone": safeZone
       }
+
+encodeSlotLength :: SlotLength -> Number
+encodeSlotLength (SlotLength sl) =
+  let
+    fracPart = BigInt.toNumber (sl `mod` BigInt.fromInt slotLengthFactor) /
+      Int.toNumber slotLengthFactor
+    intPart = BigInt.toNumber $ sl / BigInt.fromInt slotLengthFactor
+  in
+    intPart + fracPart
 
 -- | An epoch number or length. [ 0 .. 18446744073709552000 ]
 newtype EpochLength = EpochLength BigInt
@@ -454,7 +507,7 @@ derive newtype instance EncodeAeson EpochLength
 instance Show EpochLength where
   show (EpochLength el) = showWithParens "EpochLength" el
 
--- | A slot length, in seconds <= 18446744073709552000
+-- | A slot length, in milliseconds <= 18446744073709552000000
 newtype SlotLength = SlotLength BigInt
 
 derive instance Generic SlotLength _

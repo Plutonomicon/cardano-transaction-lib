@@ -105,12 +105,7 @@ import Effect (Effect)
 import Effect.Class (liftEffect)
 import Foreign.Object (Object)
 import FromData (class FromData, genericFromData)
-import Helpers
-  ( liftEither
-  , liftM
-  , mkErrorRecord
-  , showWithParens
-  )
+import Helpers (liftEither, liftM, mkErrorRecord, showWithParens)
 import Partial.Unsafe (unsafePartial)
 import Plutus.Types.DataSchema
   ( class HasPlutusSchema
@@ -916,7 +911,7 @@ slotFromRelSlot
 -- | Get SlotLength in Milliseconds
 getSlotLength :: EraSummary -> BigInt
 getSlotLength (EraSummary { parameters }) =
-  unwrap (unwrap parameters).slotLength * factor
+  unwrap (unwrap parameters).slotLength
 
 --------------------------------------------------------------------------------
 

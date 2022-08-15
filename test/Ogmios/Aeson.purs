@@ -8,36 +8,42 @@ import Prelude
 
 import Aeson (class DecodeAeson, Aeson, printJsonDecodeError)
 import Aeson as Aeson
-import Foreign.Object (Object)
+import BalanceTx (printTxEvaluationFailure)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
 import Data.Array (catMaybes, elem, groupAllBy, nubBy, filter)
 import Data.Array.NonEmpty (head, length, tail, NonEmptyArray)
 import Data.Bifunctor (lmap, bimap)
-import Data.Either (hush, either)
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.BigInt as BigInt
+import Data.Either (Either(Left, Right), either, hush)
+import Data.Int as Int
 import Data.Map as Map
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap, wrap)
+import Data.Number.Format (toString)
 import Data.String.Regex (match, regex)
 import Data.String.Regex.Flags (noFlags)
 import Data.Traversable (for_, traverse)
 import Data.Tuple (snd, fst)
 import Data.Tuple.Nested (type (/\), (/\))
+import Effect (Effect)
 import Effect.Aff (Aff, error, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Class.Console (log)
 import Effect.Exception (throw)
-import Effect (Effect)
+import Foreign.Object (Object)
 import Mote (group, skip, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (FilePath, basename, concat)
 import Node.Process (lookupEnv)
 import QueryM.Ogmios as O
-import BalanceTx (printTxEvaluationFailure)
-import TestM (TestPlanM)
+import Test.QuickCheck (Result(Failed), (<?>), (===))
+import Test.Spec.Assertions (shouldEqual)
+import Test.Spec.QuickCheck (quickCheck)
 import Test.Utils as Utils
+import TestM (TestPlanM)
 import Type.Proxy (Proxy(Proxy))
 
 supported :: Array String
@@ -140,6 +146,40 @@ printEvaluateTxFailures = launchAff_ do
 
 suite :: TestPlanM Unit
 suite = group "Ogmios Aeson tests" do
+  group "Slot length encode/decode" do
+    group "Slot length string format" $
+      for_
+        [ ".2" /\ 200
+        , "1" /\ 1000
+        , "1." /\ 1000
+        , "1.22" /\ 1220
+        , "100.537" /\ 100537
+        , "111.5372047" /\ 111537
+        ]
+        \(str /\ expected) ->
+          test ("Format: " <> str) $
+            shouldEqual (O.parseSlotLength str)
+              (Right (wrap $ BigInt.fromInt expected))
+    test "Slot length roundtrip property" $ quickCheck \slotLength ->
+      let
+        actual = O.encodeSlotLength <$> O.parseSlotLength (toString slotLength)
+        diff = actual <#> (_ - slotLength)
+        margOfError = recip $ Int.toNumber O.slotLengthFactor
+      in
+        case diff of
+          Left err -> Failed $ "Failed with slotLength=" <> show slotLength
+            <> ", error:"
+            <> show err
+          Right diff' -> (diff' < margOfError) <?>
+            ( show diff' <> " >= " <> show margOfError <> " where actual="
+                <> show actual
+                <> " and slotLength="
+                <> show slotLength
+            )
+    test "Slot length expected value property" $ quickCheck \slotLength ->
+      hush (unwrap <$> O.parseSlotLength (toString slotLength)) ===
+        BigInt.fromNumber (slotLength * Int.toNumber O.slotLengthFactor)
+
   groupedFiles <- lift loadFixtures
 
   for_ groupedFiles \(query /\ files') ->
