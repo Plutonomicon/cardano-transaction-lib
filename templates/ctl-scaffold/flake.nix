@@ -10,7 +10,7 @@
       type = "github";
       owner = "Plutonomicon";
       repo = "cardano-transaction-lib";
-      rev = "1417a195b9d415e106f9b12ce184d0bd8daa32c8";
+      rev = "85b5d7e08650a3d1d1de3292bbce45cafaf6ad3a";
     };
     nixpkgs.follows = "ctl/nixpkgs";
   };
@@ -29,12 +29,12 @@
         overlays = [
           ctl.overlays.purescript
           ctl.overlays.runtime
+          ctl.overlays.ctl-server
         ];
       };
-      psProjectFor = system:
+      psProjectFor = pkgs:
         let
           projectName = "ctl-scaffold";
-          pkgs = nixpkgsFor system;
           packageJson = ./package.json;
           packageLock = ./package-lock.json;
           src = builtins.path {
@@ -56,27 +56,35 @@
         };
     in
     {
-      packages = perSystem (system: {
-        default = self.packages.${system}.ctl-scaffold-bundle-web;
-        ctl-scaffold-bundle-web = (psProjectFor system).bundlePursProject {
-          main = "Scaffold.Main";
-          entrypoint = "index.js";
-        };
-        ctl-scaffold-runtime = (nixpkgsFor system).buildCtlRuntime { };
-      });
+      packages = perSystem (system:
+        let
+          pkgs = nixpkgsFor system;
+        in
+        {
+          default = self.packages.${system}.ctl-scaffold-bundle-web;
+          ctl-scaffold-bundle-web = (psProjectFor pkgs).bundlePursProject {
+            main = "Scaffold.Main";
+            entrypoint = "index.js";
+          };
+          ctl-scaffold-runtime = pkgs.buildCtlRuntime { };
+        });
 
-      apps = perSystem (system: {
-        default = self.apps.${system}.ctl-scaffold-runtime;
-        ctl-scaffold-runtime = (nixpkgsFor system).launchCtlRuntime { };
-        docs = (psProjectFor system).launchSearchablePursDocs { };
-      });
+      apps = perSystem (system:
+        let
+          pkgs = nixpkgsFor system;
+        in
+        {
+          default = self.apps.${system}.ctl-scaffold-runtime;
+          ctl-scaffold-runtime = pkgs.launchCtlRuntime { };
+          docs = (psProjectFor pkgs).launchSearchablePursDocs { };
+        });
 
       checks = perSystem (system:
         let
           pkgs = nixpkgsFor system;
         in
         {
-          ctl-scaffold-plutip-test = (psProjectFor system).runPlutipTest {
+          ctl-scaffold-plutip-test = (psProjectFor pkgs).runPlutipTest {
             testMain = "Scaffold.Test.Main";
           };
 
