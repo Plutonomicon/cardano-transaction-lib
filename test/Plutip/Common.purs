@@ -9,7 +9,7 @@ import Contract.Wallet (privateKeyFromBytes)
 import Data.Log.Level (LogLevel(Trace))
 import Data.Maybe (Maybe(Nothing), fromJust)
 import Data.Newtype (wrap)
-import Data.UInt as UInt
+import Data.UInt (fromInt) as UInt
 import Partial.Unsafe (unsafePartial)
 import Plutip.Types (PlutipConfig)
 import Types.RawBytes (hexToRawBytes)

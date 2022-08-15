@@ -38,10 +38,11 @@ import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Lazy (fix)
 import Data.Array (foldl, zip)
 import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
+import Data.BigInt (fromInt, toString) as BigInt
+import Data.Foldable (intercalate)
 import Data.FoldableWithIndex (foldlWithIndex)
-import Data.List as List
-import Data.Map as Map
+import Data.List (fromFoldable) as List
+import Data.Map (isEmpty, empty, insert) as Map
 import Data.Maybe (isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.NonEmpty ((:|))
@@ -128,12 +129,15 @@ data ArbitraryUtxoDistr
   | UDInitialUtxosWithStake InitialUTxOsWithStakeKey
   | UDTuple ArbitraryUtxoDistr ArbitraryUtxoDistr
 
+ppInitialUtxos :: InitialUTxOs -> String
+ppInitialUtxos x = "[" <> intercalate ", " (map BigInt.toString x) <> "]"
+
 ppArbitraryUtxoDistr :: ArbitraryUtxoDistr -> String
 ppArbitraryUtxoDistr = case _ of
   UDUnit -> "unit"
-  UDInitialUtxos x -> show x
+  UDInitialUtxos x -> ppInitialUtxos x
   UDInitialUtxosWithStake (InitialUTxOsWithStakeKey _ x) ->
-    "stake + " <> show x
+    "stake + " <> ppInitialUtxos x
   UDTuple x y -> "(" <> ppArbitraryUtxoDistr x <> " /\\ "
     <> ppArbitraryUtxoDistr y
     <> ")"
