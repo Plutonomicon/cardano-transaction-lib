@@ -40,7 +40,7 @@ import Contract.Test.Plutip
 import Contract.Transaction
   ( BalancedSignedTransaction
   , DataHash
-  , NativeScript(ScriptAll, ScriptPubkey)
+  , NativeScript(ScriptAll, ScriptNOfK, ScriptPubkey)
   , TransactionInput(TransactionInput)
   , awaitTxConfirmed
   , balanceAndSignTx
@@ -268,7 +268,7 @@ suite = do
             submitAndLog bsTx
           in unit
 
-    test "NativeScript" do
+    test "NativeScript: require all signers" do
       let
         distribution :: InitialUTxO /\ InitialUTxO /\ InitialUTxO /\ InitialUTxO
         distribution =
@@ -370,6 +370,102 @@ suite = do
                 liftContractM "Unable to sign transaction" =<<
                   signTransaction txToSign
             txSigned <- foldM signWithWallet tx [ alice, bob, charlie, dan ]
+            submit (wrap txSigned) >>= awaitTxConfirmed
+
+    test "NativeScript: NOfK (2)" do
+      let
+        distribution :: InitialUTxO /\ InitialUTxO /\ InitialUTxO /\ InitialUTxO
+        distribution =
+          [ BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+            /\
+              [ BigInt.fromInt 2_000_000_000
+              , BigInt.fromInt 2_000_000_000
+              ]
+            /\
+              [ BigInt.fromInt 2_000_000_000
+              , BigInt.fromInt 2_000_000_000
+              ]
+            /\
+              [ BigInt.fromInt 2_000_000_000
+              , BigInt.fromInt 2_000_000_000
+              ]
+      runPlutipContract config distribution \(alice /\ bob /\ charlie /\ dan) ->
+        do
+          alicePaymentPKH <- liftedM "Unable to get Alice's PKH" $
+            coerce <$> withKeyWallet alice ownPaymentPubKeyHash
+          bobPaymentPKH <- liftedM "Unable to get Bob's PKH" $
+            coerce <$> withKeyWallet bob ownPaymentPubKeyHash
+          charliePaymentPKH <- liftedM "Unable to get Charlie's PKH" $
+            coerce <$> withKeyWallet charlie
+              ownPaymentPubKeyHash
+          danPaymentPKH <- liftedM "Unable to get Dan's PKH" $
+            coerce <$> withKeyWallet dan ownPaymentPubKeyHash
+          let
+            nativeScript = ScriptNOfK 2
+              [ ScriptPubkey alicePaymentPKH
+              , ScriptPubkey bobPaymentPKH
+              , ScriptPubkey charliePaymentPKH
+              , ScriptPubkey danPaymentPKH
+              ]
+          nsHash <- liftContractM "Unable to hash NativeScript" $
+            nativeScriptHash nativeScript
+          -- Alice locks 10 ADA at mutlisig script
+          txId <- withKeyWallet alice do
+            let
+              constraints :: TxConstraints Unit Unit
+              constraints = Constraints.mustPayToNativeScript nsHash
+                $ Value.lovelaceValueOf
+                $ BigInt.fromInt 10_000_000
+
+              lookups :: Lookups.ScriptLookups PlutusData
+              lookups = mempty
+
+            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            bsTx <-
+              liftedE $ balanceAndSignTxE ubTx
+            txId <- submit bsTx
+            awaitTxConfirmed txId
+            pure txId
+
+          -- Bob attempts to unlock and send Ada to Charlie
+          withKeyWallet bob do
+            -- First, he should find the transaction input where Ada is locked
+            networkId <- asks $ unwrap >>> _.config >>> _.networkId
+            let
+              nsAddr = nativeScriptHashEnterpriseAddress networkId nsHash
+
+              hasTransactionId :: TransactionInput /\ _ -> Boolean
+              hasTransactionId (TransactionInput tx /\ _) =
+                tx.transactionId == txId
+            nsAddrPlutus <- liftContractM "Unable to convert to Plutus address"
+              $ toPlutusAddress nsAddr
+            UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt nsAddrPlutus
+            txInput <- liftContractM "Unable to get UTxO" $
+              fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _)
+            let
+              constraints :: TxConstraints Unit Unit
+              constraints =
+                Constraints.mustPayToPubKey (coerce alicePaymentPKH)
+                  (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+                  <> Constraints.mustSpendNativeScriptOutput txInput
+                    nativeScript
+
+              lookups :: Lookups.ScriptLookups PlutusData
+              lookups = Lookups.unspentOutputs utxos
+
+            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            bTx <- liftedE $ map unwrap <$> balanceTx ubTx
+            -- Bob signs the tx
+            tx <- liftContractM "Unable to sign transaction" =<< signTransaction
+              bTx
+            let
+              signWithWallet txToSign wallet = withKeyWallet wallet do
+                liftContractM "Unable to sign transaction" =<<
+                  signTransaction txToSign
+            -- Dan signs the tx
+            txSigned <- foldM signWithWallet tx [ dan ]
             submit (wrap txSigned) >>= awaitTxConfirmed
 
     test "runPlutipContract: AlwaysMints" do
