@@ -4,6 +4,8 @@ import Prelude
 
 import Effect (Effect)
 import Effect.Aff (launchAff_)
+import Effect.Class (liftEffect)
+import Mote.Monad (mapTest)
 import Test.Base64 as Base64
 import Test.ByteArray as ByteArray
 import Test.Data as Data
@@ -22,6 +24,7 @@ import Test.Serialization as Serialization
 import Test.Serialization.Address as Serialization.Address
 import Test.Serialization.Hash as Serialization.Hash
 import Test.Types.TokenName as Types.TokenName
+import Test.Types.Interval as Types.Interval
 import Test.Transaction as Transaction
 import Test.UsedTxOuts as UsedTxOuts
 import Test.Utils as Utils
@@ -54,3 +57,6 @@ testPlan = do
   Ogmios.EvaluateTx.suite
   ProtocolParams.suite
   Types.TokenName.suite
+  flip mapTest Types.Interval.suite \f -> liftEffect $
+    f Types.Interval.eraSummariesFixture Types.Interval.systemStartFixture
+
