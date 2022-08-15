@@ -67,6 +67,10 @@ Here is an example that uses the `runtime` overlay to launch all of the required
           # you probably want this one too, although it's not demonstrated
           # in this example
           cardano-transaction-lib.overlays.purescript
+          # This one is optional. If you set `ctl-server.enable = true;`
+          # in the runtime config as shown below, you must enable this
+          # overlay. `ctl-server` itself is **only** required when using
+          # CTL's `applyArgs` effect
         ];
       };
 
@@ -123,9 +127,9 @@ Here is an example that uses the `runtime` overlay to launch all of the required
           tag = "1.35.2";
         };
         ogmios = { port = 1337; };
-        # If you don't need to use `applyArgs` (i.e. you're not using parameterized 
-        # scripts), you can disable CTL's server entirely in the runtime using 
-        # `{ ctlServer.enable = false; }`. Currently we default to enabling it 
+        # If you don't need to use `applyArgs` (i.e. you're not using parameterized
+        # scripts), you can disable CTL's server entirely in the runtime using
+        # `{ ctlServer.enable = false; }`. Currently we default to enabling it
         # by default for backwards compatibility
         ctlServer = { enable = true; port = 8081; };
         postgres = {
