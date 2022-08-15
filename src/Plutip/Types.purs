@@ -41,6 +41,7 @@ import Data.BigInt (BigInt)
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel)
+import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
@@ -48,6 +49,7 @@ import Data.String as String
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
+import Effect.Aff (Aff)
 import QueryM.ServerConfig (ServerConfig)
 import Serialization (privateKeyFromBytes)
 import Serialization.Types (PrivateKey)
@@ -69,6 +71,7 @@ type PlutipConfig =
   , ctlServerConfig :: ServerConfig
   -- Should be synchronized with `defaultConfig.postgres` in `flake.nix`
   , postgresConfig :: PostgresConfig
+  , customLogger :: Maybe (Message -> Aff Unit)
   }
 
 type PostgresConfig =

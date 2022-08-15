@@ -131,6 +131,7 @@ config =
       , password: "ctxlib"
       , dbname: "ctxlib"
       }
+  , customLogger: Nothing
   }
 
 suite :: TestPlanM Unit

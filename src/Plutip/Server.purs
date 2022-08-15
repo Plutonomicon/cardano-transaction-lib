@@ -69,6 +69,7 @@ import Plutip.Types
 import Plutip.Utils (tmpdir)
 import QueryM
   ( ClientError(ClientDecodeJsonError, ClientHttpError)
+  , mkLogger
   , stopQueryRuntime
   )
 import QueryM as QueryM
@@ -379,19 +380,21 @@ mkClusterContractEnv
   :: PlutipConfig
   -> Aff (ContractEnv ())
 mkClusterContractEnv plutipCfg = do
-  ogmiosWs <- QueryM.mkOgmiosWebSocketAff plutipCfg.logLevel
+  let
+    logger = mkLogger plutipCfg.logLevel plutipCfg.customLogger
+  ogmiosWs <- QueryM.mkOgmiosWebSocketAff logger
     QueryM.defaultOgmiosWsConfig
       { port = plutipCfg.ogmiosConfig.port
       , host = plutipCfg.ogmiosConfig.host
       }
   datumCacheWs <-
-    QueryM.mkDatumCacheWebSocketAff plutipCfg.logLevel
+    QueryM.mkDatumCacheWebSocketAff logger
       QueryM.defaultDatumCacheWsConfig
         { port = plutipCfg.ogmiosDatumCacheConfig.port
         , host = plutipCfg.ogmiosDatumCacheConfig.host
         }
   usedTxOuts <- newUsedTxOuts
-  pparams <- Ogmios.getProtocolParametersAff ogmiosWs plutipCfg.logLevel
+  pparams <- Ogmios.getProtocolParametersAff ogmiosWs logger
   pure $ ContractEnv
     { config:
         { ctlServerConfig: plutipCfg.ctlServerConfig

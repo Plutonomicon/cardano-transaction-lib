@@ -13,6 +13,7 @@ module QueryM
   , DispatchError(JsError, JsonError, FaultError, ListenerCancelled)
   , DispatchIdMap
   , ListenerSet
+  , Logger
   , OgmiosListeners
   , OgmiosWebSocket
   , PendingRequests
@@ -29,6 +30,7 @@ module QueryM
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
+  , getLogger
   , getProtocolParametersAff
   , getWalletAddress
   , liftQueryM
@@ -36,6 +38,7 @@ module QueryM
   , postAeson
   , mkDatumCacheWebSocketAff
   , mkDatumCacheRequest
+  , mkLogger
   , queryDispatch
   , defaultMessageListener
   , mkListenerSet
@@ -92,6 +95,7 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
 import Data.HTTP.Method (Method(POST))
+import Data.JSDate (now)
 import Data.Log.Level (LogLevel(Error, Debug))
 import Data.Log.Message (Message)
 import Data.Map (Map)
@@ -310,11 +314,11 @@ mkQueryRuntime config = do
   QueryRuntimeModel (ogmiosWs /\ pparams) datumCacheWs wallet <- sequential $
     QueryRuntimeModel
       <$> parallel do
-        ogmiosWs <- mkOgmiosWebSocketAff config.logLevel config.ogmiosConfig
-        pparams <- getProtocolParametersAff ogmiosWs config.logLevel
+        ogmiosWs <- mkOgmiosWebSocketAff logger config.ogmiosConfig
+        pparams <- getProtocolParametersAff ogmiosWs logger
         pure $ ogmiosWs /\ pparams
       <*> parallel
-        (mkDatumCacheWebSocketAff config.logLevel config.datumCacheConfig)
+        (mkDatumCacheWebSocketAff logger config.datumCacheConfig)
       <*> parallel (for config.walletSpec mkWalletBySpec)
   pure
     { ogmiosWs
@@ -323,6 +327,8 @@ mkQueryRuntime config = do
     , usedTxOuts
     , pparams
     }
+  where
+  logger = mkLogger config.logLevel config.customLogger
 
 mkWalletBySpec :: WalletSpec -> Aff Wallet
 mkWalletBySpec = case _ of
@@ -362,9 +368,11 @@ runQueryMInRuntime config runtime = do
   flip runReaderT { config, runtime, extraConfig: {} } <<< unwrap
 
 getProtocolParametersAff
-  :: OgmiosWebSocket -> LogLevel -> Aff Ogmios.ProtocolParameters
-getProtocolParametersAff ogmiosWs logLevel =
-  mkOgmiosRequestAff ogmiosWs logLevel Ogmios.queryProtocolParametersCall
+  :: OgmiosWebSocket
+  -> (LogLevel -> String -> Effect Unit)
+  -> Aff Ogmios.ProtocolParameters
+getProtocolParametersAff ogmiosWs logger =
+  mkOgmiosRequestAff ogmiosWs logger Ogmios.queryProtocolParametersCall
     _.getProtocolParameters
     unit
 
@@ -579,11 +587,11 @@ type DatumCacheWebSocket = WebSocket DatumCacheListeners
 -- smart-constructor for OgmiosWebSocket in Aff Context
 -- (prevents sending messages before the websocket opens, etc)
 mkOgmiosWebSocket'
-  :: LogLevel
+  :: Logger
   -> ServerConfig
   -> (Either Error OgmiosWebSocket -> Effect Unit)
   -> Effect Canceler
-mkOgmiosWebSocket' lvl serverCfg continue = do
+mkOgmiosWebSocket' logger serverCfg continue = do
   utxoDispatchMap <- createMutableDispatch
   chainTipDispatchMap <- createMutableDispatch
   evaluateTxDispatchMap <- createMutableDispatch
@@ -613,7 +621,7 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
       }
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   let
-    sendRequest = _wsSend ws (logString lvl Debug)
+    sendRequest = _wsSend ws (logger Debug)
     resendPendingRequests = do
       Ref.read utxoPendingRequests >>= traverse_ sendRequest
       Ref.read chainTipPendingRequests >>= traverse_ sendRequest
@@ -623,7 +631,7 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
       Ref.read eraSummariesPendingRequests >>= traverse_ sendRequest
       Ref.read currentEpochPendingRequests >>= traverse_ sendRequest
       Ref.read systemStartPendingRequests >>= traverse_ sendRequest
-      logString lvl Debug "Resent all pending requests"
+      logger Debug "Resent all pending requests"
     -- We want to fail if the first connection attempt is not successful.
     -- Otherwise, we start reconnecting indefinitely.
     onFirstConnectionError errMessage = do
@@ -644,10 +652,10 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
       logger Debug "Ogmios Connection established"
       Ref.write true hasConnectedOnceRef
       _removeOnWsError ws firstConnectionErrorRef
-      _onWsMessage ws (logger Debug) $ defaultMessageListener lvl
+      _onWsMessage ws (logger Debug) $ defaultMessageListener logger
         messageDispatch
       void $ _onWsError ws \err -> do
-        logString lvl Debug $
+        logger Debug $
           "Ogmios WebSocket error (" <> err <> "). Reconnecting..."
         launchAff_ do
           delay (wrap 500.0)
@@ -671,16 +679,13 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
   pure $ Canceler $ \err -> liftEffect do
     _wsClose ws
     continue $ Left $ err
-  where
-  logger :: LogLevel -> String -> Effect Unit
-  logger = logString lvl
 
 mkDatumCacheWebSocket'
-  :: LogLevel
+  :: Logger
   -> ServerConfig
   -> (Either Error DatumCacheWebSocket -> Effect Unit)
   -> Effect Canceler
-mkDatumCacheWebSocket' lvl serverCfg continue = do
+mkDatumCacheWebSocket' logger serverCfg continue = do
   getDatumByHashDispatchMap <- createMutableDispatch
   getDatumsByHashesDispatchMap <- createMutableDispatch
   getTxByHashDispatchMap <- createMutableDispatch
@@ -721,7 +726,7 @@ mkDatumCacheWebSocket' lvl serverCfg continue = do
       logger Debug "Ogmios Datum Cache Connection established"
       Ref.write true hasConnectedOnceRef
       _removeOnWsError ws firstConnectionErrorRef
-      _onWsMessage ws (logger Debug) $ defaultMessageListener lvl
+      _onWsMessage ws (logger Debug) $ defaultMessageListener logger
         messageDispatch
       void $ _onWsError ws \err -> do
         logger Debug $
@@ -741,15 +746,16 @@ mkDatumCacheWebSocket' lvl serverCfg continue = do
   pure $ Canceler $ \err -> liftEffect do
     _wsClose ws
     continue $ Left $ err
-  where
-  logger :: LogLevel -> String -> Effect Unit
-  logger = logString lvl
 
-mkDatumCacheWebSocketAff :: LogLevel -> ServerConfig -> Aff DatumCacheWebSocket
-mkDatumCacheWebSocketAff lvl = makeAff <<< mkDatumCacheWebSocket' lvl
+mkDatumCacheWebSocketAff
+  :: Logger
+  -> ServerConfig
+  -> Aff DatumCacheWebSocket
+mkDatumCacheWebSocketAff logger = makeAff <<< mkDatumCacheWebSocket' logger
 
-mkOgmiosWebSocketAff :: LogLevel -> ServerConfig -> Aff OgmiosWebSocket
-mkOgmiosWebSocketAff lvl = makeAff <<< mkOgmiosWebSocket' lvl
+mkOgmiosWebSocketAff
+  :: Logger -> ServerConfig -> Aff OgmiosWebSocket
+mkOgmiosWebSocketAff logger = makeAff <<< mkOgmiosWebSocket' logger
 
 -- getter
 underlyingWebSocket :: forall (a :: Type). WebSocket a -> JsWebSocket
@@ -828,7 +834,7 @@ mkOgmiosRequest = mkRequest
 mkOgmiosRequestAff
   :: forall (request :: Type) (response :: Type)
    . OgmiosWebSocket
-  -> LogLevel
+  -> Logger
   -> JsonWsp.JsonWspCall request response
   -> (OgmiosListeners -> ListenerSet request response)
   -> request
@@ -859,20 +865,39 @@ mkRequest
 mkRequest getListeners getWebSocket jsonWspCall getLs inp = do
   ws <- getWebSocket
   listeners' <- getListeners
+  logger <- getLogger
+  liftAff $ mkRequestAff listeners' ws logger jsonWspCall getLs inp
+
+type Logger = LogLevel -> String -> Effect Unit
+
+mkLogger
+  :: LogLevel
+  -> Maybe (Message -> Aff Unit)
+  -> Logger
+mkLogger logLevel mbCustomLogger level message =
+  case mbCustomLogger of
+    Nothing -> logString logLevel level message
+    Just logger -> liftEffect do
+      timestamp <- now
+      launchAff_ $ logger { level, message, tags: Map.empty, timestamp }
+
+getLogger :: QueryM Logger
+getLogger = do
   logLevel <- asks $ _.config >>> _.logLevel
-  liftAff $ mkRequestAff listeners' ws logLevel jsonWspCall getLs inp
+  mbCustomLogger <- asks $ _.config >>> _.customLogger
+  pure $ mkLogger logLevel mbCustomLogger
 
 -- | Builds an Ogmios request action using `Aff`
 mkRequestAff
   :: forall (request :: Type) (response :: Type) (listeners :: Type)
    . listeners
   -> JsWebSocket
-  -> LogLevel
+  -> Logger
   -> JsonWsp.JsonWspCall request response
   -> (listeners -> ListenerSet request response)
   -> request
   -> Aff response
-mkRequestAff listeners' webSocket logLevel jsonWspCall getLs inp = do
+mkRequestAff listeners' webSocket logger jsonWspCall getLs inp = do
   { body, id } <- liftEffect $ JsonWsp.buildRequest jsonWspCall inp
   let
     respLs :: ListenerSet request response
@@ -891,7 +916,7 @@ mkRequestAff listeners' webSocket logLevel jsonWspCall getLs inp = do
               _ -> cont (lmap dispatchErrorToError result)
         )
       respLs.addRequest id sBody
-      _wsSend webSocket (logString logLevel Debug) sBody
+      _wsSend webSocket (logger Debug) sBody
       pure $ Canceler $ \err -> do
         liftEffect $ respLs.removeMessageListener id
         liftEffect $ throwError $ err
@@ -1052,8 +1077,11 @@ defaultErr :: JsonDecodeError
 defaultErr = TypeMismatch "default error"
 
 defaultMessageListener
-  :: LogLevel -> Array WebsocketDispatch -> String -> Effect Unit
-defaultMessageListener lvl dispatchArray msg = do
+  :: Logger
+  -> Array WebsocketDispatch
+  -> String
+  -> Effect Unit
+defaultMessageListener logger dispatchArray msg = do
   -- here, we need to fold the input over the array of functions until we get
   -- a success, then execute the effect.
   -- using a fold instead of a traverse allows us to skip a bunch of execution
@@ -1070,7 +1098,7 @@ defaultMessageListener lvl dispatchArray msg = do
               _ -> false
           )
           do
-            logString lvl Error $
+            logger Error $
               "unexpected error on input: " <> msg
                 <> " Error:"
                 <> show err
