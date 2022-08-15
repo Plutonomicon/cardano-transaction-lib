@@ -13,7 +13,7 @@ import Prelude
 import Contract.Test.E2E
   ( TestOptions
   , withBrowser
-  , WalletExt
+  , WalletExt(NamiExt, GeroExt)
   , resetTestFeedback
   , RunningExample
   , WalletPassword
@@ -45,8 +45,14 @@ import TestM (TestPlanM)
 import Test.Spec.Assertions (shouldSatisfy)
 import Toppokki as Toppokki
 
-exampleUrl :: String -> Toppokki.URL
-exampleUrl exampleName = wrap $ "http://localhost:4008/?" <> exampleName
+walletName :: WalletExt -> String
+walletName NamiExt = "nami"
+walletName GeroExt = "gero"
+
+exampleUrl :: String -> WalletExt -> Toppokki.URL
+exampleUrl exampleName wallet = wrap $ "http://localhost:4008/?" <> exampleName
+  <> ":"
+  <> walletName wallet
 
 testPasswordNami :: WalletPassword
 testPasswordNami = wrap "ctlctlctl"
@@ -68,9 +74,9 @@ runE2ETest
   -> (RunningExample -> Aff a)
   -> TestPlanM Unit
 runE2ETest example opts ext f = test example $ withBrowser opts ext $
-  \browser -> withExample (exampleUrl example) browser
+  \browser -> withExample (exampleUrl example ext) browser
     ( \e -> do
-        liftEffect $ log $ "Start Example " <> example
+        liftEffect $ log $ "Start Example " <> example <> ":" <> walletName ext
         resetTestFeedback (_.main $ unwrap e)
         void $ try $ f e
         delaySec 10.0

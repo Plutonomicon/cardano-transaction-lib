@@ -1,35 +1,59 @@
 module Examples.ByUrl (main) where
 
 import Prelude
+import Contract.Config
+  ( ConfigParams
+  , testnetGeroConfig
+  , testnetNamiConfig
+  , testnetFlintConfig
+  )
+import Control.Monad.Error.Class (liftMaybe)
+import Data.Array (last)
+import Data.Foldable (lookup)
+import Data.Maybe (Maybe(Just))
 import Data.String.Common (split)
 import Data.String.Pattern (Pattern(Pattern))
-import Data.Array (last)
-import Data.Maybe (Maybe(Just))
+import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Class (liftEffect)
-import Effect.Console (error)
+import Effect.Console as Console
+import Effect.Exception (error)
 import Examples.AlwaysMints as AlwaysMints
 import Examples.AlwaysSucceeds as AlwaysSucceeds
 import Examples.Datums as Datums
-import Examples.Nami as Nami
-import Examples.Gero as Gero
-import Examples.Pkh2Pkh as Pkh2Pkh
-import Examples.Pkh2PkhGero as Pkh2PkhGero
-import Examples.SignMultiple as SignMultiple
 import Examples.MintsMultipleTokens as MintsMultipleTokens
+import Examples.Pkh2Pkh as Pkh2Pkh
+import Examples.SignMultiple as SignMultiple
+import Examples.Wallet as Wallet
 
 foreign import _queryString :: Effect String
 
 main :: Effect Unit
-main = last <<< split (Pattern "?") <$> _queryString >>=
-  case _ of
-    Just "AlwaysMints" -> AlwaysMints.main
-    Just "AlwaysSucceeds" -> AlwaysSucceeds.main
-    Just "Datums" -> Datums.main
-    Just "Nami" -> Nami.main
-    Just "Gero" -> Gero.main
-    Just "Pkh2Pkh" -> Pkh2Pkh.main
-    Just "Pkh2PkhGero" -> Pkh2PkhGero.main
-    Just "SignMultiple" -> SignMultiple.main
-    Just "MintsMultipleTokens" -> MintsMultipleTokens.main
-    _ -> liftEffect $ error "Error parsing query string"
+main = do
+  queryString <- last <<< split (Pattern "?") <$> _queryString
+  case split (Pattern ":") <$> queryString of
+    Just [ exampleName, walletName ] -> do
+      example <- liftMaybe (error $ "unknown example name: " <> exampleName) $
+        lookup exampleName examples
+      wallet <- liftMaybe (error $ "unknown wallet name: " <> walletName) $
+        lookup walletName wallets
+      example wallet
+    _ -> liftEffect $ Console.error "Error parsing query string"
+
+wallets :: Array (String /\ ConfigParams ())
+wallets =
+  [ "nami" /\ testnetNamiConfig
+  , "gero" /\ testnetGeroConfig
+  , "flint" /\ testnetFlintConfig
+  ]
+
+examples :: Array (String /\ (ConfigParams () -> Effect Unit))
+examples =
+  [ "AlwaysMints" /\ AlwaysMints.example
+  , "AlwaysSucceeds" /\ AlwaysSucceeds.example
+  , "Datums" /\ Datums.example
+  , "Wallet" /\ Wallet.example
+  , "Pkh2Pkh" /\ Pkh2Pkh.example
+  , "SignMultiple" /\ SignMultiple.example
+  , "MintsMultipleTokens" /\ MintsMultipleTokens.example
+  ]
