@@ -10,5 +10,5 @@ import Test.E2E.Helpers
   )
 
 runExample :: TestOptions -> TestPlanM Unit
-runExample options = runE2ETest "Gero" options GeroExt geroConfirmAccess
+runExample options = runE2ETest "Wallet" options GeroExt geroConfirmAccess
 
