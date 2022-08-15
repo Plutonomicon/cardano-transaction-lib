@@ -34,7 +34,7 @@ Support is planned for the following light wallets:
 
 - [x] [Nami](https://namiwallet.io/)
 - [x] [Gero](https://gerowallet.io/)
-- [ ] [Flint](https://flint-wallet.com/)
+- [x] [Flint](https://flint-wallet.com/)
 - [ ] [Lace](https://www.lace.io/)
 - [ ] [Typhon](https://typhonwallet.io/)
 - [ ] [Yoroi](https://yoroi-wallet.com/)
@@ -85,5 +85,5 @@ CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, ho
 
 You can find help, more information and ongoing discusion about the project here:
 
-- Plutonomicon Discord: https://discord.gg/c8kZWxzJ
+- Plutonomicon Discord: https://discord.gg/gGFdGaUE
 - #ctl channel at MLabs' Slack

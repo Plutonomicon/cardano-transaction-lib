@@ -38,6 +38,8 @@ import Types (
  )
 
 type Api =
+  -- Since @Script@ and @Data@ have @From/ToJSON@ instances, we can just
+  -- accept them in the body of a POST request
   "apply-args"
     :> ReqBody '[JSON] ApplyArgsRequest
     :> Post '[JSON] AppliedScript

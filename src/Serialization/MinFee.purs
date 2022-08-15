@@ -6,22 +6,23 @@ import Prelude
 import Cardano.Types.Transaction (NativeScript(ScriptAll), _vkeys, _witnessSet)
 import Cardano.Types.Transaction as T
 import Cardano.Types.Value (Coin)
-import Contract.Address (Ed25519KeyHash)
+import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Lens ((.~))
-import Data.Maybe (Maybe(Just), fromMaybe, maybe)
+import Data.Maybe (Maybe(Just), fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (throw)
+import Effect.Exception (Error, error)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import NativeScripts (getMaximumSigners)
 import QueryM.Ogmios (ProtocolParameters(ProtocolParameters))
 import Serialization as Serialization
+import Serialization.Hash (Ed25519KeyHash)
 import Serialization.Types (ExUnitPrices, Transaction)
 import Types.BigNum (BigNum)
 import Types.BigNum as BigNum
@@ -29,22 +30,23 @@ import Types.BigNum as BigNum
 calculateMinFeeCsl
   :: forall (m :: Type -> Type)
    . MonadEffect m
+  => MonadThrow Error m
   => ProtocolParameters
   -> T.Transaction
   -> m Coin
 calculateMinFeeCsl (ProtocolParameters pparams) txNoSigs = do
-  let tx = addFakeSignatures txNoSigs
-  let txFeePerByte = BigInt.fromInt $ UInt.toInt pparams.txFeePerByte
+  let
+    tx = addFakeSignatures txNoSigs
+    txFeePerByte = BigInt.fromInt $ UInt.toInt pparams.txFeePerByte
   cslTx <- liftEffect $ Serialization.convertTransaction tx
-  minFee <- maybe (liftEffect $ throw "Unable to calculate min_fee") pure $
+  minFee <- liftMaybe (error "Unable to calculate min_fee") $
     BigNum.toBigInt =<< _minFee maybeFfiHelper cslTx
       (BigNum.fromUInt pparams.txFeeFixed)
       (BigNum.fromUInt pparams.txFeePerByte)
-  exUnitPrices <- maybe (liftEffect $ throw "Unable to get ExUnitPrices") pure $
-    pparams.prices
+  exUnitPrices <- liftMaybe (error "Unable to get ExUnitPrices") pparams.prices
   exUnitPricesCsl <- liftEffect $ Serialization.convertExUnitPrices exUnitPrices
   minScriptFee <-
-    maybe (liftEffect $ throw "Unable to calculate min_script_fee") pure $
+    liftMaybe (error "Unable to calculate min_script_fee") $
       BigNum.toBigInt (_minScriptFee exUnitPricesCsl cslTx)
   pure $ wrap $ minFee + minScriptFee + BigInt.fromInt 3 * txFeePerByte
 

@@ -57,7 +57,6 @@ import Contract.Utxos (UtxoM(UtxoM), utxosAt)
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
 import Contract.Wallet (withKeyWallet)
-import Control.Monad.Error.Class (withResource)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
 import Data.Array (find)
@@ -72,7 +71,7 @@ import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (launchAff_)
+import Effect.Aff (launchAff_, bracket)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (throw)
@@ -116,7 +115,7 @@ main = launchAff_ do
   Utils.interpretWithConfig
     -- we don't want to exit because we need to clean up after failure by
     -- timeout
-    defaultConfig { timeout = Just $ wrap 30_000.0, exit = true }
+    defaultConfig { timeout = Just $ wrap 30_000.0, exit = false }
     suite
 
 config :: PlutipConfig
@@ -156,7 +155,7 @@ suite :: TestPlanM Unit
 suite = do
   group "Plutip" do
     test "startPlutipCluster / stopPlutipCluster" do
-      withResource (startPlutipServer config)
+      bracket (startPlutipServer config)
         (stopChildProcessWithPort config.port) $ const do
         startRes <- startPlutipCluster config unit
         startRes `shouldSatisfy` case _ of
