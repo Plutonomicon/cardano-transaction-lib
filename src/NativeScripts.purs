@@ -50,10 +50,7 @@ anyChoice :: forall a. Ord a => SetChoice a -> SetChoice a -> SetChoice a
 anyChoice as bs = Array.nub $ as <> bs
 
 allChoice :: forall a. Ord a => SetChoice a -> SetChoice a -> SetChoice a
-allChoice as bs = do
-  a <- as
-  b <- bs
-  pure $ a <> b
+allChoice as bs = (<>) <$> as <*> bs
 
 subsetsOfLength :: forall a. Int -> Array a -> Array (Array a)
 subsetsOfLength n =
