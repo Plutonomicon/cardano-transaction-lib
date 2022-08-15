@@ -18,6 +18,7 @@ import Contract.Address (NetworkId(MainnetId))
 import Contract.Monad (Contract, ContractEnv(ContractEnv), runContractInEnv)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
+import Data.BigInt as BigInt
 import Data.Either (Either(Left), either)
 import Data.HTTP.Method as Method
 import Data.Maybe (Maybe(Just, Nothing), maybe)
@@ -25,7 +26,7 @@ import Data.Newtype (unwrap, wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
-import Data.Traversable (for, foldMap)
+import Data.Traversable (foldMap, for, for_, traverse_)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -63,6 +64,7 @@ import Plutip.Types
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
+  , InitialUTxO
   , decodeWallets
   , encodeDistribution
   )
@@ -114,13 +116,19 @@ withPlutipContractEnv plutipCfg distr cont = do
       (stopChildProcessWithPort plutipCfg.port) <<< const
 
   withPlutipCluster :: (ClusterStartupParameters -> Aff a) -> Aff a
-  withPlutipCluster cc = bracket (startPlutipCluster plutipCfg distr)
-    (const $ void $ stopPlutipCluster plutipCfg)
-    case _ of
-      ClusterStartupFailure _ -> do
-        liftEffect $ throw "Failed to start up cluster"
-      ClusterStartupSuccess response -> do
-        cc response
+  withPlutipCluster cc = do
+    let
+      distrArray = encodeDistribution distr
+    for_ distrArray $ traverse_ \n -> when (n < BigInt.fromInt 1_000_000) do
+      liftEffect $ throw $ "UTxO is too low: " <> BigInt.toString n <>
+        ", must be at least 1_000_000 Lovelace"
+    bracket (startPlutipCluster plutipCfg distrArray)
+      (const $ void $ stopPlutipCluster plutipCfg)
+      case _ of
+        ClusterStartupFailure _ -> do
+          liftEffect $ throw "Failed to start up cluster"
+        ClusterStartupSuccess response -> do
+          cc response
 
   withPostgres :: ClusterStartupParameters -> Aff a -> Aff a
   withPostgres response =
@@ -179,12 +187,10 @@ configCheck cfg = do
     "- " <> service <> " (port: " <> show (UInt.toInt port) <> ")\n"
 
 startPlutipCluster
-  :: forall (distr :: Type) (wallets :: Type)
-   . UtxoDistribution distr wallets
-  => PlutipConfig
-  -> distr
+  :: PlutipConfig
+  -> Array InitialUTxO
   -> Aff StartClusterResponse
-startPlutipCluster cfg utxoDistribution = do
+startPlutipCluster cfg keysToGenerate = do
   let url = mkServerEndpointUrl cfg "start"
   res <- do
     response <- liftAff
@@ -195,7 +201,7 @@ startPlutipCluster cfg utxoDistribution = do
                 $ stringifyAeson
                 $ encodeAeson
                 $ ClusterStartupRequest
-                    { keysToGenerate: encodeDistribution utxoDistribution }
+                    { keysToGenerate }
             , responseFormat = Affjax.ResponseFormat.string
             , headers = [ Header.ContentType (wrap "application/json") ]
             , url = url

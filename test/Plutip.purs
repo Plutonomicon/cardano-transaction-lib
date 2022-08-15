@@ -139,7 +139,7 @@ suite = do
     test "startPlutipCluster / stopPlutipCluster" do
       bracket (startPlutipServer config)
         (stopChildProcessWithPort config.port) $ const do
-        startRes <- startPlutipCluster config unit
+        startRes <- startPlutipCluster config []
         startRes `shouldSatisfy` case _ of
           ClusterStartupSuccess _ -> true
           _ -> false
