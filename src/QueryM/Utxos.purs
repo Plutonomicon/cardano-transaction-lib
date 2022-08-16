@@ -10,9 +10,11 @@ module QueryM.Utxos
 import Prelude
 
 import Address (addressToOgmiosAddress)
+import Affjax.RequestBody (document)
 import Cardano.Types.Transaction (TransactionOutput, UtxoM(UtxoM), Utxos)
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value (Value)
+import Contract.Prelude (Maybe(..))
 import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, asks)
 import Data.Array as Array
@@ -30,7 +32,7 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Helpers as Helpers
-import QueryM (QueryM, callCip30Wallet, getWalletAddress, mkOgmiosRequest)
+import QueryM (QueryM, callCip30Wallet, getWalletAddresses, mkOgmiosRequest)
 import QueryM.Ogmios as Ogmios
 import Serialization.Address (Address)
 import TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
@@ -141,11 +143,13 @@ getWalletBalance = do
     Flint wallet -> liftAff $ wallet.getBalance wallet.connection
     KeyWallet _ -> do
       -- Implement via `utxosAt`
-      mbAddress <- getWalletAddress
-      map join $ for mbAddress \address -> do
-        utxosAt address <#> map
-          -- Combine `Value`s
-          (fold <<< map _.amount <<< map unwrap <<< Map.values <<< unwrap)
+      mbAddresses <- getWalletAddresses
+
+      map join $ for mbAddresses \addresses ->
+        (map fold <<< sequence) <$> for addresses \address ->
+           utxosAt address <#> map
+            -- Combine `Value`s
+            (fold <<< map _.amount <<< map unwrap <<< Map.values <<< unwrap) 
 
 getWalletCollateral :: QueryM (Maybe (Array TransactionUnspentOutput))
 getWalletCollateral = do

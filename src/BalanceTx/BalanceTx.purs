@@ -56,43 +56,15 @@ module BalanceTx
 import Prelude
 
 import BalanceTx.UtxoMinAda (adaOnlyUtxoMinAdaValue, utxoMinAdaValue)
-import Cardano.Types.Transaction
-  ( Redeemer(Redeemer)
-  , Transaction(Transaction)
-  , TransactionOutput(TransactionOutput)
-  , TxBody(TxBody)
-  , Utxos
-  , _body
-  , _collateral
-  , _fee
-  , _inputs
-  , _networkId
-  , _outputs
-  , _plutusData
-  , _redeemers
-  , _witnessSet
-  )
+import Cardano.Types.Transaction (Redeemer(Redeemer), Transaction(Transaction), TransactionOutput(TransactionOutput), TxBody(TxBody), Utxos, _body, _collateral, _fee, _inputs, _networkId, _outputs, _plutusData, _redeemers, _witnessSet)
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Cardano.Types.Value
-  ( Value
-  , filterNonAda
-  , geq
-  , getLovelace
-  , isPos
-  , isZero
-  , lovelaceValueOf
-  , minus
-  , mkCoin
-  , mkValue
-  , valueToCoin
-  , valueToCoin'
-  )
+import Cardano.Types.Value (Value, filterNonAda, geq, getLovelace, isPos, isZero, lovelaceValueOf, minus, mkCoin, mkValue, valueToCoin, valueToCoin')
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Trans.Class (lift)
-import Data.Array ((\\), modifyAt, filter, catMaybes)
+import Data.Array (catMaybes, filter, head, modifyAt, (\\))
 import Data.Array as Array
 import Data.Bifunctor (lmap, bimap)
 import Data.BigInt (BigInt, fromInt)
@@ -102,8 +74,8 @@ import Data.Foldable (find, foldl, length, foldMap)
 import Data.Foldable (lookup) as Foldable
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.Function (applyN)
-import Data.Int (toStringAs, decimal, ceil, toNumber)
 import Data.Generic.Rep (class Generic)
+import Data.Int (toStringAs, decimal, ceil, toNumber)
 import Data.Lens (Lens', lens')
 import Data.Lens.Getter ((^.))
 import Data.Lens.Index (ix) as Lens
@@ -117,34 +89,17 @@ import Data.Set (Set)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern))
-import Data.String.Common (joinWith, split) as String
 import Data.String.CodePoints (length) as String
+import Data.String.Common (joinWith, split) as String
 import Data.String.Utils (padEnd)
 import Data.Traversable (sequence, traverse, traverse_)
 import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import QueryM (ClientError, QueryM)
-import QueryM
-  ( evaluateTxOgmios
-  , getWalletAddress
-  ) as QueryM
+import QueryM (evaluateTxOgmios, getWalletAddresses) as QueryM
 import QueryM.MinFee (calculateMinFee) as QueryM
-import QueryM.Ogmios
-  ( TxEvaluationResult(TxEvaluationResult)
-  , TxEvaluationFailure(UnparsedError, ScriptFailures)
-  , RedeemerPointer
-  , ScriptFailure
-      ( ExtraRedeemers
-      , MissingRequiredDatums
-      , MissingRequiredScripts
-      , ValidatorFailed
-      , UnknownInputReferencedByRedeemer
-      , NonScriptInputReferencedByRedeemer
-      , IllFormedExecutionBudget
-      , NoCostModelForLanguage
-      )
-  ) as Ogmios
+import QueryM.Ogmios (TxEvaluationResult(TxEvaluationResult), TxEvaluationFailure(UnparsedError, ScriptFailures), RedeemerPointer, ScriptFailure(ExtraRedeemers, MissingRequiredDatums, MissingRequiredScripts, ValidatorFailed, UnknownInputReferencedByRedeemer, NonScriptInputReferencedByRedeemer, IllFormedExecutionBudget, NoCostModelForLanguage)) as Ogmios
 import QueryM.Utxos (utxosAt, filterLockedUtxos, getWalletCollateral)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization (convertTransaction, toBytes) as Serialization
@@ -615,18 +570,23 @@ addTxCollateral utxos transaction =
 -- | Like `balanceTx`, but allows to provide an address that is treated like
 -- | user's own (while `balanceTx` gets it from the wallet).
 balanceTxWithAddress
-  :: Address
+  :: Array Address
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
 balanceTxWithAddress
-  ownAddr
+  ownAddrs
   unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
+
+
   let (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = t
   networkId <- (unbalancedTx ^. _body <<< _networkId) #
     maybe (asks $ _.config >>> _.networkId) pure
   let unbalancedTx' = unbalancedTx # _body <<< _networkId ?~ networkId
   utxoMinVal <- adaOnlyUtxoMinAdaValue
   runExceptT do
+    -- TODO: eventually remove line below unless its needed for single change -- address
+    ownAddr <- ExceptT $ pure $ note (GetWalletAddressError' CouldNotGetWalletAddress) $ head ownAddrs
+
     -- Get own wallet address, collateral and utxo set:
     utxos <- ExceptT $ utxosAt ownAddr <#>
       (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
@@ -656,12 +616,12 @@ balanceTxWithAddress
 
     -- Prebalance collaterised tx without fees:
     ubcTx <- except $
-      prebalanceCollateral zero availableUtxos utxoMinVal unbalancedCollTx
+      prebalanceCollateral ownAddr zero availableUtxos utxoMinVal unbalancedCollTx
     -- Prebalance collaterised tx with fees:
     let unattachedTx' = unattachedTx # _transaction' .~ ubcTx
     _ /\ fees <- ExceptT $ evalExUnitsAndMinFee unattachedTx'
     ubcTx' <- except $
-      prebalanceCollateral (fees + feeBuffer) availableUtxos utxoMinVal
+      prebalanceCollateral ownAddr (fees + feeBuffer) availableUtxos utxoMinVal
         ubcTx
     -- Loop to balance non-Ada assets
     nonAdaBalancedCollTx <- ExceptT $ loop availableUtxos ownAddr [] $
@@ -679,12 +639,13 @@ balanceTxWithAddress
     except $ Right finalizedTx
   where
   prebalanceCollateral
-    :: BigInt
+    :: Address
+    -> BigInt
     -> Utxos
     -> BigInt
     -> Transaction
     -> Either BalanceTxError Transaction
-  prebalanceCollateral fees utxos adaOnlyUtxoMinValue tx =
+  prebalanceCollateral ownAddr fees utxos adaOnlyUtxoMinValue tx =
     balanceTxIns utxos fees adaOnlyUtxoMinValue (tx ^. _body)
       >>= balanceNonAdaOuts ownAddr utxos
       <#> flip (set _body) tx
@@ -765,9 +726,9 @@ balanceTx
   :: UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
 balanceTx tx = do
-  QueryM.getWalletAddress >>= case _ of
+  QueryM.getWalletAddresses >>= case _ of
     Nothing -> pure $ Left $ GetWalletAddressError' CouldNotGetWalletAddress
-    Just address -> balanceTxWithAddress address tx
+    Just addresses -> balanceTxWithAddress addresses tx
 
 -- Logging for Transaction type without returning Transaction
 logTx

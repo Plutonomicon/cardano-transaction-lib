@@ -30,7 +30,7 @@ module QueryM
   , getDatumByHash
   , getDatumsByHashes
   , getProtocolParametersAff
-  , getWalletAddress
+  , getWalletAddresses
   , liftQueryM
   , listeners
   , postAeson
@@ -46,8 +46,8 @@ module QueryM
   , mkRequest
   , mkRequestAff
   , module ServerConfig
-  , ownPaymentPubKeyHash
-  , ownPubKeyHash
+  , ownPaymentPubKeyHashes
+  , ownPubKeyHashes
   , ownStakePubKeyHash
   , runQueryM
   , runQueryMWithSettings
@@ -88,6 +88,7 @@ import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
 import Control.Monad.Reader.Trans (ReaderT, asks, runReaderT, withReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (parallel, sequential)
+import Data.Array (singleton, head)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
@@ -187,7 +188,7 @@ import Wallet
   )
 import Wallet.KeyFile (privatePaymentKeyFromFile, privateStakeKeyFromFile)
 import Wallet.Spec
-  ( WalletSpec(UseKeys, ConnectToGero, ConnectToNami, ConnectToFlint)
+  ( WalletSpec(UseKeys, ConnectToGero, ConnectToNami, ConnectToFlint, ConnectToEternl)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
@@ -415,15 +416,15 @@ allowError func = func <<< Right
 -- Wallet
 --------------------------------------------------------------------------------
 
-getWalletAddress :: QueryM (Maybe Address)
-getWalletAddress = do
+getWalletAddresses :: QueryM (Maybe (Array Address))
+getWalletAddresses = do
   networkId <- asks $ _.config >>> _.networkId
   withMWalletAff case _ of
-    Nami nami -> callCip30Wallet nami _.getWalletAddress
-    Gero gero -> callCip30Wallet gero _.getWalletAddress
-    Flint flint -> callCip30Wallet flint _.getWalletAddress
-    Eternl eternl -> callCip30Wallet eternl _.getWalletAddress
-    KeyWallet kw -> Just <$> (unwrap kw).address networkId
+    Nami nami -> callCip30Wallet nami _.getWalletAddresses
+    Gero gero -> callCip30Wallet gero _.getWalletAddresses
+    Flint flint -> callCip30Wallet flint _.getWalletAddresses
+    Eternl eternl -> callCip30Wallet eternl _.getWalletAddresses
+    KeyWallet kw -> (Just <<< singleton) <$> (unwrap kw).address networkId
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
@@ -434,18 +435,19 @@ signTransaction tx = withMWalletAff case _ of
   Eternl eternl -> callCip30Wallet eternl \nw -> flip nw.signTx tx
   KeyWallet kw -> Just <$> (unwrap kw).signTx tx
 
-ownPubKeyHash :: QueryM (Maybe PubKeyHash)
-ownPubKeyHash = do
-  mbAddress <- getWalletAddress
+ownPubKeyHashes :: QueryM (Maybe (Array PubKeyHash))
+ownPubKeyHashes = do
+  mbAddress <- getWalletAddresses
   pure $
-    wrap <$> (mbAddress >>= (addressPaymentCred >=> stakeCredentialToKeyHash))
+    map wrap <$> (mbAddress >>= traverse (addressPaymentCred >=> stakeCredentialToKeyHash))
 
-ownPaymentPubKeyHash :: QueryM (Maybe PaymentPubKeyHash)
-ownPaymentPubKeyHash = map wrap <$> ownPubKeyHash
+ownPaymentPubKeyHashes :: QueryM (Maybe (Array PaymentPubKeyHash))
+ownPaymentPubKeyHashes = (map <<< map) wrap <$> ownPubKeyHashes
 
+-- TODO: change to array of StakePubKeyHash
 ownStakePubKeyHash :: QueryM (Maybe StakePubKeyHash)
 ownStakePubKeyHash = do
-  mbAddress <- getWalletAddress
+  mbAddress <- getWalletAddresses <#> (_ >>= head)
   pure do
     baseAddress <- mbAddress >>= baseAddressFromAddress
     wrap <<< wrap <$> stakeCredentialToKeyHash

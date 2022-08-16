@@ -35,94 +35,19 @@ module Contract.Transaction
   ) where
 
 import Prelude
-import Prim.TypeError (class Warn, Text)
 
 import Aeson (class EncodeAeson, Aeson)
 import BalanceTx (BalanceTxError) as BalanceTxError
 import BalanceTx (FinalizedTransaction)
 import BalanceTx (balanceTx, balanceTxWithAddress) as BalanceTx
-import Cardano.Types.Transaction
-  ( AuxiliaryData(AuxiliaryData)
-  , AuxiliaryDataHash(AuxiliaryDataHash)
-  , BootstrapWitness
-  , Certificate
-      ( StakeRegistration
-      , StakeDeregistration
-      , StakeDelegation
-      , PoolRegistration
-      , PoolRetirement
-      , GenesisKeyDelegation
-      , MoveInstantaneousRewardsCert
-      )
-  , CostModel(CostModel)
-  , Costmdls(Costmdls)
-  , Ed25519Signature(Ed25519Signature)
-  , Epoch(Epoch)
-  , ExUnitPrices
-  , ExUnits
-  , GenesisHash(GenesisHash)
-  , Language(PlutusV1)
-  , Mint(Mint)
-  , NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
-  , Nonce(IdentityNonce, HashNonce)
-  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
-  , ProtocolParamUpdate
-  , ProtocolVersion
-  , PublicKey(PublicKey)
-  , Redeemer
-  , RequiredSigner(RequiredSigner)
-  , ScriptDataHash(ScriptDataHash)
-  , SubCoin
-  , Transaction(Transaction)
-  , TransactionWitnessSet(TransactionWitnessSet)
-  , TxBody(TxBody)
-  , UnitInterval
-  , Update
-  , Vkey(Vkey)
-  , Vkeywitness(Vkeywitness)
-  , _auxiliaryData
-  , _auxiliaryDataHash
-  , _body
-  , _bootstraps
-  , _certs
-  , _collateral
-  , _fee
-  , _inputs
-  , _isValid
-  , _mint
-  , _nativeScripts
-  , _networkId
-  , _outputs
-  , _plutusData
-  , _plutusScripts
-  , _requiredSigners
-  , _scriptDataHash
-  , _ttl
-  , _update
-  , _validityStartInterval
-  , _vkeys
-  , _withdrawals
-  , _witnessSet
-  ) as Transaction
+import Cardano.Types.Transaction (AuxiliaryData(AuxiliaryData), AuxiliaryDataHash(AuxiliaryDataHash), BootstrapWitness, Certificate(StakeRegistration, StakeDeregistration, StakeDelegation, PoolRegistration, PoolRetirement, GenesisKeyDelegation, MoveInstantaneousRewardsCert), CostModel(CostModel), Costmdls(Costmdls), Ed25519Signature(Ed25519Signature), Epoch(Epoch), ExUnitPrices, ExUnits, GenesisHash(GenesisHash), Language(PlutusV1), Mint(Mint), NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry), Nonce(IdentityNonce, HashNonce), ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates), ProtocolParamUpdate, ProtocolVersion, PublicKey(PublicKey), Redeemer, RequiredSigner(RequiredSigner), ScriptDataHash(ScriptDataHash), SubCoin, Transaction(Transaction), TransactionWitnessSet(TransactionWitnessSet), TxBody(TxBody), UnitInterval, Update, Vkey(Vkey), Vkeywitness(Vkeywitness), _auxiliaryData, _auxiliaryDataHash, _body, _bootstraps, _certs, _collateral, _fee, _inputs, _isValid, _mint, _nativeScripts, _networkId, _outputs, _plutusData, _plutusScripts, _requiredSigners, _scriptDataHash, _ttl, _update, _validityStartInterval, _vkeys, _withdrawals, _witnessSet) as Transaction
 import Cardano.Types.Transaction (Transaction)
 import Contract.Address (getWalletAddress)
-import Contract.Monad
-  ( Contract
-  , liftedE
-  , liftedM
-  , wrapContract
-  , runContractInEnv
-  )
+import Contract.Monad (Contract, liftedE, liftedM, wrapContract, runContractInEnv)
 import Control.Monad.Error.Class (try, catchError, throwError)
 import Control.Monad.Reader (asks, runReaderT, ReaderT)
 import Control.Monad.Reader.Class (ask)
+import Data.Array (singleton)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Either (Either(Left, Right), hush)
 import Data.Generic.Rep (class Generic)
@@ -141,81 +66,25 @@ import Plutus.Conversion.Address (fromPlutusAddress)
 import Plutus.Types.Address (Address)
 import Plutus.Types.Transaction (TransactionOutput(TransactionOutput)) as PTransaction
 import Plutus.Types.Value (Coin)
-import QueryM
-  ( ClientError
-      ( ClientHttpError
-      , ClientHttpResponseError
-      , ClientDecodeJsonError
-      , ClientEncodingError
-      , ClientOtherError
-      )
-  ) as ExportQueryM
+import Prim.TypeError (class Warn, Text)
+import QueryM (ClientError(ClientHttpError, ClientHttpResponseError, ClientDecodeJsonError, ClientEncodingError, ClientOtherError)) as ExportQueryM
 import QueryM (signTransaction, submitTxOgmios) as QueryM
-import QueryM.MinFee (calculateMinFee) as QueryM
-import QueryM.AwaitTxConfirmed
-  ( awaitTxConfirmed
-  , awaitTxConfirmedWithTimeout
-  , awaitTxConfirmedWithTimeoutSlots
-  ) as AwaitTx
+import QueryM.AwaitTxConfirmed (awaitTxConfirmed, awaitTxConfirmedWithTimeout, awaitTxConfirmedWithTimeoutSlots) as AwaitTx
 import QueryM.GetTxByHash (getTxByHash) as QueryM
+import QueryM.MinFee (calculateMinFee) as QueryM
 import QueryM.Ogmios (SubmitTxR(SubmitTxSuccess, SubmitFail))
 import ReindexRedeemers (ReindexErrors(CannotGetTxOutRefIndexForRedeemer)) as ReindexRedeemersExport
 import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (NetworkId)
 import TxOutput (scriptOutputToTransactionOutput) as TxOutput
-import Types.ScriptLookups
-  ( MkUnbalancedTxError
-      ( TypeCheckFailed
-      , ModifyTx
-      , TxOutRefNotFound
-      , TxOutRefWrongType
-      , DatumNotFound
-      , MintingPolicyNotFound
-      , MintingPolicyHashNotCurrencySymbol
-      , CannotMakeValue
-      , ValidatorHashNotFound
-      , OwnPubKeyAndStakeKeyMissing
-      , TypedValidatorMissing
-      , DatumWrongHash
-      , CannotQueryDatum
-      , CannotHashDatum
-      , CannotConvertPOSIXTimeRange
-      , CannotGetMintingPolicyScriptIndex
-      , CannotGetValidatorHashFromAddress
-      , MkTypedTxOutFailed
-      , TypedTxOutHasNoDatumHash
-      , CannotHashMintingPolicy
-      , CannotHashValidator
-      , CannotConvertPaymentPubKeyHash
-      , CannotSatisfyAny
-      )
-  , mkUnbalancedTx
-  ) as ScriptLookups
+import Types.ScriptLookups (MkUnbalancedTxError(TypeCheckFailed, ModifyTx, TxOutRefNotFound, TxOutRefWrongType, DatumNotFound, MintingPolicyNotFound, MintingPolicyHashNotCurrencySymbol, CannotMakeValue, ValidatorHashNotFound, OwnPubKeyAndStakeKeyMissing, TypedValidatorMissing, DatumWrongHash, CannotQueryDatum, CannotHashDatum, CannotConvertPOSIXTimeRange, CannotGetMintingPolicyScriptIndex, CannotGetValidatorHashFromAddress, MkTypedTxOutFailed, TypedTxOutHasNoDatumHash, CannotHashMintingPolicy, CannotHashValidator, CannotConvertPaymentPubKeyHash, CannotSatisfyAny), mkUnbalancedTx) as ScriptLookups
 import Types.ScriptLookups (UnattachedUnbalancedTx)
-import Types.Transaction
-  ( DataHash(DataHash)
-  , TransactionHash(TransactionHash)
-  , TransactionInput(TransactionInput)
-  ) as Transaction
+import Types.Transaction (DataHash(DataHash), TransactionHash(TransactionHash), TransactionInput(TransactionInput)) as Transaction
 import Types.Transaction (TransactionHash)
-import Types.TransactionMetadata
-  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
-  , TransactionMetadatumLabel(TransactionMetadatumLabel)
-  , TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
-  ) as TransactionMetadata
-import Types.UnbalancedTransaction
-  ( ScriptOutput(ScriptOutput)
-  , UnbalancedTx(UnbalancedTx)
-  , _transaction
-  , _utxoIndex
-  , emptyUnbalancedTx
-  ) as UnbalancedTx
-import Types.UsedTxOuts
-  ( UsedTxOuts
-  , lockTransactionInputs
-  , unlockTransactionInputs
-  )
+import Types.TransactionMetadata (GeneralTransactionMetadata(GeneralTransactionMetadata), TransactionMetadatumLabel(TransactionMetadatumLabel), TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)) as TransactionMetadata
+import Types.UnbalancedTransaction (ScriptOutput(ScriptOutput), UnbalancedTx(UnbalancedTx), _transaction, _utxoIndex, emptyUnbalancedTx) as UnbalancedTx
+import Types.UsedTxOuts (UsedTxOuts, lockTransactionInputs, unlockTransactionInputs)
 import Untagged.Union (asOneOf)
 
 -- | This module defines transaction-related requests. Currently signing and
@@ -294,13 +163,13 @@ balanceTx = wrapContract <<< BalanceTx.balanceTx
 -- | Attempts to balance an `UnattachedUnbalancedTx`.
 balanceTxWithAddress
   :: forall (r :: Row Type)
-   . Address
+   . Array Address
   -> UnattachedUnbalancedTx
   -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
-balanceTxWithAddress addr tx = do
+balanceTxWithAddress ownAddresses tx = do
   networkId <- asks $ unwrap >>> _.config >>> _.networkId
   wrapContract $ BalanceTx.balanceTxWithAddress
-    (fromPlutusAddress networkId addr)
+    (fromPlutusAddress networkId <$> ownAddresses)
     tx
 
 -- Helper to avoid repetition
@@ -402,10 +271,10 @@ balanceTxsWithAddress
        (t :: Type -> Type)
        (r :: Row Type)
    . Traversable t
-  => Address
+  => Array Address
   -> t UnattachedUnbalancedTx
   -> Contract r (t FinalizedTransaction)
-balanceTxsWithAddress ownAddress unbalancedTxs =
+balanceTxsWithAddress ownAddresses unbalancedTxs =
   unlockAllOnError $ traverse balanceAndLock unbalancedTxs
   where
   unlockAllOnError :: forall (a :: Type). Contract r a -> Contract r a
@@ -421,7 +290,7 @@ balanceTxsWithAddress ownAddress unbalancedTxs =
   balanceAndLock unbalancedTx = do
     networkId <- asks $ unwrap >>> _.config >>> _.networkId
     balancedTx <- liftedE $ wrapContract $ BalanceTx.balanceTxWithAddress
-      (fromPlutusAddress networkId ownAddress)
+      (fromPlutusAddress networkId <$> ownAddresses)
       unbalancedTx
     void $ withUsedTxouts $ lockTransactionInputs (unwrap balancedTx)
     pure balancedTx
@@ -436,7 +305,8 @@ balanceTxs
   => t UnattachedUnbalancedTx
   -> Contract r (t FinalizedTransaction)
 balanceTxs unbalancedTxs = do
-  mbOwnAddress <- getWalletAddress
+  -- TODO: change to take array of addrs addrs
+  mbOwnAddress <- getWalletAddress <#> map singleton
   case mbOwnAddress of
     Nothing -> liftEffect $ throw $
       "Failed to get own Address"

@@ -45,7 +45,7 @@ example cfg = launchAff_ do
         $ BigInt.fromInt 2_000_000
 
       lookups :: Lookups.ScriptLookups Void
-      lookups = Lookups.unspentOutputs utxos
+      lookups = mempty
 
     ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
 
@@ -58,7 +58,3 @@ example cfg = launchAff_ do
     awaitTxConfirmedWithTimeout (wrap 100.0) txId
     logInfo' $ "Tx submitted successfully!"
     liftAff $ publishTestFeedback true
-
-addrToPkh :: Maybe Address -> Maybe PaymentPubKeyHash
-addrToPkh addr = (wrap <<< wrap) <$>
-  (addr >>= (addressPaymentCred >=> stakeCredentialToKeyHash))
