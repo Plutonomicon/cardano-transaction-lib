@@ -5,6 +5,7 @@ module Cardano.TextEnvelope
   , TextEnvelope(TextEnvelope)
   , TextEnvelopeType
       ( PlutusScriptV1
+      , PlutusScriptV2
       , PaymentSigningKeyShelleyed25519
       , StakeSigningKeyShelleyed25519
       )
@@ -32,6 +33,7 @@ import Types.Cbor (CborParseError, toByteArray)
 
 data TextEnvelopeType
   = PlutusScriptV1
+  | PlutusScriptV2
   | PaymentSigningKeyShelleyed25519
   | StakeSigningKeyShelleyed25519
 
@@ -40,6 +42,7 @@ derive instance Eq TextEnvelopeType
 instance Show TextEnvelopeType where
   show = case _ of
     PlutusScriptV1 -> "PlutusScriptV1"
+    PlutusScriptV2 -> "PlutusScriptV2"
     PaymentSigningKeyShelleyed25519 -> "PaymentSigningKeyShelley_ed25519"
     StakeSigningKeyShelleyed25519 -> "StakeSigningKeyShelley_ed25519"
 
@@ -47,6 +50,7 @@ instance DecodeAeson TextEnvelopeType where
   decodeAeson aeson = do
     decodeAeson aeson >>= case _ of
       "PlutusScriptV1" -> pure PlutusScriptV1
+      "PlutusScriptV2" -> pure PlutusScriptV2
       "PaymentSigningKeyShelley_ed25519" -> pure
         PaymentSigningKeyShelleyed25519
       "StakeSigningKeyShelley_ed25519" -> pure
