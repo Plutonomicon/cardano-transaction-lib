@@ -35,6 +35,9 @@
         let
           projectName = "ctl-scaffold";
           pkgs = nixpkgsFor system;
+        in
+        pkgs.purescriptProject {
+          inherit pkgs projectName;
           packageJson = ./package.json;
           packageLock = ./package-lock.json;
           src = builtins.path {
@@ -46,13 +49,14 @@
           shell = {
             packageLockOnly = true;
             packages = with pkgs; [
+              ogmios
+              ogmios-datum-cache
+              ctl-server
+              plutip-server
               nodePackages.eslint
               nodePackages.prettier
             ];
           };
-        in
-        pkgs.purescriptProject {
-          inherit pkgs src projectName;
         };
     in
     {
