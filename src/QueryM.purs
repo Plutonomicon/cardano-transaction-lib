@@ -188,7 +188,13 @@ import Wallet
   )
 import Wallet.KeyFile (privatePaymentKeyFromFile, privateStakeKeyFromFile)
 import Wallet.Spec
-  ( WalletSpec(UseKeys, ConnectToGero, ConnectToNami, ConnectToFlint, ConnectToEternl)
+  ( WalletSpec
+      ( UseKeys
+      , ConnectToGero
+      , ConnectToNami
+      , ConnectToFlint
+      , ConnectToEternl
+      )
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
@@ -439,7 +445,8 @@ ownPubKeyHashes :: QueryM (Maybe (Array PubKeyHash))
 ownPubKeyHashes = do
   mbAddress <- getWalletAddresses
   pure $
-    map wrap <$> (mbAddress >>= traverse (addressPaymentCred >=> stakeCredentialToKeyHash))
+    map wrap <$>
+      (mbAddress >>= traverse (addressPaymentCred >=> stakeCredentialToKeyHash))
 
 ownPaymentPubKeyHashes :: QueryM (Maybe (Array PaymentPubKeyHash))
 ownPaymentPubKeyHashes = (map <<< map) wrap <$> ownPubKeyHashes

@@ -33,32 +33,85 @@ module Contract.Address
 
 import Prelude
 
-import Address (enterpriseAddressScriptHash, enterpriseAddressStakeValidatorHash, enterpriseAddressValidatorHash, getNetworkId) as Address
+import Address
+  ( enterpriseAddressScriptHash
+  , enterpriseAddressStakeValidatorHash
+  , enterpriseAddressValidatorHash
+  , getNetworkId
+  ) as Address
 import Contract.Monad (Contract, wrapContract, liftedM)
 import Data.Array (head)
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
-import Plutus.Conversion (fromPlutusAddress, toPlutusAddress, toPlutusTxUnspentOutput)
+import Plutus.Conversion
+  ( fromPlutusAddress
+  , toPlutusAddress
+  , toPlutusTxUnspentOutput
+  )
 import Plutus.Conversion.Address (fromPlutusAddressWithNetworkTag)
-import Plutus.Types.Address (Address, AddressWithNetworkTag(AddressWithNetworkTag))
-import Plutus.Types.Address (Address, AddressWithNetworkTag(AddressWithNetworkTag), pubKeyHashAddress, scriptHashAddress, toPubKeyHash, toValidatorHash, toStakingCredential) as ExportAddress
+import Plutus.Types.Address
+  ( Address
+  , AddressWithNetworkTag(AddressWithNetworkTag)
+  )
+import Plutus.Types.Address
+  ( Address
+  , AddressWithNetworkTag(AddressWithNetworkTag)
+  , pubKeyHashAddress
+  , scriptHashAddress
+  , toPubKeyHash
+  , toValidatorHash
+  , toStakingCredential
+  ) as ExportAddress
 import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import QueryM (getWalletAddresses, ownPaymentPubKeyHashes, ownPubKeyHashes, ownStakePubKeyHash) as QueryM
+import QueryM
+  ( getWalletAddresses
+  , ownPaymentPubKeyHashes
+  , ownPubKeyHashes
+  , ownStakePubKeyHash
+  ) as QueryM
 import QueryM.Utxos (getWalletCollateral) as QueryM
-import Scripts (typedValidatorBaseAddress, typedValidatorEnterpriseAddress, validatorHashBaseAddress, validatorHashEnterpriseAddress) as Scripts
+import Scripts
+  ( typedValidatorBaseAddress
+  , typedValidatorEnterpriseAddress
+  , validatorHashBaseAddress
+  , validatorHashEnterpriseAddress
+  ) as Scripts
 import Serialization.Address (NetworkId(MainnetId), addressBech32)
-import Serialization.Address (Slot(Slot), BlockId(BlockId), TransactionIndex(TransactionIndex), CertificateIndex(CertificateIndex), Pointer, ByronProtocolMagic(ByronProtocolMagic), NetworkId(TestnetId, MainnetId)) as SerializationAddress
+import Serialization.Address
+  ( Slot(Slot)
+  , BlockId(BlockId)
+  , TransactionIndex(TransactionIndex)
+  , CertificateIndex(CertificateIndex)
+  , Pointer
+  , ByronProtocolMagic(ByronProtocolMagic)
+  , NetworkId(TestnetId, MainnetId)
+  ) as SerializationAddress
 import Serialization.Hash (Ed25519KeyHash) as Hash
 import Serialization.Hash (ScriptHash)
 import Types.Aliases (Bech32String)
 import Types.Aliases (Bech32String) as TypeAliases
 import Types.ByteArray (ByteArray) as ByteArray
-import Types.PubKeyHash (PaymentPubKeyHash(PaymentPubKeyHash), PubKeyHash(PubKeyHash), StakePubKeyHash(StakePubKeyHash)) as ExportPubKeyHash
+import Types.PubKeyHash
+  ( PaymentPubKeyHash(PaymentPubKeyHash)
+  , PubKeyHash(PubKeyHash)
+  , StakePubKeyHash(StakePubKeyHash)
+  ) as ExportPubKeyHash
 import Types.PubKeyHash (PubKeyHash, PaymentPubKeyHash, StakePubKeyHash)
-import Types.PubKeyHash (payPubKeyHashBaseAddress, payPubKeyHashRewardAddress, payPubKeyHashEnterpriseAddress, pubKeyHashBaseAddress, pubKeyHashEnterpriseAddress, pubKeyHashRewardAddress, stakePubKeyHashRewardAddress) as PubKeyHash
+import Types.PubKeyHash
+  ( payPubKeyHashBaseAddress
+  , payPubKeyHashRewardAddress
+  , payPubKeyHashEnterpriseAddress
+  , pubKeyHashBaseAddress
+  , pubKeyHashEnterpriseAddress
+  , pubKeyHashRewardAddress
+  , stakePubKeyHashRewardAddress
+  ) as PubKeyHash
 import Types.Scripts (StakeValidatorHash, ValidatorHash)
 import Types.TypedValidator (TypedValidator)
-import Types.UnbalancedTransaction (PaymentPubKey(PaymentPubKey), ScriptOutput(ScriptOutput)) as ExportUnbalancedTransaction
+import Types.UnbalancedTransaction
+  ( PaymentPubKey(PaymentPubKey)
+  , ScriptOutput(ScriptOutput)
+  ) as ExportUnbalancedTransaction
 
 -- | Get the `Address` of the browser wallet.
 getWalletAddress
@@ -91,12 +144,13 @@ getWalletCollateral = do
 -- | Gets the wallet `PaymentPubKeyHash` via `getWalletAddress`.
 ownPaymentPubKeyHash
   :: forall (r :: Row Type). Contract r (Maybe PaymentPubKeyHash)
-                                    -- TODO: change this to Maybe (Array Address)
-ownPaymentPubKeyHash = wrapContract (QueryM.ownPaymentPubKeyHashes <#> (_ >>= head))
+-- TODO: change this to Maybe (Array Address)
+ownPaymentPubKeyHash = wrapContract
+  (QueryM.ownPaymentPubKeyHashes <#> (_ >>= head))
 
 -- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
 ownPubKeyHash :: forall (r :: Row Type). Contract r (Maybe PubKeyHash)
-                            -- TODO: change this to Maybe (Array Address)
+-- TODO: change this to Maybe (Array Address)
 ownPubKeyHash = wrapContract (QueryM.ownPubKeyHashes <#> (_ >>= head))
 
 ownStakePubKeyHash :: forall (r :: Row Type). Contract r (Maybe StakePubKeyHash)

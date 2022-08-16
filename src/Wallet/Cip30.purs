@@ -131,8 +131,14 @@ fromHexString act = map hexToRawBytes <<< Promise.toAffE <<< act
 -------------------------------------------------------------------------------
 foreign import data Cip30Connection :: Type
 
-foreign import _getAddresses :: Cip30Connection -> Effect (Promise (Array
-String))
+foreign import _getAddresses
+  :: Cip30Connection
+  -> Effect
+       ( Promise
+           ( Array
+               String
+           )
+       )
 
 foreign import _getCollateral
   :: MaybeFfiHelper

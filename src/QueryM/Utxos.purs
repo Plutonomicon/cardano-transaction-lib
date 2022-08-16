@@ -147,9 +147,9 @@ getWalletBalance = do
 
       map join $ for mbAddresses \addresses ->
         (map fold <<< sequence) <$> for addresses \address ->
-           utxosAt address <#> map
+          utxosAt address <#> map
             -- Combine `Value`s
-            (fold <<< map _.amount <<< map unwrap <<< Map.values <<< unwrap) 
+            (fold <<< map _.amount <<< map unwrap <<< Map.values <<< unwrap)
 
 getWalletCollateral :: QueryM (Maybe (Array TransactionUnspentOutput))
 getWalletCollateral = do

@@ -22,7 +22,12 @@ import Data.Lens.Record (prop)
 import Data.Maybe (Maybe(Just))
 import Serialization (privateKeyFromBytes) as Serialization
 import Type.Proxy (Proxy(Proxy))
-import Wallet (isGeroAvailable, isNamiAvailable, isFlintAvailable, isEternlAvailable) as Wallet
+import Wallet
+  ( isGeroAvailable
+  , isNamiAvailable
+  , isFlintAvailable
+  , isEternlAvailable
+  ) as Wallet
 import Wallet (mkKeyWallet, Wallet(KeyWallet))
 import Wallet.Spec
   ( WalletSpec(UseKeys, ConnectToNami, ConnectToGero, ConnectToFlint)

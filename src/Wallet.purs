@@ -87,6 +87,7 @@ mkFlintWalletAff :: Aff Wallet
 mkFlintWalletAff = Flint <$> mkCip30WalletAff "Flint" _enableFlint
 
 foreign import _enableFlint :: Effect (Promise Cip30Connection)
+
 -- ====== Eternl ======
 
 isEternlAvailable :: Effect Boolean

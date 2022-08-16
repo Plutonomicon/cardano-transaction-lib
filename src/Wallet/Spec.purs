@@ -1,5 +1,11 @@
 module Wallet.Spec
-  ( WalletSpec(UseKeys, ConnectToNami, ConnectToGero, ConnectToFlint, ConnectToEternl)
+  ( WalletSpec
+      ( UseKeys
+      , ConnectToNami
+      , ConnectToGero
+      , ConnectToFlint
+      , ConnectToEternl
+      )
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   ) where

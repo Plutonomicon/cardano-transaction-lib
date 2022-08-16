@@ -56,9 +56,37 @@ module BalanceTx
 import Prelude
 
 import BalanceTx.UtxoMinAda (adaOnlyUtxoMinAdaValue, utxoMinAdaValue)
-import Cardano.Types.Transaction (Redeemer(Redeemer), Transaction(Transaction), TransactionOutput(TransactionOutput), TxBody(TxBody), Utxos, _body, _collateral, _fee, _inputs, _networkId, _outputs, _plutusData, _redeemers, _witnessSet)
+import Cardano.Types.Transaction
+  ( Redeemer(Redeemer)
+  , Transaction(Transaction)
+  , TransactionOutput(TransactionOutput)
+  , TxBody(TxBody)
+  , Utxos
+  , _body
+  , _collateral
+  , _fee
+  , _inputs
+  , _networkId
+  , _outputs
+  , _plutusData
+  , _redeemers
+  , _witnessSet
+  )
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Cardano.Types.Value (Value, filterNonAda, geq, getLovelace, isPos, isZero, lovelaceValueOf, minus, mkCoin, mkValue, valueToCoin, valueToCoin')
+import Cardano.Types.Value
+  ( Value
+  , filterNonAda
+  , geq
+  , getLovelace
+  , isPos
+  , isZero
+  , lovelaceValueOf
+  , minus
+  , mkCoin
+  , mkValue
+  , valueToCoin
+  , valueToCoin'
+  )
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
@@ -99,7 +127,21 @@ import Effect.Class (class MonadEffect, liftEffect)
 import QueryM (ClientError, QueryM)
 import QueryM (evaluateTxOgmios, getWalletAddresses) as QueryM
 import QueryM.MinFee (calculateMinFee) as QueryM
-import QueryM.Ogmios (TxEvaluationResult(TxEvaluationResult), TxEvaluationFailure(UnparsedError, ScriptFailures), RedeemerPointer, ScriptFailure(ExtraRedeemers, MissingRequiredDatums, MissingRequiredScripts, ValidatorFailed, UnknownInputReferencedByRedeemer, NonScriptInputReferencedByRedeemer, IllFormedExecutionBudget, NoCostModelForLanguage)) as Ogmios
+import QueryM.Ogmios
+  ( TxEvaluationResult(TxEvaluationResult)
+  , TxEvaluationFailure(UnparsedError, ScriptFailures)
+  , RedeemerPointer
+  , ScriptFailure
+      ( ExtraRedeemers
+      , MissingRequiredDatums
+      , MissingRequiredScripts
+      , ValidatorFailed
+      , UnknownInputReferencedByRedeemer
+      , NonScriptInputReferencedByRedeemer
+      , IllFormedExecutionBudget
+      , NoCostModelForLanguage
+      )
+  ) as Ogmios
 import QueryM.Utxos (utxosAt, filterLockedUtxos, getWalletCollateral)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization (convertTransaction, toBytes) as Serialization
@@ -577,7 +619,6 @@ balanceTxWithAddress
   ownAddrs
   unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
 
-
   let (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = t
   networkId <- (unbalancedTx ^. _body <<< _networkId) #
     maybe (asks $ _.config >>> _.networkId) pure
@@ -585,7 +626,9 @@ balanceTxWithAddress
   utxoMinVal <- adaOnlyUtxoMinAdaValue
   runExceptT do
     -- TODO: eventually remove line below unless its needed for single change -- address
-    ownAddr <- ExceptT $ pure $ note (GetWalletAddressError' CouldNotGetWalletAddress) $ head ownAddrs
+    ownAddr <- ExceptT $ pure
+      $ note (GetWalletAddressError' CouldNotGetWalletAddress)
+      $ head ownAddrs
 
     -- Get own wallet address, collateral and utxo set:
     utxos <- ExceptT $ utxosAt ownAddr <#>
@@ -616,7 +659,8 @@ balanceTxWithAddress
 
     -- Prebalance collaterised tx without fees:
     ubcTx <- except $
-      prebalanceCollateral ownAddr zero availableUtxos utxoMinVal unbalancedCollTx
+      prebalanceCollateral ownAddr zero availableUtxos utxoMinVal
+        unbalancedCollTx
     -- Prebalance collaterised tx with fees:
     let unattachedTx' = unattachedTx # _transaction' .~ ubcTx
     _ /\ fees <- ExceptT $ evalExUnitsAndMinFee unattachedTx'

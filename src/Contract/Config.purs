@@ -24,7 +24,13 @@ import Contract.Monad (ConfigParams)
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
 import Data.Maybe (Maybe(Just, Nothing))
 import Wallet.Spec
-  ( WalletSpec(UseKeys, ConnectToNami, ConnectToGero, ConnectToFlint, ConnectToEternl)
+  ( WalletSpec
+      ( UseKeys
+      , ConnectToNami
+      , ConnectToGero
+      , ConnectToFlint
+      , ConnectToEternl
+      )
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
