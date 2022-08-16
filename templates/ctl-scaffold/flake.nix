@@ -33,7 +33,8 @@
         ];
       };
       psProjectFor = pkgs:
-        let
+        pkgs.purescriptProject {
+          inherit pkgs;
           projectName = "ctl-scaffold";
           packageJson = ./package.json;
           packageLock = ./package-lock.json;
@@ -46,13 +47,14 @@
           shell = {
             packageLockOnly = true;
             packages = with pkgs; [
+              ogmios
+              ogmios-datum-cache
+              ctl-server
+              plutip-server
               nodePackages.eslint
               nodePackages.prettier
             ];
           };
-        in
-        pkgs.purescriptProject {
-          inherit pkgs src projectName;
         };
     in
     {
