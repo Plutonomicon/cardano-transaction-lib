@@ -674,26 +674,10 @@ balanceTxWithAddress
     -- Logging Unbalanced Tx with collateral added:
     logTx "Unbalanced Collaterised Tx " availableUtxos unbalancedCollTx
 
-    -- Prebalance collaterised tx without fees:
-    ubcTx <- except $
-      prebalanceCollateral zero availableUtxos utxoMinVal unbalancedCollTx
-    -- Prebalance collaterised tx with fees:
-    let unattachedTx' = unattachedTx # _transaction' .~ ubcTx
-    _ /\ fees <- ExceptT $ evalExUnitsAndMinFee unattachedTx'
-    ubcTx' <- except $
-      prebalanceCollateral (fees + feeBuffer) availableUtxos utxoMinVal
-        ubcTx
-    -- Loop to balance non-Ada assets
-    nonAdaBalancedCollTx <- ExceptT $ loop availableUtxos ownAddr [] $
-      unattachedTx' #
-        _transaction' .~ ubcTx'
-    -- Return excess Ada change to wallet:
-    unsignedTx <- ExceptT $
-      returnAdaChangeAndFinalizeFees ownAddr allUtxos nonAdaBalancedCollTx
-        <#>
-          lmap ReturnAdaChangeError'
-    -- Attach datums and redeemers, set the script integrity hash:
-    finalizedTx <- lift $ finalizeTransaction unsignedTx
+    let inputTx = unattachedTx # _transaction' .~ unbalancedCollTx
+    finalizedTx <- ExceptT $
+      runBalancer availableUtxos ownAddr zero inputTx
+
     -- Log final balanced tx and return it:
     logTx "Post-balancing Tx " availableUtxos (unwrap finalizedTx)
     except $ Right finalizedTx
@@ -858,9 +842,12 @@ buildTransactionChangeOutput changeAddress utxos tx = runExceptT do
       ( (totalInputValue <> mintValue txBody)
           `minus` (totalOutputValue txBody <> minFeeValue txBody)
       )
+  let
+    amount :: Value
+    amount = valueWithNonNegativeAda changeValue
 
   pure $ TransactionOutput
-    { address: changeAddress, amount: changeValue, dataHash: Nothing }
+    { address: changeAddress, amount, dataHash: Nothing }
 
 addTransactionChangeOutput
   :: ChangeAddress
@@ -881,6 +868,9 @@ addTransactionInputs changeAddress utxos unbalancedTx = runExceptT do
     txBody :: TxBody
     txBody = unbalancedTx ^. _body'
 
+    txInputs :: Set TransactionInput
+    txInputs = txBody ^. _inputs
+
   nonMintedValue <- except $
     note (AddTransactionInputsError' CannotBuildNonMintedValue)
       (totalOutputValue txBody `minus` mintValue txBody)
@@ -897,9 +887,9 @@ addTransactionInputs changeAddress utxos unbalancedTx = runExceptT do
     requiredInputValue = nonMintedValue <> minFeeValue txBody <> changeValue
 
   newTxInputs <- except $ lmap BalanceTxInsError' $
-    collectTxIns (txBody ^. _inputs) utxos requiredInputValue
+    collectTxIns txInputs utxos requiredInputValue
 
-  case Set.isEmpty newTxInputs of
+  case newTxInputs == txInputs of
     true -> pure unbalancedTx
     false -> ExceptT $
       addTransactionInputs changeAddress utxos
@@ -913,6 +903,10 @@ mintValue txBody = maybe mempty (mkValue mempty <<< unwrap) (txBody ^. _mint)
 
 minFeeValue :: TxBody -> Value
 minFeeValue txBody = mkValue (txBody ^. _fee) mempty
+
+valueWithNonNegativeAda :: Value -> Value
+valueWithNonNegativeAda value =
+  mkValue (Coin $ max (valueToCoin' value) zero) (getNonAdaAsset value)
 
 --------------------------------------------------------------------------------
 
