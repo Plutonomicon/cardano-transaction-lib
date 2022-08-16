@@ -66,6 +66,7 @@ import Cardano.Types.Transaction
   , _collateral
   , _fee
   , _inputs
+  , _mint
   , _networkId
   , _outputs
   , _plutusData
@@ -74,10 +75,12 @@ import Cardano.Types.Transaction
   )
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value
-  ( Value
+  ( Coin(Coin)
+  , Value
   , filterNonAda
   , geq
   , getLovelace
+  , getNonAdaAsset
   , isPos
   , isZero
   , lovelaceValueOf
@@ -107,7 +110,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Lens (Lens', lens')
 import Data.Lens.Getter ((^.))
 import Data.Lens.Index (ix) as Lens
-import Data.Lens.Setter ((.~), set, (?~), (%~))
+import Data.Lens.Setter ((.~), over, set, (?~), (%~))
 import Data.List ((:), List(Nil), partition)
 import Data.Log.Tag (tag)
 import Data.Map (fromFoldable, lookup, toUnfoldable, union) as Map
@@ -120,15 +123,12 @@ import Data.String (Pattern(Pattern))
 import Data.String.Common (joinWith, split) as String
 import Data.String.CodePoints (length) as String
 import Data.String.Utils (padEnd)
-import Data.Traversable (sequence, traverse, traverse_)
+import Data.Traversable (for, sequence, traverse, traverse_)
 import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import QueryM (ClientError, QueryM)
-import QueryM
-  ( evaluateTxOgmios
-  , getWalletAddress
-  ) as QueryM
+import QueryM (evaluateTxOgmios, getWalletAddress) as QueryM
 import QueryM.MinFee (calculateMinFee) as QueryM
 import QueryM.Ogmios
   ( TxEvaluationResult(TxEvaluationResult)
@@ -176,6 +176,7 @@ data BalanceTxError
   | EvalExUnitsAndMinFeeError' EvalExUnitsAndMinFeeError
   | TxInputLockedError' TxInputLockedError
   | UtxoMinAdaValueCalcError' UtxoMinAdaValueCalcError
+  | BuildTxChangeOutputError' BuildTxChangeOutputError
 
 derive instance Generic BalanceTxError _
 
@@ -184,6 +185,13 @@ instance Show BalanceTxError where
     "EvalExUnitsAndMinFeeError': EvalTxFailure: " <> printTxEvaluationFailure tx
       failure
   show e = genericShow e
+
+data BuildTxChangeOutputError = CannotBuildChangeValue
+
+derive instance Generic BuildTxChangeOutputError _
+
+instance Show BuildTxChangeOutputError where
+  show = genericShow
 
 type WorkingLine = String
 type FrozenLine = String
@@ -758,6 +766,105 @@ balanceTxWithAddress
   feeBuffer :: BigInt
   feeBuffer = fromInt 500000
 
+--------------------------------------------------------------------------------
+
+type ChangeAddress = Address
+type TransactionChangeOutput = TransactionOutput
+type MinFee = BigInt
+
+runBalancer
+  :: Utxos
+  -> ChangeAddress
+  -> MinFee
+  -> UnattachedUnbalancedTx
+  -> QueryM (Either BalanceTxError FinalizedTransaction)
+runBalancer utxos changeAddress minFee unbalancedTx = runExceptT do
+  let worker = runBalancer utxos changeAddress
+  unbalancedTxWithoutChangeOutput <- ExceptT $
+    addTransactionInputs utxos
+      =<< addLovelacesToTransactionOutputs
+        (setTransactionMinFee minFee unbalancedTx)
+  prebalancedTx <- ExceptT $
+    addTransactionChangeOutput changeAddress utxos
+      unbalancedTxWithoutChangeOutput
+  balancedTx /\ newMinFee <- ExceptT $
+    evalExUnitsAndMinFee prebalancedTx
+  if newMinFee == minFee then lift $ finalizeTransaction balancedTx
+  else worker newMinFee unbalancedTxWithoutChangeOutput 
+
+setTransactionMinFee
+  :: MinFee -> UnattachedUnbalancedTx -> UnattachedUnbalancedTx
+setTransactionMinFee minFee = _body' <<< _fee .~ Coin minFee
+
+addLovelacesToTransactionOutputs
+  :: UnattachedUnbalancedTx
+  -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
+addLovelacesToTransactionOutputs unbalancedTx = runExceptT $
+  flip (set (_body' <<< _outputs)) unbalancedTx <$>
+    for (unbalancedTx ^. _body' <<< _outputs)
+      ( \txOutput -> do
+          txOutputMinAda <- ExceptT $
+            utxoMinAdaValue txOutput
+              <#> note (UtxoMinAdaValueCalcError' UtxoMinAdaValueCalcError)
+          let
+            txOutputRec = unwrap txOutput
+
+            txOutputValue :: Value
+            txOutputValue = txOutputRec.amount
+
+            newCoin :: Coin
+            newCoin = Coin $ max (valueToCoin' txOutputValue) txOutputMinAda
+
+          pure $ wrap txOutputRec
+            { amount = mkValue newCoin (getNonAdaAsset txOutputValue) }
+      )
+
+buildTransactionChangeOutput
+  :: ChangeAddress
+  -> Utxos
+  -> UnattachedUnbalancedTx
+  -> QueryM (Either BalanceTxError TransactionChangeOutput)
+buildTransactionChangeOutput changeAddress utxos tx = runExceptT do
+  let
+    txBody :: TxBody
+    txBody = tx ^. _body'
+
+    totalOutputValue :: Value
+    totalOutputValue = foldMap (_.amount <<< unwrap) (txBody ^. _outputs)
+
+    totalInputValue :: Value
+    totalInputValue = getInputValue utxos txBody
+
+    mintValue :: Value
+    mintValue = maybe mempty (mkValue mempty <<< unwrap) (txBody ^. _mint)
+
+    minFeeValue :: Value
+    minFeeValue = mkValue (txBody ^. _fee) mempty
+
+  changeValue <- except $
+    note (BuildTxChangeOutputError' CannotBuildChangeValue)
+      ((totalInputValue <> mintValue) `minus` (totalOutputValue <> minFeeValue))
+
+  pure $ TransactionOutput
+    { address: changeAddress, amount: changeValue, dataHash: Nothing }
+
+addTransactionChangeOutput
+  :: ChangeAddress
+  -> Utxos
+  -> UnattachedUnbalancedTx
+  -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
+addTransactionChangeOutput changeAddress utxos unbalancedTx =
+  map (\change -> unbalancedTx # _body' <<< _outputs %~ Array.cons change)
+    <$> buildTransactionChangeOutput changeAddress utxos unbalancedTx
+
+addTransactionInputs
+  :: Utxos
+  -> UnattachedUnbalancedTx
+  -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
+addTransactionInputs utxos unattachedTx = pure (Right unattachedTx)
+
+--------------------------------------------------------------------------------
+
 -- | Balances an unbalanced transaction. For submitting a tx via Nami, the
 -- | utxo set shouldn't include the collateral which is vital for balancing.
 -- | In particular, the transaction inputs must not include the collateral.
@@ -999,7 +1106,6 @@ balanceTxIns' utxos fees changeUtxoMinValue (TxBody txBody) = do
   collectTxIns txBody.inputs utxos minSpending <#>
     \txIns -> wrap txBody { inputs = Set.union txIns txBody.inputs }
 
---https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- | Getting the necessary input utxos to cover the fees for the transaction
 collectTxIns
   :: Set TransactionInput
