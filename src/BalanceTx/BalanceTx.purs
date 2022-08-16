@@ -1,5 +1,6 @@
 module BalanceTx
   ( Actual(Actual)
+  , AddTransactionInputsError(CannotBuildNonMintedValue)
   , AddTxCollateralsError
       ( CollateralUtxosUnavailable
       , AddTxCollateralsError
@@ -9,7 +10,9 @@ module BalanceTx
       , BalanceNonAdaOutsCannotMinus
       )
   , BalanceTxError
-      ( GetWalletAddressError'
+      ( AddTransactionInputsError'
+      , BuildTxChangeOutputError'
+      , GetWalletAddressError'
       , GetWalletCollateralError'
       , UtxosAtError'
       , UtxoMinAdaValueCalcError'
@@ -26,11 +29,12 @@ module BalanceTx
       , BalanceTxInsCannotMinus
       , UtxoLookupFailedFor
       )
+  , BuildTxChangeOutputError(CannotBuildChangeValue)
   , CannotMinusError(CannotMinus)
   , EvalExUnitsAndMinFeeError
       ( EvalMinFeeError
-      , ReindexRedeemersError
       , EvalTxFailure
+      , ReindexRedeemersError
       )
   , Expected(Expected)
   , FinalizedTransaction(FinalizedTransaction)
@@ -177,6 +181,7 @@ data BalanceTxError
   | TxInputLockedError' TxInputLockedError
   | UtxoMinAdaValueCalcError' UtxoMinAdaValueCalcError
   | BuildTxChangeOutputError' BuildTxChangeOutputError
+  | AddTransactionInputsError' AddTransactionInputsError
 
 derive instance Generic BalanceTxError _
 
@@ -191,6 +196,13 @@ data BuildTxChangeOutputError = CannotBuildChangeValue
 derive instance Generic BuildTxChangeOutputError _
 
 instance Show BuildTxChangeOutputError where
+  show = genericShow
+
+data AddTransactionInputsError = CannotBuildNonMintedValue
+
+derive instance Generic AddTransactionInputsError _
+
+instance Show AddTransactionInputsError where
   show = genericShow
 
 type WorkingLine = String
@@ -779,18 +791,25 @@ runBalancer
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
 runBalancer utxos changeAddress minFee unbalancedTx = runExceptT do
-  let worker = runBalancer utxos changeAddress
-  unbalancedTxWithoutChangeOutput <- ExceptT $
-    addTransactionInputs utxos
-      =<< addLovelacesToTransactionOutputs
-        (setTransactionMinFee minFee unbalancedTx)
+  let
+    unbalancedTxWithMinFee :: UnattachedUnbalancedTx
+    unbalancedTxWithMinFee = setTransactionMinFee minFee unbalancedTx
+
+  unbalancedTxWithoutChangeOutput <-
+    (ExceptT <<< addTransactionInputs changeAddress utxos)
+      =<< ExceptT (addLovelacesToTransactionOutputs unbalancedTxWithMinFee)
+
   prebalancedTx <- ExceptT $
     addTransactionChangeOutput changeAddress utxos
       unbalancedTxWithoutChangeOutput
-  balancedTx /\ newMinFee <- ExceptT $
-    evalExUnitsAndMinFee prebalancedTx
-  if newMinFee == minFee then lift $ finalizeTransaction balancedTx
-  else worker newMinFee unbalancedTxWithoutChangeOutput 
+
+  balancedTx /\ newMinFee <- ExceptT $ evalExUnitsAndMinFee prebalancedTx
+
+  case newMinFee == minFee of
+    true ->
+      lift $ finalizeTransaction balancedTx
+    false -> ExceptT $
+      runBalancer utxos changeAddress newMinFee unbalancedTxWithoutChangeOutput
 
 setTransactionMinFee
   :: MinFee -> UnattachedUnbalancedTx -> UnattachedUnbalancedTx
@@ -799,25 +818,27 @@ setTransactionMinFee minFee = _body' <<< _fee .~ Coin minFee
 addLovelacesToTransactionOutputs
   :: UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
-addLovelacesToTransactionOutputs unbalancedTx = runExceptT $
-  flip (set (_body' <<< _outputs)) unbalancedTx <$>
-    for (unbalancedTx ^. _body' <<< _outputs)
-      ( \txOutput -> do
-          txOutputMinAda <- ExceptT $
-            utxoMinAdaValue txOutput
-              <#> note (UtxoMinAdaValueCalcError' UtxoMinAdaValueCalcError)
-          let
-            txOutputRec = unwrap txOutput
+addLovelacesToTransactionOutputs unbalancedTx = runExceptT do
+  map (\txOutputs -> unbalancedTx # _body' <<< _outputs .~ txOutputs) $
+    traverse (ExceptT <<< addLovelacesToTransactionOutput)
+      (unbalancedTx ^. _body' <<< _outputs)
 
-            txOutputValue :: Value
-            txOutputValue = txOutputRec.amount
+addLovelacesToTransactionOutput
+  :: TransactionOutput -> QueryM (Either BalanceTxError TransactionOutput)
+addLovelacesToTransactionOutput txOutput = runExceptT do
+  txOutputMinAda <- ExceptT $ utxoMinAdaValue txOutput
+    <#> note (UtxoMinAdaValueCalcError' UtxoMinAdaValueCalcError)
+  let
+    txOutputRec = unwrap txOutput
 
-            newCoin :: Coin
-            newCoin = Coin $ max (valueToCoin' txOutputValue) txOutputMinAda
+    txOutputValue :: Value
+    txOutputValue = txOutputRec.amount
 
-          pure $ wrap txOutputRec
-            { amount = mkValue newCoin (getNonAdaAsset txOutputValue) }
-      )
+    newCoin :: Coin
+    newCoin = Coin $ max (valueToCoin' txOutputValue) txOutputMinAda
+
+  pure $ wrap txOutputRec
+    { amount = mkValue newCoin (getNonAdaAsset txOutputValue) }
 
 buildTransactionChangeOutput
   :: ChangeAddress
@@ -829,21 +850,14 @@ buildTransactionChangeOutput changeAddress utxos tx = runExceptT do
     txBody :: TxBody
     txBody = tx ^. _body'
 
-    totalOutputValue :: Value
-    totalOutputValue = foldMap (_.amount <<< unwrap) (txBody ^. _outputs)
-
     totalInputValue :: Value
     totalInputValue = getInputValue utxos txBody
 
-    mintValue :: Value
-    mintValue = maybe mempty (mkValue mempty <<< unwrap) (txBody ^. _mint)
-
-    minFeeValue :: Value
-    minFeeValue = mkValue (txBody ^. _fee) mempty
-
   changeValue <- except $
     note (BuildTxChangeOutputError' CannotBuildChangeValue)
-      ((totalInputValue <> mintValue) `minus` (totalOutputValue <> minFeeValue))
+      ( (totalInputValue <> mintValue txBody)
+          `minus` (totalOutputValue txBody <> minFeeValue txBody)
+      )
 
   pure $ TransactionOutput
     { address: changeAddress, amount: changeValue, dataHash: Nothing }
@@ -858,10 +872,47 @@ addTransactionChangeOutput changeAddress utxos unbalancedTx =
     <$> buildTransactionChangeOutput changeAddress utxos unbalancedTx
 
 addTransactionInputs
-  :: Utxos
+  :: ChangeAddress
+  -> Utxos
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
-addTransactionInputs utxos unattachedTx = pure (Right unattachedTx)
+addTransactionInputs changeAddress utxos unbalancedTx = runExceptT do
+  let
+    txBody :: TxBody
+    txBody = unbalancedTx ^. _body'
+
+  nonMintedValue <- except $
+    note (AddTransactionInputsError' CannotBuildNonMintedValue)
+      (totalOutputValue txBody `minus` mintValue txBody)
+
+  txChangeOutput <-
+    ExceptT (buildTransactionChangeOutput changeAddress utxos unbalancedTx)
+      >>= (ExceptT <<< addLovelacesToTransactionOutput)
+
+  let
+    changeValue :: Value
+    changeValue = (unwrap txChangeOutput).amount
+
+    requiredInputValue :: Value
+    requiredInputValue = nonMintedValue <> minFeeValue txBody <> changeValue
+
+  newTxInputs <- except $ lmap BalanceTxInsError' $
+    collectTxIns (txBody ^. _inputs) utxos requiredInputValue
+
+  case Set.isEmpty newTxInputs of
+    true -> pure unbalancedTx
+    false -> ExceptT $
+      addTransactionInputs changeAddress utxos
+        (unbalancedTx # _body' <<< _inputs %~ Set.union newTxInputs)
+
+totalOutputValue :: TxBody -> Value
+totalOutputValue txBody = foldMap (_.amount <<< unwrap) (txBody ^. _outputs)
+
+mintValue :: TxBody -> Value
+mintValue txBody = maybe mempty (mkValue mempty <<< unwrap) (txBody ^. _mint)
+
+minFeeValue :: TxBody -> Value
+minFeeValue txBody = mkValue (txBody ^. _fee) mempty
 
 --------------------------------------------------------------------------------
 
