@@ -14,12 +14,13 @@ This document lists common problems encountered by CTL users and developers.
 
 This is probably because npm is used directly. This is something users have reported when using `npm install` instead of having Nix manage the node dependencies (done automatically with `nix develop`, but if you have `node_modules` present in the working directory it will shadow the ones from the Nix store).
 
+You can prevent `npm` from ever installing to local `node_modules` by enabling the `packageLockOnly` flag in the `shell` argument to `purescriptProject`. When enabled, `npm i` will always act as if the `--package-lock-only` flag has been passed. This is not enabled by default, but we recommend enabling it.
+
 ## Time-related
 
 ### Q: Time-related functions behave strangely, what's the reason?
 
-Local `cardano-node` lags behind the global network time, so when using time conversion functions (`slotToPosixTime`, `posixTimeToSlot`, etc.) users should be aware that the node sees time differently from the OS.
-During normal runs, the lag can be somewhere between 0 and 200 seconds.
+Local `cardano-node` lags behind the global network time, so when using time conversion functions (`slotToPosixTime`, `posixTimeToSlot`, etc.) users should be aware that the node sees time differently from the OS. During normal runs, the lag can be somewhere between 0 and 200 seconds.
 
 To do anything time-related, it's best to rely on local node chain tip time, instead of using `Date.now()` as a source of truth. This is often a requirement when using `mustValidateIn`, because the node will reject the transaction if it appears too early.
 
@@ -31,7 +32,7 @@ Time/slot conversion functions depend on `eraSummaries` [Ogmios local state quer
 
 ### Q: Why am I getting `Error: (AtKey "coinsPerUtxoByte" MissingValue)`?
 
-This is because the node hasn't fully synched. The protocol parameter name changed from `coinsPerUtxoWord` to `coinsPerUtxoByte` in Babbage. CTL only supports the latest era, but Ogmios returns different protocol parameters format depending on current era of a local node.
+This is because the node hasn't fully synced. The protocol parameter name changed from `coinsPerUtxoWord` to `coinsPerUtxoByte` in Babbage. CTL only supports the latest era, but Ogmios returns different protocol parameters format depending on current era of a local node.
 
 ### Q: Why do I get an error from `foreign.js` when running Plutip tests locally?
 
