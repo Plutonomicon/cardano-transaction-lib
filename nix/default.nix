@@ -82,28 +82,56 @@ let
       # If `true`, `npm i` will only write to your `package-lock.json` instead
       # of installing to a local `node_modules`
     , packageLockOnly ? false
+      # If `true`, all of CTL's runtime dependencies will be added to the
+      # shell's `packages`. These packages are *required* if you plan on running
+      # Plutip tests in your local shell environment (that is, not using Nix
+      # directly as with `runPlutipTest`). Make sure you have applied
+      # `overlays.runtime` or otherwise added the runtime packages to your
+      # package set if you select this option!
+    , withRuntime ? true
+      # If `true`, the `chromium` package from your package set will be made
+      # available in the shell environment. This can help with ensuring that
+      # any e2e tests that you write and run with `Contract.Test.E2E` are
+      # reproducible
     , withChromium ? false
     }:
       assert pkgs.lib.assertOneOf "formatter" formatter [ "purs-tidy" "purty" ];
+      with pkgs.lib;
       pkgs.mkShell {
-        buildInputs = [
-          nodeModules
-          purs
-          nodejs
-          pkgs.easy-ps.spago
-          pkgs.easy-ps."${formatter}"
-          pkgs.easy-ps.pscid
-          pkgs.easy-ps.psa
-          pkgs.easy-ps.spago2nix
-          pkgs.nodePackages.node2nix
-          pkgs.unzip
-        ] ++ pkgs.lib.lists.optional
-          pursls
-          pkgs.easy-ps.purescript-language-server
-        ++ pkgs.lib.lists.optional
-          withChromium
-          pkgs.chromium;
         inherit packages inputsFrom;
+        buildInputs = builtins.concatLists
+          [
+            [
+              nodeModules
+              purs
+              nodejs
+              pkgs.easy-ps.spago
+              pkgs.easy-ps.${formatter}
+              pkgs.easy-ps.pscid
+              pkgs.easy-ps.psa
+              pkgs.easy-ps.spago2nix
+              pkgs.nodePackages.node2nix
+              pkgs.unzip
+            ]
+
+            (lists.optional pursls pkgs.easy-ps.purescript-language-server)
+
+            (lists.optional withChromium pkgs.chromium)
+
+            (
+              lists.optional withRuntime (
+                [
+                  pkgs.ogmios
+                  pkgs.ogmios-datum-cache
+                  pkgs.plutip-server
+                  pkgs.postgresql
+                ]
+                # this package will be soon put into its own overlay, so we'll
+                # check this now for future compat
+                ++ lists.optional (pkgs ? ctl-server) pkgs.ctl-server
+              )
+            )
+          ];
         shellHook = ''
           export NODE_PATH="${nodeModules}/lib/node_modules"
           export PATH="${nodeModules}/bin:$PATH"

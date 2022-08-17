@@ -86,7 +86,7 @@ import Data.Lens.Getter ((^.))
 import Data.Lens.Index (ix) as Lens
 import Data.Lens.Setter ((.~), (?~), (%~))
 import Data.Log.Tag (tag)
-import Data.Map (empty, fromFoldable, lookup, toUnfoldable, union) as Map
+import Data.Map (fromFoldable, lookup, toUnfoldable, union) as Map
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
