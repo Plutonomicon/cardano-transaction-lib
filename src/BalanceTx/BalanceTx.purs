@@ -86,7 +86,7 @@ import Data.Lens.Getter ((^.))
 import Data.Lens.Index (ix) as Lens
 import Data.Lens.Setter ((.~), (?~), (%~))
 import Data.Log.Tag (tag)
-import Data.Map (fromFoldable, lookup, toUnfoldable, union) as Map
+import Data.Map (empty, fromFoldable, lookup, toUnfoldable, union) as Map
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
@@ -586,31 +586,11 @@ balanceTxWithAddress
     availableUtxos <- lift $ filterLockedUtxos allUtxos
 
     -- Logging Unbalanced Tx with collateral added:
-    logTx "Unbalanced Collaterised Tx " availableUtxos unbalancedCollTx
+    logTx "unbalancedCollTx" availableUtxos unbalancedCollTx
 
-    finalizedTx <- ExceptT $
+    ExceptT $
       runBalancer availableUtxos ownAddr
         (unattachedTx # _transaction' .~ unbalancedCollTx)
-
-    -- Log final balanced tx and return it:
-    logTx "Post-balancing Tx " availableUtxos (unwrap finalizedTx)
-    except $ Right finalizedTx
-
--- Logging for Transaction type without returning Transaction
-logTx
-  :: forall (m :: Type -> Type)
-   . MonadEffect m
-  => MonadLogger m
-  => String
-  -> Utxos
-  -> Transaction
-  -> m Unit
-logTx msg utxos (Transaction { body: body'@(TxBody body) }) =
-  traverse_ (Logger.trace (tag msg mempty))
-    [ "Input Value: " <> show (getInputValue utxos body')
-    , "Output Value: " <> show (Array.foldMap getAmount body.outputs)
-    , "Fees: " <> show body.fee
-    ]
 
 --------------------------------------------------------------------------------
 -- Balancing Algorithm
@@ -619,6 +599,7 @@ logTx msg utxos (Transaction { body: body'@(TxBody body) }) =
 type ChangeAddress = Address
 type TransactionChangeOutput = TransactionOutput
 type MinFee = BigInt
+type Iteration = Int
 
 runBalancer
   :: Utxos
@@ -626,14 +607,15 @@ runBalancer
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
 runBalancer utxos changeAddress unbalancedTx' = runExceptT do
-  (ExceptT <<< mainLoop zero)
+  (ExceptT <<< mainLoop one zero)
     =<< (ExceptT $ addLovelacesToTransactionOutputs unbalancedTx')
   where
   mainLoop
-    :: MinFee
+    :: Iteration
+    -> MinFee
     -> UnattachedUnbalancedTx
     -> QueryM (Either BalanceTxError FinalizedTransaction)
-  mainLoop minFee unbalancedTx = runExceptT do
+  mainLoop iteration minFee unbalancedTx = runExceptT do
     let
       unbalancedTxWithMinFee :: UnattachedUnbalancedTx
       unbalancedTxWithMinFee = setTransactionMinFee minFee unbalancedTx
@@ -642,18 +624,41 @@ runBalancer utxos changeAddress unbalancedTx' = runExceptT do
       ExceptT $ addTransactionInputs changeAddress utxos
         unbalancedTxWithMinFee
 
+    lift $ traceMainLoop "added transaction inputs" "unbalancedTxWithInputs"
+      unbalancedTxWithInputs
+
     prebalancedTx <-
       ExceptT $ addTransactionChangeOutput changeAddress utxos
         unbalancedTxWithInputs
 
+    lift $ traceMainLoop "added transaction change output" "prebalancedTx"
+      prebalancedTx
+
     balancedTx /\ newMinFee <-
       ExceptT $ evalExUnitsAndMinFee prebalancedTx
 
+    lift $ traceMainLoop "calculated ex units and min fee" "balancedTx"
+      balancedTx
+
     case newMinFee == minFee of
-      true ->
-        lift $ finalizeTransaction balancedTx
+      true -> lift do
+        finalizedTransaction <- finalizeTransaction balancedTx
+
+        traceMainLoop "finalized transaction" "finalizedTransaction"
+          finalizedTransaction
+        pure finalizedTransaction
       false ->
-        ExceptT $ mainLoop newMinFee unbalancedTxWithInputs
+        ExceptT $ mainLoop (iteration + one) newMinFee unbalancedTxWithInputs
+    where
+    traceMainLoop
+      :: forall (a :: Type). Show a => String -> String -> a -> QueryM Unit
+    traceMainLoop meta message object =
+      let
+        tagMessage :: String
+        tagMessage =
+          "mainLoop (iteration " <> show iteration <> "): " <> meta
+      in
+        Logger.trace (tag tagMessage "^") $ message <> ": " <> show object
 
 setTransactionMinFee
   :: MinFee -> UnattachedUnbalancedTx -> UnattachedUnbalancedTx
@@ -835,4 +840,24 @@ getInputValue utxos (TxBody txBody) =
         <<< Array.fromFoldable
         <<< _.inputs $ txBody
     )
+
+--------------------------------------------------------------------------------
+-- Logging Helpers 
+--------------------------------------------------------------------------------
+
+-- Logging for Transaction type without returning Transaction
+logTx
+  :: forall (m :: Type -> Type)
+   . MonadEffect m
+  => MonadLogger m
+  => String
+  -> Utxos
+  -> Transaction
+  -> m Unit
+logTx msg utxos (Transaction { body: body'@(TxBody body) }) =
+  traverse_ (Logger.trace (tag msg mempty))
+    [ "Input Value: " <> show (getInputValue utxos body')
+    , "Output Value: " <> show (Array.foldMap getAmount body.outputs)
+    , "Fees: " <> show body.fee
+    ]
 
