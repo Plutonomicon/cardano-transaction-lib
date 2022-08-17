@@ -19,7 +19,6 @@ import Aeson
       , Named
       , MissingValue
       )
-  , NumberIndex
   , aesonNull
   , caseAeson
   , caseAesonArray
@@ -43,12 +42,10 @@ import Aeson
   , fromString
   , gDecodeAeson
   , gEncodeAeson
-  , getCurrentNumberIndex
   , getField
   , getFieldOptional
   , getFieldOptional'
   , getNestedAeson
-  , getNumberIndex
   , isArray
   , isBoolean
   , isNull

@@ -1,12 +1,12 @@
 -- | This module balances and signs two transactions at once and demonstrates
 -- | the `withBalancedandSignedTxs` bracket. The point is that two different
 -- | Utxos will be used for these transactions.
-module Examples.SignMultiple (main) where
+module Examples.SignMultiple (example, main) where
 
 import Contract.Prelude
 
 import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
-import Contract.Config (testnetNamiConfig)
+import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
@@ -38,8 +38,11 @@ getLockedInputs = do
   liftEffect $ Ref.read $ unwrap cache
 
 main :: Effect Unit
-main = launchAff_ do
-  runContract testnetNamiConfig do
+main = example testnetNamiConfig
+
+example :: ConfigParams () -> Effect Unit
+example cfg = launchAff_ do
+  runContract cfg do
     logInfo' "Running Examples.SignMultiple"
     pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
     skh <- liftedM "Failed to get own SKH" ownStakePubKeyHash
