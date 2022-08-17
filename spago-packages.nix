@@ -869,6 +869,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "node-readline" = pkgs.stdenv.mkDerivation {
+        name = "node-readline";
+        version = "v5.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-node/purescript-node-readline.git";
+          rev = "c59deb30c7ff5cc91d6b062120c5a3979bd4ccff";
+          sha256 = "0c299bvkhrdbij88fxb75sdm7bl4wpgv9fz7wsj0hw6gkxmplpj9";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "node-streams" = pkgs.stdenv.mkDerivation {
         name = "node-streams";
         version = "v5.0.0";
