@@ -25,7 +25,8 @@ import Data.UInt (UInt)
 import Data.UInt (fromInt) as UInt
 import Effect.Aff (Aff)
 import Mote (group, test)
-import QueryM (QueryM, runQueryM, traceQueryConfig)
+import QueryM (QueryM, runQueryM)
+import QueryM.Config (testnetTraceQueryConfig)
 import Test.Fixtures (currencySymbol1, tokenName1, tokenName2, txInputFixture1)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Utils (Seconds(Seconds))
@@ -60,7 +61,7 @@ suite = do
 
 withMaxCollateralInputs :: (Int -> QueryM Unit) -> Aff Unit
 withMaxCollateralInputs test =
-  traceQueryConfig >>= flip runQueryM (getMaxCollateralInputs >>= test)
+  runQueryM testnetTraceQueryConfig (getMaxCollateralInputs >>= test)
 
 -- | Ada-only tx output sufficient to cover `minRequiredCollateral`.
 adaOnlyTxOutputSuf :: TransactionOutput

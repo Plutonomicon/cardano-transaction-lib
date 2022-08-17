@@ -73,4 +73,4 @@ enterpriseAddressStakeValidatorHash =
 -- NetworkId
 --------------------------------------------------------------------------------
 getNetworkId :: QueryM NetworkId
-getNetworkId = asks _.networkId
+getNetworkId = asks $ _.config >>> _.networkId

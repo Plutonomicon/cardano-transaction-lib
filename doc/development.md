@@ -51,7 +51,10 @@ To develop locally, you can use one the CTL flake to launch all required service
   - `nix build` _or_
   - `spago build`
 - To test the project, currently only supported when running in a NodeJS environment:
-  - `npm run unit-test` for unit tests, `npm run integration-test` for integration tests, or `npm run test` for both.
+  - Use `npm run test`, or, if you need to test some specific functionality:
+    - `npm run unit-test` for unit tests
+    - `npm run integration-test` for integration tests (requires ctl-runtime running)
+    - `npm run plutip-test` for Plutip integration tests (does not require ctl-runtime)
   - `nix build .#checks.<SYSTEM>.ctl-unit-test` will build and run the unit tests (useful for CI)
 - To run or build/bundle the project for the browser:
   - `make run-dev` _or_ `npm run dev` will start a Webpack development server at `localhost:4008`
@@ -64,6 +67,8 @@ By default, Webpack will build a [small Purescript example](examples/Pkh2Pkh.pur
 
 ## Generating PS documentation
 
+CTL PureScript docs are publicly deployed [here](https://plutonomicon.github.io/cardano-transaction-lib/).
+
 - To build the documentation as HTML:
   - `spago docs`
 - To build and open the documentation in your browser:
@@ -71,7 +76,7 @@ By default, Webpack will build a [small Purescript example](examples/Pkh2Pkh.pur
 - To build the documentation as Markdown:
   - `spago docs --format markdown`
 
-The documentation will be generated in the `./generated_docs` folder, which contains an `index.html` which lists all modules by default. At this index is a checkbox to toggle viewing by package, and all the modules defined in our package will be available under `cardano-transaction-lib`.
+The documentation will be generated in the `./generated_docs/html` directory, which contains an `index.html` which lists all modules by default. At this index is a checkbox to toggle viewing by package, and all the modules defined in our package will be available under `cardano-transaction-lib`.
 
 Alternatively, you can view the documentation with `nix run -L .#docs` and opening `localhost:8080` in your browser. `nix build -L .#docs` will produce a `result` folder containing the documentation.
 

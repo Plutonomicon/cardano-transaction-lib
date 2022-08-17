@@ -1,5 +1,6 @@
 module Serialization
-  ( convertTransaction
+  ( bytesFromPrivateKey
+  , convertTransaction
   , convertTxBody
   , convertTxInput
   , convertTxOutput
@@ -243,6 +244,9 @@ foreign import publicKeyFromPrivateKey
 
 foreign import _privateKeyFromBytes
   :: MaybeFfiHelper -> RawBytes -> Maybe PrivateKey
+
+foreign import _bytesFromPrivateKey
+  :: MaybeFfiHelper -> PrivateKey -> Maybe RawBytes
 
 foreign import publicKeyHash :: PublicKey -> Ed25519KeyHash
 foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
@@ -611,9 +615,10 @@ convertProtocolParamUpdate
     mkUnitInterval >=> ppuSetExpansionRate ppu
   for_ treasuryGrowthRate $
     mkUnitInterval >=> ppuSetTreasuryGrowthRate ppu
-  for_ protocolVersion $
-    ppuSetProtocolVersion ppu <=<
-      \pv -> newProtocolVersion (UInt.toInt pv.major) (UInt.toInt pv.minor)
+  for_ protocolVersion \pv ->
+    ppuSetProtocolVersion ppu =<<
+      newProtocolVersion (UInt.toInt pv.major)
+        (UInt.toInt pv.minor)
   for_ minPoolCost $ ppuSetMinPoolCost ppu
   for_ adaPerUtxoByte $ ppuSetAdaPerUtxoByte ppu
   for_ costModels $ convertCostmdls >=> ppuSetCostModels ppu
@@ -646,6 +651,9 @@ publicKeyFromBech32 = _publicKeyFromBech32 maybeFfiHelper
 
 privateKeyFromBytes :: RawBytes -> Maybe PrivateKey
 privateKeyFromBytes = _privateKeyFromBytes maybeFfiHelper
+
+bytesFromPrivateKey :: PrivateKey -> Maybe RawBytes
+bytesFromPrivateKey = _bytesFromPrivateKey maybeFfiHelper
 
 convertCerts :: Array T.Certificate -> Effect Certificates
 convertCerts certs = do
@@ -733,7 +741,8 @@ convertNetworkId = case _ of
   T.MainnetId -> networkIdMainnet
 
 convertMint :: T.Mint -> Effect Mint
-convertMint (T.Mint (Value.NonAdaAsset m)) = do
+convertMint (T.Mint nonAdaAssets) = do
+  let m = Value.unwrapNonAdaAsset nonAdaAssets
   mint <- newMint
   forWithIndex_ m \scriptHashBytes' values -> do
     let
