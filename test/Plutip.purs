@@ -8,13 +8,7 @@ import Prelude
 
 import Contract.Address (getWalletCollateral, ownPaymentPubKeyHash)
 import Contract.Log (logInfo')
-import Contract.Monad
-  ( Contract
-  , liftContractAffM
-  , liftContractM
-  , liftedE
-  , liftedM
-  )
+import Contract.Monad (Contract, liftContractM, liftedE, liftedM)
 import Contract.PlutusData
   ( PlutusData(Integer)
   , Redeemer(Redeemer)

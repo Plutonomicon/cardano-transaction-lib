@@ -113,7 +113,6 @@ import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Bitraversable (bitraverse)
 import Data.Either (Either)
-import Data.Int (fromString)
 import Data.Int as Data.Int
 import Data.Map as M
 import Data.Maybe (Maybe)

@@ -54,13 +54,7 @@ module BalanceTx
 
 import Prelude
 
-import BalanceTx.Collateral
-  ( CollateralReturnError
-  , addTxCollateral
-  , addTxCollateralReturn
-  , getMaxCollateralInputs
-  , selectCollateral
-  ) as Collateral
+import BalanceTx.Collateral (CollateralReturnError) as Collateral
 import BalanceTx.UtxoMinAda (adaOnlyUtxoMinAdaValue, utxoMinAdaValue)
 import Cardano.Types.Transaction
   ( Redeemer(Redeemer)
@@ -112,7 +106,7 @@ import Data.Lens.Setter ((.~), set, (?~), (%~))
 import Data.List ((:), List(Nil), partition)
 import Data.Log.Tag (tag)
 import Data.Map (fromFoldable, lookup, toUnfoldable, union, filterKeys) as Map
-import Data.Maybe (fromMaybe, maybe, isJust, Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set

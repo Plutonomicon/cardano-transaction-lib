@@ -107,7 +107,6 @@ import Data.Traversable (traverse_)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Hashing (datumHash) as Hashing
 import Helpers ((<\>), liftEither, liftM)
