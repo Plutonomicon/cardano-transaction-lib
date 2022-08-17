@@ -37,7 +37,7 @@ module BalanceTx
 
 import Prelude
 
-import BalanceTx.UtxoMinAda (adaOnlyUtxoMinAdaValue, utxoMinAdaValue)
+import BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Cardano.Types.Transaction
   ( Redeemer(Redeemer)
   , Transaction(Transaction)
@@ -100,7 +100,7 @@ import Data.Traversable (traverse, traverse_)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect, liftEffect)
-import QueryM (ClientError, QueryM)
+import QueryM (QueryM)
 import QueryM (evaluateTxOgmios, getWalletAddress) as QueryM
 import QueryM.MinFee (calculateMinFee) as QueryM
 import QueryM.Ogmios
