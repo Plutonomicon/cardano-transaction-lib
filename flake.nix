@@ -216,20 +216,16 @@
             packageJson = ./package.json;
             packageLock = ./package-lock.json;
             shell = {
+              withRuntime = true;
               shellHook = exportOgmiosFixtures;
               packageLockOnly = true;
               packages = with pkgs; [
                 arion
-                ctl-server
                 fd
                 haskellPackages.fourmolu
                 nixpkgs-fmt
                 nodePackages.eslint
                 nodePackages.prettier
-                ogmios
-                ogmios-datum-cache
-                plutip-server
-                postgresql
               ];
             };
           };
