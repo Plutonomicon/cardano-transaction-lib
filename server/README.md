@@ -1,12 +1,12 @@
 # ctl-server
 
-This is a small Haskell project to provide services to the `cardano-transaction-lib` frontend that cannot be achieved using Purescript
+This is a small Haskell project to provide services to the `cardano-transaction-lib` frontend that cannot be achieved using Purescript. For now we only use the server to apply arguments to Plutus scripts.
 
 ## Goals
 
 We plan on supporting at least the following features:
 
-- [x] Transaction fee estimation via `Cardano.Api`
+- [x] ~~Transaction fee estimation via `Cardano.Api`~~
 - [x] Plutus' `applyArguments` for applying `Data` arguments to scripts
 - [x] ~~Obtaining the hash of scripts (e.g. `validatorHash`, etc...)~~
 
@@ -49,35 +49,4 @@ The server executable can be built with `nix build .#ctl-server:exe:ctl-server` 
 
 ```javascript
 "4d01000033222220051200120011"
-```
-
-## POST /fees
-
-### Request:
-
-- Supported content types are:
-
-    - `application/json;charset=utf-8`
-    - `application/json`
-
-- The input should contain the intended number of witnesses and theCBOR of the tx (`application/json;charset=utf-8`, `application/json`):
-
-```javascript
-{"tx":"00","count":1}
-```
-
-### Response:
-
-- Status code 200
-- Headers: []
-
-- Supported content types are:
-
-    - `application/json;charset=utf-8`
-    - `application/json`
-
-- The `Fee` will be returned encoded as a JSON string (`application/json;charset=utf-8`, `application/json`):
-
-```javascript
-"160265"
 ```

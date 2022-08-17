@@ -12,7 +12,6 @@ module QueryM
   , DefaultQueryEnv
   , DispatchError(JsError, JsonError, FaultError, ListenerCancelled)
   , DispatchIdMap
-  , FeeEstimate(FeeEstimate)
   , ListenerSet
   , OgmiosListeners
   , OgmiosWebSocket
@@ -26,7 +25,6 @@ module QueryM
   , WebSocket(WebSocket)
   , allowError
   , applyArgs
-  , calculateMinFee
   , evaluateTxOgmios
   , getChainTip
   , getDatumByHash
@@ -69,7 +67,6 @@ import Aeson
   ( class DecodeAeson
   , Aeson
   , JsonDecodeError(TypeMismatch)
-  , caseAesonString
   , decodeAeson
   , encodeAeson
   , parseJsonStringToAeson
@@ -80,9 +77,7 @@ import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
-import Cardano.Types.Transaction (Transaction(Transaction))
 import Cardano.Types.Transaction as Transaction
-import Cardano.Types.Value (Coin)
 import Control.Monad.Error.Class
   ( class MonadError
   , class MonadThrow
@@ -93,11 +88,8 @@ import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
 import Control.Monad.Reader.Trans (ReaderT, asks, runReaderT, withReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (parallel, sequential)
-import Data.Array (length)
 import Data.Bifunctor (lmap)
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), either, isRight, note)
+import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
 import Data.HTTP.Method (Method(POST))
 import Data.Log.Level (LogLevel(Error, Debug))
@@ -110,8 +102,6 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (for, traverse, traverse_)
 import Data.Tuple (fst, snd, Tuple(Tuple))
 import Data.Tuple.Nested ((/\), type (/\))
-import Data.UInt (UInt)
-import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Aff
   ( Aff
@@ -140,7 +130,6 @@ import JsWebSocket
   , _wsClose
   , _wsReconnect
   , _wsSend
-  , _wsWatch
   )
 import QueryM.DatumCacheWsp (GetDatumByHashR, GetDatumsByHashesR, GetTxByHashR)
 import QueryM.DatumCacheWsp as DcWsp
@@ -166,7 +155,7 @@ import QueryM.ServerConfig
   , mkWsUrl
   )
 import QueryM.UniqueId (ListenerId)
-import Serialization (convertTransaction, toBytes) as Serialization
+import Serialization (toBytes) as Serialization
 import Serialization.Address
   ( Address
   , NetworkId
@@ -190,14 +179,15 @@ import Untagged.Union (asOneOf)
 import Wallet
   ( Cip30Connection
   , Cip30Wallet
-  , Wallet(Gero, Nami, KeyWallet)
+  , Wallet(Gero, Flint, Nami, KeyWallet)
   , mkGeroWalletAff
+  , mkFlintWalletAff
   , mkKeyWallet
   , mkNamiWalletAff
   )
 import Wallet.KeyFile (privatePaymentKeyFromFile, privateStakeKeyFromFile)
 import Wallet.Spec
-  ( WalletSpec(UseKeys, ConnectToGero, ConnectToNami)
+  ( WalletSpec(UseKeys, ConnectToGero, ConnectToNami, ConnectToFlint)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
@@ -348,6 +338,7 @@ mkWalletBySpec = case _ of
     pure $ mkKeyWallet privatePaymentKey mbPrivateStakeKey
   ConnectToNami -> mkNamiWalletAff
   ConnectToGero -> mkGeroWalletAff
+  ConnectToFlint -> mkFlintWalletAff
 
 runQueryM :: forall (a :: Type). QueryConfig -> QueryM a -> Aff a
 runQueryM config action = do
@@ -429,6 +420,7 @@ getWalletAddress = do
   withMWalletAff case _ of
     Nami nami -> callCip30Wallet nami _.getWalletAddress
     Gero gero -> callCip30Wallet gero _.getWalletAddress
+    Flint flint -> callCip30Wallet flint _.getWalletAddress
     KeyWallet kw -> Just <$> (unwrap kw).address networkId
 
 signTransaction
@@ -436,6 +428,7 @@ signTransaction
 signTransaction tx = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
+  Flint flint -> callCip30Wallet flint \nw -> flip nw.signTx tx
   KeyWallet kw -> Just <$> (unwrap kw).signTx tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
@@ -467,21 +460,6 @@ callCip30Wallet
   -> Aff a
 callCip30Wallet wallet act = act wallet wallet.connection
 
--- The server will respond with a stringified integer value for the fee estimate
-newtype FeeEstimate = FeeEstimate BigInt
-
-derive instance Newtype FeeEstimate _
-
-instance DecodeAeson FeeEstimate where
-  decodeAeson str =
-    map FeeEstimate
-      <<< note (TypeMismatch "Expected a `BigInt`")
-      <<< BigInt.fromString
-      =<< caseAesonString
-        (Left $ TypeMismatch "Expected a stringified `BigInt`")
-        Right
-        str
-
 data ClientError
   = ClientHttpError Affjax.Error
   | ClientHttpResponseError String
@@ -511,39 +489,6 @@ instance Show ClientError where
     "(ClientEncodingError "
       <> err
       <> ")"
-
-txToHex :: Transaction -> Effect String
-txToHex tx =
-  byteArrayToHex
-    <<< Serialization.toBytes
-    <<< asOneOf
-    <$> Serialization.convertTransaction tx
-
--- Query the Haskell server for the minimum transaction fee
-calculateMinFee :: Transaction -> QueryM (Either ClientError Coin)
-calculateMinFee tx@(Transaction { body: Transaction.TxBody body }) = do
-  txHex <- liftEffect (txToHex tx)
-  url <- mkServerEndpointUrl "fees"
-  liftAff (postAeson url (encodeAeson { count: witCount, tx: txHex }))
-    <#> map (wrap <<< unwrap :: FeeEstimate -> Coin)
-      <<< handleAffjaxResponse
-  where
-  -- Fee estimation occurs before balancing the transaction, so we need to know
-  -- the expected number of witnesses to use the cardano-api fee estimation
-  -- functions
-  --
-  -- We obtain the expected number of key witnesses for the transaction, with
-  -- the following assumptions:
-  --   * if `requiredSigners` is `Nothing`, add one key witness for the
-  --     current wallet. Thus there should normally be at least one witness
-  --     for any transaction
-  --   * otherwise, the expected number of signers has been implicitly
-  --     specified by the `requiredSigners` field; take the length of the
-  --     array
-  --   * this assumes of course that users will not pass `Just mempty` for the
-  --     required signers
-  witCount :: UInt
-  witCount = maybe one UInt.fromInt $ length <$> body.requiredSigners
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
@@ -705,9 +650,6 @@ mkOgmiosWebSocket' lvl serverCfg continue = do
       logger Debug "Ogmios Connection established"
       Ref.write true hasConnectedOnceRef
       _removeOnWsError ws firstConnectionErrorRef
-      _wsWatch ws (logger Debug) do
-        logger Debug "Ogmios WebSocket terminated by timeout. Reconnecting..."
-        _wsReconnect ws
       _onWsMessage ws (logger Debug) $ defaultMessageListener lvl
         messageDispatch
       void $ _onWsError ws \err -> do
@@ -785,10 +727,6 @@ mkDatumCacheWebSocket' lvl serverCfg continue = do
       logger Debug "Ogmios Datum Cache Connection established"
       Ref.write true hasConnectedOnceRef
       _removeOnWsError ws firstConnectionErrorRef
-      _wsWatch ws (logger Debug) do
-        logger Debug $ "Ogmios Datum Cache WebSocket terminated by " <>
-          "timeout. Reconnecting..."
-        _wsReconnect ws
       _onWsMessage ws (logger Debug) $ defaultMessageListener lvl
         messageDispatch
       void $ _onWsError ws \err -> do

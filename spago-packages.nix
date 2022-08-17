@@ -1313,6 +1313,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "stringutils" = pkgs.stdenv.mkDerivation {
+        name = "stringutils";
+        version = "v0.0.11";
+        src = pkgs.fetchgit {
+          url = "https://github.com/menelaos/purescript-stringutils.git";
+          rev = "e149d04cd5bcc25222c1807f2e1edafb36b5f70e";
+          sha256 = "1hbr936bvnm5iil4cfr9qhkbzd1i00yrxf5jd0rnny29df5wsq1w";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "tailrec" = pkgs.stdenv.mkDerivation {
         name = "tailrec";
         version = "v5.0.1";

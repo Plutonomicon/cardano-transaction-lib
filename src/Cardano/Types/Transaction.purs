@@ -392,7 +392,7 @@ instance Show Costmdls where
 instance EncodeAeson Costmdls where
   encodeAeson' = encodeAeson' <<< encodeMap <<< unwrap
 
-newtype CostModel = CostModel (Array Int)
+newtype CostModel = CostModel (Array Int.Int)
 
 derive instance Newtype CostModel _
 derive newtype instance Eq CostModel
