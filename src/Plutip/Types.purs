@@ -1,13 +1,14 @@
 module Plutip.Types
-  ( PlutipConfig
-  , PostgresConfig
-  , FilePath
+  ( ClusterStartupParameters
   , ErrorMessage
-  , UtxoAmount
+  , FilePath
+  , InitialUTxOs
   , InitialUTxODistribution
+  , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
+  , PlutipConfig
+  , PostgresConfig
   , ClusterStartupRequest(ClusterStartupRequest)
   , PrivateKeyResponse(PrivateKeyResponse)
-  , ClusterStartupParameters
   , ClusterStartupFailureReason
       ( ClusterIsRunningAlready
       , NegativeLovelaces
@@ -19,10 +20,7 @@ module Plutip.Types
       )
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse(StopClusterSuccess, StopClusterFailure)
-  , InitialUTxO
-  , class UtxoDistribution
-  , encodeDistribution
-  , decodeWallets
+  , UtxoAmount
   ) where
 
 import Prelude
@@ -36,28 +34,20 @@ import Aeson
   , toStringifiedNumbersJson
   , (.:)
   )
-import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel)
-import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.String as String
-import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import QueryM.ServerConfig (ServerConfig)
 import Serialization (privateKeyFromBytes)
 import Serialization.Types (PrivateKey)
 import Types.ByteArray (hexToByteArray)
 import Types.RawBytes (RawBytes(RawBytes))
-import Wallet.Key
-  ( KeyWallet
-  , PrivatePaymentKey(PrivatePaymentKey)
-  , privateKeysToKeyWallet
-  )
+import Wallet.Key (PrivateStakeKey)
 
 type PlutipConfig =
   { host :: String
@@ -86,9 +76,12 @@ type ErrorMessage = String
 -- | UTxO amount in Lovelaces
 type UtxoAmount = BigInt
 
-type InitialUTxO = Array UtxoAmount
+type InitialUTxOs = Array UtxoAmount
 
-type InitialUTxODistribution = Array InitialUTxO
+data InitialUTxOsWithStakeKey =
+  InitialUTxOsWithStakeKey PrivateStakeKey InitialUTxOs
+
+type InitialUTxODistribution = Array InitialUTxOs
 
 newtype ClusterStartupRequest = ClusterStartupRequest
   { keysToGenerate :: InitialUTxODistribution }
@@ -192,32 +185,3 @@ instance DecodeAeson StopClusterResponse where
         StopClusterFailure <$> decodeAeson failure
       _ -> do
         Left (UnexpectedValue (toStringifiedNumbersJson aeson))
-
--- | A type class that implements a type-safe interface for specifying UTXO
--- | distribution for wallets.
--- | Number of wallets in distribution specification matches the number of
--- | wallets provided to the user.
-class UtxoDistribution distr wallets | distr -> wallets, wallets -> distr where
-  encodeDistribution :: distr -> Array (Array UtxoAmount)
-  decodeWallets :: Array PrivateKeyResponse -> Maybe wallets
-
-instance UtxoDistribution Unit Unit where
-  encodeDistribution _ = []
-  decodeWallets _ = Just unit
-
-instance UtxoDistribution InitialUTxO KeyWallet where
-  encodeDistribution amounts = [ amounts ]
-  decodeWallets [ (PrivateKeyResponse key) ] =
-    pure $ privateKeysToKeyWallet (PrivatePaymentKey key) Nothing
-  decodeWallets _ = Nothing
-
-instance
-  UtxoDistribution restSpec restWallets =>
-  UtxoDistribution (InitialUTxO /\ restSpec) (KeyWallet /\ restWallets) where
-  encodeDistribution (amounts /\ rest) =
-    encodeDistribution amounts <> encodeDistribution rest
-  decodeWallets = Array.uncons >>> case _ of
-    Nothing -> Nothing
-    Just { head: PrivateKeyResponse key, tail } ->
-      Tuple (privateKeysToKeyWallet (PrivatePaymentKey key) Nothing) <$>
-        decodeWallets tail

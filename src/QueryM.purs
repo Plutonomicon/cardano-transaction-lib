@@ -131,7 +131,6 @@ import JsWebSocket
   , _wsClose
   , _wsReconnect
   , _wsSend
-  , _wsWatch
   )
 import QueryM.DatumCacheWsp (GetDatumByHashR, GetDatumsByHashesR, GetTxByHashR)
 import QueryM.DatumCacheWsp as DcWsp
@@ -182,14 +181,15 @@ import Untagged.Union (asOneOf)
 import Wallet
   ( Cip30Connection
   , Cip30Wallet
-  , Wallet(Gero, Nami, KeyWallet)
+  , Wallet(Gero, Flint, Nami, KeyWallet)
   , mkGeroWalletAff
+  , mkFlintWalletAff
   , mkKeyWallet
   , mkNamiWalletAff
   )
 import Wallet.KeyFile (privatePaymentKeyFromFile, privateStakeKeyFromFile)
 import Wallet.Spec
-  ( WalletSpec(UseKeys, ConnectToGero, ConnectToNami)
+  ( WalletSpec(UseKeys, ConnectToGero, ConnectToNami, ConnectToFlint)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
@@ -340,6 +340,7 @@ mkWalletBySpec = case _ of
     pure $ mkKeyWallet privatePaymentKey mbPrivateStakeKey
   ConnectToNami -> mkNamiWalletAff
   ConnectToGero -> mkGeroWalletAff
+  ConnectToFlint -> mkFlintWalletAff
 
 runQueryM :: forall (a :: Type). QueryConfig -> QueryM a -> Aff a
 runQueryM config action = do
@@ -466,6 +467,7 @@ getWalletAddress = do
   withMWalletAff case _ of
     Nami nami -> callCip30Wallet nami _.getWalletAddress
     Gero gero -> callCip30Wallet gero _.getWalletAddress
+    Flint flint -> callCip30Wallet flint _.getWalletAddress
     KeyWallet kw -> Just <$> (unwrap kw).address networkId
 
 signTransaction
@@ -473,6 +475,7 @@ signTransaction
 signTransaction tx = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
+  Flint flint -> callCip30Wallet flint \nw -> flip nw.signTx tx
   KeyWallet kw -> Just <$> (unwrap kw).signTx tx
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
@@ -737,9 +740,6 @@ mkOgmiosWebSocket' datumCacheWs lvl serverCfg continue = do
       logger Debug "Ogmios Connection established"
       Ref.write true hasConnectedOnceRef
       _removeOnWsError ws firstConnectionErrorRef
-      _wsWatch ws (logger Debug) do
-        logger Debug "Ogmios WebSocket terminated by timeout. Reconnecting..."
-        _wsReconnect ws
       _onWsMessage ws (logger Debug) $ defaultMessageListener lvl
         messageDispatch
       void $ _onWsError ws \err -> do
@@ -866,10 +866,6 @@ mkDatumCacheWebSocket' lvl serverCfg continue = do
       logger Debug "Ogmios Datum Cache Connection established"
       Ref.write true hasConnectedOnceRef
       _removeOnWsError ws firstConnectionErrorRef
-      _wsWatch ws (logger Debug) do
-        logger Debug $ "Ogmios Datum Cache WebSocket terminated by " <>
-          "timeout. Reconnecting..."
-        _wsReconnect ws
       _onWsMessage ws (logger Debug) $ defaultMessageListener lvl
         messageDispatch
       void $ _onWsError ws \err -> do
