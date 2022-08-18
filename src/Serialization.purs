@@ -1,5 +1,6 @@
 module Serialization
   ( bytesFromPrivateKey
+  , convertExUnitPrices
   , convertTransaction
   , convertTxBody
   , convertTxInput
@@ -37,6 +38,7 @@ import Cardano.Types.Transaction
       )
   , Costmdls(Costmdls)
   , CostModel(CostModel)
+  , ExUnitPrices
   , GenesisDelegateHash(GenesisDelegateHash)
   , GenesisHash(GenesisHash)
   , MIRToStakeCredentials(MIRToStakeCredentials)
@@ -101,7 +103,6 @@ import Serialization.Types
   , ExUnits
   , GenesisDelegateHash
   , GenesisHash
-  , Int32
   , Ipv4
   , Ipv6
   , Language
@@ -153,7 +154,7 @@ import Types.BigNum (BigNum)
 import Types.BigNum (fromBigInt, fromStringUnsafe, toString) as BigNum
 import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
-import Types.Int as Int
+import Types.Int as Csl
 import Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
@@ -259,10 +260,10 @@ foreign import costmdlsSetCostModel
   :: Costmdls -> Language -> CostModel -> Effect Unit
 
 foreign import newCostModel :: Effect CostModel
-foreign import costModelSetCost :: CostModel -> Int -> Int32 -> Effect Unit
+foreign import costModelSetCost :: CostModel -> Int -> Csl.Int -> Effect Unit
 foreign import newPlutusV1 :: Effect Language
 foreign import newPlutusV2 :: Effect Language
-foreign import newInt32 :: Int -> Effect Int32
+
 foreign import _hashScriptData
   :: Redeemers -> Costmdls -> Array PlutusData -> Effect ScriptDataHash
 
@@ -357,7 +358,7 @@ foreign import newMoveInstantaneousRewardToStakeCreds
 
 foreign import newMIRToStakeCredentials
   :: ContainerHelper
-  -> Array (StakeCredential /\ Int.Int)
+  -> Array (StakeCredential /\ Csl.Int)
   -> Effect MIRToStakeCredentials
 
 foreign import newMoveInstantaneousRewardsCertificate
@@ -627,17 +628,17 @@ convertProtocolParamUpdate
   for_ maxBlockExUnits $ convertExUnits >=> ppuSetMaxBlockExUnits ppu
   for_ maxValueSize $ UInt.toInt >>> ppuSetMaxValueSize ppu
   pure ppu
-  where
-  mkUnitInterval
-    :: T.UnitInterval -> Effect UnitInterval
-  mkUnitInterval x = newUnitInterval x.numerator x.denominator
 
-  convertExUnitPrices
-    :: { memPrice :: T.UnitInterval, stepPrice :: T.UnitInterval }
-    -> Effect ExUnitPrices
-  convertExUnitPrices { memPrice, stepPrice } =
-    join $ newExUnitPrices <$> mkUnitInterval memPrice <*> mkUnitInterval
-      stepPrice
+mkUnitInterval
+  :: T.UnitInterval -> Effect UnitInterval
+mkUnitInterval x = newUnitInterval x.numerator x.denominator
+
+convertExUnitPrices
+  :: T.ExUnitPrices
+  -> Effect ExUnitPrices
+convertExUnitPrices { memPrice, stepPrice } =
+  join $ newExUnitPrices <$> mkUnitInterval memPrice <*> mkUnitInterval
+    stepPrice
 
 convertWithdrawals :: Map.Map RewardAddress Value.Coin -> Effect Withdrawals
 convertWithdrawals mp =
@@ -851,7 +852,7 @@ convertCostModel :: T.CostModel -> Effect CostModel
 convertCostModel (T.CostModel costs) = do
   costModel <- newCostModel
   forWithIndex_ costs $ \operation cost ->
-    costModelSetCost costModel operation =<< newInt32 cost
+    costModelSetCost costModel operation cost
   pure costModel
 
 hashScriptData

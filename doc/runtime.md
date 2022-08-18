@@ -23,7 +23,7 @@ The services that are currently required are:
   - This is required to query for datums, which Ogmios itself does not support
   - This in turn requires a PostgreSQL DB
 - [Our Haskell server](/server/README.md)
-  - We hope to deprecate this in the future, but we use it at the moment for certain Cardano libraries that have no Purescript analogue
+  - We hope to deprecate this in the future, but we use it at the moment to apply arguments to Plutus scripts, which is hard to implement on front-end.
   - To build the server project, run the following from the repository root: `nix build -L .#ctl-server:exe:ctl-server`
 
 ### Using CTL's `runtime` overlay
@@ -185,7 +185,7 @@ Here is an example that uses the `runtime` overlay to launch all of the required
 }
 ```
 
-For launching services for developing CTL itself, see our documentation on [development](#launching-services-for-development).
+For launching services for developing CTL itself, see our documentation on [development](./development.md#launching-services-for-development).
 
 ### Changing network configurations
 

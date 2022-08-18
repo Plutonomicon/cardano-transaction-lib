@@ -66,28 +66,3 @@ exports._wsReconnect = ws => () => {
 };
 
 exports._wsClose = ws => () => ws.close();
-
-const heartbeat = ws => logger => id => onError => {
-  logger("websocket heartbeat fired")();
-  ws.ping();
-  if (id !== null) {
-    clearTimeout(id);
-  }
-  const cancelId = setTimeout(() => {
-    ws.terminate();
-    onError();
-  }, 30000);
-  return cancelId;
-};
-
-exports._wsWatch = ws => logger => onError => () => {
-  let counter = null;
-  let heartbeatAndCount = () => {
-    counter = heartbeat(ws, logger, counter, onError);
-  };
-
-  ws.addEventListener("open", heartbeatAndCount);
-  ws.addEventListener("ping", heartbeatAndCount);
-  ws.addEventListener("pong", heartbeatAndCount);
-  ws.addEventListener("close", () => clearTimeout(counter));
-};

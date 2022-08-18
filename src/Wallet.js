@@ -41,6 +41,8 @@ exports._enableNami = enableWallet("nami");
 
 exports._enableGero = enableWallet("gerowallet");
 
+exports._enableFlint = enableWallet("flint");
+
 const isWalletAvailable = walletName => () => {
   checkNotNode();
   return (
@@ -53,3 +55,5 @@ const isWalletAvailable = walletName => () => {
 exports._isNamiAvailable = isWalletAvailable("nami");
 
 exports._isGeroAvailable = isWalletAvailable("gerowallet");
+
+exports._isFlintAvailable = isWalletAvailable("flint");

@@ -3,6 +3,7 @@
 -- | that pays two Ada to the `AlwaysSucceeds` script address
 module Examples.AlwaysSucceeds
   ( main
+  , example
   , alwaysSucceedsScript
   , payToAlwaysSucceeds
   , spendFromAlwaysSucceeds
@@ -11,7 +12,7 @@ module Examples.AlwaysSucceeds
 import Contract.Prelude
 
 import Contract.Address (scriptHashAddress)
-import Contract.Config (testnetNamiConfig)
+import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
@@ -22,6 +23,7 @@ import Contract.Monad
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
@@ -40,11 +42,13 @@ import Contract.Utxos (UtxoM(UtxoM), utxosAt)
 import Contract.Value as Value
 import Data.BigInt as BigInt
 import Data.Map as Map
-import Contract.Test.E2E (publishTestFeedback)
 
 main :: Effect Unit
-main = launchAff_ do
-  runContract testnetNamiConfig do
+main = example testnetNamiConfig
+
+example :: ConfigParams () -> Effect Unit
+example cfg = launchAff_ do
+  runContract cfg do
     logInfo' "Running Examples.AlwaysSucceeds"
     validator <- alwaysSucceedsScript
     let vhash = validatorHash validator

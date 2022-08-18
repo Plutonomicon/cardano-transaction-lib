@@ -10,7 +10,7 @@
       type = "github";
       owner = "Plutonomicon";
       repo = "cardano-transaction-lib";
-      rev = "ec38c06c77c1b75a7e7f1dcb215db7816e44b339";
+      rev = "8b90e8fa84ebbb529051dfad0cd712f1477742a9";
     };
     nixpkgs.follows = "ctl/nixpkgs";
   };
@@ -35,6 +35,9 @@
         let
           projectName = "ctl-scaffold";
           pkgs = nixpkgsFor system;
+        in
+        pkgs.purescriptProject {
+          inherit pkgs projectName;
           packageJson = ./package.json;
           packageLock = ./package-lock.json;
           src = builtins.path {
@@ -44,15 +47,13 @@
             filter = path: ftype: !(pkgs.lib.hasSuffix ".md" path);
           };
           shell = {
+            withRuntime = true;
             packageLockOnly = true;
             packages = with pkgs; [
               nodePackages.eslint
               nodePackages.prettier
             ];
           };
-        in
-        pkgs.purescriptProject {
-          inherit pkgs src projectName;
         };
     in
     {

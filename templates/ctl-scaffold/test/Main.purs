@@ -12,7 +12,7 @@ import Scaffold as Scaffold
 main :: Effect Unit
 main = Contract.Monad.launchAff_ $ do
   let
-    distribution :: Contract.Test.Plutip.InitialUTxO
+    distribution :: Contract.Test.Plutip.InitialUTxOs
     distribution =
       [ BigInt.fromInt 5_000_000
       , BigInt.fromInt 2_000_000_000

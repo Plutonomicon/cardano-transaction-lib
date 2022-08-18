@@ -15,23 +15,29 @@ import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
-import Contract.Monad (Contract, ContractEnv(ContractEnv), runContractInEnv)
-import Control.Monad.Error.Class (withResource)
+import Contract.Monad
+  ( Contract
+  , ContractEnv(ContractEnv)
+  , liftContractM
+  , runContractInEnv
+  )
 import Data.Array as Array
 import Data.Bifunctor (lmap)
+import Data.BigInt as BigInt
 import Data.Either (Either(Left), either)
+import Data.Foldable (sum)
 import Data.HTTP.Method as Method
 import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (over, unwrap, wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (for, foldMap)
-import Data.Tuple.Nested ((/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (Aff, Milliseconds(Milliseconds))
+import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket)
 import Effect.Aff.Class (liftAff)
 import Effect.Aff.Retry
   ( RetryPolicy
@@ -56,18 +62,25 @@ import Plutip.Spawn
   , spawnAndWaitForOutput
   )
 import Plutip.Types
-  ( class UtxoDistribution
-  , ClusterStartupParameters
+  ( ClusterStartupParameters
   , ClusterStartupRequest(ClusterStartupRequest)
+  , InitialUTxOs
   , PlutipConfig
   , PostgresConfig
+  , PrivateKeyResponse(PrivateKeyResponse)
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
-  , decodeWallets
-  , encodeDistribution
+  , InitialUTxODistribution
   )
 import Plutip.Utils (tmpdir)
+import Plutip.UtxoDistribution
+  ( class UtxoDistribution
+  , decodeWallets
+  , encodeDistribution
+  , keyWallets
+  , transferFundsFromEnterpriseToBase
+  )
 import QueryM
   ( ClientError(ClientDecodeJsonError, ClientHttpError)
   , stopQueryRuntime
@@ -75,7 +88,9 @@ import QueryM
 import QueryM as QueryM
 import QueryM.ProtocolParameters as Ogmios
 import QueryM.UniqueId (uniqueId)
+import Type.Prelude (Proxy(Proxy))
 import Types.UsedTxOuts (newUsedTxOuts)
+import Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 
 -- | Run a single `Contract` in Plutip environment.
 runPlutipContract
@@ -101,57 +116,66 @@ withPlutipContractEnv
 withPlutipContractEnv plutipCfg distr cont = do
   configCheck plutipCfg
   withPlutipServer $
-    withPlutipCluster \response ->
-      withWallets response \wallets ->
-        withPostgres response
-          $ withOgmios response
-          $ withOgmiosDatumCache response
-          $ withCtlServer
-          $ withContractEnv (flip cont wallets)
+    withPlutipCluster \(ourKey /\ response) ->
+      withPostgres response
+        $ withOgmios response
+        $ withOgmiosDatumCache response
+        $ withCtlServer
+        $ withContractEnv \env ->
+            withWallets env ourKey response (cont env)
   where
   withPlutipServer :: Aff a -> Aff a
   withPlutipServer =
-    withResource (startPlutipServer plutipCfg)
+    bracket (startPlutipServer plutipCfg)
       (stopChildProcessWithPort plutipCfg.port) <<< const
 
-  withPlutipCluster :: (ClusterStartupParameters -> Aff a) -> Aff a
-  withPlutipCluster cc = withResource (startPlutipCluster plutipCfg distr)
+  withPlutipCluster
+    :: ((PrivatePaymentKey /\ ClusterStartupParameters) -> Aff a) -> Aff a
+  withPlutipCluster = bracket
+    (startPlutipCluster plutipCfg distr)
     (const $ void $ stopPlutipCluster plutipCfg)
-    case _ of
-      ClusterStartupFailure _ -> do
-        liftEffect $ throw "Failed to start up cluster"
-      ClusterStartupSuccess response -> do
-        cc response
 
   withPostgres :: ClusterStartupParameters -> Aff a -> Aff a
   withPostgres response =
-    withResource (startPostgresServer plutipCfg.postgresConfig response)
+    bracket (startPostgresServer plutipCfg.postgresConfig response)
       (stopChildProcessWithPort plutipCfg.postgresConfig.port) <<< const
 
   withOgmios :: ClusterStartupParameters -> Aff a -> Aff a
   withOgmios response =
-    withResource (startOgmios plutipCfg response)
+    bracket (startOgmios plutipCfg response)
       (stopChildProcessWithPort plutipCfg.ogmiosConfig.port) <<< const
 
   withOgmiosDatumCache :: ClusterStartupParameters -> Aff a -> Aff a
   withOgmiosDatumCache response =
-    withResource (startOgmiosDatumCache plutipCfg response)
+    bracket (startOgmiosDatumCache plutipCfg response)
       (stopChildProcessWithPort plutipCfg.ogmiosDatumCacheConfig.port) <<< const
 
   withCtlServer :: Aff a -> Aff a
   withCtlServer =
-    withResource (startCtlServer plutipCfg)
+    bracket (startCtlServer plutipCfg)
       (stopChildProcessWithPort plutipCfg.ctlServerConfig.port) <<< const
 
-  withWallets :: ClusterStartupParameters -> (wallets -> Aff a) -> Aff a
-  withWallets response cc = case decodeWallets response.privateKeys of
-    Nothing ->
-      liftEffect $ throw $ "Impossible happened: unable to decode" <>
-        " wallets from private keys. Please report as bug."
-    Just wallets -> cc wallets
+  withWallets
+    :: ContractEnv ()
+    -> PrivatePaymentKey
+    -> ClusterStartupParameters
+    -> (wallets -> Aff a)
+    -> Aff a
+  withWallets env ourKey response cc = do
+    wallets <- runContractInEnv
+      (over wrap (_ { config { customLogger = Just (const $ pure unit) } }) env)
+      do
+        wallets <-
+          liftContractM
+            "Impossible happened: could not decode wallets. Please report as bug"
+            $ decodeWallets distr response.privateKeys
+        let walletsArray = keyWallets (Proxy :: Proxy distr) wallets
+        transferFundsFromEnterpriseToBase ourKey walletsArray
+        pure wallets
+    cc wallets
 
   withContractEnv :: (ContractEnv () -> Aff a) -> Aff a
-  withContractEnv = withResource (mkClusterContractEnv plutipCfg)
+  withContractEnv = bracket (mkClusterContractEnv plutipCfg)
     (liftEffect <<< stopContractEnv)
 
   -- a version of Contract.Monad.stopContractEnv without a compile-time warning
@@ -179,14 +203,24 @@ configCheck cfg = do
   printServiceEntry (port /\ service) =
     "- " <> service <> " (port: " <> show (UInt.toInt port) <> ")\n"
 
+-- | Start the plutip cluster, initializing the state with the given
+-- | utxo distribution. Also initializes an extra payment key (aka
+-- | `ourKey`) with some utxos for use with further plutip
+-- | setup. `ourKey` has funds proportional to the total amount of the
+-- | utxos in the passed distribution, so it can be used to handle
+-- | transaction fees.
 startPlutipCluster
   :: forall (distr :: Type) (wallets :: Type)
    . UtxoDistribution distr wallets
   => PlutipConfig
   -> distr
-  -> Aff StartClusterResponse
+  -> Aff (PrivatePaymentKey /\ ClusterStartupParameters)
 startPlutipCluster cfg utxoDistribution = do
-  let url = mkServerEndpointUrl cfg "start"
+  let
+    url = mkServerEndpointUrl cfg "start"
+    initialDistribution = encodeDistribution $
+      ourInitialUtxos (encodeDistribution utxoDistribution) /\
+        utxoDistribution
   res <- do
     response <- liftAff
       ( Affjax.request
@@ -196,7 +230,7 @@ startPlutipCluster cfg utxoDistribution = do
                 $ stringifyAeson
                 $ encodeAeson
                 $ ClusterStartupRequest
-                    { keysToGenerate: encodeDistribution utxoDistribution }
+                    { keysToGenerate: initialDistribution }
             , responseFormat = Affjax.ResponseFormat.string
             , headers = [ Header.ContentType (wrap "application/json") ]
             , url = url
@@ -209,7 +243,30 @@ startPlutipCluster cfg utxoDistribution = do
           <<< (decodeAeson <=< parseJsonStringToAeson)
           <<< _.body
       )
-  either (liftEffect <<< throw <<< show) pure res
+  either (liftEffect <<< throw <<< show) pure res >>=
+    case _ of
+      ClusterStartupFailure _ -> do
+        liftEffect $ throw "Failed to start up cluster"
+      ClusterStartupSuccess response@{ privateKeys } ->
+        case Array.uncons privateKeys of
+          Nothing ->
+            liftEffect $ throw $
+              "Impossible happened: insufficient private keys provided by plutip. Please report as bug."
+          Just { head: PrivateKeyResponse ourKey, tail } ->
+            pure $ PrivatePaymentKey ourKey /\ response { privateKeys = tail }
+
+-- | Calculate the initial utxos needed for `ourKey` to cover
+-- | transaction costs for the given initial distribution
+ourInitialUtxos :: InitialUTxODistribution -> InitialUTxOs
+ourInitialUtxos utxoDistribution =
+  let
+    total = Array.foldr (sum >>> add) zero utxoDistribution
+  in
+    [ -- Take the total value of the utxos and add some extra on top
+      -- of it to cover the possible transaction fees. Also make sure
+      -- we don't request a 0 ada utxo
+      total + BigInt.fromInt 1_000_000_000
+    ]
 
 stopPlutipCluster :: PlutipConfig -> Aff StopClusterResponse
 stopPlutipCluster cfg = do

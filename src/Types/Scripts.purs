@@ -56,7 +56,7 @@ instance DecodeAeson Language where
         other
 
 instance EncodeAeson Language where
-  encodeAeson' = pure <<< fromString <<< case _ of
+  encodeAeson' = encodeAeson' <<< case _ of
     PlutusV1 -> "PlutusV1"
     PlutusV2 -> "PlutusV2"
 

@@ -2,7 +2,8 @@
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that mints a value using three minting policies with different redeemers.
 module Examples.MintsMultipleTokens
-  ( main
+  ( example
+  , main
   , mintingPolicyRdmrInt1
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
@@ -10,7 +11,7 @@ module Examples.MintsMultipleTokens
 
 import Contract.Prelude
 
-import Contract.Config (testnetNamiConfig)
+import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
@@ -24,6 +25,7 @@ import Contract.PlutusData (PlutusData(Integer), Redeemer(Redeemer))
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)
+import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
@@ -38,11 +40,13 @@ import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
 import Data.BigInt (fromInt) as BigInt
-import Contract.Test.E2E (publishTestFeedback)
 
 main :: Effect Unit
-main = launchAff_ do
-  runContract testnetNamiConfig do
+main = example testnetNamiConfig
+
+example :: ConfigParams () -> Effect Unit
+example cfg = launchAff_ do
+  runContract cfg do
     logInfo' "Running Examples.MintsMultipleTokens"
     tn1 <- mkTokenName "Token with a long name"
     tn2 <- mkTokenName "Token"

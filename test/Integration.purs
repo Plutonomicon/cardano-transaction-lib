@@ -6,8 +6,8 @@ import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Test.AffInterface as AffInterface
 import Test.BalanceTx.Collateral as Collateral
-import Test.Utils as Utils
 import Test.PrivateKey as PrivateKey
+import Test.Utils as Utils
 import TestM (TestPlanM)
 
 -- Run with `spago test --main Test.Integration`

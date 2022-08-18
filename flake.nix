@@ -16,8 +16,8 @@
       };
     };
 
-    plutip.url = "github:mlabs-haskell/plutip/d24b98162bcbcbfb4ca403ee62fdb890f2059f47";
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/47f01a1d9f7dc5cc5246c0c228e5cf5f5ba44399";
+    plutip.url = "github:mlabs-haskell/plutip/8364c43ac6bc9ea140412af9a23c691adf67a18b";
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/880a69a03fbfd06a4990ba8873f06907d4cd16a7";
     # Repository with network parameters
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
@@ -216,20 +216,16 @@
             packageJson = ./package.json;
             packageLock = ./package-lock.json;
             shell = {
+              withRuntime = true;
               shellHook = exportOgmiosFixtures;
               packageLockOnly = true;
               packages = with pkgs; [
                 arion
-                ctl-server
                 fd
                 haskellPackages.fourmolu
                 nixpkgs-fmt
                 nodePackages.eslint
                 nodePackages.prettier
-                ogmios
-                ogmios-datum-cache
-                plutip-server
-                postgresql
               ];
             };
           };
@@ -241,7 +237,7 @@
         rec {
           packages = {
             ctl-example-bundle-web = project.bundlePursProject {
-              main = "Examples.Pkh2Pkh";
+              main = "Examples.ByUrl";
               entrypoint = "examples/index.js";
             };
 
@@ -291,10 +287,8 @@
           + " `cardano-transaction-lib.overlays.{runtime, purescript}`"
           + " directly instead"
         )
-        (final: prev:
-          (self.overlays.purescript final prev)
-          // (self.overlays.runtime final prev)
-        );
+        nixpkgs.lib.composeManyExtensions
+        (nixpkgs.lib.attrValues self.overlays);
 
       overlays = with inputs;  {
         purescript = final: prev: {
@@ -316,7 +310,26 @@
             buildCtlRuntime = buildCtlRuntime final;
             launchCtlRuntime = launchCtlRuntime final;
             inherit cardano-configurations;
-          };
+          }
+          # if `haskell-nix.overlay` has not been applied, we cannot use the
+          # package set to build the `hsProjectFor`. We don't want to always
+          # add haskell.nix's overlay or use the `ctl-server` from our own
+          # `outputs.packages` because this might lead to conflicts with the
+          # `hackage.nix` version being used (this might also happen with the
+          # Ogmios and Plutip packages, but at least we have direct control over
+          # our own haskell.nix project)
+          #
+          # We can check for the necessary attribute and then apply the overlay
+          # if necessary
+          // nixpkgs.lib.optionalAttrs
+            (!(builtins.hasAttr "haskell-nix" prev))
+            (haskell-nix.overlay final prev)
+          # Similarly, we need to make sure that `libsodium-vrf` is available
+          # for the Haskell server
+          // nixpkgs.lib.optionalAttrs
+            (!(builtins.hasAttr "libsodium-vrf" prev))
+            (iohk-nix.overlays.crypto final prev)
+        ;
       };
 
       # flake from haskell.nix project
@@ -416,14 +429,18 @@
 
             To enter the Nix environment and start working on it, run `nix develop`
 
-            Please also see
-              - Our documentation at https://github.com/Plutonomicon/cardano-transaction-lib/tree/develop/doc
-              - Our Pursuit docs at https://plutonomicon.github.io/cardano-transaction-lib/
-              - Our Discord server https://discord.gg/c8kZWxzJ
+            Please also see our
+
+            - [Documentation](https://github.com/Plutonomicon/cardano-transaction-lib/tree/develop/doc)
+
+            - [Generated docs](https://plutonomicon.github.io/cardano-transaction-lib/)
+
+            - [Discord server]( https://discord.gg/c8kZWxzJ)
 
             If you encounter problems and/or want to report a bug, you can open
-            an issue at https://github.com/Plutonomicon/cardano-transaction-lib/issues.
-            Please search for existing issues before!
+            an issue [here](https://github.com/Plutonomicon/cardano-transaction-lib/issues).
+
+            Please search for existing issues beforehand!
 
           '';
         };

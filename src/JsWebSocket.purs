@@ -10,7 +10,6 @@ module JsWebSocket
   , _wsSend
   , _wsReconnect
   , _wsClose
-  , _wsWatch
   ) where
 
 import Prelude
@@ -59,6 +58,3 @@ foreign import _wsReconnect
   :: JsWebSocket -> Effect Unit
 
 foreign import _wsClose :: JsWebSocket -> Effect Unit
-
-foreign import _wsWatch
-  :: JsWebSocket -> (String -> Effect Unit) -> Effect Unit -> Effect Unit

@@ -144,8 +144,6 @@ exports.newPlutusV1 = () => lib.Language.new_plutus_v1();
 
 exports.newPlutusV2 = () => lib.Language.new_plutus_v2();
 
-exports.newInt32 = x => () => lib.Int.new_i32(x);
-
 exports._hashScriptData = rs => cms => ds => () => {
   const list = lib.PlutusList.new();
   ds.forEach(d => list.add(d));
