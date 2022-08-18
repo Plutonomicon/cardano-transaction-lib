@@ -126,11 +126,7 @@ import Transaction (setScriptDataHash)
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (TransactionInput)
-import Types.UnbalancedTransaction
-  ( UnbalancedTx(UnbalancedTx)
-  , _transaction
-  , _utxoIndex
-  )
+import Types.UnbalancedTransaction (UnbalancedTx, _transaction, _utxoIndex)
 import Untagged.Union (asOneOf)
 
 --------------------------------------------------------------------------------
